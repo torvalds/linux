@@ -1,10 +1,15 @@
 * Broadcom iProc PCIe controller with the platform bus interface
 
 Required properties:
-- compatible: Must be "brcm,iproc-pcie" for PAXB, or "brcm,iproc-pcie-paxc"
-  for PAXC.  PAXB-based root complex is used for external endpoint devices.
-  PAXC-based root complex is connected to emulated endpoint devices
-  internal to the ASIC
+- compatible:
+      "brcm,iproc-pcie" for the first generation of PAXB based controller,
+used in SoCs including NSP, Cygnus, NS2, and Pegasus
+      "brcm,iproc-pcie-paxc" for the first generation of PAXC based
+controller, used in NS2
+      "brcm,iproc-pcie-paxc-v2" for the second generation of PAXC based
+controller, used in Stingray
+  PAXB-based root complex is used for external endpoint devices. PAXC-based
+root complex is connected to emulated endpoint devices internal to the ASIC
 - reg: base address and length of the PCIe controller I/O register space
 - #interrupt-cells: set to <1>
 - interrupt-map-mask and interrupt-map, standard PCI properties to define the
@@ -19,6 +24,7 @@ Required properties:
 Optional properties:
 - phys: phandle of the PCIe PHY device
 - phy-names: must be "pcie-phy"
+- dma-coherent: present if DMA operations are coherent
 
 - brcm,pcie-ob: Some iProc SoCs do not have the outbound address mapping done
 by the ASIC after power on reset. In this case, SW needs to configure it
@@ -41,10 +47,19 @@ For older platforms without MSI integrated in the GIC, iProc PCIe core provides
 an event queue based MSI support.  The iProc MSI uses host memories to store
 MSI posted writes in the event queues
 
-- msi-parent: Link to the device node of the MSI controller.  On newer iProc
-platforms, the MSI controller may be gicv2m or gicv3-its.  On older iProc
-platforms without MSI support in its interrupt controller, one may use the
-event queue based MSI support integrated within the iProc PCIe core.
+On newer iProc platforms, gicv2m or gicv3-its based MSI support should be used
+
+- msi-map: Maps a Requester ID to an MSI controller and associated MSI
+sideband data
+
+- msi-parent: Link to the device node of the MSI controller, used when no MSI
+sideband data is passed between the iProc PCIe controller and the MSI
+controller
+
+Refer to the following binding documents for more detailed description on
+the use of 'msi-map' and 'msi-parent':
+  Documentation/devicetree/bindings/pci/pci-msi.txt
+  Documentation/devicetree/bindings/interrupt-controller/msi.txt
 
 When the iProc event queue based MSI is used, one needs to define the
 following properties in the MSI device node:
