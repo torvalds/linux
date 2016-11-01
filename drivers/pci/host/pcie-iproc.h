@@ -41,7 +41,16 @@ struct iproc_pcie_ob {
 	unsigned int nr_windows;
 };
 
+/**
+ * iProc PCIe inbound mapping
+ * @nr_regions: total number of supported inbound mapping regions
+ */
+struct iproc_pcie_ib {
+	unsigned int nr_regions;
+};
+
 struct iproc_pcie_ob_map;
+struct iproc_pcie_ib_map;
 struct iproc_msi;
 
 /**
@@ -63,6 +72,9 @@ struct iproc_msi;
  * @need_ob_cfg: indicates SW needs to configure the outbound mapping window
  * @ob: outbound mapping related parameters
  * @ob_map: outbound mapping related parameters specific to the controller
+ *
+ * @ib: inbound mapping related parameters
+ * @ib_map: outbound mapping region related parameters
  *
  * @need_msi_steer: indicates additional configuration of the iProc PCIe
  * controller is required to steer MSI writes to external interrupt controller
@@ -86,6 +98,9 @@ struct iproc_pcie {
 	bool need_ob_cfg;
 	struct iproc_pcie_ob ob;
 	const struct iproc_pcie_ob_map *ob_map;
+
+	struct iproc_pcie_ib ib;
+	const struct iproc_pcie_ib_map *ib_map;
 
 	bool need_msi_steer;
 	struct iproc_msi *msi;
