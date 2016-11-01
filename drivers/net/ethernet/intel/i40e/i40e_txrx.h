@@ -307,15 +307,12 @@ struct i40e_ring {
 	u8 atr_sample_rate;
 	u8 atr_count;
 
-	unsigned long last_rx_timestamp;
-
 	bool ring_active;		/* is ring online or not */
 	bool arm_wb;		/* do something to arm write back */
 	u8 packet_stride;
 
 	u16 flags;
 #define I40E_TXR_FLAGS_WB_ON_ITR	BIT(0)
-#define I40E_TXR_FLAGS_LAST_XMIT_MORE_SET BIT(2)
 
 	/* stats structs */
 	struct i40e_queue_stats	stats;

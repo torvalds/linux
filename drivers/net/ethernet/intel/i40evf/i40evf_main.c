@@ -1746,15 +1746,17 @@ static void i40evf_reset_task(struct work_struct *work)
 
 	/* wait until the reset is complete and the PF is responding to us */
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
+		/* sleep first to make sure a minimum wait time is met */
+		msleep(I40EVF_RESET_WAIT_MS);
+
 		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
 			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
 		if (reg_val == I40E_VFR_VFACTIVE)
 			break;
-		msleep(I40EVF_RESET_WAIT_MS);
 	}
+
 	pci_set_master(adapter->pdev);
-	/* extra wait to make sure minimum wait is met */
-	msleep(I40EVF_RESET_WAIT_MS);
+
 	if (i == I40EVF_RESET_WAIT_COUNT) {
 		struct i40evf_mac_filter *ftmp;
 		struct i40evf_vlan_filter *fv, *fvtmp;

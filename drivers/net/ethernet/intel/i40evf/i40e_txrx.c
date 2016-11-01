@@ -150,7 +150,7 @@ u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 	return 0;
 }
 
-#define WB_STRIDE 0x3
+#define WB_STRIDE 4
 
 /**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
@@ -266,7 +266,7 @@ static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
 		unsigned int j = i40evf_get_tx_pending(tx_ring, false);
 
 		if (budget &&
-		    ((j / (WB_STRIDE + 1)) == 0) && (j > 0) &&
+		    ((j / WB_STRIDE) == 0) && (j > 0) &&
 		    !test_bit(__I40E_DOWN, &vsi->state) &&
 		    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
 			tx_ring->arm_wb = true;
@@ -1950,9 +1950,7 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	u32 td_tag = 0;
 	dma_addr_t dma;
 	u16 gso_segs;
-	u16 desc_count = 0;
-	bool tail_bump = true;
-	bool do_rs = false;
+	u16 desc_count = 1;
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
 		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
@@ -2035,8 +2033,7 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		tx_bi = &tx_ring->tx_bi[i];
 	}
 
-	/* set next_to_watch value indicating a packet is present */
-	first->next_to_watch = tx_desc;
+	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 
 	i++;
 	if (i == tx_ring->count)
@@ -2044,66 +2041,72 @@ static inline void i40evf_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	tx_ring->next_to_use = i;
 
-	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 	i40e_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
+	/* write last descriptor with EOP bit */
+	td_cmd |= I40E_TX_DESC_CMD_EOP;
+
+	/* We can OR these values together as they both are checked against
+	 * 4 below and at this point desc_count will be used as a boolean value
+	 * after this if/else block.
+	 */
+	desc_count |= ++tx_ring->packet_stride;
+
 	/* Algorithm to optimize tail and RS bit setting:
-	 * if xmit_more is supported
-	 *	if xmit_more is true
-	 *		do not update tail and do not mark RS bit.
-	 *	if xmit_more is false and last xmit_more was false
-	 *		if every packet spanned less than 4 desc
-	 *			then set RS bit on 4th packet and update tail
-	 *			on every packet
-	 *		else
-	 *			update tail and set RS bit on every packet.
-	 *	if xmit_more is false and last_xmit_more was true
-	 *		update tail and set RS bit.
+	 * if queue is stopped
+	 *	mark RS bit
+	 *	reset packet counter
+	 * else if xmit_more is supported and is true
+	 *	advance packet counter to 4
+	 *	reset desc_count to 0
 	 *
-	 * Optimization: wmb to be issued only in case of tail update.
-	 * Also optimize the Descriptor WB path for RS bit with the same
-	 * algorithm.
+	 * if desc_count >= 4
+	 *	mark RS bit
+	 *	reset packet counter
+	 * if desc_count > 0
+	 *	update tail
 	 *
-	 * Note: If there are less than 4 packets
+	 * Note: If there are less than 4 descriptors
 	 * pending and interrupts were disabled the service task will
 	 * trigger a force WB.
 	 */
-	if (skb->xmit_more  &&
-	    !netif_xmit_stopped(txring_txq(tx_ring))) {
-		tx_ring->flags |= I40E_TXR_FLAGS_LAST_XMIT_MORE_SET;
-		tail_bump = false;
-	} else if (!skb->xmit_more &&
-		   !netif_xmit_stopped(txring_txq(tx_ring)) &&
-		   (!(tx_ring->flags & I40E_TXR_FLAGS_LAST_XMIT_MORE_SET)) &&
-		   (tx_ring->packet_stride < WB_STRIDE) &&
-		   (desc_count < WB_STRIDE)) {
-		tx_ring->packet_stride++;
-	} else {
+	if (netif_xmit_stopped(txring_txq(tx_ring))) {
+		goto do_rs;
+	} else if (skb->xmit_more) {
+		/* set stride to arm on next packet and reset desc_count */
+		tx_ring->packet_stride = WB_STRIDE;
+		desc_count = 0;
+	} else if (desc_count >= WB_STRIDE) {
+do_rs:
+		/* write last descriptor with RS bit set */
+		td_cmd |= I40E_TX_DESC_CMD_RS;
 		tx_ring->packet_stride = 0;
-		tx_ring->flags &= ~I40E_TXR_FLAGS_LAST_XMIT_MORE_SET;
-		do_rs = true;
 	}
-	if (do_rs)
-		tx_ring->packet_stride = 0;
 
 	tx_desc->cmd_type_offset_bsz =
-			build_ctob(td_cmd, td_offset, size, td_tag) |
-			cpu_to_le64((u64)(do_rs ? I40E_TXD_CMD :
-						  I40E_TX_DESC_CMD_EOP) <<
-						  I40E_TXD_QW1_CMD_SHIFT);
+			build_ctob(td_cmd, td_offset, size, td_tag);
+
+	/* Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.
+	 *
+	 * We also use this memory barrier to make certain all of the
+	 * status bits have been updated before next_to_watch is written.
+	 */
+	wmb();
+
+	/* set next_to_watch value indicating a packet is present */
+	first->next_to_watch = tx_desc;
 
 	/* notify HW of packet */
-	if (!tail_bump) {
-		prefetchw(tx_desc + 1);
-	} else {
-		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
-		 * applicable for weak-ordered memory model archs,
-		 * such as IA-64).
-		 */
-		wmb();
+	if (desc_count) {
 		writel(i, tx_ring->tail);
+
+		/* we need this if more than one processor can write to our tail
+		 * at a time, it synchronizes IO on IA64/Altix systems
+		 */
+		mmiowb();
 	}
+
 	return;
 
 dma_error:
