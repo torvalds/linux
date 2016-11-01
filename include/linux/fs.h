@@ -151,11 +151,6 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  */
 #define CHECK_IOVEC_ONLY -1
 
-#define RW_MASK			REQ_OP_WRITE
-
-#define READ			REQ_OP_READ
-#define WRITE			REQ_OP_WRITE
-
 /*
  * Attribute flags.  These should be or-ed together to figure out what
  * has been changed!
@@ -2452,14 +2447,6 @@ extern void make_bad_inode(struct inode *);
 extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
-/*
- * return data direction, READ or WRITE
- */
-static inline int bio_data_dir(struct bio *bio)
-{
-	return op_is_write(bio_op(bio)) ? WRITE : READ;
-}
-
 extern void check_disk_size_change(struct gendisk *disk,
 				   struct block_device *bdev);
 extern int revalidate_disk(struct gendisk *);

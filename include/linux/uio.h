@@ -125,7 +125,7 @@ static inline bool iter_is_iovec(const struct iov_iter *i)
  *
  * The ?: is just for type safety.
  */
-#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & RW_MASK)
+#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & (READ | WRITE))
 
 /*
  * Cap the iov_iter by given limit; note that the second argument is
