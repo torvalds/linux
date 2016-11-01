@@ -1607,8 +1607,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	 * notifications.
 	 * */
 	intel_hpd_init(dev_priv);
-	/* Config may have changed between suspend and resume */
-	drm_helper_hpd_irq_event(dev);
 
 	intel_opregion_register(dev_priv);
 
