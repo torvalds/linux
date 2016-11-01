@@ -180,6 +180,7 @@ static int ibmebus_create_device(struct device_node *dn)
 static int ibmebus_create_devices(const struct of_device_id *matches)
 {
 	struct device_node *root, *child;
+	struct device *dev;
 	int ret = 0;
 
 	root = of_find_node_by_path("/");
@@ -188,9 +189,12 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 		if (!of_match_node(matches, child))
 			continue;
 
-		if (bus_find_device(&ibmebus_bus_type, NULL, child,
-				    ibmebus_match_node))
+		dev = bus_find_device(&ibmebus_bus_type, NULL, child,
+				      ibmebus_match_node);
+		if (dev) {
+			put_device(dev);
 			continue;
+		}
 
 		ret = ibmebus_create_device(child);
 		if (ret) {
