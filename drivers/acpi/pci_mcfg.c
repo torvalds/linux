@@ -51,6 +51,17 @@ struct mcfg_fixup {
 
 static struct mcfg_fixup mcfg_quirks[] = {
 /*	{ OEM_ID, OEM_TABLE_ID, REV, SEGMENT, BUS_RANGE, ops, cfgres }, */
+
+#define QCOM_ECAM32(seg) \
+	{ "QCOM  ", "QDF2432 ", 1, seg, MCFG_BUS_ANY, &pci_32b_ops }
+	QCOM_ECAM32(0),
+	QCOM_ECAM32(1),
+	QCOM_ECAM32(2),
+	QCOM_ECAM32(3),
+	QCOM_ECAM32(4),
+	QCOM_ECAM32(5),
+	QCOM_ECAM32(6),
+	QCOM_ECAM32(7),
 };
 
 static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
