@@ -762,19 +762,19 @@ static int emu1010_firmware_thread(void *data)
 			}
 
 			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
-			snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);
+			snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp);
 			dev_info(emu->card->dev,
 				 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n",
-				 reg);
+				 tmp);
 			/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
-			snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
+			snd_emu1010_fpga_read(emu, EMU_HANA_ID, &tmp);
 			dev_info(emu->card->dev,
-				 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", reg);
-			if ((reg & 0x1f) != 0x15) {
+				 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", tmp);
+			if ((tmp & 0x1f) != 0x15) {
 				/* FPGA failed to be programmed */
 				dev_info(emu->card->dev,
 					 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
-					 reg);
+					 tmp);
 				continue;
 			}
 			dev_info(emu->card->dev,
