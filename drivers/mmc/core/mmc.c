@@ -1486,7 +1486,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	u32 cid[4];
 	u32 rocr;
 
-	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
 	/* Set correct bus mode for MMC before attempting init */
@@ -1876,9 +1875,6 @@ static int mmc_poweroff_notify(struct mmc_card *card, unsigned int notify_type)
  */
 static void mmc_remove(struct mmc_host *host)
 {
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
 	mmc_remove_card(host->card);
 	host->card = NULL;
 }
@@ -1897,9 +1893,6 @@ static int mmc_alive(struct mmc_host *host)
 static void mmc_detect(struct mmc_host *host)
 {
 	int err;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_get_card(host->card);
 
@@ -1925,9 +1918,6 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 	int err = 0;
 	unsigned int notify_type = is_suspend ? EXT_CSD_POWER_OFF_SHORT :
 					EXT_CSD_POWER_OFF_LONG;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
 
@@ -1984,9 +1974,6 @@ static int mmc_suspend(struct mmc_host *host)
 static int _mmc_resume(struct mmc_host *host)
 {
 	int err = 0;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
 
@@ -2120,7 +2107,6 @@ int mmc_attach_mmc(struct mmc_host *host)
 	int err;
 	u32 ocr, rocr;
 
-	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
 	/* Set correct bus mode for MMC before attempting attach */
