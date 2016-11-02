@@ -684,11 +684,8 @@ static inline sector_t calc_dev_sboffset(struct md_rdev *rdev)
 static int alloc_disk_sb(struct md_rdev *rdev)
 {
 	rdev->sb_page = alloc_page(GFP_KERNEL);
-	if (!rdev->sb_page) {
-		printk(KERN_ALERT "md: out of memory.\n");
+	if (!rdev->sb_page)
 		return -ENOMEM;
-	}
-
 	return 0;
 }
 
@@ -8788,15 +8785,18 @@ static int read_rdev(struct mddev *mddev, struct md_rdev *rdev)
 	 * variable in case we err in the future
 	 */
 	rdev->sb_page = NULL;
-	alloc_disk_sb(rdev);
-	ClearPageUptodate(rdev->sb_page);
-	rdev->sb_loaded = 0;
-	err = super_types[mddev->major_version].load_super(rdev, NULL, mddev->minor_version);
-
+	err = alloc_disk_sb(rdev);
+	if (err == 0) {
+		ClearPageUptodate(rdev->sb_page);
+		rdev->sb_loaded = 0;
+		err = super_types[mddev->major_version].
+			load_super(rdev, NULL, mddev->minor_version);
+	}
 	if (err < 0) {
 		pr_warn("%s: %d Could not reload rdev(%d) err: %d. Restoring old values\n",
 				__func__, __LINE__, rdev->desc_nr, err);
-		put_page(rdev->sb_page);
+		if (rdev->sb_page)
+			put_page(rdev->sb_page);
 		rdev->sb_page = swapout;
 		rdev->sb_loaded = 1;
 		return err;
