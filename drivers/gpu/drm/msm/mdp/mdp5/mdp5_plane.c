@@ -771,8 +771,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_IMG_SIZE(pipe),
-			MDP5_PIPE_SRC_IMG_SIZE_WIDTH(fb->width) |
-			MDP5_PIPE_SRC_IMG_SIZE_HEIGHT(fb->height));
+			MDP5_PIPE_SRC_IMG_SIZE_WIDTH(min(fb->width, src_w)) |
+			MDP5_PIPE_SRC_IMG_SIZE_HEIGHT(min(fb->height, src_h)));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_SIZE(pipe),
 			MDP5_PIPE_SRC_SIZE_WIDTH(src_w) |
