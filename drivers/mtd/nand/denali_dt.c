@@ -110,7 +110,7 @@ static int denali_dt_remove(struct platform_device *ofdev)
 	struct denali_dt *dt = platform_get_drvdata(ofdev);
 
 	denali_remove(&dt->denali);
-	clk_disable(dt->clk);
+	clk_disable_unprepare(dt->clk);
 
 	return 0;
 }
