@@ -153,15 +153,12 @@ int qcom_cc_register_board_clk(struct device *dev, const char *path,
 			       const char *name, unsigned long rate)
 {
 	bool add_factor = true;
-	struct device_node *node;
 
-	/* The RPM clock driver will add the factor clock if present */
-	if (IS_ENABLED(CONFIG_QCOM_RPMCC)) {
-		node = of_find_compatible_node(NULL, NULL, "qcom,rpmcc");
-		if (of_device_is_available(node))
-			add_factor = false;
-		of_node_put(node);
-	}
+	/*
+	 * TODO: The RPM clock driver currently does not support the xo clock.
+	 * When xo is added to the RPM clock driver, we should change this
+	 * function to skip registration of xo factor clocks.
+	 */
 
 	return _qcom_cc_register_board_clk(dev, path, name, rate, add_factor);
 }
