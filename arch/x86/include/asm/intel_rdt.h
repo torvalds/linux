@@ -3,6 +3,7 @@
 
 #ifdef CONFIG_INTEL_RDT_A
 
+#include <linux/kernfs.h>
 #include <linux/jump_label.h>
 
 #include <asm/intel_rdt_common.h>
