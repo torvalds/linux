@@ -1,0 +1,26 @@
+System Control and Power Interface (SCPI) Message Protocol
+(in addition to the standard binding in [0])
+
+Juno SRAM and Shared Memory for SCPI
+------------------------------------
+
+Required properties:
+- compatible : should be "arm,juno-sram-ns" for Non-secure SRAM
+
+Each sub-node represents the reserved area for SCPI.
+
+Required sub-node properties:
+- reg : The base offset and size of the reserved area with the SRAM
+- compatible : should be "arm,juno-scp-shmem" for Non-secure SRAM based
+	       shared memory on Juno platforms
+
+Sensor bindings for the sensors based on SCPI Message Protocol
+--------------------------------------------------------------
+Required properties:
+- compatible : should be "arm,scpi-sensors".
+- #thermal-sensor-cells: should be set to 1.
+			 For Juno R0 and Juno R1 refer to [1] for the
+			 sensor identifiers
+
+[0] Documentation/devicetree/bindings/arm/arm,scpi.txt
+[1] http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0922b/apas03s22.html
