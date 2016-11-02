@@ -220,7 +220,7 @@ static int guc_update_doorbell_id(struct intel_guc *guc,
 	struct guc_context_desc desc;
 	size_t len;
 
-	doorbell = client->client_base + client->doorbell_offset;
+	doorbell = client->vaddr + client->doorbell_offset;
 
 	if (client->doorbell_id != GUC_INVALID_DOORBELL_ID &&
 	    test_bit(client->doorbell_id, doorbell_bitmap)) {
@@ -326,7 +326,7 @@ static void guc_proc_desc_init(struct intel_guc *guc,
 {
 	struct guc_process_desc *desc;
 
-	desc = client->client_base + client->proc_desc_offset;
+	desc = client->vaddr + client->proc_desc_offset;
 
 	memset(desc, 0, sizeof(*desc));
 
@@ -413,8 +413,8 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 	gfx_addr = i915_ggtt_offset(client->vma);
 	desc.db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
-	desc.db_trigger_cpu = (uintptr_t)client->client_base +
-				client->doorbell_offset;
+	desc.db_trigger_cpu =
+		(uintptr_t)client->vaddr + client->doorbell_offset;
 	desc.db_trigger_uk = gfx_addr + client->doorbell_offset;
 	desc.process_desc = gfx_addr + client->proc_desc_offset;
 	desc.wq_addr = gfx_addr + client->wq_offset;
@@ -465,7 +465,7 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
-	struct guc_process_desc *desc = gc->client_base + gc->proc_desc_offset;
+	struct guc_process_desc *desc = gc->vaddr + gc->proc_desc_offset;
 	u32 freespace;
 	int ret;
 
@@ -506,10 +506,9 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	struct intel_engine_cs *engine = rq->engine;
 	struct guc_process_desc *desc;
 	struct guc_wq_item *wqi;
-	void *base;
-	u32 freespace, tail, wq_off, wq_page;
+	u32 freespace, tail, wq_off;
 
-	desc = gc->client_base + gc->proc_desc_offset;
+	desc = gc->vaddr + gc->proc_desc_offset;
 
 	/* Free space is guaranteed, see i915_guc_wq_reserve() above */
 	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
@@ -539,10 +538,7 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	gc->wq_rsvd -= wqi_size;
 
 	/* WQ starts from the page after doorbell / process_desc */
-	wq_page = (wq_off + GUC_DB_SIZE) >> PAGE_SHIFT;
-	wq_off &= PAGE_SIZE - 1;
-	base = kmap_atomic(i915_gem_object_get_page(gc->vma->obj, wq_page));
-	wqi = (struct guc_wq_item *)((char *)base + wq_off);
+	wqi = gc->vaddr + wq_off + GUC_DB_SIZE;
 
 	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
@@ -555,8 +551,6 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 
 	wqi->ring_tail = tail << WQ_RING_TAIL_SHIFT;
 	wqi->fence_id = rq->global_seqno;
-
-	kunmap_atomic(base);
 }
 
 static int guc_ring_doorbell(struct i915_guc_client *gc)
@@ -566,7 +560,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 	union guc_doorbell_qw *db;
 	int attempt = 2, ret = -EAGAIN;
 
-	desc = gc->client_base + gc->proc_desc_offset;
+	desc = gc->vaddr + gc->proc_desc_offset;
 
 	/* Update the tail so it is visible to GuC */
 	desc->tail = gc->wq_tail;
@@ -582,7 +576,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		db_exc.cookie = 1;
 
 	/* pointer of current doorbell cacheline */
-	db = gc->client_base + gc->doorbell_offset;
+	db = gc->vaddr + gc->doorbell_offset;
 
 	while (attempt--) {
 		/* lets ring the doorbell */
@@ -724,14 +718,14 @@ guc_client_free(struct drm_i915_private *dev_priv,
 	 * Be sure to drop any locks
 	 */
 
-	if (client->client_base) {
+	if (client->vaddr) {
 		/*
 		 * If we got as far as setting up a doorbell, make sure we
 		 * shut it down before unmapping & deallocating the memory.
 		 */
 		guc_disable_doorbell(guc, client);
 
-		kunmap(kmap_to_page(client->client_base));
+		i915_gem_object_unpin_map(client->vma->obj);
 	}
 
 	i915_vma_unpin_and_release(&client->vma);
@@ -820,6 +814,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	struct i915_guc_client *client;
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
+	void *vaddr;
 	uint16_t db_id;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
@@ -846,7 +841,12 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 
 	/* We'll keep just the first (doorbell/proc) page permanently kmap'd. */
 	client->vma = vma;
-	client->client_base = kmap(i915_vma_first_page(vma));
+
+	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr))
+		goto err;
+
+	client->vaddr = vaddr;
 
 	spin_lock_init(&client->wq_lock);
 	client->wq_offset = GUC_DB_SIZE;

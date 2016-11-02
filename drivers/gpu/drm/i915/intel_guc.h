@@ -64,7 +64,7 @@ struct drm_i915_gem_request;
  */
 struct i915_guc_client {
 	struct i915_vma *vma;
-	void *client_base;		/* first page (only) of above	*/
+	void *vaddr;
 	struct i915_gem_context *owner;
 	struct intel_guc *guc;
 
