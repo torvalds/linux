@@ -3296,7 +3296,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 	/* clflush objects bound into the GGTT and rebind them. */
 	list_for_each_entry_safe(obj, on,
-				 &dev_priv->mm.bound_list, global_list) {
+				 &dev_priv->mm.bound_list, global_link) {
 		bool ggtt_bound = false;
 		struct i915_vma *vma;
 
@@ -3376,7 +3376,7 @@ i915_vma_retire(struct i915_gem_active *active,
 	 * (unless we are forced to ofc!)
 	 */
 	if (obj->bind_count)
-		list_move_tail(&obj->global_list, &rq->i915->mm.bound_list);
+		list_move_tail(&obj->global_link, &rq->i915->mm.bound_list);
 
 	obj->mm.dirty = true; /* be paranoid  */
 

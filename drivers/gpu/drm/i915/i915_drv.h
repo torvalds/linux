@@ -2235,7 +2235,7 @@ struct drm_i915_gem_object {
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
-	struct list_head global_list;
+	struct list_head global_link;
 	union {
 		struct rcu_head rcu;
 		struct llist_node freed;

@@ -199,10 +199,10 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		while (count < target &&
 		       (obj = list_first_entry_or_null(phase->list,
 						       typeof(*obj),
-						       global_list))) {
-			list_move_tail(&obj->global_list, &still_in_list);
+						       global_link))) {
+			list_move_tail(&obj->global_link, &still_in_list);
 			if (!obj->mm.pages) {
-				list_del_init(&obj->global_list);
+				list_del_init(&obj->global_link);
 				continue;
 			}
 
@@ -228,7 +228,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 						  I915_MM_SHRINKER);
 				if (!obj->mm.pages) {
 					__i915_gem_object_invalidate(obj);
-					list_del_init(&obj->global_list);
+					list_del_init(&obj->global_link);
 					count += obj->base.size >> PAGE_SHIFT;
 				}
 				mutex_unlock(&obj->mm.lock);
@@ -293,11 +293,11 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 	i915_gem_retire_requests(dev_priv);
 
 	count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link)
 		if (can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
 		if (!i915_gem_object_is_active(obj) && can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
@@ -398,7 +398,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 * being pointed to by hardware.
 	 */
 	unbound = bound = unevictable = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
 		if (!obj->mm.pages)
 			continue;
 
@@ -407,7 +407,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 		else
 			unbound += obj->base.size >> PAGE_SHIFT;
 	}
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
 		if (!obj->mm.pages)
 			continue;
 
