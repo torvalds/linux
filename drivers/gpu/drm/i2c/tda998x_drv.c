@@ -971,6 +971,8 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 			div = 3;
 	}
 
+	mutex_lock(&priv->audio_mutex);
+
 	/* mute the audio FIFO: */
 	reg_set(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_RST_FIFO);
 
@@ -1063,8 +1065,6 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* must be last register set: */
 	reg_write(priv, REG_TBG_CNTRL_0, 0);
-
-	mutex_lock(&priv->audio_mutex);
 
 	priv->tmds_clock = adjusted_mode->clock;
 
