@@ -282,6 +282,17 @@ static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 };
 
 /*
+ * Snapshot the ->dynticks counter with full ordering so as to allow
+ * stable comparison of this counter with past and future snapshots.
+ */
+static int rcu_dynticks_snap(struct rcu_dynticks *rdtp)
+{
+	int snap = atomic_add_return(0, &rdtp->dynticks);
+
+	return snap;
+}
+
+/*
  * Do a double-increment of the ->dynticks counter to emulate a
  * momentary idle-CPU quiescent state.
  */
@@ -1049,7 +1060,9 @@ void rcu_nmi_exit(void)
  */
 bool notrace __rcu_is_watching(void)
 {
-	return atomic_read(this_cpu_ptr(&rcu_dynticks.dynticks)) & 0x1;
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+
+	return atomic_read(&rdtp->dynticks) & 0x1;
 }
 
 /**
@@ -1132,7 +1145,7 @@ static int rcu_is_cpu_rrupt_from_idle(void)
 static int dyntick_save_progress_counter(struct rcu_data *rdp,
 					 bool *isidle, unsigned long *maxj)
 {
-	rdp->dynticks_snap = atomic_add_return(0, &rdp->dynticks->dynticks);
+	rdp->dynticks_snap = rcu_dynticks_snap(rdp->dynticks);
 	rcu_sysidle_check_cpu(rdp, isidle, maxj);
 	if ((rdp->dynticks_snap & 0x1) == 0) {
 		trace_rcu_fqs(rdp->rsp->name, rdp->gpnum, rdp->cpu, TPS("dti"));
@@ -1157,7 +1170,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 	int *rcrmp;
 	unsigned int snap;
 
-	curr = (unsigned int)atomic_add_return(0, &rdp->dynticks->dynticks);
+	curr = (unsigned int)rcu_dynticks_snap(rdp->dynticks);
 	snap = (unsigned int)rdp->dynticks_snap;
 
 	/*

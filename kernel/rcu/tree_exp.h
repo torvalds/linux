@@ -356,10 +356,9 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 		mask_ofl_test = 0;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 
 			rdp->exp_dynticks_snap =
-				atomic_add_return(0, &rdtp->dynticks);
+				rcu_dynticks_snap(rdp->dynticks);
 			if (raw_smp_processor_id() == cpu ||
 			    !(rdp->exp_dynticks_snap & 0x1) ||
 			    !(rnp->qsmaskinitnext & rdp->grpmask))
@@ -380,12 +379,11 @@ static void sync_rcu_exp_select_cpus(struct rcu_state *rsp,
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
 			unsigned long mask = leaf_node_cpu_bit(rnp, cpu);
 			struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-			struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
 
 			if (!(mask_ofl_ipi & mask))
 				continue;
 retry_ipi:
-			if (atomic_add_return(0, &rdtp->dynticks) !=
+			if (rcu_dynticks_snap(rdp->dynticks) !=
 			    rdp->exp_dynticks_snap) {
 				mask_ofl_test |= mask;
 				continue;
