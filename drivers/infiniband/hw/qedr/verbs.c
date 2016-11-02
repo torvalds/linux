@@ -2986,11 +2986,6 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		return -EINVAL;
 	}
 
-	if (!wr) {
-		DP_ERR(dev, "Got an empty post send.\n");
-		return -EINVAL;
-	}
-
 	while (wr) {
 		rc = __qedr_post_send(ibqp, wr, bad_wr);
 		if (rc)
