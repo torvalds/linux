@@ -2090,7 +2090,7 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
  * platform driver should specify the BE DAI name and ID for matching.
  */
 static int soc_tplg_be_dai_config(struct soc_tplg *tplg,
-				  struct snd_soc_tplg_be_dai *be)
+				  struct snd_soc_tplg_dai *be)
 {
 	struct snd_soc_dai_link_component dai_component = {0};
 	struct snd_soc_dai *dai;
@@ -2145,7 +2145,7 @@ static int soc_tplg_be_dai_config(struct soc_tplg *tplg,
 static int soc_tplg_be_dai_elems_load(struct soc_tplg *tplg,
 				      struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_be_dai *be;
+	struct snd_soc_tplg_dai *be;
 	int count = hdr->count;
 	int i;
 
@@ -2154,7 +2154,7 @@ static int soc_tplg_be_dai_elems_load(struct soc_tplg *tplg,
 
 	/* config the existing BE DAIs */
 	for (i = 0; i < count; i++) {
-		be = (struct snd_soc_tplg_be_dai *)tplg->pos;
+		be = (struct snd_soc_tplg_dai *)tplg->pos;
 		if (be->size != sizeof(*be)) {
 			dev_err(tplg->dev, "ASoC: invalid BE DAI size\n");
 			return -EINVAL;
@@ -2328,7 +2328,7 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 		return soc_tplg_dapm_widget_elems_load(tplg, hdr);
 	case SND_SOC_TPLG_TYPE_PCM:
 		return soc_tplg_pcm_elems_load(tplg, hdr);
-	case SND_SOC_TPLG_TYPE_BE_DAI:
+	case SND_SOC_TPLG_TYPE_DAI:
 		return soc_tplg_be_dai_elems_load(tplg, hdr);
 	case SND_SOC_TPLG_TYPE_DAI_LINK:
 	case SND_SOC_TPLG_TYPE_BACKEND_LINK:
