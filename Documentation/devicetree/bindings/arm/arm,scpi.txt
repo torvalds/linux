@@ -7,7 +7,10 @@ by Linux to initiate various system control and power operations.
 
 Required properties:
 
-- compatible : should be "arm,scpi"
+- compatible : should be
+	* "arm,scpi" : For implementations complying to SCPI v1.0 or above
+	* "arm,scpi-pre-1.0" : For implementations complying to all
+		unversioned releases prior to SCPI v1.0
 - mboxes: List of phandle and mailbox channel specifiers
 	  All the channels reserved by remote SCP firmware for use by
 	  SCPI message protocol should be specified in any order
