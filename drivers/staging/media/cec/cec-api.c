@@ -163,7 +163,8 @@ static long cec_adap_s_log_addrs(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&log_addrs, parg, sizeof(log_addrs)))
 		return -EFAULT;
 	log_addrs.flags &= CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK |
-			   CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU;
+			   CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU |
+			   CEC_LOG_ADDRS_FL_CDC_ONLY;
 	mutex_lock(&adap->lock);
 	if (!adap->is_configuring &&
 	    (!log_addrs.num_log_addrs || !adap->is_configured) &&
@@ -190,6 +191,12 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		return -ENOTTY;
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
+
+	/* A CDC-Only device can only send CDC messages */
+	if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
+	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE))
+		return -EINVAL;
+
 	msg.flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS;
 	mutex_lock(&adap->lock);
 	if (!adap->is_configured)

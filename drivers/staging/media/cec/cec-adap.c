@@ -1233,7 +1233,8 @@ configured:
 	mutex_unlock(&adap->lock);
 
 	for (i = 0; i < las->num_log_addrs; i++) {
-		if (las->log_addr[i] == CEC_LOG_ADDR_INVALID)
+		if (las->log_addr[i] == CEC_LOG_ADDR_INVALID ||
+		    (las->flags & CEC_LOG_ADDRS_FL_CDC_ONLY))
 			continue;
 
 		/*
@@ -1353,6 +1354,29 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		adap->log_addrs.num_log_addrs = 0;
 		cec_adap_unconfigure(adap);
 		return 0;
+	}
+
+	if (log_addrs->flags & CEC_LOG_ADDRS_FL_CDC_ONLY) {
+		/*
+		 * Sanitize log_addrs fields if a CDC-Only device is
+		 * requested.
+		 */
+		log_addrs->num_log_addrs = 1;
+		log_addrs->osd_name[0] = '\0';
+		log_addrs->vendor_id = CEC_VENDOR_ID_NONE;
+		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
+		/*
+		 * This is just an internal convention since a CDC-Only device
+		 * doesn't have to be a switch. But switches already use
+		 * unregistered, so it makes some kind of sense to pick this
+		 * as the primary device. Since a CDC-Only device never sends
+		 * any 'normal' CEC messages this primary device type is never
+		 * sent over the CEC bus.
+		 */
+		log_addrs->primary_device_type[0] = CEC_OP_PRIM_DEVTYPE_SWITCH;
+		log_addrs->all_device_types[0] = 0;
+		log_addrs->features[0][0] = 0;
+		log_addrs->features[0][1] = 0;
 	}
 
 	/* Ensure the osd name is 0-terminated */
@@ -1574,6 +1598,11 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	struct cec_msg tx_cec_msg = { };
 
 	dprintk(1, "cec_receive_notify: %*ph\n", msg->len, msg->msg);
+
+	/* If this is a CDC-Only device, then ignore any non-CDC messages */
+	if (cec_is_cdc_only(&adap->log_addrs) &&
+	    msg->msg[1] != CEC_MSG_CDC_MESSAGE)
+		return 0;
 
 	if (adap->ops->received) {
 		/* Allow drivers to process the message first */
