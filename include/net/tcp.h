@@ -805,7 +805,7 @@ static inline bool inet_exact_dif_match(struct net *net, struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
 	if (!net->ipv4.sysctl_tcp_l3mdev_accept &&
-	    ipv4_l3mdev_skb(TCP_SKB_CB(skb)->header.h4.flags))
+	    skb && ipv4_l3mdev_skb(TCP_SKB_CB(skb)->header.h4.flags))
 		return true;
 #endif
 	return false;
