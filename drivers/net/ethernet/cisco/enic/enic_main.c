@@ -1166,12 +1166,18 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, q_number);
 		if (netdev->features & NETIF_F_RXHASH) {
-			skb_set_hash(skb, rss_hash,
-				     (rss_type &
-				      (NIC_CFG_RSS_HASH_TYPE_TCP_IPV6_EX |
-				       NIC_CFG_RSS_HASH_TYPE_TCP_IPV6 |
-				       NIC_CFG_RSS_HASH_TYPE_TCP_IPV4)) ?
-				     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
+			switch (rss_type) {
+			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv4:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv6:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv6_EX:
+				skb_set_hash(skb, rss_hash, PKT_HASH_TYPE_L4);
+				break;
+			case CQ_ENET_RQ_DESC_RSS_TYPE_IPv4:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_IPv6:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_IPv6_EX:
+				skb_set_hash(skb, rss_hash, PKT_HASH_TYPE_L3);
+				break;
+			}
 		}
 
 		/* Hardware does not provide whole packet checksum. It only
