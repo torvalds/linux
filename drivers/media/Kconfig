@@ -80,6 +80,22 @@ config MEDIA_RC_SUPPORT
 
 	  Say Y when you have a TV or an IR device.
 
+config MEDIA_CEC_SUPPORT
+	bool "HDMI CEC support"
+	select MEDIA_CEC_EDID
+	---help---
+	  Enable support for HDMI CEC (Consumer Electronics Control),
+	  which is an optional HDMI feature.
+
+	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
+	  adapter that supports HDMI CEC.
+
+config MEDIA_CEC_DEBUG
+	bool "HDMI CEC debugfs interface"
+	depends on MEDIA_CEC_SUPPORT && DEBUG_FS
+	---help---
+	  Turns on the DebugFS interface for CEC devices.
+
 config MEDIA_CEC_EDID
 	bool
 
