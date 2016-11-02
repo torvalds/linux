@@ -523,6 +523,7 @@ static void remove_dai(struct snd_soc_component *comp,
 	if (dobj->ops && dobj->ops->dai_unload)
 		dobj->ops->dai_unload(comp, dobj);
 
+	kfree(dai_drv->name);
 	list_del(&dobj->list);
 	kfree(dai_drv);
 }
@@ -539,6 +540,10 @@ static void remove_link(struct snd_soc_component *comp,
 
 	if (dobj->ops && dobj->ops->link_unload)
 		dobj->ops->link_unload(comp, dobj);
+
+	kfree(link->name);
+	kfree(link->stream_name);
+	kfree(link->cpu_dai_name);
 
 	list_del(&dobj->list);
 	snd_soc_remove_dai_link(comp->card, link);
@@ -1638,7 +1643,8 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	if (dai_drv == NULL)
 		return -ENOMEM;
 
-	dai_drv->name = pcm->dai_name;
+	if (strlen(pcm->dai_name))
+		dai_drv->name = kstrdup(pcm->dai_name, GFP_KERNEL);
 	dai_drv->id = pcm->dai_id;
 
 	if (pcm->playback) {
@@ -1681,11 +1687,15 @@ static int soc_tplg_link_create(struct soc_tplg *tplg,
 	if (link == NULL)
 		return -ENOMEM;
 
-	link->name = pcm->pcm_name;
-	link->stream_name = pcm->pcm_name;
+	if (strlen(pcm->pcm_name)) {
+		link->name = kstrdup(pcm->pcm_name, GFP_KERNEL);
+		link->stream_name = kstrdup(pcm->pcm_name, GFP_KERNEL);
+	}
 	link->id = pcm->pcm_id;
 
-	link->cpu_dai_name = pcm->dai_name;
+	if (strlen(pcm->dai_name))
+		link->cpu_dai_name = kstrdup(pcm->dai_name, GFP_KERNEL);
+
 	link->codec_name = "snd-soc-dummy";
 	link->codec_dai_name = "snd-soc-dummy-dai";
 
