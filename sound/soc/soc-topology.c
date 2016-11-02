@@ -1701,6 +1701,11 @@ static void set_link_flags(struct snd_soc_dai_link *link,
 		link->symmetric_samplebits =
 			flags & SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS ?
 			1 : 0;
+
+	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP)
+		link->ignore_suspend =
+		flags & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP ?
+		1 : 0;
 }
 
 /* create the FE DAI link */
