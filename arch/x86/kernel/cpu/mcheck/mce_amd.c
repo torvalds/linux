@@ -86,7 +86,7 @@ struct smca_bank_name smca_bank_names[] = {
 };
 EXPORT_SYMBOL_GPL(smca_bank_names);
 
-static struct smca_hwid_mcatype smca_hwid_mcatypes[] = {
+static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* { bank_type, hwid_mcatype, xec_bitmap } */
 
 	/* ZN Core (HWID=0xB0) MCA types */
@@ -142,16 +142,11 @@ static void default_deferred_error_interrupt(void)
 }
 void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
 
-/*
- * CPU Initialization
- */
-
 static void get_smca_bank_info(unsigned int bank)
 {
 	unsigned int i, hwid_mcatype, cpu = smp_processor_id();
-	struct smca_hwid_mcatype *type;
+	struct smca_hwid *s_hwid;
 	u32 high, instance_id;
-	u16 hwid, mcatype;
 
 	/* Collect bank_info using CPU 0 for now. */
 	if (cpu)
@@ -162,14 +157,13 @@ static void get_smca_bank_info(unsigned int bank)
 		return;
 	}
 
-	hwid = high & MCI_IPID_HWID;
-	mcatype = (high & MCI_IPID_MCATYPE) >> 16;
-	hwid_mcatype = HWID_MCATYPE(hwid, mcatype);
+	hwid_mcatype = HWID_MCATYPE(high & MCI_IPID_HWID,
+				    (high & MCI_IPID_MCATYPE) >> 16);
 
 	for (i = 0; i < ARRAY_SIZE(smca_hwid_mcatypes); i++) {
-		type = &smca_hwid_mcatypes[i];
-		if (hwid_mcatype == type->hwid_mcatype) {
-			smca_banks[bank].type = type;
+		s_hwid = &smca_hwid_mcatypes[i];
+		if (hwid_mcatype == s_hwid->hwid_mcatype) {
+			smca_banks[bank].hwid = s_hwid;
 			smca_banks[bank].id = instance_id;
 			break;
 		}
@@ -826,10 +820,10 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 		return th_names[bank];
 	}
 
-	if (!smca_banks[bank].type)
+	if (!smca_banks[bank].hwid)
 		return NULL;
 
-	bank_type = smca_banks[bank].type->bank_type;
+	bank_type = smca_banks[bank].hwid->bank_type;
 
 	if (b && bank_type == SMCA_UMC) {
 		if (b->block < ARRAY_SIZE(smca_umc_block_names))

@@ -365,14 +365,14 @@ extern struct smca_bank_name smca_bank_names[N_SMCA_BANK_TYPES];
 
 #define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
 
-struct smca_hwid_mcatype {
+struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
 	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
 	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
 };
 
 struct smca_bank {
-	struct smca_hwid_mcatype *type;
+	struct smca_hwid *hwid;
 	/* Instance ID */
 	u32 id;
 };
