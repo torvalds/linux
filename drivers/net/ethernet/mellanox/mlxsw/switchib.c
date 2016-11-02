@@ -43,7 +43,6 @@
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
-#include <generated/utsrelease.h>
 
 #include "pci.h"
 #include "core.h"

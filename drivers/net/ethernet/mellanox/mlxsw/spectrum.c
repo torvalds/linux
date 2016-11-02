@@ -54,7 +54,6 @@
 #include <linux/dcbnl.h>
 #include <linux/inetdevice.h>
 #include <net/switchdev.h>
-#include <generated/utsrelease.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/netevent.h>
