@@ -196,8 +196,8 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->port_stats.tso_packets = 0;
 	priv->port_stats.xmit_more = 0;
 
-	for (i = 0; i < priv->tx_ring_num; i++) {
-		const struct mlx4_en_tx_ring *ring = priv->tx_ring[i];
+	for (i = 0; i < priv->tx_ring_num[TX]; i++) {
+		const struct mlx4_en_tx_ring *ring = priv->tx_ring[TX][i];
 
 		stats->tx_packets += ring->packets;
 		stats->tx_bytes += ring->bytes;

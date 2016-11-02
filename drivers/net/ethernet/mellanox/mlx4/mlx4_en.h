@@ -207,8 +207,10 @@ enum {
  */
 
 enum cq_type {
+	/* keep tx types first */
 	TX,
 	TX_XDP,
+#define MLX4_EN_NUM_TX_TYPES (TX_XDP + 1)
 	RX,
 };
 
@@ -373,7 +375,7 @@ struct mlx4_en_cq {
 
 struct mlx4_en_port_profile {
 	u32 flags;
-	u32 tx_ring_num;
+	u32 tx_ring_num[MLX4_EN_NUM_TX_TYPES];
 	u32 rx_ring_num;
 	u32 tx_ring_size;
 	u32 rx_ring_size;
@@ -570,17 +572,16 @@ struct mlx4_en_priv {
 	u32 flags;
 	u8 num_tx_rings_p_up;
 	u32 tx_work_limit;
-	u32 tx_ring_num;
+	u32 tx_ring_num[MLX4_EN_NUM_TX_TYPES];
 	u32 rx_ring_num;
 	u32 rx_skb_size;
 	struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
 	u16 num_frags;
 	u16 log_rx_info;
-	int xdp_ring_num;
 
-	struct mlx4_en_tx_ring **tx_ring;
+	struct mlx4_en_tx_ring **tx_ring[MLX4_EN_NUM_TX_TYPES];
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];
-	struct mlx4_en_cq **tx_cq;
+	struct mlx4_en_cq **tx_cq[MLX4_EN_NUM_TX_TYPES];
 	struct mlx4_en_cq *rx_cq[MAX_RX_RINGS];
 	struct mlx4_qp drop_qp;
 	struct work_struct rx_mode_task;
