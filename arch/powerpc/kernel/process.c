@@ -1900,14 +1900,14 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 			if ((ip == rth) && curr_frame >= 0) {
-				printk(" (%pS)",
+				pr_cont(" (%pS)",
 				       (void *)current->ret_stack[curr_frame].ret);
 				curr_frame--;
 			}
 #endif
 			if (firstframe)
-				printk(" (unreliable)");
-			printk("\n");
+				pr_cont(" (unreliable)");
+			pr_cont("\n");
 		}
 		firstframe = 0;
 
