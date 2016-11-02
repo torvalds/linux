@@ -69,15 +69,17 @@ htmldocs:
 	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,html,$(var),,$(var)))
 
 latexdocs:
+	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,latex,$(var),latex,$(var)))
+
 ifeq ($(HAVE_PDFLATEX),0)
+
+pdfdocs:
 	$(warning The '$(PDFLATEX)' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
 	@echo "  SKIP    Sphinx $@ target."
+
 else # HAVE_PDFLATEX
-	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,latex,$(var),latex,$(var)))
-endif # HAVE_PDFLATEX
 
 pdfdocs: latexdocs
-ifneq ($(HAVE_PDFLATEX),0)
 	$(foreach var,$(SPHINXDIRS), $(MAKE) PDFLATEX=$(PDFLATEX) LATEXOPTS="$(LATEXOPTS)" -C $(BUILDDIR)/$(var)/latex)
 
 endif # HAVE_PDFLATEX
