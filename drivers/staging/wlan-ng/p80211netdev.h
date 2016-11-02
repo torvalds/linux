@@ -143,7 +143,7 @@ extern struct iw_handler_def p80211wext_handler_def;
 #define NUM_WEPKEYS 4
 #define MAX_KEYLEN 32
 
-#define HOSTWEP_DEFAULTKEY_MASK (BIT(1)|BIT(0))
+#define HOSTWEP_DEFAULTKEY_MASK (BIT(1) | BIT(0))
 #define HOSTWEP_SHAREDKEY BIT(3)
 #define HOSTWEP_DECRYPT  BIT(4)
 #define HOSTWEP_ENCRYPT  BIT(5)
