@@ -685,14 +685,14 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 
 int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 {
-	if (amdgpu_sclk_deep_sleep_en)
+	if (amdgpu_pp_feature_mask & PP_SCLK_DEEP_SLEEP_MASK)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 	else
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 
-	if (amdgpu_powercontainment) {
+	if (amdgpu_pp_feature_mask & PP_POWER_CONTAINMENT_MASK) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_PowerContainment);
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,

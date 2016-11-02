@@ -38,8 +38,6 @@ struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
-extern int amdgpu_powercontainment;
-extern int amdgpu_sclk_deep_sleep_en;
 extern unsigned amdgpu_pp_feature_mask;
 
 #define VOLTAGE_SCALE 4
