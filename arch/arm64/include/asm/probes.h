@@ -17,19 +17,22 @@
 
 #include <asm/opcodes.h>
 
-struct kprobe;
-struct arch_specific_insn;
-
-typedef u32 kprobe_opcode_t;
-typedef void (kprobes_handler_t) (u32 opcode, long addr, struct pt_regs *);
+typedef u32 probe_opcode_t;
+typedef void (probes_handler_t) (u32 opcode, long addr, struct pt_regs *);
 
 /* architecture specific copy of original instruction */
-struct arch_specific_insn {
-	kprobe_opcode_t *insn;
+struct arch_probe_insn {
+	probe_opcode_t *insn;
 	pstate_check_t *pstate_cc;
-	kprobes_handler_t *handler;
+	probes_handler_t *handler;
 	/* restore address after step xol */
 	unsigned long restore;
 };
+#ifdef CONFIG_KPROBES
+typedef u32 kprobe_opcode_t;
+struct arch_specific_insn {
+	struct arch_probe_insn api;
+};
+#endif
 
 #endif
