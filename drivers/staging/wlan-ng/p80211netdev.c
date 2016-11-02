@@ -277,7 +277,6 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	/* Let's empty our our queue */
 	while ((skb = skb_dequeue(&wlandev->nsd_rxq))) {
 		if (wlandev->state == WLAN_DEVICE_OPEN) {
-
 			if (dev->type != ARPHRD_ETHER) {
 				/* RAW frame; we shouldn't convert it */
 				/* XXX Append the Prism Header here instead. */
@@ -461,7 +460,6 @@ static void p80211knetdev_set_multicast_list(struct net_device *dev)
 
 	if (wlandev->set_multicast_list)
 		wlandev->set_multicast_list(wlandev, dev);
-
 }
 
 #ifdef SIOCETHTOOL
