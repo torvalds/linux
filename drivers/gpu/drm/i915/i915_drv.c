@@ -1600,6 +1600,8 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_display_resume(dev);
 
+	drm_kms_helper_poll_enable(dev);
+
 	/*
 	 * ... but also need to make sure that hotplug processing
 	 * doesn't cause havoc. Like in the driver load code we don't
@@ -1619,7 +1621,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 
 	intel_autoenable_gt_powersave(dev_priv);
-	drm_kms_helper_poll_enable(dev);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
