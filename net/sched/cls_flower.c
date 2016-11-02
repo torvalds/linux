@@ -269,6 +269,14 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle, tp->protocol, &tc);
 }
 
+static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
+{
+	list_del_rcu(&f->list);
+	fl_hw_destroy_filter(tp, (unsigned long)f);
+	tcf_unbind_filter(tp, &f->res);
+	call_rcu(&f->rcu, fl_destroy_filter);
+}
+
 static bool fl_destroy(struct tcf_proto *tp, bool force)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
@@ -277,11 +285,8 @@ static bool fl_destroy(struct tcf_proto *tp, bool force)
 	if (!force && !list_empty(&head->filters))
 		return false;
 
-	list_for_each_entry_safe(f, next, &head->filters, list) {
-		fl_hw_destroy_filter(tp, (unsigned long)f);
-		list_del_rcu(&f->list);
-		call_rcu(&f->rcu, fl_destroy_filter);
-	}
+	list_for_each_entry_safe(f, next, &head->filters, list)
+		__fl_delete(tp, f);
 	RCU_INIT_POINTER(tp->root, NULL);
 	if (head->mask_assigned)
 		rhashtable_destroy(&head->ht);
@@ -741,10 +746,7 @@ static int fl_delete(struct tcf_proto *tp, unsigned long arg)
 
 	rhashtable_remove_fast(&head->ht, &f->ht_node,
 			       head->ht_params);
-	list_del_rcu(&f->list);
-	fl_hw_destroy_filter(tp, (unsigned long)f);
-	tcf_unbind_filter(tp, &f->res);
-	call_rcu(&f->rcu, fl_destroy_filter);
+	__fl_delete(tp, f);
 	return 0;
 }
 
