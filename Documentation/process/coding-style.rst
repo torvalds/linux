@@ -475,7 +475,7 @@ The rationale for using gotos is:
 				...
 			}
 			result = 1;
-			goto out_buffer;
+			goto out_free_buffer;
 		}
 		...
 	out_free_buffer:
