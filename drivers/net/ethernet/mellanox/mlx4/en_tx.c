@@ -1079,7 +1079,8 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
+netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
+			       struct mlx4_en_rx_alloc *frame,
 			       struct net_device *dev, unsigned int length,
 			       int tx_ind, int *doorbell_pending)
 {
@@ -1154,8 +1155,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 		((ring->prod & ring->size) ?
 		 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 
-	ring->packets++;
-	ring->bytes += tx_info->nr_bytes;
+	rx_ring->xdp_tx++;
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
 
 	ring->prod += nr_txbb;
@@ -1179,7 +1179,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	return NETDEV_TX_OK;
 
 tx_drop_count:
-	ring->tx_dropped++;
+	rx_ring->xdp_tx_full++;
 tx_drop:
 	return NETDEV_TX_BUSY;
 }
