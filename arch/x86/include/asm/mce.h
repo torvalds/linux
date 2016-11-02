@@ -361,7 +361,7 @@ struct smca_bank_name {
 	const char *long_name;	/* Long name for pretty-printing */
 };
 
-extern struct smca_bank_name smca_bank_names[N_SMCA_BANK_TYPES];
+extern struct smca_bank_name smca_names[N_SMCA_BANK_TYPES];
 
 #define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
 

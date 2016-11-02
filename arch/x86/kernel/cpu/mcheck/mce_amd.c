@@ -69,7 +69,7 @@ static const char * const smca_umc_block_names[] = {
 	"misc_umc"
 };
 
-struct smca_bank_name smca_bank_names[] = {
+struct smca_bank_name smca_names[] = {
 	[SMCA_LS]	= { "load_store",	"Load Store Unit" },
 	[SMCA_IF]	= { "insn_fetch",	"Instruction Fetch Unit" },
 	[SMCA_L2_CACHE]	= { "l2_cache",		"L2 Cache" },
@@ -84,7 +84,7 @@ struct smca_bank_name smca_bank_names[] = {
 	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
 };
-EXPORT_SYMBOL_GPL(smca_bank_names);
+EXPORT_SYMBOL_GPL(smca_names);
 
 static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* { bank_type, hwid_mcatype, xec_bitmap } */
@@ -832,7 +832,7 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 	}
 
 	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
-		 "%s_%x", smca_bank_names[bank_type].name,
+		 "%s_%x", smca_names[bank_type].name,
 			  smca_banks[bank].id);
 	return buf_mcatype;
 }
