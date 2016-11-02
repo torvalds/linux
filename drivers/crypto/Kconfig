@@ -73,6 +73,22 @@ config ZCRYPT
 	  + Crypto Express 2,3,4 or 5 Accelerator (CEXxA)
 	  + Crypto Express 4 or 5 EP11 Coprocessor (CEXxP)
 
+config PKEY
+	tristate "Kernel API for protected key handling"
+	depends on S390
+	depends on ZCRYPT
+	help
+	  With this option enabled the pkey kernel module provides an API
+	  for creation and handling of protected keys. Other parts of the
+	  kernel or userspace applications may use these functions.
+
+	  Select this option if you want to enable the kernel and userspace
+	  API for proteced key handling.
+
+	  Please note that creation of protected keys from secure keys
+	  requires to have at least one CEX card in coprocessor mode
+	  available at runtime.
+
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
 	depends on S390
