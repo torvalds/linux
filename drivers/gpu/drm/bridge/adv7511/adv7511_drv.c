@@ -338,7 +338,7 @@ static void adv7511_power_on(struct adv7511 *adv7511)
 		 * Still, let's be safe and stick to the documentation.
 		 */
 		regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(0),
-			     ADV7511_INT0_EDID_READY);
+			     ADV7511_INT0_EDID_READY | ADV7511_INT0_HPD);
 		regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(1),
 			     ADV7511_INT1_DDC_ERROR);
 	}
@@ -845,6 +845,10 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 
 	if (adv->type == ADV7533)
 		ret = adv7533_attach_dsi(adv);
+
+	if (adv->i2c_main->irq)
+		regmap_write(adv->regmap, ADV7511_REG_INT_ENABLE(0),
+				ADV7511_INT0_HPD);
 
 	return ret;
 }
