@@ -282,6 +282,61 @@ static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 };
 
 /*
+ * Record entry into an extended quiescent state.  This is only to be
+ * called when not already in an extended quiescent state.
+ */
+static void rcu_dynticks_eqs_enter(void)
+{
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	int special;
+
+	/*
+	 * CPUs seeing atomic_inc_return() must see prior RCU read-side
+	 * critical sections, and we also must force ordering with the
+	 * next idle sojourn.
+	 */
+	special = atomic_inc_return(&rdtp->dynticks);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && special & 0x1);
+}
+
+/*
+ * Record exit from an extended quiescent state.  This is only to be
+ * called from an extended quiescent state.
+ */
+static void rcu_dynticks_eqs_exit(void)
+{
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	int special;
+
+	/*
+	 * CPUs seeing atomic_inc_return() must see prior idle sojourns,
+	 * and we also must force ordering with the next RCU read-side
+	 * critical section.
+	 */
+	special = atomic_inc_return(&rdtp->dynticks);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !(special & 0x1));
+}
+
+/*
+ * Reset the current CPU's ->dynticks counter to indicate that the
+ * newly onlined CPU is no longer in an extended quiescent state.
+ * This will either leave the counter unchanged, or increment it
+ * to the next non-quiescent value.
+ *
+ * The non-atomic test/increment sequence works because the upper bits
+ * of the ->dynticks counter are manipulated only by the corresponding CPU,
+ * or when the corresponding CPU is offline.
+ */
+static void rcu_dynticks_eqs_online(void)
+{
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+
+	if (atomic_read(&rdtp->dynticks) & 0x1)
+		return;
+	atomic_add(0x1, &rdtp->dynticks);
+}
+
+/*
  * Snapshot the ->dynticks counter with full ordering so as to allow
  * stable comparison of this counter with past and future snapshots.
  */
@@ -693,7 +748,7 @@ static void rcu_eqs_enter_common(long long oldval, bool user)
 {
 	struct rcu_state *rsp;
 	struct rcu_data *rdp;
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	RCU_TRACE(struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);)
 
 	trace_rcu_dyntick(TPS("Start"), oldval, rdtp->dynticks_nesting);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
@@ -712,12 +767,7 @@ static void rcu_eqs_enter_common(long long oldval, bool user)
 		do_nocb_deferred_wakeup(rdp);
 	}
 	rcu_prepare_for_idle();
-	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
-	smp_mb__before_atomic();  /* See above. */
-	atomic_inc(&rdtp->dynticks);
-	smp_mb__after_atomic();  /* Force ordering with next sojourn. */
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     atomic_read(&rdtp->dynticks) & 0x1);
+	rcu_dynticks_eqs_enter();
 	rcu_dynticks_task_enter();
 
 	/*
@@ -846,15 +896,10 @@ void rcu_irq_exit_irqson(void)
  */
 static void rcu_eqs_exit_common(long long oldval, int user)
 {
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	RCU_TRACE(struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);)
 
 	rcu_dynticks_task_exit();
-	smp_mb__before_atomic();  /* Force ordering w/previous sojourn. */
-	atomic_inc(&rdtp->dynticks);
-	/* CPUs seeing atomic_inc() must see later RCU read-side crit sects */
-	smp_mb__after_atomic();  /* See above. */
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     !(atomic_read(&rdtp->dynticks) & 0x1));
+	rcu_dynticks_eqs_exit();
 	rcu_cleanup_after_idle();
 	trace_rcu_dyntick(TPS("End"), oldval, rdtp->dynticks_nesting);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
@@ -1001,11 +1046,7 @@ void rcu_nmi_enter(void)
 	 * period (observation due to Andy Lutomirski).
 	 */
 	if (!(atomic_read(&rdtp->dynticks) & 0x1)) {
-		smp_mb__before_atomic();  /* Force delay from prior write. */
-		atomic_inc(&rdtp->dynticks);
-		/* atomic_inc() before later RCU read-side crit sects */
-		smp_mb__after_atomic();  /* See above. */
-		WARN_ON_ONCE(!(atomic_read(&rdtp->dynticks) & 0x1));
+		rcu_dynticks_eqs_exit();
 		incby = 1;
 	}
 	rdtp->dynticks_nmi_nesting += incby;
@@ -1043,11 +1084,7 @@ void rcu_nmi_exit(void)
 
 	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
 	rdtp->dynticks_nmi_nesting = 0;
-	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
-	smp_mb__before_atomic();  /* See above. */
-	atomic_inc(&rdtp->dynticks);
-	smp_mb__after_atomic();  /* Force delay to next write. */
-	WARN_ON_ONCE(atomic_read(&rdtp->dynticks) & 0x1);
+	rcu_dynticks_eqs_enter();
 }
 
 /**
@@ -3800,8 +3837,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 		init_callback_list(rdp);  /* Re-enable callbacks on this CPU. */
 	rdp->dynticks->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 	rcu_sysidle_init_percpu_data(rdp->dynticks);
-	atomic_set(&rdp->dynticks->dynticks,
-		   (atomic_read(&rdp->dynticks->dynticks) & ~0x1) + 1);
+	rcu_dynticks_eqs_online();
 	raw_spin_unlock_rcu_node(rnp);		/* irqs remain disabled. */
 
 	/*
