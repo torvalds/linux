@@ -306,16 +306,20 @@ NOKPROBE_SYMBOL(call_break_hook);
 static int brk_handler(unsigned long addr, unsigned int esr,
 		       struct pt_regs *regs)
 {
-	if (user_mode(regs)) {
-		send_user_sigtrap(TRAP_BRKPT);
-	}
+	bool handler_found = false;
+
 #ifdef	CONFIG_KPROBES
-	else if ((esr & BRK64_ESR_MASK) == BRK64_ESR_KPROBES) {
-		if (kprobe_breakpoint_handler(regs, esr) != DBG_HOOK_HANDLED)
-			return -EFAULT;
+	if ((esr & BRK64_ESR_MASK) == BRK64_ESR_KPROBES) {
+		if (kprobe_breakpoint_handler(regs, esr) == DBG_HOOK_HANDLED)
+			handler_found = true;
 	}
 #endif
-	else if (call_break_hook(regs, esr) != DBG_HOOK_HANDLED) {
+	if (!handler_found && call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
+		handler_found = true;
+
+	if (!handler_found && user_mode(regs)) {
+		send_user_sigtrap(TRAP_BRKPT);
+	} else if (!handler_found) {
 		pr_warn("Unexpected kernel BRK exception at EL1\n");
 		return -EFAULT;
 	}
