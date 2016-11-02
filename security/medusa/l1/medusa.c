@@ -1554,7 +1554,7 @@ static void __exit medusa_l1_exit (void)
 
 
 
-security_initcall (medusa_l1_init);
+module_init (medusa_l1_init);
 MODULE_LICENSE("GPL");
 #endif /* CONFIG_SECURITY_MEDUSA */
 
