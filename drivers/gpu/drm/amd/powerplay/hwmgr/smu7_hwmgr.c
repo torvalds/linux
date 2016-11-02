@@ -2000,8 +2000,9 @@ static int smu7_thermal_parameter_init(struct pp_hwmgr *hwmgr)
 
 		hwmgr->dyn_state.cac_dtp_table->usTargetOperatingTemp =
 			       table_info->cac_dtp_table->usTargetOperatingTemp;
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_ODFuzzyFanControlSupport);
+		if (hwmgr->feature_mask & PP_OD_FUZZY_FAN_CONTROL_MASK)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_ODFuzzyFanControlSupport);
 	}
 
 	return 0;
