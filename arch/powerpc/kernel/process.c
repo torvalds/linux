@@ -1282,7 +1282,7 @@ static void print_bits(unsigned long val, struct regbit *bits, const char *sep)
 
 	for (; bits->bit; ++bits)
 		if (val & bits->bit) {
-			printk("%s%s", s, bits->name);
+			pr_cont("%s%s", s, bits->name);
 			s = sep;
 		}
 }
@@ -1305,9 +1305,9 @@ static void print_tm_bits(unsigned long val)
  *   T: Transactional	(bit 34)
  */
 	if (val & (MSR_TM | MSR_TS_S | MSR_TS_T)) {
-		printk(",TM[");
+		pr_cont(",TM[");
 		print_bits(val, msr_tm_bits, "");
-		printk("]");
+		pr_cont("]");
 	}
 }
 #else
@@ -1316,10 +1316,10 @@ static void print_tm_bits(unsigned long val) {}
 
 static void print_msr_bits(unsigned long val)
 {
-	printk("<");
+	pr_cont("<");
 	print_bits(val, msr_bits, ",");
 	print_tm_bits(val);
-	printk(">");
+	pr_cont(">");
 }
 
 #ifdef CONFIG_PPC64
