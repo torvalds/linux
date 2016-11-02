@@ -652,6 +652,7 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 			batadv_softif_destroy_sysfs(hard_iface->soft_iface);
 	}
 
+	hard_iface->soft_iface = NULL;
 	batadv_hardif_put(hard_iface);
 
 out:
