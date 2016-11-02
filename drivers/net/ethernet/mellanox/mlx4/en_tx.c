@@ -392,7 +392,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 		cnt++;
 	}
 
-	netdev_tx_reset_queue(ring->tx_queue);
+	if (ring->tx_queue)
+		netdev_tx_reset_queue(ring->tx_queue);
 
 	if (cnt)
 		en_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
@@ -405,7 +406,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
-	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
+	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->type][cq->ring];
 	struct mlx4_cqe *cqe;
 	u16 index;
 	u16 new_index, ring_index, stamp_index;
@@ -807,7 +808,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool bf_ok;
 
 	tx_ind = skb_get_queue_mapping(skb);
-	ring = priv->tx_ring[tx_ind];
+	ring = priv->tx_ring[TX][tx_ind];
 
 	if (!priv->port_up)
 		goto tx_drop;
@@ -1078,7 +1079,8 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
+netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
+			       struct mlx4_en_rx_alloc *frame,
 			       struct net_device *dev, unsigned int length,
 			       int tx_ind, int *doorbell_pending)
 {
@@ -1101,7 +1103,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	BUILD_BUG_ON_MSG(ALIGN(CTRL_SIZE + DS_SIZE, TXBB_SIZE) != TXBB_SIZE,
 			 "mlx4_en_xmit_frame requires minimum size tx desc");
 
-	ring = priv->tx_ring[tx_ind];
+	ring = priv->tx_ring[TX_XDP][tx_ind];
 
 	if (!priv->port_up)
 		goto tx_drop;
@@ -1153,8 +1155,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 		((ring->prod & ring->size) ?
 		 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 
-	ring->packets++;
-	ring->bytes += tx_info->nr_bytes;
+	rx_ring->xdp_tx++;
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
 
 	ring->prod += nr_txbb;
@@ -1178,7 +1179,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	return NETDEV_TX_OK;
 
 tx_drop_count:
-	ring->tx_dropped++;
+	rx_ring->xdp_tx_full++;
 tx_drop:
 	return NETDEV_TX_BUSY;
 }

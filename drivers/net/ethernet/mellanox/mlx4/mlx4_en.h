@@ -207,8 +207,11 @@ enum {
  */
 
 enum cq_type {
-	RX = 0,
-	TX = 1,
+	/* keep tx types first */
+	TX,
+	TX_XDP,
+#define MLX4_EN_NUM_TX_TYPES (TX_XDP + 1)
+	RX,
 };
 
 
@@ -347,6 +350,9 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	unsigned long csum_complete;
+	unsigned long xdp_drop;
+	unsigned long xdp_tx;
+	unsigned long xdp_tx_full;
 	unsigned long dropped;
 	int hwtstamp_rx_filter;
 	cpumask_var_t affinity_mask;
@@ -361,7 +367,7 @@ struct mlx4_en_cq {
 	int size;
 	int buf_size;
 	int vector;
-	enum cq_type is_tx;
+	enum cq_type type;
 	u16 moder_time;
 	u16 moder_cnt;
 	struct mlx4_cqe *buf;
@@ -372,7 +378,7 @@ struct mlx4_en_cq {
 
 struct mlx4_en_port_profile {
 	u32 flags;
-	u32 tx_ring_num;
+	u32 tx_ring_num[MLX4_EN_NUM_TX_TYPES];
 	u32 rx_ring_num;
 	u32 tx_ring_size;
 	u32 rx_ring_size;
@@ -569,17 +575,16 @@ struct mlx4_en_priv {
 	u32 flags;
 	u8 num_tx_rings_p_up;
 	u32 tx_work_limit;
-	u32 tx_ring_num;
+	u32 tx_ring_num[MLX4_EN_NUM_TX_TYPES];
 	u32 rx_ring_num;
 	u32 rx_skb_size;
 	struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
 	u16 num_frags;
 	u16 log_rx_info;
-	int xdp_ring_num;
 
-	struct mlx4_en_tx_ring **tx_ring;
+	struct mlx4_en_tx_ring **tx_ring[MLX4_EN_NUM_TX_TYPES];
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];
-	struct mlx4_en_cq **tx_cq;
+	struct mlx4_en_cq **tx_cq[MLX4_EN_NUM_TX_TYPES];
 	struct mlx4_en_cq *rx_cq[MAX_RX_RINGS];
 	struct mlx4_qp drop_qp;
 	struct work_struct rx_mode_task;
@@ -597,6 +602,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_flow_stats_rx rx_flowstats;
 	struct mlx4_en_flow_stats_tx tx_flowstats;
 	struct mlx4_en_port_stats port_stats;
+	struct mlx4_en_xdp_stats xdp_stats;
 	struct mlx4_en_stats_bitmap stats_bitmap;
 	struct list_head mc_list;
 	struct list_head curr_list;
@@ -685,7 +691,8 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 			 void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
-netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
+netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
+			       struct mlx4_en_rx_alloc *frame,
 			       struct net_device *dev, unsigned int length,
 			       int tx_ind, int *doorbell_pending);
 void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring);
