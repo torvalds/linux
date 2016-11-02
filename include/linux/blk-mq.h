@@ -3,6 +3,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/sbitmap.h>
+#include <linux/srcu.h>
 
 struct blk_mq_tags;
 struct blk_flush_queue;
@@ -34,6 +35,8 @@ struct blk_mq_hw_ctx {
 	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
+
+	struct srcu_struct	queue_rq_srcu;
 
 	unsigned long		queued;
 	unsigned long		run;
