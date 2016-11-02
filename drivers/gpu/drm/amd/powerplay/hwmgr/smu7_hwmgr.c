@@ -993,13 +993,6 @@ static int smu7_start_dpm(struct pp_hwmgr *hwmgr)
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__PCIE,
 			SWRST_COMMAND_1, RESETLC, 0x0);
 
-	PP_ASSERT_WITH_CODE(
-			(0 == smum_send_msg_to_smc(hwmgr->smumgr,
-					PPSMC_MSG_Voltage_Cntl_Enable)),
-			"Failed to enable voltage DPM during DPM Start Function!",
-			return -EINVAL);
-
-
 	if (smu7_enable_sclk_mclk_dpm(hwmgr)) {
 		printk(KERN_ERR "Failed to enable Sclk DPM and Mclk DPM!");
 		return -EINVAL;
