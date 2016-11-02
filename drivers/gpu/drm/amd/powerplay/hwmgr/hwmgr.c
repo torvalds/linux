@@ -80,20 +80,17 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
 			topaz_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
-						PP_VBI_TIME_SUPPORT_MASK |
+			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			hwmgr->pp_table_version = PP_TABLE_V0;
 			break;
 		case CHIP_TONGA:
 			tonga_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
-						PP_VBI_TIME_SUPPORT_MASK);
+			hwmgr->feature_mask &= ~PP_VBI_TIME_SUPPORT_MASK;
 			break;
 		case CHIP_FIJI:
 			fiji_set_asic_special_caps(hwmgr);
-			hwmgr->feature_mask &= ~(PP_SMC_VOLTAGE_CONTROL_MASK |
-						PP_VBI_TIME_SUPPORT_MASK |
+			hwmgr->feature_mask &= ~ (PP_VBI_TIME_SUPPORT_MASK |
 						PP_ENABLE_GFX_CG_THRU_SMU);
 			break;
 		case CHIP_POLARIS11:
