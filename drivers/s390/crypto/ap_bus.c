@@ -271,8 +271,11 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 		*facilities = (unsigned int)(info >> 32);
 		/* Update maximum domain id */
 		nd = (info >> 16) & 0xff;
+		/* if N bit is available, z13 and newer */
 		if ((info & (1UL << 57)) && nd > 0)
 			ap_max_domain_id = nd;
+		else /* older machine types */
+			ap_max_domain_id = 15;
 		switch (*device_type) {
 			/* For CEX2 and CEX3 the available functions
 			 * are not refrected by the facilities bits.
