@@ -11,7 +11,7 @@ SPHINX_CONF   = conf.py
 PAPER         =
 BUILDDIR      = $(obj)/output
 PDFLATEX      = xelatex
-LATEXOPTS     = -interaction=nonstopmode
+LATEXOPTS     = -interaction=batchmode
 
 # User-friendly check for sphinx-build
 HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; else echo 0; fi)
