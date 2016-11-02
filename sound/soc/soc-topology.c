@@ -1704,7 +1704,7 @@ static void set_link_flags(struct snd_soc_dai_link *link,
 }
 
 /* create the FE DAI link */
-static int soc_tplg_link_create(struct soc_tplg *tplg,
+static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
 	struct snd_soc_dai_link *link;
@@ -1760,7 +1760,7 @@ static int soc_tplg_pcm_create(struct soc_tplg *tplg,
 	if (ret < 0)
 		return ret;
 
-	return  soc_tplg_link_create(tplg, pcm);
+	return  soc_tplg_fe_link_create(tplg, pcm);
 }
 
 /* copy stream caps from the old version 4 of source */
