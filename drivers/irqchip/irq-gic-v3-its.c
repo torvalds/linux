@@ -835,7 +835,7 @@ static u64 its_read_baser(struct its_node *its, struct its_baser *baser)
 {
 	u32 idx = baser - its->tables;
 
-	return readq_relaxed(its->base + GITS_BASER + (idx << 3));
+	return gits_read_baser(its->base + GITS_BASER + (idx << 3));
 }
 
 static void its_write_baser(struct its_node *its, struct its_baser *baser,
@@ -843,7 +843,7 @@ static void its_write_baser(struct its_node *its, struct its_baser *baser,
 {
 	u32 idx = baser - its->tables;
 
-	writeq_relaxed(val, its->base + GITS_BASER + (idx << 3));
+	gits_write_baser(val, its->base + GITS_BASER + (idx << 3));
 	baser->val = its_read_baser(its, baser);
 }
 
@@ -1125,8 +1125,8 @@ static void its_cpu_init_lpis(void)
 	       GICR_PROPBASER_WaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
 
-	writeq_relaxed(val, rbase + GICR_PROPBASER);
-	tmp = readq_relaxed(rbase + GICR_PROPBASER);
+	gicr_write_propbaser(val, rbase + GICR_PROPBASER);
+	tmp = gicr_read_propbaser(rbase + GICR_PROPBASER);
 
 	if ((tmp ^ val) & GICR_PROPBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GICR_PROPBASER_SHAREABILITY_MASK)) {
@@ -1138,7 +1138,7 @@ static void its_cpu_init_lpis(void)
 			val &= ~(GICR_PROPBASER_SHAREABILITY_MASK |
 				 GICR_PROPBASER_CACHEABILITY_MASK);
 			val |= GICR_PROPBASER_nC;
-			writeq_relaxed(val, rbase + GICR_PROPBASER);
+			gicr_write_propbaser(val, rbase + GICR_PROPBASER);
 		}
 		pr_info_once("GIC: using cache flushing for LPI property table\n");
 		gic_rdists->flags |= RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING;
@@ -1149,8 +1149,8 @@ static void its_cpu_init_lpis(void)
 	       GICR_PENDBASER_InnerShareable |
 	       GICR_PENDBASER_WaWb);
 
-	writeq_relaxed(val, rbase + GICR_PENDBASER);
-	tmp = readq_relaxed(rbase + GICR_PENDBASER);
+	gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
+	tmp = gicr_read_pendbaser(rbase + GICR_PENDBASER);
 
 	if (!(tmp & GICR_PENDBASER_SHAREABILITY_MASK)) {
 		/*
@@ -1160,7 +1160,7 @@ static void its_cpu_init_lpis(void)
 		val &= ~(GICR_PENDBASER_SHAREABILITY_MASK |
 			 GICR_PENDBASER_CACHEABILITY_MASK);
 		val |= GICR_PENDBASER_nC;
-		writeq_relaxed(val, rbase + GICR_PENDBASER);
+		gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
 	}
 
 	/* Enable LPIs */
@@ -1716,8 +1716,8 @@ static int __init its_probe_one(struct resource *res,
 		 (ITS_CMD_QUEUE_SZ / SZ_4K - 1)	|
 		 GITS_CBASER_VALID);
 
-	writeq_relaxed(baser, its->base + GITS_CBASER);
-	tmp = readq_relaxed(its->base + GITS_CBASER);
+	gits_write_cbaser(baser, its->base + GITS_CBASER);
+	tmp = gits_read_cbaser(its->base + GITS_CBASER);
 
 	if ((tmp ^ baser) & GITS_CBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GITS_CBASER_SHAREABILITY_MASK)) {
@@ -1729,13 +1729,13 @@ static int __init its_probe_one(struct resource *res,
 			baser &= ~(GITS_CBASER_SHAREABILITY_MASK |
 				   GITS_CBASER_CACHEABILITY_MASK);
 			baser |= GITS_CBASER_nC;
-			writeq_relaxed(baser, its->base + GITS_CBASER);
+			gits_write_cbaser(baser, its->base + GITS_CBASER);
 		}
 		pr_info("ITS: using cache flushing for cmd queue\n");
 		its->flags |= ITS_FLAGS_CMDQ_NEEDS_FLUSHING;
 	}
 
-	writeq_relaxed(0, its->base + GITS_CWRITER);
+	gits_write_cwriter(0, its->base + GITS_CWRITER);
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
 	err = its_init_domain(handle, its);
