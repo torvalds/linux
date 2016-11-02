@@ -426,13 +426,9 @@ static const struct snd_soc_component_driver s3c24xx_i2s_component = {
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int ret = 0;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Can't get IO resource.\n");
-		return -ENOENT;
-	}
 	s3c24xx_i2s.regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(s3c24xx_i2s.regs))
 		return PTR_ERR(s3c24xx_i2s.regs);
