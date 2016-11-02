@@ -221,7 +221,7 @@ config VIDEO_ADV7604
 
 config VIDEO_ADV7604_CEC
 	bool "Enable Analog Devices ADV7604 CEC support"
-	depends on VIDEO_ADV7604 && MEDIA_CEC
+	depends on VIDEO_ADV7604 && MEDIA_CEC_SUPPORT
 	---help---
 	  When selected the adv7604 will support the optional
 	  HDMI CEC feature.
@@ -242,7 +242,7 @@ config VIDEO_ADV7842
 
 config VIDEO_ADV7842_CEC
 	bool "Enable Analog Devices ADV7842 CEC support"
-	depends on VIDEO_ADV7842 && MEDIA_CEC
+	depends on VIDEO_ADV7842 && MEDIA_CEC_SUPPORT
 	---help---
 	  When selected the adv7842 will support the optional
 	  HDMI CEC feature.
@@ -481,7 +481,7 @@ config VIDEO_ADV7511
 
 config VIDEO_ADV7511_CEC
 	bool "Enable Analog Devices ADV7511 CEC support"
-	depends on VIDEO_ADV7511 && MEDIA_CEC
+	depends on VIDEO_ADV7511 && MEDIA_CEC_SUPPORT
 	---help---
 	  When selected the adv7511 will support the optional
 	  HDMI CEC feature.

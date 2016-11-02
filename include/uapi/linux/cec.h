@@ -33,12 +33,6 @@
  * SOFTWARE.
  */
 
-/*
- * Note: this framework is still in staging and it is likely the API
- * will change before it goes out of staging.
- *
- * Once it is moved out of staging this header will move to uapi.
- */
 #ifndef _CEC_UAPI_H
 #define _CEC_UAPI_H
 
