@@ -405,7 +405,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	 */
 	trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
 
-	map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir);
+	map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir,
+				     attrs);
 	if (map == SWIOTLB_MAP_ERROR)
 		return DMA_ERROR_CODE;
 
@@ -419,7 +420,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (dma_capable(dev, dev_addr, size))
 		return dev_addr;
 
-	swiotlb_tbl_unmap_single(dev, map, size, dir);
+	swiotlb_tbl_unmap_single(dev, map, size, dir,
+				 attrs | DMA_ATTR_SKIP_CPU_SYNC);
 
 	return DMA_ERROR_CODE;
 }
@@ -445,7 +447,7 @@ static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
 
 	/* NOTE: We use dev_addr here, not paddr! */
 	if (is_xen_swiotlb_buffer(dev_addr)) {
-		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir);
+		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
 		return;
 	}
 
@@ -558,11 +560,12 @@ xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 								 start_dma_addr,
 								 sg_phys(sg),
 								 sg->length,
-								 dir);
+								 dir, attrs);
 			if (map == SWIOTLB_MAP_ERROR) {
 				dev_warn(hwdev, "swiotlb buffer is full\n");
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
+				attrs |= DMA_ATTR_SKIP_CPU_SYNC;
 				xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
 							   attrs);
 				sg_dma_len(sgl) = 0;
