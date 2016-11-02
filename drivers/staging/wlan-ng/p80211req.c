@@ -141,7 +141,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 	p80211req_handlemsg(wlandev, msg);
 
 	/* Pass it down to wlandev via wlandev->mlmerequest */
-	if (wlandev->mlmerequest != NULL)
+	if (wlandev->mlmerequest)
 		wlandev->mlmerequest(wlandev, msg);
 
 	clear_bit(1, &(wlandev->request_pending));
