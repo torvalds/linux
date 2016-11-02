@@ -229,8 +229,9 @@ struct ipv6_pinfo {
                                 rxflow:1,
 				rxtclass:1,
 				rxpmtu:1,
-				rxorigdstaddr:1;
-				/* 2 bits hole */
+				rxorigdstaddr:1,
+				recvfragsize:1;
+				/* 1 bits hole */
 		} bits;
 		__u16		all;
 	} rxopt;
