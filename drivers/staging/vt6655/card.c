@@ -524,8 +524,11 @@ CARDvSafeResetTx(
 	struct vnt_tx_desc *pCurrTD;
 
 	/* initialize TD index */
-	priv->apTailTD[0] = priv->apCurrTD[0] = &(priv->apTD0Rings[0]);
-	priv->apTailTD[1] = priv->apCurrTD[1] = &(priv->apTD1Rings[0]);
+	priv->apTailTD[0] = &(priv->apTD0Rings[0]);
+	priv->apCurrTD[0] = &(priv->apTD0Rings[0]);
+
+	priv->apTailTD[1] = &(priv->apTD1Rings[0]);
+	priv->apCurrTD[1] = &(priv->apTD1Rings[0]);
 
 	for (uu = 0; uu < TYPE_MAXTD; uu++)
 		priv->iTDUsed[uu] = 0;
