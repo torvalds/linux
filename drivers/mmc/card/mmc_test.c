@@ -214,7 +214,8 @@ static void mmc_test_prepare_mrq(struct mmc_test_card *test,
 	struct mmc_request *mrq, struct scatterlist *sg, unsigned sg_len,
 	unsigned dev_addr, unsigned blocks, unsigned blksz, int write)
 {
-	BUG_ON(!mrq || !mrq->cmd || !mrq->data || !mrq->stop);
+	if (WARN_ON(!mrq || !mrq->cmd || !mrq->data || !mrq->stop))
+		return;
 
 	if (blocks > 1) {
 		mrq->cmd->opcode = write ?
@@ -694,7 +695,8 @@ static int mmc_test_cleanup(struct mmc_test_card *test)
 static void mmc_test_prepare_broken_mrq(struct mmc_test_card *test,
 	struct mmc_request *mrq, int write)
 {
-	BUG_ON(!mrq || !mrq->cmd || !mrq->data);
+	if (WARN_ON(!mrq || !mrq->cmd || !mrq->data))
+		return;
 
 	if (mrq->data->blocks > 1) {
 		mrq->cmd->opcode = write ?
@@ -714,7 +716,8 @@ static int mmc_test_check_result(struct mmc_test_card *test,
 {
 	int ret;
 
-	BUG_ON(!mrq || !mrq->cmd || !mrq->data);
+	if (WARN_ON(!mrq || !mrq->cmd || !mrq->data))
+		return -EINVAL;
 
 	ret = 0;
 
@@ -768,7 +771,8 @@ static int mmc_test_check_broken_result(struct mmc_test_card *test,
 {
 	int ret;
 
-	BUG_ON(!mrq || !mrq->cmd || !mrq->data);
+	if (WARN_ON(!mrq || !mrq->cmd || !mrq->data))
+		return -EINVAL;
 
 	ret = 0;
 
