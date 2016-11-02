@@ -132,7 +132,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 	}
 
 	/* Check for busy status */
-	if (test_and_set_bit(1, &(wlandev->request_pending)))
+	if (test_and_set_bit(1, &wlandev->request_pending))
 		return -EBUSY;
 
 	/* Allow p80211 to look at msg and handle if desired. */
@@ -144,7 +144,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 	if (wlandev->mlmerequest)
 		wlandev->mlmerequest(wlandev, msg);
 
-	clear_bit(1, &(wlandev->request_pending));
+	clear_bit(1, &wlandev->request_pending);
 	return 0;	/* if result==0, msg->status still may contain an err */
 }
 
