@@ -406,3 +406,7 @@
 &gpio0 {
 	ti,no-reset-on-init;
 };
+
+&gpio3 {
+	ti,no-reset-on-init;
+};
