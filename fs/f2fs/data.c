@@ -707,7 +707,7 @@ next_dnode:
 	}
 
 	prealloc = 0;
-	ofs_in_node = dn.ofs_in_node;
+	last_ofs_in_node = ofs_in_node = dn.ofs_in_node;
 	end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
 
 next_block:
