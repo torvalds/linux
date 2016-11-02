@@ -91,8 +91,8 @@ int amdgpu_exp_hw_support = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_powerplay = -1;
-int amdgpu_powercontainment = 1;
-int amdgpu_sclk_deep_sleep_en = 1;
+int amdgpu_no_evict = 0;
+int amdgpu_direct_gma_size = 0;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
 unsigned amdgpu_cg_mask = 0xffffffff;
@@ -182,14 +182,14 @@ module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(powerplay, amdgpu_powerplay, int, 0444);
 
-MODULE_PARM_DESC(powercontainment, "Power Containment (1 = enable (default), 0 = disable)");
-module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
-
 MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
 module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, int, 0444);
 
-MODULE_PARM_DESC(sclkdeepsleep, "SCLK Deep Sleep (1 = enable (default), 0 = disable)");
-module_param_named(sclkdeepsleep, amdgpu_sclk_deep_sleep_en, int, 0444);
+MODULE_PARM_DESC(no_evict, "Support pinning request from user space (1 = enable, 0 = disable (default))");
+module_param_named(no_evict, amdgpu_no_evict, int, 0444);
+
+MODULE_PARM_DESC(direct_gma_size, "Direct GMA size in megabytes (max 96MB)");
+module_param_named(direct_gma_size, amdgpu_direct_gma_size, int, 0444);
 
 MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");
 module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
