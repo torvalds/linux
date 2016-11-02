@@ -1164,7 +1164,7 @@ restart:
 
 	err = -EPIPE;
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
-		goto out_err;
+		goto do_error;
 
 	sg = !!(sk->sk_route_caps & NETIF_F_SG);
 
