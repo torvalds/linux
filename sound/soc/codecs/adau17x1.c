@@ -160,7 +160,7 @@ static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	struct snd_soc_dapm_update update;
+	struct snd_soc_dapm_update update = { 0 };
 	unsigned int stream = e->shift_l;
 	unsigned int val, change;
 	int reg;

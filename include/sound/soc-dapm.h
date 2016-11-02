@@ -615,6 +615,10 @@ struct snd_soc_dapm_update {
 	int reg;
 	int mask;
 	int val;
+	int reg2;
+	int mask2;
+	int val2;
+	bool has_second_set;
 };
 
 struct snd_soc_dapm_wcache {
