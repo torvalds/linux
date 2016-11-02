@@ -57,6 +57,10 @@ config NF_CONNTRACK
 config NF_LOG_COMMON
 	tristate
 
+config NF_LOG_NETDEV
+	tristate "Netdev packet logging"
+	select NF_LOG_COMMON
+
 if NF_CONNTRACK
 
 config NF_CONNTRACK_MARK
@@ -474,6 +478,12 @@ config NFT_META
 	  This option adds the "meta" expression that you can use to match and
 	  to set packet metainformation such as the packet mark.
 
+config NFT_RT
+	tristate "Netfilter nf_tables routing module"
+	help
+	  This option adds the "rt" expression that you can use to match
+	  packet routing information such as the packet nexthop.
+
 config NFT_NUMGEN
 	tristate "Netfilter nf_tables number generator module"
 	help
@@ -580,6 +590,19 @@ config NFT_HASH
 	help
 	  This option adds the "hash" expression that you can use to perform
 	  a hash operation on registers.
+
+config NFT_FIB
+	tristate
+
+config NFT_FIB_INET
+	depends on NF_TABLES_INET
+	depends on NFT_FIB_IPV4
+	depends on NFT_FIB_IPV6
+	tristate "Netfilter nf_tables fib inet support"
+	help
+	  This option allows using the FIB expression from the inet table.
+	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
+	  on the protocol of the packet.
 
 if NF_TABLES_NETDEV
 
@@ -1409,9 +1432,10 @@ config NETFILTER_XT_MATCH_SOCKET
 	tristate '"socket" match support'
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
-	depends on !NF_CONNTRACK || NF_CONNTRACK
 	depends on IPV6 || IPV6=n
 	depends on IP6_NF_IPTABLES || IP6_NF_IPTABLES=n
+	depends on NF_SOCKET_IPV4
+	depends on NF_SOCKET_IPV6
 	select NF_DEFRAG_IPV4
 	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES != n
 	help

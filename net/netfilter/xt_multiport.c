@@ -42,29 +42,31 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 			e = minfo->ports[++i];
 			pr_debug("src or dst matches with %d-%d?\n", s, e);
 
-			if (minfo->flags == XT_MULTIPORT_SOURCE
-			    && src >= s && src <= e)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_DESTINATION
-			    && dst >= s && dst <= e)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_EITHER
-			    && ((dst >= s && dst <= e)
-				|| (src >= s && src <= e)))
-				return true ^ minfo->invert;
+			switch (minfo->flags) {
+			case XT_MULTIPORT_SOURCE:
+				return (src >= s && src <= e) ^ minfo->invert;
+			case XT_MULTIPORT_DESTINATION:
+				return (dst >= s && dst <= e) ^ minfo->invert;
+			case XT_MULTIPORT_EITHER:
+				return ((dst >= s && dst <= e) ||
+					(src >= s && src <= e)) ^ minfo->invert;
+			default:
+				break;
+			}
 		} else {
 			/* exact port matching */
 			pr_debug("src or dst matches with %d?\n", s);
 
-			if (minfo->flags == XT_MULTIPORT_SOURCE
-			    && src == s)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_DESTINATION
-			    && dst == s)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_EITHER
-			    && (src == s || dst == s))
-				return true ^ minfo->invert;
+			switch (minfo->flags) {
+			case XT_MULTIPORT_SOURCE:
+				return (src == s) ^ minfo->invert;
+			case XT_MULTIPORT_DESTINATION:
+				return (dst == s) ^ minfo->invert;
+			case XT_MULTIPORT_EITHER:
+				return (src == s || dst == s) ^ minfo->invert;
+			default:
+				break;
+			}
 		}
 	}
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2016 Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -518,15 +519,61 @@ static struct nft_expr_type nft_ct_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
+static void nft_notrack_eval(const struct nft_expr *expr,
+			     struct nft_regs *regs,
+			     const struct nft_pktinfo *pkt)
+{
+	struct sk_buff *skb = pkt->skb;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(pkt->skb, &ctinfo);
+	/* Previously seen (loopback or untracked)?  Ignore. */
+	if (ct)
+		return;
+
+	ct = nf_ct_untracked_get();
+	atomic_inc(&ct->ct_general.use);
+	skb->nfct = &ct->ct_general;
+	skb->nfctinfo = IP_CT_NEW;
+}
+
+static struct nft_expr_type nft_notrack_type;
+static const struct nft_expr_ops nft_notrack_ops = {
+	.type		= &nft_notrack_type,
+	.size		= NFT_EXPR_SIZE(0),
+	.eval		= nft_notrack_eval,
+};
+
+static struct nft_expr_type nft_notrack_type __read_mostly = {
+	.name		= "notrack",
+	.ops		= &nft_notrack_ops,
+	.owner		= THIS_MODULE,
+};
+
 static int __init nft_ct_module_init(void)
 {
+	int err;
+
 	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > NFT_REG_SIZE);
 
-	return nft_register_expr(&nft_ct_type);
+	err = nft_register_expr(&nft_ct_type);
+	if (err < 0)
+		return err;
+
+	err = nft_register_expr(&nft_notrack_type);
+	if (err < 0)
+		goto err1;
+
+	return 0;
+err1:
+	nft_unregister_expr(&nft_ct_type);
+	return err;
 }
 
 static void __exit nft_ct_module_exit(void)
 {
+	nft_unregister_expr(&nft_notrack_type);
 	nft_unregister_expr(&nft_ct_type);
 }
 
@@ -536,3 +583,4 @@ module_exit(nft_ct_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("ct");
+MODULE_ALIAS_NFT_EXPR("notrack");
