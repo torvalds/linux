@@ -14,6 +14,30 @@
 #ifndef _DT_BINDINGS_CLK_MSM_RPMCC_H
 #define _DT_BINDINGS_CLK_MSM_RPMCC_H
 
+/* apq8064 */
+#define RPM_PXO_CLK				0
+#define RPM_PXO_A_CLK				1
+#define RPM_CXO_CLK				2
+#define RPM_CXO_A_CLK				3
+#define RPM_APPS_FABRIC_CLK			4
+#define RPM_APPS_FABRIC_A_CLK			5
+#define RPM_CFPB_CLK				6
+#define RPM_CFPB_A_CLK				7
+#define RPM_QDSS_CLK				8
+#define RPM_QDSS_A_CLK				9
+#define RPM_DAYTONA_FABRIC_CLK			10
+#define RPM_DAYTONA_FABRIC_A_CLK		11
+#define RPM_EBI1_CLK				12
+#define RPM_EBI1_A_CLK				13
+#define RPM_MM_FABRIC_CLK			14
+#define RPM_MM_FABRIC_A_CLK			15
+#define RPM_MMFPB_CLK				16
+#define RPM_MMFPB_A_CLK				17
+#define RPM_SYS_FABRIC_CLK			18
+#define RPM_SYS_FABRIC_A_CLK			19
+#define RPM_SFPB_CLK				20
+#define RPM_SFPB_A_CLK				21
+
 /* msm8916 */
 #define RPM_SMD_XO_CLK_SRC				0
 #define RPM_SMD_XO_A_CLK_SRC			1
