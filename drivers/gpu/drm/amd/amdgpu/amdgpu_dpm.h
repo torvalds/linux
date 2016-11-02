@@ -52,6 +52,8 @@ enum amdgpu_dpm_event_src {
 	AMDGPU_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
 };
 
+#define SCLK_DEEP_SLEEP_MASK 0x8
+
 struct amdgpu_ps {
 	u32 caps; /* vbios flags */
 	u32 class; /* vbios flags */
