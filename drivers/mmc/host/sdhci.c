@@ -2521,9 +2521,6 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	if (!host->data) {
 		struct mmc_command *data_cmd = host->data_cmd;
 
-		if (data_cmd)
-			host->data_cmd = NULL;
-
 		/*
 		 * The "data complete" interrupt is also used to
 		 * indicate that a busy state has ended. See comment
@@ -2531,11 +2528,13 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		 */
 		if (data_cmd && (data_cmd->flags & MMC_RSP_BUSY)) {
 			if (intmask & SDHCI_INT_DATA_TIMEOUT) {
+				host->data_cmd = NULL;
 				data_cmd->error = -ETIMEDOUT;
 				sdhci_finish_mrq(host, data_cmd->mrq);
 				return;
 			}
 			if (intmask & SDHCI_INT_DATA_END) {
+				host->data_cmd = NULL;
 				/*
 				 * Some cards handle busy-end interrupt
 				 * before the command completed, so make
