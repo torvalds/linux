@@ -10250,8 +10250,10 @@ static void bxt_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 static int bdw_adjust_min_pipe_pixel_rate(struct intel_crtc_state *crtc_state,
 					  int pixel_rate)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
 	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-	if (crtc_state->ips_enabled)
+	if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
 		pixel_rate = DIV_ROUND_UP(pixel_rate * 100, 95);
 
 	/* BSpec says "Do not use DisplayPort with CDCLK less than
@@ -10293,7 +10295,7 @@ static int ilk_max_pixel_rate(struct drm_atomic_state *state)
 
 		pixel_rate = ilk_pipe_pixel_rate(crtc_state);
 
-		if (IS_BROADWELL(dev_priv))
+		if (IS_BROADWELL(dev_priv) || IS_GEN9(dev_priv))
 			pixel_rate = bdw_adjust_min_pipe_pixel_rate(crtc_state,
 								    pixel_rate);
 
