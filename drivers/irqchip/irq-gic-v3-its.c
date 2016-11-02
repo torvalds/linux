@@ -948,7 +948,7 @@ retry_baser:
 	tmp = indirect ? GITS_LVL1_ENTRY_SIZE : esz;
 
 	pr_info("ITS@%pa: allocated %d %s @%lx (%s, esz %d, psz %dK, shr %d)\n",
-		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / tmp),
+		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / (int)tmp),
 		its_base_type_string[type],
 		(unsigned long)virt_to_phys(base),
 		indirect ? "indirect" : "flat", (int)esz,
@@ -983,7 +983,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 			 * which is reported by ITS hardware times lvl1 table
 			 * entry size.
 			 */
-			ids -= ilog2(psz / esz);
+			ids -= ilog2(psz / (int)esz);
 			esz = GITS_LVL1_ENTRY_SIZE;
 		}
 	}
@@ -998,7 +998,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 	new_order = max_t(u32, get_order(esz << ids), new_order);
 	if (new_order >= MAX_ORDER) {
 		new_order = MAX_ORDER - 1;
-		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / esz);
+		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / (int)esz);
 		pr_warn("ITS@%pa: Device Table too large, reduce ids %u->%u\n",
 			&its->phys_base, its->device_ids, ids);
 	}
