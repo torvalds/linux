@@ -207,8 +207,9 @@ enum {
  */
 
 enum cq_type {
-	RX = 0,
-	TX = 1,
+	TX,
+	TX_XDP,
+	RX,
 };
 
 
@@ -361,7 +362,7 @@ struct mlx4_en_cq {
 	int size;
 	int buf_size;
 	int vector;
-	enum cq_type is_tx;
+	enum cq_type type;
 	u16 moder_time;
 	u16 moder_cnt;
 	struct mlx4_cqe *buf;
