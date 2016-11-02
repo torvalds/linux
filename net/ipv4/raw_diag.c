@@ -79,10 +79,11 @@ static struct sock *raw_sock_get(struct net *net, const struct inet_diag_req_v2 
 				 * hashinfo->lock here.
 				 */
 				sock_hold(sk);
-				break;
+				goto out_unlock;
 			}
 		}
 	}
+out_unlock:
 	read_unlock(&hashinfo->lock);
 
 	return sk ? sk : ERR_PTR(-ENOENT);
