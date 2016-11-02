@@ -416,11 +416,12 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	/*
 	 * Ensure that the address returned is DMA'ble
 	 */
-	if (!dma_capable(dev, dev_addr, size)) {
-		swiotlb_tbl_unmap_single(dev, map, size, dir);
-		dev_addr = 0;
-	}
-	return dev_addr;
+	if (dma_capable(dev, dev_addr, size))
+		return dev_addr;
+
+	swiotlb_tbl_unmap_single(dev, map, size, dir);
+
+	return DMA_ERROR_CODE;
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_map_page);
 
@@ -647,13 +648,6 @@ xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 	xen_swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_DEVICE);
 }
 EXPORT_SYMBOL_GPL(xen_swiotlb_sync_sg_for_device);
-
-int
-xen_swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
-{
-	return !dma_addr;
-}
-EXPORT_SYMBOL_GPL(xen_swiotlb_dma_mapping_error);
 
 /*
  * Return whether the given device DMA address mask can be supported
