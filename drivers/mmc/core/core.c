@@ -306,16 +306,16 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		mrq->sbc->mrq = mrq;
 	}
 	if (mrq->data) {
-		BUG_ON(mrq->data->blksz > host->max_blk_size);
-		BUG_ON(mrq->data->blocks > host->max_blk_count);
-		BUG_ON(mrq->data->blocks * mrq->data->blksz >
-			host->max_req_size);
-
+		if (mrq->data->blksz > host->max_blk_size ||
+		    mrq->data->blocks > host->max_blk_count ||
+		    mrq->data->blocks * mrq->data->blksz > host->max_req_size)
+			return -EINVAL;
 #ifdef CONFIG_MMC_DEBUG
 		sz = 0;
 		for_each_sg(mrq->data->sg, sg, mrq->data->sg_len, i)
 			sz += sg->length;
-		BUG_ON(sz != mrq->data->blocks * mrq->data->blksz);
+		if (sz != mrq->data->blocks * mrq->data->blksz)
+			return -EINVAL;
 #endif
 
 		mrq->cmd->data = mrq->data;
@@ -348,8 +348,6 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	int err;
 	int timeout;
 	bool use_busy_signal;
-
-	BUG_ON(!card);
 
 	if (!card->ext_csd.man_bkops_en || mmc_card_doing_bkops(card))
 		return;
@@ -747,8 +745,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	u32 status;
 	unsigned long prg_wait;
 
-	BUG_ON(!card);
-
 	if (!card->ext_csd.hpi_en) {
 		pr_info("%s: HPI enable bit unset\n", mmc_hostname(card->host));
 		return 1;
@@ -843,7 +839,6 @@ int mmc_stop_bkops(struct mmc_card *card)
 {
 	int err = 0;
 
-	BUG_ON(!card);
 	err = mmc_interrupt_hpi(card);
 
 	/*
@@ -1659,8 +1654,6 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, u32 ocr)
 	int err = 0;
 	u32 clock;
 
-	BUG_ON(!host);
-
 	/*
 	 * Send CMD11 only if the request is to switch the card to
 	 * 1.8V signalling.
@@ -1877,9 +1870,7 @@ void mmc_power_cycle(struct mmc_host *host, u32 ocr)
  */
 static void __mmc_release_bus(struct mmc_host *host)
 {
-	BUG_ON(!host);
-	BUG_ON(host->bus_refs);
-	BUG_ON(!host->bus_dead);
+	WARN_ON(!host->bus_dead);
 
 	host->bus_ops = NULL;
 }
@@ -1919,15 +1910,12 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 {
 	unsigned long flags;
 
-	BUG_ON(!host);
-	BUG_ON(!ops);
-
 	WARN_ON(!host->claimed);
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	BUG_ON(host->bus_ops);
-	BUG_ON(host->bus_refs);
+	WARN_ON(host->bus_ops);
+	WARN_ON(host->bus_refs);
 
 	host->bus_ops = ops;
 	host->bus_refs = 1;
@@ -1942,8 +1930,6 @@ void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops)
 void mmc_detach_bus(struct mmc_host *host)
 {
 	unsigned long flags;
-
-	BUG_ON(!host);
 
 	WARN_ON(!host->claimed);
 	WARN_ON(!host->bus_ops);
@@ -2856,8 +2842,6 @@ void mmc_stop_host(struct mmc_host *host)
 		return;
 	}
 	mmc_bus_put(host);
-
-	BUG_ON(host->card);
 
 	mmc_claim_host(host);
 	mmc_power_off(host);
