@@ -662,7 +662,7 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 	return 0;
 }
 
-static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu,
+static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 				     const struct firmware *fw_entry)
 {
 	int n, i;
@@ -708,6 +708,40 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu,
 	return 0;
 }
 
+/* firmware file names, per model, init-fw and dock-fw (optional) */
+static const char * const firmware_names[5][2] = {
+	[EMU_MODEL_EMU1010] = {
+		HANA_FILENAME, DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU1010B] = {
+		EMU1010B_FILENAME, MICRO_DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU1616] = {
+		EMU1010_NOTEBOOK_FILENAME, MICRO_DOCK_FILENAME
+	},
+	[EMU_MODEL_EMU0404] = {
+		EMU0404_FILENAME, NULL
+	},
+};
+
+static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, int dock,
+				     const struct firmware **fw)
+{
+	const char *filename;
+	int err;
+
+	if (!*fw) {
+		filename = firmware_names[emu->card_capabilities->emu_model][dock];
+		if (!filename)
+			return 0;
+		err = request_firmware(fw, filename, &emu->pci->dev);
+		if (err)
+			return err;
+	}
+
+	return snd_emu1010_load_firmware_entry(emu, *fw);
+}
+
 static int emu1010_firmware_thread(void *data)
 {
 	struct snd_emu10k1 *emu = data;
@@ -732,34 +766,9 @@ static int emu1010_firmware_thread(void *data)
 			dev_info(emu->card->dev,
 				 "emu1010: Loading Audio Dock Firmware\n");
 			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK);
-
-			if (!emu->dock_fw) {
-				const char *filename = NULL;
-				switch (emu->card_capabilities->emu_model) {
-				case EMU_MODEL_EMU1010:
-					filename = DOCK_FILENAME;
-					break;
-				case EMU_MODEL_EMU1010B:
-					filename = MICRO_DOCK_FILENAME;
-					break;
-				case EMU_MODEL_EMU1616:
-					filename = MICRO_DOCK_FILENAME;
-					break;
-				}
-				if (filename) {
-					err = request_firmware(&emu->dock_fw,
-							       filename,
-							       &emu->pci->dev);
-					if (err)
-						continue;
-				}
-			}
-
-			if (emu->dock_fw) {
-				err = snd_emu1010_load_firmware(emu, emu->dock_fw);
-				if (err)
-					continue;
-			}
+			err = snd_emu1010_load_firmware(emu, 1, &emu->dock_fw);
+			if (err < 0)
+				continue;
 
 			snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
 			snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp);
@@ -881,39 +890,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	}
 	dev_info(emu->card->dev, "emu1010: EMU_HANA_ID = 0x%x\n", reg);
 
-	if (!emu->firmware) {
-		const char *filename;
-		switch (emu->card_capabilities->emu_model) {
-		case EMU_MODEL_EMU1010:
-			filename = HANA_FILENAME;
-			break;
-		case EMU_MODEL_EMU1010B:
-			filename = EMU1010B_FILENAME;
-			break;
-		case EMU_MODEL_EMU1616:
-			filename = EMU1010_NOTEBOOK_FILENAME;
-			break;
-		case EMU_MODEL_EMU0404:
-			filename = EMU0404_FILENAME;
-			break;
-		default:
-			return -ENODEV;
-		}
-
-		err = request_firmware(&emu->firmware, filename, &emu->pci->dev);
-		if (err != 0) {
-			dev_info(emu->card->dev,
-				 "emu1010: firmware: %s not found. Err = %d\n",
-				 filename, err);
-			return err;
-		}
-		dev_info(emu->card->dev,
-			 "emu1010: firmware file = %s, size = 0x%zx\n",
-			   filename, emu->firmware->size);
-	}
-
-	err = snd_emu1010_load_firmware(emu, emu->firmware);
-	if (err != 0) {
+	err = snd_emu1010_load_firmware(emu, 0, &emu->firmware);
+	if (err < 0) {
 		dev_info(emu->card->dev, "emu1010: Loading Firmware failed\n");
 		return err;
 	}
