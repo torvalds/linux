@@ -61,7 +61,8 @@
 #include <linux/devfs_fs_kernel.h>
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0))
-#define bio_endio(bio, errors) bio_endio(bio)
+#define bio_endio(bio, errors)	\
+	do { bio->bi_error = errors; bio_endio(bio); } while (0)
 #endif
 
 /* driver */
