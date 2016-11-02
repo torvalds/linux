@@ -44,6 +44,7 @@ struct tda998x_priv {
 	u8 current_page;
 	int dpms;
 	bool supports_infoframes;
+	bool sink_has_audio;
 	u8 vip_cntrl_0;
 	u8 vip_cntrl_1;
 	u8 vip_cntrl_2;
@@ -1090,11 +1091,31 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 
 		tda998x_write_avi(priv, adjusted_mode);
 
-		if (priv->audio_params.format != AFMT_UNUSED)
+		if (priv->audio_params.format != AFMT_UNUSED &&
+		    priv->sink_has_audio)
 			tda998x_configure_audio(priv, &priv->audio_params);
 	}
 
 	mutex_unlock(&priv->audio_mutex);
+}
+
+static int tda998x_connector_fill_modes(struct drm_connector *connector,
+					uint32_t maxX, uint32_t maxY)
+{
+	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
+	int ret;
+
+	ret = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
+
+	if (connector->edid_blob_ptr) {
+		struct edid *edid = (void *)connector->edid_blob_ptr->data;
+
+		priv->sink_has_audio = drm_detect_monitor_audio(edid);
+	} else {
+		priv->sink_has_audio = false;
+	}
+
+	return ret;
 }
 
 static enum drm_connector_status
@@ -1274,7 +1295,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 	}
 
 	mutex_lock(&priv->audio_mutex);
-	if (priv->supports_infoframes)
+	if (priv->supports_infoframes && priv->sink_has_audio)
 		ret = tda998x_configure_audio(priv, &audio);
 	else
 		ret = 0;
@@ -1608,7 +1629,7 @@ static int tda998x_connector_dpms(struct drm_connector *connector, int mode)
 static const struct drm_connector_funcs tda998x_connector_funcs = {
 	.dpms = tda998x_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	.fill_modes = tda998x_connector_fill_modes,
 	.detect = tda998x_connector_detect,
 	.destroy = tda998x_connector_destroy,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
