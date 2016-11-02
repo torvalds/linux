@@ -2056,7 +2056,9 @@ static int soc_valid_header(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	if (hdr->abi != SND_SOC_TPLG_ABI_VERSION) {
+	/* Support ABI from version 4 */
+	if (hdr->abi > SND_SOC_TPLG_ABI_VERSION
+		|| hdr->abi < SND_SOC_TPLG_ABI_VERSION_MIN) {
 		dev_err(tplg->dev,
 			"ASoC: pass %d invalid ABI version got 0x%x need 0x%x at offset 0x%lx size 0x%zx.\n",
 			tplg->pass, hdr->abi,
