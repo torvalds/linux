@@ -1,6 +1,6 @@
 This driver requires that userspace sets the physical address.
 However, this should be passed on from the corresponding
-Samsung HDMI driver.
+ST HDMI driver.
 
 We have to wait until the HDMI notifier framework has been merged
 in order to handle this gracefully, until that time this driver
