@@ -13,7 +13,7 @@ DOCBOOKS := z8530book.xml  \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
 	    debugobjects.xml sh.xml regulator.xml \
-	    alsa-driver-api.xml writing-an-alsa-driver.xml \
+	    writing-an-alsa-driver.xml \
 	    tracepoint.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
 

@@ -18,6 +18,7 @@ Contents:
    media/index
    gpu/index
    80211/index
+   sound/index
 
 Indices and tables
 ==================
