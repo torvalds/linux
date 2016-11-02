@@ -1161,6 +1161,8 @@ static int acm_probe(struct usb_interface *intf,
 	if (quirks == IGNORE_DEVICE)
 		return -ENODEV;
 
+	memset(&h, 0x00, sizeof(struct usb_cdc_parsed_header));
+
 	num_rx_buf = (quirks == SINGLE_RX_URB) ? 1 : ACM_NR;
 
 	/* handle quirks deadly to normal probing*/
