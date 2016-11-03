@@ -193,6 +193,26 @@ void ldlm_extent_add_lock(struct ldlm_resource *res,
 	 * add the locks into grant list, for debug purpose, ..
 	 */
 	ldlm_resource_add_lock(res, &res->lr_granted, lock);
+
+	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_GRANT_CHECK)) {
+		struct ldlm_lock *lck;
+
+		list_for_each_entry_reverse(lck, &res->lr_granted,
+					    l_res_link) {
+			if (lck == lock)
+				continue;
+			if (lockmode_compat(lck->l_granted_mode,
+					    lock->l_granted_mode))
+				continue;
+			if (ldlm_extent_overlap(&lck->l_req_extent,
+						&lock->l_req_extent)) {
+				CDEBUG(D_ERROR, "granting conflicting lock %p %p\n",
+				       lck, lock);
+				ldlm_resource_dump(D_ERROR, res);
+				LBUG();
+			}
+		}
+	}
 }
 
 /** Remove cancelled lock from resource interval tree. */
