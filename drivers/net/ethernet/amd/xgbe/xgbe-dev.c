@@ -2000,19 +2000,37 @@ static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, RAA, MTL_RAA_SP);
 }
 
-static unsigned int xgbe_calculate_per_queue_fifo(unsigned int fifo_size,
-						  unsigned int queue_count)
+static unsigned int xgbe_get_tx_fifo_size(struct xgbe_prv_data *pdata)
+{
+	unsigned int fifo_size;
+
+	/* Calculate the configured fifo size */
+	fifo_size = 1 << (pdata->hw_feat.tx_fifo_size + 7);
+
+	/* The configured value may not be the actual amount of fifo RAM */
+	return min_t(unsigned int, XGMAC_FIFO_TX_MAX, fifo_size);
+}
+
+static unsigned int xgbe_get_rx_fifo_size(struct xgbe_prv_data *pdata)
+{
+	unsigned int fifo_size;
+
+	/* Calculate the configured fifo size */
+	fifo_size = 1 << (pdata->hw_feat.rx_fifo_size + 7);
+
+	/* The configured value may not be the actual amount of fifo RAM */
+	return min_t(unsigned int, XGMAC_FIFO_RX_MAX, fifo_size);
+}
+
+static void xgbe_calculate_equal_fifo(unsigned int fifo_size,
+				      unsigned int queue_count,
+				      unsigned int *fifo)
 {
 	unsigned int q_fifo_size;
 	unsigned int p_fifo;
+	unsigned int i;
 
-	/* Calculate the configured fifo size */
-	q_fifo_size = 1 << (fifo_size + 7);
-
-	/* The configured value may not be the actual amount of fifo RAM */
-	q_fifo_size = min_t(unsigned int, XGBE_FIFO_MAX, q_fifo_size);
-
-	q_fifo_size = q_fifo_size / queue_count;
+	q_fifo_size = fifo_size / queue_count;
 
 	/* Each increment in the queue fifo size represents 256 bytes of
 	 * fifo, with 0 representing 256 bytes. Distribute the fifo equally
@@ -2022,39 +2040,44 @@ static unsigned int xgbe_calculate_per_queue_fifo(unsigned int fifo_size,
 	if (p_fifo)
 		p_fifo--;
 
-	return p_fifo;
+	for (i = 0; i < queue_count; i++)
+		fifo[i] = p_fifo;
 }
 
 static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
 	unsigned int fifo_size;
+	unsigned int fifo[XGBE_MAX_QUEUES];
 	unsigned int i;
 
-	fifo_size = xgbe_calculate_per_queue_fifo(pdata->hw_feat.tx_fifo_size,
-						  pdata->tx_q_count);
+	fifo_size = xgbe_get_tx_fifo_size(pdata);
+
+	xgbe_calculate_equal_fifo(fifo_size, pdata->tx_q_count, fifo);
 
 	for (i = 0; i < pdata->tx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TQS, fifo_size);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TQS, fifo[i]);
 
 	netif_info(pdata, drv, pdata->netdev,
 		   "%d Tx hardware queues, %d byte fifo per queue\n",
-		   pdata->tx_q_count, ((fifo_size + 1) * 256));
+		   pdata->tx_q_count, ((fifo[0] + 1) * 256));
 }
 
 static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
 	unsigned int fifo_size;
+	unsigned int fifo[XGBE_MAX_QUEUES];
 	unsigned int i;
 
-	fifo_size = xgbe_calculate_per_queue_fifo(pdata->hw_feat.rx_fifo_size,
-						  pdata->rx_q_count);
+	fifo_size = xgbe_get_rx_fifo_size(pdata);
+
+	xgbe_calculate_equal_fifo(fifo_size, pdata->rx_q_count, fifo);
 
 	for (i = 0; i < pdata->rx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo_size);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo[i]);
 
 	netif_info(pdata, drv, pdata->netdev,
 		   "%d Rx hardware queues, %d byte fifo per queue\n",
-		   pdata->rx_q_count, ((fifo_size + 1) * 256));
+		   pdata->rx_q_count, ((fifo[0] + 1) * 256));
 }
 
 static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
