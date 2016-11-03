@@ -717,32 +717,26 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xffffffff);
 }
 
-static int xgbe_set_gmii_speed(struct xgbe_prv_data *pdata)
+static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
 {
-	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0x3)
-		return 0;
+	unsigned int ss;
 
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0x3);
+	switch (speed) {
+	case SPEED_1000:
+		ss = 0x03;
+		break;
+	case SPEED_2500:
+		ss = 0x02;
+		break;
+	case SPEED_10000:
+		ss = 0x00;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	return 0;
-}
-
-static int xgbe_set_gmii_2500_speed(struct xgbe_prv_data *pdata)
-{
-	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0x2)
-		return 0;
-
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0x2);
-
-	return 0;
-}
-
-static int xgbe_set_xgmii_speed(struct xgbe_prv_data *pdata)
-{
-	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0)
-		return 0;
-
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0);
+	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) != ss)
+		XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, ss);
 
 	return 0;
 }
@@ -2469,19 +2463,7 @@ static void xgbe_config_jumbo_enable(struct xgbe_prv_data *pdata)
 
 static void xgbe_config_mac_speed(struct xgbe_prv_data *pdata)
 {
-	switch (pdata->phy_speed) {
-	case SPEED_10000:
-		xgbe_set_xgmii_speed(pdata);
-		break;
-
-	case SPEED_2500:
-		xgbe_set_gmii_2500_speed(pdata);
-		break;
-
-	case SPEED_1000:
-		xgbe_set_gmii_speed(pdata);
-		break;
-	}
+	xgbe_set_speed(pdata, pdata->phy_speed);
 }
 
 static void xgbe_config_checksum_offload(struct xgbe_prv_data *pdata)
@@ -3195,9 +3177,7 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->read_mmd_regs = xgbe_read_mmd_regs;
 	hw_if->write_mmd_regs = xgbe_write_mmd_regs;
 
-	hw_if->set_gmii_speed = xgbe_set_gmii_speed;
-	hw_if->set_gmii_2500_speed = xgbe_set_gmii_2500_speed;
-	hw_if->set_xgmii_speed = xgbe_set_xgmii_speed;
+	hw_if->set_speed = xgbe_set_speed;
 
 	hw_if->enable_tx = xgbe_enable_tx;
 	hw_if->disable_tx = xgbe_disable_tx;

@@ -129,7 +129,7 @@
 #include <net/dcbnl.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
-#define XGBE_DRV_VERSION	"1.0.2"
+#define XGBE_DRV_VERSION	"1.0.3"
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
 
 /* Descriptor related defines */
@@ -191,12 +191,6 @@
 #define XGBE_PHY_MODE_PROPERTY	"phy-mode"
 #define XGBE_DMA_IRQS_PROPERTY	"amd,per-channel-interrupt"
 #define XGBE_SPEEDSET_PROPERTY	"amd,speed-set"
-#define XGBE_BLWC_PROPERTY	"amd,serdes-blwc"
-#define XGBE_CDR_RATE_PROPERTY	"amd,serdes-cdr-rate"
-#define XGBE_PQ_SKEW_PROPERTY	"amd,serdes-pq-skew"
-#define XGBE_TX_AMP_PROPERTY	"amd,serdes-tx-amp"
-#define XGBE_DFE_CFG_PROPERTY	"amd,serdes-dfe-tap-config"
-#define XGBE_DFE_ENA_PROPERTY	"amd,serdes-dfe-tap-enable"
 
 /* Device-tree clock names */
 #define XGBE_DMA_CLOCK		"dma_clk"
@@ -273,40 +267,6 @@
 #define XGBE_AN_INC_LINK		0x02
 #define XGBE_AN_PG_RCV			0x04
 #define XGBE_AN_INT_MASK		0x07
-
-/* Rate-change complete wait/retry count */
-#define XGBE_RATECHANGE_COUNT		500
-
-/* Default SerDes settings */
-#define XGBE_SPEED_10000_BLWC		0
-#define XGBE_SPEED_10000_CDR		0x7
-#define XGBE_SPEED_10000_PLL		0x1
-#define XGBE_SPEED_10000_PQ		0x12
-#define XGBE_SPEED_10000_RATE		0x0
-#define XGBE_SPEED_10000_TXAMP		0xa
-#define XGBE_SPEED_10000_WORD		0x7
-#define XGBE_SPEED_10000_DFE_TAP_CONFIG	0x1
-#define XGBE_SPEED_10000_DFE_TAP_ENABLE	0x7f
-
-#define XGBE_SPEED_2500_BLWC		1
-#define XGBE_SPEED_2500_CDR		0x2
-#define XGBE_SPEED_2500_PLL		0x0
-#define XGBE_SPEED_2500_PQ		0xa
-#define XGBE_SPEED_2500_RATE		0x1
-#define XGBE_SPEED_2500_TXAMP		0xf
-#define XGBE_SPEED_2500_WORD		0x1
-#define XGBE_SPEED_2500_DFE_TAP_CONFIG	0x3
-#define XGBE_SPEED_2500_DFE_TAP_ENABLE	0x0
-
-#define XGBE_SPEED_1000_BLWC		1
-#define XGBE_SPEED_1000_CDR		0x2
-#define XGBE_SPEED_1000_PLL		0x0
-#define XGBE_SPEED_1000_PQ		0xa
-#define XGBE_SPEED_1000_RATE		0x3
-#define XGBE_SPEED_1000_TXAMP		0xf
-#define XGBE_SPEED_1000_WORD		0x1
-#define XGBE_SPEED_1000_DFE_TAP_CONFIG	0x3
-#define XGBE_SPEED_1000_DFE_TAP_ENABLE	0x0
 
 struct xgbe_prv_data;
 
@@ -527,8 +487,10 @@ enum xgbe_rx {
 };
 
 enum xgbe_mode {
-	XGBE_MODE_KR = 0,
-	XGBE_MODE_KX,
+	XGBE_MODE_KX_1000 = 0,
+	XGBE_MODE_KX_2500,
+	XGBE_MODE_KR,
+	XGBE_MODE_UNKNOWN,
 };
 
 enum xgbe_speedset {
@@ -624,9 +586,7 @@ struct xgbe_hw_if {
 
 	int (*read_mmd_regs)(struct xgbe_prv_data *, int, int);
 	void (*write_mmd_regs)(struct xgbe_prv_data *, int, int, int);
-	int (*set_gmii_speed)(struct xgbe_prv_data *);
-	int (*set_gmii_2500_speed)(struct xgbe_prv_data *);
-	int (*set_xgmii_speed)(struct xgbe_prv_data *);
+	int (*set_speed)(struct xgbe_prv_data *, int);
 
 	void (*enable_tx)(struct xgbe_prv_data *);
 	void (*disable_tx)(struct xgbe_prv_data *);
@@ -707,9 +667,50 @@ struct xgbe_hw_if {
 	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
 };
 
+/* This structure represents implementation specific routines for an
+ * implementation of a PHY. All routines are required unless noted below.
+ *   Optional routines:
+ *     kr_training_pre, kr_training_post
+ */
+struct xgbe_phy_impl_if {
+	/* Perform Setup/teardown actions */
+	int (*init)(struct xgbe_prv_data *);
+	void (*exit)(struct xgbe_prv_data *);
+
+	/* Perform start/stop specific actions */
+	int (*reset)(struct xgbe_prv_data *);
+	int (*start)(struct xgbe_prv_data *);
+	void (*stop)(struct xgbe_prv_data *);
+
+	/* Return the link status */
+	int (*link_status)(struct xgbe_prv_data *);
+
+	/* Indicate if a particular speed is valid */
+	bool (*valid_speed)(struct xgbe_prv_data *, int);
+
+	/* Check if the specified mode can/should be used */
+	bool (*use_mode)(struct xgbe_prv_data *, enum xgbe_mode);
+	/* Switch the PHY into various modes */
+	void (*set_mode)(struct xgbe_prv_data *, enum xgbe_mode);
+	/* Retrieve mode needed for a specific speed */
+	enum xgbe_mode (*get_mode)(struct xgbe_prv_data *, int);
+	/* Retrieve new/next mode when trying to auto-negotiate */
+	enum xgbe_mode (*switch_mode)(struct xgbe_prv_data *);
+	/* Retrieve current mode */
+	enum xgbe_mode (*cur_mode)(struct xgbe_prv_data *);
+
+	/* Process results of auto-negotiation */
+	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);
+
+	/* Pre/Post KR training enablement support */
+	void (*kr_training_pre)(struct xgbe_prv_data *);
+	void (*kr_training_post)(struct xgbe_prv_data *);
+};
+
 struct xgbe_phy_if {
-	/* For initial PHY setup */
-	void (*phy_init)(struct xgbe_prv_data *);
+	/* For PHY setup/teardown */
+	int (*phy_init)(struct xgbe_prv_data *);
+	void (*phy_exit)(struct xgbe_prv_data *);
 
 	/* For PHY support when setting device up/down */
 	int (*phy_reset)(struct xgbe_prv_data *);
@@ -719,6 +720,12 @@ struct xgbe_phy_if {
 	/* For PHY support while device is up */
 	void (*phy_status)(struct xgbe_prv_data *);
 	int (*phy_config_aneg)(struct xgbe_prv_data *);
+
+	/* For PHY settings validation */
+	bool (*phy_valid_speed)(struct xgbe_prv_data *, int);
+
+	/* PHY implementation specific services */
+	struct xgbe_phy_impl_if phy_impl;
 };
 
 struct xgbe_desc_if {
@@ -778,11 +785,20 @@ struct xgbe_hw_features {
 	unsigned int aux_snap_num;	/* Number of Aux snapshot inputs */
 };
 
+struct xgbe_version_data {
+	void (*init_function_ptrs_phy_impl)(struct xgbe_phy_if *);
+};
+
 struct xgbe_prv_data {
 	struct net_device *netdev;
 	struct platform_device *pdev;
 	struct acpi_device *adev;
 	struct device *dev;
+	struct platform_device *phy_pdev;
+	struct device *phy_dev;
+
+	/* Version related data */
+	struct xgbe_version_data *vdata;
 
 	/* ACPI or DT flag */
 	unsigned int use_acpi;
@@ -928,6 +944,8 @@ struct xgbe_prv_data {
 	int phy_speed;
 
 	/* MDIO/PHY related settings */
+	unsigned int phy_started;
+	void *phy_data;
 	struct xgbe_phy phy;
 	int mdio_mmd;
 	unsigned long link_check;
@@ -937,21 +955,6 @@ struct xgbe_prv_data {
 
 	int an_irq;
 	struct work_struct an_irq_work;
-
-	unsigned int speed_set;
-
-	/* SerDes UEFI configurable settings.
-	 *   Switching between modes/speeds requires new values for some
-	 *   SerDes settings.  The values can be supplied as device
-	 *   properties in array format.  The first array entry is for
-	 *   1GbE, second for 2.5GbE and third for 10GbE
-	 */
-	u32 serdes_blwc[XGBE_SPEEDS];
-	u32 serdes_cdr_rate[XGBE_SPEEDS];
-	u32 serdes_pq_skew[XGBE_SPEEDS];
-	u32 serdes_tx_amp[XGBE_SPEEDS];
-	u32 serdes_dfe_tap_cfg[XGBE_SPEEDS];
-	u32 serdes_dfe_tap_ena[XGBE_SPEEDS];
 
 	/* Auto-negotiation state machine support */
 	unsigned int an_int;
@@ -982,6 +985,7 @@ struct xgbe_prv_data {
 
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
+void xgbe_init_function_ptrs_phy_v1(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
 const struct net_device_ops *xgbe_get_netdev_ops(void);
 const struct ethtool_ops *xgbe_get_ethtool_ops(void);

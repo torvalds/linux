@@ -125,6 +125,7 @@
 #include <linux/of_net.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/property.h>
 #include <linux/acpi.h>
@@ -144,42 +145,6 @@ MODULE_PARM_DESC(debug, " Network interface message level setting");
 
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 				      NETIF_MSG_IFUP);
-
-static const u32 xgbe_serdes_blwc[] = {
-	XGBE_SPEED_1000_BLWC,
-	XGBE_SPEED_2500_BLWC,
-	XGBE_SPEED_10000_BLWC,
-};
-
-static const u32 xgbe_serdes_cdr_rate[] = {
-	XGBE_SPEED_1000_CDR,
-	XGBE_SPEED_2500_CDR,
-	XGBE_SPEED_10000_CDR,
-};
-
-static const u32 xgbe_serdes_pq_skew[] = {
-	XGBE_SPEED_1000_PQ,
-	XGBE_SPEED_2500_PQ,
-	XGBE_SPEED_10000_PQ,
-};
-
-static const u32 xgbe_serdes_tx_amp[] = {
-	XGBE_SPEED_1000_TXAMP,
-	XGBE_SPEED_2500_TXAMP,
-	XGBE_SPEED_10000_TXAMP,
-};
-
-static const u32 xgbe_serdes_dfe_tap_cfg[] = {
-	XGBE_SPEED_1000_DFE_TAP_CONFIG,
-	XGBE_SPEED_2500_DFE_TAP_CONFIG,
-	XGBE_SPEED_10000_DFE_TAP_CONFIG,
-};
-
-static const u32 xgbe_serdes_dfe_tap_ena[] = {
-	XGBE_SPEED_1000_DFE_TAP_ENABLE,
-	XGBE_SPEED_2500_DFE_TAP_ENABLE,
-	XGBE_SPEED_10000_DFE_TAP_ENABLE,
-};
 
 static void xgbe_default_config(struct xgbe_prv_data *pdata)
 {
@@ -207,9 +172,22 @@ static void xgbe_init_all_fptrs(struct xgbe_prv_data *pdata)
 	xgbe_init_function_ptrs_dev(&pdata->hw_if);
 	xgbe_init_function_ptrs_phy(&pdata->phy_if);
 	xgbe_init_function_ptrs_desc(&pdata->desc_if);
+
+	pdata->vdata->init_function_ptrs_phy_impl(&pdata->phy_if);
 }
 
 #ifdef CONFIG_ACPI
+static const struct acpi_device_id xgbe_acpi_match[];
+
+static struct xgbe_version_data *xgbe_acpi_vdata(struct xgbe_prv_data *pdata)
+{
+	const struct acpi_device_id *id;
+
+	id = acpi_match_device(xgbe_acpi_match, pdata->dev);
+
+	return id ? (struct xgbe_version_data *)id->driver_data : NULL;
+}
+
 static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 {
 	struct device *dev = pdata->dev;
@@ -237,6 +215,11 @@ static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 	return 0;
 }
 #else   /* CONFIG_ACPI */
+static struct xgbe_version_data *xgbe_acpi_vdata(struct xgbe_prv_data *pdata)
+{
+	return NULL;
+}
+
 static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 {
 	return -EINVAL;
@@ -244,6 +227,17 @@ static int xgbe_acpi_support(struct xgbe_prv_data *pdata)
 #endif  /* CONFIG_ACPI */
 
 #ifdef CONFIG_OF
+static const struct of_device_id xgbe_of_match[];
+
+static struct xgbe_version_data *xgbe_of_vdata(struct xgbe_prv_data *pdata)
+{
+	const struct of_device_id *id;
+
+	id = of_match_device(xgbe_of_match, pdata->dev);
+
+	return id ? (struct xgbe_version_data *)id->data : NULL;
+}
+
 static int xgbe_of_support(struct xgbe_prv_data *pdata)
 {
 	struct device *dev = pdata->dev;
@@ -292,6 +286,11 @@ static struct platform_device *xgbe_of_get_phy_pdev(struct xgbe_prv_data *pdata)
 	return phy_pdev;
 }
 #else   /* CONFIG_OF */
+static struct xgbe_version_data *xgbe_of_vdata(struct xgbe_prv_data *pdata)
+{
+	return NULL;
+}
+
 static int xgbe_of_support(struct xgbe_prv_data *pdata)
 {
 	return -EINVAL;
@@ -333,11 +332,17 @@ static struct platform_device *xgbe_get_phy_pdev(struct xgbe_prv_data *pdata)
 	return phy_pdev;
 }
 
+static struct xgbe_version_data *xgbe_get_vdata(struct xgbe_prv_data *pdata)
+{
+	return pdata->use_acpi ? xgbe_acpi_vdata(pdata)
+			       : xgbe_of_vdata(pdata);
+}
+
 static int xgbe_probe(struct platform_device *pdev)
 {
 	struct xgbe_prv_data *pdata;
 	struct net_device *netdev;
-	struct device *dev = &pdev->dev, *phy_dev;
+	struct device *dev = &pdev->dev;
 	struct platform_device *phy_pdev;
 	struct resource *res;
 	const char *phy_mode;
@@ -374,13 +379,17 @@ static int xgbe_probe(struct platform_device *pdev)
 	/* Check if we should use ACPI or DT */
 	pdata->use_acpi = dev->of_node ? 0 : 1;
 
+	/* Get the version data */
+	pdata->vdata = xgbe_get_vdata(pdata);
+
 	phy_pdev = xgbe_get_phy_pdev(pdata);
 	if (!phy_pdev) {
 		dev_err(dev, "unable to obtain phy device\n");
 		ret = -EINVAL;
 		goto err_phydev;
 	}
-	phy_dev = &phy_pdev->dev;
+	pdata->phy_pdev = phy_pdev;
+	pdata->phy_dev = &phy_pdev->dev;
 
 	if (pdev == phy_pdev) {
 		/* New style device tree or ACPI:
@@ -492,115 +501,6 @@ static int xgbe_probe(struct platform_device *pdev)
 	if (device_property_present(dev, XGBE_DMA_IRQS_PROPERTY))
 		pdata->per_channel_irq = 1;
 
-	/* Retrieve the PHY speedset */
-	ret = device_property_read_u32(phy_dev, XGBE_SPEEDSET_PROPERTY,
-				       &pdata->speed_set);
-	if (ret) {
-		dev_err(dev, "invalid %s property\n", XGBE_SPEEDSET_PROPERTY);
-		goto err_io;
-	}
-
-	switch (pdata->speed_set) {
-	case XGBE_SPEEDSET_1000_10000:
-	case XGBE_SPEEDSET_2500_10000:
-		break;
-	default:
-		dev_err(dev, "invalid %s property\n", XGBE_SPEEDSET_PROPERTY);
-		ret = -EINVAL;
-		goto err_io;
-	}
-
-	/* Retrieve the PHY configuration properties */
-	if (device_property_present(phy_dev, XGBE_BLWC_PROPERTY)) {
-		ret = device_property_read_u32_array(phy_dev,
-						     XGBE_BLWC_PROPERTY,
-						     pdata->serdes_blwc,
-						     XGBE_SPEEDS);
-		if (ret) {
-			dev_err(dev, "invalid %s property\n",
-				XGBE_BLWC_PROPERTY);
-			goto err_io;
-		}
-	} else {
-		memcpy(pdata->serdes_blwc, xgbe_serdes_blwc,
-		       sizeof(pdata->serdes_blwc));
-	}
-
-	if (device_property_present(phy_dev, XGBE_CDR_RATE_PROPERTY)) {
-		ret = device_property_read_u32_array(phy_dev,
-						     XGBE_CDR_RATE_PROPERTY,
-						     pdata->serdes_cdr_rate,
-						     XGBE_SPEEDS);
-		if (ret) {
-			dev_err(dev, "invalid %s property\n",
-				XGBE_CDR_RATE_PROPERTY);
-			goto err_io;
-		}
-	} else {
-		memcpy(pdata->serdes_cdr_rate, xgbe_serdes_cdr_rate,
-		       sizeof(pdata->serdes_cdr_rate));
-	}
-
-	if (device_property_present(phy_dev, XGBE_PQ_SKEW_PROPERTY)) {
-		ret = device_property_read_u32_array(phy_dev,
-						     XGBE_PQ_SKEW_PROPERTY,
-						     pdata->serdes_pq_skew,
-						     XGBE_SPEEDS);
-		if (ret) {
-			dev_err(dev, "invalid %s property\n",
-				XGBE_PQ_SKEW_PROPERTY);
-			goto err_io;
-		}
-	} else {
-		memcpy(pdata->serdes_pq_skew, xgbe_serdes_pq_skew,
-		       sizeof(pdata->serdes_pq_skew));
-	}
-
-	if (device_property_present(phy_dev, XGBE_TX_AMP_PROPERTY)) {
-		ret = device_property_read_u32_array(phy_dev,
-						     XGBE_TX_AMP_PROPERTY,
-						     pdata->serdes_tx_amp,
-						     XGBE_SPEEDS);
-		if (ret) {
-			dev_err(dev, "invalid %s property\n",
-				XGBE_TX_AMP_PROPERTY);
-			goto err_io;
-		}
-	} else {
-		memcpy(pdata->serdes_tx_amp, xgbe_serdes_tx_amp,
-		       sizeof(pdata->serdes_tx_amp));
-	}
-
-	if (device_property_present(phy_dev, XGBE_DFE_CFG_PROPERTY)) {
-		ret = device_property_read_u32_array(phy_dev,
-						     XGBE_DFE_CFG_PROPERTY,
-						     pdata->serdes_dfe_tap_cfg,
-						     XGBE_SPEEDS);
-		if (ret) {
-			dev_err(dev, "invalid %s property\n",
-				XGBE_DFE_CFG_PROPERTY);
-			goto err_io;
-		}
-	} else {
-		memcpy(pdata->serdes_dfe_tap_cfg, xgbe_serdes_dfe_tap_cfg,
-		       sizeof(pdata->serdes_dfe_tap_cfg));
-	}
-
-	if (device_property_present(phy_dev, XGBE_DFE_ENA_PROPERTY)) {
-		ret = device_property_read_u32_array(phy_dev,
-						     XGBE_DFE_ENA_PROPERTY,
-						     pdata->serdes_dfe_tap_ena,
-						     XGBE_SPEEDS);
-		if (ret) {
-			dev_err(dev, "invalid %s property\n",
-				XGBE_DFE_ENA_PROPERTY);
-			goto err_io;
-		}
-	} else {
-		memcpy(pdata->serdes_dfe_tap_ena, xgbe_serdes_dfe_tap_ena,
-		       sizeof(pdata->serdes_dfe_tap_ena));
-	}
-
 	/* Obtain device settings unique to ACPI/OF */
 	if (pdata->use_acpi)
 		ret = xgbe_acpi_support(pdata);
@@ -705,7 +605,9 @@ static int xgbe_probe(struct platform_device *pdev)
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 
 	/* Call MDIO/PHY initialization routine */
-	pdata->phy_if.phy_init(pdata);
+	ret = pdata->phy_if.phy_init(pdata);
+	if (ret)
+		goto err_io;
 
 	/* Set device operations */
 	netdev->netdev_ops = xgbe_get_netdev_ops();
@@ -780,8 +682,6 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	xgbe_debugfs_init(pdata);
 
-	platform_device_put(phy_pdev);
-
 	netdev_notice(netdev, "net device enabled\n");
 
 	DBGPR("<-- xgbe_probe\n");
@@ -817,6 +717,8 @@ static int xgbe_remove(struct platform_device *pdev)
 
 	xgbe_ptp_unregister(pdata);
 
+	pdata->phy_if.phy_exit(pdata);
+
 	flush_workqueue(pdata->an_workqueue);
 	destroy_workqueue(pdata->an_workqueue);
 
@@ -824,6 +726,8 @@ static int xgbe_remove(struct platform_device *pdev)
 	destroy_workqueue(pdata->dev_workqueue);
 
 	unregister_netdev(netdev);
+
+	platform_device_put(pdata->phy_pdev);
 
 	free_netdev(netdev);
 
@@ -879,9 +783,14 @@ static int xgbe_resume(struct device *dev)
 }
 #endif /* CONFIG_PM */
 
+static const struct xgbe_version_data xgbe_v1 = {
+	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v1,
+};
+
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgbe_acpi_match[] = {
-	{ "AMDI8001", 0 },
+	{ .id = "AMDI8001",
+	  .driver_data = (kernel_ulong_t)&xgbe_v1 },
 	{},
 };
 
@@ -890,7 +799,8 @@ MODULE_DEVICE_TABLE(acpi, xgbe_acpi_match);
 
 #ifdef CONFIG_OF
 static const struct of_device_id xgbe_of_match[] = {
-	{ .compatible = "amd,xgbe-seattle-v1a", },
+	{ .compatible = "amd,xgbe-seattle-v1a",
+	  .data = &xgbe_v1 },
 	{},
 };
 

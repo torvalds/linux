@@ -778,7 +778,7 @@ static void xgbe_free_rx_data(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_free_rx_data\n");
 }
 
-static int xgbe_phy_init(struct xgbe_prv_data *pdata)
+static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 {
 	pdata->phy_link = -1;
 	pdata->phy_speed = SPEED_UNKNOWN;
@@ -1292,8 +1292,8 @@ static int xgbe_open(struct net_device *netdev)
 
 	DBGPR("-->xgbe_open\n");
 
-	/* Initialize the phy */
-	ret = xgbe_phy_init(pdata);
+	/* Reset the phy settings */
+	ret = xgbe_phy_reset(pdata);
 	if (ret)
 		return ret;
 

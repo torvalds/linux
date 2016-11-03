@@ -316,24 +316,7 @@ static int xgbe_set_settings(struct net_device *netdev,
 	}
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
-		switch (speed) {
-		case SPEED_10000:
-			break;
-		case SPEED_2500:
-			if (pdata->speed_set != XGBE_SPEEDSET_2500_10000) {
-				netdev_err(netdev, "unsupported speed %u\n",
-					   speed);
-				return -EINVAL;
-			}
-			break;
-		case SPEED_1000:
-			if (pdata->speed_set != XGBE_SPEEDSET_1000_10000) {
-				netdev_err(netdev, "unsupported speed %u\n",
-					   speed);
-				return -EINVAL;
-			}
-			break;
-		default:
+		if (!pdata->phy_if.phy_valid_speed(pdata, speed)) {
 			netdev_err(netdev, "unsupported speed %u\n", speed);
 			return -EINVAL;
 		}
