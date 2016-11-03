@@ -220,6 +220,14 @@ int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc, u64 header,
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nowait);
 
+int sst_ipc_tx_message_nopm(struct sst_generic_ipc *ipc, u64 header,
+	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes)
+{
+	return ipc_tx_message(ipc, header, tx_data, tx_bytes,
+		rx_data, rx_bytes, 1);
+}
+EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nopm);
+
 struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,
 	u64 header)
 {

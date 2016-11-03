@@ -82,6 +82,9 @@ int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc, u64 header,
 int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes);
 
+int sst_ipc_tx_message_nopm(struct sst_generic_ipc *ipc, u64 header,
+	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes);
+
 struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,
 	u64 header);
 
