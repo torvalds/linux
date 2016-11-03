@@ -1642,32 +1642,31 @@ static __init void radix_tree_init_maxnodes(void)
 	}
 }
 
-static int radix_tree_callback(struct notifier_block *nfb,
-				unsigned long action, void *hcpu)
+static int radix_tree_cpu_dead(unsigned int cpu)
 {
-	int cpu = (long)hcpu;
 	struct radix_tree_preload *rtp;
 	struct radix_tree_node *node;
 
 	/* Free per-cpu pool of preloaded nodes */
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		rtp = &per_cpu(radix_tree_preloads, cpu);
-		while (rtp->nr) {
-			node = rtp->nodes;
-			rtp->nodes = node->private_data;
-			kmem_cache_free(radix_tree_node_cachep, node);
-			rtp->nr--;
-		}
+	rtp = &per_cpu(radix_tree_preloads, cpu);
+	while (rtp->nr) {
+		node = rtp->nodes;
+		rtp->nodes = node->private_data;
+		kmem_cache_free(radix_tree_node_cachep, node);
+		rtp->nr--;
 	}
-	return NOTIFY_OK;
+	return 0;
 }
 
 void __init radix_tree_init(void)
 {
+	int ret;
 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
 			sizeof(struct radix_tree_node), 0,
 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
 			radix_tree_node_ctor);
 	radix_tree_init_maxnodes();
-	hotcpu_notifier(radix_tree_callback, 0);
+	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+					NULL, radix_tree_cpu_dead);
+	WARN_ON(ret < 0);
 }
