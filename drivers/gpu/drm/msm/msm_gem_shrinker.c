@@ -163,6 +163,9 @@ void msm_gem_shrinker_init(struct drm_device *dev)
 void msm_gem_shrinker_cleanup(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
-	unregister_shrinker(&priv->shrinker);
+
+	if (priv->shrinker.nr_deferred) {
+		WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
+		unregister_shrinker(&priv->shrinker);
+	}
 }
