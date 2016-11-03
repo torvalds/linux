@@ -111,6 +111,9 @@ nfp_net_bpf_get_act(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 
+	if (!cls_bpf->exts)
+		return NN_ACT_XDP;
+
 	/* TC direct action */
 	if (cls_bpf->exts_integrated) {
 		if (tc_no_actions(cls_bpf->exts))

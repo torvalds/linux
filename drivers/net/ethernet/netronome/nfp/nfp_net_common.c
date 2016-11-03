@@ -1600,7 +1600,8 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		r_vec->rx_bytes += pkt_len;
 		u64_stats_update_end(&r_vec->rx_sync);
 
-		if (xdp_prog) {
+		if (xdp_prog && !(rxd->rxd.flags & PCIE_DESC_RX_BPF &&
+				  nn->bpf_offload_xdp)) {
 			int act;
 
 			dma_sync_single_for_cpu(&nn->pdev->dev,
@@ -2693,8 +2694,12 @@ nfp_net_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 	if (proto != htons(ETH_P_ALL))
 		return -ENOTSUPP;
 
-	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn))
-		return nfp_net_bpf_offload(nn, tc->cls_bpf);
+	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn)) {
+		if (!nn->bpf_offload_xdp)
+			return nfp_net_bpf_offload(nn, tc->cls_bpf);
+		else
+			return -EBUSY;
+	}
 
 	return -EINVAL;
 }
@@ -2902,6 +2907,34 @@ static void nfp_net_del_vxlan_port(struct net_device *netdev,
 		nfp_net_set_vxlan_port(nn, idx, 0);
 }
 
+static int nfp_net_xdp_offload(struct nfp_net *nn, struct bpf_prog *prog)
+{
+	struct tc_cls_bpf_offload cmd = {
+		.prog = prog,
+	};
+	int ret;
+
+	if (!nfp_net_ebpf_capable(nn))
+		return -EINVAL;
+
+	if (nn->ctrl & NFP_NET_CFG_CTRL_BPF) {
+		if (!nn->bpf_offload_xdp)
+			return prog ? -EBUSY : 0;
+		cmd.command = prog ? TC_CLSBPF_REPLACE : TC_CLSBPF_DESTROY;
+	} else {
+		if (!prog)
+			return 0;
+		cmd.command = TC_CLSBPF_ADD;
+	}
+
+	ret = nfp_net_bpf_offload(nn, &cmd);
+	/* Stop offload if replace not possible */
+	if (ret && cmd.command == TC_CLSBPF_REPLACE)
+		nfp_net_xdp_offload(nn, NULL);
+	nn->bpf_offload_xdp = prog && !ret;
+	return ret;
+}
+
 static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
 {
 	struct nfp_net_ring_set rx = {
@@ -2920,6 +2953,7 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
 	if (prog && nn->xdp_prog) {
 		prog = xchg(&nn->xdp_prog, prog);
 		bpf_prog_put(prog);
+		nfp_net_xdp_offload(nn, nn->xdp_prog);
 		return 0;
 	}
 
@@ -2933,6 +2967,8 @@ static int nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog)
 	/* @prog got swapped and is now the old one */
 	if (prog)
 		bpf_prog_put(prog);
+
+	nfp_net_xdp_offload(nn, nn->xdp_prog);
 
 	return 0;
 }
@@ -3233,5 +3269,7 @@ void nfp_net_netdev_clean(struct net_device *netdev)
 
 	if (nn->xdp_prog)
 		bpf_prog_put(nn->xdp_prog);
+	if (nn->bpf_offload_xdp)
+		nfp_net_xdp_offload(nn, NULL);
 	unregister_netdev(nn->netdev);
 }
