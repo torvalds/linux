@@ -785,6 +785,7 @@ static int xgbe_resume(struct device *dev)
 
 static const struct xgbe_version_data xgbe_v1 = {
 	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v1,
+	.xpcs_access			= XGBE_XPCS_ACCESS_V1,
 };
 
 #ifdef CONFIG_ACPI

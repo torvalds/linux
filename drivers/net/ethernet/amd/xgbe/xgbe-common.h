@@ -852,14 +852,9 @@
 #define MTL_TSA_SP			0x00
 #define MTL_TSA_ETS			0x02
 
-/* PCS MMD select register offset
- *  The MMD select register is used for accessing PCS registers
- *  when the underlying APB3 interface is using indirect addressing.
- *  Indirect addressing requires accessing registers in two phases,
- *  an address phase and a data phase.  The address phases requires
- *  writing an address selection value to the MMD select regiesters.
- */
-#define PCS_MMD_SELECT			0xff
+/* PCS register offsets */
+#define PCS_V1_WINDOW_SELECT		0x03fc
+#define PCS_V2_WINDOW_SELECT		0x9064
 
 /* SerDes integration register offsets */
 #define SIR0_KR_RT_1			0x002c
@@ -1241,11 +1236,17 @@ do {									\
 /* Macros for building, reading or writing register values or bits
  * within the register values of XPCS registers.
  */
-#define XPCS_IOWRITE(_pdata, _off, _val)				\
+#define XPCS32_IOWRITE(_pdata, _off, _val)				\
 	iowrite32(_val, (_pdata)->xpcs_regs + (_off))
 
-#define XPCS_IOREAD(_pdata, _off)					\
+#define XPCS32_IOREAD(_pdata, _off)					\
 	ioread32((_pdata)->xpcs_regs + (_off))
+
+#define XPCS16_IOWRITE(_pdata, _off, _val)				\
+	iowrite16(_val, (_pdata)->xpcs_regs + (_off))
+
+#define XPCS16_IOREAD(_pdata, _off)					\
+	ioread16((_pdata)->xpcs_regs + (_off))
 
 /* Macros for building, reading or writing register values or bits
  * within the register values of SerDes integration registers.

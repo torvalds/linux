@@ -471,6 +471,11 @@ enum xgbe_speed {
 	XGBE_SPEEDS,
 };
 
+enum xgbe_xpcs_access {
+	XGBE_XPCS_ACCESS_V1 = 0,
+	XGBE_XPCS_ACCESS_V2,
+};
+
 enum xgbe_an_mode {
 	XGBE_AN_MODE_CL73 = 0,
 	XGBE_AN_MODE_CL37,
@@ -798,6 +803,7 @@ struct xgbe_hw_features {
 
 struct xgbe_version_data {
 	void (*init_function_ptrs_phy_impl)(struct xgbe_phy_if *);
+	enum xgbe_xpcs_access xpcs_access;
 };
 
 struct xgbe_prv_data {
@@ -826,6 +832,9 @@ struct xgbe_prv_data {
 
 	/* XPCS indirect addressing lock */
 	spinlock_t xpcs_lock;
+	unsigned int xpcs_window;
+	unsigned int xpcs_window_size;
+	unsigned int xpcs_window_mask;
 
 	/* RSS addressing mutex */
 	struct mutex rss_mutex;

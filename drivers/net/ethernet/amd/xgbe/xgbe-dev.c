@@ -1026,8 +1026,71 @@ static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
-static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
-			      int mmd_reg)
+static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
+				 int mmd_reg)
+{
+	unsigned long flags;
+	unsigned int mmd_address, index, offset;
+	int mmd_data;
+
+	if (mmd_reg & MII_ADDR_C45)
+		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	else
+		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
+
+	/* The PCS registers are accessed using mmio. The underlying
+	 * management interface uses indirect addressing to access the MMD
+	 * register sets. This requires accessing of the PCS register in two
+	 * phases, an address phase and a data phase.
+	 *
+	 * The mmio interface is based on 16-bit offsets and values. All
+	 * register offsets must therefore be adjusted by left shifting the
+	 * offset 1 bit and reading 16 bits of data.
+	 */
+	mmd_address <<= 1;
+	index = mmd_address & ~pdata->xpcs_window_mask;
+	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
+
+	spin_lock_irqsave(&pdata->xpcs_lock, flags);
+	XPCS32_IOWRITE(pdata, PCS_V2_WINDOW_SELECT, index);
+	mmd_data = XPCS16_IOREAD(pdata, offset);
+	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
+
+	return mmd_data;
+}
+
+static void xgbe_write_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
+				   int mmd_reg, int mmd_data)
+{
+	unsigned long flags;
+	unsigned int mmd_address, index, offset;
+
+	if (mmd_reg & MII_ADDR_C45)
+		mmd_address = mmd_reg & ~MII_ADDR_C45;
+	else
+		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
+
+	/* The PCS registers are accessed using mmio. The underlying
+	 * management interface uses indirect addressing to access the MMD
+	 * register sets. This requires accessing of the PCS register in two
+	 * phases, an address phase and a data phase.
+	 *
+	 * The mmio interface is based on 16-bit offsets and values. All
+	 * register offsets must therefore be adjusted by left shifting the
+	 * offset 1 bit and writing 16 bits of data.
+	 */
+	mmd_address <<= 1;
+	index = mmd_address & ~pdata->xpcs_window_mask;
+	offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
+
+	spin_lock_irqsave(&pdata->xpcs_lock, flags);
+	XPCS32_IOWRITE(pdata, PCS_V2_WINDOW_SELECT, index);
+	XPCS16_IOWRITE(pdata, offset, mmd_data);
+	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
+}
+
+static int xgbe_read_mmd_regs_v1(struct xgbe_prv_data *pdata, int prtad,
+				 int mmd_reg)
 {
 	unsigned long flags;
 	unsigned int mmd_address;
@@ -1048,15 +1111,15 @@ static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	 * offset 2 bits and reading 32 bits of data.
 	 */
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS_IOWRITE(pdata, PCS_MMD_SELECT << 2, mmd_address >> 8);
-	mmd_data = XPCS_IOREAD(pdata, (mmd_address & 0xff) << 2);
+	XPCS32_IOWRITE(pdata, PCS_V1_WINDOW_SELECT, mmd_address >> 8);
+	mmd_data = XPCS32_IOREAD(pdata, (mmd_address & 0xff) << 2);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
 
 	return mmd_data;
 }
 
-static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
-				int mmd_reg, int mmd_data)
+static void xgbe_write_mmd_regs_v1(struct xgbe_prv_data *pdata, int prtad,
+				   int mmd_reg, int mmd_data)
 {
 	unsigned int mmd_address;
 	unsigned long flags;
@@ -1073,12 +1136,38 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	 *
 	 * The mmio interface is based on 32-bit offsets and values. All
 	 * register offsets must therefore be adjusted by left shifting the
-	 * offset 2 bits and reading 32 bits of data.
+	 * offset 2 bits and writing 32 bits of data.
 	 */
 	spin_lock_irqsave(&pdata->xpcs_lock, flags);
-	XPCS_IOWRITE(pdata, PCS_MMD_SELECT << 2, mmd_address >> 8);
-	XPCS_IOWRITE(pdata, (mmd_address & 0xff) << 2, mmd_data);
+	XPCS32_IOWRITE(pdata, PCS_V1_WINDOW_SELECT, mmd_address >> 8);
+	XPCS32_IOWRITE(pdata, (mmd_address & 0xff) << 2, mmd_data);
 	spin_unlock_irqrestore(&pdata->xpcs_lock, flags);
+}
+
+static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
+			      int mmd_reg)
+{
+	switch (pdata->vdata->xpcs_access) {
+	case XGBE_XPCS_ACCESS_V1:
+		return xgbe_read_mmd_regs_v1(pdata, prtad, mmd_reg);
+
+	case XGBE_XPCS_ACCESS_V2:
+	default:
+		return xgbe_read_mmd_regs_v2(pdata, prtad, mmd_reg);
+	}
+}
+
+static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
+				int mmd_reg, int mmd_data)
+{
+	switch (pdata->vdata->xpcs_access) {
+	case XGBE_XPCS_ACCESS_V1:
+		return xgbe_write_mmd_regs_v1(pdata, prtad, mmd_reg, mmd_data);
+
+	case XGBE_XPCS_ACCESS_V2:
+	default:
+		return xgbe_write_mmd_regs_v2(pdata, prtad, mmd_reg, mmd_data);
+	}
 }
 
 static int xgbe_tx_complete(struct xgbe_ring_desc *rdesc)
