@@ -532,9 +532,8 @@ chipset_init(struct controlvm_message *inmsg)
 	 * Set features to indicate we support parahotplug (if Command
 	 * also supports it).
 	 */
-	features =
-	    inmsg->cmd.init_chipset.
-	    features & ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG;
+	features = inmsg->cmd.init_chipset.features &
+		   ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG;
 
 	/*
 	 * Set the "reply" bit so Command knows this is a
