@@ -5,7 +5,7 @@
 
 #ifndef __ASSEMBLY__
 void free_mem(void);
-void bootmem_init(int mem_size);
+void bootmem_init(unsigned long mem_size);
 #endif
 
 #include <asm-generic/page.h>
