@@ -155,39 +155,6 @@ static void taos_defaults(struct tsl2583_chip *chip)
 }
 
 /*
- * Read a number of bytes starting at register (reg) location.
- * Return 0, or i2c_smbus_write_byte ERROR code.
- */
-static int
-taos_i2c_read(struct i2c_client *client, u8 reg, u8 *val, unsigned int len)
-{
-	int i, ret;
-
-	for (i = 0; i < len; i++) {
-		/* select register to write */
-		ret = i2c_smbus_write_byte(client, (TSL258X_CMD_REG | reg));
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"taos_i2c_read failed to write register %x\n",
-				reg);
-			return ret;
-		}
-		/* read the data */
-		ret = i2c_smbus_read_byte(client);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"%s failed to read byte after writing to register %x\n",
-				__func__, reg);
-			return ret;
-		}
-		*val = ret;
-		val++;
-		reg++;
-	}
-	return 0;
-}
-
-/*
  * Reads and calculates current lux value.
  * The raw ch0 and ch1 values of the ambient light sensed in the last
  * integration cycle are read from the device.
@@ -220,13 +187,14 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 		goto done;
 	}
 
-	ret = taos_i2c_read(chip->client, (TSL258X_CMD_REG), &buf[0], 1);
+	ret = i2c_smbus_read_byte_data(chip->client, TSL258X_CMD_REG);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "taos_get_lux failed to read CMD_REG\n");
 		goto done;
 	}
+
 	/* is data new & valid */
-	if (!(buf[0] & TSL258X_STA_ADC_INTR)) {
+	if (!(ret & TSL258X_STA_ADC_INTR)) {
 		dev_err(&chip->client->dev, "taos_get_lux data not valid\n");
 		ret = chip->als_cur_info.lux; /* return LAST VALUE */
 		goto done;
@@ -235,13 +203,14 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	for (i = 0; i < 4; i++) {
 		int reg = TSL258X_CMD_REG | (TSL258X_ALS_CHAN0LO + i);
 
-		ret = taos_i2c_read(chip->client, reg, &buf[i], 1);
+		ret = i2c_smbus_read_byte_data(chip->client, reg);
 		if (ret < 0) {
 			dev_err(&chip->client->dev,
 				"taos_get_lux failed to read register %x\n",
 				reg);
 			goto done;
 		}
+		buf[i] = ret;
 	}
 
 	/*
@@ -343,52 +312,36 @@ done:
 static int taos_als_calibrate(struct iio_dev *indio_dev)
 {
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	u8 reg_val;
 	unsigned int gain_trim_val;
 	int ret;
 	int lux_val;
 
-	ret = i2c_smbus_write_byte(chip->client,
-				   (TSL258X_CMD_REG | TSL258X_CNTRL));
+	ret = i2c_smbus_read_byte_data(chip->client,
+				       TSL258X_CMD_REG | TSL258X_CNTRL);
 	if (ret < 0) {
 		dev_err(&chip->client->dev,
-			"taos_als_calibrate failed to reach the CNTRL register, ret=%d\n",
-			ret);
-		return ret;
-	}
-
-	reg_val = i2c_smbus_read_byte(chip->client);
-	if (reg_val < 0) {
-		dev_err(&chip->client->dev,
-			"%s failed to read after writing to the CNTRL register\n",
+			"%s failed to read from the CNTRL register\n",
 			__func__);
 		return ret;
 	}
 
-	if ((reg_val & (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON))
+	if ((ret & (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON))
 			!= (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
 			"taos_als_calibrate failed: device not powered on with ADC enabled\n");
 		return -EINVAL;
 	}
 
-	ret = i2c_smbus_write_byte(chip->client,
-				   (TSL258X_CMD_REG | TSL258X_CNTRL));
+	ret = i2c_smbus_read_byte_data(chip->client,
+				       TSL258X_CMD_REG | TSL258X_CNTRL);
 	if (ret < 0) {
 		dev_err(&chip->client->dev,
-			"taos_als_calibrate failed to reach the STATUS register, ret=%d\n",
-			ret);
-		return ret;
-	}
-	reg_val = i2c_smbus_read_byte(chip->client);
-	if (reg_val < 0) {
-		dev_err(&chip->client->dev,
-			"%s failed to read after writing to the STATUS register\n",
+			"%s failed to read from the CNTRL register\n",
 			__func__);
 		return ret;
 	}
 
-	if ((reg_val & TSL258X_STA_ADC_VALID) != TSL258X_STA_ADC_VALID) {
+	if ((ret & TSL258X_STA_ADC_VALID) != TSL258X_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
 			"taos_als_calibrate failed: STATUS - ADC not valid.\n");
 		return -ENODATA;
@@ -847,15 +800,9 @@ static int taos_probe(struct i2c_client *clientp,
 	memcpy(chip->taos_config, taos_config, sizeof(chip->taos_config));
 
 	for (i = 0; i < TSL258X_MAX_DEVICE_REGS; i++) {
-		ret = i2c_smbus_write_byte(clientp,
-				(TSL258X_CMD_REG | (TSL258X_CNTRL + i)));
-		if (ret < 0) {
-			dev_err(&clientp->dev,
-				"i2c_smbus_write_byte to cmd reg failed in taos_probe(), err = %d\n",
-				ret);
-			return ret;
-		}
-		ret = i2c_smbus_read_byte(clientp);
+		ret = i2c_smbus_read_byte_data(clientp,
+					       (TSL258X_CMD_REG |
+						(TSL258X_CNTRL + i)));
 		if (ret < 0) {
 			dev_err(&clientp->dev,
 				"i2c_smbus_read_byte from reg failed in taos_probe(), err = %d\n",
