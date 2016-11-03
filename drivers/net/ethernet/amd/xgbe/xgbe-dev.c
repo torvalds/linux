@@ -2944,20 +2944,48 @@ static void xgbe_config_mmc(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MMC_CR, CR, 1);
 }
 
+static void xgbe_txq_prepare_tx_stop(struct xgbe_prv_data *pdata,
+				     unsigned int queue)
+{
+	unsigned int tx_status;
+	unsigned long tx_timeout;
+
+	/* The Tx engine cannot be stopped if it is actively processing
+	 * packets. Wait for the Tx queue to empty the Tx fifo.  Don't
+	 * wait forever though...
+	 */
+	tx_timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
+	while (time_before(jiffies, tx_timeout)) {
+		tx_status = XGMAC_MTL_IOREAD(pdata, queue, MTL_Q_TQDR);
+		if ((XGMAC_GET_BITS(tx_status, MTL_Q_TQDR, TRCSTS) != 1) &&
+		    (XGMAC_GET_BITS(tx_status, MTL_Q_TQDR, TXQSTS) == 0))
+			break;
+
+		usleep_range(500, 1000);
+	}
+
+	if (!time_before(jiffies, tx_timeout))
+		netdev_info(pdata->netdev,
+			    "timed out waiting for Tx queue %u to empty\n",
+			    queue);
+}
+
 static void xgbe_prepare_tx_stop(struct xgbe_prv_data *pdata,
-				 struct xgbe_channel *channel)
+				 unsigned int queue)
 {
 	unsigned int tx_dsr, tx_pos, tx_qidx;
 	unsigned int tx_status;
 	unsigned long tx_timeout;
 
+	if (XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER) > 0x20)
+		return xgbe_txq_prepare_tx_stop(pdata, queue);
+
 	/* Calculate the status register to read and the position within */
-	if (channel->queue_index < DMA_DSRX_FIRST_QUEUE) {
+	if (queue < DMA_DSRX_FIRST_QUEUE) {
 		tx_dsr = DMA_DSR0;
-		tx_pos = (channel->queue_index * DMA_DSR_Q_WIDTH) +
-			 DMA_DSR0_TPS_START;
+		tx_pos = (queue * DMA_DSR_Q_WIDTH) + DMA_DSR0_TPS_START;
 	} else {
-		tx_qidx = channel->queue_index - DMA_DSRX_FIRST_QUEUE;
+		tx_qidx = queue - DMA_DSRX_FIRST_QUEUE;
 
 		tx_dsr = DMA_DSR1 + ((tx_qidx / DMA_DSRX_QPR) * DMA_DSRX_INC);
 		tx_pos = ((tx_qidx % DMA_DSRX_QPR) * DMA_DSR_Q_WIDTH) +
@@ -2982,7 +3010,7 @@ static void xgbe_prepare_tx_stop(struct xgbe_prv_data *pdata,
 	if (!time_before(jiffies, tx_timeout))
 		netdev_info(pdata->netdev,
 			    "timed out waiting for Tx DMA channel %u to stop\n",
-			    channel->queue_index);
+			    queue);
 }
 
 static void xgbe_enable_tx(struct xgbe_prv_data *pdata)
@@ -3014,13 +3042,8 @@ static void xgbe_disable_tx(struct xgbe_prv_data *pdata)
 	unsigned int i;
 
 	/* Prepare for Tx DMA channel stop */
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		if (!channel->tx_ring)
-			break;
-
-		xgbe_prepare_tx_stop(pdata, channel);
-	}
+	for (i = 0; i < pdata->tx_q_count; i++)
+		xgbe_prepare_tx_stop(pdata, i);
 
 	/* Disable MAC Tx */
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 0);
@@ -3144,13 +3167,8 @@ static void xgbe_powerdown_tx(struct xgbe_prv_data *pdata)
 	unsigned int i;
 
 	/* Prepare for Tx DMA channel stop */
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		if (!channel->tx_ring)
-			break;
-
-		xgbe_prepare_tx_stop(pdata, channel);
-	}
+	for (i = 0; i < pdata->tx_q_count; i++)
+		xgbe_prepare_tx_stop(pdata, i);
 
 	/* Disable MAC Tx */
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 0);
