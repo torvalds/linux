@@ -170,6 +170,9 @@ int client_import_del_conn(struct obd_import *imp, struct obd_uuid *uuid)
 				ptlrpc_connection_put(dlmexp->exp_connection);
 				dlmexp->exp_connection = NULL;
 			}
+
+			if (dlmexp)
+				class_export_put(dlmexp);
 		}
 
 		list_del(&imp_conn->oic_item);
