@@ -186,6 +186,7 @@ void imx6ull_low_power_idle(void);
 void imx6sl_low_power_idle(void);
 void imx6sll_low_power_idle(void);
 bool imx_gpc_usb_wakeup_enabled(void);
+bool imx_gpc_enet_wakeup_enabled(void);
 
 #ifdef CONFIG_SUSPEND
 void v7_cpu_resume(void);
