@@ -2473,8 +2473,8 @@ ksocknal_check_peer_timeouts(int idx)
 		 * holding only shared lock
 		 */
 		if (!list_empty(&peer->ksnp_tx_queue)) {
-			struct ksock_tx *tx = list_entry(peer->ksnp_tx_queue.next,
-						    struct ksock_tx, tx_list);
+			tx = list_entry(peer->ksnp_tx_queue.next,
+					struct ksock_tx, tx_list);
 
 			if (cfs_time_aftereq(cfs_time_current(),
 					     tx->tx_deadline)) {
