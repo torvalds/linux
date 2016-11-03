@@ -345,13 +345,6 @@ static inline const char *dwc3_gadget_generic_cmd_status_string(int status)
 }
 
 
-#if IS_ENABLED(CONFIG_FTRACE)
-void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...);
-#else
-static inline void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...)
-{  }
-#endif
-
 #ifdef CONFIG_DEBUG_FS
 extern void dwc3_debugfs_init(struct dwc3 *);
 extern void dwc3_debugfs_exit(struct dwc3 *);

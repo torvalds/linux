@@ -139,9 +139,6 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 		udelay(5);
 	}
 
-	dwc3_trace(trace_dwc3_gadget,
-			"link state change request timed out");
-
 	return -ETIMEDOUT;
 }
 
@@ -1115,8 +1112,7 @@ static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 	u32 uf;
 
 	if (list_empty(&dep->pending_list)) {
-		dwc3_trace(trace_dwc3_gadget,
-				"ISOC ep %s run out for requests",
+		dev_info(dwc->dev, "%s: ran out of requests\n",
 				dep->name);
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
 		return;
@@ -1145,16 +1141,15 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	int			ret;
 
 	if (!dep->endpoint.desc) {
-		dwc3_trace(trace_dwc3_gadget,
-				"trying to queue request %p to disabled %s",
-				&req->request, dep->endpoint.name);
+		dev_err(dwc->dev, "%s: can't queue to disabled endpoint\n",
+				dep->name);
 		return -ESHUTDOWN;
 	}
 
 	if (WARN(req->dep != dep, "request %p belongs to '%s'\n",
 				&req->request, req->dep->name)) {
-		dwc3_trace(trace_dwc3_gadget, "request %p belongs to '%s'",
-				&req->request, req->dep->name);
+		dev_err(dwc->dev, "%s: request %p belongs to '%s'\n",
+				dep->name, &req->request, req->dep->name);
 		return -EINVAL;
 	}
 
@@ -1204,10 +1199,6 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 		return 0;
 
 	ret = __dwc3_gadget_kick_transfer(dep, 0);
-	if (ret && ret != -EBUSY)
-		dwc3_trace(trace_dwc3_gadget,
-				"%s: failed to kick transfers",
-				dep->name);
 	if (ret == -EBUSY)
 		ret = 0;
 
@@ -1226,7 +1217,6 @@ static int __dwc3_gadget_ep_queue_zlp(struct dwc3 *dwc, struct dwc3_ep *dep)
 	struct usb_request		*request;
 	struct usb_ep			*ep = &dep->endpoint;
 
-	dwc3_trace(trace_dwc3_gadget, "queueing ZLP");
 	request = dwc3_gadget_ep_alloc_request(ep, GFP_ATOMIC);
 	if (!request)
 		return -ENOMEM;
@@ -1345,9 +1335,6 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol)
 
 		if (!protocol && ((dep->direction && transfer_in_flight) ||
 				(!dep->direction && started))) {
-			dwc3_trace(trace_dwc3_gadget,
-					"%s: pending request, cannot halt",
-					dep->name);
 			return -EAGAIN;
 		}
 
@@ -1465,10 +1452,8 @@ static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 
 	speed = reg & DWC3_DSTS_CONNECTSPD;
 	if ((speed == DWC3_DSTS_SUPERSPEED) ||
-	    (speed == DWC3_DSTS_SUPERSPEED_PLUS)) {
-		dwc3_trace(trace_dwc3_gadget, "no wakeup on SuperSpeed");
+	    (speed == DWC3_DSTS_SUPERSPEED_PLUS))
 		return 0;
-	}
 
 	link_state = DWC3_DSTS_USBLNKST(reg);
 
@@ -1477,9 +1462,6 @@ static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 	case DWC3_LINK_STATE_U3:	/* in HS, means SUSPEND */
 		break;
 	default:
-		dwc3_trace(trace_dwc3_gadget,
-				"can't wakeup from '%s'",
-				dwc3_gadget_link_string(link_state));
 		return -EINVAL;
 	}
 
@@ -1583,11 +1565,6 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 
 	if (!timeout)
 		return -ETIMEDOUT;
-
-	dwc3_trace(trace_dwc3_gadget, "gadget %s data soft-%s",
-			dwc->gadget_driver
-			? dwc->gadget_driver->function : "no-function",
-			is_on ? "connect" : "disconnect");
 
 	return 0;
 }
@@ -1910,8 +1887,6 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 		dep->endpoint.name = dep->name;
 		spin_lock_init(&dep->lock);
 
-		dwc3_trace(trace_dwc3_gadget, "initializing %s", dep->name);
-
 		if (epnum == 0 || epnum == 1) {
 			usb_ep_set_maxpacket_limit(&dep->endpoint, 512);
 			dep->endpoint.maxburst = 1;
@@ -1958,15 +1933,13 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 
 	ret = dwc3_gadget_init_hw_endpoints(dwc, dwc->num_out_eps, 0);
 	if (ret < 0) {
-		dwc3_trace(trace_dwc3_gadget,
-				"failed to allocate OUT endpoints");
+		dev_err(dwc->dev, "failed to initialize OUT endpoints\n");
 		return ret;
 	}
 
 	ret = dwc3_gadget_init_hw_endpoints(dwc, dwc->num_in_eps, 1);
 	if (ret < 0) {
-		dwc3_trace(trace_dwc3_gadget,
-				"failed to allocate IN endpoints");
+		dev_err(dwc->dev, "failed to initialize IN endpoints\n");
 		return ret;
 	}
 
@@ -2041,9 +2014,6 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		if (count) {
 			trb_status = DWC3_TRB_SIZE_TRBSTS(trb->size);
 			if (trb_status == DWC3_TRBSTS_MISSED_ISOC) {
-				dwc3_trace(trace_dwc3_gadget,
-						"%s: incomplete IN transfer",
-						dep->name);
 				/*
 				 * If missed isoc occurred and there is
 				 * no request queued then issue END
@@ -2669,8 +2639,6 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 			(pwropt != DWC3_GHWPARAMS1_EN_PWROPT_HIB)) {
 		if ((dwc->link_state == DWC3_LINK_STATE_U3) &&
 				(next == DWC3_LINK_STATE_RESUME)) {
-			dwc3_trace(trace_dwc3_gadget,
-					"ignoring transition U3 -> Resume");
 			return;
 		}
 	}
@@ -2804,11 +2772,7 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 		break;
 	case DWC3_DEVICE_EVENT_EOPF:
 		/* It changed to be suspend event for version 2.30a and above */
-		if (dwc->revision < DWC3_REVISION_230A) {
-			dwc3_trace(trace_dwc3_gadget, "End of Periodic Frame");
-		} else {
-			dwc3_trace(trace_dwc3_gadget, "U3/L1-L2 Suspend Event");
-
+		if (dwc->revision >= DWC3_REVISION_230A) {
 			/*
 			 * Ignore suspend event until the gadget enters into
 			 * USB_STATE_CONFIGURED state.
@@ -3059,8 +3023,7 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	 * composite.c that we are USB 2.0 + LPM ECN.
 	 */
 	if (dwc->revision < DWC3_REVISION_220A)
-		dwc3_trace(trace_dwc3_gadget,
-				"Changing max_speed on rev %08x",
+		dev_info(dwc->dev, "changing max_speed on rev %08x\n",
 				dwc->revision);
 
 	dwc->gadget.max_speed		= dwc->maximum_speed;
