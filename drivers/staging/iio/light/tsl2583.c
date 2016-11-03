@@ -410,17 +410,8 @@ static int taos_chip_on(struct iio_dev *indio_dev)
 	chip->als_saturation = als_count * 922; /* 90% of full scale */
 	chip->als_time_scale = (als_time + 25) / 50;
 
-	/*
-	 * TSL258x Specific power-on / adc enable sequence
-	 * Power on the device 1st.
-	 */
-	utmp = TSL258X_CNTL_PWR_ON;
-	ret = i2c_smbus_write_byte_data(chip->client,
-					TSL258X_CMD_REG | TSL258X_CNTRL, utmp);
-	if (ret < 0) {
-		dev_err(&chip->client->dev, "taos_chip_on failed on CNTRL reg.\n");
-		return ret;
-	}
+	/* Power on the device; ADC off. */
+	chip->taos_config[TSL258X_CNTRL] = TSL258X_CNTL_PWR_ON;
 
 	/*
 	 * Use the following shadow copy for our delay before enabling ADC.
