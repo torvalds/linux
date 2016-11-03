@@ -2337,8 +2337,16 @@ static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
 	if (ssp == NULL)
 		return -ENOMEM;
 
-	ssp->smk_in = skp;
-	ssp->smk_out = skp;
+	/*
+	 * Sockets created by kernel threads receive web label.
+	 */
+	if (unlikely(current->flags & PF_KTHREAD)) {
+		ssp->smk_in = &smack_known_web;
+		ssp->smk_out = &smack_known_web;
+	} else {
+		ssp->smk_in = skp;
+		ssp->smk_out = skp;
+	}
 	ssp->smk_packet = NULL;
 
 	sk->sk_security = ssp;
