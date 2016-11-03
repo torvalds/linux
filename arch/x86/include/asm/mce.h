@@ -356,13 +356,6 @@ enum smca_bank_types {
 	N_SMCA_BANK_TYPES
 };
 
-struct smca_bank_name {
-	const char *name;	/* Short name for sysfs */
-	const char *long_name;	/* Long name for pretty-printing */
-};
-
-extern struct smca_bank_name smca_names[N_SMCA_BANK_TYPES];
-
 #define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
 
 struct smca_hwid {
@@ -379,6 +372,7 @@ struct smca_bank {
 
 extern struct smca_bank smca_banks[MAX_NR_BANKS];
 
+extern const char *smca_get_long_name(enum smca_bank_types t);
 #endif
 
 #endif /* _ASM_X86_MCE_H */

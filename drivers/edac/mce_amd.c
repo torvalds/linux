@@ -867,7 +867,7 @@ static void decode_smca_errors(struct mce *m)
 		return;
 
 	bank_type = hwid->bank_type;
-	ip_name = smca_names[bank_type].long_name;
+	ip_name = smca_get_long_name(bank_type);
 
 	pr_emerg(HW_ERR "%s Extended Error Code: %d\n", ip_name, xec);
 

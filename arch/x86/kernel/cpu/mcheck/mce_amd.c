@@ -69,7 +69,12 @@ static const char * const smca_umc_block_names[] = {
 	"misc_umc"
 };
 
-struct smca_bank_name smca_names[] = {
+struct smca_bank_name {
+	const char *name;	/* Short name for sysfs */
+	const char *long_name;	/* Long name for pretty-printing */
+};
+
+static struct smca_bank_name smca_names[] = {
 	[SMCA_LS]	= { "load_store",	"Load Store Unit" },
 	[SMCA_IF]	= { "insn_fetch",	"Instruction Fetch Unit" },
 	[SMCA_L2_CACHE]	= { "l2_cache",		"L2 Cache" },
@@ -84,7 +89,23 @@ struct smca_bank_name smca_names[] = {
 	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
 };
-EXPORT_SYMBOL_GPL(smca_names);
+
+const char *smca_get_name(enum smca_bank_types t)
+{
+	if (t >= N_SMCA_BANK_TYPES)
+		return NULL;
+
+	return smca_names[t].name;
+}
+
+const char *smca_get_long_name(enum smca_bank_types t)
+{
+	if (t >= N_SMCA_BANK_TYPES)
+		return NULL;
+
+	return smca_names[t].long_name;
+}
+EXPORT_SYMBOL_GPL(smca_get_long_name);
 
 static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* { bank_type, hwid_mcatype, xec_bitmap } */
@@ -163,6 +184,11 @@ static void get_smca_bank_info(unsigned int bank)
 	for (i = 0; i < ARRAY_SIZE(smca_hwid_mcatypes); i++) {
 		s_hwid = &smca_hwid_mcatypes[i];
 		if (hwid_mcatype == s_hwid->hwid_mcatype) {
+
+			WARN(smca_banks[bank].hwid,
+			     "Bank %s already initialized!\n",
+			     smca_get_name(s_hwid->bank_type));
+
 			smca_banks[bank].hwid = s_hwid;
 			smca_banks[bank].id = instance_id;
 			break;
@@ -832,7 +858,7 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 	}
 
 	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
-		 "%s_%x", smca_names[bank_type].name,
+		 "%s_%x", smca_get_name(bank_type),
 			  smca_banks[bank].id);
 	return buf_mcatype;
 }
