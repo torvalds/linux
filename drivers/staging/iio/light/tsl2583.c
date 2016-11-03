@@ -338,18 +338,7 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 		dev_err(&chip->client->dev,
 			"taos_als_calibrate failed: device not powered on with ADC enabled\n");
 		return -EINVAL;
-	}
-
-	ret = i2c_smbus_read_byte_data(chip->client,
-				       TSL258X_CMD_REG | TSL258X_CNTRL);
-	if (ret < 0) {
-		dev_err(&chip->client->dev,
-			"%s failed to read from the CNTRL register\n",
-			__func__);
-		return ret;
-	}
-
-	if ((ret & TSL258X_STA_ADC_VALID) != TSL258X_STA_ADC_VALID) {
+	} else if ((ret & TSL258X_STA_ADC_VALID) != TSL258X_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
 			"taos_als_calibrate failed: STATUS - ADC not valid.\n");
 		return -ENODATA;
