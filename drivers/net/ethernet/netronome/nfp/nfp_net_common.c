@@ -1573,7 +1573,7 @@ err_alloc:
 }
 
 static struct nfp_net_tx_ring *
-nfp_net_shadow_tx_rings_prepare(struct nfp_net *nn, struct nfp_net_ring_set *s)
+nfp_net_tx_ring_set_prepare(struct nfp_net *nn, struct nfp_net_ring_set *s)
 {
 	struct nfp_net_tx_ring *rings;
 	unsigned int r;
@@ -1599,7 +1599,7 @@ err_free_prev:
 }
 
 static void
-nfp_net_shadow_tx_rings_swap(struct nfp_net *nn, struct nfp_net_ring_set *s)
+nfp_net_tx_ring_set_swap(struct nfp_net *nn, struct nfp_net_ring_set *s)
 {
 	struct nfp_net_tx_ring *rings = s->rings;
 	struct nfp_net_ring_set new = *s;
@@ -1616,7 +1616,7 @@ nfp_net_shadow_tx_rings_swap(struct nfp_net *nn, struct nfp_net_ring_set *s)
 }
 
 static void
-nfp_net_shadow_tx_rings_free(struct nfp_net *nn, struct nfp_net_ring_set *s)
+nfp_net_tx_ring_set_free(struct nfp_net *nn, struct nfp_net_ring_set *s)
 {
 	struct nfp_net_tx_ring *rings = s->rings;
 	unsigned int r;
@@ -1693,7 +1693,7 @@ err_alloc:
 }
 
 static struct nfp_net_rx_ring *
-nfp_net_shadow_rx_rings_prepare(struct nfp_net *nn, struct nfp_net_ring_set *s)
+nfp_net_rx_ring_set_prepare(struct nfp_net *nn, struct nfp_net_ring_set *s)
 {
 	unsigned int fl_bufsz =	nfp_net_calc_fl_bufsz(nn, s->mtu);
 	struct nfp_net_rx_ring *rings;
@@ -1726,7 +1726,7 @@ err_free_ring:
 }
 
 static void
-nfp_net_shadow_rx_rings_swap(struct nfp_net *nn, struct nfp_net_ring_set *s)
+nfp_net_rx_ring_set_swap(struct nfp_net *nn, struct nfp_net_ring_set *s)
 {
 	struct nfp_net_rx_ring *rings = s->rings;
 	struct nfp_net_ring_set new = *s;
@@ -1746,7 +1746,7 @@ nfp_net_shadow_rx_rings_swap(struct nfp_net *nn, struct nfp_net_ring_set *s)
 }
 
 static void
-nfp_net_shadow_rx_rings_free(struct nfp_net *nn, struct nfp_net_ring_set *s)
+nfp_net_rx_ring_set_free(struct nfp_net *nn, struct nfp_net_ring_set *s)
 {
 	struct nfp_net_rx_ring *rings = s->rings;
 	unsigned int r;
@@ -2268,9 +2268,9 @@ nfp_net_ring_swap_enable(struct nfp_net *nn,
 			 struct nfp_net_ring_set *tx)
 {
 	if (rx)
-		nfp_net_shadow_rx_rings_swap(nn, rx);
+		nfp_net_rx_ring_set_swap(nn, rx);
 	if (tx)
-		nfp_net_shadow_tx_rings_swap(nn, tx);
+		nfp_net_tx_ring_set_swap(nn, tx);
 
 	return __nfp_net_set_config_and_enable(nn);
 }
@@ -2299,11 +2299,11 @@ nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_ring_set *rx,
 
 	/* Prepare new rings */
 	if (rx) {
-		if (!nfp_net_shadow_rx_rings_prepare(nn, rx))
+		if (!nfp_net_rx_ring_set_prepare(nn, rx))
 			return -ENOMEM;
 	}
 	if (tx) {
-		if (!nfp_net_shadow_tx_rings_prepare(nn, tx)) {
+		if (!nfp_net_tx_ring_set_prepare(nn, tx)) {
 			err = -ENOMEM;
 			goto err_free_rx;
 		}
@@ -2327,9 +2327,9 @@ nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_ring_set *rx,
 	}
 
 	if (rx)
-		nfp_net_shadow_rx_rings_free(nn, rx);
+		nfp_net_rx_ring_set_free(nn, rx);
 	if (tx)
-		nfp_net_shadow_tx_rings_free(nn, tx);
+		nfp_net_tx_ring_set_free(nn, tx);
 
 	nfp_net_open_stack(nn);
 
@@ -2337,7 +2337,7 @@ nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_ring_set *rx,
 
 err_free_rx:
 	if (rx)
-		nfp_net_shadow_rx_rings_free(nn, rx);
+		nfp_net_rx_ring_set_free(nn, rx);
 	return err;
 }
 
