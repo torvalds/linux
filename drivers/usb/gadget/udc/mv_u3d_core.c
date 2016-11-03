@@ -493,30 +493,32 @@ mv_u3d_start_queue(struct mv_u3d_ep *ep)
 	ret = usb_gadget_map_request(&u3d->gadget, &req->req,
 					mv_u3d_ep_dir(ep));
 	if (ret)
-		return ret;
+		goto break_processing;
 
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
 	req->trb_count = 0;
 
-	/* build trbs and push them to device queue */
-	if (!mv_u3d_req_to_trb(req)) {
-		ret = mv_u3d_queue_trb(ep, req);
-		if (ret) {
-			ep->processing = 0;
-			return ret;
-		}
-	} else {
-		ep->processing = 0;
+	/* build trbs */
+	ret = mv_u3d_req_to_trb(req);
+	if (ret) {
 		dev_err(u3d->dev, "%s, mv_u3d_req_to_trb fail\n", __func__);
-		return -ENOMEM;
+		goto break_processing;
 	}
 
+	/* and push them to device queue */
+	ret = mv_u3d_queue_trb(ep, req);
+	if (ret)
+		goto break_processing;
+
 	/* irq handler advances the queue */
-	if (req)
-		list_add_tail(&req->queue, &ep->queue);
+	list_add_tail(&req->queue, &ep->queue);
 
 	return 0;
+
+break_processing:
+	ep->processing = 0;
+	return ret;
 }
 
 static int mv_u3d_ep_enable(struct usb_ep *_ep,
