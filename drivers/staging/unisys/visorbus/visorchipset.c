@@ -732,10 +732,6 @@ bus_epilog(struct visor_device *bus_info,
 			/* chipset_bus_create is responsible to respond */
 			chipset_bus_create(bus_info);
 			break;
-		case CONTROLVM_BUS_DESTROY:
-			/* chipset_bus_destroy is responsible to respond */
-			chipset_bus_destroy(bus_info);
-			break;
 		default:
 			goto out_respond;
 		}
@@ -898,28 +894,28 @@ out_bus_epilog:
 		bus_responder(CONTROLVM_BUS_CREATE, &inmsg->hdr, rc);
 }
 
-static void
+static int
 bus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr = NULL;
 	u32 bus_no = cmd->destroy_bus.bus_no;
 	struct visor_device *bus_info;
-	int rc = CONTROLVM_RESP_SUCCESS;
+	int err;
 
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
-		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-		goto out_respond;
+		err = -ENODEV;
+		goto err_respond;
 	}
 	if (bus_info->state.created == 0) {
-		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto out_respond;
+		err = -ENOENT;
+		goto err_respond;
 	}
 	if (bus_info->pending_msg_hdr) {
 		/* only non-NULL if dev is still waiting on a response */
-		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
-		goto out_respond;
+		err = -EEXIST;
+		goto err_respond;
 	}
 	if (inmsg->hdr.flags.response_expected == 1) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
@@ -927,8 +923,8 @@ bus_destroy(struct controlvm_message *inmsg)
 			POSTCODE_LINUX_4(MALLOC_FAILURE_PC, cmd,
 					 bus_info->chipset_bus_no,
 					 POSTCODE_SEVERITY_ERR);
-			rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-			goto out_respond;
+			err = -ENOMEM;
+			goto err_respond;
 		}
 
 		memcpy(pmsg_hdr, &inmsg->hdr,
@@ -938,13 +934,12 @@ bus_destroy(struct controlvm_message *inmsg)
 
 	/* Response will be handled by chipset_bus_destroy */
 	chipset_bus_destroy(bus_info);
-	return;
+	return 0;
 
-out_respond:
+err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		bus_responder(inmsg->hdr.id, &inmsg->hdr, rc);
-
-	/* bus_info is freed as part of the busdevice_release function */
+		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+	return err;
 }
 
 static void
