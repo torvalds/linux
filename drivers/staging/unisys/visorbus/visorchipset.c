@@ -728,12 +728,17 @@ bus_epilog(struct visor_device *bus_info,
 	if (response == CONTROLVM_RESP_SUCCESS) {
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
+			/* chipset_bus_create is responsible to respond */
 			chipset_bus_create(bus_info);
 			break;
 		case CONTROLVM_BUS_DESTROY:
+			/* chipset_bus_destroy is responsible to respond */
 			chipset_bus_destroy(bus_info);
 			break;
+		default:
+			goto out_respond;
 		}
+		return;
 	}
 
 out_respond:
@@ -779,6 +784,7 @@ device_epilog(struct visor_device *dev_info,
 	if (response >= 0) {
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
+			/* chipset_device_create is responsible to respond */
 			chipset_device_create(dev_info);
 			break;
 		case CONTROLVM_DEVICE_CHANGESTATE:
@@ -786,6 +792,7 @@ device_epilog(struct visor_device *dev_info,
 			if (state.alive == segment_state_running.alive &&
 			    state.operating ==
 				segment_state_running.operating) {
+				/* chipset_device_resume will respond */
 				chipset_device_resume(dev_info);
 			}
 			/* ServerNotReady / ServerLost / SegmentStateStandby */
@@ -794,15 +801,20 @@ device_epilog(struct visor_device *dev_info,
 				 segment_state_standby.operating) {
 				/*
 				 * technically this is standby case
-				 * where server is lost
+				 * where server is lost and
+				 * chipset_device_pause will respond
 				 */
 				chipset_device_pause(dev_info);
 			}
 			break;
 		case CONTROLVM_DEVICE_DESTROY:
+			/* chipset_device_destroy is responsible to respond */
 			chipset_device_destroy(dev_info);
 			break;
+		default:
+			goto out_respond;
 		}
+		return;
 	}
 
 out_respond:
