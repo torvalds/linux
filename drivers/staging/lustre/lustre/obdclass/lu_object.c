@@ -1521,10 +1521,6 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 
 	if (!(key->lct_tags & LCT_QUIESCENT)) {
 		/*
-		 * XXX layering violation.
-		 */
-		cl_env_cache_purge(~0);
-		/*
 		 * XXX memory barrier has to go here.
 		 */
 		spin_lock(&lu_keys_guard);

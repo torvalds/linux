@@ -103,7 +103,6 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 {
 	struct lu_env     *env;
-	void			*cookie;
 	struct cl_object  *obj;
 	struct cl_page    *page;
 	struct address_space *mapping;
@@ -129,7 +128,6 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	if (!page)
 		return 1;
 
-	cookie = cl_env_reenter();
 	env = cl_env_percpu_get();
 	LASSERT(!IS_ERR(env));
 
@@ -155,7 +153,6 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	cl_page_put(env, page);
 
 	cl_env_percpu_put(env);
-	cl_env_reexit(cookie);
 	return result;
 }
 
@@ -340,7 +337,8 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
 		       PAGE_SIZE) & ~(DT_MAX_BRW_SIZE - 1))
 static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct lu_env *env;
+	struct ll_cl_context *lcc;
+	const struct lu_env *env;
 	struct cl_io *io;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -348,7 +346,6 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t count = iov_iter_count(iter);
 	ssize_t tot_bytes = 0, result = 0;
 	long size = MAX_DIO_SIZE;
-	int refcheck;
 
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
 	if ((file_offset & ~PAGE_MASK) || (count & ~PAGE_MASK))
@@ -363,9 +360,13 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 	if (iov_iter_alignment(iter) & ~PAGE_MASK)
 		return -EINVAL;
 
-	env = cl_env_get(&refcheck);
+	lcc = ll_cl_find(file);
+	if (!lcc)
+		return -EIO;
+
+	env = lcc->lcc_env;
 	LASSERT(!IS_ERR(env));
-	io = vvp_env_io(env)->vui_cl.cis_io;
+	io = lcc->lcc_io;
 	LASSERT(io);
 
 	while (iov_iter_count(iter)) {
@@ -422,7 +423,6 @@ out:
 		vio->u.write.vui_written += tot_bytes;
 	}
 
-	cl_env_put(env, &refcheck);
 	return tot_bytes ? tot_bytes : result;
 }
 

@@ -2640,35 +2640,13 @@ void cl_sync_io_end(const struct lu_env *env, struct cl_sync_io *anchor);
  *     - allocation and destruction of environment is amortized by caching no
  *     longer used environments instead of destroying them;
  *
- *     - there is a notion of "current" environment, attached to the kernel
- *     data structure representing current thread Top-level lustre code
- *     allocates an environment and makes it current, then calls into
- *     non-lustre code, that in turn calls lustre back. Low-level lustre
- *     code thus called can fetch environment created by the top-level code
- *     and reuse it, avoiding additional environment allocation.
- *       Right now, three interfaces can attach the cl_env to running thread:
- *       - cl_env_get
- *       - cl_env_implant
- *       - cl_env_reexit(cl_env_reenter had to be called priorly)
- *
  * \see lu_env, lu_context, lu_context_key
  * @{
  */
 
-struct cl_env_nest {
-	int   cen_refcheck;
-	void *cen_cookie;
-};
-
 struct lu_env *cl_env_get(int *refcheck);
 struct lu_env *cl_env_alloc(int *refcheck, __u32 tags);
-struct lu_env *cl_env_nested_get(struct cl_env_nest *nest);
 void cl_env_put(struct lu_env *env, int *refcheck);
-void cl_env_nested_put(struct cl_env_nest *nest, struct lu_env *env);
-void *cl_env_reenter(void);
-void cl_env_reexit(void *cookie);
-void cl_env_implant(struct lu_env *env, int *refcheck);
-void cl_env_unplant(struct lu_env *env, int *refcheck);
 unsigned int cl_env_cache_purge(unsigned int nr);
 struct lu_env *cl_env_percpu_get(void);
 void cl_env_percpu_put(struct lu_env *env);

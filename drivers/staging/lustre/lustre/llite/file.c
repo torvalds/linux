@@ -1584,11 +1584,11 @@ restart:
  */
 int ll_hsm_release(struct inode *inode)
 {
-	struct cl_env_nest nest;
 	struct lu_env *env;
 	struct obd_client_handle *och = NULL;
 	__u64 data_version = 0;
 	int rc;
+	int refcheck;
 
 	CDEBUG(D_INODE, "%s: Releasing file "DFID".\n",
 	       ll_get_fsname(inode->i_sb, NULL, 0),
@@ -1605,14 +1605,14 @@ int ll_hsm_release(struct inode *inode)
 	if (rc != 0)
 		goto out;
 
-	env = cl_env_nested_get(&nest);
+	env = cl_env_get(&refcheck);
 	if (IS_ERR(env)) {
 		rc = PTR_ERR(env);
 		goto out;
 	}
 
 	ll_merge_attr(env, inode);
-	cl_env_nested_put(&nest, env);
+	cl_env_put(env, &refcheck);
 
 	/* Release the file.
 	 * NB: lease lock handle is released in mdc_hsm_release_pack() because
@@ -2268,17 +2268,17 @@ static int ll_flush(struct file *file, fl_owner_t id)
 int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 		       enum cl_fsync_mode mode, int ignore_layout)
 {
-	struct cl_env_nest nest;
 	struct lu_env *env;
 	struct cl_io *io;
 	struct cl_fsync_io *fio;
 	int result;
+	int refcheck;
 
 	if (mode != CL_FSYNC_NONE && mode != CL_FSYNC_LOCAL &&
 	    mode != CL_FSYNC_DISCARD && mode != CL_FSYNC_ALL)
 		return -EINVAL;
 
-	env = cl_env_nested_get(&nest);
+	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
 		return PTR_ERR(env);
 
@@ -2301,7 +2301,7 @@ int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 	if (result == 0)
 		result = fio->fi_nr_written;
 	cl_io_fini(env, io);
-	cl_env_nested_put(&nest, env);
+	cl_env_put(env, &refcheck);
 
 	return result;
 }
@@ -3149,14 +3149,14 @@ int ll_layout_conf(struct inode *inode, const struct cl_object_conf *conf)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct cl_object *obj = lli->lli_clob;
-	struct cl_env_nest nest;
 	struct lu_env *env;
 	int rc;
+	int refcheck;
 
 	if (!obj)
 		return 0;
 
-	env = cl_env_nested_get(&nest);
+	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
 		return PTR_ERR(env);
 
@@ -3190,7 +3190,7 @@ int ll_layout_conf(struct inode *inode, const struct cl_object_conf *conf)
 		ll_layout_version_set(lli, cl.cl_layout_gen);
 	}
 out:
-	cl_env_nested_put(&nest, env);
+	cl_env_put(env, &refcheck);
 	return rc;
 }
 

@@ -167,12 +167,7 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 		sub->sub_env = ld->ld_emrg[stripe]->emrg_env;
 		sub->sub_borrowed = 1;
 	} else {
-		void *cookie;
-
-		/* obtain new environment */
-		cookie = cl_env_reenter();
 		sub->sub_env = cl_env_get(&sub->sub_refcheck);
-		cl_env_reexit(cookie);
 		if (IS_ERR(sub->sub_env))
 			result = PTR_ERR(sub->sub_env);
 

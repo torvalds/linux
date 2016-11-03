@@ -162,13 +162,11 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 		return rc;
 	}
 
-	cg->lg_env  = cl_env_get(&refcheck);
+	cg->lg_env  = env;
 	cg->lg_io   = io;
 	cg->lg_lock = lock;
 	cg->lg_gid  = gid;
-	LASSERT(cg->lg_env == env);
 
-	cl_env_unplant(env, &refcheck);
 	return 0;
 }
 
@@ -177,13 +175,9 @@ void cl_put_grouplock(struct ll_grouplock *cg)
 	struct lu_env  *env  = cg->lg_env;
 	struct cl_io   *io   = cg->lg_io;
 	struct cl_lock *lock = cg->lg_lock;
-	int	     refcheck;
 
 	LASSERT(cg->lg_env);
 	LASSERT(cg->lg_gid);
-
-	cl_env_implant(env, &refcheck);
-	cl_env_put(env, &refcheck);
 
 	cl_lock_release(env, lock);
 	cl_io_fini(env, io);

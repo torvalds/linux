@@ -729,19 +729,15 @@ static int lov_layout_change(const struct lu_env *unused,
 	union lov_layout_state *state = &lov->u;
 	const struct lov_layout_operations *old_ops;
 	const struct lov_layout_operations *new_ops;
-	void *cookie;
 	struct lu_env *env;
 	int refcheck;
 	int rc;
 
 	LASSERT(0 <= lov->lo_type && lov->lo_type < ARRAY_SIZE(lov_dispatch));
 
-	cookie = cl_env_reenter();
 	env = cl_env_get(&refcheck);
-	if (IS_ERR(env)) {
-		cl_env_reexit(cookie);
+	if (IS_ERR(env))
 		return PTR_ERR(env);
-	}
 
 	LASSERT(0 <= llt && llt < ARRAY_SIZE(lov_dispatch));
 
@@ -782,7 +778,6 @@ static int lov_layout_change(const struct lu_env *unused,
 	lov->lo_type = llt;
 out:
 	cl_env_put(env, &refcheck);
-	cl_env_reexit(cookie);
 	return rc;
 }
 

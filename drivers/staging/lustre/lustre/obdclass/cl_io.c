@@ -412,7 +412,6 @@ void cl_io_unlock(const struct lu_env *env, struct cl_io *io)
 			scan->cis_iop->op[io->ci_type].cio_unlock(env, scan);
 	}
 	io->ci_state = CIS_UNLOCKED;
-	LASSERT(!cl_env_info(env)->clt_counters[CNL_TOP].ctc_nr_locks_acquired);
 }
 EXPORT_SYMBOL(cl_io_unlock);
 
