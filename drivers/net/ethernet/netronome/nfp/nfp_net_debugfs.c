@@ -207,13 +207,13 @@ void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
 	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx))
 		return;
 
-	for (i = 0; i < nn->num_rx_rings; i++) {
+	for (i = 0; i < min(nn->max_rx_rings, nn->max_r_vecs); i++) {
 		sprintf(int_name, "%d", i);
 		debugfs_create_file(int_name, S_IRUSR, rx,
 				    &nn->r_vecs[i], &nfp_rx_q_fops);
 	}
 
-	for (i = 0; i < nn->num_tx_rings; i++) {
+	for (i = 0; i < min(nn->max_tx_rings, nn->max_r_vecs); i++) {
 		sprintf(int_name, "%d", i);
 		debugfs_create_file(int_name, S_IRUSR, tx,
 				    &nn->r_vecs[i], &nfp_tx_q_fops);

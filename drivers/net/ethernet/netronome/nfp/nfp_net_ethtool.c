@@ -162,10 +162,12 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 {
 	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
 	struct nfp_net_ring_set rx = {
+		.n_rings = nn->num_rx_rings,
 		.mtu = nn->netdev->mtu,
 		.dcnt = rxd_cnt,
 	};
 	struct nfp_net_ring_set tx = {
+		.n_rings = nn->num_tx_rings,
 		.dcnt = txd_cnt,
 	};
 
@@ -648,6 +650,50 @@ static void nfp_net_get_channels(struct net_device *netdev,
 	channel->other_count = NFP_NET_NON_Q_VECTORS;
 }
 
+static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
+				 unsigned int total_tx)
+{
+	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
+	struct nfp_net_ring_set rx = {
+		.n_rings = total_rx,
+		.mtu = nn->netdev->mtu,
+		.dcnt = nn->rxd_cnt,
+	};
+	struct nfp_net_ring_set tx = {
+		.n_rings = total_tx,
+		.dcnt = nn->txd_cnt,
+	};
+
+	if (nn->num_rx_rings != total_rx)
+		reconfig_rx = &rx;
+	if (nn->num_tx_rings != total_tx)
+		reconfig_tx = &tx;
+
+	return nfp_net_ring_reconfig(nn, reconfig_rx, reconfig_tx);
+}
+
+static int nfp_net_set_channels(struct net_device *netdev,
+				struct ethtool_channels *channel)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int total_rx, total_tx;
+
+	/* Reject unsupported */
+	if (!channel->combined_count ||
+	    channel->other_count != NFP_NET_NON_Q_VECTORS ||
+	    (channel->rx_count && channel->tx_count))
+		return -EINVAL;
+
+	total_rx = channel->combined_count + channel->rx_count;
+	total_tx = channel->combined_count + channel->tx_count;
+
+	if (total_rx > min(nn->max_rx_rings, nn->max_r_vecs) ||
+	    total_tx > min(nn->max_tx_rings, nn->max_r_vecs))
+		return -EINVAL;
+
+	return nfp_net_set_num_rings(nn, total_rx, total_tx);
+}
+
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -667,6 +713,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,
+	.set_channels		= nfp_net_set_channels,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)
