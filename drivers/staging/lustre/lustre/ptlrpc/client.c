@@ -1191,7 +1191,9 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 		lnet_nid_t nid = imp->imp_connection->c_peer.nid;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
 
-		if (ptlrpc_console_allow(req))
+		/* -EAGAIN is normal when using POSIX flocks */
+		if (ptlrpc_console_allow(req) &&
+		    !(opc == LDLM_ENQUEUE && err == -EAGAIN))
 			LCONSOLE_ERROR_MSG(0x011, "%s: operation %s to node %s failed: rc = %d\n",
 					   imp->imp_obd->obd_name,
 					   ll_opcode2str(opc),
