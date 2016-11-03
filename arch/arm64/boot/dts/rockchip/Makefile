@@ -4,6 +4,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-r88.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-tb-sheep.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-box-808-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-box-rev1.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-box-rev1-disvr.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev1-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev1-android-next.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev1-cros.dtb
