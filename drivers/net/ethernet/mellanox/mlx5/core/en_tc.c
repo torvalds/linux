@@ -237,12 +237,15 @@ static int parse_cls_flower(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_VLAN,
 						  f->mask);
-		if (mask->vlan_id) {
+		if (mask->vlan_id || mask->vlan_priority) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, vlan_tag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, vlan_tag, 1);
 
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_vid, mask->vlan_id);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_vid, key->vlan_id);
+
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c, first_prio, mask->vlan_priority);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v, first_prio, key->vlan_priority);
 		}
 	}
 
