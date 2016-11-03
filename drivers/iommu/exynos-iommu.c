@@ -70,6 +70,36 @@ static short PG_ENT_SHIFT = -1;
 #define SYSMMU_PG_ENT_SHIFT 0
 #define SYSMMU_V5_PG_ENT_SHIFT 4
 
+static const sysmmu_pte_t *LV1_PROT;
+static const sysmmu_pte_t SYSMMU_LV1_PROT[] = {
+	((0 << 15) | (0 << 10)), /* no access */
+	((1 << 15) | (1 << 10)), /* IOMMU_READ only */
+	((0 << 15) | (1 << 10)), /* IOMMU_WRITE not supported, use read/write */
+	((0 << 15) | (1 << 10)), /* IOMMU_READ | IOMMU_WRITE */
+};
+static const sysmmu_pte_t SYSMMU_V5_LV1_PROT[] = {
+	(0 << 4), /* no access */
+	(1 << 4), /* IOMMU_READ only */
+	(2 << 4), /* IOMMU_WRITE only */
+	(3 << 4), /* IOMMU_READ | IOMMU_WRITE */
+};
+
+static const sysmmu_pte_t *LV2_PROT;
+static const sysmmu_pte_t SYSMMU_LV2_PROT[] = {
+	((0 << 9) | (0 << 4)), /* no access */
+	((1 << 9) | (1 << 4)), /* IOMMU_READ only */
+	((0 << 9) | (1 << 4)), /* IOMMU_WRITE not supported, use read/write */
+	((0 << 9) | (1 << 4)), /* IOMMU_READ | IOMMU_WRITE */
+};
+static const sysmmu_pte_t SYSMMU_V5_LV2_PROT[] = {
+	(0 << 2), /* no access */
+	(1 << 2), /* IOMMU_READ only */
+	(2 << 2), /* IOMMU_WRITE only */
+	(3 << 2), /* IOMMU_READ | IOMMU_WRITE */
+};
+
+#define SYSMMU_SUPPORTED_PROT_BITS (IOMMU_READ | IOMMU_WRITE)
+
 #define sect_to_phys(ent) (((phys_addr_t) ent) << PG_ENT_SHIFT)
 #define section_phys(sent) (sect_to_phys(*(sent)) & SECT_MASK)
 #define section_offs(iova) (iova & (SECT_SIZE - 1))
@@ -97,16 +127,17 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define SPAGES_PER_LPAGE (LPAGE_SIZE / SPAGE_SIZE)
 #define lv2table_base(sent) (sect_to_phys(*(sent) & 0xFFFFFFC0))
 
-#define mk_lv1ent_sect(pa) ((pa >> PG_ENT_SHIFT) | 2)
+#define mk_lv1ent_sect(pa, prot) ((pa >> PG_ENT_SHIFT) | LV1_PROT[prot] | 2)
 #define mk_lv1ent_page(pa) ((pa >> PG_ENT_SHIFT) | 1)
-#define mk_lv2ent_lpage(pa) ((pa >> PG_ENT_SHIFT) | 1)
-#define mk_lv2ent_spage(pa) ((pa >> PG_ENT_SHIFT) | 2)
+#define mk_lv2ent_lpage(pa, prot) ((pa >> PG_ENT_SHIFT) | LV2_PROT[prot] | 1)
+#define mk_lv2ent_spage(pa, prot) ((pa >> PG_ENT_SHIFT) | LV2_PROT[prot] | 2)
 
 #define CTRL_ENABLE	0x5
 #define CTRL_BLOCK	0x7
 #define CTRL_DISABLE	0x0
 
 #define CFG_LRU		0x1
+#define CFG_EAP		(1 << 2)
 #define CFG_QOS(n)	((n & 0xF) << 7)
 #define CFG_ACGEN	(1 << 24) /* System MMU 3.3 only */
 #define CFG_SYSSEL	(1 << 22) /* System MMU 3.2 only */
@@ -481,6 +512,8 @@ static void __sysmmu_init_config(struct sysmmu_drvdata *data)
 	else
 		cfg = CFG_QOS(15) | CFG_FLPDCACHE | CFG_ACGEN;
 
+	cfg |= CFG_EAP; /* enable access protection bits check */
+
 	writel(cfg, data->sfrbase + REG_MMU_CFG);
 }
 
@@ -652,10 +685,15 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	__sysmmu_get_version(data);
 	if (PG_ENT_SHIFT < 0) {
-		if (MMU_MAJ_VER(data->version) < 5)
+		if (MMU_MAJ_VER(data->version) < 5) {
 			PG_ENT_SHIFT = SYSMMU_PG_ENT_SHIFT;
-		else
+			LV1_PROT = SYSMMU_LV1_PROT;
+			LV2_PROT = SYSMMU_LV2_PROT;
+		} else {
 			PG_ENT_SHIFT = SYSMMU_V5_PG_ENT_SHIFT;
+			LV1_PROT = SYSMMU_V5_LV1_PROT;
+			LV2_PROT = SYSMMU_V5_LV2_PROT;
+		}
 	}
 
 	pm_runtime_enable(dev);
@@ -954,7 +992,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 
 static int lv1set_section(struct exynos_iommu_domain *domain,
 			  sysmmu_pte_t *sent, sysmmu_iova_t iova,
-			  phys_addr_t paddr, short *pgcnt)
+			  phys_addr_t paddr, int prot, short *pgcnt)
 {
 	if (lv1ent_section(sent)) {
 		WARN(1, "Trying mapping on 1MiB@%#08x that is mapped",
@@ -973,7 +1011,7 @@ static int lv1set_section(struct exynos_iommu_domain *domain,
 		*pgcnt = 0;
 	}
 
-	update_pte(sent, mk_lv1ent_sect(paddr));
+	update_pte(sent, mk_lv1ent_sect(paddr, prot));
 
 	spin_lock(&domain->lock);
 	if (lv1ent_page_zero(sent)) {
@@ -991,13 +1029,13 @@ static int lv1set_section(struct exynos_iommu_domain *domain,
 }
 
 static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
-								short *pgcnt)
+		       int prot, short *pgcnt)
 {
 	if (size == SPAGE_SIZE) {
 		if (WARN_ON(!lv2ent_fault(pent)))
 			return -EADDRINUSE;
 
-		update_pte(pent, mk_lv2ent_spage(paddr));
+		update_pte(pent, mk_lv2ent_spage(paddr, prot));
 		*pgcnt -= 1;
 	} else { /* size == LPAGE_SIZE */
 		int i;
@@ -1013,7 +1051,7 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
 				return -EADDRINUSE;
 			}
 
-			*pent = mk_lv2ent_lpage(paddr);
+			*pent = mk_lv2ent_lpage(paddr, prot);
 		}
 		dma_sync_single_for_device(dma_dev, pent_base,
 					   sizeof(*pent) * SPAGES_PER_LPAGE,
@@ -1061,13 +1099,14 @@ static int exynos_iommu_map(struct iommu_domain *iommu_domain,
 	int ret = -ENOMEM;
 
 	BUG_ON(domain->pgtable == NULL);
+	prot &= SYSMMU_SUPPORTED_PROT_BITS;
 
 	spin_lock_irqsave(&domain->pgtablelock, flags);
 
 	entry = section_entry(domain->pgtable, iova);
 
 	if (size == SECT_SIZE) {
-		ret = lv1set_section(domain, entry, iova, paddr,
+		ret = lv1set_section(domain, entry, iova, paddr, prot,
 				     &domain->lv2entcnt[lv1ent_offset(iova)]);
 	} else {
 		sysmmu_pte_t *pent;
@@ -1078,7 +1117,7 @@ static int exynos_iommu_map(struct iommu_domain *iommu_domain,
 		if (IS_ERR(pent))
 			ret = PTR_ERR(pent);
 		else
-			ret = lv2set_page(pent, paddr, size,
+			ret = lv2set_page(pent, paddr, size, prot,
 				       &domain->lv2entcnt[lv1ent_offset(iova)]);
 	}
 
