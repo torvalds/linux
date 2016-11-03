@@ -634,28 +634,30 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 	bool handled = false;
 
 	sta = cec_read(priv, REG_CEC_INTSTATUS);
-	cec = cec_read(priv, REG_CEC_RXSHPDINT);
-	lvl = cec_read(priv, REG_CEC_RXSHPDLEV);
-	flag0 = reg_read(priv, REG_INT_FLAGS_0);
-	flag1 = reg_read(priv, REG_INT_FLAGS_1);
-	flag2 = reg_read(priv, REG_INT_FLAGS_2);
-	DRM_DEBUG_DRIVER(
-		"tda irq sta %02x cec %02x lvl %02x f0 %02x f1 %02x f2 %02x\n",
-		sta, cec, lvl, flag0, flag1, flag2);
+	if (sta & CEC_INTSTATUS_HDMI) {
+		cec = cec_read(priv, REG_CEC_RXSHPDINT);
+		lvl = cec_read(priv, REG_CEC_RXSHPDLEV);
+		flag0 = reg_read(priv, REG_INT_FLAGS_0);
+		flag1 = reg_read(priv, REG_INT_FLAGS_1);
+		flag2 = reg_read(priv, REG_INT_FLAGS_2);
+		DRM_DEBUG_DRIVER(
+			"tda irq sta %02x cec %02x lvl %02x f0 %02x f1 %02x f2 %02x\n",
+			sta, cec, lvl, flag0, flag1, flag2);
 
-	if (cec & CEC_RXSHPDINT_HPD) {
-		if (lvl & CEC_RXSHPDLEV_HPD)
-			tda998x_edid_delay_start(priv);
-		else
-			schedule_work(&priv->detect_work);
+		if (cec & CEC_RXSHPDINT_HPD) {
+			if (lvl & CEC_RXSHPDLEV_HPD)
+				tda998x_edid_delay_start(priv);
+			else
+				schedule_work(&priv->detect_work);
 
-		handled = true;
-	}
+			handled = true;
+		}
 
-	if ((flag2 & INT_FLAGS_2_EDID_BLK_RD) && priv->wq_edid_wait) {
-		priv->wq_edid_wait = 0;
-		wake_up(&priv->wq_edid);
-		handled = true;
+		if ((flag2 & INT_FLAGS_2_EDID_BLK_RD) && priv->wq_edid_wait) {
+			priv->wq_edid_wait = 0;
+			wake_up(&priv->wq_edid);
+			handled = true;
+		}
 	}
 
 	return IRQ_RETVAL(handled);
@@ -1544,7 +1546,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	/* initialize the optional IRQ */
 	if (client->irq) {
-		int irqf_trigger;
+		unsigned long irq_flags;
 
 		/* init read EDID waitqueue and HDP work */
 		init_waitqueue_head(&priv->wq_edid);
@@ -1554,11 +1556,11 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 		reg_read(priv, REG_INT_FLAGS_1);
 		reg_read(priv, REG_INT_FLAGS_2);
 
-		irqf_trigger =
+		irq_flags =
 			irqd_get_trigger_type(irq_get_irq_data(client->irq));
+		irq_flags |= IRQF_SHARED | IRQF_ONESHOT;
 		ret = request_threaded_irq(client->irq, NULL,
-					   tda998x_irq_thread,
-					   irqf_trigger | IRQF_ONESHOT,
+					   tda998x_irq_thread, irq_flags,
 					   "tda998x", priv);
 		if (ret) {
 			dev_err(&client->dev,
