@@ -33,6 +33,7 @@ static const struct acpi_device_id forbidden_id_list[] = {
 /**
  * acpi_create_platform_device - Create platform device for ACPI device node
  * @adev: ACPI device node to create a platform device for.
+ * @properties: Optional collection of build-in properties.
  *
  * Check if the given @adev can be represented as a platform device and, if
  * that's the case, create and register a platform device, populate its common
@@ -40,7 +41,8 @@ static const struct acpi_device_id forbidden_id_list[] = {
  *
  * Name of the platform device will be the same as @adev's.
  */
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
+					struct property_entry *properties)
 {
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;
@@ -88,6 +90,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+	pdevinfo.properties = properties;
 
 	if (acpi_dma_supported(adev))
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);
