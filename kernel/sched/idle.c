@@ -199,7 +199,7 @@ exit_idle:
  *
  * Called with polling cleared.
  */
-static void cpu_idle_loop(void)
+void cpu_idle_loop(void)
 {
 	int cpu = smp_processor_id();
 
@@ -270,6 +270,7 @@ static void cpu_idle_loop(void)
 		schedule_preempt_disabled();
 	}
 }
+EXPORT_SYMBOL(cpu_idle_loop);
 
 void cpu_startup_entry(enum cpuhp_state state)
 {

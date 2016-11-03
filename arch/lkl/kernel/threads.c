@@ -90,17 +90,30 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	struct thread_info *_prev = task_thread_info(prev);
 	struct thread_info *_next = task_thread_info(next);
 	unsigned long _prev_flags = _prev->flags;
+	bool wakeup_idle = test_bit(TIF_IDLE, &_next->flags) &&
+				lkl_cpu_idle_pending();
 
 	_current_thread_info = task_thread_info(next);
 	_next->prev_sched = prev;
 	abs_prev = prev;
 
 	BUG_ON(!_next->tid);
+
+	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
+		/* Atomic. Must be done before wakeup next */
+		clear_ti_thread_flag(_prev, TIF_SCHED_JB);
+	}
+	if (wakeup_idle)
+		schedule_tail(abs_prev);
 	lkl_cpu_change_owner(_next->tid);
 
-	lkl_ops->sem_up(_next->sched_sem);
+	/* No kernel code is allowed after wakeup next */
+	if (wakeup_idle)
+		lkl_cpu_wakeup_idle();
+	else
+		lkl_ops->sem_up(_next->sched_sem);
+
 	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
-		clear_ti_thread_flag(_prev, TIF_SCHED_JB);
 		lkl_ops->jmp_buf_longjmp(&_prev->sched_jb, 1);
 	} else if (test_bit(TIF_SCHED_EXIT, &_prev_flags)) {
 		lkl_ops->thread_exit();
@@ -132,8 +145,8 @@ void switch_to_host_task(struct task_struct *task)
 		if (!thread_set_sched_jmp())
 			schedule();
 	} else {
-		lkl_cpu_wakeup();
-		lkl_cpu_put();
+		if (!thread_set_sched_jmp())
+			lkl_idle_tail_schedule();
 	}
 
 	lkl_ops->sem_down(task_thread_info(task)->sched_sem);

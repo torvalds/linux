@@ -93,14 +93,11 @@ static unsigned int task_key;
 long lkl_syscall(long no, long *params)
 {
 	struct task_struct *task = host0;
-	static int count;
 	long ret;
 
 	ret = lkl_cpu_get();
 	if (ret < 0)
 		return ret;
-
-	count++;
 
 	if (lkl_ops->tls_get) {
 		task = lkl_ops->tls_get(task_key);
@@ -116,16 +113,7 @@ long lkl_syscall(long no, long *params)
 
 	ret = run_syscall(no, params);
 
-	if (count > 1) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!thread_set_sched_jmp())
-			schedule();
-		count--;
-		return ret;
-	}
-
 out:
-	count--;
 	lkl_cpu_put();
 
 	return ret;
