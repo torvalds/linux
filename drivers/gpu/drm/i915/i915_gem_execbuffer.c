@@ -331,7 +331,8 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->page = -1;
 	cache->vaddr = 0;
 	cache->i915 = i915;
-	cache->use_64bit_reloc = INTEL_GEN(cache->i915) >= 8;
+	/* Must be a variable in the struct to allow GCC to unroll. */
+	cache->use_64bit_reloc = HAS_64BIT_RELOC(i915);
 	cache->node.allocated = false;
 }
 

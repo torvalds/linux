@@ -74,7 +74,6 @@ static int render_state_setup(struct intel_render_state *so,
 			      struct drm_i915_private *i915)
 {
 	const struct intel_renderstate_rodata *rodata = so->rodata;
-	const bool has_64bit_reloc = INTEL_GEN(i915) >= 8;
 	struct drm_i915_gem_object *obj = so->vma->obj;
 	unsigned int i = 0, reloc_index = 0;
 	unsigned int needs_clflush;
@@ -93,7 +92,7 @@ static int render_state_setup(struct intel_render_state *so,
 		if (i * 4  == rodata->reloc[reloc_index]) {
 			u64 r = s + so->vma->node.start;
 			s = lower_32_bits(r);
-			if (has_64bit_reloc) {
+			if (HAS_64BIT_RELOC(i915)) {
 				if (i + 1 >= rodata->batch_items ||
 				    rodata->batch[i + 1] != 0)
 					goto err;
