@@ -8,6 +8,11 @@
 #include <net/flow.h>
 #include <net/rtnetlink.h>
 
+struct fib_kuid_range {
+	kuid_t start;
+	kuid_t end;
+};
+
 struct fib_rule {
 	struct list_head	list;
 	int			iifindex;
@@ -29,6 +34,7 @@ struct fib_rule {
 	int			suppress_prefixlen;
 	char			iifname[IFNAMSIZ];
 	char			oifname[IFNAMSIZ];
+	struct fib_kuid_range	uid_range;
 	struct rcu_head		rcu;
 };
 
@@ -89,7 +95,8 @@ struct fib_rules_ops {
 	[FRA_TABLE]     = { .type = NLA_U32 }, \
 	[FRA_SUPPRESS_PREFIXLEN] = { .type = NLA_U32 }, \
 	[FRA_SUPPRESS_IFGROUP] = { .type = NLA_U32 }, \
-	[FRA_GOTO]	= { .type = NLA_U32 }
+	[FRA_GOTO]	= { .type = NLA_U32 }, \
+	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {
