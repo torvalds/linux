@@ -3425,7 +3425,7 @@ static inline long vma_compare(struct i915_vma *vma,
 			       struct i915_address_space *vm,
 			       const struct i915_ggtt_view *view)
 {
-	GEM_BUG_ON(view && !i915_vma_is_ggtt(vma));
+	GEM_BUG_ON(view && !i915_is_ggtt(vm));
 
 	if (vma->vm != vm)
 		return vma->vm - vm;
