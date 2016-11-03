@@ -172,6 +172,17 @@
 					<< IPC_INITIAL_BLOCK_SHIFT)
 #define IPC_INITIAL_BLOCK_CLEAR		~(IPC_INITIAL_BLOCK_MASK \
 					  << IPC_INITIAL_BLOCK_SHIFT)
+/* Set D0ix IPC extension register */
+#define IPC_D0IX_WAKE_SHIFT		0
+#define IPC_D0IX_WAKE_MASK		0x1
+#define IPC_D0IX_WAKE(x)		(((x) & IPC_D0IX_WAKE_MASK) \
+					<< IPC_D0IX_WAKE_SHIFT)
+
+#define IPC_D0IX_STREAMING_SHIFT	1
+#define IPC_D0IX_STREAMING_MASK		0x1
+#define IPC_D0IX_STREAMING(x)		(((x) & IPC_D0IX_STREAMING_MASK) \
+					<< IPC_D0IX_STREAMING_SHIFT)
+
 
 enum skl_ipc_msg_target {
 	IPC_FW_GEN_MSG = 0,
@@ -258,7 +269,8 @@ enum skl_ipc_module_msg {
 	IPC_MOD_LARGE_CONFIG_SET = 4,
 	IPC_MOD_BIND = 5,
 	IPC_MOD_UNBIND = 6,
-	IPC_MOD_SET_DX = 7
+	IPC_MOD_SET_DX = 7,
+	IPC_MOD_SET_D0IX = 8
 };
 
 static void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
@@ -931,3 +943,32 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_sst_ipc_load_library);
+
+int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc, struct skl_ipc_d0ix_msg *msg)
+{
+	struct skl_ipc_header header = {0};
+	u64 *ipc_header = (u64 *)(&header);
+	int ret;
+
+	header.primary = IPC_MSG_TARGET(IPC_MOD_MSG);
+	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
+	header.primary |= IPC_GLB_TYPE(IPC_MOD_SET_D0IX);
+	header.primary |= IPC_MOD_INSTANCE_ID(msg->instance_id);
+	header.primary |= IPC_MOD_ID(msg->module_id);
+
+	header.extension = IPC_D0IX_WAKE(msg->wake);
+	header.extension |= IPC_D0IX_STREAMING(msg->streaming);
+
+	dev_dbg(ipc->dev, "In %s primary=%x ext=%x\n", __func__,
+			header.primary,	header.extension);
+
+	/*
+	 * Use the nopm IPC here as we dont want it checking for D0iX
+	 */
+	ret = sst_ipc_tx_message_nopm(ipc, *ipc_header, NULL, 0, NULL, 0);
+	if (ret < 0)
+		dev_err(ipc->dev, "ipc: set d0ix failed, err %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(skl_ipc_set_d0ix);

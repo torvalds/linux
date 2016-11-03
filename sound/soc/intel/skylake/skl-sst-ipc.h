@@ -111,6 +111,13 @@ struct skl_ipc_large_config_msg {
 	u32 param_data_size;
 };
 
+struct skl_ipc_d0ix_msg {
+	u32 module_id;
+	u32 instance_id;
+	u8 streaming;
+	u8 wake;
+};
+
 #define SKL_IPC_BOOT_MSECS		3000
 
 #define SKL_IPC_D3_MASK	0
@@ -154,6 +161,9 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 			u8 dma_id, u8 table_id);
+
+int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
+		struct skl_ipc_d0ix_msg *msg);
 
 void skl_ipc_int_enable(struct sst_dsp *dsp);
 void skl_ipc_op_int_enable(struct sst_dsp *ctx);
