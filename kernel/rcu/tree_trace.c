@@ -124,7 +124,7 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->rcu_qs_ctr_snap == per_cpu(rcu_qs_ctr, rdp->cpu),
 		   rdp->core_needs_qs);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
-		   atomic_read(&rdp->dynticks->dynticks),
+		   rcu_dynticks_snap(rdp->dynticks),
 		   rdp->dynticks->dynticks_nesting,
 		   rdp->dynticks->dynticks_nmi_nesting,
 		   rdp->dynticks_fqs);
