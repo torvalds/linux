@@ -69,6 +69,17 @@ config DWMAC_MESON
 	  the stmmac device driver. This driver is used for Meson6,
 	  Meson8, Meson8b and GXBB SoCs.
 
+config DWMAC_OXNAS
+	tristate "Oxford Semiconductor OXNAS dwmac support"
+	default ARCH_OXNAS
+	depends on OF && COMMON_CLK && (ARCH_OXNAS || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Support for Ethernet controller on Oxford Semiconductor OXNAS SoCs.
+
+	  This selects the Oxford Semiconductor OXNASSoC glue layer support for
+	  the stmmac device driver. This driver is used for OX820.
+
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
 	default ARCH_ROCKCHIP
