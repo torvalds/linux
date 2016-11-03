@@ -47,40 +47,16 @@ typedef unsigned long mm_segment_t;
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	mm_segment_t		addr_limit;	/* address limit */
-	struct task_struct	*task;		/* main task structure */
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
-	int			cpu;		/* cpu */
 };
 
 #define INIT_THREAD_INFO(tsk)						\
 {									\
-	.task		= &tsk,						\
-	.flags		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
 	.addr_limit	= KERNEL_DS,					\
 }
 
 #define init_stack		(init_thread_union.stack)
-
-/*
- * how to get the thread information struct from C
- */
-static inline struct thread_info *current_thread_info(void) __attribute_const__;
-
-/*
- * struct thread_info can be accessed directly via sp_el0.
- *
- * We don't use read_sysreg() as we want the compiler to cache the value where
- * possible.
- */
-static inline struct thread_info *current_thread_info(void)
-{
-	unsigned long sp_el0;
-
-	asm ("mrs %0, sp_el0" : "=r" (sp_el0));
-
-	return (struct thread_info *)sp_el0;
-}
 
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(tsk->thread.cpu_context.pc))
