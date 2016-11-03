@@ -80,17 +80,17 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 		return RTN_UNREACHABLE;
 
 	if (priv->flags & NFTA_FIB_F_IIF)
-		dev = pkt->in;
+		dev = nft_in(pkt);
 	else if (priv->flags & NFTA_FIB_F_OIF)
-		dev = pkt->out;
+		dev = nft_out(pkt);
 
 	nft_fib6_flowi_init(&fl6, priv, pkt, dev);
 
 	v6ops = nf_get_ipv6_ops();
-	if (dev && v6ops && v6ops->chk_addr(pkt->net, &fl6.daddr, dev, true))
+	if (dev && v6ops && v6ops->chk_addr(nft_net(pkt), &fl6.daddr, dev, true))
 		ret = RTN_LOCAL;
 
-	route_err = afinfo->route(pkt->net, (struct dst_entry **)&rt,
+	route_err = afinfo->route(nft_net(pkt), (struct dst_entry **)&rt,
 				  flowi6_to_flowi(&fl6), false);
 	if (route_err)
 		goto err;
@@ -158,20 +158,20 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	int lookup_flags;
 
 	if (priv->flags & NFTA_FIB_F_IIF)
-		oif = pkt->in;
+		oif = nft_in(pkt);
 	else if (priv->flags & NFTA_FIB_F_OIF)
-		oif = pkt->out;
+		oif = nft_out(pkt);
 
 	lookup_flags = nft_fib6_flowi_init(&fl6, priv, pkt, oif);
 
-	if (pkt->hook == NF_INET_PRE_ROUTING && fib6_is_local(pkt->skb)) {
+	if (nft_hook(pkt) == NF_INET_PRE_ROUTING && fib6_is_local(pkt->skb)) {
 		nft_fib_store_result(dest, priv->result, pkt, LOOPBACK_IFINDEX);
 		return;
 	}
 
 	*dest = 0;
  again:
-	rt = (void *)ip6_route_lookup(pkt->net, &fl6, lookup_flags);
+	rt = (void *)ip6_route_lookup(nft_net(pkt), &fl6, lookup_flags);
 	if (rt->dst.error)
 		goto put_rt_err;
 

@@ -21,7 +21,7 @@ static void nft_fib_inet_eval(const struct nft_expr *expr,
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
 
-	switch (pkt->pf) {
+	switch (nft_pf(pkt)) {
 	case NFPROTO_IPV4:
 		switch (priv->result) {
 		case NFT_FIB_RESULT_OIF:

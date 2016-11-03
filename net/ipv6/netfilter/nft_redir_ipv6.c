@@ -35,7 +35,8 @@ static void nft_redir_ipv6_eval(const struct nft_expr *expr,
 
 	range.flags |= priv->flags;
 
-	regs->verdict.code = nf_nat_redirect_ipv6(pkt->skb, &range, pkt->hook);
+	regs->verdict.code =
+		nf_nat_redirect_ipv6(pkt->skb, &range, nft_hook(pkt));
 }
 
 static struct nft_expr_type nft_redir_ipv6_type;
