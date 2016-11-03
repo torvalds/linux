@@ -743,17 +743,22 @@ static ssize_t set_fps(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	u32 fps;
+	struct rk_screen *screen = dev_drv->cur_screen;
+	u32 fps, origin_fps;
 	int ret;
 
 	ret = kstrtou32(buf, 0, &fps);
 	if (ret)
 		return ret;
 
-	if (fps == 0 || fps > 60) {
-		dev_info(dev, "unsupport fps value,pelase set 1~60\n");
-		return count;
-	}
+	origin_fps = rk_fb_calc_fps(screen, dev_drv->pixclock);
+
+	/*
+	 * use too low or too high fps would make screen abnormal,
+	 * and maybe can't recovery, so limit the fps.
+	 */
+	if (fps <= 40 || fps > origin_fps)
+		fps = origin_fps;
 
 	if (dev_drv->ops->fps_mgr)
 		ret = dev_drv->ops->fps_mgr(dev_drv, fps, 1);
