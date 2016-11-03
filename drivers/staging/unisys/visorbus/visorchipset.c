@@ -717,6 +717,7 @@ bus_epilog(struct visor_device *bus_info,
 			POSTCODE_LINUX_4(MALLOC_FAILURE_PC, cmd,
 					 bus_info->chipset_bus_no,
 					 POSTCODE_SEVERITY_ERR);
+			goto out_respond;
 			return;
 		}
 
@@ -825,6 +826,7 @@ static void
 bus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	struct controlvm_message_header *pmsg_hdr = NULL;
 	u32 bus_no = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	struct visor_device *bus_info;
@@ -860,19 +862,40 @@ bus_create(struct controlvm_message *inmsg)
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-		kfree(bus_info);
-		bus_info = NULL;
-		goto out_bus_epilog;
+		goto out_free_bus_info;
 	}
 	bus_info->visorchannel = visorchannel;
+
 	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0)
 		save_crash_message(inmsg, CRASH_BUS);
 
+	if (inmsg->hdr.flags.response_expected == 1) {
+		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr),
+				   GFP_KERNEL);
+		if (!pmsg_hdr) {
+			POSTCODE_LINUX_4(MALLOC_FAILURE_PC, cmd,
+					 bus_info->chipset_bus_no,
+					 POSTCODE_SEVERITY_ERR);
+			rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+			goto out_free_bus_info;
+		}
+
+		memcpy(pmsg_hdr, &inmsg->hdr,
+		       sizeof(struct controlvm_message_header));
+		bus_info->pending_msg_hdr = pmsg_hdr;
+	}
+
+	chipset_bus_create(bus_info);
+
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
+	return;
+
+out_free_bus_info:
+	kfree(bus_info);
 
 out_bus_epilog:
-	bus_epilog(bus_info, CONTROLVM_BUS_CREATE, &inmsg->hdr,
-		   rc, inmsg->hdr.flags.response_expected == 1);
+	if (inmsg->hdr.flags.response_expected == 1)
+		bus_responder(CONTROLVM_BUS_CREATE, &inmsg->hdr, rc);
 }
 
 static void
