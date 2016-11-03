@@ -107,6 +107,8 @@ struct tda998x_priv {
 # define I2C_MASTER_DIS_FILT      (1 << 1)
 # define I2C_MASTER_APP_STRT_LAT  (1 << 2)
 #define REG_FEAT_POWERDOWN        REG(0x00, 0x0e)     /* read/write */
+# define FEAT_POWERDOWN_PREFILT   BIT(0)
+# define FEAT_POWERDOWN_CSC       BIT(1)
 # define FEAT_POWERDOWN_SPDIF     (1 << 3)
 #define REG_INT_FLAGS_0           REG(0x00, 0x0f)     /* read/write */
 #define REG_INT_FLAGS_1           REG(0x00, 0x10)     /* read/write */
@@ -1284,6 +1286,7 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 	/* no pre-filter or interpolator: */
 	reg_write(priv, REG_HVF_CNTRL_0, HVF_CNTRL_0_PREFIL(0) |
 			HVF_CNTRL_0_INTPOL(0));
+	reg_set(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_PREFILT);
 	reg_write(priv, REG_VIP_CNTRL_5, VIP_CNTRL_5_SP_CNT(0));
 	reg_write(priv, REG_VIP_CNTRL_4, VIP_CNTRL_4_BLANKIT(0) |
 			VIP_CNTRL_4_BLC(0));
@@ -1306,6 +1309,7 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 	/* set color matrix bypass flag: */
 	reg_write(priv, REG_MAT_CONTRL, MAT_CONTRL_MAT_BP |
 				MAT_CONTRL_MAT_SC(1));
+	reg_set(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_CSC);
 
 	/* set BIAS tmds value: */
 	reg_write(priv, REG_ANA_GENERAL, 0x09);
