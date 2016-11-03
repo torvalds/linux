@@ -328,22 +328,32 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state)
 {
 	struct nf_hook_entry *entry;
 	unsigned int verdict;
-	int ret = 0;
+	int ret;
 
 	entry = rcu_dereference(state->hook_entries);
 next_hook:
 	verdict = nf_iterate(skb, state, &entry);
-	if (verdict == NF_ACCEPT) {
+	switch (verdict & NF_VERDICT_MASK) {
+	case NF_ACCEPT:
 		ret = 1;
-	} else if ((verdict & NF_VERDICT_MASK) == NF_DROP) {
+		break;
+	case NF_DROP:
 		kfree_skb(skb);
 		ret = NF_DROP_GETERR(verdict);
 		if (ret == 0)
 			ret = -EPERM;
-	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
+		break;
+	case NF_QUEUE:
 		ret = nf_queue(skb, state, &entry, verdict);
 		if (ret == 1 && entry)
 			goto next_hook;
+		/* Fall through. */
+	default:
+		/* Implicit handling for NF_STOLEN, as well as any other non
+		 * conventional verdicts.
+		 */
+		ret = 0;
+		break;
 	}
 	return ret;
 }
