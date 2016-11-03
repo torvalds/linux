@@ -350,8 +350,6 @@ do {									   \
 	l_wait_event_exclusive_head(wq, condition, &lwi);       \
 })
 
-#define LIBLUSTRE_CLIENT (0)
-
 /** @} lib */
 
 #endif /* _LUSTRE_LIB_H */
