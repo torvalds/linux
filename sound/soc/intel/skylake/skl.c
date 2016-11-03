@@ -228,6 +228,15 @@ static int skl_acquire_irq(struct hdac_ext_bus *ebus, int do_disconnect)
 	return 0;
 }
 
+static int skl_suspend_late(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl = ebus_to_skl(ebus);
+
+	return skl_suspend_late_dsp(skl);
+}
+
 #ifdef CONFIG_PM
 static int _skl_suspend(struct hdac_ext_bus *ebus)
 {
@@ -390,6 +399,7 @@ static int skl_runtime_resume(struct device *dev)
 static const struct dev_pm_ops skl_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(skl_suspend, skl_resume)
 	SET_RUNTIME_PM_OPS(skl_runtime_suspend, skl_runtime_resume, NULL)
+	.suspend_late = skl_suspend_late,
 };
 
 /*
