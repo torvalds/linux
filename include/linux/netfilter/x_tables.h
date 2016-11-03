@@ -4,6 +4,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/static_key.h>
+#include <linux/netfilter.h>
 #include <uapi/linux/netfilter/x_tables.h>
 
 /* Test a struct->invflags and a boolean for inequality */
@@ -17,14 +18,9 @@
  * @target:	the target extension
  * @matchinfo:	per-match data
  * @targetinfo:	per-target data
- * @net		network namespace through which the action was invoked
- * @in:		input netdevice
- * @out:	output netdevice
+ * @state:	pointer to hook state this packet came from
  * @fragoff:	packet is a fragment, this is the data offset
  * @thoff:	position of transport header relative to skb->data
- * @hook:	hook number given packet came from
- * @family:	Actual NFPROTO_* through which the function is invoked
- * 		(helpful when match->family == NFPROTO_UNSPEC)
  *
  * Fields written to by extensions:
  *
@@ -38,14 +34,46 @@ struct xt_action_param {
 	union {
 		const void *matchinfo, *targinfo;
 	};
-	struct net *net;
-	const struct net_device *in, *out;
+	const struct nf_hook_state *state;
 	int fragoff;
 	unsigned int thoff;
-	unsigned int hooknum;
-	u_int8_t family;
 	bool hotdrop;
 };
+
+static inline struct net *xt_net(const struct xt_action_param *par)
+{
+	return par->state->net;
+}
+
+static inline struct net_device *xt_in(const struct xt_action_param *par)
+{
+	return par->state->in;
+}
+
+static inline const char *xt_inname(const struct xt_action_param *par)
+{
+	return par->state->in->name;
+}
+
+static inline struct net_device *xt_out(const struct xt_action_param *par)
+{
+	return par->state->out;
+}
+
+static inline const char *xt_outname(const struct xt_action_param *par)
+{
+	return par->state->out->name;
+}
+
+static inline unsigned int xt_hooknum(const struct xt_action_param *par)
+{
+	return par->state->hook;
+}
+
+static inline u_int8_t xt_family(const struct xt_action_param *par)
+{
+	return par->state->pf;
+}
 
 /**
  * struct xt_mtchk_param - parameters for match extensions'

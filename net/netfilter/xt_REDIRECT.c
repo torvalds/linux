@@ -31,7 +31,7 @@
 static unsigned int
 redirect_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	return nf_nat_redirect_ipv6(skb, par->targinfo, par->hooknum);
+	return nf_nat_redirect_ipv6(skb, par->targinfo, xt_hooknum(par));
 }
 
 static int redirect_tg6_checkentry(const struct xt_tgchk_param *par)
@@ -62,7 +62,7 @@ static int redirect_tg4_check(const struct xt_tgchk_param *par)
 static unsigned int
 redirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	return nf_nat_redirect_ipv4(skb, par->targinfo, par->hooknum);
+	return nf_nat_redirect_ipv4(skb, par->targinfo, xt_hooknum(par));
 }
 
 static struct xt_target redirect_tg_reg[] __read_mostly = {
