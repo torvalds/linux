@@ -438,11 +438,13 @@ A typical EDAC system has the following structure under
 	│   │   ├── ce_count
 	│   │   ├── ce_noinfo_count
 	│   │   ├── dimm0
+	│   │   │   ├── dimm_ce_count
 	│   │   │   ├── dimm_dev_type
 	│   │   │   ├── dimm_edac_mode
 	│   │   │   ├── dimm_label
 	│   │   │   ├── dimm_location
 	│   │   │   ├── dimm_mem_type
+	│   │   │   ├── dimm_ue_count
 	│   │   │   ├── size
 	│   │   │   └── uevent
 	│   │   ├── max_location
@@ -457,11 +459,13 @@ A typical EDAC system has the following structure under
 	│   │   ├── ce_count
 	│   │   ├── ce_noinfo_count
 	│   │   ├── dimm0
+	│   │   │   ├── dimm_ce_count
 	│   │   │   ├── dimm_dev_type
 	│   │   │   ├── dimm_edac_mode
 	│   │   │   ├── dimm_label
 	│   │   │   ├── dimm_location
 	│   │   │   ├── dimm_mem_type
+	│   │   │   ├── dimm_ue_count
 	│   │   │   ├── size
 	│   │   │   └── uevent
 	│   │   ├── max_location
@@ -482,6 +486,22 @@ this ``X`` memory module:
 
 	This attribute file displays, in count of megabytes, the memory
 	that this csrow contains.
+
+- ``dimm_ue_count`` - Uncorrectable Errors count attribute file
+
+	This attribute file displays the total count of uncorrectable
+	errors that have occurred on this DIMM. If panic_on_ue is set
+	this counter will not have a chance to increment, since EDAC
+	will panic the system.
+
+- ``dimm_ce_count`` - Correctable Errors count attribute file
+
+	This attribute file displays the total count of correctable
+	errors that have occurred on this DIMM. This count is very
+	important to examine. CEs provide early indications that a
+	DIMM is beginning to fail. This count field should be
+	monitored for non-zero values and report such information
+	to the system administrator.
 
 - ``dimm_dev_type``  - Device type attribute file
 
