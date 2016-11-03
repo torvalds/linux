@@ -8338,6 +8338,10 @@ static int ssd_make_request(struct request_queue *q, struct bio *bio)
 
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0))
+	blk_queue_split(q, &bio, q->bio_split);
+#endif
+
 	if (0 == atomic_read(&dev->in_sendq)) {
 		ret = ssd_submit_bio(dev, bio, 0);
 	}
