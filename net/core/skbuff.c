@@ -3725,7 +3725,6 @@ struct sk_buff *sock_dequeue_err_skb(struct sock *sk)
 		err = SKB_EXT_ERR(skb_next)->ee.ee_errno;
 	spin_unlock_irqrestore(&q->lock, flags);
 
-	sk->sk_err = err;
 	if (err)
 		sk->sk_error_report(sk);
 
