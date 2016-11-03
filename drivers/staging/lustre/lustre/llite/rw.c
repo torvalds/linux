@@ -809,13 +809,20 @@ static void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 		if (ra_miss) {
 			if (index_in_stride_window(ras, index) &&
 			    stride_io_mode(ras)) {
-				/*If stride-RA hit cache miss, the stride dector
-				 *will not be reset to avoid the overhead of
-				 *redetecting read-ahead mode
-				 */
 				if (index != ras->ras_last_readpage + 1)
 					ras->ras_consecutive_pages = 0;
 				ras_reset(inode, ras, index);
+
+				/* If stride-RA hit cache miss, the stride
+				 * detector will not be reset to avoid the
+				 * overhead of redetecting read-ahead mode,
+				 * but on the condition that the stride window
+				 * is still intersect with normal sequential
+				 * read-ahead window.
+				 */
+				if (ras->ras_window_start <
+				    ras->ras_stride_offset)
+					ras_stride_reset(ras);
 				RAS_CDEBUG(ras);
 			} else {
 				/* Reset both stride window and normal RA
