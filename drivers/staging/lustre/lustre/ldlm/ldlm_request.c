@@ -748,17 +748,14 @@ int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 	lock->l_last_activity = ktime_get_real_seconds();
 
 	/* lock not sent to server yet */
-
 	if (!reqp || !*reqp) {
-		req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
-						&RQF_LDLM_ENQUEUE,
-						LUSTRE_DLM_VERSION,
-						LDLM_ENQUEUE);
-		if (!req) {
+		req = ldlm_enqueue_pack(exp, lvb_len);
+		if (IS_ERR(req)) {
 			failed_lock_cleanup(ns, lock, einfo->ei_mode);
 			LDLM_LOCK_RELEASE(lock);
-			return -ENOMEM;
+			return PTR_ERR(req);
 		}
+
 		req_passed_in = 0;
 		if (reqp)
 			*reqp = req;
@@ -777,16 +774,6 @@ int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 	ldlm_lock2desc(lock, &body->lock_desc);
 	body->lock_flags = ldlm_flags_to_wire(*flags);
 	body->lock_handle[0] = *lockh;
-
-	/* Continue as normal. */
-	if (!req_passed_in) {
-		if (lvb_len > 0)
-			req_capsule_extend(&req->rq_pill,
-					   &RQF_LDLM_ENQUEUE_LVB);
-		req_capsule_set_size(&req->rq_pill, &RMF_DLM_LVB, RCL_SERVER,
-				     lvb_len);
-		ptlrpc_request_set_replen(req);
-	}
 
 	/*
 	 * Liblustre client doesn't get extent locks, except for O_APPEND case
