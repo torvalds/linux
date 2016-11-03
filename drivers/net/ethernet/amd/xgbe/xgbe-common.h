@@ -1027,6 +1027,10 @@
 #define MDIO_PMA_10GBR_FECCTRL		0x00ab
 #endif
 
+#ifndef MDIO_PCS_DIG_CTRL
+#define MDIO_PCS_DIG_CTRL		0x8000
+#endif
+
 #ifndef MDIO_AN_XNP
 #define MDIO_AN_XNP			0x0016
 #endif
@@ -1047,8 +1051,32 @@
 #define MDIO_AN_INT			0x8002
 #endif
 
+#ifndef MDIO_VEND2_AN_ADVERTISE
+#define MDIO_VEND2_AN_ADVERTISE		0x0004
+#endif
+
+#ifndef MDIO_VEND2_AN_LP_ABILITY
+#define MDIO_VEND2_AN_LP_ABILITY	0x0005
+#endif
+
+#ifndef MDIO_VEND2_AN_CTRL
+#define MDIO_VEND2_AN_CTRL		0x8001
+#endif
+
+#ifndef MDIO_VEND2_AN_STAT
+#define MDIO_VEND2_AN_STAT		0x8002
+#endif
+
 #ifndef MDIO_CTRL1_SPEED1G
 #define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
+#endif
+
+#ifndef MDIO_VEND2_CTRL1_AN_ENABLE
+#define MDIO_VEND2_CTRL1_AN_ENABLE	BIT(12)
+#endif
+
+#ifndef MDIO_VEND2_CTRL1_AN_RESTART
+#define MDIO_VEND2_CTRL1_AN_RESTART	BIT(9)
 #endif
 
 /* MDIO mask values */
@@ -1064,6 +1092,19 @@
 
 #define XGBE_KR_TRAINING_START		BIT(0)
 #define XGBE_KR_TRAINING_ENABLE		BIT(1)
+
+#define XGBE_PCS_CL37_BP		BIT(12)
+
+#define XGBE_AN_CL37_INT_CMPLT		BIT(0)
+#define XGBE_AN_CL37_INT_MASK		0x01
+
+#define XGBE_AN_CL37_HD_MASK		0x40
+#define XGBE_AN_CL37_FD_MASK		0x20
+
+#define XGBE_AN_CL37_PCS_MODE_MASK	0x06
+#define XGBE_AN_CL37_PCS_MODE_BASEX	0x00
+#define XGBE_AN_CL37_PCS_MODE_SGMII	0x04
+#define XGBE_AN_CL37_TX_CONFIG_MASK	0x08
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within

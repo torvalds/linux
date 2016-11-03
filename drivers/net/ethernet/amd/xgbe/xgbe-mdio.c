@@ -125,6 +125,41 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
+static void xgbe_an37_clear_interrupts(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT);
+	reg &= ~XGBE_AN_CL37_INT_MASK;
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT, reg);
+}
+
+static void xgbe_an37_disable_interrupts(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
+	reg &= ~XGBE_AN_CL37_INT_MASK;
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL);
+	reg &= ~XGBE_PCS_CL37_BP;
+	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL, reg);
+}
+
+static void xgbe_an37_enable_interrupts(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL);
+	reg |= XGBE_PCS_CL37_BP;
+	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL, reg);
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
+	reg |= XGBE_AN_CL37_INT_MASK;
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
+}
+
 static void xgbe_an73_clear_interrupts(struct xgbe_prv_data *pdata)
 {
 	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INT, 0);
@@ -146,9 +181,19 @@ static void xgbe_an_enable_interrupts(struct xgbe_prv_data *pdata)
 	case XGBE_AN_MODE_CL73:
 		xgbe_an73_enable_interrupts(pdata);
 		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_enable_interrupts(pdata);
+		break;
 	default:
 		break;
 	}
+}
+
+static void xgbe_an_clear_interrupts_all(struct xgbe_prv_data *pdata)
+{
+	xgbe_an73_clear_interrupts(pdata);
+	xgbe_an37_clear_interrupts(pdata);
 }
 
 static void xgbe_an73_enable_kr_training(struct xgbe_prv_data *pdata)
@@ -258,6 +303,39 @@ static bool xgbe_use_mode(struct xgbe_prv_data *pdata,
 	return pdata->phy_if.phy_impl.use_mode(pdata, mode);
 }
 
+static void xgbe_an37_set(struct xgbe_prv_data *pdata, bool enable,
+			  bool restart)
+{
+	unsigned int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_CTRL1);
+	reg &= ~MDIO_VEND2_CTRL1_AN_ENABLE;
+
+	if (enable)
+		reg |= MDIO_VEND2_CTRL1_AN_ENABLE;
+
+	if (restart)
+		reg |= MDIO_VEND2_CTRL1_AN_RESTART;
+
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_CTRL1, reg);
+}
+
+static void xgbe_an37_restart(struct xgbe_prv_data *pdata)
+{
+	xgbe_an37_enable_interrupts(pdata);
+	xgbe_an37_set(pdata, true, true);
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN enabled/restarted\n");
+}
+
+static void xgbe_an37_disable(struct xgbe_prv_data *pdata)
+{
+	xgbe_an37_set(pdata, false, false);
+	xgbe_an37_disable_interrupts(pdata);
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN disabled\n");
+}
+
 static void xgbe_an73_set(struct xgbe_prv_data *pdata, bool enable,
 			  bool restart)
 {
@@ -297,6 +375,10 @@ static void xgbe_an_restart(struct xgbe_prv_data *pdata)
 	case XGBE_AN_MODE_CL73:
 		xgbe_an73_restart(pdata);
 		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_restart(pdata);
+		break;
 	default:
 		break;
 	}
@@ -308,9 +390,19 @@ static void xgbe_an_disable(struct xgbe_prv_data *pdata)
 	case XGBE_AN_MODE_CL73:
 		xgbe_an73_disable(pdata);
 		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_disable(pdata);
+		break;
 	default:
 		break;
 	}
+}
+
+static void xgbe_an_disable_all(struct xgbe_prv_data *pdata)
+{
+	xgbe_an73_disable(pdata);
+	xgbe_an37_disable(pdata);
 }
 
 static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
@@ -484,6 +576,30 @@ static enum xgbe_an xgbe_an73_incompat_link(struct xgbe_prv_data *pdata)
 	return XGBE_AN_INCOMPAT_LINK;
 }
 
+static void xgbe_an37_isr(struct xgbe_prv_data *pdata)
+{
+	unsigned int reg;
+
+	/* Disable AN interrupts */
+	xgbe_an37_disable_interrupts(pdata);
+
+	/* Save the interrupt(s) that fired */
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT);
+	pdata->an_int = reg & XGBE_AN_CL37_INT_MASK;
+	pdata->an_status = reg & ~XGBE_AN_CL37_INT_MASK;
+
+	if (pdata->an_int) {
+		/* Clear the interrupt(s) that fired and process them */
+		reg &= ~XGBE_AN_CL37_INT_MASK;
+		XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT, reg);
+
+		queue_work(pdata->an_workqueue, &pdata->an_irq_work);
+	} else {
+		/* Enable AN interrupts */
+		xgbe_an37_enable_interrupts(pdata);
+	}
+}
+
 static void xgbe_an73_isr(struct xgbe_prv_data *pdata)
 {
 	/* Disable AN interrupts */
@@ -512,6 +628,10 @@ static irqreturn_t xgbe_an_isr(int irq, void *data)
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
 		xgbe_an73_isr(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_isr(pdata);
 		break;
 	default:
 		break;
@@ -553,6 +673,64 @@ static const char *xgbe_state_as_string(enum xgbe_an state)
 	}
 }
 
+static void xgbe_an37_state_machine(struct xgbe_prv_data *pdata)
+{
+	enum xgbe_an cur_state = pdata->an_state;
+
+	if (!pdata->an_int)
+		return;
+
+	if (pdata->an_int & XGBE_AN_CL37_INT_CMPLT) {
+		pdata->an_state = XGBE_AN_COMPLETE;
+		pdata->an_int &= ~XGBE_AN_CL37_INT_CMPLT;
+
+		/* If SGMII is enabled, check the link status */
+		if ((pdata->an_mode == XGBE_AN_MODE_CL37_SGMII) &&
+		    !(pdata->an_status & XGBE_SGMII_AN_LINK_STATUS))
+			pdata->an_state = XGBE_AN_NO_LINK;
+	}
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN %s\n",
+		  xgbe_state_as_string(pdata->an_state));
+
+	cur_state = pdata->an_state;
+
+	switch (pdata->an_state) {
+	case XGBE_AN_READY:
+		break;
+
+	case XGBE_AN_COMPLETE:
+		netif_dbg(pdata, link, pdata->netdev,
+			  "Auto negotiation successful\n");
+		break;
+
+	case XGBE_AN_NO_LINK:
+		break;
+
+	default:
+		pdata->an_state = XGBE_AN_ERROR;
+	}
+
+	if (pdata->an_state == XGBE_AN_ERROR) {
+		netdev_err(pdata->netdev,
+			   "error during auto-negotiation, state=%u\n",
+			   cur_state);
+
+		pdata->an_int = 0;
+		xgbe_an37_clear_interrupts(pdata);
+	}
+
+	if (pdata->an_state >= XGBE_AN_COMPLETE) {
+		pdata->an_result = pdata->an_state;
+		pdata->an_state = XGBE_AN_READY;
+
+		netif_dbg(pdata, link, pdata->netdev, "CL37 AN result: %s\n",
+			  xgbe_state_as_string(pdata->an_result));
+	}
+
+	xgbe_an37_enable_interrupts(pdata);
+}
+
 static void xgbe_an73_state_machine(struct xgbe_prv_data *pdata)
 {
 	enum xgbe_an cur_state = pdata->an_state;
@@ -573,8 +751,6 @@ next_int:
 	} else {
 		pdata->an_state = XGBE_AN_ERROR;
 	}
-
-	pdata->an_result = pdata->an_state;
 
 again:
 	netif_dbg(pdata, link, pdata->netdev, "CL73 AN %s\n",
@@ -656,11 +832,59 @@ static void xgbe_an_state_machine(struct work_struct *work)
 	case XGBE_AN_MODE_CL73:
 		xgbe_an73_state_machine(pdata);
 		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_state_machine(pdata);
+		break;
 	default:
 		break;
 	}
 
 	mutex_unlock(&pdata->an_mutex);
+}
+
+static void xgbe_an37_init(struct xgbe_prv_data *pdata)
+{
+	unsigned int reg;
+
+	/* Set up Advertisement register */
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_ADVERTISE);
+	if (pdata->phy.advertising & ADVERTISED_Pause)
+		reg |= 0x100;
+	else
+		reg &= ~0x100;
+
+	if (pdata->phy.advertising & ADVERTISED_Asym_Pause)
+		reg |= 0x80;
+	else
+		reg &= ~0x80;
+
+	/* Full duplex, but not half */
+	reg |= XGBE_AN_CL37_FD_MASK;
+	reg &= ~XGBE_AN_CL37_HD_MASK;
+
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_ADVERTISE, reg);
+
+	/* Set up the Control register */
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
+	reg &= XGBE_AN_CL37_TX_CONFIG_MASK;
+	reg &= XGBE_AN_CL37_PCS_MODE_MASK;
+
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL37:
+		reg |= XGBE_AN_CL37_PCS_MODE_BASEX;
+		break;
+	case XGBE_AN_MODE_CL37_SGMII:
+		reg |= XGBE_AN_CL37_PCS_MODE_SGMII;
+		break;
+	default:
+		break;
+	}
+
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN (%s) initialized\n",
+		  (pdata->an_mode == XGBE_AN_MODE_CL37) ? "BaseX" : "SGMII");
 }
 
 static void xgbe_an73_init(struct xgbe_prv_data *pdata)
@@ -718,6 +942,10 @@ static void xgbe_an_init(struct xgbe_prv_data *pdata)
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
 		xgbe_an73_init(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_init(pdata);
 		break;
 	default:
 		break;
@@ -865,10 +1093,10 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	}
 
 	/* Disable and stop any in progress auto-negotiation */
-	xgbe_an_disable(pdata);
+	xgbe_an_disable_all(pdata);
 
 	/* Clear any auto-negotitation interrupts */
-	xgbe_an73_clear_interrupts(pdata);
+	xgbe_an_clear_interrupts_all(pdata);
 
 	pdata->an_result = XGBE_AN_READY;
 	pdata->an_state = XGBE_AN_READY;
@@ -1007,7 +1235,7 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 	pdata->phy_started = 0;
 
 	/* Disable auto-negotiation */
-	xgbe_an_disable(pdata);
+	xgbe_an_disable_all(pdata);
 
 	devm_free_irq(pdata->dev, pdata->an_irq, pdata);
 
@@ -1078,10 +1306,10 @@ static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 		return ret;
 
 	/* Disable auto-negotiation for now */
-	xgbe_an_disable(pdata);
+	xgbe_an_disable_all(pdata);
 
 	/* Clear auto-negotiation interrupts */
-	xgbe_an73_clear_interrupts(pdata);
+	xgbe_an_clear_interrupts_all(pdata);
 
 	return 0;
 }

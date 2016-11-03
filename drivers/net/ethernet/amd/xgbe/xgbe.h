@@ -261,7 +261,13 @@
 
 /* Auto-negotiation */
 #define XGBE_AN_MS_TIMEOUT		500
-#define XGBE_LINK_TIMEOUT		10
+#define XGBE_LINK_TIMEOUT		5
+
+#define XGBE_SGMII_AN_LINK_STATUS	BIT(1)
+#define XGBE_SGMII_AN_LINK_SPEED	(BIT(2) | BIT(3))
+#define XGBE_SGMII_AN_LINK_SPEED_100	0x04
+#define XGBE_SGMII_AN_LINK_SPEED_1000	0x08
+#define XGBE_SGMII_AN_LINK_DUPLEX	BIT(4)
 
 struct xgbe_prv_data;
 
@@ -467,6 +473,8 @@ enum xgbe_speed {
 
 enum xgbe_an_mode {
 	XGBE_AN_MODE_CL73 = 0,
+	XGBE_AN_MODE_CL37,
+	XGBE_AN_MODE_CL37_SGMII,
 	XGBE_AN_MODE_NONE,
 };
 
@@ -961,6 +969,7 @@ struct xgbe_prv_data {
 
 	/* Auto-negotiation state machine support */
 	unsigned int an_int;
+	unsigned int an_status;
 	struct mutex an_mutex;
 	enum xgbe_an an_result;
 	enum xgbe_an an_state;
