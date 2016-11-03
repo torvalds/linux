@@ -3,6 +3,7 @@
  * Copyright 2014 Jon Smirl <jonsmirl@gmail.com>
  * Copyright 2015 Maxime Ripard <maxime.ripard@free-electrons.com>
  * Copyright 2015 Adam Sampson <ats@offog.org>
+ * Copyright 2016 Chen-Yu Tsai <wens@csie.org>
  *
  * Based on the Allwinner SDK driver, released under the GPL.
  *
@@ -24,8 +25,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/gpio/consumer.h>
@@ -114,6 +116,9 @@ struct sun4i_codec {
 	struct clk	*clk_module;
 	struct gpio_desc *gpio_pa;
 
+	/* ADC_FIFOC register is at different offset on different SoCs */
+	struct regmap_field *reg_adc_fifoc;
+
 	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
 };
@@ -142,16 +147,16 @@ static void sun4i_codec_stop_playback(struct sun4i_codec *scodec)
 static void sun4i_codec_start_capture(struct sun4i_codec *scodec)
 {
 	/* Enable ADC DRQ */
-	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-			   BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN),
-			   BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN));
+	regmap_field_update_bits(scodec->reg_adc_fifoc,
+				 BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN),
+				 BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN));
 }
 
 static void sun4i_codec_stop_capture(struct sun4i_codec *scodec)
 {
 	/* Disable ADC DRQ */
-	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-			   BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN), 0);
+	regmap_field_update_bits(scodec->reg_adc_fifoc,
+				 BIT(SUN4I_CODEC_ADC_FIFOC_ADC_DRQ_EN), 0);
 }
 
 static int sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -194,15 +199,15 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 
 
 	/* Flush RX FIFO */
-	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-			   BIT(SUN4I_CODEC_ADC_FIFOC_FIFO_FLUSH),
-			   BIT(SUN4I_CODEC_ADC_FIFOC_FIFO_FLUSH));
+	regmap_field_update_bits(scodec->reg_adc_fifoc,
+				 BIT(SUN4I_CODEC_ADC_FIFOC_FIFO_FLUSH),
+				 BIT(SUN4I_CODEC_ADC_FIFOC_FIFO_FLUSH));
 
 
 	/* Set RX FIFO trigger level */
-	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-			   0xf << SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL,
-			   0x7 << SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL);
+	regmap_field_update_bits(scodec->reg_adc_fifoc,
+				 0xf << SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL,
+				 0x7 << SUN4I_CODEC_ADC_FIFOC_RX_TRIG_LEVEL);
 
 	/*
 	 * FIXME: Undocumented in the datasheet, but
@@ -221,9 +226,9 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 				   0x1 << 8);
 
 	/* Fill most significant bits with valid data MSB */
-	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-			   BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE),
-			   BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE));
+	regmap_field_update_bits(scodec->reg_adc_fifoc,
+				 BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE),
+				 BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE));
 
 	return 0;
 }
@@ -350,18 +355,19 @@ static int sun4i_codec_hw_params_capture(struct sun4i_codec *scodec,
 					 unsigned int hwrate)
 {
 	/* Set ADC sample rate */
-	regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-			   7 << SUN4I_CODEC_ADC_FIFOC_ADC_FS,
-			   hwrate << SUN4I_CODEC_ADC_FIFOC_ADC_FS);
+	regmap_field_update_bits(scodec->reg_adc_fifoc,
+				 7 << SUN4I_CODEC_ADC_FIFOC_ADC_FS,
+				 hwrate << SUN4I_CODEC_ADC_FIFOC_ADC_FS);
 
 	/* Set the number of channels we want to use */
 	if (params_channels(params) == 1)
-		regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-				   BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN),
-				   BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN));
+		regmap_field_update_bits(scodec->reg_adc_fifoc,
+					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN),
+					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN));
 	else
-		regmap_update_bits(scodec->regmap, SUN4I_CODEC_ADC_FIFOC,
-				   BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN), 0);
+		regmap_field_update_bits(scodec->reg_adc_fifoc,
+					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN),
+					 0);
 
 	return 0;
 }
@@ -766,14 +772,29 @@ static const struct regmap_config sun7i_codec_regmap_config = {
 
 struct sun4i_codec_quirks {
 	const struct regmap_config *regmap_config;
+	const struct snd_soc_codec_driver *codec;
+	struct snd_soc_card * (*create_card)(struct device *dev);
+	struct reg_field reg_adc_fifoc;	/* used for regmap_field */
+	unsigned int reg_dac_txdata;	/* TX FIFO offset for DMA config */
+	unsigned int reg_adc_rxdata;	/* RX FIFO offset for DMA config */
 };
 
 static const struct sun4i_codec_quirks sun4i_codec_quirks = {
 	.regmap_config	= &sun4i_codec_regmap_config,
+	.codec		= &sun4i_codec_codec,
+	.create_card	= sun4i_codec_create_card,
+	.reg_adc_fifoc	= REG_FIELD(SUN4I_CODEC_ADC_FIFOC, 0, 31),
+	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
+	.reg_adc_rxdata	= SUN4I_CODEC_ADC_RXDATA,
 };
 
 static const struct sun4i_codec_quirks sun7i_codec_quirks = {
 	.regmap_config	= &sun7i_codec_regmap_config,
+	.codec		= &sun4i_codec_codec,
+	.create_card	= sun4i_codec_create_card,
+	.reg_adc_fifoc	= REG_FIELD(SUN4I_CODEC_ADC_FIFOC, 0, 31),
+	.reg_dac_txdata	= SUN4I_CODEC_DAC_TXDATA,
+	.reg_adc_rxdata	= SUN4I_CODEC_ADC_RXDATA,
 };
 
 static const struct of_device_id sun4i_codec_of_match[] = {
@@ -846,6 +867,17 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* reg_field setup */
+	scodec->reg_adc_fifoc = devm_regmap_field_alloc(&pdev->dev,
+							scodec->regmap,
+							quirks->reg_adc_fifoc);
+	if (IS_ERR(scodec->reg_adc_fifoc)) {
+		ret = PTR_ERR(scodec->reg_adc_fifoc);
+		dev_err(&pdev->dev, "Failed to create regmap fields: %d\n",
+			ret);
+		return ret;
+	}
+
 	/* Enable the bus clock */
 	if (clk_prepare_enable(scodec->clk_apb)) {
 		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
@@ -853,16 +885,16 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	/* DMA configuration for TX FIFO */
-	scodec->playback_dma_data.addr = res->start + SUN4I_CODEC_DAC_TXDATA;
+	scodec->playback_dma_data.addr = res->start + quirks->reg_dac_txdata;
 	scodec->playback_dma_data.maxburst = 4;
 	scodec->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
 	/* DMA configuration for RX FIFO */
-	scodec->capture_dma_data.addr = res->start + SUN4I_CODEC_ADC_RXDATA;
+	scodec->capture_dma_data.addr = res->start + quirks->reg_adc_rxdata;
 	scodec->capture_dma_data.maxburst = 4;
 	scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
-	ret = snd_soc_register_codec(&pdev->dev, &sun4i_codec_codec,
+	ret = snd_soc_register_codec(&pdev->dev, quirks->codec,
 				     &sun4i_codec_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register our codec\n");
@@ -883,7 +915,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		goto err_unregister_codec;
 	}
 
-	card = sun4i_codec_create_card(&pdev->dev);
+	card = quirks->create_card(&pdev->dev);
 	if (IS_ERR(card)) {
 		ret = PTR_ERR(card);
 		dev_err(&pdev->dev, "Failed to create our card\n");
@@ -934,4 +966,5 @@ MODULE_DESCRIPTION("Allwinner A10 codec driver");
 MODULE_AUTHOR("Emilio López <emilio@elopez.com.ar>");
 MODULE_AUTHOR("Jon Smirl <jonsmirl@gmail.com>");
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
+MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
 MODULE_LICENSE("GPL");
