@@ -41,6 +41,7 @@ struct tda998x_priv {
 	struct i2c_client *hdmi;
 	struct mutex mutex;
 	u16 rev;
+	u8 cec_addr;
 	u8 current_page;
 	bool is_on;
 	bool supports_infoframes;
@@ -374,35 +375,46 @@ struct tda998x_priv {
 static void
 cec_write(struct tda998x_priv *priv, u16 addr, u8 val)
 {
-	struct i2c_client *client = priv->cec;
 	u8 buf[] = {addr, val};
+	struct i2c_msg msg = {
+		.addr = priv->cec_addr,
+		.len = 2,
+		.buf = buf,
+	};
 	int ret;
 
-	ret = i2c_master_send(client, buf, sizeof(buf));
+	ret = i2c_transfer(priv->hdmi->adapter, &msg, 1);
 	if (ret < 0)
-		dev_err(&client->dev, "Error %d writing to cec:0x%x\n", ret, addr);
+		dev_err(&priv->hdmi->dev, "Error %d writing to cec:0x%x\n",
+			ret, addr);
 }
 
 static u8
 cec_read(struct tda998x_priv *priv, u8 addr)
 {
-	struct i2c_client *client = priv->cec;
 	u8 val;
+	struct i2c_msg msg[2] = {
+		{
+			.addr = priv->cec_addr,
+			.len = 1,
+			.buf = &addr,
+		}, {
+			.addr = priv->cec_addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &val,
+		},
+	};
 	int ret;
 
-	ret = i2c_master_send(client, &addr, sizeof(addr));
-	if (ret < 0)
-		goto fail;
-
-	ret = i2c_master_recv(client, &val, sizeof(val));
-	if (ret < 0)
-		goto fail;
+	ret = i2c_transfer(priv->hdmi->adapter, msg, ARRAY_SIZE(msg));
+	if (ret < 0) {
+		dev_err(&priv->hdmi->dev, "Error %d reading from cec:0x%x\n",
+			ret, addr);
+		val = 0;
+	}
 
 	return val;
-
-fail:
-	dev_err(&client->dev, "Error %d reading from cec:0x%x\n", ret, addr);
-	return 0;
 }
 
 static int
@@ -1471,7 +1483,6 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	struct device_node *np = client->dev.of_node;
 	u32 video;
 	int rev_lo, rev_hi, ret;
-	unsigned short cec_addr;
 
 	mutex_init(&priv->audio_mutex); /* Protect access from audio thread */
 
@@ -1479,11 +1490,11 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
 	priv->vip_cntrl_2 = VIP_CNTRL_2_SWAP_E(4) | VIP_CNTRL_2_SWAP_F(5);
 
+	/* CEC I2C address bound to TDA998x I2C addr by configuration pins */
+	priv->cec_addr = 0x34 + (client->addr & 0x03);
 	priv->current_page = 0xff;
 	priv->hdmi = client;
-	/* CEC I2C address bound to TDA998x I2C addr by configuration pins */
-	cec_addr = 0x34 + (client->addr & 0x03);
-	priv->cec = i2c_new_dummy(client->adapter, cec_addr);
+	priv->cec = i2c_new_dummy(client->adapter, priv->cec_addr);
 	if (!priv->cec)
 		return -ENODEV;
 
@@ -1722,6 +1733,10 @@ static const struct component_ops tda998x_ops = {
 static int
 tda998x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		dev_warn(&client->dev, "adapter does not support I2C\n");
+		return -EIO;
+	}
 	return component_add(&client->dev, &tda998x_ops);
 }
 
