@@ -72,7 +72,11 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 
 	s += (__force u32)saddr;
 	s += (__force u32)daddr;
+#ifdef __BIG_ENDIAN
 	s += proto + len;
+#else
+	s += (proto + len) << 8;
+#endif
 	return (__force __wsum) from64to32(s);
 #else
     __asm__("\n\

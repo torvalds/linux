@@ -169,7 +169,7 @@ config PPC
 	select HAVE_ARCH_HARDENED_USERCOPY
 
 config GENERIC_CSUM
-	def_bool CPU_LITTLE_ENDIAN
+	def_bool n
 
 config EARLY_PRINTK
 	bool
