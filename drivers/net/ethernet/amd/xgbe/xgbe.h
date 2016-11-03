@@ -210,8 +210,6 @@
 #define XGMAC_DRIVER_CONTEXT	1
 #define XGMAC_IOCTL_CONTEXT	2
 
-#define XGMAC_FIFO_RX_MAX	81920
-#define XGMAC_FIFO_TX_MAX	81920
 #define XGMAC_FIFO_MIN_ALLOC	2048
 #define XGMAC_FIFO_UNIT		256
 #define XGMAC_FIFO_ALIGN(_x)				\
@@ -805,14 +803,16 @@ struct xgbe_version_data {
 	void (*init_function_ptrs_phy_impl)(struct xgbe_phy_if *);
 	enum xgbe_xpcs_access xpcs_access;
 	unsigned int mmc_64bit;
+	unsigned int tx_max_fifo_size;
+	unsigned int rx_max_fifo_size;
 };
 
 struct xgbe_prv_data {
 	struct net_device *netdev;
-	struct platform_device *pdev;
+	struct platform_device *platdev;
 	struct acpi_device *adev;
 	struct device *dev;
-	struct platform_device *phy_pdev;
+	struct platform_device *phy_platdev;
 	struct device *phy_dev;
 
 	/* Version related data */
@@ -845,6 +845,7 @@ struct xgbe_prv_data {
 
 	int dev_irq;
 	unsigned int per_channel_irq;
+	int channel_irq[XGBE_MAX_DMA_CHANNELS];
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_phy_if phy_if;
@@ -863,12 +864,16 @@ struct xgbe_prv_data {
 
 	/* Rings for Tx/Rx on a DMA channel */
 	struct xgbe_channel *channel;
+	unsigned int tx_max_channel_count;
+	unsigned int rx_max_channel_count;
 	unsigned int channel_count;
 	unsigned int tx_ring_count;
 	unsigned int tx_desc_count;
 	unsigned int rx_ring_count;
 	unsigned int rx_desc_count;
 
+	unsigned int tx_max_q_count;
+	unsigned int rx_max_q_count;
 	unsigned int tx_q_count;
 	unsigned int rx_q_count;
 
@@ -880,11 +885,13 @@ struct xgbe_prv_data {
 	unsigned int tx_threshold;
 	unsigned int tx_pbl;
 	unsigned int tx_osp_mode;
+	unsigned int tx_max_fifo_size;
 
 	/* Rx settings */
 	unsigned int rx_sf_mode;
 	unsigned int rx_threshold;
 	unsigned int rx_pbl;
+	unsigned int rx_max_fifo_size;
 
 	/* Tx coalescing settings */
 	unsigned int tx_usecs;
@@ -1005,6 +1012,14 @@ struct xgbe_prv_data {
 };
 
 /* Function prototypes*/
+struct xgbe_prv_data *xgbe_alloc_pdata(struct device *);
+void xgbe_free_pdata(struct xgbe_prv_data *);
+void xgbe_set_counts(struct xgbe_prv_data *);
+int xgbe_config_netdev(struct xgbe_prv_data *);
+void xgbe_deconfig_netdev(struct xgbe_prv_data *);
+
+int xgbe_platform_init(void);
+void xgbe_platform_exit(void);
 
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);

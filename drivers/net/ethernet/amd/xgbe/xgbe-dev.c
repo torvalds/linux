@@ -2088,24 +2088,16 @@ static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
 
 static unsigned int xgbe_get_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	unsigned int fifo_size;
-
-	/* Calculate the configured fifo size */
-	fifo_size = 1 << (pdata->hw_feat.tx_fifo_size + 7);
-
 	/* The configured value may not be the actual amount of fifo RAM */
-	return min_t(unsigned int, XGMAC_FIFO_TX_MAX, fifo_size);
+	return min_t(unsigned int, pdata->tx_max_fifo_size,
+		     pdata->hw_feat.tx_fifo_size);
 }
 
 static unsigned int xgbe_get_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	unsigned int fifo_size;
-
-	/* Calculate the configured fifo size */
-	fifo_size = 1 << (pdata->hw_feat.rx_fifo_size + 7);
-
 	/* The configured value may not be the actual amount of fifo RAM */
-	return min_t(unsigned int, XGMAC_FIFO_RX_MAX, fifo_size);
+	return min_t(unsigned int, pdata->rx_max_fifo_size,
+		     pdata->hw_feat.rx_fifo_size);
 }
 
 static void xgbe_calculate_equal_fifo(unsigned int fifo_size,
