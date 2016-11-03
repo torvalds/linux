@@ -133,6 +133,106 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 }
 
 /**
+ * intel_gvt_init_vgpu_types - initialize vGPU type list
+ * @gvt : GVT device
+ *
+ * Initialize vGPU type list based on available resource.
+ *
+ */
+int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
+{
+	unsigned int num_types;
+	unsigned int i, low_avail;
+	unsigned int min_low;
+
+	/* vGPU type name is defined as GVTg_Vx_y which contains
+	 * physical GPU generation type and 'y' means maximum vGPU
+	 * instances user can create on one physical GPU for this
+	 * type.
+	 *
+	 * Depend on physical SKU resource, might see vGPU types like
+	 * GVTg_V4_8, GVTg_V4_4, GVTg_V4_2, etc. We can create
+	 * different types of vGPU on same physical GPU depending on
+	 * available resource. Each vGPU type will have "avail_instance"
+	 * to indicate how many vGPU instance can be created for this
+	 * type.
+	 *
+	 * Currently use static size here as we init type earlier..
+	 */
+	low_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE;
+	num_types = 4;
+
+	gvt->types = kzalloc(num_types * sizeof(struct intel_vgpu_type),
+			     GFP_KERNEL);
+	if (!gvt->types)
+		return -ENOMEM;
+
+	min_low = MB_TO_BYTES(32);
+	for (i = 0; i < num_types; ++i) {
+		if (low_avail / min_low == 0)
+			break;
+		gvt->types[i].low_gm_size = min_low;
+		gvt->types[i].high_gm_size = 3 * gvt->types[i].low_gm_size;
+		gvt->types[i].fence = 4;
+		gvt->types[i].max_instance = low_avail / min_low;
+		gvt->types[i].avail_instance = gvt->types[i].max_instance;
+
+		if (IS_GEN8(gvt->dev_priv))
+			sprintf(gvt->types[i].name, "GVTg_V4_%u",
+						gvt->types[i].max_instance);
+		else if (IS_GEN9(gvt->dev_priv))
+			sprintf(gvt->types[i].name, "GVTg_V5_%u",
+						gvt->types[i].max_instance);
+
+		min_low <<= 1;
+		gvt_dbg_core("type[%d]: %s max %u avail %u low %u high %u fence %u\n",
+			     i, gvt->types[i].name, gvt->types[i].max_instance,
+			     gvt->types[i].avail_instance,
+			     gvt->types[i].low_gm_size,
+			     gvt->types[i].high_gm_size, gvt->types[i].fence);
+	}
+
+	gvt->num_types = i;
+	return 0;
+}
+
+void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt)
+{
+	kfree(gvt->types);
+}
+
+static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
+{
+	int i;
+	unsigned int low_gm_avail, high_gm_avail, fence_avail;
+	unsigned int low_gm_min, high_gm_min, fence_min, total_min;
+
+	/* Need to depend on maxium hw resource size but keep on
+	 * static config for now.
+	 */
+	low_gm_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE -
+		gvt->gm.vgpu_allocated_low_gm_size;
+	high_gm_avail = MB_TO_BYTES(256) * 3 - HOST_HIGH_GM_SIZE -
+		gvt->gm.vgpu_allocated_high_gm_size;
+	fence_avail = gvt_fence_sz(gvt) - HOST_FENCE -
+		gvt->fence.vgpu_allocated_fence_num;
+
+	for (i = 0; i < gvt->num_types; i++) {
+		low_gm_min = low_gm_avail / gvt->types[i].low_gm_size;
+		high_gm_min = high_gm_avail / gvt->types[i].high_gm_size;
+		fence_min = fence_avail / gvt->types[i].fence;
+		total_min = min(min(low_gm_min, high_gm_min), fence_min);
+		gvt->types[i].avail_instance = min(gvt->types[i].max_instance,
+						   total_min);
+
+		gvt_dbg_core("update type[%d]: %s max %u avail %u low %u high %u fence %u\n",
+		       i, gvt->types[i].name, gvt->types[i].max_instance,
+		       gvt->types[i].avail_instance, gvt->types[i].low_gm_size,
+		       gvt->types[i].high_gm_size, gvt->types[i].fence);
+	}
+}
+
+/**
  * intel_gvt_destroy_vgpu - destroy a virtual GPU
  * @vgpu: virtual GPU
  *
@@ -166,20 +266,11 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	clean_vgpu_mmio(vgpu);
 	vfree(vgpu);
 
+	intel_gvt_update_vgpu_types(gvt);
 	mutex_unlock(&gvt->lock);
 }
 
-/**
- * intel_gvt_create_vgpu - create a virtual GPU
- * @gvt: GVT device
- * @param: vGPU creation parameters
- *
- * This function is called when user wants to create a virtual GPU.
- *
- * Returns:
- * pointer to intel_vgpu, error pointer if failed.
- */
-struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
+static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 		struct intel_vgpu_creation_params *param)
 {
 	struct intel_vgpu *vgpu;
@@ -271,4 +362,39 @@ out_free_vgpu:
 	vfree(vgpu);
 	mutex_unlock(&gvt->lock);
 	return ERR_PTR(ret);
+}
+
+/**
+ * intel_gvt_create_vgpu - create a virtual GPU
+ * @gvt: GVT device
+ * @type: type of the vGPU to create
+ *
+ * This function is called when user wants to create a virtual GPU.
+ *
+ * Returns:
+ * pointer to intel_vgpu, error pointer if failed.
+ */
+struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
+				struct intel_vgpu_type *type)
+{
+	struct intel_vgpu_creation_params param;
+	struct intel_vgpu *vgpu;
+
+	param.handle = 0;
+	param.low_gm_sz = type->low_gm_size;
+	param.high_gm_sz = type->high_gm_size;
+	param.fence_sz = type->fence;
+
+	/* XXX current param based on MB */
+	param.low_gm_sz = BYTES_TO_MB(param.low_gm_sz);
+	param.high_gm_sz = BYTES_TO_MB(param.high_gm_sz);
+
+	vgpu = __intel_gvt_create_vgpu(gvt, &param);
+	if (IS_ERR(vgpu))
+		return vgpu;
+
+	/* calculate left instance change for types */
+	intel_gvt_update_vgpu_types(gvt);
+
+	return vgpu;
 }
