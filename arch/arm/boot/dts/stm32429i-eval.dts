@@ -66,6 +66,10 @@
 		serial0 = &usart1;
 	};
 
+	soc {
+		dma-ranges = <0xc0000000 0x0 0x10000000>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		green {

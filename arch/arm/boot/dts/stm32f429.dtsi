@@ -59,8 +59,6 @@
 	};
 
 	soc {
-		dma-ranges = <0xc0000000 0x0 0x10000000>;
-
 		timer2: timer@40000000 {
 			compatible = "st,stm32-timer";
 			reg = <0x40000000 0x400>;
@@ -392,13 +390,11 @@
 			st,syscon = <&syscfg 0x4>;
 			snps,pbl = <8>;
 			snps,mixed-burst;
-			dma-ranges;
 			status = "disabled";
 		};
 
 		usbotg_hs: usb@40040000 {
 			compatible = "snps,dwc2";
-			dma-ranges;
 			reg = <0x40040000 0x40000>;
 			interrupts = <77>;
 			clocks = <&rcc 0 29>;
