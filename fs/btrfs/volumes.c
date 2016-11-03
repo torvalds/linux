@@ -1900,6 +1900,14 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 		goto out;
 	}
 
+	if (btrfs_pinned_by_swapfile(fs_info, device)) {
+		btrfs_warn_in_rcu(fs_info,
+		  "cannot remove device %s (devid %llu) due to active swapfile",
+				  rcu_str_deref(device->name), device->devid);
+		ret = -ETXTBSY;
+		goto out;
+	}
+
 	if (test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state)) {
 		ret = BTRFS_ERROR_DEV_TGT_REPLACE;
 		goto out;
@@ -3638,10 +3646,15 @@ again:
 
 		ret = btrfs_relocate_chunk(fs_info, found_key.offset);
 		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
-		if (ret && ret != -ENOSPC)
-			goto error;
 		if (ret == -ENOSPC) {
 			enospc_errors++;
+		} else if (ret == -ETXTBSY) {
+			btrfs_info(fs_info,
+	   "skipping relocation of block group %llu due to active swapfile",
+				   found_key.offset);
+			ret = 0;
+		} else if (ret) {
+			goto error;
 		} else {
 			spin_lock(&fs_info->balance_lock);
 			bctl->stat.completed++;
@@ -4433,10 +4446,16 @@ again:
 
 		ret = btrfs_relocate_chunk(fs_info, chunk_offset);
 		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
-		if (ret && ret != -ENOSPC)
-			goto done;
-		if (ret == -ENOSPC)
+		if (ret == -ENOSPC) {
 			failed++;
+		} else if (ret) {
+			if (ret == -ETXTBSY) {
+				btrfs_warn(fs_info,
+		   "could not shrink block group %llu due to active swapfile",
+					   chunk_offset);
+			}
+			goto done;
+		}
 	} while (key.offset-- > 0);
 
 	if (failed && !retried) {
@@ -7571,4 +7590,28 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 out:
 	btrfs_free_path(path);
 	return ret;
+}
+
+/*
+ * Check whether the given block group or device is pinned by any inode being
+ * used as a swapfile.
+ */
+bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr)
+{
+	struct btrfs_swapfile_pin *sp;
+	struct rb_node *node;
+
+	spin_lock(&fs_info->swapfile_pins_lock);
+	node = fs_info->swapfile_pins.rb_node;
+	while (node) {
+		sp = rb_entry(node, struct btrfs_swapfile_pin, node);
+		if (ptr < sp->ptr)
+			node = node->rb_left;
+		else if (ptr > sp->ptr)
+			node = node->rb_right;
+		else
+			break;
+	}
+	spin_unlock(&fs_info->swapfile_pins_lock);
+	return node != NULL;
 }

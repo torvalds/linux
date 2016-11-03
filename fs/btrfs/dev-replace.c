@@ -407,6 +407,13 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(src_device))
 		return PTR_ERR(src_device);
 
+	if (btrfs_pinned_by_swapfile(fs_info, src_device)) {
+		btrfs_warn_in_rcu(fs_info,
+	  "cannot replace device %s (devid %llu) due to active swapfile",
+			btrfs_dev_name(src_device), src_device->devid);
+		return -ETXTBSY;
+	}
+
 	ret = btrfs_init_dev_replace_tgtdev(fs_info, tgtdev_name,
 					    src_device, &tgt_device);
 	if (ret)
