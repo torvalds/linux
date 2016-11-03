@@ -86,7 +86,7 @@ int __init early_init_dt_scan_fw_dump(unsigned long node,
 	 * dump sections.
 	 * For each dump section type supported, a 32bit cell which defines
 	 * the ID of a supported section followed by two 32 bit cells which
-	 * gives teh size of the section in bytes.
+	 * gives the size of the section in bytes.
 	 */
 	sections = of_get_flat_dt_prop(node, "ibm,configure-kernel-dump-sizes",
 					&size);
