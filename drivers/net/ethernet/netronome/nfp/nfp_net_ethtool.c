@@ -176,7 +176,8 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 	if (nn->txd_cnt != txd_cnt)
 		reconfig_tx = &tx;
 
-	return nfp_net_ring_reconfig(nn, reconfig_rx, reconfig_tx);
+	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
+				     reconfig_rx, reconfig_tx);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -639,14 +640,19 @@ static void nfp_net_get_channels(struct net_device *netdev,
 				 struct ethtool_channels *channel)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int num_tx_rings;
+
+	num_tx_rings = nn->num_tx_rings;
+	if (nn->xdp_prog)
+		num_tx_rings -= nn->num_rx_rings;
 
 	channel->max_rx = min(nn->max_rx_rings, nn->max_r_vecs);
 	channel->max_tx = min(nn->max_tx_rings, nn->max_r_vecs);
 	channel->max_combined = min(channel->max_rx, channel->max_tx);
 	channel->max_other = NFP_NET_NON_Q_VECTORS;
-	channel->combined_count = min(nn->num_rx_rings, nn->num_tx_rings);
+	channel->combined_count = min(nn->num_rx_rings, num_tx_rings);
 	channel->rx_count = nn->num_rx_rings - channel->combined_count;
-	channel->tx_count = nn->num_tx_rings - channel->combined_count;
+	channel->tx_count = num_tx_rings - channel->combined_count;
 	channel->other_count = NFP_NET_NON_Q_VECTORS;
 }
 
@@ -666,10 +672,16 @@ static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 
 	if (nn->num_rx_rings != total_rx)
 		reconfig_rx = &rx;
-	if (nn->num_tx_rings != total_tx)
+	if (nn->num_stack_tx_rings != total_tx ||
+	    (nn->xdp_prog && reconfig_rx))
 		reconfig_tx = &tx;
 
-	return nfp_net_ring_reconfig(nn, reconfig_rx, reconfig_tx);
+	/* nfp_net_check_config() will catch tx.n_rings > nn->max_tx_rings */
+	if (nn->xdp_prog)
+		tx.n_rings += total_rx;
+
+	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
+				     reconfig_rx, reconfig_tx);
 }
 
 static int nfp_net_set_channels(struct net_device *netdev,
