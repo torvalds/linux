@@ -34,6 +34,7 @@
 #include <linux/random.h>
 #include <linux/highmem.h>
 #include <crypto/skcipher.h>
+#include <crypto/aead.h>
 
 static int
 cifs_crypto_shash_md5_allocate(struct TCP_Server_Info *server)
@@ -874,7 +875,7 @@ out:
 }
 
 void
-cifs_crypto_shash_release(struct TCP_Server_Info *server)
+cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 {
 	if (server->secmech.cmacaes) {
 		crypto_free_shash(server->secmech.cmacaes);
@@ -894,6 +895,16 @@ cifs_crypto_shash_release(struct TCP_Server_Info *server)
 	if (server->secmech.hmacmd5) {
 		crypto_free_shash(server->secmech.hmacmd5);
 		server->secmech.hmacmd5 = NULL;
+	}
+
+	if (server->secmech.ccmaesencrypt) {
+		crypto_free_aead(server->secmech.ccmaesencrypt);
+		server->secmech.ccmaesencrypt = NULL;
+	}
+
+	if (server->secmech.ccmaesdecrypt) {
+		crypto_free_aead(server->secmech.ccmaesdecrypt);
+		server->secmech.ccmaesdecrypt = NULL;
 	}
 
 	kfree(server->secmech.sdesccmacaes);

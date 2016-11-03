@@ -31,6 +31,7 @@
 #include <asm/processor.h>
 #include <linux/mempool.h>
 #include <linux/highmem.h>
+#include <crypto/aead.h>
 #include "smb2pdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -114,14 +115,14 @@ smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 	return 0;
 }
 
-static struct cifs_ses *
-smb2_find_smb_ses(struct smb2_sync_hdr *shdr, struct TCP_Server_Info *server)
+struct cifs_ses *
+smb2_find_smb_ses(struct TCP_Server_Info *server, __u64 ses_id)
 {
 	struct cifs_ses *ses;
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-		if (ses->Suid != shdr->SessionId)
+		if (ses->Suid != ses_id)
 			continue;
 		spin_unlock(&cifs_tcp_ses_lock);
 		return ses;
@@ -141,7 +142,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[1].iov_base;
 	struct cifs_ses *ses;
 
-	ses = smb2_find_smb_ses(shdr, server);
+	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
 		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
 		return 0;
@@ -358,7 +359,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)iov[1].iov_base;
 	struct cifs_ses *ses;
 
-	ses = smb2_find_smb_ses(shdr, server);
+	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
 		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
 		return 0;
@@ -617,4 +618,34 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	}
 
 	return mid;
+}
+
+int
+smb3_crypto_aead_allocate(struct TCP_Server_Info *server)
+{
+	struct crypto_aead *tfm;
+
+	if (!server->secmech.ccmaesencrypt) {
+		tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
+		if (IS_ERR(tfm)) {
+			cifs_dbg(VFS, "%s: Failed to alloc encrypt aead\n",
+				 __func__);
+			return PTR_ERR(tfm);
+		}
+		server->secmech.ccmaesencrypt = tfm;
+	}
+
+	if (!server->secmech.ccmaesdecrypt) {
+		tfm = crypto_alloc_aead("ccm(aes)", 0, 0);
+		if (IS_ERR(tfm)) {
+			crypto_free_aead(server->secmech.ccmaesencrypt);
+			server->secmech.ccmaesencrypt = NULL;
+			cifs_dbg(VFS, "%s: Failed to alloc decrypt aead\n",
+				 __func__);
+			return PTR_ERR(tfm);
+		}
+		server->secmech.ccmaesdecrypt = tfm;
+	}
+
+	return 0;
 }

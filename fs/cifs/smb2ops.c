@@ -20,6 +20,8 @@
 #include <linux/pagemap.h>
 #include <linux/vfs.h>
 #include <linux/falloc.h>
+#include <linux/scatterlist.h>
+#include <crypto/aead.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
@@ -1547,6 +1549,256 @@ smb2_dir_needs_close(struct cifsFileInfo *cfile)
 	return !cfile->invalidHandle;
 }
 
+static void
+fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, struct smb_rqst *old_rq)
+{
+	struct smb2_sync_hdr *shdr =
+			(struct smb2_sync_hdr *)old_rq->rq_iov[1].iov_base;
+	unsigned int orig_len = get_rfc1002_length(old_rq->rq_iov[0].iov_base);
+
+	memset(tr_hdr, 0, sizeof(struct smb2_transform_hdr));
+	tr_hdr->ProtocolId = SMB2_TRANSFORM_PROTO_NUM;
+	tr_hdr->OriginalMessageSize = cpu_to_le32(orig_len);
+	tr_hdr->Flags = cpu_to_le16(0x01);
+	get_random_bytes(&tr_hdr->Nonce, SMB3_AES128CMM_NONCE);
+	memcpy(&tr_hdr->SessionId, &shdr->SessionId, 8);
+	inc_rfc1001_len(tr_hdr, sizeof(struct smb2_transform_hdr) - 4);
+	inc_rfc1001_len(tr_hdr, orig_len);
+}
+
+static struct scatterlist *
+init_sg(struct smb_rqst *rqst, u8 *sign)
+{
+	unsigned int sg_len = rqst->rq_nvec + rqst->rq_npages + 1;
+	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
+	struct scatterlist *sg;
+	unsigned int i;
+	unsigned int j;
+
+	sg = kmalloc_array(sg_len, sizeof(struct scatterlist), GFP_KERNEL);
+	if (!sg)
+		return NULL;
+
+	sg_init_table(sg, sg_len);
+	sg_set_buf(&sg[0], rqst->rq_iov[0].iov_base + 24, assoc_data_len);
+	for (i = 1; i < rqst->rq_nvec; i++)
+		sg_set_buf(&sg[i], rqst->rq_iov[i].iov_base,
+						rqst->rq_iov[i].iov_len);
+	for (j = 0; i < sg_len - 1; i++, j++) {
+		unsigned int len = (j < rqst->rq_npages - 1) ? rqst->rq_pagesz
+							: rqst->rq_tailsz;
+		sg_set_page(&sg[i], rqst->rq_pages[j], len, 0);
+	}
+	sg_set_buf(&sg[sg_len - 1], sign, SMB2_SIGNATURE_SIZE);
+	return sg;
+}
+
+struct cifs_crypt_result {
+	int err;
+	struct completion completion;
+};
+
+static void cifs_crypt_complete(struct crypto_async_request *req, int err)
+{
+	struct cifs_crypt_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
+}
+
+/*
+ * Encrypt or decrypt @rqst message. @rqst has the following format:
+ * iov[0] - transform header (associate data),
+ * iov[1-N] and pages - data to encrypt.
+ * On success return encrypted data in iov[1-N] and pages, leave iov[0]
+ * untouched.
+ */
+static int
+crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
+{
+	struct smb2_transform_hdr *tr_hdr =
+			(struct smb2_transform_hdr *)rqst->rq_iov[0].iov_base;
+	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
+	struct cifs_ses *ses;
+	int rc = 0;
+	struct scatterlist *sg;
+	u8 sign[SMB2_SIGNATURE_SIZE] = {};
+	struct aead_request *req;
+	char *iv;
+	unsigned int iv_len;
+	struct cifs_crypt_result result = {0, };
+	struct crypto_aead *tfm;
+	unsigned int crypt_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
+
+	init_completion(&result.completion);
+
+	ses = smb2_find_smb_ses(server, tr_hdr->SessionId);
+	if (!ses) {
+		cifs_dbg(VFS, "%s: Could not find session\n", __func__);
+		return 0;
+	}
+
+	rc = smb3_crypto_aead_allocate(server);
+	if (rc) {
+		cifs_dbg(VFS, "%s: crypto alloc failed\n", __func__);
+		return rc;
+	}
+
+	tfm = enc ? server->secmech.ccmaesencrypt :
+						server->secmech.ccmaesdecrypt;
+	rc = crypto_aead_setkey(tfm, enc ? ses->smb3encryptionkey :
+				ses->smb3decryptionkey, SMB3_SIGN_KEY_SIZE);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Failed to set aead key %d\n", __func__, rc);
+		return rc;
+	}
+
+	rc = crypto_aead_setauthsize(tfm, SMB2_SIGNATURE_SIZE);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Failed to set authsize %d\n", __func__, rc);
+		return rc;
+	}
+
+	req = aead_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		cifs_dbg(VFS, "%s: Failed to alloc aead request", __func__);
+		return -ENOMEM;
+	}
+
+	if (!enc) {
+		memcpy(sign, &tr_hdr->Signature, SMB2_SIGNATURE_SIZE);
+		crypt_len += SMB2_SIGNATURE_SIZE;
+	}
+
+	sg = init_sg(rqst, sign);
+	if (!sg) {
+		cifs_dbg(VFS, "%s: Failed to init sg %d", __func__, rc);
+		goto free_req;
+	}
+
+	iv_len = crypto_aead_ivsize(tfm);
+	iv = kzalloc(iv_len, GFP_KERNEL);
+	if (!iv) {
+		cifs_dbg(VFS, "%s: Failed to alloc IV", __func__);
+		goto free_sg;
+	}
+	iv[0] = 3;
+	memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES128CMM_NONCE);
+
+	aead_request_set_crypt(req, sg, sg, crypt_len, iv);
+	aead_request_set_ad(req, assoc_data_len);
+
+	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  cifs_crypt_complete, &result);
+
+	rc = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
+
+	if (rc == -EINPROGRESS || rc == -EBUSY) {
+		wait_for_completion(&result.completion);
+		rc = result.err;
+	}
+
+	if (!rc && enc)
+		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);
+
+	kfree(iv);
+free_sg:
+	kfree(sg);
+free_req:
+	kfree(req);
+	return rc;
+}
+
+static int
+smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
+		       struct smb_rqst *old_rq)
+{
+	struct kvec *iov;
+	struct page **pages;
+	struct smb2_transform_hdr *tr_hdr;
+	unsigned int npages = old_rq->rq_npages;
+	int i;
+	int rc = -ENOMEM;
+
+	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return rc;
+
+	new_rq->rq_pages = pages;
+	new_rq->rq_npages = old_rq->rq_npages;
+	new_rq->rq_pagesz = old_rq->rq_pagesz;
+	new_rq->rq_tailsz = old_rq->rq_tailsz;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
+		if (!pages[i])
+			goto err_free_pages;
+	}
+
+	iov = kmalloc_array(old_rq->rq_nvec, sizeof(struct kvec), GFP_KERNEL);
+	if (!iov)
+		goto err_free_pages;
+
+	/* copy all iovs from the old except the 1st one (rfc1002 length) */
+	memcpy(&iov[1], &old_rq->rq_iov[1],
+				sizeof(struct kvec) * (old_rq->rq_nvec - 1));
+	new_rq->rq_iov = iov;
+	new_rq->rq_nvec = old_rq->rq_nvec;
+
+	tr_hdr = kmalloc(sizeof(struct smb2_transform_hdr), GFP_KERNEL);
+	if (!tr_hdr)
+		goto err_free_iov;
+
+	/* fill the 1st iov with a transform header */
+	fill_transform_hdr(tr_hdr, old_rq);
+	new_rq->rq_iov[0].iov_base = tr_hdr;
+	new_rq->rq_iov[0].iov_len = sizeof(struct smb2_transform_hdr);
+
+	/* copy pages form the old */
+	for (i = 0; i < npages; i++) {
+		char *dst = kmap(new_rq->rq_pages[i]);
+		char *src = kmap(old_rq->rq_pages[i]);
+		unsigned int len = (i < npages - 1) ? new_rq->rq_pagesz :
+							new_rq->rq_tailsz;
+		memcpy(dst, src, len);
+		kunmap(new_rq->rq_pages[i]);
+		kunmap(old_rq->rq_pages[i]);
+	}
+
+	rc = crypt_message(server, new_rq, 1);
+	cifs_dbg(FYI, "encrypt message returned %d", rc);
+	if (rc)
+		goto err_free_tr_hdr;
+
+	return rc;
+
+err_free_tr_hdr:
+	kfree(tr_hdr);
+err_free_iov:
+	kfree(iov);
+err_free_pages:
+	for (i = i - 1; i >= 0; i--)
+		put_page(pages[i]);
+	kfree(pages);
+	return rc;
+}
+
+static void
+smb3_free_transform_rq(struct smb_rqst *rqst)
+{
+	int i = rqst->rq_npages - 1;
+
+	for (; i >= 0; i--)
+		put_page(rqst->rq_pages[i]);
+	kfree(rqst->rq_pages);
+	/* free transform header */
+	kfree(rqst->rq_iov[0].iov_base);
+	kfree(rqst->rq_iov);
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -1793,6 +2045,8 @@ struct smb_version_operations smb30_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
+	.init_transform_rq = smb3_init_transform_rq,
+	.free_transform_rq = smb3_free_transform_rq,
 };
 
 #ifdef CONFIG_CIFS_SMB311
@@ -1881,6 +2135,8 @@ struct smb_version_operations smb311_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
+	.init_transform_rq = smb3_init_transform_rq,
+	.free_transform_rq = smb3_free_transform_rq,
 };
 #endif /* CIFS_SMB311 */
 
