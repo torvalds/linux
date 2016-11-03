@@ -203,8 +203,6 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 
 	srq->wrid = kmalloc(srq->msrq.max * sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
-		mlx5_ib_dbg(dev, "kmalloc failed %lu\n",
-			    (unsigned long)(srq->msrq.max * sizeof(u64)));
 		err = -ENOMEM;
 		goto err_in;
 	}
