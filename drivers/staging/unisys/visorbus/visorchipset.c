@@ -1035,6 +1035,7 @@ static void
 my_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	struct controlvm_message_header *pmsg_hdr = NULL;
 	u32 bus_no = cmd->device_change_state.bus_no;
 	u32 dev_no = cmd->device_change_state.dev_no;
 	struct spar_segment_state state = cmd->device_change_state.state;
@@ -1054,14 +1055,41 @@ my_device_changestate(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 		goto err_respond;
 	}
+	if (dev_info->pending_msg_hdr) {
+		/* only non-NULL if dev is still waiting on a response */
+		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
+		goto err_respond;
+	}
+	if (inmsg->hdr.flags.response_expected == 1) {
+		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
+		if (!pmsg_hdr) {
+			rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
+			goto err_respond;
+		}
 
-	device_epilog(dev_info, state,
-		      CONTROLVM_DEVICE_CHANGESTATE, &inmsg->hdr, rc,
-		      inmsg->hdr.flags.response_expected == 1, 1);
+		memcpy(pmsg_hdr, &inmsg->hdr,
+		       sizeof(struct controlvm_message_header));
+		dev_info->pending_msg_hdr = pmsg_hdr;
+	}
+
+	if (state.alive == segment_state_running.alive &&
+	    state.operating == segment_state_running.operating)
+		/* Response will be sent from chipset_device_resume */
+		chipset_device_resume(dev_info);
+	/* ServerNotReady / ServerLost / SegmentStateStandby */
+	else if (state.alive == segment_state_standby.alive &&
+		 state.operating == segment_state_standby.operating)
+		/*
+		 * technically this is standby case where server is lost.
+		 * Response will be sent from chipset_device_pause.
+		 */
+		chipset_device_pause(dev_info);
+
 	return;
 
 err_respond:
-	device_responder(inmsg->hdr.id, &inmsg->hdr, rc);
+	if (inmsg->hdr.flags.response_expected == 1)
+		device_responder(inmsg->hdr.id, &inmsg->hdr, rc);
 }
 
 static void
