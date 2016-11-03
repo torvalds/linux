@@ -144,6 +144,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct skl_dma_params *dma_params;
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -176,6 +178,9 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 				 dma_params->stream_tag);
 	skl_set_suspend_active(substream, dai, true);
 	snd_pcm_set_sync(substream);
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	skl_tplg_d0i3_get(skl, mconfig->d0i3_caps);
 
 	return 0;
 }
@@ -302,6 +307,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
 	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -324,6 +330,9 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 		skl->skl_sst->enable_miscbdcge(dai->dev, true);
 		skl->skl_sst->miscbdcg_disabled = false;
 	}
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	skl_tplg_d0i3_put(skl, mconfig->d0i3_caps);
 
 	kfree(dma_params);
 }

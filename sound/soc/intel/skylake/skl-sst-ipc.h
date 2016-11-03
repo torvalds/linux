@@ -187,6 +187,8 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
 		struct skl_ipc_d0ix_msg *msg);
 
+int skl_ipc_check_D0i0(struct sst_dsp *dsp, bool state);
+
 void skl_ipc_int_enable(struct sst_dsp *dsp);
 void skl_ipc_op_int_enable(struct sst_dsp *ctx);
 void skl_ipc_op_int_disable(struct sst_dsp *ctx);

@@ -306,6 +306,23 @@ static void skl_ipc_tx_msg(struct sst_generic_ipc *ipc, struct ipc_message *msg)
 		header->primary | SKL_ADSP_REG_HIPCI_BUSY);
 }
 
+int skl_ipc_check_D0i0(struct sst_dsp *dsp, bool state)
+{
+	int ret;
+
+	/* check D0i3 support */
+	if (!dsp->fw_ops.set_state_D0i0)
+		return 0;
+
+	/* Attempt D0i0 or D0i3 based on state */
+	if (state)
+		ret = dsp->fw_ops.set_state_D0i0(dsp);
+	else
+		ret = dsp->fw_ops.set_state_D0i3(dsp);
+
+	return ret;
+}
+
 static struct ipc_message *skl_ipc_reply_get_msg(struct sst_generic_ipc *ipc,
 				u64 ipc_header)
 {
