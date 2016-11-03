@@ -2229,6 +2229,15 @@ static void nfp_net_set_rx_mode(struct net_device *netdev)
 	nn->ctrl = new_ctrl;
 }
 
+static void nfp_net_rss_init_itbl(struct nfp_net *nn)
+{
+	int i;
+
+	for (i = 0; i < sizeof(nn->rss_itbl); i++)
+		nn->rss_itbl[i] =
+			ethtool_rxfh_indir_default(i, nn->num_rx_rings);
+}
+
 static int
 nfp_net_ring_swap_enable(struct nfp_net *nn,
 			 struct nfp_net_ring_set *rx,
@@ -2707,13 +2716,9 @@ void nfp_net_netdev_free(struct nfp_net *nn)
  */
 static void nfp_net_rss_init(struct nfp_net *nn)
 {
-	int i;
-
 	netdev_rss_key_fill(nn->rss_key, NFP_NET_CFG_RSS_KEY_SZ);
 
-	for (i = 0; i < sizeof(nn->rss_itbl); i++)
-		nn->rss_itbl[i] =
-			ethtool_rxfh_indir_default(i, nn->num_rx_rings);
+	nfp_net_rss_init_itbl(nn);
 
 	/* Enable IPv4/IPv6 TCP by default */
 	nn->rss_cfg = NFP_NET_CFG_RSS_IPV4_TCP |
