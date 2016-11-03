@@ -143,16 +143,23 @@ static const struct gainadj gainadj[] = {
  */
 static void taos_defaults(struct tsl2583_chip *chip)
 {
-	/* Operational parameters */
+	/*
+	 * The integration time must be a multiple of 50ms and within the
+	 * range [50, 600] ms.
+	 */
 	chip->taos_settings.als_time = 100;
-	/* must be a multiple of 50mS */
+
+	/*
+	 * This is an index into the gainadj table. Assume clear glass as the
+	 * default.
+	 */
 	chip->taos_settings.als_gain = 0;
-	/* this is actually an index into the gain table */
-	/* assume clear glass as default */
+
+	/* Default gain trim to account for aperture effects */
 	chip->taos_settings.als_gain_trim = 1000;
-	/* default gain trim to account for aperture effects */
-	chip->taos_settings.als_cal_target = 130;
+
 	/* Known external ALS reading used for calibration */
+	chip->taos_settings.als_cal_target = 130;
 }
 
 /*
