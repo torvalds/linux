@@ -689,56 +689,6 @@ device_responder(enum controlvm_id cmd_id,
 }
 
 static void
-bus_epilog(struct visor_device *bus_info,
-	   u32 cmd, struct controlvm_message_header *msg_hdr,
-	   int response, bool need_response)
-{
-	struct controlvm_message_header *pmsg_hdr = NULL;
-
-	if (!bus_info) {
-		/*
-		 * relying on a valid passed in response code
-		 * be lazy and re-use msg_hdr for this failure, is this ok??
-		 */
-		pmsg_hdr = msg_hdr;
-		goto out_respond;
-	}
-
-	if (bus_info->pending_msg_hdr) {
-		/* only non-NULL if dev is still waiting on a response */
-		response = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
-		pmsg_hdr = bus_info->pending_msg_hdr;
-		goto out_respond;
-	}
-
-	if (need_response) {
-		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
-		if (!pmsg_hdr) {
-			POSTCODE_LINUX_4(MALLOC_FAILURE_PC, cmd,
-					 bus_info->chipset_bus_no,
-					 POSTCODE_SEVERITY_ERR);
-			goto out_respond;
-			return;
-		}
-
-		memcpy(pmsg_hdr, msg_hdr,
-		       sizeof(struct controlvm_message_header));
-		bus_info->pending_msg_hdr = pmsg_hdr;
-	}
-
-	if (response == CONTROLVM_RESP_SUCCESS) {
-		switch (cmd) {
-		default:
-			goto out_respond;
-		}
-		return;
-	}
-
-out_respond:
-	bus_responder(cmd, pmsg_hdr, response);
-}
-
-static void
 device_epilog(struct visor_device *dev_info,
 	      struct spar_segment_state state, u32 cmd,
 	      struct controlvm_message_header *msg_hdr, int response,
@@ -981,8 +931,8 @@ bus_configure(struct controlvm_message *inmsg,
 		POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, bus_no,
 				 POSTCODE_SEVERITY_INFO);
 	}
-	bus_epilog(bus_info, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
-		   rc, inmsg->hdr.flags.response_expected == 1);
+	if (inmsg->hdr.flags.response_expected == 1)
+		bus_responder(inmsg->hdr.id, &inmsg->hdr, rc);
 }
 
 static void
