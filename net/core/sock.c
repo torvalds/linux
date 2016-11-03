@@ -2436,8 +2436,11 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 		sk->sk_type	=	sock->type;
 		sk->sk_wq	=	sock->wq;
 		sock->sk	=	sk;
-	} else
+		sk->sk_uid	=	SOCK_INODE(sock)->i_uid;
+	} else {
 		sk->sk_wq	=	NULL;
+		sk->sk_uid	=	make_kuid(sock_net(sk)->user_ns, 0);
+	}
 
 	rwlock_init(&sk->sk_callback_lock);
 	lockdep_set_class_and_name(&sk->sk_callback_lock,
