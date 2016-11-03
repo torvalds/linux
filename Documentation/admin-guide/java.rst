@@ -66,7 +66,9 @@ other program after you have done the following:
    Both the javawrapper shellscript and the javaclassname program
    were supplied by Colin J. Watson <cjw44@cam.ac.uk>.
 
-Javawrapper shell script::
+Javawrapper shell script:
+
+.. code-block:: sh
 
   #!/bin/bash
   # /usr/local/bin/javawrapper - the wrapper for binfmt_misc/java
@@ -155,29 +157,31 @@ Javawrapper shell script::
   shift
   /usr/bin/java $FQCLASS "$@"
 
-javaclassname.c::
+javaclassname.c:
+
+.. code-block:: c
 
   /* javaclassname.c
- *
- * Extracts the class name from a Java class file; intended for use in a Java
- * wrapper of the type supported by the binfmt_misc option in the Linux kernel.
- *
- * Copyright (C) 1999 Colin J. Watson <cjw44@cam.ac.uk>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
+   *
+   * Extracts the class name from a Java class file; intended for use in a Java
+   * wrapper of the type supported by the binfmt_misc option in the Linux kernel.
+   *
+   * Copyright (C) 1999 Colin J. Watson <cjw44@cam.ac.uk>.
+   *
+   * This program is free software; you can redistribute it and/or modify
+   * it under the terms of the GNU General Public License as published by
+   * the Free Software Foundation; either version 2 of the License, or
+   * (at your option) any later version.
+   *
+   * This program is distributed in the hope that it will be useful,
+   * but WITHOUT ANY WARRANTY; without even the implied warranty of
+   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   * GNU General Public License for more details.
+   *
+   * You should have received a copy of the GNU General Public License
+   * along with this program; if not, write to the Free Software
+   * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   */
 
   #include <stdlib.h>
   #include <stdio.h>
@@ -378,7 +382,9 @@ added to your CLASSPATH during execution.
 
 
 To test your new setup, enter in the following simple Java app, and name
-it "HelloWorld.java"::
+it "HelloWorld.java":
+
+.. code-block:: java
 
 	class HelloWorld {
 		public static void main(String args[]) {
