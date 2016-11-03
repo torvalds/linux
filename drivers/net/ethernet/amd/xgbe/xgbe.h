@@ -263,11 +263,6 @@
 #define XGBE_AN_MS_TIMEOUT		500
 #define XGBE_LINK_TIMEOUT		10
 
-#define XGBE_AN_INT_CMPLT		0x01
-#define XGBE_AN_INC_LINK		0x02
-#define XGBE_AN_PG_RCV			0x04
-#define XGBE_AN_INT_MASK		0x07
-
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
@@ -468,6 +463,11 @@ enum xgbe_speed {
 	XGBE_SPEED_2500,
 	XGBE_SPEED_10000,
 	XGBE_SPEEDS,
+};
+
+enum xgbe_an_mode {
+	XGBE_AN_MODE_CL73 = 0,
+	XGBE_AN_MODE_NONE,
 };
 
 enum xgbe_an {
@@ -698,6 +698,9 @@ struct xgbe_phy_impl_if {
 	enum xgbe_mode (*switch_mode)(struct xgbe_prv_data *);
 	/* Retrieve current mode */
 	enum xgbe_mode (*cur_mode)(struct xgbe_prv_data *);
+
+	/* Retrieve current auto-negotiation mode */
+	enum xgbe_an_mode (*an_mode)(struct xgbe_prv_data *);
 
 	/* Process results of auto-negotiation */
 	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);
@@ -968,6 +971,7 @@ struct xgbe_prv_data {
 	unsigned int parallel_detect;
 	unsigned int fec_ability;
 	unsigned long an_start;
+	enum xgbe_an_mode an_mode;
 
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
 

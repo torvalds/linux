@@ -295,6 +295,11 @@ static enum xgbe_mode xgbe_phy_an_outcome(struct xgbe_prv_data *pdata)
 	return mode;
 }
 
+static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
+{
+	return XGBE_AN_MODE_CL73;
+}
+
 static void xgbe_phy_pcs_power_cycle(struct xgbe_prv_data *pdata)
 {
 	unsigned int reg;
@@ -813,6 +818,8 @@ void xgbe_init_function_ptrs_phy_v1(struct xgbe_phy_if *phy_if)
 	phy_impl->get_mode		= xgbe_phy_get_mode;
 	phy_impl->switch_mode		= xgbe_phy_switch_mode;
 	phy_impl->cur_mode		= xgbe_phy_cur_mode;
+
+	phy_impl->an_mode		= xgbe_phy_an_mode;
 
 	phy_impl->an_outcome		= xgbe_phy_an_outcome;
 
