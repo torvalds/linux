@@ -2541,8 +2541,9 @@ int ptlrpc_hr_init(void)
 
 		hrp->hrp_nthrs = cfs_cpt_weight(ptlrpc_hr.hr_cpt_table, i);
 		hrp->hrp_nthrs /= weight;
+		if (hrp->hrp_nthrs == 0)
+			hrp->hrp_nthrs = 1;
 
-		LASSERT(hrp->hrp_nthrs > 0);
 		hrp->hrp_thrs =
 			kzalloc_node(hrp->hrp_nthrs * sizeof(*hrt), GFP_NOFS,
 				     cfs_cpt_spread_node(ptlrpc_hr.hr_cpt_table,
