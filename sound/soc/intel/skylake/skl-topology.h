@@ -294,6 +294,12 @@ enum skl_module_state {
 	SKL_MODULE_UNLOADED = 4,
 };
 
+enum d0i3_capability {
+	SKL_D0I3_NONE = 0,
+	SKL_D0I3_STREAMING = 1,
+	SKL_D0I3_NON_STREAMING = 2,
+};
+
 struct skl_module_cfg {
 	u8 guid[16];
 	struct skl_module_inst_id id;
@@ -320,6 +326,7 @@ struct skl_module_cfg {
 	u32 converter;
 	u32 vbus_id;
 	u32 mem_pages;
+	enum d0i3_capability d0i3_caps;
 	struct skl_module_pin *m_in_pin;
 	struct skl_module_pin *m_out_pin;
 	enum skl_module_type m_type;

@@ -1830,6 +1830,10 @@ static int skl_tplg_get_token(struct device *dev,
 		mconfig->converter = tkn_elem->value;
 		break;
 
+	case SKL_TKL_U32_D0I3_CAPS:
+		mconfig->d0i3_caps = tkn_elem->value;
+		break;
+
 	case SKL_TKN_U32_PIPE_ID:
 		ret = skl_tplg_add_pipe(dev,
 				mconfig, skl, tkn_elem);
