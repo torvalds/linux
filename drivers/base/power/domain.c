@@ -2049,7 +2049,7 @@ out:
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 
 static const struct of_device_id idle_state_match[] = {
-	{ .compatible = "arm,idle-state", },
+	{ .compatible = "domain-idle-state", },
 	{ }
 };
 
