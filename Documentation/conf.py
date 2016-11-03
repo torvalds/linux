@@ -136,7 +136,7 @@ pygments_style = 'sphinx'
 todo_include_todos = False
 
 primary_domain = 'C'
-highlight_language = 'guess'
+highlight_language = 'none'
 
 # -- Options for HTML output ----------------------------------------------
 
