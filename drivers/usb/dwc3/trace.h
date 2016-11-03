@@ -341,6 +341,57 @@ DEFINE_EVENT(dwc3_log_trb, dwc3_complete_trb,
 	TP_ARGS(dep, trb)
 );
 
+DECLARE_EVENT_CLASS(dwc3_log_ep,
+	TP_PROTO(struct dwc3_ep *dep),
+	TP_ARGS(dep),
+	TP_STRUCT__entry(
+		__dynamic_array(char, name, DWC3_MSG_MAX)
+		__field(unsigned, maxpacket)
+		__field(unsigned, maxpacket_limit)
+		__field(unsigned, max_streams)
+		__field(unsigned, maxburst)
+		__field(unsigned, flags)
+		__field(unsigned, direction)
+		__field(u8, trb_enqueue)
+		__field(u8, trb_dequeue)
+	),
+	TP_fast_assign(
+		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
+		__entry->maxpacket = dep->endpoint.maxpacket;
+		__entry->maxpacket_limit = dep->endpoint.maxpacket_limit;
+		__entry->max_streams = dep->endpoint.max_streams;
+		__entry->maxburst = dep->endpoint.maxburst;
+		__entry->flags = dep->flags;
+		__entry->direction = dep->direction;
+		__entry->trb_enqueue = dep->trb_enqueue;
+		__entry->trb_dequeue = dep->trb_dequeue;
+	),
+	TP_printk("%s: mps %d/%d streams %d burst %d ring %d/%d flags %c:%c%c%c%c%c:%c:%c",
+		__get_str(name), __entry->maxpacket,
+		__entry->maxpacket_limit, __entry->max_streams,
+		__entry->maxburst, __entry->trb_enqueue,
+		__entry->trb_dequeue,
+		__entry->flags & DWC3_EP_ENABLED ? 'E' : 'e',
+		__entry->flags & DWC3_EP_STALL ? 'S' : 's',
+		__entry->flags & DWC3_EP_WEDGE ? 'W' : 'w',
+		__entry->flags & DWC3_EP_BUSY ? 'B' : 'b',
+		__entry->flags & DWC3_EP_PENDING_REQUEST ? 'P' : 'p',
+		__entry->flags & DWC3_EP_MISSED_ISOC ? 'M' : 'm',
+		__entry->flags & DWC3_EP_END_TRANSFER_PENDING ? 'E' : 'e',
+		__entry->direction ? '<' : '>'
+	)
+);
+
+DEFINE_EVENT(dwc3_log_ep, dwc3_gadget_ep_enable,
+	TP_PROTO(struct dwc3_ep *dep),
+	TP_ARGS(dep)
+);
+
+DEFINE_EVENT(dwc3_log_ep, dwc3_gadget_ep_disable,
+	TP_PROTO(struct dwc3_ep *dep),
+	TP_ARGS(dep)
+);
+
 #endif /* __DWC3_TRACE_H */
 
 /* this part has to be here */
