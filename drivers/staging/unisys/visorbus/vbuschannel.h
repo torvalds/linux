@@ -23,6 +23,7 @@
  *  the client devices and client drivers for the server end to see.
  */
 #include <linux/uuid.h>
+#include <linux/ctype.h>
 #include "channel.h"
 
 /* {193b331b-c58f-11da-95a9-00e08161165f} */
@@ -72,199 +73,38 @@ struct ultra_vbus_deviceinfo {
 };
 
 /**
- * vbuschannel_sanitize_buffer() - remove non-printable chars from buffer
- * @p: destination buffer where chars are written to
- * @remain: number of bytes that can be written starting at #p
- * @src: pointer to source buffer
- * @srcmax: number of valid characters at #src
- *
- * Reads chars from the buffer at @src for @srcmax bytes, and writes to
- * the buffer at @p, which is @remain bytes long, ensuring never to
- * overflow the buffer at @p, using the following rules:
- * - printable characters are simply copied from the buffer at @src to the
- *   buffer at @p
- * - intervening streaks of non-printable characters in the buffer at @src
- *   are replaced with a single space in the buffer at @p
- * Note that we pay no attention to '\0'-termination.
- *
- * Pass @p == NULL and @remain == 0 for this special behavior -- In this
- * case, we simply return the number of bytes that WOULD HAVE been written
- * to a buffer at @p, had it been infinitely big.
- *
- * Return: the number of bytes written to @p (or WOULD HAVE been written to
- *         @p, as described in the previous paragraph)
- */
-static inline int
-vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
-{
-	int chars = 0;
-	int nonprintable_streak = 0;
-
-	while (srcmax > 0) {
-		if ((*src >= ' ') && (*src < 0x7f)) {
-			if (nonprintable_streak) {
-				if (remain > 0) {
-					*p = ' ';
-					p++;
-					remain--;
-					chars++;
-				} else if (!p) {
-					chars++;
-				}
-				nonprintable_streak = 0;
-			}
-			if (remain > 0) {
-				*p = *src;
-				p++;
-				remain--;
-				chars++;
-			} else if (!p) {
-				chars++;
-			}
-		} else {
-			nonprintable_streak = 1;
-		}
-		src++;
-		srcmax--;
-	}
-	return chars;
-}
-
-#define VBUSCHANNEL_ADDACHAR(ch, p, remain, chars) \
-	do {					   \
-		if (remain <= 0)		   \
-			break;			   \
-		*p = ch;			   \
-		p++;  chars++;  remain--;	   \
-	} while (0)
-
-/**
- * vbuschannel_itoa() - convert non-negative int to string
- * @p: destination string
- * @remain: max number of bytes that can be written to @p
- * @num: input int to convert
- *
- * Converts the non-negative value at @num to an ascii decimal string
- * at @p, writing at most @remain bytes.  Note there is NO '\0' termination
- * written to @p.
- *
- * Return: number of bytes written to @p
- *
- */
-static inline int
-vbuschannel_itoa(char *p, int remain, int num)
-{
-	int digits = 0;
-	char s[32];
-	int i;
-
-	if (num == 0) {
-		/* '0' is a special case */
-		if (remain <= 0)
-			return 0;
-		*p = '0';
-		return 1;
-	}
-	/* form a backwards decimal ascii string in <s> */
-	while (num > 0) {
-		if (digits >= (int)sizeof(s))
-			return 0;
-		s[digits++] = (num % 10) + '0';
-		num = num / 10;
-	}
-	if (remain < digits) {
-		/* not enough room left at <p> to hold number, so fill with
-		 * '?'
-		 */
-		for (i = 0; i < remain; i++, p++)
-			*p = '?';
-		return remain;
-	}
-	/* plug in the decimal ascii string representing the number, by */
-	/* reversing the string we just built in <s> */
-	i = digits;
-	while (i > 0) {
-		i--;
-		*p = s[i];
-		p++;
-	}
-	return digits;
-}
-
-/**
- * vbuschannel_devinfo_to_string() - format a struct ultra_vbus_deviceinfo
- *                                   to a printable string
+ * vbuschannel_print_devinfo() - format a struct ultra_vbus_deviceinfo
+ *                               and write it to a seq_file
  * @devinfo: the struct ultra_vbus_deviceinfo to format
- * @p: destination string area
- * @remain: size of destination string area in bytes
+ * @seq: seq_file to write to
  * @devix: the device index to be included in the output data, or -1 if no
  *         device index is to be included
  *
- * Reads @devInfo, and converts its contents to a printable string at @p,
- * writing at most @remain bytes. Note there is NO '\0' termination
- * written to @p.
- *
- * Return: number of bytes written to @p
+ * Reads @devInfo, and writes it in human-readable notation to @seq.
  */
-static inline int
-vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
-			      char *p, int remain, int devix)
+static inline void
+vbuschannel_print_devinfo(struct ultra_vbus_deviceinfo *devinfo,
+			  struct seq_file *seq, int devix)
 {
-	char *psrc;
-	int nsrc, x, i, pad;
-	int chars = 0;
+	if (!isprint(devinfo->devtype[0]))
+		return; /* uninitialized vbus device entry */
 
-	psrc = &devinfo->devtype[0];
-	nsrc = sizeof(devinfo->devtype);
-	if (vbuschannel_sanitize_buffer(NULL, 0, psrc, nsrc) <= 0)
-		return 0;
+	if (devix >= 0)
+		seq_printf(seq, "[%d]", devix);
+	else
+		/* vbus device entry is for bus or chipset */
+		seq_puts(seq, "   ");
 
-	/* emit device index */
-	if (devix >= 0) {
-		VBUSCHANNEL_ADDACHAR('[', p, remain, chars);
-		x = vbuschannel_itoa(p, remain, devix);
-		p += x;
-		remain -= x;
-		chars += x;
-		VBUSCHANNEL_ADDACHAR(']', p, remain, chars);
-	} else {
-		VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-		VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-		VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-	}
-
-	/* emit device type */
-	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
-	p += x;
-	remain -= x;
-	chars += x;
-	pad = 15 - x;		/* pad device type to be exactly 15 chars */
-	for (i = 0; i < pad; i++)
-		VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-
-	/* emit driver name */
-	psrc = &devinfo->drvname[0];
-	nsrc = sizeof(devinfo->drvname);
-	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
-	p += x;
-	remain -= x;
-	chars += x;
-	pad = 15 - x;		/* pad driver name to be exactly 15 chars */
-	for (i = 0; i < pad; i++)
-		VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
-
-	/* emit strings */
-	psrc = &devinfo->infostrs[0];
-	nsrc = sizeof(devinfo->infostrs);
-	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
-	p += x;
-	remain -= x;
-	chars += x;
-	VBUSCHANNEL_ADDACHAR('\n', p, remain, chars);
-
-	return chars;
+	/*
+	 * Note: because the s-Par back-end is free to scribble in this area,
+	 * we never assume '\0'-termination.
+	 */
+	seq_printf(seq, "%-*.*s ", (int)sizeof(devinfo->devtype),
+		   (int)sizeof(devinfo->devtype), devinfo->devtype);
+	seq_printf(seq, "%-*.*s ", (int)sizeof(devinfo->drvname),
+		   (int)sizeof(devinfo->drvname), devinfo->drvname);
+	seq_printf(seq, "%.*s\n", (int)sizeof(devinfo->infostrs),
+		   devinfo->infostrs);
 }
 
 struct spar_vbus_headerinfo {

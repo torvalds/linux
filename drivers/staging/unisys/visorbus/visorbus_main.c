@@ -14,6 +14,7 @@
  * details.
  */
 
+#include <linux/debugfs.h>
 #include <linux/uuid.h>
 
 #include "visorbus.h"
@@ -33,6 +34,7 @@ static int visorbus_forcenomatch;
 #define POLLJIFFIES_NORMALCHANNEL     10
 
 static int busreg_rc = -ENODEV; /* stores the result from bus registration */
+static struct dentry *visorbus_debugfs_dir;
 
 /*
  * DEVICE type attributes
@@ -151,6 +153,8 @@ visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
+	debugfs_remove(dev->debugfs_client_bus_info);
+	debugfs_remove_recursive(dev->debugfs_dir);
 	kfree(dev);
 }
 
@@ -349,70 +353,6 @@ static ssize_t channel_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(channel_id);
 
-static ssize_t client_bus_info_show(struct device *dev,
-				    struct device_attribute *attr,
-				    char *buf) {
-	struct visor_device *vdev = to_visor_device(dev);
-	struct visorchannel *channel = vdev->visorchannel;
-
-	int i, shift, remain = PAGE_SIZE;
-	unsigned long off;
-	char *pos = buf;
-	u8 *partition_name;
-	struct ultra_vbus_deviceinfo dev_info;
-
-	partition_name = "";
-	if (channel) {
-		if (vdev->name)
-			partition_name = vdev->name;
-		shift = snprintf(pos, remain,
-				 "Client device / client driver info for %s partition (vbus #%u):\n",
-				 partition_name, vdev->chipset_bus_no);
-		pos += shift;
-		remain -= shift;
-		shift = visorchannel_read(channel,
-					  offsetof(struct
-						   spar_vbus_channel_protocol,
-						   chp_info),
-					  &dev_info, sizeof(dev_info));
-		if (shift >= 0) {
-			shift = vbuschannel_devinfo_to_string(&dev_info, pos,
-							      remain, -1);
-			pos += shift;
-			remain -= shift;
-		}
-		shift = visorchannel_read(channel,
-					  offsetof(struct
-						   spar_vbus_channel_protocol,
-						   bus_info),
-					  &dev_info, sizeof(dev_info));
-		if (shift >= 0) {
-			shift = vbuschannel_devinfo_to_string(&dev_info, pos,
-							      remain, -1);
-			pos += shift;
-			remain -= shift;
-		}
-		off = offsetof(struct spar_vbus_channel_protocol, dev_info);
-		i = 0;
-		while (off + sizeof(dev_info) <=
-		       visorchannel_get_nbytes(channel)) {
-			shift = visorchannel_read(channel,
-						  off, &dev_info,
-						  sizeof(dev_info));
-			if (shift >= 0) {
-				shift = vbuschannel_devinfo_to_string
-				    (&dev_info, pos, remain, i);
-				pos += shift;
-				remain -= shift;
-			}
-			off += sizeof(dev_info);
-			i++;
-		}
-	}
-	return PAGE_SIZE - remain;
-}
-static DEVICE_ATTR_RO(client_bus_info);
-
 static struct attribute *dev_attrs[] = {
 		&dev_attr_partition_handle.attr,
 		&dev_attr_partition_guid.attr,
@@ -420,7 +360,6 @@ static struct attribute *dev_attrs[] = {
 		&dev_attr_channel_addr.attr,
 		&dev_attr_channel_bytes.attr,
 		&dev_attr_channel_id.attr,
-		&dev_attr_client_bus_info.attr,
 		NULL
 };
 
@@ -431,6 +370,66 @@ static struct attribute_group dev_attr_grp = {
 static const struct attribute_group *visorbus_groups[] = {
 		&dev_attr_grp,
 		NULL
+};
+
+/*
+ *  BUS debugfs entries
+ *
+ *  define & implement display of debugfs attributes under
+ *  /sys/kernel/debug/visorbus/visorbus<n>.
+ */
+
+static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
+{
+	struct visor_device *vdev = seq->private;
+	struct visorchannel *channel = vdev->visorchannel;
+
+	int i;
+	unsigned long off;
+	struct ultra_vbus_deviceinfo dev_info;
+
+	if (!channel)
+		return 0;
+
+	seq_printf(seq,
+		   "Client device / client driver info for %s partition (vbus #%u):\n",
+		   ((vdev->name) ? (char *)(vdev->name) : ""),
+		   vdev->chipset_bus_no);
+	if (visorchannel_read(channel,
+			      offsetof(struct spar_vbus_channel_protocol,
+				       chp_info),
+			      &dev_info, sizeof(dev_info)) >= 0)
+		vbuschannel_print_devinfo(&dev_info, seq, -1);
+	if (visorchannel_read(channel,
+			      offsetof(struct spar_vbus_channel_protocol,
+				       bus_info),
+			      &dev_info, sizeof(dev_info)) >= 0)
+		vbuschannel_print_devinfo(&dev_info, seq, -1);
+	off = offsetof(struct spar_vbus_channel_protocol, dev_info);
+	i = 0;
+	while (off + sizeof(dev_info) <= visorchannel_get_nbytes(channel)) {
+		if (visorchannel_read(channel, off, &dev_info,
+				      sizeof(dev_info)) >= 0)
+			vbuschannel_print_devinfo(&dev_info, seq, i);
+		off += sizeof(dev_info);
+		i++;
+	}
+
+	return 0;
+}
+
+static int client_bus_info_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, client_bus_info_debugfs_show,
+			   inode->i_private);
+}
+
+static const struct file_operations client_bus_info_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = client_bus_info_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static void
@@ -964,6 +963,7 @@ static int
 create_bus_instance(struct visor_device *dev)
 {
 	int id = dev->chipset_bus_no;
+	int err;
 	struct spar_vbus_headerinfo *hdr_info;
 
 	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
@@ -977,11 +977,26 @@ create_bus_instance(struct visor_device *dev)
 	dev->device.groups = visorbus_groups;
 	dev->device.release = visorbus_release_busdevice;
 
+	dev->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
+					      visorbus_debugfs_dir);
+	if (!dev->debugfs_dir) {
+		err = -ENOMEM;
+		goto err_hdr_info;
+	}
+	dev->debugfs_client_bus_info =
+		debugfs_create_file("client_bus_info", S_IRUSR | S_IRGRP,
+				    dev->debugfs_dir, dev,
+				    &client_bus_info_debugfs_fops);
+	if (!dev->debugfs_client_bus_info) {
+		err = -ENOMEM;
+		goto err_debugfs_dir;
+	}
+
 	if (device_register(&dev->device) < 0) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
 				 POSTCODE_SEVERITY_ERR);
-		kfree(hdr_info);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_debugfs_created;
 	}
 
 	if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
@@ -996,6 +1011,16 @@ create_bus_instance(struct visor_device *dev)
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 	dev_set_drvdata(&dev->device, dev);
 	return 0;
+
+err_debugfs_created:
+	debugfs_remove(dev->debugfs_client_bus_info);
+
+err_debugfs_dir:
+	debugfs_remove_recursive(dev->debugfs_dir);
+
+err_hdr_info:
+	kfree(hdr_info);
+	return err;
 }
 
 /**
@@ -1273,6 +1298,11 @@ visorbus_init(void)
 	int err;
 
 	POSTCODE_LINUX_3(DRIVER_ENTRY_PC, 0, POSTCODE_SEVERITY_INFO);
+
+	visorbus_debugfs_dir = debugfs_create_dir("visorbus", NULL);
+	if (!visorbus_debugfs_dir)
+		return -ENOMEM;
+
 	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
 
 	err = create_bus_type();
@@ -1304,6 +1334,7 @@ visorbus_exit(void)
 		remove_bus_instance(dev);
 	}
 	remove_bus_type();
+	debugfs_remove_recursive(visorbus_debugfs_dir);
 }
 
 module_param_named(forcematch, visorbus_forcematch, int, S_IRUGO);
