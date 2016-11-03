@@ -512,6 +512,14 @@ config HID_MAGICMOUSE
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
+config HID_MAYFLASH
+	tristate "Mayflash game controller adapter force feedback"
+	depends on HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have HJZ Mayflash PS3 game controller adapters
+	and want to enable force feedback support.
+
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
