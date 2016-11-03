@@ -22,6 +22,7 @@
 #include <linux/stacktrace.h>
 
 #include <asm/irq.h>
+#include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
 
 /*
