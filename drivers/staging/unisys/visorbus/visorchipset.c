@@ -1046,15 +1046,22 @@ my_device_changestate(struct controlvm_message *inmsg)
 		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
-	} else if (dev_info->state.created == 0) {
+		goto err_respond;
+	}
+	if (dev_info->state.created == 0) {
 		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
+		goto err_respond;
 	}
-	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
-		device_epilog(dev_info, state,
-			      CONTROLVM_DEVICE_CHANGESTATE, &inmsg->hdr, rc,
-			      inmsg->hdr.flags.response_expected == 1, 1);
+
+	device_epilog(dev_info, state,
+		      CONTROLVM_DEVICE_CHANGESTATE, &inmsg->hdr, rc,
+		      inmsg->hdr.flags.response_expected == 1, 1);
+	return;
+
+err_respond:
+	device_responder(inmsg->hdr.id, &inmsg->hdr, rc);
 }
 
 static void
