@@ -186,6 +186,7 @@ static ssize_t physaddr_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
 			visorchannel_get_physaddr(vdev->visorchannel));
 }
+static DEVICE_ATTR_RO(physaddr);
 
 static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -197,6 +198,7 @@ static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "0x%lx\n",
 			visorchannel_get_nbytes(vdev->visorchannel));
 }
+static DEVICE_ATTR_RO(nbytes);
 
 static ssize_t clientpartition_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -208,6 +210,7 @@ static ssize_t clientpartition_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
 			visorchannel_get_clientpartition(vdev->visorchannel));
 }
+static DEVICE_ATTR_RO(clientpartition);
 
 static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -220,6 +223,7 @@ static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			visorchannel_id(vdev->visorchannel, typeid));
 }
+static DEVICE_ATTR_RO(typeguid);
 
 static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -232,6 +236,7 @@ static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			visorchannel_zoneid(vdev->visorchannel, zoneid));
 }
+static DEVICE_ATTR_RO(zoneguid);
 
 static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -250,12 +255,6 @@ static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 	drv = to_visor_driver(xdrv);
 	return snprintf(buf, PAGE_SIZE, "%s\n", drv->channel_types[i - 1].name);
 }
-
-static DEVICE_ATTR_RO(physaddr);
-static DEVICE_ATTR_RO(nbytes);
-static DEVICE_ATTR_RO(clientpartition);
-static DEVICE_ATTR_RO(typeguid);
-static DEVICE_ATTR_RO(zoneguid);
 static DEVICE_ATTR_RO(typename);
 
 static struct attribute *channel_attrs[] = {
@@ -295,6 +294,7 @@ static ssize_t partition_handle_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n", handle);
 }
+static DEVICE_ATTR_RO(partition_handle);
 
 static ssize_t partition_guid_show(struct device *dev,
 				   struct device_attribute *attr,
@@ -303,6 +303,7 @@ static ssize_t partition_guid_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "{%pUb}\n", &vdev->partition_uuid);
 }
+static DEVICE_ATTR_RO(partition_guid);
 
 static ssize_t partition_name_show(struct device *dev,
 				   struct device_attribute *attr,
@@ -311,6 +312,7 @@ static ssize_t partition_name_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", vdev->name);
 }
+static DEVICE_ATTR_RO(partition_name);
 
 static ssize_t channel_addr_show(struct device *dev,
 				 struct device_attribute *attr,
@@ -320,6 +322,7 @@ static ssize_t channel_addr_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n", addr);
 }
+static DEVICE_ATTR_RO(channel_addr);
 
 static ssize_t channel_bytes_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -329,6 +332,7 @@ static ssize_t channel_bytes_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "0x%llx\n", nbytes);
 }
+static DEVICE_ATTR_RO(channel_bytes);
 
 static ssize_t channel_id_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -343,6 +347,7 @@ static ssize_t channel_id_show(struct device *dev,
 	}
 	return len;
 }
+static DEVICE_ATTR_RO(channel_id);
 
 static ssize_t client_bus_info_show(struct device *dev,
 				    struct device_attribute *attr,
@@ -406,13 +411,6 @@ static ssize_t client_bus_info_show(struct device *dev,
 	}
 	return PAGE_SIZE - remain;
 }
-
-static DEVICE_ATTR_RO(partition_handle);
-static DEVICE_ATTR_RO(partition_guid);
-static DEVICE_ATTR_RO(partition_name);
-static DEVICE_ATTR_RO(channel_addr);
-static DEVICE_ATTR_RO(channel_bytes);
-static DEVICE_ATTR_RO(channel_id);
 static DEVICE_ATTR_RO(client_bus_info);
 
 static struct attribute *dev_attrs[] = {
