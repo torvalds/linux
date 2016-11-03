@@ -409,6 +409,9 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
+	default:
+		/* No other input devices supported */
+		break;
 	}
 
 	dev_set_drvdata(&dev->device, devdata);
@@ -652,6 +655,9 @@ visorinput_channel_interrupt(struct visor_device *dev)
 		case inputaction_wheel_rotate_toward:
 			input_report_rel(visorinput_dev, REL_WHEEL, -1);
 			input_sync(visorinput_dev);
+			break;
+		default:
+			/* Unsupported input action */
 			break;
 		}
 	}
