@@ -57,7 +57,6 @@ visorchipset_open(struct inode *inode, struct file *file)
 
 	if (minor_number)
 		return -ENODEV;
-	file->private_data = NULL;
 	return 0;
 }
 
@@ -1075,7 +1074,6 @@ initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 	if (!info)
 		return -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 
-	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
 	if ((offset == 0) || (bytes == 0))
 		return -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 
@@ -1083,6 +1081,7 @@ initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 	if (!payload)
 		return -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 
+	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
 	info->offset = offset;
 	info->bytes = bytes;
 	info->ptr = payload;
@@ -2118,8 +2117,6 @@ visorchipset_init(struct acpi_device *acpi_device)
 	addr = controlvm_get_channel_address();
 	if (!addr)
 		goto error;
-
-	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
 
 	controlvm_channel = visorchannel_create_with_lock(addr, 0,
 							  GFP_KERNEL, uuid);
