@@ -167,7 +167,7 @@ config PPC
 	select HAVE_CC_STACKPROTECTOR
 
 config GENERIC_CSUM
-	def_bool CPU_LITTLE_ENDIAN
+	def_bool n
 
 config EARLY_PRINTK
 	bool
