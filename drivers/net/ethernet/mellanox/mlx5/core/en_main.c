@@ -1512,7 +1512,10 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	return 0;
 err_close_xdp_sq:
-	mlx5e_close_sq(&c->xdp_sq);
+	if (priv->xdp_prog) {
+		mlx5e_close_sq(&c->xdp_sq);
+		mlx5e_close_cq(&c->xdp_sq.cq);
+	}
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
