@@ -2053,7 +2053,6 @@ int init_credit_return(struct hfi1_devdata *dd)
 		sizeof(struct credit_return_base),
 		GFP_KERNEL);
 	if (!dd->cr_base) {
-		dd_dev_err(dd, "Unable to allocate credit return base\n");
 		ret = -ENOMEM;
 		goto done;
 	}
