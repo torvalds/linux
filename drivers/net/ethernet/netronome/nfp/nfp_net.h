@@ -583,6 +583,12 @@ struct nfp_net {
 	struct dentry *debugfs_dir;
 };
 
+struct nfp_net_ring_set {
+	unsigned int mtu;
+	unsigned int dcnt;
+	void *rings;
+};
+
 /* Functions to read/write from/to a BAR
  * Performs any endian conversion necessary.
  */
@@ -771,7 +777,9 @@ void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
 int nfp_net_irqs_alloc(struct nfp_net *nn);
 void nfp_net_irqs_disable(struct nfp_net *nn);
-int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt);
+int
+nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_ring_set *rx,
+		      struct nfp_net_ring_set *tx);
 
 #ifdef CONFIG_NFP_NET_DEBUG
 void nfp_net_debugfs_create(void);

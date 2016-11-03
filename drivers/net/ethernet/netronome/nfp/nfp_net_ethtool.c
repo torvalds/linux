@@ -158,6 +158,25 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 	ring->tx_pending = nn->txd_cnt;
 }
 
+static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
+{
+	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
+	struct nfp_net_ring_set rx = {
+		.mtu = nn->netdev->mtu,
+		.dcnt = rxd_cnt,
+	};
+	struct nfp_net_ring_set tx = {
+		.dcnt = txd_cnt,
+	};
+
+	if (nn->rxd_cnt != rxd_cnt)
+		reconfig_rx = &rx;
+	if (nn->txd_cnt != txd_cnt)
+		reconfig_tx = &tx;
+
+	return nfp_net_ring_reconfig(nn, reconfig_rx, reconfig_tx);
+}
+
 static int nfp_net_set_ringparam(struct net_device *netdev,
 				 struct ethtool_ringparam *ring)
 {
