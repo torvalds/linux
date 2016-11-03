@@ -1920,9 +1920,9 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 		nn_err(nn, "Could not disable device: %d\n", err);
 
 	for (r = 0; r < nn->num_rx_rings; r++)
-		nfp_net_rx_ring_reset(nn->r_vecs[r].rx_ring);
+		nfp_net_rx_ring_reset(&nn->rx_rings[r]);
 	for (r = 0; r < nn->num_tx_rings; r++)
-		nfp_net_tx_ring_reset(nn, nn->r_vecs[r].tx_ring);
+		nfp_net_tx_ring_reset(nn, &nn->tx_rings[r]);
 	for (r = 0; r < nn->num_r_vecs; r++)
 		nfp_net_vec_clear_ring_data(nn, r);
 
@@ -2000,7 +2000,7 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 	nn->ctrl = new_ctrl;
 
 	for (r = 0; r < nn->num_rx_rings; r++)
-		nfp_net_rx_ring_fill_freelist(nn->r_vecs[r].rx_ring);
+		nfp_net_rx_ring_fill_freelist(&nn->rx_rings[r]);
 
 	/* Since reconfiguration requests while NFP is down are ignored we
 	 * have to wipe the entire VXLAN configuration and reinitialize it.
@@ -2173,11 +2173,11 @@ static void nfp_net_close_free_all(struct nfp_net *nn)
 	unsigned int r;
 
 	for (r = 0; r < nn->num_rx_rings; r++) {
-		nfp_net_rx_ring_bufs_free(nn, nn->r_vecs[r].rx_ring);
-		nfp_net_rx_ring_free(nn->r_vecs[r].rx_ring);
+		nfp_net_rx_ring_bufs_free(nn, &nn->rx_rings[r]);
+		nfp_net_rx_ring_free(&nn->rx_rings[r]);
 	}
 	for (r = 0; r < nn->num_tx_rings; r++)
-		nfp_net_tx_ring_free(nn->r_vecs[r].tx_ring);
+		nfp_net_tx_ring_free(&nn->tx_rings[r]);
 	for (r = 0; r < nn->num_r_vecs; r++)
 		nfp_net_cleanup_vector(nn, &nn->r_vecs[r]);
 
