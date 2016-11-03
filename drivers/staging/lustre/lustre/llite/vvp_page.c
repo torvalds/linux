@@ -166,7 +166,6 @@ static void vvp_page_delete(const struct lu_env *env,
 	refc = atomic_dec_return(&page->cp_ref);
 	LASSERTF(refc >= 1, "page = %p, refc = %d\n", page, refc);
 
-	ClearPageUptodate(vmpage);
 	ClearPagePrivate(vmpage);
 	vmpage->private = 0;
 	/*
