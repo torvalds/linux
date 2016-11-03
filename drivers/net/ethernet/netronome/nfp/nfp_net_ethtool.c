@@ -614,6 +614,21 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	return nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_IRQMOD);
 }
 
+static void nfp_net_get_channels(struct net_device *netdev,
+				 struct ethtool_channels *channel)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	channel->max_rx = min(nn->max_rx_rings, nn->max_r_vecs);
+	channel->max_tx = min(nn->max_tx_rings, nn->max_r_vecs);
+	channel->max_combined = min(channel->max_rx, channel->max_tx);
+	channel->max_other = NFP_NET_NON_Q_VECTORS;
+	channel->combined_count = min(nn->num_rx_rings, nn->num_tx_rings);
+	channel->rx_count = nn->num_rx_rings - channel->combined_count;
+	channel->tx_count = nn->num_tx_rings - channel->combined_count;
+	channel->other_count = NFP_NET_NON_Q_VECTORS;
+}
+
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_drvinfo		= nfp_net_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -632,6 +647,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_regs		= nfp_net_get_regs,
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
+	.get_channels		= nfp_net_get_channels,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)
