@@ -177,6 +177,26 @@ int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
 	return 0;
 }
 
+static unsigned int nf_iterate(struct sk_buff *skb,
+			       struct nf_hook_state *state,
+			       struct nf_hook_entry **entryp)
+{
+	unsigned int verdict;
+
+	do {
+repeat:
+		verdict = (*entryp)->ops.hook((*entryp)->ops.priv, skb, state);
+		if (verdict != NF_ACCEPT) {
+			if (verdict != NF_REPEAT)
+				return verdict;
+			goto repeat;
+		}
+		*entryp = rcu_dereference((*entryp)->next);
+	} while (*entryp);
+
+	return NF_ACCEPT;
+}
+
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	struct nf_hook_entry *hook_entry = entry->hook;

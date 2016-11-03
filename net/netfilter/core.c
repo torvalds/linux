@@ -302,26 +302,6 @@ void _nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n)
 }
 EXPORT_SYMBOL(_nf_unregister_hooks);
 
-unsigned int nf_iterate(struct sk_buff *skb,
-			struct nf_hook_state *state,
-			struct nf_hook_entry **entryp)
-{
-	unsigned int verdict;
-
-	do {
-repeat:
-		verdict = (*entryp)->ops.hook((*entryp)->ops.priv, skb, state);
-		if (verdict != NF_ACCEPT) {
-			if (verdict != NF_REPEAT)
-				return verdict;
-			goto repeat;
-		}
-		*entryp = rcu_dereference((*entryp)->next);
-	} while (*entryp);
-	return NF_ACCEPT;
-}
-
-
 /* Returns 1 if okfn() needs to be executed by the caller,
  * -EPERM for NF_DROP, 0 otherwise.  Caller must hold rcu_read_lock. */
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
@@ -330,31 +310,34 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 	unsigned int verdict;
 	int ret;
 
-next_hook:
-	verdict = nf_iterate(skb, state, &entry);
-	switch (verdict & NF_VERDICT_MASK) {
-	case NF_ACCEPT:
-		ret = 1;
-		break;
-	case NF_DROP:
-		kfree_skb(skb);
-		ret = NF_DROP_GETERR(verdict);
-		if (ret == 0)
-			ret = -EPERM;
-		break;
-	case NF_QUEUE:
-		ret = nf_queue(skb, state, &entry, verdict);
-		if (ret == 1 && entry)
-			goto next_hook;
-		/* Fall through. */
-	default:
-		/* Implicit handling for NF_STOLEN, as well as any other non
-		 * conventional verdicts.
-		 */
-		ret = 0;
-		break;
-	}
-	return ret;
+	do {
+		verdict = entry->ops.hook(entry->ops.priv, skb, state);
+		switch (verdict & NF_VERDICT_MASK) {
+		case NF_ACCEPT:
+			entry = rcu_dereference(entry->next);
+			break;
+		case NF_DROP:
+			kfree_skb(skb);
+			ret = NF_DROP_GETERR(verdict);
+			if (ret == 0)
+				ret = -EPERM;
+			return ret;
+		case NF_REPEAT:
+			continue;
+		case NF_QUEUE:
+			ret = nf_queue(skb, state, &entry, verdict);
+			if (ret == 1 && entry)
+				continue;
+			return ret;
+		default:
+			/* Implicit handling for NF_STOLEN, as well as any other
+			 * non conventional verdicts.
+			 */
+			return 0;
+		}
+	} while (entry);
+
+	return 1;
 }
 EXPORT_SYMBOL(nf_hook_slow);
 
