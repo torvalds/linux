@@ -1172,8 +1172,8 @@ void dwc2_hcd_complete_xfer_ddma(struct dwc2_hsotg *hsotg,
 			dwc2_hcd_qh_unlink(hsotg, qh);
 		} else {
 			/* Keep in assigned schedule to continue transfer */
-			list_move_tail(&qh->qh_list_entry,
-				       &hsotg->periodic_sched_assigned);
+			list_move(&qh->qh_list_entry,
+				  &hsotg->periodic_sched_assigned);
 			continue_isoc_xfer = 1;
 		}
 		/*
