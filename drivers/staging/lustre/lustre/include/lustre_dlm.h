@@ -550,8 +550,6 @@ struct ldlm_flock {
 	__u64 owner;
 	__u64 blocking_owner;
 	struct obd_export *blocking_export;
-	/* Protected by the hash lock */
-	__u32 blocking_refs;
 	__u32 pid;
 };
 
