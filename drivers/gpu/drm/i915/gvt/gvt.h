@@ -356,6 +356,7 @@ void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt);
 struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 					 struct intel_vgpu_type *type);
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
 
 
 /* validating GM functions */
@@ -391,10 +392,10 @@ int intel_gvt_ggtt_index_g2h(struct intel_vgpu *vgpu, unsigned long g_index,
 int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
 			     unsigned long *g_index);
 
-int intel_vgpu_emulate_cfg_read(void *__vgpu, unsigned int offset,
+int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
 
-int intel_vgpu_emulate_cfg_write(void *__vgpu, unsigned int offset,
+int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
 
 void intel_gvt_clean_opregion(struct intel_gvt *gvt);
@@ -406,6 +407,22 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 int setup_vgpu_mmio(struct intel_vgpu *vgpu);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
+
+struct intel_gvt_ops {
+	int (*emulate_cfg_read)(struct intel_vgpu *, unsigned int, void *,
+				unsigned int);
+	int (*emulate_cfg_write)(struct intel_vgpu *, unsigned int, void *,
+				unsigned int);
+	int (*emulate_mmio_read)(struct intel_vgpu *, u64, void *,
+				unsigned int);
+	int (*emulate_mmio_write)(struct intel_vgpu *, u64, void *,
+				unsigned int);
+	struct intel_vgpu *(*vgpu_create)(struct intel_gvt *,
+				struct intel_vgpu_type *);
+	void (*vgpu_destroy)(struct intel_vgpu *);
+	void (*vgpu_reset)(struct intel_vgpu *);
+};
+
 
 #include "mpt.h"
 

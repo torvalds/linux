@@ -390,3 +390,14 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	return vgpu;
 }
+
+/**
+ * intel_gvt_reset_vgpu - reset a virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to reset a virtual GPU.
+ *
+ */
+void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu)
+{
+}
