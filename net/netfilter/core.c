@@ -308,7 +308,7 @@ unsigned int nf_iterate(struct sk_buff *skb,
 {
 	unsigned int verdict;
 
-	while (*entryp) {
+	do {
 repeat:
 		verdict = (*entryp)->ops.hook((*entryp)->ops.priv, skb, state);
 		if (verdict != NF_ACCEPT) {
@@ -317,20 +317,19 @@ repeat:
 			goto repeat;
 		}
 		*entryp = rcu_dereference((*entryp)->next);
-	}
+	} while (*entryp);
 	return NF_ACCEPT;
 }
 
 
 /* Returns 1 if okfn() needs to be executed by the caller,
  * -EPERM for NF_DROP, 0 otherwise.  Caller must hold rcu_read_lock. */
-int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state)
+int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
+		 struct nf_hook_entry *entry)
 {
-	struct nf_hook_entry *entry;
 	unsigned int verdict;
 	int ret;
 
-	entry = rcu_dereference(state->hook_entries);
 next_hook:
 	verdict = nf_iterate(skb, state, &entry);
 	switch (verdict & NF_VERDICT_MASK) {

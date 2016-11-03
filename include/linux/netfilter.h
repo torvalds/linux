@@ -54,7 +54,6 @@ struct nf_hook_state {
 	struct net_device *out;
 	struct sock *sk;
 	struct net *net;
-	struct nf_hook_entry __rcu *hook_entries;
 	int (*okfn)(struct net *, struct sock *, struct sk_buff *);
 };
 
@@ -81,7 +80,6 @@ struct nf_hook_entry {
 };
 
 static inline void nf_hook_state_init(struct nf_hook_state *p,
-				      struct nf_hook_entry *hook_entry,
 				      unsigned int hook,
 				      u_int8_t pf,
 				      struct net_device *indev,
@@ -96,7 +94,6 @@ static inline void nf_hook_state_init(struct nf_hook_state *p,
 	p->out = outdev;
 	p->sk = sk;
 	p->net = net;
-	RCU_INIT_POINTER(p->hook_entries, hook_entry);
 	p->okfn = okfn;
 }
 
@@ -150,7 +147,8 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 #endif
 
-int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
+int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
+		 struct nf_hook_entry *entry);
 
 /**
  *	nf_hook - call a netfilter hook
@@ -179,10 +177,10 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 	if (hook_head) {
 		struct nf_hook_state state;
 
-		nf_hook_state_init(&state, hook_head, hook, pf, indev, outdev,
+		nf_hook_state_init(&state, hook, pf, indev, outdev,
 				   sk, net, okfn);
 
-		ret = nf_hook_slow(skb, &state);
+		ret = nf_hook_slow(skb, &state, hook_head);
 	}
 	rcu_read_unlock();
 
