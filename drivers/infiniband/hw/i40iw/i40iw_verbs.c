@@ -2654,7 +2654,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.iwcm = kzalloc(sizeof(*iwibdev->ibdev.iwcm), GFP_KERNEL);
 	if (!iwibdev->ibdev.iwcm) {
 		ib_dealloc_device(&iwibdev->ibdev);
-		i40iw_pr_err("iwcm == NULL\n");
 		return NULL;
 	}
 

@@ -1675,7 +1675,6 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 					    "Allocating child listener %p\n",
 					    child_listen_node);
 				if (!child_listen_node) {
-					i40iw_pr_err("listener memory allocation\n");
 					ret = I40IW_ERR_NO_MEMORY;
 					goto exit;
 				}
@@ -1751,7 +1750,6 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 					    "Allocating child listener %p\n",
 					    child_listen_node);
 				if (!child_listen_node) {
-					i40iw_pr_err("listener memory allocation\n");
 					in_dev_put(idev);
 					ret = I40IW_ERR_NO_MEMORY;
 					goto exit;

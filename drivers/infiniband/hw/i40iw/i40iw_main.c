@@ -1301,10 +1301,9 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	size = sizeof(struct i40iw_hmc_pble_rsrc) + sizeof(struct i40iw_hmc_info) +
 				(sizeof(struct i40iw_hmc_obj_info) * I40IW_HMC_IW_MAX);
 	iwdev->hmc_info_mem = kzalloc(size, GFP_KERNEL);
-	if (!iwdev->hmc_info_mem) {
-		i40iw_pr_err("memory alloc fail\n");
+	if (!iwdev->hmc_info_mem)
 		return I40IW_ERR_NO_MEMORY;
-	}
+
 	iwdev->pble_rsrc = (struct i40iw_hmc_pble_rsrc *)iwdev->hmc_info_mem;
 	dev->hmc_info = &iwdev->hw.hmc;
 	dev->hmc_info->hmc_obj = (struct i40iw_hmc_obj_info *)(iwdev->pble_rsrc + 1);
