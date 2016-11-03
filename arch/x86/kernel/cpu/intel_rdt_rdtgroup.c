@@ -691,8 +691,10 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 	closid_init();
 
 	ret = rdtgroup_create_info_dir(rdtgroup_default.kn);
-	if (ret)
+	if (ret) {
+		dentry = ERR_PTR(ret);
 		goto out_cdp;
+	}
 
 	dentry = kernfs_mount(fs_type, flags, rdt_root,
 			      RDTGROUP_SUPER_MAGIC, NULL);
