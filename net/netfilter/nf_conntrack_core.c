@@ -1305,7 +1305,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (skb->nfct)
 			goto out;
 	}
-
+repeat:
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
@@ -1345,11 +1345,12 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:
 	if (tmpl) {
-		/* Special case: we have to repeat this hook, assign the
-		 * template again to this packet. We assume that this packet
-		 * has no conntrack assigned. This is used by nf_ct_tcp. */
+		/* Special case: TCP tracker reports an attempt to reopen a
+		 * closed/aborted connection. We have to go back and create a
+		 * fresh conntrack.
+		 */
 		if (ret == NF_REPEAT)
-			skb->nfct = (struct nf_conntrack *)tmpl;
+			goto repeat;
 		else
 			nf_ct_put(tmpl);
 	}
