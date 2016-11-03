@@ -561,8 +561,8 @@ static int br_nf_forward_finish(struct net *net, struct sock *sk, struct sk_buff
 	}
 	nf_bridge_push_encap_header(skb);
 
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_FORWARD, net, sk, skb,
-		       in, skb->dev, br_forward_finish, 1);
+	br_nf_hook_thresh(NF_BR_FORWARD, net, sk, skb, in, skb->dev,
+			  br_forward_finish);
 	return 0;
 }
 
@@ -1016,8 +1016,8 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
-	nf_hook_state_init(&state, elem, hook, NF_BR_PRI_BRNF + 1,
-			   NFPROTO_BRIDGE, indev, outdev, sk, net, okfn);
+	nf_hook_state_init(&state, elem, hook, NFPROTO_BRIDGE, indev, outdev,
+			   sk, net, okfn);
 
 	ret = nf_hook_slow(skb, &state);
 	rcu_read_unlock();

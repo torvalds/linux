@@ -309,10 +309,6 @@ unsigned int nf_iterate(struct sk_buff *skb,
 	unsigned int verdict;
 
 	while (*entryp) {
-		if (state->thresh > (*entryp)->ops.priority) {
-			*entryp = rcu_dereference((*entryp)->next);
-			continue;
-		}
 repeat:
 		verdict = (*entryp)->ops.hook((*entryp)->ops.priv, skb, state);
 		if (verdict != NF_ACCEPT) {

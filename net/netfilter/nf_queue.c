@@ -200,8 +200,6 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 			verdict = NF_DROP;
 	}
 
-	entry->state.thresh = INT_MIN;
-
 	if (verdict == NF_ACCEPT) {
 		hook_entry = rcu_dereference(hook_entry->next);
 		if (hook_entry)
