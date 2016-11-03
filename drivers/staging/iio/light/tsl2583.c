@@ -564,19 +564,9 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 		goto done;
 	}
 
-	if (chip->taos_chip_status == TSL258X_CHIP_WORKING) {
-		ret = taos_chip_off(indio_dev);
-		if (ret < 0)
-			goto done;
-	}
-
 	/* Zero out the table */
 	memset(taos_device_lux, 0, sizeof(taos_device_lux));
 	memcpy(taos_device_lux, &value[1], (value[0] * 4));
-
-	ret = taos_chip_on(indio_dev);
-	if (ret < 0)
-		goto done;
 
 	ret = len;
 
