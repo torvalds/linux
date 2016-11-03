@@ -2319,8 +2319,10 @@ static void efx_ef10_set_rss_flags(struct efx_nic *efx, u32 context)
 	flags |= RSS_MODE_HASH_PORTS << MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_UDP_IPV4_RSS_MODE_LBN;
 	flags |= RSS_MODE_HASH_PORTS << MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_UDP_IPV6_RSS_MODE_LBN;
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_SET_FLAGS_IN_FLAGS, flags);
-	efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_FLAGS, inbuf, sizeof(inbuf),
-		     NULL, 0, NULL);
+	if (!efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_FLAGS, inbuf, sizeof(inbuf),
+			  NULL, 0, NULL))
+		/* Succeeded, so UDP 4-tuple is now enabled */
+		efx->rx_hash_udp_4tuple = true;
 }
 
 static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
