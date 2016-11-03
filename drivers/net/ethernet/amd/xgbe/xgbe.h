@@ -804,6 +804,7 @@ struct xgbe_hw_features {
 struct xgbe_version_data {
 	void (*init_function_ptrs_phy_impl)(struct xgbe_phy_if *);
 	enum xgbe_xpcs_access xpcs_access;
+	unsigned int mmc_64bit;
 };
 
 struct xgbe_prv_data {

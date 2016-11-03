@@ -2588,17 +2588,33 @@ static u64 xgbe_mmc_read(struct xgbe_prv_data *pdata, unsigned int reg_lo)
 	bool read_hi;
 	u64 val;
 
-	switch (reg_lo) {
-	/* These registers are always 64 bit */
-	case MMC_TXOCTETCOUNT_GB_LO:
-	case MMC_TXOCTETCOUNT_G_LO:
-	case MMC_RXOCTETCOUNT_GB_LO:
-	case MMC_RXOCTETCOUNT_G_LO:
-		read_hi = true;
-		break;
+	if (pdata->vdata->mmc_64bit) {
+		switch (reg_lo) {
+		/* These registers are always 32 bit */
+		case MMC_RXRUNTERROR:
+		case MMC_RXJABBERERROR:
+		case MMC_RXUNDERSIZE_G:
+		case MMC_RXOVERSIZE_G:
+		case MMC_RXWATCHDOGERROR:
+			read_hi = false;
+			break;
 
-	default:
-		read_hi = false;
+		default:
+			read_hi = true;
+		}
+	} else {
+		switch (reg_lo) {
+		/* These registers are always 64 bit */
+		case MMC_TXOCTETCOUNT_GB_LO:
+		case MMC_TXOCTETCOUNT_G_LO:
+		case MMC_RXOCTETCOUNT_GB_LO:
+		case MMC_RXOCTETCOUNT_G_LO:
+			read_hi = true;
+			break;
+
+		default:
+			read_hi = false;
+		}
 	}
 
 	val = XGMAC_IOREAD(pdata, reg_lo);
