@@ -56,6 +56,27 @@ static inline int intel_gvt_hypervisor_detect_host(void)
 }
 
 /**
+ * intel_gvt_hypervisor_host_init - init GVT-g host side
+ *
+ * Returns:
+ * Zero on success, negative error code if failed
+ */
+static inline int intel_gvt_hypervisor_host_init(struct device *dev,
+			void *gvt, const void *ops)
+{
+	return intel_gvt_host.mpt->host_init(dev, gvt, ops);
+}
+
+/**
+ * intel_gvt_hypervisor_host_exit - exit GVT-g host side
+ */
+static inline void intel_gvt_hypervisor_host_exit(struct device *dev,
+			void *gvt)
+{
+	intel_gvt_host.mpt->host_exit(dev, gvt);
+}
+
+/**
  * intel_gvt_hypervisor_attach_vgpu - call hypervisor to initialize vGPU
  * related stuffs inside hypervisor.
  *

@@ -193,6 +193,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_clean_mmio_info(gvt);
 	intel_gvt_free_firmware(gvt);
 
+	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
 	kfree(dev_priv->gvt);
@@ -276,11 +277,19 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_thread;
 
+	ret = intel_gvt_hypervisor_host_init(&dev_priv->drm.pdev->dev, gvt,
+				&intel_gvt_io_emulation_ops);
+	if (ret) {
+		gvt_err("failed to register gvt-g host device: %d\n", ret);
+		goto out_clean_types;
+	}
 
 	gvt_dbg_core("gvt device initialization is done\n");
 	dev_priv->gvt = gvt;
 	return 0;
 
+out_clean_types:
+	intel_gvt_clean_vgpu_types(gvt);
 out_clean_thread:
 	clean_service_thread(gvt);
 out_clean_cmd_parser:
