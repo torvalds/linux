@@ -1257,33 +1257,33 @@ static void xgbe_dump_phy_registers(struct xgbe_prv_data *pdata)
 
 	dev_dbg(dev, "\n************* PHY Reg dump **********************\n");
 
-	dev_dbg(dev, "PCS Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
+	dev_dbg(dev, "PCS Control Reg (%#06x) = %#06x\n", MDIO_CTRL1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1));
-	dev_dbg(dev, "PCS Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
+	dev_dbg(dev, "PCS Status Reg (%#06x) = %#06x\n", MDIO_STAT1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_STAT1));
-	dev_dbg(dev, "Phy Id (PHYS ID 1 %#04x)= %#04x\n", MDIO_DEVID1,
+	dev_dbg(dev, "Phy Id (PHYS ID 1 %#06x)= %#06x\n", MDIO_DEVID1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID1));
-	dev_dbg(dev, "Phy Id (PHYS ID 2 %#04x)= %#04x\n", MDIO_DEVID2,
+	dev_dbg(dev, "Phy Id (PHYS ID 2 %#06x)= %#06x\n", MDIO_DEVID2,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID2));
-	dev_dbg(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS1,
+	dev_dbg(dev, "Devices in Package (%#06x)= %#06x\n", MDIO_DEVS1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS1));
-	dev_dbg(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS2,
+	dev_dbg(dev, "Devices in Package (%#06x)= %#06x\n", MDIO_DEVS2,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS2));
 
-	dev_dbg(dev, "Auto-Neg Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
+	dev_dbg(dev, "Auto-Neg Control Reg (%#06x) = %#06x\n", MDIO_CTRL1,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_CTRL1));
-	dev_dbg(dev, "Auto-Neg Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
+	dev_dbg(dev, "Auto-Neg Status Reg (%#06x) = %#06x\n", MDIO_STAT1,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_STAT1));
-	dev_dbg(dev, "Auto-Neg Ad Reg 1 (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Ad Reg 1 (%#06x) = %#06x\n",
 		MDIO_AN_ADVERTISE,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE));
-	dev_dbg(dev, "Auto-Neg Ad Reg 2 (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Ad Reg 2 (%#06x) = %#06x\n",
 		MDIO_AN_ADVERTISE + 1,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1));
-	dev_dbg(dev, "Auto-Neg Ad Reg 3 (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Ad Reg 3 (%#06x) = %#06x\n",
 		MDIO_AN_ADVERTISE + 2,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2));
-	dev_dbg(dev, "Auto-Neg Completion Reg (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Completion Reg (%#06x) = %#06x\n",
 		MDIO_AN_COMP_STAT,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_COMP_STAT));
 
