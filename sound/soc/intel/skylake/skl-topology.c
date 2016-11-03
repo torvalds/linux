@@ -1519,6 +1519,10 @@ static int skl_tplg_fill_pipe_tkn(struct device *dev,
 		pipe->memory_pages = tkn_val;
 		break;
 
+	case SKL_TKN_U32_PMODE:
+		pipe->lp_mode = tkn_val;
+		break;
+
 	default:
 		dev_err(dev, "Token not handled %d\n", tkn);
 		return -EINVAL;
@@ -1841,6 +1845,7 @@ static int skl_tplg_get_token(struct device *dev,
 	case SKL_TKN_U32_PIPE_CONN_TYPE:
 	case SKL_TKN_U32_PIPE_PRIORITY:
 	case SKL_TKN_U32_PIPE_MEM_PGS:
+	case SKL_TKN_U32_PMODE:
 		if (is_pipe_exists) {
 			ret = skl_tplg_fill_pipe_tkn(dev, mconfig->pipe,
 					tkn_elem->token, tkn_elem->value);

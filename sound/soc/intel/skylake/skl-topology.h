@@ -279,6 +279,7 @@ struct skl_pipe {
 	u8 pipe_priority;
 	u16 conn_type;
 	u32 memory_pages;
+	u8 lp_mode;
 	struct skl_pipe_params *p_params;
 	enum skl_pipe_state state;
 	struct list_head w_list;

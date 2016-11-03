@@ -1042,7 +1042,8 @@ int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe)
 	dev_dbg(ctx->dev, "%s: pipe_id = %d\n", __func__, pipe->ppl_id);
 
 	ret = skl_ipc_create_pipeline(&ctx->ipc, pipe->memory_pages,
-				pipe->pipe_priority, pipe->ppl_id);
+				pipe->pipe_priority, pipe->ppl_id,
+				pipe->lp_mode);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Failed to create pipeline\n");
 		return ret;

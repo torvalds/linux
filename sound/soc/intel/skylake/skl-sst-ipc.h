@@ -148,7 +148,7 @@ struct skl_ipc_d0ix_msg {
 irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context);
 
 int skl_ipc_create_pipeline(struct sst_generic_ipc *sst_ipc,
-		u16 ppl_mem_size, u8 ppl_type, u8 instance_id);
+		u16 ppl_mem_size, u8 ppl_type, u8 instance_id, u8 lp_mode);
 
 int skl_ipc_delete_pipeline(struct sst_generic_ipc *sst_ipc, u8 instance_id);
 

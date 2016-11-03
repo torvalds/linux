@@ -81,6 +81,11 @@
 #define IPC_INSTANCE_ID(x)		(((x) & IPC_INSTANCE_ID_MASK) \
 					<< IPC_INSTANCE_ID_SHIFT)
 
+#define IPC_PPL_LP_MODE_SHIFT           0
+#define IPC_PPL_LP_MODE_MASK            0x1
+#define IPC_PPL_LP_MODE(x)              (((x) & IPC_PPL_LP_MODE_MASK) \
+					<< IPC_PPL_LP_MODE_SHIFT)
+
 /* Set pipeline state message */
 #define IPC_PPL_STATE_SHIFT		0
 #define IPC_PPL_STATE_MASK		0x1F
@@ -559,7 +564,7 @@ void skl_ipc_free(struct sst_generic_ipc *ipc)
 }
 
 int skl_ipc_create_pipeline(struct sst_generic_ipc *ipc,
-		u16 ppl_mem_size, u8 ppl_type, u8 instance_id)
+		u16 ppl_mem_size, u8 ppl_type, u8 instance_id, u8 lp_mode)
 {
 	struct skl_ipc_header header = {0};
 	u64 *ipc_header = (u64 *)(&header);
@@ -571,6 +576,8 @@ int skl_ipc_create_pipeline(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_INSTANCE_ID(instance_id);
 	header.primary |= IPC_PPL_TYPE(ppl_type);
 	header.primary |= IPC_PPL_MEM_SIZE(ppl_mem_size);
+
+	header.extension = IPC_PPL_LP_MODE(lp_mode);
 
 	dev_dbg(ipc->dev, "In %s header=%d\n", __func__, header.primary);
 	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
