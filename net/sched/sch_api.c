@@ -960,6 +960,17 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 
 	sch->handle = handle;
 
+	/* This exist to keep backward compatible with a userspace
+	 * loophole, what allowed userspace to get IFF_NO_QUEUE
+	 * facility on older kernels by setting tx_queue_len=0 (prior
+	 * to qdisc init), and then forgot to reinit tx_queue_len
+	 * before again attaching a qdisc.
+	 */
+	if ((dev->priv_flags & IFF_NO_QUEUE) && (dev->tx_queue_len == 0)) {
+		dev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
+		netdev_info(dev, "Caught tx_queue_len zero misconfig\n");
+	}
+
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
 		if (qdisc_is_percpu_stats(sch)) {
 			sch->cpu_bstats =
