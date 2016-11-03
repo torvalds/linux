@@ -228,8 +228,9 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
 	if (!mutex_trylock(&dev->struct_mutex))
-		*unlock = false;
+		return false;
 
+	*unlock = true;
 	return true;
 }
 
