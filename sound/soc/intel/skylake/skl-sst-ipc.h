@@ -53,6 +53,23 @@ struct skl_dsp_cores {
 	int usage_count[SKL_DSP_CORES_MAX];
 };
 
+/**
+ * skl_d0i3_data: skl D0i3 counters data struct
+ *
+ * @streaming: Count of usecases that can attempt streaming D0i3
+ * @non_streaming: Count of usecases that can attempt non-streaming D0i3
+ * @non_d0i3: Count of usecases that cannot attempt D0i3
+ * @state: current state
+ * @work: D0i3 worker thread
+ */
+struct skl_d0i3_data {
+	int streaming;
+	int non_streaming;
+	int non_d0i3;
+	enum skl_dsp_d0i3_states state;
+	struct delayed_work work;
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -86,6 +103,8 @@ struct skl_sst {
 
 	/* Callback to update D0i3C register */
 	void (*update_d0i3c)(struct device *dev, bool enable);
+
+	struct skl_d0i3_data d0i3;
 };
 
 struct skl_ipc_init_instance_msg {
