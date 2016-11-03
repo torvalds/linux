@@ -472,6 +472,16 @@ static int rdt_cbm_mask_show(struct kernfs_open_file *of,
 	return 0;
 }
 
+static int rdt_min_cbm_bits_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%d\n", r->min_cbm_bits);
+
+	return 0;
+}
+
 /* rdtgroup information files for one cache resource. */
 static struct rftype res_info_files[] = {
 	{
@@ -485,6 +495,12 @@ static struct rftype res_info_files[] = {
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_cbm_mask_show,
+	},
+	{
+		.name		= "min_cbm_bits",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_min_cbm_bits_show,
 	},
 };
 
