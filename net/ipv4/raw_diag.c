@@ -79,10 +79,11 @@ static struct sock *raw_sock_get(struct net *net, const struct inet_diag_req_v2 
 				 * hashinfo->lock here.
 				 */
 				sock_hold(sk);
-				break;
+				goto out_unlock;
 			}
 		}
 	}
+out_unlock:
 	read_unlock(&hashinfo->lock);
 
 	return sk ? sk : ERR_PTR(-ENOENT);
@@ -205,11 +206,14 @@ static int raw_diag_destroy(struct sk_buff *in_skb,
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct sock *sk;
+	int err;
 
 	sk = raw_sock_get(net, r);
 	if (IS_ERR(sk))
 		return PTR_ERR(sk);
-	return sock_diag_destroy(sk, ECONNABORTED);
+	err = sock_diag_destroy(sk, ECONNABORTED);
+	sock_put(sk);
+	return err;
 }
 #endif
 
