@@ -437,6 +437,12 @@ int lkl_if_del_ip(int ifindex, int af, void *addr, unsigned int netprefix_len);
  */
 int lkl_if_wait_ipv6_dad(int ifindex, void *addr);
 
+/**
+ * lkl_set_fd_limit - set the maximum number of file descriptors allowed
+ * @fd_limit - fd max limit
+ */
+int lkl_set_fd_limit(unsigned int fd_limit);
+
 #ifdef __cplusplus
 }
 #endif

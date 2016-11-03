@@ -323,7 +323,7 @@ hijack_init(void)
 	if (single_cpu_mode == 1)
 		PinToFirstCpu(&ori_cpu);
 
-	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, "");
+	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024UL, "");
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return;
@@ -334,6 +334,11 @@ hijack_init(void)
 	/* restore cpu affinity */
 	if (single_cpu_mode)
 		PinToCpus(&ori_cpu);
+
+	ret = lkl_set_fd_limit(65535);
+	if (ret)
+		fprintf(stderr, "lkl_set_fd_limit failed: %s\n",
+			lkl_strerror(ret));
 
 	/* fillup FDs up to LKL_FD_OFFSET */
 	ret = lkl_sys_mknod("/dev_null", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 3));

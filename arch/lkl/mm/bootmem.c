@@ -7,9 +7,9 @@ static unsigned long _memory_start, mem_size;
 
 void *empty_zero_page;
 
-void __init bootmem_init(int mem_size)
+void __init bootmem_init(unsigned long mem_size)
 {
-	int bootmap_size;
+	unsigned long bootmap_size;
 
 	_memory_start = (unsigned long)lkl_ops->mem_alloc(mem_size);
 	memory_start = _memory_start;
