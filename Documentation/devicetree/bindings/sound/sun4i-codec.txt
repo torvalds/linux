@@ -22,6 +22,31 @@ Optional properties:
 Required properties for the following compatibles:
 		- "allwinner,sun6i-a31-codec"
 - resets: phandle to the reset control for this device
+- allwinner,audio-routing: A list of the connections between audio components.
+			   Each entry is a pair of strings, the first being the
+			   connection's sink, the second being the connection's
+			   source. Valid names include:
+
+			   Audio pins on the SoC:
+			   "HP"
+			   "HPCOM"
+			   "LINEIN"
+			   "LINEOUT"
+			   "MIC1"
+			   "MIC2"
+			   "MIC3"
+
+			   Microphone biases from the SoC:
+			   "HBIAS"
+			   "MBIAS"
+
+			   Board connectors:
+			   "Headphone"
+			   "Headset Mic"
+			   "Line In"
+			   "Line Out"
+			   "Mic"
+			   "Speaker"
 
 Example:
 codec: codec@01c22c00 {
@@ -45,4 +70,12 @@ codec: codec@01c22c00 {
 	resets = <&ccu RST_APB1_CODEC>;
 	dmas = <&dma 15>, <&dma 15>;
 	dma-names = "rx", "tx";
+	allwinner,audio-routing =
+		"Headphone", "HP",
+		"Speaker", "LINEOUT",
+		"LINEIN", "Line In",
+		"MIC1",	"MBIAS",
+		"MIC1", "Mic",
+		"MIC2", "HBIAS",
+		"MIC2", "Headset Mic";
 };
