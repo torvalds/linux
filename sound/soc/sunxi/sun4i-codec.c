@@ -776,6 +776,14 @@ static const struct snd_kcontrol_new sun6i_codec_mixer_controls[] = {
 			SUN6I_CODEC_OM_DACA_CTRL,
 			SUN6I_CODEC_OM_DACA_CTRL_LMIX_LINEINL,
 			SUN6I_CODEC_OM_DACA_CTRL_RMIX_LINEINR, 1, 0),
+	SOC_DAPM_DOUBLE("Mic1 Playback Switch",
+			SUN6I_CODEC_OM_DACA_CTRL,
+			SUN6I_CODEC_OM_DACA_CTRL_LMIX_MIC1,
+			SUN6I_CODEC_OM_DACA_CTRL_RMIX_MIC1, 1, 0),
+	SOC_DAPM_DOUBLE("Mic2 Playback Switch",
+			SUN6I_CODEC_OM_DACA_CTRL,
+			SUN6I_CODEC_OM_DACA_CTRL_LMIX_MIC2,
+			SUN6I_CODEC_OM_DACA_CTRL_RMIX_MIC2, 1, 0),
 };
 
 /* headphone controls */
@@ -792,6 +800,21 @@ static SOC_ENUM_DOUBLE_DECL(sun6i_codec_hp_src_enum,
 static const struct snd_kcontrol_new sun6i_codec_hp_src[] = {
 	SOC_DAPM_ENUM("Headphone Source Playback Route",
 		      sun6i_codec_hp_src_enum),
+};
+
+/* microphone controls */
+static const char * const sun6i_codec_mic2_src_enum_text[] = {
+	"Mic2", "Mic3",
+};
+
+static SOC_ENUM_SINGLE_DECL(sun6i_codec_mic2_src_enum,
+			    SUN6I_CODEC_MIC_CTRL,
+			    SUN6I_CODEC_MIC_CTRL_MIC2SLT,
+			    sun6i_codec_mic2_src_enum_text);
+
+static const struct snd_kcontrol_new sun6i_codec_mic2_src[] = {
+	SOC_DAPM_ENUM("Mic2 Amplifier Source Route",
+		      sun6i_codec_mic2_src_enum),
 };
 
 /* line out controls */
@@ -819,6 +842,10 @@ static const DECLARE_TLV_DB_RANGE(sun6i_codec_lineout_vol_scale,
 	0, 1, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 	2, 31, TLV_DB_SCALE_ITEM(-4350, 150, 0),
 );
+static const DECLARE_TLV_DB_RANGE(sun6i_codec_mic_gain_scale,
+	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
+	1, 7, TLV_DB_SCALE_ITEM(2400, 300, 0),
+);
 
 static const struct snd_kcontrol_new sun6i_codec_codec_widgets[] = {
 	SOC_SINGLE_TLV("DAC Playback Volume", SUN4I_CODEC_DAC_DPC,
@@ -844,9 +871,42 @@ static const struct snd_kcontrol_new sun6i_codec_codec_widgets[] = {
 	SOC_SINGLE_TLV("Line In Playback Volume",
 		       SUN6I_CODEC_OM_PA_CTRL, SUN6I_CODEC_OM_PA_CTRL_LINEING,
 		       0x7, 0, sun6i_codec_out_mixer_pregain_scale),
+	SOC_SINGLE_TLV("Mic1 Playback Volume",
+		       SUN6I_CODEC_OM_PA_CTRL, SUN6I_CODEC_OM_PA_CTRL_MIC1G,
+		       0x7, 0, sun6i_codec_out_mixer_pregain_scale),
+	SOC_SINGLE_TLV("Mic2 Playback Volume",
+		       SUN6I_CODEC_OM_PA_CTRL, SUN6I_CODEC_OM_PA_CTRL_MIC2G,
+		       0x7, 0, sun6i_codec_out_mixer_pregain_scale),
+
+	/* Microphone Amp boost gains */
+	SOC_SINGLE_TLV("Mic1 Boost Volume", SUN6I_CODEC_MIC_CTRL,
+		       SUN6I_CODEC_MIC_CTRL_MIC1BOOST, 0x7, 0,
+		       sun6i_codec_mic_gain_scale),
+	SOC_SINGLE_TLV("Mic2 Boost Volume", SUN6I_CODEC_MIC_CTRL,
+		       SUN6I_CODEC_MIC_CTRL_MIC2BOOST, 0x7, 0,
+		       sun6i_codec_mic_gain_scale),
 };
 
 static const struct snd_soc_dapm_widget sun6i_codec_codec_dapm_widgets[] = {
+	/* Microphone inputs */
+	SND_SOC_DAPM_INPUT("MIC1"),
+	SND_SOC_DAPM_INPUT("MIC2"),
+	SND_SOC_DAPM_INPUT("MIC3"),
+
+	/* Microphone Bias */
+	SND_SOC_DAPM_SUPPLY("HBIAS", SUN6I_CODEC_MIC_CTRL,
+			    SUN6I_CODEC_MIC_CTRL_HBIASEN, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MBIAS", SUN6I_CODEC_MIC_CTRL,
+			    SUN6I_CODEC_MIC_CTRL_MBIASEN, 0, NULL, 0),
+
+	/* Mic input path */
+	SND_SOC_DAPM_MUX("Mic2 Amplifier Source Route",
+			 SND_SOC_NOPM, 0, 0, sun6i_codec_mic2_src),
+	SND_SOC_DAPM_PGA("Mic1 Amplifier", SUN6I_CODEC_MIC_CTRL,
+			 SUN6I_CODEC_MIC_CTRL_MIC1AMPEN, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Mic2 Amplifier", SUN6I_CODEC_MIC_CTRL,
+			 SUN6I_CODEC_MIC_CTRL_MIC2AMPEN, 0, NULL, 0),
+
 	/* Line In */
 	SND_SOC_DAPM_INPUT("LINEIN"),
 
@@ -893,15 +953,25 @@ static const struct snd_soc_dapm_route sun6i_codec_codec_dapm_routes[] = {
 	{ "Left DAC", NULL, "DAC Enable" },
 	{ "Right DAC", NULL, "DAC Enable" },
 
+	/* Microphone Routes */
+	{ "Mic1 Amplifier", NULL, "MIC1"},
+	{ "Mic2 Amplifier Source Route", "Mic2", "MIC2" },
+	{ "Mic2 Amplifier Source Route", "Mic3", "MIC3" },
+	{ "Mic2 Amplifier", NULL, "Mic2 Amplifier Source Route"},
+
 	/* Left Mixer Routes */
 	{ "Left Mixer", "DAC Playback Switch", "Left DAC" },
 	{ "Left Mixer", "DAC Reversed Playback Switch", "Right DAC" },
 	{ "Left Mixer", "Line In Playback Switch", "LINEIN" },
+	{ "Left Mixer", "Mic1 Playback Switch", "Mic1 Amplifier" },
+	{ "Left Mixer", "Mic2 Playback Switch", "Mic2 Amplifier" },
 
 	/* Right Mixer Routes */
 	{ "Right Mixer", "DAC Playback Switch", "Right DAC" },
 	{ "Right Mixer", "DAC Reversed Playback Switch", "Left DAC" },
 	{ "Right Mixer", "Line In Playback Switch", "LINEIN" },
+	{ "Right Mixer", "Mic1 Playback Switch", "Mic1 Amplifier" },
+	{ "Right Mixer", "Mic2 Playback Switch", "Mic2 Amplifier" },
 
 	/* Headphone Routes */
 	{ "Headphone Source Playback Route", "DAC", "Left DAC" },
