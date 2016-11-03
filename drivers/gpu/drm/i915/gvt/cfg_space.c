@@ -82,9 +82,8 @@ static int map_aperture(struct intel_vgpu *vgpu, bool map)
 
 	ret = intel_gvt_hypervisor_map_gfn_to_mfn(vgpu, first_gfn,
 						  first_mfn,
-						  vgpu_aperture_sz(vgpu)
-						  >> PAGE_SHIFT, map,
-						  GVT_MAP_APERTURE);
+						  vgpu_aperture_sz(vgpu) >>
+						  PAGE_SHIFT, map);
 	if (ret)
 		return ret;
 

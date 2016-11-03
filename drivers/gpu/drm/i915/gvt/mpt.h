@@ -224,11 +224,6 @@ static inline unsigned long intel_gvt_hypervisor_gfn_to_mfn(
 	return intel_gvt_host.mpt->gfn_to_mfn(vgpu->handle, gfn);
 }
 
-enum {
-	GVT_MAP_APERTURE = 0,
-	GVT_MAP_OPREGION,
-};
-
 /**
  * intel_gvt_hypervisor_map_gfn_to_mfn - map a GFN region to MFN
  * @vgpu: a vGPU
@@ -236,7 +231,6 @@ enum {
  * @mfn: host PFN
  * @nr: amount of PFNs
  * @map: map or unmap
- * @type: map type
  *
  * Returns:
  * Zero on success, negative error code if failed.
@@ -244,10 +238,10 @@ enum {
 static inline int intel_gvt_hypervisor_map_gfn_to_mfn(
 		struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long mfn, unsigned int nr,
-		bool map, int type)
+		bool map)
 {
 	return intel_gvt_host.mpt->map_gfn_to_mfn(vgpu->handle, gfn, mfn, nr,
-						  map, type);
+						  map);
 }
 
 /**

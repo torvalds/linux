@@ -60,8 +60,7 @@ struct intel_gvt_mpt {
 			 unsigned long len);
 	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
 	int (*map_gfn_to_mfn)(unsigned long handle, unsigned long gfn,
-			      unsigned long mfn, unsigned int nr, bool map,
-			      int type);
+			      unsigned long mfn, unsigned int nr, bool map);
 	int (*set_trap_area)(unsigned long handle, u64 start, u64 end,
 			     bool map);
 };
