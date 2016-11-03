@@ -27,7 +27,7 @@
 #include "ohci.h"
 
 #define DRIVER_DESC "DA8XX"
-#define DRV_NAME "ohci"
+#define DRV_NAME "ohci-da8xx"
 
 static struct hc_driver __read_mostly ohci_da8xx_hc_driver;
 
