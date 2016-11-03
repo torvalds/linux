@@ -158,6 +158,7 @@
 
 #define XGBE_MAX_DMA_CHANNELS	16
 #define XGBE_MAX_QUEUES		16
+#define XGBE_PRIORITY_QUEUES	8
 #define XGBE_DMA_STOP_TIMEOUT	5
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
@@ -177,6 +178,13 @@
 #define XGMAC_MAX_STD_PACKET	1518
 #define XGMAC_JUMBO_PACKET_MTU	9000
 #define XGMAC_MAX_JUMBO_PACKET	9018
+#define XGMAC_ETH_PREAMBLE	(12 + 8)	/* Inter-frame gap + preamble */
+
+#define XGMAC_PFC_DATA_LEN	46
+#define XGMAC_PFC_DELAYS	14000
+
+#define XGMAC_PRIO_QUEUES(_cnt)					\
+	min_t(unsigned int, IEEE_8021QAZ_MAX_TCS, (_cnt))
 
 /* Common property names */
 #define XGBE_MAC_ADDR_PROPERTY	"mac-address"
@@ -210,6 +218,12 @@
 
 #define XGMAC_FIFO_RX_MAX	81920
 #define XGMAC_FIFO_TX_MAX	81920
+#define XGMAC_FIFO_MIN_ALLOC	2048
+#define XGMAC_FIFO_UNIT		256
+#define XGMAC_FIFO_ALIGN(_x)				\
+	(((_x) + XGMAC_FIFO_UNIT - 1) & ~(XGMAC_FIFO_UNIT - 1))
+#define XGMAC_FIFO_FC_OFF	2048
+#define XGMAC_FIFO_FC_MIN	4096
 
 #define XGBE_TC_MIN_QUANTUM	10
 
@@ -233,6 +247,14 @@
 
 /* Flow control queue count */
 #define XGMAC_MAX_FLOW_CONTROL_QUEUES	8
+
+/* Flow control threshold units */
+#define XGMAC_FLOW_CONTROL_UNIT		512
+#define XGMAC_FLOW_CONTROL_ALIGN(_x)				\
+	(((_x) + XGMAC_FLOW_CONTROL_UNIT - 1) & ~(XGMAC_FLOW_CONTROL_UNIT - 1))
+#define XGMAC_FLOW_CONTROL_VALUE(_x)				\
+	(((_x) < 1024) ? 0 : ((_x) / XGMAC_FLOW_CONTROL_UNIT) - 2)
+#define XGMAC_FLOW_CONTROL_MAX		33280
 
 /* Maximum MAC address hash table size (256 bits = 8 bytes) */
 #define XGBE_MAC_HASH_TABLE_SIZE	8
@@ -843,6 +865,8 @@ struct xgbe_prv_data {
 	unsigned int pause_autoneg;
 	unsigned int tx_pause;
 	unsigned int rx_pause;
+	unsigned int rx_rfa[XGBE_MAX_QUEUES];
+	unsigned int rx_rfd[XGBE_MAX_QUEUES];
 
 	/* Receive Side Scaling settings */
 	u8 rss_key[XGBE_RSS_HASH_KEY_SIZE];
@@ -882,6 +906,8 @@ struct xgbe_prv_data {
 	struct ieee_pfc *pfc;
 	unsigned int q2tc_map[XGBE_MAX_QUEUES];
 	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
+	unsigned int pfcq[XGBE_MAX_QUEUES];
+	unsigned int pfc_rfa;
 	u8 num_tcs;
 
 	/* Hardware features of the device */

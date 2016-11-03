@@ -123,6 +123,11 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
+static inline unsigned int xgbe_get_max_frame(struct xgbe_prv_data *pdata)
+{
+	return pdata->netdev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+}
+
 static unsigned int xgbe_usec_to_riwt(struct xgbe_prv_data *pdata,
 				      unsigned int usec)
 {
@@ -491,6 +496,27 @@ static void xgbe_config_rss(struct xgbe_prv_data *pdata)
 			   "error configuring RSS, RSS disabled\n");
 }
 
+static bool xgbe_is_pfc_queue(struct xgbe_prv_data *pdata,
+			      unsigned int queue)
+{
+	unsigned int prio, tc;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+		/* Does this queue handle the priority? */
+		if (pdata->prio2q_map[prio] != queue)
+			continue;
+
+		/* Get the Traffic Class for this priority */
+		tc = pdata->ets->prio_tc[prio];
+
+		/* Check if PFC is enabled for this traffic class */
+		if (pdata->pfc->pfc_en & (1 << tc))
+			return true;
+	}
+
+	return false;
+}
+
 static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
 	unsigned int max_q_count, q_count;
@@ -528,27 +554,14 @@ static int xgbe_enable_tx_flow_control(struct xgbe_prv_data *pdata)
 	for (i = 0; i < pdata->rx_q_count; i++) {
 		unsigned int ehfc = 0;
 
-		if (pfc && ets) {
-			unsigned int prio;
-
-			for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
-				unsigned int tc;
-
-				/* Does this queue handle the priority? */
-				if (pdata->prio2q_map[prio] != i)
-					continue;
-
-				/* Get the Traffic Class for this priority */
-				tc = ets->prio_tc[prio];
-
-				/* Check if flow control should be enabled */
-				if (pfc->pfc_en & (1 << tc)) {
+		if (pdata->rx_rfd[i]) {
+			/* Flow control thresholds are established */
+			if (pfc && ets) {
+				if (xgbe_is_pfc_queue(pdata, i))
 					ehfc = 1;
-					break;
-				}
+			} else {
+				ehfc = 1;
 			}
-		} else {
-			ehfc = 1;
 		}
 
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, EHFC, ehfc);
@@ -1327,106 +1340,6 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 	return 0;
 }
 
-static void xgbe_config_tc(struct xgbe_prv_data *pdata)
-{
-	unsigned int offset, queue, prio;
-	u8 i;
-
-	netdev_reset_tc(pdata->netdev);
-	if (!pdata->num_tcs)
-		return;
-
-	netdev_set_num_tc(pdata->netdev, pdata->num_tcs);
-
-	for (i = 0, queue = 0, offset = 0; i < pdata->num_tcs; i++) {
-		while ((queue < pdata->tx_q_count) &&
-		       (pdata->q2tc_map[queue] == i))
-			queue++;
-
-		netif_dbg(pdata, drv, pdata->netdev, "TC%u using TXq%u-%u\n",
-			  i, offset, queue - 1);
-		netdev_set_tc_queue(pdata->netdev, i, queue - offset, offset);
-		offset = queue;
-	}
-
-	if (!pdata->ets)
-		return;
-
-	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
-		netdev_set_prio_tc_map(pdata->netdev, prio,
-				       pdata->ets->prio_tc[prio]);
-}
-
-static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
-{
-	struct ieee_ets *ets = pdata->ets;
-	unsigned int total_weight, min_weight, weight;
-	unsigned int mask, reg, reg_val;
-	unsigned int i, prio;
-
-	if (!ets)
-		return;
-
-	/* Set Tx to deficit weighted round robin scheduling algorithm (when
-	 * traffic class is using ETS algorithm)
-	 */
-	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, ETSALG, MTL_ETSALG_DWRR);
-
-	/* Set Traffic Class algorithms */
-	total_weight = pdata->netdev->mtu * pdata->hw_feat.tc_cnt;
-	min_weight = total_weight / 100;
-	if (!min_weight)
-		min_weight = 1;
-
-	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
-		/* Map the priorities to the traffic class */
-		mask = 0;
-		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
-			if (ets->prio_tc[prio] == i)
-				mask |= (1 << prio);
-		}
-		mask &= 0xff;
-
-		netif_dbg(pdata, drv, pdata->netdev, "TC%u PRIO mask=%#x\n",
-			  i, mask);
-		reg = MTL_TCPM0R + (MTL_TCPM_INC * (i / MTL_TCPM_TC_PER_REG));
-		reg_val = XGMAC_IOREAD(pdata, reg);
-
-		reg_val &= ~(0xff << ((i % MTL_TCPM_TC_PER_REG) << 3));
-		reg_val |= (mask << ((i % MTL_TCPM_TC_PER_REG) << 3));
-
-		XGMAC_IOWRITE(pdata, reg, reg_val);
-
-		/* Set the traffic class algorithm */
-		switch (ets->tc_tsa[i]) {
-		case IEEE_8021QAZ_TSA_STRICT:
-			netif_dbg(pdata, drv, pdata->netdev,
-				  "TC%u using SP\n", i);
-			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
-					       MTL_TSA_SP);
-			break;
-		case IEEE_8021QAZ_TSA_ETS:
-			weight = total_weight * ets->tc_tx_bw[i] / 100;
-			weight = clamp(weight, min_weight, total_weight);
-
-			netif_dbg(pdata, drv, pdata->netdev,
-				  "TC%u using DWRR (weight %u)\n", i, weight);
-			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
-					       MTL_TSA_ETS);
-			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_QWR, QW,
-					       weight);
-			break;
-		}
-	}
-
-	xgbe_config_tc(pdata);
-}
-
-static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
-{
-	xgbe_config_flow_control(pdata);
-}
-
 static void xgbe_tx_start_xmit(struct xgbe_channel *channel,
 			       struct xgbe_ring *ring)
 {
@@ -2000,6 +1913,96 @@ static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, RAA, MTL_RAA_SP);
 }
 
+static void xgbe_queue_flow_control_threshold(struct xgbe_prv_data *pdata,
+					      unsigned int queue,
+					      unsigned int q_fifo_size)
+{
+	unsigned int frame_fifo_size;
+	unsigned int rfa, rfd;
+
+	frame_fifo_size = XGMAC_FLOW_CONTROL_ALIGN(xgbe_get_max_frame(pdata));
+
+	if (pdata->pfcq[queue] && (q_fifo_size > pdata->pfc_rfa)) {
+		/* PFC is active for this queue */
+		rfa = pdata->pfc_rfa;
+		rfd = rfa + frame_fifo_size;
+		if (rfd > XGMAC_FLOW_CONTROL_MAX)
+			rfd = XGMAC_FLOW_CONTROL_MAX;
+		if (rfa >= XGMAC_FLOW_CONTROL_MAX)
+			rfa = XGMAC_FLOW_CONTROL_MAX - XGMAC_FLOW_CONTROL_UNIT;
+	} else {
+		/* This path deals with just maximum frame sizes which are
+		 * limited to a jumbo frame of 9,000 (plus headers, etc.)
+		 * so we can never exceed the maximum allowable RFA/RFD
+		 * values.
+		 */
+		if (q_fifo_size <= 2048) {
+			/* rx_rfd to zero to signal no flow control */
+			pdata->rx_rfa[queue] = 0;
+			pdata->rx_rfd[queue] = 0;
+			return;
+		}
+
+		if (q_fifo_size <= 4096) {
+			/* Between 2048 and 4096 */
+			pdata->rx_rfa[queue] = 0;	/* Full - 1024 bytes */
+			pdata->rx_rfd[queue] = 1;	/* Full - 1536 bytes */
+			return;
+		}
+
+		if (q_fifo_size <= frame_fifo_size) {
+			/* Between 4096 and max-frame */
+			pdata->rx_rfa[queue] = 2;	/* Full - 2048 bytes */
+			pdata->rx_rfd[queue] = 5;	/* Full - 3584 bytes */
+			return;
+		}
+
+		if (q_fifo_size <= (frame_fifo_size * 3)) {
+			/* Between max-frame and 3 max-frames,
+			 * trigger if we get just over a frame of data and
+			 * resume when we have just under half a frame left.
+			 */
+			rfa = q_fifo_size - frame_fifo_size;
+			rfd = rfa + (frame_fifo_size / 2);
+		} else {
+			/* Above 3 max-frames - trigger when just over
+			 * 2 frames of space available
+			 */
+			rfa = frame_fifo_size * 2;
+			rfa += XGMAC_FLOW_CONTROL_UNIT;
+			rfd = rfa + frame_fifo_size;
+		}
+	}
+
+	pdata->rx_rfa[queue] = XGMAC_FLOW_CONTROL_VALUE(rfa);
+	pdata->rx_rfd[queue] = XGMAC_FLOW_CONTROL_VALUE(rfd);
+}
+
+static void xgbe_calculate_flow_control_threshold(struct xgbe_prv_data *pdata,
+						  unsigned int *fifo)
+{
+	unsigned int q_fifo_size;
+	unsigned int i;
+
+	for (i = 0; i < pdata->rx_q_count; i++) {
+		q_fifo_size = (fifo[i] + 1) * XGMAC_FIFO_UNIT;
+
+		xgbe_queue_flow_control_threshold(pdata, i, q_fifo_size);
+	}
+}
+
+static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
+{
+	unsigned int i;
+
+	for (i = 0; i < pdata->rx_q_count; i++) {
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFA,
+				       pdata->rx_rfa[i]);
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFD,
+				       pdata->rx_rfd[i]);
+	}
+}
+
 static unsigned int xgbe_get_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
 	unsigned int fifo_size;
@@ -2032,16 +2035,156 @@ static void xgbe_calculate_equal_fifo(unsigned int fifo_size,
 
 	q_fifo_size = fifo_size / queue_count;
 
-	/* Each increment in the queue fifo size represents 256 bytes of
-	 * fifo, with 0 representing 256 bytes. Distribute the fifo equally
-	 * between the queues.
+	/* Calculate the fifo setting by dividing the queue's fifo size
+	 * by the fifo allocation increment (with 0 representing the
+	 * base allocation increment so decrement the result by 1).
 	 */
-	p_fifo = q_fifo_size / 256;
+	p_fifo = q_fifo_size / XGMAC_FIFO_UNIT;
 	if (p_fifo)
 		p_fifo--;
 
+	/* Distribute the fifo equally amongst the queues */
 	for (i = 0; i < queue_count; i++)
 		fifo[i] = p_fifo;
+}
+
+static unsigned int xgbe_set_nonprio_fifos(unsigned int fifo_size,
+					   unsigned int queue_count,
+					   unsigned int *fifo)
+{
+	unsigned int i;
+
+	BUILD_BUG_ON_NOT_POWER_OF_2(XGMAC_FIFO_MIN_ALLOC);
+
+	if (queue_count <= IEEE_8021QAZ_MAX_TCS)
+		return fifo_size;
+
+	/* Rx queues 9 and up are for specialized packets,
+	 * such as PTP or DCB control packets, etc. and
+	 * don't require a large fifo
+	 */
+	for (i = IEEE_8021QAZ_MAX_TCS; i < queue_count; i++) {
+		fifo[i] = (XGMAC_FIFO_MIN_ALLOC / XGMAC_FIFO_UNIT) - 1;
+		fifo_size -= XGMAC_FIFO_MIN_ALLOC;
+	}
+
+	return fifo_size;
+}
+
+static unsigned int xgbe_get_pfc_delay(struct xgbe_prv_data *pdata)
+{
+	unsigned int delay;
+
+	/* If a delay has been provided, use that */
+	if (pdata->pfc->delay)
+		return pdata->pfc->delay / 8;
+
+	/* Allow for two maximum size frames */
+	delay = xgbe_get_max_frame(pdata);
+	delay += XGMAC_ETH_PREAMBLE;
+	delay *= 2;
+
+	/* Allow for PFC frame */
+	delay += XGMAC_PFC_DATA_LEN;
+	delay += ETH_HLEN + ETH_FCS_LEN;
+	delay += XGMAC_ETH_PREAMBLE;
+
+	/* Allow for miscellaneous delays (LPI exit, cable, etc.) */
+	delay += XGMAC_PFC_DELAYS;
+
+	return delay;
+}
+
+static unsigned int xgbe_get_pfc_queues(struct xgbe_prv_data *pdata)
+{
+	unsigned int count, prio_queues;
+	unsigned int i;
+
+	if (!pdata->pfc->pfc_en)
+		return 0;
+
+	count = 0;
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
+	for (i = 0; i < prio_queues; i++) {
+		if (!xgbe_is_pfc_queue(pdata, i))
+			continue;
+
+		pdata->pfcq[i] = 1;
+		count++;
+	}
+
+	return count;
+}
+
+static void xgbe_calculate_dcb_fifo(struct xgbe_prv_data *pdata,
+				    unsigned int fifo_size,
+				    unsigned int *fifo)
+{
+	unsigned int q_fifo_size, rem_fifo, addn_fifo;
+	unsigned int prio_queues;
+	unsigned int pfc_count;
+	unsigned int i;
+
+	q_fifo_size = XGMAC_FIFO_ALIGN(xgbe_get_max_frame(pdata));
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
+	pfc_count = xgbe_get_pfc_queues(pdata);
+
+	if (!pfc_count || ((q_fifo_size * prio_queues) > fifo_size)) {
+		/* No traffic classes with PFC enabled or can't do lossless */
+		xgbe_calculate_equal_fifo(fifo_size, prio_queues, fifo);
+		return;
+	}
+
+	/* Calculate how much fifo we have to play with */
+	rem_fifo = fifo_size - (q_fifo_size * prio_queues);
+
+	/* Calculate how much more than base fifo PFC needs, which also
+	 * becomes the threshold activation point (RFA)
+	 */
+	pdata->pfc_rfa = xgbe_get_pfc_delay(pdata);
+	pdata->pfc_rfa = XGMAC_FLOW_CONTROL_ALIGN(pdata->pfc_rfa);
+
+	if (pdata->pfc_rfa > q_fifo_size) {
+		addn_fifo = pdata->pfc_rfa - q_fifo_size;
+		addn_fifo = XGMAC_FIFO_ALIGN(addn_fifo);
+	} else {
+		addn_fifo = 0;
+	}
+
+	/* Calculate DCB fifo settings:
+	 *   - distribute remaining fifo between the VLAN priority
+	 *     queues based on traffic class PFC enablement and overall
+	 *     priority (0 is lowest priority, so start at highest)
+	 */
+	i = prio_queues;
+	while (i > 0) {
+		i--;
+
+		fifo[i] = (q_fifo_size / XGMAC_FIFO_UNIT) - 1;
+
+		if (!pdata->pfcq[i] || !addn_fifo)
+			continue;
+
+		if (addn_fifo > rem_fifo) {
+			netdev_warn(pdata->netdev,
+				    "RXq%u cannot set needed fifo size\n", i);
+			if (!rem_fifo)
+				continue;
+
+			addn_fifo = rem_fifo;
+		}
+
+		fifo[i] += (addn_fifo / XGMAC_FIFO_UNIT);
+		rem_fifo -= addn_fifo;
+	}
+
+	if (rem_fifo) {
+		unsigned int inc_fifo = rem_fifo / prio_queues;
+
+		/* Distribute remaining fifo across queues */
+		for (i = 0; i < prio_queues; i++)
+			fifo[i] += (inc_fifo / XGMAC_FIFO_UNIT);
+	}
 }
 
 static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
@@ -2059,25 +2202,50 @@ static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 
 	netif_info(pdata, drv, pdata->netdev,
 		   "%d Tx hardware queues, %d byte fifo per queue\n",
-		   pdata->tx_q_count, ((fifo[0] + 1) * 256));
+		   pdata->tx_q_count, ((fifo[0] + 1) * XGMAC_FIFO_UNIT));
 }
 
 static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
 	unsigned int fifo_size;
 	unsigned int fifo[XGBE_MAX_QUEUES];
+	unsigned int prio_queues;
 	unsigned int i;
 
-	fifo_size = xgbe_get_rx_fifo_size(pdata);
+	/* Clear any DCB related fifo/queue information */
+	memset(pdata->pfcq, 0, sizeof(pdata->pfcq));
+	pdata->pfc_rfa = 0;
 
-	xgbe_calculate_equal_fifo(fifo_size, pdata->rx_q_count, fifo);
+	fifo_size = xgbe_get_rx_fifo_size(pdata);
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
+
+	/* Assign a minimum fifo to the non-VLAN priority queues */
+	fifo_size = xgbe_set_nonprio_fifos(fifo_size, pdata->rx_q_count, fifo);
+
+	if (pdata->pfc && pdata->ets)
+		xgbe_calculate_dcb_fifo(pdata, fifo_size, fifo);
+	else
+		xgbe_calculate_equal_fifo(fifo_size, prio_queues, fifo);
 
 	for (i = 0; i < pdata->rx_q_count; i++)
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo[i]);
 
-	netif_info(pdata, drv, pdata->netdev,
-		   "%d Rx hardware queues, %d byte fifo per queue\n",
-		   pdata->rx_q_count, ((fifo[0] + 1) * 256));
+	xgbe_calculate_flow_control_threshold(pdata, fifo);
+	xgbe_config_flow_control_threshold(pdata);
+
+	if (pdata->pfc && pdata->ets && pdata->pfc->pfc_en) {
+		netif_info(pdata, drv, pdata->netdev,
+			   "%u Rx hardware queues\n", pdata->rx_q_count);
+		for (i = 0; i < pdata->rx_q_count; i++)
+			netif_info(pdata, drv, pdata->netdev,
+				   "RxQ%u, %u byte fifo queue\n", i,
+				   ((fifo[i] + 1) * XGMAC_FIFO_UNIT));
+	} else {
+		netif_info(pdata, drv, pdata->netdev,
+			   "%u Rx hardware queues, %u byte fifo per queue\n",
+			   pdata->rx_q_count,
+			   ((fifo[0] + 1) * XGMAC_FIFO_UNIT));
+	}
 }
 
 static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
@@ -2113,8 +2281,7 @@ static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 	}
 
 	/* Map the 8 VLAN priority values to available MTL Rx queues */
-	prio_queues = min_t(unsigned int, IEEE_8021QAZ_MAX_TCS,
-			    pdata->rx_q_count);
+	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
 	ppq = IEEE_8021QAZ_MAX_TCS / prio_queues;
 	ppq_extra = IEEE_8021QAZ_MAX_TCS % prio_queues;
 
@@ -2162,16 +2329,120 @@ static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 	}
 }
 
-static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
+static void xgbe_config_tc(struct xgbe_prv_data *pdata)
 {
-	unsigned int i;
+	unsigned int offset, queue, prio;
+	u8 i;
 
-	for (i = 0; i < pdata->rx_q_count; i++) {
-		/* Activate flow control when less than 4k left in fifo */
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFA, 2);
+	netdev_reset_tc(pdata->netdev);
+	if (!pdata->num_tcs)
+		return;
 
-		/* De-activate flow control when more than 6k left in fifo */
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQFCR, RFD, 4);
+	netdev_set_num_tc(pdata->netdev, pdata->num_tcs);
+
+	for (i = 0, queue = 0, offset = 0; i < pdata->num_tcs; i++) {
+		while ((queue < pdata->tx_q_count) &&
+		       (pdata->q2tc_map[queue] == i))
+			queue++;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u using TXq%u-%u\n",
+			  i, offset, queue - 1);
+		netdev_set_tc_queue(pdata->netdev, i, queue - offset, offset);
+		offset = queue;
+	}
+
+	if (!pdata->ets)
+		return;
+
+	for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++)
+		netdev_set_prio_tc_map(pdata->netdev, prio,
+				       pdata->ets->prio_tc[prio]);
+}
+
+static void xgbe_config_dcb_tc(struct xgbe_prv_data *pdata)
+{
+	struct ieee_ets *ets = pdata->ets;
+	unsigned int total_weight, min_weight, weight;
+	unsigned int mask, reg, reg_val;
+	unsigned int i, prio;
+
+	if (!ets)
+		return;
+
+	/* Set Tx to deficit weighted round robin scheduling algorithm (when
+	 * traffic class is using ETS algorithm)
+	 */
+	XGMAC_IOWRITE_BITS(pdata, MTL_OMR, ETSALG, MTL_ETSALG_DWRR);
+
+	/* Set Traffic Class algorithms */
+	total_weight = pdata->netdev->mtu * pdata->hw_feat.tc_cnt;
+	min_weight = total_weight / 100;
+	if (!min_weight)
+		min_weight = 1;
+
+	for (i = 0; i < pdata->hw_feat.tc_cnt; i++) {
+		/* Map the priorities to the traffic class */
+		mask = 0;
+		for (prio = 0; prio < IEEE_8021QAZ_MAX_TCS; prio++) {
+			if (ets->prio_tc[prio] == i)
+				mask |= (1 << prio);
+		}
+		mask &= 0xff;
+
+		netif_dbg(pdata, drv, pdata->netdev, "TC%u PRIO mask=%#x\n",
+			  i, mask);
+		reg = MTL_TCPM0R + (MTL_TCPM_INC * (i / MTL_TCPM_TC_PER_REG));
+		reg_val = XGMAC_IOREAD(pdata, reg);
+
+		reg_val &= ~(0xff << ((i % MTL_TCPM_TC_PER_REG) << 3));
+		reg_val |= (mask << ((i % MTL_TCPM_TC_PER_REG) << 3));
+
+		XGMAC_IOWRITE(pdata, reg, reg_val);
+
+		/* Set the traffic class algorithm */
+		switch (ets->tc_tsa[i]) {
+		case IEEE_8021QAZ_TSA_STRICT:
+			netif_dbg(pdata, drv, pdata->netdev,
+				  "TC%u using SP\n", i);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+					       MTL_TSA_SP);
+			break;
+		case IEEE_8021QAZ_TSA_ETS:
+			weight = total_weight * ets->tc_tx_bw[i] / 100;
+			weight = clamp(weight, min_weight, total_weight);
+
+			netif_dbg(pdata, drv, pdata->netdev,
+				  "TC%u using DWRR (weight %u)\n", i, weight);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_ETSCR, TSA,
+					       MTL_TSA_ETS);
+			XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_TC_QWR, QW,
+					       weight);
+			break;
+		}
+	}
+
+	xgbe_config_tc(pdata);
+}
+
+static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
+{
+	if (!test_bit(XGBE_DOWN, &pdata->dev_state)) {
+		/* Just stop the Tx queues while Rx fifo is changed */
+		netif_tx_stop_all_queues(pdata->netdev);
+
+		/* Suspend Rx so that fifo's can be adjusted */
+		pdata->hw_if.disable_rx(pdata);
+	}
+
+	xgbe_config_rx_fifo_size(pdata);
+	xgbe_config_flow_control(pdata);
+
+	if (!test_bit(XGBE_DOWN, &pdata->dev_state)) {
+		/* Resume Rx */
+		pdata->hw_if.enable_rx(pdata);
+
+		/* Resume Tx queues */
+		netif_tx_start_all_queues(pdata->netdev);
 	}
 }
 
@@ -2879,12 +3150,10 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_rx_threshold(pdata, pdata->rx_threshold);
 	xgbe_config_tx_fifo_size(pdata);
 	xgbe_config_rx_fifo_size(pdata);
-	xgbe_config_flow_control_threshold(pdata);
 	/*TODO: Error Packet and undersized good Packet forwarding enable
 		(FEP and FUP)
 	 */
 	xgbe_config_dcb_tc(pdata);
-	xgbe_config_dcb_pfc(pdata);
 	xgbe_enable_mtl_interrupts(pdata);
 
 	/*
