@@ -31,8 +31,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#define TSL258X_MAX_DEVICE_REGS		32
-
 /* Triton register offsets */
 #define	TSL258X_REG_MAX		8
 
@@ -65,6 +63,9 @@
 
 /* Lux calculation constants */
 #define	TSL258X_LUX_CALC_OVER_FLOW		65535
+
+#define TSL2583_CHIP_ID			0x90
+#define TSL2583_CHIP_ID_MASK		0xf0
 
 enum {
 	TSL258X_CHIP_UNKNOWN = 0,
@@ -607,12 +608,6 @@ static const struct attribute_group tsl2583_attribute_group = {
 	.attrs = sysfs_attrs_ctrl,
 };
 
-/* Use the default register values to identify the Taos device */
-static int taos_tsl258x_device(unsigned char *bufp)
-{
-	return ((bufp[TSL258X_CHIPID] & 0xf0) == 0x90);
-}
-
 static const struct iio_chan_spec tsl2583_channels[] = {
 	{
 		.type = IIO_LIGHT,
@@ -777,8 +772,7 @@ static const struct iio_info tsl2583_info = {
 static int taos_probe(struct i2c_client *clientp,
 		      const struct i2c_device_id *idp)
 {
-	int i, ret;
-	unsigned char buf[TSL258X_MAX_DEVICE_REGS];
+	int ret;
 	struct tsl2583_chip *chip;
 	struct iio_dev *indio_dev;
 
@@ -799,22 +793,17 @@ static int taos_probe(struct i2c_client *clientp,
 	chip->taos_chip_status = TSL258X_CHIP_UNKNOWN;
 	memcpy(chip->taos_config, taos_config, sizeof(chip->taos_config));
 
-	for (i = 0; i < TSL258X_MAX_DEVICE_REGS; i++) {
-		ret = i2c_smbus_read_byte_data(clientp,
-					       (TSL258X_CMD_REG |
-						(TSL258X_CNTRL + i)));
-		if (ret < 0) {
-			dev_err(&clientp->dev,
-				"i2c_smbus_read_byte from reg failed in taos_probe(), err = %d\n",
-				ret);
-			return ret;
-		}
-		buf[i] = ret;
+	ret = i2c_smbus_read_byte_data(clientp,
+				       TSL258X_CMD_REG | TSL258X_CHIPID);
+	if (ret < 0) {
+		dev_err(&clientp->dev,
+			"%s failed to read the chip ID register\n", __func__);
+		return ret;
 	}
 
-	if (!taos_tsl258x_device(buf)) {
-		dev_info(&clientp->dev,
-			 "i2c device found but does not match expected id in taos_probe()\n");
+	if ((ret & TSL2583_CHIP_ID_MASK) != TSL2583_CHIP_ID) {
+		dev_info(&clientp->dev, "%s received an unknown chip ID %x\n",
+			 __func__, ret);
 		return -EINVAL;
 	}
 
