@@ -47,7 +47,15 @@ extern "C" {
 #define DRM_MODE_TYPE_DRIVER	(1<<6)
 
 /* Video mode flags */
-/* bit compatible with the xorg definitions. */
+/* bit compatible with the xrandr RR_ definitions (bits 0-13)
+ *
+ * ABI warning: Existing userspace really expects
+ * the mode flags to match the xrandr definitions. Any
+ * changes that don't match the xrandr definitions will
+ * likely need a new client cap or some other mechanism
+ * to avoid breaking existing userspace. This includes
+ * allocating new flags in the previously unused bits!
+ */
 #define DRM_MODE_FLAG_PHSYNC			(1<<0)
 #define DRM_MODE_FLAG_NHSYNC			(1<<1)
 #define DRM_MODE_FLAG_PVSYNC			(1<<2)
