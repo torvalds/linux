@@ -2694,7 +2694,7 @@ nfp_net_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 		return -ENOTSUPP;
 
 	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn))
-		return nfp_net_bpf_offload(nn, handle, proto, tc->cls_bpf);
+		return nfp_net_bpf_offload(nn, tc->cls_bpf);
 
 	return -EINVAL;
 }

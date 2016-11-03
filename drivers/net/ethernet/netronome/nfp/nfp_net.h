@@ -817,8 +817,6 @@ static inline void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
 #endif /* CONFIG_NFP_NET_DEBUG */
 
 void nfp_net_filter_stats_timer(unsigned long data);
-int
-nfp_net_bpf_offload(struct nfp_net *nn, u32 handle, __be16 proto,
-		    struct tc_cls_bpf_offload *cls_bpf);
+int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);
 
 #endif /* _NFP_NET_H_ */
