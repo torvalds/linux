@@ -83,6 +83,9 @@ struct skl_sst {
 
 	/* tplg manifest */
 	struct skl_dfw_manifest manifest;
+
+	/* Callback to update D0i3C register */
+	void (*update_d0i3c)(struct device *dev, bool enable);
 };
 
 struct skl_ipc_init_instance_msg {

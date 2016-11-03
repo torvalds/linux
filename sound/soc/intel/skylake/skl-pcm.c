@@ -1211,6 +1211,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			return ret;
 		}
 		skl_populate_modules(skl);
+		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 	}
 	pm_runtime_mark_last_busy(platform->dev);
 	pm_runtime_put_autosuspend(platform->dev);
