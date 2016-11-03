@@ -462,6 +462,12 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 					req->trb_head->trb_hw,
 					trb_num * sizeof(*trb_hw),
 					DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(u3d->gadget.dev.parent,
+					req->trb_head->trb_dma)) {
+			kfree(req->trb_head->trb_hw);
+			kfree(req->trb_head);
+			return -EFAULT;
+		}
 
 		req->chain = 1;
 	}
