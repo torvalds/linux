@@ -290,7 +290,6 @@ static int skl_suspend(struct device *dev)
 
 		enable_irq_wake(bus->irq);
 		pci_save_state(pci);
-		pci_disable_device(pci);
 	} else {
 		ret = _skl_suspend(ebus);
 		if (ret < 0)
@@ -333,7 +332,6 @@ static int skl_resume(struct device *dev)
 	 */
 	if (skl->supend_active) {
 		pci_restore_state(pci);
-		ret = pci_enable_device(pci);
 		snd_hdac_ext_bus_link_power_up_all(ebus);
 		disable_irq_wake(bus->irq);
 		/*
