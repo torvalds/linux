@@ -1248,6 +1248,8 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 			fl6.flowi6_mark = skb->mark;
 	}
 
+	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
+
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
 
@@ -1325,6 +1327,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
 	}
+
+	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
