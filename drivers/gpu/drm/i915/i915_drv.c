@@ -374,12 +374,12 @@ static int
 intel_alloc_mchbar_resource(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_GEN(dev_priv) >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
 	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
@@ -406,7 +406,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 		return ret;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 4)
+	if (INTEL_GEN(dev_priv) >= 4)
 		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
 				       upper_32_bits(dev_priv->mch_res.start));
 
@@ -420,7 +420,7 @@ static void
 intel_setup_mchbar(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int mchbar_reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
 
@@ -460,7 +460,7 @@ static void
 intel_teardown_mchbar(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+	int mchbar_reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 
 	if (dev_priv->mchbar_need_disable) {
 		if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
@@ -879,7 +879,7 @@ static int i915_mmio_setup(struct drm_device *dev)
 	 * the register BAR remains the same size for all the earlier
 	 * generations up to Ironlake.
 	 */
-	if (INTEL_INFO(dev)->gen < 5)
+	if (INTEL_GEN(dev_priv) < 5)
 		mmio_size = 512 * 1024;
 	else
 		mmio_size = 2 * 1024 * 1024;
@@ -1512,7 +1512,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 * Fujitsu FSC S7110
 	 * Acer Aspire 1830T
 	 */
-	if (!(hibernation && INTEL_INFO(dev_priv)->gen < 6))
+	if (!(hibernation && INTEL_GEN(dev_priv) < 6))
 		pci_set_power_state(pdev, PCI_D3hot);
 
 	dev_priv->suspended_to_idle = suspend_to_idle(dev_priv);
