@@ -4202,11 +4202,6 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 
 	if (!gate) {
 		/* turn the clocks on when decoding */
-		ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-						    AMD_CG_STATE_UNGATE);
-		if (ret)
-			return ret;
-
 		if (pi->caps_uvd_dpm ||
 		    (adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count <= 0))
 			pi->smc_state_table.UvdBootLevel = 0;
@@ -4223,9 +4218,6 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 		ret = ci_enable_uvd_dpm(adev, false);
 		if (ret)
 			return ret;
-
-		ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-						    AMD_CG_STATE_GATE);
 	}
 
 	return ret;

@@ -45,7 +45,8 @@ static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v4_2_set_irq_funcs(struct amdgpu_device *adev);
 static int uvd_v4_2_start(struct amdgpu_device *adev);
 static void uvd_v4_2_stop(struct amdgpu_device *adev);
-
+static int uvd_v4_2_set_clockgating_state(void *handle,
+				enum amd_clockgating_state state);
 /**
  * uvd_v4_2_ring_get_rptr - get read pointer
  *
@@ -154,9 +155,9 @@ static int uvd_v4_2_hw_init(void *handle)
 	uint32_t tmp;
 	int r;
 
-	/* raise clocks while booting up the VCPU */
-	amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-
+	uvd_v4_2_init_cg(adev);
+	uvd_v4_2_set_clockgating_state(adev, AMD_CG_STATE_GATE);
+	amdgpu_asic_set_uvd_clocks(adev, 10000, 10000);
 	r = uvd_v4_2_start(adev);
 	if (r)
 		goto done;
@@ -196,8 +197,6 @@ static int uvd_v4_2_hw_init(void *handle)
 	amdgpu_ring_commit(ring);
 
 done:
-	/* lower clocks again */
-	amdgpu_asic_set_uvd_clocks(adev, 0, 0);
 
 	if (!r)
 		DRM_INFO("UVD initialized successfully.\n");
@@ -273,9 +272,6 @@ static int uvd_v4_2_start(struct amdgpu_device *adev)
 	u32 mp_swap_cntl = 0;
 
 	uvd_v4_2_mc_resume(adev);
-
-	/* disable clock gating */
-	WREG32(mmUVD_CGC_GATE, 0);
 
 	/* disable interupt */
 	WREG32_P(mmUVD_MASTINT_EN, 0, ~(1 << 1));
@@ -568,8 +564,6 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_UDEC_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmUVD_UDEC_DB_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
 	WREG32(mmUVD_UDEC_DBW_ADDR_CONFIG, adev->gfx.config.gb_addr_config);
-
-	uvd_v4_2_init_cg(adev);
 }
 
 static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
@@ -579,7 +573,7 @@ static void uvd_v4_2_enable_mgcg(struct amdgpu_device *adev,
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG)) {
 		data = RREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL);
-		data = 0xfff;
+		data |= 0xfff;
 		WREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL, data);
 
 		orig = data = RREG32(mmUVD_CGC_CTRL);
@@ -686,33 +680,17 @@ static int uvd_v4_2_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void uvd_v5_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
-{
-	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
-
-	if (enable)
-		tmp |= (GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
-			GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
-	else
-		tmp &= ~(GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
-			 GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
-
-	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
-}
-
 static int uvd_v4_2_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	bool gate = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (state == AMD_CG_STATE_GATE)
-		gate = true;
-
-	uvd_v5_0_set_bypass_mode(adev, gate);
-
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
+
+	if (state == AMD_CG_STATE_GATE)
+		gate = true;
 
 	uvd_v4_2_enable_mgcg(adev, gate);
 
