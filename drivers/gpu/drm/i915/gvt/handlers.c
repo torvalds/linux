@@ -1398,6 +1398,23 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 	return rc;
 }
 
+static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
+	unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 data;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	data = vgpu_vreg(vgpu, offset);
+
+	if (data & _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET))
+		data |= RESET_CTL_READY_TO_RESET;
+	else if (data & _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET))
+		data &= ~RESET_CTL_READY_TO_RESET;
+
+	vgpu_vreg(vgpu, offset) = data;
+	return 0;
+}
+
 #define MMIO_F(reg, s, f, am, rm, d, r, w) do { \
 	ret = new_mmio_info(gvt, INTEL_GVT_MMIO_OFFSET(reg), \
 		f, s, am, rm, d, r, w); \
@@ -2303,6 +2320,15 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 			ring_timestamp_mmio_read, NULL);
 
 	MMIO_RING_D(RING_ACTHD_UDW, D_BDW_PLUS);
+
+#define RING_REG(base) (base + 0xd0)
+	MMIO_RING_F(RING_REG, 4, F_RO, 0,
+		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
+		ring_reset_ctl_write);
+	MMIO_F(RING_REG(GEN8_BSD2_RING_BASE), 4, F_RO, 0,
+		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
+		ring_reset_ctl_write);
+#undef RING_REG
 
 #define RING_REG(base) (base + 0x230)
 	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, 0, NULL, elsp_mmio_write);
