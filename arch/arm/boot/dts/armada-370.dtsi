@@ -70,7 +70,7 @@
 			reg = <MBUS_ID(0x01, 0xe0) 0 0x100000>;
 		};
 
-		pcie-controller {
+		pciec: pcie-controller {
 			compatible = "marvell,armada-370-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -89,7 +89,7 @@
 				0x82000000 0x2 0     MBUS_ID(0x08, 0xe8) 0       1 0 /* Port 1.0 MEM */
 				0x81000000 0x2 0     MBUS_ID(0x08, 0xe0) 0       1 0 /* Port 1.0 IO  */>;
 
-			pcie@1,0 {
+			pcie0: pcie@1,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
@@ -106,7 +106,7 @@
 				status = "disabled";
 			};
 
-			pcie@2,0 {
+			pcie2: pcie@2,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
@@ -190,7 +190,7 @@
 				pinctrl-names = "default";
 			};
 
-			system-controller@18200 {
+			systemc: system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x100>;
 			};
@@ -208,14 +208,14 @@
 				#clock-cells = <1>;
 			};
 
-			thermal@18300 {
+			thermal: thermal@18300 {
 				compatible = "marvell,armada370-thermal";
 				reg = <0x18300 0x4
 					0x18304 0x4>;
 				status = "okay";
 			};
 
-			sscg@18330 {
+			sscg: sscg@18330 {
 				reg = <0x18330 0x4>;
 			};
 
@@ -233,7 +233,7 @@
 				clocks = <&coreclk 2>;
 			};
 
-			cpu-config@21000 {
+			cpuconf: cpu-config@21000 {
 				compatible = "marvell,armada-370-cpu-config";
 				reg = <0x21000 0x8>;
 			};
@@ -256,7 +256,7 @@
 				clocks = <&coreclk 0>;
 			};
 
-			xor@60800 {
+			xor0: xor@60800 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60800 0x100
 				       0x60A00 0x100>;
@@ -275,7 +275,7 @@
 				};
 			};
 
-			xor@60900 {
+			xor1: xor@60900 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
@@ -302,7 +302,7 @@
 				compatible = "marvell,armada-370-neta";
 			};
 
-			crypto@90000 {
+			cesa: crypto@90000 {
 				compatible = "marvell,armada-370-crypto";
 				reg = <0x90000 0x10000>;
 				reg-names = "regs";

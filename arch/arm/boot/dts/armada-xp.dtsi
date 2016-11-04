@@ -118,7 +118,7 @@
 				status = "disabled";
 			};
 
-			system-controller@18200 {
+			systemc: system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x500>;
 			};
@@ -136,7 +136,7 @@
 				#clock-cells = <1>;
 			};
 
-			thermal@182b0 {
+			thermal: thermal@182b0 {
 				compatible = "marvell,armadaxp-thermal";
 				reg = <0x182b0 0x4
 					0x184d0 0x4>;
@@ -191,7 +191,7 @@
 				clocks = <&gateclk 19>;
 			};
 
-			usb@52000 {
+			usb2: usb@52000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x52000 0x500>;
 				interrupts = <47>;
@@ -199,7 +199,7 @@
 				status = "disabled";
 			};
 
-			xor@60900 {
+			xor1: xor@60900 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
@@ -227,7 +227,7 @@
 				compatible = "marvell,armada-xp-neta";
 			};
 
-			crypto@90000 {
+			cesa: crypto@90000 {
 				compatible = "marvell,armada-xp-crypto";
 				reg = <0x90000 0x10000>;
 				reg-names = "regs";
@@ -247,7 +247,7 @@
 				status = "disabled";
 			};
 
-			xor@f0900 {
+			xor0: xor@f0900 {
 				compatible = "marvell,orion-xor";
 				reg = <0xF0900 0x100
 				       0xF0B00 0x100>;
