@@ -1416,6 +1416,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		const u8 feature_sz = ARRAY_SIZE(log_addrs->features[0]);
 		u8 *features = log_addrs->features[i];
 		bool op_is_dev_features = false;
+		unsigned j;
 
 		log_addrs->log_addr[i] = CEC_LOG_ADDR_INVALID;
 		if (type_mask & (1 << log_addrs->log_addr_type[i])) {
@@ -1442,19 +1443,19 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 			dprintk(1, "unknown logical address type\n");
 			return -EINVAL;
 		}
-		for (i = 0; i < feature_sz; i++) {
-			if ((features[i] & 0x80) == 0) {
+		for (j = 0; j < feature_sz; j++) {
+			if ((features[j] & 0x80) == 0) {
 				if (op_is_dev_features)
 					break;
 				op_is_dev_features = true;
 			}
 		}
-		if (!op_is_dev_features || i == feature_sz) {
+		if (!op_is_dev_features || j == feature_sz) {
 			dprintk(1, "malformed features\n");
 			return -EINVAL;
 		}
 		/* Zero unused part of the feature array */
-		memset(features + i + 1, 0, feature_sz - i - 1);
+		memset(features + j + 1, 0, feature_sz - j - 1);
 	}
 
 	if (log_addrs->cec_version >= CEC_OP_CEC_VERSION_2_0) {
