@@ -103,7 +103,7 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 	if (!peer_is_smaller)
 		return NULL;
 
-	for (i = 1; i < npaths; i++) {
+	for (i = 0; i < npaths; i++) {
 		struct rds_conn_path *cp = &conn->c_path[i];
 
 		if (rds_conn_path_transition(cp, RDS_CONN_DOWN,
