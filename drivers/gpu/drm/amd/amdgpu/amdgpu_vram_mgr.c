@@ -108,7 +108,7 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 		lpfn = man->size;
 
 	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS ||
-	    amdgpu_vram_page_split == -1) {
+	    place->lpfn || amdgpu_vram_page_split == -1) {
 		pages_per_node = ~0ul;
 		num_nodes = 1;
 	} else {
