@@ -359,8 +359,9 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	nouveau_framebuffer_init(dev, &fbcon->fb, &mode_cmd, nvbo);
-	fb = &fbcon->fb;
+	ret = nouveau_framebuffer_new(dev, &mode_cmd, nvbo, &fb);
+	if (ret)
+		goto out_unref;
 
 	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret) {
@@ -454,17 +455,15 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
 	drm_fb_helper_release_fbi(&fbcon->helper);
+	drm_fb_helper_fini(&fbcon->helper);
 
 	if (nouveau_fb->nvbo) {
 		nouveau_bo_vma_del(nouveau_fb->nvbo, &nouveau_fb->vma);
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_unpin(nouveau_fb->nvbo);
-		drm_gem_object_unreference_unlocked(&nouveau_fb->nvbo->gem);
-		nouveau_fb->nvbo = NULL;
+		drm_framebuffer_unreference(&nouveau_fb->base);
 	}
-	drm_fb_helper_fini(&fbcon->helper);
-	drm_framebuffer_unregister_private(&nouveau_fb->base);
-	drm_framebuffer_cleanup(&nouveau_fb->base);
+
 	return 0;
 }
 

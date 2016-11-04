@@ -245,28 +245,32 @@ static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
 };
 
 int
-nouveau_framebuffer_init(struct drm_device *dev,
-			 struct nouveau_framebuffer *nv_fb,
-			 const struct drm_mode_fb_cmd2 *mode_cmd,
-			 struct nouveau_bo *nvbo)
+nouveau_framebuffer_new(struct drm_device *dev,
+			const struct drm_mode_fb_cmd2 *mode_cmd,
+			struct nouveau_bo *nvbo,
+			struct nouveau_framebuffer **pfb)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
-	struct drm_framebuffer *fb = &nv_fb->base;
+	struct nouveau_framebuffer *fb;
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
-	nv_fb->nvbo = nvbo;
+	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+		return -ENOMEM;
 
-	ret = drm_framebuffer_init(dev, fb, &nouveau_framebuffer_funcs);
-	if (ret)
-		return ret;
+	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	fb->nvbo = nvbo;
 
-	if (disp->fb_ctor) {
-		ret = disp->fb_ctor(fb);
-		if (ret)
-			disp->fb_dtor(fb);
+	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
+	if (ret == 0) {
+		if (!disp->fb_ctor || !(ret = disp->fb_ctor(&fb->base))) {
+			*pfb = fb;
+			return 0;
+		}
+		disp->fb_dtor(&fb->base);
+		drm_framebuffer_cleanup(&fb->base);
 	}
 
+	kfree(fb);
 	return ret;
 }
 
@@ -275,27 +279,20 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct nouveau_framebuffer *nouveau_fb;
+	struct nouveau_framebuffer *fb;
+	struct nouveau_bo *nvbo;
 	struct drm_gem_object *gem;
-	int ret = -ENOMEM;
+	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (!gem)
 		return ERR_PTR(-ENOENT);
+	nvbo = nouveau_gem_object(gem);
 
-	nouveau_fb = kzalloc(sizeof(struct nouveau_framebuffer), GFP_KERNEL);
-	if (!nouveau_fb)
-		goto err_unref;
+	ret = nouveau_framebuffer_new(dev, mode_cmd, nvbo, &fb);
+	if (ret == 0)
+		return &fb->base;
 
-	ret = nouveau_framebuffer_init(dev, nouveau_fb, mode_cmd, nouveau_gem_object(gem));
-	if (ret)
-		goto err;
-
-	return &nouveau_fb->base;
-
-err:
-	kfree(nouveau_fb);
-err_unref:
 	drm_gem_object_unreference_unlocked(gem);
 	return ERR_PTR(ret);
 }

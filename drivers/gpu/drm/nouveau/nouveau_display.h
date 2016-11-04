@@ -22,8 +22,9 @@ nouveau_framebuffer(struct drm_framebuffer *fb)
 	return container_of(fb, struct nouveau_framebuffer, base);
 }
 
-int nouveau_framebuffer_init(struct drm_device *, struct nouveau_framebuffer *,
-			     const struct drm_mode_fb_cmd2 *, struct nouveau_bo *);
+int nouveau_framebuffer_new(struct drm_device *,
+			    const struct drm_mode_fb_cmd2 *,
+			    struct nouveau_bo *, struct nouveau_framebuffer **);
 
 struct nouveau_page_flip_state {
 	struct list_head head;
