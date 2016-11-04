@@ -2970,6 +2970,15 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 
+	/*
+	 * If we are making a new memslot, it might make
+	 * some address that was previously cached as emulated
+	 * MMIO be no longer emulated MMIO, so invalidate
+	 * all the caches of emulated MMIO translations.
+	 */
+	if (npages)
+		atomic64_inc(&kvm->arch.mmio_update);
+
 	if (npages && old->npages) {
 		/*
 		 * If modifying a memslot, reset all the rmap dirty bits.

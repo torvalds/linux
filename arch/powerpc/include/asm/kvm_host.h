@@ -246,6 +246,7 @@ struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
+	atomic64_t mmio_update;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;
 	unsigned long sdr1;
@@ -407,6 +408,24 @@ struct kvmppc_passthru_irqmap {
 #define KVMPPC_IRQ_DEFAULT	0
 #define KVMPPC_IRQ_MPIC		1
 #define KVMPPC_IRQ_XICS		2
+
+#define MMIO_HPTE_CACHE_SIZE	4
+
+struct mmio_hpte_cache_entry {
+	unsigned long hpte_v;
+	unsigned long hpte_r;
+	unsigned long rpte;
+	unsigned long pte_index;
+	unsigned long eaddr;
+	unsigned long slb_v;
+	long mmio_update;
+	unsigned int slb_base_pshift;
+};
+
+struct mmio_hpte_cache {
+	struct mmio_hpte_cache_entry entry[MMIO_HPTE_CACHE_SIZE];
+	unsigned int index;
+};
 
 struct openpic;
 
@@ -655,9 +674,11 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	struct kvm_vcpu_arch_shared shregs;
 
+	struct mmio_hpte_cache mmio_cache;
 	unsigned long pgfault_addr;
 	long pgfault_index;
 	unsigned long pgfault_hpte[2];
+	struct mmio_hpte_cache_entry *pgfault_cache;
 
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
