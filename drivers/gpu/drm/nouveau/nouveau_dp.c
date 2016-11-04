@@ -30,6 +30,9 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#include <nvif/class.h>
+#include <nvif/cl5070.h>
+
 static void
 nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 {
@@ -84,5 +87,9 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
 
 	nouveau_dp_probe_oui(dev, aux, dpcd);
-	return 0;
+
+	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, 0);
+	if (ret == 0)
+		return NOUVEAU_DP_SST;
+	return ret;
 }

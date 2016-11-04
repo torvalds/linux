@@ -30,6 +30,7 @@
 #include <subdev/bios/dcb.h>
 
 #include <drm/drm_encoder_slave.h>
+#include <drm/drm_dp_mst_helper.h>
 #include "dispnv04/disp.h"
 
 #define NV_DPMS_CLEARED 0x80
@@ -57,6 +58,7 @@ struct nouveau_encoder {
 
 	union {
 		struct {
+			struct nv50_mstm *mstm;
 			u8  dpcd[8];
 			int link_nr;
 			int link_bw;
@@ -90,9 +92,15 @@ get_slave_funcs(struct drm_encoder *enc)
 }
 
 /* nouveau_dp.c */
+enum nouveau_dp_status {
+	NOUVEAU_DP_SST,
+	NOUVEAU_DP_MST,
+};
+
 int nouveau_dp_detect(struct nouveau_encoder *);
 
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
 
+int nv50_mstm_detect(struct nv50_mstm *, u8 dpcd[8], int allow);
 #endif /* __NOUVEAU_ENCODER_H__ */

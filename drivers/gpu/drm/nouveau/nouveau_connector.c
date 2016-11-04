@@ -447,7 +447,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 			int ret = nouveau_dp_detect(nv_encoder);
-			if (ret == 0)
+			if (ret == NOUVEAU_DP_MST)
+				return NULL;
+			if (ret == NOUVEAU_DP_SST)
 				break;
 		} else
 		if ((vga_switcheroo_handler_flags() &

@@ -1841,6 +1841,108 @@ nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 }
 
 /******************************************************************************
+ * MST
+ *****************************************************************************/
+struct nv50_mstm {
+	struct nouveau_encoder *outp;
+
+	struct drm_dp_mst_topology_mgr mgr;
+};
+
+static int
+nv50_mstm_enable(struct nv50_mstm *mstm, u8 dpcd, int state)
+{
+	struct nouveau_encoder *outp = mstm->outp;
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_dp_mst_link_v0 mst;
+	} args = {
+		.base.version = 1,
+		.base.method = NV50_DISP_MTHD_V1_SOR_DP_MST_LINK,
+		.base.hasht = outp->dcb->hasht,
+		.base.hashm = outp->dcb->hashm,
+		.mst.state = state,
+	};
+	struct nouveau_drm *drm = nouveau_drm(outp->base.base.dev);
+	struct nvif_object *disp = &drm->display->disp;
+	int ret;
+
+	if (dpcd >= 0x12) {
+		ret = drm_dp_dpcd_readb(mstm->mgr.aux, DP_MSTM_CTRL, &dpcd);
+		if (ret < 0)
+			return ret;
+
+		dpcd &= ~DP_MST_EN;
+		if (state)
+			dpcd |= DP_MST_EN;
+
+		ret = drm_dp_dpcd_writeb(mstm->mgr.aux, DP_MSTM_CTRL, dpcd);
+		if (ret < 0)
+			return ret;
+	}
+
+	return nvif_mthd(disp, 0, &args, sizeof(args));
+}
+
+int
+nv50_mstm_detect(struct nv50_mstm *mstm, u8 dpcd[8], int allow)
+{
+	int ret, state = 0;
+
+	if (!mstm)
+		return 0;
+
+	if (dpcd[0] >= 0x12 && allow) {
+		ret = drm_dp_dpcd_readb(mstm->mgr.aux, DP_MSTM_CAP, &dpcd[1]);
+		if (ret < 0)
+			return ret;
+
+		state = dpcd[1] & DP_MST_CAP;
+	}
+
+	ret = nv50_mstm_enable(mstm, dpcd[0], state);
+	if (ret)
+		return ret;
+
+	ret = drm_dp_mst_topology_mgr_set_mst(&mstm->mgr, state);
+	if (ret)
+		return nv50_mstm_enable(mstm, dpcd[0], 0);
+
+	return mstm->mgr.mst_state;
+}
+
+static void
+nv50_mstm_del(struct nv50_mstm **pmstm)
+{
+	struct nv50_mstm *mstm = *pmstm;
+	if (mstm) {
+		kfree(*pmstm);
+		*pmstm = NULL;
+	}
+}
+
+static int
+nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
+	      int conn_base_id, struct nv50_mstm **pmstm)
+{
+	const int max_payloads = hweight8(outp->dcb->heads);
+	struct drm_device *dev = outp->base.base.dev;
+	struct nv50_mstm *mstm;
+	int ret;
+
+	if (!(mstm = *pmstm = kzalloc(sizeof(*mstm), GFP_KERNEL)))
+		return -ENOMEM;
+	mstm->outp = outp;
+
+	ret = drm_dp_mst_topology_mgr_init(&mstm->mgr, dev->dev, aux, aux_max,
+					   max_payloads, conn_base_id);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/******************************************************************************
  * SOR
  *****************************************************************************/
 static void
@@ -2078,6 +2180,8 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 static void
 nv50_sor_destroy(struct drm_encoder *encoder)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	nv50_mstm_del(&nv_encoder->dp.mstm);
 	drm_encoder_cleanup(encoder);
 	kfree(encoder);
 }
@@ -2099,11 +2203,12 @@ static const struct drm_encoder_funcs nv50_sor_func = {
 static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
-	int type;
+	int type, ret;
 
 	switch (dcbe->type) {
 	case DCB_OUTPUT_LVDS: type = DRM_MODE_ENCODER_LVDS; break;
@@ -2121,12 +2226,29 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	nv_encoder->or = ffs(dcbe->or) - 1;
 	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 
+	encoder = to_drm_encoder(nv_encoder);
+	encoder->possible_crtcs = dcbe->heads;
+	encoder->possible_clones = 0;
+	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type, NULL);
+	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
+
+	drm_mode_connector_attach_encoder(connector, encoder);
+
 	if (dcbe->type == DCB_OUTPUT_DP) {
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
 		if (aux) {
 			nv_encoder->i2c = &aux->i2c;
 			nv_encoder->aux = aux;
+		}
+
+		/*TODO: Use DP Info Table to check for support. */
+		if (nv50_disp(encoder->dev)->disp->oclass >= GF110_DISP) {
+			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
+					    nv_connector->base.base.id,
+					    &nv_encoder->dp.mstm);
+			if (ret)
+				return ret;
 		}
 	} else {
 		struct nvkm_i2c_bus *bus =
@@ -2135,13 +2257,6 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			nv_encoder->i2c = &bus->i2c;
 	}
 
-	encoder = to_drm_encoder(nv_encoder);
-	encoder->possible_crtcs = dcbe->heads;
-	encoder->possible_clones = 0;
-	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type, NULL);
-	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
-
-	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 
