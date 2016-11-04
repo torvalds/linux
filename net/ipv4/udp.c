@@ -1173,26 +1173,26 @@ out:
 	return ret;
 }
 
+/* fully reclaim rmem/fwd memory allocated for skb */
 static void udp_rmem_release(struct sock *sk, int size, int partial)
 {
 	int amt;
 
 	atomic_sub(size, &sk->sk_rmem_alloc);
-
-	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sk->sk_forward_alloc += size;
 	amt = (sk->sk_forward_alloc - partial) & ~(SK_MEM_QUANTUM - 1);
 	sk->sk_forward_alloc -= amt;
-	spin_unlock_bh(&sk->sk_receive_queue.lock);
 
 	if (amt)
 		__sk_mem_reduce_allocated(sk, amt >> SK_MEM_QUANTUM_SHIFT);
 }
 
-static void udp_rmem_free(struct sk_buff *skb)
+/* Note: called with sk_receive_queue.lock held */
+void udp_skb_destructor(struct sock *sk, struct sk_buff *skb)
 {
-	udp_rmem_release(skb->sk, skb->truesize, 1);
+	udp_rmem_release(sk, skb->truesize, 1);
 }
+EXPORT_SYMBOL(udp_skb_destructor);
 
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 {
@@ -1229,9 +1229,9 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 
 	sk->sk_forward_alloc -= size;
 
-	/* the skb owner in now the udp socket */
-	skb->sk = sk;
-	skb->destructor = udp_rmem_free;
+	/* no need to setup a destructor, we will explicitly release the
+	 * forward allocated memory on dequeue
+	 */
 	skb->dev = NULL;
 	sock_skb_set_dropcount(sk, skb);
 
@@ -1255,8 +1255,15 @@ EXPORT_SYMBOL_GPL(__udp_enqueue_schedule_skb);
 static void udp_destruct_sock(struct sock *sk)
 {
 	/* reclaim completely the forward allocated memory */
-	__skb_queue_purge(&sk->sk_receive_queue);
-	udp_rmem_release(sk, 0, 0);
+	unsigned int total = 0;
+	struct sk_buff *skb;
+
+	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		total += skb->truesize;
+		kfree_skb(skb);
+	}
+	udp_rmem_release(sk, total, 0);
+
 	inet_sock_destruct(sk);
 }
 
@@ -1288,11 +1295,10 @@ EXPORT_SYMBOL_GPL(skb_consume_udp);
  */
 static int first_packet_length(struct sock *sk)
 {
-	struct sk_buff_head list_kill, *rcvq = &sk->sk_receive_queue;
+	struct sk_buff_head *rcvq = &sk->sk_receive_queue;
 	struct sk_buff *skb;
+	int total = 0;
 	int res;
-
-	__skb_queue_head_init(&list_kill);
 
 	spin_lock_bh(&rcvq->lock);
 	while ((skb = skb_peek(rcvq)) != NULL &&
@@ -1303,12 +1309,13 @@ static int first_packet_length(struct sock *sk)
 				IS_UDPLITE(sk));
 		atomic_inc(&sk->sk_drops);
 		__skb_unlink(skb, rcvq);
-		__skb_queue_tail(&list_kill, skb);
+		total += skb->truesize;
+		kfree_skb(skb);
 	}
 	res = skb ? skb->len : -1;
+	if (total)
+		udp_rmem_release(sk, total, 1);
 	spin_unlock_bh(&rcvq->lock);
-
-	__skb_queue_purge(&list_kill);
 	return res;
 }
 
@@ -1363,8 +1370,7 @@ int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
 
 try_again:
 	peeking = off = sk_peek_offset(sk, flags);
-	skb = __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				  &peeked, &off, &err);
+	skb = __skb_recv_udp(sk, flags, noblock, &peeked, &off, &err);
 	if (!skb)
 		return err;
 

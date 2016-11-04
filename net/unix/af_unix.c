@@ -2113,8 +2113,8 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
 		mutex_lock(&u->iolock);
 
 		skip = sk_peek_offset(sk, flags);
-		skb = __skb_try_recv_datagram(sk, flags, &peeked, &skip, &err,
-					      &last);
+		skb = __skb_try_recv_datagram(sk, flags, NULL, &peeked, &skip,
+					      &err, &last);
 		if (skb)
 			break;
 
