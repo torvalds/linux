@@ -3790,6 +3790,7 @@ int
 nv50_display_init(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
+	struct drm_encoder *encoder;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	u32 *push;
@@ -3808,6 +3809,24 @@ nv50_display_init(struct drm_device *dev)
 	evo_mthd(push, 0x0088, 1);
 	evo_data(push, nv50_mast(dev)->base.sync.handle);
 	evo_kick(push, nv50_mast(dev));
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
+			const struct drm_encoder_helper_funcs *help;
+			struct nouveau_encoder *nv_encoder;
+
+			nv_encoder = nouveau_encoder(encoder);
+			if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
+				nv_encoder->dcb->type = DCB_OUTPUT_EOL;
+
+			help = encoder->helper_private;
+			if (help && help->dpms)
+				help->dpms(encoder, DRM_MODE_DPMS_ON);
+
+			if (nv_encoder->dcb->type == DCB_OUTPUT_EOL)
+				nv_encoder->dcb->type = DCB_OUTPUT_DP;
+		}
+	}
 
 	drm_for_each_plane(plane, dev) {
 		struct nv50_wndw *wndw = nv50_wndw(plane);
