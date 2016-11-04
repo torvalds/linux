@@ -16,6 +16,7 @@
 #include <linux/bcma/bcma.h>
 #include <linux/etherdevice.h>
 #include <linux/of_address.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include "bgmac.h"
 
@@ -86,6 +87,20 @@ static void platform_bgmac_cmn_maskset32(struct bgmac *bgmac, u16 offset,
 	WARN_ON(1);
 }
 
+static int platform_phy_connect(struct bgmac *bgmac)
+{
+	struct phy_device *phy_dev;
+
+	phy_dev = of_phy_get_and_connect(bgmac->net_dev, bgmac->dev->of_node,
+					 bgmac_adjust_link);
+	if (!phy_dev) {
+		dev_err(bgmac->dev, "PHY connection failed\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int bgmac_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -102,7 +117,6 @@ static int bgmac_probe(struct platform_device *pdev)
 	/* Set the features of the 4707 family */
 	bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
 	bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
-	bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
 	bgmac->feature_flags |= BGMAC_FEAT_CMDCFG_SR_REV4;
 	bgmac->feature_flags |= BGMAC_FEAT_TX_MASK_SETUP;
 	bgmac->feature_flags |= BGMAC_FEAT_RX_MASK_SETUP;
@@ -151,6 +165,12 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->cco_ctl_maskset = platform_bgmac_cco_ctl_maskset;
 	bgmac->get_bus_clock = platform_bgmac_get_bus_clock;
 	bgmac->cmn_maskset32 = platform_bgmac_cmn_maskset32;
+	if (of_parse_phandle(np, "phy-handle", 0)) {
+		bgmac->phy_connect = platform_phy_connect;
+	} else {
+		bgmac->phy_connect = bgmac_phy_connect_direct;
+		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
+	}
 
 	return bgmac_enet_probe(bgmac);
 }
