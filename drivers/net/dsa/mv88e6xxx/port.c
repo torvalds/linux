@@ -71,6 +71,42 @@ int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 	return 0;
 }
 
+int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~(PORT_PCS_CTRL_FORCE_DUPLEX | PORT_PCS_CTRL_DUPLEX_FULL);
+
+	switch (dup) {
+	case DUPLEX_HALF:
+		reg |= PORT_PCS_CTRL_FORCE_DUPLEX;
+		break;
+	case DUPLEX_FULL:
+		reg |= PORT_PCS_CTRL_FORCE_DUPLEX | PORT_PCS_CTRL_DUPLEX_FULL;
+		break;
+	case DUPLEX_UNFORCED:
+		/* normal duplex detection */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	if (err)
+		return err;
+
+	netdev_dbg(chip->ds->ports[port].netdev, "%s %s duplex\n",
+		   reg & PORT_PCS_CTRL_FORCE_DUPLEX ? "Force" : "Unforce",
+		   reg & PORT_PCS_CTRL_DUPLEX_FULL ? "full" : "half");
+
+	return 0;
+}
+
 /* Offset 0x04: Port Control Register */
 
 static const char * const mv88e6xxx_port_state_names[] = {
