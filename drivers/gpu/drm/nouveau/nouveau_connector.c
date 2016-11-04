@@ -767,7 +767,6 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
-	struct nouveau_crtc *nv_crtc = NULL;
 	int ret;
 
 	if (connector->dev->mode_config.funcs->atomic_commit)
@@ -784,24 +783,17 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	}
 
 	nv_connector->scaling_mode = asyc->scaler.mode;
-	nv_connector->underscan = asyc->scaler.underscan.mode;
-	nv_connector->underscan_hborder = asyc->scaler.underscan.hborder;
-	nv_connector->underscan_vborder = asyc->scaler.underscan.vborder;
 	nv_connector->dithering_mode = asyc->dither.mode;
-	nv_connector->dithering_depth = asyc->dither.depth;
 
-	if (connector->encoder && connector->encoder->crtc)
-		nv_crtc = nouveau_crtc(connector->encoder->crtc);
-	if (!nv_crtc)
-		return 0;
-
-	nv_crtc->vibrant_hue = asyc->procamp.vibrant_hue - 90;
-	nv_crtc->color_vibrance = asyc->procamp.color_vibrance - 100;
-
-	ret = drm_crtc_helper_set_mode(&nv_crtc->base, &nv_crtc->base.mode,
-				       nv_crtc->base.x, nv_crtc->base.y, NULL);
-	if (!ret)
-		return -EINVAL;
+	if (connector->encoder && connector->encoder->crtc) {
+		ret = drm_crtc_helper_set_mode(connector->encoder->crtc,
+					      &connector->encoder->crtc->mode,
+					       connector->encoder->crtc->x,
+					       connector->encoder->crtc->y,
+					       NULL);
+		if (!ret)
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1354,7 +1346,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	default:
 		nv_connector->dithering_mode = DITHERING_MODE_AUTO;
-		nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
 		break;
 	}
 

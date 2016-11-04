@@ -46,12 +46,7 @@ struct nouveau_connector {
 	struct drm_dp_aux aux;
 
 	int dithering_mode;
-	int dithering_depth;
 	int scaling_mode;
-	bool scaling_full;
-	int underscan;
-	u32 underscan_hborder;
-	u32 underscan_vborder;
 
 	struct nouveau_encoder *detected_encoder;
 	struct edid *edid;

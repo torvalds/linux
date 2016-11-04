@@ -2595,8 +2595,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 		return -ENOMEM;
 
 	head->base.index = index;
-	head->base.color_vibrance = 50;
-	head->base.vibrant_hue = 0;
 	for (i = 0; i < 256; i++) {
 		head->base.lut.r[i] = i << 8;
 		head->base.lut.g[i] = i << 8;

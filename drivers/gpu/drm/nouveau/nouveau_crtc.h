@@ -38,8 +38,6 @@ struct nouveau_crtc {
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
 	int saturation;
-	int color_vibrance;
-	int vibrant_hue;
 	int sharpness;
 	int last_dpms;
 
