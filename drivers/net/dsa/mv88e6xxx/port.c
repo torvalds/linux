@@ -60,3 +60,28 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 
 	return 0;
 }
+
+/* Offset 0x06: Port Based VLAN Map */
+
+int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
+{
+	const u16 mask = GENMASK(mv88e6xxx_num_ports(chip) - 1, 0);
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	if (err)
+		return err;
+
+	reg &= ~mask;
+	reg |= map & mask;
+
+	err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
+	if (err)
+		return err;
+
+	netdev_dbg(chip->ds->ports[port].netdev, "VLANTable set to %.3x\n",
+		   map);
+
+	return 0;
+}
