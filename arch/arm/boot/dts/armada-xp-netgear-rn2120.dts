@@ -153,16 +153,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 { /* Marvell 88E1318 */
-					reg = <1>;
-				};
-			};
-
 			ethernet@70000 {
 				pinctrl-0 = <&ge0_rgmii_pins>;
 				pinctrl-names = "default";
@@ -299,6 +289,17 @@
 		gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 	};
 };
+
+&mdio {
+	phy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 { /* Marvell 88E1318 */
+		reg = <1>;
+	};
+};
+
 
 &pinctrl {
 	poweroff: poweroff {

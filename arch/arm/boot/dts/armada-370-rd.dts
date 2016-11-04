@@ -102,14 +102,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
-			};
-
 			ethernet@70000 {
 				status = "okay";
 				phy = <&phy0>;
@@ -235,7 +227,16 @@
 			};
 		};
 	 };
- };
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
 
 &pinctrl {
 	fan_pins: fan-pins {

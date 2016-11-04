@@ -175,24 +175,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 {
-					reg = <16>;
-				};
-
-				phy1: ethernet-phy@1 {
-					reg = <17>;
-				};
-
-				phy2: ethernet-phy@2 {
-					reg = <18>;
-				};
-
-				phy3: ethernet-phy@3 {
-					reg = <19>;
-				};
-			};
-
 			ethernet@70000 {
 				status = "okay";
 				phy = <&phy0>;
@@ -248,6 +230,24 @@
 		bm-bppi {
 			status = "okay";
 		};
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 {
+		reg = <16>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <17>;
+	};
+
+	phy2: ethernet-phy@2 {
+		reg = <18>;
+	};
+
+	phy3: ethernet-phy@3 {
+		reg = <19>;
 	};
 };
 

@@ -127,12 +127,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy1: ethernet-phy@1 { /* Marvell 88E1512 */
-					reg = <1>;
-				};
-			};
-
 			ethernet@70000 {
 			       status = "okay";
 			       phy = <&phy1>;
@@ -217,6 +211,12 @@
 			regulator-boot-on;
 			gpio = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&mdio {
+	phy1: ethernet-phy@1 { /* Marvell 88E1512 */
+		reg = <1>;
 	};
 };
 
