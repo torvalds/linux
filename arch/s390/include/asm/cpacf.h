@@ -28,8 +28,9 @@
 #define CPACF_PPNO		0xb93c		/* MSA5 */
 
 /*
- * Decryption modifier bit
+ * En/decryption modifier bits
  */
+#define CPACF_ENCRYPT		0x00
 #define CPACF_DECRYPT		0x80
 
 /*
@@ -42,8 +43,13 @@
 #define CPACF_KM_AES_128	0x12
 #define CPACF_KM_AES_192	0x13
 #define CPACF_KM_AES_256	0x14
+#define CPACF_KM_PAES_128	0x1a
+#define CPACF_KM_PAES_192	0x1b
+#define CPACF_KM_PAES_256	0x1c
 #define CPACF_KM_XTS_128	0x32
 #define CPACF_KM_XTS_256	0x34
+#define CPACF_KM_PXTS_128	0x3a
+#define CPACF_KM_PXTS_256	0x3c
 
 /*
  * Function codes for the KMC (CIPHER MESSAGE WITH CHAINING)
@@ -56,6 +62,9 @@
 #define CPACF_KMC_AES_128	0x12
 #define CPACF_KMC_AES_192	0x13
 #define CPACF_KMC_AES_256	0x14
+#define CPACF_KMC_PAES_128	0x1a
+#define CPACF_KMC_PAES_192	0x1b
+#define CPACF_KMC_PAES_256	0x1c
 #define CPACF_KMC_PRNG		0x43
 
 /*
@@ -69,6 +78,9 @@
 #define CPACF_KMCTR_AES_128	0x12
 #define CPACF_KMCTR_AES_192	0x13
 #define CPACF_KMCTR_AES_256	0x14
+#define CPACF_KMCTR_PAES_128	0x1a
+#define CPACF_KMCTR_PAES_192	0x1b
+#define CPACF_KMCTR_PAES_256	0x1c
 
 /*
  * Function codes for the KIMD (COMPUTE INTERMEDIATE MESSAGE DIGEST)
