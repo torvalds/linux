@@ -128,6 +128,7 @@ struct sti_dwmac {
 	int clk_sel_reg;	/* GMAC ext clk selection register */
 	struct device *dev;
 	struct regmap *regmap;
+	bool gmac_en;
 	u32 speed;
 	void (*fix_retime_src)(void *priv, unsigned int speed);
 };
@@ -233,14 +234,12 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	struct sti_dwmac *dwmac = priv;
 	struct regmap *regmap = dwmac->regmap;
 	int iface = dwmac->interface;
-	struct device *dev = dwmac->dev;
-	struct device_node *np = dev->of_node;
 	u32 reg = dwmac->ctrl_reg;
 	u32 val;
 
 	clk_prepare_enable(dwmac->clk);
 
-	if (of_property_read_bool(np, "st,gmac_en"))
+	if (dwmac->gmac_en)
 		regmap_update_bits(regmap, reg, EN_MASK, EN);
 
 	regmap_update_bits(regmap, reg, MII_PHY_SEL_MASK, phy_intf_sels[iface]);
@@ -281,6 +280,7 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	dwmac->dev = dev;
 	dwmac->interface = of_get_phy_mode(np);
 	dwmac->regmap = regmap;
+	dwmac->gmac_en = of_property_read_bool(np, "st,gmac_en");
 	dwmac->ext_phyclk = of_property_read_bool(np, "st,ext-phyclk");
 	dwmac->tx_retime_src = TX_RETIME_SRC_NA;
 	dwmac->speed = SPEED_100;
