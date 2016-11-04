@@ -604,7 +604,7 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 		/* Skip whole frame */
 		if (chan->qh->do_split &&
 		    chan->ep_type == USB_ENDPOINT_XFER_ISOC && chan->ep_is_in &&
-		    hsotg->params.dma_enable > 0) {
+		    hsotg->params.host_dma > 0) {
 			qtd->complete_split = 0;
 			qtd->isoc_split_offset = 0;
 		}
@@ -789,7 +789,7 @@ static void dwc2_halt_channel(struct dwc2_hsotg *hsotg,
 	if (dbg_hc(chan))
 		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
-	if (hsotg->params.dma_enable > 0) {
+	if (hsotg->params.host_dma > 0) {
 		if (dbg_hc(chan))
 			dev_vdbg(hsotg->dev, "DMA enabled\n");
 		dwc2_release_channel(hsotg, chan, qtd, halt_status);
@@ -985,7 +985,7 @@ static void dwc2_hc_xfercomp_intr(struct dwc2_hsotg *hsotg,
 	/* Handle xfer complete on CSPLIT */
 	if (chan->qh->do_split) {
 		if (chan->ep_type == USB_ENDPOINT_XFER_ISOC && chan->ep_is_in &&
-		    hsotg->params.dma_enable > 0) {
+		    hsotg->params.host_dma > 0) {
 			if (qtd->complete_split &&
 			    dwc2_xfercomp_isoc_split_in(hsotg, chan, chnum,
 							qtd))
@@ -1207,7 +1207,7 @@ static void dwc2_hc_nak_intr(struct dwc2_hsotg *hsotg,
 	switch (dwc2_hcd_get_pipe_type(&qtd->urb->pipe_info)) {
 	case USB_ENDPOINT_XFER_CONTROL:
 	case USB_ENDPOINT_XFER_BULK:
-		if (hsotg->params.dma_enable > 0 && chan->ep_is_in) {
+		if (hsotg->params.host_dma > 0 && chan->ep_is_in) {
 			/*
 			 * NAK interrupts are enabled on bulk/control IN
 			 * transfers in DMA mode for the sole purpose of
@@ -1353,7 +1353,7 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 	 */
 	if (chan->do_split && chan->complete_split) {
 		if (chan->ep_is_in && chan->ep_type == USB_ENDPOINT_XFER_ISOC &&
-		    hsotg->params.dma_enable > 0) {
+		    hsotg->params.host_dma > 0) {
 			qtd->complete_split = 0;
 			qtd->isoc_split_offset = 0;
 			qtd->isoc_frame_index++;
@@ -1946,7 +1946,7 @@ static void dwc2_hc_chhltd_intr(struct dwc2_hsotg *hsotg,
 		dev_vdbg(hsotg->dev, "--Host Channel %d Interrupt: Channel Halted--\n",
 			 chnum);
 
-	if (hsotg->params.dma_enable > 0) {
+	if (hsotg->params.host_dma > 0) {
 		dwc2_hc_chhltd_intr_dma(hsotg, chan, chnum, qtd);
 	} else {
 		if (!dwc2_halt_status_ok(hsotg, chan, chnum, qtd))
@@ -2051,7 +2051,7 @@ static void dwc2_hc_n_intr(struct dwc2_hsotg *hsotg, int chnum)
 	qtd = list_first_entry(&chan->qh->qtd_list, struct dwc2_qtd,
 			       qtd_list_entry);
 
-	if (hsotg->params.dma_enable <= 0) {
+	if (hsotg->params.host_dma <= 0) {
 		if ((hcint & HCINTMSK_CHHLTD) && hcint != HCINTMSK_CHHLTD)
 			hcint &= ~HCINTMSK_CHHLTD;
 	}

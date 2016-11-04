@@ -286,7 +286,7 @@ enum dwc2_ep0_state {
  * @otg_ver:            OTG version supported
  *                       0 - 1.3 (default)
  *                       1 - 2.0
- * @dma_enable:         Specifies whether to use slave or DMA mode for accessing
+ * @host_dma:           Specifies whether to use slave or DMA mode for accessing
  *                      the data FIFOs. The driver will automatically detect the
  *                      value for this parameter if none is specified.
  *                       0 - Slave (always available)
@@ -451,7 +451,7 @@ struct dwc2_core_params {
 #define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
 
 	int otg_ver;
-	int dma_enable;
+	int host_dma;
 	int dma_desc_enable;
 	int dma_desc_fs_enable;
 	int speed;
