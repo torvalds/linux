@@ -2175,21 +2175,8 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 	return 0;
 }
 
-/******************************************************************************
- * CRTC
- *****************************************************************************/
-
-static int
-nv50_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb, int x, int y,
-			       enum mode_set_atomic state)
-{
-	WARN_ON(1);
-	return 0;
-}
-
 static void
-nv50_crtc_lut_load(struct drm_crtc *crtc)
+nv50_head_lut_load(struct drm_crtc *crtc)
 {
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -2214,45 +2201,18 @@ nv50_crtc_lut_load(struct drm_crtc *crtc)
 }
 
 static int
-nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t size)
+nv50_head_mode_set_base_atomic(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb, int x, int y,
+			       enum mode_set_atomic state)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	u32 i;
-
-	for (i = 0; i < size; i++) {
-		nv_crtc->lut.r[i] = r[i];
-		nv_crtc->lut.g[i] = g[i];
-		nv_crtc->lut.b[i] = b[i];
-	}
-
-	nv50_crtc_lut_load(crtc);
-
+	WARN_ON(1);
 	return 0;
 }
 
-static void
-nv50_crtc_destroy(struct drm_crtc *crtc)
-{
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nv50_disp *disp = nv50_disp(crtc->dev);
-	struct nv50_head *head = nv50_head(crtc);
-
-	nv50_dmac_destroy(&head->ovly.base, disp->disp);
-	nv50_pioc_destroy(&head->oimm.base);
-
-	nouveau_bo_unmap(nv_crtc->lut.nvbo);
-	if (nv_crtc->lut.nvbo)
-		nouveau_bo_unpin(nv_crtc->lut.nvbo);
-	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
-
-	drm_crtc_cleanup(crtc);
-	kfree(crtc);
-}
-
-static const struct drm_crtc_helper_funcs nv50_crtc_hfunc = {
-	.mode_set_base_atomic = nv50_crtc_mode_set_base_atomic,
-	.load_lut = nv50_crtc_lut_load,
+static const struct drm_crtc_helper_funcs
+nv50_head_help = {
+	.mode_set_base_atomic = nv50_head_mode_set_base_atomic,
+	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
 
@@ -2327,6 +2287,23 @@ backoff:
 	goto retry;
 }
 
+static int
+nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+		    uint32_t size)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	u32 i;
+
+	for (i = 0; i < size; i++) {
+		nv_crtc->lut.r[i] = r[i];
+		nv_crtc->lut.g[i] = g[i];
+		nv_crtc->lut.b[i] = b[i];
+	}
+
+	nv50_head_lut_load(crtc);
+	return 0;
+}
+
 static void
 nv50_head_atomic_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state)
@@ -2379,10 +2356,30 @@ nv50_head_reset(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_reset(crtc, &asyh->state);
 }
 
-static const struct drm_crtc_funcs nv50_crtc_func = {
+static void
+nv50_head_destroy(struct drm_crtc *crtc)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nv50_disp *disp = nv50_disp(crtc->dev);
+	struct nv50_head *head = nv50_head(crtc);
+
+	nv50_dmac_destroy(&head->ovly.base, disp->disp);
+	nv50_pioc_destroy(&head->oimm.base);
+
+	nouveau_bo_unmap(nv_crtc->lut.nvbo);
+	if (nv_crtc->lut.nvbo)
+		nouveau_bo_unpin(nv_crtc->lut.nvbo);
+	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+
+	drm_crtc_cleanup(crtc);
+	kfree(crtc);
+}
+
+static const struct drm_crtc_funcs
+nv50_head_func = {
 	.reset = nv50_head_reset,
-	.gamma_set = nv50_crtc_gamma_set,
-	.destroy = nv50_crtc_destroy,
+	.gamma_set = nv50_head_gamma_set,
+	.destroy = nv50_head_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = nv50_head_page_flip,
 	.set_property = drm_atomic_helper_crtc_set_property,
@@ -2391,7 +2388,7 @@ static const struct drm_crtc_funcs nv50_crtc_func = {
 };
 
 static int
-nv50_crtc_create(struct drm_device *dev, int index)
+nv50_head_create(struct drm_device *dev, int index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
@@ -2423,9 +2420,9 @@ nv50_crtc_create(struct drm_device *dev, int index)
 
 	crtc = &head->base.base;
 	drm_crtc_init_with_planes(dev, crtc, &base->wndw.plane,
-				  &curs->wndw.plane, &nv50_crtc_func,
+				  &curs->wndw.plane, &nv50_head_func,
 				  "head-%d", head->base.index);
-	drm_crtc_helper_add(crtc, &nv50_crtc_hfunc);
+	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
@@ -2456,7 +2453,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 
 out:
 	if (ret)
-		nv50_crtc_destroy(crtc);
+		nv50_head_destroy(crtc);
 	return ret;
 }
 
@@ -3836,7 +3833,7 @@ nv50_display_init(struct drm_device *dev)
 	}
 
 	drm_for_each_crtc(crtc, dev) {
-		nv50_crtc_lut_load(crtc);
+		nv50_head_lut_load(crtc);
 	}
 
 	drm_for_each_plane(plane, dev) {
@@ -3925,7 +3922,7 @@ nv50_display_create(struct drm_device *dev)
 		crtcs = 2;
 
 	for (i = 0; i < crtcs; i++) {
-		ret = nv50_crtc_create(dev, i);
+		ret = nv50_head_create(dev, i);
 		if (ret)
 			goto out;
 	}
