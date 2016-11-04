@@ -26,10 +26,12 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
-#include "stac9766.h"
-
 #define STAC9766_VENDOR_ID 0x83847666
 #define STAC9766_VENDOR_ID_MASK 0xffffffff
+
+#define AC97_STAC_DA_CONTROL 0x6A
+#define AC97_STAC_ANALOG_SPECIAL 0x6E
+#define AC97_STAC_STEREO_MIC 0x78
 
 /*
  * STAC9766 register cache
