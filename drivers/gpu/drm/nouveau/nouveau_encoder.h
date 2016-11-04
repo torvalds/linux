@@ -66,6 +66,8 @@ struct nouveau_encoder {
 
 	void (*enc_save)(struct drm_encoder *encoder);
 	void (*enc_restore)(struct drm_encoder *encoder);
+	void (*update)(struct nouveau_encoder *, u8 head,
+		       struct drm_display_mode *, u8 proto, u8 depth);
 };
 
 struct nouveau_encoder *
