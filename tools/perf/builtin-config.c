@@ -17,7 +17,7 @@
 static bool use_system_config, use_user_config;
 
 static const char * const config_usage[] = {
-	"perf config [<file-option>] [options]",
+	"perf config [<file-option>] [options] [section.name ...]",
 	NULL
 };
 
@@ -32,6 +32,36 @@ static struct option config_options[] = {
 	OPT_BOOLEAN(0, "user", &use_user_config, "use user config file"),
 	OPT_END()
 };
+
+static int show_spec_config(struct perf_config_set *set, const char *var)
+{
+	struct perf_config_section *section;
+	struct perf_config_item *item;
+
+	if (set == NULL)
+		return -1;
+
+	perf_config_items__for_each_entry(&set->sections, section) {
+		if (prefixcmp(var, section->name) != 0)
+			continue;
+
+		perf_config_items__for_each_entry(&section->items, item) {
+			const char *name = var + strlen(section->name) + 1;
+
+			if (strcmp(name, item->name) == 0) {
+				char *value = item->value;
+
+				if (value) {
+					printf("%s=%s\n", var, value);
+					return 0;
+				}
+			}
+
+		}
+	}
+
+	return 0;
+}
 
 static int show_config(struct perf_config_set *set)
 {
@@ -54,7 +84,7 @@ static int show_config(struct perf_config_set *set)
 
 int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	int ret = 0;
+	int i, ret = 0;
 	struct perf_config_set *set;
 	char *user_config = mkpath("%s/.perfconfig", getenv("HOME"));
 
@@ -100,7 +130,11 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		break;
 	default:
-		usage_with_options(config_usage, config_options);
+		if (argc)
+			for (i = 0; argv[i]; i++)
+				ret = show_spec_config(set, argv[i]);
+		else
+			usage_with_options(config_usage, config_options);
 	}
 
 	perf_config_set__delete(set);
