@@ -2773,8 +2773,50 @@ out:
 }
 
 /******************************************************************************
- * Encoder helpers
+ * Output path helpers
  *****************************************************************************/
+static int
+nv50_outp_atomic_check_view(struct drm_encoder *encoder,
+			    struct drm_crtc_state *crtc_state,
+			    struct drm_connector_state *conn_state,
+			    struct drm_display_mode *native_mode)
+{
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct drm_display_mode *mode = &crtc_state->mode;
+	struct drm_connector *connector = conn_state->connector;
+	struct nouveau_conn_atom *asyc = nouveau_conn_atom(conn_state);
+	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
+
+	NV_ATOMIC(drm, "%s atomic_check\n", encoder->name);
+	asyc->scaler.full = false;
+	if (!native_mode)
+		return 0;
+
+	if (asyc->scaler.mode == DRM_MODE_SCALE_NONE) {
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_LVDS:
+		case DRM_MODE_CONNECTOR_eDP:
+			/* Force use of scaler for non-EDID modes. */
+			if (adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
+				break;
+			mode = native_mode;
+			asyc->scaler.full = true;
+			break;
+		default:
+			break;
+		}
+	} else {
+		mode = native_mode;
+	}
+
+	if (!drm_mode_equal(adjusted_mode, mode)) {
+		drm_mode_copy(adjusted_mode, mode);
+		crtc_state->mode_changed = true;
+	}
+
+	return 0;
+}
+
 static bool
 nv50_encoder_mode_fixup(struct drm_encoder *encoder,
 			const struct drm_display_mode *mode,
@@ -2785,23 +2827,17 @@ nv50_encoder_mode_fixup(struct drm_encoder *encoder,
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (nv_connector && nv_connector->native_mode) {
-		nv_connector->scaling_full = false;
-		if (nv_connector->scaling_mode == DRM_MODE_SCALE_NONE) {
-			switch (nv_connector->type) {
-			case DCB_CONNECTOR_LVDS:
-			case DCB_CONNECTOR_LVDS_SPWG:
-			case DCB_CONNECTOR_eDP:
-				/* force use of scaler for non-edid modes */
-				if (adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
-					return true;
-				nv_connector->scaling_full = true;
-				break;
-			default:
-				return true;
-			}
-		}
+		struct nouveau_conn_atom *asyc
+			= nouveau_conn_atom(nv_connector->base.state);
+		struct drm_crtc_state crtc_state = {
+			.mode = *mode,
+			.adjusted_mode = *adjusted_mode,
+		};
 
-		drm_mode_copy(adjusted_mode, nv_connector->native_mode);
+		nv50_outp_atomic_check_view(encoder, &crtc_state, &asyc->state,
+					    nv_connector->native_mode);
+		nv_connector->scaling_full = asyc->scaler.full;
+		drm_mode_copy(adjusted_mode, &crtc_state.adjusted_mode);
 	}
 
 	return true;
