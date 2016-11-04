@@ -197,7 +197,6 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE))
 		return -EINVAL;
 
-	msg.flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS;
 	mutex_lock(&adap->lock);
 	if (!adap->is_configured)
 		err = -ENONET;
@@ -282,6 +281,7 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 	err = cec_receive_msg(fh, &msg, block);
 	if (err)
 		return err;
+	msg.flags = 0;
 	if (copy_to_user(parg, &msg, sizeof(msg)))
 		return -EFAULT;
 	return 0;
