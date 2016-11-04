@@ -3116,42 +3116,8 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		.base.hashm  = nv_encoder->dcb->hashm,
 		.pwr.state = mode == DRM_MODE_DPMS_ON,
 	};
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_dp_pwr_v0 pwr;
-	} link = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_DP_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.pwr.state = mode == DRM_MODE_DPMS_ON,
-	};
-	struct drm_device *dev = encoder->dev;
-	struct drm_encoder *partner;
 
-	nv_encoder->last_dpms = mode;
-
-	list_for_each_entry(partner, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_partner = nouveau_encoder(partner);
-
-		if (partner->encoder_type != DRM_MODE_ENCODER_TMDS)
-			continue;
-
-		if (nv_partner != nv_encoder &&
-		    nv_partner->dcb->or == nv_encoder->dcb->or) {
-			if (nv_partner->last_dpms == DRM_MODE_DPMS_ON)
-				return;
-			break;
-		}
-	}
-
-	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-		args.pwr.state = 1;
-		nvif_mthd(disp->disp, 0, &args, sizeof(args));
-		nvif_mthd(disp->disp, 0, &link, sizeof(link));
-	} else {
-		nvif_mthd(disp->disp, 0, &args, sizeof(args));
-	}
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
 static void
@@ -3177,7 +3143,6 @@ nv50_sor_disable(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
 
-	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 	nv_encoder->crtc = NULL;
 
 	if (nv_crtc) {
@@ -3380,7 +3345,6 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		return -ENOMEM;
 	nv_encoder->dcb = dcbe;
 	nv_encoder->or = ffs(dcbe->or) - 1;
-	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 
 	encoder = to_drm_encoder(nv_encoder);
 	encoder->possible_crtcs = dcbe->heads;
@@ -4126,15 +4090,9 @@ nv50_display_init(struct drm_device *dev)
 			struct nouveau_encoder *nv_encoder;
 
 			nv_encoder = nouveau_encoder(encoder);
-			if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
-				nv_encoder->dcb->type = DCB_OUTPUT_EOL;
-
 			help = encoder->helper_private;
 			if (help && help->dpms)
 				help->dpms(encoder, DRM_MODE_DPMS_ON);
-
-			if (nv_encoder->dcb->type == DCB_OUTPUT_EOL)
-				nv_encoder->dcb->type = DCB_OUTPUT_DP;
 		}
 	}
 
