@@ -100,6 +100,7 @@ static const u32 cz_mgcg_cgcg_init[] =
 
 static const u32 stoney_mgcg_cgcg_init[] =
 {
+	mmATC_MISC_CG, 0xffffffff, 0x000c0200,
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
 

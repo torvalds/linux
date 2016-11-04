@@ -431,9 +431,6 @@ static const struct pci_device_id pciidlist[] = {
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
-extern int i915_driver_load(struct pci_dev *pdev,
-			    const struct pci_device_id *ent);
-
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
@@ -463,8 +460,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return i915_driver_load(pdev, ent);
 }
 
-extern void i915_driver_unload(struct drm_device *dev);
-
 static void i915_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -472,8 +467,6 @@ static void i915_pci_remove(struct pci_dev *pdev)
 	i915_driver_unload(dev);
 	drm_dev_unref(dev);
 }
-
-extern const struct dev_pm_ops i915_pm_ops;
 
 static struct pci_driver i915_pci_driver = {
 	.name = DRIVER_NAME,
