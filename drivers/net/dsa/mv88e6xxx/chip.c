@@ -1215,41 +1215,6 @@ static int _mv88e6xxx_atu_remove(struct mv88e6xxx_chip *chip, u16 fid,
 	return _mv88e6xxx_atu_move(chip, fid, port, 0x0f, static_too);
 }
 
-static const char * const mv88e6xxx_port_state_names[] = {
-	[PORT_CONTROL_STATE_DISABLED] = "Disabled",
-	[PORT_CONTROL_STATE_BLOCKING] = "Blocking/Listening",
-	[PORT_CONTROL_STATE_LEARNING] = "Learning",
-	[PORT_CONTROL_STATE_FORWARDING] = "Forwarding",
-};
-
-static int _mv88e6xxx_port_state(struct mv88e6xxx_chip *chip, int port,
-				 u8 state)
-{
-	struct dsa_switch *ds = chip->ds;
-	u16 reg;
-	int err;
-	u8 oldstate;
-
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
-	if (err)
-		return err;
-
-	oldstate = reg & PORT_CONTROL_STATE_MASK;
-
-	reg &= ~PORT_CONTROL_STATE_MASK;
-	reg |= state;
-
-	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
-	if (err)
-		return err;
-
-	netdev_dbg(ds->ports[port].netdev, "PortState %s (was %s)\n",
-		   mv88e6xxx_port_state_names[state],
-		   mv88e6xxx_port_state_names[oldstate]);
-
-	return 0;
-}
-
 static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
 {
 	struct net_device *bridge = chip->ports[port].bridge_dev;
@@ -1313,13 +1278,11 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 	}
 
 	mutex_lock(&chip->reg_lock);
-	err = _mv88e6xxx_port_state(chip, port, stp_state);
+	err = mv88e6xxx_port_set_state(chip, port, stp_state);
 	mutex_unlock(&chip->reg_lock);
 
 	if (err)
-		netdev_err(ds->ports[port].netdev,
-			   "failed to update state to %s\n",
-			   mv88e6xxx_port_state_names[stp_state]);
+		netdev_err(ds->ports[port].netdev, "failed to update state\n");
 }
 
 static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
@@ -2526,12 +2489,8 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 
 	/* Set all ports to the disabled state. */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
-		err = mv88e6xxx_port_read(chip, i, PORT_CONTROL, &reg);
-		if (err)
-			return err;
-
-		err = mv88e6xxx_port_write(chip, i, PORT_CONTROL,
-					   reg & 0xfffc);
+		err = mv88e6xxx_port_set_state(chip, i,
+					       PORT_CONTROL_STATE_DISABLED);
 		if (err)
 			return err;
 	}

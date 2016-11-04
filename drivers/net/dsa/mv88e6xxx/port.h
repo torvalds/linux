@@ -21,4 +21,6 @@ int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
 int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
 			 u16 val);
 
+int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state);
+
 #endif /* _MV88E6XXX_PORT_H */
