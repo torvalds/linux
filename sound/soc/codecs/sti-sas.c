@@ -424,7 +424,7 @@ static const struct snd_soc_dai_ops stih407_dac_ops = {
 static const struct regmap_config stih407_sas_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
-
+	.fast_io = true,
 	.max_register = STIH407_AUDIO_DAC_CTRL,
 	.reg_defaults = stih407_sas_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(stih407_sas_reg_defaults),
