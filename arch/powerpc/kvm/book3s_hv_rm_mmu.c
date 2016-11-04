@@ -265,8 +265,10 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	if (pa)
 		pteh |= HPTE_V_VALID;
-	else
+	else {
 		pteh |= HPTE_V_ABSENT;
+		ptel &= ~(HPTE_R_KEY_HI | HPTE_R_KEY_LO);
+	}
 
 	/*If we had host pte mapping then  Check WIMG */
 	if (ptep && !hpte_cache_flags_ok(ptel, is_ci)) {
@@ -352,6 +354,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			/* inval in progress, write a non-present HPTE */
 			pteh |= HPTE_V_ABSENT;
 			pteh &= ~HPTE_V_VALID;
+			ptel &= ~(HPTE_R_KEY_HI | HPTE_R_KEY_LO);
 			unlock_rmap(rmap);
 		} else {
 			kvmppc_add_revmap_chain(kvm, rev, rmap, pte_index,
