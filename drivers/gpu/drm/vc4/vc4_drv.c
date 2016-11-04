@@ -78,6 +78,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 		pm_runtime_put(&vc4->v3d->pdev->dev);
 		break;
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
+	case DRM_VC4_PARAM_SUPPORTS_ETC1:
 		args->value = true;
 		break;
 	default:

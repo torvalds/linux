@@ -644,6 +644,13 @@ reloc_tex(struct vc4_exec_info *exec,
 		cpp = 1;
 		break;
 	case VC4_TEXTURE_TYPE_ETC1:
+		/* ETC1 is arranged as 64-bit blocks, where each block is 4x4
+		 * pixels.
+		 */
+		cpp = 8;
+		width = (width + 3) >> 2;
+		height = (height + 3) >> 2;
+		break;
 	case VC4_TEXTURE_TYPE_BW1:
 	case VC4_TEXTURE_TYPE_A4:
 	case VC4_TEXTURE_TYPE_A1:
