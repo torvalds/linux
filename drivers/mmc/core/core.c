@@ -497,13 +497,13 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
  *
  * Returns enum mmc_blk_status after checking errors.
  */
-static int mmc_wait_for_data_req_done(struct mmc_host *host,
+static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
 				      struct mmc_request *mrq,
 				      struct mmc_async_req *next_req)
 {
 	struct mmc_command *cmd;
 	struct mmc_context_info *context_info = &host->context_info;
-	int err;
+	enum mmc_blk_status status;
 	unsigned long flags;
 
 	while (1) {
@@ -520,9 +520,9 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 
 			if (!cmd->error || !cmd->retries ||
 			    mmc_card_removed(host->card)) {
-				err = host->areq->err_check(host->card,
-							    host->areq);
-				break; /* return err */
+				status = host->areq->err_check(host->card,
+							       host->areq);
+				break; /* return status */
 			} else {
 				mmc_retune_recheck(host);
 				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
@@ -540,7 +540,7 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 		}
 	}
 	mmc_retune_release(host);
-	return err;
+	return status;
 }
 
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq)
@@ -658,9 +658,10 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
  *	is returned without waiting. NULL is not an error condition.
  */
 struct mmc_async_req *mmc_start_req(struct mmc_host *host,
-				    struct mmc_async_req *areq, int *error)
+				    struct mmc_async_req *areq,
+				    enum mmc_blk_status *ret_stat)
 {
-	int err = 0;
+	enum mmc_blk_status status = MMC_BLK_SUCCESS;
 	int start_err = 0;
 	struct mmc_async_req *data = host->areq;
 
@@ -669,10 +670,10 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		mmc_pre_req(host, areq->mrq, !host->areq);
 
 	if (host->areq) {
-		err = mmc_wait_for_data_req_done(host, host->areq->mrq,	areq);
-		if (err == MMC_BLK_NEW_REQUEST) {
-			if (error)
-				*error = err;
+		status = mmc_wait_for_data_req_done(host, host->areq->mrq, areq);
+		if (status == MMC_BLK_NEW_REQUEST) {
+			if (ret_stat)
+				*ret_stat = status;
 			/*
 			 * The previous request was not completed,
 			 * nothing to return
@@ -699,23 +700,23 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		}
 	}
 
-	if (!err && areq)
+	if (status == MMC_BLK_SUCCESS && areq)
 		start_err = __mmc_start_data_req(host, areq->mrq);
 
 	if (host->areq)
 		mmc_post_req(host, host->areq->mrq, 0);
 
 	 /* Cancel a prepared request if it was not started. */
-	if ((err || start_err) && areq)
+	if ((status != MMC_BLK_SUCCESS || start_err) && areq)
 		mmc_post_req(host, areq->mrq, -EINVAL);
 
-	if (err)
+	if (status != MMC_BLK_SUCCESS)
 		host->areq = NULL;
 	else
 		host->areq = areq;
 
-	if (error)
-		*error = err;
+	if (ret_stat)
+		*ret_stat = status;
 	return data;
 }
 EXPORT_SYMBOL(mmc_start_req);

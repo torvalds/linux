@@ -736,15 +736,28 @@ static int mmc_test_check_result(struct mmc_test_card *test,
 	return ret;
 }
 
-static int mmc_test_check_result_async(struct mmc_card *card,
+static enum mmc_blk_status mmc_test_check_result_async(struct mmc_card *card,
 				       struct mmc_async_req *areq)
 {
 	struct mmc_test_async_req *test_async =
 		container_of(areq, struct mmc_test_async_req, areq);
+	int ret;
 
 	mmc_test_wait_busy(test_async->test);
 
-	return mmc_test_check_result(test_async->test, areq->mrq);
+	/*
+	 * FIXME: this would earlier just casts a regular error code,
+	 * either of the kernel type -ERRORCODE or the local test framework
+	 * RESULT_* errorcode, into an enum mmc_blk_status and return as
+	 * result check. Instead, convert it to some reasonable type by just
+	 * returning either MMC_BLK_SUCCESS or MMC_BLK_CMD_ERR.
+	 * If possible, a reasonable error code should be returned.
+	 */
+	ret = mmc_test_check_result(test_async->test, areq->mrq);
+	if (ret)
+		return MMC_BLK_CMD_ERR;
+
+	return MMC_BLK_SUCCESS;
 }
 
 /*
@@ -817,6 +830,7 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 	struct mmc_async_req *done_areq;
 	struct mmc_async_req *cur_areq = &test_areq[0].areq;
 	struct mmc_async_req *other_areq = &test_areq[1].areq;
+	enum mmc_blk_status status;
 	int i;
 	int ret;
 
@@ -834,10 +848,12 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 	for (i = 0; i < count; i++) {
 		mmc_test_prepare_mrq(test, cur_areq->mrq, sg, sg_len, dev_addr,
 				     blocks, blksz, write);
-		done_areq = mmc_start_req(test->card->host, cur_areq, &ret);
+		done_areq = mmc_start_req(test->card->host, cur_areq, &status);
 
-		if (ret || (!done_areq && i > 0))
+		if (status != MMC_BLK_SUCCESS || (!done_areq && i > 0)) {
+			ret = RESULT_FAIL;
 			goto err;
+		}
 
 		if (done_areq) {
 			if (done_areq->mrq == &mrq2)
@@ -851,7 +867,9 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 		dev_addr += blocks;
 	}
 
-	done_areq = mmc_start_req(test->card->host, NULL, &ret);
+	done_areq = mmc_start_req(test->card->host, NULL, &status);
+	if (status != MMC_BLK_SUCCESS)
+		ret = RESULT_FAIL;
 
 	return ret;
 err:
@@ -2351,6 +2369,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 	struct mmc_request *mrq;
 	unsigned long timeout;
 	bool expired = false;
+	enum mmc_blk_status blkstat = MMC_BLK_SUCCESS;
 	int ret = 0, cmd_ret;
 	u32 status = 0;
 	int count = 0;
@@ -2378,9 +2397,11 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 
 	/* Start ongoing data request */
 	if (use_areq) {
-		mmc_start_req(host, &test_areq.areq, &ret);
-		if (ret)
+		mmc_start_req(host, &test_areq.areq, &blkstat);
+		if (blkstat != MMC_BLK_SUCCESS) {
+			ret = RESULT_FAIL;
 			goto out_free;
+		}
 	} else {
 		mmc_wait_for_req(host, mrq);
 	}
@@ -2413,10 +2434,13 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 	} while (repeat_cmd && R1_CURRENT_STATE(status) != R1_STATE_TRAN);
 
 	/* Wait for data request to complete */
-	if (use_areq)
-		mmc_start_req(host, NULL, &ret);
-	else
+	if (use_areq) {
+		mmc_start_req(host, NULL, &blkstat);
+		if (blkstat != MMC_BLK_SUCCESS)
+			ret = RESULT_FAIL;
+	} else {
 		mmc_wait_for_req_done(test->card->host, mrq);
+	}
 
 	/*
 	 * For cap_cmd_during_tfr request, upper layer must send stop if
