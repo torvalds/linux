@@ -249,6 +249,7 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 	int bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
 	u32 pm, hz = t ? t->speed_hz : spi->max_speed_hz;
 	struct spi_mpc8xxx_cs *cs = spi->controller_state;
+	u32 hw_mode_old = cs->hw_mode;
 
 	/* mask out bits we are going to set */
 	cs->hw_mode &= ~(CSMODE_LEN(0xF) | CSMODE_DIV16 | CSMODE_PM(0xF));
@@ -271,8 +272,10 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 
 	cs->hw_mode |= CSMODE_PM(pm);
 
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(spi->chip_select),
-			   cs->hw_mode);
+	/* don't write the mode register if the mode doesn't change */
+	if (cs->hw_mode != hw_mode_old)
+		fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(spi->chip_select),
+				   cs->hw_mode);
 }
 
 static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
