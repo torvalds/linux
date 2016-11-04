@@ -30,6 +30,7 @@
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -46,6 +47,229 @@
 #include <nvif/class.h>
 #include <nvif/cl0046.h>
 #include <nvif/event.h>
+
+struct drm_display_mode *
+nouveau_conn_native_mode(struct drm_connector *connector)
+{
+	const struct drm_connector_helper_funcs *helper = connector->helper_private;
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *mode, *largest = NULL;
+	int high_w = 0, high_h = 0, high_v = 0;
+
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		mode->vrefresh = drm_mode_vrefresh(mode);
+		if (helper->mode_valid(connector, mode) != MODE_OK ||
+		    (mode->flags & DRM_MODE_FLAG_INTERLACE))
+			continue;
+
+		/* Use preferred mode if there is one.. */
+		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+			NV_DEBUG(drm, "native mode from preferred\n");
+			return drm_mode_duplicate(dev, mode);
+		}
+
+		/* Otherwise, take the resolution with the largest width, then
+		 * height, then vertical refresh
+		 */
+		if (mode->hdisplay < high_w)
+			continue;
+
+		if (mode->hdisplay == high_w && mode->vdisplay < high_h)
+			continue;
+
+		if (mode->hdisplay == high_w && mode->vdisplay == high_h &&
+		    mode->vrefresh < high_v)
+			continue;
+
+		high_w = mode->hdisplay;
+		high_h = mode->vdisplay;
+		high_v = mode->vrefresh;
+		largest = mode;
+	}
+
+	NV_DEBUG(drm, "native mode from largest: %dx%d@%d\n",
+		      high_w, high_h, high_v);
+	return largest ? drm_mode_duplicate(dev, largest) : NULL;
+}
+
+int
+nouveau_conn_atomic_get_property(struct drm_connector *connector,
+				 const struct drm_connector_state *state,
+				 struct drm_property *property, u64 *val)
+{
+	struct nouveau_conn_atom *asyc = nouveau_conn_atom(state);
+	struct nouveau_display *disp = nouveau_display(connector->dev);
+	struct drm_device *dev = connector->dev;
+
+	if (property == dev->mode_config.scaling_mode_property)
+		*val = asyc->scaler.mode;
+	else if (property == disp->underscan_property)
+		*val = asyc->scaler.underscan.mode;
+	else if (property == disp->underscan_hborder_property)
+		*val = asyc->scaler.underscan.hborder;
+	else if (property == disp->underscan_vborder_property)
+		*val = asyc->scaler.underscan.vborder;
+	else if (property == disp->dithering_mode)
+		*val = asyc->dither.mode;
+	else if (property == disp->dithering_depth)
+		*val = asyc->dither.depth;
+	else if (property == disp->vibrant_hue_property)
+		*val = asyc->procamp.vibrant_hue;
+	else if (property == disp->color_vibrance_property)
+		*val = asyc->procamp.color_vibrance;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+int
+nouveau_conn_atomic_set_property(struct drm_connector *connector,
+				 struct drm_connector_state *state,
+				 struct drm_property *property, u64 val)
+{
+	struct drm_device *dev = connector->dev;
+	struct nouveau_conn_atom *asyc = nouveau_conn_atom(state);
+	struct nouveau_display *disp = nouveau_display(dev);
+
+	if (property == dev->mode_config.scaling_mode_property) {
+		switch (val) {
+		case DRM_MODE_SCALE_NONE:
+			/* We allow 'None' for EDID modes, even on a fixed
+			 * panel (some exist with support for lower refresh
+			 * rates, which people might want to use for power-
+			 * saving purposes).
+			 *
+			 * Non-EDID modes will force the use of GPU scaling
+			 * to the native mode regardless of this setting.
+			 */
+			switch (connector->connector_type) {
+			case DRM_MODE_CONNECTOR_LVDS:
+			case DRM_MODE_CONNECTOR_eDP:
+				/* ... except prior to G80, where the code
+				 * doesn't support such things.
+				 */
+				if (disp->disp.oclass < NV50_DISP)
+					return -EINVAL;
+				break;
+			default:
+				break;
+			}
+		case DRM_MODE_SCALE_FULLSCREEN:
+		case DRM_MODE_SCALE_CENTER:
+		case DRM_MODE_SCALE_ASPECT:
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (asyc->scaler.mode != val) {
+			asyc->scaler.mode = val;
+			asyc->set.scaler = true;
+		}
+	} else
+	if (property == disp->underscan_property) {
+		if (asyc->scaler.underscan.mode != val) {
+			asyc->scaler.underscan.mode = val;
+			asyc->set.scaler = true;
+		}
+	} else
+	if (property == disp->underscan_hborder_property) {
+		if (asyc->scaler.underscan.hborder != val) {
+			asyc->scaler.underscan.hborder = val;
+			asyc->set.scaler = true;
+		}
+	} else
+	if (property == disp->underscan_vborder_property) {
+		if (asyc->scaler.underscan.vborder != val) {
+			asyc->scaler.underscan.vborder = val;
+			asyc->set.scaler = true;
+		}
+	} else
+	if (property == disp->dithering_mode) {
+		if (asyc->dither.mode != val) {
+			asyc->dither.mode = val;
+			asyc->set.dither = true;
+		}
+	} else
+	if (property == disp->dithering_depth) {
+		if (asyc->dither.mode != val) {
+			asyc->dither.depth = val;
+			asyc->set.dither = true;
+		}
+	} else
+	if (property == disp->vibrant_hue_property) {
+		if (asyc->procamp.vibrant_hue != val) {
+			asyc->procamp.vibrant_hue = val;
+			asyc->set.procamp = true;
+		}
+	} else
+	if (property == disp->color_vibrance_property) {
+		if (asyc->procamp.color_vibrance != val) {
+			asyc->procamp.color_vibrance = val;
+			asyc->set.procamp = true;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void
+nouveau_conn_atomic_destroy_state(struct drm_connector *connector,
+				  struct drm_connector_state *state)
+{
+	struct nouveau_conn_atom *asyc = nouveau_conn_atom(state);
+	__drm_atomic_helper_connector_destroy_state(&asyc->state);
+	kfree(asyc);
+}
+
+struct drm_connector_state *
+nouveau_conn_atomic_duplicate_state(struct drm_connector *connector)
+{
+	struct nouveau_conn_atom *armc = nouveau_conn_atom(connector->state);
+	struct nouveau_conn_atom *asyc;
+	if (!(asyc = kmalloc(sizeof(*asyc), GFP_KERNEL)))
+		return NULL;
+	__drm_atomic_helper_connector_duplicate_state(connector, &asyc->state);
+	asyc->dither = armc->dither;
+	asyc->scaler = armc->scaler;
+	asyc->procamp = armc->procamp;
+	asyc->set.mask = 0;
+	return &asyc->state;
+}
+
+void
+nouveau_conn_reset(struct drm_connector *connector)
+{
+	struct nouveau_conn_atom *asyc;
+
+	if (WARN_ON(!(asyc = kzalloc(sizeof(*asyc), GFP_KERNEL))))
+		return;
+
+	if (connector->state)
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+	__drm_atomic_helper_connector_reset(connector, &asyc->state);
+	asyc->dither.mode = DITHERING_MODE_AUTO;
+	asyc->dither.depth = DITHERING_DEPTH_AUTO;
+	asyc->scaler.mode = DRM_MODE_SCALE_NONE;
+	asyc->scaler.underscan.mode = UNDERSCAN_OFF;
+	asyc->procamp.color_vibrance = 150;
+	asyc->procamp.vibrant_hue = 90;
+
+	if (nouveau_display(connector->dev)->disp.oclass < NV50_DISP) {
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_LVDS:
+			/* See note in nouveau_conn_atomic_set_property(). */
+			asyc->scaler.mode = DRM_MODE_SCALE_FULLSCREEN;
+			break;
+		default:
+			break;
+		}
+	}
+}
 
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
 int nouveau_tv_disable = 0;
@@ -465,199 +689,44 @@ static int
 nouveau_connector_set_property(struct drm_connector *connector,
 			       struct drm_property *property, uint64_t value)
 {
-	struct nouveau_display *disp = nouveau_display(connector->dev);
+	struct nouveau_conn_atom *asyc = nouveau_conn_atom(connector->state);
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
-	struct drm_device *dev = connector->dev;
-	struct nouveau_crtc *nv_crtc;
+	struct nouveau_crtc *nv_crtc = NULL;
 	int ret;
 
-	nv_crtc = NULL;
+	ret = connector->funcs->atomic_set_property(&nv_connector->base,
+						    &asyc->state,
+						    property, value);
+	if (ret) {
+		if (nv_encoder && nv_encoder->dcb->type == DCB_OUTPUT_TV)
+			return get_slave_funcs(encoder)->set_property(
+				encoder, connector, property, value);
+		return ret;
+	}
+
+	nv_connector->scaling_mode = asyc->scaler.mode;
+	nv_connector->underscan = asyc->scaler.underscan.mode;
+	nv_connector->underscan_hborder = asyc->scaler.underscan.hborder;
+	nv_connector->underscan_vborder = asyc->scaler.underscan.vborder;
+	nv_connector->dithering_mode = asyc->dither.mode;
+	nv_connector->dithering_depth = asyc->dither.depth;
+
 	if (connector->encoder && connector->encoder->crtc)
 		nv_crtc = nouveau_crtc(connector->encoder->crtc);
-
-	/* Scaling mode */
-	if (property == dev->mode_config.scaling_mode_property) {
-		bool modeset = false;
-
-		switch (value) {
-		case DRM_MODE_SCALE_NONE:
-			/* We allow 'None' for EDID modes, even on a fixed
-			 * panel (some exist with support for lower refresh
-			 * rates, which people might want to use for power
-			 * saving purposes).
-			 *
-			 * Non-EDID modes will force the use of GPU scaling
-			 * to the native mode regardless of this setting.
-			 */
-			switch (nv_connector->type) {
-			case DCB_CONNECTOR_LVDS:
-			case DCB_CONNECTOR_LVDS_SPWG:
-			case DCB_CONNECTOR_eDP:
-				/* ... except prior to G80, where the code
-				 * doesn't support such things.
-				 */
-				if (disp->disp.oclass < NV50_DISP)
-					return -EINVAL;
-				break;
-			default:
-				break;
-			}
-			break;
-		case DRM_MODE_SCALE_FULLSCREEN:
-		case DRM_MODE_SCALE_CENTER:
-		case DRM_MODE_SCALE_ASPECT:
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		/* Changing between GPU and panel scaling requires a full
-		 * modeset
-		 */
-		if ((nv_connector->scaling_mode == DRM_MODE_SCALE_NONE) ||
-		    (value == DRM_MODE_SCALE_NONE))
-			modeset = true;
-		nv_connector->scaling_mode = value;
-
-		if (!nv_crtc)
-			return 0;
-
-		if (modeset || !nv_crtc->set_scale) {
-			ret = drm_crtc_helper_set_mode(&nv_crtc->base,
-							&nv_crtc->base.mode,
-							nv_crtc->base.x,
-							nv_crtc->base.y, NULL);
-			if (!ret)
-				return -EINVAL;
-		} else {
-			ret = nv_crtc->set_scale(nv_crtc, true);
-			if (ret)
-				return ret;
-		}
-
+	if (!nv_crtc)
 		return 0;
-	}
 
-	/* Underscan */
-	if (property == disp->underscan_property) {
-		if (nv_connector->underscan != value) {
-			nv_connector->underscan = value;
-			if (!nv_crtc || !nv_crtc->set_scale)
-				return 0;
+	nv_crtc->vibrant_hue = asyc->procamp.vibrant_hue - 90;
+	nv_crtc->color_vibrance = asyc->procamp.color_vibrance - 100;
 
-			return nv_crtc->set_scale(nv_crtc, true);
-		}
+	ret = drm_crtc_helper_set_mode(&nv_crtc->base, &nv_crtc->base.mode,
+				       nv_crtc->base.x, nv_crtc->base.y, NULL);
+	if (!ret)
+		return -EINVAL;
 
-		return 0;
-	}
-
-	if (property == disp->underscan_hborder_property) {
-		if (nv_connector->underscan_hborder != value) {
-			nv_connector->underscan_hborder = value;
-			if (!nv_crtc || !nv_crtc->set_scale)
-				return 0;
-
-			return nv_crtc->set_scale(nv_crtc, true);
-		}
-
-		return 0;
-	}
-
-	if (property == disp->underscan_vborder_property) {
-		if (nv_connector->underscan_vborder != value) {
-			nv_connector->underscan_vborder = value;
-			if (!nv_crtc || !nv_crtc->set_scale)
-				return 0;
-
-			return nv_crtc->set_scale(nv_crtc, true);
-		}
-
-		return 0;
-	}
-
-	/* Dithering */
-	if (property == disp->dithering_mode) {
-		nv_connector->dithering_mode = value;
-		if (!nv_crtc || !nv_crtc->set_dither)
-			return 0;
-
-		return nv_crtc->set_dither(nv_crtc, true);
-	}
-
-	if (property == disp->dithering_depth) {
-		nv_connector->dithering_depth = value;
-		if (!nv_crtc || !nv_crtc->set_dither)
-			return 0;
-
-		return nv_crtc->set_dither(nv_crtc, true);
-	}
-
-	if (nv_crtc && nv_crtc->set_color_vibrance) {
-		/* Hue */
-		if (property == disp->vibrant_hue_property) {
-			nv_crtc->vibrant_hue = value - 90;
-			return nv_crtc->set_color_vibrance(nv_crtc, true);
-		}
-		/* Saturation */
-		if (property == disp->color_vibrance_property) {
-			nv_crtc->color_vibrance = value - 100;
-			return nv_crtc->set_color_vibrance(nv_crtc, true);
-		}
-	}
-
-	if (nv_encoder && nv_encoder->dcb->type == DCB_OUTPUT_TV)
-		return get_slave_funcs(encoder)->set_property(
-			encoder, connector, property, value);
-
-	return -EINVAL;
-}
-
-static struct drm_display_mode *
-nouveau_connector_native_mode(struct drm_connector *connector)
-{
-	const struct drm_connector_helper_funcs *helper = connector->helper_private;
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	struct drm_device *dev = connector->dev;
-	struct drm_display_mode *mode, *largest = NULL;
-	int high_w = 0, high_h = 0, high_v = 0;
-
-	list_for_each_entry(mode, &nv_connector->base.probed_modes, head) {
-		mode->vrefresh = drm_mode_vrefresh(mode);
-		if (helper->mode_valid(connector, mode) != MODE_OK ||
-		    (mode->flags & DRM_MODE_FLAG_INTERLACE))
-			continue;
-
-		/* Use preferred mode if there is one.. */
-		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			NV_DEBUG(drm, "native mode from preferred\n");
-			return drm_mode_duplicate(dev, mode);
-		}
-
-		/* Otherwise, take the resolution with the largest width, then
-		 * height, then vertical refresh
-		 */
-		if (mode->hdisplay < high_w)
-			continue;
-
-		if (mode->hdisplay == high_w && mode->vdisplay < high_h)
-			continue;
-
-		if (mode->hdisplay == high_w && mode->vdisplay == high_h &&
-		    mode->vrefresh < high_v)
-			continue;
-
-		high_w = mode->hdisplay;
-		high_h = mode->vdisplay;
-		high_v = mode->vrefresh;
-		largest = mode;
-	}
-
-	NV_DEBUG(drm, "native mode from largest: %dx%d@%d\n",
-		      high_w, high_h, high_v);
-	return largest ? drm_mode_duplicate(dev, largest) : NULL;
+	return 0;
 }
 
 struct moderec {
@@ -805,8 +874,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	 * the list of modes.
 	 */
 	if (!nv_connector->native_mode)
-		nv_connector->native_mode =
-			nouveau_connector_native_mode(connector);
+		nv_connector->native_mode = nouveau_conn_native_mode(connector);
 	if (ret == 0 && nv_connector->native_mode) {
 		struct drm_display_mode *mode;
 
@@ -937,21 +1005,31 @@ nouveau_connector_helper_funcs = {
 static const struct drm_connector_funcs
 nouveau_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
+	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect,
-	.destroy = nouveau_connector_destroy,
+	.force = nouveau_connector_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = nouveau_connector_set_property,
-	.force = nouveau_connector_force
+	.destroy = nouveau_connector_destroy,
+	.atomic_duplicate_state = nouveau_conn_atomic_duplicate_state,
+	.atomic_destroy_state = nouveau_conn_atomic_destroy_state,
+	.atomic_set_property = nouveau_conn_atomic_set_property,
+	.atomic_get_property = nouveau_conn_atomic_get_property,
 };
 
 static const struct drm_connector_funcs
 nouveau_connector_funcs_lvds = {
 	.dpms = drm_helper_connector_dpms,
+	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect_lvds,
-	.destroy = nouveau_connector_destroy,
+	.force = nouveau_connector_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = nouveau_connector_set_property,
-	.force = nouveau_connector_force
+	.destroy = nouveau_connector_destroy,
+	.atomic_duplicate_state = nouveau_conn_atomic_duplicate_state,
+	.atomic_destroy_state = nouveau_conn_atomic_destroy_state,
+	.atomic_set_property = nouveau_conn_atomic_set_property,
+	.atomic_get_property = nouveau_conn_atomic_get_property,
 };
 
 static int
@@ -979,11 +1057,16 @@ nouveau_connector_dp_dpms(struct drm_connector *connector, int mode)
 static const struct drm_connector_funcs
 nouveau_connector_funcs_dp = {
 	.dpms = nouveau_connector_dp_dpms,
+	.reset = nouveau_conn_reset,
 	.detect = nouveau_connector_detect,
-	.destroy = nouveau_connector_destroy,
+	.force = nouveau_connector_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = nouveau_connector_set_property,
-	.force = nouveau_connector_force
+	.destroy = nouveau_connector_destroy,
+	.atomic_duplicate_state = nouveau_conn_atomic_duplicate_state,
+	.atomic_destroy_state = nouveau_conn_atomic_destroy_state,
+	.atomic_set_property = nouveau_conn_atomic_set_property,
+	.atomic_get_property = nouveau_conn_atomic_get_property,
 };
 
 static int

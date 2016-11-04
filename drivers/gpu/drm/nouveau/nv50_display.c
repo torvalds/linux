@@ -1448,9 +1448,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 		return -ENOMEM;
 
 	head->base.index = index;
-	head->base.set_dither = nv50_crtc_set_dither;
-	head->base.set_scale = nv50_crtc_set_scale;
-	head->base.set_color_vibrance = nv50_crtc_set_color_vibrance;
 	head->base.color_vibrance = 50;
 	head->base.vibrant_hue = 0;
 	head->base.cursor.set_pos = nv50_crtc_cursor_restore;
