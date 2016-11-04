@@ -1492,7 +1492,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	/* 4: Everything else */
-	if (HAS_HW_CONTEXTS(dev))
+	if (HAS_HW_CONTEXTS(dev_priv))
 		error->ccid = I915_READ(CCID);
 
 	if (INTEL_INFO(dev)->gen >= 8) {

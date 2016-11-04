@@ -48,7 +48,7 @@ static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *o
 static bool cpu_cache_is_coherent(struct drm_device *dev,
 				  enum i915_cache_level level)
 {
-	return HAS_LLC(dev) || level != I915_CACHE_NONE;
+	return HAS_LLC(to_i915(dev)) || level != I915_CACHE_NONE;
 }
 
 static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
@@ -1757,7 +1757,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		goto err_rpm;
 
 	/* Access to snoopable pages through the GTT is incoherent. */
-	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev)) {
+	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev_priv)) {
 		ret = -EFAULT;
 		goto err_unlock;
 	}
@@ -3180,7 +3180,8 @@ restart:
 		if (ret)
 			return ret;
 
-		if (!HAS_LLC(obj->base.dev) && cache_level != I915_CACHE_NONE) {
+		if (!HAS_LLC(to_i915(obj->base.dev)) &&
+		    cache_level != I915_CACHE_NONE) {
 			/* Access to snoopable pages through the GTT is
 			 * incoherent and on some machines causes a hard
 			 * lockup. Relinquish the CPU mmaping to force
@@ -3884,7 +3885,7 @@ i915_gem_object_create(struct drm_device *dev, u64 size)
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	if (HAS_LLC(dev)) {
+	if (HAS_LLC(dev_priv)) {
 		/* On some devices, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
@@ -4130,7 +4131,7 @@ int i915_gem_suspend(struct drm_device *dev)
 	 * machines is a good idea, we don't - just in case it leaves the
 	 * machine in an unusable condition.
 	 */
-	if (HAS_HW_CONTEXTS(dev)) {
+	if (HAS_HW_CONTEXTS(dev_priv)) {
 		int reset = intel_gpu_reset(dev_priv, ALL_ENGINES);
 		WARN_ON(reset && reset != -ENODEV);
 	}
@@ -4223,7 +4224,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	if (HAS_EDRAM(dev) && INTEL_GEN(dev_priv) < 9)
+	if (HAS_EDRAM(dev_priv) && INTEL_GEN(dev_priv) < 9)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
 	if (IS_HASWELL(dev_priv))

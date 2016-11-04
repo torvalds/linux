@@ -596,7 +596,8 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 
 	obj->stolen = stolen;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
-	obj->cache_level = HAS_LLC(dev) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	obj->cache_level = HAS_LLC(to_i915(dev)) ?
+			   I915_CACHE_LLC : I915_CACHE_NONE;
 
 	if (i915_gem_object_pin_pages(obj))
 		goto cleanup;
