@@ -35,6 +35,64 @@ int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
  * Link, Duplex and Flow Control have one force bit, one value bit.
  */
 
+static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
+					  phy_interface_t mode)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~(PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
+		 PORT_PCS_CTRL_RGMII_DELAY_TXCLK);
+
+	switch (mode) {
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		reg |= PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
+			PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
+		break;
+	default:
+		/* no delay */
+		break;
+	}
+
+	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	if (err)
+		return err;
+
+	netdev_dbg(chip->ds->ports[port].netdev, "delay RXCLK %s, TXCLK %s\n",
+		   reg & PORT_PCS_CTRL_RGMII_DELAY_RXCLK ? "yes" : "no",
+		   reg & PORT_PCS_CTRL_RGMII_DELAY_TXCLK ? "yes" : "no");
+
+	return 0;
+}
+
+int mv88e6352_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
+				   phy_interface_t mode)
+{
+	if (port < 5)
+		return -EOPNOTSUPP;
+
+	return mv88e6xxx_port_set_rgmii_delay(chip, port, mode);
+}
+
+int mv88e6390_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
+				   phy_interface_t mode)
+{
+	if (port != 0)
+		return -EOPNOTSUPP;
+
+	return mv88e6xxx_port_set_rgmii_delay(chip, port, mode);
+}
+
 int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
 {
 	u16 reg;

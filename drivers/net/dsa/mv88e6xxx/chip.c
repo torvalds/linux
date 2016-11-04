@@ -3220,6 +3220,7 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 };
 
 static const struct mv88e6xxx_ops mv88e6175_ops = {
@@ -3238,6 +3239,7 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 };
 
 static const struct mv88e6xxx_ops mv88e6185_ops = {
@@ -3256,6 +3258,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3302,6 +3305,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
