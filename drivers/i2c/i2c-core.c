@@ -1681,6 +1681,7 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 static void of_i2c_register_devices(struct i2c_adapter *adap)
 {
 	struct device_node *bus, *node;
+	struct i2c_client *client;
 
 	/* Only register child devices if the adapter has a node pointer set */
 	if (!adap->dev.of_node)
@@ -1695,7 +1696,14 @@ static void of_i2c_register_devices(struct i2c_adapter *adap)
 	for_each_available_child_of_node(bus, node) {
 		if (of_node_test_and_set_flag(node, OF_POPULATED))
 			continue;
-		of_i2c_register_device(adap, node);
+
+		client = of_i2c_register_device(adap, node);
+		if (IS_ERR(client)) {
+			dev_warn(&adap->dev,
+				 "Failed to create I2C device for %s\n",
+				 node->full_name);
+			of_node_clear_flag(node, OF_POPULATED);
+		}
 	}
 
 	of_node_put(bus);
@@ -2299,6 +2307,7 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		if (IS_ERR(client)) {
 			dev_err(&adap->dev, "failed to create client for '%s'\n",
 				 rd->dn->full_name);
+			of_node_clear_flag(rd->dn, OF_POPULATED);
 			return notifier_from_errno(PTR_ERR(client));
 		}
 		break;

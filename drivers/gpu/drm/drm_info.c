@@ -54,9 +54,6 @@ int drm_name_info(struct seq_file *m, void *data)
 
 	mutex_lock(&dev->master_mutex);
 	master = dev->master;
-	if (!master)
-		goto out_unlock;
-
 	seq_printf(m, "%s", dev->driver->name);
 	if (dev->dev)
 		seq_printf(m, " dev=%s", dev_name(dev->dev));
@@ -65,7 +62,6 @@ int drm_name_info(struct seq_file *m, void *data)
 	if (dev->unique)
 		seq_printf(m, " unique=%s", dev->unique);
 	seq_printf(m, "\n");
-out_unlock:
 	mutex_unlock(&dev->master_mutex);
 
 	return 0;

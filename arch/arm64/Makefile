@@ -15,7 +15,7 @@ CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 GZFLAGS		:=-9
 
 ifneq ($(CONFIG_RELOCATABLE),)
-LDFLAGS_vmlinux		+= -pie -Bsymbolic
+LDFLAGS_vmlinux		+= -pie -shared -Bsymbolic
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)

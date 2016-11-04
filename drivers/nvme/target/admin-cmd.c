@@ -199,7 +199,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	 */
 
 	/* we support multiple ports and multiples hosts: */
-	id->mic = (1 << 0) | (1 << 1);
+	id->cmic = (1 << 0) | (1 << 1);
 
 	/* no limit on data transfer sizes for now */
 	id->mdts = 0;
@@ -511,13 +511,13 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 	case nvme_admin_identify:
 		req->data_len = 4096;
 		switch (le32_to_cpu(cmd->identify.cns)) {
-		case 0x00:
+		case NVME_ID_CNS_NS:
 			req->execute = nvmet_execute_identify_ns;
 			return 0;
-		case 0x01:
+		case NVME_ID_CNS_CTRL:
 			req->execute = nvmet_execute_identify_ctrl;
 			return 0;
-		case 0x02:
+		case NVME_ID_CNS_NS_ACTIVE_LIST:
 			req->execute = nvmet_execute_identify_nslist;
 			return 0;
 		}
