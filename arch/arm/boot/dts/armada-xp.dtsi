@@ -84,16 +84,6 @@
 				wt-override;
 			};
 
-			i2c0: i2c@11000 {
-				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-				reg = <0x11000 0x100>;
-			};
-
-			i2c1: i2c@11100 {
-				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-				reg = <0x11100 0x100>;
-			};
-
 			uart2: serial@12200 {
 				compatible = "snps,dw-apb-uart";
 				pinctrl-0 = <&uart2_pins>;
@@ -150,26 +140,6 @@
 				clocks = <&coreclk 1>;
 			};
 
-			interrupt-controller@20a00 {
-			      reg = <0x20a00 0x2d0>, <0x21070 0x58>;
-			};
-
-			timer@20300 {
-				compatible = "marvell,armada-xp-timer";
-				clocks = <&coreclk 2>, <&refclk>;
-				clock-names = "nbclk", "fixed";
-			};
-
-			watchdog@20300 {
-				compatible = "marvell,armada-xp-wdt";
-				clocks = <&coreclk 2>, <&refclk>;
-				clock-names = "nbclk", "fixed";
-			};
-
-			cpurst@20800 {
-				reg = <0x20800 0x20>;
-			};
-
 			cpu-config@21000 {
 				compatible = "marvell,armada-xp-cpu-config";
 				reg = <0x21000 0x8>;
@@ -181,14 +151,6 @@
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
 				status = "disabled";
-			};
-
-			usb@50000 {
-				clocks = <&gateclk 18>;
-			};
-
-			usb@51000 {
-				clocks = <&gateclk 19>;
 			};
 
 			usb2: usb@52000 {
@@ -306,6 +268,44 @@
 			clock-frequency = <25000000>;
 		};
 	};
+};
+
+&i2c0 {
+	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+	reg = <0x11000 0x100>;
+};
+
+&i2c1 {
+	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+	reg = <0x11100 0x100>;
+};
+
+&mpic {
+	reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+};
+
+&timer {
+	compatible = "marvell,armada-xp-timer";
+	clocks = <&coreclk 2>, <&refclk>;
+	clock-names = "nbclk", "fixed";
+};
+
+&watchdog {
+	compatible = "marvell,armada-xp-wdt";
+	clocks = <&coreclk 2>, <&refclk>;
+	clock-names = "nbclk", "fixed";
+};
+
+&cpurst {
+	reg = <0x20800 0x20>;
+};
+
+&usb0 {
+	clocks = <&gateclk 18>;
+};
+
+&usb1 {
+	clocks = <&gateclk 19>;
 };
 
 &pinctrl {
