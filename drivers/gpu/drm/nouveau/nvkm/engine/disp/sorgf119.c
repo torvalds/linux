@@ -103,12 +103,24 @@ gf119_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
 	return 0;
 }
 
+void
+gf119_sor_dp_vcpi(struct nvkm_output_dp *outp, int head, u8 slot,
+		  u8 slot_nr, u16 pbn, u16 aligned)
+{
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	const u32 hoff = head * 0x800;
+
+	nvkm_mask(device, 0x616588 + hoff, 0x00003f3f, (slot_nr << 8) | slot);
+	nvkm_mask(device, 0x61658c + hoff, 0xffffffff, (aligned << 16) | pbn);
+}
+
 static const struct nvkm_output_dp_func
 gf119_sor_dp_func = {
 	.pattern = gf119_sor_dp_pattern,
 	.lnk_pwr = g94_sor_dp_lnk_pwr,
 	.lnk_ctl = gf119_sor_dp_lnk_ctl,
 	.drv_ctl = gf119_sor_dp_drv_ctl,
+	.vcpi = gf119_sor_dp_vcpi,
 };
 
 int

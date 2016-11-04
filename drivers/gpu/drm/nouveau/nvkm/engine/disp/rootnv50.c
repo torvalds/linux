@@ -200,6 +200,29 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			return ret;
 	}
 		break;
+	case NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI: {
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
+		union {
+			struct nv50_disp_sor_dp_mst_vcpi_v0 v0;
+		} *args = data;
+		int ret = -ENOSYS;
+		nvif_ioctl(object, "disp sor dp mst vcpi size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+			nvif_ioctl(object, "disp sor dp mst vcpi vers %d "
+					   "slot %02x/%02x pbn %04x/%04x\n",
+				   args->v0.version, args->v0.start_slot,
+				   args->v0.num_slots, args->v0.pbn,
+				   args->v0.aligned_pbn);
+			if (!outpdp->func->vcpi)
+				return -ENODEV;
+			outpdp->func->vcpi(outpdp, head, args->v0.start_slot,
+					   args->v0.num_slots, args->v0.pbn,
+					   args->v0.aligned_pbn);
+			return 0;
+		} else
+			return ret;
+	}
+		break;
 	case NV50_DISP_MTHD_V1_PIOR_PWR:
 		if (!func->pior.power)
 			return -ENODEV;
