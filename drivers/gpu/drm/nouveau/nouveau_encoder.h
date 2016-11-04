@@ -103,4 +103,6 @@ struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
 
 int nv50_mstm_detect(struct nv50_mstm *, u8 dpcd[8], int allow);
+void nv50_mstm_remove(struct nv50_mstm *);
+void nv50_mstm_service(struct nv50_mstm *);
 #endif /* __NOUVEAU_ENCODER_H__ */

@@ -33,6 +33,10 @@
 #include <nvif/class.h>
 #include <nvif/cl5070.h>
 
+MODULE_PARM_DESC(mst, "Enable DisplayPort multi-stream (default: enabled)");
+static int nouveau_mst = 1;
+module_param_named(mst, nouveau_mst, int, 0400);
+
 static void
 nouveau_dp_probe_oui(struct drm_device *dev, struct nvkm_i2c_aux *aux, u8 *dpcd)
 {
@@ -88,7 +92,9 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 
 	nouveau_dp_probe_oui(dev, aux, dpcd);
 
-	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, 0);
+	ret = nv50_mstm_detect(nv_encoder->dp.mstm, dpcd, nouveau_mst);
+	if (ret == 1)
+		return NOUVEAU_DP_MST;
 	if (ret == 0)
 		return NOUVEAU_DP_SST;
 	return ret;
