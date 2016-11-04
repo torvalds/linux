@@ -48,14 +48,18 @@ static int set_config(struct perf_config_set *set, const char *file_name,
 	if (!fp)
 		return -1;
 
-	perf_config_set__collect(set, var, value);
+	perf_config_set__collect(set, file_name, var, value);
 	fprintf(fp, "%s\n", first_line);
 
 	/* overwrite configvariables */
 	perf_config_items__for_each_entry(&set->sections, section) {
+		if (!use_system_config && section->from_system_config)
+			continue;
 		fprintf(fp, "[%s]\n", section->name);
 
 		perf_config_items__for_each_entry(&section->items, item) {
+			if (!use_system_config && section->from_system_config)
+				continue;
 			if (item->value)
 				fprintf(fp, "\t%s = %s\n",
 					item->name, item->value);
