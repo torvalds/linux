@@ -861,10 +861,11 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 			 struct netlink_callback *cb,
 			 const struct inet_diag_req_v2 *r, struct nlattr *bc)
 {
-	struct net *net = sock_net(skb->sk);
-	int i, num, s_i, s_num;
-	u32 idiag_states = r->idiag_states;
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
+	struct net *net = sock_net(skb->sk);
+	u32 idiag_states = r->idiag_states;
+	int i, num, s_i, s_num;
+	struct sock *sk;
 
 	if (idiag_states & TCPF_SYN_RECV)
 		idiag_states |= TCPF_NEW_SYN_RECV;
@@ -877,7 +878,6 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
 			struct inet_listen_hashbucket *ilb;
-			struct sock *sk;
 
 			num = 0;
 			ilb = &hashinfo->listening_hash[i];
@@ -922,13 +922,14 @@ skip_listen_ht:
 	if (!(idiag_states & ~TCPF_LISTEN))
 		goto out;
 
+#define SKARR_SZ 16
 	for (i = s_i; i <= hashinfo->ehash_mask; i++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, i);
 		struct hlist_nulls_node *node;
-		struct sock *sk;
-
-		num = 0;
+		struct sock *sk_arr[SKARR_SZ];
+		int num_arr[SKARR_SZ];
+		int idx, accum, res;
 
 		if (hlist_nulls_empty(&head->chain))
 			continue;
@@ -936,9 +937,12 @@ skip_listen_ht:
 		if (i > s_i)
 			s_num = 0;
 
+next_chunk:
+		num = 0;
+		accum = 0;
 		spin_lock_bh(lock);
 		sk_nulls_for_each(sk, node, &head->chain) {
-			int state, res;
+			int state;
 
 			if (!net_eq(sock_net(sk), net))
 				continue;
@@ -962,21 +966,35 @@ skip_listen_ht:
 			if (!inet_diag_bc_sk(bc, sk))
 				goto next_normal;
 
-			res = sk_diag_fill(sk, skb, r,
+			sock_hold(sk);
+			num_arr[accum] = num;
+			sk_arr[accum] = sk;
+			if (++accum == SKARR_SZ)
+				break;
+next_normal:
+			++num;
+		}
+		spin_unlock_bh(lock);
+		res = 0;
+		for (idx = 0; idx < accum; idx++) {
+			if (res >= 0) {
+				res = sk_diag_fill(sk_arr[idx], skb, r,
 					   sk_user_ns(NETLINK_CB(cb->skb).sk),
 					   NETLINK_CB(cb->skb).portid,
 					   cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					   cb->nlh, net_admin);
-			if (res < 0) {
-				spin_unlock_bh(lock);
-				goto done;
+				if (res < 0)
+					num = num_arr[idx];
 			}
-next_normal:
-			++num;
+			sock_gen_put(sk_arr[idx]);
 		}
-
-		spin_unlock_bh(lock);
+		if (res < 0)
+			break;
 		cond_resched();
+		if (accum == SKARR_SZ) {
+			s_num = num + 1;
+			goto next_chunk;
+		}
 	}
 
 done:
