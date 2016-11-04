@@ -779,7 +779,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp *disp, int head)
 			break;
 		}
 
-		if (nvkm_output_dp_train(outp, datarate / soff, true))
+		if (nvkm_output_dp_train(outp, datarate / soff))
 			OUTP_ERR(outp, "link not trained before attach");
 	}
 

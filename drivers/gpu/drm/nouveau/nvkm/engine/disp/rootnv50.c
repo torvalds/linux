@@ -173,7 +173,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 				return 0;
 			} else
 			if (args->v0.state != 0) {
-				nvkm_output_dp_train(&outpdp->base, 0, true);
+				nvkm_output_dp_train(&outpdp->base, 0);
 				return 0;
 			}
 		} else

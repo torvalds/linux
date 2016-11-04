@@ -29,9 +29,8 @@ struct nvkm_output_dp {
 	bool present;
 	u8 dpcd[16];
 
+	struct mutex mutex;
 	struct {
-		struct work_struct work;
-		wait_queue_head_t wait;
 		atomic_t done;
 	} lt;
 };
@@ -43,7 +42,7 @@ struct nvkm_output_dp_func {
 	int (*drv_ctl)(struct nvkm_output_dp *, int ln, int vs, int pe, int pc);
 };
 
-int nvkm_output_dp_train(struct nvkm_output *, u32 rate, bool wait);
+int nvkm_output_dp_train(struct nvkm_output *, u32 rate);
 
 int nvkm_output_dp_ctor(const struct nvkm_output_dp_func *, struct nvkm_disp *,
 			int index, struct dcb_output *, struct nvkm_i2c_aux *,

@@ -314,7 +314,7 @@ gf119_disp_intr_unk2_2(struct nv50_disp *disp, int head)
 			break;
 		}
 
-		if (nvkm_output_dp_train(outp, pclk, true))
+		if (nvkm_output_dp_train(outp, pclk))
 			OUTP_ERR(outp, "link not trained before attach");
 	} else {
 		if (disp->func->sor.magic)
