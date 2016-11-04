@@ -88,6 +88,8 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 	/* 128 (2**7) bytes in each HPTEG */
 	kvm->arch.hpt_mask = (1ul << (order - 7)) - 1;
 
+	atomic64_set(&kvm->arch.mmio_update, 0);
+
 	/* Allocate reverse map array */
 	rev = vmalloc(sizeof(struct revmap_entry) * kvm->arch.hpt_npte);
 	if (!rev) {
@@ -451,6 +453,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	unsigned int writing, write_ok;
 	struct vm_area_struct *vma;
 	unsigned long rcbits;
+	long mmio_update;
 
 	/*
 	 * Real-mode code has already searched the HPT and found the
@@ -460,6 +463,19 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	if (ea != vcpu->arch.pgfault_addr)
 		return RESUME_GUEST;
+
+	if (vcpu->arch.pgfault_cache) {
+		mmio_update = atomic64_read(&kvm->arch.mmio_update);
+		if (mmio_update == vcpu->arch.pgfault_cache->mmio_update) {
+			r = vcpu->arch.pgfault_cache->rpte;
+			psize = hpte_page_size(vcpu->arch.pgfault_hpte[0], r);
+			gpa_base = r & HPTE_R_RPN & ~(psize - 1);
+			gfn_base = gpa_base >> PAGE_SHIFT;
+			gpa = gpa_base | (ea & (psize - 1));
+			return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
+						dsisr & DSISR_ISSTORE);
+		}
+	}
 	index = vcpu->arch.pgfault_index;
 	hptep = (__be64 *)(kvm->arch.hpt_virt + (index << 4));
 	rev = &kvm->arch.revmap[index];
