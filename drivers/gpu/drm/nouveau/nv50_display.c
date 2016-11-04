@@ -348,6 +348,11 @@ nv50_oimm_create(struct nvif_device *device, struct nvif_object *disp,
  * DMA EVO channel
  *****************************************************************************/
 
+struct nv50_dmac_ctxdma {
+	struct list_head head;
+	struct nvif_object object;
+};
+
 struct nv50_dmac {
 	struct nv50_chan base;
 	dma_addr_t handle;
@@ -355,6 +360,7 @@ struct nv50_dmac {
 
 	struct nvif_object sync;
 	struct nvif_object vram;
+	struct list_head ctxdma;
 
 	/* Protects against concurrent pushbuf access to this channel, lock is
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
@@ -363,9 +369,82 @@ struct nv50_dmac {
 };
 
 static void
+nv50_dmac_ctxdma_del(struct nv50_dmac_ctxdma *ctxdma)
+{
+	nvif_object_fini(&ctxdma->object);
+	list_del(&ctxdma->head);
+	kfree(ctxdma);
+}
+
+static struct nv50_dmac_ctxdma *
+nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, u32 handle,
+		     struct nouveau_framebuffer *fb)
+{
+	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
+	struct nv50_dmac_ctxdma *ctxdma;
+	const u8  kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	struct {
+		struct nv_dma_v0 base;
+		union {
+			struct nv50_dma_v0 nv50;
+			struct gf100_dma_v0 gf100;
+			struct gf119_dma_v0 gf119;
+		};
+	} args = {};
+	u32 argc = sizeof(args.base);
+	int ret;
+
+	list_for_each_entry(ctxdma, &dmac->ctxdma, head) {
+		if (ctxdma->object.handle == handle)
+			return ctxdma;
+	}
+
+	if (!(ctxdma = kzalloc(sizeof(*ctxdma), GFP_KERNEL)))
+		return ERR_PTR(-ENOMEM);
+	list_add(&ctxdma->head, &dmac->ctxdma);
+
+	args.base.target = NV_DMA_V0_TARGET_VRAM;
+	args.base.access = NV_DMA_V0_ACCESS_RDWR;
+	args.base.start  = 0;
+	args.base.limit  = drm->device.info.ram_user - 1;
+
+	if (drm->device.info.chipset < 0x80) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		argc += sizeof(args.nv50);
+	} else
+	if (drm->device.info.chipset < 0xc0) {
+		args.nv50.part = NV50_DMA_V0_PART_256;
+		args.nv50.kind = kind;
+		argc += sizeof(args.nv50);
+	} else
+	if (drm->device.info.chipset < 0xd0) {
+		args.gf100.kind = kind;
+		argc += sizeof(args.gf100);
+	} else {
+		args.gf119.page = GF119_DMA_V0_PAGE_LP;
+		args.gf119.kind = kind;
+		argc += sizeof(args.gf119);
+	}
+
+	ret = nvif_object_init(&dmac->base.user, handle, NV_DMA_IN_MEMORY,
+			       &args, argc, &ctxdma->object);
+	if (ret) {
+		nv50_dmac_ctxdma_del(ctxdma);
+		return ERR_PTR(ret);
+	}
+
+	return ctxdma;
+}
+
+static void
 nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 {
 	struct nvif_device *device = dmac->base.device;
+	struct nv50_dmac_ctxdma *ctxdma, *ctxtmp;
+
+	list_for_each_entry_safe(ctxdma, ctxtmp, &dmac->ctxdma, head) {
+		nv50_dmac_ctxdma_del(ctxdma);
+	}
 
 	nvif_object_fini(&dmac->vram);
 	nvif_object_fini(&dmac->sync);
@@ -434,6 +513,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
+	INIT_LIST_HEAD(&dmac->ctxdma);
 	return ret;
 }
 
@@ -554,17 +634,9 @@ struct nv50_head {
 #define nv50_chan(c) (&(c)->base.base)
 #define nv50_vers(c) nv50_chan(c)->user.oclass
 
-struct nv50_fbdma {
-	struct list_head head;
-	struct nvif_object core;
-	struct nvif_object base[4];
-};
-
 struct nv50_disp {
 	struct nvif_object *disp;
 	struct nv50_mast mast;
-
-	struct list_head fbdma;
 
 	struct nouveau_bo *sync;
 };
@@ -2580,11 +2652,6 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
-	struct nv50_fbdma *fbdma;
-
-	list_for_each_entry(fbdma, &disp->fbdma, head) {
-		nvif_object_fini(&fbdma->base[nv_crtc->index]);
-	}
 
 	nv50_dmac_destroy(&head->ovly.base, disp->disp);
 	nv50_pioc_destroy(&head->oimm.base);
@@ -3645,90 +3712,6 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
  *****************************************************************************/
 
 static void
-nv50_fbdma_fini(struct nv50_fbdma *fbdma)
-{
-	int i;
-	for (i = 0; i < ARRAY_SIZE(fbdma->base); i++)
-		nvif_object_fini(&fbdma->base[i]);
-	nvif_object_fini(&fbdma->core);
-	list_del(&fbdma->head);
-	kfree(fbdma);
-}
-
-static int
-nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kind)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nv50_disp *disp = nv50_disp(dev);
-	struct nv50_mast *mast = nv50_mast(dev);
-	struct __attribute__ ((packed)) {
-		struct nv_dma_v0 base;
-		union {
-			struct nv50_dma_v0 nv50;
-			struct gf100_dma_v0 gf100;
-			struct gf119_dma_v0 gf119;
-		};
-	} args = {};
-	struct nv50_fbdma *fbdma;
-	struct drm_crtc *crtc;
-	u32 size = sizeof(args.base);
-	int ret;
-
-	list_for_each_entry(fbdma, &disp->fbdma, head) {
-		if (fbdma->core.handle == name)
-			return 0;
-	}
-
-	fbdma = kzalloc(sizeof(*fbdma), GFP_KERNEL);
-	if (!fbdma)
-		return -ENOMEM;
-	list_add(&fbdma->head, &disp->fbdma);
-
-	args.base.target = NV_DMA_V0_TARGET_VRAM;
-	args.base.access = NV_DMA_V0_ACCESS_RDWR;
-	args.base.start = offset;
-	args.base.limit = offset + length - 1;
-
-	if (drm->device.info.chipset < 0x80) {
-		args.nv50.part = NV50_DMA_V0_PART_256;
-		size += sizeof(args.nv50);
-	} else
-	if (drm->device.info.chipset < 0xc0) {
-		args.nv50.part = NV50_DMA_V0_PART_256;
-		args.nv50.kind = kind;
-		size += sizeof(args.nv50);
-	} else
-	if (drm->device.info.chipset < 0xd0) {
-		args.gf100.kind = kind;
-		size += sizeof(args.gf100);
-	} else {
-		args.gf119.page = GF119_DMA_V0_PAGE_LP;
-		args.gf119.kind = kind;
-		size += sizeof(args.gf119);
-	}
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nv50_head *head = nv50_head(crtc);
-		int ret = nvif_object_init(&head->_base->chan.base.base.user, name,
-					   NV_DMA_IN_MEMORY, &args, size,
-					   &fbdma->base[head->base.index]);
-		if (ret) {
-			nv50_fbdma_fini(fbdma);
-			return ret;
-		}
-	}
-
-	ret = nvif_object_init(&mast->base.base.user, name, NV_DMA_IN_MEMORY,
-			       &args, size, &fbdma->core);
-	if (ret) {
-		nv50_fbdma_fini(fbdma);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void
 nv50_fb_dtor(struct drm_framebuffer *fb)
 {
 }
@@ -3742,6 +3725,7 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	struct nv50_disp *disp = nv50_disp(fb->dev);
 	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
 	u8 tile = nvbo->tile_mode;
+	struct drm_crtc *crtc;
 
 	if (drm->device.info.chipset >= 0xc0)
 		tile >>= 4; /* yep.. */
@@ -3772,8 +3756,17 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 	}
 	nv_fb->r_handle = 0xffff0000 | kind;
 
-	return nv50_fbdma_init(fb->dev, nv_fb->r_handle, 0,
-			       drm->device.info.ram_user, kind);
+	list_for_each_entry(crtc, &drm->dev->mode_config.crtc_list, head) {
+		struct nv50_head *head = nv50_head(crtc);
+		struct nv50_dmac_ctxdma *ctxdma;
+
+		ctxdma = nv50_dmac_ctxdma_new(&head->_base->chan.base,
+					      nv_fb->r_handle, nv_fb);
+		if (IS_ERR(ctxdma))
+			return PTR_ERR(ctxdma);
+	}
+
+	return 0;
 }
 
 /******************************************************************************
@@ -3830,11 +3823,6 @@ void
 nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
-	struct nv50_fbdma *fbdma, *fbtmp;
-
-	list_for_each_entry_safe(fbdma, fbtmp, &disp->fbdma, head) {
-		nv50_fbdma_fini(fbdma);
-	}
 
 	nv50_dmac_destroy(&disp->mast.base, disp->disp);
 
@@ -3861,7 +3849,6 @@ nv50_display_create(struct drm_device *dev)
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
 		return -ENOMEM;
-	INIT_LIST_HEAD(&disp->fbdma);
 
 	nouveau_display(dev)->priv = disp;
 	nouveau_display(dev)->dtor = nv50_display_destroy;
