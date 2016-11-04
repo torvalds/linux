@@ -106,4 +106,7 @@ nouveau_backlight_exit(struct drm_device *dev) {
 }
 #endif
 
+struct drm_framebuffer *
+nouveau_user_framebuffer_create(struct drm_device *, struct drm_file *,
+				const struct drm_mode_fb_cmd2 *);
 #endif

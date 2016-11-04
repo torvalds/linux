@@ -280,7 +280,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	return ret;
 }
 
-static struct drm_framebuffer *
+struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
 				const struct drm_mode_fb_cmd2 *mode_cmd)
