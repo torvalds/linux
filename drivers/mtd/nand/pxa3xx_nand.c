@@ -1680,8 +1680,9 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	chip->ecc.strength = pdata->ecc_strength;
 	chip->ecc.size = pdata->ecc_step_size;
 
-	if (nand_scan_ident(mtd, 1, NULL))
-		return -ENODEV;
+	ret = nand_scan_ident(mtd, 1, NULL);
+	if (ret)
+		return ret;
 
 	if (!pdata->keep_config) {
 		ret = pxa3xx_nand_init(host);
