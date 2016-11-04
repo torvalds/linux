@@ -47,8 +47,8 @@ static const u16 stac9766_reg[] = {
 	0x0000, 0x0000, 0x0003, 0xffff, /* 4e */
 	0x0000, 0x0000, 0x0000, 0x0000, /* 56 */
 	0x4000, 0x0000, 0x0000, 0x0000, /* 5e */
-	0x1201, 0xFFFF, 0xFFFF, 0x0000, /* 66 */
-	0x0000, 0x0000, 0x0000, 0x0000, /* 6e */
+	0x1201, 0x0000, 0x0000, 0x0000, /* 66 */
+	0x0000, 0x0000, 0x0000, 0x1000, /* 6e */
 	0x0000, 0x0000, 0x0000, 0x0006, /* 76 */
 	0x0000, 0x0000, 0x0000, 0x0000, /* 7e */
 };
@@ -145,12 +145,6 @@ static int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache = codec->reg_cache;
 
-	if (reg > AC97_STAC_PAGE0) {
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		soc_ac97_ops->write(ac97, reg, val);
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
-		return 0;
-	}
 	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
 		return -EIO;
 
@@ -165,12 +159,6 @@ static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
 	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 	u16 val = 0, *cache = codec->reg_cache;
 
-	if (reg > AC97_STAC_PAGE0) {
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		val = soc_ac97_ops->read(ac97, reg - AC97_STAC_PAGE0);
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
-		return val;
-	}
 	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
 		return -EIO;
 
