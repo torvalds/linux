@@ -51,9 +51,6 @@ static inline void omap3_pmic_init(const char *pmic_type,
 	omap_pmic_init(1, 2600, pmic_type, 7 + OMAP_INTC_START, pmic_data);
 }
 
-void omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
-			   u32 pdata_flags, u32 regulators_flags);
-
 void omap_twl4030_audio_init(char *card_name, struct omap_tw4030_pdata *pdata);
 
 #endif /* __OMAP_PMIC_COMMON__ */
