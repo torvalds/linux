@@ -270,9 +270,6 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	struct regmap *regmap;
 	int err;
 
-	if (!np)
-		return -EINVAL;
-
 	/* clk selection from extra syscfg register */
 	dwmac->clk_sel_reg = -ENXIO;
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-clkconf");
