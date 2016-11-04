@@ -126,7 +126,6 @@ struct sti_dwmac {
 	struct clk *clk;	/* PHY clock */
 	u32 ctrl_reg;		/* GMAC glue-logic control register */
 	int clk_sel_reg;	/* GMAC ext clk selection register */
-	struct device *dev;
 	struct regmap *regmap;
 	bool gmac_en;
 	u32 speed;
@@ -274,7 +273,6 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 		return err;
 	}
 
-	dwmac->dev = dev;
 	dwmac->interface = of_get_phy_mode(np);
 	dwmac->regmap = regmap;
 	dwmac->gmac_en = of_property_read_bool(np, "st,gmac_en");
