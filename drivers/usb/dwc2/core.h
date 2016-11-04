@@ -516,7 +516,6 @@ struct dwc2_hw_params {
 	unsigned op_mode:3;
 	unsigned arch:2;
 	unsigned dma_desc_enable:1;
-	unsigned dma_desc_fs_enable:1;
 	unsigned enable_dynamic_fifo:1;
 	unsigned en_multiple_tx_fifo:1;
 	unsigned host_rx_fifo_size:16;
