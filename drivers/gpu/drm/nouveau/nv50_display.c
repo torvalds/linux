@@ -145,6 +145,13 @@ struct nv50_head_atom {
 		u8 mode:4;
 	} dither;
 
+	struct {
+		struct {
+			u16 cos:12;
+			u16 sin:12;
+		} sat;
+	} procamp;
+
 	union {
 		struct {
 			bool core:1;
@@ -162,6 +169,7 @@ struct nv50_head_atom {
 			bool base:1;
 			bool ovly:1;
 			bool dither:1;
+			bool procamp:1;
 		};
 		u16 mask;
 	} set;
@@ -806,6 +814,22 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
  * Head
  *****************************************************************************/
 static void
+nv50_head_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 2))) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
+			evo_mthd(push, 0x08a8 + (head->base.index * 0x400), 1);
+		else
+			evo_mthd(push, 0x0498 + (head->base.index * 0x300), 1);
+		evo_data(push, (asyh->procamp.sat.sin << 20) |
+			       (asyh->procamp.sat.cos << 8));
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
@@ -1149,6 +1173,20 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if (asyh->set.base   ) nv50_head_base    (head, asyh);
 	if (asyh->set.ovly   ) nv50_head_ovly    (head, asyh);
 	if (asyh->set.dither ) nv50_head_dither  (head, asyh);
+	if (asyh->set.procamp) nv50_head_procamp (head, asyh);
+}
+
+static void
+nv50_head_atomic_check_procamp(struct nv50_head_atom *armh,
+			       struct nv50_head_atom *asyh,
+			       struct nouveau_conn_atom *asyc)
+{
+	const int vib = asyc->procamp.color_vibrance - 100;
+	const int hue = asyc->procamp.vibrant_hue - 90;
+	const int adj = (vib > 0) ? 50 : 0;
+	asyh->procamp.sat.cos = ((vib * 2047 + adj) / 100) & 0xfff;
+	asyh->procamp.sat.sin = ((hue * 2047) / 100) & 0xfff;
+	asyh->set.procamp = true;
 }
 
 static void
@@ -1462,28 +1500,23 @@ static int
 nv50_crtc_set_color_vibrance(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	u32 *push, hue, vib;
-	int adj;
+	struct nv50_head *head = nv50_head(&nv_crtc->base);
+	struct nv50_head_atom *asyh = &head->asy;
+	struct nouveau_conn_atom asyc;
+	u32 *push;
 
-	adj = (nv_crtc->color_vibrance > 0) ? 50 : 0;
-	vib = ((nv_crtc->color_vibrance * 2047 + adj) / 100) & 0xfff;
-	hue = ((nv_crtc->vibrant_hue * 2047) / 100) & 0xfff;
+	asyc.procamp.color_vibrance = nv_crtc->color_vibrance + 100;
+	asyc.procamp.vibrant_hue = nv_crtc->vibrant_hue + 90;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
+	nv50_head_atomic_check_procamp(&head->arm, asyh, &asyc);
+	nv50_head_flush_set(head, asyh);
 
-	push = evo_wait(mast, 16);
-	if (push) {
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x08a8 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, (hue << 20) | (vib << 8));
-		} else {
-			evo_mthd(push, 0x0498 + (nv_crtc->index * 0x300), 1);
-			evo_data(push, (hue << 20) | (vib << 8));
-		}
-
-		if (update) {
+	if (update) {
+		if ((push = evo_wait(mast, 2))) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
+			evo_kick(push, mast);
 		}
-		evo_kick(push, mast);
 	}
 
 	return 0;
