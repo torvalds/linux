@@ -317,34 +317,6 @@ nv50_pioc_create(struct nvif_device *device, struct nvif_object *disp,
 }
 
 /******************************************************************************
- * Cursor Immediate
- *****************************************************************************/
-
-struct nv50_curs {
-	struct nv50_pioc base;
-};
-
-static int
-nv50_curs_create(struct nvif_device *device, struct nvif_object *disp,
-		 int head, struct nv50_curs *curs)
-{
-	struct nv50_disp_cursor_v0 args = {
-		.head = head,
-	};
-	static const s32 oclass[] = {
-		GK104_DISP_CURSOR,
-		GF110_DISP_CURSOR,
-		GT214_DISP_CURSOR,
-		G82_DISP_CURSOR,
-		NV50_DISP_CURSOR,
-		0
-	};
-
-	return nv50_pioc_create(device, disp, oclass, head, &args, sizeof(args),
-				&curs->base);
-}
-
-/******************************************************************************
  * Overlay Immediate
  *****************************************************************************/
 
@@ -566,7 +538,6 @@ nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
 struct nv50_head {
 	struct nouveau_crtc base;
 	struct nouveau_bo *image;
-	struct nv50_curs curs;
 	struct nv50_ovly ovly;
 	struct nv50_oimm oimm;
 
@@ -574,10 +545,10 @@ struct nv50_head {
 	struct nv50_head_atom asy;
 
 	struct nv50_base *_base;
+	struct nv50_curs *_curs;
 };
 
 #define nv50_head(c) ((struct nv50_head *)nouveau_crtc(c))
-#define nv50_curs(c) (&nv50_head(c)->curs)
 #define nv50_ovly(c) (&nv50_head(c)->ovly)
 #define nv50_oimm(c) (&nv50_head(c)->oimm)
 #define nv50_chan(c) (&(c)->base.base)
@@ -989,6 +960,152 @@ nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
 				       nformat, type, "%s-%d", name, index);
 	if (ret)
 		return ret;
+
+	return 0;
+}
+
+/******************************************************************************
+ * Cursor plane
+ *****************************************************************************/
+#define nv50_curs(p) container_of((p), struct nv50_curs, wndw)
+
+struct nv50_curs {
+	struct nv50_wndw wndw;
+	struct nvif_object chan;
+};
+
+static u32
+nv50_curs_update(struct nv50_wndw *wndw, u32 interlock)
+{
+	struct nv50_curs *curs = nv50_curs(wndw);
+	nvif_wr32(&curs->chan, 0x0080, 0x00000000);
+	return 0;
+}
+
+static void
+nv50_curs_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nv50_curs *curs = nv50_curs(wndw);
+	nvif_wr32(&curs->chan, 0x0084, (asyw->point.y << 16) | asyw->point.x);
+}
+
+static void
+nv50_curs_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
+		  struct nv50_wndw_atom *asyw)
+{
+	asyh->curs.handle = nv50_disp(wndw->plane.dev)->mast.base.vram.handle;
+	asyh->curs.offset = asyw->image.offset;
+	asyh->set.curs = asyh->curs.visible;
+}
+
+static void
+nv50_curs_release(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
+		  struct nv50_head_atom *asyh)
+{
+	asyh->curs.visible = false;
+}
+
+static int
+nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
+		  struct nv50_head_atom *asyh)
+{
+	int ret;
+
+	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   true, true);
+	asyh->curs.visible = asyw->state.visible;
+	if (ret || !asyh->curs.visible)
+		return ret;
+
+	switch (asyw->state.fb->width) {
+	case 32: asyh->curs.layout = 0; break;
+	case 64: asyh->curs.layout = 1; break;
+	default:
+		return -EINVAL;
+	}
+
+	if (asyw->state.fb->width != asyw->state.fb->height)
+		return -EINVAL;
+
+	switch (asyw->state.fb->pixel_format) {
+	case DRM_FORMAT_ARGB8888: asyh->curs.format = 1; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void *
+nv50_curs_dtor(struct nv50_wndw *wndw)
+{
+	struct nv50_curs *curs = nv50_curs(wndw);
+	nvif_object_fini(&curs->chan);
+	return curs;
+}
+
+static const u32
+nv50_curs_format[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
+static const struct nv50_wndw_func
+nv50_curs = {
+	.dtor = nv50_curs_dtor,
+	.acquire = nv50_curs_acquire,
+	.release = nv50_curs_release,
+	.prepare = nv50_curs_prepare,
+	.point = nv50_curs_point,
+	.update = nv50_curs_update,
+};
+
+static int
+nv50_curs_new(struct nouveau_drm *drm, struct nv50_head *head,
+	      struct nv50_curs **pcurs)
+{
+	static const struct nvif_mclass curses[] = {
+		{ GK104_DISP_CURSOR, 0 },
+		{ GF110_DISP_CURSOR, 0 },
+		{ GT214_DISP_CURSOR, 0 },
+		{   G82_DISP_CURSOR, 0 },
+		{  NV50_DISP_CURSOR, 0 },
+		{}
+	};
+	struct nv50_disp_cursor_v0 args = {
+		.head = head->base.index,
+	};
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_curs *curs;
+	int cid, ret;
+
+	cid = nvif_mclass(disp->disp, curses);
+	if (cid < 0) {
+		NV_ERROR(drm, "No supported cursor immediate class\n");
+		return cid;
+	}
+
+	if (!(curs = *pcurs = kzalloc(sizeof(*curs), GFP_KERNEL)))
+		return -ENOMEM;
+
+	ret = nv50_wndw_ctor(&nv50_curs, drm->dev, DRM_PLANE_TYPE_CURSOR,
+			     "curs", head->base.index, &disp->mast.base,
+			     nv50_curs_format, ARRAY_SIZE(nv50_curs_format),
+			     &curs->wndw);
+	if (ret) {
+		kfree(curs);
+		return ret;
+	}
+
+	ret = nvif_object_init(disp->disp, 0, curses[cid].oclass, &args,
+			       sizeof(args), &curs->chan);
+	if (ret) {
+		NV_ERROR(drm, "curs%04x allocation failed: %d\n",
+			 curses[cid].oclass, ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -2418,10 +2535,13 @@ static int
 nv50_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nv50_curs *curs = nv50_curs(crtc);
-	struct nv50_chan *chan = nv50_chan(curs);
-	nvif_wr32(&chan->user, 0x0084, (y << 16) | (x & 0xffff));
-	nvif_wr32(&chan->user, 0x0080, 0x00000000);
+	struct nv50_wndw *wndw = &nv50_head(crtc)->_curs->wndw;
+	struct nv50_wndw_atom *asyw = &wndw->asy;
+
+	asyw->point.x = x;
+	asyw->point.y = y;
+	asyw->set.point = true;
+	nv50_wndw_flush_set(wndw, 0, asyw);
 
 	nv_crtc->cursor_saved_x = x;
 	nv_crtc->cursor_saved_y = y;
@@ -2468,7 +2588,6 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 
 	nv50_dmac_destroy(&head->ovly.base, disp->disp);
 	nv50_pioc_destroy(&head->oimm.base);
-	nv50_pioc_destroy(&head->curs.base);
 
 	/*XXX: this shouldn't be necessary, but the core doesn't call
 	 *     disconnect() during the cleanup paths
@@ -2520,6 +2639,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct nv50_base *base;
+	struct nv50_curs *curs;
 	struct drm_crtc *crtc;
 	int ret, i;
 
@@ -2538,6 +2658,8 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	}
 
 	ret = nv50_base_new(drm, head, &base);
+	if (ret == 0)
+		ret = nv50_curs_new(drm, head, &curs);
 	if (ret) {
 		kfree(head);
 		return ret;
@@ -2545,6 +2667,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 
 	crtc = &head->base.base;
 	head->_base = base;
+	head->_curs = curs;
 
 	drm_crtc_init(dev, crtc, &nv50_crtc_func);
 	drm_crtc_helper_add(crtc, &nv50_crtc_hfunc);
@@ -2563,11 +2686,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 			nouveau_bo_ref(NULL, &head->base.lut.nvbo);
 	}
 
-	if (ret)
-		goto out;
-
-	/* allocate cursor resources */
-	ret = nv50_curs_create(device, disp->disp, index, &head->curs);
 	if (ret)
 		goto out;
 
