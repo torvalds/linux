@@ -463,21 +463,19 @@ evo_kick(u32 *push, void *evoc)
 	mutex_unlock(&dmac->lock);
 }
 
-#if 1
-#define evo_mthd(p,m,s) *((p)++) = (((s) << 18) | (m))
-#define evo_data(p,d)   *((p)++) = (d)
-#else
 #define evo_mthd(p,m,s) do {                                                   \
 	const u32 _m = (m), _s = (s);                                          \
-	printk(KERN_ERR "%04x %d %s\n", _m, _s, __func__);                     \
+	if (drm_debug & DRM_UT_KMS)                                            \
+		printk(KERN_ERR "%04x %d %s\n", _m, _s, __func__);             \
 	*((p)++) = ((_s << 18) | _m);                                          \
 } while(0)
+
 #define evo_data(p,d) do {                                                     \
 	const u32 _d = (d);                                                    \
-	printk(KERN_ERR "\t%08x\n", _d);                                       \
+	if (drm_debug & DRM_UT_KMS)                                            \
+		printk(KERN_ERR "\t%08x\n", _d);                               \
 	*((p)++) = _d;                                                         \
 } while(0)
-#endif
 
 static bool
 evo_sync_wait(void *data)
