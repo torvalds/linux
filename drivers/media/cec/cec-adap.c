@@ -595,6 +595,10 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		/* Make sure the timeout isn't 0. */
 		msg->timeout = 1000;
 	}
+	if (msg->timeout)
+		msg->flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS;
+	else
+		msg->flags = 0;
 
 	/* Sanity checks */
 	if (msg->len == 0 || msg->len > CEC_MAX_MSG_SIZE) {
