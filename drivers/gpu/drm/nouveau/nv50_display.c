@@ -26,6 +26,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -39,6 +40,7 @@
 #include <nvif/cl507c.h>
 #include <nvif/cl507d.h>
 #include <nvif/cl507e.h>
+#include <nvif/event.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -62,6 +64,8 @@
 #define EVO_MAST_NTFY     EVO_SYNC(      0, 0x00)
 #define EVO_FLIP_SEM0(c)  EVO_SYNC((c) + 1, 0x00)
 #define EVO_FLIP_SEM1(c)  EVO_SYNC((c) + 1, 0x10)
+#define EVO_FLIP_NTFY0(c) EVO_SYNC((c) + 1, 0x20)
+#define EVO_FLIP_NTFY1(c) EVO_SYNC((c) + 1, 0x30)
 
 /******************************************************************************
  * Atomic state
@@ -172,6 +176,73 @@ struct nv50_head_atom {
 			bool procamp:1;
 		};
 		u16 mask;
+	} set;
+};
+
+#define nv50_wndw_atom(p) container_of((p), struct nv50_wndw_atom, state)
+
+struct nv50_wndw_atom {
+	struct drm_plane_state state;
+	u8 interval;
+
+	struct drm_rect clip;
+
+	struct {
+		u32  handle;
+		u16  offset:12;
+		bool awaken:1;
+	} ntfy;
+
+	struct {
+		u32 handle;
+		u16 offset:12;
+		u32 acquire;
+		u32 release;
+	} sema;
+
+	struct {
+		u8 enable:2;
+	} lut;
+
+	struct {
+		u8  mode:2;
+		u8  interval:4;
+
+		u8  format;
+		u8  kind:7;
+		u8  layout:1;
+		u8  block:4;
+		u32 pitch:20;
+		u16 w;
+		u16 h;
+
+		u32 handle;
+		u64 offset;
+	} image;
+
+	struct {
+		u16 x;
+		u16 y;
+	} point;
+
+	union {
+		struct {
+			bool ntfy:1;
+			bool sema:1;
+			bool image:1;
+		};
+		u8 mask;
+	} clr;
+
+	union {
+		struct {
+			bool ntfy:1;
+			bool sema:1;
+			bool image:1;
+			bool lut:1;
+			bool point:1;
+		};
+		u8 mask;
 	} set;
 };
 
@@ -496,17 +567,17 @@ struct nv50_head {
 	struct nouveau_crtc base;
 	struct nouveau_bo *image;
 	struct nv50_curs curs;
-	struct nv50_sync sync;
 	struct nv50_ovly ovly;
 	struct nv50_oimm oimm;
 
 	struct nv50_head_atom arm;
 	struct nv50_head_atom asy;
+
+	struct nv50_base *_base;
 };
 
 #define nv50_head(c) ((struct nv50_head *)nouveau_crtc(c))
 #define nv50_curs(c) (&nv50_head(c)->curs)
-#define nv50_sync(c) (&nv50_head(c)->sync)
 #define nv50_ovly(c) (&nv50_head(c)->ovly)
 #define nv50_oimm(c) (&nv50_head(c)->oimm)
 #define nv50_chan(c) (&(c)->base.base)
@@ -628,6 +699,605 @@ evo_sync(struct drm_device *dev)
 }
 
 /******************************************************************************
+ * Plane
+ *****************************************************************************/
+#define nv50_wndw(p) container_of((p), struct nv50_wndw, plane)
+
+struct nv50_wndw {
+	const struct nv50_wndw_func *func;
+	struct nv50_dmac *dmac;
+
+	struct drm_plane plane;
+
+	struct nvif_notify notify;
+	u16 ntfy;
+	u16 sema;
+	u32 data;
+
+	struct nv50_wndw_atom arm;
+	struct nv50_wndw_atom asy;
+};
+
+struct nv50_wndw_func {
+	void *(*dtor)(struct nv50_wndw *);
+	int (*acquire)(struct nv50_wndw *, struct nv50_wndw_atom *asyw,
+		       struct nv50_head_atom *asyh);
+	void (*release)(struct nv50_wndw *, struct nv50_wndw_atom *asyw,
+			struct nv50_head_atom *asyh);
+	void (*prepare)(struct nv50_wndw *, struct nv50_head_atom *asyh,
+			struct nv50_wndw_atom *asyw);
+
+	void (*sema_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*sema_clr)(struct nv50_wndw *);
+	void (*ntfy_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*ntfy_clr)(struct nv50_wndw *);
+	int (*ntfy_wait_begun)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*image_clr)(struct nv50_wndw *);
+	void (*lut)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
+
+	u32 (*update)(struct nv50_wndw *, u32 interlock);
+};
+
+static int
+nv50_wndw_wait_armed(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	if (asyw->set.ntfy)
+		return wndw->func->ntfy_wait_begun(wndw, asyw);
+	return 0;
+}
+
+static u32
+nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 interlock, bool flush,
+		    struct nv50_wndw_atom *asyw)
+{
+	if (asyw->clr.sema && (!asyw->set.sema || flush))
+		wndw->func->sema_clr(wndw);
+	if (asyw->clr.ntfy && (!asyw->set.ntfy || flush))
+		wndw->func->ntfy_clr(wndw);
+	if (asyw->clr.image && (!asyw->set.image || flush))
+		wndw->func->image_clr(wndw);
+
+	return flush ? wndw->func->update(wndw, interlock) : 0;
+}
+
+static u32
+nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 interlock,
+		    struct nv50_wndw_atom *asyw)
+{
+	if (interlock) {
+		asyw->image.mode = 0;
+		asyw->image.interval = 1;
+	}
+
+	if (asyw->set.sema ) wndw->func->sema_set (wndw, asyw);
+	if (asyw->set.ntfy ) wndw->func->ntfy_set (wndw, asyw);
+	if (asyw->set.image) wndw->func->image_set(wndw, asyw);
+	if (asyw->set.lut  ) wndw->func->lut      (wndw, asyw);
+	if (asyw->set.point) wndw->func->point    (wndw, asyw);
+
+	return wndw->func->update(wndw, interlock);
+}
+
+static void
+nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
+			       struct nv50_wndw_atom *asyw,
+			       struct nv50_head_atom *asyh)
+{
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	NV_ATOMIC(drm, "%s release\n", wndw->plane.name);
+	wndw->func->release(wndw, asyw, asyh);
+	asyw->ntfy.handle = 0;
+	asyw->sema.handle = 0;
+}
+
+static int
+nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
+			       struct nv50_wndw_atom *asyw,
+			       struct nv50_head_atom *asyh)
+{
+	struct nouveau_framebuffer *fb = nouveau_framebuffer(asyw->state.fb);
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	int ret;
+
+	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
+	asyw->clip.x1 = 0;
+	asyw->clip.y1 = 0;
+	asyw->clip.x2 = asyh->state.mode.hdisplay;
+	asyw->clip.y2 = asyh->state.mode.vdisplay;
+
+	asyw->image.w = fb->base.width;
+	asyw->image.h = fb->base.height;
+	asyw->image.kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	if (asyw->image.kind) {
+		asyw->image.layout = 0;
+		if (drm->device.info.chipset >= 0xc0)
+			asyw->image.block = fb->nvbo->tile_mode >> 4;
+		else
+			asyw->image.block = fb->nvbo->tile_mode;
+		asyw->image.pitch = (fb->base.pitches[0] / 4) << 4;
+	} else {
+		asyw->image.layout = 1;
+		asyw->image.block  = 0;
+		asyw->image.pitch  = fb->base.pitches[0];
+	}
+
+	ret = wndw->func->acquire(wndw, asyw, asyh);
+	if (ret)
+		return ret;
+
+	if (asyw->set.image) {
+		if (!(asyw->image.mode = asyw->interval ? 0 : 1))
+			asyw->image.interval = asyw->interval;
+		else
+			asyw->image.interval = 0;
+	}
+
+	return 0;
+}
+
+static int
+nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
+{
+	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct nv50_wndw *wndw = nv50_wndw(plane);
+	struct nv50_wndw_atom *armw = &wndw->arm;
+	struct nv50_wndw_atom *asyw = &wndw->asy;
+	struct nv50_head_atom *harm = NULL, *asyh = NULL;
+	bool varm = false, asyv = false, asym = false;
+	int ret;
+
+	asyw->clr.mask = 0;
+	asyw->set.mask = 0;
+
+	NV_ATOMIC(drm, "%s atomic_check\n", plane->name);
+	if (asyw->state.crtc) {
+		asyh = &nv50_head(asyw->state.crtc)->asy;
+		if (IS_ERR(asyh))
+			return PTR_ERR(asyh);
+		asym = drm_atomic_crtc_needs_modeset(&asyh->state);
+		asyv = asyh->state.active;
+	}
+
+	if (armw->state.crtc) {
+		harm = &nv50_head(armw->state.crtc)->asy;
+		if (IS_ERR(harm))
+			return PTR_ERR(harm);
+		varm = nv50_head(harm->state.crtc)->arm.state.active;
+	}
+
+	if (asyv) {
+		asyw->point.x = asyw->state.crtc_x;
+		asyw->point.y = asyw->state.crtc_y;
+		if (memcmp(&armw->point, &asyw->point, sizeof(asyw->point)))
+			asyw->set.point = true;
+
+		if (!varm || asym || armw->state.fb != asyw->state.fb) {
+			ret = nv50_wndw_atomic_check_acquire(wndw, asyw, asyh);
+			if (ret)
+				return ret;
+		}
+	} else
+	if (varm) {
+		nv50_wndw_atomic_check_release(wndw, asyw, harm);
+	} else {
+		return 0;
+	}
+
+	if (!asyv || asym) {
+		asyw->clr.ntfy = armw->ntfy.handle != 0;
+		asyw->clr.sema = armw->sema.handle != 0;
+		if (wndw->func->image_clr)
+			asyw->clr.image = armw->image.handle != 0;
+		asyw->set.lut = wndw->func->lut && asyv;
+	}
+
+	memcpy(armw, asyw, sizeof(*asyw));
+	return 0;
+}
+
+static void
+nv50_wndw_atomic_destroy_state(struct drm_plane *plane,
+			       struct drm_plane_state *state)
+{
+	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
+	__drm_atomic_helper_plane_destroy_state(&asyw->state);
+	dma_fence_put(asyw->state.fence);
+	kfree(asyw);
+}
+
+static struct drm_plane_state *
+nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct nv50_wndw_atom *armw = nv50_wndw_atom(plane->state);
+	struct nv50_wndw_atom *asyw;
+	if (!(asyw = kmalloc(sizeof(*asyw), GFP_KERNEL)))
+		return NULL;
+	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
+	asyw->state.fence = NULL;
+	asyw->interval = 1;
+	asyw->sema = armw->sema;
+	asyw->ntfy = armw->ntfy;
+	asyw->image = armw->image;
+	asyw->point = armw->point;
+	asyw->lut = armw->lut;
+	asyw->clr.mask = 0;
+	asyw->set.mask = 0;
+	return &asyw->state;
+}
+
+static void
+nv50_wndw_reset(struct drm_plane *plane)
+{
+	struct nv50_wndw_atom *asyw;
+
+	if (WARN_ON(!(asyw = kzalloc(sizeof(*asyw), GFP_KERNEL))))
+		return;
+
+	if (plane->state)
+		plane->funcs->atomic_destroy_state(plane, plane->state);
+	plane->state = &asyw->state;
+	plane->state->plane = plane;
+	plane->state->rotation = DRM_ROTATE_0;
+}
+
+static void
+nv50_wndw_destroy(struct drm_plane *plane)
+{
+	struct nv50_wndw *wndw = nv50_wndw(plane);
+	void *data;
+	nvif_notify_fini(&wndw->notify);
+	data = wndw->func->dtor(wndw);
+	drm_plane_cleanup(&wndw->plane);
+	kfree(data);
+}
+
+static const struct drm_plane_funcs
+nv50_wndw = {
+	.destroy = nv50_wndw_destroy,
+	.reset = nv50_wndw_reset,
+	.set_property = drm_atomic_helper_plane_set_property,
+	.atomic_duplicate_state = nv50_wndw_atomic_duplicate_state,
+	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
+};
+
+static void
+nv50_wndw_fini(struct nv50_wndw *wndw)
+{
+	nvif_notify_put(&wndw->notify);
+}
+
+static void
+nv50_wndw_init(struct nv50_wndw *wndw)
+{
+	nvif_notify_get(&wndw->notify);
+}
+
+static int
+nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
+	       enum drm_plane_type type, const char *name, int index,
+	       struct nv50_dmac *dmac, const u32 *format, int nformat,
+	       struct nv50_wndw *wndw)
+{
+	int ret;
+
+	wndw->func = func;
+	wndw->dmac = dmac;
+
+	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw, format,
+				       nformat, type, "%s-%d", name, index);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/******************************************************************************
+ * Primary plane
+ *****************************************************************************/
+#define nv50_base(p) container_of((p), struct nv50_base, wndw)
+
+struct nv50_base {
+	struct nv50_wndw wndw;
+	struct nv50_sync chan;
+	int id;
+};
+
+static int
+nv50_base_notify(struct nvif_notify *notify)
+{
+	return NVIF_NOTIFY_KEEP;
+}
+
+static void
+nv50_base_lut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 2))) {
+		evo_mthd(push, 0x00e0, 1);
+		evo_data(push, asyw->lut.enable << 30);
+		evo_kick(push, &base->chan);
+	}
+}
+
+static void
+nv50_base_image_clr(struct nv50_wndw *wndw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 4))) {
+		evo_mthd(push, 0x0084, 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x00c0, 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, &base->chan);
+	}
+}
+
+static void
+nv50_base_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	const s32 oclass = base->chan.base.base.user.oclass;
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 10))) {
+		evo_mthd(push, 0x0084, 1);
+		evo_data(push, (asyw->image.mode << 8) |
+			       (asyw->image.interval << 4));
+		evo_mthd(push, 0x00c0, 1);
+		evo_data(push, asyw->image.handle);
+		if (oclass < G82_DISP_BASE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0800, 5);
+			evo_data(push, asyw->image.offset >> 8);
+			evo_data(push, 0x00000000);
+			evo_data(push, (asyw->image.h << 16) | asyw->image.w);
+			evo_data(push, (asyw->image.layout << 20) |
+					asyw->image.pitch |
+					asyw->image.block);
+			evo_data(push, (asyw->image.kind << 16) |
+				       (asyw->image.format << 8));
+		} else
+		if (oclass < GF110_DISP_BASE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0800, 5);
+			evo_data(push, asyw->image.offset >> 8);
+			evo_data(push, 0x00000000);
+			evo_data(push, (asyw->image.h << 16) | asyw->image.w);
+			evo_data(push, (asyw->image.layout << 20) |
+					asyw->image.pitch |
+					asyw->image.block);
+			evo_data(push, asyw->image.format << 8);
+		} else {
+			evo_mthd(push, 0x0400, 5);
+			evo_data(push, asyw->image.offset >> 8);
+			evo_data(push, 0x00000000);
+			evo_data(push, (asyw->image.h << 16) | asyw->image.w);
+			evo_data(push, (asyw->image.layout << 24) |
+					asyw->image.pitch |
+					asyw->image.block);
+			evo_data(push, asyw->image.format << 8);
+		}
+		evo_kick(push, &base->chan);
+	}
+}
+
+static void
+nv50_base_ntfy_clr(struct nv50_wndw *wndw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 2))) {
+		evo_mthd(push, 0x00a4, 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, &base->chan);
+	}
+}
+
+static void
+nv50_base_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 3))) {
+		evo_mthd(push, 0x00a0, 2);
+		evo_data(push, (asyw->ntfy.awaken << 30) | asyw->ntfy.offset);
+		evo_data(push, asyw->ntfy.handle);
+		evo_kick(push, &base->chan);
+	}
+}
+
+static void
+nv50_base_sema_clr(struct nv50_wndw *wndw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 2))) {
+		evo_mthd(push, 0x0094, 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, &base->chan);
+	}
+}
+
+static void
+nv50_base_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+	if ((push = evo_wait(&base->chan, 5))) {
+		evo_mthd(push, 0x0088, 4);
+		evo_data(push, asyw->sema.offset);
+		evo_data(push, asyw->sema.acquire);
+		evo_data(push, asyw->sema.release);
+		evo_data(push, asyw->sema.handle);
+		evo_kick(push, &base->chan);
+	}
+}
+
+static u32
+nv50_base_update(struct nv50_wndw *wndw, u32 interlock)
+{
+	struct nv50_base *base = nv50_base(wndw);
+	u32 *push;
+
+	if (!(push = evo_wait(&base->chan, 2)))
+		return 0;
+	evo_mthd(push, 0x0080, 1);
+	evo_data(push, interlock);
+	evo_kick(push, &base->chan);
+
+	if (base->chan.base.base.user.oclass < GF110_DISP_BASE_CHANNEL_DMA)
+		return interlock ? 2 << (base->id * 8) : 0;
+	return interlock ? 2 << (base->id * 4) : 0;
+}
+
+static int
+nv50_base_ntfy_wait_begun(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
+	if (nvif_msec(&drm->device, 2000ULL,
+		u32 data = nouveau_bo_rd32(disp->sync, asyw->ntfy.offset / 4);
+		if ((data & 0xc0000000) == 0x40000000)
+			break;
+		usleep_range(1, 2);
+	) < 0)
+		return -ETIMEDOUT;
+	return 0;
+}
+
+static void
+nv50_base_release(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
+		  struct nv50_head_atom *asyh)
+{
+	asyh->base.cpp = 0;
+}
+
+static int
+nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
+		  struct nv50_head_atom *asyh)
+{
+	const u32 format = asyw->state.fb->pixel_format;
+	const struct drm_format_info *info;
+	int ret;
+
+	info = drm_format_info(format);
+	if (!info || !info->depth)
+		return -EINVAL;
+
+	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   false, true);
+	if (ret)
+		return ret;
+
+	asyh->base.depth = info->depth;
+	asyh->base.cpp = info->cpp[0];
+	asyh->base.x = asyw->state.src.x1 >> 16;
+	asyh->base.y = asyw->state.src.y1 >> 16;
+	asyh->base.w = asyw->state.fb->width;
+	asyh->base.h = asyw->state.fb->height;
+
+	switch (format) {
+	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
+	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
+	case DRM_FORMAT_XRGB1555   :
+	case DRM_FORMAT_ARGB1555   : asyw->image.format = 0xe9; break;
+	case DRM_FORMAT_XRGB8888   :
+	case DRM_FORMAT_ARGB8888   : asyw->image.format = 0xcf; break;
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010: asyw->image.format = 0xd1; break;
+	case DRM_FORMAT_XBGR8888   :
+	case DRM_FORMAT_ABGR8888   : asyw->image.format = 0xd5; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	asyw->lut.enable = 1;
+	asyw->set.image = true;
+	return 0;
+}
+
+static void *
+nv50_base_dtor(struct nv50_wndw *wndw)
+{
+	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
+	struct nv50_base *base = nv50_base(wndw);
+	nv50_dmac_destroy(&base->chan.base, disp->disp);
+	return base;
+}
+
+static const u32
+nv50_base_format[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
+};
+
+static const struct nv50_wndw_func
+nv50_base = {
+	.dtor = nv50_base_dtor,
+	.acquire = nv50_base_acquire,
+	.release = nv50_base_release,
+	.sema_set = nv50_base_sema_set,
+	.sema_clr = nv50_base_sema_clr,
+	.ntfy_set = nv50_base_ntfy_set,
+	.ntfy_clr = nv50_base_ntfy_clr,
+	.ntfy_wait_begun = nv50_base_ntfy_wait_begun,
+	.image_set = nv50_base_image_set,
+	.image_clr = nv50_base_image_clr,
+	.lut = nv50_base_lut,
+	.update = nv50_base_update,
+};
+
+static int
+nv50_base_new(struct nouveau_drm *drm, struct nv50_head *head,
+	      struct nv50_base **pbase)
+{
+	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_base *base;
+	int ret;
+
+	if (!(base = *pbase = kzalloc(sizeof(*base), GFP_KERNEL)))
+		return -ENOMEM;
+	base->id = head->base.index;
+	base->wndw.ntfy = EVO_FLIP_NTFY0(base->id);
+	base->wndw.sema = EVO_FLIP_SEM0(base->id);
+	base->wndw.data = 0x00000000;
+
+	ret = nv50_wndw_ctor(&nv50_base, drm->dev, DRM_PLANE_TYPE_PRIMARY,
+			     "base", base->id, &base->chan.base,
+			     nv50_base_format, ARRAY_SIZE(nv50_base_format),
+			     &base->wndw);
+	if (ret) {
+		kfree(base);
+		return ret;
+	}
+
+	ret = nv50_base_create(&drm->device, disp->disp, base->id,
+			       disp->sync->bo.offset, &base->chan);
+	if (ret)
+		return ret;
+
+	return nvif_notify_init(&base->chan.base.base.user, nv50_base_notify,
+				false,
+				NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT,
+				&(struct nvif_notify_uevent_req) {},
+				sizeof(struct nvif_notify_uevent_req),
+				sizeof(struct nvif_notify_uevent_rep),
+				&base->wndw.notify);
+}
+
+/******************************************************************************
  * Page flipping channel
  *****************************************************************************/
 struct nouveau_bo *
@@ -638,15 +1308,15 @@ nv50_display_crtc_sema(struct drm_device *dev, int crtc)
 
 struct nv50_display_flip {
 	struct nv50_disp *disp;
-	struct nv50_sync *chan;
+	struct nv50_base *base;
 };
 
 static bool
 nv50_display_flip_wait(void *data)
 {
 	struct nv50_display_flip *flip = data;
-	if (nouveau_bo_rd32(flip->disp->sync, flip->chan->addr / 4) ==
-					      flip->chan->data)
+	if (nouveau_bo_rd32(flip->disp->sync, flip->base->wndw.sema / 4) ==
+					      flip->base->wndw.data)
 		return true;
 	usleep_range(1, 2);
 	return false;
@@ -656,24 +1326,18 @@ void
 nv50_display_flip_stop(struct drm_crtc *crtc)
 {
 	struct nvif_device *device = &nouveau_drm(crtc->dev)->device;
+	struct nv50_base *base = nv50_head(crtc)->_base;
+	struct nv50_wndw *wndw = &base->wndw;
+	struct nv50_wndw_atom *asyw = &wndw->asy;
 	struct nv50_display_flip flip = {
 		.disp = nv50_disp(crtc->dev),
-		.chan = nv50_sync(crtc),
+		.base = base,
 	};
-	u32 *push;
 
-	push = evo_wait(flip.chan, 8);
-	if (push) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x0094, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x0080, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, flip.chan);
-	}
+	asyw->state.crtc = NULL;
+	asyw->state.fb = NULL;
+	nv50_wndw_atomic_check(&wndw->plane, &asyw->state);
+	nv50_wndw_flush_clr(wndw, 0, true, asyw);
 
 	nvif_msec(device, 2000,
 		if (nv50_display_flip_wait(&flip))
@@ -688,23 +1352,17 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_head *head = nv50_head(crtc);
-	struct nv50_sync *sync = nv50_sync(crtc);
-	u32 *push;
+	struct nv50_base *base = nv50_head(crtc)->_base;
+	struct nv50_wndw *wndw = &base->wndw;
+	struct nv50_wndw_atom *asyw = &wndw->asy;
 	int ret;
 
 	if (crtc->primary->fb->width != fb->width ||
 	    crtc->primary->fb->height != fb->height)
 		return -EINVAL;
 
-	swap_interval <<= 4;
-	if (swap_interval == 0)
-		swap_interval |= 0x100;
 	if (chan == NULL)
 		evo_sync(crtc->dev);
-
-	push = evo_wait(sync, 128);
-	if (unlikely(push == NULL))
-		return -EBUSY;
 
 	if (chan && chan->user.oclass < G82_CHANNEL_GPFIFO) {
 		ret = RING_SPACE(chan, 8);
@@ -713,15 +1371,15 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 2);
 		OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
-		OUT_RING  (chan, sync->addr ^ 0x10);
+		OUT_RING  (chan, base->wndw.sema ^ 0x10);
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_SEMAPHORE_RELEASE, 1);
-		OUT_RING  (chan, sync->data + 1);
+		OUT_RING  (chan, base->wndw.data + 1);
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_SEMAPHORE_OFFSET, 2);
-		OUT_RING  (chan, sync->addr);
-		OUT_RING  (chan, sync->data);
+		OUT_RING  (chan, base->wndw.sema);
+		OUT_RING  (chan, base->wndw.data);
 	} else
 	if (chan && chan->user.oclass < FERMI_CHANNEL_GPFIFO) {
-		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + sync->addr;
+		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + base->wndw.sema;
 		ret = RING_SPACE(chan, 12);
 		if (ret)
 			return ret;
@@ -731,16 +1389,16 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(addr ^ 0x10));
 		OUT_RING  (chan, lower_32_bits(addr ^ 0x10));
-		OUT_RING  (chan, sync->data + 1);
+		OUT_RING  (chan, base->wndw.data + 1);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(addr));
 		OUT_RING  (chan, lower_32_bits(addr));
-		OUT_RING  (chan, sync->data);
+		OUT_RING  (chan, base->wndw.data);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL);
 	} else
 	if (chan) {
-		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + sync->addr;
+		u64 addr = nv84_fence_crtc(chan, nv_crtc->index) + base->wndw.sema;
 		ret = RING_SPACE(chan, 10);
 		if (ret)
 			return ret;
@@ -748,63 +1406,37 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(addr ^ 0x10));
 		OUT_RING  (chan, lower_32_bits(addr ^ 0x10));
-		OUT_RING  (chan, sync->data + 1);
+		OUT_RING  (chan, base->wndw.data + 1);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG |
 				 NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD);
 		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
 		OUT_RING  (chan, upper_32_bits(addr));
 		OUT_RING  (chan, lower_32_bits(addr));
-		OUT_RING  (chan, sync->data);
+		OUT_RING  (chan, base->wndw.data);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL |
 				 NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD);
 	}
 
 	if (chan) {
-		sync->addr ^= 0x10;
-		sync->data++;
+		base->wndw.sema ^= 0x10;
+		base->wndw.data++;
 		FIRE_RING (chan);
 	}
 
 	/* queue the flip */
-	evo_mthd(push, 0x0100, 1);
-	evo_data(push, 0xfffe0000);
-	evo_mthd(push, 0x0084, 1);
-	evo_data(push, swap_interval);
-	if (!(swap_interval & 0x00000100)) {
-		evo_mthd(push, 0x00e0, 1);
-		evo_data(push, 0x40000000);
-	}
-	evo_mthd(push, 0x0088, 4);
-	evo_data(push, sync->addr);
-	evo_data(push, sync->data++);
-	evo_data(push, sync->data);
-	evo_data(push, sync->base.sync.handle);
-	evo_mthd(push, 0x00a0, 2);
-	evo_data(push, 0x00000000);
-	evo_data(push, 0x00000000);
-	evo_mthd(push, 0x00c0, 1);
-	evo_data(push, nv_fb->r_handle);
-	evo_mthd(push, 0x0110, 2);
-	evo_data(push, 0x00000000);
-	evo_data(push, 0x00000000);
-	if (nv50_vers(sync) < GF110_DISP_BASE_CHANNEL_DMA) {
-		evo_mthd(push, 0x0800, 5);
-		evo_data(push, nv_fb->nvbo->bo.offset >> 8);
-		evo_data(push, 0);
-		evo_data(push, (fb->height << 16) | fb->width);
-		evo_data(push, nv_fb->r_pitch);
-		evo_data(push, nv_fb->r_format);
-	} else {
-		evo_mthd(push, 0x0400, 5);
-		evo_data(push, nv_fb->nvbo->bo.offset >> 8);
-		evo_data(push, 0);
-		evo_data(push, (fb->height << 16) | fb->width);
-		evo_data(push, nv_fb->r_pitch);
-		evo_data(push, nv_fb->r_format);
-	}
-	evo_mthd(push, 0x0080, 1);
-	evo_data(push, 0x00000000);
-	evo_kick(push, sync);
+	asyw->state.crtc = &head->base.base;
+	asyw->state.fb = fb;
+	asyw->interval = swap_interval;
+	asyw->image.handle = nv_fb->r_handle;
+	asyw->image.offset = nv_fb->nvbo->bo.offset;
+	asyw->sema.handle = base->chan.base.sync.handle;
+	asyw->sema.offset = base->wndw.sema;
+	asyw->sema.acquire = base->wndw.data++;
+	asyw->sema.release = base->wndw.data;
+	nv50_wndw_atomic_check(&wndw->plane, &asyw->state);
+	asyw->set.sema = true;
+	nv50_wndw_flush_set(wndw, 0, asyw);
+	nv50_wndw_wait_armed(wndw, asyw);
 
 	nouveau_bo_ref(nv_fb->nvbo, &head->image);
 	return 0;
@@ -1514,6 +2146,7 @@ nv50_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(fb);
 	struct nv50_head *head = nv50_head(&nv_crtc->base);
 	struct nv50_head_atom *asyh = &head->asy;
+	struct nv50_wndw_atom *asyw = &head->_base->wndw.asy;
 	const struct drm_format_info *info;
 
 	info = drm_format_info(nvfb->base.pixel_format);
@@ -1526,6 +2159,8 @@ nv50_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 	asyh->base.y = y;
 	asyh->base.w = nvfb->base.width;
 	asyh->base.h = nvfb->base.height;
+	asyw->state.src_x = x << 16;
+	asyw->state.src_y = y << 16;
 	nv50_head_atomic_check(&head->base.base, &asyh->state);
 	nv50_head_flush_set(head, asyh);
 
@@ -1833,7 +2468,6 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 
 	nv50_dmac_destroy(&head->ovly.base, disp->disp);
 	nv50_pioc_destroy(&head->oimm.base);
-	nv50_dmac_destroy(&head->sync.base, disp->disp);
 	nv50_pioc_destroy(&head->curs.base);
 
 	/*XXX: this shouldn't be necessary, but the core doesn't call
@@ -1885,6 +2519,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	struct nvif_device *device = &drm->device;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
+	struct nv50_base *base;
 	struct drm_crtc *crtc;
 	int ret, i;
 
@@ -1902,7 +2537,15 @@ nv50_crtc_create(struct drm_device *dev, int index)
 		head->base.lut.b[i] = i << 8;
 	}
 
+	ret = nv50_base_new(drm, head, &base);
+	if (ret) {
+		kfree(head);
+		return ret;
+	}
+
 	crtc = &head->base.base;
+	head->_base = base;
+
 	drm_crtc_init(dev, crtc, &nv50_crtc_func);
 	drm_crtc_helper_add(crtc, &nv50_crtc_hfunc);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
@@ -1927,15 +2570,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	ret = nv50_curs_create(device, disp->disp, index, &head->curs);
 	if (ret)
 		goto out;
-
-	/* allocate page flip / sync resources */
-	ret = nv50_base_create(device, disp->disp, index, disp->sync->bo.offset,
-			       &head->sync);
-	if (ret)
-		goto out;
-
-	head->sync.addr = EVO_FLIP_SEM0(index);
-	head->sync.data = 0x00000000;
 
 	/* allocate overlay resources */
 	ret = nv50_oimm_create(device, disp->disp, index, &head->oimm);
@@ -2957,7 +3591,7 @@ nv50_fbdma_init(struct drm_device *dev, u32 name, u64 offset, u64 length, u8 kin
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nv50_head *head = nv50_head(crtc);
-		int ret = nvif_object_init(&head->sync.base.base.user, name,
+		int ret = nvif_object_init(&head->_base->chan.base.base.user, name,
 					   NV_DMA_IN_MEMORY, &args, size,
 					   &fbdma->base[head->base.index]);
 		if (ret) {
@@ -3031,12 +3665,21 @@ nv50_fb_ctor(struct drm_framebuffer *fb)
 void
 nv50_display_fini(struct drm_device *dev)
 {
+	struct drm_plane *plane;
+
+	drm_for_each_plane(plane, dev) {
+		struct nv50_wndw *wndw = nv50_wndw(plane);
+		if (plane->funcs != &nv50_wndw)
+			continue;
+		nv50_wndw_fini(wndw);
+	}
 }
 
 int
 nv50_display_init(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
+	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	u32 *push;
 
@@ -3045,15 +3688,23 @@ nv50_display_init(struct drm_device *dev)
 		return -EBUSY;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nv50_sync *sync = nv50_sync(crtc);
+		struct nv50_wndw *wndw = &nv50_head(crtc)->_base->wndw;
 
 		nv50_crtc_lut_load(crtc);
-		nouveau_bo_wr32(disp->sync, sync->addr / 4, sync->data);
+		nouveau_bo_wr32(disp->sync, wndw->sema / 4, wndw->data);
 	}
 
 	evo_mthd(push, 0x0088, 1);
 	evo_data(push, nv50_mast(dev)->base.sync.handle);
 	evo_kick(push, nv50_mast(dev));
+
+	drm_for_each_plane(plane, dev) {
+		struct nv50_wndw *wndw = nv50_wndw(plane);
+		if (plane->funcs != &nv50_wndw)
+			continue;
+		nv50_wndw_init(wndw);
+	}
+
 	return 0;
 }
 
