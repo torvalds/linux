@@ -3403,7 +3403,6 @@ void i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(!i915_vma_is_closed(vma));
 	GEM_BUG_ON(vma->fence);
 
-	rb_erase(&vma->obj_node, &vma->obj->vma_tree);
 	list_del(&vma->vm_link);
 	if (!i915_vma_is_ggtt(vma))
 		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
@@ -3416,7 +3415,9 @@ void i915_vma_close(struct i915_vma *vma)
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 	vma->flags |= I915_VMA_CLOSED;
 
-	list_del_init(&vma->obj_link);
+	list_del(&vma->obj_link);
+	rb_erase(&vma->obj_node, &vma->obj->vma_tree);
+
 	if (!i915_vma_is_active(vma) && !i915_vma_is_pinned(vma))
 		WARN_ON(i915_vma_unbind(vma));
 }
