@@ -575,7 +575,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	if (psize < PAGE_SIZE)
 		psize = PAGE_SIZE;
-	r = (r & ~(HPTE_R_PP0 - psize)) | ((pfn << PAGE_SHIFT) & ~(psize - 1));
+	r = (r & HPTE_R_KEY_HI) | (r & ~(HPTE_R_PP0 - psize)) |
+					((pfn << PAGE_SHIFT) & ~(psize - 1));
 	if (hpte_is_writable(r) && !write_ok)
 		r = hpte_make_readonly(r);
 	ret = RESUME_GUEST;
@@ -758,6 +759,7 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 		    hpte_rpn(ptel, psize) == gfn) {
 			hptep[0] |= cpu_to_be64(HPTE_V_ABSENT);
 			kvmppc_invalidate_hpte(kvm, hptep, i);
+			hptep[1] &= ~cpu_to_be64(HPTE_R_KEY_HI | HPTE_R_KEY_LO);
 			/* Harvest R and C */
 			rcbits = be64_to_cpu(hptep[1]) & (HPTE_R_R | HPTE_R_C);
 			*rmapp |= rcbits << KVMPPC_RMAP_RC_SHIFT;
