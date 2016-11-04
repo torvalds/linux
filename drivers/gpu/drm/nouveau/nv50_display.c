@@ -2530,9 +2530,7 @@ nv50_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       struct drm_framebuffer *fb, int x, int y,
 			       enum mode_set_atomic state)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	nv50_display_flip_stop(crtc);
-	nv50_crtc_set_image(nv_crtc, fb, x, y, true);
+	WARN_ON(1);
 	return 0;
 }
 
