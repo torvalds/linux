@@ -48,8 +48,6 @@
 #include <asm/setup.h>
 #include <asm/maar.h>
 
-cpumask_t cpu_callin_map;		/* Bitmask of started secondaries */
-
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 EXPORT_SYMBOL(__cpu_number_map);
 

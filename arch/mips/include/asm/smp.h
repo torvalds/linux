@@ -46,8 +46,6 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_DUMP		0x8
 #define SMP_ASK_C0COUNT		0x10
 
-extern cpumask_t cpu_callin_map;
-
 /* Mask of CPUs which are currently definitely operating coherently */
 extern cpumask_t cpu_coherent_mask;
 
