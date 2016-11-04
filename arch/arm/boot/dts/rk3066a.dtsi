@@ -636,6 +636,8 @@
 };
 
 &mmc0 {
+	clock-frequency = <50000000>;
+	max-frequency = <50000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4>;
 };
