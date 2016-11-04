@@ -331,8 +331,6 @@ static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 	if (trans->delay_usecs)
 		udelay(trans->delay_usecs);
 
-	fsl_espi_setup_transfer(spi, NULL);
-
 	if (!ret)
 		fsl_espi_copy_from_buf(m, mspi);
 
