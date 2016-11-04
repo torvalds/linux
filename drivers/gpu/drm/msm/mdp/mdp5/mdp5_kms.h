@@ -27,6 +27,8 @@
 #include "mdp5_pipe.h"
 #include "mdp5_smp.h"
 
+struct mdp5_state;
+
 struct mdp5_kms {
 	struct mdp_kms base;
 
@@ -40,6 +42,11 @@ struct mdp5_kms {
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 
+	/**
+	 * Global atomic state.  Do not access directly, use mdp5_get_state()
+	 */
+	struct mdp5_state *state;
+	struct drm_modeset_lock state_lock;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
@@ -69,6 +76,21 @@ struct mdp5_kms {
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
+/* Global atomic state for tracking resources that are shared across
+ * multiple kms objects (planes/crtcs/etc).
+ *
+ * For atomic updates which require modifying global state,
+ */
+struct mdp5_state {
+	uint32_t dummy;
+};
+
+struct mdp5_state *__must_check
+mdp5_get_state(struct drm_atomic_state *s);
+
+/* Atomic plane state.  Subclasses the base drm_plane_state in order to
+ * track assigned hwpipe and hw specific state.
+ */
 struct mdp5_plane_state {
 	struct drm_plane_state base;
 
