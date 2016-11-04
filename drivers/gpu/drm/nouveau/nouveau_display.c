@@ -382,12 +382,15 @@ nouveau_display_init(struct drm_device *dev)
 }
 
 void
-nouveau_display_fini(struct drm_device *dev)
+nouveau_display_fini(struct drm_device *dev, bool suspend)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
 	int head;
+
+	if (!suspend)
+		drm_crtc_force_disable_all(dev);
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
 	for (head = 0; head < dev->mode_config.num_crtc; head++)
@@ -553,7 +556,6 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_display_vblank_fini(dev);
 
 	drm_kms_helper_poll_fini(dev);
-	drm_crtc_force_disable_all(dev);
 	drm_mode_config_cleanup(dev);
 
 	if (disp->dtor)
@@ -570,7 +572,7 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 {
 	struct drm_crtc *crtc;
 
-	nouveau_display_fini(dev);
+	nouveau_display_fini(dev, true);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
