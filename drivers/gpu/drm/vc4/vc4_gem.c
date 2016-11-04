@@ -711,8 +711,10 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 
 	mutex_lock(&vc4->power_lock);
-	if (--vc4->power_refcount == 0)
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+	if (--vc4->power_refcount == 0) {
+		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
+		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+	}
 	mutex_unlock(&vc4->power_lock);
 
 	kfree(exec);
