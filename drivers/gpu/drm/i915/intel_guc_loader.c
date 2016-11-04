@@ -566,7 +566,7 @@ fail:
 		ret = 0;
 	}
 
-	if (err == 0 && !HAS_GUC_UCODE(dev))
+	if (err == 0 && !HAS_GUC_UCODE(dev_priv))
 		;	/* Don't mention the GuC! */
 	else if (err == 0)
 		DRM_INFO("GuC firmware load skipped\n");
@@ -725,18 +725,18 @@ void intel_guc_init(struct drm_device *dev)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
 
-	if (!HAS_GUC(dev)) {
+	if (!HAS_GUC(dev_priv)) {
 		i915.enable_guc_loading = 0;
 		i915.enable_guc_submission = 0;
 	} else {
 		/* A negative value means "use platform default" */
 		if (i915.enable_guc_loading < 0)
-			i915.enable_guc_loading = HAS_GUC_UCODE(dev);
+			i915.enable_guc_loading = HAS_GUC_UCODE(dev_priv);
 		if (i915.enable_guc_submission < 0)
-			i915.enable_guc_submission = HAS_GUC_SCHED(dev);
+			i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
 	}
 
-	if (!HAS_GUC_UCODE(dev)) {
+	if (!HAS_GUC_UCODE(dev_priv)) {
 		fw_path = NULL;
 	} else if (IS_SKYLAKE(dev_priv)) {
 		fw_path = I915_SKL_GUC_UCODE;

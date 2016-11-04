@@ -2376,7 +2376,7 @@ struct drm_i915_cmd_table {
 #define INTEL_DEVID(dev_priv)	((dev_priv)->info.device_id)
 
 #define REVID_FOREVER		0xff
-#define INTEL_REVID(p)	(__I915__(p)->drm.pdev->revision)
+#define INTEL_REVID(dev_priv)	((dev_priv)->drm.pdev->revision)
 
 #define GEN_FOREVER (0)
 /*
@@ -2604,13 +2604,13 @@ struct drm_i915_cmd_table {
  * command submission once loaded. But these are logically independent
  * properties, so we have separate macros to test them.
  */
-#define HAS_GUC(dev)		(INTEL_INFO(dev)->has_guc)
-#define HAS_GUC_UCODE(dev)	(HAS_GUC(dev))
-#define HAS_GUC_SCHED(dev)	(HAS_GUC(dev))
+#define HAS_GUC(dev_priv)	((dev_priv)->info.has_guc)
+#define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
+#define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
 
-#define HAS_RESOURCE_STREAMER(dev) (INTEL_INFO(dev)->has_resource_streamer)
+#define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
 
-#define HAS_POOLED_EU(dev)	(INTEL_INFO(dev)->has_pooled_eu)
+#define HAS_POOLED_EU(dev_priv)	((dev_priv)->info.has_pooled_eu)
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
