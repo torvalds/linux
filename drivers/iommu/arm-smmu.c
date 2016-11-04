@@ -247,6 +247,7 @@ enum arm_smmu_s2cr_privcfg {
 #define ARM_MMU500_ACTLR_CPRE		(1 << 1)
 
 #define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
+#define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
 
 #define CB_PAR_F			(1 << 0)
 
@@ -1581,16 +1582,22 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	for (i = 0; i < smmu->num_mapping_groups; ++i)
 		arm_smmu_write_sme(smmu, i);
 
-	/*
-	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
-	 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
-	 * bit is only present in MMU-500r2 onwards.
-	 */
-	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
-	major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
-	if ((smmu->model == ARM_MMU500) && (major >= 2)) {
+	if (smmu->model == ARM_MMU500) {
+		/*
+		 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
+		 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
+		 * bit is only present in MMU-500r2 onwards.
+		 */
+		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
+		major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
 		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sACR);
-		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
+		if (major >= 2)
+			reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
+		/*
+		 * Allow unmatched Stream IDs to allocate bypass
+		 * TLB entries for reduced latency.
+		 */
+		reg |= ARM_MMU500_ACR_SMTNMB_TLBEN;
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
 
