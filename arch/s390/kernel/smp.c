@@ -1056,9 +1056,10 @@ static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
+	case CPU_DOWN_FAILED:
 		err = sysfs_create_group(&s->kobj, &cpu_online_attr_group);
 		break;
-	case CPU_DEAD:
+	case CPU_DOWN_PREPARE:
 		sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
 		break;
 	}
