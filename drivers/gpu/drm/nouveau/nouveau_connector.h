@@ -124,6 +124,7 @@ struct nouveau_conn_atom {
 			u32 hborder;
 			u32 vborder;
 		} underscan;
+		bool full;
 	} scaler;
 
 	struct {

@@ -71,6 +71,13 @@
 struct nv50_head_atom {
 	struct drm_crtc_state state;
 
+	struct {
+		u16 iW;
+		u16 iH;
+		u16 oW;
+		u16 oH;
+	} view;
+
 	struct nv50_head_mode {
 		bool interlace;
 		u32 clock;
@@ -1066,6 +1073,34 @@ nv50_head_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 static void
+nv50_head_view(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 10))) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x08a4 + (head->base.index * 0x400), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x08c8 + (head->base.index * 0x400), 1);
+			evo_data(push, (asyh->view.iH << 16) | asyh->view.iW);
+			evo_mthd(push, 0x08d8 + (head->base.index * 0x400), 2);
+			evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
+			evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
+		} else {
+			evo_mthd(push, 0x0494 + (head->base.index * 0x300), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x04b8 + (head->base.index * 0x300), 1);
+			evo_data(push, (asyh->view.iH << 16) | asyh->view.iW);
+			evo_mthd(push, 0x04c0 + (head->base.index * 0x300), 3);
+			evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
+			evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
+			evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
+		}
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
 {
 	if (asyh->clr.core && (!asyh->set.core || y))
@@ -1079,12 +1114,90 @@ nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
 static void
 nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
+	if (asyh->set.view   ) nv50_head_view    (head, asyh);
 	if (asyh->set.mode   ) nv50_head_mode    (head, asyh);
 	if (asyh->set.core   ) nv50_head_lut_set (head, asyh);
 	if (asyh->set.core   ) nv50_head_core_set(head, asyh);
 	if (asyh->set.curs   ) nv50_head_curs_set(head, asyh);
 	if (asyh->set.base   ) nv50_head_base    (head, asyh);
 	if (asyh->set.ovly   ) nv50_head_ovly    (head, asyh);
+}
+
+static void
+nv50_head_atomic_check_view(struct nv50_head_atom *armh,
+			    struct nv50_head_atom *asyh,
+			    struct nouveau_conn_atom *asyc)
+{
+	struct drm_connector *connector = asyc->state.connector;
+	struct drm_display_mode *omode = &asyh->state.adjusted_mode;
+	struct drm_display_mode *umode = &asyh->state.mode;
+	int mode = asyc->scaler.mode;
+	struct edid *edid;
+
+	if (connector->edid_blob_ptr)
+		edid = (struct edid *)connector->edid_blob_ptr->data;
+	else
+		edid = NULL;
+
+	if (!asyc->scaler.full) {
+		if (mode == DRM_MODE_SCALE_NONE)
+			omode = umode;
+	} else {
+		/* Non-EDID LVDS/eDP mode. */
+		mode = DRM_MODE_SCALE_FULLSCREEN;
+	}
+
+	asyh->view.iW = umode->hdisplay;
+	asyh->view.iH = umode->vdisplay;
+	asyh->view.oW = omode->hdisplay;
+	asyh->view.oH = omode->vdisplay;
+	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
+		asyh->view.oH *= 2;
+
+	/* Add overscan compensation if necessary, will keep the aspect
+	 * ratio the same as the backend mode unless overridden by the
+	 * user setting both hborder and vborder properties.
+	 */
+	if ((asyc->scaler.underscan.mode == UNDERSCAN_ON ||
+	    (asyc->scaler.underscan.mode == UNDERSCAN_AUTO &&
+	     drm_detect_hdmi_monitor(edid)))) {
+		u32 bX = asyc->scaler.underscan.hborder;
+		u32 bY = asyc->scaler.underscan.vborder;
+		u32 r = (asyh->view.oH << 19) / asyh->view.oW;
+
+		if (bX) {
+			asyh->view.oW -= (bX * 2);
+			if (bY) asyh->view.oH -= (bY * 2);
+			else    asyh->view.oH  = ((asyh->view.oW * r) + (r / 2)) >> 19;
+		} else {
+			asyh->view.oW -= (asyh->view.oW >> 4) + 32;
+			if (bY) asyh->view.oH -= (bY * 2);
+			else    asyh->view.oH  = ((asyh->view.oW * r) + (r / 2)) >> 19;
+		}
+	}
+
+	/* Handle CENTER/ASPECT scaling, taking into account the areas
+	 * removed already for overscan compensation.
+	 */
+	switch (mode) {
+	case DRM_MODE_SCALE_CENTER:
+		asyh->view.oW = min((u16)umode->hdisplay, asyh->view.oW);
+		asyh->view.oH = min((u16)umode->vdisplay, asyh->view.oH);
+		/* fall-through */
+	case DRM_MODE_SCALE_ASPECT:
+		if (asyh->view.oH < asyh->view.oW) {
+			u32 r = (asyh->view.iW << 19) / asyh->view.iH;
+			asyh->view.oW = ((asyh->view.oH * r) + (r / 2)) >> 19;
+		} else {
+			u32 r = (asyh->view.iH << 19) / asyh->view.iW;
+			asyh->view.oH = ((asyh->view.oW * r) + (r / 2)) >> 19;
+		}
+		break;
+	default:
+		break;
+	}
+
+	asyh->set.view = true;
 }
 
 static void
@@ -1264,105 +1377,27 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 static int
 nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	struct drm_display_mode *omode, *umode = &nv_crtc->base.mode;
+	struct nv50_head *head = nv50_head(&nv_crtc->base);
+	struct nv50_head_atom *asyh = &head->asy;
 	struct drm_crtc *crtc = &nv_crtc->base;
 	struct nouveau_connector *nv_connector;
-	int mode = DRM_MODE_SCALE_NONE;
-	u32 oX, oY, *push;
+	struct nouveau_conn_atom asyc;
 
-	/* start off at the resolution we programmed the crtc for, this
-	 * effectively handles NONE/FULL scaling
-	 */
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	if (nv_connector && nv_connector->native_mode) {
-		mode = nv_connector->scaling_mode;
-		if (nv_connector->scaling_full) /* non-EDID LVDS/eDP mode */
-			mode = DRM_MODE_SCALE_FULLSCREEN;
-	}
 
-	if (mode != DRM_MODE_SCALE_NONE)
-		omode = nv_connector->native_mode;
-	else
-		omode = umode;
+	asyc.state.connector = &nv_connector->base;
+	asyc.scaler.mode = nv_connector->scaling_mode;
+	asyc.scaler.full = nv_connector->scaling_full;
+	asyc.scaler.underscan.mode = nv_connector->underscan;
+	asyc.scaler.underscan.hborder = nv_connector->underscan_hborder;
+	asyc.scaler.underscan.vborder = nv_connector->underscan_vborder;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
+	nv50_head_atomic_check_view(&head->arm, asyh, &asyc);
+	nv50_head_flush_set(head, asyh);
 
-	oX = omode->hdisplay;
-	oY = omode->vdisplay;
-	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
-		oY *= 2;
-
-	/* add overscan compensation if necessary, will keep the aspect
-	 * ratio the same as the backend mode unless overridden by the
-	 * user setting both hborder and vborder properties.
-	 */
-	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
-			     (nv_connector->underscan == UNDERSCAN_AUTO &&
-			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
-		u32 bX = nv_connector->underscan_hborder;
-		u32 bY = nv_connector->underscan_vborder;
-		u32 aspect = (oY << 19) / oX;
-
-		if (bX) {
-			oX -= (bX * 2);
-			if (bY) oY -= (bY * 2);
-			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
-		} else {
-			oX -= (oX >> 4) + 32;
-			if (bY) oY -= (bY * 2);
-			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
-		}
-	}
-
-	/* handle CENTER/ASPECT scaling, taking into account the areas
-	 * removed already for overscan compensation
-	 */
-	switch (mode) {
-	case DRM_MODE_SCALE_CENTER:
-		oX = min((u32)umode->hdisplay, oX);
-		oY = min((u32)umode->vdisplay, oY);
-		/* fall-through */
-	case DRM_MODE_SCALE_ASPECT:
-		if (oY < oX) {
-			u32 aspect = (umode->hdisplay << 19) / umode->vdisplay;
-			oX = ((oY * aspect) + (aspect / 2)) >> 19;
-		} else {
-			u32 aspect = (umode->vdisplay << 19) / umode->hdisplay;
-			oY = ((oX * aspect) + (aspect / 2)) >> 19;
-		}
-		break;
-	default:
-		break;
-	}
-
-	push = evo_wait(mast, 8);
-	if (push) {
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			/*XXX: SCALE_CTRL_ACTIVE??? */
-			evo_mthd(push, 0x08d8 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, (oY << 16) | oX);
-			evo_data(push, (oY << 16) | oX);
-			evo_mthd(push, 0x08a4 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x08c8 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, umode->vdisplay << 16 | umode->hdisplay);
-		} else {
-			evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
-			evo_data(push, (oY << 16) | oX);
-			evo_data(push, (oY << 16) | oX);
-			evo_data(push, (oY << 16) | oX);
-			evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
-			evo_data(push, umode->vdisplay << 16 | umode->hdisplay);
-		}
-
-		evo_kick(push, mast);
-
-		if (update) {
-			nv50_display_flip_stop(crtc);
-			nv50_display_flip_next(crtc, crtc->primary->fb,
-					       NULL, 1);
-		}
+	if (update) {
+		nv50_display_flip_stop(crtc);
+		nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
 	}
 
 	return 0;
