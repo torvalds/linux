@@ -197,6 +197,44 @@ static const struct dwc2_core_params params_amlogic = {
 	.hibernation			= -1,
 };
 
+static const struct dwc2_core_params params_default = {
+	.otg_cap			= -1,
+	.otg_ver			= -1,
+	.dma_enable			= -1,
+
+	/*
+	 * Disable descriptor dma mode by default as the HW can support
+	 * it, but does not support it for SPLIT transactions.
+	 * Disable it for FS devices as well.
+	 */
+	.dma_desc_enable		= 0,
+	.dma_desc_fs_enable		= 0,
+
+	.speed				= -1,
+	.enable_dynamic_fifo		= -1,
+	.en_multiple_tx_fifo		= -1,
+	.host_rx_fifo_size		= -1,
+	.host_nperio_tx_fifo_size	= -1,
+	.host_perio_tx_fifo_size	= -1,
+	.max_transfer_size		= -1,
+	.max_packet_count		= -1,
+	.host_channels			= -1,
+	.phy_type			= -1,
+	.phy_utmi_width			= -1,
+	.phy_ulpi_ddr			= -1,
+	.phy_ulpi_ext_vbus		= -1,
+	.i2c_enable			= -1,
+	.ulpi_fs_ls			= -1,
+	.host_support_fs_ls_low_power	= -1,
+	.host_ls_low_power_phy_clk	= -1,
+	.ts_dline			= -1,
+	.reload_ctl			= -1,
+	.ahbcfg				= -1,
+	.uframe_sched			= -1,
+	.external_id_pin_ctl		= -1,
+	.hibernation			= -1,
+};
+
 const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
 	{ .compatible = "hisilicon,hi6220-usb", .data = &params_hi6220 },
@@ -1109,46 +1147,18 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	return 0;
 }
 
-/*
- * Sets all parameters to the given value.
- *
- * Assumes that the dwc2_core_params struct contains only integers.
- */
-void dwc2_set_all_params(struct dwc2_core_params *params, int value)
-{
-	int *p = (int *)params;
-	size_t size = sizeof(*params) / sizeof(*p);
-	int i;
-
-	for (i = 0; i < size; i++)
-		p[i] = value;
-}
-
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
 	const struct of_device_id *match;
-	const struct dwc2_core_params *params;
-	struct dwc2_core_params defparams;
+	struct dwc2_core_params params;
 
 	match = of_match_device(dwc2_of_match_table, hsotg->dev);
-	if (match && match->data) {
-		params = match->data;
-	} else {
-		/* Default all params to autodetect */
-		dwc2_set_all_params(&defparams, -1);
-		params = &defparams;
+	if (match && match->data)
+		params = *((struct dwc2_core_params *)match->data);
+	else
+		params = params_default;
 
-		/*
-		 * Disable descriptor dma mode by default as the HW can support
-		 * it, but does not support it for SPLIT transactions.
-		 * Disable it for FS devices as well.
-		 */
-		defparams.dma_desc_enable = 0;
-		defparams.dma_desc_fs_enable = 0;
-	}
-
-	/* Validate parameter values */
-	dwc2_set_parameters(hsotg, params);
+	dwc2_set_parameters(hsotg, &params);
 
 	return 0;
 }

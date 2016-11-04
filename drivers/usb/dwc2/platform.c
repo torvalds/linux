@@ -398,8 +398,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	spin_lock_init(&hsotg->lock);
 
-	dwc2_set_all_params(&hsotg->params, -1);
-
 	hsotg->irq = platform_get_irq(dev, 0);
 	if (hsotg->irq < 0) {
 		dev_err(&dev->dev, "missing IRQ resource\n");

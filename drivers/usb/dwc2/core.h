@@ -1252,8 +1252,6 @@ extern void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val);
 extern void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 				const struct dwc2_core_params *params);
 
-extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
-
 extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 
 extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
