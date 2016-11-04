@@ -92,6 +92,11 @@ struct nv50_head_atom {
 	} mode;
 
 	struct {
+		u32 handle;
+		u64 offset:40;
+	} lut;
+
+	struct {
 		bool visible;
 		u32 handle;
 		u64 offset:40;
@@ -770,7 +775,6 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 /******************************************************************************
  * Head
  *****************************************************************************/
-
 static void
 nv50_head_core_clr(struct nv50_head *head)
 {
@@ -836,6 +840,61 @@ nv50_head_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 }
 
 static void
+nv50_head_lut_clr(struct nv50_head *head)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 4))) {
+		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 1);
+			evo_data(push, 0x40000000);
+		} else
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 1);
+			evo_data(push, 0x40000000);
+			evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
+			evo_data(push, 0x00000000);
+		} else {
+			evo_mthd(push, 0x0440 + (head->base.index * 0x300), 1);
+			evo_data(push, 0x03000000);
+			evo_mthd(push, 0x045c + (head->base.index * 0x300), 1);
+			evo_data(push, 0x00000000);
+		}
+		evo_kick(push, core);
+	}
+}
+
+static void
+nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 7))) {
+		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
+			evo_data(push, 0xc0000000);
+			evo_data(push, asyh->lut.offset >> 8);
+		} else
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
+			evo_data(push, 0xc0000000);
+			evo_data(push, asyh->lut.offset >> 8);
+			evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
+			evo_data(push, asyh->lut.handle);
+		} else {
+			evo_mthd(push, 0x0440 + (head->base.index * 0x300), 4);
+			evo_data(push, 0x83000000);
+			evo_data(push, asyh->lut.offset >> 8);
+			evo_data(push, 0x00000000);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x045c + (head->base.index * 0x300), 1);
+			evo_data(push, asyh->lut.handle);
+		}
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
@@ -879,6 +938,8 @@ static void
 nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
 {
 	if (asyh->clr.core && (!asyh->set.core || y))
+		nv50_head_lut_clr(head);
+	if (asyh->clr.core && (!asyh->set.core || y))
 		nv50_head_core_clr(head);
 }
 
@@ -886,6 +947,7 @@ static void
 nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	if (asyh->set.mode   ) nv50_head_mode    (head, asyh);
+	if (asyh->set.core   ) nv50_head_lut_set (head, asyh);
 	if (asyh->set.core   ) nv50_head_core_set(head, asyh);
 }
 
@@ -973,6 +1035,8 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		asyh->core.layout = 1;
 		asyh->core.block = 0;
 		asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
+		asyh->lut.handle = disp->mast.base.vram.handle;
+		asyh->lut.offset = head->base.lut.nvbo->bo.offset;
 	} else {
 		asyh->core.visible = false;
 	}
@@ -1320,37 +1384,14 @@ static void
 nv50_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nv50_mast *mast = nv50_mast(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *asyh = &head->asy;
-	u32 *push;
 
 	nv50_display_flip_stop(crtc);
 
 	asyh->state.active = false;
 	nv50_head_atomic_check(&head->base.base, &asyh->state);
 	nv50_head_flush_clr(head, asyh, false);
-
-	push = evo_wait(mast, 6);
-	if (push) {
-		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x40000000);
-		} else
-		if (nv50_vers(mast) <  GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x40000000);
-			evo_mthd(push, 0x085c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x00000000);
-		} else {
-			evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 1);
-			evo_data(push, 0x03000000);
-			evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, 0x00000000);
-		}
-
-		evo_kick(push, mast);
-	}
 
 	nv50_crtc_cursor_show_hide(nv_crtc, false, false);
 }
@@ -1359,34 +1400,12 @@ static void
 nv50_crtc_commit(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nv50_mast *mast = nv50_mast(crtc->dev);
-	u32 *push;
+	struct nv50_head *head = nv50_head(crtc);
+	struct nv50_head_atom *asyh = &head->asy;
 
-	push = evo_wait(mast, 32);
-	if (push) {
-		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, 0xc0000000);
-			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
-		} else
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, 0xc0000000);
-			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
-			evo_mthd(push, 0x085c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, mast->base.vram.handle);
-		} else {
-			evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 4);
-			evo_data(push, 0x83000000);
-			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
-			evo_data(push, 0x00000000);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, mast->base.vram.handle);
-		}
-
-		evo_kick(push, mast);
-	}
+	asyh->state.active = true;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
+	nv50_head_flush_set(head, asyh);
 
 	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 	nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
