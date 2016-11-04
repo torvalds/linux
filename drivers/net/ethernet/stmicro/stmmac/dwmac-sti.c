@@ -237,8 +237,6 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	u32 reg = dwmac->ctrl_reg;
 	u32 val;
 
-	clk_prepare_enable(dwmac->clk);
-
 	if (dwmac->gmac_en)
 		regmap_update_bits(regmap, reg, EN_MASK, EN);
 
@@ -348,11 +346,23 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = data->fix_retime_src;
 
-	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
+	ret = clk_prepare_enable(dwmac->clk);
 	if (ret)
 		return ret;
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
+	if (ret)
+		goto disable_clk;
+
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto disable_clk;
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(dwmac->clk);
+	return ret;
 }
 
 static int sti_dwmac_remove(struct platform_device *pdev)
@@ -381,6 +391,7 @@ static int sti_dwmac_resume(struct device *dev)
 	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(dev);
 	struct platform_device *pdev = to_platform_device(dev);
 
+	clk_prepare_enable(dwmac->clk);
 	sti_dwmac_init(pdev, dwmac);
 
 	return stmmac_resume(dev);
