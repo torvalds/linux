@@ -223,10 +223,6 @@ static void
 nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
 {
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
-	struct nouveau_display *disp = nouveau_display(drm_fb->dev);
-
-	if (disp->fb_dtor)
-		disp->fb_dtor(drm_fb);
 
 	if (fb->nvbo)
 		drm_gem_object_unreference_unlocked(&fb->nvbo->gem);
@@ -256,27 +252,18 @@ nouveau_framebuffer_new(struct drm_device *dev,
 			struct nouveau_bo *nvbo,
 			struct nouveau_framebuffer **pfb)
 {
-	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_framebuffer *fb;
 	int ret;
 
-	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
 
 	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
 	fb->nvbo = nvbo;
 
 	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
-	if (ret == 0) {
-		if (!disp->fb_ctor || !(ret = disp->fb_ctor(&fb->base))) {
-			*pfb = fb;
-			return 0;
-		}
-		disp->fb_dtor(&fb->base);
-		drm_framebuffer_cleanup(&fb->base);
-	}
-
-	kfree(fb);
+	if (ret)
+		kfree(fb);
 	return ret;
 }
 

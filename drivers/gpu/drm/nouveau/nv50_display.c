@@ -418,12 +418,12 @@ nv50_dmac_ctxdma_del(struct nv50_dmac_ctxdma *ctxdma)
 }
 
 static struct nv50_dmac_ctxdma *
-nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, u32 handle,
-		     struct nouveau_framebuffer *fb)
+nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, struct nouveau_framebuffer *fb)
 {
 	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
 	struct nv50_dmac_ctxdma *ctxdma;
-	const u8  kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	const u8    kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	const u32 handle = 0xfb000000 | kind;
 	struct {
 		struct nv_dma_v0 base;
 		union {
@@ -951,21 +951,17 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
 	struct nv50_head_atom *asyh;
 	struct nv50_dmac_ctxdma *ctxdma;
-	u32 name;
-	u8 kind;
 	int ret;
 
 	NV_ATOMIC(drm, "%s prepare: %p\n", plane->name, state->fb);
 	if (!asyw->state.fb)
 		return 0;
-	kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
-	name = 0xfb000000 | kind;
 
 	ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM, true);
 	if (ret)
 		return ret;
 
-	ctxdma = nv50_dmac_ctxdma_new(wndw->dmac, name, fb);
+	ctxdma = nv50_dmac_ctxdma_new(wndw->dmac, fb);
 	if (IS_ERR(ctxdma)) {
 		nouveau_bo_unpin(fb->nvbo);
 		return PTR_ERR(ctxdma);
@@ -3365,67 +3361,6 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 }
 
 /******************************************************************************
- * Framebuffer
- *****************************************************************************/
-
-static void
-nv50_fb_dtor(struct drm_framebuffer *fb)
-{
-}
-
-static int
-nv50_fb_ctor(struct drm_framebuffer *fb)
-{
-	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
-	struct nouveau_drm *drm = nouveau_drm(fb->dev);
-	struct nouveau_bo *nvbo = nv_fb->nvbo;
-	struct nv50_disp *disp = nv50_disp(fb->dev);
-	u8 kind = nouveau_bo_tile_layout(nvbo) >> 8;
-	u8 tile = nvbo->tile_mode;
-	struct drm_crtc *crtc;
-
-	if (drm->device.info.chipset >= 0xc0)
-		tile >>= 4; /* yep.. */
-
-	switch (fb->depth) {
-	case  8: nv_fb->r_format = 0x1e00; break;
-	case 15: nv_fb->r_format = 0xe900; break;
-	case 16: nv_fb->r_format = 0xe800; break;
-	case 24:
-	case 32: nv_fb->r_format = 0xcf00; break;
-	case 30: nv_fb->r_format = 0xd100; break;
-	default:
-		 NV_ERROR(drm, "unknown depth %d\n", fb->depth);
-		 return -EINVAL;
-	}
-
-	if (disp->disp->oclass < G82_DISP) {
-		nv_fb->r_pitch   = kind ? (((fb->pitches[0] / 4) << 4) | tile) :
-					    (fb->pitches[0] | 0x00100000);
-		nv_fb->r_format |= kind << 16;
-	} else
-	if (disp->disp->oclass < GF110_DISP) {
-		nv_fb->r_pitch  = kind ? (((fb->pitches[0] / 4) << 4) | tile) :
-					   (fb->pitches[0] | 0x00100000);
-	} else {
-		nv_fb->r_pitch  = kind ? (((fb->pitches[0] / 4) << 4) | tile) :
-					   (fb->pitches[0] | 0x01000000);
-	}
-	nv_fb->r_handle = 0xffff0000 | kind;
-
-	list_for_each_entry(crtc, &drm->dev->mode_config.crtc_list, head) {
-		struct nv50_wndw *wndw = nv50_wndw(crtc->primary);
-		struct nv50_dmac_ctxdma *ctxdma;
-
-		ctxdma = nv50_dmac_ctxdma_new(wndw->dmac, nv_fb->r_handle, nv_fb);
-		if (IS_ERR(ctxdma))
-			return PTR_ERR(ctxdma);
-	}
-
-	return 0;
-}
-
-/******************************************************************************
  * Atomic
  *****************************************************************************/
 
@@ -3955,8 +3890,6 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->dtor = nv50_display_destroy;
 	nouveau_display(dev)->init = nv50_display_init;
 	nouveau_display(dev)->fini = nv50_display_fini;
-	nouveau_display(dev)->fb_ctor = nv50_fb_ctor;
-	nouveau_display(dev)->fb_dtor = nv50_fb_dtor;
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
 	if (nouveau_atomic)
