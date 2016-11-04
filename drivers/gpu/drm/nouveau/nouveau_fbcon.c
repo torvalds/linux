@@ -535,7 +535,8 @@ nouveau_fbcon_init(struct drm_device *dev)
 		preferred_bpp = 32;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(dev);
+	if (!dev->mode_config.funcs->atomic_commit)
+		drm_helper_disable_unused_functions(dev);
 
 	ret = drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);
 	if (ret)
