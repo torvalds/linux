@@ -63,6 +63,42 @@
 #define EVO_FLIP_SEM1(c)  EVO_SYNC((c) + 1, 0x10)
 
 /******************************************************************************
+ * Atomic state
+ *****************************************************************************/
+#define nv50_head_atom(p) container_of((p), struct nv50_head_atom, state)
+
+struct nv50_head_atom {
+	struct drm_crtc_state state;
+
+	struct nv50_head_mode {
+		bool interlace;
+		u32 clock;
+		struct {
+			u16 active;
+			u16 synce;
+			u16 blanke;
+			u16 blanks;
+		} h;
+		struct {
+			u32 active;
+			u16 synce;
+			u16 blanke;
+			u16 blanks;
+			u16 blank2s;
+			u16 blank2e;
+			u16 blankus;
+		} v;
+	} mode;
+
+	union {
+		struct {
+			bool mode:1;
+		};
+		u16 mask;
+	} set;
+};
+
+/******************************************************************************
  * EVO channel
  *****************************************************************************/
 
@@ -386,6 +422,9 @@ struct nv50_head {
 	struct nv50_sync sync;
 	struct nv50_ovly ovly;
 	struct nv50_oimm oimm;
+
+	struct nv50_head_atom arm;
+	struct nv50_head_atom asy;
 };
 
 #define nv50_head(c) ((struct nv50_head *)nouveau_crtc(c))
@@ -691,6 +730,120 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	evo_kick(push, sync);
 
 	nouveau_bo_ref(nv_fb->nvbo, &head->image);
+	return 0;
+}
+
+/******************************************************************************
+ * Head
+ *****************************************************************************/
+
+static void
+nv50_head_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	struct nv50_head_mode *m = &asyh->mode;
+	u32 *push;
+	if ((push = evo_wait(core, 14))) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0804 + (head->base.index * 0x400), 2);
+			evo_data(push, 0x00800000 | m->clock);
+			evo_data(push, m->interlace ? 0x00000002 : 0x00000000);
+			evo_mthd(push, 0x0810 + (head->base.index * 0x400), 6);
+			evo_data(push, 0x00000000);
+			evo_data(push, (m->v.active  << 16) | m->h.active );
+			evo_data(push, (m->v.synce   << 16) | m->h.synce  );
+			evo_data(push, (m->v.blanke  << 16) | m->h.blanke );
+			evo_data(push, (m->v.blanks  << 16) | m->h.blanks );
+			evo_data(push, (m->v.blank2e << 16) | m->v.blank2s);
+			evo_mthd(push, 0x082c + (head->base.index * 0x400), 1);
+			evo_data(push, 0x00000000);
+		} else {
+			evo_mthd(push, 0x0410 + (head->base.index * 0x300), 6);
+			evo_data(push, 0x00000000);
+			evo_data(push, (m->v.active  << 16) | m->h.active );
+			evo_data(push, (m->v.synce   << 16) | m->h.synce  );
+			evo_data(push, (m->v.blanke  << 16) | m->h.blanke );
+			evo_data(push, (m->v.blanks  << 16) | m->h.blanks );
+			evo_data(push, (m->v.blank2e << 16) | m->v.blank2s);
+			evo_mthd(push, 0x042c + (head->base.index * 0x300), 2);
+			evo_data(push, 0x00000000); /* ??? */
+			evo_data(push, 0xffffff00);
+			evo_mthd(push, 0x0450 + (head->base.index * 0x300), 3);
+			evo_data(push, m->clock * 1000);
+			evo_data(push, 0x00200000); /* ??? */
+			evo_data(push, m->clock * 1000);
+		}
+		evo_kick(push, core);
+	}
+}
+
+static void
+nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	if (asyh->set.mode   ) nv50_head_mode    (head, asyh);
+}
+
+static void
+nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
+	u32 ilace   = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
+	u32 vscan   = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
+	u32 hbackp  =  mode->htotal - mode->hsync_end;
+	u32 vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
+	u32 hfrontp =  mode->hsync_start - mode->hdisplay;
+	u32 vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
+	struct nv50_head_mode *m = &asyh->mode;
+
+	m->h.active = mode->htotal;
+	m->h.synce  = mode->hsync_end - mode->hsync_start - 1;
+	m->h.blanke = m->h.synce + hbackp;
+	m->h.blanks = mode->htotal - hfrontp - 1;
+
+	m->v.active = mode->vtotal * vscan / ilace;
+	m->v.synce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
+	m->v.blanke = m->v.synce + vbackp;
+	m->v.blanks = m->v.active - vfrontp - 1;
+
+	/*XXX: Safe underestimate, even "0" works */
+	m->v.blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
+	m->v.blankus *= 1000;
+	m->v.blankus /= mode->clock;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		m->v.blank2e =  m->v.active + m->v.synce + vbackp;
+		m->v.blank2s =  m->v.blank2e + (mode->vdisplay * vscan / ilace);
+		m->v.active  = (m->v.active * 2) + 1;
+		m->interlace = true;
+	} else {
+		m->v.blank2e = 0;
+		m->v.blank2s = 1;
+		m->interlace = false;
+	}
+	m->clock = mode->clock;
+
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	asyh->set.mode = true;
+}
+
+static int
+nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
+{
+	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct nv50_head *head = nv50_head(crtc);
+	struct nv50_head_atom *armh = &head->arm;
+	struct nv50_head_atom *asyh = nv50_head_atom(state);
+
+	NV_ATOMIC(drm, "%s atomic_check %d\n", crtc->name, asyh->state.active);
+	asyh->set.mask = 0;
+
+	if (asyh->state.active) {
+		if (asyh->state.mode_changed)
+			nv50_head_atomic_check_mode(head, asyh);
+	}
+
+	memcpy(armh, asyh, sizeof(*asyh));
+	asyh->state.mode_changed = 0;
 	return 0;
 }
 
@@ -1142,79 +1295,34 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	struct nv50_mast *mast = nv50_mast(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_connector *nv_connector;
-	u32 ilace = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
-	u32 vscan = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
-	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
-	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
-	u32 vblan2e = 0, vblan2s = 1, vblankus = 0;
 	u32 *push;
 	int ret;
+	struct nv50_head *head = nv50_head(crtc);
+	struct nv50_head_atom *asyh = &head->asy;
 
-	hactive = mode->htotal;
-	hsynce  = mode->hsync_end - mode->hsync_start - 1;
-	hbackp  = mode->htotal - mode->hsync_end;
-	hblanke = hsynce + hbackp;
-	hfrontp = mode->hsync_start - mode->hdisplay;
-	hblanks = mode->htotal - hfrontp - 1;
-
-	vactive = mode->vtotal * vscan / ilace;
-	vsynce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
-	vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
-	vblanke = vsynce + vbackp;
-	vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
-	vblanks = vactive - vfrontp - 1;
-	/* XXX: Safe underestimate, even "0" works */
-	vblankus = (vactive - mode->vdisplay - 2) * hactive;
-	vblankus *= 1000;
-	vblankus /= mode->clock;
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		vblan2e = vactive + vsynce + vbackp;
-		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
-		vactive = (vactive * 2) + 1;
-	}
+	memcpy(&asyh->state.mode, umode, sizeof(*umode));
+	memcpy(&asyh->state.adjusted_mode, mode, sizeof(*mode));
+	asyh->state.active = true;
+	asyh->state.mode_changed = true;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
 
 	ret = nv50_crtc_swap_fbs(crtc, old_fb);
 	if (ret)
 		return ret;
 
+	nv50_head_flush_set(head, asyh);
+
 	push = evo_wait(mast, 64);
 	if (push) {
 		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, 0x00800000 | mode->clock);
-			evo_data(push, (ilace == 2) ? 2 : 0);
-			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 6);
-			evo_data(push, 0x00000000);
-			evo_data(push, (vactive << 16) | hactive);
-			evo_data(push, ( vsynce << 16) | hsynce);
-			evo_data(push, (vblanke << 16) | hblanke);
-			evo_data(push, (vblanks << 16) | hblanks);
-			evo_data(push, (vblan2e << 16) | vblan2s);
-			evo_mthd(push, 0x082c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00000311);
 			evo_data(push, 0x00000100);
 		} else {
-			evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 6);
-			evo_data(push, 0x00000000);
-			evo_data(push, (vactive << 16) | hactive);
-			evo_data(push, ( vsynce << 16) | hsynce);
-			evo_data(push, (vblanke << 16) | hblanke);
-			evo_data(push, (vblanks << 16) | hblanks);
-			evo_data(push, (vblan2e << 16) | vblan2s);
-			evo_mthd(push, 0x042c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, 0x00000000); /* ??? */
-			evo_mthd(push, 0x0450 + (nv_crtc->index * 0x300), 3);
-			evo_data(push, mode->clock * 1000);
-			evo_data(push, 0x00200000); /* ??? */
-			evo_data(push, mode->clock * 1000);
 			evo_mthd(push, 0x04d0 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, 0x00000311);
 			evo_data(push, 0x00000100);
 		}
-
 		evo_kick(push, mast);
 	}
 
@@ -1224,7 +1332,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 
 	/* G94 only accepts this after setting scale */
 	if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA)
-		nv50_crtc_set_raster_vblank_dmi(nv_crtc, vblankus);
+		nv50_crtc_set_raster_vblank_dmi(nv_crtc, asyh->mode.v.blankus);
 
 	nv50_crtc_set_color_vibrance(nv_crtc, false);
 	nv50_crtc_set_image(nv_crtc, crtc->primary->fb, x, y, false);
