@@ -1094,13 +1094,14 @@ nv50_head_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 			evo_mthd(push, 0x0804 + (head->base.index * 0x400), 2);
 			evo_data(push, 0x00800000 | m->clock);
 			evo_data(push, m->interlace ? 0x00000002 : 0x00000000);
-			evo_mthd(push, 0x0810 + (head->base.index * 0x400), 6);
+			evo_mthd(push, 0x0810 + (head->base.index * 0x400), 7);
 			evo_data(push, 0x00000000);
 			evo_data(push, (m->v.active  << 16) | m->h.active );
 			evo_data(push, (m->v.synce   << 16) | m->h.synce  );
 			evo_data(push, (m->v.blanke  << 16) | m->h.blanke );
 			evo_data(push, (m->v.blanks  << 16) | m->h.blanks );
 			evo_data(push, (m->v.blank2e << 16) | m->v.blank2s);
+			evo_data(push, asyh->mode.v.blankus);
 			evo_mthd(push, 0x082c + (head->base.index * 0x400), 1);
 			evo_data(push, 0x00000000);
 		} else {
@@ -1481,22 +1482,6 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 }
 
 static int
-nv50_crtc_set_raster_vblank_dmi(struct nouveau_crtc *nv_crtc, u32 usec)
-{
-	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	u32 *push;
-
-	push = evo_wait(mast, 8);
-	if (!push)
-		return -ENOMEM;
-
-	evo_mthd(push, 0x0828 + (nv_crtc->index * 0x400), 1);
-	evo_data(push, usec);
-	evo_kick(push, mast);
-	return 0;
-}
-
-static int
 nv50_crtc_set_color_vibrance(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
@@ -1666,7 +1651,6 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		   struct drm_display_mode *mode, int x, int y,
 		   struct drm_framebuffer *old_fb)
 {
-	struct nv50_mast *mast = nv50_mast(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_connector *nv_connector;
 	int ret;
@@ -1688,10 +1672,6 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	nv50_crtc_set_dither(nv_crtc, false);
 	nv50_crtc_set_scale(nv_crtc, false);
-
-	/* G94 only accepts this after setting scale */
-	if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA)
-		nv50_crtc_set_raster_vblank_dmi(nv_crtc, asyh->mode.v.blankus);
 
 	nv50_crtc_set_color_vibrance(nv_crtc, false);
 	nv50_crtc_set_image(nv_crtc, crtc->primary->fb, x, y, false);
