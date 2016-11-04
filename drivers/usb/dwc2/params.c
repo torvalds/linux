@@ -417,7 +417,7 @@ static void dwc2_set_param_host_rx_fifo_size(struct dwc2_hsotg *hsotg, int val)
 {
 	int valid = 1;
 
-	if (val < 16 || val > hsotg->hw_params.host_rx_fifo_size)
+	if (val < 16 || val > hsotg->hw_params.rx_fifo_size)
 		valid = 0;
 
 	if (!valid) {
@@ -425,7 +425,7 @@ static void dwc2_set_param_host_rx_fifo_size(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev,
 				"%d invalid for host_rx_fifo_size. Check HW configuration.\n",
 				val);
-		val = hsotg->hw_params.host_rx_fifo_size;
+		val = hsotg->hw_params.rx_fifo_size;
 		dev_dbg(hsotg->dev, "Setting host_rx_fifo_size to %d\n", val);
 	}
 
@@ -1100,7 +1100,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
 
 	/* fifo sizes */
-	hw->host_rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
+	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
 				GRXFSIZ_DEPTH_SHIFT;
 
 	dev_dbg(hsotg->dev, "Detected values from hardware:\n");
@@ -1142,8 +1142,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 		hw->en_multiple_tx_fifo);
 	dev_dbg(hsotg->dev, "  total_fifo_size=%d\n",
 		hw->total_fifo_size);
-	dev_dbg(hsotg->dev, "  host_rx_fifo_size=%d\n",
-		hw->host_rx_fifo_size);
+	dev_dbg(hsotg->dev, "  rx_fifo_size=%d\n",
+		hw->rx_fifo_size);
 	dev_dbg(hsotg->dev, "  host_nperio_tx_fifo_size=%d\n",
 		hw->host_nperio_tx_fifo_size);
 	dev_dbg(hsotg->dev, "  host_perio_tx_fifo_size=%d\n",

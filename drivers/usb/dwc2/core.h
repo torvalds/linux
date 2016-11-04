@@ -536,7 +536,7 @@ struct dwc2_hw_params {
 	unsigned dma_desc_enable:1;
 	unsigned enable_dynamic_fifo:1;
 	unsigned en_multiple_tx_fifo:1;
-	unsigned host_rx_fifo_size:16;
+	unsigned rx_fifo_size:16;
 	unsigned host_nperio_tx_fifo_size:16;
 	unsigned dev_nperio_tx_fifo_size:16;
 	unsigned host_perio_tx_fifo_size:16;
