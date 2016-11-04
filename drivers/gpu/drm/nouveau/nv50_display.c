@@ -2835,8 +2835,30 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static void
-nv50_dac_commit(struct drm_encoder *encoder)
+nv50_dac_disconnect(struct drm_encoder *encoder)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	const int or = nv_encoder->or;
+	u32 *push;
+
+	if (nv_encoder->crtc) {
+		nv50_crtc_prepare(nv_encoder->crtc);
+
+		push = evo_wait(mast, 4);
+		if (push) {
+			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
+				evo_mthd(push, 0x0400 + (or * 0x080), 1);
+				evo_data(push, 0x00000000);
+			} else {
+				evo_mthd(push, 0x0180 + (or * 0x020), 1);
+				evo_data(push, 0x00000000);
+			}
+			evo_kick(push, mast);
+		}
+	}
+
+	nv_encoder->crtc = NULL;
 }
 
 static void
@@ -2888,33 +2910,6 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	nv_encoder->crtc = encoder->crtc;
 }
 
-static void
-nv50_dac_disconnect(struct drm_encoder *encoder)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
-	const int or = nv_encoder->or;
-	u32 *push;
-
-	if (nv_encoder->crtc) {
-		nv50_crtc_prepare(nv_encoder->crtc);
-
-		push = evo_wait(mast, 4);
-		if (push) {
-			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-				evo_mthd(push, 0x0400 + (or * 0x080), 1);
-				evo_data(push, 0x00000000);
-			} else {
-				evo_mthd(push, 0x0180 + (or * 0x020), 1);
-				evo_data(push, 0x00000000);
-			}
-			evo_kick(push, mast);
-		}
-	}
-
-	nv_encoder->crtc = NULL;
-}
-
 static enum drm_connector_status
 nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
@@ -2942,6 +2937,17 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	return connector_status_connected;
 }
 
+static const struct drm_encoder_helper_funcs
+nv50_dac_help = {
+	.dpms = nv50_dac_dpms,
+	.mode_fixup = nv50_encoder_mode_fixup,
+	.prepare = nv50_dac_disconnect,
+	.mode_set = nv50_dac_mode_set,
+	.disable = nv50_dac_disconnect,
+	.get_crtc = nv50_display_crtc_get,
+	.detect = nv50_dac_detect
+};
+
 static void
 nv50_dac_destroy(struct drm_encoder *encoder)
 {
@@ -2949,18 +2955,8 @@ nv50_dac_destroy(struct drm_encoder *encoder)
 	kfree(encoder);
 }
 
-static const struct drm_encoder_helper_funcs nv50_dac_hfunc = {
-	.dpms = nv50_dac_dpms,
-	.mode_fixup = nv50_encoder_mode_fixup,
-	.prepare = nv50_dac_disconnect,
-	.commit = nv50_dac_commit,
-	.mode_set = nv50_dac_mode_set,
-	.disable = nv50_dac_disconnect,
-	.get_crtc = nv50_display_crtc_get,
-	.detect = nv50_dac_detect
-};
-
-static const struct drm_encoder_funcs nv50_dac_func = {
+static const struct drm_encoder_funcs
+nv50_dac_func = {
 	.destroy = nv50_dac_destroy,
 };
 
@@ -2989,7 +2985,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder->possible_clones = 0;
 	drm_encoder_init(connector->dev, encoder, &nv50_dac_func, type,
 			 "dac-%04x-%04x", dcbe->hasht, dcbe->hashm);
-	drm_encoder_helper_add(encoder, &nv50_dac_hfunc);
+	drm_encoder_helper_add(encoder, &nv50_dac_help);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
@@ -2999,7 +2995,26 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
  * Audio
  *****************************************************************************/
 static void
-nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
+nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct {
+		struct nv50_disp_mthd_v1 base;
+		struct nv50_disp_sor_hda_eld_v0 eld;
+	} args = {
+		.base.version = 1,
+		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
+		.base.hasht   = nv_encoder->dcb->hasht,
+		.base.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
+				(0x0100 << nv_crtc->index),
+	};
+
+	nvif_mthd(disp->disp, 0, &args, sizeof(args));
+}
+
+static void
+nv50_audio_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -3030,30 +3045,30 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 		  sizeof(args.base) + drm_eld_size(args.data));
 }
 
+/******************************************************************************
+ * HDMI
+ *****************************************************************************/
 static void
-nv50_audio_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
+nv50_hdmi_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct {
 		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_hda_eld_v0 eld;
+		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
 	} args = {
 		.base.version = 1,
-		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
-		.base.hasht   = nv_encoder->dcb->hasht,
-		.base.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
-				(0x0100 << nv_crtc->index),
+		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
+		.base.hasht  = nv_encoder->dcb->hasht,
+		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
+			       (0x0100 << nv_crtc->index),
 	};
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
 
-/******************************************************************************
- * HDMI
- *****************************************************************************/
 static void
-nv50_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
+nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -3083,26 +3098,7 @@ nv50_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	args.pwr.max_ac_packet = max_ac_packet / 32;
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
-	nv50_audio_mode_set(encoder, mode);
-}
-
-static void
-nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
-			       (0x0100 << nv_crtc->index),
-	};
-
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	nv50_audio_enable(encoder, mode);
 }
 
 /******************************************************************************
@@ -3292,14 +3288,9 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 	if (nv_crtc) {
 		nv50_crtc_prepare(&nv_crtc->base);
 		nv50_sor_ctrl(nv_encoder, 1 << nv_crtc->index, 0);
-		nv50_audio_disconnect(encoder, nv_crtc);
-		nv50_hdmi_disconnect(&nv_encoder->base.base, nv_crtc);
+		nv50_audio_disable(encoder, nv_crtc);
+		nv50_hdmi_disable(&nv_encoder->base.base, nv_crtc);
 	}
-}
-
-static void
-nv50_sor_commit(struct drm_encoder *encoder)
-{
 }
 
 static void
@@ -3349,7 +3340,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			proto = 0x2;
 		}
 
-		nv50_hdmi_mode_set(&nv_encoder->base.base, mode);
+		nv50_hdmi_enable(&nv_encoder->base.base, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
 		proto = 0x0;
@@ -3383,23 +3374,20 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		nvif_mthd(disp->disp, 0, &lvds, sizeof(lvds));
 		break;
 	case DCB_OUTPUT_DP:
-		if (nv_connector->base.display_info.bpc == 6) {
-			nv_encoder->dp.datarate = mode->clock * 18 / 8;
+		if (nv_connector->base.display_info.bpc == 6)
 			depth = 0x2;
-		} else
-		if (nv_connector->base.display_info.bpc == 8) {
-			nv_encoder->dp.datarate = mode->clock * 24 / 8;
+		else
+		if (nv_connector->base.display_info.bpc == 8)
 			depth = 0x5;
-		} else {
-			nv_encoder->dp.datarate = mode->clock * 30 / 8;
+		else
 			depth = 0x6;
-		}
 
 		if (nv_encoder->dcb->sorconf.link & 1)
 			proto = 0x8;
 		else
 			proto = 0x9;
-		nv50_audio_mode_set(encoder, mode);
+
+		nv50_audio_enable(encoder, mode);
 		break;
 	default:
 		BUG_ON(1);
@@ -3442,6 +3430,16 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	nv50_sor_ctrl(nv_encoder, mask | owner, ctrl | owner);
 }
 
+static const struct drm_encoder_helper_funcs
+nv50_sor_help = {
+	.dpms = nv50_sor_dpms,
+	.mode_fixup = nv50_encoder_mode_fixup,
+	.prepare = nv50_sor_disconnect,
+	.mode_set = nv50_sor_mode_set,
+	.disable = nv50_sor_disconnect,
+	.get_crtc = nv50_display_crtc_get,
+};
+
 static void
 nv50_sor_destroy(struct drm_encoder *encoder)
 {
@@ -3451,17 +3449,8 @@ nv50_sor_destroy(struct drm_encoder *encoder)
 	kfree(encoder);
 }
 
-static const struct drm_encoder_helper_funcs nv50_sor_hfunc = {
-	.dpms = nv50_sor_dpms,
-	.mode_fixup = nv50_encoder_mode_fixup,
-	.prepare = nv50_sor_disconnect,
-	.commit = nv50_sor_commit,
-	.mode_set = nv50_sor_mode_set,
-	.disable = nv50_sor_disconnect,
-	.get_crtc = nv50_display_crtc_get,
-};
-
-static const struct drm_encoder_funcs nv50_sor_func = {
+static const struct drm_encoder_funcs
+nv50_sor_func = {
 	.destroy = nv50_sor_destroy,
 };
 
@@ -3496,7 +3485,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder->possible_clones = 0;
 	drm_encoder_init(connector->dev, encoder, &nv50_sor_func, type,
 			 "sor-%04x-%04x", dcbe->hasht, dcbe->hashm);
-	drm_encoder_helper_add(encoder, &nv50_sor_hfunc);
+	drm_encoder_helper_add(encoder, &nv50_sor_help);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
 
@@ -3529,7 +3518,6 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 /******************************************************************************
  * PIOR
  *****************************************************************************/
-
 static void
 nv50_pior_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -3562,8 +3550,27 @@ nv50_pior_mode_fixup(struct drm_encoder *encoder,
 }
 
 static void
-nv50_pior_commit(struct drm_encoder *encoder)
+nv50_pior_disconnect(struct drm_encoder *encoder)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nv50_mast *mast = nv50_mast(encoder->dev);
+	const int or = nv_encoder->or;
+	u32 *push;
+
+	if (nv_encoder->crtc) {
+		nv50_crtc_prepare(nv_encoder->crtc);
+
+		push = evo_wait(mast, 4);
+		if (push) {
+			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
+				evo_mthd(push, 0x0700 + (or * 0x040), 1);
+				evo_data(push, 0x00000000);
+			}
+			evo_kick(push, mast);
+		}
+	}
+
+	nv_encoder->crtc = NULL;
 }
 
 static void
@@ -3616,29 +3623,15 @@ nv50_pior_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	nv_encoder->crtc = encoder->crtc;
 }
 
-static void
-nv50_pior_disconnect(struct drm_encoder *encoder)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
-	const int or = nv_encoder->or;
-	u32 *push;
-
-	if (nv_encoder->crtc) {
-		nv50_crtc_prepare(nv_encoder->crtc);
-
-		push = evo_wait(mast, 4);
-		if (push) {
-			if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-				evo_mthd(push, 0x0700 + (or * 0x040), 1);
-				evo_data(push, 0x00000000);
-			}
-			evo_kick(push, mast);
-		}
-	}
-
-	nv_encoder->crtc = NULL;
-}
+static const struct drm_encoder_helper_funcs
+nv50_pior_help = {
+	.dpms = nv50_pior_dpms,
+	.mode_fixup = nv50_pior_mode_fixup,
+	.prepare = nv50_pior_disconnect,
+	.mode_set = nv50_pior_mode_set,
+	.disable = nv50_pior_disconnect,
+	.get_crtc = nv50_display_crtc_get,
+};
 
 static void
 nv50_pior_destroy(struct drm_encoder *encoder)
@@ -3647,17 +3640,8 @@ nv50_pior_destroy(struct drm_encoder *encoder)
 	kfree(encoder);
 }
 
-static const struct drm_encoder_helper_funcs nv50_pior_hfunc = {
-	.dpms = nv50_pior_dpms,
-	.mode_fixup = nv50_pior_mode_fixup,
-	.prepare = nv50_pior_disconnect,
-	.commit = nv50_pior_commit,
-	.mode_set = nv50_pior_mode_set,
-	.disable = nv50_pior_disconnect,
-	.get_crtc = nv50_display_crtc_get,
-};
-
-static const struct drm_encoder_funcs nv50_pior_func = {
+static const struct drm_encoder_funcs
+nv50_pior_func = {
 	.destroy = nv50_pior_destroy,
 };
 
@@ -3701,7 +3685,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	encoder->possible_clones = 0;
 	drm_encoder_init(connector->dev, encoder, &nv50_pior_func, type,
 			 "pior-%04x-%04x", dcbe->hasht, dcbe->hashm);
-	drm_encoder_helper_add(encoder, &nv50_pior_hfunc);
+	drm_encoder_helper_add(encoder, &nv50_pior_help);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;

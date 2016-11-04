@@ -59,10 +59,8 @@ struct nouveau_encoder {
 	union {
 		struct {
 			struct nv50_mstm *mstm;
-			u8  dpcd[8];
 			int link_nr;
 			int link_bw;
-			u32 datarate;
 		} dp;
 	};
 

@@ -58,14 +58,14 @@ nouveau_dp_detect(struct nouveau_encoder *nv_encoder)
 	struct drm_device *dev = nv_encoder->base.base.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_i2c_aux *aux;
-	u8 *dpcd = nv_encoder->dp.dpcd;
+	u8 dpcd[8];
 	int ret;
 
 	aux = nv_encoder->aux;
 	if (!aux)
 		return -ENODEV;
 
-	ret = nvkm_rdaux(aux, DP_DPCD_REV, dpcd, 8);
+	ret = nvkm_rdaux(aux, DP_DPCD_REV, dpcd, sizeof(dpcd));
 	if (ret)
 		return ret;
 
