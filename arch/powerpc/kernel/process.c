@@ -1215,7 +1215,7 @@ static void show_instructions(struct pt_regs *regs)
 		int instr;
 
 		if (!(i % 8))
-			printk("\n");
+			pr_cont("\n");
 
 #if !defined(CONFIG_BOOKE)
 		/* If executing with the IMMU off, adjust pc rather
@@ -1227,18 +1227,18 @@ static void show_instructions(struct pt_regs *regs)
 
 		if (!__kernel_text_address(pc) ||
 		     probe_kernel_address((unsigned int __user *)pc, instr)) {
-			printk(KERN_CONT "XXXXXXXX ");
+			pr_cont("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
-				printk(KERN_CONT "<%08x> ", instr);
+				pr_cont("<%08x> ", instr);
 			else
-				printk(KERN_CONT "%08x ", instr);
+				pr_cont("%08x ", instr);
 		}
 
 		pc += sizeof(int);
 	}
 
-	printk("\n");
+	pr_cont("\n");
 }
 
 struct regbit {
