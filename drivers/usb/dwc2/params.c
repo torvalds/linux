@@ -41,7 +41,6 @@
 static const struct dwc2_core_params params_hi6220 = {
 	.otg_cap			= 2,	/* No HNP/SRP capable */
 	.otg_ver			= 0,	/* 1.3 */
-	.host_dma			= 1,
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= 0,	/* High Speed */
@@ -73,7 +72,6 @@ static const struct dwc2_core_params params_hi6220 = {
 static const struct dwc2_core_params params_bcm2835 = {
 	.otg_cap			= 0,	/* HNP/SRP capable */
 	.otg_ver			= 0,	/* 1.3 */
-	.host_dma			= 1,
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= 0,	/* High Speed */
@@ -104,7 +102,6 @@ static const struct dwc2_core_params params_bcm2835 = {
 static const struct dwc2_core_params params_rk3066 = {
 	.otg_cap			= 2,	/* non-HNP/non-SRP */
 	.otg_ver			= -1,
-	.host_dma			= -1,
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= -1,
@@ -136,7 +133,6 @@ static const struct dwc2_core_params params_rk3066 = {
 static const struct dwc2_core_params params_ltq = {
 	.otg_cap			= 2,	/* non-HNP/non-SRP */
 	.otg_ver			= -1,
-	.host_dma			= -1,
 	.dma_desc_enable		= -1,
 	.dma_desc_fs_enable		= -1,
 	.speed				= -1,
@@ -168,7 +164,6 @@ static const struct dwc2_core_params params_ltq = {
 static const struct dwc2_core_params params_amlogic = {
 	.otg_cap			= DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE,
 	.otg_ver			= -1,
-	.host_dma			= 1,
 	.dma_desc_enable		= 0,
 	.dma_desc_fs_enable		= 0,
 	.speed				= DWC2_SPEED_PARAM_HIGH,
@@ -200,7 +195,6 @@ static const struct dwc2_core_params params_amlogic = {
 static const struct dwc2_core_params params_default = {
 	.otg_cap			= -1,
 	.otg_ver			= -1,
-	.host_dma			= -1,
 
 	/*
 	 * Disable descriptor dma mode by default as the HW can support
@@ -484,27 +478,6 @@ static void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg, int val)
 	}
 
 	hsotg->params.otg_cap = val;
-}
-
-static void dwc2_set_param_host_dma(struct dwc2_hsotg *hsotg, int val)
-{
-	int valid = 1;
-
-	if (val > 0 && hsotg->hw_params.arch == GHWCFG2_SLAVE_ONLY_ARCH)
-		valid = 0;
-	if (val < 0)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for host_dma parameter. Check HW configuration.\n",
-				val);
-		val = hsotg->hw_params.arch != GHWCFG2_SLAVE_ONLY_ARCH;
-		dev_dbg(hsotg->dev, "Setting host_dma to %d\n", val);
-	}
-
-	hsotg->params.host_dma = val;
 }
 
 static void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val)
@@ -1124,11 +1097,27 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 {
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
 	struct dwc2_core_params *p = &hsotg->params;
+	bool dma_capable = !(hw->arch == GHWCFG2_SLAVE_ONLY_ARCH);
 
 	dwc2_set_param_otg_cap(hsotg, params->otg_cap);
-	dwc2_set_param_host_dma(hsotg, params->host_dma);
 	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
 	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
+
+	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
+		bool disable;
+
+		dev_dbg(hsotg->dev, "Setting HOST parameters\n");
+
+		disable = device_property_read_bool(hsotg->dev,
+						    "snps,host-dma-disable");
+
+		dwc2_set_param_bool(hsotg, &p->host_dma,
+				    false, "host-dma",
+				    !disable, false,
+				    dma_capable);
+	}
+
 	dwc2_set_param_host_support_fs_ls_low_power(hsotg,
 			params->host_support_fs_ls_low_power);
 	dwc2_set_param_enable_dynamic_fifo(hsotg,
@@ -1174,8 +1163,7 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 
 		dwc2_set_param_bool(hsotg, &p->g_dma, true, "g-use-dma",
 				    false, false,
-				    hsotg->hw_params.arch !=
-				    GHWCFG2_SLAVE_ONLY_ARCH);
+				    dma_capable);
 
 		/*
 		 * The values for g_rx_fifo_size (2048) and
