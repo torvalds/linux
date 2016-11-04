@@ -108,11 +108,11 @@
 
 /* Constants for CEC_BIT_TOUT_THRESH register */
 #define CEC_SBIT_TOUT_47MS BIT(1)
-#define CEC_SBIT_TOUT_48MS BIT(0) | BIT(1)
+#define CEC_SBIT_TOUT_48MS (BIT(0) | BIT(1))
 #define CEC_SBIT_TOUT_50MS BIT(2)
 #define CEC_DBIT_TOUT_27MS BIT(0)
 #define CEC_DBIT_TOUT_28MS BIT(1)
-#define CEC_DBIT_TOUT_29MS BIT(0) | BIT(1)
+#define CEC_DBIT_TOUT_29MS (BIT(0) | BIT(1))
 
 /* Constants for CEC_BIT_PULSE_THRESH register */
 #define CEC_BIT_LPULSE_03MS BIT(1)
