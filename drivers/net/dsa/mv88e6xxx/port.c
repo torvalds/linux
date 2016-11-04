@@ -30,6 +30,47 @@ int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
+/* Offset 0x01: MAC (or PCS or Physical) Control Register
+ *
+ * Link, Duplex and Flow Control have one force bit, one value bit.
+ */
+
+int mv88e6xxx_port_set_link(struct mv88e6xxx_chip *chip, int port, int link)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~(PORT_PCS_CTRL_FORCE_LINK | PORT_PCS_CTRL_LINK_UP);
+
+	switch (link) {
+	case LINK_FORCED_DOWN:
+		reg |= PORT_PCS_CTRL_FORCE_LINK;
+		break;
+	case LINK_FORCED_UP:
+		reg |= PORT_PCS_CTRL_FORCE_LINK | PORT_PCS_CTRL_LINK_UP;
+		break;
+	case LINK_UNFORCED:
+		/* normal link detection */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
+	if (err)
+		return err;
+
+	netdev_dbg(chip->ds->ports[port].netdev, "%s link %s\n",
+		   reg & PORT_PCS_CTRL_FORCE_LINK ? "Force" : "Unforce",
+		   reg & PORT_PCS_CTRL_LINK_UP ? "up" : "down");
+
+	return 0;
+}
+
 /* Offset 0x04: Port Control Register */
 
 static const char * const mv88e6xxx_port_state_names[] = {
