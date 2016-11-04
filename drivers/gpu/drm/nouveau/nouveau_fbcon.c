@@ -58,7 +58,7 @@ static void
 nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	struct nvif_device *device = &drm->device;
 	int ret;
 
@@ -90,7 +90,7 @@ static void
 nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	struct nvif_device *device = &drm->device;
 	int ret;
 
@@ -122,7 +122,7 @@ static void
 nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	struct nvif_device *device = &drm->device;
 	int ret;
 
@@ -154,7 +154,7 @@ static int
 nouveau_fbcon_sync(struct fb_info *info)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	struct nouveau_channel *chan = drm->channel;
 	int ret;
 
@@ -181,7 +181,7 @@ static int
 nouveau_fbcon_open(struct fb_info *info, int user)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	int ret = pm_runtime_get_sync(drm->dev->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
@@ -192,7 +192,7 @@ static int
 nouveau_fbcon_release(struct fb_info *info, int user)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 	pm_runtime_put(drm->dev->dev);
 	return 0;
 }
@@ -333,7 +333,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 {
 	struct nouveau_fbdev *fbcon =
 		container_of(helper, struct nouveau_fbdev, helper);
-	struct drm_device *dev = fbcon->dev;
+	struct drm_device *dev = fbcon->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
 	struct fb_info *info;
@@ -479,7 +479,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
 
 	NV_ERROR(drm, "GPU lockup - switching to software fbcon\n");
 	info->flags |= FBINFO_HWACCEL_DISABLED;
@@ -522,7 +522,6 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (!fbcon)
 		return -ENOMEM;
 
-	fbcon->dev = dev;
 	drm->fbcon = fbcon;
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
