@@ -802,7 +802,6 @@ static struct snd_soc_codec_driver pm8916_wcd_analog = {
 static int pm8916_wcd_analog_parse_dt(struct device *dev,
 				       struct pm8916_wcd_analog_priv *priv)
 {
-	int ret, i;
 
 	if (of_property_read_bool(dev->of_node, "qcom,micbias1-ext-cap"))
 		priv->micbias1_cap_mode = MICB_1_EN_EXT_BYP_CAP;
@@ -814,11 +813,29 @@ static int pm8916_wcd_analog_parse_dt(struct device *dev,
 	else
 		priv->micbias2_cap_mode = MICB_1_EN_NO_EXT_BYP_CAP;
 
+	return 0;
+}
+
+static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
+{
+	struct pm8916_wcd_analog_priv *priv;
+	struct device *dev = &pdev->dev;
+	int ret, i;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	ret = pm8916_wcd_analog_parse_dt(dev, priv);
+	if (ret < 0)
+		return ret;
+
 	priv->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(priv->mclk)) {
 		dev_err(dev, "failed to get mclk\n");
 		return PTR_ERR(priv->mclk);
 	}
+
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		priv->supplies[i].supply = supply_names[i];
 
@@ -828,23 +845,6 @@ static int pm8916_wcd_analog_parse_dt(struct device *dev,
 		dev_err(dev, "Failed to get regulator supplies %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
-{
-	struct pm8916_wcd_analog_priv *priv;
-	struct device *dev = &pdev->dev;
-	int ret;
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	ret = pm8916_wcd_analog_parse_dt(dev, priv);
-	if (ret < 0)
-		return ret;
 
 	ret = clk_prepare_enable(priv->mclk);
 	if (ret < 0) {
