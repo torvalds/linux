@@ -725,7 +725,7 @@ static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 		 PORT_PCS_CTRL_FORCE_LINK |
 		 PORT_PCS_CTRL_DUPLEX_FULL |
 		 PORT_PCS_CTRL_FORCE_DUPLEX |
-		 PORT_PCS_CTRL_UNFORCED);
+		 PORT_PCS_CTRL_SPEED_UNFORCED);
 
 	reg |= PORT_PCS_CTRL_FORCE_LINK;
 	if (phydev->link)
@@ -736,13 +736,13 @@ static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 
 	switch (phydev->speed) {
 	case SPEED_1000:
-		reg |= PORT_PCS_CTRL_1000;
+		reg |= PORT_PCS_CTRL_SPEED_1000;
 		break;
 	case SPEED_100:
-		reg |= PORT_PCS_CTRL_100;
+		reg |= PORT_PCS_CTRL_SPEED_100;
 		break;
 	case SPEED_10:
-		reg |= PORT_PCS_CTRL_10;
+		reg |= PORT_PCS_CTRL_SPEED_10;
 		break;
 	default:
 		pr_info("Unknown speed");
@@ -2421,17 +2421,17 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		 */
 		err = mv88e6xxx_port_read(chip, port, PORT_PCS_CTRL, &reg);
 		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
-			reg &= ~PORT_PCS_CTRL_UNFORCED;
+			reg &= ~PORT_PCS_CTRL_SPEED_UNFORCED;
 			reg |= PORT_PCS_CTRL_FORCE_LINK |
 				PORT_PCS_CTRL_LINK_UP |
 				PORT_PCS_CTRL_DUPLEX_FULL |
 				PORT_PCS_CTRL_FORCE_DUPLEX;
 			if (mv88e6xxx_6065_family(chip))
-				reg |= PORT_PCS_CTRL_100;
+				reg |= PORT_PCS_CTRL_SPEED_100;
 			else
-				reg |= PORT_PCS_CTRL_1000;
+				reg |= PORT_PCS_CTRL_SPEED_1000;
 		} else {
-			reg |= PORT_PCS_CTRL_UNFORCED;
+			reg |= PORT_PCS_CTRL_SPEED_UNFORCED;
 		}
 
 		err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
@@ -3162,6 +3162,7 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 	.phy_write = mv88e6xxx_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6095_ops = {
@@ -3170,6 +3171,7 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.phy_write = mv88e6xxx_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6123_ops = {
@@ -3178,6 +3180,7 @@ static const struct mv88e6xxx_ops mv88e6123_ops = {
 	.phy_write = mv88e6xxx_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6131_ops = {
@@ -3186,6 +3189,7 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.phy_write = mv88e6xxx_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6161_ops = {
@@ -3194,6 +3198,7 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.phy_write = mv88e6xxx_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {
@@ -3202,6 +3207,7 @@ static const struct mv88e6xxx_ops mv88e6165_ops = {
 	.phy_write = mv88e6xxx_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6171_ops = {
@@ -3210,6 +3216,7 @@ static const struct mv88e6xxx_ops mv88e6171_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6172_ops = {
@@ -3221,6 +3228,7 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
+	.port_set_speed = mv88e6352_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6175_ops = {
@@ -3229,6 +3237,7 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6176_ops = {
@@ -3240,6 +3249,7 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
+	.port_set_speed = mv88e6352_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6185_ops = {
@@ -3248,6 +3258,7 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.phy_write = mv88e6xxx_phy_ppu_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6240_ops = {
@@ -3259,6 +3270,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
+	.port_set_speed = mv88e6352_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3269,6 +3281,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
@@ -3279,6 +3292,7 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6350_ops = {
@@ -3287,6 +3301,7 @@ static const struct mv88e6xxx_ops mv88e6350_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6351_ops = {
@@ -3295,6 +3310,7 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_speed = mv88e6185_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {
@@ -3306,6 +3322,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
+	.port_set_speed = mv88e6352_port_set_speed,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {

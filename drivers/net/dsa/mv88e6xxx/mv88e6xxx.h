@@ -61,16 +61,22 @@
 #define PORT_PCS_CTRL		0x01
 #define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
 #define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
+#define PORT_PCS_CTRL_FORCE_SPEED	BIT(13) /* 6390 */
+#define PORT_PCS_CTRL_ALTSPEED		BIT(12) /* 6390 */
+#define PORT_PCS_CTRL_200BASE		BIT(12) /* 6352 */
 #define PORT_PCS_CTRL_FC		BIT(7)
 #define PORT_PCS_CTRL_FORCE_FC		BIT(6)
 #define PORT_PCS_CTRL_LINK_UP		BIT(5)
 #define PORT_PCS_CTRL_FORCE_LINK	BIT(4)
 #define PORT_PCS_CTRL_DUPLEX_FULL	BIT(3)
 #define PORT_PCS_CTRL_FORCE_DUPLEX	BIT(2)
-#define PORT_PCS_CTRL_10		0x00
-#define PORT_PCS_CTRL_100		0x01
-#define PORT_PCS_CTRL_1000		0x02
-#define PORT_PCS_CTRL_UNFORCED		0x03
+#define PORT_PCS_CTRL_SPEED_MASK	(0x03)
+#define PORT_PCS_CTRL_SPEED_10		(0x00)
+#define PORT_PCS_CTRL_SPEED_100		(0x01)
+#define PORT_PCS_CTRL_SPEED_200		(0x02) /* 6065 and non Gb chips */
+#define PORT_PCS_CTRL_SPEED_1000	(0x02)
+#define PORT_PCS_CTRL_SPEED_10000	(0x03) /* 6390X */
+#define PORT_PCS_CTRL_SPEED_UNFORCED	(0x03)
 #define PORT_PAUSE_CTRL		0x02
 #define PORT_SWITCH_ID		0x03
 #define PORT_SWITCH_ID_PROD_NUM_6085	0x04a
@@ -752,6 +758,16 @@ struct mv88e6xxx_ops {
 	 * or DUPLEX_UNFORCED for normal duplex detection.
 	 */
 	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
+
+#define SPEED_MAX		INT_MAX
+#define SPEED_UNFORCED		-2
+
+	/* Port's MAC speed (in Mbps)
+	 *
+	 * Depending on the chip, 10, 100, 200, 1000, 2500, 10000 are valid.
+	 * Use SPEED_UNFORCED for normal detection, SPEED_MAX for max value.
+	 */
+	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
 };
 
 enum stat_type {
