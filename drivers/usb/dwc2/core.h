@@ -314,7 +314,8 @@ enum dwc2_ep0_state {
  * @enable_dynamic_fifo: 0 - Use coreConsultant-specified FIFO size parameters
  *                       1 - Allow dynamic FIFO sizing (default, if available)
  * @en_multiple_tx_fifo: Specifies whether dedicated per-endpoint transmit FIFOs
- *                      are enabled
+ *                      are enabled for non-periodic IN endpoints in device
+ *                      mode.
  * @host_rx_fifo_size:  Number of 4-byte words in the Rx FIFO in host mode when
  *                      dynamic FIFO sizing is enabled
  *                       16 to 32768
@@ -430,11 +431,18 @@ struct dwc2_core_params {
 	 * dwc2_set_all_params!
 	 */
 	int otg_cap;
+#define DWC2_CAP_PARAM_HNP_SRP_CAPABLE		0
+#define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1
+#define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
+
 	int otg_ver;
 	int dma_enable;
 	int dma_desc_enable;
 	int dma_desc_fs_enable;
 	int speed;
+#define DWC2_SPEED_PARAM_HIGH	0
+#define DWC2_SPEED_PARAM_FULL	1
+
 	int enable_dynamic_fifo;
 	int en_multiple_tx_fifo;
 	int host_rx_fifo_size;
@@ -444,13 +452,23 @@ struct dwc2_core_params {
 	int max_packet_count;
 	int host_channels;
 	int phy_type;
+#define DWC2_PHY_TYPE_PARAM_FS		0
+#define DWC2_PHY_TYPE_PARAM_UTMI	1
+#define DWC2_PHY_TYPE_PARAM_ULPI	2
+
 	int phy_utmi_width;
 	int phy_ulpi_ddr;
 	int phy_ulpi_ext_vbus;
+#define DWC2_PHY_ULPI_INTERNAL_VBUS	0
+#define DWC2_PHY_ULPI_EXTERNAL_VBUS	1
+
 	int i2c_enable;
 	int ulpi_fs_ls;
 	int host_support_fs_ls_low_power;
 	int host_ls_low_power_phy_clk;
+#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ	0
+#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ	1
+
 	int ts_dline;
 	int reload_ctl;
 	int ahbcfg;
@@ -1048,216 +1066,11 @@ extern irqreturn_t dwc2_handle_common_intr(int irq, void *dev);
 /* The device ID match table */
 extern const struct of_device_id dwc2_of_match_table[];
 
-/* OTG Core Parameters */
-
-/*
- * Specifies the OTG capabilities. The driver will automatically
- * detect the value for this parameter if none is specified.
- * 0 - HNP and SRP capable (default)
- * 1 - SRP Only capable
- * 2 - No HNP/SRP capable
- */
-extern void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg, int val);
-#define DWC2_CAP_PARAM_HNP_SRP_CAPABLE		0
-#define DWC2_CAP_PARAM_SRP_ONLY_CAPABLE		1
-#define DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE	2
-
-/*
- * Specifies whether to use slave or DMA mode for accessing the data
- * FIFOs. The driver will automatically detect the value for this
- * parameter if none is specified.
- * 0 - Slave
- * 1 - DMA (default, if available)
- */
-extern void dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * When DMA mode is enabled specifies whether to use
- * address DMA or DMA Descritor mode for accessing the data
- * FIFOs in device mode. The driver will automatically detect
- * the value for this parameter if none is specified.
- * 0 - address DMA
- * 1 - DMA Descriptor(default, if available)
- */
-extern void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * When DMA mode is enabled specifies whether to use
- * address DMA or DMA Descritor mode with full speed devices
- * for accessing the data FIFOs in host mode.
- * 0 - address DMA
- * 1 - FS DMA Descriptor(default, if available)
- */
-extern void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg,
-					      int val);
-
-/*
- * Specifies the maximum speed of operation in host and device mode.
- * The actual speed depends on the speed of the attached device and
- * the value of phy_type. The actual speed depends on the speed of the
- * attached device.
- * 0 - High Speed (default)
- * 1 - Full Speed
- */
-extern void dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val);
-#define DWC2_SPEED_PARAM_HIGH	0
-#define DWC2_SPEED_PARAM_FULL	1
-
-/*
- * Specifies whether low power mode is supported when attached
- * to a Full Speed or Low Speed device in host mode.
- *
- * 0 - Don't support low power mode (default)
- * 1 - Support low power mode
- */
-extern void dwc2_set_param_host_support_fs_ls_low_power(
-		struct dwc2_hsotg *hsotg, int val);
-
-/*
- * Specifies the PHY clock rate in low power mode when connected to a
- * Low Speed device in host mode. This parameter is applicable only if
- * HOST_SUPPORT_FS_LS_LOW_POWER is enabled. If PHY_TYPE is set to FS
- * then defaults to 6 MHZ otherwise 48 MHZ.
- *
- * 0 - 48 MHz
- * 1 - 6 MHz
- */
-extern void dwc2_set_param_host_ls_low_power_phy_clk(struct dwc2_hsotg *hsotg,
-						     int val);
-#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ	0
-#define DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ	1
-
-/*
- * 0 - Use cC FIFO size parameters
- * 1 - Allow dynamic FIFO sizing (default)
- */
-extern void dwc2_set_param_enable_dynamic_fifo(struct dwc2_hsotg *hsotg,
-					       int val);
-
-/*
- * Number of 4-byte words in the Rx FIFO in host mode when dynamic
- * FIFO sizing is enabled.
- * 16 to 32768 (default 1024)
- */
-extern void dwc2_set_param_host_rx_fifo_size(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * Number of 4-byte words in the non-periodic Tx FIFO in host mode
- * when Dynamic FIFO sizing is enabled in the core.
- * 16 to 32768 (default 256)
- */
-extern void dwc2_set_param_host_nperio_tx_fifo_size(struct dwc2_hsotg *hsotg,
-						    int val);
-
-/*
- * Number of 4-byte words in the host periodic Tx FIFO when dynamic
- * FIFO sizing is enabled.
- * 16 to 32768 (default 256)
- */
-extern void dwc2_set_param_host_perio_tx_fifo_size(struct dwc2_hsotg *hsotg,
-						   int val);
-
-/*
- * The maximum transfer size supported in bytes.
- * 2047 to 65,535  (default 65,535)
- */
-extern void dwc2_set_param_max_transfer_size(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * The maximum number of packets in a transfer.
- * 15 to 511  (default 511)
- */
-extern void dwc2_set_param_max_packet_count(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * The number of host channel registers to use.
- * 1 to 16 (default 11)
- * Note: The FPGA configuration supports a maximum of 11 host channels.
- */
-extern void dwc2_set_param_host_channels(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * Specifies the type of PHY interface to use. By default, the driver
- * will automatically detect the phy_type.
- *
- * 0 - Full Speed PHY
- * 1 - UTMI+ (default)
- * 2 - ULPI
- */
-extern void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val);
-#define DWC2_PHY_TYPE_PARAM_FS		0
-#define DWC2_PHY_TYPE_PARAM_UTMI	1
-#define DWC2_PHY_TYPE_PARAM_ULPI	2
-
-/*
- * Specifies the UTMI+ Data Width. This parameter is
- * applicable for a PHY_TYPE of UTMI+ or ULPI. (For a ULPI
- * PHY_TYPE, this parameter indicates the data width between
- * the MAC and the ULPI Wrapper.) Also, this parameter is
- * applicable only if the OTG_HSPHY_WIDTH cC parameter was set
- * to "8 and 16 bits", meaning that the core has been
- * configured to work at either data path width.
- *
- * 8 or 16 bits (default 16)
- */
-extern void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * Specifies whether the ULPI operates at double or single
- * data rate. This parameter is only applicable if PHY_TYPE is
- * ULPI.
- *
- * 0 - single data rate ULPI interface with 8 bit wide data
- * bus (default)
- * 1 - double data rate ULPI interface with 4 bit wide data
- * bus
- */
-extern void dwc2_set_param_phy_ulpi_ddr(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * Specifies whether to use the internal or external supply to
- * drive the vbus with a ULPI phy.
- */
-extern void dwc2_set_param_phy_ulpi_ext_vbus(struct dwc2_hsotg *hsotg, int val);
-#define DWC2_PHY_ULPI_INTERNAL_VBUS	0
-#define DWC2_PHY_ULPI_EXTERNAL_VBUS	1
-
-/*
- * Specifies whether to use the I2Cinterface for full speed PHY. This
- * parameter is only applicable if PHY_TYPE is FS.
- * 0 - No (default)
- * 1 - Yes
- */
-extern void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val);
-
-extern void dwc2_set_param_ulpi_fs_ls(struct dwc2_hsotg *hsotg, int val);
-
-extern void dwc2_set_param_ts_dline(struct dwc2_hsotg *hsotg, int val);
-
-/*
- * Specifies whether dedicated transmit FIFOs are
- * enabled for non periodic IN endpoints in device mode
- * 0 - No
- * 1 - Yes
- */
-extern void dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg,
-					       int val);
-
-extern void dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val);
-
-extern void dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val);
-
-extern void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val);
-
-extern void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
-				const struct dwc2_core_params *params);
-
-extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
-
 extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
 /* Parameters */
+int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 int dwc2_init_params(struct dwc2_hsotg *hsotg);
 
 /*
