@@ -148,7 +148,7 @@ int
 nv50_fbcon_accel_init(struct fb_info *info)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_framebuffer *fb = &nfbdev->nouveau_fb;
+	struct nouveau_framebuffer *fb = nouveau_framebuffer(nfbdev->helper.fb);
 	struct drm_device *dev = nfbdev->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
