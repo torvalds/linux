@@ -87,7 +87,8 @@ struct mtk_composite {
  * In case the rate change propagation to parent clocks is undesirable,
  * this macro allows to specify the clock flags manually.
  */
-#define MUX_GATE_FLAGS(_id, _name, _parents, _reg, _shift, _width, _gate, _flags) {	\
+#define MUX_GATE_FLAGS(_id, _name, _parents, _reg, _shift, _width,	\
+			_gate, _flags) {				\
 		.id = _id,						\
 		.name = _name,						\
 		.mux_reg = _reg,					\
@@ -106,7 +107,8 @@ struct mtk_composite {
  * parent clock by default.
  */
 #define MUX_GATE(_id, _name, _parents, _reg, _shift, _width, _gate)	\
-	MUX_GATE_FLAGS(_id, _name, _parents, _reg, _shift, _width, _gate, CLK_SET_RATE_PARENT)
+	MUX_GATE_FLAGS(_id, _name, _parents, _reg, _shift, _width,	\
+		_gate, CLK_SET_RATE_PARENT)
 
 #define MUX(_id, _name, _parents, _reg, _shift, _width) {		\
 		.id = _id,						\
@@ -121,7 +123,8 @@ struct mtk_composite {
 		.flags = CLK_SET_RATE_PARENT,				\
 	}
 
-#define DIV_GATE(_id, _name, _parent, _gate_reg, _gate_shift, _div_reg, _div_width, _div_shift) {	\
+#define DIV_GATE(_id, _name, _parent, _gate_reg, _gate_shift, _div_reg,	\
+					_div_width, _div_shift) {	\
 		.id = _id,						\
 		.parent = _parent,					\
 		.name = _name,						\
@@ -156,12 +159,40 @@ struct mtk_gate {
 	const struct clk_ops *ops;
 };
 
-int mtk_clk_register_gates(struct device_node *node, const struct mtk_gate *clks,
-		int num, struct clk_onecell_data *clk_data);
+int mtk_clk_register_gates(struct device_node *node,
+			const struct mtk_gate *clks, int num,
+			struct clk_onecell_data *clk_data);
+
+struct mtk_clk_divider {
+	int id;
+	const char *name;
+	const char *parent_name;
+	unsigned long flags;
+
+	u32 div_reg;
+	unsigned char div_shift;
+	unsigned char div_width;
+	unsigned char clk_divider_flags;
+	const struct clk_div_table *clk_div_table;
+};
+
+#define DIV_ADJ(_id, _name, _parent, _reg, _shift, _width) {	\
+		.id = _id,					\
+		.name = _name,					\
+		.parent_name = _parent,				\
+		.div_reg = _reg,				\
+		.div_shift = _shift,				\
+		.div_width = _width,				\
+}
+
+void mtk_clk_register_dividers(const struct mtk_clk_divider *mcds,
+			int num, void __iomem *base, spinlock_t *lock,
+				struct clk_onecell_data *clk_data);
 
 struct clk_onecell_data *mtk_alloc_clk_data(unsigned int clk_num);
 
 #define HAVE_RST_BAR	BIT(0)
+#define PLL_AO		BIT(1)
 
 struct mtk_pll_div_table {
 	u32 div;
