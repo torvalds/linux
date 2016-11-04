@@ -2313,8 +2313,6 @@ static int __init ns_init_module(void)
 	retval = nand_scan_ident(nsmtd, 1, NULL);
 	if (retval) {
 		NS_ERR("cannot scan NAND Simulator device\n");
-		if (retval > 0)
-			retval = -ENXIO;
 		goto error;
 	}
 
@@ -2350,8 +2348,6 @@ static int __init ns_init_module(void)
 	retval = nand_scan_tail(nsmtd);
 	if (retval) {
 		NS_ERR("can't register NAND Simulator\n");
-		if (retval > 0)
-			retval = -ENXIO;
 		goto error;
 	}
 
