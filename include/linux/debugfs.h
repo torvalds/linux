@@ -52,7 +52,8 @@ extern struct srcu_struct debugfs_srcu;
  * Must only be called under the protection established by
  * debugfs_use_file_start().
  */
-static inline const struct file_operations *debugfs_real_fops(struct file *filp)
+static inline const struct file_operations *
+debugfs_real_fops(const struct file *filp)
 	__must_hold(&debugfs_srcu)
 {
 	/*
