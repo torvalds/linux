@@ -18,6 +18,7 @@
 #include <linux/parser.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
+#include <linux/exportfs.h>
 
 #include "befs.h"
 #include "btree.h"
@@ -52,6 +53,10 @@ static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
 static int befs_statfs(struct dentry *, struct kstatfs *);
 static int parse_options(char *, struct befs_mount_options *);
+static struct dentry *befs_fh_to_dentry(struct super_block *sb,
+				struct fid *fid, int fh_len, int fh_type);
+static struct dentry *befs_fh_to_parent(struct super_block *sb,
+				struct fid *fid, int fh_len, int fh_type);
 
 static const struct super_operations befs_sops = {
 	.alloc_inode	= befs_alloc_inode,	/* allocate a new inode */
@@ -82,6 +87,11 @@ static const struct address_space_operations befs_aops = {
 
 static const struct address_space_operations befs_symlink_aops = {
 	.readpage	= befs_symlink_readpage,
+};
+
+static const struct export_operations befs_export_operations = {
+	.fh_to_dentry	= befs_fh_to_dentry,
+	.fh_to_parent	= befs_fh_to_parent,
 };
 
 /*
@@ -629,6 +639,33 @@ conv_err:
 	return -EILSEQ;
 }
 
+static struct inode *befs_nfs_get_inode(struct super_block *sb, uint64_t ino,
+					 uint32_t generation)
+{
+	/* No need to handle i_generation */
+	return befs_iget(sb, ino);
+}
+
+/*
+ * Map a NFS file handle to a corresponding dentry
+ */
+static struct dentry *befs_fh_to_dentry(struct super_block *sb,
+				struct fid *fid, int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    befs_nfs_get_inode);
+}
+
+/*
+ * Find the parent for a file specified by NFS handle
+ */
+static struct dentry *befs_fh_to_parent(struct super_block *sb,
+				struct fid *fid, int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    befs_nfs_get_inode);
+}
+
 enum {
 	Opt_uid, Opt_gid, Opt_charset, Opt_debug, Opt_err,
 };
@@ -829,6 +866,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	/* Set real blocksize of fs */
 	sb_set_blocksize(sb, (ulong) befs_sb->block_size);
 	sb->s_op = &befs_sops;
+	sb->s_export_op = &befs_export_operations;
 	root = befs_iget(sb, iaddr2blockno(sb, &(befs_sb->root_dir)));
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
