@@ -200,7 +200,7 @@ static inline __init unsigned long get_random_boot(void)
 
 #if defined(CONFIG_USE_OF)
 	/* Get any additional entropy passed in device tree */
-	{
+	if (initial_boot_params) {
 		int node, len;
 		u64 *prop;
 
