@@ -1123,3 +1123,32 @@ void dwc2_set_all_params(struct dwc2_core_params *params, int value)
 	for (i = 0; i < size; i++)
 		p[i] = value;
 }
+
+int dwc2_init_params(struct dwc2_hsotg *hsotg)
+{
+	const struct of_device_id *match;
+	const struct dwc2_core_params *params;
+	struct dwc2_core_params defparams;
+
+	match = of_match_device(dwc2_of_match_table, hsotg->dev);
+	if (match && match->data) {
+		params = match->data;
+	} else {
+		/* Default all params to autodetect */
+		dwc2_set_all_params(&defparams, -1);
+		params = &defparams;
+
+		/*
+		 * Disable descriptor dma mode by default as the HW can support
+		 * it, but does not support it for SPLIT transactions.
+		 * Disable it for FS devices as well.
+		 */
+		defparams.dma_desc_enable = 0;
+		defparams.dma_desc_fs_enable = 0;
+	}
+
+	/* Validate parameter values */
+	dwc2_set_parameters(hsotg, params);
+
+	return 0;
+}

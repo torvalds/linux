@@ -1259,6 +1259,9 @@ extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 extern int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 extern int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
+/* Parameters */
+int dwc2_init_params(struct dwc2_hsotg *hsotg);
+
 /*
  * The following functions check the controller's OTG operation mode
  * capability (GHWCFG2.OTG_MODE).

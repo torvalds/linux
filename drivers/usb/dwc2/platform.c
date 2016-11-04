@@ -365,29 +365,9 @@ static void dwc2_driver_shutdown(struct platform_device *dev)
  */
 static int dwc2_driver_probe(struct platform_device *dev)
 {
-	const struct of_device_id *match;
-	const struct dwc2_core_params *params;
-	struct dwc2_core_params defparams;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
 	int retval;
-
-	match = of_match_device(dwc2_of_match_table, &dev->dev);
-	if (match && match->data) {
-		params = match->data;
-	} else {
-		/* Default all params to autodetect */
-		dwc2_set_all_params(&defparams, -1);
-		params = &defparams;
-
-		/*
-		 * Disable descriptor dma mode by default as the HW can support
-		 * it, but does not support it for SPLIT transactions.
-		 * Disable it for FS devices as well.
-		 */
-		defparams.dma_desc_enable = 0;
-		defparams.dma_desc_fs_enable = 0;
-	}
 
 	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
 	if (!hsotg)
@@ -453,10 +433,11 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	if (retval)
 		goto error;
 
-	/* Validate parameter values */
-	dwc2_set_parameters(hsotg, params);
-
 	dwc2_force_dr_mode(hsotg);
+
+	retval = dwc2_init_params(hsotg);
+	if (retval)
+		goto error;
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		retval = dwc2_gadget_init(hsotg, hsotg->irq);
