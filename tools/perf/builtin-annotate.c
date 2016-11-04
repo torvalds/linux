@@ -30,6 +30,7 @@
 #include "util/tool.h"
 #include "util/data.h"
 #include "arch/common.h"
+#include "util/block-range.h"
 
 #include <dlfcn.h>
 #include <linux/bitmap.h>
@@ -45,6 +46,103 @@ struct perf_annotate {
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
+
+/*
+ * Given one basic block:
+ *
+ *	from	to		branch_i
+ *	* ----> *
+ *		|
+ *		| block
+ *		v
+ *		* ----> *
+ *		from	to	branch_i+1
+ *
+ * where the horizontal are the branches and the vertical is the executed
+ * block of instructions.
+ *
+ * We count, for each 'instruction', the number of blocks that covered it as
+ * well as count the ratio each branch is taken.
+ *
+ * We can do this without knowing the actual instruction stream by keeping
+ * track of the address ranges. We break down ranges such that there is no
+ * overlap and iterate from the start until the end.
+ *
+ * @acme: once we parse the objdump output _before_ processing the samples,
+ * we can easily fold the branch.cycles IPC bits in.
+ */
+static void process_basic_block(struct addr_map_symbol *start,
+				struct addr_map_symbol *end,
+				struct branch_flags *flags)
+{
+	struct symbol *sym = start->sym;
+	struct annotation *notes = sym ? symbol__annotation(sym) : NULL;
+	struct block_range_iter iter;
+	struct block_range *entry;
+
+	/*
+	 * Sanity; NULL isn't executable and the CPU cannot execute backwards
+	 */
+	if (!start->addr || start->addr > end->addr)
+		return;
+
+	iter = block_range__create(start->addr, end->addr);
+	if (!block_range_iter__valid(&iter))
+		return;
+
+	/*
+	 * First block in range is a branch target.
+	 */
+	entry = block_range_iter(&iter);
+	assert(entry->is_target);
+	entry->entry++;
+
+	do {
+		entry = block_range_iter(&iter);
+
+		entry->coverage++;
+		entry->sym = sym;
+
+		if (notes)
+			notes->max_coverage = max(notes->max_coverage, entry->coverage);
+
+	} while (block_range_iter__next(&iter));
+
+	/*
+	 * Last block in rage is a branch.
+	 */
+	entry = block_range_iter(&iter);
+	assert(entry->is_branch);
+	entry->taken++;
+	if (flags->predicted)
+		entry->pred++;
+}
+
+static void process_branch_stack(struct branch_stack *bs, struct addr_location *al,
+				 struct perf_sample *sample)
+{
+	struct addr_map_symbol *prev = NULL;
+	struct branch_info *bi;
+	int i;
+
+	if (!bs || !bs->nr)
+		return;
+
+	bi = sample__resolve_bstack(sample, al);
+	if (!bi)
+		return;
+
+	for (i = bs->nr - 1; i >= 0; i--) {
+		/*
+		 * XXX filter against symbol
+		 */
+		if (prev)
+			process_basic_block(prev, &bi[i].from, &bi[i].flags);
+		prev = &bi[i].to;
+	}
+
+	free(bi);
+}
 
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
 				  struct perf_sample *sample,
@@ -72,10 +170,16 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		return 0;
 	}
 
+	/*
+	 * XXX filtered samples can still have branch entires pointing into our
+	 * symbol and are missed.
+	 */
+	process_branch_stack(sample->branch_stack, al, sample);
+
 	sample->period = 1;
 	sample->weight = 1;
 
-	he = __hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
+	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -204,8 +308,6 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	machines__set_symbol_filter(&session->machines, symbol__annotate_init);
-
 	if (ann->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
@@ -236,7 +338,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		perf_session__fprintf_dsos(session, stdout);
 
 	total_nr_samples = 0;
-	evlist__for_each(session->evlist, pos) {
+	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
@@ -339,6 +441,9 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
+	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
+			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
+			     stdio__config_color, "always"),
 	OPT_END()
 	};
 	int ret = hists__init();
@@ -364,7 +469,10 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (annotate.session == NULL)
 		return -1;
 
-	symbol_conf.priv_size = sizeof(struct annotation);
+	ret = symbol__annotation_init();
+	if (ret < 0)
+		goto out_delete;
+
 	symbol_conf.try_vmlinux_path = true;
 
 	ret = symbol__init(&annotate.session->header.env);

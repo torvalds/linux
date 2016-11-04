@@ -1129,7 +1129,7 @@ static irqreturn_t kxcjk1013_data_rdy_trig_poll(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
 
-	data->timestamp = iio_get_time_ns();
+	data->timestamp = iio_get_time_ns(indio_dev);
 
 	if (data->dready_trigger_on)
 		iio_trigger_poll(data->dready_trig);
@@ -1392,6 +1392,7 @@ static const struct acpi_device_id kx_acpi_match[] = {
 	{"KXCJ1013", KXCJK1013},
 	{"KXCJ1008", KXCJ91008},
 	{"KXCJ9000", KXCJ91008},
+	{"KIOX000A", KXCJ91008},
 	{"KXTJ1009", KXTJ21009},
 	{"SMO8500",  KXCJ91008},
 	{ },

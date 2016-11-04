@@ -617,6 +617,7 @@ dasd_delete_device(struct dasd_device *device)
 	/* Wait for reference counter to drop to zero. */
 	wait_event(dasd_delete_wq, atomic_read(&device->ref_count) == 0);
 
+	dasd_generic_free_discipline(device);
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	cdev = device->cdev;
 	device->cdev = NULL;

@@ -502,8 +502,16 @@ static int i40e_config_vsi_tx_queue(struct i40e_vf *vf, u16 vsi_id,
 	u32 qtx_ctl;
 	int ret = 0;
 
+	if (!i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+		ret = -ENOENT;
+		goto error_context;
+	}
 	pf_queue_id = i40e_vc_get_pf_queue_id(vf, vsi_id, vsi_queue_id);
 	vsi = i40e_find_vsi_from_id(pf, vsi_id);
+	if (!vsi) {
+		ret = -ENOENT;
+		goto error_context;
+	}
 
 	/* clear the context structure first */
 	memset(&tx_ctx, 0, sizeof(struct i40e_hmc_obj_txq));
@@ -665,6 +673,8 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		goto error_alloc_vsi_res;
 	}
 	if (type == I40E_VSI_SRIOV) {
+		u64 hena = i40e_pf_get_default_rss_hena(pf);
+
 		vf->lan_vsi_idx = vsi->idx;
 		vf->lan_vsi_id = vsi->id;
 		/* If the port VLAN has been configured and then the
@@ -687,6 +697,10 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 					vf->default_lan_addr.addr, vf->vf_id);
 		}
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
+		i40e_write_rx_ctl(&pf->hw, I40E_VFQF_HENA1(0, vf->vf_id),
+				  (u32)hena);
+		i40e_write_rx_ctl(&pf->hw, I40E_VFQF_HENA1(1, vf->vf_id),
+				  (u32)(hena >> 32));
 	}
 
 	/* program mac filter */
@@ -985,7 +999,10 @@ complete_reset:
 		i40e_enable_vf_mappings(vf);
 		set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 		clear_bit(I40E_VF_STAT_DISABLED, &vf->vf_states);
-		i40e_notify_client_of_vf_reset(pf, abs_vf_id);
+		/* Do not notify the client during VF init */
+		if (vf->pf->num_alloc_vfs)
+			i40e_notify_client_of_vf_reset(pf, abs_vf_id);
+		vf->num_vlan = 0;
 	}
 	/* tell the VF the reset is done */
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
@@ -1083,7 +1100,6 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 			goto err_iov;
 		}
 	}
-	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 	/* allocate memory */
 	vfs = kcalloc(num_alloc_vfs, sizeof(struct i40e_vf), GFP_KERNEL);
 	if (!vfs) {
@@ -1106,6 +1122,8 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 
 	}
 	pf->num_alloc_vfs = num_alloc_vfs;
+
+	i40e_notify_client_of_vf_enable(pf, num_alloc_vfs);
 
 err_alloc:
 	if (ret)
@@ -1466,7 +1484,8 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 
 	vsi = i40e_find_vsi_from_id(pf, info->vsi_id);
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
+	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id) ||
+	    !vsi) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2207,8 +2226,8 @@ static int i40e_vc_iwarp_qvmap_msg(struct i40e_vf *vf, u8 *msg, u16 msglen,
 error_param:
 	/* send the response to the VF */
 	return i40e_vc_send_resp_to_vf(vf,
-			       config ? I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP :
-			       I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP,
+			       config ? I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP :
+			       I40E_VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
 			       aq_ret);
 }
 
@@ -2308,6 +2327,7 @@ err:
 	/* send the response back to the VF */
 	aq_ret = i40e_vc_send_msg_to_vf(vf, I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS,
 					aq_ret, (u8 *)vrh, len);
+	kfree(vrh);
 	return aq_ret;
 }
 
@@ -2736,11 +2756,12 @@ error_param:
  * @vf_id: VF identifier
  * @vlan_id: mac address
  * @qos: priority setting
+ * @vlan_proto: vlan protocol
  *
  * program VF vlan id and/or qos
  **/
-int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
-			      int vf_id, u16 vlan_id, u8 qos)
+int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
+			      u16 vlan_id, u8 qos, __be16 vlan_proto)
 {
 	u16 vlanprio = vlan_id | (qos << I40E_VLAN_PRIORITY_SHIFT);
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
@@ -2760,6 +2781,12 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 	if ((vlan_id > I40E_MAX_VLANID) || (qos > 7)) {
 		dev_err(&pf->pdev->dev, "Invalid VF Parameters\n");
 		ret = -EINVAL;
+		goto error_pvid;
+	}
+
+	if (vlan_proto != htons(ETH_P_8021Q)) {
+		dev_err(&pf->pdev->dev, "VF VLAN protocol is not supported\n");
+		ret = -EPROTONOSUPPORT;
 		goto error_pvid;
 	}
 
@@ -2989,6 +3016,7 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	else
 		ivi->linkstate = IFLA_VF_LINK_STATE_DISABLE;
 	ivi->spoofchk = vf->spoofchk;
+	ivi->trusted = vf->trusted;
 	ret = 0;
 
 error_param:

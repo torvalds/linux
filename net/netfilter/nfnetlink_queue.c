@@ -557,7 +557,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if (entskb->tstamp.tv64) {
 		struct nfqnl_msg_packet_timestamp ts;
-		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
+		struct timespec64 kts = ktime_to_timespec64(entskb->tstamp);
 
 		ts.sec = cpu_to_be64(kts.tv_sec);
 		ts.usec = cpu_to_be64(kts.tv_nsec / NSEC_PER_USEC);
@@ -740,7 +740,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct net *net = entry->state.net;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
-	/* rcu_read_lock()ed by nf_hook_slow() */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	queue = instance_lookup(q, queuenum);
 	if (!queue)
 		return -ESRCH;
@@ -917,12 +917,14 @@ static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
 
-static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long ops_ptr)
+static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long entry_ptr)
 {
-	return entry->elem == (struct nf_hook_ops *)ops_ptr;
+	return rcu_access_pointer(entry->state.hook_entries) ==
+		(struct nf_hook_entry *)entry_ptr;
 }
 
-static void nfqnl_nf_hook_drop(struct net *net, struct nf_hook_ops *hook)
+static void nfqnl_nf_hook_drop(struct net *net,
+			       const struct nf_hook_entry *hook)
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int i;
@@ -1145,10 +1147,8 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int err;
 
-	queue = instance_lookup(q, queue_num);
-	if (!queue)
-		queue = verdict_instance_lookup(q, queue_num,
-						NETLINK_CB(skb).portid);
+	queue = verdict_instance_lookup(q, queue_num,
+					NETLINK_CB(skb).portid);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 
@@ -1482,21 +1482,29 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 			 net->nf.proc_netfilter, &nfqnl_file_ops))
 		return -ENOMEM;
 #endif
+	nf_register_queue_handler(net, &nfqh);
 	return 0;
 }
 
 static void __net_exit nfnl_queue_net_exit(struct net *net)
 {
+	nf_unregister_queue_handler(net);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", net->nf.proc_netfilter);
 #endif
 }
 
+static void nfnl_queue_net_exit_batch(struct list_head *net_exit_list)
+{
+	synchronize_rcu();
+}
+
 static struct pernet_operations nfnl_queue_net_ops = {
-	.init	= nfnl_queue_net_init,
-	.exit	= nfnl_queue_net_exit,
-	.id	= &nfnl_queue_net_id,
-	.size	= sizeof(struct nfnl_queue_net),
+	.init		= nfnl_queue_net_init,
+	.exit		= nfnl_queue_net_exit,
+	.exit_batch	= nfnl_queue_net_exit_batch,
+	.id		= &nfnl_queue_net_id,
+	.size		= sizeof(struct nfnl_queue_net),
 };
 
 static int __init nfnetlink_queue_init(void)
@@ -1516,10 +1524,16 @@ static int __init nfnetlink_queue_init(void)
 		goto cleanup_netlink_notifier;
 	}
 
-	register_netdevice_notifier(&nfqnl_dev_notifier);
-	nf_register_queue_handler(&nfqh);
+	status = register_netdevice_notifier(&nfqnl_dev_notifier);
+	if (status < 0) {
+		pr_err("nf_queue: failed to register netdevice notifier\n");
+		goto cleanup_netlink_subsys;
+	}
+
 	return status;
 
+cleanup_netlink_subsys:
+	nfnetlink_subsys_unregister(&nfqnl_subsys);
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);
@@ -1529,7 +1543,6 @@ out:
 
 static void __exit nfnetlink_queue_fini(void)
 {
-	nf_unregister_queue_handler();
 	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);

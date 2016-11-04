@@ -2893,8 +2893,7 @@ restart:
 	 * on anon_list2.  Let's check.
 	 */
 	if (!list_empty(&TxAnchor.anon_list2)) {
-		list_splice(&TxAnchor.anon_list2, &TxAnchor.anon_list);
-		INIT_LIST_HEAD(&TxAnchor.anon_list2);
+		list_splice_init(&TxAnchor.anon_list2, &TxAnchor.anon_list);
 		goto restart;
 	}
 	TXN_UNLOCK();
@@ -3040,7 +3039,6 @@ static int jfs_txanchor_proc_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations jfs_txanchor_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_txanchor_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -3081,7 +3079,6 @@ static int jfs_txstats_proc_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations jfs_txstats_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_txstats_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

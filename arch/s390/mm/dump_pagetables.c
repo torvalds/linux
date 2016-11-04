@@ -157,7 +157,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 		pud = pud_offset(pgd, addr);
 		if (!pud_none(*pud))
 			if (pud_large(*pud)) {
-				prot = pud_val(*pud) & _REGION3_ENTRY_RO;
+				prot = pud_val(*pud) & _REGION_ENTRY_PROTECT;
 				note_page(m, st, prot, 2);
 			} else
 				walk_pmd_level(m, st, pud, addr);

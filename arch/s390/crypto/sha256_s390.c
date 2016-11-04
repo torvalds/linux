@@ -123,7 +123,7 @@ static int __init sha256_s390_init(void)
 {
 	int ret;
 
-	if (!cpacf_query(CPACF_KIMD, CPACF_KIMD_SHA_256))
+	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA_256))
 		return -EOPNOTSUPP;
 	ret = crypto_register_shash(&sha256_alg);
 	if (ret < 0)

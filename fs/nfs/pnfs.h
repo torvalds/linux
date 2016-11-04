@@ -236,7 +236,7 @@ void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
 void pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg);
 
-void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
+void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, struct nfs_fsinfo *);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
 int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
@@ -268,6 +268,8 @@ int pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
 				const struct pnfs_layout_range *recall_range,
 				u32 seq);
+int pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
+		struct list_head *lseg_list);
 bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
@@ -373,6 +375,11 @@ void pnfs_layout_mark_request_commit(struct nfs_page *req,
 static inline bool nfs_have_layout(struct inode *inode)
 {
 	return NFS_I(inode)->layout != NULL;
+}
+
+static inline bool pnfs_layout_is_valid(const struct pnfs_layout_hdr *lo)
+{
+	return test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) == 0;
 }
 
 static inline struct nfs4_deviceid_node *
@@ -545,19 +552,6 @@ pnfs_calc_offset_length(u64 offset, u64 end)
 	return 1 + end - offset;
 }
 
-/**
- * pnfs_mark_layout_returned_if_empty - marks the layout as returned
- * @lo: layout header
- *
- * Note: Caller must hold inode->i_lock
- */
-static inline void
-pnfs_mark_layout_returned_if_empty(struct pnfs_layout_hdr *lo)
-{
-	if (list_empty(&lo->plh_segs))
-		set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
-}
-
 static inline void
 pnfs_copy_range(struct pnfs_layout_range *dst,
 		const struct pnfs_layout_range *src)
@@ -629,6 +623,13 @@ pnfs_sync_inode(struct inode *inode, bool datasync)
 }
 
 static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	return false;
+}
+
+
+static inline bool
 pnfs_roc(struct inode *ino)
 {
 	return false;
@@ -656,7 +657,8 @@ pnfs_wait_on_layoutreturn(struct inode *ino, struct rpc_task *task)
 }
 
 static inline void set_pnfs_layoutdriver(struct nfs_server *s,
-					 const struct nfs_fh *mntfh, u32 id)
+					 const struct nfs_fh *mntfh,
+					 struct nfs_fsinfo *fsinfo)
 {
 }
 
@@ -715,13 +717,6 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 {
 	return false;
 }
-
-static inline bool
-pnfs_layoutcommit_outstanding(struct inode *inode)
-{
-	return false;
-}
-
 
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {

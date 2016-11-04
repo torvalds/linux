@@ -154,6 +154,7 @@ struct fm10k_hw;
 #define FM10K_DGLORTDEC_INNERRSS_ENABLE		0x08000000
 #define FM10K_TUNNEL_CFG	0x0040
 #define FM10K_TUNNEL_CFG_NVGRE_SHIFT		16
+#define FM10K_TUNNEL_CFG_GENEVE	0x0041
 #define FM10K_SWPRI_MAP(_n)	((_n) + 0x0050)
 #define FM10K_SWPRI_MAX		16
 #define FM10K_RSSRK(_n, _m)	(((_n) * 0x10) + (_m) + 0x0800)
@@ -526,6 +527,7 @@ struct fm10k_mac_ops {
 	s32 (*stop_hw)(struct fm10k_hw *);
 	s32 (*get_bus_info)(struct fm10k_hw *);
 	s32 (*get_host_state)(struct fm10k_hw *, bool *);
+	s32 (*request_lport_map)(struct fm10k_hw *);
 	s32 (*update_vlan)(struct fm10k_hw *, u32, u8, bool);
 	s32 (*read_mac_addr)(struct fm10k_hw *);
 	s32 (*update_uc_addr)(struct fm10k_hw *, u16, const u8 *,
@@ -562,6 +564,7 @@ struct fm10k_mac_info {
 	bool tx_ready;
 	u32 dglort_map;
 	u8 itr_scale;
+	u64 reset_while_pending;
 };
 
 struct fm10k_swapi_table_info {

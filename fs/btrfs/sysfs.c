@@ -77,7 +77,7 @@ static int can_modify_feature(struct btrfs_feature_attr *fa)
 		clear = BTRFS_FEATURE_INCOMPAT_SAFE_CLEAR;
 		break;
 	default:
-		printk(KERN_WARNING "btrfs: sysfs: unknown feature set %d\n",
+		pr_warn("btrfs: sysfs: unknown feature set %d\n",
 				fa->feature_set);
 		return 0;
 	}
@@ -326,6 +326,7 @@ SPACE_INFO_ATTR(bytes_used);
 SPACE_INFO_ATTR(bytes_pinned);
 SPACE_INFO_ATTR(bytes_reserved);
 SPACE_INFO_ATTR(bytes_may_use);
+SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
 BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
@@ -337,6 +338,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(bytes_pinned),
 	BTRFS_ATTR_PTR(bytes_reserved),
 	BTRFS_ATTR_PTR(bytes_may_use),
+	BTRFS_ATTR_PTR(bytes_readonly),
 	BTRFS_ATTR_PTR(disk_used),
 	BTRFS_ATTR_PTR(disk_total),
 	BTRFS_ATTR_PTR(total_bytes_pinned),
@@ -428,7 +430,8 @@ static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			fs_info->super_copy->sectorsize);
 }
 
 BTRFS_ATTR(sectorsize, btrfs_sectorsize_show);
@@ -438,7 +441,8 @@ static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			fs_info->super_copy->sectorsize);
 }
 
 BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
@@ -834,8 +838,17 @@ static int btrfs_init_debugfs(void)
 	if (!btrfs_debugfs_root_dentry)
 		return -ENOMEM;
 
-	debugfs_create_u64("test", S_IRUGO | S_IWUGO, btrfs_debugfs_root_dentry,
+	/*
+	 * Example code, how to export data through debugfs.
+	 *
+	 * file:        /sys/kernel/debug/btrfs/test
+	 * contents of: btrfs_debugfs_test
+	 */
+#ifdef CONFIG_BTRFS_DEBUG
+	debugfs_create_u64("test", S_IRUGO | S_IWUSR, btrfs_debugfs_root_dentry,
 			&btrfs_debugfs_test);
+#endif
+
 #endif
 	return 0;
 }

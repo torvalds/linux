@@ -35,13 +35,8 @@ struct gen_74x164_chip {
 
 static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
 {
-	struct spi_transfer xfer = {
-		.tx_buf = chip->buffer,
-		.len = chip->registers,
-	};
-
-	return spi_sync_transfer(to_spi_device(chip->gpio_chip.parent),
-				 &xfer, 1);
+	return spi_write(to_spi_device(chip->gpio_chip.parent), chip->buffer,
+			 chip->registers);
 }
 
 static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)

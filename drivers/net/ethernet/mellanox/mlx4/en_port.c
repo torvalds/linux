@@ -152,8 +152,9 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	struct mlx4_counter tmp_counter_stats;
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
 	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
-	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device *dev = mdev->pndev[port];
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct net_device_stats *stats = &dev->stats;
 	struct mlx4_cmd_mailbox *mailbox;
 	u64 in_mod = reset << 8 | port;
 	int err;
@@ -188,6 +189,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	}
 	stats->tx_packets = 0;
 	stats->tx_bytes = 0;
+	stats->tx_dropped = 0;
 	priv->port_stats.tx_chksum_offload = 0;
 	priv->port_stats.queue_stopped = 0;
 	priv->port_stats.wake_queue = 0;
@@ -199,6 +201,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 		stats->tx_packets += ring->packets;
 		stats->tx_bytes += ring->bytes;
+		stats->tx_dropped += ring->tx_dropped;
 		priv->port_stats.tx_chksum_offload += ring->tx_csum;
 		priv->port_stats.queue_stopped     += ring->queue_stopped;
 		priv->port_stats.wake_queue        += ring->wake_queue;
@@ -237,21 +240,12 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	stats->multicast = en_stats_adder(&mlx4_en_stats->MCAST_prio_0,
 					  &mlx4_en_stats->MCAST_prio_1,
 					  NUM_PRIORITIES);
-	stats->collisions = 0;
 	stats->rx_dropped = be32_to_cpu(mlx4_en_stats->RDROP) +
 			    sw_rx_dropped;
 	stats->rx_length_errors = be32_to_cpu(mlx4_en_stats->RdropLength);
-	stats->rx_over_errors = 0;
 	stats->rx_crc_errors = be32_to_cpu(mlx4_en_stats->RCRC);
-	stats->rx_frame_errors = 0;
 	stats->rx_fifo_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
-	stats->rx_missed_errors = 0;
-	stats->tx_aborted_errors = 0;
-	stats->tx_carrier_errors = 0;
-	stats->tx_fifo_errors = 0;
-	stats->tx_heartbeat_errors = 0;
-	stats->tx_window_errors = 0;
-	stats->tx_dropped = be32_to_cpu(mlx4_en_stats->TDROP);
+	stats->tx_dropped += be32_to_cpu(mlx4_en_stats->TDROP);
 
 	/* RX stats */
 	priv->pkstats.rx_multicast_packets = stats->multicast;

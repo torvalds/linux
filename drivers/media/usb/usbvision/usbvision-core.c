@@ -88,11 +88,6 @@ MODULE_PARM_DESC(adjust_y_offset, "adjust Y offset display [core]");
 #define DBG_SCRATCH	(1 << 4)
 #define DBG_FUNC	(1 << 5)
 
-static const int max_imgwidth = MAX_FRAME_WIDTH;
-static const int max_imgheight = MAX_FRAME_HEIGHT;
-static const int min_imgwidth = MIN_FRAME_WIDTH;
-static const int min_imgheight = MIN_FRAME_HEIGHT;
-
 /* The value of 'scratch_buf_size' affects quality of the picture
  * in many ways. Shorter buffers may cause loss of data when client
  * is too slow. Larger buffers are memory-consuming and take longer
@@ -2308,11 +2303,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		struct urb *urb;
 
 		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
-		if (urb == NULL) {
-			dev_err(&usbvision->dev->dev,
-				"%s: usb_alloc_urb() failed\n", __func__);
+		if (urb == NULL)
 			return -ENOMEM;
-		}
 		usbvision->sbuf[buf_idx].urb = urb;
 		usbvision->sbuf[buf_idx].data =
 			usb_alloc_coherent(usbvision->dev,

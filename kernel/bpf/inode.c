@@ -11,7 +11,7 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/magic.h>
 #include <linux/major.h>
 #include <linux/mount.h>
@@ -97,7 +97,7 @@ static struct inode *bpf_get_inode(struct super_block *sb,
 		return ERR_PTR(-ENOSPC);
 
 	inode->i_ino = get_next_ino();
-	inode->i_atime = CURRENT_TIME;
+	inode->i_atime = current_time(inode);
 	inode->i_mtime = inode->i_atime;
 	inode->i_ctime = inode->i_atime;
 
@@ -365,10 +365,7 @@ static struct file_system_type bpf_fs_type = {
 	.name		= "bpf",
 	.mount		= bpf_mount,
 	.kill_sb	= kill_litter_super,
-	.fs_flags	= FS_USERNS_MOUNT,
 };
-
-MODULE_ALIAS_FS("bpf");
 
 static int __init bpf_init(void)
 {

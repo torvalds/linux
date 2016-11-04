@@ -331,7 +331,7 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 
 static int isp_video_queue_setup(struct vb2_queue *queue,
 				 unsigned int *count, unsigned int *num_planes,
-				 unsigned int sizes[], void *alloc_ctxs[])
+				 unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct isp_video_fh *vfh = vb2_get_drv_priv(queue);
 	struct isp_video *video = vfh->video;
@@ -341,8 +341,6 @@ static int isp_video_queue_setup(struct vb2_queue *queue,
 	sizes[0] = vfh->format.fmt.pix.sizeimage;
 	if (sizes[0] == 0)
 		return -EINVAL;
-
-	alloc_ctxs[0] = video->alloc_ctx;
 
 	*count = min(*count, video->capture_mem / PAGE_ALIGN(sizes[0]));
 
@@ -774,40 +772,45 @@ isp_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 }
 
 static int
-isp_video_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cropcap)
-{
-	struct isp_video *video = video_drvdata(file);
-	struct v4l2_subdev *subdev;
-	int ret;
-
-	subdev = isp_video_remote_subdev(video, NULL);
-	if (subdev == NULL)
-		return -EINVAL;
-
-	mutex_lock(&video->mutex);
-	ret = v4l2_subdev_call(subdev, video, cropcap, cropcap);
-	mutex_unlock(&video->mutex);
-
-	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
-}
-
-static int
-isp_video_get_crop(struct file *file, void *fh, struct v4l2_crop *crop)
+isp_video_get_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct isp_video *video = video_drvdata(file);
 	struct v4l2_subdev_format format;
 	struct v4l2_subdev *subdev;
+	struct v4l2_subdev_selection sdsel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = sel->target,
+	};
 	u32 pad;
 	int ret;
 
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			return -EINVAL;
+		break;
+	case V4L2_SEL_TGT_COMPOSE:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
 	subdev = isp_video_remote_subdev(video, &pad);
 	if (subdev == NULL)
 		return -EINVAL;
 
-	/* Try the get crop operation first and fallback to get format if not
+	/* Try the get selection operation first and fallback to get format if not
 	 * implemented.
 	 */
-	ret = v4l2_subdev_call(subdev, video, g_crop, crop);
+	sdsel.pad = pad;
+	ret = v4l2_subdev_call(subdev, pad, get_selection, NULL, &sdsel);
+	if (!ret)
+		sel->r = sdsel.r;
 	if (ret != -ENOIOCTLCMD)
 		return ret;
 
@@ -817,28 +820,50 @@ isp_video_get_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 	if (ret < 0)
 		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
 
-	crop->c.left = 0;
-	crop->c.top = 0;
-	crop->c.width = format.format.width;
-	crop->c.height = format.format.height;
+	sel->r.left = 0;
+	sel->r.top = 0;
+	sel->r.width = format.format.width;
+	sel->r.height = format.format.height;
 
 	return 0;
 }
 
 static int
-isp_video_set_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
+isp_video_set_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct isp_video *video = video_drvdata(file);
 	struct v4l2_subdev *subdev;
+	struct v4l2_subdev_selection sdsel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = sel->target,
+		.flags = sel->flags,
+		.r = sel->r,
+	};
+	u32 pad;
 	int ret;
 
-	subdev = isp_video_remote_subdev(video, NULL);
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			return -EINVAL;
+		break;
+	case V4L2_SEL_TGT_COMPOSE:
+		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+	subdev = isp_video_remote_subdev(video, &pad);
 	if (subdev == NULL)
 		return -EINVAL;
 
+	sdsel.pad = pad;
 	mutex_lock(&video->mutex);
-	ret = v4l2_subdev_call(subdev, video, s_crop, crop);
+	ret = v4l2_subdev_call(subdev, pad, set_selection, NULL, &sdsel);
 	mutex_unlock(&video->mutex);
+	if (!ret)
+		sel->r = sdsel.r;
 
 	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
 }
@@ -1254,9 +1279,8 @@ static const struct v4l2_ioctl_ops isp_video_ioctl_ops = {
 	.vidioc_g_fmt_vid_out		= isp_video_get_format,
 	.vidioc_s_fmt_vid_out		= isp_video_set_format,
 	.vidioc_try_fmt_vid_out		= isp_video_try_format,
-	.vidioc_cropcap			= isp_video_cropcap,
-	.vidioc_g_crop			= isp_video_get_crop,
-	.vidioc_s_crop			= isp_video_set_crop,
+	.vidioc_g_selection		= isp_video_get_selection,
+	.vidioc_s_selection		= isp_video_set_selection,
 	.vidioc_g_parm			= isp_video_get_param,
 	.vidioc_s_parm			= isp_video_set_param,
 	.vidioc_reqbufs			= isp_video_reqbufs,
@@ -1308,6 +1332,7 @@ static int isp_video_open(struct file *file)
 	queue->mem_ops = &vb2_dma_contig_memops;
 	queue->buf_struct_size = sizeof(struct isp_buffer);
 	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->dev = video->isp->dev;
 
 	ret = vb2_queue_init(&handle->queue);
 	if (ret < 0) {
@@ -1414,15 +1439,9 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 		return -EINVAL;
 	}
 
-	video->alloc_ctx = vb2_dma_contig_init_ctx(video->isp->dev);
-	if (IS_ERR(video->alloc_ctx))
-		return PTR_ERR(video->alloc_ctx);
-
 	ret = media_entity_pads_init(&video->video.entity, 1, &video->pad);
-	if (ret < 0) {
-		vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
+	if (ret < 0)
 		return ret;
-	}
 
 	mutex_init(&video->mutex);
 	atomic_set(&video->active, 0);
@@ -1451,7 +1470,6 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 
 void omap3isp_video_cleanup(struct isp_video *video)
 {
-	vb2_dma_contig_cleanup_ctx(video->alloc_ctx);
 	media_entity_cleanup(&video->video.entity);
 	mutex_destroy(&video->queue_lock);
 	mutex_destroy(&video->stream_lock);

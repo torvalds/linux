@@ -221,7 +221,7 @@ static bool soc_has_mclk_mux0_canin(void)
 /* convenience wrappers around the common clk API */
 static inline struct clk *mpc512x_clk_fixed(const char *name, int rate)
 {
-	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
+	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
 static inline struct clk *mpc512x_clk_factor(
@@ -719,7 +719,7 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 	 *   most one of a mux, div, and gate each into one 'struct clk'
 	 *   item
 	 * - PSC/MSCAN/SPDIF clock generation OTOH already is very
-	 *   specific and cannot get mapped to componsites (at least not
+	 *   specific and cannot get mapped to composites (at least not
 	 *   a single one, maybe two of them, but then some of these
 	 *   intermediate clock signals get referenced elsewhere (e.g.
 	 *   in the clock frequency measurement, CFM) and thus need

@@ -19,6 +19,7 @@
 
 #include <linux/io.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -98,25 +99,25 @@ static const struct reset_control_ops hisi_reset_ops = {
 	.deassert	= hisi_reset_deassert,
 };
 
-struct hisi_reset_controller *hisi_reset_init(struct device_node *np)
+struct hisi_reset_controller *hisi_reset_init(struct platform_device *pdev)
 {
 	struct hisi_reset_controller *rstc;
+	struct resource *res;
 
-	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	rstc = devm_kmalloc(&pdev->dev, sizeof(*rstc), GFP_KERNEL);
 	if (!rstc)
 		return NULL;
 
-	rstc->membase = of_iomap(np, 0);
-	if (!rstc->membase) {
-		kfree(rstc);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rstc->membase = devm_ioremap(&pdev->dev,
+				res->start, resource_size(res));
+	if (!rstc->membase)
 		return NULL;
-	}
 
 	spin_lock_init(&rstc->lock);
-
 	rstc->rcdev.owner = THIS_MODULE;
 	rstc->rcdev.ops = &hisi_reset_ops;
-	rstc->rcdev.of_node = np;
+	rstc->rcdev.of_node = pdev->dev.of_node;
 	rstc->rcdev.of_reset_n_cells = 2;
 	rstc->rcdev.of_xlate = hisi_reset_of_xlate;
 	reset_controller_register(&rstc->rcdev);
@@ -128,7 +129,5 @@ EXPORT_SYMBOL_GPL(hisi_reset_init);
 void hisi_reset_exit(struct hisi_reset_controller *rstc)
 {
 	reset_controller_unregister(&rstc->rcdev);
-	iounmap(rstc->membase);
-	kfree(rstc);
 }
 EXPORT_SYMBOL_GPL(hisi_reset_exit);

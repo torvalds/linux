@@ -581,7 +581,7 @@ static int wm2000_anc_transition(struct wm2000_priv *wm2000,
 	if (anc_transitions[i].dest == ANC_OFF)
 		clk_disable_unprepare(wm2000->mclk);
 
-	return ret;
+	return 0;
 }
 
 static int wm2000_anc_set_mode(struct wm2000_priv *wm2000)
@@ -799,18 +799,20 @@ static int wm2000_remove(struct snd_soc_codec *codec)
 	return wm2000_anc_transition(wm2000, ANC_OFF);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm2000 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm2000 = {
 	.probe = wm2000_probe,
 	.remove = wm2000_remove,
 	.suspend = wm2000_suspend,
 	.resume = wm2000_resume,
 
-	.dapm_widgets = wm2000_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm2000_dapm_widgets),
-	.dapm_routes = wm2000_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(wm2000_audio_map),
-	.controls = wm2000_controls,
-	.num_controls = ARRAY_SIZE(wm2000_controls),
+	.component_driver = {
+		.controls		= wm2000_controls,
+		.num_controls		= ARRAY_SIZE(wm2000_controls),
+		.dapm_widgets		= wm2000_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm2000_dapm_widgets),
+		.dapm_routes		= wm2000_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(wm2000_audio_map),
+	},
 };
 
 static int wm2000_i2c_probe(struct i2c_client *i2c,

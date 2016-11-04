@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -53,7 +49,6 @@
 #include "../include/obd.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_fid.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_ver.h"
 #include "../include/lustre_mdc.h"
@@ -104,6 +99,7 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 	io->u.ci_setattr.sa_attr.lvb_ctime = LTIME_S(attr->ia_ctime);
 	io->u.ci_setattr.sa_attr.lvb_size = attr->ia_size;
 	io->u.ci_setattr.sa_valid = attr->ia_valid;
+	io->u.ci_setattr.sa_parent_fid = ll_inode2fid(inode);
 
 again:
 	if (cl_io_init(env, io, CIT_SETATTR, io->ci_obj) == 0) {
@@ -158,7 +154,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 	int result = 0;
 	int refcheck;
 
-	LASSERT(md->body->valid & OBD_MD_FLID);
+	LASSERT(md->body->mbo_valid & OBD_MD_FLID);
 	LASSERT(S_ISREG(inode->i_mode));
 
 	env = cl_env_get(&refcheck);

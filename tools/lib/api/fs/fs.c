@@ -34,6 +34,10 @@
 #define TRACEFS_MAGIC          0x74726163
 #endif
 
+#ifndef HUGETLBFS_MAGIC
+#define HUGETLBFS_MAGIC        0x958458f6
+#endif
+
 static const char * const sysfs__fs_known_mountpoints[] = {
 	"/sys",
 	0,
@@ -67,6 +71,10 @@ static const char * const tracefs__known_mountpoints[] = {
 	0,
 };
 
+static const char * const hugetlbfs__known_mountpoints[] = {
+	0,
+};
+
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
@@ -80,6 +88,7 @@ enum {
 	FS__PROCFS  = 1,
 	FS__DEBUGFS = 2,
 	FS__TRACEFS = 3,
+	FS__HUGETLBFS = 4,
 };
 
 #ifndef TRACEFS_MAGIC
@@ -106,6 +115,11 @@ static struct fs fs__entries[] = {
 		.name	= "tracefs",
 		.mounts	= tracefs__known_mountpoints,
 		.magic	= TRACEFS_MAGIC,
+	},
+	[FS__HUGETLBFS] = {
+		.name	= "hugetlbfs",
+		.mounts = hugetlbfs__known_mountpoints,
+		.magic	= HUGETLBFS_MAGIC,
 	},
 };
 
@@ -265,6 +279,7 @@ FS(sysfs,   FS__SYSFS);
 FS(procfs,  FS__PROCFS);
 FS(debugfs, FS__DEBUGFS);
 FS(tracefs, FS__TRACEFS);
+FS(hugetlbfs, FS__HUGETLBFS);
 
 int filename__read_int(const char *filename, int *value)
 {
@@ -283,6 +298,11 @@ int filename__read_int(const char *filename, int *value)
 	return err;
 }
 
+/*
+ * Parses @value out of @filename with strtoull.
+ * By using 0 for base, the strtoull detects the
+ * base automatically (see man strtoull).
+ */
 int filename__read_ull(const char *filename, unsigned long long *value)
 {
 	char line[64];
@@ -292,7 +312,7 @@ int filename__read_ull(const char *filename, unsigned long long *value)
 		return -1;
 
 	if (read(fd, line, sizeof(line)) > 0) {
-		*value = strtoull(line, NULL, 10);
+		*value = strtoull(line, NULL, 0);
 		if (*value != ULLONG_MAX)
 			err = 0;
 	}

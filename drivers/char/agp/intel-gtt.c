@@ -840,6 +840,16 @@ static bool i830_check_flags(unsigned int flags)
 	return false;
 }
 
+void intel_gtt_insert_page(dma_addr_t addr,
+			   unsigned int pg,
+			   unsigned int flags)
+{
+	intel_private.driver->write_entry(addr, pg, flags);
+	if (intel_private.driver->chipset_flush)
+		intel_private.driver->chipset_flush();
+}
+EXPORT_SYMBOL(intel_gtt_insert_page);
+
 void intel_gtt_insert_sg_entries(struct sg_table *st,
 				 unsigned int pg_start,
 				 unsigned int flags)

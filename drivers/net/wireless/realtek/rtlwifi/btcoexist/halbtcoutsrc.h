@@ -433,7 +433,7 @@ struct btc_stack_info {
 	u8 num_of_hid;
 	bool pan_exist;
 	bool unknown_acl_exist;
-	char min_bt_rssi;
+	s8 min_bt_rssi;
 };
 
 struct btc_statistics {
@@ -537,7 +537,7 @@ void exhalbtc_dbg_control(struct btc_coexist *btcoexist, u8 code, u8 len,
 void exhalbtc_stack_update_profile_info(void);
 void exhalbtc_set_hci_version(u16 hci_version);
 void exhalbtc_set_bt_patch_version(u16 bt_hci_version, u16 bt_patch_version);
-void exhalbtc_update_min_bt_rssi(char bt_rssi);
+void exhalbtc_update_min_bt_rssi(s8 bt_rssi);
 void exhalbtc_set_bt_exist(bool bt_exist);
 void exhalbtc_set_chip_type(u8 chip_type);
 void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num);

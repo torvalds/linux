@@ -23,6 +23,7 @@
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/cache.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
@@ -34,6 +35,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/efi.h>
 #include <linux/swiotlb.h>
+#include <linux/vmalloc.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -47,16 +49,14 @@
 #include <asm/tlb.h>
 #include <asm/alternative.h>
 
-#include "mm.h"
-
 /*
  * We need to be able to catch inadvertent references to memstart_addr
  * that occur (potentially in generic code) before arm64_memblock_init()
  * executes, which assigns it its actual value. So use a default value
  * that cannot be mistaken for a real physical address.
  */
-s64 memstart_addr __read_mostly = -1;
-phys_addr_t arm64_dma_phys_limit __read_mostly;
+s64 memstart_addr __ro_after_init = -1;
+phys_addr_t arm64_dma_phys_limit __ro_after_init;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 static int __init early_initrd(char *p)
@@ -160,12 +160,10 @@ static void __init arm64_memory_present(void)
 static void __init arm64_memory_present(void)
 {
 	struct memblock_region *reg;
-	int nid = 0;
 
 	for_each_memblock(memory, reg) {
-#ifdef CONFIG_NUMA
-		nid = reg->nid;
-#endif
+		int nid = memblock_get_region_node(reg);
+
 		memory_present(nid, memblock_region_memory_base_pfn(reg),
 				memblock_region_memory_end_pfn(reg));
 	}
@@ -226,7 +224,7 @@ void __init arm64_memblock_init(void)
 	 * via the linear mapping.
 	 */
 	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
-		memblock_enforce_memory_limit(memory_limit);
+		memblock_mem_limit_remove_map(memory_limit);
 		memblock_add(__pa(_text), (u64)(_end - _text));
 	}
 
@@ -403,7 +401,8 @@ static void __init free_unused_memmap(void)
  */
 void __init mem_init(void)
 {
-	swiotlb_init(1);
+	if (swiotlb_force || max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
+		swiotlb_init(1);
 
 	set_max_mapnr(pfn_to_page(max_pfn) - mem_map);
 
@@ -430,9 +429,9 @@ void __init mem_init(void)
 	pr_cont("    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
 	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_text, __start_rodata));
+		MLK_ROUNDUP(_text, _etext));
 	pr_cont("    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(__start_rodata, _etext));
+		MLK_ROUNDUP(__start_rodata, __init_begin));
 	pr_cont("      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n",
 		MLK_ROUNDUP(__init_begin, __init_end));
 	pr_cont("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
@@ -486,7 +485,12 @@ void free_initmem(void)
 {
 	free_reserved_area(__va(__pa(__init_begin)), __va(__pa(__init_end)),
 			   0, "unused kernel");
-	fixup_init();
+	/*
+	 * Unmap the __init region but leave the VM area in place. This
+	 * prevents the region from being reused for kernel modules, which
+	 * is not supported by kallsyms.
+	 */
+	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD

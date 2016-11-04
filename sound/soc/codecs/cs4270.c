@@ -617,12 +617,14 @@ static const struct snd_soc_codec_driver soc_codec_device_cs4270 = {
 	.suspend =		cs4270_soc_suspend,
 	.resume =		cs4270_soc_resume,
 
-	.controls =		cs4270_snd_controls,
-	.num_controls =		ARRAY_SIZE(cs4270_snd_controls),
-	.dapm_widgets =		cs4270_dapm_widgets,
-	.num_dapm_widgets =	ARRAY_SIZE(cs4270_dapm_widgets),
-	.dapm_routes =		cs4270_dapm_routes,
-	.num_dapm_routes =	ARRAY_SIZE(cs4270_dapm_routes),
+	.component_driver = {
+		.controls =		cs4270_snd_controls,
+		.num_controls =		ARRAY_SIZE(cs4270_snd_controls),
+		.dapm_widgets =		cs4270_dapm_widgets,
+		.num_dapm_widgets =	ARRAY_SIZE(cs4270_dapm_widgets),
+		.dapm_routes =		cs4270_dapm_routes,
+		.num_dapm_routes =	ARRAY_SIZE(cs4270_dapm_routes),
+	},
 };
 
 /*

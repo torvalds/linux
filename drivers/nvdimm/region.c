@@ -20,7 +20,7 @@ static int nd_region_probe(struct device *dev)
 {
 	int err, rc;
 	static unsigned long once;
-	struct nd_region_namespaces *num_ns;
+	struct nd_region_data *ndrd;
 	struct nd_region *nd_region = to_nd_region(dev);
 
 	if (nd_region->num_lanes > num_online_cpus()
@@ -33,21 +33,21 @@ static int nd_region_probe(struct device *dev)
 				nd_region->num_lanes);
 	}
 
+	rc = nd_region_activate(nd_region);
+	if (rc)
+		return rc;
+
 	rc = nd_blk_region_init(nd_region);
 	if (rc)
 		return rc;
 
 	rc = nd_region_register_namespaces(nd_region, &err);
-	num_ns = devm_kzalloc(dev, sizeof(*num_ns), GFP_KERNEL);
-	if (!num_ns)
-		return -ENOMEM;
-
 	if (rc < 0)
 		return rc;
 
-	num_ns->active = rc;
-	num_ns->count = rc + err;
-	dev_set_drvdata(dev, num_ns);
+	ndrd = dev_get_drvdata(dev);
+	ndrd->ns_active = rc;
+	ndrd->ns_count = rc + err;
 
 	if (rc && err && rc == err)
 		return -ENODEV;
@@ -82,6 +82,8 @@ static int nd_region_remove(struct device *dev)
 {
 	struct nd_region *nd_region = to_nd_region(dev);
 
+	device_for_each_child(dev, NULL, child_unregister);
+
 	/* flush attribute readers and disable */
 	nvdimm_bus_lock(dev);
 	nd_region->ns_seed = NULL;
@@ -91,7 +93,6 @@ static int nd_region_remove(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 	nvdimm_bus_unlock(dev);
 
-	device_for_each_child(dev, NULL, child_unregister);
 	return 0;
 }
 

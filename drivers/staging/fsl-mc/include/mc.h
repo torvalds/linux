@@ -13,7 +13,6 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
-#include <linux/list.h>
 #include <linux/interrupt.h>
 #include "../include/dprc.h"
 
@@ -21,7 +20,6 @@
 
 struct fsl_mc_device;
 struct fsl_mc_io;
-struct fsl_mc_bus;
 
 /**
  * struct fsl_mc_driver - MC object device driver object
@@ -39,7 +37,7 @@ struct fsl_mc_bus;
  */
 struct fsl_mc_driver {
 	struct device_driver driver;
-	const struct fsl_mc_device_match_id *match_id_table;
+	const struct fsl_mc_device_id *match_id_table;
 	int (*probe)(struct fsl_mc_device *dev);
 	int (*remove)(struct fsl_mc_device *dev);
 	void (*shutdown)(struct fsl_mc_device *dev);
@@ -49,23 +47,6 @@ struct fsl_mc_driver {
 
 #define to_fsl_mc_driver(_drv) \
 	container_of(_drv, struct fsl_mc_driver, driver)
-
-/**
- * struct fsl_mc_device_match_id - MC object device Id entry for driver matching
- * @vendor: vendor ID
- * @obj_type: MC object type
- * @ver_major: MC object version major number
- * @ver_minor: MC object version minor number
- *
- * Type of entries in the "device Id" table for MC object devices supported by
- * a MC object device driver. The last entry of the table has vendor set to 0x0
- */
-struct fsl_mc_device_match_id {
-	u16 vendor;
-	const char obj_type[16];
-	u32 ver_major;
-	u32 ver_minor;
-};
 
 /**
  * enum fsl_mc_pool_type - Types of allocatable MC bus resources
@@ -127,11 +108,6 @@ struct fsl_mc_device_irq {
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
 #define FSL_MC_IS_DPRC	0x0001
-
-/**
- * Default DMA mask for devices on a fsl-mc bus
- */
-#define FSL_MC_DEFAULT_DMA_MASK	(~0ULL)
 
 /**
  * struct fsl_mc_device - MC object device object
@@ -204,8 +180,6 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 
-bool fsl_mc_bus_exists(void);
-
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io);
@@ -223,7 +197,5 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
-
-extern struct bus_type fsl_mc_bus_type;
 
 #endif /* _FSL_MC_H_ */

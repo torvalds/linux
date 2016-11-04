@@ -311,6 +311,15 @@ static int read_port_immutable(struct ib_device *device)
 	return 0;
 }
 
+void ib_get_device_fw_str(struct ib_device *dev, char *str, size_t str_len)
+{
+	if (dev->get_dev_fw_str)
+		dev->get_dev_fw_str(dev, str, str_len);
+	else
+		str[0] = '\0';
+}
+EXPORT_SYMBOL(ib_get_device_fw_str);
+
 /**
  * ib_register_device - Register an IB device with IB core
  * @device:Device to register
@@ -660,6 +669,9 @@ int ib_query_port(struct ib_device *device,
 	err = device->query_port(device, port_num, port_attr);
 	if (err || port_attr->subnet_prefix)
 		return err;
+
+	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
+		return 0;
 
 	err = ib_query_gid(device, port_num, 0, &gid, NULL);
 	if (err)
@@ -1024,7 +1036,8 @@ static int __init ib_core_init(void)
 		goto err_mad;
 	}
 
-	if (ib_add_ibnl_clients()) {
+	ret = ib_add_ibnl_clients();
+	if (ret) {
 		pr_warn("Couldn't register ibnl clients\n");
 		goto err_sa;
 	}

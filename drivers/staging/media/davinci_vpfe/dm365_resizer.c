@@ -128,7 +128,7 @@ resizer_configure_passthru(struct vpfe_resizer_device *resizer, int bypass)
 static void
 configure_resizer_out_params(struct vpfe_resizer_device *resizer, int index,
 			     void *output_spec, unsigned char partial,
-			     unsigned flag)
+			     unsigned int flag)
 {
 	struct resizer_params *param = &resizer->config;
 	struct v4l2_mbus_framefmt *outformat;

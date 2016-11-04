@@ -34,7 +34,7 @@
 
 struct exynos_dp_device {
 	struct drm_encoder         encoder;
-	struct drm_connector       connector;
+	struct drm_connector       *connector;
 	struct drm_bridge          *ptn_bridge;
 	struct drm_device          *drm_dev;
 	struct device              *dev;
@@ -43,7 +43,7 @@ struct exynos_dp_device {
 	struct analogix_dp_plat_data plat_data;
 };
 
-int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
+static int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
 				bool enable)
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);
@@ -67,10 +67,10 @@ static int exynos_dp_poweroff(struct analogix_dp_plat_data *plat_data)
 	return exynos_dp_crtc_clock_enable(plat_data, false);
 }
 
-static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data)
+static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
+			       struct drm_connector *connector)
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);
-	struct drm_connector *connector = &dp->connector;
 	struct drm_display_mode *mode;
 	int num_modes = 0;
 
@@ -103,6 +103,7 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 	int ret;
 
 	drm_connector_register(connector);
+	dp->connector = connector;
 
 	/* Pre-empt DP connector creation if there's a bridge */
 	if (dp->ptn_bridge) {

@@ -255,7 +255,7 @@ static int zl10039_release(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_tuner_ops zl10039_ops = {
+static const struct dvb_tuner_ops zl10039_ops = {
 	.release = zl10039_release,
 	.init = zl10039_init,
 	.sleep = zl10039_sleep,

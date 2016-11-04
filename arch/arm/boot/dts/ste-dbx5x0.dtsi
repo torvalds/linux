@@ -604,6 +604,7 @@
 				#interrupt-cells = <2>;
 
 				ab8500_gpio: ab8500-gpio {
+					compatible = "stericsson,ab8500-gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
 				};

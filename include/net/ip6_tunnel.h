@@ -23,6 +23,7 @@ struct __ip6_tnl_parm {
 	__u8 proto;		/* tunnel protocol */
 	__u8 encap_limit;	/* encapsulation limit for tunnel */
 	__u8 hop_limit;		/* hop limit for tunnel */
+	bool collect_md;
 	__be32 flowinfo;	/* traffic class and flowlabel for tunnel */
 	__u32 flags;		/* tunnel flags */
 	struct in6_addr laddr;	/* local tunnel end-point address */
@@ -62,6 +63,8 @@ struct ip6_tnl_encap_ops {
 	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			    u8 *protocol, struct flowi6 *fl6);
 };
+
+#ifdef CONFIG_INET
 
 extern const struct ip6_tnl_encap_ops __rcu *
 		ip6tun_encaps[MAX_IPTUN_ENCAP_OPS];
@@ -138,7 +141,6 @@ struct net *ip6_tnl_get_link_net(const struct net_device *dev);
 int ip6_tnl_get_iflink(const struct net_device *dev);
 int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu);
 
-#ifdef CONFIG_INET
 static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 				  struct net_device *dev)
 {

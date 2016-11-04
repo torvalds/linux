@@ -30,6 +30,21 @@ is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
 				       entry->midr_range_max);
 }
 
+static bool
+has_mismatched_cache_line_size(const struct arm64_cpu_capabilities *entry,
+				int scope)
+{
+	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
+	return (read_cpuid_cachetype() & arm64_ftr_reg_ctrel0.strict_mask) !=
+		(arm64_ftr_reg_ctrel0.sys_val & arm64_ftr_reg_ctrel0.strict_mask);
+}
+
+static void cpu_enable_trap_ctr_access(void *__unused)
+{
+	/* Clear SCTLR_EL1.UCT */
+	config_sctlr_el1(SCTLR_EL1_UCT, 0);
+}
+
 #define MIDR_RANGE(model, min, max) \
 	.def_scope = SCOPE_LOCAL_CPU, \
 	.matches = is_affected_midr_range, \
@@ -46,6 +61,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.desc = "ARM errata 826319, 827319, 824069",
 		.capability = ARM64_WORKAROUND_CLEAN_CACHE,
 		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x02),
+		.enable = cpu_enable_cache_maint_trap,
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_819472
@@ -54,6 +70,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.desc = "ARM errata 819472",
 		.capability = ARM64_WORKAROUND_CLEAN_CACHE,
 		MIDR_RANGE(MIDR_CORTEX_A53, 0x00, 0x01),
+		.enable = cpu_enable_cache_maint_trap,
 	},
 #endif
 #ifdef CONFIG_ARM64_ERRATUM_832075
@@ -98,7 +115,20 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		MIDR_RANGE(MIDR_THUNDERX, 0x00,
 			   (1 << MIDR_VARIANT_SHIFT) | 1),
 	},
+	{
+	/* Cavium ThunderX, T81 pass 1.0 */
+		.desc = "Cavium erratum 27456",
+		.capability = ARM64_WORKAROUND_CAVIUM_27456,
+		MIDR_RANGE(MIDR_THUNDERX_81XX, 0x00, 0x00),
+	},
 #endif
+	{
+		.desc = "Mismatched cache line size",
+		.capability = ARM64_MISMATCHED_CACHE_LINE_SIZE,
+		.matches = has_mismatched_cache_line_size,
+		.def_scope = SCOPE_LOCAL_CPU,
+		.enable = cpu_enable_trap_ctr_access,
+	},
 	{
 	}
 };
@@ -108,7 +138,7 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
  * and the related information is freed soon after. If the new CPU requires
  * an errata not detected at boot, fail this CPU.
  */
-void verify_local_cpu_errata(void)
+void verify_local_cpu_errata_workarounds(void)
 {
 	const struct arm64_cpu_capabilities *caps = arm64_errata;
 
@@ -123,7 +153,12 @@ void verify_local_cpu_errata(void)
 		}
 }
 
-void check_local_cpu_errata(void)
+void update_cpu_errata_workarounds(void)
 {
 	update_cpu_capabilities(arm64_errata, "enabling workaround for");
+}
+
+void __init enable_errata_workarounds(void)
+{
+	enable_cpu_capabilities(arm64_errata);
 }

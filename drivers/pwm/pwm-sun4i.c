@@ -284,6 +284,12 @@ static const struct sun4i_pwm_data sun4i_pwm_data_a20 = {
 	.npwm = 2,
 };
 
+static const struct sun4i_pwm_data sun4i_pwm_data_h3 = {
+	.has_prescaler_bypass = true,
+	.has_rdy = true,
+	.npwm = 1,
+};
+
 static const struct of_device_id sun4i_pwm_dt_ids[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-pwm",
@@ -297,6 +303,9 @@ static const struct of_device_id sun4i_pwm_dt_ids[] = {
 	}, {
 		.compatible = "allwinner,sun7i-a20-pwm",
 		.data = &sun4i_pwm_data_a20,
+	}, {
+		.compatible = "allwinner,sun8i-h3-pwm",
+		.data = &sun4i_pwm_data_h3,
 	}, {
 		/* sentinel */
 	},

@@ -13,9 +13,11 @@ quiet_cmd_gen_constants_py = GEN     $@
 	$(CPP) -E -x c -P $(c_flags) $< > $@ ;\
 	sed -i '1,/<!-- end-c-headers -->/d;' $@
 
-$(obj)/constants.py: $(SRCTREE)/$(obj)/constants.py.in
-	$(call if_changed,gen_constants_py)
+targets += constants.py
+$(obj)/constants.py: $(SRCTREE)/$(obj)/constants.py.in FORCE
+	$(call if_changed_dep,gen_constants_py)
 
 build_constants_py: $(obj)/constants.py
+	@:
 
 clean-files := *.pyc *.pyo $(if $(KBUILD_SRC),*.py) $(obj)/constants.py

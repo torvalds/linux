@@ -491,7 +491,6 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc;
 	int i;
-	uint16_t *r_base, *g_base, *b_base;
 
 	/* We allocate a extra array of drm_connector pointers
 	 * for fbdev after the crtc */
@@ -519,16 +518,10 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	gma_crtc->pipe = pipe;
 	gma_crtc->plane = pipe;
 
-	r_base = gma_crtc->base.gamma_store;
-	g_base = r_base + 256;
-	b_base = g_base + 256;
 	for (i = 0; i < 256; i++) {
 		gma_crtc->lut_r[i] = i;
 		gma_crtc->lut_g[i] = i;
 		gma_crtc->lut_b[i] = i;
-		r_base[i] = i << 8;
-		g_base[i] = i << 8;
-		b_base[i] = i << 8;
 
 		gma_crtc->lut_adj[i] = 0;
 	}

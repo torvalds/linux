@@ -24,27 +24,27 @@
  */
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-#define ACCOUNT_CPU_USER_ENTRY(ra, rb)
-#define ACCOUNT_CPU_USER_EXIT(ra, rb)
+#define ACCOUNT_CPU_USER_ENTRY(ptr, ra, rb)
+#define ACCOUNT_CPU_USER_EXIT(ptr, ra, rb)
 #define ACCOUNT_STOLEN_TIME
 #else
-#define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
+#define ACCOUNT_CPU_USER_ENTRY(ptr, ra, rb)				\
 	MFTB(ra);			/* get timebase */		\
-	ld	rb,PACA_STARTTIME_USER(r13);				\
-	std	ra,PACA_STARTTIME(r13);					\
+	PPC_LL	rb, ACCOUNT_STARTTIME_USER(ptr);			\
+	PPC_STL	ra, ACCOUNT_STARTTIME(ptr);				\
 	subf	rb,rb,ra;		/* subtract start value */	\
-	ld	ra,PACA_USER_TIME(r13);					\
+	PPC_LL	ra, ACCOUNT_USER_TIME(ptr);				\
 	add	ra,ra,rb;		/* add on to user time */	\
-	std	ra,PACA_USER_TIME(r13);					\
+	PPC_STL	ra, ACCOUNT_USER_TIME(ptr);				\
 
-#define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
+#define ACCOUNT_CPU_USER_EXIT(ptr, ra, rb)				\
 	MFTB(ra);			/* get timebase */		\
-	ld	rb,PACA_STARTTIME(r13);					\
-	std	ra,PACA_STARTTIME_USER(r13);				\
+	PPC_LL	rb, ACCOUNT_STARTTIME(ptr);				\
+	PPC_STL	ra, ACCOUNT_STARTTIME_USER(ptr);			\
 	subf	rb,rb,ra;		/* subtract start value */	\
-	ld	ra,PACA_SYSTEM_TIME(r13);				\
+	PPC_LL	ra, ACCOUNT_SYSTEM_TIME(ptr);				\
 	add	ra,ra,rb;		/* add on to system time */	\
-	std	ra,PACA_SYSTEM_TIME(r13)
+	PPC_STL	ra, ACCOUNT_SYSTEM_TIME(ptr)
 
 #ifdef CONFIG_PPC_SPLPAR
 #define ACCOUNT_STOLEN_TIME						\
@@ -189,7 +189,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 #define STK_GOT		24
 #define __STK_PARAM(i)	(32 + ((i)-3)*8)
 #else
@@ -198,17 +198,15 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 
 #define _GLOBAL(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.type name,@function; \
 	.globl name; \
 name:
 
 #define _GLOBAL_TOC(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.type name,@function; \
 	.globl name; \
@@ -216,13 +214,6 @@ name: \
 0:	addis r2,r12,(.TOC.-0b)@ha; \
 	addi r2,r2,(.TOC.-0b)@l; \
 	.localentry name,.-name
-
-#define _KPROBE(name) \
-	.section ".kprobes.text","a"; \
-	.align 2 ; \
-	.type name,@function; \
-	.globl name; \
-name:
 
 #define DOTSYM(a)	a
 
@@ -232,34 +223,19 @@ name:
 #define GLUE(a,b) XGLUE(a,b)
 
 #define _GLOBAL(name) \
-	.section ".text"; \
 	.align 2 ; \
 	.globl name; \
 	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
+	.pushsection ".opd","aw"; \
 name: \
 	.quad GLUE(.,name); \
 	.quad .TOC.@tocbase; \
 	.quad 0; \
-	.previous; \
+	.popsection; \
 	.type GLUE(.,name),@function; \
 GLUE(.,name):
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
-
-#define _KPROBE(name) \
-	.section ".kprobes.text","a"; \
-	.align 2 ; \
-	.globl name; \
-	.globl GLUE(.,name); \
-	.section ".opd","aw"; \
-name: \
-	.quad GLUE(.,name); \
-	.quad .TOC.@tocbase; \
-	.quad 0; \
-	.previous; \
-	.type GLUE(.,name),@function; \
-GLUE(.,name):
 
 #define DOTSYM(a)	GLUE(.,a)
 
@@ -272,19 +248,30 @@ GLUE(.,name):
 n:
 
 #define _GLOBAL(n)	\
-	.text;		\
 	.stabs __stringify(n:F-1),N_FUN,0,0,n;\
 	.globl n;	\
 n:
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
 
-#define _KPROBE(n)	\
-	.section ".kprobes.text","a";	\
-	.globl	n;	\
-n:
-
 #endif
+
+/*
+ * __kprobes (the C annotation) puts the symbol into the .kprobes.text
+ * section, which gets emitted at the end of regular text.
+ *
+ * _ASM_NOKPROBE_SYMBOL and NOKPROBE_SYMBOL just adds the symbol to
+ * a blacklist. The former is for core kprobe functions/data, the
+ * latter is for those that incdentially must be excluded from probing
+ * and allows them to be linked at more optimal location within text.
+ */
+#define _ASM_NOKPROBE_SYMBOL(entry)			\
+	.pushsection "_kprobe_blacklist","aw";		\
+	PPC_LONG (entry) ;				\
+	.popsection
+
+#define FUNC_START(name)	_GLOBAL(name)
+#define FUNC_END(name)
 
 /* 
  * LOAD_REG_IMMEDIATE(rn, expr)
@@ -524,7 +511,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #endif
 #define MTMSRD(r)	mtmsr	r
 #define MTMSR_EERI(reg)	mtmsr	reg
-#define CLR_TOP32(r)
 #endif
 
 #endif /* __KERNEL__ */

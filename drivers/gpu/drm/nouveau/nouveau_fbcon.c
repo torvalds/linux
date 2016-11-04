@@ -32,7 +32,6 @@
 #include <linux/tty.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
-#include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
 #include <linux/vga_switcheroo.h>
@@ -552,6 +551,8 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
+	if (fbcon->helper.fbdev)
+		fbcon->helper.fbdev->pixmap.buf_align = 4;
 	return 0;
 
 fini:

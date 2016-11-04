@@ -42,7 +42,6 @@
 
 #ifdef CONFIG_HAVE_KVM_IRQFD
 
-static struct workqueue_struct *irqfd_cleanup_wq;
 
 static void
 irqfd_inject(struct work_struct *work)
@@ -168,7 +167,7 @@ irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
 
 	list_del_init(&irqfd->list);
 
-	queue_work(irqfd_cleanup_wq, &irqfd->shutdown);
+	schedule_work(&irqfd->shutdown);
 }
 
 int __attribute__((weak)) kvm_arch_set_irq_inatomic(
@@ -555,7 +554,7 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 	 * so that we guarantee there will not be any more interrupts on this
 	 * gsi once this deassign function returns.
 	 */
-	flush_workqueue(irqfd_cleanup_wq);
+	flush_work(&irqfd->shutdown);
 
 	return 0;
 }
@@ -592,7 +591,7 @@ kvm_irqfd_release(struct kvm *kvm)
 	 * Block until we know all outstanding shutdown jobs have completed
 	 * since we do not take a kvm* reference.
 	 */
-	flush_workqueue(irqfd_cleanup_wq);
+	flush_work(&irqfd->shutdown);
 
 }
 
@@ -622,23 +621,8 @@ void kvm_irq_routing_update(struct kvm *kvm)
 	spin_unlock_irq(&kvm->irqfds.lock);
 }
 
-/*
- * create a host-wide workqueue for issuing deferred shutdown requests
- * aggregated from all vm* instances. We need our own isolated single-thread
- * queue to prevent deadlock against flushing the normal work-queue.
- */
-int kvm_irqfd_init(void)
-{
-	irqfd_cleanup_wq = create_singlethread_workqueue("kvm-irqfd-cleanup");
-	if (!irqfd_cleanup_wq)
-		return -ENOMEM;
-
-	return 0;
-}
-
 void kvm_irqfd_exit(void)
 {
-	destroy_workqueue(irqfd_cleanup_wq);
 }
 #endif
 

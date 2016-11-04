@@ -182,7 +182,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 			}
 		}
 
-		fvv = pllreffreq * testn / testm;
+		fvv = pllreffreq * (n + 1) / (m + 1);
 		fvv = (fvv - 800000) / 50000;
 
 		if (fvv > 15)
@@ -202,6 +202,14 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	WREG_DAC(MGA1064_PIX_PLLC_M, m);
 	WREG_DAC(MGA1064_PIX_PLLC_N, n);
 	WREG_DAC(MGA1064_PIX_PLLC_P, p);
+
+	if (mdev->unique_rev_id >= 0x04) {
+		WREG_DAC(0x1a, 0x09);
+		msleep(20);
+		WREG_DAC(0x1a, 0x01);
+
+	}
+
 	return 0;
 }
 
@@ -1344,19 +1352,20 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
  * use this for 8-bit mode so can't perform smooth fades on deeper modes,
  * but it's a requirement that we provide the function
  */
-static void mga_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				  u16 *blue, uint32_t start, uint32_t size)
+static int mga_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, uint32_t size)
 {
 	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
-	int end = (start + size > MGAG200_LUT_SIZE) ? MGAG200_LUT_SIZE : start + size;
 	int i;
 
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		mga_crtc->lut_r[i] = red[i] >> 8;
 		mga_crtc->lut_g[i] = green[i] >> 8;
 		mga_crtc->lut_b[i] = blue[i] >> 8;
 	}
 	mga_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 /* Simple cleanup function */

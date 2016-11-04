@@ -90,7 +90,7 @@ config HW_RANDOM_BCM63XX
 
 config HW_RANDOM_BCM2835
 	tristate "Broadcom BCM2835 Random Number Generator support"
-	depends on ARCH_BCM2835
+	depends on ARCH_BCM2835 || ARCH_BCM_NSP || ARCH_BCM_5301X
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -244,7 +244,7 @@ config HW_RANDOM_TX4939
 
 config HW_RANDOM_MXC_RNGA
 	tristate "Freescale i.MX RNGA Random Number Generator"
-	depends on ARCH_HAS_RNGA
+	depends on SOC_IMX31
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
@@ -395,6 +395,33 @@ config HW_RANDOM_PIC32
 	  module will be called pic32-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_MESON
+	tristate "Amlogic Meson Random Number Generator support"
+	depends on HW_RANDOM
+	depends on ARCH_MESON || COMPILE_TEST
+	default y
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Amlogic Meson SoCs.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called meson-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_CAVIUM
+       tristate "Cavium ThunderX Random Number Generator support"
+       depends on HW_RANDOM && PCI && (ARM64 || (COMPILE_TEST && 64BIT))
+       default HW_RANDOM
+       ---help---
+         This driver provides kernel-side support for the Random Number
+         Generator hardware found on Cavium SoCs.
+
+         To compile this driver as a module, choose M here: the
+         module will be called cavium_rng.
+
+         If unsure, say Y.
 
 endif # HW_RANDOM
 

@@ -104,7 +104,8 @@ int efx_farch_test_registers(struct efx_nic *efx,
 			     const struct efx_farch_register_test *regs,
 			     size_t n_regs)
 {
-	unsigned address = 0, i, j;
+	unsigned address = 0;
+	int i, j;
 	efx_oword_t mask, imask, original, reg, buf;
 
 	for (i = 0; i < n_regs; ++i) {
@@ -1476,9 +1477,10 @@ void efx_farch_irq_disable_master(struct efx_nic *efx)
  * Interrupt must already have been enabled, otherwise nasty things
  * may happen.
  */
-void efx_farch_irq_test_generate(struct efx_nic *efx)
+int efx_farch_irq_test_generate(struct efx_nic *efx)
 {
 	efx_farch_interrupts(efx, true, true);
+	return 0;
 }
 
 /* Process a fatal interrupt

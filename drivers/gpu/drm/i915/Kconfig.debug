@@ -18,6 +18,9 @@ config DRM_I915_WERROR
 config DRM_I915_DEBUG
         bool "Enable additional driver debugging"
         depends on DRM_I915
+        select PREEMPT_COUNT
+        select X86_MSR # used by igt/pm_rpm
+        select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         default n
         help
           Choose this option to turn on extra driver debugging that may affect

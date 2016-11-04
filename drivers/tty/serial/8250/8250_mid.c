@@ -96,16 +96,30 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 static int dnv_handle_irq(struct uart_port *p)
 {
 	struct mid8250 *mid = p->private_data;
+	struct uart_8250_port *up = up_to_u8250p(p);
 	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_DNV_FISR);
-	int ret = IRQ_NONE;
+	u32 status;
+	int ret = 0;
+	int err;
 
-	if (fisr & BIT(2))
-		ret |= hsu_dma_irq(&mid->dma_chip, 1);
-	if (fisr & BIT(1))
-		ret |= hsu_dma_irq(&mid->dma_chip, 0);
+	if (fisr & BIT(2)) {
+		err = hsu_dma_get_status(&mid->dma_chip, 1, &status);
+		if (err > 0) {
+			serial8250_rx_dma_flush(up);
+			ret |= 1;
+		} else if (err == 0)
+			ret |= hsu_dma_do_irq(&mid->dma_chip, 1, status);
+	}
+	if (fisr & BIT(1)) {
+		err = hsu_dma_get_status(&mid->dma_chip, 0, &status);
+		if (err > 0)
+			ret |= 1;
+		else if (err == 0)
+			ret |= hsu_dma_do_irq(&mid->dma_chip, 0, status);
+	}
 	if (fisr & BIT(0))
 		ret |= serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
-	return ret;
+	return IRQ_RETVAL(ret);
 }
 
 #define DNV_DMA_CHAN_OFFSET 0x80
@@ -153,6 +167,9 @@ static void mid8250_set_termios(struct uart_port *p,
 	unsigned long fuart = baud * ps;
 	unsigned long w = BIT(24) - 1;
 	unsigned long mul, div;
+
+	/* Gracefully handle the B0 case: fall back to B9600 */
+	fuart = fuart ? fuart : 9600 * 16;
 
 	if (mid->board->freq < fuart) {
 		/* Find prescaler value that satisfies Fuart < Fref */

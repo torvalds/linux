@@ -9,13 +9,21 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include "../include/mc-private.h"
-#include "../include/mc-sys.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
+#include "../include/mc-bus.h"
+#include "../include/mc-sys.h"
+
 #include "dprc-cmd.h"
+#include "fsl-mc-private.h"
+
+#define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
+
+#define FSL_MC_DEVICE_MATCH(_mc_dev, _obj_desc) \
+	(strcmp((_mc_dev)->obj_desc.type, (_obj_desc)->type) == 0 && \
+	 (_mc_dev)->obj_desc.id == (_obj_desc)->id)
 
 struct dprc_child_objs {
 	int child_count;
@@ -190,55 +198,6 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 	}
 }
 
-static void dprc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++) {
-		struct fsl_mc_resource_pool *res_pool =
-		    &mc_bus->resource_pools[pool_type];
-
-		res_pool->type = pool_type;
-		res_pool->max_count = 0;
-		res_pool->free_count = 0;
-		res_pool->mc_bus = mc_bus;
-		INIT_LIST_HEAD(&res_pool->free_list);
-		mutex_init(&res_pool->mutex);
-	}
-}
-
-static void dprc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
-				       enum fsl_mc_pool_type pool_type)
-{
-	struct fsl_mc_resource *resource;
-	struct fsl_mc_resource *next;
-	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
-	struct fsl_mc_resource_pool *res_pool =
-					&mc_bus->resource_pools[pool_type];
-	int free_count = 0;
-
-	WARN_ON(res_pool->type != pool_type);
-	WARN_ON(res_pool->free_count != res_pool->max_count);
-
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
-		free_count++;
-		WARN_ON(resource->type != res_pool->type);
-		WARN_ON(resource->parent_pool != res_pool);
-		devm_kfree(&mc_bus_dev->dev, resource);
-	}
-
-	WARN_ON(free_count != res_pool->free_count);
-}
-
-static void dprc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
-{
-	int pool_type;
-
-	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++)
-		dprc_cleanup_resource_pool(mc_bus_dev, pool_type);
-}
-
 /**
  * dprc_scan_objects - Discover objects in a DPRC
  *
@@ -363,7 +322,7 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 	unsigned int irq_count;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
-	dprc_init_all_resource_pools(mc_bus_dev);
+	fsl_mc_init_all_resource_pools(mc_bus_dev);
 
 	/*
 	 * Discover objects in the DPRC:
@@ -390,7 +349,7 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 
 	return 0;
 error:
-	dprc_cleanup_all_resource_pools(mc_bus_dev);
+	fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
 	return error;
 }
 EXPORT_SYMBOL_GPL(dprc_scan_container);
@@ -649,7 +608,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		/*
 		 * This is a child DPRC:
 		 */
-		if (WARN_ON(parent_dev->bus != &fsl_mc_bus_type))
+		if (WARN_ON(!dev_is_fsl_mc(parent_dev)))
 			return -EINVAL;
 
 		if (WARN_ON(mc_dev->obj_desc.region_count == 0))
@@ -681,7 +640,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		 */
 		struct irq_domain *mc_msi_domain;
 
-		if (WARN_ON(parent_dev->bus == &fsl_mc_bus_type))
+		if (WARN_ON(dev_is_fsl_mc(parent_dev)))
 			return -EINVAL;
 
 		error = fsl_mc_find_msi_domain(parent_dev,
@@ -760,7 +719,12 @@ error_cleanup_msi_domain:
  */
 static void dprc_teardown_irq(struct fsl_mc_device *mc_dev)
 {
+	struct fsl_mc_device_irq *irq = mc_dev->irqs[0];
+
 	(void)disable_dprc_irq(mc_dev);
+
+	devm_free_irq(&mc_dev->dev, irq->msi_desc->irq, &mc_dev->dev);
+
 	fsl_mc_free_irqs(mc_dev);
 }
 
@@ -791,21 +755,28 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 		dprc_teardown_irq(mc_dev);
 
 	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
-	dprc_cleanup_all_resource_pools(mc_dev);
-	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
-	if (error < 0)
-		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
 
 	if (dev_get_msi_domain(&mc_dev->dev)) {
 		fsl_mc_cleanup_irq_pool(mc_bus);
 		dev_set_msi_domain(&mc_dev->dev, NULL);
 	}
 
+	fsl_mc_cleanup_all_resource_pools(mc_dev);
+
+	error = dprc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
+	if (error < 0)
+		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);
+
+	if (!fsl_mc_is_root_dprc(&mc_dev->dev)) {
+		fsl_destroy_mc_io(mc_dev->mc_io);
+		mc_dev->mc_io = NULL;
+	}
+
 	dev_info(&mc_dev->dev, "DPRC device unbound from driver");
 	return 0;
 }
 
-static const struct fsl_mc_device_match_id match_id_table[] = {
+static const struct fsl_mc_device_id match_id_table[] = {
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dprc"},

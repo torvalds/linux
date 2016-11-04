@@ -15,7 +15,8 @@ if NVMEM
 
 config NVMEM_IMX_OCOTP
 	tristate "i.MX6 On-Chip OTP Controller support"
-	depends on SOC_IMX6
+	depends on SOC_IMX6 || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
 	  i.MX6 SoCs, providing access to 4 Kbits of one-time programmable
@@ -50,7 +51,6 @@ config MTK_EFUSE
 	tristate "Mediatek SoCs EFUSE support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on HAS_IOMEM
-	select REGMAP_MMIO
 	help
 	  This is a driver to access hardware related data like sensor
 	  calibration, HDMI impedance etc.
@@ -100,5 +100,15 @@ config NVMEM_VF610_OCOTP
 
 	  This driver can also be build as a module. If so, the module will
 	  be called nvmem-vf610-ocotp.
+
+config MESON_EFUSE
+	tristate "Amlogic eFuse Support"
+	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_efuse.
 
 endif

@@ -22,6 +22,12 @@
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
 
+static inline struct vsp1_entity *
+media_entity_to_vsp1_entity(struct media_entity *entity)
+{
+	return container_of(entity, struct vsp1_entity, subdev.entity);
+}
+
 void vsp1_entity_route_setup(struct vsp1_entity *source,
 			     struct vsp1_dl_list *dl)
 {
@@ -30,7 +36,7 @@ void vsp1_entity_route_setup(struct vsp1_entity *source,
 	if (source->route->reg == 0)
 		return;
 
-	sink = container_of(source->sink, struct vsp1_entity, subdev.entity);
+	sink = media_entity_to_vsp1_entity(source->sink);
 	vsp1_dl_list_write(dl, source->route->reg,
 			   sink->route->inputs[source->sink_pad]);
 }
@@ -44,6 +50,9 @@ void vsp1_entity_route_setup(struct vsp1_entity *source,
  * @entity: the entity
  * @cfg: the TRY pad configuration
  * @which: configuration selector (ACTIVE or TRY)
+ *
+ * When called with which set to V4L2_SUBDEV_FORMAT_ACTIVE the caller must hold
+ * the entity lock to access the returned configuration.
  *
  * Return the pad configuration requested by the which argument. The TRY
  * configuration is passed explicitly to the function through the cfg argument
@@ -81,12 +90,30 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 	return v4l2_subdev_get_try_format(&entity->subdev, cfg, pad);
 }
 
+/**
+ * vsp1_entity_get_pad_selection - Get a pad selection from storage for entity
+ * @entity: the entity
+ * @cfg: the configuration storage
+ * @pad: the pad number
+ * @target: the selection target
+ *
+ * Return the selection rectangle stored in the given configuration for an
+ * entity's pad. The configuration can be an ACTIVE or TRY configuration. The
+ * selection target can be COMPOSE or CROP.
+ */
 struct v4l2_rect *
-vsp1_entity_get_pad_compose(struct vsp1_entity *entity,
-			    struct v4l2_subdev_pad_config *cfg,
-			    unsigned int pad)
+vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
+			      struct v4l2_subdev_pad_config *cfg,
+			      unsigned int pad, unsigned int target)
 {
-	return v4l2_subdev_get_try_compose(&entity->subdev, cfg, pad);
+	switch (target) {
+	case V4L2_SEL_TGT_COMPOSE:
+		return v4l2_subdev_get_try_compose(&entity->subdev, cfg, pad);
+	case V4L2_SEL_TGT_CROP:
+		return v4l2_subdev_get_try_crop(&entity->subdev, cfg, pad);
+	default:
+		return NULL;
+	}
 }
 
 /*
@@ -136,7 +163,9 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 	if (!config)
 		return -EINVAL;
 
+	mutex_lock(&entity->lock);
 	fmt->format = *vsp1_entity_get_pad_format(entity, config, fmt->pad);
+	mutex_unlock(&entity->lock);
 
 	return 0;
 }
@@ -180,8 +209,10 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (!config)
 			return -EINVAL;
 
+		mutex_lock(&entity->lock);
 		format = vsp1_entity_get_pad_format(entity, config, 0);
 		code->code = format->code;
+		mutex_unlock(&entity->lock);
 	}
 
 	return 0;
@@ -211,6 +242,7 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
 
 	config = vsp1_entity_get_pad_config(entity, cfg, fse->which);
 	if (!config)
@@ -218,8 +250,12 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 
 	format = vsp1_entity_get_pad_format(entity, config, fse->pad);
 
-	if (fse->index || fse->code != format->code)
-		return -EINVAL;
+	mutex_lock(&entity->lock);
+
+	if (fse->index || fse->code != format->code) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	if (fse->pad == 0) {
 		fse->min_width = min_width;
@@ -236,7 +272,9 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 		fse->max_height = format->height;
 	}
 
-	return 0;
+done:
+	mutex_unlock(&entity->lock);
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -252,7 +290,7 @@ int vsp1_entity_link_setup(struct media_entity *entity,
 	if (!(local->flags & MEDIA_PAD_FL_SOURCE))
 		return 0;
 
-	source = container_of(local->entity, struct vsp1_entity, subdev.entity);
+	source = media_entity_to_vsp1_entity(local->entity);
 
 	if (!source->route)
 		return 0;
@@ -274,33 +312,50 @@ int vsp1_entity_link_setup(struct media_entity *entity,
  * Initialization
  */
 
+#define VSP1_ENTITY_ROUTE(ent)						\
+	{ VSP1_ENTITY_##ent, 0, VI6_DPR_##ent##_ROUTE,			\
+	  { VI6_DPR_NODE_##ent }, VI6_DPR_NODE_##ent }
+
+#define VSP1_ENTITY_ROUTE_RPF(idx)					\
+	{ VSP1_ENTITY_RPF, idx, VI6_DPR_RPF_ROUTE(idx),			\
+	  { 0, }, VI6_DPR_NODE_RPF(idx) }
+
+#define VSP1_ENTITY_ROUTE_UDS(idx)					\
+	{ VSP1_ENTITY_UDS, idx, VI6_DPR_UDS_ROUTE(idx),			\
+	  { VI6_DPR_NODE_UDS(idx) }, VI6_DPR_NODE_UDS(idx) }
+
+#define VSP1_ENTITY_ROUTE_WPF(idx)					\
+	{ VSP1_ENTITY_WPF, idx, 0,					\
+	  { VI6_DPR_NODE_WPF(idx) }, VI6_DPR_NODE_WPF(idx) }
+
 static const struct vsp1_route vsp1_routes[] = {
 	{ VSP1_ENTITY_BRU, 0, VI6_DPR_BRU_ROUTE,
 	  { VI6_DPR_NODE_BRU_IN(0), VI6_DPR_NODE_BRU_IN(1),
 	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3),
-	    VI6_DPR_NODE_BRU_IN(4) } },
-	{ VSP1_ENTITY_HSI, 0, VI6_DPR_HSI_ROUTE, { VI6_DPR_NODE_HSI, } },
-	{ VSP1_ENTITY_HST, 0, VI6_DPR_HST_ROUTE, { VI6_DPR_NODE_HST, } },
-	{ VSP1_ENTITY_LIF, 0, 0, { VI6_DPR_NODE_LIF, } },
-	{ VSP1_ENTITY_LUT, 0, VI6_DPR_LUT_ROUTE, { VI6_DPR_NODE_LUT, } },
-	{ VSP1_ENTITY_RPF, 0, VI6_DPR_RPF_ROUTE(0), { 0, } },
-	{ VSP1_ENTITY_RPF, 1, VI6_DPR_RPF_ROUTE(1), { 0, } },
-	{ VSP1_ENTITY_RPF, 2, VI6_DPR_RPF_ROUTE(2), { 0, } },
-	{ VSP1_ENTITY_RPF, 3, VI6_DPR_RPF_ROUTE(3), { 0, } },
-	{ VSP1_ENTITY_RPF, 4, VI6_DPR_RPF_ROUTE(4), { 0, } },
-	{ VSP1_ENTITY_SRU, 0, VI6_DPR_SRU_ROUTE, { VI6_DPR_NODE_SRU, } },
-	{ VSP1_ENTITY_UDS, 0, VI6_DPR_UDS_ROUTE(0), { VI6_DPR_NODE_UDS(0), } },
-	{ VSP1_ENTITY_UDS, 1, VI6_DPR_UDS_ROUTE(1), { VI6_DPR_NODE_UDS(1), } },
-	{ VSP1_ENTITY_UDS, 2, VI6_DPR_UDS_ROUTE(2), { VI6_DPR_NODE_UDS(2), } },
-	{ VSP1_ENTITY_WPF, 0, 0, { VI6_DPR_NODE_WPF(0), } },
-	{ VSP1_ENTITY_WPF, 1, 0, { VI6_DPR_NODE_WPF(1), } },
-	{ VSP1_ENTITY_WPF, 2, 0, { VI6_DPR_NODE_WPF(2), } },
-	{ VSP1_ENTITY_WPF, 3, 0, { VI6_DPR_NODE_WPF(3), } },
+	    VI6_DPR_NODE_BRU_IN(4) }, VI6_DPR_NODE_BRU_OUT },
+	VSP1_ENTITY_ROUTE(CLU),
+	VSP1_ENTITY_ROUTE(HSI),
+	VSP1_ENTITY_ROUTE(HST),
+	{ VSP1_ENTITY_LIF, 0, 0, { VI6_DPR_NODE_LIF, }, VI6_DPR_NODE_LIF },
+	VSP1_ENTITY_ROUTE(LUT),
+	VSP1_ENTITY_ROUTE_RPF(0),
+	VSP1_ENTITY_ROUTE_RPF(1),
+	VSP1_ENTITY_ROUTE_RPF(2),
+	VSP1_ENTITY_ROUTE_RPF(3),
+	VSP1_ENTITY_ROUTE_RPF(4),
+	VSP1_ENTITY_ROUTE(SRU),
+	VSP1_ENTITY_ROUTE_UDS(0),
+	VSP1_ENTITY_ROUTE_UDS(1),
+	VSP1_ENTITY_ROUTE_UDS(2),
+	VSP1_ENTITY_ROUTE_WPF(0),
+	VSP1_ENTITY_ROUTE_WPF(1),
+	VSP1_ENTITY_ROUTE_WPF(2),
+	VSP1_ENTITY_ROUTE_WPF(3),
 };
 
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     const char *name, unsigned int num_pads,
-		     const struct v4l2_subdev_ops *ops)
+		     const struct v4l2_subdev_ops *ops, u32 function)
 {
 	struct v4l2_subdev *subdev;
 	unsigned int i;
@@ -316,6 +371,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 	if (i == ARRAY_SIZE(vsp1_routes))
 		return -EINVAL;
+
+	mutex_init(&entity->lock);
 
 	entity->vsp1 = vsp1;
 	entity->source_pad = num_pads - 1;
@@ -341,6 +398,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	subdev = &entity->subdev;
 	v4l2_subdev_init(subdev, ops);
 
+	subdev->entity.function = function;
 	subdev->entity.ops = &vsp1->media_ops;
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 

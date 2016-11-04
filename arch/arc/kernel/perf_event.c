@@ -108,7 +108,7 @@ static void arc_perf_event_update(struct perf_event *event,
 	int64_t delta = new_raw_count - prev_raw_count;
 
 	/*
-	 * We don't afaraid of hwc->prev_count changing beneath our feet
+	 * We aren't afraid of hwc->prev_count changing beneath our feet
 	 * because there's no way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
@@ -179,8 +179,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
 		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
-		pr_debug("init event %d with h/w %d \'%s\'\n",
-			 (int) event->attr.config, (int) hwc->config,
+		pr_debug("init event %d with h/w %08x \'%s\'\n",
+			 (int)event->attr.config, (int)hwc->config,
 			 arc_pmu_ev_hw_map[event->attr.config]);
 		return 0;
 
@@ -189,6 +189,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (ret < 0)
 			return ret;
 		hwc->config |= arc_pmu->ev_hw_idx[ret];
+		pr_debug("init cache event with h/w %08x \'%s\'\n",
+			 (int)hwc->config, arc_pmu_ev_hw_map[ret]);
 		return 0;
 	default:
 		return -ENOENT;

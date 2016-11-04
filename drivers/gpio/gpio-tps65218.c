@@ -172,7 +172,7 @@ static int tps65218_gpio_set_single_ended(struct gpio_chip *gc,
 	return -ENOTSUPP;
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "gpio-tps65218",
 	.owner			= THIS_MODULE,
 	.request		= tps65218_gpio_request,
@@ -204,7 +204,8 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	tps65218_gpio->gpio_chip.of_node = pdev->dev.of_node;
 #endif
 
-	ret = gpiochip_add_data(&tps65218_gpio->gpio_chip, tps65218_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tps65218_gpio->gpio_chip,
+				     tps65218_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register gpiochip, %d\n", ret);
 		return ret;
@@ -215,20 +216,17 @@ static int tps65218_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int tps65218_gpio_remove(struct platform_device *pdev)
-{
-	struct tps65218_gpio *tps65218_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tps65218_gpio->gpio_chip);
-
-	return 0;
-}
-
 static const struct of_device_id tps65218_dt_match[] = {
 	{ .compatible = "ti,tps65218-gpio" },
 	{  }
 };
 MODULE_DEVICE_TABLE(of, tps65218_dt_match);
+
+static const struct platform_device_id tps65218_gpio_id_table[] = {
+	{ "tps65218-gpio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, tps65218_gpio_id_table);
 
 static struct platform_driver tps65218_gpio_driver = {
 	.driver = {
@@ -236,7 +234,7 @@ static struct platform_driver tps65218_gpio_driver = {
 		.of_match_table = of_match_ptr(tps65218_dt_match)
 	},
 	.probe = tps65218_gpio_probe,
-	.remove = tps65218_gpio_remove,
+	.id_table = tps65218_gpio_id_table,
 };
 
 module_platform_driver(tps65218_gpio_driver);

@@ -378,8 +378,7 @@ static int wl3501_esbq_exec(struct wl3501_card *this, void *sig, int sig_size)
 	return rc;
 }
 
-static int wl3501_get_mib_value(struct wl3501_card *this, u8 index,
-				void *bf, int size)
+static int wl3501_request_mib(struct wl3501_card *this, u8 index, void *bf)
 {
 	struct wl3501_get_req sig = {
 		.sig_id	    = WL3501_SIG_GET_REQ,
@@ -395,18 +394,30 @@ static int wl3501_get_mib_value(struct wl3501_card *this, u8 index,
 			wl3501_set_to_wla(this, ptr, &sig, sizeof(sig));
 			wl3501_esbq_req(this, &ptr);
 			this->sig_get_confirm.mib_status = 255;
-			spin_unlock_irqrestore(&this->lock, flags);
-			rc = wait_event_interruptible(this->wait,
-				this->sig_get_confirm.mib_status != 255);
-			if (!rc)
-				memcpy(bf, this->sig_get_confirm.mib_value,
-				       size);
-			goto out;
+			rc = 0;
 		}
 	}
 	spin_unlock_irqrestore(&this->lock, flags);
-out:
+
 	return rc;
+}
+
+static int wl3501_get_mib_value(struct wl3501_card *this, u8 index,
+				void *bf, int size)
+{
+	int rc;
+
+	rc = wl3501_request_mib(this, index, bf);
+	if (rc)
+		return rc;
+
+	rc = wait_event_interruptible(this->wait,
+		this->sig_get_confirm.mib_status != 255);
+	if (rc)
+		return rc;
+
+	memcpy(bf, this->sig_get_confirm.mib_value, size);
+	return 0;
 }
 
 static int wl3501_pwr_mgmt(struct wl3501_card *this, int suspend)
@@ -1247,7 +1258,9 @@ static int wl3501_reset(struct net_device *dev)
 {
 	struct wl3501_card *this = netdev_priv(dev);
 	int rc = -ENODEV;
+	unsigned long flags;
 
+	spin_lock_irqsave(&this->lock, flags);
 	wl3501_block_interrupt(this);
 
 	if (wl3501_init_firmware(this)) {
@@ -1269,20 +1282,17 @@ static int wl3501_reset(struct net_device *dev)
 	pr_debug("%s: device reset", dev->name);
 	rc = 0;
 out:
+	spin_unlock_irqrestore(&this->lock, flags);
 	return rc;
 }
 
 static void wl3501_tx_timeout(struct net_device *dev)
 {
-	struct wl3501_card *this = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
-	unsigned long flags;
 	int rc;
 
 	stats->tx_errors++;
-	spin_lock_irqsave(&this->lock, flags);
 	rc = wl3501_reset(dev);
-	spin_unlock_irqrestore(&this->lock, flags);
 	if (rc)
 		printk(KERN_ERR "%s: Error %d resetting card on Tx timeout!\n",
 		       dev->name, rc);

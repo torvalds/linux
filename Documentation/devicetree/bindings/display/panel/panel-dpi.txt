@@ -7,6 +7,8 @@ Required properties:
 Optional properties:
 - label: a symbolic name for the panel
 - enable-gpios: panel enable gpio
+- reset-gpios: GPIO to control the RESET pin
+- vcc-supply: phandle of regulator that will be used to enable power to the display
 
 Required nodes:
 - "panel-timing" containing video timings

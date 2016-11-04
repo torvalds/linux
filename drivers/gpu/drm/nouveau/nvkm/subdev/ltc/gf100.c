@@ -23,7 +23,6 @@
  */
 #include "priv.h"
 
-#include <core/enum.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
@@ -71,7 +70,7 @@ gf100_ltc_zbc_clear_depth(struct nvkm_ltc *ltc, int i, const u32 depth)
 	nvkm_wr32(device, 0x17ea58, depth);
 }
 
-static const struct nvkm_bitfield
+const struct nvkm_bitfield
 gf100_ltc_lts_intr_name[] = {
 	{ 0x00000001, "IDLE_ERROR_IQ" },
 	{ 0x00000002, "IDLE_ERROR_CBC" },

@@ -362,8 +362,6 @@ static void ravb_emac_init(struct net_device *ndev)
 	ravb_write(ndev,
 		   (ndev->dev_addr[4] << 8)  | (ndev->dev_addr[5]), MALR);
 
-	ravb_write(ndev, 1, MPR);
-
 	/* E-MAC status register clear */
 	ravb_write(ndev, ECSR_ICD | ECSR_MPD, ECSR);
 
@@ -402,7 +400,8 @@ static int ravb_dmac_init(struct net_device *ndev)
 #endif
 
 	/* Set AVB RX */
-	ravb_write(ndev, RCR_EFFS | RCR_ENCF | RCR_ETS0 | 0x18000000, RCR);
+	ravb_write(ndev,
+		   RCR_EFFS | RCR_ENCF | RCR_ETS0 | RCR_ESF | 0x18000000, RCR);
 
 	/* Set FIFO size */
 	ravb_write(ndev, TGC_TQP_AVBMODE1 | 0x00222200, TGC);
@@ -943,7 +942,7 @@ out:
 static void ravb_adjust_link(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 	bool new_state = false;
 
 	if (phydev->link) {
@@ -1006,6 +1005,7 @@ static int ravb_phy_init(struct net_device *ndev)
 	}
 	phydev = of_phy_connect(ndev, pn, ravb_adjust_link, 0,
 				priv->phy_interface);
+	of_node_put(pn);
 	if (!phydev) {
 		netdev_err(ndev, "failed to connect PHY\n");
 		return -ENOENT;
@@ -1032,48 +1032,47 @@ static int ravb_phy_init(struct net_device *ndev)
 
 	phy_attached_info(phydev);
 
-	priv->phydev = phydev;
-
 	return 0;
 }
 
 /* PHY control start function */
 static int ravb_phy_start(struct net_device *ndev)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
 	int error;
 
 	error = ravb_phy_init(ndev);
 	if (error)
 		return error;
 
-	phy_start(priv->phydev);
+	phy_start(ndev->phydev);
 
 	return 0;
 }
 
-static int ravb_get_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int ravb_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	int error = -ENODEV;
 	unsigned long flags;
 
-	if (priv->phydev) {
+	if (ndev->phydev) {
 		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_ethtool_gset(priv->phydev, ecmd);
+		error = phy_ethtool_ksettings_get(ndev->phydev, cmd);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	return error;
 }
 
-static int ravb_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
+static int ravb_set_link_ksettings(struct net_device *ndev,
+				   const struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	unsigned long flags;
 	int error;
 
-	if (!priv->phydev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1081,11 +1080,11 @@ static int ravb_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 	/* Disable TX and RX */
 	ravb_rcv_snd_disable(ndev);
 
-	error = phy_ethtool_sset(priv->phydev, ecmd);
+	error = phy_ethtool_ksettings_set(ndev->phydev, cmd);
 	if (error)
 		goto error_exit;
 
-	if (ecmd->duplex == DUPLEX_FULL)
+	if (cmd->base.duplex == DUPLEX_FULL)
 		priv->duplex = 1;
 	else
 		priv->duplex = 0;
@@ -1110,9 +1109,9 @@ static int ravb_nway_reset(struct net_device *ndev)
 	int error = -ENODEV;
 	unsigned long flags;
 
-	if (priv->phydev) {
+	if (ndev->phydev) {
 		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_start_aneg(priv->phydev);
+		error = phy_start_aneg(ndev->phydev);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -1309,8 +1308,6 @@ static int ravb_get_ts_info(struct net_device *ndev,
 }
 
 static const struct ethtool_ops ravb_ethtool_ops = {
-	.get_settings		= ravb_get_settings,
-	.set_settings		= ravb_set_settings,
 	.nway_reset		= ravb_nway_reset,
 	.get_msglevel		= ravb_get_msglevel,
 	.set_msglevel		= ravb_set_msglevel,
@@ -1321,6 +1318,8 @@ static const struct ethtool_ops ravb_ethtool_ops = {
 	.get_ringparam		= ravb_get_ringparam,
 	.set_ringparam		= ravb_set_ringparam,
 	.get_ts_info		= ravb_get_ts_info,
+	.get_link_ksettings	= ravb_get_link_ksettings,
+	.set_link_ksettings	= ravb_set_link_ksettings,
 };
 
 static inline int ravb_hook_irq(unsigned int irq, irq_handler_t handler,
@@ -1661,10 +1660,9 @@ static int ravb_close(struct net_device *ndev)
 	}
 
 	/* PHY disconnect */
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
+	if (ndev->phydev) {
+		phy_stop(ndev->phydev);
+		phy_disconnect(ndev->phydev);
 	}
 
 	if (priv->chip_id != RCAR_GEN2) {
@@ -1753,8 +1751,7 @@ static int ravb_hwtstamp_set(struct net_device *ndev, struct ifreq *req)
 /* ioctl to device function */
 static int ravb_do_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
 {
-	struct ravb_private *priv = netdev_priv(ndev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
@@ -1876,6 +1873,20 @@ static int ravb_set_gti(struct net_device *ndev)
 	return 0;
 }
 
+static void ravb_set_config_mode(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+
+	if (priv->chip_id == RCAR_GEN2) {
+		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG);
+		/* Set CSEL value */
+		ravb_modify(ndev, CCC, CCC_CSEL, CCC_CSEL_HPB);
+	} else {
+		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
+			    CCC_GAC | CCC_CSEL_HPB);
+	}
+}
+
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1909,7 +1920,6 @@ static int ravb_probe(struct platform_device *pdev)
 
 	/* The Ether-specific entries in the device structure. */
 	ndev->base_addr = res->start;
-	ndev->dma = -1;
 
 	chip_id = (enum ravb_chip_id)of_device_get_match_data(&pdev->dev);
 
@@ -1979,14 +1989,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->ethtool_ops = &ravb_ethtool_ops;
 
 	/* Set AVB config mode */
-	if (chip_id == RCAR_GEN2) {
-		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG);
-		/* Set CSEL value */
-		ravb_modify(ndev, CCC, CCC_CSEL, CCC_CSEL_HPB);
-	} else {
-		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
-			    CCC_GAC | CCC_CSEL_HPB);
-	}
+	ravb_set_config_mode(ndev);
 
 	/* Set GTI value */
 	error = ravb_set_gti(ndev);
@@ -2097,8 +2100,55 @@ static int ravb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ravb_runtime_nop(struct device *dev)
+static int __maybe_unused ravb_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		ret = ravb_close(ndev);
+	}
+
+	return ret;
+}
+
+static int __maybe_unused ravb_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct ravb_private *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	/* All register have been reset to default values.
+	 * Restore all registers which where setup at probe time and
+	 * reopen device if it was running before system suspended.
+	 */
+
+	/* Set AVB config mode */
+	ravb_set_config_mode(ndev);
+
+	/* Set GTI value */
+	ret = ravb_set_gti(ndev);
+	if (ret)
+		return ret;
+
+	/* Request GTI loading */
+	ravb_modify(ndev, GCCR, GCCR_LTI, GCCR_LTI);
+
+	/* Restore descriptor base address table */
+	ravb_write(ndev, priv->desc_bat_dma, DBAT);
+
+	if (netif_running(ndev)) {
+		ret = ravb_open(ndev);
+		if (ret < 0)
+			return ret;
+		netif_device_attach(ndev);
+	}
+
+	return ret;
+}
+
+static int __maybe_unused ravb_runtime_nop(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -2111,21 +2161,16 @@ static int ravb_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
-	.runtime_suspend = ravb_runtime_nop,
-	.runtime_resume = ravb_runtime_nop,
+	SET_SYSTEM_SLEEP_PM_OPS(ravb_suspend, ravb_resume)
+	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
 };
-
-#define RAVB_PM_OPS (&ravb_dev_pm_ops)
-#else
-#define RAVB_PM_OPS NULL
-#endif
 
 static struct platform_driver ravb_driver = {
 	.probe		= ravb_probe,
 	.remove		= ravb_remove,
 	.driver = {
 		.name	= "ravb",
-		.pm	= RAVB_PM_OPS,
+		.pm	= &ravb_dev_pm_ops,
 		.of_match_table = ravb_match_table,
 	},
 };

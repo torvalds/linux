@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -453,23 +449,7 @@ lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 
 	if (!msg)
 		return;
-#if 0
-	CDEBUG(D_WARNING, "%s msg->%s Flags:%s%s%s%s%s%s%s%s%s%s%s txp %s rxp %s\n",
-	       lnet_msgtyp2str(msg->msg_type), libcfs_id2str(msg->msg_target),
-	       msg->msg_target_is_router ? "t" : "",
-	       msg->msg_routing ? "X" : "",
-	       msg->msg_ack ? "A" : "",
-	       msg->msg_sending ? "S" : "",
-	       msg->msg_receiving ? "R" : "",
-	       msg->msg_delayed ? "d" : "",
-	       msg->msg_txcredit ? "C" : "",
-	       msg->msg_peertxcredit ? "c" : "",
-	       msg->msg_rtrcredit ? "F" : "",
-	       msg->msg_peerrtrcredit ? "f" : "",
-	       msg->msg_onactivelist ? "!" : "",
-	       !msg->msg_txpeer ? "<none>" : libcfs_nid2str(msg->msg_txpeer->lp_nid),
-	       !msg->msg_rxpeer ? "<none>" : libcfs_nid2str(msg->msg_rxpeer->lp_nid));
-#endif
+
 	msg->msg_ev.status = status;
 
 	if (msg->msg_md) {

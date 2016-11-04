@@ -114,8 +114,10 @@ int wil_p2p_listen(struct wil6210_priv *wil, unsigned int duration,
 	u8 channel = P2P_DMG_SOCIAL_CHANNEL;
 	int rc;
 
-	if (chan)
-		channel = chan->hw_value;
+	if (!chan)
+		return -EINVAL;
+
+	channel = chan->hw_value;
 
 	wil_dbg_misc(wil, "%s: duration %d\n", __func__, duration);
 
@@ -250,10 +252,60 @@ void wil_p2p_search_expired(struct work_struct *work)
 	mutex_unlock(&wil->mutex);
 
 	if (started) {
+		struct cfg80211_scan_info info = {
+			.aborted = false,
+		};
+
 		mutex_lock(&wil->p2p_wdev_mutex);
-		cfg80211_scan_done(wil->scan_request, 0);
+		cfg80211_scan_done(wil->scan_request, &info);
 		wil->scan_request = NULL;
 		wil->radio_wdev = wil->wdev;
 		mutex_unlock(&wil->p2p_wdev_mutex);
 	}
+}
+
+void wil_p2p_stop_radio_operations(struct wil6210_priv *wil)
+{
+	struct wil_p2p_info *p2p = &wil->p2p;
+	struct cfg80211_scan_info info = {
+		.aborted = true,
+	};
+
+	lockdep_assert_held(&wil->mutex);
+
+	mutex_lock(&wil->p2p_wdev_mutex);
+
+	if (wil->radio_wdev != wil->p2p_wdev)
+		goto out;
+
+	if (!p2p->discovery_started) {
+		/* Regular scan on the p2p device */
+		if (wil->scan_request &&
+		    wil->scan_request->wdev == wil->p2p_wdev) {
+			cfg80211_scan_done(wil->scan_request, &info);
+			wil->scan_request = NULL;
+		}
+		goto out;
+	}
+
+	/* Search or listen on p2p device */
+	mutex_unlock(&wil->p2p_wdev_mutex);
+	wil_p2p_stop_discovery(wil);
+	mutex_lock(&wil->p2p_wdev_mutex);
+
+	if (wil->scan_request) {
+		/* search */
+		cfg80211_scan_done(wil->scan_request, &info);
+		wil->scan_request = NULL;
+	} else {
+		/* listen */
+		cfg80211_remain_on_channel_expired(wil->radio_wdev,
+						   p2p->cookie,
+						   &p2p->listen_chan,
+						   GFP_KERNEL);
+	}
+
+out:
+	wil->radio_wdev = wil->wdev;
+	mutex_unlock(&wil->p2p_wdev_mutex);
 }

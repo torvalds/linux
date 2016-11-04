@@ -140,7 +140,7 @@ internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 static void internal_set_rx_headroom(struct net_device *dev, int new_hr)
 {
-	dev->needed_headroom = new_hr;
+	dev->needed_headroom = new_hr < 0 ? 0 : new_hr;
 }
 
 static const struct net_device_ops internal_dev_netdev_ops = {
@@ -176,7 +176,7 @@ static void do_setup(struct net_device *netdev)
 
 	netdev->vlan_features = netdev->features;
 	netdev->hw_enc_features = netdev->features;
-	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX;
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 	netdev->hw_features = netdev->features & ~NETIF_F_LLTX;
 
 	eth_hw_addr_random(netdev);
@@ -195,7 +195,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 	}
 
 	vport->dev = alloc_netdev(sizeof(struct internal_dev),
-				  parms->name, NET_NAME_UNKNOWN, do_setup);
+				  parms->name, NET_NAME_USER, do_setup);
 	if (!vport->dev) {
 		err = -ENOMEM;
 		goto error_free_vport;

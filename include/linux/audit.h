@@ -26,7 +26,6 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <uapi/linux/audit.h>
-#include <linux/tty.h>
 
 #define AUDIT_INO_UNSET ((unsigned long)-1)
 #define AUDIT_DEV_UNSET ((dev_t)-1)
@@ -164,8 +163,6 @@ extern void audit_log_task_info(struct audit_buffer *ab,
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_filter_user(int type);
-extern int audit_filter_type(int type);
 extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
 extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
@@ -348,23 +345,6 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 	return tsk->sessionid;
 }
 
-static inline struct tty_struct *audit_get_tty(struct task_struct *tsk)
-{
-	struct tty_struct *tty = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	if (tsk->signal)
-		tty = tty_kref_get(tsk->signal->tty);
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
-	return tty;
-}
-
-static inline void audit_put_tty(struct tty_struct *tty)
-{
-	tty_kref_put(tty);
-}
-
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern void __audit_bprm(struct linux_binprm *bprm);
@@ -522,12 +502,6 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 {
 	return -1;
 }
-static inline struct tty_struct *audit_get_tty(struct task_struct *tsk)
-{
-	return NULL;
-}
-static inline void audit_put_tty(struct tty_struct *tty)
-{ }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid,

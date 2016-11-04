@@ -14,11 +14,11 @@ typedef int (*toupper_t)(int);
 
 static int	 affs_toupper(int ch);
 static int	 affs_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+static int       affs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 static int	 affs_intl_toupper(int ch);
 static int	 affs_intl_hash_dentry(const struct dentry *, struct qstr *);
-static int       affs_intl_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+static int       affs_intl_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 const struct dentry_operations affs_dentry_operations = {
@@ -61,7 +61,7 @@ affs_get_toupper(struct super_block *sb)
  * Note: the dentry argument is the parent dentry.
  */
 static inline int
-__affs_hash_dentry(struct qstr *qstr, toupper_t toupper, bool notruncate)
+__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t toupper, bool notruncate)
 {
 	const u8 *name = qstr->name;
 	unsigned long hash;
@@ -72,7 +72,7 @@ __affs_hash_dentry(struct qstr *qstr, toupper_t toupper, bool notruncate)
 	if (retval)
 		return retval;
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	len = min(qstr->len, AFFSNAMEMAX);
 	for (; len > 0; name++, len--)
 		hash = partial_name_hash(toupper(*name), hash);
@@ -84,7 +84,7 @@ __affs_hash_dentry(struct qstr *qstr, toupper_t toupper, bool notruncate)
 static int
 affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
-	return __affs_hash_dentry(qstr, affs_toupper,
+	return __affs_hash_dentry(dentry, qstr, affs_toupper,
 				  affs_nofilenametruncate(dentry));
 
 }
@@ -92,7 +92,7 @@ affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 static int
 affs_intl_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
-	return __affs_hash_dentry(qstr, affs_intl_toupper,
+	return __affs_hash_dentry(dentry, qstr, affs_intl_toupper,
 				  affs_nofilenametruncate(dentry));
 
 }
@@ -131,20 +131,20 @@ static inline int __affs_compare_dentry(unsigned int len,
 }
 
 static int
-affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+affs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 
 	return __affs_compare_dentry(len, str, name, affs_toupper,
-				     affs_nofilenametruncate(parent));
+				     affs_nofilenametruncate(dentry));
 }
 
 static int
-affs_intl_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+affs_intl_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return __affs_compare_dentry(len, str, name, affs_intl_toupper,
-				     affs_nofilenametruncate(parent));
+				     affs_nofilenametruncate(dentry));
 
 }
 
@@ -414,11 +414,15 @@ affs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 
 int
 affs_rename(struct inode *old_dir, struct dentry *old_dentry,
-	    struct inode *new_dir, struct dentry *new_dentry)
+	    struct inode *new_dir, struct dentry *new_dentry,
+	    unsigned int flags)
 {
 	struct super_block *sb = old_dir->i_sb;
 	struct buffer_head *bh = NULL;
 	int retval;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	pr_debug("%s(old=%lu,\"%pd\" to new=%lu,\"%pd\")\n", __func__,
 		 old_dir->i_ino, old_dentry, new_dir->i_ino, new_dentry);

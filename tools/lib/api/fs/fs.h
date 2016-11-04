@@ -21,6 +21,7 @@ FS(sysfs)
 FS(procfs)
 FS(debugfs)
 FS(tracefs)
+FS(hugetlbfs)
 
 #undef FS
 

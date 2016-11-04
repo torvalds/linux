@@ -21,7 +21,6 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <asm/setup.h>
 #include <arch/system.h>
 
@@ -212,10 +211,3 @@ static int __init topology_init(void)
 }
 
 subsys_initcall(topology_init);
-
-static int __init cris_of_init(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	return 0;
-}
-core_initcall(cris_of_init);

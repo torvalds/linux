@@ -689,7 +689,7 @@ static void mips_ejtag_fdc_tty_timer(unsigned long opaque)
 
 	mips_ejtag_fdc_handle(priv);
 	if (!priv->removing)
-		mod_timer_pinned(&priv->poll_timer, jiffies + FDC_TTY_POLL);
+		mod_timer(&priv->poll_timer, jiffies + FDC_TTY_POLL);
 }
 
 /* TTY Port operations */
@@ -1002,7 +1002,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		/* If we didn't get an usable IRQ, poll instead */
-		setup_timer(&priv->poll_timer, mips_ejtag_fdc_tty_timer,
+		setup_pinned_timer(&priv->poll_timer, mips_ejtag_fdc_tty_timer,
 			    (unsigned long)priv);
 		priv->poll_timer.expires = jiffies + FDC_TTY_POLL;
 		/*

@@ -282,6 +282,17 @@ supported.
 			that is supposed to push the current
 			transaction descriptor to a pending queue, waiting
 			for issue_pending to be called.
+     - In this structure the function pointer callback_result can be
+       initialized in order for the submitter to be notified that a
+       transaction has completed. In the earlier code the function pointer
+       callback has been used. However it does not provide any status to the
+       transaction and will be deprecated. The result structure defined as
+       dmaengine_result that is passed in to callback_result has two fields:
+       + result: This provides the transfer result defined by
+		 dmaengine_tx_result. Either success or some error
+		 condition.
+       + residue: Provides the residue bytes of the transfer for those that
+		  support residue.
 
    * device_issue_pending
      - Takes the first transaction descriptor in the pending queue,
@@ -323,7 +334,7 @@ supported.
    * device_resume
      - Resumes a transfer on the channel
      - This command should operate synchronously on the channel,
-       pausing right away the work of the given channel
+       resuming right away the work of the given channel
 
    * device_terminate_all
      - Aborts all the pending and ongoing transfers on the channel

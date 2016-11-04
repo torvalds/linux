@@ -9,6 +9,9 @@
 #ifndef SCHED_DEADLINE
 #define SCHED_DEADLINE 6
 #endif
+#ifndef SCHED_RESET_ON_FORK
+#define SCHED_RESET_ON_FORK 0x40000000
+#endif
 
 static size_t syscall_arg__scnprintf_sched_policy(char *bf, size_t size,
 						  struct syscall_arg *arg)

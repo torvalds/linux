@@ -908,9 +908,17 @@ static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 {
 	struct fc_exch_pool *pool;
 	struct fc_exch *ep = NULL;
+	u16 cpu = xid & fc_cpu_mask;
+
+	if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
+		printk_ratelimited(KERN_ERR
+			"libfc: lookup request for XID = %d, "
+			"indicates invalid CPU %d\n", xid, cpu);
+		return NULL;
+	}
 
 	if ((xid >= mp->min_xid) && (xid <= mp->max_xid)) {
-		pool = per_cpu_ptr(mp->pool, xid & fc_cpu_mask);
+		pool = per_cpu_ptr(mp->pool, cpu);
 		spin_lock_bh(&pool->lock);
 		ep = fc_exch_ptr_get(pool, (xid - mp->min_xid) >> fc_cpu_order);
 		if (ep) {
@@ -1829,7 +1837,6 @@ static void fc_exch_reset(struct fc_exch *ep)
 	int rc = 1;
 
 	spin_lock_bh(&ep->ex_lock);
-	fc_exch_abort_locked(ep, 0);
 	ep->state |= FC_EX_RST_CLEANUP;
 	fc_exch_timer_cancel(ep);
 	if (ep->esb_stat & ESB_ST_REC_QUAL)

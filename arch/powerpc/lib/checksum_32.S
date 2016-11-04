@@ -17,6 +17,7 @@
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 	.text
 
@@ -68,6 +69,7 @@ _GLOBAL(__csum_partial)
 	adde	r5,r5,r0
 5:	addze	r3,r5		/* add in final carry */
 	blr
+EXPORT_SYMBOL(__csum_partial)
 
 /*
  * Computes the checksum of a memory block at src, length len,
@@ -127,17 +129,19 @@ _GLOBAL(csum_partial_copy_generic)
 	stw	r7,12(r1)
 	stw	r8,8(r1)
 
-	andi.	r0,r4,1			/* is destination address even ? */
-	cmplwi	cr7,r0,0
 	addic	r12,r6,0
 	addi	r6,r4,-4
 	neg	r0,r4
 	addi	r4,r3,-4
 	andi.	r0,r0,CACHELINE_MASK	/* # bytes to start of cache line */
+	crset	4*cr7+eq
 	beq	58f
 
 	cmplw	0,r5,r0			/* is this more than total to do? */
 	blt	63f			/* if not much to do */
+	rlwinm	r7,r6,3,0x8
+	rlwnm	r12,r12,r7,0,31	/* odd destination address: rotate one byte */
+	cmplwi	cr7,r7,0	/* is destination address even ? */
 	andi.	r8,r0,3			/* get it word-aligned first */
 	mtctr	r8
 	beq+	61f
@@ -237,7 +241,7 @@ _GLOBAL(csum_partial_copy_generic)
 66:	addze	r3,r12
 	addi	r1,r1,16
 	beqlr+	cr7
-	rlwinm	r3,r3,8,0,31	/* swap bytes for odd destination */
+	rlwinm	r3,r3,8,0,31	/* odd destination address: rotate one byte */
 	blr
 
 /* read fault */
@@ -295,3 +299,4 @@ dst_error:
 	.long	41b,dst_error
 	.long	50b,src_error
 	.long	51b,dst_error
+EXPORT_SYMBOL(csum_partial_copy_generic)

@@ -105,6 +105,15 @@
 #define BOOK3S_INTERRUPT_FAC_UNAVAIL	0xf60
 #define BOOK3S_INTERRUPT_H_FAC_UNAVAIL	0xf80
 
+/* book3s_hv */
+
+/*
+ * Special trap used to indicate to host that this is a
+ * passthrough interrupt that could not be handled
+ * completely in the guest.
+ */
+#define BOOK3S_INTERRUPT_HV_RM_HARD	0x5555
+
 #define BOOK3S_IRQPRIO_SYSTEM_RESET		0
 #define BOOK3S_IRQPRIO_DATA_SEGMENT		1
 #define BOOK3S_IRQPRIO_INST_SEGMENT		2
@@ -136,6 +145,7 @@
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */
 #define RESUME_FLAG_ARCH1	(1<<2)
+#define RESUME_FLAG_ARCH2	(1<<3)
 
 #define RESUME_GUEST            0
 #define RESUME_GUEST_NV         RESUME_FLAG_NV

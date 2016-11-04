@@ -175,6 +175,8 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np_config, struct pinctrl_map **map,
 		unsigned *num_maps, enum pinctrl_map_type type);
+void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
+		struct pinctrl_map *map, unsigned num_maps);
 
 static inline int pinconf_generic_dt_node_to_map_group(
 		struct pinctrl_dev *pctldev, struct device_node *np_config,

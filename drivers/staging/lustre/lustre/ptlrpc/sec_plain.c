@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -158,13 +154,13 @@ static void corrupt_bulk_data(struct ptlrpc_bulk_desc *desc)
 	unsigned int off, i;
 
 	for (i = 0; i < desc->bd_iov_count; i++) {
-		if (desc->bd_iov[i].kiov_len == 0)
+		if (desc->bd_iov[i].bv_len == 0)
 			continue;
 
-		ptr = kmap(desc->bd_iov[i].kiov_page);
-		off = desc->bd_iov[i].kiov_offset & ~PAGE_MASK;
+		ptr = kmap(desc->bd_iov[i].bv_page);
+		off = desc->bd_iov[i].bv_offset & ~PAGE_MASK;
 		ptr[off] ^= 0x1;
-		kunmap(desc->bd_iov[i].kiov_page);
+		kunmap(desc->bd_iov[i].bv_page);
 		return;
 	}
 }
@@ -253,9 +249,12 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 		unsigned int hsize = 4;
 
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32,
-				lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF, 0),
-				lustre_msg_buflen(msg, PLAIN_PACK_MSG_OFF),
-				NULL, 0, (unsigned char *)&cksum, &hsize);
+				       lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF,
+						      0),
+				       lustre_msg_buflen(msg,
+							 PLAIN_PACK_MSG_OFF),
+				       NULL, 0, (unsigned char *)&cksum,
+				       &hsize);
 		if (cksum != msg->lm_cksum) {
 			CDEBUG(D_SEC,
 			       "early reply checksum mismatch: %08x != %08x\n",
@@ -298,7 +297,7 @@ int plain_cli_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	LASSERT(req->rq_reqbuf->lm_bufcount == PLAIN_PACK_SEGMENTS);
 
 	bsd = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_BULK_OFF, 0);
-	token = (struct plain_bulk_token *) bsd->bsd_data;
+	token = (struct plain_bulk_token *)bsd->bsd_data;
 
 	bsd->bsd_version = 0;
 	bsd->bsd_flags = 0;
@@ -343,7 +342,7 @@ int plain_cli_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	LASSERT(req->rq_repdata->lm_bufcount == PLAIN_PACK_SEGMENTS);
 
 	bsdv = lustre_msg_buf(req->rq_repdata, PLAIN_PACK_BULK_OFF, 0);
-	tokenv = (struct plain_bulk_token *) bsdv->bsd_data;
+	tokenv = (struct plain_bulk_token *)bsdv->bsd_data;
 
 	if (req->rq_bulk_write) {
 		if (bsdv->bsd_flags & BSD_FL_ERR)
@@ -353,11 +352,11 @@ int plain_cli_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 
 	/* fix the actual data size */
 	for (i = 0, nob = 0; i < desc->bd_iov_count; i++) {
-		if (desc->bd_iov[i].kiov_len + nob > desc->bd_nob_transferred) {
-			desc->bd_iov[i].kiov_len =
+		if (desc->bd_iov[i].bv_len + nob > desc->bd_nob_transferred) {
+			desc->bd_iov[i].bv_len =
 				desc->bd_nob_transferred - nob;
 		}
-		nob += desc->bd_iov[i].kiov_len;
+		nob += desc->bd_iov[i].bv_len;
 	}
 
 	rc = plain_verify_bulk_csum(desc, req->rq_flvr.u_bulk.hash.hash_alg,
@@ -574,8 +573,12 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 	lustre_init_msg_v2(req->rq_reqbuf, PLAIN_PACK_SEGMENTS, buflens, NULL);
 	req->rq_reqmsg = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_MSG_OFF, 0);
 
-	if (req->rq_pack_udesc)
-		sptlrpc_pack_user_desc(req->rq_reqbuf, PLAIN_PACK_USER_OFF);
+	if (req->rq_pack_udesc) {
+		int rc = sptlrpc_pack_user_desc(req->rq_reqbuf,
+					      PLAIN_PACK_USER_OFF);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }
@@ -811,7 +814,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 
 	rs->rs_svc_ctx = req->rq_svc_ctx;
 	atomic_inc(&req->rq_svc_ctx->sc_refcount);
-	rs->rs_repbuf = (struct lustre_msg *) (rs + 1);
+	rs->rs_repbuf = (struct lustre_msg *)(rs + 1);
 	rs->rs_repbuf_len = rs_size - sizeof(*rs);
 
 	lustre_init_msg_v2(rs->rs_repbuf, PLAIN_PACK_SEGMENTS, buflens, NULL);
@@ -869,9 +872,12 @@ int plain_authorize(struct ptlrpc_request *req)
 		unsigned int hsize = 4;
 
 		cfs_crypto_hash_digest(CFS_HASH_ALG_CRC32,
-			lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF, 0),
-			lustre_msg_buflen(msg, PLAIN_PACK_MSG_OFF),
-			NULL, 0, (unsigned char *)&msg->lm_cksum, &hsize);
+				       lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF,
+						      0),
+				       lustre_msg_buflen(msg,
+							 PLAIN_PACK_MSG_OFF),
+				       NULL, 0, (unsigned char *)&msg->lm_cksum,
+				       &hsize);
 		req->rq_reply_off = 0;
 	}
 
@@ -891,7 +897,7 @@ int plain_svc_unwrap_bulk(struct ptlrpc_request *req,
 	LASSERT(req->rq_pack_bulk);
 
 	bsdr = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_BULK_OFF, 0);
-	tokenr = (struct plain_bulk_token *) bsdr->bsd_data;
+	tokenr = (struct plain_bulk_token *)bsdr->bsd_data;
 	bsdv = lustre_msg_buf(rs->rs_repbuf, PLAIN_PACK_BULK_OFF, 0);
 
 	bsdv->bsd_version = 0;
@@ -926,7 +932,7 @@ int plain_svc_wrap_bulk(struct ptlrpc_request *req,
 
 	bsdr = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_BULK_OFF, 0);
 	bsdv = lustre_msg_buf(rs->rs_repbuf, PLAIN_PACK_BULK_OFF, 0);
-	tokenv = (struct plain_bulk_token *) bsdv->bsd_data;
+	tokenv = (struct plain_bulk_token *)bsdv->bsd_data;
 
 	bsdv->bsd_version = 0;
 	bsdv->bsd_type = SPTLRPC_BULK_DEFAULT;

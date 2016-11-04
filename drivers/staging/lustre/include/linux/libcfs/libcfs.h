@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -142,8 +138,8 @@ struct lnet_debugfs_symlink_def {
 void lustre_insert_debugfs(struct ctl_table *table,
 			   const struct lnet_debugfs_symlink_def *symlinks);
 int lprocfs_call_handler(void *data, int write, loff_t *ppos,
-			  void __user *buffer, size_t *lenp,
-			  int (*handler)(void *data, int write,
-			  loff_t pos, void __user *buffer, int len));
+			 void __user *buffer, size_t *lenp,
+			 int (*handler)(void *data, int write, loff_t pos,
+					void __user *buffer, int len));
 
 #endif /* _LIBCFS_H */

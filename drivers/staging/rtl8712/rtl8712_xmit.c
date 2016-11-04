@@ -535,7 +535,8 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		 * seqnum per tid. about usb using 4-endpoint, qsel points out
 		 * the correct mapping between AC&Endpoint,
 		 * the purpose is that correct mapping lets the MAC release
-		 * the AC Queue list correctly. */
+		 * the AC Queue list correctly.
+		 */
 		ptxdesc->txdw3 = cpu_to_le32((pattrib->priority << SEQ_SHT) &
 				 0x0fff0000);
 		if ((pattrib->ether_type != 0x888e) &&
@@ -586,7 +587,8 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		 * per tid. about usb using 4-endpoint, qsel points out the
 		 * correct mapping between AC&Endpoint,
 		 * the purpose is that correct mapping let the MAC releases
-		 * the AC Queue list correctly. */
+		 * the AC Queue list correctly.
+		 */
 		ptxdesc->txdw3 = cpu_to_le32((pattrib->priority << SEQ_SHT) &
 					      0x0fff0000);
 		/* offset 16 */
@@ -627,7 +629,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 
 	phwxmits = pxmitpriv->hwxmits;
 	hwentry = pxmitpriv->hwxmit_entry;
-	if (pxmitbuf == NULL) {
+	if (!pxmitbuf) {
 		pxmitbuf = r8712_alloc_xmitbuf(pxmitpriv);
 		if (!pxmitbuf)
 			return false;
@@ -686,7 +688,8 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 				res = r8712_xmitframe_coalesce(padapter,
 					pxmitframe->pkt, pxmitframe);
 			/* always return ndis_packet after
-			 * r8712_xmitframe_coalesce */
+			 * r8712_xmitframe_coalesce
+			 */
 			r8712_xmit_complete(padapter, pxmitframe);
 		}
 		if (res == _SUCCESS)

@@ -40,6 +40,7 @@ struct xfs_eofblocks {
 					   in xfs_inode_ag_iterator */
 #define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
 #define XFS_ICI_EOFBLOCKS_TAG	1	/* inode has blocks beyond EOF */
+#define XFS_ICI_COWBLOCKS_TAG	2	/* inode can have cow blocks to gc */
 
 /*
  * Flags for xfs_iget()
@@ -68,6 +69,13 @@ void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
 int xfs_icache_free_eofblocks(struct xfs_mount *, struct xfs_eofblocks *);
 int xfs_inode_free_quota_eofblocks(struct xfs_inode *ip);
 void xfs_eofblocks_worker(struct work_struct *);
+void xfs_queue_eofblocks(struct xfs_mount *);
+
+void xfs_inode_set_cowblocks_tag(struct xfs_inode *ip);
+void xfs_inode_clear_cowblocks_tag(struct xfs_inode *ip);
+int xfs_icache_free_cowblocks(struct xfs_mount *, struct xfs_eofblocks *);
+int xfs_inode_free_quota_cowblocks(struct xfs_inode *ip);
+void xfs_cowblocks_worker(struct work_struct *);
 
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
 	int (*execute)(struct xfs_inode *ip, int flags, void *args),

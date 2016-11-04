@@ -14,6 +14,32 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
+static int flush_racache(struct inode *inode)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op;
+	int ret;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG,
+	    "%s: %pU: Handle is %pU | fs_id %d\n", __func__,
+	    get_khandle_from_ino(inode), &orangefs_inode->refn.khandle,
+	    orangefs_inode->refn.fs_id);
+
+	new_op = op_alloc(ORANGEFS_VFS_OP_RA_FLUSH);
+	if (!new_op)
+		return -ENOMEM;
+	new_op->upcall.req.ra_cache_flush.refn = orangefs_inode->refn;
+
+	ret = service_operation(new_op, "orangefs_flush_racache",
+	    get_interruptible_flag(inode));
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: got return value of %d\n",
+	    __func__, ret);
+
+	op_release(new_op);
+	return ret;
+}
+
 /*
  * Copy to client-core's address space from the buffers specified
  * by the iovec upto total_size bytes.
@@ -358,7 +384,7 @@ out:
 			file_accessed(file);
 		} else {
 			SetMtimeFlag(orangefs_inode);
-			inode->i_mtime = CURRENT_TIME;
+			inode->i_mtime = current_time(inode);
 			mark_inode_dirty_sync(inode);
 		}
 	}
@@ -386,7 +412,7 @@ ssize_t orangefs_inode_read(struct inode *inode,
 	size_t bufmap_size;
 	ssize_t ret = -EINVAL;
 
-	g_orangefs_stats.reads++;
+	orangefs_stats.reads++;
 
 	bufmap_size = orangefs_bufmap_size_query();
 	if (count > bufmap_size) {
@@ -427,7 +453,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
 
-	g_orangefs_stats.reads++;
+	orangefs_stats.reads++;
 
 	rc = do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
 	iocb->ki_pos = pos;
@@ -488,7 +514,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	}
 
 	iocb->ki_pos = pos;
-	g_orangefs_stats.writes++;
+	orangefs_stats.writes++;
 
 out:
 
@@ -516,7 +542,6 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	if (cmd == FS_IOC_GETFLAGS) {
 		val = 0;
 		ret = orangefs_inode_getxattr(file_inode(file),
-					      ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val));
 		if (ret < 0 && ret != -ENODATA)
@@ -549,7 +574,6 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
 		ret = orangefs_inode_setxattr(file_inode(file),
-					      ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val), 0);
 	}
@@ -587,21 +611,30 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 static int orangefs_file_release(struct inode *inode, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_file_release: called on %s\n",
-		     file->f_path.dentry->d_name.name);
+		     "orangefs_file_release: called on %pD\n",
+		     file);
 
 	orangefs_flush_inode(inode);
 
 	/*
-	 * remove all associated inode pages from the page cache and mmap
+	 * remove all associated inode pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
 	if (file->f_path.dentry->d_inode &&
 	    file->f_path.dentry->d_inode->i_mapping &&
-	    mapping_nrpages(&file->f_path.dentry->d_inode->i_data))
+	    mapping_nrpages(&file->f_path.dentry->d_inode->i_data)) {
+		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
+			gossip_debug(GOSSIP_INODE_DEBUG,
+			    "calling flush_racache on %pU\n",
+			    get_khandle_from_ino(inode));
+			flush_racache(inode);
+			gossip_debug(GOSSIP_INODE_DEBUG,
+			    "flush_racache finished\n");
+		}
 		truncate_inode_pages(file->f_path.dentry->d_inode->i_mapping,
 				     0);
+	}
 	return 0;
 }
 

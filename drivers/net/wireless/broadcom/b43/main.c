@@ -3180,7 +3180,6 @@ static void b43_rate_memory_write(struct b43_wldev *dev, u16 rate, int is_ofdm)
 static void b43_rate_memory_init(struct b43_wldev *dev)
 {
 	switch (dev->phy.type) {
-	case B43_PHYTYPE_A:
 	case B43_PHYTYPE_G:
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
@@ -3194,8 +3193,6 @@ static void b43_rate_memory_init(struct b43_wldev *dev)
 		b43_rate_memory_write(dev, B43_OFDM_RATE_36MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_48MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_54MB, 1);
-		if (dev->phy.type == B43_PHYTYPE_A)
-			break;
 		/* fallthrough */
 	case B43_PHYTYPE_B:
 		b43_rate_memory_write(dev, B43_CCK_RATE_1MB, 0);
@@ -4604,14 +4601,6 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	if (radio_manuf != 0x17F /* Broadcom */)
 		unsupported = 1;
 	switch (phy_type) {
-	case B43_PHYTYPE_A:
-		if (radio_id != 0x2060)
-			unsupported = 1;
-		if (radio_rev != 1)
-			unsupported = 1;
-		if (radio_manuf != 0x17F)
-			unsupported = 1;
-		break;
 	case B43_PHYTYPE_B:
 		if ((radio_id & 0xFFF0) != 0x2050)
 			unsupported = 1;
@@ -4766,10 +4755,7 @@ static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
 	u16 pu_delay;
 
 	/* The time value is in microseconds. */
-	if (dev->phy.type == B43_PHYTYPE_A)
-		pu_delay = 3700;
-	else
-		pu_delay = 1050;
+	pu_delay = 1050;
 	if (b43_is_mode(dev->wl, NL80211_IFTYPE_ADHOC) || idle)
 		pu_delay = 500;
 	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
@@ -4784,14 +4770,10 @@ static void b43_set_pretbtt(struct b43_wldev *dev)
 	u16 pretbtt;
 
 	/* The time value is in microseconds. */
-	if (b43_is_mode(dev->wl, NL80211_IFTYPE_ADHOC)) {
+	if (b43_is_mode(dev->wl, NL80211_IFTYPE_ADHOC))
 		pretbtt = 2;
-	} else {
-		if (dev->phy.type == B43_PHYTYPE_A)
-			pretbtt = 120;
-		else
-			pretbtt = 250;
-	}
+	else
+		pretbtt = 250;
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRETBTT, pretbtt);
 	b43_write16(dev, B43_MMIO_TSF_CFP_PRETBTT, pretbtt);
 }
@@ -5380,10 +5362,6 @@ static void b43_supported_bands(struct b43_wldev *dev, bool *have_2ghz_phy,
 
 	/* As a fallback, try to guess using PHY type */
 	switch (dev->phy.type) {
-	case B43_PHYTYPE_A:
-		*have_2ghz_phy = false;
-		*have_5ghz_phy = true;
-		return;
 	case B43_PHYTYPE_G:
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
@@ -5455,7 +5433,6 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	/* We don't support 5 GHz on some PHYs yet */
 	if (have_5ghz_phy) {
 		switch (dev->phy.type) {
-		case B43_PHYTYPE_A:
 		case B43_PHYTYPE_G:
 		case B43_PHYTYPE_LP:
 		case B43_PHYTYPE_HT:

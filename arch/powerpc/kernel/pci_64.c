@@ -47,7 +47,6 @@ static int __init pcibios_init(void)
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
-	pci_io_base = ISA_IO_BASE;
 	/* For now, override phys_mem_access_prot. If we need it,g
 	 * later, we may move that initialization to each ppc_md
 	 */
@@ -82,7 +81,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 
 	/* If this is not a PHB, we only flush the hash table over
 	 * the area mapped by this bridge. We don't play with the PTE
-	 * mappings since we might have to deal with sub-page alignemnts
+	 * mappings since we might have to deal with sub-page alignments
 	 * so flushing the hash table is the only sane way to make sure
 	 * that no hash entries are covering that removed bridge area
 	 * while still allowing other busses overlapping those pages

@@ -342,6 +342,36 @@ int phy_power_off(struct phy *phy)
 }
 EXPORT_SYMBOL_GPL(phy_power_off);
 
+int phy_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	int ret;
+
+	if (!phy || !phy->ops->set_mode)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->set_mode(phy, mode);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_set_mode);
+
+int phy_reset(struct phy *phy)
+{
+	int ret;
+
+	if (!phy || !phy->ops->reset)
+		return 0;
+
+	mutex_lock(&phy->mutex);
+	ret = phy->ops->reset(phy);
+	mutex_unlock(&phy->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_reset);
+
 /**
  * _of_phy_get() - lookup and obtain a reference to a phy by phandle
  * @np: device_node for which to get the phy

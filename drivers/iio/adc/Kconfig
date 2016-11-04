@@ -153,6 +153,18 @@ config AXP288_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called axp288_adc.
 
+config BCM_IPROC_ADC
+	tristate "Broadcom IPROC ADC driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on MFD_SYSCON
+	default ARCH_BCM_CYGNUS
+	help
+	  Say Y here if you want to add support for the Broadcom static
+	  ADC driver.
+
+	  Broadcom iProc ADC driver. Broadcom iProc ADC controller has 8
+	  channels. The driver allows the user to read voltage values.
+
 config BERLIN2_ADC
 	tristate "Marvell Berlin2 ADC driver"
 	depends on ARCH_BERLIN
@@ -252,6 +264,15 @@ config LPC18XX_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called lpc18xx_adc.
 
+config LTC2485
+	tristate "Linear Technology LTC2485 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2485 ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2485.
+
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
 	depends on SPI
@@ -304,6 +325,19 @@ config MCP3422
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.
+
+config MEDIATEK_MT6577_AUXADC
+        tristate "MediaTek AUXADC driver"
+        depends on ARCH_MEDIATEK || COMPILE_TEST
+        depends on HAS_IOMEM
+        help
+          Say yes here to enable support for MediaTek mt65xx AUXADC.
+
+          The driver supports immediate mode operation to read from one of sixteen
+          channels (external or internal).
+
+          This driver can also be built as a module. If so, the module will be
+          called mt6577_auxadc.
 
 config MEN_Z188_ADC
 	tristate "MEN 16z188 ADC IP Core support"
@@ -377,12 +411,28 @@ config QCOM_SPMI_VADC
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	depends on RESET_CONTROLLER
 	help
 	  Say yes here to build support for the SARADC found in SoCs from
 	  Rockchip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip_saradc.
+
+config STX104
+	tristate "Apex Embedded Systems STX104 driver"
+	depends on X86 && ISA_BUS_API
+	select GPIOLIB
+	help
+	  Say yes here to build support for the Apex Embedded Systems STX104
+	  integrated analog PC/104 card.
+
+	  This driver supports the 16 channels of single-ended (8 channels of
+	  differential) analog inputs, 2 channels of analog output, 4 digital
+	  inputs, and 4 digital outputs provided by the STX104.
+
+	  The base port addresses for the devices may be configured via the base
+	  array module parameter.
 
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C/ADC101C/ADC121C family"
@@ -404,6 +454,18 @@ config TI_ADC0832
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc0832.
 
+config TI_ADC12138
+	tristate "Texas Instruments ADC12130/ADC12132/ADC12138"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC12130,
+	  ADC12132 and ADC12138 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc12138.
+
 config TI_ADC128S052
 	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"
 	depends on SPI
@@ -413,6 +475,18 @@ config TI_ADC128S052
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.
+
+config TI_ADC161S626
+	tristate "Texas Instruments ADC161S626 1-channel differential ADC"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC141S626,
+	  and ADC161S626 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc161s626.
 
 config TI_ADS1015
 	tristate "Texas Instruments ADS1015 ADC"

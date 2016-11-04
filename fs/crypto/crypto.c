@@ -28,7 +28,6 @@
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/fscrypto.h>
-#include <linux/ecryptfs.h>
 
 static unsigned int num_prealloc_crypto_pages = 32;
 static unsigned int num_prealloc_crypto_ctxs = 128;
@@ -128,11 +127,11 @@ struct fscrypt_ctx *fscrypt_get_ctx(struct inode *inode, gfp_t gfp_flags)
 EXPORT_SYMBOL(fscrypt_get_ctx);
 
 /**
- * fscrypt_complete() - The completion callback for page encryption
- * @req: The asynchronous encryption request context
- * @res: The result of the encryption operation
+ * page_crypt_complete() - completion callback for page crypto
+ * @req: The asynchronous cipher request context
+ * @res: The result of the cipher operation
  */
-static void fscrypt_complete(struct crypto_async_request *req, int res)
+static void page_crypt_complete(struct crypto_async_request *req, int res)
 {
 	struct fscrypt_completion_result *ecr = req->data;
 
@@ -170,7 +169,7 @@ static int do_page_crypto(struct inode *inode,
 
 	skcipher_request_set_callback(
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-		fscrypt_complete, &ecr);
+		page_crypt_complete, &ecr);
 
 	BUILD_BUG_ON(FS_XTS_TWEAK_SIZE < sizeof(index));
 	memcpy(xts_tweak, &index, sizeof(index));
@@ -318,6 +317,7 @@ int fscrypt_zeroout_range(struct inode *inode, pgoff_t lblk,
 		bio->bi_bdev = inode->i_sb->s_bdev;
 		bio->bi_iter.bi_sector =
 			pblk << (inode->i_sb->s_blocksize_bits - 9);
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		ret = bio_add_page(bio, ciphertext_page,
 					inode->i_sb->s_blocksize, 0);
 		if (ret != inode->i_sb->s_blocksize) {
@@ -327,7 +327,7 @@ int fscrypt_zeroout_range(struct inode *inode, pgoff_t lblk,
 			err = -EIO;
 			goto errout;
 		}
-		err = submit_bio_wait(WRITE, bio);
+		err = submit_bio_wait(bio);
 		if ((err == 0) && bio->bi_error)
 			err = -EIO;
 		bio_put(bio);

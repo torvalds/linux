@@ -106,7 +106,6 @@ struct au1000_private {
 	int old_speed;
 	int old_duplex;
 
-	struct phy_device *phy_dev;
 	struct mii_bus *mii_bus;
 
 	/* PHY configuration */

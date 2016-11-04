@@ -310,16 +310,6 @@ static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
 	return -1;
 }
 
-static int hists__add_entry(struct hists *hists,
-			    struct addr_location *al,
-			    struct perf_sample *sample)
-{
-	if (__hists__add_entry(hists, al, NULL, NULL, NULL,
-			       sample, true) != NULL)
-		return 0;
-	return -ENOMEM;
-}
-
 static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 				      union perf_event *event,
 				      struct perf_sample *sample,
@@ -336,7 +326,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	if (hists__add_entry(hists, &al, sample)) {
+	if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample, true)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		goto out_put;
 	}
@@ -373,7 +363,7 @@ static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
 {
 	struct perf_evsel *e;
 
-	evlist__for_each(evlist, e) {
+	evlist__for_each_entry(evlist, e) {
 		if (perf_evsel__match2(evsel, e))
 			return e;
 	}
@@ -385,7 +375,7 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);
@@ -666,7 +656,8 @@ static void hists__process(struct hists *hists)
 	hists__precompute(hists);
 	hists__output_resort(hists, NULL);
 
-	hists__fprintf(hists, true, 0, 0, 0, stdout);
+	hists__fprintf(hists, true, 0, 0, 0, stdout,
+		       symbol_conf.use_callchain);
 }
 
 static void data__fprintf(void)
@@ -690,7 +681,7 @@ static void data_process(void)
 	struct perf_evsel *evsel_base;
 	bool first = true;
 
-	evlist__for_each(evlist_base, evsel_base) {
+	evlist__for_each_entry(evlist_base, evsel_base) {
 		struct hists *hists_base = evsel__hists(evsel_base);
 		struct data__file *d;
 		int i;
@@ -765,9 +756,7 @@ static int __cmd_diff(void)
 
  out_delete:
 	data__for_each_file(i, d) {
-		if (d->session)
-			perf_session__delete(d->session);
-
+		perf_session__delete(d->session);
 		data__free(d);
 	}
 
@@ -1044,7 +1033,9 @@ static int hpp__entry_global(struct perf_hpp_fmt *_fmt, struct perf_hpp *hpp,
 }
 
 static int hpp__header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		       struct perf_evsel *evsel __maybe_unused)
+		       struct hists *hists __maybe_unused,
+		       int line __maybe_unused,
+		       int *span __maybe_unused)
 {
 	struct diff_hpp_fmt *dfmt =
 		container_of(fmt, struct diff_hpp_fmt, fmt);
@@ -1055,7 +1046,7 @@ static int hpp__header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 static int hpp__width(struct perf_hpp_fmt *fmt,
 		      struct perf_hpp *hpp __maybe_unused,
-		      struct perf_evsel *evsel __maybe_unused)
+		      struct hists *hists __maybe_unused)
 {
 	struct diff_hpp_fmt *dfmt =
 		container_of(fmt, struct diff_hpp_fmt, fmt);

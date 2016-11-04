@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -66,9 +62,9 @@ struct osc_io {
 	/** super class */
 	struct cl_io_slice oi_cl;
 	/** true if this io is lockless. */
-	int		oi_lockless;
+	unsigned int		oi_lockless;
 	/** how many LRU pages are reserved for this IO */
-	int oi_lru_reserved;
+	unsigned long		oi_lru_reserved;
 
 	/** active extents, we know how many bytes is going to be written,
 	 * so having an active extent will prevent it from being fragmented
@@ -356,11 +352,6 @@ struct osc_page {
 	 */
 	unsigned	      ops_transfer_pinned:1,
 	/**
-	 * True for a `temporary page' created by read-ahead code, probably
-	 * outside of any DLM lock.
-	 */
-			      ops_temp:1,
-	/**
 	 * in LRU?
 	 */
 			      ops_in_lru:1,
@@ -398,7 +389,7 @@ extern struct lu_device_type osc_device_type;
 extern struct lu_context_key osc_key;
 extern struct lu_context_key osc_session_key;
 
-#define OSC_FLAGS (ASYNC_URGENT|ASYNC_READY)
+#define OSC_FLAGS (ASYNC_URGENT | ASYNC_READY)
 
 int osc_lock_init(const struct lu_env *env,
 		  struct cl_object *obj, struct cl_lock *lock,
@@ -617,7 +608,7 @@ struct osc_extent {
 	/** link list of osc_object's oo_{hp|urgent|locking}_exts. */
 	struct list_head	 oe_link;
 	/** state of this extent */
-	unsigned int       oe_state;
+	enum osc_extent_state	oe_state;
 	/** flags for this extent. */
 	unsigned int       oe_intree:1,
 	/** 0 is write, 1 is read */

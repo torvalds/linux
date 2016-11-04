@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/utsname.h>
 #include "common.h"
+#include "../util/util.h"
 #include "../util/debug.h"
 
 const char *const arm_triplets[] = {
@@ -9,34 +10,44 @@ const char *const arm_triplets[] = {
 	"arm-unknown-linux-",
 	"arm-unknown-linux-gnu-",
 	"arm-unknown-linux-gnueabi-",
+	"arm-linux-gnu-",
+	"arm-linux-gnueabihf-",
+	"arm-none-eabi-",
 	NULL
 };
 
 const char *const arm64_triplets[] = {
 	"aarch64-linux-android-",
+	"aarch64-linux-gnu-",
 	NULL
 };
 
 const char *const powerpc_triplets[] = {
 	"powerpc-unknown-linux-gnu-",
 	"powerpc64-unknown-linux-gnu-",
+	"powerpc64-linux-gnu-",
+	"powerpc64le-linux-gnu-",
 	NULL
 };
 
 const char *const s390_triplets[] = {
 	"s390-ibm-linux-",
+	"s390x-linux-gnu-",
 	NULL
 };
 
 const char *const sh_triplets[] = {
 	"sh-unknown-linux-gnu-",
 	"sh64-unknown-linux-gnu-",
+	"sh-linux-gnu-",
+	"sh64-linux-gnu-",
 	NULL
 };
 
 const char *const sparc_triplets[] = {
 	"sparc-unknown-linux-gnu-",
 	"sparc64-unknown-linux-gnu-",
+	"sparc64-linux-gnu-",
 	NULL
 };
 
@@ -49,12 +60,19 @@ const char *const x86_triplets[] = {
 	"i386-pc-linux-gnu-",
 	"i686-linux-android-",
 	"i686-android-linux-",
+	"x86_64-linux-gnu-",
+	"i586-linux-gnu-",
 	NULL
 };
 
 const char *const mips_triplets[] = {
 	"mips-unknown-linux-gnu-",
 	"mipsel-linux-android-",
+	"mips-linux-gnu-",
+	"mips64-linux-gnu-",
+	"mips64el-linux-gnuabi64-",
+	"mips64-linux-gnuabi64-",
+	"mipsel-linux-gnu-",
 	NULL
 };
 
@@ -102,7 +120,7 @@ static int lookup_triplets(const char *const *triplets, const char *name)
  * Return architecture name in a normalized form.
  * The conversion logic comes from the Makefile.
  */
-static const char *normalize_arch(char *arch)
+const char *normalize_arch(char *arch)
 {
 	if (!strcmp(arch, "x86_64"))
 		return "x86";

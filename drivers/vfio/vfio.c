@@ -1711,8 +1711,8 @@ EXPORT_SYMBOL_GPL(vfio_group_get_external_user);
 
 void vfio_group_put_external_user(struct vfio_group *group)
 {
-	vfio_group_put(group);
 	vfio_group_try_dissolve_container(group);
+	vfio_group_put(group);
 }
 EXPORT_SYMBOL_GPL(vfio_group_put_external_user);
 

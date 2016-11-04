@@ -41,7 +41,6 @@ struct machine {
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
 	u64		  kernel_start;
-	symbol_filter_t	  symbol_filter;
 	pid_t		  *current_tid;
 	union { /* Tool specific area */
 		void	  *priv;
@@ -110,7 +109,6 @@ typedef void (*machine__process_t)(struct machine *machine, void *data);
 struct machines {
 	struct machine host;
 	struct rb_root guests;
-	symbol_filter_t symbol_filter;
 };
 
 void machines__init(struct machines *machines);
@@ -128,8 +126,6 @@ struct machine *machines__findnew(struct machines *machines, pid_t pid);
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 
-void machines__set_symbol_filter(struct machines *machines,
-				 symbol_filter_t symbol_filter);
 void machines__set_comm_exec(struct machines *machines, bool comm_exec);
 
 struct machine *machine__new_host(void);
@@ -178,51 +174,44 @@ size_t machine__fprintf(struct machine *machine, FILE *fp);
 static inline
 struct symbol *machine__find_kernel_symbol(struct machine *machine,
 					   enum map_type type, u64 addr,
-					   struct map **mapp,
-					   symbol_filter_t filter)
+					   struct map **mapp)
 {
-	return map_groups__find_symbol(&machine->kmaps, type, addr,
-				       mapp, filter);
+	return map_groups__find_symbol(&machine->kmaps, type, addr, mapp);
 }
 
 static inline
 struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
 						   enum map_type type, const char *name,
-						   struct map **mapp,
-						   symbol_filter_t filter)
+						   struct map **mapp)
 {
-	return map_groups__find_symbol_by_name(&machine->kmaps, type, name,
-					       mapp, filter);
+	return map_groups__find_symbol_by_name(&machine->kmaps, type, name, mapp);
 }
 
 static inline
 struct symbol *machine__find_kernel_function(struct machine *machine, u64 addr,
-					     struct map **mapp,
-					     symbol_filter_t filter)
+					     struct map **mapp)
 {
 	return machine__find_kernel_symbol(machine, MAP__FUNCTION, addr,
-					   mapp, filter);
+					   mapp);
 }
 
 static inline
 struct symbol *machine__find_kernel_function_by_name(struct machine *machine,
 						     const char *name,
-						     struct map **mapp,
-						     symbol_filter_t filter)
+						     struct map **mapp)
 {
-	return map_groups__find_function_by_name(&machine->kmaps, name, mapp,
-						 filter);
+	return map_groups__find_function_by_name(&machine->kmaps, name, mapp);
 }
 
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename);
+int arch__fix_module_text_start(u64 *start, const char *name);
 
 int __machine__load_kallsyms(struct machine *machine, const char *filename,
-			     enum map_type type, bool no_kcore, symbol_filter_t filter);
+			     enum map_type type, bool no_kcore);
 int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type, symbol_filter_t filter);
-int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
-			       symbol_filter_t filter);
+			   enum map_type type);
+int machine__load_vmlinux_path(struct machine *machine, enum map_type type);
 
 size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
 				     bool (skip)(struct dso *dso, int parm), int parm);

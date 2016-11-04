@@ -21,6 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define DRM_IF_MAJOR 1
+#define DRM_IF_MINOR 4
+
 /* drm_irq.c */
 extern unsigned int drm_timestamp_monotonic;
 
@@ -29,14 +32,8 @@ extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
 
 /* drm_pci.c */
-int drm_pci_set_unique(struct drm_device *dev,
-		       struct drm_master *master,
-		       struct drm_unique *u);
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
-
-/* drm_vm.c */
-int drm_vma_info(struct seq_file *m, void *data);
 
 /* drm_prime.c */
 int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
@@ -51,8 +48,6 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 
 /* drm_info.c */
 int drm_name_info(struct seq_file *m, void *data);
-int drm_vm_info(struct seq_file *m, void *data);
-int drm_bufs_info(struct seq_file *m, void *data);
 int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
@@ -67,6 +62,12 @@ int drm_getmagic(struct drm_device *dev, void *data,
 		 struct drm_file *file_priv);
 int drm_authmagic(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv);
+int drm_setmaster_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+int drm_master_open(struct drm_file *file_priv);
+void drm_master_release(struct drm_file *file_priv);
 
 /* drm_sysfs.c */
 extern struct class *drm_class;
@@ -91,13 +92,6 @@ int drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
-
-/* drm_drv.c */
-int drm_setmaster_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-struct drm_master *drm_master_create(struct drm_minor *minor);
 
 /* drm_debugfs.c */
 #if defined(CONFIG_DEBUG_FS)

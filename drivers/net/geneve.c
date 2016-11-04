@@ -12,7 +12,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/hash.h>
 #include <net/dst_metadata.h>
@@ -397,23 +396,6 @@ static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 	return sock;
 }
 
-static void geneve_notify_add_rx_port(struct geneve_sock *gs)
-{
-	struct net_device *dev;
-	struct sock *sk = gs->sock->sk;
-	struct net *net = sock_net(sk);
-	sa_family_t sa_family = geneve_get_sk_family(gs);
-	__be16 port = inet_sk(sk)->inet_sport;
-
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		if (dev->netdev_ops->ndo_add_geneve_port)
-			dev->netdev_ops->ndo_add_geneve_port(dev, sa_family,
-							     port);
-	}
-	rcu_read_unlock();
-}
-
 static int geneve_hlen(struct genevehdr *gh)
 {
 	return sizeof(*gh) + gh->opt_len * 4;
@@ -533,7 +515,7 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 		INIT_HLIST_HEAD(&gs->vni_list[h]);
 
 	/* Initialize the geneve udp offloads structure */
-	geneve_notify_add_rx_port(gs);
+	udp_tunnel_notify_add_rx_port(gs->sock, UDP_TUNNEL_TYPE_GENEVE);
 
 	/* Mark socket as an encapsulation socket */
 	memset(&tunnel_cfg, 0, sizeof(tunnel_cfg));
@@ -548,31 +530,13 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 	return gs;
 }
 
-static void geneve_notify_del_rx_port(struct geneve_sock *gs)
-{
-	struct net_device *dev;
-	struct sock *sk = gs->sock->sk;
-	struct net *net = sock_net(sk);
-	sa_family_t sa_family = geneve_get_sk_family(gs);
-	__be16 port = inet_sk(sk)->inet_sport;
-
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		if (dev->netdev_ops->ndo_del_geneve_port)
-			dev->netdev_ops->ndo_del_geneve_port(dev, sa_family,
-							     port);
-	}
-
-	rcu_read_unlock();
-}
-
 static void __geneve_sock_release(struct geneve_sock *gs)
 {
 	if (!gs || --gs->refcnt)
 		return;
 
 	list_del(&gs->list);
-	geneve_notify_del_rx_port(gs);
+	udp_tunnel_notify_del_rx_port(gs->sock, UDP_TUNNEL_TYPE_GENEVE);
 	udp_tunnel_sock_release(gs->sock);
 	kfree_rcu(gs, rcu);
 }
@@ -958,8 +922,8 @@ tx_error:
 		dev->stats.collisions++;
 	else if (err == -ENETUNREACH)
 		dev->stats.tx_carrier_errors++;
-	else
-		dev->stats.tx_errors++;
+
+	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 
@@ -1048,8 +1012,8 @@ tx_error:
 		dev->stats.collisions++;
 	else if (err == -ENETUNREACH)
 		dev->stats.tx_carrier_errors++;
-	else
-		dev->stats.tx_errors++;
+
+	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 #endif
@@ -1072,12 +1036,17 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int __geneve_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 {
+	struct geneve_dev *geneve = netdev_priv(dev);
 	/* The max_mtu calculation does not take account of GENEVE
 	 * options, to avoid excluding potentially valid
 	 * configurations.
 	 */
-	int max_mtu = IP_MAX_MTU - GENEVE_BASE_HLEN - sizeof(struct iphdr)
-		- dev->hard_header_len;
+	int max_mtu = IP_MAX_MTU - GENEVE_BASE_HLEN - dev->hard_header_len;
+
+	if (geneve->remote.sa.sa_family == AF_INET6)
+		max_mtu -= sizeof(struct ipv6hdr);
+	else
+		max_mtu -= sizeof(struct iphdr);
 
 	if (new_mtu < 68)
 		return -EINVAL;
@@ -1165,29 +1134,20 @@ static struct device_type geneve_type = {
 	.name = "geneve",
 };
 
-/* Calls the ndo_add_geneve_port of the caller in order to
+/* Calls the ndo_udp_tunnel_add of the caller in order to
  * supply the listening GENEVE udp ports. Callers are expected
- * to implement the ndo_add_geneve_port.
+ * to implement the ndo_udp_tunnel_add.
  */
 static void geneve_push_rx_ports(struct net_device *dev)
 {
 	struct net *net = dev_net(dev);
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_sock *gs;
-	sa_family_t sa_family;
-	struct sock *sk;
-	__be16 port;
-
-	if (!dev->netdev_ops->ndo_add_geneve_port)
-		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(gs, &gn->sock_list, list) {
-		sk = gs->sock->sk;
-		sa_family = sk->sk_family;
-		port = inet_sk(sk)->inet_sport;
-		dev->netdev_ops->ndo_add_geneve_port(dev, sa_family, port);
-	}
+	list_for_each_entry_rcu(gs, &gn->sock_list, list)
+		udp_tunnel_push_rx_port(dev, gs->sock,
+					UDP_TUNNEL_TYPE_GENEVE);
 	rcu_read_unlock();
 }
 
@@ -1508,6 +1468,7 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 {
 	struct nlattr *tb[IFLA_MAX + 1];
 	struct net_device *dev;
+	LIST_HEAD(list_kill);
 	int err;
 
 	memset(tb, 0, sizeof(tb));
@@ -1519,8 +1480,10 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 	err = geneve_configure(net, dev, &geneve_remote_unspec,
 			       0, 0, 0, 0, htons(dst_port), true,
 			       GENEVE_F_UDP_ZERO_CSUM6_RX);
-	if (err)
-		goto err;
+	if (err) {
+		free_netdev(dev);
+		return ERR_PTR(err);
+	}
 
 	/* openvswitch users expect packet sizes to be unrestricted,
 	 * so set the largest MTU we can.
@@ -1529,10 +1492,15 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 	if (err)
 		goto err;
 
+	err = rtnl_configure_link(dev, NULL);
+	if (err < 0)
+		goto err;
+
 	return dev;
 
  err:
-	free_netdev(dev);
+	geneve_dellink(dev, &list_kill);
+	unregister_netdevice_many(&list_kill);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(geneve_dev_create_fb);
@@ -1542,7 +1510,7 @@ static int geneve_netdevice_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (event == NETDEV_OFFLOAD_PUSH_GENEVE)
+	if (event == NETDEV_UDP_TUNNEL_PUSH_INFO)
 		geneve_push_rx_ports(dev);
 
 	return NOTIFY_DONE;

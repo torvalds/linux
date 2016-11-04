@@ -246,7 +246,7 @@ static int imx_set_mode(struct thermal_zone_device *tz,
 	}
 
 	data->mode = mode;
-	thermal_zone_device_update(tz);
+	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 	return 0;
 }
@@ -457,7 +457,7 @@ static irqreturn_t imx_thermal_alarm_irq_thread(int irq, void *dev)
 	dev_dbg(&data->tz->device, "THERMAL ALARM: T > %d\n",
 		data->alarm_temp / 1000);
 
-	thermal_zone_device_update(data->tz);
+	thermal_zone_device_update(data->tz, THERMAL_EVENT_UNSPECIFIED);
 
 	return IRQ_HANDLED;
 }
@@ -471,8 +471,6 @@ MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 static int imx_thermal_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(of_imx_thermal_match, &pdev->dev);
 	struct imx_thermal_data *data;
 	struct regmap *map;
 	int measure_freq;
@@ -490,7 +488,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	}
 	data->tempmon = map;
 
-	data->socdata = of_id->data;
+	data->socdata = of_device_get_match_data(&pdev->dev);
 
 	/* make sure the IRQ flag is clear before enabling irq on i.MX6SX */
 	if (data->socdata->version == TEMPMON_IMX6SX) {

@@ -1279,10 +1279,9 @@ static void init_local(void)
 		if (dlm_our_addr(&sas, i))
 			break;
 
-		addr = kmalloc(sizeof(*addr), GFP_NOFS);
+		addr = kmemdup(&sas, sizeof(*addr), GFP_NOFS);
 		if (!addr)
 			break;
-		memcpy(addr, &sas, sizeof(*addr));
 		dlm_local_addr[dlm_local_count++] = addr;
 	}
 }
@@ -1657,16 +1656,12 @@ void dlm_lowcomms_stop(void)
 	mutex_lock(&connections_lock);
 	dlm_allow_conn = 0;
 	foreach_conn(stop_conn);
+	clean_writequeues();
+	foreach_conn(free_conn);
 	mutex_unlock(&connections_lock);
 
 	work_stop();
 
-	mutex_lock(&connections_lock);
-	clean_writequeues();
-
-	foreach_conn(free_conn);
-
-	mutex_unlock(&connections_lock);
 	kmem_cache_destroy(con_cache);
 }
 

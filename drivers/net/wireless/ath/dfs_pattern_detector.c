@@ -338,7 +338,7 @@ static bool dpd_set_domain(struct dfs_pattern_detector *dpd,
 	return true;
 }
 
-static struct dfs_pattern_detector default_dpd = {
+static const struct dfs_pattern_detector default_dpd = {
 	.exit		= dpd_exit,
 	.set_dfs_domain	= dpd_set_domain,
 	.add_pulse	= dpd_add_pulse,
@@ -352,7 +352,7 @@ dfs_pattern_detector_init(struct ath_common *common,
 {
 	struct dfs_pattern_detector *dpd;
 
-	if (!config_enabled(CONFIG_CFG80211_CERTIFICATION_ONUS))
+	if (!IS_ENABLED(CONFIG_CFG80211_CERTIFICATION_ONUS))
 		return NULL;
 
 	dpd = kmalloc(sizeof(*dpd), GFP_KERNEL);

@@ -22,8 +22,9 @@
 #include "perf.h"
 
 #include "util/annotate.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/color.h"
+#include "util/drv_configs.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/machine.h"
@@ -68,6 +69,7 @@
 #include <sys/mman.h>
 
 #include <linux/stringify.h>
+#include <linux/time64.h>
 #include <linux/types.h>
 
 static volatile int done;
@@ -128,10 +130,14 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__annotate(sym, map, 0);
+	err = symbol__disassemble(sym, map, 0);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
+	} else {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		pr_err("Couldn't annotate %s: %s\n", sym->name, msg);
 	}
 
 	pthread_mutex_unlock(&notes->lock);
@@ -295,7 +301,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
 	hists__fprintf(hists, false, top->print_entries - printed, win_width,
-		       top->min_percent, stdout);
+		       top->min_percent, stdout, symbol_conf.use_callchain);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -479,7 +485,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				fprintf(stderr, "\nAvailable events:");
 
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
@@ -490,7 +496,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					sleep(1);
 					break;
 				}
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
@@ -583,7 +589,7 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	evlist__for_each(top->evlist, pos) {
+	evlist__for_each_entry(top->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
@@ -620,7 +626,7 @@ static void *display_thread(void *arg)
 	display_setup_sig();
 	pthread__unblock_sigwinch();
 repeat:
-	delay_msecs = top->delay_secs * 1000;
+	delay_msecs = top->delay_secs * MSEC_PER_SEC;
 	set_term_quiet_input(&save);
 	/* trash return*/
 	getc(stdin);
@@ -650,34 +656,6 @@ repeat:
 
 	tcsetattr(0, TCSAFLUSH, &save);
 	return NULL;
-}
-
-static int symbol_filter(struct map *map, struct symbol *sym)
-{
-	const char *name = sym->name;
-
-	if (!__map__is_kernel(map))
-		return 0;
-	/*
-	 * ppc64 uses function descriptors and appends a '.' to the
-	 * start of every instruction address. Remove it.
-	 */
-	if (name[0] == '.')
-		name++;
-
-	if (!strcmp(name, "_text") ||
-	    !strcmp(name, "_etext") ||
-	    !strcmp(name, "_sinittext") ||
-	    !strncmp("init_module", name, 11) ||
-	    !strncmp("cleanup_module", name, 14) ||
-	    strstr(name, "_text_start") ||
-	    strstr(name, "_text_end"))
-		return 1;
-
-	if (symbol__is_idle(sym))
-		sym->ignore = true;
-
-	return 0;
 }
 
 static int hist_iter__top_callback(struct hist_entry_iter *iter,
@@ -778,7 +756,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		}
 	}
 
-	if (al.sym == NULL || !al.sym->ignore) {
+	if (al.sym == NULL || !al.sym->idle) {
 		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
 			.evsel		= evsel,
@@ -888,7 +866,7 @@ static int perf_top__start_counters(struct perf_top *top)
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
-	evlist__for_each(evlist, counter) {
+	evlist__for_each_entry(evlist, counter) {
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
@@ -907,7 +885,7 @@ try_again:
 
 	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
 		ui__error("Failed to mmap with %d (%s)\n",
-			    errno, strerror_r(errno, msg, sizeof(msg)));
+			    errno, str_error_r(errno, msg, sizeof(msg)));
 		goto out_err;
 	}
 
@@ -936,6 +914,10 @@ static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 
 static int __cmd_top(struct perf_top *top)
 {
+	char msg[512];
+	struct perf_evsel *pos;
+	struct perf_evsel_config_term *err_term;
+	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
@@ -943,8 +925,6 @@ static int __cmd_top(struct perf_top *top)
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
 		return -1;
-
-	machines__set_symbol_filter(&top->session->machines, symbol_filter);
 
 	if (!objdump_path) {
 		ret = perf_env__lookup_objdump(&top->session->header.env);
@@ -971,6 +951,14 @@ static int __cmd_top(struct perf_top *top)
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;
+
+	ret = perf_evlist__apply_drv_configs(evlist, &pos, &err_term);
+	if (ret) {
+		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+			err_term->val.drv_cfg, perf_evsel__name(pos), errno,
+			str_error_r(errno, msg, sizeof(msg)));
+		goto out_delete;
+	}
 
 	top->session->evlist = top->evlist;
 	perf_session__set_id_hdr_size(top->session);
@@ -1028,7 +1016,7 @@ out_delete:
 
 out_err_cpu_topo: {
 	char errbuf[BUFSIZ];
-	const char *err = strerror_r(-ret, errbuf, sizeof(errbuf));
+	const char *err = str_error_r(-ret, errbuf, sizeof(errbuf));
 
 	ui__error("Could not read the CPU topology map: %s\n", err);
 	goto out_delete;
@@ -1295,7 +1283,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (perf_evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
-			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
+			  errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -1319,7 +1307,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
 		callchain_param.order = ORDER_CALLER;
 
-	symbol_conf.priv_size = sizeof(struct annotation);
+	status = symbol__annotation_init();
+	if (status < 0)
+		goto out_delete_evlist;
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init(NULL) < 0)

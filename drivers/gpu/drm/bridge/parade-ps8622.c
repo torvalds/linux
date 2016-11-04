@@ -16,7 +16,6 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -474,18 +473,8 @@ static int ps8622_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(ps8622->panel);
 }
 
-static struct drm_encoder *ps8622_best_encoder(struct drm_connector *connector)
-{
-	struct ps8622_bridge *ps8622;
-
-	ps8622 = connector_to_ps8622(connector);
-
-	return ps8622->bridge.encoder;
-}
-
 static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {
 	.get_modes = ps8622_get_modes,
-	.best_encoder = ps8622_best_encoder,
 };
 
 static enum drm_connector_status ps8622_detect(struct drm_connector *connector,
@@ -494,16 +483,11 @@ static enum drm_connector_status ps8622_detect(struct drm_connector *connector,
 	return connector_status_connected;
 }
 
-static void ps8622_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-}
-
 static const struct drm_connector_funcs ps8622_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = ps8622_detect,
-	.destroy = ps8622_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -646,9 +630,7 @@ static int ps8622_remove(struct i2c_client *client)
 {
 	struct ps8622_bridge *ps8622 = i2c_get_clientdata(client);
 
-	if (ps8622->bl)
-		backlight_device_unregister(ps8622->bl);
-
+	backlight_device_unregister(ps8622->bl);
 	drm_bridge_remove(&ps8622->bridge);
 
 	return 0;

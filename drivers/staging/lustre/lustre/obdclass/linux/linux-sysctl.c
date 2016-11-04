@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -49,6 +45,7 @@
 
 #include "../../include/obd_support.h"
 #include "../../include/lprocfs_status.h"
+#include "../../include/obd_class.h"
 
 struct static_lustre_uintvalue_attr {
 	struct {
@@ -99,8 +96,8 @@ LUSTRE_STATIC_UINT_ATTR(timeout, &obd_timeout);
 static ssize_t max_dirty_mb_show(struct kobject *kobj, struct attribute *attr,
 				 char *buf)
 {
-	return sprintf(buf, "%ul\n",
-			obd_max_dirty_pages / (1 << (20 - PAGE_SHIFT)));
+	return sprintf(buf, "%lu\n",
+		       obd_max_dirty_pages / (1 << (20 - PAGE_SHIFT)));
 }
 
 static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,

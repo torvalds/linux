@@ -161,14 +161,6 @@ static struct usb_endpoint_descriptor hs_ep_out_desc = {
 	.wMaxPacketSize =	cpu_to_le16(512)
 };
 
-static struct usb_qualifier_descriptor dev_qualifier = {
-	.bLength =		sizeof(dev_qualifier),
-	.bDescriptorType =	USB_DT_DEVICE_QUALIFIER,
-	.bcdUSB =		cpu_to_le16(0x0200),
-	.bDeviceClass =		USB_CLASS_PRINTER,
-	.bNumConfigurations =	1
-};
-
 static struct usb_descriptor_header *hs_printer_function[] = {
 	(struct usb_descriptor_header *) &intf_desc,
 	(struct usb_descriptor_header *) &hs_ep_in_desc,
@@ -897,12 +889,16 @@ static void printer_soft_reset(struct printer_dev *dev)
 /*-------------------------------------------------------------------------*/
 
 static bool gprinter_req_match(struct usb_function *f,
-			       const struct usb_ctrlrequest *ctrl)
+			       const struct usb_ctrlrequest *ctrl,
+			       bool config0)
 {
 	struct printer_dev	*dev = func_to_printer(f);
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
+
+	if (config0)
+		return false;
 
 	if ((ctrl->bRequestType & USB_RECIP_MASK) != USB_RECIP_INTERFACE ||
 	    (ctrl->bRequestType & USB_TYPE_MASK) != USB_TYPE_CLASS)

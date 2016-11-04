@@ -13,6 +13,7 @@
 #include <linux/pnp.h>
 #include <linux/kernel.h>
 #include <linux/serial_core.h>
+#include <linux/irq.h>
 #include  "8250.h"
 
 #define ADDR_PORT 0
@@ -29,6 +30,12 @@
 #define IO_ADDR1 0x61
 #define IO_ADDR2 0x60
 #define LDN 0x7
+
+#define FINTEK_IRQ_MODE	0x70
+#define IRQ_SHARE	BIT(4)
+#define IRQ_MODE_MASK	(BIT(6) | BIT(5))
+#define IRQ_LEVEL_LOW	0
+#define IRQ_EDGE_HIGH	BIT(5)
 
 #define RS485  0xF0
 #define RTS_INVERT BIT(5)
@@ -176,10 +183,37 @@ static int find_base_port(struct fintek_8250 *pdata, u16 io_address)
 	return -ENODEV;
 }
 
+static int fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool level_mode)
+{
+	int status;
+	u8 tmp;
+
+	status = fintek_8250_enter_key(pdata->base_port, pdata->key);
+	if (status)
+		return status;
+
+	outb(LDN, pdata->base_port + ADDR_PORT);
+	outb(pdata->index, pdata->base_port + DATA_PORT);
+
+	outb(FINTEK_IRQ_MODE, pdata->base_port + ADDR_PORT);
+	tmp = inb(pdata->base_port + DATA_PORT);
+
+	tmp &= ~IRQ_MODE_MASK;
+	tmp |= IRQ_SHARE;
+	if (!level_mode)
+		tmp |= IRQ_EDGE_HIGH;
+
+	outb(tmp, pdata->base_port + DATA_PORT);
+	fintek_8250_exit_key(pdata->base_port);
+	return 0;
+}
+
 int fintek_8250_probe(struct uart_8250_port *uart)
 {
 	struct fintek_8250 *pdata;
 	struct fintek_8250 probe_data;
+	struct irq_data *irq_data = irq_get_irq_data(uart->port.irq);
+	bool level_mode = irqd_is_level_type(irq_data);
 
 	if (find_base_port(&probe_data, uart->port.iobase))
 		return -ENODEV;
@@ -192,5 +226,5 @@ int fintek_8250_probe(struct uart_8250_port *uart)
 	uart->port.rs485_config = fintek_8250_rs485_config;
 	uart->port.private_data = pdata;
 
-	return 0;
+	return fintek_8250_set_irq_mode(pdata, level_mode);
 }

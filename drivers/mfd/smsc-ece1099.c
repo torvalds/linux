@@ -11,8 +11,7 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -36,7 +35,7 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 {
 	struct smsc *smsc;
 	int devid, rev, venid_l, venid_h;
-	int ret = 0;
+	int ret;
 
 	smsc = devm_kzalloc(&i2c->dev, sizeof(struct smsc),
 				GFP_KERNEL);
@@ -46,10 +45,8 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 	}
 
 	smsc->regmap = devm_regmap_init_i2c(i2c, &smsc_regmap_config);
-	if (IS_ERR(smsc->regmap)) {
-		ret = PTR_ERR(smsc->regmap);
-		goto err;
-	}
+	if (IS_ERR(smsc->regmap))
+		return PTR_ERR(smsc->regmap);
 
 	i2c_set_clientdata(i2c, smsc);
 	smsc->dev = &i2c->dev;
@@ -68,7 +65,7 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_write(smsc->regmap, SMSC_CLK_CTRL, smsc->clk);
 	if (ret)
-		goto err;
+		return ret;
 
 #ifdef CONFIG_OF
 	if (i2c->dev.of_node)
@@ -76,7 +73,6 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 					   NULL, NULL, &i2c->dev);
 #endif
 
-err:
 	return ret;
 }
 
@@ -84,7 +80,6 @@ static const struct i2c_device_id smsc_i2c_id[] = {
 	{ "smscece1099", 0},
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, smsc_i2c_id);
 
 static struct i2c_driver smsc_i2c_driver = {
 	.driver = {
@@ -93,9 +88,4 @@ static struct i2c_driver smsc_i2c_driver = {
 	.probe = smsc_i2c_probe,
 	.id_table = smsc_i2c_id,
 };
-
-module_i2c_driver(smsc_i2c_driver);
-
-MODULE_AUTHOR("Sourav Poddar <sourav.poddar@ti.com>");
-MODULE_DESCRIPTION("SMSC chip multi-function driver");
-MODULE_LICENSE("GPL v2");
+builtin_i2c_driver(smsc_i2c_driver);

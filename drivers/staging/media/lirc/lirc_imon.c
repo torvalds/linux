@@ -32,7 +32,6 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
-
 #define MOD_AUTHOR	"Venky Raju <dev@venky.ws>"
 #define MOD_DESC	"Driver for SoundGraph iMON MultiMedia IR/Display"
 #define MOD_NAME	"lirc_imon"
@@ -212,7 +211,6 @@ static void deregister_from_lirc(struct imon_context *context)
 	else
 		dev_info(&context->usbdev->dev,
 			 "Deregistered iMON driver (minor:%d)\n", minor);
-
 }
 
 /**
@@ -429,7 +427,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 
 	do {
 		memcpy(context->usb_tx_buf, context->tx.data_buf + offset, 7);
-		context->usb_tx_buf[7] = (unsigned char) seq;
+		context->usb_tx_buf[7] = (unsigned char)seq;
 
 		retval = send_packet(context);
 		if (retval) {
@@ -447,7 +445,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 	if (context->vfd_proto_6p) {
 		/* Send packet #6 */
 		memcpy(context->usb_tx_buf, &vfd_packet6, sizeof(vfd_packet6));
-		context->usb_tx_buf[7] = (unsigned char) seq;
+		context->usb_tx_buf[7] = (unsigned char)seq;
 		retval = send_packet(context);
 		if (retval)
 			dev_err(&context->usbdev->dev,
@@ -563,7 +561,7 @@ static void submit_data(struct imon_context *context)
 		value |= PULSE_BIT;
 
 	for (i = 0; i < 4; ++i)
-		buf[i] = value>>(i*8);
+		buf[i] = value >> (i * 8);
 
 	lirc_buffer_write(context->driver->rbuf, buf);
 	wake_up(&context->driver->rbuf->wait_poll);
@@ -589,7 +587,7 @@ static void imon_incoming_packet(struct imon_context *context,
 
 	if (len != 8) {
 		dev_warn(dev, "imon %s: invalid incoming packet size (len = %d, intf%d)\n",
-			__func__, len, intf);
+			 __func__, len, intf);
 		return;
 	}
 
@@ -704,7 +702,7 @@ static int imon_probe(struct usb_interface *interface,
 	/* prevent races probing devices w/multiple interfaces */
 	mutex_lock(&driver_lock);
 
-	context = kzalloc(sizeof(struct imon_context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		goto driver_unlock;
 
@@ -784,11 +782,11 @@ static int imon_probe(struct usb_interface *interface,
 			__func__, vfd_proto_6p);
 	}
 
-	driver = kzalloc(sizeof(struct lirc_driver), GFP_KERNEL);
+	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 	if (!driver)
 		goto free_context;
 
-	rbuf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
+	rbuf = kmalloc(sizeof(*rbuf), GFP_KERNEL);
 	if (!rbuf)
 		goto free_driver;
 
@@ -797,16 +795,11 @@ static int imon_probe(struct usb_interface *interface,
 		goto free_rbuf;
 	}
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rx_urb) {
-		dev_err(dev, "%s: usb_alloc_urb failed for IR urb\n", __func__);
+	if (!rx_urb)
 		goto free_lirc_buf;
-	}
 	tx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!tx_urb) {
-		dev_err(dev, "%s: usb_alloc_urb failed for display urb\n",
-		    __func__);
+	if (!tx_urb)
 		goto free_rx_urb;
-	}
 
 	mutex_init(&context->ctx_lock);
 	context->vfd_proto_6p = vfd_proto_6p;
@@ -835,7 +828,7 @@ static int imon_probe(struct usb_interface *interface,
 	}
 
 	dev_info(dev, "Registered iMON driver (lirc minor: %d)\n",
-			lirc_minor);
+		 lirc_minor);
 
 	/* Needed while unregistering! */
 	driver->minor = lirc_minor;
@@ -856,8 +849,8 @@ static int imon_probe(struct usb_interface *interface,
 		context->display = 1;
 
 	usb_fill_int_urb(context->rx_urb, context->usbdev,
-		usb_rcvintpipe(context->usbdev,
-			context->rx_endpoint->bEndpointAddress),
+			 usb_rcvintpipe(context->usbdev,
+			 context->rx_endpoint->bEndpointAddress),
 		context->usb_rx_buf, sizeof(context->usb_rx_buf),
 		usb_rx_callback, context,
 		context->rx_endpoint->bInterval);
@@ -882,7 +875,7 @@ static int imon_probe(struct usb_interface *interface,
 	}
 
 	dev_info(dev, "iMON device (%04x:%04x, intf%d) on usb<%d:%d> initialized\n",
-		vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
+		 vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
 
 	/* Everything went fine. Just unlock and return retval (with is 0) */
 	mutex_unlock(&context->ctx_lock);
@@ -973,8 +966,8 @@ static int imon_resume(struct usb_interface *intf)
 	struct imon_context *context = usb_get_intfdata(intf);
 
 	usb_fill_int_urb(context->rx_urb, context->usbdev,
-		usb_rcvintpipe(context->usbdev,
-			context->rx_endpoint->bEndpointAddress),
+			 usb_rcvintpipe(context->usbdev,
+			 context->rx_endpoint->bEndpointAddress),
 		context->usb_rx_buf, sizeof(context->usb_rx_buf),
 		usb_rx_callback, context,
 		context->rx_endpoint->bInterval);

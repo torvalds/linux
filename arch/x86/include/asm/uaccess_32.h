@@ -37,6 +37,7 @@ unsigned long __must_check __copy_from_user_ll_nocache_nozero
 static __always_inline unsigned long __must_check
 __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 {
+	check_object_size(from, n, true);
 	return __copy_to_user_ll(to, from, n);
 }
 
@@ -95,6 +96,7 @@ static __always_inline unsigned long
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	might_fault();
+	check_object_size(to, n, false);
 	if (__builtin_constant_p(n)) {
 		unsigned long ret;
 

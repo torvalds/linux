@@ -227,7 +227,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 				if (asymmetric_key_id_same(p->id, auth))
 					goto found_issuer_check_skid;
 			}
-		} else {
+		} else if (sig->auth_ids[1]) {
 			auth = sig->auth_ids[1];
 			pr_debug("- want %*phN\n", auth->len, auth->data);
 			for (p = pkcs7->certs; p; p = p->next) {

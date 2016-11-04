@@ -478,7 +478,7 @@ static ssize_t ad7280_store_balance_timer(struct device *dev,
 static struct attribute *ad7280_attributes[AD7280A_MAX_CHAIN *
 					   AD7280A_CELLS_PER_DEV * 2 + 1];
 
-static struct attribute_group ad7280_attrs_group = {
+static const struct attribute_group ad7280_attrs_group = {
 	.attrs = ad7280_attributes,
 };
 
@@ -705,7 +705,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 							IIO_EV_DIR_RISING,
 							IIO_EV_TYPE_THRESH,
 							0, 0, 0),
-					       iio_get_time_ns());
+					       iio_get_time_ns(indio_dev));
 			else if (((channels[i] >> 11) & 0xFFF) <=
 				st->cell_threshlow)
 				iio_push_event(indio_dev,
@@ -715,7 +715,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 							IIO_EV_DIR_FALLING,
 							IIO_EV_TYPE_THRESH,
 							0, 0, 0),
-					       iio_get_time_ns());
+					       iio_get_time_ns(indio_dev));
 		} else {
 			if (((channels[i] >> 11) & 0xFFF) >= st->aux_threshhigh)
 				iio_push_event(indio_dev,
@@ -724,7 +724,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 							0,
 							IIO_EV_TYPE_THRESH,
 							IIO_EV_DIR_RISING),
-					       iio_get_time_ns());
+					       iio_get_time_ns(indio_dev));
 			else if (((channels[i] >> 11) & 0xFFF) <=
 				st->aux_threshlow)
 				iio_push_event(indio_dev,
@@ -733,7 +733,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 							0,
 							IIO_EV_TYPE_THRESH,
 							IIO_EV_DIR_FALLING),
-					       iio_get_time_ns());
+					       iio_get_time_ns(indio_dev));
 		}
 	}
 

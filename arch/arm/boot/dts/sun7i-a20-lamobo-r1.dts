@@ -95,6 +95,10 @@
 	status = "okay";
 };
 
+&codec {
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&reg_dcdc2>;
 };
@@ -110,13 +114,67 @@
 &gmac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac_pins_rgmii_a>;
-	phy = <&phy1>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
 
-	phy1: ethernet-phy@1 {
-		reg = <1>;
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		switch: ethernet-switch@1e {
+			compatible = "brcm,bcm53125";
+			reg = <30>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port0: port@0 {
+					reg = <0>;
+					label = "lan2";
+				};
+
+				port1: port@1 {
+					reg = <1>;
+					label = "lan3";
+				};
+
+				port2: port@2 {
+					reg = <2>;
+					label = "lan4";
+				};
+
+				port3: port@3 {
+					reg = <3>;
+					label = "wan";
+				};
+
+				port4: port@4 {
+					reg = <4>;
+					label = "lan1";
+				};
+
+				port8: port@8 {
+					reg = <8>;
+					label = "cpu";
+					ethernet = <&gmac>;
+					phy-mode = "rgmii";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+			};
+		};
 	};
 };
 
@@ -158,10 +216,6 @@
 	status = "okay";
 };
 
-&ohci1 {
-	status = "okay";
-};
-
 &otg_sram {
 	status = "okay";
 };
@@ -199,7 +253,7 @@
 #include "axp209.dtsi"
 
 &reg_ahci_5v {
-	gpio = <&pio 1 3 0>; /* PB3 */
+	gpio = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
 	status = "okay";
 };
 
@@ -232,11 +286,8 @@
 	status = "okay";
 };
 
-&reg_usb1_vbus {
-	status = "okay";
-};
-
 &reg_usb2_vbus {
+	gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>; /* PH12 */
 	status = "okay";
 };
 
@@ -275,13 +326,16 @@
 	status = "okay";
 };
 
+&usb2_vbus_pin_a {
+	allwinner,pins = "PH12";
+};
+
 &usbphy {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb0_id_detect_pin>;
 	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_usb0_vbus>;
-	usb1_vbus-supply = <&reg_usb1_vbus>;
 	usb2_vbus-supply = <&reg_usb2_vbus>;
 	status = "okay";
 };

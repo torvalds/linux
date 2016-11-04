@@ -16,6 +16,7 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
+#include "cpuidle.h"
 
 static void __init imx6ul_enet_clk_init(void)
 {
@@ -46,7 +47,7 @@ static int ksz8081_phy_fixup(struct phy_device *dev)
 static void __init imx6ul_enet_phy_init(void)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB))
-		phy_register_fixup_for_uid(PHY_ID_KSZ8081, 0xffffffff,
+		phy_register_fixup_for_uid(PHY_ID_KSZ8081, MICREL_PHY_ID_MASK,
 					   ksz8081_phy_fixup);
 }
 
@@ -64,7 +65,7 @@ static void __init imx6ul_init_machine(void)
 	if (parent == NULL)
 		pr_warn("failed to initialize soc device\n");
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_platform_default_populate(NULL, NULL, parent);
 	imx6ul_enet_init();
 	imx_anatop_init();
 	imx6ul_pm_init();
@@ -80,6 +81,8 @@ static void __init imx6ul_init_irq(void)
 
 static void __init imx6ul_init_late(void)
 {
+	imx6sx_cpuidle_init();
+
 	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ))
 		platform_device_register_simple("imx6q-cpufreq", -1, NULL, 0);
 }

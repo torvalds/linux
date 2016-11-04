@@ -71,6 +71,7 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto err_unlock;
 	}
 
+	cl->fp = file;
 	file->private_data = cl;
 
 	mutex_unlock(&dev->device_lock);
@@ -138,9 +139,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	struct mei_cl_cb *cb = NULL;
+	bool nonblock = !!(file->f_flags & O_NONBLOCK);
 	int rets;
-	int err;
-
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -164,11 +164,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_read(dev, file, ubuf, length, offset);
-		goto out;
-	}
-
 	cb = mei_cl_read_cb(cl, file);
 	if (cb)
 		goto copy_buffer;
@@ -176,24 +171,29 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	if (*offset > 0)
 		*offset = 0;
 
-	err = mei_cl_read_start(cl, length, file);
-	if (err && err != -EBUSY) {
-		cl_dbg(dev, cl, "mei start read failure status = %d\n", err);
-		rets = err;
+	rets = mei_cl_read_start(cl, length, file);
+	if (rets && rets != -EBUSY) {
+		cl_dbg(dev, cl, "mei start read failure status = %d\n", rets);
 		goto out;
 	}
 
-	if (list_empty(&cl->rd_completed) && !waitqueue_active(&cl->rx_wait)) {
-		if (file->f_flags & O_NONBLOCK) {
-			rets = -EAGAIN;
-			goto out;
-		}
+	if (nonblock) {
+		rets = -EAGAIN;
+		goto out;
+	}
 
+	if (rets == -EBUSY &&
+	    !mei_cl_enqueue_ctrl_wr_cb(cl, length, MEI_FOP_READ, file)) {
+		rets = -ENOMEM;
+		goto out;
+	}
+
+	do {
 		mutex_unlock(&dev->device_lock);
 
 		if (wait_event_interruptible(cl->rx_wait,
-				(!list_empty(&cl->rd_completed)) ||
-				(!mei_cl_is_connected(cl)))) {
+					     (!list_empty(&cl->rd_completed)) ||
+					     (!mei_cl_is_connected(cl)))) {
 
 			if (signal_pending(current))
 				return -EINTR;
@@ -202,16 +202,12 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 		mutex_lock(&dev->device_lock);
 		if (!mei_cl_is_connected(cl)) {
-			rets = -EBUSY;
+			rets = -ENODEV;
 			goto out;
 		}
-	}
 
-	cb = mei_cl_read_cb(cl, file);
-	if (!cb) {
-		rets = 0;
-		goto out;
-	}
+		cb = mei_cl_read_cb(cl, file);
+	} while (!cb);
 
 copy_buffer:
 	/* now copy the data to user space */
@@ -609,15 +605,15 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		mask = mei_amthif_poll(dev, file, wait);
-		goto out;
-	}
-
 	if (notify_en) {
 		poll_wait(file, &cl->ev_wait, wait);
 		if (cl->notify_ev)
 			mask |= POLLPRI;
+	}
+
+	if (cl == &dev->iamthif_cl) {
+		mask |= mei_amthif_poll(file, wait);
+		goto out;
 	}
 
 	if (req_events & (POLLIN | POLLRDNORM)) {
@@ -626,7 +622,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		if (!list_empty(&cl->rd_completed))
 			mask |= POLLIN | POLLRDNORM;
 		else
-			mei_cl_read_start(cl, 0, file);
+			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
 	}
 
 out:

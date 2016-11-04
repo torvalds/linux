@@ -26,6 +26,8 @@
 
 #define MACSEC_MIN_ICV_LEN 8
 #define MACSEC_MAX_ICV_LEN 32
+/* upper limit for ICV length as recommended by IEEE802.1AE-2006 */
+#define MACSEC_STD_ICV_LEN 16
 
 enum macsec_attrs {
 	MACSEC_ATTR_UNSPEC,

@@ -1,6 +1,8 @@
 /*
  * PCIe driver for Marvell Armada 370 and Armada XP SoCs
  *
+ * Author: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -11,7 +13,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mbus.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
@@ -839,24 +841,21 @@ static struct pci_ops mvebu_pcie_ops = {
 static int mvebu_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(sys);
-	int i;
+	int err, i;
 
 	pcie->mem.name = "PCI MEM";
 	pcie->realio.name = "PCI I/O";
 
-	if (request_resource(&iomem_resource, &pcie->mem))
-		return 0;
-
-	if (resource_size(&pcie->realio) != 0) {
-		if (request_resource(&ioport_resource, &pcie->realio)) {
-			release_resource(&pcie->mem);
-			return 0;
-		}
+	if (resource_size(&pcie->realio) != 0)
 		pci_add_resource_offset(&sys->resources, &pcie->realio,
 					sys->io_offset);
-	}
+
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
+
+	err = devm_request_pci_bus_resources(&pcie->pdev->dev, &sys->resources);
+	if (err)
+		return 0;
 
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
@@ -1191,13 +1190,13 @@ static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
 
 static int mvebu_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct mvebu_pcie *pcie;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct device_node *child;
 	int num, i, ret;
 
-	pcie = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pcie),
-			    GFP_KERNEL);
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
@@ -1207,7 +1206,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	/* Get the PCIe memory and I/O aperture */
 	mvebu_mbus_get_pcie_mem_aperture(&pcie->mem);
 	if (resource_size(&pcie->mem) == 0) {
-		dev_err(&pdev->dev, "invalid memory aperture size\n");
+		dev_err(dev, "invalid memory aperture size\n");
 		return -EINVAL;
 	}
 
@@ -1225,20 +1224,18 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	/* Get the bus range */
 	ret = of_pci_parse_bus_range(np, &pcie->busn);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to parse bus-range property: %d\n",
-			ret);
+		dev_err(dev, "failed to parse bus-range property: %d\n", ret);
 		return ret;
 	}
 
-	num = of_get_available_child_count(pdev->dev.of_node);
+	num = of_get_available_child_count(np);
 
-	pcie->ports = devm_kcalloc(&pdev->dev, num, sizeof(*pcie->ports),
-				   GFP_KERNEL);
+	pcie->ports = devm_kcalloc(dev, num, sizeof(*pcie->ports), GFP_KERNEL);
 	if (!pcie->ports)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_node(np, child) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
 
 		ret = mvebu_pcie_parse_port(pcie, port, child);
@@ -1267,8 +1264,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 
 		port->base = mvebu_pcie_map_registers(pdev, child, port);
 		if (IS_ERR(port->base)) {
-			dev_err(&pdev->dev, "%s: cannot map registers\n",
-				port->name);
+			dev_err(dev, "%s: cannot map registers\n", port->name);
 			port->base = NULL;
 			mvebu_pcie_powerdown(port);
 			continue;
@@ -1298,7 +1294,6 @@ static const struct of_device_id mvebu_pcie_of_match_table[] = {
 	{ .compatible = "marvell,kirkwood-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mvebu_pcie_of_match_table);
 
 static const struct dev_pm_ops mvebu_pcie_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mvebu_pcie_suspend, mvebu_pcie_resume)
@@ -1314,8 +1309,4 @@ static struct platform_driver mvebu_pcie_driver = {
 	},
 	.probe = mvebu_pcie_probe,
 };
-module_platform_driver(mvebu_pcie_driver);
-
-MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
-MODULE_DESCRIPTION("Marvell EBU PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(mvebu_pcie_driver);

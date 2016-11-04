@@ -46,6 +46,7 @@
 #include "vivid-vbi-cap.h"
 #include "vivid-vbi-out.h"
 #include "vivid-osd.h"
+#include "vivid-cec.h"
 #include "vivid-ctrls.h"
 
 #define VIVID_MODULE_NAME "vivid"
@@ -162,38 +163,38 @@ const struct v4l2_rect vivid_max_rect = {
 
 static const u8 vivid_hdmi_edid[256] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-	0x63, 0x3a, 0xaa, 0x55, 0x00, 0x00, 0x00, 0x00,
-	0x0a, 0x18, 0x01, 0x03, 0x80, 0x10, 0x09, 0x78,
-	0x0e, 0x00, 0xb2, 0xa0, 0x57, 0x49, 0x9b, 0x26,
-	0x10, 0x48, 0x4f, 0x2f, 0xcf, 0x00, 0x31, 0x59,
+	0x31, 0xd8, 0x34, 0x12, 0x00, 0x00, 0x00, 0x00,
+	0x22, 0x1a, 0x01, 0x03, 0x80, 0x60, 0x36, 0x78,
+	0x0f, 0xee, 0x91, 0xa3, 0x54, 0x4c, 0x99, 0x26,
+	0x0f, 0x50, 0x54, 0x2f, 0xcf, 0x00, 0x31, 0x59,
 	0x45, 0x59, 0x81, 0x80, 0x81, 0x40, 0x90, 0x40,
-	0x95, 0x00, 0xa9, 0x40, 0xb3, 0x00, 0x02, 0x3a,
-	0x80, 0x18, 0x71, 0x38, 0x2d, 0x40, 0x58, 0x2c,
-	0x46, 0x00, 0x10, 0x09, 0x00, 0x00, 0x00, 0x1e,
+	0x95, 0x00, 0xa9, 0x40, 0xb3, 0x00, 0x08, 0xe8,
+	0x00, 0x30, 0xf2, 0x70, 0x5a, 0x80, 0xb0, 0x58,
+	0x8a, 0x00, 0xc0, 0x1c, 0x32, 0x00, 0x00, 0x1e,
 	0x00, 0x00, 0x00, 0xfd, 0x00, 0x18, 0x55, 0x18,
-	0x5e, 0x11, 0x00, 0x0a, 0x20, 0x20, 0x20, 0x20,
-	0x20, 0x20, 0x00, 0x00, 0x00, 0xfc, 0x00,  'v',
-	'4',   'l',  '2',  '-',  'h',  'd',  'm',  'i',
-	0x0a, 0x0a, 0x0a, 0x0a, 0x00, 0x00, 0x00, 0x10,
+	0x87, 0x3c, 0x00, 0x0a, 0x20, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x76,
+	0x69, 0x76, 0x69, 0x64, 0x0a, 0x20, 0x20, 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0x10,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xf0,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x7b,
 
-	0x02, 0x03, 0x1a, 0xc0, 0x48, 0xa2, 0x10, 0x04,
-	0x02, 0x01, 0x21, 0x14, 0x13, 0x23, 0x09, 0x07,
-	0x07, 0x65, 0x03, 0x0c, 0x00, 0x10, 0x00, 0xe2,
-	0x00, 0x2a, 0x01, 0x1d, 0x00, 0x80, 0x51, 0xd0,
-	0x1c, 0x20, 0x40, 0x80, 0x35, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x1e, 0x8c, 0x0a, 0xd0, 0x8a,
-	0x20, 0xe0, 0x2d, 0x10, 0x10, 0x3e, 0x96, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd7
+	0x02, 0x03, 0x3f, 0xf0, 0x51, 0x61, 0x60, 0x5f,
+	0x5e, 0x5d, 0x10, 0x1f, 0x04, 0x13, 0x22, 0x21,
+	0x20, 0x05, 0x14, 0x02, 0x11, 0x01, 0x23, 0x09,
+	0x07, 0x07, 0x83, 0x01, 0x00, 0x00, 0x6d, 0x03,
+	0x0c, 0x00, 0x10, 0x00, 0x00, 0x78, 0x21, 0x00,
+	0x60, 0x01, 0x02, 0x03, 0x67, 0xd8, 0x5d, 0xc4,
+	0x01, 0x78, 0x00, 0x00, 0xe2, 0x00, 0xea, 0xe3,
+	0x05, 0x00, 0x00, 0xe3, 0x06, 0x01, 0x00, 0x4d,
+	0xd0, 0x00, 0xa0, 0xf0, 0x70, 0x3e, 0x80, 0x30,
+	0x20, 0x35, 0x00, 0xc0, 0x1c, 0x32, 0x00, 0x00,
+	0x1e, 0x1a, 0x36, 0x80, 0xa0, 0x70, 0x38, 0x1f,
+	0x40, 0x30, 0x20, 0x35, 0x00, 0xc0, 0x1c, 0x32,
+	0x00, 0x00, 0x1a, 0x1a, 0x1d, 0x00, 0x80, 0x51,
+	0xd0, 0x1c, 0x20, 0x40, 0x80, 0x35, 0x00, 0xc0,
+	0x1c, 0x32, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x27,
 };
 
 static int vidioc_querycap(struct file *file, void  *priv,
@@ -684,6 +685,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->input_name_counter[i] = in_type_counter[dev->input_type[i]]++;
 	}
 	dev->has_audio_inputs = in_type_counter[TV] && in_type_counter[SVID];
+	if (in_type_counter[HDMI] == 16) {
+		/* The CEC physical address only allows for max 15 inputs */
+		in_type_counter[HDMI]--;
+		dev->num_inputs--;
+	}
 
 	/* how many outputs do we have and of what type? */
 	dev->num_outputs = num_outputs[inst];
@@ -696,6 +702,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->output_name_counter[i] = out_type_counter[dev->output_type[i]]++;
 	}
 	dev->has_audio_outputs = out_type_counter[SVID];
+	if (out_type_counter[HDMI] == 16) {
+		/*
+		 * The CEC physical address only allows for max 15 inputs,
+		 * so outputs are also limited to 15 to allow for easy
+		 * CEC output to input mapping.
+		 */
+		out_type_counter[HDMI]--;
+		dev->num_outputs--;
+	}
 
 	/* do we create a video capture device? */
 	dev->has_vid_cap = node_type & 0x0001;
@@ -824,6 +839,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		dev->radio_tx_caps = V4L2_CAP_RDS_OUTPUT | V4L2_CAP_MODULATOR |
 				     V4L2_CAP_READWRITE;
 
+	ret = -ENOMEM;
 	/* initialize the test pattern generator */
 	tpg_init(&dev->tpg, 640, 360);
 	if (tpg_alloc(&dev->tpg, MAX_ZOOM * MAX_WIDTH))
@@ -1010,6 +1026,19 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	INIT_LIST_HEAD(&dev->vbi_out_active);
 	INIT_LIST_HEAD(&dev->sdr_cap_active);
 
+	INIT_LIST_HEAD(&dev->cec_work_list);
+	spin_lock_init(&dev->cec_slock);
+	/*
+	 * Same as create_singlethread_workqueue, but now I can use the
+	 * string formatting of alloc_ordered_workqueue.
+	 */
+	dev->cec_workqueue =
+		alloc_ordered_workqueue("vivid-%03d-cec", WQ_MEM_RECLAIM, inst);
+	if (!dev->cec_workqueue) {
+		ret = -ENOMEM;
+		goto unreg_dev;
+	}
+
 	/* start creating the vb2 queues */
 	if (dev->has_vid_cap) {
 		/* initialize vid_cap queue */
@@ -1117,7 +1146,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	/* finally start creating the device nodes */
 	if (dev->has_vid_cap) {
 		vfd = &dev->vid_cap_dev;
-		strlcpy(vfd->name, "vivid-vid-cap", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-vid-cap", inst);
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
 		vfd->device_caps = dev->vid_cap_caps;
@@ -1133,6 +1163,27 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		vfd->lock = &dev->mutex;
 		video_set_drvdata(vfd, dev);
 
+#ifdef CONFIG_VIDEO_VIVID_CEC
+		if (in_type_counter[HDMI]) {
+			struct cec_adapter *adap;
+
+			adap = vivid_cec_alloc_adap(dev, 0, &pdev->dev, false);
+			ret = PTR_ERR_OR_ZERO(adap);
+			if (ret < 0)
+				goto unreg_dev;
+			dev->cec_rx_adap = adap;
+			ret = cec_register_adapter(adap);
+			if (ret < 0) {
+				cec_delete_adapter(adap);
+				dev->cec_rx_adap = NULL;
+				goto unreg_dev;
+			}
+			cec_s_phys_addr(adap, 0, false);
+			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input %d\n",
+				  dev_name(&adap->devnode.dev), i);
+		}
+#endif
+
 		ret = video_register_device(vfd, VFL_TYPE_GRABBER, vid_cap_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
@@ -1141,8 +1192,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	}
 
 	if (dev->has_vid_out) {
+#ifdef CONFIG_VIDEO_VIVID_CEC
+		unsigned int bus_cnt = 0;
+#endif
+
 		vfd = &dev->vid_out_dev;
-		strlcpy(vfd->name, "vivid-vid-out", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-vid-out", inst);
 		vfd->vfl_dir = VFL_DIR_TX;
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
@@ -1159,6 +1215,35 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		vfd->lock = &dev->mutex;
 		video_set_drvdata(vfd, dev);
 
+#ifdef CONFIG_VIDEO_VIVID_CEC
+		for (i = 0; i < dev->num_outputs; i++) {
+			struct cec_adapter *adap;
+
+			if (dev->output_type[i] != HDMI)
+				continue;
+			dev->cec_output2bus_map[i] = bus_cnt;
+			adap = vivid_cec_alloc_adap(dev, bus_cnt,
+						     &pdev->dev, true);
+			ret = PTR_ERR_OR_ZERO(adap);
+			if (ret < 0)
+				goto unreg_dev;
+			dev->cec_tx_adap[bus_cnt] = adap;
+			ret = cec_register_adapter(adap);
+			if (ret < 0) {
+				cec_delete_adapter(adap);
+				dev->cec_tx_adap[bus_cnt] = NULL;
+				goto unreg_dev;
+			}
+			bus_cnt++;
+			if (bus_cnt <= out_type_counter[HDMI])
+				cec_s_phys_addr(adap, bus_cnt << 12, false);
+			else
+				cec_s_phys_addr(adap, 0x1000, false);
+			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
+				  dev_name(&adap->devnode.dev), i);
+		}
+#endif
+
 		ret = video_register_device(vfd, VFL_TYPE_GRABBER, vid_out_nr[inst]);
 		if (ret < 0)
 			goto unreg_dev;
@@ -1168,7 +1253,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_vbi_cap) {
 		vfd = &dev->vbi_cap_dev;
-		strlcpy(vfd->name, "vivid-vbi-cap", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-vbi-cap", inst);
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
 		vfd->device_caps = dev->vbi_cap_caps;
@@ -1191,7 +1277,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_vbi_out) {
 		vfd = &dev->vbi_out_dev;
-		strlcpy(vfd->name, "vivid-vbi-out", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-vbi-out", inst);
 		vfd->vfl_dir = VFL_DIR_TX;
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
@@ -1215,7 +1302,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_sdr_cap) {
 		vfd = &dev->sdr_cap_dev;
-		strlcpy(vfd->name, "vivid-sdr-cap", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-sdr-cap", inst);
 		vfd->fops = &vivid_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
 		vfd->device_caps = dev->sdr_cap_caps;
@@ -1234,7 +1322,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_radio_rx) {
 		vfd = &dev->radio_rx_dev;
-		strlcpy(vfd->name, "vivid-rad-rx", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-rad-rx", inst);
 		vfd->fops = &vivid_radio_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
 		vfd->device_caps = dev->radio_rx_caps;
@@ -1252,7 +1341,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 	if (dev->has_radio_tx) {
 		vfd = &dev->radio_tx_dev;
-		strlcpy(vfd->name, "vivid-rad-tx", sizeof(vfd->name));
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-rad-tx", inst);
 		vfd->vfl_dir = VFL_DIR_TX;
 		vfd->fops = &vivid_radio_fops;
 		vfd->ioctl_ops = &vivid_ioctl_ops;
@@ -1282,6 +1372,13 @@ unreg_dev:
 	video_unregister_device(&dev->vbi_cap_dev);
 	video_unregister_device(&dev->vid_out_dev);
 	video_unregister_device(&dev->vid_cap_dev);
+	cec_unregister_adapter(dev->cec_rx_adap);
+	for (i = 0; i < MAX_OUTPUTS; i++)
+		cec_unregister_adapter(dev->cec_tx_adap[i]);
+	if (dev->cec_workqueue) {
+		vivid_cec_bus_free_work(dev);
+		destroy_workqueue(dev->cec_workqueue);
+	}
 free_dev:
 	v4l2_device_put(&dev->v4l2_dev);
 	return ret;
@@ -1331,8 +1428,7 @@ static int vivid_probe(struct platform_device *pdev)
 static int vivid_remove(struct platform_device *pdev)
 {
 	struct vivid_dev *dev;
-	unsigned i;
-
+	unsigned int i, j;
 
 	for (i = 0; i < n_devs; i++) {
 		dev = vivid_devs[i];
@@ -1379,6 +1475,13 @@ static int vivid_remove(struct platform_device *pdev)
 				dev->fb_info.node);
 			unregister_framebuffer(&dev->fb_info);
 			vivid_fb_release_buffers(dev);
+		}
+		cec_unregister_adapter(dev->cec_rx_adap);
+		for (j = 0; j < MAX_OUTPUTS; j++)
+			cec_unregister_adapter(dev->cec_tx_adap[j]);
+		if (dev->cec_workqueue) {
+			vivid_cec_bus_free_work(dev);
+			destroy_workqueue(dev->cec_workqueue);
 		}
 		v4l2_device_put(&dev->v4l2_dev);
 		vivid_devs[i] = NULL;

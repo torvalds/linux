@@ -53,4 +53,8 @@ struct reset_controller_dev {
 int reset_controller_register(struct reset_controller_dev *rcdev);
 void reset_controller_unregister(struct reset_controller_dev *rcdev);
 
+struct device;
+int devm_reset_controller_register(struct device *dev,
+				   struct reset_controller_dev *rcdev);
+
 #endif

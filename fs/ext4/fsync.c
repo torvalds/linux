@@ -61,6 +61,13 @@ static int ext4_sync_parent(struct inode *inode)
 			break;
 		iput(inode);
 		inode = next;
+		/*
+		 * The directory inode may have gone through rmdir by now. But
+		 * the inode itself and its blocks are still allocated (we hold
+		 * a reference to the inode so it didn't go through
+		 * ext4_evict_inode()) and so we are safe to flush metadata
+		 * blocks and the inode.
+		 */
 		ret = sync_mapping_buffers(inode->i_mapping);
 		if (ret)
 			break;
@@ -106,9 +113,11 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	if (!journal) {
-		ret = generic_file_fsync(file, start, end, datasync);
-		if (!ret && !hlist_empty(&inode->i_dentry))
+		ret = __generic_file_fsync(file, start, end, datasync);
+		if (!ret)
 			ret = ext4_sync_parent(inode);
+		if (test_opt(inode->i_sb, BARRIER))
+			goto issue_flush;
 		goto out;
 	}
 
@@ -140,6 +149,7 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		needs_barrier = true;
 	ret = jbd2_complete_transaction(journal, commit_tid);
 	if (needs_barrier) {
+	issue_flush:
 		err = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 		if (!ret)
 			ret = err;

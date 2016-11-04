@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -95,9 +91,9 @@ srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int nob)
 	LASSERT(nob > 0);
 	LASSERT(i >= 0 && i < bk->bk_niov);
 
-	bk->bk_iovs[i].kiov_offset = 0;
-	bk->bk_iovs[i].kiov_page = pg;
-	bk->bk_iovs[i].kiov_len = nob;
+	bk->bk_iovs[i].bv_offset = 0;
+	bk->bk_iovs[i].bv_page = pg;
+	bk->bk_iovs[i].bv_len = nob;
 	return nob;
 }
 
@@ -110,7 +106,7 @@ srpc_free_bulk(struct srpc_bulk *bk)
 	LASSERT(bk);
 
 	for (i = 0; i < bk->bk_niov; i++) {
-		pg = bk->bk_iovs[i].kiov_page;
+		pg = bk->bk_iovs[i].bv_page;
 		if (!pg)
 			break;
 

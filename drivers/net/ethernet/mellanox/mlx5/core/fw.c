@@ -38,13 +38,10 @@
 static int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev, u32 *out,
 				  int outlen)
 {
-	u32 in[MLX5_ST_SZ_DW(query_adapter_in)];
-
-	memset(in, 0, sizeof(in));
+	u32 in[MLX5_ST_SZ_DW(query_adapter_in)] = {0};
 
 	MLX5_SET(query_adapter_in, in, opcode, MLX5_CMD_OP_QUERY_ADAPTER);
-
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, outlen);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
 
 int mlx5_query_board_id(struct mlx5_core_dev *dev)
@@ -151,43 +148,29 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, qos)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_QOS);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_init_hca_mbox_in in;
-	struct mlx5_cmd_init_hca_mbox_out out;
-	int err;
+	u32 out[MLX5_ST_SZ_DW(init_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(init_hca_in)]   = {0};
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_INIT_HCA);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-	return err;
+	MLX5_SET(init_hca_in, in, opcode, MLX5_CMD_OP_INIT_HCA);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_teardown_hca_mbox_in in;
-	struct mlx5_cmd_teardown_hca_mbox_out out;
-	int err;
+	u32 out[MLX5_ST_SZ_DW(teardown_hca_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(teardown_hca_in)]   = {0};
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_TEARDOWN_HCA);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-	return err;
+	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }

@@ -36,7 +36,7 @@
  * Uses the main allocators if they are available, else bootmem.
  */
 
-static void * __init_refok __earlyonly_bootmem_alloc(int node,
+static void * __ref __earlyonly_bootmem_alloc(int node,
 				unsigned long size,
 				unsigned long align,
 				unsigned long goal)

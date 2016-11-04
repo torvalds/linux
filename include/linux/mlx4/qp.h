@@ -160,6 +160,7 @@ struct mlx4_qp_path {
 
 enum { /* fl */
 	MLX4_FL_CV	= 1 << 6,
+	MLX4_FL_SV	= 1 << 5,
 	MLX4_FL_ETH_HIDE_CQE_VLAN	= 1 << 2,
 	MLX4_FL_ETH_SRC_CHECK_MC_LB	= 1 << 1,
 	MLX4_FL_ETH_SRC_CHECK_UC_LB	= 1 << 0,
@@ -267,6 +268,7 @@ enum {
 	MLX4_UPD_QP_PATH_MASK_FVL_RX			= 16 + 32,
 	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_UC_LB	= 18 + 32,
 	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB	= 19 + 32,
+	MLX4_UPD_QP_PATH_MASK_SV			= 22 + 32,
 };
 
 enum { /* param3 */
@@ -291,16 +293,18 @@ enum {
 	MLX4_WQE_CTRL_FORCE_LOOPBACK	= 1 << 0,
 };
 
+union mlx4_wqe_qpn_vlan {
+	struct {
+		__be16	vlan_tag;
+		u8	ins_vlan;
+		u8	fence_size;
+	};
+	__be32		bf_qpn;
+};
+
 struct mlx4_wqe_ctrl_seg {
 	__be32			owner_opcode;
-	union {
-		struct {
-			__be16			vlan_tag;
-			u8			ins_vlan;
-			u8			fence_size;
-		};
-		__be32			bf_qpn;
-	};
+	union mlx4_wqe_qpn_vlan	qpn_vlan;
 	/*
 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:
 	 * [7]   SO (strong ordering)

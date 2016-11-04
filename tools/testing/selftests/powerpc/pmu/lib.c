@@ -190,7 +190,7 @@ int parse_proc_maps(void)
 
 bool require_paranoia_below(int level)
 {
-	unsigned long current;
+	long current;
 	char *end, buf[16];
 	FILE *f;
 	int rc;
@@ -208,7 +208,7 @@ bool require_paranoia_below(int level)
 		goto out_close;
 	}
 
-	current = strtoul(buf, &end, 10);
+	current = strtol(buf, &end, 10);
 
 	if (end == buf) {
 		printf("Couldn't parse " PARANOID_PATH "?\n");
@@ -216,7 +216,7 @@ bool require_paranoia_below(int level)
 	}
 
 	if (current >= level)
-		goto out;
+		goto out_close;
 
 	rc = 0;
 out_close:

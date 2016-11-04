@@ -177,6 +177,7 @@ static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
 		}
 	}
 
+	free_percpu(non_pcpu_rt->rt6i_pcpu);
 	non_pcpu_rt->rt6i_pcpu = NULL;
 }
 
@@ -742,6 +743,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		   (info->nlh->nlmsg_flags & NLM_F_CREATE));
 	int found = 0;
 	bool rt_can_ecmp = rt6_qualify_for_ecmp(rt);
+	u16 nlflags = NLM_F_EXCL;
 	int err;
 
 	ins = &fn->leaf;
@@ -758,6 +760,8 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			if (info->nlh &&
 			    (info->nlh->nlmsg_flags & NLM_F_EXCL))
 				return -EEXIST;
+
+			nlflags &= ~NLM_F_EXCL;
 			if (replace) {
 				if (rt_can_ecmp == rt6_qualify_for_ecmp(iter)) {
 					found++;
@@ -855,6 +859,7 @@ next_iter:
 			pr_warn("NLM_F_CREATE should be set when creating new route\n");
 
 add:
+		nlflags |= NLM_F_CREATE;
 		err = fib6_commit_metrics(&rt->dst, mxc);
 		if (err)
 			return err;
@@ -863,7 +868,7 @@ add:
 		*ins = rt;
 		rt->rt6i_node = fn;
 		atomic_inc(&rt->rt6i_ref);
-		inet6_rt_notify(RTM_NEWROUTE, rt, info, 0);
+		inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
 
 		if (!(fn->fn_flags & RTN_RTINFO)) {

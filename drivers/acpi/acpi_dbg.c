@@ -602,7 +602,7 @@ static int acpi_aml_read_user(char __user *buf, int len)
 	crc->tail = (crc->tail + n) & (ACPI_AML_BUF_SIZE - 1);
 	ret = n;
 out:
-	acpi_aml_unlock_fifo(ACPI_AML_OUT_USER, !ret);
+	acpi_aml_unlock_fifo(ACPI_AML_OUT_USER, ret >= 0);
 	return ret;
 }
 
@@ -672,7 +672,7 @@ static int acpi_aml_write_user(const char __user *buf, int len)
 	crc->head = (crc->head + n) & (ACPI_AML_BUF_SIZE - 1);
 	ret = n;
 out:
-	acpi_aml_unlock_fifo(ACPI_AML_IN_USER, !ret);
+	acpi_aml_unlock_fifo(ACPI_AML_IN_USER, ret >= 0);
 	return n;
 }
 

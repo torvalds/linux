@@ -6,7 +6,7 @@
  */
 
 #ifndef _ASM_S390_FCX_H
-#define _ASM_S390_FCX_H _ASM_S390_FCX_H
+#define _ASM_S390_FCX_H
 
 #include <linux/types.h>
 

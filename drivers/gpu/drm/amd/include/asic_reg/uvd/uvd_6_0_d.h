@@ -35,6 +35,7 @@
 #define mmUVD_UDEC_DB_ADDR_CONFIG                                               0x3bd4
 #define mmUVD_UDEC_DBW_ADDR_CONFIG                                              0x3bd5
 #define mmUVD_POWER_STATUS_U                                                    0x3bfd
+#define mmUVD_NO_OP                                                             0x3bff
 #define mmUVD_LMI_RBC_RB_64BIT_BAR_LOW                                          0x3c69
 #define mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH                                         0x3c68
 #define mmUVD_LMI_RBC_IB_64BIT_BAR_LOW                                          0x3c67
@@ -111,6 +112,8 @@
 #define mmUVD_MIF_RECON1_ADDR_CONFIG                                            0x39c5
 #define ixUVD_MIF_SCLR_ADDR_CONFIG                                              0x4
 #define mmUVD_JPEG_ADDR_CONFIG                                                  0x3a1f
+#define mmUVD_GP_SCRATCH8                                                       0x3c0a
+#define mmUVD_GP_SCRATCH9                                                       0x3c0b
 #define mmUVD_GP_SCRATCH4                                                       0x3d38
 
 #endif /* UVD_6_0_D_H */

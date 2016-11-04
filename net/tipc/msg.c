@@ -41,6 +41,8 @@
 #include "name_table.h"
 
 #define MAX_FORWARD_SIZE 1024
+#define BUF_HEADROOM (LL_MAX_HEADER + 48)
+#define BUF_TAILROOM 16
 
 static unsigned int align(unsigned int i)
 {
@@ -504,6 +506,10 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 		memcpy(hdr, &ohdr, BASIC_H_SIZE);
 		msg_set_hdr_sz(hdr, BASIC_H_SIZE);
 	}
+
+	if (skb_cloned(_skb) &&
+	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_KERNEL))
+		goto exit;
 
 	/* Now reverse the concerned fields */
 	msg_set_errcode(hdr, err);

@@ -370,12 +370,20 @@ u32 mesh_plink_deactivate(struct sta_info *sta)
 
 	spin_lock_bh(&sta->mesh->plink_lock);
 	changed = __mesh_plink_deactivate(sta);
-	sta->mesh->reason = WLAN_REASON_MESH_PEER_CANCELED;
-	mesh_plink_frame_tx(sdata, sta, WLAN_SP_MESH_PEERING_CLOSE,
-			    sta->sta.addr, sta->mesh->llid, sta->mesh->plid,
-			    sta->mesh->reason);
+
+	if (!sdata->u.mesh.user_mpm) {
+		sta->mesh->reason = WLAN_REASON_MESH_PEER_CANCELED;
+		mesh_plink_frame_tx(sdata, sta, WLAN_SP_MESH_PEERING_CLOSE,
+				    sta->sta.addr, sta->mesh->llid,
+				    sta->mesh->plid, sta->mesh->reason);
+	}
 	spin_unlock_bh(&sta->mesh->plink_lock);
+	if (!sdata->u.mesh.user_mpm)
+		del_timer_sync(&sta->mesh->plink_timer);
 	mesh_path_flush_by_nexthop(sta);
+
+	/* make sure no readers can access nexthop sta from here on */
+	synchronize_net();
 
 	return changed;
 }

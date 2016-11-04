@@ -30,7 +30,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
@@ -120,7 +119,6 @@ static struct fimd_driver_data s3c64xx_fimd_driver_data = {
 	.timing_base = 0x0,
 	.has_clksel = 1,
 	.has_limited_fmt = 1,
-	.has_hw_trigger = 1,
 };
 
 static struct fimd_driver_data exynos3_fimd_driver_data = {
@@ -171,14 +169,11 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 	.lcdblk_vt_shift = 24,
 	.lcdblk_bypass_shift = 15,
 	.lcdblk_mic_bypass_shift = 11,
-	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
 	.has_mic_bypass = 1,
 	.has_dp_clk = 1,
-	.has_hw_trigger = 1,
-	.has_trigger_per_te = 1,
 };
 
 struct fimd_context {
@@ -203,6 +198,7 @@ struct fimd_context {
 	atomic_t			wait_vsync_event;
 	atomic_t			win_updated;
 	atomic_t			triggering;
+	u32				clkdiv;
 
 	const struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
@@ -394,15 +390,18 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 	pm_runtime_put(ctx->dev);
 }
 
-static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
-		const struct drm_display_mode *mode)
+
+static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
+		struct drm_crtc_state *state)
 {
-	unsigned long ideal_clk;
+	struct drm_display_mode *mode = &state->adjusted_mode;
+	struct fimd_context *ctx = crtc->ctx;
+	unsigned long ideal_clk, lcd_rate;
 	u32 clkdiv;
 
 	if (mode->clock == 0) {
-		DRM_ERROR("Mode has zero clock value.\n");
-		return 0xff;
+		DRM_INFO("Mode has zero clock value.\n");
+		return -EINVAL;
 	}
 
 	ideal_clk = mode->clock * 1000;
@@ -415,10 +414,23 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 		ideal_clk *= 2;
 	}
 
-	/* Find the clock divider value that gets us closest to ideal_clk */
-	clkdiv = DIV_ROUND_CLOSEST(clk_get_rate(ctx->lcd_clk), ideal_clk);
+	lcd_rate = clk_get_rate(ctx->lcd_clk);
+	if (2 * lcd_rate < ideal_clk) {
+		DRM_INFO("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
+			 lcd_rate, ideal_clk);
+		return -EINVAL;
+	}
 
-	return (clkdiv < 0x100) ? clkdiv : 0xff;
+	/* Find the clock divider value that gets us closest to ideal_clk */
+	clkdiv = DIV_ROUND_CLOSEST(lcd_rate, ideal_clk);
+	if (clkdiv >= 0x200) {
+		DRM_INFO("requested pixel clock(%lu) too low\n", ideal_clk);
+		return -EINVAL;
+	}
+
+	ctx->clkdiv = (clkdiv < 0x100) ? clkdiv : 0xff;
+
+	return 0;
 }
 
 static void fimd_setup_trigger(struct fimd_context *ctx)
@@ -447,7 +459,7 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	const struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
-	u32 val, clkdiv;
+	u32 val;
 
 	if (ctx->suspended)
 		return;
@@ -548,9 +560,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	if (ctx->driver_data->has_clksel)
 		val |= VIDCON0_CLKSEL_LCD;
 
-	clkdiv = fimd_calc_clkdiv(ctx, mode);
-	if (clkdiv > 1)
-		val |= VIDCON0_CLKVAL_F(clkdiv - 1) | VIDCON0_CLKDIR;
+	if (ctx->clkdiv > 1)
+		val |= VIDCON0_CLKVAL_F(ctx->clkdiv - 1) | VIDCON0_CLKDIR;
 
 	writel(val, ctx->regs + VIDCON0);
 }
@@ -944,14 +955,14 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.update_plane = fimd_update_plane,
 	.disable_plane = fimd_disable_plane,
 	.atomic_flush = fimd_atomic_flush,
+	.atomic_check = fimd_atomic_check,
 	.te_handler = fimd_te_handler,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
-	u32 val, clear_bit, start, start_s;
-	int win;
+	u32 val, clear_bit;
 
 	val = readl(ctx->regs + VIDINTCON1);
 
@@ -965,18 +976,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 
 	if (!ctx->i80_if)
 		drm_crtc_handle_vblank(&ctx->crtc->base);
-
-	for (win = 0 ; win < WINDOWS_NR ; win++) {
-		struct exynos_drm_plane *plane = &ctx->planes[win];
-
-		if (!plane->pending_fb)
-			continue;
-
-		start = readl(ctx->regs + VIDWx_BUF_START(win, 0));
-		start_s = readl(ctx->regs + VIDWx_BUF_START_S(win, 0));
-		if (start == start_s)
-			exynos_drm_crtc_finish_update(ctx->crtc, plane);
-	}
 
 	if (ctx->i80_if) {
 		/* Exits triggering mode */

@@ -169,6 +169,9 @@ typedef struct {
 	unsigned int active;
 	unsigned long vdso_base;
 } mm_context_t;
+
+#define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
+#define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
 #endif /* !__ASSEMBLY__ */
 
 #if defined(CONFIG_PPC_4K_PAGES)

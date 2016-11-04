@@ -927,7 +927,8 @@ static int erst_open_pstore(struct pstore_info *psi);
 static int erst_close_pstore(struct pstore_info *psi);
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type, int *count,
 			   struct timespec *time, char **buf,
-			   bool *compressed, struct pstore_info *psi);
+			   bool *compressed, ssize_t *ecc_notice_size,
+			   struct pstore_info *psi);
 static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
 		       u64 *id, unsigned int part, int count, bool compressed,
 		       size_t size, struct pstore_info *psi);
@@ -937,7 +938,7 @@ static int erst_clearer(enum pstore_type_id type, u64 id, int count,
 static struct pstore_info erst_info = {
 	.owner		= THIS_MODULE,
 	.name		= "erst",
-	.flags		= PSTORE_FLAGS_FRAGILE,
+	.flags		= PSTORE_FLAGS_DMESG,
 	.open		= erst_open_pstore,
 	.close		= erst_close_pstore,
 	.read		= erst_reader,
@@ -987,7 +988,8 @@ static int erst_close_pstore(struct pstore_info *psi)
 
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type, int *count,
 			   struct timespec *time, char **buf,
-			   bool *compressed, struct pstore_info *psi)
+			   bool *compressed, ssize_t *ecc_notice_size,
+			   struct pstore_info *psi)
 {
 	int rc;
 	ssize_t len = 0;
@@ -1033,6 +1035,7 @@ skip:
 	memcpy(*buf, rcd->data, len - sizeof(*rcd));
 	*id = record_id;
 	*compressed = false;
+	*ecc_notice_size = 0;
 	if (uuid_le_cmp(rcd->sec_hdr.section_type,
 			CPER_SECTION_TYPE_DMESG_Z) == 0) {
 		*type = PSTORE_TYPE_DMESG;

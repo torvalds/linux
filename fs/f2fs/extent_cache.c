@@ -170,8 +170,10 @@ static void __drop_largest_extent(struct inode *inode,
 {
 	struct extent_info *largest = &F2FS_I(inode)->extent_tree->largest;
 
-	if (fofs < largest->fofs + largest->len && fofs + len > largest->fofs)
+	if (fofs < largest->fofs + largest->len && fofs + len > largest->fofs) {
 		largest->len = 0;
+		f2fs_mark_inode_dirty_sync(inode);
+	}
 }
 
 /* return true, if inode page is changed */
@@ -335,11 +337,12 @@ lookup_neighbors:
 	return en;
 }
 
-static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
+static struct extent_node *__try_merge_extent_node(struct inode *inode,
 				struct extent_tree *et, struct extent_info *ei,
 				struct extent_node *prev_ex,
 				struct extent_node *next_ex)
 {
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct extent_node *en = NULL;
 
 	if (prev_ex && __is_back_mergeable(ei, &prev_ex->ei)) {
@@ -360,7 +363,7 @@ static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
 	if (!en)
 		return NULL;
 
-	__try_update_largest_extent(et, en);
+	__try_update_largest_extent(inode, et, en);
 
 	spin_lock(&sbi->extent_lock);
 	if (!list_empty(&en->list)) {
@@ -371,11 +374,12 @@ static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
 	return en;
 }
 
-static struct extent_node *__insert_extent_tree(struct f2fs_sb_info *sbi,
+static struct extent_node *__insert_extent_tree(struct inode *inode,
 				struct extent_tree *et, struct extent_info *ei,
 				struct rb_node **insert_p,
 				struct rb_node *insert_parent)
 {
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct rb_node **p = &et->root.rb_node;
 	struct rb_node *parent = NULL;
 	struct extent_node *en = NULL;
@@ -402,7 +406,7 @@ do_insert:
 	if (!en)
 		return NULL;
 
-	__try_update_largest_extent(et, en);
+	__try_update_largest_extent(inode, et, en);
 
 	/* update in global extent list */
 	spin_lock(&sbi->extent_lock);
@@ -431,7 +435,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 
 	write_lock(&et->lock);
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT)) {
+	if (is_inode_flag_set(inode, FI_NO_EXTENT)) {
 		write_unlock(&et->lock);
 		return false;
 	}
@@ -473,7 +477,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 				set_extent_info(&ei, end,
 						end - dei.fofs + dei.blk,
 						org_end - end);
-				en1 = __insert_extent_tree(sbi, et, &ei,
+				en1 = __insert_extent_tree(inode, et, &ei,
 							NULL, NULL);
 				next_en = en1;
 			} else {
@@ -494,7 +498,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 		}
 
 		if (parts)
-			__try_update_largest_extent(et, en);
+			__try_update_largest_extent(inode, et, en);
 		else
 			__release_extent_node(sbi, et, en);
 
@@ -514,20 +518,20 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 	if (blkaddr) {
 
 		set_extent_info(&ei, fofs, blkaddr, len);
-		if (!__try_merge_extent_node(sbi, et, &ei, prev_en, next_en))
-			__insert_extent_tree(sbi, et, &ei,
+		if (!__try_merge_extent_node(inode, et, &ei, prev_en, next_en))
+			__insert_extent_tree(inode, et, &ei,
 						insert_p, insert_parent);
 
 		/* give up extent_cache, if split and small updates happen */
 		if (dei.len >= 1 &&
 				prev.len < F2FS_MIN_EXTENT_LEN &&
 				et->largest.len < F2FS_MIN_EXTENT_LEN) {
-			et->largest.len = 0;
-			set_inode_flag(F2FS_I(inode), FI_NO_EXTENT);
+			__drop_largest_extent(inode, 0, UINT_MAX);
+			set_inode_flag(inode, FI_NO_EXTENT);
 		}
 	}
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
+	if (is_inode_flag_set(inode, FI_NO_EXTENT))
 		__free_extent_tree(sbi, et);
 
 	write_unlock(&et->lock);
@@ -627,6 +631,19 @@ unsigned int f2fs_destroy_extent_node(struct inode *inode)
 	return node_cnt;
 }
 
+void f2fs_drop_extent_tree(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct extent_tree *et = F2FS_I(inode)->extent_tree;
+
+	set_inode_flag(inode, FI_NO_EXTENT);
+
+	write_lock(&et->lock);
+	__free_extent_tree(sbi, et);
+	__drop_largest_extent(inode, 0, UINT_MAX);
+	write_unlock(&et->lock);
+}
+
 void f2fs_destroy_extent_tree(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -685,9 +702,7 @@ void f2fs_update_extent_cache(struct dnode_of_data *dn)
 
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), dn->inode) +
 								dn->ofs_in_node;
-
-	if (f2fs_update_extent_tree_range(dn->inode, fofs, blkaddr, 1))
-		sync_inode_page(dn);
+	f2fs_update_extent_tree_range(dn->inode, fofs, blkaddr, 1);
 }
 
 void f2fs_update_extent_cache_range(struct dnode_of_data *dn,
@@ -697,8 +712,7 @@ void f2fs_update_extent_cache_range(struct dnode_of_data *dn,
 	if (!f2fs_may_extent_tree(dn->inode))
 		return;
 
-	if (f2fs_update_extent_tree_range(dn->inode, fofs, blkaddr, len))
-		sync_inode_page(dn);
+	f2fs_update_extent_tree_range(dn->inode, fofs, blkaddr, len);
 }
 
 void init_extent_cache_info(struct f2fs_sb_info *sbi)

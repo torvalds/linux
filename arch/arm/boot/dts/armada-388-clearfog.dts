@@ -239,22 +239,6 @@
 				status = "okay";
 			};
 
-			mdio@72004 {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-
-				phy_dedicated: ethernet-phy@0 {
-					/*
-					 * Annoyingly, the marvell phy driver
-					 * configures the LED register, rather
-					 * than preserving reset-loaded setting.
-					 * We undo that rubbish here.
-					 */
-					marvell,reg-init = <3 16 0 0x101e>;
-					reg = <0>;
-				};
-			};
-
 			pinctrl@18000 {
 				clearfog_dsa0_clk_pins: clearfog-dsa0-clk-pins {
 					marvell,pins = "mpp46";
@@ -331,30 +315,6 @@
 				status = "okay";
 			};
 
-			spi@10680 {
-				/*
-				 * We don't seem to have the W25Q32 on the
-				 * A1 Rev 2.0 boards, so disable SPI.
-				 * CS0: W25Q32 (doesn't appear to be present)
-				 * CS1:
-				 * CS2: mikrobus
-				 */
-				pinctrl-0 = <&spi1_pins
-					     &clearfog_spi1_cs_pins
-					     &mikro_spi_pins>;
-				pinctrl-names = "default";
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "w25q32", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <3000000>;
-					status = "disabled";
-				};
-			};
-
 			usb@58000 {
 				/* CON3, nearest  power. */
 				status = "okay";
@@ -406,12 +366,12 @@
 
 			port@0 {
 				reg = <0>;
-				label = "lan1";
+				label = "lan5";
 			};
 
 			port@1 {
 				reg = <1>;
-				label = "lan2";
+				label = "lan4";
 			};
 
 			port@2 {
@@ -421,12 +381,12 @@
 
 			port@3 {
 				reg = <3>;
-				label = "lan4";
+				label = "lan2";
 			};
 
 			port@4 {
 				reg = <4>;
-				label = "lan5";
+				label = "lan1";
 			};
 
 			port@5 {
@@ -458,5 +418,29 @@
 			linux,can-disable;
 			linux,code = <BTN_0>;
 		};
+	};
+};
+
+&spi1 {
+	/*
+	 * We don't seem to have the W25Q32 on the
+	 * A1 Rev 2.0 boards, so disable SPI.
+	 * CS0: W25Q32 (doesn't appear to be present)
+	 * CS1:
+	 * CS2: mikrobus
+	 */
+	pinctrl-0 = <&spi1_pins
+		     &clearfog_spi1_cs_pins
+		     &mikro_spi_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "w25q32", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <3000000>;
+		status = "disabled";
 	};
 };

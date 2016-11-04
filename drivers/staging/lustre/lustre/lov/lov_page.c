@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -69,7 +65,9 @@ static int lov_raid0_page_is_under_lock(const struct lu_env *env,
 	pgoff_t index = *max_index;
 	unsigned int pps; /* pages per stripe */
 
-	CDEBUG(D_READA, "*max_index = %lu, nr = %d\n", index, r0->lo_nr);
+	CDEBUG(D_READA, DFID "*max_index = %lu, nr = %d\n",
+	       PFID(lu_object_fid(lov2lu(loo))), index, r0->lo_nr);
+
 	if (index == 0) /* the page is not covered by any lock */
 		return 0;
 
@@ -84,7 +82,12 @@ static int lov_raid0_page_is_under_lock(const struct lu_env *env,
 
 	/* calculate the end of current stripe */
 	pps = loo->lo_lsm->lsm_stripe_size >> PAGE_SHIFT;
-	index = ((slice->cpl_index + pps) & ~(pps - 1)) - 1;
+	index = slice->cpl_index + pps - slice->cpl_index % pps - 1;
+
+	CDEBUG(D_READA, DFID "*max_index = %lu, index = %lu, pps = %u, stripe_size = %u, stripe no = %u, page index = %lu\n",
+	       PFID(lu_object_fid(lov2lu(loo))), *max_index, index, pps,
+	       loo->lo_lsm->lsm_stripe_size, lov_page_stripe(slice->cpl_page),
+	       slice->cpl_index);
 
 	/* never exceed the end of the stripe */
 	*max_index = min_t(pgoff_t, *max_index, index);
@@ -126,6 +129,7 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe, &suboff);
 	LASSERT(rc == 0);
 
+	lpg->lps_stripe = stripe;
 	cl_page_slice_add(page, &lpg->lps_cl, obj, index, &lov_raid0_page_ops);
 
 	sub = lov_sub_get(env, lio, stripe);

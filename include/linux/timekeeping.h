@@ -1,7 +1,7 @@
 #ifndef _LINUX_TIMEKEEPING_H
 #define _LINUX_TIMEKEEPING_H
 
-#include <asm-generic/errno-base.h>
+#include <linux/errno.h>
 
 /* Included from linux/ktime.h */
 
@@ -21,6 +21,9 @@ static inline int do_sys_settimeofday(const struct timespec *tv,
 	struct timespec64 ts64;
 
 	if (!tv)
+		return do_sys_settimeofday64(NULL, tz);
+
+	if (!timespec_valid(tv))
 		return -EINVAL;
 
 	ts64 = timespec_to_timespec64(*tv);

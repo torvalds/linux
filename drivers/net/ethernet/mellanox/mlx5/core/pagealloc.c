@@ -44,12 +44,6 @@ enum {
 	MLX5_PAGES_TAKE		= 2
 };
 
-enum {
-	MLX5_BOOT_PAGES		= 1,
-	MLX5_INIT_PAGES		= 2,
-	MLX5_POST_INIT_PAGES	= 3
-};
-
 struct mlx5_pages_req {
 	struct mlx5_core_dev *dev;
 	u16	func_id;
@@ -65,33 +59,6 @@ struct fw_page {
 	unsigned long		bitmask;
 	struct list_head	list;
 	unsigned		free_count;
-};
-
-struct mlx5_query_pages_inbox {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_query_pages_outbox {
-	struct mlx5_outbox_hdr	hdr;
-	__be16			rsvd;
-	__be16			func_id;
-	__be32			num_pages;
-};
-
-struct mlx5_manage_pages_inbox {
-	struct mlx5_inbox_hdr	hdr;
-	__be16			rsvd;
-	__be16			func_id;
-	__be32			num_entries;
-	__be64			pas[0];
-};
-
-struct mlx5_manage_pages_outbox {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			num_entries;
-	u8			rsvd[4];
-	__be64			pas[0];
 };
 
 enum {
@@ -167,24 +134,21 @@ static struct fw_page *find_fw_page(struct mlx5_core_dev *dev, u64 addr)
 static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 				s32 *npages, int boot)
 {
-	struct mlx5_query_pages_inbox	in;
-	struct mlx5_query_pages_outbox	out;
+	u32 out[MLX5_ST_SZ_DW(query_pages_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_pages_in)]   = {0};
 	int err;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_QUERY_PAGES);
-	in.hdr.opmod = boot ? cpu_to_be16(MLX5_BOOT_PAGES) : cpu_to_be16(MLX5_INIT_PAGES);
+	MLX5_SET(query_pages_in, in, opcode, MLX5_CMD_OP_QUERY_PAGES);
+	MLX5_SET(query_pages_in, in, op_mod, boot ?
+		 MLX5_QUERY_PAGES_IN_OP_MOD_BOOT_PAGES :
+		 MLX5_QUERY_PAGES_IN_OP_MOD_INIT_PAGES);
 
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
 		return err;
 
-	if (out.hdr.status)
-		return mlx5_cmd_status_to_err(&out.hdr);
-
-	*npages = be32_to_cpu(out.num_pages);
-	*func_id = be16_to_cpu(out.func_id);
+	*npages = MLX5_GET(query_pages_out, out, num_pages);
+	*func_id = MLX5_GET(query_pages_out, out, function_id);
 
 	return err;
 }
@@ -280,46 +244,37 @@ out_alloc:
 
 static void page_notify_fail(struct mlx5_core_dev *dev, u16 func_id)
 {
-	struct mlx5_manage_pages_inbox *in;
-	struct mlx5_manage_pages_outbox out;
+	u32 out[MLX5_ST_SZ_DW(manage_pages_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(manage_pages_in)]   = {0};
 	int err;
 
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
-	if (!in)
-		return;
+	MLX5_SET(manage_pages_in, in, opcode, MLX5_CMD_OP_MANAGE_PAGES);
+	MLX5_SET(manage_pages_in, in, op_mod, MLX5_PAGES_CANT_GIVE);
+	MLX5_SET(manage_pages_in, in, function_id, func_id);
 
-	memset(&out, 0, sizeof(out));
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
-	in->hdr.opmod = cpu_to_be16(MLX5_PAGES_CANT_GIVE);
-	in->func_id = cpu_to_be16(func_id);
-	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
-	if (!err)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
-		mlx5_core_warn(dev, "page notify failed\n");
-
-	kfree(in);
+		mlx5_core_warn(dev, "page notify failed func_id(%d) err(%d)\n",
+			       func_id, err);
 }
 
 static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 		      int notify_fail)
 {
-	struct mlx5_manage_pages_inbox *in;
-	struct mlx5_manage_pages_outbox out;
-	int inlen;
+	u32 out[MLX5_ST_SZ_DW(manage_pages_out)] = {0};
+	int inlen = MLX5_ST_SZ_BYTES(manage_pages_in);
 	u64 addr;
 	int err;
+	u32 *in;
 	int i;
 
-	inlen = sizeof(*in) + npages * sizeof(in->pas[0]);
+	inlen += npages * MLX5_FLD_SZ_BYTES(manage_pages_in, pas[0]);
 	in = mlx5_vzalloc(inlen);
 	if (!in) {
 		err = -ENOMEM;
 		mlx5_core_warn(dev, "vzalloc failed %d\n", inlen);
 		goto out_free;
 	}
-	memset(&out, 0, sizeof(out));
 
 	for (i = 0; i < npages; i++) {
 retry:
@@ -332,25 +287,18 @@ retry:
 
 			goto retry;
 		}
-		in->pas[i] = cpu_to_be64(addr);
+		MLX5_ARRAY_SET64(manage_pages_in, in, pas, i, addr);
 	}
 
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
-	in->hdr.opmod = cpu_to_be16(MLX5_PAGES_GIVE);
-	in->func_id = cpu_to_be16(func_id);
-	in->num_entries = cpu_to_be32(npages);
-	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
+	MLX5_SET(manage_pages_in, in, opcode, MLX5_CMD_OP_MANAGE_PAGES);
+	MLX5_SET(manage_pages_in, in, op_mod, MLX5_PAGES_GIVE);
+	MLX5_SET(manage_pages_in, in, function_id, func_id);
+	MLX5_SET(manage_pages_in, in, input_num_entries, npages);
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 	if (err) {
 		mlx5_core_warn(dev, "func_id 0x%x, npages %d, err %d\n",
 			       func_id, npages, err);
-		goto out_4k;
-	}
-	dev->priv.fw_pages += npages;
-
-	err = mlx5_cmd_status_to_err(&out.hdr);
-	if (err) {
-		mlx5_core_warn(dev, "func_id 0x%x, npages %d, status %d\n",
-			       func_id, npages, out.hdr.status);
 		goto out_4k;
 	}
 
@@ -365,7 +313,7 @@ retry:
 
 out_4k:
 	for (i--; i >= 0; i--)
-		free_4k(dev, be64_to_cpu(in->pas[i]));
+		free_4k(dev, MLX5_GET64(manage_pages_in, in, pas[i]));
 out_free:
 	kvfree(in);
 	if (notify_fail)
@@ -373,57 +321,82 @@ out_free:
 	return err;
 }
 
+static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
+			     u32 *in, int in_size, u32 *out, int out_size)
+{
+	struct fw_page *fwp;
+	struct rb_node *p;
+	u32 func_id;
+	u32 npages;
+	u32 i = 0;
+
+	if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		return mlx5_cmd_exec(dev, in, in_size, out, out_size);
+
+	/* No hard feelings, we want our pages back! */
+	npages = MLX5_GET(manage_pages_in, in, input_num_entries);
+	func_id = MLX5_GET(manage_pages_in, in, function_id);
+
+	p = rb_first(&dev->priv.page_root);
+	while (p && i < npages) {
+		fwp = rb_entry(p, struct fw_page, rb_node);
+		p = rb_next(p);
+		if (fwp->func_id != func_id)
+			continue;
+
+		MLX5_ARRAY_SET64(manage_pages_out, out, pas, i, fwp->addr);
+		i++;
+	}
+
+	MLX5_SET(manage_pages_out, out, output_num_entries, i);
+	return 0;
+}
+
 static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 			 int *nclaimed)
 {
-	struct mlx5_manage_pages_inbox   in;
-	struct mlx5_manage_pages_outbox *out;
+	int outlen = MLX5_ST_SZ_BYTES(manage_pages_out);
+	u32 in[MLX5_ST_SZ_DW(manage_pages_in)] = {0};
 	int num_claimed;
-	int outlen;
-	u64 addr;
+	u32 *out;
 	int err;
 	int i;
 
 	if (nclaimed)
 		*nclaimed = 0;
 
-	memset(&in, 0, sizeof(in));
-	outlen = sizeof(*out) + npages * sizeof(out->pas[0]);
+	outlen += npages * MLX5_FLD_SZ_BYTES(manage_pages_out, pas[0]);
 	out = mlx5_vzalloc(outlen);
 	if (!out)
 		return -ENOMEM;
 
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_MANAGE_PAGES);
-	in.hdr.opmod = cpu_to_be16(MLX5_PAGES_TAKE);
-	in.func_id = cpu_to_be16(func_id);
-	in.num_entries = cpu_to_be32(npages);
+	MLX5_SET(manage_pages_in, in, opcode, MLX5_CMD_OP_MANAGE_PAGES);
+	MLX5_SET(manage_pages_in, in, op_mod, MLX5_PAGES_TAKE);
+	MLX5_SET(manage_pages_in, in, function_id, func_id);
+	MLX5_SET(manage_pages_in, in, input_num_entries, npages);
+
 	mlx5_core_dbg(dev, "npages %d, outlen %d\n", npages, outlen);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), out, outlen);
+	err = reclaim_pages_cmd(dev, in, sizeof(in), out, outlen);
 	if (err) {
-		mlx5_core_err(dev, "failed reclaiming pages\n");
-		goto out_free;
-	}
-	dev->priv.fw_pages -= npages;
-
-	if (out->hdr.status) {
-		err = mlx5_cmd_status_to_err(&out->hdr);
+		mlx5_core_err(dev, "failed reclaiming pages: err %d\n", err);
 		goto out_free;
 	}
 
-	num_claimed = be32_to_cpu(out->num_entries);
+	num_claimed = MLX5_GET(manage_pages_out, out, output_num_entries);
 	if (num_claimed > npages) {
 		mlx5_core_warn(dev, "fw returned %d, driver asked %d => corruption\n",
 			       num_claimed, npages);
 		err = -EINVAL;
 		goto out_free;
 	}
+
+	for (i = 0; i < num_claimed; i++)
+		free_4k(dev, MLX5_GET64(manage_pages_out, out, pas[i]));
+
+
 	if (nclaimed)
 		*nclaimed = num_claimed;
 
-	for (i = 0; i < num_claimed; i++) {
-		addr = be64_to_cpu(out->pas[i]);
-		free_4k(dev, addr);
-	}
 	dev->priv.fw_pages -= num_claimed;
 	if (func_id)
 		dev->priv.vfs_pages -= num_claimed;
@@ -496,8 +469,8 @@ static int optimal_reclaimed_pages(void)
 	int ret;
 
 	ret = (sizeof(lay->out) + MLX5_BLKS_FOR_RECLAIM_PAGES * sizeof(block->data) -
-	       sizeof(struct mlx5_manage_pages_outbox)) /
-	       FIELD_SIZEOF(struct mlx5_manage_pages_outbox, pas[0]);
+	       MLX5_ST_SZ_BYTES(manage_pages_out)) /
+	       MLX5_FLD_SZ_BYTES(manage_pages_out, pas[0]);
 
 	return ret;
 }
@@ -514,14 +487,10 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 		p = rb_first(&dev->priv.page_root);
 		if (p) {
 			fwp = rb_entry(p, struct fw_page, rb_node);
-			if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-				free_4k(dev, fwp->addr);
-				nclaimed = 1;
-			} else {
-				err = reclaim_pages(dev, fwp->func_id,
-						    optimal_reclaimed_pages(),
-						    &nclaimed);
-			}
+			err = reclaim_pages(dev, fwp->func_id,
+					    optimal_reclaimed_pages(),
+					    &nclaimed);
+
 			if (err) {
 				mlx5_core_warn(dev, "failed reclaiming pages (%d)\n",
 					       err);
@@ -535,6 +504,13 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 			break;
 		}
 	} while (p);
+
+	WARN(dev->priv.fw_pages,
+	     "FW pages counter is %d after reclaiming all pages\n",
+	     dev->priv.fw_pages);
+	WARN(dev->priv.vfs_pages,
+	     "VFs FW pages counter is %d after reclaiming all pages\n",
+	     dev->priv.vfs_pages);
 
 	return 0;
 }
@@ -568,6 +544,12 @@ int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev)
 {
 	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_VFS_PAGES_TIME_MSECS);
 	int prev_vfs_pages = dev->priv.vfs_pages;
+
+	/* In case of internal error we will free the pages manually later */
+	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		mlx5_core_warn(dev, "Skipping wait for vf pages stage");
+		return 0;
+	}
 
 	mlx5_core_dbg(dev, "Waiting for %d pages from %s\n", prev_vfs_pages,
 		      dev->priv.name);

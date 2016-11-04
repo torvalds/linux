@@ -89,8 +89,8 @@ config MSM_IOMMU
 	bool "MSM IOMMU Support"
 	depends on ARM
 	depends on ARCH_MSM8X60 || ARCH_MSM8960 || COMPILE_TEST
-	depends on BROKEN
 	select IOMMU_API
+	select IOMMU_IO_PGTABLE_ARMV7S
 	help
 	  Support for the IOMMUs found on certain Qualcomm SOCs.
 	  These IOMMUs allow virtualization of the address space used by most
@@ -111,6 +111,7 @@ config AMD_IOMMU
 	select PCI_PRI
 	select PCI_PASID
 	select IOMMU_API
+	select IOMMU_IOVA
 	depends on X86_64 && PCI && ACPI
 	---help---
 	  With this option you can enable support for AMD IOMMU hardware in
@@ -308,7 +309,7 @@ config ARM_SMMU
 
 config ARM_SMMU_V3
 	bool "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
-	depends on ARM64 && PCI
+	depends on ARM64
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
 	select GENERIC_MSI_IRQ_DOMAIN
@@ -342,5 +343,23 @@ config MTK_IOMMU
 	  accesses for the multimedia subsystem.
 
 	  If unsure, say N here.
+
+config MTK_IOMMU_V1
+	bool "MTK IOMMU Version 1 (M4U gen1) Support"
+	depends on ARM
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_API
+	select MEMORY
+	select MTK_SMI
+	select COMMON_CLK_MT2701_MMSYS
+	select COMMON_CLK_MT2701_IMGSYS
+	select COMMON_CLK_MT2701_VDECSYS
+	help
+	  Support for the M4U on certain Mediatek SoCs. M4U generation 1 HW is
+	  Multimedia Memory Managememt Unit. This option enables remapping of
+	  DMA memory accesses for the multimedia subsystem.
+
+	  if unsure, say N here.
 
 endif # IOMMU_SUPPORT

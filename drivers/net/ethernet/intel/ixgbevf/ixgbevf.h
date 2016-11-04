@@ -457,6 +457,7 @@ enum ixgbevf_boards {
 	board_X550_vf_hv,
 	board_X550EM_x_vf,
 	board_X550EM_x_vf_hv,
+	board_x550em_a_vf,
 };
 
 enum ixgbevf_xcast_modes {
@@ -470,6 +471,7 @@ extern const struct ixgbevf_info ixgbevf_X540_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_info;
 extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
+extern const struct ixgbevf_info ixgbevf_x550em_a_vf_info;
 
 extern const struct ixgbevf_info ixgbevf_82599_vf_hv_info;
 extern const struct ixgbevf_info ixgbevf_X540_vf_hv_info;
@@ -500,12 +502,9 @@ extern void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector);
 void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
 void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 
-#ifdef DEBUG
-char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw);
-#define hw_dbg(hw, format, arg...) \
-	printk(KERN_DEBUG "%s: " format, ixgbevf_get_hw_dev_name(hw), ##arg)
-#else
-#define hw_dbg(hw, format, arg...) do {} while (0)
-#endif
+#define ixgbevf_hw_to_netdev(hw) \
+	(((struct ixgbevf_adapter *)(hw)->back)->netdev)
 
+#define hw_dbg(hw, format, arg...) \
+	netdev_dbg(ixgbevf_hw_to_netdev(hw), format, ## arg)
 #endif /* _IXGBEVF_H_ */

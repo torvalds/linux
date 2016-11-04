@@ -27,8 +27,6 @@
 #ifndef _LNBP21_H
 #define _LNBP21_H
 
-#include <linux/kconfig.h>
-
 /* system register bits */
 /* [RO] 0=OK; 1=over current limit flag */
 #define LNBP21_OLF	0x01

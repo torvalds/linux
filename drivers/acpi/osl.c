@@ -162,11 +162,18 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 	if (acpi_in_debugger) {
 		kdb_printf("%s", buffer);
 	} else {
-		printk(KERN_CONT "%s", buffer);
+		if (printk_get_level(buffer))
+			printk("%s", buffer);
+		else
+			printk(KERN_CONT "%s", buffer);
 	}
 #else
-	if (acpi_debugger_write_log(buffer) < 0)
-		printk(KERN_CONT "%s", buffer);
+	if (acpi_debugger_write_log(buffer) < 0) {
+		if (printk_get_level(buffer))
+			printk("%s", buffer);
+		else
+			printk(KERN_CONT "%s", buffer);
+	}
 #endif
 }
 
@@ -309,7 +316,7 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
  * During early init (when acpi_gbl_permanent_mmap has not been set yet) this
  * routine simply calls __acpi_map_table() to get the job done.
  */
-void __iomem *__init_refok
+void __iomem *__ref
 acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map;
@@ -362,8 +369,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_iomem);
 
-void *__init_refok
-acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+void *__ref acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	return (void *)acpi_os_map_iomem(phys, size);
 }

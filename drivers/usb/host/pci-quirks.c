@@ -9,7 +9,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/delay.h>

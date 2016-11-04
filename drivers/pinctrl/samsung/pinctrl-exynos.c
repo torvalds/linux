@@ -428,14 +428,10 @@ static void exynos_irq_eint0_15(struct irq_desc *desc)
 	int eint_irq;
 
 	chained_irq_enter(chip, desc);
-	chip->irq_mask(&desc->irq_data);
-
-	if (chip->irq_ack)
-		chip->irq_ack(&desc->irq_data);
 
 	eint_irq = irq_linear_revmap(bank->irq_domain, eintd->irq);
 	generic_handle_irq(eint_irq);
-	chip->irq_unmask(&desc->irq_data);
+
 	chained_irq_exit(chip, desc);
 }
 

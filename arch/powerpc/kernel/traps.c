@@ -25,7 +25,8 @@
 #include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/extable.h>
+#include <linux/module.h>	/* print_modules */
 #include <linux/prctl.h>
 #include <linux/delay.h>
 #include <linux/kprobes.h>
@@ -60,6 +61,8 @@
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/debug.h>
+#include <asm/asm-prototypes.h>
+#include <asm/hmi.h>
 #include <sysdev/fsl_pci.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -114,7 +117,7 @@ static int die_owner = -1;
 static unsigned int die_nest_count;
 static int die_counter;
 
-static unsigned __kprobes long oops_begin(struct pt_regs *regs)
+static unsigned long oops_begin(struct pt_regs *regs)
 {
 	int cpu;
 	unsigned long flags;
@@ -141,8 +144,9 @@ static unsigned __kprobes long oops_begin(struct pt_regs *regs)
 		pmac_backlight_unblank();
 	return flags;
 }
+NOKPROBE_SYMBOL(oops_begin);
 
-static void __kprobes oops_end(unsigned long flags, struct pt_regs *regs,
+static void oops_end(unsigned long flags, struct pt_regs *regs,
 			       int signr)
 {
 	bust_spinlocks(0);
@@ -193,8 +197,9 @@ static void __kprobes oops_end(unsigned long flags, struct pt_regs *regs,
 		panic("Fatal exception");
 	do_exit(signr);
 }
+NOKPROBE_SYMBOL(oops_end);
 
-static int __kprobes __die(const char *str, struct pt_regs *regs, long err)
+static int __die(const char *str, struct pt_regs *regs, long err)
 {
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
@@ -218,6 +223,7 @@ static int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 
 	return 0;
 }
+NOKPROBE_SYMBOL(__die);
 
 void die(const char *str, struct pt_regs *regs, long err)
 {
@@ -267,7 +273,6 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	force_sig_info(signr, &info, current);
 }
 
-#ifdef CONFIG_PPC64
 void system_reset_exception(struct pt_regs *regs)
 {
 	/* See if any machine dependent calls */
@@ -285,6 +290,7 @@ void system_reset_exception(struct pt_regs *regs)
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
 
+#ifdef CONFIG_PPC64
 /*
  * This function is called in real mode. Strictly no printk's please.
  *
@@ -307,8 +313,12 @@ long hmi_exception_realmode(struct pt_regs *regs)
 {
 	__this_cpu_inc(irq_stat.hmi_exceptions);
 
+	wait_for_subcore_guest_exit();
+
 	if (ppc_md.hmi_exception_early)
 		ppc_md.hmi_exception_early(regs);
+
+	wait_for_tb_resync();
 
 	return 0;
 }
@@ -342,12 +352,11 @@ static inline int check_io_access(struct pt_regs *regs)
 		 * For the debug message, we look at the preceding
 		 * load or store.
 		 */
-		if (*nip == 0x60000000)		/* nop */
+		if (*nip == PPC_INST_NOP)
 			nip -= 2;
-		else if (*nip == 0x4c00012c)	/* isync */
+		else if (*nip == PPC_INST_ISYNC)
 			--nip;
-		if (*nip == 0x7c0004ac || (*nip >> 26) == 3) {
-			/* sync or twi */
+		if (*nip == PPC_INST_SYNC || (*nip >> 26) == OP_TRAP) {
 			unsigned int rb;
 
 			--nip;
@@ -658,6 +667,31 @@ int machine_check_e200(struct pt_regs *regs)
 
 	return 0;
 }
+#elif defined(CONFIG_PPC_8xx)
+int machine_check_8xx(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+
+	pr_err("Machine check in kernel mode.\n");
+	pr_err("Caused by (from SRR1=%lx): ", reason);
+	if (reason & 0x40000000)
+		pr_err("Fetch error at address %lx\n", regs->nip);
+	else
+		pr_err("Data access error at address %lx\n", regs->dar);
+
+#ifdef CONFIG_PCI
+	/* the qspan pci read routines can cause machine checks -- Cort
+	 *
+	 * yuck !!! that totally needs to go away ! There are better ways
+	 * to deal with that than having a wart in the mcheck handler.
+	 * -- BenH
+	 */
+	bad_page_fault(regs, regs->dar, SIGBUS);
+	return 1;
+#else
+	return 0;
+#endif
+}
 #else
 int machine_check_generic(struct pt_regs *regs)
 {
@@ -716,17 +750,6 @@ void machine_check_exception(struct pt_regs *regs)
 
 	if (recover > 0)
 		goto bail;
-
-#if defined(CONFIG_8xx) && defined(CONFIG_PCI)
-	/* the qspan pci read routines can cause machine checks -- Cort
-	 *
-	 * yuck !!! that totally needs to go away ! There are better ways
-	 * to deal with that than having a wart in the mcheck handler.
-	 * -- BenH
-	 */
-	bad_page_fault(regs, regs->dar, SIGBUS);
-	goto bail;
-#endif
 
 	if (debugger_fault_handler(regs))
 		goto bail;
@@ -795,7 +818,7 @@ void RunModeException(struct pt_regs *regs)
 	_exception(SIGTRAP, regs, 0, 0);
 }
 
-void __kprobes single_step_exception(struct pt_regs *regs)
+void single_step_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 
@@ -812,6 +835,7 @@ void __kprobes single_step_exception(struct pt_regs *regs)
 bail:
 	exception_exit(prev_state);
 }
+NOKPROBE_SYMBOL(single_step_exception);
 
 /*
  * After we have successfully emulated an instruction, we have to
@@ -1133,7 +1157,7 @@ static int emulate_math(struct pt_regs *regs)
 static inline int emulate_math(struct pt_regs *regs) { return -1; }
 #endif
 
-void __kprobes program_check_exception(struct pt_regs *regs)
+void program_check_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 	unsigned int reason = get_reason(regs);
@@ -1253,16 +1277,18 @@ sigill:
 bail:
 	exception_exit(prev_state);
 }
+NOKPROBE_SYMBOL(program_check_exception);
 
 /*
  * This occurs when running in hypervisor mode on POWER6 or later
  * and an illegal instruction is encountered.
  */
-void __kprobes emulation_assist_interrupt(struct pt_regs *regs)
+void emulation_assist_interrupt(struct pt_regs *regs)
 {
 	regs->msr |= REASON_ILLEGAL;
 	program_check_exception(regs);
 }
+NOKPROBE_SYMBOL(emulation_assist_interrupt);
 
 void alignment_exception(struct pt_regs *regs)
 {
@@ -1300,6 +1326,18 @@ void alignment_exception(struct pt_regs *regs)
 		bad_page_fault(regs, regs->dar, sig);
 
 bail:
+	exception_exit(prev_state);
+}
+
+void slb_miss_bad_addr(struct pt_regs *regs)
+{
+	enum ctx_state prev_state = exception_enter();
+
+	if (user_mode(regs))
+		_exception(SIGSEGV, regs, SEGV_BNDERR, regs->dar);
+	else
+		bad_page_fault(regs, regs->dar, SIGSEGV);
+
 	exception_exit(prev_state);
 }
 
@@ -1365,6 +1403,22 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PPC64
+static void tm_unavailable(struct pt_regs *regs)
+{
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (user_mode(regs)) {
+		current->thread.load_tm++;
+		regs->msr |= MSR_TM;
+		tm_enable();
+		tm_restore_sprs(&current->thread);
+		return;
+	}
+#endif
+	pr_emerg("Unrecoverable TM Unavailable Exception "
+			"%lx at %lx\n", regs->trap, regs->nip);
+	die("Unrecoverable TM Unavailable Exception", regs, SIGABRT);
+}
+
 void facility_unavailable_exception(struct pt_regs *regs)
 {
 	static char *facility_strings[] = {
@@ -1376,6 +1430,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		[FSCR_TM_LG] = "TM",
 		[FSCR_EBB_LG] = "EBB",
 		[FSCR_TAR_LG] = "TAR",
+		[FSCR_LM_LG] = "LM",
 	};
 	char *facility = "unknown";
 	u64 value;
@@ -1418,7 +1473,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 			rd = (instword >> 21) & 0x1f;
 			current->thread.dscr = regs->gpr[rd];
 			current->thread.dscr_inherit = 1;
-			mtspr(SPRN_FSCR, value | FSCR_DSCR);
+			current->thread.fscr |= FSCR_DSCR;
+			mtspr(SPRN_FSCR, current->thread.fscr);
 		}
 
 		/* Read from DSCR (mfspr RT, 0x03) */
@@ -1431,6 +1487,35 @@ void facility_unavailable_exception(struct pt_regs *regs)
 			regs->nip += 4;
 			emulate_single_step(regs);
 		}
+		return;
+	} else if ((status == FSCR_LM_LG) && cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/*
+		 * This process has touched LM, so turn it on forever
+		 * for this process
+		 */
+		current->thread.fscr |= FSCR_LM;
+		mtspr(SPRN_FSCR, current->thread.fscr);
+		return;
+	}
+
+	if (status == FSCR_TM_LG) {
+		/*
+		 * If we're here then the hardware is TM aware because it
+		 * generated an exception with FSRM_TM set.
+		 *
+		 * If cpu_has_feature(CPU_FTR_TM) is false, then either firmware
+		 * told us not to do TM, or the kernel is not built with TM
+		 * support.
+		 *
+		 * If both of those things are true, then userspace can spam the
+		 * console by triggering the printk() below just by continually
+		 * doing tbegin (or any TM instruction). So in that case just
+		 * send the process a SIGILL immediately.
+		 */
+		if (!cpu_has_feature(CPU_FTR_TM))
+			goto out;
+
+		tm_unavailable(regs);
 		return;
 	}
 
@@ -1446,6 +1531,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
 		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
 
+out:
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 		return;
@@ -1487,7 +1573,8 @@ void fp_unavailable_tm(struct pt_regs *regs)
 
 	/* If VMX is in use, get the transactional values back */
 	if (regs->msr & MSR_VEC) {
-		do_load_up_transact_altivec(&current->thread);
+		msr_check_and_set(MSR_VEC);
+		load_vr_state(&current->thread.vr_state);
 		/* At this point all the VSX state is loaded, so enable it */
 		regs->msr |= MSR_VSX;
 	}
@@ -1508,7 +1595,8 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 	current->thread.used_vr = 1;
 
 	if (regs->msr & MSR_FP) {
-		do_load_up_transact_fpu(&current->thread);
+		msr_check_and_set(MSR_FP);
+		load_fp_state(&current->thread.fp_state);
 		regs->msr |= MSR_VSX;
 	}
 }
@@ -1547,10 +1635,12 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 	 */
 	tm_recheckpoint(&current->thread, regs->msr & ~orig_msr);
 
+	msr_check_and_set(orig_msr & (MSR_FP | MSR_VEC));
+
 	if (orig_msr & MSR_FP)
-		do_load_up_transact_fpu(&current->thread);
+		load_fp_state(&current->thread.fp_state);
 	if (orig_msr & MSR_VEC)
-		do_load_up_transact_altivec(&current->thread);
+		load_vr_state(&current->thread.vr_state);
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
@@ -1639,7 +1729,7 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 		mtspr(SPRN_DBCR0, current->thread.debug.dbcr0);
 }
 
-void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
+void DebugException(struct pt_regs *regs, unsigned long debug_status)
 {
 	current->thread.debug.dbsr = debug_status;
 
@@ -1700,6 +1790,7 @@ void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 	} else
 		handle_debug(regs, debug_status);
 }
+NOKPROBE_SYMBOL(DebugException);
 #endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
 #if !defined(CONFIG_TAU_INT)

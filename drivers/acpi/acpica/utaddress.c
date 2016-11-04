@@ -77,7 +77,6 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 			  u32 length, struct acpi_namespace_node *region_node)
 {
 	struct acpi_address_range *range_info;
-	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ut_add_address_range);
 
@@ -97,12 +96,6 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 	range_info->end_address = (address + length - 1);
 	range_info->region_node = region_node;
 
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		ACPI_FREE(range_info);
-		return_ACPI_STATUS(status);
-	}
-
 	range_info->next = acpi_gbl_address_range_list[space_id];
 	acpi_gbl_address_range_list[space_id] = range_info;
 
@@ -112,7 +105,6 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 			  ACPI_FORMAT_UINT64(address),
 			  ACPI_FORMAT_UINT64(range_info->end_address)));
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(AE_OK);
 }
 

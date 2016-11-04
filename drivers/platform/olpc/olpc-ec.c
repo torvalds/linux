@@ -1,6 +1,8 @@
 /*
  * Generic driver for the OLPC Embedded Controller.
  *
+ * Author: Andres Salomon <dilinger@queued.net>
+ *
  * Copyright (C) 2011-2012 One Laptop per Child Foundation.
  *
  * Licensed under the GPL v2 or later.
@@ -12,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/olpc-ec.h>
 #include <asm/olpc.h>
@@ -326,8 +328,4 @@ static int __init olpc_ec_init_module(void)
 {
 	return platform_driver_register(&olpc_ec_plat_driver);
 }
-
 arch_initcall(olpc_ec_init_module);
-
-MODULE_AUTHOR("Andres Salomon <dilinger@queued.net>");
-MODULE_LICENSE("GPL");

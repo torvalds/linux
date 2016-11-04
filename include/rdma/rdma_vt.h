@@ -158,6 +158,7 @@ struct rvt_driver_params {
 	u32 max_mad_size;
 	u8 qos_shift;
 	u8 max_rdma_atomic;
+	u8 reserved_operations;
 };
 
 /* Protection domain */
@@ -203,7 +204,9 @@ struct rvt_driver_provided {
 
 	/*
 	 * Allocate a private queue pair data structure for driver specific
-	 * information which is opaque to rdmavt.
+	 * information which is opaque to rdmavt.  Errors are returned via
+	 * ERR_PTR(err).  The driver is free to return NULL or a valid
+	 * pointer.
 	 */
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 				gfp_t gfp);
@@ -349,6 +352,9 @@ struct rvt_dev_info {
 	/* Driver specific properties */
 	struct rvt_driver_params dparms;
 
+	/* post send table */
+	const struct rvt_operation_params *post_parms;
+
 	struct rvt_mregion __rcu *dma_mr;
 	struct rvt_lkey_table lkey_table;
 
@@ -482,6 +488,9 @@ void rvt_unregister_device(struct rvt_dev_info *rvd);
 int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
 		  int port_index, u16 *pkey_table);
+int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
+		    int access);
+int rvt_invalidate_rkey(struct rvt_qp *qp, u32 rkey);
 int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,

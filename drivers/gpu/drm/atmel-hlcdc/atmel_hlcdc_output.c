@@ -113,21 +113,9 @@ static int atmel_hlcdc_rgb_mode_valid(struct drm_connector *connector,
 	return atmel_hlcdc_dc_mode_valid(rgb->dc, mode);
 }
 
-
-
-static struct drm_encoder *
-atmel_hlcdc_rgb_best_encoder(struct drm_connector *connector)
-{
-	struct atmel_hlcdc_rgb_output *rgb =
-			drm_connector_to_atmel_hlcdc_rgb_output(connector);
-
-	return &rgb->encoder;
-}
-
 static const struct drm_connector_helper_funcs atmel_hlcdc_panel_connector_helper_funcs = {
 	.get_modes = atmel_hlcdc_panel_get_modes,
 	.mode_valid = atmel_hlcdc_rgb_mode_valid,
-	.best_encoder = atmel_hlcdc_rgb_best_encoder,
 };
 
 static enum drm_connector_status
@@ -266,9 +254,10 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 		if (!ret)
 			ret = atmel_hlcdc_check_endpoint(dev, &ep);
 
-		of_node_put(ep_np);
-		if (ret)
+		if (ret) {
+			of_node_put(ep_np);
 			return ret;
+		}
 	}
 
 	for_each_endpoint_of_node(dev->dev->of_node, ep_np) {
@@ -276,9 +265,10 @@ int atmel_hlcdc_create_outputs(struct drm_device *dev)
 		if (!ret)
 			ret = atmel_hlcdc_attach_endpoint(dev, &ep);
 
-		of_node_put(ep_np);
-		if (ret)
+		if (ret) {
+			of_node_put(ep_np);
 			return ret;
+		}
 	}
 
 	return 0;

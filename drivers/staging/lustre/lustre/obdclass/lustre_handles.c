@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -134,7 +130,7 @@ void class_handle_unhash(struct portals_handle *h)
 }
 EXPORT_SYMBOL(class_handle_unhash);
 
-void *class_handle2object(__u64 cookie)
+void *class_handle2object(__u64 cookie, const void *owner)
 {
 	struct handle_bucket *bucket;
 	struct portals_handle *h;
@@ -149,7 +145,7 @@ void *class_handle2object(__u64 cookie)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(h, &bucket->head, h_link) {
-		if (h->h_cookie != cookie)
+		if (h->h_cookie != cookie || h->h_owner != owner)
 			continue;
 
 		spin_lock(&h->h_lock);
@@ -168,8 +164,11 @@ EXPORT_SYMBOL(class_handle2object);
 
 void class_handle_free_cb(struct rcu_head *rcu)
 {
-	struct portals_handle *h = RCU2HANDLE(rcu);
-	void *ptr = (void *)(unsigned long)h->h_cookie;
+	struct portals_handle *h;
+	void *ptr;
+
+	h = container_of(rcu, struct portals_handle, h_rcu);
+	ptr = (void *)(unsigned long)h->h_cookie;
 
 	if (h->h_ops->hop_free)
 		h->h_ops->hop_free(ptr, h->h_size);
@@ -218,7 +217,7 @@ static int cleanup_all_handles(void)
 		struct portals_handle *h;
 
 		spin_lock(&handle_hash[i].lock);
-		list_for_each_entry_rcu(h, &(handle_hash[i].head), h_link) {
+		list_for_each_entry_rcu(h, &handle_hash[i].head, h_link) {
 			CERROR("force clean handle %#llx addr %p ops %p\n",
 			       h->h_cookie, h, h->h_ops);
 

@@ -55,8 +55,10 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 		return -ENODEV;
 
 	/* See the comment at the drm_mm_init() call for more about this check.
-	 * WaSkipStolenMemoryFirstPage:bdw,chv (incomplete) */
-	if (INTEL_INFO(dev_priv)->gen == 8 && start < 4096)
+	 * WaSkipStolenMemoryFirstPage:bdw,chv,kbl (incomplete)
+	 */
+	if (start < 4096 && (IS_GEN8(dev_priv) ||
+			     IS_KBL_REVID(dev_priv, 0, KBL_REVID_A0)))
 		start = 4096;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
@@ -90,6 +92,7 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct resource *r;
 	u32 base;
@@ -109,43 +112,15 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 3) {
 		u32 bsm;
 
-		pci_read_config_dword(dev->pdev, BSM, &bsm);
+		pci_read_config_dword(pdev, INTEL_BSM, &bsm);
 
-		base = bsm & BSM_MASK;
+		base = bsm & INTEL_BSM_MASK;
 	} else if (IS_I865G(dev)) {
+		u32 tseg_size = 0;
 		u16 toud = 0;
-
-		/*
-		 * FIXME is the graphics stolen memory region
-		 * always at TOUD? Ie. is it always the last
-		 * one to be allocated by the BIOS?
-		 */
-		pci_bus_read_config_word(dev->pdev->bus, PCI_DEVFN(0, 0),
-					 I865_TOUD, &toud);
-
-		base = toud << 16;
-	} else if (IS_I85X(dev)) {
-		u32 tseg_size = 0;
-		u32 tom;
 		u8 tmp;
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
-					 I85X_ESMRAMC, &tmp);
-
-		if (tmp & TSEG_ENABLE)
-			tseg_size = MB(1);
-
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 1),
-					 I85X_DRB3, &tmp);
-		tom = tmp * MB(32);
-
-		base = tom - tseg_size - ggtt->stolen_size;
-	} else if (IS_845G(dev)) {
-		u32 tseg_size = 0;
-		u32 tom;
-		u8 tmp;
-
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I845_ESMRAMC, &tmp);
 
 		if (tmp & TSEG_ENABLE) {
@@ -159,7 +134,46 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 			}
 		}
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_word(pdev->bus, PCI_DEVFN(0, 0),
+					 I865_TOUD, &toud);
+
+		base = (toud << 16) + tseg_size;
+	} else if (IS_I85X(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
+					 I85X_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE)
+			tseg_size = MB(1);
+
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 1),
+					 I85X_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - ggtt->stolen_size;
+	} else if (IS_845G(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
+					 I845_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE) {
+			switch (tmp & I845_TSEG_SIZE_MASK) {
+			case I845_TSEG_SIZE_512K:
+				tseg_size = KB(512);
+				break;
+			case I845_TSEG_SIZE_1M:
+				tseg_size = MB(1);
+				break;
+			}
+		}
+
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I830_DRB3, &tmp);
 		tom = tmp * MB(32);
 
@@ -169,7 +183,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u32 tom;
 		u8 tmp;
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I830_ESMRAMC, &tmp);
 
 		if (tmp & TSEG_ENABLE) {
@@ -179,7 +193,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 				tseg_size = KB(512);
 		}
 
-		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+		pci_bus_read_config_byte(pdev->bus, PCI_DEVFN(0, 0),
 					 I830_DRB3, &tmp);
 		tom = tmp * MB(32);
 
@@ -268,7 +282,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return;
@@ -548,7 +562,7 @@ static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj)
 static void
 i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 
 	if (obj->stolen) {
 		i915_gem_stolen_remove_node(dev_priv, obj->stolen);
@@ -599,7 +613,7 @@ cleanup:
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	int ret;
@@ -683,7 +697,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (gtt_offset == I915_GTT_OFFSET_NONE)
 		return obj;
 
-	vma = i915_gem_obj_lookup_or_create_vma(obj, &ggtt->base);
+	vma = i915_gem_obj_lookup_or_create_vma(obj, &ggtt->base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err;
@@ -696,17 +710,18 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	 */
 	vma->node.start = gtt_offset;
 	vma->node.size = size;
-	if (drm_mm_initialized(&ggtt->base.mm)) {
-		ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			goto err;
-		}
 
-		vma->bound |= GLOBAL_BIND;
-		__i915_vma_set_map_and_fenceable(vma);
-		list_add_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
+	if (ret) {
+		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
+		goto err;
 	}
+
+	vma->pages = obj->pages;
+	vma->flags |= I915_VMA_GLOBAL_BIND;
+	__i915_vma_set_map_and_fenceable(vma);
+	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	obj->bind_count++;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	i915_gem_object_pin_pages(obj);
@@ -714,6 +729,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	return obj;
 
 err:
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	return NULL;
 }

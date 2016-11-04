@@ -31,22 +31,42 @@
 
 #include "cesa.h"
 
+/* Limit of the crypto queue before reaching the backlog */
+#define CESA_CRYPTO_DEFAULT_MAX_QLEN 128
+
 static int allhwsupport = !IS_ENABLED(CONFIG_CRYPTO_DEV_MV_CESA);
 module_param_named(allhwsupport, allhwsupport, int, 0444);
 MODULE_PARM_DESC(allhwsupport, "Enable support for all hardware (even it if overlaps with the mv_cesa driver)");
 
 struct mv_cesa_dev *cesa_dev;
 
-static void mv_cesa_dequeue_req_unlocked(struct mv_cesa_engine *engine)
+struct crypto_async_request *
+mv_cesa_dequeue_req_locked(struct mv_cesa_engine *engine,
+			   struct crypto_async_request **backlog)
 {
-	struct crypto_async_request *req, *backlog;
+	struct crypto_async_request *req;
+
+	*backlog = crypto_get_backlog(&engine->queue);
+	req = crypto_dequeue_request(&engine->queue);
+
+	if (!req)
+		return NULL;
+
+	return req;
+}
+
+static void mv_cesa_rearm_engine(struct mv_cesa_engine *engine)
+{
+	struct crypto_async_request *req = NULL, *backlog = NULL;
 	struct mv_cesa_ctx *ctx;
 
-	spin_lock_bh(&cesa_dev->lock);
-	backlog = crypto_get_backlog(&cesa_dev->queue);
-	req = crypto_dequeue_request(&cesa_dev->queue);
-	engine->req = req;
-	spin_unlock_bh(&cesa_dev->lock);
+
+	spin_lock_bh(&engine->lock);
+	if (!engine->req) {
+		req = mv_cesa_dequeue_req_locked(engine, &backlog);
+		engine->req = req;
+	}
+	spin_unlock_bh(&engine->lock);
 
 	if (!req)
 		return;
@@ -55,8 +75,47 @@ static void mv_cesa_dequeue_req_unlocked(struct mv_cesa_engine *engine)
 		backlog->complete(backlog, -EINPROGRESS);
 
 	ctx = crypto_tfm_ctx(req->tfm);
-	ctx->ops->prepare(req, engine);
 	ctx->ops->step(req);
+
+	return;
+}
+
+static int mv_cesa_std_process(struct mv_cesa_engine *engine, u32 status)
+{
+	struct crypto_async_request *req;
+	struct mv_cesa_ctx *ctx;
+	int res;
+
+	req = engine->req;
+	ctx = crypto_tfm_ctx(req->tfm);
+	res = ctx->ops->process(req, status);
+
+	if (res == 0) {
+		ctx->ops->complete(req);
+		mv_cesa_engine_enqueue_complete_request(engine, req);
+	} else if (res == -EINPROGRESS) {
+		ctx->ops->step(req);
+	}
+
+	return res;
+}
+
+static int mv_cesa_int_process(struct mv_cesa_engine *engine, u32 status)
+{
+	if (engine->chain.first && engine->chain.last)
+		return mv_cesa_tdma_process(engine, status);
+
+	return mv_cesa_std_process(engine, status);
+}
+
+static inline void
+mv_cesa_complete_req(struct mv_cesa_ctx *ctx, struct crypto_async_request *req,
+		     int res)
+{
+	ctx->ops->cleanup(req);
+	local_bh_disable();
+	req->complete(req, res);
+	local_bh_enable();
 }
 
 static irqreturn_t mv_cesa_int(int irq, void *priv)
@@ -83,49 +142,56 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 		writel(~status, engine->regs + CESA_SA_FPGA_INT_STATUS);
 		writel(~status, engine->regs + CESA_SA_INT_STATUS);
 
+		/* Process fetched requests */
+		res = mv_cesa_int_process(engine, status & mask);
 		ret = IRQ_HANDLED;
+
 		spin_lock_bh(&engine->lock);
 		req = engine->req;
+		if (res != -EINPROGRESS)
+			engine->req = NULL;
 		spin_unlock_bh(&engine->lock);
-		if (req) {
+
+		ctx = crypto_tfm_ctx(req->tfm);
+
+		if (res && res != -EINPROGRESS)
+			mv_cesa_complete_req(ctx, req, res);
+
+		/* Launch the next pending request */
+		mv_cesa_rearm_engine(engine);
+
+		/* Iterate over the complete queue */
+		while (true) {
+			req = mv_cesa_engine_dequeue_complete_request(engine);
+			if (!req)
+				break;
+
 			ctx = crypto_tfm_ctx(req->tfm);
-			res = ctx->ops->process(req, status & mask);
-			if (res != -EINPROGRESS) {
-				spin_lock_bh(&engine->lock);
-				engine->req = NULL;
-				mv_cesa_dequeue_req_unlocked(engine);
-				spin_unlock_bh(&engine->lock);
-				ctx->ops->cleanup(req);
-				local_bh_disable();
-				req->complete(req, res);
-				local_bh_enable();
-			} else {
-				ctx->ops->step(req);
-			}
+			mv_cesa_complete_req(ctx, req, 0);
 		}
 	}
 
 	return ret;
 }
 
-int mv_cesa_queue_req(struct crypto_async_request *req)
+int mv_cesa_queue_req(struct crypto_async_request *req,
+		      struct mv_cesa_req *creq)
 {
 	int ret;
-	int i;
+	struct mv_cesa_engine *engine = creq->engine;
 
-	spin_lock_bh(&cesa_dev->lock);
-	ret = crypto_enqueue_request(&cesa_dev->queue, req);
-	spin_unlock_bh(&cesa_dev->lock);
+	spin_lock_bh(&engine->lock);
+	ret = crypto_enqueue_request(&engine->queue, req);
+	if ((mv_cesa_req_get_type(creq) == CESA_DMA_REQ) &&
+	    (ret == -EINPROGRESS ||
+	    (ret == -EBUSY && req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))
+		mv_cesa_tdma_chain(engine, creq);
+	spin_unlock_bh(&engine->lock);
 
 	if (ret != -EINPROGRESS)
 		return ret;
 
-	for (i = 0; i < cesa_dev->caps->nengines; i++) {
-		spin_lock_bh(&cesa_dev->engines[i].lock);
-		if (!cesa_dev->engines[i].req)
-			mv_cesa_dequeue_req_unlocked(&cesa_dev->engines[i]);
-		spin_unlock_bh(&cesa_dev->engines[i].lock);
-	}
+	mv_cesa_rearm_engine(engine);
 
 	return -EINPROGRESS;
 }
@@ -309,6 +375,10 @@ static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
 	if (!dma->padding_pool)
 		return -ENOMEM;
 
+	dma->iv_pool = dmam_pool_create("cesa_iv", dev, 16, 1, 0);
+	if (!dma->iv_pool)
+		return -ENOMEM;
+
 	cesa->dma = dma;
 
 	return 0;
@@ -416,7 +486,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&cesa->lock);
-	crypto_init_queue(&cesa->queue, 50);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	cesa->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(cesa->regs))
@@ -489,6 +559,10 @@ static int mv_cesa_probe(struct platform_device *pdev)
 						engine);
 		if (ret)
 			goto err_cleanup;
+
+		crypto_init_queue(&engine->queue, CESA_CRYPTO_DEFAULT_MAX_QLEN);
+		atomic_set(&engine->load, 0);
+		INIT_LIST_HEAD(&engine->complete_queue);
 	}
 
 	cesa_dev = cesa;

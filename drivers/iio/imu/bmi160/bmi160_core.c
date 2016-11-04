@@ -20,6 +20,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/sysfs.h>
 
 #include "bmi160.h"
 
@@ -209,11 +210,11 @@ static const struct  bmi160_scale_item bmi160_scale_table[] = {
 };
 
 static const struct bmi160_odr bmi160_accel_odr[] = {
-	{0x01, 0, 78125},
-	{0x02, 1, 5625},
-	{0x03, 3, 125},
-	{0x04, 6, 25},
-	{0x05, 12, 5},
+	{0x01, 0, 781250},
+	{0x02, 1, 562500},
+	{0x03, 3, 125000},
+	{0x04, 6, 250000},
+	{0x05, 12, 500000},
 	{0x06, 25, 0},
 	{0x07, 50, 0},
 	{0x08, 100, 0},
@@ -229,7 +230,7 @@ static const struct bmi160_odr bmi160_gyro_odr[] = {
 	{0x08, 100, 0},
 	{0x09, 200, 0},
 	{0x0A, 400, 0},
-	{0x0B, 8000, 0},
+	{0x0B, 800, 0},
 	{0x0C, 1600, 0},
 	{0x0D, 3200, 0},
 };
@@ -364,8 +365,8 @@ int bmi160_set_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
 
 	return regmap_update_bits(data->regmap,
 				  bmi160_regs[t].config,
-				  bmi160_odr_table[t].tbl[i].bits,
-				  bmi160_regs[t].config_odr_mask);
+				  bmi160_regs[t].config_odr_mask,
+				  bmi160_odr_table[t].tbl[i].bits);
 }
 
 static int bmi160_get_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
@@ -410,7 +411,8 @@ static irqreturn_t bmi160_trigger_handler(int irq, void *p)
 		buf[j++] = sample;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
@@ -466,10 +468,36 @@ static int bmi160_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static
+IIO_CONST_ATTR(in_accel_sampling_frequency_available,
+	       "0.78125 1.5625 3.125 6.25 12.5 25 50 100 200 400 800 1600");
+static
+IIO_CONST_ATTR(in_anglvel_sampling_frequency_available,
+	       "25 50 100 200 400 800 1600 3200");
+static
+IIO_CONST_ATTR(in_accel_scale_available,
+	       "0.000598 0.001197 0.002394 0.004788");
+static
+IIO_CONST_ATTR(in_anglvel_scale_available,
+	       "0.001065 0.000532 0.000266 0.000133 0.000066");
+
+static struct attribute *bmi160_attrs[] = {
+	&iio_const_attr_in_accel_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_scale_available.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group bmi160_attrs_group = {
+	.attrs = bmi160_attrs,
+};
+
 static const struct iio_info bmi160_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = bmi160_read_raw,
 	.write_raw = bmi160_write_raw,
+	.attrs = &bmi160_attrs_group,
 };
 
 static const char *bmi160_match_acpi_device(struct device *dev)

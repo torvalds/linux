@@ -148,28 +148,37 @@ static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 		return;
 
 	misc_ctrl = sdhci_readl(host, SDHCI_TEGRA_VENDOR_MISC_CTRL);
-	/* Erratum: Enable SDHCI spec v3.00 support */
-	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDHCI_SPEC_300)
-		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300;
-	/* Advertise UHS modes as supported by host */
-	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDR50)
-		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDR50;
-	else
-		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR50;
-	if (soc_data->nvquirks & NVQUIRK_ENABLE_DDR50)
-		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_DDR50;
-	else
-		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_DDR50;
-	if (soc_data->nvquirks & NVQUIRK_ENABLE_SDR104)
-		misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDR104;
-	else
-		misc_ctrl &= ~SDHCI_MISC_CTRL_ENABLE_SDR104;
-	sdhci_writel(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
-
 	clk_ctrl = sdhci_readl(host, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
+
+	misc_ctrl &= ~(SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300 |
+		       SDHCI_MISC_CTRL_ENABLE_SDR50 |
+		       SDHCI_MISC_CTRL_ENABLE_DDR50 |
+		       SDHCI_MISC_CTRL_ENABLE_SDR104);
+
 	clk_ctrl &= ~SDHCI_CLOCK_CTRL_SPI_MODE_CLKEN_OVERRIDE;
-	if (soc_data->nvquirks & SDHCI_MISC_CTRL_ENABLE_SDR50)
-		clk_ctrl |= SDHCI_CLOCK_CTRL_SDR50_TUNING_OVERRIDE;
+
+	/*
+	 * If the board does not define a regulator for the SDHCI
+	 * IO voltage, then don't advertise support for UHS modes
+	 * even if the device supports it because the IO voltage
+	 * cannot be configured.
+	 */
+	if (!IS_ERR(host->mmc->supply.vqmmc)) {
+		/* Erratum: Enable SDHCI spec v3.00 support */
+		if (soc_data->nvquirks & NVQUIRK_ENABLE_SDHCI_SPEC_300)
+			misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDHCI_SPEC_300;
+		/* Advertise UHS modes as supported by host */
+		if (soc_data->nvquirks & NVQUIRK_ENABLE_SDR50)
+			misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDR50;
+		if (soc_data->nvquirks & NVQUIRK_ENABLE_DDR50)
+			misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_DDR50;
+		if (soc_data->nvquirks & NVQUIRK_ENABLE_SDR104)
+			misc_ctrl |= SDHCI_MISC_CTRL_ENABLE_SDR104;
+		if (soc_data->nvquirks & SDHCI_MISC_CTRL_ENABLE_SDR50)
+			clk_ctrl |= SDHCI_CLOCK_CTRL_SDR50_TUNING_OVERRIDE;
+	}
+
+	sdhci_writel(host, misc_ctrl, SDHCI_TEGRA_VENDOR_MISC_CTRL);
 	sdhci_writel(host, clk_ctrl, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
 
 	if (soc_data->nvquirks & NVQUIRK_HAS_PADCALIB)
@@ -382,6 +391,31 @@ static const struct sdhci_tegra_soc_data soc_data_tegra114 = {
 	.pdata = &sdhci_tegra114_pdata,
 };
 
+static const struct sdhci_pltfm_data sdhci_tegra124_pdata = {
+	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
+		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
+		  SDHCI_QUIRK_NO_HISPD_BIT |
+		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
+		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		   /*
+		    * The TRM states that the SD/MMC controller found on
+		    * Tegra124 can address 34 bits (the maximum supported by
+		    * the Tegra memory controller), but tests show that DMA
+		    * to or from above 4 GiB doesn't work. This is possibly
+		    * caused by missing programming, though it's not obvious
+		    * what sequence is required. Mark 64-bit DMA broken for
+		    * now to fix this for existing users (e.g. Nyan boards).
+		    */
+		   SDHCI_QUIRK2_BROKEN_64_BIT_DMA,
+	.ops  = &tegra114_sdhci_ops,
+};
+
+static const struct sdhci_tegra_soc_data soc_data_tegra124 = {
+	.pdata = &sdhci_tegra124_pdata,
+};
+
 static const struct sdhci_pltfm_data sdhci_tegra210_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
@@ -399,7 +433,7 @@ static const struct sdhci_tegra_soc_data soc_data_tegra210 = {
 
 static const struct of_device_id sdhci_tegra_dt_match[] = {
 	{ .compatible = "nvidia,tegra210-sdhci", .data = &soc_data_tegra210 },
-	{ .compatible = "nvidia,tegra124-sdhci", .data = &soc_data_tegra114 },
+	{ .compatible = "nvidia,tegra124-sdhci", .data = &soc_data_tegra124 },
 	{ .compatible = "nvidia,tegra114-sdhci", .data = &soc_data_tegra114 },
 	{ .compatible = "nvidia,tegra30-sdhci", .data = &soc_data_tegra30 },
 	{ .compatible = "nvidia,tegra20-sdhci", .data = &soc_data_tegra20 },
@@ -474,7 +508,7 @@ static struct platform_driver sdhci_tegra_driver = {
 	.driver		= {
 		.name	= "sdhci-tegra",
 		.of_match_table = sdhci_tegra_dt_match,
-		.pm	= SDHCI_PLTFM_PMOPS,
+		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe		= sdhci_tegra_probe,
 	.remove		= sdhci_pltfm_unregister,

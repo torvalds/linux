@@ -420,8 +420,10 @@ retry:
 
 		/* Try replenishing IOVAs by flushing rcache. */
 		flushed_rcache = true;
+		preempt_disable();
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
+		preempt_enable();
 		goto retry;
 	}
 
@@ -749,7 +751,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	bool can_insert = false;
 	unsigned long flags;
 
-	cpu_rcache = this_cpu_ptr(rcache->cpu_rcaches);
+	cpu_rcache = get_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
 	if (!iova_magazine_full(cpu_rcache->loaded)) {
@@ -779,6 +781,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		iova_magazine_push(cpu_rcache->loaded, iova_pfn);
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+	put_cpu_ptr(rcache->cpu_rcaches);
 
 	if (mag_to_free) {
 		iova_magazine_free_pfns(mag_to_free, iovad);
@@ -812,7 +815,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	bool has_pfn = false;
 	unsigned long flags;
 
-	cpu_rcache = this_cpu_ptr(rcache->cpu_rcaches);
+	cpu_rcache = get_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
 	if (!iova_magazine_empty(cpu_rcache->loaded)) {
@@ -834,6 +837,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 		iova_pfn = iova_magazine_pop(cpu_rcache->loaded, limit_pfn);
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+	put_cpu_ptr(rcache->cpu_rcaches);
 
 	return iova_pfn;
 }

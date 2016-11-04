@@ -122,16 +122,7 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	priv->rcdev.ops = &zynq_reset_ops;
 	priv->rcdev.of_node = pdev->dev.of_node;
 
-	return reset_controller_register(&priv->rcdev);
-}
-
-static int zynq_reset_remove(struct platform_device *pdev)
-{
-	struct zynq_reset_data *priv = platform_get_drvdata(pdev);
-
-	reset_controller_unregister(&priv->rcdev);
-
-	return 0;
+	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);
 }
 
 static const struct of_device_id zynq_reset_dt_ids[] = {
@@ -141,7 +132,6 @@ static const struct of_device_id zynq_reset_dt_ids[] = {
 
 static struct platform_driver zynq_reset_driver = {
 	.probe	= zynq_reset_probe,
-	.remove	= zynq_reset_remove,
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= zynq_reset_dt_ids,

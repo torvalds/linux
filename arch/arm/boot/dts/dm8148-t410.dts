@@ -11,7 +11,7 @@
 	model = "HP t410 Smart Zero Client";
 	compatible = "hp,t410", "ti,dm8148";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;	/* 1 GB */
 	};
@@ -27,7 +27,7 @@
 		regulator-always-on;
 	};
 
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;
@@ -45,6 +45,14 @@
 	phy-mode = "rgmii";
 };
 
+&mmc1 {
+	status = "disabled";
+};
+
+&mmc2 {
+	status = "disabled";
+};
+
 &mmc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_pins>;
@@ -53,6 +61,7 @@
 	dmas = <&edma_xbar 8 0 1	/* use SDTXEVT1 instead of MCASP0TX */
 		&edma_xbar 9 0 2>;	/* use SDRXEVT1 instead of MCASP0RX */
 	dma-names = "tx", "rx";
+	non-removable;
 };
 
 &pincntl {

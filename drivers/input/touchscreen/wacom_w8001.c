@@ -27,7 +27,7 @@ MODULE_AUTHOR("Jaya Kumar <jayakumar.lkml@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-#define W8001_MAX_LENGTH	11
+#define W8001_MAX_LENGTH	13
 #define W8001_LEAD_MASK		0x80
 #define W8001_LEAD_BYTE		0x80
 #define W8001_TAB_MASK		0x40
@@ -155,6 +155,7 @@ static void parse_multi_touch(struct w8001 *w8001)
 		bool touch = data[0] & (1 << i);
 
 		input_mt_slot(dev, i);
+		input_mt_report_slot_state(dev, MT_TOOL_FINGER, touch);
 		if (touch) {
 			x = (data[6 * i + 1] << 7) | data[6 * i + 2];
 			y = (data[6 * i + 3] << 7) | data[6 * i + 4];
@@ -339,6 +340,15 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 		w8001->idx = 0;
 		parse_multi_touch(w8001);
 		break;
+
+	default:
+		/*
+		 * ThinkPad X60 Tablet PC (pen only device) sometimes
+		 * sends invalid data packets that are larger than
+		 * W8001_PKTLEN_TPCPEN. Let's start over again.
+		 */
+		if (!w8001->touch_dev && w8001->idx > W8001_PKTLEN_TPCPEN - 1)
+			w8001->idx = 0;
 	}
 
 	return IRQ_HANDLED;
@@ -508,11 +518,21 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 		w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
 		__set_bit(BTN_TOOL_DOUBLETAP, dev->keybit);
-		input_mt_init_slots(dev, 2, 0);
+		error = input_mt_init_slots(dev, 2, 0);
+		if (error) {
+			dev_err(&w8001->serio->dev,
+				"failed to initialize MT slots: %d\n", error);
+			return error;
+		}
+
 		input_set_abs_params(dev, ABS_MT_POSITION_X,
 					0, touch.x, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y,
 					0, touch.y, 0, 0);
+		input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
+					0, MT_TOOL_MAX, 0, 0);
+		input_abs_set_res(dev, ABS_MT_POSITION_X, touch.panel_res);
+		input_abs_set_res(dev, ABS_MT_POSITION_Y, touch.panel_res);
 
 		strlcat(basename, " 2FG", basename_sz);
 		if (w8001->max_pen_x && w8001->max_pen_y)

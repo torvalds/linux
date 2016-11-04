@@ -89,8 +89,6 @@ struct tc358743_state {
 	struct v4l2_ctrl *audio_sampling_rate_ctrl;
 	struct v4l2_ctrl *audio_present_ctrl;
 
-	/* work queues */
-	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
 
 	/* edid  */
@@ -425,8 +423,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 
 	/* Enable hotplug after 100 ms. DDC access to EDID is also enabled when
 	 * hotplug is enabled. See register DDC_CTL */
-	queue_delayed_work(state->work_queues,
-			   &state->delayed_work_enable_hotplug, HZ / 10);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
 
 	tc358743_enable_interrupts(sd, true);
 	tc358743_s_ctrl_detect_tx_5v(sd);
@@ -1884,14 +1881,6 @@ static int tc358743_probe(struct i2c_client *client,
 		goto err_hdl;
 	}
 
-	/* work queues */
-	state->work_queues = create_singlethread_workqueue(client->name);
-	if (!state->work_queues) {
-		v4l2_err(sd, "Could not create work queue\n");
-		err = -ENOMEM;
-		goto err_hdl;
-	}
-
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
 	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err < 0)
@@ -1940,7 +1929,6 @@ static int tc358743_probe(struct i2c_client *client,
 
 err_work_queues:
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	mutex_destroy(&state->confctl_mutex);
 err_hdl:
 	media_entity_cleanup(&sd->entity);
@@ -1954,7 +1942,6 @@ static int tc358743_remove(struct i2c_client *client)
 	struct tc358743_state *state = to_state(sd);
 
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&state->confctl_mutex);

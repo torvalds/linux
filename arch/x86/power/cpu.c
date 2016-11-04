@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/smp.h>
 #include <linux/perf_event.h>
+#include <linux/tboot.h>
 
 #include <asm/pgtable.h>
 #include <asm/proto.h>
@@ -129,7 +130,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
 	ctxt->cr3 = read_cr3();
-	ctxt->cr4 = __read_cr4_safe();
+	ctxt->cr4 = __read_cr4();
 #ifdef CONFIG_X86_64
 	ctxt->cr8 = read_cr8();
 #endif
@@ -264,6 +265,35 @@ void notrace restore_processor_state(void)
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(restore_processor_state);
+#endif
+
+#if defined(CONFIG_HIBERNATION) && defined(CONFIG_HOTPLUG_CPU)
+static void resume_play_dead(void)
+{
+	play_dead_common();
+	tboot_shutdown(TB_SHUTDOWN_WFS);
+	hlt_play_dead();
+}
+
+int hibernate_resume_nonboot_cpu_disable(void)
+{
+	void (*play_dead)(void) = smp_ops.play_dead;
+	int ret;
+
+	/*
+	 * Ensure that MONITOR/MWAIT will not be used in the "play dead" loop
+	 * during hibernate image restoration, because it is likely that the
+	 * monitored address will be actually written to at that time and then
+	 * the "dead" CPU will attempt to execute instructions again, but the
+	 * address in its instruction pointer may not be possible to resolve
+	 * any more at that point (the page tables used by it previously may
+	 * have been overwritten by hibernate image data).
+	 */
+	smp_ops.play_dead = resume_play_dead;
+	ret = disable_nonboot_cpus();
+	smp_ops.play_dead = play_dead;
+	return ret;
+}
 #endif
 
 /*

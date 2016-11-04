@@ -98,7 +98,7 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 }
 
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
-		bool write, bool foreign)
+		bool write, bool execute, bool foreign)
 {
 	/* by default, allow everything */
 	return true;

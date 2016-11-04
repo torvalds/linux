@@ -37,13 +37,13 @@ static int efibc_set_variable(const char *name, const char *value)
 	size_t size = (strlen(value) + 1) * sizeof(efi_char16_t);
 
 	if (size > sizeof(entry->var.Data)) {
-		pr_err("value is too large");
+		pr_err("value is too large (%zu bytes) for '%s' EFI variable\n", size, name);
 		return -EINVAL;
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		pr_err("failed to allocate efivar entry");
+		pr_err("failed to allocate efivar entry for '%s' EFI variable\n", name);
 		return -ENOMEM;
 	}
 

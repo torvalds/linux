@@ -2492,10 +2492,6 @@ static int create_loopback_mixing_ctl(struct hda_codec *codec)
 	if (!snd_hda_gen_add_kctl(spec, NULL, &loopback_mixing_enum))
 		return -ENOMEM;
 	spec->have_aamix_ctl = 1;
-	/* if no explicit aamix path is present (e.g. for Realtek codecs),
-	 * enable aamix as default -- just for compatibility
-	 */
-	spec->aamix_mode = !has_aamix_out_paths(spec);
 	return 0;
 }
 
@@ -3977,6 +3973,8 @@ static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
 
 	for (n = 0; n < spec->paths.used; n++) {
 		path = snd_array_elem(&spec->paths, n);
+		if (!path->depth)
+			continue;
 		if (path->path[0] == nid ||
 		    path->path[path->depth - 1] == nid) {
 			bool pin_old = path->pin_enabled;

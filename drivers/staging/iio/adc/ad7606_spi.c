@@ -21,7 +21,7 @@ static int ad7606_spi_read_block(struct device *dev,
 {
 	struct spi_device *spi = to_spi_device(dev);
 	int i, ret;
-	unsigned short *data;
+	unsigned short *data = buf;
 	__be16 *bdata = buf;
 
 	ret = spi_read(spi, buf, count * 2);

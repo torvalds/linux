@@ -154,34 +154,41 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (iio_buffer_enabled(indio_dev))
-			return -EBUSY;
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 
 		switch (chan->type) {
 		case IIO_MAGN: /* in 0.1 uT / LSB */
 			ret = mag3110_read(data, buffer);
 			if (ret < 0)
-				return ret;
+				goto release;
 			*val = sign_extend32(
 				be16_to_cpu(buffer[chan->scan_index]), 15);
-			return IIO_VAL_INT;
+			ret = IIO_VAL_INT;
+			break;
 		case IIO_TEMP: /* in 1 C / LSB */
 			mutex_lock(&data->lock);
 			ret = mag3110_request(data);
 			if (ret < 0) {
 				mutex_unlock(&data->lock);
-				return ret;
+				goto release;
 			}
 			ret = i2c_smbus_read_byte_data(data->client,
 				MAG3110_DIE_TEMP);
 			mutex_unlock(&data->lock);
 			if (ret < 0)
-				return ret;
+				goto release;
 			*val = sign_extend32(ret, 7);
-			return IIO_VAL_INT;
+			ret = IIO_VAL_INT;
+			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
 		}
+release:
+		iio_device_release_direct_mode(indio_dev);
+		return ret;
+
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_MAGN:
@@ -261,7 +268,7 @@ static irqreturn_t mag3110_trigger_handler(int irq, void *p)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-		iio_get_time_ns());
+		iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

@@ -82,6 +82,20 @@ config INPUT_ARIZONA_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called arizona-haptics.
 
+config INPUT_ATMEL_CAPTOUCH
+	tristate "Atmel Capacitive Touch Button Driver"
+	depends on OF || COMPILE_TEST
+	depends on I2C
+	help
+	  Say Y here if an Atmel Capacitive Touch Button device which
+	  implements "captouch" protocol is connected to I2C bus. Typically
+	  this device consists of Atmel Touch sensor controlled by AtMegaXX
+	  MCU running firmware based on Qtouch library.
+	  One should find "atmel,captouch" node in the board specific DTS.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_captouch.
+
 config INPUT_BMA150
 	tristate "BMA150/SMB380 acceleration sensor support"
 	depends on I2C
@@ -278,6 +292,18 @@ config INPUT_GPIO_TILT_POLLED
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_tilt_polled.
 
+config INPUT_GPIO_DECODER
+	tristate "Polled GPIO Decoder Input driver"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_POLLDEV
+	help
+	 Say Y here if you want driver to read status of multiple GPIO
+	 lines and report the encoded value as an absolute integer to
+	 input subsystem.
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called gpio_decoder.
+
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
 	depends on ARCH_IXP4XX
@@ -440,10 +466,10 @@ config INPUT_RETU_PWRBUTTON
 
 config INPUT_TPS65218_PWRBUTTON
 	tristate "TPS65218 Power button driver"
-	depends on MFD_TPS65218
+	depends on (MFD_TPS65217 || MFD_TPS65218)
 	help
 	  Say Y here if you want to enable power buttong reporting for
-	  the TPS65218 Power Management IC device.
+	  TPS65217 and TPS65218 Power Management IC devices.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called tps65218-pwrbutton.
@@ -795,5 +821,14 @@ config INPUT_DRV2667_HAPTICS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv2667-haptics.
+
+config INPUT_HISI_POWERKEY
+	tristate "Hisilicon PMIC ONKEY support"
+	depends on ARCH_HISI || COMPILE_TEST
+	help
+	  Say Y to enable support for PMIC ONKEY.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hisi_powerkey.
 
 endif

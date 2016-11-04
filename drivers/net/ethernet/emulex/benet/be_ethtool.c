@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -421,6 +421,10 @@ static void be_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
+static const char be_priv_flags[][ETH_GSTRING_LEN] = {
+	"disable-tpe-recovery"
+};
+
 static void be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 				uint8_t *data)
 {
@@ -454,6 +458,10 @@ static void be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 			data += ETH_GSTRING_LEN;
 		}
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < ARRAY_SIZE(be_priv_flags); i++)
+			strcpy(data + i * ETH_GSTRING_LEN, be_priv_flags[i]);
+		break;
 	}
 }
 
@@ -468,6 +476,8 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 		return ETHTOOL_STATS_NUM +
 			adapter->num_rx_qs * ETHTOOL_RXSTATS_NUM +
 			adapter->num_tx_qs * ETHTOOL_TXSTATS_NUM;
+	case ETH_SS_PRIV_FLAGS:
+		return ARRAY_SIZE(be_priv_flags);
 	default:
 		return -EINVAL;
 	}
@@ -793,6 +803,11 @@ static void be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
+	struct be_dma_mem cmd;
+	u8 mac[ETH_ALEN];
+	bool enable;
+	int status;
 
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EOPNOTSUPP;
@@ -802,12 +817,32 @@ static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 		return -EOPNOTSUPP;
 	}
 
-	if (wol->wolopts & WAKE_MAGIC)
-		adapter->wol_en = true;
-	else
-		adapter->wol_en = false;
+	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
+	cmd.va = dma_zalloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
+	if (!cmd.va)
+		return -ENOMEM;
 
-	return 0;
+	eth_zero_addr(mac);
+
+	enable = wol->wolopts & WAKE_MAGIC;
+	if (enable)
+		ether_addr_copy(mac, adapter->netdev->dev_addr);
+
+	status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
+	if (status) {
+		dev_err(dev, "Could not set Wake-on-lan mac address\n");
+		status = be_cmd_status(status);
+		goto err;
+	}
+
+	pci_enable_wake(adapter->pdev, PCI_D3hot, enable);
+	pci_enable_wake(adapter->pdev, PCI_D3cold, enable);
+
+	adapter->wol_en = enable ? true : false;
+
+err:
+	dma_free_coherent(dev, cmd.size, cmd.va, cmd.dma);
+	return status;
 }
 
 static int be_test_ddr_dma(struct be_adapter *adapter)
@@ -1171,9 +1206,17 @@ static void be_get_channels(struct net_device *netdev,
 			    struct ethtool_channels *ch)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	u16 num_rx_irqs = max_t(u16, adapter->num_rss_qs, 1);
 
-	ch->combined_count = adapter->num_evt_qs;
-	ch->max_combined = be_max_qs(adapter);
+	/* num_tx_qs is always same as the number of irqs used for TX */
+	ch->combined_count = min(adapter->num_tx_qs, num_rx_irqs);
+	ch->rx_count = num_rx_irqs - ch->combined_count;
+	ch->tx_count = adapter->num_tx_qs - ch->combined_count;
+
+	ch->max_combined = be_max_qp_irqs(adapter);
+	/* The user must create atleast one combined channel */
+	ch->max_rx = be_max_rx_irqs(adapter) - 1;
+	ch->max_tx = be_max_tx_irqs(adapter) - 1;
 }
 
 static int be_set_channels(struct net_device  *netdev,
@@ -1182,11 +1225,22 @@ static int be_set_channels(struct net_device  *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 
-	if (ch->rx_count || ch->tx_count || ch->other_count ||
-	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
+	/* we support either only combined channels or a combination of
+	 * combined and either RX-only or TX-only channels.
+	 */
+	if (ch->other_count || !ch->combined_count ||
+	    (ch->rx_count && ch->tx_count))
 		return -EINVAL;
 
-	adapter->cfg_num_qs = ch->combined_count;
+	if (ch->combined_count > be_max_qp_irqs(adapter) ||
+	    (ch->rx_count &&
+	     (ch->rx_count + ch->combined_count) > be_max_rx_irqs(adapter)) ||
+	    (ch->tx_count &&
+	     (ch->tx_count + ch->combined_count) > be_max_tx_irqs(adapter)))
+		return -EINVAL;
+
+	adapter->cfg_num_rx_irqs = ch->combined_count + ch->rx_count;
+	adapter->cfg_num_tx_irqs = ch->combined_count + ch->tx_count;
 
 	status = be_update_queues(adapter);
 	return be_cmd_status(status);
@@ -1316,6 +1370,34 @@ err:
 	return be_cmd_status(status);
 }
 
+static u32 be_get_priv_flags(struct net_device *netdev)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->priv_flags;
+}
+
+static int be_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	bool tpe_old = !!(adapter->priv_flags & BE_DISABLE_TPE_RECOVERY);
+	bool tpe_new = !!(flags & BE_DISABLE_TPE_RECOVERY);
+
+	if (tpe_old != tpe_new) {
+		if (tpe_new) {
+			adapter->priv_flags |= BE_DISABLE_TPE_RECOVERY;
+			dev_info(&adapter->pdev->dev,
+				 "HW error recovery is disabled\n");
+		} else {
+			adapter->priv_flags &= ~BE_DISABLE_TPE_RECOVERY;
+			dev_info(&adapter->pdev->dev,
+				 "HW error recovery is enabled\n");
+		}
+	}
+
+	return 0;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -1329,6 +1411,8 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_ringparam = be_get_ringparam,
 	.get_pauseparam = be_get_pauseparam,
 	.set_pauseparam = be_set_pauseparam,
+	.set_priv_flags = be_set_priv_flags,
+	.get_priv_flags = be_get_priv_flags,
 	.get_strings = be_get_stat_strings,
 	.set_phys_id = be_set_phys_id,
 	.set_dump = be_set_dump,

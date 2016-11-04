@@ -66,8 +66,6 @@
  *****************************************************************************/
 #include <linux/firmware.h>
 #include <linux/rtnetlink.h>
-#include <linux/pci.h>
-#include <linux/acpi.h>
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "mvm.h"
@@ -667,8 +665,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		.mcc = cpu_to_le16(alpha2[0] << 8 | alpha2[1]),
 		.source_id = (u8)src_id,
 	};
-	struct iwl_mcc_update_resp *mcc_resp, *resp_cp = NULL;
-	struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = NULL;
+	struct iwl_mcc_update_resp *resp_cp;
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = MCC_UPDATE_CMD,
@@ -701,32 +698,34 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 	/* Extract MCC response */
 	if (resp_v2) {
-		mcc_resp = (void *)pkt->data;
+		struct iwl_mcc_update_resp *mcc_resp = (void *)pkt->data;
+
 		n_channels =  __le32_to_cpu(mcc_resp->n_channels);
+		resp_len = sizeof(struct iwl_mcc_update_resp) +
+			   n_channels * sizeof(__le32);
+		resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
 	} else {
-		mcc_resp_v1 = (void *)pkt->data;
+		struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = (void *)pkt->data;
+
 		n_channels =  __le32_to_cpu(mcc_resp_v1->n_channels);
+		resp_len = sizeof(struct iwl_mcc_update_resp) +
+			   n_channels * sizeof(__le32);
+		resp_cp = kzalloc(resp_len, GFP_KERNEL);
+
+		if (resp_cp) {
+			resp_cp->status = mcc_resp_v1->status;
+			resp_cp->mcc = mcc_resp_v1->mcc;
+			resp_cp->cap = mcc_resp_v1->cap;
+			resp_cp->source_id = mcc_resp_v1->source_id;
+			resp_cp->n_channels = mcc_resp_v1->n_channels;
+			memcpy(resp_cp->channels, mcc_resp_v1->channels,
+			       n_channels * sizeof(__le32));
+		}
 	}
 
-	resp_len = sizeof(struct iwl_mcc_update_resp) + n_channels *
-		sizeof(__le32);
-
-	resp_cp = kzalloc(resp_len, GFP_KERNEL);
 	if (!resp_cp) {
 		ret = -ENOMEM;
 		goto exit;
-	}
-
-	if (resp_v2) {
-		memcpy(resp_cp, mcc_resp, resp_len);
-	} else {
-		resp_cp->status = mcc_resp_v1->status;
-		resp_cp->mcc = mcc_resp_v1->mcc;
-		resp_cp->cap = mcc_resp_v1->cap;
-		resp_cp->source_id = mcc_resp_v1->source_id;
-		resp_cp->n_channels = mcc_resp_v1->n_channels;
-		memcpy(resp_cp->channels, mcc_resp_v1->channels,
-		       n_channels * sizeof(__le32));
 	}
 
 	status = le32_to_cpu(resp_cp->status);
@@ -750,97 +749,6 @@ exit:
 		return ERR_PTR(ret);
 	return resp_cp;
 }
-
-#ifdef CONFIG_ACPI
-#define WRD_METHOD		"WRDD"
-#define WRDD_WIFI		(0x07)
-#define WRDD_WIGIG		(0x10)
-
-static u32 iwl_mvm_wrdd_get_mcc(struct iwl_mvm *mvm, union acpi_object *wrdd)
-{
-	union acpi_object *mcc_pkg, *domain_type, *mcc_value;
-	u32 i;
-
-	if (wrdd->type != ACPI_TYPE_PACKAGE ||
-	    wrdd->package.count < 2 ||
-	    wrdd->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    wrdd->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_LAR(mvm, "Unsupported wrdd structure\n");
-		return 0;
-	}
-
-	for (i = 1 ; i < wrdd->package.count ; ++i) {
-		mcc_pkg = &wrdd->package.elements[i];
-
-		if (mcc_pkg->type != ACPI_TYPE_PACKAGE ||
-		    mcc_pkg->package.count < 2 ||
-		    mcc_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
-		    mcc_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
-			mcc_pkg = NULL;
-			continue;
-		}
-
-		domain_type = &mcc_pkg->package.elements[0];
-		if (domain_type->integer.value == WRDD_WIFI)
-			break;
-
-		mcc_pkg = NULL;
-	}
-
-	if (mcc_pkg) {
-		mcc_value = &mcc_pkg->package.elements[1];
-		return mcc_value->integer.value;
-	}
-
-	return 0;
-}
-
-static int iwl_mvm_get_bios_mcc(struct iwl_mvm *mvm, char *mcc)
-{
-	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
-	u32 mcc_val;
-	struct pci_dev *pdev = to_pci_dev(mvm->dev);
-
-	root_handle = ACPI_HANDLE(&pdev->dev);
-	if (!root_handle) {
-		IWL_DEBUG_LAR(mvm,
-			      "Could not retrieve root port ACPI handle\n");
-		return -ENOENT;
-	}
-
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, (acpi_string)WRD_METHOD, &handle);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_LAR(mvm, "WRD method not found\n");
-		return -ENOENT;
-	}
-
-	/* Call WRDD with no arguments */
-	status = acpi_evaluate_object(handle, NULL, NULL, &wrdd);
-	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_LAR(mvm, "WRDC invocation failed (0x%x)\n", status);
-		return -ENOENT;
-	}
-
-	mcc_val = iwl_mvm_wrdd_get_mcc(mvm, wrdd.pointer);
-	kfree(wrdd.pointer);
-	if (!mcc_val)
-		return -ENOENT;
-
-	mcc[0] = (mcc_val >> 8) & 0xff;
-	mcc[1] = mcc_val & 0xff;
-	mcc[2] = '\0';
-	return 0;
-}
-#else /* CONFIG_ACPI */
-static int iwl_mvm_get_bios_mcc(struct iwl_mvm *mvm, char *mcc)
-{
-	return -ENOENT;
-}
-#endif
 
 int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 {
@@ -885,7 +793,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 		return -EIO;
 
 	if (iwl_mvm_is_wifi_mcc_supported(mvm) &&
-	    !iwl_mvm_get_bios_mcc(mvm, mcc)) {
+	    !iwl_get_bios_mcc(mvm->dev, mcc)) {
 		kfree(regd);
 		regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc,
 					     MCC_SOURCE_BIOS, NULL);

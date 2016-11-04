@@ -1,4 +1,5 @@
 #include <linux/perf_event.h>
+#include <asm/intel-family.h>
 
 enum perf_msr_id {
 	PERF_MSR_TSC			= 0,
@@ -34,39 +35,43 @@ static bool test_intel(int idx)
 		return false;
 
 	switch (boot_cpu_data.x86_model) {
-	case 30: /* 45nm Nehalem    */
-	case 26: /* 45nm Nehalem-EP */
-	case 46: /* 45nm Nehalem-EX */
+	case INTEL_FAM6_NEHALEM:
+	case INTEL_FAM6_NEHALEM_G:
+	case INTEL_FAM6_NEHALEM_EP:
+	case INTEL_FAM6_NEHALEM_EX:
 
-	case 37: /* 32nm Westmere    */
-	case 44: /* 32nm Westmere-EP */
-	case 47: /* 32nm Westmere-EX */
+	case INTEL_FAM6_WESTMERE:
+	case INTEL_FAM6_WESTMERE_EP:
+	case INTEL_FAM6_WESTMERE_EX:
 
-	case 42: /* 32nm SandyBridge         */
-	case 45: /* 32nm SandyBridge-E/EN/EP */
+	case INTEL_FAM6_SANDYBRIDGE:
+	case INTEL_FAM6_SANDYBRIDGE_X:
 
-	case 58: /* 22nm IvyBridge       */
-	case 62: /* 22nm IvyBridge-EP/EX */
+	case INTEL_FAM6_IVYBRIDGE:
+	case INTEL_FAM6_IVYBRIDGE_X:
 
-	case 60: /* 22nm Haswell Core */
-	case 63: /* 22nm Haswell Server */
-	case 69: /* 22nm Haswell ULT */
-	case 70: /* 22nm Haswell + GT3e (Intel Iris Pro graphics) */
+	case INTEL_FAM6_HASWELL_CORE:
+	case INTEL_FAM6_HASWELL_X:
+	case INTEL_FAM6_HASWELL_ULT:
+	case INTEL_FAM6_HASWELL_GT3E:
 
-	case 61: /* 14nm Broadwell Core-M */
-	case 86: /* 14nm Broadwell Xeon D */
-	case 71: /* 14nm Broadwell + GT3e (Intel Iris Pro graphics) */
-	case 79: /* 14nm Broadwell Server */
+	case INTEL_FAM6_BROADWELL_CORE:
+	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_GT3E:
+	case INTEL_FAM6_BROADWELL_X:
 
-	case 55: /* 22nm Atom "Silvermont"                */
-	case 77: /* 22nm Atom "Silvermont Avoton/Rangely" */
-	case 76: /* 14nm Atom "Airmont"                   */
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_SILVERMONT2:
+	case INTEL_FAM6_ATOM_AIRMONT:
 		if (idx == PERF_MSR_SMI)
 			return true;
 		break;
 
-	case 78: /* 14nm Skylake Mobile */
-	case 94: /* 14nm Skylake Desktop */
+	case INTEL_FAM6_SKYLAKE_MOBILE:
+	case INTEL_FAM6_SKYLAKE_DESKTOP:
+	case INTEL_FAM6_SKYLAKE_X:
+	case INTEL_FAM6_KABYLAKE_MOBILE:
+	case INTEL_FAM6_KABYLAKE_DESKTOP:
 		if (idx == PERF_MSR_SMI || idx == PERF_MSR_PPERF)
 			return true;
 		break;

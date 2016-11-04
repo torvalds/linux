@@ -23,7 +23,6 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/workqueue.h>
-#include <linux/nilfs2_fs.h>
 #include "nilfs.h"
 
 struct nilfs_root;

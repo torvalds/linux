@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/kconfig.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
@@ -1154,7 +1153,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	if (err < 0)
 		goto err_register;
 
-	priv->xfer_wq = create_workqueue(netdev_name(ndev));
+	priv->xfer_wq = alloc_workqueue(netdev_name(ndev), WQ_MEM_RECLAIM, 0);
 	if (!priv->xfer_wq) {
 		err = -ENOMEM;
 		goto err_wq;
@@ -1233,7 +1232,6 @@ int w5100_remove(struct device *dev)
 
 	flush_work(&priv->setrx_work);
 	flush_work(&priv->restart_work);
-	flush_workqueue(priv->xfer_wq);
 	destroy_workqueue(priv->xfer_wq);
 
 	unregister_netdev(ndev);

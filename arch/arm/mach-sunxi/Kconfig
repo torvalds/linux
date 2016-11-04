@@ -1,10 +1,10 @@
 menuconfig ARCH_SUNXI
 	bool "Allwinner SoCs"
 	depends on ARCH_MULTI_V7
-	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_RESET_CONTROLLER
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select PINCTRL
 	select SUN4I_TIMER
 	select RESET_CONTROLLER
@@ -32,6 +32,7 @@ config MACH_SUN7I
 	default ARCH_SUNXI
 	select ARM_GIC
 	select ARM_PSCI
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select HAVE_ARM_ARCH_TIMER
 	select SUN5I_HSTIMER
 

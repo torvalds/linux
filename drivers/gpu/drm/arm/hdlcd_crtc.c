@@ -33,8 +33,17 @@
  *
  */
 
+static void hdlcd_crtc_cleanup(struct drm_crtc *crtc)
+{
+	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+
+	/* stop the controller on cleanup */
+	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
+	drm_crtc_cleanup(crtc);
+}
+
 static const struct drm_crtc_funcs hdlcd_crtc_funcs = {
-	.destroy = drm_crtc_cleanup,
+	.destroy = hdlcd_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
@@ -97,7 +106,7 @@ static void hdlcd_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 	struct drm_display_mode *m = &crtc->state->adjusted_mode;
 	struct videomode vm;
-	unsigned int polarities, line_length, err;
+	unsigned int polarities, err;
 
 	vm.vfront_porch = m->crtc_vsync_start - m->crtc_vdisplay;
 	vm.vback_porch = m->crtc_vtotal - m->crtc_vsync_end;
@@ -113,23 +122,18 @@ static void hdlcd_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	if (m->flags & DRM_MODE_FLAG_PVSYNC)
 		polarities |= HDLCD_POLARITY_VSYNC;
 
-	line_length = crtc->primary->state->fb->pitches[0];
-
 	/* Allow max number of outstanding requests and largest burst size */
 	hdlcd_write(hdlcd, HDLCD_REG_BUS_OPTIONS,
 		    HDLCD_BUS_MAX_OUTSTAND | HDLCD_BUS_BURST_16);
 
-	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, line_length);
-	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_PITCH, line_length);
-	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_COUNT, m->crtc_vdisplay - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_V_DATA, m->crtc_vdisplay - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_V_BACK_PORCH, vm.vback_porch - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_V_FRONT_PORCH, vm.vfront_porch - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_V_SYNC, vm.vsync_len - 1);
+	hdlcd_write(hdlcd, HDLCD_REG_H_DATA, m->crtc_hdisplay - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_H_BACK_PORCH, vm.hback_porch - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_H_FRONT_PORCH, vm.hfront_porch - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_H_SYNC, vm.hsync_len - 1);
-	hdlcd_write(hdlcd, HDLCD_REG_H_DATA, m->crtc_hdisplay - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_POLARITIES, polarities);
 
 	err = hdlcd_set_pxl_fmt(crtc);
@@ -144,20 +148,19 @@ static void hdlcd_crtc_enable(struct drm_crtc *crtc)
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
 	clk_prepare_enable(hdlcd->clk);
+	hdlcd_crtc_mode_set_nofb(crtc);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 1);
-	drm_crtc_vblank_on(crtc);
 }
 
 static void hdlcd_crtc_disable(struct drm_crtc *crtc)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
-	if (!crtc->primary->fb)
+	if (!crtc->state->active)
 		return;
 
-	clk_disable_unprepare(hdlcd->clk);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
-	drm_crtc_vblank_off(crtc);
+	clk_disable_unprepare(hdlcd->clk);
 }
 
 static int hdlcd_crtc_atomic_check(struct drm_crtc *crtc,
@@ -179,52 +182,39 @@ static int hdlcd_crtc_atomic_check(struct drm_crtc *crtc,
 static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
-	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
-	unsigned long flags;
+	struct drm_pending_vblank_event *event = crtc->state->event;
 
-	if (crtc->state->event) {
-		struct drm_pending_vblank_event *event = crtc->state->event;
-
+	if (event) {
 		crtc->state->event = NULL;
-		event->pipe = drm_crtc_index(crtc);
 
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		list_add_tail(&event->base.link, &hdlcd->event_list);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
 	}
 }
 
-static void hdlcd_crtc_atomic_flush(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
-{
-}
-
-static bool hdlcd_crtc_mode_fixup(struct drm_crtc *crtc,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
-	.mode_fixup	= hdlcd_crtc_mode_fixup,
-	.mode_set	= drm_helper_crtc_mode_set,
-	.mode_set_base	= drm_helper_crtc_mode_set_base,
-	.mode_set_nofb	= hdlcd_crtc_mode_set_nofb,
 	.enable		= hdlcd_crtc_enable,
 	.disable	= hdlcd_crtc_disable,
-	.prepare	= hdlcd_crtc_disable,
-	.commit		= hdlcd_crtc_enable,
 	.atomic_check	= hdlcd_crtc_atomic_check,
 	.atomic_begin	= hdlcd_crtc_atomic_begin,
-	.atomic_flush	= hdlcd_crtc_atomic_flush,
 };
 
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
+	u32 src_w, src_h;
+
+	src_w = state->src_w >> 16;
+	src_h = state->src_h >> 16;
+
+	/* we can't do any scaling of the plane source */
+	if ((src_w != state->crtc_w) || (src_h != state->crtc_h))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -233,20 +223,31 @@ static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 {
 	struct hdlcd_drm_private *hdlcd;
 	struct drm_gem_cma_object *gem;
+	unsigned int depth, bpp;
+	u32 src_w, src_h, dest_w, dest_h;
 	dma_addr_t scanout_start;
 
-	if (!plane->state->crtc || !plane->state->fb)
+	if (!plane->state->fb)
 		return;
 
-	hdlcd = crtc_to_hdlcd_priv(plane->state->crtc);
+	drm_fb_get_bpp_depth(plane->state->fb->pixel_format, &depth, &bpp);
+	src_w = plane->state->src_w >> 16;
+	src_h = plane->state->src_h >> 16;
+	dest_w = plane->state->crtc_w;
+	dest_h = plane->state->crtc_h;
 	gem = drm_fb_cma_get_gem_obj(plane->state->fb, 0);
-	scanout_start = gem->paddr;
+	scanout_start = gem->paddr + plane->state->fb->offsets[0] +
+		plane->state->crtc_y * plane->state->fb->pitches[0] +
+		plane->state->crtc_x * bpp / 8;
+
+	hdlcd = plane->dev->dev_private;
+	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, plane->state->fb->pitches[0]);
+	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_PITCH, plane->state->fb->pitches[0]);
+	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_COUNT, dest_h - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_FB_BASE, scanout_start);
 }
 
 static const struct drm_plane_helper_funcs hdlcd_plane_helper_funcs = {
-	.prepare_fb = NULL,
-	.cleanup_fb = NULL,
 	.atomic_check = hdlcd_plane_atomic_check,
 	.atomic_update = hdlcd_plane_atomic_update,
 };
@@ -292,16 +293,6 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 	hdlcd->plane = plane;
 
 	return plane;
-}
-
-void hdlcd_crtc_suspend(struct drm_crtc *crtc)
-{
-	hdlcd_crtc_disable(crtc);
-}
-
-void hdlcd_crtc_resume(struct drm_crtc *crtc)
-{
-	hdlcd_crtc_enable(crtc);
 }
 
 int hdlcd_setup_crtc(struct drm_device *drm)

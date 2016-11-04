@@ -67,6 +67,7 @@
 #include <asm/smp.h>
 #include <asm/debug.h>
 #include <asm/livepatch.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -75,6 +76,7 @@
 #endif
 #define CREATE_TRACE_POINTS
 #include <asm/trace.h>
+#include <asm/cpu_has_feature.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
@@ -155,6 +157,15 @@ notrace unsigned int __check_irq_replay(void)
 	}
 
 	/*
+	 * Check if an hypervisor Maintenance interrupt happened.
+	 * This is a higher priority interrupt than the others, so
+	 * replay it first.
+	 */
+	local_paca->irq_happened &= ~PACA_IRQ_HMI;
+	if (happened & PACA_IRQ_HMI)
+		return 0xe60;
+
+	/*
 	 * We may have missed a decrementer interrupt. We check the
 	 * decrementer itself rather than the paca irq_happened field
 	 * in case we also had a rollover while hard disabled
@@ -188,11 +199,6 @@ notrace unsigned int __check_irq_replay(void)
 		return 0xa00;
 	}
 #endif /* CONFIG_PPC_BOOK3E */
-
-	/* Check if an hypervisor Maintenance interrupt happened */
-	local_paca->irq_happened &= ~PACA_IRQ_HMI;
-	if (happened & PACA_IRQ_HMI)
-		return 0xe60;
 
 	/* There should be nothing left ! */
 	BUG_ON(local_paca->irq_happened != 0);
@@ -250,7 +256,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
 	}
-#endif /* CONFIG_TRACE_IRQFLAG */
+#endif /* CONFIG_TRACE_IRQFLAGS */
 
 	set_soft_enabled(0);
 
@@ -340,6 +346,21 @@ bool prep_irq_for_idle(void)
 
 	/* Tell the caller to enter the low power state */
 	return true;
+}
+
+/*
+ * Force a replay of the external interrupt handler on this CPU.
+ */
+void force_external_irq_replay(void)
+{
+	/*
+	 * This must only be called with interrupts soft-disabled,
+	 * the replay will happen when re-enabling.
+	 */
+	WARN_ON(!arch_irqs_disabled());
+
+	/* Indicate in the PACA that we have an interrupt to replay */
+	local_paca->irq_happened |= PACA_IRQ_EE;
 }
 
 #endif /* CONFIG_PPC64 */
@@ -498,7 +519,7 @@ void __do_irq(struct pt_regs *regs)
 	may_hard_irq_enable();
 
 	/* And finally process it */
-	if (unlikely(irq == NO_IRQ))
+	if (unlikely(!irq))
 		__this_cpu_inc(irq_stat.spurious_irqs);
 	else
 		generic_handle_irq(irq);

@@ -33,7 +33,6 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-#include "../codecs/tpa6130a2.h"
 
 #include <asm/mach-types.h>
 
@@ -164,19 +163,6 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int rx51_hp_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *k, int event)
-{
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
-	if (SND_SOC_DAPM_EVENT_ON(event))
-		tpa6130a2_stereo_enable(codec, 1);
-	else
-		tpa6130a2_stereo_enable(codec, 0);
-
-	return 0;
-}
-
 static int rx51_get_input(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
@@ -235,7 +221,7 @@ static struct snd_soc_jack_gpio rx51_av_jack_gpios[] = {
 static const struct snd_soc_dapm_widget aic34_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", rx51_spk_event),
 	SND_SOC_DAPM_MIC("DMic", NULL),
-	SND_SOC_DAPM_HP("Headphone Jack", rx51_hp_event),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("HS Mic", NULL),
 	SND_SOC_DAPM_LINE("FM Transmitter", NULL),
 	SND_SOC_DAPM_SPK("Earphone", NULL),
@@ -246,10 +232,13 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HPROUT"},
 	{"Ext Spk", NULL, "HPLCOM"},
 	{"Ext Spk", NULL, "HPRCOM"},
-	{"Headphone Jack", NULL, "LLOUT"},
-	{"Headphone Jack", NULL, "RLOUT"},
 	{"FM Transmitter", NULL, "LLOUT"},
 	{"FM Transmitter", NULL, "RLOUT"},
+
+	{"Headphone Jack", NULL, "TPA6130A2 HPLEFT"},
+	{"Headphone Jack", NULL, "TPA6130A2 HPRIGHT"},
+	{"TPA6130A2 LEFTIN", NULL, "LLOUT"},
+	{"TPA6130A2 RIGHTIN", NULL, "RLOUT"},
 
 	{"DMic Rate 64", NULL, "DMic"},
 	{"DMic", NULL, "Mic Bias"},
@@ -286,16 +275,10 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 
 static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = rtd->card;
 	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
 	int err;
 
-	err = tpa6130a2_add_controls(codec);
-	if (err < 0) {
-		dev_err(card->dev, "Failed to add TPA6130A2 controls\n");
-		return err;
-	}
 	snd_soc_limit_volume(card, "TPA6130A2 Headphone Playback Volume", 42);
 
 	err = omap_mcbsp_st_add_controls(rtd, 2);
@@ -357,12 +340,20 @@ static struct snd_soc_aux_dev rx51_aux_dev[] = {
 		.name = "TLV320AIC34b",
 		.codec_name = "tlv320aic3x-codec.2-0019",
 	},
+	{
+		.name = "TPA61320A2",
+		.codec_name = "tpa6130a2.2-0060",
+	},
 };
 
 static struct snd_soc_codec_conf rx51_codec_conf[] = {
 	{
 		.dev_name = "tlv320aic3x-codec.2-0019",
 		.name_prefix = "b",
+	},
+	{
+		.dev_name = "tpa6130a2.2-0060",
+		.name_prefix = "TPA6130A2",
 	},
 };
 
@@ -435,11 +426,10 @@ static int rx51_soc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Headphone amplifier node is not provided\n");
 			return -EINVAL;
 		}
-
-		/* TODO: tpa6130a2a driver supports only a single instance, so
-		 * this driver ignores the headphone-amplifier node for now.
-		 * It's already mandatory in the DT binding to be future proof.
-		 */
+		rx51_aux_dev[1].codec_name = NULL;
+		rx51_aux_dev[1].codec_of_node = dai_node;
+		rx51_codec_conf[1].dev_name = NULL;
+		rx51_codec_conf[1].of_node = dai_node;
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);

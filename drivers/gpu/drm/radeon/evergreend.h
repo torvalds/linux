@@ -1523,6 +1523,7 @@
 #define UVD_UDEC_ADDR_CONFIG				0xef4c
 #define UVD_UDEC_DB_ADDR_CONFIG				0xef50
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xef54
+#define UVD_NO_OP					0xeffc
 #define UVD_RBC_RB_RPTR					0xf690
 #define UVD_RBC_RB_WPTR					0xf694
 #define UVD_STATUS					0xf6bc
@@ -1624,6 +1625,7 @@
 		 */
 #              define PACKET3_CP_DMA_CMD_SAIC      (1 << 28)
 #              define PACKET3_CP_DMA_CMD_DAIC      (1 << 29)
+#define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_CB1_DEST_BASE_ENA    (1 << 7)

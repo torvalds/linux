@@ -31,7 +31,7 @@ static int caam_reset_hw_jr(struct device *dev)
 	 * mask interrupts since we are going to poll
 	 * for reset completion status
 	 */
-	setbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
+	clrsetbits_32(&jrp->rregs->rconfig_lo, 0, JRCFG_IMSK);
 
 	/* initiate flush (required prior to reset) */
 	wr_reg32(&jrp->rregs->jrcommand, JRCR_RESET);
@@ -57,7 +57,7 @@ static int caam_reset_hw_jr(struct device *dev)
 	}
 
 	/* unmask interrupts */
-	clrbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
+	clrsetbits_32(&jrp->rregs->rconfig_lo, JRCFG_IMSK, 0);
 
 	return 0;
 }
@@ -72,8 +72,6 @@ static int caam_jr_shutdown(struct device *dev)
 	int ret;
 
 	ret = caam_reset_hw_jr(dev);
-
-	tasklet_kill(&jrp->irqtask);
 
 	/* Release interrupt */
 	free_irq(jrp->irq, dev);
@@ -130,7 +128,7 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 
 	/*
 	 * Check the output ring for ready responses, kick
-	 * tasklet if jobs done.
+	 * the threaded irq if jobs done.
 	 */
 	irqstate = rd_reg32(&jrp->rregs->jrintstatus);
 	if (!irqstate)
@@ -147,23 +145,18 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 	}
 
 	/* mask valid interrupts */
-	setbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
+	clrsetbits_32(&jrp->rregs->rconfig_lo, 0, JRCFG_IMSK);
 
 	/* Have valid interrupt at this point, just ACK and trigger */
 	wr_reg32(&jrp->rregs->jrintstatus, irqstate);
 
-	preempt_disable();
-	tasklet_schedule(&jrp->irqtask);
-	preempt_enable();
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
-/* Deferred service handler, run as interrupt-fired tasklet */
-static void caam_jr_dequeue(unsigned long devarg)
+static irqreturn_t caam_jr_threadirq(int irq, void *st_dev)
 {
 	int hw_idx, sw_idx, i, head, tail;
-	struct device *dev = (struct device *)devarg;
+	struct device *dev = st_dev;
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	void (*usercall)(struct device *dev, u32 *desc, u32 status, void *arg);
 	u32 *userdesc, userstatus;
@@ -182,7 +175,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 			sw_idx = (tail + i) & (JOBR_DEPTH - 1);
 
 			if (jrp->outring[hw_idx].desc ==
-			    jrp->entinfo[sw_idx].desc_addr_dma)
+			    caam_dma_to_cpu(jrp->entinfo[sw_idx].desc_addr_dma))
 				break; /* found */
 		}
 		/* we should never fail to find a matching descriptor */
@@ -200,7 +193,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 		usercall = jrp->entinfo[sw_idx].callbk;
 		userarg = jrp->entinfo[sw_idx].cbkarg;
 		userdesc = jrp->entinfo[sw_idx].desc_addr_virt;
-		userstatus = jrp->outring[hw_idx].jrstatus;
+		userstatus = caam32_to_cpu(jrp->outring[hw_idx].jrstatus);
 
 		/*
 		 * Make sure all information from the job has been obtained
@@ -236,7 +229,9 @@ static void caam_jr_dequeue(unsigned long devarg)
 	}
 
 	/* reenable / unmask IRQs */
-	clrbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
+	clrsetbits_32(&jrp->rregs->rconfig_lo, JRCFG_IMSK, 0);
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -330,7 +325,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	int head, tail, desc_size;
 	dma_addr_t desc_dma;
 
-	desc_size = (*desc & HDR_JD_LENGTH_MASK) * sizeof(u32);
+	desc_size = (caam32_to_cpu(*desc) & HDR_JD_LENGTH_MASK) * sizeof(u32);
 	desc_dma = dma_map_single(dev, desc, desc_size, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, desc_dma)) {
 		dev_err(dev, "caam_jr_enqueue(): can't map jobdesc\n");
@@ -356,7 +351,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	head_entry->cbkarg = areq;
 	head_entry->desc_addr_dma = desc_dma;
 
-	jrp->inpring[jrp->inp_ring_write_index] = desc_dma;
+	jrp->inpring[jrp->inp_ring_write_index] = cpu_to_caam_dma(desc_dma);
 
 	/*
 	 * Guarantee that the descriptor's DMA address has been written to
@@ -394,11 +389,10 @@ static int caam_jr_init(struct device *dev)
 
 	jrp = dev_get_drvdata(dev);
 
-	tasklet_init(&jrp->irqtask, caam_jr_dequeue, (unsigned long)dev);
-
 	/* Connect job ring interrupt handler. */
-	error = request_irq(jrp->irq, caam_jr_interrupt, IRQF_SHARED,
-			    dev_name(dev), dev);
+	error = request_threaded_irq(jrp->irq, caam_jr_interrupt,
+				     caam_jr_threadirq, IRQF_SHARED,
+				     dev_name(dev), dev);
 	if (error) {
 		dev_err(dev, "can't connect JobR %d interrupt (%d)\n",
 			jrp->ridx, jrp->irq);
@@ -444,9 +438,9 @@ static int caam_jr_init(struct device *dev)
 	spin_lock_init(&jrp->outlock);
 
 	/* Select interrupt coalescing parameters */
-	setbits32(&jrp->rregs->rconfig_lo, JOBR_INTC |
-		  (JOBR_INTC_COUNT_THLD << JRCFG_ICDCT_SHIFT) |
-		  (JOBR_INTC_TIME_THLD << JRCFG_ICTT_SHIFT));
+	clrsetbits_32(&jrp->rregs->rconfig_lo, 0, JOBR_INTC |
+		      (JOBR_INTC_COUNT_THLD << JRCFG_ICDCT_SHIFT) |
+		      (JOBR_INTC_TIME_THLD << JRCFG_ICTT_SHIFT));
 
 	return 0;
 
@@ -460,7 +454,6 @@ out_free_inpring:
 out_free_irq:
 	free_irq(jrp->irq, dev);
 out_kill_deq:
-	tasklet_kill(&jrp->irqtask);
 	return error;
 }
 
@@ -513,6 +506,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	error = caam_jr_init(jrdev); /* now turn on hardware */
 	if (error) {
 		irq_dispose_mapping(jrpriv->irq);
+		iounmap(ctrl);
 		return error;
 	}
 

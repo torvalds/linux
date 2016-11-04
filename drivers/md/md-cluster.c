@@ -10,6 +10,7 @@
 
 
 #include <linux/module.h>
+#include <linux/kthread.h>
 #include <linux/dlm.h>
 #include <linux/sched.h>
 #include <linux/raid/md_p.h>
@@ -25,7 +26,8 @@ struct dlm_lock_resource {
 	struct dlm_lksb lksb;
 	char *name; /* lock name. */
 	uint32_t flags; /* flags to pass to dlm_lock() */
-	struct completion completion; /* completion for synchronized locking */
+	wait_queue_head_t sync_locking; /* wait queue for synchronized locking */
+	bool sync_locking_done;
 	void (*bast)(void *arg, int mode); /* blocking AST function pointer*/
 	struct mddev *mddev; /* pointing back to mddev. */
 	int mode;
@@ -118,7 +120,8 @@ static void sync_ast(void *arg)
 	struct dlm_lock_resource *res;
 
 	res = arg;
-	complete(&res->completion);
+	res->sync_locking_done = true;
+	wake_up(&res->sync_locking);
 }
 
 static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
@@ -130,7 +133,8 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 			0, sync_ast, res, res->bast);
 	if (ret)
 		return ret;
-	wait_for_completion(&res->completion);
+	wait_event(res->sync_locking, res->sync_locking_done);
+	res->sync_locking_done = false;
 	if (res->lksb.sb_status == 0)
 		res->mode = mode;
 	return res->lksb.sb_status;
@@ -139,6 +143,44 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 static int dlm_unlock_sync(struct dlm_lock_resource *res)
 {
 	return dlm_lock_sync(res, DLM_LOCK_NL);
+}
+
+/*
+ * An variation of dlm_lock_sync, which make lock request could
+ * be interrupted
+ */
+static int dlm_lock_sync_interruptible(struct dlm_lock_resource *res, int mode,
+				       struct mddev *mddev)
+{
+	int ret = 0;
+
+	ret = dlm_lock(res->ls, mode, &res->lksb,
+			res->flags, res->name, strlen(res->name),
+			0, sync_ast, res, res->bast);
+	if (ret)
+		return ret;
+
+	wait_event(res->sync_locking, res->sync_locking_done
+				      || kthread_should_stop()
+				      || test_bit(MD_CLOSING, &mddev->flags));
+	if (!res->sync_locking_done) {
+		/*
+		 * the convert queue contains the lock request when request is
+		 * interrupted, and sync_ast could still be run, so need to
+		 * cancel the request and reset completion
+		 */
+		ret = dlm_unlock(res->ls, res->lksb.sb_lkid, DLM_LKF_CANCEL,
+			&res->lksb, res);
+		res->sync_locking_done = false;
+		if (unlikely(ret != 0))
+			pr_info("failed to cancel previous lock request "
+				 "%s return %d\n", res->name, ret);
+		return -EPERM;
+	} else
+		res->sync_locking_done = false;
+	if (res->lksb.sb_status == 0)
+		res->mode = mode;
+	return res->lksb.sb_status;
 }
 
 static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
@@ -151,7 +193,8 @@ static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
 	res = kzalloc(sizeof(struct dlm_lock_resource), GFP_KERNEL);
 	if (!res)
 		return NULL;
-	init_completion(&res->completion);
+	init_waitqueue_head(&res->sync_locking);
+	res->sync_locking_done = false;
 	res->ls = cinfo->lockspace;
 	res->mddev = mddev;
 	res->mode = DLM_LOCK_IV;
@@ -194,25 +237,21 @@ out_err:
 
 static void lockres_free(struct dlm_lock_resource *res)
 {
-	int ret;
+	int ret = 0;
 
 	if (!res)
 		return;
 
-	/* cancel a lock request or a conversion request that is blocked */
-	res->flags |= DLM_LKF_CANCEL;
-retry:
-	ret = dlm_unlock(res->ls, res->lksb.sb_lkid, 0, &res->lksb, res);
-	if (unlikely(ret != 0)) {
-		pr_info("%s: failed to unlock %s return %d\n", __func__, res->name, ret);
-
-		/* if a lock conversion is cancelled, then the lock is put
-		 * back to grant queue, need to ensure it is unlocked */
-		if (ret == -DLM_ECANCEL)
-			goto retry;
-	}
-	res->flags &= ~DLM_LKF_CANCEL;
-	wait_for_completion(&res->completion);
+	/*
+	 * use FORCEUNLOCK flag, so we can unlock even the lock is on the
+	 * waiting or convert queue
+	 */
+	ret = dlm_unlock(res->ls, res->lksb.sb_lkid, DLM_LKF_FORCEUNLOCK,
+		&res->lksb, res);
+	if (unlikely(ret != 0))
+		pr_err("failed to unlock %s return %d\n", res->name, ret);
+	else
+		wait_event(res->sync_locking, res->sync_locking_done);
 
 	kfree(res->name);
 	kfree(res->lksb.sb_lvbptr);
@@ -279,7 +318,7 @@ static void recover_bitmaps(struct md_thread *thread)
 			goto clear_bit;
 		}
 
-		ret = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
+		ret = dlm_lock_sync_interruptible(bm_lockres, DLM_LOCK_PW, mddev);
 		if (ret) {
 			pr_err("md-cluster: Could not DLM lock %s: %d\n",
 					str, ret);
@@ -288,7 +327,7 @@ static void recover_bitmaps(struct md_thread *thread)
 		ret = bitmap_copy_from_slot(mddev, slot, &lo, &hi, true);
 		if (ret) {
 			pr_err("md-cluster: Could not copy data from bitmap %d\n", slot);
-			goto dlm_unlock;
+			goto clear_bit;
 		}
 		if (hi > 0) {
 			if (lo < mddev->recovery_cp)
@@ -300,8 +339,6 @@ static void recover_bitmaps(struct md_thread *thread)
 			    md_wakeup_thread(mddev->thread);
 			}
 		}
-dlm_unlock:
-		dlm_unlock_sync(bm_lockres);
 clear_bit:
 		lockres_free(bm_lockres);
 		clear_bit(slot, &cinfo->recovery_map);
@@ -495,9 +532,10 @@ static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg
 
 static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 {
-	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev,
-						   le32_to_cpu(msg->raid_slot));
+	struct md_rdev *rdev;
 
+	rcu_read_lock();
+	rdev = md_find_rdev_nr_rcu(mddev, le32_to_cpu(msg->raid_slot));
 	if (rdev) {
 		set_bit(ClusterRemove, &rdev->flags);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -506,18 +544,21 @@ static void process_remove_disk(struct mddev *mddev, struct cluster_msg *msg)
 	else
 		pr_warn("%s: %d Could not find disk(%d) to REMOVE\n",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
+	rcu_read_unlock();
 }
 
 static void process_readd_disk(struct mddev *mddev, struct cluster_msg *msg)
 {
-	struct md_rdev *rdev = md_find_rdev_nr_rcu(mddev,
-						   le32_to_cpu(msg->raid_slot));
+	struct md_rdev *rdev;
 
+	rcu_read_lock();
+	rdev = md_find_rdev_nr_rcu(mddev, le32_to_cpu(msg->raid_slot));
 	if (rdev && test_bit(Faulty, &rdev->flags))
 		clear_bit(Faulty, &rdev->flags);
 	else
 		pr_warn("%s: %d Could not find disk(%d) which is faulty",
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
+	rcu_read_unlock();
 }
 
 static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
@@ -770,7 +811,6 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 			md_check_recovery(mddev);
 		}
 
-		dlm_unlock_sync(bm_lockres);
 		lockres_free(bm_lockres);
 	}
 out:
@@ -834,8 +874,10 @@ static int join(struct mddev *mddev, int nodes)
 		goto err;
 	}
 	cinfo->ack_lockres = lockres_init(mddev, "ack", ack_bast, 0);
-	if (!cinfo->ack_lockres)
+	if (!cinfo->ack_lockres) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	/* get sync CR lock on ACK. */
 	if (dlm_lock_sync(cinfo->ack_lockres, DLM_LOCK_CR))
 		pr_err("md-cluster: failed to get a sync CR lock on ACK!(%d)\n",
@@ -849,8 +891,10 @@ static int join(struct mddev *mddev, int nodes)
 	pr_info("md-cluster: Joined cluster %s slot %d\n", str, cinfo->slot_number);
 	snprintf(str, 64, "bitmap%04d", cinfo->slot_number - 1);
 	cinfo->bitmap_lockres = lockres_init(mddev, str, NULL, 1);
-	if (!cinfo->bitmap_lockres)
+	if (!cinfo->bitmap_lockres) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	if (dlm_lock_sync(cinfo->bitmap_lockres, DLM_LOCK_PW)) {
 		pr_err("Failed to get bitmap lock\n");
 		ret = -EINVAL;
@@ -858,8 +902,10 @@ static int join(struct mddev *mddev, int nodes)
 	}
 
 	cinfo->resync_lockres = lockres_init(mddev, "resync", NULL, 0);
-	if (!cinfo->resync_lockres)
+	if (!cinfo->resync_lockres) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	return 0;
 err:
@@ -1000,7 +1046,7 @@ static void metadata_update_cancel(struct mddev *mddev)
 static int resync_start(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	return dlm_lock_sync(cinfo->resync_lockres, DLM_LOCK_EX);
+	return dlm_lock_sync_interruptible(cinfo->resync_lockres, DLM_LOCK_EX, mddev);
 }
 
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
@@ -1180,7 +1226,6 @@ static void unlock_all_bitmaps(struct mddev *mddev)
 	if (cinfo->other_bitmap_lockres) {
 		for (i = 0; i < mddev->bitmap_info.nodes - 1; i++) {
 			if (cinfo->other_bitmap_lockres[i]) {
-				dlm_unlock_sync(cinfo->other_bitmap_lockres[i]);
 				lockres_free(cinfo->other_bitmap_lockres[i]);
 			}
 		}

@@ -73,7 +73,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 					  SUN4I_PLL2_PRE_DIV_WIDTH,
 					  CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
 					  &sun4i_a10_pll2_lock);
-	if (!prediv_clk) {
+	if (IS_ERR(prediv_clk)) {
 		pr_err("Couldn't register the prediv clock\n");
 		goto err_free_array;
 	}
@@ -106,7 +106,7 @@ static void __init sun4i_pll2_setup(struct device_node *node,
 					  &mult->hw, &clk_multiplier_ops,
 					  &gate->hw, &clk_gate_ops,
 					  CLK_SET_RATE_PARENT);
-	if (!base_clk) {
+	if (IS_ERR(base_clk)) {
 		pr_err("Couldn't register the base multiplier clock\n");
 		goto err_free_multiplier;
 	}

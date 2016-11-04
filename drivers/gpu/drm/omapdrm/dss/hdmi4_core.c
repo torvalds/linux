@@ -211,7 +211,7 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)
 static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
 {
 	DSSDBG("Enter hdmi_core_powerdown_disable\n");
-	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x0, 0, 0);
+	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x1, 0, 0);
 }
 
 static void hdmi_core_swreset_release(struct hdmi_core_data *core)

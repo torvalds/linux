@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -138,8 +134,6 @@ static inline void lov_put_reqset(struct lov_request_set *set)
 /* lov_merge.c */
 void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
 		     struct lov_stripe_md *lsm, int stripeno, int *set);
-int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
-		   u64 size, int shrink);
 int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 		      struct ost_lvb *lvb, __u64 *kms_place);
 
@@ -161,11 +155,6 @@ int lov_update_common_set(struct lov_request_set *set,
 int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct lov_request_set **reqset);
 int lov_fini_getattr_set(struct lov_request_set *set);
-int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
-			 struct obdo *src_oa, struct lov_stripe_md *lsm,
-			 struct obd_trans_info *oti,
-			 struct lov_request_set **reqset);
-int lov_fini_destroy_set(struct lov_request_set *set);
 int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 			 struct obd_trans_info *oti,
 			 struct lov_request_set **reqset);
@@ -201,8 +190,6 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmm,
 	       struct lov_stripe_md *lsm);
 int lov_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 		 struct lov_mds_md *lmm, int lmm_bytes);
-int lov_getstripe(struct obd_export *exp,
-		  struct lov_stripe_md *lsm, struct lov_user_md __user *lump);
 int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
 		    int pattern, int magic);
 int lov_free_memmd(struct lov_stripe_md **lsmp);

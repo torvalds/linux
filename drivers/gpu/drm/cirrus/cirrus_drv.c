@@ -57,7 +57,7 @@ static int cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 #ifdef CONFIG_X86
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	remove_conflicting_framebuffers(ap, "cirrusdrmfb", primary);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "cirrusdrmfb", primary);
 	kfree(ap);
 
 	return 0;
@@ -142,7 +142,7 @@ static struct drm_driver driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-	.gem_free_object = cirrus_gem_free_object,
+	.gem_free_object_unlocked = cirrus_gem_free_object,
 	.dumb_create = cirrus_dumb_create,
 	.dumb_map_offset = cirrus_dumb_mmap_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,

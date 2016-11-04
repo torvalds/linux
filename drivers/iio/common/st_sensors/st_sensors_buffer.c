@@ -22,34 +22,32 @@
 #include <linux/iio/common/st_sensors.h>
 
 
-int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
+static int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 {
-	int i, len;
-	int total = 0;
+	int i;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 	unsigned int num_data_channels = sdata->num_data_channels;
 
-	for (i = 0; i < num_data_channels; i++) {
-		unsigned int bytes_to_read;
+	for_each_set_bit(i, indio_dev->active_scan_mask, num_data_channels) {
+		const struct iio_chan_spec *channel = &indio_dev->channels[i];
+		unsigned int bytes_to_read = channel->scan_type.realbits >> 3;
+		unsigned int storage_bytes =
+			channel->scan_type.storagebits >> 3;
 
-		if (test_bit(i, indio_dev->active_scan_mask)) {
-			bytes_to_read = indio_dev->channels[i].scan_type.storagebits >> 3;
-			len = sdata->tf->read_multiple_byte(&sdata->tb,
-				sdata->dev, indio_dev->channels[i].address,
-				bytes_to_read,
-				buf + total, sdata->multiread_bit);
+		buf = PTR_ALIGN(buf, storage_bytes);
+		if (sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
+						  channel->address,
+						  bytes_to_read, buf,
+						  sdata->multiread_bit) <
+		    bytes_to_read)
+			return -EIO;
 
-			if (len < bytes_to_read)
-				return -EIO;
-
-			/* Advance the buffer pointer */
-			total += len;
-		}
+		/* Advance the buffer pointer */
+		buf += storage_bytes;
 	}
 
-	return total;
+	return 0;
 }
-EXPORT_SYMBOL(st_sensors_get_buffer_element);
 
 irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 {
@@ -57,31 +55,25 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	s64 timestamp;
 
-	/* If we have a status register, check if this IRQ came from us */
-	if (sdata->sensor_settings->drdy_irq.addr_stat_drdy) {
-		u8 status;
-
-		len = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-			   sdata->sensor_settings->drdy_irq.addr_stat_drdy,
-			   &status);
-		if (len < 0)
-			dev_err(sdata->dev, "could not read channel status\n");
-
-		/*
-		 * If this was not caused by any channels on this sensor,
-		 * return IRQ_NONE
-		 */
-		if (!(status & (u8)indio_dev->active_scan_mask[0]))
-			return IRQ_NONE;
-	}
+	/*
+	 * If we do timetamping here, do it before reading the values, because
+	 * once we've read the values, new interrupts can occur (when using
+	 * the hardware trigger) and the hw_timestamp may get updated.
+	 * By storing it in a local variable first, we are safe.
+	 */
+	if (iio_trigger_using_own(indio_dev))
+		timestamp = sdata->hw_timestamp;
+	else
+		timestamp = iio_get_time_ns(indio_dev);
 
 	len = st_sensors_get_buffer_element(indio_dev, sdata->buffer_data);
 	if (len < 0)
 		goto st_sensors_get_buffer_element_error;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, sdata->buffer_data,
-		pf->timestamp);
+					   timestamp);
 
 st_sensors_get_buffer_element_error:
 	iio_trigger_notify_done(indio_dev->trig);

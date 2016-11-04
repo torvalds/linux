@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
-#include <asm/etr.h>
+#include <asm/stp.h>
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
@@ -27,7 +27,6 @@ struct mcck_struct {
 	unsigned int kill_task : 1;
 	unsigned int channel_report : 1;
 	unsigned int warning : 1;
-	unsigned int etr_queue : 1;
 	unsigned int stp_queue : 1;
 	unsigned long mcck_code;
 };
@@ -82,8 +81,6 @@ void s390_handle_mcck(void)
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
-	if (mcck.etr_queue)
-		etr_queue_work();
 	if (mcck.stp_queue)
 		stp_queue_work();
 	if (mcck.kill_task) {
@@ -101,7 +98,7 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  * returns 0 if all registers could be validated
  * returns 1 otherwise
  */
-static int notrace s390_validate_registers(union mci mci)
+static int notrace s390_validate_registers(union mci mci, int umode)
 {
 	int kill_task;
 	u64 zero;
@@ -113,26 +110,41 @@ static int notrace s390_validate_registers(union mci mci)
 	if (!mci.gr) {
 		/*
 		 * General purpose registers couldn't be restored and have
-		 * unknown contents. Process needs to be terminated.
+		 * unknown contents. Stop system or terminate process.
 		 */
+		if (!umode)
+			s390_handle_damage();
 		kill_task = 1;
 	}
 	if (!mci.fp) {
 		/*
-		 * Floating point registers can't be restored and
-		 * therefore the process needs to be terminated.
+		 * Floating point registers can't be restored. If the
+		 * kernel currently uses floating point registers the
+		 * system is stopped. If the process has its floating
+		 * pointer registers loaded it is terminated.
+		 * Otherwise just revalidate the registers.
 		 */
-		kill_task = 1;
+		if (S390_lowcore.fpu_flags & KERNEL_VXR_V0V7)
+			s390_handle_damage();
+		if (!test_cpu_flag(CIF_FPU))
+			kill_task = 1;
 	}
 	fpt_save_area = &S390_lowcore.floating_pt_save_area;
 	fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
 	if (!mci.fc) {
 		/*
 		 * Floating point control register can't be restored.
-		 * Task will be terminated.
+		 * If the kernel currently uses the floating pointer
+		 * registers and needs the FPC register the system is
+		 * stopped. If the process has its floating pointer
+		 * registers loaded it is terminated. Otherwiese the
+		 * FPC is just revalidated.
 		 */
+		if (S390_lowcore.fpu_flags & KERNEL_FPC)
+			s390_handle_damage();
 		asm volatile("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
-		kill_task = 1;
+		if (!test_cpu_flag(CIF_FPU))
+			kill_task = 1;
 	} else
 		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
 
@@ -162,10 +174,16 @@ static int notrace s390_validate_registers(union mci mci)
 
 		if (!mci.vr) {
 			/*
-			 * Vector registers can't be restored and therefore
-			 * the process needs to be terminated.
+			 * Vector registers can't be restored. If the kernel
+			 * currently uses vector registers the system is
+			 * stopped. If the process has its vector registers
+			 * loaded it is terminated. Otherwise just revalidate
+			 * the registers.
 			 */
-			kill_task = 1;
+			if (S390_lowcore.fpu_flags & KERNEL_VXR)
+				s390_handle_damage();
+			if (!test_cpu_flag(CIF_FPU))
+				kill_task = 1;
 		}
 		cr0.val = S390_lowcore.cregs_save_area[0];
 		cr0.afp = cr0.vx = 1;
@@ -241,8 +259,6 @@ static int notrace s390_validate_registers(union mci mci)
 
 #define ED_STP_ISLAND	6	/* External damage STP island check */
 #define ED_STP_SYNC	7	/* External damage STP sync check */
-#define ED_ETR_SYNC	12	/* External damage ETR sync check */
-#define ED_ETR_SWITCH	13	/* External damage ETR switch to local */
 
 /*
  * machine check handler.
@@ -255,13 +271,11 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	union mci mci;
-	int umode;
 
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
 	mci.val = S390_lowcore.mcck_interruption_code;
 	mcck = this_cpu_ptr(&cpu_mcck);
-	umode = user_mode(regs);
 
 	if (mci.sd) {
 		/* System damage -> stopping machine */
@@ -302,22 +316,14 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (s390_validate_registers(mci)) {
-		if (umode) {
-			/*
-			 * Couldn't restore all register contents while in
-			 * user mode -> mark task for termination.
-			 */
-			mcck->kill_task = 1;
-			mcck->mcck_code = mci.val;
-			set_cpu_flag(CIF_MCCK_PENDING);
-		} else {
-			/*
-			 * Couldn't restore all register contents while in
-			 * kernel mode -> stopping machine.
-			 */
-			s390_handle_damage();
-		}
+	if (s390_validate_registers(mci, user_mode(regs))) {
+		/*
+		 * Couldn't restore all register contents for the
+		 * user space process -> mark task for termination.
+		 */
+		mcck->kill_task = 1;
+		mcck->mcck_code = mci.val;
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci.cd) {
 		/* Timing facility damage */
@@ -325,15 +331,11 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	}
 	if (mci.ed && mci.ec) {
 		/* External damage */
-		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SYNC))
-			mcck->etr_queue |= etr_sync_check();
-		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SWITCH))
-			mcck->etr_queue |= etr_switch_to_local();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_SYNC))
 			mcck->stp_queue |= stp_sync_check();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
 			mcck->stp_queue |= stp_island_check();
-		if (mcck->etr_queue || mcck->stp_queue)
+		if (mcck->stp_queue)
 			set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci.se)

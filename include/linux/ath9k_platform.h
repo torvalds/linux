@@ -40,6 +40,7 @@ struct ath9k_platform_data {
 	bool tx_gain_buffalo;
 	bool disable_2ghz;
 	bool disable_5ghz;
+	bool led_active_high;
 
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -84,7 +80,7 @@ static void llog_free_handle(struct llog_handle *loghandle)
 		LASSERT(list_empty(&loghandle->u.phd.phd_entry));
 	else if (loghandle->lgh_hdr->llh_flags & LLOG_F_IS_CAT)
 		LASSERT(list_empty(&loghandle->u.chd.chd_head));
-	LASSERT(sizeof(*(loghandle->lgh_hdr)) == LLOG_CHUNK_SIZE);
+	LASSERT(sizeof(*loghandle->lgh_hdr) == LLOG_CHUNK_SIZE);
 	kfree(loghandle->lgh_hdr);
 out:
 	kfree(loghandle);
@@ -123,8 +119,10 @@ static int llog_read_header(const struct lu_env *env,
 		handle->lgh_last_idx = 0; /* header is record with index 0 */
 		llh->llh_count = 1;	 /* for the header record */
 		llh->llh_hdr.lrh_type = LLOG_HDR_MAGIC;
-		llh->llh_hdr.lrh_len = llh->llh_tail.lrt_len = LLOG_CHUNK_SIZE;
-		llh->llh_hdr.lrh_index = llh->llh_tail.lrt_index = 0;
+		llh->llh_hdr.lrh_len = LLOG_CHUNK_SIZE;
+		llh->llh_tail.lrt_len = LLOG_CHUNK_SIZE;
+		llh->llh_hdr.lrh_index = 0;
+		llh->llh_tail.lrt_index = 0;
 		llh->llh_timestamp = ktime_get_real_seconds();
 		if (uuid)
 			memcpy(&llh->llh_tgtuuid, uuid,
@@ -139,6 +137,7 @@ static int llog_read_header(const struct lu_env *env,
 int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		     int flags, struct obd_uuid *uuid)
 {
+	enum llog_flag fmt = flags & LLOG_F_EXT_MASK;
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
@@ -196,6 +195,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		       flags, LLOG_F_IS_CAT, LLOG_F_IS_PLAIN);
 		rc = -EINVAL;
 	}
+	llh->llh_flags |= fmt;
 out:
 	if (rc) {
 		kfree(llh);
@@ -235,6 +235,10 @@ static int llog_process_thread(void *arg)
 	else
 		last_index = LLOG_BITMAP_BYTES * 8 - 1;
 
+	/* Record is not in this buffer. */
+	if (index > last_index)
+		goto out;
+
 	while (rc == 0) {
 		struct llog_rec_hdr *rec;
 
@@ -264,7 +268,7 @@ repeat:
 		 */
 		for (rec = (struct llog_rec_hdr *)buf;
 		     (char *)rec < buf + LLOG_CHUNK_SIZE;
-		     rec = (struct llog_rec_hdr *)((char *)rec + rec->lrh_len)) {
+		     rec = llog_rec_hdr_next(rec)) {
 			CDEBUG(D_OTHER, "processing rec 0x%p type %#x\n",
 			       rec, rec->lrh_type);
 

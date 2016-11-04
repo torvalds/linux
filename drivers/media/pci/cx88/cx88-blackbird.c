@@ -639,7 +639,7 @@ static int blackbird_stop_codec(struct cx8802_dev *dev)
 
 static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx8802_dev *dev = q->drv_priv;
 
@@ -647,7 +647,6 @@ static int queue_setup(struct vb2_queue *q,
 	dev->ts_packet_size  = 188 * 4;
 	dev->ts_packet_count  = 32;
 	sizes[0] = dev->ts_packet_size * dev->ts_packet_count;
-	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -757,7 +756,7 @@ static void stop_streaming(struct vb2_queue *q)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-static struct vb2_ops blackbird_qops = {
+static const struct vb2_ops blackbird_qops = {
 	.queue_setup    = queue_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_finish = buffer_finish,
@@ -1183,6 +1182,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &core->lock;
+	q->dev = &dev->pci->dev;
 
 	err = vb2_queue_init(q);
 	if (err < 0)

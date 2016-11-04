@@ -47,6 +47,9 @@ Optional properties:
 				supported by this device instance
 - snps,perfect-filter-entries:	Number of perfect filter entries supported
 				by this device instance
+- snps,ps-speed: port selection speed that can be passed to the core when
+		 PCS is supported. For example, this is used in case of SGMII
+		 and MAC2MAC connection.
 - AXI BUS Mode parameters: below the list of all the parameters to program the
 			   AXI register inside the DMA module:
 	- snps,lpi_en: enable Low Power Interface

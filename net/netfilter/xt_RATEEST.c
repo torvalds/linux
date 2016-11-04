@@ -24,7 +24,6 @@ static DEFINE_MUTEX(xt_rateest_mutex);
 #define RATEEST_HSIZE	16
 static struct hlist_head rateest_hash[RATEEST_HSIZE] __read_mostly;
 static unsigned int jhash_rnd __read_mostly;
-static bool rnd_inited __read_mostly;
 
 static unsigned int xt_rateest_hash(const char *name)
 {
@@ -99,10 +98,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	} cfg;
 	int ret;
 
-	if (unlikely(!rnd_inited)) {
-		get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
-		rnd_inited = true;
-	}
+	net_get_random_once(&jhash_rnd, sizeof(jhash_rnd));
 
 	est = xt_rateest_lookup(info->name);
 	if (est) {
@@ -137,7 +133,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	cfg.est.ewma_log	= info->ewma_log;
 
 	ret = gen_new_estimator(&est->bstats, NULL, &est->rstats,
-				&est->lock, &cfg.opt);
+				&est->lock, NULL, &cfg.opt);
 	if (ret < 0)
 		goto err2;
 

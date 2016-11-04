@@ -32,8 +32,6 @@ static void __init imx53_dt_init(void)
 {
 	imx_src_init();
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-
 	imx_aips_allow_unprivileged_access("fsl,imx53-aipstz");
 }
 
@@ -49,7 +47,6 @@ static const char * const imx53_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(IMX53_DT, "Freescale i.MX53 (Device Tree Support)")
 	.init_early	= imx53_init_early,
-	.init_irq	= tzic_init_irq,
 	.init_machine	= imx53_dt_init,
 	.init_late	= imx53_init_late,
 	.dt_compat	= imx53_dt_board_compat,

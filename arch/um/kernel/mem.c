@@ -204,7 +204,7 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	pte_t *pte;
 
-	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
 	return pte;
 }
 
@@ -212,7 +212,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *pte;
 
-	pte = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+	pte = alloc_page(GFP_KERNEL|__GFP_ZERO);
 	if (!pte)
 		return NULL;
 	if (!pgtable_page_ctor(pte)) {

@@ -2,7 +2,7 @@ Cirrus Logic CLPS711X Interrupt Controller
 
 Required properties:
 
-- compatible: Should be "cirrus,clps711x-intc".
+- compatible: Should be "cirrus,ep7209-intc".
 - reg: Specifies base physical address of the registers set.
 - interrupt-controller: Identifies the node as an interrupt controller.
 - #interrupt-cells: Specifies the number of cells needed to encode an
@@ -34,7 +34,7 @@ ID	Name	Description
 
 Example:
 	intc: interrupt-controller {
-		compatible = "cirrus,clps711x-intc";
+		compatible = "cirrus,ep7312-intc", "cirrus,ep7209-intc";
 		reg = <0x80000000 0x4000>;
 		interrupt-controller;
 		#interrupt-cells = <1>;

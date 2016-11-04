@@ -92,7 +92,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		}
 
 		if (i < CHRDEV_MAJOR_DYN_END)
-			pr_warn("CHRDEV \"%s\" major number %d goes below the dynamic allocation range",
+			pr_warn("CHRDEV \"%s\" major number %d goes below the dynamic allocation range\n",
 				name, i);
 
 		if (i == 0) {
@@ -406,6 +406,7 @@ void cd_forget(struct inode *inode)
 	spin_lock(&cdev_lock);
 	list_del_init(&inode->i_devices);
 	inode->i_cdev = NULL;
+	inode->i_mapping = &inode->i_data;
 	spin_unlock(&cdev_lock);
 }
 

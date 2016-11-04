@@ -286,13 +286,13 @@ see the section named "pin control requests from drivers" and
 "drivers needing both pin control and GPIOs" below for details. But in some
 situations a cross-subsystem mapping between pins and GPIOs is needed.
 
-Since the pin controller subsystem have its pinspace local to the pin
-controller we need a mapping so that the pin control subsystem can figure out
-which pin controller handles control of a certain GPIO pin. Since a single
-pin controller may be muxing several GPIO ranges (typically SoCs that have
-one set of pins, but internally several GPIO silicon blocks, each modelled as
-a struct gpio_chip) any number of GPIO ranges can be added to a pin controller
-instance like this:
+Since the pin controller subsystem has its pinspace local to the pin controller
+we need a mapping so that the pin control subsystem can figure out which pin
+controller handles control of a certain GPIO pin. Since a single pin controller
+may be muxing several GPIO ranges (typically SoCs that have one set of pins,
+but internally several GPIO silicon blocks, each modelled as a struct
+gpio_chip) any number of GPIO ranges can be added to a pin controller instance
+like this:
 
 struct gpio_chip chip_a;
 struct gpio_chip chip_b;
@@ -493,12 +493,12 @@ Definitions:
 - The combination of a FUNCTION and a PIN GROUP determine a certain function
   for a certain set of pins. The knowledge of the functions and pin groups
   and their machine-specific particulars are kept inside the pinmux driver,
-  from the outside only the enumerators are known, and the driver core can:
+  from the outside only the enumerators are known, and the driver core can
+  request:
 
-  - Request the name of a function with a certain selector (>= 0)
+  - The name of a function with a certain selector (>= 0)
   - A list of groups associated with a certain function
-  - Request that a certain group in that list to be activated for a certain
-    function
+  - That a certain group in that list to be activated for a certain function
 
   As already described above, pin groups are in turn self-descriptive, so
   the core will retrieve the actual pin range in a certain group from the
@@ -831,7 +831,7 @@ separate memory range only intended for GPIO driving, and the register
 range dealing with pin config and pin multiplexing get placed into a
 different memory range and a separate section of the data sheet.
 
-A flag "strict" in struct pinctrl_desc is available to check and deny
+A flag "strict" in struct pinmux_ops is available to check and deny
 simultaneous access to the same pin from GPIO and pin multiplexing
 consumers on hardware of this type. The pinctrl driver should set this flag
 accordingly.

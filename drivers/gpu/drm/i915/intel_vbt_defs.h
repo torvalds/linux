@@ -403,9 +403,10 @@ struct lvds_dvo_timing {
 	u8 vsync_off:4;
 	u8 rsvd0:6;
 	u8 hsync_off_hi:2;
-	u8 h_image;
-	u8 v_image;
-	u8 max_hv;
+	u8 himage_lo;
+	u8 vimage_lo;
+	u8 vimage_hi:4;
+	u8 himage_hi:4;
 	u8 h_border;
 	u8 v_border;
 	u8 rsvd1:3;
@@ -446,10 +447,16 @@ struct bdb_lfp_backlight_data_entry {
 	u8 obsolete3;
 } __packed;
 
+struct bdb_lfp_backlight_control_method {
+	u8 type:4;
+	u8 controller:4;
+} __packed;
+
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct bdb_lfp_backlight_data_entry data[16];
 	u8 level[16];
+	struct bdb_lfp_backlight_control_method backlight_control[16];
 } __packed;
 
 struct aimdb_header {

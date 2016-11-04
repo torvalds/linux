@@ -64,26 +64,7 @@ void platform_restart(void)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
-
-	__asm__ __volatile__ ("movi	a2, 15\n\t"
-			      "wsr	a2, icountlevel\n\t"
-			      "movi	a2, 0\n\t"
-			      "wsr	a2, icount\n\t"
-#if XCHAL_NUM_IBREAK > 0
-			      "wsr	a2, ibreakenable\n\t"
-#endif
-#if XCHAL_HAVE_LOOPS
-			      "wsr	a2, lcount\n\t"
-#endif
-			      "movi	a2, 0x1f\n\t"
-			      "wsr	a2, ps\n\t"
-			      "isync\n\t"
-			      "jx	%0\n\t"
-			      :
-			      : "a" (XCHAL_RESET_VECTOR_VADDR)
-			      : "a2"
-			      );
-
+	cpu_reset();
 	/* control never gets here */
 }
 
@@ -113,7 +94,6 @@ void platform_heartbeat(void)
 }
 
 //#define RS_TABLE_SIZE 2
-//#define STD_COM_FLAGS (UPF_BOOT_AUTOCONF|UPF_SKIP_TEST)
 
 #define _SERIAL_PORT(_base,_irq)					\
 {									\

@@ -5,12 +5,12 @@
 menuconfig ARCH_S3C64XX
 	bool "Samsung S3C64XX"
 	depends on ARCH_MULTI_V6
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC
 	select CLKSRC_SAMSUNG_PWM
 	select COMMON_CLK_SAMSUNG
 	select GPIO_SAMSUNG if ATAGS
+	select GPIOLIB
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_TCM

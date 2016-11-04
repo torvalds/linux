@@ -169,8 +169,7 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 		return;
 
 	if (s3c24xx_serial_has_interrupt_mask(port))
-		__set_bit(S3C64XX_UINTM_TXD,
-			portaddrl(port, S3C64XX_UINTM));
+		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
 	else
 		disable_irq_nosync(ourport->tx_irq);
 
@@ -235,8 +234,7 @@ static void enable_tx_dma(struct s3c24xx_uart_port *ourport)
 
 	/* Mask Tx interrupt */
 	if (s3c24xx_serial_has_interrupt_mask(port))
-		__set_bit(S3C64XX_UINTM_TXD,
-			  portaddrl(port, S3C64XX_UINTM));
+		s3c24xx_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
 	else
 		disable_irq_nosync(ourport->tx_irq);
 
@@ -269,8 +267,8 @@ static void enable_tx_pio(struct s3c24xx_uart_port *ourport)
 
 	/* Unmask Tx interrupt */
 	if (s3c24xx_serial_has_interrupt_mask(port))
-		__clear_bit(S3C64XX_UINTM_TXD,
-			    portaddrl(port, S3C64XX_UINTM));
+		s3c24xx_clear_bit(port, S3C64XX_UINTM_TXD,
+				  S3C64XX_UINTM);
 	else
 		enable_irq(ourport->tx_irq);
 
@@ -397,8 +395,8 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
 		if (s3c24xx_serial_has_interrupt_mask(port))
-			__set_bit(S3C64XX_UINTM_RXD,
-				portaddrl(port, S3C64XX_UINTM));
+			s3c24xx_set_bit(port, S3C64XX_UINTM_RXD,
+					S3C64XX_UINTM);
 		else
 			disable_irq_nosync(ourport->rx_irq);
 		rx_enabled(port) = 0;
@@ -1069,7 +1067,7 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	/* Enable Rx Interrupt */
-	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+	s3c24xx_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
 
 	dbg("s3c64xx_serial_startup ok\n");
 	return ret;
@@ -1579,7 +1577,7 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 }
 
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
 static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 					     unsigned long val, void *data)
@@ -1684,7 +1682,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		return -ENODEV;
 
 	if (port->mapbase != 0)
-		return 0;
+		return -EINVAL;
 
 	/* setup info for port */
 	port->dev	= &platdev->dev;
@@ -1738,22 +1736,25 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->dma = devm_kzalloc(port->dev,
 					    sizeof(*ourport->dma),
 					    GFP_KERNEL);
-		if (!ourport->dma)
-			return -ENOMEM;
+		if (!ourport->dma) {
+			ret = -ENOMEM;
+			goto err;
+		}
 	}
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 	if (IS_ERR(ourport->clk)) {
 		pr_err("%s: Controller clock not found\n",
 				dev_name(&platdev->dev));
-		return PTR_ERR(ourport->clk);
+		ret = PTR_ERR(ourport->clk);
+		goto err;
 	}
 
 	ret = clk_prepare_enable(ourport->clk);
 	if (ret) {
 		pr_err("uart: clock failed to prepare+enable: %d\n", ret);
 		clk_put(ourport->clk);
-		return ret;
+		goto err;
 	}
 
 	/* Keep all interrupts masked and cleared */
@@ -1769,7 +1770,12 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
+
 	return 0;
+
+err:
+	port->mapbase = 0;
+	return ret;
 }
 
 /* Device driver serial port probe */
@@ -1836,8 +1842,6 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	ourport->min_dma_size = max_t(int, ourport->port.fifosize,
 				    dma_get_cache_alignment());
 
-	probe_index++;
-
 	dbg("%s: initialising port %p...\n", __func__, ourport);
 
 	ret = s3c24xx_serial_init_port(ourport, pdev);
@@ -1866,6 +1870,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	ret = s3c24xx_serial_cpufreq_register(ourport);
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to add cpufreq notifier\n");
+
+	probe_index++;
 
 	return 0;
 }

@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
@@ -800,7 +801,7 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 				++i;
 				msleep(50);
 			}
-		} while ((i < DA7219_SRM_CHECK_RETRIES) & (!srm_lock));
+		} while ((i < DA7219_SRM_CHECK_RETRIES) && (!srm_lock));
 
 		if (!srm_lock)
 			dev_warn(codec->dev, "SRM failed to lock\n");
@@ -1418,7 +1419,7 @@ static struct snd_soc_dai_driver da7219_dai = {
 
 
 /*
- * DT
+ * DT/ACPI
  */
 
 static const struct of_device_id da7219_of_match[] = {
@@ -1434,7 +1435,7 @@ static const struct acpi_device_id da7219_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, da7219_acpi_match);
 
 static enum da7219_micbias_voltage
-	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
+	da7219_fw_micbias_lvl(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 1600:
@@ -1450,13 +1451,13 @@ static enum da7219_micbias_voltage
 	case 2600:
 		return DA7219_MICBIAS_2_6V;
 	default:
-		dev_warn(codec->dev, "Invalid micbias level");
+		dev_warn(dev, "Invalid micbias level");
 		return DA7219_MICBIAS_2_2V;
 	}
 }
 
 static enum da7219_mic_amp_in_sel
-	da7219_of_mic_amp_in_sel(struct snd_soc_codec *codec, const char *str)
+	da7219_fw_mic_amp_in_sel(struct device *dev, const char *str)
 {
 	if (!strcmp(str, "diff")) {
 		return DA7219_MIC_AMP_IN_SEL_DIFF;
@@ -1465,29 +1466,31 @@ static enum da7219_mic_amp_in_sel
 	} else if (!strcmp(str, "se_n")) {
 		return DA7219_MIC_AMP_IN_SEL_SE_N;
 	} else {
-		dev_warn(codec->dev, "Invalid mic input type selection");
+		dev_warn(dev, "Invalid mic input type selection");
 		return DA7219_MIC_AMP_IN_SEL_DIFF;
 	}
 }
 
-static struct da7219_pdata *da7219_of_to_pdata(struct snd_soc_codec *codec)
+static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_codec *codec)
 {
-	struct device_node *np = codec->dev->of_node;
+	struct device *dev = codec->dev;
 	struct da7219_pdata *pdata;
 	const char *of_str;
 	u32 of_val32;
 
-	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "dlg,micbias-lvl", &of_val32) >= 0)
-		pdata->micbias_lvl = da7219_of_micbias_lvl(codec, of_val32);
+	pdata->wakeup_source = device_property_read_bool(dev, "wakeup-source");
+
+	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
+		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
 	else
 		pdata->micbias_lvl = DA7219_MICBIAS_2_2V;
 
-	if (!of_property_read_string(np, "dlg,mic-amp-in-sel", &of_str))
-		pdata->mic_amp_in_sel = da7219_of_mic_amp_in_sel(codec, of_str);
+	if (!device_property_read_string(dev, "dlg,mic-amp-in-sel", &of_str))
+		pdata->mic_amp_in_sel = da7219_fw_mic_amp_in_sel(dev, of_str);
 	else
 		pdata->mic_amp_in_sel = DA7219_MIC_AMP_IN_SEL_DIFF;
 
@@ -1507,11 +1510,10 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			/* MCLK */
+	case SND_SOC_BIAS_PREPARE:
+		/* Enable MCLK for transition to ON state */
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY) {
 			if (da7219->mclk) {
 				ret = clk_prepare_enable(da7219->mclk);
 				if (ret) {
@@ -1520,22 +1522,28 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 					return ret;
 				}
 			}
+		}
 
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			/* Master bias */
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK,
 					    DA7219_BIAS_EN_MASK);
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE) {
+			/* Remove MCLK */
+			if (da7219->mclk)
+				clk_disable_unprepare(da7219->mclk);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* Only disable master bias if jack detection not active */
-		if (!da7219->aad->jack)
+		/* Only disable master bias if we're not a wake-up source */
+		if (!da7219->wakeup_source)
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
 					    DA7219_BIAS_EN_MASK, 0);
 
-		/* MCLK */
-		if (da7219->mclk)
-			clk_disable_unprepare(da7219->mclk);
 		break;
 	}
 
@@ -1597,6 +1605,8 @@ static void da7219_handle_pdata(struct snd_soc_codec *codec)
 
 	if (pdata) {
 		u8 micbias_lvl = 0;
+
+		da7219->wakeup_source = pdata->wakeup_source;
 
 		/* Mic Bias voltages */
 		switch (pdata->micbias_lvl) {
@@ -1662,11 +1672,10 @@ static int da7219_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	/* Handle DT/Platform data */
-	if (codec->dev->of_node)
-		da7219->pdata = da7219_of_to_pdata(codec);
-	else
-		da7219->pdata = dev_get_platdata(codec->dev);
+	/* Handle DT/ACPI/Platform data */
+	da7219->pdata = dev_get_platdata(codec->dev);
+	if (!da7219->pdata)
+		da7219->pdata = da7219_fw_to_pdata(codec);
 
 	da7219_handle_pdata(codec);
 
@@ -1733,11 +1742,11 @@ static int da7219_suspend(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
-	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	/* Suspend AAD if we're not a wake-up source */
+	if (!da7219->wakeup_source)
+		da7219_aad_suspend(codec);
 
-	/* Put device into standby mode if jack detection disabled */
-	if (!da7219->aad->jack)
-		snd_soc_write(codec, DA7219_SYSTEM_ACTIVE, 0);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1746,12 +1755,11 @@ static int da7219_resume(struct snd_soc_codec *codec)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
-	/* Put device into active mode if previously pushed to standby */
-	if (!da7219->aad->jack)
-		snd_soc_write(codec, DA7219_SYSTEM_ACTIVE,
-			      DA7219_SYSTEM_ACTIVE_MASK);
-
 	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	/* Resume AAD if previously suspended */
+	if (!da7219->wakeup_source)
+		da7219_aad_resume(codec);
 
 	return 0;
 }
@@ -1767,13 +1775,14 @@ static struct snd_soc_codec_driver soc_codec_dev_da7219 = {
 	.resume			= da7219_resume,
 	.set_bias_level		= da7219_set_bias_level,
 
-	.controls		= da7219_snd_controls,
-	.num_controls		= ARRAY_SIZE(da7219_snd_controls),
-
-	.dapm_widgets		= da7219_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
-	.dapm_routes		= da7219_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	.component_driver = {
+		.controls		= da7219_snd_controls,
+		.num_controls		= ARRAY_SIZE(da7219_snd_controls),
+		.dapm_widgets		= da7219_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da7219_dapm_widgets),
+		.dapm_routes		= da7219_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(da7219_audio_map),
+	},
 };
 
 
@@ -1921,7 +1930,8 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct da7219_priv *da7219;
-	int ret;
+	unsigned int system_active, system_status;
+	int i, ret;
 
 	da7219 = devm_kzalloc(&i2c->dev, sizeof(struct da7219_priv),
 			      GFP_KERNEL);
@@ -1936,6 +1946,37 @@ static int da7219_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
+
+	regcache_cache_bypass(da7219->regmap, true);
+
+	/* Disable audio paths if still active from previous start */
+	regmap_read(da7219->regmap, DA7219_SYSTEM_ACTIVE, &system_active);
+	if (system_active) {
+		regmap_write(da7219->regmap, DA7219_GAIN_RAMP_CTRL,
+			     DA7219_GAIN_RAMP_RATE_NOMINAL);
+		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_INPUT, 0x00);
+		regmap_write(da7219->regmap, DA7219_SYSTEM_MODES_OUTPUT, 0x01);
+
+		for (i = 0; i < DA7219_SYS_STAT_CHECK_RETRIES; ++i) {
+			regmap_read(da7219->regmap, DA7219_SYSTEM_STATUS,
+				    &system_status);
+			if (!system_status)
+				break;
+
+			msleep(DA7219_SYS_STAT_CHECK_DELAY);
+		}
+	}
+
+	/* Soft reset codec */
+	regmap_write_bits(da7219->regmap, DA7219_ACCDET_CONFIG_1,
+			  DA7219_ACCDET_EN_MASK, 0);
+	regmap_write_bits(da7219->regmap, DA7219_CIF_CTRL,
+			  DA7219_CIF_REG_SOFT_RESET_MASK,
+			  DA7219_CIF_REG_SOFT_RESET_MASK);
+	regmap_write_bits(da7219->regmap, DA7219_SYSTEM_ACTIVE,
+			  DA7219_SYSTEM_ACTIVE_MASK, 0);
+
+	regcache_cache_bypass(da7219->regmap, false);
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_da7219,
 				     &da7219_dai, 1);

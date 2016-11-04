@@ -34,7 +34,10 @@ static struct opp_table *_managed_opp(const struct device_node *np)
 			 * But the OPPs will be considered as shared only if the
 			 * OPP table contains a "opp-shared" property.
 			 */
-			return opp_table->shared_opp ? opp_table : NULL;
+			if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED)
+				return opp_table;
+
+			return NULL;
 		}
 	}
 
@@ -68,8 +71,18 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 	u32 version;
 	int ret;
 
-	if (!opp_table->supported_hw)
-		return true;
+	if (!opp_table->supported_hw) {
+		/*
+		 * In the case that no supported_hw has been set by the
+		 * platform but there is an opp-supported-hw value set for
+		 * an OPP then the OPP should not be enabled as there is
+		 * no way to see if the hardware supports it.
+		 */
+		if (of_find_property(np, "opp-supported-hw", NULL))
+			return false;
+		else
+			return true;
+	}
 
 	while (count--) {
 		ret = of_property_read_u32_index(np, "opp-supported-hw", count,
@@ -353,7 +366,10 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 	}
 
 	opp_table->np = opp_np;
-	opp_table->shared_opp = of_property_read_bool(opp_np, "opp-shared");
+	if (of_property_read_bool(opp_np, "opp-shared"))
+		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
+	else
+		opp_table->shared_opp = OPP_TABLE_ACCESS_EXCLUSIVE;
 
 	mutex_unlock(&opp_table_lock);
 

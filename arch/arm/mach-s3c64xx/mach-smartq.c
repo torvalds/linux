@@ -43,6 +43,7 @@
 #include <plat/samsung-time.h>
 
 #include "common.h"
+#include "mach-smartq.h"
 #include "regs-modem.h"
 
 #define UCON S3C2410_UCON_DEFAULT

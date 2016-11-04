@@ -143,7 +143,7 @@ static struct drm_driver driver = {
 	.gem_prime_vunmap = virtgpu_gem_prime_vunmap,
 	.gem_prime_mmap = virtgpu_gem_prime_mmap,
 
-	.gem_free_object = virtio_gpu_gem_free_object,
+	.gem_free_object_unlocked = virtio_gpu_gem_free_object,
 	.gem_open_object = virtio_gpu_gem_object_open,
 	.gem_close_object = virtio_gpu_gem_object_close,
 	.fops = &virtio_gpu_driver_fops,

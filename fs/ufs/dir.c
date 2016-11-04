@@ -100,7 +100,7 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 	err = ufs_commit_chunk(page, pos, len);
 	ufs_put_page(page);
 	if (update_times)
-		dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+		dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
 }
 
@@ -279,12 +279,6 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 			de = (struct ufs_dir_entry *) kaddr;
 			kaddr += ufs_last_byte(dir, n) - reclen;
 			while ((char *) de <= kaddr) {
-				if (de->d_reclen == 0) {
-					ufs_error(dir->i_sb, __func__,
-						  "zero-length directory entry");
-					ufs_put_page(page);
-					goto out;
-				}
 				if (ufs_match(sb, namelen, name, de))
 					goto found;
 				de = ufs_next_entry(sb, de);
@@ -395,7 +389,7 @@ got_it:
 	ufs_set_de_type(sb, de, inode->i_mode);
 
 	err = ufs_commit_chunk(page, pos, rec_len);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 
 	mark_inode_dirty(dir);
 	/* OFFSET_CACHE */
@@ -414,11 +408,8 @@ ufs_validate_entry(struct super_block *sb, char *base,
 {
 	struct ufs_dir_entry *de = (struct ufs_dir_entry*)(base + offset);
 	struct ufs_dir_entry *p = (struct ufs_dir_entry*)(base + (offset&mask));
-	while ((char*)p < (char*)de) {
-		if (p->d_reclen == 0)
-			break;
+	while ((char*)p < (char*)de)
 		p = ufs_next_entry(sb, p);
-	}
 	return (char *)p - base;
 }
 
@@ -469,12 +460,6 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 		de = (struct ufs_dir_entry *)(kaddr+offset);
 		limit = kaddr + ufs_last_byte(inode, n) - UFS_DIR_REC_LEN(1);
 		for ( ;(char*)de <= limit; de = ufs_next_entry(sb, de)) {
-			if (de->d_reclen == 0) {
-				ufs_error(sb, __func__,
-					"zero-length directory entry");
-				ufs_put_page(page);
-				return -EIO;
-			}
 			if (de->d_ino) {
 				unsigned char d_type = DT_UNKNOWN;
 
@@ -545,7 +530,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 		pde->d_reclen = cpu_to_fs16(sb, to - from);
 	dir->d_ino = 0;
 	err = ufs_commit_chunk(page, pos, to - from);
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
+	inode->i_ctime = inode->i_mtime = current_time(inode);
 	mark_inode_dirty(inode);
 out:
 	ufs_put_page(page);

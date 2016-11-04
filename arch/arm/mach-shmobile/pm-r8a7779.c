@@ -23,11 +23,7 @@
 
 static void __init r8a7779_sysc_init(void)
 {
-	void __iomem *base = rcar_sysc_init(0xffd85000);
-
-	/* enable all interrupt sources, but do not use interrupt handler */
-	iowrite32(0x0131000e, base + SYSCIER);
-	iowrite32(0, base + SYSCIMR);
+	rcar_sysc_init(0xffd85000, 0x0131000e);
 }
 
 #else /* CONFIG_PM || CONFIG_SMP */

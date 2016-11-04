@@ -20,6 +20,8 @@
 #include <linux/component.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/suspend.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -30,6 +32,20 @@
 #include "drm_fb_helper.h"
 
 static LIST_HEAD(module_list);
+
+static const u32 tilcdc_rev1_formats[] = { DRM_FORMAT_RGB565 };
+
+static const u32 tilcdc_straight_formats[] = { DRM_FORMAT_RGB565,
+					       DRM_FORMAT_BGR888,
+					       DRM_FORMAT_XBGR8888 };
+
+static const u32 tilcdc_crossed_formats[] = { DRM_FORMAT_BGR565,
+					      DRM_FORMAT_RGB888,
+					      DRM_FORMAT_XRGB8888 };
+
+static const u32 tilcdc_legacy_formats[] = { DRM_FORMAT_RGB565,
+					     DRM_FORMAT_RGB888,
+					     DRM_FORMAT_XRGB8888 };
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs)
@@ -59,9 +75,84 @@ static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
 
+static int tilcdc_atomic_check(struct drm_device *dev,
+			       struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/*
+	 * tilcdc ->atomic_check can update ->mode_changed if pixel format
+	 * changes, hence will we check modeset changes again.
+	 */
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int tilcdc_commit(struct drm_device *dev,
+		  struct drm_atomic_state *state,
+		  bool async)
+{
+	int ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	drm_atomic_helper_swap_state(state, true);
+
+	/*
+	 * Everything below can be run asynchronously without the need to grab
+	 * any modeset locks at all under one condition: It must be guaranteed
+	 * that the asynchronous work has either been cancelled (if the driver
+	 * supports it, which at least requires that the framebuffers get
+	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
+	 * before the new state gets committed on the software side with
+	 * drm_atomic_helper_swap_state().
+	 *
+	 * This scheme allows new atomic state updates to be prepared and
+	 * checked in parallel to the asynchronous completion of the previous
+	 * update. Which is important since compositors need to figure out the
+	 * composition of the next frame right after having submitted the
+	 * current layout.
+	 */
+
+	/* Keep HW on while we commit the state. */
+	pm_runtime_get_sync(dev->dev);
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_planes(dev, state, 0);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	/* Now HW should remain on if need becase the crtc is enabled */
+	pm_runtime_put_sync(dev->dev);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_state_free(state);
+
+	return 0;
+}
+
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = tilcdc_fb_create,
 	.output_poll_changed = tilcdc_fb_output_poll_changed,
+	.atomic_check = tilcdc_atomic_check,
+	.atomic_commit = tilcdc_commit,
 };
 
 static int modeset_init(struct drm_device *dev)
@@ -93,12 +184,9 @@ static int cpufreq_transition(struct notifier_block *nb,
 {
 	struct tilcdc_drm_private *priv = container_of(nb,
 			struct tilcdc_drm_private, freq_transition);
-	if (val == CPUFREQ_POSTCHANGE) {
-		if (priv->lcd_fck_rate != clk_get_rate(priv->clk)) {
-			priv->lcd_fck_rate = clk_get_rate(priv->clk);
-			tilcdc_crtc_update_clk(priv->crtc);
-		}
-	}
+
+	if (val == CPUFREQ_POSTCHANGE)
+		tilcdc_crtc_update_clk(priv->crtc);
 
 	return 0;
 }
@@ -112,8 +200,6 @@ static int tilcdc_unload(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
-	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
-
 	tilcdc_remove_external_encoders(dev);
 
 	drm_fbdev_cma_fini(priv->fbdev);
@@ -121,9 +207,7 @@ static int tilcdc_unload(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 
-	pm_runtime_get_sync(dev->dev);
 	drm_irq_uninstall(dev);
-	pm_runtime_put_sync(dev->dev);
 
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_unregister_notifier(&priv->freq_transition,
@@ -146,24 +230,17 @@ static int tilcdc_unload(struct drm_device *dev)
 	return 0;
 }
 
-static size_t tilcdc_num_regs(void);
-
 static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 {
 	struct platform_device *pdev = dev->platformdev;
 	struct device_node *node = pdev->dev.of_node;
 	struct tilcdc_drm_private *priv;
-	struct tilcdc_module *mod;
 	struct resource *res;
 	u32 bpp = 0;
 	int ret;
 
 	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (priv)
-		priv->saved_register =
-			devm_kcalloc(dev->dev, tilcdc_num_regs(),
-				     sizeof(*priv->saved_register), GFP_KERNEL);
-	if (!priv || !priv->saved_register) {
+	if (!priv) {
 		dev_err(dev->dev, "failed to allocate private data\n");
 		return -ENOMEM;
 	}
@@ -201,7 +278,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	priv->lcd_fck_rate = clk_get_rate(priv->clk);
 	priv->freq_transition.notifier_call = cpufreq_transition;
 	ret = cpufreq_register_notifier(&priv->freq_transition,
 			CPUFREQ_TRANSITION_NOTIFIER);
@@ -249,6 +325,37 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 
 	pm_runtime_put_sync(dev->dev);
 
+	if (priv->rev == 1) {
+		DBG("Revision 1 LCDC supports only RGB565 format");
+		priv->pixelformats = tilcdc_rev1_formats;
+		priv->num_pixelformats = ARRAY_SIZE(tilcdc_rev1_formats);
+		bpp = 16;
+	} else {
+		const char *str = "\0";
+
+		of_property_read_string(node, "blue-and-red-wiring", &str);
+		if (0 == strcmp(str, "crossed")) {
+			DBG("Configured for crossed blue and red wires");
+			priv->pixelformats = tilcdc_crossed_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_crossed_formats);
+			bpp = 32; /* Choose bpp with RGB support for fbdef */
+		} else if (0 == strcmp(str, "straight")) {
+			DBG("Configured for straight blue and red wires");
+			priv->pixelformats = tilcdc_straight_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_straight_formats);
+			bpp = 16; /* Choose bpp with RGB support for fbdef */
+		} else {
+			DBG("Blue and red wiring '%s' unknown, use legacy mode",
+			    str);
+			priv->pixelformats = tilcdc_legacy_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_legacy_formats);
+			bpp = 16; /* This is just a guess */
+		}
+	}
+
 	ret = modeset_init(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize mode setting\n");
@@ -262,7 +369,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		if (ret < 0)
 			goto fail_mode_config_cleanup;
 
-		ret = tilcdc_add_external_encoders(dev, &bpp);
+		ret = tilcdc_add_external_encoders(dev);
 		if (ret < 0)
 			goto fail_component_cleanup;
 	}
@@ -279,22 +386,14 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		goto fail_external_cleanup;
 	}
 
-	pm_runtime_get_sync(dev->dev);
 	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
-	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 		goto fail_vblank_cleanup;
 	}
 
-	list_for_each_entry(mod, &module_list, list) {
-		DBG("%s: preferred_bpp: %d", mod->name, mod->preferred_bpp);
-		bpp = mod->preferred_bpp;
-		if (bpp > 0)
-			break;
-	}
+	drm_mode_config_reset(dev);
 
-	drm_helper_disable_unused_functions(dev);
 	priv->fbdev = drm_fbdev_cma_init(dev, bpp,
 			dev->mode_config.num_crtc,
 			dev->mode_config.num_connector);
@@ -308,19 +407,17 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 fail_irq_uninstall:
-	pm_runtime_get_sync(dev->dev);
 	drm_irq_uninstall(dev);
-	pm_runtime_put_sync(dev->dev);
 
 fail_vblank_cleanup:
 	drm_vblank_cleanup(dev);
 
-fail_mode_config_cleanup:
-	drm_mode_config_cleanup(dev);
-
 fail_component_cleanup:
 	if (priv->is_componentized)
 		component_unbind_all(dev->dev, dev);
+
+fail_mode_config_cleanup:
+	drm_mode_config_cleanup(dev);
 
 fail_external_cleanup:
 	tilcdc_remove_external_encoders(dev);
@@ -361,45 +458,6 @@ static irqreturn_t tilcdc_irq(int irq, void *arg)
 	return tilcdc_crtc_irq(priv->crtc);
 }
 
-static void tilcdc_irq_preinstall(struct drm_device *dev)
-{
-	tilcdc_clear_irqstatus(dev, 0xffffffff);
-}
-
-static int tilcdc_irq_postinstall(struct drm_device *dev)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-
-	/* enable FIFO underflow irq: */
-	if (priv->rev == 1) {
-		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_UNDERFLOW_INT_ENA);
-	} else {
-		tilcdc_write(dev, LCDC_INT_ENABLE_SET_REG,
-			   LCDC_V2_UNDERFLOW_INT_ENA |
-			   LCDC_V2_END_OF_FRAME0_INT_ENA |
-			   LCDC_FRAME_DONE | LCDC_SYNC_LOST);
-	}
-
-	return 0;
-}
-
-static void tilcdc_irq_uninstall(struct drm_device *dev)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-
-	/* disable irqs that we might have enabled: */
-	if (priv->rev == 1) {
-		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
-				LCDC_V1_UNDERFLOW_INT_ENA | LCDC_V1_PL_INT_ENA);
-		tilcdc_clear(dev, LCDC_DMA_CTRL_REG, LCDC_V1_END_OF_FRAME_INT_ENA);
-	} else {
-		tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
-			LCDC_V2_UNDERFLOW_INT_ENA | LCDC_V2_PL_INT_ENA |
-			LCDC_V2_END_OF_FRAME0_INT_ENA |
-			LCDC_FRAME_DONE | LCDC_SYNC_LOST);
-	}
-}
-
 static int tilcdc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	return 0;
@@ -410,7 +468,7 @@ static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	return;
 }
 
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_DEBUG_FS)
 static const struct {
 	const char *name;
 	uint8_t  rev;
@@ -441,15 +499,6 @@ static const struct {
 #undef REG
 };
 
-static size_t tilcdc_num_regs(void)
-{
-	return ARRAY_SIZE(registers);
-}
-#else
-static size_t tilcdc_num_regs(void)
-{
-	return 0;
-}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
@@ -537,19 +586,15 @@ static const struct file_operations fops = {
 
 static struct drm_driver tilcdc_driver = {
 	.driver_features    = (DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET |
-			       DRIVER_PRIME),
+			       DRIVER_PRIME | DRIVER_ATOMIC),
 	.load               = tilcdc_load,
 	.unload             = tilcdc_unload,
 	.lastclose          = tilcdc_lastclose,
-	.set_busid          = drm_platform_set_busid,
 	.irq_handler        = tilcdc_irq,
-	.irq_preinstall     = tilcdc_irq_preinstall,
-	.irq_postinstall    = tilcdc_irq_postinstall,
-	.irq_uninstall      = tilcdc_irq_uninstall,
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank      = tilcdc_enable_vblank,
 	.disable_vblank     = tilcdc_disable_vblank,
-	.gem_free_object    = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
 	.dumb_map_offset    = drm_gem_cma_dumb_map_offset,
@@ -585,27 +630,11 @@ static int tilcdc_pm_suspend(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct tilcdc_drm_private *priv = ddev->dev_private;
-	unsigned i, n = 0;
 
-	drm_kms_helper_poll_disable(ddev);
+	priv->saved_state = drm_atomic_helper_suspend(ddev);
 
 	/* Select sleep pin state */
 	pinctrl_pm_select_sleep_state(dev);
-
-	if (pm_runtime_suspended(dev)) {
-		priv->ctx_valid = false;
-		return 0;
-	}
-
-	/* Disable the LCDC controller, to avoid locking up the PRCM */
-	tilcdc_crtc_dpms(priv->crtc, DRM_MODE_DPMS_OFF);
-
-	/* Save register state: */
-	for (i = 0; i < ARRAY_SIZE(registers); i++)
-		if (registers[i].save && (priv->rev >= registers[i].rev))
-			priv->saved_register[n++] = tilcdc_read(ddev, registers[i].reg);
-
-	priv->ctx_valid = true;
 
 	return 0;
 }
@@ -614,23 +643,15 @@ static int tilcdc_pm_resume(struct device *dev)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct tilcdc_drm_private *priv = ddev->dev_private;
-	unsigned i, n = 0;
+	int ret = 0;
 
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
 
-	if (priv->ctx_valid == true) {
-		/* Restore register state: */
-		for (i = 0; i < ARRAY_SIZE(registers); i++)
-			if (registers[i].save &&
-			    (priv->rev >= registers[i].rev))
-				tilcdc_write(ddev, registers[i].reg,
-					     priv->saved_register[n++]);
-	}
+	if (priv->saved_state)
+		ret = drm_atomic_helper_resume(ddev, priv->saved_state);
 
-	drm_kms_helper_poll_enable(ddev);
-
-	return 0;
+	return ret;
 }
 #endif
 
@@ -649,6 +670,12 @@ static int tilcdc_bind(struct device *dev)
 
 static void tilcdc_unbind(struct device *dev)
 {
+	struct drm_device *ddev = dev_get_drvdata(dev);
+
+	/* Check if a subcomponent has already triggered the unloading. */
+	if (!ddev->dev_private)
+		return;
+
 	drm_put_dev(dev_get_drvdata(dev));
 }
 
@@ -681,17 +708,15 @@ static int tilcdc_pdev_probe(struct platform_device *pdev)
 
 static int tilcdc_pdev_remove(struct platform_device *pdev)
 {
-	struct drm_device *ddev = dev_get_drvdata(&pdev->dev);
-	struct tilcdc_drm_private *priv = ddev->dev_private;
+	int ret;
 
-	/* Check if a subcomponent has already triggered the unloading. */
-	if (!priv)
-		return 0;
-
-	if (priv->is_componentized)
-		component_master_del(&pdev->dev, &tilcdc_comp_ops);
-	else
+	ret = tilcdc_get_external_components(&pdev->dev, NULL);
+	if (ret < 0)
+		return ret;
+	else if (ret == 0)
 		drm_put_dev(platform_get_drvdata(pdev));
+	else
+		component_master_del(&pdev->dev, &tilcdc_comp_ops);
 
 	return 0;
 }

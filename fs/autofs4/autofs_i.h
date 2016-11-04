@@ -20,7 +20,8 @@
 #define AUTOFS_IOC_COUNT     32
 
 #define AUTOFS_DEV_IOCTL_IOC_FIRST	(AUTOFS_DEV_IOCTL_VERSION)
-#define AUTOFS_DEV_IOCTL_IOC_COUNT	(AUTOFS_IOC_COUNT - 11)
+#define AUTOFS_DEV_IOCTL_IOC_COUNT \
+	(AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD - AUTOFS_DEV_IOCTL_VERSION_CMD)
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -32,8 +33,6 @@
 #include <linux/namei.h>
 #include <asm/current.h>
 #include <linux/uaccess.h>
-
-/* #define DEBUG */
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -70,9 +69,13 @@ struct autofs_info {
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry in the process of expiring */
-#define AUTOFS_INF_NO_RCU	(1<<1) /* the dentry is being considered
+#define AUTOFS_INF_WANT_EXPIRE	(1<<1) /* the dentry is being considered
 					* for expiry, so RCU_walk is
-					* not permitted
+					* not permitted.  If it progresses to
+					* actual expiry attempt, the flag is
+					* not cleared when EXPIRING is set -
+					* in that case it gets cleared only
+					* when it comes to clearing EXPIRING.
 					*/
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
 
@@ -107,8 +110,6 @@ struct autofs_sb_info {
 	int max_proto;
 	unsigned long exp_timeout;
 	unsigned int type;
-	int reghost_enabled;
-	int needs_reghost;
 	struct super_block *sb;
 	struct mutex wq_mutex;
 	struct mutex pipe_mutex;
@@ -267,4 +268,4 @@ static inline void autofs4_del_expiring(struct dentry *dentry)
 	}
 }
 
-extern void autofs4_kill_sb(struct super_block *);
+void autofs4_kill_sb(struct super_block *);

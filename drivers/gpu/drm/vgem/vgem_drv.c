@@ -42,81 +42,38 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-void vgem_gem_put_pages(struct drm_vgem_gem_object *obj)
-{
-	drm_gem_put_pages(&obj->base, obj->pages, false, false);
-	obj->pages = NULL;
-}
-
 static void vgem_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_vgem_gem_object *vgem_obj = to_vgem_bo(obj);
 
-	drm_gem_free_mmap_offset(obj);
-
-	if (vgem_obj->use_dma_buf && obj->dma_buf) {
-		dma_buf_put(obj->dma_buf);
-		obj->dma_buf = NULL;
-	}
-
 	drm_gem_object_release(obj);
-
-	if (vgem_obj->pages)
-		vgem_gem_put_pages(vgem_obj);
-
-	vgem_obj->pages = NULL;
-
 	kfree(vgem_obj);
-}
-
-int vgem_gem_get_pages(struct drm_vgem_gem_object *obj)
-{
-	struct page **pages;
-
-	if (obj->pages || obj->use_dma_buf)
-		return 0;
-
-	pages = drm_gem_get_pages(&obj->base);
-	if (IS_ERR(pages)) {
-		return PTR_ERR(pages);
-	}
-
-	obj->pages = pages;
-
-	return 0;
 }
 
 static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_vgem_gem_object *obj = vma->vm_private_data;
-	loff_t num_pages;
-	pgoff_t page_offset;
-	int ret;
-
 	/* We don't use vmf->pgoff since that has the fake offset */
-	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
-		PAGE_SHIFT;
+	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+	struct page *page;
 
-	num_pages = DIV_ROUND_UP(obj->base.size, PAGE_SIZE);
-
-	if (page_offset > num_pages)
-		return VM_FAULT_SIGBUS;
-
-	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
-			     obj->pages[page_offset]);
-	switch (ret) {
-	case 0:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	case -EBUSY:
-		return VM_FAULT_RETRY;
-	case -EFAULT:
-	case -EINVAL:
-		return VM_FAULT_SIGBUS;
-	default:
-		WARN_ON(1);
-		return VM_FAULT_SIGBUS;
+	page = shmem_read_mapping_page(file_inode(obj->base.filp)->i_mapping,
+				       (vaddr - vma->vm_start) >> PAGE_SHIFT);
+	if (!IS_ERR(page)) {
+		vmf->page = page;
+		return 0;
+	} else switch (PTR_ERR(page)) {
+		case -ENOSPC:
+		case -ENOMEM:
+			return VM_FAULT_OOM;
+		case -EBUSY:
+			return VM_FAULT_RETRY;
+		case -EFAULT:
+		case -EINVAL:
+			return VM_FAULT_SIGBUS;
+		default:
+			WARN_ON_ONCE(PTR_ERR(page));
+			return VM_FAULT_SIGBUS;
 	}
 }
 
@@ -126,6 +83,34 @@ static const struct vm_operations_struct vgem_gem_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
+static int vgem_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct vgem_file *vfile;
+	int ret;
+
+	vfile = kzalloc(sizeof(*vfile), GFP_KERNEL);
+	if (!vfile)
+		return -ENOMEM;
+
+	file->driver_priv = vfile;
+
+	ret = vgem_fence_open(vfile);
+	if (ret) {
+		kfree(vfile);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void vgem_preclose(struct drm_device *dev, struct drm_file *file)
+{
+	struct vgem_file *vfile = file->driver_priv;
+
+	vgem_fence_close(vfile);
+	kfree(vfile);
+}
+
 /* ioctls */
 
 static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
@@ -134,57 +119,43 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 					      unsigned long size)
 {
 	struct drm_vgem_gem_object *obj;
-	struct drm_gem_object *gem_object;
-	int err;
-
-	size = roundup(size, PAGE_SIZE);
+	int ret;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
-	gem_object = &obj->base;
+	ret = drm_gem_object_init(dev, &obj->base, roundup(size, PAGE_SIZE));
+	if (ret)
+		goto err_free;
 
-	err = drm_gem_object_init(dev, gem_object, size);
-	if (err)
-		goto out;
+	ret = drm_gem_handle_create(file, &obj->base, handle);
+	drm_gem_object_unreference_unlocked(&obj->base);
+	if (ret)
+		goto err;
 
-	err = vgem_gem_get_pages(obj);
-	if (err)
-		goto out;
+	return &obj->base;
 
-	err = drm_gem_handle_create(file, gem_object, handle);
-	if (err)
-		goto handle_out;
-
-	drm_gem_object_unreference_unlocked(gem_object);
-
-	return gem_object;
-
-handle_out:
-	drm_gem_object_release(gem_object);
-out:
+err_free:
 	kfree(obj);
-	return ERR_PTR(err);
+err:
+	return ERR_PTR(ret);
 }
 
 static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 				struct drm_mode_create_dumb *args)
 {
 	struct drm_gem_object *gem_object;
-	uint64_t size;
-	uint64_t pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
+	u64 pitch, size;
 
+	pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
 	size = args->height * pitch;
 	if (size == 0)
 		return -EINVAL;
 
 	gem_object = vgem_gem_create(dev, file, &args->handle, size);
-
-	if (IS_ERR(gem_object)) {
-		DRM_DEBUG_DRIVER("object creation failed\n");
+	if (IS_ERR(gem_object))
 		return PTR_ERR(gem_object);
-	}
 
 	args->size = gem_object->size;
 	args->pitch = pitch;
@@ -194,26 +165,26 @@ static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	return 0;
 }
 
-int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
-		      uint32_t handle, uint64_t *offset)
+static int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
+			     uint32_t handle, uint64_t *offset)
 {
-	int ret = 0;
 	struct drm_gem_object *obj;
+	int ret;
 
 	obj = drm_gem_object_lookup(file, handle);
 	if (!obj)
 		return -ENOENT;
 
+	if (!obj->filp) {
+		ret = -EINVAL;
+		goto unref;
+	}
+
 	ret = drm_gem_create_mmap_offset(obj);
 	if (ret)
 		goto unref;
 
-	BUG_ON(!obj->filp);
-
-	obj->filp->private_data = obj;
-
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-
 unref:
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -221,26 +192,134 @@ unref:
 }
 
 static struct drm_ioctl_desc vgem_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(VGEM_FENCE_ATTACH, vgem_fence_attach_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VGEM_FENCE_SIGNAL, vgem_fence_signal_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
+
+static int vgem_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	unsigned long flags = vma->vm_flags;
+	int ret;
+
+	ret = drm_gem_mmap(filp, vma);
+	if (ret)
+		return ret;
+
+	/* Keep the WC mmaping set by drm_gem_mmap() but our pages
+	 * are ordinary and not special.
+	 */
+	vma->vm_flags = flags | VM_DONTEXPAND | VM_DONTDUMP;
+	return 0;
+}
 
 static const struct file_operations vgem_driver_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
-	.mmap		= drm_gem_mmap,
+	.mmap		= vgem_mmap,
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl = drm_ioctl,
 	.release	= drm_release,
 };
 
+static int vgem_prime_pin(struct drm_gem_object *obj)
+{
+	long n_pages = obj->size >> PAGE_SHIFT;
+	struct page **pages;
+
+	/* Flush the object from the CPU cache so that importers can rely
+	 * on coherent indirect access via the exported dma-address.
+	 */
+	pages = drm_gem_get_pages(obj);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	drm_clflush_pages(pages, n_pages);
+	drm_gem_put_pages(obj, pages, true, false);
+
+	return 0;
+}
+
+static struct sg_table *vgem_prime_get_sg_table(struct drm_gem_object *obj)
+{
+	struct sg_table *st;
+	struct page **pages;
+
+	pages = drm_gem_get_pages(obj);
+	if (IS_ERR(pages))
+		return ERR_CAST(pages);
+
+	st = drm_prime_pages_to_sg(pages, obj->size >> PAGE_SHIFT);
+	drm_gem_put_pages(obj, pages, false, false);
+
+	return st;
+}
+
+static void *vgem_prime_vmap(struct drm_gem_object *obj)
+{
+	long n_pages = obj->size >> PAGE_SHIFT;
+	struct page **pages;
+	void *addr;
+
+	pages = drm_gem_get_pages(obj);
+	if (IS_ERR(pages))
+		return NULL;
+
+	addr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	drm_gem_put_pages(obj, pages, false, false);
+
+	return addr;
+}
+
+static void vgem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+{
+	vunmap(vaddr);
+}
+
+static int vgem_prime_mmap(struct drm_gem_object *obj,
+			   struct vm_area_struct *vma)
+{
+	int ret;
+
+	if (obj->size < vma->vm_end - vma->vm_start)
+		return -EINVAL;
+
+	if (!obj->filp)
+		return -ENODEV;
+
+	ret = obj->filp->f_op->mmap(obj->filp, vma);
+	if (ret)
+		return ret;
+
+	fput(vma->vm_file);
+	vma->vm_file = get_file(obj->filp);
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+
+	return 0;
+}
+
 static struct drm_driver vgem_driver = {
-	.driver_features		= DRIVER_GEM,
-	.gem_free_object		= vgem_gem_free_object,
+	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
+	.open				= vgem_open,
+	.preclose			= vgem_preclose,
+	.gem_free_object_unlocked	= vgem_gem_free_object,
 	.gem_vm_ops			= &vgem_gem_vm_ops,
 	.ioctls				= vgem_ioctls,
+	.num_ioctls 			= ARRAY_SIZE(vgem_ioctls),
 	.fops				= &vgem_driver_fops,
+
 	.dumb_create			= vgem_gem_dumb_create,
 	.dumb_map_offset		= vgem_gem_dumb_map,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.gem_prime_pin = vgem_prime_pin,
+	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_get_sg_table = vgem_prime_get_sg_table,
+	.gem_prime_vmap = vgem_prime_vmap,
+	.gem_prime_vunmap = vgem_prime_vunmap,
+	.gem_prime_mmap = vgem_prime_mmap,
+
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,
@@ -248,22 +327,19 @@ static struct drm_driver vgem_driver = {
 	.minor	= DRIVER_MINOR,
 };
 
-struct drm_device *vgem_device;
+static struct drm_device *vgem_device;
 
 static int __init vgem_init(void)
 {
 	int ret;
 
 	vgem_device = drm_dev_alloc(&vgem_driver, NULL);
-	if (!vgem_device) {
-		ret = -ENOMEM;
+	if (IS_ERR(vgem_device)) {
+		ret = PTR_ERR(vgem_device);
 		goto out;
 	}
 
-	drm_dev_set_unique(vgem_device, "vgem");
-
 	ret  = drm_dev_register(vgem_device, 0);
-
 	if (ret)
 		goto out_unref;
 
@@ -285,5 +361,6 @@ module_init(vgem_init);
 module_exit(vgem_exit);
 
 MODULE_AUTHOR("Red Hat, Inc.");
+MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");

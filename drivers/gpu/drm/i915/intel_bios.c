@@ -139,6 +139,11 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	else
 		panel_fixed_mode->flags |= DRM_MODE_FLAG_NVSYNC;
 
+	panel_fixed_mode->width_mm = (dvo_timing->himage_hi << 8) |
+		dvo_timing->himage_lo;
+	panel_fixed_mode->height_mm = (dvo_timing->vimage_hi << 8) |
+		dvo_timing->vimage_lo;
+
 	/* Some VBTs have bogus h/vtotal values */
 	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
 		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
@@ -213,7 +218,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
 
-	ret = intel_opregion_get_panel_type(dev_priv->dev);
+	ret = intel_opregion_get_panel_type(dev_priv);
 	if (ret >= 0) {
 		WARN_ON(ret > 0xf);
 		panel_type = ret;
@@ -316,6 +321,15 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("PWM backlight not present in VBT (type %u)\n",
 			      entry->type);
 		return;
+	}
+
+	dev_priv->vbt.backlight.type = INTEL_BACKLIGHT_DISPLAY_DDI;
+	if (bdb->version >= 191 &&
+	    get_blocksize(backlight_data) >= sizeof(*backlight_data)) {
+		const struct bdb_lfp_backlight_control_method *method;
+
+		method = &backlight_data->backlight_control[panel_type];
+		dev_priv->vbt.backlight.type = method->type;
 	}
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
@@ -763,6 +777,16 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 		return;
 	}
 
+	/*
+	 * These fields are introduced from the VBT version 197 onwards,
+	 * so making sure that these bits are set zero in the previous
+	 * versions.
+	 */
+	if (dev_priv->vbt.dsi.config->dual_link && bdb->version < 197) {
+		dev_priv->vbt.dsi.config->dl_dcs_cabc_ports = 0;
+		dev_priv->vbt.dsi.config->dl_dcs_backlight_ports = 0;
+	}
+
 	/* We have mandatory mipi config blocks. Initialize as generic panel */
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;
 }
@@ -1187,7 +1211,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	}
 	if (bdb->version < 106) {
 		expected_size = 22;
-	} else if (bdb->version < 109) {
+	} else if (bdb->version < 111) {
 		expected_size = 27;
 	} else if (bdb->version < 195) {
 		BUILD_BUG_ON(sizeof(struct old_child_dev_config) != 33);
@@ -1402,7 +1426,7 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 int
 intel_bios_init(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev_priv->dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	const struct vbt_header *vbt = dev_priv->opregion.vbt;
 	const struct bdb_header *bdb;
 	u8 __iomem *bios = NULL;
@@ -1539,6 +1563,45 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin)
 		 * the OpRegion then they have validated the LVDS's existence.
 		 */
 		if (dev_priv->opregion.vbt)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * intel_bios_is_port_present - is the specified digital port present
+ * @dev_priv:	i915 device instance
+ * @port:	port to check
+ *
+ * Return true if the device in %port is present.
+ */
+bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port port)
+{
+	static const struct {
+		u16 dp, hdmi;
+	} port_mapping[] = {
+		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
+		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
+		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
+		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
+	};
+	int i;
+
+	/* FIXME maybe deal with port A as well? */
+	if (WARN_ON(port == PORT_A) || port >= ARRAY_SIZE(port_mapping))
+		return false;
+
+	if (!dev_priv->vbt.child_dev_num)
+		return false;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		const union child_device_config *p_child =
+			&dev_priv->vbt.child_dev[i];
+		if ((p_child->common.dvo_port == port_mapping[port].dp ||
+		     p_child->common.dvo_port == port_mapping[port].hdmi) &&
+		    (p_child->common.device_type & (DEVICE_TYPE_TMDS_DVI_SIGNALING |
+						    DEVICE_TYPE_DISPLAYPORT_OUTPUT)))
 			return true;
 	}
 

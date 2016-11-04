@@ -1143,7 +1143,8 @@ static int miphy28lp_probe_resets(struct device_node *node,
 	struct miphy28lp_dev *miphy_dev = miphy_phy->phydev;
 	int err;
 
-	miphy_phy->miphy_rst = of_reset_control_get(node, "miphy-sw-rst");
+	miphy_phy->miphy_rst =
+		of_reset_control_get_shared(node, "miphy-sw-rst");
 
 	if (IS_ERR(miphy_phy->miphy_rst)) {
 		dev_err(miphy_dev->dev,

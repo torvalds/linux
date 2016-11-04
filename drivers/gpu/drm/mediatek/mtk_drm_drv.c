@@ -61,10 +61,27 @@ static void mtk_atomic_complete(struct mtk_drm_private *private,
 
 	mtk_atomic_wait_for_fences(state);
 
+	/*
+	 * Mediatek drm supports runtime PM, so plane registers cannot be
+	 * written when their crtc is disabled.
+	 *
+	 * The comment for drm_atomic_helper_commit states:
+	 *     For drivers supporting runtime PM the recommended sequence is
+	 *
+	 *     drm_atomic_helper_commit_modeset_disables(dev, state);
+	 *     drm_atomic_helper_commit_modeset_enables(dev, state);
+	 *     drm_atomic_helper_commit_planes(dev, state,
+	 *                                     DRM_PLANE_COMMIT_ACTIVE_ONLY);
+	 *
+	 * See the kerneldoc entries for these three functions for more details.
+	 */
 	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, false);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
+	drm_atomic_helper_commit_planes(drm, state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+
 	drm_atomic_helper_wait_for_vblanks(drm, state);
+
 	drm_atomic_helper_cleanup_planes(drm, state);
 	drm_atomic_state_free(state);
 }
@@ -91,7 +108,7 @@ static int mtk_atomic_commit(struct drm_device *drm,
 	mutex_lock(&private->commit.lock);
 	flush_work(&private->commit.work);
 
-	drm_atomic_helper_swap_state(drm, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (async)
 		mtk_atomic_schedule(private, state);
@@ -243,7 +260,7 @@ static struct drm_driver mtk_drm_driver = {
 	.enable_vblank = mtk_drm_crtc_enable_vblank,
 	.disable_vblank = mtk_drm_crtc_disable_vblank,
 
-	.gem_free_object = mtk_drm_gem_free_object,
+	.gem_free_object_unlocked = mtk_drm_gem_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = mtk_drm_gem_dumb_create,
 	.dumb_map_offset = mtk_drm_gem_dumb_map_offset,
@@ -277,10 +294,8 @@ static int mtk_drm_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&mtk_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
-
-	drm_dev_set_unique(drm, dev_name(dev));
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drm->dev_private = private;
 	private->drm = drm;
@@ -293,14 +308,8 @@ static int mtk_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto err_deinit;
 
-	ret = drm_connector_register_all(drm);
-	if (ret < 0)
-		goto err_unregister;
-
 	return 0;
 
-err_unregister:
-	drm_dev_unregister(drm);
 err_deinit:
 	mtk_drm_kms_deinit(drm);
 err_free:
@@ -455,7 +464,6 @@ static int mtk_drm_remove(struct platform_device *pdev)
 	struct drm_device *drm = private->drm;
 	int i;
 
-	drm_connector_unregister_all(drm);
 	drm_dev_unregister(drm);
 	mtk_drm_kms_deinit(drm);
 	drm_dev_unref(drm);

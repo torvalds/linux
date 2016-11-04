@@ -390,11 +390,11 @@ struct phy_status_rpt {
 	u8 cfosho[4];	/* DW 1 byte 1 DW 2 byte 0 */
 
 	/* DWORD 2 */
-	char cfotail[4];	/* DW 2 byte 1 DW 3 byte 0 */
+	s8 cfotail[4];	/* DW 2 byte 1 DW 3 byte 0 */
 
 	/* DWORD 3 */
-	char rxevm[2];	/* DW 3 byte 1 DW 3 byte 2 */
-	char rxsnr[2];	/* DW 3 byte 3 DW 4 byte 0 */
+	s8 rxevm[2];	/* DW 3 byte 1 DW 3 byte 2 */
+	s8 rxsnr[2];	/* DW 3 byte 3 DW 4 byte 0 */
 
 	/* DWORD 4 */
 	u8 pcts_msk_rpt[2];
@@ -418,8 +418,8 @@ struct rx_fwinfo_8821ae {
 	u8 pwdb_all;
 	u8 cfosho[4];
 	u8 cfotail[4];
-	char rxevm[2];
-	char rxsnr[4];
+	s8 rxevm[2];
+	s8 rxsnr[4];
 	u8 pdsnr[2];
 	u8 csi_current[2];
 	u8 csi_target[2];

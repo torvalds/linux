@@ -295,7 +295,7 @@ int nfs_readpage(struct file *file, struct page *page)
 	int		error;
 
 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
-		page, PAGE_SIZE, page_file_index(page));
+		page, PAGE_SIZE, page_index(page));
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
 
@@ -367,13 +367,13 @@ readpage_async_filler(void *data, struct page *page)
 		nfs_list_remove_request(new);
 		nfs_readpage_release(new);
 		error = desc->pgio->pg_error;
-		goto out_unlock;
+		goto out;
 	}
 	return 0;
 out_error:
 	error = PTR_ERR(new);
-out_unlock:
 	unlock_page(page);
+out:
 	return error;
 }
 

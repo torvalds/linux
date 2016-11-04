@@ -50,7 +50,7 @@
 #include <linux/if_bridge.h>
 #include <linux/prefetch.h>
 #include <scsi/fc/fc_fcoe.h>
-#include <net/vxlan.h>
+#include <net/udp_tunnel.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
@@ -137,6 +137,7 @@ static const struct pci_device_id ixgbe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP_N), board_x550em_a },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII), board_x550em_a },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII_L), board_x550em_a },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_10G_T), board_x550em_a},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP), board_x550em_a },
 	/* required last entry */
 	{0, }
@@ -1103,7 +1104,7 @@ static void ixgbe_tx_timeout_reset(struct ixgbe_adapter *adapter)
 
 	/* Do the reset outside of interrupt context */
 	if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-		adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
+		set_bit(__IXGBE_RESET_REQUESTED, &adapter->state);
 		e_warn(drv, "initiating reset due to tx timeout\n");
 		ixgbe_service_event_schedule(adapter);
 	}
@@ -1495,7 +1496,6 @@ static inline void ixgbe_rx_checksum(struct ixgbe_ring *ring,
 				     struct sk_buff *skb)
 {
 	__le16 pkt_info = rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
-	__le16 hdr_info = rx_desc->wb.lower.lo_dword.hs_rss.hdr_info;
 	bool encap_pkt = false;
 
 	skb_checksum_none_assert(skb);
@@ -1504,8 +1504,8 @@ static inline void ixgbe_rx_checksum(struct ixgbe_ring *ring,
 	if (!(ring->netdev->features & NETIF_F_RXCSUM))
 		return;
 
-	if ((pkt_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_VXLAN)) &&
-	    (hdr_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_TUNNEL >> 16))) {
+	/* check for VXLAN and Geneve packets */
+	if (pkt_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_VXLAN)) {
 		encap_pkt = true;
 		skb->encapsulation = 1;
 	}
@@ -2777,7 +2777,7 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 		}
 		if (eicr & IXGBE_EICR_ECC) {
 			e_info(link, "Received ECC Err, initiating reset\n");
-			adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
+			set_bit(__IXGBE_RESET_REQUESTED, &adapter->state);
 			ixgbe_service_event_schedule(adapter);
 			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_ECC);
 		}
@@ -2887,7 +2887,7 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
 		ixgbe_irq_enable_queues(adapter, BIT_ULL(q_vector->v_idx));
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**
@@ -3007,7 +3007,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	case ixgbe_mac_x550em_a:
 		if (eicr & IXGBE_EICR_ECC) {
 			e_info(link, "Received ECC Err, initiating reset\n");
-			adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
+			set_bit(__IXGBE_RESET_REQUESTED, &adapter->state);
 			ixgbe_service_event_schedule(adapter);
 			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_ECC);
 		}
@@ -3084,7 +3084,7 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 		free_irq(entry->vector, q_vector);
 	}
 
-	free_irq(adapter->msix_entries[vector++].vector, adapter);
+	free_irq(adapter->msix_entries[vector].vector, adapter);
 }
 
 /**
@@ -3224,7 +3224,7 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(reg_idx));
 	} while (--wait_loop && !(txdctl & IXGBE_TXDCTL_ENABLE));
 	if (!wait_loop)
-		e_err(drv, "Could not enable Tx Queue %d\n", reg_idx);
+		hw_dbg(hw, "Could not enable Tx Queue %d\n", reg_idx);
 }
 
 static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
@@ -3248,7 +3248,8 @@ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
 			mtqc |= IXGBE_MTQC_RT_ENA | IXGBE_MTQC_8TC_8TQ;
 		else if (tcs > 1)
 			mtqc |= IXGBE_MTQC_RT_ENA | IXGBE_MTQC_4TC_4TQ;
-		else if (adapter->ring_feature[RING_F_RSS].indices == 4)
+		else if (adapter->ring_feature[RING_F_VMDQ].mask ==
+			 IXGBE_82599_VMDQ_4Q_MASK)
 			mtqc |= IXGBE_MTQC_32VF;
 		else
 			mtqc |= IXGBE_MTQC_64VF;
@@ -3475,12 +3476,12 @@ static void ixgbe_setup_reta(struct ixgbe_adapter *adapter)
 	u32 reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
 	u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
 
-	/* Program table for at least 2 queues w/ SR-IOV so that VFs can
+	/* Program table for at least 4 queues w/ SR-IOV so that VFs can
 	 * make full use of any rings they may have.  We will use the
 	 * PSRTYPE register to control how many rings we use within the PF.
 	 */
-	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) && (rss_i < 2))
-		rss_i = 2;
+	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) && (rss_i < 4))
+		rss_i = 4;
 
 	/* Fill out hash function seeds */
 	for (i = 0; i < 10; i++)
@@ -3544,7 +3545,8 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 				mrqc = IXGBE_MRQC_VMDQRT8TCEN;	/* 8 TCs */
 			else if (tcs > 1)
 				mrqc = IXGBE_MRQC_VMDQRT4TCEN;	/* 4 TCs */
-			else if (adapter->ring_feature[RING_F_RSS].indices == 4)
+			else if (adapter->ring_feature[RING_F_VMDQ].mask ==
+				 IXGBE_82599_VMDQ_4Q_MASK)
 				mrqc = IXGBE_MRQC_VMDQRSS32EN;
 			else
 				mrqc = IXGBE_MRQC_VMDQRSS64EN;
@@ -3922,6 +3924,9 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	rfctl &= ~IXGBE_RFCTL_RSC_DIS;
 	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))
 		rfctl |= IXGBE_RFCTL_RSC_DIS;
+
+	/* disable NFS filtering */
+	rfctl |= (IXGBE_RFCTL_NFSW_DIS | IXGBE_RFCTL_NFSR_DIS);
 	IXGBE_WRITE_REG(hw, IXGBE_RFCTL, rfctl);
 
 	/* Program registers for the distribution of queues */
@@ -4100,23 +4105,21 @@ static void ixgbe_vlan_promisc_enable(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 vlnctrl, i;
 
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-	default:
-		if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED)
-			break;
-		/* fall through */
-	case ixgbe_mac_82598EB:
-		/* legacy case, we can just disable VLAN filtering */
-		vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
-		vlnctrl &= ~(IXGBE_VLNCTRL_VFE | IXGBE_VLNCTRL_CFIEN);
+	vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
+
+	if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED) {
+	/* For VMDq and SR-IOV we must leave VLAN filtering enabled */
+		vlnctrl |= IXGBE_VLNCTRL_VFE;
+		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+	} else {
+		vlnctrl &= ~IXGBE_VLNCTRL_VFE;
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 		return;
 	}
+
+	/* Nothing to do for 82598 */
+	if (hw->mac.type == ixgbe_mac_82598EB)
+		return;
 
 	/* We are already in VLAN promisc, nothing to do */
 	if (adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC)
@@ -4191,23 +4194,14 @@ static void ixgbe_vlan_promisc_disable(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 vlnctrl, i;
 
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-	default:
-		if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED)
-			break;
-		/* fall through */
-	case ixgbe_mac_82598EB:
-		vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
-		vlnctrl &= ~IXGBE_VLNCTRL_CFIEN;
-		vlnctrl |= IXGBE_VLNCTRL_VFE;
-		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+	/* Set VLAN filtering to enabled */
+	vlnctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
+	vlnctrl |= IXGBE_VLNCTRL_VFE;
+	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+
+	if (!(adapter->flags & IXGBE_FLAG_VMDQ_ENABLED) ||
+	    hw->mac.type == ixgbe_mac_82598EB)
 		return;
-	}
 
 	/* We are not in VLAN promisc, nothing to do */
 	if (!(adapter->flags2 & IXGBE_FLAG2_VLAN_PROMISC))
@@ -4580,18 +4574,23 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 	}
 }
 
-static void ixgbe_clear_vxlan_port(struct ixgbe_adapter *adapter)
+static void ixgbe_clear_udp_tunnel_port(struct ixgbe_adapter *adapter, u32 mask)
 {
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_X550:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VXLANCTRL, 0);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vxlanctrl;
+
+	if (!(adapter->flags & (IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE |
+				IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE)))
+		return;
+
+	vxlanctrl = IXGBE_READ_REG(hw, IXGBE_VXLANCTRL) && ~mask;
+	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, vxlanctrl);
+
+	if (mask & IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK)
 		adapter->vxlan_port = 0;
-		break;
-	default:
-		break;
-	}
+
+	if (mask & IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK)
+		adapter->geneve_port = 0;
 }
 
 #ifdef CONFIG_IXGBE_DCB
@@ -5494,8 +5493,8 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	ixgbe_napi_disable_all(adapter);
 
-	adapter->flags2 &= ~(IXGBE_FLAG2_FDIR_REQUIRES_REINIT |
-			     IXGBE_FLAG2_RESET_REQUESTED);
+	clear_bit(__IXGBE_RESET_REQUESTED, &adapter->state);
+	adapter->flags2 &= ~IXGBE_FLAG2_FDIR_REQUIRES_REINIT;
 	adapter->flags &= ~IXGBE_FLAG_NEED_LINK_UPDATE;
 
 	del_timer_sync(&adapter->service_timer);
@@ -5625,7 +5624,6 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned int rss, fdir;
 	u32 fwsm;
-	u16 device_caps;
 	int i;
 
 	/* PCI config space info */
@@ -5706,8 +5704,10 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		if (fwsm & IXGBE_FWSM_TS_ENABLED)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 		break;
-	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_x550em_a:
+		adapter->flags |= IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE;
+	/* fall through */
+	case ixgbe_mac_X550EM_x:
 #ifdef CONFIG_IXGBE_DCB
 		adapter->flags &= ~IXGBE_FLAG_DCB_CAPABLE;
 #endif
@@ -5722,9 +5722,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_IXGBE_DCA
 		adapter->flags &= ~IXGBE_FLAG_DCA_CAPABLE;
 #endif
-#ifdef CONFIG_IXGBE_VXLAN
 		adapter->flags |= IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE;
-#endif
 		break;
 	default:
 		break;
@@ -5772,22 +5770,6 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* set default ring sizes */
 	adapter->tx_ring_count = IXGBE_DEFAULT_TXD;
 	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
-
-	/* Cache bit indicating need for crosstalk fix */
-	switch (hw->mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_x550em_a:
-		hw->mac.ops.get_device_caps(hw, &device_caps);
-		if (device_caps & IXGBE_DEVICE_CAPS_NO_CROSSTALK_WR)
-			adapter->need_crosstalk_fix = false;
-		else
-			adapter->need_crosstalk_fix = true;
-		break;
-	default:
-		adapter->need_crosstalk_fix = false;
-		break;
-	}
 
 	/* set default work limits */
 	adapter->tx_work_limit = IXGBE_DEFAULT_TX_WORK;
@@ -6157,10 +6139,8 @@ int ixgbe_open(struct net_device *netdev)
 
 	ixgbe_up_complete(adapter);
 
-	ixgbe_clear_vxlan_port(adapter);
-#ifdef CONFIG_IXGBE_VXLAN
-	vxlan_get_rx_port(netdev);
-#endif
+	ixgbe_clear_udp_tunnel_port(adapter, IXGBE_VXLANCTRL_ALL_UDPPORT_MASK);
+	udp_tunnel_get_rx_info(netdev);
 
 	return 0;
 
@@ -6711,18 +6691,6 @@ static void ixgbe_watchdog_update_link(struct ixgbe_adapter *adapter)
 		link_up = true;
 	}
 
-	/* If Crosstalk fix enabled do the sanity check of making sure
-	 * the SFP+ cage is empty.
-	 */
-	if (adapter->need_crosstalk_fix) {
-		u32 sfp_cage_full;
-
-		sfp_cage_full = IXGBE_READ_REG(hw, IXGBE_ESDP) &
-				IXGBE_ESDP_SDP2;
-		if (ixgbe_is_sfp(hw) && link_up && !sfp_cage_full)
-			link_up = false;
-	}
-
 	if (adapter->ixgbe_ieee_pfc)
 		pfc_en |= !!(adapter->ixgbe_ieee_pfc->pfc_en);
 
@@ -6948,7 +6916,7 @@ static void ixgbe_watchdog_flush_tx(struct ixgbe_adapter *adapter)
 			 * (Do the reset outside of interrupt context).
 			 */
 			e_warn(drv, "initiating reset to clear Tx work after link loss\n");
-			adapter->flags2 |= IXGBE_FLAG2_RESET_REQUESTED;
+			set_bit(__IXGBE_RESET_REQUESTED, &adapter->state);
 		}
 	}
 }
@@ -7068,16 +7036,6 @@ static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	s32 err;
-
-	/* If crosstalk fix enabled verify the SFP+ cage is full */
-	if (adapter->need_crosstalk_fix) {
-		u32 sfp_cage_full;
-
-		sfp_cage_full = IXGBE_READ_REG(hw, IXGBE_ESDP) &
-				IXGBE_ESDP_SDP2;
-		if (!sfp_cage_full)
-			return;
-	}
 
 	/* not searching for SFP so there is nothing to do here */
 	if (!(adapter->flags2 & IXGBE_FLAG2_SEARCH_FOR_SFP) &&
@@ -7224,10 +7182,8 @@ static void ixgbe_phy_interrupt_subtask(struct ixgbe_adapter *adapter)
 
 static void ixgbe_reset_subtask(struct ixgbe_adapter *adapter)
 {
-	if (!(adapter->flags2 & IXGBE_FLAG2_RESET_REQUESTED))
+	if (!test_and_clear_bit(__IXGBE_RESET_REQUESTED, &adapter->state))
 		return;
-
-	adapter->flags2 &= ~IXGBE_FLAG2_RESET_REQUESTED;
 
 	/* If we're already down, removing or resetting, just bail */
 	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
@@ -7262,14 +7218,12 @@ static void ixgbe_service_task(struct work_struct *work)
 		ixgbe_service_event_complete(adapter);
 		return;
 	}
-#ifdef CONFIG_IXGBE_VXLAN
-	rtnl_lock();
-	if (adapter->flags2 & IXGBE_FLAG2_VXLAN_REREG_NEEDED) {
-		adapter->flags2 &= ~IXGBE_FLAG2_VXLAN_REREG_NEEDED;
-		vxlan_get_rx_port(adapter->netdev);
+	if (adapter->flags2 & IXGBE_FLAG2_UDP_TUN_REREG_NEEDED) {
+		rtnl_lock();
+		adapter->flags2 &= ~IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
+		udp_tunnel_get_rx_info(adapter->netdev);
+		rtnl_unlock();
 	}
-	rtnl_unlock();
-#endif /* CONFIG_IXGBE_VXLAN */
 	ixgbe_reset_subtask(adapter);
 	ixgbe_phy_interrupt_subtask(adapter);
 	ixgbe_sfp_detection_subtask(adapter);
@@ -7697,7 +7651,6 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	/* snag network header to get L4 type and address */
 	skb = first->skb;
 	hdr.network = skb_network_header(skb);
-#ifdef CONFIG_IXGBE_VXLAN
 	if (skb->encapsulation &&
 	    first->protocol == htons(ETH_P_IP) &&
 	    hdr.ipv4->protocol != IPPROTO_UDP) {
@@ -7707,8 +7660,11 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 		if (adapter->vxlan_port &&
 		    udp_hdr(skb)->dest == adapter->vxlan_port)
 			hdr.network = skb_inner_network_header(skb);
+
+		if (adapter->geneve_port &&
+		    udp_hdr(skb)->dest == adapter->geneve_port)
+			hdr.network = skb_inner_network_header(skb);
 	}
-#endif /* CONFIG_IXGBE_VXLAN */
 
 	/* Currently only IPv4/IPv6 with TCP is supported */
 	switch (hdr.ipv4->version) {
@@ -8308,14 +8264,53 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 static int ixgbe_delete_clsu32(struct ixgbe_adapter *adapter,
 			       struct tc_cls_u32_offload *cls)
 {
+	u32 hdl = cls->knode.handle;
 	u32 uhtid = TC_U32_USERHTID(cls->knode.handle);
-	u32 loc;
-	int err;
+	u32 loc = cls->knode.handle & 0xfffff;
+	int err = 0, i, j;
+	struct ixgbe_jump_table *jump = NULL;
+
+	if (loc > IXGBE_MAX_HW_ENTRIES)
+		return -EINVAL;
 
 	if ((uhtid != 0x800) && (uhtid >= IXGBE_MAX_LINK_HANDLE))
 		return -EINVAL;
 
-	loc = cls->knode.handle & 0xfffff;
+	/* Clear this filter in the link data it is associated with */
+	if (uhtid != 0x800) {
+		jump = adapter->jump_tables[uhtid];
+		if (!jump)
+			return -EINVAL;
+		if (!test_bit(loc - 1, jump->child_loc_map))
+			return -EINVAL;
+		clear_bit(loc - 1, jump->child_loc_map);
+	}
+
+	/* Check if the filter being deleted is a link */
+	for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++) {
+		jump = adapter->jump_tables[i];
+		if (jump && jump->link_hdl == hdl) {
+			/* Delete filters in the hardware in the child hash
+			 * table associated with this link
+			 */
+			for (j = 0; j < IXGBE_MAX_HW_ENTRIES; j++) {
+				if (!test_bit(j, jump->child_loc_map))
+					continue;
+				spin_lock(&adapter->fdir_perfect_lock);
+				err = ixgbe_update_ethtool_fdir_entry(adapter,
+								      NULL,
+								      j + 1);
+				spin_unlock(&adapter->fdir_perfect_lock);
+				clear_bit(j, jump->child_loc_map);
+			}
+			/* Remove resources for this link */
+			kfree(jump->input);
+			kfree(jump->mask);
+			kfree(jump);
+			adapter->jump_tables[i] = NULL;
+			return err;
+		}
+	}
 
 	spin_lock(&adapter->fdir_perfect_lock);
 	err = ixgbe_update_ethtool_fdir_entry(adapter, NULL, loc);
@@ -8398,12 +8393,14 @@ static int parse_tc_actions(struct ixgbe_adapter *adapter,
 			    struct tcf_exts *exts, u64 *action, u8 *queue)
 {
 	const struct tc_action *a;
+	LIST_HEAD(actions);
 	int err;
 
 	if (tc_no_actions(exts))
 		return -EINVAL;
 
-	tc_for_each_action(a, exts) {
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
 
 		/* Drop action */
 		if (is_tcf_gact_shot(a)) {
@@ -8549,6 +8546,18 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		if (!test_bit(link_uhtid - 1, &adapter->tables))
 			return err;
 
+		/* Multiple filters as links to the same hash table are not
+		 * supported. To add a new filter with the same next header
+		 * but different match/jump conditions, create a new hash table
+		 * and link to it.
+		 */
+		if (adapter->jump_tables[link_uhtid] &&
+		    (adapter->jump_tables[link_uhtid])->link_hdl) {
+			e_err(drv, "Link filter exists for link: %x\n",
+			      link_uhtid);
+			return err;
+		}
+
 		for (i = 0; nexthdr[i].jump; i++) {
 			if (nexthdr[i].o != cls->knode.sel->offoff ||
 			    nexthdr[i].s != cls->knode.sel->offshift ||
@@ -8570,6 +8579,8 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 			}
 			jump->input = input;
 			jump->mask = mask;
+			jump->link_hdl = cls->knode.handle;
+
 			err = ixgbe_clsu32_build_input(input, mask, cls,
 						       field_ptr, &nexthdr[i]);
 			if (!err) {
@@ -8597,6 +8608,20 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		if ((adapter->jump_tables[uhtid])->mask)
 			memcpy(mask, (adapter->jump_tables[uhtid])->mask,
 			       sizeof(*mask));
+
+		/* Lookup in all child hash tables if this location is already
+		 * filled with a filter
+		 */
+		for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++) {
+			struct ixgbe_jump_table *link = adapter->jump_tables[i];
+
+			if (link && (test_bit(loc - 1, link->child_loc_map))) {
+				e_err(drv, "Filter exists in location: %x\n",
+				      loc);
+				err = -EINVAL;
+				goto err_out;
+			}
+		}
 	}
 	err = ixgbe_clsu32_build_input(input, mask, cls, field_ptr, NULL);
 	if (err)
@@ -8627,6 +8652,9 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 	if (!err)
 		ixgbe_update_ethtool_fdir_entry(adapter, input, input->sw_idx);
 	spin_unlock(&adapter->fdir_perfect_lock);
+
+	if ((uhtid != 0x800) && (adapter->jump_tables[uhtid]))
+		set_bit(loc - 1, (adapter->jump_tables[uhtid])->child_loc_map);
 
 	kfree(mask);
 	return err;
@@ -8770,14 +8798,25 @@ static int ixgbe_set_features(struct net_device *netdev,
 
 	netdev->features = features;
 
-#ifdef CONFIG_IXGBE_VXLAN
 	if ((adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE)) {
-		if (features & NETIF_F_RXCSUM)
-			adapter->flags2 |= IXGBE_FLAG2_VXLAN_REREG_NEEDED;
-		else
-			ixgbe_clear_vxlan_port(adapter);
+		if (features & NETIF_F_RXCSUM) {
+			adapter->flags2 |= IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
+		} else {
+			u32 port_mask = IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK;
+
+			ixgbe_clear_udp_tunnel_port(adapter, port_mask);
+		}
 	}
-#endif /* CONFIG_IXGBE_VXLAN */
+
+	if ((adapter->flags & IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE)) {
+		if (features & NETIF_F_RXCSUM) {
+			adapter->flags2 |= IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
+		} else {
+			u32 port_mask = IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK;
+
+			ixgbe_clear_udp_tunnel_port(adapter, port_mask);
+		}
+	}
 
 	if (need_reset)
 		ixgbe_do_reset(netdev);
@@ -8788,66 +8827,117 @@ static int ixgbe_set_features(struct net_device *netdev,
 	return 0;
 }
 
-#ifdef CONFIG_IXGBE_VXLAN
 /**
- * ixgbe_add_vxlan_port - Get notifications about VXLAN ports that come up
+ * ixgbe_add_udp_tunnel_port - Get notifications about adding UDP tunnel ports
  * @dev: The port's netdev
- * @sa_family: Socket Family that VXLAN is notifiying us about
- * @port: New UDP port number that VXLAN started listening to
+ * @ti: Tunnel endpoint information
  **/
-static void ixgbe_add_vxlan_port(struct net_device *dev, sa_family_t sa_family,
-				 __be16 port)
+static void ixgbe_add_udp_tunnel_port(struct net_device *dev,
+				      struct udp_tunnel_info *ti)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	__be16 port = ti->port;
+	u32 port_shift = 0;
+	u32 reg;
 
-	if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
+	if (ti->sa_family != AF_INET)
 		return;
 
-	if (sa_family == AF_INET6)
-		return;
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
+			return;
 
-	if (adapter->vxlan_port == port)
-		return;
+		if (adapter->vxlan_port == port)
+			return;
 
-	if (adapter->vxlan_port) {
-		netdev_info(dev,
-			    "Hit Max num of VXLAN ports, not adding port %d\n",
-			    ntohs(port));
+		if (adapter->vxlan_port) {
+			netdev_info(dev,
+				    "VXLAN port %d set, not adding port %d\n",
+				    ntohs(adapter->vxlan_port),
+				    ntohs(port));
+			return;
+		}
+
+		adapter->vxlan_port = port;
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (!(adapter->flags & IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE))
+			return;
+
+		if (adapter->geneve_port == port)
+			return;
+
+		if (adapter->geneve_port) {
+			netdev_info(dev,
+				    "GENEVE port %d set, not adding port %d\n",
+				    ntohs(adapter->geneve_port),
+				    ntohs(port));
+			return;
+		}
+
+		port_shift = IXGBE_VXLANCTRL_GENEVE_UDPPORT_SHIFT;
+		adapter->geneve_port = port;
+		break;
+	default:
 		return;
 	}
 
-	adapter->vxlan_port = port;
-	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, ntohs(port));
+	reg = IXGBE_READ_REG(hw, IXGBE_VXLANCTRL) | ntohs(port) << port_shift;
+	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, reg);
 }
 
 /**
- * ixgbe_del_vxlan_port - Get notifications about VXLAN ports that go away
+ * ixgbe_del_udp_tunnel_port - Get notifications about removing UDP tunnel ports
  * @dev: The port's netdev
- * @sa_family: Socket Family that VXLAN is notifying us about
- * @port: UDP port number that VXLAN stopped listening to
+ * @ti: Tunnel endpoint information
  **/
-static void ixgbe_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
-				 __be16 port)
+static void ixgbe_del_udp_tunnel_port(struct net_device *dev,
+				      struct udp_tunnel_info *ti)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	u32 port_mask;
 
-	if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN &&
+	    ti->type != UDP_TUNNEL_TYPE_GENEVE)
 		return;
 
-	if (sa_family == AF_INET6)
+	if (ti->sa_family != AF_INET)
 		return;
 
-	if (adapter->vxlan_port != port) {
-		netdev_info(dev, "Port %d was not found, not deleting\n",
-			    ntohs(port));
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
+			return;
+
+		if (adapter->vxlan_port != ti->port) {
+			netdev_info(dev, "VXLAN port %d not found\n",
+				    ntohs(ti->port));
+			return;
+		}
+
+		port_mask = IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK;
+		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (!(adapter->flags & IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE))
+			return;
+
+		if (adapter->geneve_port != ti->port) {
+			netdev_info(dev, "GENEVE port %d not found\n",
+				    ntohs(ti->port));
+			return;
+		}
+
+		port_mask = IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK;
+		break;
+	default:
 		return;
 	}
 
-	ixgbe_clear_vxlan_port(adapter);
-	adapter->flags2 |= IXGBE_FLAG2_VXLAN_REREG_NEEDED;
+	ixgbe_clear_udp_tunnel_port(adapter, port_mask);
+	adapter->flags2 |= IXGBE_FLAG2_UDP_TUN_REREG_NEEDED;
 }
-#endif /* CONFIG_IXGBE_VXLAN */
 
 static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			     struct net_device *dev,
@@ -9160,10 +9250,8 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_bridge_getlink	= ixgbe_ndo_bridge_getlink,
 	.ndo_dfwd_add_station	= ixgbe_fwd_add,
 	.ndo_dfwd_del_station	= ixgbe_fwd_del,
-#ifdef CONFIG_IXGBE_VXLAN
-	.ndo_add_vxlan_port	= ixgbe_add_vxlan_port,
-	.ndo_del_vxlan_port	= ixgbe_del_vxlan_port,
-#endif /* CONFIG_IXGBE_VXLAN */
+	.ndo_udp_tunnel_add	= ixgbe_add_udp_tunnel_port,
+	.ndo_udp_tunnel_del	= ixgbe_del_udp_tunnel_port,
 	.ndo_features_check	= ixgbe_features_check,
 };
 
@@ -9331,8 +9419,7 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_using_dac = 0;
 	}
 
-	err = pci_request_selected_regions(pdev, pci_select_bars(pdev,
-					   IORESOURCE_MEM), ixgbe_driver_name);
+	err = pci_request_mem_regions(pdev, ixgbe_driver_name);
 	if (err) {
 		dev_err(&pdev->dev,
 			"pci_request_selected_regions failed 0x%x\n", err);
@@ -9496,6 +9583,7 @@ skip_sriov:
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features |
+			       NETIF_F_HW_VLAN_CTAG_FILTER |
 			       NETIF_F_HW_VLAN_CTAG_RX |
 			       NETIF_F_HW_VLAN_CTAG_TX |
 			       NETIF_F_RXALL |
@@ -9718,8 +9806,7 @@ err_ioremap:
 	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
 	if (!adapter || disable_dev)
@@ -9786,8 +9873,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 
 #endif
 	iounmap(adapter->io_addr);
-	pci_release_selected_regions(pdev, pci_select_bars(pdev,
-				     IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 
 	e_dev_info("complete\n");
 
@@ -10051,6 +10137,7 @@ static int __init ixgbe_init_module(void)
 
 	ret = pci_register_driver(&ixgbe_driver);
 	if (ret) {
+		destroy_workqueue(ixgbe_wq);
 		ixgbe_dbg_exit();
 		return ret;
 	}

@@ -69,8 +69,8 @@ static phys_addr_t qebase = -1;
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
-	int size;
-	const u32 *prop;
+	int ret;
+	struct resource res;
 
 	if (qebase != -1)
 		return qebase;
@@ -82,9 +82,9 @@ phys_addr_t get_qe_base(void)
 			return qebase;
 	}
 
-	prop = of_get_property(qe, "reg", &size);
-	if (prop && size >= sizeof(*prop))
-		qebase = of_translate_address(qe, prop);
+	ret = of_address_to_resource(qe, 0, &res);
+	if (!ret)
+		qebase = res.start;
 	of_node_put(qe);
 
 	return qebase;
@@ -238,6 +238,12 @@ enum qe_clock qe_clock_source(const char *source)
 
 	if (strcasecmp(source, "none") == 0)
 		return QE_CLK_NONE;
+
+	if (strcmp(source, "tsync_pin") == 0)
+		return QE_TSYNC_PIN;
+
+	if (strcmp(source, "rsync_pin") == 0)
+		return QE_RSYNC_PIN;
 
 	if (strncasecmp(source, "brg", 3) == 0) {
 		i = simple_strtoul(source + 3, NULL, 10);

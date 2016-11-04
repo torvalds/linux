@@ -551,11 +551,11 @@ static inline u32 group_size(u32 group)
 }
 
 /*
- * Obtain the credit return addresses, kernel virtual and physical, for the
+ * Obtain the credit return addresses, kernel virtual and bus, for the
  * given sc.
  *
  * To understand this routine:
- * o va and pa are arrays of struct credit_return.  One for each physical
+ * o va and dma are arrays of struct credit_return.  One for each physical
  *   send context, per NUMA.
  * o Each send context always looks in its relative location in a struct
  *   credit_return for its credit return.
@@ -563,14 +563,14 @@ static inline u32 group_size(u32 group)
  *   with the same value.  Use the address of the first send context in the
  *   group.
  */
-static void cr_group_addresses(struct send_context *sc, dma_addr_t *pa)
+static void cr_group_addresses(struct send_context *sc, dma_addr_t *dma)
 {
 	u32 gc = group_context(sc->hw_context, sc->group);
 	u32 index = sc->hw_context & 0x7;
 
 	sc->hw_free = &sc->dd->cr_base[sc->node].va[gc].cr[index];
-	*pa = (unsigned long)
-	       &((struct credit_return *)sc->dd->cr_base[sc->node].pa)[gc];
+	*dma = (unsigned long)
+	       &((struct credit_return *)sc->dd->cr_base[sc->node].dma)[gc];
 }
 
 /*
@@ -710,7 +710,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 {
 	struct send_context_info *sci;
 	struct send_context *sc = NULL;
-	dma_addr_t pa;
+	dma_addr_t dma;
 	unsigned long flags;
 	u64 reg;
 	u32 thresh;
@@ -763,7 +763,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 
 	sc->sw_index = sw_index;
 	sc->hw_context = hw_context;
-	cr_group_addresses(sc, &pa);
+	cr_group_addresses(sc, &dma);
 	sc->credits = sci->credits;
 
 /* PIO Send Memory Address details */
@@ -805,7 +805,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 			((u64)opval << SC(CHECK_OPCODE_VALUE_SHIFT)));
 
 	/* set up credit return */
-	reg = pa & SC(CREDIT_RETURN_ADDR_ADDRESS_SMASK);
+	reg = dma & SC(CREDIT_RETURN_ADDR_ADDRESS_SMASK);
 	write_kctxt_csr(dd, hw_context, SC(CREDIT_RETURN_ADDR), reg);
 
 	/*
@@ -995,7 +995,7 @@ static void sc_wait_for_packet_egress(struct send_context *sc, int pause)
 		/* counter is reset if occupancy count changes */
 		if (reg != reg_prev)
 			loop = 0;
-		if (loop > 500) {
+		if (loop > 50000) {
 			/* timed out - bounce the link */
 			dd_dev_err(dd,
 				   "%s: context %u(%u) timeout waiting for packets to egress, remaining count %u, bouncing link\n",
@@ -1798,6 +1798,21 @@ static void pio_map_rcu_callback(struct rcu_head *list)
 }
 
 /*
+ * Set credit return threshold for the kernel send context
+ */
+static void set_threshold(struct hfi1_devdata *dd, int scontext, int i)
+{
+	u32 thres;
+
+	thres = min(sc_percent_to_threshold(dd->kernel_send_context[scontext],
+					    50),
+		    sc_mtu_to_threshold(dd->kernel_send_context[scontext],
+					dd->vld[i].mtu,
+					dd->rcd[0]->rcvhdrqentsize));
+	sc_set_cr_threshold(dd->kernel_send_context[scontext], thres);
+}
+
+/*
  * pio_map_init - called when #vls change
  * @dd: hfi1_devdata
  * @port: port number
@@ -1872,11 +1887,16 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 			if (!newmap->map[i])
 				goto bail;
 			newmap->map[i]->mask = (1 << ilog2(sz)) - 1;
-			/* assign send contexts */
+			/*
+			 * assign send contexts and
+			 * adjust credit return threshold
+			 */
 			for (j = 0; j < sz; j++) {
-				if (dd->kernel_send_context[scontext])
+				if (dd->kernel_send_context[scontext]) {
 					newmap->map[i]->ksc[j] =
 					dd->kernel_send_context[scontext];
+					set_threshold(dd, scontext, i);
+				}
 				if (++scontext >= first_scontext +
 						  vl_scontexts[i])
 					/* wrap back to first send context */
@@ -1932,13 +1952,17 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	dd->vld[15].sc = sc_alloc(dd, SC_VL15,
 				  dd->rcd[0]->rcvhdrqentsize, dd->node);
 	if (!dd->vld[15].sc)
-		goto nomem;
+		return -ENOMEM;
+
 	hfi1_init_ctxt(dd->vld[15].sc);
 	dd->vld[15].mtu = enum_to_mtu(OPA_MTU_2048);
 
-	dd->kernel_send_context = kmalloc_node(dd->num_send_contexts *
+	dd->kernel_send_context = kzalloc_node(dd->num_send_contexts *
 					sizeof(struct send_context *),
 					GFP_KERNEL, dd->node);
+	if (!dd->kernel_send_context)
+		goto freesc15;
+
 	dd->kernel_send_context[0] = dd->vld[15].sc;
 
 	for (i = 0; i < num_vls; i++) {
@@ -1990,12 +2014,21 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	if (pio_map_init(dd, ppd->port - 1, num_vls, NULL))
 		goto nomem;
 	return 0;
+
 nomem:
-	sc_free(dd->vld[15].sc);
-	for (i = 0; i < num_vls; i++)
+	for (i = 0; i < num_vls; i++) {
 		sc_free(dd->vld[i].sc);
+		dd->vld[i].sc = NULL;
+	}
+
 	for (i = num_vls; i < INIT_SC_PER_VL * num_vls; i++)
 		sc_free(dd->kernel_send_context[i + 1]);
+
+	kfree(dd->kernel_send_context);
+	dd->kernel_send_context = NULL;
+
+freesc15:
+	sc_free(dd->vld[15].sc);
 	return -ENOMEM;
 }
 
@@ -2031,7 +2064,7 @@ int init_credit_return(struct hfi1_devdata *dd)
 		dd->cr_base[i].va = dma_zalloc_coherent(
 					&dd->pcidev->dev,
 					bytes,
-					&dd->cr_base[i].pa,
+					&dd->cr_base[i].dma,
 					GFP_KERNEL);
 		if (!dd->cr_base[i].va) {
 			set_dev_node(&dd->pcidev->dev, dd->node);
@@ -2064,7 +2097,7 @@ void free_credit_return(struct hfi1_devdata *dd)
 					  TXE_NUM_CONTEXTS *
 					  sizeof(struct credit_return),
 					  dd->cr_base[i].va,
-					  dd->cr_base[i].pa);
+					  dd->cr_base[i].dma);
 		}
 	}
 	kfree(dd->cr_base);

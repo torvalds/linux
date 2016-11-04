@@ -1089,7 +1089,7 @@ static struct inode *sel_make_inode(struct super_block *sb, int mode)
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
+		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
 	}
 	return ret;
 }
@@ -1347,7 +1347,7 @@ static ssize_t sel_write_avc_cache_threshold(struct file *file,
 {
 	char *page;
 	ssize_t ret;
-	int new_value;
+	unsigned int new_value;
 
 	ret = task_has_security(current, SECURITY__SETSECPARAM);
 	if (ret)

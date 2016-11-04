@@ -203,9 +203,9 @@ initiated or is being considered, otherwise it returns 0.
 Mountpoint expiry
 -----------------
 
-The VFS has a mechansim for automatically expiring unused mounts,
+The VFS has a mechanism for automatically expiring unused mounts,
 much as it can expire any unused dentry information from the dcache.
-This is guided by the MNT_SHRINKABLE flag.  This  only applies to
+This is guided by the MNT_SHRINKABLE flag.  This only applies to
 mounts that were created by `d_automount()` returning a filesystem to be
 mounted.  As autofs doesn't return such a filesystem but leaves the
 mounting to the automount daemon, it must involve the automount daemon
@@ -298,7 +298,7 @@ remove directories and symlinks using normal filesystem operations.
 autofs knows whether a process requesting some operation is the daemon
 or not based on its process-group id number (see getpgid(1)).
 
-When an autofs filesystem it mounted the pgid of the mounting
+When an autofs filesystem is mounted the pgid of the mounting
 processes is recorded unless the "pgrp=" option is given, in which
 case that number is recorded instead.  Any request arriving from a
 process in that process group is considered to come from the daemon.
@@ -450,7 +450,7 @@ Commands are:
     numbers for existing filesystems can be found in
     `/proc/self/mountinfo`.
 - **AUTOFS_DEV_IOCTL_CLOSEMOUNT_CMD**: same as `close(ioctlfd)`.
-- **AUTOFS_DEV_IOCTL_SETPIPEFD_CMD**: if the  filesystem is in
+- **AUTOFS_DEV_IOCTL_SETPIPEFD_CMD**: if the filesystem is in
     catatonic mode, this can provide the write end of a new pipe
     in `arg1` to re-establish communication with a daemon.  The
     process group of the calling process is used to identify the

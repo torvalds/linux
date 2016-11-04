@@ -7,6 +7,7 @@ rmi_core-$(CONFIG_RMI4_2D_SENSOR) += rmi_2d_sensor.o
 rmi_core-$(CONFIG_RMI4_F11) += rmi_f11.o
 rmi_core-$(CONFIG_RMI4_F12) += rmi_f12.o
 rmi_core-$(CONFIG_RMI4_F30) += rmi_f30.o
+rmi_core-$(CONFIG_RMI4_F54) += rmi_f54.o
 
 # Transports
 obj-$(CONFIG_RMI4_I2C) += rmi_i2c.o

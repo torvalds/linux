@@ -238,7 +238,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 
 		if (receive_mask & (1 << i)) {
 			msgr->irq = irq_of_parse_and_map(np, irq_index);
-			if (msgr->irq == NO_IRQ) {
+			if (!msgr->irq) {
 				dev_err(&dev->dev,
 						"Missing interrupt specifier");
 				kfree(msgr);
@@ -246,7 +246,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 			}
 			irq_index += 1;
 		} else {
-			msgr->irq = NO_IRQ;
+			msgr->irq = 0;
 		}
 
 		mpic_msgrs[reg_number] = msgr;

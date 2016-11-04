@@ -1,5 +1,6 @@
 #ifndef _LINUX_EXPORT_H
 #define _LINUX_EXPORT_H
+
 /*
  * Export symbols from the kernel to modules.  Forked from module.h
  * to reduce the amount of pointless cruft we feed to gcc when only
@@ -42,27 +43,26 @@ extern struct module __this_module;
 #ifdef CONFIG_MODVERSIONS
 /* Mark the CRC weak since genksyms apparently decides not to
  * generate a checksums for some symbols */
-#define __CRC_SYMBOL(sym, sec)					\
-	extern __visible void *__crc_##sym __attribute__((weak));		\
-	static const unsigned long __kcrctab_##sym		\
-	__used							\
-	__attribute__((section("___kcrctab" sec "+" #sym), unused))	\
+#define __CRC_SYMBOL(sym, sec)						\
+	extern __visible void *__crc_##sym __attribute__((weak));	\
+	static const unsigned long __kcrctab_##sym			\
+	__used								\
+	__attribute__((section("___kcrctab" sec "+" #sym), used))	\
 	= (unsigned long) &__crc_##sym;
 #else
 #define __CRC_SYMBOL(sym, sec)
 #endif
 
 /* For every exported symbol, place a struct in the __ksymtab section */
-#define ___EXPORT_SYMBOL(sym, sec)				\
-	extern typeof(sym) sym;					\
-	__CRC_SYMBOL(sym, sec)					\
-	static const char __kstrtab_##sym[]			\
-	__attribute__((section("__ksymtab_strings"), aligned(1))) \
-	= VMLINUX_SYMBOL_STR(sym);				\
-	extern const struct kernel_symbol __ksymtab_##sym;	\
-	__visible const struct kernel_symbol __ksymtab_##sym	\
-	__used							\
-	__attribute__((section("___ksymtab" sec "+" #sym), unused))	\
+#define ___EXPORT_SYMBOL(sym, sec)					\
+	extern typeof(sym) sym;						\
+	__CRC_SYMBOL(sym, sec)						\
+	static const char __kstrtab_##sym[]				\
+	__attribute__((section("__ksymtab_strings"), aligned(1)))	\
+	= VMLINUX_SYMBOL_STR(sym);					\
+	static const struct kernel_symbol __ksymtab_##sym		\
+	__used								\
+	__attribute__((section("___ksymtab" sec "+" #sym), used))	\
 	= { (unsigned long)&sym, __kstrtab_##sym }
 
 #if defined(__KSYM_DEPS__)
@@ -78,11 +78,10 @@ extern struct module __this_module;
 
 #elif defined(CONFIG_TRIM_UNUSED_KSYMS)
 
-#include <linux/kconfig.h>
 #include <generated/autoksyms.h>
 
 #define __EXPORT_SYMBOL(sym, sec)				\
-	__cond_export_sym(sym, sec, config_enabled(__KSYM_##sym))
+	__cond_export_sym(sym, sec, __is_defined(__KSYM_##sym))
 #define __cond_export_sym(sym, sec, conf)			\
 	___cond_export_sym(sym, sec, conf)
 #define ___cond_export_sym(sym, sec, enabled)			\

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -293,8 +289,8 @@ struct lov_lock {
 };
 
 struct lov_page {
-	struct cl_page_slice lps_cl;
-	int		  lps_invalid;
+	struct cl_page_slice	lps_cl;
+	unsigned int		lps_stripe; /* stripe index */
 };
 
 /*
@@ -560,6 +556,8 @@ struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 					 struct lovsub_lock *sub);
 struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 				  const struct cl_page_slice *slice);
+
+struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov);
 int lov_page_stripe(const struct cl_page *page);
 
 #define lov_foreach_target(lov, var)		    \
@@ -746,10 +744,14 @@ static inline struct lov_thread_info *lov_env_info(const struct lu_env *env)
 static inline struct lov_layout_raid0 *lov_r0(struct lov_object *lov)
 {
 	LASSERT(lov->lo_type == LLT_RAID0);
-	LASSERT(lov->lo_lsm->lsm_wire.lw_magic == LOV_MAGIC ||
-		lov->lo_lsm->lsm_wire.lw_magic == LOV_MAGIC_V3);
+	LASSERT(lov->lo_lsm->lsm_magic == LOV_MAGIC ||
+		lov->lo_lsm->lsm_magic == LOV_MAGIC_V3);
 	return &lov->u.raid0;
 }
+
+/* lov_pack.c */
+int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
+		  struct lov_user_md __user *lump);
 
 /** @} lov */
 

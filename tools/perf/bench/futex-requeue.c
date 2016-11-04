@@ -8,18 +8,22 @@
  * requeues without waking up any tasks -- thus mimicking a regular futex_wait.
  */
 
-#include "../perf.h"
-#include "../util/util.h"
+/* For the CLR_() macros */
+#include <pthread.h>
+
+#include <signal.h>
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/time64.h>
+#include <errno.h>
 #include "bench.h"
 #include "futex.h"
 
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 static u_int32_t futex1 = 0, futex2 = 0;
 
@@ -59,7 +63,7 @@ static void print_summary(void)
 	printf("Requeued %d of %d threads in %.4f ms (+-%.2f%%)\n",
 	       requeued_avg,
 	       nthreads,
-	       requeuetime_avg/1e3,
+	       requeuetime_avg / USEC_PER_MSEC,
 	       rel_stddev_stats(requeuetime_stddev, requeuetime_avg));
 }
 
@@ -181,7 +185,7 @@ int bench_futex_requeue(int argc, const char **argv,
 
 		if (!silent) {
 			printf("[Run %d]: Requeued %d of %d threads in %.4f ms\n",
-			       j + 1, nrequeued, nthreads, runtime.tv_usec/1e3);
+			       j + 1, nrequeued, nthreads, runtime.tv_usec / (double)USEC_PER_MSEC);
 		}
 
 		/* everybody should be blocked on futex2, wake'em up */

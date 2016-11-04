@@ -52,25 +52,6 @@ struct task_struct;
 #include <asm/cpufeature.h>
 #include <linux/atomic.h>
 
-struct thread_info {
-	struct task_struct	*task;		/* main task structure */
-	__u32			flags;		/* low level flags */
-	__u32			status;		/* thread synchronous flags */
-	__u32			cpu;		/* current CPU */
-	mm_segment_t		addr_limit;
-	unsigned int		sig_on_uaccess_error:1;
-	unsigned int		uaccess_err:1;	/* uaccess failed */
-};
-
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.task		= &tsk,			\
-	.flags		= 0,			\
-	.cpu		= 0,			\
-	.addr_limit	= KERNEL_DS,		\
-}
-
-#define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
 #else /* !__ASSEMBLY__ */
@@ -99,7 +80,6 @@ struct thread_info {
 #define TIF_UPROBE		12	/* breakpointed or singlestepping */
 #define TIF_NOTSC		16	/* TSC is not accessible in userland */
 #define TIF_IA32		17	/* IA32 compatibility process */
-#define TIF_FORK		18	/* ret_from_fork */
 #define TIF_NOHZ		19	/* in adaptive nohz mode */
 #define TIF_MEMDIE		20	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	21	/* idle is polling for TIF_NEED_RESCHED */
@@ -123,7 +103,6 @@ struct thread_info {
 #define _TIF_UPROBE		(1 << TIF_UPROBE)
 #define _TIF_NOTSC		(1 << TIF_NOTSC)
 #define _TIF_IA32		(1 << TIF_IA32)
-#define _TIF_FORK		(1 << TIF_FORK)
 #define _TIF_NOHZ		(1 << TIF_NOHZ)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 #define _TIF_IO_BITMAP		(1 << TIF_IO_BITMAP)
@@ -164,11 +143,6 @@ struct thread_info {
  */
 #ifndef __ASSEMBLY__
 
-static inline struct thread_info *current_thread_info(void)
-{
-	return (struct thread_info *)(current_top_of_stack() - THREAD_SIZE);
-}
-
 static inline unsigned long current_stack_pointer(void)
 {
 	unsigned long sp;
@@ -180,92 +154,69 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
+/*
+ * Walks up the stack frames to make sure that the specified object is
+ * entirely contained by a single stack frame.
+ *
+ * Returns:
+ *		 1 if within a frame
+ *		-1 if placed across a frame boundary (or outside stack)
+ *		 0 unable to determine (no frame pointers, etc)
+ */
+static inline int arch_within_stack_frames(const void * const stack,
+					   const void * const stackend,
+					   const void *obj, unsigned long len)
+{
+#if defined(CONFIG_FRAME_POINTER)
+	const void *frame = NULL;
+	const void *oldframe;
+
+	oldframe = __builtin_frame_address(1);
+	if (oldframe)
+		frame = __builtin_frame_address(2);
+	/*
+	 * low ----------------------------------------------> high
+	 * [saved bp][saved ip][args][local vars][saved bp][saved ip]
+	 *                     ^----------------^
+	 *               allow copies only within here
+	 */
+	while (stack <= frame && frame < stackend) {
+		/*
+		 * If obj + len extends past the last frame, this
+		 * check won't pass and the next frame will be 0,
+		 * causing us to bail out and correctly report
+		 * the copy as invalid.
+		 */
+		if (obj + len <= frame)
+			return obj >= oldframe + 2 * sizeof(void *) ? 1 : -1;
+		oldframe = frame;
+		frame = *(const void * const *)frame;
+	}
+	return -1;
+#else
+	return 0;
+#endif
+}
+
 #else /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_X86_64
 # define cpu_current_top_of_stack (cpu_tss + TSS_sp0)
 #endif
 
-/* Load thread_info address into "reg" */
-#define GET_THREAD_INFO(reg) \
-	_ASM_MOV PER_CPU_VAR(cpu_current_top_of_stack),reg ; \
-	_ASM_SUB $(THREAD_SIZE),reg ;
-
-/*
- * ASM operand which evaluates to a 'thread_info' address of
- * the current task, if it is known that "reg" is exactly "off"
- * bytes below the top of the stack currently.
- *
- * ( The kernel stack's size is known at build time, it is usually
- *   2 or 4 pages, and the bottom  of the kernel stack contains
- *   the thread_info structure. So to access the thread_info very
- *   quickly from assembly code we can calculate down from the
- *   top of the kernel stack to the bottom, using constant,
- *   build-time calculations only. )
- *
- * For example, to fetch the current thread_info->flags value into %eax
- * on x86-64 defconfig kernels, in syscall entry code where RSP is
- * currently at exactly SIZEOF_PTREGS bytes away from the top of the
- * stack:
- *
- *      mov ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS), %eax
- *
- * will translate to:
- *
- *      8b 84 24 b8 c0 ff ff      mov    -0x3f48(%rsp), %eax
- *
- * which is below the current RSP by almost 16K.
- */
-#define ASM_THREAD_INFO(field, reg, off) ((field)+(off)-THREAD_SIZE)(reg)
-
 #endif
 
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
-#define TS_RESTORE_SIGMASK	0x0008	/* restore signal mask in do_signal() */
-
+#ifdef CONFIG_COMPAT
+#define TS_I386_REGS_POKED	0x0004	/* regs poked by 32-bit ptracer */
+#endif
 #ifndef __ASSEMBLY__
-#define HAVE_SET_RESTORE_SIGMASK	1
-static inline void set_restore_sigmask(void)
-{
-	struct thread_info *ti = current_thread_info();
-	ti->status |= TS_RESTORE_SIGMASK;
-	WARN_ON(!test_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags));
-}
-static inline void clear_restore_sigmask(void)
-{
-	current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-}
-static inline bool test_restore_sigmask(void)
-{
-	return current_thread_info()->status & TS_RESTORE_SIGMASK;
-}
-static inline bool test_and_clear_restore_sigmask(void)
-{
-	struct thread_info *ti = current_thread_info();
-	if (!(ti->status & TS_RESTORE_SIGMASK))
-		return false;
-	ti->status &= ~TS_RESTORE_SIGMASK;
-	return true;
-}
 
-static inline bool in_ia32_syscall(void)
-{
 #ifdef CONFIG_X86_32
-	return true;
+#define in_ia32_syscall() true
+#else
+#define in_ia32_syscall() (IS_ENABLED(CONFIG_IA32_EMULATION) && \
+			   current->thread.status & TS_COMPAT)
 #endif
-#ifdef CONFIG_IA32_EMULATION
-	if (current_thread_info()->status & TS_COMPAT)
-		return true;
-#endif
-	return false;
-}
 
 /*
  * Force syscall return via IRET by making it look as if there was

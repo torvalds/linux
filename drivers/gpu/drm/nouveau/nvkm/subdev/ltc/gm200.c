@@ -46,7 +46,7 @@ static const struct nvkm_ltc_func
 gm200_ltc = {
 	.oneinit = gm200_ltc_oneinit,
 	.init = gm200_ltc_init,
-	.intr = gm107_ltc_intr, /*XXX: not validated */
+	.intr = gm107_ltc_intr,
 	.cbc_clear = gm107_ltc_cbc_clear,
 	.cbc_wait = gm107_ltc_cbc_wait,
 	.zbc = 16,

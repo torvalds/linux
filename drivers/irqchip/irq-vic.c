@@ -167,7 +167,7 @@ static int vic_suspend(void)
 	return 0;
 }
 
-struct syscore_ops vic_syscore_ops = {
+static struct syscore_ops vic_syscore_ops = {
 	.suspend	= vic_suspend,
 	.resume		= vic_resume,
 };
@@ -498,7 +498,6 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
  * vic_init_cascaded() - initialise a cascaded vectored interrupt controller
  * @base: iomem base address
  * @parent_irq: the parent IRQ we're cascaded off
- * @irq_start: starting interrupt number, must be muliple of 32
  * @vic_sources: bitmask of interrupt sources to allow
  * @resume_sources: bitmask of interrupt sources to allow for resume
  *
@@ -517,7 +516,8 @@ int __init vic_init_cascaded(void __iomem *base, unsigned int parent_irq,
 EXPORT_SYMBOL_GPL(vic_init_cascaded);
 
 #ifdef CONFIG_OF
-int __init vic_of_init(struct device_node *node, struct device_node *parent)
+static int __init vic_of_init(struct device_node *node,
+			      struct device_node *parent)
 {
 	void __iomem *regs;
 	u32 interrupt_mask = ~0;

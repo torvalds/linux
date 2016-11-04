@@ -54,25 +54,26 @@ static LIST_HEAD(pcache);
  */
 static u8 *container;
 static size_t container_size;
+static bool ucode_builtin;
 
 static u32 ucode_new_rev;
-u8 amd_ucode_patch[PATCH_MAX_SIZE];
+static u8 amd_ucode_patch[PATCH_MAX_SIZE];
 static u16 this_equiv_id;
 
 static struct cpio_data ucode_cpio;
 
-/*
- * Microcode patch container file is prepended to the initrd in cpio format.
- * See Documentation/x86/early-microcode.txt
- */
-static __initdata char ucode_path[] = "kernel/x86/microcode/AuthenticAMD.bin";
-
 static struct cpio_data __init find_ucode_in_initrd(void)
 {
-	long offset = 0;
+#ifdef CONFIG_BLK_DEV_INITRD
 	char *path;
 	void *start;
 	size_t size;
+
+	/*
+	 * Microcode patch container file is prepended to the initrd in cpio
+	 * format. See Documentation/x86/early-microcode.txt
+	 */
+	static __initdata char ucode_path[] = "kernel/x86/microcode/AuthenticAMD.bin";
 
 #ifdef CONFIG_X86_32
 	struct boot_params *p;
@@ -89,9 +90,12 @@ static struct cpio_data __init find_ucode_in_initrd(void)
 	path    = ucode_path;
 	start   = (void *)(boot_params.hdr.ramdisk_image + PAGE_OFFSET);
 	size    = boot_params.hdr.ramdisk_size;
-#endif
+#endif /* !CONFIG_X86_32 */
 
-	return find_cpio_data(path, start, size, &offset);
+	return find_cpio_data(path, start, size, NULL);
+#else
+	return (struct cpio_data){ NULL, 0, "" };
+#endif
 }
 
 static size_t compute_container_size(u8 *data, u32 total_size)
@@ -278,22 +282,26 @@ static bool __init load_builtin_amd_microcode(struct cpio_data *cp,
 void __init load_ucode_amd_bsp(unsigned int family)
 {
 	struct cpio_data cp;
+	bool *builtin;
 	void **data;
 	size_t *size;
 
 #ifdef CONFIG_X86_32
 	data =  (void **)__pa_nodebug(&ucode_cpio.data);
 	size = (size_t *)__pa_nodebug(&ucode_cpio.size);
+	builtin = (bool *)__pa_nodebug(&ucode_builtin);
 #else
 	data = &ucode_cpio.data;
 	size = &ucode_cpio.size;
+	builtin = &ucode_builtin;
 #endif
 
-	cp = find_ucode_in_initrd();
-	if (!cp.data) {
-		if (!load_builtin_amd_microcode(&cp, family))
-			return;
-	}
+	*builtin = load_builtin_amd_microcode(&cp, family);
+	if (!*builtin)
+		cp = find_ucode_in_initrd();
+
+	if (!(cp.data && cp.size))
+		return;
 
 	*data = cp.data;
 	*size = cp.size;
@@ -352,6 +360,7 @@ void load_ucode_amd_ap(void)
 	unsigned int cpu = smp_processor_id();
 	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
+	u8 *cont = container;
 	u32 rev, eax;
 	u16 eq_id;
 
@@ -368,8 +377,12 @@ void load_ucode_amd_ap(void)
 	if (check_current_patch_level(&rev, false))
 		return;
 
+	/* Add CONFIG_RANDOMIZE_MEMORY offset. */
+	if (!ucode_builtin)
+		cont += PAGE_OFFSET - __PAGE_OFFSET_BASE;
+
 	eax = cpuid_eax(0x00000001);
-	eq  = (struct equiv_cpu_entry *)(container + CONTAINER_HDR_SZ);
+	eq  = (struct equiv_cpu_entry *)(cont + CONTAINER_HDR_SZ);
 
 	eq_id = find_equiv_id(eq, eax);
 	if (!eq_id)
@@ -430,6 +443,10 @@ int __init save_microcode_in_initrd_amd(void)
 			     (cont - boot_params.hdr.ramdisk_image));
 	else
 		container = cont_va;
+
+	/* Add CONFIG_RANDOMIZE_MEMORY offset. */
+	if (!ucode_builtin)
+		container += PAGE_OFFSET - __PAGE_OFFSET_BASE;
 
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);

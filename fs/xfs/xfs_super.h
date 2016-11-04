@@ -61,8 +61,7 @@ struct xfs_mount;
 struct xfs_buftarg;
 struct block_device;
 
-extern __uint64_t xfs_max_file_offset(unsigned int);
-
+extern void xfs_quiesce_attr(struct xfs_mount *mp);
 extern void xfs_flush_inodes(struct xfs_mount *mp);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 extern xfs_agnumber_t xfs_set_inode_alloc(struct xfs_mount *,

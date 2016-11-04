@@ -871,18 +871,21 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
+static int tvp5150_set_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_selection *sel)
 {
-	struct v4l2_rect rect = a->c;
 	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct v4l2_rect rect = sel->r;
 	v4l2_std_id std;
-	unsigned int hmax;
+	int hmax;
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+	    sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	v4l2_dbg(1, debug, sd, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
-
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	/* tvp5150 has some special limits */
 	rect.left = clamp(rect.left, 0, TVP5150_MAX_CROP_LEFT);
@@ -924,44 +927,39 @@ static int tvp5150_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	return 0;
 }
 
-static int tvp5150_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int tvp5150_get_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_selection *sel)
 {
-	struct tvp5150 *decoder = to_tvp5150(sd);
-
-	a->c	= decoder->rect;
-	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	return 0;
-}
-
-static int tvp5150_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	struct tvp5150 *decoder = to_tvp5150(sd);
+	struct tvp5150 *decoder = container_of(sd, struct tvp5150, sd);
 	v4l2_std_id std;
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= TVP5150_H_MAX;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = TVP5150_H_MAX;
 
-	/* Calculate height based on current standard */
-	if (decoder->norm == V4L2_STD_ALL)
-		std = tvp5150_read_std(sd);
-	else
-		std = decoder->norm;
-
-	if (std & V4L2_STD_525_60)
-		a->bounds.height = TVP5150_V_MAX_525_60;
-	else
-		a->bounds.height = TVP5150_V_MAX_OTHERS;
-
-	a->defrect			= a->bounds;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+		/* Calculate height based on current standard */
+		if (decoder->norm == V4L2_STD_ALL)
+			std = tvp5150_read_std(sd);
+		else
+			std = decoder->norm;
+		if (std & V4L2_STD_525_60)
+			sel->r.height = TVP5150_V_MAX_525_60;
+		else
+			sel->r.height = TVP5150_V_MAX_OTHERS;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = decoder->rect;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int tvp5150_g_mbus_config(struct v4l2_subdev *sd,
@@ -1173,7 +1171,7 @@ static int tvp5150_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int tvp5150_registered_async(struct v4l2_subdev *sd)
+static int tvp5150_registered(struct v4l2_subdev *sd)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct tvp5150 *decoder = to_tvp5150(sd);
@@ -1222,7 +1220,6 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
 #endif
-	.registered_async = tvp5150_registered_async,
 };
 
 static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
@@ -1233,9 +1230,6 @@ static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_std = tvp5150_s_std,
 	.s_stream = tvp5150_s_stream,
 	.s_routing = tvp5150_s_routing,
-	.s_crop = tvp5150_s_crop,
-	.g_crop = tvp5150_g_crop,
-	.cropcap = tvp5150_cropcap,
 	.g_mbus_config = tvp5150_g_mbus_config,
 };
 
@@ -1251,6 +1245,8 @@ static const struct v4l2_subdev_pad_ops tvp5150_pad_ops = {
 	.enum_frame_size = tvp5150_enum_frame_size,
 	.set_fmt = tvp5150_fill_fmt,
 	.get_fmt = tvp5150_fill_fmt,
+	.get_selection = tvp5150_get_selection,
+	.set_selection = tvp5150_set_selection,
 };
 
 static const struct v4l2_subdev_ops tvp5150_ops = {
@@ -1259,6 +1255,10 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 	.video = &tvp5150_video_ops,
 	.vbi = &tvp5150_vbi_ops,
 	.pad = &tvp5150_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops tvp5150_internal_ops = {
+	.registered = tvp5150_registered,
 };
 
 
@@ -1474,6 +1474,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	}
 
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
+	sd->internal_ops = &tvp5150_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)

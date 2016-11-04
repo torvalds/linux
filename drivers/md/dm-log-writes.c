@@ -149,8 +149,6 @@ static void put_io_block(struct log_writes_c *lc)
 static void log_end_io(struct bio *bio)
 {
 	struct log_writes_c *lc = bio->bi_private;
-	struct bio_vec *bvec;
-	int i;
 
 	if (bio->bi_error) {
 		unsigned long flags;
@@ -161,9 +159,7 @@ static void log_end_io(struct bio *bio)
 		spin_unlock_irqrestore(&lc->blocks_lock, flags);
 	}
 
-	bio_for_each_segment_all(bvec, bio, i)
-		__free_page(bvec->bv_page);
-
+	bio_free_pages(bio);
 	put_io_block(lc);
 	bio_put(bio);
 }
@@ -205,6 +201,7 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
 	bio->bi_bdev = lc->logdev->bdev;
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
@@ -226,7 +223,7 @@ static int write_metadata(struct log_writes_c *lc, void *entry,
 		DMERR("Couldn't add page to the log block");
 		goto error_bio;
 	}
-	submit_bio(WRITE, bio);
+	submit_bio(bio);
 	return 0;
 error_bio:
 	bio_put(bio);
@@ -258,17 +255,18 @@ static int log_one_block(struct log_writes_c *lc,
 		goto out;
 	sector++;
 
-	bio = bio_alloc(GFP_KERNEL, block->vec_cnt);
+	atomic_inc(&lc->io_blocks);
+	bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt, BIO_MAX_PAGES));
 	if (!bio) {
 		DMERR("Couldn't alloc log bio");
 		goto error;
 	}
-	atomic_inc(&lc->io_blocks);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_bdev = lc->logdev->bdev;
 	bio->bi_end_io = log_end_io;
 	bio->bi_private = lc;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	for (i = 0; i < block->vec_cnt; i++) {
 		/*
@@ -279,8 +277,8 @@ static int log_one_block(struct log_writes_c *lc,
 				   block->vecs[i].bv_len, 0);
 		if (ret != block->vecs[i].bv_len) {
 			atomic_inc(&lc->io_blocks);
-			submit_bio(WRITE, bio);
-			bio = bio_alloc(GFP_KERNEL, block->vec_cnt - i);
+			submit_bio(bio);
+			bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt - i, BIO_MAX_PAGES));
 			if (!bio) {
 				DMERR("Couldn't alloc log bio");
 				goto error;
@@ -290,6 +288,7 @@ static int log_one_block(struct log_writes_c *lc,
 			bio->bi_bdev = lc->logdev->bdev;
 			bio->bi_end_io = log_end_io;
 			bio->bi_private = lc;
+			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 			ret = bio_add_page(bio, block->vecs[i].bv_page,
 					   block->vecs[i].bv_len, 0);
@@ -301,7 +300,7 @@ static int log_one_block(struct log_writes_c *lc,
 		}
 		sector += block->vecs[i].bv_len >> SECTOR_SHIFT;
 	}
-	submit_bio(WRITE, bio);
+	submit_bio(bio);
 out:
 	kfree(block->data);
 	kfree(block);
@@ -456,9 +455,9 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	ret = -EINVAL;
 	lc->log_kthread = kthread_run(log_writes_kthread, lc, "log-write");
-	if (!lc->log_kthread) {
+	if (IS_ERR(lc->log_kthread)) {
+		ret = PTR_ERR(lc->log_kthread);
 		ti->error = "Couldn't alloc kthread";
 		dm_put_device(ti, lc->dev);
 		dm_put_device(ti, lc->logdev);
@@ -552,9 +551,9 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	struct bio_vec bv;
 	size_t alloc_size;
 	int i = 0;
-	bool flush_bio = (bio->bi_rw & REQ_FLUSH);
-	bool fua_bio = (bio->bi_rw & REQ_FUA);
-	bool discard_bio = (bio->bi_rw & REQ_DISCARD);
+	bool flush_bio = (bio->bi_opf & REQ_PREFLUSH);
+	bool fua_bio = (bio->bi_opf & REQ_FUA);
+	bool discard_bio = (bio_op(bio) == REQ_OP_DISCARD);
 
 	pb->block = NULL;
 

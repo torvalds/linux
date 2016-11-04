@@ -90,7 +90,7 @@ unsigned long long sched_clock(void)
 	return ticks << HARDWARE_TO_NS_SHIFT;
 }
 
-static void arch_timer_setup(unsigned int cpu)
+static int arch_timer_starting_cpu(unsigned int cpu)
 {
 	unsigned int txdivtime;
 	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
@@ -132,26 +132,8 @@ static void arch_timer_setup(unsigned int cpu)
 		val = core_reg_read(TXUCT_ID, TXTIMER_REGNUM, thread0);
 		__core_reg_set(TXTIMER, val);
 	}
+	return 0;
 }
-
-static int arch_timer_cpu_notify(struct notifier_block *self,
-					   unsigned long action, void *hcpu)
-{
-	int cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_STARTING:
-	case CPU_STARTING_FROZEN:
-		arch_timer_setup(cpu);
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block arch_timer_cpu_nb = {
-	.notifier_call = arch_timer_cpu_notify,
-};
 
 int __init metag_generic_timer_init(void)
 {
@@ -170,11 +152,8 @@ int __init metag_generic_timer_init(void)
 
 	setup_irq(tbisig_map(TBID_SIGNUM_TRT), &metag_timer_irq);
 
-	/* Configure timer on boot CPU */
-	arch_timer_setup(smp_processor_id());
-
-	/* Hook cpu boot to configure other CPU's timers */
-	register_cpu_notifier(&arch_timer_cpu_nb);
-
-	return 0;
+	/* Hook cpu boot to configure the CPU's timers */
+	return cpuhp_setup_state(CPUHP_AP_METAG_TIMER_STARTING,
+				 "AP_METAG_TIMER_STARTING",
+				 arch_timer_starting_cpu, NULL);
 }

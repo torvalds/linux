@@ -25,7 +25,7 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
@@ -72,7 +72,7 @@ EXPORT_SYMBOL(cpu_core_map);
  * A logcal cpu mask containing only one VPE per core to
  * reduce the number of IPIs on large MT systems.
  */
-cpumask_t cpu_foreign_map __read_mostly;
+cpumask_t cpu_foreign_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_foreign_map);
 
 /* representing cpus for which sibling maps can be computed */
@@ -124,7 +124,7 @@ static inline void set_cpu_core_map(int cpu)
  * Calculate a new cpu_foreign_map mask whenever a
  * new cpu appears or disappears.
  */
-static inline void calculate_cpu_foreign_map(void)
+void calculate_cpu_foreign_map(void)
 {
 	int i, k, core_present;
 	cpumask_t temp_foreign_map;
@@ -141,7 +141,9 @@ static inline void calculate_cpu_foreign_map(void)
 			cpumask_set_cpu(i, &temp_foreign_map);
 	}
 
-	cpumask_copy(&cpu_foreign_map, &temp_foreign_map);
+	for_each_online_cpu(i)
+		cpumask_andnot(&cpu_foreign_map[i],
+			       &temp_foreign_map, &cpu_sibling_map[i]);
 }
 
 struct plat_smp_ops *mp_ops;
@@ -190,9 +192,11 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 				continue;
 
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {
+				mips_cm_lock_other(core, 0);
 				mips_cpc_lock_other(core);
 				write_cpc_co_cmd(CPC_Cx_CMD_PWRUP);
 				mips_cpc_unlock_other();
+				mips_cm_unlock_other();
 			}
 		}
 	}
@@ -227,7 +231,7 @@ static struct irqaction irq_call = {
 	.name		= "IPI call"
 };
 
-static __init void smp_ipi_init_one(unsigned int virq,
+static void smp_ipi_init_one(unsigned int virq,
 				    struct irqaction *action)
 {
 	int ret;
@@ -237,9 +241,11 @@ static __init void smp_ipi_init_one(unsigned int virq,
 	BUG_ON(ret);
 }
 
-static int __init mips_smp_ipi_init(void)
+static unsigned int call_virq, sched_virq;
+
+int mips_smp_ipi_allocate(const struct cpumask *mask)
 {
-	unsigned int call_virq, sched_virq;
+	int virq;
 	struct irq_domain *ipidomain;
 	struct device_node *node;
 
@@ -266,16 +272,20 @@ static int __init mips_smp_ipi_init(void)
 	if (!ipidomain)
 		return 0;
 
-	call_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
-	BUG_ON(!call_virq);
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!call_virq)
+		call_virq = virq;
 
-	sched_virq = irq_reserve_ipi(ipidomain, cpu_possible_mask);
-	BUG_ON(!sched_virq);
+	virq = irq_reserve_ipi(ipidomain, mask);
+	BUG_ON(!virq);
+	if (!sched_virq)
+		sched_virq = virq;
 
 	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
 		int cpu;
 
-		for_each_cpu(cpu, cpu_possible_mask) {
+		for_each_cpu(cpu, mask) {
 			smp_ipi_init_one(call_virq + cpu, &irq_call);
 			smp_ipi_init_one(sched_virq + cpu, &irq_resched);
 		}
@@ -283,6 +293,45 @@ static int __init mips_smp_ipi_init(void)
 		smp_ipi_init_one(call_virq, &irq_call);
 		smp_ipi_init_one(sched_virq, &irq_resched);
 	}
+
+	return 0;
+}
+
+int mips_smp_ipi_free(const struct cpumask *mask)
+{
+	struct irq_domain *ipidomain;
+	struct device_node *node;
+
+	node = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+
+	/*
+	 * Some platforms have half DT setup. So if we found irq node but
+	 * didn't find an ipidomain, try to search for one that is not in the
+	 * DT.
+	 */
+	if (node && !ipidomain)
+		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
+
+	BUG_ON(!ipidomain);
+
+	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
+		int cpu;
+
+		for_each_cpu(cpu, mask) {
+			remove_irq(call_virq + cpu, &irq_call);
+			remove_irq(sched_virq + cpu, &irq_resched);
+		}
+	}
+	irq_destroy_ipi(call_virq, mask);
+	irq_destroy_ipi(sched_virq, mask);
+	return 0;
+}
+
+
+static int __init mips_smp_ipi_init(void)
+{
+	mips_smp_ipi_allocate(cpu_possible_mask);
 
 	call_desc = irq_to_desc(call_virq);
 	sched_desc = irq_to_desc(sched_virq);
@@ -320,16 +369,15 @@ asmlinkage void start_secondary(void)
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
 
+	cpumask_set_cpu(cpu, &cpu_callin_map);
+	synchronise_count_slave(cpu);
+
 	set_cpu_online(cpu, true);
 
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
 
 	calculate_cpu_foreign_map();
-
-	cpumask_set_cpu(cpu, &cpu_callin_map);
-
-	synchronise_count_slave(cpu);
 
 	/*
 	 * irq will be enabled in ->smp_finish(), enabling it too early
@@ -344,15 +392,8 @@ asmlinkage void start_secondary(void)
 static void stop_this_cpu(void *dummy)
 {
 	/*
-	 * Remove this CPU. Be a bit slow here and
-	 * set the bits for every online CPU so we don't miss
-	 * any IPI whilst taking this VPE down.
+	 * Remove this CPU:
 	 */
-
-	cpumask_copy(&cpu_foreign_map, cpu_online_mask);
-
-	/* Make it visible to every other CPU */
-	smp_mb();
 
 	set_cpu_online(smp_processor_id(), false);
 	calculate_cpu_foreign_map();
@@ -512,10 +553,17 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 		smp_on_other_tlbs(flush_tlb_range_ipi, &fd);
 	} else {
 		unsigned int cpu;
+		int exec = vma->vm_flags & VM_EXEC;
 
 		for_each_online_cpu(cpu) {
+			/*
+			 * flush_cache_range() will only fully flush icache if
+			 * the VMA is executable, otherwise we must invalidate
+			 * ASID without it appearing to has_valid_asid() as if
+			 * mm has been completely unused by that CPU.
+			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, mm))
-				cpu_context(cpu, mm) = 0;
+				cpu_context(cpu, mm) = !exec;
 		}
 	}
 	local_flush_tlb_range(vma, start, end);
@@ -560,8 +608,14 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		unsigned int cpu;
 
 		for_each_online_cpu(cpu) {
+			/*
+			 * flush_cache_page() only does partial flushes, so
+			 * invalidate ASID without it appearing to
+			 * has_valid_asid() as if mm has been completely unused
+			 * by that CPU.
+			 */
 			if (cpu != smp_processor_id() && cpu_context(cpu, vma->vm_mm))
-				cpu_context(cpu, vma->vm_mm) = 0;
+				cpu_context(cpu, vma->vm_mm) = 1;
 		}
 	}
 	local_flush_tlb_page(vma, page);

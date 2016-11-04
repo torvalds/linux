@@ -15,7 +15,7 @@ Required properties:
 - reg:		Memory map of eDMA CC
 - reg-names:	"edma3_cc"
 - interrupts:	Interrupt lines for CCINT, MPERR and CCERRINT.
-- interrupt-names: "edma3_ccint", "emda3_mperr" and "edma3_ccerrint"
+- interrupt-names: "edma3_ccint", "edma3_mperr" and "edma3_ccerrint"
 - ti,tptcs:	List of TPTCs associated with the eDMA in the following form:
 		<&tptc_phandle TC_priority_number>. The highest priority is 0.
 
@@ -48,7 +48,7 @@ edma: edma@49000000 {
 	reg =	<0x49000000 0x10000>;
 	reg-names = "edma3_cc";
 	interrupts = <12 13 14>;
-	interrupt-names = "edma3_ccint", "emda3_mperr", "edma3_ccerrint";
+	interrupt-names = "edma3_ccint", "edma3_mperr", "edma3_ccerrint";
 	dma-requests = <64>;
 	#dma-cells = <2>;
 

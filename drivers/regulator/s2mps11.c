@@ -750,7 +750,7 @@ static const struct regulator_linear_range s2mps15_ldo_voltage_ranges3[] = {
 
 /* voltage range for s2mps15 LDO 7, 8, 9 and 10 */
 static const struct regulator_linear_range s2mps15_ldo_voltage_ranges4[] = {
-	REGULATOR_LINEAR_RANGE(700000, 0xc, 0x18, 25000),
+	REGULATOR_LINEAR_RANGE(700000, 0x10, 0x20, 25000),
 };
 
 /* voltage range for s2mps15 LDO 1 */
@@ -760,12 +760,12 @@ static const struct regulator_linear_range s2mps15_ldo_voltage_ranges5[] = {
 
 /* voltage range for s2mps15 BUCK 1, 2, 3, 4, 5, 6 and 7 */
 static const struct regulator_linear_range s2mps15_buck_voltage_ranges1[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0x20, 0xb0, 6250),
+	REGULATOR_LINEAR_RANGE(500000, 0x20, 0xc0, 6250),
 };
 
 /* voltage range for s2mps15 BUCK 8, 9 and 10 */
 static const struct regulator_linear_range s2mps15_buck_voltage_ranges2[] = {
-	REGULATOR_LINEAR_RANGE(1000000, 0x20, 0xc0, 12500),
+	REGULATOR_LINEAR_RANGE(1000000, 0x20, 0x78, 12500),
 };
 
 static const struct regulator_desc s2mps15_regulators[] = {

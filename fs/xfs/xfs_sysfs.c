@@ -393,9 +393,15 @@ max_retries_show(
 	struct kobject	*kobject,
 	char		*buf)
 {
+	int		retries;
 	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", cfg->max_retries);
+	if (cfg->retry_timeout == XFS_ERR_RETRY_FOREVER)
+		retries = -1;
+	else
+		retries = cfg->max_retries;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", retries);
 }
 
 static ssize_t
@@ -415,7 +421,10 @@ max_retries_store(
 	if (val < -1)
 		return -EINVAL;
 
-	cfg->max_retries = val;
+	if (val == -1)
+		cfg->retry_timeout = XFS_ERR_RETRY_FOREVER;
+	else
+		cfg->max_retries = val;
 	return count;
 }
 XFS_SYSFS_ATTR_RW(max_retries);
@@ -425,10 +434,15 @@ retry_timeout_seconds_show(
 	struct kobject	*kobject,
 	char		*buf)
 {
+	int		timeout;
 	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
 
-	return snprintf(buf, PAGE_SIZE, "%ld\n",
-			jiffies_to_msecs(cfg->retry_timeout) / MSEC_PER_SEC);
+	if (cfg->retry_timeout == XFS_ERR_RETRY_FOREVER)
+		timeout = -1;
+	else
+		timeout = jiffies_to_msecs(cfg->retry_timeout) / MSEC_PER_SEC;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", timeout);
 }
 
 static ssize_t
@@ -445,11 +459,16 @@ retry_timeout_seconds_store(
 	if (ret)
 		return ret;
 
-	/* 1 day timeout maximum */
-	if (val < 0 || val > 86400)
+	/* 1 day timeout maximum, -1 means infinite */
+	if (val < -1 || val > 86400)
 		return -EINVAL;
 
-	cfg->retry_timeout = msecs_to_jiffies(val * MSEC_PER_SEC);
+	if (val == -1)
+		cfg->retry_timeout = XFS_ERR_RETRY_FOREVER;
+	else {
+		cfg->retry_timeout = msecs_to_jiffies(val * MSEC_PER_SEC);
+		ASSERT(msecs_to_jiffies(val * MSEC_PER_SEC) < LONG_MAX);
+	}
 	return count;
 }
 XFS_SYSFS_ATTR_RW(retry_timeout_seconds);
@@ -519,18 +538,19 @@ struct xfs_error_init {
 static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRNO_MAX] = {
 	{ .name = "default",
 	  .max_retries = XFS_ERR_RETRY_FOREVER,
-	  .retry_timeout = 0,
+	  .retry_timeout = XFS_ERR_RETRY_FOREVER,
 	},
 	{ .name = "EIO",
 	  .max_retries = XFS_ERR_RETRY_FOREVER,
-	  .retry_timeout = 0,
+	  .retry_timeout = XFS_ERR_RETRY_FOREVER,
 	},
 	{ .name = "ENOSPC",
 	  .max_retries = XFS_ERR_RETRY_FOREVER,
-	  .retry_timeout = 0,
+	  .retry_timeout = XFS_ERR_RETRY_FOREVER,
 	},
 	{ .name = "ENODEV",
-	  .max_retries = 0,
+	  .max_retries = 0,	/* We can't recover from devices disappearing */
+	  .retry_timeout = 0,
 	},
 };
 
@@ -561,7 +581,10 @@ xfs_error_sysfs_init_class(
 			goto out_error;
 
 		cfg->max_retries = init[i].max_retries;
-		cfg->retry_timeout = msecs_to_jiffies(
+		if (init[i].retry_timeout == XFS_ERR_RETRY_FOREVER)
+			cfg->retry_timeout = XFS_ERR_RETRY_FOREVER;
+		else
+			cfg->retry_timeout = msecs_to_jiffies(
 					init[i].retry_timeout * MSEC_PER_SEC);
 	}
 	return 0;
@@ -633,6 +656,9 @@ xfs_error_get_cfg(
 	int			error)
 {
 	struct xfs_error_cfg	*cfg;
+
+	if (error < 0)
+		error = -error;
 
 	switch (error) {
 	case EIO:

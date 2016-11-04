@@ -163,7 +163,7 @@ static int sti_cpufreq_set_opp_info(void)
 
 	reg_fields = sti_cpufreq_match();
 	if (!reg_fields) {
-		dev_err(dev, "This SoC doesn't support voltage scaling");
+		dev_err(dev, "This SoC doesn't support voltage scaling\n");
 		return -ENODEV;
 	}
 

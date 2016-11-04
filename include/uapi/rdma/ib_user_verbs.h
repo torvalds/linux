@@ -95,6 +95,11 @@ enum {
 	IB_USER_VERBS_EX_CMD_CREATE_QP = IB_USER_VERBS_CMD_CREATE_QP,
 	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
 	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
+	IB_USER_VERBS_EX_CMD_CREATE_WQ,
+	IB_USER_VERBS_EX_CMD_MODIFY_WQ,
+	IB_USER_VERBS_EX_CMD_DESTROY_WQ,
+	IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
+	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL
 };
 
 /*
@@ -219,6 +224,17 @@ struct ib_uverbs_odp_caps {
 	__u32 reserved;
 };
 
+struct ib_uverbs_rss_caps {
+	/* Corresponding bit will be set if qp type from
+	 * 'enum ib_qp_type' is supported, e.g.
+	 * supported_qpts |= 1 << IB_QPT_UD
+	 */
+	__u32 supported_qpts;
+	__u32 max_rwq_indirection_tables;
+	__u32 max_rwq_indirection_table_size;
+	__u32 reserved;
+};
+
 struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_query_device_resp base;
 	__u32 comp_mask;
@@ -227,6 +243,9 @@ struct ib_uverbs_ex_query_device_resp {
 	__u64 timestamp_mask;
 	__u64 hca_core_clock; /* in KHZ */
 	__u64 device_cap_flags_ex;
+	struct ib_uverbs_rss_caps rss_caps;
+	__u32  max_wq_type_rq;
+	__u32 reserved;
 };
 
 struct ib_uverbs_query_port {
@@ -518,6 +537,14 @@ struct ib_uverbs_create_qp {
 	__u64 driver_data[0];
 };
 
+enum ib_uverbs_create_qp_mask {
+	IB_UVERBS_CREATE_QP_MASK_IND_TABLE = 1UL << 0,
+};
+
+enum {
+	IB_UVERBS_CREATE_QP_SUP_COMP_MASK = IB_UVERBS_CREATE_QP_MASK_IND_TABLE,
+};
+
 struct ib_uverbs_ex_create_qp {
 	__u64 user_handle;
 	__u32 pd_handle;
@@ -535,6 +562,8 @@ struct ib_uverbs_ex_create_qp {
 	__u8 reserved;
 	__u32 comp_mask;
 	__u32 create_flags;
+	__u32 rwq_ind_tbl_handle;
+	__u32  reserved1;
 };
 
 struct ib_uverbs_open_qp {
@@ -819,6 +848,10 @@ struct ib_uverbs_flow_spec_eth {
 struct ib_uverbs_flow_ipv4_filter {
 	__be32 src_ip;
 	__be32 dst_ip;
+	__u8	proto;
+	__u8	tos;
+	__u8	ttl;
+	__u8	flags;
 };
 
 struct ib_uverbs_flow_spec_ipv4 {
@@ -850,6 +883,29 @@ struct ib_uverbs_flow_spec_tcp_udp {
 	};
 	struct ib_uverbs_flow_tcp_udp_filter val;
 	struct ib_uverbs_flow_tcp_udp_filter mask;
+};
+
+struct ib_uverbs_flow_ipv6_filter {
+	__u8    src_ip[16];
+	__u8    dst_ip[16];
+	__be32	flow_label;
+	__u8	next_hdr;
+	__u8	traffic_class;
+	__u8	hop_limit;
+	__u8	reserved;
+};
+
+struct ib_uverbs_flow_spec_ipv6 {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_ipv6_filter val;
+	struct ib_uverbs_flow_ipv6_filter mask;
 };
 
 struct ib_uverbs_flow_attr {
@@ -944,6 +1000,68 @@ struct ib_uverbs_destroy_srq {
 
 struct ib_uverbs_destroy_srq_resp {
 	__u32 events_reported;
+};
+
+struct ib_uverbs_ex_create_wq  {
+	__u32 comp_mask;
+	__u32 wq_type;
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 cq_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+};
+
+struct ib_uverbs_ex_create_wq_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 wq_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 wqn;
+};
+
+struct ib_uverbs_ex_destroy_wq  {
+	__u32 comp_mask;
+	__u32 wq_handle;
+};
+
+struct ib_uverbs_ex_destroy_wq_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 events_reported;
+	__u32 reserved;
+};
+
+struct ib_uverbs_ex_modify_wq  {
+	__u32 attr_mask;
+	__u32 wq_handle;
+	__u32 wq_state;
+	__u32 curr_wq_state;
+};
+
+/* Prevent memory allocation rather than max expected size */
+#define IB_USER_VERBS_MAX_LOG_IND_TBL_SIZE 0x0d
+struct ib_uverbs_ex_create_rwq_ind_table  {
+	__u32 comp_mask;
+	__u32 log_ind_tbl_size;
+	/* Following are the wq handles according to log_ind_tbl_size
+	 * wq_handle1
+	 * wq_handle2
+	 */
+	__u32 wq_handles[0];
+};
+
+struct ib_uverbs_ex_create_rwq_ind_table_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 ind_tbl_handle;
+	__u32 ind_tbl_num;
+};
+
+struct ib_uverbs_ex_destroy_rwq_ind_table  {
+	__u32 comp_mask;
+	__u32 ind_tbl_handle;
 };
 
 #endif /* IB_USER_VERBS_H */

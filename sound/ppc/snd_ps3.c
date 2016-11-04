@@ -564,9 +564,7 @@ static int snd_ps3_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static int snd_ps3_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	int ret;
-	ret = snd_pcm_lib_free_pages(substream);
-	return ret;
+	return snd_pcm_lib_free_pages(substream);
 };
 
 static int snd_ps3_delay_to_bytes(struct snd_pcm_substream *substream,

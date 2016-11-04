@@ -46,7 +46,8 @@ IRQ.txt
 Intel-IOMMU.txt
 	- basic info on the Intel IOMMU virtualization support.
 Makefile
-	- some files in Documentation dir are actually sample code to build
+	- This file does nothing. Removing it breaks make htmldocs and
+	  make distclean.
 ManagementStyle
 	- how to (attempt to) manage kernel hackers.
 RCU/
@@ -255,10 +256,10 @@ kbuild/
 	- directory with info about the kernel build process.
 kdump/
 	- directory with mini HowTo on getting the crash dump code to work.
-kernel-doc-nano-HOWTO.txt
-	- mini HowTo on generation and location of kernel documentation files.
 kernel-docs.txt
 	- listing of various WWW + books that document kernel internals.
+kernel-documentation.rst
+	- how to write and format reStructuredText kernel documentation
 kernel-parameters.txt
 	- summary listing of command line / boot prompt args for the kernel.
 kernel-per-CPU-kthreads.txt

@@ -95,7 +95,7 @@ struct ceph_mon_client {
 		struct ceph_mon_subscribe_item item;
 		bool want;
 		u32 have; /* epoch */
-	} subs[3];
+	} subs[4];
 	int fs_cluster_id; /* "mdsmap.<id>" sub */
 
 #ifdef CONFIG_DEBUG_FS
@@ -111,9 +111,10 @@ extern int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl);
 extern void ceph_monc_stop(struct ceph_mon_client *monc);
 
 enum {
-	CEPH_SUB_MDSMAP = 0,
-	CEPH_SUB_MONMAP,
+	CEPH_SUB_MONMAP = 0,
 	CEPH_SUB_OSDMAP,
+	CEPH_SUB_FSMAP,
+	CEPH_SUB_MDSMAP,
 };
 
 extern const char *ceph_sub_str[];
@@ -139,6 +140,9 @@ int ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
 			  u64 *newest);
 int ceph_monc_get_version_async(struct ceph_mon_client *monc, const char *what,
 				ceph_monc_callback_t cb, u64 private_data);
+
+int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
+			    struct ceph_entity_addr *client_addr);
 
 extern int ceph_monc_open_session(struct ceph_mon_client *monc);
 

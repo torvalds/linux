@@ -267,6 +267,9 @@ validate_indexed_prim_list(VALIDATE_ARGS)
 	if (!ib)
 		return -EINVAL;
 
+	exec->bin_dep_seqno = max(exec->bin_dep_seqno,
+				  to_vc4_bo(&ib->base)->write_seqno);
+
 	if (offset > ib->base.size ||
 	    (ib->base.size - offset) / index_size < length) {
 		DRM_ERROR("IB access overflow (%d + %d*%d > %zd)\n",
@@ -555,8 +558,7 @@ static bool
 reloc_tex(struct vc4_exec_info *exec,
 	  void *uniform_data_u,
 	  struct vc4_texture_sample_info *sample,
-	  uint32_t texture_handle_index)
-
+	  uint32_t texture_handle_index, bool is_cs)
 {
 	struct drm_gem_cma_object *tex;
 	uint32_t p0 = *(uint32_t *)(uniform_data_u + sample->p_offset[0]);
@@ -714,6 +716,11 @@ reloc_tex(struct vc4_exec_info *exec,
 
 	*validated_p0 = tex->paddr + p0;
 
+	if (is_cs) {
+		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
+					  to_vc4_bo(&tex->base)->write_seqno);
+	}
+
 	return true;
  fail:
 	DRM_INFO("Texture p0 at %d: 0x%08x\n", sample->p_offset[0], p0);
@@ -802,7 +809,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 		uint32_t src_offset = *(uint32_t *)(pkt_u + o);
 		uint32_t *texture_handles_u;
 		void *uniform_data_u;
-		uint32_t tex;
+		uint32_t tex, uni;
 
 		*(uint32_t *)(pkt_v + o) = bo[i]->paddr + src_offset;
 
@@ -835,9 +842,21 @@ validate_gl_shader_rec(struct drm_device *dev,
 			if (!reloc_tex(exec,
 				       uniform_data_u,
 				       &validated_shader->texture_samples[tex],
-				       texture_handles_u[tex])) {
+				       texture_handles_u[tex],
+				       i == 2)) {
 				return -EINVAL;
 			}
+		}
+
+		/* Fill in the uniform slots that need this shader's
+		 * start-of-uniforms address (used for resetting the uniform
+		 * stream in the presence of control flow).
+		 */
+		for (uni = 0;
+		     uni < validated_shader->num_uniform_addr_offsets;
+		     uni++) {
+			uint32_t o = validated_shader->uniform_addr_offsets[uni];
+			((uint32_t *)exec->uniforms_v)[o] = exec->uniforms_p;
 		}
 
 		*(uint32_t *)(pkt_v + o + 4) = exec->uniforms_p;
@@ -855,6 +874,9 @@ validate_gl_shader_rec(struct drm_device *dev,
 		uint32_t attr_size = *(uint8_t *)(pkt_u + o + 4) + 1;
 		uint32_t stride = *(uint8_t *)(pkt_u + o + 5);
 		uint32_t max_index;
+
+		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
+					  to_vc4_bo(&vbo->base)->write_seqno);
 
 		if (state->addr & 0x8)
 			stride |= (*(uint32_t *)(pkt_u + 100 + i * 4)) & ~0xff;

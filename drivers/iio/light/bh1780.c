@@ -84,7 +84,7 @@ static int bh1780_debugfs_reg_access(struct iio_dev *indio_dev,
 	int ret;
 
 	if (!readval)
-		bh1780_write(bh1780, (u8)reg, (u8)writeval);
+		return bh1780_write(bh1780, (u8)reg, (u8)writeval);
 
 	ret = bh1780_read(bh1780, (u8)reg);
 	if (ret < 0)
@@ -187,7 +187,7 @@ static int bh1780_probe(struct i2c_client *client,
 
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &bh1780_info;
-	indio_dev->name = id->name;
+	indio_dev->name = "bh1780";
 	indio_dev->channels = bh1780_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bh1780_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -226,7 +226,8 @@ static int bh1780_remove(struct i2c_client *client)
 static int bh1780_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct bh1780_data *bh1780 = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct bh1780_data *bh1780 = iio_priv(indio_dev);
 	int ret;
 
 	ret = bh1780_write(bh1780, BH1780_REG_CONTROL, BH1780_POFF);
@@ -241,7 +242,8 @@ static int bh1780_runtime_suspend(struct device *dev)
 static int bh1780_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct bh1780_data *bh1780 = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct bh1780_data *bh1780 = iio_priv(indio_dev);
 	int ret;
 
 	ret = bh1780_write(bh1780, BH1780_REG_CONTROL, BH1780_PON);

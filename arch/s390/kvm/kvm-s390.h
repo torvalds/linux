@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <asm/facility.h>
 #include <asm/processor.h>
+#include <asm/sclp.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
@@ -56,7 +57,7 @@ static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 
 static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_WAIT;
+	return test_bit(vcpu->vcpu_id, vcpu->arch.local_int.float_int->idle_mask);
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -175,6 +176,12 @@ static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
 	return 0;
 }
 
+static inline int test_kvm_cpu_feat(struct kvm *kvm, unsigned long nr)
+{
+	WARN_ON_ONCE(nr >= KVM_S390_VM_CPU_FEAT_NR_BITS);
+	return test_bit_inv(nr, kvm->arch.cpu_feat);
+}
+
 /* are cpu states controlled by user space */
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
@@ -232,11 +239,14 @@ static inline void kvm_s390_forward_psw(struct kvm_vcpu *vcpu, int ilen)
 }
 static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 {
+	/* don't inject PER events if we re-execute the instruction */
+	vcpu->arch.sie_block->icptstatus &= ~0x02;
 	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
 }
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
+int kvm_s390_handle_aa(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
@@ -246,18 +256,26 @@ int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 
+/* implemented in vsie.c */
+int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
+				 unsigned long end);
+void kvm_s390_vsie_init(struct kvm *kvm);
+void kvm_s390_vsie_destroy(struct kvm *kvm);
+
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
+
+/* implemented in sthyi.c */
+int handle_sthyi(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);
-int kvm_s390_store_adtl_status_unloaded(struct kvm_vcpu *vcpu,
-					unsigned long addr);
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr);
-int kvm_s390_vcpu_store_adtl_status(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_s390_vcpu_start(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_stop(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu);
@@ -360,6 +378,7 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 			    struct kvm_guest_debug *dbg);
 void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
 void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu);
 void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 
 /* support for Basic/Extended SCA handling */
@@ -368,5 +387,14 @@ static inline union ipte_control *kvm_s390_get_ipte_control(struct kvm *kvm)
 	struct bsca_block *sca = kvm->arch.sca; /* SCA version doesn't matter */
 
 	return &sca->ipte_control;
+}
+static inline int kvm_s390_use_sca_entries(void)
+{
+	/*
+	 * Without SIGP interpretation, only SRS interpretation (if available)
+	 * might use the entries. By not setting the entries and keeping them
+	 * invalid, hardware will not access them but intercept.
+	 */
+	return sclp.has_sigpif;
 }
 #endif

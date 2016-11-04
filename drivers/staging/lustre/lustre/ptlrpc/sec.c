@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -315,6 +311,19 @@ static int import_sec_check_expire(struct obd_import *imp)
 	return sptlrpc_import_sec_adapt(imp, NULL, NULL);
 }
 
+/**
+ * Get and validate the client side ptlrpc security facilities from
+ * \a imp. There is a race condition on client reconnect when the import is
+ * being destroyed while there are outstanding client bound requests. In
+ * this case do not output any error messages if import secuity is not
+ * found.
+ *
+ * \param[in] imp obd import associated with client
+ * \param[out] sec client side ptlrpc security
+ *
+ * \retval 0 if security retrieved successfully
+ * \retval -ve errno if there was a problem
+ */
 static int import_sec_validate_get(struct obd_import *imp,
 				   struct ptlrpc_sec **sec)
 {
@@ -327,9 +336,11 @@ static int import_sec_validate_get(struct obd_import *imp,
 	}
 
 	*sec = sptlrpc_import_sec_ref(imp);
+	/* Only output an error when the import is still active */
 	if (!*sec) {
-		CERROR("import %p (%s) with no sec\n",
-		       imp, ptlrpc_import_state_name(imp->imp_state));
+		if (list_empty(&imp->imp_zombie_chain))
+			CERROR("import %p (%s) with no sec\n",
+			       imp, ptlrpc_import_state_name(imp->imp_state));
 		return -EACCES;
 	}
 
@@ -503,7 +514,7 @@ static int sptlrpc_req_replace_dead_ctx(struct ptlrpc_request *req)
 		       newctx, newctx->cc_flags);
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+		schedule_timeout(msecs_to_jiffies(MSEC_PER_SEC));
 	} else {
 		/*
 		 * it's possible newctx == oldctx if we're switching
@@ -722,8 +733,9 @@ again:
 	req->rq_restart = 0;
 	spin_unlock(&req->rq_lock);
 
-	lwi = LWI_TIMEOUT_INTR(timeout * HZ, ctx_refresh_timeout,
-			       ctx_refresh_interrupt, req);
+	lwi = LWI_TIMEOUT_INTR(msecs_to_jiffies(timeout * MSEC_PER_SEC),
+			       ctx_refresh_timeout, ctx_refresh_interrupt,
+			       req);
 	rc = l_wait_event(req->rq_reply_waitq, ctx_check_refresh(ctx), &lwi);
 
 	/*
@@ -867,11 +879,9 @@ int sptlrpc_import_check_ctx(struct obd_import *imp)
 	if (!req)
 		return -ENOMEM;
 
-	spin_lock_init(&req->rq_lock);
+	ptlrpc_cli_req_init(req);
 	atomic_set(&req->rq_refcount, 10000);
-	INIT_LIST_HEAD(&req->rq_ctx_chain);
-	init_waitqueue_head(&req->rq_reply_waitq);
-	init_waitqueue_head(&req->rq_set_waitq);
+
 	req->rq_import = imp;
 	req->rq_flvr = sec->ps_flvr;
 	req->rq_cli_ctx = ctx;
@@ -1051,6 +1061,8 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	if (!early_req)
 		return -ENOMEM;
 
+	ptlrpc_cli_req_init(early_req);
+
 	early_size = req->rq_nob_received;
 	early_bufsz = size_roundup_power2(early_size);
 	early_buf = libcfs_kvzalloc(early_bufsz, GFP_NOFS);
@@ -1099,12 +1111,11 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	memcpy(early_buf, req->rq_repbuf, early_size);
 	spin_unlock(&req->rq_lock);
 
-	spin_lock_init(&early_req->rq_lock);
 	early_req->rq_cli_ctx = sptlrpc_cli_ctx_get(req->rq_cli_ctx);
 	early_req->rq_flvr = req->rq_flvr;
 	early_req->rq_repbuf = early_buf;
 	early_req->rq_repbuf_len = early_bufsz;
-	early_req->rq_repdata = (struct lustre_msg *) early_buf;
+	early_req->rq_repdata = (struct lustre_msg *)early_buf;
 	early_req->rq_repdata_len = early_size;
 	early_req->rq_early = 1;
 	early_req->rq_reqmsg = req->rq_reqmsg;
@@ -1556,7 +1567,7 @@ void _sptlrpc_enlarge_msg_inplace(struct lustre_msg *msg,
 	/* move from segment + 1 to end segment */
 	LASSERT(msg->lm_magic == LUSTRE_MSG_MAGIC_V2);
 	oldmsg_size = lustre_msg_size_v2(msg->lm_bufcount, msg->lm_buflens);
-	movesize = oldmsg_size - ((unsigned long) src - (unsigned long) msg);
+	movesize = oldmsg_size - ((unsigned long)src - (unsigned long)msg);
 	LASSERT(movesize >= 0);
 
 	if (movesize)
@@ -2196,6 +2207,9 @@ int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset)
 
 	pud = lustre_msg_buf(msg, offset, 0);
 
+	if (!pud)
+		return -EINVAL;
+
 	pud->pud_uid = from_kuid(&init_user_ns, current_uid());
 	pud->pud_gid = from_kgid(&init_user_ns, current_gid());
 	pud->pud_fsuid = from_kuid(&init_user_ns, current_fsuid());
@@ -2206,7 +2220,7 @@ int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset)
 	task_lock(current);
 	if (pud->pud_ngroups > current_ngroups)
 		pud->pud_ngroups = current_ngroups;
-	memcpy(pud->pud_groups, current_cred()->group_info->blocks[0],
+	memcpy(pud->pud_groups, current_cred()->group_info->gid,
 	       pud->pud_ngroups * sizeof(__u32));
 	task_unlock(current);
 

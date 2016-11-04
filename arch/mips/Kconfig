@@ -30,7 +30,6 @@ config MIPS
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
 	select RTC_LIB if !MACH_LOONGSON64
 	select GENERIC_ATOMIC64 if !64BIT
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DMA_API_DEBUG
 	select GENERIC_IRQ_PROBE
@@ -64,12 +63,66 @@ config MIPS
 	select GENERIC_TIME_VSYSCALL
 	select ARCH_CLOCKSOURCE_DATA
 	select HANDLE_DOMAIN_IRQ
+	select HAVE_EXIT_THREAD
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_ARCH_HARDENED_USERCOPY
 
 menu "Machine selection"
 
 choice
 	prompt "System type"
 	default SGI_IP22
+
+config MIPS_GENERIC
+	bool "Generic board-agnostic MIPS kernel"
+	select BOOT_RAW
+	select BUILTIN_DTB
+	select CEVT_R4K
+	select CLKSRC_MIPS_GIC
+	select COMMON_CLK
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
+	select CSRC_R4K
+	select DMA_PERDEV_COHERENT
+	select HW_HAS_PCI
+	select IRQ_MIPS_CPU
+	select LIBFDT
+	select MIPS_CPU_SCACHE
+	select MIPS_GIC
+	select MIPS_L1_CACHE_SHIFT_7
+	select NO_EXCEPT_FILL
+	select PCI_DRIVERS_GENERIC
+	select PINCTRL
+	select SMP_UP if SMP
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_CPU_MIPS32_R6
+	select SYS_HAS_CPU_MIPS64_R1
+	select SYS_HAS_CPU_MIPS64_R2
+	select SYS_HAS_CPU_MIPS64_R6
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MICROMIPS
+	select SYS_SUPPORTS_MIPS_CPS
+	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_RELOCATABLE
+	select SYS_SUPPORTS_SMARTMIPS
+	select USB_EHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
+	select USB_EHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USB_UHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
+	select USB_UHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USE_OF
+	help
+	  Select this to build a kernel which aims to support multiple boards,
+	  generally using a flattened device tree passed from the bootloader
+	  using the boot protocol defined in the UHI (Unified Hosting
+	  Interface) specification.
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
@@ -384,7 +437,7 @@ config MACH_PISTACHIO
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
 	select CSRC_R4K
-	select DMA_MAYBE_COHERENT
+	select DMA_NONCOHERENT
 	select GPIOLIB
 	select IRQ_MIPS_CPU
 	select LIBFDT
@@ -477,6 +530,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
+	select LIBFDT
 	select ZONE_DMA32 if 64BIT
 	select BUILTIN_DTB
 	select LIBFDT
@@ -491,42 +545,6 @@ config MACH_PIC32
 
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
-
-config MIPS_SEAD3
-	bool "MIPS SEAD3 board"
-	select BOOT_ELF32
-	select BOOT_RAW
-	select BUILTIN_DTB
-	select CEVT_R4K
-	select CSRC_R4K
-	select CLKSRC_MIPS_GIC
-	select COMMON_CLK
-	select CPU_MIPSR2_IRQ_VI
-	select CPU_MIPSR2_IRQ_EI
-	select DMA_NONCOHERENT
-	select IRQ_MIPS_CPU
-	select MIPS_GIC
-	select LIBFDT
-	select MIPS_MSC
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_CPU_MIPS32_R6
-	select SYS_HAS_CPU_MIPS64_R1
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_SMARTMIPS
-	select SYS_SUPPORTS_MICROMIPS
-	select SYS_SUPPORTS_MIPS16
-	select SYS_SUPPORTS_RELOCATABLE
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	select USE_OF
-	help
-	  This enables support for the MIPS Technologies SEAD3 evaluation
-	  board.
 
 config NEC_MARKEINS
 	bool "NEC EMMA2RH Mark-eins board"
@@ -880,7 +898,6 @@ config CAVIUM_OCTEON_SOC
 	select SYS_SUPPORTS_HOTPLUG_CPU if CPU_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
-	select SWAP_IO_SPACE
 	select HW_HAS_PCI
 	select ZONE_DMA32
 	select HOLES_IN_ZONE
@@ -988,6 +1005,7 @@ source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/bmips/Kconfig"
+source "arch/mips/generic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
@@ -1098,6 +1116,10 @@ config DMA_MAYBE_COHERENT
 	select DMA_NONCOHERENT
 	bool
 
+config DMA_PERDEV_COHERENT
+	bool
+	select DMA_MAYBE_COHERENT
+
 config DMA_COHERENT
 	bool
 
@@ -1110,16 +1132,6 @@ config NEED_DMA_MAP_STATE
 
 config SYS_HAS_EARLY_PRINTK
 	bool
-
-config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs"
-	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
-	help
-	  Say Y here to allow turning CPUs off and on. CPUs can be
-	  controlled through /sys/devices/system/cpu.
-	  (Note: power management support will enable this option
-	    automatically on SMP systems. )
-	  Say N if you want to disable CPU hotplug.
 
 config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
@@ -1406,10 +1418,19 @@ config CPU_LOONGSON1B
 	bool "Loongson 1B"
 	depends on SYS_HAS_CPU_LOONGSON1B
 	select CPU_LOONGSON1
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select LEDS_GPIO_REGISTER
 	help
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
+	  release 2 instruction set.
+
+config CPU_LOONGSON1C
+	bool "Loongson 1C"
+	depends on SYS_HAS_CPU_LOONGSON1C
+	select CPU_LOONGSON1
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select LEDS_GPIO_REGISTER
+	help
+	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
 	  release 2 instruction set.
 
 config CPU_MIPS32_R1
@@ -1488,6 +1509,7 @@ config CPU_MIPS64_R2
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
+	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS64 architecture.  Many modern embedded systems with a 64-bit
@@ -1505,6 +1527,7 @@ config CPU_MIPS64_R6
 	select CPU_SUPPORTS_MSA
 	select GENERIC_CSUM
 	select MIPS_O32_FP64_SUPPORT if MIPS32_O32
+	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 6 or later of the
 	  MIPS64 architecture.  New MIPS processors, starting with the Warrior
@@ -1857,6 +1880,9 @@ config SYS_HAS_CPU_LOONGSON2F
 	select CPU_SUPPORTS_UNCACHED_ACCELERATED
 
 config SYS_HAS_CPU_LOONGSON1B
+	bool
+
+config SYS_HAS_CPU_LOONGSON1C
 	bool
 
 config SYS_HAS_CPU_MIPS32_R1
@@ -2634,6 +2660,16 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  (Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
+
 config SMP_UP
 	bool
 
@@ -2885,10 +2921,10 @@ choice
 		  the documented boot protocol using a device tree.
 
 	config MIPS_RAW_APPENDED_DTB
-		bool "vmlinux.bin"
+		bool "vmlinux.bin or vmlinuz.bin"
 		help
 		  With this option, the boot code will look for a device tree binary
-		  DTB) appended to raw vmlinux.bin (without decompressor).
+		  DTB) appended to raw vmlinux.bin or vmlinuz.bin.
 		  (e.g. cat vmlinux.bin <filename>.dtb > vmlinux_w_dtb).
 
 		  This is meant as a backward compatibility convenience for those
@@ -2900,30 +2936,12 @@ choice
 		  look like a DTB header after a reboot if no actual DTB is appended
 		  to vmlinux.bin.  Do not leave this option active in a production kernel
 		  if you don't intend to always append a DTB.
-
-	config MIPS_ZBOOT_APPENDED_DTB
-		bool "vmlinuz.bin"
-		depends on SYS_SUPPORTS_ZBOOT
-		help
-		  With this option, the boot code will look for a device tree binary
-		  DTB) appended to raw vmlinuz.bin (with decompressor).
-		  (e.g. cat vmlinuz.bin <filename>.dtb > vmlinuz_w_dtb).
-
-		  This is meant as a backward compatibility convenience for those
-		  systems with a bootloader that can't be upgraded to accommodate
-		  the documented boot protocol using a device tree.
-
-		  Beware that there is very little in terms of protection against
-		  this option being confused by leftover garbage in memory that might
-		  look like a DTB header after a reboot if no actual DTB is appended
-		  to vmlinuz.bin.  Do not leave this option active in a production kernel
-		  if you don't intend to always append a DTB.
 endchoice
 
 choice
 	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
-					 !MIPS_MALTA && !MIPS_SEAD3 && \
+					 !MIPS_MALTA && \
 					 !CAVIUM_OCTEON_SOC
 	default MIPS_CMDLINE_FROM_BOOTLOADER
 
@@ -2977,7 +2995,6 @@ config PCI
 	bool "Support for PCI controller"
 	depends on HW_HAS_PCI
 	select PCI_DOMAINS
-	select NO_GENERIC_PCI_IOPORT_MAP
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -2997,6 +3014,17 @@ config HT_PCI
 
 config PCI_DOMAINS
 	bool
+
+config PCI_DOMAINS_GENERIC
+	bool
+
+config PCI_DRIVERS_GENERIC
+	select PCI_DOMAINS_GENERIC if PCI_DOMAINS
+	bool
+
+config PCI_DRIVERS_LEGACY
+	def_bool !PCI_DRIVERS_GENERIC
+	select NO_GENERIC_PCI_IOPORT_MAP
 
 source "drivers/pci/Kconfig"
 

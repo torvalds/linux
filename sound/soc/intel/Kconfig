@@ -7,7 +7,7 @@ config SND_MFLD_MACHINE
 	help
           This adds support for ASoC machine driver for Intel(R) MID Medfield platform
           used as alsa device in audio substem in Intel(R) MID devices
-          Say Y if you have such a device
+          Say Y if you have such a device.
           If unsure select "N".
 
 config SND_SST_MFLD_PLATFORM
@@ -25,13 +25,19 @@ config SND_SST_IPC_ACPI
 	tristate
 	select SND_SST_IPC
 	select SND_SOC_INTEL_SST
-	depends on ACPI
+	select IOSF_MBI
 
 config SND_SOC_INTEL_SST
 	tristate
 	select SND_SOC_INTEL_SST_ACPI if ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
 	depends on (X86 || COMPILE_TEST)
+
+# firmware stuff depends DW_DMAC_CORE; since there is no depends-on from
+# the reverse selection, each machine driver needs to select
+# SND_SOC_INTEL_SST_FIRMWARE carefully depending on DW_DMAC_CORE
+config SND_SOC_INTEL_SST_FIRMWARE
+	tristate
 
 config SND_SOC_INTEL_SST_ACPI
 	tristate
@@ -48,15 +54,32 @@ config SND_SOC_INTEL_BAYTRAIL
 config SND_SOC_INTEL_HASWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Haswell Lynxpoint"
 	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM
-	depends on DW_DMAC_CORE=y
+	depends on DW_DMAC_CORE
 	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SST_FIRMWARE
 	select SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT5640
 	help
 	  This adds support for the Lynxpoint Audio DSP on Intel(R) Haswell
 	  Ultrabook platforms.
-	  Say Y if you have such a device
+	  Say Y if you have such a device.
 	  If unsure select "N".
+
+config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
+	tristate "ASoC Audio driver for Broxton with DA7219 and MAX98357A in I2S Mode"
+	depends on X86 && ACPI && I2C
+	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SKYLAKE
+	select SND_SOC_DA7219
+	select SND_SOC_MAX98357A
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
+	select SND_HDA_DSP_LOADER
+	help
+	   This adds support for ASoC machine driver for Broxton-P platforms
+	   with DA7219 + MAX98357A I2S audio codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
 
 config SND_SOC_INTEL_BXT_RT298_MACH
 	tristate "ASoC Audio driver for Broxton with RT298 I2S mode"
@@ -70,49 +93,63 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	help
 	   This adds support for ASoC machine driver for Broxton platforms
 	   with RT286 I2S audio codec.
-	   Say Y if you have such a device
+	   Say Y if you have such a device.
 	   If unsure select "N".
 
 config SND_SOC_INTEL_BYT_RT5640_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with RT5640 codec"
 	depends on X86_INTEL_LPSS && I2C
-	depends on DW_DMAC_CORE=y && (SND_SST_IPC_ACPI = n)
+	depends on DW_DMAC_CORE && (SND_SST_IPC_ACPI = n)
 	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SST_FIRMWARE
 	select SND_SOC_INTEL_BAYTRAIL
 	select SND_SOC_RT5640
 	help
 	  This adds audio driver for Intel Baytrail platform based boards
 	  with the RT5640 audio codec. This driver is deprecated, use
-	  SND_SOC_INTEL_BYTCR_RT5640_MACH instead for better functionality
+	  SND_SOC_INTEL_BYTCR_RT5640_MACH instead for better functionality.
 
 config SND_SOC_INTEL_BYT_MAX98090_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with MAX98090 codec"
 	depends on X86_INTEL_LPSS && I2C
-	depends on DW_DMAC_CORE=y && (SND_SST_IPC_ACPI = n)
+	depends on DW_DMAC_CORE && (SND_SST_IPC_ACPI = n)
 	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SST_FIRMWARE
 	select SND_SOC_INTEL_BAYTRAIL
 	select SND_SOC_MAX98090
 	help
 	  This adds audio driver for Intel Baytrail platform based boards
 	  with the MAX98090 audio codec.
 
+config SND_SOC_INTEL_BDW_RT5677_MACH
+	tristate "ASoC Audio driver for Intel Broadwell with RT5677 codec"
+	depends on X86_INTEL_LPSS && GPIOLIB && I2C && DW_DMAC
+	depends on DW_DMAC_CORE=y
+	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_HASWELL
+	select SND_SOC_RT5677
+	help
+	  This adds support for Intel Broadwell platform based boards with
+	  the RT5677 audio codec.
+
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
 	depends on X86_INTEL_LPSS && I2C && DW_DMAC && \
 		   I2C_DESIGNWARE_PLATFORM
-	depends on DW_DMAC_CORE=y
+	depends on DW_DMAC_CORE
 	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SST_FIRMWARE
 	select SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT286
 	help
 	  This adds support for the Wilcatpoint Audio DSP on Intel(R) Broadwell
 	  Ultrabook platforms.
-	  Say Y if you have such a device
+	  Say Y if you have such a device.
 	  If unsure select "N".
 
 config SND_SOC_INTEL_BYTCR_RT5640_MACH
         tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5640 codec"
-	depends on X86 && I2C
+	depends on X86 && I2C && ACPI
 	select SND_SOC_RT5640
 	select SND_SST_MFLD_PLATFORM
 	select SND_SST_IPC_ACPI
@@ -120,12 +157,12 @@ config SND_SOC_INTEL_BYTCR_RT5640_MACH
 	help
           This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
           platforms with RT5640 audio codec.
-          Say Y if you have such a device
+          Say Y if you have such a device.
           If unsure select "N".
 
 config SND_SOC_INTEL_BYTCR_RT5651_MACH
         tristate "ASoC Audio driver for Intel Baytrail and Baytrail-CR with RT5651 codec"
-	depends on X86 && I2C
+	depends on X86 && I2C && ACPI
 	select SND_SOC_RT5651
 	select SND_SST_MFLD_PLATFORM
 	select SND_SST_IPC_ACPI
@@ -133,12 +170,12 @@ config SND_SOC_INTEL_BYTCR_RT5651_MACH
 	help
           This adds support for ASoC machine driver for Intel(R) Baytrail and Baytrail-CR
           platforms with RT5651 audio codec.
-          Say Y if you have such a device
+          Say Y if you have such a device.
           If unsure select "N".
 
 config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
         tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5672 codec"
-        depends on X86_INTEL_LPSS && I2C
+        depends on X86_INTEL_LPSS && I2C && ACPI
         select SND_SOC_RT5670
         select SND_SST_MFLD_PLATFORM
         select SND_SST_IPC_ACPI
@@ -146,12 +183,12 @@ config SND_SOC_INTEL_CHT_BSW_RT5672_MACH
         help
           This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
           platforms with RT5672 audio codec.
-          Say Y if you have such a device
+          Say Y if you have such a device.
           If unsure select "N".
 
 config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with RT5645/5650 codec"
-	depends on X86_INTEL_LPSS && I2C
+	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_RT5645
 	select SND_SST_MFLD_PLATFORM
 	select SND_SST_IPC_ACPI
@@ -163,16 +200,16 @@ config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 
 config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
 	tristate "ASoC Audio driver for Intel Cherrytrail & Braswell with MAX98090 & TI codec"
-	depends on X86_INTEL_LPSS && I2C
+	depends on X86_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_MAX98090
 	select SND_SOC_TS3A227E
 	select SND_SST_MFLD_PLATFORM
 	select SND_SST_IPC_ACPI
 	select SND_SOC_INTEL_SST_MATCH if ACPI
 	help
-      This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
-      platforms with MAX98090 audio codec it also can support TI jack chip as aux device.
-      If unsure select "N".
+	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
+	  platforms with MAX98090 audio codec it also can support TI jack chip as aux device.
+	  If unsure select "N".
 
 config SND_SOC_INTEL_SKYLAKE
 	tristate
@@ -192,7 +229,7 @@ config SND_SOC_INTEL_SKL_RT286_MACH
 	help
 	   This adds support for ASoC machine driver for Skylake platforms
 	   with RT286 I2S audio codec.
-	   Say Y if you have such a device
+	   Say Y if you have such a device.
 	   If unsure select "N".
 
 config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
@@ -207,7 +244,7 @@ config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
 	help
 	  This adds support for ASoC Onboard Codec I2S machine driver. This will
 	  create an alsa sound card for NAU88L25 + SSM4567.
-	  Say Y if you have such a device
+	  Say Y if you have such a device.
 	  If unsure select "N".
 
 config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
@@ -222,5 +259,5 @@ config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	help
 	  This adds support for ASoC Onboard Codec I2S machine driver. This will
 	  create an alsa sound card for NAU88L25 + MAX98357A.
-	  Say Y if you have such a device
+	  Say Y if you have such a device.
 	  If unsure select "N".

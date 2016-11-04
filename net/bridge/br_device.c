@@ -61,11 +61,11 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
 
-	if (is_broadcast_ether_addr(dest))
-		br_flood_deliver(br, skb, false);
-	else if (is_multicast_ether_addr(dest)) {
+	if (is_broadcast_ether_addr(dest)) {
+		br_flood(br, skb, BR_PKT_BROADCAST, false, true);
+	} else if (is_multicast_ether_addr(dest)) {
 		if (unlikely(netpoll_tx_running(dev))) {
-			br_flood_deliver(br, skb, false);
+			br_flood(br, skb, BR_PKT_MULTICAST, false, true);
 			goto out;
 		}
 		if (br_multicast_rcv(br, NULL, skb, vid)) {
@@ -76,14 +76,14 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb)))
-			br_multicast_deliver(mdst, skb);
+			br_multicast_flood(mdst, skb, false, true);
 		else
-			br_flood_deliver(br, skb, false);
-	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL)
-		br_deliver(dst->dst, skb);
-	else
-		br_flood_deliver(br, skb, true);
-
+			br_flood(br, skb, BR_PKT_MULTICAST, false, true);
+	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL) {
+		br_forward(dst->dst, skb, false, true);
+	} else {
+		br_flood(br, skb, BR_PKT_UNICAST, false, true);
+	}
 out:
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
@@ -104,8 +104,16 @@ static int br_dev_init(struct net_device *dev)
 		return -ENOMEM;
 
 	err = br_vlan_init(br);
-	if (err)
+	if (err) {
 		free_percpu(br->stats);
+		return err;
+	}
+
+	err = br_multicast_init_stats(br);
+	if (err) {
+		free_percpu(br->stats);
+		br_vlan_flush(br);
+	}
 	br_set_lockdep_class(dev);
 
 	return err;
@@ -341,6 +349,8 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_add_slave		 = br_add_slave,
 	.ndo_del_slave		 = br_del_slave,
 	.ndo_fix_features        = br_fix_features,
+	.ndo_neigh_construct	 = netdev_default_l2upper_neigh_construct,
+	.ndo_neigh_destroy	 = netdev_default_l2upper_neigh_destroy,
 	.ndo_fdb_add		 = br_fdb_add,
 	.ndo_fdb_del		 = br_fdb_delete,
 	.ndo_fdb_dump		 = br_fdb_dump,

@@ -11,7 +11,7 @@ static inline int pmd_huge(pmd_t pmd)
 	 * leaf pte for huge page
 	 */
 	if (radix_enabled())
-		return !!(pmd_val(pmd) & _PAGE_PTE);
+		return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
 	return 0;
 }
 
@@ -21,7 +21,7 @@ static inline int pud_huge(pud_t pud)
 	 * leaf pte for huge page
 	 */
 	if (radix_enabled())
-		return !!(pud_val(pud) & _PAGE_PTE);
+		return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PTE));
 	return 0;
 }
 
@@ -31,7 +31,7 @@ static inline int pgd_huge(pgd_t pgd)
 	 * leaf pte for huge page
 	 */
 	if (radix_enabled())
-		return !!(pgd_val(pgd) & _PAGE_PTE);
+		return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
 	return 0;
 }
 #define pgd_huge pgd_huge

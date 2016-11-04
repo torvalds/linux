@@ -83,7 +83,7 @@ config PCIE_PME
 	depends on PCIEPORTBUS && PM
 
 config PCIE_DPC
-	tristate "PCIe Downstream Port Containment support"
+	bool "PCIe Downstream Port Containment support"
 	depends on PCIEPORTBUS
 	default n
 	help
@@ -93,5 +93,13 @@ config PCIE_DPC
 	  have this capability or you do not want to use this feature,
 	  it is safe to answer N.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called pcie-dpc.
+config PCIE_PTM
+	bool "PCIe Precision Time Measurement support"
+	default n
+	depends on PCIEPORTBUS
+	help
+	  This enables PCI Express Precision Time Measurement (PTM)
+	  support.
+
+	  This is only useful if you have devices that support PTM, but it
+	  is safe to enable even if you don't.

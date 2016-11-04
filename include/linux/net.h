@@ -25,6 +25,7 @@
 #include <linux/kmemcheck.h>
 #include <linux/rcupdate.h>
 #include <linux/once.h>
+#include <linux/fs.h>
 
 #include <uapi/linux/net.h>
 
@@ -128,6 +129,9 @@ struct page;
 struct sockaddr;
 struct msghdr;
 struct module;
+struct sk_buff;
+typedef int (*sk_read_actor_t)(read_descriptor_t *, struct sk_buff *,
+			       unsigned int, size_t);
 
 struct proto_ops {
 	int		family;
@@ -185,6 +189,9 @@ struct proto_ops {
 	ssize_t 	(*splice_read)(struct socket *sock,  loff_t *ppos,
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 	int		(*set_peek_off)(struct sock *sk, int val);
+	int		(*peek_len)(struct socket *sock);
+	int		(*read_sock)(struct sock *sk, read_descriptor_t *desc,
+				     sk_read_actor_t recv_actor);
 };
 
 #define DECLARE_SOCKADDR(type, dst, src)	\
@@ -251,7 +258,8 @@ do {									\
 	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);			\
 	if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT) &&	\
 	    net_ratelimit())						\
-		__dynamic_pr_debug(&descriptor, fmt, ##__VA_ARGS__);	\
+		__dynamic_pr_debug(&descriptor, pr_fmt(fmt),		\
+		                   ##__VA_ARGS__);			\
 } while (0)
 #elif defined(DEBUG)
 #define net_dbg_ratelimited(fmt, ...)				\

@@ -71,9 +71,7 @@ EXPORT_SYMBOL(simple_lookup);
 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
-	static struct qstr cursor_name = QSTR_INIT(".", 1);
-
-	file->private_data = d_alloc(file->f_path.dentry, &cursor_name);
+	file->private_data = d_alloc_cursor(file->f_path.dentry);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
@@ -85,6 +83,61 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 	return 0;
 }
 EXPORT_SYMBOL(dcache_dir_close);
+
+/* parent is locked at least shared */
+static struct dentry *next_positive(struct dentry *parent,
+				    struct list_head *from,
+				    int count)
+{
+	unsigned *seq = &parent->d_inode->i_dir_seq, n;
+	struct dentry *res;
+	struct list_head *p;
+	bool skipped;
+	int i;
+
+retry:
+	i = count;
+	skipped = false;
+	n = smp_load_acquire(seq) & ~1;
+	res = NULL;
+	rcu_read_lock();
+	for (p = from->next; p != &parent->d_subdirs; p = p->next) {
+		struct dentry *d = list_entry(p, struct dentry, d_child);
+		if (!simple_positive(d)) {
+			skipped = true;
+		} else if (!--i) {
+			res = d;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	if (skipped) {
+		smp_rmb();
+		if (unlikely(*seq != n))
+			goto retry;
+	}
+	return res;
+}
+
+static void move_cursor(struct dentry *cursor, struct list_head *after)
+{
+	struct dentry *parent = cursor->d_parent;
+	unsigned n, *seq = &parent->d_inode->i_dir_seq;
+	spin_lock(&parent->d_lock);
+	for (;;) {
+		n = *seq;
+		if (!(n & 1) && cmpxchg(seq, n, n + 1) == n)
+			break;
+		cpu_relax();
+	}
+	__list_del(cursor->d_child.prev, cursor->d_child.next);
+	if (after)
+		list_add(&cursor->d_child, after);
+	else
+		list_add_tail(&cursor->d_child, &parent->d_subdirs);
+	smp_store_release(seq, n + 2);
+	spin_unlock(&parent->d_lock);
+}
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 {
@@ -101,25 +154,14 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 	if (offset != file->f_pos) {
 		file->f_pos = offset;
 		if (file->f_pos >= 2) {
-			struct list_head *p;
 			struct dentry *cursor = file->private_data;
+			struct dentry *to;
 			loff_t n = file->f_pos - 2;
 
-			spin_lock(&dentry->d_lock);
-			/* d_lock not required for cursor */
-			list_del(&cursor->d_child);
-			p = dentry->d_subdirs.next;
-			while (n && p != &dentry->d_subdirs) {
-				struct dentry *next;
-				next = list_entry(p, struct dentry, d_child);
-				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-				if (simple_positive(next))
-					n--;
-				spin_unlock(&next->d_lock);
-				p = p->next;
-			}
-			list_add_tail(&cursor->d_child, p);
-			spin_unlock(&dentry->d_lock);
+			inode_lock_shared(dentry->d_inode);
+			to = next_positive(dentry, &dentry->d_subdirs, n);
+			move_cursor(cursor, to ? &to->d_child : NULL);
+			inode_unlock_shared(dentry->d_inode);
 		}
 	}
 	return offset;
@@ -142,36 +184,25 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct dentry *cursor = file->private_data;
-	struct list_head *p, *q = &cursor->d_child;
+	struct list_head *p = &cursor->d_child;
+	struct dentry *next;
+	bool moved = false;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
-	spin_lock(&dentry->d_lock);
+
 	if (ctx->pos == 2)
-		list_move(q, &dentry->d_subdirs);
-
-	for (p = q->next; p != &dentry->d_subdirs; p = p->next) {
-		struct dentry *next = list_entry(p, struct dentry, d_child);
-		spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-		if (!simple_positive(next)) {
-			spin_unlock(&next->d_lock);
-			continue;
-		}
-
-		spin_unlock(&next->d_lock);
-		spin_unlock(&dentry->d_lock);
+		p = &dentry->d_subdirs;
+	while ((next = next_positive(dentry, p, 1)) != NULL) {
 		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
 			      d_inode(next)->i_ino, dt_type(d_inode(next))))
-			return 0;
-		spin_lock(&dentry->d_lock);
-		spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
-		/* next is still alive */
-		list_move(q, p);
-		spin_unlock(&next->d_lock);
-		p = q;
+			break;
+		moved = true;
+		p = &next->d_child;
 		ctx->pos++;
 	}
-	spin_unlock(&dentry->d_lock);
+	if (moved)
+		move_cursor(cursor, p);
 	return 0;
 }
 EXPORT_SYMBOL(dcache_readdir);
@@ -205,8 +236,8 @@ static const struct super_operations simple_super_operations = {
  * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
  * will never be mountable)
  */
-struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops,
+struct dentry *mount_pseudo_xattr(struct file_system_type *fs_type, char *name,
+	const struct super_operations *ops, const struct xattr_handler **xattr,
 	const struct dentry_operations *dops, unsigned long magic)
 {
 	struct super_block *s;
@@ -223,6 +254,7 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
 	s->s_op = ops ? ops : &simple_super_operations;
+	s->s_xattr = xattr;
 	s->s_time_gran = 1;
 	root = new_inode(s);
 	if (!root)
@@ -234,7 +266,7 @@ struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
 	 */
 	root->i_ino = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
-	root->i_atime = root->i_mtime = root->i_ctime = CURRENT_TIME;
+	root->i_atime = root->i_mtime = root->i_ctime = current_time(root);
 	dentry = __d_alloc(s, &d_name);
 	if (!dentry) {
 		iput(root);
@@ -250,7 +282,7 @@ Enomem:
 	deactivate_locked_super(s);
 	return ERR_PTR(-ENOMEM);
 }
-EXPORT_SYMBOL(mount_pseudo);
+EXPORT_SYMBOL(mount_pseudo_xattr);
 
 int simple_open(struct inode *inode, struct file *file)
 {
@@ -264,7 +296,7 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 	inc_nlink(inode);
 	ihold(inode);
 	dget(dentry);
@@ -298,7 +330,7 @@ int simple_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 	drop_nlink(inode);
 	dput(dentry);
 	return 0;
@@ -318,10 +350,14 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 EXPORT_SYMBOL(simple_rmdir);
 
 int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+		  struct inode *new_dir, struct dentry *new_dentry,
+		  unsigned int flags)
 {
 	struct inode *inode = d_inode(old_dentry);
 	int they_are_dirs = d_is_dir(old_dentry);
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	if (!simple_empty(new_dentry))
 		return -ENOTEMPTY;
@@ -338,7 +374,7 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
-		new_dir->i_mtime = inode->i_ctime = CURRENT_TIME;
+		new_dir->i_mtime = inode->i_ctime = current_time(old_dir);
 
 	return 0;
 }
@@ -363,7 +399,7 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	error = inode_change_ok(inode, iattr);
+	error = setattr_prepare(dentry, iattr);
 	if (error)
 		return error;
 
@@ -489,7 +525,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	 */
 	inode->i_ino = 1;
 	inode->i_mode = S_IFDIR | 0755;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	set_nlink(inode, 2);
@@ -515,7 +551,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 			goto out;
 		}
 		inode->i_mode = S_IFREG | files->mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 		inode->i_fop = files->ops;
 		inode->i_ino = i;
 		d_add(dentry, inode);
@@ -1061,7 +1097,7 @@ struct inode *alloc_anon_inode(struct super_block *s)
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_flags |= S_PRIVATE;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	return inode;
 }
 EXPORT_SYMBOL(alloc_anon_inode);
@@ -1118,24 +1154,6 @@ static int empty_dir_setattr(struct dentry *dentry, struct iattr *attr)
 	return -EPERM;
 }
 
-static int empty_dir_setxattr(struct dentry *dentry, struct inode *inode,
-			      const char *name, const void *value,
-			      size_t size, int flags)
-{
-	return -EOPNOTSUPP;
-}
-
-static ssize_t empty_dir_getxattr(struct dentry *dentry, struct inode *inode,
-				  const char *name, void *value, size_t size)
-{
-	return -EOPNOTSUPP;
-}
-
-static int empty_dir_removexattr(struct dentry *dentry, const char *name)
-{
-	return -EOPNOTSUPP;
-}
-
 static ssize_t empty_dir_listxattr(struct dentry *dentry, char *list, size_t size)
 {
 	return -EOPNOTSUPP;
@@ -1146,9 +1164,6 @@ static const struct inode_operations empty_dir_inode_operations = {
 	.permission	= generic_permission,
 	.setattr	= empty_dir_setattr,
 	.getattr	= empty_dir_getattr,
-	.setxattr	= empty_dir_setxattr,
-	.getxattr	= empty_dir_getxattr,
-	.removexattr	= empty_dir_removexattr,
 	.listxattr	= empty_dir_listxattr,
 };
 
@@ -1184,6 +1199,7 @@ void make_empty_dir_inode(struct inode *inode)
 	inode->i_blocks = 0;
 
 	inode->i_op = &empty_dir_inode_operations;
+	inode->i_opflags &= ~IOP_XATTR;
 	inode->i_fop = &empty_dir_operations;
 }
 

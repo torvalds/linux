@@ -1210,7 +1210,7 @@ static int cryptocop_setup_dma_list(struct cryptocop_operation *operation, struc
 		assert(active_count >= eop_needed_count);
 		assert((eop_needed_count == 0) || (eop_needed_count == 1));
 		if (eop_needed_count) {
-			/* This means that the bulk operation (cipeher/m2m) is terminated. */
+			/* This means that the bulk operation (cipher/m2m) is terminated. */
 			if (active_count > 1) {
 				/* Use zero length EOP descriptor. */
 				struct cryptocop_dma_desc *ed = alloc_cdesc(alloc_flag);

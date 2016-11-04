@@ -393,11 +393,12 @@ static void bcm2835_dma_fill_cb_chain_with_sg(
 	unsigned int sg_len)
 {
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
-	size_t max_len = bcm2835_dma_max_frame_length(c);
-	unsigned int i, len;
+	size_t len, max_len;
+	unsigned int i;
 	dma_addr_t addr;
 	struct scatterlist *sgent;
 
+	max_len = bcm2835_dma_max_frame_length(c);
 	for_each_sg(sgl, sgent, sg_len, i) {
 		for (addr = sg_dma_address(sgent), len = sg_dma_len(sgent);
 		     len > 0;
@@ -613,7 +614,7 @@ static void bcm2835_dma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 }
 
-struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_memcpy(
+static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_memcpy(
 	struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	size_t len, unsigned long flags)
 {

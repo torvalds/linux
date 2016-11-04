@@ -485,7 +485,7 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 	return -EINVAL;
 }
 
-static struct ipoib_path *__path_find(struct net_device *dev, void *gid)
+struct ipoib_path *__path_find(struct net_device *dev, void *gid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct rb_node *n = priv->path_tree.rb_node;
@@ -1206,7 +1206,9 @@ struct ipoib_neigh *ipoib_neigh_get(struct net_device *dev, u8 *daddr)
 				neigh = NULL;
 				goto out_unlock;
 			}
-			neigh->alive = jiffies;
+
+			if (likely(skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE))
+				neigh->alive = jiffies;
 			goto out_unlock;
 		}
 	}
@@ -1851,7 +1853,7 @@ static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
 	struct ipoib_dev_priv *child_priv;
 	struct net_device *netdev = priv->dev;
 
-	netif_addr_lock(netdev);
+	netif_addr_lock_bh(netdev);
 
 	memcpy(&priv->local_gid.global.interface_id,
 	       &gid->global.interface_id,
@@ -1859,7 +1861,7 @@ static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
 	memcpy(netdev->dev_addr + 4, &priv->local_gid, sizeof(priv->local_gid));
 	clear_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 
-	netif_addr_unlock(netdev);
+	netif_addr_unlock_bh(netdev);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		down_read(&priv->vlan_rwsem);
@@ -1875,7 +1877,7 @@ static int ipoib_check_lladdr(struct net_device *dev,
 	union ib_gid *gid = (union ib_gid *)(ss->__data + 4);
 	int ret = 0;
 
-	netif_addr_lock(dev);
+	netif_addr_lock_bh(dev);
 
 	/* Make sure the QPN, reserved and subnet prefix match the current
 	 * lladdr, it also makes sure the lladdr is unicast.
@@ -1885,7 +1887,7 @@ static int ipoib_check_lladdr(struct net_device *dev,
 	    gid->global.interface_id == 0)
 		ret = -EINVAL;
 
-	netif_addr_unlock(dev);
+	netif_addr_unlock_bh(dev);
 
 	return ret;
 }
@@ -1965,8 +1967,7 @@ int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 	priv->hca_caps = hca->attrs.device_cap_flags;
 
 	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
-		priv->dev->hw_features = NETIF_F_SG |
-			NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+		priv->dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
 		if (priv->hca_caps & IB_DEVICE_UD_TSO)
 			priv->dev->hw_features |= NETIF_F_TSO;
@@ -2141,6 +2142,9 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		ib_unregister_event_handler(&priv->event_handler);
 		flush_workqueue(ipoib_workqueue);
 
+		/* mark interface in the middle of destruction */
+		set_bit(IPOIB_FLAG_GOING_DOWN, &priv->flags);
+
 		rtnl_lock();
 		dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
 		rtnl_unlock();
@@ -2192,7 +2196,8 @@ static int __init ipoib_init_module(void)
 	 * its private workqueue, and we only queue up flush events
 	 * on our global flush workqueue.  This avoids the deadlocks.
 	 */
-	ipoib_workqueue = create_singlethread_workqueue("ipoib_flush");
+	ipoib_workqueue = alloc_ordered_workqueue("ipoib_flush",
+						  WQ_MEM_RECLAIM);
 	if (!ipoib_workqueue) {
 		ret = -ENOMEM;
 		goto err_fs;

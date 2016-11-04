@@ -44,6 +44,7 @@ static inline struct rcar_du_vsp_plane *to_rcar_vsp_plane(struct drm_plane *p)
  * @state: base DRM plane state
  * @format: information about the pixel format used by the plane
  * @alpha: value of the plane alpha property
+ * @zpos: value of the plane zpos property
  */
 struct rcar_du_vsp_plane_state {
 	struct drm_plane_state state;
@@ -51,6 +52,7 @@ struct rcar_du_vsp_plane_state {
 	const struct rcar_du_format_info *format;
 
 	unsigned int alpha;
+	unsigned int zpos;
 };
 
 static inline struct rcar_du_vsp_plane_state *

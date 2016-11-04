@@ -32,6 +32,21 @@
 #define CORE_POWER		0x0
 #define CORE_SW_RST		BIT(7)
 
+#define CORE_PWRCTL_STATUS	0xdc
+#define CORE_PWRCTL_MASK	0xe0
+#define CORE_PWRCTL_CLEAR	0xe4
+#define CORE_PWRCTL_CTL		0xe8
+#define CORE_PWRCTL_BUS_OFF	BIT(0)
+#define CORE_PWRCTL_BUS_ON	BIT(1)
+#define CORE_PWRCTL_IO_LOW	BIT(2)
+#define CORE_PWRCTL_IO_HIGH	BIT(3)
+#define CORE_PWRCTL_BUS_SUCCESS BIT(0)
+#define CORE_PWRCTL_IO_SUCCESS	BIT(2)
+#define REQ_BUS_OFF		BIT(0)
+#define REQ_BUS_ON		BIT(1)
+#define REQ_IO_LOW		BIT(2)
+#define REQ_IO_HIGH		BIT(3)
+#define INT_MASK		0xf
 #define MAX_PHASES		16
 #define CORE_DLL_LOCK		BIT(7)
 #define CORE_DLL_EN		BIT(16)
@@ -56,6 +71,7 @@
 struct sdhci_msm_host {
 	struct platform_device *pdev;
 	void __iomem *core_mem;	/* MSM SDCC mapped address */
+	int pwr_irq;		/* power irq */
 	struct clk *clk;	/* main SD/MMC bus clock */
 	struct clk *pclk;	/* SDHC peripheral bus clock */
 	struct clk *bus_clk;	/* SDHC bus voter clock */
@@ -410,6 +426,85 @@ retry:
 	return rc;
 }
 
+static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
+					unsigned int uhs)
+{
+	struct mmc_host *mmc = host->mmc;
+	u16 ctrl_2;
+
+	ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	/* Select Bus Speed Mode for host */
+	ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+	switch (uhs) {
+	case MMC_TIMING_UHS_SDR12:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR12;
+		break;
+	case MMC_TIMING_UHS_SDR25:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+		break;
+	case MMC_TIMING_UHS_SDR50:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR50;
+		break;
+	case MMC_TIMING_MMC_HS200:
+	case MMC_TIMING_UHS_SDR104:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
+		break;
+	case MMC_TIMING_UHS_DDR50:
+	case MMC_TIMING_MMC_DDR52:
+		ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
+		break;
+	}
+
+	/*
+	 * When clock frequency is less than 100MHz, the feedback clock must be
+	 * provided and DLL must not be used so that tuning can be skipped. To
+	 * provide feedback clock, the mode selection can be any value less
+	 * than 3'b011 in bits [2:0] of HOST CONTROL2 register.
+	 */
+	if (host->clock <= 100000000 &&
+	    (uhs == MMC_TIMING_MMC_HS400 ||
+	     uhs == MMC_TIMING_MMC_HS200 ||
+	     uhs == MMC_TIMING_UHS_SDR104))
+		ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+
+	dev_dbg(mmc_dev(mmc), "%s: clock=%u uhs=%u ctrl_2=0x%x\n",
+		mmc_hostname(host->mmc), host->clock, uhs, ctrl_2);
+	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+}
+
+static void sdhci_msm_voltage_switch(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	u32 irq_status, irq_ack = 0;
+
+	irq_status = readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
+	irq_status &= INT_MASK;
+
+	writel_relaxed(irq_status, msm_host->core_mem + CORE_PWRCTL_CLEAR);
+
+	if (irq_status & (CORE_PWRCTL_BUS_ON | CORE_PWRCTL_BUS_OFF))
+		irq_ack |= CORE_PWRCTL_BUS_SUCCESS;
+	if (irq_status & (CORE_PWRCTL_IO_LOW | CORE_PWRCTL_IO_HIGH))
+		irq_ack |= CORE_PWRCTL_IO_SUCCESS;
+
+	/*
+	 * The driver has to acknowledge the interrupt, switch voltages and
+	 * report back if it succeded or not to this register. The voltage
+	 * switches are handled by the sdhci core, so just report success.
+	 */
+	writel_relaxed(irq_ack, msm_host->core_mem + CORE_PWRCTL_CTL);
+}
+
+static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
+{
+	struct sdhci_host *host = (struct sdhci_host *)data;
+
+	sdhci_msm_voltage_switch(host);
+
+	return IRQ_HANDLED;
+}
+
 static const struct of_device_id sdhci_msm_dt_match[] = {
 	{ .compatible = "qcom,sdhci-msm-v4" },
 	{},
@@ -422,11 +517,13 @@ static const struct sdhci_ops sdhci_msm_ops = {
 	.reset = sdhci_reset,
 	.set_clock = sdhci_set_clock,
 	.set_bus_width = sdhci_set_bus_width,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.set_uhs_signaling = sdhci_msm_set_uhs_signaling,
+	.voltage_switch = sdhci_msm_voltage_switch,
 };
 
 static const struct sdhci_pltfm_data sdhci_msm_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
+		  SDHCI_QUIRK_NO_CARD_NO_RESET |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE,
 	.ops = &sdhci_msm_ops,
 };
@@ -473,7 +570,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->pclk = devm_clk_get(&pdev->dev, "iface");
 	if (IS_ERR(msm_host->pclk)) {
 		ret = PTR_ERR(msm_host->pclk);
-		dev_err(&pdev->dev, "Perpheral clk setup failed (%d)\n", ret);
+		dev_err(&pdev->dev, "Peripheral clk setup failed (%d)\n", ret);
 		goto bus_clk_disable;
 	}
 
@@ -543,6 +640,22 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		caps |= SDHCI_CAN_VDD_300 | SDHCI_CAN_DO_8BIT;
 		writel_relaxed(caps, host->ioaddr +
 			       CORE_VENDOR_SPEC_CAPABILITIES0);
+	}
+
+	/* Setup IRQ for handling power/voltage tasks with PMIC */
+	msm_host->pwr_irq = platform_get_irq_byname(pdev, "pwr_irq");
+	if (msm_host->pwr_irq < 0) {
+		dev_err(&pdev->dev, "Get pwr_irq failed (%d)\n",
+			msm_host->pwr_irq);
+		goto clk_disable;
+	}
+
+	ret = devm_request_threaded_irq(&pdev->dev, msm_host->pwr_irq, NULL,
+					sdhci_msm_pwr_irq, IRQF_ONESHOT,
+					dev_name(&pdev->dev), host);
+	if (ret) {
+		dev_err(&pdev->dev, "Request IRQ failed (%d)\n", ret);
+		goto clk_disable;
 	}
 
 	ret = sdhci_add_host(host);

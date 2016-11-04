@@ -112,7 +112,7 @@ static inline long arch_local_save_flags(void)
 	 */
 	temp = (1 << 5) |
 		((!!(temp & STATUS_IE_MASK)) << CLRI_STATUS_IE_BIT) |
-		(temp & CLRI_STATUS_E_MASK);
+		((temp >> 1) & CLRI_STATUS_E_MASK);
 	return temp;
 }
 

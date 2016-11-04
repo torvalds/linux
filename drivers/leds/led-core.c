@@ -53,11 +53,12 @@ static void led_timer_function(unsigned long data)
 
 	if (!led_cdev->blink_delay_on || !led_cdev->blink_delay_off) {
 		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_cdev->flags &= ~LED_BLINK_SW;
 		return;
 	}
 
 	if (led_cdev->flags & LED_BLINK_ONESHOT_STOP) {
-		led_cdev->flags &= ~LED_BLINK_ONESHOT_STOP;
+		led_cdev->flags &=  ~(LED_BLINK_ONESHOT_STOP | LED_BLINK_SW);
 		return;
 	}
 
@@ -151,6 +152,7 @@ static void led_set_software_blink(struct led_classdev *led_cdev,
 		return;
 	}
 
+	led_cdev->flags |= LED_BLINK_SW;
 	mod_timer(&led_cdev->blink_timer, jiffies + 1);
 }
 
@@ -219,6 +221,7 @@ void led_stop_software_blink(struct led_classdev *led_cdev)
 	del_timer_sync(&led_cdev->blink_timer);
 	led_cdev->blink_delay_on = 0;
 	led_cdev->blink_delay_off = 0;
+	led_cdev->flags &= ~LED_BLINK_SW;
 }
 EXPORT_SYMBOL_GPL(led_stop_software_blink);
 
@@ -226,10 +229,10 @@ void led_set_brightness(struct led_classdev *led_cdev,
 			enum led_brightness brightness)
 {
 	/*
-	 * In case blinking is on delay brightness setting
+	 * If software blink is active, delay brightness setting
 	 * until the next timer tick.
 	 */
-	if (led_cdev->blink_delay_on || led_cdev->blink_delay_off) {
+	if (led_cdev->flags & LED_BLINK_SW) {
 		/*
 		 * If we need to disable soft blinking delegate this to the
 		 * work queue task to avoid problems in case we are called

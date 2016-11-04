@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -46,36 +42,23 @@ lolnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 
 static int
 lolnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
-	   int delayed, unsigned int niov,
-	   struct kvec *iov, lnet_kiov_t *kiov,
-	   unsigned int offset, unsigned int mlen, unsigned int rlen)
+	   int delayed, struct iov_iter *to, unsigned int rlen)
 {
 	lnet_msg_t *sendmsg = private;
 
 	if (lntmsg) {		   /* not discarding */
-		if (sendmsg->msg_iov) {
-			if (iov)
-				lnet_copy_iov2iov(niov, iov, offset,
-						  sendmsg->msg_niov,
-						  sendmsg->msg_iov,
-						  sendmsg->msg_offset, mlen);
-			else
-				lnet_copy_iov2kiov(niov, kiov, offset,
-						   sendmsg->msg_niov,
-						   sendmsg->msg_iov,
-						   sendmsg->msg_offset, mlen);
-		} else {
-			if (iov)
-				lnet_copy_kiov2iov(niov, iov, offset,
-						   sendmsg->msg_niov,
-						   sendmsg->msg_kiov,
-						   sendmsg->msg_offset, mlen);
-			else
-				lnet_copy_kiov2kiov(niov, kiov, offset,
-						    sendmsg->msg_niov,
-						    sendmsg->msg_kiov,
-						    sendmsg->msg_offset, mlen);
-		}
+		if (sendmsg->msg_iov)
+			lnet_copy_iov2iter(to,
+					   sendmsg->msg_niov,
+					   sendmsg->msg_iov,
+					   sendmsg->msg_offset,
+					   iov_iter_count(to));
+		else
+			lnet_copy_kiov2iter(to,
+					    sendmsg->msg_niov,
+					    sendmsg->msg_kiov,
+					    sendmsg->msg_offset,
+					    iov_iter_count(to));
 
 		lnet_finalize(ni, lntmsg, 0);
 	}

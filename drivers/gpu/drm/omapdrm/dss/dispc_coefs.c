@@ -18,8 +18,8 @@
  */
 
 #include <linux/kernel.h>
-#include <video/omapdss.h>
 
+#include "omapdss.h"
 #include "dispc.h"
 
 static const struct dispc_coef coef3_M8[8] = {

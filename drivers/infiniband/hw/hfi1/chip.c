@@ -63,6 +63,7 @@
 #include "efivar.h"
 #include "platform.h"
 #include "aspm.h"
+#include "affinity.h"
 
 #define NUM_IB_PORTS 1
 
@@ -121,6 +122,7 @@ struct flag_table {
 #define SEC_SC_HALTED		0x4	/* per-context only */
 #define SEC_SPC_FREEZE		0x8	/* per-HFI only */
 
+#define DEFAULT_KRCVQS		  2
 #define MIN_KERNEL_KCTXTS         2
 #define FIRST_KERNEL_KCTXT        1
 /* sizes for both the QP and RSM map tables */
@@ -237,6 +239,9 @@ struct flag_table {
 			| CCE_STATUS_SDMA_PAUSED_SMASK)
 /* all CceStatus sub-block RXE pause bits */
 #define ALL_RXE_PAUSE CCE_STATUS_RXE_PAUSED_SMASK
+
+#define CNTR_MAX 0xFFFFFFFFFFFFFFFFULL
+#define CNTR_32BIT_MAX 0x00000000FFFFFFFF
 
 /*
  * CCE Error flags.
@@ -966,7 +971,9 @@ static struct flag_table dc8051_info_err_flags[] = {
 	FLAG_ENTRY0("Failed LNI(VerifyCap_1)", FAILED_LNI_VERIFY_CAP1),
 	FLAG_ENTRY0("Failed LNI(VerifyCap_2)", FAILED_LNI_VERIFY_CAP2),
 	FLAG_ENTRY0("Failed LNI(ConfigLT)",    FAILED_LNI_CONFIGLT),
-	FLAG_ENTRY0("Host Handshake Timeout",  HOST_HANDSHAKE_TIMEOUT)
+	FLAG_ENTRY0("Host Handshake Timeout",  HOST_HANDSHAKE_TIMEOUT),
+	FLAG_ENTRY0("External Device Request Timeout",
+		    EXTERNAL_DEVICE_REQ_TIMEOUT),
 };
 
 /*
@@ -1037,7 +1044,7 @@ static void dc_shutdown(struct hfi1_devdata *);
 static void dc_start(struct hfi1_devdata *);
 static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 			   unsigned int *np);
-static void remove_full_mgmt_pkey(struct hfi1_pportdata *ppd);
+static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd);
 
 /*
  * Error interrupt table entry.  This is used as input to the interrupt
@@ -3947,6 +3954,28 @@ static u64 access_sdma_wrong_dw_err_cnt(const struct cntr_entry *entry,
 	return dd->sw_send_dma_eng_err_status_cnt[0];
 }
 
+static u64 access_dc_rcv_err_cnt(const struct cntr_entry *entry,
+				 void *context, int vl, int mode,
+				 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	u64 val = 0;
+	u64 csr = entry->csr;
+
+	val = read_write_csr(dd, csr, mode, data);
+	if (mode == CNTR_MODE_R) {
+		val = val > CNTR_MAX - dd->sw_rcv_bypass_packet_errors ?
+			CNTR_MAX : val + dd->sw_rcv_bypass_packet_errors;
+	} else if (mode == CNTR_MODE_W) {
+		dd->sw_rcv_bypass_packet_errors = 0;
+	} else {
+		dd_dev_err(dd, "Invalid cntr register access mode");
+		return 0;
+	}
+	return val;
+}
+
 #define def_access_sw_cpu(cntr) \
 static u64 access_sw_cpu_##cntr(const struct cntr_entry *entry,		      \
 			      void *context, int vl, int mode, u64 data)      \
@@ -4020,7 +4049,8 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			CCE_SEND_CREDIT_INT_CNT, CNTR_NORMAL),
 [C_DC_UNC_ERR] = DC_PERF_CNTR(DcUnctblErr, DCC_ERR_UNCORRECTABLE_CNT,
 			      CNTR_SYNTH),
-[C_DC_RCV_ERR] = DC_PERF_CNTR(DcRecvErr, DCC_ERR_PORTRCV_ERR_CNT, CNTR_SYNTH),
+[C_DC_RCV_ERR] = CNTR_ELEM("DcRecvErr", DCC_ERR_PORTRCV_ERR_CNT, 0, CNTR_SYNTH,
+			    access_dc_rcv_err_cnt),
 [C_DC_FM_CFG_ERR] = DC_PERF_CNTR(DcFmCfgErr, DCC_ERR_FMCONFIG_ERR_CNT,
 				 CNTR_SYNTH),
 [C_DC_RMT_PHY_ERR] = DC_PERF_CNTR(DcRmtPhyErr, DCC_ERR_RCVREMOTE_PHY_ERR_CNT,
@@ -6797,7 +6827,6 @@ void handle_link_up(struct work_struct *work)
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SPEED_POLICY, 0,
 				     OPA_LINKDOWN_REASON_SPEED_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -6962,8 +6991,6 @@ void handle_link_down(struct work_struct *work)
 	}
 
 	reset_neighbor_info(ppd);
-	if (ppd->mgmt_allowed)
-		remove_full_mgmt_pkey(ppd);
 
 	/* disable the port */
 	clear_rcvctrl(ppd->dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
@@ -6972,12 +6999,10 @@ void handle_link_down(struct work_struct *work)
 	 * If there is no cable attached, turn the DC off. Otherwise,
 	 * start the link bring up.
 	 */
-	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd)) {
+	if (ppd->port_type == PORT_TYPE_QSFP && !qsfp_mod_present(ppd))
 		dc_shutdown(ppd->dd);
-	} else {
-		tune_serdes(ppd);
+	else
 		start_link(ppd);
-	}
 }
 
 void handle_link_bounce(struct work_struct *work)
@@ -6990,7 +7015,6 @@ void handle_link_bounce(struct work_struct *work)
 	 */
 	if (ppd->host_link_state & HLS_UP) {
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	} else {
 		dd_dev_info(ppd->dd, "%s: link not up (%s), nothing to do\n",
@@ -7070,12 +7094,16 @@ static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
 	ppd->pkeys[2] = FULL_MGMT_P_KEY;
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	hfi1_event_pkey_change(ppd->dd, ppd->port);
 }
 
-static void remove_full_mgmt_pkey(struct hfi1_pportdata *ppd)
+static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 {
-	ppd->pkeys[2] = 0;
-	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	if (ppd->pkeys[2] != 0) {
+		ppd->pkeys[2] = 0;
+		(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+		hfi1_event_pkey_change(ppd->dd, ppd->port);
+	}
 }
 
 /*
@@ -7501,7 +7529,6 @@ done:
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
 				     OPA_LINKDOWN_REASON_WIDTH_POLICY);
 		set_link_state(ppd, HLS_DN_OFFLINE);
-		tune_serdes(ppd);
 		start_link(ppd);
 	}
 }
@@ -7832,8 +7859,8 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			 * save first 2 flits in the packet that caused
 			 * the error
 			 */
-			 dd->err_info_rcvport.packet_flit1 = hdr0;
-			 dd->err_info_rcvport.packet_flit2 = hdr1;
+			dd->err_info_rcvport.packet_flit1 = hdr0;
+			dd->err_info_rcvport.packet_flit2 = hdr1;
 		}
 		switch (info) {
 		case 1:
@@ -8796,30 +8823,6 @@ static int write_tx_settings(struct hfi1_devdata *dd,
 	return load_8051_config(dd, TX_SETTINGS, GENERAL_CONFIG, frame);
 }
 
-static void check_fabric_firmware_versions(struct hfi1_devdata *dd)
-{
-	u32 frame, version, prod_id;
-	int ret, lane;
-
-	/* 4 lanes */
-	for (lane = 0; lane < 4; lane++) {
-		ret = read_8051_config(dd, SPICO_FW_VERSION, lane, &frame);
-		if (ret) {
-			dd_dev_err(dd,
-				   "Unable to read lane %d firmware details\n",
-				   lane);
-			continue;
-		}
-		version = (frame >> SPICO_ROM_VERSION_SHIFT)
-					& SPICO_ROM_VERSION_MASK;
-		prod_id = (frame >> SPICO_ROM_PROD_ID_SHIFT)
-					& SPICO_ROM_PROD_ID_MASK;
-		dd_dev_info(dd,
-			    "Lane %d firmware: version 0x%04x, prod_id 0x%04x\n",
-			    lane, version, prod_id);
-	}
-}
-
 /*
  * Read an idle LCB message.
  *
@@ -9155,6 +9158,12 @@ set_local_link_attributes_fail:
  */
 int start_link(struct hfi1_pportdata *ppd)
 {
+	/*
+	 * Tune the SerDes to a ballpark setting for optimal signal and bit
+	 * error rate.  Needs to be done before starting the link.
+	 */
+	tune_serdes(ppd);
+
 	if (!ppd->link_enabled) {
 		dd_dev_info(ppd->dd,
 			    "%s: stopping link start because link is disabled\n",
@@ -9168,6 +9177,13 @@ int start_link(struct hfi1_pportdata *ppd)
 		return 0;
 	}
 
+	/*
+	 * FULL_MGMT_P_KEY is cleared from the pkey table, so that the
+	 * pkey table can be configured properly if the HFI unit is connected
+	 * to switch port with MgmtAllowed=NO
+	 */
+	clear_full_mgmt_pkey(ppd);
+
 	return set_link_state(ppd, HLS_DN_POLL);
 }
 
@@ -9178,17 +9194,24 @@ static void wait_for_qsfp_init(struct hfi1_pportdata *ppd)
 	unsigned long timeout;
 
 	/*
-	 * Check for QSFP interrupt for t_init (SFF 8679)
+	 * Some QSFP cables have a quirk that asserts the IntN line as a side
+	 * effect of power up on plug-in. We ignore this false positive
+	 * interrupt until the module has finished powering up by waiting for
+	 * a minimum timeout of the module inrush initialization time of
+	 * 500 ms (SFF 8679 Table 5-6) to ensure the voltage rails in the
+	 * module have stabilized.
+	 */
+	msleep(500);
+
+	/*
+	 * Check for QSFP interrupt for t_init (SFF 8679 Table 8-1)
 	 */
 	timeout = jiffies + msecs_to_jiffies(2000);
 	while (1) {
 		mask = read_csr(dd, dd->hfi1_id ?
 				ASIC_QSFP2_IN : ASIC_QSFP1_IN);
-		if (!(mask & QSFP_HFI0_INT_N)) {
-			write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_CLEAR :
-				  ASIC_QSFP1_CLEAR, QSFP_HFI0_INT_N);
+		if (!(mask & QSFP_HFI0_INT_N))
 			break;
-		}
 		if (time_after(jiffies, timeout)) {
 			dd_dev_info(dd, "%s: No IntN detected, reset complete\n",
 				    __func__);
@@ -9204,10 +9227,17 @@ static void set_qsfp_int_n(struct hfi1_pportdata *ppd, u8 enable)
 	u64 mask;
 
 	mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK);
-	if (enable)
+	if (enable) {
+		/*
+		 * Clear the status register to avoid an immediate interrupt
+		 * when we re-enable the IntN pin
+		 */
+		write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_CLEAR : ASIC_QSFP1_CLEAR,
+			  QSFP_HFI0_INT_N);
 		mask |= (u64)QSFP_HFI0_INT_N;
-	else
+	} else {
 		mask &= ~(u64)QSFP_HFI0_INT_N;
+	}
 	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK, mask);
 }
 
@@ -9374,8 +9404,6 @@ void qsfp_event(struct work_struct *work)
 		 */
 		set_qsfp_int_n(ppd, 1);
 
-		tune_serdes(ppd);
-
 		start_link(ppd);
 	}
 
@@ -9463,6 +9491,73 @@ static void init_lcb(struct hfi1_devdata *dd)
 	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET, 0x00);
 }
 
+/*
+ * Perform a test read on the QSFP.  Return 0 on success, -ERRNO
+ * on error.
+ */
+static int test_qsfp_read(struct hfi1_pportdata *ppd)
+{
+	int ret;
+	u8 status;
+
+	/* report success if not a QSFP */
+	if (ppd->port_type != PORT_TYPE_QSFP)
+		return 0;
+
+	/* read byte 2, the status byte */
+	ret = one_qsfp_read(ppd, ppd->dd->hfi1_id, 2, &status, 1);
+	if (ret < 0)
+		return ret;
+	if (ret != 1)
+		return -EIO;
+
+	return 0; /* success */
+}
+
+/*
+ * Values for QSFP retry.
+ *
+ * Give up after 10s (20 x 500ms).  The overall timeout was empirically
+ * arrived at from experience on a large cluster.
+ */
+#define MAX_QSFP_RETRIES 20
+#define QSFP_RETRY_WAIT 500 /* msec */
+
+/*
+ * Try a QSFP read.  If it fails, schedule a retry for later.
+ * Called on first link activation after driver load.
+ */
+static void try_start_link(struct hfi1_pportdata *ppd)
+{
+	if (test_qsfp_read(ppd)) {
+		/* read failed */
+		if (ppd->qsfp_retry_count >= MAX_QSFP_RETRIES) {
+			dd_dev_err(ppd->dd, "QSFP not responding, giving up\n");
+			return;
+		}
+		dd_dev_info(ppd->dd,
+			    "QSFP not responding, waiting and retrying %d\n",
+			    (int)ppd->qsfp_retry_count);
+		ppd->qsfp_retry_count++;
+		queue_delayed_work(ppd->hfi1_wq, &ppd->start_link_work,
+				   msecs_to_jiffies(QSFP_RETRY_WAIT));
+		return;
+	}
+	ppd->qsfp_retry_count = 0;
+
+	start_link(ppd);
+}
+
+/*
+ * Workqueue function to start the link after a delay.
+ */
+void handle_start_link(struct work_struct *work)
+{
+	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
+						  start_link_work.work);
+	try_start_link(ppd);
+}
+
 int bringup_serdes(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -9498,14 +9593,8 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 		set_qsfp_int_n(ppd, 1);
 	}
 
-	/*
-	 * Tune the SerDes to a ballpark setting for
-	 * optimal signal and bit error rate
-	 * Needs to be done before starting the link
-	 */
-	tune_serdes(ppd);
-
-	return start_link(ppd);
+	try_start_link(ppd);
+	return 0;
 }
 
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
@@ -9521,6 +9610,10 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 	 */
 	ppd->driver_link_ready = 0;
 	ppd->link_enabled = 0;
+
+	ppd->qsfp_retry_count = MAX_QSFP_RETRIES; /* prevent more retries */
+	flush_delayed_work(&ppd->start_link_work);
+	cancel_delayed_work_sync(&ppd->start_link_work);
 
 	ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED);
@@ -9621,20 +9714,12 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
 }
 
-int hfi1_get_base_kinfo(struct hfi1_ctxtdata *rcd,
-			struct hfi1_ctxt_info *kinfo)
-{
-	kinfo->runtime_flags = (HFI1_MISC_GET() << HFI1_CAP_USER_SHIFT) |
-		HFI1_CAP_UGET(MASK) | HFI1_CAP_KGET(K2U);
-	return 0;
-}
-
-struct hfi1_message_header *hfi1_get_msgheader(
-				struct hfi1_devdata *dd, __le32 *rhf_addr)
+struct ib_header *hfi1_get_msgheader(
+	struct hfi1_devdata *dd, __le32 *rhf_addr)
 {
 	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
 
-	return (struct hfi1_message_header *)
+	return (struct ib_header *)
 		(rhf_addr - dd->rhf_offset + offset);
 }
 
@@ -9777,7 +9862,7 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 	u64 len1 = 0, len2 = (((dd->vld[15].mtu + max_hb) >> 2)
 			      & SEND_LEN_CHECK1_LEN_VL15_MASK) <<
 		SEND_LEN_CHECK1_LEN_VL15_SHIFT;
-	int i;
+	int i, j;
 	u32 thres;
 
 	for (i = 0; i < ppd->vls_supported; i++) {
@@ -9801,7 +9886,10 @@ static void set_send_length(struct hfi1_pportdata *ppd)
 			    sc_mtu_to_threshold(dd->vld[i].sc,
 						dd->vld[i].mtu,
 						dd->rcd[0]->rcvhdrqentsize));
-		sc_set_cr_threshold(dd->vld[i].sc, thres);
+		for (j = 0; j < INIT_SC_PER_VL; j++)
+			sc_set_cr_threshold(
+					pio_select_send_context_vl(dd, j, i),
+					    thres);
 	}
 	thres = min(sc_percent_to_threshold(dd->vld[15].sc, 50),
 		    sc_mtu_to_threshold(dd->vld[15].sc,
@@ -9878,6 +9966,131 @@ static int wait_phy_linkstate(struct hfi1_devdata *dd, u32 state, u32 msecs)
 	return 0;
 }
 
+static const char *state_completed_string(u32 completed)
+{
+	static const char * const state_completed[] = {
+		"EstablishComm",
+		"OptimizeEQ",
+		"VerifyCap"
+	};
+
+	if (completed < ARRAY_SIZE(state_completed))
+		return state_completed[completed];
+
+	return "unknown";
+}
+
+static const char all_lanes_dead_timeout_expired[] =
+	"All lanes were inactive – was the interconnect media removed?";
+static const char tx_out_of_policy[] =
+	"Passing lanes on local port do not meet the local link width policy";
+static const char no_state_complete[] =
+	"State timeout occurred before link partner completed the state";
+static const char * const state_complete_reasons[] = {
+	[0x00] = "Reason unknown",
+	[0x01] = "Link was halted by driver, refer to LinkDownReason",
+	[0x02] = "Link partner reported failure",
+	[0x10] = "Unable to achieve frame sync on any lane",
+	[0x11] =
+	  "Unable to find a common bit rate with the link partner",
+	[0x12] =
+	  "Unable to achieve frame sync on sufficient lanes to meet the local link width policy",
+	[0x13] =
+	  "Unable to identify preset equalization on sufficient lanes to meet the local link width policy",
+	[0x14] = no_state_complete,
+	[0x15] =
+	  "State timeout occurred before link partner identified equalization presets",
+	[0x16] =
+	  "Link partner completed the EstablishComm state, but the passing lanes do not meet the local link width policy",
+	[0x17] = tx_out_of_policy,
+	[0x20] = all_lanes_dead_timeout_expired,
+	[0x21] =
+	  "Unable to achieve acceptable BER on sufficient lanes to meet the local link width policy",
+	[0x22] = no_state_complete,
+	[0x23] =
+	  "Link partner completed the OptimizeEq state, but the passing lanes do not meet the local link width policy",
+	[0x24] = tx_out_of_policy,
+	[0x30] = all_lanes_dead_timeout_expired,
+	[0x31] =
+	  "State timeout occurred waiting for host to process received frames",
+	[0x32] = no_state_complete,
+	[0x33] =
+	  "Link partner completed the VerifyCap state, but the passing lanes do not meet the local link width policy",
+	[0x34] = tx_out_of_policy,
+};
+
+static const char *state_complete_reason_code_string(struct hfi1_pportdata *ppd,
+						     u32 code)
+{
+	const char *str = NULL;
+
+	if (code < ARRAY_SIZE(state_complete_reasons))
+		str = state_complete_reasons[code];
+
+	if (str)
+		return str;
+	return "Reserved";
+}
+
+/* describe the given last state complete frame */
+static void decode_state_complete(struct hfi1_pportdata *ppd, u32 frame,
+				  const char *prefix)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u32 success;
+	u32 state;
+	u32 reason;
+	u32 lanes;
+
+	/*
+	 * Decode frame:
+	 *  [ 0: 0] - success
+	 *  [ 3: 1] - state
+	 *  [ 7: 4] - next state timeout
+	 *  [15: 8] - reason code
+	 *  [31:16] - lanes
+	 */
+	success = frame & 0x1;
+	state = (frame >> 1) & 0x7;
+	reason = (frame >> 8) & 0xff;
+	lanes = (frame >> 16) & 0xffff;
+
+	dd_dev_err(dd, "Last %s LNI state complete frame 0x%08x:\n",
+		   prefix, frame);
+	dd_dev_err(dd, "    last reported state state: %s (0x%x)\n",
+		   state_completed_string(state), state);
+	dd_dev_err(dd, "    state successfully completed: %s\n",
+		   success ? "yes" : "no");
+	dd_dev_err(dd, "    fail reason 0x%x: %s\n",
+		   reason, state_complete_reason_code_string(ppd, reason));
+	dd_dev_err(dd, "    passing lane mask: 0x%x", lanes);
+}
+
+/*
+ * Read the last state complete frames and explain them.  This routine
+ * expects to be called if the link went down during link negotiation
+ * and initialization (LNI).  That is, anywhere between polling and link up.
+ */
+static void check_lni_states(struct hfi1_pportdata *ppd)
+{
+	u32 last_local_state;
+	u32 last_remote_state;
+
+	read_last_local_state(ppd->dd, &last_local_state);
+	read_last_remote_state(ppd->dd, &last_remote_state);
+
+	/*
+	 * Don't report anything if there is nothing to report.  A value of
+	 * 0 means the link was taken down while polling and there was no
+	 * training in-process.
+	 */
+	if (last_local_state == 0 && last_remote_state == 0)
+		return;
+
+	decode_state_complete(ppd, last_local_state, "transmitted");
+	decode_state_complete(ppd, last_remote_state, "received");
+}
+
 /*
  * Helper for set_link_state().  Do not call except from that routine.
  * Expects ppd->hls_mutex to be held.
@@ -9890,8 +10103,6 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 pstate, previous_state;
-	u32 last_local_state;
-	u32 last_remote_state;
 	int ret;
 	int do_transition;
 	int do_wait;
@@ -9991,12 +10202,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	} else if (previous_state
 			& (HLS_DN_POLL | HLS_VERIFY_CAP | HLS_GOING_UP)) {
 		/* went down while attempting link up */
-		/* byte 1 of last_*_state is the failure reason */
-		read_last_local_state(dd, &last_local_state);
-		read_last_remote_state(dd, &last_remote_state);
-		dd_dev_err(dd,
-			   "LNI failure last states: local 0x%08x, remote 0x%08x\n",
-			   last_local_state, last_remote_state);
+		check_lni_states(ppd);
 	}
 
 	/* the active link width (downgrade) is 0 on link down */
@@ -11349,10 +11555,10 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 	    !(rcvctrl & RCV_CTXT_CTRL_ENABLE_SMASK)) {
 		/* reset the tail and hdr addresses, and sequence count */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_ADDR,
-				rcd->rcvhdrq_phys);
+				rcd->rcvhdrq_dma);
 		if (HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL))
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-					rcd->rcvhdrqtailaddr_phys);
+					rcd->rcvhdrqtailaddr_dma);
 		rcd->seq_cnt = 1;
 
 		/* reset the cached receive header queue head value */
@@ -11417,9 +11623,9 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 * update with a dummy tail address and then disable
 		 * receive context.
 		 */
-		if (dd->rcvhdrtail_dummy_physaddr) {
+		if (dd->rcvhdrtail_dummy_dma) {
 			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-					dd->rcvhdrtail_dummy_physaddr);
+					dd->rcvhdrtail_dummy_dma);
 			/* Enabling RcvCtxtCtrl.TailUpd is intentional. */
 			rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 		}
@@ -11430,7 +11636,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		rcvctrl |= RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
 	if (op & HFI1_RCVCTRL_INTRAVAIL_DIS)
 		rcvctrl &= ~RCV_CTXT_CTRL_INTR_AVAIL_SMASK;
-	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_phys)
+	if (op & HFI1_RCVCTRL_TAILUPD_ENB && rcd->rcvhdrqtailaddr_dma)
 		rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
 	if (op & HFI1_RCVCTRL_TAILUPD_DIS) {
 		/* See comment on RcvCtxtCtrl.TailUpd above */
@@ -11502,7 +11708,7 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 		 * so it doesn't contain an address that is invalid.
 		 */
 		write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
-				dd->rcvhdrtail_dummy_physaddr);
+				dd->rcvhdrtail_dummy_dma);
 }
 
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp)
@@ -11655,9 +11861,6 @@ static void free_cntrs(struct hfi1_devdata *dd)
 	kfree(dd->cntrnames);
 	dd->cntrnames = NULL;
 }
-
-#define CNTR_MAX 0xFFFFFFFFFFFFFFFFULL
-#define CNTR_32BIT_MAX 0x00000000FFFFFFFF
 
 static u64 read_dev_port_cntr(struct hfi1_devdata *dd, struct cntr_entry *entry,
 			      u64 *psval, void *context, int vl)
@@ -11906,7 +12109,7 @@ static void update_synth_timer(unsigned long opaque)
 		hfi1_cdbg(CNTR, "[%d] No update necessary", dd->unit);
 	}
 
-mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
+	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
 }
 
 #define C_MAX_NAME 13 /* 12 chars + one for /0 */
@@ -12311,37 +12514,6 @@ u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
 		ppd->last_pstate = ib_pstate;
 	}
 	return ib_pstate;
-}
-
-/*
- * Read/modify/write ASIC_QSFP register bits as selected by mask
- * data: 0 or 1 in the positions depending on what needs to be written
- * dir: 0 for read, 1 for write
- * mask: select by setting
- *      I2CCLK  (bit 0)
- *      I2CDATA (bit 1)
- */
-u64 hfi1_gpio_mod(struct hfi1_devdata *dd, u32 target, u32 data, u32 dir,
-		  u32 mask)
-{
-	u64 qsfp_oe, target_oe;
-
-	target_oe = target ? ASIC_QSFP2_OE : ASIC_QSFP1_OE;
-	if (mask) {
-		/* We are writing register bits, so lock access */
-		dir &= mask;
-		data &= mask;
-
-		qsfp_oe = read_csr(dd, target_oe);
-		qsfp_oe = (qsfp_oe & ~(u64)mask) | (u64)dir;
-		write_csr(dd, target_oe, qsfp_oe);
-	}
-	/* We are exclusively reading bits here, but it is unlikely
-	 * we'll get valid data when we set the direction of the pin
-	 * in the same call, so read should call this function again
-	 * to get valid data
-	 */
-	return read_csr(dd, target ? ASIC_QSFP2_IN : ASIC_QSFP1_IN);
 }
 
 #define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
@@ -12759,7 +12931,7 @@ fail:
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
-	int num_kernel_contexts;
+	unsigned long num_kernel_contexts;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -12768,7 +12940,6 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 
 	/*
 	 * Kernel receive contexts:
-	 * - min of 2 or 1 context/numa (excluding control context)
 	 * - Context 0 - control context (VL15/multicast/error)
 	 * - Context 1 - first kernel context
 	 * - Context 2 - second kernel context
@@ -12782,18 +12953,16 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		 */
 		num_kernel_contexts = n_krcvqs + 1;
 	else
-		num_kernel_contexts = num_online_nodes() + 1;
-	num_kernel_contexts =
-		max_t(int, MIN_KERNEL_KCTXTS, num_kernel_contexts);
+		num_kernel_contexts = DEFAULT_KRCVQS + 1;
 	/*
 	 * Every kernel receive context needs an ACK send context.
 	 * one send context is allocated for each VL{0-7} and VL15
 	 */
 	if (num_kernel_contexts > (dd->chip_send_contexts - num_vls - 1)) {
 		dd_dev_err(dd,
-			   "Reducing # kernel rcv contexts to: %d, from %d\n",
+			   "Reducing # kernel rcv contexts to: %d, from %lu\n",
 			   (int)(dd->chip_send_contexts - num_vls - 1),
-			   (int)num_kernel_contexts);
+			   num_kernel_contexts);
 		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
 	}
 	/*
@@ -12803,7 +12972,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	 */
 	if (num_user_contexts < 0)
 		num_user_contexts =
-			cpumask_weight(&dd->affinity->real_cpu_mask);
+			cpumask_weight(&node_affinity.real_cpu_mask);
 
 	total_contexts = num_kernel_contexts + num_user_contexts;
 
@@ -13216,9 +13385,9 @@ static void init_rbufs(struct hfi1_devdata *dd)
 		/*
 		 * Give up after 1ms - maximum wait time.
 		 *
-		 * RBuf size is 148KiB.  Slowest possible is PCIe Gen1 x1 at
+		 * RBuf size is 136KiB.  Slowest possible is PCIe Gen1 x1 at
 		 * 250MB/s bandwidth.  Lower rate to 66% for overhead to get:
-		 *	148 KB / (66% * 250MB/s) = 920us
+		 *	136 KB / (66% * 250MB/s) = 844us
 		 */
 		if (count++ > 500) {
 			dd_dev_err(dd,
@@ -14101,7 +14270,13 @@ static int init_asic_data(struct hfi1_devdata *dd)
 {
 	unsigned long flags;
 	struct hfi1_devdata *tmp, *peer = NULL;
+	struct hfi1_asic_data *asic_data;
 	int ret = 0;
+
+	/* pre-allocate the asic structure in case we are the first device */
+	asic_data = kzalloc(sizeof(*dd->asic_data), GFP_KERNEL);
+	if (!asic_data)
+		return -ENOMEM;
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
 	/* Find our peer device */
@@ -14114,19 +14289,20 @@ static int init_asic_data(struct hfi1_devdata *dd)
 	}
 
 	if (peer) {
+		/* use already allocated structure */
 		dd->asic_data = peer->asic_data;
+		kfree(asic_data);
 	} else {
-		dd->asic_data = kzalloc(sizeof(*dd->asic_data), GFP_KERNEL);
-		if (!dd->asic_data) {
-			ret = -ENOMEM;
-			goto done;
-		}
+		dd->asic_data = asic_data;
 		mutex_init(&dd->asic_data->asic_resource_mutex);
 	}
 	dd->asic_data->dds[dd->hfi1_id] = dd; /* self back-pointer */
-
-done:
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+
+	/* first one through - set up i2c devices */
+	if (!peer)
+		ret = set_up_i2c(dd, dd->asic_data);
+
 	return ret;
 }
 
@@ -14390,6 +14566,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
+	/* call before get_platform_config(), after init_chip_resources() */
+	ret = eprom_init(dd);
+	if (ret)
+		goto bail_free_rcverr;
+
 	/* Needs to be called before hfi1_firmware_init */
 	get_platform_config(dd);
 
@@ -14431,19 +14612,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
 		    & CCE_REVISION_SW_MASK);
 
-	/*
-	 * The real cpu mask is part of the affinity struct but has to be
-	 * initialized earlier than the rest of the affinity struct because it
-	 * is needed to calculate the number of user contexts in
-	 * set_up_context_variables(). However, hfi1_dev_affinity_init(),
-	 * which initializes the rest of the affinity struct members,
-	 * depends on set_up_context_variables() for the number of kernel
-	 * contexts, so it cannot be called before set_up_context_variables().
-	 */
-	ret = init_real_cpu_mask(dd);
-	if (ret)
-		goto bail_cleanup;
-
 	ret = set_up_context_variables(dd);
 	if (ret)
 		goto bail_cleanup;
@@ -14457,7 +14625,9 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* set up KDETH QP prefix in both RX and TX CSRs */
 	init_kdeth_qp(dd);
 
-	hfi1_dev_affinity_init(dd);
+	ret = hfi1_dev_affinity_init(dd);
+	if (ret)
+		goto bail_cleanup;
 
 	/* send contexts must be set up before receive contexts */
 	ret = init_send_contexts(dd);
@@ -14494,8 +14664,14 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* set up LCB access - must be after set_up_interrupts() */
 	init_lcb_access(dd);
 
+	/*
+	 * Serial number is created from the base guid:
+	 * [27:24] = base guid [38:35]
+	 * [23: 0] = base guid [23: 0]
+	 */
 	snprintf(dd->serial, SERIAL_MAX, "0x%08llx\n",
-		 dd->base_guid & 0xFFFFFF);
+		 (dd->base_guid & 0xFFFFFF) |
+		     ((dd->base_guid >> 11) & 0xF000000));
 
 	dd->oui1 = dd->base_guid >> 56 & 0xFF;
 	dd->oui2 = dd->base_guid >> 48 & 0xFF;
@@ -14504,7 +14680,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = load_firmware(dd); /* asymmetric with dispose_firmware() */
 	if (ret)
 		goto bail_clear_intr;
-	check_fabric_firmware_versions(dd);
 
 	thermal_init(dd);
 
@@ -14515,10 +14690,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = init_rcverr(dd);
 	if (ret)
 		goto bail_free_cntrs;
-
-	ret = eprom_init(dd);
-	if (ret)
-		goto bail_free_rcverr;
 
 	goto bail;
 

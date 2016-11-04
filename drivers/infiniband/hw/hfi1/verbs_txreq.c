@@ -92,11 +92,10 @@ void hfi1_put_txreq(struct verbs_txreq *tx)
 
 struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 				struct rvt_qp *qp)
+	__must_hold(&qp->s_lock)
 {
 	struct verbs_txreq *tx = ERR_PTR(-EBUSY);
-	unsigned long flags;
 
-	spin_lock_irqsave(&qp->s_lock, flags);
 	write_seqlock(&dev->iowait_lock);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
 		struct hfi1_qp_priv *priv;
@@ -110,13 +109,12 @@ struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 			qp->s_flags |= RVT_S_WAIT_TX;
 			list_add_tail(&priv->s_iowait.list, &dev->txwait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_TX);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 		}
 		qp->s_flags &= ~RVT_S_BUSY;
 	}
 out:
 	write_sequnlock(&dev->iowait_lock);
-	spin_unlock_irqrestore(&qp->s_lock, flags);
 	return tx;
 }
 

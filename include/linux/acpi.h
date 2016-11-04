@@ -85,6 +85,8 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return dev_name(&adev->dev);
 }
 
+struct device *acpi_get_first_physical_node(struct acpi_device *adev);
+
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
 	ACPI_IRQ_MODEL_IOAPIC,
@@ -208,7 +210,6 @@ void acpi_boot_table_init (void);
 int acpi_mps_check (void);
 int acpi_numa_init (void);
 
-void early_acpi_table_init(void *data, size_t size);
 int acpi_table_init (void);
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
 int __init acpi_parse_entries(char *id, unsigned long table_size,
@@ -232,12 +233,26 @@ int acpi_table_parse_madt(enum acpi_madt_type id,
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 
-/* the following four functions are architecture-dependent */
+/* the following numa functions are architecture-dependent */
 void acpi_numa_slit_init (struct acpi_table_slit *slit);
+
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
 void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa);
+#else
+static inline void
+acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa) { }
+#endif
+
 void acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa);
+
+#ifdef CONFIG_ARM64
+void acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa);
+#else
+static inline void
+acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa) { }
+#endif
+
 int acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
-void acpi_numa_arch_fixup(void);
 
 #ifndef PHYS_CPUID_INVALID
 typedef u32 phys_cpuid_t;
@@ -254,11 +269,17 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
 	return phys_id == PHYS_CPUID_INVALID;
 }
 
+/* Validate the processor object's proc_id */
+bool acpi_processor_validate_proc_id(int proc_id);
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
 int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
 int acpi_unmap_cpu(int cpu);
+int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
+
+void acpi_set_processor_mapping(void);
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 int acpi_get_ioapic_id(acpi_handle handle, u32 gsi_base, u64 *phys_addr);
@@ -444,8 +465,12 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_SB_HOTPLUG_OST_SUPPORT		0x00000008
 #define OSC_SB_APEI_SUPPORT			0x00000010
 #define OSC_SB_CPC_SUPPORT			0x00000020
+#define OSC_SB_CPCV2_SUPPORT			0x00000040
+#define OSC_SB_PCLPI_SUPPORT			0x00000080
+#define OSC_SB_OSLPI_SUPPORT			0x00000100
 
 extern bool osc_sb_apei_support_acked;
+extern bool osc_pc_lpi_support_confirmed;
 
 /* PCI Host Bridge _OSC: Capabilities DWORD 2: Support Field */
 #define OSC_PCI_EXT_CONFIG_SUPPORT		0x00000001
@@ -532,6 +557,24 @@ void acpi_walk_dep_device_list(acpi_handle handle);
 struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_PTR(_ptr)	(_ptr)
 
+static inline void acpi_device_set_enumerated(struct acpi_device *adev)
+{
+	adev->flags.visited = true;
+}
+
+static inline void acpi_device_clear_enumerated(struct acpi_device *adev)
+{
+	adev->flags.visited = false;
+}
+
+enum acpi_reconfig_event  {
+	ACPI_RECONFIG_DEVICE_ADD = 0,
+	ACPI_RECONFIG_DEVICE_REMOVE,
+};
+
+int acpi_reconfig_notifier_register(struct notifier_block *nb);
+int acpi_reconfig_notifier_unregister(struct notifier_block *nb);
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -542,6 +585,11 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *);
 #define ACPI_DEVICE_CLASS(_cls, _msk)	.cls = (0), .cls_msk = (0),
 
 struct fwnode_handle;
+
+static inline bool acpi_dev_found(const char *hid)
+{
+	return false;
+}
 
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
@@ -568,6 +616,12 @@ static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwn
 	return NULL;
 }
 
+static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
+					const char *name)
+{
+	return false;
+}
+
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)
 {
 	return NULL;
@@ -588,7 +642,11 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return NULL;
 }
 
-static inline void early_acpi_table_init(void *data, size_t size) { }
+static inline struct device *acpi_get_first_physical_node(struct acpi_device *adev)
+{
+	return NULL;
+}
+
 static inline void acpi_early_init(void) { }
 static inline void acpi_subsystem_init(void) { }
 
@@ -654,6 +712,14 @@ static inline bool acpi_driver_match_device(struct device *dev,
 	return false;
 }
 
+static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
+						   const u8 *uuid,
+						   int rev, int func,
+						   union acpi_object *argv4)
+{
+	return NULL;
+}
+
 static inline int acpi_device_uevent_modalias(struct device *dev,
 				struct kobj_uevent_env *env)
 {
@@ -678,7 +744,31 @@ static inline enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 
 #define ACPI_PTR(_ptr)	(NULL)
 
+static inline void acpi_device_set_enumerated(struct acpi_device *adev)
+{
+}
+
+static inline void acpi_device_clear_enumerated(struct acpi_device *adev)
+{
+}
+
+static inline int acpi_reconfig_notifier_register(struct notifier_block *nb)
+{
+	return -EINVAL;
+}
+
+static inline int acpi_reconfig_notifier_unregister(struct notifier_block *nb)
+{
+	return -EINVAL;
+}
+
 #endif	/* !CONFIG_ACPI */
+
+#ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
+int acpi_ioapic_add(acpi_handle root);
+#else
+static inline int acpi_ioapic_add(acpi_handle root) { return 0; }
+#endif
 
 #ifdef CONFIG_ACPI
 void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
@@ -856,9 +946,17 @@ struct acpi_reference_args {
 #ifdef CONFIG_ACPI
 int acpi_dev_get_property(struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
-int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
-				     const char *name, size_t index,
-				     struct acpi_reference_args *args);
+int __acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index, size_t num_args,
+				struct acpi_reference_args *args);
+
+static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index,
+				struct acpi_reference_args *args)
+{
+	return __acpi_node_get_property_reference(fwnode, name, index,
+		MAX_ACPI_REFERENCE_ARGS, args);
+}
 
 int acpi_node_prop_get(struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);
@@ -934,6 +1032,14 @@ static inline int acpi_dev_get_property(struct acpi_device *adev,
 	return -ENXIO;
 }
 
+static inline int
+__acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index, size_t num_args,
+				struct acpi_reference_args *args)
+{
+	return -ENXIO;
+}
+
 static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
 				const char *name, size_t index,
 				struct acpi_reference_args *args)
@@ -985,7 +1091,7 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 	return NULL;
 }
 
-#define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, validate, data, fn) \
+#define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, valid, data, fn) \
 	static const void * __acpi_table_##name[]			\
 		__attribute__((unused))					\
 		 = { (void *) table_id,					\
@@ -995,6 +1101,24 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 		     (void *) data }
 
 #define acpi_probe_device_table(t)	({ int __r = 0; __r;})
+#endif
+
+#ifdef CONFIG_ACPI_TABLE_UPGRADE
+void acpi_table_upgrade(void);
+#else
+static inline void acpi_table_upgrade(void) { }
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_ACPI_WATCHDOG)
+extern bool acpi_has_watchdog(void);
+#else
+static inline bool acpi_has_watchdog(void) { return false; }
+#endif
+
+#ifdef CONFIG_ACPI_SPCR_TABLE
+int parse_spcr(bool earlycon);
+#else
+static inline int parse_spcr(bool earlycon) { return 0; }
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

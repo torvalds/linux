@@ -1433,12 +1433,15 @@ KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
-Architectures: x86 s390
+Architectures: x86 s390 arm arm64
 Type: vm ioctl
 Parameters: struct kvm_irq_routing (in)
 Returns: 0 on success, -1 on error
 
 Sets the GSI routing table entries, overwriting any previously set entries.
+
+On arm/arm64, GSI routing has the following limitation:
+- GSI routing does not apply to KVM_IRQ_LINE but only to KVM_IRQFD.
 
 struct kvm_irq_routing {
 	__u32 nr;
@@ -1468,7 +1471,13 @@ struct kvm_irq_routing_entry {
 #define KVM_IRQ_ROUTING_S390_ADAPTER 3
 #define KVM_IRQ_ROUTING_HV_SINT 4
 
-No flags are specified so far, the corresponding field must be set to zero.
+flags:
+- KVM_MSI_VALID_DEVID: used along with KVM_IRQ_ROUTING_MSI routing entry
+  type, specifies that the devid field contains a valid value.  The per-VM
+  KVM_CAP_MSI_DEVID capability advertises the requirement to provide
+  the device ID.  If this capability is not available, userspace should
+  never set the KVM_MSI_VALID_DEVID flag as the ioctl might fail.
+- zero otherwise
 
 struct kvm_irq_routing_irqchip {
 	__u32 irqchip;
@@ -1479,8 +1488,20 @@ struct kvm_irq_routing_msi {
 	__u32 address_lo;
 	__u32 address_hi;
 	__u32 data;
-	__u32 pad;
+	union {
+		__u32 pad;
+		__u32 devid;
+	};
 };
+
+If KVM_MSI_VALID_DEVID is set, devid contains a unique device identifier
+for the device that wrote the MSI message.  For PCI, this is usually a
+BFD identifier in the lower 16 bits.
+
+On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
+feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
+address_hi bits 31-8 provide bits 31-8 of the destination id.  Bits 7-0 of
+address_hi must be zero.
 
 struct kvm_irq_routing_s390_adapter {
 	__u64 ind_addr;
@@ -1583,6 +1604,17 @@ struct kvm_lapic_state {
 Reads the Local APIC registers and copies them into the input argument.  The
 data format and layout are the same as documented in the architecture manual.
 
+If KVM_X2APIC_API_USE_32BIT_IDS feature of KVM_CAP_X2APIC_API is
+enabled, then the format of APIC_ID register depends on the APIC mode
+(reported by MSR_IA32_APICBASE) of its VCPU.  x2APIC stores APIC ID in
+the APIC_ID register (bytes 32-35).  xAPIC only allows an 8-bit APIC ID
+which is stored in bits 31-24 of the APIC register, or equivalently in
+byte 35 of struct kvm_lapic_state's regs field.  KVM_GET_LAPIC must then
+be called after MSR_IA32_APICBASE has been set with KVM_SET_MSR.
+
+If KVM_X2APIC_API_USE_32BIT_IDS feature is disabled, struct kvm_lapic_state
+always uses xAPIC format.
+
 
 4.58 KVM_SET_LAPIC
 
@@ -1599,6 +1631,10 @@ struct kvm_lapic_state {
 
 Copies the input argument into the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
+
+The format of the APIC ID register (bytes 32-35 of struct kvm_lapic_state's
+regs field) depends on the state of the KVM_CAP_X2APIC_API capability.
+See the note in KVM_GET_LAPIC.
 
 
 4.59 KVM_IOEVENTFD
@@ -2032,6 +2068,12 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_CONFIG5      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG7      | 32
   MIPS  | KVM_REG_MIPS_CP0_ERROREPC     | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH1    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH2    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH3    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH4    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH5    | 64
+  MIPS  | KVM_REG_MIPS_CP0_KSCRATCH6    | 64
   MIPS  | KVM_REG_MIPS_COUNT_CTL        | 64
   MIPS  | KVM_REG_MIPS_COUNT_RESUME     | 64
   MIPS  | KVM_REG_MIPS_COUNT_HZ         | 64
@@ -2156,7 +2198,7 @@ after pausing the vcpu, but before it is resumed.
 4.71 KVM_SIGNAL_MSI
 
 Capability: KVM_CAP_SIGNAL_MSI
-Architectures: x86
+Architectures: x86 arm64
 Type: vm ioctl
 Parameters: struct kvm_msi (in)
 Returns: >0 on delivery, 0 if guest blocked the MSI, and -1 on error
@@ -2169,10 +2211,23 @@ struct kvm_msi {
 	__u32 address_hi;
 	__u32 data;
 	__u32 flags;
-	__u8  pad[16];
+	__u32 devid;
+	__u8  pad[12];
 };
 
-No flags are defined so far. The corresponding field must be 0.
+flags: KVM_MSI_VALID_DEVID: devid contains a valid value.  The per-VM
+  KVM_CAP_MSI_DEVID capability advertises the requirement to provide
+  the device ID.  If this capability is not available, userspace
+  should never set the KVM_MSI_VALID_DEVID flag as the ioctl might fail.
+
+If KVM_MSI_VALID_DEVID is set, devid contains a unique device identifier
+for the device that wrote the MSI message.  For PCI, this is usually a
+BFD identifier in the lower 16 bits.
+
+On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
+feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
+address_hi bits 31-8 provide bits 31-8 of the destination id.  Bits 7-0 of
+address_hi must be zero.
 
 
 4.71 KVM_CREATE_PIT2
@@ -2345,9 +2400,13 @@ Note that closing the resamplefd is not sufficient to disable the
 irqfd.  The KVM_IRQFD_FLAG_RESAMPLE is only necessary on assignment
 and need not be specified with KVM_IRQFD_FLAG_DEASSIGN.
 
-On ARM/ARM64, the gsi field in the kvm_irqfd struct specifies the Shared
-Peripheral Interrupt (SPI) index, such that the GIC interrupt ID is
-given by gsi + 32.
+On arm/arm64, gsi routing being supported, the following can happen:
+- in case no routing entry is associated to this gsi, injection fails
+- in case the gsi is associated to an irqchip routing entry,
+  irqchip.pin + 32 corresponds to the injected SPI ID.
+- in case the gsi is associated to an MSI routing entry, the MSI
+  message and device ID are translated into an LPI (support restricted
+  to GICv3 ITS in-kernel emulation).
 
 4.76 KVM_PPC_ALLOCATE_HTAB
 
@@ -2520,6 +2579,7 @@ Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
   ENXIO:  The group or attribute is unknown/unsupported for this device
+          or hardware support is missing.
   EPERM:  The attribute cannot (currently) be accessed this way
           (e.g. read-only attribute, or attribute that only makes
           sense when the device is in a different state)
@@ -2547,6 +2607,7 @@ Parameters: struct kvm_device_attr
 Returns: 0 on success, -1 on error
 Errors:
   ENXIO:  The group or attribute is unknown/unsupported for this device
+          or hardware support is missing.
 
 Tests whether a device supports a particular attribute.  A successful
 return indicates the attribute is implemented.  It does not necessarily
@@ -3802,6 +3863,42 @@ Parameters: none
 Allows use of runtime-instrumentation introduced with zEC12 processor.
 Will return -EINVAL if the machine does not support runtime-instrumentation.
 Will return -EBUSY if a VCPU has already been created.
+
+7.7 KVM_CAP_X2APIC_API
+
+Architectures: x86
+Parameters: args[0] - features that should be enabled
+Returns: 0 on success, -EINVAL when args[0] contains invalid features
+
+Valid feature flags in args[0] are
+
+#define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
+#define KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK  (1ULL << 1)
+
+Enabling KVM_X2APIC_API_USE_32BIT_IDS changes the behavior of
+KVM_SET_GSI_ROUTING, KVM_SIGNAL_MSI, KVM_SET_LAPIC, and KVM_GET_LAPIC,
+allowing the use of 32-bit APIC IDs.  See KVM_CAP_X2APIC_API in their
+respective sections.
+
+KVM_X2APIC_API_DISABLE_BROADCAST_QUIRK must be enabled for x2APIC to work
+in logical mode or with more than 255 VCPUs.  Otherwise, KVM treats 0xff
+as a broadcast even in x2APIC mode in order to support physical x2APIC
+without interrupt remapping.  This is undesirable in logical mode,
+where 0xff represents CPUs 0-7 in cluster 0.
+
+7.8 KVM_CAP_S390_USER_INSTR0
+
+Architectures: s390
+Parameters: none
+
+With this capability enabled, all illegal instructions 0x0000 (2 bytes) will
+be intercepted and forwarded to user space. User space can use this
+mechanism e.g. to realize 2-byte software breakpoints. The kernel will
+not inject an operating exception for these instructions, user space has
+to take care of that.
+
+This capability can be enabled dynamically even if VCPUs were already
+created and are running.
 
 8. Other capabilities.
 ----------------------

@@ -88,6 +88,11 @@
 				     <0 0xe1 0 IRQ_TYPE_NONE>,
 				     <0 0xe2 0 IRQ_TYPE_NONE>,
 				     <0 0xe3 0 IRQ_TYPE_NONE>;
+
+			boost_bypass_n_pin: boost-bypass {
+				pins = "gpio21";
+				function = "normal";
+			};
 		};
 
 		pm8941_mpps: mpps@a000 {

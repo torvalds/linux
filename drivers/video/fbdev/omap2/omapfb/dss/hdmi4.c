@@ -33,7 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <sound/omap-hdmi-audio.h>
 
 #include "hdmi4_core.h"
@@ -100,7 +100,6 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 
 static int hdmi_init_regulator(void)
 {
-	int r;
 	struct regulator *reg;
 
 	if (hdmi.vdda_reg != NULL)
@@ -112,13 +111,6 @@ static int hdmi_init_regulator(void)
 		if (PTR_ERR(reg) != -EPROBE_DEFER)
 			DSSERR("can't get VDDA regulator\n");
 		return PTR_ERR(reg);
-	}
-
-	r = regulator_set_voltage(reg, 1800000, 1800000);
-	if (r) {
-		devm_regulator_put(reg);
-		DSSWARN("can't set the regulator voltage\n");
-		return r;
 	}
 
 	hdmi.vdda_reg = reg;

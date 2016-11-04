@@ -52,6 +52,7 @@
 #include <linux/seq_file.h>
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_qp.h>
+#include <rdma/ib_verbs.h>
 
 #include "hfi.h"
 #include "qp.h"
@@ -115,6 +116,66 @@ static const u16 credit_table[31] = {
 	32768                   /* 1E */
 };
 
+const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
+[IB_WR_RDMA_WRITE] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_RDMA_READ] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC,
+},
+
+[IB_WR_ATOMIC_CMP_AND_SWP] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC | RVT_OPERATION_ATOMIC_SGE,
+},
+
+[IB_WR_ATOMIC_FETCH_AND_ADD] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC | RVT_OPERATION_ATOMIC_SGE,
+},
+
+[IB_WR_RDMA_WRITE_WITH_IMM] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_SEND] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UD) | BIT(IB_QPT_SMI) | BIT(IB_QPT_GSI) |
+		       BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_SEND_WITH_IMM] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UD) | BIT(IB_QPT_SMI) | BIT(IB_QPT_GSI) |
+		       BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_REG_MR] = {
+	.length = sizeof(struct ib_reg_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_LOCAL,
+},
+
+[IB_WR_LOCAL_INV] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_LOCAL,
+},
+
+[IB_WR_SEND_WITH_INV] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+},
+
+};
+
 static void flush_tx_list(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
@@ -141,8 +202,7 @@ static void flush_iowait(struct rvt_qp *qp)
 	write_seqlock_irqsave(&dev->iowait_lock, flags);
 	if (!list_empty(&priv->s_iowait.list)) {
 		list_del_init(&priv->s_iowait.list);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
 }
@@ -389,13 +449,14 @@ static void qp_pio_drain(struct rvt_qp *qp)
  */
 void hfi1_schedule_send(struct rvt_qp *qp)
 {
+	lockdep_assert_held(&qp->s_lock);
 	if (hfi1_send_ok(qp))
 		_hfi1_schedule_send(qp);
 }
 
 /**
- * hfi1_get_credit - flush the send work queue of a QP
- * @qp: the qp who's send work queue to flush
+ * hfi1_get_credit - handle credit in aeth
+ * @qp: the qp
  * @aeth: the Acknowledge Extended Transport Header
  *
  * The QP s_lock should be held.
@@ -404,6 +465,7 @@ void hfi1_get_credit(struct rvt_qp *qp, u32 aeth)
 {
 	u32 credit = (aeth >> HFI1_AETH_CREDIT_SHIFT) & HFI1_AETH_CREDIT_MASK;
 
+	lockdep_assert_held(&qp->s_lock);
 	/*
 	 * If the credit is invalid, we can send
 	 * as many packets as we like.  Otherwise, we have to
@@ -442,8 +504,7 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	/* Notify hfi1_destroy_qp() if it is waiting. */
-	if (atomic_dec_and_test(&qp->refcount))
-		wake_up(&qp->wait);
+	rvt_put_qp(qp);
 }
 
 static int iowait_sleep(
@@ -483,7 +544,7 @@ static int iowait_sleep(
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 		}
 		write_sequnlock(&dev->iowait_lock);
 		qp->s_flags &= ~RVT_S_BUSY;
@@ -595,10 +656,6 @@ struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev)
 
 	iter->dev = dev;
 	iter->specials = dev->rdi.ibdev.phys_port_cnt * 2;
-	if (qp_iter_next(iter)) {
-		kfree(iter);
-		return NULL;
-	}
 
 	return iter;
 }
@@ -745,11 +802,19 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 	priv->owner = qp;
 
-	priv->s_hdr = kzalloc_node(sizeof(*priv->s_hdr), gfp, rdi->dparms.node);
-	if (!priv->s_hdr) {
+	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), gfp,
+				   rdi->dparms.node);
+	if (!priv->s_ahg) {
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
 	}
+	iowait_init(
+		&priv->s_iowait,
+		1,
+		_hfi1_do_send,
+		iowait_sleep,
+		iowait_wakeup,
+		iowait_sdma_drained);
 	setup_timer(&priv->s_rnr_timer, hfi1_rc_rnr_retry, (unsigned long)qp);
 	qp->s_timer.function = hfi1_rc_timeout;
 	return priv;
@@ -759,7 +824,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	kfree(priv->s_hdr);
+	kfree(priv->s_ahg);
 	kfree(priv);
 }
 
@@ -790,6 +855,7 @@ unsigned free_all_qps(struct rvt_dev_info *rdi)
 
 void flush_qp_waiters(struct rvt_qp *qp)
 {
+	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
 	hfi1_stop_rc_timers(qp);
 }
@@ -815,13 +881,6 @@ void notify_qp_reset(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	iowait_init(
-		&priv->s_iowait,
-		1,
-		_hfi1_do_send,
-		iowait_sleep,
-		iowait_wakeup,
-		iowait_sdma_drained);
 	priv->r_adefered = 0;
 	clear_ahg(qp);
 }
@@ -905,8 +964,7 @@ void notify_error_qp(struct rvt_qp *qp)
 	if (!list_empty(&priv->s_iowait.list) && !(qp->s_flags & RVT_S_BUSY)) {
 		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
 		list_del_init(&priv->s_iowait.list);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 	write_sequnlock(&dev->iowait_lock);
 

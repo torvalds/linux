@@ -1445,16 +1445,18 @@ static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 	for (i = 0; i < TPG_INSTANCES; ++i)
 		if (tpg_instances[i].tpg == tpg)
 			break;
-	if (i < TPG_INSTANCES)
+	if (i < TPG_INSTANCES) {
 		tpg_instances[i].tpg = NULL;
-	opts = container_of(tpg_instances[i].func_inst,
-		struct f_tcm_opts, func_inst);
-	mutex_lock(&opts->dep_lock);
-	if (opts->has_dep)
-		module_put(opts->dependent);
-	else
-		configfs_undepend_item_unlocked(&opts->func_inst.group.cg_item);
-	mutex_unlock(&opts->dep_lock);
+		opts = container_of(tpg_instances[i].func_inst,
+			struct f_tcm_opts, func_inst);
+		mutex_lock(&opts->dep_lock);
+		if (opts->has_dep)
+			module_put(opts->dependent);
+		else
+			configfs_undepend_item_unlocked(
+				&opts->func_inst.group.cg_item);
+		mutex_unlock(&opts->dep_lock);
+	}
 	mutex_unlock(&tpg_instances_lock);
 
 	kfree(tpg);

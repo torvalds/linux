@@ -34,13 +34,18 @@
 #define DRV_NAME "rockchip-snd-max98090"
 
 static struct snd_soc_jack headset_jack;
+
+/* Headset jack detection DAPM pins */
 static struct snd_soc_jack_pin headset_jack_pins[] = {
 	{
-		.pin = "Headset Jack",
-		.mask = SND_JACK_HEADPHONE | SND_JACK_MICROPHONE |
-			SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-			SND_JACK_BTN_2 | SND_JACK_BTN_3,
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
 	},
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+
 };
 
 static const struct snd_soc_dapm_widget rk_dapm_widgets[] = {
@@ -53,7 +58,7 @@ static const struct snd_soc_dapm_widget rk_dapm_widgets[] = {
 static const struct snd_soc_dapm_route rk_audio_map[] = {
 	{"IN34", NULL, "Headset Mic"},
 	{"IN34", NULL, "MICBIAS"},
-	{"MICBIAS", NULL, "Headset Mic"},
+	{"Headset Mic", NULL, "MICBIAS"},
 	{"DMICL", NULL, "Int Mic"},
 	{"Headphone", NULL, "HPL"},
 	{"Headphone", NULL, "HPR"},
@@ -114,41 +119,25 @@ static int rk_aif1_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int rk_init(struct snd_soc_pcm_runtime *runtime)
-{
-	/* Enable Headset and 4 Buttons Jack detection */
-	return snd_soc_card_jack_new(runtime->card, "Headset Jack",
-			       SND_JACK_HEADSET |
-			       SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-			       SND_JACK_BTN_2 | SND_JACK_BTN_3,
-			       &headset_jack,
-			       headset_jack_pins,
-			       ARRAY_SIZE(headset_jack_pins));
-}
-
-static int rk_98090_headset_init(struct snd_soc_component *component)
-{
-	return ts3a227e_enable_jack_detect(component, &headset_jack);
-}
-
 static struct snd_soc_ops rk_aif1_ops = {
 	.hw_params = rk_aif1_hw_params,
-};
-
-static struct snd_soc_aux_dev rk_98090_headset_dev = {
-	.name = "Headset Chip",
-	.init = rk_98090_headset_init,
 };
 
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "max98090",
 	.stream_name = "Audio",
 	.codec_dai_name = "HiFi",
-	.init = rk_init,
 	.ops = &rk_aif1_ops,
 	/* set max98090 as slave */
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,
+};
+
+static int rk_98090_headset_init(struct snd_soc_component *component);
+
+static struct snd_soc_aux_dev rk_98090_headset_dev = {
+	.name = "Headset Chip",
+	.init = rk_98090_headset_init,
 };
 
 static struct snd_soc_card snd_soc_card_rk = {
@@ -165,6 +154,26 @@ static struct snd_soc_card snd_soc_card_rk = {
 	.controls = rk_mc_controls,
 	.num_controls = ARRAY_SIZE(rk_mc_controls),
 };
+
+static int rk_98090_headset_init(struct snd_soc_component *component)
+{
+	int ret;
+
+	/* Enable Headset and 4 Buttons Jack detection */
+	ret = snd_soc_card_jack_new(&snd_soc_card_rk, "Headset Jack",
+				    SND_JACK_HEADSET |
+				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
+				    &headset_jack,
+				    headset_jack_pins,
+				    ARRAY_SIZE(headset_jack_pins));
+	if (ret)
+		return ret;
+
+	ret = ts3a227e_enable_jack_detect(component, &headset_jack);
+
+	return ret;
+}
 
 static int snd_rk_mc_probe(struct platform_device *pdev)
 {

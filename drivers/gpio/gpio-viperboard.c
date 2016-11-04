@@ -440,7 +440,6 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver vprbrd_gpio_driver = {
 	.driver.name	= "viperboard-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= vprbrd_gpio_probe,
 };
 

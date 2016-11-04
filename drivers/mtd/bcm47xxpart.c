@@ -122,7 +122,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	for (offset = 0; offset <= master->size - blocksize;
 	     offset += blocksize) {
 		/* Nothing more in higher memory on BCM47XX (MIPS) */
-		if (config_enabled(CONFIG_BCM47XX) && offset >= 0x2000000)
+		if (IS_ENABLED(CONFIG_BCM47XX) && offset >= 0x2000000)
 			break;
 
 		if (curr_part >= BCM47XXPART_MAX_PARTS) {

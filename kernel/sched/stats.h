@@ -29,10 +29,13 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 	if (rq)
 		rq->rq_sched_info.run_delay += delta;
 }
-# define schedstat_enabled()		static_branch_unlikely(&sched_schedstats)
-# define schedstat_inc(rq, field)	do { if (schedstat_enabled()) { (rq)->field++; } } while (0)
-# define schedstat_add(rq, field, amt)	do { if (schedstat_enabled()) { (rq)->field += (amt); } } while (0)
-# define schedstat_set(var, val)	do { if (schedstat_enabled()) { var = (val); } } while (0)
+#define schedstat_enabled()		static_branch_unlikely(&sched_schedstats)
+#define schedstat_inc(var)		do { if (schedstat_enabled()) { var++; } } while (0)
+#define schedstat_add(var, amt)		do { if (schedstat_enabled()) { var += (amt); } } while (0)
+#define schedstat_set(var, val)		do { if (schedstat_enabled()) { var = (val); } } while (0)
+#define schedstat_val(var)		(var)
+#define schedstat_val_or_zero(var)	((schedstat_enabled()) ? (var) : 0)
+
 #else /* !CONFIG_SCHEDSTATS */
 static inline void
 rq_sched_info_arrive(struct rq *rq, unsigned long long delta)
@@ -43,11 +46,13 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 static inline void
 rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 {}
-# define schedstat_enabled()		0
-# define schedstat_inc(rq, field)	do { } while (0)
-# define schedstat_add(rq, field, amt)	do { } while (0)
-# define schedstat_set(var, val)	do { } while (0)
-#endif
+#define schedstat_enabled()		0
+#define schedstat_inc(var)		do { } while (0)
+#define schedstat_add(var, amt)		do { } while (0)
+#define schedstat_set(var, val)		do { } while (0)
+#define schedstat_val(var)		0
+#define schedstat_val_or_zero(var)	0
+#endif /* CONFIG_SCHEDSTATS */
 
 #ifdef CONFIG_SCHED_INFO
 static inline void sched_info_reset_dequeued(struct task_struct *t)

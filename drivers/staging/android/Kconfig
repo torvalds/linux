@@ -24,26 +24,6 @@ config ANDROID_LOW_MEMORY_KILLER
 	  scripts (/init.rc), and it defines priority values with minimum free memory size
 	  for each priority.
 
-config SYNC
-	bool "Synchronization framework"
-	default n
-	select ANON_INODES
-	select DMA_SHARED_BUFFER
-	---help---
-	  This option enables the framework for synchronization between multiple
-	  drivers.  Sync implementations can take advantage of hardware
-	  synchronization built into devices like GPUs.
-
-config SW_SYNC
-	bool "Software synchronization objects"
-	default n
-	depends on SYNC
-	depends on SYNC_FILE
-	---help---
-	  A sync object driver that uses a 32bit counter to coordinate
-	  synchronization.  Useful when there is no hardware primitive backing
-	  the synchronization.
-
 source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID

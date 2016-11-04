@@ -37,6 +37,97 @@ static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf,
 }
 
 /* -----------------------------------------------------------------------------
+ * Controls
+ */
+
+enum wpf_flip_ctrl {
+	WPF_CTRL_VFLIP = 0,
+	WPF_CTRL_HFLIP = 1,
+	WPF_CTRL_MAX,
+};
+
+static int vsp1_wpf_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vsp1_rwpf *wpf =
+		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
+	unsigned int i;
+	u32 flip = 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+	case V4L2_CID_VFLIP:
+		for (i = 0; i < WPF_CTRL_MAX; ++i) {
+			if (wpf->flip.ctrls[i])
+				flip |= wpf->flip.ctrls[i]->val ? BIT(i) : 0;
+		}
+
+		spin_lock_irq(&wpf->flip.lock);
+		wpf->flip.pending = flip;
+		spin_unlock_irq(&wpf->flip.lock);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops vsp1_wpf_ctrl_ops = {
+	.s_ctrl = vsp1_wpf_s_ctrl,
+};
+
+static int wpf_init_controls(struct vsp1_rwpf *wpf)
+{
+	struct vsp1_device *vsp1 = wpf->entity.vsp1;
+	unsigned int num_flip_ctrls;
+
+	spin_lock_init(&wpf->flip.lock);
+
+	if (wpf->entity.index != 0) {
+		/* Only WPF0 supports flipping. */
+		num_flip_ctrls = 0;
+	} else if (vsp1->info->features & VSP1_HAS_WPF_HFLIP) {
+		/* When horizontal flip is supported the WPF implements two
+		 * controls (horizontal flip and vertical flip).
+		 */
+		num_flip_ctrls = 2;
+	} else if (vsp1->info->features & VSP1_HAS_WPF_VFLIP) {
+		/* When only vertical flip is supported the WPF implements a
+		 * single control (vertical flip).
+		 */
+		num_flip_ctrls = 1;
+	} else {
+		/* Otherwise flipping is not supported. */
+		num_flip_ctrls = 0;
+	}
+
+	vsp1_rwpf_init_ctrls(wpf, num_flip_ctrls);
+
+	if (num_flip_ctrls >= 1) {
+		wpf->flip.ctrls[WPF_CTRL_VFLIP] =
+			v4l2_ctrl_new_std(&wpf->ctrls, &vsp1_wpf_ctrl_ops,
+					  V4L2_CID_VFLIP, 0, 1, 1, 0);
+	}
+
+	if (num_flip_ctrls == 2) {
+		wpf->flip.ctrls[WPF_CTRL_HFLIP] =
+			v4l2_ctrl_new_std(&wpf->ctrls, &vsp1_wpf_ctrl_ops,
+					  V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+		v4l2_ctrl_cluster(2, wpf->flip.ctrls);
+	}
+
+	if (wpf->ctrls.error) {
+		dev_err(vsp1->dev, "wpf%u: failed to initialize controls\n",
+			wpf->entity.index);
+		return wpf->ctrls.error;
+	}
+
+	return 0;
+}
+
+/* -----------------------------------------------------------------------------
  * V4L2 Subdevice Core Operations
  */
 
@@ -62,11 +153,11 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_video_ops wpf_video_ops = {
+static const struct v4l2_subdev_video_ops wpf_video_ops = {
 	.s_stream = wpf_s_stream,
 };
 
-static struct v4l2_subdev_ops wpf_ops = {
+static const struct v4l2_subdev_ops wpf_ops = {
 	.video	= &wpf_video_ops,
 	.pad    = &vsp1_rwpf_pad_ops,
 };
@@ -82,39 +173,40 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 	vsp1_dlm_destroy(wpf->dlm);
 }
 
-static void wpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
-{
-	struct vsp1_rwpf *wpf = entity_to_rwpf(entity);
-
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, wpf->mem.addr[0]);
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, wpf->mem.addr[1]);
-	vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, wpf->mem.addr[2]);
-}
-
 static void wpf_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
-	const struct v4l2_rect *crop;
 	unsigned int i;
 	u32 outfmt = 0;
 	u32 srcrpf = 0;
 
-	/* Cropping */
-	crop = vsp1_rwpf_get_crop(wpf, wpf->entity.config);
+	if (params == VSP1_ENTITY_PARAMS_RUNTIME) {
+		const unsigned int mask = BIT(WPF_CTRL_VFLIP)
+					| BIT(WPF_CTRL_HFLIP);
+		unsigned long flags;
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (crop->left << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (crop->width << VI6_WPF_SZCLIP_SIZE_SHIFT));
-	vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
-		       (crop->top << VI6_WPF_SZCLIP_OFST_SHIFT) |
-		       (crop->height << VI6_WPF_SZCLIP_SIZE_SHIFT));
+		spin_lock_irqsave(&wpf->flip.lock, flags);
+		wpf->flip.active = (wpf->flip.active & ~mask)
+				 | (wpf->flip.pending & mask);
+		spin_unlock_irqrestore(&wpf->flip.lock, flags);
 
-	/* Format */
+		outfmt = (wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT) | wpf->outfmt;
+
+		if (wpf->flip.active & BIT(WPF_CTRL_VFLIP))
+			outfmt |= VI6_WPF_OUTFMT_FLP;
+		if (wpf->flip.active & BIT(WPF_CTRL_HFLIP))
+			outfmt |= VI6_WPF_OUTFMT_HFLP;
+
+		vsp1_wpf_write(wpf, dl, VI6_WPF_OUTFMT, outfmt);
+		return;
+	}
+
 	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
 						 wpf->entity.config,
 						 RWPF_PAD_SINK);
@@ -122,6 +214,80 @@ static void wpf_configure(struct vsp1_entity *entity,
 						   wpf->entity.config,
 						   RWPF_PAD_SOURCE);
 
+	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
+		const struct v4l2_pix_format_mplane *format = &wpf->format;
+		struct vsp1_rwpf_memory mem = wpf->mem;
+		unsigned int flip = wpf->flip.active;
+		unsigned int width = source_format->width;
+		unsigned int height = source_format->height;
+		unsigned int offset;
+
+		/*
+		 * Cropping. The partition algorithm can split the image into
+		 * multiple slices.
+		 */
+		if (pipe->partitions > 1)
+			width = pipe->partition.width;
+
+		vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+			       (width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+		vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+			       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
+
+		if (pipe->lif)
+			return;
+
+		/*
+		 * Update the memory offsets based on flipping configuration.
+		 * The destination addresses point to the locations where the
+		 * VSP starts writing to memory, which can be different corners
+		 * of the image depending on vertical flipping.
+		 */
+		if (pipe->partitions > 1) {
+			const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
+
+			/*
+			 * Horizontal flipping is handled through a line buffer
+			 * and doesn't modify the start address, but still needs
+			 * to be handled when image partitioning is in effect to
+			 * order the partitions correctly.
+			 */
+			if (flip & BIT(WPF_CTRL_HFLIP))
+				offset = format->width - pipe->partition.left
+					- pipe->partition.width;
+			else
+				offset = pipe->partition.left;
+
+			mem.addr[0] += offset * fmtinfo->bpp[0] / 8;
+			if (format->num_planes > 1) {
+				mem.addr[1] += offset / fmtinfo->hsub
+					     * fmtinfo->bpp[1] / 8;
+				mem.addr[2] += offset / fmtinfo->hsub
+					     * fmtinfo->bpp[2] / 8;
+			}
+		}
+
+		if (flip & BIT(WPF_CTRL_VFLIP)) {
+			mem.addr[0] += (format->height - 1)
+				     * format->plane_fmt[0].bytesperline;
+
+			if (format->num_planes > 1) {
+				offset = (format->height / wpf->fmtinfo->vsub - 1)
+				       * format->plane_fmt[1].bytesperline;
+				mem.addr[1] += offset;
+				mem.addr[2] += offset;
+			}
+		}
+
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
+		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
+		return;
+	}
+
+	/* Format */
 	if (!pipe->lif) {
 		const struct v4l2_pix_format_mplane *format = &wpf->format;
 		const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
@@ -143,13 +309,18 @@ static void wpf_configure(struct vsp1_entity *entity,
 				       format->plane_fmt[1].bytesperline);
 
 		vsp1_wpf_write(wpf, dl, VI6_WPF_DSWAP, fmtinfo->swap);
+
+		if (vsp1->info->features & VSP1_HAS_WPF_HFLIP &&
+		    wpf->entity.index == 0)
+			vsp1_wpf_write(wpf, dl, VI6_WPF_ROT_CTRL,
+				       VI6_WPF_ROT_CTRL_LN16 |
+				       (256 << VI6_WPF_ROT_CTRL_LMEM_WD_SHIFT));
 	}
 
 	if (sink_format->code != source_format->code)
 		outfmt |= VI6_WPF_OUTFMT_CSC;
 
-	outfmt |= wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT;
-	vsp1_wpf_write(wpf, dl, VI6_WPF_OUTFMT, outfmt);
+	wpf->outfmt = outfmt;
 
 	vsp1_dl_list_write(dl, VI6_DPR_WPF_FPORCH(wpf->entity.index),
 			   VI6_DPR_WPF_FPORCH_FP_WPFN);
@@ -180,12 +351,11 @@ static void wpf_configure(struct vsp1_entity *entity,
 	/* Enable interrupts */
 	vsp1_dl_list_write(dl, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
 	vsp1_dl_list_write(dl, VI6_WPF_IRQ_ENB(wpf->entity.index),
-			   VI6_WFP_IRQ_ENB_FREE);
+			   VI6_WFP_IRQ_ENB_DFEE);
 }
 
 static const struct vsp1_entity_operations wpf_entity_ops = {
 	.destroy = vsp1_wpf_destroy,
-	.set_memory = wpf_set_memory,
 	.configure = wpf_configure,
 };
 
@@ -216,24 +386,27 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	wpf->entity.index = index;
 
 	sprintf(name, "wpf.%u", index);
-	ret = vsp1_entity_init(vsp1, &wpf->entity, name, 2, &wpf_ops);
+	ret = vsp1_entity_init(vsp1, &wpf->entity, name, 2, &wpf_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	/* Initialize the display list manager. */
-	wpf->dlm = vsp1_dlm_create(vsp1, index, 4);
+	wpf->dlm = vsp1_dlm_create(vsp1, index, 64);
 	if (!wpf->dlm) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	/* Initialize the control handler. */
-	ret = vsp1_rwpf_init_ctrls(wpf);
+	ret = wpf_init_controls(wpf);
 	if (ret < 0) {
 		dev_err(vsp1->dev, "wpf%u: failed to initialize controls\n",
 			index);
 		goto error;
 	}
+
+	v4l2_ctrl_handler_setup(&wpf->ctrls);
 
 	return wpf;
 

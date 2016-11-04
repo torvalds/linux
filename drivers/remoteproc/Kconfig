@@ -17,7 +17,7 @@ config OMAP_REMOTEPROC
 	select REMOTEPROC
 	select MAILBOX
 	select OMAP2PLUS_MBOX
-	select RPMSG
+	select RPMSG_VIRTIO
 	help
 	  Say y here to support OMAP's remote processors (dual M3
 	  and DSP on OMAP4) via the remote processor framework.
@@ -59,7 +59,7 @@ config DA8XX_REMOTEPROC
 	depends on ARCH_DAVINCI_DA8XX
 	select CMA if MMU
 	select REMOTEPROC
-	select RPMSG
+	select RPMSG_VIRTIO
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
 	  remote processor framework.
@@ -76,6 +76,36 @@ config DA8XX_REMOTEPROC
 
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
+
+config QCOM_MDT_LOADER
+	tristate
+
+config QCOM_Q6V5_PIL
+	tristate "Qualcomm Hexagon V5 Peripherial Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	select MFD_SYSCON
+	select QCOM_MDT_LOADER
+	select REMOTEPROC
+	help
+	  Say y here to support the Qualcomm Peripherial Image Loader for the
+	  Hexagon V5 based remote processors.
+
+config QCOM_WCNSS_IRIS
+	tristate
+	depends on OF && ARCH_QCOM
+
+config QCOM_WCNSS_PIL
+	tristate "Qualcomm WCNSS Peripheral Image Loader"
+	depends on OF && ARCH_QCOM
+	depends on QCOM_SMEM
+	select QCOM_MDT_LOADER
+	select QCOM_SCM
+	select QCOM_WCNSS_IRIS
+	select REMOTEPROC
+	help
+	  Say y here to support the Peripheral Image Loader for the Qualcomm
+	  Wireless Connectivity Subsystem.
 
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"

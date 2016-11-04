@@ -132,7 +132,7 @@ static int ascot2e_write_regs(struct ascot2e_priv *priv,
 		}
 	};
 
-	if (len + 1 >= sizeof(buf)) {
+	if (len + 1 > sizeof(buf)) {
 		dev_warn(&priv->i2c->dev,"wr reg=%04x: len=%d is too big!\n",
 			 reg, len + 1);
 		return -E2BIG;
@@ -464,7 +464,7 @@ static int ascot2e_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops ascot2e_tuner_ops = {
+static const struct dvb_tuner_ops ascot2e_tuner_ops = {
 	.info = {
 		.name = "Sony ASCOT2E",
 		.frequency_min = 1000000,

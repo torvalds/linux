@@ -91,7 +91,7 @@ bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 	if (skb->len <= mtu)
 		return false;
 
-	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
+	if (skb_is_gso(skb) && skb_gso_validate_mtu(skb, mtu))
 		return false;
 
 	return true;
@@ -961,9 +961,6 @@ static void mpls_ifdown(struct net_device *dev, int event)
 				RCU_INIT_POINTER(nh->nh_dev, NULL);
 		} endfor_nexthops(rt);
 	}
-
-
-	return;
 }
 
 static void mpls_ifup(struct net_device *dev, unsigned int nh_flags)
@@ -997,8 +994,6 @@ static void mpls_ifup(struct net_device *dev, unsigned int nh_flags)
 
 		ACCESS_ONCE(rt->rt_nhn_alive) = alive;
 	}
-
-	return;
 }
 
 static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
@@ -1009,9 +1004,12 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 	unsigned int flags;
 
 	if (event == NETDEV_REGISTER) {
-		/* For now just support ethernet devices */
-		if ((dev->type == ARPHRD_ETHER) ||
-		    (dev->type == ARPHRD_LOOPBACK)) {
+		/* For now just support Ethernet, IPGRE, SIT and IPIP devices */
+		if (dev->type == ARPHRD_ETHER ||
+		    dev->type == ARPHRD_LOOPBACK ||
+		    dev->type == ARPHRD_IPGRE ||
+		    dev->type == ARPHRD_SIT ||
+		    dev->type == ARPHRD_TUNNEL) {
 			mdev = mpls_add_dev(dev);
 			if (IS_ERR(mdev))
 				return notifier_from_errno(PTR_ERR(mdev));

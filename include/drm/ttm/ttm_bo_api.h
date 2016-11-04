@@ -45,37 +45,7 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
-/**
- * struct ttm_place
- *
- * @fpfn:	first valid page frame number to put the object
- * @lpfn:	last valid page frame number to put the object
- * @flags:	memory domain and caching flags for the object
- *
- * Structure indicating a possible place to put an object.
- */
-struct ttm_place {
-	unsigned	fpfn;
-	unsigned	lpfn;
-	uint32_t	flags;
-};
-
-/**
- * struct ttm_placement
- *
- * @num_placement:	number of preferred placements
- * @placement:		preferred placements
- * @num_busy_placement:	number of preferred placements when need to evict buffer
- * @busy_placement:	preferred placements when need to evict buffer
- *
- * Structure indicating the placement you request for an object.
- */
-struct ttm_placement {
-	unsigned		num_placement;
-	const struct ttm_place	*placement;
-	unsigned		num_busy_placement;
-	const struct ttm_place	*busy_placement;
-};
+struct ttm_placement;
 
 /**
  * struct ttm_bus_placement
@@ -173,7 +143,7 @@ struct ttm_tt;
  * @lru: List head for the lru list.
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
- * @priv_flags: Flags describing buffer object internal state.
+ * @moving: Fence set when BO is moving
  * @vma_node: Address space manager node.
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
@@ -239,7 +209,7 @@ struct ttm_buffer_object {
 	 * Members protected by a bo reservation.
 	 */
 
-	unsigned long priv_flags;
+	struct fence *moving;
 
 	struct drm_vma_offset_node vma_node;
 
@@ -316,6 +286,20 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
  */
 extern int ttm_bo_wait(struct ttm_buffer_object *bo,
 		       bool interruptible, bool no_wait);
+
+/**
+ * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
+ *
+ * @placement:  Return immediately if buffer is busy.
+ * @mem:  The struct ttm_mem_reg indicating the region where the bo resides
+ * @new_flags: Describes compatible placement found
+ *
+ * Returns true if the placement is compatible
+ */
+extern bool ttm_bo_mem_compat(struct ttm_placement *placement,
+			      struct ttm_mem_reg *mem,
+			      uint32_t *new_flags);
+
 /**
  * ttm_bo_validate
  *

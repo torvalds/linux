@@ -66,8 +66,9 @@
 #define __IWL_CONFIG_H__
 
 #include <linux/types.h>
-#include <net/mac80211.h>
-
+#include <linux/netdevice.h>
+#include <linux/ieee80211.h>
+#include <linux/nl80211.h>
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -192,7 +193,6 @@ struct iwl_base_params {
  * @ht40_bands: bitmap of bands (using %NL80211_BAND_*) that support HT40
  */
 struct iwl_ht_params {
-	enum ieee80211_smps_mode smps_mode;
 	u8 ht_greenfield_support:1,
 	   stbc:1,
 	   ldpc:1,
@@ -261,6 +261,7 @@ struct iwl_tt_params {
 #define OTP_LOW_IMAGE_SIZE_FAMILY_7000	(16 * 512 * sizeof(u16)) /* 16 KB */
 #define OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(u16)) /* 32 KB */
 #define OTP_LOW_IMAGE_SIZE_FAMILY_9000	OTP_LOW_IMAGE_SIZE_FAMILY_8000
+#define OTP_LOW_IMAGE_SIZE_FAMILY_A000	OTP_LOW_IMAGE_SIZE_FAMILY_9000
 
 struct iwl_eeprom_params {
 	const u8 regulatory_bands[7];
@@ -319,6 +320,7 @@ struct iwl_pwr_tx_backoff {
  * @mq_rx_supported: multi-queue rx support
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @rf_id: need to read rf_id to determine the firmware image
+ * @integrated: discrete or integrated
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -357,12 +359,13 @@ struct iwl_cfg {
 	    high_temp:1,
 	    mac_addr_from_csr:1,
 	    lp_xtal_workaround:1,
-	    no_power_up_nic_in_init:1,
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
 	    mq_rx_supported:1,
 	    vht_mu_mimo_supported:1,
-	    rf_id:1;
+	    rf_id:1,
+	    integrated:1,
+	    use_tfh:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
@@ -441,13 +444,18 @@ extern const struct iwl_cfg iwl7265d_n_cfg;
 extern const struct iwl_cfg iwl8260_2n_cfg;
 extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
+extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
+extern const struct iwl_cfg iwl9000lc_2ac_cfg;
+extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
-extern const struct iwl_cfg iwl9260lc_2ac_cfg;
-extern const struct iwl_cfg iwl5165_2ac_cfg;
+extern const struct iwl_cfg iwl9270_2ac_cfg;
+extern const struct iwl_cfg iwl9460_2ac_cfg;
+extern const struct iwl_cfg iwl9560_2ac_cfg;
+extern const struct iwl_cfg iwla000_2ac_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

@@ -35,7 +35,7 @@ static int __init mpc83xx_restart_init(void)
 
 arch_initcall(mpc83xx_restart_init);
 
-void mpc83xx_restart(char *cmd)
+void __noreturn mpc83xx_restart(char *cmd)
 {
 #define RST_OFFSET	0x00000900
 #define RST_PROT_REG	0x00000018
@@ -142,3 +142,11 @@ void __init mpc83xx_setup_pci(void)
 		mpc83xx_add_bridge(np);
 }
 #endif
+
+void __init mpc83xx_setup_arch(void)
+{
+	if (ppc_md.progress)
+		ppc_md.progress("mpc83xx_setup_arch()", 0);
+
+	mpc83xx_setup_pci();
+}

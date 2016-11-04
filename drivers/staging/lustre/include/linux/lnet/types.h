@@ -68,9 +68,9 @@ typedef __u64 lnet_nid_t;
 typedef __u32 lnet_pid_t;
 
 /** wildcard NID that matches any end-point address */
-#define LNET_NID_ANY	((lnet_nid_t) -1)
+#define LNET_NID_ANY	((lnet_nid_t)(-1))
 /** wildcard PID that matches any lnet_pid_t */
-#define LNET_PID_ANY	((lnet_pid_t) -1)
+#define LNET_PID_ANY	((lnet_pid_t)(-1))
 
 #define LNET_PID_RESERVED 0xf0000000 /* reserved bits in PID */
 #define LNET_PID_USERFLAG 0x80000000 /* set in userspace peers */
@@ -503,21 +503,7 @@ typedef struct {
 /* NB lustre portals uses struct iovec internally! */
 typedef struct iovec lnet_md_iovec_t;
 
-/**
- * A page-based fragment of a MD.
- */
-typedef struct {
-	/** Pointer to the page where the fragment resides */
-	struct page	*kiov_page;
-	/** Length in bytes of the fragment */
-	unsigned int	 kiov_len;
-	/**
-	 * Starting offset of the fragment within the page. Note that the
-	 * end of the fragment must not pass the end of the page; i.e.,
-	 * kiov_len + kiov_offset <= PAGE_SIZE.
-	 */
-	unsigned int	 kiov_offset;
-} lnet_kiov_t;
+typedef struct bio_vec lnet_kiov_t;
 /** @} lnet_md */
 
 /** \addtogroup lnet_eq

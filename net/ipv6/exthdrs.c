@@ -43,6 +43,7 @@
 #include <net/ndisc.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+#include <net/calipso.h>
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 #include <net/xfrm.h>
 #endif
@@ -603,6 +604,28 @@ drop:
 	return false;
 }
 
+/* CALIPSO RFC 5570 */
+
+static bool ipv6_hop_calipso(struct sk_buff *skb, int optoff)
+{
+	const unsigned char *nh = skb_network_header(skb);
+
+	if (nh[optoff + 1] < 8)
+		goto drop;
+
+	if (nh[optoff + 6] * 4 + 8 > nh[optoff + 1])
+		goto drop;
+
+	if (!calipso_validate(skb, nh + optoff))
+		goto drop;
+
+	return true;
+
+drop:
+	kfree_skb(skb);
+	return false;
+}
+
 static const struct tlvtype_proc tlvprochopopt_lst[] = {
 	{
 		.type	= IPV6_TLV_ROUTERALERT,
@@ -611,6 +634,10 @@ static const struct tlvtype_proc tlvprochopopt_lst[] = {
 	{
 		.type	= IPV6_TLV_JUMBO,
 		.func	= ipv6_hop_jumbo,
+	},
+	{
+		.type	= IPV6_TLV_CALIPSO,
+		.func	= ipv6_hop_calipso,
 	},
 	{ -1, }
 };
@@ -758,6 +785,27 @@ static int ipv6_renew_option(void *ohdr,
 	return 0;
 }
 
+/**
+ * ipv6_renew_options - replace a specific ext hdr with a new one.
+ *
+ * @sk: sock from which to allocate memory
+ * @opt: original options
+ * @newtype: option type to replace in @opt
+ * @newopt: new option of type @newtype to replace (user-mem)
+ * @newoptlen: length of @newopt
+ *
+ * Returns a new set of options which is a copy of @opt with the
+ * option type @newtype replaced with @newopt.
+ *
+ * @opt may be NULL, in which case a new set of options is returned
+ * containing just @newopt.
+ *
+ * @newopt may be NULL, in which case the specified option type is
+ * not copied into the new set of options.
+ *
+ * The new set of options is allocated from the socket option memory
+ * buffer of @sk.
+ */
 struct ipv6_txoptions *
 ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 		   int newtype,
@@ -828,6 +876,34 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 out:
 	sock_kfree_s(sk, opt2, opt2->tot_len);
 	return ERR_PTR(err);
+}
+
+/**
+ * ipv6_renew_options_kern - replace a specific ext hdr with a new one.
+ *
+ * @sk: sock from which to allocate memory
+ * @opt: original options
+ * @newtype: option type to replace in @opt
+ * @newopt: new option of type @newtype to replace (kernel-mem)
+ * @newoptlen: length of @newopt
+ *
+ * See ipv6_renew_options().  The difference is that @newopt is
+ * kernel memory, rather than user memory.
+ */
+struct ipv6_txoptions *
+ipv6_renew_options_kern(struct sock *sk, struct ipv6_txoptions *opt,
+			int newtype, struct ipv6_opt_hdr *newopt,
+			int newoptlen)
+{
+	struct ipv6_txoptions *ret_val;
+	const mm_segment_t old_fs = get_fs();
+
+	set_fs(KERNEL_DS);
+	ret_val = ipv6_renew_options(sk, opt, newtype,
+				     (struct ipv6_opt_hdr __user *)newopt,
+				     newoptlen);
+	set_fs(old_fs);
+	return ret_val;
 }
 
 struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,

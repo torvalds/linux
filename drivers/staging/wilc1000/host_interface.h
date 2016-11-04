@@ -224,10 +224,6 @@ struct op_mode {
 	u32 mode;
 };
 
-struct set_mac_addr {
-	u8 mac_addr[ETH_ALEN];
-};
-
 struct get_mac_addr {
 	u8 *mac_addr;
 };

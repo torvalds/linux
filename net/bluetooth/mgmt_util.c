@@ -21,11 +21,40 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+#include <asm/unaligned.h>
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/hci_mon.h>
 #include <net/bluetooth/mgmt.h>
 
 #include "mgmt_util.h"
+
+static struct sk_buff *create_monitor_ctrl_event(__le16 index, u32 cookie,
+						 u16 opcode, u16 len, void *buf)
+{
+	struct hci_mon_hdr *hdr;
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(6 + len, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	put_unaligned_le32(cookie, skb_put(skb, 4));
+	put_unaligned_le16(opcode, skb_put(skb, 2));
+
+	if (buf)
+		memcpy(skb_put(skb, len), buf, len);
+
+	__net_timestamp(skb);
+
+	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_EVENT);
+	hdr->index = index;
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+	return skb;
+}
 
 int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 		    void *data, u16 data_len, int flag, struct sock *skip_sk)
@@ -52,14 +81,18 @@ int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 	__net_timestamp(skb);
 
 	hci_send_to_channel(channel, skb, flag, skip_sk);
-	kfree_skb(skb);
 
+	if (channel == HCI_CHANNEL_CONTROL)
+		hci_send_monitor_ctrl_event(hdev, event, data, data_len,
+					    skb_get_ktime(skb), flag, skip_sk);
+
+	kfree_skb(skb);
 	return 0;
 }
 
 int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *mskb;
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_status *ev;
 	int err;
@@ -80,9 +113,22 @@ int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 	ev->status = status;
 	ev->opcode = cpu_to_le16(cmd);
 
+	mskb = create_monitor_ctrl_event(hdr->index, hci_sock_get_cookie(sk),
+					 MGMT_EV_CMD_STATUS, sizeof(*ev), ev);
+	if (mskb)
+		skb->tstamp = mskb->tstamp;
+	else
+		__net_timestamp(skb);
+
 	err = sock_queue_rcv_skb(sk, skb);
 	if (err < 0)
 		kfree_skb(skb);
+
+	if (mskb) {
+		hci_send_to_channel(HCI_CHANNEL_MONITOR, mskb,
+				    HCI_SOCK_TRUSTED, NULL);
+		kfree_skb(mskb);
+	}
 
 	return err;
 }
@@ -90,7 +136,7 @@ int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 int mgmt_cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 		      void *rp, size_t rp_len)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *mskb;
 	struct mgmt_hdr *hdr;
 	struct mgmt_ev_cmd_complete *ev;
 	int err;
@@ -114,9 +160,23 @@ int mgmt_cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 	if (rp)
 		memcpy(ev->data, rp, rp_len);
 
+	mskb = create_monitor_ctrl_event(hdr->index, hci_sock_get_cookie(sk),
+					 MGMT_EV_CMD_COMPLETE,
+					 sizeof(*ev) + rp_len, ev);
+	if (mskb)
+		skb->tstamp = mskb->tstamp;
+	else
+		__net_timestamp(skb);
+
 	err = sock_queue_rcv_skb(sk, skb);
 	if (err < 0)
 		kfree_skb(skb);
+
+	if (mskb) {
+		hci_send_to_channel(HCI_CHANNEL_MONITOR, mskb,
+				    HCI_SOCK_TRUSTED, NULL);
+		kfree_skb(mskb);
+	}
 
 	return err;
 }

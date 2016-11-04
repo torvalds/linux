@@ -85,7 +85,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	dev->empress_started = 0;
 }
 
-static struct vb2_ops saa7134_empress_qops = {
+static const struct vb2_ops saa7134_empress_qops = {
 	.queue_setup	= saa7134_ts_queue_setup,
 	.buf_init	= saa7134_ts_buffer_init,
 	.buf_prepare	= saa7134_ts_buffer_prepare,
@@ -295,6 +295,7 @@ static int empress_init(struct saa7134_dev *dev)
 	q->buf_struct_size = sizeof(struct saa7134_buf);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 	err = vb2_queue_init(q);
 	if (err)
 		return err;

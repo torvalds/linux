@@ -233,8 +233,12 @@ static inline int __is_running(const struct exynos_mipi_phy_desc *data,
 			struct exynos_mipi_video_phy *state)
 {
 	u32 val;
+	int ret;
 
-	regmap_read(state->regmaps[data->resetn_map], data->resetn_reg, &val);
+	ret = regmap_read(state->regmaps[data->resetn_map], data->resetn_reg, &val);
+	if (ret)
+		return 0;
+
 	return val & data->resetn_val;
 }
 

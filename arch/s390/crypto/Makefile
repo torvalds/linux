@@ -9,3 +9,6 @@ obj-$(CONFIG_CRYPTO_DES_S390) += des_s390.o
 obj-$(CONFIG_CRYPTO_AES_S390) += aes_s390.o
 obj-$(CONFIG_S390_PRNG) += prng.o
 obj-$(CONFIG_CRYPTO_GHASH_S390) += ghash_s390.o
+obj-$(CONFIG_CRYPTO_CRC32_S390) += crc32-vx_s390.o
+
+crc32-vx_s390-y := crc32-vx.o crc32le-vx.o crc32be-vx.o

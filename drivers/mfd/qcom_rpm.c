@@ -21,6 +21,7 @@
 #include <linux/mfd/qcom_rpm.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/clk.h>
 
 #include <dt-bindings/mfd/qcom-rpm.h>
 
@@ -34,7 +35,13 @@ struct qcom_rpm_resource {
 struct qcom_rpm_data {
 	u32 version;
 	const struct qcom_rpm_resource *resource_table;
-	unsigned n_resources;
+	unsigned int n_resources;
+	unsigned int req_ctx_off;
+	unsigned int req_sel_off;
+	unsigned int ack_ctx_off;
+	unsigned int ack_sel_off;
+	unsigned int req_sel_size;
+	unsigned int ack_sel_size;
 };
 
 struct qcom_rpm {
@@ -42,6 +49,7 @@ struct qcom_rpm {
 	struct regmap *ipc_regmap;
 	unsigned ipc_offset;
 	unsigned ipc_bit;
+	struct clk *ramclk;
 
 	struct completion ack;
 	struct mutex lock;
@@ -61,16 +69,10 @@ struct qcom_rpm {
 
 #define RPM_REQUEST_TIMEOUT	(5 * HZ)
 
-#define RPM_REQUEST_CONTEXT	3
-#define RPM_REQ_SELECT		11
-#define RPM_ACK_CONTEXT		15
-#define RPM_ACK_SELECTOR	23
-#define RPM_SELECT_SIZE		7
+#define RPM_MAX_SEL_SIZE	7
 
 #define RPM_NOTIFICATION	BIT(30)
 #define RPM_REJECTED		BIT(31)
-
-#define RPM_SIGNAL		BIT(2)
 
 static const struct qcom_rpm_resource apq8064_rpm_resource_table[] = {
 	[QCOM_RPM_CXO_CLK] =			{ 25, 9, 5, 1 },
@@ -157,6 +159,12 @@ static const struct qcom_rpm_data apq8064_template = {
 	.version = 3,
 	.resource_table = apq8064_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(apq8064_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
 };
 
 static const struct qcom_rpm_resource msm8660_rpm_resource_table[] = {
@@ -240,6 +248,12 @@ static const struct qcom_rpm_data msm8660_template = {
 	.version = 2,
 	.resource_table = msm8660_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(msm8660_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 19,
+	.ack_sel_off = 27,
+	.req_sel_size = 7,
+	.ack_sel_size = 7,
 };
 
 static const struct qcom_rpm_resource msm8960_rpm_resource_table[] = {
@@ -322,6 +336,12 @@ static const struct qcom_rpm_data msm8960_template = {
 	.version = 3,
 	.resource_table = msm8960_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(msm8960_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
 };
 
 static const struct qcom_rpm_resource ipq806x_rpm_resource_table[] = {
@@ -362,6 +382,62 @@ static const struct qcom_rpm_data ipq806x_template = {
 	.version = 3,
 	.resource_table = ipq806x_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(ipq806x_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
+};
+
+static const struct qcom_rpm_resource mdm9615_rpm_resource_table[] = {
+	[QCOM_RPM_CXO_CLK] =			{ 25, 9, 5, 1 },
+	[QCOM_RPM_SYS_FABRIC_CLK] =		{ 26, 10, 9, 1 },
+	[QCOM_RPM_DAYTONA_FABRIC_CLK] =		{ 27, 11, 11, 1 },
+	[QCOM_RPM_SFPB_CLK] =			{ 28, 12, 12, 1 },
+	[QCOM_RPM_CFPB_CLK] =			{ 29, 13, 13, 1 },
+	[QCOM_RPM_EBI1_CLK] =			{ 30, 14, 16, 1 },
+	[QCOM_RPM_APPS_FABRIC_HALT] =		{ 31, 15, 22, 2 },
+	[QCOM_RPM_APPS_FABRIC_MODE] =		{ 33, 16, 23, 3 },
+	[QCOM_RPM_APPS_FABRIC_IOCTL] =		{ 36, 17, 24, 1 },
+	[QCOM_RPM_APPS_FABRIC_ARB] =		{ 37, 18, 25, 27 },
+	[QCOM_RPM_PM8018_SMPS1] =		{ 64, 19, 30, 2 },
+	[QCOM_RPM_PM8018_SMPS2] =		{ 66, 21, 31, 2 },
+	[QCOM_RPM_PM8018_SMPS3] =		{ 68, 23, 32, 2 },
+	[QCOM_RPM_PM8018_SMPS4] =		{ 70, 25, 33, 2 },
+	[QCOM_RPM_PM8018_SMPS5] =		{ 72, 27, 34, 2 },
+	[QCOM_RPM_PM8018_LDO1] =		{ 74, 29, 35, 2 },
+	[QCOM_RPM_PM8018_LDO2] =		{ 76, 31, 36, 2 },
+	[QCOM_RPM_PM8018_LDO3] =		{ 78, 33, 37, 2 },
+	[QCOM_RPM_PM8018_LDO4] =		{ 80, 35, 38, 2 },
+	[QCOM_RPM_PM8018_LDO5] =		{ 82, 37, 39, 2 },
+	[QCOM_RPM_PM8018_LDO6] =		{ 84, 39, 40, 2 },
+	[QCOM_RPM_PM8018_LDO7] =		{ 86, 41, 41, 2 },
+	[QCOM_RPM_PM8018_LDO8] =		{ 88, 43, 42, 2 },
+	[QCOM_RPM_PM8018_LDO9] =		{ 90, 45, 43, 2 },
+	[QCOM_RPM_PM8018_LDO10] =		{ 92, 47, 44, 2 },
+	[QCOM_RPM_PM8018_LDO11] =		{ 94, 49, 45, 2 },
+	[QCOM_RPM_PM8018_LDO12] =		{ 96, 51, 46, 2 },
+	[QCOM_RPM_PM8018_LDO13] =		{ 98, 53, 47, 2 },
+	[QCOM_RPM_PM8018_LDO14] =		{ 100, 55, 48, 2 },
+	[QCOM_RPM_PM8018_LVS1] =		{ 102, 57, 49, 1 },
+	[QCOM_RPM_PM8018_NCP] =			{ 103, 58, 80, 2 },
+	[QCOM_RPM_CXO_BUFFERS] =		{ 105, 60, 81, 1 },
+	[QCOM_RPM_USB_OTG_SWITCH] =		{ 106, 61, 82, 1 },
+	[QCOM_RPM_HDMI_SWITCH] =		{ 107, 62, 83, 1 },
+	[QCOM_RPM_VOLTAGE_CORNER] =		{ 109, 64, 87, 1 },
+};
+
+static const struct qcom_rpm_data mdm9615_template = {
+	.version = 3,
+	.resource_table = mdm9615_rpm_resource_table,
+	.n_resources = ARRAY_SIZE(mdm9615_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
 };
 
 static const struct of_device_id qcom_rpm_of_match[] = {
@@ -369,6 +445,7 @@ static const struct of_device_id qcom_rpm_of_match[] = {
 	{ .compatible = "qcom,rpm-msm8660", .data = &msm8660_template },
 	{ .compatible = "qcom,rpm-msm8960", .data = &msm8960_template },
 	{ .compatible = "qcom,rpm-ipq8064", .data = &ipq806x_template },
+	{ .compatible = "qcom,rpm-mdm9615", .data = &mdm9615_template },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_rpm_of_match);
@@ -380,7 +457,7 @@ int qcom_rpm_write(struct qcom_rpm *rpm,
 {
 	const struct qcom_rpm_resource *res;
 	const struct qcom_rpm_data *data = rpm->data;
-	u32 sel_mask[RPM_SELECT_SIZE] = { 0 };
+	u32 sel_mask[RPM_MAX_SEL_SIZE] = { 0 };
 	int left;
 	int ret = 0;
 	int i;
@@ -398,12 +475,12 @@ int qcom_rpm_write(struct qcom_rpm *rpm,
 		writel_relaxed(buf[i], RPM_REQ_REG(rpm, res->target_id + i));
 
 	bitmap_set((unsigned long *)sel_mask, res->select_id, 1);
-	for (i = 0; i < ARRAY_SIZE(sel_mask); i++) {
+	for (i = 0; i < rpm->data->req_sel_size; i++) {
 		writel_relaxed(sel_mask[i],
-			       RPM_CTRL_REG(rpm, RPM_REQ_SELECT + i));
+			       RPM_CTRL_REG(rpm, rpm->data->req_sel_off + i));
 	}
 
-	writel_relaxed(BIT(state), RPM_CTRL_REG(rpm, RPM_REQUEST_CONTEXT));
+	writel_relaxed(BIT(state), RPM_CTRL_REG(rpm, rpm->data->req_ctx_off));
 
 	reinit_completion(&rpm->ack);
 	regmap_write(rpm->ipc_regmap, rpm->ipc_offset, BIT(rpm->ipc_bit));
@@ -426,10 +503,11 @@ static irqreturn_t qcom_rpm_ack_interrupt(int irq, void *dev)
 	u32 ack;
 	int i;
 
-	ack = readl_relaxed(RPM_CTRL_REG(rpm, RPM_ACK_CONTEXT));
-	for (i = 0; i < RPM_SELECT_SIZE; i++)
-		writel_relaxed(0, RPM_CTRL_REG(rpm, RPM_ACK_SELECTOR + i));
-	writel(0, RPM_CTRL_REG(rpm, RPM_ACK_CONTEXT));
+	ack = readl_relaxed(RPM_CTRL_REG(rpm, rpm->data->ack_ctx_off));
+	for (i = 0; i < rpm->data->ack_sel_size; i++)
+		writel_relaxed(0,
+			RPM_CTRL_REG(rpm, rpm->data->ack_sel_off + i));
+	writel(0, RPM_CTRL_REG(rpm, rpm->data->ack_ctx_off));
 
 	if (ack & RPM_NOTIFICATION) {
 		dev_warn(rpm->dev, "ignoring notification!\n");
@@ -476,6 +554,20 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	mutex_init(&rpm->lock);
 	init_completion(&rpm->ack);
 
+	/* Enable message RAM clock */
+	rpm->ramclk = devm_clk_get(&pdev->dev, "ram");
+	if (IS_ERR(rpm->ramclk)) {
+		ret = PTR_ERR(rpm->ramclk);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		/*
+		 * Fall through in all other cases, as the clock is
+		 * optional. (Does not exist on all platforms.)
+		 */
+		rpm->ramclk = NULL;
+	}
+	clk_prepare_enable(rpm->ramclk); /* Accepts NULL */
+
 	irq_ack = platform_get_irq_byname(pdev, "ack");
 	if (irq_ack < 0) {
 		dev_err(&pdev->dev, "required ack interrupt missing\n");
@@ -513,6 +605,7 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	}
 
 	rpm->ipc_regmap = syscon_node_to_regmap(syscon_np);
+	of_node_put(syscon_np);
 	if (IS_ERR(rpm->ipc_regmap))
 		return PTR_ERR(rpm->ipc_regmap);
 
@@ -595,7 +688,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 
 static int qcom_rpm_remove(struct platform_device *pdev)
 {
+	struct qcom_rpm *rpm = dev_get_drvdata(&pdev->dev);
+
 	of_platform_depopulate(&pdev->dev);
+	clk_disable_unprepare(rpm->ramclk);
+
 	return 0;
 }
 

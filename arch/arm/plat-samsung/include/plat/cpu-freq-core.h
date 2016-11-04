@@ -39,7 +39,7 @@ struct s3c2410_iobank_timing {
 	unsigned int	tacs;
 	unsigned int	tcos;
 	unsigned int	tacc;
-	unsigned int	tcoh;		/* nCS hold afrer nOE/nWE */
+	unsigned int	tcoh;		/* nCS hold after nOE/nWE */
 	unsigned int	tcah;		/* Address hold after nCS */
 	unsigned char	nwait_en;	/* nWait enabled for bank. */
 };

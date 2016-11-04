@@ -138,7 +138,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 			if (event->length > 3 && event->data[3])
 				priv->btmrvl_dev.dev_type = HCI_AMP;
 			else
-				priv->btmrvl_dev.dev_type = HCI_BREDR;
+				priv->btmrvl_dev.dev_type = HCI_PRIMARY;
 
 			BT_DBG("dev_type: %d", priv->btmrvl_dev.dev_type);
 		} else if (priv->btmrvl_dev.sendcmdflag &&

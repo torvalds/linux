@@ -321,7 +321,7 @@ EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);
 
 int __init adf_init_vf_wq(void)
 {
-	adf_vf_stop_wq = create_workqueue("adf_vf_stop_wq");
+	adf_vf_stop_wq = alloc_workqueue("adf_vf_stop_wq", WQ_MEM_RECLAIM, 0);
 
 	return !adf_vf_stop_wq ? -EFAULT : 0;
 }

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -78,6 +74,13 @@ struct lov_layout_operations {
 };
 
 static int lov_layout_wait(const struct lu_env *env, struct lov_object *lov);
+
+void lov_lsm_put(struct cl_object *unused, struct lov_stripe_md *lsm)
+{
+	if (lsm)
+		lov_free_memmd(&lsm);
+}
+EXPORT_SYMBOL(lov_lsm_put);
 
 /*****************************************************************************
  *
@@ -185,8 +188,8 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 		}
 
 		LU_OBJECT_DEBUG(mask, env, &stripe->co_lu,
-				"stripe %d is already owned.\n", idx);
-		LU_OBJECT_DEBUG(mask, env, old_obj, "owned.\n");
+				"stripe %d is already owned.", idx);
+		LU_OBJECT_DEBUG(mask, env, old_obj, "owned.");
 		LU_OBJECT_HEADER(mask, env, lov2lu(lov), "try to own.\n");
 		cl_object_put(env, stripe);
 	}
@@ -198,6 +201,10 @@ static int lov_page_slice_fixup(struct lov_object *lov,
 {
 	struct cl_object_header *hdr = cl_object_header(&lov->lo_cl);
 	struct cl_object *o;
+
+	if (!stripe)
+		return hdr->coh_page_bufsize - lov->lo_cl.co_slice_off -
+		       cfs_size_round(sizeof(struct lov_page));
 
 	cl_object_for_each(o, stripe)
 		o->co_slice_off += hdr->coh_page_bufsize;
@@ -228,6 +235,7 @@ static int lov_init_raid0(const struct lu_env *env,
 
 	LASSERT(!lov->lo_lsm);
 	lov->lo_lsm = lsm_addref(lsm);
+	lov->lo_layout_invalid = true;
 	r0->lo_nr  = lsm->lsm_stripe_count;
 	LASSERT(r0->lo_nr <= lov_targets_nr(dev));
 
@@ -723,6 +731,10 @@ static int lov_layout_change(const struct lu_env *unused,
 		LASSERT(atomic_read(&lov->lo_active_ios) == 0);
 
 		lov->lo_type = LLT_EMPTY;
+		/* page bufsize fixup */
+		cl_object_header(&lov->lo_cl)->coh_page_bufsize -=
+			lov_page_slice_fixup(lov, NULL);
+
 		result = new_ops->llo_init(env,
 					lu2lov_dev(lov->lo_cl.co_lu.lo_dev),
 					lov, conf, state);
@@ -882,8 +894,8 @@ static int lov_attr_get(const struct lu_env *env, struct cl_object *obj,
 	return LOV_2DISPATCH_NOLOCK(cl2lov(obj), llo_getattr, env, obj, attr);
 }
 
-static int lov_attr_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_attr *attr, unsigned valid)
+static int lov_attr_update(const struct lu_env *env, struct cl_object *obj,
+			   const struct cl_attr *attr, unsigned int valid)
 {
 	/*
 	 * No dispatch is required here, as no layout implements this.
@@ -899,13 +911,30 @@ int lov_lock_init(const struct lu_env *env, struct cl_object *obj,
 				    io);
 }
 
+static int lov_object_getstripe(const struct lu_env *env, struct cl_object *obj,
+				struct lov_user_md __user *lum)
+{
+	struct lov_object *lov = cl2lov(obj);
+	struct lov_stripe_md *lsm;
+	int rc = 0;
+
+	lsm = lov_lsm_addref(lov);
+	if (!lsm)
+		return -ENODATA;
+
+	rc = lov_getstripe(cl2lov(obj), lsm, lum);
+	lov_lsm_put(obj, lsm);
+	return rc;
+}
+
 static const struct cl_object_operations lov_ops = {
 	.coo_page_init = lov_page_init,
 	.coo_lock_init = lov_lock_init,
 	.coo_io_init   = lov_io_init,
 	.coo_attr_get  = lov_attr_get,
-	.coo_attr_set  = lov_attr_set,
-	.coo_conf_set  = lov_conf_set
+	.coo_attr_update = lov_attr_update,
+	.coo_conf_set  = lov_conf_set,
+	.coo_getstripe = lov_object_getstripe
 };
 
 static const struct lu_object_operations lov_lu_obj_ops = {
@@ -942,7 +971,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	return obj;
 }
 
-static struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
+struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
 {
 	struct lov_stripe_md *lsm = NULL;
 
@@ -972,13 +1001,6 @@ struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj)
 	return lsm;
 }
 EXPORT_SYMBOL(lov_lsm_get);
-
-void lov_lsm_put(struct cl_object *unused, struct lov_stripe_md *lsm)
-{
-	if (lsm)
-		lov_free_memmd(&lsm);
-}
-EXPORT_SYMBOL(lov_lsm_put);
 
 int lov_read_and_clear_async_rc(struct cl_object *clob)
 {

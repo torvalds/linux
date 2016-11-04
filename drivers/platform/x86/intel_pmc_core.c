@@ -23,9 +23,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/pci.h>
-#include <linux/seq_file.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/pmc_core.h>
 
 #include "intel_pmc_core.h"
@@ -77,30 +77,18 @@ int intel_pmc_slp_s0_counter_read(u32 *data)
 }
 EXPORT_SYMBOL_GPL(intel_pmc_slp_s0_counter_read);
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-static int pmc_core_dev_state_show(struct seq_file *s, void *unused)
+static int pmc_core_dev_state_get(void *data, u64 *val)
 {
-	struct pmc_dev *pmcdev = s->private;
-	u32 counter_val;
+	struct pmc_dev *pmcdev = data;
+	u32 value;
 
-	counter_val = pmc_core_reg_read(pmcdev,
-					SPT_PMC_SLP_S0_RES_COUNTER_OFFSET);
-	seq_printf(s, "%u\n", pmc_core_adjust_slp_s0_step(counter_val));
+	value = pmc_core_reg_read(pmcdev, SPT_PMC_SLP_S0_RES_COUNTER_OFFSET);
+	*val = pmc_core_adjust_slp_s0_step(value);
 
 	return 0;
 }
 
-static int pmc_core_dev_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_core_dev_state_show, inode->i_private);
-}
-
-static const struct file_operations pmc_core_dev_state_ops = {
-	.open           = pmc_core_dev_state_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_DEBUGFS_ATTRIBUTE(pmc_core_dev_state, pmc_core_dev_state_get, NULL, "%llu\n");
 
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
@@ -117,7 +105,7 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 
 	pmcdev->dbgfs_dir = dir;
 	file = debugfs_create_file("slp_s0_residency_usec", S_IFREG | S_IRUGO,
-				   dir, pmcdev, &pmc_core_dev_state_ops);
+				   dir, pmcdev, &pmc_core_dev_state);
 
 	if (!file) {
 		pmc_core_dbgfs_unregister(pmcdev);
@@ -126,22 +114,12 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 
 	return 0;
 }
-#else
-static inline int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
-{
-	return 0;
-}
-
-static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
-{
-}
-#endif /* CONFIG_DEBUG_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	{ X86_VENDOR_INTEL, 6, 0x4e, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL}, /* Skylake CPUID Signature */
-	{ X86_VENDOR_INTEL, 6, 0x5e, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL}, /* Skylake CPUID Signature */
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_MOBILE, X86_FEATURE_MWAIT,
+		(kernel_ulong_t)NULL},
+	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_DESKTOP, X86_FEATURE_MWAIT,
+		(kernel_ulong_t)NULL},
 	{}
 };
 
@@ -182,10 +160,8 @@ static int pmc_core_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	err = pmc_core_dbgfs_register(pmcdev);
-	if (err < 0) {
-		dev_err(&dev->dev, "PMC Core: debugfs register failed.\n");
-		return err;
-	}
+	if (err < 0)
+		dev_warn(&dev->dev, "PMC Core: debugfs register failed.\n");
 
 	pmc.has_slp_s0_res = true;
 	return 0;

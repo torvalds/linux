@@ -23,6 +23,7 @@
 #include <asm/vx-insn.h>
 #include <asm/setup.h>
 #include <asm/nmi.h>
+#include <asm/export.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 8
@@ -163,6 +164,16 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	.endm
 
 	.section .kprobes.text, "ax"
+.Ldummy:
+	/*
+	 * This nop exists only in order to avoid that __switch_to starts at
+	 * the beginning of the kprobes text section. In that case we would
+	 * have several symbols at the same address. E.g. objdump would take
+	 * an arbitrary symbol name when disassembling this code.
+	 * With the added nop in between the __switch_to symbol is unique
+	 * again.
+	 */
+	nop	0
 
 /*
  * Scheduler resume function, called by switch_to
@@ -175,7 +186,6 @@ ENTRY(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lgr	%r1,%r2
 	aghi	%r1,__TASK_thread		# thread_struct of prev task
-	lg	%r4,__TASK_thread_info(%r2)	# get thread_info of prev
 	lg	%r5,__TASK_thread_info(%r3)	# get thread_info of next
 	stg	%r15,__THREAD_ksp(%r1)		# store kernel stack of prev
 	lgr	%r1,%r3
@@ -250,6 +260,8 @@ sie_exit:
 
 	EX_TABLE(.Lrewind_pad,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
+EXPORT_SYMBOL(sie64a)
+EXPORT_SYMBOL(sie_exit)
 #endif
 
 /*
@@ -816,6 +828,9 @@ ENTRY(save_fpu_regs)
 	oi	__LC_CPU_FLAGS+7,_CIF_FPU
 	br	%r14
 .Lsave_fpu_regs_end:
+#if IS_ENABLED(CONFIG_KVM)
+EXPORT_SYMBOL(save_fpu_regs)
+#endif
 
 /*
  * Load floating-point controls and floating-point or vector registers.

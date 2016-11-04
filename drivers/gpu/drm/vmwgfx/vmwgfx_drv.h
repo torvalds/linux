@@ -32,6 +32,7 @@
 #include <drm/drmP.h>
 #include <drm/vmwgfx_drm.h>
 #include <drm/drm_hashtab.h>
+#include <drm/drm_auth.h>
 #include <linux/suspend.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_object.h>
@@ -66,10 +67,10 @@
 			VMWGFX_NUM_GB_SURFACE +\
 			VMWGFX_NUM_GB_SCREEN_TARGET)
 
-#define VMW_PL_GMR TTM_PL_PRIV0
-#define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
-#define VMW_PL_MOB TTM_PL_PRIV1
-#define VMW_PL_FLAG_MOB TTM_PL_FLAG_PRIV1
+#define VMW_PL_GMR (TTM_PL_PRIV + 0)
+#define VMW_PL_FLAG_GMR (TTM_PL_FLAG_PRIV << 0)
+#define VMW_PL_MOB (TTM_PL_PRIV + 1)
+#define VMW_PL_FLAG_MOB (TTM_PL_FLAG_PRIV << 1)
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1
@@ -386,6 +387,7 @@ struct vmw_private {
 	spinlock_t hw_lock;
 	spinlock_t cap_lock;
 	bool has_dx;
+	bool assume_16bpp;
 
 	/*
 	 * VGA registers.

@@ -61,7 +61,8 @@ struct recv_stat {
 struct phy_cck_rx_status {
 	/* For CCK rate descriptor. This is a unsigned 8:1 variable.
 	 * LSB bit present 0.5. And MSB 7 bts present a signed value.
-	 * Range from -64~+63.5. */
+	 * Range from -64~+63.5.
+	 */
 	u8	adc_pwdb_X[4];
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
@@ -103,7 +104,6 @@ struct recv_buf {
 	struct _adapter  *adapter;
 	struct urb *purb;
 	_pkt *pskb;
-	u8 reuse;
 	u8  irp_pending;
 	u32  transfer_len;
 	uint  len;
@@ -116,13 +116,13 @@ struct recv_buf {
 };
 
 /*
-	head  ----->
-		data  ----->
-			payload
-		tail  ----->
-	end   ----->
-	len = (unsigned int )(tail - data);
-*/
+ *	head  ----->
+ *		data  ----->
+ *			payload
+ *		tail  ----->
+ *	end   ----->
+ *	len = (unsigned int )(tail - data);
+ */
 struct recv_frame_hdr {
 	struct list_head list;
 	_pkt	*pkt;

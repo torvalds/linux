@@ -106,31 +106,27 @@ out:
 static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
-	}
 }
 
 static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);
-	}
 
 	mdp4_disable(mdp4_kms);
 }
@@ -162,6 +158,7 @@ static const char * const iommu_ports[] = {
 static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	struct device *dev = mdp4_kms->dev->dev;
 	struct msm_mmu *mmu = mdp4_kms->mmu;
 
 	if (mmu) {
@@ -171,8 +168,11 @@ static void mdp4_destroy(struct msm_kms *kms)
 
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
-	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+
+	if (mdp4_kms->rpm_enabled)
+		pm_runtime_disable(dev);
+
 	kfree(mdp4_kms);
 }
 
@@ -228,18 +228,21 @@ static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
 	struct device_node *endpoint, *panel_node;
 	struct device_node *np = dev->dev->of_node;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	/*
+	 * LVDS/LCDC is the first port described in the list of ports in the
+	 * MDP4 DT node.
+	 */
+	endpoint = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!endpoint) {
-		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
+		DBG("no LVDS remote endpoint\n");
 		return NULL;
 	}
 
-	/* don't proceed if we have an endpoint but no panel_node tied to it */
 	panel_node = of_graph_get_remote_port_parent(endpoint);
 	if (!panel_node) {
-		dev_err(dev->dev, "no valid panel node\n");
+		DBG("no valid panel node in LVDS endpoint\n");
 		of_node_put(endpoint);
-		return ERR_PTR(-ENODEV);
+		return NULL;
 	}
 
 	of_node_put(endpoint);
@@ -262,14 +265,12 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	switch (intf_type) {
 	case DRM_MODE_ENCODER_LVDS:
 		/*
-		 * bail out early if:
-		 * - there is no panel node (no need to initialize lcdc
-		 *   encoder and lvds connector), or
-		 * - panel node is a bad pointer
+		 * bail out early if there is no panel node (no need to
+		 * initialize LCDC encoder and LVDS connector)
 		 */
 		panel_node = mdp4_detect_lcdc_panel(dev);
-		if (IS_ERR_OR_NULL(panel_node))
-			return PTR_ERR(panel_node);
+		if (!panel_node)
+			return 0;
 
 		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
 		if (IS_ERR(encoder)) {
@@ -440,7 +441,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
-	int ret;
+	int irq, ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -460,6 +461,15 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		ret = PTR_ERR(mdp4_kms->mmio);
 		goto fail;
 	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
 	 * _get_exclusive() and ignore the error if it does not exist
@@ -496,7 +506,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
 		dev_err(dev->dev, "failed to get axi_clk\n");
 		ret = PTR_ERR(mdp4_kms->axi_clk);
@@ -505,6 +515,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
+
+	pm_runtime_enable(dev->dev);
+	mdp4_kms->rpm_enabled = true;
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if

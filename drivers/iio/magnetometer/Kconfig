@@ -5,8 +5,22 @@
 
 menu "Magnetometer sensors"
 
+config AK8974
+	tristate "Asahi Kasei AK8974 3-Axis Magnetometer"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Asahi Kasei AK8974 or
+	  AMI305 I2C-based 3-axis magnetometer chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ak8974.
+
 config AK8975
-	tristate "Asahi Kasei AK 3-Axis Magnetometer"
+	tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
 	depends on I2C
 	depends on GPIOLIB || COMPILE_TEST
 	select IIO_BUFFER
@@ -44,6 +58,7 @@ config BMC150_MAGN_I2C
 	  This driver is only implementing magnetometer part, which has
 	  its own address and register map.
 
+	  This driver also supports I2C Bosch BMC156 and BMM150 chips.
 	  To compile this driver as a module, choose M here: the module will be
 	  called bmc150_magn_i2c.
 
@@ -60,6 +75,7 @@ config BMC150_MAGN_SPI
 	  This driver is only implementing magnetometer part, which has
 	  its own address and register map.
 
+	  This driver also supports SPI Bosch BMC156 and BMM150 chips.
 	  To compile this driver as a module, choose M here: the module will be
 	  called bmc150_magn_spi.
 

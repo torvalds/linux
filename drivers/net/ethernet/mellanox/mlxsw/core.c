@@ -58,6 +58,7 @@
 #include <linux/workqueue.h>
 #include <asm/byteorder.h>
 #include <net/devlink.h>
+#include <trace/events/devlink.h>
 
 #include "core.h"
 #include "item.h"
@@ -110,6 +111,7 @@ struct mlxsw_core {
 	struct {
 		u8 *mapping; /* lag_id+port_index to local_port mapping */
 	} lag;
+	struct mlxsw_resources resources;
 	struct mlxsw_hwmon *hwmon;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
@@ -447,6 +449,10 @@ static int mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	if (!skb)
 		return -ENOMEM;
 
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), false, 0,
+			    skb->data + mlxsw_core->driver->txhdr_len,
+			    skb->len - mlxsw_core->driver->txhdr_len);
+
 	atomic_set(&trans->active, 1);
 	err = mlxsw_core_skb_transmit(mlxsw_core, skb, &trans->tx_info);
 	if (err) {
@@ -528,6 +534,9 @@ static void mlxsw_emad_rx_listener_func(struct sk_buff *skb, u8 local_port,
 {
 	struct mlxsw_core *mlxsw_core = priv;
 	struct mlxsw_reg_trans *trans;
+
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), true, 0,
+			    skb->data, skb->len);
 
 	if (!mlxsw_emad_is_resp(skb))
 		goto free_skb;
@@ -1091,10 +1100,15 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		goto err_alloc_stats;
 	}
 
-	if (mlxsw_driver->profile->used_max_lag &&
-	    mlxsw_driver->profile->used_max_port_per_lag) {
-		alloc_size = sizeof(u8) * mlxsw_driver->profile->max_lag *
-			     mlxsw_driver->profile->max_port_per_lag;
+	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
+			      &mlxsw_core->resources);
+	if (err)
+		goto err_bus_init;
+
+	if (mlxsw_core->resources.max_lag_valid &&
+	    mlxsw_core->resources.max_ports_in_lag_valid) {
+		alloc_size = sizeof(u8) * mlxsw_core->resources.max_lag *
+			mlxsw_core->resources.max_ports_in_lag;
 		mlxsw_core->lag.mapping = kzalloc(alloc_size, GFP_KERNEL);
 		if (!mlxsw_core->lag.mapping) {
 			err = -ENOMEM;
@@ -1102,21 +1116,17 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 		}
 	}
 
-	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile);
-	if (err)
-		goto err_bus_init;
-
 	err = mlxsw_emad_init(mlxsw_core);
 	if (err)
 		goto err_emad_init;
 
-	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
-	if (err)
-		goto err_hwmon_init;
-
 	err = devlink_register(devlink, mlxsw_bus_info->dev);
 	if (err)
 		goto err_devlink_register;
+
+	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
+	if (err)
+		goto err_hwmon_init;
 
 	err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info);
 	if (err)
@@ -1131,15 +1141,15 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 err_debugfs_init:
 	mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
+err_hwmon_init:
 	devlink_unregister(devlink);
 err_devlink_register:
-err_hwmon_init:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
-	mlxsw_bus->fini(bus_priv);
-err_bus_init:
 	kfree(mlxsw_core->lag.mapping);
 err_alloc_lag_mapping:
+	mlxsw_bus->fini(bus_priv);
+err_bus_init:
 	free_percpu(mlxsw_core->pcpu_stats);
 err_alloc_stats:
 	devlink_free(devlink);
@@ -1605,7 +1615,7 @@ EXPORT_SYMBOL(mlxsw_core_skb_receive);
 static int mlxsw_core_lag_mapping_index(struct mlxsw_core *mlxsw_core,
 					u16 lag_id, u8 port_index)
 {
-	return mlxsw_core->driver->profile->max_port_per_lag * lag_id +
+	return mlxsw_core->resources.max_ports_in_lag * lag_id +
 	       port_index;
 }
 
@@ -1634,7 +1644,7 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 {
 	int i;
 
-	for (i = 0; i < mlxsw_core->driver->profile->max_port_per_lag; i++) {
+	for (i = 0; i < mlxsw_core->resources.max_ports_in_lag; i++) {
 		int index = mlxsw_core_lag_mapping_index(mlxsw_core,
 							 lag_id, i);
 
@@ -1643,6 +1653,12 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 	}
 }
 EXPORT_SYMBOL(mlxsw_core_lag_mapping_clear);
+
+struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core)
+{
+	return &mlxsw_core->resources;
+}
+EXPORT_SYMBOL(mlxsw_core_resources_get);
 
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
@@ -1736,7 +1752,7 @@ static int __init mlxsw_core_module_init(void)
 {
 	int err;
 
-	mlxsw_wq = create_workqueue(mlxsw_core_driver_name);
+	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, WQ_MEM_RECLAIM, 0);
 	if (!mlxsw_wq)
 		return -ENOMEM;
 	mlxsw_core_dbg_root = debugfs_create_dir(mlxsw_core_driver_name, NULL);

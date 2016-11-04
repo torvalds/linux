@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/sizes.h>
 #include "btrfs-tests.h"
+#include "../ctree.h"
 #include "../extent_io.h"
 
 #define PROCESS_UNLOCK		(1 << 0)
@@ -65,7 +66,7 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 	return count;
 }
 
-static int test_find_delalloc(void)
+static int test_find_delalloc(u32 sectorsize)
 {
 	struct inode *inode;
 	struct extent_io_tree tmp;
@@ -113,7 +114,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 * |---  search  ---|
 	 */
-	set_extent_delalloc(&tmp, 0, 4095, NULL);
+	set_extent_delalloc(&tmp, 0, sectorsize - 1, NULL);
 	start = 0;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -122,9 +123,9 @@ static int test_find_delalloc(void)
 		test_msg("Should have found at least one delalloc\n");
 		goto out_bits;
 	}
-	if (start != 0 || end != 4095) {
-		test_msg("Expected start 0 end 4095, got start %Lu end %Lu\n",
-			 start, end);
+	if (start != 0 || end != (sectorsize - 1)) {
+		test_msg("Expected start 0 end %u, got start %llu end %llu\n",
+			sectorsize - 1, start, end);
 		goto out_bits;
 	}
 	unlock_extent(&tmp, start, end);
@@ -144,7 +145,7 @@ static int test_find_delalloc(void)
 		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
 	}
-	set_extent_delalloc(&tmp, 4096, max_bytes - 1, NULL);
+	set_extent_delalloc(&tmp, sectorsize, max_bytes - 1, NULL);
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -172,7 +173,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 *                    |--- search ---|
 	 */
-	test_start = max_bytes + 4096;
+	test_start = max_bytes + sectorsize;
 	locked_page = find_lock_page(inode->i_mapping, test_start >>
 				     PAGE_SHIFT);
 	if (!locked_page) {
@@ -272,10 +273,37 @@ out:
 	return ret;
 }
 
+static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb,
+			   unsigned long len)
+{
+	unsigned long i;
+
+	for (i = 0; i < len * BITS_PER_BYTE; i++) {
+		int bit, bit1;
+
+		bit = !!test_bit(i, bitmap);
+		bit1 = !!extent_buffer_test_bit(eb, 0, i);
+		if (bit1 != bit) {
+			test_msg("Bits do not match\n");
+			return -EINVAL;
+		}
+
+		bit1 = !!extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
+						i % BITS_PER_BYTE);
+		if (bit1 != bit) {
+			test_msg("Offset bits do not match\n");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 			     unsigned long len)
 {
-	unsigned long i, x;
+	unsigned long i, j;
+	u32 x;
+	int ret;
 
 	memset(bitmap, 0, len);
 	memset_extent_buffer(eb, 0, 0, len);
@@ -286,37 +314,45 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 
 	bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
 	extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
+	ret = check_eb_bitmap(bitmap, eb, len);
+	if (ret) {
 		test_msg("Setting all bits failed\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);
 	extent_buffer_bitmap_clear(eb, 0, 0, len * BITS_PER_BYTE);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
+	ret = check_eb_bitmap(bitmap, eb, len);
+	if (ret) {
 		test_msg("Clearing all bits failed\n");
-		return -EINVAL;
+		return ret;
 	}
 
-	bitmap_set(bitmap, (PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-		   sizeof(long) * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-				 sizeof(long) * BITS_PER_BYTE);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_msg("Setting straddling pages failed\n");
-		return -EINVAL;
-	}
+	/* Straddling pages test */
+	if (len > PAGE_SIZE) {
+		bitmap_set(bitmap,
+			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
+			sizeof(long) * BITS_PER_BYTE);
+		extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
+					sizeof(long) * BITS_PER_BYTE);
+		ret = check_eb_bitmap(bitmap, eb, len);
+		if (ret) {
+			test_msg("Setting straddling pages failed\n");
+			return ret;
+		}
 
-	bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
-	bitmap_clear(bitmap,
-		     (PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-		     sizeof(long) * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-				   sizeof(long) * BITS_PER_BYTE);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_msg("Clearing straddling pages failed\n");
-		return -EINVAL;
+		bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
+		bitmap_clear(bitmap,
+			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
+			sizeof(long) * BITS_PER_BYTE);
+		extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
+		extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
+					sizeof(long) * BITS_PER_BYTE);
+		ret = check_eb_bitmap(bitmap, eb, len);
+		if (ret) {
+			test_msg("Clearing straddling pages failed\n");
+			return ret;
+		}
 	}
 
 	/*
@@ -324,41 +360,42 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	 * something repetitive that could miss some hypothetical off-by-n bug.
 	 */
 	x = 0;
-	for (i = 0; i < len / sizeof(long); i++) {
-		x = (0x19660dULL * (u64)x + 0x3c6ef35fULL) & 0xffffffffUL;
-		bitmap[i] = x;
+	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);
+	extent_buffer_bitmap_clear(eb, 0, 0, len * BITS_PER_BYTE);
+	for (i = 0; i < len * BITS_PER_BYTE / 32; i++) {
+		x = (0x19660dULL * (u64)x + 0x3c6ef35fULL) & 0xffffffffU;
+		for (j = 0; j < 32; j++) {
+			if (x & (1U << j)) {
+				bitmap_set(bitmap, i * 32 + j, 1);
+				extent_buffer_bitmap_set(eb, 0, i * 32 + j, 1);
+			}
+		}
 	}
-	write_extent_buffer(eb, bitmap, 0, len);
 
-	for (i = 0; i < len * BITS_PER_BYTE; i++) {
-		int bit, bit1;
-
-		bit = !!test_bit(i, bitmap);
-		bit1 = !!extent_buffer_test_bit(eb, 0, i);
-		if (bit1 != bit) {
-			test_msg("Testing bit pattern failed\n");
-			return -EINVAL;
-		}
-
-		bit1 = !!extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
-						i % BITS_PER_BYTE);
-		if (bit1 != bit) {
-			test_msg("Testing bit pattern with offset failed\n");
-			return -EINVAL;
-		}
+	ret = check_eb_bitmap(bitmap, eb, len);
+	if (ret) {
+		test_msg("Random bit pattern failed\n");
+		return ret;
 	}
 
 	return 0;
 }
 
-static int test_eb_bitmaps(void)
+static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 {
-	unsigned long len = PAGE_SIZE * 4;
+	unsigned long len;
 	unsigned long *bitmap;
 	struct extent_buffer *eb;
 	int ret;
 
 	test_msg("Running extent buffer bitmap tests\n");
+
+	/*
+	 * In ppc64, sectorsize can be 64K, thus 4 * 64K will be larger than
+	 * BTRFS_MAX_METADATA_BLOCKSIZE.
+	 */
+	len = (sectorsize < BTRFS_MAX_METADATA_BLOCKSIZE)
+		? sectorsize * 4 : sectorsize;
 
 	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
@@ -379,7 +416,7 @@ static int test_eb_bitmaps(void)
 
 	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(NULL, PAGE_SIZE / 2, len);
+	eb = __alloc_dummy_extent_buffer(NULL, nodesize / 2, len);
 	if (!eb) {
 		test_msg("Couldn't allocate test extent buffer\n");
 		kfree(bitmap);
@@ -393,17 +430,17 @@ out:
 	return ret;
 }
 
-int btrfs_test_extent_io(void)
+int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 {
 	int ret;
 
 	test_msg("Running extent I/O tests\n");
 
-	ret = test_find_delalloc();
+	ret = test_find_delalloc(sectorsize);
 	if (ret)
 		goto out;
 
-	ret = test_eb_bitmaps();
+	ret = test_eb_bitmaps(sectorsize, nodesize);
 out:
 	test_msg("Extent I/O tests finished\n");
 	return ret;

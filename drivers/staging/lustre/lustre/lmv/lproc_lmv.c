@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -173,7 +169,7 @@ static int lmv_tgt_seq_show(struct seq_file *p, void *v)
 
 	if (!tgt)
 		return 0;
-	seq_printf(p, "%d: %s %sACTIVE\n",
+	seq_printf(p, "%u: %s %sACTIVE\n",
 		   tgt->ltd_idx, tgt->ltd_uuid.uuid,
 		   tgt->ltd_active ? "" : "IN");
 	return 0;
@@ -206,7 +202,7 @@ static struct lprocfs_vars lprocfs_lmv_obd_vars[] = {
 	{ NULL }
 };
 
-struct file_operations lmv_proc_target_fops = {
+const struct file_operations lmv_proc_target_fops = {
 	.owner		= THIS_MODULE,
 	.open		 = lmv_target_seq_open,
 	.read		 = seq_read,

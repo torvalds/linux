@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -48,6 +49,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/mips-cm.h>
 #include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
@@ -444,6 +446,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 
 	if (board_be_handler)
 		action = board_be_handler(regs, fixup != NULL);
+	else
+		mips_cm_error_report();
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
@@ -619,17 +623,17 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
 			1, regs, 0);
 	switch (rd) {
-	case 0:		/* CPU number */
+	case MIPS_HWR_CPUNUM:		/* CPU number */
 		regs->regs[rt] = smp_processor_id();
 		return 0;
-	case 1:		/* SYNCI length */
+	case MIPS_HWR_SYNCISTEP:	/* SYNCI length */
 		regs->regs[rt] = min(current_cpu_data.dcache.linesz,
 				     current_cpu_data.icache.linesz);
 		return 0;
-	case 2:		/* Read count register */
+	case MIPS_HWR_CC:		/* Read count register */
 		regs->regs[rt] = read_c0_count();
 		return 0;
-	case 3:		/* Count register resolution */
+	case MIPS_HWR_CCRES:		/* Count register resolution */
 		switch (current_cpu_type()) {
 		case CPU_20KC:
 		case CPU_25KF:
@@ -639,7 +643,7 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 			regs->regs[rt] = 2;
 		}
 		return 0;
-	case 29:
+	case MIPS_HWR_ULR:		/* Read UserLocal register */
 		regs->regs[rt] = ti->tp_value;
 		return 0;
 	default:
@@ -704,6 +708,7 @@ asmlinkage void do_ov(struct pt_regs *regs)
 int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 {
 	struct siginfo si = { 0 };
+	struct vm_area_struct *vma;
 
 	switch (sig) {
 	case 0:
@@ -744,7 +749,8 @@ int process_fpemu_return(int sig, void __user *fault_addr, unsigned long fcr31)
 		si.si_addr = fault_addr;
 		si.si_signo = sig;
 		down_read(&current->mm->mmap_sem);
-		if (find_vma(current->mm, (unsigned long)fault_addr))
+		vma = find_vma(current->mm, (unsigned long)fault_addr);
+		if (vma && (vma->vm_start <= (unsigned long)fault_addr))
 			si.si_code = SEGV_ACCERR;
 		else
 			si.si_code = SEGV_MAPERR;
@@ -1859,6 +1865,7 @@ void __noreturn nmi_exception_handler(struct pt_regs *regs)
 #define VECTORSPACING 0x100	/* for EI/VI mode */
 
 unsigned long ebase;
+EXPORT_SYMBOL_GPL(ebase);
 unsigned long exception_handlers[32];
 unsigned long vi_handlers[64];
 
@@ -2063,16 +2070,22 @@ static void configure_status(void)
 			 status_set);
 }
 
+unsigned int hwrena;
+EXPORT_SYMBOL_GPL(hwrena);
+
 /* configure HWRENA register */
 static void configure_hwrena(void)
 {
-	unsigned int hwrena = cpu_hwrena_impl_bits;
+	hwrena = cpu_hwrena_impl_bits;
 
 	if (cpu_has_mips_r2_r6)
-		hwrena |= 0x0000000f;
+		hwrena |= MIPS_HWRENA_CPUNUM |
+			  MIPS_HWRENA_SYNCISTEP |
+			  MIPS_HWRENA_CC |
+			  MIPS_HWRENA_CCRES;
 
 	if (!noulri && cpu_has_userlocal)
-		hwrena |= (1 << 29);
+		hwrena |= MIPS_HWRENA_ULR;
 
 	if (hwrena)
 		write_c0_hwrena(hwrena);
@@ -2082,6 +2095,14 @@ static void configure_exception_vector(void)
 {
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long sr = set_c0_status(ST0_BEV);
+		/* If available, use WG to set top bits of EBASE */
+		if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+			write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+			write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+		}
 		write_c0_ebase(ebase);
 		write_c0_status(sr);
 		/* Setting vector spacing enables EI/VI mode  */
@@ -2118,8 +2139,17 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		 * We shouldn't trust a secondary core has a sane EBASE register
 		 * so use the one calculated by the boot CPU.
 		 */
-		if (!is_boot_cpu)
+		if (!is_boot_cpu) {
+			/* If available, use WG to set top bits of EBASE */
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+				write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+			}
 			write_c0_ebase(ebase);
+		}
 
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
@@ -2200,13 +2230,39 @@ void __init trap_init(void)
 
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long size = 0x200 + VECTORSPACING*64;
+		phys_addr_t ebase_pa;
+
 		ebase = (unsigned long)
 			__alloc_bootmem(size, 1 << fls(size), 0);
+
+		/*
+		 * Try to ensure ebase resides in KSeg0 if possible.
+		 *
+		 * It shouldn't generally be in XKPhys on MIPS64 to avoid
+		 * hitting a poorly defined exception base for Cache Errors.
+		 * The allocation is likely to be in the low 512MB of physical,
+		 * in which case we should be able to convert to KSeg0.
+		 *
+		 * EVA is special though as it allows segments to be rearranged
+		 * and to become uncached during cache error handling.
+		 */
+		ebase_pa = __pa(ebase);
+		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
+			ebase = CKSEG0ADDR(ebase_pa);
 	} else {
 		ebase = CAC_BASE;
 
-		if (cpu_has_mips_r2_r6)
-			ebase += (read_c0_ebase() & 0x3ffff000);
+		if (cpu_has_mips_r2_r6) {
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				ebase = (read_c0_ebase_64() & ~0xfff);
+#else
+				ebase = (read_c0_ebase() & ~0xfff);
+#endif
+			} else {
+				ebase += (read_c0_ebase() & 0x3ffff000);
+			}
+		}
 	}
 
 	if (cpu_has_mmips) {

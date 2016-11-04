@@ -35,7 +35,8 @@ static int jffs2_mkdir (struct inode *,struct dentry *,umode_t);
 static int jffs2_rmdir (struct inode *,struct dentry *);
 static int jffs2_mknod (struct inode *,struct dentry *,umode_t,dev_t);
 static int jffs2_rename (struct inode *, struct dentry *,
-			 struct inode *, struct dentry *);
+			 struct inode *, struct dentry *,
+			 unsigned int);
 
 const struct file_operations jffs2_dir_operations =
 {
@@ -61,10 +62,7 @@ const struct inode_operations jffs2_dir_inode_operations =
 	.get_acl =	jffs2_get_acl,
 	.set_acl =	jffs2_set_acl,
 	.setattr =	jffs2_setattr,
-	.setxattr =	jffs2_setxattr,
-	.getxattr =	jffs2_getxattr,
 	.listxattr =	jffs2_listxattr,
-	.removexattr =	jffs2_removexattr
 };
 
 /***********************************************************************/
@@ -81,6 +79,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	struct jffs2_full_dirent *fd = NULL, *fd_list;
 	uint32_t ino = 0;
 	struct inode *inode = NULL;
+	unsigned int nhash;
 
 	jffs2_dbg(1, "jffs2_lookup()\n");
 
@@ -89,11 +88,14 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
 
+	/* The 'nhash' on the fd_list is not the same as the dentry hash */
+	nhash = full_name_hash(NULL, target->d_name.name, target->d_name.len);
+
 	mutex_lock(&dir_f->sem);
 
 	/* NB: The 2.2 backport will need to explicitly check for '.' and '..' here */
-	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= target->d_name.hash; fd_list = fd_list->next) {
-		if (fd_list->nhash == target->d_name.hash &&
+	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= nhash; fd_list = fd_list->next) {
+		if (fd_list->nhash == nhash &&
 		    (!fd || fd_list->version > fd->version) &&
 		    strlen(fd_list->name) == target->d_name.len &&
 		    !strncmp(fd_list->name, target->d_name.name, target->d_name.len)) {
@@ -755,13 +757,17 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, umode_t mode
 }
 
 static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
-			 struct inode *new_dir_i, struct dentry *new_dentry)
+			 struct inode *new_dir_i, struct dentry *new_dentry,
+			 unsigned int flags)
 {
 	int ret;
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(old_dir_i->i_sb);
 	struct jffs2_inode_info *victim_f = NULL;
 	uint8_t type;
 	uint32_t now;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/* The VFS will check for us and prevent trying to rename a
 	 * file over a directory and vice versa, but if it's a directory,

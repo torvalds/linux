@@ -121,7 +121,7 @@ static void pma_cnt_ext_assign(struct ib_pma_portcounters_ext *pma_cnt_ext,
 	pma_cnt_ext->port_xmit_data =
 		cpu_to_be64(MLX5_SUM_CNT(out, transmitted_ib_unicast.octets,
 					 transmitted_ib_multicast.octets) >> 2);
-	pma_cnt_ext->port_xmit_data =
+	pma_cnt_ext->port_rcv_data =
 		cpu_to_be64(MLX5_SUM_CNT(out, received_ib_unicast.octets,
 					 received_ib_multicast.octets) >> 2);
 	pma_cnt_ext->port_xmit_packets =
@@ -394,7 +394,7 @@ int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
 	if (err)
 		goto out;
 
-	memcpy(node_desc, out_mad->data, 64);
+	memcpy(node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
 out:
 	kfree(in_mad);
 	kfree(out_mad);

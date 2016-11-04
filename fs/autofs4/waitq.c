@@ -66,11 +66,12 @@ static int autofs4_write(struct autofs_sb_info *sbi,
 	set_fs(KERNEL_DS);
 
 	mutex_lock(&sbi->pipe_mutex);
-	wr = __vfs_write(file, data, bytes, &file->f_pos);
-	while (bytes && wr) {
+	while (bytes) {
+		wr = __vfs_write(file, data, bytes, &file->f_pos);
+		if (wr <= 0)
+			break;
 		data += wr;
 		bytes -= wr;
-		wr = __vfs_write(file, data, bytes, &file->f_pos);
 	}
 	mutex_unlock(&sbi->pipe_mutex);
 
@@ -224,7 +225,7 @@ rename_retry:
 }
 
 static struct autofs_wait_queue *
-autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
+autofs4_find_wait(struct autofs_sb_info *sbi, const struct qstr *qstr)
 {
 	struct autofs_wait_queue *wq;
 
@@ -248,7 +249,7 @@ autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
  */
 static int validate_request(struct autofs_wait_queue **wait,
 			    struct autofs_sb_info *sbi,
-			    struct qstr *qstr,
+			    const struct qstr *qstr,
 			    struct dentry *dentry, enum autofs_notify notify)
 {
 	struct autofs_wait_queue *wq;
@@ -397,7 +398,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		}
 	}
 	qstr.name = name;
-	qstr.hash = full_name_hash(name, qstr.len);
+	qstr.hash = full_name_hash(dentry, name, qstr.len);
 
 	if (mutex_lock_interruptible(&sbi->wq_mutex)) {
 		kfree(qstr.name);
@@ -430,8 +431,8 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		memcpy(&wq->name, &qstr, sizeof(struct qstr));
 		wq->dev = autofs4_get_dev(sbi);
 		wq->ino = autofs4_get_ino(sbi);
-		wq->uid = current_uid();
-		wq->gid = current_gid();
+		wq->uid = current_real_cred()->uid;
+		wq->gid = current_real_cred()->gid;
 		wq->pid = pid;
 		wq->tgid = tgid;
 		wq->status = -EINTR; /* Status return if interrupted */

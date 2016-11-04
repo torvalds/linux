@@ -17,10 +17,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define pr_fmt(fmt) "NUMA: " fmt
+
+#include <linux/acpi.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/of.h>
+
+#include <asm/acpi.h>
+#include <asm/sections.h>
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
@@ -29,16 +35,15 @@ static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
 
 static int numa_distance_cnt;
 static u8 *numa_distance;
-static int numa_off;
+static bool numa_off;
 
 static __init int numa_parse_early_param(char *opt)
 {
 	if (!opt)
 		return -EINVAL;
-	if (!strncmp(opt, "off", 3)) {
-		pr_info("%s\n", "NUMA turned off");
-		numa_off = 1;
-	}
+	if (!strncmp(opt, "off", 3))
+		numa_off = true;
+
 	return 0;
 }
 early_param("numa", numa_parse_early_param);
@@ -90,7 +95,6 @@ void numa_clear_node(unsigned int cpu)
  */
 static void __init setup_node_to_cpumask_map(void)
 {
-	unsigned int cpu;
 	int node;
 
 	/* setup nr_node_ids if not done yet */
@@ -103,11 +107,8 @@ static void __init setup_node_to_cpumask_map(void)
 		cpumask_clear(node_to_cpumask_map[node]);
 	}
 
-	for_each_possible_cpu(cpu)
-		set_cpu_numa_node(cpu, NUMA_NO_NODE);
-
 	/* cpumask_of_node() will now work */
-	pr_debug("NUMA: Node to cpumask map for %d nodes\n", nr_node_ids);
+	pr_debug("Node to cpumask map for %d nodes\n", nr_node_ids);
 }
 
 /*
@@ -115,41 +116,100 @@ static void __init setup_node_to_cpumask_map(void)
  */
 void numa_store_cpu_info(unsigned int cpu)
 {
-	map_cpu_to_node(cpu, numa_off ? 0 : cpu_to_node_map[cpu]);
+	map_cpu_to_node(cpu, cpu_to_node_map[cpu]);
 }
 
 void __init early_map_cpu_to_node(unsigned int cpu, int nid)
 {
 	/* fallback to node 0 */
-	if (nid < 0 || nid >= MAX_NUMNODES)
+	if (nid < 0 || nid >= MAX_NUMNODES || numa_off)
 		nid = 0;
 
 	cpu_to_node_map[cpu] = nid;
+
+	/*
+	 * We should set the numa node of cpu0 as soon as possible, because it
+	 * has already been set up online before. cpu_to_node(0) will soon be
+	 * called.
+	 */
+	if (!cpu)
+		set_cpu_numa_node(cpu, nid);
 }
+
+#ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(__per_cpu_offset);
+
+static int __init early_cpu_to_node(int cpu)
+{
+	return cpu_to_node_map[cpu];
+}
+
+static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
+{
+	return node_distance(from, to);
+}
+
+static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
+				       size_t align)
+{
+	int nid = early_cpu_to_node(cpu);
+
+	return  memblock_virt_alloc_try_nid(size, align,
+			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+}
+
+static void __init pcpu_fc_free(void *ptr, size_t size)
+{
+	memblock_free_early(__pa(ptr), size);
+}
+
+void __init setup_per_cpu_areas(void)
+{
+	unsigned long delta;
+	unsigned int cpu;
+	int rc;
+
+	/*
+	 * Always reserve area for module percpu variables.  That's
+	 * what the legacy allocator did.
+	 */
+	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
+				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE,
+				    pcpu_cpu_distance,
+				    pcpu_fc_alloc, pcpu_fc_free);
+	if (rc < 0)
+		panic("Failed to initialize percpu areas.");
+
+	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
+	for_each_possible_cpu(cpu)
+		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
+}
+#endif
 
 /**
  * numa_add_memblk - Set node id to memblk
  * @nid: NUMA node ID of the new memblk
  * @start: Start address of the new memblk
- * @size:  Size of the new memblk
+ * @end:  End address of the new memblk
  *
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int __init numa_add_memblk(int nid, u64 start, u64 size)
+int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	int ret;
 
-	ret = memblock_set_node(start, size, &memblock.memory, nid);
+	ret = memblock_set_node(start, (end - start), &memblock.memory, nid);
 	if (ret < 0) {
-		pr_err("NUMA: memblock [0x%llx - 0x%llx] failed to add on node %d\n",
-			start, (start + size - 1), nid);
+		pr_err("memblock [0x%llx - 0x%llx] failed to add on node %d\n",
+			start, (end - 1), nid);
 		return ret;
 	}
 
 	node_set(nid, numa_nodes_parsed);
-	pr_info("NUMA: Adding memblock [0x%llx - 0x%llx] on node %d\n",
-			start, (start + size - 1), nid);
+	pr_info("Adding memblock [0x%llx - 0x%llx] on node %d\n",
+			start, (end - 1), nid);
 	return ret;
 }
 
@@ -163,19 +223,18 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	void *nd;
 	int tnid;
 
-	pr_info("NUMA: Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
-			nid, start_pfn << PAGE_SHIFT,
-			(end_pfn << PAGE_SHIFT) - 1);
+	pr_info("Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
+		nid, start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
 
 	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	nd = __va(nd_pa);
 
 	/* report and initialize */
-	pr_info("NUMA: NODE_DATA [mem %#010Lx-%#010Lx]\n",
+	pr_info("NODE_DATA [mem %#010Lx-%#010Lx]\n",
 		nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (tnid != nid)
-		pr_info("NUMA: NODE_DATA(%d) on node %d\n", nid, tnid);
+		pr_info("NODE_DATA(%d) on node %d\n", nid, tnid);
 
 	node_data[nid] = nd;
 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
@@ -232,8 +291,7 @@ static int __init numa_alloc_distance(void)
 			numa_distance[i * numa_distance_cnt + j] = i == j ?
 				LOCAL_DISTANCE : REMOTE_DISTANCE;
 
-	pr_debug("NUMA: Initialized distance table, cnt=%d\n",
-			numa_distance_cnt);
+	pr_debug("Initialized distance table, cnt=%d\n", numa_distance_cnt);
 
 	return 0;
 }
@@ -254,20 +312,20 @@ static int __init numa_alloc_distance(void)
 void __init numa_set_distance(int from, int to, int distance)
 {
 	if (!numa_distance) {
-		pr_warn_once("NUMA: Warning: distance table not allocated yet\n");
+		pr_warn_once("Warning: distance table not allocated yet\n");
 		return;
 	}
 
 	if (from >= numa_distance_cnt || to >= numa_distance_cnt ||
 			from < 0 || to < 0) {
-		pr_warn_once("NUMA: Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
+		pr_warn_once("Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
 			    from, to, distance);
 		return;
 	}
 
 	if ((u8)distance != distance ||
 	    (from == to && distance != LOCAL_DISTANCE)) {
-		pr_warn_once("NUMA: Warning: invalid distance parameter, from=%d to=%d distance=%d\n",
+		pr_warn_once("Warning: invalid distance parameter, from=%d to=%d distance=%d\n",
 			     from, to, distance);
 		return;
 	}
@@ -294,7 +352,7 @@ static int __init numa_register_nodes(void)
 	/* Check that valid nid is set to memblks */
 	for_each_memblock(memory, mblk)
 		if (mblk->nid == NUMA_NO_NODE || mblk->nid >= MAX_NUMNODES) {
-			pr_warn("NUMA: Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
+			pr_warn("Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
 				mblk->nid, mblk->base,
 				mblk->base + mblk->size - 1);
 			return -EINVAL;
@@ -332,18 +390,16 @@ static int __init numa_init(int (*init_func)(void))
 	if (ret < 0)
 		return ret;
 
-	if (nodes_empty(numa_nodes_parsed))
+	if (nodes_empty(numa_nodes_parsed)) {
+		pr_info("No NUMA configuration found\n");
 		return -EINVAL;
+	}
 
 	ret = numa_register_nodes();
 	if (ret < 0)
 		return ret;
 
 	setup_node_to_cpumask_map();
-
-	/* init boot processor */
-	cpu_to_node_map[0] = 0;
-	map_cpu_to_node(0, 0);
 
 	return 0;
 }
@@ -362,12 +418,13 @@ static int __init dummy_numa_init(void)
 	int ret;
 	struct memblock_region *mblk;
 
-	pr_info("%s\n", "No NUMA configuration found");
-	pr_info("NUMA: Faking a node at [mem %#018Lx-%#018Lx]\n",
-	       0LLU, PFN_PHYS(max_pfn) - 1);
+	if (numa_off)
+		pr_info("NUMA disabled\n"); /* Forced off on command line. */
+	pr_info("Faking a node at [mem %#018Lx-%#018Lx]\n",
+		0LLU, PFN_PHYS(max_pfn) - 1);
 
 	for_each_memblock(memory, mblk) {
-		ret = numa_add_memblk(0, mblk->base, mblk->size);
+		ret = numa_add_memblk(0, mblk->base, mblk->base + mblk->size);
 		if (!ret)
 			continue;
 
@@ -375,7 +432,7 @@ static int __init dummy_numa_init(void)
 		return ret;
 	}
 
-	numa_off = 1;
+	numa_off = true;
 	return 0;
 }
 
@@ -388,7 +445,9 @@ static int __init dummy_numa_init(void)
 void __init arm64_numa_init(void)
 {
 	if (!numa_off) {
-		if (!numa_init(of_numa_init))
+		if (!acpi_disabled && !numa_init(arm64_acpi_numa_init))
+			return;
+		if (acpi_disabled && !numa_init(of_numa_init))
 			return;
 	}
 

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -45,7 +41,7 @@
  *
  * @{
  *
- * http://wiki.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
+ * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  * describes the FID namespace and interoperability requirements for FIDs.
  * The important parts of that document are included here for reference.
  *
@@ -233,6 +229,7 @@ enum local_oid {
 	MDD_LOV_OBJ_OSEQ	= 4121UL,
 	LFSCK_NAMESPACE_OID     = 4122UL,
 	REMOTE_PARENT_DIR_OID	= 4123UL,
+	SLAVE_LLOG_CATALOGS_OID	= 4124UL,
 };
 
 static inline void lu_local_obj_fid(struct lu_fid *fid, __u32 oid)
@@ -396,21 +393,19 @@ struct ldlm_namespace;
  * but was moved into name[1] along with the OID to avoid consuming the
  * renaming name[2,3] fields that need to be used for the quota identifier.
  */
-static inline struct ldlm_res_id *
+static inline void
 fid_build_reg_res_name(const struct lu_fid *fid, struct ldlm_res_id *res)
 {
 	memset(res, 0, sizeof(*res));
 	res->name[LUSTRE_RES_ID_SEQ_OFF] = fid_seq(fid);
 	res->name[LUSTRE_RES_ID_VER_OID_OFF] = fid_ver_oid(fid);
-
-	return res;
 }
 
 /*
  * Return true if resource is for object identified by FID.
  */
-static inline int fid_res_name_eq(const struct lu_fid *fid,
-				  const struct ldlm_res_id *res)
+static inline bool fid_res_name_eq(const struct lu_fid *fid,
+				   const struct ldlm_res_id *res)
 {
 	return res->name[LUSTRE_RES_ID_SEQ_OFF] == fid_seq(fid) &&
 	       res->name[LUSTRE_RES_ID_VER_OID_OFF] == fid_ver_oid(fid);
@@ -419,29 +414,25 @@ static inline int fid_res_name_eq(const struct lu_fid *fid,
 /*
  * Extract FID from LDLM resource. Reverse of fid_build_reg_res_name().
  */
-static inline struct lu_fid *
+static inline void
 fid_extract_from_res_name(struct lu_fid *fid, const struct ldlm_res_id *res)
 {
 	fid->f_seq = res->name[LUSTRE_RES_ID_SEQ_OFF];
 	fid->f_oid = (__u32)(res->name[LUSTRE_RES_ID_VER_OID_OFF]);
 	fid->f_ver = (__u32)(res->name[LUSTRE_RES_ID_VER_OID_OFF] >> 32);
 	LASSERT(fid_res_name_eq(fid, res));
-
-	return fid;
 }
 
 /*
  * Build (DLM) resource identifier from global quota FID and quota ID.
  */
-static inline struct ldlm_res_id *
+static inline void
 fid_build_quota_res_name(const struct lu_fid *glb_fid, union lquota_id *qid,
 			 struct ldlm_res_id *res)
 {
 	fid_build_reg_res_name(glb_fid, res);
 	res->name[LUSTRE_RES_ID_QUOTA_SEQ_OFF] = fid_seq(&qid->qid_fid);
 	res->name[LUSTRE_RES_ID_QUOTA_VER_OID_OFF] = fid_ver_oid(&qid->qid_fid);
-
-	return res;
 }
 
 /*
@@ -458,14 +449,12 @@ static inline void fid_extract_from_quota_res(struct lu_fid *glb_fid,
 		(__u32)(res->name[LUSTRE_RES_ID_QUOTA_VER_OID_OFF] >> 32);
 }
 
-static inline struct ldlm_res_id *
+static inline void
 fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
 		       struct ldlm_res_id *res)
 {
 	fid_build_reg_res_name(fid, res);
 	res->name[LUSTRE_RES_ID_HSH_OFF] = hash;
-
-	return res;
 }
 
 /**
@@ -486,7 +475,7 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
  *    res will be built from normal FID directly, i.e. res[0] = f_seq,
  *    res[1] = f_oid + f_ver.
  */
-static inline void ostid_build_res_name(struct ost_id *oi,
+static inline void ostid_build_res_name(const struct ost_id *oi,
 					struct ldlm_res_id *name)
 {
 	memset(name, 0, sizeof(*name));
@@ -501,8 +490,8 @@ static inline void ostid_build_res_name(struct ost_id *oi,
 /**
  * Return true if the resource is for the object identified by this id & group.
  */
-static inline int ostid_res_name_eq(struct ost_id *oi,
-				    struct ldlm_res_id *name)
+static inline int ostid_res_name_eq(const struct ost_id *oi,
+				    const struct ldlm_res_id *name)
 {
 	/* Note: it is just a trick here to save some effort, probably the
 	 * correct way would be turn them into the FID and compare
@@ -607,13 +596,14 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 	 * (from OID), or up to 128M inodes without collisions for new files.
 	 */
 	ino = ((seq & 0x000fffffULL) << 12) + ((seq >> 8) & 0xfffff000) +
-	       (seq >> (64 - (40-8)) & 0xffffff00) +
+	       (seq >> (64 - (40 - 8)) & 0xffffff00) +
 	       (fid_oid(fid) & 0xff000fff) + ((fid_oid(fid) & 0x00fff000) << 8);
 
 	return ino ? ino : fid_oid(fid);
 }
 
-static inline int lu_fid_diff(struct lu_fid *fid1, struct lu_fid *fid2)
+static inline int lu_fid_diff(const struct lu_fid *fid1,
+			      const struct lu_fid *fid2)
 {
 	LASSERTF(fid_seq(fid1) == fid_seq(fid2), "fid1:"DFID", fid2:"DFID"\n",
 		 PFID(fid1), PFID(fid2));

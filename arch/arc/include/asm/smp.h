@@ -86,7 +86,7 @@ static inline const char *arc_platform_smp_cpuinfo(void)
  * (1) These insn were introduced only in 4.10 release. So for older released
  *	support needed.
  *
- * (2) In a SMP setup, the LLOCK/SCOND atomiticity across CPUs needs to be
+ * (2) In a SMP setup, the LLOCK/SCOND atomicity across CPUs needs to be
  *	gaurantted by the platform (not something which core handles).
  *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
  *	disabling for atomicity.

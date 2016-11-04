@@ -112,19 +112,24 @@ struct dma_buf_ops {
  * @file: file pointer used for sharing buffers across, and for refcounting.
  * @attachments: list of dma_buf_attachment that denotes all devices attached.
  * @ops: dma_buf_ops associated with this buffer object.
+ * @lock: used internally to serialize list manipulation, attach/detach and vmap/unmap
+ * @vmapping_counter: used internally to refcnt the vmaps
+ * @vmap_ptr: the current vmap ptr if vmapping_counter > 0
  * @exp_name: name of the exporter; useful for debugging.
  * @owner: pointer to exporter module; used for refcounting when exporter is a
  *         kernel module.
  * @list_node: node for dma_buf accounting and debugging.
  * @priv: exporter specific private data for this buffer object.
  * @resv: reservation object linked to this dma-buf
+ * @poll: for userspace poll support
+ * @cb_excl: for userspace poll support
+ * @cb_shared: for userspace poll support
  */
 struct dma_buf {
 	size_t size;
 	struct file *file;
 	struct list_head attachments;
 	const struct dma_buf_ops *ops;
-	/* mutex to serialize list manipulation, attach/detach and vmap/unmap */
 	struct mutex lock;
 	unsigned vmapping_counter;
 	void *vmap_ptr;
@@ -188,9 +193,11 @@ struct dma_buf_export_info {
 
 /**
  * helper macro for exporters; zeros and fills in most common values
+ *
+ * @name: export-info name
  */
-#define DEFINE_DMA_BUF_EXPORT_INFO(a)	\
-	struct dma_buf_export_info a = { .exp_name = KBUILD_MODNAME, \
+#define DEFINE_DMA_BUF_EXPORT_INFO(name)	\
+	struct dma_buf_export_info name = { .exp_name = KBUILD_MODNAME, \
 					 .owner = THIS_MODULE }
 
 /**
@@ -235,6 +242,4 @@ int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
 void *dma_buf_vmap(struct dma_buf *);
 void dma_buf_vunmap(struct dma_buf *, void *vaddr);
-int dma_buf_debugfs_create_file(const char *name,
-				int (*write)(struct seq_file *));
 #endif /* __DMA_BUF_H__ */

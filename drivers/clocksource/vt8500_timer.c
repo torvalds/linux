@@ -121,38 +121,48 @@ static struct irqaction irq = {
 	.dev_id  = &clockevent,
 };
 
-static void __init vt8500_timer_init(struct device_node *np)
+static int __init vt8500_timer_init(struct device_node *np)
 {
-	int timer_irq;
+	int timer_irq, ret;
 
 	regbase = of_iomap(np, 0);
 	if (!regbase) {
 		pr_err("%s: Missing iobase description in Device Tree\n",
 								__func__);
-		return;
+		return -ENXIO;
 	}
+
 	timer_irq = irq_of_parse_and_map(np, 0);
 	if (!timer_irq) {
 		pr_err("%s: Missing irq description in Device Tree\n",
 								__func__);
-		return;
+		return -EINVAL;
 	}
 
 	writel(1, regbase + TIMER_CTRL_VAL);
 	writel(0xf, regbase + TIMER_STATUS_VAL);
 	writel(~0, regbase + TIMER_MATCH_VAL);
 
-	if (clocksource_register_hz(&clocksource, VT8500_TIMER_HZ))
+	ret = clocksource_register_hz(&clocksource, VT8500_TIMER_HZ);
+	if (ret) {
 		pr_err("%s: vt8500_timer_init: clocksource_register failed for %s\n",
-					__func__, clocksource.name);
+		       __func__, clocksource.name);
+		return ret;
+	}
 
 	clockevent.cpumask = cpumask_of(0);
 
-	if (setup_irq(timer_irq, &irq))
+	ret = setup_irq(timer_irq, &irq);
+	if (ret) {
 		pr_err("%s: setup_irq failed for %s\n", __func__,
 							clockevent.name);
+		return ret;
+	}
+
 	clockevents_config_and_register(&clockevent, VT8500_TIMER_HZ,
 					MIN_OSCR_DELTA * 2, 0xf0000000);
+
+	return 0;
 }
 
 CLOCKSOURCE_OF_DECLARE(vt8500, "via,vt8500-timer", vt8500_timer_init);

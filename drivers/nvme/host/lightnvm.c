@@ -156,7 +156,7 @@ struct nvme_nvm_completion {
 
 #define NVME_NVM_LP_MLC_PAIRS 886
 struct nvme_nvm_lp_mlc {
-	__u16			num_pairs;
+	__le16			num_pairs;
 	__u8			pairs[NVME_NVM_LP_MLC_PAIRS];
 };
 
@@ -475,7 +475,7 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 
 	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
 		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
-						rqd->bio->bi_iter.bi_sector));
+					rqd->bio->bi_iter.bi_sector));
 }
 
 static void nvme_nvm_end_io(struct request *rq, int error)
@@ -500,7 +500,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct bio *bio = rqd->bio;
 	struct nvme_nvm_command *cmd;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
+	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
@@ -592,14 +592,37 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.max_phys_sect		= 64,
 };
 
-int nvme_nvm_register(struct request_queue *q, char *disk_name)
+int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node,
+		      const struct attribute_group *attrs)
 {
-	return nvm_register(q, disk_name, &nvme_nvm_dev_ops);
+	struct request_queue *q = ns->queue;
+	struct nvm_dev *dev;
+	int ret;
+
+	dev = nvm_alloc_dev(node);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->q = q;
+	memcpy(dev->name, disk_name, DISK_NAME_LEN);
+	dev->ops = &nvme_nvm_dev_ops;
+	dev->parent_dev = ns->ctrl->device;
+	dev->private_data = ns;
+	ns->ndev = dev;
+
+	ret = nvm_register(dev);
+
+	ns->lba_shift = ilog2(dev->sec_size) - 9;
+
+	if (sysfs_create_group(&dev->dev.kobj, attrs))
+		pr_warn("%s: failed to create sysfs group for identification\n",
+			disk_name);
+	return ret;
 }
 
-void nvme_nvm_unregister(struct request_queue *q, char *disk_name)
+void nvme_nvm_unregister(struct nvme_ns *ns)
 {
-	nvm_unregister(disk_name);
+	nvm_unregister(ns->ndev);
 }
 
 /* move to shared place when used in multiple places. */

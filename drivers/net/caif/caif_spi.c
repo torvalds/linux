@@ -185,8 +185,8 @@ static ssize_t print_frame(char *buf, size_t size, char *frm,
 			/* Fast forward. */
 			i = count - cut;
 			len += snprintf((buf + len), (size - len),
-					"--- %u bytes skipped ---\n",
-					(int)(count - (cut * 2)));
+					"--- %zu bytes skipped ---\n",
+					count - (cut * 2));
 		}
 
 		if ((!(i % 10)) && i) {

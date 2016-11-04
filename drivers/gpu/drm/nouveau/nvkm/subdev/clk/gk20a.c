@@ -28,69 +28,6 @@
 #include <core/tegra.h>
 #include <subdev/timer.h>
 
-#define KHZ (1000)
-#define MHZ (KHZ * 1000)
-
-#define MASK(w)	((1 << w) - 1)
-
-#define GPCPLL_CFG		(SYS_GPCPLL_CFG_BASE + 0)
-#define GPCPLL_CFG_ENABLE	BIT(0)
-#define GPCPLL_CFG_IDDQ		BIT(1)
-#define GPCPLL_CFG_LOCK_DET_OFF	BIT(4)
-#define GPCPLL_CFG_LOCK		BIT(17)
-
-#define GPCPLL_COEFF		(SYS_GPCPLL_CFG_BASE + 4)
-#define GPCPLL_COEFF_M_SHIFT	0
-#define GPCPLL_COEFF_M_WIDTH	8
-#define GPCPLL_COEFF_N_SHIFT	8
-#define GPCPLL_COEFF_N_WIDTH	8
-#define GPCPLL_COEFF_P_SHIFT	16
-#define GPCPLL_COEFF_P_WIDTH	6
-
-#define GPCPLL_CFG2			(SYS_GPCPLL_CFG_BASE + 0xc)
-#define GPCPLL_CFG2_SETUP2_SHIFT	16
-#define GPCPLL_CFG2_PLL_STEPA_SHIFT	24
-
-#define GPCPLL_CFG3			(SYS_GPCPLL_CFG_BASE + 0x18)
-#define GPCPLL_CFG3_PLL_STEPB_SHIFT	16
-
-#define GPC_BCASE_GPCPLL_CFG_BASE		0x00132800
-#define GPCPLL_NDIV_SLOWDOWN			(SYS_GPCPLL_CFG_BASE + 0x1c)
-#define GPCPLL_NDIV_SLOWDOWN_NDIV_LO_SHIFT	0
-#define GPCPLL_NDIV_SLOWDOWN_NDIV_MID_SHIFT	8
-#define GPCPLL_NDIV_SLOWDOWN_STEP_SIZE_LO2MID_SHIFT	16
-#define GPCPLL_NDIV_SLOWDOWN_SLOWDOWN_USING_PLL_SHIFT	22
-#define GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT	31
-
-#define SEL_VCO				(SYS_GPCPLL_CFG_BASE + 0x100)
-#define SEL_VCO_GPC2CLK_OUT_SHIFT	0
-
-#define GPC2CLK_OUT			(SYS_GPCPLL_CFG_BASE + 0x250)
-#define GPC2CLK_OUT_SDIV14_INDIV4_WIDTH	1
-#define GPC2CLK_OUT_SDIV14_INDIV4_SHIFT	31
-#define GPC2CLK_OUT_SDIV14_INDIV4_MODE	1
-#define GPC2CLK_OUT_VCODIV_WIDTH	6
-#define GPC2CLK_OUT_VCODIV_SHIFT	8
-#define GPC2CLK_OUT_VCODIV1		0
-#define GPC2CLK_OUT_VCODIV_MASK		(MASK(GPC2CLK_OUT_VCODIV_WIDTH) << \
-					GPC2CLK_OUT_VCODIV_SHIFT)
-#define GPC2CLK_OUT_BYPDIV_WIDTH	6
-#define GPC2CLK_OUT_BYPDIV_SHIFT	0
-#define GPC2CLK_OUT_BYPDIV31		0x3c
-#define GPC2CLK_OUT_INIT_MASK	((MASK(GPC2CLK_OUT_SDIV14_INDIV4_WIDTH) << \
-		GPC2CLK_OUT_SDIV14_INDIV4_SHIFT)\
-		| (MASK(GPC2CLK_OUT_VCODIV_WIDTH) << GPC2CLK_OUT_VCODIV_SHIFT)\
-		| (MASK(GPC2CLK_OUT_BYPDIV_WIDTH) << GPC2CLK_OUT_BYPDIV_SHIFT))
-#define GPC2CLK_OUT_INIT_VAL	((GPC2CLK_OUT_SDIV14_INDIV4_MODE << \
-		GPC2CLK_OUT_SDIV14_INDIV4_SHIFT) \
-		| (GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT) \
-		| (GPC2CLK_OUT_BYPDIV31 << GPC2CLK_OUT_BYPDIV_SHIFT))
-
-#define GPC_BCAST_NDIV_SLOWDOWN_DEBUG	(GPC_BCASE_GPCPLL_CFG_BASE + 0xa0)
-#define GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_SHIFT	24
-#define GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK \
-	    (0x1 << GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_SHIFT)
-
 static const u8 _pl_to_div[] = {
 /* PL:   0, 1, 2, 3, 4, 5, 6,  7,  8,  9, 10, 11, 12, 13, 14 */
 /* p: */ 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 12, 16, 20, 24, 32,
@@ -124,7 +61,7 @@ static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
 	.min_pl = 1, .max_pl = 32,
 };
 
-static void
+void
 gk20a_pllg_read_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
@@ -136,20 +73,33 @@ gk20a_pllg_read_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll)
 	pll->pl = (val >> GPCPLL_COEFF_P_SHIFT) & MASK(GPCPLL_COEFF_P_WIDTH);
 }
 
-static u32
-gk20a_pllg_calc_rate(struct gk20a_clk *clk)
+void
+gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
+{
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 val;
+
+	val = (pll->m & MASK(GPCPLL_COEFF_M_WIDTH)) << GPCPLL_COEFF_M_SHIFT;
+	val |= (pll->n & MASK(GPCPLL_COEFF_N_WIDTH)) << GPCPLL_COEFF_N_SHIFT;
+	val |= (pll->pl & MASK(GPCPLL_COEFF_P_WIDTH)) << GPCPLL_COEFF_P_SHIFT;
+	nvkm_wr32(device, GPCPLL_COEFF, val);
+}
+
+u32
+gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
 	u32 rate;
 	u32 divider;
 
-	rate = clk->parent_rate * clk->pll.n;
-	divider = clk->pll.m * clk->pl_to_div(clk->pll.pl);
+	rate = clk->parent_rate * pll->n;
+	divider = pll->m * clk->pl_to_div(pll->pl);
 
 	return rate / divider / 2;
 }
 
-static int
-gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
+int
+gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate,
+		    struct gk20a_pll *pll)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	u32 target_clk_f, ref_clk_f, target_freq;
@@ -163,15 +113,12 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 	target_clk_f = rate * 2 / KHZ;
 	ref_clk_f = clk->parent_rate / KHZ;
 
-	max_vco_f = clk->params->max_vco;
+	target_vco_f = target_clk_f + target_clk_f / 50;
+	max_vco_f = max(clk->params->max_vco, target_vco_f);
 	min_vco_f = clk->params->min_vco;
 	best_m = clk->params->max_m;
 	best_n = clk->params->min_n;
 	best_pl = clk->params->min_pl;
-
-	target_vco_f = target_clk_f + target_clk_f / 50;
-	if (max_vco_f < target_vco_f)
-		max_vco_f = target_vco_f;
 
 	/* min_pl <= high_pl <= max_pl */
 	high_pl = (max_vco_f + target_vco_f - 1) / target_vco_f;
@@ -195,9 +142,7 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 		target_vco_f = target_clk_f * clk->pl_to_div(pl);
 
 		for (m = clk->params->min_m; m <= clk->params->max_m; m++) {
-			u32 u_f, vco_f;
-
-			u_f = ref_clk_f / m;
+			u32 u_f = ref_clk_f / m;
 
 			if (u_f < clk->params->min_u)
 				break;
@@ -211,6 +156,8 @@ gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
 				break;
 
 			for (; n <= n2; n++) {
+				u32 vco_f;
+
 				if (n < clk->params->min_n)
 					continue;
 				if (n > clk->params->max_n)
@@ -247,16 +194,16 @@ found_match:
 			   "no best match for target @ %dMHz on gpc_pll",
 			   target_clk_f / KHZ);
 
-	clk->pll.m = best_m;
-	clk->pll.n = best_n;
-	clk->pll.pl = best_pl;
+	pll->m = best_m;
+	pll->n = best_n;
+	pll->pl = best_pl;
 
-	target_freq = gk20a_pllg_calc_rate(clk);
+	target_freq = gk20a_pllg_calc_rate(clk, pll);
 
 	nvkm_debug(subdev,
-		   "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
-		   target_freq / MHZ, clk->pll.m, clk->pll.n, clk->pll.pl,
-		   clk->pl_to_div(clk->pll.pl));
+		   "actual target freq %d KHz, M %d, N %d, PL %d(div%d)\n",
+		   target_freq / KHZ, pll->m, pll->n, pll->pl,
+		   clk->pl_to_div(pll->pl));
 	return 0;
 }
 
@@ -265,20 +212,14 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 val;
-	int ramp_timeout;
+	struct gk20a_pll pll;
+	int ret = 0;
 
 	/* get old coefficients */
-	val = nvkm_rd32(device, GPCPLL_COEFF);
+	gk20a_pllg_read_mnp(clk, &pll);
 	/* do nothing if NDIV is the same */
-	if (n == ((val >> GPCPLL_COEFF_N_SHIFT) & MASK(GPCPLL_COEFF_N_WIDTH)))
+	if (n == pll.n)
 		return 0;
-
-	/* setup */
-	nvkm_mask(device, GPCPLL_CFG2, 0xff << GPCPLL_CFG2_PLL_STEPA_SHIFT,
-		0x2b << GPCPLL_CFG2_PLL_STEPA_SHIFT);
-	nvkm_mask(device, GPCPLL_CFG3, 0xff << GPCPLL_CFG3_PLL_STEPB_SHIFT,
-		0xb << GPCPLL_CFG3_PLL_STEPB_SHIFT);
 
 	/* pll slowdown mode */
 	nvkm_mask(device, GPCPLL_NDIV_SLOWDOWN,
@@ -286,24 +227,21 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 		BIT(GPCPLL_NDIV_SLOWDOWN_SLOWDOWN_USING_PLL_SHIFT));
 
 	/* new ndiv ready for ramp */
-	val = nvkm_rd32(device, GPCPLL_COEFF);
-	val &= ~(MASK(GPCPLL_COEFF_N_WIDTH) << GPCPLL_COEFF_N_SHIFT);
-	val |= (n & MASK(GPCPLL_COEFF_N_WIDTH)) << GPCPLL_COEFF_N_SHIFT;
+	pll.n = n;
 	udelay(1);
-	nvkm_wr32(device, GPCPLL_COEFF, val);
+	gk20a_pllg_write_mnp(clk, &pll);
 
 	/* dynamic ramp to new ndiv */
-	val = nvkm_rd32(device, GPCPLL_NDIV_SLOWDOWN);
-	val |= 0x1 << GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT;
 	udelay(1);
-	nvkm_wr32(device, GPCPLL_NDIV_SLOWDOWN, val);
+	nvkm_mask(device, GPCPLL_NDIV_SLOWDOWN,
+		  BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT),
+		  BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT));
 
-	for (ramp_timeout = 500; ramp_timeout > 0; ramp_timeout--) {
-		udelay(1);
-		val = nvkm_rd32(device, GPC_BCAST_NDIV_SLOWDOWN_DEBUG);
-		if (val & GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK)
-			break;
-	}
+	/* wait for ramping to complete */
+	if (nvkm_wait_usec(device, 500, GPC_BCAST_NDIV_SLOWDOWN_DEBUG,
+		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK,
+		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK) < 0)
+		ret = -ETIMEDOUT;
 
 	/* exit slowdown mode */
 	nvkm_mask(device, GPCPLL_NDIV_SLOWDOWN,
@@ -311,21 +249,35 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 		BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT), 0);
 	nvkm_rd32(device, GPCPLL_NDIV_SLOWDOWN);
 
-	if (ramp_timeout <= 0) {
-		nvkm_error(subdev, "gpcpll dynamic ramp timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	return ret;
 }
 
-static void
+static int
 gk20a_pllg_enable(struct gk20a_clk *clk)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
+	u32 val;
 
 	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_ENABLE, GPCPLL_CFG_ENABLE);
 	nvkm_rd32(device, GPCPLL_CFG);
+
+	/* enable lock detection */
+	val = nvkm_rd32(device, GPCPLL_CFG);
+	if (val & GPCPLL_CFG_LOCK_DET_OFF) {
+		val &= ~GPCPLL_CFG_LOCK_DET_OFF;
+		nvkm_wr32(device, GPCPLL_CFG, val);
+	}
+
+	/* wait for lock */
+	if (nvkm_wait_usec(device, 300, GPCPLL_CFG, GPCPLL_CFG_LOCK,
+			   GPCPLL_CFG_LOCK) < 0)
+		return -ETIMEDOUT;
+
+	/* switch to VCO mode */
+	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT),
+		BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
+
+	return 0;
 }
 
 static void
@@ -333,117 +285,81 @@ gk20a_pllg_disable(struct gk20a_clk *clk)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 
+	/* put PLL in bypass before disabling it */
+	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT), 0);
+
 	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_ENABLE, 0);
 	nvkm_rd32(device, GPCPLL_CFG);
 }
 
 static int
-_gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
+gk20a_pllg_program_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 val, cfg;
-	struct gk20a_pll old_pll;
-	u32 n_lo;
+	struct gk20a_pll cur_pll;
+	int ret;
 
-	/* get old coefficients */
-	gk20a_pllg_read_mnp(clk, &old_pll);
+	gk20a_pllg_read_mnp(clk, &cur_pll);
 
-	/* do NDIV slide if there is no change in M and PL */
-	cfg = nvkm_rd32(device, GPCPLL_CFG);
-	if (allow_slide && clk->pll.m == old_pll.m &&
-	    clk->pll.pl == old_pll.pl && (cfg & GPCPLL_CFG_ENABLE)) {
-		return gk20a_pllg_slide(clk, clk->pll.n);
-	}
+	/* split VCO-to-bypass jump in half by setting out divider 1:2 */
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV2 << GPC2CLK_OUT_VCODIV_SHIFT);
+	/* Intentional 2nd write to assure linear divider operation */
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV2 << GPC2CLK_OUT_VCODIV_SHIFT);
+	nvkm_rd32(device, GPC2CLK_OUT);
+	udelay(2);
 
-	/* slide down to NDIV_LO */
-	if (allow_slide && (cfg & GPCPLL_CFG_ENABLE)) {
-		int ret;
+	gk20a_pllg_disable(clk);
 
-		n_lo = DIV_ROUND_UP(old_pll.m * clk->params->min_vco,
-				    clk->parent_rate / KHZ);
-		ret = gk20a_pllg_slide(clk, n_lo);
+	gk20a_pllg_write_mnp(clk, pll);
 
+	ret = gk20a_pllg_enable(clk);
+	if (ret)
+		return ret;
+
+	/* restore out divider 1:1 */
+	udelay(2);
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT);
+	/* Intentional 2nd write to assure linear divider operation */
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT);
+	nvkm_rd32(device, GPC2CLK_OUT);
+
+	return 0;
+}
+
+static int
+gk20a_pllg_program_mnp_slide(struct gk20a_clk *clk, const struct gk20a_pll *pll)
+{
+	struct gk20a_pll cur_pll;
+	int ret;
+
+	if (gk20a_pllg_is_enabled(clk)) {
+		gk20a_pllg_read_mnp(clk, &cur_pll);
+
+		/* just do NDIV slide if there is no change to M and PL */
+		if (pll->m == cur_pll.m && pll->pl == cur_pll.pl)
+			return gk20a_pllg_slide(clk, pll->n);
+
+		/* slide down to current NDIV_LO */
+		cur_pll.n = gk20a_pllg_n_lo(clk, &cur_pll);
+		ret = gk20a_pllg_slide(clk, cur_pll.n);
 		if (ret)
 			return ret;
 	}
 
-	/* split FO-to-bypass jump in halfs by setting out divider 1:2 */
-	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
-		0x2 << GPC2CLK_OUT_VCODIV_SHIFT);
-
-	/* put PLL in bypass before programming it */
-	val = nvkm_rd32(device, SEL_VCO);
-	val &= ~(BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
-	udelay(2);
-	nvkm_wr32(device, SEL_VCO, val);
-
-	/* get out from IDDQ */
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	if (val & GPCPLL_CFG_IDDQ) {
-		val &= ~GPCPLL_CFG_IDDQ;
-		nvkm_wr32(device, GPCPLL_CFG, val);
-		nvkm_rd32(device, GPCPLL_CFG);
-		udelay(2);
-	}
-
-	gk20a_pllg_disable(clk);
-
-	nvkm_debug(subdev, "%s: m=%d n=%d pl=%d\n", __func__,
-		   clk->pll.m, clk->pll.n, clk->pll.pl);
-
-	n_lo = DIV_ROUND_UP(clk->pll.m * clk->params->min_vco,
-			    clk->parent_rate / KHZ);
-	val = clk->pll.m << GPCPLL_COEFF_M_SHIFT;
-	val |= (allow_slide ? n_lo : clk->pll.n) << GPCPLL_COEFF_N_SHIFT;
-	val |= clk->pll.pl << GPCPLL_COEFF_P_SHIFT;
-	nvkm_wr32(device, GPCPLL_COEFF, val);
-
-	gk20a_pllg_enable(clk);
-
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	if (val & GPCPLL_CFG_LOCK_DET_OFF) {
-		val &= ~GPCPLL_CFG_LOCK_DET_OFF;
-		nvkm_wr32(device, GPCPLL_CFG, val);
-	}
-
-	if (nvkm_usec(device, 300,
-		if (nvkm_rd32(device, GPCPLL_CFG) & GPCPLL_CFG_LOCK)
-			break;
-	) < 0)
-		return -ETIMEDOUT;
-
-	/* switch to VCO mode */
-	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT),
-		  BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
-
-	/* restore out divider 1:1 */
-	val = nvkm_rd32(device, GPC2CLK_OUT);
-	if ((val & GPC2CLK_OUT_VCODIV_MASK) !=
-	    (GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT)) {
-		val &= ~GPC2CLK_OUT_VCODIV_MASK;
-		val |= GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT;
-		udelay(2);
-		nvkm_wr32(device, GPC2CLK_OUT, val);
-		/* Intentional 2nd write to assure linear divider operation */
-		nvkm_wr32(device, GPC2CLK_OUT, val);
-		nvkm_rd32(device, GPC2CLK_OUT);
-	}
+	/* program MNP with the new clock parameters and new NDIV_LO */
+	cur_pll = *pll;
+	cur_pll.n = gk20a_pllg_n_lo(clk, &cur_pll);
+	ret = gk20a_pllg_program_mnp(clk, &cur_pll);
+	if (ret)
+		return ret;
 
 	/* slide up to new NDIV */
-	return allow_slide ? gk20a_pllg_slide(clk, clk->pll.n) : 0;
-}
-
-static int
-gk20a_pllg_program_mnp(struct gk20a_clk *clk)
-{
-	int err;
-
-	err = _gk20a_pllg_program_mnp(clk, true);
-	if (err)
-		err = _gk20a_pllg_program_mnp(clk, false);
-
-	return err;
+	return gk20a_pllg_slide(clk, pll->n);
 }
 
 static struct nvkm_pstate
@@ -546,13 +462,14 @@ gk20a_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 	struct gk20a_clk *clk = gk20a_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct gk20a_pll pll;
 
 	switch (src) {
 	case nv_clk_src_crystal:
 		return device->crystal;
 	case nv_clk_src_gpc:
-		gk20a_pllg_read_mnp(clk, &clk->pll);
-		return gk20a_pllg_calc_rate(clk) / GK20A_CLK_GPC_MDIV;
+		gk20a_pllg_read_mnp(clk, &pll);
+		return gk20a_pllg_calc_rate(clk, &pll) / GK20A_CLK_GPC_MDIV;
 	default:
 		nvkm_error(subdev, "invalid clock source %d\n", src);
 		return -EINVAL;
@@ -565,15 +482,20 @@ gk20a_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	struct gk20a_clk *clk = gk20a_clk(base);
 
 	return gk20a_pllg_calc_mnp(clk, cstate->domain[nv_clk_src_gpc] *
-					 GK20A_CLK_GPC_MDIV);
+					 GK20A_CLK_GPC_MDIV, &clk->pll);
 }
 
 int
 gk20a_clk_prog(struct nvkm_clk *base)
 {
 	struct gk20a_clk *clk = gk20a_clk(base);
+	int ret;
 
-	return gk20a_pllg_program_mnp(clk);
+	ret = gk20a_pllg_program_mnp_slide(clk, &clk->pll);
+	if (ret)
+		ret = gk20a_pllg_program_mnp(clk, &clk->pll);
+
+	return ret;
 }
 
 void
@@ -581,29 +503,62 @@ gk20a_clk_tidy(struct nvkm_clk *base)
 {
 }
 
+int
+gk20a_clk_setup_slide(struct gk20a_clk *clk)
+{
+	struct nvkm_subdev *subdev = &clk->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 step_a, step_b;
+
+	switch (clk->parent_rate) {
+	case 12000000:
+	case 12800000:
+	case 13000000:
+		step_a = 0x2b;
+		step_b = 0x0b;
+		break;
+	case 19200000:
+		step_a = 0x12;
+		step_b = 0x08;
+		break;
+	case 38400000:
+		step_a = 0x04;
+		step_b = 0x05;
+		break;
+	default:
+		nvkm_error(subdev, "invalid parent clock rate %u KHz",
+			   clk->parent_rate / KHZ);
+		return -EINVAL;
+	}
+
+	nvkm_mask(device, GPCPLL_CFG2, 0xff << GPCPLL_CFG2_PLL_STEPA_SHIFT,
+		step_a << GPCPLL_CFG2_PLL_STEPA_SHIFT);
+	nvkm_mask(device, GPCPLL_CFG3, 0xff << GPCPLL_CFG3_PLL_STEPB_SHIFT,
+		step_b << GPCPLL_CFG3_PLL_STEPB_SHIFT);
+
+	return 0;
+}
+
 void
 gk20a_clk_fini(struct nvkm_clk *base)
 {
 	struct nvkm_device *device = base->subdev.device;
 	struct gk20a_clk *clk = gk20a_clk(base);
-	u32 val;
 
 	/* slide to VCO min */
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	if (val & GPCPLL_CFG_ENABLE) {
+	if (gk20a_pllg_is_enabled(clk)) {
 		struct gk20a_pll pll;
 		u32 n_lo;
 
 		gk20a_pllg_read_mnp(clk, &pll);
-		n_lo = DIV_ROUND_UP(pll.m * clk->params->min_vco,
-				    clk->parent_rate / KHZ);
+		n_lo = gk20a_pllg_n_lo(clk, &pll);
 		gk20a_pllg_slide(clk, n_lo);
 	}
 
-	/* put PLL in bypass before disabling it */
-	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT), 0);
-
 	gk20a_pllg_disable(clk);
+
+	/* set IDDQ */
+	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_IDDQ, 1);
 }
 
 static int
@@ -614,8 +569,17 @@ gk20a_clk_init(struct nvkm_clk *base)
 	struct nvkm_device *device = subdev->device;
 	int ret;
 
+	/* get out from IDDQ */
+	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_IDDQ, 0);
+	nvkm_rd32(device, GPCPLL_CFG);
+	udelay(5);
+
 	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK,
 		  GPC2CLK_OUT_INIT_VAL);
+
+	ret = gk20a_clk_setup_slide(clk);
+	if (ret)
+		return ret;
 
 	/* Start with lowest frequency */
 	base->func->calc(base, &base->func->pstates[0].base);
@@ -646,7 +610,7 @@ gk20a_clk = {
 };
 
 int
-_gk20a_clk_ctor(struct nvkm_device *device, int index,
+gk20a_clk_ctor(struct nvkm_device *device, int index,
 		const struct nvkm_clk_func *func,
 		const struct gk20a_clk_pllg_params *params,
 		struct gk20a_clk *clk)
@@ -685,7 +649,7 @@ gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 		return -ENOMEM;
 	*pclk = &clk->base;
 
-	ret = _gk20a_clk_ctor(device, index, &gk20a_clk, &gk20a_pllg_params,
+	ret = gk20a_clk_ctor(device, index, &gk20a_clk, &gk20a_pllg_params,
 			      clk);
 
 	clk->pl_to_div = pl_to_div;

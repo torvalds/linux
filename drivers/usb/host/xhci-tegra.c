@@ -1033,7 +1033,6 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	tegra->phys = devm_kcalloc(&pdev->dev, tegra->num_phys,
 				   sizeof(*tegra->phys), GFP_KERNEL);
 	if (!tegra->phys) {
-		dev_err(&pdev->dev, "failed to allocate PHY array\n");
 		err = -ENOMEM;
 		goto put_padctl;
 	}
@@ -1117,6 +1116,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 						 tegra->hcd);
 	if (!xhci->shared_hcd) {
 		dev_err(&pdev->dev, "failed to create shared HCD\n");
+		err = -ENOMEM;
 		goto remove_usb2;
 	}
 

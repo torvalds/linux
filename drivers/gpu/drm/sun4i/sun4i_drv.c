@@ -17,40 +17,13 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
 #include "sun4i_layer.h"
 #include "sun4i_tcon.h"
-
-static int sun4i_drv_connector_plug_all(struct drm_device *drm)
-{
-	struct drm_connector *connector, *failed;
-	int ret;
-
-	mutex_lock(&drm->mode_config.mutex);
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			failed = connector;
-			goto err;
-		}
-	}
-	mutex_unlock(&drm->mode_config.mutex);
-	return 0;
-
-err:
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		if (failed == connector)
-			break;
-
-		drm_connector_unregister(connector);
-	}
-	mutex_unlock(&drm->mode_config.mutex);
-
-	return ret;
-}
 
 static int sun4i_drv_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
@@ -103,7 +76,7 @@ static struct drm_driver sun4i_drv_driver = {
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_destroy		= drm_gem_dumb_destroy,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 
 	/* PRIME Operations */
@@ -120,10 +93,26 @@ static struct drm_driver sun4i_drv_driver = {
 	/* Frame Buffer Operations */
 
 	/* VBlank Operations */
-	.get_vblank_counter	= drm_vblank_count,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= sun4i_drv_enable_vblank,
 	.disable_vblank		= sun4i_drv_disable_vblank,
 };
+
+static void sun4i_remove_framebuffers(void)
+{
+	struct apertures_struct *ap;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return;
+
+	/* The framebuffer can be located anywhere in RAM */
+	ap->ranges[0].base = 0;
+	ap->ranges[0].size = ~0;
+
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "sun4i-drm-fb", false);
+	kfree(ap);
+}
 
 static int sun4i_drv_bind(struct device *dev)
 {
@@ -132,12 +121,8 @@ static int sun4i_drv_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&sun4i_drv_driver, dev);
-	if (!drm)
-		return -ENOMEM;
-
-	ret = drm_dev_set_unique(drm, dev_name(drm->dev));
-	if (ret)
-		goto free_drm;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
@@ -172,6 +157,9 @@ static int sun4i_drv_bind(struct device *dev)
 	}
 	drm->irq_enabled = true;
 
+	/* Remove early framebuffers (ie. simplefb) */
+	sun4i_remove_framebuffers();
+
 	/* Create our framebuffer */
 	drv->fbdev = sun4i_framebuffer_init(drm);
 	if (IS_ERR(drv->fbdev)) {
@@ -187,14 +175,8 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto free_drm;
 
-	ret = sun4i_drv_connector_plug_all(drm);
-	if (ret)
-		goto unregister_drm;
-
 	return 0;
 
-unregister_drm:
-	drm_dev_unregister(drm);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;
@@ -218,13 +200,14 @@ static const struct component_master_ops sun4i_drv_master_ops = {
 
 static bool sun4i_drv_node_is_frontend(struct device_node *node)
 {
-	return of_device_is_compatible(node,
-				       "allwinner,sun5i-a13-display-frontend");
+	return of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
+		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend");
 }
 
 static bool sun4i_drv_node_is_tcon(struct device_node *node)
 {
-	return of_device_is_compatible(node, "allwinner,sun5i-a13-tcon");
+	return of_device_is_compatible(node, "allwinner,sun5i-a13-tcon") ||
+		of_device_is_compatible(node, "allwinner,sun8i-a33-tcon");
 }
 
 static int compare_of(struct device *dev, void *data)
@@ -276,8 +259,8 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 		}
 
 		/*
-		 * If the node is our TCON, the first port is used for our
-		 * panel, and will not be part of the
+		 * If the node is our TCON, the first port is used for
+		 * panel or bridges, and will not be part of the
 		 * component framework.
 		 */
 		if (sun4i_drv_node_is_tcon(node)) {
@@ -318,6 +301,7 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 
 		count += sun4i_drv_add_endpoints(&pdev->dev, &match,
 						pipeline);
+		of_node_put(pipeline);
 
 		DRM_DEBUG_DRIVER("Queued %d outputs on pipeline %d\n",
 				 count, i);
@@ -338,6 +322,7 @@ static int sun4i_drv_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-engine" },
+	{ .compatible = "allwinner,sun8i-a33-display-engine" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);

@@ -212,6 +212,20 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		  u32 size_in_dwords,
 		  u32 flags);
 
+ /**
+ * @brief qed_dmae_grc2host - Read data from dmae data offset
+ * to source address using the given ptt
+ *
+ * @param p_ptt
+ * @param grc_addr (dmae_data_offset)
+ * @param dest_addr
+ * @param size_in_dwords
+ * @param flags - one of the flags defined above
+ */
+int qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		      u32 grc_addr, dma_addr_t dest_addr, u32 size_in_dwords,
+		      u32 flags);
+
 /**
  * @brief qed_dmae_host2host - copy data from to source address
  * to a destination adress (for SRIOV) using the given ptt
@@ -245,9 +259,8 @@ int
 qed_chain_alloc(struct qed_dev *cdev,
 		enum qed_chain_use_mode intended_use,
 		enum qed_chain_mode mode,
-		u16 num_elems,
-		size_t elem_size,
-		struct qed_chain *p_chain);
+		enum qed_chain_cnt_type cnt_type,
+		u32 num_elems, size_t elem_size, struct qed_chain *p_chain);
 
 /**
  * @brief qed_chain_free - Free chain DMA memory
@@ -255,8 +268,7 @@ qed_chain_alloc(struct qed_dev *cdev,
  * @param p_hwfn
  * @param p_chain
  */
-void qed_chain_free(struct qed_dev *cdev,
-		    struct qed_chain *p_chain);
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain);
 
 /**
  * @@brief qed_fw_l2_queue - Get absolute L2 queue ID
@@ -298,6 +310,26 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 		   u8 *dst_id);
 
 /**
+ * @brief qed_llh_add_mac_filter - configures a MAC filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_filter - MAC to add
+ */
+int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 *p_filter);
+
+/**
+ * @brief qed_llh_remove_mac_filter - removes a MAC filter from llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_filter - MAC to remove
+ */
+void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt, u8 *p_filter);
+
+/**
  * *@brief Cleanup of previous driver remains prior to load
  *
  * @param p_hwfn
@@ -310,4 +342,37 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
 		      struct qed_ptt *p_ptt, u16 id, bool is_vf);
 
+/**
+ * @brief qed_set_rxq_coalesce - Configure coalesce parameters for an Rx queue
+ * The fact that we can configure coalescing to up to 511, but on varying
+ * accuracy [the bigger the value the less accurate] up to a mistake of 3usec
+ * for the highest values.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param coalesce - Coalesce value in micro seconds.
+ * @param qid - Queue index.
+ * @param qid - SB Id
+ *
+ * @return int
+ */
+int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u16 coalesce, u8 qid, u16 sb_id);
+
+/**
+ * @brief qed_set_txq_coalesce - Configure coalesce parameters for a Tx queue
+ * While the API allows setting coalescing per-qid, all tx queues sharing a
+ * SB should be in same range [i.e., either 0-0x7f, 0x80-0xff or 0x100-0x1ff]
+ * otherwise configuration would break.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param coalesce - Coalesce value in micro seconds.
+ * @param qid - Queue index.
+ * @param qid - SB Id
+ *
+ * @return int
+ */
+int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u16 coalesce, u8 qid, u16 sb_id);
 #endif

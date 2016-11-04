@@ -93,6 +93,7 @@
 #include <net/inet_common.h>
 #endif
 #include <linux/bpf.h>
+#include <net/compat.h>
 
 #include "internal.h"
 
@@ -1340,7 +1341,7 @@ static unsigned int fanout_demux_hash(struct packet_fanout *f,
 				      struct sk_buff *skb,
 				      unsigned int num)
 {
-	return reciprocal_scale(skb_get_hash(skb), num);
+	return reciprocal_scale(__skb_get_hash_symmetric(skb), num);
 }
 
 static unsigned int fanout_demux_lb(struct packet_fanout *f,
@@ -1587,13 +1588,9 @@ static int fanout_set_data_ebpf(struct packet_sock *po, char __user *data,
 	if (copy_from_user(&fd, data, len))
 		return -EFAULT;
 
-	new = bpf_prog_get(fd);
+	new = bpf_prog_get_type(fd, BPF_PROG_TYPE_SOCKET_FILTER);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
-	if (new->type != BPF_PROG_TYPE_SOCKET_FILTER) {
-		bpf_prog_put(new);
-		return -EINVAL;
-	}
 
 	__fanout_set_data_bpf(po->fanout, new);
 	return 0;
@@ -1926,13 +1923,11 @@ retry:
 		goto out_unlock;
 	}
 
-	sockc.tsflags = 0;
+	sockc.tsflags = sk->sk_tsflags;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
-		if (unlikely(err)) {
-			err = -EINVAL;
+		if (unlikely(err))
 			goto out_unlock;
-		}
 	}
 
 	skb->protocol = proto;
@@ -1978,40 +1973,8 @@ static int __packet_rcv_vnet(const struct sk_buff *skb,
 {
 	*vnet_hdr = (const struct virtio_net_hdr) { 0 };
 
-	if (skb_is_gso(skb)) {
-		struct skb_shared_info *sinfo = skb_shinfo(skb);
-
-		/* This is a hint as to how much should be linear. */
-		vnet_hdr->hdr_len =
-			__cpu_to_virtio16(vio_le(), skb_headlen(skb));
-		vnet_hdr->gso_size =
-			__cpu_to_virtio16(vio_le(), sinfo->gso_size);
-
-		if (sinfo->gso_type & SKB_GSO_TCPV4)
-			vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
-		else if (sinfo->gso_type & SKB_GSO_TCPV6)
-			vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
-		else if (sinfo->gso_type & SKB_GSO_UDP)
-			vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_UDP;
-		else if (sinfo->gso_type & SKB_GSO_FCOE)
-			return -EINVAL;
-		else
-			BUG();
-
-		if (sinfo->gso_type & SKB_GSO_TCP_ECN)
-			vnet_hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
-	} else
-		vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		vnet_hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		vnet_hdr->csum_start = __cpu_to_virtio16(vio_le(),
-				  skb_checksum_start_offset(skb));
-		vnet_hdr->csum_offset = __cpu_to_virtio16(vio_le(),
-						 skb->csum_offset);
-	} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
-		vnet_hdr->flags = VIRTIO_NET_HDR_F_DATA_VALID;
-	} /* else everything is zero */
+	if (virtio_net_hdr_from_skb(skb, vnet_hdr, vio_le()))
+		BUG();
 
 	return 0;
 }
@@ -2677,7 +2640,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		dev = dev_get_by_index(sock_net(&po->sk), saddr->sll_ifindex);
 	}
 
-	sockc.tsflags = 0;
+	sockc.tsflags = po->sk.sk_tsflags;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(&po->sk, msg, &sockc);
 		if (unlikely(err))
@@ -2880,7 +2843,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_unlock;
 
-	sockc.tsflags = 0;
+	sockc.tsflags = sk->sk_tsflags;
 	sockc.mark = sk->sk_mark;
 	if (msg->msg_controllen) {
 		err = sock_cmsg_send(sk, msg, &sockc);
@@ -3940,6 +3903,27 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 }
 
 
+#ifdef CONFIG_COMPAT
+static int compat_packet_setsockopt(struct socket *sock, int level, int optname,
+				    char __user *optval, unsigned int optlen)
+{
+	struct packet_sock *po = pkt_sk(sock->sk);
+
+	if (level != SOL_PACKET)
+		return -ENOPROTOOPT;
+
+	if (optname == PACKET_FANOUT_DATA &&
+	    po->fanout && po->fanout->type == PACKET_FANOUT_CBPF) {
+		optval = (char __user *)get_compat_bpf_fprog(optval);
+		if (!optval)
+			return -EFAULT;
+		optlen = sizeof(struct sock_fprog);
+	}
+
+	return packet_setsockopt(sock, level, optname, optval, optlen);
+}
+#endif
+
 static int packet_notifier(struct notifier_block *this,
 			   unsigned long msg, void *ptr)
 {
@@ -3968,6 +3952,7 @@ static int packet_notifier(struct notifier_block *this,
 				}
 				if (msg == NETDEV_UNREGISTER) {
 					packet_cached_dev_reset(po);
+					fanout_release(sk);
 					po->ifindex = -1;
 					if (po->prot_hook.dev)
 						dev_put(po->prot_hook.dev);
@@ -4416,6 +4401,9 @@ static const struct proto_ops packet_ops = {
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	packet_setsockopt,
 	.getsockopt =	packet_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_packet_setsockopt,
+#endif
 	.sendmsg =	packet_sendmsg,
 	.recvmsg =	packet_recvmsg,
 	.mmap =		packet_mmap,

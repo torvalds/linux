@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -326,84 +322,6 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 	return rc;
 out_set:
 	lov_fini_getattr_set(set);
-	return rc;
-}
-
-int lov_fini_destroy_set(struct lov_request_set *set)
-{
-	if (!set)
-		return 0;
-	LASSERT(set->set_exp);
-	if (atomic_read(&set->set_completes)) {
-		/* FIXME update qos data here */
-	}
-
-	lov_put_reqset(set);
-
-	return 0;
-}
-
-int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
-			 struct obdo *src_oa, struct lov_stripe_md *lsm,
-			 struct obd_trans_info *oti,
-			 struct lov_request_set **reqset)
-{
-	struct lov_request_set *set;
-	struct lov_obd *lov = &exp->exp_obd->u.lov;
-	int rc = 0, i;
-
-	set = kzalloc(sizeof(*set), GFP_NOFS);
-	if (!set)
-		return -ENOMEM;
-	lov_init_set(set);
-
-	set->set_exp = exp;
-	set->set_oi = oinfo;
-	set->set_oi->oi_md = lsm;
-	set->set_oi->oi_oa = src_oa;
-	if (oti && src_oa->o_valid & OBD_MD_FLCOOKIE)
-		set->set_cookies = oti->oti_logcookies;
-
-	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		struct lov_oinfo *loi;
-		struct lov_request *req;
-
-		loi = lsm->lsm_oinfo[i];
-		if (lov_oinfo_is_dummy(loi))
-			continue;
-
-		if (!lov_check_and_wait_active(lov, loi->loi_ost_idx)) {
-			CDEBUG(D_HA, "lov idx %d inactive\n", loi->loi_ost_idx);
-			continue;
-		}
-
-		req = kzalloc(sizeof(*req), GFP_NOFS);
-		if (!req) {
-			rc = -ENOMEM;
-			goto out_set;
-		}
-
-		req->rq_stripe = i;
-		req->rq_idx = loi->loi_ost_idx;
-
-		req->rq_oi.oi_oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
-		if (!req->rq_oi.oi_oa) {
-			kfree(req);
-			rc = -ENOMEM;
-			goto out_set;
-		}
-		memcpy(req->rq_oi.oi_oa, src_oa, sizeof(*req->rq_oi.oi_oa));
-		req->rq_oi.oi_oa->o_oi = loi->loi_oi;
-		lov_set_add_req(req, set);
-	}
-	if (!set->set_count) {
-		rc = -EIO;
-		goto out_set;
-	}
-	*reqset = set;
-	return rc;
-out_set:
-	lov_fini_destroy_set(set);
 	return rc;
 }
 

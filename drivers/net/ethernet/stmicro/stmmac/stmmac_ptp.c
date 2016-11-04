@@ -186,10 +186,12 @@ int stmmac_ptp_register(struct stmmac_priv *priv)
 					     priv->device);
 	if (IS_ERR(priv->ptp_clock)) {
 		priv->ptp_clock = NULL;
-		pr_err("ptp_clock_register() failed on %s\n", priv->dev->name);
-	} else
-		pr_debug("Added PTP HW clock successfully on %s\n",
-			 priv->dev->name);
+		return PTR_ERR(priv->ptp_clock);
+	}
+
+	spin_lock_init(&priv->ptp_lock);
+
+	netdev_dbg(priv->dev, "Added PTP HW clock successfully\n");
 
 	return 0;
 }

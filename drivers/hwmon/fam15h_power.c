@@ -172,9 +172,9 @@ static void do_read_registers_on_cu(void *_data)
  */
 static int read_registers(struct fam15h_power_data *data)
 {
-	int this_cpu, ret, cpu;
 	int core, this_core;
 	cpumask_var_t mask;
+	int ret, cpu;
 
 	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
 	if (!ret)
@@ -183,7 +183,6 @@ static int read_registers(struct fam15h_power_data *data)
 	memset(data->cu_on, 0, sizeof(int) * MAX_CUS);
 
 	get_online_cpus();
-	this_cpu = smp_processor_id();
 
 	/*
 	 * Choose the first online core of each compute unit, and then
@@ -205,12 +204,9 @@ static int read_registers(struct fam15h_power_data *data)
 		cpumask_set_cpu(cpumask_any(topology_sibling_cpumask(cpu)), mask);
 	}
 
-	if (cpumask_test_cpu(this_cpu, mask))
-		do_read_registers_on_cu(data);
+	on_each_cpu_mask(mask, do_read_registers_on_cu, data, true);
 
-	smp_call_function_many(mask, do_read_registers_on_cu, data, true);
 	put_online_cpus();
-
 	free_cpumask_var(mask);
 
 	return 0;

@@ -33,6 +33,10 @@
 	};
 
 	soc {
+		dma@7884000 {
+			status = "okay";
+		};
+
 		serial@78af000 {
 			label = "LS-UART0";
 			status = "okay";
@@ -59,6 +63,47 @@
 		/* On High speed expansion */
 			label = "HS-I2C2";
 			status = "okay";
+
+			adv_bridge: bridge@39 {
+				status = "okay";
+
+				compatible = "adi,adv7533";
+				reg = <0x39>;
+
+				interrupt-parent = <&msmgpio>;
+				interrupts = <31 2>;
+
+				adi,dsi-lanes = <4>;
+
+				pd-gpios = <&msmgpio 32 0>;
+
+				avdd-supply = <&pm8916_l6>;
+				v1p2-supply = <&pm8916_l6>;
+				v3p3-supply = <&pm8916_l17>;
+
+				pinctrl-names = "default","sleep";
+				pinctrl-0 = <&adv7533_int_active &adv7533_switch_active>;
+				pinctrl-1 = <&adv7533_int_suspend &adv7533_switch_suspend>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						adv7533_in: endpoint {
+							remote-endpoint = <&dsi0_out>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						adv7533_out: endpoint {
+							remote-endpoint = <&hdmi_con>;
+						};
+					};
+				};
+			};
 		};
 
 		i2c@78ba000 {
@@ -140,6 +185,18 @@
 			status = "okay";
 		};
 
+		sdhci@07864000 {
+			vmmc-supply = <&pm8916_l11>;
+			vqmmc-supply = <&pm8916_l12>;
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+
+			cd-gpios = <&msmgpio 38 0x1>;
+			status = "okay";
+		};
+
 		usb@78d9000 {
 			extcon = <&usb_id>, <&usb_id>;
 			status = "okay";
@@ -164,6 +221,36 @@
 		lpass@07708000 {
 			status = "okay";
 		};
+
+		mdss@1a00000 {
+			status = "okay";
+
+			mdp@1a01000 {
+				status = "okay";
+			};
+
+			dsi@1a98000 {
+				status = "okay";
+
+				vdda-supply = <&pm8916_l2>;
+				vddio-supply = <&pm8916_l6>;
+
+				ports {
+					port@1 {
+						endpoint {
+							remote-endpoint = <&adv7533_in>;
+							data-lanes = <0 1 2 3>;
+						};
+					};
+				};
+			};
+
+			dsi-phy@1a98300 {
+				status = "okay";
+
+				vddio-supply = <&pm8916_l6>;
+			};
+		};
 	};
 
 	usb2513 {
@@ -177,6 +264,17 @@
 		id-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
+	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&adv7533_out>;
+			};
+		};
 	};
 };
 

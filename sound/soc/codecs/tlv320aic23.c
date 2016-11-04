@@ -583,12 +583,14 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320aic23 = {
 	.set_bias_level = tlv320aic23_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = tlv320aic23_snd_controls,
-	.num_controls = ARRAY_SIZE(tlv320aic23_snd_controls),
-	.dapm_widgets = tlv320aic23_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tlv320aic23_dapm_widgets),
-	.dapm_routes = tlv320aic23_intercon,
-	.num_dapm_routes = ARRAY_SIZE(tlv320aic23_intercon),
+	.component_driver = {
+		.controls		= tlv320aic23_snd_controls,
+		.num_controls		= ARRAY_SIZE(tlv320aic23_snd_controls),
+		.dapm_widgets		= tlv320aic23_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tlv320aic23_dapm_widgets),
+		.dapm_routes		= tlv320aic23_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(tlv320aic23_intercon),
+	},
 };
 
 int tlv320aic23_probe(struct device *dev, struct regmap *regmap)

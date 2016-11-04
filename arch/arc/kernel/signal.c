@@ -34,7 +34,7 @@
  *  -ViXS were still seeing crashes when using insmod to load drivers.
  *   It turned out that the code to change Execute permssions for TLB entries
  *   of user was not guarded for interrupts (mod_tlb_permission)
- *   This was cauing TLB entries to be overwritten on unrelated indexes
+ *   This was causing TLB entries to be overwritten on unrelated indexes
  *
  * Vineetg: July 15th 2008: Bug #94183
  *  -Exception happens in Delay slot of a JMP, and before user space resumes,
@@ -107,13 +107,13 @@ static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 	struct user_regs_struct uregs;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
-	if (!err)
-		set_current_blocked(&set);
-
 	err |= __copy_from_user(&uregs.scratch,
 				&(sf->uc.uc_mcontext.regs.scratch),
 				sizeof(sf->uc.uc_mcontext.regs.scratch));
+	if (err)
+		return err;
 
+	set_current_blocked(&set);
 	regs->bta	= uregs.scratch.bta;
 	regs->lp_start	= uregs.scratch.lp_start;
 	regs->lp_end	= uregs.scratch.lp_end;
@@ -138,7 +138,7 @@ static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 	regs->r0	= uregs.scratch.r0;
 	regs->sp	= uregs.scratch.sp;
 
-	return err;
+	return 0;
 }
 
 static inline int is_do_ss_needed(unsigned int magic)

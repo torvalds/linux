@@ -77,7 +77,7 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 	nf_log_buf_add(m, "SPT=%u DPT=%u ",
 		       ntohs(th->source), ntohs(th->dest));
 	/* Max length: 30 "SEQ=4294967295 ACK=4294967295 " */
-	if (logflags & XT_LOG_TCPSEQ) {
+	if (logflags & NF_LOG_TCPSEQ) {
 		nf_log_buf_add(m, "SEQ=%u ACK=%u ",
 			       ntohl(th->seq), ntohl(th->ack_seq));
 	}
@@ -107,7 +107,7 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 	/* Max length: 11 "URGP=65535 " */
 	nf_log_buf_add(m, "URGP=%u ", ntohs(th->urg_ptr));
 
-	if ((logflags & XT_LOG_TCPOPT) && th->doff*4 > sizeof(struct tcphdr)) {
+	if ((logflags & NF_LOG_TCPOPT) && th->doff*4 > sizeof(struct tcphdr)) {
 		u_int8_t _opt[60 - sizeof(struct tcphdr)];
 		const u_int8_t *op;
 		unsigned int i;

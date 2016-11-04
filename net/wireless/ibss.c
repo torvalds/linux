@@ -43,7 +43,8 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
-	cfg80211_upload_connect_keys(wdev);
+	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
+		cfg80211_upload_connect_keys(wdev);
 
 	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bssid,
 				GFP_KERNEL);
@@ -113,6 +114,9 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 				params->basic_rates |= BIT(j);
 		}
 	}
+
+	if (WARN_ON(connkeys && connkeys->def < 0))
+		return -EINVAL;
 
 	if (WARN_ON(wdev->connect_keys))
 		kzfree(wdev->connect_keys);
@@ -284,18 +288,16 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	if (!netif_running(wdev->netdev))
 		return 0;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys)
 		wdev->wext.keys->def = wdev->wext.default_key;
-		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
-	}
 
 	wdev->wext.ibss.privacy = wdev->wext.default_key != -1;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys && wdev->wext.keys->def != -1) {
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
 			return -ENOMEM;
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++)
 			ck->params[i].key = ck->data[i];
 	}
 	err = __cfg80211_join_ibss(rdev, wdev->netdev,

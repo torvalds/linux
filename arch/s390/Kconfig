@@ -67,12 +67,13 @@ config DEBUG_RODATA
 
 config S390
 	def_bool y
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_GIGANTIC_PAGE
+	select ARCH_HAS_KCOV
 	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_INLINE_READ_LOCK
 	select ARCH_INLINE_READ_LOCK_BH
@@ -109,6 +110,7 @@ config S390
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANTS_PROT_NUMA_PROT_NONE
+	select ARCH_WANTS_UBSAN_NO_NULL
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS2
@@ -122,6 +124,7 @@ config S390
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_EARLY_PFN_TO_NID
+	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_JUMP_LABEL
 	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -135,6 +138,7 @@ config S390
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EXIT_THREAD
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -163,6 +167,7 @@ config S390
 	select NO_BOOTMEM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select TTY
 	select VIRT_CPU_ACCOUNTING
@@ -477,6 +482,9 @@ config SCHED_MC
 config SCHED_BOOK
 	def_bool n
 
+config SCHED_DRAWER
+	def_bool n
+
 config SCHED_TOPOLOGY
 	def_bool y
 	prompt "Topology scheduler support"
@@ -484,6 +492,7 @@ config SCHED_TOPOLOGY
 	select SCHED_SMT
 	select SCHED_MC
 	select SCHED_BOOK
+	select SCHED_DRAWER
 	help
 	  Topology scheduler support improves the CPU scheduler's decision
 	  making when dealing with machines that have multi-threading,
@@ -604,16 +613,6 @@ config PCI_NR_FUNCTIONS
 	help
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
-
-config PCI_NR_MSI
-	int "Maximum number of MSI interrupts (64-32768)"
-	range 64 32768
-	default "256"
-	help
-	  This defines the number of virtual interrupts the kernel will
-	  provide for MSI interrupts. If you configure your system to have
-	  too few drivers will fail to allocate MSI interrupts for all
-	  PCI devices.
 
 source "drivers/pci/Kconfig"
 
@@ -874,5 +873,18 @@ config S390_GUEST
 
 	  Select this option if you want to run the kernel as a guest under
 	  the KVM hypervisor.
+
+config S390_GUEST_OLD_TRANSPORT
+	def_bool y
+	prompt "Guest support for old s390 virtio transport (DEPRECATED)"
+	depends on S390_GUEST
+	help
+	  Enable this option to add support for the old s390-virtio
+	  transport (i.e. virtio devices NOT based on virtio-ccw). This
+	  type of virtio devices is only available on the experimental
+	  kuli userspace or with old (< 2.6) qemu. If you are running
+	  with a modern version of qemu (which supports virtio-ccw since
+	  1.4 and uses it by default since version 2.4), you probably won't
+	  need this.
 
 endmenu

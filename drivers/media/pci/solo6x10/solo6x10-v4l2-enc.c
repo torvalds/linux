@@ -33,7 +33,7 @@
 #include "solo6x10-jpeg.h"
 
 #define MIN_VID_BUFFERS		2
-#define FRAME_BUF_SIZE		(196 * 1024)
+#define FRAME_BUF_SIZE		(400 * 1024)
 #define MP4_QS			16
 #define DMA_ALIGN		4096
 
@@ -664,12 +664,9 @@ static int solo_ring_thread(void *data)
 static int solo_enc_queue_setup(struct vb2_queue *q,
 				unsigned int *num_buffers,
 				unsigned int *num_planes, unsigned int sizes[],
-				void *alloc_ctxs[])
+				struct device *alloc_devs[])
 {
-	struct solo_enc_dev *solo_enc = vb2_get_drv_priv(q);
-
 	sizes[0] = FRAME_BUF_SIZE;
-	alloc_ctxs[0] = solo_enc->alloc_ctx;
 	*num_planes = 1;
 
 	if (*num_buffers < MIN_VID_BUFFERS)
@@ -762,7 +759,7 @@ static void solo_enc_buf_finish(struct vb2_buffer *vb)
 	}
 }
 
-static struct vb2_ops solo_enc_video_qops = {
+static const struct vb2_ops solo_enc_video_qops = {
 	.queue_setup	= solo_enc_queue_setup,
 	.buf_queue	= solo_enc_buf_queue,
 	.buf_finish	= solo_enc_buf_finish,
@@ -1239,11 +1236,6 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 		return ERR_PTR(-ENOMEM);
 
 	hdl = &solo_enc->hdl;
-	solo_enc->alloc_ctx = vb2_dma_sg_init_ctx(&solo_dev->pdev->dev);
-	if (IS_ERR(solo_enc->alloc_ctx)) {
-		ret = PTR_ERR(solo_enc->alloc_ctx);
-		goto hdl_free;
-	}
 	v4l2_ctrl_handler_init(hdl, 10);
 	v4l2_ctrl_new_std(hdl, &solo_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
@@ -1299,6 +1291,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	solo_enc->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_enc->vidq.lock = &solo_enc->lock;
+	solo_enc->vidq.dev = &solo_dev->pdev->dev;
 	ret = vb2_queue_init(&solo_enc->vidq);
 	if (ret)
 		goto hdl_free;
@@ -1347,7 +1340,6 @@ pci_free:
 			solo_enc->desc_items, solo_enc->desc_dma);
 hdl_free:
 	v4l2_ctrl_handler_free(hdl);
-	vb2_dma_sg_cleanup_ctx(solo_enc->alloc_ctx);
 	kfree(solo_enc);
 	return ERR_PTR(ret);
 }
@@ -1362,7 +1354,6 @@ static void solo_enc_free(struct solo_enc_dev *solo_enc)
 			solo_enc->desc_items, solo_enc->desc_dma);
 	video_unregister_device(solo_enc->vfd);
 	v4l2_ctrl_handler_free(&solo_enc->hdl);
-	vb2_dma_sg_cleanup_ctx(solo_enc->alloc_ctx);
 	kfree(solo_enc);
 }
 

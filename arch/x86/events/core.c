@@ -17,7 +17,8 @@
 #include <linux/notifier.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
@@ -36,6 +37,7 @@
 #include <asm/timer.h>
 #include <asm/desc.h>
 #include <asm/ldt.h>
+#include <asm/unwind.h>
 
 #include "perf_event.h"
 
@@ -262,10 +264,13 @@ static bool check_hw_exists(void)
 	return true;
 
 msr_fail:
-	pr_cont("Broken PMU hardware detected, using software events only.\n");
-	pr_info("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
-		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
-		reg, val_new);
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
+		pr_cont("PMU not available due to virtualization, using software events only.\n");
+	} else {
+		pr_cont("Broken PMU hardware detected, using software events only.\n");
+		pr_err("Failed to access perfctr msr (MSR %x is %Lx)\n",
+		       reg, val_new);
+	}
 
 	return false;
 }
@@ -1197,6 +1202,9 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	 * If group events scheduling transaction was started,
 	 * skip the schedulability test here, it will be performed
 	 * at commit time (->commit_txn) as a whole.
+	 *
+	 * If commit fails, we'll call ->del() on all events
+	 * for which ->add() was called.
 	 */
 	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		goto done_collect;
@@ -1218,6 +1226,14 @@ done_collect:
 	cpuc->n_events = n;
 	cpuc->n_added += n - n0;
 	cpuc->n_txn += n - n0;
+
+	if (x86_pmu.add) {
+		/*
+		 * This is before x86_pmu_enable() will call x86_pmu_start(),
+		 * so we enable LBRs before an event needs them etc..
+		 */
+		x86_pmu.add(event);
+	}
 
 	ret = 0;
 out:
@@ -1342,7 +1358,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	event->hw.flags &= ~PERF_X86_EVENT_COMMITTED;
 
 	/*
-	 * If we're called during a txn, we don't need to do anything.
+	 * If we're called during a txn, we only need to undo x86_pmu.add.
 	 * The events never got scheduled and ->cancel_txn will truncate
 	 * the event_list.
 	 *
@@ -1350,7 +1366,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	 * an event added during that same TXN.
 	 */
 	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
-		return;
+		goto do_del;
 
 	/*
 	 * Not a TXN, therefore cleanup properly.
@@ -1380,6 +1396,15 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	--cpuc->n_events;
 
 	perf_event_update_userpage(event);
+
+do_del:
+	if (x86_pmu.del) {
+		/*
+		 * This is after x86_pmu_stop(); so we disable LBRs after any
+		 * event can need them etc..
+		 */
+		x86_pmu.del(event);
+	}
 }
 
 int x86_pmu_handle_irq(struct pt_regs *regs)
@@ -1477,49 +1502,49 @@ NOKPROBE_SYMBOL(perf_event_nmi_handler);
 struct event_constraint emptyconstraint;
 struct event_constraint unconstrained;
 
-static int
-x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+static int x86_pmu_prepare_cpu(unsigned int cpu)
 {
-	unsigned int cpu = (long)hcpu;
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
-	int i, ret = NOTIFY_OK;
+	int i;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
-		for (i = 0 ; i < X86_PERF_KFREE_MAX; i++)
-			cpuc->kfree_on_online[i] = NULL;
-		if (x86_pmu.cpu_prepare)
-			ret = x86_pmu.cpu_prepare(cpu);
-		break;
+	for (i = 0 ; i < X86_PERF_KFREE_MAX; i++)
+		cpuc->kfree_on_online[i] = NULL;
+	if (x86_pmu.cpu_prepare)
+		return x86_pmu.cpu_prepare(cpu);
+	return 0;
+}
 
-	case CPU_STARTING:
-		if (x86_pmu.cpu_starting)
-			x86_pmu.cpu_starting(cpu);
-		break;
+static int x86_pmu_dead_cpu(unsigned int cpu)
+{
+	if (x86_pmu.cpu_dead)
+		x86_pmu.cpu_dead(cpu);
+	return 0;
+}
 
-	case CPU_ONLINE:
-		for (i = 0 ; i < X86_PERF_KFREE_MAX; i++) {
-			kfree(cpuc->kfree_on_online[i]);
-			cpuc->kfree_on_online[i] = NULL;
-		}
-		break;
+static int x86_pmu_online_cpu(unsigned int cpu)
+{
+	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	int i;
 
-	case CPU_DYING:
-		if (x86_pmu.cpu_dying)
-			x86_pmu.cpu_dying(cpu);
-		break;
-
-	case CPU_UP_CANCELED:
-	case CPU_DEAD:
-		if (x86_pmu.cpu_dead)
-			x86_pmu.cpu_dead(cpu);
-		break;
-
-	default:
-		break;
+	for (i = 0 ; i < X86_PERF_KFREE_MAX; i++) {
+		kfree(cpuc->kfree_on_online[i]);
+		cpuc->kfree_on_online[i] = NULL;
 	}
+	return 0;
+}
 
-	return ret;
+static int x86_pmu_starting_cpu(unsigned int cpu)
+{
+	if (x86_pmu.cpu_starting)
+		x86_pmu.cpu_starting(cpu);
+	return 0;
+}
+
+static int x86_pmu_dying_cpu(unsigned int cpu)
+{
+	if (x86_pmu.cpu_dying)
+		x86_pmu.cpu_dying(cpu);
+	return 0;
 }
 
 static void __init pmu_check_apic(void)
@@ -1621,6 +1646,29 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, cha
 	return x86_pmu.events_sysfs_show(page, config);
 }
 EXPORT_SYMBOL_GPL(events_sysfs_show);
+
+ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page)
+{
+	struct perf_pmu_events_ht_attr *pmu_attr =
+		container_of(attr, struct perf_pmu_events_ht_attr, attr);
+
+	/*
+	 * Report conditional events depending on Hyper-Threading.
+	 *
+	 * This is overly conservative as usually the HT special
+	 * handling is not needed if the other CPU thread is idle.
+	 *
+	 * Note this does not (and cannot) handle the case when thread
+	 * siblings are invisible, for example with virtualization
+	 * if they are owned by some other guest.  The user tool
+	 * has to re-read when a thread sibling gets onlined later.
+	 */
+	return sprintf(page, "%s",
+			topology_max_smt_threads() > 1 ?
+			pmu_attr->event_str_ht :
+			pmu_attr->event_str_noht);
+}
 
 EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
 EVENT_ATTR(instructions,		INSTRUCTIONS		);
@@ -1764,10 +1812,39 @@ static int __init init_hw_perf_events(void)
 	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_counters_fixed);
 	pr_info("... event mask:             %016Lx\n", x86_pmu.intel_ctrl);
 
-	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
-	perf_cpu_notifier(x86_pmu_notifier);
+	/*
+	 * Install callbacks. Core will call them for each online
+	 * cpu.
+	 */
+	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "PERF_X86_PREPARE",
+				x86_pmu_prepare_cpu, x86_pmu_dead_cpu);
+	if (err)
+		return err;
+
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_STARTING,
+				"AP_PERF_X86_STARTING", x86_pmu_starting_cpu,
+				x86_pmu_dying_cpu);
+	if (err)
+		goto out;
+
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "AP_PERF_X86_ONLINE",
+				x86_pmu_online_cpu, NULL);
+	if (err)
+		goto out1;
+
+	err = perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
+	if (err)
+		goto out2;
 
 	return 0;
+
+out2:
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_ONLINE);
+out1:
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_STARTING);
+out:
+	cpuhp_remove_state(CPUHP_PERF_X86_PREPARE);
+	return err;
 }
 early_initcall(init_hw_perf_events);
 
@@ -2191,39 +2268,26 @@ void arch_perf_update_userpage(struct perf_event *event,
 	cyc2ns_read_end(data);
 }
 
-/*
- * callchain support
- */
-
-static int backtrace_stack(void *data, char *name)
-{
-	return 0;
-}
-
-static int backtrace_address(void *data, unsigned long addr, int reliable)
-{
-	struct perf_callchain_entry_ctx *entry = data;
-
-	return perf_callchain_store(entry, addr);
-}
-
-static const struct stacktrace_ops backtrace_ops = {
-	.stack			= backtrace_stack,
-	.address		= backtrace_address,
-	.walk_stack		= print_context_stack_bp,
-};
-
 void
 perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
+	struct unwind_state state;
+	unsigned long addr;
+
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
 		return;
 	}
 
-	perf_callchain_store(entry, regs->ip);
+	if (perf_callchain_store(entry, regs->ip))
+		return;
 
-	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
+	for (unwind_start(&state, current, regs, NULL); !unwind_done(&state);
+	     unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		if (!addr || perf_callchain_store(entry, addr))
+			return;
+	}
 }
 
 static inline int
@@ -2319,7 +2383,7 @@ void
 perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct stack_frame frame;
-	const void __user *fp;
+	const unsigned long __user *fp;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
@@ -2332,7 +2396,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 	if (regs->flags & (X86_VM_MASK | PERF_EFLAGS_VM))
 		return;
 
-	fp = (void __user *)regs->bp;
+	fp = (unsigned long __user *)regs->bp;
 
 	perf_callchain_store(entry, regs->ip);
 
@@ -2345,16 +2409,17 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 	pagefault_disable();
 	while (entry->nr < entry->max_stack) {
 		unsigned long bytes;
+
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
-		if (!access_ok(VERIFY_READ, fp, 16))
+		if (!access_ok(VERIFY_READ, fp, sizeof(*fp) * 2))
 			break;
 
-		bytes = __copy_from_user_nmi(&frame.next_frame, fp, 8);
+		bytes = __copy_from_user_nmi(&frame.next_frame, fp, sizeof(*fp));
 		if (bytes != 0)
 			break;
-		bytes = __copy_from_user_nmi(&frame.return_address, fp+8, 8);
+		bytes = __copy_from_user_nmi(&frame.return_address, fp + 1, sizeof(*fp));
 		if (bytes != 0)
 			break;
 

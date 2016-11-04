@@ -46,6 +46,16 @@ enum wmi_mid {
 	MID_BROADCAST		= 0xFF,
 };
 
+/* FW capability IDs
+ * Each ID maps to a bit in a 32-bit bitmask value provided by the FW to
+ * the host
+ */
+enum wmi_fw_capability {
+	WMI_FW_CAPABILITY_FTM		= 0,
+	WMI_FW_CAPABILITY_PS_CONFIG	= 1,
+	WMI_FW_CAPABILITY_MAX,
+};
+
 /* WMI_CMD_HDR */
 struct wmi_cmd_hdr {
 	u8 mid;
@@ -120,6 +130,8 @@ enum wmi_command_id {
 	WMI_BF_SM_MGMT_CMDID			= 0x838,
 	WMI_BF_RXSS_MGMT_CMDID			= 0x839,
 	WMI_BF_TRIG_CMDID			= 0x83A,
+	WMI_LINK_MAINTAIN_CFG_WRITE_CMDID	= 0x842,
+	WMI_LINK_MAINTAIN_CFG_READ_CMDID	= 0x843,
 	WMI_SET_SECTORS_CMDID			= 0x849,
 	WMI_MAINTAIN_PAUSE_CMDID		= 0x850,
 	WMI_MAINTAIN_RESUME_CMDID		= 0x851,
@@ -134,10 +146,15 @@ enum wmi_command_id {
 	WMI_BF_CTRL_CMDID			= 0x862,
 	WMI_NOTIFY_REQ_CMDID			= 0x863,
 	WMI_GET_STATUS_CMDID			= 0x864,
+	WMI_GET_RF_STATUS_CMDID			= 0x866,
+	WMI_GET_BASEBAND_TYPE_CMDID		= 0x867,
 	WMI_UNIT_TEST_CMDID			= 0x900,
 	WMI_HICCUP_CMDID			= 0x901,
 	WMI_FLASH_READ_CMDID			= 0x902,
 	WMI_FLASH_WRITE_CMDID			= 0x903,
+	/* Power management */
+	WMI_TRAFFIC_DEFERRAL_CMDID		= 0x904,
+	WMI_TRAFFIC_RESUME_CMDID		= 0x905,
 	/* P2P */
 	WMI_P2P_CFG_CMDID			= 0x910,
 	WMI_PORT_ALLOCATE_CMDID			= 0x911,
@@ -150,6 +167,26 @@ enum wmi_command_id {
 	WMI_PCP_START_CMDID			= 0x918,
 	WMI_PCP_STOP_CMDID			= 0x919,
 	WMI_GET_PCP_FACTOR_CMDID		= 0x91B,
+	/* Power Save Configuration Commands */
+	WMI_PS_DEV_PROFILE_CFG_CMDID		= 0x91C,
+	/* Not supported yet */
+	WMI_PS_DEV_CFG_CMDID			= 0x91D,
+	/* Not supported yet */
+	WMI_PS_DEV_CFG_READ_CMDID		= 0x91E,
+	/* Per MAC Power Save Configuration commands
+	 * Not supported yet
+	 */
+	WMI_PS_MID_CFG_CMDID			= 0x91F,
+	/* Not supported yet */
+	WMI_PS_MID_CFG_READ_CMDID		= 0x920,
+	WMI_RS_CFG_CMDID			= 0x921,
+	WMI_GET_DETAILED_RS_RES_CMDID		= 0x922,
+	WMI_AOA_MEAS_CMDID			= 0x923,
+	WMI_TOF_SESSION_START_CMDID		= 0x991,
+	WMI_TOF_GET_CAPABILITIES_CMDID		= 0x992,
+	WMI_TOF_SET_LCR_CMDID			= 0x993,
+	WMI_TOF_SET_LCI_CMDID			= 0x994,
+	WMI_TOF_CHANNEL_INFO_CMDID		= 0x995,
 	WMI_SET_MAC_ADDRESS_CMDID		= 0xF003,
 	WMI_ABORT_SCAN_CMDID			= 0xF007,
 	WMI_SET_PROMISCUOUS_MODE_CMDID		= 0xF041,
@@ -291,9 +328,8 @@ enum wmi_scan_type {
 /* WMI_START_SCAN_CMDID */
 struct wmi_start_scan_cmd {
 	u8 direct_scan_mac_addr[WMI_MAC_LEN];
-	/* DMG Beacon frame is transmitted during active scanning */
+	/* run scan with discovery beacon. Relevant for ACTIVE scan only. */
 	u8 discovery_mode;
-	/* reserved */
 	u8 reserved;
 	/* Max duration in the home channel(ms) */
 	__le32 dwell_time;
@@ -451,6 +487,12 @@ struct wmi_port_allocate_cmd {
 struct wmi_port_delete_cmd {
 	u8 mid;
 	u8 reserved[3];
+} __packed;
+
+/* WMI_TRAFFIC_DEFERRAL_CMDID */
+struct wmi_traffic_deferral_cmd {
+	/* Bit vector: bit[0] - wake on Unicast, bit[1] - wake on Broadcast */
+	u8 wakeup_trigger;
 } __packed;
 
 /* WMI_P2P_CFG_CMDID */
@@ -818,85 +860,193 @@ struct wmi_pmc_cmd {
 	__le64 mem_base;
 } __packed;
 
+enum wmi_aoa_meas_type {
+	WMI_AOA_PHASE_MEAS	= 0x00,
+	WMI_AOA_PHASE_AMP_MEAS	= 0x01,
+};
+
+/* WMI_AOA_MEAS_CMDID */
+struct wmi_aoa_meas_cmd {
+	u8 mac_addr[WMI_MAC_LEN];
+	/* channels IDs:
+	 * 0 - 58320 MHz
+	 * 1 - 60480 MHz
+	 * 2 - 62640 MHz
+	 */
+	u8 channel;
+	/* enum wmi_aoa_meas_type */
+	u8 aoa_meas_type;
+	__le32 meas_rf_mask;
+} __packed;
+
+enum wmi_tof_burst_duration {
+	WMI_TOF_BURST_DURATION_250_USEC		= 2,
+	WMI_TOF_BURST_DURATION_500_USEC		= 3,
+	WMI_TOF_BURST_DURATION_1_MSEC		= 4,
+	WMI_TOF_BURST_DURATION_2_MSEC		= 5,
+	WMI_TOF_BURST_DURATION_4_MSEC		= 6,
+	WMI_TOF_BURST_DURATION_8_MSEC		= 7,
+	WMI_TOF_BURST_DURATION_16_MSEC		= 8,
+	WMI_TOF_BURST_DURATION_32_MSEC		= 9,
+	WMI_TOF_BURST_DURATION_64_MSEC		= 10,
+	WMI_TOF_BURST_DURATION_128_MSEC		= 11,
+	WMI_TOF_BURST_DURATION_NO_PREFERENCES	= 15,
+};
+
+enum wmi_tof_session_start_flags {
+	WMI_TOF_SESSION_START_FLAG_SECURED	= 0x1,
+	WMI_TOF_SESSION_START_FLAG_ASAP		= 0x2,
+	WMI_TOF_SESSION_START_FLAG_LCI_REQ	= 0x4,
+	WMI_TOF_SESSION_START_FLAG_LCR_REQ	= 0x8,
+};
+
+/* WMI_TOF_SESSION_START_CMDID */
+struct wmi_ftm_dest_info {
+	u8 channel;
+	/* wmi_tof_session_start_flags_e */
+	u8 flags;
+	u8 initial_token;
+	u8 num_of_ftm_per_burst;
+	u8 num_of_bursts_exp;
+	/* wmi_tof_burst_duration_e */
+	u8 burst_duration;
+	/* Burst Period indicate interval between two consecutive burst
+	 * instances, in units of 100 ms
+	 */
+	__le16 burst_period;
+	u8 dst_mac[WMI_MAC_LEN];
+	__le16 reserved;
+} __packed;
+
+/* WMI_TOF_SESSION_START_CMDID */
+struct wmi_tof_session_start_cmd {
+	__le32 session_id;
+	u8 num_of_aoa_measures;
+	u8 aoa_type;
+	__le16 num_of_dest;
+	u8 reserved[4];
+	struct wmi_ftm_dest_info ftm_dest_info[0];
+} __packed;
+
+enum wmi_tof_channel_info_report_type {
+	WMI_TOF_CHANNEL_INFO_TYPE_CIR			= 0x1,
+	WMI_TOF_CHANNEL_INFO_TYPE_RSSI			= 0x2,
+	WMI_TOF_CHANNEL_INFO_TYPE_SNR			= 0x4,
+	WMI_TOF_CHANNEL_INFO_TYPE_DEBUG_DATA		= 0x8,
+	WMI_TOF_CHANNEL_INFO_TYPE_VENDOR_SPECIFIC	= 0x10,
+};
+
+/* WMI_TOF_CHANNEL_INFO_CMDID */
+struct wmi_tof_channel_info_cmd {
+	/* wmi_tof_channel_info_report_type_e */
+	__le32 channel_info_report_request;
+} __packed;
+
 /* WMI Events
  * List of Events (target to host)
  */
 enum wmi_event_id {
-	WMI_READY_EVENTID			= 0x1001,
-	WMI_CONNECT_EVENTID			= 0x1002,
-	WMI_DISCONNECT_EVENTID			= 0x1003,
-	WMI_SCAN_COMPLETE_EVENTID		= 0x100A,
-	WMI_REPORT_STATISTICS_EVENTID		= 0x100B,
-	WMI_RD_MEM_RSP_EVENTID			= 0x1800,
-	WMI_FW_READY_EVENTID			= 0x1801,
-	WMI_EXIT_FAST_MEM_ACC_MODE_EVENTID	= 0x200,
-	WMI_ECHO_RSP_EVENTID			= 0x1803,
-	WMI_FS_TUNE_DONE_EVENTID		= 0x180A,
-	WMI_CORR_MEASURE_EVENTID		= 0x180B,
-	WMI_READ_RSSI_EVENTID			= 0x180C,
-	WMI_TEMP_SENSE_DONE_EVENTID		= 0x180E,
-	WMI_DC_CALIB_DONE_EVENTID		= 0x180F,
-	WMI_IQ_TX_CALIB_DONE_EVENTID		= 0x1811,
-	WMI_IQ_RX_CALIB_DONE_EVENTID		= 0x1812,
-	WMI_SET_WORK_MODE_DONE_EVENTID		= 0x1815,
-	WMI_LO_LEAKAGE_CALIB_DONE_EVENTID	= 0x1816,
-	WMI_MARLON_R_READ_DONE_EVENTID		= 0x1818,
-	WMI_MARLON_R_WRITE_DONE_EVENTID		= 0x1819,
-	WMI_MARLON_R_TXRX_SEL_DONE_EVENTID	= 0x181A,
-	WMI_SILENT_RSSI_CALIB_DONE_EVENTID	= 0x181D,
-	WMI_RF_RX_TEST_DONE_EVENTID		= 0x181E,
-	WMI_CFG_RX_CHAIN_DONE_EVENTID		= 0x1820,
-	WMI_VRING_CFG_DONE_EVENTID		= 0x1821,
-	WMI_BA_STATUS_EVENTID			= 0x1823,
-	WMI_RCP_ADDBA_REQ_EVENTID		= 0x1824,
-	WMI_RCP_ADDBA_RESP_SENT_EVENTID		= 0x1825,
-	WMI_DELBA_EVENTID			= 0x1826,
-	WMI_GET_SSID_EVENTID			= 0x1828,
-	WMI_GET_PCP_CHANNEL_EVENTID		= 0x182A,
-	WMI_SW_TX_COMPLETE_EVENTID		= 0x182B,
-	WMI_READ_MAC_RXQ_EVENTID		= 0x1830,
-	WMI_READ_MAC_TXQ_EVENTID		= 0x1831,
-	WMI_WRITE_MAC_RXQ_EVENTID		= 0x1832,
-	WMI_WRITE_MAC_TXQ_EVENTID		= 0x1833,
-	WMI_WRITE_MAC_XQ_FIELD_EVENTID		= 0x1834,
-	WMI_BEAMFORMING_MGMT_DONE_EVENTID	= 0x1836,
-	WMI_BF_TXSS_MGMT_DONE_EVENTID		= 0x1837,
-	WMI_BF_RXSS_MGMT_DONE_EVENTID		= 0x1839,
-	WMI_RS_MGMT_DONE_EVENTID		= 0x1852,
-	WMI_RF_MGMT_STATUS_EVENTID		= 0x1853,
-	WMI_THERMAL_THROTTLING_STATUS_EVENTID	= 0x1855,
-	WMI_BF_SM_MGMT_DONE_EVENTID		= 0x1838,
-	WMI_RX_MGMT_PACKET_EVENTID		= 0x1840,
-	WMI_TX_MGMT_PACKET_EVENTID		= 0x1841,
-	WMI_OTP_READ_RESULT_EVENTID		= 0x1856,
-	WMI_LED_CFG_DONE_EVENTID		= 0x1858,
+	WMI_READY_EVENTID				= 0x1001,
+	WMI_CONNECT_EVENTID				= 0x1002,
+	WMI_DISCONNECT_EVENTID				= 0x1003,
+	WMI_SCAN_COMPLETE_EVENTID			= 0x100A,
+	WMI_REPORT_STATISTICS_EVENTID			= 0x100B,
+	WMI_RD_MEM_RSP_EVENTID				= 0x1800,
+	WMI_FW_READY_EVENTID				= 0x1801,
+	WMI_EXIT_FAST_MEM_ACC_MODE_EVENTID		= 0x200,
+	WMI_ECHO_RSP_EVENTID				= 0x1803,
+	WMI_FS_TUNE_DONE_EVENTID			= 0x180A,
+	WMI_CORR_MEASURE_EVENTID			= 0x180B,
+	WMI_READ_RSSI_EVENTID				= 0x180C,
+	WMI_TEMP_SENSE_DONE_EVENTID			= 0x180E,
+	WMI_DC_CALIB_DONE_EVENTID			= 0x180F,
+	WMI_IQ_TX_CALIB_DONE_EVENTID			= 0x1811,
+	WMI_IQ_RX_CALIB_DONE_EVENTID			= 0x1812,
+	WMI_SET_WORK_MODE_DONE_EVENTID			= 0x1815,
+	WMI_LO_LEAKAGE_CALIB_DONE_EVENTID		= 0x1816,
+	WMI_MARLON_R_READ_DONE_EVENTID			= 0x1818,
+	WMI_MARLON_R_WRITE_DONE_EVENTID			= 0x1819,
+	WMI_MARLON_R_TXRX_SEL_DONE_EVENTID		= 0x181A,
+	WMI_SILENT_RSSI_CALIB_DONE_EVENTID		= 0x181D,
+	WMI_RF_RX_TEST_DONE_EVENTID			= 0x181E,
+	WMI_CFG_RX_CHAIN_DONE_EVENTID			= 0x1820,
+	WMI_VRING_CFG_DONE_EVENTID			= 0x1821,
+	WMI_BA_STATUS_EVENTID				= 0x1823,
+	WMI_RCP_ADDBA_REQ_EVENTID			= 0x1824,
+	WMI_RCP_ADDBA_RESP_SENT_EVENTID			= 0x1825,
+	WMI_DELBA_EVENTID				= 0x1826,
+	WMI_GET_SSID_EVENTID				= 0x1828,
+	WMI_GET_PCP_CHANNEL_EVENTID			= 0x182A,
+	WMI_SW_TX_COMPLETE_EVENTID			= 0x182B,
+	WMI_READ_MAC_RXQ_EVENTID			= 0x1830,
+	WMI_READ_MAC_TXQ_EVENTID			= 0x1831,
+	WMI_WRITE_MAC_RXQ_EVENTID			= 0x1832,
+	WMI_WRITE_MAC_TXQ_EVENTID			= 0x1833,
+	WMI_WRITE_MAC_XQ_FIELD_EVENTID			= 0x1834,
+	WMI_BEAMFORMING_MGMT_DONE_EVENTID		= 0x1836,
+	WMI_BF_TXSS_MGMT_DONE_EVENTID			= 0x1837,
+	WMI_BF_RXSS_MGMT_DONE_EVENTID			= 0x1839,
+	WMI_RS_MGMT_DONE_EVENTID			= 0x1852,
+	WMI_RF_MGMT_STATUS_EVENTID			= 0x1853,
+	WMI_THERMAL_THROTTLING_STATUS_EVENTID		= 0x1855,
+	WMI_BF_SM_MGMT_DONE_EVENTID			= 0x1838,
+	WMI_RX_MGMT_PACKET_EVENTID			= 0x1840,
+	WMI_TX_MGMT_PACKET_EVENTID			= 0x1841,
+	WMI_LINK_MAINTAIN_CFG_WRITE_DONE_EVENTID	= 0x1842,
+	WMI_LINK_MAINTAIN_CFG_READ_DONE_EVENTID		= 0x1843,
+	WMI_OTP_READ_RESULT_EVENTID			= 0x1856,
+	WMI_LED_CFG_DONE_EVENTID			= 0x1858,
 	/* Performance monitoring events */
-	WMI_DATA_PORT_OPEN_EVENTID		= 0x1860,
-	WMI_WBE_LINK_DOWN_EVENTID		= 0x1861,
-	WMI_BF_CTRL_DONE_EVENTID		= 0x1862,
-	WMI_NOTIFY_REQ_DONE_EVENTID		= 0x1863,
-	WMI_GET_STATUS_DONE_EVENTID		= 0x1864,
-	WMI_VRING_EN_EVENTID			= 0x1865,
-	WMI_UNIT_TEST_EVENTID			= 0x1900,
-	WMI_FLASH_READ_DONE_EVENTID		= 0x1902,
-	WMI_FLASH_WRITE_DONE_EVENTID		= 0x1903,
+	WMI_DATA_PORT_OPEN_EVENTID			= 0x1860,
+	WMI_WBE_LINK_DOWN_EVENTID			= 0x1861,
+	WMI_BF_CTRL_DONE_EVENTID			= 0x1862,
+	WMI_NOTIFY_REQ_DONE_EVENTID			= 0x1863,
+	WMI_GET_STATUS_DONE_EVENTID			= 0x1864,
+	WMI_VRING_EN_EVENTID				= 0x1865,
+	WMI_GET_RF_STATUS_EVENTID			= 0x1866,
+	WMI_GET_BASEBAND_TYPE_EVENTID			= 0x1867,
+	WMI_UNIT_TEST_EVENTID				= 0x1900,
+	WMI_FLASH_READ_DONE_EVENTID			= 0x1902,
+	WMI_FLASH_WRITE_DONE_EVENTID			= 0x1903,
+	/* Power management */
+	WMI_TRAFFIC_DEFERRAL_EVENTID			= 0x1904,
+	WMI_TRAFFIC_RESUME_EVENTID			= 0x1905,
 	/* P2P */
-	WMI_P2P_CFG_DONE_EVENTID		= 0x1910,
-	WMI_PORT_ALLOCATED_EVENTID		= 0x1911,
-	WMI_PORT_DELETED_EVENTID		= 0x1912,
-	WMI_LISTEN_STARTED_EVENTID		= 0x1914,
-	WMI_SEARCH_STARTED_EVENTID		= 0x1915,
-	WMI_DISCOVERY_STARTED_EVENTID		= 0x1916,
-	WMI_DISCOVERY_STOPPED_EVENTID		= 0x1917,
-	WMI_PCP_STARTED_EVENTID			= 0x1918,
-	WMI_PCP_STOPPED_EVENTID			= 0x1919,
-	WMI_PCP_FACTOR_EVENTID			= 0x191A,
-	WMI_SET_CHANNEL_EVENTID			= 0x9000,
-	WMI_ASSOC_REQ_EVENTID			= 0x9001,
-	WMI_EAPOL_RX_EVENTID			= 0x9002,
-	WMI_MAC_ADDR_RESP_EVENTID		= 0x9003,
-	WMI_FW_VER_EVENTID			= 0x9004,
-	WMI_ACS_PASSIVE_SCAN_COMPLETE_EVENTID	= 0x9005,
+	WMI_P2P_CFG_DONE_EVENTID			= 0x1910,
+	WMI_PORT_ALLOCATED_EVENTID			= 0x1911,
+	WMI_PORT_DELETED_EVENTID			= 0x1912,
+	WMI_LISTEN_STARTED_EVENTID			= 0x1914,
+	WMI_SEARCH_STARTED_EVENTID			= 0x1915,
+	WMI_DISCOVERY_STARTED_EVENTID			= 0x1916,
+	WMI_DISCOVERY_STOPPED_EVENTID			= 0x1917,
+	WMI_PCP_STARTED_EVENTID				= 0x1918,
+	WMI_PCP_STOPPED_EVENTID				= 0x1919,
+	WMI_PCP_FACTOR_EVENTID				= 0x191A,
+	/* Power Save Configuration Events */
+	WMI_PS_DEV_PROFILE_CFG_EVENTID			= 0x191C,
+	/* Not supported yet */
+	WMI_PS_DEV_CFG_EVENTID				= 0x191D,
+	/* Not supported yet */
+	WMI_PS_DEV_CFG_READ_EVENTID			= 0x191E,
+	/* Not supported yet */
+	WMI_PS_MID_CFG_EVENTID				= 0x191F,
+	/* Not supported yet */
+	WMI_PS_MID_CFG_READ_EVENTID			= 0x1920,
+	WMI_RS_CFG_DONE_EVENTID				= 0x1921,
+	WMI_GET_DETAILED_RS_RES_EVENTID			= 0x1922,
+	WMI_AOA_MEAS_EVENTID				= 0x1923,
+	WMI_TOF_SESSION_END_EVENTID			= 0x1991,
+	WMI_TOF_GET_CAPABILITIES_EVENTID		= 0x1992,
+	WMI_TOF_SET_LCR_EVENTID				= 0x1993,
+	WMI_TOF_SET_LCI_EVENTID				= 0x1994,
+	WMI_TOF_FTM_PER_DEST_RES_EVENTID		= 0x1995,
+	WMI_TOF_CHANNEL_INFO_EVENTID			= 0x1996,
+	WMI_SET_CHANNEL_EVENTID				= 0x9000,
+	WMI_ASSOC_REQ_EVENTID				= 0x9001,
+	WMI_EAPOL_RX_EVENTID				= 0x9002,
+	WMI_MAC_ADDR_RESP_EVENTID			= 0x9003,
+	WMI_FW_VER_EVENTID				= 0x9004,
+	WMI_ACS_PASSIVE_SCAN_COMPLETE_EVENTID		= 0x9005,
 };
 
 /* Events data structures */
@@ -943,10 +1093,85 @@ struct wmi_get_status_done_event {
 
 /* WMI_FW_VER_EVENTID */
 struct wmi_fw_ver_event {
-	u8 major;
-	u8 minor;
-	__le16 subminor;
-	__le16 build;
+	/* FW image version */
+	__le32 fw_major;
+	__le32 fw_minor;
+	__le32 fw_subminor;
+	__le32 fw_build;
+	/* FW image build time stamp */
+	__le32 hour;
+	__le32 minute;
+	__le32 second;
+	__le32 day;
+	__le32 month;
+	__le32 year;
+	/* Boot Loader image version */
+	__le32 bl_major;
+	__le32 bl_minor;
+	__le32 bl_subminor;
+	__le32 bl_build;
+	/* The number of entries in the FW capabilies array */
+	u8 fw_capabilities_len;
+	u8 reserved[3];
+	/* FW capabilities info
+	 * Must be the last member of the struct
+	 */
+	__le32 fw_capabilities[0];
+} __packed;
+
+/* WMI_GET_RF_STATUS_EVENTID */
+enum rf_type {
+	RF_UNKNOWN	= 0x00,
+	RF_MARLON	= 0x01,
+	RF_SPARROW	= 0x02,
+};
+
+/* WMI_GET_RF_STATUS_EVENTID */
+enum board_file_rf_type {
+	BF_RF_MARLON	= 0x00,
+	BF_RF_SPARROW	= 0x01,
+};
+
+/* WMI_GET_RF_STATUS_EVENTID */
+enum rf_status {
+	RF_OK			= 0x00,
+	RF_NO_COMM		= 0x01,
+	RF_WRONG_BOARD_FILE	= 0x02,
+};
+
+/* WMI_GET_RF_STATUS_EVENTID */
+struct wmi_get_rf_status_event {
+	/* enum rf_type */
+	__le32 rf_type;
+	/* attached RFs bit vector */
+	__le32 attached_rf_vector;
+	/* enabled RFs bit vector */
+	__le32 enabled_rf_vector;
+	/* enum rf_status, refers to enabled RFs */
+	u8 rf_status[32];
+	/* enum board file RF type */
+	__le32 board_file_rf_type;
+	/* board file platform type */
+	__le32 board_file_platform_type;
+	/* board file version */
+	__le32 board_file_version;
+	__le32 reserved[2];
+} __packed;
+
+/* WMI_GET_BASEBAND_TYPE_EVENTID */
+enum baseband_type {
+	BASEBAND_UNKNOWN	= 0x00,
+	BASEBAND_SPARROW_M_A0	= 0x03,
+	BASEBAND_SPARROW_M_A1	= 0x04,
+	BASEBAND_SPARROW_M_B0	= 0x05,
+	BASEBAND_SPARROW_M_C0	= 0x06,
+	BASEBAND_SPARROW_M_D0	= 0x07,
+};
+
+/* WMI_GET_BASEBAND_TYPE_EVENTID */
+struct wmi_get_baseband_type_event {
+	/* enum baseband_type */
+	__le32 baseband_type;
 } __packed;
 
 /* WMI_MAC_ADDR_RESP_EVENTID */
@@ -1408,6 +1633,555 @@ struct wmi_led_cfg_cmd {
 struct wmi_led_cfg_done_event {
 	/* led config status */
 	__le32 status;
+} __packed;
+
+#define WMI_NUM_MCS	(13)
+
+/* Rate search parameters configuration per connection */
+struct wmi_rs_cfg {
+	/* The maximal allowed PER for each MCS
+	 * MCS will be considered as failed if PER during RS is higher
+	 */
+	u8 per_threshold[WMI_NUM_MCS];
+	/* Number of MPDUs for each MCS
+	 * this is the minimal statistic required to make an educated
+	 * decision
+	 */
+	u8 min_frame_cnt[WMI_NUM_MCS];
+	/* stop threshold [0-100] */
+	u8 stop_th;
+	/* MCS1 stop threshold [0-100] */
+	u8 mcs1_fail_th;
+	u8 max_back_failure_th;
+	/* Debug feature for disabling internal RS trigger (which is
+	 * currently triggered by BF Done)
+	 */
+	u8 dbg_disable_internal_trigger;
+	__le32 back_failure_mask;
+	__le32 mcs_en_vec;
+} __packed;
+
+/* WMI_RS_CFG_CMDID */
+struct wmi_rs_cfg_cmd {
+	/* connection id */
+	u8 cid;
+	/* enable or disable rate search */
+	u8 rs_enable;
+	/* rate search configuration */
+	struct wmi_rs_cfg rs_cfg;
+} __packed;
+
+/* WMI_RS_CFG_DONE_EVENTID */
+struct wmi_rs_cfg_done_event {
+	u8 cid;
+	/* enum wmi_fw_status */
+	u8 status;
+	u8 reserved[2];
+} __packed;
+
+/* WMI_GET_DETAILED_RS_RES_CMDID */
+struct wmi_get_detailed_rs_res_cmd {
+	/* connection id */
+	u8 cid;
+	u8 reserved[3];
+} __packed;
+
+/* RS results status */
+enum wmi_rs_results_status {
+	WMI_RS_RES_VALID	= 0x00,
+	WMI_RS_RES_INVALID	= 0x01,
+};
+
+/* Rate search results */
+struct wmi_rs_results {
+	/* number of sent MPDUs */
+	u8 num_of_tx_pkt[WMI_NUM_MCS];
+	/* number of non-acked MPDUs */
+	u8 num_of_non_acked_pkt[WMI_NUM_MCS];
+	/* RS timestamp */
+	__le32 tsf;
+	/* RS selected MCS */
+	u8 mcs;
+} __packed;
+
+/* WMI_GET_DETAILED_RS_RES_EVENTID */
+struct wmi_get_detailed_rs_res_event {
+	u8 cid;
+	/* enum wmi_rs_results_status */
+	u8 status;
+	/* detailed rs results */
+	struct wmi_rs_results rs_results;
+	u8 reserved[3];
+} __packed;
+
+/* broadcast connection ID */
+#define WMI_LINK_MAINTAIN_CFG_CID_BROADCAST	(0xFFFFFFFF)
+
+/* Types wmi_link_maintain_cfg presets for WMI_LINK_MAINTAIN_CFG_WRITE_CMD */
+enum wmi_link_maintain_cfg_type {
+	/* AP/PCP default normal (non-FST) configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_NORMAL_AP	= 0x00,
+	/* AP/PCP  default FST configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_FST_AP	= 0x01,
+	/* STA default normal (non-FST) configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_NORMAL_STA	= 0x02,
+	/* STA default FST configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_DEFAULT_FST_STA	= 0x03,
+	/* custom configuration settings */
+	WMI_LINK_MAINTAIN_CFG_TYPE_CUSTOM		= 0x04,
+	/* number of defined configuration types */
+	WMI_LINK_MAINTAIN_CFG_TYPES_NUM			= 0x05,
+};
+
+/* Response status codes for WMI_LINK_MAINTAIN_CFG_WRITE/READ commands */
+enum wmi_link_maintain_cfg_response_status {
+	/* WMI_LINK_MAINTAIN_CFG_WRITE/READ command successfully accomplished
+	 */
+	WMI_LINK_MAINTAIN_CFG_RESPONSE_STATUS_OK		= 0x00,
+	/* ERROR due to bad argument in WMI_LINK_MAINTAIN_CFG_WRITE/READ
+	 * command request
+	 */
+	WMI_LINK_MAINTAIN_CFG_RESPONSE_STATUS_BAD_ARGUMENT	= 0x01,
+};
+
+/* Link Loss and Keep Alive configuration */
+struct wmi_link_maintain_cfg {
+	/* link_loss_enable_detectors_vec */
+	__le32 link_loss_enable_detectors_vec;
+	/* detectors check period usec */
+	__le32 check_link_loss_period_usec;
+	/* max allowed tx ageing */
+	__le32 tx_ageing_threshold_usec;
+	/* keep alive period for high SNR */
+	__le32 keep_alive_period_usec_high_snr;
+	/* keep alive period for low SNR */
+	__le32 keep_alive_period_usec_low_snr;
+	/* lower snr limit for keep alive period update */
+	__le32 keep_alive_snr_threshold_low_db;
+	/* upper snr limit for keep alive period update */
+	__le32 keep_alive_snr_threshold_high_db;
+	/* num of successive bad bcons causing link-loss */
+	__le32 bad_beacons_num_threshold;
+	/* SNR limit for bad_beacons_detector */
+	__le32 bad_beacons_snr_threshold_db;
+} __packed;
+
+/* WMI_LINK_MAINTAIN_CFG_WRITE_CMDID */
+struct wmi_link_maintain_cfg_write_cmd {
+	/* enum wmi_link_maintain_cfg_type_e - type of requested default
+	 * configuration to be applied
+	 */
+	__le32 cfg_type;
+	/* requested connection ID or WMI_LINK_MAINTAIN_CFG_CID_BROADCAST */
+	__le32 cid;
+	/* custom configuration settings to be applied (relevant only if
+	 * cfg_type==WMI_LINK_MAINTAIN_CFG_TYPE_CUSTOM)
+	 */
+	struct wmi_link_maintain_cfg lm_cfg;
+} __packed;
+
+/* WMI_LINK_MAINTAIN_CFG_READ_CMDID */
+struct wmi_link_maintain_cfg_read_cmd {
+	/* connection ID which configuration settings are requested */
+	__le32 cid;
+} __packed;
+
+/* WMI_LINK_MAINTAIN_CFG_WRITE_DONE_EVENTID */
+struct wmi_link_maintain_cfg_write_done_event {
+	/* requested connection ID */
+	__le32 cid;
+	/* wmi_link_maintain_cfg_response_status_e - write status */
+	__le32 status;
+} __packed;
+
+/* \WMI_LINK_MAINTAIN_CFG_READ_DONE_EVENT */
+struct wmi_link_maintain_cfg_read_done_event {
+	/* requested connection ID */
+	__le32 cid;
+	/* wmi_link_maintain_cfg_response_status_e - read status */
+	__le32 status;
+	/* Retrieved configuration settings */
+	struct wmi_link_maintain_cfg lm_cfg;
+} __packed;
+
+enum wmi_traffic_deferral_status {
+	WMI_TRAFFIC_DEFERRAL_APPROVED	= 0x0,
+	WMI_TRAFFIC_DEFERRAL_REJECTED	= 0x1,
+};
+
+/* WMI_TRAFFIC_DEFERRAL_EVENTID */
+struct wmi_traffic_deferral_event {
+	/* enum wmi_traffic_deferral_status_e */
+	u8 status;
+} __packed;
+
+enum wmi_traffic_resume_status {
+	WMI_TRAFFIC_RESUME_SUCCESS	= 0x0,
+	WMI_TRAFFIC_RESUME_FAILED	= 0x1,
+};
+
+/* WMI_TRAFFIC_RESUME_EVENTID */
+struct wmi_traffic_resume_event {
+	/* enum wmi_traffic_resume_status_e */
+	u8 status;
+} __packed;
+
+/* Power Save command completion status codes */
+enum wmi_ps_cfg_cmd_status {
+	WMI_PS_CFG_CMD_STATUS_SUCCESS	= 0x00,
+	WMI_PS_CFG_CMD_STATUS_BAD_PARAM	= 0x01,
+	/* other error */
+	WMI_PS_CFG_CMD_STATUS_ERROR	= 0x02,
+};
+
+/* Device Power Save Profiles */
+enum wmi_ps_profile_type {
+	WMI_PS_PROFILE_TYPE_DEFAULT		= 0x00,
+	WMI_PS_PROFILE_TYPE_PS_DISABLED		= 0x01,
+	WMI_PS_PROFILE_TYPE_MAX_PS		= 0x02,
+	WMI_PS_PROFILE_TYPE_LOW_LATENCY_PS	= 0x03,
+};
+
+/* WMI_PS_DEV_PROFILE_CFG_CMDID
+ *
+ * Power save profile to be used by the device
+ *
+ * Returned event:
+ * - WMI_PS_DEV_PROFILE_CFG_EVENTID
+ */
+struct wmi_ps_dev_profile_cfg_cmd {
+	/* wmi_ps_profile_type_e */
+	u8 ps_profile;
+	u8 reserved[3];
+} __packed;
+
+/* WMI_PS_DEV_PROFILE_CFG_EVENTID */
+struct wmi_ps_dev_profile_cfg_event {
+	/* wmi_ps_cfg_cmd_status_e */
+	__le32 status;
+} __packed;
+
+enum wmi_ps_level {
+	WMI_PS_LEVEL_DEEP_SLEEP		= 0x00,
+	WMI_PS_LEVEL_SHALLOW_SLEEP	= 0x01,
+	/* awake = all PS mechanisms are disabled */
+	WMI_PS_LEVEL_AWAKE		= 0x02,
+};
+
+enum wmi_ps_deep_sleep_clk_level {
+	/* 33k */
+	WMI_PS_DEEP_SLEEP_CLK_LEVEL_RTC		= 0x00,
+	/* 10k */
+	WMI_PS_DEEP_SLEEP_CLK_LEVEL_OSC		= 0x01,
+	/* @RTC Low latency */
+	WMI_PS_DEEP_SLEEP_CLK_LEVEL_RTC_LT	= 0x02,
+	WMI_PS_DEEP_SLEEP_CLK_LEVEL_XTAL	= 0x03,
+	WMI_PS_DEEP_SLEEP_CLK_LEVEL_SYSCLK	= 0x04,
+	/* Not Applicable */
+	WMI_PS_DEEP_SLEEP_CLK_LEVEL_N_A		= 0xFF,
+};
+
+/* Response by the FW to a D3 entry request */
+enum wmi_ps_d3_resp_policy {
+	WMI_PS_D3_RESP_POLICY_DEFAULT	= 0x00,
+	/* debug -D3 req is always denied */
+	WMI_PS_D3_RESP_POLICY_DENIED	= 0x01,
+	/* debug -D3 req is always approved */
+	WMI_PS_D3_RESP_POLICY_APPROVED	= 0x02,
+};
+
+/* Device common power save configurations */
+struct wmi_ps_dev_cfg {
+	/* lowest level of PS allowed while unassociated, enum wmi_ps_level_e
+	 */
+	u8 ps_unassoc_min_level;
+	/* lowest deep sleep clock level while nonassoc, enum
+	 * wmi_ps_deep_sleep_clk_level_e
+	 */
+	u8 ps_unassoc_deep_sleep_min_level;
+	/* lowest level of PS allowed while associated, enum wmi_ps_level_e */
+	u8 ps_assoc_min_level;
+	/* lowest deep sleep clock level while assoc, enum
+	 * wmi_ps_deep_sleep_clk_level_e
+	 */
+	u8 ps_assoc_deep_sleep_min_level;
+	/* enum wmi_ps_deep_sleep_clk_level_e */
+	u8 ps_assoc_low_latency_ds_min_level;
+	/* enum wmi_ps_d3_resp_policy_e */
+	u8 ps_D3_response_policy;
+	/* BOOL */
+	u8 ps_D3_pm_pme_enabled;
+	/* BOOL */
+	u8 ps_halp_enable;
+	u8 ps_deep_sleep_enter_thresh_msec;
+	/* BOOL */
+	u8 ps_voltage_scaling_en;
+} __packed;
+
+/* WMI_PS_DEV_CFG_CMDID
+ *
+ * Configure common Power Save parameters of the device and all MIDs.
+ *
+ * Returned event:
+ * - WMI_PS_DEV_CFG_EVENTID
+ */
+struct wmi_ps_dev_cfg_cmd {
+	/* Device Power Save configuration to be applied */
+	struct wmi_ps_dev_cfg ps_dev_cfg;
+	/* alignment to 32b */
+	u8 reserved[2];
+} __packed;
+
+/* WMI_PS_DEV_CFG_EVENTID */
+struct wmi_ps_dev_cfg_event {
+	/* wmi_ps_cfg_cmd_status_e */
+	__le32 status;
+} __packed;
+
+/* WMI_PS_DEV_CFG_READ_CMDID
+ *
+ * request to retrieve  device Power Save configuration
+ * (WMI_PS_DEV_CFG_CMD params)
+ *
+ * Returned event:
+ * - WMI_PS_DEV_CFG_READ_EVENTID
+ */
+struct wmi_ps_dev_cfg_read_cmd {
+	__le32 reserved;
+} __packed;
+
+/* WMI_PS_DEV_CFG_READ_EVENTID */
+struct wmi_ps_dev_cfg_read_event {
+	/* wmi_ps_cfg_cmd_status_e */
+	__le32 status;
+	/* Retrieved device Power Save configuration (WMI_PS_DEV_CFG_CMD
+	 * params)
+	 */
+	struct wmi_ps_dev_cfg dev_ps_cfg;
+	/* alignment to 32b */
+	u8 reserved[2];
+} __packed;
+
+/* Per Mac Power Save configurations */
+struct wmi_ps_mid_cfg {
+	/* Low power RX in BTI is enabled, BOOL */
+	u8 beacon_lprx_enable;
+	/* Sync to sector ID enabled, BOOL */
+	u8 beacon_sync_to_sectorId_enable;
+	/* Low power RX in DTI is enabled, BOOL */
+	u8 frame_exchange_lprx_enable;
+	/* Sleep Cycle while in scheduled PS, 1-31 */
+	u8 scheduled_sleep_cycle_pow2;
+	/* Stay Awake for k BIs every (sleep_cycle - k) BIs, 1-31 */
+	u8 scheduled_num_of_awake_bis;
+	u8 am_to_traffic_load_thresh_mbp;
+	u8 traffic_to_am_load_thresh_mbps;
+	u8 traffic_to_am_num_of_no_traffic_bis;
+	/* BOOL */
+	u8 continuous_traffic_psm;
+	__le16 no_traffic_to_min_usec;
+	__le16 no_traffic_to_max_usec;
+	__le16 snoozing_sleep_interval_milisec;
+	u8 max_no_data_awake_events;
+	/* Trigger WEB after k failed beacons */
+	u8 num_of_failed_beacons_rx_to_trigger_web;
+	/* Trigger BF after k failed beacons */
+	u8 num_of_failed_beacons_rx_to_trigger_bf;
+	/* Trigger SOB after k successful beacons */
+	u8 num_of_successful_beacons_rx_to_trigger_sob;
+} __packed;
+
+/* WMI_PS_MID_CFG_CMDID
+ *
+ * Configure Power Save parameters of a specific MID.
+ * These parameters are relevant for the specific BSS this MID belongs to.
+ *
+ * Returned event:
+ * - WMI_PS_MID_CFG_EVENTID
+ */
+struct wmi_ps_mid_cfg_cmd {
+	/* MAC ID */
+	u8 mid;
+	/* mid PS configuration to be applied */
+	struct wmi_ps_mid_cfg ps_mid_cfg;
+} __packed;
+
+/* WMI_PS_MID_CFG_EVENTID */
+struct wmi_ps_mid_cfg_event {
+	/* MAC ID */
+	u8 mid;
+	/* alignment to 32b */
+	u8 reserved[3];
+	/* wmi_ps_cfg_cmd_status_e */
+	__le32 status;
+} __packed;
+
+/* WMI_PS_MID_CFG_READ_CMDID
+ *
+ * request to retrieve Power Save configuration of mid
+ * (WMI_PS_MID_CFG_CMD params)
+ *
+ * Returned event:
+ * - WMI_PS_MID_CFG_READ_EVENTID
+ */
+struct wmi_ps_mid_cfg_read_cmd {
+	/* MAC ID */
+	u8 mid;
+	/* alignment to 32b */
+	u8 reserved[3];
+} __packed;
+
+/* WMI_PS_MID_CFG_READ_EVENTID */
+struct wmi_ps_mid_cfg_read_event {
+	/* MAC ID */
+	u8 mid;
+	/* Retrieved MID Power Save configuration(WMI_PS_MID_CFG_CMD params) */
+	struct wmi_ps_mid_cfg mid_ps_cfg;
+	/* wmi_ps_cfg_cmd_status_e */
+	__le32 status;
+} __packed;
+
+#define WMI_AOA_MAX_DATA_SIZE	(128)
+
+enum wmi_aoa_meas_status {
+	WMI_AOA_MEAS_SUCCESS		= 0x00,
+	WMI_AOA_MEAS_PEER_INCAPABLE	= 0x01,
+	WMI_AOA_MEAS_FAILURE		= 0x02,
+};
+
+/* WMI_AOA_MEAS_EVENTID */
+struct wmi_aoa_meas_event {
+	u8 mac_addr[WMI_MAC_LEN];
+	/* channels IDs:
+	 * 0 - 58320 MHz
+	 * 1 - 60480 MHz
+	 * 2 - 62640 MHz
+	 */
+	u8 channel;
+	/* enum wmi_aoa_meas_type */
+	u8 aoa_meas_type;
+	/* Measurments are from RFs, defined by the mask */
+	__le32 meas_rf_mask;
+	/* enum wmi_aoa_meas_status */
+	u8 meas_status;
+	u8 reserved;
+	/* Length of meas_data in bytes */
+	__le16 length;
+	u8 meas_data[WMI_AOA_MAX_DATA_SIZE];
+} __packed;
+
+/* WMI_TOF_GET_CAPABILITIES_EVENTID */
+struct wmi_tof_get_capabilities_event {
+	u8 ftm_capability;
+	/* maximum supported number of destination to start TOF */
+	u8 max_num_of_dest;
+	/* maximum supported number of measurements per burst */
+	u8 max_num_of_meas_per_burst;
+	u8 reserved;
+	/* maximum supported multi bursts */
+	__le16 max_multi_bursts_sessions;
+	/* maximum supported FTM burst duration , wmi_tof_burst_duration_e */
+	__le16 max_ftm_burst_duration;
+	/* AOA supported types */
+	__le32 aoa_supported_types;
+} __packed;
+
+enum wmi_tof_session_end_status {
+	WMI_TOF_SESSION_END_NO_ERROR		= 0x00,
+	WMI_TOF_SESSION_END_FAIL		= 0x01,
+	WMI_TOF_SESSION_END_PARAMS_ERROR	= 0x02,
+	WMI_TOF_SESSION_END_ABORTED		= 0x03,
+};
+
+/* WMI_TOF_SESSION_END_EVENTID */
+struct wmi_tof_session_end_event {
+	/* FTM session ID */
+	__le32 session_id;
+	/* wmi_tof_session_end_status_e */
+	u8 status;
+	u8 reserved[3];
+} __packed;
+
+/* Responder FTM Results */
+struct wmi_responder_ftm_res {
+	u8 t1[6];
+	u8 t2[6];
+	u8 t3[6];
+	u8 t4[6];
+	__le16 tod_err;
+	__le16 toa_err;
+	__le16 tod_err_initiator;
+	__le16 toa_err_initiator;
+} __packed;
+
+enum wmi_tof_ftm_per_dest_res_status {
+	WMI_PER_DEST_RES_NO_ERROR		= 0x00,
+	WMI_PER_DEST_RES_TX_RX_FAIL		= 0x01,
+	WMI_PER_DEST_RES_PARAM_DONT_MATCH	= 0x02,
+};
+
+enum wmi_tof_ftm_per_dest_res_flags {
+	WMI_PER_DEST_RES_REQ_START		= 0x01,
+	WMI_PER_DEST_RES_BURST_REPORT_END	= 0x02,
+	WMI_PER_DEST_RES_REQ_END		= 0x04,
+	WMI_PER_DEST_RES_PARAM_UPDATE		= 0x08,
+};
+
+/* WMI_TOF_FTM_PER_DEST_RES_EVENTID */
+struct wmi_tof_ftm_per_dest_res_event {
+	/* FTM session ID */
+	__le32 session_id;
+	/* destination MAC address */
+	u8 dst_mac[WMI_MAC_LEN];
+	/* wmi_tof_ftm_per_dest_res_flags_e */
+	u8 flags;
+	/* wmi_tof_ftm_per_dest_res_status_e */
+	u8 status;
+	/* responder ASAP */
+	u8 responder_asap;
+	/* responder number of FTM per burst */
+	u8 responder_num_ftm_per_burst;
+	/* responder number of FTM burst exponent */
+	u8 responder_num_ftm_bursts_exp;
+	/* responder burst duration ,wmi_tof_burst_duration_e */
+	u8 responder_burst_duration;
+	/* responder burst period, indicate interval between two consecutive
+	 * burst instances, in units of 100 ms
+	 */
+	__le16 responder_burst_period;
+	/* receive burst counter */
+	__le16 bursts_cnt;
+	/* tsf of responder start burst */
+	__le32 tsf_sync;
+	/* actual received ftm per burst */
+	u8 actual_ftm_per_burst;
+	u8 reserved0[7];
+	struct wmi_responder_ftm_res responder_ftm_res[0];
+} __packed;
+
+enum wmi_tof_channel_info_type {
+	WMI_TOF_CHANNEL_INFO_AOA		= 0x00,
+	WMI_TOF_CHANNEL_INFO_LCI		= 0x01,
+	WMI_TOF_CHANNEL_INFO_LCR		= 0x02,
+	WMI_TOF_CHANNEL_INFO_VENDOR_SPECIFIC	= 0x03,
+	WMI_TOF_CHANNEL_INFO_CIR		= 0x04,
+	WMI_TOF_CHANNEL_INFO_RSSI		= 0x05,
+	WMI_TOF_CHANNEL_INFO_SNR		= 0x06,
+	WMI_TOF_CHANNEL_INFO_DEBUG		= 0x07,
+};
+
+/* WMI_TOF_CHANNEL_INFO_EVENTID */
+struct wmi_tof_channel_info_event {
+	/* FTM session ID */
+	__le32 session_id;
+	/* destination MAC address */
+	u8 dst_mac[WMI_MAC_LEN];
+	/* wmi_tof_channel_info_type_e */
+	u8 type;
+	/* data report length */
+	u8 len;
+	/* data report payload */
+	u8 report[0];
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */

@@ -39,16 +39,16 @@ static struct vm_special_mapping vdso_vvar_mapping = {
 static void __init init_vdso_image(struct mips_vdso_image *image)
 {
 	unsigned long num_pages, i;
+	unsigned long data_pfn;
 
 	BUG_ON(!PAGE_ALIGNED(image->data));
 	BUG_ON(!PAGE_ALIGNED(image->size));
 
 	num_pages = image->size / PAGE_SIZE;
 
-	for (i = 0; i < num_pages; i++) {
-		image->mapping.pages[i] =
-			virt_to_page(image->data + (i * PAGE_SIZE));
-	}
+	data_pfn = __phys_to_pfn(__pa_symbol(image->data));
+	for (i = 0; i < num_pages; i++)
+		image->mapping.pages[i] = pfn_to_page(data_pfn + i);
 }
 
 static int __init init_vdso(void)
@@ -106,6 +106,16 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
+
+	/* Map delay slot emulation page */
+	base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
+			   VM_READ|VM_WRITE|VM_EXEC|
+			   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+			   0);
+	if (IS_ERR_VALUE(base)) {
+		ret = base;
+		goto out;
+	}
 
 	/*
 	 * Determine total area size. This includes the VDSO data itself, the

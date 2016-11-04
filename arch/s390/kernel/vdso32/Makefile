@@ -1,5 +1,7 @@
 # List of files in the vdso, has to be asm only for now
 
+KCOV_INSTRUMENT := n
+
 obj-vdso32 = gettimeofday.o clock_getres.o clock_gettime.o note.o getcpu.o
 
 # Build rules
@@ -22,8 +24,9 @@ obj-y += vdso32_wrapper.o
 extra-y += vdso32.lds
 CPPFLAGS_vdso32.lds += -P -C -U$(ARCH)
 
-# Disable gcov profiling for VDSO code
+# Disable gcov profiling and ubsan for VDSO code
 GCOV_PROFILE := n
+UBSAN_SANITIZE := n
 
 # Force dependency (incbin is bad)
 $(obj)/vdso32_wrapper.o : $(obj)/vdso32.so

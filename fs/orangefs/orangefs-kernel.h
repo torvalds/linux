@@ -100,16 +100,6 @@ enum orangefs_vfs_op_states {
 };
 
 /*
- * An array of client_debug_mask will be built to hold debug keyword/mask
- * values fetched from userspace.
- */
-struct client_debug_mask {
-	char *keyword;
-	__u64 mask1;
-	__u64 mask2;
-};
-
-/*
  * orangefs kernel memory related flags
  */
 
@@ -118,40 +108,6 @@ struct client_debug_mask {
 #else
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
-
-/* orangefs xattr and acl related defines */
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_ACCESS  1
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_DEFAULT 2
-#define ORANGEFS_XATTR_INDEX_TRUSTED           3
-#define ORANGEFS_XATTR_INDEX_DEFAULT           4
-
-#define ORANGEFS_XATTR_NAME_ACL_ACCESS XATTR_NAME_POSIX_ACL_ACCESS
-#define ORANGEFS_XATTR_NAME_ACL_DEFAULT XATTR_NAME_POSIX_ACL_DEFAULT
-#define ORANGEFS_XATTR_NAME_TRUSTED_PREFIX "trusted."
-#define ORANGEFS_XATTR_NAME_DEFAULT_PREFIX ""
-
-/* these functions are defined in orangefs-utils.c */
-int orangefs_prepare_cdm_array(char *debug_array_string);
-int orangefs_prepare_debugfs_help_string(int);
-
-/* defined in orangefs-debugfs.c */
-int orangefs_client_debug_init(void);
-
-void debug_string_to_mask(char *, void *, int);
-void do_c_mask(int, char *, struct client_debug_mask **);
-void do_k_mask(int, char *, __u64 **);
-
-void debug_mask_to_string(void *, int);
-void do_k_string(void *, int);
-void do_c_string(void *, int);
-int check_amalgam_keyword(void *, int);
-int keyword_is_amalgam(char *);
-
-/*these variables are defined in orangefs-mod.c */
-extern char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-extern unsigned int kernel_mask_set_mod_init;
 
 extern int orangefs_init_acl(struct inode *inode, struct inode *dir);
 extern const struct xattr_handler *orangefs_xattr_handlers[];
@@ -257,6 +213,8 @@ struct orangefs_inode_s {
 	 * with this object
 	 */
 	unsigned long pinode_flags;
+
+	unsigned long getattr_time;
 };
 
 #define P_ATIME_FLAG 0
@@ -340,7 +298,7 @@ struct orangefs_stats {
 	unsigned long writes;
 };
 
-extern struct orangefs_stats g_orangefs_stats;
+extern struct orangefs_stats orangefs_stats;
 
 /*
  * NOTE: See Documentation/filesystems/porting for information
@@ -456,6 +414,8 @@ void purge_waiting_ops(void);
 /*
  * defined in super.c
  */
+extern uint64_t orangefs_features;
+
 struct dentry *orangefs_mount(struct file_system_type *fst,
 			   int flags,
 			   const char *devname,
@@ -515,6 +475,8 @@ ssize_t orangefs_inode_read(struct inode *inode,
 /*
  * defined in devorangefs-req.c
  */
+extern uint32_t orangefs_userspace_version;
+
 int orangefs_dev_init(void);
 void orangefs_dev_cleanup(void);
 int is_daemon_in_service(void);
@@ -528,19 +490,17 @@ __s32 fsid_of_op(struct orangefs_kernel_op_s *op);
 int orangefs_flush_inode(struct inode *inode);
 
 ssize_t orangefs_inode_getxattr(struct inode *inode,
-			     const char *prefix,
 			     const char *name,
 			     void *buffer,
 			     size_t size);
 
 int orangefs_inode_setxattr(struct inode *inode,
-			 const char *prefix,
 			 const char *name,
 			 const void *value,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, int new, int size);
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
@@ -554,26 +514,26 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
 int orangefs_normalize_to_errno(__s32 error_code);
 
-extern struct mutex devreq_mutex;
-extern struct mutex request_mutex;
-extern int debug;
+extern struct mutex orangefs_request_mutex;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
+extern int orangefs_dcache_timeout_msecs;
+extern int orangefs_getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
 extern spinlock_t orangefs_superblocks_lock;
 extern struct list_head orangefs_request_list;
 extern spinlock_t orangefs_request_list_lock;
 extern wait_queue_head_t orangefs_request_list_waitq;
-extern struct list_head *htable_ops_in_progress;
-extern spinlock_t htable_ops_in_progress_lock;
+extern struct list_head *orangefs_htable_ops_in_progress;
+extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
 extern struct backing_dev_info orangefs_backing_dev_info;
-extern struct inode_operations orangefs_file_inode_operations;
+extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
-extern struct inode_operations orangefs_symlink_inode_operations;
-extern struct inode_operations orangefs_dir_inode_operations;
+extern const struct inode_operations orangefs_symlink_inode_operations;
+extern const struct inode_operations orangefs_dir_inode_operations;
 extern const struct file_operations orangefs_dir_operations;
 extern const struct dentry_operations orangefs_dentry_operations;
 extern const struct file_operations orangefs_devreq_file_operations;
@@ -600,8 +560,8 @@ int service_operation(struct orangefs_kernel_op_s *op,
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
-	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
-	sys_attr.group = from_kgid(current_user_ns(), current_fsgid()); \
+	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
+	sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \
 	sys_attr.perms = ORANGEFS_util_translate_mode(mode);		\
 	sys_attr.mtime = 0;						\
 	sys_attr.atime = 0;						\

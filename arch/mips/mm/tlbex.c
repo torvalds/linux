@@ -888,7 +888,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		}
 	}
 	if (!did_vmalloc_branch) {
-		if (uasm_in_compat_space_p(swpd) && !uasm_rel_lo(swpd)) {
+		if (single_insn_swpd) {
 			uasm_il_b(p, r, label_vmalloc_done);
 			uasm_i_lui(p, ptr, uasm_rel_hi(swpd));
 		} else {
@@ -1025,7 +1025,7 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	pte_off_odd += offsetof(pte_t, pte_high);
 #endif
 
-	if (config_enabled(CONFIG_XPA)) {
+	if (IS_ENABLED(CONFIG_XPA)) {
 		uasm_i_lw(p, tmp, pte_off_even, ptep); /* even pte */
 		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
 		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
@@ -1643,7 +1643,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
 	unsigned int swmode = mode & ~hwmode;
 
-	if (config_enabled(CONFIG_XPA) && !cpu_has_64bits) {
+	if (IS_ENABLED(CONFIG_XPA) && !cpu_has_64bits) {
 		uasm_i_lui(p, scratch, swmode >> 16);
 		uasm_i_or(p, pte, pte, scratch);
 		BUG_ON(swmode & 0xffff);
@@ -2432,7 +2432,7 @@ static void config_htw_params(void)
 		pwsize |= ilog2(PTRS_PER_PMD) << MIPS_PWSIZE_MDW_SHIFT;
 
 	/* Set pointer size to size of directory pointers */
-	if (config_enabled(CONFIG_64BIT))
+	if (IS_ENABLED(CONFIG_64BIT))
 		pwsize |= MIPS_PWSIZE_PS_MASK;
 	/* PTEs may be multiple pointers long (e.g. with XPA) */
 	pwsize |= ((PTE_T_LOG2 - PGD_T_LOG2) << MIPS_PWSIZE_PTEW_SHIFT)
@@ -2448,7 +2448,7 @@ static void config_htw_params(void)
 	 * the pwctl fields.
 	 */
 	config = 1 << MIPS_PWCTL_PWEN_SHIFT;
-	if (config_enabled(CONFIG_64BIT))
+	if (IS_ENABLED(CONFIG_64BIT))
 		config |= MIPS_PWCTL_XU_MASK;
 	write_c0_pwctl(config);
 	pr_info("Hardware Page Table Walker enabled\n");
@@ -2522,7 +2522,7 @@ void build_tlb_refill_handler(void)
 	 */
 	static int run_once = 0;
 
-	if (config_enabled(CONFIG_XPA) && !cpu_has_rixi)
+	if (IS_ENABLED(CONFIG_XPA) && !cpu_has_rixi)
 		panic("Kernels supporting XPA currently require CPUs with RIXI");
 
 	output_pgtable_bits_defines();

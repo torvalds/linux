@@ -40,7 +40,7 @@ int get_gadget_descs(struct vudc *udc)
 	struct usb_ctrlrequest req;
 	int ret;
 
-	if (!udc || !udc->driver || !udc->pullup)
+	if (!udc->driver || !udc->pullup)
 		return -EINVAL;
 
 	req.bRequestType = USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE;

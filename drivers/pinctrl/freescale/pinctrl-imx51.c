@@ -15,7 +15,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -791,12 +790,3 @@ static int __init imx51_pinctrl_init(void)
 	return platform_driver_register(&imx51_pinctrl_driver);
 }
 arch_initcall(imx51_pinctrl_init);
-
-static void __exit imx51_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx51_pinctrl_driver);
-}
-module_exit(imx51_pinctrl_exit);
-MODULE_AUTHOR("Dong Aisheng <dong.aisheng@linaro.org>");
-MODULE_DESCRIPTION("Freescale IMX51 pinctrl driver");
-MODULE_LICENSE("GPL v2");

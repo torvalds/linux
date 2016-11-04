@@ -20,6 +20,10 @@
 /* for brcmu_d11inf */
 #include <brcmu_d11.h>
 
+#include "core.h"
+#include "fwil_types.h"
+#include "p2p.h"
+
 #define WL_NUM_SCAN_MAX			10
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
@@ -167,7 +171,6 @@ struct vif_saved_ie {
  * @wdev: wireless device.
  * @profile: profile information.
  * @sme_state: SME state using enum brcmf_vif_status bits.
- * @pm_block: power-management blocked.
  * @list: linked list.
  * @mgmt_rx_reg: registered rx mgmt frame types.
  * @mbss: Multiple BSS type, set if not first AP (not relevant for P2P).
@@ -177,7 +180,6 @@ struct brcmf_cfg80211_vif {
 	struct wireless_dev wdev;
 	struct brcmf_cfg80211_profile profile;
 	unsigned long sme_state;
-	bool pm_block;
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
 	u16 mgmt_rx_reg;
@@ -225,7 +227,7 @@ struct escan_info {
  */
 struct brcmf_cfg80211_vif_event {
 	wait_queue_head_t vif_wq;
-	struct mutex vif_event_lock;
+	spinlock_t vif_event_lock;
 	u8 action;
 	struct brcmf_cfg80211_vif *vif;
 };
@@ -388,8 +390,7 @@ s32 brcmf_cfg80211_down(struct net_device *ndev);
 enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp);
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
-					   enum nl80211_iftype type,
-					   bool pm_block);
+					   enum nl80211_iftype type);
 void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,

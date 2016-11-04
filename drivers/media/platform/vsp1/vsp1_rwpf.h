@@ -13,6 +13,8 @@
 #ifndef __VSP1_RWPF_H__
 #define __VSP1_RWPF_H__
 
+#include <linux/spinlock.h>
+
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
@@ -49,7 +51,16 @@ struct vsp1_rwpf {
 
 	unsigned int alpha;
 
-	unsigned int offsets[2];
+	u32 mult_alpha;
+	u32 outfmt;
+
+	struct {
+		spinlock_t lock;
+		struct v4l2_ctrl *ctrls[2];
+		unsigned int pending;
+		unsigned int active;
+	} flip;
+
 	struct vsp1_rwpf_memory mem;
 
 	struct vsp1_dl_manager *dlm;
@@ -68,23 +79,11 @@ static inline struct vsp1_rwpf *entity_to_rwpf(struct vsp1_entity *entity)
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index);
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index);
 
-int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf);
+int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf, unsigned int ncontrols);
 
 extern const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops;
 
 struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
 				     struct v4l2_subdev_pad_config *config);
-/**
- * vsp1_rwpf_set_memory - Configure DMA addresses for a [RW]PF
- * @rwpf: the [RW]PF instance
- * @dl: the display list
- *
- * This function applies the cached memory buffer address to the display list.
- */
-static inline void vsp1_rwpf_set_memory(struct vsp1_rwpf *rwpf,
-					struct vsp1_dl_list *dl)
-{
-	rwpf->entity.ops->set_memory(&rwpf->entity, dl);
-}
 
 #endif /* __VSP1_RWPF_H__ */

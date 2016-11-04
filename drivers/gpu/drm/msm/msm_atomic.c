@@ -84,17 +84,12 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 		struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 	struct msm_drm_private *priv = old_state->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
 	int i;
 
-	for (i = 0; i < ncrtcs; i++) {
-		crtc = old_state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
 		if (!crtc->state->enable)
 			continue;
 
@@ -117,13 +112,13 @@ static void complete_commit(struct msm_commit *c, bool async)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 
-	drm_atomic_helper_wait_for_fences(dev, state);
+	drm_atomic_helper_wait_for_fences(dev, state, false);
 
 	kms->funcs->prepare_commit(kms, state);
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -192,9 +187,11 @@ int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	int nplanes = dev->mode_config.num_total_plane;
-	int ncrtcs = dev->mode_config.num_crtc;
 	struct msm_commit *c;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -210,28 +207,18 @@ int msm_atomic_commit(struct drm_device *dev,
 	/*
 	 * Figure out what crtcs we have:
 	 */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
-		c->crtc_mask |= (1 << drm_crtc_index(crtc));
-	}
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		c->crtc_mask |= drm_crtc_mask(crtc);
 
 	/*
 	 * Figure out what fence to wait for:
 	 */
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *new_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
-
-		if ((plane->state->fb != new_state->fb) && new_state->fb) {
-			struct drm_gem_object *obj = msm_framebuffer_bo(new_state->fb, 0);
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
+			struct drm_gem_object *obj = msm_framebuffer_bo(plane_state->fb, 0);
 			struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-			new_state->fence = reservation_object_get_excl_rcu(msm_obj->resv);
+			plane_state->fence = reservation_object_get_excl_rcu(msm_obj->resv);
 		}
 	}
 
@@ -251,7 +238,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
