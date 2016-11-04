@@ -114,7 +114,6 @@
  *     THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
@@ -160,18 +159,8 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
 				    (DMA_CH_INC * i);
 
-		if (pdata->per_channel_irq) {
-			/* Get the DMA interrupt (offset 1) */
-			ret = platform_get_irq(pdata->pdev, i + 1);
-			if (ret < 0) {
-				netdev_err(pdata->netdev,
-					   "platform_get_irq %u failed\n",
-					   i + 1);
-				goto err_irq;
-			}
-
-			channel->dma_irq = ret;
-		}
+		if (pdata->per_channel_irq)
+			channel->dma_irq = pdata->channel_irq[i];
 
 		if (i < pdata->tx_ring_count) {
 			spin_lock_init(&tx_ring->lock);
@@ -193,9 +182,6 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 	pdata->channel_count = count;
 
 	return 0;
-
-err_irq:
-	kfree(rx_ring);
 
 err_rx_ring:
 	kfree(tx_ring);
@@ -590,6 +576,10 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->tx_ch_cnt++;
 	hw_feat->tc_cnt++;
 
+	/* Translate the fifo sizes into actual numbers */
+	hw_feat->rx_fifo_size = 1 << (hw_feat->rx_fifo_size + 7);
+	hw_feat->tx_fifo_size = 1 << (hw_feat->tx_fifo_size + 7);
+
 	DBGPR("<--xgbe_get_all_hw_features\n");
 }
 
@@ -778,7 +768,7 @@ static void xgbe_free_rx_data(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_free_rx_data\n");
 }
 
-static int xgbe_phy_init(struct xgbe_prv_data *pdata)
+static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 {
 	pdata->phy_link = -1;
 	pdata->phy_speed = SPEED_UNKNOWN;
@@ -1292,8 +1282,8 @@ static int xgbe_open(struct net_device *netdev)
 
 	DBGPR("-->xgbe_open\n");
 
-	/* Initialize the phy */
-	ret = xgbe_phy_init(pdata);
+	/* Reset the phy settings */
+	ret = xgbe_phy_reset(pdata);
 	if (ret)
 		return ret;
 

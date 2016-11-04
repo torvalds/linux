@@ -125,7 +125,78 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-static void xgbe_an_enable_kr_training(struct xgbe_prv_data *pdata)
+static void xgbe_an37_clear_interrupts(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT);
+	reg &= ~XGBE_AN_CL37_INT_MASK;
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT, reg);
+}
+
+static void xgbe_an37_disable_interrupts(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
+	reg &= ~XGBE_AN_CL37_INT_MASK;
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL);
+	reg &= ~XGBE_PCS_CL37_BP;
+	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL, reg);
+}
+
+static void xgbe_an37_enable_interrupts(struct xgbe_prv_data *pdata)
+{
+	int reg;
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL);
+	reg |= XGBE_PCS_CL37_BP;
+	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_PCS_DIG_CTRL, reg);
+
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
+	reg |= XGBE_AN_CL37_INT_MASK;
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
+}
+
+static void xgbe_an73_clear_interrupts(struct xgbe_prv_data *pdata)
+{
+	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INT, 0);
+}
+
+static void xgbe_an73_disable_interrupts(struct xgbe_prv_data *pdata)
+{
+	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK, 0);
+}
+
+static void xgbe_an73_enable_interrupts(struct xgbe_prv_data *pdata)
+{
+	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK, XGBE_AN_CL73_INT_MASK);
+}
+
+static void xgbe_an_enable_interrupts(struct xgbe_prv_data *pdata)
+{
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+		xgbe_an73_enable_interrupts(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_enable_interrupts(pdata);
+		break;
+	default:
+		break;
+	}
+}
+
+static void xgbe_an_clear_interrupts_all(struct xgbe_prv_data *pdata)
+{
+	xgbe_an73_clear_interrupts(pdata);
+	xgbe_an37_clear_interrupts(pdata);
+}
+
+static void xgbe_an73_enable_kr_training(struct xgbe_prv_data *pdata)
 {
 	unsigned int reg;
 
@@ -135,7 +206,7 @@ static void xgbe_an_enable_kr_training(struct xgbe_prv_data *pdata)
 	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
 }
 
-static void xgbe_an_disable_kr_training(struct xgbe_prv_data *pdata)
+static void xgbe_an73_disable_kr_training(struct xgbe_prv_data *pdata)
 {
 	unsigned int reg;
 
@@ -145,283 +216,128 @@ static void xgbe_an_disable_kr_training(struct xgbe_prv_data *pdata)
 	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
 }
 
-static void xgbe_pcs_power_cycle(struct xgbe_prv_data *pdata)
+static void xgbe_kr_mode(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
-
-	reg |= MDIO_CTRL1_LPOWER;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, reg);
-
-	usleep_range(75, 100);
-
-	reg &= ~MDIO_CTRL1_LPOWER;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, reg);
-}
-
-static void xgbe_serdes_start_ratechange(struct xgbe_prv_data *pdata)
-{
-	/* Assert Rx and Tx ratechange */
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, RATECHANGE, 1);
-}
-
-static void xgbe_serdes_complete_ratechange(struct xgbe_prv_data *pdata)
-{
-	unsigned int wait;
-	u16 status;
-
-	/* Release Rx and Tx ratechange */
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, RATECHANGE, 0);
-
-	/* Wait for Rx and Tx ready */
-	wait = XGBE_RATECHANGE_COUNT;
-	while (wait--) {
-		usleep_range(50, 75);
-
-		status = XSIR0_IOREAD(pdata, SIR0_STATUS);
-		if (XSIR_GET_BITS(status, SIR0_STATUS, RX_READY) &&
-		    XSIR_GET_BITS(status, SIR0_STATUS, TX_READY))
-			goto rx_reset;
-	}
-
-	netif_dbg(pdata, link, pdata->netdev, "SerDes rx/tx not ready (%#hx)\n",
-		  status);
-
-rx_reset:
-	/* Perform Rx reset for the DFE changes */
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG6, RESETB_RXD, 0);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG6, RESETB_RXD, 1);
-}
-
-static void xgbe_xgmii_mode(struct xgbe_prv_data *pdata)
-{
-	unsigned int reg;
-
 	/* Enable KR training */
-	xgbe_an_enable_kr_training(pdata);
+	xgbe_an73_enable_kr_training(pdata);
 
 	/* Set MAC to 10G speed */
-	pdata->hw_if.set_xgmii_speed(pdata);
+	pdata->hw_if.set_speed(pdata, SPEED_10000);
 
-	/* Set PCS to KR/10G speed */
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL2);
-	reg &= ~MDIO_PCS_CTRL2_TYPE;
-	reg |= MDIO_PCS_CTRL2_10GBR;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL2, reg);
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
-	reg &= ~MDIO_CTRL1_SPEEDSEL;
-	reg |= MDIO_CTRL1_SPEED10G;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, reg);
-
-	xgbe_pcs_power_cycle(pdata);
-
-	/* Set SerDes to 10G speed */
-	xgbe_serdes_start_ratechange(pdata);
-
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, DATARATE, XGBE_SPEED_10000_RATE);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, WORDMODE, XGBE_SPEED_10000_WORD);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, PLLSEL, XGBE_SPEED_10000_PLL);
-
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, CDR_RATE,
-			   pdata->serdes_cdr_rate[XGBE_SPEED_10000]);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, TXAMP,
-			   pdata->serdes_tx_amp[XGBE_SPEED_10000]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG20, BLWC_ENA,
-			   pdata->serdes_blwc[XGBE_SPEED_10000]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG114, PQ_REG,
-			   pdata->serdes_pq_skew[XGBE_SPEED_10000]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG129, RXDFE_CONFIG,
-			   pdata->serdes_dfe_tap_cfg[XGBE_SPEED_10000]);
-	XRXTX_IOWRITE(pdata, RXTX_REG22,
-		      pdata->serdes_dfe_tap_ena[XGBE_SPEED_10000]);
-
-	xgbe_serdes_complete_ratechange(pdata);
-
-	netif_dbg(pdata, link, pdata->netdev, "10GbE KR mode set\n");
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_KR);
 }
 
-static void xgbe_gmii_2500_mode(struct xgbe_prv_data *pdata)
+static void xgbe_kx_2500_mode(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
-
 	/* Disable KR training */
-	xgbe_an_disable_kr_training(pdata);
+	xgbe_an73_disable_kr_training(pdata);
 
 	/* Set MAC to 2.5G speed */
-	pdata->hw_if.set_gmii_2500_speed(pdata);
+	pdata->hw_if.set_speed(pdata, SPEED_2500);
 
-	/* Set PCS to KX/1G speed */
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL2);
-	reg &= ~MDIO_PCS_CTRL2_TYPE;
-	reg |= MDIO_PCS_CTRL2_10GBX;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL2, reg);
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
-	reg &= ~MDIO_CTRL1_SPEEDSEL;
-	reg |= MDIO_CTRL1_SPEED1G;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, reg);
-
-	xgbe_pcs_power_cycle(pdata);
-
-	/* Set SerDes to 2.5G speed */
-	xgbe_serdes_start_ratechange(pdata);
-
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, DATARATE, XGBE_SPEED_2500_RATE);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, WORDMODE, XGBE_SPEED_2500_WORD);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, PLLSEL, XGBE_SPEED_2500_PLL);
-
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, CDR_RATE,
-			   pdata->serdes_cdr_rate[XGBE_SPEED_2500]);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, TXAMP,
-			   pdata->serdes_tx_amp[XGBE_SPEED_2500]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG20, BLWC_ENA,
-			   pdata->serdes_blwc[XGBE_SPEED_2500]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG114, PQ_REG,
-			   pdata->serdes_pq_skew[XGBE_SPEED_2500]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG129, RXDFE_CONFIG,
-			   pdata->serdes_dfe_tap_cfg[XGBE_SPEED_2500]);
-	XRXTX_IOWRITE(pdata, RXTX_REG22,
-		      pdata->serdes_dfe_tap_ena[XGBE_SPEED_2500]);
-
-	xgbe_serdes_complete_ratechange(pdata);
-
-	netif_dbg(pdata, link, pdata->netdev, "2.5GbE KX mode set\n");
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_KX_2500);
 }
 
-static void xgbe_gmii_mode(struct xgbe_prv_data *pdata)
+static void xgbe_kx_1000_mode(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
-
 	/* Disable KR training */
-	xgbe_an_disable_kr_training(pdata);
+	xgbe_an73_disable_kr_training(pdata);
 
 	/* Set MAC to 1G speed */
-	pdata->hw_if.set_gmii_speed(pdata);
+	pdata->hw_if.set_speed(pdata, SPEED_1000);
 
-	/* Set PCS to KX/1G speed */
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL2);
-	reg &= ~MDIO_PCS_CTRL2_TYPE;
-	reg |= MDIO_PCS_CTRL2_10GBX;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL2, reg);
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
-	reg &= ~MDIO_CTRL1_SPEEDSEL;
-	reg |= MDIO_CTRL1_SPEED1G;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, reg);
-
-	xgbe_pcs_power_cycle(pdata);
-
-	/* Set SerDes to 1G speed */
-	xgbe_serdes_start_ratechange(pdata);
-
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, DATARATE, XGBE_SPEED_1000_RATE);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, WORDMODE, XGBE_SPEED_1000_WORD);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, PLLSEL, XGBE_SPEED_1000_PLL);
-
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, CDR_RATE,
-			   pdata->serdes_cdr_rate[XGBE_SPEED_1000]);
-	XSIR1_IOWRITE_BITS(pdata, SIR1_SPEED, TXAMP,
-			   pdata->serdes_tx_amp[XGBE_SPEED_1000]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG20, BLWC_ENA,
-			   pdata->serdes_blwc[XGBE_SPEED_1000]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG114, PQ_REG,
-			   pdata->serdes_pq_skew[XGBE_SPEED_1000]);
-	XRXTX_IOWRITE_BITS(pdata, RXTX_REG129, RXDFE_CONFIG,
-			   pdata->serdes_dfe_tap_cfg[XGBE_SPEED_1000]);
-	XRXTX_IOWRITE(pdata, RXTX_REG22,
-		      pdata->serdes_dfe_tap_ena[XGBE_SPEED_1000]);
-
-	xgbe_serdes_complete_ratechange(pdata);
-
-	netif_dbg(pdata, link, pdata->netdev, "1GbE KX mode set\n");
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_KX_1000);
 }
 
-static void xgbe_cur_mode(struct xgbe_prv_data *pdata,
-			  enum xgbe_mode *mode)
+static enum xgbe_mode xgbe_cur_mode(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
-
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL2);
-	if ((reg & MDIO_PCS_CTRL2_TYPE) == MDIO_PCS_CTRL2_10GBR)
-		*mode = XGBE_MODE_KR;
-	else
-		*mode = XGBE_MODE_KX;
+	return pdata->phy_if.phy_impl.cur_mode(pdata);
 }
 
 static bool xgbe_in_kr_mode(struct xgbe_prv_data *pdata)
 {
-	enum xgbe_mode mode;
+	return (xgbe_cur_mode(pdata) == XGBE_MODE_KR);
+}
 
-	xgbe_cur_mode(pdata, &mode);
-
-	return (mode == XGBE_MODE_KR);
+static void xgbe_change_mode(struct xgbe_prv_data *pdata,
+			     enum xgbe_mode mode)
+{
+	switch (mode) {
+	case XGBE_MODE_KX_1000:
+		xgbe_kx_1000_mode(pdata);
+		break;
+	case XGBE_MODE_KX_2500:
+		xgbe_kx_2500_mode(pdata);
+		break;
+	case XGBE_MODE_KR:
+		xgbe_kr_mode(pdata);
+		break;
+	case XGBE_MODE_UNKNOWN:
+		break;
+	default:
+		netif_dbg(pdata, link, pdata->netdev,
+			  "invalid operation mode requested (%u)\n", mode);
+	}
 }
 
 static void xgbe_switch_mode(struct xgbe_prv_data *pdata)
 {
-	/* If we are in KR switch to KX, and vice-versa */
-	if (xgbe_in_kr_mode(pdata)) {
-		if (pdata->speed_set == XGBE_SPEEDSET_1000_10000)
-			xgbe_gmii_mode(pdata);
-		else
-			xgbe_gmii_2500_mode(pdata);
-	} else {
-		xgbe_xgmii_mode(pdata);
-	}
+	xgbe_change_mode(pdata, pdata->phy_if.phy_impl.switch_mode(pdata));
 }
 
 static void xgbe_set_mode(struct xgbe_prv_data *pdata,
 			  enum xgbe_mode mode)
 {
-	enum xgbe_mode cur_mode;
+	if (mode == xgbe_cur_mode(pdata))
+		return;
 
-	xgbe_cur_mode(pdata, &cur_mode);
-	if (mode != cur_mode)
-		xgbe_switch_mode(pdata);
+	xgbe_change_mode(pdata, mode);
 }
 
-static bool xgbe_use_xgmii_mode(struct xgbe_prv_data *pdata)
+static bool xgbe_use_mode(struct xgbe_prv_data *pdata,
+			  enum xgbe_mode mode)
 {
-	if (pdata->phy.autoneg == AUTONEG_ENABLE) {
-		if (pdata->phy.advertising & ADVERTISED_10000baseKR_Full)
-			return true;
-	} else {
-		if (pdata->phy.speed == SPEED_10000)
-			return true;
-	}
-
-	return false;
+	return pdata->phy_if.phy_impl.use_mode(pdata, mode);
 }
 
-static bool xgbe_use_gmii_2500_mode(struct xgbe_prv_data *pdata)
+static void xgbe_an37_set(struct xgbe_prv_data *pdata, bool enable,
+			  bool restart)
 {
-	if (pdata->phy.autoneg == AUTONEG_ENABLE) {
-		if (pdata->phy.advertising & ADVERTISED_2500baseX_Full)
-			return true;
-	} else {
-		if (pdata->phy.speed == SPEED_2500)
-			return true;
-	}
+	unsigned int reg;
 
-	return false;
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_CTRL1);
+	reg &= ~MDIO_VEND2_CTRL1_AN_ENABLE;
+
+	if (enable)
+		reg |= MDIO_VEND2_CTRL1_AN_ENABLE;
+
+	if (restart)
+		reg |= MDIO_VEND2_CTRL1_AN_RESTART;
+
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_CTRL1, reg);
 }
 
-static bool xgbe_use_gmii_mode(struct xgbe_prv_data *pdata)
+static void xgbe_an37_restart(struct xgbe_prv_data *pdata)
 {
-	if (pdata->phy.autoneg == AUTONEG_ENABLE) {
-		if (pdata->phy.advertising & ADVERTISED_1000baseKX_Full)
-			return true;
-	} else {
-		if (pdata->phy.speed == SPEED_1000)
-			return true;
-	}
+	xgbe_an37_enable_interrupts(pdata);
+	xgbe_an37_set(pdata, true, true);
 
-	return false;
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN enabled/restarted\n");
 }
 
-static void xgbe_set_an(struct xgbe_prv_data *pdata, bool enable, bool restart)
+static void xgbe_an37_disable(struct xgbe_prv_data *pdata)
+{
+	xgbe_an37_set(pdata, false, false);
+	xgbe_an37_disable_interrupts(pdata);
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN disabled\n");
+}
+
+static void xgbe_an73_set(struct xgbe_prv_data *pdata, bool enable,
+			  bool restart)
 {
 	unsigned int reg;
 
@@ -437,22 +353,60 @@ static void xgbe_set_an(struct xgbe_prv_data *pdata, bool enable, bool restart)
 	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_CTRL1, reg);
 }
 
-static void xgbe_restart_an(struct xgbe_prv_data *pdata)
+static void xgbe_an73_restart(struct xgbe_prv_data *pdata)
 {
-	xgbe_set_an(pdata, true, true);
+	xgbe_an73_enable_interrupts(pdata);
+	xgbe_an73_set(pdata, true, true);
 
-	netif_dbg(pdata, link, pdata->netdev, "AN enabled/restarted\n");
+	netif_dbg(pdata, link, pdata->netdev, "CL73 AN enabled/restarted\n");
 }
 
-static void xgbe_disable_an(struct xgbe_prv_data *pdata)
+static void xgbe_an73_disable(struct xgbe_prv_data *pdata)
 {
-	xgbe_set_an(pdata, false, false);
+	xgbe_an73_set(pdata, false, false);
+	xgbe_an73_disable_interrupts(pdata);
 
-	netif_dbg(pdata, link, pdata->netdev, "AN disabled\n");
+	netif_dbg(pdata, link, pdata->netdev, "CL73 AN disabled\n");
 }
 
-static enum xgbe_an xgbe_an_tx_training(struct xgbe_prv_data *pdata,
-					enum xgbe_rx *state)
+static void xgbe_an_restart(struct xgbe_prv_data *pdata)
+{
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+		xgbe_an73_restart(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_restart(pdata);
+		break;
+	default:
+		break;
+	}
+}
+
+static void xgbe_an_disable(struct xgbe_prv_data *pdata)
+{
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+		xgbe_an73_disable(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_disable(pdata);
+		break;
+	default:
+		break;
+	}
+}
+
+static void xgbe_an_disable_all(struct xgbe_prv_data *pdata)
+{
+	xgbe_an73_disable(pdata);
+	xgbe_an37_disable(pdata);
+}
+
+static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
+					  enum xgbe_rx *state)
 {
 	unsigned int ad_reg, lp_reg, reg;
 
@@ -476,13 +430,15 @@ static enum xgbe_an xgbe_an_tx_training(struct xgbe_prv_data *pdata,
 	/* Start KR training */
 	reg = XMDIO_READ(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL);
 	if (reg & XGBE_KR_TRAINING_ENABLE) {
-		XSIR0_IOWRITE_BITS(pdata, SIR0_KR_RT_1, RESET, 1);
+		if (pdata->phy_if.phy_impl.kr_training_pre)
+			pdata->phy_if.phy_impl.kr_training_pre(pdata);
 
 		reg |= XGBE_KR_TRAINING_START;
 		XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL,
 			    reg);
 
-		XSIR0_IOWRITE_BITS(pdata, SIR0_KR_RT_1, RESET, 0);
+		if (pdata->phy_if.phy_impl.kr_training_post)
+			pdata->phy_if.phy_impl.kr_training_post(pdata);
 
 		netif_dbg(pdata, link, pdata->netdev,
 			  "KR training initiated\n");
@@ -491,8 +447,8 @@ static enum xgbe_an xgbe_an_tx_training(struct xgbe_prv_data *pdata,
 	return XGBE_AN_PAGE_RECEIVED;
 }
 
-static enum xgbe_an xgbe_an_tx_xnp(struct xgbe_prv_data *pdata,
-				   enum xgbe_rx *state)
+static enum xgbe_an xgbe_an73_tx_xnp(struct xgbe_prv_data *pdata,
+				     enum xgbe_rx *state)
 {
 	u16 msg;
 
@@ -508,8 +464,8 @@ static enum xgbe_an xgbe_an_tx_xnp(struct xgbe_prv_data *pdata,
 	return XGBE_AN_PAGE_RECEIVED;
 }
 
-static enum xgbe_an xgbe_an_rx_bpa(struct xgbe_prv_data *pdata,
-				   enum xgbe_rx *state)
+static enum xgbe_an xgbe_an73_rx_bpa(struct xgbe_prv_data *pdata,
+				     enum xgbe_rx *state)
 {
 	unsigned int link_support;
 	unsigned int reg, ad_reg, lp_reg;
@@ -528,12 +484,12 @@ static enum xgbe_an xgbe_an_rx_bpa(struct xgbe_prv_data *pdata,
 
 	return ((ad_reg & XGBE_XNP_NP_EXCHANGE) ||
 		(lp_reg & XGBE_XNP_NP_EXCHANGE))
-	       ? xgbe_an_tx_xnp(pdata, state)
-	       : xgbe_an_tx_training(pdata, state);
+	       ? xgbe_an73_tx_xnp(pdata, state)
+	       : xgbe_an73_tx_training(pdata, state);
 }
 
-static enum xgbe_an xgbe_an_rx_xnp(struct xgbe_prv_data *pdata,
-				   enum xgbe_rx *state)
+static enum xgbe_an xgbe_an73_rx_xnp(struct xgbe_prv_data *pdata,
+				     enum xgbe_rx *state)
 {
 	unsigned int ad_reg, lp_reg;
 
@@ -543,11 +499,11 @@ static enum xgbe_an xgbe_an_rx_xnp(struct xgbe_prv_data *pdata,
 
 	return ((ad_reg & XGBE_XNP_NP_EXCHANGE) ||
 		(lp_reg & XGBE_XNP_NP_EXCHANGE))
-	       ? xgbe_an_tx_xnp(pdata, state)
-	       : xgbe_an_tx_training(pdata, state);
+	       ? xgbe_an73_tx_xnp(pdata, state)
+	       : xgbe_an73_tx_training(pdata, state);
 }
 
-static enum xgbe_an xgbe_an_page_received(struct xgbe_prv_data *pdata)
+static enum xgbe_an xgbe_an73_page_received(struct xgbe_prv_data *pdata)
 {
 	enum xgbe_rx *state;
 	unsigned long an_timeout;
@@ -566,20 +522,20 @@ static enum xgbe_an xgbe_an_page_received(struct xgbe_prv_data *pdata)
 			pdata->an_start = jiffies;
 
 			netif_dbg(pdata, link, pdata->netdev,
-				  "AN timed out, resetting state\n");
+				  "CL73 AN timed out, resetting state\n");
 		}
 	}
 
 	state = xgbe_in_kr_mode(pdata) ? &pdata->kr_state
-					   : &pdata->kx_state;
+				       : &pdata->kx_state;
 
 	switch (*state) {
 	case XGBE_RX_BPA:
-		ret = xgbe_an_rx_bpa(pdata, state);
+		ret = xgbe_an73_rx_bpa(pdata, state);
 		break;
 
 	case XGBE_RX_XNP:
-		ret = xgbe_an_rx_xnp(pdata, state);
+		ret = xgbe_an73_rx_xnp(pdata, state);
 		break;
 
 	default:
@@ -589,7 +545,7 @@ static enum xgbe_an xgbe_an_page_received(struct xgbe_prv_data *pdata)
 	return ret;
 }
 
-static enum xgbe_an xgbe_an_incompat_link(struct xgbe_prv_data *pdata)
+static enum xgbe_an xgbe_an73_incompat_link(struct xgbe_prv_data *pdata)
 {
 	/* Be sure we aren't looping trying to negotiate */
 	if (xgbe_in_kr_mode(pdata)) {
@@ -611,23 +567,43 @@ static enum xgbe_an xgbe_an_incompat_link(struct xgbe_prv_data *pdata)
 			return XGBE_AN_NO_LINK;
 	}
 
-	xgbe_disable_an(pdata);
+	xgbe_an73_disable(pdata);
 
 	xgbe_switch_mode(pdata);
 
-	xgbe_restart_an(pdata);
+	xgbe_an73_restart(pdata);
 
 	return XGBE_AN_INCOMPAT_LINK;
 }
 
-static irqreturn_t xgbe_an_isr(int irq, void *data)
+static void xgbe_an37_isr(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
-
-	netif_dbg(pdata, intr, pdata->netdev, "AN interrupt received\n");
+	unsigned int reg;
 
 	/* Disable AN interrupts */
-	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK, 0);
+	xgbe_an37_disable_interrupts(pdata);
+
+	/* Save the interrupt(s) that fired */
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT);
+	pdata->an_int = reg & XGBE_AN_CL37_INT_MASK;
+	pdata->an_status = reg & ~XGBE_AN_CL37_INT_MASK;
+
+	if (pdata->an_int) {
+		/* Clear the interrupt(s) that fired and process them */
+		reg &= ~XGBE_AN_CL37_INT_MASK;
+		XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_STAT, reg);
+
+		queue_work(pdata->an_workqueue, &pdata->an_irq_work);
+	} else {
+		/* Enable AN interrupts */
+		xgbe_an37_enable_interrupts(pdata);
+	}
+}
+
+static void xgbe_an73_isr(struct xgbe_prv_data *pdata)
+{
+	/* Disable AN interrupts */
+	xgbe_an73_disable_interrupts(pdata);
 
 	/* Save the interrupt(s) that fired */
 	pdata->an_int = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_INT);
@@ -639,8 +615,26 @@ static irqreturn_t xgbe_an_isr(int irq, void *data)
 		queue_work(pdata->an_workqueue, &pdata->an_irq_work);
 	} else {
 		/* Enable AN interrupts */
-		XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK,
-			    XGBE_AN_INT_MASK);
+		xgbe_an73_enable_interrupts(pdata);
+	}
+}
+
+static irqreturn_t xgbe_an_isr(int irq, void *data)
+{
+	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
+
+	netif_dbg(pdata, intr, pdata->netdev, "AN interrupt received\n");
+
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+		xgbe_an73_isr(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_isr(pdata);
+		break;
+	default:
+		break;
 	}
 
 	return IRQ_HANDLED;
@@ -679,36 +673,87 @@ static const char *xgbe_state_as_string(enum xgbe_an state)
 	}
 }
 
-static void xgbe_an_state_machine(struct work_struct *work)
+static void xgbe_an37_state_machine(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_prv_data *pdata = container_of(work,
-						   struct xgbe_prv_data,
-						   an_work);
 	enum xgbe_an cur_state = pdata->an_state;
 
-	mutex_lock(&pdata->an_mutex);
+	if (!pdata->an_int)
+		return;
+
+	if (pdata->an_int & XGBE_AN_CL37_INT_CMPLT) {
+		pdata->an_state = XGBE_AN_COMPLETE;
+		pdata->an_int &= ~XGBE_AN_CL37_INT_CMPLT;
+
+		/* If SGMII is enabled, check the link status */
+		if ((pdata->an_mode == XGBE_AN_MODE_CL37_SGMII) &&
+		    !(pdata->an_status & XGBE_SGMII_AN_LINK_STATUS))
+			pdata->an_state = XGBE_AN_NO_LINK;
+	}
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN %s\n",
+		  xgbe_state_as_string(pdata->an_state));
+
+	cur_state = pdata->an_state;
+
+	switch (pdata->an_state) {
+	case XGBE_AN_READY:
+		break;
+
+	case XGBE_AN_COMPLETE:
+		netif_dbg(pdata, link, pdata->netdev,
+			  "Auto negotiation successful\n");
+		break;
+
+	case XGBE_AN_NO_LINK:
+		break;
+
+	default:
+		pdata->an_state = XGBE_AN_ERROR;
+	}
+
+	if (pdata->an_state == XGBE_AN_ERROR) {
+		netdev_err(pdata->netdev,
+			   "error during auto-negotiation, state=%u\n",
+			   cur_state);
+
+		pdata->an_int = 0;
+		xgbe_an37_clear_interrupts(pdata);
+	}
+
+	if (pdata->an_state >= XGBE_AN_COMPLETE) {
+		pdata->an_result = pdata->an_state;
+		pdata->an_state = XGBE_AN_READY;
+
+		netif_dbg(pdata, link, pdata->netdev, "CL37 AN result: %s\n",
+			  xgbe_state_as_string(pdata->an_result));
+	}
+
+	xgbe_an37_enable_interrupts(pdata);
+}
+
+static void xgbe_an73_state_machine(struct xgbe_prv_data *pdata)
+{
+	enum xgbe_an cur_state = pdata->an_state;
 
 	if (!pdata->an_int)
-		goto out;
+		return;
 
 next_int:
-	if (pdata->an_int & XGBE_AN_PG_RCV) {
+	if (pdata->an_int & XGBE_AN_CL73_PG_RCV) {
 		pdata->an_state = XGBE_AN_PAGE_RECEIVED;
-		pdata->an_int &= ~XGBE_AN_PG_RCV;
-	} else if (pdata->an_int & XGBE_AN_INC_LINK) {
+		pdata->an_int &= ~XGBE_AN_CL73_PG_RCV;
+	} else if (pdata->an_int & XGBE_AN_CL73_INC_LINK) {
 		pdata->an_state = XGBE_AN_INCOMPAT_LINK;
-		pdata->an_int &= ~XGBE_AN_INC_LINK;
-	} else if (pdata->an_int & XGBE_AN_INT_CMPLT) {
+		pdata->an_int &= ~XGBE_AN_CL73_INC_LINK;
+	} else if (pdata->an_int & XGBE_AN_CL73_INT_CMPLT) {
 		pdata->an_state = XGBE_AN_COMPLETE;
-		pdata->an_int &= ~XGBE_AN_INT_CMPLT;
+		pdata->an_int &= ~XGBE_AN_CL73_INT_CMPLT;
 	} else {
 		pdata->an_state = XGBE_AN_ERROR;
 	}
 
-	pdata->an_result = pdata->an_state;
-
 again:
-	netif_dbg(pdata, link, pdata->netdev, "AN %s\n",
+	netif_dbg(pdata, link, pdata->netdev, "CL73 AN %s\n",
 		  xgbe_state_as_string(pdata->an_state));
 
 	cur_state = pdata->an_state;
@@ -719,14 +764,14 @@ again:
 		break;
 
 	case XGBE_AN_PAGE_RECEIVED:
-		pdata->an_state = xgbe_an_page_received(pdata);
+		pdata->an_state = xgbe_an73_page_received(pdata);
 		pdata->an_supported++;
 		break;
 
 	case XGBE_AN_INCOMPAT_LINK:
 		pdata->an_supported = 0;
 		pdata->parallel_detect = 0;
-		pdata->an_state = xgbe_an_incompat_link(pdata);
+		pdata->an_state = xgbe_an73_incompat_link(pdata);
 		break;
 
 	case XGBE_AN_COMPLETE:
@@ -745,14 +790,14 @@ again:
 
 	if (pdata->an_state == XGBE_AN_NO_LINK) {
 		pdata->an_int = 0;
-		XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INT, 0);
+		xgbe_an73_clear_interrupts(pdata);
 	} else if (pdata->an_state == XGBE_AN_ERROR) {
 		netdev_err(pdata->netdev,
 			   "error during auto-negotiation, state=%u\n",
 			   cur_state);
 
 		pdata->an_int = 0;
-		XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INT, 0);
+		xgbe_an73_clear_interrupts(pdata);
 	}
 
 	if (pdata->an_state >= XGBE_AN_COMPLETE) {
@@ -762,7 +807,7 @@ again:
 		pdata->kx_state = XGBE_RX_BPA;
 		pdata->an_start = 0;
 
-		netif_dbg(pdata, link, pdata->netdev, "AN result: %s\n",
+		netif_dbg(pdata, link, pdata->netdev, "CL73 AN result: %s\n",
 			  xgbe_state_as_string(pdata->an_result));
 	}
 
@@ -772,14 +817,77 @@ again:
 	if (pdata->an_int)
 		goto next_int;
 
-out:
-	/* Enable AN interrupts on the way out */
-	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK, XGBE_AN_INT_MASK);
+	xgbe_an73_enable_interrupts(pdata);
+}
+
+static void xgbe_an_state_machine(struct work_struct *work)
+{
+	struct xgbe_prv_data *pdata = container_of(work,
+						   struct xgbe_prv_data,
+						   an_work);
+
+	mutex_lock(&pdata->an_mutex);
+
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+		xgbe_an73_state_machine(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_state_machine(pdata);
+		break;
+	default:
+		break;
+	}
 
 	mutex_unlock(&pdata->an_mutex);
 }
 
-static void xgbe_an_init(struct xgbe_prv_data *pdata)
+static void xgbe_an37_init(struct xgbe_prv_data *pdata)
+{
+	unsigned int reg;
+
+	/* Set up Advertisement register */
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_ADVERTISE);
+	if (pdata->phy.advertising & ADVERTISED_Pause)
+		reg |= 0x100;
+	else
+		reg &= ~0x100;
+
+	if (pdata->phy.advertising & ADVERTISED_Asym_Pause)
+		reg |= 0x80;
+	else
+		reg &= ~0x80;
+
+	/* Full duplex, but not half */
+	reg |= XGBE_AN_CL37_FD_MASK;
+	reg &= ~XGBE_AN_CL37_HD_MASK;
+
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_ADVERTISE, reg);
+
+	/* Set up the Control register */
+	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
+	reg &= XGBE_AN_CL37_TX_CONFIG_MASK;
+	reg &= XGBE_AN_CL37_PCS_MODE_MASK;
+
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL37:
+		reg |= XGBE_AN_CL37_PCS_MODE_BASEX;
+		break;
+	case XGBE_AN_MODE_CL37_SGMII:
+		reg |= XGBE_AN_CL37_PCS_MODE_SGMII;
+		break;
+	default:
+		break;
+	}
+
+	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
+
+	netif_dbg(pdata, link, pdata->netdev, "CL37 AN (%s) initialized\n",
+		  (pdata->an_mode == XGBE_AN_MODE_CL37) ? "BaseX" : "SGMII");
+}
+
+static void xgbe_an73_init(struct xgbe_prv_data *pdata)
 {
 	unsigned int reg;
 
@@ -824,7 +932,24 @@ static void xgbe_an_init(struct xgbe_prv_data *pdata)
 
 	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
 
-	netif_dbg(pdata, link, pdata->netdev, "AN initialized\n");
+	netif_dbg(pdata, link, pdata->netdev, "CL73 AN initialized\n");
+}
+
+static void xgbe_an_init(struct xgbe_prv_data *pdata)
+{
+	/* Set up advertisement registers based on current settings */
+	pdata->an_mode = pdata->phy_if.phy_impl.an_mode(pdata);
+	switch (pdata->an_mode) {
+	case XGBE_AN_MODE_CL73:
+		xgbe_an73_init(pdata);
+		break;
+	case XGBE_AN_MODE_CL37:
+	case XGBE_AN_MODE_CL37_SGMII:
+		xgbe_an37_init(pdata);
+		break;
+	default:
+		break;
+	}
 }
 
 static const char *xgbe_phy_fc_string(struct xgbe_prv_data *pdata)
@@ -907,24 +1032,28 @@ static void xgbe_phy_adjust_link(struct xgbe_prv_data *pdata)
 		xgbe_phy_print_status(pdata);
 }
 
+static bool xgbe_phy_valid_speed(struct xgbe_prv_data *pdata, int speed)
+{
+	return pdata->phy_if.phy_impl.valid_speed(pdata, speed);
+}
+
 static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 {
+	enum xgbe_mode mode;
+
 	netif_dbg(pdata, link, pdata->netdev, "fixed PHY configuration\n");
 
 	/* Disable auto-negotiation */
-	xgbe_disable_an(pdata);
+	xgbe_an_disable(pdata);
 
-	/* Validate/Set specified speed */
-	switch (pdata->phy.speed) {
-	case SPEED_10000:
-		xgbe_set_mode(pdata, XGBE_MODE_KR);
+	/* Set specified mode for specified speed */
+	mode = pdata->phy_if.phy_impl.get_mode(pdata, pdata->phy.speed);
+	switch (mode) {
+	case XGBE_MODE_KX_1000:
+	case XGBE_MODE_KX_2500:
+	case XGBE_MODE_KR:
 		break;
-
-	case SPEED_2500:
-	case SPEED_1000:
-		xgbe_set_mode(pdata, XGBE_MODE_KX);
-		break;
-
+	case XGBE_MODE_UNKNOWN:
 	default:
 		return -EINVAL;
 	}
@@ -932,6 +1061,8 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	/* Validate duplex mode */
 	if (pdata->phy.duplex != DUPLEX_FULL)
 		return -EINVAL;
+
+	xgbe_set_mode(pdata, mode);
 
 	return 0;
 }
@@ -950,21 +1081,22 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	disable_irq(pdata->an_irq);
 
 	/* Start auto-negotiation in a supported mode */
-	if (pdata->phy.advertising & ADVERTISED_10000baseKR_Full) {
+	if (xgbe_use_mode(pdata, XGBE_MODE_KR)) {
 		xgbe_set_mode(pdata, XGBE_MODE_KR);
-	} else if ((pdata->phy.advertising & ADVERTISED_1000baseKX_Full) ||
-		   (pdata->phy.advertising & ADVERTISED_2500baseX_Full)) {
-		xgbe_set_mode(pdata, XGBE_MODE_KX);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_2500)) {
+		xgbe_set_mode(pdata, XGBE_MODE_KX_2500);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_1000)) {
+		xgbe_set_mode(pdata, XGBE_MODE_KX_1000);
 	} else {
 		enable_irq(pdata->an_irq);
 		return -EINVAL;
 	}
 
 	/* Disable and stop any in progress auto-negotiation */
-	xgbe_disable_an(pdata);
+	xgbe_an_disable_all(pdata);
 
 	/* Clear any auto-negotitation interrupts */
-	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INT, 0);
+	xgbe_an_clear_interrupts_all(pdata);
 
 	pdata->an_result = XGBE_AN_READY;
 	pdata->an_state = XGBE_AN_READY;
@@ -974,11 +1106,8 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	/* Re-enable auto-negotiation interrupt */
 	enable_irq(pdata->an_irq);
 
-	/* Set up advertisement registers based on current settings */
 	xgbe_an_init(pdata);
-
-	/* Enable and start auto-negotiation */
-	xgbe_restart_an(pdata);
+	xgbe_an_restart(pdata);
 
 	return 0;
 }
@@ -1016,108 +1145,45 @@ static void xgbe_check_link_timeout(struct xgbe_prv_data *pdata)
 	}
 }
 
-static void xgbe_phy_status_force(struct xgbe_prv_data *pdata)
+static enum xgbe_mode xgbe_phy_status_aneg(struct xgbe_prv_data *pdata)
 {
-	if (xgbe_in_kr_mode(pdata)) {
-		pdata->phy.speed = SPEED_10000;
-	} else {
-		switch (pdata->speed_set) {
-		case XGBE_SPEEDSET_1000_10000:
-			pdata->phy.speed = SPEED_1000;
-			break;
-
-		case XGBE_SPEEDSET_2500_10000:
-			pdata->phy.speed = SPEED_2500;
-			break;
-		}
-	}
-	pdata->phy.duplex = DUPLEX_FULL;
+	return pdata->phy_if.phy_impl.an_outcome(pdata);
 }
 
-static void xgbe_phy_status_aneg(struct xgbe_prv_data *pdata)
+static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 {
-	unsigned int ad_reg, lp_reg;
+	enum xgbe_mode mode;
 
 	pdata->phy.lp_advertising = 0;
 
 	if ((pdata->phy.autoneg != AUTONEG_ENABLE) || pdata->parallel_detect)
-		return xgbe_phy_status_force(pdata);
+		mode = xgbe_cur_mode(pdata);
+	else
+		mode = xgbe_phy_status_aneg(pdata);
 
-	pdata->phy.lp_advertising |= ADVERTISED_Autoneg;
-	pdata->phy.lp_advertising |= ADVERTISED_Backplane;
-
-	/* Compare Advertisement and Link Partner register 1 */
-	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE);
-	lp_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_LPA);
-	if (lp_reg & 0x400)
-		pdata->phy.lp_advertising |= ADVERTISED_Pause;
-	if (lp_reg & 0x800)
-		pdata->phy.lp_advertising |= ADVERTISED_Asym_Pause;
-
-	if (pdata->phy.pause_autoneg) {
-		/* Set flow control based on auto-negotiation result */
-		pdata->phy.tx_pause = 0;
-		pdata->phy.rx_pause = 0;
-
-		if (ad_reg & lp_reg & 0x400) {
-			pdata->phy.tx_pause = 1;
-			pdata->phy.rx_pause = 1;
-		} else if (ad_reg & lp_reg & 0x800) {
-			if (ad_reg & 0x400)
-				pdata->phy.rx_pause = 1;
-			else if (lp_reg & 0x400)
-				pdata->phy.tx_pause = 1;
-		}
-	}
-
-	/* Compare Advertisement and Link Partner register 2 */
-	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1);
-	lp_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_LPA + 1);
-	if (lp_reg & 0x80)
-		pdata->phy.lp_advertising |= ADVERTISED_10000baseKR_Full;
-	if (lp_reg & 0x20) {
-		switch (pdata->speed_set) {
-		case XGBE_SPEEDSET_1000_10000:
-			pdata->phy.lp_advertising |= ADVERTISED_1000baseKX_Full;
-			break;
-		case XGBE_SPEEDSET_2500_10000:
-			pdata->phy.lp_advertising |= ADVERTISED_2500baseX_Full;
-			break;
-		}
-	}
-
-	ad_reg &= lp_reg;
-	if (ad_reg & 0x80) {
+	switch (mode) {
+	case XGBE_MODE_KX_1000:
+		pdata->phy.speed = SPEED_1000;
+		break;
+	case XGBE_MODE_KX_2500:
+		pdata->phy.speed = SPEED_2500;
+		break;
+	case XGBE_MODE_KR:
 		pdata->phy.speed = SPEED_10000;
-		xgbe_set_mode(pdata, XGBE_MODE_KR);
-	} else if (ad_reg & 0x20) {
-		switch (pdata->speed_set) {
-		case XGBE_SPEEDSET_1000_10000:
-			pdata->phy.speed = SPEED_1000;
-			break;
-
-		case XGBE_SPEEDSET_2500_10000:
-			pdata->phy.speed = SPEED_2500;
-			break;
-		}
-
-		xgbe_set_mode(pdata, XGBE_MODE_KX);
-	} else {
+		break;
+	case XGBE_MODE_UNKNOWN:
+	default:
 		pdata->phy.speed = SPEED_UNKNOWN;
 	}
 
-	/* Compare Advertisement and Link Partner register 3 */
-	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2);
-	lp_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_LPA + 2);
-	if (lp_reg & 0xc000)
-		pdata->phy.lp_advertising |= ADVERTISED_10000baseR_FEC;
-
 	pdata->phy.duplex = DUPLEX_FULL;
+
+	xgbe_set_mode(pdata, mode);
 }
 
 static void xgbe_phy_status(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg, link_aneg;
+	unsigned int link_aneg;
 
 	if (test_bit(XGBE_LINK_ERR, &pdata->dev_state)) {
 		netif_carrier_off(pdata->netdev);
@@ -1128,20 +1194,14 @@ static void xgbe_phy_status(struct xgbe_prv_data *pdata)
 
 	link_aneg = (pdata->phy.autoneg == AUTONEG_ENABLE);
 
-	/* Get the link status. Link status is latched low, so read
-	 * once to clear and then read again to get current state
-	 */
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_STAT1);
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_STAT1);
-	pdata->phy.link = (reg & MDIO_STAT1_LSTATUS) ? 1 : 0;
-
+	pdata->phy.link = pdata->phy_if.phy_impl.link_status(pdata);
 	if (pdata->phy.link) {
 		if (link_aneg && !xgbe_phy_aneg_done(pdata)) {
 			xgbe_check_link_timeout(pdata);
 			return;
 		}
 
-		xgbe_phy_status_aneg(pdata);
+		xgbe_phy_status_result(pdata);
 
 		if (test_bit(XGBE_LINK_INIT, &pdata->dev_state))
 			clear_bit(XGBE_LINK_INIT, &pdata->dev_state);
@@ -1155,7 +1215,7 @@ static void xgbe_phy_status(struct xgbe_prv_data *pdata)
 				return;
 		}
 
-		xgbe_phy_status_aneg(pdata);
+		xgbe_phy_status_result(pdata);
 
 		netif_carrier_off(pdata->netdev);
 	}
@@ -1168,13 +1228,18 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 {
 	netif_dbg(pdata, link, pdata->netdev, "stopping PHY\n");
 
-	/* Disable auto-negotiation */
-	xgbe_disable_an(pdata);
+	if (!pdata->phy_started)
+		return;
 
-	/* Disable auto-negotiation interrupts */
-	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK, 0);
+	/* Indicate the PHY is down */
+	pdata->phy_started = 0;
+
+	/* Disable auto-negotiation */
+	xgbe_an_disable_all(pdata);
 
 	devm_free_irq(pdata->dev, pdata->an_irq, pdata);
+
+	pdata->phy_if.phy_impl.stop(pdata);
 
 	pdata->phy.link = 0;
 	netif_carrier_off(pdata->netdev);
@@ -1189,64 +1254,62 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 
 	netif_dbg(pdata, link, pdata->netdev, "starting PHY\n");
 
+	ret = pdata->phy_if.phy_impl.start(pdata);
+	if (ret)
+		return ret;
+
 	ret = devm_request_irq(pdata->dev, pdata->an_irq,
 			       xgbe_an_isr, 0, pdata->an_name,
 			       pdata);
 	if (ret) {
 		netdev_err(netdev, "phy irq request failed\n");
-		return ret;
+		goto err_stop;
 	}
 
 	/* Set initial mode - call the mode setting routines
 	 * directly to insure we are properly configured
 	 */
-	if (xgbe_use_xgmii_mode(pdata)) {
-		xgbe_xgmii_mode(pdata);
-	} else if (xgbe_use_gmii_mode(pdata)) {
-		xgbe_gmii_mode(pdata);
-	} else if (xgbe_use_gmii_2500_mode(pdata)) {
-		xgbe_gmii_2500_mode(pdata);
+	if (xgbe_use_mode(pdata, XGBE_MODE_KR)) {
+		xgbe_kr_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_2500)) {
+		xgbe_kx_2500_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_1000)) {
+		xgbe_kx_1000_mode(pdata);
 	} else {
 		ret = -EINVAL;
 		goto err_irq;
 	}
 
-	/* Set up advertisement registers based on current settings */
-	xgbe_an_init(pdata);
+	/* Indicate the PHY is up and running */
+	pdata->phy_started = 1;
 
-	/* Enable auto-negotiation interrupts */
-	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INTMASK, 0x07);
+	xgbe_an_init(pdata);
+	xgbe_an_enable_interrupts(pdata);
 
 	return xgbe_phy_config_aneg(pdata);
 
 err_irq:
 	devm_free_irq(pdata->dev, pdata->an_irq, pdata);
 
+err_stop:
+	pdata->phy_if.phy_impl.stop(pdata);
+
 	return ret;
 }
 
 static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 {
-	unsigned int count, reg;
+	int ret;
 
-	reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
-	reg |= MDIO_CTRL1_RESET;
-	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, reg);
-
-	count = 50;
-	do {
-		msleep(20);
-		reg = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
-	} while ((reg & MDIO_CTRL1_RESET) && --count);
-
-	if (reg & MDIO_CTRL1_RESET)
-		return -ETIMEDOUT;
+	ret = pdata->phy_if.phy_impl.reset(pdata);
+	if (ret)
+		return ret;
 
 	/* Disable auto-negotiation for now */
-	xgbe_disable_an(pdata);
+	xgbe_an_disable_all(pdata);
 
 	/* Clear auto-negotiation interrupts */
-	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_INT, 0);
+	xgbe_an_clear_interrupts_all(pdata);
 
 	return 0;
 }
@@ -1257,74 +1320,90 @@ static void xgbe_dump_phy_registers(struct xgbe_prv_data *pdata)
 
 	dev_dbg(dev, "\n************* PHY Reg dump **********************\n");
 
-	dev_dbg(dev, "PCS Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
+	dev_dbg(dev, "PCS Control Reg (%#06x) = %#06x\n", MDIO_CTRL1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1));
-	dev_dbg(dev, "PCS Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
+	dev_dbg(dev, "PCS Status Reg (%#06x) = %#06x\n", MDIO_STAT1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_STAT1));
-	dev_dbg(dev, "Phy Id (PHYS ID 1 %#04x)= %#04x\n", MDIO_DEVID1,
+	dev_dbg(dev, "Phy Id (PHYS ID 1 %#06x)= %#06x\n", MDIO_DEVID1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID1));
-	dev_dbg(dev, "Phy Id (PHYS ID 2 %#04x)= %#04x\n", MDIO_DEVID2,
+	dev_dbg(dev, "Phy Id (PHYS ID 2 %#06x)= %#06x\n", MDIO_DEVID2,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID2));
-	dev_dbg(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS1,
+	dev_dbg(dev, "Devices in Package (%#06x)= %#06x\n", MDIO_DEVS1,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS1));
-	dev_dbg(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS2,
+	dev_dbg(dev, "Devices in Package (%#06x)= %#06x\n", MDIO_DEVS2,
 		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS2));
 
-	dev_dbg(dev, "Auto-Neg Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
+	dev_dbg(dev, "Auto-Neg Control Reg (%#06x) = %#06x\n", MDIO_CTRL1,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_CTRL1));
-	dev_dbg(dev, "Auto-Neg Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
+	dev_dbg(dev, "Auto-Neg Status Reg (%#06x) = %#06x\n", MDIO_STAT1,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_STAT1));
-	dev_dbg(dev, "Auto-Neg Ad Reg 1 (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Ad Reg 1 (%#06x) = %#06x\n",
 		MDIO_AN_ADVERTISE,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE));
-	dev_dbg(dev, "Auto-Neg Ad Reg 2 (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Ad Reg 2 (%#06x) = %#06x\n",
 		MDIO_AN_ADVERTISE + 1,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1));
-	dev_dbg(dev, "Auto-Neg Ad Reg 3 (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Ad Reg 3 (%#06x) = %#06x\n",
 		MDIO_AN_ADVERTISE + 2,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2));
-	dev_dbg(dev, "Auto-Neg Completion Reg (%#04x) = %#04x\n",
+	dev_dbg(dev, "Auto-Neg Completion Reg (%#06x) = %#06x\n",
 		MDIO_AN_COMP_STAT,
 		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_COMP_STAT));
 
 	dev_dbg(dev, "\n*************************************************\n");
 }
 
-static void xgbe_phy_init(struct xgbe_prv_data *pdata)
+static int xgbe_phy_best_advertised_speed(struct xgbe_prv_data *pdata)
 {
+	if (pdata->phy.advertising & ADVERTISED_10000baseKR_Full)
+		return SPEED_10000;
+	else if (pdata->phy.advertising & ADVERTISED_2500baseX_Full)
+		return SPEED_2500;
+	else if (pdata->phy.advertising & ADVERTISED_1000baseKX_Full)
+		return SPEED_1000;
+
+	return SPEED_UNKNOWN;
+}
+
+static void xgbe_phy_exit(struct xgbe_prv_data *pdata)
+{
+	xgbe_phy_stop(pdata);
+
+	pdata->phy_if.phy_impl.exit(pdata);
+}
+
+static int xgbe_phy_init(struct xgbe_prv_data *pdata)
+{
+	int ret;
+
 	mutex_init(&pdata->an_mutex);
 	INIT_WORK(&pdata->an_irq_work, xgbe_an_irq_work);
 	INIT_WORK(&pdata->an_work, xgbe_an_state_machine);
 	pdata->mdio_mmd = MDIO_MMD_PCS;
 
-	/* Initialize supported features */
-	pdata->phy.supported = SUPPORTED_Autoneg;
-	pdata->phy.supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	pdata->phy.supported |= SUPPORTED_Backplane;
-	pdata->phy.supported |= SUPPORTED_10000baseKR_Full;
-	switch (pdata->speed_set) {
-	case XGBE_SPEEDSET_1000_10000:
-		pdata->phy.supported |= SUPPORTED_1000baseKX_Full;
-		break;
-	case XGBE_SPEEDSET_2500_10000:
-		pdata->phy.supported |= SUPPORTED_2500baseX_Full;
-		break;
-	}
-
+	/* Check for FEC support */
 	pdata->fec_ability = XMDIO_READ(pdata, MDIO_MMD_PMAPMD,
 					MDIO_PMA_10GBR_FECABLE);
 	pdata->fec_ability &= (MDIO_PMA_10GBR_FECABLE_ABLE |
 			       MDIO_PMA_10GBR_FECABLE_ERRABLE);
-	if (pdata->fec_ability & MDIO_PMA_10GBR_FECABLE_ABLE)
-		pdata->phy.supported |= SUPPORTED_10000baseR_FEC;
 
+	/* Setup the phy (including supported features) */
+	ret = pdata->phy_if.phy_impl.init(pdata);
+	if (ret)
+		return ret;
 	pdata->phy.advertising = pdata->phy.supported;
 
 	pdata->phy.address = 0;
 
-	pdata->phy.autoneg = AUTONEG_ENABLE;
-	pdata->phy.speed = SPEED_UNKNOWN;
-	pdata->phy.duplex = DUPLEX_UNKNOWN;
+	if (pdata->phy.advertising & ADVERTISED_Autoneg) {
+		pdata->phy.autoneg = AUTONEG_ENABLE;
+		pdata->phy.speed = SPEED_UNKNOWN;
+		pdata->phy.duplex = DUPLEX_UNKNOWN;
+	} else {
+		pdata->phy.autoneg = AUTONEG_DISABLE;
+		pdata->phy.speed = xgbe_phy_best_advertised_speed(pdata);
+		pdata->phy.duplex = DUPLEX_FULL;
+	}
 
 	pdata->phy.link = 0;
 
@@ -1346,11 +1425,14 @@ static void xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	if (netif_msg_drv(pdata))
 		xgbe_dump_phy_registers(pdata);
+
+	return 0;
 }
 
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *phy_if)
 {
 	phy_if->phy_init        = xgbe_phy_init;
+	phy_if->phy_exit        = xgbe_phy_exit;
 
 	phy_if->phy_reset       = xgbe_phy_reset;
 	phy_if->phy_start       = xgbe_phy_start;
@@ -1358,4 +1440,6 @@ void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *phy_if)
 
 	phy_if->phy_status      = xgbe_phy_status;
 	phy_if->phy_config_aneg = xgbe_phy_config_aneg;
+
+	phy_if->phy_valid_speed = xgbe_phy_valid_speed;
 }

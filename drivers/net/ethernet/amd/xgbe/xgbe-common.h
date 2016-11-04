@@ -790,6 +790,10 @@
 #define MTL_Q_RQOMR_RSF_WIDTH		1
 #define MTL_Q_RQOMR_RTC_INDEX		0
 #define MTL_Q_RQOMR_RTC_WIDTH		2
+#define MTL_Q_TQDR_TRCSTS_INDEX		1
+#define MTL_Q_TQDR_TRCSTS_WIDTH		2
+#define MTL_Q_TQDR_TXQSTS_INDEX		4
+#define MTL_Q_TQDR_TXQSTS_WIDTH		1
 #define MTL_Q_TQOMR_FTQ_INDEX		0
 #define MTL_Q_TQOMR_FTQ_WIDTH		1
 #define MTL_Q_TQOMR_Q2TCMAP_INDEX	8
@@ -852,14 +856,9 @@
 #define MTL_TSA_SP			0x00
 #define MTL_TSA_ETS			0x02
 
-/* PCS MMD select register offset
- *  The MMD select register is used for accessing PCS registers
- *  when the underlying APB3 interface is using indirect addressing.
- *  Indirect addressing requires accessing registers in two phases,
- *  an address phase and a data phase.  The address phases requires
- *  writing an address selection value to the MMD select regiesters.
- */
-#define PCS_MMD_SELECT			0xff
+/* PCS register offsets */
+#define PCS_V1_WINDOW_SELECT		0x03fc
+#define PCS_V2_WINDOW_SELECT		0x9064
 
 /* SerDes integration register offsets */
 #define SIR0_KR_RT_1			0x002c
@@ -1027,6 +1026,10 @@
 #define MDIO_PMA_10GBR_FECCTRL		0x00ab
 #endif
 
+#ifndef MDIO_PCS_DIG_CTRL
+#define MDIO_PCS_DIG_CTRL		0x8000
+#endif
+
 #ifndef MDIO_AN_XNP
 #define MDIO_AN_XNP			0x0016
 #endif
@@ -1047,11 +1050,40 @@
 #define MDIO_AN_INT			0x8002
 #endif
 
+#ifndef MDIO_VEND2_AN_ADVERTISE
+#define MDIO_VEND2_AN_ADVERTISE		0x0004
+#endif
+
+#ifndef MDIO_VEND2_AN_LP_ABILITY
+#define MDIO_VEND2_AN_LP_ABILITY	0x0005
+#endif
+
+#ifndef MDIO_VEND2_AN_CTRL
+#define MDIO_VEND2_AN_CTRL		0x8001
+#endif
+
+#ifndef MDIO_VEND2_AN_STAT
+#define MDIO_VEND2_AN_STAT		0x8002
+#endif
+
 #ifndef MDIO_CTRL1_SPEED1G
 #define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
 #endif
 
+#ifndef MDIO_VEND2_CTRL1_AN_ENABLE
+#define MDIO_VEND2_CTRL1_AN_ENABLE	BIT(12)
+#endif
+
+#ifndef MDIO_VEND2_CTRL1_AN_RESTART
+#define MDIO_VEND2_CTRL1_AN_RESTART	BIT(9)
+#endif
+
 /* MDIO mask values */
+#define XGBE_AN_CL73_INT_CMPLT		BIT(0)
+#define XGBE_AN_CL73_INC_LINK		BIT(1)
+#define XGBE_AN_CL73_PG_RCV		BIT(2)
+#define XGBE_AN_CL73_INT_MASK		0x07
+
 #define XGBE_XNP_MCF_NULL_MESSAGE	0x001
 #define XGBE_XNP_ACK_PROCESSED		BIT(12)
 #define XGBE_XNP_MP_FORMATTED		BIT(13)
@@ -1059,6 +1091,19 @@
 
 #define XGBE_KR_TRAINING_START		BIT(0)
 #define XGBE_KR_TRAINING_ENABLE		BIT(1)
+
+#define XGBE_PCS_CL37_BP		BIT(12)
+
+#define XGBE_AN_CL37_INT_CMPLT		BIT(0)
+#define XGBE_AN_CL37_INT_MASK		0x01
+
+#define XGBE_AN_CL37_HD_MASK		0x40
+#define XGBE_AN_CL37_FD_MASK		0x20
+
+#define XGBE_AN_CL37_PCS_MODE_MASK	0x06
+#define XGBE_AN_CL37_PCS_MODE_BASEX	0x00
+#define XGBE_AN_CL37_PCS_MODE_SGMII	0x04
+#define XGBE_AN_CL37_TX_CONFIG_MASK	0x08
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within
@@ -1195,11 +1240,17 @@ do {									\
 /* Macros for building, reading or writing register values or bits
  * within the register values of XPCS registers.
  */
-#define XPCS_IOWRITE(_pdata, _off, _val)				\
+#define XPCS32_IOWRITE(_pdata, _off, _val)				\
 	iowrite32(_val, (_pdata)->xpcs_regs + (_off))
 
-#define XPCS_IOREAD(_pdata, _off)					\
+#define XPCS32_IOREAD(_pdata, _off)					\
 	ioread32((_pdata)->xpcs_regs + (_off))
+
+#define XPCS16_IOWRITE(_pdata, _off, _val)				\
+	iowrite16(_val, (_pdata)->xpcs_regs + (_off))
+
+#define XPCS16_IOREAD(_pdata, _off)					\
+	ioread16((_pdata)->xpcs_regs + (_off))
 
 /* Macros for building, reading or writing register values or bits
  * within the register values of SerDes integration registers.
