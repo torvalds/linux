@@ -94,6 +94,9 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 };
 
 static const int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
+	/* Make sure we catch unsupported clockids */
+	[0 ... MAX_CLOCKS - 1]	= HRTIMER_MAX_CLOCK_BASES,
+
 	[CLOCK_REALTIME]	= HRTIMER_BASE_REALTIME,
 	[CLOCK_MONOTONIC]	= HRTIMER_BASE_MONOTONIC,
 	[CLOCK_BOOTTIME]	= HRTIMER_BASE_BOOTTIME,
@@ -102,7 +105,9 @@ static const int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
 
 static inline int hrtimer_clockid_to_base(clockid_t clock_id)
 {
-	return hrtimer_clock_to_base_table[clock_id];
+	int base = hrtimer_clock_to_base_table[clock_id];
+	BUG_ON(base == HRTIMER_MAX_CLOCK_BASES);
+	return base;
 }
 
 /*

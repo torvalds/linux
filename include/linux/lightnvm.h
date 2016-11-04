@@ -1,6 +1,8 @@
 #ifndef NVM_H
 #define NVM_H
 
+#include <linux/types.h>
+
 enum {
 	NVM_IO_OK = 0,
 	NVM_IO_REQUEUE = 1,
@@ -11,10 +13,71 @@ enum {
 	NVM_IOTYPE_GC = 1,
 };
 
+#define NVM_BLK_BITS (16)
+#define NVM_PG_BITS  (16)
+#define NVM_SEC_BITS (8)
+#define NVM_PL_BITS  (8)
+#define NVM_LUN_BITS (8)
+#define NVM_CH_BITS  (8)
+
+struct ppa_addr {
+	/* Generic structure for all addresses */
+	union {
+		struct {
+			u64 blk		: NVM_BLK_BITS;
+			u64 pg		: NVM_PG_BITS;
+			u64 sec		: NVM_SEC_BITS;
+			u64 pl		: NVM_PL_BITS;
+			u64 lun		: NVM_LUN_BITS;
+			u64 ch		: NVM_CH_BITS;
+		} g;
+
+		u64 ppa;
+	};
+};
+
+struct nvm_rq;
+struct nvm_id;
+struct nvm_dev;
+
+typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
+typedef int (nvm_bb_update_fn)(struct ppa_addr, int, u8 *, void *);
+typedef int (nvm_id_fn)(struct nvm_dev *, struct nvm_id *);
+typedef int (nvm_get_l2p_tbl_fn)(struct nvm_dev *, u64, u32,
+				nvm_l2p_update_fn *, void *);
+typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, int,
+				nvm_bb_update_fn *, void *);
+typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct nvm_rq *, int);
+typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
+typedef int (nvm_erase_blk_fn)(struct nvm_dev *, struct nvm_rq *);
+typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
+typedef void (nvm_destroy_dma_pool_fn)(void *);
+typedef void *(nvm_dev_dma_alloc_fn)(struct nvm_dev *, void *, gfp_t,
+								dma_addr_t *);
+typedef void (nvm_dev_dma_free_fn)(void *, void*, dma_addr_t);
+
+struct nvm_dev_ops {
+	nvm_id_fn		*identity;
+	nvm_get_l2p_tbl_fn	*get_l2p_tbl;
+	nvm_op_bb_tbl_fn	*get_bb_tbl;
+	nvm_op_set_bb_fn	*set_bb_tbl;
+
+	nvm_submit_io_fn	*submit_io;
+	nvm_erase_blk_fn	*erase_block;
+
+	nvm_create_dma_pool_fn	*create_dma_pool;
+	nvm_destroy_dma_pool_fn	*destroy_dma_pool;
+	nvm_dev_dma_alloc_fn	*dev_dma_alloc;
+	nvm_dev_dma_free_fn	*dev_dma_free;
+
+	unsigned int		max_phys_sect;
+};
+
+
+
 #ifdef CONFIG_NVM
 
 #include <linux/blkdev.h>
-#include <linux/types.h>
 #include <linux/file.h>
 #include <linux/dmapool.h>
 
@@ -58,8 +121,9 @@ enum {
 	/* Block Types */
 	NVM_BLK_T_FREE		= 0x0,
 	NVM_BLK_T_BAD		= 0x1,
-	NVM_BLK_T_DEV		= 0x2,
-	NVM_BLK_T_HOST		= 0x4,
+	NVM_BLK_T_GRWN_BAD	= 0x2,
+	NVM_BLK_T_DEV		= 0x4,
+	NVM_BLK_T_HOST		= 0x8,
 };
 
 struct nvm_id_group {
@@ -125,29 +189,6 @@ struct nvm_tgt_instance {
 #define NVM_VERSION_MINOR 0
 #define NVM_VERSION_PATCH 0
 
-#define NVM_BLK_BITS (16)
-#define NVM_PG_BITS  (16)
-#define NVM_SEC_BITS (8)
-#define NVM_PL_BITS  (8)
-#define NVM_LUN_BITS (8)
-#define NVM_CH_BITS  (8)
-
-struct ppa_addr {
-	/* Generic structure for all addresses */
-	union {
-		struct {
-			u64 blk		: NVM_BLK_BITS;
-			u64 pg		: NVM_PG_BITS;
-			u64 sec		: NVM_SEC_BITS;
-			u64 pl		: NVM_PL_BITS;
-			u64 lun		: NVM_LUN_BITS;
-			u64 ch		: NVM_CH_BITS;
-		} g;
-
-		u64 ppa;
-	};
-};
-
 struct nvm_rq {
 	struct nvm_tgt_instance *ins;
 	struct nvm_dev *dev;
@@ -180,39 +221,6 @@ static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 }
 
 struct nvm_block;
-
-typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
-typedef int (nvm_bb_update_fn)(struct ppa_addr, int, u8 *, void *);
-typedef int (nvm_id_fn)(struct nvm_dev *, struct nvm_id *);
-typedef int (nvm_get_l2p_tbl_fn)(struct nvm_dev *, u64, u32,
-				nvm_l2p_update_fn *, void *);
-typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, int,
-				nvm_bb_update_fn *, void *);
-typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct nvm_rq *, int);
-typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef int (nvm_erase_blk_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef void *(nvm_create_dma_pool_fn)(struct nvm_dev *, char *);
-typedef void (nvm_destroy_dma_pool_fn)(void *);
-typedef void *(nvm_dev_dma_alloc_fn)(struct nvm_dev *, void *, gfp_t,
-								dma_addr_t *);
-typedef void (nvm_dev_dma_free_fn)(void *, void*, dma_addr_t);
-
-struct nvm_dev_ops {
-	nvm_id_fn		*identity;
-	nvm_get_l2p_tbl_fn	*get_l2p_tbl;
-	nvm_op_bb_tbl_fn	*get_bb_tbl;
-	nvm_op_set_bb_fn	*set_bb_tbl;
-
-	nvm_submit_io_fn	*submit_io;
-	nvm_erase_blk_fn	*erase_block;
-
-	nvm_create_dma_pool_fn	*create_dma_pool;
-	nvm_destroy_dma_pool_fn	*destroy_dma_pool;
-	nvm_dev_dma_alloc_fn	*dev_dma_alloc;
-	nvm_dev_dma_free_fn	*dev_dma_free;
-
-	unsigned int		max_phys_sect;
-};
 
 struct nvm_lun {
 	int id;

@@ -1526,27 +1526,24 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 
 		reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
 
-		if (BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
-					     BTRFS_INODE_PREALLOC)) {
-			ret = check_can_nocow(inode, pos, &write_bytes);
-			if (ret < 0)
-				break;
-			if (ret > 0) {
-				/*
-				 * For nodata cow case, no need to reserve
-				 * data space.
-				 */
-				only_release_metadata = true;
-				/*
-				 * our prealloc extent may be smaller than
-				 * write_bytes, so scale down.
-				 */
-				num_pages = DIV_ROUND_UP(write_bytes + offset,
-							 PAGE_CACHE_SIZE);
-				reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
-				goto reserve_metadata;
-			}
+		if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
+					      BTRFS_INODE_PREALLOC)) &&
+		    check_can_nocow(inode, pos, &write_bytes) > 0) {
+			/*
+			 * For nodata cow case, no need to reserve
+			 * data space.
+			 */
+			only_release_metadata = true;
+			/*
+			 * our prealloc extent may be smaller than
+			 * write_bytes, so scale down.
+			 */
+			num_pages = DIV_ROUND_UP(write_bytes + offset,
+						 PAGE_CACHE_SIZE);
+			reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
+			goto reserve_metadata;
 		}
+
 		ret = btrfs_check_data_free_space(inode, pos, write_bytes);
 		if (ret < 0)
 			break;

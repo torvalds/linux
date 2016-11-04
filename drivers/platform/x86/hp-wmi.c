@@ -723,6 +723,11 @@ static int __init hp_wmi_rfkill_setup(struct platform_device *device)
 	if (err)
 		return err;
 
+	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, &wireless,
+				   sizeof(wireless), 0);
+	if (err)
+		return err;
+
 	if (wireless & 0x1) {
 		wifi_rfkill = rfkill_alloc("hp-wifi", &device->dev,
 					   RFKILL_TYPE_WLAN,
@@ -910,7 +915,7 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	gps_rfkill = NULL;
 	rfkill2_count = 0;
 
-	if (hp_wmi_bios_2009_later() || hp_wmi_rfkill_setup(device))
+	if (hp_wmi_rfkill_setup(device))
 		hp_wmi_rfkill2_setup(device);
 
 	err = device_create_file(&device->dev, &dev_attr_display);

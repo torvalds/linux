@@ -98,6 +98,7 @@ amdgpu_atombios_encoder_set_backlight_level(struct amdgpu_encoder *amdgpu_encode
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 			if (dig->backlight_level == 0)
 				amdgpu_atombios_encoder_setup_dig_transmitter(encoder,
 								       ATOM_TRANSMITTER_ACTION_LCD_BLOFF, 0, 0);

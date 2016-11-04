@@ -34,7 +34,13 @@ struct qcom_rpm_resource {
 struct qcom_rpm_data {
 	u32 version;
 	const struct qcom_rpm_resource *resource_table;
-	unsigned n_resources;
+	unsigned int n_resources;
+	unsigned int req_ctx_off;
+	unsigned int req_sel_off;
+	unsigned int ack_ctx_off;
+	unsigned int ack_sel_off;
+	unsigned int req_sel_size;
+	unsigned int ack_sel_size;
 };
 
 struct qcom_rpm {
@@ -61,11 +67,7 @@ struct qcom_rpm {
 
 #define RPM_REQUEST_TIMEOUT	(5 * HZ)
 
-#define RPM_REQUEST_CONTEXT	3
-#define RPM_REQ_SELECT		11
-#define RPM_ACK_CONTEXT		15
-#define RPM_ACK_SELECTOR	23
-#define RPM_SELECT_SIZE		7
+#define RPM_MAX_SEL_SIZE	7
 
 #define RPM_NOTIFICATION	BIT(30)
 #define RPM_REJECTED		BIT(31)
@@ -157,6 +159,12 @@ static const struct qcom_rpm_data apq8064_template = {
 	.version = 3,
 	.resource_table = apq8064_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(apq8064_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
 };
 
 static const struct qcom_rpm_resource msm8660_rpm_resource_table[] = {
@@ -240,6 +248,12 @@ static const struct qcom_rpm_data msm8660_template = {
 	.version = 2,
 	.resource_table = msm8660_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(msm8660_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 19,
+	.ack_sel_off = 27,
+	.req_sel_size = 7,
+	.ack_sel_size = 7,
 };
 
 static const struct qcom_rpm_resource msm8960_rpm_resource_table[] = {
@@ -322,6 +336,12 @@ static const struct qcom_rpm_data msm8960_template = {
 	.version = 3,
 	.resource_table = msm8960_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(msm8960_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
 };
 
 static const struct qcom_rpm_resource ipq806x_rpm_resource_table[] = {
@@ -362,6 +382,12 @@ static const struct qcom_rpm_data ipq806x_template = {
 	.version = 3,
 	.resource_table = ipq806x_rpm_resource_table,
 	.n_resources = ARRAY_SIZE(ipq806x_rpm_resource_table),
+	.req_ctx_off = 3,
+	.req_sel_off = 11,
+	.ack_ctx_off = 15,
+	.ack_sel_off = 23,
+	.req_sel_size = 4,
+	.ack_sel_size = 7,
 };
 
 static const struct of_device_id qcom_rpm_of_match[] = {
@@ -380,7 +406,7 @@ int qcom_rpm_write(struct qcom_rpm *rpm,
 {
 	const struct qcom_rpm_resource *res;
 	const struct qcom_rpm_data *data = rpm->data;
-	u32 sel_mask[RPM_SELECT_SIZE] = { 0 };
+	u32 sel_mask[RPM_MAX_SEL_SIZE] = { 0 };
 	int left;
 	int ret = 0;
 	int i;
@@ -398,12 +424,12 @@ int qcom_rpm_write(struct qcom_rpm *rpm,
 		writel_relaxed(buf[i], RPM_REQ_REG(rpm, res->target_id + i));
 
 	bitmap_set((unsigned long *)sel_mask, res->select_id, 1);
-	for (i = 0; i < ARRAY_SIZE(sel_mask); i++) {
+	for (i = 0; i < rpm->data->req_sel_size; i++) {
 		writel_relaxed(sel_mask[i],
-			       RPM_CTRL_REG(rpm, RPM_REQ_SELECT + i));
+			       RPM_CTRL_REG(rpm, rpm->data->req_sel_off + i));
 	}
 
-	writel_relaxed(BIT(state), RPM_CTRL_REG(rpm, RPM_REQUEST_CONTEXT));
+	writel_relaxed(BIT(state), RPM_CTRL_REG(rpm, rpm->data->req_ctx_off));
 
 	reinit_completion(&rpm->ack);
 	regmap_write(rpm->ipc_regmap, rpm->ipc_offset, BIT(rpm->ipc_bit));
@@ -426,10 +452,11 @@ static irqreturn_t qcom_rpm_ack_interrupt(int irq, void *dev)
 	u32 ack;
 	int i;
 
-	ack = readl_relaxed(RPM_CTRL_REG(rpm, RPM_ACK_CONTEXT));
-	for (i = 0; i < RPM_SELECT_SIZE; i++)
-		writel_relaxed(0, RPM_CTRL_REG(rpm, RPM_ACK_SELECTOR + i));
-	writel(0, RPM_CTRL_REG(rpm, RPM_ACK_CONTEXT));
+	ack = readl_relaxed(RPM_CTRL_REG(rpm, rpm->data->ack_ctx_off));
+	for (i = 0; i < rpm->data->ack_sel_size; i++)
+		writel_relaxed(0,
+			RPM_CTRL_REG(rpm, rpm->data->ack_sel_off + i));
+	writel(0, RPM_CTRL_REG(rpm, rpm->data->ack_ctx_off));
 
 	if (ack & RPM_NOTIFICATION) {
 		dev_warn(rpm->dev, "ignoring notification!\n");

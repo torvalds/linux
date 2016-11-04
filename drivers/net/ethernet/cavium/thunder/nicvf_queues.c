@@ -1414,16 +1414,12 @@ void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx)
 }
 
 /* Check for errors in the receive cmp.queue entry */
-int nicvf_check_cqe_rx_errs(struct nicvf *nic,
-			    struct cmp_queue *cq, struct cqe_rx_t *cqe_rx)
+int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 {
 	struct nicvf_hw_stats *stats = &nic->hw_stats;
-	struct nicvf_drv_stats *drv_stats = &nic->drv_stats;
 
-	if (!cqe_rx->err_level && !cqe_rx->err_opcode) {
-		drv_stats->rx_frames_ok++;
+	if (!cqe_rx->err_level && !cqe_rx->err_opcode)
 		return 0;
-	}
 
 	if (netif_msg_rx_err(nic))
 		netdev_err(nic->netdev,

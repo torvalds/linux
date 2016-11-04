@@ -197,6 +197,9 @@ struct intel_th {
 
 	int			id;
 	int			major;
+#ifdef CONFIG_MODULES
+	struct work_struct	request_module_work;
+#endif /* CONFIG_MODULES */
 #ifdef CONFIG_INTEL_TH_DEBUG
 	struct dentry		*dbg;
 #endif

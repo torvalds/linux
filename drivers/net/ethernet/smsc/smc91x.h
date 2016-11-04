@@ -37,6 +37,27 @@
 #include <linux/smc91x.h>
 
 /*
+ * Any 16-bit access is performed with two 8-bit accesses if the hardware
+ * can't do it directly. Most registers are 16-bit so those are mandatory.
+ */
+#define SMC_outw_b(x, a, r)						\
+	do {								\
+		unsigned int __val16 = (x);				\
+		unsigned int __reg = (r);				\
+		SMC_outb(__val16, a, __reg);				\
+		SMC_outb(__val16 >> 8, a, __reg + (1 << SMC_IO_SHIFT));	\
+	} while (0)
+
+#define SMC_inw_b(a, r)							\
+	({								\
+		unsigned int __val16;					\
+		unsigned int __reg = r;					\
+		__val16  = SMC_inb(a, __reg);				\
+		__val16 |= SMC_inb(a, __reg + (1 << SMC_IO_SHIFT)) << 8; \
+		__val16;						\
+	})
+
+/*
  * Define your architecture specific bus configuration parameters here.
  */
 
@@ -55,10 +76,30 @@
 #define SMC_IO_SHIFT		(lp->io_shift)
 
 #define SMC_inb(a, r)		readb((a) + (r))
-#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_inw(a, r)							\
+	({								\
+		unsigned int __smc_r = r;				\
+		SMC_16BIT(lp) ? readw((a) + __smc_r) :			\
+		SMC_8BIT(lp) ? SMC_inw_b(a, __smc_r) :			\
+		({ BUG(); 0; });					\
+	})
+
 #define SMC_inl(a, r)		readl((a) + (r))
 #define SMC_outb(v, a, r)	writeb(v, (a) + (r))
+#define SMC_outw(v, a, r)						\
+	do {								\
+		unsigned int __v = v, __smc_r = r;			\
+		if (SMC_16BIT(lp))					\
+			__SMC_outw(__v, a, __smc_r);			\
+		else if (SMC_8BIT(lp))					\
+			SMC_outw_b(__v, a, __smc_r);			\
+		else							\
+			BUG();						\
+	} while (0)
+
 #define SMC_outl(v, a, r)	writel(v, (a) + (r))
+#define SMC_insb(a, r, p, l)	readsb((a) + (r), p, l)
+#define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, l)
 #define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 #define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
@@ -66,7 +107,7 @@
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 /* We actually can't write halfwords properly if not word aligned */
-static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
+static inline void __SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 {
 	if ((machine_is_mainstone() || machine_is_stargate2() ||
 	     machine_is_pxa_idp()) && reg & 2) {
@@ -405,24 +446,8 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 
 #if ! SMC_CAN_USE_16BIT
 
-/*
- * Any 16-bit access is performed with two 8-bit accesses if the hardware
- * can't do it directly. Most registers are 16-bit so those are mandatory.
- */
-#define SMC_outw(x, ioaddr, reg)					\
-	do {								\
-		unsigned int __val16 = (x);				\
-		SMC_outb( __val16, ioaddr, reg );			\
-		SMC_outb( __val16 >> 8, ioaddr, reg + (1 << SMC_IO_SHIFT));\
-	} while (0)
-#define SMC_inw(ioaddr, reg)						\
-	({								\
-		unsigned int __val16;					\
-		__val16 =  SMC_inb( ioaddr, reg );			\
-		__val16 |= SMC_inb( ioaddr, reg + (1 << SMC_IO_SHIFT)) << 8; \
-		__val16;						\
-	})
-
+#define SMC_outw(x, ioaddr, reg)	SMC_outw_b(x, ioaddr, reg)
+#define SMC_inw(ioaddr, reg)		SMC_inw_b(ioaddr, reg)
 #define SMC_insw(a, r, p, l)		BUG()
 #define SMC_outsw(a, r, p, l)		BUG()
 

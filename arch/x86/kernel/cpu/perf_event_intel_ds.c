@@ -1110,6 +1110,13 @@ get_next_pebs_record_by_bit(void *base, void *top, int bit)
 	void *at;
 	u64 pebs_status;
 
+	/*
+	 * fmt0 does not have a status bitfield (does not use
+	 * perf_record_nhm format)
+	 */
+	if (x86_pmu.intel_cap.pebs_format < 1)
+		return base;
+
 	if (base == NULL)
 		return NULL;
 
@@ -1195,7 +1202,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	if (!event->attr.precise_ip)
 		return;
 
-	n = (top - at) / x86_pmu.pebs_record_size;
+	n = top - at;
 	if (n <= 0)
 		return;
 

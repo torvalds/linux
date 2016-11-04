@@ -1,0 +1,14 @@
+		LSK backported features
+
+1, The kaslr and kaslr-pax_usercopy branches base on LSK directly.
+	v4.4/topic/mm-kaslr
+	v4.4/topic/mm-kaslr-pax_usercopy
+
+2, Coresight and openCSD are used for Juno board 'perf' tool implement.
+	origin/v4.4/topic/coresight
+	origin/v4.4/topic/perf-opencsd-4.4-github
+
+3, OPTEE base on LSK mainline, but isn't included of mainline.
+
+Feature introducation:
+https://wiki.linaro.org/lsk/features

@@ -2297,15 +2297,23 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 	}
 	case ARCMSR_MESSAGE_WRITE_WQBUFFER: {
 		unsigned char *ver_addr;
-		int32_t user_len, cnt2end;
+		uint32_t user_len;
+		int32_t cnt2end;
 		uint8_t *pQbuffer, *ptmpuserbuffer;
+
+		user_len = pcmdmessagefld->cmdmessage.Length;
+		if (user_len > ARCMSR_API_DATA_BUFLEN) {
+			retvalue = ARCMSR_MESSAGE_FAIL;
+			goto message_out;
+		}
+
 		ver_addr = kmalloc(ARCMSR_API_DATA_BUFLEN, GFP_ATOMIC);
 		if (!ver_addr) {
 			retvalue = ARCMSR_MESSAGE_FAIL;
 			goto message_out;
 		}
 		ptmpuserbuffer = ver_addr;
-		user_len = pcmdmessagefld->cmdmessage.Length;
+
 		memcpy(ptmpuserbuffer,
 			pcmdmessagefld->messagedatabuffer, user_len);
 		spin_lock_irqsave(&acb->wqbuffer_lock, flags);
@@ -2664,7 +2672,7 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'get adapter firmware \
 			miscellaneous data' timeout \n", acb->host->host_no);
-		return false;
+		goto err_free_dma;
 	}
 	count = 8;
 	while (count){
@@ -2694,19 +2702,23 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 		acb->firm_model,
 		acb->firm_version);
 
-	acb->signature = readl(&reg->message_rwbuffer[1]);
+	acb->signature = readl(&reg->message_rwbuffer[0]);
 	/*firm_signature,1,00-03*/
-	acb->firm_request_len = readl(&reg->message_rwbuffer[2]);
+	acb->firm_request_len = readl(&reg->message_rwbuffer[1]);
 	/*firm_request_len,1,04-07*/
-	acb->firm_numbers_queue = readl(&reg->message_rwbuffer[3]);
+	acb->firm_numbers_queue = readl(&reg->message_rwbuffer[2]);
 	/*firm_numbers_queue,2,08-11*/
-	acb->firm_sdram_size = readl(&reg->message_rwbuffer[4]);
+	acb->firm_sdram_size = readl(&reg->message_rwbuffer[3]);
 	/*firm_sdram_size,3,12-15*/
-	acb->firm_hd_channels = readl(&reg->message_rwbuffer[5]);
+	acb->firm_hd_channels = readl(&reg->message_rwbuffer[4]);
 	/*firm_ide_channels,4,16-19*/
 	acb->firm_cfg_version = readl(&reg->message_rwbuffer[25]);  /*firm_cfg_version,25,100-103*/
 	/*firm_ide_channels,4,16-19*/
 	return true;
+err_free_dma:
+	dma_free_coherent(&acb->pdev->dev, acb->roundup_ccbsize,
+			acb->dma_coherent2, acb->dma_coherent_handle2);
+	return false;
 }
 
 static bool arcmsr_hbaC_get_config(struct AdapterControlBlock *pACB)
@@ -2880,15 +2892,15 @@ static bool arcmsr_hbaD_get_config(struct AdapterControlBlock *acb)
 		iop_device_map++;
 		count--;
 	}
-	acb->signature = readl(&reg->msgcode_rwbuffer[1]);
+	acb->signature = readl(&reg->msgcode_rwbuffer[0]);
 	/*firm_signature,1,00-03*/
-	acb->firm_request_len = readl(&reg->msgcode_rwbuffer[2]);
+	acb->firm_request_len = readl(&reg->msgcode_rwbuffer[1]);
 	/*firm_request_len,1,04-07*/
-	acb->firm_numbers_queue = readl(&reg->msgcode_rwbuffer[3]);
+	acb->firm_numbers_queue = readl(&reg->msgcode_rwbuffer[2]);
 	/*firm_numbers_queue,2,08-11*/
-	acb->firm_sdram_size = readl(&reg->msgcode_rwbuffer[4]);
+	acb->firm_sdram_size = readl(&reg->msgcode_rwbuffer[3]);
 	/*firm_sdram_size,3,12-15*/
-	acb->firm_hd_channels = readl(&reg->msgcode_rwbuffer[5]);
+	acb->firm_hd_channels = readl(&reg->msgcode_rwbuffer[4]);
 	/*firm_hd_channels,4,16-19*/
 	acb->firm_cfg_version = readl(&reg->msgcode_rwbuffer[25]);
 	pr_notice("Areca RAID Controller%d: Model %s, F/W %s\n",

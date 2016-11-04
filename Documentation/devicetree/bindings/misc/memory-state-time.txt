@@ -1,0 +1,8 @@
+Memory bandwidth and frequency state tracking
+
+Required properties:
+- compatible : should be:
+       "memory-state-time"
+- freq-tbl: Should contain entries with each frequency in Hz.
+- bw-buckets: Should contain upper-bound limits for each bandwidth bucket in Mbps.
+       Must match the framework power_profile.xml for the device.

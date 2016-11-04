@@ -56,19 +56,17 @@ EXPORT_SYMBOL(ps2_sendbyte);
 
 void ps2_begin_command(struct ps2dev *ps2dev)
 {
-	mutex_lock(&ps2dev->cmd_mutex);
+	struct mutex *m = ps2dev->serio->ps2_cmd_mutex ?: &ps2dev->cmd_mutex;
 
-	if (i8042_check_port_owner(ps2dev->serio))
-		i8042_lock_chip();
+	mutex_lock(m);
 }
 EXPORT_SYMBOL(ps2_begin_command);
 
 void ps2_end_command(struct ps2dev *ps2dev)
 {
-	if (i8042_check_port_owner(ps2dev->serio))
-		i8042_unlock_chip();
+	struct mutex *m = ps2dev->serio->ps2_cmd_mutex ?: &ps2dev->cmd_mutex;
 
-	mutex_unlock(&ps2dev->cmd_mutex);
+	mutex_unlock(m);
 }
 EXPORT_SYMBOL(ps2_end_command);
 

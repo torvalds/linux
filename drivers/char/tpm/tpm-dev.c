@@ -139,7 +139,7 @@ static ssize_t tpm_write(struct file *file, const char __user *buf,
 
 	/* atomic tpm command send and result receive */
 	out_size = tpm_transmit(priv->chip, priv->data_buffer,
-				sizeof(priv->data_buffer));
+				sizeof(priv->data_buffer), 0);
 	if (out_size < 0) {
 		mutex_unlock(&priv->buffer_mutex);
 		return out_size;

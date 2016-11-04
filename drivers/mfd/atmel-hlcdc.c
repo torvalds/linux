@@ -50,8 +50,9 @@ static int regmap_atmel_hlcdc_reg_write(void *context, unsigned int reg,
 	if (reg <= ATMEL_HLCDC_DIS) {
 		u32 status;
 
-		readl_poll_timeout(hregmap->regs + ATMEL_HLCDC_SR, status,
-				   !(status & ATMEL_HLCDC_SIP), 1, 100);
+		readl_poll_timeout_atomic(hregmap->regs + ATMEL_HLCDC_SR,
+					  status, !(status & ATMEL_HLCDC_SIP),
+					  1, 100);
 	}
 
 	writel(val, hregmap->regs + reg);

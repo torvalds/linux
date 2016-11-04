@@ -636,6 +636,8 @@ TRACE_EVENT(sched_contrib_scale_f,
 		  __entry->cpu_scale_factor)
 );
 
+#ifdef CONFIG_SMP
+
 /*
  * Tracepoint for accounting sched averages for tasks.
  */
@@ -729,14 +731,14 @@ TRACE_EVENT(sched_tune_config,
  */
 TRACE_EVENT(sched_boost_cpu,
 
-	TP_PROTO(int cpu, unsigned long util, unsigned long margin),
+	TP_PROTO(int cpu, unsigned long util, long margin),
 
 	TP_ARGS(cpu, util, margin),
 
 	TP_STRUCT__entry(
 		__field( int,		cpu			)
 		__field( unsigned long,	util			)
-		__field( unsigned long,	margin			)
+		__field(long,		margin			)
 	),
 
 	TP_fast_assign(
@@ -745,7 +747,7 @@ TRACE_EVENT(sched_boost_cpu,
 		__entry->margin	= margin;
 	),
 
-	TP_printk("cpu=%d util=%lu margin=%lu",
+	TP_printk("cpu=%d util=%lu margin=%ld",
 		  __entry->cpu,
 		  __entry->util,
 		  __entry->margin)
@@ -757,7 +759,7 @@ TRACE_EVENT(sched_boost_cpu,
 TRACE_EVENT(sched_tune_tasks_update,
 
 	TP_PROTO(struct task_struct *tsk, int cpu, int tasks, int idx,
-		unsigned int boost, unsigned int max_boost),
+		int boost, int max_boost),
 
 	TP_ARGS(tsk, cpu, tasks, idx, boost, max_boost),
 
@@ -767,8 +769,8 @@ TRACE_EVENT(sched_tune_tasks_update,
 		__field( int,		cpu		)
 		__field( int,		tasks		)
 		__field( int,		idx		)
-		__field( unsigned int,	boost		)
-		__field( unsigned int,	max_boost	)
+		__field( int,		boost		)
+		__field( int,		max_boost	)
 	),
 
 	TP_fast_assign(
@@ -782,7 +784,7 @@ TRACE_EVENT(sched_tune_tasks_update,
 	),
 
 	TP_printk("pid=%d comm=%s "
-			"cpu=%d tasks=%d idx=%d boost=%u max_boost=%u",
+			"cpu=%d tasks=%d idx=%d boost=%d max_boost=%d",
 		__entry->pid, __entry->comm,
 		__entry->cpu, __entry->tasks, __entry->idx,
 		__entry->boost, __entry->max_boost)
@@ -812,6 +814,300 @@ TRACE_EVENT(sched_tune_boostgroup_update,
 	TP_printk("cpu=%d variation=%d max_boost=%d",
 		__entry->cpu, __entry->variation, __entry->max_boost)
 );
+
+/*
+ * Tracepoint for accounting task boosted utilization
+ */
+TRACE_EVENT(sched_boost_task,
+
+	TP_PROTO(struct task_struct *tsk, unsigned long util, long margin),
+
+	TP_ARGS(tsk, util, margin),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN		)
+		__field( pid_t,		pid			)
+		__field( unsigned long,	util			)
+		__field( long,		margin			)
+
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid	= tsk->pid;
+		__entry->util	= util;
+		__entry->margin	= margin;
+	),
+
+	TP_printk("comm=%s pid=%d util=%lu margin=%ld",
+		  __entry->comm, __entry->pid,
+		  __entry->util,
+		  __entry->margin)
+);
+
+/*
+ * Tracepoint for accounting sched group energy
+ */
+TRACE_EVENT(sched_energy_diff,
+
+	TP_PROTO(struct task_struct *tsk, int scpu, int dcpu, int udelta,
+		int nrgb, int nrga, int nrgd, int capb, int capa, int capd,
+		int nrgn, int nrgp),
+
+	TP_ARGS(tsk, scpu, dcpu, udelta,
+		nrgb, nrga, nrgd, capb, capa, capd,
+		nrgn, nrgp),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid	)
+		__field( int,	scpu	)
+		__field( int,	dcpu	)
+		__field( int,	udelta	)
+		__field( int,	nrgb	)
+		__field( int,	nrga	)
+		__field( int,	nrgd	)
+		__field( int,	capb	)
+		__field( int,	capa	)
+		__field( int,	capd	)
+		__field( int,	nrgn	)
+		__field( int,	nrgp	)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->scpu 		= scpu;
+		__entry->dcpu 		= dcpu;
+		__entry->udelta 	= udelta;
+		__entry->nrgb 		= nrgb;
+		__entry->nrga 		= nrga;
+		__entry->nrgd 		= nrgd;
+		__entry->capb 		= capb;
+		__entry->capa 		= capa;
+		__entry->capd 		= capd;
+		__entry->nrgn 		= nrgn;
+		__entry->nrgp 		= nrgp;
+	),
+
+	TP_printk("pid=%d comm=%s "
+			"src_cpu=%d dst_cpu=%d usage_delta=%d "
+			"nrg_before=%d nrg_after=%d nrg_diff=%d "
+			"cap_before=%d cap_after=%d cap_delta=%d "
+			"nrg_delta=%d nrg_payoff=%d",
+		__entry->pid, __entry->comm,
+		__entry->scpu, __entry->dcpu, __entry->udelta,
+		__entry->nrgb, __entry->nrga, __entry->nrgd,
+		__entry->capb, __entry->capa, __entry->capd,
+		__entry->nrgn, __entry->nrgp)
+);
+
+/*
+ * Tracepoint for schedtune_tasks_update
+ */
+TRACE_EVENT(sched_tune_filter,
+
+	TP_PROTO(int nrg_delta, int cap_delta,
+		 int nrg_gain,  int cap_gain,
+		 int payoff, int region),
+
+	TP_ARGS(nrg_delta, cap_delta, nrg_gain, cap_gain, payoff, region),
+
+	TP_STRUCT__entry(
+		__field( int,	nrg_delta	)
+		__field( int,	cap_delta	)
+		__field( int,	nrg_gain	)
+		__field( int,	cap_gain	)
+		__field( int,	payoff		)
+		__field( int,	region		)
+	),
+
+	TP_fast_assign(
+		__entry->nrg_delta	= nrg_delta;
+		__entry->cap_delta	= cap_delta;
+		__entry->nrg_gain	= nrg_gain;
+		__entry->cap_gain	= cap_gain;
+		__entry->payoff		= payoff;
+		__entry->region		= region;
+	),
+
+	TP_printk("nrg_delta=%d cap_delta=%d nrg_gain=%d cap_gain=%d payoff=%d region=%d",
+		__entry->nrg_delta, __entry->cap_delta,
+		__entry->nrg_gain, __entry->cap_gain,
+		__entry->payoff, __entry->region)
+);
+
+/*
+ * Tracepoint for system overutilized flag
+ */
+TRACE_EVENT(sched_overutilized,
+
+	TP_PROTO(bool overutilized),
+
+	TP_ARGS(overutilized),
+
+	TP_STRUCT__entry(
+		__field( bool,	overutilized	)
+	),
+
+	TP_fast_assign(
+		__entry->overutilized	= overutilized;
+	),
+
+	TP_printk("overutilized=%d",
+		__entry->overutilized ? 1 : 0)
+);
+#ifdef CONFIG_SCHED_WALT
+struct rq;
+
+TRACE_EVENT(walt_update_task_ravg,
+
+	TP_PROTO(struct task_struct *p, struct rq *rq, int evt,
+						u64 wallclock, u64 irqtime),
+
+	TP_ARGS(p, rq, evt, wallclock, irqtime),
+
+	TP_STRUCT__entry(
+		__array(	char,	comm,   TASK_COMM_LEN	)
+		__field(	pid_t,	pid			)
+		__field(	pid_t,	cur_pid			)
+		__field(unsigned int,	cur_freq		)
+		__field(	u64,	wallclock		)
+		__field(	u64,	mark_start		)
+		__field(	u64,	delta_m			)
+		__field(	u64,	win_start		)
+		__field(	u64,	delta			)
+		__field(	u64,	irqtime			)
+		__field(        int,    evt			)
+		__field(unsigned int,	demand			)
+		__field(unsigned int,	sum			)
+		__field(	 int,	cpu			)
+		__field(	u64,	cs			)
+		__field(	u64,	ps			)
+		__field(	u32,	curr_window		)
+		__field(	u32,	prev_window		)
+		__field(	u64,	nt_cs			)
+		__field(	u64,	nt_ps			)
+		__field(	u32,	active_windows		)
+	),
+
+	TP_fast_assign(
+		__entry->wallclock      = wallclock;
+		__entry->win_start      = rq->window_start;
+		__entry->delta          = (wallclock - rq->window_start);
+		__entry->evt            = evt;
+		__entry->cpu            = rq->cpu;
+		__entry->cur_pid        = rq->curr->pid;
+		__entry->cur_freq       = rq->cur_freq;
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid            = p->pid;
+		__entry->mark_start     = p->ravg.mark_start;
+		__entry->delta_m        = (wallclock - p->ravg.mark_start);
+		__entry->demand         = p->ravg.demand;
+		__entry->sum            = p->ravg.sum;
+		__entry->irqtime        = irqtime;
+		__entry->cs             = rq->curr_runnable_sum;
+		__entry->ps             = rq->prev_runnable_sum;
+		__entry->curr_window	= p->ravg.curr_window;
+		__entry->prev_window	= p->ravg.prev_window;
+		__entry->nt_cs		= rq->nt_curr_runnable_sum;
+		__entry->nt_ps		= rq->nt_prev_runnable_sum;
+		__entry->active_windows	= p->ravg.active_windows;
+	),
+
+	TP_printk("wc %llu ws %llu delta %llu event %d cpu %d cur_freq %u cur_pid %d task %d (%s) ms %llu delta %llu demand %u sum %u irqtime %llu"
+		" cs %llu ps %llu cur_window %u prev_window %u nt_cs %llu nt_ps %llu active_wins %u"
+		, __entry->wallclock, __entry->win_start, __entry->delta,
+		__entry->evt, __entry->cpu,
+		__entry->cur_freq, __entry->cur_pid,
+		__entry->pid, __entry->comm, __entry->mark_start,
+		__entry->delta_m, __entry->demand,
+		__entry->sum, __entry->irqtime,
+		__entry->cs, __entry->ps,
+		__entry->curr_window, __entry->prev_window,
+		  __entry->nt_cs, __entry->nt_ps,
+		  __entry->active_windows
+		)
+);
+
+TRACE_EVENT(walt_update_history,
+
+	TP_PROTO(struct rq *rq, struct task_struct *p, u32 runtime, int samples,
+			int evt),
+
+	TP_ARGS(rq, p, runtime, samples, evt),
+
+	TP_STRUCT__entry(
+		__array(	char,	comm,   TASK_COMM_LEN	)
+		__field(	pid_t,	pid			)
+		__field(unsigned int,	runtime			)
+		__field(	 int,	samples			)
+		__field(	 int,	evt			)
+		__field(	 u64,	demand			)
+		__field(unsigned int,	walt_avg		)
+		__field(unsigned int,	pelt_avg		)
+		__array(	 u32,	hist, RAVG_HIST_SIZE_MAX)
+		__field(	 int,	cpu			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid            = p->pid;
+		__entry->runtime        = runtime;
+		__entry->samples        = samples;
+		__entry->evt            = evt;
+		__entry->demand         = p->ravg.demand;
+		__entry->walt_avg	= (__entry->demand << 10);
+		do_div(__entry->walt_avg, walt_ravg_window);
+		__entry->pelt_avg	= p->se.avg.util_avg;
+		memcpy(__entry->hist, p->ravg.sum_history,
+					RAVG_HIST_SIZE_MAX * sizeof(u32));
+		__entry->cpu            = rq->cpu;
+	),
+
+	TP_printk("%d (%s): runtime %u samples %d event %d demand %llu"
+		" walt %u pelt %u (hist: %u %u %u %u %u) cpu %d",
+		__entry->pid, __entry->comm,
+		__entry->runtime, __entry->samples, __entry->evt,
+		__entry->demand,
+		__entry->walt_avg,
+		__entry->pelt_avg,
+		__entry->hist[0], __entry->hist[1],
+		__entry->hist[2], __entry->hist[3],
+		__entry->hist[4], __entry->cpu)
+);
+
+TRACE_EVENT(walt_migration_update_sum,
+
+	TP_PROTO(struct rq *rq, struct task_struct *p),
+
+	TP_ARGS(rq, p),
+
+	TP_STRUCT__entry(
+		__field(int,		cpu			)
+		__field(int,		pid			)
+		__field(	u64,	cs			)
+		__field(	u64,	ps			)
+		__field(	s64,	nt_cs			)
+		__field(	s64,	nt_ps			)
+	),
+
+	TP_fast_assign(
+		__entry->cpu		= cpu_of(rq);
+		__entry->cs		= rq->curr_runnable_sum;
+		__entry->ps		= rq->prev_runnable_sum;
+		__entry->nt_cs		= (s64)rq->nt_curr_runnable_sum;
+		__entry->nt_ps		= (s64)rq->nt_prev_runnable_sum;
+		__entry->pid		= p->pid;
+	),
+
+	TP_printk("cpu %d: cs %llu ps %llu nt_cs %lld nt_ps %lld pid %d",
+		  __entry->cpu, __entry->cs, __entry->ps,
+		  __entry->nt_cs, __entry->nt_ps, __entry->pid)
+);
+#endif /* CONFIG_SCHED_WALT */
+
+#endif /* CONFIG_SMP */
 
 #endif /* _TRACE_SCHED_H */
 

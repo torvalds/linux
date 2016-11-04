@@ -134,6 +134,9 @@ extern int __get_user_4(void);
 extern int __get_user_8(void);
 extern int __get_user_bad(void);
 
+#define __uaccess_begin() stac()
+#define __uaccess_end()   clac()
+
 /*
  * This is a type: either unsigned long, if the argument fits into
  * that type, or otherwise unsigned long long.
@@ -193,10 +196,10 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 
 #ifdef CONFIG_X86_32
 #define __put_user_asm_u64(x, addr, err, errret)			\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"						\
 		     "1:	movl %%eax,0(%2)\n"			\
 		     "2:	movl %%edx,4(%2)\n"			\
-		     "3: " ASM_CLAC "\n"				\
+		     "3:"						\
 		     ".section .fixup,\"ax\"\n"				\
 		     "4:	movl %3,%0\n"				\
 		     "	jmp 3b\n"					\
@@ -207,10 +210,10 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     : "A" (x), "r" (addr), "i" (errret), "0" (err))
 
 #define __put_user_asm_ex_u64(x, addr)					\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"						\
 		     "1:	movl %%eax,0(%1)\n"			\
 		     "2:	movl %%edx,4(%1)\n"			\
-		     "3: " ASM_CLAC "\n"				\
+		     "3:"						\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     _ASM_EXTABLE_EX(2b, 3b)				\
 		     : : "A" (x), "r" (addr))
@@ -304,6 +307,10 @@ do {									\
 	}								\
 } while (0)
 
+/*
+ * This doesn't do __uaccess_begin/end - the exception handling
+ * around it must do that.
+ */
 #define __put_user_size_ex(x, ptr, size)				\
 do {									\
 	__chk_user_ptr(ptr);						\
@@ -358,9 +365,9 @@ do {									\
 } while (0)
 
 #define __get_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"						\
 		     "1:	mov"itype" %2,%"rtype"1\n"		\
-		     "2: " ASM_CLAC "\n"				\
+		     "2:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %3,%0\n"				\
 		     "	xor"itype" %"rtype"1,%"rtype"1\n"		\
@@ -370,6 +377,10 @@ do {									\
 		     : "=r" (err), ltype(x)				\
 		     : "m" (__m(addr)), "i" (errret), "0" (err))
 
+/*
+ * This doesn't do __uaccess_begin/end - the exception handling
+ * around it must do that.
+ */
 #define __get_user_size_ex(x, ptr, size)				\
 do {									\
 	__chk_user_ptr(ptr);						\
@@ -400,7 +411,9 @@ do {									\
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
 	int __pu_err;						\
+	__uaccess_begin();					\
 	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
+	__uaccess_end();					\
 	__builtin_expect(__pu_err, 0);				\
 })
 
@@ -408,7 +421,9 @@ do {									\
 ({									\
 	int __gu_err;							\
 	unsigned long __gu_val;						\
+	__uaccess_begin();						\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
+	__uaccess_end();						\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__builtin_expect(__gu_err, 0);					\
 })
@@ -423,9 +438,9 @@ struct __large_struct { unsigned long buf[100]; };
  * aliasing issues.
  */
 #define __put_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
-	asm volatile(ASM_STAC "\n"					\
+	asm volatile("\n"						\
 		     "1:	mov"itype" %"rtype"1,%2\n"		\
-		     "2: " ASM_CLAC "\n"				\
+		     "2:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %3,%0\n"				\
 		     "	jmp 2b\n"					\
@@ -445,11 +460,11 @@ struct __large_struct { unsigned long buf[100]; };
  */
 #define uaccess_try	do {						\
 	current_thread_info()->uaccess_err = 0;				\
-	stac();								\
+	__uaccess_begin();						\
 	barrier();
 
 #define uaccess_catch(err)						\
-	clac();								\
+	__uaccess_end();						\
 	(err) |= (current_thread_info()->uaccess_err ? -EFAULT : 0);	\
 } while (0)
 
@@ -547,12 +562,13 @@ extern void __cmpxchg_wrong_size(void)
 	__typeof__(ptr) __uval = (uval);				\
 	__typeof__(*(ptr)) __old = (old);				\
 	__typeof__(*(ptr)) __new = (new);				\
+	__uaccess_begin();						\
 	switch (size) {							\
 	case 1:								\
 	{								\
-		asm volatile("\t" ASM_STAC "\n"				\
+		asm volatile("\n"					\
 			"1:\t" LOCK_PREFIX "cmpxchgb %4, %2\n"		\
-			"2:\t" ASM_CLAC "\n"				\
+			"2:\n"						\
 			"\t.section .fixup, \"ax\"\n"			\
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
@@ -566,9 +582,9 @@ extern void __cmpxchg_wrong_size(void)
 	}								\
 	case 2:								\
 	{								\
-		asm volatile("\t" ASM_STAC "\n"				\
+		asm volatile("\n"					\
 			"1:\t" LOCK_PREFIX "cmpxchgw %4, %2\n"		\
-			"2:\t" ASM_CLAC "\n"				\
+			"2:\n"						\
 			"\t.section .fixup, \"ax\"\n"			\
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
@@ -582,9 +598,9 @@ extern void __cmpxchg_wrong_size(void)
 	}								\
 	case 4:								\
 	{								\
-		asm volatile("\t" ASM_STAC "\n"				\
+		asm volatile("\n"					\
 			"1:\t" LOCK_PREFIX "cmpxchgl %4, %2\n"		\
-			"2:\t" ASM_CLAC "\n"				\
+			"2:\n"						\
 			"\t.section .fixup, \"ax\"\n"			\
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
@@ -601,9 +617,9 @@ extern void __cmpxchg_wrong_size(void)
 		if (!IS_ENABLED(CONFIG_X86_64))				\
 			__cmpxchg_wrong_size();				\
 									\
-		asm volatile("\t" ASM_STAC "\n"				\
+		asm volatile("\n"					\
 			"1:\t" LOCK_PREFIX "cmpxchgq %4, %2\n"		\
-			"2:\t" ASM_CLAC "\n"				\
+			"2:\n"						\
 			"\t.section .fixup, \"ax\"\n"			\
 			"3:\tmov     %3, %0\n"				\
 			"\tjmp     2b\n"				\
@@ -618,6 +634,7 @@ extern void __cmpxchg_wrong_size(void)
 	default:							\
 		__cmpxchg_wrong_size();					\
 	}								\
+	__uaccess_end();						\
 	*__uval = __old;						\
 	__ret;								\
 })
@@ -689,7 +706,7 @@ __copy_from_user_overflow(int size, unsigned long count)
 
 #endif
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(to);
@@ -714,9 +731,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	 * case, and do only runtime checking for non-constant sizes.
 	 */
 
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(to, n, false);
 		n = _copy_from_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_from_user_overflow();
 	else
 		__copy_from_user_overflow(sz, n);
@@ -724,7 +742,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(from);
@@ -732,9 +750,10 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	might_fault();
 
 	/* See the comment in copy_from_user() above. */
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(from, n, true);
 		n = _copy_to_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_to_user_overflow();
 	else
 		__copy_to_user_overflow(sz, n);
@@ -744,6 +763,31 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 
 #undef __copy_from_user_overflow
 #undef __copy_to_user_overflow
+
+/*
+ * The "unsafe" user accesses aren't really "unsafe", but the naming
+ * is a big fat warning: you have to not only do the access_ok()
+ * checking before using them, but you have to surround them with the
+ * user_access_begin/end() pair.
+ */
+#define user_access_begin()	__uaccess_begin()
+#define user_access_end()	__uaccess_end()
+
+#define unsafe_put_user(x, ptr, err_label)					\
+do {										\
+	int __pu_err;								\
+	__put_user_size((x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
+	if (unlikely(__pu_err)) goto err_label;					\
+} while (0)
+
+#define unsafe_get_user(x, ptr, err_label)					\
+do {										\
+	int __gu_err;								\
+	unsigned long __gu_val;							\
+	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err, -EFAULT);	\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
+	if (unlikely(__gu_err)) goto err_label;					\
+} while (0)
 
 #endif /* _ASM_X86_UACCESS_H */
 

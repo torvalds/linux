@@ -1083,6 +1083,8 @@ struct megasas_ctrl_info {
 
 #define VD_EXT_DEBUG 0
 
+#define SCAN_PD_CHANNEL	0x1
+#define SCAN_VD_CHANNEL	0x2
 
 enum MR_SCSI_CMD_TYPE {
 	READ_WRITE_LDIO = 0,

@@ -120,13 +120,6 @@ DEFINE_EVENT(cpu, cpu_frequency,
 	TP_ARGS(frequency, cpu_id)
 );
 
-DEFINE_EVENT(cpu, cpu_capacity,
-
-	TP_PROTO(unsigned int capacity, unsigned int cpu_id),
-
-	TP_ARGS(capacity, cpu_id)
-);
-
 TRACE_EVENT(cpu_frequency_limits,
 
 	TP_PROTO(unsigned int max_freq, unsigned int min_freq,
@@ -150,6 +143,13 @@ TRACE_EVENT(cpu_frequency_limits,
 		  (unsigned long)__entry->min_freq,
 		  (unsigned long)__entry->max_freq,
 		  (unsigned long)__entry->cpu_id)
+);
+
+DEFINE_EVENT(cpu, cpu_capacity,
+
+	TP_PROTO(unsigned int capacity, unsigned int cpu_id),
+
+	TP_ARGS(capacity, cpu_id)
 );
 
 TRACE_EVENT(device_pm_callback_start,

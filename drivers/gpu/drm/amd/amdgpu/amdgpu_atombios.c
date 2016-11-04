@@ -331,6 +331,19 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 			    (le16_to_cpu(path->usConnObjectId) &
 			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
+			/* Skip TV/CV support */
+			if ((le16_to_cpu(path->usDeviceTag) ==
+			     ATOM_DEVICE_TV1_SUPPORT) ||
+			    (le16_to_cpu(path->usDeviceTag) ==
+			     ATOM_DEVICE_CV_SUPPORT))
+				continue;
+
+			if (con_obj_id >= ARRAY_SIZE(object_connector_convert)) {
+				DRM_ERROR("invalid con_obj_id %d for device tag 0x%04x\n",
+					  con_obj_id, le16_to_cpu(path->usDeviceTag));
+				continue;
+			}
+
 			connector_type =
 				object_connector_convert[con_obj_id];
 			connector_object_id = con_obj_id;
@@ -566,28 +579,19 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
 		ppll->reference_div = 0;
 
-		if (crev < 2)
-			ppll->pll_out_min =
-				le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
-		else
-			ppll->pll_out_min =
-				le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
+		ppll->pll_out_min =
+			le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
 		ppll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
-		if (crev >= 4) {
-			ppll->lcd_pll_out_min =
-				le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
-			if (ppll->lcd_pll_out_min == 0)
-				ppll->lcd_pll_out_min = ppll->pll_out_min;
-			ppll->lcd_pll_out_max =
-				le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
-			if (ppll->lcd_pll_out_max == 0)
-				ppll->lcd_pll_out_max = ppll->pll_out_max;
-		} else {
+		ppll->lcd_pll_out_min =
+			le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
+		if (ppll->lcd_pll_out_min == 0)
 			ppll->lcd_pll_out_min = ppll->pll_out_min;
+		ppll->lcd_pll_out_max =
+			le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
+		if (ppll->lcd_pll_out_max == 0)
 			ppll->lcd_pll_out_max = ppll->pll_out_max;
-		}
 
 		if (ppll->pll_out_min == 0)
 			ppll->pll_out_min = 64800;

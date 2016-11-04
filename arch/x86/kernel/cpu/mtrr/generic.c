@@ -444,11 +444,24 @@ static void __init print_mtrr_state(void)
 		pr_debug("TOM2: %016llx aka %lldM\n", mtrr_tom2, mtrr_tom2>>20);
 }
 
+/* PAT setup for BP. We need to go through sync steps here */
+void __init mtrr_bp_pat_init(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	prepare_set();
+
+	pat_init();
+
+	post_set();
+	local_irq_restore(flags);
+}
+
 /* Grab all of the MTRR state for this CPU into *state */
 bool __init get_mtrr_state(void)
 {
 	struct mtrr_var_range *vrs;
-	unsigned long flags;
 	unsigned lo, dummy;
 	unsigned int i;
 
@@ -480,15 +493,6 @@ bool __init get_mtrr_state(void)
 	print_mtrr_state();
 
 	mtrr_state_set = 1;
-
-	/* PAT setup for BP. We need to go through sync steps here */
-	local_irq_save(flags);
-	prepare_set();
-
-	pat_init();
-
-	post_set();
-	local_irq_restore(flags);
 
 	return !!(mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED);
 }

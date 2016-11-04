@@ -338,27 +338,32 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	spin_unlock(&file_priv->table_lock);
 	idr_preload_end();
 	mutex_unlock(&dev->object_name_lock);
-	if (ret < 0) {
-		drm_gem_object_handle_unreference_unlocked(obj);
-		return ret;
-	}
+	if (ret < 0)
+		goto err_unref;
+
 	*handlep = ret;
 
 	ret = drm_vma_node_allow(&obj->vma_node, file_priv->filp);
-	if (ret) {
-		drm_gem_handle_delete(file_priv, *handlep);
-		return ret;
-	}
+	if (ret)
+		goto err_remove;
 
 	if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
-		if (ret) {
-			drm_gem_handle_delete(file_priv, *handlep);
-			return ret;
-		}
+		if (ret)
+			goto err_revoke;
 	}
 
 	return 0;
+
+err_revoke:
+	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
+err_remove:
+	spin_lock(&file_priv->table_lock);
+	idr_remove(&file_priv->object_idr, *handlep);
+	spin_unlock(&file_priv->table_lock);
+err_unref:
+	drm_gem_object_handle_unreference_unlocked(obj);
+	return ret;
 }
 
 /**

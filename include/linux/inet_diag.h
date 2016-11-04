@@ -37,7 +37,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		      struct sk_buff *skb, const struct inet_diag_req_v2 *req,
 		      struct user_namespace *user_ns,
 		      u32 pid, u32 seq, u16 nlmsg_flags,
-		      const struct nlmsghdr *unlh);
+		      const struct nlmsghdr *unlh, bool net_admin);
 void inet_diag_dump_icsk(struct inet_hashinfo *h, struct sk_buff *skb,
 			 struct netlink_callback *cb,
 			 const struct inet_diag_req_v2 *r,

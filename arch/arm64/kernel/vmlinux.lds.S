@@ -93,6 +93,7 @@ SECTIONS
 		*(.discard)
 		*(.discard.*)
 		*(.interp .dynamic)
+		*(.dynsym .dynstr .hash)
 	}
 
 	. = KIMAGE_VADDR + TEXT_OFFSET;
@@ -107,9 +108,11 @@ SECTIONS
 			*(.exception.text)
 			__exception_text_end = .;
 			IRQENTRY_TEXT
+			ENTRY_TEXT
 			TEXT_TEXT
 			SCHED_TEXT
 			LOCK_TEXT
+			KPROBES_TEXT
 			HYPERVISOR_TEXT
 			IDMAP_TEXT
 			*(.fixup)
@@ -119,12 +122,13 @@ SECTIONS
 	}
 
 	. = ALIGN(SEGMENT_ALIGN);
-	RO_DATA(PAGE_SIZE)		/* everything from this point to */
-	EXCEPTION_TABLE(8)		/* _etext will be marked RO NX   */
+	_etext = .;			/* End of text section */
+
+	RO_DATA(PAGE_SIZE)		/* everything from this point to     */
+	EXCEPTION_TABLE(8)		/* __init_begin will be marked RO NX */
 	NOTES
 
 	. = ALIGN(SEGMENT_ALIGN);
-	_etext = .;			/* End of text and rodata section */
 	__init_begin = .;
 
 	INIT_TEXT_SECTION(8)
@@ -158,19 +162,9 @@ SECTIONS
 	.rela : ALIGN(8) {
 		*(.rela .rela*)
 	}
-	.dynsym : ALIGN(8) {
-		*(.dynsym)
-	}
-	.dynstr : {
-		*(.dynstr)
-	}
-	.hash : {
-		*(.hash)
-	}
 
-	__rela_offset	= ADDR(.rela) - KIMAGE_VADDR;
+	__rela_offset	= ABSOLUTE(ADDR(.rela) - KIMAGE_VADDR);
 	__rela_size	= SIZEOF(.rela);
-	__dynsym_offset	= ADDR(.dynsym) - KIMAGE_VADDR;
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_end = .;
@@ -188,6 +182,11 @@ SECTIONS
 	. += IDMAP_DIR_SIZE;
 	swapper_pg_dir = .;
 	. += SWAPPER_DIR_SIZE;
+
+#ifdef CONFIG_ARM64_SW_TTBR0_PAN
+	reserved_ttbr0 = .;
+	. += RESERVED_TTBR0_SIZE;
+#endif
 
 	_end = .;
 

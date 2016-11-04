@@ -3015,6 +3015,12 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	if (rdev->pdev->device == 0x6811 &&
 	    rdev->pdev->revision == 0x81)
 		max_mclk = 120000;
+	/* limit sclk/mclk on Jet parts for stability */
+	if (rdev->pdev->device == 0x6665 &&
+	    rdev->pdev->revision == 0xc3) {
+		max_sclk = 75000;
+		max_mclk = 80000;
+	}
 
 	if (rps->vce_active) {
 		rps->evclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].evclk;
@@ -4106,7 +4112,7 @@ static int si_populate_smc_voltage_tables(struct radeon_device *rdev,
 							      &rdev->pm.dpm.dyn_state.phase_shedding_limits_table)) {
 				si_populate_smc_voltage_table(rdev, &si_pi->vddc_phase_shed_table, table);
 
-				table->phaseMaskTable.lowMask[SISLANDS_SMC_VOLTAGEMASK_VDDC] =
+				table->phaseMaskTable.lowMask[SISLANDS_SMC_VOLTAGEMASK_VDDC_PHASE_SHEDDING] =
 					cpu_to_be32(si_pi->vddc_phase_shed_table.mask_low);
 
 				si_write_smc_soft_register(rdev, SI_SMC_SOFT_REGISTER_phase_shedding_delay,

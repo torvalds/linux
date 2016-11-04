@@ -66,6 +66,9 @@
 #ifndef _MEI_HW_MEI_REGS_H_
 #define _MEI_HW_MEI_REGS_H_
 
+#define MEI_DEV_ID_KBP        0xA2BA  /* Kaby Point */
+#define MEI_DEV_ID_KBP_2      0xA2BB  /* Kaby Point 2 */
+
 /*
  * MEI device IDs
  */

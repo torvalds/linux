@@ -869,9 +869,9 @@ struct sa1111_save_data {
 
 #ifdef CONFIG_PM
 
-static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
+static int sa1111_suspend_noirq(struct device *dev)
 {
-	struct sa1111 *sachip = platform_get_drvdata(dev);
+	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
 	unsigned long flags;
 	unsigned int val;
@@ -934,9 +934,9 @@ static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
  *	restored by their respective drivers, and must be called
  *	via LDM after this function.
  */
-static int sa1111_resume(struct platform_device *dev)
+static int sa1111_resume_noirq(struct device *dev)
 {
-	struct sa1111 *sachip = platform_get_drvdata(dev);
+	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
 	unsigned long flags, id;
 	void __iomem *base;
@@ -952,7 +952,7 @@ static int sa1111_resume(struct platform_device *dev)
 	id = sa1111_readl(sachip->base + SA1111_SKID);
 	if ((id & SKID_ID_MASK) != SKID_SA1111_ID) {
 		__sa1111_remove(sachip);
-		platform_set_drvdata(dev, NULL);
+		dev_set_drvdata(dev, NULL);
 		kfree(save);
 		return 0;
 	}
@@ -1003,8 +1003,8 @@ static int sa1111_resume(struct platform_device *dev)
 }
 
 #else
-#define sa1111_suspend NULL
-#define sa1111_resume  NULL
+#define sa1111_suspend_noirq NULL
+#define sa1111_resume_noirq  NULL
 #endif
 
 static int sa1111_probe(struct platform_device *pdev)
@@ -1038,6 +1038,11 @@ static int sa1111_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct dev_pm_ops sa1111_pm_ops = {
+	.suspend_noirq = sa1111_suspend_noirq,
+	.resume_noirq = sa1111_resume_noirq,
+};
+
 /*
  *	Not sure if this should be on the system bus or not yet.
  *	We really want some way to register a system device at
@@ -1050,10 +1055,9 @@ static int sa1111_remove(struct platform_device *pdev)
 static struct platform_driver sa1111_device_driver = {
 	.probe		= sa1111_probe,
 	.remove		= sa1111_remove,
-	.suspend	= sa1111_suspend,
-	.resume		= sa1111_resume,
 	.driver		= {
 		.name	= "sa1111",
+		.pm	= &sa1111_pm_ops,
 	},
 };
 

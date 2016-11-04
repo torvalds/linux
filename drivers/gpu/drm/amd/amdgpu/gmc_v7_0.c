@@ -167,6 +167,7 @@ static int gmc_v7_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
+	case CHIP_MULLINS:
 		return 0;
 	default: BUG();
 	}

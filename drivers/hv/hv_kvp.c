@@ -66,7 +66,6 @@ static struct {
 	struct hv_kvp_msg  *kvp_msg; /* current message */
 	struct vmbus_channel *recv_channel; /* chn we got the request */
 	u64 recv_req_id; /* request ID. */
-	void *kvp_context; /* for the channel callback */
 } kvp_transaction;
 
 /*
@@ -93,6 +92,13 @@ static struct hvutil_transport *hvt;
  * This number has no meaning, it satisfies the registration protocol.
  */
 #define HV_DRV_VERSION           "3.1"
+
+static void kvp_poll_wrapper(void *channel)
+{
+	/* Transaction is finished, reset the state here to avoid races. */
+	kvp_transaction.state = HVUTIL_READY;
+	hv_kvp_onchannelcallback(channel);
+}
 
 static void
 kvp_register(int reg_value)
@@ -121,12 +127,7 @@ static void kvp_timeout_func(struct work_struct *dummy)
 	 */
 	kvp_respond_to_host(NULL, HV_E_FAIL);
 
-	/* Transaction is finished, reset the state. */
-	if (kvp_transaction.state > HVUTIL_READY)
-		kvp_transaction.state = HVUTIL_READY;
-
-	hv_poll_channel(kvp_transaction.kvp_context,
-			hv_kvp_onchannelcallback);
+	hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 }
 
 static int kvp_handle_handshake(struct hv_kvp_msg *msg)
@@ -218,9 +219,7 @@ static int kvp_on_msg(void *msg, int len)
 	 */
 	if (cancel_delayed_work_sync(&kvp_timeout_work)) {
 		kvp_respond_to_host(message, error);
-		kvp_transaction.state = HVUTIL_READY;
-		hv_poll_channel(kvp_transaction.kvp_context,
-				hv_kvp_onchannelcallback);
+		hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 	}
 
 	return 0;
@@ -596,15 +595,8 @@ void hv_kvp_onchannelcallback(void *context)
 	int util_fw_version;
 	int kvp_srv_version;
 
-	if (kvp_transaction.state > HVUTIL_READY) {
-		/*
-		 * We will defer processing this callback once
-		 * the current transaction is complete.
-		 */
-		kvp_transaction.kvp_context = context;
+	if (kvp_transaction.state > HVUTIL_READY)
 		return;
-	}
-	kvp_transaction.kvp_context = NULL;
 
 	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 4, &recvlen,
 			 &requestid);
@@ -668,7 +660,8 @@ void hv_kvp_onchannelcallback(void *context)
 			 * user-mode not responding.
 			 */
 			schedule_work(&kvp_sendkey_work);
-			schedule_delayed_work(&kvp_timeout_work, 5*HZ);
+			schedule_delayed_work(&kvp_timeout_work,
+					      HV_UTIL_TIMEOUT * HZ);
 
 			return;
 

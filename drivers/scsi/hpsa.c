@@ -3930,6 +3930,70 @@ static int hpsa_set_local_logical_count(struct ctlr_info *h,
 	return rc;
 }
 
+static bool hpsa_is_disk_spare(struct ctlr_info *h, u8 *lunaddrbytes)
+{
+	struct bmic_identify_physical_device *id_phys;
+	bool is_spare = false;
+	int rc;
+
+	id_phys = kzalloc(sizeof(*id_phys), GFP_KERNEL);
+	if (!id_phys)
+		return false;
+
+	rc = hpsa_bmic_id_physical_device(h,
+					lunaddrbytes,
+					GET_BMIC_DRIVE_NUMBER(lunaddrbytes),
+					id_phys, sizeof(*id_phys));
+	if (rc == 0)
+		is_spare = (id_phys->more_flags >> 6) & 0x01;
+
+	kfree(id_phys);
+	return is_spare;
+}
+
+#define RPL_DEV_FLAG_NON_DISK                           0x1
+#define RPL_DEV_FLAG_UNCONFIG_DISK_REPORTING_SUPPORTED  0x2
+#define RPL_DEV_FLAG_UNCONFIG_DISK                      0x4
+
+#define BMIC_DEVICE_TYPE_ENCLOSURE  6
+
+static bool hpsa_skip_device(struct ctlr_info *h, u8 *lunaddrbytes,
+				struct ext_report_lun_entry *rle)
+{
+	u8 device_flags;
+	u8 device_type;
+
+	if (!MASKED_DEVICE(lunaddrbytes))
+		return false;
+
+	device_flags = rle->device_flags;
+	device_type = rle->device_type;
+
+	if (device_flags & RPL_DEV_FLAG_NON_DISK) {
+		if (device_type == BMIC_DEVICE_TYPE_ENCLOSURE)
+			return false;
+		return true;
+	}
+
+	if (!(device_flags & RPL_DEV_FLAG_UNCONFIG_DISK_REPORTING_SUPPORTED))
+		return false;
+
+	if (device_flags & RPL_DEV_FLAG_UNCONFIG_DISK)
+		return false;
+
+	/*
+	 * Spares may be spun down, we do not want to
+	 * do an Inquiry to a RAID set spare drive as
+	 * that would have them spun up, that is a
+	 * performance hit because I/O to the RAID device
+	 * stops while the spin up occurs which can take
+	 * over 50 seconds.
+	 */
+	if (hpsa_is_disk_spare(h, lunaddrbytes))
+		return true;
+
+	return false;
+}
 
 static void hpsa_update_scsi_devices(struct ctlr_info *h)
 {
@@ -4023,6 +4087,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		u8 *lunaddrbytes, is_OBDR = 0;
 		int rc = 0;
 		int phys_dev_index = i - (raid_ctlr_position == 0);
+		bool skip_device = false;
 
 		physical_device = i < nphysicals + (raid_ctlr_position == 0);
 
@@ -4030,10 +4095,15 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
 			i, nphysicals, nlogicals, physdev_list, logdev_list);
 
-		/* skip masked non-disk devices */
-		if (MASKED_DEVICE(lunaddrbytes) && physical_device &&
-			(physdev_list->LUN[phys_dev_index].device_flags & 0x01))
-			continue;
+		/*
+		 * Skip over some devices such as a spare.
+		 */
+		if (!tmpdevice->external && physical_device) {
+			skip_device = hpsa_skip_device(h, lunaddrbytes,
+					&physdev_list->LUN[phys_dev_index]);
+			if (skip_device)
+				continue;
+		}
 
 		/* Get device type, vendor, model, device id */
 		rc = hpsa_update_device_info(h, lunaddrbytes, tmpdevice,

@@ -365,6 +365,9 @@ pnfs_layout_need_return(struct pnfs_layout_hdr *lo,
 static bool
 pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 {
+	/* Serialise LAYOUTGET/LAYOUTRETURN */
+	if (atomic_read(&lo->plh_outstanding) != 0)
+		return false;
 	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return false;
 	lo->plh_return_iomode = 0;
@@ -1530,6 +1533,7 @@ pnfs_update_layout(struct inode *ino,
 		goto out;
 
 lookup_again:
+	nfs4_client_recover_expired_lease(clp);
 	first = false;
 	spin_lock(&ino->i_lock);
 	lo = pnfs_find_alloc_layout(ino, ctx, gfp_flags);

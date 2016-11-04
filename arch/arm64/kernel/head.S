@@ -321,14 +321,14 @@ __create_page_tables:
 	 * dirty cache lines being evicted.
 	 */
 	mov	x0, x25
-	add	x1, x26, #SWAPPER_DIR_SIZE
+	add	x1, x26, #SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
 	bl	__inval_cache_range
 
 	/*
 	 * Clear the idmap and swapper page tables.
 	 */
 	mov	x0, x25
-	add	x6, x26, #SWAPPER_DIR_SIZE
+	add	x6, x26, #SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
 1:	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
@@ -407,7 +407,7 @@ __create_page_tables:
 	 * tables again to remove any speculatively loaded cache lines.
 	 */
 	mov	x0, x25
-	add	x1, x26, #SWAPPER_DIR_SIZE
+	add	x1, x26, #SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
 	dmb	sy
 	bl	__inval_cache_range
 
@@ -551,8 +551,9 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	b.lt	4f				// Skip if no PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
-	msr	mdcr_el2, x0			// all PMU counters from EL1
 4:
+	csel	x0, xzr, x0, lt			// all PMU counters from EL1
+	msr	mdcr_el2, x0			// (if they exist)
 
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
@@ -697,6 +698,9 @@ __enable_mmu:
 	isb
 	bl	__create_page_tables		// recreate kernel mapping
 
+	tlbi	vmalle1				// Remove any stale TLB entries
+	dsb	nsh
+
 	msr	sctlr_el1, x19			// re-enable the MMU
 	isb
 	ic	iallu				// flush instructions fetched
@@ -717,40 +721,25 @@ __primary_switch:
 	 * Iterate over each entry in the relocation table, and apply the
 	 * relocations in place.
 	 */
-	ldr	w8, =__dynsym_offset		// offset to symbol table
 	ldr	w9, =__rela_offset		// offset to reloc table
 	ldr	w10, =__rela_size		// size of reloc table
 
 	mov_q	x11, KIMAGE_VADDR		// default virtual offset
 	add	x11, x11, x23			// actual virtual offset
-	add	x8, x8, x11			// __va(.dynsym)
 	add	x9, x9, x11			// __va(.rela)
 	add	x10, x9, x10			// __va(.rela) + sizeof(.rela)
 
 0:	cmp	x9, x10
-	b.hs	2f
+	b.hs	1f
 	ldp	x11, x12, [x9], #24
 	ldr	x13, [x9, #-8]
 	cmp	w12, #R_AARCH64_RELATIVE
-	b.ne	1f
+	b.ne	0b
 	add	x13, x13, x23			// relocate
 	str	x13, [x11, x23]
 	b	0b
 
-1:	cmp	w12, #R_AARCH64_ABS64
-	b.ne	0b
-	add	x12, x12, x12, lsl #1		// symtab offset: 24x top word
-	add	x12, x8, x12, lsr #(32 - 3)	// ... shifted into bottom word
-	ldrsh	w14, [x12, #6]			// Elf64_Sym::st_shndx
-	ldr	x15, [x12, #8]			// Elf64_Sym::st_value
-	cmp	w14, #-0xf			// SHN_ABS (0xfff1) ?
-	add	x14, x15, x23			// relocate
-	csel	x15, x14, x15, ne
-	add	x15, x13, x15
-	str	x15, [x11, x23]
-	b	0b
-
-2:
+1:
 #endif
 	ldr	x8, =__primary_switched
 	br	x8

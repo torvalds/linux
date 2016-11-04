@@ -20,7 +20,7 @@
 static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 			struct netlink_callback *cb,
 			const struct inet_diag_req_v2 *req,
-			struct nlattr *bc)
+			struct nlattr *bc, bool net_admin)
 {
 	if (!inet_diag_bc_sk(bc, sk))
 		return 0;
@@ -28,7 +28,7 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 	return inet_sk_diag_fill(sk, NULL, skb, req,
 			sk_user_ns(NETLINK_CB(cb->skb).sk),
 			NETLINK_CB(cb->skb).portid,
-			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
+			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh, net_admin);
 }
 
 static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
@@ -75,7 +75,8 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 	err = inet_sk_diag_fill(sk, NULL, rep, req,
 			   sk_user_ns(NETLINK_CB(in_skb).sk),
 			   NETLINK_CB(in_skb).portid,
-			   nlh->nlmsg_seq, 0, nlh);
+			   nlh->nlmsg_seq, 0, nlh,
+			   netlink_net_capable(in_skb, CAP_NET_ADMIN));
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(rep);
@@ -98,6 +99,7 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb,
 {
 	int num, s_num, slot, s_slot;
 	struct net *net = sock_net(skb->sk);
+	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
@@ -132,7 +134,7 @@ static void udp_dump(struct udp_table *table, struct sk_buff *skb,
 			    r->id.idiag_dport)
 				goto next;
 
-			if (sk_diag_dump(sk, skb, cb, r, bc) < 0) {
+			if (sk_diag_dump(sk, skb, cb, r, bc, net_admin) < 0) {
 				spin_unlock_bh(&hslot->lock);
 				goto done;
 			}
@@ -165,12 +167,88 @@ static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 	r->idiag_wqueue = sk_wmem_alloc_get(sk);
 }
 
+#ifdef CONFIG_INET_DIAG_DESTROY
+static int __udp_diag_destroy(struct sk_buff *in_skb,
+			      const struct inet_diag_req_v2 *req,
+			      struct udp_table *tbl)
+{
+	struct net *net = sock_net(in_skb->sk);
+	struct sock *sk;
+	int err;
+
+	rcu_read_lock();
+
+	if (req->sdiag_family == AF_INET)
+		sk = __udp4_lib_lookup(net,
+				req->id.idiag_dst[0], req->id.idiag_dport,
+				req->id.idiag_src[0], req->id.idiag_sport,
+				req->id.idiag_if, tbl);
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (req->sdiag_family == AF_INET6) {
+		if (ipv6_addr_v4mapped((struct in6_addr *)req->id.idiag_dst) &&
+		    ipv6_addr_v4mapped((struct in6_addr *)req->id.idiag_src))
+			sk = __udp4_lib_lookup(net,
+					req->id.idiag_dst[3], req->id.idiag_dport,
+					req->id.idiag_src[3], req->id.idiag_sport,
+					req->id.idiag_if, tbl);
+
+		else
+			sk = __udp6_lib_lookup(net,
+					(struct in6_addr *)req->id.idiag_dst,
+					req->id.idiag_dport,
+					(struct in6_addr *)req->id.idiag_src,
+					req->id.idiag_sport,
+					req->id.idiag_if, tbl);
+	}
+#endif
+	else {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+
+	if (sk && !atomic_inc_not_zero(&sk->sk_refcnt))
+		sk = NULL;
+
+	rcu_read_unlock();
+
+	if (!sk)
+		return -ENOENT;
+
+	if (sock_diag_check_cookie(sk, req->id.idiag_cookie)) {
+		sock_put(sk);
+		return -ENOENT;
+	}
+
+	err = sock_diag_destroy(sk, ECONNABORTED);
+
+	sock_put(sk);
+
+	return err;
+}
+
+static int udp_diag_destroy(struct sk_buff *in_skb,
+			    const struct inet_diag_req_v2 *req)
+{
+	return __udp_diag_destroy(in_skb, req, &udp_table);
+}
+
+static int udplite_diag_destroy(struct sk_buff *in_skb,
+				const struct inet_diag_req_v2 *req)
+{
+	return __udp_diag_destroy(in_skb, req, &udplite_table);
+}
+
+#endif
+
 static const struct inet_diag_handler udp_diag_handler = {
 	.dump		 = udp_diag_dump,
 	.dump_one	 = udp_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,
 	.idiag_type	 = IPPROTO_UDP,
 	.idiag_info_size = 0,
+#ifdef CONFIG_INET_DIAG_DESTROY
+	.destroy	 = udp_diag_destroy,
+#endif
 };
 
 static void udplite_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
@@ -192,6 +270,9 @@ static const struct inet_diag_handler udplite_diag_handler = {
 	.idiag_get_info  = udp_diag_get_info,
 	.idiag_type	 = IPPROTO_UDPLITE,
 	.idiag_info_size = 0,
+#ifdef CONFIG_INET_DIAG_DESTROY
+	.destroy	 = udplite_diag_destroy,
+#endif
 };
 
 static int __init udp_diag_init(void)

@@ -166,7 +166,7 @@ EXPORT_SYMBOL_GPL(gmap_alloc);
 static void gmap_flush_tlb(struct gmap *gmap)
 {
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_asce(gmap->mm, gmap->asce);
+		__tlb_flush_idte(gmap->asce);
 	else
 		__tlb_flush_global();
 }
@@ -205,7 +205,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Flush tlb. */
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_asce(gmap->mm, gmap->asce);
+		__tlb_flush_idte(gmap->asce);
 	else
 		__tlb_flush_global();
 

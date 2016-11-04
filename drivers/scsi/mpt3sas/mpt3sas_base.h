@@ -643,6 +643,7 @@ struct chain_tracker {
  * @cb_idx: callback index
  * @direct_io: To indicate whether I/O is direct (WARPDRIVE)
  * @tracker_list: list of free request (ioc->free_list)
+ * @msix_io: IO's msix
  */
 struct scsiio_tracker {
 	u16	smid;
@@ -651,6 +652,7 @@ struct scsiio_tracker {
 	u8	direct_io;
 	struct list_head chain_list;
 	struct list_head tracker_list;
+	u16     msix_io;
 };
 
 /**
@@ -1213,7 +1215,8 @@ void mpt3sas_base_put_smid_scsi_io(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u16 handle);
 void mpt3sas_base_put_smid_fast_path(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u16 handle);
-void mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc, u16 smid);
+void mpt3sas_base_put_smid_hi_priority(struct MPT3SAS_ADAPTER *ioc,
+	u16 smid, u16 msix_task);
 void mpt3sas_base_put_smid_default(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 void mpt3sas_base_initialize_callback_handler(void);
 u8 mpt3sas_base_register_callback_handler(MPT_CALLBACK cb_func);

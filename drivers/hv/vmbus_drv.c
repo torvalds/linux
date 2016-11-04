@@ -41,6 +41,7 @@
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>
+#include <linux/random.h>
 #include "hyperv_vmbus.h"
 
 static struct acpi_device  *hv_acpi_dev;
@@ -104,6 +105,7 @@ static struct notifier_block hyperv_panic_block = {
 };
 
 struct resource *hyperv_mmio;
+DEFINE_SEMAPHORE(hyperv_mmio_lock);
 
 static int vmbus_exists(void)
 {
@@ -602,23 +604,11 @@ static int vmbus_remove(struct device *child_device)
 {
 	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
-	u32 relid = dev->channel->offermsg.child_relid;
 
 	if (child_device->driver) {
 		drv = drv_to_hv_drv(child_device->driver);
 		if (drv->remove)
 			drv->remove(dev);
-		else {
-			hv_process_channel_removal(dev->channel, relid);
-			pr_err("remove not set for driver %s\n",
-				dev_name(child_device));
-		}
-	} else {
-		/*
-		 * We don't have a driver for this device; deal with the
-		 * rescind message by removing the channel.
-		 */
-		hv_process_channel_removal(dev->channel, relid);
 	}
 
 	return 0;
@@ -653,7 +643,10 @@ static void vmbus_shutdown(struct device *child_device)
 static void vmbus_device_release(struct device *device)
 {
 	struct hv_device *hv_dev = device_to_hv_device(device);
+	struct vmbus_channel *channel = hv_dev->channel;
 
+	hv_process_channel_removal(channel,
+				   channel->offermsg.child_relid);
 	kfree(hv_dev);
 
 }
@@ -826,6 +819,8 @@ static void vmbus_isr(void)
 		else
 			tasklet_schedule(&msg_dpc);
 	}
+
+	add_interrupt_randomness(HYPERVISOR_CALLBACK_VECTOR, 0);
 }
 
 
@@ -867,7 +862,7 @@ static int vmbus_bus_init(int irq)
 	on_each_cpu(hv_synic_init, NULL, 1);
 	ret = vmbus_connect();
 	if (ret)
-		goto err_alloc;
+		goto err_connect;
 
 	if (vmbus_proto_version > VERSION_WIN7)
 		cpu_hotplug_disable();
@@ -885,6 +880,8 @@ static int vmbus_bus_init(int irq)
 
 	return 0;
 
+err_connect:
+	on_each_cpu(hv_synic_cleanup, NULL, 1);
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
@@ -1144,7 +1141,10 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 	resource_size_t range_min, range_max, start, local_min, local_max;
 	const char *dev_n = dev_name(&device_obj->device);
 	u32 fb_end = screen_info.lfb_base + (screen_info.lfb_size << 1);
-	int i;
+	int i, retval;
+
+	retval = -ENXIO;
+	down(&hyperv_mmio_lock);
 
 	for (iter = hyperv_mmio; iter; iter = iter->sibling) {
 		if ((iter->start >= max) || (iter->end <= min))
@@ -1181,13 +1181,17 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			for (; start + size - 1 <= local_max; start += align) {
 				*new = request_mem_region_exclusive(start, size,
 								    dev_n);
-				if (*new)
-					return 0;
+				if (*new) {
+					retval = 0;
+					goto exit;
+				}
 			}
 		}
 	}
 
-	return -ENXIO;
+exit:
+	up(&hyperv_mmio_lock);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(vmbus_allocate_mmio);
 

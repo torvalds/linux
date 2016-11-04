@@ -2111,7 +2111,8 @@ restart:
 					      TIPC_CONN_MSG, SHORT_H_SIZE,
 					      0, dnode, onode, dport, oport,
 					      TIPC_CONN_SHUTDOWN);
-			tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
+			if (skb)
+				tipc_node_xmit_skb(net, skb, dnode, tsk->portid);
 		}
 		tsk->connected = 0;
 		sock->state = SS_DISCONNECTING;

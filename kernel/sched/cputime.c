@@ -5,6 +5,7 @@
 #include <linux/static_key.h>
 #include <linux/context_tracking.h>
 #include "sched.h"
+#include "walt.h"
 
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -49,6 +50,10 @@ void irqtime_account_irq(struct task_struct *curr)
 	unsigned long flags;
 	s64 delta;
 	int cpu;
+#ifdef CONFIG_SCHED_WALT
+	u64 wallclock;
+	bool account = true;
+#endif
 
 	if (!sched_clock_irqtime)
 		return;
@@ -56,6 +61,9 @@ void irqtime_account_irq(struct task_struct *curr)
 	local_irq_save(flags);
 
 	cpu = smp_processor_id();
+#ifdef CONFIG_SCHED_WALT
+	wallclock = sched_clock_cpu(cpu);
+#endif
 	delta = sched_clock_cpu(cpu) - __this_cpu_read(irq_start_time);
 	__this_cpu_add(irq_start_time, delta);
 
@@ -70,8 +78,16 @@ void irqtime_account_irq(struct task_struct *curr)
 		__this_cpu_add(cpu_hardirq_time, delta);
 	else if (in_serving_softirq() && curr != this_cpu_ksoftirqd())
 		__this_cpu_add(cpu_softirq_time, delta);
+#ifdef CONFIG_SCHED_WALT
+	else
+		account = false;
+#endif
 
 	irq_time_write_end();
+#ifdef CONFIG_SCHED_WALT
+	if (account)
+		walt_account_irqtime(cpu, curr, delta, wallclock);
+#endif
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(irqtime_account_irq);
@@ -600,19 +616,25 @@ static void cputime_adjust(struct task_cputime *curr,
 	stime = curr->stime;
 	utime = curr->utime;
 
-	if (utime == 0) {
-		stime = rtime;
+	/*
+	 * If either stime or both stime and utime are 0, assume all runtime is
+	 * userspace. Once a task gets some ticks, the monotonicy code at
+	 * 'update' will ensure things converge to the observed ratio.
+	 */
+	if (stime == 0) {
+		utime = rtime;
 		goto update;
 	}
 
-	if (stime == 0) {
-		utime = rtime;
+	if (utime == 0) {
+		stime = rtime;
 		goto update;
 	}
 
 	stime = scale_stime((__force u64)stime, (__force u64)rtime,
 			    (__force u64)(stime + utime));
 
+update:
 	/*
 	 * Make sure stime doesn't go backwards; this preserves monotonicity
 	 * for utime because rtime is monotonic.
@@ -635,7 +657,6 @@ static void cputime_adjust(struct task_cputime *curr,
 		stime = rtime - utime;
 	}
 
-update:
 	prev->stime = stime;
 	prev->utime = utime;
 out:

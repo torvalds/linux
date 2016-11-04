@@ -3876,7 +3876,10 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		eop_desc = E1000_TX_DESC(*tx_ring, eop);
 	}
 
-	tx_ring->next_to_clean = i;
+	/* Synchronize with E1000_DESC_UNUSED called from e1000_xmit_frame,
+	 * which will reuse the cleaned buffers.
+	 */
+	smp_store_release(&tx_ring->next_to_clean, i);
 
 	netdev_completed_queue(netdev, pkts_compl, bytes_compl);
 

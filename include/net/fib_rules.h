@@ -89,7 +89,6 @@ struct fib_rules_ops {
 	[FRA_FWMARK]	= { .type = NLA_U32 }, \
 	[FRA_FWMASK]	= { .type = NLA_U32 }, \
 	[FRA_TABLE]     = { .type = NLA_U32 }, \
-	[FRA_GOTO]	= { .type = NLA_U32 }, \
 	[FRA_UID_START]	= { .type = NLA_U32 }, \
 	[FRA_UID_END]	= { .type = NLA_U32 }, \
 	[FRA_SUPPRESS_PREFIXLEN] = { .type = NLA_U32 }, \

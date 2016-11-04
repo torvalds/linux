@@ -281,9 +281,9 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
  * Error-checking SWP macros implemented using ldxr{b}/stxr{b}
  */
 #define __user_swpX_asm(data, addr, res, temp, B)		\
+do {								\
+	uaccess_enable();					\
 	__asm__ __volatile__(					\
-	ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,	\
-		    CONFIG_ARM64_PAN)				\
 	"0:	ldxr"B"		%w2, [%3]\n"			\
 	"1:	stxr"B"		%w0, %w1, [%3]\n"		\
 	"	cbz		%w0, 2f\n"			\
@@ -299,11 +299,11 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
 	"	.popsection"					\
 	_ASM_EXTABLE(0b, 4b)					\
 	_ASM_EXTABLE(1b, 4b)					\
-	ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,	\
-		CONFIG_ARM64_PAN)				\
 	: "=&r" (res), "+r" (data), "=&r" (temp)		\
 	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT)		\
-	: "memory")
+	: "memory");						\
+	uaccess_disable();					\
+} while (0)
 
 #define __user_swp_asm(data, addr, res, temp) \
 	__user_swpX_asm(data, addr, res, temp, "")
@@ -366,6 +366,21 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	return res;
 }
 
+#define	ARM_OPCODE_CONDITION_UNCOND	0xf
+
+static unsigned int __kprobes aarch32_check_condition(u32 opcode, u32 psr)
+{
+	u32 cc_bits  = opcode >> 28;
+
+	if (cc_bits != ARM_OPCODE_CONDITION_UNCOND) {
+		if ((*aarch32_opcode_cond_checks[cc_bits])(psr))
+			return ARM_OPCODE_CONDTEST_PASS;
+		else
+			return ARM_OPCODE_CONDTEST_FAIL;
+	}
+	return ARM_OPCODE_CONDTEST_UNCOND;
+}
+
 /*
  * swp_handler logs the id of calling process, dissects the instruction, sanity
  * checks the memory location, calls emulate_swpX for the actual operation and
@@ -380,7 +395,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 
 	type = instr & TYPE_SWPB;
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:
@@ -461,7 +476,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 {
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:

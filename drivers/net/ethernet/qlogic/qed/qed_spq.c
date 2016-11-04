@@ -794,13 +794,12 @@ int qed_spq_completion(struct qed_hwfn *p_hwfn,
 			 * in a bitmap and increasing the chain consumer only
 			 * for the first successive completed entries.
 			 */
-			bitmap_set(p_spq->p_comp_bitmap, pos, SPQ_RING_SIZE);
+			__set_bit(pos, p_spq->p_comp_bitmap);
 
 			while (test_bit(p_spq->comp_bitmap_idx,
 					p_spq->p_comp_bitmap)) {
-				bitmap_clear(p_spq->p_comp_bitmap,
-					     p_spq->comp_bitmap_idx,
-					     SPQ_RING_SIZE);
+				__clear_bit(p_spq->comp_bitmap_idx,
+					    p_spq->p_comp_bitmap);
 				p_spq->comp_bitmap_idx++;
 				qed_chain_return_produced(&p_spq->chain);
 			}

@@ -2294,9 +2294,11 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	err = -EIO;
-	hw->hw_addr = pci_iomap(pdev, 0, 0);
-	if (!hw->hw_addr)
+	adapter->io_addr = pci_iomap(pdev, 0, 0);
+	if (!adapter->io_addr)
 		goto err_ioremap;
+	/* hw->hw_addr can be altered, we'll use adapter->io_addr for unmap */
+	hw->hw_addr = adapter->io_addr;
 
 	netdev->netdev_ops = &igb_netdev_ops;
 	igb_set_ethtool_ops(netdev);
@@ -2656,7 +2658,7 @@ err_sw_init:
 #ifdef CONFIG_PCI_IOV
 	igb_disable_sriov(pdev);
 #endif
-	pci_iounmap(pdev, hw->hw_addr);
+	pci_iounmap(pdev, adapter->io_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
@@ -2823,7 +2825,7 @@ static void igb_remove(struct pci_dev *pdev)
 
 	igb_clear_interrupt_scheme(adapter);
 
-	pci_iounmap(pdev, hw->hw_addr);
+	pci_iounmap(pdev, adapter->io_addr);
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
 	pci_release_selected_regions(pdev,
@@ -2855,6 +2857,13 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 	/* Virtualization features not supported on i210 family. */
 	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211))
 		return;
+
+	/* Of the below we really only want the effect of getting
+	 * IGB_FLAG_HAS_MSIX set (if available), without which
+	 * igb_enable_sriov() has no effect.
+	 */
+	igb_set_interrupt_capability(adapter, true);
+	igb_reset_interrupt_capability(adapter);
 
 	pci_sriov_set_totalvfs(pdev, 7);
 	igb_enable_sriov(pdev, max_vfs);

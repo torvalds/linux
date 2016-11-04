@@ -37,13 +37,17 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 "2:	ldaxr	%w0, %2\n"
 "	eor	%w1, %w0, %w0, ror #16\n"
 "	cbnz	%w1, 1b\n"
+	/* Serialise against any concurrent lockers */
 	ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
 "	stxr	%w1, %w0, %2\n"
-"	cbnz	%w1, 2b\n", /* Serialise against any concurrent lockers */
-	/* LSE atomics */
 "	nop\n"
-"	nop\n")
+"	nop\n",
+	/* LSE atomics */
+"	mov	%w1, %w0\n"
+"	cas	%w0, %w0, %2\n"
+"	eor	%w1, %w1, %w0\n")
+"	cbnz	%w1, 2b\n"
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
 	:
 	: "memory");
@@ -330,5 +334,15 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()
 #define arch_write_relax(lock)	cpu_relax()
+
+/*
+ * Accesses appearing in program order before a spin_lock() operation
+ * can be reordered with accesses inside the critical section, by virtue
+ * of arch_spin_lock being constructed using acquire semantics.
+ *
+ * In cases where this is problematic (e.g. try_to_wake_up), an
+ * smp_mb__before_spinlock() can restore the required ordering.
+ */
+#define smp_mb__before_spinlock()	smp_mb()
 
 #endif /* __ASM_SPINLOCK_H */

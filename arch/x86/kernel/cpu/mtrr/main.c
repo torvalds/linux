@@ -752,6 +752,9 @@ void __init mtrr_bp_init(void)
 			/* BIOS may override */
 			__mtrr_enabled = get_mtrr_state();
 
+			if (mtrr_enabled())
+				mtrr_bp_pat_init();
+
 			if (mtrr_cleanup(phys_addr)) {
 				changed_by_mtrr_cleanup = 1;
 				mtrr_if->set_all();
@@ -759,8 +762,16 @@ void __init mtrr_bp_init(void)
 		}
 	}
 
-	if (!mtrr_enabled())
+	if (!mtrr_enabled()) {
 		pr_info("MTRR: Disabled\n");
+
+		/*
+		 * PAT initialization relies on MTRR's rendezvous handler.
+		 * Skip PAT init until the handler can initialize both
+		 * features independently.
+		 */
+		pat_disable("MTRRs disabled, skipping PAT initialization too.");
+	}
 }
 
 void mtrr_ap_init(void)

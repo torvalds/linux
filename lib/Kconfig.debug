@@ -867,6 +867,15 @@ config SCHED_INFO
 	bool
 	default n
 
+config PANIC_ON_RT_THROTTLING
+	bool "Panic on RT throttling"
+	help
+	  Say Y here to enable the kernel to panic when a realtime
+	  runqueue is throttled. This may be useful for detecting
+	  and debugging RT throttling issues.
+
+	  Say N if unsure.
+
 config SCHEDSTATS
 	bool "Collect scheduler statistics"
 	depends on DEBUG_KERNEL && PROC_FS

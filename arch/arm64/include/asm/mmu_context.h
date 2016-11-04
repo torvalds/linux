@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cpufeature.h>
 #include <asm/proc-fns.h>
 #include <asm-generic/mm_hooks.h>
 #include <asm/cputype.h>
@@ -113,7 +114,7 @@ static inline void cpu_uninstall_idmap(void)
 	local_flush_tlb_all();
 	cpu_set_default_tcr_t0sz();
 
-	if (mm != &init_mm)
+	if (mm != &init_mm && !system_uses_ttbr0_pan())
 		cpu_switch_mm(mm->pgd, mm);
 }
 
@@ -173,20 +174,26 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
 
-/*
- * This is the actual mm switch as far as the scheduler
- * is concerned.  No registers are touched.  We avoid
- * calling the CPU specific function when the mm hasn't
- * actually changed.
- */
-static inline void
-switch_mm(struct mm_struct *prev, struct mm_struct *next,
-	  struct task_struct *tsk)
+#ifdef CONFIG_ARM64_SW_TTBR0_PAN
+static inline void update_saved_ttbr0(struct task_struct *tsk,
+				      struct mm_struct *mm)
+{
+	if (system_uses_ttbr0_pan()) {
+		BUG_ON(mm->pgd == swapper_pg_dir);
+		task_thread_info(tsk)->ttbr0 =
+			virt_to_phys(mm->pgd) | ASID(mm) << 48;
+	}
+}
+#else
+static inline void update_saved_ttbr0(struct task_struct *tsk,
+				      struct mm_struct *mm)
+{
+}
+#endif
+
+static inline void __switch_mm(struct mm_struct *next)
 {
 	unsigned int cpu = smp_processor_id();
-
-	if (prev == next)
-		return;
 
 	/*
 	 * init_mm.pgd does not contain any user mappings and it is always
@@ -200,7 +207,23 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	check_and_switch_context(next, cpu);
 }
 
+static inline void
+switch_mm(struct mm_struct *prev, struct mm_struct *next,
+	  struct task_struct *tsk)
+{
+	if (prev != next)
+		__switch_mm(next);
+
+	/*
+	 * Update the saved TTBR0_EL1 of the scheduled-in task as the previous
+	 * value may have not been initialised yet (activate_mm caller) or the
+	 * ASID has changed since the last run (following the context switch
+	 * of another thread of the same process).
+	 */
+	update_saved_ttbr0(tsk, next);
+}
+
 #define deactivate_mm(tsk,mm)	do { } while (0)
-#define activate_mm(prev,next)	switch_mm(prev, next, NULL)
+#define activate_mm(prev,next)	switch_mm(prev, next, current)
 
 #endif

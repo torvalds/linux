@@ -75,7 +75,7 @@ obj-vdso := $(obj-vdso-y:%.o=$(obj)/%.o)
 $(obj-vdso): KBUILD_CFLAGS := $(cflags-vdso) $(native-abi)
 $(obj-vdso): KBUILD_AFLAGS := $(aflags-vdso) $(native-abi)
 
-$(obj)/vdso.lds: KBUILD_CPPFLAGS := $(native-abi)
+$(obj)/vdso.lds: KBUILD_CPPFLAGS := $(ccflags-vdso) $(native-abi)
 
 $(obj)/vdso.so.dbg: $(obj)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold)

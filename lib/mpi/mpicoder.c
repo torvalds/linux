@@ -367,7 +367,9 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 	buf_len = sgl->length;
 	p2 = sg_virt(sgl);
 
-	for (i = a->nlimbs - 1; i >= 0; i--) {
+	for (i = a->nlimbs - 1 - lzeros / BYTES_PER_MPI_LIMB,
+			lzeros %= BYTES_PER_MPI_LIMB;
+		i >= 0; i--) {
 		alimb = a->d[i];
 		p = (u8 *)&alimb2;
 #if BYTES_PER_MPI_LIMB == 4
@@ -388,17 +390,12 @@ int mpi_write_to_sgl(MPI a, struct scatterlist *sgl, unsigned *nbytes,
 #error please implement for this limb size.
 #endif
 		if (lzeros > 0) {
-			if (lzeros >= sizeof(alimb)) {
-				p -= sizeof(alimb);
-				continue;
-			} else {
-				mpi_limb_t *limb1 = (void *)p - sizeof(alimb);
-				mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
-							+ lzeros;
-				*limb1 = *limb2;
-				p -= lzeros;
-				y = lzeros;
-			}
+			mpi_limb_t *limb1 = (void *)p - sizeof(alimb);
+			mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
+				+ lzeros;
+			*limb1 = *limb2;
+			p -= lzeros;
+			y = lzeros;
 			lzeros -= sizeof(alimb);
 		}
 

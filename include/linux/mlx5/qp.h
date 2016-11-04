@@ -160,6 +160,7 @@ enum {
 enum {
 	MLX5_FENCE_MODE_NONE			= 0 << 5,
 	MLX5_FENCE_MODE_INITIATOR_SMALL		= 1 << 5,
+	MLX5_FENCE_MODE_FENCE			= 2 << 5,
 	MLX5_FENCE_MODE_STRONG_ORDERING		= 3 << 5,
 	MLX5_FENCE_MODE_SMALL_AND_FENCE		= 4 << 5,
 };
@@ -534,9 +535,9 @@ struct mlx5_destroy_qp_mbox_out {
 struct mlx5_modify_qp_mbox_in {
 	struct mlx5_inbox_hdr	hdr;
 	__be32			qpn;
-	u8			rsvd1[4];
-	__be32			optparam;
 	u8			rsvd0[4];
+	__be32			optparam;
+	u8			rsvd1[4];
 	struct mlx5_qp_context	ctx;
 };
 

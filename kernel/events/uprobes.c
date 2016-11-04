@@ -171,8 +171,10 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
 	err = -EAGAIN;
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
-	if (!ptep)
+	if (!ptep) {
+		mem_cgroup_cancel_charge(kpage, memcg);
 		goto unlock;
+	}
 
 	get_page(kpage);
 	page_add_new_anon_rmap(kpage, vma, addr);
@@ -199,7 +201,6 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	err = 0;
  unlock:
-	mem_cgroup_cancel_charge(kpage, memcg);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 	unlock_page(page);
 	return err;
@@ -1692,8 +1693,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	int result;
 
 	pagefault_disable();
-	result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
-							sizeof(opcode));
+	result = __get_user(opcode, (uprobe_opcode_t __user *)vaddr);
 	pagefault_enable();
 
 	if (likely(result == 0))

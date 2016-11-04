@@ -21,7 +21,7 @@
 #define   NIC_PF_TCP_TIMER			(0x0060)
 #define   NIC_PF_BP_CFG				(0x0080)
 #define   NIC_PF_RRM_CFG			(0x0088)
-#define   NIC_PF_CQM_CF				(0x00A0)
+#define   NIC_PF_CQM_CFG			(0x00A0)
 #define   NIC_PF_CNM_CF				(0x00A8)
 #define   NIC_PF_CNM_STATUS			(0x00B0)
 #define   NIC_PF_CQ_AVG_CFG			(0x00C0)
@@ -170,7 +170,6 @@
 #define   NIC_QSET_SQ_0_7_DOOR			(0x010838)
 #define   NIC_QSET_SQ_0_7_STATUS		(0x010840)
 #define   NIC_QSET_SQ_0_7_DEBUG			(0x010848)
-#define   NIC_QSET_SQ_0_7_CNM_CHG		(0x010860)
 #define   NIC_QSET_SQ_0_7_STAT_0_1		(0x010900)
 
 #define   NIC_QSET_RBDR_0_1_CFG			(0x010C00)

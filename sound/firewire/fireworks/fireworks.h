@@ -106,7 +106,6 @@ struct snd_efw {
 	u8 *resp_buf;
 	u8 *pull_ptr;
 	u8 *push_ptr;
-	unsigned int resp_queues;
 };
 
 int snd_efw_transaction_cmd(struct fw_unit *unit,

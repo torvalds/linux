@@ -53,7 +53,6 @@ static struct {
 	struct vmbus_channel *recv_channel; /* chn we got the request */
 	u64 recv_req_id; /* request ID. */
 	struct hv_vss_msg  *msg; /* current message */
-	void *vss_context; /* for the channel callback */
 } vss_transaction;
 
 
@@ -74,6 +73,13 @@ static void vss_timeout_func(struct work_struct *dummy);
 static DECLARE_DELAYED_WORK(vss_timeout_work, vss_timeout_func);
 static DECLARE_WORK(vss_send_op_work, vss_send_op);
 
+static void vss_poll_wrapper(void *channel)
+{
+	/* Transaction is finished, reset the state here to avoid races. */
+	vss_transaction.state = HVUTIL_READY;
+	hv_vss_onchannelcallback(channel);
+}
+
 /*
  * Callback when data is received from user mode.
  */
@@ -86,12 +92,7 @@ static void vss_timeout_func(struct work_struct *dummy)
 	pr_warn("VSS: timeout waiting for daemon to reply\n");
 	vss_respond_to_host(HV_E_FAIL);
 
-	/* Transaction is finished, reset the state. */
-	if (vss_transaction.state > HVUTIL_READY)
-		vss_transaction.state = HVUTIL_READY;
-
-	hv_poll_channel(vss_transaction.vss_context,
-			hv_vss_onchannelcallback);
+	hv_poll_channel(vss_transaction.recv_channel, vss_poll_wrapper);
 }
 
 static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
@@ -138,9 +139,8 @@ static int vss_on_msg(void *msg, int len)
 		if (cancel_delayed_work_sync(&vss_timeout_work)) {
 			vss_respond_to_host(vss_msg->error);
 			/* Transaction is finished, reset the state. */
-			vss_transaction.state = HVUTIL_READY;
-			hv_poll_channel(vss_transaction.vss_context,
-					hv_vss_onchannelcallback);
+			hv_poll_channel(vss_transaction.recv_channel,
+					vss_poll_wrapper);
 		}
 	} else {
 		/* This is a spurious call! */
@@ -238,15 +238,8 @@ void hv_vss_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
 
-	if (vss_transaction.state > HVUTIL_READY) {
-		/*
-		 * We will defer processing this callback once
-		 * the current transaction is complete.
-		 */
-		vss_transaction.vss_context = context;
+	if (vss_transaction.state > HVUTIL_READY)
 		return;
-	}
-	vss_transaction.vss_context = NULL;
 
 	vmbus_recvpacket(channel, recv_buffer, PAGE_SIZE * 2, &recvlen,
 			 &requestid);
@@ -338,6 +331,11 @@ static void vss_on_reset(void)
 int
 hv_vss_init(struct hv_util_service *srv)
 {
+	if (vmbus_proto_version < VERSION_WIN8_1) {
+		pr_warn("Integration service 'Backup (volume snapshot)'"
+			" not supported on this host version.\n");
+		return -ENOTSUPP;
+	}
 	recv_buffer = srv->recv_buffer;
 
 	/*

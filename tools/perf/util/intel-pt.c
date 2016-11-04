@@ -238,7 +238,7 @@ static int intel_pt_get_trace(struct intel_pt_buffer *b, void *data)
 	}
 
 	queue = &ptq->pt->queues.queue_array[ptq->queue_nr];
-
+next:
 	buffer = auxtrace_buffer__next(queue, buffer);
 	if (!buffer) {
 		if (old_buffer)
@@ -261,9 +261,6 @@ static int intel_pt_get_trace(struct intel_pt_buffer *b, void *data)
 	    intel_pt_do_fix_overlap(ptq->pt, old_buffer, buffer))
 		return -ENOMEM;
 
-	if (old_buffer)
-		auxtrace_buffer__drop_data(old_buffer);
-
 	if (buffer->use_data) {
 		b->len = buffer->use_size;
 		b->buf = buffer->use_data;
@@ -272,6 +269,16 @@ static int intel_pt_get_trace(struct intel_pt_buffer *b, void *data)
 		b->buf = buffer->data;
 	}
 	b->ref_timestamp = buffer->reference;
+
+	/*
+	 * If in snapshot mode and the buffer has no usable data, get next
+	 * buffer and again check overlap against old_buffer.
+	 */
+	if (ptq->pt->snapshot_mode && !b->len)
+		goto next;
+
+	if (old_buffer)
+		auxtrace_buffer__drop_data(old_buffer);
 
 	if (!old_buffer || ptq->pt->sampling_mode || (ptq->pt->snapshot_mode &&
 						      !buffer->consecutive)) {
