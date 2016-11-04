@@ -463,6 +463,7 @@ struct bgmac {
 		struct {
 			void *base;
 			void *idm_base;
+			void *nicpm_base;
 		} plat;
 		struct {
 			struct bcma_device *core;
