@@ -249,6 +249,187 @@ const struct of_device_id dwc2_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 
+static void dwc2_get_device_property(struct dwc2_hsotg *hsotg,
+				     char *property, u8 size, u64 *value)
+{
+	u8 val8;
+	u16 val16;
+	u32 val32;
+
+	switch (size) {
+	case 0:
+		*value = device_property_read_bool(hsotg->dev, property);
+		break;
+	case 1:
+		if (device_property_read_u8(hsotg->dev, property, &val8))
+			return;
+
+		*value = val8;
+		break;
+	case 2:
+		if (device_property_read_u16(hsotg->dev, property, &val16))
+			return;
+
+		*value = val16;
+		break;
+	case 4:
+		if (device_property_read_u32(hsotg->dev, property, &val32))
+			return;
+
+		*value = val32;
+		break;
+	case 8:
+		if (device_property_read_u64(hsotg->dev, property, value))
+			return;
+
+		break;
+	default:
+		/*
+		 * The size is checked by the only function that calls
+		 * this so this should never happen.
+		 */
+		WARN_ON(1);
+		return;
+	}
+}
+
+static void dwc2_set_core_param(void *param, u8 size, u64 value)
+{
+	switch (size) {
+	case 0:
+		*((bool *)param) = !!value;
+		break;
+	case 1:
+		*((u8 *)param) = (u8)value;
+		break;
+	case 2:
+		*((u16 *)param) = (u16)value;
+		break;
+	case 4:
+		*((u32 *)param) = (u32)value;
+		break;
+	case 8:
+		*((u64 *)param) = (u64)value;
+		break;
+	default:
+		/*
+		 * The size is checked by the only function that calls
+		 * this so this should never happen.
+		 */
+		WARN_ON(1);
+		return;
+	}
+}
+
+/**
+ * dwc2_set_param() - Set a core parameter
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @param: Pointer to the parameter to set
+ * @lookup: True if the property should be looked up
+ * @property: The device property to read
+ * @legacy: The param value to set if @property is not available. This
+ *          will typically be the legacy value set in the static
+ *          params structure.
+ * @def: The default value
+ * @min: The minimum value
+ * @max: The maximum value
+ * @size: The size of the core parameter in bytes, or 0 for bool.
+ *
+ * This function looks up @property and sets the @param to that value.
+ * If the property doesn't exist it uses the passed-in @value. It will
+ * verify that the value falls between @min and @max. If it doesn't,
+ * it will output an error and set the parameter to either @def or,
+ * failing that, to @min.
+ *
+ * The @size is used to write to @param and to query the device
+ * properties so that this same function can be used with different
+ * types of parameters.
+ */
+static void dwc2_set_param(struct dwc2_hsotg *hsotg, void *param,
+			   bool lookup, char *property, u64 legacy,
+			   u64 def, u64 min, u64 max, u8 size)
+{
+	u64 sizemax;
+	u64 value;
+
+	if (WARN_ON(!hsotg || !param || !property))
+		return;
+
+	if (WARN((size > 8) || ((size & (size - 1)) != 0),
+		 "Invalid size %d for %s\n", size, property))
+		return;
+
+	dev_vdbg(hsotg->dev, "%s: Setting %s: legacy=%llu, def=%llu, min=%llu, max=%llu, size=%d\n",
+		 __func__, property, legacy, def, min, max, size);
+
+	sizemax = (1ULL << (size * 8)) - 1;
+	value = legacy;
+
+	/* Override legacy settings. */
+	if (lookup)
+		dwc2_get_device_property(hsotg, property, size, &value);
+
+	/*
+	 * While the value is not valid, try setting it to the default
+	 * value, and failing that, set it to the minimum.
+	 */
+	while ((value < min) || (value > max)) {
+		/* Print an error unless the value is set to auto. */
+		if (value != sizemax)
+			dev_err(hsotg->dev, "Invalid value %llu for param %s\n",
+				value, property);
+
+		/*
+		 * If we are already the default, just set it to the
+		 * minimum.
+		 */
+		if (value == def) {
+			dev_vdbg(hsotg->dev, "%s: setting value to min=%llu\n",
+				 __func__, min);
+			value = min;
+			break;
+		}
+
+		/* Try the default value */
+		dev_vdbg(hsotg->dev, "%s: setting value to default=%llu\n",
+			 __func__, def);
+		value = def;
+	}
+
+	dev_dbg(hsotg->dev, "Setting %s to %llu\n", property, value);
+	dwc2_set_core_param(param, size, value);
+}
+
+/**
+ * dwc2_set_param_u16() - Set a u16 parameter
+ *
+ * See dwc2_set_param().
+ */
+static void dwc2_set_param_u16(struct dwc2_hsotg *hsotg, u16 *param,
+			       bool lookup, char *property, u16 legacy,
+			       u16 def, u16 min, u16 max)
+{
+	dwc2_set_param(hsotg, param, lookup, property,
+		       legacy, def, min, max, 2);
+}
+
+/**
+ * dwc2_set_param_bool() - Set a bool parameter
+ *
+ * See dwc2_set_param().
+ *
+ * Note: there is no 'legacy' argument here because there is no legacy
+ * source of bool params.
+ */
+static void dwc2_set_param_bool(struct dwc2_hsotg *hsotg, bool *param,
+				bool lookup, char *property,
+				bool def, bool min, bool max)
+{
+	dwc2_set_param(hsotg, param, lookup, property,
+		       def, def, min, max, 0);
+}
+
 #define DWC2_OUT_OF_BOUNDS(a, b, c)	((a) < (b) || (a) > (c))
 
 /* Parameter access functions */
@@ -897,14 +1078,52 @@ static void dwc2_set_param_hibernation(struct dwc2_hsotg *hsotg,
 	hsotg->params.hibernation = val;
 }
 
-/*
- * This function is called during module intialization to pass module parameters
- * for the DWC_otg core.
+static void dwc2_set_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
+{
+	int i;
+	int num;
+	char *property = "g-tx-fifo-size";
+	struct dwc2_core_params *p = &hsotg->params;
+
+	memset(p->g_tx_fifo_size, 0, sizeof(p->g_tx_fifo_size));
+
+	/* Read tx fifo sizes */
+	num = device_property_read_u32_array(hsotg->dev, property, NULL, 0);
+
+	if (num > 0) {
+		device_property_read_u32_array(hsotg->dev, property,
+					       &p->g_tx_fifo_size[1],
+					       num);
+	} else {
+		u32 p_tx_fifo[] = DWC2_G_P_LEGACY_TX_FIFO_SIZE;
+
+		memcpy(&p->g_tx_fifo_size[1],
+		       p_tx_fifo,
+		       sizeof(p_tx_fifo));
+
+		num = ARRAY_SIZE(p_tx_fifo);
+	}
+
+	for (i = 0; i < num; i++) {
+		if ((i + 1) >= ARRAY_SIZE(p->g_tx_fifo_size))
+			break;
+
+		dev_dbg(hsotg->dev, "Setting %s[%d] to %d\n",
+			property, i + 1, p->g_tx_fifo_size[i + 1]);
+	}
+}
+
+/**
+ * dwc2_set_parameters() - Set all core parameters.
+ *
+ * @hsotg: Programming view of the DWC_otg controller
+ * @params: The parameters to set
  */
 static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 				const struct dwc2_core_params *params)
 {
-	dev_dbg(hsotg->dev, "%s()\n", __func__);
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+	struct dwc2_core_params *p = &hsotg->params;
 
 	dwc2_set_param_otg_cap(hsotg, params->otg_cap);
 	dwc2_set_param_dma_enable(hsotg, params->dma_enable);
@@ -944,6 +1163,41 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
 	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
 	dwc2_set_param_hibernation(hsotg, params->hibernation);
+
+	/*
+	 * Set devicetree-only parameters. These parameters do not
+	 * take any values from @params.
+	 */
+	if ((hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) ||
+	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
+		dev_dbg(hsotg->dev, "Setting peripheral device properties\n");
+
+		dwc2_set_param_bool(hsotg, &p->g_dma, true, "g-use-dma",
+				    false, false,
+				    hsotg->hw_params.arch !=
+				    GHWCFG2_SLAVE_ONLY_ARCH);
+
+		/*
+		 * The values for g_rx_fifo_size (2048) and
+		 * g_np_tx_fifo_size (1024) come from the legacy s3c
+		 * gadget driver. These defaults have been hard-coded
+		 * for some time so many platforms depend on these
+		 * values. Leave them as defaults for now and only
+		 * auto-detect if the hardware does not support the
+		 * default.
+		 */
+		dwc2_set_param_u16(hsotg, &p->g_rx_fifo_size,
+				   true, "g-rx-fifo-size", 2048,
+				   hw->rx_fifo_size,
+				   16, hw->rx_fifo_size);
+
+		dwc2_set_param_u16(hsotg, &p->g_np_tx_fifo_size,
+				   true, "g-np-tx-fifo-size", 1024,
+				   hw->dev_nperio_tx_fifo_size,
+				   16, hw->dev_nperio_tx_fifo_size);
+
+		dwc2_set_param_tx_fifo_sizes(hsotg);
+	}
 }
 
 /*

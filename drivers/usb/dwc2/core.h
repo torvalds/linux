@@ -418,6 +418,21 @@ enum dwc2_ep0_state {
  *			needed.
  *			0 - No (default)
  *			1 - Yes
+ * @g_dma:              If true, enables dma usage on the device. This
+ *                      setting is not auto-detected. It must be
+ *                      explicitly enabled (default: false).
+ * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
+ *			DWORDS from 16-32768 (default: 2048 if
+ *			possible, otherwise autodetect).
+ * @g_np_tx_fifo_size:	The non-periodic tx fifo size for the device in
+ *			DWORDS from 16-32768 (default: 1024 if
+ *			possible, otherwise autodetect).
+ * @g_tx_fifo_size:	An array of TX fifo sizes in dedicated fifo
+ *			mode. Each value corresponds to one EP
+ *			starting from EP1 (max 15 values). Sizes are
+ *			in DWORDS with possible values from from
+ *			16-32768 (default: 256, 256, 256, 256, 768,
+ *			768, 768, 768, 0, 0, 0, 0, 0, 0, 0).
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -475,6 +490,15 @@ struct dwc2_core_params {
 	int uframe_sched;
 	int external_id_pin_ctl;
 	int hibernation;
+
+	/*
+	 * The following parameters are *only* set via device
+	 * properties and cannot be set directly in this structure.
+	 */
+	bool g_dma;
+	u16 g_rx_fifo_size;
+	u16 g_np_tx_fifo_size;
+	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
 };
 
 /**
@@ -857,10 +881,6 @@ struct dwc2_hregs_backup {
  * @ep0_state:          EP0 control transfers state
  * @test_mode:          USB test mode requested by the host
  * @eps:                The endpoints being supplied to the gadget framework
- * @g_using_dma:          Indicate if dma usage is enabled
- * @g_rx_fifo_sz:         Contains rx fifo size value
- * @g_np_g_tx_fifo_sz:      Contains Non-Periodic tx fifo size value
- * @g_tx_fifo_sz:         Contains tx fifo size value per endpoints
  */
 struct dwc2_hsotg {
 	struct device *dev;
@@ -1008,10 +1028,6 @@ struct dwc2_hsotg {
 	unsigned int connected:1;
 	struct dwc2_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
 	struct dwc2_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
-	u32 g_using_dma;
-	u32 g_rx_fifo_sz;
-	u32 g_np_g_tx_fifo_sz;
-	u32 g_tx_fifo_sz[MAX_EPS_CHANNELS];
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
