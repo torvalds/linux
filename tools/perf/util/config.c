@@ -602,6 +602,12 @@ out_free:
 	return -1;
 }
 
+int perf_config_set__collect(struct perf_config_set *set,
+			     const char *var, const char *value)
+{
+	return collect_config(var, value, set);
+}
+
 static int perf_config_set__init(struct perf_config_set *set)
 {
 	int ret = -1;

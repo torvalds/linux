@@ -17,7 +17,7 @@
 static bool use_system_config, use_user_config;
 
 static const char * const config_usage[] = {
-	"perf config [<file-option>] [options] [section.name ...]",
+	"perf config [<file-option>] [options] [section.name[=value] ...]",
 	NULL
 };
 
@@ -32,6 +32,39 @@ static struct option config_options[] = {
 	OPT_BOOLEAN(0, "user", &use_user_config, "use user config file"),
 	OPT_END()
 };
+
+static int set_config(struct perf_config_set *set, const char *file_name,
+		      const char *var, const char *value)
+{
+	struct perf_config_section *section = NULL;
+	struct perf_config_item *item = NULL;
+	const char *first_line = "# this file is auto-generated.";
+	FILE *fp;
+
+	if (set == NULL)
+		return -1;
+
+	fp = fopen(file_name, "w");
+	if (!fp)
+		return -1;
+
+	perf_config_set__collect(set, var, value);
+	fprintf(fp, "%s\n", first_line);
+
+	/* overwrite configvariables */
+	perf_config_items__for_each_entry(&set->sections, section) {
+		fprintf(fp, "[%s]\n", section->name);
+
+		perf_config_items__for_each_entry(&section->items, item) {
+			if (item->value)
+				fprintf(fp, "\t%s = %s\n",
+					item->name, item->value);
+		}
+	}
+	fclose(fp);
+
+	return 0;
+}
 
 static int show_spec_config(struct perf_config_set *set, const char *var)
 {
@@ -82,7 +115,7 @@ static int show_config(struct perf_config_set *set)
 	return 0;
 }
 
-static int parse_config_arg(char *arg, char **var)
+static int parse_config_arg(char *arg, char **var, char **value)
 {
 	const char *last_dot = strchr(arg, '.');
 
@@ -99,7 +132,21 @@ static int parse_config_arg(char *arg, char **var)
 		return -1;
 	}
 
-	*var = arg;
+	*value = strchr(arg, '=');
+	if (*value == NULL)
+		*var = arg;
+	else if (!strcmp(*value, "=")) {
+		pr_err("The config variable does not contain a value: %s\n", arg);
+		return -1;
+	} else {
+		*value = *value + 1; /* excluding a first character '=' */
+		*var = strsep(&arg, "=");
+		if (*var[0] == '\0') {
+			pr_err("invalid config variable: %s\n", arg);
+			return -1;
+		}
+	}
+
 	return 0;
 }
 
@@ -153,7 +200,8 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 	default:
 		if (argc) {
 			for (i = 0; argv[i]; i++) {
-				char *var, *arg = strdup(argv[i]);
+				char *var, *value;
+				char *arg = strdup(argv[i]);
 
 				if (!arg) {
 					pr_err("%s: strdup failed\n", __func__);
@@ -161,13 +209,21 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 					break;
 				}
 
-				if (parse_config_arg(arg, &var) < 0) {
+				if (parse_config_arg(arg, &var, &value) < 0) {
 					free(arg);
 					ret = -1;
 					break;
 				}
 
-				ret = show_spec_config(set, var);
+				if (value == NULL)
+					ret = show_spec_config(set, var);
+				else {
+					const char *config_filename = config_exclusive_filename;
+
+					if (!config_exclusive_filename)
+						config_filename = user_config;
+					ret = set_config(set, config_filename, var, value);
+				}
 				free(arg);
 			}
 		} else
