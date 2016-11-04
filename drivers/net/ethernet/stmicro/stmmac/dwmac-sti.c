@@ -191,7 +191,7 @@ static void stih4xx_fix_retime_src(void *priv, u32 spd)
 		}
 	}
 
-	if (src == TX_RETIME_SRC_CLKGEN && dwmac->clk && freq)
+	if (src == TX_RETIME_SRC_CLKGEN && freq)
 		clk_set_rate(dwmac->clk, freq);
 
 	regmap_update_bits(dwmac->regmap, reg, STIH4XX_RETIME_SRC_MASK,
@@ -222,7 +222,7 @@ static void stid127_fix_retime_src(void *priv, u32 spd)
 			freq = DWMAC_2_5MHZ;
 	}
 
-	if (dwmac->clk && freq)
+	if (freq)
 		clk_set_rate(dwmac->clk, freq);
 
 	regmap_update_bits(dwmac->regmap, reg, STID127_RETIME_SRC_MASK, val);
@@ -238,8 +238,7 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	u32 reg = dwmac->ctrl_reg;
 	u32 val;
 
-	if (dwmac->clk)
-		clk_prepare_enable(dwmac->clk);
+	clk_prepare_enable(dwmac->clk);
 
 	if (of_property_read_bool(np, "st,gmac_en"))
 		regmap_update_bits(regmap, reg, EN_MASK, EN);
@@ -258,8 +257,7 @@ static void sti_dwmac_exit(struct platform_device *pdev, void *priv)
 {
 	struct sti_dwmac *dwmac = priv;
 
-	if (dwmac->clk)
-		clk_disable_unprepare(dwmac->clk);
+	clk_disable_unprepare(dwmac->clk);
 }
 static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 				struct platform_device *pdev)
