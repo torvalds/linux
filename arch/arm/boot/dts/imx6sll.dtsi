@@ -215,7 +215,7 @@
 				};
 
 				ecspi1: ecspi@02008000 {
-					compatible = "fsl,imx6sll-ecspi", "fsl-imx51-ecspi";
+					compatible = "fsl,imx6ul-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02008000 0x4000>;
 					interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 3 7 1>, <&sdma 4 7 2>;
@@ -227,7 +227,7 @@
 				};
 
 				ecspi2: ecspi@0200c000 {
-					compatible = "fsl,imx6sll-ecspi", "fsl-imx51-ecspi";
+					compatible = "fsl,imx6ul-ecspi", "fsl,imx51-ecspi";
 					reg = <0x0200c000 0x4000>;
 					interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 5 7 1>, <&sdma 6 7 2>;
@@ -239,7 +239,7 @@
 				};
 
 				ecspi3: ecspi@02010000 {
-					compatible = "fsl,imx6sll-ecspi", "fsl-imx51-ecspi";
+					compatible = "fsl,imx6ul-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02010000 0x4000>;
 					interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 7 7 1>, <&sdma 8 7 2>;
@@ -251,7 +251,7 @@
 				};
 
 				ecspi4: ecspi@02014000 {
-					compatible = "fsl,imx6sll-ecspi", "fsl,imx51-ecspi";
+					compatible = "fsl,imx6ul-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02014000 0x4000>;
 					interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 9 7 1>, <&sdma 10 7 2>;
@@ -351,7 +351,7 @@
 			};
 
 			pwm1: pwm@02080000 {
-				compatible = "fsl,imx6sll-pwm", "fsl-imx27-pwm";
+				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x02080000 0x4000>;
 				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_PWM1>;
@@ -359,7 +359,7 @@
 			};
 
 			pwm2: pwm@02084000 {
-				compatible = "fsl,imx6sll-pwm", "fsl-imx27-pwm";
+				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x02084000 0x4000>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_PWM2>;
@@ -367,7 +367,7 @@
 			};
 
 			pwm3: pwm@02088000 {
-				compatible = "fsl,imx6sll-pwm", "fsl-imx27-pwm";
+				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x02088000 0x4000>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_PWM3>;
@@ -375,7 +375,7 @@
 			};
 
 			pwm4: pwm@0208c000 {
-				compatible = "fsl,imx6sll-pwm", "fsl-imx27-pwm";
+				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x0208c000 0x4000>;
 				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_PWM4>;
