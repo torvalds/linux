@@ -768,6 +768,9 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	struct nouveau_crtc *nv_crtc = NULL;
 	int ret;
 
+	if (connector->dev->mode_config.funcs->atomic_commit)
+		return drm_atomic_helper_connector_set_property(connector, property, value);
+
 	ret = connector->funcs->atomic_set_property(&nv_connector->base,
 						    &asyc->state,
 						    property, value);
