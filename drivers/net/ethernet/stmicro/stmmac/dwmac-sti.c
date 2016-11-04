@@ -253,12 +253,6 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	return 0;
 }
 
-static void sti_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct sti_dwmac *dwmac = priv;
-
-	clk_disable_unprepare(dwmac->clk);
-}
 static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 				struct platform_device *pdev)
 {
@@ -352,8 +346,6 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	dwmac->fix_retime_src = data->fix_retime_src;
 
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = sti_dwmac_init;
-	plat_dat->exit = sti_dwmac_exit;
 	plat_dat->fix_mac_speed = data->fix_retime_src;
 
 	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
@@ -362,6 +354,41 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
+
+static int sti_dwmac_remove(struct platform_device *pdev)
+{
+	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
+	int ret = stmmac_dvr_remove(&pdev->dev);
+
+	clk_disable_unprepare(dwmac->clk);
+
+	return ret;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int sti_dwmac_suspend(struct device *dev)
+{
+	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(dev);
+	int ret = stmmac_suspend(dev);
+
+	clk_disable_unprepare(dwmac->clk);
+
+	return ret;
+}
+
+static int sti_dwmac_resume(struct device *dev)
+{
+	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	sti_dwmac_init(pdev, dwmac);
+
+	return stmmac_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(sti_dwmac_pm_ops, sti_dwmac_suspend,
+					   sti_dwmac_resume);
 
 static const struct sti_dwmac_of_data stih4xx_dwmac_data = {
 	.fix_retime_src = stih4xx_fix_retime_src,
@@ -382,10 +409,10 @@ MODULE_DEVICE_TABLE(of, sti_dwmac_match);
 
 static struct platform_driver sti_dwmac_driver = {
 	.probe  = sti_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = sti_dwmac_remove,
 	.driver = {
 		.name           = "sti-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &sti_dwmac_pm_ops,
 		.of_match_table = sti_dwmac_match,
 	},
 };
