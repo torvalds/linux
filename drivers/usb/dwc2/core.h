@@ -1024,6 +1024,8 @@ extern int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg);
 extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
 extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
+bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host);
+void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg);
 void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg);
 
 extern bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg);
@@ -1042,6 +1044,9 @@ extern void dwc2_disable_global_interrupts(struct dwc2_hsotg *hcd);
 
 /* This function should be called on every hardware interrupt. */
 extern irqreturn_t dwc2_handle_common_intr(int irq, void *dev);
+
+/* The device ID match table */
+extern const struct of_device_id dwc2_of_match_table[];
 
 /* OTG Core Parameters */
 
