@@ -37,6 +37,7 @@
 #include "mv88e6xxx.h"
 #include "global1.h"
 #include "global2.h"
+#include "port.h"
 
 static void assert_reg_lock(struct mv88e6xxx_chip *chip)
 {
@@ -219,22 +220,6 @@ int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val)
 		addr, reg, val);
 
 	return 0;
-}
-
-static int mv88e6xxx_port_read(struct mv88e6xxx_chip *chip, int port, int reg,
-			       u16 *val)
-{
-	int addr = chip->info->port_base_addr + port;
-
-	return mv88e6xxx_read(chip, addr, reg, val);
-}
-
-static int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
-				u16 val)
-{
-	int addr = chip->info->port_base_addr + port;
-
-	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
 static int mv88e6xxx_phy_read(struct mv88e6xxx_chip *chip, int phy,
