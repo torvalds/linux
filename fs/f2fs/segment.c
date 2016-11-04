@@ -1422,8 +1422,12 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	struct curseg_info *curseg;
 	bool direct_io = (type == CURSEG_DIRECT_IO);
 
-	type = direct_io ? CURSEG_WARM_DATA : type;
-
+	if (direct_io) {
+		if (sbi->active_logs <= 4)
+			type = CURSEG_HOT_DATA;
+		else
+			type = CURSEG_WARM_DATA;
+	}
 	curseg = CURSEG_I(sbi, type);
 
 	mutex_lock(&curseg->curseg_mutex);
