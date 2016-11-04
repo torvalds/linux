@@ -1263,6 +1263,16 @@ static int mmc_select_hs400es(struct mmc_card *card)
 		goto out_err;
 	}
 
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_2V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
+
+	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_8V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+
+	/* If fails try again during next card power cycle */
+	if (err)
+		goto out_err;
+
 	err = mmc_select_bus_width(card);
 	if (err < 0)
 		goto out_err;
@@ -1271,6 +1281,8 @@ static int mmc_select_hs400es(struct mmc_card *card)
 	err = mmc_select_hs(card);
 	if (err)
 		goto out_err;
+
+	mmc_set_clock(host, card->ext_csd.hs_max_dtr);
 
 	err = mmc_switch_status(card);
 	if (err)

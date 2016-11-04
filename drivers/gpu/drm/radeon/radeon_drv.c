@@ -96,9 +96,10 @@
  *   2.45.0 - Allow setting shader registers using DMA/COPY packet3 on SI
  *   2.46.0 - Add PFP_SYNC_ME support on evergreen
  *   2.47.0 - Add UVD_NO_OP register support
+ *   2.48.0 - TA_CS_BC_BASE_ADDR allowed on SI
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	47
+#define KMS_DRIVER_MINOR	48
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

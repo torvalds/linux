@@ -398,6 +398,9 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	/* VRAM init */
 	drm->gem.vram_available = drm->device.info.ram_user;
 
+	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
+				   device->func->resource_size(device, 1));
+
 	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
 			      drm->gem.vram_available >> PAGE_SHIFT);
 	if (ret) {
@@ -430,6 +433,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 void
 nouveau_ttm_fini(struct nouveau_drm *drm)
 {
+	struct nvkm_device *device = nvxx_device(&drm->device);
+
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_TT);
 
@@ -439,4 +444,7 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 
 	arch_phys_wc_del(drm->ttm.mtrr);
 	drm->ttm.mtrr = 0;
+	arch_io_free_memtype_wc(device->func->resource_addr(device, 1),
+				device->func->resource_size(device, 1));
+
 }

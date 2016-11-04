@@ -3499,6 +3499,12 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		max_sclk = 75000;
 		max_mclk = 80000;
 	}
+	/* Limit clocks for some HD8600 parts */
+	if (adev->pdev->device == 0x6660 &&
+	    adev->pdev->revision == 0x83) {
+		max_sclk = 75000;
+		max_mclk = 80000;
+	}
 
 	if (rps->vce_active) {
 		rps->evclk = adev->pm.dpm.vce_states[adev->pm.dpm.vce_level].evclk;
