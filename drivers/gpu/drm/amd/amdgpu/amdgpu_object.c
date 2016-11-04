@@ -128,17 +128,6 @@ static void amdgpu_ttm_placement_init(struct amdgpu_device *adev,
 		if (flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
 			lpfn = adev->mc.real_vram_size >> PAGE_SHIFT;
 
-		if (flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS &&
-		    !(flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) &&
-		    adev->mc.visible_vram_size < adev->mc.real_vram_size) {
-			places[c].fpfn = visible_pfn;
-			places[c].lpfn = lpfn;
-			places[c].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_VRAM |
-				TTM_PL_FLAG_TOPDOWN;
-			c++;
-		}
-
 		places[c].fpfn = 0;
 		places[c].lpfn = lpfn;
 		places[c].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
