@@ -191,7 +191,6 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->alpha);
 	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
-	drm_printf(p, "\tmode_changed=%u\n", pstate->mode_changed);
 	drm_printf(p, "\tpending=%u\n", pstate->pending);
 }
 
@@ -233,7 +232,6 @@ mdp5_plane_duplicate_state(struct drm_plane *plane)
 	if (mdp5_state && mdp5_state->base.fb)
 		drm_framebuffer_reference(mdp5_state->base.fb);
 
-	mdp5_state->mode_changed = false;
 	mdp5_state->pending = false;
 
 	return &mdp5_state->base;
@@ -291,7 +289,6 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		struct drm_plane_state *state)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
-	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct drm_plane_state *old_state = plane->state;
 	const struct mdp_format *format;
 	bool vflip, hflip;
@@ -354,10 +351,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			struct drm_crtc_state *crtc_state =
 					drm_atomic_get_crtc_state(state->state, state->crtc);
 			crtc_state->mode_changed = true;
-			mdp5_state->mode_changed = true;
 		}
-	} else {
-		mdp5_state->mode_changed = true;
 	}
 
 	return 0;
@@ -366,17 +360,16 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 
 	DBG("%s: update", plane->name);
 
-	if (!plane_enabled(state)) {
-		mdp5_state->pending = true;
-	} else if (mdp5_state->mode_changed) {
+	mdp5_state->pending = true;
+
+	if (plane_enabled(state)) {
 		int ret;
-		mdp5_state->pending = true;
+
 		ret = mdp5_plane_mode_set(plane,
 				state->crtc, state->fb,
 				state->crtc_x, state->crtc_y,
@@ -385,11 +378,6 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 				state->src_w, state->src_h);
 		/* atomic_check should have ensured that this doesn't fail */
 		WARN_ON(ret < 0);
-	} else {
-		unsigned long flags;
-		spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
-		set_scanout_locked(plane, state->fb);
-		spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
 	}
 }
 

@@ -76,11 +76,6 @@ struct mdp5_plane_state {
 	/* assigned by crtc blender */
 	enum mdp_mixer_stage_id stage;
 
-	/* some additional transactional status to help us know in the
-	 * apply path whether we need to update SMP allocation, and
-	 * whether current update is still pending:
-	 */
-	bool mode_changed : 1;
 	bool pending : 1;
 };
 #define to_mdp5_plane_state(x) \
