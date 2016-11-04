@@ -1501,7 +1501,6 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 				struct sta_info *sta,
 				struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct fq *fq = &local->fq;
 	struct ieee80211_vif *vif;
 	struct txq_info *txqi;
@@ -1525,8 +1524,6 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 
 	if (!txqi)
 		return false;
-
-	info->control.vif = vif;
 
 	spin_lock_bh(&fq->lock);
 	ieee80211_txq_enqueue(local, txqi, skb);
