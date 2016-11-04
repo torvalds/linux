@@ -61,6 +61,8 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 	return 0;
 }
 
+/* Offset 0x05: Port Control 1 */
+
 /* Offset 0x06: Port Based VLAN Map */
 
 int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
@@ -82,6 +84,71 @@ int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map)
 
 	netdev_dbg(chip->ds->ports[port].netdev, "VLANTable set to %.3x\n",
 		   map);
+
+	return 0;
+}
+
+int mv88e6xxx_port_get_fid(struct mv88e6xxx_chip *chip, int port, u16 *fid)
+{
+	const u16 upper_mask = (mv88e6xxx_num_databases(chip) - 1) >> 4;
+	u16 reg;
+	int err;
+
+	/* Port's default FID lower 4 bits are located in reg 0x06, offset 12 */
+	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	if (err)
+		return err;
+
+	*fid = (reg & 0xf000) >> 12;
+
+	/* Port's default FID upper bits are located in reg 0x05, offset 0 */
+	if (upper_mask) {
+		err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
+		if (err)
+			return err;
+
+		*fid |= (reg & upper_mask) << 4;
+	}
+
+	return 0;
+}
+
+int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid)
+{
+	const u16 upper_mask = (mv88e6xxx_num_databases(chip) - 1) >> 4;
+	u16 reg;
+	int err;
+
+	if (fid >= mv88e6xxx_num_databases(chip))
+		return -EINVAL;
+
+	/* Port's default FID lower 4 bits are located in reg 0x06, offset 12 */
+	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
+	if (err)
+		return err;
+
+	reg &= 0x0fff;
+	reg |= (fid & 0x000f) << 12;
+
+	err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
+	if (err)
+		return err;
+
+	/* Port's default FID upper bits are located in reg 0x05, offset 0 */
+	if (upper_mask) {
+		err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
+		if (err)
+			return err;
+
+		reg &= ~upper_mask;
+		reg |= (fid >> 4) & upper_mask;
+
+		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, reg);
+		if (err)
+			return err;
+	}
+
+	netdev_dbg(chip->ds->ports[port].netdev, "FID set to %u\n", fid);
 
 	return 0;
 }

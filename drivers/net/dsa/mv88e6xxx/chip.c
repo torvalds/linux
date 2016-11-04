@@ -1674,75 +1674,6 @@ loadpurge:
 	return _mv88e6xxx_vtu_cmd(chip, GLOBAL_VTU_OP_STU_LOAD_PURGE);
 }
 
-static int _mv88e6xxx_port_fid(struct mv88e6xxx_chip *chip, int port,
-			       u16 *new, u16 *old)
-{
-	struct dsa_switch *ds = chip->ds;
-	u16 upper_mask;
-	u16 fid;
-	u16 reg;
-	int err;
-
-	if (mv88e6xxx_num_databases(chip) == 4096)
-		upper_mask = 0xff;
-	else if (mv88e6xxx_num_databases(chip) == 256)
-		upper_mask = 0xf;
-	else
-		return -EOPNOTSUPP;
-
-	/* Port's default FID bits 3:0 are located in reg 0x06, offset 12 */
-	err = mv88e6xxx_port_read(chip, port, PORT_BASE_VLAN, &reg);
-	if (err)
-		return err;
-
-	fid = (reg & PORT_BASE_VLAN_FID_3_0_MASK) >> 12;
-
-	if (new) {
-		reg &= ~PORT_BASE_VLAN_FID_3_0_MASK;
-		reg |= (*new << 12) & PORT_BASE_VLAN_FID_3_0_MASK;
-
-		err = mv88e6xxx_port_write(chip, port, PORT_BASE_VLAN, reg);
-		if (err)
-			return err;
-	}
-
-	/* Port's default FID bits 11:4 are located in reg 0x05, offset 0 */
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_1, &reg);
-	if (err)
-		return err;
-
-	fid |= (reg & upper_mask) << 4;
-
-	if (new) {
-		reg &= ~upper_mask;
-		reg |= (*new >> 4) & upper_mask;
-
-		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_1, reg);
-		if (err)
-			return err;
-
-		netdev_dbg(ds->ports[port].netdev,
-			   "FID %d (was %d)\n", *new, fid);
-	}
-
-	if (old)
-		*old = fid;
-
-	return 0;
-}
-
-static int _mv88e6xxx_port_fid_get(struct mv88e6xxx_chip *chip,
-				   int port, u16 *fid)
-{
-	return _mv88e6xxx_port_fid(chip, port, NULL, fid);
-}
-
-static int _mv88e6xxx_port_fid_set(struct mv88e6xxx_chip *chip,
-				   int port, u16 fid)
-{
-	return _mv88e6xxx_port_fid(chip, port, &fid, NULL);
-}
-
 static int _mv88e6xxx_fid_new(struct mv88e6xxx_chip *chip, u16 *fid)
 {
 	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
@@ -1753,7 +1684,7 @@ static int _mv88e6xxx_fid_new(struct mv88e6xxx_chip *chip, u16 *fid)
 
 	/* Set every FID bit used by the (un)bridged ports */
 	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-		err = _mv88e6xxx_port_fid_get(chip, i, fid);
+		err = mv88e6xxx_port_get_fid(chip, i, fid);
 		if (err)
 			return err;
 
@@ -2203,7 +2134,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 
 	/* Null VLAN ID corresponds to the port private database */
 	if (vid == 0)
-		err = _mv88e6xxx_port_fid_get(chip, port, &vlan.fid);
+		err = mv88e6xxx_port_get_fid(chip, port, &vlan.fid);
 	else
 		err = _mv88e6xxx_vtu_get(chip, vid, &vlan, false);
 	if (err)
@@ -2379,7 +2310,7 @@ static int mv88e6xxx_port_db_dump(struct mv88e6xxx_chip *chip, int port,
 	int err;
 
 	/* Dump port's default Filtering Information Database (VLAN ID 0) */
-	err = _mv88e6xxx_port_fid_get(chip, port, &fid);
+	err = mv88e6xxx_port_get_fid(chip, port, &fid);
 	if (err)
 		return err;
 
@@ -2782,7 +2713,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * database, and allow bidirectional communication between the
 	 * CPU and DSA port(s), and the other ports.
 	 */
-	err = _mv88e6xxx_port_fid_set(chip, port, 0);
+	err = mv88e6xxx_port_set_fid(chip, port, 0);
 	if (err)
 		return err;
 

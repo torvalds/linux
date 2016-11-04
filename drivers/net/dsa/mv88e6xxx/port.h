@@ -25,4 +25,7 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state);
 
 int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map);
 
+int mv88e6xxx_port_get_fid(struct mv88e6xxx_chip *chip, int port, u16 *fid);
+int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid);
+
 #endif /* _MV88E6XXX_PORT_H */
