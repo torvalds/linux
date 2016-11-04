@@ -167,7 +167,6 @@
 			};
 
 			cpurst@20800 {
-				compatible = "marvell,armada-370-cpu-reset";
 				reg = <0x20800 0x20>;
 			};
 

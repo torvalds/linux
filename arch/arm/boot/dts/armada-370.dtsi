@@ -233,11 +233,6 @@
 				clocks = <&coreclk 2>;
 			};
 
-			cpurst@20800 {
-				compatible = "marvell,armada-370-cpu-reset";
-				reg = <0x20800 0x8>;
-			};
-
 			cpu-config@21000 {
 				compatible = "marvell,armada-370-cpu-config";
 				reg = <0x21000 0x8>;
