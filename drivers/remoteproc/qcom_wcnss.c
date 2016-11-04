@@ -143,7 +143,6 @@ void qcom_wcnss_assign_iris(struct qcom_wcnss *wcnss,
 
 	mutex_unlock(&wcnss->iris_lock);
 }
-EXPORT_SYMBOL_GPL(qcom_wcnss_assign_iris);
 
 static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 {
@@ -619,6 +618,28 @@ static struct platform_driver wcnss_driver = {
 	},
 };
 
-module_platform_driver(wcnss_driver);
+static int __init wcnss_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&wcnss_driver);
+	if (ret)
+		return ret;
+
+	ret = platform_driver_register(&qcom_iris_driver);
+	if (ret)
+		platform_driver_unregister(&wcnss_driver);
+
+	return ret;
+}
+module_init(wcnss_init);
+
+static void __exit wcnss_exit(void)
+{
+	platform_driver_unregister(&qcom_iris_driver);
+	platform_driver_unregister(&wcnss_driver);
+}
+module_exit(wcnss_exit);
+
 MODULE_DESCRIPTION("Qualcomm Peripherial Image Loader for Wireless Subsystem");
 MODULE_LICENSE("GPL v2");
