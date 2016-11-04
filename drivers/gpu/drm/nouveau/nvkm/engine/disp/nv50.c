@@ -590,6 +590,7 @@ nv50_disp_intr_unk20_0(struct nv50_disp *disp, int head)
 			.execute = 1,
 		};
 
+		nvkm_notify_put(&outpdp->irq);
 		nvbios_exec(&init);
 		atomic_set(&outpdp->lt.done, 0);
 	}
