@@ -1806,48 +1806,19 @@ unlock:
 	return err;
 }
 
-static const char * const mv88e6xxx_port_8021q_mode_names[] = {
-	[PORT_CONTROL_2_8021Q_DISABLED] = "Disabled",
-	[PORT_CONTROL_2_8021Q_FALLBACK] = "Fallback",
-	[PORT_CONTROL_2_8021Q_CHECK] = "Check",
-	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
-};
-
 static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 					 bool vlan_filtering)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	u16 old, new = vlan_filtering ? PORT_CONTROL_2_8021Q_SECURE :
+	u16 mode = vlan_filtering ? PORT_CONTROL_2_8021Q_SECURE :
 		PORT_CONTROL_2_8021Q_DISABLED;
-	u16 reg;
 	int err;
 
 	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_VTU))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&chip->reg_lock);
-
-	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
-	if (err)
-		goto unlock;
-
-	old = reg & PORT_CONTROL_2_8021Q_MASK;
-
-	if (new != old) {
-		reg &= ~PORT_CONTROL_2_8021Q_MASK;
-		reg |= new & PORT_CONTROL_2_8021Q_MASK;
-
-		err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
-		if (err)
-			goto unlock;
-
-		netdev_dbg(ds->ports[port].netdev, "802.1Q Mode %s (was %s)\n",
-			   mv88e6xxx_port_8021q_mode_names[new],
-			   mv88e6xxx_port_8021q_mode_names[old]);
-	}
-
-	err = 0;
-unlock:
+	err = mv88e6xxx_port_set_8021q_mode(chip, port, mode);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;

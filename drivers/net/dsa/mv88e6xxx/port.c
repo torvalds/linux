@@ -190,3 +190,35 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid)
 
 	return 0;
 }
+
+/* Offset 0x08: Port Control 2 Register */
+
+static const char * const mv88e6xxx_port_8021q_mode_names[] = {
+	[PORT_CONTROL_2_8021Q_DISABLED] = "Disabled",
+	[PORT_CONTROL_2_8021Q_FALLBACK] = "Fallback",
+	[PORT_CONTROL_2_8021Q_CHECK] = "Check",
+	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
+};
+
+int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
+				  u16 mode)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	reg &= ~PORT_CONTROL_2_8021Q_MASK;
+	reg |= mode & PORT_CONTROL_2_8021Q_MASK;
+
+	err = mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+	if (err)
+		return err;
+
+	netdev_dbg(chip->ds->ports[port].netdev, "802.1QMode set to %s\n",
+		   mv88e6xxx_port_8021q_mode_names[mode]);
+
+	return 0;
+}

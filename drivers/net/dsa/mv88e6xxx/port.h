@@ -31,4 +31,7 @@ int mv88e6xxx_port_set_fid(struct mv88e6xxx_chip *chip, int port, u16 fid);
 int mv88e6xxx_port_get_pvid(struct mv88e6xxx_chip *chip, int port, u16 *pvid);
 int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid);
 
+int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
+				  u16 mode);
+
 #endif /* _MV88E6XXX_PORT_H */
