@@ -158,9 +158,13 @@ nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (nouveau_crtc(crtc)->index == pipe) {
+			struct drm_display_mode *mode;
+			if (dev->mode_config.funcs->atomic_commit)
+				mode = &crtc->state->adjusted_mode;
+			else
+				mode = &crtc->hwmode;
 			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					pipe, max_error, time, flags,
-					&crtc->hwmode);
+					pipe, max_error, time, flags, mode);
 		}
 	}
 
