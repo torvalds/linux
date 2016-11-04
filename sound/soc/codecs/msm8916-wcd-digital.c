@@ -539,7 +539,7 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 
 };
 
-static int msm8916_wcd_digital_parse_dt(struct platform_device *pdev,
+static int msm8916_wcd_digital_get_clks(struct platform_device *pdev,
 					struct msm8916_wcd_digital_priv	*priv)
 {
 	struct device *dev = &pdev->dev;
@@ -866,7 +866,7 @@ static int msm8916_wcd_digital_probe(struct platform_device *pdev)
 	if (IS_ERR(digital_map))
 		return PTR_ERR(digital_map);
 
-	ret = msm8916_wcd_digital_parse_dt(pdev, priv);
+	ret = msm8916_wcd_digital_get_clks(pdev, priv);
 	if (ret < 0)
 		return ret;
 
