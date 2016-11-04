@@ -1288,49 +1288,6 @@ static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 		netdev_err(ds->ports[port].netdev, "failed to flush ATU\n");
 }
 
-static int _mv88e6xxx_port_pvid(struct mv88e6xxx_chip *chip, int port,
-				u16 *new, u16 *old)
-{
-	struct dsa_switch *ds = chip->ds;
-	u16 pvid, reg;
-	int err;
-
-	err = mv88e6xxx_port_read(chip, port, PORT_DEFAULT_VLAN, &reg);
-	if (err)
-		return err;
-
-	pvid = reg & PORT_DEFAULT_VLAN_MASK;
-
-	if (new) {
-		reg &= ~PORT_DEFAULT_VLAN_MASK;
-		reg |= *new & PORT_DEFAULT_VLAN_MASK;
-
-		err = mv88e6xxx_port_write(chip, port, PORT_DEFAULT_VLAN, reg);
-		if (err)
-			return err;
-
-		netdev_dbg(ds->ports[port].netdev,
-			   "DefaultVID %d (was %d)\n", *new, pvid);
-	}
-
-	if (old)
-		*old = pvid;
-
-	return 0;
-}
-
-static int _mv88e6xxx_port_pvid_get(struct mv88e6xxx_chip *chip,
-				    int port, u16 *pvid)
-{
-	return _mv88e6xxx_port_pvid(chip, port, NULL, pvid);
-}
-
-static int _mv88e6xxx_port_pvid_set(struct mv88e6xxx_chip *chip,
-				    int port, u16 pvid)
-{
-	return _mv88e6xxx_port_pvid(chip, port, &pvid, NULL);
-}
-
 static int _mv88e6xxx_vtu_wait(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_g1_wait(chip, GLOBAL_VTU_OP, GLOBAL_VTU_OP_BUSY);
@@ -1510,7 +1467,7 @@ static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 
-	err = _mv88e6xxx_port_pvid_get(chip, port, &pvid);
+	err = mv88e6xxx_port_get_pvid(chip, port, &pvid);
 	if (err)
 		goto unlock;
 
@@ -1958,7 +1915,7 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 				   "failed to add VLAN %d%c\n",
 				   vid, untagged ? 'u' : 't');
 
-	if (pvid && _mv88e6xxx_port_pvid_set(chip, port, vlan->vid_end))
+	if (pvid && mv88e6xxx_port_set_pvid(chip, port, vlan->vid_end))
 		netdev_err(ds->ports[port].netdev, "failed to set PVID %d\n",
 			   vlan->vid_end);
 
@@ -2013,7 +1970,7 @@ static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 
-	err = _mv88e6xxx_port_pvid_get(chip, port, &pvid);
+	err = mv88e6xxx_port_get_pvid(chip, port, &pvid);
 	if (err)
 		goto unlock;
 
@@ -2023,7 +1980,7 @@ static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			goto unlock;
 
 		if (vid == pvid) {
-			err = _mv88e6xxx_port_pvid_set(chip, port, 0);
+			err = mv88e6xxx_port_set_pvid(chip, port, 0);
 			if (err)
 				goto unlock;
 		}
