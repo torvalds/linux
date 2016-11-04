@@ -135,7 +135,6 @@
 			reg = <0x54006800 0x40>;
 			interrupts = <0 33 4>;
 			clocks = <&sys_clk 0>;
-			fifo-size = <64>;
 		};
 
 		serial1: serial@54006900 {
@@ -144,7 +143,6 @@
 			reg = <0x54006900 0x40>;
 			interrupts = <0 35 4>;
 			clocks = <&sys_clk 0>;
-			fifo-size = <64>;
 		};
 
 		serial2: serial@54006a00 {
@@ -153,7 +151,6 @@
 			reg = <0x54006a00 0x40>;
 			interrupts = <0 37 4>;
 			clocks = <&sys_clk 0>;
-			fifo-size = <64>;
 		};
 
 		i2c0: i2c@58400000 {
