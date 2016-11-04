@@ -139,6 +139,12 @@ struct nv50_head_atom {
 		u8 cpp;
 	} ovly;
 
+	struct {
+		bool enable:1;
+		u8 bits:2;
+		u8 mode:4;
+	} dither;
+
 	union {
 		struct {
 			bool core:1;
@@ -155,6 +161,7 @@ struct nv50_head_atom {
 			bool mode:1;
 			bool base:1;
 			bool ovly:1;
+			bool dither:1;
 		};
 		u16 mask;
 	} set;
@@ -799,6 +806,26 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
  * Head
  *****************************************************************************/
 static void
+nv50_head_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 2))) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
+			evo_mthd(push, 0x08a0 + (head->base.index * 0x0400), 1);
+		else
+		if (core->base.user.oclass < GK104_DISP_CORE_CHANNEL_DMA)
+			evo_mthd(push, 0x0490 + (head->base.index * 0x0300), 1);
+		else
+			evo_mthd(push, 0x04a0 + (head->base.index * 0x0300), 1);
+		evo_data(push, (asyh->dither.mode << 3) |
+			       (asyh->dither.bits << 1) |
+			        asyh->dither.enable);
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
@@ -1121,6 +1148,35 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if (asyh->set.curs   ) nv50_head_curs_set(head, asyh);
 	if (asyh->set.base   ) nv50_head_base    (head, asyh);
 	if (asyh->set.ovly   ) nv50_head_ovly    (head, asyh);
+	if (asyh->set.dither ) nv50_head_dither  (head, asyh);
+}
+
+static void
+nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
+			      struct nv50_head_atom *asyh,
+			      struct nouveau_conn_atom *asyc)
+{
+	struct drm_connector *connector = asyc->state.connector;
+	u32 mode = 0x00;
+
+	if (asyc->dither.mode == DITHERING_MODE_AUTO) {
+		if (asyh->base.depth > connector->display_info.bpc * 3)
+			mode = DITHERING_MODE_DYNAMIC2X2;
+	} else {
+		mode = asyc->dither.mode;
+	}
+
+	if (asyc->dither.depth == DITHERING_DEPTH_AUTO) {
+		if (connector->display_info.bpc >= 8)
+			mode |= DITHERING_DEPTH_8BPC;
+	} else {
+		mode |= asyc->dither.depth;
+	}
+
+	asyh->dither.enable = mode;
+	asyh->dither.bits = mode >> 1;
+	asyh->dither.mode = mode >> 3;
+	asyh->set.dither = true;
 }
 
 static void
@@ -1330,45 +1386,28 @@ static int
 nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
+	struct nv50_head *head = nv50_head(&nv_crtc->base);
+	struct nv50_head_atom *asyh = &head->asy;
 	struct nouveau_connector *nv_connector;
-	struct drm_connector *connector;
-	u32 *push, mode = 0x00;
+	struct nouveau_conn_atom asyc;
+	u32 *push;
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	connector = &nv_connector->base;
-	if (nv_connector->dithering_mode == DITHERING_MODE_AUTO) {
-		if (nv_crtc->base.primary->fb->depth > connector->display_info.bpc * 3)
-			mode = DITHERING_MODE_DYNAMIC2X2;
-	} else {
-		mode = nv_connector->dithering_mode;
-	}
 
-	if (nv_connector->dithering_depth == DITHERING_DEPTH_AUTO) {
-		if (connector->display_info.bpc >= 8)
-			mode |= DITHERING_DEPTH_8BPC;
-	} else {
-		mode |= nv_connector->dithering_depth;
-	}
+	asyc.state.connector = &nv_connector->base;
+	asyc.dither.mode = nv_connector->dithering_mode;
+	asyc.dither.depth = nv_connector->dithering_depth;
+	asyh->state.crtc = &nv_crtc->base;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
+	nv50_head_atomic_check_dither(&head->arm, asyh, &asyc);
+	nv50_head_flush_set(head, asyh);
 
-	push = evo_wait(mast, 4);
-	if (push) {
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x08a0 + (nv_crtc->index * 0x0400), 1);
-			evo_data(push, mode);
-		} else
-		if (nv50_vers(mast) < GK104_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0490 + (nv_crtc->index * 0x0300), 1);
-			evo_data(push, mode);
-		} else {
-			evo_mthd(push, 0x04a0 + (nv_crtc->index * 0x0300), 1);
-			evo_data(push, mode);
-		}
-
-		if (update) {
+	if (update) {
+		if ((push = evo_wait(mast, 2))) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
+			evo_kick(push, mast);
 		}
-		evo_kick(push, mast);
 	}
 
 	return 0;
