@@ -243,6 +243,42 @@ fail:
 }
 
 /**
+ *  ixgbe_probe_phy - Probe a single address for a PHY
+ *  @hw: pointer to hardware structure
+ *  @phy_addr: PHY address to probe
+ *
+ *  Returns true if PHY found
+ **/
+static bool ixgbe_probe_phy(struct ixgbe_hw *hw, u16 phy_addr)
+{
+	u16 ext_ability = 0;
+
+	hw->phy.mdio.prtad = phy_addr;
+	if (mdio45_probe(&hw->phy.mdio, phy_addr) != 0)
+		return false;
+
+	if (ixgbe_get_phy_id(hw))
+		return false;
+
+	hw->phy.type = ixgbe_get_phy_type_from_id(hw->phy.id);
+
+	if (hw->phy.type == ixgbe_phy_unknown) {
+		hw->phy.ops.read_reg(hw,
+				     MDIO_PMA_EXTABLE,
+				     MDIO_MMD_PMAPMD,
+				     &ext_ability);
+		if (ext_ability &
+		    (MDIO_PMA_EXTABLE_10GBT |
+		     MDIO_PMA_EXTABLE_1000BT))
+			hw->phy.type = ixgbe_phy_cu_unknown;
+		else
+			hw->phy.type = ixgbe_phy_generic;
+	}
+
+	return true;
+}
+
+/**
  *  ixgbe_identify_phy_generic - Get physical layer module
  *  @hw: pointer to hardware structure
  *
@@ -251,7 +287,7 @@ fail:
 s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 {
 	u32 phy_addr;
-	u16 ext_ability = 0;
+	u32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 
 	if (!hw->phy.phy_semaphore_mask) {
 		if (hw->bus.lan_id)
@@ -260,37 +296,34 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 			hw->phy.phy_semaphore_mask = IXGBE_GSSR_PHY0_SM;
 	}
 
-	if (hw->phy.type == ixgbe_phy_unknown) {
-		for (phy_addr = 0; phy_addr < IXGBE_MAX_PHY_ADDR; phy_addr++) {
-			hw->phy.mdio.prtad = phy_addr;
-			if (mdio45_probe(&hw->phy.mdio, phy_addr) == 0) {
-				ixgbe_get_phy_id(hw);
-				hw->phy.type =
-					ixgbe_get_phy_type_from_id(hw->phy.id);
+	if (hw->phy.type != ixgbe_phy_unknown)
+		return 0;
 
-				if (hw->phy.type == ixgbe_phy_unknown) {
-					hw->phy.ops.read_reg(hw,
-							     MDIO_PMA_EXTABLE,
-							     MDIO_MMD_PMAPMD,
-							     &ext_ability);
-					if (ext_ability &
-					    (MDIO_PMA_EXTABLE_10GBT |
-					     MDIO_PMA_EXTABLE_1000BT))
-						hw->phy.type =
-							 ixgbe_phy_cu_unknown;
-					else
-						hw->phy.type =
-							 ixgbe_phy_generic;
-				}
-
-				return 0;
-			}
-		}
-		/* indicate no PHY found */
-		hw->phy.mdio.prtad = MDIO_PRTAD_NONE;
-		return IXGBE_ERR_PHY_ADDR_INVALID;
+	if (hw->phy.nw_mng_if_sel) {
+		phy_addr = (hw->phy.nw_mng_if_sel &
+			    IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD) >>
+			   IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD_SHIFT;
+		if (ixgbe_probe_phy(hw, phy_addr))
+			return 0;
+		else
+			return IXGBE_ERR_PHY_ADDR_INVALID;
 	}
-	return 0;
+
+	for (phy_addr = 0; phy_addr < IXGBE_MAX_PHY_ADDR; phy_addr++) {
+		if (ixgbe_probe_phy(hw, phy_addr)) {
+			status = 0;
+			break;
+		}
+	}
+
+	/* Certain media types do not have a phy so an address will not
+	 * be found and the code will take this path.  Caller has to
+	 * decide if it is an error or not.
+	 */
+	if (status)
+		hw->phy.mdio.prtad = MDIO_PRTAD_NONE;
+
+	return status;
 }
 
 /**
@@ -367,6 +400,7 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 		phy_type = ixgbe_phy_nl;
 		break;
 	case X557_PHY_ID:
+	case X557_PHY_ID2:
 		phy_type = ixgbe_phy_x550em_ext_t;
 		break;
 	default:
@@ -417,8 +451,7 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 	 */
 	for (i = 0; i < 30; i++) {
 		msleep(100);
-		hw->phy.ops.read_reg(hw, MDIO_CTRL1,
-				     MDIO_MMD_PHYXS, &ctrl);
+		hw->phy.ops.read_reg(hw, MDIO_CTRL1, MDIO_MMD_PHYXS, &ctrl);
 		if (!(ctrl & MDIO_CTRL1_RESET)) {
 			udelay(2);
 			break;
@@ -769,6 +802,7 @@ static s32 ixgbe_get_copper_speeds_supported(struct ixgbe_hw *hw)
 		hw->phy.speeds_supported |= IXGBE_LINK_SPEED_5GB_FULL;
 		break;
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		hw->phy.speeds_supported &= ~IXGBE_LINK_SPEED_100_FULL;
 		break;
 	default:
