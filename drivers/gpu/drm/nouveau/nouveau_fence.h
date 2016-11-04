@@ -92,7 +92,6 @@ struct nv84_fence_chan {
 	struct nouveau_fence_chan base;
 	struct nvkm_vma vma;
 	struct nvkm_vma vma_gart;
-	struct nvkm_vma dispc_vma[4];
 };
 
 struct nv84_fence_priv {
@@ -102,7 +101,6 @@ struct nv84_fence_priv {
 	u32 *suspend;
 };
 
-u64  nv84_fence_crtc(struct nouveau_channel *, int);
 int  nv84_fence_context_new(struct nouveau_channel *);
 
 #endif

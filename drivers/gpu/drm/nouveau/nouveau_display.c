@@ -835,10 +835,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	if (ret)
 		goto fail;
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI)
-		BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-	else
-		BEGIN_NVC0(chan, FermiSw, NV_SW_PAGE_FLIP, 1);
+	BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
 	OUT_RING  (chan, 0x00000000);
 	FIRE_RING (chan);
 
@@ -867,6 +864,8 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_channel *chan;
 	struct nouveau_cli *cli;
 	struct nouveau_fence *fence;
+	struct nv04_display *dispnv04 = nv04_display(dev);
+	int head = nouveau_crtc(crtc)->index;
 	int ret;
 
 	chan = drm->channel;
@@ -913,31 +912,22 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	drm_crtc_vblank_get(crtc);
 
 	/* Emit a page flip */
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nv50_display_flip_next(crtc, fb, chan, swap_interval);
+	if (swap_interval) {
+		ret = RING_SPACE(chan, 8);
 		if (ret)
 			goto fail_unreserve;
-	} else {
-		struct nv04_display *dispnv04 = nv04_display(dev);
-		int head = nouveau_crtc(crtc)->index;
 
-		if (swap_interval) {
-			ret = RING_SPACE(chan, 8);
-			if (ret)
-				goto fail_unreserve;
-
-			BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
-			OUT_RING  (chan, 0);
-			BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
-			OUT_RING  (chan, head);
-			BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
-			OUT_RING  (chan, 0);
-			BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
-			OUT_RING  (chan, 0);
-		}
-
-		nouveau_bo_ref(new_bo, &dispnv04->image[head]);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
+		OUT_RING  (chan, head);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
+		OUT_RING  (chan, 0);
 	}
+
+	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
 	if (ret)
@@ -986,16 +976,8 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event) {
-		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
-			drm_crtc_arm_vblank_event(s->crtc, s->event);
-		} else {
-			drm_crtc_send_vblank_event(s->crtc, s->event);
-
-			/* Give up ownership of vblank for page-flipped crtc */
-			drm_crtc_vblank_put(s->crtc);
-		}
-	}
-	else {
+		drm_crtc_arm_vblank_event(s->crtc, s->event);
+	} else {
 		/* Give up ownership of vblank for page-flipped crtc */
 		drm_crtc_vblank_put(s->crtc);
 	}
@@ -1017,12 +999,10 @@ nouveau_flip_complete(struct nvif_notify *notify)
 	struct nouveau_page_flip_state state;
 
 	if (!nouveau_finish_page_flip(chan, &state)) {
-		if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
-			nv_set_crtc_base(drm->dev, drm_crtc_index(state.crtc),
-					 state.offset + state.crtc->y *
-					 state.pitch + state.crtc->x *
-					 state.bpp / 8);
-		}
+		nv_set_crtc_base(drm->dev, drm_crtc_index(state.crtc),
+				 state.offset + state.crtc->y *
+				 state.pitch + state.crtc->x *
+				 state.bpp / 8);
 	}
 
 	return NVIF_NOTIFY_KEEP;
