@@ -128,6 +128,10 @@ struct nv50_head_atom {
 		u16 h;
 	} base;
 
+	struct {
+		u8 cpp;
+	} ovly;
+
 	union {
 		struct {
 			bool core:1;
@@ -142,6 +146,8 @@ struct nv50_head_atom {
 			bool curs:1;
 			bool view:1;
 			bool mode:1;
+			bool base:1;
+			bool ovly:1;
 		};
 		u16 mask;
 	} set;
@@ -786,6 +792,65 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
  * Head
  *****************************************************************************/
 static void
+nv50_head_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 bounds = 0;
+	u32 *push;
+
+	if (asyh->base.cpp) {
+		switch (asyh->base.cpp) {
+		case 8: bounds |= 0x00000500; break;
+		case 4: bounds |= 0x00000300; break;
+		case 2: bounds |= 0x00000100; break;
+		default:
+			WARN_ON(1);
+			break;
+		}
+		bounds |= 0x00000001;
+	}
+
+	if ((push = evo_wait(core, 2))) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
+			evo_mthd(push, 0x0904 + head->base.index * 0x400, 1);
+		else
+			evo_mthd(push, 0x04d4 + head->base.index * 0x300, 1);
+		evo_data(push, bounds);
+		evo_kick(push, core);
+	}
+}
+
+static void
+nv50_head_base(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 bounds = 0;
+	u32 *push;
+
+	if (asyh->base.cpp) {
+		switch (asyh->base.cpp) {
+		case 8: bounds |= 0x00000500; break;
+		case 4: bounds |= 0x00000300; break;
+		case 2: bounds |= 0x00000100; break;
+		case 1: bounds |= 0x00000000; break;
+		default:
+			WARN_ON(1);
+			break;
+		}
+		bounds |= 0x00000001;
+	}
+
+	if ((push = evo_wait(core, 2))) {
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA)
+			evo_mthd(push, 0x0900 + head->base.index * 0x400, 1);
+		else
+			evo_mthd(push, 0x04d0 + head->base.index * 0x300, 1);
+		evo_data(push, bounds);
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_curs_clr(struct nv50_head *head)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
@@ -1018,6 +1083,8 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if (asyh->set.core   ) nv50_head_lut_set (head, asyh);
 	if (asyh->set.core   ) nv50_head_core_set(head, asyh);
 	if (asyh->set.curs   ) nv50_head_curs_set(head, asyh);
+	if (asyh->set.base   ) nv50_head_base    (head, asyh);
+	if (asyh->set.ovly   ) nv50_head_ovly    (head, asyh);
 }
 
 static void
@@ -1106,9 +1173,13 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
 		asyh->lut.handle = disp->mast.base.vram.handle;
 		asyh->lut.offset = head->base.lut.nvbo->bo.offset;
+		asyh->set.base = armh->base.cpp != asyh->base.cpp;
+		asyh->set.ovly = armh->ovly.cpp != asyh->ovly.cpp;
 	} else {
 		asyh->core.visible = false;
 		asyh->curs.visible = false;
+		asyh->base.cpp = 0;
+		asyh->ovly.cpp = 0;
 	}
 
 	if (!drm_atomic_crtc_needs_modeset(&asyh->state)) {
@@ -1491,7 +1562,6 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	struct nv50_mast *mast = nv50_mast(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_connector *nv_connector;
-	u32 *push;
 	int ret;
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *asyh = &head->asy;
@@ -1507,20 +1577,6 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		return ret;
 
 	nv50_head_flush_set(head, asyh);
-
-	push = evo_wait(mast, 64);
-	if (push) {
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, 0x00000311);
-			evo_data(push, 0x00000100);
-		} else {
-			evo_mthd(push, 0x04d0 + (nv_crtc->index * 0x300), 2);
-			evo_data(push, 0x00000311);
-			evo_data(push, 0x00000100);
-		}
-		evo_kick(push, mast);
-	}
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	nv50_crtc_set_dither(nv_crtc, false);
