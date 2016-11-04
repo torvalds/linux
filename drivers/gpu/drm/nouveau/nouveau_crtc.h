@@ -54,7 +54,6 @@ struct nouveau_crtc {
 
 	struct {
 		struct nouveau_bo *nvbo;
-		bool visible;
 		uint32_t offset;
 		void (*set_offset)(struct nouveau_crtc *, uint32_t offset);
 		void (*set_pos)(struct nouveau_crtc *, int x, int y);

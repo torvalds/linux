@@ -112,6 +112,14 @@ struct nv50_head_atom {
 	} core;
 
 	struct {
+		bool visible;
+		u32 handle;
+		u64 offset:40;
+		u8  layout:1;
+		u8  format:1;
+	} curs;
+
+	struct {
 		u8  depth;
 		u8  cpp;
 		u16 x;
@@ -123,6 +131,7 @@ struct nv50_head_atom {
 	union {
 		struct {
 			bool core:1;
+			bool curs:1;
 		};
 		u8 mask;
 	} clr;
@@ -130,6 +139,7 @@ struct nv50_head_atom {
 	union {
 		struct {
 			bool core:1;
+			bool curs:1;
 			bool view:1;
 			bool mode:1;
 		};
@@ -776,6 +786,62 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
  * Head
  *****************************************************************************/
 static void
+nv50_head_curs_clr(struct nv50_head *head)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 4))) {
+		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0880 + head->base.index * 0x400, 1);
+			evo_data(push, 0x05000000);
+		} else
+		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0880 + head->base.index * 0x400, 1);
+			evo_data(push, 0x05000000);
+			evo_mthd(push, 0x089c + head->base.index * 0x400, 1);
+			evo_data(push, 0x00000000);
+		} else {
+			evo_mthd(push, 0x0480 + head->base.index * 0x300, 1);
+			evo_data(push, 0x05000000);
+			evo_mthd(push, 0x048c + head->base.index * 0x300, 1);
+			evo_data(push, 0x00000000);
+		}
+		evo_kick(push, core);
+	}
+}
+
+static void
+nv50_head_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
+	u32 *push;
+	if ((push = evo_wait(core, 5))) {
+		if (core->base.user.oclass < G82_DISP_BASE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0880 + head->base.index * 0x400, 2);
+			evo_data(push, 0x80000000 | (asyh->curs.layout << 26) |
+						    (asyh->curs.format << 24));
+			evo_data(push, asyh->curs.offset >> 8);
+		} else
+		if (core->base.user.oclass < GF110_DISP_BASE_CHANNEL_DMA) {
+			evo_mthd(push, 0x0880 + head->base.index * 0x400, 2);
+			evo_data(push, 0x80000000 | (asyh->curs.layout << 26) |
+						    (asyh->curs.format << 24));
+			evo_data(push, asyh->curs.offset >> 8);
+			evo_mthd(push, 0x089c + head->base.index * 0x400, 1);
+			evo_data(push, asyh->curs.handle);
+		} else {
+			evo_mthd(push, 0x0480 + head->base.index * 0x300, 2);
+			evo_data(push, 0x80000000 | (asyh->curs.layout << 26) |
+						    (asyh->curs.format << 24));
+			evo_data(push, asyh->curs.offset >> 8);
+			evo_mthd(push, 0x048c + head->base.index * 0x300, 1);
+			evo_data(push, asyh->curs.handle);
+		}
+		evo_kick(push, core);
+	}
+}
+
+static void
 nv50_head_core_clr(struct nv50_head *head)
 {
 	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->mast.base;
@@ -941,6 +1007,8 @@ nv50_head_flush_clr(struct nv50_head *head, struct nv50_head_atom *asyh, bool y)
 		nv50_head_lut_clr(head);
 	if (asyh->clr.core && (!asyh->set.core || y))
 		nv50_head_core_clr(head);
+	if (asyh->clr.curs && (!asyh->set.curs || y))
+		nv50_head_curs_clr(head);
 }
 
 static void
@@ -949,6 +1017,7 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if (asyh->set.mode   ) nv50_head_mode    (head, asyh);
 	if (asyh->set.core   ) nv50_head_lut_set (head, asyh);
 	if (asyh->set.core   ) nv50_head_core_set(head, asyh);
+	if (asyh->set.curs   ) nv50_head_curs_set(head, asyh);
 }
 
 static void
@@ -1017,7 +1086,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			asyh->core.w = asyh->base.w;
 			asyh->core.h = asyh->base.h;
 		} else
-		if ((asyh->core.visible = true)) {
+		if ((asyh->core.visible = asyh->curs.visible)) {
 			/*XXX: We need to either find some way of having the
 			 *     primary base layer appear black, while still
 			 *     being able to display the other layers, or we
@@ -1039,6 +1108,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		asyh->lut.offset = head->base.lut.nvbo->bo.offset;
 	} else {
 		asyh->core.visible = false;
+		asyh->curs.visible = false;
 	}
 
 	if (!drm_atomic_crtc_needs_modeset(&asyh->state)) {
@@ -1049,9 +1119,19 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		if (armh->core.visible) {
 			asyh->clr.core = true;
 		}
+
+		if (asyh->curs.visible) {
+			if (memcmp(&armh->curs, &asyh->curs, sizeof(asyh->curs)))
+				asyh->set.curs = true;
+		} else
+		if (armh->curs.visible) {
+			asyh->clr.curs = true;
+		}
 	} else {
 		asyh->clr.core = armh->core.visible;
+		asyh->clr.curs = armh->curs.visible;
 		asyh->set.core = asyh->core.visible;
+		asyh->set.curs = asyh->curs.visible;
 	}
 
 	memcpy(armh, asyh, sizeof(*asyh));
@@ -1304,55 +1384,27 @@ static void
 nv50_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	u32 *push = evo_wait(mast, 16);
-	if (push) {
-		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, 0x85000000);
-			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
-		} else
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
-			evo_data(push, 0x85000000);
-			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
-			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, mast->base.vram.handle);
-		} else {
-			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
-			evo_data(push, 0x85000000);
-			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
-			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, mast->base.vram.handle);
-		}
-		evo_kick(push, mast);
-	}
-	nv_crtc->cursor.visible = true;
+	struct nv50_head *head = nv50_head(&nv_crtc->base);
+	struct nv50_head_atom *asyh = &head->asy;
+
+	asyh->curs.visible = true;
+	asyh->curs.handle = mast->base.vram.handle;
+	asyh->curs.offset = nv_crtc->cursor.nvbo->bo.offset;
+	asyh->curs.layout = 1;
+	asyh->curs.format = 1;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
+	nv50_head_flush_set(head, asyh);
 }
 
 static void
 nv50_crtc_cursor_hide(struct nouveau_crtc *nv_crtc)
 {
-	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	u32 *push = evo_wait(mast, 16);
-	if (push) {
-		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x05000000);
-		} else
-		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
-			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x05000000);
-			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
-			evo_data(push, 0x00000000);
-		} else {
-			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 1);
-			evo_data(push, 0x05000000);
-			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, 0x00000000);
-		}
-		evo_kick(push, mast);
-	}
-	nv_crtc->cursor.visible = false;
+	struct nv50_head *head = nv50_head(&nv_crtc->base);
+	struct nv50_head_atom *asyh = &head->asy;
+
+	asyh->curs.visible = false;
+	nv50_head_atomic_check(&head->base.base, &asyh->state);
+	nv50_head_flush_clr(head, asyh, false);
 }
 
 static void
@@ -1383,7 +1435,6 @@ nv50_crtc_dpms(struct drm_crtc *crtc, int mode)
 static void
 nv50_crtc_prepare(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *asyh = &head->asy;
 
@@ -1392,14 +1443,11 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 	asyh->state.active = false;
 	nv50_head_atomic_check(&head->base.base, &asyh->state);
 	nv50_head_flush_clr(head, asyh, false);
-
-	nv50_crtc_cursor_show_hide(nv_crtc, false, false);
 }
 
 static void
 nv50_crtc_commit(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *asyh = &head->asy;
 
@@ -1407,7 +1455,6 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 	nv50_head_atomic_check(&head->base.base, &asyh->state);
 	nv50_head_flush_set(head, asyh);
 
-	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 	nv50_display_flip_next(crtc, crtc->primary->fb, NULL, 1);
 }
 
