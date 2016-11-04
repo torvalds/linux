@@ -53,6 +53,8 @@ struct nouveau_display {
 	/* not really hue and saturation: */
 	struct drm_property *vibrant_hue_property;
 	struct drm_property *color_vibrance_property;
+
+	struct drm_atomic_state *suspend;
 };
 
 static inline struct nouveau_display *
