@@ -264,7 +264,7 @@ void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting otg_cap to %d\n", val);
 	}
 
-	hsotg->core_params->otg_cap = val;
+	hsotg->params.otg_cap = val;
 }
 
 void dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val)
@@ -285,14 +285,14 @@ void dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting dma_enable to %d\n", val);
 	}
 
-	hsotg->core_params->dma_enable = val;
+	hsotg->params.dma_enable = val;
 }
 
 void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val)
 {
 	int valid = 1;
 
-	if (val > 0 && (hsotg->core_params->dma_enable <= 0 ||
+	if (val > 0 && (hsotg->params.dma_enable <= 0 ||
 			!hsotg->hw_params.dma_desc_enable))
 		valid = 0;
 	if (val < 0)
@@ -303,19 +303,19 @@ void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev,
 				"%d invalid for dma_desc_enable parameter. Check HW configuration.\n",
 				val);
-		val = (hsotg->core_params->dma_enable > 0 &&
+		val = (hsotg->params.dma_enable > 0 &&
 			hsotg->hw_params.dma_desc_enable);
 		dev_dbg(hsotg->dev, "Setting dma_desc_enable to %d\n", val);
 	}
 
-	hsotg->core_params->dma_desc_enable = val;
+	hsotg->params.dma_desc_enable = val;
 }
 
 void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg, int val)
 {
 	int valid = 1;
 
-	if (val > 0 && (hsotg->core_params->dma_enable <= 0 ||
+	if (val > 0 && (hsotg->params.dma_enable <= 0 ||
 			!hsotg->hw_params.dma_desc_enable))
 		valid = 0;
 	if (val < 0)
@@ -326,11 +326,11 @@ void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev,
 				"%d invalid for dma_desc_fs_enable parameter. Check HW configuration.\n",
 				val);
-		val = (hsotg->core_params->dma_enable > 0 &&
+		val = (hsotg->params.dma_enable > 0 &&
 			hsotg->hw_params.dma_desc_enable);
 	}
 
-	hsotg->core_params->dma_desc_fs_enable = val;
+	hsotg->params.dma_desc_fs_enable = val;
 	dev_dbg(hsotg->dev, "Setting dma_desc_fs_enable to %d\n", val);
 }
 
@@ -349,7 +349,7 @@ void dwc2_set_param_host_support_fs_ls_low_power(struct dwc2_hsotg *hsotg,
 			"Setting host_support_fs_low_power to %d\n", val);
 	}
 
-	hsotg->core_params->host_support_fs_ls_low_power = val;
+	hsotg->params.host_support_fs_ls_low_power = val;
 }
 
 void dwc2_set_param_enable_dynamic_fifo(struct dwc2_hsotg *hsotg, int val)
@@ -370,7 +370,7 @@ void dwc2_set_param_enable_dynamic_fifo(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting enable_dynamic_fifo to %d\n", val);
 	}
 
-	hsotg->core_params->enable_dynamic_fifo = val;
+	hsotg->params.enable_dynamic_fifo = val;
 }
 
 void dwc2_set_param_host_rx_fifo_size(struct dwc2_hsotg *hsotg, int val)
@@ -389,7 +389,7 @@ void dwc2_set_param_host_rx_fifo_size(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting host_rx_fifo_size to %d\n", val);
 	}
 
-	hsotg->core_params->host_rx_fifo_size = val;
+	hsotg->params.host_rx_fifo_size = val;
 }
 
 void dwc2_set_param_host_nperio_tx_fifo_size(struct dwc2_hsotg *hsotg, int val)
@@ -409,7 +409,7 @@ void dwc2_set_param_host_nperio_tx_fifo_size(struct dwc2_hsotg *hsotg, int val)
 			val);
 	}
 
-	hsotg->core_params->host_nperio_tx_fifo_size = val;
+	hsotg->params.host_nperio_tx_fifo_size = val;
 }
 
 void dwc2_set_param_host_perio_tx_fifo_size(struct dwc2_hsotg *hsotg, int val)
@@ -429,7 +429,7 @@ void dwc2_set_param_host_perio_tx_fifo_size(struct dwc2_hsotg *hsotg, int val)
 			val);
 	}
 
-	hsotg->core_params->host_perio_tx_fifo_size = val;
+	hsotg->params.host_perio_tx_fifo_size = val;
 }
 
 void dwc2_set_param_max_transfer_size(struct dwc2_hsotg *hsotg, int val)
@@ -448,7 +448,7 @@ void dwc2_set_param_max_transfer_size(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting max_transfer_size to %d\n", val);
 	}
 
-	hsotg->core_params->max_transfer_size = val;
+	hsotg->params.max_transfer_size = val;
 }
 
 void dwc2_set_param_max_packet_count(struct dwc2_hsotg *hsotg, int val)
@@ -467,7 +467,7 @@ void dwc2_set_param_max_packet_count(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting max_packet_count to %d\n", val);
 	}
 
-	hsotg->core_params->max_packet_count = val;
+	hsotg->params.max_packet_count = val;
 }
 
 void dwc2_set_param_host_channels(struct dwc2_hsotg *hsotg, int val)
@@ -486,7 +486,7 @@ void dwc2_set_param_host_channels(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting host_channels to %d\n", val);
 	}
 
-	hsotg->core_params->host_channels = val;
+	hsotg->params.host_channels = val;
 }
 
 void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
@@ -534,12 +534,12 @@ void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting phy_type to %d\n", val);
 	}
 
-	hsotg->core_params->phy_type = val;
+	hsotg->params.phy_type = val;
 }
 
 static int dwc2_get_param_phy_type(struct dwc2_hsotg *hsotg)
 {
-	return hsotg->core_params->phy_type;
+	return hsotg->params.phy_type;
 }
 
 void dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
@@ -568,7 +568,7 @@ void dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting speed to %d\n", val);
 	}
 
-	hsotg->core_params->speed = val;
+	hsotg->params.speed = val;
 }
 
 void dwc2_set_param_host_ls_low_power_phy_clk(struct dwc2_hsotg *hsotg, int val)
@@ -602,7 +602,7 @@ void dwc2_set_param_host_ls_low_power_phy_clk(struct dwc2_hsotg *hsotg, int val)
 			val);
 	}
 
-	hsotg->core_params->host_ls_low_power_phy_clk = val;
+	hsotg->params.host_ls_low_power_phy_clk = val;
 }
 
 void dwc2_set_param_phy_ulpi_ddr(struct dwc2_hsotg *hsotg, int val)
@@ -616,7 +616,7 @@ void dwc2_set_param_phy_ulpi_ddr(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting phy_upli_ddr to %d\n", val);
 	}
 
-	hsotg->core_params->phy_ulpi_ddr = val;
+	hsotg->params.phy_ulpi_ddr = val;
 }
 
 void dwc2_set_param_phy_ulpi_ext_vbus(struct dwc2_hsotg *hsotg, int val)
@@ -632,7 +632,7 @@ void dwc2_set_param_phy_ulpi_ext_vbus(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting phy_ulpi_ext_vbus to %d\n", val);
 	}
 
-	hsotg->core_params->phy_ulpi_ext_vbus = val;
+	hsotg->params.phy_ulpi_ext_vbus = val;
 }
 
 void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg, int val)
@@ -662,7 +662,7 @@ void dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting phy_utmi_width to %d\n", val);
 	}
 
-	hsotg->core_params->phy_utmi_width = val;
+	hsotg->params.phy_utmi_width = val;
 }
 
 void dwc2_set_param_ulpi_fs_ls(struct dwc2_hsotg *hsotg, int val)
@@ -676,7 +676,7 @@ void dwc2_set_param_ulpi_fs_ls(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting ulpi_fs_ls to %d\n", val);
 	}
 
-	hsotg->core_params->ulpi_fs_ls = val;
+	hsotg->params.ulpi_fs_ls = val;
 }
 
 void dwc2_set_param_ts_dline(struct dwc2_hsotg *hsotg, int val)
@@ -690,7 +690,7 @@ void dwc2_set_param_ts_dline(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting ts_dline to %d\n", val);
 	}
 
-	hsotg->core_params->ts_dline = val;
+	hsotg->params.ts_dline = val;
 }
 
 void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
@@ -718,7 +718,7 @@ void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting i2c_enable to %d\n", val);
 	}
 
-	hsotg->core_params->i2c_enable = val;
+	hsotg->params.i2c_enable = val;
 }
 
 void dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg, int val)
@@ -747,7 +747,7 @@ void dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting en_multiple_tx_fifo to %d\n", val);
 	}
 
-	hsotg->core_params->en_multiple_tx_fifo = val;
+	hsotg->params.en_multiple_tx_fifo = val;
 }
 
 void dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val)
@@ -775,15 +775,15 @@ void dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting reload_ctl to %d\n", val);
 	}
 
-	hsotg->core_params->reload_ctl = val;
+	hsotg->params.reload_ctl = val;
 }
 
 void dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
 {
 	if (val != -1)
-		hsotg->core_params->ahbcfg = val;
+		hsotg->params.ahbcfg = val;
 	else
-		hsotg->core_params->ahbcfg = GAHBCFG_HBSTLEN_INCR4 <<
+		hsotg->params.ahbcfg = GAHBCFG_HBSTLEN_INCR4 <<
 						GAHBCFG_HBSTLEN_SHIFT;
 }
 
@@ -800,7 +800,7 @@ void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting otg_ver to %d\n", val);
 	}
 
-	hsotg->core_params->otg_ver = val;
+	hsotg->params.otg_ver = val;
 }
 
 static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
@@ -816,7 +816,7 @@ static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 		dev_dbg(hsotg->dev, "Setting uframe_sched to %d\n", val);
 	}
 
-	hsotg->core_params->uframe_sched = val;
+	hsotg->params.uframe_sched = val;
 }
 
 static void dwc2_set_param_external_id_pin_ctl(struct dwc2_hsotg *hsotg,
@@ -833,7 +833,7 @@ static void dwc2_set_param_external_id_pin_ctl(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "Setting external_id_pin_ctl to %d\n", val);
 	}
 
-	hsotg->core_params->external_id_pin_ctl = val;
+	hsotg->params.external_id_pin_ctl = val;
 }
 
 static void dwc2_set_param_hibernation(struct dwc2_hsotg *hsotg,
@@ -850,7 +850,7 @@ static void dwc2_set_param_hibernation(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "Setting hibernation to %d\n", val);
 	}
 
-	hsotg->core_params->hibernation = val;
+	hsotg->params.hibernation = val;
 }
 
 /*

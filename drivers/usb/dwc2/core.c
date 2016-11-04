@@ -135,7 +135,7 @@ int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore)
 	u32 pcgcctl;
 	int ret = 0;
 
-	if (!hsotg->core_params->hibernation)
+	if (!hsotg->params.hibernation)
 		return -ENOTSUPP;
 
 	pcgcctl = dwc2_readl(hsotg->regs + PCGCTL);
@@ -188,7 +188,7 @@ int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
 	u32 pcgcctl;
 	int ret = 0;
 
-	if (!hsotg->core_params->hibernation)
+	if (!hsotg->params.hibernation)
 		return -ENOTSUPP;
 
 	/* Backup all registers */
@@ -541,7 +541,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 	addr = hsotg->regs + HAINTMSK;
 	dev_dbg(hsotg->dev, "HAINTMSK	 @0x%08lX : 0x%08X\n",
 		(unsigned long)addr, dwc2_readl(addr));
-	if (hsotg->core_params->dma_desc_enable > 0) {
+	if (hsotg->params.dma_desc_enable > 0) {
 		addr = hsotg->regs + HFLBADDR;
 		dev_dbg(hsotg->dev, "HFLBADDR @0x%08lX : 0x%08X\n",
 			(unsigned long)addr, dwc2_readl(addr));
@@ -551,7 +551,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "HPRT0	 @0x%08lX : 0x%08X\n",
 		(unsigned long)addr, dwc2_readl(addr));
 
-	for (i = 0; i < hsotg->core_params->host_channels; i++) {
+	for (i = 0; i < hsotg->params.host_channels; i++) {
 		dev_dbg(hsotg->dev, "Host Channel %d Specific Registers\n", i);
 		addr = hsotg->regs + HCCHAR(i);
 		dev_dbg(hsotg->dev, "HCCHAR	 @0x%08lX : 0x%08X\n",
@@ -571,7 +571,7 @@ void dwc2_dump_host_registers(struct dwc2_hsotg *hsotg)
 		addr = hsotg->regs + HCDMA(i);
 		dev_dbg(hsotg->dev, "HCDMA	 @0x%08lX : 0x%08X\n",
 			(unsigned long)addr, dwc2_readl(addr));
-		if (hsotg->core_params->dma_desc_enable > 0) {
+		if (hsotg->params.dma_desc_enable > 0) {
 			addr = hsotg->regs + HCDMAB(i);
 			dev_dbg(hsotg->dev, "HCDMAB	 @0x%08lX : 0x%08X\n",
 				(unsigned long)addr, dwc2_readl(addr));
@@ -753,7 +753,7 @@ bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host)
 
 u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg)
 {
-	return hsotg->core_params->otg_ver == 1 ? 0x0200 : 0x0103;
+	return hsotg->params.otg_ver == 1 ? 0x0200 : 0x0103;
 }
 
 bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg)

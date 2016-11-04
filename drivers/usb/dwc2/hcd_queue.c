@@ -75,7 +75,7 @@ static int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
 	int status;
 	int num_channels;
 
-	num_channels = hsotg->core_params->host_channels;
+	num_channels = hsotg->params.host_channels;
 	if (hsotg->periodic_channels + hsotg->non_periodic_channels <
 								num_channels
 	    && hsotg->periodic_channels < num_channels - 1) {
@@ -1104,7 +1104,7 @@ static void dwc2_pick_first_frame(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	next_active_frame = earliest_frame;
 
 	/* Get the "no microframe schduler" out of the way... */
-	if (hsotg->core_params->uframe_sched <= 0) {
+	if (hsotg->params.uframe_sched <= 0) {
 		if (qh->do_split)
 			/* Splits are active at microframe 0 minus 1 */
 			next_active_frame |= 0x7;
@@ -1197,7 +1197,7 @@ static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	int status;
 
-	if (hsotg->core_params->uframe_sched > 0) {
+	if (hsotg->params.uframe_sched > 0) {
 		status = dwc2_uframe_schedule(hsotg, qh);
 	} else {
 		status = dwc2_periodic_channel_available(hsotg);
@@ -1218,7 +1218,7 @@ static int dwc2_do_reserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		return status;
 	}
 
-	if (hsotg->core_params->uframe_sched <= 0)
+	if (hsotg->params.uframe_sched <= 0)
 		/* Reserve periodic channel */
 		hsotg->periodic_channels++;
 
@@ -1254,7 +1254,7 @@ static void dwc2_do_unreserve(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	/* Update claimed usecs per (micro)frame */
 	hsotg->periodic_usecs -= qh->host_us;
 
-	if (hsotg->core_params->uframe_sched > 0) {
+	if (hsotg->params.uframe_sched > 0) {
 		dwc2_uframe_unschedule(hsotg, qh);
 	} else {
 		/* Release periodic channel reservation */
@@ -1328,7 +1328,7 @@ static int dwc2_check_max_xfer_size(struct dwc2_hsotg *hsotg,
 	int status = 0;
 
 	max_xfer_size = dwc2_max_packet(qh->maxp) * dwc2_hb_mult(qh->maxp);
-	max_channel_xfer_size = hsotg->core_params->max_transfer_size;
+	max_channel_xfer_size = hsotg->params.max_transfer_size;
 
 	if (max_xfer_size > max_channel_xfer_size) {
 		dev_err(hsotg->dev,
@@ -1391,7 +1391,7 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	qh->unreserve_pending = 0;
 
-	if (hsotg->core_params->dma_desc_enable > 0)
+	if (hsotg->params.dma_desc_enable > 0)
 		/* Don't rely on SOF and start in ready schedule */
 		list_add_tail(&qh->qh_list_entry, &hsotg->periodic_sched_ready);
 	else
@@ -1599,7 +1599,7 @@ struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 
 	dwc2_qh_init(hsotg, qh, urb, mem_flags);
 
-	if (hsotg->core_params->dma_desc_enable > 0 &&
+	if (hsotg->params.dma_desc_enable > 0 &&
 	    dwc2_hcd_qh_init_ddma(hsotg, qh, mem_flags) < 0) {
 		dwc2_hcd_qh_free(hsotg, qh);
 		return NULL;
@@ -1711,7 +1711,7 @@ void dwc2_hcd_qh_unlink(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	dwc2_deschedule_periodic(hsotg, qh);
 	hsotg->periodic_qh_count--;
 	if (!hsotg->periodic_qh_count &&
-	    hsotg->core_params->dma_desc_enable <= 0) {
+	    hsotg->params.dma_desc_enable <= 0) {
 		intr_mask = dwc2_readl(hsotg->regs + GINTMSK);
 		intr_mask &= ~GINTSTS_SOF;
 		dwc2_writel(intr_mask, hsotg->regs + GINTMSK);

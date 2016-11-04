@@ -850,7 +850,7 @@ struct dwc2_hsotg {
 	/** Params detected from hardware */
 	struct dwc2_hw_params hw_params;
 	/** Params to actually use */
-	struct dwc2_core_params *core_params;
+	struct dwc2_core_params params;
 	enum usb_otg_state op_state;
 	enum usb_dr_mode dr_mode;
 	unsigned int hcd_enabled:1;

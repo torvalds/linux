@@ -418,12 +418,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	spin_lock_init(&hsotg->lock);
 
-	hsotg->core_params = devm_kzalloc(&dev->dev,
-				sizeof(*hsotg->core_params), GFP_KERNEL);
-	if (!hsotg->core_params)
-		return -ENOMEM;
-
-	dwc2_set_all_params(hsotg->core_params, -1);
+	dwc2_set_all_params(&hsotg->params, -1);
 
 	hsotg->irq = platform_get_irq(dev, 0);
 	if (hsotg->irq < 0) {
