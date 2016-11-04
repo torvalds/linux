@@ -858,9 +858,14 @@ static void flush_pending_writes(struct r10conf *conf)
 
 		while (bio) { /* submit pending writes */
 			struct bio *next = bio->bi_next;
+			struct md_rdev *rdev = (void*)bio->bi_bdev;
 			bio->bi_next = NULL;
-			if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
-			    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
+			bio->bi_bdev = rdev->bdev;
+			if (test_bit(Faulty, &rdev->flags)) {
+				bio->bi_error = -EIO;
+				bio_endio(bio);
+			} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
+					    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 				/* Just ignore it */
 				bio_endio(bio);
 			else
@@ -1036,9 +1041,14 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 	while (bio) { /* submit pending writes */
 		struct bio *next = bio->bi_next;
+		struct md_rdev *rdev = (void*)bio->bi_bdev;
 		bio->bi_next = NULL;
-		if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
-		    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
+		bio->bi_bdev = rdev->bdev;
+		if (test_bit(Faulty, &rdev->flags)) {
+			bio->bi_error = -EIO;
+			bio_endio(bio);
+		} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
+				    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 			/* Just ignore it */
 			bio_endio(bio);
 		else
@@ -1357,7 +1367,7 @@ retry_write:
 			mbio->bi_iter.bi_sector	= (r10_bio->devs[i].addr+
 					   choose_data_offset(r10_bio,
 							      rdev));
-			mbio->bi_bdev = rdev->bdev;
+			mbio->bi_bdev = (void*)rdev;
 			mbio->bi_end_io	= raid10_end_write_request;
 			bio_set_op_attrs(mbio, op, do_sync | do_fua);
 			mbio->bi_private = r10_bio;
@@ -1399,7 +1409,7 @@ retry_write:
 			mbio->bi_iter.bi_sector	= (r10_bio->devs[i].addr +
 					   choose_data_offset(
 						   r10_bio, rdev));
-			mbio->bi_bdev = rdev->bdev;
+			mbio->bi_bdev = (void*)rdev;
 			mbio->bi_end_io	= raid10_end_write_request;
 			bio_set_op_attrs(mbio, op, do_sync | do_fua);
 			mbio->bi_private = r10_bio;
