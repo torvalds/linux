@@ -56,11 +56,13 @@ gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 
 	clksor |= bw << 18;
 	dpctrl |= ((1 << nr) - 1) << 16;
+	if (outp->lt.mst)
+		dpctrl |= 0x40000000;
 	if (ef)
 		dpctrl |= 0x00004000;
 
 	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
-	nvkm_mask(device, 0x61c10c + loff, 0x001f4000, dpctrl);
+	nvkm_mask(device, 0x61c10c + loff, 0x401f4000, dpctrl);
 	return 0;
 }
 

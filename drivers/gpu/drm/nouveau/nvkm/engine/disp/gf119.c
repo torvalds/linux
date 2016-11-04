@@ -203,17 +203,19 @@ gf119_disp_intr_unk2_0(struct nv50_disp *disp, int head)
 	/* see note in nv50_disp_intr_unk20_0() */
 	if (outp && outp->info.type == DCB_OUTPUT_DP) {
 		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = subdev->device->bios,
-			.outp = &outp->info,
-			.crtc = head,
-			.offset = outpdp->info.script[4],
-			.execute = 1,
-		};
+		if (!outpdp->lt.mst) {
+			struct nvbios_init init = {
+				.subdev = subdev,
+				.bios = subdev->device->bios,
+				.outp = &outp->info,
+				.crtc = head,
+				.offset = outpdp->info.script[4],
+				.execute = 1,
+			};
 
-		nvbios_exec(&init);
-		atomic_set(&outpdp->lt.done, 0);
+			nvbios_exec(&init);
+			atomic_set(&outpdp->lt.done, 0);
+		}
 	}
 }
 

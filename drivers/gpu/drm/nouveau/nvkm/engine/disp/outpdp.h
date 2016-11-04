@@ -32,6 +32,7 @@ struct nvkm_output_dp {
 	struct mutex mutex;
 	struct {
 		atomic_t done;
+		bool mst;
 	} lt;
 };
 
