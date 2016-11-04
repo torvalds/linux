@@ -271,6 +271,78 @@ nouveau_conn_reset(struct drm_connector *connector)
 	}
 }
 
+void
+nouveau_conn_attach_properties(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct nouveau_conn_atom *armc = nouveau_conn_atom(connector->state);
+	struct nouveau_display *disp = nouveau_display(dev);
+
+	/* Init DVI-I specific properties. */
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DVII)
+		drm_object_attach_property(&connector->base, dev->mode_config.
+					   dvi_i_subconnector_property, 0);
+
+	/* Add overscan compensation options to digital outputs. */
+	if (disp->underscan_property &&
+	    (connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	     connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort)) {
+		drm_object_attach_property(&connector->base,
+					   disp->underscan_property,
+					   UNDERSCAN_OFF);
+		drm_object_attach_property(&connector->base,
+					   disp->underscan_hborder_property, 0);
+		drm_object_attach_property(&connector->base,
+					   disp->underscan_vborder_property, 0);
+	}
+
+	/* Add hue and saturation options. */
+	if (disp->vibrant_hue_property)
+		drm_object_attach_property(&connector->base,
+					   disp->vibrant_hue_property,
+					   armc->procamp.vibrant_hue);
+	if (disp->color_vibrance_property)
+		drm_object_attach_property(&connector->base,
+					   disp->color_vibrance_property,
+					   armc->procamp.color_vibrance);
+
+	/* Scaling mode property. */
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_TV:
+		break;
+	case DRM_MODE_CONNECTOR_VGA:
+		if (disp->disp.oclass < NV50_DISP)
+			break; /* Can only scale on DFPs. */
+		/* Fall-through. */
+	default:
+		drm_object_attach_property(&connector->base, dev->mode_config.
+					   scaling_mode_property,
+					   armc->scaler.mode);
+		break;
+	}
+
+	/* Dithering properties. */
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_TV:
+	case DRM_MODE_CONNECTOR_VGA:
+		break;
+	default:
+		if (disp->dithering_mode) {
+			drm_object_attach_property(&connector->base,
+						   disp->dithering_mode,
+						   armc->dither.mode);
+		}
+		if (disp->dithering_depth) {
+			drm_object_attach_property(&connector->base,
+						   disp->dithering_depth,
+						   armc->dither.depth);
+		}
+		break;
+	}
+}
+
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
 int nouveau_tv_disable = 0;
 module_param_named(tv_disable, nouveau_tv_disable, int, 0400);
@@ -1277,38 +1349,10 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
 
-	/* Init DVI-I specific properties */
-	if (nv_connector->type == DCB_CONNECTOR_DVI_I)
-		drm_object_attach_property(&connector->base, dev->mode_config.dvi_i_subconnector_property, 0);
+	connector->funcs->reset(connector);
+	nouveau_conn_attach_properties(connector);
 
-	/* Add overscan compensation options to digital outputs */
-	if (disp->underscan_property &&
-	    (type == DRM_MODE_CONNECTOR_DVID ||
-	     type == DRM_MODE_CONNECTOR_DVII ||
-	     type == DRM_MODE_CONNECTOR_HDMIA ||
-	     type == DRM_MODE_CONNECTOR_DisplayPort)) {
-		drm_object_attach_property(&connector->base,
-					      disp->underscan_property,
-					      UNDERSCAN_OFF);
-		drm_object_attach_property(&connector->base,
-					      disp->underscan_hborder_property,
-					      0);
-		drm_object_attach_property(&connector->base,
-					      disp->underscan_vborder_property,
-					      0);
-	}
-
-	/* Add hue and saturation options */
-	if (disp->vibrant_hue_property)
-		drm_object_attach_property(&connector->base,
-					      disp->vibrant_hue_property,
-					      90);
-	if (disp->color_vibrance_property)
-		drm_object_attach_property(&connector->base,
-					      disp->color_vibrance_property,
-					      150);
-
-	/* default scaling mode */
+	/* Default scaling mode */
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_LVDS:
 	case DCB_CONNECTOR_LVDS_SPWG:
@@ -1325,23 +1369,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	/* scaling mode property */
-	switch (nv_connector->type) {
-	case DCB_CONNECTOR_TV_0:
-	case DCB_CONNECTOR_TV_1:
-	case DCB_CONNECTOR_TV_3:
-		break;
-	case DCB_CONNECTOR_VGA:
-		if (disp->disp.oclass < NV50_DISP)
-			break; /* can only scale on DFPs */
-		/* fall-through */
-	default:
-		drm_object_attach_property(&connector->base, dev->mode_config.
-					   scaling_mode_property,
-					   nv_connector->scaling_mode);
-		break;
-	}
-
 	/* dithering properties */
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_TV_0:
@@ -1350,20 +1377,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	case DCB_CONNECTOR_VGA:
 		break;
 	default:
-		if (disp->dithering_mode) {
-			nv_connector->dithering_mode = DITHERING_MODE_AUTO;
-			drm_object_attach_property(&connector->base,
-						   disp->dithering_mode,
-						   nv_connector->
-						   dithering_mode);
-		}
-		if (disp->dithering_depth) {
-			nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
-			drm_object_attach_property(&connector->base,
-						   disp->dithering_depth,
-						   nv_connector->
-						   dithering_depth);
-		}
+		nv_connector->dithering_mode = DITHERING_MODE_AUTO;
+		nv_connector->dithering_depth = DITHERING_DEPTH_AUTO;
 		break;
 	}
 

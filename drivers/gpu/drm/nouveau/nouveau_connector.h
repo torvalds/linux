@@ -141,6 +141,7 @@ struct nouveau_conn_atom {
 	} set;
 };
 
+void nouveau_conn_attach_properties(struct drm_connector *);
 void nouveau_conn_reset(struct drm_connector *);
 struct drm_connector_state *
 nouveau_conn_atomic_duplicate_state(struct drm_connector *);
