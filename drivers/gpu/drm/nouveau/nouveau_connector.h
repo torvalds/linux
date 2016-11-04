@@ -109,5 +109,6 @@ nouveau_connector_create(struct drm_device *, int index);
 extern int nouveau_tv_disable;
 extern int nouveau_ignorelid;
 extern int nouveau_duallink;
+extern int nouveau_hdmimhz;
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

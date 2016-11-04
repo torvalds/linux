@@ -157,4 +157,6 @@ struct nvkm_ram_func {
 	int (*prog)(struct nvkm_ram *);
 	void (*tidy)(struct nvkm_ram *);
 };
+
+extern const u8 gf100_pte_storage_type_map[256];
 #endif
