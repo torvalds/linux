@@ -327,20 +327,6 @@ static int cpufreq_sched_stop(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int cpufreq_sched_limits(struct cpufreq_policy *policy)
-{
-	if (policy->max < policy->cur)
-		__cpufreq_driver_target(policy,
-					policy->max,
-					CPUFREQ_RELATION_H);
-	else if (policy->min > policy->cur)
-		__cpufreq_driver_target(policy,
-					policy->min,
-					CPUFREQ_RELATION_L);
-
-	return 0;
-}
-
 static int cpufreq_sched_setup(struct cpufreq_policy *policy,
 			       unsigned int event)
 {
@@ -354,7 +340,7 @@ static int cpufreq_sched_setup(struct cpufreq_policy *policy,
 	case CPUFREQ_GOV_STOP:
 		return cpufreq_sched_stop(policy);
 	case CPUFREQ_GOV_LIMITS:
-		return cpufreq_sched_limits(policy);
+		break;
 	}
 	return 0;
 }
