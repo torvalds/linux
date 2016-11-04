@@ -630,7 +630,7 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 
 		if (!buffer_mapped(bh)) {
 			map_bh(bh, inode->i_sb, *p_blkno);
-			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+			clean_bdev_bh_alias(bh);
 		}
 
 		if (PageUptodate(page)) {

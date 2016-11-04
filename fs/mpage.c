@@ -555,8 +555,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 		if (mpd->get_block(inode, block_in_file, &map_bh, 1))
 			goto confused;
 		if (buffer_new(&map_bh))
-			unmap_underlying_metadata(map_bh.b_bdev,
-						map_bh.b_blocknr);
+			clean_bdev_bh_alias(&map_bh);
 		if (buffer_boundary(&map_bh)) {
 			boundary_block = map_bh.b_blocknr;
 			boundary_bdev = map_bh.b_bdev;

@@ -1070,8 +1070,7 @@ static int ufs_alloc_lastblock(struct inode *inode, loff_t size)
 
        if (buffer_new(bh)) {
 	       clear_buffer_new(bh);
-	       unmap_underlying_metadata(bh->b_bdev,
-					 bh->b_blocknr);
+	       clean_bdev_bh_alias(bh);
 	       /*
 		* we do not zeroize fragment, because of
 		* if it maped to hole, it already contains zeroes
