@@ -359,7 +359,7 @@
 		};
 
 		perictrl@59820000 {
-			compatible = "socionext,uniphier-perictrl",
+			compatible = "socionext,uniphier-ld20-perictrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59820000 0x200>;
 
@@ -375,7 +375,7 @@
 		};
 
 		soc-glue@5f800000 {
-			compatible = "socionext,uniphier-soc-glue",
+			compatible = "socionext,uniphier-ld20-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
 
@@ -394,7 +394,7 @@
 		};
 
 		sysctrl@61840000 {
-			compatible = "socionext,uniphier-sysctrl",
+			compatible = "socionext,uniphier-ld20-sysctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x61840000 0x10000>;
 
