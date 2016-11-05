@@ -9,7 +9,7 @@ struct nvkm_client {
 	u64 device;
 	u32 debug;
 
-	struct nvkm_client_notify *notify[16];
+	struct nvkm_client_notify *notify[32];
 	struct rb_root objroot;
 
 	bool super;
