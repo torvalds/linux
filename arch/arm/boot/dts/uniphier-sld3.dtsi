@@ -222,7 +222,7 @@
 		};
 
 		mioctrl@59810000 {
-			compatible = "socionext,uniphier-mioctrl",
+			compatible = "socionext,uniphier-sld3-mioctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59810000 0x800>;
 
@@ -278,7 +278,7 @@
 		};
 
 		sysctrl@f1840000 {
-			compatible = "socionext,uniphier-sysctrl",
+			compatible = "socionext,uniphier-sld3-sysctrl",
 				     "simple-mfd", "syscon";
 			reg = <0xf1840000 0x10000>;
 
