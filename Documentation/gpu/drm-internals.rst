@@ -350,6 +350,23 @@ how the ioctl is allowed to be called.
 .. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
    :export:
 
+
+Misc Utilities
+==============
+
+Printer
+-------
+
+.. kernel-doc:: include/drm/drm_print.h
+   :doc: print
+
+.. kernel-doc:: include/drm/drm_print.h
+   :internal:
+
+.. kernel-doc:: include/drm/drm_print.h
+   :export:
+
+
 Legacy Support Code
 ===================
 
