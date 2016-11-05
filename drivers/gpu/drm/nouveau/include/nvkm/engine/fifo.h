@@ -40,6 +40,7 @@ struct nvkm_fifo {
 
 	struct nvkm_event uevent; /* async user trigger */
 	struct nvkm_event cevent; /* channel creation event */
+	struct nvkm_event kevent; /* channel killed */
 };
 
 void nvkm_fifo_pause(struct nvkm_fifo *, unsigned long *);

@@ -190,6 +190,7 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	if (engine != &fifo->base.engine)
 		fifo->recover.mask |= 1ULL << engine->subdev.index;
 	schedule_work(&fifo->recover.work);
+	nvkm_fifo_kevent(&fifo->base, chid);
 }
 
 static const struct nvkm_enum

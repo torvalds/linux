@@ -178,6 +178,7 @@ gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
 
 	fifo->recover.runm |= BIT(chan->runl);
 	schedule_work(&fifo->recover.work);
+	nvkm_fifo_kevent(&fifo->base, chid);
 }
 
 static const struct nvkm_enum

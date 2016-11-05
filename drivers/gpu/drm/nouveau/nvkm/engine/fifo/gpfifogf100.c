@@ -32,6 +32,23 @@
 #include <nvif/cl906f.h>
 #include <nvif/unpack.h>
 
+int
+gf100_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
+		     struct nvkm_event **pevent)
+{
+	switch (type) {
+	case NV906F_V0_NTFY_NON_STALL_INTERRUPT:
+		*pevent = &chan->fifo->uevent;
+		return 0;
+	case NV906F_V0_NTFY_KILLED:
+		*pevent = &chan->fifo->kevent;
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
 static u32
 gf100_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
@@ -184,7 +201,7 @@ gf100_fifo_gpfifo_func = {
 	.dtor = gf100_fifo_gpfifo_dtor,
 	.init = gf100_fifo_gpfifo_init,
 	.fini = gf100_fifo_gpfifo_fini,
-	.ntfy = g84_fifo_chan_ntfy,
+	.ntfy = gf100_fifo_chan_ntfy,
 	.engine_ctor = gf100_fifo_gpfifo_engine_ctor,
 	.engine_dtor = gf100_fifo_gpfifo_engine_dtor,
 	.engine_init = gf100_fifo_gpfifo_engine_init,
