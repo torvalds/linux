@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_print.h>
 #include "mdp5_kms.h"
 
 struct mdp5_plane {
@@ -181,6 +182,20 @@ done:
 #undef SET_PROPERTY
 }
 
+static void
+mdp5_plane_atomic_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	struct mdp5_plane_state *pstate = to_mdp5_plane_state(state);
+
+	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
+	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
+	drm_printf(p, "\talpha=%u\n", pstate->alpha);
+	drm_printf(p, "\tstage=%s\n", stage2name(pstate->stage));
+	drm_printf(p, "\tmode_changed=%u\n", pstate->mode_changed);
+	drm_printf(p, "\tpending=%u\n", pstate->pending);
+}
+
 static void mdp5_plane_reset(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *mdp5_state;
@@ -244,6 +259,7 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.reset = mdp5_plane_reset,
 		.atomic_duplicate_state = mdp5_plane_duplicate_state,
 		.atomic_destroy_state = mdp5_plane_destroy_state,
+		.atomic_print_state = mdp5_plane_atomic_print_state,
 };
 
 static int mdp5_plane_prepare_fb(struct drm_plane *plane,
@@ -913,7 +929,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
 				 mdp5_plane->formats, mdp5_plane->nformats,
-				 type, NULL);
+				 type, "%s", mdp5_plane->name);
 	if (ret)
 		goto fail;
 
