@@ -127,7 +127,7 @@
 		};
 
 		internal-regs {
-			L2: l2-cache {
+			L2: l2-cache@8000 {
 				compatible = "marvell,aurora-outer-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
