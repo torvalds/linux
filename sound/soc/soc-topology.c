@@ -1994,10 +1994,24 @@ static int soc_tplg_link_config(struct soc_tplg *tplg,
 {
 	struct snd_soc_dai_link *link;
 	const char *name, *stream_name;
+	size_t len;
 	int ret;
 
-	name = strlen(cfg->name) ? cfg->name : NULL;
-	stream_name = strlen(cfg->stream_name) ? cfg->stream_name : NULL;
+	len = strnlen(cfg->name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	if (len == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+	else if (len)
+		name = cfg->name;
+	else
+		name = NULL;
+
+	len = strnlen(cfg->stream_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN);
+	if (len == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+	else if (len)
+		stream_name = cfg->stream_name;
+	else
+		stream_name = NULL;
 
 	link = snd_soc_find_dai_link(tplg->comp->card, cfg->id,
 				     name, stream_name);
