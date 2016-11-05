@@ -248,7 +248,7 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 		/* top 3 bit is AP encoding */
 		shift = be32_to_cpu(prop[0]) & ~(0xe << 28);
 		ap = be32_to_cpu(prop[0]) >> 29;
-		pr_info("Page size sift = %d AP=0x%x\n", shift, ap);
+		pr_info("Page size shift = %d AP=0x%x\n", shift, ap);
 
 		idx = get_idx_from_shift(shift);
 		if (idx < 0)
