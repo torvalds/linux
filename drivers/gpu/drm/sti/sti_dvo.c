@@ -17,6 +17,7 @@
 #include <drm/drm_panel.h>
 
 #include "sti_awg_utils.h"
+#include "sti_drv.h"
 #include "sti_mixer.h"
 
 /* DVO registers */
@@ -106,7 +107,7 @@ struct sti_dvo_connector {
 	container_of(x, struct sti_dvo_connector, drm_connector)
 
 #define BLANKING_LEVEL 16
-int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_code)
+static int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_code)
 {
 	struct drm_display_mode *mode = &dvo->mode;
 	struct dvo_config *config = dvo->config;

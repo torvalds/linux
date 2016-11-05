@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include "drm_fb_cma_helper.h"
+#include <drm/drm_fb_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
@@ -214,7 +215,7 @@ static void vc4_kick_out_firmware_fb(void)
 	ap->ranges[0].base = 0;
 	ap->ranges[0].size = ~0;
 
-	remove_conflicting_framebuffers(ap, "vc4drmfb", false);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "vc4drmfb", false);
 	kfree(ap);
 }
 
@@ -232,8 +233,8 @@ static int vc4_drm_bind(struct device *dev)
 		return -ENOMEM;
 
 	drm = drm_dev_alloc(&vc4_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 	platform_set_drvdata(pdev, drm);
 	vc4->dev = drm;
 	drm->dev_private = vc4;

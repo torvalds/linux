@@ -28,6 +28,7 @@
 #include <linux/if_ether.h>
 #include <linux/ctype.h>
 #include <linux/dmi.h>
+#include <linux/of.h>
 
 #define PHUB_STATUS 0x00		/* Status Register offset */
 #define PHUB_CONTROL 0x04		/* Control Register offset */
@@ -57,6 +58,7 @@
 
 /* CM-iTC */
 #define CLKCFG_UART_48MHZ			(1 << 16)
+#define CLKCFG_UART_25MHZ			(2 << 16)
 #define CLKCFG_BAUDDIV				(2 << 20)
 #define CLKCFG_PLL2VCO				(8 << 9)
 #define CLKCFG_UARTCLKSEL			(1 << 18)
@@ -711,6 +713,12 @@ static int pch_phub_probe(struct pci_dev *pdev,
 
 	if (id->driver_data == 1) { /* EG20T PCH */
 		const char *board_name;
+		unsigned int prefetch = 0x000affaa;
+
+		if (pdev->dev.of_node)
+			of_property_read_u32(pdev->dev.of_node,
+						  "intel,eg20t-prefetch",
+						  &prefetch);
 
 		ret = sysfs_create_file(&pdev->dev.kobj,
 					&dev_attr_pch_mac.attr);
@@ -736,11 +744,21 @@ static int pch_phub_probe(struct pci_dev *pdev,
 						CLKCFG_UART_MASK);
 
 		/* set the prefech value */
-		iowrite32(0x000affaa, chip->pch_phub_base_address + 0x14);
+		iowrite32(prefetch, chip->pch_phub_base_address + 0x14);
 		/* set the interrupt delay value */
 		iowrite32(0x25, chip->pch_phub_base_address + 0x44);
 		chip->pch_opt_rom_start_address = PCH_PHUB_ROM_START_ADDR_EG20T;
 		chip->pch_mac_start_address = PCH_PHUB_MAC_START_ADDR_EG20T;
+
+		/* quirk for MIPS Boston platform */
+		if (pdev->dev.of_node) {
+			if (of_machine_is_compatible("img,boston")) {
+				pch_phub_read_modify_write_reg(chip,
+					(unsigned int)CLKCFG_REG_OFFSET,
+					CLKCFG_UART_25MHZ,
+					CLKCFG_UART_MASK);
+			}
+		}
 	} else if (id->driver_data == 2) { /* ML7213 IOH */
 		ret = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
 		if (ret)

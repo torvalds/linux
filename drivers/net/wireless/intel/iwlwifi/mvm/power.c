@@ -694,8 +694,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 
 	/* enable PM on p2p if p2p stand alone */
 	if (vifs->p2p_active && !vifs->bss_active && !vifs->ap_active) {
-		if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM)
-			p2p_mvmvif->pm_enabled = true;
+		p2p_mvmvif->pm_enabled = true;
 		return;
 	}
 
@@ -707,12 +706,10 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 				   ap_mvmvif->phy_ctxt->id);
 
 	/* clients are not stand alone: enable PM if DCM */
-	if (!(client_same_channel || ap_same_channel) &&
-	    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_DCM)) {
+	if (!(client_same_channel || ap_same_channel)) {
 		if (vifs->bss_active)
 			bss_mvmvif->pm_enabled = true;
-		if (vifs->p2p_active &&
-		    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM))
+		if (vifs->p2p_active)
 			p2p_mvmvif->pm_enabled = true;
 		return;
 	}
@@ -721,12 +718,10 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	 * There is only one channel in the system and there are only
 	 * bss and p2p clients that share it
 	 */
-	if (client_same_channel && !vifs->ap_active &&
-	    (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BSS_P2P_PS_SCM)) {
+	if (client_same_channel && !vifs->ap_active) {
 		/* share same channel*/
 		bss_mvmvif->pm_enabled = true;
-		if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM)
-			p2p_mvmvif->pm_enabled = true;
+		p2p_mvmvif->pm_enabled = true;
 	}
 }
 

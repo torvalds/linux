@@ -35,6 +35,12 @@ Description:	Displays a set of alternate modes supported by a wheel. Each
 		  DF-EX <*--------> G25 <-> G27
 		  DF-EX <*----------------> G27
 
+		G29:
+		  DF-EX <*> DFP <-> G25 <-> G27 <-> G29
+		  DF-EX <*--------> G25 <-> G27 <-> G29
+		  DF-EX <*----------------> G27 <-> G29
+		  DF-EX <*------------------------> G29
+
 		DFGT:
 		  DF-EX <*> DFP <-> DFGT
 		  DF-EX <*--------> DFGT
@@ -50,3 +56,12 @@ Description:	Displays the real model of the wheel regardless of any
 		alternate mode the wheel might be switched to.
 		It is a read-only value.
 		This entry is not created for devices that have only one mode.
+
+What:		/sys/bus/hid/drivers/logitech/<dev>/combine_pedals
+Date:		Sep 2016
+KernelVersion:	4.9
+Contact:	Simon Wood <simon@mungewell.org>
+Description:	Controls whether a combined value of accelerator and brake is
+		reported on the Y axis of the controller. Useful for older games
+		which can do not work with separate accelerator/brake axis.
+		Off ('0') by default, enabled by setting '1'.

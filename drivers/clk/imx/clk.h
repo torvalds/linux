@@ -134,6 +134,15 @@ static inline struct clk *imx_clk_gate2_shared(const char *name,
 			shift, 0x3, 0, &imx_ccm_lock, share_count);
 }
 
+static inline struct clk *imx_clk_gate2_shared2(const char *name,
+		const char *parent, void __iomem *reg, u8 shift,
+		unsigned int *share_count)
+{
+	return clk_register_gate2(NULL, name, parent, CLK_SET_RATE_PARENT |
+				  CLK_OPS_PARENT_ENABLE, reg, shift, 0x3, 0,
+				  &imx_ccm_lock, share_count);
+}
+
 static inline struct clk *imx_clk_gate2_cgr(const char *name,
 		const char *parent, void __iomem *reg, u8 shift, u8 cgr_val)
 {

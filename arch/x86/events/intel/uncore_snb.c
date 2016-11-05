@@ -388,6 +388,8 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 	event->cpu = box->cpu;
 	event->pmu_private = box;
 
+	event->event_caps |= PERF_EV_CAP_READ_ACTIVE_PKG;
+
 	event->hw.idx = -1;
 	event->hw.last_tag = ~0ULL;
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;

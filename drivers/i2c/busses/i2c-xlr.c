@@ -358,6 +358,7 @@ static const struct of_device_id xlr_i2c_dt_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, xlr_i2c_dt_ids);
 
 static int xlr_i2c_probe(struct platform_device *pdev)
 {
@@ -432,10 +433,8 @@ static int xlr_i2c_probe(struct platform_device *pdev)
 
 	i2c_set_adapdata(&priv->adap, priv);
 	ret = i2c_add_numbered_adapter(&priv->adap);
-	if (ret < 0) {
-		dev_err(&priv->adap.dev, "Failed to add i2c bus.\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, priv);
 	dev_info(&priv->adap.dev, "Added I2C Bus.\n");

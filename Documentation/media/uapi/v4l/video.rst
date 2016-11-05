@@ -16,7 +16,7 @@ To learn about the number and attributes of the available inputs and
 outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMINPUT` and
 :ref:`VIDIOC_ENUMOUTPUT` ioctl, respectively. The
-struct :ref:`v4l2_input <v4l2-input>` returned by the
+struct :c:type:`v4l2_input` returned by the
 :ref:`VIDIOC_ENUMINPUT` ioctl also contains signal
 :status information applicable when the current video input is queried.
 

@@ -151,7 +151,7 @@ kalmia_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	status = kalmia_init_and_get_ethernet_addr(dev, ethernet_addr);
 
-	if (status < 0) {
+	if (status) {
 		usb_set_intfdata(intf, NULL);
 		usb_driver_release_interface(driver_of(intf), intf);
 		return status;

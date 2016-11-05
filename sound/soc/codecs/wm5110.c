@@ -1745,6 +1745,16 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "IN4L", NULL, "SYSCLK" },
 	{ "IN4R", NULL, "SYSCLK" },
 
+	{ "ASRC1L", NULL, "SYSCLK" },
+	{ "ASRC1R", NULL, "SYSCLK" },
+	{ "ASRC2L", NULL, "SYSCLK" },
+	{ "ASRC2R", NULL, "SYSCLK" },
+
+	{ "ASRC1L", NULL, "ASYNCCLK" },
+	{ "ASRC1R", NULL, "ASYNCCLK" },
+	{ "ASRC2L", NULL, "ASYNCCLK" },
+	{ "ASRC2R", NULL, "ASYNCCLK" },
+
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 	{ "MICBIAS3", NULL, "MICVDD" },
@@ -1832,10 +1842,8 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "Slim3 Capture", NULL, "SYSCLK" },
 
 	{ "Voice Control DSP", NULL, "DSP3" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "Audio Trace DSP", NULL, "DSP1" },
-	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -2347,7 +2355,7 @@ static struct regmap *wm5110_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.probe = wm5110_codec_probe,
 	.remove = wm5110_codec_remove,
 	.get_regmap = wm5110_get_regmap,
@@ -2357,12 +2365,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm5110_set_fll,
 
-	.controls = wm5110_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5110_snd_controls),
-	.dapm_widgets = wm5110_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5110_dapm_widgets),
-	.dapm_routes = wm5110_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5110_dapm_routes),
+	.component_driver = {
+		.controls		= wm5110_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm5110_snd_controls),
+		.dapm_widgets		= wm5110_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm5110_dapm_widgets),
+		.dapm_routes		= wm5110_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm5110_dapm_routes),
+	},
 };
 
 static struct snd_compr_ops wm5110_compr_ops = {

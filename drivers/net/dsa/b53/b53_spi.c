@@ -270,7 +270,7 @@ static int b53_spi_write64(struct b53_device *dev, u8 page, u8 reg, u64 value)
 	return spi_write(spi, txbuf, sizeof(txbuf));
 }
 
-static struct b53_io_ops b53_spi_ops = {
+static const struct b53_io_ops b53_spi_ops = {
 	.read8 = b53_spi_read8,
 	.read16 = b53_spi_read16,
 	.read32 = b53_spi_read32,
@@ -317,8 +317,6 @@ static int b53_spi_remove(struct spi_device *spi)
 static struct spi_driver b53_spi_driver = {
 	.driver = {
 		.name	= "b53-switch",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
 	},
 	.probe	= b53_spi_probe,
 	.remove	= b53_spi_remove,

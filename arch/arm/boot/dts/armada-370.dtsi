@@ -134,24 +134,6 @@
 				wt-override;
 			};
 
-			/*
-			 * Default SPI pinctrl setting, can be overwritten on
-			 * board level if a different configuration is used.
-			 */
-			spi0: spi@10600 {
-				compatible = "marvell,armada-370-spi",
-						"marvell,orion-spi";
-				pinctrl-0 = <&spi0_pins1>;
-				pinctrl-names = "default";
-			};
-
-			spi1: spi@10680 {
-				compatible = "marvell,armada-370-spi",
-						"marvell,orion-spi";
-				pinctrl-0 = <&spi1_pins>;
-				pinctrl-names = "default";
-			};
-
 			i2c0: i2c@11000 {
 				reg = <0x11000 0x20>;
 			};
@@ -446,4 +428,20 @@
 			       "mpp27", "mpp28", "mpp29", "mpp30";
 		marvell,function = "ge1";
 	};
+};
+
+/*
+ * Default SPI pinctrl setting, can be overwritten on
+ * board level if a different configuration is used.
+ */
+&spi0 {
+	compatible = "marvell,armada-370-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi0_pins1>;
+	pinctrl-names = "default";
+};
+
+&spi1 {
+	compatible = "marvell,armada-370-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
 };

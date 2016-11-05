@@ -46,17 +46,22 @@ FILES=					\
 	test-lzma.bin			\
 	test-bpf.bin			\
 	test-get_cpuid.bin		\
-	test-sdt.bin
+	test-sdt.bin			\
+	test-cxx.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
 CC := $(CROSS_COMPILE)gcc -MD
+CXX := $(CROSS_COMPILE)g++ -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
 
 all: $(FILES)
 
 __BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
   BUILD = $(__BUILD) > $(@:.bin=.make.output) 2>&1
+
+__BUILDXX = $(CXX) $(CXXFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
+  BUILDXX = $(__BUILDXX) > $(@:.bin=.make.output) 2>&1
 
 ###############################
 
@@ -216,6 +221,9 @@ $(OUTPUT)test-bpf.bin:
 
 $(OUTPUT)test-sdt.bin:
 	$(BUILD)
+
+$(OUTPUT)test-cxx.bin:
+	$(BUILDXX) -std=gnu++11
 
 -include $(OUTPUT)*.d
 

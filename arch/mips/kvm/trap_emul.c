@@ -11,7 +11,6 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 
 #include <linux/kvm_host.h>
@@ -173,6 +172,24 @@ static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 		if (kvm_mips_handle_kseg0_tlb_fault
 		    (vcpu->arch.host_cp0_badvaddr, vcpu) < 0) {
 			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			ret = RESUME_HOST;
+		}
+	} else if (KVM_GUEST_KERNEL_MODE(vcpu)
+		   && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
+		/*
+		 * With EVA we may get a TLB exception instead of an address
+		 * error when the guest performs MMIO to KSeg1 addresses.
+		 */
+		kvm_debug("Emulate %s MMIO space\n",
+			  store ? "Store to" : "Load from");
+		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
+		if (er == EMULATE_FAIL) {
+			kvm_err("Emulate %s MMIO space failed\n",
+				store ? "Store to" : "Load from");
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			ret = RESUME_HOST;
+		} else {
+			run->exit_reason = KVM_EXIT_MMIO;
 			ret = RESUME_HOST;
 		}
 	} else {

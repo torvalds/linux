@@ -894,7 +894,7 @@ static int us5182d_probe(struct i2c_client *client,
 		goto out_err;
 
 	if (data->default_continuous) {
-		pm_runtime_set_active(&client->dev);
+		ret = pm_runtime_set_active(&client->dev);
 		if (ret < 0)
 			goto out_err;
 	}

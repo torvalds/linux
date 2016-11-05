@@ -60,7 +60,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.cal_data_len = 2116,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
@@ -68,6 +67,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA988X_BOARD_DATA_SZ,
 			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -79,7 +80,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.cal_data_len = 2116,
 		.fw = {
 			.dir = QCA9887_HW_1_0_FW_DIR,
@@ -87,6 +87,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA9887_BOARD_DATA_SZ,
 			.board_ext_size = QCA9887_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -104,6 +106,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -114,7 +118,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
@@ -122,6 +125,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -132,7 +137,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
@@ -140,6 +144,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -150,7 +156,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.cal_data_len = 8124,
 		.fw = {
 			/* uses same binaries as hw3.0 */
@@ -159,6 +164,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -171,7 +178,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cck_rate_map_rev2 = true,
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
 		.tx_chain_mask = 0xf,
 		.rx_chain_mask = 0xf,
 		.max_spatial_stream = 4,
@@ -182,6 +188,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA99X0_BOARD_DATA_SZ,
 			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
 		},
+		.sw_decrypt_mcast_mgmt = true,
+		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -194,7 +203,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cck_rate_map_rev2 = true,
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
 		.tx_chain_mask = 0xf,
 		.rx_chain_mask = 0xf,
 		.max_spatial_stream = 4,
@@ -205,6 +213,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA99X0_BOARD_DATA_SZ,
 			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
 		},
+		.sw_decrypt_mcast_mgmt = true,
+		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -216,7 +227,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.continuous_frag_desc = true,
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
 		.tx_chain_mask = 3,
 		.rx_chain_mask = 3,
 		.max_spatial_stream = 2,
@@ -227,6 +237,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA99X0_BOARD_DATA_SZ,
 			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
 		},
+		.sw_decrypt_mcast_mgmt = true,
+		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -244,6 +257,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA9377_BOARD_DATA_SZ,
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -261,6 +276,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA9377_BOARD_DATA_SZ,
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
 		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -274,7 +291,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cck_rate_map_rev2 = true,
 		.channel_counters_freq_hz = 125000,
 		.max_probe_resp_desc_thres = 24,
-		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
 		.tx_chain_mask = 0x3,
 		.rx_chain_mask = 0x3,
 		.max_spatial_stream = 2,
@@ -285,6 +301,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA4019_BOARD_DATA_SZ,
 			.board_ext_size = QCA4019_BOARD_EXT_DATA_SZ,
 		},
+		.sw_decrypt_mcast_mgmt = true,
+		.hw_ops = &qca99x0_ops,
+		.decap_align_bytes = 1,
 	},
 };
 
@@ -304,6 +323,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_MFP_SUPPORT] = "mfp",
 	[ATH10K_FW_FEATURE_PEER_FLOW_CONTROL] = "peer-flow-ctrl",
 	[ATH10K_FW_FEATURE_BTCOEX_PARAM] = "btcoex-param",
+	[ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR] = "skip-null-func-war",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
@@ -699,7 +719,7 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	if (!ar->running_fw->fw_file.otp_data ||
 	    !ar->running_fw->fw_file.otp_len) {
-		ath10k_warn(ar, "Not running otp, calibration will be incorrect (otp-data %p otp_len %zd)!\n",
+		ath10k_warn(ar, "Not running otp, calibration will be incorrect (otp-data %pK otp_len %zd)!\n",
 			    ar->running_fw->fw_file.otp_data,
 			    ar->running_fw->fw_file.otp_len);
 		return 0;
@@ -745,7 +765,7 @@ static int ath10k_download_fw(struct ath10k *ar)
 	data = ar->running_fw->fw_file.firmware_data;
 	data_len = ar->running_fw->fw_file.firmware_len;
 
-	ret = ath10k_swap_code_seg_configure(ar);
+	ret = ath10k_swap_code_seg_configure(ar, &ar->running_fw->fw_file);
 	if (ret) {
 		ath10k_err(ar, "failed to configure fw code swap: %d\n",
 			   ret);
@@ -753,7 +773,7 @@ static int ath10k_download_fw(struct ath10k *ar)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot uploading firmware image %p len %d\n",
+		   "boot uploading firmware image %pK len %d\n",
 		   data, data_len);
 
 	ret = ath10k_bmi_fast_download(ar, address, data, data_len);
@@ -787,7 +807,7 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	if (!IS_ERR(ar->pre_cal_file))
 		release_firmware(ar->pre_cal_file);
 
-	ath10k_swap_code_seg_release(ar);
+	ath10k_swap_code_seg_release(ar, &ar->normal_mode_fw.fw_file);
 
 	ar->normal_mode_fw.fw_file.otp_data = NULL;
 	ar->normal_mode_fw.fw_file.otp_len = 0;
@@ -1497,14 +1517,14 @@ static void ath10k_core_restart(struct work_struct *work)
 
 	ieee80211_stop_queues(ar->hw);
 	ath10k_drain_tx(ar);
-	complete_all(&ar->scan.started);
-	complete_all(&ar->scan.completed);
-	complete_all(&ar->scan.on_channel);
-	complete_all(&ar->offchan_tx_completed);
-	complete_all(&ar->install_key_done);
-	complete_all(&ar->vdev_setup_done);
-	complete_all(&ar->thermal.wmi_sync);
-	complete_all(&ar->bss_survey_done);
+	complete(&ar->scan.started);
+	complete(&ar->scan.completed);
+	complete(&ar->scan.on_channel);
+	complete(&ar->offchan_tx_completed);
+	complete(&ar->install_key_done);
+	complete(&ar->vdev_setup_done);
+	complete(&ar->thermal.wmi_sync);
+	complete(&ar->bss_survey_done);
 	wake_up(&ar->htt.empty_tx_wq);
 	wake_up(&ar->wmi.tx_credits_wq);
 	wake_up(&ar->peer_mapping_wq);
@@ -1705,6 +1725,55 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_core_reset_rx_filter(struct ath10k *ar)
+{
+	int ret;
+	int vdev_id;
+	int vdev_type;
+	int vdev_subtype;
+	const u8 *vdev_addr;
+
+	vdev_id = 0;
+	vdev_type = WMI_VDEV_TYPE_STA;
+	vdev_subtype = ath10k_wmi_get_vdev_subtype(ar, WMI_VDEV_SUBTYPE_NONE);
+	vdev_addr = ar->mac_addr;
+
+	ret = ath10k_wmi_vdev_create(ar, vdev_id, vdev_type, vdev_subtype,
+				     vdev_addr);
+	if (ret) {
+		ath10k_err(ar, "failed to create dummy vdev: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_wmi_vdev_delete(ar, vdev_id);
+	if (ret) {
+		ath10k_err(ar, "failed to delete dummy vdev: %d\n", ret);
+		return ret;
+	}
+
+	/* WMI and HTT may use separate HIF pipes and are not guaranteed to be
+	 * serialized properly implicitly.
+	 *
+	 * Moreover (most) WMI commands have no explicit acknowledges. It is
+	 * possible to infer it implicitly by poking firmware with echo
+	 * command - getting a reply means all preceding comments have been
+	 * (mostly) processed.
+	 *
+	 * In case of vdev create/delete this is sufficient.
+	 *
+	 * Without this it's possible to end up with a race when HTT Rx ring is
+	 * started before vdev create/delete hack is complete allowing a short
+	 * window of opportunity to receive (and Tx ACK) a bunch of frames.
+	 */
+	ret = ath10k_wmi_barrier(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to ping firmware: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw)
 {
@@ -1872,6 +1941,25 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		goto err_hif_stop;
 	}
 
+	/* Some firmware revisions do not properly set up hardware rx filter
+	 * registers.
+	 *
+	 * A known example from QCA9880 and 10.2.4 is that MAC_PCU_ADDR1_MASK
+	 * is filled with 0s instead of 1s allowing HW to respond with ACKs to
+	 * any frames that matches MAC_PCU_RX_FILTER which is also
+	 * misconfigured to accept anything.
+	 *
+	 * The ADDR1 is programmed using internal firmware structure field and
+	 * can't be (easily/sanely) reached from the driver explicitly. It is
+	 * possible to implicitly make it correct by creating a dummy vdev and
+	 * then deleting it.
+	 */
+	status = ath10k_core_reset_rx_filter(ar);
+	if (status) {
+		ath10k_err(ar, "failed to reset rx filter: %d\n", status);
+		goto err_hif_stop;
+	}
+
 	/* If firmware indicates Full Rx Reorder support it must be used in a
 	 * slightly different manner. Let HTT code know.
 	 */
@@ -1884,7 +1972,10 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		goto err_hif_stop;
 	}
 
-	ar->free_vdev_map = (1LL << ar->max_num_vdevs) - 1;
+	if (ar->max_num_vdevs >= 64)
+		ar->free_vdev_map = 0xFFFFFFFFFFFFFFFFLL;
+	else
+		ar->free_vdev_map = (1LL << ar->max_num_vdevs) - 1;
 
 	INIT_LIST_HEAD(&ar->arvifs);
 
@@ -2031,7 +2122,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_free_firmware_files;
 	}
 
-	ret = ath10k_swap_code_seg_init(ar);
+	ret = ath10k_swap_code_seg_init(ar, &ar->normal_mode_fw.fw_file);
 	if (ret) {
 		ath10k_err(ar, "failed to initialize code swap segment: %d\n",
 			   ret);
@@ -2071,6 +2162,9 @@ static void ath10k_core_register_work(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, register_work);
 	int status;
+
+	/* peer stats are enabled by default */
+	set_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags);
 
 	status = ath10k_core_probe_fw(ar);
 	if (status) {
@@ -2248,6 +2342,8 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	INIT_WORK(&ar->register_work, ath10k_core_register_work);
 	INIT_WORK(&ar->restart_work, ath10k_core_restart);
+
+	init_dummy_netdev(&ar->napi_dev);
 
 	ret = ath10k_debug_create(ar);
 	if (ret)

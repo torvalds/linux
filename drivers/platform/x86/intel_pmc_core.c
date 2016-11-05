@@ -100,7 +100,7 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	struct dentry *dir, *file;
 
 	dir = debugfs_create_dir("pmc_core", NULL);
-	if (IS_ERR_OR_NULL(dir))
+	if (!dir)
 		return -ENOMEM;
 
 	pmcdev->dbgfs_dir = dir;

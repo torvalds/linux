@@ -643,6 +643,14 @@ static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
 		},
 		.driver_data = &acpi_active_low,
 	},
+	{	/* Handle ThinkPad 8 tablets with BCM2E55 chipset ACPI ID */
+		.ident = "Lenovo ThinkPad 8",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
+		},
+		.driver_data = &acpi_active_low,
+	},
 	{ }
 };
 
@@ -798,7 +806,7 @@ static int bcm_remove(struct platform_device *pdev)
 
 static const struct hci_uart_proto bcm_proto = {
 	.id		= HCI_UART_BCM,
-	.name		= "BCM",
+	.name		= "Broadcom",
 	.manufacturer	= 15,
 	.init_speed	= 115200,
 	.oper_speed	= 4000000,

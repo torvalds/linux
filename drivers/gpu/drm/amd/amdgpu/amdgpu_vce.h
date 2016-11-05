@@ -42,5 +42,7 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring);
+unsigned amdgpu_vce_ring_get_emit_ib_size(struct amdgpu_ring *ring);
+unsigned amdgpu_vce_ring_get_dma_frame_size(struct amdgpu_ring *ring);
 
 #endif

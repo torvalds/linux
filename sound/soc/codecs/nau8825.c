@@ -1907,7 +1907,7 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	/* Calculate the FLL 10-bit integer input and the FLL 16-bit fractional
 	 * input based on FDCO, FREF and FLL ratio.
 	 */
-	fvco = div_u64(fvco << 16, fref * fll_param->ratio);
+	fvco = div_u64(fvco_max << 16, fref * fll_param->ratio);
 	fll_param->fll_int = (fvco >> 16) & 0x3FF;
 	fll_param->fll_frac = fvco & 0xFFFF;
 	return 0;
@@ -2256,12 +2256,14 @@ static struct snd_soc_codec_driver nau8825_codec_driver = {
 	.suspend = nau8825_suspend,
 	.resume = nau8825_resume,
 
-	.controls = nau8825_controls,
-	.num_controls = ARRAY_SIZE(nau8825_controls),
-	.dapm_widgets = nau8825_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(nau8825_dapm_widgets),
-	.dapm_routes = nau8825_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(nau8825_dapm_routes),
+	.component_driver = {
+		.controls		= nau8825_controls,
+		.num_controls		= ARRAY_SIZE(nau8825_controls),
+		.dapm_widgets		= nau8825_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(nau8825_dapm_widgets),
+		.dapm_routes		= nau8825_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(nau8825_dapm_routes),
+	},
 };
 
 static void nau8825_reset_chip(struct regmap *regmap)

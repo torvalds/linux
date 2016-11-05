@@ -12,6 +12,8 @@
  * Chris Zankel <chris@zankel.net>
  */
 
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/time.h>
@@ -134,16 +136,52 @@ void local_timer_setup(unsigned cpu)
 					0xf, 0xffffffff);
 }
 
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
+#ifdef CONFIG_OF
+static void __init calibrate_ccount(void)
+{
+	struct device_node *cpu;
+	struct clk *clk;
+
+	cpu = of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
+	if (cpu) {
+		clk = of_clk_get(cpu, 0);
+		if (!IS_ERR(clk)) {
+			ccount_freq = clk_get_rate(clk);
+			return;
+		} else {
+			pr_warn("%s: CPU input clock not found\n",
+				__func__);
+		}
+	} else {
+		pr_warn("%s: CPU node not found in the device tree\n",
+			__func__);
+	}
+
+	platform_calibrate_ccount();
+}
+#else
+static inline void calibrate_ccount(void)
+{
+	platform_calibrate_ccount();
+}
+#endif
+#endif
+
 void __init time_init(void)
 {
+	of_clk_init(NULL);
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	printk("Calibrating CPU frequency ");
-	platform_calibrate_ccount();
+	calibrate_ccount();
 	printk("%d.%02d MHz\n", (int)ccount_freq/1000000,
 			(int)(ccount_freq/10000)%100);
 #else
 	ccount_freq = CONFIG_XTENSA_CPU_CLOCK*1000000UL;
 #endif
+	WARN(!ccount_freq,
+	     "%s: CPU clock frequency is not set up correctly\n",
+	     __func__);
 	clocksource_register_hz(&ccount_clocksource, ccount_freq);
 	local_timer_setup(0);
 	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);

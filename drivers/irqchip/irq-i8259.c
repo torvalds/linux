@@ -38,6 +38,7 @@ static void disable_8259A_irq(struct irq_data *d);
 static void enable_8259A_irq(struct irq_data *d);
 static void mask_and_ack_8259A(struct irq_data *d);
 static void init_8259A(int auto_eoi);
+static int (*i8259_poll)(void) = i8259_irq;
 
 static struct irq_chip i8259A_chip = {
 	.name			= "XT-PIC",
@@ -50,6 +51,11 @@ static struct irq_chip i8259A_chip = {
 /*
  * 8259A PIC functions to handle ISA devices:
  */
+
+void i8259_set_poll(int (*poll)(void))
+{
+	i8259_poll = poll;
+}
 
 /*
  * This contains the irq mask for both 8259A irq controllers,
@@ -87,24 +93,6 @@ static void enable_8259A_irq(struct irq_data *d)
 	else
 		outb(cached_master_mask, PIC_MASTER_IMR);
 	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
-}
-
-int i8259A_irq_pending(unsigned int irq)
-{
-	unsigned int mask;
-	unsigned long flags;
-	int ret;
-
-	irq -= I8259A_IRQ_BASE;
-	mask = 1 << irq;
-	raw_spin_lock_irqsave(&i8259A_lock, flags);
-	if (irq < 8)
-		ret = inb(PIC_MASTER_CMD) & mask;
-	else
-		ret = inb(PIC_SLAVE_CMD) & (mask >> 8);
-	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
-
-	return ret;
 }
 
 void make_8259A_irq(unsigned int irq)
@@ -355,7 +343,7 @@ void __init init_i8259_irqs(void)
 static void i8259_irq_dispatch(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
-	int hwirq = i8259_irq();
+	int hwirq = i8259_poll();
 	unsigned int irq;
 
 	if (hwirq < 0)
@@ -370,13 +358,15 @@ int __init i8259_of_init(struct device_node *node, struct device_node *parent)
 	struct irq_domain *domain;
 	unsigned int parent_irq;
 
+	domain = __init_i8259_irqs(node);
+
 	parent_irq = irq_of_parse_and_map(node, 0);
 	if (!parent_irq) {
 		pr_err("Failed to map i8259 parent IRQ\n");
+		irq_domain_remove(domain);
 		return -ENODEV;
 	}
 
-	domain = __init_i8259_irqs(node);
 	irq_set_chained_handler_and_data(parent_irq, i8259_irq_dispatch,
 					 domain);
 	return 0;

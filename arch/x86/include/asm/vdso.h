@@ -41,6 +41,8 @@ extern const struct vdso_image vdso_image_32;
 
 extern void __init init_vdso_image(const struct vdso_image *image);
 
+extern int map_vdso_once(const struct vdso_image *image, unsigned long addr);
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_VDSO_H */

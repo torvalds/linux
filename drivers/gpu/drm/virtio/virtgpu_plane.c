@@ -76,7 +76,8 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		output = drm_crtc_to_virtio_gpu_output(plane->state->crtc);
 	if (old_state->crtc)
 		output = drm_crtc_to_virtio_gpu_output(old_state->crtc);
-	WARN_ON(!output);
+	if (WARN_ON(!output))
+		return;
 
 	if (plane->state->fb) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
@@ -129,7 +130,8 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 		output = drm_crtc_to_virtio_gpu_output(plane->state->crtc);
 	if (old_state->crtc)
 		output = drm_crtc_to_virtio_gpu_output(old_state->crtc);
-	WARN_ON(!output);
+	if (WARN_ON(!output))
+		return;
 
 	if (plane->state->fb) {
 		vgfb = to_virtio_gpu_framebuffer(plane->state->fb);

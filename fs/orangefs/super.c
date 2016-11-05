@@ -33,6 +33,7 @@ static const match_table_t tokens = {
 	{ Opt_err,	NULL }
 };
 
+uint64_t orangefs_features;
 
 static int parse_mount_options(struct super_block *sb, char *options,
 		int silent)
@@ -249,6 +250,19 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 	}
 
 	op_release(new_op);
+
+	if (orangefs_userspace_version >= 20906) {
+		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
+		if (!new_op)
+			return -ENOMEM;
+		new_op->upcall.req.features.features = 0;
+		ret = service_operation(new_op, "orangefs_features", 0);
+		orangefs_features = new_op->downcall.resp.features.features;
+		op_release(new_op);
+	} else {
+		orangefs_features = 0;
+	}
+
 	return ret;
 }
 
@@ -492,6 +506,19 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	list_add_tail(&ORANGEFS_SB(sb)->list, &orangefs_superblocks);
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
+
+	if (orangefs_userspace_version >= 20906) {
+		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
+		if (!new_op)
+			return ERR_PTR(-ENOMEM);
+		new_op->upcall.req.features.features = 0;
+		ret = service_operation(new_op, "orangefs_features", 0);
+		orangefs_features = new_op->downcall.resp.features.features;
+		op_release(new_op);
+	} else {
+		orangefs_features = 0;
+	}
+
 	return dget(sb->s_root);
 
 free_op:
@@ -530,8 +557,8 @@ void orangefs_kill_sb(struct super_block *sb)
 	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us
 	 * gets completed before we free the dang thing.
 	 */
-	mutex_lock(&request_mutex);
-	mutex_unlock(&request_mutex);
+	mutex_lock(&orangefs_request_mutex);
+	mutex_unlock(&orangefs_request_mutex);
 
 	/* free the orangefs superblock private data */
 	kfree(ORANGEFS_SB(sb));

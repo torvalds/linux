@@ -269,10 +269,8 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 }
 
 int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen);
-size_t kernfs_path_len(struct kernfs_node *kn);
 int kernfs_path_from_node(struct kernfs_node *root_kn, struct kernfs_node *kn,
 			  char *buf, size_t buflen);
-char *kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen);
 void pr_cont_kernfs_name(struct kernfs_node *kn);
 void pr_cont_kernfs_path(struct kernfs_node *kn);
 struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn);
@@ -341,12 +339,10 @@ static inline bool kernfs_ns_enabled(struct kernfs_node *kn)
 static inline int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 { return -ENOSYS; }
 
-static inline size_t kernfs_path_len(struct kernfs_node *kn)
-{ return 0; }
-
-static inline char *kernfs_path(struct kernfs_node *kn, char *buf,
-				size_t buflen)
-{ return NULL; }
+static inline int kernfs_path_from_node(struct kernfs_node *root_kn,
+					struct kernfs_node *kn,
+					char *buf, size_t buflen)
+{ return -ENOSYS; }
 
 static inline void pr_cont_kernfs_name(struct kernfs_node *kn) { }
 static inline void pr_cont_kernfs_path(struct kernfs_node *kn) { }
@@ -435,6 +431,22 @@ static inline void kernfs_kill_sb(struct super_block *sb) { }
 static inline void kernfs_init(void) { }
 
 #endif	/* CONFIG_KERNFS */
+
+/**
+ * kernfs_path - build full path of a given node
+ * @kn: kernfs_node of interest
+ * @buf: buffer to copy @kn's name into
+ * @buflen: size of @buf
+ *
+ * Builds and returns the full path of @kn in @buf of @buflen bytes.  The
+ * path is built from the end of @buf so the returned pointer usually
+ * doesn't match @buf.  If @buf isn't long enough, @buf is nul terminated
+ * and %NULL is returned.
+ */
+static inline int kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen)
+{
+	return kernfs_path_from_node(kn, NULL, buf, buflen);
+}
 
 static inline struct kernfs_node *
 kernfs_find_and_get(struct kernfs_node *kn, const char *name)

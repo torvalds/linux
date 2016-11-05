@@ -24,7 +24,7 @@
 
 # Test for a color capable console
 if [ -z "$USE_COLOR" ]; then
-    tput setf 7
+    tput setf 7 || tput setaf 7
     if [ $? -eq 0 ]; then
         USE_COLOR=1
         tput sgr0

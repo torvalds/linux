@@ -3,15 +3,20 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) := -Werror
+subdir-ccflags-y += \
+	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
 # Please keep these build lists sorted!
 
 # core driver code
 i915-y := i915_drv.o \
 	  i915_irq.o \
+	  i915_memcpy.o \
+	  i915_mm.o \
 	  i915_params.o \
 	  i915_pci.o \
           i915_suspend.o \
+	  i915_sw_fence.o \
 	  i915_sysfs.o \
 	  intel_csr.o \
 	  intel_device_info.o \
@@ -25,7 +30,6 @@ i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o
 i915-y += i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
 	  i915_gem_context.o \
-	  i915_gem_debug.o \
 	  i915_gem_dmabuf.o \
 	  i915_gem_evict.o \
 	  i915_gem_execbuffer.o \
@@ -33,6 +37,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_gtt.o \
 	  i915_gem.o \
 	  i915_gem_render_state.o \
+	  i915_gem_request.o \
 	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
 	  i915_gem_tiling.o \
@@ -40,6 +45,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gpu_error.o \
 	  i915_trace_points.o \
 	  intel_breadcrumbs.o \
+	  intel_engine_cs.o \
 	  intel_lrc.o \
 	  intel_mocs.o \
 	  intel_ringbuffer.o \
@@ -109,6 +115,6 @@ i915-y += intel_gvt.o
 include $(src)/gvt/Makefile
 endif
 
-obj-$(CONFIG_DRM_I915)  += i915.o
+obj-$(CONFIG_DRM_I915) += i915.o
 
 CFLAGS_i915_trace_points.o := -I$(src)

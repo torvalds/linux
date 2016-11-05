@@ -117,7 +117,10 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 	cvmx_helper_link_info_t link_info;
 	bool status_change;
 
-	link_info = cvmx_helper_link_autoconf(priv->port);
+	link_info = cvmx_helper_link_get(priv->port);
+	if (priv->link_info != link_info.u64 &&
+	    cvmx_helper_link_set(priv->port, link_info))
+		link_info.u64 = priv->link_info;
 	status_change = priv->link_info != link_info.u64;
 	priv->link_info = link_info.u64;
 
@@ -145,7 +148,7 @@ int cvm_oct_rgmii_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	if (priv->phydev) {
+	if (dev->phydev) {
 		/*
 		 * In phydev mode, we need still periodic polling for the
 		 * preamble error checking, and we also need to call this

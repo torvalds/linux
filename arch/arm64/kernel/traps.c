@@ -142,6 +142,11 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	unsigned long irq_stack_ptr;
 	int skip;
 
+	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+
+	if (!tsk)
+		tsk = current;
+
 	/*
 	 * Switching between stacks is valid when tracing current and in
 	 * non-preemptible context.
@@ -150,11 +155,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
 	else
 		irq_stack_ptr = 0;
-
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
-
-	if (!tsk)
-		tsk = current;
 
 	if (tsk == current) {
 		frame.fp = (unsigned long)__builtin_frame_address(0);
@@ -428,55 +428,52 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
 }
 
-void cpu_enable_cache_maint_trap(void *__unused)
+int cpu_enable_cache_maint_trap(void *__unused)
 {
 	config_sctlr_el1(SCTLR_EL1_UCI, 0);
+	return 0;
 }
 
 #define __user_cache_maint(insn, address, res)			\
-	asm volatile (						\
-		"1:	" insn ", %1\n"				\
-		"	mov	%w0, #0\n"			\
-		"2:\n"						\
-		"	.pushsection .fixup,\"ax\"\n"		\
-		"	.align	2\n"				\
-		"3:	mov	%w0, %w2\n"			\
-		"	b	2b\n"				\
-		"	.popsection\n"				\
-		_ASM_EXTABLE(1b, 3b)				\
-		: "=r" (res)					\
-		: "r" (address), "i" (-EFAULT) )
+	if (untagged_addr(address) >= user_addr_max())		\
+		res = -EFAULT;					\
+	else							\
+		asm volatile (					\
+			"1:	" insn ", %1\n"			\
+			"	mov	%w0, #0\n"		\
+			"2:\n"					\
+			"	.pushsection .fixup,\"ax\"\n"	\
+			"	.align	2\n"			\
+			"3:	mov	%w0, %w2\n"		\
+			"	b	2b\n"			\
+			"	.popsection\n"			\
+			_ASM_EXTABLE(1b, 3b)			\
+			: "=r" (res)				\
+			: "r" (address), "i" (-EFAULT) )
 
-asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
+static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 {
 	unsigned long address;
-	int ret;
+	int rt = (esr & ESR_ELx_SYS64_ISS_RT_MASK) >> ESR_ELx_SYS64_ISS_RT_SHIFT;
+	int crm = (esr & ESR_ELx_SYS64_ISS_CRM_MASK) >> ESR_ELx_SYS64_ISS_CRM_SHIFT;
+	int ret = 0;
 
-	/* if this is a write with: Op0=1, Op2=1, Op1=3, CRn=7 */
-	if ((esr & 0x01fffc01) == 0x0012dc00) {
-		int rt = (esr >> 5) & 0x1f;
-		int crm = (esr >> 1) & 0x0f;
+	address = (rt == 31) ? 0 : regs->regs[rt];
 
-		address = (rt == 31) ? 0 : regs->regs[rt];
-
-		switch (crm) {
-		case 11:		/* DC CVAU, gets promoted */
-			__user_cache_maint("dc civac", address, ret);
-			break;
-		case 10:		/* DC CVAC, gets promoted */
-			__user_cache_maint("dc civac", address, ret);
-			break;
-		case 14:		/* DC CIVAC */
-			__user_cache_maint("dc civac", address, ret);
-			break;
-		case 5:			/* IC IVAU */
-			__user_cache_maint("ic ivau", address, ret);
-			break;
-		default:
-			force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
-			return;
-		}
-	} else {
+	switch (crm) {
+	case ESR_ELx_SYS64_ISS_CRM_DC_CVAU:	/* DC CVAU, gets promoted */
+		__user_cache_maint("dc civac", address, ret);
+		break;
+	case ESR_ELx_SYS64_ISS_CRM_DC_CVAC:	/* DC CVAC, gets promoted */
+		__user_cache_maint("dc civac", address, ret);
+		break;
+	case ESR_ELx_SYS64_ISS_CRM_DC_CIVAC:	/* DC CIVAC */
+		__user_cache_maint("dc civac", address, ret);
+		break;
+	case ESR_ELx_SYS64_ISS_CRM_IC_IVAU:	/* IC IVAU */
+		__user_cache_maint("ic ivau", address, ret);
+		break;
+	default:
 		force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
 		return;
 	}
@@ -485,6 +482,48 @@ asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
 		arm64_notify_segfault(regs, address);
 	else
 		regs->pc += 4;
+}
+
+static void ctr_read_handler(unsigned int esr, struct pt_regs *regs)
+{
+	int rt = (esr & ESR_ELx_SYS64_ISS_RT_MASK) >> ESR_ELx_SYS64_ISS_RT_SHIFT;
+
+	regs->regs[rt] = arm64_ftr_reg_ctrel0.sys_val;
+	regs->pc += 4;
+}
+
+struct sys64_hook {
+	unsigned int esr_mask;
+	unsigned int esr_val;
+	void (*handler)(unsigned int esr, struct pt_regs *regs);
+};
+
+static struct sys64_hook sys64_hooks[] = {
+	{
+		.esr_mask = ESR_ELx_SYS64_ISS_EL0_CACHE_OP_MASK,
+		.esr_val = ESR_ELx_SYS64_ISS_EL0_CACHE_OP_VAL,
+		.handler = user_cache_maint_handler,
+	},
+	{
+		/* Trap read access to CTR_EL0 */
+		.esr_mask = ESR_ELx_SYS64_ISS_SYS_OP_MASK,
+		.esr_val = ESR_ELx_SYS64_ISS_SYS_CTR_READ,
+		.handler = ctr_read_handler,
+	},
+	{},
+};
+
+asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
+{
+	struct sys64_hook *hook;
+
+	for (hook = sys64_hooks; hook->handler; hook++)
+		if ((hook->esr_mask & esr) == hook->esr_val) {
+			hook->handler(esr, regs);
+			return;
+		}
+
+	force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
 }
 
 long compat_arm_syscall(struct pt_regs *regs);

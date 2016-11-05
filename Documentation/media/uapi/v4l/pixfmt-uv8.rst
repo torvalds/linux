@@ -6,7 +6,6 @@
 V4L2_PIX_FMT_UV8 ('UV8')
 ************************
 
-*man V4L2_PIX_FMT_UV8(2)*
 
 UV plane interleaved
 
@@ -21,56 +20,28 @@ Each cell is one byte.
 
 
 
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  Cb\ :sub:`00`
-
-       -  Cr\ :sub:`00`
-
-       -  Cb\ :sub:`01`
-
-       -  Cr\ :sub:`01`
-
-    -  .. row 2
-
-       -  start + 4:
-
-       -  Cb\ :sub:`10`
-
-       -  Cr\ :sub:`10`
-
-       -  Cb\ :sub:`11`
-
-       -  Cr\ :sub:`11`
-
-    -  .. row 3
-
-       -  start + 8:
-
-       -  Cb\ :sub:`20`
-
-       -  Cr\ :sub:`20`
-
-       -  Cb\ :sub:`21`
-
-       -  Cr\ :sub:`21`
-
-    -  .. row 4
-
-       -  start + 12:
-
-       -  Cb\ :sub:`30`
-
-       -  Cr\ :sub:`30`
-
-       -  Cb\ :sub:`31`
-
-       -  Cr\ :sub:`31`
+    * - start + 0:
+      - Cb\ :sub:`00`
+      - Cr\ :sub:`00`
+      - Cb\ :sub:`01`
+      - Cr\ :sub:`01`
+    * - start + 4:
+      - Cb\ :sub:`10`
+      - Cr\ :sub:`10`
+      - Cb\ :sub:`11`
+      - Cr\ :sub:`11`
+    * - start + 8:
+      - Cb\ :sub:`20`
+      - Cr\ :sub:`20`
+      - Cb\ :sub:`21`
+      - Cr\ :sub:`21`
+    * - start + 12:
+      - Cb\ :sub:`30`
+      - Cr\ :sub:`30`
+      - Cb\ :sub:`31`
+      - Cr\ :sub:`31`

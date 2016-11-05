@@ -243,7 +243,7 @@ attribute_container_remove_device(struct device *dev,
  * @dev:  The generic device to run the trigger for
  * @fn	  the function to execute for each classdev.
  *
- * This funcion is for executing a trigger when you need to know both
+ * This function is for executing a trigger when you need to know both
  * the container and the classdev.  If you only care about the
  * container, then use attribute_container_trigger() instead.
  */

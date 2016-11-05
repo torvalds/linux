@@ -12,7 +12,11 @@
 #ifndef __ASM_MACH_LOONGSON32_LOONGSON1_H
 #define __ASM_MACH_LOONGSON32_LOONGSON1_H
 
+#if defined(CONFIG_LOONGSON1_LS1B)
 #define DEFAULT_MEMSIZE			256	/* If no memsize provided */
+#elif defined(CONFIG_LOONGSON1_LS1C)
+#define DEFAULT_MEMSIZE			32
+#endif
 
 /* Loongson 1 Register Bases */
 #define LS1X_MUX_BASE			0x1fd00420
@@ -20,6 +24,7 @@
 #define LS1X_GPIO0_BASE			0x1fd010c0
 #define LS1X_GPIO1_BASE			0x1fd010c4
 #define LS1X_DMAC_BASE			0x1fd01160
+#define LS1X_CBUS_BASE			0x1fd011c0
 #define LS1X_EHCI_BASE			0x1fe00000
 #define LS1X_OHCI_BASE			0x1fe08000
 #define LS1X_GMAC0_BASE			0x1fe10000

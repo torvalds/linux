@@ -92,6 +92,7 @@ MODULE_DEVICE_TABLE(bcma, bgmac_bcma_tbl);
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipattach */
 static int bgmac_probe(struct bcma_device *core)
 {
+	struct bcma_chipinfo *ci = &core->bus->chipinfo;
 	struct ssb_sprom *sprom = &core->bus->sprom;
 	struct mii_bus *mii_bus;
 	struct bgmac *bgmac;
@@ -157,7 +158,8 @@ static int bgmac_probe(struct bcma_device *core)
 	dev_info(bgmac->dev, "Found PHY addr: %d%s\n", bgmac->phyaddr,
 		 bgmac->phyaddr == BGMAC_PHY_NOREGS ? " (NOREGS)" : "");
 
-	if (!bgmac_is_bcm4707_family(core)) {
+	if (!bgmac_is_bcm4707_family(core) &&
+	    !(ci->id == BCMA_CHIP_ID_BCM53573 && core->core_unit == 1)) {
 		mii_bus = bcma_mdio_mii_register(core, bgmac->phyaddr);
 		if (IS_ERR(mii_bus)) {
 			err = PTR_ERR(mii_bus);
@@ -229,6 +231,21 @@ static int bgmac_probe(struct bcma_device *core)
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
 		bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
 		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
+		break;
+	case BCMA_CHIP_ID_BCM53573:
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+		if (ci->pkg == BCMA_PKG_ID_BCM47189)
+			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
+		if (core->core_unit == 0) {
+			bgmac->feature_flags |= BGMAC_FEAT_CC4_IF_SW_TYPE;
+			if (ci->pkg == BCMA_PKG_ID_BCM47189)
+				bgmac->feature_flags |=
+					BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII;
+		} else if (core->core_unit == 1) {
+			bgmac->feature_flags |= BGMAC_FEAT_IRQ_ID_OOB_6;
+			bgmac->feature_flags |= BGMAC_FEAT_CC7_IF_TYPE_RGMII;
+		}
 		break;
 	default:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;

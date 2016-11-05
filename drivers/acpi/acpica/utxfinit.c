@@ -69,7 +69,7 @@ void ae_do_object_overrides(void);
  *
  ******************************************************************************/
 
-acpi_status __init acpi_initialize_subsystem(void)
+acpi_status ACPI_INIT_FUNCTION acpi_initialize_subsystem(void)
 {
 	acpi_status status;
 
@@ -141,7 +141,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_subsystem)
  *              Puts system into ACPI mode if it isn't already.
  *
  ******************************************************************************/
-acpi_status __init acpi_enable_subsystem(u32 flags)
+acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 {
 	acpi_status status = AE_OK;
 
@@ -239,7 +239,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_enable_subsystem)
  *              objects and executing AML code for Regions, buffers, etc.
  *
  ******************************************************************************/
-acpi_status __init acpi_initialize_objects(u32 flags)
+acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 {
 	acpi_status status = AE_OK;
 
@@ -265,7 +265,8 @@ acpi_status __init acpi_initialize_objects(u32 flags)
 	 * all of the tables have been loaded. It is a legacy option and is
 	 * not compatible with other ACPI implementations. See acpi_ns_load_table.
 	 */
-	if (acpi_gbl_group_module_level_code) {
+	if (!acpi_gbl_parse_table_as_term_list
+	    && acpi_gbl_group_module_level_code) {
 		acpi_ns_exec_module_code_list();
 
 		/*

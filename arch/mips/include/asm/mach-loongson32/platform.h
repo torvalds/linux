@@ -30,5 +30,6 @@ void __init ls1x_clk_init(void);
 void __init ls1x_dma_set_platdata(struct plat_ls1x_dma *pdata);
 void __init ls1x_nand_set_platdata(struct plat_ls1x_nand *pdata);
 void __init ls1x_serial_set_uartclk(struct platform_device *pdev);
+void __init ls1x_rtc_set_extclk(struct platform_device *pdev);
 
 #endif /* __ASM_MACH_LOONGSON32_PLATFORM_H */

@@ -68,6 +68,7 @@ static int inj_##reg##_set(void *data, u64 val)				\
 MCE_INJECT_SET(status);
 MCE_INJECT_SET(misc);
 MCE_INJECT_SET(addr);
+MCE_INJECT_SET(synd);
 
 #define MCE_INJECT_GET(reg)						\
 static int inj_##reg##_get(void *data, u64 *val)			\
@@ -81,10 +82,12 @@ static int inj_##reg##_get(void *data, u64 *val)			\
 MCE_INJECT_GET(status);
 MCE_INJECT_GET(misc);
 MCE_INJECT_GET(addr);
+MCE_INJECT_GET(synd);
 
 DEFINE_SIMPLE_ATTRIBUTE(status_fops, inj_status_get, inj_status_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(synd_fops, inj_synd_get, inj_synd_set, "%llx\n");
 
 /*
  * Caller needs to be make sure this cpu doesn't disappear
@@ -243,27 +246,27 @@ static void toggle_nb_mca_mst_cpu(u16 nid)
 
 static void prepare_msrs(void *info)
 {
-	struct mce i_mce = *(struct mce *)info;
-	u8 b = i_mce.bank;
+	struct mce m = *(struct mce *)info;
+	u8 b = m.bank;
 
-	wrmsrl(MSR_IA32_MCG_STATUS, i_mce.mcgstatus);
+	wrmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
-		if (i_mce.inject_flags == DFR_INT_INJ) {
-			wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(b), i_mce.status);
-			wrmsrl(MSR_AMD64_SMCA_MCx_DEADDR(b), i_mce.addr);
+		if (m.inject_flags == DFR_INT_INJ) {
+			wrmsrl(MSR_AMD64_SMCA_MCx_DESTAT(b), m.status);
+			wrmsrl(MSR_AMD64_SMCA_MCx_DEADDR(b), m.addr);
 		} else {
-			wrmsrl(MSR_AMD64_SMCA_MCx_STATUS(b), i_mce.status);
-			wrmsrl(MSR_AMD64_SMCA_MCx_ADDR(b), i_mce.addr);
+			wrmsrl(MSR_AMD64_SMCA_MCx_STATUS(b), m.status);
+			wrmsrl(MSR_AMD64_SMCA_MCx_ADDR(b), m.addr);
 		}
 
-		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), i_mce.misc);
+		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), m.misc);
+		wrmsrl(MSR_AMD64_SMCA_MCx_SYND(b), m.synd);
 	} else {
-		wrmsrl(MSR_IA32_MCx_STATUS(b), i_mce.status);
-		wrmsrl(MSR_IA32_MCx_ADDR(b), i_mce.addr);
-		wrmsrl(MSR_IA32_MCx_MISC(b), i_mce.misc);
+		wrmsrl(MSR_IA32_MCx_STATUS(b), m.status);
+		wrmsrl(MSR_IA32_MCx_ADDR(b), m.addr);
+		wrmsrl(MSR_IA32_MCx_MISC(b), m.misc);
 	}
-
 }
 
 static void do_inject(void)
@@ -274,6 +277,9 @@ static void do_inject(void)
 
 	if (i_mce.misc)
 		i_mce.status |= MCI_STATUS_MISCV;
+
+	if (i_mce.synd)
+		i_mce.status |= MCI_STATUS_SYNDV;
 
 	if (inj_type == SW_INJ) {
 		mce_inject_log(&i_mce);
@@ -301,7 +307,9 @@ static void do_inject(void)
 	 * only on the node base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
 	 * Fam10h and later BKDGs.
 	 */
-	if (static_cpu_has(X86_FEATURE_AMD_DCM) && b == 4) {
+	if (static_cpu_has(X86_FEATURE_AMD_DCM) &&
+	    b == 4 &&
+	    boot_cpu_data.x86 < 0x17) {
 		toggle_nb_mca_mst_cpu(amd_get_nb_id(cpu));
 		cpu = get_nbc_for_node(amd_get_nb_id(cpu));
 	}
@@ -371,6 +379,9 @@ static const char readme_msg[] =
 "\t used for error thresholding purposes and its validity is indicated by\n"
 "\t MCi_STATUS[MiscV].\n"
 "\n"
+"synd:\t Set MCi_SYND: provide syndrome info about the error. Only valid on\n"
+"\t Scalable MCA systems, and its validity is indicated by MCi_STATUS[SyndV].\n"
+"\n"
 "addr:\t Error address value to be written to MCi_ADDR. Log address information\n"
 "\t associated with the error.\n"
 "\n"
@@ -420,6 +431,7 @@ static struct dfs_node {
 	{ .name = "status",	.fops = &status_fops, .perm = S_IRUSR | S_IWUSR },
 	{ .name = "misc",	.fops = &misc_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "addr",	.fops = &addr_fops,   .perm = S_IRUSR | S_IWUSR },
+	{ .name = "synd",	.fops = &synd_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "bank",	.fops = &bank_fops,   .perm = S_IRUSR | S_IWUSR },
 	{ .name = "flags",	.fops = &flags_fops,  .perm = S_IRUSR | S_IWUSR },
 	{ .name = "cpu",	.fops = &extcpu_fops, .perm = S_IRUSR | S_IWUSR },
@@ -428,7 +440,7 @@ static struct dfs_node {
 
 static int __init init_mce_inject(void)
 {
-	int i;
+	unsigned int i;
 	u64 cap;
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
@@ -452,26 +464,22 @@ static int __init init_mce_inject(void)
 	return 0;
 
 err_dfs_add:
-	while (--i >= 0)
+	while (i-- > 0)
 		debugfs_remove(dfs_fls[i].d);
 
 	debugfs_remove(dfs_inj);
 	dfs_inj = NULL;
 
-	return -ENOMEM;
+	return -ENODEV;
 }
 
 static void __exit exit_mce_inject(void)
 {
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++)
-		debugfs_remove(dfs_fls[i].d);
+	debugfs_remove_recursive(dfs_inj);
+	dfs_inj = NULL;
 
 	memset(&dfs_fls, 0, sizeof(dfs_fls));
-
-	debugfs_remove(dfs_inj);
-	dfs_inj = NULL;
 }
 module_init(init_mce_inject);
 module_exit(exit_mce_inject);

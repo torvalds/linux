@@ -48,10 +48,10 @@ static inline int policy_load_mapping(struct dm_cache_policy *p,
 	return p->load_mapping(p, oblock, cblock, hint, hint_valid);
 }
 
-static inline int policy_walk_mappings(struct dm_cache_policy *p,
-				      policy_walk_fn fn, void *context)
+static inline uint32_t policy_get_hint(struct dm_cache_policy *p,
+				       dm_cblock_t cblock)
 {
-	return p->walk_mappings ? p->walk_mappings(p, fn, context) : 0;
+	return p->get_hint ? p->get_hint(p, cblock) : 0;
 }
 
 static inline int policy_writeback_work(struct dm_cache_policy *p,

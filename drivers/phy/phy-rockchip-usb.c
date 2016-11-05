@@ -29,6 +29,7 @@
 #include <linux/reset.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/delay.h>
 
 static int enable_usb_uart;
 
@@ -64,6 +65,7 @@ struct rockchip_usb_phy {
 	struct clk_hw	clk480m_hw;
 	struct phy	*phy;
 	bool		uart_enabled;
+	struct reset_control *reset;
 };
 
 static int rockchip_usb_phy_power(struct rockchip_usb_phy *phy,
@@ -144,9 +146,23 @@ static int rockchip_usb_phy_power_on(struct phy *_phy)
 	return clk_prepare_enable(phy->clk480m);
 }
 
+static int rockchip_usb_phy_reset(struct phy *_phy)
+{
+	struct rockchip_usb_phy *phy = phy_get_drvdata(_phy);
+
+	if (phy->reset) {
+		reset_control_assert(phy->reset);
+		udelay(10);
+		reset_control_deassert(phy->reset);
+	}
+
+	return 0;
+}
+
 static const struct phy_ops ops = {
 	.power_on	= rockchip_usb_phy_power_on,
 	.power_off	= rockchip_usb_phy_power_off,
+	.reset		= rockchip_usb_phy_reset,
 	.owner		= THIS_MODULE,
 };
 
@@ -184,6 +200,10 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			child->name);
 		return -EINVAL;
 	}
+
+	rk_phy->reset = of_reset_control_get(child, "phy-reset");
+	if (IS_ERR(rk_phy->reset))
+		rk_phy->reset = NULL;
 
 	rk_phy->reg_offset = reg_offset;
 

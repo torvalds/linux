@@ -31,7 +31,7 @@ enum mmc_packed_type {
 
 struct mmc_packed {
 	struct list_head	list;
-	u32			cmd_hdr[1024];
+	__le32			cmd_hdr[1024];
 	unsigned int		blocks;
 	u8			nr_entries;
 	u8			retries;
@@ -57,8 +57,6 @@ struct mmc_queue {
 	unsigned int		flags;
 #define MMC_QUEUE_SUSPENDED	(1 << 0)
 #define MMC_QUEUE_NEW_REQUEST	(1 << 1)
-
-	int			(*issue_fn)(struct mmc_queue *, struct request *);
 	void			*data;
 	struct request_queue	*queue;
 	struct mmc_queue_req	mqrq[2];

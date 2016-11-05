@@ -23,6 +23,7 @@
 #include <linux/types.h>
 
 struct net_device;
+struct netlink_callback;
 struct seq_file;
 struct sk_buff;
 
@@ -35,8 +36,10 @@ bool batadv_bla_is_backbone_gw(struct sk_buff *skb,
 			       struct batadv_orig_node *orig_node,
 			       int hdr_size);
 int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_bla_claim_dump(struct sk_buff *msg, struct netlink_callback *cb);
 int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq,
 					     void *offset);
+int batadv_bla_backbone_dump(struct sk_buff *msg, struct netlink_callback *cb);
 bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, u8 *orig,
 				    unsigned short vid);
 bool batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
@@ -47,7 +50,7 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 void batadv_bla_status_update(struct net_device *net_dev);
 int batadv_bla_init(struct batadv_priv *bat_priv);
 void batadv_bla_free(struct batadv_priv *bat_priv);
-
+int batadv_bla_claim_dump(struct sk_buff *msg, struct netlink_callback *cb);
 #define BATADV_BLA_CRC_INIT	0
 #else /* ifdef CONFIG_BATMAN_ADV_BLA */
 
@@ -110,6 +113,18 @@ static inline int batadv_bla_init(struct batadv_priv *bat_priv)
 
 static inline void batadv_bla_free(struct batadv_priv *bat_priv)
 {
+}
+
+static inline int batadv_bla_claim_dump(struct sk_buff *msg,
+					struct netlink_callback *cb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int batadv_bla_backbone_dump(struct sk_buff *msg,
+					   struct netlink_callback *cb)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif /* ifdef CONFIG_BATMAN_ADV_BLA */

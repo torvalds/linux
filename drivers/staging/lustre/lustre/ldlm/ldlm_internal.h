@@ -100,9 +100,10 @@ enum {
 int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
 		    enum ldlm_cancel_flags sync, int flags);
 int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
-			 struct list_head *cancels, int count, int max,
-			 enum ldlm_cancel_flags cancel_flags, int flags);
-extern int ldlm_enqueue_min;
+			  struct list_head *cancels, int count, int max,
+			  enum ldlm_cancel_flags cancel_flags, int flags);
+extern unsigned int ldlm_enqueue_min;
+extern unsigned int ldlm_cancel_unused_locks_before_replay;
 
 /* ldlm_resource.c */
 int ldlm_resource_putref_locked(struct ldlm_resource *res);
@@ -200,8 +201,7 @@ ldlm_interval_extent(struct ldlm_interval *node)
 
 	LASSERT(!list_empty(&node->li_group));
 
-	lock = list_entry(node->li_group.next, struct ldlm_lock,
-			      l_sl_policy);
+	lock = list_entry(node->li_group.next, struct ldlm_lock, l_sl_policy);
 	return &lock->l_policy_data.l_extent;
 }
 
@@ -302,7 +302,7 @@ static inline int is_granted_or_cancelled(struct ldlm_lock *lock)
 
 	lock_res_and_lock(lock);
 	if ((lock->l_req_mode == lock->l_granted_mode) &&
-	     !ldlm_is_cp_reqd(lock))
+	    !ldlm_is_cp_reqd(lock))
 		ret = 1;
 	else if (ldlm_is_failed(lock) || ldlm_is_cancel(lock))
 		ret = 1;
@@ -326,13 +326,13 @@ void ldlm_ibits_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
 void ldlm_ibits_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
 				     ldlm_wire_policy_data_t *wpolicy);
 void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy);
+				      ldlm_policy_data_t *lpolicy);
 void ldlm_extent_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
-				     ldlm_wire_policy_data_t *wpolicy);
+				      ldlm_wire_policy_data_t *wpolicy);
 void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy);
+				       ldlm_policy_data_t *lpolicy);
 void ldlm_flock_policy_wire21_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy);
+				       ldlm_policy_data_t *lpolicy);
 
 void ldlm_flock_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
 				     ldlm_wire_policy_data_t *wpolicy);

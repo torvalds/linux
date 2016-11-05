@@ -1,0 +1,87 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+#
+# Generate a version from available information
+#
+
+my $prefix = shift @ARGV;
+my $root = shift @ARGV;
+
+
+if ( not defined $root ) {
+	die "usage: $0 prefix root-dir\n";
+}
+
+if ( ! -d $root ) {
+	die "root directory $root not found\n";
+}
+
+my $version = "unknown";
+my $tainted = "";
+
+if ( -d "$root/.git" ) {
+	# attempt to work out git version. only do so
+	# on a linux build host, as cygwin builds are
+	# already slow enough
+
+	if ( -f "/usr/bin/git" || -f "/usr/local/bin/git" ) {
+		if (not open(F, "git --git-dir $root/.git rev-parse --verify HEAD|")) {
+			$version = "no git version";
+		}
+		else {
+			$version = <F>;
+			$version =~ s/[ \r\n]*$//;     # chomp may not be enough (cygwin).
+			$version =~ s/^[ \r\n]*//;     # chomp may not be enough (cygwin).
+		}
+
+		if (open(G, "git --git-dir $root/.git status --porcelain|")) {
+			$tainted = <G>;
+			$tainted =~ s/[ \r\n]*$//;     # chomp may not be enough (cygwin).
+			$tainted =~ s/^[ \r\n]*//;     # chomp may not be enough (cygwin).
+			if (length $tainted) {
+			$version = join ' ', $version, "(tainted)";
+		}
+		else {
+			$version = join ' ', $version, "(clean)";
+         }
+		}
+	}
+}
+
+my $hostname = `hostname`;
+$hostname =~ s/[ \r\n]*$//;     # chomp may not be enough (cygwin).
+$hostname =~ s/^[ \r\n]*//;     # chomp may not be enough (cygwin).
+
+
+print STDERR "Version $version\n";
+print <<EOF;
+#include "${prefix}_build_info.h"
+#include <linux/broadcom/vc_debug_sym.h>
+
+VC_DEBUG_DECLARE_STRING_VAR( ${prefix}_build_hostname, "$hostname" );
+VC_DEBUG_DECLARE_STRING_VAR( ${prefix}_build_version, "$version" );
+VC_DEBUG_DECLARE_STRING_VAR( ${prefix}_build_time,    __TIME__ );
+VC_DEBUG_DECLARE_STRING_VAR( ${prefix}_build_date,    __DATE__ );
+
+const char *vchiq_get_build_hostname( void )
+{
+   return vchiq_build_hostname;
+}
+
+const char *vchiq_get_build_version( void )
+{
+   return vchiq_build_version;
+}
+
+const char *vchiq_get_build_date( void )
+{
+   return vchiq_build_date;
+}
+
+const char *vchiq_get_build_time( void )
+{
+   return vchiq_build_time;
+}
+EOF

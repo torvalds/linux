@@ -43,7 +43,7 @@
 
 #define TORTURE_FLAG "-torture:"
 #define TOROUT_STRING(s) \
-	pr_alert("%s" TORTURE_FLAG s "\n", torture_type)
+	pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s)
 #define VERBOSE_TOROUT_STRING(s) \
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s); } while (0)
 #define VERBOSE_TOROUT_ERRSTRING(s) \

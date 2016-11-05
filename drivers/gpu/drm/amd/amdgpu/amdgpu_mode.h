@@ -39,6 +39,8 @@
 #include <drm/drm_plane_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/hrtimer.h>
+#include "amdgpu_irq.h"
 
 struct amdgpu_bo;
 struct amdgpu_device;
@@ -339,6 +341,8 @@ struct amdgpu_mode_info {
 	int			num_dig; /* number of dig blocks */
 	int			disp_priority;
 	const struct amdgpu_display_funcs *funcs;
+	struct hrtimer vblank_timer;
+	enum amdgpu_interrupt_state vsync_timer_enabled;
 };
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
@@ -587,10 +591,10 @@ int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tile
 void amdgpu_print_display_setup(struct drm_device *dev);
 int amdgpu_modeset_create_props(struct amdgpu_device *adev);
 int amdgpu_crtc_set_config(struct drm_mode_set *set);
-int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb,
-			  struct drm_pending_vblank_event *event,
-			  uint32_t page_flip_flags);
+int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_pending_vblank_event *event,
+				 uint32_t page_flip_flags, uint32_t target);
 extern const struct drm_mode_config_funcs amdgpu_mode_funcs;
 
 #endif

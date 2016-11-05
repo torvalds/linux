@@ -160,7 +160,8 @@ struct vme_bridge {
 	int (*lm_set) (struct vme_lm_resource *, unsigned long long, u32, u32);
 	int (*lm_get) (struct vme_lm_resource *, unsigned long long *, u32 *,
 		u32 *);
-	int (*lm_attach) (struct vme_lm_resource *, int, void (*callback)(int));
+	int (*lm_attach)(struct vme_lm_resource *, int,
+			 void (*callback)(void *), void *);
 	int (*lm_detach) (struct vme_lm_resource *, int);
 
 	/* CR/CSR space functions */

@@ -24,12 +24,12 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -37,7 +37,7 @@
 		regulator-boot-on;
 	};
 
-	wl12xx_vmmc: fixedregulator@2 {
+	wl12xx_vmmc: fixedregulator2 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&wl12xx_gpio>;
 		compatible = "regulator-fixed";

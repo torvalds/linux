@@ -596,19 +596,20 @@ BUILD_PERDEV_HELPER(cpu_down)       /* int mips_cdmm_cpu_down_helper(...) */
 BUILD_PERDEV_HELPER(cpu_up)         /* int mips_cdmm_cpu_up_helper(...) */
 
 /**
- * mips_cdmm_bus_down() - Tear down the CDMM bus.
- * @data:	Pointer to unsigned int CPU number.
+ * mips_cdmm_cpu_down_prep() - Callback for CPUHP DOWN_PREP:
+ *			       Tear down the CDMM bus.
+ * @cpu:	unsigned int CPU number.
  *
  * This function is executed on the hotplugged CPU and calls the CDMM
  * driver cpu_down callback for all devices on that CPU.
  */
-static long mips_cdmm_bus_down(void *data)
+static int mips_cdmm_cpu_down_prep(unsigned int cpu)
 {
 	struct mips_cdmm_bus *bus;
 	long ret;
 
 	/* Inform all the devices on the bus */
-	ret = bus_for_each_dev(&mips_cdmm_bustype, NULL, data,
+	ret = bus_for_each_dev(&mips_cdmm_bustype, NULL, &cpu,
 			       mips_cdmm_cpu_down_helper);
 
 	/*
@@ -623,8 +624,8 @@ static long mips_cdmm_bus_down(void *data)
 }
 
 /**
- * mips_cdmm_bus_up() - Bring up the CDMM bus.
- * @data:	Pointer to unsigned int CPU number.
+ * mips_cdmm_cpu_online() - Callback for CPUHP ONLINE: Bring up the CDMM bus.
+ * @cpu:	unsigned int CPU number.
  *
  * This work_on_cpu callback function is executed on a given CPU to discover
  * CDMM devices on that CPU, or to call the CDMM driver cpu_up callback for all
@@ -634,7 +635,7 @@ static long mips_cdmm_bus_down(void *data)
  * initialisation. When CPUs are brought online the function is
  * invoked directly on the hotplugged CPU.
  */
-static long mips_cdmm_bus_up(void *data)
+static int mips_cdmm_cpu_online(unsigned int cpu)
 {
 	struct mips_cdmm_bus *bus;
 	long ret;
@@ -651,49 +652,11 @@ static long mips_cdmm_bus_up(void *data)
 		mips_cdmm_bus_discover(bus);
 	else
 		/* Inform all the devices on the bus */
-		ret = bus_for_each_dev(&mips_cdmm_bustype, NULL, data,
+		ret = bus_for_each_dev(&mips_cdmm_bustype, NULL, &cpu,
 				       mips_cdmm_cpu_up_helper);
 
 	return ret;
 }
-
-/**
- * mips_cdmm_cpu_notify() - Take action when a CPU is going online or offline.
- * @nb:		CPU notifier block .
- * @action:	Event that has taken place (CPU_*).
- * @data:	CPU number.
- *
- * This notifier is used to keep the CDMM buses updated as CPUs are offlined and
- * onlined. When CPUs go offline or come back online, so does their CDMM bus, so
- * devices must be informed. Also when CPUs come online for the first time the
- * devices on the CDMM bus need discovering.
- *
- * Returns:	NOTIFY_OK if event was used.
- *		NOTIFY_DONE if we didn't care.
- */
-static int mips_cdmm_cpu_notify(struct notifier_block *nb,
-				unsigned long action, void *data)
-{
-	unsigned int cpu = (unsigned int)data;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		mips_cdmm_bus_up(&cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		mips_cdmm_bus_down(&cpu);
-		break;
-	default:
-		return NOTIFY_DONE;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block mips_cdmm_cpu_nb = {
-	.notifier_call = mips_cdmm_cpu_notify,
-};
 
 /**
  * mips_cdmm_init() - Initialise CDMM bus.
@@ -703,7 +666,6 @@ static struct notifier_block mips_cdmm_cpu_nb = {
  */
 static int __init mips_cdmm_init(void)
 {
-	unsigned int cpu;
 	int ret;
 
 	/* Register the bus */
@@ -712,19 +674,11 @@ static int __init mips_cdmm_init(void)
 		return ret;
 
 	/* We want to be notified about new CPUs */
-	ret = register_cpu_notifier(&mips_cdmm_cpu_nb);
-	if (ret) {
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "bus/cdmm:online",
+				mips_cdmm_cpu_online, mips_cdmm_cpu_down_prep);
+	if (ret < 0)
 		pr_warn("cdmm: Failed to register CPU notifier\n");
-		goto out;
-	}
 
-	/* Discover devices on CDMM of online CPUs */
-	for_each_online_cpu(cpu)
-		work_on_cpu(cpu, mips_cdmm_bus_up, &cpu);
-
-	return 0;
-out:
-	bus_unregister(&mips_cdmm_bustype);
 	return ret;
 }
 subsys_initcall(mips_cdmm_init);

@@ -686,8 +686,8 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 	if (!pages)
 		return -ENOMEM;
 
-	ret = get_user_pages_unlocked((unsigned long)buf, nr_pages, WRITE,
-			0, pages);
+	ret = get_user_pages_unlocked((unsigned long)buf, nr_pages, pages,
+			FOLL_WRITE);
 
 	if (ret < nr_pages) {
 		nr_pages = ret;

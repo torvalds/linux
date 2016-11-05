@@ -243,8 +243,8 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	rd->ent = debugfs_create_file("rd", S_IFREG | S_IRUGO,
 			minor->debugfs_root, rd, &rd_debugfs_fops);
 	if (!rd->ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/rd\n",
-				minor->debugfs_root->d_name.name);
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/rd\n",
+				minor->debugfs_root);
 		goto fail;
 	}
 

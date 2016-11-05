@@ -72,10 +72,25 @@
 #include "p80211metastruct.h"
 #include "p80211req.h"
 
-static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg);
-static void p80211req_mibset_mibget(wlandevice_t *wlandev,
+static void p80211req_handlemsg(struct wlandevice *wlandev, struct p80211msg *msg);
+static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 				   struct p80211msg_dot11req_mibget *mib_msg,
 				   int isget);
+
+static void p80211req_handle_action(struct wlandevice *wlandev, u32 *data,
+				    int isget, u32 flag)
+{
+	if (isget) {
+		if (wlandev->hostwep & flag)
+			*data = P80211ENUM_truth_true;
+		else
+			*data = P80211ENUM_truth_false;
+	} else {
+		wlandev->hostwep &= ~flag;
+		if (*data == P80211ENUM_truth_true)
+			wlandev->hostwep |= flag;
+	}
+}
 
 /*----------------------------------------------------------------
 * p80211req_dorequest
@@ -93,9 +108,9 @@ static void p80211req_mibset_mibget(wlandevice_t *wlandev,
 *	Potentially blocks the caller, so it's a good idea to
 *	not call this function from an interrupt context.
 ----------------------------------------------------------------*/
-int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
+int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 {
-	struct p80211msg *msg = (struct p80211msg *) msgbuf;
+	struct p80211msg *msg = (struct p80211msg *)msgbuf;
 
 	/* Check to make sure the MSD is running */
 	if (!((wlandev->msdstate == WLAN_MSD_HWPRESENT &&
@@ -149,13 +164,13 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 * Call context:
 *	Process thread
 ----------------------------------------------------------------*/
-static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg)
+static void p80211req_handlemsg(struct wlandevice *wlandev, struct p80211msg *msg)
 {
 	switch (msg->msgcode) {
 
 	case DIDmsg_lnxreq_hostwep:{
 		struct p80211msg_lnxreq_hostwep *req =
-			(struct p80211msg_lnxreq_hostwep *) msg;
+			(struct p80211msg_lnxreq_hostwep *)msg;
 		wlandev->hostwep &=
 				~(HOSTWEP_DECRYPT | HOSTWEP_ENCRYPT);
 		if (req->decrypt.data == P80211ENUM_truth_true)
@@ -169,44 +184,34 @@ static void p80211req_handlemsg(wlandevice_t *wlandev, struct p80211msg *msg)
 	case DIDmsg_dot11req_mibset:{
 		int isget = (msg->msgcode == DIDmsg_dot11req_mibget);
 		struct p80211msg_dot11req_mibget *mib_msg =
-			(struct p80211msg_dot11req_mibget *) msg;
+			(struct p80211msg_dot11req_mibget *)msg;
 		p80211req_mibset_mibget(wlandev, mib_msg, isget);
 	break;
 	}
 	}			/* switch msg->msgcode */
 }
 
-static void p80211req_mibset_mibget(wlandevice_t *wlandev,
+static void p80211req_mibset_mibget(struct wlandevice *wlandev,
 				   struct p80211msg_dot11req_mibget *mib_msg,
 				   int isget)
 {
-	p80211itemd_t *mibitem = (p80211itemd_t *) mib_msg->mibattribute.data;
-	p80211pstrd_t *pstr = (p80211pstrd_t *) mibitem->data;
-	u8 *key = mibitem->data + sizeof(p80211pstrd_t);
+	struct p80211itemd *mibitem = (struct p80211itemd *)mib_msg->mibattribute.data;
+	struct p80211pstrd *pstr = (struct p80211pstrd *)mibitem->data;
+	u8 *key = mibitem->data + sizeof(struct p80211pstrd);
 
 	switch (mibitem->did) {
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0:{
+	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(1):
+	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(2):
+	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(3):
+	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_key(4):
 		if (!isget)
-			wep_change_key(wlandev, 0, key, pstr->len);
-	break;
-	}
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1:{
-		if (!isget)
-			wep_change_key(wlandev, 1, key, pstr->len);
-	break;
-	}
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2:{
-		if (!isget)
-			wep_change_key(wlandev, 2, key, pstr->len);
-	break;
-	}
-	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3:{
-		if (!isget)
-			wep_change_key(wlandev, 3, key, pstr->len);
-	break;
-	}
+			wep_change_key(wlandev,
+				       P80211DID_ITEM(mibitem->did) - 1,
+				       key, pstr->len);
+		break;
+
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID:{
-		u32 *data = (u32 *) mibitem->data;
+		u32 *data = (u32 *)mibitem->data;
 
 		if (isget) {
 			*data = wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK;
@@ -217,33 +222,17 @@ static void p80211req_mibset_mibget(wlandevice_t *wlandev,
 	break;
 	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked:{
-		u32 *data = (u32 *) mibitem->data;
+		u32 *data = (u32 *)mibitem->data;
 
-		if (isget) {
-			if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
-				*data = P80211ENUM_truth_true;
-			else
-				*data = P80211ENUM_truth_false;
-		} else {
-			wlandev->hostwep &= ~(HOSTWEP_PRIVACYINVOKED);
-			if (*data == P80211ENUM_truth_true)
-				wlandev->hostwep |= HOSTWEP_PRIVACYINVOKED;
-		}
+		p80211req_handle_action(wlandev, data, isget,
+					HOSTWEP_PRIVACYINVOKED);
 	break;
 	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted:{
-		u32 *data = (u32 *) mibitem->data;
+		u32 *data = (u32 *)mibitem->data;
 
-		if (isget) {
-			if (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED)
-				*data = P80211ENUM_truth_true;
-			else
-				*data = P80211ENUM_truth_false;
-		} else {
-			wlandev->hostwep &= ~(HOSTWEP_EXCLUDEUNENCRYPTED);
-			if (*data == P80211ENUM_truth_true)
-				wlandev->hostwep |= HOSTWEP_EXCLUDEUNENCRYPTED;
-		}
+		p80211req_handle_action(wlandev, data, isget,
+					HOSTWEP_EXCLUDEUNENCRYPTED);
 	break;
 	}
 	}

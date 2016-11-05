@@ -7,6 +7,7 @@
 #include <asm/assembler.h>
 #include <asm/ftrace.h>
 #include <asm/unwind.h>
+#include <asm/export.h>
 
 #include "entry-header.S"
 
@@ -153,6 +154,7 @@ ENTRY(mcount)
 	__mcount _old
 #endif
 ENDPROC(mcount)
+EXPORT_SYMBOL(mcount)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(ftrace_caller_old)
@@ -205,6 +207,7 @@ UNWIND(.fnstart)
 #endif
 UNWIND(.fnend)
 ENDPROC(__gnu_mcount_nc)
+EXPORT_SYMBOL(__gnu_mcount_nc)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(ftrace_caller)

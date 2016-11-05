@@ -45,6 +45,7 @@ enum clk_ids {
 	CLK_S3,
 	CLK_SDSRC,
 	CLK_SSPSRC,
+	CLK_RINT,
 
 	/* Module Clocks */
 	MOD_CLK_BASE
@@ -69,6 +70,7 @@ static const struct cpg_core_clk r8a7796_core_clks[] __initconst = {
 	DEF_FIXED(".s1",        CLK_S1,            CLK_PLL1_DIV2,  3, 1),
 	DEF_FIXED(".s2",        CLK_S2,            CLK_PLL1_DIV2,  4, 1),
 	DEF_FIXED(".s3",        CLK_S3,            CLK_PLL1_DIV2,  6, 1),
+	DEF_FIXED(".sdsrc",     CLK_SDSRC,         CLK_PLL1_DIV2,  2, 1),
 
 	/* Core Clock Outputs */
 	DEF_FIXED("ztr",        R8A7796_CLK_ZTR,   CLK_PLL1_DIV2,  6, 1),
@@ -92,13 +94,42 @@ static const struct cpg_core_clk r8a7796_core_clks[] __initconst = {
 	DEF_FIXED("s3d2",       R8A7796_CLK_S3D2,  CLK_S3,         2, 1),
 	DEF_FIXED("s3d4",       R8A7796_CLK_S3D4,  CLK_S3,         4, 1),
 
+	DEF_GEN3_SD("sd0",      R8A7796_CLK_SD0,   CLK_SDSRC,    0x0074),
+	DEF_GEN3_SD("sd1",      R8A7796_CLK_SD1,   CLK_SDSRC,    0x0078),
+	DEF_GEN3_SD("sd2",      R8A7796_CLK_SD2,   CLK_SDSRC,    0x0268),
+	DEF_GEN3_SD("sd3",      R8A7796_CLK_SD3,   CLK_SDSRC,    0x026c),
+
 	DEF_FIXED("cl",         R8A7796_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
 	DEF_FIXED("cp",         R8A7796_CLK_CP,    CLK_EXTAL,      2, 1),
+
+	DEF_DIV6_RO("osc",      R8A7796_CLK_OSC,   CLK_EXTAL, CPG_RCKCR,  8),
+	DEF_DIV6_RO("r_int",    CLK_RINT,          CLK_EXTAL, CPG_RCKCR, 32),
+
+	DEF_BASE("r",           R8A7796_CLK_R,     CLK_TYPE_GEN3_R, CLK_RINT),
 };
 
 static const struct mssr_mod_clk r8a7796_mod_clks[] __initconst = {
+	DEF_MOD("cmt3",			 300,	R8A7796_CLK_R),
+	DEF_MOD("cmt2",			 301,	R8A7796_CLK_R),
+	DEF_MOD("cmt1",			 302,	R8A7796_CLK_R),
+	DEF_MOD("cmt0",			 303,	R8A7796_CLK_R),
 	DEF_MOD("scif2",		 310,	R8A7796_CLK_S3D4),
+	DEF_MOD("sdif3",		 311,	R8A7796_CLK_SD3),
+	DEF_MOD("sdif2",		 312,	R8A7796_CLK_SD2),
+	DEF_MOD("sdif1",		 313,	R8A7796_CLK_SD1),
+	DEF_MOD("sdif0",		 314,	R8A7796_CLK_SD0),
+	DEF_MOD("rwdt0",		 402,	R8A7796_CLK_R),
 	DEF_MOD("intc-ap",		 408,	R8A7796_CLK_S3D1),
+	DEF_MOD("thermal",		 522,	R8A7796_CLK_CP),
+	DEF_MOD("etheravb",		 812,	R8A7796_CLK_S0D6),
+	DEF_MOD("gpio7",		 905,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio6",		 906,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio5",		 907,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio4",		 908,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio3",		 909,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio2",		 910,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio1",		 911,	R8A7796_CLK_S3D4),
+	DEF_MOD("gpio0",		 912,	R8A7796_CLK_S3D4),
 };
 
 static const unsigned int r8a7796_crit_mod_clks[] __initconst = {

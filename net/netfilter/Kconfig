@@ -474,6 +474,12 @@ config NFT_META
 	  This option adds the "meta" expression that you can use to match and
 	  to set packet metainformation such as the packet mark.
 
+config NFT_NUMGEN
+	tristate "Netfilter nf_tables number generator module"
+	help
+	  This option adds the number generator expression used to perform
+	  incremental counting and random numbers bound to a upper limit.
+
 config NFT_CT
 	depends on NF_CONNTRACK
 	tristate "Netfilter nf_tables conntrack module"
@@ -481,13 +487,13 @@ config NFT_CT
 	  This option adds the "meta" expression that you can use to match
 	  connection tracking information such as the flow state.
 
-config NFT_RBTREE
+config NFT_SET_RBTREE
 	tristate "Netfilter nf_tables rbtree set module"
 	help
 	  This option adds the "rbtree" set type (Red Black tree) that is used
 	  to build interval-based sets.
 
-config NFT_HASH
+config NFT_SET_HASH
 	tristate "Netfilter nf_tables hash set module"
 	help
 	  This option adds the "hash" set type that is used to build one-way
@@ -542,6 +548,12 @@ config NFT_QUEUE
 	  This is required if you intend to use the userspace queueing
 	  infrastructure (also known as NFQUEUE) from nftables.
 
+config NFT_QUOTA
+	tristate "Netfilter nf_tables quota module"
+	help
+	  This option adds the "quota" expression that you can use to match
+	  enforce bytes quotas.
+
 config NFT_REJECT
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
@@ -562,6 +574,12 @@ config NFT_COMPAT
 	  This is required if you intend to use any of existing
 	  x_tables match/target extensions over the nf_tables
 	  framework.
+
+config NFT_HASH
+	tristate "Netfilter nf_tables hash module"
+	help
+	  This option adds the "hash" expression that you can use to perform
+	  a hash operation on registers.
 
 if NF_TABLES_NETDEV
 

@@ -134,17 +134,9 @@ static void fsl_re_issue_pending(struct dma_chan *chan)
 
 static void fsl_re_desc_done(struct fsl_re_desc *desc)
 {
-	dma_async_tx_callback callback;
-	void *callback_param;
-
 	dma_cookie_complete(&desc->async_tx);
-
-	callback = desc->async_tx.callback;
-	callback_param = desc->async_tx.callback_param;
-	if (callback)
-		callback(callback_param);
-
 	dma_descriptor_unmap(&desc->async_tx);
+	dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
 }
 
 static void fsl_re_cleanup_descs(struct fsl_re_chan *re_chan)
@@ -670,7 +662,7 @@ static int fsl_re_chan_probe(struct platform_device *ofdev,
 
 	/* read irq property from dts */
 	chan->irq = irq_of_parse_and_map(np, 0);
-	if (chan->irq == NO_IRQ) {
+	if (!chan->irq) {
 		dev_err(dev, "No IRQ defined for JR %d\n", q);
 		ret = -ENODEV;
 		goto err_free;

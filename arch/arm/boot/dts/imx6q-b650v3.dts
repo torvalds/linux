@@ -89,3 +89,12 @@
 		};
 	};
 };
+
+&pca9539 {
+	P05 {
+		gpio-hog;
+		gpios = <5 0>;
+		output-low;
+		line-name = "PCA9539-P05";
+	};
+};

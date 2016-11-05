@@ -30,13 +30,19 @@
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
 #define  OCTEON_CN66XX_PCIID          0x92177d
-
+#define  OCTEON_CN23XX_PCIID_PF       0x9702177d
 /** Driver identifies chips by these Ids, created by clubbing together
  *  DeviceId+RevisionId; Where Revision Id is not used to distinguish
  *  between chips, a value of 0 is used for revision id.
  */
 #define  OCTEON_CN68XX                0x0091
 #define  OCTEON_CN66XX                0x0092
+#define  OCTEON_CN23XX_PF_VID         0x9702
+
+/**RevisionId for the chips */
+#define  OCTEON_CN23XX_REV_1_0        0x00
+#define  OCTEON_CN23XX_REV_1_1        0x01
+#define  OCTEON_CN23XX_REV_2_0        0x80
 
 /** Endian-swap modes supported by Octeon. */
 enum octeon_pci_swap_mode {
@@ -45,6 +51,9 @@ enum octeon_pci_swap_mode {
 	OCTEON_PCI_32BIT_BYTE_SWAP = 2,
 	OCTEON_PCI_32BIT_LW_SWAP = 3
 };
+
+#define  OCTEON_OUTPUT_INTR   (2)
+#define  OCTEON_ALL_INTR      0xff
 
 /*---------------   PCI BAR1 index registers -------------*/
 
@@ -198,9 +207,9 @@ struct octeon_fn_list {
 	void (*setup_oq_regs)(struct octeon_device *, u32);
 
 	irqreturn_t (*process_interrupt_regs)(void *);
+	u64 (*msix_interrupt_handler)(void *);
 	int (*soft_reset)(struct octeon_device *);
 	int (*setup_device_regs)(struct octeon_device *);
-	void (*reinit_regs)(struct octeon_device *);
 	void (*bar1_idx_setup)(struct octeon_device *, u64, u32, int);
 	void (*bar1_idx_write)(struct octeon_device *, u32, u32);
 	u32 (*bar1_idx_read)(struct octeon_device *, u32);
@@ -209,10 +218,10 @@ struct octeon_fn_list {
 	void (*enable_oq_pkt_time_intr)(struct octeon_device *, u32);
 	void (*disable_oq_pkt_time_intr)(struct octeon_device *, u32);
 
-	void (*enable_interrupt)(void *);
-	void (*disable_interrupt)(void *);
+	void (*enable_interrupt)(struct octeon_device *, u8);
+	void (*disable_interrupt)(struct octeon_device *, u8);
 
-	void (*enable_io_queues)(struct octeon_device *);
+	int (*enable_io_queues)(struct octeon_device *);
 	void (*disable_io_queues)(struct octeon_device *);
 };
 
@@ -266,9 +275,70 @@ struct octdev_props {
 	/* Each interface in the Octeon device has a network
 	 * device pointer (used for OS specific calls).
 	 */
+	int    rx_on;
 	int    napi_enabled;
 	int    gmxport;
 	struct net_device *netdev;
+};
+
+#define LIO_FLAG_MSIX_ENABLED	0x1
+#define MSIX_PO_INT		0x1
+#define MSIX_PI_INT		0x2
+
+struct octeon_pf_vf_hs_word {
+#ifdef __LITTLE_ENDIAN_BITFIELD
+	/** PKIND value assigned for the DPI interface */
+	u64        pkind : 8;
+
+	/** OCTEON core clock multiplier   */
+	u64        core_tics_per_us : 16;
+
+	/** OCTEON coprocessor clock multiplier  */
+	u64        coproc_tics_per_us : 16;
+
+	/** app that currently running on OCTEON  */
+	u64        app_mode : 8;
+
+	/** RESERVED */
+	u64 reserved : 16;
+
+#else
+
+	/** RESERVED */
+	u64 reserved : 16;
+
+	/** app that currently running on OCTEON  */
+	u64        app_mode : 8;
+
+	/** OCTEON coprocessor clock multiplier  */
+	u64        coproc_tics_per_us : 16;
+
+	/** OCTEON core clock multiplier   */
+	u64        core_tics_per_us : 16;
+
+	/** PKIND value assigned for the DPI interface */
+	u64        pkind : 8;
+#endif
+};
+
+struct octeon_sriov_info {
+	/* Actual rings left for PF device */
+	u32	num_pf_rings;
+
+	/* SRN of PF usable IO queues   */
+	u32	pf_srn;
+	/* total pf rings */
+	u32	trs;
+
+};
+
+struct octeon_ioq_vector {
+	struct octeon_device   *oct_dev;
+	int		        iq_index;
+	int		        droq_index;
+	int			vector;
+	struct cpumask		affinity_mask;
+	u32			ioq_num;
 };
 
 /** The Octeon device.
@@ -296,7 +366,7 @@ struct octeon_device {
 	/** Octeon Chip type. */
 	u16 chip_id;
 	u16 rev_id;
-
+	u16 pf_num;
 	/** This device's id - set by the driver. */
 	u32 octeon_id;
 
@@ -305,7 +375,6 @@ struct octeon_device {
 
 	u16 flags;
 #define LIO_FLAG_MSI_ENABLED                  (u32)(1 << 1)
-#define LIO_FLAG_MSIX_ENABLED                 (u32)(1 << 2)
 
 	/** The state of this device */
 	atomic_t status;
@@ -395,6 +464,19 @@ struct octeon_device {
 
 	void *priv;
 
+	int num_msix_irqs;
+
+	void *msix_entries;
+
+	struct octeon_sriov_info sriov_info;
+
+	struct octeon_pf_vf_hs_word pfvf_hsword;
+
+	int msix_on;
+
+	/** IOq information of it's corresponding MSI-X interrupt. */
+	struct octeon_ioq_vector    *ioq_vector;
+
 	int rx_pause;
 	int tx_pause;
 
@@ -402,12 +484,15 @@ struct octeon_device {
 
 	/* private flags to control driver-specific features through ethtool */
 	u32 priv_flags;
+
+	void *watchdog_task;
 };
 
 #define  OCT_DRV_ONLINE 1
 #define  OCT_DRV_OFFLINE 2
 #define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
 				       (oct->chip_id == OCTEON_CN68XX))
+#define  OCTEON_CN23XX_PF(oct)        (oct->chip_id == OCTEON_CN23XX_PF_VID)
 #define CHIP_FIELD(oct, TYPE, field)             \
 	(((struct octeon_ ## TYPE  *)(oct->chip))->field)
 
@@ -661,13 +746,24 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
  */
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
+void octeon_free_ioq_vector(struct octeon_device *oct);
+int octeon_allocate_ioq_vector(struct octeon_device  *oct);
+void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq);
+
 /* LiquidIO driver pivate flags */
 enum {
 	OCT_PRIV_FLAG_TX_BYTES = 0, /* Tx interrupts by pending byte count */
 };
 
-static inline void lio_set_priv_flag(struct octeon_device *octdev, u32 flag,
-				     u32 val)
+#define OCT_PRIV_FLAG_DEFAULT 0x0
+
+static inline u32 lio_get_priv_flag(struct octeon_device *octdev, u32 flag)
+{
+	return !!(octdev->priv_flags & (0x1 << flag));
+}
+
+static inline void lio_set_priv_flag(struct octeon_device *octdev,
+				     u32 flag, u32 val)
 {
 	if (val)
 		octdev->priv_flags |= (0x1 << flag);

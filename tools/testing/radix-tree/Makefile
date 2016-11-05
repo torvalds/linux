@@ -3,7 +3,8 @@ CFLAGS += -I. -g -O2 -Wall -D_LGPL_SOURCE
 LDFLAGS += -lpthread -lurcu
 TARGETS = main
 OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
-	 regression1.o regression2.o regression3.o multiorder.o
+	 regression1.o regression2.o regression3.o multiorder.o \
+	 iteration_check.o
 
 targets: $(TARGETS)
 

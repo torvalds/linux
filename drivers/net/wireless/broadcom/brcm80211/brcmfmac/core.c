@@ -136,27 +136,6 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 			  err);
 }
 
-static void
-_brcmf_set_mac_address(struct work_struct *work)
-{
-	struct brcmf_if *ifp;
-	s32 err;
-
-	ifp = container_of(work, struct brcmf_if, setmacaddr_work);
-
-	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
-
-	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", ifp->mac_addr,
-				       ETH_ALEN);
-	if (err < 0) {
-		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
-	} else {
-		brcmf_dbg(TRACE, "MAC address updated to %pM\n",
-			  ifp->mac_addr);
-		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
-	}
-}
-
 #if IS_ENABLED(CONFIG_IPV6)
 static void _brcmf_update_ndtable(struct work_struct *work)
 {
@@ -190,10 +169,20 @@ static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct sockaddr *sa = (struct sockaddr *)addr;
+	int err;
 
-	memcpy(&ifp->mac_addr, sa->sa_data, ETH_ALEN);
-	schedule_work(&ifp->setmacaddr_work);
-	return 0;
+	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
+
+	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", sa->sa_data,
+				       ETH_ALEN);
+	if (err < 0) {
+		brcmf_err("Setting cur_etheraddr failed, %d\n", err);
+	} else {
+		brcmf_dbg(TRACE, "updated to %pM\n", sa->sa_data);
+		memcpy(ifp->mac_addr, sa->sa_data, ETH_ALEN);
+		memcpy(ifp->ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+	}
+	return err;
 }
 
 static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
@@ -519,13 +508,9 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	ndev->needed_headroom += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
-	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
-			      drvr->hdrlen;
-
 	/* set the mac address */
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
 
-	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 	INIT_WORK(&ifp->ndoffload_work, _brcmf_update_ndtable);
 
@@ -730,7 +715,6 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
 		}
 
 		if (ifp->ndev->netdev_ops == &brcmf_netdev_ops_pri) {
-			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
 			cancel_work_sync(&ifp->ndoffload_work);
 		}
@@ -886,9 +870,12 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 		}
 		break;
 	case NETDEV_DOWN:
-		if (i < NDOL_MAX_ENTRIES)
-			for (; i < ifp->ipv6addr_idx; i++)
+		if (i < NDOL_MAX_ENTRIES) {
+			for (; i < ifp->ipv6addr_idx - 1; i++)
 				table[i] = table[i + 1];
+			memset(&table[i], 0, sizeof(table[i]));
+			ifp->ipv6addr_idx--;
+		}
 		break;
 	default:
 		break;
@@ -1061,8 +1048,7 @@ fail:
 		brcmf_fws_del_interface(ifp);
 		brcmf_fws_deinit(drvr);
 	}
-	if (ifp)
-		brcmf_net_detach(ifp->ndev, false);
+	brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
 		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
@@ -1169,7 +1155,8 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 				 !brcmf_get_pend_8021x_cnt(ifp),
 				 MAX_WAIT_FOR_8021X_TX);
 
-	WARN_ON(!err);
+	if (!err)
+		brcmf_err("Timed out waiting for no pending 802.1x packets\n");
 
 	return !err;
 }

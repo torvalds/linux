@@ -13,8 +13,8 @@
  * option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -39,7 +39,6 @@ static unsigned int vme_bus_numbers;
 static LIST_HEAD(vme_bus_list);
 static DEFINE_MUTEX(vme_buses_lock);
 
-static void __exit vme_exit(void);
 static int __init vme_init(void);
 
 static struct vme_dev *dev_to_vme_dev(struct device *dev)
@@ -157,12 +156,16 @@ size_t vme_get_size(struct vme_resource *resource)
 	case VME_MASTER:
 		retval = vme_master_get(resource, &enabled, &base, &size,
 			&aspace, &cycle, &dwidth);
+		if (retval)
+			return 0;
 
 		return size;
 		break;
 	case VME_SLAVE:
 		retval = vme_slave_get(resource, &enabled, &base, &size,
 			&buf_base, &aspace, &cycle);
+		if (retval)
+			return 0;
 
 		return size;
 		break;
@@ -1321,7 +1324,7 @@ int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
 EXPORT_SYMBOL(vme_lm_get);
 
 int vme_lm_attach(struct vme_resource *resource, int monitor,
-	void (*callback)(int))
+	void (*callback)(void *), void *data)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_lm_resource *lm;
@@ -1338,7 +1341,7 @@ int vme_lm_attach(struct vme_resource *resource, int monitor,
 		return -EINVAL;
 	}
 
-	return bridge->lm_attach(lm, monitor, callback);
+	return bridge->lm_attach(lm, monitor, callback, data);
 }
 EXPORT_SYMBOL(vme_lm_attach);
 
@@ -1622,25 +1625,10 @@ static int vme_bus_probe(struct device *dev)
 	return retval;
 }
 
-static int vme_bus_remove(struct device *dev)
-{
-	int retval = -ENODEV;
-	struct vme_driver *driver;
-	struct vme_dev *vdev = dev_to_vme_dev(dev);
-
-	driver = dev->platform_data;
-
-	if (driver->remove != NULL)
-		retval = driver->remove(vdev);
-
-	return retval;
-}
-
 struct bus_type vme_bus_type = {
 	.name = "vme",
 	.match = vme_bus_match,
 	.probe = vme_bus_probe,
-	.remove = vme_bus_remove,
 };
 EXPORT_SYMBOL(vme_bus_type);
 
@@ -1648,11 +1636,4 @@ static int __init vme_init(void)
 {
 	return bus_register(&vme_bus_type);
 }
-
-static void __exit vme_exit(void)
-{
-	bus_unregister(&vme_bus_type);
-}
-
 subsys_initcall(vme_init);
-module_exit(vme_exit);

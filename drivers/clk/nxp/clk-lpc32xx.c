@@ -1513,6 +1513,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 	if (IS_ERR(clk_regmap)) {
 		pr_err("failed to regmap system control block: %ld\n",
 			PTR_ERR(clk_regmap));
+		iounmap(base);
 		return;
 	}
 

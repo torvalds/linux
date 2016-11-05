@@ -24,8 +24,8 @@
  *   pv_latency_wake	- average latency (ns) from vCPU kick to wakeup
  *   pv_lock_slowpath	- # of locking operations via the slowpath
  *   pv_lock_stealing	- # of lock stealing operations
- *   pv_spurious_wakeup	- # of spurious wakeups
- *   pv_wait_again	- # of vCPU wait's that happened after a vCPU kick
+ *   pv_spurious_wakeup	- # of spurious wakeups in non-head vCPUs
+ *   pv_wait_again	- # of wait's after a queue head vCPU kick
  *   pv_wait_early	- # of early vCPU wait's
  *   pv_wait_head	- # of vCPU wait's at the queue head
  *   pv_wait_node	- # of vCPU wait's at a non-head queue node

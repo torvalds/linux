@@ -2480,7 +2480,7 @@ static void srpt_add_one(struct ib_device *device)
 	init_waitqueue_head(&sdev->ch_releaseQ);
 	mutex_init(&sdev->mutex);
 
-	sdev->pd = ib_alloc_pd(device);
+	sdev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(sdev->pd))
 		goto free_dev;
 

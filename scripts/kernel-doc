@@ -212,6 +212,7 @@ my $anon_struct_union = 0;
 my $type_constant = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w+)';
+my $type_fp_param = '\@(\w+)\(\)';  # Special RST handling for func ptr params
 my $type_struct = '\&((struct\s*)*[_\w]+)';
 my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
@@ -292,6 +293,7 @@ my @highlights_rst = (
                        # Note: need to escape () to avoid func matching later
                        [$type_member_func, "\\:c\\:type\\:`\$1\$2\\\\(\\\\) <\$1>`"],
                        [$type_member, "\\:c\\:type\\:`\$1\$2 <\$1>`"],
+		       [$type_fp_param, "**\$1\\\\(\\\\)**"],
                        [$type_func, "\\:c\\:func\\:`\$1()`"],
                        [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
@@ -412,7 +414,7 @@ my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
 # @params and a strictly limited set of supported section names
 my $doc_sect = $doc_com . 
-    '\s*(\@\w+|description|context|returns?|notes?|examples?)\s*:(.*)';
+    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
@@ -1831,13 +1833,22 @@ sub output_function_rst(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $oldprefix = $lineprefix;
-    my $start;
+    my $start = "";
 
-    print ".. c:function:: ";
-    if ($args{'functiontype'} ne "") {
-	$start = $args{'functiontype'} . " " . $args{'function'} . " (";
+    if ($args{'typedef'}) {
+	print ".. c:type:: ". $args{'function'} . "\n\n";
+	print_lineno($declaration_start_line);
+	print "   **Typedef**: ";
+	$lineprefix = "";
+	output_highlight_rst($args{'purpose'});
+	$start = "\n\n**Syntax**\n\n  ``";
     } else {
-	$start = $args{'function'} . " (";
+	print ".. c:function:: ";
+    }
+    if ($args{'functiontype'} ne "") {
+	$start .= $args{'functiontype'} . " " . $args{'function'} . " (";
+    } else {
+	$start .= $args{'function'} . " (";
     }
     print $start;
 
@@ -1849,9 +1860,6 @@ sub output_function_rst(%) {
 	$count++;
 	$type = $args{'parametertypes'}{$parameter};
 
-	# RST doesn't like address_space tags at function prototypes
-	$type =~ s/__(user|kernel|iomem|percpu|pmem|rcu)\s*//;
-
 	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
 	    # pointer-to-function
 	    print $1 . $parameter . ") (" . $2;
@@ -1859,11 +1867,15 @@ sub output_function_rst(%) {
 	    print $type . " " . $parameter;
 	}
     }
-    print ")\n\n";
-    print_lineno($declaration_start_line);
-    $lineprefix = "   ";
-    output_highlight_rst($args{'purpose'});
-    print "\n";
+    if ($args{'typedef'}) {
+	print ");``\n\n";
+    } else {
+	print ")\n\n";
+	print_lineno($declaration_start_line);
+	$lineprefix = "   ";
+	output_highlight_rst($args{'purpose'});
+	print "\n";
+    }
 
     print "**Parameters**\n\n";
     $lineprefix = "  ";
@@ -2003,7 +2015,7 @@ sub output_struct_rst(%) {
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
         print_lineno($parameterdesc_start_lines{$parameter_name});
-	print "``$type $parameter``\n";
+	print "``" . $parameter . "``\n";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	print "\n";
     }
@@ -2193,7 +2205,9 @@ sub dump_typedef($$) {
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
 
     # Parse function prototypes
-    if ($x =~ /typedef\s+(\w+)\s*\(\*\s*(\w\S+)\s*\)\s*\((.*)\);/) {
+    if ($x =~ /typedef\s+(\w+)\s*\(\*\s*(\w\S+)\s*\)\s*\((.*)\);/ ||
+	$x =~ /typedef\s+(\w+)\s*(\w\S+)\s*\s*\((.*)\);/) {
+
 	# Function typedefs
 	$return_type = $1;
 	$declaration_name = $2;
@@ -2204,6 +2218,7 @@ sub dump_typedef($$) {
 	output_declaration($declaration_name,
 			   'function',
 			   {'function' => $declaration_name,
+			    'typedef' => 1,
 			    'module' => $modulename,
 			    'functiontype' => $return_type,
 			    'parameterlist' => \@parameterlist,
@@ -2338,6 +2353,7 @@ sub push_parameter($$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
+	    $param = "...";
 	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
 		$parameterdescs{$param} = "variable arguments";
 	    }

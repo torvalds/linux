@@ -70,6 +70,14 @@ struct xfs_rui_log_item {
 	struct xfs_rui_log_format	rui_format;
 };
 
+static inline size_t
+xfs_rui_log_item_sizeof(
+	unsigned int		nr)
+{
+	return offsetof(struct xfs_rui_log_item, rui_format) +
+			xfs_rui_log_format_sizeof(nr);
+}
+
 /*
  * This is the "rmap update done" log item.  It is used to log the fact that
  * some rmapbt updates mentioned in an earlier rui item have been performed.

@@ -67,7 +67,7 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 									    \
 		kernel_fpu_begin(&vxstate, KERNEL_VXR_LOW);		    \
 		crc = ___crc32_vx(crc, data, aligned);			    \
-		kernel_fpu_end(&vxstate);				    \
+		kernel_fpu_end(&vxstate, KERNEL_VXR_LOW);		    \
 									    \
 		if (remaining)						    \
 			crc = ___crc32_sw(crc, data + aligned, remaining);  \

@@ -28,7 +28,7 @@
  * could be, for instance, in case a neighbor is restarted and its TSF counter
  * reset.
  */
-#define TOFFSET_MAXIMUM_ADJUSTMENT 30000		/* 30 ms */
+#define TOFFSET_MAXIMUM_ADJUSTMENT 800		/* 0.8 ms */
 
 struct sync_method {
 	u8 method;
@@ -70,9 +70,13 @@ void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 	}
 	spin_unlock_bh(&ifmsh->sync_offset_lock);
 
-	tsf = drv_get_tsf(local, sdata);
-	if (tsf != -1ULL)
-		drv_set_tsf(local, sdata, tsf + tsfdelta);
+	if (local->ops->offset_tsf) {
+		drv_offset_tsf(local, sdata, tsfdelta);
+	} else {
+		tsf = drv_get_tsf(local, sdata);
+		if (tsf != -1ULL)
+			drv_set_tsf(local, sdata, tsf + tsfdelta);
+	}
 }
 
 static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,

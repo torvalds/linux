@@ -63,9 +63,13 @@ cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 cpumask_t cpu_core_sib_map[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = CPU_MASK_NONE };
 
+cpumask_t cpu_core_sib_cache_map[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS - 1] = CPU_MASK_NONE };
+
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(cpu_core_map);
 EXPORT_SYMBOL(cpu_core_sib_map);
+EXPORT_SYMBOL(cpu_core_sib_cache_map);
 
 static cpumask_t smp_commenced_mask;
 
@@ -1227,6 +1231,20 @@ void __init smp_setup_processor_id(void)
 		xcall_deliver_impl = hypervisor_xcall_deliver;
 }
 
+void __init smp_fill_in_cpu_possible_map(void)
+{
+	int possible_cpus = num_possible_cpus();
+	int i;
+
+	if (possible_cpus > nr_cpu_ids)
+		possible_cpus = nr_cpu_ids;
+
+	for (i = 0; i < possible_cpus; i++)
+		set_cpu_possible(i, true);
+	for (; i < NR_CPUS; i++)
+		set_cpu_possible(i, false);
+}
+
 void smp_fill_in_sib_core_maps(void)
 {
 	unsigned int i;
@@ -1251,6 +1269,10 @@ void smp_fill_in_sib_core_maps(void)
 		unsigned int j;
 
 		for_each_present_cpu(j)  {
+			if (cpu_data(i).max_cache_id ==
+			    cpu_data(j).max_cache_id)
+				cpumask_set_cpu(j, &cpu_core_sib_cache_map[i]);
+
 			if (cpu_data(i).sock_id == cpu_data(j).sock_id)
 				cpumask_set_cpu(j, &cpu_core_sib_map[i]);
 		}

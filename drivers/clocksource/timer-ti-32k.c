@@ -65,7 +65,7 @@ static inline struct ti_32k *to_ti_32k(struct clocksource *cs)
 	return container_of(cs, struct ti_32k, cs);
 }
 
-static cycle_t ti_32k_read_cycles(struct clocksource *cs)
+static cycle_t notrace ti_32k_read_cycles(struct clocksource *cs)
 {
 	struct ti_32k *ti = to_ti_32k(cs);
 

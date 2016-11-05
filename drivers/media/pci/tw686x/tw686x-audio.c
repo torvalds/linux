@@ -269,7 +269,7 @@ static snd_pcm_uframes_t tw686x_pcm_pointer(struct snd_pcm_substream *ss)
 	return bytes_to_frames(ss->runtime, ac->ptr);
 }
 
-static struct snd_pcm_ops tw686x_pcm_ops = {
+static const struct snd_pcm_ops tw686x_pcm_ops = {
 	.open = tw686x_pcm_open,
 	.close = tw686x_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
