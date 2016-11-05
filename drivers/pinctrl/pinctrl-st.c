@@ -1181,7 +1181,7 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		if (!strcmp(pp->name, "name"))
 			continue;
 
-		if (pp  && (pp->length/sizeof(__be32)) >= OF_GPIO_ARGS_MIN) {
+		if (pp->length / sizeof(__be32) >= OF_GPIO_ARGS_MIN) {
 			npins++;
 		} else {
 			pr_warn("Invalid st,pins in %s node\n", np->name);
