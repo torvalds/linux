@@ -493,6 +493,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		if (!is_locked) {
 			pr_err("pstore dump routine blocked in %s path, may corrupt error record\n"
 				       , in_nmi() ? "NMI" : why);
+			return;
 		}
 	} else {
 		spin_lock_irqsave(&psinfo->buf_lock, flags);
