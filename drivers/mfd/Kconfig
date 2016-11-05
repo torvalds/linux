@@ -894,7 +894,8 @@ config MFD_RN5T618
 	select MFD_CORE
 	select REGMAP_I2C
 	help
-	  Say yes here to add support for the Ricoh RN5T567 or R5T618 PMIC.
+	  Say yes here to add support for the Ricoh RN5T567,
+          RN5T618, RC5T619 PMIC.
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
