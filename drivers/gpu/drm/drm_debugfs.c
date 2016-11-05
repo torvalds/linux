@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_atomic.h>
 #include "drm_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
@@ -161,6 +162,14 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		minor->debugfs_root = NULL;
 		DRM_ERROR("Failed to create core drm debugfs files\n");
 		return ret;
+	}
+
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+		ret = drm_atomic_debugfs_init(minor);
+		if (ret) {
+			DRM_ERROR("Failed to create atomic debugfs files\n");
+			return ret;
+		}
 	}
 
 	if (dev->driver->debugfs_init) {

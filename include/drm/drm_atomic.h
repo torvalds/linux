@@ -366,6 +366,13 @@ int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
 int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 
+void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
+
+#ifdef CONFIG_DEBUG_FS
+struct drm_minor;
+int drm_atomic_debugfs_init(struct drm_minor *minor);
+#endif
+
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->num_connector &&				\

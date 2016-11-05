@@ -1577,6 +1577,69 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
 		drm_atomic_connector_print_state(&p, connector_state);
 }
 
+/**
+ * drm_state_dump - dump entire device atomic state
+ * @dev: the drm device
+ * @p: where to print the state to
+ *
+ * Just for debugging.  Drivers might want an option to dump state
+ * to dmesg in case of error irq's.  (Hint, you probably want to
+ * ratelimit this!)
+ *
+ * The caller must drm_modeset_lock_all(), or if this is called
+ * from error irq handler, it should not be enabled by default.
+ * (Ie. if you are debugging errors you might not care that this
+ * is racey.  But calling this without all modeset locks held is
+ * not inherently safe.)
+ */
+void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+
+	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+		return;
+
+	list_for_each_entry(plane, &config->plane_list, head)
+		drm_atomic_plane_print_state(p, plane->state);
+
+	list_for_each_entry(crtc, &config->crtc_list, head)
+		drm_atomic_crtc_print_state(p, crtc->state);
+
+	list_for_each_entry(connector, &config->connector_list, head)
+		drm_atomic_connector_print_state(p, connector->state);
+}
+EXPORT_SYMBOL(drm_state_dump);
+
+#ifdef CONFIG_DEBUG_FS
+static int drm_state_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	drm_modeset_lock_all(dev);
+	drm_state_dump(dev, &p);
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+/* any use in debugfs files to dump individual planes/crtc/etc? */
+static const struct drm_info_list drm_atomic_debugfs_list[] = {
+	{"state", drm_state_info, 0},
+};
+
+int drm_atomic_debugfs_init(struct drm_minor *minor)
+{
+	return drm_debugfs_create_files(drm_atomic_debugfs_list,
+			ARRAY_SIZE(drm_atomic_debugfs_list),
+			minor->debugfs_root, minor);
+}
+#endif
+
 /*
  * The big monstor ioctl
  */
