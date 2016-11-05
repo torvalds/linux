@@ -302,7 +302,8 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 	drm_printf(p, "name\tinuse\tplane\n");
 	drm_printf(p, "----\t-----\t-----\n");
 
-	drm_modeset_lock(&mdp5_kms->state_lock, NULL);
+	if (drm_can_sleep())
+		drm_modeset_lock(&mdp5_kms->state_lock, NULL);
 
 	/* grab these *after* we hold the state_lock */
 	hwpstate = &mdp5_kms->state->hwpipe;
@@ -329,7 +330,8 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 	drm_printf(p, "AVAIL:\t%d\n", smp->blk_cnt -
 			bitmap_weight(state->state, smp->blk_cnt));
 
-	drm_modeset_unlock(&mdp5_kms->state_lock);
+	if (drm_can_sleep())
+		drm_modeset_unlock(&mdp5_kms->state_lock);
 }
 
 void mdp5_smp_destroy(struct mdp5_smp *smp)
