@@ -711,8 +711,8 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = config->hw->lm.max_width;
-	dev->mode_config.max_height = config->hw->lm.max_height;
+	dev->mode_config.max_width = 0xffff;
+	dev->mode_config.max_height = 0xffff;
 
 	dev->driver->get_vblank_timestamp = mdp5_get_vblank_timestamp;
 	dev->driver->get_scanout_position = mdp5_get_scanoutpos;

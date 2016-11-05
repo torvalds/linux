@@ -280,7 +280,9 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 {
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct drm_plane_state *old_state = plane->state;
+	struct mdp5_cfg *config = mdp5_cfg_get_config(get_kms(plane)->cfg);
 	bool new_hwpipe = false;
+	uint32_t max_width, max_height;
 	uint32_t caps = 0;
 
 	DBG("%s: check (%d -> %d)", plane->name,
@@ -292,6 +294,17 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (WARN_ON(to_mdp5_plane_state(old_state)->pending))
 		return -EBUSY;
+
+	max_width = config->hw->lm.max_width << 16;
+	max_height = config->hw->lm.max_height << 16;
+
+	/* Make sure source dimensions are within bounds. */
+	if ((state->src_w > max_width) || (state->src_h > max_height)) {
+		struct drm_rect src = drm_plane_state_src(state);
+		DBG("Invalid source size "DRM_RECT_FP_FMT,
+				DRM_RECT_FP_ARG(&src));
+		return -ERANGE;
+	}
 
 	if (plane_enabled(state)) {
 		unsigned int rotation;
