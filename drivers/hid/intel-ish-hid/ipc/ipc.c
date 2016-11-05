@@ -310,6 +310,7 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 						((uint32_t)tv_utc.tv_usec);
 		ts_format.ts1_source = HOST_SYSTEM_TIME_USEC;
 		ts_format.ts2_source = HOST_UTC_TIME_USEC;
+		ts_format.reserved = 0;
 
 		time_update.primary_host_time = usec_system;
 		time_update.secondary_host_time = usec_utc;
