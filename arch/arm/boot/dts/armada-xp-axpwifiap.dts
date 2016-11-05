@@ -73,28 +73,6 @@
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* First mini-PCIe port */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Second mini-PCIe port */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Renesas uPD720202 USB 3.0 controller */
-			pcie@3,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			/* UART0 */
 			serial@12000 {
@@ -150,6 +128,28 @@
 
 	phy1: ethernet-phy@1 {
 		reg = <1>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* First mini-PCIe port */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Second mini-PCIe port */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Renesas uPD720202 USB 3.0 controller */
+	pcie@3,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
 	};
 };
 

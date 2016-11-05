@@ -81,28 +81,6 @@
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/*
-			 * Connected to Marvell 88SX7042 SATA-II controller
-			 * handling the four disks.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/*
-			 * Connected to EtronTech EJ168A XHCI controller
-			 * providing the two rear USB 3.0 ports.
-			 */
-			pcie@5,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 
 			/* RTC is provided by Seiko S-35390A below */
@@ -229,6 +207,29 @@
 		};
 	};
 };
+
+&pciec {
+	status = "okay";
+
+	/*
+	 * Connected to Marvell 88SX7042 SATA-II controller
+	 * handling the four disks.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/*
+	 * Connected to EtronTech EJ168A XHCI controller
+	 * providing the two rear USB 3.0 ports.
+	 */
+	pcie@5,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
 
 &mdio {
 	phy0: ethernet-phy@0 { /* Marvell 88E1512 */

@@ -73,28 +73,6 @@
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Etron EJ168 USB 3.0 controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* First mini-PCIe port */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Second mini-PCIe port */
-			pcie@3,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 
 			rtc@10300 {
@@ -366,6 +344,28 @@
 				label = "cpu";
 			};
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* Etron EJ168 USB 3.0 controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* First mini-PCIe port */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Second mini-PCIe port */
+	pcie@3,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
 	};
 };
 

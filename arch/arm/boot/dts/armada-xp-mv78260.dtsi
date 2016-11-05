@@ -87,7 +87,7 @@
 		 * configured as x4 or quad x1 lanes. One unit is
 		 * x4 only.
 		 */
-		pciec: pcie-controller {
+		pciec: pcie-controller@82000000 {
 			compatible = "marvell,armada-xp-pcie";
 			status = "disabled";
 			device_type = "pci";

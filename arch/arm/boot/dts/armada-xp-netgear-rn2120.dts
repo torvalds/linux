@@ -67,28 +67,6 @@
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Connected to first Marvell 88SE9170 SATA controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Connected to second Marvell 88SE9170 SATA controller */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Connected to Fresco Logic FL1009 USB 3.0 controller */
-			pcie@5,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 
 			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
@@ -287,6 +265,28 @@
 		pinctrl-0 = <&poweroff>;
 		pinctrl-names = "default";
 		gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* Connected to first Marvell 88SE9170 SATA controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Connected to second Marvell 88SE9170 SATA controller */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Connected to Fresco Logic FL1009 USB 3.0 controller */
+	pcie@5,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
 	};
 };
 

@@ -98,15 +98,6 @@
 			};
 		};
 
-		pcie-controller {
-			status = "okay";
-			/* Internal mini-PCIe connector */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			rtc@10300 {
 				/* No crystal connected to the internal RTC */
@@ -219,6 +210,15 @@
 		bm-bppi {
 			status = "okay";
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+	/* Internal mini-PCIe connector */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
 	};
 };
 
