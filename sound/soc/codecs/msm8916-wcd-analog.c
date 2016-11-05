@@ -349,7 +349,7 @@ static int pm8916_wcd_analog_enable_micbias_ext2(struct
 
 }
 
-static int pm8916_wcd_analog_enable_micbias_int2(struct
+static int pm8916_wcd_analog_enable_micbias_int1(struct
 						  snd_soc_dapm_widget
 						  *w, struct snd_kcontrol
 						  *kcontrol, int event)
@@ -358,10 +358,10 @@ static int pm8916_wcd_analog_enable_micbias_int2(struct
 	struct pm8916_wcd_analog_priv *wcd = snd_soc_codec_get_drvdata(codec);
 
 	return pm8916_wcd_analog_enable_micbias_int(codec, event, w->reg,
-						     wcd->micbias2_cap_mode);
+						     wcd->micbias1_cap_mode);
 }
 
-static int pm8916_wcd_analog_enable_micbias_int1(struct
+static int pm8916_wcd_analog_enable_micbias_int2(struct
 						  snd_soc_dapm_widget
 						  *w, struct snd_kcontrol
 						  *kcontrol, int event)
