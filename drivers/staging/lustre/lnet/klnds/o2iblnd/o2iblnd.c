@@ -1637,7 +1637,7 @@ int kiblnd_fmr_pool_map(struct kib_fmr_poolset *fps, struct kib_tx *tx,
 {
 	__u64 *pages = tx->tx_pages;
 	bool is_rx = (rd != tx->tx_rd);
-        bool tx_pages_mapped = 0;
+	bool tx_pages_mapped = 0;
 	struct kib_fmr_pool *fpo;
 	int npages = 0;
 	__u64 version;
