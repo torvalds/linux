@@ -908,13 +908,6 @@ static int rk_gmac_init(struct platform_device *pdev, void *priv)
 	return rk_gmac_powerup(bsp_priv);
 }
 
-static void rk_gmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	rk_gmac_powerdown(bsp_priv);
-}
-
 static void rk_fix_speed(void *priv, unsigned int speed)
 {
 	struct rk_priv_data *bsp_priv = priv;
@@ -951,7 +944,6 @@ static int rk_gmac_probe(struct platform_device *pdev)
 
 	plat_dat->has_gmac = true;
 	plat_dat->init = rk_gmac_init;
-	plat_dat->exit = rk_gmac_exit;
 	plat_dat->fix_mac_speed = rk_fix_speed;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
@@ -963,6 +955,16 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		return ret;
 
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+}
+
+static int rk_gmac_remove(struct platform_device *pdev)
+{
+	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(&pdev->dev);
+	int ret = stmmac_dvr_remove(&pdev->dev);
+
+	rk_gmac_powerdown(bsp_priv);
+
+	return ret;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1008,7 +1010,7 @@ MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 
 static struct platform_driver rk_gmac_dwmac_driver = {
 	.probe  = rk_gmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = rk_gmac_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
 		.pm		= &rk_gmac_pm_ops,
