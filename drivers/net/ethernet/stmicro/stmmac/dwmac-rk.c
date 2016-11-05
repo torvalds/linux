@@ -915,30 +915,6 @@ static void rk_gmac_exit(struct platform_device *pdev, void *priv)
 	rk_gmac_powerdown(bsp_priv);
 }
 
-static void rk_gmac_suspend(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	/* Keep the PHY up if we use Wake-on-Lan. */
-	if (device_may_wakeup(&pdev->dev))
-		return;
-
-	rk_gmac_powerdown(bsp_priv);
-	bsp_priv->suspended = true;
-}
-
-static void rk_gmac_resume(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	/* The PHY was up for Wake-on-Lan. */
-	if (!bsp_priv->suspended)
-		return;
-
-	rk_gmac_powerup(bsp_priv);
-	bsp_priv->suspended = false;
-}
-
 static void rk_fix_speed(void *priv, unsigned int speed)
 {
 	struct rk_priv_data *bsp_priv = priv;
@@ -977,8 +953,6 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	plat_dat->init = rk_gmac_init;
 	plat_dat->exit = rk_gmac_exit;
 	plat_dat->fix_mac_speed = rk_fix_speed;
-	plat_dat->suspend = rk_gmac_suspend;
-	plat_dat->resume = rk_gmac_resume;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
 	if (IS_ERR(plat_dat->bsp_priv))
@@ -990,6 +964,37 @@ static int rk_gmac_probe(struct platform_device *pdev)
 
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int rk_gmac_suspend(struct device *dev)
+{
+	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(dev);
+	int ret = stmmac_suspend(dev);
+
+	/* Keep the PHY up if we use Wake-on-Lan. */
+	if (!device_may_wakeup(dev)) {
+		rk_gmac_powerdown(bsp_priv);
+		bsp_priv->suspended = true;
+	}
+
+	return ret;
+}
+
+static int rk_gmac_resume(struct device *dev)
+{
+	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(dev);
+
+	/* The PHY was up for Wake-on-Lan. */
+	if (bsp_priv->suspended) {
+		rk_gmac_powerup(bsp_priv);
+		bsp_priv->suspended = false;
+	}
+
+	return stmmac_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(rk_gmac_pm_ops, rk_gmac_suspend, rk_gmac_resume);
 
 static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3228-gmac", .data = &rk3228_ops },
@@ -1006,7 +1011,7 @@ static struct platform_driver rk_gmac_dwmac_driver = {
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &rk_gmac_pm_ops,
 		.of_match_table = rk_gmac_dwmac_match,
 	},
 };
