@@ -28,6 +28,7 @@
 #include <drm/drm_mode_object.h>
 
 struct drm_crtc;
+struct drm_printer;
 
 /**
  * struct drm_plane_state - mutable plane state
@@ -370,6 +371,18 @@ struct drm_plane_funcs {
 	 * before data structures are torndown.
 	 */
 	void (*early_unregister)(struct drm_plane *plane);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses struct &drm_plane_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_plane_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_plane_state *state);
 };
 
 /**

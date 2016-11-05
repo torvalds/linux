@@ -30,6 +30,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -602,6 +603,28 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void drm_atomic_crtc_print_state(struct drm_printer *p,
+		const struct drm_crtc_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+
+	drm_printf(p, "crtc[%u]: %s\n", crtc->base.id, crtc->name);
+	drm_printf(p, "\tenable=%d\n", state->enable);
+	drm_printf(p, "\tactive=%d\n", state->active);
+	drm_printf(p, "\tplanes_changed=%d\n", state->planes_changed);
+	drm_printf(p, "\tmode_changed=%d\n", state->mode_changed);
+	drm_printf(p, "\tactive_changed=%d\n", state->active_changed);
+	drm_printf(p, "\tconnectors_changed=%d\n", state->connectors_changed);
+	drm_printf(p, "\tcolor_mgmt_changed=%d\n", state->color_mgmt_changed);
+	drm_printf(p, "\tplane_mask=%x\n", state->plane_mask);
+	drm_printf(p, "\tconnector_mask=%x\n", state->connector_mask);
+	drm_printf(p, "\tencoder_mask=%x\n", state->encoder_mask);
+	drm_printf(p, "\tmode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(&state->mode));
+
+	if (crtc->funcs->atomic_print_state)
+		crtc->funcs->atomic_print_state(p, state);
+}
+
 /**
  * drm_atomic_get_plane_state - get plane state
  * @state: global atomic state object
@@ -878,6 +901,38 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	return 0;
 }
 
+static void drm_atomic_plane_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	struct drm_plane *plane = state->plane;
+	struct drm_rect src  = drm_plane_state_src(state);
+	struct drm_rect dest = drm_plane_state_dest(state);
+
+	drm_printf(p, "plane[%u]: %s\n", plane->base.id, plane->name);
+	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+	drm_printf(p, "\tfb=%u\n", state->fb ? state->fb->base.id : 0);
+	if (state->fb) {
+		struct drm_framebuffer *fb = state->fb;
+		int i, n = drm_format_num_planes(fb->pixel_format);
+
+		drm_printf(p, "\t\tformat=%s\n",
+				drm_get_format_name(fb->pixel_format));
+		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
+		drm_printf(p, "\t\tlayers:\n");
+		for (i = 0; i < n; i++) {
+			drm_printf(p, "\t\t\tpitch[%d]=%u\n", i, fb->pitches[i]);
+			drm_printf(p, "\t\t\toffset[%d]=%u\n", i, fb->offsets[i]);
+			drm_printf(p, "\t\t\tmodifier[%d]=0x%llx\n", i, fb->modifier[i]);
+		}
+	}
+	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
+	drm_printf(p, "\tsrc-pos=" DRM_RECT_FP_FMT "\n", DRM_RECT_FP_ARG(&src));
+	drm_printf(p, "\trotation=%x\n", state->rotation);
+
+	if (plane->funcs->atomic_print_state)
+		plane->funcs->atomic_print_state(p, state);
+}
+
 /**
  * drm_atomic_get_connector_state - get connector state
  * @state: global atomic state object
@@ -992,6 +1047,18 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_connector_set_property);
+
+static void drm_atomic_connector_print_state(struct drm_printer *p,
+		const struct drm_connector_state *state)
+{
+	struct drm_connector *connector = state->connector;
+
+	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
+	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+
+	if (connector->funcs->atomic_print_state)
+		connector->funcs->atomic_print_state(p, state);
+}
 
 /**
  * drm_atomic_connector_get_property - get property value from connector state
@@ -1487,6 +1554,29 @@ int drm_atomic_nonblocking_commit(struct drm_atomic_state *state)
 }
 EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
 
+static void drm_atomic_print_state(const struct drm_atomic_state *state)
+{
+	struct drm_printer p = drm_info_printer(state->dev->dev);
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
+	int i;
+
+	DRM_DEBUG_ATOMIC("checking %p\n", state);
+
+	for_each_plane_in_state(state, plane, plane_state, i)
+		drm_atomic_plane_print_state(&p, plane_state);
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		drm_atomic_crtc_print_state(&p, crtc_state);
+
+	for_each_connector_in_state(state, connector, connector_state, i)
+		drm_atomic_connector_print_state(&p, connector_state);
+}
+
 /*
  * The big monstor ioctl
  */
@@ -1776,6 +1866,9 @@ retry:
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);
 	} else {
+		if (unlikely(drm_debug & DRM_UT_STATE))
+			drm_atomic_print_state(state);
+
 		ret = drm_atomic_commit(state);
 	}
 
