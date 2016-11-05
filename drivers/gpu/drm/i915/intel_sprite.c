@@ -773,15 +773,8 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	bool can_scale;
 	int ret;
 
-	src->x1 = state->base.src_x;
-	src->y1 = state->base.src_y;
-	src->x2 = state->base.src_x + state->base.src_w;
-	src->y2 = state->base.src_y + state->base.src_h;
-
-	dst->x1 = state->base.crtc_x;
-	dst->y1 = state->base.crtc_y;
-	dst->x2 = state->base.crtc_x + state->base.crtc_w;
-	dst->y2 = state->base.crtc_y + state->base.crtc_h;
+	*src = drm_plane_state_src(&state->base);
+	*dst = drm_plane_state_dest(&state->base);
 
 	if (!fb) {
 		state->base.visible = false;
