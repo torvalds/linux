@@ -91,8 +91,8 @@ nvkm_fifo_chan_chid(struct nvkm_fifo *fifo, int chid, unsigned long *rflags)
 }
 
 static int
-nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
-		     struct nvkm_notify *notify)
+nvkm_fifo_cevent_ctor(struct nvkm_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
 {
 	if (size == 0) {
 		notify->size  = 0;
@@ -104,9 +104,15 @@ nvkm_fifo_event_ctor(struct nvkm_object *object, void *data, u32 size,
 }
 
 static const struct nvkm_event_func
-nvkm_fifo_event_func = {
-	.ctor = nvkm_fifo_event_ctor,
+nvkm_fifo_cevent_func = {
+	.ctor = nvkm_fifo_cevent_ctor,
 };
+
+void
+nvkm_fifo_cevent(struct nvkm_fifo *fifo)
+{
+	nvkm_event_send(&fifo->cevent, 1, 0, NULL, 0);
+}
 
 static void
 nvkm_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
@@ -283,5 +289,5 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	return nvkm_event_init(&nvkm_fifo_event_func, 1, 1, &fifo->cevent);
+	return nvkm_event_init(&nvkm_fifo_cevent_func, 1, 1, &fifo->cevent);
 }

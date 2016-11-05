@@ -410,6 +410,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 		     base + user * chan->chid;
 	chan->size = user;
 
-	nvkm_event_send(&fifo->cevent, 1, 0, NULL, 0);
+	nvkm_fifo_cevent(fifo);
 	return 0;
 }

@@ -6,6 +6,7 @@
 int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *,
 		   int index, int nr, struct nvkm_fifo *);
 void nvkm_fifo_uevent(struct nvkm_fifo *);
+void nvkm_fifo_cevent(struct nvkm_fifo *);
 
 struct nvkm_fifo_chan_oclass;
 struct nvkm_fifo_func {
