@@ -66,22 +66,6 @@
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Connected to FL1009 USB 3.0 controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Connected to Marvell 88SE9215 SATA controller */
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 
 			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
@@ -267,6 +251,22 @@
 		pinctrl-0 = <&poweroff>;
 		pinctrl-names = "default";
 		gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* Connected to FL1009 USB 3.0 controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Connected to Marvell 88SE9215 SATA controller */
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
 	};
 };
 

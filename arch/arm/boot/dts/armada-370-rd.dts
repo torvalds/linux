@@ -77,22 +77,6 @@
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Internal mini-PCIe connector */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* Internal mini-PCIe connector */
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
@@ -227,6 +211,22 @@
 			};
 		};
 	 };
+};
+
+&pciec {
+	status = "okay";
+
+	/* Internal mini-PCIe connector */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Internal mini-PCIe connector */
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
 };
 
 &mdio {

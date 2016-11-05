@@ -32,15 +32,6 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* USB 3.0 bridge ASM1042A */
-			pcie@2,0 {
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
@@ -198,6 +189,16 @@
 		gpios = <&gpio1 30 GPIO_ACTIVE_LOW>;
 	};
 };
+
+&pciec {
+	status = "okay";
+
+	/* USB 3.0 bridge ASM1042A */
+	pcie@2,0 {
+		status = "okay";
+	};
+};
+
 
 &mdio {
 	pinctrl-0 = <&mdio_pins>;

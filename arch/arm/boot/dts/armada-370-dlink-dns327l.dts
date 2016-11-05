@@ -72,20 +72,6 @@
 			MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
 			MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			sata@a0000 {
 				nr-ports = <2>;
@@ -259,6 +245,20 @@
 			regulator-boot-on;
 			gpio = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
 	};
 };
 

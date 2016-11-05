@@ -170,24 +170,6 @@
 				};
 			};
 		};
-
-		pcie-controller {
-			status = "okay";
-			/*
-			 * The two PCIe units are accessible through
-			 * both standard PCIe slots and mini-PCIe
-			 * slots on the board.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
 	};
 
 	sound {
@@ -248,6 +230,25 @@
 		compatible = "linux,spdif-dir";
 	};
 };
+
+&pciec {
+	status = "okay";
+	/*
+	 * The two PCIe units are accessible through
+	 * both standard PCIe slots and mini-PCIe
+	 * slots on the board.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
 &mdio {
 	pinctrl-0 = <&mdio_pins>;
 	pinctrl-names = "default";
