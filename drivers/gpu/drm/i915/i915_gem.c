@@ -3196,23 +3196,22 @@ err_unpin:
 	return ret;
 }
 
-bool
-i915_gem_clflush_object(struct drm_i915_gem_object *obj,
-			bool force)
+void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
+			     bool force)
 {
 	/* If we don't have a page list set up, then we're not pinned
 	 * to GPU, and we can ignore the cache flush because it'll happen
 	 * again at bind time.
 	 */
 	if (!obj->mm.pages)
-		return false;
+		return;
 
 	/*
 	 * Stolen memory is always coherent with the GPU as it is explicitly
 	 * marked as wc by the system, or the system is cache-coherent.
 	 */
 	if (obj->stolen || obj->phys_handle)
-		return false;
+		return;
 
 	/* If the GPU is snooping the contents of the CPU cache,
 	 * we do not need to manually clear the CPU cache lines.  However,
@@ -3224,14 +3223,12 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 */
 	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level)) {
 		obj->cache_dirty = true;
-		return false;
+		return;
 	}
 
 	trace_i915_gem_object_clflush(obj);
 	drm_clflush_sg(obj->mm.pages);
 	obj->cache_dirty = false;
-
-	return true;
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -3277,9 +3274,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
 		return;
 
-	if (i915_gem_clflush_object(obj, obj->pin_display))
-		i915_gem_chipset_flush(to_i915(obj->base.dev));
-
+	i915_gem_clflush_object(obj, obj->pin_display);
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
 
 	obj->base.write_domain = 0;
@@ -3486,10 +3481,8 @@ out:
 	 * object is now coherent at its new cache level (with respect
 	 * to the access domain).
 	 */
-	if (obj->cache_dirty && cpu_write_needs_clflush(obj)) {
-		if (i915_gem_clflush_object(obj, true))
-			i915_gem_chipset_flush(to_i915(obj->base.dev));
-	}
+	if (obj->cache_dirty && cpu_write_needs_clflush(obj))
+		i915_gem_clflush_object(obj, true);
 
 	return 0;
 }

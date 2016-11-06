@@ -3403,7 +3403,7 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 
 void i915_gem_reset(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
-bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
+void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 void i915_gem_init_swizzling(struct drm_device *dev);
