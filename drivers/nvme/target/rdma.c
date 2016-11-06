@@ -1066,6 +1066,7 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 	spin_lock_init(&queue->rsp_wr_wait_lock);
 	INIT_LIST_HEAD(&queue->free_rsps);
 	spin_lock_init(&queue->rsps_lock);
+	INIT_LIST_HEAD(&queue->queue_list);
 
 	queue->idx = ida_simple_get(&nvmet_rdma_queue_ida, 0, 0, GFP_KERNEL);
 	if (queue->idx < 0) {
@@ -1269,7 +1270,12 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
 {
 	WARN_ON_ONCE(queue->state != NVMET_RDMA_Q_CONNECTING);
 
-	pr_err("failed to connect queue\n");
+	mutex_lock(&nvmet_rdma_queue_mutex);
+	if (!list_empty(&queue->queue_list))
+		list_del_init(&queue->queue_list);
+	mutex_unlock(&nvmet_rdma_queue_mutex);
+
+	pr_err("failed to connect queue %d\n", queue->idx);
 	schedule_work(&queue->release_work);
 }
 
