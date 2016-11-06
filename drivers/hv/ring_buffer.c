@@ -75,13 +75,6 @@ static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi,
 	if (READ_ONCE(rbi->ring_buffer->interrupt_mask))
 		return false;
 
-	/*
-	 * When the client wants to control signaling,
-	 * we only honour the host interrupt mask.
-	 */
-	if (policy == HV_SIGNAL_POLICY_EXPLICIT)
-		return true;
-
 	/* check interrupt_mask before read_index */
 	virt_rmb();
 	/*

@@ -676,10 +676,18 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	 * NOTE: in this case, the hvsock channel is an exception, because
 	 * it looks the host side's hvsock implementation has a throttling
 	 * mechanism which can hurt the performance otherwise.
+	 *
+	 * KYS: Oct. 30, 2016:
+	 * It looks like Windows hosts have logic to deal with DOS attacks that
+	 * can be triggered if it receives interrupts when it is not expecting
+	 * the interrupt. The host expects interrupts only when the ring
+	 * transitions from empty to non-empty (or full to non full on the guest
+	 * to host ring).
+	 * So, base the signaling decision solely on the ring state until the
+	 * host logic is fixed.
 	 */
 
-	if (((ret == 0) && kick_q && signal) ||
-	    (ret && !is_hvsock_channel(channel)))
+	if (((ret == 0) && signal))
 		vmbus_setevent(channel);
 
 	return ret;
@@ -786,9 +794,18 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	 * If we cannot write to the ring-buffer; signal the host
 	 * even if we may not have written anything. This is a rare
 	 * enough condition that it should not matter.
+	 *
+	 * KYS: Oct. 30, 2016:
+	 * It looks like Windows hosts have logic to deal with DOS attacks that
+	 * can be triggered if it receives interrupts when it is not expecting
+	 * the interrupt. The host expects interrupts only when the ring
+	 * transitions from empty to non-empty (or full to non full on the guest
+	 * to host ring).
+	 * So, base the signaling decision solely on the ring state until the
+	 * host logic is fixed.
 	 */
 
-	if (((ret == 0) && kick_q && signal) || (ret))
+	if (((ret == 0) && signal))
 		vmbus_setevent(channel);
 
 	return ret;
