@@ -227,7 +227,6 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 			vpbe_current_encoder_info(vpbe_dev);
 	struct vpbe_config *cfg = vpbe_dev->cfg;
 	struct venc_platform_data *venc_device = vpbe_dev->venc_device;
-	u32 if_params;
 	int enc_out_index;
 	int sd_index;
 	int ret;
@@ -257,8 +256,7 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 			goto unlock;
 		}
 
-		if_params = cfg->outputs[index].if_params;
-		venc_device->setup_if_config(if_params);
+		ret = venc_device->setup_if_config(cfg->outputs[index].if_params);
 		if (ret)
 			goto unlock;
 	}
