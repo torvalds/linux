@@ -1480,10 +1480,11 @@ hv_get_ring_buffer(struct hv_ring_buffer_info *ring_info)
  *    there is room for the producer to send the pending packet.
  */
 
-static inline  bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
+static inline  void hv_signal_on_read(struct vmbus_channel *channel)
 {
 	u32 cur_write_sz;
 	u32 pending_sz;
+	struct hv_ring_buffer_info *rbi = &channel->inbound;
 
 	/*
 	 * Issue a full memory barrier before making the signaling decision.
@@ -1501,14 +1502,14 @@ static inline  bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
 	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
 	/* If the other end is not blocked on write don't bother. */
 	if (pending_sz == 0)
-		return false;
+		return;
 
 	cur_write_sz = hv_get_bytes_to_write(rbi);
 
 	if (cur_write_sz >= pending_sz)
-		return true;
+		vmbus_setevent(channel);
 
-	return false;
+	return;
 }
 
 /*
@@ -1590,8 +1591,7 @@ static inline void commit_rd_index(struct vmbus_channel *channel)
 	virt_rmb();
 	ring_info->ring_buffer->read_index = ring_info->priv_read_index;
 
-	if (hv_need_to_signal_on_read(ring_info))
-		vmbus_set_event(channel);
+	hv_signal_on_read(channel);
 }
 
 

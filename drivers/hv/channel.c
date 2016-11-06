@@ -879,16 +879,9 @@ __vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 		   u32 bufferlen, u32 *buffer_actual_len, u64 *requestid,
 		   bool raw)
 {
-	int ret;
-	bool signal = false;
+	return hv_ringbuffer_read(channel, buffer, bufferlen,
+				  buffer_actual_len, requestid, raw);
 
-	ret = hv_ringbuffer_read(&channel->inbound, buffer, bufferlen,
-				 buffer_actual_len, requestid, &signal, raw);
-
-	if (signal)
-		vmbus_setevent(channel);
-
-	return ret;
 }
 
 int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
