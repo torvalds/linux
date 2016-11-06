@@ -1086,7 +1086,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	}
 	sdinfo = &vpfe_dev->cfg->sub_devs[subdev];
-	memcpy(inp, &sdinfo->inputs[index], sizeof(struct v4l2_input));
+	*inp = sdinfo->inputs[index];
 	return 0;
 }
 
