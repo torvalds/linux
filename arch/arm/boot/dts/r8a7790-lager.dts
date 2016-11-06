@@ -50,7 +50,9 @@
 	aliases {
 		serial0 = &scif0;
 		serial1 = &scifa1;
+		i2c8 = &gpioi2c1;
 		i2c10 = &i2cexio0;
+		i2c11 = &i2cexio1;
 	};
 
 	chosen {
@@ -265,6 +267,17 @@
 		clock-frequency = <148500000>;
 	};
 
+	gpioi2c1: i2c-8 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "i2c-gpio";
+		status = "disabled";
+		gpios = <&gpio1 17 GPIO_ACTIVE_HIGH /* sda */
+			 &gpio1 16 GPIO_ACTIVE_HIGH /* scl */
+			>;
+		i2c-gpio,delay-us = <5>;
+	};
+
 	/*
 	 * IIC0/I2C0 is routed to EXIO connector A, pins 114 (SCL) + 116 (SDA) only.
 	 * We use the I2C demuxer, so the desired IP core can be selected at runtime
@@ -280,6 +293,19 @@
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic0>, <&i2c0>;
 		i2c-bus-name = "i2c-exio0";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	/*
+	 * IIC1/I2C1 is routed to EXIO connector A, pins 78 (SCL) + 80 (SDA).
+	 * This is similar to the arangement described for i2cexio0 (above)
+	 * with a fallback to GPIO also provided.
+	 */
+	i2cexio1: i2c-11 {
+		compatible = "i2c-demux-pinctrl";
+		i2c-parent = <&iic1>, <&i2c1>, <&gpioi2c1>;
+		i2c-bus-name = "i2c-exio1";
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -403,6 +429,11 @@
 	iic0_pins: iic0 {
 		groups = "iic0";
 		function = "iic0";
+	};
+
+	i2c1_pins: i2c1 {
+		groups = "i2c1";
+		function = "i2c1";
 	};
 
 	iic1_pins: iic1 {
@@ -606,10 +637,14 @@
 	pinctrl-names = "i2c-exio0";
 };
 
+&i2c1	{
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "i2c-exio1";
+};
+
 &iic1	{
-	status = "okay";
 	pinctrl-0 = <&iic1_pins>;
-	pinctrl-names = "default";
+	pinctrl-names = "i2c-exio1";
 };
 
 &iic2	{
