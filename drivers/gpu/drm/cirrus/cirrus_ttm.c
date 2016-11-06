@@ -268,6 +268,9 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 		return ret;
 	}
 
+	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
+				   pci_resource_len(dev->pdev, 0));
+
 	cirrus->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					   pci_resource_len(dev->pdev, 0));
 
@@ -277,6 +280,8 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 
 void cirrus_mm_fini(struct cirrus_device *cirrus)
 {
+	struct drm_device *dev = cirrus->dev;
+
 	if (!cirrus->mm_inited)
 		return;
 
@@ -286,6 +291,8 @@ void cirrus_mm_fini(struct cirrus_device *cirrus)
 
 	arch_phys_wc_del(cirrus->fb_mtrr);
 	cirrus->fb_mtrr = 0;
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
 }
 
 void cirrus_ttm_placement(struct cirrus_bo *bo, int domain)

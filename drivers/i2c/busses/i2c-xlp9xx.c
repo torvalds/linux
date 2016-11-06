@@ -426,6 +426,7 @@ static const struct of_device_id xlp9xx_i2c_of_match[] = {
 	{ .compatible = "netlogic,xlp980-i2c", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, xlp9xx_i2c_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp9xx_i2c_acpi_ids[] = {

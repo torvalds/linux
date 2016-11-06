@@ -3068,10 +3068,6 @@ static int dce_v10_0_hw_fini(void *handle)
 
 static int dce_v10_0_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_atombios_scratch_regs_save(adev);
-
 	return dce_v10_0_hw_fini(handle);
 }
 
@@ -3081,8 +3077,6 @@ static int dce_v10_0_resume(void *handle)
 	int ret;
 
 	ret = dce_v10_0_hw_init(handle);
-
-	amdgpu_atombios_scratch_regs_restore(adev);
 
 	/* turn on the BL */
 	if (adev->mode_info.bl_encoder) {

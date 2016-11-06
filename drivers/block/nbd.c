@@ -164,7 +164,7 @@ static void sock_shutdown(struct nbd_device *nbd)
 	spin_lock(&nbd->sock_lock);
 
 	if (!nbd->sock) {
-		spin_unlock_irq(&nbd->sock_lock);
+		spin_unlock(&nbd->sock_lock);
 		return;
 	}
 

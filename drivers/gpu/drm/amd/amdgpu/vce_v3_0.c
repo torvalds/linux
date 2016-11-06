@@ -52,6 +52,8 @@
 #define VCE_V3_0_STACK_SIZE	(64 * 1024)
 #define VCE_V3_0_DATA_SIZE	((16 * 1024 * AMDGPU_MAX_VCE_HANDLES) + (52 * 1024))
 
+#define FW_52_8_3	((52 << 24) | (8 << 16) | (3 << 8))
+
 static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -381,6 +383,10 @@ static int vce_v3_0_sw_init(void *handle)
 		(VCE_V3_0_STACK_SIZE + VCE_V3_0_DATA_SIZE) * 2);
 	if (r)
 		return r;
+
+	/* 52.8.3 required for 3 ring support */
+	if (adev->vce.fw_version < FW_52_8_3)
+		adev->vce.num_rings = 2;
 
 	r = amdgpu_vce_resume(adev);
 	if (r)
