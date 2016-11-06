@@ -1249,8 +1249,13 @@ config PCI
 	  VESA. If you have PCI, say Y, otherwise N.
 
 config PCI_DOMAINS
-	bool
+	bool "Support for multiple PCI domains"
 	depends on PCI
+	help
+	  Automatically enabled if the platform supports multiple PCI host
+	  controllers. Say Y if running over a hypervisor like Jailhouse that
+	  dynamically adds further host controllers while the system is
+	  running. Say N otherwise.
 
 config PCI_DOMAINS_GENERIC
 	def_bool PCI_DOMAINS
