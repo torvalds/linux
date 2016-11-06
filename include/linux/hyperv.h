@@ -1447,6 +1447,7 @@ void hv_event_tasklet_enable(struct vmbus_channel *channel);
 
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
+void vmbus_setevent(struct vmbus_channel *channel);
 /*
  * Negotiated version with the Host.
  */
