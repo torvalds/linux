@@ -232,68 +232,40 @@ next_rule:
 }
 EXPORT_SYMBOL_GPL(nft_do_chain);
 
+static struct nft_expr_type *nft_basic_types[] = {
+	&nft_imm_type,
+	&nft_cmp_type,
+	&nft_lookup_type,
+	&nft_bitwise_type,
+	&nft_byteorder_type,
+	&nft_payload_type,
+	&nft_dynset_type,
+	&nft_range_type,
+};
+
 int __init nf_tables_core_module_init(void)
 {
-	int err;
+	int err, i;
 
-	err = nft_immediate_module_init();
-	if (err < 0)
-		goto err1;
-
-	err = nft_cmp_module_init();
-	if (err < 0)
-		goto err2;
-
-	err = nft_lookup_module_init();
-	if (err < 0)
-		goto err3;
-
-	err = nft_bitwise_module_init();
-	if (err < 0)
-		goto err4;
-
-	err = nft_byteorder_module_init();
-	if (err < 0)
-		goto err5;
-
-	err = nft_payload_module_init();
-	if (err < 0)
-		goto err6;
-
-	err = nft_dynset_module_init();
-	if (err < 0)
-		goto err7;
-
-	err = nft_range_module_init();
-	if (err < 0)
-		goto err8;
+	for (i = 0; i < ARRAY_SIZE(nft_basic_types); i++) {
+		err = nft_register_expr(nft_basic_types[i]);
+		if (err)
+			goto err;
+	}
 
 	return 0;
-err8:
-	nft_dynset_module_exit();
-err7:
-	nft_payload_module_exit();
-err6:
-	nft_byteorder_module_exit();
-err5:
-	nft_bitwise_module_exit();
-err4:
-	nft_lookup_module_exit();
-err3:
-	nft_cmp_module_exit();
-err2:
-	nft_immediate_module_exit();
-err1:
+
+err:
+	while (i-- > 0)
+		nft_unregister_expr(nft_basic_types[i]);
 	return err;
 }
 
 void nf_tables_core_module_exit(void)
 {
-	nft_dynset_module_exit();
-	nft_payload_module_exit();
-	nft_byteorder_module_exit();
-	nft_bitwise_module_exit();
-	nft_lookup_module_exit();
-	nft_cmp_module_exit();
-	nft_immediate_module_exit();
+	int i;
+
+	i = ARRAY_SIZE(nft_basic_types);
+	while (i-- > 0)
+		nft_unregister_expr(nft_basic_types[i]);
 }

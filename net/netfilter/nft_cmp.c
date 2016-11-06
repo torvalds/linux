@@ -107,7 +107,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_cmp_type;
 static const struct nft_expr_ops nft_cmp_ops = {
 	.type		= &nft_cmp_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_cmp_expr)),
@@ -208,20 +207,10 @@ nft_cmp_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 		return &nft_cmp_ops;
 }
 
-static struct nft_expr_type nft_cmp_type __read_mostly = {
+struct nft_expr_type nft_cmp_type __read_mostly = {
 	.name		= "cmp",
 	.select_ops	= nft_cmp_select_ops,
 	.policy		= nft_cmp_policy,
 	.maxattr	= NFTA_CMP_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_cmp_module_init(void)
-{
-	return nft_register_expr(&nft_cmp_type);
-}
-
-void nft_cmp_module_exit(void)
-{
-	nft_unregister_expr(&nft_cmp_type);
-}
