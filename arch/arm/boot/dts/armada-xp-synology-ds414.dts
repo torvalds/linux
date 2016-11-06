@@ -154,7 +154,7 @@
 			     &sata3_pwr_pin &sata4_pwr_pin>;
 		pinctrl-names = "default";
 
-		sata1_regulator: sata1-regulator {
+		sata1_regulator: sata1-regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
 			regulator-name = "SATA1 Power";
@@ -167,7 +167,7 @@
 			gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata2_regulator: sata2-regulator {
+		sata2_regulator: sata2-regulator@2 {
 			compatible = "regulator-fixed";
 			reg = <2>;
 			regulator-name = "SATA2 Power";
@@ -180,7 +180,7 @@
 			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata3_regulator: sata3-regulator {
+		sata3_regulator: sata3-regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
 			regulator-name = "SATA3 Power";
@@ -193,7 +193,7 @@
 			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata4_regulator: sata4-regulator {
+		sata4_regulator: sata4-regulator@4 {
 			compatible = "regulator-fixed";
 			reg = <4>;
 			regulator-name = "SATA4 Power";
