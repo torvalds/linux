@@ -6,8 +6,6 @@
 #error "This file can only be included by gen_facilities.c"
 #endif
 
-#include <linux/kconfig.h>
-
 struct facility_def {
 	char *name;
 	int *bits;
