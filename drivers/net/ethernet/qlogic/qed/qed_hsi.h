@@ -8581,7 +8581,6 @@ union drv_union_data {
 	struct drv_version_stc drv_version;
 
 	struct lan_stats_stc lan_stats;
-	u64 reserved_stats[11];
 	struct ocbb_data_stc ocbb_info;
 	struct temperature_status_stc temp_info;
 	struct resource_info resource;

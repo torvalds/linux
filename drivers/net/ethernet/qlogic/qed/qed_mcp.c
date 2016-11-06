@@ -1697,19 +1697,27 @@ int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
 			  u32 *p_mcp_resp, u32 *p_mcp_param)
 {
 	struct qed_mcp_mb_params mb_params;
-	union drv_union_data *p_union_data;
+	union drv_union_data union_data;
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
+	memset(&union_data, 0, sizeof(union_data));
 	mb_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
 	mb_params.param = QED_RESC_ALLOC_VERSION;
-	p_union_data = (union drv_union_data *)p_resc_info;
-	mb_params.p_data_src = p_union_data;
-	mb_params.p_data_dst = p_union_data;
+
+	/* Need to have a sufficient large struct, as the cmd_and_union
+	 * is going to do memcpy from and to it.
+	 */
+	memcpy(&union_data.resource, p_resc_info, sizeof(*p_resc_info));
+
+	mb_params.p_data_src = &union_data;
+	mb_params.p_data_dst = &union_data;
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		return rc;
 
+	/* Copy the data back */
+	memcpy(p_resc_info, &union_data.resource, sizeof(*p_resc_info));
 	*p_mcp_resp = mb_params.mcp_resp;
 	*p_mcp_param = mb_params.mcp_param;
 
