@@ -702,7 +702,7 @@ static char *kvp_mac_to_if_name(char *mac)
 	if (dir == NULL)
 		return NULL;
 
-	snprintf(dev_id, sizeof(dev_id), kvp_net_dir);
+	snprintf(dev_id, sizeof(dev_id), "%s", kvp_net_dir);
 	q = dev_id + strlen(kvp_net_dir);
 
 	while ((entry = readdir(dir)) != NULL) {
