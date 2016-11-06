@@ -2202,7 +2202,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	if (!shutdown)
 		free_netdev(dev);
-	dev->ethtool_ops = NULL;
 }
 
 static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
