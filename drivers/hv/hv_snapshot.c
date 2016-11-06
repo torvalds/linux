@@ -31,7 +31,10 @@
 #define VSS_MINOR  0
 #define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
 
-#define VSS_USERSPACE_TIMEOUT (msecs_to_jiffies(10 * 1000))
+/*
+ * Timeout values are based on expecations from host
+ */
+#define VSS_FREEZE_TIMEOUT (15 * 60)
 
 /*
  * Global state maintained for transaction that is being processed. For a class
@@ -186,7 +189,8 @@ static void vss_send_op(void)
 
 	vss_transaction.state = HVUTIL_USERSPACE_REQ;
 
-	schedule_delayed_work(&vss_timeout_work, VSS_USERSPACE_TIMEOUT);
+	schedule_delayed_work(&vss_timeout_work, op == VSS_OP_FREEZE ?
+			VSS_FREEZE_TIMEOUT * HZ : HV_UTIL_TIMEOUT * HZ);
 
 	rc = hvutil_transport_send(hvt, vss_msg, sizeof(*vss_msg), NULL);
 	if (rc) {
