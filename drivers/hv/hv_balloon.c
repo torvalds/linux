@@ -1501,7 +1501,11 @@ static int balloon_probe(struct hv_device *dev,
 	struct dm_version_request version_req;
 	struct dm_capabilities cap_msg;
 
+#ifdef CONFIG_MEMORY_HOTPLUG
 	do_hot_add = hot_add;
+#else
+	do_hot_add = false;
+#endif
 
 	/*
 	 * First allocate a send buffer.
