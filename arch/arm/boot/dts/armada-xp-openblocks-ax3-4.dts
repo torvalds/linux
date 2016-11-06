@@ -139,7 +139,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				button@1 {
+				init {
 					label = "Init Button";
 					linux,code = <KEY_POWER>;
 					gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;

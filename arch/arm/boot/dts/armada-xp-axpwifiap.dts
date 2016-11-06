@@ -113,7 +113,7 @@
 		pinctrl-0 = <&keys_pin>;
 		pinctrl-names = "default";
 
-		button@1 {
+		reset {
 			label = "Factory Reset Button";
 			linux,code = <KEY_SETUP>;
 			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;

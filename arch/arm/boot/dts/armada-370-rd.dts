@@ -122,7 +122,7 @@
 				compatible = "gpio-keys";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				button@1 {
+				button {
 					label = "Software Button";
 					linux,code = <KEY_POWER>;
 					gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
