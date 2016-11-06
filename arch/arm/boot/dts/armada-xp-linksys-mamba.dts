@@ -301,7 +301,7 @@
 				      4500 1>;
 	};
 
-	dsa@0 {
+	dsa {
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
