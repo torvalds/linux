@@ -951,6 +951,7 @@ err_destroy_cq:
 
 static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 {
+	ib_drain_qp(queue->cm_id->qp);
 	rdma_destroy_qp(queue->cm_id);
 	ib_free_cq(queue->cq);
 }
@@ -1245,7 +1246,6 @@ static void __nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue)
 
 	if (disconnect) {
 		rdma_disconnect(queue->cm_id);
-		ib_drain_qp(queue->cm_id->qp);
 		schedule_work(&queue->release_work);
 	}
 }
