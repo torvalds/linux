@@ -26,6 +26,7 @@
 #include "af9033.h"
 #include <linux/math64.h>
 #include <linux/regmap.h>
+#include <linux/kernel.h>
 
 struct reg_val {
 	u32 reg;
