@@ -852,6 +852,7 @@ config DVB_M88RS2000
 config DVB_AF9033
 	tristate "Afatech AF9033 DVB-T demodulator"
 	depends on DVB_CORE && I2C
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 
 config DVB_HORUS3A
