@@ -1000,7 +1000,7 @@ typhoon_get_link_ksettings(struct net_device *dev,
 			   struct ethtool_link_ksettings *cmd)
 {
 	struct typhoon *tp = netdev_priv(dev);
-	u32 supported, advertising;
+	u32 supported, advertising = 0;
 
 	supported = SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 				SUPPORTED_Autoneg;
@@ -1048,6 +1048,11 @@ typhoon_get_link_ksettings(struct net_device *dev,
 		cmd->base.autoneg = AUTONEG_ENABLE;
 	else
 		cmd->base.autoneg = AUTONEG_DISABLE;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
