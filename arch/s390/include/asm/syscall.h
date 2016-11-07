@@ -56,27 +56,20 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	unsigned long mask = -1UL;
+	unsigned int n = 6;
 
-	/*
-	 * No arguments for this syscall, there's nothing to do.
-	 */
-	if (!n)
-		return;
-
-	BUG_ON(i + n > 6);
 #ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_31BIT))
 		mask = 0xffffffff;
 #endif
 	while (n-- > 0)
-		if (i + n > 0)
-			args[n] = regs->gprs[2 + i + n] & mask;
-	if (i == 0)
-		args[0] = regs->orig_gpr2 & mask;
+		if (n > 0)
+			args[n] = regs->gprs[2 + n] & mask;
+
+	args[0] = regs->orig_gpr2 & mask;
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,

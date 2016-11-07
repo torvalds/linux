@@ -149,7 +149,7 @@ static void populate_seccomp_data(struct seccomp_data *sd)
 
 	sd->nr = syscall_get_nr(task, regs);
 	sd->arch = syscall_get_arch();
-	syscall_get_arguments(task, regs, 0, 6, args);
+	syscall_get_arguments(task, regs, args);
 	sd->args[0] = args[0];
 	sd->args[1] = args[1];
 	sd->args[2] = args[2];

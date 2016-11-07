@@ -53,43 +53,16 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	const struct uml_pt_regs *r = &regs->regs;
 
-	switch (i) {
-	case 0:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG1(r);
-	case 1:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG2(r);
-	case 2:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG3(r);
-	case 3:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG4(r);
-	case 4:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG5(r);
-	case 5:
-		if (!n--)
-			break;
-		*args++ = UPT_SYSCALL_ARG6(r);
-	case 6:
-		if (!n--)
-			break;
-	default:
-		BUG();
-		break;
-	}
+	*args++ = UPT_SYSCALL_ARG1(r);
+	*args++ = UPT_SYSCALL_ARG2(r);
+	*args++ = UPT_SYSCALL_ARG3(r);
+	*args++ = UPT_SYSCALL_ARG4(r);
+	*args++ = UPT_SYSCALL_ARG5(r);
+	*args   = UPT_SYSCALL_ARG6(r);
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,

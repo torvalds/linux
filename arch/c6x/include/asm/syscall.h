@@ -46,40 +46,15 @@ static inline void syscall_set_return_value(struct task_struct *task,
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,
-					 struct pt_regs *regs, unsigned int i,
-					 unsigned int n, unsigned long *args)
+					 struct pt_regs *regs,
+					 unsigned long *args)
 {
-	switch (i) {
-	case 0:
-		if (!n--)
-			break;
-		*args++ = regs->a4;
-	case 1:
-		if (!n--)
-			break;
-		*args++ = regs->b4;
-	case 2:
-		if (!n--)
-			break;
-		*args++ = regs->a6;
-	case 3:
-		if (!n--)
-			break;
-		*args++ = regs->b6;
-	case 4:
-		if (!n--)
-			break;
-		*args++ = regs->a8;
-	case 5:
-		if (!n--)
-			break;
-		*args++ = regs->b8;
-	case 6:
-		if (!n--)
-			break;
-	default:
-		BUG();
-	}
+	*args++ = regs->a4;
+	*args++ = regs->b4;
+	*args++ = regs->a6;
+	*args++ = regs->b6;
+	*args++ = regs->a8;
+	*args   = regs->b8;
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,

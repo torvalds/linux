@@ -72,18 +72,11 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	if (i == 0) {
-		args[0] = regs->orig_a0;
-		args++;
-		n--;
-	} else {
-		i--;
-	}
-	memcpy(args, &regs->a1 + i, n * sizeof(args[0]));
+	args[0] = regs->orig_a0;
+	args++;
+	memcpy(args, &regs->a1, 5 * sizeof(args[0]));
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,

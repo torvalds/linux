@@ -105,21 +105,16 @@ void syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
  * syscall_get_arguments - extract system call parameter values
  * @task:	task of interest, must be blocked
  * @regs:	task_pt_regs() of @task
- * @i:		argument index [0,5]
- * @n:		number of arguments; n+i must be [1,6].
  * @args:	array filled with argument values
  *
- * Fetches @n arguments to the system call starting with the @i'th argument
- * (from 0 through 5).  Argument @i is stored in @args[0], and so on.
- * An arch inline version is probably optimal when @i and @n are constants.
+ * Fetches 6 arguments to the system call.  First argument is stored in
+*  @args[0], and so on.
  *
  * It's only valid to call this when @task is stopped for tracing on
  * entry to a system call, due to %TIF_SYSCALL_TRACE or %TIF_SYSCALL_AUDIT.
- * It's invalid to call this with @i + @n > 6; we only support system calls
- * taking up to 6 arguments.
  */
 void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
-			   unsigned int i, unsigned int n, unsigned long *args);
+			   unsigned long *args);
 
 /**
  * syscall_set_arguments - change system call parameter value
