@@ -676,8 +676,8 @@ static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 
 static inline struct usbctlx_completor *
 init_cmd_completor(struct usbctlx_cmd_completor *completor,
-			const struct hfa384x_usb_statusresp *cmdresp,
-			struct hfa384x_cmdresult *result)
+		   const struct hfa384x_usb_statusresp *cmdresp,
+		   struct hfa384x_cmdresult *result)
 {
 	completor->head.complete = usbctlx_cmd_completor_fn;
 	completor->cmdresp = cmdresp;
@@ -721,9 +721,9 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 
 static inline struct usbctlx_completor *
 init_rrid_completor(struct usbctlx_rrid_completor *completor,
-			const struct hfa384x_usb_rridresp *rridresp,
-			void *riddata,
-			unsigned int riddatalen)
+		    const struct hfa384x_usb_rridresp *rridresp,
+		    void *riddata,
+		    unsigned int riddatalen)
 {
 	completor->head.complete = usbctlx_rrid_completor_fn;
 	completor->rridresp = rridresp;
@@ -771,9 +771,9 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 
 static inline struct usbctlx_completor *
 init_rmem_completor(struct usbctlx_rmem_completor *completor,
-			struct hfa384x_usb_rmemresp *rmemresp,
-			void *data,
-			unsigned int len)
+		    struct hfa384x_usb_rmemresp *rmemresp,
+		    void *data,
+		    unsigned int len)
 {
 	completor->head.complete = usbctlx_rmem_completor_fn;
 	completor->rmemresp = rmemresp;
@@ -2343,7 +2343,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 
 		/* units of bytes */
 		result = hfa384x_dormem_wait(hw, currpage, curroffset, buf,
-						len);
+					     len);
 
 		if (result) {
 			netdev_warn(hw->wlandev->netdev,
