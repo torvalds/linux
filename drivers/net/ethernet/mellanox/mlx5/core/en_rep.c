@@ -256,6 +256,8 @@ static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_get_phys_port_name  = mlx5e_rep_get_phys_port_name,
 	.ndo_setup_tc            = mlx5e_rep_ndo_setup_tc,
 	.ndo_get_stats64         = mlx5e_get_stats,
+	.ndo_udp_tunnel_add	 = mlx5e_add_vxlan_port,
+	.ndo_udp_tunnel_del	 = mlx5e_del_vxlan_port,
 };
 
 static void mlx5e_build_rep_netdev_priv(struct mlx5_core_dev *mdev,
