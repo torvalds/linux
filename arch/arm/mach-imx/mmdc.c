@@ -44,6 +44,7 @@
 #define DBG_RST			0x2
 #define PRF_FRZ			0x4
 #define CYC_OVF			0x8
+#define PROFILE_SEL		0x10
 
 #define MMDC_MADPCR0	0x410
 #define MMDC_MADPSR0	0x418
@@ -55,9 +56,28 @@
 
 #define MMDC_NUM_COUNTERS	6
 
+#define MMDC_FLAG_PROFILE_SEL	0x1
+
 #define to_mmdc_pmu(p) container_of(p, struct mmdc_pmu, pmu)
 
 static int ddr_type;
+
+struct fsl_mmdc_devtype_data {
+	unsigned int flags;
+};
+
+static const struct fsl_mmdc_devtype_data imx6q_data = {
+};
+
+static const struct fsl_mmdc_devtype_data imx6qp_data = {
+	.flags = MMDC_FLAG_PROFILE_SEL,
+};
+
+static const struct of_device_id imx_mmdc_dt_ids[] = {
+	{ .compatible = "fsl,imx6q-mmdc", .data = (void *)&imx6q_data},
+	{ .compatible = "fsl,imx6qp-mmdc", .data = (void *)&imx6qp_data},
+	{ /* sentinel */ }
+};
 
 #ifdef CONFIG_PERF_EVENTS
 
@@ -83,6 +103,7 @@ struct mmdc_pmu {
 	struct device *dev;
 	struct perf_event *mmdc_events[MMDC_NUM_COUNTERS];
 	struct hlist_node node;
+	struct fsl_mmdc_devtype_data *devtype_data;
 };
 
 /*
@@ -307,6 +328,7 @@ static void mmdc_pmu_event_start(struct perf_event *event, int flags)
 	struct mmdc_pmu *pmu_mmdc = to_mmdc_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	void __iomem *mmdc_base, *reg;
+	u32 val;
 
 	mmdc_base = pmu_mmdc->mmdc_base;
 	reg = mmdc_base + MMDC_MADPCR0;
@@ -321,7 +343,12 @@ static void mmdc_pmu_event_start(struct perf_event *event, int flags)
 	local64_set(&hwc->prev_count, 0);
 
 	writel(DBG_RST, reg);
-	writel(DBG_EN, reg);
+
+	val = DBG_EN;
+	if (pmu_mmdc->devtype_data->flags & MMDC_FLAG_PROFILE_SEL)
+		val |= PROFILE_SEL;
+
+	writel(val, reg);
 }
 
 static int mmdc_pmu_event_add(struct perf_event *event, int flags)
@@ -436,6 +463,8 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 	char *name;
 	int mmdc_num;
 	int ret;
+	const struct of_device_id *of_id =
+		of_match_device(imx_mmdc_dt_ids, &pdev->dev);
 
 	pmu_mmdc = kzalloc(sizeof(*pmu_mmdc), GFP_KERNEL);
 	if (!pmu_mmdc) {
@@ -449,6 +478,8 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 	else
 		name = devm_kasprintf(&pdev->dev,
 				GFP_KERNEL, "mmdc%d", mmdc_num);
+
+	pmu_mmdc->devtype_data = (struct fsl_mmdc_devtype_data *)of_id->data;
 
 	hrtimer_init(&pmu_mmdc->hrtimer, CLOCK_MONOTONIC,
 			HRTIMER_MODE_REL);
@@ -523,11 +554,6 @@ int imx_mmdc_get_ddr_type(void)
 {
 	return ddr_type;
 }
-
-static const struct of_device_id imx_mmdc_dt_ids[] = {
-	{ .compatible = "fsl,imx6q-mmdc", },
-	{ /* sentinel */ }
-};
 
 static struct platform_driver imx_mmdc_driver = {
 	.driver		= {
