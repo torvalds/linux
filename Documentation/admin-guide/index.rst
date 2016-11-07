@@ -8,7 +8,7 @@ document!  With luck things will improve quickly over time.
 
 This initial section contains overall information, including the README
 file describing the kernel as a whole, documentation on kernel parameters,
-etc. 
+etc.
 
 .. toctree::
    :maxdepth: 1
@@ -22,12 +22,13 @@ problems and bugs in particular.
 
 .. toctree::
    :maxdepth: 1
-   
+
    reporting-bugs
    security-bugs
    bug-hunting
    bug-bisect
    oops-tracing
+   tainted-kernels
    ramoops
    dynamic-debug-howto
    init
@@ -38,7 +39,7 @@ ABI will be found here.
 
 .. toctree::
    :maxdepth: 1
-   
+
    sysfs-rules
 
 The rest of this manual consists of various unordered guides on how to
@@ -46,7 +47,7 @@ configure specific aspects of kernel behavior to your liking.
 
 .. toctree::
    :maxdepth: 1
-   
+
    initrd
    serial-console
    braille-console
