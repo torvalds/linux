@@ -1505,9 +1505,8 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		    adapter->max_rx_add_entries_per_subcrq > entries_page ?
 		    entries_page : adapter->max_rx_add_entries_per_subcrq;
 
-		/* Choosing the maximum number of queues supported by firmware*/
-		adapter->req_tx_queues = adapter->max_tx_queues;
-		adapter->req_rx_queues = adapter->max_rx_queues;
+		adapter->req_tx_queues = adapter->opt_tx_comp_sub_queues;
+		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
 		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
 
 		adapter->req_mtu = adapter->max_mtu;
