@@ -121,6 +121,12 @@ struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev);
 void mlx5_dev_list_lock(void);
 void mlx5_dev_list_unlock(void);
 int mlx5_dev_list_trylock(void);
+int mlx5_encap_alloc(struct mlx5_core_dev *dev,
+		     int header_type,
+		     size_t size,
+		     void *encap_header,
+		     u32 *encap_id);
+void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id);
 
 bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
 

@@ -455,11 +455,11 @@ void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
 
 #define MAX_ENCAP_SIZE (128)
 
-int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
-			 int header_type,
-			 size_t size,
-			 void *encap_header,
-			 u32 *encap_id)
+int mlx5_encap_alloc(struct mlx5_core_dev *dev,
+		     int header_type,
+		     size_t size,
+		     void *encap_header,
+		     u32 *encap_id)
 {
 	u32 out[MLX5_ST_SZ_DW(alloc_encap_header_out)];
 	u32 in[MLX5_ST_SZ_DW(alloc_encap_header_in) +
@@ -488,7 +488,7 @@ int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
 	return err;
 }
 
-void mlx5_cmd_dealloc_encap(struct mlx5_core_dev *dev, u32 encap_id)
+void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_encap_header_in)];
 	u32 out[MLX5_ST_SZ_DW(dealloc_encap_header_out)];
