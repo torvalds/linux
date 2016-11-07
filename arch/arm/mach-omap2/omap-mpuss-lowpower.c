@@ -48,6 +48,7 @@
 #include <asm/smp_scu.h>
 #include <asm/pgalloc.h>
 #include <asm/suspend.h>
+#include <asm/virt.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include "soc.h"
@@ -371,8 +372,12 @@ int __init omap4_mpuss_init(void)
 	pm_info = &per_cpu(omap4_pm_info, 0x0);
 	if (sar_base) {
 		pm_info->scu_sar_addr = sar_base + SCU_OFFSET0;
-		pm_info->wkup_sar_addr = sar_base +
-					CPU0_WAKEUP_NS_PA_ADDR_OFFSET;
+		if (cpu_is_omap44xx())
+			pm_info->wkup_sar_addr = sar_base +
+				CPU0_WAKEUP_NS_PA_ADDR_OFFSET;
+		else
+			pm_info->wkup_sar_addr = sar_base +
+				OMAP5_CPU0_WAKEUP_NS_PA_ADDR_OFFSET;
 		pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET0;
 	}
 	pm_info->pwrdm = pwrdm_lookup("cpu0_pwrdm");
@@ -391,8 +396,12 @@ int __init omap4_mpuss_init(void)
 	pm_info = &per_cpu(omap4_pm_info, 0x1);
 	if (sar_base) {
 		pm_info->scu_sar_addr = sar_base + SCU_OFFSET1;
-		pm_info->wkup_sar_addr = sar_base +
-					CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
+		if (cpu_is_omap44xx())
+			pm_info->wkup_sar_addr = sar_base +
+				CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
+		else
+			pm_info->wkup_sar_addr = sar_base +
+				OMAP5_CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
 		pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET1;
 	}
 
@@ -453,15 +462,24 @@ void __init omap4_mpuss_early_init(void)
 {
 	unsigned long startup_pa;
 
-	if (!cpu_is_omap44xx())
+	if (!(cpu_is_omap44xx() || soc_is_omap54xx()))
 		return;
 
 	sar_base = omap4_get_sar_ram_base();
 
 	if (cpu_is_omap443x())
 		startup_pa = virt_to_phys(omap4_secondary_startup);
-	else
+	else if (cpu_is_omap446x())
 		startup_pa = virt_to_phys(omap4460_secondary_startup);
+	else if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
+		startup_pa = virt_to_phys(omap5_secondary_hyp_startup);
+	else
+		startup_pa = virt_to_phys(omap5_secondary_startup);
 
-	writel_relaxed(startup_pa, sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET);
+	if (cpu_is_omap44xx())
+		writel_relaxed(startup_pa, sar_base +
+			       CPU1_WAKEUP_NS_PA_ADDR_OFFSET);
+	else
+		writel_relaxed(startup_pa, sar_base +
+			       OMAP5_CPU1_WAKEUP_NS_PA_ADDR_OFFSET);
 }
