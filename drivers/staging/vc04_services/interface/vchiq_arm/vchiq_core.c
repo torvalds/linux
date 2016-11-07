@@ -850,7 +850,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 				service_quota->slot_quota))) {
 			spin_unlock(&quota_spinlock);
 			vchiq_log_trace(vchiq_core_log_level,
-				"%d: qm:%d %s,%x - quota stall "
+				"%d: qm:%d %s,%zx - quota stall "
 				"(msg %d, slot %d)",
 				state->id, service->localport,
 				msg_type_str(type), size,
@@ -896,7 +896,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 		int slot_use_count;
 
 		vchiq_log_info(vchiq_core_log_level,
-			"%d: qm %s@%pK,%x (%d->%d)",
+			"%d: qm %s@%pK,%zx (%d->%d)",
 			state->id, msg_type_str(VCHIQ_MSG_TYPE(msgid)),
 			header, size, VCHIQ_MSG_SRCPORT(msgid),
 			VCHIQ_MSG_DSTPORT(msgid));
@@ -949,7 +949,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 
 		if (slot_use_count)
 			vchiq_log_trace(vchiq_core_log_level,
-				"%d: qm:%d %s,%x - slot_use->%d (hdr %p)",
+				"%d: qm:%d %s,%zx - slot_use->%d (hdr %p)",
 				state->id, service->localport,
 				msg_type_str(VCHIQ_MSG_TYPE(msgid)), size,
 				slot_use_count, header);
@@ -958,7 +958,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 		VCHIQ_SERVICE_STATS_ADD(service, ctrl_tx_bytes, size);
 	} else {
 		vchiq_log_info(vchiq_core_log_level,
-			"%d: qm %s@%pK,%x (%d->%d)", state->id,
+			"%d: qm %s@%pK,%zx (%d->%d)", state->id,
 			msg_type_str(VCHIQ_MSG_TYPE(msgid)),
 			header, size, VCHIQ_MSG_SRCPORT(msgid),
 			VCHIQ_MSG_DSTPORT(msgid));
@@ -989,7 +989,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 			: VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
 		vchiq_log_info(SRVTRACE_LEVEL(service),
-			"Sent Msg %s(%u) to %c%c%c%c s:%u d:%d len:%d",
+			"Sent Msg %s(%u) to %c%c%c%c s:%u d:%d len:%zu",
 			msg_type_str(VCHIQ_MSG_TYPE(msgid)),
 			VCHIQ_MSG_TYPE(msgid),
 			VCHIQ_FOURCC_AS_4CHARS(svc_fourcc),
