@@ -171,6 +171,7 @@ config PINCTRL_SX150X
 	select PINCONF
 	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
+	select REGMAP
 	help
 	  Say yes here to provide support for Semtech SX150x-series I2C
 	  GPIO expanders as pinctrl module.
