@@ -75,8 +75,8 @@
 static void p80211req_handlemsg(struct wlandevice *wlandev,
 				struct p80211msg *msg);
 static void p80211req_mibset_mibget(struct wlandevice *wlandev,
-				   struct p80211msg_dot11req_mibget *mib_msg,
-				   int isget);
+				    struct p80211msg_dot11req_mibget *mib_msg,
+				    int isget);
 
 static void p80211req_handle_action(struct wlandevice *wlandev, u32 *data,
 				    int isget, u32 flag)
@@ -124,7 +124,7 @@ int p80211req_dorequest(struct wlandevice *wlandev, u8 *msgbuf)
 
 	/* Check Permissions */
 	if (!capable(CAP_NET_ADMIN) &&
-	(msg->msgcode != DIDmsg_dot11req_mibget)) {
+	    (msg->msgcode != DIDmsg_dot11req_mibget)) {
 		netdev_err(wlandev->netdev,
 			   "%s: only dot11req_mibget allowed for non-root.\n",
 			   wlandev->name);
@@ -195,8 +195,8 @@ static void p80211req_handlemsg(struct wlandevice *wlandev,
 }
 
 static void p80211req_mibset_mibget(struct wlandevice *wlandev,
-				   struct p80211msg_dot11req_mibget *mib_msg,
-				   int isget)
+				    struct p80211msg_dot11req_mibget *mib_msg,
+				    int isget)
 {
 	struct p80211itemd *mibitem = (struct p80211itemd *)mib_msg->mibattribute.data;
 	struct p80211pstrd *pstr = (struct p80211pstrd *)mibitem->data;
