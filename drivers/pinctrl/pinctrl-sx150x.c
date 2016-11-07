@@ -1077,9 +1077,20 @@ static int sx150x_probe(struct i2c_client *client,
 		pctl->irq.masked = ~0;
 		pctl->irq.sense = 0;
 
+		/*
+		 * Because sx150x_irq_threaded_fn invokes all of the
+		 * nested interrrupt handlers via handle_nested_irq,
+		 * any "handler" passed to gpiochip_irqchip_add()
+		 * below is going to be ignored, so the choice of the
+		 * function does not matter that much.
+		 *
+		 * We set it to handle_bad_irq to avoid confusion,
+		 * plus it will be instantly noticeable if it is ever
+		 * called (should not happen)
+		 */
 		ret = gpiochip_irqchip_add(&pctl->gpio,
 					   &pctl->irq_chip, 0,
-					   handle_edge_irq, IRQ_TYPE_NONE);
+					   handle_bad_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(dev, "could not connect irqchip to gpiochip\n");
 			return ret;
