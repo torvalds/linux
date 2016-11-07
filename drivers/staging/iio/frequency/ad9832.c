@@ -204,7 +204,6 @@ static int ad9832_probe(struct spi_device *spi)
 	struct ad9832_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad9832_state *st;
-	struct regulator *reg;
 	int ret;
 
 	if (!pdata) {
@@ -212,21 +211,35 @@ static int ad9832_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	reg = devm_regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
-		if (ret)
-			return ret;
+	st->avdd = devm_regulator_get(&spi->dev, "avdd");
+	if (IS_ERR(st->avdd))
+		return PTR_ERR(st->avdd);
+
+	ret = regulator_enable(st->avdd);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to enable specified AVDD supply\n");
+		return ret;
+	}
+
+	st->dvdd = devm_regulator_get(&spi->dev, "dvdd");
+	if (IS_ERR(st->dvdd)) {
+		ret = PTR_ERR(st->dvdd);
+		goto error_disable_avdd;
+	}
+
+	ret = regulator_enable(st->dvdd);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to enable specified DVDD supply\n");
+		goto error_disable_avdd;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
 		ret = -ENOMEM;
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 	}
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
-	st->reg = reg;
 	st->mclk = pdata->mclk;
 	st->spi = spi;
 
@@ -277,42 +290,43 @@ static int ad9832_probe(struct spi_device *spi)
 	ret = spi_sync(st->spi, &st->msg);
 	if (ret) {
 		dev_err(&spi->dev, "device init failed\n");
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 	}
 
 	ret = ad9832_write_frequency(st, AD9832_FREQ0HM, pdata->freq0);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_frequency(st, AD9832_FREQ1HM, pdata->freq1);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE0H, pdata->phase0);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE1H, pdata->phase1);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE2H, pdata->phase2);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE3H, pdata->phase3);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	return 0;
 
-error_disable_reg:
-	if (!IS_ERR(reg))
-		regulator_disable(reg);
+error_disable_dvdd:
+	regulator_disable(st->dvdd);
+error_disable_avdd:
+	regulator_disable(st->avdd);
 
 	return ret;
 }
@@ -323,8 +337,8 @@ static int ad9832_remove(struct spi_device *spi)
 	struct ad9832_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->dvdd);
+	regulator_disable(st->avdd);
 
 	return 0;
 }

@@ -231,6 +231,12 @@
 #define ST_ACCEL_7_DRDY_IRQ_INT1_MASK		0x04
 #define ST_ACCEL_7_MULTIREAD_BIT		false
 
+/* CUSTOM VALUES FOR SENSOR 8 */
+#define ST_ACCEL_8_FS_AVL_2_GAIN		IIO_G_TO_M_S_2(15600)
+#define ST_ACCEL_8_FS_AVL_4_GAIN		IIO_G_TO_M_S_2(31200)
+#define ST_ACCEL_8_FS_AVL_8_GAIN		IIO_G_TO_M_S_2(62500)
+#define ST_ACCEL_8_FS_AVL_16_GAIN		IIO_G_TO_M_S_2(187500)
+
 static const struct iio_chan_spec st_accel_8bit_channels[] = {
 	ST_SENSORS_LSM_CHANNELS(IIO_ACCEL,
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
@@ -724,6 +730,73 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_ACCEL_7_MULTIREAD_BIT,
+		.bootime = 2,
+	},
+	{
+		.wai = ST_ACCEL_1_WAI_EXP,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LNG2DM_ACCEL_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_accel_8bit_channels,
+		.odr = {
+			.addr = ST_ACCEL_1_ODR_ADDR,
+			.mask = ST_ACCEL_1_ODR_MASK,
+			.odr_avl = {
+				{ 1, ST_ACCEL_1_ODR_AVL_1HZ_VAL, },
+				{ 10, ST_ACCEL_1_ODR_AVL_10HZ_VAL, },
+				{ 25, ST_ACCEL_1_ODR_AVL_25HZ_VAL, },
+				{ 50, ST_ACCEL_1_ODR_AVL_50HZ_VAL, },
+				{ 100, ST_ACCEL_1_ODR_AVL_100HZ_VAL, },
+				{ 200, ST_ACCEL_1_ODR_AVL_200HZ_VAL, },
+				{ 400, ST_ACCEL_1_ODR_AVL_400HZ_VAL, },
+				{ 1600, ST_ACCEL_1_ODR_AVL_1600HZ_VAL, },
+			},
+		},
+		.pw = {
+			.addr = ST_ACCEL_1_ODR_ADDR,
+			.mask = ST_ACCEL_1_ODR_MASK,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.enable_axis = {
+			.addr = ST_SENSORS_DEFAULT_AXIS_ADDR,
+			.mask = ST_SENSORS_DEFAULT_AXIS_MASK,
+		},
+		.fs = {
+			.addr = ST_ACCEL_1_FS_ADDR,
+			.mask = ST_ACCEL_1_FS_MASK,
+			.fs_avl = {
+				[0] = {
+					.num = ST_ACCEL_FS_AVL_2G,
+					.value = ST_ACCEL_1_FS_AVL_2_VAL,
+					.gain = ST_ACCEL_8_FS_AVL_2_GAIN,
+				},
+				[1] = {
+					.num = ST_ACCEL_FS_AVL_4G,
+					.value = ST_ACCEL_1_FS_AVL_4_VAL,
+					.gain = ST_ACCEL_8_FS_AVL_4_GAIN,
+				},
+				[2] = {
+					.num = ST_ACCEL_FS_AVL_8G,
+					.value = ST_ACCEL_1_FS_AVL_8_VAL,
+					.gain = ST_ACCEL_8_FS_AVL_8_GAIN,
+				},
+				[3] = {
+					.num = ST_ACCEL_FS_AVL_16G,
+					.value = ST_ACCEL_1_FS_AVL_16_VAL,
+					.gain = ST_ACCEL_8_FS_AVL_16_GAIN,
+				},
+			},
+		},
+		.drdy_irq = {
+			.addr = ST_ACCEL_1_DRDY_IRQ_ADDR,
+			.mask_int1 = ST_ACCEL_1_DRDY_IRQ_INT1_MASK,
+			.mask_int2 = ST_ACCEL_1_DRDY_IRQ_INT2_MASK,
+			.addr_ihl = ST_ACCEL_1_IHL_IRQ_ADDR,
+			.mask_ihl = ST_ACCEL_1_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.multi_read_bit = ST_ACCEL_1_MULTIREAD_BIT,
 		.bootime = 2,
 	},
 };

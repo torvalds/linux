@@ -84,6 +84,23 @@ config HID_SENSOR_GYRO_3D
 	  Say yes here to build support for the HID SENSOR
 	  Gyroscope 3D.
 
+config MPU3050
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+
+config MPU3050_I2C
+	tristate "Invensense MPU3050 devices on I2C"
+	depends on !(INPUT_MPU3050=y || INPUT_MPU3050=m)
+	select MPU3050
+	select REGMAP_I2C
+	select I2C_MUX
+	help
+	  This driver supports the Invensense MPU3050 gyroscope over I2C.
+	  This driver can be built as a module. The module will be called
+	  inv-mpu3050-i2c.
+
 config IIO_ST_GYRO_3AXIS
 	tristate "STMicroelectronics gyroscopes 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
