@@ -76,8 +76,9 @@ extern __le64 *squashfs_read_fragment_index_table(struct super_block *,
 void squashfs_copy_cache(struct page *, struct squashfs_cache_entry *, int,
 				int);
 
-/* file_xxx.c */
-extern int squashfs_readpage_block(struct page *, u64, int);
+/* file_direct.c */
+extern int squashfs_readpages_block(struct page *, struct list_head *,
+	unsigned int *, struct address_space *, int, u64, int);
 
 /* id.c */
 extern int squashfs_get_id(struct super_block *, unsigned int, unsigned int *);

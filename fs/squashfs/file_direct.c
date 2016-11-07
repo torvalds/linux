@@ -13,12 +13,16 @@
 #include <linux/string.h>
 #include <linux/pagemap.h>
 #include <linux/mutex.h>
+#include <linux/mm_inline.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
 #include "page_actor.h"
+
+// Backported from 4.5
+#define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
 
 static void release_actor_pages(struct page **page, int pages, int error)
 {
@@ -45,23 +49,40 @@ static void release_actor_pages(struct page **page, int pages, int error)
  * page cache pages appropriately within the decompressor
  */
 static struct squashfs_page_actor *actor_from_page_cache(
-	struct page *target_page, int start_index, int nr_pages)
+	unsigned int actor_pages, struct page *target_page,
+	struct list_head *rpages, unsigned int *nr_pages, int start_index,
+	struct address_space *mapping)
 {
-	int i, n;
 	struct page **page;
 	struct squashfs_page_actor *actor;
+	int i, n;
+	gfp_t gfp = mapping_gfp_constraint(mapping, GFP_KERNEL);
 
-	page = kmalloc_array(nr_pages, sizeof(void *), GFP_KERNEL);
+	page = kmalloc_array(actor_pages, sizeof(void *), GFP_KERNEL);
 	if (!page)
 		return NULL;
 
-	/* Try to grab all the pages covered by the SquashFS block */
-	for (i = 0, n = start_index; i < nr_pages; i++, n++) {
-		if (target_page->index == n) {
+	for (i = 0, n = start_index; i < actor_pages; i++, n++) {
+		if (target_page == NULL && rpages && !list_empty(rpages)) {
+			struct page *cur_page = lru_to_page(rpages);
+
+			if (cur_page->index < start_index + actor_pages) {
+				list_del(&cur_page->lru);
+				--(*nr_pages);
+				if (add_to_page_cache_lru(cur_page, mapping,
+							  cur_page->index, gfp))
+					put_page(cur_page);
+				else
+					target_page = cur_page;
+			} else
+				rpages = NULL;
+		}
+
+		if (target_page && target_page->index == n) {
 			page[i] = target_page;
+			target_page = NULL;
 		} else {
-			page[i] = grab_cache_page_nowait(target_page->mapping,
-							 n);
+			page[i] = grab_cache_page_nowait(mapping, n);
 			if (page[i] == NULL)
 				continue;
 		}
@@ -73,39 +94,42 @@ static struct squashfs_page_actor *actor_from_page_cache(
 		}
 	}
 
-	actor = squashfs_page_actor_init(page, nr_pages, 0,
+	actor = squashfs_page_actor_init(page, actor_pages, 0,
 			release_actor_pages);
 	if (!actor) {
-		release_actor_pages(page, nr_pages, -ENOMEM);
+		release_actor_pages(page, actor_pages, -ENOMEM);
 		kfree(page);
 		return NULL;
 	}
 	return actor;
 }
 
-/* Read separately compressed datablock directly into page cache */
-int squashfs_readpage_block(struct page *target_page, u64 block, int bsize)
+int squashfs_readpages_block(struct page *target_page,
+			     struct list_head *readahead_pages,
+			     unsigned int *nr_pages,
+			     struct address_space *mapping,
+			     int page_index, u64 block, int bsize)
 
 {
-	struct inode *inode = target_page->mapping->host;
+	struct squashfs_page_actor *actor;
+	struct inode *inode = mapping->host;
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
-
 	int file_end = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
 	int mask = (1 << (msblk->block_log - PAGE_CACHE_SHIFT)) - 1;
-	int start_index = target_page->index & ~mask;
+	int start_index = page_index & ~mask;
 	int end_index = start_index | mask;
-	int pages, res = -ENOMEM;
-	struct squashfs_page_actor *actor;
+	int actor_pages, res;
 
 	if (end_index > file_end)
 		end_index = file_end;
-	pages = end_index - start_index + 1;
+	actor_pages = end_index - start_index + 1;
 
-	actor = actor_from_page_cache(target_page, start_index, pages);
+	actor = actor_from_page_cache(actor_pages, target_page,
+				      readahead_pages, nr_pages, start_index,
+				      mapping);
 	if (!actor)
 		return -ENOMEM;
 
-	get_page(target_page);
 	res = squashfs_read_data_async(inode->i_sb, block, bsize, NULL,
 				       actor);
 	return res < 0 ? res : 0;
