@@ -339,18 +339,20 @@ dma_fence_default_wait_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
  * @timeout:	[in]	timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Returns -ERESTARTSYS if interrupted, 0 if the wait timed out, or the
- * remaining timeout in jiffies on success.
+ * remaining timeout in jiffies on success. If timeout is zero the value one is
+ * returned if the fence is already signaled for consistency with other
+ * functions taking a jiffies timeout.
  */
 signed long
 dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 {
 	struct default_wait_cb cb;
 	unsigned long flags;
-	signed long ret = timeout;
+	signed long ret = timeout ? timeout : 1;
 	bool was_set;
 
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return timeout;
+		return ret;
 
 	spin_lock_irqsave(fence->lock, flags);
 
