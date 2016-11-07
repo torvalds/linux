@@ -230,6 +230,29 @@ static const struct sx150x_device_data sx1502q_device_data = {
 	.npins = 8, /* oscio not available */
 };
 
+static const struct sx150x_device_data sx1503q_device_data = {
+	.model = SX150X_123,
+	.reg_pullup	= 0x05,
+	.reg_pulldn	= 0x07,
+	.reg_dir	= 0x03,
+	.reg_data	= 0x01,
+	.reg_irq_mask	= 0x09,
+	.reg_irq_src	= 0x0f,
+	.reg_sense	= 0x07,
+	.pri.x123 = {
+		.reg_pld_mode	= 0x10,
+		.reg_pld_table0	= 0x11,
+		.reg_pld_table1	= 0x12,
+		.reg_pld_table2	= 0x13,
+		.reg_pld_table3	= 0x14,
+		.reg_pld_table4	= 0x15,
+		.reg_advance	= 0xad,
+	},
+	.ngpios	= 16,
+	.pins = sx150x_16_pins,
+	.npins  = 16, /* oscio not available */
+};
+
 static s32 sx150x_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
 	s32 err = i2c_smbus_write_byte_data(client, reg, val);
@@ -859,6 +882,7 @@ static const struct i2c_device_id sx150x_id[] = {
 	{"sx1509q", (kernel_ulong_t) &sx1509q_device_data },
 	{"sx1506q", (kernel_ulong_t) &sx1506q_device_data },
 	{"sx1502q", (kernel_ulong_t) &sx1502q_device_data },
+	{"sx1503q", (kernel_ulong_t) &sx1503q_device_data },
 	{}
 };
 
@@ -867,6 +891,7 @@ static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1509q", .data = &sx1509q_device_data },
 	{ .compatible = "semtech,sx1506q", .data = &sx1506q_device_data },
 	{ .compatible = "semtech,sx1502q", .data = &sx1502q_device_data },
+	{ .compatible = "semtech,sx1503q", .data = &sx1503q_device_data },
 	{},
 };
 
