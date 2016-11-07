@@ -2183,6 +2183,34 @@ nv130_chipset = {
 };
 
 static const struct nvkm_device_chip
+nv132_chipset = {
+	.name = "GP102",
+	.bar = gf100_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.devinit = gm200_devinit_new,
+	.fb = gp104_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.ltc = gp100_ltc_new,
+	.mc = gp100_mc_new,
+	.mmu = gf100_mmu_new,
+	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = gp104_ce_new,
+	.ce[1] = gp104_ce_new,
+	.ce[2] = gp104_ce_new,
+	.ce[3] = gp104_ce_new,
+	.disp = gp104_disp_new,
+	.dma = gf119_dma_new,
+	.fifo = gp100_fifo_new,
+};
+
+static const struct nvkm_device_chip
 nv134_chipset = {
 	.name = "GP104",
 	.bar = gf100_bar_new,
@@ -2644,6 +2672,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x126: device->chip = &nv126_chipset; break;
 		case 0x12b: device->chip = &nv12b_chipset; break;
 		case 0x130: device->chip = &nv130_chipset; break;
+		case 0x132: device->chip = &nv132_chipset; break;
 		case 0x134: device->chip = &nv134_chipset; break;
 		default:
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
