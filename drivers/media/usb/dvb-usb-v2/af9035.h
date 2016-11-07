@@ -22,6 +22,7 @@
 #ifndef AF9035_H
 #define AF9035_H
 
+#include <linux/platform_device.h>
 #include "dvb_usb.h"
 #include "af9033.h"
 #include "tua9001.h"
@@ -73,6 +74,7 @@ struct state {
 	#define AF9035_I2C_CLIENT_MAX 4
 	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
 	struct i2c_adapter *i2c_adapter_demod;
+	struct platform_device *platform_device_tuner[2];
 };
 
 static const u32 clock_lut_af9035[] = {
