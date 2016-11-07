@@ -119,7 +119,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			daddr = nla_get_in_addr(tb[TCA_TUNNEL_KEY_ENC_IPV4_DST]);
 
 			metadata = __ip_tun_set_dst(saddr, daddr, 0, 0,
-						    TUNNEL_KEY, key_id, 0);
+						    0, TUNNEL_KEY, key_id, 0);
 		} else if (tb[TCA_TUNNEL_KEY_ENC_IPV6_SRC] &&
 			   tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]) {
 			struct in6_addr saddr;
@@ -129,7 +129,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			daddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]);
 
 			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, 0,
-						      TUNNEL_KEY, key_id, 0);
+						      0, TUNNEL_KEY, key_id, 0);
 		}
 
 		if (!metadata) {
