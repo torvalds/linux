@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
+#include <asm/processor.h>
 #include <asm/fpu/internal.h> /* For use_eager_fpu.  Ugh! */
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
@@ -64,6 +65,11 @@ u64 kvm_supported_xcr0(void)
 }
 
 #define F(x) bit(X86_FEATURE_##x)
+
+/* These are scattered features in cpufeatures.h. */
+#define KVM_CPUID_BIT_AVX512_4VNNIW     2
+#define KVM_CPUID_BIT_AVX512_4FMAPS     3
+#define KF(x) bit(KVM_CPUID_BIT_##x)
 
 int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 {
@@ -376,6 +382,10 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	/* cpuid 7.0.ecx*/
 	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | 0 /*OSPKE*/;
 
+	/* cpuid 7.0.edx*/
+	const u32 kvm_cpuid_7_0_edx_x86_features =
+		KF(AVX512_4VNNIW) | KF(AVX512_4FMAPS);
+
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
 
@@ -458,12 +468,14 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			/* PKU is not yet implemented for shadow paging. */
 			if (!tdp_enabled)
 				entry->ecx &= ~F(PKU);
+			entry->edx &= kvm_cpuid_7_0_edx_x86_features;
+			entry->edx &= get_scattered_cpuid_leaf(7, 0, CPUID_EDX);
 		} else {
 			entry->ebx = 0;
 			entry->ecx = 0;
+			entry->edx = 0;
 		}
 		entry->eax = 0;
-		entry->edx = 0;
 		break;
 	}
 	case 9:
