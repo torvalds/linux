@@ -93,6 +93,8 @@ struct sun4i_i2s {
 	struct clk	*mod_clk;
 	struct regmap	*regmap;
 
+	unsigned int	mclk_freq;
+
 	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
 };
@@ -158,14 +160,24 @@ static int sun4i_i2s_get_mclk_div(struct sun4i_i2s *i2s,
 }
 
 static int sun4i_i2s_oversample_rates[] = { 128, 192, 256, 384, 512, 768 };
+static bool sun4i_i2s_oversample_is_valid(unsigned int oversample)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sun4i_i2s_oversample_rates); i++)
+		if (sun4i_i2s_oversample_rates[i] == oversample)
+			return true;
+
+	return false;
+}
 
 static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
 				  unsigned int rate,
 				  unsigned int word_size)
 {
-	unsigned int clk_rate;
+	unsigned int oversample_rate, clk_rate;
 	int bclk_div, mclk_div;
-	int ret, i;
+	int ret;
 
 	switch (rate) {
 	case 176400:
@@ -197,21 +209,18 @@ static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
 	if (ret)
 		return ret;
 
-	/* Always favor the highest oversampling rate */
-	for (i = (ARRAY_SIZE(sun4i_i2s_oversample_rates) - 1); i >= 0; i--) {
-		unsigned int oversample_rate = sun4i_i2s_oversample_rates[i];
+	oversample_rate = i2s->mclk_freq / rate;
+	if (!sun4i_i2s_oversample_is_valid(oversample_rate))
+		return -EINVAL;
 
-		bclk_div = sun4i_i2s_get_bclk_div(i2s, oversample_rate,
-						  word_size);
-		mclk_div = sun4i_i2s_get_mclk_div(i2s, oversample_rate,
-						  clk_rate,
-						  rate);
+	bclk_div = sun4i_i2s_get_bclk_div(i2s, oversample_rate,
+					  word_size);
+	if (bclk_div < 0)
+		return -EINVAL;
 
-		if ((bclk_div >= 0) && (mclk_div >= 0))
-			break;
-	}
-
-	if ((bclk_div < 0) || (mclk_div < 0))
+	mclk_div = sun4i_i2s_get_mclk_div(i2s, oversample_rate,
+					  clk_rate, rate);
+	if (mclk_div < 0)
 		return -EINVAL;
 
 	regmap_write(i2s->regmap, SUN4I_I2S_CLK_DIV_REG,
@@ -481,9 +490,23 @@ static void sun4i_i2s_shutdown(struct snd_pcm_substream *substream,
 	regmap_write(i2s->regmap, SUN4I_I2S_CTRL_REG, 0);
 }
 
+static int sun4i_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+				unsigned int freq, int dir)
+{
+	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+
+	if (clk_id != 0)
+		return -EINVAL;
+
+	i2s->mclk_freq = freq;
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops sun4i_i2s_dai_ops = {
 	.hw_params	= sun4i_i2s_hw_params,
 	.set_fmt	= sun4i_i2s_set_fmt,
+	.set_sysclk	= sun4i_i2s_set_sysclk,
 	.shutdown	= sun4i_i2s_shutdown,
 	.startup	= sun4i_i2s_startup,
 	.trigger	= sun4i_i2s_trigger,
