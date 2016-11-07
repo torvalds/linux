@@ -24,6 +24,8 @@
  *
  */
 
+#include <linux/sysfs.h>
+
 #include "i915_drv.h"
 #include "i915_oa_hsw.h"
 
@@ -141,4 +143,53 @@ int i915_oa_select_metric_set_hsw(struct drm_i915_private *dev_priv)
 	default:
 		return -ENODEV;
 	}
+}
+
+static ssize_t
+show_render_basic_id(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", METRIC_SET_ID_RENDER_BASIC);
+}
+
+static struct device_attribute dev_attr_render_basic_id = {
+	.attr = { .name = "id", .mode = 0444 },
+	.show = show_render_basic_id,
+	.store = NULL,
+};
+
+static struct attribute *attrs_render_basic[] = {
+	&dev_attr_render_basic_id.attr,
+	NULL,
+};
+
+static struct attribute_group group_render_basic = {
+	.name = "403d8832-1a27-4aa6-a64e-f5389ce7b212",
+	.attrs =  attrs_render_basic,
+};
+
+int
+i915_perf_register_sysfs_hsw(struct drm_i915_private *dev_priv)
+{
+	int mux_len;
+	int ret = 0;
+
+	if (get_render_basic_mux_config(dev_priv, &mux_len)) {
+		ret = sysfs_create_group(dev_priv->perf.metrics_kobj, &group_render_basic);
+		if (ret)
+			goto error_render_basic;
+	}
+
+	return 0;
+
+error_render_basic:
+	return ret;
+}
+
+void
+i915_perf_unregister_sysfs_hsw(struct drm_i915_private *dev_priv)
+{
+	int mux_len;
+
+	if (get_render_basic_mux_config(dev_priv, &mux_len))
+		sysfs_remove_group(dev_priv->perf.metrics_kobj, &group_render_basic);
 }

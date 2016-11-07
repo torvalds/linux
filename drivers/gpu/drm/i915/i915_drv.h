@@ -2193,6 +2193,8 @@ struct drm_i915_private {
 	struct {
 		bool initialized;
 
+		struct kobject *metrics_kobj;
+
 		struct mutex lock;
 		struct list_head streams;
 
@@ -3533,6 +3535,8 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 /* i915_perf.c */
 extern void i915_perf_init(struct drm_i915_private *dev_priv);
 extern void i915_perf_fini(struct drm_i915_private *dev_priv);
+extern void i915_perf_register(struct drm_i915_private *dev_priv);
+extern void i915_perf_unregister(struct drm_i915_private *dev_priv);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);

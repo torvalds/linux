@@ -812,6 +812,15 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	int format_size;
 	int ret;
 
+	/* If the sysfs metrics/ directory wasn't registered for some
+	 * reason then don't let userspace try their luck with config
+	 * IDs
+	 */
+	if (!dev_priv->perf.metrics_kobj) {
+		DRM_ERROR("OA metrics weren't advertised via sysfs\n");
+		return -EINVAL;
+	}
+
 	if (!(props->sample_flags & SAMPLE_OA_REPORT)) {
 		DRM_ERROR("Only OA report sampling supported\n");
 		return -EINVAL;
@@ -1406,6 +1415,49 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev_priv->perf.lock);
 
 	return ret;
+}
+
+void i915_perf_register(struct drm_i915_private *dev_priv)
+{
+	if (!IS_HASWELL(dev_priv))
+		return;
+
+	if (!dev_priv->perf.initialized)
+		return;
+
+	/* To be sure we're synchronized with an attempted
+	 * i915_perf_open_ioctl(); considering that we register after
+	 * being exposed to userspace.
+	 */
+	mutex_lock(&dev_priv->perf.lock);
+
+	dev_priv->perf.metrics_kobj =
+		kobject_create_and_add("metrics",
+				       &dev_priv->drm.primary->kdev->kobj);
+	if (!dev_priv->perf.metrics_kobj)
+		goto exit;
+
+	if (i915_perf_register_sysfs_hsw(dev_priv)) {
+		kobject_put(dev_priv->perf.metrics_kobj);
+		dev_priv->perf.metrics_kobj = NULL;
+	}
+
+exit:
+	mutex_unlock(&dev_priv->perf.lock);
+}
+
+void i915_perf_unregister(struct drm_i915_private *dev_priv)
+{
+	if (!IS_HASWELL(dev_priv))
+		return;
+
+	if (!dev_priv->perf.metrics_kobj)
+		return;
+
+	i915_perf_unregister_sysfs_hsw(dev_priv);
+
+	kobject_put(dev_priv->perf.metrics_kobj);
+	dev_priv->perf.metrics_kobj = NULL;
 }
 
 void i915_perf_init(struct drm_i915_private *dev_priv)

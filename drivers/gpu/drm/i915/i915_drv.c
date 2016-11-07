@@ -1129,6 +1129,9 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 		i915_debugfs_register(dev_priv);
 		i915_guc_register(dev_priv);
 		i915_setup_sysfs(dev_priv);
+
+		/* Depends on sysfs having been initialized */
+		i915_perf_register(dev_priv);
 	} else
 		DRM_ERROR("Failed to register driver for userspace access!\n");
 
@@ -1164,6 +1167,8 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	intel_gpu_ips_teardown();
 	acpi_video_unregister();
 	intel_opregion_unregister(dev_priv);
+
+	i915_perf_unregister(dev_priv);
 
 	i915_teardown_sysfs(dev_priv);
 	i915_guc_unregister(dev_priv);
