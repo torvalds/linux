@@ -1147,6 +1147,36 @@ drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
 
 /**
+ * drm_atomic_set_fence_for_plane - set fence for plane
+ * @plane_state: atomic state object for the plane
+ * @fence: dma_fence to use for the plane
+ *
+ * Helper to setup the plane_state fence in case it is not set yet.
+ * By using this drivers doesn't need to worry if the user choose
+ * implicit or explicit fencing.
+ *
+ * This function will not set the fence to the state if it was set
+ * via explicit fencing interfaces on the atomic ioctl. It will
+ * all drope the reference to the fence as we not storing it
+ * anywhere.
+ *
+ * Otherwise, if plane_state->fence is not set this function we
+ * just set it with the received implict fence.
+ */
+void
+drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
+			       struct dma_fence *fence)
+{
+	if (plane_state->fence) {
+		dma_fence_put(fence);
+		return;
+	}
+
+	plane_state->fence = fence;
+}
+EXPORT_SYMBOL(drm_atomic_set_fence_for_plane);
+
+/**
  * drm_atomic_set_crtc_for_connector - set crtc for connector
  * @conn_state: atomic state object for the connector
  * @crtc: crtc to use for the connector
