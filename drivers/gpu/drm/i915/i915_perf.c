@@ -24,6 +24,169 @@
  *   Robert Bragg <robert@sixbynine.org>
  */
 
+
+/**
+ * DOC: i915 Perf, streaming API for GPU metrics
+ *
+ * Gen graphics supports a large number of performance counters that can help
+ * driver and application developers understand and optimize their use of the
+ * GPU.
+ *
+ * This i915 perf interface enables userspace to configure and open a file
+ * descriptor representing a stream of GPU metrics which can then be read() as
+ * a stream of sample records.
+ *
+ * The interface is particularly suited to exposing buffered metrics that are
+ * captured by DMA from the GPU, unsynchronized with and unrelated to the CPU.
+ *
+ * Streams representing a single context are accessible to applications with a
+ * corresponding drm file descriptor, such that OpenGL can use the interface
+ * without special privileges. Access to system-wide metrics requires root
+ * privileges by default, unless changed via the dev.i915.perf_event_paranoid
+ * sysctl option.
+ *
+ *
+ * The interface was initially inspired by the core Perf infrastructure but
+ * some notable differences are:
+ *
+ * i915 perf file descriptors represent a "stream" instead of an "event"; where
+ * a perf event primarily corresponds to a single 64bit value, while a stream
+ * might sample sets of tightly-coupled counters, depending on the
+ * configuration.  For example the Gen OA unit isn't designed to support
+ * orthogonal configurations of individual counters; it's configured for a set
+ * of related counters. Samples for an i915 perf stream capturing OA metrics
+ * will include a set of counter values packed in a compact HW specific format.
+ * The OA unit supports a number of different packing formats which can be
+ * selected by the user opening the stream. Perf has support for grouping
+ * events, but each event in the group is configured, validated and
+ * authenticated individually with separate system calls.
+ *
+ * i915 perf stream configurations are provided as an array of u64 (key,value)
+ * pairs, instead of a fixed struct with multiple miscellaneous config members,
+ * interleaved with event-type specific members.
+ *
+ * i915 perf doesn't support exposing metrics via an mmap'd circular buffer.
+ * The supported metrics are being written to memory by the GPU unsynchronized
+ * with the CPU, using HW specific packing formats for counter sets. Sometimes
+ * the constraints on HW configuration require reports to be filtered before it
+ * would be acceptable to expose them to unprivileged applications - to hide
+ * the metrics of other processes/contexts. For these use cases a read() based
+ * interface is a good fit, and provides an opportunity to filter data as it
+ * gets copied from the GPU mapped buffers to userspace buffers.
+ *
+ *
+ * Some notes regarding Linux Perf:
+ * --------------------------------
+ *
+ * The first prototype of this driver was based on the core perf
+ * infrastructure, and while we did make that mostly work, with some changes to
+ * perf, we found we were breaking or working around too many assumptions baked
+ * into perf's currently cpu centric design.
+ *
+ * In the end we didn't see a clear benefit to making perf's implementation and
+ * interface more complex by changing design assumptions while we knew we still
+ * wouldn't be able to use any existing perf based userspace tools.
+ *
+ * Also considering the Gen specific nature of the Observability hardware and
+ * how userspace will sometimes need to combine i915 perf OA metrics with
+ * side-band OA data captured via MI_REPORT_PERF_COUNT commands; we're
+ * expecting the interface to be used by a platform specific userspace such as
+ * OpenGL or tools. This is to say; we aren't inherently missing out on having
+ * a standard vendor/architecture agnostic interface by not using perf.
+ *
+ *
+ * For posterity, in case we might re-visit trying to adapt core perf to be
+ * better suited to exposing i915 metrics these were the main pain points we
+ * hit:
+ *
+ * - The perf based OA PMU driver broke some significant design assumptions:
+ *
+ *   Existing perf pmus are used for profiling work on a cpu and we were
+ *   introducing the idea of _IS_DEVICE pmus with different security
+ *   implications, the need to fake cpu-related data (such as user/kernel
+ *   registers) to fit with perf's current design, and adding _DEVICE records
+ *   as a way to forward device-specific status records.
+ *
+ *   The OA unit writes reports of counters into a circular buffer, without
+ *   involvement from the CPU, making our PMU driver the first of a kind.
+ *
+ *   Given the way we were periodically forward data from the GPU-mapped, OA
+ *   buffer to perf's buffer, those bursts of sample writes looked to perf like
+ *   we were sampling too fast and so we had to subvert its throttling checks.
+ *
+ *   Perf supports groups of counters and allows those to be read via
+ *   transactions internally but transactions currently seem designed to be
+ *   explicitly initiated from the cpu (say in response to a userspace read())
+ *   and while we could pull a report out of the OA buffer we can't
+ *   trigger a report from the cpu on demand.
+ *
+ *   Related to being report based; the OA counters are configured in HW as a
+ *   set while perf generally expects counter configurations to be orthogonal.
+ *   Although counters can be associated with a group leader as they are
+ *   opened, there's no clear precedent for being able to provide group-wide
+ *   configuration attributes (for example we want to let userspace choose the
+ *   OA unit report format used to capture all counters in a set, or specify a
+ *   GPU context to filter metrics on). We avoided using perf's grouping
+ *   feature and forwarded OA reports to userspace via perf's 'raw' sample
+ *   field. This suited our userspace well considering how coupled the counters
+ *   are when dealing with normalizing. It would be inconvenient to split
+ *   counters up into separate events, only to require userspace to recombine
+ *   them. For Mesa it's also convenient to be forwarded raw, periodic reports
+ *   for combining with the side-band raw reports it captures using
+ *   MI_REPORT_PERF_COUNT commands.
+ *
+ *   _ As a side note on perf's grouping feature; there was also some concern
+ *     that using PERF_FORMAT_GROUP as a way to pack together counter values
+ *     would quite drastically inflate our sample sizes, which would likely
+ *     lower the effective sampling resolutions we could use when the available
+ *     memory bandwidth is limited.
+ *
+ *     With the OA unit's report formats, counters are packed together as 32
+ *     or 40bit values, with the largest report size being 256 bytes.
+ *
+ *     PERF_FORMAT_GROUP values are 64bit, but there doesn't appear to be a
+ *     documented ordering to the values, implying PERF_FORMAT_ID must also be
+ *     used to add a 64bit ID before each value; giving 16 bytes per counter.
+ *
+ *   Related to counter orthogonality; we can't time share the OA unit, while
+ *   event scheduling is a central design idea within perf for allowing
+ *   userspace to open + enable more events than can be configured in HW at any
+ *   one time.  The OA unit is not designed to allow re-configuration while in
+ *   use. We can't reconfigure the OA unit without losing internal OA unit
+ *   state which we can't access explicitly to save and restore. Reconfiguring
+ *   the OA unit is also relatively slow, involving ~100 register writes. From
+ *   userspace Mesa also depends on a stable OA configuration when emitting
+ *   MI_REPORT_PERF_COUNT commands and importantly the OA unit can't be
+ *   disabled while there are outstanding MI_RPC commands lest we hang the
+ *   command streamer.
+ *
+ *   The contents of sample records aren't extensible by device drivers (i.e.
+ *   the sample_type bits). As an example; Sourab Gupta had been looking to
+ *   attach GPU timestamps to our OA samples. We were shoehorning OA reports
+ *   into sample records by using the 'raw' field, but it's tricky to pack more
+ *   than one thing into this field because events/core.c currently only lets a
+ *   pmu give a single raw data pointer plus len which will be copied into the
+ *   ring buffer. To include more than the OA report we'd have to copy the
+ *   report into an intermediate larger buffer. I'd been considering allowing a
+ *   vector of data+len values to be specified for copying the raw data, but
+ *   it felt like a kludge to being using the raw field for this purpose.
+ *
+ * - It felt like our perf based PMU was making some technical compromises
+ *   just for the sake of using perf:
+ *
+ *   perf_event_open() requires events to either relate to a pid or a specific
+ *   cpu core, while our device pmu related to neither.  Events opened with a
+ *   pid will be automatically enabled/disabled according to the scheduling of
+ *   that process - so not appropriate for us. When an event is related to a
+ *   cpu id, perf ensures pmu methods will be invoked via an inter process
+ *   interrupt on that core. To avoid invasive changes our userspace opened OA
+ *   perf events for a specific cpu. This was workable but it meant the
+ *   majority of the OA driver ran in atomic context, including all OA report
+ *   forwarding, which wasn't really necessary in our case and seems to make
+ *   our locking requirements somewhat complex as we handled the interaction
+ *   with the rest of the i915 driver.
+ */
+
 #include <linux/anon_inodes.h>
 #include <linux/sizes.h>
 
