@@ -130,6 +130,7 @@
 				reg = <0x210000 0x2000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				#pinctrl-cells = <1>;
 				ranges = <0 0x210000 0x2000>;
 
 				am33xx_pinmux: pinmux@800 {
@@ -137,6 +138,7 @@
 					reg = <0x800 0x238>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x7f>;
 				};
