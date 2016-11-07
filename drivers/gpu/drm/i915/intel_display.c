@@ -2975,6 +2975,9 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	unsigned int rotation = plane_state->base.rotation;
 	int ret;
 
+	if (!plane_state->base.visible)
+		return 0;
+
 	/* Rotate src coordinates to match rotated GTT view */
 	if (intel_rotation_90_or_270(rotation))
 		drm_rect_rotate(&plane_state->base.src,
