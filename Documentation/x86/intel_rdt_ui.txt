@@ -17,6 +17,25 @@ mount options are:
 "cdp": Enable code/data prioritization in L3 cache allocations.
 
 
+Info directory
+--------------
+
+The 'info' directory contains information about the enabled
+resources. Each resource has its own subdirectory. The subdirectory
+names reflect the resource names. Each subdirectory contains the
+following files:
+
+"num_closids":  The number of CLOSIDs which are valid for this
+	        resource. The kernel uses the smallest number of
+		CLOSIDs of all enabled resources as limit.
+
+"cbm_mask":     The bitmask which is valid for this resource. This
+		mask is equivalent to 100%.
+
+"min_cbm_bits": The minimum number of consecutive bits which must be
+		set when writing a mask.
+
+
 Resource groups
 ---------------
 Resource groups are represented as directories in the resctrl file
