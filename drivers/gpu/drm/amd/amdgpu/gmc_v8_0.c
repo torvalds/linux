@@ -467,9 +467,16 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	/* size in MB on si */
 	adev->mc.mc_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	adev->mc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
-	adev->mc.visible_vram_size = adev->mc.aper_size;
+
+#ifdef CONFIG_X86_64
+	if (adev->flags & AMD_IS_APU) {
+		adev->mc.aper_base = ((u64)RREG32(mmMC_VM_FB_OFFSET)) << 22;
+		adev->mc.aper_size = adev->mc.real_vram_size;
+	}
+#endif
 
 	/* In case the PCI BAR is larger than the actual amount of vram */
+	adev->mc.visible_vram_size = adev->mc.aper_size;
 	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
 		adev->mc.visible_vram_size = adev->mc.real_vram_size;
 
