@@ -35,14 +35,6 @@ extern long __strnlen_user_nocheck_asm(const char *s);
 extern long __strnlen_user_asm(const char *s);
 
 /*
- * Core architecture code
- */
-EXPORT_SYMBOL_GPL(_save_fp);
-#ifdef CONFIG_CPU_HAS_MSA
-EXPORT_SYMBOL_GPL(_save_msa);
-#endif
-
-/*
  * String functions
  */
 EXPORT_SYMBOL(memset);
