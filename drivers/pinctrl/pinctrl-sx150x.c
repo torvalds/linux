@@ -49,6 +49,8 @@ enum {
 	SX150X_MAX_REGISTER = 0xad,
 	SX150X_IRQ_TYPE_EDGE_RISING = 0x1,
 	SX150X_IRQ_TYPE_EDGE_FALLING = 0x2,
+	SX150X_789_RESET_KEY1 = 0x12,
+	SX150X_789_RESET_KEY2 = 0x34,
 };
 
 struct sx150x_123_pri {
@@ -771,13 +773,13 @@ static int sx150x_reset(struct sx150x_pinctrl *pctl)
 
 	err = i2c_smbus_write_byte_data(pctl->client,
 					pctl->data->pri.x789.reg_reset,
-					0x12);
+					SX150X_789_RESET_KEY1);
 	if (err < 0)
 		return err;
 
 	err = i2c_smbus_write_byte_data(pctl->client,
 					pctl->data->pri.x789.reg_reset,
-					0x34);
+					SX150X_789_RESET_KEY2);
 	return err;
 }
 
