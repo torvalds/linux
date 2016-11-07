@@ -217,7 +217,7 @@ config BROADCOM_PHY
 	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
-	  BCM5481 and BCM5482 PHYs.
+	  BCM5481, BCM54810 and BCM5482 PHYs.
 
 config CICADA_PHY
 	tristate "Cicada PHYs"
