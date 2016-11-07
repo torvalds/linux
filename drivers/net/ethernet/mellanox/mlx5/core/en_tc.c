@@ -61,6 +61,11 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_core_dev *dev = priv->mdev;
 	struct mlx5_flow_destination dest = { 0 };
+	struct mlx5_flow_act flow_act = {
+		.action = action,
+		.flow_tag = flow_tag,
+		.encap_id = 0,
+	};
 	struct mlx5_fc *counter = NULL;
 	struct mlx5_flow_handle *rule;
 	bool table_created = false;
@@ -95,9 +100,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	rule = mlx5_add_flow_rules(priv->fs.tc.t, spec,
-				   action, flow_tag,
-				   &dest, 1);
+	rule = mlx5_add_flow_rules(priv->fs.tc.t, spec, &flow_act, &dest, 1);
 
 	if (IS_ERR(rule))
 		goto err_add_rule;

@@ -130,14 +130,19 @@ struct mlx5_flow_group *
 mlx5_create_flow_group(struct mlx5_flow_table *ft, u32 *in);
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
+struct mlx5_flow_act {
+	u32 action;
+	u32 flow_tag;
+	u32 encap_id;
+};
+
 /* Single destination per rule.
  * Group ID is implied by the match criteria.
  */
 struct mlx5_flow_handle *
 mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    struct mlx5_flow_spec *spec,
-		    u32 action,
-		    u32 flow_tag,
+		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
 		    int dest_num);
 void mlx5_del_flow_rules(struct mlx5_flow_handle *fr);

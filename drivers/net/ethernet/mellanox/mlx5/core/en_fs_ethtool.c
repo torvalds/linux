@@ -290,10 +290,10 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		      struct ethtool_rx_flow_spec *fs)
 {
 	struct mlx5_flow_destination *dst = NULL;
+	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_handle *rule;
 	int err = 0;
-	u32 action;
 
 	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec)
@@ -304,7 +304,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		goto free;
 
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
-		action = MLX5_FLOW_CONTEXT_ACTION_DROP;
+		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	} else {
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
@@ -314,12 +314,12 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 		dst->tir_num = priv->direct_tir[fs->ring_cookie].tirn;
-		action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
-	rule = mlx5_add_flow_rules(ft, spec, action,
-				   MLX5_FS_DEFAULT_FLOW_TAG, dst, 1);
+	flow_act.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
+	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: failed to add ethtool steering rule: %d\n",
