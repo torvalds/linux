@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, 2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 
 #include "common.h"
+#include "clk-debug.h"
 
 #define to_clk_dummy(_hw)	container_of(_hw, struct clk_dummy, hw)
 
@@ -49,6 +50,7 @@ const struct clk_ops clk_dummy_ops = {
 	.set_rate = dummy_clk_set_rate,
 	.round_rate = dummy_clk_round_rate,
 	.recalc_rate = dummy_clk_recalc_rate,
+	.debug_init = clk_debug_measure_add,
 };
 EXPORT_SYMBOL(clk_dummy_ops);
 

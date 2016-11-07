@@ -20,6 +20,7 @@
 
 #include "clk-rcg.h"
 #include "common.h"
+#include "clk-debug.h"
 
 #define CMD_REG			0x0
 #define CMD_UPDATE		BIT(0)
@@ -447,6 +448,61 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	return update_config(rcg);
 }
 
+static void clk_rcg2_list_registers(struct seq_file *f, struct clk_hw *hw)
+{
+	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+	int i = 0, size = 0, val;
+
+	static struct clk_register_data data[] = {
+		{"CMD_RCGR", 0x0},
+		{"CFG_RCGR", 0x4},
+	};
+
+	static struct clk_register_data data1[] = {
+		{"CMD_RCGR", 0x0},
+		{"CFG_RCGR", 0x4},
+		{"M_VAL", 0x8},
+		{"N_VAL", 0xC},
+		{"D_VAL", 0x10},
+	};
+
+	if (rcg->mnd_width) {
+		size = ARRAY_SIZE(data1);
+		for (i = 0; i < size; i++) {
+			regmap_read(rcg->clkr.regmap, (rcg->cmd_rcgr +
+					data1[i].offset), &val);
+			seq_printf(f, "%20s: 0x%.8x\n",	data1[i].name, val);
+		}
+	} else {
+		size = ARRAY_SIZE(data);
+		for (i = 0; i < size; i++) {
+			regmap_read(rcg->clkr.regmap, (rcg->cmd_rcgr +
+				data[i].offset), &val);
+			seq_printf(f, "%20s: 0x%.8x\n",	data[i].name, val);
+		}
+	}
+}
+
+/* Return the nth supported frequency for a given clock. */
+static long clk_rcg2_list_rate(struct clk_hw *hw, unsigned int n,
+		unsigned long fmax)
+{
+	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+	const struct freq_tbl *f = rcg->freq_tbl;
+	size_t freq_tbl_size = 0;
+
+	if (!f)
+		return -ENXIO;
+
+	for (; f->freq; f++)
+		freq_tbl_size++;
+
+	if (n > freq_tbl_size - 1)
+		return -EINVAL;
+
+	return (rcg->freq_tbl + n)->freq;
+}
+
 static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 			       enum freq_policy policy)
 {
@@ -708,6 +764,21 @@ static void clk_rcg2_disable(struct clk_hw *hw)
 	clk_rcg2_clear_force_enable(hw);
 }
 
+static struct clk_regmap_ops clk_rcg2_regmap_ops = {
+	.list_rate = clk_rcg2_list_rate,
+	.list_registers = clk_rcg2_list_registers,
+};
+
+static int clk_rcg2_init(struct clk_hw *hw)
+{
+	struct clk_regmap *rclk = to_clk_regmap(hw);
+
+	if (!rclk->ops)
+		rclk->ops = &clk_rcg2_regmap_ops;
+
+	return 0;
+}
+
 const struct clk_ops clk_rcg2_ops = {
 	.prepare = clk_prepare_regmap,
 	.unprepare = clk_unprepare_regmap,
@@ -724,6 +795,8 @@ const struct clk_ops clk_rcg2_ops = {
 	.set_rate_and_parent = clk_rcg2_set_rate_and_parent,
 	.get_duty_cycle = clk_rcg2_get_duty_cycle,
 	.set_duty_cycle = clk_rcg2_set_duty_cycle,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_rcg2_ops);
 
@@ -741,6 +814,8 @@ const struct clk_ops clk_rcg2_floor_ops = {
 	.set_rate_and_parent = clk_rcg2_set_floor_rate_and_parent,
 	.get_duty_cycle = clk_rcg2_get_duty_cycle,
 	.set_duty_cycle = clk_rcg2_set_duty_cycle,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_rcg2_floor_ops);
 
@@ -874,6 +949,8 @@ const struct clk_ops clk_edp_pixel_ops = {
 	.set_rate = clk_edp_pixel_set_rate,
 	.set_rate_and_parent = clk_edp_pixel_set_rate_and_parent,
 	.determine_rate = clk_edp_pixel_determine_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_edp_pixel_ops);
 
@@ -938,6 +1015,8 @@ const struct clk_ops clk_byte_ops = {
 	.set_rate = clk_byte_set_rate,
 	.set_rate_and_parent = clk_byte_set_rate_and_parent,
 	.determine_rate = clk_byte_determine_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_byte_ops);
 
@@ -1013,6 +1092,8 @@ const struct clk_ops clk_byte2_ops = {
 	.set_rate = clk_byte2_set_rate,
 	.set_rate_and_parent = clk_byte2_set_rate_and_parent,
 	.determine_rate = clk_byte2_determine_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_byte2_ops);
 
@@ -1110,6 +1191,8 @@ const struct clk_ops clk_pixel_ops = {
 	.set_rate = clk_pixel_set_rate,
 	.set_rate_and_parent = clk_pixel_set_rate_and_parent,
 	.determine_rate = clk_pixel_determine_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_pixel_ops);
 
@@ -1221,6 +1304,8 @@ const struct clk_ops clk_gfx3d_ops = {
 	.set_rate = clk_gfx3d_set_rate,
 	.set_rate_and_parent = clk_gfx3d_set_rate_and_parent,
 	.determine_rate = clk_gfx3d_determine_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_gfx3d_ops);
 
@@ -1332,6 +1417,8 @@ const struct clk_ops clk_rcg2_shared_ops = {
 	.determine_rate = clk_rcg2_determine_rate,
 	.set_rate = clk_rcg2_shared_set_rate,
 	.set_rate_and_parent = clk_rcg2_shared_set_rate_and_parent,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_rcg2_shared_ops);
 
@@ -1481,6 +1568,8 @@ static const struct clk_ops clk_rcg2_dfs_ops = {
 	.get_parent = clk_rcg2_get_parent,
 	.determine_rate = clk_rcg2_dfs_determine_rate,
 	.recalc_rate = clk_rcg2_dfs_recalc_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 
 static int clk_rcg2_enable_dfs(const struct clk_rcg_dfs_data *data,
@@ -1609,5 +1698,7 @@ const struct clk_ops clk_dp_ops = {
 	.set_rate = clk_rcg2_dp_set_rate,
 	.set_rate_and_parent = clk_rcg2_dp_set_rate_and_parent,
 	.determine_rate = clk_rcg2_dp_determine_rate,
+	.init = clk_rcg2_init,
+	.debug_init = clk_common_debug_init,
 };
 EXPORT_SYMBOL_GPL(clk_dp_ops);

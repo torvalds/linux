@@ -10,6 +10,7 @@
 #include <linux/pm_runtime.h>
 
 #include "clk-regmap.h"
+#include "clk-debug.h"
 
 static LIST_HEAD(clk_regmap_list);
 static DEFINE_MUTEX(clk_regmap_lock);
@@ -300,6 +301,8 @@ int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk)
 		mutex_lock(&clk_regmap_lock);
 		list_add(&rclk->list_node, &clk_regmap_list);
 		mutex_unlock(&clk_regmap_lock);
+
+		ret = clk_hw_debug_register(dev, &rclk->hw);
 	}
 
 	return ret;

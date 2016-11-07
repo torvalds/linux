@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2015, 2018, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2015, 2018, 2021, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_ALPHA_PLL_H__
 #define __QCOM_CLK_ALPHA_PLL_H__
@@ -21,6 +21,7 @@ enum {
 };
 
 enum {
+	PLL_OFF_MODE,
 	PLL_OFF_L_VAL,
 	PLL_OFF_CAL_L_VAL,
 	PLL_OFF_ALPHA_VAL,
@@ -38,6 +39,9 @@ enum {
 	PLL_OFF_OPMODE,
 	PLL_OFF_FRAC,
 	PLL_OFF_CAL_VAL,
+	PLL_OFF_SSC_DELTA_ALPHA,
+	PLL_OFF_SSC_NUM_STEPS,
+	PLL_OFF_SSC_UPDATE_RATE,
 	PLL_OFF_MAX_REGS
 };
 

@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2014, 2019-2020, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2014, 2019-2021, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_REGMAP_H__
 #define __QCOM_CLK_REGMAP_H__
 
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include "vdd-class.h"
 
 struct regmap;
@@ -71,5 +72,10 @@ bool clk_is_regmap_clk(struct clk_hw *hw);
 
 int clk_runtime_get_regmap(struct clk_regmap *rclk);
 void clk_runtime_put_regmap(struct clk_regmap *rclk);
+
+struct clk_register_data {
+	char *name;
+	u32 offset;
+};
 
 #endif
