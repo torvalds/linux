@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <asm/cpuidle.h>
 
+#include <soc/imx/cpuidle.h>
+
 #include "common.h"
 #include "cpuidle.h"
 #include "hardware.h"
@@ -62,10 +64,28 @@ static struct cpuidle_driver imx6q_cpuidle_driver = {
 	.safe_state_index = 0,
 };
 
+/*
+ * i.MX6 Q/DL has an erratum (ERR006687) that prevents the FEC from waking the
+ * CPUs when they are in wait(unclocked) state. As the hardware workaround isn't
+ * applicable to all boards, disable the deeper idle state when the workaround
+ * isn't present and the FEC is in use.
+ */
+void imx6q_cpuidle_fec_irqs_used(void)
+{
+	imx6q_cpuidle_driver.states[1].disabled = true;
+}
+EXPORT_SYMBOL_GPL(imx6q_cpuidle_fec_irqs_used);
+
+void imx6q_cpuidle_fec_irqs_unused(void)
+{
+	imx6q_cpuidle_driver.states[1].disabled = false;
+}
+EXPORT_SYMBOL_GPL(imx6q_cpuidle_fec_irqs_unused);
+
 int __init imx6q_cpuidle_init(void)
 {
 	/* Set INT_MEM_CLK_LPM bit to get a reliable WAIT mode support */
-	imx6q_set_int_mem_clk_lpm(true);
+	imx6_set_int_mem_clk_lpm(true);
 
 	return cpuidle_register(&imx6q_cpuidle_driver, NULL);
 }

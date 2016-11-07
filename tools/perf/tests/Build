@@ -39,6 +39,9 @@ perf-y += stat.o
 perf-y += event_update.o
 perf-y += event-times.o
 perf-y += backward-ring-buffer.o
+perf-y += sdt.o
+perf-y += is_printable_array.o
+perf-y += bitmap.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)
@@ -68,7 +71,7 @@ $(OUTPUT)tests/llvm-src-relocation.c: tests/bpf-script-test-relocation.c tests/B
 	$(Q)sed -e 's/"/\\"/g' -e 's/\(.*\)/"\1\\n"/g' $< >> $@
 	$(Q)echo ';' >> $@
 
-ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64))
+ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64 powerpc))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 

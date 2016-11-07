@@ -20,7 +20,6 @@
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
@@ -351,8 +350,8 @@ static unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
 	return (time_ps + tick_ps - 1) / tick_ps;
 }
 
-unsigned int gpmc_clk_ticks_to_ns(unsigned ticks, int cs,
-				  enum gpmc_clk_domain cd)
+static unsigned int gpmc_clk_ticks_to_ns(unsigned int ticks, int cs,
+					 enum gpmc_clk_domain cd)
 {
 	return ticks * gpmc_get_clk_period(cs, cd) / 1000;
 }
@@ -1807,7 +1806,6 @@ static const struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,am3352-gpmc" },	/* am335x devices */
 	{ }
 };
-MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
 
 /**
  * gpmc_read_settings_dt - read gpmc settings from device-tree
@@ -2134,8 +2132,7 @@ no_timings:
 	/* is child a common bus? */
 	if (of_match_node(of_default_bus_match_table, child))
 		/* create children and other common bus children */
-		if (of_platform_populate(child, of_default_bus_match_table,
-					 NULL, &pdev->dev))
+		if (of_platform_default_populate(child, NULL, &pdev->dev))
 			goto err_child_fail;
 
 	return 0;
@@ -2146,14 +2143,77 @@ err_child_fail:
 	ret = -ENODEV;
 
 err_cs:
-	if (waitpin_desc)
-		gpiochip_free_own_desc(waitpin_desc);
-
+	gpiochip_free_own_desc(waitpin_desc);
 err:
 	gpmc_cs_free(cs);
 
 	return ret;
 }
+
+static int gpmc_probe_dt(struct platform_device *pdev)
+{
+	int ret;
+	const struct of_device_id *of_id =
+		of_match_device(gpmc_dt_ids, &pdev->dev);
+
+	if (!of_id)
+		return 0;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-cs",
+				   &gpmc_cs_num);
+	if (ret < 0) {
+		pr_err("%s: number of chip-selects not defined\n", __func__);
+		return ret;
+	} else if (gpmc_cs_num < 1) {
+		pr_err("%s: all chip-selects are disabled\n", __func__);
+		return -EINVAL;
+	} else if (gpmc_cs_num > GPMC_CS_NUM) {
+		pr_err("%s: number of supported chip-selects cannot be > %d\n",
+					 __func__, GPMC_CS_NUM);
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-waitpins",
+				   &gpmc_nr_waitpins);
+	if (ret < 0) {
+		pr_err("%s: number of wait pins not found!\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void gpmc_probe_dt_children(struct platform_device *pdev)
+{
+	int ret;
+	struct device_node *child;
+
+	for_each_available_child_of_node(pdev->dev.of_node, child) {
+
+		if (!child->name)
+			continue;
+
+		if (of_node_cmp(child->name, "onenand") == 0)
+			ret = gpmc_probe_onenand_child(pdev, child);
+		else
+			ret = gpmc_probe_generic_child(pdev, child);
+
+		if (ret) {
+			dev_err(&pdev->dev, "failed to probe DT child '%s': %d\n",
+				child->name, ret);
+		}
+	}
+}
+#else
+static int gpmc_probe_dt(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static void gpmc_probe_dt_children(struct platform_device *pdev)
+{
+}
+#endif /* CONFIG_OF */
 
 static int gpmc_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
@@ -2203,7 +2263,7 @@ static int gpmc_gpio_init(struct gpmc_device *gpmc)
 	gpmc->gpio_chip.get = gpmc_gpio_get;
 	gpmc->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&gpmc->gpio_chip);
+	ret = devm_gpiochip_add_data(gpmc->dev, &gpmc->gpio_chip, NULL);
 	if (ret < 0) {
 		dev_err(gpmc->dev, "could not register gpio chip: %d\n", ret);
 		return ret;
@@ -2211,77 +2271,6 @@ static int gpmc_gpio_init(struct gpmc_device *gpmc)
 
 	return 0;
 }
-
-static void gpmc_gpio_exit(struct gpmc_device *gpmc)
-{
-	gpiochip_remove(&gpmc->gpio_chip);
-}
-
-static int gpmc_probe_dt(struct platform_device *pdev)
-{
-	int ret;
-	const struct of_device_id *of_id =
-		of_match_device(gpmc_dt_ids, &pdev->dev);
-
-	if (!of_id)
-		return 0;
-
-	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-cs",
-				   &gpmc_cs_num);
-	if (ret < 0) {
-		pr_err("%s: number of chip-selects not defined\n", __func__);
-		return ret;
-	} else if (gpmc_cs_num < 1) {
-		pr_err("%s: all chip-selects are disabled\n", __func__);
-		return -EINVAL;
-	} else if (gpmc_cs_num > GPMC_CS_NUM) {
-		pr_err("%s: number of supported chip-selects cannot be > %d\n",
-					 __func__, GPMC_CS_NUM);
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-waitpins",
-				   &gpmc_nr_waitpins);
-	if (ret < 0) {
-		pr_err("%s: number of wait pins not found!\n", __func__);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int gpmc_probe_dt_children(struct platform_device *pdev)
-{
-	int ret;
-	struct device_node *child;
-
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
-
-		if (!child->name)
-			continue;
-
-		if (of_node_cmp(child->name, "onenand") == 0)
-			ret = gpmc_probe_onenand_child(pdev, child);
-		else
-			ret = gpmc_probe_generic_child(pdev, child);
-
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-#else
-static int gpmc_probe_dt(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int gpmc_probe_dt_children(struct platform_device *pdev)
-{
-	return 0;
-}
-#endif
 
 static int gpmc_probe(struct platform_device *pdev)
 {
@@ -2369,21 +2358,13 @@ static int gpmc_probe(struct platform_device *pdev)
 	rc = gpmc_setup_irq(gpmc);
 	if (rc) {
 		dev_err(gpmc->dev, "gpmc_setup_irq failed\n");
-		goto setup_irq_failed;
+		goto gpio_init_failed;
 	}
 
-	rc = gpmc_probe_dt_children(pdev);
-	if (rc < 0) {
-		dev_err(gpmc->dev, "failed to probe DT children\n");
-		goto dt_children_failed;
-	}
+	gpmc_probe_dt_children(pdev);
 
 	return 0;
 
-dt_children_failed:
-	gpmc_free_irq(gpmc);
-setup_irq_failed:
-	gpmc_gpio_exit(gpmc);
 gpio_init_failed:
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);
@@ -2397,7 +2378,6 @@ static int gpmc_remove(struct platform_device *pdev)
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	gpmc_free_irq(gpmc);
-	gpmc_gpio_exit(gpmc);
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -2437,15 +2417,7 @@ static __init int gpmc_init(void)
 {
 	return platform_driver_register(&gpmc_driver);
 }
-
-static __exit void gpmc_exit(void)
-{
-	platform_driver_unregister(&gpmc_driver);
-
-}
-
 postcore_initcall(gpmc_init);
-module_exit(gpmc_exit);
 
 static struct omap3_gpmc_regs gpmc_context;
 

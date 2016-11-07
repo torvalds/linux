@@ -11,12 +11,15 @@ ldflags-y += --wrap=__devm_release_region
 ldflags-y += --wrap=__request_region
 ldflags-y += --wrap=__release_region
 ldflags-y += --wrap=devm_memremap_pages
-ldflags-y += --wrap=phys_to_pfn_t
+ldflags-y += --wrap=insert_resource
+ldflags-y += --wrap=remove_resource
+ldflags-y += --wrap=acpi_evaluate_object
 
 DRIVERS := ../../../drivers
 NVDIMM_SRC := $(DRIVERS)/nvdimm
-ACPI_SRC := $(DRIVERS)/acpi
+ACPI_SRC := $(DRIVERS)/acpi/nfit
 DAX_SRC := $(DRIVERS)/dax
+ccflags-y := -I$(src)/$(NVDIMM_SRC)/
 
 obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
 obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
@@ -27,10 +30,12 @@ obj-$(CONFIG_ACPI_NFIT) += nfit.o
 obj-$(CONFIG_DEV_DAX) += dax.o
 obj-$(CONFIG_DEV_DAX_PMEM) += dax_pmem.o
 
-nfit-y := $(ACPI_SRC)/nfit.o
+nfit-y := $(ACPI_SRC)/core.o
+nfit-$(CONFIG_X86_MCE) += $(ACPI_SRC)/mce.o
 nfit-y += config_check.o
 
 nd_pmem-y := $(NVDIMM_SRC)/pmem.o
+nd_pmem-y += pmem-dax.o
 nd_pmem-y += config_check.o
 
 nd_btt-y := $(NVDIMM_SRC)/btt.o

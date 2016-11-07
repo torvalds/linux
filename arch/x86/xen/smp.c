@@ -87,6 +87,12 @@ static void cpu_bringup(void)
 	cpu_data(cpu).x86_max_cores = 1;
 	set_cpu_sibling_map(cpu);
 
+	/*
+	 * identify_cpu() may have set logical_pkg_id to -1 due
+	 * to incorrect phys_proc_id. Let's re-comupte it.
+	 */
+	topology_update_package_map(apic->cpu_present_to_apicid(cpu), cpu);
+
 	xen_setup_cpu_clockevents();
 
 	notify_cpu_starting(cpu);
@@ -115,7 +121,7 @@ asmlinkage __visible void cpu_bringup_and_idle(int cpu)
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
-static void xen_smp_intr_free(unsigned int cpu)
+void xen_smp_intr_free(unsigned int cpu)
 {
 	if (per_cpu(xen_resched_irq, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu).irq, NULL);
@@ -159,7 +165,7 @@ static void xen_smp_intr_free(unsigned int cpu)
 		per_cpu(xen_pmu_irq, cpu).name = NULL;
 	}
 };
-static int xen_smp_intr_init(unsigned int cpu)
+int xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
 	char *resched_name, *callfunc_name, *debug_name, *pmu_name;
@@ -322,6 +328,13 @@ static void __init xen_smp_prepare_boot_cpu(void)
 		xen_filter_cpu_maps();
 		xen_setup_vcpu_info_placement();
 	}
+
+	/*
+	 * Setup vcpu_info for boot CPU.
+	 */
+	if (xen_hvm_domain())
+		xen_vcpu_setup(0);
+
 	/*
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up
@@ -454,7 +467,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 #endif
 	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 	ctxt->ctrlreg[3] = xen_pfn_to_cr3(virt_to_gfn(swapper_pg_dir));
-	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, ctxt))
+	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, xen_vcpu_nr(cpu), ctxt))
 		BUG();
 
 	kfree(ctxt);
@@ -468,8 +481,6 @@ static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 	common_cpu_up(cpu, idle);
 
 	xen_setup_runstate_info(cpu);
-	xen_setup_timer(cpu);
-	xen_init_lock_cpu(cpu);
 
 	/*
 	 * PV VCPUs are always successfully taken down (see 'while' loop
@@ -488,11 +499,7 @@ static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 
 	xen_pmu_init(cpu);
 
-	rc = xen_smp_intr_init(cpu);
-	if (rc)
-		return rc;
-
-	rc = HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL);
+	rc = HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL);
 	BUG_ON(rc);
 
 	while (cpu_report_state(cpu) != CPU_ONLINE)
@@ -520,7 +527,8 @@ static int xen_cpu_disable(void)
 
 static void xen_cpu_die(unsigned int cpu)
 {
-	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
+	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up,
+						     xen_vcpu_nr(cpu), NULL)) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(HZ/10);
 	}
@@ -536,7 +544,7 @@ static void xen_cpu_die(unsigned int cpu)
 static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
-	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
+	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(smp_processor_id()), NULL);
 	cpu_bringup();
 	/*
 	 * commit 4b0c0f294 (tick: Cleanup NOHZ per cpu data on cpu down)
@@ -576,7 +584,7 @@ static void stop_self(void *v)
 
 	set_cpu_online(cpu, false);
 
-	HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL);
+	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL);
 	BUG();
 }
 
@@ -761,47 +769,10 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	xen_init_lock_cpu(0);
 }
 
-static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
-{
-	int rc;
-
-	/*
-	 * This can happen if CPU was offlined earlier and
-	 * offlining timed out in common_cpu_die().
-	 */
-	if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
-		xen_smp_intr_free(cpu);
-		xen_uninit_lock_cpu(cpu);
-	}
-
-	/*
-	 * xen_smp_intr_init() needs to run before native_cpu_up()
-	 * so that IPI vectors are set up on the booting CPU before
-	 * it is marked online in native_cpu_up().
-	*/
-	rc = xen_smp_intr_init(cpu);
-	WARN_ON(rc);
-	if (!rc)
-		rc =  native_cpu_up(cpu, tidle);
-
-	/*
-	 * We must initialize the slowpath CPU kicker _after_ the native
-	 * path has executed. If we initialized it before none of the
-	 * unlocker IPI kicks would reach the booting CPU as the booting
-	 * CPU had not set itself 'online' in cpu_online_mask. That mask
-	 * is checked when IPIs are sent (on HVM at least).
-	 */
-	xen_init_lock_cpu(cpu);
-	return rc;
-}
-
 void __init xen_hvm_smp_init(void)
 {
-	if (!xen_have_vector_callback)
-		return;
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
 	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
-	smp_ops.cpu_up = xen_hvm_cpu_up;
 	smp_ops.cpu_die = xen_cpu_die;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;

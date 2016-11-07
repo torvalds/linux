@@ -126,10 +126,12 @@
 
 		reg_ldo_io0: ldo_io0 {
 			regulator-name = "ldo_io0";
+			status = "disabled";
 		};
 
 		reg_ldo_io1: ldo_io1 {
 			regulator-name = "ldo_io1";
+			status = "disabled";
 		};
 
 		reg_rtc_ldo: rtc_ldo {
@@ -139,5 +141,15 @@
 			regulator-max-microvolt = <3000000>;
 			regulator-name = "rtc_ldo";
 		};
+
+		reg_drivevbus: drivevbus {
+			regulator-name = "drivevbus";
+			status = "disabled";
+		};
+	};
+
+	usb_power_supply: usb_power_supply {
+		compatible = "x-powers,axp221-usb-power-supply";
+		status = "disabled";
 	};
 };

@@ -228,6 +228,20 @@ config LEDS_LP3944
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-lp3944.
 
+config LEDS_LP3952
+	tristate "LED Support for TI LP3952 2 channel LED driver"
+	depends on LEDS_CLASS
+	depends on I2C
+	depends on ACPI
+	depends on GPIOLIB
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to the Texas
+	  Instruments LP3952 LED driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp3952.
+
 config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
 	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
@@ -570,6 +584,18 @@ config LEDS_SEAD3
 	  This driver can also be built as a module. If so the module
 	  will be called leds-sead3.
 
+config LEDS_IS31FL319X
+	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
+	depends on LEDS_CLASS && I2C && OF
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to ISSI IS31FL319x
+	  fancy LED driver chips accessed via the I2C bus.
+	  Driver supports individual PWM brightness control for each channel.
+
+	  This driver can also be built as a module. If so the module will be
+	  called leds-is31fl319x.
+
 config LEDS_IS31FL32XX
 	tristate "LED support for ISSI IS31FL32XX I2C LED controller family"
 	depends on LEDS_CLASS && I2C && OF
@@ -616,6 +642,22 @@ config LEDS_VERSATILE
 	help
 	  This option enabled support for the LEDs on the ARM Versatile
 	  and RealView boards. Say Y to enabled these.
+
+config LEDS_PM8058
+	tristate "LED Support for the Qualcomm PM8058 PMIC"
+	depends on MFD_PM8921_CORE
+	depends on LEDS_CLASS
+	help
+	  Choose this option if you want to use the LED drivers in
+	  the Qualcomm PM8058 PMIC.
+
+config LEDS_MLXCPLD
+	tristate "LED support for the Mellanox boards"
+	depends on X86_64 && DMI
+	depends on LEDS_CLASS
+	help
+	  This option enabled support for the LEDs on the Mellanox
+	  boards. Say Y to enabled these.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

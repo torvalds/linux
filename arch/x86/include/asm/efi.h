@@ -41,10 +41,9 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 /*
  * Wrap all the virtual calls in a way that forces the parameters on the stack.
  */
-#define arch_efi_call_virt(f, args...)					\
+#define arch_efi_call_virt(p, f, args...)				\
 ({									\
-	((efi_##f##_t __attribute__((regparm(0)))*)			\
-		efi.systab->runtime->f)(args);				\
+	((efi_##f##_t __attribute__((regparm(0)))*) p->f)(args);	\
 })
 
 #define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
@@ -81,8 +80,8 @@ struct efi_scratch {
 	}								\
 })
 
-#define arch_efi_call_virt(f, args...)					\
-	efi_call((void *)efi.systab->runtime->f, args)			\
+#define arch_efi_call_virt(p, f, args...)				\
+	efi_call((void *)p->f, args)					\
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
@@ -118,14 +117,12 @@ extern int __init efi_memblock_x86_reserve_range(void);
 extern pgd_t * __init efi_call_phys_prolog(void);
 extern void __init efi_call_phys_epilog(pgd_t *save_pgd);
 extern void __init efi_print_memmap(void);
-extern void __init efi_unmap_memmap(void);
 extern void __init efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);
 extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
 extern void efi_sync_low_kernel_mappings(void);
 extern int __init efi_alloc_page_tables(void);
 extern int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages);
-extern void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages);
 extern void __init old_map_region(efi_memory_desc_t *md);
 extern void __init runtime_code_page_mkexec(void);
 extern void __init efi_runtime_update_mappings(void);
@@ -194,14 +191,7 @@ static inline efi_status_t efi_thunk_set_virtual_address_map(
 struct efi_config {
 	u64 image_handle;
 	u64 table;
-	u64 allocate_pool;
-	u64 allocate_pages;
-	u64 get_memory_map;
-	u64 free_pool;
-	u64 free_pages;
-	u64 locate_handle;
-	u64 handle_protocol;
-	u64 exit_boot_services;
+	u64 boot_services;
 	u64 text_output;
 	efi_status_t (*call)(unsigned long, ...);
 	bool is64;
@@ -209,13 +199,26 @@ struct efi_config {
 
 __pure const struct efi_config *__efi_early(void);
 
+static inline bool efi_is_64bit(void)
+{
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return false;
+
+	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+		return true;
+
+	return __efi_early()->is64;
+}
+
 #define efi_call_early(f, ...)						\
-	__efi_early()->call(__efi_early()->f, __VA_ARGS__);
+	__efi_early()->call(efi_is_64bit() ?				\
+		((efi_boot_services_64_t *)(unsigned long)		\
+			__efi_early()->boot_services)->f :		\
+		((efi_boot_services_32_t *)(unsigned long)		\
+			__efi_early()->boot_services)->f, __VA_ARGS__)
 
 #define __efi_call_early(f, ...)					\
 	__efi_early()->call((unsigned long)f, __VA_ARGS__);
-
-#define efi_is_64bit()		__efi_early()->is64
 
 extern bool efi_reboot_required(void);
 

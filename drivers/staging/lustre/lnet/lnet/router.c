@@ -18,6 +18,7 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
+#include <linux/completion.h>
 #include "../../include/linux/lnet/lib-lnet.h"
 
 #define LNET_NRB_TINY_MIN	512	/* min value for each CPT */
@@ -1065,7 +1066,7 @@ lnet_router_checker_start(void)
 		return -EINVAL;
 	}
 
-	sema_init(&the_lnet.ln_rc_signal, 0);
+	init_completion(&the_lnet.ln_rc_signal);
 
 	rc = LNetEQAlloc(0, lnet_router_checker_event, &the_lnet.ln_rc_eqh);
 	if (rc) {
@@ -1079,7 +1080,7 @@ lnet_router_checker_start(void)
 		rc = PTR_ERR(task);
 		CERROR("Can't start router checker thread: %d\n", rc);
 		/* block until event callback signals exit */
-		down(&the_lnet.ln_rc_signal);
+		wait_for_completion(&the_lnet.ln_rc_signal);
 		rc = LNetEQFree(the_lnet.ln_rc_eqh);
 		LASSERT(!rc);
 		the_lnet.ln_rc_state = LNET_RC_STATE_SHUTDOWN;
@@ -1112,7 +1113,7 @@ lnet_router_checker_stop(void)
 	wake_up(&the_lnet.ln_rc_waitq);
 
 	/* block until event callback signals exit */
-	down(&the_lnet.ln_rc_signal);
+	wait_for_completion(&the_lnet.ln_rc_signal);
 	LASSERT(the_lnet.ln_rc_state == LNET_RC_STATE_SHUTDOWN);
 
 	rc = LNetEQFree(the_lnet.ln_rc_eqh);
@@ -1295,7 +1296,7 @@ rescan:
 	lnet_prune_rc_data(1); /* wait for UNLINK */
 
 	the_lnet.ln_rc_state = LNET_RC_STATE_SHUTDOWN;
-	up(&the_lnet.ln_rc_signal);
+	complete(&the_lnet.ln_rc_signal);
 	/* The unlink event callback will signal final completion */
 	return 0;
 }
@@ -1306,7 +1307,7 @@ lnet_destroy_rtrbuf(lnet_rtrbuf_t *rb, int npages)
 	int sz = offsetof(lnet_rtrbuf_t, rb_kiov[npages]);
 
 	while (--npages >= 0)
-		__free_page(rb->rb_kiov[npages].kiov_page);
+		__free_page(rb->rb_kiov[npages].bv_page);
 
 	LIBCFS_FREE(rb, sz);
 }
@@ -1332,15 +1333,15 @@ lnet_new_rtrbuf(lnet_rtrbufpool_t *rbp, int cpt)
 				GFP_KERNEL | __GFP_ZERO, 0);
 		if (!page) {
 			while (--i >= 0)
-				__free_page(rb->rb_kiov[i].kiov_page);
+				__free_page(rb->rb_kiov[i].bv_page);
 
 			LIBCFS_FREE(rb, sz);
 			return NULL;
 		}
 
-		rb->rb_kiov[i].kiov_len = PAGE_SIZE;
-		rb->rb_kiov[i].kiov_offset = 0;
-		rb->rb_kiov[i].kiov_page = page;
+		rb->rb_kiov[i].bv_len = PAGE_SIZE;
+		rb->rb_kiov[i].bv_offset = 0;
+		rb->rb_kiov[i].bv_page = page;
 	}
 
 	return rb;
@@ -1692,7 +1693,7 @@ lnet_rtrpools_adjust(int tiny, int small, int large)
 int
 lnet_rtrpools_enable(void)
 {
-	int rc;
+	int rc = 0;
 
 	if (the_lnet.ln_routing)
 		return 0;
@@ -1705,9 +1706,9 @@ lnet_rtrpools_enable(void)
 		 * if we are just configuring this for the first
 		 * time.
 		 */
-		return lnet_rtrpools_alloc(1);
-
-	rc = lnet_rtrpools_adjust_helper(0, 0, 0);
+		rc = lnet_rtrpools_alloc(1);
+	else
+		rc = lnet_rtrpools_adjust_helper(0, 0, 0);
 	if (rc)
 		return rc;
 
@@ -1717,7 +1718,7 @@ lnet_rtrpools_enable(void)
 	the_lnet.ln_ping_info->pi_features &= ~LNET_PING_FEAT_RTE_DISABLED;
 	lnet_net_unlock(LNET_LOCK_EX);
 
-	return 0;
+	return rc;
 }
 
 void

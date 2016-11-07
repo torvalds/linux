@@ -52,7 +52,6 @@ void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_NOP);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | 0x01);
 
-	sq->skb[pi] = NULL;
 	sq->pc++;
 	sq->stats.nop++;
 
@@ -82,15 +81,17 @@ static inline void mlx5e_dma_push(struct mlx5e_sq *sq,
 				  u32 size,
 				  enum mlx5e_dma_map_type map_type)
 {
-	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].addr = addr;
-	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].size = size;
-	sq->dma_fifo[sq->dma_fifo_pc & sq->dma_fifo_mask].type = map_type;
+	u32 i = sq->dma_fifo_pc & sq->dma_fifo_mask;
+
+	sq->db.txq.dma_fifo[i].addr = addr;
+	sq->db.txq.dma_fifo[i].size = size;
+	sq->db.txq.dma_fifo[i].type = map_type;
 	sq->dma_fifo_pc++;
 }
 
 static inline struct mlx5e_sq_dma *mlx5e_dma_get(struct mlx5e_sq *sq, u32 i)
 {
-	return &sq->dma_fifo[i & sq->dma_fifo_mask];
+	return &sq->db.txq.dma_fifo[i & sq->dma_fifo_mask];
 }
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_sq *sq, u8 num_dma)
@@ -128,6 +129,50 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return priv->channeltc_to_txq_map[channel_ix][up];
 }
 
+static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
+{
+#define MLX5E_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
+
+	return max(skb_network_offset(skb), MLX5E_MIN_INLINE);
+}
+
+static inline int mlx5e_skb_l3_header_offset(struct sk_buff *skb)
+{
+	struct flow_keys keys;
+
+	if (skb_transport_header_was_set(skb))
+		return skb_transport_offset(skb);
+	else if (skb_flow_dissect_flow_keys(skb, &keys, 0))
+		return keys.control.thoff;
+	else
+		return mlx5e_skb_l2_header_offset(skb);
+}
+
+static inline unsigned int mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
+						 struct sk_buff *skb)
+{
+	int hlen;
+
+	switch (mode) {
+	case MLX5_INLINE_MODE_TCP_UDP:
+		hlen = eth_get_headlen(skb->data, skb_headlen(skb));
+		if (hlen == ETH_HLEN && !skb_vlan_tag_present(skb))
+			hlen += VLAN_HLEN;
+		return hlen;
+	case MLX5_INLINE_MODE_IP:
+		/* When transport header is set to zero, it means no transport
+		 * header. When transport header is set to 0xff's, it means
+		 * transport header wasn't set.
+		 */
+		if (skb_transport_offset(skb))
+			return mlx5e_skb_l3_header_offset(skb);
+		/* fall through */
+	case MLX5_INLINE_MODE_L2:
+	default:
+		return mlx5e_skb_l2_header_offset(skb);
+	}
+}
+
 static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 					    struct sk_buff *skb, bool bf)
 {
@@ -135,8 +180,6 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 	 * headers and occur before the data gather.
 	 * Therefore these headers must be copied into the WQE
 	 */
-#define MLX5E_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
-
 	if (bf) {
 		u16 ihs = skb_headlen(skb);
 
@@ -146,8 +189,7 @@ static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
 		if (ihs <= sq->max_inline)
 			return skb_headlen(skb);
 	}
-
-	return max(skb_network_offset(skb), MLX5E_MIN_INLINE);
+	return mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 }
 
 static inline void mlx5e_tx_skb_pull_inline(unsigned char **skb_data,
@@ -180,7 +222,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	u16 pi = sq->pc & wq->sz_m1;
 	struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
-	struct mlx5e_tx_wqe_info *wi   = &sq->wqe_info[pi];
+	struct mlx5e_tx_wqe_info *wi   = &sq->db.txq.wqe_info[pi];
 
 	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
 	struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
@@ -300,7 +342,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 
-	sq->skb[pi] = skb;
+	sq->db.txq.skb[pi] = skb;
 
 	wi->num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	sq->pc += wi->num_wqebbs;
@@ -315,6 +357,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->stats.stopped++;
 	}
 
+	sq->stats.xmit_more += skb->xmit_more;
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq)) {
 		int bf_sz = 0;
 
@@ -326,8 +369,10 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	}
 
 	/* fill sq edge with nops to avoid wqe wrap around */
-	while ((sq->pc & wq->sz_m1) > sq->edge)
+	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
+		sq->db.txq.skb[pi] = NULL;
 		mlx5e_send_nop(sq, false);
+	}
 
 	if (bf)
 		sq->bf_budget--;
@@ -353,35 +398,6 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	return mlx5e_sq_xmit(sq, skb);
 }
 
-void mlx5e_free_tx_descs(struct mlx5e_sq *sq)
-{
-	struct mlx5e_tx_wqe_info *wi;
-	struct sk_buff *skb;
-	u16 ci;
-	int i;
-
-	while (sq->cc != sq->pc) {
-		ci = sq->cc & sq->wq.sz_m1;
-		skb = sq->skb[ci];
-		wi = &sq->wqe_info[ci];
-
-		if (!skb) { /* nop */
-			sq->cc++;
-			continue;
-		}
-
-		for (i = 0; i < wi->num_dma; i++) {
-			struct mlx5e_sq_dma *dma =
-				mlx5e_dma_get(sq, sq->dma_fifo_cc++);
-
-			mlx5e_tx_dma_unmap(sq->pdev, dma);
-		}
-
-		dev_kfree_skb_any(skb);
-		sq->cc += wi->num_wqebbs;
-	}
-}
-
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 {
 	struct mlx5e_sq *sq;
@@ -393,7 +409,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 
 	sq = container_of(cq, struct mlx5e_sq, cq);
 
-	if (unlikely(test_bit(MLX5E_SQ_STATE_TX_TIMEOUT, &sq->state)))
+	if (unlikely(test_bit(MLX5E_SQ_STATE_FLUSH, &sq->state)))
 		return false;
 
 	npkts = 0;
@@ -429,8 +445,8 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			last_wqe = (sqcc == wqe_counter);
 
 			ci = sqcc & sq->wq.sz_m1;
-			skb = sq->skb[ci];
-			wi = &sq->wqe_info[ci];
+			skb = sq->db.txq.skb[ci];
+			wi = &sq->db.txq.wqe_info[ci];
 
 			if (unlikely(!skb)) { /* nop */
 				sqcc++;
@@ -471,11 +487,73 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM) &&
-	    likely(test_bit(MLX5E_SQ_STATE_WAKE_TXQ_ENABLE, &sq->state))) {
-				netif_tx_wake_queue(sq->txq);
-				sq->stats.wake++;
+	    mlx5e_sq_has_room_for(sq, MLX5E_SQ_STOP_ROOM)) {
+		netif_tx_wake_queue(sq->txq);
+		sq->stats.wake++;
 	}
 
 	return (i == MLX5E_TX_CQ_POLL_BUDGET);
+}
+
+static void mlx5e_free_txq_sq_descs(struct mlx5e_sq *sq)
+{
+	struct mlx5e_tx_wqe_info *wi;
+	struct sk_buff *skb;
+	u16 ci;
+	int i;
+
+	while (sq->cc != sq->pc) {
+		ci = sq->cc & sq->wq.sz_m1;
+		skb = sq->db.txq.skb[ci];
+		wi = &sq->db.txq.wqe_info[ci];
+
+		if (!skb) { /* nop */
+			sq->cc++;
+			continue;
+		}
+
+		for (i = 0; i < wi->num_dma; i++) {
+			struct mlx5e_sq_dma *dma =
+				mlx5e_dma_get(sq, sq->dma_fifo_cc++);
+
+			mlx5e_tx_dma_unmap(sq->pdev, dma);
+		}
+
+		dev_kfree_skb_any(skb);
+		sq->cc += wi->num_wqebbs;
+	}
+}
+
+static void mlx5e_free_xdp_sq_descs(struct mlx5e_sq *sq)
+{
+	struct mlx5e_sq_wqe_info *wi;
+	struct mlx5e_dma_info *di;
+	u16 ci;
+
+	while (sq->cc != sq->pc) {
+		ci = sq->cc & sq->wq.sz_m1;
+		di = &sq->db.xdp.di[ci];
+		wi = &sq->db.xdp.wqe_info[ci];
+
+		if (wi->opcode == MLX5_OPCODE_NOP) {
+			sq->cc++;
+			continue;
+		}
+
+		sq->cc += wi->num_wqebbs;
+
+		mlx5e_page_release(&sq->channel->rq, di, false);
+	}
+}
+
+void mlx5e_free_sq_descs(struct mlx5e_sq *sq)
+{
+	switch (sq->type) {
+	case MLX5E_SQ_TXQ:
+		mlx5e_free_txq_sq_descs(sq);
+		break;
+	case MLX5E_SQ_XDP:
+		mlx5e_free_xdp_sq_descs(sq);
+		break;
+	}
 }

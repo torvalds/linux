@@ -23,7 +23,9 @@
 
 #include "timekeeping_internal.h"
 
-static unsigned int sleep_time_bin[32] = {0};
+#define NUM_BINS 32
+
+static unsigned int sleep_time_bin[NUM_BINS] = {0};
 
 static int tk_debug_show_sleep_time(struct seq_file *s, void *data)
 {
@@ -69,6 +71,11 @@ late_initcall(tk_debug_sleep_time_init);
 
 void tk_debug_account_sleep_time(struct timespec64 *t)
 {
-	sleep_time_bin[fls(t->tv_sec)]++;
+	/* Cap bin index so we don't overflow the array */
+	int bin = min(fls(t->tv_sec), NUM_BINS-1);
+
+	sleep_time_bin[bin]++;
+	pr_info("Suspended for %lld.%03lu seconds\n", (s64)t->tv_sec,
+			t->tv_nsec / NSEC_PER_MSEC);
 }
 

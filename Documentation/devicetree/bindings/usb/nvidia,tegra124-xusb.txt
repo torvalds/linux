@@ -104,10 +104,10 @@ Example:
 
 		nvidia,xusb-padctl = <&padctl>;
 
-		phys = <&{/padctl@0,7009f000/pads/usb2/usb2-1}>, /* mini-PCIe USB */
-		       <&{/padctl@0,7009f000/pads/usb2/usb2-2}>, /* USB A */
-		       <&{/padctl@0,7009f000/pads/pcie/pcie-0}>; /* USB A */
-		phy-names = "utmi-1", "utmi-2", "usb3-0";
+		phys = <&{/padctl@0,7009f000/pads/usb2/lanes/usb2-1}>, /* mini-PCIe USB */
+		       <&{/padctl@0,7009f000/pads/usb2/lanes/usb2-2}>, /* USB A */
+		       <&{/padctl@0,7009f000/pads/pcie/lanes/pcie-0}>; /* USB A */
+		phy-names = "usb2-1", "usb2-2", "usb3-0";
 
 		avddio-pex-supply = <&vdd_1v05_run>;
 		dvddio-pex-supply = <&vdd_1v05_run>;

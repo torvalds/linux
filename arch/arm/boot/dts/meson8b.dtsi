@@ -46,6 +46,7 @@
 
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8b-gpio.h>
+#include <dt-bindings/reset/amlogic,meson8b-reset.h>
 #include "skeleton.dtsi"
 
 / {
@@ -105,6 +106,12 @@
 			#interrupt-cells = <3>;
 		};
 
+		reset: reset-controller@c1104404 {
+			compatible = "amlogic,meson8b-reset";
+			reg = <0xc1104404 0x20>;
+			#reset-cells = <1>;
+		};
+
 		wdt: watchdog@c1109900 {
 			compatible = "amlogic,meson8b-wdt";
 			reg = <0xc1109900 0x8>;
@@ -153,6 +160,27 @@
 			#clock-cells = <1>;
 			compatible = "amlogic,meson8b-clkc";
 			reg = <0xc1108000 0x4>, <0xc1104000 0x460>;
+		};
+
+		pwm_ab: pwm@8550 {
+			compatible = "amlogic,meson8b-pwm";
+			reg = <0xc1108550 0x10>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm_cd: pwm@8650 {
+			compatible = "amlogic,meson8b-pwm";
+			reg = <0xc1108650 0x10>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm_ef: pwm@86c0 {
+			compatible = "amlogic,meson8b-pwm";
+			reg = <0xc11086c0 0x10>;
+			#pwm-cells = <3>;
+			status = "disabled";
 		};
 
 		pinctrl_cbus: pinctrl@c1109880 {

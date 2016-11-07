@@ -11,7 +11,7 @@
  */
 
 #include <linux/string.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #ifdef __HAVE_ARCH_STRCPY
 char *strcpy(char *dest, const char *src)

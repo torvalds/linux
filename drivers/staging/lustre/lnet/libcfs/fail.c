@@ -16,10 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see http://www.gnu.org/licenses
  *
- * Please contact Oracle Corporation, Inc., 500 Oracle Parkway, Redwood Shores,
- * CA 94065 USA or visit www.oracle.com if you need additional information or
- * have any questions.
- *
  * GPL HEADER END
  */
 /*
@@ -94,8 +90,10 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 		}
 	}
 
-	if ((set == CFS_FAIL_LOC_ORSET || set == CFS_FAIL_LOC_RESET) &&
-	    (value & CFS_FAIL_ONCE))
+	/* Take into account the current call for FAIL_ONCE for ORSET only,
+	 * as RESET is a new fail_loc, it does not change the current call
+	 */
+	if ((set == CFS_FAIL_LOC_ORSET) && (value & CFS_FAIL_ONCE))
 		set_bit(CFS_FAIL_ONCE_BIT, &cfs_fail_loc);
 	/* Lost race to set CFS_FAILED_BIT. */
 	if (test_and_set_bit(CFS_FAILED_BIT, &cfs_fail_loc)) {

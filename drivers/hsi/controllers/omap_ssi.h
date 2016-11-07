@@ -35,6 +35,8 @@
 #define SSI_MAX_GDD_LCH		8
 #define SSI_BYTES_TO_FRAMES(x) ((((x) - 1) >> 2) + 1)
 
+#define SSI_WAKE_EN 0
+
 /**
  * struct omap_ssm_ctx - OMAP synchronous serial module (TX/RX) context
  * @mode: Bit transmission mode
@@ -71,13 +73,14 @@ struct omap_ssm_ctx {
  * @txqueue: TX message queues
  * @rxqueue: RX message queues
  * @brkqueue: Queue of incoming HWBREAK requests (FRAME mode)
+ * @errqueue: Queue for failed messages
+ * @errqueue_work: Delayed Work for failed messages
  * @irq: IRQ number
  * @wake_irq: IRQ number for incoming wake line (-1 if none)
  * @wake_gpio: GPIO number for incoming wake line (-1 if none)
- * @pio_tasklet: Bottom half for PIO transfers and events
- * @wake_tasklet: Bottom half for incoming wake events
- * @wkin_cken: Keep track of clock references due to the incoming wake line
+ * @flags: flags to keep track of states
  * @wk_refcount: Reference count for output wake line
+ * @work: worker for starting TX
  * @sys_mpu_enable: Context for the interrupt enable register for irq 0
  * @sst: Context for the synchronous serial transmitter
  * @ssr: Context for the synchronous serial receiver
@@ -95,14 +98,15 @@ struct omap_ssi_port {
 	struct list_head	txqueue[SSI_MAX_CHANNELS];
 	struct list_head	rxqueue[SSI_MAX_CHANNELS];
 	struct list_head	brkqueue;
+	struct list_head	errqueue;
+	struct delayed_work	errqueue_work;
 	unsigned int		irq;
 	int			wake_irq;
 	struct gpio_desc	*wake_gpio;
-	struct tasklet_struct	pio_tasklet;
-	struct tasklet_struct	wake_tasklet;
 	bool			wktest:1; /* FIXME: HACK to be removed */
-	bool			wkin_cken:1; /* Workaround */
+	unsigned long		flags;
 	unsigned int		wk_refcount;
+	struct work_struct	work;
 	/* OMAP SSI port context */
 	u32			sys_mpu_enable; /* We use only one irq */
 	struct omap_ssm_ctx	sst;
@@ -138,7 +142,6 @@ struct gdd_trn {
  * @fck_rate: clock rate
  * @loss_count: To follow if we need to restore context or not
  * @max_speed: Maximum TX speed (Kb/s) set by the clients.
- * @sysconfig: SSI controller saved context
  * @gdd_gcr: SSI GDD saved context
  * @get_loss: Pointer to omap_pm_get_dev_context_loss_count, if any
  * @port: Array of pointers of the ports of the controller
@@ -158,7 +161,6 @@ struct omap_ssi_controller {
 	u32			loss_count;
 	u32			max_speed;
 	/* OMAP SSI Controller context */
-	u32			sysconfig;
 	u32			gdd_gcr;
 	int			(*get_loss)(struct device *dev);
 	struct omap_ssi_port	**port;

@@ -115,6 +115,15 @@ config TOUCHSCREEN_ATMEL_MXT
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_mxt_ts.
 
+config TOUCHSCREEN_ATMEL_MXT_T37
+	bool "Support T37 Diagnostic Data"
+	depends on TOUCHSCREEN_ATMEL_MXT
+	depends on VIDEO_V4L2=y || (TOUCHSCREEN_ATMEL_MXT=m && VIDEO_V4L2=m)
+	select VIDEOBUF2_VMALLOC
+	help
+	  Say Y here if you want support to output data from the T37
+	  Diagnostic Data object using a V4L device.
+
 config TOUCHSCREEN_AUO_PIXCIR
 	tristate "AUO in-cell touchscreen using Pixcir ICs"
 	depends on I2C
@@ -305,19 +314,6 @@ config TOUCHSCREEN_EGALAX_SERIAL
 	  To compile this driver as a module, choose M here: the
 	  module will be called egalax_ts_serial.
 
-config TOUCHSCREEN_FT6236
-	tristate "FT6236 I2C touchscreen"
-	depends on I2C
-	depends on GPIOLIB || COMPILE_TEST
-	help
-	  Say Y here to enable support for the I2C connected FT6x06 and
-	  FT6x36 family of capacitive touchscreen drivers.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ft6236.
-
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -396,6 +392,18 @@ config TOUCHSCREEN_GUNZE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gunze.
+
+config TOUCHSCREEN_EKTF2127
+	tristate "Elan eKTF2127 I2C touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have an Elan eKTF2127 touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ektf2127.
 
 config TOUCHSCREEN_ELAN
 	tristate "Elan eKTH I2C touchscreen"
@@ -632,7 +640,7 @@ config TOUCHSCREEN_EDT_FT5X06
 
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
-	depends on SH_MIGOR && I2C
+	depends on (SH_MIGOR || COMPILE_TEST) && I2C
 	help
 	  Say Y here to enable MIGO-R touchscreen support.
 
@@ -1046,6 +1054,44 @@ config TOUCHSCREEN_PCAP
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_ts.
 
+config TOUCHSCREEN_RM_TS
+	tristate "Raydium I2C Touchscreen"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here if you have Raydium series I2C touchscreen,
+	  such as RM32380, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called raydium_i2c_ts.
+
+config TOUCHSCREEN_SILEAD
+	tristate "Silead I2C touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the Silead touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called silead.
+
+config TOUCHSCREEN_SIS_I2C
+	tristate "SiS 9200 family I2C touchscreen"
+	depends on I2C
+	select CRC_ITU_T
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  This enables support for SiS 9200 family over I2C based touchscreens.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sis_i2c.
+
 config TOUCHSCREEN_ST1232
 	tristate "Sitronix ST1232 touchscreen controllers"
 	depends on I2C
@@ -1093,6 +1139,19 @@ config TOUCHSCREEN_SUR40
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sur40.
+
+config TOUCHSCREEN_SURFACE3_SPI
+	tristate "Ntrig/Microsoft Surface 3 SPI touchscreen"
+	depends on SPI
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here if you have the Ntrig/Microsoft SPI touchscreen
+	  controller chip as found on the Surface 3 in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called surface3_spi.
 
 config TOUCHSCREEN_SX8654
 	tristate "Semtech SX8654 touchscreen"

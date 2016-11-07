@@ -40,7 +40,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
+pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
@@ -111,17 +111,16 @@ void __init paging_init(void)
 
 void mark_rodata_ro(void)
 {
-	/* Text and rodata are already protected. Nothing to do here. */
-	pr_info("Write protecting the kernel read-only data: %luk\n",
-		((unsigned long)&_eshared - (unsigned long)&_stext) >> 10);
+	unsigned long size = __end_ro_after_init - __start_ro_after_init;
+
+	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
+	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 }
 
 void __init mem_init(void)
 {
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(0, mm_cpumask(&init_mm));
-	atomic_set(&init_mm.context.attach_count, 1);
 
 	set_max_mapnr(max_low_pfn);
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
@@ -152,36 +151,40 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 #ifdef CONFIG_MEMORY_HOTPLUG
 int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
-	unsigned long normal_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
-	unsigned long dma_end_pfn = PFN_DOWN(MAX_DMA_ADDRESS);
+	unsigned long zone_start_pfn, zone_end_pfn, nr_pages;
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long size_pages = PFN_DOWN(size);
-	unsigned long nr_pages;
-	int rc, zone_enum;
+	pg_data_t *pgdat = NODE_DATA(nid);
+	struct zone *zone;
+	int rc, i;
 
 	rc = vmem_add_mapping(start, size);
 	if (rc)
 		return rc;
 
-	while (size_pages > 0) {
-		if (start_pfn < dma_end_pfn) {
-			nr_pages = (start_pfn + size_pages > dma_end_pfn) ?
-				   dma_end_pfn - start_pfn : size_pages;
-			zone_enum = ZONE_DMA;
-		} else if (start_pfn < normal_end_pfn) {
-			nr_pages = (start_pfn + size_pages > normal_end_pfn) ?
-				   normal_end_pfn - start_pfn : size_pages;
-			zone_enum = ZONE_NORMAL;
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		zone = pgdat->node_zones + i;
+		if (zone_idx(zone) != ZONE_MOVABLE) {
+			/* Add range within existing zone limits, if possible */
+			zone_start_pfn = zone->zone_start_pfn;
+			zone_end_pfn = zone->zone_start_pfn +
+				       zone->spanned_pages;
 		} else {
-			nr_pages = size_pages;
-			zone_enum = ZONE_MOVABLE;
+			/* Add remaining range to ZONE_MOVABLE */
+			zone_start_pfn = start_pfn;
+			zone_end_pfn = start_pfn + size_pages;
 		}
-		rc = __add_pages(nid, NODE_DATA(nid)->node_zones + zone_enum,
-				 start_pfn, size_pages);
+		if (start_pfn < zone_start_pfn || start_pfn >= zone_end_pfn)
+			continue;
+		nr_pages = (start_pfn + size_pages > zone_end_pfn) ?
+			   zone_end_pfn - start_pfn : size_pages;
+		rc = __add_pages(nid, zone, start_pfn, nr_pages);
 		if (rc)
 			break;
 		start_pfn += nr_pages;
 		size_pages -= nr_pages;
+		if (!size_pages)
+			break;
 	}
 	if (rc)
 		vmem_remove_mapping(start, size);

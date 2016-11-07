@@ -96,7 +96,7 @@ $(obj)/zoffset.h: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,zoffset)
 
 
-AFLAGS_header.o += -I$(obj)
+AFLAGS_header.o += -I$(objtree)/$(obj)
 $(obj)/header.o: $(obj)/zoffset.h
 
 LDFLAGS_setup.elf	:= -T

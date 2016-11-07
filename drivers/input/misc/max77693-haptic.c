@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2014,2015 Samsung Electronics
  * Jaewon Kim <jaewon02.kim@samsung.com>
- * Krzysztof Kozlowski <k.kozlowski@samsung.com>
+ * Krzysztof Kozlowski <krzk@kernel.org>
  *
  * This program is not provided / owned by Maxim Integrated Products.
  *
@@ -426,7 +426,7 @@ static struct platform_driver max77693_haptic_driver = {
 module_platform_driver(max77693_haptic_driver);
 
 MODULE_AUTHOR("Jaewon Kim <jaewon02.kim@samsung.com>");
-MODULE_AUTHOR("Krzysztof Kozlowski <k.kozlowski@samsung.com>");
+MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_DESCRIPTION("MAXIM 77693/77843 Haptic driver");
 MODULE_ALIAS("platform:max77693-haptic");
 MODULE_LICENSE("GPL");

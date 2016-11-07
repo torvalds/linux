@@ -765,6 +765,64 @@ static void term_afu(struct cxlflash_cfg *cfg)
 }
 
 /**
+ * notify_shutdown() - notifies device of pending shutdown
+ * @cfg:	Internal structure associated with the host.
+ * @wait:	Whether to wait for shutdown processing to complete.
+ *
+ * This function will notify the AFU that the adapter is being shutdown
+ * and will wait for shutdown processing to complete if wait is true.
+ * This notification should flush pending I/Os to the device and halt
+ * further I/Os until the next AFU reset is issued and device restarted.
+ */
+static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
+{
+	struct afu *afu = cfg->afu;
+	struct device *dev = &cfg->dev->dev;
+	struct sisl_global_map __iomem *global;
+	struct dev_dependent_vals *ddv;
+	u64 reg, status;
+	int i, retry_cnt = 0;
+
+	ddv = (struct dev_dependent_vals *)cfg->dev_id->driver_data;
+	if (!(ddv->flags & CXLFLASH_NOTIFY_SHUTDOWN))
+		return;
+
+	if (!afu || !afu->afu_map) {
+		dev_dbg(dev, "%s: The problem state area is not mapped\n",
+			__func__);
+		return;
+	}
+
+	global = &afu->afu_map->global;
+
+	/* Notify AFU */
+	for (i = 0; i < NUM_FC_PORTS; i++) {
+		reg = readq_be(&global->fc_regs[i][FC_CONFIG2 / 8]);
+		reg |= SISL_FC_SHUTDOWN_NORMAL;
+		writeq_be(reg, &global->fc_regs[i][FC_CONFIG2 / 8]);
+	}
+
+	if (!wait)
+		return;
+
+	/* Wait up to 1.5 seconds for shutdown processing to complete */
+	for (i = 0; i < NUM_FC_PORTS; i++) {
+		retry_cnt = 0;
+		while (true) {
+			status = readq_be(&global->fc_regs[i][FC_STATUS / 8]);
+			if (status & SISL_STATUS_SHUTDOWN_COMPLETE)
+				break;
+			if (++retry_cnt >= MC_RETRY_CNT) {
+				dev_dbg(dev, "%s: port %d shutdown processing "
+					"not yet completed\n", __func__, i);
+				break;
+			}
+			msleep(100 * retry_cnt);
+		}
+	}
+}
+
+/**
  * cxlflash_remove() - PCI entry point to tear down host
  * @pdev:	PCI device associated with the host.
  *
@@ -775,6 +833,11 @@ static void cxlflash_remove(struct pci_dev *pdev)
 	struct cxlflash_cfg *cfg = pci_get_drvdata(pdev);
 	ulong lock_flags;
 
+	if (!pci_is_enabled(pdev)) {
+		pr_debug("%s: Device is disabled\n", __func__);
+		return;
+	}
+
 	/* If a Task Management Function is active, wait for it to complete
 	 * before continuing with remove.
 	 */
@@ -784,6 +847,9 @@ static void cxlflash_remove(struct pci_dev *pdev)
 						  !cfg->tmf_active,
 						  cfg->tmf_slock);
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
+
+	/* Notify AFU and wait for shutdown processing to complete */
+	notify_shutdown(cfg, true);
 
 	cfg->state = STATE_FAILTERM;
 	cxlflash_stop_term_user_contexts(cfg);
@@ -974,6 +1040,8 @@ static int wait_port_online(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
 	do {
 		msleep(delay_us / 1000);
 		status = readq_be(&fc_regs[FC_MTIP_STATUS / 8]);
+		if (status == U64_MAX)
+			nretry /= 2;
 	} while ((status & FC_MTIP_STATUS_MASK) != FC_MTIP_STATUS_ONLINE &&
 		 nretry--);
 
@@ -1005,6 +1073,8 @@ static int wait_port_offline(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
 	do {
 		msleep(delay_us / 1000);
 		status = readq_be(&fc_regs[FC_MTIP_STATUS / 8]);
+		if (status == U64_MAX)
+			nretry /= 2;
 	} while ((status & FC_MTIP_STATUS_MASK) != FC_MTIP_STATUS_OFFLINE &&
 		 nretry--);
 
@@ -1023,42 +1093,25 @@ static int wait_port_offline(__be64 __iomem *fc_regs, u32 delay_us, u32 nretry)
  * online. This toggling action can cause this routine to delay up to a few
  * seconds. When configured to use the internal LUN feature of the AFU, a
  * failure to come online is overridden.
- *
- * Return:
- *	0 when the WWPN is successfully written and the port comes back online
- *	-1 when the port fails to go offline or come back up online
  */
-static int afu_set_wwpn(struct afu *afu, int port, __be64 __iomem *fc_regs,
-			u64 wwpn)
+static void afu_set_wwpn(struct afu *afu, int port, __be64 __iomem *fc_regs,
+			 u64 wwpn)
 {
-	int rc = 0;
-
 	set_port_offline(fc_regs);
-
 	if (!wait_port_offline(fc_regs, FC_PORT_STATUS_RETRY_INTERVAL_US,
 			       FC_PORT_STATUS_RETRY_CNT)) {
 		pr_debug("%s: wait on port %d to go offline timed out\n",
 			 __func__, port);
-		rc = -1; /* but continue on to leave the port back online */
 	}
 
-	if (rc == 0)
-		writeq_be(wwpn, &fc_regs[FC_PNAME / 8]);
-
-	/* Always return success after programming WWPN */
-	rc = 0;
+	writeq_be(wwpn, &fc_regs[FC_PNAME / 8]);
 
 	set_port_online(fc_regs);
-
 	if (!wait_port_online(fc_regs, FC_PORT_STATUS_RETRY_INTERVAL_US,
 			      FC_PORT_STATUS_RETRY_CNT)) {
-		pr_err("%s: wait on port %d to go online timed out\n",
-		       __func__, port);
+		pr_debug("%s: wait on port %d to go online timed out\n",
+			 __func__, port);
 	}
-
-	pr_debug("%s: returning rc=%d\n", __func__, rc);
-
-	return rc;
 }
 
 /**
@@ -1115,7 +1168,7 @@ static const struct asyc_intr_info ainfo[] = {
 	{SISL_ASTATUS_FC0_LOGI_F, "login failed", 0, CLR_FC_ERROR},
 	{SISL_ASTATUS_FC0_LOGI_S, "login succeeded", 0, SCAN_HOST},
 	{SISL_ASTATUS_FC0_LINK_DN, "link down", 0, 0},
-	{SISL_ASTATUS_FC0_LINK_UP, "link up", 0, SCAN_HOST},
+	{SISL_ASTATUS_FC0_LINK_UP, "link up", 0, 0},
 	{SISL_ASTATUS_FC1_OTHER, "other error", 1, CLR_FC_ERROR | LINK_RESET},
 	{SISL_ASTATUS_FC1_LOGO, "target initiated LOGO", 1, 0},
 	{SISL_ASTATUS_FC1_CRC_T, "CRC threshold exceeded", 1, LINK_RESET},
@@ -1123,7 +1176,7 @@ static const struct asyc_intr_info ainfo[] = {
 	{SISL_ASTATUS_FC1_LOGI_F, "login failed", 1, CLR_FC_ERROR},
 	{SISL_ASTATUS_FC1_LOGI_S, "login succeeded", 1, SCAN_HOST},
 	{SISL_ASTATUS_FC1_LINK_DN, "link down", 1, 0},
-	{SISL_ASTATUS_FC1_LINK_UP, "link up", 1, SCAN_HOST},
+	{SISL_ASTATUS_FC1_LINK_UP, "link up", 1, 0},
 	{0x0, "", 0, 0}		/* terminator */
 };
 
@@ -1559,15 +1612,10 @@ static int init_global(struct cxlflash_cfg *cfg)
 			  [FC_CRC_THRESH / 8]);
 
 		/* Set WWPNs. If already programmed, wwpn[i] is 0 */
-		if (wwpn[i] != 0 &&
-		    afu_set_wwpn(afu, i,
-				 &afu->afu_map->global.fc_regs[i][0],
-				 wwpn[i])) {
-			dev_err(dev, "%s: failed to set WWPN on port %d\n",
-			       __func__, i);
-			rc = -EIO;
-			goto out;
-		}
+		if (wwpn[i] != 0)
+			afu_set_wwpn(afu, i,
+				     &afu->afu_map->global.fc_regs[i][0],
+				     wwpn[i]);
 		/* Programming WWPN back to back causes additional
 		 * offline/online transitions and a PLOGI
 		 */
@@ -1916,6 +1964,19 @@ static int afu_reset(struct cxlflash_cfg *cfg)
 }
 
 /**
+ * drain_ioctls() - wait until all currently executing ioctls have completed
+ * @cfg:	Internal structure associated with the host.
+ *
+ * Obtain write access to read/write semaphore that wraps ioctl
+ * handling to 'drain' ioctls currently executing.
+ */
+static void drain_ioctls(struct cxlflash_cfg *cfg)
+{
+	down_write(&cfg->ioctl_rwsem);
+	up_write(&cfg->ioctl_rwsem);
+}
+
+/**
  * cxlflash_eh_device_reset_handler() - reset a single LUN
  * @scp:	SCSI command to send.
  *
@@ -1963,6 +2024,11 @@ retry:
  * cxlflash_eh_host_reset_handler() - reset the host adapter
  * @scp:	SCSI command from stack identifying host.
  *
+ * Following a reset, the state is evaluated again in case an EEH occurred
+ * during the reset. In such a scenario, the host reset will either yield
+ * until the EEH recovery is complete or return success or failure based
+ * upon the current device state.
+ *
  * Return:
  *	SUCCESS as defined in scsi/scsi.h
  *	FAILED as defined in scsi/scsi.h
@@ -1986,6 +2052,7 @@ static int cxlflash_eh_host_reset_handler(struct scsi_cmnd *scp)
 	switch (cfg->state) {
 	case STATE_NORMAL:
 		cfg->state = STATE_RESET;
+		drain_ioctls(cfg);
 		cxlflash_mark_contexts_error(cfg);
 		rcr = afu_reset(cfg);
 		if (rcr) {
@@ -1994,7 +2061,8 @@ static int cxlflash_eh_host_reset_handler(struct scsi_cmnd *scp)
 		} else
 			cfg->state = STATE_NORMAL;
 		wake_up_all(&cfg->reset_waitq);
-		break;
+		ssleep(1);
+		/* fall through */
 	case STATE_RESET:
 		wait_event(cfg->reset_waitq, cfg->state != STATE_RESET);
 		if (cfg->state == STATE_NORMAL)
@@ -2319,8 +2387,10 @@ static struct scsi_host_template driver_template = {
 /*
  * Device dependent values
  */
-static struct dev_dependent_vals dev_corsa_vals = { CXLFLASH_MAX_SECTORS };
-static struct dev_dependent_vals dev_flash_gt_vals = { CXLFLASH_MAX_SECTORS };
+static struct dev_dependent_vals dev_corsa_vals = { CXLFLASH_MAX_SECTORS,
+					0ULL };
+static struct dev_dependent_vals dev_flash_gt_vals = { CXLFLASH_MAX_SECTORS,
+					CXLFLASH_NOTIFY_SHUTDOWN };
 
 /*
  * PCI device binding table
@@ -2504,22 +2574,12 @@ out_remove:
 }
 
 /**
- * drain_ioctls() - wait until all currently executing ioctls have completed
- * @cfg:	Internal structure associated with the host.
- *
- * Obtain write access to read/write semaphore that wraps ioctl
- * handling to 'drain' ioctls currently executing.
- */
-static void drain_ioctls(struct cxlflash_cfg *cfg)
-{
-	down_write(&cfg->ioctl_rwsem);
-	up_write(&cfg->ioctl_rwsem);
-}
-
-/**
  * cxlflash_pci_error_detected() - called when a PCI error is detected
  * @pdev:	PCI device struct.
  * @state:	PCI channel state.
+ *
+ * When an EEH occurs during an active reset, wait until the reset is
+ * complete and then take action based upon the device state.
  *
  * Return: PCI_ERS_RESULT_NEED_RESET or PCI_ERS_RESULT_DISCONNECT
  */
@@ -2534,6 +2594,10 @@ static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
 
 	switch (state) {
 	case pci_channel_io_frozen:
+		wait_event(cfg->reset_waitq, cfg->state != STATE_RESET);
+		if (cfg->state == STATE_FAILTERM)
+			return PCI_ERS_RESULT_DISCONNECT;
+
 		cfg->state = STATE_RESET;
 		scsi_block_requests(cfg->host);
 		drain_ioctls(cfg);
@@ -2610,6 +2674,7 @@ static struct pci_driver cxlflash_driver = {
 	.id_table = cxlflash_pci_table,
 	.probe = cxlflash_probe,
 	.remove = cxlflash_remove,
+	.shutdown = cxlflash_remove,
 	.err_handler = &cxlflash_err_handler,
 };
 

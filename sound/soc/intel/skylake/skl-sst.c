@@ -68,10 +68,13 @@ static int skl_transfer_firmware(struct sst_dsp *ctx,
 	return ret;
 }
 
+#define SKL_ADSP_FW_BIN_HDR_OFFSET 0x284
+
 static int skl_load_base_firmware(struct sst_dsp *ctx)
 {
 	int ret = 0, i;
 	struct skl_sst *skl = ctx->thread_context;
+	struct firmware stripped_fw;
 	u32 reg;
 
 	skl->boot_complete = false;
@@ -81,20 +84,36 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		ret = request_firmware(&ctx->fw, ctx->fw_name, ctx->dev);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Request firmware failed %d\n", ret);
-			skl_dsp_disable_core(ctx);
 			return -EIO;
 		}
 	}
 
+	/* prase uuids on first boot */
+	if (skl->is_first_boot) {
+		ret = snd_skl_parse_uuids(ctx, ctx->fw, SKL_ADSP_FW_BIN_HDR_OFFSET, 0);
+		if (ret < 0) {
+			dev_err(ctx->dev, "UUID parsing err: %d\n", ret);
+			release_firmware(ctx->fw);
+			skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
+			return ret;
+		}
+	}
+
+	/* check for extended manifest */
+	stripped_fw.data = ctx->fw->data;
+	stripped_fw.size = ctx->fw->size;
+
+	skl_dsp_strip_extended_manifest(&stripped_fw);
+
 	ret = skl_dsp_boot(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Boot dsp core failed ret: %d", ret);
+		dev_err(ctx->dev, "Boot dsp core failed ret: %d\n", ret);
 		goto skl_load_base_firmware_failed;
 	}
 
 	ret = skl_cldma_prepare(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "CL dma prepare failed : %d", ret);
+		dev_err(ctx->dev, "CL dma prepare failed : %d\n", ret);
 		goto skl_load_base_firmware_failed;
 	}
 
@@ -119,7 +138,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		goto transfer_firmware_failed;
 	}
 
-	ret = skl_transfer_firmware(ctx, ctx->fw->data, ctx->fw->size);
+	ret = skl_transfer_firmware(ctx, stripped_fw.data, stripped_fw.size);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Transfer firmware failed%d\n", ret);
 		goto transfer_firmware_failed;
@@ -133,67 +152,87 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		}
 
 		dev_dbg(ctx->dev, "Download firmware successful%d\n", ret);
-		skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
+		skl->fw_loaded = true;
 	}
 	return 0;
 transfer_firmware_failed:
 	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
 skl_load_base_firmware_failed:
-	skl_dsp_disable_core(ctx);
+	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	release_firmware(ctx->fw);
 	ctx->fw = NULL;
 	return ret;
 }
 
-static int skl_set_dsp_D0(struct sst_dsp *ctx)
-{
-	int ret;
-
-	ret = skl_load_base_firmware(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "unable to load firmware\n");
-		return ret;
-	}
-
-	skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
-
-	return ret;
-}
-
-static int skl_set_dsp_D3(struct sst_dsp *ctx)
+static int skl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
 	struct skl_ipc_dxstate_info dx;
 	struct skl_sst *skl = ctx->thread_context;
+	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 
-	dev_dbg(ctx->dev, "In %s:\n", __func__);
-	mutex_lock(&ctx->mutex);
-	if (!is_skl_dsp_running(ctx)) {
-		mutex_unlock(&ctx->mutex);
-		return 0;
+	/* If core0 is being turned on, we need to load the FW */
+	if (core_id == SKL_DSP_CORE0_ID) {
+		ret = skl_load_base_firmware(ctx);
+		if (ret < 0) {
+			dev_err(ctx->dev, "unable to load firmware\n");
+			return ret;
+		}
 	}
-	mutex_unlock(&ctx->mutex);
 
-	dx.core_mask = SKL_DSP_CORE0_MASK;
+	/*
+	 * If any core other than core 0 is being moved to D0, enable the
+	 * core and send the set dx IPC for the core.
+	 */
+	if (core_id != SKL_DSP_CORE0_ID) {
+		ret = skl_dsp_enable_core(ctx, core_mask);
+		if (ret < 0)
+			return ret;
+
+		dx.core_mask = core_mask;
+		dx.dx_mask = core_mask;
+
+		ret = skl_ipc_set_dx(&skl->ipc, SKL_INSTANCE_ID,
+					SKL_BASE_FW_MODULE_ID, &dx);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to set dsp to D0:core id= %d\n",
+					core_id);
+			skl_dsp_disable_core(ctx, core_mask);
+		}
+	}
+
+	skl->cores.state[core_id] = SKL_DSP_RUNNING;
+
+	return ret;
+}
+
+static int skl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
+{
+	int ret;
+	struct skl_ipc_dxstate_info dx;
+	struct skl_sst *skl = ctx->thread_context;
+	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
+
+	dx.core_mask = core_mask;
 	dx.dx_mask = SKL_IPC_D3_MASK;
+
 	ret = skl_ipc_set_dx(&skl->ipc, SKL_INSTANCE_ID, SKL_BASE_FW_MODULE_ID, &dx);
 	if (ret < 0)
-		dev_err(ctx->dev,
-			"D3 request to FW failed, continuing reset: %d", ret);
+		dev_err(ctx->dev, "set Dx core %d fail: %d\n", core_id, ret);
 
-	/* disable Interrupt */
-	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
-	skl_cldma_int_disable(ctx);
-	skl_ipc_op_int_disable(ctx);
-	skl_ipc_int_disable(ctx);
-
-	ret = skl_dsp_disable_core(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "disable dsp core failed ret: %d\n", ret);
-		ret = -EIO;
+	if (core_id == SKL_DSP_CORE0_ID) {
+		/* disable Interrupt */
+		ctx->cl_dev.ops.cl_cleanup_controller(ctx);
+		skl_cldma_int_disable(ctx);
+		skl_ipc_op_int_disable(ctx);
+		skl_ipc_int_disable(ctx);
 	}
-	skl_dsp_set_state_locked(ctx, SKL_DSP_RESET);
 
+	ret = skl_dsp_disable_core(ctx, core_mask);
+	if (ret < 0)
+		return ret;
+
+	skl->cores.state[core_id] = SKL_DSP_RESET;
 	return ret;
 }
 
@@ -360,6 +399,19 @@ static int skl_unload_module(struct sst_dsp *ctx, u16 mod_id)
 	return ret;
 }
 
+void skl_clear_module_cnt(struct sst_dsp *ctx)
+{
+	struct skl_module_table *module;
+
+	if (list_empty(&ctx->module_list))
+		return;
+
+	list_for_each_entry(module, &ctx->module_list, list) {
+		module->usage_cnt = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(skl_clear_module_cnt);
+
 static void skl_clear_module_table(struct sst_dsp *ctx)
 {
 	struct skl_module_table *module, *tmp;
@@ -409,6 +461,7 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	skl->dev = dev;
 	skl_dev.thread_context = skl;
+	INIT_LIST_HEAD(&skl->uuid_list);
 
 	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, irq);
 	if (!skl->dsp) {
@@ -432,26 +485,38 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	if (ret)
 		return ret;
 
-	ret = sst->fw_ops.load_fw(sst);
-	if (ret < 0) {
-		dev_err(dev, "Load base fw failed : %d", ret);
-		goto cleanup;
-	}
+	skl->cores.count = 2;
+	skl->is_first_boot = true;
 
 	if (dsp)
 		*dsp = skl;
 
 	return ret;
-
-cleanup:
-	skl_sst_dsp_cleanup(dev, skl);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
+
+int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
+{
+	int ret;
+	struct sst_dsp *sst = ctx->dsp;
+
+	ret = sst->fw_ops.load_fw(sst);
+	if (ret < 0) {
+		dev_err(dev, "Load base fw failed : %d\n", ret);
+		return ret;
+	}
+
+	skl_dsp_init_core_state(sst);
+	ctx->is_first_boot = false;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(skl_sst_init_fw);
 
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
 	skl_clear_module_table(ctx->dsp);
+	skl_freeup_uuid_list(ctx);
 	skl_ipc_free(&ctx->ipc);
 	ctx->dsp->ops->free(ctx->dsp);
 	if (ctx->boot_complete) {

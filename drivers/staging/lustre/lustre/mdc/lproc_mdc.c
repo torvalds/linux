@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -47,11 +43,10 @@ static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 	int len;
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
-	struct client_obd *cli = &dev->u.cli;
+	__u32 max;
 
-	spin_lock(&cli->cl_loi_list_lock);
-	len = sprintf(buf, "%u\n", cli->cl_max_rpcs_in_flight);
-	spin_unlock(&cli->cl_loi_list_lock);
+	max = obd_get_max_rpcs_in_flight(&dev->u.cli);
+	len = sprintf(buf, "%u\n", max);
 
 	return len;
 }
@@ -63,7 +58,6 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 {
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
-	struct client_obd *cli = &dev->u.cli;
 	int rc;
 	unsigned long val;
 
@@ -71,12 +65,9 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	if (val < 1 || val > MDC_MAX_RIF_MAX)
-		return -ERANGE;
-
-	spin_lock(&cli->cl_loi_list_lock);
-	cli->cl_max_rpcs_in_flight = val;
-	spin_unlock(&cli->cl_loi_list_lock);
+	rc = obd_set_max_rpcs_in_flight(&dev->u.cli, val);
+	if (rc)
+		count = rc;
 
 	return count;
 }

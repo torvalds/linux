@@ -29,35 +29,12 @@
 #include "iochannel.h"
 
 #define VISORNIC_INFINITE_RSP_WAIT 0
-#define VISORNICSOPENMAX 32
-#define MAXDEVICES     16384
 
 /* MAX_BUF = 64 lines x 32 MAXVNIC x 80 characters
  *         = 163840 bytes
  */
 #define MAX_BUF 163840
 #define NAPI_WEIGHT 64
-
-static int visornic_probe(struct visor_device *dev);
-static void visornic_remove(struct visor_device *dev);
-static int visornic_pause(struct visor_device *dev,
-			  visorbus_state_complete_func complete_func);
-static int visornic_resume(struct visor_device *dev,
-			   visorbus_state_complete_func complete_func);
-
-/* DEBUGFS declarations */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset);
-static ssize_t enable_ints_write(struct file *file, const char __user *buf,
-				 size_t len, loff_t *ppos);
-static struct dentry *visornic_debugfs_dir;
-static const struct file_operations debugfs_info_fops = {
-	.read = info_debugfs_read,
-};
-
-static const struct file_operations debugfs_enable_ints_fops = {
-	.write = enable_ints_write,
-};
 
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
@@ -76,23 +53,6 @@ MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
  * properly.
  */
 MODULE_ALIAS("visorbus:" SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR);
-
-/* This is used to tell the visor bus driver which types of visor devices
- * we support, and what functions to call when a visor device that we support
- * is attached or removed.
- */
-static struct visor_driver visornic_driver = {
-	.name = "visornic",
-	.version = "1.0.0.0",
-	.vertag = NULL,
-	.owner = THIS_MODULE,
-	.channel_types = visornic_channel_types,
-	.probe = visornic_probe,
-	.remove = visornic_remove,
-	.pause = visornic_pause,
-	.resume = visornic_resume,
-	.channel_interrupt = NULL,
-};
 
 struct chanstat {
 	unsigned long got_rcv;
@@ -180,9 +140,6 @@ struct visornic_devdata {
 	struct napi_struct napi;
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
-
-static int visornic_poll(struct napi_struct *napi, int budget);
-static void poll_for_irq(unsigned long v);
 
 /**
  *	visor_copy_fragsinfo_from_skb(
@@ -288,6 +245,10 @@ static ssize_t enable_ints_write(struct file *file,
 	 */
 	return count;
 }
+
+static const struct file_operations debugfs_enable_ints_fops = {
+	.write = enable_ints_write,
+};
 
 /**
  *	visornic_serverdown_complete - IOPART went down, pause device
@@ -425,9 +386,9 @@ post_skb(struct uiscmdrsp *cmdrsp,
 	if ((cmdrsp->net.rcvpost.frag.pi_off + skb->len) <= PI_PAGE_SIZE) {
 		cmdrsp->net.type = NET_RCV_POST;
 		cmdrsp->cmdtype = CMD_NET_TYPE;
-		if (visorchannel_signalinsert(devdata->dev->visorchannel,
-					      IOCHAN_TO_IOPART,
-					      cmdrsp)) {
+		if (!visorchannel_signalinsert(devdata->dev->visorchannel,
+					       IOCHAN_TO_IOPART,
+					       cmdrsp)) {
 			atomic_inc(&devdata->num_rcvbuf_in_iovm);
 			devdata->chstat.sent_post++;
 		} else {
@@ -454,9 +415,9 @@ send_enbdis(struct net_device *netdev, int state,
 	devdata->cmdrsp_rcv->net.enbdis.context = netdev;
 	devdata->cmdrsp_rcv->net.type = NET_RCV_ENBDIS;
 	devdata->cmdrsp_rcv->cmdtype = CMD_NET_TYPE;
-	if (visorchannel_signalinsert(devdata->dev->visorchannel,
-				      IOCHAN_TO_IOPART,
-				      devdata->cmdrsp_rcv))
+	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
+				       IOCHAN_TO_IOPART,
+				       devdata->cmdrsp_rcv))
 		devdata->chstat.sent_enbdis++;
 }
 
@@ -920,8 +881,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
-				       IOCHAN_TO_IOPART, cmdrsp)) {
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
+				      IOCHAN_TO_IOPART, cmdrsp)) {
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		devdata->busy_cnt++;
@@ -1000,25 +961,28 @@ visornic_set_multi(struct net_device *netdev)
 	struct uiscmdrsp *cmdrsp;
 	struct visornic_devdata *devdata = netdev_priv(netdev);
 
-	/* any filtering changes */
-	if (devdata->old_flags != netdev->flags) {
-		if ((netdev->flags & IFF_PROMISC) !=
-		    (devdata->old_flags & IFF_PROMISC)) {
-			cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-			if (!cmdrsp)
-				return;
-			cmdrsp->cmdtype = CMD_NET_TYPE;
-			cmdrsp->net.type = NET_RCV_PROMISC;
-			cmdrsp->net.enbdis.context = netdev;
-			cmdrsp->net.enbdis.enable =
-				netdev->flags & IFF_PROMISC;
-			visorchannel_signalinsert(devdata->dev->visorchannel,
-						  IOCHAN_TO_IOPART,
-						  cmdrsp);
-			kfree(cmdrsp);
-		}
-		devdata->old_flags = netdev->flags;
-	}
+	if (devdata->old_flags == netdev->flags)
+		return;
+
+	if ((netdev->flags & IFF_PROMISC) ==
+	    (devdata->old_flags & IFF_PROMISC))
+		goto out_save_flags;
+
+	cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
+	if (!cmdrsp)
+		return;
+	cmdrsp->cmdtype = CMD_NET_TYPE;
+	cmdrsp->net.type = NET_RCV_PROMISC;
+	cmdrsp->net.enbdis.context = netdev;
+	cmdrsp->net.enbdis.enable =
+		netdev->flags & IFF_PROMISC;
+	visorchannel_signalinsert(devdata->dev->visorchannel,
+				  IOCHAN_TO_IOPART,
+				  cmdrsp);
+	kfree(cmdrsp);
+
+out_save_flags:
+	devdata->old_flags = netdev->flags;
 }
 
 /**
@@ -1134,7 +1098,7 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
  *
  *	Got a receive packet back from the IO Part, handle it and send
  *	it up the stack.
- *	Returns void
+ *	Returns 1 iff an skb was receieved, otherwise 0
  */
 static int
 visornic_rx(struct uiscmdrsp *cmdrsp)
@@ -1145,7 +1109,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	int cc, currsize, off;
 	struct ethhdr *eth;
 	unsigned long flags;
-	int rx_count = 0;
 
 	/* post new rcv buf to the other end using the cmdrsp we have at hand
 	 * post it without holding lock - but we'll use the signal lock to
@@ -1177,7 +1140,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		 */
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	}
 
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
@@ -1196,7 +1159,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
@@ -1212,7 +1175,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		skb->tail += skb->len;
 		skb->data_len = 0;	/* nothing rcvd in frag_list */
@@ -1231,7 +1194,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	if (cmdrsp->net.rcv.rcvbuf[0] != skb) {
 		if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 			dev_err(&devdata->netdev->dev, "repost_return failed");
-		return rx_count;
+		return 0;
 	}
 
 	if (cmdrsp->net.rcv.numrcvbufs > 1) {
@@ -1313,10 +1276,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* drop packet - don't forward it up to OS */
 		devdata->n_rcv_packets_not_accepted++;
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	} while (0);
 
-	rx_count++;
 	netif_receive_skb(skb);
 	/* netif_rx returns various values, but "in practice most drivers
 	 * ignore the return value
@@ -1329,7 +1291,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	 * new rcv buffer.
 	 */
 	repost_return(cmdrsp, devdata, skb, netdev);
-	return rx_count;
+	return 1;
 }
 
 /**
@@ -1339,13 +1301,11 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
  *
  *	Setup initial values for the visornic based on channel and default
  *	values.
- *	Returns a pointer to the devdata if successful, else NULL
+ *	Returns a pointer to the devdata structure
  */
 static struct visornic_devdata *
 devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
-	if (!devdata)
-		return NULL;
 	devdata->dev = dev;
 	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
@@ -1523,6 +1483,11 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	return bytes_read;
 }
 
+static struct dentry *visornic_debugfs_dir;
+static const struct file_operations debugfs_info_fops = {
+	.read = info_debugfs_read,
+};
+
 /**
  *	send_rcv_posts_if_needed
  *	@devdata: visornic device
@@ -1574,9 +1539,9 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 static void
 drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 {
-	while (visorchannel_signalremove(devdata->dev->visorchannel,
-					 IOCHAN_FROM_IOPART,
-					 cmdrsp))
+	while (!visorchannel_signalremove(devdata->dev->visorchannel,
+					  IOCHAN_FROM_IOPART,
+					  cmdrsp))
 		;
 }
 
@@ -1587,7 +1552,7 @@ drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
  *
  *	Drain the respones queue of any responses from the IO partition.
  *	Process the responses as we get them.
- *	Returns when response queue is empty or when the threadd stops.
+ *	Returns when response queue is empty or when the thread stops.
  */
 static void
 service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
@@ -1600,9 +1565,9 @@ service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
 	 * moment
 	 */
-		if (!visorchannel_signalremove(devdata->dev->visorchannel,
-					       IOCHAN_FROM_IOPART,
-					       cmdrsp))
+		if (visorchannel_signalremove(devdata->dev->visorchannel,
+					      IOCHAN_FROM_IOPART,
+					      cmdrsp))
 			break; /* queue empty */
 
 		switch (cmdrsp->net.type) {
@@ -1793,7 +1758,7 @@ static int visornic_probe(struct visor_device *dev)
 				  sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!devdata->rcvbuf) {
 		err = -ENOMEM;
-		goto cleanup_rcvbuf;
+		goto cleanup_netdev;
 	}
 
 	/* set the net_xmit outstanding threshold */
@@ -1814,12 +1779,12 @@ static int visornic_probe(struct visor_device *dev)
 	devdata->cmdrsp_rcv = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->cmdrsp_rcv) {
 		err = -ENOMEM;
-		goto cleanup_cmdrsp_rcv;
+		goto cleanup_rcvbuf;
 	}
 	devdata->xmit_cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->xmit_cmdrsp) {
 		err = -ENOMEM;
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_cmdrsp_rcv;
 	}
 	INIT_WORK(&devdata->timeout_reset, visornic_timeout_reset);
 	devdata->server_down = false;
@@ -2062,6 +2027,21 @@ static int visornic_resume(struct visor_device *dev,
 	return 0;
 }
 
+/* This is used to tell the visor bus driver which types of visor devices
+ * we support, and what functions to call when a visor device that we support
+ * is attached or removed.
+ */
+static struct visor_driver visornic_driver = {
+	.name = "visornic",
+	.owner = THIS_MODULE,
+	.channel_types = visornic_channel_types,
+	.probe = visornic_probe,
+	.remove = visornic_remove,
+	.pause = visornic_pause,
+	.resume = visornic_resume,
+	.channel_interrupt = NULL,
+};
+
 /**
  *	visornic_init	- Init function
  *
@@ -2088,8 +2068,10 @@ static int visornic_init(void)
 		goto cleanup_debugfs;
 
 	err = visorbus_register_visor_driver(&visornic_driver);
-	if (!err)
-		return 0;
+	if (err)
+		goto cleanup_debugfs;
+
+	return 0;
 
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);
@@ -2114,5 +2096,4 @@ module_exit(visornic_cleanup);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("sPAR nic driver for sparlinux: ver 1.0.0.0");
-MODULE_VERSION("1.0.0.0");
+MODULE_DESCRIPTION("s-Par NIC driver for virtual network devices");

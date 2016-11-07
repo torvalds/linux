@@ -157,7 +157,7 @@ static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
 	 * HOLD register should be bypassed in case there is no phase shift
 	 * applied on CMD/DATA that is sent to the card.
 	 */
-	if (!SDMMC_CLKSEL_GET_DRV_WD3(clksel))
+	if (!SDMMC_CLKSEL_GET_DRV_WD3(clksel) && host->cur_slot)
 		set_bit(DW_MMC_CARD_NO_USE_HOLD, &host->cur_slot->flags);
 }
 
@@ -225,8 +225,12 @@ static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 	 * Not supported to configure register
 	 * related to HS400
 	 */
-	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420)
+	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420) {
+		if (timing == MMC_TIMING_MMC_HS400)
+			dev_warn(host->dev,
+				 "cannot configure HS400, unsupported chipset\n");
 		return;
+	}
 
 	dqs = priv->saved_dqs_en;
 	strobe = priv->saved_strobe_ctrl;

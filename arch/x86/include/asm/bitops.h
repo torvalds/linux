@@ -201,9 +201,9 @@ static __always_inline void change_bit(long nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static __always_inline int test_and_set_bit(long nr, volatile unsigned long *addr)
+static __always_inline bool test_and_set_bit(long nr, volatile unsigned long *addr)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "bts", *addr, "Ir", nr, "%0", "c");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "bts", *addr, "Ir", nr, "%0", c);
 }
 
 /**
@@ -213,7 +213,7 @@ static __always_inline int test_and_set_bit(long nr, volatile unsigned long *add
  *
  * This is the same as test_and_set_bit on x86.
  */
-static __always_inline int
+static __always_inline bool
 test_and_set_bit_lock(long nr, volatile unsigned long *addr)
 {
 	return test_and_set_bit(nr, addr);
@@ -228,13 +228,13 @@ test_and_set_bit_lock(long nr, volatile unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static __always_inline int __test_and_set_bit(long nr, volatile unsigned long *addr)
+static __always_inline bool __test_and_set_bit(long nr, volatile unsigned long *addr)
 {
-	int oldbit;
+	bool oldbit;
 
 	asm("bts %2,%1\n\t"
-	    "sbb %0,%0"
-	    : "=r" (oldbit), ADDR
+	    CC_SET(c)
+	    : CC_OUT(c) (oldbit), ADDR
 	    : "Ir" (nr));
 	return oldbit;
 }
@@ -247,9 +247,9 @@ static __always_inline int __test_and_set_bit(long nr, volatile unsigned long *a
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static __always_inline int test_and_clear_bit(long nr, volatile unsigned long *addr)
+static __always_inline bool test_and_clear_bit(long nr, volatile unsigned long *addr)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "btr", *addr, "Ir", nr, "%0", "c");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "btr", *addr, "Ir", nr, "%0", c);
 }
 
 /**
@@ -268,25 +268,25 @@ static __always_inline int test_and_clear_bit(long nr, volatile unsigned long *a
  * accessed from a hypervisor on the same CPU if running in a VM: don't change
  * this without also updating arch/x86/kernel/kvm.c
  */
-static __always_inline int __test_and_clear_bit(long nr, volatile unsigned long *addr)
+static __always_inline bool __test_and_clear_bit(long nr, volatile unsigned long *addr)
 {
-	int oldbit;
+	bool oldbit;
 
 	asm volatile("btr %2,%1\n\t"
-		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
+		     CC_SET(c)
+		     : CC_OUT(c) (oldbit), ADDR
 		     : "Ir" (nr));
 	return oldbit;
 }
 
 /* WARNING: non atomic and it can be reordered! */
-static __always_inline int __test_and_change_bit(long nr, volatile unsigned long *addr)
+static __always_inline bool __test_and_change_bit(long nr, volatile unsigned long *addr)
 {
-	int oldbit;
+	bool oldbit;
 
 	asm volatile("btc %2,%1\n\t"
-		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
+		     CC_SET(c)
+		     : CC_OUT(c) (oldbit), ADDR
 		     : "Ir" (nr) : "memory");
 
 	return oldbit;
@@ -300,24 +300,24 @@ static __always_inline int __test_and_change_bit(long nr, volatile unsigned long
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static __always_inline int test_and_change_bit(long nr, volatile unsigned long *addr)
+static __always_inline bool test_and_change_bit(long nr, volatile unsigned long *addr)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "btc", *addr, "Ir", nr, "%0", "c");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "btc", *addr, "Ir", nr, "%0", c);
 }
 
-static __always_inline int constant_test_bit(long nr, const volatile unsigned long *addr)
+static __always_inline bool constant_test_bit(long nr, const volatile unsigned long *addr)
 {
 	return ((1UL << (nr & (BITS_PER_LONG-1))) &
 		(addr[nr >> _BITOPS_LONG_SHIFT])) != 0;
 }
 
-static __always_inline int variable_test_bit(long nr, volatile const unsigned long *addr)
+static __always_inline bool variable_test_bit(long nr, volatile const unsigned long *addr)
 {
-	int oldbit;
+	bool oldbit;
 
 	asm volatile("bt %2,%1\n\t"
-		     "sbb %0,%0"
-		     : "=r" (oldbit)
+		     CC_SET(c)
+		     : CC_OUT(c) (oldbit)
 		     : "m" (*(unsigned long *)addr), "Ir" (nr));
 
 	return oldbit;
@@ -329,7 +329,7 @@ static __always_inline int variable_test_bit(long nr, volatile const unsigned lo
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
-static int test_bit(int nr, const volatile unsigned long *addr);
+static bool test_bit(int nr, const volatile unsigned long *addr);
 #endif
 
 #define test_bit(nr, addr)			\

@@ -109,7 +109,9 @@ background_gc=%s       Turn on/off cleaning operations, namely garbage
 disable_roll_forward   Disable the roll-forward recovery routine
 norecovery             Disable the roll-forward recovery routine, mounted read-
                        only (i.e., -o ro,disable_roll_forward)
-discard                Issue discard/TRIM commands when a segment is cleaned.
+discard/nodiscard      Enable/disable real-time discard in f2fs, if discard is
+                       enabled, f2fs will issue discard/TRIM commands when a
+		       segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
 		       for node from the end of main area.
@@ -129,6 +131,7 @@ inline_dentry          Enable the inline dir feature: data in new created
                        directory entries can be written into inode block. The
                        space of inode block which is used to store inline
                        dentries is limited to ~3.4k.
+noinline_dentry        Diable the inline dentry feature.
 flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
 		       device handles the cache_flush command relatively slowly,
@@ -151,6 +154,9 @@ noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
 data_flush             Enable data flushing before checkpoint in order to
                        persist data of regular and symlink.
+mode=%s                Control block allocation mode which supports "adaptive"
+                       and "lfs". In "lfs" mode, there should be no random
+                       writes towards main area.
 
 ================================================================================
 DEBUGFS ENTRIES

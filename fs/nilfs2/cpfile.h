@@ -21,7 +21,8 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_fs.h>
+#include <linux/nilfs2_api.h>		/* nilfs_cpstat */
+#include <linux/nilfs2_ondisk.h>	/* nilfs_inode, nilfs_checkpoint */
 
 
 int nilfs_cpfile_get_checkpoint(struct inode *, __u64, int,

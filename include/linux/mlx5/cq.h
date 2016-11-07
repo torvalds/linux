@@ -58,6 +58,8 @@ struct mlx5_core_cq {
 		void (*comp)(struct mlx5_core_cq *);
 		void		*priv;
 	} tasklet_ctx;
+	int			reset_notify_added;
+	struct list_head	reset_notify;
 };
 
 
@@ -168,12 +170,12 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 int mlx5_init_cq_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_cq_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_create_cq_mbox_in *in, int inlen);
+			u32 *in, int inlen);
 int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 int mlx5_core_query_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-		       struct mlx5_query_cq_mbox_out *out);
+		       u32 *out, int outlen);
 int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			struct mlx5_modify_cq_mbox_in *in, int in_sz);
+			u32 *in, int inlen);
 int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 				   struct mlx5_core_cq *cq, u16 cq_period,
 				   u16 cq_max_count);

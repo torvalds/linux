@@ -2,6 +2,9 @@
  * This code is used on x86_64 to create page table identity mappings on
  * demand by building up a new set of page tables (or appending to the
  * existing ones), and then switching over to them when ready.
+ *
+ * Copyright (C) 2015-2016  Yinghai Lu
+ * Copyright (C)      2016  Kees Cook
  */
 
 /*
@@ -17,6 +20,9 @@
 /* These actually do the work of building the kernel identity maps. */
 #include <asm/init.h>
 #include <asm/pgtable.h>
+/* Use the static base for this part of the boot process */
+#undef __PAGE_OFFSET
+#define __PAGE_OFFSET __PAGE_OFFSET_BASE
 #include "../../mm/ident_map.c"
 
 /* Used by pgtable.h asm code to force instruction serialization. */
@@ -59,9 +65,21 @@ static struct alloc_pgt_data pgt_data;
 /* The top level page table entry pointer. */
 static unsigned long level4p;
 
+/*
+ * Mapping information structure passed to kernel_ident_mapping_init().
+ * Due to relocation, pointers must be assigned at run time not build time.
+ */
+static struct x86_mapping_info mapping_info = {
+	.pmd_flag       = __PAGE_KERNEL_LARGE_EXEC,
+};
+
 /* Locates and clears a region for a new top level page table. */
-static void prepare_level4(void)
+void initialize_identity_maps(void)
 {
+	/* Init mapping_info with run-time function/buffer pointers. */
+	mapping_info.alloc_pgt_page = alloc_pgt_page;
+	mapping_info.context = &pgt_data;
+
 	/*
 	 * It should be impossible for this not to already be true,
 	 * but since calling this a second time would rewind the other
@@ -96,16 +114,7 @@ static void prepare_level4(void)
  */
 void add_identity_map(unsigned long start, unsigned long size)
 {
-	struct x86_mapping_info mapping_info = {
-		.alloc_pgt_page	= alloc_pgt_page,
-		.context	= &pgt_data,
-		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
-	};
 	unsigned long end = start + size;
-
-	/* Make sure we have a top level page table ready to use. */
-	if (!level4p)
-		prepare_level4();
 
 	/* Align boundary to 2M. */
 	start = round_down(start, PMD_SIZE);

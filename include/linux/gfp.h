@@ -78,8 +78,7 @@ struct vm_area_struct;
  * __GFP_THISNODE forces the allocation to be satisified from the requested
  *   node with no fallbacks or placement policy enforcements.
  *
- * __GFP_ACCOUNT causes the allocation to be accounted to kmemcg (only relevant
- *   to kmem allocations).
+ * __GFP_ACCOUNT causes the allocation to be accounted to kmemcg.
  */
 #define __GFP_RECLAIMABLE ((__force gfp_t)___GFP_RECLAIMABLE)
 #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)
@@ -238,9 +237,11 @@ struct vm_area_struct;
  *   are expected to be movable via page reclaim or page migration. Typically,
  *   pages on the LRU would also be allocated with GFP_HIGHUSER_MOVABLE.
  *
- * GFP_TRANSHUGE is used for THP allocations. They are compound allocations
- *   that will fail quickly if memory is not available and will not wake
- *   kswapd on failure.
+ * GFP_TRANSHUGE and GFP_TRANSHUGE_LIGHT are used for THP allocations. They are
+ *   compound allocations that will generally fail quickly if memory is not
+ *   available and will not wake kswapd/kcompactd on failure. The _LIGHT
+ *   version does not attempt reclaim/compaction at all and is by default used
+ *   in page fault path, while the non-light is used by khugepaged.
  */
 #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
 #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
@@ -255,9 +256,9 @@ struct vm_area_struct;
 #define GFP_DMA32	__GFP_DMA32
 #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
 #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
-#define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
-			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
-			 ~__GFP_RECLAIM)
+#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
+#define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
 
 /* Convert GFP flags to their corresponding migrate type */
 #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
@@ -486,10 +487,6 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
 #define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
 	alloc_pages_vma(gfp_mask, 0, vma, addr, node, false)
 
-extern struct page *alloc_kmem_pages(gfp_t gfp_mask, unsigned int order);
-extern struct page *alloc_kmem_pages_node(int nid, gfp_t gfp_mask,
-					  unsigned int order);
-
 extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
 extern unsigned long get_zeroed_page(gfp_t gfp_mask);
 
@@ -512,9 +509,6 @@ struct page_frag_cache;
 extern void *__alloc_page_frag(struct page_frag_cache *nc,
 			       unsigned int fragsz, gfp_t gfp_mask);
 extern void __free_page_frag(void *addr);
-
-extern void __free_kmem_pages(struct page *page, unsigned int order);
-extern void free_kmem_pages(unsigned long addr, unsigned int order);
 
 #define __free_page(page) __free_pages((page), 0)
 #define free_page(addr) free_pages((addr), 0)

@@ -183,15 +183,14 @@ static void free_cm_id(struct iwcm_id_private *cm_id_priv)
 
 /*
  * Release a reference on cm_id. If the last reference is being
- * released, enable the waiting thread (in iw_destroy_cm_id) to
- * get woken up, and return 1 if a thread is already waiting.
+ * released, free the cm_id and return 1.
  */
 static int iwcm_deref_id(struct iwcm_id_private *cm_id_priv)
 {
 	BUG_ON(atomic_read(&cm_id_priv->refcount)==0);
 	if (atomic_dec_and_test(&cm_id_priv->refcount)) {
 		BUG_ON(!list_empty(&cm_id_priv->work_list));
-		complete(&cm_id_priv->destroy_comp);
+		free_cm_id(cm_id_priv);
 		return 1;
 	}
 
@@ -208,19 +207,10 @@ static void add_ref(struct iw_cm_id *cm_id)
 static void rem_ref(struct iw_cm_id *cm_id)
 {
 	struct iwcm_id_private *cm_id_priv;
-	int cb_destroy;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
 
-	/*
-	 * Test bit before deref in case the cm_id gets freed on another
-	 * thread.
-	 */
-	cb_destroy = test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
-	if (iwcm_deref_id(cm_id_priv) && cb_destroy) {
-		BUG_ON(!list_empty(&cm_id_priv->work_list));
-		free_cm_id(cm_id_priv);
-	}
+	(void)iwcm_deref_id(cm_id_priv);
 }
 
 static int cm_event_handler(struct iw_cm_id *cm_id, struct iw_cm_event *event);
@@ -370,6 +360,12 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 	wait_event(cm_id_priv->connect_wait,
 		   !test_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags));
 
+	/*
+	 * Since we're deleting the cm_id, drop any events that
+	 * might arrive before the last dereference.
+	 */
+	set_bit(IWCM_F_DROP_EVENTS, &cm_id_priv->flags);
+
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	switch (cm_id_priv->state) {
 	case IW_CM_STATE_LISTEN:
@@ -433,13 +429,7 @@ void iw_destroy_cm_id(struct iw_cm_id *cm_id)
 	struct iwcm_id_private *cm_id_priv;
 
 	cm_id_priv = container_of(cm_id, struct iwcm_id_private, id);
-	BUG_ON(test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags));
-
 	destroy_cm_id(cm_id);
-
-	wait_for_completion(&cm_id_priv->destroy_comp);
-
-	free_cm_id(cm_id_priv);
 }
 EXPORT_SYMBOL(iw_destroy_cm_id);
 
@@ -809,10 +799,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	ret = cm_id->cm_handler(cm_id, iw_event);
 	if (ret) {
 		iw_cm_reject(cm_id, NULL, 0);
-		set_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
-		destroy_cm_id(cm_id);
-		if (atomic_read(&cm_id_priv->refcount)==0)
-			free_cm_id(cm_id_priv);
+		iw_destroy_cm_id(cm_id);
 	}
 
 out:
@@ -1000,7 +987,6 @@ static void cm_work_handler(struct work_struct *_work)
 	unsigned long flags;
 	int empty;
 	int ret = 0;
-	int destroy_id;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	empty = list_empty(&cm_id_priv->work_list);
@@ -1013,20 +999,14 @@ static void cm_work_handler(struct work_struct *_work)
 		put_work(work);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-		ret = process_event(cm_id_priv, &levent);
-		if (ret) {
-			set_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
-			destroy_cm_id(&cm_id_priv->id);
-		}
-		BUG_ON(atomic_read(&cm_id_priv->refcount)==0);
-		destroy_id = test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
-		if (iwcm_deref_id(cm_id_priv)) {
-			if (destroy_id) {
-				BUG_ON(!list_empty(&cm_id_priv->work_list));
-				free_cm_id(cm_id_priv);
-			}
+		if (!test_bit(IWCM_F_DROP_EVENTS, &cm_id_priv->flags)) {
+			ret = process_event(cm_id_priv, &levent);
+			if (ret)
+				destroy_cm_id(&cm_id_priv->id);
+		} else
+			pr_debug("dropping event %d\n", levent.event);
+		if (iwcm_deref_id(cm_id_priv))
 			return;
-		}
 		if (empty)
 			return;
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
@@ -1180,7 +1160,7 @@ static int __init iw_cm_init(void)
 	if (ret)
 		pr_err("iw_cm: couldn't register netlink callbacks\n");
 
-	iwcm_wq = create_singlethread_workqueue("iw_cm_wq");
+	iwcm_wq = alloc_ordered_workqueue("iw_cm_wq", WQ_MEM_RECLAIM);
 	if (!iwcm_wq)
 		return -ENOMEM;
 

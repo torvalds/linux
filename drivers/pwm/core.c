@@ -339,6 +339,8 @@ int pwmchip_remove(struct pwm_chip *chip)
 	unsigned int i;
 	int ret = 0;
 
+	pwmchip_sysfs_unexport_children(chip);
+
 	mutex_lock(&pwm_lock);
 
 	for (i = 0; i < chip->npwm; i++) {
@@ -524,6 +526,33 @@ int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pwm_apply_state);
+
+/**
+ * pwm_capture() - capture and report a PWM signal
+ * @pwm: PWM device
+ * @result: structure to fill with capture result
+ * @timeout: time to wait, in milliseconds, before giving up on capture
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
+		unsigned long timeout)
+{
+	int err;
+
+	if (!pwm || !pwm->chip->ops)
+		return -EINVAL;
+
+	if (!pwm->chip->ops->capture)
+		return -ENOSYS;
+
+	mutex_lock(&pwm_lock);
+	err = pwm->chip->ops->capture(pwm->chip, pwm, result, timeout);
+	mutex_unlock(&pwm_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(pwm_capture);
 
 /**
  * pwm_adjust_config() - adjust the current PWM config to the PWM arguments

@@ -250,6 +250,9 @@ int main(int argc, char *argv[])
 				syslog(LOG_ERR, "/etc/fstab and /proc/mounts");
 			}
 			break;
+		case VSS_OP_HOT_BACKUP:
+			syslog(LOG_INFO, "VSS: op=CHECK HOT BACKUP\n");
+			break;
 		default:
 			syslog(LOG_ERR, "Illegal op:%d\n", op);
 		}

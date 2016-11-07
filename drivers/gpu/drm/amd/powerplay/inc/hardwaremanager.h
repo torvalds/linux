@@ -340,7 +340,7 @@ extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);
-extern void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr);
+extern int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr);
 extern bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr);
 extern int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block);
 extern int phm_set_power_state(struct pp_hwmgr *hwmgr,

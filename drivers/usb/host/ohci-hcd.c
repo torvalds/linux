@@ -72,7 +72,7 @@
 static const char	hcd_name [] = "ohci_hcd";
 
 #define	STATECHANGE_DELAY	msecs_to_jiffies(300)
-#define	IO_WATCHDOG_DELAY	msecs_to_jiffies(250)
+#define	IO_WATCHDOG_DELAY	msecs_to_jiffies(275)
 
 #include "ohci.h"
 #include "pci-quirks.h"
@@ -500,7 +500,6 @@ static int ohci_init (struct ohci_hcd *ohci)
 
 	setup_timer(&ohci->io_watchdog, io_watchdog_func,
 			(unsigned long) ohci);
-	set_timer_slack(&ohci->io_watchdog, msecs_to_jiffies(20));
 
 	ohci->hcca = dma_alloc_coherent (hcd->self.controller,
 			sizeof(*ohci->hcca), &ohci->hcca_dma, GFP_KERNEL);

@@ -574,7 +574,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	helper = rcu_dereference(nfct_help(expect->master)->helper);
 	if (helper) {
 		seq_printf(s, "%s%s", expect->flags ? " " : "", helper->name);
-		if (helper->expect_policy[expect->class].name)
+		if (helper->expect_policy[expect->class].name[0])
 			seq_printf(s, "/%s",
 				   helper->expect_policy[expect->class].name);
 	}

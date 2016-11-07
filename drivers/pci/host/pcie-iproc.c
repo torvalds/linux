@@ -63,6 +63,8 @@
 #define OARR_SIZE_CFG_SHIFT          1
 #define OARR_SIZE_CFG                BIT(OARR_SIZE_CFG_SHIFT)
 
+#define PCI_EXP_CAP			0xac
+
 #define MAX_NUM_OB_WINDOWS           2
 
 #define IPROC_PCIE_REG_INVALID 0xffff
@@ -258,9 +260,10 @@ static void iproc_pcie_reset(struct iproc_pcie *pcie)
 
 static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 {
+	struct device *dev = pcie->dev;
 	u8 hdr_type;
 	u32 link_ctrl, class, val;
-	u16 pos, link_status;
+	u16 pos = PCI_EXP_CAP, link_status;
 	bool link_is_active = false;
 
 	/*
@@ -272,14 +275,14 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 
 	val = iproc_pcie_read_reg(pcie, IPROC_PCIE_LINK_STATUS);
 	if (!(val & PCIE_PHYLINKUP) || !(val & PCIE_DL_ACTIVE)) {
-		dev_err(pcie->dev, "PHY or data link is INACTIVE!\n");
+		dev_err(dev, "PHY or data link is INACTIVE!\n");
 		return -ENODEV;
 	}
 
 	/* make sure we are not in EP mode */
 	pci_bus_read_config_byte(bus, 0, PCI_HEADER_TYPE, &hdr_type);
 	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE) {
-		dev_err(pcie->dev, "in EP mode, hdr=%#02x\n", hdr_type);
+		dev_err(dev, "in EP mode, hdr=%#02x\n", hdr_type);
 		return -EFAULT;
 	}
 
@@ -293,30 +296,27 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 	pci_bus_write_config_dword(bus, 0, PCI_BRIDGE_CTRL_REG_OFFSET, class);
 
 	/* check link status to see if link is active */
-	pos = pci_bus_find_capability(bus, 0, PCI_CAP_ID_EXP);
 	pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA, &link_status);
 	if (link_status & PCI_EXP_LNKSTA_NLW)
 		link_is_active = true;
 
 	if (!link_is_active) {
 		/* try GEN 1 link speed */
-#define PCI_LINK_STATUS_CTRL_2_OFFSET 0x0dc
 #define PCI_TARGET_LINK_SPEED_MASK    0xf
 #define PCI_TARGET_LINK_SPEED_GEN2    0x2
 #define PCI_TARGET_LINK_SPEED_GEN1    0x1
 		pci_bus_read_config_dword(bus, 0,
-					  PCI_LINK_STATUS_CTRL_2_OFFSET,
+					  pos + PCI_EXP_LNKCTL2,
 					  &link_ctrl);
 		if ((link_ctrl & PCI_TARGET_LINK_SPEED_MASK) ==
 		    PCI_TARGET_LINK_SPEED_GEN2) {
 			link_ctrl &= ~PCI_TARGET_LINK_SPEED_MASK;
 			link_ctrl |= PCI_TARGET_LINK_SPEED_GEN1;
 			pci_bus_write_config_dword(bus, 0,
-					   PCI_LINK_STATUS_CTRL_2_OFFSET,
+					   pos + PCI_EXP_LNKCTL2,
 					   link_ctrl);
 			msleep(100);
 
-			pos = pci_bus_find_capability(bus, 0, PCI_CAP_ID_EXP);
 			pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA,
 						 &link_status);
 			if (link_status & PCI_EXP_LNKSTA_NLW)
@@ -324,7 +324,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 		}
 	}
 
-	dev_info(pcie->dev, "link: %s\n", link_is_active ? "UP" : "DOWN");
+	dev_info(dev, "link: %s\n", link_is_active ? "UP" : "DOWN");
 
 	return link_is_active ? 0 : -ENODEV;
 }
@@ -349,12 +349,13 @@ static int iproc_pcie_setup_ob(struct iproc_pcie *pcie, u64 axi_addr,
 			       u64 pci_addr, resource_size_t size)
 {
 	struct iproc_pcie_ob *ob = &pcie->ob;
+	struct device *dev = pcie->dev;
 	unsigned i;
 	u64 max_size = (u64)ob->window_size * MAX_NUM_OB_WINDOWS;
 	u64 remainder;
 
 	if (size > max_size) {
-		dev_err(pcie->dev,
+		dev_err(dev,
 			"res size %pap exceeds max supported size 0x%llx\n",
 			&size, max_size);
 		return -EINVAL;
@@ -362,15 +363,14 @@ static int iproc_pcie_setup_ob(struct iproc_pcie *pcie, u64 axi_addr,
 
 	div64_u64_rem(size, ob->window_size, &remainder);
 	if (remainder) {
-		dev_err(pcie->dev,
+		dev_err(dev,
 			"res size %pap needs to be multiple of window size %pap\n",
 			&size, &ob->window_size);
 		return -EINVAL;
 	}
 
 	if (axi_addr < ob->axi_offset) {
-		dev_err(pcie->dev,
-			"axi address %pap less than offset %pap\n",
+		dev_err(dev, "axi address %pap less than offset %pap\n",
 			&axi_addr, &ob->axi_offset);
 		return -EINVAL;
 	}
@@ -406,6 +406,7 @@ static int iproc_pcie_setup_ob(struct iproc_pcie *pcie, u64 axi_addr,
 static int iproc_pcie_map_ranges(struct iproc_pcie *pcie,
 				 struct list_head *resources)
 {
+	struct device *dev = pcie->dev;
 	struct resource_entry *window;
 	int ret;
 
@@ -425,7 +426,7 @@ static int iproc_pcie_map_ranges(struct iproc_pcie *pcie,
 				return ret;
 			break;
 		default:
-			dev_err(pcie->dev, "invalid resource %pR\n", res);
+			dev_err(dev, "invalid resource %pR\n", res);
 			return -EINVAL;
 		}
 	}
@@ -455,22 +456,25 @@ static void iproc_pcie_msi_disable(struct iproc_pcie *pcie)
 
 int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 {
+	struct device *dev;
 	int ret;
 	void *sysdata;
 	struct pci_bus *bus;
 
-	if (!pcie || !pcie->dev || !pcie->base)
-		return -EINVAL;
+	dev = pcie->dev;
+	ret = devm_request_pci_bus_resources(dev, res);
+	if (ret)
+		return ret;
 
 	ret = phy_init(pcie->phy);
 	if (ret) {
-		dev_err(pcie->dev, "unable to initialize PCIe PHY\n");
+		dev_err(dev, "unable to initialize PCIe PHY\n");
 		return ret;
 	}
 
 	ret = phy_power_on(pcie->phy);
 	if (ret) {
-		dev_err(pcie->dev, "unable to power on PCIe PHY\n");
+		dev_err(dev, "unable to power on PCIe PHY\n");
 		goto err_exit_phy;
 	}
 
@@ -482,7 +486,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 		pcie->reg_offsets = iproc_pcie_reg_paxc;
 		break;
 	default:
-		dev_err(pcie->dev, "incompatible iProc PCIe interface\n");
+		dev_err(dev, "incompatible iProc PCIe interface\n");
 		ret = -EINVAL;
 		goto err_power_off_phy;
 	}
@@ -492,7 +496,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	if (pcie->need_ob_cfg) {
 		ret = iproc_pcie_map_ranges(pcie, res);
 		if (ret) {
-			dev_err(pcie->dev, "map failed\n");
+			dev_err(dev, "map failed\n");
 			goto err_power_off_phy;
 		}
 	}
@@ -504,9 +508,9 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	sysdata = pcie;
 #endif
 
-	bus = pci_create_root_bus(pcie->dev, 0, &iproc_pcie_ops, sysdata, res);
+	bus = pci_create_root_bus(dev, 0, &iproc_pcie_ops, sysdata, res);
 	if (!bus) {
-		dev_err(pcie->dev, "unable to create PCI root bus\n");
+		dev_err(dev, "unable to create PCI root bus\n");
 		ret = -ENOMEM;
 		goto err_power_off_phy;
 	}
@@ -514,7 +518,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	ret = iproc_pcie_check_link(pcie, bus);
 	if (ret) {
-		dev_err(pcie->dev, "no PCIe EP device detected\n");
+		dev_err(dev, "no PCIe EP device detected\n");
 		goto err_rm_root_bus;
 	}
 
@@ -522,7 +526,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		if (iproc_pcie_msi_enable(pcie))
-			dev_info(pcie->dev, "not using iProc MSI\n");
+			dev_info(dev, "not using iProc MSI\n");
 
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);

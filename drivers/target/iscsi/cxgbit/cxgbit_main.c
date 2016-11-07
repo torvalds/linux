@@ -26,6 +26,8 @@ void _cxgbit_free_cdev(struct kref *kref)
 	struct cxgbit_device *cdev;
 
 	cdev = container_of(kref, struct cxgbit_device, kref);
+
+	cxgbi_ppm_release(cdev2ppm(cdev));
 	kfree(cdev);
 }
 
@@ -650,6 +652,9 @@ static struct iscsit_transport cxgbit_transport = {
 
 static struct cxgb4_uld_info cxgbit_uld_info = {
 	.name		= DRV_NAME,
+	.nrxq		= MAX_ULD_QSETS,
+	.rxq_size	= 1024,
+	.lro		= true,
 	.add		= cxgbit_uld_add,
 	.state_change	= cxgbit_uld_state_change,
 	.lro_rx_handler = cxgbit_uld_lro_rx_handler,

@@ -26,7 +26,7 @@
 #include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
@@ -49,8 +49,7 @@
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/xen/hypervisor.h>
-
-asmlinkage extern void ret_from_fork(void);
+#include <asm/vdso.h>
 
 __visible DEFINE_PER_CPU(unsigned long, rsp_scratch);
 
@@ -110,12 +109,13 @@ void __show_regs(struct pt_regs *regs, int all)
 	get_debugreg(d7, 7);
 
 	/* Only print out debug registers if they are in their non-default state. */
-	if ((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
-	    (d6 == DR6_RESERVED) && (d7 == 0x400))
-		return;
-
-	printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n", d0, d1, d2);
-	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
+	if (!((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
+	    (d6 == DR6_RESERVED) && (d7 == 0x400))) {
+		printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n",
+		       d0, d1, d2);
+		printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n",
+		       d3, d6, d7);
+	}
 
 	if (boot_cpu_has(X86_FEATURE_OSPKE))
 		printk(KERN_DEFAULT "PKRU: %08x\n", read_pkru());
@@ -141,12 +141,17 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 {
 	int err;
 	struct pt_regs *childregs;
+	struct fork_frame *fork_frame;
+	struct inactive_task_frame *frame;
 	struct task_struct *me = current;
 
 	p->thread.sp0 = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	childregs = task_pt_regs(p);
-	p->thread.sp = (unsigned long) childregs;
-	set_tsk_thread_flag(p, TIF_FORK);
+	fork_frame = container_of(childregs, struct fork_frame, regs);
+	frame = &fork_frame->frame;
+	frame->bp = 0;
+	frame->ret_addr = (unsigned long) ret_from_fork;
+	p->thread.sp = (unsigned long) fork_frame;
 	p->thread.io_bitmap_ptr = NULL;
 
 	savesegment(gs, p->thread.gsindex);
@@ -160,15 +165,11 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(childregs, 0, sizeof(struct pt_regs));
-		childregs->sp = (unsigned long)childregs;
-		childregs->ss = __KERNEL_DS;
-		childregs->bx = sp; /* function */
-		childregs->bp = arg;
-		childregs->orig_ax = -1;
-		childregs->cs = __KERNEL_CS | get_kernel_rpl();
-		childregs->flags = X86_EFLAGS_IF | X86_EFLAGS_FIXED;
+		frame->bx = sp;		/* function */
+		frame->r12 = arg;
 		return 0;
 	}
+	frame->bx = 0;
 	*childregs = *current_pt_regs();
 
 	childregs->ax = 0;
@@ -511,7 +512,7 @@ void set_personality_ia32(bool x32)
 		current->personality &= ~READ_IMPLIES_EXEC;
 		/* in_compat_syscall() uses the presence of the x32
 		   syscall bit flag to determine compat status */
-		current_thread_info()->status &= ~TS_COMPAT;
+		current->thread.status &= ~TS_COMPAT;
 	} else {
 		set_thread_flag(TIF_IA32);
 		clear_thread_flag(TIF_X32);
@@ -519,10 +520,23 @@ void set_personality_ia32(bool x32)
 			current->mm->context.ia32_compat = TIF_IA32;
 		current->personality |= force_personality32;
 		/* Prepare the first "return" to user space */
-		current_thread_info()->status |= TS_COMPAT;
+		current->thread.status |= TS_COMPAT;
 	}
 }
 EXPORT_SYMBOL_GPL(set_personality_ia32);
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
+{
+	int ret;
+
+	ret = map_vdso_once(image, addr);
+	if (ret)
+		return ret;
+
+	return (long)image->size;
+}
+#endif
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 {
@@ -576,6 +590,19 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		ret = put_user(base, (unsigned long __user *)addr);
 		break;
 	}
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+# ifdef CONFIG_X86_X32_ABI
+	case ARCH_MAP_VDSO_X32:
+		return prctl_map_vdso(&vdso_image_x32, addr);
+# endif
+# if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+	case ARCH_MAP_VDSO_32:
+		return prctl_map_vdso(&vdso_image_32, addr);
+# endif
+	case ARCH_MAP_VDSO_64:
+		return prctl_map_vdso(&vdso_image_64, addr);
+#endif
 
 	default:
 		ret = -EINVAL;

@@ -1218,7 +1218,7 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 
 	snd_mask_none(&nfmt);
 
-	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
+	for (i = 0; i <= SNDRV_PCM_FORMAT_LAST; i++) {
 		if (snd_mask_test(fmt, i)) {
 			uint sbits = snd_pcm_format_width(i);
 			int ppm;
@@ -1599,7 +1599,14 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 		pdata = pdev->dev.platform_data;
 		return pdata;
 	} else if (match) {
-		pdata = (struct davinci_mcasp_pdata*) match->data;
+		pdata = devm_kmemdup(&pdev->dev, match->data, sizeof(*pdata),
+				     GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&pdev->dev,
+				"Failed to allocate memory for pdata\n");
+			ret = -ENOMEM;
+			return pdata;
+		}
 	} else {
 		/* control shouldn't reach here. something is wrong */
 		ret = -EINVAL;

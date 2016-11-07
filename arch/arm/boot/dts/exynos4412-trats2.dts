@@ -30,7 +30,8 @@
 		i2c12 = &i2c_max77693_fuel;
 	};
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg =  <0x40000000 0x40000000>;
 	};
 
@@ -253,7 +254,7 @@
 	};
 
 	thermistor-ap {
-		compatible = "ntc,ncp15wb473";
+		compatible = "murata,ncp15wb473";
 		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
 		pullup-ohm = <100000>;	 /* 100K */
 		pulldown-ohm = <100000>; /* 100K */
@@ -261,7 +262,7 @@
 	};
 
 	thermistor-battery {
-		compatible = "ntc,ncp15wb473";
+		compatible = "murata,ncp15wb473";
 		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
 		pullup-ohm = <100000>;	 /* 100K */
 		pulldown-ohm = <100000>; /* 100K */

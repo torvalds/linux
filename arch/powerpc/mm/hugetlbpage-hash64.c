@@ -79,8 +79,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += (old_pte & H_PAGE_F_GIX) >> H_PAGE_F_GIX_SHIFT;
 
-		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
-					 mmu_psize, ssize, flags) == -1)
+		if (mmu_hash_ops.hpte_updatepp(slot, rflags, vpn, mmu_psize,
+					       mmu_psize, ssize, flags) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 

@@ -164,7 +164,32 @@ load n/2 modules more and try again.
 Again, if you find the offending module(s), it(they) must be unloaded every time
 before hibernation, and please report the problem with it(them).
 
-c) Advanced debugging
+c) Using the "test_resume" hibernation option
+
+/sys/power/disk generally tells the kernel what to do after creating a
+hibernation image.  One of the available options is "test_resume" which
+causes the just created image to be used for immediate restoration.  Namely,
+after doing:
+
+# echo test_resume > /sys/power/disk
+# echo disk > /sys/power/state
+
+a hibernation image will be created and a resume from it will be triggered
+immediately without involving the platform firmware in any way.
+
+That test can be used to check if failures to resume from hibernation are
+related to bad interactions with the platform firmware.  That is, if the above
+works every time, but resume from actual hibernation does not work or is
+unreliable, the platform firmware may be responsible for the failures.
+
+On architectures and platforms that support using different kernels to restore
+hibernation images (that is, the kernel used to read the image from storage and
+load it into memory is different from the one included in the image) or support
+kernel address space randomization, it also can be used to check if failures
+to resume may be related to the differences between the restore and image
+kernels.
+
+d) Advanced debugging
 
 In case that hibernation does not work on your system even in the minimal
 configuration and compiling more drivers as modules is not practical or some

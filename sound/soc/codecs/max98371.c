@@ -412,6 +412,7 @@ static int max98371_i2c_remove(struct i2c_client *client)
 
 static const struct i2c_device_id max98371_i2c_id[] = {
 	{ "max98371", 0 },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, max98371_i2c_id);
@@ -425,7 +426,6 @@ MODULE_DEVICE_TABLE(of, max98371_of_match);
 static struct i2c_driver max98371_i2c_driver = {
 	.driver = {
 		.name = "max98371",
-		.owner = THIS_MODULE,
 		.pm = NULL,
 		.of_match_table = of_match_ptr(max98371_of_match),
 	},

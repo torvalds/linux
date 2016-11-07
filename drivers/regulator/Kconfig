@@ -323,7 +323,7 @@ config REGULATOR_LP872X
 
 config REGULATOR_LP873X
 	tristate "TI LP873X Power regulators"
-	depends on MFD_LP873X && OF
+	depends on MFD_TI_LP873X && OF
 	help
 	  This driver supports LP873X voltage regulator chips. LP873X
 	  provides two step-down converters and two general-purpose LDO
@@ -351,6 +351,14 @@ config REGULATOR_LTC3589
 	select REGMAP_I2C
 	help
 	  This enables support for the LTC3589, LTC3589-1, and LTC3589-2
+	  8-output regulators controlled via I2C.
+
+config REGULATOR_LTC3676
+	tristate "LTC3676 8-output voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This enables support for the LTC3676
 	  8-output regulators controlled via I2C.
 
 config REGULATOR_MAX14577
@@ -498,6 +506,15 @@ config REGULATOR_MT6311
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6323
+	tristate "MediaTek MT6323 PMIC"
+	depends on MFD_MT6397
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6323 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6397
 	tristate "MediaTek MT6397 PMIC"
 	depends on MFD_MT6397
@@ -543,12 +560,12 @@ config REGULATOR_PCF50633
 	 on PCF50633
 
 config REGULATOR_PFUZE100
-	tristate "Freescale PFUZE100/PFUZE200 regulator driver"
+	tristate "Freescale PFUZE100/200/3000 regulator driver"
 	depends on I2C
 	select REGMAP_I2C
 	help
 	  Say y here to support the regulators found on the Freescale
-	  PFUZE100/PFUZE200 PMIC.
+	  PFUZE100/200/3000 PMIC.
 
 config REGULATOR_PV88060
 	tristate "Powerventure Semiconductor PV88060 regulator"
@@ -626,20 +643,21 @@ config REGULATOR_RC5T583
 	  outputs which can be controlled by i2c communication.
 
 config REGULATOR_RK808
-	tristate "Rockchip RK808 Power regulators"
+	tristate "Rockchip RK808/RK818 Power regulators"
 	depends on MFD_RK808
 	help
 	  Select this option to enable the power regulator of ROCKCHIP
-	  PMIC RK808.
+	  PMIC RK808 and RK818.
 	  This driver supports the control of different power rails of device
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
 
 config REGULATOR_RN5T618
-	tristate "Ricoh RN5T618 voltage regulators"
+	tristate "Ricoh RN5T567/618 voltage regulators"
 	depends on MFD_RN5T618
 	help
-	  Say y here to support the regulators found on Ricoh RN5T618 PMIC.
+	  Say y here to support the regulators found on Ricoh RN5T567 or
+	  RN5T618 PMIC.
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"
@@ -810,7 +828,7 @@ config REGULATOR_TPS65912
 	    This driver supports TPS65912 voltage regulator chip.
 
 config REGULATOR_TPS80031
-	tristate "TI TPS80031/TPS80032 power regualtor driver"
+	tristate "TI TPS80031/TPS80032 power regulator driver"
 	depends on MFD_TPS80031
 	help
 	  TPS80031/ TPS80032 Fully Integrated Power Management with Power

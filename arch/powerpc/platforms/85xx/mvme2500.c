@@ -53,9 +53,7 @@ machine_arch_initcall(mvme2500, mpc85xx_common_publish_devices);
  */
 static int __init mvme2500_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "artesyn,MVME2500");
+	return of_machine_is_compatible("artesyn,MVME2500");
 }
 
 define_machine(mvme2500) {
@@ -68,7 +66,6 @@ define_machine(mvme2500) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

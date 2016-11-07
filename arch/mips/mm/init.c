@@ -10,7 +10,7 @@
  */
 #include <linux/bug.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -261,7 +261,6 @@ unsigned __weak platform_maar_init(unsigned num_pairs)
 {
 	struct maar_config cfg[BOOT_MEM_MAP_MAX];
 	unsigned i, num_configured, num_cfg = 0;
-	phys_addr_t skip;
 
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		switch (boot_mem_map.map[i].type) {
@@ -272,14 +271,14 @@ unsigned __weak platform_maar_init(unsigned num_pairs)
 			continue;
 		}
 
-		skip = 0x10000 - (boot_mem_map.map[i].addr & 0xffff);
-
+		/* Round lower up */
 		cfg[num_cfg].lower = boot_mem_map.map[i].addr;
-		cfg[num_cfg].lower += skip;
+		cfg[num_cfg].lower = (cfg[num_cfg].lower + 0xffff) & ~0xffff;
 
-		cfg[num_cfg].upper = cfg[num_cfg].lower;
-		cfg[num_cfg].upper += boot_mem_map.map[i].size - 1;
-		cfg[num_cfg].upper -= skip;
+		/* Round upper down */
+		cfg[num_cfg].upper = boot_mem_map.map[i].addr +
+					boot_mem_map.map[i].size;
+		cfg[num_cfg].upper = (cfg[num_cfg].upper & ~0xffff) - 1;
 
 		cfg[num_cfg].attrs = MIPS_MAAR_S;
 		num_cfg++;
@@ -441,6 +440,9 @@ static inline void mem_init_free_highmem(void)
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
 
+	if (cpu_has_dc_aliases)
+		return;
+
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
 		struct page *page = pfn_to_page(tmp);
 
@@ -504,7 +506,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void (*free_init_pages_eva)(void *begin, void *end) = NULL;
 
-void __init_refok free_initmem(void)
+void __ref free_initmem(void)
 {
 	prom_free_prom_memory();
 	/*

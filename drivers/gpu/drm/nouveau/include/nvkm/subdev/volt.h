@@ -12,6 +12,9 @@ struct nvkm_volt {
 		u32 uv;
 		u8 vid;
 	} vid[256];
+
+	u32 max_uv;
+	u32 min_uv;
 };
 
 int nvkm_volt_get(struct nvkm_volt *);

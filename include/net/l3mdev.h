@@ -11,35 +11,40 @@
 #ifndef _NET_L3MDEV_H_
 #define _NET_L3MDEV_H_
 
+#include <net/dst.h>
+#include <net/fib_rules.h>
+
 /**
  * struct l3mdev_ops - l3mdev operations
  *
  * @l3mdev_fib_table: Get FIB table id to use for lookups
  *
- * @l3mdev_get_rtable: Get cached IPv4 rtable (dst_entry) for device
+ * @l3mdev_l3_rcv:    Hook in L3 receive path
  *
- * @l3mdev_get_saddr: Get source address for a flow
+ * @l3mdev_l3_out:    Hook in L3 output path
  *
- * @l3mdev_get_rt6_dst: Get cached IPv6 rt6_info (dst_entry) for device
+ * @l3mdev_link_scope_lookup: IPv6 lookup for linklocal and mcast destinations
  */
 
 struct l3mdev_ops {
 	u32		(*l3mdev_fib_table)(const struct net_device *dev);
 	struct sk_buff * (*l3mdev_l3_rcv)(struct net_device *dev,
 					  struct sk_buff *skb, u16 proto);
-
-	/* IPv4 ops */
-	struct rtable *	(*l3mdev_get_rtable)(const struct net_device *dev,
-					     const struct flowi4 *fl4);
-	int		(*l3mdev_get_saddr)(struct net_device *dev,
-					    struct flowi4 *fl4);
+	struct sk_buff * (*l3mdev_l3_out)(struct net_device *dev,
+					  struct sock *sk, struct sk_buff *skb,
+					  u16 proto);
 
 	/* IPv6 ops */
-	struct dst_entry * (*l3mdev_get_rt6_dst)(const struct net_device *dev,
-						 const struct flowi6 *fl6);
+	struct dst_entry * (*l3mdev_link_scope_lookup)(const struct net_device *dev,
+						 struct flowi6 *fl6);
 };
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
+
+int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
+			  struct fib_lookup_arg *arg);
+
+void l3mdev_update_flow(struct net *net, struct flowi *fl);
 
 int l3mdev_master_ifindex_rcu(const struct net_device *dev);
 static inline int l3mdev_master_ifindex(struct net_device *dev)
@@ -71,24 +76,29 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 	return rc;
 }
 
-/* get index of an interface to use for FIB lookups. For devices
- * enslaved to an L3 master device FIB lookups are based on the
- * master index
- */
-static inline int l3mdev_fib_oif_rcu(struct net_device *dev)
+static inline
+struct net_device *l3mdev_master_dev_rcu(const struct net_device *_dev)
 {
-	return l3mdev_master_ifindex_rcu(dev) ? : dev->ifindex;
-}
+	/* netdev_master_upper_dev_get_rcu calls
+	 * list_first_or_null_rcu to walk the upper dev list.
+	 * list_first_or_null_rcu does not handle a const arg. We aren't
+	 * making changes, just want the master device from that list so
+	 * typecast to remove the const
+	 */
+	struct net_device *dev = (struct net_device *)_dev;
+	struct net_device *master;
 
-static inline int l3mdev_fib_oif(struct net_device *dev)
-{
-	int oif;
+	if (!dev)
+		return NULL;
 
-	rcu_read_lock();
-	oif = l3mdev_fib_oif_rcu(dev);
-	rcu_read_unlock();
+	if (netif_is_l3_master(dev))
+		master = dev;
+	else if (netif_is_l3_slave(dev))
+		master = netdev_master_upper_dev_get_rcu(dev);
+	else
+		master = NULL;
 
-	return oif;
+	return master;
 }
 
 u32 l3mdev_fib_table_rcu(const struct net_device *dev);
@@ -102,15 +112,6 @@ static inline u32 l3mdev_fib_table(const struct net_device *dev)
 	rcu_read_unlock();
 
 	return tb_id;
-}
-
-static inline struct rtable *l3mdev_get_rtable(const struct net_device *dev,
-					       const struct flowi4 *fl4)
-{
-	if (netif_is_l3_master(dev) && dev->l3mdev_ops->l3mdev_get_rtable)
-		return dev->l3mdev_ops->l3mdev_get_rtable(dev, fl4);
-
-	return NULL;
 }
 
 static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
@@ -132,9 +133,7 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 	return rc;
 }
 
-int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4);
-
-struct dst_entry *l3mdev_get_rt6_dst(struct net *net, const struct flowi6 *fl6);
+struct dst_entry *l3mdev_link_scope_lookup(struct net *net, struct flowi6 *fl6);
 
 static inline
 struct sk_buff *l3mdev_l3_rcv(struct sk_buff *skb, u16 proto)
@@ -164,6 +163,34 @@ struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
 	return l3mdev_l3_rcv(skb, AF_INET6);
 }
 
+static inline
+struct sk_buff *l3mdev_l3_out(struct sock *sk, struct sk_buff *skb, u16 proto)
+{
+	struct net_device *dev = skb_dst(skb)->dev;
+
+	if (netif_is_l3_slave(dev)) {
+		struct net_device *master;
+
+		master = netdev_master_upper_dev_get_rcu(dev);
+		if (master && master->l3mdev_ops->l3mdev_l3_out)
+			skb = master->l3mdev_ops->l3mdev_l3_out(master, sk,
+								skb, proto);
+	}
+
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip_out(struct sock *sk, struct sk_buff *skb)
+{
+	return l3mdev_l3_out(sk, skb, AF_INET);
+}
+
+static inline
+struct sk_buff *l3mdev_ip6_out(struct sock *sk, struct sk_buff *skb)
+{
+	return l3mdev_l3_out(sk, skb, AF_INET6);
+}
 #else
 
 static inline int l3mdev_master_ifindex_rcu(const struct net_device *dev)
@@ -180,13 +207,10 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 	return 0;
 }
 
-static inline int l3mdev_fib_oif_rcu(struct net_device *dev)
+static inline
+struct net_device *l3mdev_master_dev_rcu(const struct net_device *dev)
 {
-	return dev ? dev->ifindex : 0;
-}
-static inline int l3mdev_fib_oif(struct net_device *dev)
-{
-	return dev ? dev->ifindex : 0;
+	return NULL;
 }
 
 static inline u32 l3mdev_fib_table_rcu(const struct net_device *dev)
@@ -202,25 +226,13 @@ static inline u32 l3mdev_fib_table_by_index(struct net *net, int ifindex)
 	return 0;
 }
 
-static inline struct rtable *l3mdev_get_rtable(const struct net_device *dev,
-					       const struct flowi4 *fl4)
-{
-	return NULL;
-}
-
 static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 {
 	return false;
 }
 
-static inline int l3mdev_get_saddr(struct net *net, int ifindex,
-				   struct flowi4 *fl4)
-{
-	return 0;
-}
-
 static inline
-struct dst_entry *l3mdev_get_rt6_dst(struct net *net, const struct flowi6 *fl6)
+struct dst_entry *l3mdev_link_scope_lookup(struct net *net, struct flowi6 *fl6)
 {
 	return NULL;
 }
@@ -235,6 +247,29 @@ static inline
 struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
 {
 	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip_out(struct sock *sk, struct sk_buff *skb)
+{
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip6_out(struct sock *sk, struct sk_buff *skb)
+{
+	return skb;
+}
+
+static inline
+int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
+			  struct fib_lookup_arg *arg)
+{
+	return 1;
+}
+static inline
+void l3mdev_update_flow(struct net *net, struct flowi *fl)
+{
 }
 #endif
 

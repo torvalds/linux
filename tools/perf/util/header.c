@@ -336,7 +336,7 @@ static int write_event_desc(int fd, struct perf_header *h __maybe_unused,
 	if (ret < 0)
 		return ret;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		ret = do_write(fd, &evsel->attr, sz);
 		if (ret < 0)
 			return ret;
@@ -801,7 +801,7 @@ static int write_group_desc(int fd, struct perf_header *h __maybe_unused,
 	if (ret < 0)
 		return ret;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
 		    evsel->nr_members > 1) {
 			const char *name = evsel->group_name ?: "{anon_group}";
@@ -828,8 +828,7 @@ static int write_group_desc(int fd, struct perf_header *h __maybe_unused,
  * default get_cpuid(): nothing gets recorded
  * actual implementation must be in arch/$(ARCH)/util/header.c
  */
-int __attribute__ ((weak)) get_cpuid(char *buffer __maybe_unused,
-				     size_t sz __maybe_unused)
+int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused)
 {
 	return -1;
 }
@@ -1306,42 +1305,19 @@ static void print_total_mem(struct perf_header *ph, int fd __maybe_unused,
 static void print_numa_topology(struct perf_header *ph, int fd __maybe_unused,
 				FILE *fp)
 {
-	u32 nr, c, i;
-	char *str, *tmp;
-	uint64_t mem_total, mem_free;
+	int i;
+	struct numa_node *n;
 
-	/* nr nodes */
-	nr = ph->env.nr_numa_nodes;
-	str = ph->env.numa_nodes;
-
-	for (i = 0; i < nr; i++) {
-		/* node number */
-		c = strtoul(str, &tmp, 0);
-		if (*tmp != ':')
-			goto error;
-
-		str = tmp + 1;
-		mem_total = strtoull(str, &tmp, 0);
-		if (*tmp != ':')
-			goto error;
-
-		str = tmp + 1;
-		mem_free = strtoull(str, &tmp, 0);
-		if (*tmp != ':')
-			goto error;
+	for (i = 0; i < ph->env.nr_numa_nodes; i++) {
+		n = &ph->env.numa_nodes[i];
 
 		fprintf(fp, "# node%u meminfo  : total = %"PRIu64" kB,"
 			    " free = %"PRIu64" kB\n",
-			c, mem_total, mem_free);
+			n->node, n->mem_total, n->mem_free);
 
-		str = tmp + 1;
-		fprintf(fp, "# node%u cpu list : %s\n", c, str);
-
-		str += strlen(str) + 1;
+		fprintf(fp, "# node%u cpu list : ", n->node);
+		cpu_map__fprintf(n->map, fp);
 	}
-	return;
-error:
-	fprintf(fp, "# numa topology : not available\n");
 }
 
 static void print_cpuid(struct perf_header *ph, int fd __maybe_unused, FILE *fp)
@@ -1425,7 +1401,7 @@ static void print_group_desc(struct perf_header *ph, int fd __maybe_unused,
 
 	session = container_of(ph, struct perf_session, header);
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
 		    evsel->nr_members > 1) {
 			fprintf(fp, "# group: %s{%s", evsel->group_name ?: "",
@@ -1703,7 +1679,7 @@ perf_evlist__find_by_index(struct perf_evlist *evlist, int idx)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->idx == idx)
 			return evsel;
 	}
@@ -1906,11 +1882,10 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 				 struct perf_header *ph, int fd,
 				 void *data __maybe_unused)
 {
+	struct numa_node *nodes, *n;
 	ssize_t ret;
-	u32 nr, node, i;
+	u32 nr, i;
 	char *str;
-	uint64_t mem_total, mem_free;
-	struct strbuf sb;
 
 	/* nr nodes */
 	ret = readn(fd, &nr, sizeof(nr));
@@ -1920,48 +1895,48 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_numa_nodes = nr;
-	if (strbuf_init(&sb, 256) < 0)
-		return -1;
+	nodes = zalloc(sizeof(*nodes) * nr);
+	if (!nodes)
+		return -ENOMEM;
 
 	for (i = 0; i < nr; i++) {
+		n = &nodes[i];
+
 		/* node number */
-		ret = readn(fd, &node, sizeof(node));
-		if (ret != sizeof(node))
+		ret = readn(fd, &n->node, sizeof(u32));
+		if (ret != sizeof(n->node))
 			goto error;
 
-		ret = readn(fd, &mem_total, sizeof(u64));
+		ret = readn(fd, &n->mem_total, sizeof(u64));
 		if (ret != sizeof(u64))
 			goto error;
 
-		ret = readn(fd, &mem_free, sizeof(u64));
+		ret = readn(fd, &n->mem_free, sizeof(u64));
 		if (ret != sizeof(u64))
 			goto error;
 
 		if (ph->needs_swap) {
-			node = bswap_32(node);
-			mem_total = bswap_64(mem_total);
-			mem_free = bswap_64(mem_free);
+			n->node      = bswap_32(n->node);
+			n->mem_total = bswap_64(n->mem_total);
+			n->mem_free  = bswap_64(n->mem_free);
 		}
-
-		if (strbuf_addf(&sb, "%u:%"PRIu64":%"PRIu64":",
-				node, mem_total, mem_free) < 0)
-			goto error;
 
 		str = do_read_string(fd, ph);
 		if (!str)
 			goto error;
 
-		/* include a NULL character at the end */
-		if (strbuf_add(&sb, str, strlen(str) + 1) < 0)
+		n->map = cpu_map__new(str);
+		if (!n->map)
 			goto error;
+
 		free(str);
 	}
-	ph->env.numa_nodes = strbuf_detach(&sb, NULL);
+	ph->env.nr_numa_nodes = nr;
+	ph->env.numa_nodes = nodes;
 	return 0;
 
 error:
-	strbuf_release(&sb);
+	free(nodes);
 	return -1;
 }
 
@@ -2075,7 +2050,7 @@ static int process_group_desc(struct perf_file_section *section __maybe_unused,
 	session->evlist->nr_groups = nr_groups;
 
 	i = nr = 0;
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->idx == (int) desc[i].leader_idx) {
 			evsel->leader = evsel;
 			/* {anon_group} is a dummy name */
@@ -2383,7 +2358,7 @@ int perf_session__write_header(struct perf_session *session,
 
 	lseek(fd, sizeof(f_header), SEEK_SET);
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
 		err = do_write(fd, evsel->id, evsel->ids * sizeof(u64));
 		if (err < 0) {
@@ -2394,7 +2369,7 @@ int perf_session__write_header(struct perf_session *session,
 
 	attr_offset = lseek(fd, 0, SEEK_CUR);
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		f_attr = (struct perf_file_attr){
 			.attr = evsel->attr,
 			.ids  = {
@@ -2828,7 +2803,7 @@ static int perf_evlist__prepare_tracepoint_events(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
 		    perf_evsel__prepare_tracepoint_event(pos, pevent))
 			return -1;
@@ -3127,7 +3102,7 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 	struct perf_evsel *evsel;
 	int err = 0;
 
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
 						  evsel->id, process);
 		if (err) {

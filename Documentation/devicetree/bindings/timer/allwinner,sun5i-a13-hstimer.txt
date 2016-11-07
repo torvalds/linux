@@ -9,7 +9,7 @@ Required properties:
 		one)
 - clocks: phandle to the source clock (usually the AHB clock)
 
-Optionnal properties:
+Optional properties:
 - resets: phandle to a reset controller asserting the timer
 
 Example:

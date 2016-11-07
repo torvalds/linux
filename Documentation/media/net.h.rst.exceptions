@@ -1,0 +1,11 @@
+# Ignore header name
+ignore define _DVBNET_H_
+
+# Ignore old ioctls/structs
+ignore ioctl __NET_ADD_IF_OLD
+ignore ioctl __NET_GET_IF_OLD
+ignore struct __dvb_net_if_old
+
+# Macros used at struct dvb_net_if
+replace define DVB_NET_FEEDTYPE_MPE :c:type:`dvb_net_if`
+replace define DVB_NET_FEEDTYPE_ULE :c:type:`dvb_net_if`

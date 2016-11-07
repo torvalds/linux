@@ -336,17 +336,6 @@ config HAVE_ARCH_SECCOMP_FILTER
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
 
-	  For best performance, an arch should use seccomp_phase1 and
-	  seccomp_phase2 directly.  It should call seccomp_phase1 for all
-	  syscalls if TIF_SECCOMP is set, but seccomp_phase1 does not
-	  need to be called from a ptrace-safe context.  It must then
-	  call seccomp_phase2 if seccomp_phase1 returns anything other
-	  than SECCOMP_PHASE1_OK or SECCOMP_PHASE1_SKIP.
-
-	  As an additional optimization, an arch may provide seccomp_data
-	  directly to seccomp_phase1; this avoids multiple calls
-	  to the syscall_xyz helpers for every syscall.
-
 config SECCOMP_FILTER
 	def_bool y
 	depends on HAVE_ARCH_SECCOMP_FILTER && SECCOMP && NET
@@ -356,6 +345,61 @@ config SECCOMP_FILTER
 	  task-defined system call filtering polices.
 
 	  See Documentation/prctl/seccomp_filter.txt for details.
+
+config HAVE_GCC_PLUGINS
+	bool
+	help
+	  An arch should select this symbol if it supports building with
+	  GCC plugins.
+
+menuconfig GCC_PLUGINS
+	bool "GCC plugins"
+	depends on HAVE_GCC_PLUGINS
+	depends on !COMPILE_TEST
+	help
+	  GCC plugins are loadable modules that provide extra features to the
+	  compiler. They are useful for runtime instrumentation and static analysis.
+
+	  See Documentation/gcc-plugins.txt for details.
+
+config GCC_PLUGIN_CYC_COMPLEXITY
+	bool "Compute the cyclomatic complexity of a function"
+	depends on GCC_PLUGINS
+	help
+	  The complexity M of a function's control flow graph is defined as:
+	   M = E - N + 2P
+	  where
+
+	  E = the number of edges
+	  N = the number of nodes
+	  P = the number of connected components (exit nodes).
+
+config GCC_PLUGIN_SANCOV
+	bool
+	depends on GCC_PLUGINS
+	help
+	  This plugin inserts a __sanitizer_cov_trace_pc() call at the start of
+	  basic blocks. It supports all gcc versions with plugin support (from
+	  gcc-4.5 on). It is based on the commit "Add fuzzing coverage support"
+	  by Dmitry Vyukov <dvyukov@google.com>.
+
+config GCC_PLUGIN_LATENT_ENTROPY
+	bool "Generate some entropy during boot and runtime"
+	depends on GCC_PLUGINS
+	help
+	  By saying Y here the kernel will instrument some kernel code to
+	  extract some entropy from both original and artificially created
+	  program state.  This will help especially embedded systems where
+	  there is little 'natural' source of entropy normally.  The cost
+	  is some slowdown of the boot process (about 0.5%) and fork and
+	  irq processing.
+
+	  Note that entropy extracted this way is not cryptographically
+	  secure!
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
 
 config HAVE_CC_STACKPROTECTOR
 	bool
@@ -423,6 +467,36 @@ config CC_STACKPROTECTOR_STRONG
 	  size by about 2%.
 
 endchoice
+
+config THIN_ARCHIVES
+	bool
+	help
+	  Select this if the architecture wants to use thin archives
+	  instead of ld -r to create the built-in.o files.
+
+config LD_DEAD_CODE_DATA_ELIMINATION
+	bool
+	help
+	  Select this if the architecture wants to do dead code and
+	  data elimination with the linker by compiling with
+	  -ffunction-sections -fdata-sections and linking with
+	  --gc-sections.
+
+	  This requires that the arch annotates or otherwise protects
+	  its external entry points from being discarded. Linker scripts
+	  must also merge .text.*, .data.*, and .bss.* correctly into
+	  output sections. Care must be taken not to pull in unrelated
+	  sections (e.g., '.text.init'). Typically '.' in section names
+	  is used to distinguish them from label names / C identifiers.
+
+config HAVE_ARCH_WITHIN_STACK_FRAMES
+	bool
+	help
+	  An architecture should select this if it can walk the kernel stack
+	  frames to determine if an object is part of either the arguments
+	  or local variables (i.e. that it excludes saved return addresses,
+	  and similar) by implementing an inline arch_within_stack_frames(),
+	  which is used by CONFIG_HARDENED_USERCOPY.
 
 config HAVE_CONTEXT_TRACKING
 	bool
@@ -660,5 +734,39 @@ config ARCH_NO_COHERENT_DMA_MMAP
 
 config CPU_NO_EFFICIENT_FFS
 	def_bool n
+
+config HAVE_ARCH_VMAP_STACK
+	def_bool n
+	help
+	  An arch should select this symbol if it can support kernel stacks
+	  in vmalloc space.  This means:
+
+	  - vmalloc space must be large enough to hold many kernel stacks.
+	    This may rule out many 32-bit architectures.
+
+	  - Stacks in vmalloc space need to work reliably.  For example, if
+	    vmap page tables are created on demand, either this mechanism
+	    needs to work while the stack points to a virtual address with
+	    unpopulated page tables or arch code (switch_to() and switch_mm(),
+	    most likely) needs to ensure that the stack's page table entries
+	    are populated before running on a possibly unpopulated stack.
+
+	  - If the stack overflows into a guard page, something reasonable
+	    should happen.  The definition of "reasonable" is flexible, but
+	    instantly rebooting without logging anything would be unfriendly.
+
+config VMAP_STACK
+	default y
+	bool "Use a virtually-mapped stack"
+	depends on HAVE_ARCH_VMAP_STACK && !KASAN
+	---help---
+	  Enable this if you want the use virtually-mapped kernel stacks
+	  with guard pages.  This causes kernel stack overflows to be
+	  caught immediately rather than causing difficult-to-diagnose
+	  corruption.
+
+	  This is presently incompatible with KASAN because KASAN expects
+	  the stack to map directly to the KASAN shadow map using a formula
+	  that is incorrect if the stack is in vmalloc space.
 
 source "kernel/gcov/Kconfig"

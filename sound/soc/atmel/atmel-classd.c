@@ -308,9 +308,11 @@ static struct regmap *atmel_classd_codec_get_remap(struct device *dev)
 
 static struct snd_soc_codec_driver soc_codec_dev_classd = {
 	.probe		= atmel_classd_codec_probe,
-	.controls	= atmel_classd_snd_controls,
-	.num_controls	= ARRAY_SIZE(atmel_classd_snd_controls),
 	.get_regmap	= atmel_classd_codec_get_remap,
+	.component_driver = {
+		.controls		= atmel_classd_snd_controls,
+		.num_controls		= ARRAY_SIZE(atmel_classd_snd_controls),
+	},
 };
 
 /* codec dai component */
@@ -593,11 +595,6 @@ static int atmel_classd_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no memory resource\n");
-		return -ENXIO;
-	}
-
 	io_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(io_base)) {
 		ret =  PTR_ERR(io_base);

@@ -15,10 +15,13 @@
  */
 #include <linux/component.h>
 #include <linux/device.h>
-#include <linux/fb.h>
+#include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/reservation.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -41,6 +44,7 @@ struct imx_drm_device {
 	struct imx_drm_crtc			*crtc[MAX_CRTC];
 	unsigned int				pipes;
 	struct drm_fbdev_cma			*fbhelper;
+	struct drm_atomic_state			*state;
 };
 
 struct imx_drm_crtc {
@@ -53,94 +57,12 @@ static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
 #endif
 
-unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
-{
-	return drm_crtc_index(crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
-
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
 
 	drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
 }
-
-static int imx_drm_driver_unload(struct drm_device *drm)
-{
-	struct imx_drm_device *imxdrm = drm->dev_private;
-
-	drm_kms_helper_poll_fini(drm);
-
-	if (imxdrm->fbhelper)
-		drm_fbdev_cma_fini(imxdrm->fbhelper);
-
-	component_unbind_all(drm->dev, drm);
-
-	drm_vblank_cleanup(drm);
-	drm_mode_config_cleanup(drm);
-
-	platform_set_drvdata(drm->platformdev, NULL);
-
-	return 0;
-}
-
-static struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
-{
-	struct imx_drm_device *imxdrm = crtc->dev->dev_private;
-	unsigned i;
-
-	for (i = 0; i < MAX_CRTC; i++)
-		if (imxdrm->crtc[i] && imxdrm->crtc[i]->crtc == crtc)
-			return imxdrm->crtc[i];
-
-	return NULL;
-}
-
-int imx_drm_set_bus_config(struct drm_encoder *encoder, u32 bus_format,
-		int hsync_pin, int vsync_pin, u32 bus_flags)
-{
-	struct imx_drm_crtc_helper_funcs *helper;
-	struct imx_drm_crtc *imx_crtc;
-
-	imx_crtc = imx_drm_find_crtc(encoder->crtc);
-	if (!imx_crtc)
-		return -EINVAL;
-
-	helper = &imx_crtc->imx_drm_helper_funcs;
-	if (helper->set_interface_pix_fmt)
-		return helper->set_interface_pix_fmt(encoder->crtc,
-					bus_format, hsync_pin, vsync_pin,
-					bus_flags);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(imx_drm_set_bus_config);
-
-int imx_drm_set_bus_format(struct drm_encoder *encoder, u32 bus_format)
-{
-	return imx_drm_set_bus_config(encoder, bus_format, 2, 3,
-				      DRM_BUS_FLAG_DE_HIGH |
-				      DRM_BUS_FLAG_PIXDATA_NEGEDGE);
-}
-EXPORT_SYMBOL_GPL(imx_drm_set_bus_format);
-
-int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
-{
-	return drm_crtc_vblank_get(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_get);
-
-void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc)
-{
-	drm_crtc_vblank_put(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_put);
-
-void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
-{
-	drm_crtc_handle_vblank(imx_drm_crtc->crtc);
-}
-EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
 static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
@@ -205,113 +127,86 @@ static void imx_drm_output_poll_changed(struct drm_device *drm)
 	drm_fbdev_cma_hotplug_event(imxdrm->fbhelper);
 }
 
-static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
-	.output_poll_changed = imx_drm_output_poll_changed,
-};
-
-/*
- * Main DRM initialisation. This binds, initialises and registers
- * with DRM the subcomponents of the driver.
- */
-static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
+static int imx_drm_atomic_check(struct drm_device *dev,
+				struct drm_atomic_state *state)
 {
-	struct imx_drm_device *imxdrm;
-	struct drm_connector *connector;
 	int ret;
 
-	imxdrm = devm_kzalloc(drm->dev, sizeof(*imxdrm), GFP_KERNEL);
-	if (!imxdrm)
-		return -ENOMEM;
-
-	imxdrm->drm = drm;
-
-	drm->dev_private = imxdrm;
-
-	/*
-	 * enable drm irq mode.
-	 * - with irq_enabled = true, we can use the vblank feature.
-	 *
-	 * P.S. note that we wouldn't use drm irq handler but
-	 *      just specific driver own one instead because
-	 *      drm framework supports only one irq handler and
-	 *      drivers can well take care of their interrupts
-	 */
-	drm->irq_enabled = true;
-
-	/*
-	 * set max width and height as default value(4096x4096).
-	 * this value would be used to check framebuffer size limitation
-	 * at drm_mode_addfb().
-	 */
-	drm->mode_config.min_width = 64;
-	drm->mode_config.min_height = 64;
-	drm->mode_config.max_width = 4096;
-	drm->mode_config.max_height = 4096;
-	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
-
-	drm_mode_config_init(drm);
-
-	ret = drm_vblank_init(drm, MAX_CRTC);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
-		goto err_kms;
+		return ret;
 
-	platform_set_drvdata(drm->platformdev, drm);
-
-	/* Now try and bind all our sub-components */
-	ret = component_bind_all(drm->dev, drm);
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
-		goto err_vblank;
+		return ret;
 
 	/*
-	 * All components are now added, we can publish the connector sysfs
-	 * entries to userspace.  This will generate hotplug events and so
-	 * userspace will expect to be able to access DRM at this point.
+	 * Check modeset again in case crtc_state->mode_changed is
+	 * updated in plane's ->atomic_check callback.
 	 */
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			dev_err(drm->dev,
-				"[CONNECTOR:%d:%s] drm_connector_register failed: %d\n",
-				connector->base.id,
-				connector->name, ret);
-			goto err_unbind;
-		}
-	}
-
-	/*
-	 * All components are now initialised, so setup the fb helper.
-	 * The fb helper takes copies of key hardware information, so the
-	 * crtcs/connectors/encoders must not change after this point.
-	 */
-#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
-	if (legacyfb_depth != 16 && legacyfb_depth != 32) {
-		dev_warn(drm->dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
-		legacyfb_depth = 16;
-	}
-	drm_helper_disable_unused_functions(drm);
-	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth,
-				drm->mode_config.num_crtc, MAX_CRTC);
-	if (IS_ERR(imxdrm->fbhelper)) {
-		ret = PTR_ERR(imxdrm->fbhelper);
-		imxdrm->fbhelper = NULL;
-		goto err_unbind;
-	}
-#endif
-
-	drm_kms_helper_poll_init(drm);
-
-	return 0;
-
-err_unbind:
-	component_unbind_all(drm->dev, drm);
-err_vblank:
-	drm_vblank_cleanup(drm);
-err_kms:
-	drm_mode_config_cleanup(drm);
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
 
 	return ret;
 }
+
+static int imx_drm_atomic_commit(struct drm_device *dev,
+				 struct drm_atomic_state *state,
+				 bool nonblock)
+{
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	struct dma_buf *dma_buf;
+	int i;
+
+	/*
+	 * If the plane fb has an dma-buf attached, fish out the exclusive
+	 * fence for the atomic helper to wait on.
+	 */
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
+			dma_buf = drm_fb_cma_get_gem_obj(plane_state->fb,
+							 0)->base.dma_buf;
+			if (!dma_buf)
+				continue;
+			plane_state->fence =
+				reservation_object_get_excl_rcu(dma_buf->resv);
+		}
+	}
+
+	return drm_atomic_helper_commit(dev, state, nonblock);
+}
+
+static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
+	.fb_create = drm_fb_cma_create,
+	.output_poll_changed = imx_drm_output_poll_changed,
+	.atomic_check = imx_drm_atomic_check,
+	.atomic_commit = imx_drm_atomic_commit,
+};
+
+static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_planes(dev, state,
+				DRM_PLANE_COMMIT_ACTIVE_ONLY |
+				DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	drm_atomic_helper_commit_hw_done(state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+}
+
+static struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
+	.atomic_commit_tail = imx_drm_atomic_commit_tail,
+};
 
 /*
  * imx_drm_add_crtc - add a new crtc
@@ -403,11 +298,9 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 };
 
 static struct drm_driver imx_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
-	.load			= imx_drm_driver_load,
-	.unload			= imx_drm_driver_unload,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
+				  DRIVER_ATOMIC,
 	.lastclose		= imx_drm_driver_lastclose,
-	.set_busid		= drm_platform_set_busid,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
@@ -459,12 +352,122 @@ static int compare_of(struct device *dev, void *data)
 
 static int imx_drm_bind(struct device *dev)
 {
-	return drm_platform_init(&imx_drm_driver, to_platform_device(dev));
+	struct drm_device *drm;
+	struct imx_drm_device *imxdrm;
+	int ret;
+
+	drm = drm_dev_alloc(&imx_drm_driver, dev);
+	if (!drm)
+		return -ENOMEM;
+
+	imxdrm = devm_kzalloc(dev, sizeof(*imxdrm), GFP_KERNEL);
+	if (!imxdrm) {
+		ret = -ENOMEM;
+		goto err_unref;
+	}
+
+	imxdrm->drm = drm;
+	drm->dev_private = imxdrm;
+
+	/*
+	 * enable drm irq mode.
+	 * - with irq_enabled = true, we can use the vblank feature.
+	 *
+	 * P.S. note that we wouldn't use drm irq handler but
+	 *      just specific driver own one instead because
+	 *      drm framework supports only one irq handler and
+	 *      drivers can well take care of their interrupts
+	 */
+	drm->irq_enabled = true;
+
+	/*
+	 * set max width and height as default value(4096x4096).
+	 * this value would be used to check framebuffer size limitation
+	 * at drm_mode_addfb().
+	 */
+	drm->mode_config.min_width = 64;
+	drm->mode_config.min_height = 64;
+	drm->mode_config.max_width = 4096;
+	drm->mode_config.max_height = 4096;
+	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
+	drm->mode_config.helper_private = &imx_drm_mode_config_helpers;
+
+	drm_mode_config_init(drm);
+
+	ret = drm_vblank_init(drm, MAX_CRTC);
+	if (ret)
+		goto err_kms;
+
+	dev_set_drvdata(dev, drm);
+
+	/* Now try and bind all our sub-components */
+	ret = component_bind_all(dev, drm);
+	if (ret)
+		goto err_vblank;
+
+	drm_mode_config_reset(drm);
+
+	/*
+	 * All components are now initialised, so setup the fb helper.
+	 * The fb helper takes copies of key hardware information, so the
+	 * crtcs/connectors/encoders must not change after this point.
+	 */
+#if IS_ENABLED(CONFIG_DRM_FBDEV_EMULATION)
+	if (legacyfb_depth != 16 && legacyfb_depth != 32) {
+		dev_warn(dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
+		legacyfb_depth = 16;
+	}
+	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth,
+				drm->mode_config.num_crtc, MAX_CRTC);
+	if (IS_ERR(imxdrm->fbhelper)) {
+		ret = PTR_ERR(imxdrm->fbhelper);
+		imxdrm->fbhelper = NULL;
+		goto err_unbind;
+	}
+#endif
+
+	drm_kms_helper_poll_init(drm);
+
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto err_fbhelper;
+
+	return 0;
+
+err_fbhelper:
+	drm_kms_helper_poll_fini(drm);
+	if (imxdrm->fbhelper)
+		drm_fbdev_cma_fini(imxdrm->fbhelper);
+err_unbind:
+	component_unbind_all(drm->dev, drm);
+err_vblank:
+	drm_vblank_cleanup(drm);
+err_kms:
+	drm_mode_config_cleanup(drm);
+err_unref:
+	drm_dev_unref(drm);
+
+	return ret;
 }
 
 static void imx_drm_unbind(struct device *dev)
 {
-	drm_put_dev(dev_get_drvdata(dev));
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct imx_drm_device *imxdrm = drm->dev_private;
+
+	drm_dev_unregister(drm);
+
+	drm_kms_helper_poll_fini(drm);
+
+	if (imxdrm->fbhelper)
+		drm_fbdev_cma_fini(imxdrm->fbhelper);
+
+	drm_mode_config_cleanup(drm);
+
+	component_unbind_all(drm->dev, drm);
+	dev_set_drvdata(dev, NULL);
+
+	drm_dev_unref(drm);
 }
 
 static const struct component_master_ops imx_drm_ops = {
@@ -492,6 +495,7 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 static int imx_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct imx_drm_device *imxdrm;
 
 	/* The drm_dev is NULL before .load hook is called */
 	if (drm_dev == NULL)
@@ -499,17 +503,26 @@ static int imx_drm_suspend(struct device *dev)
 
 	drm_kms_helper_poll_disable(drm_dev);
 
+	imxdrm = drm_dev->dev_private;
+	imxdrm->state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(imxdrm->state)) {
+		drm_kms_helper_poll_enable(drm_dev);
+		return PTR_ERR(imxdrm->state);
+	}
+
 	return 0;
 }
 
 static int imx_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct imx_drm_device *imx_drm;
 
 	if (drm_dev == NULL)
 		return 0;
 
-	drm_helper_resume_force_mode(drm_dev);
+	imx_drm = drm_dev->dev_private;
+	drm_atomic_helper_resume(drm_dev, imx_drm->state);
 	drm_kms_helper_poll_enable(drm_dev);
 
 	return 0;

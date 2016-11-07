@@ -90,6 +90,8 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
+#include <linux/bootmem.h>
+#include <linux/pfn.h>
 #include <linux/mmzone.h>
 #include <linux/slab.h>
 #include <linux/thread_info.h>
@@ -1121,6 +1123,51 @@ void __ref kmemleak_no_scan(const void *ptr)
 }
 EXPORT_SYMBOL(kmemleak_no_scan);
 
+/**
+ * kmemleak_alloc_phys - similar to kmemleak_alloc but taking a physical
+ *			 address argument
+ */
+void __ref kmemleak_alloc_phys(phys_addr_t phys, size_t size, int min_count,
+			       gfp_t gfp)
+{
+	if (!IS_ENABLED(CONFIG_HIGHMEM) || PHYS_PFN(phys) < max_low_pfn)
+		kmemleak_alloc(__va(phys), size, min_count, gfp);
+}
+EXPORT_SYMBOL(kmemleak_alloc_phys);
+
+/**
+ * kmemleak_free_part_phys - similar to kmemleak_free_part but taking a
+ *			     physical address argument
+ */
+void __ref kmemleak_free_part_phys(phys_addr_t phys, size_t size)
+{
+	if (!IS_ENABLED(CONFIG_HIGHMEM) || PHYS_PFN(phys) < max_low_pfn)
+		kmemleak_free_part(__va(phys), size);
+}
+EXPORT_SYMBOL(kmemleak_free_part_phys);
+
+/**
+ * kmemleak_not_leak_phys - similar to kmemleak_not_leak but taking a physical
+ *			    address argument
+ */
+void __ref kmemleak_not_leak_phys(phys_addr_t phys)
+{
+	if (!IS_ENABLED(CONFIG_HIGHMEM) || PHYS_PFN(phys) < max_low_pfn)
+		kmemleak_not_leak(__va(phys));
+}
+EXPORT_SYMBOL(kmemleak_not_leak_phys);
+
+/**
+ * kmemleak_ignore_phys - similar to kmemleak_ignore but taking a physical
+ *			  address argument
+ */
+void __ref kmemleak_ignore_phys(phys_addr_t phys)
+{
+	if (!IS_ENABLED(CONFIG_HIGHMEM) || PHYS_PFN(phys) < max_low_pfn)
+		kmemleak_ignore(__va(phys));
+}
+EXPORT_SYMBOL(kmemleak_ignore_phys);
+
 /*
  * Update an object's checksum and return true if it was modified.
  */
@@ -1406,8 +1453,11 @@ static void kmemleak_scan(void)
 
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			scan_block(task_stack_page(p), task_stack_page(p) +
-				   THREAD_SIZE, NULL);
+			void *stack = try_get_task_stack(p);
+			if (stack) {
+				scan_block(stack, stack + THREAD_SIZE, NULL);
+				put_task_stack(p);
+			}
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 	}
@@ -1485,8 +1535,10 @@ static int kmemleak_scan_thread(void *arg)
 	 * Wait before the first scan to allow the system to fully initialize.
 	 */
 	if (first_run) {
+		signed long timeout = msecs_to_jiffies(SECS_FIRST_SCAN * 1000);
 		first_run = 0;
-		ssleep(SECS_FIRST_SCAN);
+		while (timeout && !kthread_should_stop())
+			timeout = schedule_timeout_interruptible(timeout);
 	}
 
 	while (!kthread_should_stop()) {

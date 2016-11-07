@@ -107,8 +107,10 @@ static struct usbmix_name_map extigy_map[] = {
  * e.g. no Master and fake PCM volume
  *			Pavel Mihaylov <bin@bash.info>
  */
-static struct usbmix_dB_map mp3plus_dB_1 = {-4781, 0};	/* just guess */
-static struct usbmix_dB_map mp3plus_dB_2 = {-1781, 618}; /* just guess */
+static struct usbmix_dB_map mp3plus_dB_1 = {.min = -4781, .max = 0};
+						/* just guess */
+static struct usbmix_dB_map mp3plus_dB_2 = {.min = -1781, .max = 618};
+						/* just guess */
 
 static struct usbmix_name_map mp3plus_map[] = {
 	/* 1: IT pcm */

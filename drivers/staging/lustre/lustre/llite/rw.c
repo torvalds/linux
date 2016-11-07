@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -54,88 +50,8 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lustre_lite.h"
 #include "../include/obd_cksum.h"
 #include "llite_internal.h"
-#include "../include/linux/lustre_compat25.h"
-
-/**
- * Finalizes cl-data before exiting typical address_space operation. Dual to
- * ll_cl_init().
- */
-void ll_cl_fini(struct ll_cl_context *lcc)
-{
-	struct lu_env  *env  = lcc->lcc_env;
-	struct cl_io   *io   = lcc->lcc_io;
-	struct cl_page *page = lcc->lcc_page;
-
-	LASSERT(lcc->lcc_cookie == current);
-	LASSERT(env);
-
-	if (page) {
-		lu_ref_del(&page->cp_reference, "cl_io", io);
-		cl_page_put(env, page);
-	}
-
-	cl_env_put(env, &lcc->lcc_refcheck);
-}
-
-/**
- * Initializes common cl-data at the typical address_space operation entry
- * point.
- */
-struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage)
-{
-	struct ll_cl_context *lcc;
-	struct lu_env    *env;
-	struct cl_io     *io;
-	struct cl_object *clob;
-	struct vvp_io    *vio;
-
-	int refcheck;
-	int result = 0;
-
-	clob = ll_i2info(file_inode(file))->lli_clob;
-	LASSERT(clob);
-
-	env = cl_env_get(&refcheck);
-	if (IS_ERR(env))
-		return ERR_CAST(env);
-
-	lcc = &ll_env_info(env)->lti_io_ctx;
-	memset(lcc, 0, sizeof(*lcc));
-	lcc->lcc_env = env;
-	lcc->lcc_refcheck = refcheck;
-	lcc->lcc_cookie = current;
-
-	vio = vvp_env_io(env);
-	io = vio->vui_cl.cis_io;
-	lcc->lcc_io = io;
-	if (!io)
-		result = -EIO;
-
-	if (result == 0 && vmpage) {
-		struct cl_page   *page;
-
-		LASSERT(io->ci_state == CIS_IO_GOING);
-		LASSERT(vio->vui_fd == LUSTRE_FPRIVATE(file));
-		page = cl_page_find(env, clob, vmpage->index, vmpage,
-				    CPT_CACHEABLE);
-		if (!IS_ERR(page)) {
-			lcc->lcc_page = page;
-			lu_ref_add(&page->cp_reference, "cl_io", io);
-			result = 0;
-		} else {
-			result = PTR_ERR(page);
-		}
-	}
-	if (result) {
-		ll_cl_fini(lcc);
-		lcc = ERR_PTR(result);
-	}
-
-	return lcc;
-}
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
 
@@ -495,7 +411,7 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			 * forward read-ahead, it will be fixed when backward
 			 * read-ahead is implemented
 			 */
-			LASSERTF(page_idx > ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
+			LASSERTF(page_idx >= ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
 				 page_idx,
 				 ria->ria_start, ria->ria_end, ria->ria_stoff,
 				 ria->ria_length, ria->ria_pages);
@@ -556,10 +472,22 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	}
 
 	/* Reserve a part of the read-ahead window that we'll be issuing */
-	if (ras->ras_window_len) {
-		start = ras->ras_next_readahead;
+	if (ras->ras_window_len > 0) {
+		/*
+		 * Note: other thread might rollback the ras_next_readahead,
+		 * if it can not get the full size of prepared pages, see the
+		 * end of this function. For stride read ahead, it needs to
+		 * make sure the offset is no less than ras_stride_offset,
+		 * so that stride read ahead can work correctly.
+		 */
+		if (stride_io_mode(ras))
+			start = max(ras->ras_next_readahead,
+				    ras->ras_stride_offset);
+		else
+			start = ras->ras_next_readahead;
 		end = ras->ras_window_start + ras->ras_window_len - 1;
 	}
+
 	if (end != 0) {
 		unsigned long rpc_boundary;
 		/*
@@ -730,10 +658,11 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 {
 	unsigned long stride_gap = index - ras->ras_last_readpage - 1;
 
-	if (!stride_io_mode(ras) && (stride_gap != 0 ||
-	    ras->ras_consecutive_stride_requests == 0)) {
+	if ((stride_gap != 0 || ras->ras_consecutive_stride_requests == 0) &&
+	    !stride_io_mode(ras)) {
 		ras->ras_stride_pages = ras->ras_consecutive_pages;
-		ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
+		ras->ras_stride_length = ras->ras_consecutive_pages +
+					 stride_gap;
 	}
 	LASSERT(ras->ras_request_index == 0);
 	LASSERT(ras->ras_consecutive_stride_requests == 0);
@@ -745,10 +674,9 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 	}
 
 	ras->ras_stride_pages = ras->ras_consecutive_pages;
-	ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
+	ras->ras_stride_length = stride_gap + ras->ras_consecutive_pages;
 
 	RAS_CDEBUG(ras);
-	return;
 }
 
 /* Stride Read-ahead window will be increased inc_len according to
@@ -964,7 +892,6 @@ out_unlock:
 	RAS_CDEBUG(ras);
 	ras->ras_request_index++;
 	spin_unlock(&ras->ras_lock);
-	return;
 }
 
 int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
@@ -1097,11 +1024,15 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 		 * is called later on.
 		 */
 		ignore_layout = 1;
+
+	if (!ll_i2info(inode)->lli_clob)
+		return 0;
+
 	result = cl_sync_file_range(inode, start, end, mode, ignore_layout);
 	if (result > 0) {
 		wbc->nr_to_write -= result;
 		result = 0;
-	 }
+	}
 
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0)) {
 		if (end == OBD_OBJECT_EOF)
@@ -1112,17 +1043,70 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	return result;
 }
 
+struct ll_cl_context *ll_cl_find(struct file *file)
+{
+	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
+	struct ll_cl_context *lcc;
+	struct ll_cl_context *found = NULL;
+
+	read_lock(&fd->fd_lock);
+	list_for_each_entry(lcc, &fd->fd_lccs, lcc_list) {
+		if (lcc->lcc_cookie == current) {
+			found = lcc;
+			break;
+		}
+	}
+	read_unlock(&fd->fd_lock);
+
+	return found;
+}
+
+void ll_cl_add(struct file *file, const struct lu_env *env, struct cl_io *io)
+{
+	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
+	struct ll_cl_context *lcc = &ll_env_info(env)->lti_io_ctx;
+
+	memset(lcc, 0, sizeof(*lcc));
+	INIT_LIST_HEAD(&lcc->lcc_list);
+	lcc->lcc_cookie = current;
+	lcc->lcc_env = env;
+	lcc->lcc_io = io;
+
+	write_lock(&fd->fd_lock);
+	list_add(&lcc->lcc_list, &fd->fd_lccs);
+	write_unlock(&fd->fd_lock);
+}
+
+void ll_cl_remove(struct file *file, const struct lu_env *env)
+{
+	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
+	struct ll_cl_context *lcc = &ll_env_info(env)->lti_io_ctx;
+
+	write_lock(&fd->fd_lock);
+	list_del_init(&lcc->lcc_list);
+	write_unlock(&fd->fd_lock);
+}
+
 int ll_readpage(struct file *file, struct page *vmpage)
 {
+	struct cl_object *clob = ll_i2info(file_inode(file))->lli_clob;
 	struct ll_cl_context *lcc;
+	const struct lu_env  *env;
+	struct cl_io   *io;
+	struct cl_page *page;
 	int result;
 
-	lcc = ll_cl_init(file, vmpage);
-	if (!IS_ERR(lcc)) {
-		struct lu_env  *env  = lcc->lcc_env;
-		struct cl_io   *io   = lcc->lcc_io;
-		struct cl_page *page = lcc->lcc_page;
+	lcc = ll_cl_find(file);
+	if (!lcc) {
+		unlock_page(vmpage);
+		return -EIO;
+	}
 
+	env = lcc->lcc_env;
+	io = lcc->lcc_io;
+	LASSERT(io->ci_state == CIS_IO_GOING);
+	page = cl_page_find(env, clob, vmpage->index, vmpage, CPT_CACHEABLE);
+	if (!IS_ERR(page)) {
 		LASSERT(page->cp_type == CPT_CACHEABLE);
 		if (likely(!PageUptodate(vmpage))) {
 			cl_page_assume(env, io, page);
@@ -1132,10 +1116,10 @@ int ll_readpage(struct file *file, struct page *vmpage)
 			unlock_page(vmpage);
 			result = 0;
 		}
-		ll_cl_fini(lcc);
+		cl_page_put(env, page);
 	} else {
 		unlock_page(vmpage);
-		result = PTR_ERR(lcc);
+		result = PTR_ERR(page);
 	}
 	return result;
 }

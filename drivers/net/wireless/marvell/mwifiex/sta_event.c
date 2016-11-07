@@ -25,6 +25,99 @@
 #include "wmm.h"
 #include "11n.h"
 
+#define MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE    12
+
+static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
+					       struct mwifiex_sta_node *sta_ptr,
+					       struct sk_buff *event)
+{
+	int evt_len, ele_len;
+	u8 *curr;
+	struct ieee_types_header *ele_hdr;
+	struct mwifiex_ie_types_mgmt_frame *tlv_mgmt_frame;
+	const struct ieee80211_ht_cap *ht_cap;
+	const struct ieee80211_vht_cap *vht_cap;
+
+	skb_pull(event, MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE);
+	evt_len = event->len;
+	curr = event->data;
+
+	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilties:",
+			 event->data, event->len);
+
+	skb_push(event, MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE);
+
+	tlv_mgmt_frame = (void *)curr;
+	if (evt_len >= sizeof(*tlv_mgmt_frame) &&
+	    le16_to_cpu(tlv_mgmt_frame->header.type) ==
+	    TLV_TYPE_UAP_MGMT_FRAME) {
+		/* Locate curr pointer to the start of beacon tlv,
+		 * timestamp 8 bytes, beacon intervel 2 bytes,
+		 * capability info 2 bytes, totally 12 byte beacon header
+		 */
+		evt_len = le16_to_cpu(tlv_mgmt_frame->header.len);
+		curr += (sizeof(*tlv_mgmt_frame) + 12);
+	} else {
+		mwifiex_dbg(priv->adapter, MSG,
+			    "management frame tlv not found!\n");
+		return 0;
+	}
+
+	while (evt_len >= sizeof(*ele_hdr)) {
+		ele_hdr = (struct ieee_types_header *)curr;
+		ele_len = ele_hdr->len;
+
+		if (evt_len < ele_len + sizeof(*ele_hdr))
+			break;
+
+		switch (ele_hdr->element_id) {
+		case WLAN_EID_HT_CAPABILITY:
+			sta_ptr->is_11n_enabled = true;
+			ht_cap = (void *)(ele_hdr + 2);
+			sta_ptr->max_amsdu = le16_to_cpu(ht_cap->cap_info) &
+				IEEE80211_HT_CAP_MAX_AMSDU ?
+				MWIFIEX_TX_DATA_BUF_SIZE_8K :
+				MWIFIEX_TX_DATA_BUF_SIZE_4K;
+			mwifiex_dbg(priv->adapter, INFO,
+				    "11n enabled!, max_amsdu : %d\n",
+				    sta_ptr->max_amsdu);
+			break;
+
+		case WLAN_EID_VHT_CAPABILITY:
+			sta_ptr->is_11ac_enabled = true;
+			vht_cap = (void *)(ele_hdr + 2);
+			/* check VHT MAXMPDU capability */
+			switch (le32_to_cpu(vht_cap->vht_cap_info) & 0x3) {
+			case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
+				sta_ptr->max_amsdu =
+					MWIFIEX_TX_DATA_BUF_SIZE_12K;
+				break;
+			case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+				sta_ptr->max_amsdu =
+					MWIFIEX_TX_DATA_BUF_SIZE_8K;
+				break;
+			case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
+				sta_ptr->max_amsdu =
+					MWIFIEX_TX_DATA_BUF_SIZE_4K;
+			default:
+				break;
+			}
+
+			mwifiex_dbg(priv->adapter, INFO,
+				    "11ac enabled!, max_amsdu : %d\n",
+				    sta_ptr->max_amsdu);
+			break;
+		default:
+			break;
+		}
+
+		curr += (ele_len + sizeof(*ele_hdr));
+		evt_len -= (ele_len + sizeof(*ele_hdr));
+	}
+
+	return 0;
+}
+
 /*
  * This function resets the connection state.
  *
@@ -40,8 +133,8 @@
  *      - Erases current SSID and BSSID information
  *      - Sends a disconnect event to upper layers/applications.
  */
-void
-mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
+void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
+				 bool from_ap)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
@@ -140,7 +233,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
 	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		cfg80211_disconnected(priv->netdev, reason_code, NULL, 0,
-				      false, GFP_KERNEL);
+				      !from_ap, GFP_KERNEL);
 	}
 	eth_zero_addr(priv->cfg_bssid);
 
@@ -474,8 +567,8 @@ void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
 			scantlv =
 			    (struct mwifiex_ie_types_btcoex_scan_time *)tlv;
 			adapter->coex_scan = scantlv->coex_scan;
-			adapter->coex_min_scan_time = scantlv->min_scan_time;
-			adapter->coex_max_scan_time = scantlv->max_scan_time;
+			adapter->coex_min_scan_time = le16_to_cpu(scantlv->min_scan_time);
+			adapter->coex_max_scan_time = le16_to_cpu(scantlv->max_scan_time);
 			break;
 
 		default:
@@ -519,6 +612,8 @@ void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
  *      - EVENT_LINK_QUALITY
  *      - EVENT_PRE_BEACON_LOST
  *      - EVENT_IBSS_COALESCED
+ *      - EVENT_IBSS_STA_CONNECT
+ *      - EVENT_IBSS_STA_DISCONNECT
  *      - EVENT_WEP_ICV_ERR
  *      - EVENT_BW_CHANGE
  *      - EVENT_HOSTWAKE_STAIE
@@ -547,9 +642,11 @@ void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
 int mwifiex_process_sta_event(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	int ret = 0;
+	int ret = 0, i;
 	u32 eventcause = adapter->event_cause;
 	u16 ctrl, reason_code;
+	u8 ibss_sta_addr[ETH_ALEN];
+	struct mwifiex_sta_node *sta_ptr;
 
 	switch (eventcause) {
 	case EVENT_DUMMY_HOST_WAKEUP_SIGNAL:
@@ -574,7 +671,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (priv->media_connected) {
 			reason_code =
 				le16_to_cpu(*(__le16 *)adapter->event_body);
-			mwifiex_reset_connect_state(priv, reason_code);
+			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
 
@@ -589,7 +686,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (priv->media_connected) {
 			reason_code =
 				le16_to_cpu(*(__le16 *)adapter->event_body);
-			mwifiex_reset_connect_state(priv, reason_code);
+			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
 
@@ -599,7 +696,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (priv->media_connected) {
 			reason_code =
 				le16_to_cpu(*(__le16 *)adapter->event_body);
-			mwifiex_reset_connect_state(priv, reason_code);
+			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
 
@@ -708,7 +805,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_EXT_SCAN_REPORT:
 		mwifiex_dbg(adapter, EVENT, "event: EXT_SCAN Report\n");
-		if (adapter->ext_scan)
+		/* We intend to skip this event during suspend, but handle
+		 * it in interface disabled case
+		 */
+		if (adapter->ext_scan && (!priv->scan_aborting ||
+					  !netif_running(priv->netdev)))
 			ret = mwifiex_handle_event_ext_scan_report(priv,
 						adapter->event_skb->data);
 
@@ -770,6 +871,39 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		ret = mwifiex_send_cmd(priv,
 				HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
 				HostCmd_ACT_GEN_GET, 0, NULL, false);
+		break;
+	case EVENT_IBSS_STA_CONNECT:
+		ether_addr_copy(ibss_sta_addr, adapter->event_body + 2);
+		mwifiex_dbg(adapter, EVENT, "event: IBSS_STA_CONNECT %pM\n",
+			    ibss_sta_addr);
+		sta_ptr = mwifiex_add_sta_entry(priv, ibss_sta_addr);
+		if (sta_ptr && adapter->adhoc_11n_enabled) {
+			mwifiex_check_ibss_peer_capabilties(priv, sta_ptr,
+							    adapter->event_skb);
+			if (sta_ptr->is_11n_enabled)
+				for (i = 0; i < MAX_NUM_TID; i++)
+					sta_ptr->ampdu_sta[i] =
+					priv->aggr_prio_tbl[i].ampdu_user;
+			else
+				for (i = 0; i < MAX_NUM_TID; i++)
+					sta_ptr->ampdu_sta[i] =
+						BA_STREAM_NOT_ALLOWED;
+			memset(sta_ptr->rx_seq, 0xff, sizeof(sta_ptr->rx_seq));
+		}
+
+		break;
+	case EVENT_IBSS_STA_DISCONNECT:
+		ether_addr_copy(ibss_sta_addr, adapter->event_body + 2);
+		mwifiex_dbg(adapter, EVENT, "event: IBSS_STA_DISCONNECT %pM\n",
+			    ibss_sta_addr);
+		sta_ptr = mwifiex_get_sta_entry(priv, ibss_sta_addr);
+		if (sta_ptr && sta_ptr->is_11n_enabled) {
+			mwifiex_11n_del_rx_reorder_tbl_by_ta(priv,
+							     ibss_sta_addr);
+			mwifiex_del_tx_ba_stream_tbl_by_ra(priv, ibss_sta_addr);
+		}
+		mwifiex_wmm_del_peer_ra_list(priv, ibss_sta_addr);
+		mwifiex_del_sta_entry(priv, ibss_sta_addr);
 		break;
 	case EVENT_ADDBA:
 		mwifiex_dbg(adapter, EVENT, "event: ADDBA Request\n");
@@ -868,6 +1002,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "EVENT: BT coex wlan param update\n");
 		mwifiex_bt_coex_wlan_param_update_event(priv,
 							adapter->event_skb);
+		break;
+	case EVENT_RXBA_SYNC:
+		dev_dbg(adapter->dev, "EVENT: RXBA_SYNC\n");
+		mwifiex_11n_rxba_sync_event(priv, adapter->event_body,
+					    adapter->event_skb->len -
+					    sizeof(eventcause));
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",

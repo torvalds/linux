@@ -121,6 +121,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	int ret;
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
+					    DRM_ROTATE_0,
 					    0, INT_MAX, true, false, &visible);
 	if (ret)
 		return ret;

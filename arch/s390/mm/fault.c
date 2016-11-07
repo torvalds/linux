@@ -24,7 +24,7 @@
 #include <linux/kdebug.h>
 #include <linux/init.h>
 #include <linux/console.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
@@ -418,6 +418,8 @@ static inline int do_exception(struct pt_regs *regs, int access)
 		(struct gmap *) S390_lowcore.gmap : NULL;
 	if (gmap) {
 		current->thread.gmap_addr = address;
+		current->thread.gmap_write_flag = !!(flags & FAULT_FLAG_WRITE);
+		current->thread.gmap_int_code = regs->int_code & 0xffff;
 		address = __gmap_translate(gmap, address);
 		if (address == -EFAULT) {
 			fault = VM_FAULT_BADMAP;
@@ -456,7 +458,7 @@ retry:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
 	/* No reason to continue if interrupted by SIGKILL. */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
 		fault = VM_FAULT_SIGNAL;
@@ -624,7 +626,7 @@ void pfault_fini(void)
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
 		"	diag	%0,0,0x258\n"
-		"0:\n"
+		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: : "a" (&refbk), "m" (refbk) : "cc");
 }
@@ -738,28 +740,21 @@ out:
 	put_task_struct(tsk);
 }
 
-static int pfault_cpu_notify(struct notifier_block *self, unsigned long action,
-			     void *hcpu)
+static int pfault_cpu_dead(unsigned int cpu)
 {
 	struct thread_struct *thread, *next;
 	struct task_struct *tsk;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DEAD:
-		spin_lock_irq(&pfault_lock);
-		list_for_each_entry_safe(thread, next, &pfault_list, list) {
-			thread->pfault_wait = 0;
-			list_del(&thread->list);
-			tsk = container_of(thread, struct task_struct, thread);
-			wake_up_process(tsk);
-			put_task_struct(tsk);
-		}
-		spin_unlock_irq(&pfault_lock);
-		break;
-	default:
-		break;
+	spin_lock_irq(&pfault_lock);
+	list_for_each_entry_safe(thread, next, &pfault_list, list) {
+		thread->pfault_wait = 0;
+		list_del(&thread->list);
+		tsk = container_of(thread, struct task_struct, thread);
+		wake_up_process(tsk);
+		put_task_struct(tsk);
 	}
-	return NOTIFY_OK;
+	spin_unlock_irq(&pfault_lock);
+	return 0;
 }
 
 static int __init pfault_irq_init(void)
@@ -773,7 +768,8 @@ static int __init pfault_irq_init(void)
 	if (rc)
 		goto out_pfault;
 	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
-	hotcpu_notifier(pfault_cpu_notify, 0);
+	cpuhp_setup_state_nocalls(CPUHP_S390_PFAULT_DEAD, "s390/pfault:dead",
+				  NULL, pfault_cpu_dead);
 	return 0;
 
 out_pfault:

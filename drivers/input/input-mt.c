@@ -218,8 +218,23 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 	}
 
 	input_event(dev, EV_KEY, BTN_TOUCH, count > 0);
-	if (use_count)
+
+	if (use_count) {
+		if (count == 0 &&
+		    !test_bit(ABS_MT_DISTANCE, dev->absbit) &&
+		    test_bit(ABS_DISTANCE, dev->absbit) &&
+		    input_abs_get_val(dev, ABS_DISTANCE) != 0) {
+			/*
+			 * Force reporting BTN_TOOL_FINGER for devices that
+			 * only report general hover (and not per-contact
+			 * distance) when contact is in proximity but not
+			 * on the surface.
+			 */
+			count = 1;
+		}
+
 		input_mt_report_finger_count(dev, count);
+	}
 
 	if (oldest) {
 		int x = input_mt_get_value(oldest, ABS_MT_POSITION_X);

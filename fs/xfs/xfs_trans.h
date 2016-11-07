@@ -33,6 +33,14 @@ struct xfs_trans;
 struct xfs_trans_res;
 struct xfs_dquot_acct;
 struct xfs_busy_extent;
+struct xfs_rud_log_item;
+struct xfs_rui_log_item;
+struct xfs_btree_cur;
+struct xfs_cui_log_item;
+struct xfs_cud_log_item;
+struct xfs_defer_ops;
+struct xfs_bui_log_item;
+struct xfs_bud_log_item;
 
 typedef struct xfs_log_item {
 	struct list_head		li_ail;		/* AIL pointers */
@@ -52,6 +60,7 @@ typedef struct xfs_log_item {
 	/* delayed logging */
 	struct list_head		li_cil;		/* CIL pointers */
 	struct xfs_log_vec		*li_lv;		/* active log vector */
+	struct xfs_log_vec		*li_lv_shadow;	/* standby vector */
 	xfs_lsn_t			li_seq;		/* CIL commit seq */
 } xfs_log_item_t;
 
@@ -209,17 +218,14 @@ void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_inode *, int);
 void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_inode *, uint);
 void		xfs_trans_log_buf(xfs_trans_t *, struct xfs_buf *, uint, uint);
 void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
-struct xfs_efi_log_item	*xfs_trans_get_efi(xfs_trans_t *, uint);
-void		xfs_trans_log_efi_extent(xfs_trans_t *,
-					 struct xfs_efi_log_item *,
-					 xfs_fsblock_t,
-					 xfs_extlen_t);
-struct xfs_efd_log_item	*xfs_trans_get_efd(xfs_trans_t *,
+
+void		xfs_extent_free_init_defer_op(void);
+struct xfs_efd_log_item	*xfs_trans_get_efd(struct xfs_trans *,
 				  struct xfs_efi_log_item *,
 				  uint);
 int		xfs_trans_free_extent(struct xfs_trans *,
 				      struct xfs_efd_log_item *, xfs_fsblock_t,
-				      xfs_extlen_t);
+				      xfs_extlen_t, struct xfs_owner_info *);
 int		xfs_trans_commit(struct xfs_trans *);
 int		__xfs_trans_roll(struct xfs_trans **, struct xfs_inode *, int *);
 int		xfs_trans_roll(struct xfs_trans **, struct xfs_inode *);
@@ -234,5 +240,41 @@ void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 
 extern kmem_zone_t	*xfs_trans_zone;
 extern kmem_zone_t	*xfs_log_item_desc_zone;
+
+/* rmap updates */
+enum xfs_rmap_intent_type;
+
+void xfs_rmap_update_init_defer_op(void);
+struct xfs_rud_log_item *xfs_trans_get_rud(struct xfs_trans *tp,
+		struct xfs_rui_log_item *ruip);
+int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,
+		struct xfs_rud_log_item *rudp, enum xfs_rmap_intent_type type,
+		__uint64_t owner, int whichfork, xfs_fileoff_t startoff,
+		xfs_fsblock_t startblock, xfs_filblks_t blockcount,
+		xfs_exntst_t state, struct xfs_btree_cur **pcur);
+
+/* refcount updates */
+enum xfs_refcount_intent_type;
+
+void xfs_refcount_update_init_defer_op(void);
+struct xfs_cud_log_item *xfs_trans_get_cud(struct xfs_trans *tp,
+		struct xfs_cui_log_item *cuip);
+int xfs_trans_log_finish_refcount_update(struct xfs_trans *tp,
+		struct xfs_cud_log_item *cudp, struct xfs_defer_ops *dfops,
+		enum xfs_refcount_intent_type type, xfs_fsblock_t startblock,
+		xfs_extlen_t blockcount, xfs_fsblock_t *new_fsb,
+		xfs_extlen_t *new_len, struct xfs_btree_cur **pcur);
+
+/* mapping updates */
+enum xfs_bmap_intent_type;
+
+void xfs_bmap_update_init_defer_op(void);
+struct xfs_bud_log_item *xfs_trans_get_bud(struct xfs_trans *tp,
+		struct xfs_bui_log_item *buip);
+int xfs_trans_log_finish_bmap_update(struct xfs_trans *tp,
+		struct xfs_bud_log_item *rudp, struct xfs_defer_ops *dfops,
+		enum xfs_bmap_intent_type type, struct xfs_inode *ip,
+		int whichfork, xfs_fileoff_t startoff, xfs_fsblock_t startblock,
+		xfs_filblks_t blockcount, xfs_exntst_t state);
 
 #endif	/* __XFS_TRANS_H__ */

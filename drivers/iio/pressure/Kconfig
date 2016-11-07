@@ -6,16 +6,31 @@
 menu "Pressure sensors"
 
 config BMP280
-	tristate "Bosch Sensortec BMP180 and BMP280 pressure sensor driver"
-	depends on I2C
-	depends on !(BMP085_I2C=y || BMP085_I2C=m)
-	select REGMAP_I2C
+	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
+	depends on (I2C || SPI_MASTER)
+	select REGMAP
+	select BMP280_I2C if (I2C)
+	select BMP280_SPI if (SPI_MASTER)
 	help
 	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
-	  pressure and temperature sensors.
+	  pressure and temperature sensors. Also supports the BE280 with
+	  an additional humidity sensor channel.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called bmp280.
+	  To compile this driver as a module, choose M here: the core module
+	  will be called bmp280 and you will also get bmp280-i2c for I2C
+	  and/or bmp280-spi for SPI support.
+
+config BMP280_I2C
+	tristate
+	depends on BMP280
+	depends on I2C
+	select REGMAP_I2C
+
+config BMP280_SPI
+	tristate
+	depends on BMP280
+	depends on SPI_MASTER
+	select REGMAP
 
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
@@ -130,7 +145,7 @@ config IIO_ST_PRESS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
-	  sensors: LPS001WP, LPS25H, LPS331AP.
+	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:
@@ -169,5 +184,27 @@ config HP206C
 
 	  This driver can also be built as a module. If so, the module will
 	  be called hp206c.
+
+config ZPA2326
+	tristate "Murata ZPA2326 pressure sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select ZPA2326_I2C if I2C
+	select ZPA2326_SPI if SPI_MASTER
+	help
+	  Say Y here to build support for the Murata ZPA2326 pressure and
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called zpa2326.
+
+config ZPA2326_I2C
+	tristate
+	select REGMAP_I2C
+
+config ZPA2326_SPI
+	tristate
+	select REGMAP_SPI
 
 endmenu

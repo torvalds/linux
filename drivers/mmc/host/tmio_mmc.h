@@ -79,6 +79,9 @@
 #define	CLK_CTL_DIV_MASK	0xff
 #define	CLK_CTL_SCLKEN		BIT(8)
 
+#define CARD_OPT_WIDTH8		BIT(13)
+#define CARD_OPT_WIDTH		BIT(15)
+
 #define TMIO_BBS		512		/* Boot block size */
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
@@ -158,6 +161,7 @@ struct tmio_mmc_host {
 	void (*clk_disable)(struct tmio_mmc_host *host);
 	int (*multi_io_quirk)(struct mmc_card *card,
 			      unsigned int direction, int blk_size);
+	int (*card_busy)(struct mmc_host *mmc);
 	int (*start_signal_voltage_switch)(struct mmc_host *mmc,
 					   struct mmc_ios *ios);
 };
@@ -259,7 +263,7 @@ static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 
 static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host, int addr, u32 val)
 {
-	writew(val, host->ctl + (addr << host->bus_shift));
+	writew(val & 0xffff, host->ctl + (addr << host->bus_shift));
 	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
 

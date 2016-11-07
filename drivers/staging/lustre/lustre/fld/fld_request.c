@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -56,57 +52,6 @@
 #include "../include/lustre_fld.h"
 #include "../include/lustre_mdc.h"
 #include "fld_internal.h"
-
-/* TODO: these 3 functions are copies of flow-control code from mdc_lib.c
- * It should be common thing. The same about mdc RPC lock
- */
-static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
-{
-	int rc;
-
-	spin_lock(&cli->cl_loi_list_lock);
-	rc = list_empty(&mcw->mcw_entry);
-	spin_unlock(&cli->cl_loi_list_lock);
-	return rc;
-};
-
-static void fld_enter_request(struct client_obd *cli)
-{
-	struct mdc_cache_waiter mcw;
-	struct l_wait_info lwi = { 0 };
-
-	spin_lock(&cli->cl_loi_list_lock);
-	if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
-		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
-		init_waitqueue_head(&mcw.mcw_waitq);
-		spin_unlock(&cli->cl_loi_list_lock);
-		l_wait_event(mcw.mcw_waitq, fld_req_avail(cli, &mcw), &lwi);
-	} else {
-		cli->cl_r_in_flight++;
-		spin_unlock(&cli->cl_loi_list_lock);
-	}
-}
-
-static void fld_exit_request(struct client_obd *cli)
-{
-	struct list_head *l, *tmp;
-	struct mdc_cache_waiter *mcw;
-
-	spin_lock(&cli->cl_loi_list_lock);
-	cli->cl_r_in_flight--;
-	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
-		if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
-			/* No free request slots anymore */
-			break;
-		}
-
-		mcw = list_entry(l, struct mdc_cache_waiter, mcw_entry);
-		list_del_init(&mcw->mcw_entry);
-		cli->cl_r_in_flight++;
-		wake_up(&mcw->mcw_waitq);
-	}
-	spin_unlock(&cli->cl_loi_list_lock);
-}
 
 static int fld_rrb_hash(struct lu_client_fld *fld, u64 seq)
 {
@@ -274,7 +219,6 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 	spin_unlock(&fld->lcf_lock);
 	return -ENOENT;
 }
-EXPORT_SYMBOL(fld_client_del_target);
 
 static struct dentry *fld_debugfs_dir;
 
@@ -443,9 +387,9 @@ int fld_client_rpc(struct obd_export *exp,
 	req->rq_reply_portal = MDC_REPLY_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
-	fld_enter_request(&exp->exp_obd->u.cli);
+	obd_get_request_slot(&exp->exp_obd->u.cli);
 	rc = ptlrpc_queue_wait(req);
-	fld_exit_request(&exp->exp_obd->u.cli);
+	obd_put_request_slot(&exp->exp_obd->u.cli);
 	if (rc)
 		goto out_req;
 
@@ -509,7 +453,6 @@ void fld_client_flush(struct lu_client_fld *fld)
 {
 	fld_cache_flush(fld->lcf_cache);
 }
-EXPORT_SYMBOL(fld_client_flush);
 
 static int __init fld_init(void)
 {

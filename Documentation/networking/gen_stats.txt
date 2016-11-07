@@ -21,7 +21,7 @@ struct mystruct {
 	...
 };
 
-Update statistics:
+Update statistics, in dequeue() methods only, (while owning qdisc->running)
 mystruct->tstats.packet++;
 mystruct->qstats.backlog += skb->pkt_len;
 

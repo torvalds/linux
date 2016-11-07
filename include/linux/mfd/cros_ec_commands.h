@@ -949,6 +949,37 @@ struct ec_params_pwm_set_fan_duty {
 	uint32_t percent;
 } __packed;
 
+#define EC_CMD_PWM_SET_DUTY 0x25
+/* 16 bit duty cycle, 0xffff = 100% */
+#define EC_PWM_MAX_DUTY 0xffff
+
+enum ec_pwm_type {
+	/* All types, indexed by board-specific enum pwm_channel */
+	EC_PWM_TYPE_GENERIC = 0,
+	/* Keyboard backlight */
+	EC_PWM_TYPE_KB_LIGHT,
+	/* Display backlight */
+	EC_PWM_TYPE_DISPLAY_LIGHT,
+	EC_PWM_TYPE_COUNT,
+};
+
+struct ec_params_pwm_set_duty {
+	uint16_t duty;     /* Duty cycle, EC_PWM_MAX_DUTY = 100% */
+	uint8_t pwm_type;  /* ec_pwm_type */
+	uint8_t index;     /* Type-specific index, or 0 if unique */
+} __packed;
+
+#define EC_CMD_PWM_GET_DUTY 0x26
+
+struct ec_params_pwm_get_duty {
+	uint8_t pwm_type;  /* ec_pwm_type */
+	uint8_t index;     /* Type-specific index, or 0 if unique */
+} __packed;
+
+struct ec_response_pwm_get_duty {
+	uint16_t duty;     /* Duty cycle, EC_PWM_MAX_DUTY = 100% */
+} __packed;
+
 /*****************************************************************************/
 /*
  * Lightbar commands. This looks worse than it is. Since we only use one HOST
@@ -1760,6 +1791,40 @@ struct ec_result_keyscan_seq_ctrl {
 			struct ec_collect_item item[0];
 		} collect;
 	};
+} __packed;
+
+/*
+ * Command for retrieving the next pending MKBP event from the EC device
+ *
+ * The device replies with UNAVAILABLE if there aren't any pending events.
+ */
+#define EC_CMD_GET_NEXT_EVENT 0x67
+
+enum ec_mkbp_event {
+	/* Keyboard matrix changed. The event data is the new matrix state. */
+	EC_MKBP_EVENT_KEY_MATRIX = 0,
+
+	/* New host event. The event data is 4 bytes of host event flags. */
+	EC_MKBP_EVENT_HOST_EVENT = 1,
+
+	/* New Sensor FIFO data. The event data is fifo_info structure. */
+	EC_MKBP_EVENT_SENSOR_FIFO = 2,
+
+	/* Number of MKBP events */
+	EC_MKBP_EVENT_COUNT,
+};
+
+union ec_response_get_next_data {
+	uint8_t   key_matrix[13];
+
+	/* Unaligned */
+	uint32_t  host_event;
+} __packed;
+
+struct ec_response_get_next_event {
+	uint8_t event_type;
+	/* Followed by event data if any */
+	union ec_response_get_next_data data;
 } __packed;
 
 /*****************************************************************************/

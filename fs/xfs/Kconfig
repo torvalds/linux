@@ -4,6 +4,7 @@ config XFS_FS
 	depends on (64BIT || LBDAF)
 	select EXPORTFS
 	select LIBCRC32C
+	select FS_IOMAP
 	help
 	  XFS is a high performance journaling filesystem which originated
 	  on the SGI IRIX platform.  It is completely multi-threaded, can

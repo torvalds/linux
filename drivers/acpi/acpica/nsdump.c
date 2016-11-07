@@ -338,7 +338,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_STRING:
 
 			acpi_os_printf("Len %.2X ", obj_desc->string.length);
-			acpi_ut_print_string(obj_desc->string.pointer, 32);
+			acpi_ut_print_string(obj_desc->string.pointer, 80);
 			acpi_os_printf("\n");
 			break;
 

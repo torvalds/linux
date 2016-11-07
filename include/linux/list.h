@@ -381,8 +381,11 @@ static inline void list_splice_tail_init(struct list_head *list,
  *
  * Note that if the list is empty, it returns NULL.
  */
-#define list_first_entry_or_null(ptr, type, member) \
-	(!list_empty(ptr) ? list_first_entry(ptr, type, member) : NULL)
+#define list_first_entry_or_null(ptr, type, member) ({ \
+	struct list_head *head__ = (ptr); \
+	struct list_head *pos__ = READ_ONCE(head__->next); \
+	pos__ != head__ ? list_entry(pos__, type, member) : NULL; \
+})
 
 /**
  * list_next_entry - get the next element in list
@@ -676,6 +679,16 @@ static inline void hlist_add_fake(struct hlist_node *n)
 static inline bool hlist_fake(struct hlist_node *h)
 {
 	return h->pprev == &h->next;
+}
+
+/*
+ * Check whether the node is the only node of the head without
+ * accessing head:
+ */
+static inline bool
+hlist_is_singular_node(struct hlist_node *n, struct hlist_head *h)
+{
+	return !n->next && n->pprev == &h->first;
 }
 
 /*

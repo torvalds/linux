@@ -150,7 +150,8 @@ static int cirrus_bo_verify_access(struct ttm_buffer_object *bo, struct file *fi
 {
 	struct cirrus_bo *cirrusbo = cirrus_bo(bo);
 
-	return drm_vma_node_verify_access(&cirrusbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&cirrusbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int cirrus_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -185,17 +186,6 @@ static int cirrus_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 static void cirrus_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 }
-
-static int cirrus_bo_move(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
-		       struct ttm_mem_reg *new_mem)
-{
-	int r;
-	r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
-	return r;
-}
-
 
 static void cirrus_ttm_backend_destroy(struct ttm_tt *tt)
 {
@@ -241,7 +231,7 @@ struct ttm_bo_driver cirrus_bo_driver = {
 	.ttm_tt_unpopulate = cirrus_ttm_tt_unpopulate,
 	.init_mem_type = cirrus_bo_init_mem_type,
 	.evict_flags = cirrus_bo_evict_flags,
-	.move = cirrus_bo_move,
+	.move = NULL,
 	.verify_access = cirrus_bo_verify_access,
 	.io_mem_reserve = &cirrus_ttm_io_mem_reserve,
 	.io_mem_free = &cirrus_ttm_io_mem_free,
@@ -277,6 +267,9 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 		return ret;
 	}
 
+	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
+				   pci_resource_len(dev->pdev, 0));
+
 	cirrus->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					   pci_resource_len(dev->pdev, 0));
 
@@ -286,6 +279,8 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 
 void cirrus_mm_fini(struct cirrus_device *cirrus)
 {
+	struct drm_device *dev = cirrus->dev;
+
 	if (!cirrus->mm_inited)
 		return;
 
@@ -295,6 +290,8 @@ void cirrus_mm_fini(struct cirrus_device *cirrus)
 
 	arch_phys_wc_del(cirrus->fb_mtrr);
 	cirrus->fb_mtrr = 0;
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
 }
 
 void cirrus_ttm_placement(struct cirrus_bo *bo, int domain)

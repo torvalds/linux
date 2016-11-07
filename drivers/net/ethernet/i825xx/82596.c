@@ -89,10 +89,10 @@ static char version[] __initdata =
 #define DEB(x,y)	if (i596_debug & (x)) y
 
 
-#if defined(CONFIG_MVME16x_NET) || defined(CONFIG_MVME16x_NET_MODULE)
+#if IS_ENABLED(CONFIG_MVME16x_NET)
 #define ENABLE_MVME16x_NET
 #endif
-#if defined(CONFIG_BVME6000_NET) || defined(CONFIG_BVME6000_NET_MODULE)
+#if IS_ENABLED(CONFIG_BVME6000_NET)
 #define ENABLE_BVME6000_NET
 #endif
 

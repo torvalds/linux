@@ -53,7 +53,7 @@ enum tuner_pad_index {
 };
 
 /**
- * enum if_vid_dec_index - video IF-PLL pad index for
+ * enum if_vid_dec_pad_index - video IF-PLL pad index for
  *			   MEDIA_ENT_F_IF_VID_DECODER
  *
  * @IF_VID_DEC_PAD_IF_INPUT:	video Intermediate Frequency (IF) sink pad
@@ -68,7 +68,7 @@ enum if_vid_dec_pad_index {
 };
 
 /**
- * enum if_aud_dec_index - audio/sound IF-PLL pad index for
+ * enum if_aud_dec_pad_index - audio/sound IF-PLL pad index for
  *			   MEDIA_ENT_F_IF_AUD_DECODER
  *
  * @IF_AUD_DEC_PAD_IF_INPUT:	audio Intermediate Frequency (IF) sink pad
@@ -114,11 +114,14 @@ struct usb_device;
  * Add links between the entities commonly found on PC customer's hardware at
  * the V4L2 side: camera sensors, audio and video PLL-IF decoders, tuners,
  * analog TV decoder and I/O entities (video, VBI and Software Defined Radio).
- * NOTE: webcams are modelled on a very simple way: the sensor is
- * connected directly to the I/O entity. All dirty details, like
- * scaler and crop HW are hidden. While such mapping is enough for v4l2
- * interface centric PC-consumer's hardware, V4L2 subdev centric camera
- * hardware should not use this routine, as it will not build the right graph.
+ *
+ * .. note::
+ *
+ *    Webcams are modelled on a very simple way: the sensor is
+ *    connected directly to the I/O entity. All dirty details, like
+ *    scaler and crop HW are hidden. While such mapping is enough for v4l2
+ *    interface centric PC-consumer's hardware, V4L2 subdev centric camera
+ *    hardware should not use this routine, as it will not build the right graph.
  */
 int v4l2_mc_create_media_graph(struct media_device *mdev);
 

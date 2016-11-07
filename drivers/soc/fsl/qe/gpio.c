@@ -41,7 +41,8 @@ struct qe_gpio_chip {
 
 static void qe_gpio_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct qe_gpio_chip *qe_gc = gpiochip_get_data(&mm_gc->gc);
+	struct qe_gpio_chip *qe_gc =
+		container_of(mm_gc, struct qe_gpio_chip, mm_gc);
 	struct qe_pio_regs __iomem *regs = mm_gc->regs;
 
 	qe_gc->cpdata = in_be32(&regs->cpdata);

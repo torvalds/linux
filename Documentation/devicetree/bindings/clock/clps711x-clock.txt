@@ -1,7 +1,7 @@
 * Clock bindings for the Cirrus Logic CLPS711X CPUs
 
 Required properties:
-- compatible       : Shall contain "cirrus,clps711x-clk".
+- compatible       : Shall contain "cirrus,ep7209-clk".
 - reg              : Address of the internal register set.
 - startup-frequency: Factory set CPU startup frequency in HZ.
 - #clock-cells     : Should be <1>.
@@ -13,7 +13,7 @@ for the full list of CLPS711X clock IDs.
 Example:
 	clks: clks@80000000 {
 		#clock-cells = <1>;
-		compatible = "cirrus,ep7312-clk", "cirrus,clps711x-clk";
+		compatible = "cirrus,ep7312-clk", "cirrus,ep7209-clk";
 		reg = <0x80000000 0xc000>;
 		startup-frequency = <73728000>;
 	};

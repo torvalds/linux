@@ -88,11 +88,11 @@ config MTD_NAND_AMS_DELTA
 	  Support for NAND flash on Amstrad E3 (Delta).
 
 config MTD_NAND_OMAP2
-	tristate "NAND Flash device on OMAP2, OMAP3 and OMAP4"
-	depends on ARCH_OMAP2PLUS
+	tristate "NAND Flash device on OMAP2, OMAP3, OMAP4 and Keystone"
+	depends on (ARCH_OMAP2PLUS || ARCH_KEYSTONE)
 	help
-          Support for NAND flash on Texas Instruments OMAP2, OMAP3 and OMAP4
-	  platforms.
+          Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
+	  and Keystone platforms.
 
 config MTD_NAND_OMAP_BCH
 	depends on MTD_NAND_OMAP2
@@ -428,7 +428,7 @@ config MTD_NAND_ORION
 
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
-	depends on PPC
+	depends on FSL_SOC
 	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
@@ -438,7 +438,7 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_IFC
 	tristate "NAND support for Freescale IFC controller"
-	depends on MTD_NAND && FSL_SOC
+	depends on FSL_SOC || ARCH_LAYERSCAPE
 	select FSL_IFC
 	select MEMORY
 	help
@@ -539,7 +539,6 @@ config MTD_NAND_FSMC
 config MTD_NAND_XWAY
 	tristate "Support for NAND on Lantiq XWAY SoC"
 	depends on LANTIQ && SOC_TYPE_XWAY
-	select MTD_NAND_PLATFORM
 	help
 	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached
 	  to the External Bus Unit (EBU).
@@ -562,5 +561,12 @@ config MTD_NAND_QCOM
 	help
 	  Enables support for NAND flash chips on SoCs containing the EBI2 NAND
 	  controller. This controller is found on IPQ806x SoC.
+
+config MTD_NAND_MTK
+	tristate "Support for NAND controller on MTK SoCs"
+	depends on HAS_DMA
+	help
+	  Enables support for NAND controller on MTK SoCs.
+	  This controller is found on mt27xx, mt81xx, mt65xx SoCs.
 
 endif # MTD_NAND

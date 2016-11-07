@@ -211,7 +211,7 @@ static void meson_i2c_stop(struct meson_i2c *i2c)
 		meson_i2c_add_token(i2c, TOKEN_STOP);
 	} else {
 		i2c->state = STATE_IDLE;
-		complete_all(&i2c->done);
+		complete(&i2c->done);
 	}
 }
 
@@ -238,7 +238,7 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 		dev_dbg(i2c->dev, "error bit set\n");
 		i2c->error = -ENXIO;
 		i2c->state = STATE_IDLE;
-		complete_all(&i2c->done);
+		complete(&i2c->done);
 		goto out;
 	}
 
@@ -269,7 +269,7 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 		break;
 	case STATE_STOP:
 		i2c->state = STATE_IDLE;
-		complete_all(&i2c->done);
+		complete(&i2c->done);
 		break;
 	case STATE_IDLE:
 		break;
@@ -453,7 +453,6 @@ static int meson_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "can't register adapter\n");
 		clk_unprepare(i2c->clk);
 		return ret;
 	}
@@ -473,6 +472,7 @@ static int meson_i2c_remove(struct platform_device *pdev)
 
 static const struct of_device_id meson_i2c_match[] = {
 	{ .compatible = "amlogic,meson6-i2c" },
+	{ .compatible = "amlogic,meson-gxbb-i2c" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, meson_i2c_match);

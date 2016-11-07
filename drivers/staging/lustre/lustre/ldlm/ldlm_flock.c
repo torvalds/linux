@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -101,7 +97,7 @@ ldlm_flock_destroy(struct ldlm_lock *lock, enum ldlm_mode mode, __u64 flags)
 	LASSERT(hlist_unhashed(&lock->l_exp_flock_hash));
 
 	list_del_init(&lock->l_res_link);
-	if (flags == LDLM_FL_WAIT_NOREPROC && !ldlm_is_failed(lock)) {
+	if (flags == LDLM_FL_WAIT_NOREPROC) {
 		/* client side - set a flag to prevent sending a CANCEL */
 		lock->l_flags |= LDLM_FL_LOCAL_ONLY | LDLM_FL_CBPENDING;
 
@@ -170,7 +166,7 @@ reprocess:
 		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+					  l_res_link);
 			if (ldlm_same_flock_owner(lock, req)) {
 				ownlocks = tmp;
 				break;
@@ -186,7 +182,7 @@ reprocess:
 		 */
 		list_for_each(tmp, &res->lr_granted) {
 			lock = list_entry(tmp, struct ldlm_lock,
-					      l_res_link);
+					  l_res_link);
 
 			if (ldlm_same_flock_owner(lock, req)) {
 				if (!ownlocks)
@@ -259,14 +255,13 @@ reprocess:
 			 * overflow and underflow.
 			 */
 			if ((new->l_policy_data.l_flock.start >
-			     (lock->l_policy_data.l_flock.end + 1))
-			    && (lock->l_policy_data.l_flock.end !=
-				OBD_OBJECT_EOF))
+			     (lock->l_policy_data.l_flock.end + 1)) &&
+			    (lock->l_policy_data.l_flock.end != OBD_OBJECT_EOF))
 				continue;
 
 			if ((new->l_policy_data.l_flock.end <
-			     (lock->l_policy_data.l_flock.start - 1))
-			    && (lock->l_policy_data.l_flock.start != 0))
+			     (lock->l_policy_data.l_flock.start - 1)) &&
+			    (lock->l_policy_data.l_flock.start != 0))
 				break;
 
 			if (new->l_policy_data.l_flock.start <
@@ -344,10 +339,10 @@ reprocess:
 						lock->l_granted_mode, &null_cbs,
 						NULL, 0, LVB_T_NONE);
 			lock_res_and_lock(req);
-			if (!new2) {
+			if (IS_ERR(new2)) {
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
-				*err = -ENOLCK;
+				*err = PTR_ERR(new2);
 				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
@@ -460,29 +455,22 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	enum ldlm_error		    err;
 	int			     rc = 0;
 
+	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT2, 4);
+	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT3)) {
+		lock_res_and_lock(lock);
+		lock->l_flags |= LDLM_FL_FAIL_LOC;
+		unlock_res_and_lock(lock);
+		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT3, 4);
+	}
 	CDEBUG(D_DLMTRACE, "flags: 0x%llx data: %p getlk: %p\n",
 	       flags, data, getlk);
 
-	/* Import invalidation. We need to actually release the lock
-	 * references being held, so that it can go away. No point in
-	 * holding the lock even if app still believes it has it, since
-	 * server already dropped it anyway. Only for granted locks too.
-	 */
-	if ((lock->l_flags & (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) ==
-	    (LDLM_FL_FAILED|LDLM_FL_LOCAL_ONLY)) {
-		if (lock->l_req_mode == lock->l_granted_mode &&
-		    lock->l_granted_mode != LCK_NL && !data)
-			ldlm_lock_decref_internal(lock, lock->l_req_mode);
-
-		/* Need to wake up the waiter if we were evicted */
-		wake_up(&lock->l_waitq);
-		return 0;
-	}
-
 	LASSERT(flags != LDLM_FL_WAIT_NOREPROC);
 
-	if (!(flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED |
-		       LDLM_FL_BLOCK_CONV))) {
+	if (flags & LDLM_FL_FAILED)
+		goto granted;
+
+	if (!(flags & LDLM_FL_BLOCKED_MASK)) {
 		if (!data)
 			/* mds granted the lock in the reply */
 			goto granted;
@@ -519,12 +507,21 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 granted:
 	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT, 10);
 
-	if (ldlm_is_failed(lock)) {
-		LDLM_DEBUG(lock, "client-side enqueue waking up: failed");
-		return -EIO;
+	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT4)) {
+		lock_res_and_lock(lock);
+		/* DEADLOCK is always set with CBPENDING */
+		lock->l_flags |= LDLM_FL_FLOCK_DEADLOCK | LDLM_FL_CBPENDING;
+		unlock_res_and_lock(lock);
+		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT4, 4);
 	}
-
-	LDLM_DEBUG(lock, "client-side enqueue granted");
+	if (OBD_FAIL_PRECHECK(OBD_FAIL_LDLM_CP_CB_WAIT5)) {
+		lock_res_and_lock(lock);
+		/* DEADLOCK is always set with CBPENDING */
+		lock->l_flags |= LDLM_FL_FAIL_LOC |
+				 LDLM_FL_FLOCK_DEADLOCK | LDLM_FL_CBPENDING;
+		unlock_res_and_lock(lock);
+		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CP_CB_WAIT5, 4);
+	}
 
 	lock_res_and_lock(lock);
 
@@ -535,20 +532,59 @@ granted:
 	if (ldlm_is_destroyed(lock)) {
 		unlock_res_and_lock(lock);
 		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
-		return 0;
+		/*
+		 * An error is still to be returned, to propagate it up to
+		 * ldlm_cli_enqueue_fini() caller.
+		 */
+		return -EIO;
 	}
 
 	/* ldlm_lock_enqueue() has already placed lock on the granted list. */
-	list_del_init(&lock->l_res_link);
+	ldlm_resource_unlink_lock(lock);
 
-	if (ldlm_is_flock_deadlock(lock)) {
-		LDLM_DEBUG(lock, "client-side enqueue deadlock received");
-		rc = -EDEADLK;
-	} else if (flags & LDLM_FL_TEST_LOCK) {
+	/*
+	 * Import invalidation. We need to actually release the lock
+	 * references being held, so that it can go away. No point in
+	 * holding the lock even if app still believes it has it, since
+	 * server already dropped it anyway. Only for granted locks too.
+	 */
+	/* Do the same for DEADLOCK'ed locks. */
+	if (ldlm_is_failed(lock) || ldlm_is_flock_deadlock(lock)) {
+		int mode;
+
+		if (flags & LDLM_FL_TEST_LOCK)
+			LASSERT(ldlm_is_test_lock(lock));
+
+		if (ldlm_is_test_lock(lock) || ldlm_is_flock_deadlock(lock))
+			mode = getlk->fl_type;
+		else
+			mode = lock->l_granted_mode;
+
+		if (ldlm_is_flock_deadlock(lock)) {
+			LDLM_DEBUG(lock, "client-side enqueue deadlock received");
+			rc = -EDEADLK;
+		}
+		ldlm_flock_destroy(lock, mode, LDLM_FL_WAIT_NOREPROC);
+		unlock_res_and_lock(lock);
+
+		/* Need to wake up the waiter if we were evicted */
+		wake_up(&lock->l_waitq);
+
+		/*
+		 * An error is still to be returned, to propagate it up to
+		 * ldlm_cli_enqueue_fini() caller.
+		 */
+		return rc ? : -EIO;
+	}
+
+	LDLM_DEBUG(lock, "client-side enqueue granted");
+
+	if (flags & LDLM_FL_TEST_LOCK) {
 		/* fcntl(F_GETLK) request */
 		/* The old mode was saved in getlk->fl_type so that if the mode
 		 * in the lock changes we can decref the appropriate refcount.
 		 */
+		LASSERT(ldlm_is_test_lock(lock));
 		ldlm_flock_destroy(lock, getlk->fl_type, LDLM_FL_WAIT_NOREPROC);
 		switch (lock->l_granted_mode) {
 		case LCK_PR:

@@ -7,6 +7,8 @@
  *  arch/sh/drivers/pci/ops-sh7786.c
  *  Copyright (C) 2009 - 2011  Paul Mundt
  *
+ * Author: Phil Edworthy <phil.edworthy@renesas.com>
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -18,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -28,8 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-
-#define DRV_NAME "rcar-pcie"
 
 #define PCIECAR			0x000010
 #define PCIECCTLR		0x000018
@@ -82,8 +82,18 @@
 #define IDSETR1			0x011004
 #define TLCTLR			0x011048
 #define MACSR			0x011054
+#define  SPCHGFIN		(1 << 4)
+#define  SPCHGFAIL		(1 << 6)
+#define  SPCHGSUC		(1 << 7)
+#define  LINK_SPEED		(0xf << 16)
+#define  LINK_SPEED_2_5GTS	(1 << 16)
+#define  LINK_SPEED_5_0GTS	(2 << 16)
 #define MACCTLR			0x011058
+#define  SPEED_CHANGE		(1 << 24)
 #define  SCRAMBLE_DISABLE	(1 << 27)
+#define MACS2R			0x011078
+#define MACCGSPSETR		0x011084
+#define  SPCNGRSN		(1 << 31)
 
 /* R-Car H1 PHY */
 #define H1_PCIEPHYADRR		0x04000c
@@ -383,24 +393,82 @@ static int rcar_pcie_setup(struct list_head *resource, struct rcar_pcie *pci)
 	return 1;
 }
 
+static void rcar_pcie_force_speedup(struct rcar_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	unsigned int timeout = 1000;
+	u32 macsr;
+
+	if ((rcar_pci_read_reg(pcie, MACS2R) & LINK_SPEED) != LINK_SPEED_5_0GTS)
+		return;
+
+	if (rcar_pci_read_reg(pcie, MACCTLR) & SPEED_CHANGE) {
+		dev_err(dev, "Speed change already in progress\n");
+		return;
+	}
+
+	macsr = rcar_pci_read_reg(pcie, MACSR);
+	if ((macsr & LINK_SPEED) == LINK_SPEED_5_0GTS)
+		goto done;
+
+	/* Set target link speed to 5.0 GT/s */
+	rcar_rmw32(pcie, EXPCAP(12), PCI_EXP_LNKSTA_CLS,
+		   PCI_EXP_LNKSTA_CLS_5_0GB);
+
+	/* Set speed change reason as intentional factor */
+	rcar_rmw32(pcie, MACCGSPSETR, SPCNGRSN, 0);
+
+	/* Clear SPCHGFIN, SPCHGSUC, and SPCHGFAIL */
+	if (macsr & (SPCHGFIN | SPCHGSUC | SPCHGFAIL))
+		rcar_pci_write_reg(pcie, macsr, MACSR);
+
+	/* Start link speed change */
+	rcar_rmw32(pcie, MACCTLR, SPEED_CHANGE, SPEED_CHANGE);
+
+	while (timeout--) {
+		macsr = rcar_pci_read_reg(pcie, MACSR);
+		if (macsr & SPCHGFIN) {
+			/* Clear the interrupt bits */
+			rcar_pci_write_reg(pcie, macsr, MACSR);
+
+			if (macsr & SPCHGFAIL)
+				dev_err(dev, "Speed change failed\n");
+
+			goto done;
+		}
+
+		msleep(1);
+	};
+
+	dev_err(dev, "Speed change timed out\n");
+
+done:
+	dev_info(dev, "Current link speed is %s GT/s\n",
+		 (macsr & LINK_SPEED) == LINK_SPEED_5_0GTS ? "5" : "2.5");
+}
+
 static int rcar_pcie_enable(struct rcar_pcie *pcie)
 {
+	struct device *dev = pcie->dev;
 	struct pci_bus *bus, *child;
 	LIST_HEAD(res);
+
+	/* Try setting 5 GT/s link speed */
+	rcar_pcie_force_speedup(pcie);
 
 	rcar_pcie_setup(&res, pcie);
 
 	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
-		bus = pci_scan_root_bus_msi(pcie->dev, pcie->root_bus_nr,
+		bus = pci_scan_root_bus_msi(dev, pcie->root_bus_nr,
 				&rcar_pcie_ops, pcie, &res, &pcie->msi.chip);
 	else
-		bus = pci_scan_root_bus(pcie->dev, pcie->root_bus_nr,
+		bus = pci_scan_root_bus(dev, pcie->root_bus_nr,
 				&rcar_pcie_ops, pcie, &res);
 
 	if (!bus) {
-		dev_err(pcie->dev, "Scanning rootbus failed");
+		dev_err(dev, "Scanning rootbus failed");
 		return -ENODEV;
 	}
 
@@ -419,6 +487,7 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 
 static int phy_wait_for_ack(struct rcar_pcie *pcie)
 {
+	struct device *dev = pcie->dev;
 	unsigned int timeout = 100;
 
 	while (timeout--) {
@@ -428,7 +497,7 @@ static int phy_wait_for_ack(struct rcar_pcie *pcie)
 		udelay(100);
 	}
 
-	dev_err(pcie->dev, "Access to PCIe phy timed out\n");
+	dev_err(dev, "Access to PCIe phy timed out\n");
 
 	return -ETIMEDOUT;
 }
@@ -606,6 +675,18 @@ static int rcar_msi_alloc(struct rcar_msi *chip)
 	return msi;
 }
 
+static int rcar_msi_alloc_region(struct rcar_msi *chip, int no_irqs)
+{
+	int msi;
+
+	mutex_lock(&chip->lock);
+	msi = bitmap_find_free_region(chip->used, INT_PCI_MSI_NR,
+				      order_base_2(no_irqs));
+	mutex_unlock(&chip->lock);
+
+	return msi;
+}
+
 static void rcar_msi_free(struct rcar_msi *chip, unsigned long irq)
 {
 	mutex_lock(&chip->lock);
@@ -617,6 +698,7 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 {
 	struct rcar_pcie *pcie = data;
 	struct rcar_msi *msi = &pcie->msi;
+	struct device *dev = pcie->dev;
 	unsigned long reg;
 
 	reg = rcar_pci_read_reg(pcie, PCIEMSIFR);
@@ -637,10 +719,10 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 			if (test_bit(index, msi->used))
 				generic_handle_irq(irq);
 			else
-				dev_info(pcie->dev, "unhandled MSI\n");
+				dev_info(dev, "unhandled MSI\n");
 		} else {
 			/* Unknown MSI, just clear it */
-			dev_dbg(pcie->dev, "unexpected MSI\n");
+			dev_dbg(dev, "unexpected MSI\n");
 		}
 
 		/* see if there's any more pending in this vector */
@@ -663,13 +745,65 @@ static int rcar_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 	if (hwirq < 0)
 		return hwirq;
 
-	irq = irq_create_mapping(msi->domain, hwirq);
+	irq = irq_find_mapping(msi->domain, hwirq);
 	if (!irq) {
 		rcar_msi_free(msi, hwirq);
 		return -EINVAL;
 	}
 
 	irq_set_msi_desc(irq, desc);
+
+	msg.address_lo = rcar_pci_read_reg(pcie, PCIEMSIALR) & ~MSIFE;
+	msg.address_hi = rcar_pci_read_reg(pcie, PCIEMSIAUR);
+	msg.data = hwirq;
+
+	pci_write_msi_msg(irq, &msg);
+
+	return 0;
+}
+
+static int rcar_msi_setup_irqs(struct msi_controller *chip,
+			       struct pci_dev *pdev, int nvec, int type)
+{
+	struct rcar_pcie *pcie = container_of(chip, struct rcar_pcie, msi.chip);
+	struct rcar_msi *msi = to_rcar_msi(chip);
+	struct msi_desc *desc;
+	struct msi_msg msg;
+	unsigned int irq;
+	int hwirq;
+	int i;
+
+	/* MSI-X interrupts are not supported */
+	if (type == PCI_CAP_ID_MSIX)
+		return -EINVAL;
+
+	WARN_ON(!list_is_singular(&pdev->dev.msi_list));
+	desc = list_entry(pdev->dev.msi_list.next, struct msi_desc, list);
+
+	hwirq = rcar_msi_alloc_region(msi, nvec);
+	if (hwirq < 0)
+		return -ENOSPC;
+
+	irq = irq_find_mapping(msi->domain, hwirq);
+	if (!irq)
+		return -ENOSPC;
+
+	for (i = 0; i < nvec; i++) {
+		/*
+		 * irq_create_mapping() called from rcar_pcie_probe() pre-
+		 * allocates descs,  so there is no need to allocate descs here.
+		 * We can therefore assume that if irq_find_mapping() above
+		 * returns non-zero, then the descs are also successfully
+		 * allocated.
+		 */
+		if (irq_set_msi_desc_off(irq, i, desc)) {
+			/* TODO: clear */
+			return -EINVAL;
+		}
+	}
+
+	desc->nvec_used = nvec;
+	desc->msi_attrib.multiple = order_base_2(nvec);
 
 	msg.address_lo = rcar_pci_read_reg(pcie, PCIEMSIALR) & ~MSIFE;
 	msg.address_hi = rcar_pci_read_reg(pcie, PCIEMSIAUR);
@@ -711,38 +845,42 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int rcar_pcie_enable_msi(struct rcar_pcie *pcie)
 {
-	struct platform_device *pdev = to_platform_device(pcie->dev);
+	struct device *dev = pcie->dev;
 	struct rcar_msi *msi = &pcie->msi;
 	unsigned long base;
-	int err;
+	int err, i;
 
 	mutex_init(&msi->lock);
 
-	msi->chip.dev = pcie->dev;
+	msi->chip.dev = dev;
 	msi->chip.setup_irq = rcar_msi_setup_irq;
+	msi->chip.setup_irqs = rcar_msi_setup_irqs;
 	msi->chip.teardown_irq = rcar_msi_teardown_irq;
 
-	msi->domain = irq_domain_add_linear(pcie->dev->of_node, INT_PCI_MSI_NR,
+	msi->domain = irq_domain_add_linear(dev->of_node, INT_PCI_MSI_NR,
 					    &msi_domain_ops, &msi->chip);
 	if (!msi->domain) {
-		dev_err(&pdev->dev, "failed to create IRQ domain\n");
+		dev_err(dev, "failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
 
+	for (i = 0; i < INT_PCI_MSI_NR; i++)
+		irq_create_mapping(msi->domain, i);
+
 	/* Two irqs are for MSI, but they are also used for non-MSI irqs */
-	err = devm_request_irq(&pdev->dev, msi->irq1, rcar_pcie_msi_irq,
+	err = devm_request_irq(dev, msi->irq1, rcar_pcie_msi_irq,
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       rcar_msi_irq_chip.name, pcie);
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ: %d\n", err);
+		dev_err(dev, "failed to request IRQ: %d\n", err);
 		goto err;
 	}
 
-	err = devm_request_irq(&pdev->dev, msi->irq2, rcar_pcie_msi_irq,
+	err = devm_request_irq(dev, msi->irq2, rcar_pcie_msi_irq,
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       rcar_msi_irq_chip.name, pcie);
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ: %d\n", err);
+		dev_err(dev, "failed to request IRQ: %d\n", err);
 		goto err;
 	}
 
@@ -763,56 +901,54 @@ err:
 	return err;
 }
 
-static int rcar_pcie_get_resources(struct platform_device *pdev,
-				   struct rcar_pcie *pcie)
+static int rcar_pcie_get_resources(struct rcar_pcie *pcie)
 {
+	struct device *dev = pcie->dev;
 	struct resource res;
 	int err, i;
 
-	err = of_address_to_resource(pdev->dev.of_node, 0, &res);
+	err = of_address_to_resource(dev->of_node, 0, &res);
 	if (err)
 		return err;
 
-	pcie->clk = devm_clk_get(&pdev->dev, "pcie");
+	pcie->base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(pcie->base))
+		return PTR_ERR(pcie->base);
+
+	pcie->clk = devm_clk_get(dev, "pcie");
 	if (IS_ERR(pcie->clk)) {
-		dev_err(pcie->dev, "cannot get platform clock\n");
+		dev_err(dev, "cannot get platform clock\n");
 		return PTR_ERR(pcie->clk);
 	}
 	err = clk_prepare_enable(pcie->clk);
 	if (err)
-		goto fail_clk;
+		return err;
 
-	pcie->bus_clk = devm_clk_get(&pdev->dev, "pcie_bus");
+	pcie->bus_clk = devm_clk_get(dev, "pcie_bus");
 	if (IS_ERR(pcie->bus_clk)) {
-		dev_err(pcie->dev, "cannot get pcie bus clock\n");
+		dev_err(dev, "cannot get pcie bus clock\n");
 		err = PTR_ERR(pcie->bus_clk);
 		goto fail_clk;
 	}
 	err = clk_prepare_enable(pcie->bus_clk);
 	if (err)
-		goto err_map_reg;
+		goto fail_clk;
 
-	i = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	i = irq_of_parse_and_map(dev->of_node, 0);
 	if (!i) {
-		dev_err(pcie->dev, "cannot get platform resources for msi interrupt\n");
+		dev_err(dev, "cannot get platform resources for msi interrupt\n");
 		err = -ENOENT;
 		goto err_map_reg;
 	}
 	pcie->msi.irq1 = i;
 
-	i = irq_of_parse_and_map(pdev->dev.of_node, 1);
+	i = irq_of_parse_and_map(dev->of_node, 1);
 	if (!i) {
-		dev_err(pcie->dev, "cannot get platform resources for msi interrupt\n");
+		dev_err(dev, "cannot get platform resources for msi interrupt\n");
 		err = -ENOENT;
 		goto err_map_reg;
 	}
 	pcie->msi.irq2 = i;
-
-	pcie->base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(pcie->base)) {
-		err = PTR_ERR(pcie->base);
-		goto err_map_reg;
-	}
 
 	return 0;
 
@@ -863,12 +999,16 @@ static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
 		 * Set up 64-bit inbound regions as the range parser doesn't
 		 * distinguish between 32 and 64-bit types.
 		 */
-		rcar_pci_write_reg(pcie, lower_32_bits(pci_addr), PCIEPRAR(idx));
+		rcar_pci_write_reg(pcie, lower_32_bits(pci_addr),
+				   PCIEPRAR(idx));
 		rcar_pci_write_reg(pcie, lower_32_bits(cpu_addr), PCIELAR(idx));
-		rcar_pci_write_reg(pcie, lower_32_bits(mask) | flags, PCIELAMR(idx));
+		rcar_pci_write_reg(pcie, lower_32_bits(mask) | flags,
+				   PCIELAMR(idx));
 
-		rcar_pci_write_reg(pcie, upper_32_bits(pci_addr), PCIEPRAR(idx+1));
-		rcar_pci_write_reg(pcie, upper_32_bits(cpu_addr), PCIELAR(idx+1));
+		rcar_pci_write_reg(pcie, upper_32_bits(pci_addr),
+				   PCIEPRAR(idx + 1));
+		rcar_pci_write_reg(pcie, upper_32_bits(cpu_addr),
+				   PCIELAR(idx + 1));
 		rcar_pci_write_reg(pcie, 0, PCIELAMR(idx + 1));
 
 		pci_addr += size;
@@ -917,6 +1057,7 @@ static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 	/* Get the dma-ranges from DT */
 	for_each_of_pci_range(&parser, &range) {
 		u64 end = range.cpu_addr + range.size - 1;
+
 		dev_dbg(pcie->dev, "0x%08x 0x%016llx..0x%016llx -> 0x%016llx\n",
 			range.flags, range.cpu_addr, end, range.pci_addr);
 
@@ -930,18 +1071,15 @@ static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 
 static const struct of_device_id rcar_pcie_of_match[] = {
 	{ .compatible = "renesas,pcie-r8a7779", .data = rcar_pcie_hw_init_h1 },
-	{ .compatible = "renesas,pcie-rcar-gen2", .data = rcar_pcie_hw_init_gen2 },
-	{ .compatible = "renesas,pcie-r8a7790", .data = rcar_pcie_hw_init_gen2 },
-	{ .compatible = "renesas,pcie-r8a7791", .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-rcar-gen2",
+	  .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-r8a7790",
+	  .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-r8a7791",
+	  .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-r8a7795", .data = rcar_pcie_hw_init },
 	{},
 };
-MODULE_DEVICE_TABLE(of, rcar_pcie_of_match);
-
-static void rcar_pcie_release_of_pci_ranges(struct rcar_pcie *pci)
-{
-	pci_free_resource_list(&pci->resources);
-}
 
 static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 {
@@ -949,102 +1087,94 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	struct device *dev = pci->dev;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
-	struct resource_entry *win;
+	struct resource_entry *win, *tmp;
 
-	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources, &iobase);
+	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
+					       &iobase);
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, &pci->resources) {
-		struct resource *parent, *res = win->res;
+	err = devm_request_pci_bus_resources(dev, &pci->resources);
+	if (err)
+		goto out_release_res;
 
-		switch (resource_type(res)) {
-		case IORESOURCE_IO:
-			parent = &ioport_resource;
+	resource_list_for_each_entry_safe(win, tmp, &pci->resources) {
+		struct resource *res = win->res;
+
+		if (resource_type(res) == IORESOURCE_IO) {
 			err = pci_remap_iospace(res, iobase);
 			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
-				continue;
+
+				resource_list_destroy_entry(win);
 			}
-			break;
-		case IORESOURCE_MEM:
-			parent = &iomem_resource;
-			break;
-
-		case IORESOURCE_BUS:
-		default:
-			continue;
 		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
 	}
 
 	return 0;
 
 out_release_res:
-	rcar_pcie_release_of_pci_ranges(pci);
+	pci_free_resource_list(&pci->resources);
 	return err;
 }
 
 static int rcar_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct rcar_pcie *pcie;
 	unsigned int data;
 	const struct of_device_id *of_id;
 	int err;
 	int (*hw_init_fn)(struct rcar_pcie *);
 
-	pcie = devm_kzalloc(&pdev->dev, sizeof(*pcie), GFP_KERNEL);
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
-	pcie->dev = &pdev->dev;
-	platform_set_drvdata(pdev, pcie);
+	pcie->dev = dev;
 
 	INIT_LIST_HEAD(&pcie->resources);
 
 	rcar_pcie_parse_request_of_pci_ranges(pcie);
 
-	err = rcar_pcie_get_resources(pdev, pcie);
+	err = rcar_pcie_get_resources(pcie);
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request resources: %d\n", err);
+		dev_err(dev, "failed to request resources: %d\n", err);
 		return err;
 	}
 
-	 err = rcar_pcie_parse_map_dma_ranges(pcie, pdev->dev.of_node);
-	 if (err)
+	err = rcar_pcie_parse_map_dma_ranges(pcie, dev->of_node);
+	if (err)
 		return err;
 
-	of_id = of_match_device(rcar_pcie_of_match, pcie->dev);
+	of_id = of_match_device(rcar_pcie_of_match, dev);
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 	hw_init_fn = of_id->data;
 
-	pm_runtime_enable(pcie->dev);
-	err = pm_runtime_get_sync(pcie->dev);
+	pm_runtime_enable(dev);
+	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
-		dev_err(pcie->dev, "pm_runtime_get_sync failed\n");
+		dev_err(dev, "pm_runtime_get_sync failed\n");
 		goto err_pm_disable;
 	}
 
 	/* Failure to get a link might just be that no cards are inserted */
 	err = hw_init_fn(pcie);
 	if (err) {
-		dev_info(&pdev->dev, "PCIe link down\n");
+		dev_info(dev, "PCIe link down\n");
 		err = 0;
 		goto err_pm_put;
 	}
 
 	data = rcar_pci_read_reg(pcie, MACSR);
-	dev_info(&pdev->dev, "PCIe x%d: link up\n", (data >> 20) & 0x3f);
+	dev_info(dev, "PCIe x%d: link up\n", (data >> 20) & 0x3f);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rcar_pcie_enable_msi(pcie);
 		if (err < 0) {
-			dev_err(&pdev->dev,
+			dev_err(dev,
 				"failed to enable MSI support: %d\n",
 				err);
 			goto err_pm_put;
@@ -1058,23 +1188,19 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	return 0;
 
 err_pm_put:
-	pm_runtime_put(pcie->dev);
+	pm_runtime_put(dev);
 
 err_pm_disable:
-	pm_runtime_disable(pcie->dev);
+	pm_runtime_disable(dev);
 	return err;
 }
 
 static struct platform_driver rcar_pcie_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "rcar-pcie",
 		.of_match_table = rcar_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe = rcar_pcie_probe,
 };
-module_platform_driver(rcar_pcie_driver);
-
-MODULE_AUTHOR("Phil Edworthy <phil.edworthy@renesas.com>");
-MODULE_DESCRIPTION("Renesas R-Car PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(rcar_pcie_driver);

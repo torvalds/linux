@@ -15,7 +15,6 @@
 #include <linux/crypto.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
-#include <linux/kthread.h>
 #include <linux/skbuff.h>
 
 struct crypto_aead;
@@ -129,75 +128,6 @@ struct ablkcipher_walk {
 	unsigned int		blocksize;
 };
 
-#define ENGINE_NAME_LEN	30
-/*
- * struct crypto_engine - crypto hardware engine
- * @name: the engine name
- * @idling: the engine is entering idle state
- * @busy: request pump is busy
- * @running: the engine is on working
- * @cur_req_prepared: current request is prepared
- * @list: link with the global crypto engine list
- * @queue_lock: spinlock to syncronise access to request queue
- * @queue: the crypto queue of the engine
- * @rt: whether this queue is set to run as a realtime task
- * @prepare_crypt_hardware: a request will soon arrive from the queue
- * so the subsystem requests the driver to prepare the hardware
- * by issuing this call
- * @unprepare_crypt_hardware: there are currently no more requests on the
- * queue so the subsystem notifies the driver that it may relax the
- * hardware by issuing this call
- * @prepare_request: do some prepare if need before handle the current request
- * @unprepare_request: undo any work done by prepare_message()
- * @crypt_one_request: do encryption for current request
- * @kworker: thread struct for request pump
- * @kworker_task: pointer to task for request pump kworker thread
- * @pump_requests: work struct for scheduling work to the request pump
- * @priv_data: the engine private data
- * @cur_req: the current request which is on processing
- */
-struct crypto_engine {
-	char			name[ENGINE_NAME_LEN];
-	bool			idling;
-	bool			busy;
-	bool			running;
-	bool			cur_req_prepared;
-
-	struct list_head	list;
-	spinlock_t		queue_lock;
-	struct crypto_queue	queue;
-
-	bool			rt;
-
-	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
-
-	int (*prepare_request)(struct crypto_engine *engine,
-			       struct ablkcipher_request *req);
-	int (*unprepare_request)(struct crypto_engine *engine,
-				 struct ablkcipher_request *req);
-	int (*crypt_one_request)(struct crypto_engine *engine,
-				 struct ablkcipher_request *req);
-
-	struct kthread_worker           kworker;
-	struct task_struct              *kworker_task;
-	struct kthread_work             pump_requests;
-
-	void				*priv_data;
-	struct ablkcipher_request	*cur_req;
-};
-
-int crypto_transfer_request(struct crypto_engine *engine,
-			    struct ablkcipher_request *req, bool need_pump);
-int crypto_transfer_request_to_engine(struct crypto_engine *engine,
-				      struct ablkcipher_request *req);
-void crypto_finalize_request(struct crypto_engine *engine,
-			     struct ablkcipher_request *req, int err);
-int crypto_engine_start(struct crypto_engine *engine);
-int crypto_engine_stop(struct crypto_engine *engine);
-struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt);
-int crypto_engine_exit(struct crypto_engine *engine);
-
 extern const struct crypto_type crypto_ablkcipher_type;
 extern const struct crypto_type crypto_blkcipher_type;
 
@@ -244,6 +174,8 @@ static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
 }
 
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
+int crypto_inst_setname(struct crypto_instance *inst, const char *name,
+			struct crypto_alg *alg);
 void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
 			     unsigned int head);
 struct crypto_instance *crypto_alloc_instance(const char *name,
@@ -440,8 +372,10 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 
 static inline void crypto_yield(u32 flags)
 {
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PREEMPT_VOLUNTARY)
 	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
+#endif
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

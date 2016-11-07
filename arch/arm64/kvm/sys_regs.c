@@ -36,6 +36,7 @@
 #include <asm/kvm_host.h>
 #include <asm/kvm_mmu.h>
 #include <asm/perf_event.h>
+#include <asm/sysreg.h>
 
 #include <trace/events/kvm.h>
 
@@ -67,11 +68,9 @@ static u32 get_ccsidr(u32 csselr)
 
 	/* Make sure noone else changes CSSELR during this! */
 	local_irq_disable();
-	/* Put value into CSSELR */
-	asm volatile("msr csselr_el1, %x0" : : "r" (csselr));
+	write_sysreg(csselr, csselr_el1);
 	isb();
-	/* Read result out of CCSIDR */
-	asm volatile("mrs %0, ccsidr_el1" : "=r" (ccsidr));
+	ccsidr = read_sysreg(ccsidr_el1);
 	local_irq_enable();
 
 	return ccsidr;
@@ -174,9 +173,7 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
 	if (p->is_write) {
 		return ignore_write(vcpu, p);
 	} else {
-		u32 val;
-		asm volatile("mrs %0, dbgauthstatus_el1" : "=r" (val));
-		p->regval = val;
+		p->regval = read_sysreg(dbgauthstatus_el1);
 		return true;
 	}
 }
@@ -429,10 +426,7 @@ static void reset_wcr(struct kvm_vcpu *vcpu,
 
 static void reset_amair_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	u64 amair;
-
-	asm volatile("mrs %0, amair_el1\n" : "=r" (amair));
-	vcpu_sys_reg(vcpu, AMAIR_EL1) = amair;
+	vcpu_sys_reg(vcpu, AMAIR_EL1) = read_sysreg(amair_el1);
 }
 
 static void reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
@@ -456,8 +450,9 @@ static void reset_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	u64 pmcr, val;
 
-	asm volatile("mrs %0, pmcr_el0\n" : "=r" (pmcr));
-	/* Writable bits of PMCR_EL0 (ARMV8_PMU_PMCR_MASK) is reset to UNKNOWN
+	pmcr = read_sysreg(pmcr_el0);
+	/*
+	 * Writable bits of PMCR_EL0 (ARMV8_PMU_PMCR_MASK) are reset to UNKNOWN
 	 * except PMCR.E resetting to zero.
 	 */
 	val = ((pmcr & ~ARMV8_PMU_PMCR_MASK)
@@ -557,9 +552,9 @@ static bool access_pmceid(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		return false;
 
 	if (!(p->Op2 & 1))
-		asm volatile("mrs %0, pmceid0_el0\n" : "=r" (pmceid));
+		pmceid = read_sysreg(pmceid0_el0);
 	else
-		asm volatile("mrs %0, pmceid1_el0\n" : "=r" (pmceid));
+		pmceid = read_sysreg(pmceid1_el0);
 
 	p->regval = pmceid;
 
@@ -822,14 +817,6 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 /*
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
- *
- * We could trap ID_DFR0 and tell the guest we don't support performance
- * monitoring.  Unfortunately the patch to make the kernel check ID_DFR0 was
- * NAKed, so it will read the PMCR anyway.
- *
- * Therefore we tell the guest we have 0 counters.  Unfortunately, we
- * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
- * all PM registers, which doesn't crash the guest kernel at least.
  *
  * Debug handling: We do trap most, if not all debug related system
  * registers. The implementation is good enough to ensure that a guest
@@ -1360,7 +1347,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn(10), CRm( 3), Op2( 1), access_vm_reg, NULL, c10_AMAIR1 },
 
 	/* ICC_SRE */
-	{ Op1( 0), CRn(12), CRm(12), Op2( 5), trap_raz_wi },
+	{ Op1( 0), CRn(12), CRm(12), Op2( 5), access_gic_sre },
 
 	{ Op1( 0), CRn(13), CRm( 0), Op2( 1), access_vm_reg, NULL, c13_CID },
 
@@ -1546,7 +1533,7 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 				struct sys_reg_params *params)
 {
 	u8 hsr_ec = kvm_vcpu_trap_get_class(vcpu);
-	int cp;
+	int cp = -1;
 
 	switch(hsr_ec) {
 	case ESR_ELx_EC_CP15_32:
@@ -1558,7 +1545,7 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 		cp = 14;
 		break;
 	default:
-		WARN_ON((cp = -1));
+		WARN_ON(1);
 	}
 
 	kvm_err("Unsupported guest CP%d access at: %08lx\n",
@@ -1841,11 +1828,7 @@ static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 	static void get_##reg(struct kvm_vcpu *v,			\
 			      const struct sys_reg_desc *r)		\
 	{								\
-		u64 val;						\
-									\
-		asm volatile("mrs %0, " __stringify(reg) "\n"		\
-			     : "=r" (val));				\
-		((struct sys_reg_desc *)r)->val = val;			\
+		((struct sys_reg_desc *)r)->val = read_sysreg(reg);	\
 	}
 
 FUNCTION_INVARIANT(midr_el1)

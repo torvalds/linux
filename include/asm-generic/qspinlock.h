@@ -111,10 +111,9 @@ static __always_inline void queued_spin_lock(struct qspinlock *lock)
 static __always_inline void queued_spin_unlock(struct qspinlock *lock)
 {
 	/*
-	 * smp_mb__before_atomic() in order to guarantee release semantics
+	 * unlock() needs release semantics:
 	 */
-	smp_mb__before_atomic();
-	atomic_sub(_Q_LOCKED_VAL, &lock->val);
+	(void)atomic_sub_return_release(_Q_LOCKED_VAL, &lock->val);
 }
 #endif
 

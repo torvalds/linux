@@ -54,23 +54,34 @@ struct mmu_rb_node {
 	unsigned long len;
 	unsigned long __last;
 	struct rb_node node;
+	struct list_head list;
 };
 
+/*
+ * NOTE: filter, insert, invalidate, and evict must not sleep.  Only remove is
+ * allowed to sleep.
+ */
 struct mmu_rb_ops {
-	bool (*filter)(struct mmu_rb_node *, unsigned long, unsigned long);
-	int (*insert)(struct rb_root *, struct mmu_rb_node *);
-	void (*remove)(struct rb_root *, struct mmu_rb_node *,
-		       struct mm_struct *);
-	int (*invalidate)(struct rb_root *, struct mmu_rb_node *);
+	bool (*filter)(struct mmu_rb_node *node, unsigned long addr,
+		       unsigned long len);
+	int (*insert)(void *ops_arg, struct mmu_rb_node *mnode);
+	void (*remove)(void *ops_arg, struct mmu_rb_node *mnode);
+	int (*invalidate)(void *ops_arg, struct mmu_rb_node *node);
+	int (*evict)(void *ops_arg, struct mmu_rb_node *mnode,
+		     void *evict_arg, bool *stop);
 };
 
-int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops);
-void hfi1_mmu_rb_unregister(struct rb_root *);
-int hfi1_mmu_rb_insert(struct rb_root *, struct mmu_rb_node *);
-void hfi1_mmu_rb_remove(struct rb_root *, struct mmu_rb_node *);
-struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *, unsigned long,
-				       unsigned long);
-struct mmu_rb_node *hfi1_mmu_rb_extract(struct rb_root *, unsigned long,
-					unsigned long);
+int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
+			 struct mmu_rb_ops *ops,
+			 struct workqueue_struct *wq,
+			 struct mmu_rb_handler **handler);
+void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler);
+int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
+		       struct mmu_rb_node *mnode);
+void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg);
+void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
+			struct mmu_rb_node *mnode);
+struct mmu_rb_node *hfi1_mmu_rb_extract(struct mmu_rb_handler *handler,
+					unsigned long addr, unsigned long len);
 
 #endif /* _HFI1_MMU_RB_H */

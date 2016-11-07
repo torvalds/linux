@@ -38,7 +38,7 @@ MODULE_PARM_DESC(runs, "Number of test runs per variant (default: 4)");
 
 static int max_size = 0;
 module_param(max_size, int, 0);
-MODULE_PARM_DESC(runs, "Maximum table size (default: calculated)");
+MODULE_PARM_DESC(max_size, "Maximum table size (default: calculated)");
 
 static bool shrinking = false;
 module_param(shrinking, bool, 0);

@@ -38,19 +38,26 @@
 #define GMAC_WAKEUP_FILTER	0x00000028	/* Wake-up Frame Filter */
 
 #define GMAC_INT_STATUS		0x00000038	/* interrupt status register */
-enum dwmac1000_irq_status {
-	lpiis_irq = 0x400,
-	time_stamp_irq = 0x0200,
-	mmc_rx_csum_offload_irq = 0x0080,
-	mmc_tx_irq = 0x0040,
-	mmc_rx_irq = 0x0020,
-	mmc_irq = 0x0010,
-	pmt_irq = 0x0008,
-	pcs_ane_irq = 0x0004,
-	pcs_link_irq = 0x0002,
-	rgmii_irq = 0x0001,
-};
-#define GMAC_INT_MASK		0x0000003c	/* interrupt mask register */
+#define GMAC_INT_STATUS_PMT	BIT(3)
+#define GMAC_INT_STATUS_MMCIS	BIT(4)
+#define GMAC_INT_STATUS_MMCRIS	BIT(5)
+#define GMAC_INT_STATUS_MMCTIS	BIT(6)
+#define GMAC_INT_STATUS_MMCCSUM	BIT(7)
+#define GMAC_INT_STATUS_TSTAMP	BIT(9)
+#define GMAC_INT_STATUS_LPIIS	BIT(10)
+
+/* interrupt mask register */
+#define	GMAC_INT_MASK		0x0000003c
+#define	GMAC_INT_DISABLE_RGMII		BIT(0)
+#define	GMAC_INT_DISABLE_PCSLINK	BIT(1)
+#define	GMAC_INT_DISABLE_PCSAN		BIT(2)
+#define	GMAC_INT_DISABLE_PMT		BIT(3)
+#define	GMAC_INT_DISABLE_TIMESTAMP	BIT(9)
+#define	GMAC_INT_DISABLE_PCS	(GMAC_INT_DISABLE_RGMII | \
+				 GMAC_INT_DISABLE_PCSLINK | \
+				 GMAC_INT_DISABLE_PCSAN)
+#define	GMAC_INT_DEFAULT_MASK	(GMAC_INT_DISABLE_TIMESTAMP | \
+				 GMAC_INT_DISABLE_PCS)
 
 /* PMT Control and Status */
 #define GMAC_PMT		0x0000002c
@@ -90,42 +97,23 @@ enum power_event {
 				(reg * 8))
 #define GMAC_MAX_PERFECT_ADDRESSES	1
 
-/* PCS registers (AN/TBI/SGMII/RGMII) offset */
-#define GMAC_AN_CTRL	0x000000c0	/* AN control */
-#define GMAC_AN_STATUS	0x000000c4	/* AN status */
-#define GMAC_ANE_ADV	0x000000c8	/* Auto-Neg. Advertisement */
-#define GMAC_ANE_LPA	0x000000cc	/* Auto-Neg. link partener ability */
-#define GMAC_ANE_EXP	0x000000d0	/* ANE expansion */
-#define GMAC_TBI	0x000000d4	/* TBI extend status */
-#define GMAC_S_R_GMII	0x000000d8	/* SGMII RGMII status */
+#define GMAC_PCS_BASE		0x000000c0	/* PCS register base */
+#define GMAC_RGSMIIIS		0x000000d8	/* RGMII/SMII status */
 
-/* AN Configuration defines */
-#define GMAC_AN_CTRL_RAN	0x00000200	/* Restart Auto-Negotiation */
-#define GMAC_AN_CTRL_ANE	0x00001000	/* Auto-Negotiation Enable */
-#define GMAC_AN_CTRL_ELE	0x00004000	/* External Loopback Enable */
-#define GMAC_AN_CTRL_ECD	0x00010000	/* Enable Comma Detect */
-#define GMAC_AN_CTRL_LR		0x00020000	/* Lock to Reference */
-#define GMAC_AN_CTRL_SGMRAL	0x00040000	/* SGMII RAL Control */
-
-/* AN Status defines */
-#define GMAC_AN_STATUS_LS	0x00000004	/* Link Status 0:down 1:up */
-#define GMAC_AN_STATUS_ANA	0x00000008	/* Auto-Negotiation Ability */
-#define GMAC_AN_STATUS_ANC	0x00000020	/* Auto-Negotiation Complete */
-#define GMAC_AN_STATUS_ES	0x00000100	/* Extended Status */
-
-/* Register 54 (SGMII/RGMII status register) */
-#define GMAC_S_R_GMII_LINK		0x8
-#define GMAC_S_R_GMII_SPEED		0x5
-#define GMAC_S_R_GMII_SPEED_SHIFT	0x1
-#define GMAC_S_R_GMII_MODE		0x1
-#define GMAC_S_R_GMII_SPEED_125		2
-#define GMAC_S_R_GMII_SPEED_25		1
-
-/* Common ADV and LPA defines */
-#define GMAC_ANE_FD		(1 << 5)
-#define GMAC_ANE_HD		(1 << 6)
-#define GMAC_ANE_PSE		(3 << 7)
-#define GMAC_ANE_PSE_SHIFT	7
+/* SGMII/RGMII status register */
+#define GMAC_RGSMIIIS_LNKMODE		BIT(0)
+#define GMAC_RGSMIIIS_SPEED		GENMASK(2, 1)
+#define GMAC_RGSMIIIS_SPEED_SHIFT	1
+#define GMAC_RGSMIIIS_LNKSTS		BIT(3)
+#define GMAC_RGSMIIIS_JABTO		BIT(4)
+#define GMAC_RGSMIIIS_FALSECARDET	BIT(5)
+#define GMAC_RGSMIIIS_SMIDRXS		BIT(16)
+/* LNKMOD */
+#define GMAC_RGSMIIIS_LNKMOD_MASK	0x1
+/* LNKSPEED */
+#define GMAC_RGSMIIIS_SPEED_125		0x2
+#define GMAC_RGSMIIIS_SPEED_25		0x1
+#define GMAC_RGSMIIIS_SPEED_2_5		0x0
 
 /* GMAC Configuration defines */
 #define GMAC_CONTROL_2K 0x08000000	/* IEEE 802.3as 2K packets */

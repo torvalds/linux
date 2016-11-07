@@ -381,7 +381,7 @@ static int twl_to_irq(struct gpio_chip *chip, unsigned offset)
 		: -EINVAL;
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "twl4030",
 	.owner			= THIS_MODULE,
 	.request		= twl_request,

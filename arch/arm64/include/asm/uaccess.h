@@ -21,6 +21,8 @@
 /*
  * User space memory access functions
  */
+#include <linux/bitops.h>
+#include <linux/kasan-checks.h>
 #include <linux/string.h>
 #include <linux/thread_info.h>
 
@@ -100,6 +102,13 @@ static inline void set_fs(mm_segment_t fs)
 		: "cc");						\
 	flag;								\
 })
+
+/*
+ * When dealing with data aborts or instruction traps we may end up with
+ * a tagged userland pointer. Clear the tag to get a sane pointer to pass
+ * on to access_ok(), for instance.
+ */
+#define untagged_addr(addr)		sign_extend64(addr, 55)
 
 #define access_ok(type, addr, size)	__range_ok(addr, size)
 #define user_addr_max			get_fs
@@ -256,24 +265,47 @@ do {									\
 		-EFAULT;						\
 })
 
-extern unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n);
-extern unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n);
+extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
+extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
 extern unsigned long __must_check __copy_in_user(void __user *to, const void __user *from, unsigned long n);
 extern unsigned long __must_check __clear_user(void __user *addr, unsigned long n);
 
+static inline unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	kasan_check_write(to, n);
+	check_object_size(to, n, false);
+	return __arch_copy_from_user(to, from, n);
+}
+
+static inline unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	kasan_check_read(from, n);
+	check_object_size(from, n, true);
+	return __arch_copy_to_user(to, from, n);
+}
+
 static inline unsigned long __must_check copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (access_ok(VERIFY_READ, from, n))
-		n = __copy_from_user(to, from, n);
-	else /* security hole - plug it */
-		memset(to, 0, n);
-	return n;
+	unsigned long res = n;
+	kasan_check_write(to, n);
+
+	if (access_ok(VERIFY_READ, from, n)) {
+		check_object_size(to, n, false);
+		res = __arch_copy_from_user(to, from, n);
+	}
+	if (unlikely(res))
+		memset(to + (n - res), 0, res);
+	return res;
 }
 
 static inline unsigned long __must_check copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
-		n = __copy_to_user(to, from, n);
+	kasan_check_read(from, n);
+
+	if (access_ok(VERIFY_WRITE, to, n)) {
+		check_object_size(from, n, true);
+		n = __arch_copy_to_user(to, from, n);
+	}
 	return n;
 }
 

@@ -38,12 +38,26 @@
 
 #define DRV_NAME "LiquidIO"
 
-/**
- * \brief determines if a given console has debug enabled.
- * @param console console to check
- * @returns  1 = enabled. 0 otherwise
+/** This structure is used by NIC driver to store information required
+ * to free the sk_buff when the packet has been fetched by Octeon.
+ * Bytes offset below assume worst-case of a 64-bit system.
  */
-int octeon_console_debug_enabled(u32 console);
+struct octnet_buf_free_info {
+	/** Bytes 1-8.  Pointer to network device private structure. */
+	struct lio *lio;
+
+	/** Bytes 9-16.  Pointer to sk_buff. */
+	struct sk_buff *skb;
+
+	/** Bytes 17-24.  Pointer to gather list. */
+	struct octnic_gather *g;
+
+	/** Bytes 25-32. Physical address of skb->data or gather list. */
+	u64 dptr;
+
+	/** Bytes 33-47. Piggybacked soft command, if any */
+	struct octeon_soft_command *sc;
+};
 
 /* BQL-related functions */
 void octeon_report_sent_bytes_to_bql(void *buf, int reqtype);
@@ -126,22 +140,27 @@ static inline int octeon_map_pci_barx(struct octeon_device *oct,
 }
 
 static inline void *
-cnnic_alloc_aligned_dma(struct pci_dev *pci_dev,
-			u32 size,
-			u32 *alloc_size,
-			size_t *orig_ptr,
-			size_t *dma_addr __attribute__((unused)))
+cnnic_numa_alloc_aligned_dma(u32 size,
+			     u32 *alloc_size,
+			     size_t *orig_ptr,
+			     int numa_node)
 {
 	int retries = 0;
 	void *ptr = NULL;
 
 #define OCTEON_MAX_ALLOC_RETRIES     1
 	do {
-		ptr =
-		    (void *)__get_free_pages(GFP_KERNEL,
-					     get_order(size));
+		struct page *page = NULL;
+
+		page = alloc_pages_node(numa_node,
+					GFP_KERNEL,
+					get_order(size));
+		if (!page)
+			page = alloc_pages(GFP_KERNEL,
+					   get_order(size));
+		ptr = (void *)page_address(page);
 		if ((unsigned long)ptr & 0x07) {
-			free_pages((unsigned long)ptr, get_order(size));
+			__free_pages(page, get_order(size));
 			ptr = NULL;
 			/* Increment the size required if the first
 			 * attempt failed.
@@ -162,22 +181,26 @@ cnnic_alloc_aligned_dma(struct pci_dev *pci_dev,
 #define cnnic_free_aligned_dma(pci_dev, ptr, size, orig_ptr, dma_addr) \
 		free_pages(orig_ptr, get_order(size))
 
-static inline void
+static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {
+	int errno = 0;
 	wait_queue_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
-	while (!(ACCESS_ONCE(*condition))) {
+	while (!(READ_ONCE(*condition))) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
+		if (signal_pending(current)) {
+			errno = -EINTR;
 			goto out;
+		}
 		schedule();
 	}
 out:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(wait_queue, &we);
+	return errno;
 }
 
 static inline void

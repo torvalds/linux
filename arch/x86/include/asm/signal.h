@@ -23,6 +23,10 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
+/* non-uapi in-kernel SA_FLAGS for those indicates ABI for a signal frame */
+#define SA_IA32_ABI	0x02000000u
+#define SA_X32_ABI	0x01000000u
+
 #ifndef CONFIG_COMPAT
 typedef sigset_t compat_sigset_t;
 #endif
@@ -81,9 +85,9 @@ static inline int __const_sigismember(sigset_t *set, int _sig)
 
 static inline int __gen_sigismember(sigset_t *set, int _sig)
 {
-	int ret;
-	asm("btl %2,%1\n\tsbbl %0,%0"
-	    : "=r"(ret) : "m"(*set), "Ir"(_sig-1) : "cc");
+	unsigned char ret;
+	asm("btl %2,%1\n\tsetc %0"
+	    : "=qm"(ret) : "m"(*set), "Ir"(_sig-1) : "cc");
 	return ret;
 }
 

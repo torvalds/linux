@@ -55,7 +55,7 @@
 #include <linux/mlx4/qp.h>
 
 #include "mlx4_ib.h"
-#include "user.h"
+#include <rdma/mlx4-abi.h>
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
 #define DRV_VERSION	"2.2-1"
@@ -832,6 +832,66 @@ static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return ret;
 }
 
+static int mlx4_ib_query_sl2vl(struct ib_device *ibdev, u8 port, u64 *sl2vl_tbl)
+{
+	union sl2vl_tbl_to_u64 sl2vl64;
+	struct ib_smp *in_mad  = NULL;
+	struct ib_smp *out_mad = NULL;
+	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
+	int err = -ENOMEM;
+	int jj;
+
+	if (mlx4_is_slave(to_mdev(ibdev)->dev)) {
+		*sl2vl_tbl = 0;
+		return 0;
+	}
+
+	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
+	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
+	if (!in_mad || !out_mad)
+		goto out;
+
+	init_query_mad(in_mad);
+	in_mad->attr_id  = IB_SMP_ATTR_SL_TO_VL_TABLE;
+	in_mad->attr_mod = 0;
+
+	if (mlx4_is_mfunc(to_mdev(ibdev)->dev))
+		mad_ifc_flags |= MLX4_MAD_IFC_NET_VIEW;
+
+	err = mlx4_MAD_IFC(to_mdev(ibdev), mad_ifc_flags, port, NULL, NULL,
+			   in_mad, out_mad);
+	if (err)
+		goto out;
+
+	for (jj = 0; jj < 8; jj++)
+		sl2vl64.sl8[jj] = ((struct ib_smp *)out_mad)->data[jj];
+	*sl2vl_tbl = sl2vl64.sl64;
+
+out:
+	kfree(in_mad);
+	kfree(out_mad);
+	return err;
+}
+
+static void mlx4_init_sl2vl_tbl(struct mlx4_ib_dev *mdev)
+{
+	u64 sl2vl;
+	int i;
+	int err;
+
+	for (i = 1; i <= mdev->dev->caps.num_ports; i++) {
+		if (mdev->dev->caps.port_type[i] == MLX4_PORT_TYPE_ETH)
+			continue;
+		err = mlx4_ib_query_sl2vl(&mdev->ib_dev, i, &sl2vl);
+		if (err) {
+			pr_err("Unable to get default sl to vl mapping for port %d.  Using all zeroes (%d)\n",
+			       i, err);
+			sl2vl = 0;
+		}
+		atomic64_set(&mdev->sl2vl[i - 1], sl2vl);
+	}
+}
+
 int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 			 u16 *pkey, int netw_view)
 {
@@ -886,7 +946,7 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&to_mdev(ibdev)->sm_lock, flags);
-	memcpy(ibdev->node_desc, props->node_desc, 64);
+	memcpy(ibdev->node_desc, props->node_desc, IB_DEVICE_NODE_DESC_MAX);
 	spin_unlock_irqrestore(&to_mdev(ibdev)->sm_lock, flags);
 
 	/*
@@ -897,7 +957,7 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	if (IS_ERR(mailbox))
 		return 0;
 
-	memcpy(mailbox->buf, props->node_desc, 64);
+	memcpy(mailbox->buf, props->node_desc, IB_DEVICE_NODE_DESC_MAX);
 	mlx4_cmd(to_mdev(ibdev)->dev, mailbox->dma, 1, 0,
 		 MLX4_CMD_SET_NODE, MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 
@@ -1259,7 +1319,7 @@ static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
 	if (err)
 		goto err1;
 
-	xrcd->pd = ib_alloc_pd(ibdev);
+	xrcd->pd = ib_alloc_pd(ibdev, 0);
 	if (IS_ERR(xrcd->pd)) {
 		err = PTR_ERR(xrcd->pd);
 		goto err2;
@@ -1361,6 +1421,19 @@ struct mlx4_ib_steering {
 	union ib_gid gid;
 };
 
+#define LAST_ETH_FIELD vlan_tag
+#define LAST_IB_FIELD sl
+#define LAST_IPV4_FIELD dst_ip
+#define LAST_TCP_UDP_FIELD src_port
+
+/* Field is the last supported field */
+#define FIELDS_NOT_SUPPORTED(filter, field)\
+	memchr_inv((void *)&filter.field  +\
+		   sizeof(filter.field), 0,\
+		   sizeof(filter) -\
+		   offsetof(typeof(filter), field) -\
+		   sizeof(filter.field))
+
 static int parse_flow_attr(struct mlx4_dev *dev,
 			   u32 qp_num,
 			   union ib_flow_spec *ib_spec,
@@ -1370,6 +1443,9 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 
 	switch (ib_spec->type) {
 	case IB_FLOW_SPEC_ETH:
+		if (FIELDS_NOT_SUPPORTED(ib_spec->eth.mask, LAST_ETH_FIELD))
+			return -ENOTSUPP;
+
 		type = MLX4_NET_TRANS_RULE_ID_ETH;
 		memcpy(mlx4_spec->eth.dst_mac, ib_spec->eth.val.dst_mac,
 		       ETH_ALEN);
@@ -1379,6 +1455,9 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 		mlx4_spec->eth.vlan_tag_msk = ib_spec->eth.mask.vlan_tag;
 		break;
 	case IB_FLOW_SPEC_IB:
+		if (FIELDS_NOT_SUPPORTED(ib_spec->ib.mask, LAST_IB_FIELD))
+			return -ENOTSUPP;
+
 		type = MLX4_NET_TRANS_RULE_ID_IB;
 		mlx4_spec->ib.l3_qpn =
 			cpu_to_be32(qp_num);
@@ -1388,6 +1467,9 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 
 
 	case IB_FLOW_SPEC_IPV4:
+		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv4.mask, LAST_IPV4_FIELD))
+			return -ENOTSUPP;
+
 		type = MLX4_NET_TRANS_RULE_ID_IPV4;
 		mlx4_spec->ipv4.src_ip = ib_spec->ipv4.val.src_ip;
 		mlx4_spec->ipv4.src_ip_msk = ib_spec->ipv4.mask.src_ip;
@@ -1397,6 +1479,9 @@ static int parse_flow_attr(struct mlx4_dev *dev,
 
 	case IB_FLOW_SPEC_TCP:
 	case IB_FLOW_SPEC_UDP:
+		if (FIELDS_NOT_SUPPORTED(ib_spec->tcp_udp.mask, LAST_TCP_UDP_FIELD))
+			return -ENOTSUPP;
+
 		type = ib_spec->type == IB_FLOW_SPEC_TCP ?
 					MLX4_NET_TRANS_RULE_ID_TCP :
 					MLX4_NET_TRANS_RULE_ID_UDP;
@@ -2000,7 +2085,7 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 	if (err)
 		goto out;
 
-	memcpy(dev->ib_dev.node_desc, out_mad->data, 64);
+	memcpy(dev->ib_dev.node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
 
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
@@ -2025,16 +2110,6 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
-			   char *buf)
-{
-	struct mlx4_ib_dev *dev =
-		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
-	return sprintf(buf, "%d.%d.%d\n", (int) (dev->dev->caps.fw_ver >> 32),
-		       (int) (dev->dev->caps.fw_ver >> 16) & 0xffff,
-		       (int) dev->dev->caps.fw_ver & 0xffff);
-}
-
 static ssize_t show_rev(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
@@ -2053,16 +2128,206 @@ static ssize_t show_board(struct device *device, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 
 static struct device_attribute *mlx4_class_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id
 };
+
+struct diag_counter {
+	const char *name;
+	u32 offset;
+};
+
+#define DIAG_COUNTER(_name, _offset)			\
+	{ .name = #_name, .offset = _offset }
+
+static const struct diag_counter diag_basic[] = {
+	DIAG_COUNTER(rq_num_lle, 0x00),
+	DIAG_COUNTER(sq_num_lle, 0x04),
+	DIAG_COUNTER(rq_num_lqpoe, 0x08),
+	DIAG_COUNTER(sq_num_lqpoe, 0x0C),
+	DIAG_COUNTER(rq_num_lpe, 0x18),
+	DIAG_COUNTER(sq_num_lpe, 0x1C),
+	DIAG_COUNTER(rq_num_wrfe, 0x20),
+	DIAG_COUNTER(sq_num_wrfe, 0x24),
+	DIAG_COUNTER(sq_num_mwbe, 0x2C),
+	DIAG_COUNTER(sq_num_bre, 0x34),
+	DIAG_COUNTER(sq_num_rire, 0x44),
+	DIAG_COUNTER(rq_num_rire, 0x48),
+	DIAG_COUNTER(sq_num_rae, 0x4C),
+	DIAG_COUNTER(rq_num_rae, 0x50),
+	DIAG_COUNTER(sq_num_roe, 0x54),
+	DIAG_COUNTER(sq_num_tree, 0x5C),
+	DIAG_COUNTER(sq_num_rree, 0x64),
+	DIAG_COUNTER(rq_num_rnr, 0x68),
+	DIAG_COUNTER(sq_num_rnr, 0x6C),
+	DIAG_COUNTER(rq_num_oos, 0x100),
+	DIAG_COUNTER(sq_num_oos, 0x104),
+};
+
+static const struct diag_counter diag_ext[] = {
+	DIAG_COUNTER(rq_num_dup, 0x130),
+	DIAG_COUNTER(sq_num_to, 0x134),
+};
+
+static const struct diag_counter diag_device_only[] = {
+	DIAG_COUNTER(num_cqovf, 0x1A0),
+	DIAG_COUNTER(rq_num_udsdprd, 0x118),
+};
+
+static struct rdma_hw_stats *mlx4_ib_alloc_hw_stats(struct ib_device *ibdev,
+						    u8 port_num)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
+	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
+
+	if (!diag[!!port_num].name)
+		return NULL;
+
+	return rdma_alloc_hw_stats_struct(diag[!!port_num].name,
+					  diag[!!port_num].num_counters,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static int mlx4_ib_get_hw_stats(struct ib_device *ibdev,
+				struct rdma_hw_stats *stats,
+				u8 port, int index)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
+	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
+	u32 hw_value[ARRAY_SIZE(diag_device_only) +
+		ARRAY_SIZE(diag_ext) + ARRAY_SIZE(diag_basic)] = {};
+	int ret;
+	int i;
+
+	ret = mlx4_query_diag_counters(dev->dev,
+				       MLX4_OP_MOD_QUERY_TRANSPORT_CI_ERRORS,
+				       diag[!!port].offset, hw_value,
+				       diag[!!port].num_counters, port);
+
+	if (ret)
+		return ret;
+
+	for (i = 0; i < diag[!!port].num_counters; i++)
+		stats->value[i] = hw_value[i];
+
+	return diag[!!port].num_counters;
+}
+
+static int __mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev,
+					 const char ***name,
+					 u32 **offset,
+					 u32 *num,
+					 bool port)
+{
+	u32 num_counters;
+
+	num_counters = ARRAY_SIZE(diag_basic);
+
+	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT)
+		num_counters += ARRAY_SIZE(diag_ext);
+
+	if (!port)
+		num_counters += ARRAY_SIZE(diag_device_only);
+
+	*name = kcalloc(num_counters, sizeof(**name), GFP_KERNEL);
+	if (!*name)
+		return -ENOMEM;
+
+	*offset = kcalloc(num_counters, sizeof(**offset), GFP_KERNEL);
+	if (!*offset)
+		goto err_name;
+
+	*num = num_counters;
+
+	return 0;
+
+err_name:
+	kfree(*name);
+	return -ENOMEM;
+}
+
+static void mlx4_ib_fill_diag_counters(struct mlx4_ib_dev *ibdev,
+				       const char **name,
+				       u32 *offset,
+				       bool port)
+{
+	int i;
+	int j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(diag_basic); i++, j++) {
+		name[i] = diag_basic[i].name;
+		offset[i] = diag_basic[i].offset;
+	}
+
+	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT) {
+		for (i = 0; i < ARRAY_SIZE(diag_ext); i++, j++) {
+			name[j] = diag_ext[i].name;
+			offset[j] = diag_ext[i].offset;
+		}
+	}
+
+	if (!port) {
+		for (i = 0; i < ARRAY_SIZE(diag_device_only); i++, j++) {
+			name[j] = diag_device_only[i].name;
+			offset[j] = diag_device_only[i].offset;
+		}
+	}
+}
+
+static int mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev)
+{
+	struct mlx4_ib_diag_counters *diag = ibdev->diag_counters;
+	int i;
+	int ret;
+	bool per_port = !!(ibdev->dev->caps.flags2 &
+		MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT);
+
+	if (mlx4_is_slave(ibdev->dev))
+		return 0;
+
+	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
+		/* i == 1 means we are building port counters */
+		if (i && !per_port)
+			continue;
+
+		ret = __mlx4_ib_alloc_diag_counters(ibdev, &diag[i].name,
+						    &diag[i].offset,
+						    &diag[i].num_counters, i);
+		if (ret)
+			goto err_alloc;
+
+		mlx4_ib_fill_diag_counters(ibdev, diag[i].name,
+					   diag[i].offset, i);
+	}
+
+	ibdev->ib_dev.get_hw_stats	= mlx4_ib_get_hw_stats;
+	ibdev->ib_dev.alloc_hw_stats	= mlx4_ib_alloc_hw_stats;
+
+	return 0;
+
+err_alloc:
+	if (i) {
+		kfree(diag[i - 1].name);
+		kfree(diag[i - 1].offset);
+	}
+
+	return ret;
+}
+
+static void mlx4_ib_diag_cleanup(struct mlx4_ib_dev *ibdev)
+{
+	int i;
+
+	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
+		kfree(ibdev->diag_counters[i].offset);
+		kfree(ibdev->diag_counters[i].name);
+	}
+}
 
 #define MLX4_IB_INVALID_MAC	((u64)-1)
 static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
@@ -2280,6 +2545,17 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static void get_fw_ver_str(struct ib_device *device, char *str,
+			   size_t str_len)
+{
+	struct mlx4_ib_dev *dev =
+		container_of(device, struct mlx4_ib_dev, ib_dev);
+	snprintf(str, str_len, "%d.%d.%d",
+		 (int) (dev->dev->caps.fw_ver >> 32),
+		 (int) (dev->dev->caps.fw_ver >> 16) & 0xffff,
+		 (int) dev->dev->caps.fw_ver & 0xffff);
+}
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
@@ -2413,6 +2689,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
 	ibdev->ib_dev.get_port_immutable = mlx4_port_immutable;
+	ibdev->ib_dev.get_dev_fw_str    = get_fw_ver_str;
 	ibdev->ib_dev.disassociate_ucontext = mlx4_ib_disassociate_ucontext;
 
 	if (!mlx4_is_slave(ibdev->dev)) {
@@ -2461,6 +2738,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (init_node_data(ibdev))
 		goto err_map;
+	mlx4_init_sl2vl_tbl(ibdev);
 
 	for (i = 0; i < ibdev->num_ports; ++i) {
 		mutex_init(&ibdev->counters_table[i].mutex);
@@ -2555,8 +2833,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	for (j = 1; j <= ibdev->dev->caps.num_ports; j++)
 		atomic64_set(&iboe->mac[j - 1], ibdev->dev->caps.def_mac[j]);
 
-	if (ib_register_device(&ibdev->ib_dev, NULL))
+	if (mlx4_ib_alloc_diag_counters(ibdev))
 		goto err_steer_free_bitmap;
+
+	if (ib_register_device(&ibdev->ib_dev, NULL))
+		goto err_diag_counters;
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
@@ -2622,6 +2903,9 @@ err_mad:
 
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
+
+err_diag_counters:
+	mlx4_ib_diag_cleanup(ibdev);
 
 err_steer_free_bitmap:
 	kfree(ibdev->ib_uc_qpns_bitmap);
@@ -2726,6 +3010,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	mlx4_ib_close_sriov(ibdev);
 	mlx4_ib_mad_cleanup(ibdev);
 	ib_unregister_device(&ibdev->ib_dev);
+	mlx4_ib_diag_cleanup(ibdev);
 	if (ibdev->iboe.nb.notifier_call) {
 		if (unregister_netdevice_notifier(&ibdev->iboe.nb))
 			pr_warn("failure unregistering notifier\n");
@@ -2902,6 +3187,47 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 	ib_dispatch_event(&ibev);
 }
 
+void mlx4_ib_sl2vl_update(struct mlx4_ib_dev *mdev, int port)
+{
+	u64 sl2vl;
+	int err;
+
+	err = mlx4_ib_query_sl2vl(&mdev->ib_dev, port, &sl2vl);
+	if (err) {
+		pr_err("Unable to get current sl to vl mapping for port %d.  Using all zeroes (%d)\n",
+		       port, err);
+		sl2vl = 0;
+	}
+	atomic64_set(&mdev->sl2vl[port - 1], sl2vl);
+}
+
+static void ib_sl2vl_update_work(struct work_struct *work)
+{
+	struct ib_event_work *ew = container_of(work, struct ib_event_work, work);
+	struct mlx4_ib_dev *mdev = ew->ib_dev;
+	int port = ew->port;
+
+	mlx4_ib_sl2vl_update(mdev, port);
+
+	kfree(ew);
+}
+
+void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
+				     int port)
+{
+	struct ib_event_work *ew;
+
+	ew = kmalloc(sizeof(*ew), GFP_ATOMIC);
+	if (ew) {
+		INIT_WORK(&ew->work, ib_sl2vl_update_work);
+		ew->port = port;
+		ew->ib_dev = ibdev;
+		queue_work(wq, &ew->work);
+	} else {
+		pr_err("failed to allocate memory for sl2vl update work\n");
+	}
+}
+
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 			  enum mlx4_dev_event event, unsigned long param)
 {
@@ -2932,10 +3258,14 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_PORT_UP:
 		if (p > ibdev->num_ports)
 			return;
-		if (mlx4_is_master(dev) &&
+		if (!mlx4_is_slave(dev) &&
 		    rdma_port_get_link_layer(&ibdev->ib_dev, p) ==
 			IB_LINK_LAYER_INFINIBAND) {
-			mlx4_ib_invalidate_all_guid_record(ibdev, p);
+			if (mlx4_is_master(dev))
+				mlx4_ib_invalidate_all_guid_record(ibdev, p);
+			if (ibdev->dev->flags & MLX4_FLAG_SECURE_HOST &&
+			    !(ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SL_TO_VL_CHANGE_EVENT))
+				mlx4_sched_ib_sl2vl_update_work(ibdev, p);
 		}
 		ibev.event = IB_EVENT_PORT_ACTIVE;
 		break;
@@ -3023,7 +3353,7 @@ static int __init mlx4_ib_init(void)
 {
 	int err;
 
-	wq = create_singlethread_workqueue("mlx4_ib");
+	wq = alloc_ordered_workqueue("mlx4_ib", WQ_MEM_RECLAIM);
 	if (!wq)
 		return -ENOMEM;
 

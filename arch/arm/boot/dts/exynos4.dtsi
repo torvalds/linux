@@ -21,11 +21,12 @@
 
 #include <dt-bindings/clock/exynos4.h>
 #include <dt-bindings/clock/exynos-audss-clk.h>
-#include "skeleton.dtsi"
 #include "exynos-syscon-restart.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		spi0 = &spi_0;
@@ -428,7 +429,6 @@
 		clock-names = "mfc", "sclk_mfc";
 		iommus = <&sysmmu_mfc_l>, <&sysmmu_mfc_r>;
 		iommu-names = "left", "right";
-		status = "disabled";
 	};
 
 	serial_0: serial@13800000 {

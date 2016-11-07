@@ -20,30 +20,14 @@
 
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
+#include <asm/cp15.h>
 #include <asm/kvm_mmu.h>
 #include <asm/vfp.h>
 
 #define __hyp_text __section(.hyp.text) notrace
 
-#define kern_hyp_va(v) (v)
-#define hyp_kern_va(v) (v)
-
-#define __ACCESS_CP15(CRn, Op1, CRm, Op2)	\
-	"mrc", "mcr", __stringify(p15, Op1, %0, CRn, CRm, Op2), u32
-#define __ACCESS_CP15_64(Op1, CRm)		\
-	"mrrc", "mcrr", __stringify(p15, Op1, %Q0, %R0, CRm), u64
 #define __ACCESS_VFP(CRn)			\
 	"mrc", "mcr", __stringify(p10, 7, %0, CRn, cr0, 0), u32
-
-#define __write_sysreg(v, r, w, c, t)	asm volatile(w " " c : : "r" ((t)(v)))
-#define write_sysreg(v, ...)		__write_sysreg(v, __VA_ARGS__)
-
-#define __read_sysreg(r, w, c, t) ({				\
-	t __val;						\
-	asm volatile(r " " c : "=r" (__val));			\
-	__val;							\
-})
-#define read_sysreg(...)		__read_sysreg(__VA_ARGS__)
 
 #define write_special(v, r)					\
 	asm volatile("msr " __stringify(r) ", %0" : : "r" (v))
@@ -121,6 +105,9 @@ void __vgic_v2_restore_state(struct kvm_vcpu *vcpu);
 
 void __sysreg_save_state(struct kvm_cpu_context *ctxt);
 void __sysreg_restore_state(struct kvm_cpu_context *ctxt);
+
+void __vgic_v3_save_state(struct kvm_vcpu *vcpu);
+void __vgic_v3_restore_state(struct kvm_vcpu *vcpu);
 
 void asmlinkage __vfp_save_state(struct vfp_hard_struct *vfp);
 void asmlinkage __vfp_restore_state(struct vfp_hard_struct *vfp);

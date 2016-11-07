@@ -5,6 +5,7 @@
 #include "llvm.h"
 #include "tests.h"
 #include "debug.h"
+#include "util.h"
 
 #ifdef HAVE_LIBBPF_SUPPORT
 static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)

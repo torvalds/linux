@@ -39,7 +39,9 @@ Optional properties:
                        When using a PPI, specifies a list of phandles to CPU
 		       nodes corresponding to the set of CPUs which have
 		       a PMU of this type signalling the PPI listed in the
-		       interrupts property.
+		       interrupts property, unless this is already specified
+		       by the PPI interrupt specifier itself (in which case
+		       the interrupt-affinity property shouldn't be present).
 
                        This property should be present when there is more than
 		       a single SPI.

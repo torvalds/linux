@@ -1,5 +1,7 @@
 /*
  * PCI Express Downstream Port Containment services driver
+ * Author: Keith Busch <keith.busch@intel.com>
+ *
  * Copyright (C) 2016 Intel Corp.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -9,14 +11,14 @@
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pcieport_if.h>
 
 struct dpc_dev {
 	struct pcie_device	*dev;
-	struct work_struct 	work;
-	int 			cap_pos;
+	struct work_struct	work;
+	int			cap_pos;
 };
 
 static void dpc_wait_link_inactive(struct pci_dev *pdev)
@@ -89,7 +91,7 @@ static int dpc_probe(struct pcie_device *dev)
 	int status;
 	u16 ctl, cap;
 
-	dpc = kzalloc(sizeof(*dpc), GFP_KERNEL);
+	dpc = devm_kzalloc(&dev->device, sizeof(*dpc), GFP_KERNEL);
 	if (!dpc)
 		return -ENOMEM;
 
@@ -98,11 +100,12 @@ static int dpc_probe(struct pcie_device *dev)
 	INIT_WORK(&dpc->work, interrupt_event_handler);
 	set_service_data(dev, dpc);
 
-	status = request_irq(dev->irq, dpc_irq, IRQF_SHARED, "pcie-dpc", dpc);
+	status = devm_request_irq(&dev->device, dev->irq, dpc_irq, IRQF_SHARED,
+				  "pcie-dpc", dpc);
 	if (status) {
 		dev_warn(&dev->device, "request IRQ%d failed: %d\n", dev->irq,
 			 status);
-		goto out;
+		return status;
 	}
 
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CAP, &cap);
@@ -117,9 +120,6 @@ static int dpc_probe(struct pcie_device *dev)
 		FLAG(cap, PCI_EXP_DPC_CAP_SW_TRIGGER), (cap >> 8) & 0xf,
 		FLAG(cap, PCI_EXP_DPC_CAP_DL_ACTIVE));
 	return status;
- out:
-	kfree(dpc);
-	return status;
 }
 
 static void dpc_remove(struct pcie_device *dev)
@@ -131,14 +131,11 @@ static void dpc_remove(struct pcie_device *dev)
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, &ctl);
 	ctl &= ~(PCI_EXP_DPC_CTL_EN_NONFATAL | PCI_EXP_DPC_CTL_INT_EN);
 	pci_write_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, ctl);
-
-	free_irq(dev->irq, dpc);
-	kfree(dpc);
 }
 
 static struct pcie_port_service_driver dpcdriver = {
 	.name		= "dpc",
-	.port_type	= PCI_EXP_TYPE_ROOT_PORT | PCI_EXP_TYPE_DOWNSTREAM,
+	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_DPC,
 	.probe		= dpc_probe,
 	.remove		= dpc_remove,
@@ -148,16 +145,4 @@ static int __init dpc_service_init(void)
 {
 	return pcie_port_service_register(&dpcdriver);
 }
-
-static void __exit dpc_service_exit(void)
-{
-	pcie_port_service_unregister(&dpcdriver);
-}
-
-MODULE_DESCRIPTION("PCI Express Downstream Port Containment driver");
-MODULE_AUTHOR("Keith Busch <keith.busch@intel.com>");
-MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1");
-
-module_init(dpc_service_init);
-module_exit(dpc_service_exit);
+device_initcall(dpc_service_init);

@@ -66,8 +66,7 @@ static void __init mpc836x_mds_setup_arch(void)
 	struct device_node *np;
 	u8 __iomem *bcsr_regs = NULL;
 
-	if (ppc_md.progress)
-		ppc_md.progress("mpc836x_mds_setup_arch()", 0);
+	mpc83xx_setup_arch();
 
 	/* Map BCSR area */
 	np = of_find_node_by_name(NULL, "bcsr");
@@ -78,8 +77,6 @@ static void __init mpc836x_mds_setup_arch(void)
 		bcsr_regs = ioremap(res.start, resource_size(&res));
 		of_node_put(np);
 	}
-
-	mpc83xx_setup_pci();
 
 #ifdef CONFIG_QUICC_ENGINE
 	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
@@ -209,9 +206,7 @@ machine_arch_initcall(mpc836x_mds, mpc836x_usb_cfg);
  */
 static int __init mpc836x_mds_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
-
-        return of_flat_dt_is_compatible(root, "MPC836xMDS");
+	return of_machine_is_compatible("MPC836xMDS");
 }
 
 define_machine(mpc836x_mds) {

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -35,6 +31,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
+#include <linux/nsproxy.h>
+#include <net/net_namespace.h>
 #include "../../include/linux/lnet/lib-lnet.h"
 
 struct lnet_text_buf {	    /* tmp struct for parsing routes */
@@ -114,6 +112,11 @@ lnet_ni_free(struct lnet_ni *ni)
 		LIBCFS_FREE(ni->ni_interfaces[i],
 			    strlen(ni->ni_interfaces[i]) + 1);
 	}
+
+	/* release reference to net namespace */
+	if (ni->ni_net_ns)
+		put_net(ni->ni_net_ns);
+
 	LIBCFS_FREE(ni, sizeof(*ni));
 }
 
@@ -175,6 +178,13 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 
 	/* LND will fill in the address part of the NID */
 	ni->ni_nid = LNET_MKNID(net, 0);
+
+	/* Store net namespace in which current ni is being created */
+	if (current->nsproxy->net_ns)
+		ni->ni_net_ns = get_net(current->nsproxy->net_ns);
+	else
+		ni->ni_net_ns = NULL;
+
 	ni->ni_last_alive = ktime_get_real_seconds();
 	list_add_tail(&ni->ni_list, nilist);
 	return ni;

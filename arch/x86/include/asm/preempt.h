@@ -81,7 +81,7 @@ static __always_inline void __preempt_count_sub(int val)
  */
 static __always_inline bool __preempt_count_dec_and_test(void)
 {
-	GEN_UNARY_RMWcc("decl", __preempt_count, __percpu_arg(0), "e");
+	GEN_UNARY_RMWcc("decl", __preempt_count, __percpu_arg(0), e);
 }
 
 /*

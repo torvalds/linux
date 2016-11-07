@@ -7,7 +7,15 @@
 struct gre_base_hdr {
 	__be16 flags;
 	__be16 protocol;
-};
+} __packed;
+
+struct gre_full_hdr {
+	struct gre_base_hdr fixed_header;
+	__be16 csum;
+	__be16 reserved1;
+	__be32 key;
+	__be32 seq;
+} __packed;
 #define GRE_HEADER_SECTION 4
 
 #define GREPROTO_CISCO		0
@@ -104,6 +112,7 @@ static inline void gre_build_header(struct sk_buff *skb, int hdr_len,
 
 	skb_push(skb, hdr_len);
 
+	skb_set_inner_protocol(skb, proto);
 	skb_reset_transport_header(skb);
 	greh = (struct gre_base_hdr *)skb->data;
 	greh->flags = gre_tnl_flags_to_gre_flags(flags);

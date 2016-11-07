@@ -43,6 +43,7 @@
 #include "bat_algo.h"
 #include "bat_v_ogm.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"
@@ -334,7 +335,7 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 		goto out;
 
 	skb_reserve(hard_iface->bat_v.elp_skb, ETH_HLEN + NET_IP_ALIGN);
-	elp_buff = skb_push(hard_iface->bat_v.elp_skb, BATADV_ELP_HLEN);
+	elp_buff = skb_put(hard_iface->bat_v.elp_skb, BATADV_ELP_HLEN);
 	elp_packet = (struct batadv_elp_packet *)elp_buff;
 	memset(elp_packet, 0, BATADV_ELP_HLEN);
 
@@ -344,7 +345,6 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	/* randomize initial seqno to avoid collision */
 	get_random_bytes(&random_seqno, sizeof(random_seqno));
 	atomic_set(&hard_iface->bat_v.elp_seqno, random_seqno);
-	atomic_set(&hard_iface->bat_v.elp_interval, 500);
 
 	/* assume full-duplex by default */
 	hard_iface->bat_v.flags |= BATADV_FULL_DUPLEX;
@@ -443,7 +443,8 @@ static void batadv_v_elp_neigh_update(struct batadv_priv *bat_priv,
 	if (!orig_neigh)
 		return;
 
-	neigh = batadv_neigh_node_new(orig_neigh, if_incoming, neigh_addr);
+	neigh = batadv_neigh_node_get_or_create(orig_neigh,
+						if_incoming, neigh_addr);
 	if (!neigh)
 		goto orig_free;
 
@@ -503,7 +504,7 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 	/* did we receive a B.A.T.M.A.N. V ELP packet on an interface
 	 * that does not have B.A.T.M.A.N. V ELP enabled ?
 	 */
-	if (strcmp(bat_priv->bat_algo_ops->name, "BATMAN_V") != 0)
+	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
 		return NET_RX_DROP;
 
 	elp_packet = (struct batadv_elp_packet *)skb->data;

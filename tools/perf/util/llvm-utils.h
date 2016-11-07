@@ -30,6 +30,11 @@ struct llvm_param {
 	 */
 	const char *kbuild_opts;
 	/*
+	 * Default is false. If set to true, write compiling result
+	 * to object file.
+	 */
+	bool dump_obj;
+	/*
 	 * Default is false. If one of the above fields is set by user
 	 * explicitly then user_set_llvm is set to true. This is used
 	 * for perf test. If user doesn't set anything in .perfconfig

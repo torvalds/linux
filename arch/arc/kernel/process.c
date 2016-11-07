@@ -41,6 +41,39 @@ SYSCALL_DEFINE0(arc_gettls)
 	return task_thread_info(current)->thr_ptr;
 }
 
+SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
+{
+	int uval;
+	int ret;
+
+	/*
+	 * This is only for old cores lacking LLOCK/SCOND, which by defintion
+	 * can't possibly be SMP. Thus doesn't need to be SMP safe.
+	 * And this also helps reduce the overhead for serializing in
+	 * the UP case
+	 */
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_SMP));
+
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+		return -EFAULT;
+
+	preempt_disable();
+
+	ret = __get_user(uval, uaddr);
+	if (ret)
+		goto done;
+
+	if (uval != expected)
+		ret = -EAGAIN;
+	else
+		ret = __put_user(new, uaddr);
+
+done:
+	preempt_enable();
+
+	return ret;
+}
+
 void arch_cpu_idle(void)
 {
 	/* sleep, but enable all interrupts before committing */
@@ -199,7 +232,7 @@ int elf_check_arch(const struct elf32_hdr *x)
 	}
 
 	eflags = x->e_flags;
-	if ((eflags & EF_ARC_OSABI_MSK) < EF_ARC_OSABI_CURRENT) {
+	if ((eflags & EF_ARC_OSABI_MSK) != EF_ARC_OSABI_CURRENT) {
 		pr_err("ABI mismatch - you need newer toolchain\n");
 		force_sigsegv(SIGSEGV, current);
 		return 0;

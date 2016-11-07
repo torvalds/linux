@@ -139,7 +139,7 @@ static void max8997_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&max8997->irqlock);
 }
 
-static const inline struct max8997_irq_data *
+inline static const struct max8997_irq_data *
 irq_to_max8997_irq(struct max8997_dev *max8997, struct irq_data *data)
 {
 	return &max8997_irqs[data->hwirq];

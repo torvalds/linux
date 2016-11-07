@@ -132,6 +132,7 @@ struct ip_tunnel {
 	int			ip_tnl_net_id;
 	struct gro_cells	gro_cells;
 	bool			collect_md;
+	bool			ignore_df;
 };
 
 #define TUNNEL_CSUM		__cpu_to_be16(0x01)
@@ -156,6 +157,7 @@ struct tnl_ptk_info {
 	__be16 proto;
 	__be32 key;
 	__be32 seq;
+	int hdr_len;
 };
 
 #define PACKET_RCVD	0
@@ -220,6 +222,25 @@ static inline unsigned short ip_tunnel_info_af(const struct ip_tunnel_info
 	return tun_info->mode & IP_TUNNEL_INFO_IPV6 ? AF_INET6 : AF_INET;
 }
 
+static inline __be64 key32_to_tunnel_id(__be32 key)
+{
+#ifdef __BIG_ENDIAN
+	return (__force __be64)key;
+#else
+	return (__force __be64)((__force u64)key << 32);
+#endif
+}
+
+/* Returns the least-significant 32 bits of a __be64. */
+static inline __be32 tunnel_id_to_key32(__be64 tun_id)
+{
+#ifdef __BIG_ENDIAN
+	return (__force __be32)tun_id;
+#else
+	return (__force __be32)((__force u64)tun_id >> 32);
+#endif
+}
+
 #ifdef CONFIG_INET
 
 int ip_tunnel_init(struct net_device *dev);
@@ -234,6 +255,8 @@ void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops);
 
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, const u8 protocol);
+void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
+		       const u8 proto);
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
 int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);

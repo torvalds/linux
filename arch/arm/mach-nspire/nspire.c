@@ -57,8 +57,7 @@ static struct of_dev_auxdata nspire_auxdata[] __initdata = {
 
 static void __init nspire_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			nspire_auxdata, NULL);
+	of_platform_default_populate(NULL, nspire_auxdata, NULL);
 }
 
 static void nspire_restart(enum reboot_mode mode, const char *cmd)

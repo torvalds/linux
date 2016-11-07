@@ -20,7 +20,7 @@
  *
  * Given the ID of the parent and the name build a search key.
  */
-void hfs_cat_build_key(struct super_block *sb, btree_key *key, u32 parent, struct qstr *name)
+void hfs_cat_build_key(struct super_block *sb, btree_key *key, u32 parent, const struct qstr *name)
 {
 	key->cat.reserved = 0;
 	key->cat.ParID = cpu_to_be32(parent);
@@ -64,7 +64,7 @@ static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct inode *inode)
 
 static int hfs_cat_build_thread(struct super_block *sb,
 				hfs_cat_rec *rec, int type,
-				u32 parentid, struct qstr *name)
+				u32 parentid, const struct qstr *name)
 {
 	rec->type = type;
 	memset(rec->thread.reserved, 0, sizeof(rec->thread.reserved));
@@ -79,7 +79,7 @@ static int hfs_cat_build_thread(struct super_block *sb,
  * Add a new file or directory to the catalog B-tree and
  * return a (struct hfs_cat_entry) for it in '*result'.
  */
-int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *inode)
+int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct inode *inode)
 {
 	struct hfs_find_data fd;
 	struct super_block *sb;
@@ -125,7 +125,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *
 		goto err1;
 
 	dir->i_size++;
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
 	hfs_find_exit(&fd);
 	return 0;
@@ -210,7 +210,7 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
  * Delete the indicated file or directory.
  * The associated thread is also removed unless ('with_thread'==0).
  */
-int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
+int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 {
 	struct super_block *sb;
 	struct hfs_find_data fd;
@@ -261,7 +261,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 	}
 
 	dir->i_size--;
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty(dir);
 	res = 0;
 out:
@@ -277,8 +277,8 @@ out:
  * If the destination exists it is removed and a
  * (struct hfs_cat_entry) for it is returned in '*result'.
  */
-int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
-		 struct inode *dst_dir, struct qstr *dst_name)
+int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
+		 struct inode *dst_dir, const struct qstr *dst_name)
 {
 	struct super_block *sb;
 	struct hfs_find_data src_fd, dst_fd;
@@ -321,7 +321,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 	if (err)
 		goto out;
 	dst_dir->i_size++;
-	dst_dir->i_mtime = dst_dir->i_ctime = CURRENT_TIME_SEC;
+	dst_dir->i_mtime = dst_dir->i_ctime = current_time(dst_dir);
 	mark_inode_dirty(dst_dir);
 
 	/* finally remove the old entry */
@@ -333,7 +333,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 	if (err)
 		goto out;
 	src_dir->i_size--;
-	src_dir->i_mtime = src_dir->i_ctime = CURRENT_TIME_SEC;
+	src_dir->i_mtime = src_dir->i_ctime = current_time(src_dir);
 	mark_inode_dirty(src_dir);
 
 	type = entry.type;

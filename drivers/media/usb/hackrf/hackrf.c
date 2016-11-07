@@ -129,7 +129,7 @@ struct hackrf_dev {
 	struct list_head rx_buffer_list;
 	struct list_head tx_buffer_list;
 	spinlock_t buffer_list_lock; /* Protects buffer_list */
-	unsigned sequence;	     /* Buffer sequence counter */
+	unsigned int sequence;	     /* Buffer sequence counter */
 	unsigned int vb_full;        /* vb is full and packets dropped */
 	unsigned int vb_empty;       /* vb is empty and packets dropped */
 
@@ -691,7 +691,6 @@ static int hackrf_alloc_urbs(struct hackrf_dev *dev, bool rcv)
 		dev_dbg(dev->dev, "alloc urb=%d\n", i);
 		dev->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!dev->urb_list[i]) {
-			dev_dbg(dev->dev, "failed\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(dev->urb_list[j]);
 			return -ENOMEM;
@@ -760,7 +759,7 @@ static void hackrf_return_all_buffers(struct vb2_queue *vq,
 
 static int hackrf_queue_setup(struct vb2_queue *vq,
 		unsigned int *nbuffers,
-		unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct hackrf_dev *dev = vb2_get_drv_priv(vq);
 
@@ -892,7 +891,7 @@ static void hackrf_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&dev->v4l2_lock);
 }
 
-static struct vb2_ops hackrf_vb2_ops = {
+static const struct vb2_ops hackrf_vb2_ops = {
 	.queue_setup            = hackrf_queue_setup,
 	.buf_queue              = hackrf_buf_queue,
 	.start_streaming        = hackrf_start_streaming,

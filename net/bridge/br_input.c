@@ -60,6 +60,9 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	skb = br_handle_vlan(br, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
+	/* update the multicast stats if the packet is IGMP/MLD */
+	br_multicast_count(br, NULL, skb, br_multicast_igmp_type(skb),
+			   BR_MCAST_DIR_TX);
 
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN,
 		       dev_net(indev), NULL, skb, indev, NULL,
@@ -77,13 +80,10 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 
 	BR_INPUT_SKB_CB(skb)->proxyarp_replied = false;
 
-	if (dev->flags & IFF_NOARP)
+	if ((dev->flags & IFF_NOARP) ||
+	    !pskb_may_pull(skb, arp_hdr_len(dev)))
 		return;
 
-	if (!pskb_may_pull(skb, arp_hdr_len(dev))) {
-		dev->stats.tx_dropped++;
-		return;
-	}
 	parp = arp_hdr(skb);
 
 	if (parp->ar_pro != htons(ETH_P_IP) ||
@@ -128,13 +128,13 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 /* note: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
-	struct net_bridge *br;
-	struct net_bridge_fdb_entry *dst;
+	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	enum br_pkt_type pkt_type = BR_PKT_UNICAST;
+	struct net_bridge_fdb_entry *dst = NULL;
 	struct net_bridge_mdb_entry *mdst;
-	struct sk_buff *skb2;
-	bool unicast = true;
+	bool local_rcv, mcast_hit = false;
+	struct net_bridge *br;
 	u16 vid = 0;
 
 	if (!p || p->state == BR_STATE_DISABLED)
@@ -143,67 +143,71 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid))
 		goto out;
 
+	nbp_switchdev_frame_mark(p, skb);
+
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
 	if (p->flags & BR_LEARNING)
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
-	if (!is_broadcast_ether_addr(dest) && is_multicast_ether_addr(dest) &&
-	    br_multicast_rcv(br, p, skb, vid))
-		goto drop;
+	local_rcv = !!(br->dev->flags & IFF_PROMISC);
+	if (is_multicast_ether_addr(dest)) {
+		/* by definition the broadcast is also a multicast address */
+		if (is_broadcast_ether_addr(dest)) {
+			pkt_type = BR_PKT_BROADCAST;
+			local_rcv = true;
+		} else {
+			pkt_type = BR_PKT_MULTICAST;
+			if (br_multicast_rcv(br, p, skb, vid))
+				goto drop;
+		}
+	}
 
 	if (p->state == BR_STATE_LEARNING)
 		goto drop;
 
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
-	/* The packet skb2 goes to the local host (NULL to skip). */
-	skb2 = NULL;
-
-	if (br->dev->flags & IFF_PROMISC)
-		skb2 = skb;
-
-	dst = NULL;
-
 	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
 		br_do_proxy_arp(skb, br, vid, p);
 
-	if (is_broadcast_ether_addr(dest)) {
-		skb2 = skb;
-		unicast = false;
-	} else if (is_multicast_ether_addr(dest)) {
+	switch (pkt_type) {
+	case BR_PKT_MULTICAST:
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb))) {
 			if ((mdst && mdst->mglist) ||
-			    br_multicast_is_router(br))
-				skb2 = skb;
-			br_multicast_forward(mdst, skb, skb2);
-			skb = NULL;
-			if (!skb2)
-				goto out;
-		} else
-			skb2 = skb;
-
-		unicast = false;
-		br->dev->stats.multicast++;
-	} else if ((dst = __br_fdb_get(br, dest, vid)) &&
-			dst->is_local) {
-		skb2 = skb;
-		/* Do not forward the packet since it's local. */
-		skb = NULL;
+			    br_multicast_is_router(br)) {
+				local_rcv = true;
+				br->dev->stats.multicast++;
+			}
+			mcast_hit = true;
+		} else {
+			local_rcv = true;
+			br->dev->stats.multicast++;
+		}
+		break;
+	case BR_PKT_UNICAST:
+		dst = __br_fdb_get(br, dest, vid);
+	default:
+		break;
 	}
 
-	if (skb) {
-		if (dst) {
-			dst->used = jiffies;
-			br_forward(dst->dst, skb, skb2);
-		} else
-			br_flood_forward(br, skb, skb2, unicast);
+	if (dst) {
+		if (dst->is_local)
+			return br_pass_frame_up(skb);
+
+		dst->used = jiffies;
+		br_forward(dst->dst, skb, local_rcv, false);
+	} else {
+		if (!mcast_hit)
+			br_flood(br, skb, pkt_type, local_rcv, false);
+		else
+			br_multicast_flood(mdst, skb, local_rcv, false);
 	}
 
-	if (skb2)
-		return br_pass_frame_up(skb2);
+	if (local_rcv)
+		return br_pass_frame_up(skb);
 
 out:
 	return 0;
@@ -287,6 +291,14 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 		case 0x01:	/* IEEE MAC (Pause) */
 			goto drop;
+
+		case 0x0E:	/* 802.1AB LLDP */
+			fwd_mask |= p->br->group_fwd_mask;
+			if (fwd_mask & (1u << dest[5]))
+				goto forward;
+			*pskb = skb;
+			__br_handle_local_finish(skb);
+			return RX_HANDLER_PASS;
 
 		default:
 			/* Allow selective forwarding for most other protocols */

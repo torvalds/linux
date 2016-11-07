@@ -72,6 +72,8 @@ void mmc_fixup_device(struct mmc_card *card, const struct mmc_fixup *table)
 		     f->cis_vendor == (u16) SDIO_ANY_ID) &&
 		    (f->cis_device == card->cis.device ||
 		     f->cis_device == (u16) SDIO_ANY_ID) &&
+		    (f->ext_csd_rev == EXT_CSD_REV_ANY ||
+		     f->ext_csd_rev == card->ext_csd.rev) &&
 		    rev >= f->rev_start && rev <= f->rev_end) {
 			dev_dbg(&card->dev, "calling %pf\n", f->vendor_fixup);
 			f->vendor_fixup(card, f->data);

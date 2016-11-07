@@ -170,10 +170,10 @@ static irqreturn_t armada_370_xp_timer_interrupt(int irq, void *dev_id)
 /*
  * Setup the local clock events for a CPU.
  */
-static int armada_370_xp_timer_setup(struct clock_event_device *evt)
+static int armada_370_xp_timer_starting_cpu(unsigned int cpu)
 {
+	struct clock_event_device *evt = per_cpu_ptr(armada_370_xp_evt, cpu);
 	u32 clr = 0, set = 0;
-	int cpu = smp_processor_id();
 
 	if (timer25Mhz)
 		set = TIMER0_25MHZ;
@@ -200,34 +200,14 @@ static int armada_370_xp_timer_setup(struct clock_event_device *evt)
 	return 0;
 }
 
-static void armada_370_xp_timer_stop(struct clock_event_device *evt)
+static int armada_370_xp_timer_dying_cpu(unsigned int cpu)
 {
+	struct clock_event_device *evt = per_cpu_ptr(armada_370_xp_evt, cpu);
+
 	evt->set_state_shutdown(evt);
 	disable_percpu_irq(evt->irq);
+	return 0;
 }
-
-static int armada_370_xp_timer_cpu_notify(struct notifier_block *self,
-					   unsigned long action, void *hcpu)
-{
-	/*
-	 * Grab cpu pointer in each case to avoid spurious
-	 * preemptible warnings
-	 */
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		armada_370_xp_timer_setup(this_cpu_ptr(armada_370_xp_evt));
-		break;
-	case CPU_DYING:
-		armada_370_xp_timer_stop(this_cpu_ptr(armada_370_xp_evt));
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block armada_370_xp_timer_cpu_nb = {
-	.notifier_call = armada_370_xp_timer_cpu_notify,
-};
 
 static u32 timer0_ctrl_reg, timer0_local_ctrl_reg;
 
@@ -246,7 +226,7 @@ static void armada_370_xp_timer_resume(void)
 	writel(timer0_local_ctrl_reg, local_base + TIMER_CTRL_OFF);
 }
 
-struct syscore_ops armada_370_xp_timer_syscore_ops = {
+static struct syscore_ops armada_370_xp_timer_syscore_ops = {
 	.suspend	= armada_370_xp_timer_suspend,
 	.resume		= armada_370_xp_timer_resume,
 };
@@ -260,14 +240,22 @@ static struct delay_timer armada_370_delay_timer = {
 	.read_current_timer = armada_370_delay_timer_read,
 };
 
-static void __init armada_370_xp_timer_common_init(struct device_node *np)
+static int __init armada_370_xp_timer_common_init(struct device_node *np)
 {
 	u32 clr = 0, set = 0;
 	int res;
 
 	timer_base = of_iomap(np, 0);
-	WARN_ON(!timer_base);
+	if (!timer_base) {
+		pr_err("Failed to iomap");
+		return -ENXIO;
+	}
+
 	local_base = of_iomap(np, 1);
+	if (!local_base) {
+		pr_err("Failed to iomap");
+		return -ENXIO;
+	}
 
 	if (timer25Mhz) {
 		set = TIMER0_25MHZ;		
@@ -306,14 +294,17 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 	 */
 	sched_clock_register(armada_370_xp_read_sched_clock, 32, timer_clk);
 
-	clocksource_mmio_init(timer_base + TIMER0_VAL_OFF,
-			      "armada_370_xp_clocksource",
-			      timer_clk, 300, 32, clocksource_mmio_readl_down);
-
-	register_cpu_notifier(&armada_370_xp_timer_cpu_nb);
+	res = clocksource_mmio_init(timer_base + TIMER0_VAL_OFF,
+				    "armada_370_xp_clocksource",
+				    timer_clk, 300, 32, clocksource_mmio_readl_down);
+	if (res) {
+		pr_err("Failed to initialize clocksource mmio");
+		return res;
+	}
 
 	armada_370_xp_evt = alloc_percpu(struct clock_event_device);
-
+	if (!armada_370_xp_evt)
+		return -ENOMEM;
 
 	/*
 	 * Setup clockevent timer (interrupt-driven).
@@ -323,33 +314,56 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 				"armada_370_xp_per_cpu_tick",
 				armada_370_xp_evt);
 	/* Immediately configure the timer on the boot CPU */
-	if (!res)
-		armada_370_xp_timer_setup(this_cpu_ptr(armada_370_xp_evt));
+	if (res) {
+		pr_err("Failed to request percpu irq");
+		return res;
+	}
+
+	res = cpuhp_setup_state(CPUHP_AP_ARMADA_TIMER_STARTING,
+				"AP_ARMADA_TIMER_STARTING",
+				armada_370_xp_timer_starting_cpu,
+				armada_370_xp_timer_dying_cpu);
+	if (res) {
+		pr_err("Failed to setup hotplug state and timer");
+		return res;
+	}
 
 	register_syscore_ops(&armada_370_xp_timer_syscore_ops);
+	
+	return 0;
 }
 
-static void __init armada_xp_timer_init(struct device_node *np)
+static int __init armada_xp_timer_init(struct device_node *np)
 {
 	struct clk *clk = of_clk_get_by_name(np, "fixed");
+	int ret;
 
-	/* The 25Mhz fixed clock is mandatory, and must always be available */
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
+	if (IS_ERR(clk)) {
+		pr_err("Failed to get clock");
+		return PTR_ERR(clk);
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
+
 	timer_clk = clk_get_rate(clk);
 
-	armada_370_xp_timer_common_init(np);
+	return armada_370_xp_timer_common_init(np);
 }
 CLOCKSOURCE_OF_DECLARE(armada_xp, "marvell,armada-xp-timer",
 		       armada_xp_timer_init);
 
-static void __init armada_375_timer_init(struct device_node *np)
+static int __init armada_375_timer_init(struct device_node *np)
 {
 	struct clk *clk;
+	int ret;
 
 	clk = of_clk_get_by_name(np, "fixed");
 	if (!IS_ERR(clk)) {
-		clk_prepare_enable(clk);
+		ret = clk_prepare_enable(clk);
+		if (ret)
+			return ret;
 		timer_clk = clk_get_rate(clk);
 	} else {
 
@@ -360,27 +374,43 @@ static void __init armada_375_timer_init(struct device_node *np)
 		clk = of_clk_get(np, 0);
 
 		/* Must have at least a clock */
-		BUG_ON(IS_ERR(clk));
-		clk_prepare_enable(clk);
+		if (IS_ERR(clk)) {
+			pr_err("Failed to get clock");
+			return PTR_ERR(clk);
+		}
+
+		ret = clk_prepare_enable(clk);
+		if (ret)
+			return ret;
+
 		timer_clk = clk_get_rate(clk) / TIMER_DIVIDER;
 		timer25Mhz = false;
 	}
 
-	armada_370_xp_timer_common_init(np);
+	return armada_370_xp_timer_common_init(np);
 }
 CLOCKSOURCE_OF_DECLARE(armada_375, "marvell,armada-375-timer",
 		       armada_375_timer_init);
 
-static void __init armada_370_timer_init(struct device_node *np)
+static int __init armada_370_timer_init(struct device_node *np)
 {
-	struct clk *clk = of_clk_get(np, 0);
+	struct clk *clk;
+	int ret;
 
-	BUG_ON(IS_ERR(clk));
-	clk_prepare_enable(clk);
+	clk = of_clk_get(np, 0);
+	if (IS_ERR(clk)) {
+		pr_err("Failed to get clock");
+		return PTR_ERR(clk);
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		return ret;
+
 	timer_clk = clk_get_rate(clk) / TIMER_DIVIDER;
 	timer25Mhz = false;
 
-	armada_370_xp_timer_common_init(np);
+	return armada_370_xp_timer_common_init(np);
 }
 CLOCKSOURCE_OF_DECLARE(armada_370, "marvell,armada-370-timer",
 		       armada_370_timer_init);

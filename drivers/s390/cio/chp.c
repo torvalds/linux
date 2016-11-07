@@ -37,8 +37,7 @@ enum cfg_task_t {
 
 /* Map for pending configure tasks. */
 static enum cfg_task_t chp_cfg_task[__MAX_CSSID + 1][__MAX_CHPID + 1];
-static DEFINE_MUTEX(cfg_lock);
-static int cfg_busy;
+static DEFINE_SPINLOCK(cfg_lock);
 
 /* Map for channel-path status. */
 static struct sclp_chp_info chp_info;
@@ -47,8 +46,6 @@ static DEFINE_MUTEX(info_lock);
 /* Time after which channel-path status may be outdated. */
 static unsigned long chp_info_expires;
 
-/* Workqueue to perform pending configure tasks. */
-static struct workqueue_struct *chp_wq;
 static struct work_struct cfg_work;
 
 /* Wait queue for configure completion events. */
@@ -428,11 +425,14 @@ int chp_update_desc(struct channel_path *chp)
 	if (rc)
 		return rc;
 
-	rc = chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
-	if (rc)
-		return rc;
+	/*
+	 * Fetching the following data is optional. Not all machines or
+	 * hypervisors implement the required chsc commands.
+	 */
+	chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+	chsc_get_channel_measurement_chars(chp);
 
-	return chsc_get_channel_measurement_chars(chp);
+	return 0;
 }
 
 /**
@@ -665,6 +665,20 @@ static void cfg_set_task(struct chp_id chpid, enum cfg_task_t cfg)
 	chp_cfg_task[chpid.cssid][chpid.id] = cfg;
 }
 
+/* Fetch the first configure task. Set chpid accordingly. */
+static enum cfg_task_t chp_cfg_fetch_task(struct chp_id *chpid)
+{
+	enum cfg_task_t t = cfg_none;
+
+	chp_id_for_each(chpid) {
+		t = cfg_get_task(*chpid);
+		if (t != cfg_none)
+			break;
+	}
+
+	return t;
+}
+
 /* Perform one configure/deconfigure request. Reschedule work function until
  * last request. */
 static void cfg_func(struct work_struct *work)
@@ -673,16 +687,9 @@ static void cfg_func(struct work_struct *work)
 	enum cfg_task_t t;
 	int rc;
 
-	mutex_lock(&cfg_lock);
-	t = cfg_none;
-	chp_id_for_each(&chpid) {
-		t = cfg_get_task(chpid);
-		if (t != cfg_none) {
-			cfg_set_task(chpid, cfg_none);
-			break;
-		}
-	}
-	mutex_unlock(&cfg_lock);
+	spin_lock(&cfg_lock);
+	t = chp_cfg_fetch_task(&chpid);
+	spin_unlock(&cfg_lock);
 
 	switch (t) {
 	case cfg_configure:
@@ -708,13 +715,14 @@ static void cfg_func(struct work_struct *work)
 	case cfg_none:
 		/* Get updated information after last change. */
 		info_update();
-		mutex_lock(&cfg_lock);
-		cfg_busy = 0;
-		mutex_unlock(&cfg_lock);
 		wake_up_interruptible(&cfg_wait_queue);
 		return;
 	}
-	queue_work(chp_wq, &cfg_work);
+	spin_lock(&cfg_lock);
+	if (t == cfg_get_task(chpid))
+		cfg_set_task(chpid, cfg_none);
+	spin_unlock(&cfg_lock);
+	schedule_work(&cfg_work);
 }
 
 /**
@@ -728,11 +736,10 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 {
 	CIO_MSG_EVENT(2, "chp_cfg_sched%x.%02x=%d\n", chpid.cssid, chpid.id,
 		      configure);
-	mutex_lock(&cfg_lock);
+	spin_lock(&cfg_lock);
 	cfg_set_task(chpid, configure ? cfg_configure : cfg_deconfigure);
-	cfg_busy = 1;
-	mutex_unlock(&cfg_lock);
-	queue_work(chp_wq, &cfg_work);
+	spin_unlock(&cfg_lock);
+	schedule_work(&cfg_work);
 }
 
 /**
@@ -745,15 +752,27 @@ void chp_cfg_schedule(struct chp_id chpid, int configure)
 void chp_cfg_cancel_deconfigure(struct chp_id chpid)
 {
 	CIO_MSG_EVENT(2, "chp_cfg_cancel:%x.%02x\n", chpid.cssid, chpid.id);
-	mutex_lock(&cfg_lock);
+	spin_lock(&cfg_lock);
 	if (cfg_get_task(chpid) == cfg_deconfigure)
 		cfg_set_task(chpid, cfg_none);
-	mutex_unlock(&cfg_lock);
+	spin_unlock(&cfg_lock);
+}
+
+static bool cfg_idle(void)
+{
+	struct chp_id chpid;
+	enum cfg_task_t t;
+
+	spin_lock(&cfg_lock);
+	t = chp_cfg_fetch_task(&chpid);
+	spin_unlock(&cfg_lock);
+
+	return t == cfg_none;
 }
 
 static int cfg_wait_idle(void)
 {
-	if (wait_event_interruptible(cfg_wait_queue, !cfg_busy))
+	if (wait_event_interruptible(cfg_wait_queue, cfg_idle()))
 		return -ERESTARTSYS;
 	return 0;
 }
@@ -761,23 +780,20 @@ static int cfg_wait_idle(void)
 static int __init chp_init(void)
 {
 	struct chp_id chpid;
-	int ret;
+	int state, ret;
 
 	ret = crw_register_handler(CRW_RSC_CPATH, chp_process_crw);
 	if (ret)
 		return ret;
-	chp_wq = create_singlethread_workqueue("cio_chp");
-	if (!chp_wq) {
-		crw_unregister_handler(CRW_RSC_CPATH);
-		return -ENOMEM;
-	}
 	INIT_WORK(&cfg_work, cfg_func);
 	init_waitqueue_head(&cfg_wait_queue);
 	if (info_update())
 		return 0;
 	/* Register available channel-paths. */
 	chp_id_for_each(&chpid) {
-		if (chp_info_get_status(chpid) != CHP_STATUS_NOT_RECOGNIZED)
+		state = chp_info_get_status(chpid);
+		if (state == CHP_STATUS_CONFIGURED ||
+		    state == CHP_STATUS_STANDBY)
 			chp_new(chpid);
 	}
 

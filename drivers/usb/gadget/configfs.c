@@ -1211,8 +1211,9 @@ static void purge_configs_funcs(struct gadget_info *gi)
 
 			list_move_tail(&f->list, &cfg->func_list);
 			if (f->unbind) {
-				dev_err(&gi->cdev.gadget->dev, "unbind function"
-						" '%s'/%p\n", f->name, f);
+				dev_dbg(&gi->cdev.gadget->dev,
+				         "unbind function '%s'/%p\n",
+				         f->name, f);
 				f->unbind(c, f);
 			}
 		}
@@ -1490,7 +1491,9 @@ void unregister_gadget_item(struct config_item *item)
 {
 	struct gadget_info *gi = to_gadget_info(item);
 
+	mutex_lock(&gi->lock);
 	unregister_gadget(gi);
+	mutex_unlock(&gi->lock);
 }
 EXPORT_SYMBOL_GPL(unregister_gadget_item);
 

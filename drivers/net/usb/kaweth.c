@@ -265,8 +265,6 @@ static int kaweth_control(struct kaweth_device *kaweth,
 	struct usb_ctrlrequest *dr;
 	int retval;
 
-	netdev_dbg(kaweth->net, "kaweth_control()\n");
-
 	if(in_interrupt()) {
 		netdev_dbg(kaweth->net, "in_interrupt()\n");
 		return -EBUSY;
@@ -299,8 +297,6 @@ static int kaweth_control(struct kaweth_device *kaweth,
 static int kaweth_read_configuration(struct kaweth_device *kaweth)
 {
 	int retval;
-
-	netdev_dbg(kaweth->net, "Reading kaweth configuration\n");
 
 	retval = kaweth_control(kaweth,
 				usb_rcvctrlpipe(kaweth->dev, 0),
@@ -451,8 +447,6 @@ static int kaweth_trigger_firmware(struct kaweth_device *kaweth,
 	kaweth->firmware_buf[6] = 0x00;
 	kaweth->firmware_buf[7] = 0x00;
 
-	netdev_dbg(kaweth->net, "Triggering firmware\n");
-
 	return kaweth_control(kaweth,
 			      usb_sndctrlpipe(kaweth->dev, 0),
 			      KAWETH_COMMAND_SCAN,
@@ -471,7 +465,6 @@ static int kaweth_reset(struct kaweth_device *kaweth)
 {
 	int result;
 
-	netdev_dbg(kaweth->net, "kaweth_reset(%p)\n", kaweth);
 	result = usb_reset_configuration(kaweth->dev);
 	mdelay(10);
 
@@ -684,8 +677,6 @@ static int kaweth_open(struct net_device *net)
 {
 	struct kaweth_device *kaweth = netdev_priv(net);
 	int res;
-
-	netdev_dbg(kaweth->net, "Opening network device.\n");
 
 	res = usb_autopm_get_interface(kaweth->intf);
 	if (res) {
@@ -951,7 +942,6 @@ static int kaweth_suspend(struct usb_interface *intf, pm_message_t message)
 	struct kaweth_device *kaweth = usb_get_intfdata(intf);
 	unsigned long flags;
 
-	dev_dbg(&intf->dev, "Suspending device\n");
 	spin_lock_irqsave(&kaweth->device_lock, flags);
 	kaweth->status |= KAWETH_STATUS_SUSPENDING;
 	spin_unlock_irqrestore(&kaweth->device_lock, flags);
@@ -968,7 +958,6 @@ static int kaweth_resume(struct usb_interface *intf)
 	struct kaweth_device *kaweth = usb_get_intfdata(intf);
 	unsigned long flags;
 
-	dev_dbg(&intf->dev, "Resuming device\n");
 	spin_lock_irqsave(&kaweth->device_lock, flags);
 	kaweth->status &= ~KAWETH_STATUS_SUSPENDING;
 	spin_unlock_irqrestore(&kaweth->device_lock, flags);
@@ -1009,6 +998,7 @@ static int kaweth_probe(
 	struct net_device *netdev;
 	const eth_addr_t bcast_addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 	int result = 0;
+	int rv = -EIO;
 
 	dev_dbg(dev,
 		"Kawasaki Device Probe (Device number:%d): 0x%4.4x:0x%4.4x:0x%4.4x\n",
@@ -1029,6 +1019,7 @@ static int kaweth_probe(
 	kaweth = netdev_priv(netdev);
 	kaweth->dev = udev;
 	kaweth->net = netdev;
+	kaweth->intf = intf;
 
 	spin_lock_init(&kaweth->device_lock);
 	init_waitqueue_head(&kaweth->term_wait);
@@ -1048,6 +1039,10 @@ static int kaweth_probe(
 		/* Download the firmware */
 		dev_info(dev, "Downloading firmware...\n");
 		kaweth->firmware_buf = (__u8 *)__get_free_page(GFP_KERNEL);
+		if (!kaweth->firmware_buf) {
+			rv = -ENOMEM;
+			goto err_free_netdev;
+		}
 		if ((result = kaweth_download_firmware(kaweth,
 						      "kaweth/new_code.bin",
 						      100,
@@ -1139,8 +1134,6 @@ err_fw:
 
 	dev_dbg(dev, "Initializing net device.\n");
 
-	kaweth->intf = intf;
-
 	kaweth->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!kaweth->tx_urb)
 		goto err_free_netdev;
@@ -1186,8 +1179,6 @@ err_fw:
 	dev_info(dev, "kaweth interface created at %s\n",
 		 kaweth->net->name);
 
-	dev_dbg(dev, "Kaweth probe returning.\n");
-
 	return 0;
 
 err_intfdata:
@@ -1204,7 +1195,7 @@ err_only_tx:
 err_free_netdev:
 	free_netdev(netdev);
 
-	return -EIO;
+	return rv;
 }
 
 /****************************************************************
@@ -1214,8 +1205,6 @@ static void kaweth_disconnect(struct usb_interface *intf)
 {
 	struct kaweth_device *kaweth = usb_get_intfdata(intf);
 	struct net_device *netdev;
-
-	dev_info(&intf->dev, "Unregistering\n");
 
 	usb_set_intfdata(intf, NULL);
 	if (!kaweth) {

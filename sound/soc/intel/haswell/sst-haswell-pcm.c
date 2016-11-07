@@ -819,7 +819,6 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 	mutex_lock(&pcm_data->mutex);
 	pm_runtime_get_sync(pdata->dev);
 
-	snd_soc_pcm_set_drvdata(rtd, pcm_data);
 	pcm_data->substream = substream;
 
 	snd_soc_set_runtime_hwparams(substream, &hsw_pcm_hardware);
@@ -872,7 +871,7 @@ out:
 	return ret;
 }
 
-static struct snd_pcm_ops hsw_pcm_ops = {
+static const struct snd_pcm_ops hsw_pcm_ops = {
 	.open		= hsw_pcm_open,
 	.close		= hsw_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,

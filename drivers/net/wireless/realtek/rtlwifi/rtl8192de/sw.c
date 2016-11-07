@@ -262,7 +262,7 @@ static struct rtl_mod_params rtl92de_mod_params = {
 	.debug = DBG_EMERG,
 };
 
-static struct rtl_hal_cfg rtl92de_hal_cfg = {
+static const struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8192de",

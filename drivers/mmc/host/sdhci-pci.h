@@ -14,7 +14,7 @@
 #define PCI_DEVICE_ID_INTEL_BSW_EMMC	0x2294
 #define PCI_DEVICE_ID_INTEL_BSW_SDIO	0x2295
 #define PCI_DEVICE_ID_INTEL_BSW_SD	0x2296
-#define PCI_DEVICE_ID_INTEL_MRFL_MMC	0x1190
+#define PCI_DEVICE_ID_INTEL_MRFLD_MMC	0x1190
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO0	0x08f9
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO1	0x08fa
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO2	0x08fb
@@ -65,6 +65,8 @@ struct sdhci_pci_fixes {
 
 	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
+
+	const struct sdhci_ops	*ops;
 };
 
 struct sdhci_pci_slot {
@@ -72,7 +74,6 @@ struct sdhci_pci_slot {
 	struct sdhci_host	*host;
 	struct sdhci_pci_data	*data;
 
-	int			pci_bar;
 	int			rst_n_gpio;
 	int			cd_gpio;
 	int			cd_irq;

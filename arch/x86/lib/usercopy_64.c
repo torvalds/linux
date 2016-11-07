@@ -5,8 +5,8 @@
  * Copyright 1997 Linus Torvalds
  * Copyright 2002 Andi Kleen <ak@suse.de>
  */
-#include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/export.h>
+#include <linux/uaccess.h>
 
 /*
  * Zero Userspace

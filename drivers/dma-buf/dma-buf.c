@@ -334,6 +334,7 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	struct reservation_object *resv = exp_info->resv;
 	struct file *file;
 	size_t alloc_size = sizeof(struct dma_buf);
+	int ret;
 
 	if (!exp_info->resv)
 		alloc_size += sizeof(struct reservation_object);
@@ -357,8 +358,8 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	dmabuf = kzalloc(alloc_size, GFP_KERNEL);
 	if (!dmabuf) {
-		module_put(exp_info->owner);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err_module;
 	}
 
 	dmabuf->priv = exp_info->priv;
@@ -379,8 +380,8 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf,
 					exp_info->flags);
 	if (IS_ERR(file)) {
-		kfree(dmabuf);
-		return ERR_CAST(file);
+		ret = PTR_ERR(file);
+		goto err_dmabuf;
 	}
 
 	file->f_mode |= FMODE_LSEEK;
@@ -394,6 +395,12 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	mutex_unlock(&db_list.lock);
 
 	return dmabuf;
+
+err_dmabuf:
+	kfree(dmabuf);
+err_module:
+	module_put(exp_info->owner);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(dma_buf_export);
 
@@ -579,6 +586,22 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 }
 EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
 
+static int __dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+				      enum dma_data_direction direction)
+{
+	bool write = (direction == DMA_BIDIRECTIONAL ||
+		      direction == DMA_TO_DEVICE);
+	struct reservation_object *resv = dmabuf->resv;
+	long ret;
+
+	/* Wait on any implicit rendering fences */
+	ret = reservation_object_wait_timeout_rcu(resv, write, true,
+						  MAX_SCHEDULE_TIMEOUT);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 /**
  * dma_buf_begin_cpu_access - Must be called before accessing a dma_buf from the
@@ -600,6 +623,13 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	if (dmabuf->ops->begin_cpu_access)
 		ret = dmabuf->ops->begin_cpu_access(dmabuf, direction);
+
+	/* Ensure that all fences are waited upon - but we first allow
+	 * the native handler the chance to do so more efficiently if it
+	 * chooses. A double invocation here will be reasonably cheap no-op.
+	 */
+	if (ret == 0)
+		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
 
 	return ret;
 }
@@ -824,7 +854,7 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 EXPORT_SYMBOL_GPL(dma_buf_vunmap);
 
 #ifdef CONFIG_DEBUG_FS
-static int dma_buf_describe(struct seq_file *s)
+static int dma_buf_debug_show(struct seq_file *s, void *unused)
 {
 	int ret;
 	struct dma_buf *buf_obj;
@@ -879,17 +909,9 @@ static int dma_buf_describe(struct seq_file *s)
 	return 0;
 }
 
-static int dma_buf_show(struct seq_file *s, void *unused)
-{
-	void (*func)(struct seq_file *) = s->private;
-
-	func(s);
-	return 0;
-}
-
 static int dma_buf_debug_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dma_buf_show, inode->i_private);
+	return single_open(file, dma_buf_debug_show, NULL);
 }
 
 static const struct file_operations dma_buf_debug_fops = {
@@ -903,20 +925,23 @@ static struct dentry *dma_buf_debugfs_dir;
 
 static int dma_buf_init_debugfs(void)
 {
+	struct dentry *d;
 	int err = 0;
 
-	dma_buf_debugfs_dir = debugfs_create_dir("dma_buf", NULL);
+	d = debugfs_create_dir("dma_buf", NULL);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
 
-	if (IS_ERR(dma_buf_debugfs_dir)) {
-		err = PTR_ERR(dma_buf_debugfs_dir);
-		dma_buf_debugfs_dir = NULL;
-		return err;
-	}
+	dma_buf_debugfs_dir = d;
 
-	err = dma_buf_debugfs_create_file("bufinfo", dma_buf_describe);
-
-	if (err)
+	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
+				NULL, &dma_buf_debug_fops);
+	if (IS_ERR(d)) {
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
+		debugfs_remove_recursive(dma_buf_debugfs_dir);
+		dma_buf_debugfs_dir = NULL;
+		err = PTR_ERR(d);
+	}
 
 	return err;
 }
@@ -925,17 +950,6 @@ static void dma_buf_uninit_debugfs(void)
 {
 	if (dma_buf_debugfs_dir)
 		debugfs_remove_recursive(dma_buf_debugfs_dir);
-}
-
-int dma_buf_debugfs_create_file(const char *name,
-				int (*write)(struct seq_file *))
-{
-	struct dentry *d;
-
-	d = debugfs_create_file(name, S_IRUGO, dma_buf_debugfs_dir,
-			write, &dma_buf_debug_fops);
-
-	return PTR_ERR_OR_ZERO(d);
 }
 #else
 static inline int dma_buf_init_debugfs(void)

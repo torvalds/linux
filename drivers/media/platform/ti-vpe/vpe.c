@@ -362,7 +362,6 @@ struct vpe_dev {
 	void __iomem		*base;
 	struct resource		*res;
 
-	struct vb2_alloc_ctx	*alloc_ctx;
 	struct vpdma_data	*vpdma;		/* vpdma data handle */
 	struct sc_data		*sc;		/* scaler data handle */
 	struct csc_data		*csc;		/* csc data handle */
@@ -1797,7 +1796,7 @@ static const struct v4l2_ioctl_ops vpe_ioctl_ops = {
  */
 static int vpe_queue_setup(struct vb2_queue *vq,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	int i;
 	struct vpe_ctx *ctx = vb2_get_drv_priv(vq);
@@ -1807,10 +1806,8 @@ static int vpe_queue_setup(struct vb2_queue *vq,
 
 	*nplanes = q_data->fmt->coplanar ? 2 : 1;
 
-	for (i = 0; i < *nplanes; i++) {
+	for (i = 0; i < *nplanes; i++)
 		sizes[i] = q_data->sizeimage[i];
-		alloc_ctxs[i] = ctx->dev->alloc_ctx;
-	}
 
 	vpe_dbg(ctx->dev, "get %d buffer(s) of size %d", *nbuffers,
 		sizes[VPE_LUMA]);
@@ -1881,7 +1878,7 @@ static void vpe_stop_streaming(struct vb2_queue *q)
 	vpdma_dump_regs(ctx->dev->vpdma);
 }
 
-static struct vb2_ops vpe_qops = {
+static const struct vb2_ops vpe_qops = {
 	.queue_setup	 = vpe_queue_setup,
 	.buf_prepare	 = vpe_buf_prepare,
 	.buf_queue	 = vpe_buf_queue,
@@ -1907,6 +1904,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &dev->dev_mutex;
+	src_vq->dev = dev->v4l2_dev.dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -1921,6 +1919,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &dev->dev_mutex;
+	dst_vq->dev = dev->v4l2_dev.dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -2161,7 +2160,6 @@ static void vpe_fw_cb(struct platform_device *pdev)
 		vpe_runtime_put(pdev);
 		pm_runtime_disable(&pdev->dev);
 		v4l2_m2m_release(dev->m2m_dev);
-		vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 		v4l2_device_unregister(&dev->v4l2_dev);
 
 		return;
@@ -2213,18 +2211,11 @@ static int vpe_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		vpe_err(dev, "Failed to alloc vb2 context\n");
-		ret = PTR_ERR(dev->alloc_ctx);
-		goto v4l2_dev_unreg;
-	}
-
 	dev->m2m_dev = v4l2_m2m_init(&m2m_ops);
 	if (IS_ERR(dev->m2m_dev)) {
 		vpe_err(dev, "Failed to init mem2mem device\n");
 		ret = PTR_ERR(dev->m2m_dev);
-		goto rel_ctx;
+		goto v4l2_dev_unreg;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -2269,8 +2260,6 @@ runtime_put:
 rel_m2m:
 	pm_runtime_disable(&pdev->dev);
 	v4l2_m2m_release(dev->m2m_dev);
-rel_ctx:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 v4l2_dev_unreg:
 	v4l2_device_unregister(&dev->v4l2_dev);
 
@@ -2286,7 +2275,6 @@ static int vpe_remove(struct platform_device *pdev)
 	v4l2_m2m_release(dev->m2m_dev);
 	video_unregister_device(&dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 
 	vpe_set_clock_enable(dev, 0);
 	vpe_runtime_put(pdev);

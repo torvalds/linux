@@ -79,9 +79,7 @@ machine_arch_initcall(socrates, mpc85xx_common_publish_devices);
  */
 static int __init socrates_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "abb,socrates"))
+	if (of_machine_is_compatible("abb,socrates"))
 		return 1;
 
 	return 0;
@@ -93,7 +91,6 @@ define_machine(socrates) {
 	.setup_arch		= socrates_setup_arch,
 	.init_IRQ		= socrates_pic_init,
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

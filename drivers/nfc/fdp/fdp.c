@@ -345,7 +345,7 @@ static void fdp_nci_release_firmware(struct nci_dev *ndev)
 
 	if (info->ram_patch) {
 		release_firmware(info->ram_patch);
-		info->otp_patch = NULL;
+		info->ram_patch = NULL;
 	}
 }
 
@@ -353,7 +353,7 @@ static int fdp_nci_patch_otp(struct nci_dev *ndev)
 {
 	struct fdp_nci_info *info = nci_get_drvdata(ndev);
 	struct device *dev = &info->phy->i2c_dev->dev;
-	u8 conn_id;
+	int conn_id;
 	int r = 0;
 
 	if (info->otp_version >= info->otp_patch_version)
@@ -424,7 +424,7 @@ static int fdp_nci_patch_ram(struct nci_dev *ndev)
 {
 	struct fdp_nci_info *info = nci_get_drvdata(ndev);
 	struct device *dev = &info->phy->i2c_dev->dev;
-	u8 conn_id;
+	int conn_id;
 	int r = 0;
 
 	if (info->ram_version >= info->ram_patch_version)

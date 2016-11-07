@@ -370,7 +370,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int go7007_queue_setup(struct vb2_queue *q,
 		unsigned int *num_buffers, unsigned int *num_planes,
-		unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int sizes[], struct device *alloc_devs[])
 {
 	sizes[0] = GO7007_BUF_SIZE;
 	*num_planes = 1;
@@ -477,7 +477,7 @@ static void go7007_stop_streaming(struct vb2_queue *q)
 		go7007_write_addr(go, 0x3c82, 0x000d);
 }
 
-static struct vb2_ops go7007_video_qops = {
+static const struct vb2_ops go7007_video_qops = {
 	.queue_setup    = go7007_queue_setup,
 	.buf_queue      = go7007_buf_queue,
 	.buf_prepare    = go7007_buf_prepare,

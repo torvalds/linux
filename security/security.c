@@ -356,13 +356,22 @@ void security_inode_free(struct inode *inode)
 }
 
 int security_dentry_init_security(struct dentry *dentry, int mode,
-					struct qstr *name, void **ctx,
+					const struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
 	return call_int_hook(dentry_init_security, -EOPNOTSUPP, dentry, mode,
 				name, ctx, ctxlen);
 }
 EXPORT_SYMBOL(security_dentry_init_security);
+
+int security_dentry_create_files_as(struct dentry *dentry, int mode,
+				    struct qstr *name,
+				    const struct cred *old, struct cred *new)
+{
+	return call_int_hook(dentry_create_files_as, 0, dentry, mode,
+				name, old, new);
+}
+EXPORT_SYMBOL(security_dentry_create_files_as);
 
 int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
@@ -700,18 +709,39 @@ int security_inode_killpriv(struct dentry *dentry)
 
 int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
 {
+	struct security_hook_list *hp;
+	int rc;
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_getsecurity, -EOPNOTSUPP, inode, name,
-				buffer, alloc);
+	/*
+	 * Only one module will provide an attribute with a given name.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
+		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
+		if (rc != -EOPNOTSUPP)
+			return rc;
+	}
+	return -EOPNOTSUPP;
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
+	struct security_hook_list *hp;
+	int rc;
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_setsecurity, -EOPNOTSUPP, inode, name,
-				value, size, flags);
+	/*
+	 * Only one module will provide an attribute with a given name.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
+		rc = hp->hook.inode_setsecurity(inode, name, value, size,
+								flags);
+		if (rc != -EOPNOTSUPP)
+			return rc;
+	}
+	return -EOPNOTSUPP;
 }
 
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
@@ -726,6 +756,18 @@ void security_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	call_void_hook(inode_getsecid, inode, secid);
 }
+
+int security_inode_copy_up(struct dentry *src, struct cred **new)
+{
+	return call_int_hook(inode_copy_up, 0, src, new);
+}
+EXPORT_SYMBOL(security_inode_copy_up);
+
+int security_inode_copy_up_xattr(const char *name)
+{
+	return call_int_hook(inode_copy_up_xattr, -EOPNOTSUPP, name);
+}
+EXPORT_SYMBOL(security_inode_copy_up_xattr);
 
 int security_file_permission(struct file *file, int mask)
 {
@@ -1602,6 +1644,8 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.sb_parse_opts_str),
 	.dentry_init_security =
 		LIST_HEAD_INIT(security_hook_heads.dentry_init_security),
+	.dentry_create_files_as =
+		LIST_HEAD_INIT(security_hook_heads.dentry_create_files_as),
 #ifdef CONFIG_SECURITY_PATH
 	.path_unlink =	LIST_HEAD_INIT(security_hook_heads.path_unlink),
 	.path_mkdir =	LIST_HEAD_INIT(security_hook_heads.path_mkdir),
@@ -1663,6 +1707,10 @@ struct security_hook_heads security_hook_heads = {
 		LIST_HEAD_INIT(security_hook_heads.inode_listsecurity),
 	.inode_getsecid =
 		LIST_HEAD_INIT(security_hook_heads.inode_getsecid),
+	.inode_copy_up =
+		LIST_HEAD_INIT(security_hook_heads.inode_copy_up),
+	.inode_copy_up_xattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_copy_up_xattr),
 	.file_permission =
 		LIST_HEAD_INIT(security_hook_heads.file_permission),
 	.file_alloc_security =

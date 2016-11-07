@@ -224,7 +224,8 @@ static irqreturn_t ms5611_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -415,8 +416,7 @@ static int ms5611_init(struct iio_dev *indio_dev)
 	return 0;
 
 err_regulator_disable:
-	if (!IS_ERR_OR_NULL(st->vdd))
-		regulator_disable(st->vdd);
+	regulator_disable(st->vdd);
 	return ret;
 }
 
@@ -424,8 +424,7 @@ static void ms5611_fini(const struct iio_dev *indio_dev)
 {
 	const struct ms5611_state *st = iio_priv(indio_dev);
 
-	if (!IS_ERR_OR_NULL(st->vdd))
-		regulator_disable(st->vdd);
+	regulator_disable(st->vdd);
 }
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,

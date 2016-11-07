@@ -230,7 +230,12 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INITCOMPLETEB      BIT(8)
 
 #define ALTR_A10_ECC_ERRINTEN_OFST      0x10
+#define ALTR_A10_ECC_ERRINTENS_OFST     0x14
+#define ALTR_A10_ECC_ERRINTENR_OFST     0x18
 #define ALTR_A10_ECC_SERRINTEN          BIT(0)
+
+#define ALTR_A10_ECC_INTMODE_OFST       0x1C
+#define ALTR_A10_ECC_INTMODE            BIT(0)
 
 #define ALTR_A10_ECC_INTSTAT_OFST       0x20
 #define ALTR_A10_ECC_SERRPENA           BIT(0)
@@ -245,6 +250,8 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INTTEST_OFST       0x24
 #define ALTR_A10_ECC_TSERRA             BIT(0)
 #define ALTR_A10_ECC_TDERRA             BIT(8)
+#define ALTR_A10_ECC_TSERRB             BIT(16)
+#define ALTR_A10_ECC_TDERRB             BIT(24)
 
 /* ECC Manager Defines */
 #define A10_SYSMGR_ECC_INTMASK_SET_OFST   0x94
@@ -280,6 +287,15 @@ struct altr_sdram_mc_data {
 /* Arria 10 OCRAM ECC Management Group Defines */
 #define ALTR_A10_OCRAM_ECC_EN_CTL       (BIT(1) | BIT(0))
 
+/* Arria 10 Ethernet ECC Management Group Defines */
+#define ALTR_A10_COMMON_ECC_EN_CTL      BIT(0)
+
+/* Arria 10 SDMMC ECC Management Group Defines */
+#define ALTR_A10_SDMMC_IRQ_MASK         (BIT(16) | BIT(15))
+
+/* A10 ECC Controller memory initialization timeout */
+#define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
+
 struct altr_edac_device_dev;
 
 struct edac_device_prv_data {
@@ -287,7 +303,6 @@ struct edac_device_prv_data {
 	int ce_clear_mask;
 	int ue_clear_mask;
 	int irq_status_mask;
-	char dbgfs_name[20];
 	void * (*alloc_mem)(size_t size, void **other);
 	void (*free_mem)(void *p, size_t size, void *other);
 	int ecc_enable_mask;
@@ -295,10 +310,10 @@ struct edac_device_prv_data {
 	int ce_set_mask;
 	int ue_set_mask;
 	int set_err_ofst;
-	irqreturn_t (*ecc_irq_handler)(struct altr_edac_device_dev *dci,
-				       bool sb);
+	irqreturn_t (*ecc_irq_handler)(int irq, void *dev_id);
 	int trig_alloc_sz;
 	const struct file_operations *inject_fops;
+	bool panic;
 };
 
 struct altr_edac_device_dev {
@@ -320,6 +335,8 @@ struct altr_arria10_edac {
 	struct regmap		*ecc_mgr_map;
 	int sb_irq;
 	int db_irq;
+	struct irq_domain	*domain;
+	struct irq_chip		irq_chip;
 	struct list_head	a10_ecc_devices;
 };
 

@@ -2069,9 +2069,11 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (err)
 		goto fail_leds;
 
-	err = asus_wmi_rfkill_init(asus);
-	if (err)
-		goto fail_rfkill;
+	if (!asus->driver->quirks->no_rfkill) {
+		err = asus_wmi_rfkill_init(asus);
+		if (err)
+			goto fail_rfkill;
+	}
 
 	/* Some Asus desktop boards export an acpi-video backlight interface,
 	   stop this from showing up */
@@ -2081,6 +2083,9 @@ static int asus_wmi_add(struct platform_device *pdev)
 
 	if (asus->driver->quirks->wmi_backlight_power)
 		acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
+
+	if (asus->driver->quirks->wmi_backlight_native)
+		acpi_video_set_dmi_backlight_type(acpi_backlight_native);
 
 	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		err = asus_wmi_backlight_init(asus);

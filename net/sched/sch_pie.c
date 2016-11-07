@@ -134,7 +134,8 @@ static bool drop_early(struct Qdisc *sch, u32 packet_size)
 	return false;
 }
 
-static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			     struct sk_buff **to_free)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
 	bool enqueue = false;
@@ -166,7 +167,7 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 out:
 	q->stats.dropped++;
-	return qdisc_drop(skb, sch);
+	return qdisc_drop(skb, sch, to_free);
 }
 
 static const struct nla_policy pie_policy[TCA_PIE_MAX + 1] = {
@@ -230,11 +231,11 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt)
 	/* Drop excess packets if new limit is lower */
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > sch->limit) {
-		struct sk_buff *skb = __skb_dequeue(&sch->q);
+		struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
 
 		dropped += qdisc_pkt_len(skb);
 		qdisc_qstats_backlog_dec(sch, skb);
-		qdisc_drop(skb, sch);
+		rtnl_qdisc_drop(skb, sch);
 	}
 	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen, dropped);
 
@@ -510,7 +511,7 @@ static int pie_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 static struct sk_buff *pie_qdisc_dequeue(struct Qdisc *sch)
 {
 	struct sk_buff *skb;
-	skb = __qdisc_dequeue_head(sch, &sch->q);
+	skb = qdisc_dequeue_head(sch);
 
 	if (!skb)
 		return NULL;

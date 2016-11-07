@@ -368,7 +368,7 @@ xfs_inode_to_log_dinode(
 		to->di_crtime.t_sec = from->di_crtime.t_sec;
 		to->di_crtime.t_nsec = from->di_crtime.t_nsec;
 		to->di_flags2 = from->di_flags2;
-
+		to->di_cowextsize = from->di_cowextsize;
 		to->di_ino = ip->i_ino;
 		to->di_lsn = lsn;
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
@@ -651,6 +651,7 @@ void
 xfs_inode_item_destroy(
 	xfs_inode_t	*ip)
 {
+	kmem_free(ip->i_itemp->ili_item.li_lv_shadow);
 	kmem_zone_free(xfs_ili_zone, ip->i_itemp);
 }
 

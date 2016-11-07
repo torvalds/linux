@@ -93,6 +93,11 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	return __ATOMIC_LOOP(v, i, __ATOMIC_ADD, __ATOMIC_BARRIER) + i;
 }
 
+static inline int atomic_fetch_add(int i, atomic_t *v)
+{
+	return __ATOMIC_LOOP(v, i, __ATOMIC_ADD, __ATOMIC_BARRIER);
+}
+
 static inline void atomic_add(int i, atomic_t *v)
 {
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -114,22 +119,27 @@ static inline void atomic_add(int i, atomic_t *v)
 #define atomic_inc_and_test(_v)		(atomic_add_return(1, _v) == 0)
 #define atomic_sub(_i, _v)		atomic_add(-(int)(_i), _v)
 #define atomic_sub_return(_i, _v)	atomic_add_return(-(int)(_i), _v)
+#define atomic_fetch_sub(_i, _v)	atomic_fetch_add(-(int)(_i), _v)
 #define atomic_sub_and_test(_i, _v)	(atomic_sub_return(_i, _v) == 0)
 #define atomic_dec(_v)			atomic_sub(1, _v)
 #define atomic_dec_return(_v)		atomic_sub_return(1, _v)
 #define atomic_dec_and_test(_v)		(atomic_sub_return(1, _v) == 0)
 
-#define ATOMIC_OP(op, OP)						\
+#define ATOMIC_OPS(op, OP)						\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
 	__ATOMIC_LOOP(v, i, __ATOMIC_##OP, __ATOMIC_NO_BARRIER);	\
+}									\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	return __ATOMIC_LOOP(v, i, __ATOMIC_##OP, __ATOMIC_BARRIER);	\
 }
 
-ATOMIC_OP(and, AND)
-ATOMIC_OP(or, OR)
-ATOMIC_OP(xor, XOR)
+ATOMIC_OPS(and, AND)
+ATOMIC_OPS(or, OR)
+ATOMIC_OPS(xor, XOR)
 
-#undef ATOMIC_OP
+#undef ATOMIC_OPS
 
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
@@ -236,6 +246,11 @@ static inline long long atomic64_add_return(long long i, atomic64_t *v)
 	return __ATOMIC64_LOOP(v, i, __ATOMIC64_ADD, __ATOMIC64_BARRIER) + i;
 }
 
+static inline long long atomic64_fetch_add(long long i, atomic64_t *v)
+{
+	return __ATOMIC64_LOOP(v, i, __ATOMIC64_ADD, __ATOMIC64_BARRIER);
+}
+
 static inline void atomic64_add(long long i, atomic64_t *v)
 {
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -264,17 +279,21 @@ static inline long long atomic64_cmpxchg(atomic64_t *v,
 	return old;
 }
 
-#define ATOMIC64_OP(op, OP)						\
+#define ATOMIC64_OPS(op, OP)						\
 static inline void atomic64_##op(long i, atomic64_t *v)			\
 {									\
 	__ATOMIC64_LOOP(v, i, __ATOMIC64_##OP, __ATOMIC64_NO_BARRIER);	\
+}									\
+static inline long atomic64_fetch_##op(long i, atomic64_t *v)		\
+{									\
+	return __ATOMIC64_LOOP(v, i, __ATOMIC64_##OP, __ATOMIC64_BARRIER); \
 }
 
-ATOMIC64_OP(and, AND)
-ATOMIC64_OP(or, OR)
-ATOMIC64_OP(xor, XOR)
+ATOMIC64_OPS(and, AND)
+ATOMIC64_OPS(or, OR)
+ATOMIC64_OPS(xor, XOR)
 
-#undef ATOMIC64_OP
+#undef ATOMIC64_OPS
 #undef __ATOMIC64_LOOP
 
 static inline int atomic64_add_unless(atomic64_t *v, long long i, long long u)
@@ -315,6 +334,7 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 #define atomic64_inc_return(_v)		atomic64_add_return(1, _v)
 #define atomic64_inc_and_test(_v)	(atomic64_add_return(1, _v) == 0)
 #define atomic64_sub_return(_i, _v)	atomic64_add_return(-(long long)(_i), _v)
+#define atomic64_fetch_sub(_i, _v)	atomic64_fetch_add(-(long long)(_i), _v)
 #define atomic64_sub(_i, _v)		atomic64_add(-(long long)(_i), _v)
 #define atomic64_sub_and_test(_i, _v)	(atomic64_sub_return(_i, _v) == 0)
 #define atomic64_dec(_v)		atomic64_sub(1, _v)

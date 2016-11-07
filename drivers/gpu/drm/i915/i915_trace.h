@@ -118,7 +118,7 @@ TRACE_EVENT(i915_gem_shrink,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = i915->dev->primary->index;
+			   __entry->dev = i915->drm.primary->index;
 			   __entry->target = target;
 			   __entry->flags = flags;
 			   ),
@@ -394,25 +394,27 @@ DEFINE_EVENT(i915_gem_object, i915_gem_object_destroy,
 );
 
 TRACE_EVENT(i915_gem_evict,
-	    TP_PROTO(struct drm_device *dev, u32 size, u32 align, unsigned flags),
-	    TP_ARGS(dev, size, align, flags),
+	    TP_PROTO(struct i915_address_space *vm, u32 size, u32 align, unsigned int flags),
+	    TP_ARGS(vm, size, align, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
+			     __field(struct i915_address_space *, vm)
 			     __field(u32, size)
 			     __field(u32, align)
-			     __field(unsigned, flags)
+			     __field(unsigned int, flags)
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
+			   __entry->dev = vm->dev->primary->index;
+			   __entry->vm = vm;
 			   __entry->size = size;
 			   __entry->align = align;
 			   __entry->flags = flags;
 			  ),
 
-	    TP_printk("dev=%d, size=%d, align=%d %s",
-		      __entry->dev, __entry->size, __entry->align,
+	    TP_printk("dev=%d, vm=%p, size=%d, align=%d %s",
+		      __entry->dev, __entry->vm, __entry->size, __entry->align,
 		      __entry->flags & PIN_MAPPABLE ? ", mappable" : "")
 );
 
@@ -449,10 +451,9 @@ TRACE_EVENT(i915_gem_evict_vm,
 );
 
 TRACE_EVENT(i915_gem_ring_sync_to,
-	    TP_PROTO(struct drm_i915_gem_request *to_req,
-		     struct intel_engine_cs *from,
-		     struct drm_i915_gem_request *req),
-	    TP_ARGS(to_req, from, req),
+	    TP_PROTO(struct drm_i915_gem_request *to,
+		     struct drm_i915_gem_request *from),
+	    TP_ARGS(to, from),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
@@ -462,10 +463,10 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = from->dev->primary->index;
-			   __entry->sync_from = from->id;
-			   __entry->sync_to = to_req->engine->id;
-			   __entry->seqno = i915_gem_request_get_seqno(req);
+			   __entry->dev = from->i915->drm.primary->index;
+			   __entry->sync_from = from->engine->id;
+			   __entry->sync_to = to->engine->id;
+			   __entry->seqno = from->fence.seqno;
 			   ),
 
 	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u",
@@ -486,13 +487,11 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 			     ),
 
 	    TP_fast_assign(
-			   struct intel_engine_cs *engine =
-						i915_gem_request_get_engine(req);
-			   __entry->dev = engine->dev->primary->index;
-			   __entry->ring = engine->id;
-			   __entry->seqno = i915_gem_request_get_seqno(req);
+			   __entry->dev = req->i915->drm.primary->index;
+			   __entry->ring = req->engine->id;
+			   __entry->seqno = req->fence.seqno;
 			   __entry->flags = flags;
-			   i915_trace_irq_get(engine, req);
+			   fence_enable_sw_signaling(&req->fence);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
@@ -511,7 +510,7 @@ TRACE_EVENT(i915_gem_ring_flush,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = req->engine->dev->primary->index;
+			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
 			   __entry->invalidate = invalidate;
 			   __entry->flush = flush;
@@ -533,11 +532,9 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 			     ),
 
 	    TP_fast_assign(
-			   struct intel_engine_cs *engine =
-						i915_gem_request_get_engine(req);
-			   __entry->dev = engine->dev->primary->index;
-			   __entry->ring = engine->id;
-			   __entry->seqno = i915_gem_request_get_seqno(req);
+			   __entry->dev = req->i915->drm.primary->index;
+			   __entry->ring = req->engine->id;
+			   __entry->seqno = req->fence.seqno;
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u",
@@ -560,9 +557,9 @@ TRACE_EVENT(i915_gem_request_notify,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = engine->dev->primary->index;
+			   __entry->dev = engine->i915->drm.primary->index;
 			   __entry->ring = engine->id;
-			   __entry->seqno = engine->get_seqno(engine);
+			   __entry->seqno = intel_engine_get_seqno(engine);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u",
@@ -597,13 +594,11 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	     * less desirable.
 	     */
 	    TP_fast_assign(
-			   struct intel_engine_cs *engine =
-						i915_gem_request_get_engine(req);
-			   __entry->dev = engine->dev->primary->index;
-			   __entry->ring = engine->id;
-			   __entry->seqno = i915_gem_request_get_seqno(req);
+			   __entry->dev = req->i915->drm.primary->index;
+			   __entry->ring = req->engine->id;
+			   __entry->seqno = req->fence.seqno;
 			   __entry->blocking =
-				     mutex_is_locked(&engine->dev->struct_mutex);
+				     mutex_is_locked(&req->i915->drm.struct_mutex);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, blocking=%s",
@@ -740,19 +735,19 @@ DEFINE_EVENT(i915_ppgtt, i915_ppgtt_release,
  * the context.
  */
 DECLARE_EVENT_CLASS(i915_context,
-	TP_PROTO(struct intel_context *ctx),
+	TP_PROTO(struct i915_gem_context *ctx),
 	TP_ARGS(ctx),
 
 	TP_STRUCT__entry(
 			__field(u32, dev)
-			__field(struct intel_context *, ctx)
+			__field(struct i915_gem_context *, ctx)
 			__field(struct i915_address_space *, vm)
 	),
 
 	TP_fast_assign(
 			__entry->ctx = ctx;
 			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->base : NULL;
-			__entry->dev = ctx->i915->dev->primary->index;
+			__entry->dev = ctx->i915->drm.primary->index;
 	),
 
 	TP_printk("dev=%u, ctx=%p, ctx_vm=%p",
@@ -760,12 +755,12 @@ DECLARE_EVENT_CLASS(i915_context,
 )
 
 DEFINE_EVENT(i915_context, i915_context_create,
-	TP_PROTO(struct intel_context *ctx),
+	TP_PROTO(struct i915_gem_context *ctx),
 	TP_ARGS(ctx)
 );
 
 DEFINE_EVENT(i915_context, i915_context_free,
-	TP_PROTO(struct intel_context *ctx),
+	TP_PROTO(struct i915_gem_context *ctx),
 	TP_ARGS(ctx)
 );
 
@@ -777,13 +772,13 @@ DEFINE_EVENT(i915_context, i915_context_free,
  * called only if full ppgtt is enabled.
  */
 TRACE_EVENT(switch_mm,
-	TP_PROTO(struct intel_engine_cs *engine, struct intel_context *to),
+	TP_PROTO(struct intel_engine_cs *engine, struct i915_gem_context *to),
 
 	TP_ARGS(engine, to),
 
 	TP_STRUCT__entry(
 			__field(u32, ring)
-			__field(struct intel_context *, to)
+			__field(struct i915_gem_context *, to)
 			__field(struct i915_address_space *, vm)
 			__field(u32, dev)
 	),
@@ -792,7 +787,7 @@ TRACE_EVENT(switch_mm,
 			__entry->ring = engine->id;
 			__entry->to = to;
 			__entry->vm = to->ppgtt? &to->ppgtt->base : NULL;
-			__entry->dev = engine->dev->primary->index;
+			__entry->dev = engine->i915->drm.primary->index;
 	),
 
 	TP_printk("dev=%u, ring=%u, ctx=%p, ctx_vm=%p",

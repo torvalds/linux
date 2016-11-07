@@ -34,6 +34,7 @@
 #define mmUVD_UDEC_ADDR_CONFIG                                                  0x3bd3
 #define mmUVD_UDEC_DB_ADDR_CONFIG                                               0x3bd4
 #define mmUVD_UDEC_DBW_ADDR_CONFIG                                              0x3bd5
+#define mmUVD_NO_OP                                                             0x3bff
 #define mmUVD_SEMA_CNTL                                                         0x3d00
 #define mmUVD_LMI_EXT40_ADDR                                                    0x3d26
 #define mmUVD_CTX_INDEX                                                         0x3d28

@@ -154,10 +154,10 @@
 #define VI6_RPF_ALPH_SEL_AEXT_EXT	(1 << 18)
 #define VI6_RPF_ALPH_SEL_AEXT_ONE	(2 << 18)
 #define VI6_RPF_ALPH_SEL_AEXT_MASK	(3 << 18)
-#define VI6_RPF_ALPH_SEL_ALPHA0_MASK	(0xff << 8)
-#define VI6_RPF_ALPH_SEL_ALPHA0_SHIFT	8
-#define VI6_RPF_ALPH_SEL_ALPHA1_MASK	(0xff << 0)
-#define VI6_RPF_ALPH_SEL_ALPHA1_SHIFT	0
+#define VI6_RPF_ALPH_SEL_ALPHA1_MASK	(0xff << 8)
+#define VI6_RPF_ALPH_SEL_ALPHA1_SHIFT	8
+#define VI6_RPF_ALPH_SEL_ALPHA0_MASK	(0xff << 0)
+#define VI6_RPF_ALPH_SEL_ALPHA0_SHIFT	0
 
 #define VI6_RPF_VRTCOL_SET		0x0318
 #define VI6_RPF_VRTCOL_SET_LAYA_MASK	(0xff << 24)
@@ -255,6 +255,8 @@
 #define VI6_WPF_OUTFMT_PDV_MASK		(0xff << 24)
 #define VI6_WPF_OUTFMT_PDV_SHIFT	24
 #define VI6_WPF_OUTFMT_PXA		(1 << 23)
+#define VI6_WPF_OUTFMT_ROT		(1 << 18)
+#define VI6_WPF_OUTFMT_HFLP		(1 << 17)
 #define VI6_WPF_OUTFMT_FLP		(1 << 16)
 #define VI6_WPF_OUTFMT_SPYCS		(1 << 15)
 #define VI6_WPF_OUTFMT_SPUVS		(1 << 14)
@@ -288,6 +290,11 @@
 #define VI6_WPF_RNDCTRL_CLMD_CLIP	(1 << 12)
 #define VI6_WPF_RNDCTRL_CLMD_EXT	(2 << 12)
 #define VI6_WPF_RNDCTRL_CLMD_MASK	(3 << 12)
+
+#define VI6_WPF_ROT_CTRL		0x1018
+#define VI6_WPF_ROT_CTRL_LN16		(1 << 17)
+#define VI6_WPF_ROT_CTRL_LMEM_WD_MASK	(0x1fff << 0)
+#define VI6_WPF_ROT_CTRL_LMEM_WD_SHIFT	0
 
 #define VI6_WPF_DSTM_STRIDE_Y		0x101c
 #define VI6_WPF_DSTM_STRIDE_C		0x1020
@@ -444,6 +451,15 @@
  */
 
 #define VI6_CLU_CTRL			0x2900
+#define VI6_CLU_CTRL_AAI		(1 << 28)
+#define VI6_CLU_CTRL_MVS		(1 << 24)
+#define VI6_CLU_CTRL_AX1I_2D		(3 << 14)
+#define VI6_CLU_CTRL_AX2I_2D		(1 << 12)
+#define VI6_CLU_CTRL_OS0_2D		(3 << 8)
+#define VI6_CLU_CTRL_OS1_2D		(1 << 6)
+#define VI6_CLU_CTRL_OS2_2D		(3 << 4)
+#define VI6_CLU_CTRL_M2D		(1 << 1)
+#define VI6_CLU_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * HST Control Registers
@@ -644,6 +660,8 @@
 #define VI6_IP_VERSION_MODEL_VSPR_H2	(0x0a << 8)
 #define VI6_IP_VERSION_MODEL_VSPD_GEN2	(0x0b << 8)
 #define VI6_IP_VERSION_MODEL_VSPS_M2	(0x0c << 8)
+#define VI6_IP_VERSION_MODEL_VSPS_V2H	(0x12 << 8)
+#define VI6_IP_VERSION_MODEL_VSPD_V2H	(0x13 << 8)
 #define VI6_IP_VERSION_MODEL_VSPI_GEN3	(0x14 << 8)
 #define VI6_IP_VERSION_MODEL_VSPBD_GEN3	(0x15 << 8)
 #define VI6_IP_VERSION_MODEL_VSPBC_GEN3	(0x16 << 8)

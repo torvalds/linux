@@ -24,3 +24,22 @@ config BLK_DEV_NVME_SCSI
 	  to say N here, unless you run a distro that abuses the SCSI
 	  emulation to provide stable device names for mount by id, like
 	  some OpenSuSE and SLES versions.
+
+config NVME_FABRICS
+	tristate
+
+config NVME_RDMA
+	tristate "NVM Express over Fabrics RDMA host driver"
+	depends on INFINIBAND && BLOCK
+	select NVME_CORE
+	select NVME_FABRICS
+	select SG_POOL
+	help
+	  This provides support for the NVMe over Fabrics protocol using
+	  the RDMA (Infiniband, RoCE, iWarp) transport.  This allows you
+	  to use remote block devices exported using the NVMe protocol set.
+
+	  To configure a NVMe over Fabrics controller use the nvme-cli tool
+	  from https://github.com/linux-nvme/nvme-cli.
+
+	  If unsure, say N.

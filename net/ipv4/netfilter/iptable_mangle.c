@@ -87,10 +87,6 @@ iptable_mangle_hook(void *priv,
 {
 	if (state->hook == NF_INET_LOCAL_OUT)
 		return ipt_mangle_out(skb, state);
-	if (state->hook == NF_INET_POST_ROUTING)
-		return ipt_do_table(skb, state,
-				    state->net->ipv4.iptable_mangle);
-	/* PREROUTING/INPUT/FORWARD: */
 	return ipt_do_table(skb, state, state->net->ipv4.iptable_mangle);
 }
 

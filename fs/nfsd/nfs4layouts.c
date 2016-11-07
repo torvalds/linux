@@ -27,6 +27,9 @@ static const struct nfsd4_callback_ops nfsd4_cb_layout_ops;
 static const struct lock_manager_operations nfsd4_layouts_lm_ops;
 
 const struct nfsd4_layout_ops *nfsd4_layout_ops[LAYOUT_TYPE_MAX] =  {
+#ifdef CONFIG_NFSD_FLEXFILELAYOUT
+	[LAYOUT_FLEX_FILES]	= &ff_layout_ops,
+#endif
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
 	[LAYOUT_BLOCK_VOLUME]	= &bl_layout_ops,
 #endif
@@ -122,28 +125,35 @@ nfsd4_set_deviceid(struct nfsd4_deviceid *id, const struct svc_fh *fhp,
 
 void nfsd4_setup_layout_type(struct svc_export *exp)
 {
+#if defined(CONFIG_NFSD_BLOCKLAYOUT) || defined(CONFIG_NFSD_SCSILAYOUT)
 	struct super_block *sb = exp->ex_path.mnt->mnt_sb;
+#endif
 
 	if (!(exp->ex_flags & NFSEXP_PNFS))
 		return;
 
 	/*
-	 * Check if the file system supports exporting a block-like layout.
+	 * If flex file is configured, use it by default. Otherwise
+	 * check if the file system supports exporting a block-like layout.
 	 * If the block device supports reservations prefer the SCSI layout,
 	 * otherwise advertise the block layout.
 	 */
+#ifdef CONFIG_NFSD_FLEXFILELAYOUT
+	exp->ex_layout_types |= 1 << LAYOUT_FLEX_FILES;
+#endif
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
+	/* overwrite flex file layout selection if needed */
 	if (sb->s_export_op->get_uuid &&
 	    sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks)
-		exp->ex_layout_type = LAYOUT_BLOCK_VOLUME;
+		exp->ex_layout_types |= 1 << LAYOUT_BLOCK_VOLUME;
 #endif
 #ifdef CONFIG_NFSD_SCSILAYOUT
 	/* overwrite block layout selection if needed */
 	if (sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks &&
 	    sb->s_bdev && sb->s_bdev->bd_disk->fops->pr_ops)
-		exp->ex_layout_type = LAYOUT_SCSI;
+		exp->ex_layout_types |= 1 << LAYOUT_SCSI;
 #endif
 }
 
@@ -164,7 +174,8 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 	list_del_init(&ls->ls_perfile);
 	spin_unlock(&fp->fi_lock);
 
-	vfs_setlease(ls->ls_file, F_UNLCK, NULL, (void **)&ls);
+	if (!nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
+		vfs_setlease(ls->ls_file, F_UNLCK, NULL, (void **)&ls);
 	fput(ls->ls_file);
 
 	if (ls->ls_recalled)
@@ -178,6 +189,9 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 {
 	struct file_lock *fl;
 	int status;
+
+	if (nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
+		return 0;
 
 	fl = locks_alloc_lock();
 	if (!fl)

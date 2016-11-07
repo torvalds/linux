@@ -523,7 +523,7 @@ static int apic_set_affinity(struct irq_data *irq_data,
 	struct apic_chip_data *data = irq_data->chip_data;
 	int err, irq = irq_data->irq;
 
-	if (!config_enabled(CONFIG_SMP))
+	if (!IS_ENABLED(CONFIG_SMP))
 		return -EPERM;
 
 	if (!cpumask_intersects(dest, cpu_online_mask))
@@ -661,10 +661,27 @@ void irq_complete_move(struct irq_cfg *cfg)
  */
 void irq_force_complete_move(struct irq_desc *desc)
 {
-	struct irq_data *irqdata = irq_desc_get_irq_data(desc);
-	struct apic_chip_data *data = apic_chip_data(irqdata);
-	struct irq_cfg *cfg = data ? &data->cfg : NULL;
+	struct irq_data *irqdata;
+	struct apic_chip_data *data;
+	struct irq_cfg *cfg;
 	unsigned int cpu;
+
+	/*
+	 * The function is called for all descriptors regardless of which
+	 * irqdomain they belong to. For example if an IRQ is provided by
+	 * an irq_chip as part of a GPIO driver, the chip data for that
+	 * descriptor is specific to the irq_chip in question.
+	 *
+	 * Check first that the chip_data is what we expect
+	 * (apic_chip_data) before touching it any further.
+	 */
+	irqdata = irq_domain_get_irq_data(x86_vector_domain,
+					  irq_desc_get_irq(desc));
+	if (!irqdata)
+		return;
+
+	data = apic_chip_data(irqdata);
+	cfg = data ? &data->cfg : NULL;
 
 	if (!cfg)
 		return;

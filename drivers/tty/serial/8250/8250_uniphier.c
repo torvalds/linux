@@ -35,7 +35,7 @@ struct uniphier8250_priv {
 	spinlock_t atomic_write_lock;
 };
 
-#if defined(CONFIG_SERIAL_8250_CONSOLE) && !defined(MODULE)
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init uniphier_early_console_setup(struct earlycon_device *device,
 					       const char *options)
 {
@@ -99,7 +99,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 	case UART_LCR:
 		valshift = UNIPHIER_UART_LCR_SHIFT;
 		/* Divisor latch access bit does not exist. */
-		value &= ~(UART_LCR_DLAB << valshift);
+		value &= ~UART_LCR_DLAB;
 		/* fall through */
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
@@ -199,7 +199,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(dev, "failed to get memory resource");
+		dev_err(dev, "failed to get memory resource\n");
 		return -EINVAL;
 	}
 

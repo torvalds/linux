@@ -2,7 +2,7 @@
 				-------
 
 Written by Paul Menage <menage@google.com> based on
-Documentation/cgroups/cpusets.txt
+Documentation/cgroup-v1/cpusets.txt
 
 Original copyright statements from cpusets.txt:
 Portions Copyright (C) 2004 BULL SA.
@@ -72,7 +72,7 @@ On their own, the only use for cgroups is for simple job
 tracking. The intention is that other subsystems hook into the generic
 cgroup support to provide new attributes for cgroups, such as
 accounting/limiting the resources which processes in a cgroup can
-access. For example, cpusets (see Documentation/cgroups/cpusets.txt) allow
+access. For example, cpusets (see Documentation/cgroup-v1/cpusets.txt) allow
 you to associate a set of CPUs and a set of memory nodes with the
 tasks in each cgroup.
 

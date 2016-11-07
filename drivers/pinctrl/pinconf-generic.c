@@ -53,7 +53,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 				     struct seq_file *s, const char *gname,
 				     unsigned pin,
 				     const struct pin_config_item *items,
-				     int nitems)
+				     int nitems, int *print_sep)
 {
 	int i;
 
@@ -75,8 +75,10 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 			seq_printf(s, "ERROR READING CONFIG SETTING %d ", i);
 			continue;
 		}
-		/* Space between multiple configs */
-		seq_puts(s, " ");
+		/* comma between multiple configs */
+		if (*print_sep)
+			seq_puts(s, ", ");
+		*print_sep = 1;
 		seq_puts(s, items[i].display);
 		/* Print unit if available */
 		if (items[i].has_arg) {
@@ -105,19 +107,21 @@ void pinconf_generic_dump_pins(struct pinctrl_dev *pctldev, struct seq_file *s,
 			       const char *gname, unsigned pin)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
+	int print_sep = 0;
 
 	if (!ops->is_generic)
 		return;
 
 	/* generic parameters */
 	pinconf_generic_dump_one(pctldev, s, gname, pin, conf_items,
-				 ARRAY_SIZE(conf_items));
+				 ARRAY_SIZE(conf_items), &print_sep);
 	/* driver-specific parameters */
 	if (pctldev->desc->num_custom_params &&
 	    pctldev->desc->custom_conf_items)
 		pinconf_generic_dump_one(pctldev, s, gname, pin,
 					 pctldev->desc->custom_conf_items,
-					 pctldev->desc->num_custom_params);
+					 pctldev->desc->num_custom_params,
+					 &print_sep);
 }
 
 void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
@@ -390,5 +394,13 @@ exit:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
+
+void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
+				 struct pinctrl_map *map,
+				 unsigned num_maps)
+{
+	pinctrl_utils_free_map(pctldev, map, num_maps);
+}
+EXPORT_SYMBOL_GPL(pinconf_generic_dt_free_map);
 
 #endif

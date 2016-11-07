@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 		.text
 
@@ -140,3 +141,4 @@ ENTRY(csum_partial)
 		bne	4b
 		b	.Lless4
 ENDPROC(csum_partial)
+EXPORT_SYMBOL(csum_partial)

@@ -940,10 +940,11 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	 */
 
 	/*
-	 * AVI data byte 1 differences: Colorspace in bits 4,5 rather than 5,6,
-	 * active aspect present in bit 6 rather than 4.
+	 * AVI data byte 1 differences: Colorspace in bits 0,1 rather than 5,6,
+	 * scan info in bits 4,5 rather than 0,1 and active aspect present in
+	 * bit 6 rather than 4.
 	 */
-	val = (frame.colorspace & 3) << 4 | (frame.scan_mode & 0x3);
+	val = (frame.scan_mode & 3) << 4 | (frame.colorspace & 3);
 	if (frame.active_aspect & 15)
 		val |= HDMI_FC_AVICONF0_ACTIVE_FMT_INFO_PRESENT;
 	if (frame.top_bar || frame.bottom_bar)
@@ -1476,21 +1477,6 @@ dw_hdmi_connector_mode_valid(struct drm_connector *connector,
 	return mode_status;
 }
 
-static struct drm_encoder *dw_hdmi_connector_best_encoder(struct drm_connector
-							   *connector)
-{
-	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
-					     connector);
-
-	return hdmi->encoder;
-}
-
-static void dw_hdmi_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
 static void dw_hdmi_connector_force(struct drm_connector *connector)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
@@ -1504,18 +1490,10 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = dw_hdmi_connector_detect,
-	.destroy = dw_hdmi_connector_destroy,
-	.force = dw_hdmi_connector_force,
-};
-
-static const struct drm_connector_funcs dw_hdmi_atomic_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = dw_hdmi_connector_detect,
-	.destroy = dw_hdmi_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.force = dw_hdmi_connector_force,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -1525,7 +1503,7 @@ static const struct drm_connector_funcs dw_hdmi_atomic_connector_funcs = {
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
 	.mode_valid = dw_hdmi_connector_mode_valid,
-	.best_encoder = dw_hdmi_connector_best_encoder,
+	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
@@ -1643,14 +1621,9 @@ static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 	drm_connector_helper_add(&hdmi->connector,
 				 &dw_hdmi_connector_helper_funcs);
 
-	if (drm_core_check_feature(drm, DRIVER_ATOMIC))
-		drm_connector_init(drm, &hdmi->connector,
-				   &dw_hdmi_atomic_connector_funcs,
-				   DRM_MODE_CONNECTOR_HDMIA);
-	else
-		drm_connector_init(drm, &hdmi->connector,
-				   &dw_hdmi_connector_funcs,
-				   DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init(drm, &hdmi->connector,
+			   &dw_hdmi_connector_funcs,
+			   DRM_MODE_CONNECTOR_HDMIA);
 
 	drm_mode_connector_attach_encoder(&hdmi->connector, encoder);
 
@@ -1833,9 +1806,6 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
-
-	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder->funcs->destroy(hdmi->encoder);
 
 	clk_disable_unprepare(hdmi->iahb_clk);
 	clk_disable_unprepare(hdmi->isfr_clk);

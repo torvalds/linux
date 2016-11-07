@@ -96,6 +96,13 @@ struct drbd_bitmap {
 	struct page **bm_pages;
 	spinlock_t bm_lock;
 
+	/* exclusively to be used by __al_write_transaction(),
+	 * drbd_bm_mark_for_writeout() and
+	 * and drbd_bm_write_hinted() -> bm_rw() called from there.
+	 */
+	unsigned int n_bitmap_hints;
+	unsigned int al_bitmap_hints[AL_UPDATES_PER_TRANSACTION];
+
 	/* see LIMITATIONS: above */
 
 	unsigned long bm_set;       /* nr of set bits; THINK maybe atomic_t? */
@@ -242,6 +249,11 @@ static void bm_set_page_need_writeout(struct page *page)
 	set_bit(BM_PAGE_NEED_WRITEOUT, &page_private(page));
 }
 
+void drbd_bm_reset_al_hints(struct drbd_device *device)
+{
+	device->bitmap->n_bitmap_hints = 0;
+}
+
 /**
  * drbd_bm_mark_for_writeout() - mark a page with a "hint" to be considered for writeout
  * @device:	DRBD device.
@@ -253,6 +265,7 @@ static void bm_set_page_need_writeout(struct page *page)
  */
 void drbd_bm_mark_for_writeout(struct drbd_device *device, int page_nr)
 {
+	struct drbd_bitmap *b = device->bitmap;
 	struct page *page;
 	if (page_nr >= device->bitmap->bm_number_of_pages) {
 		drbd_warn(device, "BAD: page_nr: %u, number_of_pages: %u\n",
@@ -260,7 +273,9 @@ void drbd_bm_mark_for_writeout(struct drbd_device *device, int page_nr)
 		return;
 	}
 	page = device->bitmap->bm_pages[page_nr];
-	set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page));
+	BUG_ON(b->n_bitmap_hints >= ARRAY_SIZE(b->al_bitmap_hints));
+	if (!test_and_set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page)))
+		b->al_bitmap_hints[b->n_bitmap_hints++] = page_nr;
 }
 
 static int bm_test_page_unchanged(struct page *page)
@@ -427,8 +442,7 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 }
 
 /*
- * called on driver init only. TODO call when a device is created.
- * allocates the drbd_bitmap, and stores it in device->bitmap.
+ * allocates the drbd_bitmap and stores it in device->bitmap.
  */
 int drbd_bm_init(struct drbd_device *device)
 {
@@ -633,7 +647,8 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 	unsigned long bits, words, owords, obits;
 	unsigned long want, have, onpages; /* number of pages */
 	struct page **npages, **opages = NULL;
-	int err = 0, growing;
+	int err = 0;
+	bool growing;
 
 	if (!expect(b))
 		return -ENOMEM;
@@ -980,7 +995,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 	struct drbd_bitmap *b = device->bitmap;
 	struct page *page;
 	unsigned int len;
-	unsigned int rw = (ctx->flags & BM_AIO_READ) ? READ : WRITE;
+	unsigned int op = (ctx->flags & BM_AIO_READ) ? REQ_OP_READ : REQ_OP_WRITE;
 
 	sector_t on_disk_sector =
 		device->ldev->md.md_offset + device->ldev->md.bm_offset;
@@ -1011,12 +1026,12 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 	bio_add_page(bio, page, len, 0);
 	bio->bi_private = ctx;
 	bio->bi_end_io = drbd_bm_endio;
+	bio_set_op_attrs(bio, op, 0);
 
-	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
-		bio->bi_rw |= rw;
+	if (drbd_insert_fault(device, (op == REQ_OP_WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
 		bio_io_error(bio);
 	} else {
-		submit_bio(rw, bio);
+		submit_bio(bio);
 		/* this should not count as user activity and cause the
 		 * resync to throttle -- see drbd_rs_should_slow_down(). */
 		atomic_add(len >> 9, &device->rs_sect_ev);
@@ -1030,7 +1045,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 {
 	struct drbd_bm_aio_ctx *ctx;
 	struct drbd_bitmap *b = device->bitmap;
-	int num_pages, i, count = 0;
+	unsigned int num_pages, i, count = 0;
 	unsigned long now;
 	char ppb[10];
 	int err = 0;
@@ -1078,16 +1093,37 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 	now = jiffies;
 
 	/* let the layers below us try to merge these bios... */
-	for (i = 0; i < num_pages; i++) {
-		/* ignore completely unchanged pages */
-		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
-			break;
-		if (!(flags & BM_AIO_READ)) {
-			if ((flags & BM_AIO_WRITE_HINTED) &&
-			    !test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
-				    &page_private(b->bm_pages[i])))
-				continue;
 
+	if (flags & BM_AIO_READ) {
+		for (i = 0; i < num_pages; i++) {
+			atomic_inc(&ctx->in_flight);
+			bm_page_io_async(ctx, i);
+			++count;
+			cond_resched();
+		}
+	} else if (flags & BM_AIO_WRITE_HINTED) {
+		/* ASSERT: BM_AIO_WRITE_ALL_PAGES is not set. */
+		unsigned int hint;
+		for (hint = 0; hint < b->n_bitmap_hints; hint++) {
+			i = b->al_bitmap_hints[hint];
+			if (i >= num_pages) /* == -1U: no hint here. */
+				continue;
+			/* Several AL-extents may point to the same page. */
+			if (!test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
+			    &page_private(b->bm_pages[i])))
+				continue;
+			/* Has it even changed? */
+			if (bm_test_page_unchanged(b->bm_pages[i]))
+				continue;
+			atomic_inc(&ctx->in_flight);
+			bm_page_io_async(ctx, i);
+			++count;
+		}
+	} else {
+		for (i = 0; i < num_pages; i++) {
+			/* ignore completely unchanged pages */
+			if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
+				break;
 			if (!(flags & BM_AIO_WRITE_ALL_PAGES) &&
 			    bm_test_page_unchanged(b->bm_pages[i])) {
 				dynamic_drbd_dbg(device, "skipped bm write for idx %u\n", i);
@@ -1100,11 +1136,11 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 				dynamic_drbd_dbg(device, "skipped bm lazy write for idx %u\n", i);
 				continue;
 			}
+			atomic_inc(&ctx->in_flight);
+			bm_page_io_async(ctx, i);
+			++count;
+			cond_resched();
 		}
-		atomic_inc(&ctx->in_flight);
-		bm_page_io_async(ctx, i);
-		++count;
-		cond_resched();
 	}
 
 	/*
@@ -1121,10 +1157,14 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 		kref_put(&ctx->kref, &drbd_bm_aio_ctx_destroy);
 
 	/* summary for global bitmap IO */
-	if (flags == 0)
-		drbd_info(device, "bitmap %s of %u pages took %lu jiffies\n",
-			 (flags & BM_AIO_READ) ? "READ" : "WRITE",
-			 count, jiffies - now);
+	if (flags == 0) {
+		unsigned int ms = jiffies_to_msecs(jiffies - now);
+		if (ms > 5) {
+			drbd_info(device, "bitmap %s of %u pages took %u ms\n",
+				 (flags & BM_AIO_READ) ? "READ" : "WRITE",
+				 count, ms);
+		}
+	}
 
 	if (ctx->error) {
 		drbd_alert(device, "we had at least one MD IO ERROR during bitmap IO\n");

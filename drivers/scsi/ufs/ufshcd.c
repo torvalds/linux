@@ -1173,7 +1173,7 @@ static void ufshcd_disable_intr(struct ufs_hba *hba, u32 intrs)
  * @cmd_dir: requests data direction
  */
 static void ufshcd_prepare_req_desc_hdr(struct ufshcd_lrb *lrbp,
-		u32 *upiu_flags, enum dma_data_direction cmd_dir)
+			u32 *upiu_flags, enum dma_data_direction cmd_dir)
 {
 	struct utp_transfer_req_desc *req_desc = lrbp->utr_descriptor_ptr;
 	u32 data_direction;
@@ -1266,9 +1266,12 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	ucd_req_ptr->header.dword_1 = UPIU_HEADER_DWORD(
 			0, query->request.query_func, 0, 0);
 
-	/* Data segment length */
-	ucd_req_ptr->header.dword_2 = UPIU_HEADER_DWORD(
-			0, 0, len >> 8, (u8)len);
+	/* Data segment length only need for WRITE_DESC */
+	if (query->request.upiu_req.opcode == UPIU_QUERY_OPCODE_WRITE_DESC)
+		ucd_req_ptr->header.dword_2 =
+			UPIU_HEADER_DWORD(0, 0, (len >> 8), (u8)len);
+	else
+		ucd_req_ptr->header.dword_2 = 0;
 
 	/* Copy the Query Request buffer as is */
 	memcpy(&ucd_req_ptr->qr, &query->request.upiu_req,
@@ -1299,47 +1302,55 @@ static inline void ufshcd_prepare_utp_nop_upiu(struct ufshcd_lrb *lrbp)
 }
 
 /**
- * ufshcd_compose_upiu - form UFS Protocol Information Unit(UPIU)
+ * ufshcd_comp_devman_upiu - UFS Protocol Information Unit(UPIU)
+ *			     for Device Management Purposes
  * @hba - per adapter instance
  * @lrb - pointer to local reference block
  */
-static int ufshcd_compose_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static int ufshcd_comp_devman_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
 	u32 upiu_flags;
 	int ret = 0;
 
-	switch (lrbp->command_type) {
-	case UTP_CMD_TYPE_SCSI:
-		if (likely(lrbp->cmd)) {
-			ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags,
-					lrbp->cmd->sc_data_direction);
-			ufshcd_prepare_utp_scsi_cmd_upiu(lrbp, upiu_flags);
-		} else {
-			ret = -EINVAL;
-		}
-		break;
-	case UTP_CMD_TYPE_DEV_MANAGE:
-		ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags, DMA_NONE);
-		if (hba->dev_cmd.type == DEV_CMD_TYPE_QUERY)
-			ufshcd_prepare_utp_query_req_upiu(
-					hba, lrbp, upiu_flags);
-		else if (hba->dev_cmd.type == DEV_CMD_TYPE_NOP)
-			ufshcd_prepare_utp_nop_upiu(lrbp);
-		else
-			ret = -EINVAL;
-		break;
-	case UTP_CMD_TYPE_UFS:
-		/* For UFS native command implementation */
-		ret = -ENOTSUPP;
-		dev_err(hba->dev, "%s: UFS native command are not supported\n",
-			__func__);
-		break;
-	default:
-		ret = -ENOTSUPP;
-		dev_err(hba->dev, "%s: unknown command type: 0x%x\n",
-				__func__, lrbp->command_type);
-		break;
-	} /* end of switch */
+	if (hba->ufs_version == UFSHCI_VERSION_20)
+		lrbp->command_type = UTP_CMD_TYPE_UFS_STORAGE;
+	else
+		lrbp->command_type = UTP_CMD_TYPE_DEV_MANAGE;
+
+	ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags, DMA_NONE);
+	if (hba->dev_cmd.type == DEV_CMD_TYPE_QUERY)
+		ufshcd_prepare_utp_query_req_upiu(hba, lrbp, upiu_flags);
+	else if (hba->dev_cmd.type == DEV_CMD_TYPE_NOP)
+		ufshcd_prepare_utp_nop_upiu(lrbp);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
+/**
+ * ufshcd_comp_scsi_upiu - UFS Protocol Information Unit(UPIU)
+ *			   for SCSI Purposes
+ * @hba - per adapter instance
+ * @lrb - pointer to local reference block
+ */
+static int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	u32 upiu_flags;
+	int ret = 0;
+
+	if (hba->ufs_version == UFSHCI_VERSION_20)
+		lrbp->command_type = UTP_CMD_TYPE_UFS_STORAGE;
+	else
+		lrbp->command_type = UTP_CMD_TYPE_SCSI;
+
+	if (likely(lrbp->cmd)) {
+		ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags,
+						lrbp->cmd->sc_data_direction);
+		ufshcd_prepare_utp_scsi_cmd_upiu(lrbp, upiu_flags);
+	} else {
+		ret = -EINVAL;
+	}
 
 	return ret;
 }
@@ -1451,10 +1462,9 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	lrbp->task_tag = tag;
 	lrbp->lun = ufshcd_scsi_to_upiu_lun(cmd->device->lun);
 	lrbp->intr_cmd = !ufshcd_is_intr_aggr_allowed(hba) ? true : false;
-	lrbp->command_type = UTP_CMD_TYPE_SCSI;
 
-	/* form UPIU before issuing the command */
-	ufshcd_compose_upiu(hba, lrbp);
+	ufshcd_comp_scsi_upiu(hba, lrbp);
+
 	err = ufshcd_map_sg(lrbp);
 	if (err) {
 		lrbp->cmd = NULL;
@@ -1479,11 +1489,10 @@ static int ufshcd_compose_dev_cmd(struct ufs_hba *hba,
 	lrbp->sense_buffer = NULL;
 	lrbp->task_tag = tag;
 	lrbp->lun = 0; /* device management cmd is not specific to any LUN */
-	lrbp->command_type = UTP_CMD_TYPE_DEV_MANAGE;
 	lrbp->intr_cmd = true; /* No interrupt aggregation */
 	hba->dev_cmd.type = cmd_type;
 
-	return ufshcd_compose_upiu(hba, lrbp);
+	return ufshcd_comp_devman_upiu(hba, lrbp);
 }
 
 static int
@@ -2131,7 +2140,7 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
 		buff_ascii = kmalloc(ascii_len, GFP_KERNEL);
 		if (!buff_ascii) {
 			err = -ENOMEM;
-			goto out_free_buff;
+			goto out;
 		}
 
 		/*
@@ -2150,7 +2159,6 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
 				size - QUERY_DESC_HDR_SIZE);
 		memcpy(buf + QUERY_DESC_HDR_SIZE, buff_ascii, ascii_len);
 		buf[QUERY_DESC_LENGTH_OFFSET] = ascii_len + QUERY_DESC_HDR_SIZE;
-out_free_buff:
 		kfree(buff_ascii);
 	}
 out:
@@ -2563,7 +2571,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 	status = ufshcd_get_upmcrs(hba);
 	if (status != PWR_LOCAL) {
 		dev_err(hba->dev,
-			"pwr ctrl cmd 0x%0x failed, host umpcrs:0x%x\n",
+			"pwr ctrl cmd 0x%0x failed, host upmcrs:0x%x\n",
 			cmd->command, status);
 		ret = (status != PWR_OK) ? status : -1;
 	}
@@ -3359,8 +3367,8 @@ static int ufshcd_task_req_compl(struct ufs_hba *hba, u32 index, u8 *resp)
 	if (ocs_value == OCS_SUCCESS) {
 		task_rsp_upiup = (struct utp_upiu_task_rsp *)
 				task_req_descp[index].task_rsp_upiu;
-		task_result = be32_to_cpu(task_rsp_upiup->header.dword_1);
-		task_result = ((task_result & MASK_TASK_RESPONSE) >> 8);
+		task_result = be32_to_cpu(task_rsp_upiup->output_param1);
+		task_result = task_result & MASK_TM_SERVICE_RESP;
 		if (resp)
 			*resp = (u8)task_result;
 	} else {
@@ -3539,7 +3547,8 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 			/* Do not touch lrbp after scsi done */
 			cmd->scsi_done(cmd);
 			__ufshcd_release(hba);
-		} else if (lrbp->command_type == UTP_CMD_TYPE_DEV_MANAGE) {
+		} else if (lrbp->command_type == UTP_CMD_TYPE_DEV_MANAGE ||
+			lrbp->command_type == UTP_CMD_TYPE_UFS_STORAGE) {
 			if (hba->dev_cmd.complete)
 				complete(hba->dev_cmd.complete);
 		}
@@ -6494,6 +6503,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		if (IS_ERR(hba->devfreq)) {
 			dev_err(hba->dev, "Unable to register with devfreq %ld\n",
 					PTR_ERR(hba->devfreq));
+			err = PTR_ERR(hba->devfreq);
 			goto out_remove_scsi_host;
 		}
 		/* Suspend devfreq until the UFS device is detected */

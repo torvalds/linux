@@ -15,9 +15,6 @@ enum nf_ct_ext_id {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	NF_CT_EXT_ECACHE,
 #endif
-#ifdef CONFIG_NF_CONNTRACK_ZONES
-	NF_CT_EXT_ZONE,
-#endif
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
 	NF_CT_EXT_TSTAMP,
 #endif
@@ -38,7 +35,6 @@ enum nf_ct_ext_id {
 #define NF_CT_EXT_SEQADJ_TYPE struct nf_conn_seqadj
 #define NF_CT_EXT_ACCT_TYPE struct nf_conn_acct
 #define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
-#define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone
 #define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
 #define NF_CT_EXT_TIMEOUT_TYPE struct nf_conn_timeout
 #define NF_CT_EXT_LABELS_TYPE struct nf_conn_labels
@@ -103,9 +99,6 @@ void *__nf_ct_ext_add_length(struct nf_conn *ct, enum nf_ct_ext_id id,
 struct nf_ct_ext_type {
 	/* Destroys relationships (can be NULL). */
 	void (*destroy)(struct nf_conn *ct);
-	/* Called when realloacted (can be NULL).
-	   Contents has already been moved. */
-	void (*move)(void *new, void *old);
 
 	enum nf_ct_ext_id id;
 

@@ -45,6 +45,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/reset.h>
 
 #include <linux/usb/of.h>
 
@@ -177,6 +178,38 @@ static const struct dwc2_core_params params_ltq = {
 	.ahbcfg				= GAHBCFG_HBSTLEN_INCR16 <<
 					  GAHBCFG_HBSTLEN_SHIFT,
 	.uframe_sched			= -1,
+	.external_id_pin_ctl		= -1,
+	.hibernation			= -1,
+};
+
+static const struct dwc2_core_params params_amlogic = {
+	.otg_cap			= DWC2_CAP_PARAM_NO_HNP_SRP_CAPABLE,
+	.otg_ver			= -1,
+	.dma_enable			= 1,
+	.dma_desc_enable		= 0,
+	.dma_desc_fs_enable		= 0,
+	.speed				= DWC2_SPEED_PARAM_HIGH,
+	.enable_dynamic_fifo		= 1,
+	.en_multiple_tx_fifo		= -1,
+	.host_rx_fifo_size		= 512,
+	.host_nperio_tx_fifo_size	= 500,
+	.host_perio_tx_fifo_size	= 500,
+	.max_transfer_size		= -1,
+	.max_packet_count		= -1,
+	.host_channels			= 16,
+	.phy_type			= DWC2_PHY_TYPE_PARAM_UTMI,
+	.phy_utmi_width			= -1,
+	.phy_ulpi_ddr			= -1,
+	.phy_ulpi_ext_vbus		= -1,
+	.i2c_enable			= -1,
+	.ulpi_fs_ls			= -1,
+	.host_support_fs_ls_low_power	= -1,
+	.host_ls_low_power_phy_clk	= -1,
+	.ts_dline			= -1,
+	.reload_ctl			= 1,
+	.ahbcfg				= GAHBCFG_HBSTLEN_INCR8 <<
+					  GAHBCFG_HBSTLEN_SHIFT,
+	.uframe_sched			= 0,
 	.external_id_pin_ctl		= -1,
 	.hibernation			= -1,
 };
@@ -337,6 +370,24 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 {
 	int i, ret;
 
+	hsotg->reset = devm_reset_control_get_optional(hsotg->dev, "dwc2");
+	if (IS_ERR(hsotg->reset)) {
+		ret = PTR_ERR(hsotg->reset);
+		switch (ret) {
+		case -ENOENT:
+		case -ENOTSUPP:
+			hsotg->reset = NULL;
+			break;
+		default:
+			dev_err(hsotg->dev, "error getting reset control %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	if (hsotg->reset)
+		reset_control_deassert(hsotg->reset);
+
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
 
@@ -434,6 +485,9 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	if (hsotg->ll_hw_enabled)
 		dwc2_lowlevel_hw_disable(hsotg);
 
+	if (hsotg->reset)
+		reset_control_assert(hsotg->reset);
+
 	return 0;
 }
 
@@ -464,6 +518,8 @@ static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "lantiq,xrx200-usb", .data = &params_ltq },
 	{ .compatible = "snps,dwc2", .data = NULL },
 	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
+	{ .compatible = "amlogic,meson8b-usb", .data = &params_amlogic },
+	{ .compatible = "amlogic,meson-gxbb-usb", .data = &params_amlogic },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);

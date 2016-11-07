@@ -259,6 +259,12 @@ static const struct rtc_class_ops efi_rtc_ops = {
 static int __init efi_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
+	efi_time_t eft;
+	efi_time_cap_t cap;
+
+	/* First check if the RTC is usable */
+	if (efi.get_time(&eft, &cap) != EFI_SUCCESS)
+		return -ENODEV;
 
 	rtc = devm_rtc_device_register(&dev->dev, "rtc-efi", &efi_rtc_ops,
 					THIS_MODULE);

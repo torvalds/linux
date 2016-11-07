@@ -7,7 +7,7 @@
  * Licensed under GPLv2 or later.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
@@ -5424,8 +5424,10 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 	pmx->sys2pci_base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(pmx->sys2pci_base))
+	if (IS_ERR(pmx->sys2pci_base)) {
+		of_node_put(sys2pci_np);
 		return -ENOMEM;
+	}
 
 	pmx->dev = &pdev->dev;
 
@@ -6156,6 +6158,3 @@ static int __init atlas7_gpio_init(void)
 	return platform_driver_register(&atlas7_gpio_driver);
 }
 subsys_initcall(atlas7_gpio_init);
-
-MODULE_DESCRIPTION("SIRFSOC Atlas7 pin control driver");
-MODULE_LICENSE("GPL");

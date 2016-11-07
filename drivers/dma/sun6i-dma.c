@@ -865,7 +865,7 @@ static enum dma_status sun6i_dma_tx_status(struct dma_chan *chan,
 	size_t bytes = 0;
 
 	ret = dma_cookie_status(chan, cookie, state);
-	if (ret == DMA_COMPLETE)
+	if (ret == DMA_COMPLETE || !state)
 		return ret;
 
 	spin_lock_irqsave(&vchan->vc.lock, flags);
@@ -1011,6 +1011,12 @@ static struct sun6i_dma_config sun8i_a23_dma_cfg = {
 	.nr_max_vchans   = 37,
 };
 
+static struct sun6i_dma_config sun8i_a83t_dma_cfg = {
+	.nr_max_channels = 8,
+	.nr_max_requests = 28,
+	.nr_max_vchans   = 39,
+};
+
 /*
  * The H3 has 12 physical channels, a maximum DRQ port id of 27,
  * and a total of 34 usable source and destination endpoints.
@@ -1025,6 +1031,7 @@ static struct sun6i_dma_config sun8i_h3_dma_cfg = {
 static const struct of_device_id sun6i_dma_match[] = {
 	{ .compatible = "allwinner,sun6i-a31-dma", .data = &sun6i_a31_dma_cfg },
 	{ .compatible = "allwinner,sun8i-a23-dma", .data = &sun8i_a23_dma_cfg },
+	{ .compatible = "allwinner,sun8i-a83t-dma", .data = &sun8i_a83t_dma_cfg },
 	{ .compatible = "allwinner,sun8i-h3-dma", .data = &sun8i_h3_dma_cfg },
 	{ /* sentinel */ }
 };

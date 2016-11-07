@@ -228,7 +228,7 @@ static irqreturn_t brcmstb_i2c_isr(int irq, void *devid)
 		return IRQ_NONE;
 
 	brcmstb_i2c_enable_disable_irq(dev, INT_DISABLE);
-	complete_all(&dev->done);
+	complete(&dev->done);
 
 	dev_dbg(dev->device, "isr handled");
 	return IRQ_HANDLED;
@@ -343,10 +343,9 @@ static int brcmstb_i2c_xfer_bsc_data(struct brcmstb_i2c_dev *dev,
 	struct bsc_regs *pi2creg = dev->bsc_regmap;
 	int no_ack = pmsg->flags & I2C_M_IGNORE_NAK;
 	int data_regsz = brcmstb_i2c_get_data_regsz(dev);
-	int xfersz = brcmstb_i2c_get_xfersz(dev);
 
 	/* see if the transaction needs to check NACK conditions */
-	if (no_ack || len <= xfersz) {
+	if (no_ack) {
 		cmd = (pmsg->flags & I2C_M_RD) ? CMD_RD_NOACK
 			: CMD_WR_NOACK;
 		pi2creg->ctlhi_reg |= BSC_CTLHI_REG_IGNORE_ACK_MASK;
@@ -649,10 +648,8 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 	rc = i2c_add_adapter(adap);
-	if (rc) {
-		dev_err(dev->device, "failed to add adapter\n");
+	if (rc)
 		goto probe_errorout;
-	}
 
 	dev_info(dev->device, "%s@%dhz registered in %s mode\n",
 		 int_name ? int_name : " ", dev->clk_freq_hz,

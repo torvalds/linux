@@ -158,7 +158,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	dev->mode_config.fb_base = paddr;
 
-	fbi->screen_base = msm_gem_vaddr_locked(fbdev->bo);
+	fbi->screen_base = msm_gem_get_vaddr_locked(fbdev->bo);
 	if (IS_ERR(fbi->screen_base)) {
 		ret = PTR_ERR(fbi->screen_base);
 		goto fail_unlock;
@@ -188,21 +188,7 @@ fail:
 	return ret;
 }
 
-static void msm_crtc_fb_gamma_set(struct drm_crtc *crtc,
-		u16 red, u16 green, u16 blue, int regno)
-{
-	DBG("fbdev: set gamma");
-}
-
-static void msm_crtc_fb_gamma_get(struct drm_crtc *crtc,
-		u16 *red, u16 *green, u16 *blue, int regno)
-{
-	DBG("fbdev: get gamma");
-}
-
 static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
-	.gamma_set = msm_crtc_fb_gamma_set,
-	.gamma_get = msm_crtc_fb_gamma_get,
 	.fb_probe = msm_fbdev_create,
 };
 
@@ -265,6 +251,7 @@ void msm_fbdev_free(struct drm_device *dev)
 
 	/* this will free the backing object */
 	if (fbdev->fb) {
+		msm_gem_put_vaddr(fbdev->bo);
 		drm_framebuffer_unregister_private(fbdev->fb);
 		drm_framebuffer_remove(fbdev->fb);
 	}

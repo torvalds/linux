@@ -93,7 +93,7 @@ static unsigned intel_find_fixed_event(int idx)
 	return intel_arch_events[fixed_pmc_events[idx]].event_type;
 }
 
-/* check if a PMC is enabled by comparising it with globl_ctrl bits. */
+/* check if a PMC is enabled by comparing it with globl_ctrl bits. */
 static bool intel_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);

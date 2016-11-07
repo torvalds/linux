@@ -22,6 +22,11 @@
 	BUILD_BUG_ON_MSG(sizeof(structname) != (size), "XFS: sizeof(" \
 		#structname ") is wrong, expected " #size)
 
+#define XFS_CHECK_OFFSET(structname, member, off) \
+	BUILD_BUG_ON_MSG(offsetof(structname, member) != (off), \
+		"XFS: offsetof(" #structname ", " #member ") is wrong, " \
+		"expected " #off)
+
 static inline void __init
 xfs_check_ondisk_structs(void)
 {
@@ -34,6 +39,8 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_STRUCT_SIZE(struct xfs_bmbt_key,		8);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_bmbt_rec,		16);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_bmdr_block,		4);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_btree_block_shdr,	48);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_btree_block_lhdr,	64);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_btree_block,		72);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_dinode,		176);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_disk_dquot,		104);
@@ -42,11 +49,17 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_STRUCT_SIZE(struct xfs_dsymlink_hdr,		56);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_inobt_key,		4);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_inobt_rec,		16);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_refcount_key,		4);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_refcount_rec,		12);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_rmap_key,		20);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_rmap_rec,		24);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_timestamp,		8);
 	XFS_CHECK_STRUCT_SIZE(xfs_alloc_key_t,			8);
 	XFS_CHECK_STRUCT_SIZE(xfs_alloc_ptr_t,			4);
 	XFS_CHECK_STRUCT_SIZE(xfs_alloc_rec_t,			8);
 	XFS_CHECK_STRUCT_SIZE(xfs_inobt_ptr_t,			4);
+	XFS_CHECK_STRUCT_SIZE(xfs_refcount_ptr_t,		4);
+	XFS_CHECK_STRUCT_SIZE(xfs_rmap_ptr_t,			4);
 
 	/* dir/attr trees */
 	XFS_CHECK_STRUCT_SIZE(struct xfs_attr3_leaf_hdr,	80);
@@ -75,27 +88,39 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_STRUCT_SIZE(xfs_attr_leaf_name_remote_t,	12);
 	 */
 
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_local_t, valuelen,	0);
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_local_t, namelen,	2);
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_local_t, nameval,	3);
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_remote_t, valueblk,	0);
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_remote_t, valuelen,	4);
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_remote_t, namelen,	8);
+	XFS_CHECK_OFFSET(xfs_attr_leaf_name_remote_t, name,	9);
 	XFS_CHECK_STRUCT_SIZE(xfs_attr_leafblock_t,		40);
-	XFS_CHECK_STRUCT_SIZE(xfs_attr_shortform_t,		8);
+	XFS_CHECK_OFFSET(xfs_attr_shortform_t, hdr.totsize,	0);
+	XFS_CHECK_OFFSET(xfs_attr_shortform_t, hdr.count,	2);
+	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].namelen,	4);
+	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].valuelen, 5);
+	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].flags,	6);
+	XFS_CHECK_OFFSET(xfs_attr_shortform_t, list[0].nameval,	7);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_blkinfo_t,			12);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_intnode_t,			16);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_node_entry_t,		8);
 	XFS_CHECK_STRUCT_SIZE(xfs_da_node_hdr_t,		16);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_data_free_t,		4);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_data_hdr_t,		16);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_data_unused_t,		6);
+	XFS_CHECK_OFFSET(xfs_dir2_data_unused_t, freetag,	0);
+	XFS_CHECK_OFFSET(xfs_dir2_data_unused_t, length,	2);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_free_hdr_t,		16);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_free_t,			16);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_ino4_t,			4);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_ino8_t,			8);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_inou_t,			8);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_entry_t,		8);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_hdr_t,		16);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_t,			16);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_leaf_tail_t,		4);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_sf_entry_t,		3);
+	XFS_CHECK_OFFSET(xfs_dir2_sf_entry_t, namelen,		0);
+	XFS_CHECK_OFFSET(xfs_dir2_sf_entry_t, offset,		1);
+	XFS_CHECK_OFFSET(xfs_dir2_sf_entry_t, name,		3);
 	XFS_CHECK_STRUCT_SIZE(xfs_dir2_sf_hdr_t,		10);
-	XFS_CHECK_STRUCT_SIZE(xfs_dir2_sf_off_t,		2);
 
 	/* log structures */
 	XFS_CHECK_STRUCT_SIZE(struct xfs_dq_logformat,		24);

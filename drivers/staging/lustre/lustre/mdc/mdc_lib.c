@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -41,27 +37,12 @@
 
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
-	b->suppgid = suppgid;
-	b->uid = from_kuid(&init_user_ns, current_uid());
-	b->gid = from_kgid(&init_user_ns, current_gid());
-	b->fsuid = from_kuid(&init_user_ns, current_fsuid());
-	b->fsgid = from_kgid(&init_user_ns, current_fsgid());
-	b->capability = cfs_curproc_cap_pack();
-}
-
-void mdc_is_subdir_pack(struct ptlrpc_request *req, const struct lu_fid *pfid,
-			const struct lu_fid *cfid, int flags)
-{
-	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
-						    &RMF_MDT_BODY);
-
-	if (pfid) {
-		b->fid1 = *pfid;
-		b->valid = OBD_MD_FLID;
-	}
-	if (cfid)
-		b->fid2 = *cfid;
-	b->flags = flags;
+	b->mbo_suppgid = suppgid;
+	b->mbo_uid = from_kuid(&init_user_ns, current_uid());
+	b->mbo_gid = from_kgid(&init_user_ns, current_gid());
+	b->mbo_fsuid = from_kuid(&init_user_ns, current_fsuid());
+	b->mbo_fsgid = from_kgid(&init_user_ns, current_fsgid());
+	b->mbo_capability = cfs_curproc_cap_pack();
 }
 
 void mdc_swap_layouts_pack(struct ptlrpc_request *req,
@@ -71,43 +52,74 @@ void mdc_swap_layouts_pack(struct ptlrpc_request *req,
 						    &RMF_MDT_BODY);
 
 	__mdc_pack_body(b, op_data->op_suppgids[0]);
-	b->fid1 = op_data->op_fid1;
-	b->fid2 = op_data->op_fid2;
-	b->valid |= OBD_MD_FLID;
+	b->mbo_fid1 = op_data->op_fid1;
+	b->mbo_fid2 = op_data->op_fid2;
+	b->mbo_valid |= OBD_MD_FLID;
 }
 
 void mdc_pack_body(struct ptlrpc_request *req, const struct lu_fid *fid,
-		   __u64 valid, int ea_size, __u32 suppgid, int flags)
+		   __u64 valid, size_t ea_size, __u32 suppgid, u32 flags)
 {
 	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
 						    &RMF_MDT_BODY);
-	b->valid = valid;
-	b->eadatasize = ea_size;
-	b->flags = flags;
+	b->mbo_valid = valid;
+	b->mbo_eadatasize = ea_size;
+	b->mbo_flags = flags;
 	__mdc_pack_body(b, suppgid);
 	if (fid) {
-		b->fid1 = *fid;
-		b->valid |= OBD_MD_FLID;
+		b->mbo_fid1 = *fid;
+		b->mbo_valid |= OBD_MD_FLID;
 	}
 }
 
-void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff,
-		      __u32 size, const struct lu_fid *fid)
+/**
+ * Pack a name (path component) into a request
+ *
+ * \param[in] req	request
+ * \param[in] field	request field (usually RMF_NAME)
+ * \param[in] name	path component
+ * \param[in] name_len	length of path component
+ *
+ * \a field must be present in \a req and of size \a name_len + 1.
+ *
+ * \a name must be '\0' terminated of length \a name_len and represent
+ * a single path component (not contain '/').
+ */
+static void mdc_pack_name(struct ptlrpc_request *req,
+			  const struct req_msg_field *field,
+			  const char *name, size_t name_len)
+{
+	size_t buf_size;
+	size_t cpy_len;
+	char *buf;
+
+	buf = req_capsule_client_get(&req->rq_pill, field);
+	buf_size = req_capsule_get_size(&req->rq_pill, field, RCL_CLIENT);
+
+	LASSERT(name && name_len && buf && buf_size == name_len + 1);
+
+	cpy_len = strlcpy(buf, name, buf_size);
+
+	LASSERT(cpy_len == name_len && lu_name_is_valid_2(buf, cpy_len));
+}
+
+void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff, size_t size,
+		      const struct lu_fid *fid)
 {
 	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
 						    &RMF_MDT_BODY);
-	b->fid1 = *fid;
-	b->valid |= OBD_MD_FLID;
-	b->size = pgoff;		       /* !! */
-	b->nlink = size;			/* !! */
+	b->mbo_fid1 = *fid;
+	b->mbo_valid |= OBD_MD_FLID;
+	b->mbo_size = pgoff;		       /* !! */
+	b->mbo_nlink = size;			/* !! */
 	__mdc_pack_body(b, -1);
-	b->mode = LUDA_FID | LUDA_TYPE;
+	b->mbo_mode = LUDA_FID | LUDA_TYPE;
 }
 
 /* packing of MDS records */
 void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		     const void *data, int datalen, __u32 mode,
-		     __u32 uid, __u32 gid, cfs_cap_t cap_effective, __u64 rdev)
+		     const void *data, size_t datalen, umode_t mode,
+		     uid_t uid, gid_t gid, cfs_cap_t cap_effective, __u64 rdev)
 {
 	struct mdt_rec_create	*rec;
 	char			*tmp;
@@ -134,22 +146,17 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_bias     = op_data->op_bias;
 	rec->cr_umask    = current_umask();
 
-	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
-
+	mdc_pack_name(req, &RMF_NAME, op_data->op_name, op_data->op_namelen);
 	if (data) {
 		tmp = req_capsule_client_get(&req->rq_pill, &RMF_EADATA);
 		memcpy(tmp, data, datalen);
 	}
 }
 
-static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
+static inline __u64 mds_pack_open_flags(__u64 flags)
 {
 	__u64 cr_flags = (flags & (FMODE_READ | FMODE_WRITE |
-				   MDS_OPEN_HAS_EA | MDS_OPEN_HAS_OBJS |
-				   MDS_OPEN_OWNEROVERRIDE | MDS_OPEN_LOCK |
-				   MDS_OPEN_BY_FID | MDS_OPEN_LEASE |
-				   MDS_OPEN_RELEASE));
+				   MDS_OPEN_FL_INTERNAL));
 	if (flags & O_CREAT)
 		cr_flags |= MDS_OPEN_CREAT;
 	if (flags & O_EXCL)
@@ -175,8 +182,8 @@ static __u64 mds_pack_open_flags(__u64 flags, __u32 mode)
 
 /* packing of MDS records */
 void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		   __u32 mode, __u64 rdev, __u64 flags, const void *lmm,
-		   int lmmlen)
+		   umode_t mode, __u64 rdev, __u64 flags, const void *lmm,
+		   size_t lmmlen)
 {
 	struct mdt_rec_create *rec;
 	char *tmp;
@@ -194,7 +201,7 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_fid2 = op_data->op_fid2;
 
 	rec->cr_mode     = mode;
-	cr_flags = mds_pack_open_flags(flags, mode);
+	cr_flags = mds_pack_open_flags(flags);
 	rec->cr_rdev     = rdev;
 	rec->cr_time     = op_data->op_mod_time;
 	rec->cr_suppgid1 = op_data->op_suppgids[0];
@@ -204,8 +211,9 @@ void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->cr_old_handle = op_data->op_handle;
 
 	if (op_data->op_name) {
-		tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-		LOGL0(op_data->op_name, op_data->op_namelen, tmp);
+		mdc_pack_name(req, &RMF_NAME, op_data->op_name,
+			      op_data->op_namelen);
+
 		if (op_data->op_bias & MDS_CREATE_VOLATILE)
 			cr_flags |= MDS_OPEN_VOLATILE;
 	}
@@ -299,7 +307,7 @@ static void mdc_ioepoch_pack(struct mdt_ioepoch *epoch,
 }
 
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		      void *ea, int ealen, void *ea2, int ea2len)
+		      void *ea, size_t ealen, void *ea2, size_t ea2len)
 {
 	struct mdt_rec_setattr *rec;
 	struct mdt_ioepoch *epoch;
@@ -320,7 +328,7 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 
 	lum = req_capsule_client_get(&req->rq_pill, &RMF_EADATA);
 	if (!ea) { /* Remove LOV EA */
-		lum->lmm_magic = LOV_USER_MAGIC_V1;
+		lum->lmm_magic = cpu_to_le32(LOV_USER_MAGIC_V1);
 		lum->lmm_stripe_size = 0;
 		lum->lmm_stripe_count = 0;
 		lum->lmm_stripe_offset = (typeof(lum->lmm_stripe_offset))(-1);
@@ -338,7 +346,6 @@ void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 {
 	struct mdt_rec_unlink *rec;
-	char *tmp;
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_unlink));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
@@ -356,15 +363,12 @@ void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec->ul_time     = op_data->op_mod_time;
 	rec->ul_bias     = op_data->op_bias;
 
-	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-	LASSERT(tmp);
-	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
+	mdc_pack_name(req, &RMF_NAME, op_data->op_name, op_data->op_namelen);
 }
 
 void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 {
 	struct mdt_rec_link *rec;
-	char *tmp;
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_link));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
@@ -380,20 +384,21 @@ void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec->lk_time     = op_data->op_mod_time;
 	rec->lk_bias     = op_data->op_bias;
 
-	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-	LOGL0(op_data->op_name, op_data->op_namelen, tmp);
+	mdc_pack_name(req, &RMF_NAME, op_data->op_name, op_data->op_namelen);
 }
 
 void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		     const char *old, int oldlen, const char *new, int newlen)
+		     const char *old, size_t oldlen,
+		     const char *new, size_t newlen)
 {
 	struct mdt_rec_rename *rec;
-	char *tmp;
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_rename));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	/* XXX do something about time, uid, gid */
+	rec->rn_opcode	 = op_data->op_cli_flags & CLI_MIGRATE ?
+				REINT_MIGRATE : REINT_RENAME;
 	rec->rn_opcode   = REINT_RENAME;
 	rec->rn_fsuid    = op_data->op_fsuid;
 	rec->rn_fsgid    = op_data->op_fsgid;
@@ -406,39 +411,34 @@ void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 	rec->rn_mode     = op_data->op_mode;
 	rec->rn_bias     = op_data->op_bias;
 
-	tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-	LOGL0(old, oldlen, tmp);
+	mdc_pack_name(req, &RMF_NAME, old, oldlen);
 
-	if (new) {
-		tmp = req_capsule_client_get(&req->rq_pill, &RMF_SYMTGT);
-		LOGL0(new, newlen, tmp);
-	}
+	if (new)
+		mdc_pack_name(req, &RMF_SYMTGT, new, newlen);
 }
 
-void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
-		      struct md_op_data *op_data, int ea_size)
+void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, u32 flags,
+		      struct md_op_data *op_data, size_t ea_size)
 {
 	struct mdt_body *b = req_capsule_client_get(&req->rq_pill,
 						    &RMF_MDT_BODY);
 
-	b->valid = valid;
+	b->mbo_valid = valid;
 	if (op_data->op_bias & MDS_CHECK_SPLIT)
-		b->valid |= OBD_MD_FLCKSPLIT;
+		b->mbo_valid |= OBD_MD_FLCKSPLIT;
 	if (op_data->op_bias & MDS_CROSS_REF)
-		b->valid |= OBD_MD_FLCROSSREF;
-	b->eadatasize = ea_size;
-	b->flags = flags;
+		b->mbo_valid |= OBD_MD_FLCROSSREF;
+	b->mbo_eadatasize = ea_size;
+	b->mbo_flags = flags;
 	__mdc_pack_body(b, op_data->op_suppgids[0]);
 
-	b->fid1 = op_data->op_fid1;
-	b->fid2 = op_data->op_fid2;
-	b->valid |= OBD_MD_FLID;
+	b->mbo_fid1 = op_data->op_fid1;
+	b->mbo_fid2 = op_data->op_fid2;
+	b->mbo_valid |= OBD_MD_FLID;
 
-	if (op_data->op_name) {
-		char *tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
-
-		LOGL0(op_data->op_name, op_data->op_namelen, tmp);
-	}
+	if (op_data->op_name)
+		mdc_pack_name(req, &RMF_NAME, op_data->op_name,
+			      op_data->op_namelen);
 }
 
 static void mdc_hsm_release_pack(struct ptlrpc_request *req,
@@ -471,70 +471,18 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	mdc_setattr_pack_rec(rec, op_data);
+	/*
+	 * The client will zero out local timestamps when losing the IBITS lock
+	 * so any new RPC timestamps will update the client inode's timestamps.
+	 * There was a defect on the server side which allowed the atime to be
+	 * overwritten by a zeroed-out atime packed into the close RPC.
+	 *
+	 * Proactively clear the MDS_ATTR_ATIME flag in the RPC in this case
+	 * to avoid zeroing the atime on old unpatched servers.  See LU-8041.
+	 */
+	if (rec->sa_atime == 0)
+		rec->sa_valid &= ~MDS_ATTR_ATIME;
+
 	mdc_ioepoch_pack(epoch, op_data);
 	mdc_hsm_release_pack(req, op_data);
-}
-
-static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
-{
-	int rc;
-
-	spin_lock(&cli->cl_loi_list_lock);
-	rc = list_empty(&mcw->mcw_entry);
-	spin_unlock(&cli->cl_loi_list_lock);
-	return rc;
-};
-
-/* We record requests in flight in cli->cl_r_in_flight here.
- * There is only one write rpc possible in mdc anyway. If this to change
- * in the future - the code may need to be revisited.
- */
-int mdc_enter_request(struct client_obd *cli)
-{
-	int rc = 0;
-	struct mdc_cache_waiter mcw;
-	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
-
-	spin_lock(&cli->cl_loi_list_lock);
-	if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
-		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
-		init_waitqueue_head(&mcw.mcw_waitq);
-		spin_unlock(&cli->cl_loi_list_lock);
-		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw),
-				  &lwi);
-		if (rc) {
-			spin_lock(&cli->cl_loi_list_lock);
-			if (list_empty(&mcw.mcw_entry))
-				cli->cl_r_in_flight--;
-			list_del_init(&mcw.mcw_entry);
-			spin_unlock(&cli->cl_loi_list_lock);
-		}
-	} else {
-		cli->cl_r_in_flight++;
-		spin_unlock(&cli->cl_loi_list_lock);
-	}
-	return rc;
-}
-
-void mdc_exit_request(struct client_obd *cli)
-{
-	struct list_head *l, *tmp;
-	struct mdc_cache_waiter *mcw;
-
-	spin_lock(&cli->cl_loi_list_lock);
-	cli->cl_r_in_flight--;
-	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
-		if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
-			/* No free request slots anymore */
-			break;
-		}
-
-		mcw = list_entry(l, struct mdc_cache_waiter, mcw_entry);
-		list_del_init(&mcw->mcw_entry);
-		cli->cl_r_in_flight++;
-		wake_up(&mcw->mcw_waitq);
-	}
-	/* Empty waiting list? Decrease reqs in-flight number */
-
-	spin_unlock(&cli->cl_loi_list_lock);
 }

@@ -23,14 +23,12 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <drm/amdgpu_drm.h>
 #include "pp_instance.h"
 #include "smumgr.h"
 #include "cgs_common.h"
 #include "linux/delay.h"
-#include "cz_smumgr.h"
-#include "tonga_smumgr.h"
-#include "fiji_smumgr.h"
-#include "polaris10_smumgr.h"
+
 
 int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -46,17 +44,19 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	smumgr->device = pp_init->device;
 	smumgr->chip_family = pp_init->chip_family;
 	smumgr->chip_id = pp_init->chip_id;
-	smumgr->hw_revision = pp_init->rev_id;
 	smumgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	smumgr->reload_fw = 1;
 	handle->smu_mgr = smumgr;
 
 	switch (smumgr->chip_family) {
-	case AMD_FAMILY_CZ:
+	case AMDGPU_FAMILY_CZ:
 		cz_smum_init(smumgr);
 		break;
-	case AMD_FAMILY_VI:
+	case AMDGPU_FAMILY_VI:
 		switch (smumgr->chip_id) {
+		case CHIP_TOPAZ:
+			iceland_smum_init(smumgr);
+			break;
 		case CHIP_TONGA:
 			tonga_smum_init(smumgr);
 			break;
@@ -86,10 +86,69 @@ int smum_fini(struct pp_smumgr *smumgr)
 	return 0;
 }
 
+int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
+		void *input, void *output, void *storage, int result)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->thermal_avfs_enable)
+		return hwmgr->smumgr->smumgr_funcs->thermal_avfs_enable(hwmgr);
+
+	return 0;
+}
+
+int smum_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
+		void *input, void *output, void *storage, int result)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->thermal_setup_fan_table)
+		return hwmgr->smumgr->smumgr_funcs->thermal_setup_fan_table(hwmgr);
+
+	return 0;
+}
+
+int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+{
+
+	if (NULL != hwmgr->smumgr->smumgr_funcs->update_sclk_threshold)
+		return hwmgr->smumgr->smumgr_funcs->update_sclk_threshold(hwmgr);
+
+	return 0;
+}
+
+int smum_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
+{
+
+	if (NULL != hwmgr->smumgr->smumgr_funcs->update_smc_table)
+		return hwmgr->smumgr->smumgr_funcs->update_smc_table(hwmgr, type);
+
+	return 0;
+}
+
+uint32_t smum_get_offsetof(struct pp_smumgr *smumgr, uint32_t type, uint32_t member)
+{
+	if (NULL != smumgr->smumgr_funcs->get_offsetof)
+		return smumgr->smumgr_funcs->get_offsetof(type, member);
+
+	return 0;
+}
+
+int smum_process_firmware_header(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->process_firmware_header)
+		return hwmgr->smumgr->smumgr_funcs->process_firmware_header(hwmgr);
+	return 0;
+}
+
 int smum_get_argument(struct pp_smumgr *smumgr)
 {
 	if (NULL != smumgr->smumgr_funcs->get_argument)
 		return smumgr->smumgr_funcs->get_argument(smumgr);
+
+	return 0;
+}
+
+uint32_t smum_get_mac_definition(struct pp_smumgr *smumgr, uint32_t value)
+{
+	if (NULL != smumgr->smumgr_funcs->get_mac_definition)
+		return smumgr->smumgr_funcs->get_mac_definition(value);
 
 	return 0;
 }
@@ -100,7 +159,6 @@ int smum_download_powerplay_table(struct pp_smumgr *smumgr,
 	if (NULL != smumgr->smumgr_funcs->download_pptable_settings)
 		return smumgr->smumgr_funcs->download_pptable_settings(smumgr,
 									table);
-
 	return 0;
 }
 
@@ -266,4 +324,45 @@ int smu_free_memory(void *device, void *handle)
 	cgs_free_gpu_mem(device, cgs_handle);
 
 	return 0;
+}
+
+int smum_init_smc_table(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->init_smc_table)
+		return hwmgr->smumgr->smumgr_funcs->init_smc_table(hwmgr);
+
+	return 0;
+}
+
+int smum_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->populate_all_graphic_levels)
+		return hwmgr->smumgr->smumgr_funcs->populate_all_graphic_levels(hwmgr);
+
+	return 0;
+}
+
+int smum_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->populate_all_memory_levels)
+		return hwmgr->smumgr->smumgr_funcs->populate_all_memory_levels(hwmgr);
+
+	return 0;
+}
+
+/*this interface is needed by island ci/vi */
+int smum_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->initialize_mc_reg_table)
+		return hwmgr->smumgr->smumgr_funcs->initialize_mc_reg_table(hwmgr);
+
+	return 0;
+}
+
+bool smum_is_dpm_running(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->smumgr->smumgr_funcs->is_dpm_running)
+		return hwmgr->smumgr->smumgr_funcs->is_dpm_running(hwmgr);
+
+	return true;
 }

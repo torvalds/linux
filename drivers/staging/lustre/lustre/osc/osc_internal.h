@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -75,7 +71,6 @@ struct osc_async_page {
 	struct client_obd       *oap_cli;
 	struct osc_object       *oap_obj;
 
-	struct ldlm_lock	*oap_ldlm_lock;
 	spinlock_t		 oap_lock;
 };
 
@@ -138,9 +133,9 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 int osc_process_config_base(struct obd_device *obd, struct lustre_cfg *cfg);
 int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		  struct list_head *ext_list, int cmd);
-int osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
-		   int target, bool force);
-int osc_lru_reclaim(struct client_obd *cli);
+long osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
+		    long target, bool force);
+long osc_lru_reclaim(struct client_obd *cli);
 
 unsigned long osc_ldlm_weigh_ast(struct ldlm_lock *dlmlock);
 
@@ -202,7 +197,7 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 int osc_quota_poll_check(struct obd_export *exp, struct if_quotacheck *qchk);
 void osc_inc_unstable_pages(struct ptlrpc_request *req);
 void osc_dec_unstable_pages(struct ptlrpc_request *req);
-int  osc_over_unstable_soft_limit(struct client_obd *cli);
+bool osc_over_unstable_soft_limit(struct client_obd *cli);
 
 struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 				       struct osc_object *obj, pgoff_t index,

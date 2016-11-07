@@ -52,7 +52,7 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	u16 rx_mode = 0;
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	memset(&init_data, 0, sizeof(init_data));
@@ -80,8 +80,7 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->rx_mode.state = cpu_to_le16(rx_mode);
 
 	/* TPA related fields */
-	memset(&p_ramrod->tpa_param, 0,
-	       sizeof(struct eth_vport_tpa_param));
+	memset(&p_ramrod->tpa_param, 0, sizeof(struct eth_vport_tpa_param));
 
 	p_ramrod->tpa_param.max_buff_num = p_params->max_buffers_per_cqe;
 
@@ -102,6 +101,9 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->tx_switching_en = p_params->tx_switching;
 
+	p_ramrod->ctl_frame_mac_check_en = !!p_params->check_mac;
+	p_ramrod->ctl_frame_ethtype_check_en = !!p_params->check_ethtype;
+
 	/* Software Function ID in hwfn (PFs are 0 - 15, VFs are 16 - 135) */
 	p_ramrod->sw_fid = qed_concrete_to_sw_fid(p_hwfn->cdev,
 						  p_params->concrete_fid);
@@ -109,8 +111,8 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
-		       struct qed_sp_vport_start_params *p_params)
+static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
+			      struct qed_sp_vport_start_params *p_params)
 {
 	if (IS_VF(p_hwfn->cdev)) {
 		return qed_vf_pf_vport_start(p_hwfn, p_params->vport_id,
@@ -306,14 +308,14 @@ qed_sp_update_mcast_bin(struct qed_hwfn *p_hwfn,
 	memset(&p_ramrod->approx_mcast.bins, 0,
 	       sizeof(p_ramrod->approx_mcast.bins));
 
-	if (p_params->update_approx_mcast_flg) {
-		p_ramrod->common.update_approx_mcast_flg = 1;
-		for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
-			u32 *p_bins = (u32 *)p_params->bins;
-			__le32 val = cpu_to_le32(p_bins[i]);
+	if (!p_params->update_approx_mcast_flg)
+		return;
 
-			p_ramrod->approx_mcast.bins[i] = val;
-		}
+	p_ramrod->common.update_approx_mcast_flg = 1;
+	for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
+		u32 *p_bins = (u32 *)p_params->bins;
+
+		p_ramrod->approx_mcast.bins[i] = cpu_to_le32(p_bins[i]);
 	}
 }
 
@@ -336,7 +338,7 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	}
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	memset(&init_data, 0, sizeof(init_data));
@@ -361,8 +363,8 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	p_cmn->tx_active_flg = p_params->vport_active_tx_flg;
 	p_cmn->update_tx_active_flg = p_params->update_vport_active_tx_flg;
 	p_cmn->accept_any_vlan = p_params->accept_any_vlan;
-	p_cmn->update_accept_any_vlan_flg =
-			p_params->update_accept_any_vlan_flg;
+	val = p_params->update_accept_any_vlan_flg;
+	p_cmn->update_accept_any_vlan_flg = val;
 
 	p_cmn->inner_vlan_removal_en = p_params->inner_vlan_removal_flg;
 	val = p_params->update_inner_vlan_removal_flg;
@@ -411,7 +413,7 @@ int qed_sp_vport_stop(struct qed_hwfn *p_hwfn, u16 opaque_fid, u8 vport_id)
 		return qed_vf_pf_vport_stop(p_hwfn);
 
 	rc = qed_fw_vport(p_hwfn, vport_id, &abs_vport_id);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	memset(&init_data, 0, sizeof(init_data));
@@ -476,7 +478,7 @@ static int qed_filter_accept_cmd(struct qed_dev *cdev,
 
 		rc = qed_sp_vport_update(p_hwfn, &vport_update_params,
 					 comp_mode, p_comp_data);
-		if (rc != 0) {
+		if (rc) {
 			DP_ERR(cdev, "Update rx_mode failed %d\n", rc);
 			return rc;
 		}
@@ -511,11 +513,12 @@ static int qed_sp_release_queue_cid(
 int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 				u16 opaque_fid,
 				u32 cid,
-				struct qed_queue_start_common_params *params,
+				struct qed_queue_start_common_params *p_params,
 				u8 stats_id,
 				u16 bd_max_bytes,
 				dma_addr_t bd_chain_phys_addr,
-				dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size)
+				dma_addr_t cqe_pbl_addr,
+				u16 cqe_pbl_size, bool b_use_zone_a_prod)
 {
 	struct rx_queue_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
@@ -526,23 +529,23 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	int rc = -EINVAL;
 
 	/* Store information for the stop */
-	p_rx_cid		= &p_hwfn->p_rx_cids[params->queue_id];
-	p_rx_cid->cid		= cid;
-	p_rx_cid->opaque_fid	= opaque_fid;
-	p_rx_cid->vport_id	= params->vport_id;
+	p_rx_cid = &p_hwfn->p_rx_cids[p_params->queue_id];
+	p_rx_cid->cid = cid;
+	p_rx_cid->opaque_fid = opaque_fid;
+	p_rx_cid->vport_id = p_params->vport_id;
 
-	rc = qed_fw_vport(p_hwfn, params->vport_id, &abs_vport_id);
-	if (rc != 0)
+	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
+	if (rc)
 		return rc;
 
-	rc = qed_fw_l2_queue(p_hwfn, params->queue_id, &abs_rx_q_id);
-	if (rc != 0)
+	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_rx_q_id);
+	if (rc)
 		return rc;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
 		   "opaque_fid=0x%x, cid=0x%x, rx_qid=0x%x, vport_id=0x%x, sb_id=0x%x\n",
-		   opaque_fid, cid, params->queue_id, params->vport_id,
-		   params->sb);
+		   opaque_fid,
+		   cid, p_params->queue_id, p_params->vport_id, p_params->sb);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -558,70 +561,76 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 
 	p_ramrod = &p_ent->ramrod.rx_queue_start;
 
-	p_ramrod->sb_id			= cpu_to_le16(params->sb);
-	p_ramrod->sb_index		= params->sb_idx;
-	p_ramrod->vport_id		= abs_vport_id;
-	p_ramrod->stats_counter_id	= stats_id;
-	p_ramrod->rx_queue_id		= cpu_to_le16(abs_rx_q_id);
-	p_ramrod->complete_cqe_flg	= 0;
-	p_ramrod->complete_event_flg	= 1;
+	p_ramrod->sb_id = cpu_to_le16(p_params->sb);
+	p_ramrod->sb_index = p_params->sb_idx;
+	p_ramrod->vport_id = abs_vport_id;
+	p_ramrod->stats_counter_id = stats_id;
+	p_ramrod->rx_queue_id = cpu_to_le16(abs_rx_q_id);
+	p_ramrod->complete_cqe_flg = 0;
+	p_ramrod->complete_event_flg = 1;
 
-	p_ramrod->bd_max_bytes	= cpu_to_le16(bd_max_bytes);
+	p_ramrod->bd_max_bytes = cpu_to_le16(bd_max_bytes);
 	DMA_REGPAIR_LE(p_ramrod->bd_base, bd_chain_phys_addr);
 
-	p_ramrod->num_of_pbl_pages	= cpu_to_le16(cqe_pbl_size);
+	p_ramrod->num_of_pbl_pages = cpu_to_le16(cqe_pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
-	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (p_params->vf_qid || b_use_zone_a_prod) {
+		p_ramrod->vf_rx_prod_index = p_params->vf_qid;
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Queue%s is meant for VF rxq[%02x]\n",
+			   b_use_zone_a_prod ? " [legacy]" : "",
+			   p_params->vf_qid);
+		p_ramrod->vf_rx_prod_use_zone_a = b_use_zone_a_prod;
+	}
 
-	return rc;
+	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
 static int
 qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 			  u16 opaque_fid,
-			  struct qed_queue_start_common_params *params,
+			  struct qed_queue_start_common_params *p_params,
 			  u16 bd_max_bytes,
 			  dma_addr_t bd_chain_phys_addr,
 			  dma_addr_t cqe_pbl_addr,
 			  u16 cqe_pbl_size, void __iomem **pp_prod)
 {
 	struct qed_hw_cid_data *p_rx_cid;
-	u64 init_prod_val = 0;
+	u32 init_prod_val = 0;
 	u16 abs_l2_queue = 0;
 	u8 abs_stats_id = 0;
 	int rc;
 
 	if (IS_VF(p_hwfn->cdev)) {
 		return qed_vf_pf_rxq_start(p_hwfn,
-					   params->queue_id,
-					   params->sb,
-					   params->sb_idx,
+					   p_params->queue_id,
+					   p_params->sb,
+					   (u8)p_params->sb_idx,
 					   bd_max_bytes,
 					   bd_chain_phys_addr,
 					   cqe_pbl_addr, cqe_pbl_size, pp_prod);
 	}
 
-	rc = qed_fw_l2_queue(p_hwfn, params->queue_id, &abs_l2_queue);
-	if (rc != 0)
+	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_l2_queue);
+	if (rc)
 		return rc;
 
-	rc = qed_fw_vport(p_hwfn, params->vport_id, &abs_stats_id);
-	if (rc != 0)
+	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_stats_id);
+	if (rc)
 		return rc;
 
 	*pp_prod = (u8 __iomem *)p_hwfn->regview +
 				 GTT_BAR0_MAP_REG_MSDM_RAM +
-				 MSTORM_PRODS_OFFSET(abs_l2_queue);
+				 MSTORM_ETH_PF_PRODS_OFFSET(abs_l2_queue);
 
 	/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
-	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u64),
+	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 			  (u32 *)(&init_prod_val));
 
 	/* Allocate a CID for the queue */
-	p_rx_cid = &p_hwfn->p_rx_cids[params->queue_id];
-	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH,
-				 &p_rx_cid->cid);
+	p_rx_cid = &p_hwfn->p_rx_cids[p_params->queue_id];
+	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &p_rx_cid->cid);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
 		return rc;
@@ -631,14 +640,13 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 	rc = qed_sp_eth_rxq_start_ramrod(p_hwfn,
 					 opaque_fid,
 					 p_rx_cid->cid,
-					 params,
+					 p_params,
 					 abs_stats_id,
 					 bd_max_bytes,
 					 bd_chain_phys_addr,
-					 cqe_pbl_addr,
-					 cqe_pbl_size);
+					 cqe_pbl_addr, cqe_pbl_size, false);
 
-	if (rc != 0)
+	if (rc)
 		qed_sp_release_queue_cid(p_hwfn, p_rx_cid);
 
 	return rc;
@@ -756,9 +764,9 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	struct qed_hw_cid_data *p_tx_cid;
-	u8 abs_vport_id;
+	u16 pq_id, abs_tx_q_id = 0;
 	int rc = -EINVAL;
-	u16 pq_id;
+	u8 abs_vport_id;
 
 	/* Store information for the stop */
 	p_tx_cid = &p_hwfn->p_tx_cids[p_params->queue_id];
@@ -766,6 +774,10 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	p_tx_cid->opaque_fid	= opaque_fid;
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
+	if (rc)
+		return rc;
+
+	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_tx_q_id);
 	if (rc)
 		return rc;
 
@@ -781,20 +793,20 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 	if (rc)
 		return rc;
 
-	p_ramrod		= &p_ent->ramrod.tx_queue_start;
-	p_ramrod->vport_id	= abs_vport_id;
+	p_ramrod = &p_ent->ramrod.tx_queue_start;
+	p_ramrod->vport_id = abs_vport_id;
 
-	p_ramrod->sb_id			= cpu_to_le16(p_params->sb);
-	p_ramrod->sb_index		= p_params->sb_idx;
-	p_ramrod->stats_counter_id	= stats_id;
+	p_ramrod->sb_id = cpu_to_le16(p_params->sb);
+	p_ramrod->sb_index = p_params->sb_idx;
+	p_ramrod->stats_counter_id = stats_id;
 
-	p_ramrod->pbl_size		= cpu_to_le16(pbl_size);
+	p_ramrod->queue_zone_id = cpu_to_le16(abs_tx_q_id);
+
+	p_ramrod->pbl_size = cpu_to_le16(pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->pbl_base_addr, pbl_addr);
 
-	pq_id			= qed_get_qm_pq(p_hwfn,
-						PROTOCOLID_ETH,
-						p_pq_params);
-	p_ramrod->qm_pq_id	= cpu_to_le16(pq_id);
+	pq_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_ETH, p_pq_params);
+	p_ramrod->qm_pq_id = cpu_to_le16(pq_id);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -828,8 +840,7 @@ qed_sp_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
 	memset(&pq_params, 0, sizeof(pq_params));
 
 	/* Allocate a CID for the queue */
-	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH,
-				 &p_tx_cid->cid);
+	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &p_tx_cid->cid);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
 		return rc;
@@ -888,8 +899,7 @@ int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, u16 tx_queue_id)
 	return qed_sp_release_queue_cid(p_hwfn, p_tx_cid);
 }
 
-static enum eth_filter_action
-qed_filter_action(enum qed_filter_opcode opcode)
+static enum eth_filter_action qed_filter_action(enum qed_filter_opcode opcode)
 {
 	enum eth_filter_action action = MAX_ETH_FILTER_ACTION;
 
@@ -1025,19 +1035,19 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 		p_first_filter->vni = cpu_to_le32(p_filter_cmd->vni);
 
 	if (p_filter_cmd->opcode == QED_FILTER_MOVE) {
-		p_second_filter->type		= p_first_filter->type;
-		p_second_filter->mac_msb	= p_first_filter->mac_msb;
-		p_second_filter->mac_mid	= p_first_filter->mac_mid;
-		p_second_filter->mac_lsb	= p_first_filter->mac_lsb;
-		p_second_filter->vlan_id	= p_first_filter->vlan_id;
-		p_second_filter->vni		= p_first_filter->vni;
+		p_second_filter->type = p_first_filter->type;
+		p_second_filter->mac_msb = p_first_filter->mac_msb;
+		p_second_filter->mac_mid = p_first_filter->mac_mid;
+		p_second_filter->mac_lsb = p_first_filter->mac_lsb;
+		p_second_filter->vlan_id = p_first_filter->vlan_id;
+		p_second_filter->vni = p_first_filter->vni;
 
 		p_first_filter->action = ETH_FILTER_ACTION_REMOVE;
 
 		p_first_filter->vport_id = vport_to_remove_from;
 
-		p_second_filter->action		= ETH_FILTER_ACTION_ADD;
-		p_second_filter->vport_id	= vport_to_add_to;
+		p_second_filter->action = ETH_FILTER_ACTION_ADD;
+		p_second_filter->vport_id = vport_to_add_to;
 	} else if (p_filter_cmd->opcode == QED_FILTER_REPLACE) {
 		p_first_filter->vport_id = vport_to_add_to;
 		memcpy(p_second_filter, p_first_filter,
@@ -1078,7 +1088,7 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
 	rc = qed_filter_ucast_common(p_hwfn, opaque_fid, p_filter_cmd,
 				     &p_ramrod, &p_ent,
 				     comp_mode, p_comp_data);
-	if (rc != 0) {
+	if (rc) {
 		DP_ERR(p_hwfn, "Uni. filter command failed %d\n", rc);
 		return rc;
 	}
@@ -1086,10 +1096,8 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
 	p_header->assert_on_error = p_filter_cmd->assert_on_error;
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
-	if (rc != 0) {
-		DP_ERR(p_hwfn,
-		       "Unicast filter ADD command failed %d\n",
-		       rc);
+	if (rc) {
+		DP_ERR(p_hwfn, "Unicast filter ADD command failed %d\n", rc);
 		return rc;
 	}
 
@@ -1128,15 +1136,10 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
  * Return:
  ******************************************************************************/
 static u32 qed_calc_crc32c(u8 *crc32_packet,
-			   u32 crc32_length,
-			   u32 crc32_seed,
-			   u8 complement)
+			   u32 crc32_length, u32 crc32_seed, u8 complement)
 {
-	u32 byte = 0;
-	u32 bit = 0;
-	u8 msb = 0;
-	u8 current_byte = 0;
-	u32 crc32_result = crc32_seed;
+	u32 byte = 0, bit = 0, crc32_result = crc32_seed;
+	u8 msb = 0, current_byte = 0;
 
 	if ((!crc32_packet) ||
 	    (crc32_length == 0) ||
@@ -1156,9 +1159,7 @@ static u32 qed_calc_crc32c(u8 *crc32_packet,
 	return crc32_result;
 }
 
-static inline u32 qed_crc32c_le(u32 seed,
-				u8 *mac,
-				u32 len)
+static u32 qed_crc32c_le(u32 seed, u8 *mac, u32 len)
 {
 	u32 packet_buf[2] = { 0 };
 
@@ -1188,17 +1189,14 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 	u8 abs_vport_id = 0;
 	int rc, i;
 
-	if (p_filter_cmd->opcode == QED_FILTER_ADD) {
+	if (p_filter_cmd->opcode == QED_FILTER_ADD)
 		rc = qed_fw_vport(p_hwfn, p_filter_cmd->vport_to_add_to,
 				  &abs_vport_id);
-		if (rc)
-			return rc;
-	} else {
+	else
 		rc = qed_fw_vport(p_hwfn, p_filter_cmd->vport_to_remove_from,
 				  &abs_vport_id);
-		if (rc)
-			return rc;
-	}
+	if (rc)
+		return rc;
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -1236,11 +1234,11 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 
 		/* Convert to correct endianity */
 		for (i = 0; i < ETH_MULTICAST_MAC_BINS_IN_REGS; i++) {
+			struct vport_update_ramrod_mcast *p_ramrod_bins;
 			u32 *p_bins = (u32 *)bins;
-			struct vport_update_ramrod_mcast *approx_mcast;
 
-			approx_mcast = &p_ramrod->approx_mcast;
-			approx_mcast->bins[i] = cpu_to_le32(p_bins[i]);
+			p_ramrod_bins = &p_ramrod->approx_mcast;
+			p_ramrod_bins->bins[i] = cpu_to_le32(p_bins[i]);
 		}
 	}
 
@@ -1278,8 +1276,7 @@ static int qed_filter_mcast_cmd(struct qed_dev *cdev,
 		rc = qed_sp_eth_filter_mcast(p_hwfn,
 					     opaque_fid,
 					     p_filter_cmd,
-					     comp_mode,
-					     p_comp_data);
+					     comp_mode, p_comp_data);
 	}
 	return rc;
 }
@@ -1306,9 +1303,8 @@ static int qed_filter_ucast_cmd(struct qed_dev *cdev,
 		rc = qed_sp_eth_filter_ucast(p_hwfn,
 					     opaque_fid,
 					     p_filter_cmd,
-					     comp_mode,
-					     p_comp_data);
-		if (rc != 0)
+					     comp_mode, p_comp_data);
+		if (rc)
 			break;
 	}
 
@@ -1482,51 +1478,51 @@ static void __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn,
 			offsetof(struct public_port, stats),
 			sizeof(port_stats));
 
-	p_stats->rx_64_byte_packets		+= port_stats.pmm.r64;
-	p_stats->rx_65_to_127_byte_packets	+= port_stats.pmm.r127;
-	p_stats->rx_128_to_255_byte_packets	+= port_stats.pmm.r255;
-	p_stats->rx_256_to_511_byte_packets	+= port_stats.pmm.r511;
-	p_stats->rx_512_to_1023_byte_packets	+= port_stats.pmm.r1023;
-	p_stats->rx_1024_to_1518_byte_packets	+= port_stats.pmm.r1518;
-	p_stats->rx_1519_to_1522_byte_packets	+= port_stats.pmm.r1522;
-	p_stats->rx_1519_to_2047_byte_packets	+= port_stats.pmm.r2047;
-	p_stats->rx_2048_to_4095_byte_packets	+= port_stats.pmm.r4095;
-	p_stats->rx_4096_to_9216_byte_packets	+= port_stats.pmm.r9216;
-	p_stats->rx_9217_to_16383_byte_packets	+= port_stats.pmm.r16383;
-	p_stats->rx_crc_errors			+= port_stats.pmm.rfcs;
-	p_stats->rx_mac_crtl_frames		+= port_stats.pmm.rxcf;
-	p_stats->rx_pause_frames		+= port_stats.pmm.rxpf;
-	p_stats->rx_pfc_frames			+= port_stats.pmm.rxpp;
-	p_stats->rx_align_errors		+= port_stats.pmm.raln;
-	p_stats->rx_carrier_errors		+= port_stats.pmm.rfcr;
-	p_stats->rx_oversize_packets		+= port_stats.pmm.rovr;
-	p_stats->rx_jabbers			+= port_stats.pmm.rjbr;
-	p_stats->rx_undersize_packets		+= port_stats.pmm.rund;
-	p_stats->rx_fragments			+= port_stats.pmm.rfrg;
-	p_stats->tx_64_byte_packets		+= port_stats.pmm.t64;
-	p_stats->tx_65_to_127_byte_packets	+= port_stats.pmm.t127;
-	p_stats->tx_128_to_255_byte_packets	+= port_stats.pmm.t255;
-	p_stats->tx_256_to_511_byte_packets	+= port_stats.pmm.t511;
-	p_stats->tx_512_to_1023_byte_packets	+= port_stats.pmm.t1023;
-	p_stats->tx_1024_to_1518_byte_packets	+= port_stats.pmm.t1518;
-	p_stats->tx_1519_to_2047_byte_packets	+= port_stats.pmm.t2047;
-	p_stats->tx_2048_to_4095_byte_packets	+= port_stats.pmm.t4095;
-	p_stats->tx_4096_to_9216_byte_packets	+= port_stats.pmm.t9216;
-	p_stats->tx_9217_to_16383_byte_packets	+= port_stats.pmm.t16383;
-	p_stats->tx_pause_frames		+= port_stats.pmm.txpf;
-	p_stats->tx_pfc_frames			+= port_stats.pmm.txpp;
-	p_stats->tx_lpi_entry_count		+= port_stats.pmm.tlpiec;
-	p_stats->tx_total_collisions		+= port_stats.pmm.tncl;
-	p_stats->rx_mac_bytes			+= port_stats.pmm.rbyte;
-	p_stats->rx_mac_uc_packets		+= port_stats.pmm.rxuca;
-	p_stats->rx_mac_mc_packets		+= port_stats.pmm.rxmca;
-	p_stats->rx_mac_bc_packets		+= port_stats.pmm.rxbca;
-	p_stats->rx_mac_frames_ok		+= port_stats.pmm.rxpok;
-	p_stats->tx_mac_bytes			+= port_stats.pmm.tbyte;
-	p_stats->tx_mac_uc_packets		+= port_stats.pmm.txuca;
-	p_stats->tx_mac_mc_packets		+= port_stats.pmm.txmca;
-	p_stats->tx_mac_bc_packets		+= port_stats.pmm.txbca;
-	p_stats->tx_mac_ctrl_frames		+= port_stats.pmm.txcf;
+	p_stats->rx_64_byte_packets		+= port_stats.eth.r64;
+	p_stats->rx_65_to_127_byte_packets	+= port_stats.eth.r127;
+	p_stats->rx_128_to_255_byte_packets	+= port_stats.eth.r255;
+	p_stats->rx_256_to_511_byte_packets	+= port_stats.eth.r511;
+	p_stats->rx_512_to_1023_byte_packets	+= port_stats.eth.r1023;
+	p_stats->rx_1024_to_1518_byte_packets	+= port_stats.eth.r1518;
+	p_stats->rx_1519_to_1522_byte_packets	+= port_stats.eth.r1522;
+	p_stats->rx_1519_to_2047_byte_packets	+= port_stats.eth.r2047;
+	p_stats->rx_2048_to_4095_byte_packets	+= port_stats.eth.r4095;
+	p_stats->rx_4096_to_9216_byte_packets	+= port_stats.eth.r9216;
+	p_stats->rx_9217_to_16383_byte_packets	+= port_stats.eth.r16383;
+	p_stats->rx_crc_errors			+= port_stats.eth.rfcs;
+	p_stats->rx_mac_crtl_frames		+= port_stats.eth.rxcf;
+	p_stats->rx_pause_frames		+= port_stats.eth.rxpf;
+	p_stats->rx_pfc_frames			+= port_stats.eth.rxpp;
+	p_stats->rx_align_errors		+= port_stats.eth.raln;
+	p_stats->rx_carrier_errors		+= port_stats.eth.rfcr;
+	p_stats->rx_oversize_packets		+= port_stats.eth.rovr;
+	p_stats->rx_jabbers			+= port_stats.eth.rjbr;
+	p_stats->rx_undersize_packets		+= port_stats.eth.rund;
+	p_stats->rx_fragments			+= port_stats.eth.rfrg;
+	p_stats->tx_64_byte_packets		+= port_stats.eth.t64;
+	p_stats->tx_65_to_127_byte_packets	+= port_stats.eth.t127;
+	p_stats->tx_128_to_255_byte_packets	+= port_stats.eth.t255;
+	p_stats->tx_256_to_511_byte_packets	+= port_stats.eth.t511;
+	p_stats->tx_512_to_1023_byte_packets	+= port_stats.eth.t1023;
+	p_stats->tx_1024_to_1518_byte_packets	+= port_stats.eth.t1518;
+	p_stats->tx_1519_to_2047_byte_packets	+= port_stats.eth.t2047;
+	p_stats->tx_2048_to_4095_byte_packets	+= port_stats.eth.t4095;
+	p_stats->tx_4096_to_9216_byte_packets	+= port_stats.eth.t9216;
+	p_stats->tx_9217_to_16383_byte_packets	+= port_stats.eth.t16383;
+	p_stats->tx_pause_frames		+= port_stats.eth.txpf;
+	p_stats->tx_pfc_frames			+= port_stats.eth.txpp;
+	p_stats->tx_lpi_entry_count		+= port_stats.eth.tlpiec;
+	p_stats->tx_total_collisions		+= port_stats.eth.tncl;
+	p_stats->rx_mac_bytes			+= port_stats.eth.rbyte;
+	p_stats->rx_mac_uc_packets		+= port_stats.eth.rxuca;
+	p_stats->rx_mac_mc_packets		+= port_stats.eth.rxmca;
+	p_stats->rx_mac_bc_packets		+= port_stats.eth.rxbca;
+	p_stats->rx_mac_frames_ok		+= port_stats.eth.rxpok;
+	p_stats->tx_mac_bytes			+= port_stats.eth.tbyte;
+	p_stats->tx_mac_uc_packets		+= port_stats.eth.txuca;
+	p_stats->tx_mac_mc_packets		+= port_stats.eth.txmca;
+	p_stats->tx_mac_bc_packets		+= port_stats.eth.txbca;
+	p_stats->tx_mac_ctrl_frames		+= port_stats.eth.txcf;
 	for (j = 0; j < 8; j++) {
 		p_stats->brb_truncates	+= port_stats.brb.brb_truncate[j];
 		p_stats->brb_discards	+= port_stats.brb.brb_discard[j];
@@ -1582,8 +1578,7 @@ out:
 	}
 }
 
-void qed_get_vport_stats(struct qed_dev *cdev,
-			 struct qed_eth_stats *stats)
+void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats)
 {
 	u32 i;
 
@@ -1656,6 +1651,8 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 	info->num_tc = 1;
 
 	if (IS_PF(cdev)) {
+		int max_vf_vlan_filters = 0;
+
 		if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
 			for_each_hwfn(cdev, i)
 			    info->num_queues +=
@@ -1668,7 +1665,12 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 			info->num_queues = cdev->num_hwfns;
 		}
 
-		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN);
+		if (IS_QED_SRIOV(cdev))
+			max_vf_vlan_filters = cdev->p_iov_info->total_vfs *
+					      QED_ETH_VF_NUM_VLAN_FILTERS;
+		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN) -
+					 max_vf_vlan_filters;
+
 		ether_addr_copy(info->port_mac,
 				cdev->hwfns[0].hw_info.hw_mac_addr);
 	} else {
@@ -1683,6 +1685,8 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 		qed_vf_get_num_vlan_filters(&cdev->hwfns[0],
 					    &info->num_vlan_filters);
 		qed_vf_get_port_mac(&cdev->hwfns[0], info->port_mac);
+
+		info->is_legacy = !!cdev->hwfns[0].vf_iov_info->b_pre_fp_hsi;
 	}
 
 	qed_fill_dev_info(cdev, &info->common);
@@ -1751,8 +1755,7 @@ static int qed_start_vport(struct qed_dev *cdev,
 	return 0;
 }
 
-static int qed_stop_vport(struct qed_dev *cdev,
-			  u8 vport_id)
+static int qed_stop_vport(struct qed_dev *cdev, u8 vport_id)
 {
 	int rc, i;
 
@@ -1760,8 +1763,7 @@ static int qed_stop_vport(struct qed_dev *cdev,
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		rc = qed_sp_vport_stop(p_hwfn,
-				       p_hwfn->hw_info.opaque_fid,
-				       vport_id);
+				       p_hwfn->hw_info.opaque_fid, vport_id);
 
 		if (rc) {
 			DP_ERR(cdev, "Failed to stop VPORT\n");
@@ -1786,10 +1788,8 @@ static int qed_update_vport(struct qed_dev *cdev,
 
 	/* Translate protocol params into sp params */
 	sp_params.vport_id = params->vport_id;
-	sp_params.update_vport_active_rx_flg =
-		params->update_vport_active_flg;
-	sp_params.update_vport_active_tx_flg =
-		params->update_vport_active_flg;
+	sp_params.update_vport_active_rx_flg = params->update_vport_active_flg;
+	sp_params.update_vport_active_tx_flg = params->update_vport_active_flg;
 	sp_params.vport_active_rx_flg = params->vport_active_flg;
 	sp_params.vport_active_tx_flg = params->vport_active_flg;
 	sp_params.update_tx_switching_flg = params->update_tx_switching_flg;
@@ -1802,8 +1802,7 @@ static int qed_update_vport(struct qed_dev *cdev,
 	 * We need to re-fix the rss values per engine for CMT.
 	 */
 	if (cdev->num_hwfns > 1 && params->update_rss_flg) {
-		struct qed_update_vport_rss_params *rss =
-			&params->rss_params;
+		struct qed_update_vport_rss_params *rss = &params->rss_params;
 		int k, max = 0;
 
 		/* Find largest entry, since it's possible RSS needs to
@@ -1846,8 +1845,8 @@ static int qed_update_vport(struct qed_dev *cdev,
 		       QED_RSS_IND_TABLE_SIZE * sizeof(u16));
 		memcpy(sp_rss_params.rss_key, params->rss_params.rss_key,
 		       QED_RSS_KEY_SIZE * sizeof(u32));
+		sp_params.rss_params = &sp_rss_params;
 	}
-	sp_params.rss_params = &sp_rss_params;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -1878,8 +1877,8 @@ static int qed_start_rxq(struct qed_dev *cdev,
 			 u16 cqe_pbl_size,
 			 void __iomem **pp_prod)
 {
-	int rc, hwfn_index;
 	struct qed_hwfn *p_hwfn;
+	int rc, hwfn_index;
 
 	hwfn_index = params->rss_id % cdev->num_hwfns;
 	p_hwfn = &cdev->hwfns[hwfn_index];
@@ -1920,8 +1919,7 @@ static int qed_stop_rxq(struct qed_dev *cdev,
 
 	rc = qed_sp_eth_rx_queue_stop(p_hwfn,
 				      params->rx_queue_id / cdev->num_hwfns,
-				      params->eq_completion_only,
-				      false);
+				      params->eq_completion_only, false);
 	if (rc) {
 		DP_ERR(cdev, "Failed to stop RXQ#%d\n", params->rx_queue_id);
 		return rc;
@@ -2032,11 +2030,11 @@ static int qed_configure_filter_rx_mode(struct qed_dev *cdev,
 
 	memset(&accept_flags, 0, sizeof(accept_flags));
 
-	accept_flags.update_rx_mode_config	= 1;
-	accept_flags.update_tx_mode_config	= 1;
-	accept_flags.rx_accept_filter		= QED_ACCEPT_UCAST_MATCHED |
-						  QED_ACCEPT_MCAST_MATCHED |
-						  QED_ACCEPT_BCAST;
+	accept_flags.update_rx_mode_config = 1;
+	accept_flags.update_tx_mode_config = 1;
+	accept_flags.rx_accept_filter = QED_ACCEPT_UCAST_MATCHED |
+					QED_ACCEPT_MCAST_MATCHED |
+					QED_ACCEPT_BCAST;
 	accept_flags.tx_accept_filter = QED_ACCEPT_UCAST_MATCHED |
 					QED_ACCEPT_MCAST_MATCHED |
 					QED_ACCEPT_BCAST;
@@ -2057,9 +2055,8 @@ static int qed_configure_filter_ucast(struct qed_dev *cdev,
 	struct qed_filter_ucast ucast;
 
 	if (!params->vlan_valid && !params->mac_valid) {
-		DP_NOTICE(
-			cdev,
-			"Tried configuring a unicast filter, but both MAC and VLAN are not set\n");
+		DP_NOTICE(cdev,
+			  "Tried configuring a unicast filter, but both MAC and VLAN are not set\n");
 		return -EINVAL;
 	}
 
@@ -2120,8 +2117,7 @@ static int qed_configure_filter_mcast(struct qed_dev *cdev,
 	for (i = 0; i < mcast.num_mc_addrs; i++)
 		ether_addr_copy(mcast.mac[i], params->mac[i]);
 
-	return qed_filter_mcast_cmd(cdev, &mcast,
-				    QED_SPQ_MODE_CB, NULL);
+	return qed_filter_mcast_cmd(cdev, &mcast, QED_SPQ_MODE_CB, NULL);
 }
 
 static int qed_configure_filter(struct qed_dev *cdev,
@@ -2138,15 +2134,13 @@ static int qed_configure_filter(struct qed_dev *cdev,
 		accept_flags = params->filter.accept_flags;
 		return qed_configure_filter_rx_mode(cdev, accept_flags);
 	default:
-		DP_NOTICE(cdev, "Unknown filter type %d\n",
-			  (int)params->type);
+		DP_NOTICE(cdev, "Unknown filter type %d\n", (int)params->type);
 		return -EINVAL;
 	}
 }
 
 static int qed_fp_cqe_completion(struct qed_dev *dev,
-				 u8 rss_id,
-				 struct eth_slow_path_rx_cqe *cqe)
+				 u8 rss_id, struct eth_slow_path_rx_cqe *cqe)
 {
 	return qed_eth_cqe_completion(&dev->hwfns[rss_id % dev->num_hwfns],
 				      cqe);
@@ -2156,10 +2150,17 @@ static int qed_fp_cqe_completion(struct qed_dev *dev,
 extern const struct qed_iov_hv_ops qed_iov_ops_pass;
 #endif
 
+#ifdef CONFIG_DCB
+extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
+#endif
+
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,
 #ifdef CONFIG_QED_SRIOV
 	.iov = &qed_iov_ops_pass,
+#endif
+#ifdef CONFIG_DCB
+	.dcb = &qed_dcbnl_ops_pass,
 #endif
 	.fill_dev_info = &qed_fill_eth_dev_info,
 	.register_ops = &qed_register_eth_ops,

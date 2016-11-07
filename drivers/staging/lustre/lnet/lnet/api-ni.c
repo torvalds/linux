@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -1290,6 +1286,25 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		       sizeof(*ni->ni_lnd_tunables));
 	}
 
+	/*
+	 * If given some LND tunable parameters, parse those now to
+	 * override the values in the NI structure.
+	 */
+	if (conf) {
+		if (conf->cfg_config_u.cfg_net.net_peer_rtr_credits >= 0)
+			ni->ni_peerrtrcredits =
+				conf->cfg_config_u.cfg_net.net_peer_rtr_credits;
+		if (conf->cfg_config_u.cfg_net.net_peer_timeout >= 0)
+			ni->ni_peertimeout =
+				conf->cfg_config_u.cfg_net.net_peer_timeout;
+		if (conf->cfg_config_u.cfg_net.net_peer_tx_credits != -1)
+			ni->ni_peertxcredits =
+				conf->cfg_config_u.cfg_net.net_peer_tx_credits;
+		if (conf->cfg_config_u.cfg_net.net_max_tx_credits >= 0)
+			ni->ni_maxtxcredits =
+				conf->cfg_config_u.cfg_net.net_max_tx_credits;
+	}
+
 	rc = lnd->lnd_startup(ni);
 
 	mutex_unlock(&the_lnet.ln_lnd_mutex);
@@ -1301,33 +1316,6 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		lnd->lnd_refcount--;
 		lnet_net_unlock(LNET_LOCK_EX);
 		goto failed0;
-	}
-
-	/*
-	 * If given some LND tunable parameters, parse those now to
-	 * override the values in the NI structure.
-	 */
-	if (conf && conf->cfg_config_u.cfg_net.net_peer_rtr_credits >= 0) {
-		ni->ni_peerrtrcredits =
-			conf->cfg_config_u.cfg_net.net_peer_rtr_credits;
-	}
-	if (conf && conf->cfg_config_u.cfg_net.net_peer_timeout >= 0) {
-		ni->ni_peertimeout =
-			conf->cfg_config_u.cfg_net.net_peer_timeout;
-	}
-	/*
-	 * TODO
-	 * Note: For now, don't allow the user to change
-	 * peertxcredits as this number is used in the
-	 * IB LND to control queue depth.
-	 *
-	 * if (conf && conf->cfg_config_u.cfg_net.net_peer_tx_credits != -1)
-	 *	ni->ni_peertxcredits =
-	 *		conf->cfg_config_u.cfg_net.net_peer_tx_credits;
-	 */
-	if (conf && conf->cfg_config_u.cfg_net.net_max_tx_credits >= 0) {
-		ni->ni_maxtxcredits =
-			conf->cfg_config_u.cfg_net.net_max_tx_credits;
 	}
 
 	LASSERT(ni->ni_peertimeout <= 0 || lnd->lnd_query);
@@ -1677,7 +1665,7 @@ lnet_fill_ni_info(struct lnet_ni *ni, struct lnet_ioctl_config_data *config)
 	if (!ni || !config)
 		return;
 
-	net_config = (struct lnet_ioctl_net_config *) config->cfg_bulk;
+	net_config = (struct lnet_ioctl_net_config *)config->cfg_bulk;
 	if (!net_config)
 		return;
 

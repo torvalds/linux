@@ -28,6 +28,7 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -48,6 +49,7 @@
  */
 static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring);
+static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring);
 
 /**
  * amdgpu_ring_alloc - allocate space on the ring buffer
@@ -73,6 +75,10 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw)
 
 	ring->count_dw = ndw;
 	ring->wptr_old = ring->wptr;
+
+	if (ring->funcs->begin_use)
+		ring->funcs->begin_use(ring);
+
 	return 0;
 }
 
@@ -125,6 +131,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
+
+	if (ring->funcs->end_use)
+		ring->funcs->end_use(ring);
 }
 
 /**
@@ -137,78 +146,9 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 void amdgpu_ring_undo(struct amdgpu_ring *ring)
 {
 	ring->wptr = ring->wptr_old;
-}
 
-/**
- * amdgpu_ring_backup - Back up the content of a ring
- *
- * @ring: the ring we want to back up
- *
- * Saves all unprocessed commits from a ring, returns the number of dwords saved.
- */
-unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
-			    uint32_t **data)
-{
-	unsigned size, ptr, i;
-
-	*data = NULL;
-
-	if (ring->ring_obj == NULL)
-		return 0;
-
-	/* it doesn't make sense to save anything if all fences are signaled */
-	if (!amdgpu_fence_count_emitted(ring))
-		return 0;
-
-	ptr = le32_to_cpu(*ring->next_rptr_cpu_addr);
-
-	size = ring->wptr + (ring->ring_size / 4);
-	size -= ptr;
-	size &= ring->ptr_mask;
-	if (size == 0)
-		return 0;
-
-	/* and then save the content of the ring */
-	*data = kmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
-	if (!*data)
-		return 0;
-	for (i = 0; i < size; ++i) {
-		(*data)[i] = ring->ring[ptr++];
-		ptr &= ring->ptr_mask;
-	}
-
-	return size;
-}
-
-/**
- * amdgpu_ring_restore - append saved commands to the ring again
- *
- * @ring: ring to append commands to
- * @size: number of dwords we want to write
- * @data: saved commands
- *
- * Allocates space on the ring and restore the previously saved commands.
- */
-int amdgpu_ring_restore(struct amdgpu_ring *ring,
-			unsigned size, uint32_t *data)
-{
-	int i, r;
-
-	if (!size || !data)
-		return 0;
-
-	/* restore the saved ring content */
-	r = amdgpu_ring_alloc(ring, size);
-	if (r)
-		return r;
-
-	for (i = 0; i < size; ++i) {
-		amdgpu_ring_write(ring, data[i]);
-	}
-
-	amdgpu_ring_commit(ring);
-	kfree(data);
-	return 0;
+	if (ring->funcs->end_use)
+		ring->funcs->end_use(ring);
 }
 
 /**
@@ -260,14 +200,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		return r;
 	}
 
-	r = amdgpu_wb_get(adev, &ring->next_rptr_offs);
-	if (r) {
-		dev_err(adev->dev, "(%d) ring next_rptr wb alloc failed\n", r);
-		return r;
-	}
-	ring->next_rptr_gpu_addr = adev->wb.gpu_addr + ring->next_rptr_offs * 4;
-	ring->next_rptr_cpu_addr = &adev->wb.wb[ring->next_rptr_offs];
-
 	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
@@ -276,7 +208,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->cond_exe_gpu_addr = adev->wb.gpu_addr + (ring->cond_exe_offs * 4);
 	ring->cond_exe_cpu_addr = &adev->wb.wb[ring->cond_exe_offs];
 
-	spin_lock_init(&ring->fence_lock);
 	r = amdgpu_fence_driver_start_ring(ring, irq_src, irq_type);
 	if (r) {
 		dev_err(adev->dev, "failed initializing fences (%d).\n", r);
@@ -291,30 +222,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
-		r = amdgpu_bo_create(adev, ring->ring_size, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, NULL, &ring->ring_obj);
+		r = amdgpu_bo_create_kernel(adev, ring->ring_size, PAGE_SIZE,
+					    AMDGPU_GEM_DOMAIN_GTT,
+					    &ring->ring_obj,
+					    &ring->gpu_addr,
+					    (void **)&ring->ring);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring create failed\n", r);
 			return r;
 		}
-		r = amdgpu_bo_reserve(ring->ring_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = amdgpu_bo_pin(ring->ring_obj, AMDGPU_GEM_DOMAIN_GTT,
-					&ring->gpu_addr);
-		if (r) {
-			amdgpu_bo_unreserve(ring->ring_obj);
-			dev_err(adev->dev, "(%d) ring pin failed\n", r);
-			return r;
-		}
-		r = amdgpu_bo_kmap(ring->ring_obj,
-				       (void **)&ring->ring);
-		amdgpu_bo_unreserve(ring->ring_obj);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring map failed\n", r);
-			return r;
-		}
+		memset((void *)ring->ring, 0, ring->ring_size);
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->max_dw = max_dw;
@@ -335,29 +252,20 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
  */
 void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
-	int r;
-	struct amdgpu_bo *ring_obj;
-
-	ring_obj = ring->ring_obj;
 	ring->ready = false;
-	ring->ring = NULL;
-	ring->ring_obj = NULL;
 
 	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
 	amdgpu_wb_free(ring->adev, ring->fence_offs);
 	amdgpu_wb_free(ring->adev, ring->rptr_offs);
 	amdgpu_wb_free(ring->adev, ring->wptr_offs);
-	amdgpu_wb_free(ring->adev, ring->next_rptr_offs);
 
-	if (ring_obj) {
-		r = amdgpu_bo_reserve(ring_obj, false);
-		if (likely(r == 0)) {
-			amdgpu_bo_kunmap(ring_obj);
-			amdgpu_bo_unpin(ring_obj);
-			amdgpu_bo_unreserve(ring_obj);
-		}
-		amdgpu_bo_unref(&ring_obj);
-	}
+	amdgpu_bo_free_kernel(&ring->ring_obj,
+			      &ring->gpu_addr,
+			      (void **)&ring->ring);
+
+	amdgpu_debugfs_ring_fini(ring);
+
+	ring->adev->rings[ring->idx] = NULL;
 }
 
 /*
@@ -365,57 +273,62 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
  */
 #if defined(CONFIG_DEBUG_FS)
 
-static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
+/* Layout of file is 12 bytes consisting of
+ * - rptr
+ * - wptr
+ * - driver's copy of wptr
+ *
+ * followed by n-words of ring data
+ */
+static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
-	int roffset = (unsigned long)node->info_ent->data;
-	struct amdgpu_ring *ring = (void *)(((uint8_t*)adev) + roffset);
-	uint32_t rptr, wptr, rptr_next;
-	unsigned i;
+	struct amdgpu_ring *ring = (struct amdgpu_ring*)f->f_inode->i_private;
+	int r, i;
+	uint32_t value, result, early[3];
 
-	wptr = amdgpu_ring_get_wptr(ring);
-	seq_printf(m, "wptr: 0x%08x [%5d]\n", wptr, wptr);
+	if (*pos & 3 || size & 3)
+		return -EINVAL;
 
-	rptr = amdgpu_ring_get_rptr(ring);
-	rptr_next = le32_to_cpu(*ring->next_rptr_cpu_addr);
+	result = 0;
 
-	seq_printf(m, "rptr: 0x%08x [%5d]\n", rptr, rptr);
-
-	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
-		   ring->wptr, ring->wptr);
-
-	if (!ring->ready)
-		return 0;
-
-	/* print 8 dw before current rptr as often it's the last executed
-	 * packet that is the root issue
-	 */
-	i = (rptr + ring->ptr_mask + 1 - 32) & ring->ptr_mask;
-	while (i != rptr) {
-		seq_printf(m, "r[%5d]=0x%08x", i, ring->ring[i]);
-		if (i == rptr)
-			seq_puts(m, " *");
-		if (i == rptr_next)
-			seq_puts(m, " #");
-		seq_puts(m, "\n");
-		i = (i + 1) & ring->ptr_mask;
+	if (*pos < 12) {
+		early[0] = amdgpu_ring_get_rptr(ring);
+		early[1] = amdgpu_ring_get_wptr(ring);
+		early[2] = ring->wptr;
+		for (i = *pos / 4; i < 3 && size; i++) {
+			r = put_user(early[i], (uint32_t *)buf);
+			if (r)
+				return r;
+			buf += 4;
+			result += 4;
+			size -= 4;
+			*pos += 4;
+		}
 	}
-	while (i != wptr) {
-		seq_printf(m, "r[%5d]=0x%08x", i, ring->ring[i]);
-		if (i == rptr)
-			seq_puts(m, " *");
-		if (i == rptr_next)
-			seq_puts(m, " #");
-		seq_puts(m, "\n");
-		i = (i + 1) & ring->ptr_mask;
+
+	while (size) {
+		if (*pos >= (ring->ring_size + 12))
+			return result;
+			
+		value = ring->ring[(*pos - 12)/4];
+		r = put_user(value, (uint32_t*)buf);
+		if (r)
+			return r;
+		buf += 4;
+		result += 4;
+		size -= 4;
+		*pos += 4;
 	}
-	return 0;
+
+	return result;
 }
 
-static struct drm_info_list amdgpu_debugfs_ring_info_list[AMDGPU_MAX_RINGS];
-static char amdgpu_debugfs_ring_names[AMDGPU_MAX_RINGS][32];
+static const struct file_operations amdgpu_debugfs_ring_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_ring_read,
+	.llseek = default_llseek
+};
 
 #endif
 
@@ -423,28 +336,27 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
-	unsigned offset = (uint8_t*)ring - (uint8_t*)adev;
-	unsigned i;
-	struct drm_info_list *info;
-	char *name;
+	struct drm_minor *minor = adev->ddev->primary;
+	struct dentry *ent, *root = minor->debugfs_root;
+	char name[32];
 
-	for (i = 0; i < ARRAY_SIZE(amdgpu_debugfs_ring_info_list); ++i) {
-		info = &amdgpu_debugfs_ring_info_list[i];
-		if (!info->data)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(amdgpu_debugfs_ring_info_list))
-		return -ENOSPC;
-
-	name = &amdgpu_debugfs_ring_names[i][0];
 	sprintf(name, "amdgpu_ring_%s", ring->name);
-	info->name = name;
-	info->show = amdgpu_debugfs_ring_info;
-	info->driver_features = 0;
-	info->data = (void*)(uintptr_t)offset;
 
-	return amdgpu_debugfs_add_files(adev, info, 1);
+	ent = debugfs_create_file(name,
+				  S_IFREG | S_IRUGO, root,
+				  ring, &amdgpu_debugfs_ring_fops);
+	if (!ent)
+		return -ENOMEM;
+
+	i_size_write(ent->d_inode, ring->ring_size + 12);
+	ring->ent = ent;
 #endif
 	return 0;
+}
+
+static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring)
+{
+#if defined(CONFIG_DEBUG_FS)
+	debugfs_remove(ring->ent);
+#endif
 }

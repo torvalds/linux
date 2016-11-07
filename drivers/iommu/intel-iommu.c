@@ -1672,7 +1672,7 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 		return -ENOMEM;
 	}
 
-	size = ((ndomains >> 8) + 1) * sizeof(struct dmar_domain **);
+	size = (ALIGN(ndomains, 256) >> 8) * sizeof(struct dmar_domain **);
 	iommu->domains = kzalloc(size, GFP_KERNEL);
 
 	if (iommu->domains) {
@@ -1737,7 +1737,7 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 static void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	if ((iommu->domains) && (iommu->domain_ids)) {
-		int elems = (cap_ndoms(iommu->cap) >> 8) + 1;
+		int elems = ALIGN(cap_ndoms(iommu->cap), 256) >> 8;
 		int i;
 
 		for (i = 0; i < elems; i++)
@@ -2076,7 +2076,7 @@ out_unlock:
 	spin_unlock(&iommu->lock);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 struct domain_context_mapping_data {
@@ -2452,19 +2452,14 @@ static int get_last_alias(struct pci_dev *pdev, u16 alias, void *opaque)
 	return 0;
 }
 
-/* domain is initialized */
-static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
+static struct dmar_domain *find_or_alloc_domain(struct device *dev, int gaw)
 {
 	struct device_domain_info *info = NULL;
-	struct dmar_domain *domain, *tmp;
+	struct dmar_domain *domain = NULL;
 	struct intel_iommu *iommu;
 	u16 req_id, dma_alias;
 	unsigned long flags;
 	u8 bus, devfn;
-
-	domain = find_domain(dev);
-	if (domain)
-		return domain;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
@@ -2487,9 +2482,9 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 		}
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
-		/* DMA alias already has a domain, uses it */
+		/* DMA alias already has a domain, use it */
 		if (info)
-			goto found_domain;
+			goto out;
 	}
 
 	/* Allocate and initialize new domain for the device */
@@ -2501,27 +2496,66 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 		return NULL;
 	}
 
-	/* register PCI DMA alias device */
-	if (dev_is_pci(dev) && req_id != dma_alias) {
-		tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
-					       dma_alias & 0xff, NULL, domain);
+out:
 
-		if (!tmp || tmp != domain) {
-			domain_exit(domain);
-			domain = tmp;
+	return domain;
+}
+
+static struct dmar_domain *set_domain_for_dev(struct device *dev,
+					      struct dmar_domain *domain)
+{
+	struct intel_iommu *iommu;
+	struct dmar_domain *tmp;
+	u16 req_id, dma_alias;
+	u8 bus, devfn;
+
+	iommu = device_to_iommu(dev, &bus, &devfn);
+	if (!iommu)
+		return NULL;
+
+	req_id = ((u16)bus << 8) | devfn;
+
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+
+		pci_for_each_dma_alias(pdev, get_last_alias, &dma_alias);
+
+		/* register PCI DMA alias device */
+		if (req_id != dma_alias) {
+			tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
+					dma_alias & 0xff, NULL, domain);
+
+			if (!tmp || tmp != domain)
+				return tmp;
 		}
-
-		if (!domain)
-			return NULL;
 	}
 
-found_domain:
 	tmp = dmar_insert_one_dev_info(iommu, bus, devfn, dev, domain);
+	if (!tmp || tmp != domain)
+		return tmp;
 
-	if (!tmp || tmp != domain) {
+	return domain;
+}
+
+static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
+{
+	struct dmar_domain *domain, *tmp;
+
+	domain = find_domain(dev);
+	if (domain)
+		goto out;
+
+	domain = find_or_alloc_domain(dev, gaw);
+	if (!domain)
+		goto out;
+
+	tmp = set_domain_for_dev(dev, domain);
+	if (!tmp || domain != tmp) {
 		domain_exit(domain);
 		domain = tmp;
 	}
+
+out:
 
 	return domain;
 }
@@ -3394,17 +3428,18 @@ static unsigned long intel_alloc_iova(struct device *dev,
 
 static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 {
+	struct dmar_domain *domain, *tmp;
 	struct dmar_rmrr_unit *rmrr;
-	struct dmar_domain *domain;
 	struct device *i_dev;
 	int i, ret;
 
-	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
-	if (!domain) {
-		pr_err("Allocating domain for %s failed\n",
-		       dev_name(dev));
-		return NULL;
-	}
+	domain = find_domain(dev);
+	if (domain)
+		goto out;
+
+	domain = find_or_alloc_domain(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	if (!domain)
+		goto out;
 
 	/* We have a new domain - setup possible RMRRs for the device */
 	rcu_read_lock();
@@ -3422,6 +3457,18 @@ static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 		}
 	}
 	rcu_read_unlock();
+
+	tmp = set_domain_for_dev(dev, domain);
+	if (!tmp || domain != tmp) {
+		domain_exit(domain);
+		domain = tmp;
+	}
+
+out:
+
+	if (!domain)
+		pr_err("Allocating domain for %s failed\n", dev_name(dev));
+
 
 	return domain;
 }
@@ -3552,7 +3599,7 @@ error:
 static dma_addr_t intel_map_page(struct device *dev, struct page *page,
 				 unsigned long offset, size_t size,
 				 enum dma_data_direction dir,
-				 struct dma_attrs *attrs)
+				 unsigned long attrs)
 {
 	return __intel_map_single(dev, page_to_phys(page) + offset, size,
 				  dir, *dev->dma_mask);
@@ -3711,14 +3758,14 @@ static void intel_unmap(struct device *dev, dma_addr_t dev_addr, size_t size)
 
 static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 			     size_t size, enum dma_data_direction dir,
-			     struct dma_attrs *attrs)
+			     unsigned long attrs)
 {
 	intel_unmap(dev, dev_addr, size);
 }
 
 static void *intel_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags,
-				  struct dma_attrs *attrs)
+				  unsigned long attrs)
 {
 	struct page *page = NULL;
 	int order;
@@ -3764,7 +3811,7 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
 }
 
 static void intel_free_coherent(struct device *dev, size_t size, void *vaddr,
-				dma_addr_t dma_handle, struct dma_attrs *attrs)
+				dma_addr_t dma_handle, unsigned long attrs)
 {
 	int order;
 	struct page *page = virt_to_page(vaddr);
@@ -3779,7 +3826,7 @@ static void intel_free_coherent(struct device *dev, size_t size, void *vaddr,
 
 static void intel_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			   int nelems, enum dma_data_direction dir,
-			   struct dma_attrs *attrs)
+			   unsigned long attrs)
 {
 	dma_addr_t startaddr = sg_dma_address(sglist) & PAGE_MASK;
 	unsigned long nrpages = 0;
@@ -3808,7 +3855,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 }
 
 static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nelems,
-			enum dma_data_direction dir, struct dma_attrs *attrs)
+			enum dma_data_direction dir, unsigned long attrs)
 {
 	int i;
 	struct dmar_domain *domain;
@@ -4272,10 +4319,11 @@ int dmar_check_one_atsr(struct acpi_dmar_header *hdr, void *arg)
 	if (!atsru)
 		return 0;
 
-	if (!atsru->include_all && atsru->devices && atsru->devices_cnt)
+	if (!atsru->include_all && atsru->devices && atsru->devices_cnt) {
 		for_each_active_dev_scope(atsru->devices, atsru->devices_cnt,
 					  i, dev)
 			return -EBUSY;
+	}
 
 	return 0;
 }

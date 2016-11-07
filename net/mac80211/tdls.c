@@ -333,10 +333,11 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	if (!uc.center_freq1)
 		return;
 
-	/* proceed to downgrade the chandef until usable or the same */
+	/* proceed to downgrade the chandef until usable or the same as AP BW */
 	while (uc.width > max_width ||
-	       !cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
-					      sdata->wdev.iftype))
+	       (uc.width > sta->tdls_chandef.width &&
+		!cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
+					       sdata->wdev.iftype)))
 		ieee80211_chandef_downgrade(&uc);
 
 	if (!cfg80211_chandef_identical(&uc, &sta->tdls_chandef)) {
@@ -1747,6 +1748,7 @@ ieee80211_process_tdls_channel_switch_resp(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	ret = 0;
 call_drv:
 	drv_tdls_recv_channel_switch(sdata->local, sdata, &params);
 

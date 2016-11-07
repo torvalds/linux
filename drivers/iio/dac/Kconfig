@@ -181,6 +181,25 @@ config AD7303
 	  To compile this driver as module choose M here: the module will be called
 	  ad7303.
 
+config CIO_DAC
+	tristate "Measurement Computing CIO-DAC IIO driver"
+	depends on X86 && ISA_BUS_API
+	help
+	  Say yes here to build support for the Measurement Computing CIO-DAC
+	  analog output device family (CIO-DAC16, CIO-DAC08, PC104-DAC06). The
+	  base port addresses for the devices may be configured via the base
+	  array module parameter.
+
+config AD8801
+	tristate "Analog Devices AD8801/AD8803 DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD8801, AD8803 Digital to
+	  Analog Converters (DAC).
+
+	  To compile this driver as a module choose M here: the module will be called
+	  ad8801.
+
 config LPC18XX_DAC
 	tristate "NXP LPC18xx DAC driver"
 	depends on ARCH_LPC18XX || COMPILE_TEST
@@ -244,15 +263,6 @@ config MCP4922
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mcp4922.
-
-config STX104
-	tristate "Apex Embedded Systems STX104 DAC driver"
-	depends on X86 && ISA_BUS_API
-	help
-	  Say yes here to build support for the 2-channel DAC on the Apex
-	  Embedded Systems STX104 integrated analog PC/104 card. The base port
-	  addresses for the devices may be configured via the "base" module
-	  parameter array.
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"

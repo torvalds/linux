@@ -84,6 +84,8 @@
 #define   SDHCI_CTRL_ADMA32	0x10
 #define   SDHCI_CTRL_ADMA64	0x18
 #define   SDHCI_CTRL_8BITBUS	0x20
+#define  SDHCI_CTRL_CDTEST_INS	0x40
+#define  SDHCI_CTRL_CDTEST_EN	0x80
 
 #define SDHCI_POWER_CONTROL	0x29
 #define  SDHCI_POWER_ON		0x01
@@ -128,6 +130,7 @@
 #define  SDHCI_INT_CARD_INSERT	0x00000040
 #define  SDHCI_INT_CARD_REMOVE	0x00000080
 #define  SDHCI_INT_CARD_INT	0x00000100
+#define  SDHCI_INT_RETUNE	0x00001000
 #define  SDHCI_INT_ERROR	0x00008000
 #define  SDHCI_INT_TIMEOUT	0x00010000
 #define  SDHCI_INT_CRC		0x00020000
@@ -186,6 +189,7 @@
 #define  SDHCI_CAN_DO_ADMA1	0x00100000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
 #define  SDHCI_CAN_DO_SDMA	0x00400000
+#define  SDHCI_CAN_DO_SUSPEND	0x00800000
 #define  SDHCI_CAN_VDD_330	0x01000000
 #define  SDHCI_CAN_VDD_300	0x02000000
 #define  SDHCI_CAN_VDD_180	0x04000000
@@ -313,6 +317,9 @@ struct sdhci_adma2_64_desc {
  * 4KiB page size.
  */
 #define SDHCI_MAX_SEGS		128
+
+/* Allow for a a command request and a data request at the same time */
+#define SDHCI_MAX_MRQS		2
 
 enum sdhci_cookie {
 	COOKIE_UNMAPPED,
@@ -447,6 +454,9 @@ struct sdhci_host {
 #define SDHCI_SDIO_IRQ_ENABLED	(1<<9)	/* SDIO irq enabled */
 #define SDHCI_USE_64_BIT_DMA	(1<<12)	/* Use 64-bit DMA */
 #define SDHCI_HS400_TUNING	(1<<13)	/* Tuning for HS400 */
+#define SDHCI_SIGNALING_330	(1<<14)	/* Host is capable of 3.3V signaling */
+#define SDHCI_SIGNALING_180	(1<<15)	/* Host is capable of 1.8V signaling */
+#define SDHCI_SIGNALING_120	(1<<16)	/* Host is capable of 1.2V signaling */
 
 	unsigned int version;	/* SDHCI spec. version */
 
@@ -460,12 +470,13 @@ struct sdhci_host {
 	bool runtime_suspended;	/* Host is runtime suspended */
 	bool bus_on;		/* Bus power prevents runtime suspend */
 	bool preset_enabled;	/* Preset is enabled */
+	bool pending_reset;	/* Cmd/data reset is pending */
 
-	struct mmc_request *mrq;	/* Current request */
+	struct mmc_request *mrqs_done[SDHCI_MAX_MRQS];	/* Requests done */
 	struct mmc_command *cmd;	/* Current command */
+	struct mmc_command *data_cmd;	/* Current data command */
 	struct mmc_data *data;	/* Current data request */
 	unsigned int data_early:1;	/* Data finished before cmd */
-	unsigned int busy_handle:1;	/* Handling the order of Busy-end */
 
 	struct sg_mapping_iter sg_miter;	/* SG state for PIO */
 	unsigned int blocks;	/* remaining PIO blocks */
@@ -486,9 +497,11 @@ struct sdhci_host {
 	struct tasklet_struct finish_tasklet;	/* Tasklet structures */
 
 	struct timer_list timer;	/* Timer for timeouts */
+	struct timer_list data_timer;	/* Timer for data timeouts */
 
-	u32 caps;		/* Alternative CAPABILITY_0 */
-	u32 caps1;		/* Alternative CAPABILITY_1 */
+	u32 caps;		/* CAPABILITY_0 */
+	u32 caps1;		/* CAPABILITY_1 */
+	bool read_caps;		/* Capability flags have been read */
 
 	unsigned int            ocr_avail_sdio;	/* OCR bit masks */
 	unsigned int            ocr_avail_sd;
@@ -508,6 +521,8 @@ struct sdhci_host {
 	unsigned int		tuning_count;	/* Timer count for re-tuning */
 	unsigned int		tuning_mode;	/* Re-tuning mode supported by host */
 #define SDHCI_TUNING_MODE_1	0
+#define SDHCI_TUNING_MODE_2	1
+#define SDHCI_TUNING_MODE_3	2
 
 	unsigned long private[0] ____cacheline_aligned;
 };
@@ -542,7 +557,6 @@ struct sdhci_ops {
 	void	(*set_uhs_signaling)(struct sdhci_host *host, unsigned int uhs);
 	void	(*hw_reset)(struct sdhci_host *host);
 	void    (*adma_workaround)(struct sdhci_host *host, u32 intmask);
-	void	(*platform_init)(struct sdhci_host *host);
 	void    (*card_event)(struct sdhci_host *host);
 	void	(*voltage_switch)(struct sdhci_host *host);
 	int	(*select_drive_strength)(struct sdhci_host *host,
@@ -645,10 +659,19 @@ static inline void *sdhci_priv(struct sdhci_host *host)
 }
 
 extern void sdhci_card_detect(struct sdhci_host *host);
+extern void __sdhci_read_caps(struct sdhci_host *host, u16 *ver, u32 *caps,
+			      u32 *caps1);
+extern int sdhci_setup_host(struct sdhci_host *host);
+extern int __sdhci_add_host(struct sdhci_host *host);
 extern int sdhci_add_host(struct sdhci_host *host);
 extern void sdhci_remove_host(struct sdhci_host *host, int dead);
 extern void sdhci_send_command(struct sdhci_host *host,
 				struct mmc_command *cmd);
+
+static inline void sdhci_read_caps(struct sdhci_host *host)
+{
+	__sdhci_read_caps(host, NULL, NULL, NULL);
+}
 
 static inline bool sdhci_sdio_irq_enabled(struct sdhci_host *host)
 {
@@ -660,6 +683,8 @@ u16 sdhci_calc_clk(struct sdhci_host *host, unsigned int clock,
 void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
 void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		     unsigned short vdd);
+void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
+			   unsigned short vdd);
 void sdhci_set_bus_width(struct sdhci_host *host, int width);
 void sdhci_reset(struct sdhci_host *host, u8 mask);
 void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);

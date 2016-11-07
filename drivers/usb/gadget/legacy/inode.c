@@ -542,7 +542,7 @@ static ssize_t ep_aio(struct kiocb *iocb,
 	 */
 	spin_lock_irq(&epdata->dev->lock);
 	value = -ENODEV;
-	if (unlikely(epdata->ep))
+	if (unlikely(epdata->ep == NULL))
 		goto fail;
 
 	req = usb_ep_alloc_request(epdata->ep, GFP_ATOMIC);
@@ -606,7 +606,7 @@ ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	}
 	if (is_sync_kiocb(iocb)) {
 		value = ep_io(epdata, buf, len);
-		if (value >= 0 && copy_to_iter(buf, value, to))
+		if (value >= 0 && (copy_to_iter(buf, value, to) != value))
 			value = -EFAULT;
 	} else {
 		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
@@ -1913,7 +1913,7 @@ gadgetfs_make_inode (struct super_block *sb,
 		inode->i_uid = make_kuid(&init_user_ns, default_uid);
 		inode->i_gid = make_kgid(&init_user_ns, default_gid);
 		inode->i_atime = inode->i_mtime = inode->i_ctime
-				= CURRENT_TIME;
+				= current_time(inode);
 		inode->i_private = data;
 		inode->i_fop = fops;
 	}

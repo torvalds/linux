@@ -25,22 +25,6 @@ start:
 	move	s2, a2
 	move	s3, a3
 
-#ifdef CONFIG_MIPS_ZBOOT_APPENDED_DTB
-	PTR_LA	t0, __appended_dtb
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	li	t1, 0xd00dfeed
-#else
-	li	t1, 0xedfe0dd0
-#endif
-	lw	t2, (t0)
-	bne	t1, t2, not_found
-	 nop
-
-	move	s1, t0
-	PTR_LI	s0, -2
-not_found:
-#endif
-
 	/* Clear BSS */
 	PTR_LA	a0, _edata
 	PTR_LA	a2, _end

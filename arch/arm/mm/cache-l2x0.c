@@ -142,6 +142,8 @@ static void l2c_disable(void)
 {
 	void __iomem *base = l2x0_base;
 
+	l2x0_pmu_suspend();
+
 	outer_cache.flush_all();
 	l2c_write_sec(0, base, L2X0_CTRL);
 	dsb(st);
@@ -159,6 +161,8 @@ static void l2c_resume(void)
 	/* Do not touch the controller if already enabled. */
 	if (!(readl_relaxed(base + L2X0_CTRL) & L2X0_CTRL_EN))
 		l2c_enable(base, l2x0_data->num_lock);
+
+	l2x0_pmu_resume();
 }
 
 /*
@@ -597,17 +601,16 @@ static void l2c310_configure(void __iomem *base)
 			      L310_POWER_CTRL);
 }
 
-static int l2c310_cpu_enable_flz(struct notifier_block *nb, unsigned long act, void *data)
+static int l2c310_starting_cpu(unsigned int cpu)
 {
-	switch (act & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
-		break;
-	case CPU_DYING:
-		set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
-		break;
-	}
-	return NOTIFY_OK;
+	set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
+	return 0;
+}
+
+static int l2c310_dying_cpu(unsigned int cpu)
+{
+	set_auxcr(get_auxcr() & ~(BIT(3) | BIT(2) | BIT(1)));
+	return 0;
 }
 
 static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
@@ -678,10 +681,10 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 			power_ctrl & L310_STNDBY_MODE_EN ? "en" : "dis");
 	}
 
-	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO) {
-		set_auxcr(get_auxcr() | BIT(3) | BIT(2) | BIT(1));
-		cpu_notifier(l2c310_cpu_enable_flz, 0);
-	}
+	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO)
+		cpuhp_setup_state(CPUHP_AP_ARM_L2X0_STARTING,
+				  "AP_ARM_L2X0_STARTING", l2c310_starting_cpu,
+				  l2c310_dying_cpu);
 }
 
 static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
@@ -710,9 +713,8 @@ static void __init l2c310_fixup(void __iomem *base, u32 cache_id,
 	if (revision >= L310_CACHE_ID_RTL_R3P0 &&
 	    revision < L310_CACHE_ID_RTL_R3P2) {
 		u32 val = l2x0_saved_regs.prefetch_ctrl;
-		/* I don't think bit23 is required here... but iMX6 does so */
-		if (val & (BIT(30) | BIT(23))) {
-			val &= ~(BIT(30) | BIT(23));
+		if (val & L310_PREFETCH_CTRL_DBL_LINEFILL) {
+			val &= ~L310_PREFETCH_CTRL_DBL_LINEFILL;
 			l2x0_saved_regs.prefetch_ctrl = val;
 			errata[n++] = "752271";
 		}
@@ -892,6 +894,8 @@ static int __init __l2c_init(const struct l2c_init_data *data,
 		data->type, ways, l2x0_size >> 10);
 	pr_info("%s: CACHE_ID 0x%08x, AUX_CTRL 0x%08x\n",
 		data->type, cache_id, aux);
+
+	l2x0_pmu_register(l2x0_base, cache_id);
 
 	return 0;
 }

@@ -30,9 +30,13 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/regulator/machine.h>
+#include <linux/workqueue.h>
+#include <linux/reboot.h>
+#include <linux/delay.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
+#include <linux/acpi_iort.h>
 #include <linux/pci.h>
 #include <acpi/apei.h>
 #include <linux/dmi.h>
@@ -174,22 +178,17 @@ void acpi_bus_detach_private_data(acpi_handle handle)
 EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
 static void acpi_print_osc_error(acpi_handle handle,
-	struct acpi_osc_context *context, char *error)
+				 struct acpi_osc_context *context, char *error)
 {
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER};
 	int i;
 
-	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer)))
-		printk(KERN_DEBUG "%s: %s\n", context->uuid_str, error);
-	else {
-		printk(KERN_DEBUG "%s (%s): %s\n",
-		       (char *)buffer.pointer, context->uuid_str, error);
-		kfree(buffer.pointer);
-	}
-	printk(KERN_DEBUG "_OSC request data:");
+	acpi_handle_debug(handle, "(%s): %s\n", context->uuid_str, error);
+
+	pr_debug("_OSC request data:");
 	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		printk(" %x", *((u32 *)(context->cap.pointer + i)));
-	printk("\n");
+		pr_debug(" %x", *((u32 *)(context->cap.pointer + i)));
+
+	pr_debug("\n");
 }
 
 acpi_status acpi_str_to_uuid(char *str, u8 *uuid)
@@ -302,6 +301,14 @@ out_kfree:
 EXPORT_SYMBOL(acpi_run_osc);
 
 bool osc_sb_apei_support_acked;
+
+/*
+ * ACPI 6.0 Section 8.4.4.2 Idle State Coordination
+ * OSPM supports platform coordinated low power idle(LPI) states
+ */
+bool osc_pc_lpi_support_confirmed;
+EXPORT_SYMBOL_GPL(osc_pc_lpi_support_confirmed);
+
 static u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
 static void acpi_bus_osc_support(void)
 {
@@ -322,6 +329,7 @@ static void acpi_bus_osc_support(void)
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
 
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
 
 	if (!ghes_disable)
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_APEI_SUPPORT;
@@ -329,9 +337,12 @@ static void acpi_bus_osc_support(void)
 		return;
 	if (ACPI_SUCCESS(acpi_run_osc(handle, &context))) {
 		u32 *capbuf_ret = context.ret.pointer;
-		if (context.ret.length > OSC_SUPPORT_DWORD)
+		if (context.ret.length > OSC_SUPPORT_DWORD) {
 			osc_sb_apei_support_acked =
 				capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_APEI_SUPPORT;
+			osc_pc_lpi_support_confirmed =
+				capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_PCLPI_SUPPORT;
+		}
 		kfree(context.ret.pointer);
 	}
 	/* do we need to check other returned cap? Sounds no */
@@ -473,6 +484,56 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 	else
 		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
 					   acpi_device_notify);
+}
+
+/* Handle events targeting \_SB device (at present only graceful shutdown) */
+
+#define ACPI_SB_NOTIFY_SHUTDOWN_REQUEST 0x81
+#define ACPI_SB_INDICATE_INTERVAL	10000
+
+static void sb_notify_work(struct work_struct *dummy)
+{
+	acpi_handle sb_handle;
+
+	orderly_poweroff(true);
+
+	/*
+	 * After initiating graceful shutdown, the ACPI spec requires OSPM
+	 * to evaluate _OST method once every 10seconds to indicate that
+	 * the shutdown is in progress
+	 */
+	acpi_get_handle(NULL, "\\_SB", &sb_handle);
+	while (1) {
+		pr_info("Graceful shutdown in progress.\n");
+		acpi_evaluate_ost(sb_handle, ACPI_OST_EC_OSPM_SHUTDOWN,
+				ACPI_OST_SC_OS_SHUTDOWN_IN_PROGRESS, NULL);
+		msleep(ACPI_SB_INDICATE_INTERVAL);
+	}
+}
+
+static void acpi_sb_notify(acpi_handle handle, u32 event, void *data)
+{
+	static DECLARE_WORK(acpi_sb_work, sb_notify_work);
+
+	if (event == ACPI_SB_NOTIFY_SHUTDOWN_REQUEST) {
+		if (!work_busy(&acpi_sb_work))
+			schedule_work(&acpi_sb_work);
+	} else
+		pr_warn("event %x is not supported by \\_SB device\n", event);
+}
+
+static int __init acpi_setup_sb_notify_handler(void)
+{
+	acpi_handle sb_handle;
+
+	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &sb_handle)))
+		return -ENXIO;
+
+	if (ACPI_FAILURE(acpi_install_notify_handler(sb_handle, ACPI_DEVICE_NOTIFY,
+						acpi_sb_notify, NULL)))
+		return -EINVAL;
+
+	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -925,7 +986,8 @@ void __init acpi_early_init(void)
 		goto error0;
 	}
 
-	if (acpi_gbl_group_module_level_code) {
+	if (!acpi_gbl_parse_table_as_term_list &&
+	    acpi_gbl_group_module_level_code) {
 		status = acpi_load_tables();
 		if (ACPI_FAILURE(status)) {
 			printk(KERN_ERR PREFIX
@@ -961,8 +1023,7 @@ void __init acpi_early_init(void)
 /**
  * acpi_subsystem_init - Finalize the early initialization of ACPI.
  *
- * Switch over the platform to the ACPI mode (if possible), initialize the
- * handling of ACPI events, install the interrupt and global lock handlers.
+ * Switch over the platform to the ACPI mode (if possible).
  *
  * Doing this too early is generally unsafe, but at the same time it needs to be
  * done before all things that really depend on ACPI.  The right spot appears to
@@ -990,6 +1051,13 @@ void __init acpi_subsystem_init(void)
 	}
 }
 
+static acpi_status acpi_bus_table_handler(u32 event, void *table, void *context)
+{
+	acpi_scan_table_handler(event, table, context);
+
+	return acpi_sysfs_table_handler(event, table, context);
+}
+
 static int __init acpi_bus_init(void)
 {
 	int result;
@@ -1008,7 +1076,8 @@ static int __init acpi_bus_init(void)
 	status = acpi_ec_ecdt_probe();
 	/* Ignore result. Not having an ECDT is not fatal. */
 
-	if (!acpi_gbl_group_module_level_code) {
+	if (acpi_gbl_parse_table_as_term_list ||
+	    !acpi_gbl_group_module_level_code) {
 		status = acpi_load_tables();
 		if (ACPI_FAILURE(status)) {
 			printk(KERN_ERR PREFIX
@@ -1043,6 +1112,8 @@ static int __init acpi_bus_init(void)
 	 * _PDC control method may load dynamic SSDT tables,
 	 * and we need to install the table handler before that.
 	 */
+	status = acpi_install_table_handler(acpi_bus_table_handler, NULL);
+
 	acpi_sysfs_init();
 
 	acpi_early_processor_set_pdc();
@@ -1118,12 +1189,15 @@ static int __init acpi_init(void)
 	}
 
 	pci_mmcfg_late_init();
+	acpi_iort_init();
 	acpi_scan_init();
 	acpi_ec_init();
 	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
 	acpi_debugger_init();
+	acpi_setup_sb_notify_handler();
+	acpi_set_processor_mapping();
 	return 0;
 }
 

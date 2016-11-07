@@ -833,7 +833,7 @@ static irqreturn_t us5182d_irq_thread_handler(int irq, void *private)
 	dir = ret & US5182D_CFG0_PROX ? IIO_EV_DIR_RISING : IIO_EV_DIR_FALLING;
 	ev = IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, 1, IIO_EV_TYPE_THRESH, dir);
 
-	iio_push_event(indio_dev, ev, iio_get_time_ns());
+	iio_push_event(indio_dev, ev, iio_get_time_ns(indio_dev));
 
 	ret = i2c_smbus_write_byte_data(data->client, US5182D_REG_CFG0,
 					ret & ~US5182D_CFG0_PX_IRQ);
@@ -894,7 +894,7 @@ static int us5182d_probe(struct i2c_client *client,
 		goto out_err;
 
 	if (data->default_continuous) {
-		pm_runtime_set_active(&client->dev);
+		ret = pm_runtime_set_active(&client->dev);
 		if (ret < 0)
 			goto out_err;
 	}

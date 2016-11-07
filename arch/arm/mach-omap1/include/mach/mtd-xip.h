@@ -39,7 +39,7 @@ static inline unsigned long xip_omap_mpu_timer_read(int nr)
 #define xip_currtime()		(~xip_omap_mpu_timer_read(0))
 
 /*
- * It's permitted to do approxmation for xip_elapsed_since macro
+ * It's permitted to do approximation for xip_elapsed_since macro
  * (see linux/mtd/xip.h)
  */
 

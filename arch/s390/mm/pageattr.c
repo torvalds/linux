@@ -10,7 +10,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 
-#if PAGE_DEFAULT_KEY
 static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
 {
 	asm volatile(".insn rrf,0xb22b0000,%[skey],%[addr],9,0"
@@ -22,6 +21,8 @@ void __storage_key_init_range(unsigned long start, unsigned long end)
 {
 	unsigned long boundary, size;
 
+	if (!PAGE_DEFAULT_KEY)
+		return;
 	while (start < end) {
 		if (MACHINE_HAS_EDAT1) {
 			/* set storage keys for a 1MB frame */
@@ -38,56 +39,256 @@ void __storage_key_init_range(unsigned long start, unsigned long end)
 		start += PAGE_SIZE;
 	}
 }
-#endif
 
-static pte_t *walk_page_table(unsigned long addr)
+#ifdef CONFIG_PROC_FS
+atomic_long_t direct_pages_count[PG_DIRECT_MAP_MAX];
+
+void arch_report_meminfo(struct seq_file *m)
 {
-	pgd_t *pgdp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-	pte_t *ptep;
+	seq_printf(m, "DirectMap4k:    %8lu kB\n",
+		   atomic_long_read(&direct_pages_count[PG_DIRECT_MAP_4K]) << 2);
+	seq_printf(m, "DirectMap1M:    %8lu kB\n",
+		   atomic_long_read(&direct_pages_count[PG_DIRECT_MAP_1M]) << 10);
+	seq_printf(m, "DirectMap2G:    %8lu kB\n",
+		   atomic_long_read(&direct_pages_count[PG_DIRECT_MAP_2G]) << 21);
+}
+#endif /* CONFIG_PROC_FS */
 
-	pgdp = pgd_offset_k(addr);
-	if (pgd_none(*pgdp))
-		return NULL;
-	pudp = pud_offset(pgdp, addr);
-	if (pud_none(*pudp) || pud_large(*pudp))
-		return NULL;
-	pmdp = pmd_offset(pudp, addr);
-	if (pmd_none(*pmdp) || pmd_large(*pmdp))
-		return NULL;
-	ptep = pte_offset_kernel(pmdp, addr);
-	if (pte_none(*ptep))
-		return NULL;
-	return ptep;
+static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
+		    unsigned long dtt)
+{
+	unsigned long table, mask;
+
+	mask = 0;
+	if (MACHINE_HAS_EDAT2) {
+		switch (dtt) {
+		case CRDTE_DTT_REGION3:
+			mask = ~(PTRS_PER_PUD * sizeof(pud_t) - 1);
+			break;
+		case CRDTE_DTT_SEGMENT:
+			mask = ~(PTRS_PER_PMD * sizeof(pmd_t) - 1);
+			break;
+		case CRDTE_DTT_PAGE:
+			mask = ~(PTRS_PER_PTE * sizeof(pte_t) - 1);
+			break;
+		}
+		table = (unsigned long)old & mask;
+		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce);
+	} else if (MACHINE_HAS_IDTE) {
+		cspg(old, *old, new);
+	} else {
+		csp((unsigned int *)old + 1, *old, new);
+	}
 }
 
-static void change_page_attr(unsigned long addr, int numpages,
-			     pte_t (*set) (pte_t))
-{
-	pte_t *ptep;
-	int i;
+struct cpa {
+	unsigned int set_ro	: 1;
+	unsigned int clear_ro	: 1;
+};
 
-	for (i = 0; i < numpages; i++) {
-		ptep = walk_page_table(addr);
-		if (WARN_ON_ONCE(!ptep))
-			break;
-		*ptep = set(*ptep);
+static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
+			  struct cpa cpa)
+{
+	pte_t *ptep, new;
+
+	ptep = pte_offset(pmdp, addr);
+	do {
+		if (pte_none(*ptep))
+			return -EINVAL;
+		if (cpa.set_ro)
+			new = pte_wrprotect(*ptep);
+		else if (cpa.clear_ro)
+			new = pte_mkwrite(pte_mkdirty(*ptep));
+		pgt_set((unsigned long *)ptep, pte_val(new), addr, CRDTE_DTT_PAGE);
+		ptep++;
 		addr += PAGE_SIZE;
+		cond_resched();
+	} while (addr < end);
+	return 0;
+}
+
+static int split_pmd_page(pmd_t *pmdp, unsigned long addr)
+{
+	unsigned long pte_addr, prot;
+	pte_t *pt_dir, *ptep;
+	pmd_t new;
+	int i, ro;
+
+	pt_dir = vmem_pte_alloc();
+	if (!pt_dir)
+		return -ENOMEM;
+	pte_addr = pmd_pfn(*pmdp) << PAGE_SHIFT;
+	ro = !!(pmd_val(*pmdp) & _SEGMENT_ENTRY_PROTECT);
+	prot = pgprot_val(ro ? PAGE_KERNEL_RO : PAGE_KERNEL);
+	ptep = pt_dir;
+	for (i = 0; i < PTRS_PER_PTE; i++) {
+		pte_val(*ptep) = pte_addr | prot;
+		pte_addr += PAGE_SIZE;
+		ptep++;
 	}
-	__tlb_flush_kernel();
+	pmd_val(new) = __pa(pt_dir) | _SEGMENT_ENTRY;
+	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
+	update_page_count(PG_DIRECT_MAP_4K, PTRS_PER_PTE);
+	update_page_count(PG_DIRECT_MAP_1M, -1);
+	return 0;
+}
+
+static void modify_pmd_page(pmd_t *pmdp, unsigned long addr, struct cpa cpa)
+{
+	pmd_t new;
+
+	if (cpa.set_ro)
+		new = pmd_wrprotect(*pmdp);
+	else if (cpa.clear_ro)
+		new = pmd_mkwrite(pmd_mkdirty(*pmdp));
+	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
+}
+
+static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
+			  struct cpa cpa)
+{
+	unsigned long next;
+	pmd_t *pmdp;
+	int rc = 0;
+
+	pmdp = pmd_offset(pudp, addr);
+	do {
+		if (pmd_none(*pmdp))
+			return -EINVAL;
+		next = pmd_addr_end(addr, end);
+		if (pmd_large(*pmdp)) {
+			if (addr & ~PMD_MASK || addr + PMD_SIZE > next) {
+				rc = split_pmd_page(pmdp, addr);
+				if (rc)
+					return rc;
+				continue;
+			}
+			modify_pmd_page(pmdp, addr, cpa);
+		} else {
+			rc = walk_pte_level(pmdp, addr, next, cpa);
+			if (rc)
+				return rc;
+		}
+		pmdp++;
+		addr = next;
+		cond_resched();
+	} while (addr < end);
+	return rc;
+}
+
+static int split_pud_page(pud_t *pudp, unsigned long addr)
+{
+	unsigned long pmd_addr, prot;
+	pmd_t *pm_dir, *pmdp;
+	pud_t new;
+	int i, ro;
+
+	pm_dir = vmem_pmd_alloc();
+	if (!pm_dir)
+		return -ENOMEM;
+	pmd_addr = pud_pfn(*pudp) << PAGE_SHIFT;
+	ro = !!(pud_val(*pudp) & _REGION_ENTRY_PROTECT);
+	prot = pgprot_val(ro ? SEGMENT_KERNEL_RO : SEGMENT_KERNEL);
+	pmdp = pm_dir;
+	for (i = 0; i < PTRS_PER_PMD; i++) {
+		pmd_val(*pmdp) = pmd_addr | prot;
+		pmd_addr += PMD_SIZE;
+		pmdp++;
+	}
+	pud_val(new) = __pa(pm_dir) | _REGION3_ENTRY;
+	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
+	update_page_count(PG_DIRECT_MAP_1M, PTRS_PER_PMD);
+	update_page_count(PG_DIRECT_MAP_2G, -1);
+	return 0;
+}
+
+static void modify_pud_page(pud_t *pudp, unsigned long addr, struct cpa cpa)
+{
+	pud_t new;
+
+	if (cpa.set_ro)
+		new = pud_wrprotect(*pudp);
+	else if (cpa.clear_ro)
+		new = pud_mkwrite(pud_mkdirty(*pudp));
+	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
+}
+
+static int walk_pud_level(pgd_t *pgd, unsigned long addr, unsigned long end,
+			  struct cpa cpa)
+{
+	unsigned long next;
+	pud_t *pudp;
+	int rc = 0;
+
+	pudp = pud_offset(pgd, addr);
+	do {
+		if (pud_none(*pudp))
+			return -EINVAL;
+		next = pud_addr_end(addr, end);
+		if (pud_large(*pudp)) {
+			if (addr & ~PUD_MASK || addr + PUD_SIZE > next) {
+				rc = split_pud_page(pudp, addr);
+				if (rc)
+					break;
+				continue;
+			}
+			modify_pud_page(pudp, addr, cpa);
+		} else {
+			rc = walk_pmd_level(pudp, addr, next, cpa);
+		}
+		pudp++;
+		addr = next;
+		cond_resched();
+	} while (addr < end && !rc);
+	return rc;
+}
+
+static DEFINE_MUTEX(cpa_mutex);
+
+static int change_page_attr(unsigned long addr, unsigned long end,
+			    struct cpa cpa)
+{
+	unsigned long next;
+	int rc = -EINVAL;
+	pgd_t *pgdp;
+
+	if (addr == end)
+		return 0;
+	if (end >= MODULES_END)
+		return -EINVAL;
+	mutex_lock(&cpa_mutex);
+	pgdp = pgd_offset_k(addr);
+	do {
+		if (pgd_none(*pgdp))
+			break;
+		next = pgd_addr_end(addr, end);
+		rc = walk_pud_level(pgdp, addr, next, cpa);
+		if (rc)
+			break;
+		cond_resched();
+	} while (pgdp++, addr = next, addr < end && !rc);
+	mutex_unlock(&cpa_mutex);
+	return rc;
 }
 
 int set_memory_ro(unsigned long addr, int numpages)
 {
-	change_page_attr(addr, numpages, pte_wrprotect);
-	return 0;
+	struct cpa cpa = {
+		.set_ro = 1,
+	};
+
+	addr &= PAGE_MASK;
+	return change_page_attr(addr, addr + numpages * PAGE_SIZE, cpa);
 }
 
 int set_memory_rw(unsigned long addr, int numpages)
 {
-	change_page_attr(addr, numpages, pte_mkwrite);
-	return 0;
+	struct cpa cpa = {
+		.clear_ro = 1,
+	};
+
+	addr &= PAGE_MASK;
+	return change_page_attr(addr, addr + numpages * PAGE_SIZE, cpa);
 }
 
 /* not possible */
@@ -108,11 +309,11 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 	int i;
 
 	if (test_facility(13)) {
-		__ptep_ipte_range(address, nr - 1, pte);
+		__ptep_ipte_range(address, nr - 1, pte, IPTE_GLOBAL);
 		return;
 	}
 	for (i = 0; i < nr; i++) {
-		__ptep_ipte(address, pte);
+		__ptep_ipte(address, pte, IPTE_GLOBAL);
 		address += PAGE_SIZE;
 		pte++;
 	}
@@ -138,7 +339,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 		nr = min(numpages - i, nr);
 		if (enable) {
 			for (j = 0; j < nr; j++) {
-				pte_val(*pte) = __pa(address);
+				pte_val(*pte) = address | pgprot_val(PAGE_KERNEL);
 				address += PAGE_SIZE;
 				pte++;
 			}

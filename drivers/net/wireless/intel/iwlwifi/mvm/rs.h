@@ -205,6 +205,7 @@ struct rs_rate {
 #define is_ht20(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_20)
 #define is_ht40(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_40)
 #define is_ht80(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_80)
+#define is_ht160(rate)        ((rate)->bw == RATE_MCS_CHAN_WIDTH_160)
 
 #define IWL_MAX_MCS_DISPLAY_SIZE	12
 
@@ -362,7 +363,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 /* Notify RS about Tx status */
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  int tid, struct ieee80211_tx_info *info);
+			  int tid, struct ieee80211_tx_info *info, bool ndp);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks

@@ -15,7 +15,6 @@
 #include <linux/debugfs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
 
@@ -84,7 +83,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 				(s32)MIPSInst_SIMM(ir);
 		return 0;
 	case daddiu_op:
-		if (config_enabled(CONFIG_32BIT))
+		if (IS_ENABLED(CONFIG_32BIT))
 			break;
 
 		if (MIPSInst_RT(ir))
@@ -143,7 +142,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 					      (u32)regs->regs[MIPSInst_RT(ir)]);
 			return 0;
 		case dsll_op:
-			if (config_enabled(CONFIG_32BIT) || MIPSInst_RS(ir))
+			if (IS_ENABLED(CONFIG_32BIT) || MIPSInst_RS(ir))
 				break;
 
 			if (MIPSInst_RD(ir))
@@ -152,7 +151,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 						MIPSInst_FD(ir));
 			return 0;
 		case dsrl_op:
-			if (config_enabled(CONFIG_32BIT) || MIPSInst_RS(ir))
+			if (IS_ENABLED(CONFIG_32BIT) || MIPSInst_RS(ir))
 				break;
 
 			if (MIPSInst_RD(ir))
@@ -161,7 +160,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 						MIPSInst_FD(ir));
 			return 0;
 		case daddu_op:
-			if (config_enabled(CONFIG_32BIT) || MIPSInst_FD(ir))
+			if (IS_ENABLED(CONFIG_32BIT) || MIPSInst_FD(ir))
 				break;
 
 			if (MIPSInst_RD(ir))
@@ -170,7 +169,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 					(u64)regs->regs[MIPSInst_RT(ir)];
 			return 0;
 		case dsubu_op:
-			if (config_enabled(CONFIG_32BIT) || MIPSInst_FD(ir))
+			if (IS_ENABLED(CONFIG_32BIT) || MIPSInst_FD(ir))
 				break;
 
 			if (MIPSInst_RD(ir))
@@ -283,7 +282,7 @@ static int jr_func(struct pt_regs *regs, u32 ir)
 		err = mipsr6_emul(regs, nir);
 		if (err > 0) {
 			regs->cp0_epc = nepc;
-			err = mips_dsemul(regs, nir, cepc);
+			err = mips_dsemul(regs, nir, epc, cepc);
 			if (err == SIGILL)
 				err = SIGEMT;
 			MIPS_R2_STATS(dsemul);
@@ -498,7 +497,7 @@ static int dmult_func(struct pt_regs *regs, u32 ir)
 	s64 res;
 	s64 rt, rs;
 
-	if (config_enabled(CONFIG_32BIT))
+	if (IS_ENABLED(CONFIG_32BIT))
 		return SIGILL;
 
 	rt = regs->regs[MIPSInst_RT(ir)];
@@ -530,7 +529,7 @@ static int dmultu_func(struct pt_regs *regs, u32 ir)
 	u64 res;
 	u64 rt, rs;
 
-	if (config_enabled(CONFIG_32BIT))
+	if (IS_ENABLED(CONFIG_32BIT))
 		return SIGILL;
 
 	rt = regs->regs[MIPSInst_RT(ir)];
@@ -561,7 +560,7 @@ static int ddiv_func(struct pt_regs *regs, u32 ir)
 {
 	s64 rt, rs;
 
-	if (config_enabled(CONFIG_32BIT))
+	if (IS_ENABLED(CONFIG_32BIT))
 		return SIGILL;
 
 	rt = regs->regs[MIPSInst_RT(ir)];
@@ -586,7 +585,7 @@ static int ddivu_func(struct pt_regs *regs, u32 ir)
 {
 	u64 rt, rs;
 
-	if (config_enabled(CONFIG_32BIT))
+	if (IS_ENABLED(CONFIG_32BIT))
 		return SIGILL;
 
 	rt = regs->regs[MIPSInst_RT(ir)];
@@ -825,7 +824,7 @@ static int dclz_func(struct pt_regs *regs, u32 ir)
 	u64 res;
 	u64 rs;
 
-	if (config_enabled(CONFIG_32BIT))
+	if (IS_ENABLED(CONFIG_32BIT))
 		return SIGILL;
 
 	if (!MIPSInst_RD(ir))
@@ -852,7 +851,7 @@ static int dclo_func(struct pt_regs *regs, u32 ir)
 	u64 res;
 	u64 rs;
 
-	if (config_enabled(CONFIG_32BIT))
+	if (IS_ENABLED(CONFIG_32BIT))
 		return SIGILL;
 
 	if (!MIPSInst_RD(ir))
@@ -1033,7 +1032,7 @@ repeat:
 			if (nir) {
 				err = mipsr6_emul(regs, nir);
 				if (err > 0) {
-					err = mips_dsemul(regs, nir, cpc);
+					err = mips_dsemul(regs, nir, epc, cpc);
 					if (err == SIGILL)
 						err = SIGEMT;
 					MIPS_R2_STATS(dsemul);
@@ -1082,7 +1081,7 @@ repeat:
 			if (nir) {
 				err = mipsr6_emul(regs, nir);
 				if (err > 0) {
-					err = mips_dsemul(regs, nir, cpc);
+					err = mips_dsemul(regs, nir, epc, cpc);
 					if (err == SIGILL)
 						err = SIGEMT;
 					MIPS_R2_STATS(dsemul);
@@ -1149,7 +1148,7 @@ repeat:
 		if (nir) {
 			err = mipsr6_emul(regs, nir);
 			if (err > 0) {
-				err = mips_dsemul(regs, nir, cpc);
+				err = mips_dsemul(regs, nir, epc, cpc);
 				if (err == SIGILL)
 					err = SIGEMT;
 				MIPS_R2_STATS(dsemul);
@@ -1164,7 +1163,9 @@ fpu_emul:
 		regs->regs[31] = r31;
 		regs->cp0_epc = epc;
 		if (!used_math()) {     /* First time FPU user.  */
+			preempt_disable();
 			err = init_fpu();
+			preempt_enable();
 			set_used_math();
 		}
 		lose_fpu(1);    /* Save FPU state for the emulator. */
@@ -1484,7 +1485,7 @@ fpu_emul:
 		break;
 
 	case ldl_op:
-		if (config_enabled(CONFIG_32BIT)) {
+		if (IS_ENABLED(CONFIG_32BIT)) {
 		    err = SIGILL;
 		    break;
 		}
@@ -1603,7 +1604,7 @@ fpu_emul:
 		break;
 
 	case ldr_op:
-		if (config_enabled(CONFIG_32BIT)) {
+		if (IS_ENABLED(CONFIG_32BIT)) {
 		    err = SIGILL;
 		    break;
 		}
@@ -1722,7 +1723,7 @@ fpu_emul:
 		break;
 
 	case sdl_op:
-		if (config_enabled(CONFIG_32BIT)) {
+		if (IS_ENABLED(CONFIG_32BIT)) {
 		    err = SIGILL;
 		    break;
 		}
@@ -1840,7 +1841,7 @@ fpu_emul:
 		break;
 
 	case sdr_op:
-		if (config_enabled(CONFIG_32BIT)) {
+		if (IS_ENABLED(CONFIG_32BIT)) {
 		    err = SIGILL;
 		    break;
 		}
@@ -2072,7 +2073,7 @@ fpu_emul:
 		break;
 
 	case lld_op:
-		if (config_enabled(CONFIG_32BIT)) {
+		if (IS_ENABLED(CONFIG_32BIT)) {
 		    err = SIGILL;
 		    break;
 		}
@@ -2133,7 +2134,7 @@ fpu_emul:
 		break;
 
 	case scd_op:
-		if (config_enabled(CONFIG_32BIT)) {
+		if (IS_ENABLED(CONFIG_32BIT)) {
 		    err = SIGILL;
 		    break;
 		}

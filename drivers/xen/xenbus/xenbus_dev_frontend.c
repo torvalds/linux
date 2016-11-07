@@ -316,7 +316,7 @@ static int xenbus_write_transaction(unsigned msg_type,
 			rc = -ENOMEM;
 			goto out;
 		}
-	} else {
+	} else if (msg_type == XS_TRANSACTION_END) {
 		list_for_each_entry(trans, &u->transactions, list)
 			if (trans->handle.id == u->u.msg.tx_id)
 				break;
@@ -364,7 +364,7 @@ out:
 
 static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 {
-	struct watch_adapter *watch, *tmp_watch;
+	struct watch_adapter *watch;
 	char *path, *token;
 	int err, rc;
 	LIST_HEAD(staging_q);
@@ -399,7 +399,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 		}
 		list_add(&watch->list, &u->watches);
 	} else {
-		list_for_each_entry_safe(watch, tmp_watch, &u->watches, list) {
+		list_for_each_entry(watch, &u->watches, list) {
 			if (!strcmp(watch->token, token) &&
 			    !strcmp(watch->watch.node, path)) {
 				unregister_xenbus_watch(&watch->watch);

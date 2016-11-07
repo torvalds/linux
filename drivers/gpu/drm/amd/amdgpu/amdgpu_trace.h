@@ -11,19 +11,68 @@
 #define TRACE_SYSTEM amdgpu
 #define TRACE_INCLUDE_FILE amdgpu_trace
 
+TRACE_EVENT(amdgpu_mm_rreg,
+	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
+	    TP_ARGS(did, reg, value),
+	    TP_STRUCT__entry(
+				__field(unsigned, did)
+				__field(uint32_t, reg)
+				__field(uint32_t, value)
+			    ),
+	    TP_fast_assign(
+			   __entry->did = did;
+			   __entry->reg = reg;
+			   __entry->value = value;
+			   ),
+	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+		      (unsigned long)__entry->did,
+		      (unsigned long)__entry->reg,
+		      (unsigned long)__entry->value)
+);
+
+TRACE_EVENT(amdgpu_mm_wreg,
+	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
+	    TP_ARGS(did, reg, value),
+	    TP_STRUCT__entry(
+				__field(unsigned, did)
+				__field(uint32_t, reg)
+				__field(uint32_t, value)
+			    ),
+	    TP_fast_assign(
+			   __entry->did = did;
+			   __entry->reg = reg;
+			   __entry->value = value;
+			   ),
+	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+		      (unsigned long)__entry->did,
+		      (unsigned long)__entry->reg,
+		      (unsigned long)__entry->value)
+);
+
 TRACE_EVENT(amdgpu_bo_create,
 	    TP_PROTO(struct amdgpu_bo *bo),
 	    TP_ARGS(bo),
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_bo *, bo)
 			     __field(u32, pages)
+			     __field(u32, type)
+			     __field(u32, prefer)
+			     __field(u32, allow)
+			     __field(u32, visible)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->bo = bo;
 			   __entry->pages = bo->tbo.num_pages;
+			   __entry->type = bo->tbo.mem.mem_type;
+			   __entry->prefer = bo->prefered_domains;
+			   __entry->allow = bo->allowed_domains;
+			   __entry->visible = bo->flags;
 			   ),
-	    TP_printk("bo=%p, pages=%u", __entry->bo, __entry->pages)
+
+	    TP_printk("bo=%p,pages=%u,type=%d,prefered=%d,allowed=%d,visible=%d",
+		       __entry->bo, __entry->pages, __entry->type,
+		       __entry->prefer, __entry->allow, __entry->visible)
 );
 
 TRACE_EVENT(amdgpu_cs,
@@ -64,7 +113,7 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			   __entry->adev = job->adev;
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
-			   __entry->fence = &job->base.s_fence->base;
+			   __entry->fence = &job->base.s_fence->finished;
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
@@ -89,7 +138,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->adev = job->adev;
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
-			   __entry->fence = &job->base.s_fence->base;
+			   __entry->fence = &job->base.s_fence->finished;
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
@@ -100,24 +149,26 @@ TRACE_EVENT(amdgpu_sched_run_job,
 
 
 TRACE_EVENT(amdgpu_vm_grab_id,
-	    TP_PROTO(struct amdgpu_vm *vm, int ring, unsigned vmid,
-		     uint64_t pd_addr),
-	    TP_ARGS(vm, ring, vmid, pd_addr),
+	    TP_PROTO(struct amdgpu_vm *vm, int ring, struct amdgpu_job *job),
+	    TP_ARGS(vm, ring, job),
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_vm *, vm)
 			     __field(u32, ring)
 			     __field(u32, vmid)
 			     __field(u64, pd_addr)
+			     __field(u32, needs_flush)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->vm = vm;
 			   __entry->ring = ring;
-			   __entry->vmid = vmid;
-			   __entry->pd_addr = pd_addr;
+			   __entry->vmid = job->vm_id;
+			   __entry->pd_addr = job->vm_pd_addr;
+			   __entry->needs_flush = job->vm_needs_flush;
 			   ),
-	    TP_printk("vm=%p, ring=%u, id=%u, pd_addr=%010Lx", __entry->vm,
-		      __entry->ring, __entry->vmid, __entry->pd_addr)
+	    TP_printk("vm=%p, ring=%u, id=%u, pd_addr=%010Lx needs_flush=%u",
+		      __entry->vm, __entry->ring, __entry->vmid,
+		      __entry->pd_addr, __entry->needs_flush)
 );
 
 TRACE_EVENT(amdgpu_vm_bo_map,
@@ -196,7 +247,7 @@ DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_mapping,
 	    TP_ARGS(mapping)
 );
 
-TRACE_EVENT(amdgpu_vm_set_page,
+TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
 		     uint32_t incr, uint32_t flags),
 	    TP_ARGS(pe, addr, count, incr, flags),
@@ -218,6 +269,24 @@ TRACE_EVENT(amdgpu_vm_set_page,
 	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%08x, count=%u",
 		      __entry->pe, __entry->addr, __entry->incr,
 		      __entry->flags, __entry->count)
+);
+
+TRACE_EVENT(amdgpu_vm_copy_ptes,
+	    TP_PROTO(uint64_t pe, uint64_t src, unsigned count),
+	    TP_ARGS(pe, src, count),
+	    TP_STRUCT__entry(
+			     __field(u64, pe)
+			     __field(u64, src)
+			     __field(u32, count)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pe = pe;
+			   __entry->src = src;
+			   __entry->count = count;
+			   ),
+	    TP_printk("pe=%010Lx, src=%010Lx, count=%u",
+		      __entry->pe, __entry->src, __entry->count)
 );
 
 TRACE_EVENT(amdgpu_vm_flush,
@@ -244,13 +313,55 @@ TRACE_EVENT(amdgpu_bo_list_set,
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_bo_list *, list)
 			     __field(struct amdgpu_bo *, bo)
+			     __field(u64, bo_size)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->list = list;
 			   __entry->bo = bo;
+			   __entry->bo_size = amdgpu_bo_size(bo);
 			   ),
-	    TP_printk("list=%p, bo=%p", __entry->list, __entry->bo)
+	    TP_printk("list=%p, bo=%p, bo_size = %Ld",
+		      __entry->list,
+		      __entry->bo,
+		      __entry->bo_size)
+);
+
+TRACE_EVENT(amdgpu_cs_bo_status,
+	    TP_PROTO(uint64_t total_bo, uint64_t total_size),
+	    TP_ARGS(total_bo, total_size),
+	    TP_STRUCT__entry(
+			__field(u64, total_bo)
+			__field(u64, total_size)
+			),
+
+	    TP_fast_assign(
+			__entry->total_bo = total_bo;
+			__entry->total_size = total_size;
+			),
+	    TP_printk("total bo size = %Ld, total bo count = %Ld",
+			__entry->total_bo, __entry->total_size)
+);
+
+TRACE_EVENT(amdgpu_ttm_bo_move,
+	    TP_PROTO(struct amdgpu_bo* bo, uint32_t new_placement, uint32_t old_placement),
+	    TP_ARGS(bo, new_placement, old_placement),
+	    TP_STRUCT__entry(
+			__field(struct amdgpu_bo *, bo)
+			__field(u64, bo_size)
+			__field(u32, new_placement)
+			__field(u32, old_placement)
+			),
+
+	    TP_fast_assign(
+			__entry->bo      = bo;
+			__entry->bo_size = amdgpu_bo_size(bo);
+			__entry->new_placement = new_placement;
+			__entry->old_placement = old_placement;
+			),
+	    TP_printk("bo=%p from:%d to %d with size = %Ld",
+			__entry->bo, __entry->old_placement,
+			__entry->new_placement, __entry->bo_size)
 );
 
 #endif

@@ -5,3 +5,4 @@ cflags-$(CONFIG_CPU_LOONGSON1)	+= \
 platform-$(CONFIG_MACH_LOONGSON32)	+= loongson32/
 cflags-$(CONFIG_MACH_LOONGSON32)	+= -I$(srctree)/arch/mips/include/asm/mach-loongson32
 load-$(CONFIG_LOONGSON1_LS1B)		+= 0xffffffff80100000
+load-$(CONFIG_LOONGSON1_LS1C)		+= 0xffffffff80100000

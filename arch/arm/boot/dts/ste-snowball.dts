@@ -95,6 +95,70 @@
 	};
 
 	soc {
+		/* Name the GPIO muxed rails on the Snowball board */
+		gpio@8012e000 {
+			/* GPIOs 0 - 31 */
+			gpio-line-names = "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "",
+				     "AP_GPIO31";
+		};
+
+		gpio@8012e080 {
+			/* GPIOs 32 - 63 */
+			gpio-line-names = "USR PB", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e000 {
+			/* GPIOs 64 - 95 */
+			gpio-line-names = "", "", "", "", "AP_GPIO68", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e100 {
+			/* GPIOs 128 - 159 */
+			gpio-line-names = "", "", "", "", "", "", "", "",
+				     "", "", "", "", "IRQ_LAN", "RSTn_LAN",
+				     "USR_LED", "", "", "", "", "", "",
+				     "", "", "AP_GPIO151", "AP_GPIO152",
+				     "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e180 {
+			/* GPIOs 160 - 191 */
+			gpio-line-names = "", "AP_GPIO161", "AP_GPIO162",
+				     "ACCELEROMETER_INT1_RDY",
+				     "ACCELEROMETER_INT2", "MAG_DRDY",
+				     "GYRO_DRDY", "RSTn_MLC", "RSTn_SLC",
+				     "GYRO_INT", "UART_WAKE", "GBF_RESET",
+				     "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8011e000 {
+			/* GPIOs 192 - 223 */
+			gpio-line-names = "HDTV_INTn", "", "", "", "HDTV_RST",
+				     "", "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "", "",
+				     "WLAN_RESETN", "WLAN_IRQ", "MMC_EN",
+				     "MMC_CD", "", "", "", "", "";
+		};
+
+		gpio@8011e080 {
+			/* GPIOs 224 - 255 */
+			gpio-line-names = "", "", "", "", "SD_SEL", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
 		usb_per5@a03e0000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&musb_default_mode>;
@@ -175,14 +239,25 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
+			cap-sd-highspeed;
 			cap-mmc-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			/* All direction control is used */
+			st,sig-dir-cmd;
+			st,sig-dir-dat0;
+			st,sig-dir-dat2;
+			st,sig-dir-dat31;
+			st,sig-pin-fbclk;
+			full-pwr-cycle;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdi0_default_mode>;
 			pinctrl-1 = <&sdi0_sleep_mode>;
 
-			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>; // 218
+			/* GPIO218 MMC_CD */
+			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>;
 
 			status = "okay";
 		};
@@ -352,7 +427,25 @@
 
 			ab8500 {
 				ab8500-gpio {
-					compatible = "stericsson,ab8500-gpio";
+					/*
+					 * AB8500 GPIOs are numbered starting from 1, so the first
+					 * index 0 is what in the datasheet is called "GPIO1", and
+					 * the second is "GPIO2" and so forth. Confusingly, the
+					 * Snowball schematic then names the "GPIO2" line "PM_GPIO1".
+					 * while later naming "GPIO4" as "PM_GPIO4".
+					 */
+					gpio-line-names = "", /* AB8500 GPIO1 */
+						     "PM_GPIO1", /* AB8500 GPIO2 */
+						     "WLAN_CLK_REQ", /* AB8500 GPIO3 */
+						     "PM_GPIO4", /* AB8500 GPIO4 */
+						     "", "", "", "", "", "", "", "", "", "", "",
+						     "EN_3V6", /* AB8500 GPIO16 */
+						     "", "", "", "" ,"", "", "", "", "",
+						     "EN_3V3", /* AB8500 GPIO26 */
+						     "", "", "", "", "", "", "", "", "", "", "", "", "",
+						     "PM_GPIO40", /* AB8500 GPIO40 */
+						     "PM_GPIO41", /* AB8500 GPIO41 */
+						     "PM_GPIO42"; /* AB8500 GPIO42 */
 				};
 
 				ext_regulators: ab8500-ext-regulators {
@@ -467,7 +560,7 @@
 					/* VMMCI level-shifter enable */
 					snowball_cfg3 {
 						pins = "GPIO217_AH12";
-						ste,config = <&gpio_out_lo>;
+						ste,config = <&gpio_out_hi>;
 					};
 					/* VMMCI level-shifter voltage select */
 					snowball_cfg4 {

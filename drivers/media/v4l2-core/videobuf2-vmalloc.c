@@ -33,14 +33,15 @@ struct vb2_vmalloc_buf {
 
 static void vb2_vmalloc_put(void *buf_priv);
 
-static void *vb2_vmalloc_alloc(void *alloc_ctx, unsigned long size,
-			       enum dma_data_direction dma_dir, gfp_t gfp_flags)
+static void *vb2_vmalloc_alloc(struct device *dev, unsigned long attrs,
+			       unsigned long size, enum dma_data_direction dma_dir,
+			       gfp_t gfp_flags)
 {
 	struct vb2_vmalloc_buf *buf;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL | gfp_flags);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->size = size;
 	buf->vaddr = vmalloc_user(buf->size);
@@ -52,7 +53,7 @@ static void *vb2_vmalloc_alloc(void *alloc_ctx, unsigned long size,
 	if (!buf->vaddr) {
 		pr_debug("vmalloc of size %ld failed\n", buf->size);
 		kfree(buf);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	atomic_inc(&buf->refcount);
@@ -69,24 +70,27 @@ static void vb2_vmalloc_put(void *buf_priv)
 	}
 }
 
-static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
+static void *vb2_vmalloc_get_userptr(struct device *dev, unsigned long vaddr,
 				     unsigned long size,
 				     enum dma_data_direction dma_dir)
 {
 	struct vb2_vmalloc_buf *buf;
 	struct frame_vector *vec;
 	int n_pages, offset, i;
+	int ret = -ENOMEM;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->dma_dir = dma_dir;
 	offset = vaddr & ~PAGE_MASK;
 	buf->size = size;
 	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
-	if (IS_ERR(vec))
+	if (IS_ERR(vec)) {
+		ret = PTR_ERR(vec);
 		goto fail_pfnvec_create;
+	}
 	buf->vec = vec;
 	n_pages = frame_vector_count(vec);
 	if (frame_vector_to_pages(vec) < 0) {
@@ -116,7 +120,7 @@ fail_map:
 fail_pfnvec_create:
 	kfree(buf);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void vb2_vmalloc_put_userptr(void *buf_priv)
@@ -403,7 +407,7 @@ static void vb2_vmalloc_detach_dmabuf(void *mem_priv)
 	kfree(buf);
 }
 
-static void *vb2_vmalloc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
+static void *vb2_vmalloc_attach_dmabuf(struct device *dev, struct dma_buf *dbuf,
 	unsigned long size, enum dma_data_direction dma_dir)
 {
 	struct vb2_vmalloc_buf *buf;

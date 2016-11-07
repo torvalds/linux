@@ -43,57 +43,49 @@ NM		:= $(NM) --synthetic
 endif
 endif
 
-ifeq ($(CONFIG_PPC64),y)
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-OLDARCH	:= ppc64le
+# BITS is used as extension for files which are available in a 32 bit
+# and a 64 bit version to simplify shared Makefiles.
+# e.g.: obj-y += foo_$(BITS).o
+export BITS
+
+ifdef CONFIG_PPC64
+        BITS := 64
 else
-OLDARCH	:= ppc64
-endif
-else
-ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-OLDARCH	:= ppcle
-else
-OLDARCH	:= ppc
-endif
+        BITS := 32
 endif
 
-# It seems there are times we use this Makefile without
-# including the config file, but this replicates the old behaviour
-ifeq ($(CONFIG_WORD_SIZE),)
-CONFIG_WORD_SIZE := 32
-endif
-
-UTS_MACHINE := $(OLDARCH)
+machine-y = ppc
+machine-$(CONFIG_PPC64) += 64
+machine-$(CONFIG_CPU_LITTLE_ENDIAN) += le
+UTS_MACHINE := $(subst $(space),,$(machine-y))
 
 ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-override CC	+= -mlittle-endian
-ifneq ($(cc-name),clang)
-override CC	+= -mno-strict-align
-endif
-override AS	+= -mlittle-endian
 override LD	+= -EL
-override CROSS32CC += -mlittle-endian
-override CROSS32AS += -mlittle-endian
 LDEMULATION	:= lppc
 GNUTARGET	:= powerpcle
 MULTIPLEWORD	:= -mno-multiple
 KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-save-toc-indirect)
 else
-ifeq ($(call cc-option-yn,-mbig-endian),y)
-override CC	+= -mbig-endian
-override AS	+= -mbig-endian
-endif
 override LD	+= -EB
 LDEMULATION	:= ppc
 GNUTARGET	:= powerpc
 MULTIPLEWORD	:= -mmultiple
 endif
 
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(call cc-option,-mbig-endian)
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mlittle-endian
+ifneq ($(cc-name),clang)
+  cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mno-strict-align
+endif
+
+aflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(call cc-option,-mbig-endian)
+aflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mlittle-endian
+
 ifeq ($(HAS_BIARCH),y)
-override AS	+= -a$(CONFIG_WORD_SIZE)
-override LD	+= -m elf$(CONFIG_WORD_SIZE)$(LDEMULATION)
-override CC	+= -m$(CONFIG_WORD_SIZE)
-override AR	:= GNUTARGET=elf$(CONFIG_WORD_SIZE)-$(GNUTARGET) $(AR)
+override AS	+= -a$(BITS)
+override LD	+= -m elf$(BITS)$(LDEMULATION)
+override CC	+= -m$(BITS)
+override AR	:= GNUTARGET=elf$(BITS)-$(GNUTARGET) $(AR)
 endif
 
 LDFLAGS_vmlinux-y := -Bstatic
@@ -180,7 +172,12 @@ KBUILD_CFLAGS	+= $(call cc-option,-msoft-float)
 KBUILD_CFLAGS	+= -pipe -Iarch/$(ARCH) $(CFLAGS-y)
 CPP		= $(CC) -E $(KBUILD_CFLAGS)
 
-CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
+CHECKFLAGS	+= -m$(BITS) -D__powerpc__ -D__powerpc$(BITS)__
+ifdef CONFIG_CPU_BIG_ENDIAN
+CHECKFLAGS	+= -D__BIG_ENDIAN__
+else
+CHECKFLAGS	+= -D__LITTLE_ENDIAN__
+endif
 
 KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
 
@@ -221,13 +218,16 @@ KBUILD_CFLAGS		+= -mno-sched-epilog
 endif
 
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
-cpu-as-$(CONFIG_ALTIVEC)	+= -Wa,-maltivec
+cpu-as-$(CONFIG_ALTIVEC)	+= $(call as-option,-Wa$(comma)-maltivec)
 cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
 KBUILD_AFLAGS += $(cpu-as-y)
 KBUILD_CFLAGS += $(cpu-as-y)
 
-head-y				:= arch/powerpc/kernel/head_$(CONFIG_WORD_SIZE).o
+KBUILD_AFLAGS += $(aflags-y)
+KBUILD_CFLAGS += $(cflags-y)
+
+head-y				:= arch/powerpc/kernel/head_$(BITS).o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
 head-$(CONFIG_40x)		:= arch/powerpc/kernel/head_40x.o
 head-$(CONFIG_44x)		:= arch/powerpc/kernel/head_44x.o
@@ -318,12 +318,12 @@ mpc85xx_smp_defconfig:
 PHONY += corenet32_smp_defconfig
 corenet32_smp_defconfig:
 	$(call merge_into_defconfig,corenet_basic_defconfig,\
-		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw)
+		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw dpaa)
 
 PHONY += corenet64_smp_defconfig
 corenet64_smp_defconfig:
 	$(call merge_into_defconfig,corenet_basic_defconfig,\
-		85xx-64bit 85xx-smp altivec 85xx-hw fsl-emb-nonhw)
+		85xx-64bit 85xx-smp altivec 85xx-hw fsl-emb-nonhw dpaa)
 
 PHONY += mpc86xx_defconfig
 mpc86xx_defconfig:

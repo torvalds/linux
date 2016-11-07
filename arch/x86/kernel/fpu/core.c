@@ -8,9 +8,14 @@
 #include <asm/fpu/internal.h>
 #include <asm/fpu/regset.h>
 #include <asm/fpu/signal.h>
+#include <asm/fpu/types.h>
 #include <asm/traps.h>
 
 #include <linux/hardirq.h>
+#include <linux/pkeys.h>
+
+#define CREATE_TRACE_POINTS
+#include <asm/trace/fpu.h>
 
 /*
  * Represents the initial FPU state. It's mostly (but not completely) zeroes,
@@ -192,6 +197,7 @@ void fpu__save(struct fpu *fpu)
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
 	preempt_disable();
+	trace_x86_fpu_before_save(fpu);
 	if (fpu->fpregs_active) {
 		if (!copy_fpregs_to_fpstate(fpu)) {
 			if (use_eager_fpu())
@@ -200,6 +206,7 @@ void fpu__save(struct fpu *fpu)
 				fpregs_deactivate(fpu);
 		}
 	}
+	trace_x86_fpu_after_save(fpu);
 	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(fpu__save);
@@ -222,7 +229,14 @@ void fpstate_init(union fpregs_state *state)
 		return;
 	}
 
-	memset(state, 0, xstate_size);
+	memset(state, 0, fpu_kernel_xstate_size);
+
+	/*
+	 * XRSTORS requires that this bit is set in xcomp_bv, or
+	 * it will #GP. Make sure it is replaced after the memset().
+	 */
+	if (static_cpu_has(X86_FEATURE_XSAVES))
+		state->xsave.header.xcomp_bv = XCOMP_BV_COMPACTED_FORMAT;
 
 	if (static_cpu_has(X86_FEATURE_FXSR))
 		fpstate_init_fxstate(&state->fxsave);
@@ -247,7 +261,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	 * leak into the child task:
 	 */
 	if (use_eager_fpu())
-		memset(&dst_fpu->state.xsave, 0, xstate_size);
+		memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
 
 	/*
 	 * Save current FPU registers directly into the child
@@ -266,7 +280,8 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	 */
 	preempt_disable();
 	if (!copy_fpregs_to_fpstate(dst_fpu)) {
-		memcpy(&src_fpu->state, &dst_fpu->state, xstate_size);
+		memcpy(&src_fpu->state, &dst_fpu->state,
+		       fpu_kernel_xstate_size);
 
 		if (use_eager_fpu())
 			copy_kernel_to_fpregs(&src_fpu->state);
@@ -274,6 +289,9 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 			fpregs_deactivate(src_fpu);
 	}
 	preempt_enable();
+
+	trace_x86_fpu_copy_src(src_fpu);
+	trace_x86_fpu_copy_dst(dst_fpu);
 
 	return 0;
 }
@@ -288,7 +306,9 @@ void fpu__activate_curr(struct fpu *fpu)
 
 	if (!fpu->fpstate_active) {
 		fpstate_init(&fpu->state);
+		trace_x86_fpu_init_state(fpu);
 
+		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for the current task: */
 		fpu->fpstate_active = 1;
 	}
@@ -314,7 +334,9 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
 	} else {
 		if (!fpu->fpstate_active) {
 			fpstate_init(&fpu->state);
+			trace_x86_fpu_init_state(fpu);
 
+			trace_x86_fpu_activate_state(fpu);
 			/* Safe to do for current and for stopped child tasks: */
 			fpu->fpstate_active = 1;
 		}
@@ -347,7 +369,9 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 		fpu->last_cpu = -1;
 	} else {
 		fpstate_init(&fpu->state);
+		trace_x86_fpu_init_state(fpu);
 
+		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for stopped child tasks: */
 		fpu->fpstate_active = 1;
 	}
@@ -432,9 +456,11 @@ void fpu__restore(struct fpu *fpu)
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
+	trace_x86_fpu_before_restore(fpu);
 	fpregs_activate(fpu);
 	copy_kernel_to_fpregs(&fpu->state);
 	fpu->counter++;
+	trace_x86_fpu_after_restore(fpu);
 	kernel_fpu_enable();
 }
 EXPORT_SYMBOL_GPL(fpu__restore);
@@ -463,6 +489,8 @@ void fpu__drop(struct fpu *fpu)
 
 	fpu->fpstate_active = 0;
 
+	trace_x86_fpu_dropped(fpu);
+
 	preempt_enable();
 }
 
@@ -478,6 +506,9 @@ static inline void copy_init_fpstate_to_fpregs(void)
 		copy_kernel_to_fxregs(&init_fpstate.fxsave);
 	else
 		copy_kernel_to_fregs(&init_fpstate.fsave);
+
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		copy_init_pkru_to_fpregs();
 }
 
 /*

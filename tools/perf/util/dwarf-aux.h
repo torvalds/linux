@@ -38,6 +38,9 @@ int cu_find_lineinfo(Dwarf_Die *cudie, unsigned long addr,
 int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 			 int (*callback)(Dwarf_Die *, void *), void *data);
 
+/* Get DW_AT_linkage_name (should be NULL for C binary) */
+const char *die_get_linkage_name(Dwarf_Die *dw_die);
+
 /* Ensure that this DIE is a subprogram and definition (not declaration) */
 bool die_is_func_def(Dwarf_Die *dw_die);
 
@@ -125,4 +128,12 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf);
 /* Get the name and type of given variable DIE, stored as "type\tname" */
 int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf);
 int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
+
+/* Check if target program is compiled with optimization */
+bool die_is_optimized_target(Dwarf_Die *cu_die);
+
+/* Use next address after prologue as probe location */
+void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
+		       Dwarf_Addr *entrypc);
+
 #endif

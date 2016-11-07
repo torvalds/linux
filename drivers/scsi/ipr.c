@@ -98,7 +98,7 @@ static unsigned int ipr_transop_timeout = 0;
 static unsigned int ipr_debug = 0;
 static unsigned int ipr_max_devs = IPR_DEFAULT_SIS64_DEVS;
 static unsigned int ipr_dual_ioa_raid = 1;
-static unsigned int ipr_number_of_msix = 2;
+static unsigned int ipr_number_of_msix = 16;
 static unsigned int ipr_fast_reboot;
 static DEFINE_SPINLOCK(ipr_driver_lock);
 
@@ -194,7 +194,8 @@ static const struct ipr_chip_t ipr_chip[] = {
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, IPR_USE_LSI, IPR_SIS32, IPR_PCI_CFG, &ipr_chip_cfg[1] },
 	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, IPR_USE_LSI, IPR_SIS32, IPR_PCI_CFG, &ipr_chip_cfg[1] },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] }
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_RATTLESNAKE, IPR_USE_MSI, IPR_SIS64, IPR_MMIO, &ipr_chip_cfg[2] }
 };
 
 static int ipr_max_bus_speeds[] = {
@@ -221,7 +222,7 @@ module_param_named(max_devs, ipr_max_devs, int, 0);
 MODULE_PARM_DESC(max_devs, "Specify the maximum number of physical devices. "
 		 "[Default=" __stringify(IPR_DEFAULT_SIS64_DEVS) "]");
 module_param_named(number_of_msix, ipr_number_of_msix, int, 0);
-MODULE_PARM_DESC(number_of_msix, "Specify the number of MSIX interrupts to use on capable adapters (1 - 16).  (default:2)");
+MODULE_PARM_DESC(number_of_msix, "Specify the number of MSIX interrupts to use on capable adapters (1 - 16).  (default:16)");
 module_param_named(fast_reboot, ipr_fast_reboot, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fast_reboot, "Skip adapter shutdown during reboot. Set to 1 to enable. (default: 0)");
 MODULE_LICENSE("GPL");
@@ -492,15 +493,15 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9072: Link not operational transition"},
 	{0x066B8200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9032: Array exposed but still protected"},
-	{0x066B8300, 0, IPR_DEFAULT_LOG_LEVEL + 1,
+	{0x066B8300, 0, IPR_DEBUG_LOG_LEVEL,
 	"70DD: Device forced failed by disrupt device command"},
 	{0x066B9100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4061: Multipath redundancy level got better"},
 	{0x066B9200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4060: Multipath redundancy level got worse"},
-	{0x06808100, 0, IPR_DEFAULT_LOG_LEVEL,
+	{0x06808100, 0, IPR_DEBUG_LOG_LEVEL,
 	"9083: Device raw mode enabled"},
-	{0x06808200, 0, IPR_DEFAULT_LOG_LEVEL,
+	{0x06808200, 0, IPR_DEBUG_LOG_LEVEL,
 	"9084: Device raw mode disabled"},
 	{0x07270000, 0, 0,
 	"Failure due to other device"},
@@ -1472,7 +1473,7 @@ static void ipr_process_ccn(struct ipr_cmnd *ipr_cmd)
 	struct ipr_hostrcb *hostrcb = ipr_cmd->u.hostrcb;
 	u32 ioasc = be32_to_cpu(ipr_cmd->s.ioasa.hdr.ioasc);
 
-	list_del(&hostrcb->queue);
+	list_del_init(&hostrcb->queue);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 
 	if (ioasc) {
@@ -2551,6 +2552,23 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	}
 }
 
+static struct ipr_hostrcb *ipr_get_free_hostrcb(struct ipr_ioa_cfg *ioa)
+{
+	struct ipr_hostrcb *hostrcb;
+
+	hostrcb = list_first_entry_or_null(&ioa->hostrcb_free_q,
+					struct ipr_hostrcb, queue);
+
+	if (unlikely(!hostrcb)) {
+		dev_info(&ioa->pdev->dev, "Reclaiming async error buffers.");
+		hostrcb = list_first_entry_or_null(&ioa->hostrcb_report_q,
+						struct ipr_hostrcb, queue);
+	}
+
+	list_del_init(&hostrcb->queue);
+	return hostrcb;
+}
+
 /**
  * ipr_process_error - Op done function for an adapter error log.
  * @ipr_cmd:	ipr command struct
@@ -2574,7 +2592,7 @@ static void ipr_process_error(struct ipr_cmnd *ipr_cmd)
 	else
 		fd_ioasc = be32_to_cpu(hostrcb->hcam.u.error.fd_ioasc);
 
-	list_del(&hostrcb->queue);
+	list_del_init(&hostrcb->queue);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 
 	if (!ioasc) {
@@ -2586,6 +2604,10 @@ static void ipr_process_error(struct ipr_cmnd *ipr_cmd)
 		dev_err(&ioa_cfg->pdev->dev,
 			"Host RCB failed with IOASC: 0x%08X\n", ioasc);
 	}
+
+	list_add_tail(&hostrcb->queue, &ioa_cfg->hostrcb_report_q);
+	schedule_work(&ioa_cfg->work_q);
+	hostrcb = ipr_get_free_hostrcb(ioa_cfg);
 
 	ipr_send_hcam(ioa_cfg, IPR_HCAM_CDB_OP_CODE_LOG_DATA, hostrcb);
 }
@@ -3283,6 +3305,11 @@ static void ipr_worker_thread(struct work_struct *work)
 		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 		if (ioa_cfg->sdt_state == DUMP_OBTAINED && !ioa_cfg->dump_timeout)
 			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		return;
+	}
+
+	if (!ioa_cfg->scan_enabled) {
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return;
 	}
@@ -4087,6 +4114,64 @@ static struct device_attribute ipr_ioa_fw_type_attr = {
 		.mode =		S_IRUGO,
 	},
 	.show = ipr_show_fw_type
+};
+
+static ssize_t ipr_read_async_err_log(struct file *filep, struct kobject *kobj,
+				struct bin_attribute *bin_attr, char *buf,
+				loff_t off, size_t count)
+{
+	struct device *cdev = container_of(kobj, struct device, kobj);
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	struct ipr_hostrcb *hostrcb;
+	unsigned long lock_flags = 0;
+	int ret;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	hostrcb = list_first_entry_or_null(&ioa_cfg->hostrcb_report_q,
+					struct ipr_hostrcb, queue);
+	if (!hostrcb) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		return 0;
+	}
+	ret = memory_read_from_buffer(buf, count, &off, &hostrcb->hcam,
+				sizeof(hostrcb->hcam));
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return ret;
+}
+
+static ssize_t ipr_next_async_err_log(struct file *filep, struct kobject *kobj,
+				struct bin_attribute *bin_attr, char *buf,
+				loff_t off, size_t count)
+{
+	struct device *cdev = container_of(kobj, struct device, kobj);
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	struct ipr_hostrcb *hostrcb;
+	unsigned long lock_flags = 0;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	hostrcb = list_first_entry_or_null(&ioa_cfg->hostrcb_report_q,
+					struct ipr_hostrcb, queue);
+	if (!hostrcb) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		return count;
+	}
+
+	/* Reclaim hostrcb before exit */
+	list_move_tail(&hostrcb->queue, &ioa_cfg->hostrcb_free_q);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return count;
+}
+
+static struct bin_attribute ipr_ioa_async_err_log = {
+	.attr = {
+		.name =		"async_err_log",
+		.mode =		S_IRUGO | S_IWUSR,
+	},
+	.size = 0,
+	.read = ipr_read_async_err_log,
+	.write = ipr_next_async_err_log
 };
 
 static struct device_attribute *ipr_ioa_attrs[] = {
@@ -7020,8 +7105,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_resource_entry *res;
-	struct ipr_hostrcb *hostrcb, *temp;
-	int i = 0, j;
+	int j;
 
 	ENTER;
 	ioa_cfg->in_reset_reload = 0;
@@ -7042,12 +7126,16 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 	}
 	schedule_work(&ioa_cfg->work_q);
 
-	list_for_each_entry_safe(hostrcb, temp, &ioa_cfg->hostrcb_free_q, queue) {
-		list_del(&hostrcb->queue);
-		if (i++ < IPR_NUM_LOG_HCAMS)
-			ipr_send_hcam(ioa_cfg, IPR_HCAM_CDB_OP_CODE_LOG_DATA, hostrcb);
+	for (j = 0; j < IPR_NUM_HCAMS; j++) {
+		list_del_init(&ioa_cfg->hostrcb[j]->queue);
+		if (j < IPR_NUM_LOG_HCAMS)
+			ipr_send_hcam(ioa_cfg,
+				IPR_HCAM_CDB_OP_CODE_LOG_DATA,
+				ioa_cfg->hostrcb[j]);
 		else
-			ipr_send_hcam(ioa_cfg, IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE, hostrcb);
+			ipr_send_hcam(ioa_cfg,
+				IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE,
+				ioa_cfg->hostrcb[j]);
 	}
 
 	scsi_report_bus_reset(ioa_cfg->host, IPR_VSET_BUS);
@@ -7960,7 +8048,8 @@ static int ipr_ioafp_identify_hrrq(struct ipr_cmnd *ipr_cmd)
 
 	ENTER;
 	ipr_cmd->job_step = ipr_ioafp_std_inquiry;
-	dev_info(&ioa_cfg->pdev->dev, "Starting IOA initialization sequence.\n");
+	if (ioa_cfg->identify_hrrq_index == 0)
+		dev_info(&ioa_cfg->pdev->dev, "Starting IOA initialization sequence.\n");
 
 	if (ioa_cfg->identify_hrrq_index < ioa_cfg->hrrq_num) {
 		hrrq = &ioa_cfg->hrrq[ioa_cfg->identify_hrrq_index];
@@ -8329,7 +8418,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 
 	hostrcb = list_entry(ioa_cfg->hostrcb_free_q.next,
 			     struct ipr_hostrcb, queue);
-	list_del(&hostrcb->queue);
+	list_del_init(&hostrcb->queue);
 	memset(&hostrcb->hcam, 0, sizeof(hostrcb->hcam));
 
 	rc = ipr_get_ldump_data_section(ioa_cfg,
@@ -9326,7 +9415,7 @@ static void ipr_free_mem(struct ipr_ioa_cfg *ioa_cfg)
 	dma_free_coherent(&ioa_cfg->pdev->dev, ioa_cfg->cfg_table_size,
 			  ioa_cfg->u.cfg_table, ioa_cfg->cfg_table_dma);
 
-	for (i = 0; i < IPR_NUM_HCAMS; i++) {
+	for (i = 0; i < IPR_MAX_HCAMS; i++) {
 		dma_free_coherent(&ioa_cfg->pdev->dev,
 				  sizeof(struct ipr_hostrcb),
 				  ioa_cfg->hostrcb[i],
@@ -9566,7 +9655,7 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 	if (!ioa_cfg->u.cfg_table)
 		goto out_free_host_rrq;
 
-	for (i = 0; i < IPR_NUM_HCAMS; i++) {
+	for (i = 0; i < IPR_MAX_HCAMS; i++) {
 		ioa_cfg->hostrcb[i] = dma_alloc_coherent(&pdev->dev,
 							 sizeof(struct ipr_hostrcb),
 							 &ioa_cfg->hostrcb_dma[i],
@@ -9708,6 +9797,7 @@ static void ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 
 	INIT_LIST_HEAD(&ioa_cfg->hostrcb_free_q);
 	INIT_LIST_HEAD(&ioa_cfg->hostrcb_pending_q);
+	INIT_LIST_HEAD(&ioa_cfg->hostrcb_report_q);
 	INIT_LIST_HEAD(&ioa_cfg->free_res_q);
 	INIT_LIST_HEAD(&ioa_cfg->used_res_q);
 	INIT_WORK(&ioa_cfg->work_q, ipr_worker_thread);
@@ -10213,6 +10303,7 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 
 		if (!ioa_cfg->reset_work_q) {
 			dev_err(&pdev->dev, "Couldn't register reset workqueue\n");
+			rc = -ENOMEM;
 			goto out_free_irq;
 		}
 	} else
@@ -10345,6 +10436,8 @@ static void ipr_remove(struct pci_dev *pdev)
 			      &ipr_trace_attr);
 	ipr_remove_dump_file(&ioa_cfg->host->shost_dev.kobj,
 			     &ipr_dump_attr);
+	sysfs_remove_bin_file(&ioa_cfg->host->shost_dev.kobj,
+			&ipr_ioa_async_err_log);
 	scsi_remove_host(ioa_cfg->host);
 
 	__ipr_remove(pdev);
@@ -10361,6 +10454,7 @@ static void ipr_remove(struct pci_dev *pdev)
 static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
+	unsigned long flags;
 	int rc, i;
 
 	rc = ipr_probe_ioa(pdev, dev_id);
@@ -10392,18 +10486,36 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		return rc;
 	}
 
+	rc = sysfs_create_bin_file(&ioa_cfg->host->shost_dev.kobj,
+			&ipr_ioa_async_err_log);
+
+	if (rc) {
+		ipr_remove_dump_file(&ioa_cfg->host->shost_dev.kobj,
+				&ipr_dump_attr);
+		ipr_remove_trace_file(&ioa_cfg->host->shost_dev.kobj,
+				&ipr_trace_attr);
+		scsi_remove_host(ioa_cfg->host);
+		__ipr_remove(pdev);
+		return rc;
+	}
+
 	rc = ipr_create_dump_file(&ioa_cfg->host->shost_dev.kobj,
 				   &ipr_dump_attr);
 
 	if (rc) {
+		sysfs_remove_bin_file(&ioa_cfg->host->shost_dev.kobj,
+				      &ipr_ioa_async_err_log);
 		ipr_remove_trace_file(&ioa_cfg->host->shost_dev.kobj,
 				      &ipr_trace_attr);
 		scsi_remove_host(ioa_cfg->host);
 		__ipr_remove(pdev);
 		return rc;
 	}
+	spin_lock_irqsave(ioa_cfg->host->host_lock, flags);
+	ioa_cfg->scan_enabled = 1;
+	schedule_work(&ioa_cfg->work_q);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
 
-	scsi_scan_host(ioa_cfg->host);
 	ioa_cfg->iopoll_weight = ioa_cfg->chip_cfg->iopoll_weight;
 
 	if (ioa_cfg->iopoll_weight && ioa_cfg->sis64 && ioa_cfg->nvectors > 1) {
@@ -10413,7 +10525,8 @@ static int ipr_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 		}
 	}
 
-	schedule_work(&ioa_cfg->work_q);
+	scsi_scan_host(ioa_cfg->host);
+
 	return 0;
 }
 
@@ -10565,6 +10678,10 @@ static struct pci_device_id ipr_pci_table[] = {
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2CD2, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROCODILE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_2CCD, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_RATTLESNAKE,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_580A, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_RATTLESNAKE,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_580B, 0, 0, 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ipr_pci_table);

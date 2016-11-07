@@ -3431,7 +3431,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 			goto out;
 		}
 
-		inode->i_ctime = CURRENT_TIME;
+		inode->i_ctime = current_time(inode);
 		di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
 		di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 		ocfs2_journal_dirty(ctxt->handle, xis->inode_bh);
@@ -7344,7 +7344,7 @@ const struct xattr_handler ocfs2_xattr_trusted_handler = {
  * 'user' attributes support
  */
 static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
-				struct dentry *unusde, struct inode *inode,
+				struct dentry *unused, struct inode *inode,
 				const char *name, void *buffer, size_t size)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);

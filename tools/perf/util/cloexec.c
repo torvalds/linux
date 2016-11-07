@@ -4,18 +4,24 @@
 #include "cloexec.h"
 #include "asm/bug.h"
 #include "debug.h"
+#include <unistd.h>
+#include <asm/unistd.h>
+#include <sys/syscall.h>
 
 static unsigned long flag = PERF_FLAG_FD_CLOEXEC;
 
-#ifdef __GLIBC_PREREQ
-#if !__GLIBC_PREREQ(2, 6)
 int __weak sched_getcpu(void)
 {
+#ifdef __NR_getcpu
+	unsigned cpu;
+	int err = syscall(__NR_getcpu, &cpu, NULL, NULL);
+	if (!err)
+		return cpu;
+#else
 	errno = ENOSYS;
+#endif
 	return -1;
 }
-#endif
-#endif
 
 static int perf_flag_probe(void)
 {
@@ -58,7 +64,7 @@ static int perf_flag_probe(void)
 
 	WARN_ONCE(err != EINVAL && err != EBUSY,
 		  "perf_event_open(..., PERF_FLAG_FD_CLOEXEC) failed with unexpected error %d (%s)\n",
-		  err, strerror_r(err, sbuf, sizeof(sbuf)));
+		  err, str_error_r(err, sbuf, sizeof(sbuf)));
 
 	/* not supported, confirm error related to PERF_FLAG_FD_CLOEXEC */
 	while (1) {
@@ -76,7 +82,7 @@ static int perf_flag_probe(void)
 
 	if (WARN_ONCE(fd < 0 && err != EBUSY,
 		      "perf_event_open(..., 0) failed unexpectedly with error %d (%s)\n",
-		      err, strerror_r(err, sbuf, sizeof(sbuf))))
+		      err, str_error_r(err, sbuf, sizeof(sbuf))))
 		return -1;
 
 	return 0;

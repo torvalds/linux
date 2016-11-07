@@ -2624,7 +2624,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (cnt1 >= sizeof(hdw->name)) cnt1 = sizeof(hdw->name)-1;
 	hdw->name[cnt1] = 0;
 
-	hdw->workqueue = create_singlethread_workqueue(hdw->name);
 	INIT_WORK(&hdw->workpoll,pvr2_hdw_worker_poll);
 
 	pvr2_trace(PVR2_TRACE_INIT,"Driver unit number is %d, name is %s",
@@ -2651,11 +2650,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		del_timer_sync(&hdw->decoder_stabilization_timer);
 		del_timer_sync(&hdw->encoder_run_timer);
 		del_timer_sync(&hdw->encoder_wait_timer);
-		if (hdw->workqueue) {
-			flush_workqueue(hdw->workqueue);
-			destroy_workqueue(hdw->workqueue);
-			hdw->workqueue = NULL;
-		}
+		flush_work(&hdw->workpoll);
 		usb_free_urb(hdw->ctl_read_urb);
 		usb_free_urb(hdw->ctl_write_urb);
 		kfree(hdw->ctl_read_buffer);
@@ -2712,11 +2707,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 {
 	if (!hdw) return;
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_destroy: hdw=%p",hdw);
-	if (hdw->workqueue) {
-		flush_workqueue(hdw->workqueue);
-		destroy_workqueue(hdw->workqueue);
-		hdw->workqueue = NULL;
-	}
+	flush_work(&hdw->workpoll);
 	del_timer_sync(&hdw->quiescent_timer);
 	del_timer_sync(&hdw->decoder_stabilization_timer);
 	del_timer_sync(&hdw->encoder_run_timer);
@@ -2856,11 +2847,15 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 				    const char *name, int val)
 {
 	struct v4l2_control ctrl;
+	struct v4l2_subdev *sd;
+
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 %s=%d", name, val);
 	memset(&ctrl, 0, sizeof(ctrl));
 	ctrl.id = id;
 	ctrl.value = val;
-	v4l2_device_call_all(&hdw->v4l2_dev, 0, core, s_ctrl, &ctrl);
+
+	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev)
+		v4l2_s_ctrl(NULL, sd->ctrl_handler, &ctrl);
 }
 
 #define PVR2_SUBDEV_SET_CONTROL(hdw, id, lab) \
@@ -4439,7 +4434,7 @@ static void pvr2_hdw_quiescent_timeout(unsigned long data)
 	hdw->state_decoder_quiescent = !0;
 	trace_stbit("state_decoder_quiescent",hdw->state_decoder_quiescent);
 	hdw->state_stale = !0;
-	queue_work(hdw->workqueue,&hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -4450,7 +4445,7 @@ static void pvr2_hdw_decoder_stabilization_timeout(unsigned long data)
 	hdw->state_decoder_ready = !0;
 	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
 	hdw->state_stale = !0;
-	queue_work(hdw->workqueue, &hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -4461,7 +4456,7 @@ static void pvr2_hdw_encoder_wait_timeout(unsigned long data)
 	hdw->state_encoder_waitok = !0;
 	trace_stbit("state_encoder_waitok",hdw->state_encoder_waitok);
 	hdw->state_stale = !0;
-	queue_work(hdw->workqueue,&hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -4473,7 +4468,7 @@ static void pvr2_hdw_encoder_run_timeout(unsigned long data)
 		hdw->state_encoder_runok = !0;
 		trace_stbit("state_encoder_runok",hdw->state_encoder_runok);
 		hdw->state_stale = !0;
-		queue_work(hdw->workqueue,&hdw->workpoll);
+		schedule_work(&hdw->workpoll);
 	}
 }
 
@@ -4987,7 +4982,7 @@ static void pvr2_hdw_state_sched(struct pvr2_hdw *hdw)
 	if (hdw->state_stale) return;
 	hdw->state_stale = !0;
 	trace_stbit("state_stale",hdw->state_stale);
-	queue_work(hdw->workqueue,&hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 

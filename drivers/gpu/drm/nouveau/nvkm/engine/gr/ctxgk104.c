@@ -950,7 +950,7 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	u32 idle_timeout;
 	int i;
 
-	nvkm_mc_unk260(device->mc, 0);
+	nvkm_mc_unk260(device, 0);
 
 	gf100_gr_mmio(gr, grctx->hub);
 	gf100_gr_mmio(gr, grctx->gpc);
@@ -979,7 +979,7 @@ gk104_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_icmd(gr, grctx->icmd);
 	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_mthd(gr, grctx->mthd);
-	nvkm_mc_unk260(device->mc, 1);
+	nvkm_mc_unk260(device, 1);
 
 	nvkm_mask(device, 0x418800, 0x00200000, 0x00200000);
 	nvkm_mask(device, 0x41be10, 0x00800000, 0x00800000);

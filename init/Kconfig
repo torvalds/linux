@@ -26,6 +26,16 @@ config IRQ_WORK
 config BUILDTIME_EXTABLE_SORT
 	bool
 
+config THREAD_INFO_IN_TASK
+	bool
+	help
+	  Select this to move thread_info off the stack into task_struct.  To
+	  make this work, an arch will need to remove all thread_info fields
+	  except flags and fix any runtime bugs.
+
+	  One subtle change that will be needed is to use try_get_task_stack()
+	  and put_task_stack() in save_thread_stack_tsk() and get_wchan().
+
 menu "General setup"
 
 config BROKEN
@@ -55,6 +65,7 @@ config CROSS_COMPILE
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"
+	depends on !UML
 	default n
 	help
 	  Some drivers can be compiled on a different platform than they are
@@ -80,6 +91,7 @@ config LOCALVERSION
 config LOCALVERSION_AUTO
 	bool "Automatically append version information to the version string"
 	default y
+	depends on !COMPILE_TEST
 	help
 	  This will try to automatically determine if the current tree is a
 	  release tree by looking for git tags that belong to the current
@@ -375,9 +387,11 @@ config VIRT_CPU_ACCOUNTING_GEN
 
 	  If unsure, say N.
 
+endchoice
+
 config IRQ_TIME_ACCOUNTING
 	bool "Fine granularity task level IRQ time accounting"
-	depends on HAVE_IRQ_TIME_ACCOUNTING && !NO_HZ_FULL
+	depends on HAVE_IRQ_TIME_ACCOUNTING && !VIRT_CPU_ACCOUNTING_NATIVE
 	help
 	  Select this option to enable fine granularity task irq time
 	  accounting. This is done by reading a timestamp on each
@@ -385,8 +399,6 @@ config IRQ_TIME_ACCOUNTING
 	  small performance impact.
 
 	  If in doubt, say N here.
-
-endchoice
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -517,6 +529,7 @@ config SRCU
 config TASKS_RCU
 	bool
 	default n
+	depends on !UML
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
@@ -851,8 +864,8 @@ config LOG_CPU_MAX_BUF_SHIFT
 	  used as it forces an exact (power of two) size of the ring buffer.
 
 	  The number of possible CPUs is used for this computation ignoring
-	  hotplugging making the compuation optimal for the the worst case
-	  scenerio while allowing a simple algorithm to be used from bootup.
+	  hotplugging making the computation optimal for the worst case
+	  scenario while allowing a simple algorithm to be used from bootup.
 
 	  Examples shift values and their meaning:
 		     17 => 128 KB for each CPU
@@ -951,7 +964,7 @@ menuconfig CGROUPS
 	  controls or device isolation.
 	  See
 		- Documentation/scheduler/sched-design-CFS.txt	(CFS)
-		- Documentation/cgroups/ (features for grouping, isolation
+		- Documentation/cgroup-v1/ (features for grouping, isolation
 					  and resource control)
 
 	  Say N if unsure.
@@ -1008,7 +1021,7 @@ config BLK_CGROUP
 	CONFIG_CFQ_GROUP_IOSCHED=y; for enabling throttling policy, set
 	CONFIG_BLK_DEV_THROTTLING=y.
 
-	See Documentation/cgroups/blkio-controller.txt for more information.
+	See Documentation/cgroup-v1/blkio-controller.txt for more information.
 
 config DEBUG_BLK_CGROUP
 	bool "IO controller debugging"
@@ -1275,6 +1288,7 @@ config SYSFS_DEPRECATED_V2
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
+	select IRQ_WORK
 	help
 	  This option enables support for relay interface support in
 	  certain file systems (such as debugfs).
@@ -1758,6 +1772,7 @@ choice
 
 config SLAB
 	bool "SLAB"
+	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
@@ -1765,6 +1780,7 @@ config SLAB
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
+	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	   SLUB is a slab allocator that minimizes cache line usage
 	   instead of managing queues of cached objects (SLAB approach).
@@ -1785,10 +1801,10 @@ endchoice
 
 config SLAB_FREELIST_RANDOM
 	default n
-	depends on SLAB
+	depends on SLAB || SLUB
 	bool "SLAB freelist randomization"
 	help
-	  Randomizes the freelist order used on creating new SLABs. This
+	  Randomizes the freelist order used on creating new pages. This
 	  security feature reduces the predictability of the kernel slab
 	  allocator against heap overflows.
 
@@ -2077,7 +2093,7 @@ config TRIM_UNUSED_KSYMS
 	  (especially when using LTO) for optimizing the code and reducing
 	  binary size.  This might have some security advantages as well.
 
-	  If unsure say N.
+	  If unsure, or if you need to build out-of-tree modules, say N.
 
 endif # MODULES
 
@@ -2101,12 +2117,6 @@ config PREEMPT_NOTIFIERS
 
 config PADATA
 	depends on SMP
-	bool
-
-# Can be selected by architectures with broken toolchains
-# that get confused by correct const<->read_only section
-# mappings
-config BROKEN_RODATA
 	bool
 
 config ASN1

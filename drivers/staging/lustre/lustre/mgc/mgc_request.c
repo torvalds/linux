@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -500,7 +496,9 @@ static void do_requeue(struct config_llog_data *cld)
 	 * export which is being disconnected. Take the client
 	 * semaphore to make the check non-racy.
 	 */
-	down_read(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem);
+	down_read_nested(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem,
+			 OBD_CLI_SEM_MGC);
+
 	if (cld->cld_mgcexp->exp_obd->u.cli.cl_conn_count != 0) {
 		int rc;
 
@@ -551,8 +549,9 @@ static int mgc_requeue_thread(void *data)
 		 * caused the lock revocation to finish its setup, plus some
 		 * random so everyone doesn't try to reconnect at once.
 		 */
-		to = MGC_TIMEOUT_MIN_SECONDS * HZ;
-		to += rand * HZ / 100; /* rand is centi-seconds */
+		to = msecs_to_jiffies(MGC_TIMEOUT_MIN_SECONDS * MSEC_PER_SEC);
+		/* rand is centi-seconds */
+		to += msecs_to_jiffies(rand * MSEC_PER_SEC / 100);
 		lwi = LWI_TIMEOUT(to, NULL, NULL);
 		l_wait_event(rq_waitq, rq_state & (RQ_STOP | RQ_PRECLEANUP),
 			     &lwi);
@@ -1034,7 +1033,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		rc = sptlrpc_parse_flavor(val, &flvr);
 		if (rc) {
 			CERROR("invalid sptlrpc flavor %s to MGS\n",
-			       (char *) val);
+			       (char *)val);
 			return rc;
 		}
 
@@ -1050,7 +1049,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 			sptlrpc_flavor2name(&cli->cl_flvr_mgc,
 					    str, sizeof(str));
 			LCONSOLE_ERROR("asking sptlrpc flavor %s to MGS but currently %s is in use\n",
-				       (char *) val, str);
+				       (char *)val, str);
 			rc = -EPERM;
 		}
 		return rc;
@@ -1160,7 +1159,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 
 	while (datalen > 0) {
 		int   entry_len = sizeof(*entry);
-		int   is_ost;
+		int is_ost, i;
 		struct obd_device *obd;
 		char *obdname;
 		char *cname;
@@ -1266,11 +1265,17 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 			continue;
 		}
 
-		/* TODO: iterate all nids to find one */
+		/* iterate all nids to find one */
 		/* find uuid by nid */
-		rc = client_import_find_conn(obd->u.cli.cl_import,
-					     entry->u.nids[0],
-					     (struct obd_uuid *)uuid);
+		rc = -ENOENT;
+		for (i = 0; i < entry->mne_nid_count; i++) {
+			rc = client_import_find_conn(obd->u.cli.cl_import,
+						     entry->u.nids[0],
+						     (struct obd_uuid *)uuid);
+			if (!rc)
+				break;
+		}
+
 		up_read(&obd->u.cli.cl_sem);
 		if (rc < 0) {
 			CERROR("mgc: cannot find uuid by nid %s\n",
@@ -1430,14 +1435,12 @@ again:
 	}
 
 	mne_swab = !!ptlrpc_rep_need_swab(req);
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(3, 2, 50, 0)
+#if OBD_OCD_VERSION(3, 0, 53, 0) > LUSTRE_VERSION_CODE
 	/* This import flag means the server did an extra swab of IR MNE
 	 * records (fixed in LU-1252), reverse it here if needed. LU-1644
 	 */
 	if (unlikely(req->rq_import->imp_need_mne_swab))
 		mne_swab = !mne_swab;
-#else
-#warning "LU-1644: Remove old OBD_CONNECT_MNE_SWAB fixup and imp_need_mne_swab"
 #endif
 
 	for (i = 0; i < nrpages && ealen > 0; i++) {
@@ -1742,8 +1745,6 @@ static struct obd_ops mgc_obd_ops = {
 	.del_conn       = client_import_del_conn,
 	.connect        = client_connect_import,
 	.disconnect     = client_disconnect_export,
-	/* .enqueue     = mgc_enqueue, */
-	/* .iocontrol   = mgc_iocontrol, */
 	.set_info_async = mgc_set_info_async,
 	.get_info       = mgc_get_info,
 	.import_event   = mgc_import_event,

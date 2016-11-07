@@ -30,6 +30,7 @@
 #include "amdgpu_pm.h"
 #include <drm/amdgpu_drm.h>
 #include "amdgpu_powerplay.h"
+#include "si_dpm.h"
 #include "cik_dpm.h"
 #include "vi_dpm.h"
 
@@ -41,7 +42,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 	amd_pp = &(adev->powerplay);
 
 	if (adev->pp_enabled) {
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 		struct amd_pp_init *pp_init;
 
 		pp_init = kzalloc(sizeof(struct amd_pp_init), GFP_KERNEL);
@@ -52,14 +52,21 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		pp_init->chip_family = adev->family;
 		pp_init->chip_id = adev->asic_type;
 		pp_init->device = amdgpu_cgs_create_device(adev);
-
 		ret = amd_powerplay_init(pp_init, amd_pp);
 		kfree(pp_init);
-#endif
 	} else {
 		amd_pp->pp_handle = (void *)adev;
 
 		switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+		case CHIP_TAHITI:
+		case CHIP_PITCAIRN:
+		case CHIP_VERDE:
+		case CHIP_OLAND:
+		case CHIP_HAINAN:
+			amd_pp->ip_funcs = &si_dpm_ip_funcs;
+		break;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 		case CHIP_BONAIRE:
 		case CHIP_HAWAII:
@@ -71,15 +78,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 			amd_pp->ip_funcs = &kv_dpm_ip_funcs;
 			break;
 #endif
-		case CHIP_TOPAZ:
-			amd_pp->ip_funcs = &iceland_dpm_ip_funcs;
-			break;
-		case CHIP_TONGA:
-			amd_pp->ip_funcs = &tonga_dpm_ip_funcs;
-			break;
-		case CHIP_FIJI:
-			amd_pp->ip_funcs = &fiji_dpm_ip_funcs;
-			break;
 		case CHIP_CARRIZO:
 		case CHIP_STONEY:
 			amd_pp->ip_funcs = &cz_dpm_ip_funcs;
@@ -97,19 +95,17 @@ static int amdgpu_pp_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	switch (adev->asic_type) {
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
-		adev->pp_enabled = true;
-		break;
 	case CHIP_TONGA:
 	case CHIP_FIJI:
-		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
+	case CHIP_TOPAZ:
+		adev->pp_enabled = true;
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-		adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
+		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
 		break;
 	/* These chips don't have powerplay implemenations */
 	case CHIP_BONAIRE:
@@ -117,14 +113,10 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 	case CHIP_KAVERI:
-	case CHIP_TOPAZ:
 	default:
 		adev->pp_enabled = false;
 		break;
 	}
-#else
-	adev->pp_enabled = false;
-#endif
 
 	ret = amdgpu_powerplay_init(adev);
 	if (ret)
@@ -146,12 +138,11 @@ static int amdgpu_pp_late_init(void *handle)
 		ret = adev->powerplay.ip_funcs->late_init(
 					adev->powerplay.pp_handle);
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	if (adev->pp_enabled && adev->pm.dpm_enabled) {
 		amdgpu_pm_sysfs_init(adev);
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_COMPLETE_INIT, NULL, NULL);
 	}
-#endif
+
 	return ret;
 }
 
@@ -164,10 +155,8 @@ static int amdgpu_pp_sw_init(void *handle)
 		ret = adev->powerplay.ip_funcs->sw_init(
 					adev->powerplay.pp_handle);
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	if (adev->pp_enabled)
 		adev->pm.dpm_enabled = true;
-#endif
 
 	return ret;
 }
@@ -218,7 +207,6 @@ static int amdgpu_pp_hw_fini(void *handle)
 
 static void amdgpu_pp_late_fini(void *handle)
 {
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pp_enabled) {
@@ -229,7 +217,6 @@ static void amdgpu_pp_late_fini(void *handle)
 	if (adev->powerplay.ip_funcs->late_fini)
 		adev->powerplay.ip_funcs->late_fini(
 			  adev->powerplay.pp_handle);
-#endif
 }
 
 static int amdgpu_pp_suspend(void *handle)

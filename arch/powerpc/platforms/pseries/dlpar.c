@@ -27,6 +27,15 @@
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
 
+static struct workqueue_struct *pseries_hp_wq;
+
+struct pseries_hp_work {
+	struct work_struct work;
+	struct pseries_hp_errorlog *errlog;
+	struct completion *hp_completion;
+	int *rc;
+};
+
 struct cc_workarea {
 	__be32	drc_index;
 	__be32	zero;
@@ -368,10 +377,52 @@ static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 	return rc;
 }
 
+static void pseries_hp_work_fn(struct work_struct *work)
+{
+	struct pseries_hp_work *hp_work =
+			container_of(work, struct pseries_hp_work, work);
+
+	if (hp_work->rc)
+		*(hp_work->rc) = handle_dlpar_errorlog(hp_work->errlog);
+	else
+		handle_dlpar_errorlog(hp_work->errlog);
+
+	if (hp_work->hp_completion)
+		complete(hp_work->hp_completion);
+
+	kfree(hp_work->errlog);
+	kfree((void *)work);
+}
+
+void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
+			 struct completion *hotplug_done, int *rc)
+{
+	struct pseries_hp_work *work;
+	struct pseries_hp_errorlog *hp_errlog_copy;
+
+	hp_errlog_copy = kmalloc(sizeof(struct pseries_hp_errorlog),
+				 GFP_KERNEL);
+	memcpy(hp_errlog_copy, hp_errlog, sizeof(struct pseries_hp_errorlog));
+
+	work = kmalloc(sizeof(struct pseries_hp_work), GFP_KERNEL);
+	if (work) {
+		INIT_WORK((struct work_struct *)work, pseries_hp_work_fn);
+		work->errlog = hp_errlog_copy;
+		work->hp_completion = hotplug_done;
+		work->rc = rc;
+		queue_work(pseries_hp_wq, (struct work_struct *)work);
+	} else {
+		*rc = -ENOMEM;
+		kfree(hp_errlog_copy);
+		complete(hotplug_done);
+	}
+}
+
 static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct pseries_hp_errorlog *hp_elog;
+	struct completion hotplug_done;
 	const char *arg;
 	int rc;
 
@@ -439,7 +490,9 @@ static ssize_t dlpar_store(struct class *class, struct class_attribute *attr,
 		goto dlpar_store_out;
 	}
 
-	rc = handle_dlpar_errorlog(hp_elog);
+	init_completion(&hotplug_done);
+	queue_hotplug_event(hp_elog, &hotplug_done, &rc);
+	wait_for_completion(&hotplug_done);
 
 dlpar_store_out:
 	kfree(hp_elog);
@@ -450,6 +503,8 @@ static CLASS_ATTR(dlpar, S_IWUSR, NULL, dlpar_store);
 
 static int __init pseries_dlpar_init(void)
 {
+	pseries_hp_wq = alloc_workqueue("pseries hotplug workqueue",
+					WQ_UNBOUND, 1);
 	return sysfs_create_file(kernel_kobj, &class_attr_dlpar.attr);
 }
 machine_device_initcall(pseries, pseries_dlpar_init);

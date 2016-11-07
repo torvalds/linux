@@ -4,7 +4,7 @@
  * Builtin help command
  */
 #include "perf.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "builtin.h"
 #include <subcmd/exec-cmd.h>
 #include "common-cmds.h"
@@ -117,7 +117,7 @@ static void exec_woman_emacs(const char *path, const char *page)
 			free(man_page);
 		}
 		warning("failed to exec '%s': %s", path,
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 	}
 }
 
@@ -150,7 +150,7 @@ static void exec_man_konqueror(const char *path, const char *page)
 			free(man_page);
 		}
 		warning("failed to exec '%s': %s", path,
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 	}
 }
 
@@ -162,7 +162,7 @@ static void exec_man_man(const char *path, const char *page)
 		path = "man";
 	execlp(path, "man", page, NULL);
 	warning("failed to exec '%s': %s", path,
-		strerror_r(errno, sbuf, sizeof(sbuf)));
+		str_error_r(errno, sbuf, sizeof(sbuf)));
 }
 
 static void exec_man_cmd(const char *cmd, const char *page)
@@ -175,7 +175,7 @@ static void exec_man_cmd(const char *cmd, const char *page)
 		free(shell_cmd);
 	}
 	warning("failed to exec '%s': %s", cmd,
-		strerror_r(errno, sbuf, sizeof(sbuf)));
+		str_error_r(errno, sbuf, sizeof(sbuf)));
 }
 
 static void add_man_viewer(const char *name)

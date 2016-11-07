@@ -1401,6 +1401,10 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		return;
 	}
 
+	pad_before_data_start =
+		(le16_to_cpu(dhdr->info3) >> WMI_DATA_HDR_PAD_BEFORE_DATA_SHIFT)
+			& WMI_DATA_HDR_PAD_BEFORE_DATA_MASK;
+
 	/* Get the Power save state of the STA */
 	if (vif->nw_type == AP_NETWORK) {
 		meta_type = wmi_data_hdr_get_meta(dhdr);
@@ -1408,7 +1412,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		ps_state = !!((dhdr->info >> WMI_DATA_HDR_PS_SHIFT) &
 			      WMI_DATA_HDR_PS_MASK);
 
-		offset = sizeof(struct wmi_data_hdr);
+		offset = sizeof(struct wmi_data_hdr) + pad_before_data_start;
 		trig_state = !!(le16_to_cpu(dhdr->info3) & WMI_DATA_HDR_TRIG);
 
 		switch (meta_type) {
@@ -1523,9 +1527,6 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	seq_no = wmi_data_hdr_get_seqno(dhdr);
 	meta_type = wmi_data_hdr_get_meta(dhdr);
 	dot11_hdr = wmi_data_hdr_get_dot11(dhdr);
-	pad_before_data_start =
-		(le16_to_cpu(dhdr->info3) >> WMI_DATA_HDR_PAD_BEFORE_DATA_SHIFT)
-			& WMI_DATA_HDR_PAD_BEFORE_DATA_MASK;
 
 	skb_pull(skb, sizeof(struct wmi_data_hdr));
 

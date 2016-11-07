@@ -102,14 +102,15 @@ static inline void put_parallel(struct parallel_io *p)
 }
 
 static struct bio *
-bl_submit_bio(int rw, struct bio *bio)
+bl_submit_bio(struct bio *bio)
 {
 	if (bio) {
 		get_parallel(bio->bi_private);
 		dprintk("%s submitting %s bio %u@%llu\n", __func__,
-			rw == READ ? "read" : "write", bio->bi_iter.bi_size,
+			bio_op(bio) == READ ? "read" : "write",
+			bio->bi_iter.bi_size,
 			(unsigned long long)bio->bi_iter.bi_sector);
-		submit_bio(rw, bio);
+		submit_bio(bio);
 	}
 	return NULL;
 }
@@ -158,7 +159,7 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 	if (disk_addr < map->start || disk_addr >= map->start + map->len) {
 		if (!dev->map(dev, disk_addr, map))
 			return ERR_PTR(-EIO);
-		bio = bl_submit_bio(rw, bio);
+		bio = bl_submit_bio(bio);
 	}
 	disk_addr += map->disk_offset;
 	disk_addr -= map->start;
@@ -174,9 +175,10 @@ retry:
 				disk_addr >> SECTOR_SHIFT, end_io, par);
 		if (!bio)
 			return ERR_PTR(-ENOMEM);
+		bio_set_op_attrs(bio, rw, 0);
 	}
 	if (bio_add_page(bio, page, *len, offset) < *len) {
-		bio = bl_submit_bio(rw, bio);
+		bio = bl_submit_bio(bio);
 		goto retry;
 	}
 	return bio;
@@ -252,7 +254,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 	for (i = pg_index; i < header->page_array.npages; i++) {
 		if (extent_length <= 0) {
 			/* We've used up the previous extent */
-			bio = bl_submit_bio(READ, bio);
+			bio = bl_submit_bio(bio);
 
 			/* Get the next one */
 			if (!ext_tree_lookup(bl, isect, &be, false)) {
@@ -273,7 +275,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		}
 
 		if (is_hole(&be)) {
-			bio = bl_submit_bio(READ, bio);
+			bio = bl_submit_bio(bio);
 			/* Fill hole w/ zeroes w/o accessing device */
 			dprintk("%s Zeroing page for hole\n", __func__);
 			zero_user_segment(pages[i], pg_offset, pg_len);
@@ -306,7 +308,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		header->res.count = (isect << SECTOR_SHIFT) - header->args.offset;
 	}
 out:
-	bl_submit_bio(READ, bio);
+	bl_submit_bio(bio);
 	blk_finish_plug(&plug);
 	put_parallel(par);
 	return PNFS_ATTEMPTED;
@@ -342,9 +344,10 @@ static void bl_write_cleanup(struct work_struct *work)
 		u64 start = hdr->args.offset & (loff_t)PAGE_MASK;
 		u64 end = (hdr->args.offset + hdr->args.count +
 			PAGE_SIZE - 1) & (loff_t)PAGE_MASK;
+		u64 lwb = hdr->args.offset + hdr->args.count;
 
 		ext_tree_mark_written(bl, start >> SECTOR_SHIFT,
-					(end - start) >> SECTOR_SHIFT);
+					(end - start) >> SECTOR_SHIFT, lwb);
 	}
 
 	pnfs_ld_write_done(hdr);
@@ -398,7 +401,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 	for (i = pg_index; i < header->page_array.npages; i++) {
 		if (extent_length <= 0) {
 			/* We've used up the previous extent */
-			bio = bl_submit_bio(WRITE, bio);
+			bio = bl_submit_bio(bio);
 			/* Get the next one */
 			if (!ext_tree_lookup(bl, isect, &be, true)) {
 				header->pnfs_error = -EINVAL;
@@ -427,7 +430,7 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 
 	header->res.count = header->args.count;
 out:
-	bl_submit_bio(WRITE, bio);
+	bl_submit_bio(bio);
 	blk_finish_plug(&plug);
 	put_parallel(par);
 	return PNFS_ATTEMPTED;

@@ -76,7 +76,7 @@ the criterion string:
 Looking in /proc/keys, the last 8 hex digits of the key fingerprint are
 displayed, along with the subtype:
 
-	1a39e171 I-----     1 perm 3f010000     0     0 asymmetri modsign.0: DSA 5acc2142 []
+	1a39e171 I-----     1 perm 3f010000     0     0 asymmetric modsign.0: DSA 5acc2142 []
 
 
 =========================

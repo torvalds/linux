@@ -49,7 +49,9 @@ endif
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-	obj-$(CONFIG_CRYPTO_SHA1_MB) += sha-mb/
+	obj-$(CONFIG_CRYPTO_SHA1_MB) += sha1-mb/
+	obj-$(CONFIG_CRYPTO_SHA256_MB) += sha256-mb/
+	obj-$(CONFIG_CRYPTO_SHA512_MB) += sha512-mb/
 endif
 
 aes-i586-y := aes-i586-asm_32.o aes_glue.o

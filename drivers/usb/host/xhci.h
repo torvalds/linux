@@ -314,6 +314,8 @@ struct xhci_op_regs {
 #define XDEV_U2		(0x2 << 5)
 #define XDEV_U3		(0x3 << 5)
 #define XDEV_INACTIVE	(0x6 << 5)
+#define XDEV_POLLING	(0x7 << 5)
+#define XDEV_COMP_MODE  (0xa << 5)
 #define XDEV_RESUME	(0xf << 5)
 /* true: port has power (see HCC_PPC) */
 #define PORT_POWER	(1 << 9)
@@ -1347,6 +1349,11 @@ struct xhci_segment {
 	/* private to HCD */
 	struct xhci_segment	*next;
 	dma_addr_t		dma;
+	/* Max packet sized bounce buffer for td-fragmant alignment */
+	dma_addr_t		bounce_dma;
+	void			*bounce_buf;
+	unsigned int		bounce_offs;
+	unsigned int		bounce_len;
 };
 
 struct xhci_td {
@@ -1356,6 +1363,7 @@ struct xhci_td {
 	struct xhci_segment	*start_seg;
 	union xhci_trb		*first_trb;
 	union xhci_trb		*last_trb;
+	struct xhci_segment	*bounce_seg;
 	/* actual_length of the URB has already been set */
 	bool			urb_length_set;
 };
@@ -1405,6 +1413,7 @@ struct xhci_ring {
 	unsigned int		num_segs;
 	unsigned int		num_trbs_free;
 	unsigned int		num_trbs_free_temp;
+	unsigned int		bounce_buf_len;
 	enum xhci_ring_type	type;
 	bool			last_td_was_short;
 	struct radix_tree_root	*trb_address_map;
@@ -1646,6 +1655,7 @@ struct xhci_hcd {
 #define XHCI_MTK_HOST		(1 << 21)
 #define XHCI_SSIC_PORT_UNUSED	(1 << 22)
 #define XHCI_NO_64BIT_SUPPORT	(1 << 23)
+#define XHCI_MISSING_CAS	(1 << 24)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
@@ -1807,7 +1817,8 @@ void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
 		unsigned int ep_index);
 struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 		unsigned int num_stream_ctxs,
-		unsigned int num_streams, gfp_t flags);
+		unsigned int num_streams,
+		unsigned int max_packet, gfp_t flags);
 void xhci_free_stream_info(struct xhci_hcd *xhci,
 		struct xhci_stream_info *stream_info);
 void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,

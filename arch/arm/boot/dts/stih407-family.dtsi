@@ -550,10 +550,10 @@
 			interrupt-names = "mmcirq";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_mmc0>;
-			clock-names = "mmc";
-			clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
+			clock-names = "mmc", "icn";
+			clocks = <&clk_s_c0_flexgen CLK_MMC_0>,
+				 <&clk_s_c0_flexgen CLK_RX_ICN_HVA>;
 			bus-width = <8>;
-			non-removable;
 		};
 
 		mmc1: sdhci@09080000 {
@@ -565,8 +565,9 @@
 			interrupt-names = "mmcirq";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sd1>;
-			clock-names = "mmc";
-			clocks = <&clk_s_c0_flexgen CLK_MMC_1>;
+			clock-names = "mmc", "icn";
+			clocks = <&clk_s_c0_flexgen CLK_MMC_1>,
+				 <&clk_s_c0_flexgen CLK_RX_ICN_HVA>;
 			resets = <&softreset STIH407_MMC1_SOFTRESET>;
 			bus-width = <4>;
 		};
@@ -608,6 +609,8 @@
 			clock-names = "ahci_clk";
 			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
 
+			ports-implemented = <0x1>;
+
 			status = "disabled";
 		};
 
@@ -630,6 +633,8 @@
 
 			clock-names = "ahci_clk";
 			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			ports-implemented = <0x1>;
 
 			status = "disabled";
 		};
@@ -667,6 +672,7 @@
 			compatible	= "st,sti-pwm";
 			#pwm-cells	= <2>;
 			reg		= <0x9810000 0x68>;
+			interrupts      = <GIC_SPI 128 IRQ_TYPE_NONE>;
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_pwm0_chan0_default>;
 			clock-names	= "pwm";
@@ -732,6 +738,18 @@
 			clock-names = "stmmaceth", "sti-ethclk";
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>,
 				 <&clk_s_c0_flexgen CLK_ETH_PHY>;
+		};
+
+		cec: sti-cec@094a087c {
+			compatible = "st,stih-cec";
+			reg = <0x94a087c 0x64>;
+			clocks = <&clk_sysin>;
+			clock-names = "cec-clk";
+			interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
+			interrupt-names = "cec-irq";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_cec0_default>;
+			resets = <&softreset STIH407_LPM_SOFTRESET>;
 		};
 
 		rng10: rng@08a89000 {
@@ -820,6 +838,173 @@
 			clocks		= <&clk_s_c0_flexgen CLK_ST231_DMU>;
 			clock-frequency	= <600000000>;
 			st,syscfg	= <&syscfg_core 0x224>;
+		};
+
+		/* fdma audio */
+		fdma0: dma-controller@8e20000 {
+			compatible = "st,stih407-fdma-mpe31-11", "st,slim-rproc";
+			reg = <0x8e20000 0x8000>,
+			      <0x8e30000 0x3000>,
+			      <0x8e37000 0x1000>,
+			      <0x8e38000 0x8000>;
+			reg-names = "slimcore", "dmem", "peripherals", "imem";
+			clocks = <&clk_s_c0_flexgen CLK_FDMA>,
+				 <&clk_s_c0_flexgen CLK_EXT2F_A9>,
+				 <&clk_s_c0_flexgen CLK_EXT2F_A9>,
+				 <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_NONE>;
+			dma-channels = <16>;
+			#dma-cells = <3>;
+		};
+
+		/* fdma app */
+		fdma1: dma-controller@8e40000 {
+			compatible = "st,stih407-fdma-mpe31-12", "st,slim-rproc";
+			reg = <0x8e40000 0x8000>,
+			      <0x8e50000 0x3000>,
+			      <0x8e57000 0x1000>,
+			      <0x8e58000 0x8000>;
+			reg-names = "slimcore", "dmem", "peripherals", "imem";
+			clocks = <&clk_s_c0_flexgen CLK_FDMA>,
+				<&clk_s_c0_flexgen CLK_TX_ICN_DMU>,
+				<&clk_s_c0_flexgen CLK_TX_ICN_DMU>,
+				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
+
+			interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>;
+			dma-channels = <16>;
+			#dma-cells = <3>;
+		};
+
+		/* fdma free running */
+		fdma2: dma-controller@8e60000 {
+			compatible = "st,stih407-fdma-mpe31-13", "st,slim-rproc";
+			reg = <0x8e60000 0x8000>,
+			      <0x8e70000 0x3000>,
+			      <0x8e77000 0x1000>,
+			      <0x8e78000 0x8000>;
+			reg-names = "slimcore", "dmem", "peripherals", "imem";
+			interrupts = <GIC_SPI 9 IRQ_TYPE_NONE>;
+			dma-channels = <16>;
+			#dma-cells = <3>;
+			clocks = <&clk_s_c0_flexgen CLK_FDMA>,
+				<&clk_s_c0_flexgen CLK_EXT2F_A9>,
+				<&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>,
+				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
+		};
+
+		sti_sasg_codec: sti-sasg-codec {
+			compatible = "st,stih407-sas-codec";
+			#sound-dai-cells = <1>;
+			status = "disabled";
+			st,syscfg = <&syscfg_core>;
+		};
+
+		sti_uni_player0: sti-uni-player@8d80000 {
+			compatible = "st,sti-uni-player";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			clocks = <&clk_s_d0_flexgen CLK_PCM_0>;
+			assigned-clocks = <&clk_s_d0_quadfs 0>, <&clk_s_d0_flexgen CLK_PCM_0>;
+			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 0>;
+			assigned-clock-rates = <50000000>;
+			reg = <0x8d80000 0x158>;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 2 0 1>;
+			dai-name = "Uni Player #0 (HDMI)";
+			dma-names = "tx";
+			st,uniperiph-id = <0>;
+			st,version = <5>;
+			st,mode = "HDMI";
+
+			status		= "disabled";
+		};
+
+		sti_uni_player1: sti-uni-player@8d81000 {
+			compatible = "st,sti-uni-player";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			clocks = <&clk_s_d0_flexgen CLK_PCM_1>;
+			assigned-clocks = <&clk_s_d0_quadfs 1>, <&clk_s_d0_flexgen CLK_PCM_1>;
+			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 1>;
+			assigned-clock-rates = <50000000>;
+			reg = <0x8d81000 0x158>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 3 0 1>;
+			dai-name = "Uni Player #1 (PIO)";
+			dma-names = "tx";
+			st,uniperiph-id = <1>;
+			st,version = <5>;
+			st,mode = "PCM";
+
+			status = "disabled";
+		};
+
+		sti_uni_player2: sti-uni-player@8d82000 {
+			compatible = "st,sti-uni-player";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			clocks = <&clk_s_d0_flexgen CLK_PCM_2>;
+			assigned-clocks = <&clk_s_d0_quadfs 2>, <&clk_s_d0_flexgen CLK_PCM_2>;
+			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 2>;
+			assigned-clock-rates = <50000000>;
+			reg = <0x8d82000 0x158>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 4 0 1>;
+			dai-name = "Uni Player #1 (DAC)";
+			dma-names = "tx";
+			st,uniperiph-id = <2>;
+			st,version = <5>;
+			st,mode = "PCM";
+
+			status = "disabled";
+		};
+
+		sti_uni_player3: sti-uni-player@8d85000 {
+			compatible = "st,sti-uni-player";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			clocks = <&clk_s_d0_flexgen CLK_SPDIFF>;
+			assigned-clocks = <&clk_s_d0_quadfs 3>, <&clk_s_d0_flexgen CLK_SPDIFF>;
+			assigned-clock-parents = <0>, <&clk_s_d0_quadfs 3>;
+			assigned-clock-rates = <50000000>;
+			reg = <0x8d85000 0x158>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 7 0 1>;
+			dma-names = "tx";
+			dai-name = "Uni Player #1 (PIO)";
+			st,uniperiph-id = <3>;
+			st,version = <5>;
+			st,mode = "SPDIF";
+
+			status = "disabled";
+		};
+
+		sti_uni_reader0: sti-uni-reader@8d83000 {
+			compatible = "st,sti-uni-reader";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			reg = <0x8d83000 0x158>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 5 0 1>;
+			dma-names = "rx";
+			dai-name = "Uni Reader #0 (PCM IN)";
+			st,version = <3>;
+
+			status = "disabled";
+		};
+
+		sti_uni_reader1: sti-uni-reader@8d84000 {
+			compatible = "st,sti-uni-reader";
+			#sound-dai-cells = <0>;
+			st,syscfg = <&syscfg_core>;
+			reg = <0x8d84000 0x158>;
+			interrupts = <GIC_SPI 88 IRQ_TYPE_NONE>;
+			dmas = <&fdma0 6 0 1>;
+			dma-names = "rx";
+			dai-name = "Uni Reader #1 (HDMI RX)";
+			st,version = <3>;
+
+			status = "disabled";
 		};
 	};
 };

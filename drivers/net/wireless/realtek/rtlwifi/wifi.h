@@ -394,110 +394,110 @@ enum io_type {
 };
 
 enum hw_variables {
-	HW_VAR_ETHER_ADDR,
-	HW_VAR_MULTICAST_REG,
-	HW_VAR_BASIC_RATE,
-	HW_VAR_BSSID,
-	HW_VAR_MEDIA_STATUS,
-	HW_VAR_SECURITY_CONF,
-	HW_VAR_BEACON_INTERVAL,
-	HW_VAR_ATIM_WINDOW,
-	HW_VAR_LISTEN_INTERVAL,
-	HW_VAR_CS_COUNTER,
-	HW_VAR_DEFAULTKEY0,
-	HW_VAR_DEFAULTKEY1,
-	HW_VAR_DEFAULTKEY2,
-	HW_VAR_DEFAULTKEY3,
-	HW_VAR_SIFS,
-	HW_VAR_R2T_SIFS,
-	HW_VAR_DIFS,
-	HW_VAR_EIFS,
-	HW_VAR_SLOT_TIME,
-	HW_VAR_ACK_PREAMBLE,
-	HW_VAR_CW_CONFIG,
-	HW_VAR_CW_VALUES,
-	HW_VAR_RATE_FALLBACK_CONTROL,
-	HW_VAR_CONTENTION_WINDOW,
-	HW_VAR_RETRY_COUNT,
-	HW_VAR_TR_SWITCH,
-	HW_VAR_COMMAND,
-	HW_VAR_WPA_CONFIG,
-	HW_VAR_AMPDU_MIN_SPACE,
-	HW_VAR_SHORTGI_DENSITY,
-	HW_VAR_AMPDU_FACTOR,
-	HW_VAR_MCS_RATE_AVAILABLE,
-	HW_VAR_AC_PARAM,
-	HW_VAR_ACM_CTRL,
-	HW_VAR_DIS_Req_Qsize,
-	HW_VAR_CCX_CHNL_LOAD,
-	HW_VAR_CCX_NOISE_HISTOGRAM,
-	HW_VAR_CCX_CLM_NHM,
-	HW_VAR_TxOPLimit,
-	HW_VAR_TURBO_MODE,
-	HW_VAR_RF_STATE,
-	HW_VAR_RF_OFF_BY_HW,
-	HW_VAR_BUS_SPEED,
-	HW_VAR_SET_DEV_POWER,
+	HW_VAR_ETHER_ADDR = 0x0,
+	HW_VAR_MULTICAST_REG = 0x1,
+	HW_VAR_BASIC_RATE = 0x2,
+	HW_VAR_BSSID = 0x3,
+	HW_VAR_MEDIA_STATUS= 0x4,
+	HW_VAR_SECURITY_CONF= 0x5,
+	HW_VAR_BEACON_INTERVAL = 0x6,
+	HW_VAR_ATIM_WINDOW = 0x7,
+	HW_VAR_LISTEN_INTERVAL = 0x8,
+	HW_VAR_CS_COUNTER = 0x9,
+	HW_VAR_DEFAULTKEY0 = 0xa,
+	HW_VAR_DEFAULTKEY1 = 0xb,
+	HW_VAR_DEFAULTKEY2 = 0xc,
+	HW_VAR_DEFAULTKEY3 = 0xd,
+	HW_VAR_SIFS = 0xe,
+	HW_VAR_R2T_SIFS = 0xf,
+	HW_VAR_DIFS = 0x10,
+	HW_VAR_EIFS = 0x11,
+	HW_VAR_SLOT_TIME = 0x12,
+	HW_VAR_ACK_PREAMBLE = 0x13,
+	HW_VAR_CW_CONFIG = 0x14,
+	HW_VAR_CW_VALUES = 0x15,
+	HW_VAR_RATE_FALLBACK_CONTROL= 0x16,
+	HW_VAR_CONTENTION_WINDOW = 0x17,
+	HW_VAR_RETRY_COUNT = 0x18,
+	HW_VAR_TR_SWITCH = 0x19,
+	HW_VAR_COMMAND = 0x1a,
+	HW_VAR_WPA_CONFIG = 0x1b,
+	HW_VAR_AMPDU_MIN_SPACE = 0x1c,
+	HW_VAR_SHORTGI_DENSITY = 0x1d,
+	HW_VAR_AMPDU_FACTOR = 0x1e,
+	HW_VAR_MCS_RATE_AVAILABLE = 0x1f,
+	HW_VAR_AC_PARAM = 0x20,
+	HW_VAR_ACM_CTRL = 0x21,
+	HW_VAR_DIS_Req_Qsize = 0x22,
+	HW_VAR_CCX_CHNL_LOAD = 0x23,
+	HW_VAR_CCX_NOISE_HISTOGRAM = 0x24,
+	HW_VAR_CCX_CLM_NHM = 0x25,
+	HW_VAR_TxOPLimit = 0x26,
+	HW_VAR_TURBO_MODE = 0x27,
+	HW_VAR_RF_STATE = 0x28,
+	HW_VAR_RF_OFF_BY_HW = 0x29,
+	HW_VAR_BUS_SPEED = 0x2a,
+	HW_VAR_SET_DEV_POWER = 0x2b,
 
-	HW_VAR_RCR,
-	HW_VAR_RATR_0,
-	HW_VAR_RRSR,
-	HW_VAR_CPU_RST,
-	HW_VAR_CHECK_BSSID,
-	HW_VAR_LBK_MODE,
-	HW_VAR_AES_11N_FIX,
-	HW_VAR_USB_RX_AGGR,
-	HW_VAR_USER_CONTROL_TURBO_MODE,
-	HW_VAR_RETRY_LIMIT,
-	HW_VAR_INIT_TX_RATE,
-	HW_VAR_TX_RATE_REG,
-	HW_VAR_EFUSE_USAGE,
-	HW_VAR_EFUSE_BYTES,
-	HW_VAR_AUTOLOAD_STATUS,
-	HW_VAR_RF_2R_DISABLE,
-	HW_VAR_SET_RPWM,
-	HW_VAR_H2C_FW_PWRMODE,
-	HW_VAR_H2C_FW_JOINBSSRPT,
-	HW_VAR_H2C_FW_MEDIASTATUSRPT,
-	HW_VAR_H2C_FW_P2P_PS_OFFLOAD,
-	HW_VAR_FW_PSMODE_STATUS,
-	HW_VAR_INIT_RTS_RATE,
-	HW_VAR_RESUME_CLK_ON,
-	HW_VAR_FW_LPS_ACTION,
-	HW_VAR_1X1_RECV_COMBINE,
-	HW_VAR_STOP_SEND_BEACON,
-	HW_VAR_TSF_TIMER,
-	HW_VAR_IO_CMD,
+	HW_VAR_RCR = 0x2c,
+	HW_VAR_RATR_0 = 0x2d,
+	HW_VAR_RRSR = 0x2e,
+	HW_VAR_CPU_RST = 0x2f,
+	HW_VAR_CHECK_BSSID = 0x30,
+	HW_VAR_LBK_MODE = 0x31,
+	HW_VAR_AES_11N_FIX = 0x32,
+	HW_VAR_USB_RX_AGGR = 0x33,
+	HW_VAR_USER_CONTROL_TURBO_MODE = 0x34,
+	HW_VAR_RETRY_LIMIT = 0x35,
+	HW_VAR_INIT_TX_RATE = 0x36,
+	HW_VAR_TX_RATE_REG = 0x37,
+	HW_VAR_EFUSE_USAGE = 0x38,
+	HW_VAR_EFUSE_BYTES = 0x39,
+	HW_VAR_AUTOLOAD_STATUS = 0x3a,
+	HW_VAR_RF_2R_DISABLE = 0x3b,
+	HW_VAR_SET_RPWM = 0x3c,
+	HW_VAR_H2C_FW_PWRMODE = 0x3d,
+	HW_VAR_H2C_FW_JOINBSSRPT = 0x3e,
+	HW_VAR_H2C_FW_MEDIASTATUSRPT = 0x3f,
+	HW_VAR_H2C_FW_P2P_PS_OFFLOAD = 0x40,
+	HW_VAR_FW_PSMODE_STATUS = 0x41,
+	HW_VAR_INIT_RTS_RATE = 0x42,
+	HW_VAR_RESUME_CLK_ON = 0x43,
+	HW_VAR_FW_LPS_ACTION = 0x44,
+	HW_VAR_1X1_RECV_COMBINE = 0x45,
+	HW_VAR_STOP_SEND_BEACON = 0x46,
+	HW_VAR_TSF_TIMER = 0x47,
+	HW_VAR_IO_CMD = 0x48,
 
-	HW_VAR_RF_RECOVERY,
-	HW_VAR_H2C_FW_UPDATE_GTK,
-	HW_VAR_WF_MASK,
-	HW_VAR_WF_CRC,
-	HW_VAR_WF_IS_MAC_ADDR,
-	HW_VAR_H2C_FW_OFFLOAD,
-	HW_VAR_RESET_WFCRC,
+	HW_VAR_RF_RECOVERY = 0x49,
+	HW_VAR_H2C_FW_UPDATE_GTK = 0x4a,
+	HW_VAR_WF_MASK = 0x4b,
+	HW_VAR_WF_CRC = 0x4c,
+	HW_VAR_WF_IS_MAC_ADDR = 0x4d,
+	HW_VAR_H2C_FW_OFFLOAD = 0x4e,
+	HW_VAR_RESET_WFCRC = 0x4f,
 
-	HW_VAR_HANDLE_FW_C2H,
-	HW_VAR_DL_FW_RSVD_PAGE,
-	HW_VAR_AID,
-	HW_VAR_HW_SEQ_ENABLE,
-	HW_VAR_CORRECT_TSF,
-	HW_VAR_BCN_VALID,
-	HW_VAR_FWLPS_RF_ON,
-	HW_VAR_DUAL_TSF_RST,
-	HW_VAR_SWITCH_EPHY_WoWLAN,
-	HW_VAR_INT_MIGRATION,
-	HW_VAR_INT_AC,
-	HW_VAR_RF_TIMING,
+	HW_VAR_HANDLE_FW_C2H = 0x50,
+	HW_VAR_DL_FW_RSVD_PAGE = 0x51,
+	HW_VAR_AID = 0x52,
+	HW_VAR_HW_SEQ_ENABLE = 0x53,
+	HW_VAR_CORRECT_TSF = 0x54,
+	HW_VAR_BCN_VALID = 0x55,
+	HW_VAR_FWLPS_RF_ON = 0x56,
+	HW_VAR_DUAL_TSF_RST = 0x57,
+	HW_VAR_SWITCH_EPHY_WoWLAN = 0x58,
+	HW_VAR_INT_MIGRATION = 0x59,
+	HW_VAR_INT_AC = 0x5a,
+	HW_VAR_RF_TIMING = 0x5b,
 
-	HAL_DEF_WOWLAN,
-	HW_VAR_MRC,
-	HW_VAR_KEEP_ALIVE,
-	HW_VAR_NAV_UPPER,
+	HAL_DEF_WOWLAN = 0x5c,
+	HW_VAR_MRC = 0x5d,
+	HW_VAR_KEEP_ALIVE = 0x5e,
+	HW_VAR_NAV_UPPER = 0x5f,
 
-	HW_VAR_MGT_FILTER,
-	HW_VAR_CTRL_FILTER,
-	HW_VAR_DATA_FILTER,
+	HW_VAR_MGT_FILTER = 0x60,
+	HW_VAR_CTRL_FILTER = 0x61,
+	HW_VAR_DATA_FILTER = 0x62,
 };
 
 enum rt_media_status {
@@ -1089,7 +1089,7 @@ struct dynamic_primary_cca {
 };
 
 struct rtl_regulatory {
-	char alpha2[2];
+	s8 alpha2[2];
 	u16 country_code;
 	u16 max_power_level;
 	u32 tp_scale;
@@ -1256,16 +1256,16 @@ struct rtl_phy {
 	u8 cur_bw20_txpwridx;
 	u8 cur_bw40_txpwridx;
 
-	char txpwr_limit_2_4g[MAX_REGULATION_NUM]
-			     [MAX_2_4G_BANDWITH_NUM]
-			     [MAX_RATE_SECTION_NUM]
-			     [CHANNEL_MAX_NUMBER_2G]
-			     [MAX_RF_PATH_NUM];
-	char txpwr_limit_5g[MAX_REGULATION_NUM]
-			   [MAX_5G_BANDWITH_NUM]
+	s8 txpwr_limit_2_4g[MAX_REGULATION_NUM]
+			   [MAX_2_4G_BANDWITH_NUM]
 			   [MAX_RATE_SECTION_NUM]
-			   [CHANNEL_MAX_NUMBER_5G]
+			   [CHANNEL_MAX_NUMBER_2G]
 			   [MAX_RF_PATH_NUM];
+	s8 txpwr_limit_5g[MAX_REGULATION_NUM]
+			 [MAX_5G_BANDWITH_NUM]
+			 [MAX_RATE_SECTION_NUM]
+			 [CHANNEL_MAX_NUMBER_5G]
+			 [MAX_RF_PATH_NUM];
 
 	u32 rfreg_chnlval[2];
 	bool apk_done;
@@ -1639,7 +1639,7 @@ struct fast_ant_training {
 };
 
 struct dm_phy_dbg_info {
-	char rx_snrdb[4];
+	s8 rx_snrdb[4];
 	u64 num_qry_phy_status;
 	u64 num_qry_phy_status_cck;
 	u64 num_qry_phy_status_ofdm;
@@ -1688,16 +1688,16 @@ struct rtl_dm {
 	u8 txpower_track_control;
 	bool interrupt_migration;
 	bool disable_tx_int;
-	char ofdm_index[MAX_RF_PATH];
+	s8 ofdm_index[MAX_RF_PATH];
 	u8 default_ofdm_index;
 	u8 default_cck_index;
-	char cck_index;
-	char delta_power_index[MAX_RF_PATH];
-	char delta_power_index_last[MAX_RF_PATH];
-	char power_index_offset[MAX_RF_PATH];
-	char absolute_ofdm_swing_idx[MAX_RF_PATH];
-	char remnant_ofdm_swing_idx[MAX_RF_PATH];
-	char remnant_cck_idx;
+	s8 cck_index;
+	s8 delta_power_index[MAX_RF_PATH];
+	s8 delta_power_index_last[MAX_RF_PATH];
+	s8 power_index_offset[MAX_RF_PATH];
+	s8 absolute_ofdm_swing_idx[MAX_RF_PATH];
+	s8 remnant_ofdm_swing_idx[MAX_RF_PATH];
+	s8 remnant_cck_idx;
 	bool modify_txagc_flag_path_a;
 	bool modify_txagc_flag_path_b;
 
@@ -1726,8 +1726,8 @@ struct rtl_dm {
 	u8	swing_idx_cck_base;
 	bool	swing_flag_cck;
 
-	char	swing_diff_2g;
-	char	swing_diff_5g;
+	s8	swing_diff_2g;
+	s8	swing_diff_5g;
 
 	u8 delta_swing_table_idx_24gccka_p[DEL_SW_IDX_SZ];
 	u8 delta_swing_table_idx_24gccka_n[DEL_SW_IDX_SZ];
@@ -1838,17 +1838,17 @@ struct rtl_efuse {
 	 *
 	 * Sizes of these arrays are decided by the larger ones.
 	 */
-	char txpwr_cckdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	char txpwr_ht20diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	char txpwr_ht40diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	char txpwr_legacyhtdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_cckdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_ht20diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_ht40diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_legacyhtdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
 
 	u8 txpwr_5g_bw40base[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
 	u8 txpwr_5g_bw80base[MAX_RF_PATH][CHANNEL_MAX_NUMBER_5G_80M];
-	char txpwr_5g_ofdmdiff[MAX_RF_PATH][MAX_TX_COUNT];
-	char txpwr_5g_bw20diff[MAX_RF_PATH][MAX_TX_COUNT];
-	char txpwr_5g_bw40diff[MAX_RF_PATH][MAX_TX_COUNT];
-	char txpwr_5g_bw80diff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_ofdmdiff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_bw20diff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_bw40diff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_bw80diff[MAX_RF_PATH][MAX_TX_COUNT];
 
 	u8 txpwr_safetyflag;			/* Band edge enable flag */
 	u16 eeprom_txpowerdiff;
@@ -2006,7 +2006,7 @@ struct rtl_stats {
 	bool is_ht;
 	bool packet_toself;
 	bool packet_beacon;	/*for rssi */
-	char cck_adc_pwdb[4];	/*for rx path selection */
+	s8 cck_adc_pwdb[4];	/*for rx path selection */
 
 	bool is_vht;
 	bool is_short_gi;
@@ -2413,9 +2413,9 @@ struct dig_t {
 	u8 presta_cstate;
 	u8 curmultista_cstate;
 	u8 stop_dig;
-	char back_val;
-	char back_range_max;
-	char back_range_min;
+	s8 back_val;
+	s8 back_range_max;
+	s8 back_range_min;
 	u8 rx_gain_max;
 	u8 rx_gain_min;
 	u8 min_undec_pwdb_for_dm;
@@ -2441,8 +2441,8 @@ struct dig_t {
 	u8 cur_cs_ratiostate;
 	u8 pre_cs_ratiostate;
 	u8 backoff_enable_flag;
-	char backoffval_range_max;
-	char backoffval_range_min;
+	s8 backoffval_range_max;
+	s8 backoffval_range_min;
 	u8 dig_min_0;
 	u8 dig_min_1;
 	u8 bt30_cur_igi;

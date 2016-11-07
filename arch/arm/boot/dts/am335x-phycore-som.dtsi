@@ -25,7 +25,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -33,7 +33,7 @@
 	regulators {
 		compatible = "simple-bus";
 
-		vcc5v: fixedregulator@0 {
+		vcc5v: fixedregulator0 {
 			compatible = "regulator-fixed";
 			regulator-name = "vcc5v";
 			regulator-min-microvolt = <5000000>;
@@ -197,7 +197,7 @@
 		gpmc,wr-access-ns = <30>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 
-		elm_id = <&elm>;
+		ti,elm-id = <&elm>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;

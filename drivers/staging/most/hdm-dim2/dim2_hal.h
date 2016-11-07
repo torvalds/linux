@@ -60,7 +60,8 @@ struct dim_channel {
 	u16 done_sw_buffers_number; /*< Done software buffers number. */
 };
 
-u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock);
+u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock,
+	       u32 fcnt);
 
 void dim_shutdown(void);
 
@@ -86,12 +87,16 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 
 u8 dim_destroy_channel(struct dim_channel *ch);
 
-void dim_service_irq(struct dim_channel *const *channels);
+void dim_service_mlb_int_irq(void);
+
+void dim_service_ahb_int_irq(struct dim_channel *const *channels);
 
 u8 dim_service_channel(struct dim_channel *ch);
 
 struct dim_ch_state_t *dim_get_channel_state(struct dim_channel *ch,
 					     struct dim_ch_state_t *state_ptr);
+
+u16 dim_dbr_space(struct dim_channel *ch);
 
 bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
 			u16 buffer_size);

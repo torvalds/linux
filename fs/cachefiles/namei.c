@@ -20,6 +20,7 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 #include "internal.h"
 
 #define CACHEFILES_KEYBUF_SIZE 512
@@ -261,7 +262,8 @@ requeue:
  * Mark an object as being inactive.
  */
 void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
-				     struct cachefiles_object *object)
+				     struct cachefiles_object *object,
+				     blkcnt_t i_blocks)
 {
 	write_lock(&cache->active_lock);
 	rb_erase(&object->active_node, &cache->active_nodes);
@@ -273,8 +275,7 @@ void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
 	/* This object can now be culled, so we need to let the daemon know
 	 * that there is something it can remove if it needs to.
 	 */
-	atomic_long_add(d_backing_inode(object->dentry)->i_blocks,
-			&cache->b_released);
+	atomic_long_add(i_blocks, &cache->b_released);
 	if (atomic_inc_return(&cache->f_released))
 		cachefiles_state_changed(cache);
 }
@@ -706,7 +707,8 @@ mark_active_timed_out:
 
 check_error:
 	_debug("check error %d", ret);
-	cachefiles_mark_object_inactive(cache, object);
+	cachefiles_mark_object_inactive(
+		cache, object, d_backing_inode(object->dentry)->i_blocks);
 release_dentry:
 	dput(object->dentry);
 	object->dentry = NULL;
@@ -798,13 +800,11 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	}
 
 	ret = -EPERM;
-	if (!d_backing_inode(subdir)->i_op->setxattr ||
-	    !d_backing_inode(subdir)->i_op->getxattr ||
+	if (!(d_backing_inode(subdir)->i_opflags & IOP_XATTR) ||
 	    !d_backing_inode(subdir)->i_op->lookup ||
 	    !d_backing_inode(subdir)->i_op->mkdir ||
 	    !d_backing_inode(subdir)->i_op->create ||
-	    (!d_backing_inode(subdir)->i_op->rename &&
-	     !d_backing_inode(subdir)->i_op->rename2) ||
+	    !d_backing_inode(subdir)->i_op->rename ||
 	    !d_backing_inode(subdir)->i_op->rmdir ||
 	    !d_backing_inode(subdir)->i_op->unlink)
 		goto check_error;

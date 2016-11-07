@@ -37,6 +37,7 @@ modules.builtin
 Module.symvers
 *.dwo
 *.su
+*.c.[012]*.*
 
 #
 # Top-level generic files
@@ -66,6 +67,7 @@ Module.symvers
 #
 !.gitignore
 !.mailmap
+!.cocciconfig
 
 #
 # Generated include files

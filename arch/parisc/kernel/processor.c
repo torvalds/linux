@@ -51,8 +51,6 @@ EXPORT_SYMBOL(_parisc_requires_coherency);
 
 DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 
-extern int update_cr16_clocksource(void);	/* from time.c */
-
 /*
 **  	PARISC CPU driver - claim "device" and initialize CPU data structures.
 **
@@ -227,12 +225,6 @@ static int processor_probe(struct parisc_device *dev)
 		cpu_up(cpuid);
 	}
 #endif
-
-	/* If we've registered more than one cpu,
-	 * we'll use the jiffies clocksource since cr16
-	 * is not synchronized between CPUs.
-	 */
-	update_cr16_clocksource();
 
 	return 0;
 }

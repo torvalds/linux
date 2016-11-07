@@ -326,8 +326,7 @@ static void mxs_dma_tasklet(unsigned long data)
 {
 	struct mxs_dma_chan *mxs_chan = (struct mxs_dma_chan *) data;
 
-	if (mxs_chan->desc.callback)
-		mxs_chan->desc.callback(mxs_chan->desc.callback_param);
+	dmaengine_desc_get_callback_invoke(&mxs_chan->desc, NULL);
 }
 
 static int mxs_dma_irq_to_chan(struct mxs_dma_engine *mxs_dma, int irq)
@@ -429,12 +428,10 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 		goto err_alloc;
 	}
 
-	if (mxs_chan->chan_irq != NO_IRQ) {
-		ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
-					0, "mxs-dma", mxs_dma);
-		if (ret)
-			goto err_irq;
-	}
+	ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
+			  0, "mxs-dma", mxs_dma);
+	if (ret)
+		goto err_irq;
 
 	ret = clk_prepare_enable(mxs_dma->clk);
 	if (ret)

@@ -60,6 +60,7 @@ struct hvc_struct {
 	struct winsize ws;
 	struct work_struct tty_resize;
 	struct list_head next;
+	unsigned long flags;
 };
 
 /* implemented by a low level driver */

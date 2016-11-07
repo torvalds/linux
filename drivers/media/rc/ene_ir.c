@@ -904,7 +904,7 @@ static int ene_set_tx_carrier(struct rc_dev *rdev, u32 carrier)
 
 		dbg("TX: out of range %d-%d kHz carrier",
 			2000 / ENE_CIRMOD_PRD_MIN, 2000 / ENE_CIRMOD_PRD_MAX);
-		return -1;
+		return -EINVAL;
 	}
 
 	dev->tx_period = period;

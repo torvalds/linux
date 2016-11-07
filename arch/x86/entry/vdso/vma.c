@@ -12,6 +12,7 @@
 #include <linux/random.h>
 #include <linux/elf.h>
 #include <linux/cpu.h>
+#include <linux/ptrace.h>
 #include <asm/pvclock.h>
 #include <asm/vgtod.h>
 #include <asm/proto.h>
@@ -36,54 +37,6 @@ void __init init_vdso_image(const struct vdso_image *image)
 
 struct linux_binprm;
 
-/*
- * Put the vdso above the (randomized) stack with another randomized
- * offset.  This way there is no hole in the middle of address space.
- * To save memory make sure it is still in the same PTE as the stack
- * top.  This doesn't give that many random bits.
- *
- * Note that this algorithm is imperfect: the distribution of the vdso
- * start address within a PMD is biased toward the end.
- *
- * Only used for the 64-bit and x32 vdsos.
- */
-static unsigned long vdso_addr(unsigned long start, unsigned len)
-{
-#ifdef CONFIG_X86_32
-	return 0;
-#else
-	unsigned long addr, end;
-	unsigned offset;
-
-	/*
-	 * Round up the start address.  It can start out unaligned as a result
-	 * of stack start randomization.
-	 */
-	start = PAGE_ALIGN(start);
-
-	/* Round the lowest possible end address up to a PMD boundary. */
-	end = (start + len + PMD_SIZE - 1) & PMD_MASK;
-	if (end >= TASK_SIZE_MAX)
-		end = TASK_SIZE_MAX;
-	end -= len;
-
-	if (end > start) {
-		offset = get_random_int() % (((end - start) >> PAGE_SHIFT) + 1);
-		addr = start + (offset << PAGE_SHIFT);
-	} else {
-		addr = start;
-	}
-
-	/*
-	 * Forcibly align the final address in case we have a hardware
-	 * issue that requires alignment for performance reasons.
-	 */
-	addr = align_vdso_addr(addr);
-
-	return addr;
-#endif
-}
-
 static int vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
@@ -97,10 +50,40 @@ static int vdso_fault(const struct vm_special_mapping *sm,
 	return 0;
 }
 
-static const struct vm_special_mapping text_mapping = {
-	.name = "[vdso]",
-	.fault = vdso_fault,
-};
+static void vdso_fix_landing(const struct vdso_image *image,
+		struct vm_area_struct *new_vma)
+{
+#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+	if (in_ia32_syscall() && image == &vdso_image_32) {
+		struct pt_regs *regs = current_pt_regs();
+		unsigned long vdso_land = image->sym_int80_landing_pad;
+		unsigned long old_land_addr = vdso_land +
+			(unsigned long)current->mm->context.vdso;
+
+		/* Fixing userspace landing - look at do_fast_syscall_32 */
+		if (regs->ip == old_land_addr)
+			regs->ip = new_vma->vm_start + vdso_land;
+	}
+#endif
+}
+
+static int vdso_mremap(const struct vm_special_mapping *sm,
+		struct vm_area_struct *new_vma)
+{
+	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+	const struct vdso_image *image = current->mm->context.vdso_image;
+
+	if (image->size != new_size)
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(current->mm != new_vma->vm_mm))
+		return -EFAULT;
+
+	vdso_fix_landing(image, new_vma);
+	current->mm->context.vdso = (void __user *)new_vma->vm_start;
+
+	return 0;
+}
 
 static int vvar_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -145,23 +128,27 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 	return VM_FAULT_SIGBUS;
 }
 
-static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+static const struct vm_special_mapping vdso_mapping = {
+	.name = "[vdso]",
+	.fault = vdso_fault,
+	.mremap = vdso_mremap,
+};
+static const struct vm_special_mapping vvar_mapping = {
+	.name = "[vvar]",
+	.fault = vvar_fault,
+};
+
+/*
+ * Add vdso and vvar mappings to current process.
+ * @image          - blob to map
+ * @addr           - request a specific address (zero to map at free addr)
+ */
+static int map_vdso(const struct vdso_image *image, unsigned long addr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	unsigned long addr, text_start;
+	unsigned long text_start;
 	int ret = 0;
-	static const struct vm_special_mapping vvar_mapping = {
-		.name = "[vvar]",
-		.fault = vvar_fault,
-	};
-
-	if (calculate_addr) {
-		addr = vdso_addr(current->mm->start_stack,
-				 image->size - image->sym_vvar_start);
-	} else {
-		addr = 0;
-	}
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
@@ -185,7 +172,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 				       image->size,
 				       VM_READ|VM_EXEC|
 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				       &text_mapping);
+				       &vdso_mapping);
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
@@ -201,15 +188,95 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto up_fail;
+		do_munmap(mm, text_start, image->size);
 	}
 
 up_fail:
-	if (ret)
+	if (ret) {
 		current->mm->context.vdso = NULL;
+		current->mm->context.vdso_image = NULL;
+	}
 
 	up_write(&mm->mmap_sem);
 	return ret;
+}
+
+#ifdef CONFIG_X86_64
+/*
+ * Put the vdso above the (randomized) stack with another randomized
+ * offset.  This way there is no hole in the middle of address space.
+ * To save memory make sure it is still in the same PTE as the stack
+ * top.  This doesn't give that many random bits.
+ *
+ * Note that this algorithm is imperfect: the distribution of the vdso
+ * start address within a PMD is biased toward the end.
+ *
+ * Only used for the 64-bit and x32 vdsos.
+ */
+static unsigned long vdso_addr(unsigned long start, unsigned len)
+{
+	unsigned long addr, end;
+	unsigned offset;
+
+	/*
+	 * Round up the start address.  It can start out unaligned as a result
+	 * of stack start randomization.
+	 */
+	start = PAGE_ALIGN(start);
+
+	/* Round the lowest possible end address up to a PMD boundary. */
+	end = (start + len + PMD_SIZE - 1) & PMD_MASK;
+	if (end >= TASK_SIZE_MAX)
+		end = TASK_SIZE_MAX;
+	end -= len;
+
+	if (end > start) {
+		offset = get_random_int() % (((end - start) >> PAGE_SHIFT) + 1);
+		addr = start + (offset << PAGE_SHIFT);
+	} else {
+		addr = start;
+	}
+
+	/*
+	 * Forcibly align the final address in case we have a hardware
+	 * issue that requires alignment for performance reasons.
+	 */
+	addr = align_vdso_addr(addr);
+
+	return addr;
+}
+
+static int map_vdso_randomized(const struct vdso_image *image)
+{
+	unsigned long addr = vdso_addr(current->mm->start_stack, image->size-image->sym_vvar_start);
+
+	return map_vdso(image, addr);
+}
+#endif
+
+int map_vdso_once(const struct vdso_image *image, unsigned long addr)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+
+	down_write(&mm->mmap_sem);
+	/*
+	 * Check if we have already mapped vdso blob - fail to prevent
+	 * abusing from userspace install_speciall_mapping, which may
+	 * not do accounting and rlimit right.
+	 * We could search vma near context.vdso, but it's a slowpath,
+	 * so let's explicitely check all VMAs to be completely sure.
+	 */
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		if (vma_is_special_mapping(vma, &vdso_mapping) ||
+				vma_is_special_mapping(vma, &vvar_mapping)) {
+			up_write(&mm->mmap_sem);
+			return -EEXIST;
+		}
+	}
+	up_write(&mm->mmap_sem);
+
+	return map_vdso(image, addr);
 }
 
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
@@ -218,7 +285,7 @@ static int load_vdso32(void)
 	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
 		return 0;
 
-	return map_vdso(&vdso_image_32, false);
+	return map_vdso(&vdso_image_32, 0);
 }
 #endif
 
@@ -228,7 +295,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!vdso64_enabled)
 		return 0;
 
-	return map_vdso(&vdso_image_64, true);
+	return map_vdso_randomized(&vdso_image_64);
 }
 
 #ifdef CONFIG_COMPAT
@@ -239,8 +306,7 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (test_thread_flag(TIF_X32)) {
 		if (!vdso64_enabled)
 			return 0;
-
-		return map_vdso(&vdso_image_x32, true);
+		return map_vdso_randomized(&vdso_image_x32);
 	}
 #endif
 #ifdef CONFIG_IA32_EMULATION
@@ -294,15 +360,9 @@ static void vgetcpu_cpu_init(void *arg)
 	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
 }
 
-static int
-vgetcpu_cpu_notifier(struct notifier_block *n, unsigned long action, void *arg)
+static int vgetcpu_online(unsigned int cpu)
 {
-	long cpu = (long)arg;
-
-	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
-		smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
-
-	return NOTIFY_DONE;
+	return smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
 }
 
 static int __init init_vdso(void)
@@ -313,15 +373,9 @@ static int __init init_vdso(void)
 	init_vdso_image(&vdso_image_x32);
 #endif
 
-	cpu_notifier_register_begin();
-
-	on_each_cpu(vgetcpu_cpu_init, NULL, 1);
 	/* notifier priority > KVM */
-	__hotcpu_notifier(vgetcpu_cpu_notifier, 30);
-
-	cpu_notifier_register_done();
-
-	return 0;
+	return cpuhp_setup_state(CPUHP_AP_X86_VDSO_VMA_ONLINE,
+				 "AP_X86_VDSO_VMA_ONLINE", vgetcpu_online, NULL);
 }
 subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

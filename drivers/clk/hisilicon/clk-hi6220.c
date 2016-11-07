@@ -34,8 +34,8 @@ static struct hisi_fixed_rate_clock hi6220_fixed_rate_clks[] __initdata = {
 	{ HI6220_PLL_BBP,	"bbppll0",	NULL, 0, 245760000, },
 	{ HI6220_PLL_GPU,	"gpupll",	NULL, 0, 1000000000,},
 	{ HI6220_PLL1_DDR,	"ddrpll1",	NULL, 0, 1066000000,},
-	{ HI6220_PLL_SYS,	"syspll",	NULL, 0, 1200000000,},
-	{ HI6220_PLL_SYS_MEDIA,	"media_syspll",	NULL, 0, 1200000000,},
+	{ HI6220_PLL_SYS,	"syspll",	NULL, 0, 1190400000,},
+	{ HI6220_PLL_SYS_MEDIA,	"media_syspll",	NULL, 0, 1190400000,},
 	{ HI6220_DDR_SRC,	"ddr_sel_src",  NULL, 0, 1200000000,},
 	{ HI6220_PLL_MEDIA,	"media_pll",    NULL, 0, 1440000000,},
 	{ HI6220_PLL_DDR,	"ddrpll0",      NULL, 0, 1600000000,},
@@ -68,6 +68,8 @@ static struct hisi_gate_clock hi6220_separated_gate_clks_ao[] __initdata = {
 	{ HI6220_TIMER7_PCLK, "timer7_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 22, 0, },
 	{ HI6220_TIMER8_PCLK, "timer8_pclk", "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 23, 0, },
 	{ HI6220_UART0_PCLK,  "uart0_pclk",  "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 24, 0, },
+	{ HI6220_RTC0_PCLK,   "rtc0_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 25, 0, },
+	{ HI6220_RTC1_PCLK,   "rtc1_pclk",   "clk_tcxo", CLK_SET_RATE_PARENT|CLK_IGNORE_UNUSED, 0x630, 26, 0, },
 };
 
 static void __init hi6220_clk_ao_init(struct device_node *np)
@@ -193,7 +195,7 @@ static void __init hi6220_clk_sys_init(struct device_node *np)
 	hi6220_clk_register_divider(hi6220_div_clks_sys,
 			ARRAY_SIZE(hi6220_div_clks_sys), clk_data);
 }
-CLK_OF_DECLARE(hi6220_clk_sys, "hisilicon,hi6220-sysctrl", hi6220_clk_sys_init);
+CLK_OF_DECLARE_DRIVER(hi6220_clk_sys, "hisilicon,hi6220-sysctrl", hi6220_clk_sys_init);
 
 
 /* clocks in media controller */
@@ -250,7 +252,7 @@ static void __init hi6220_clk_media_init(struct device_node *np)
 	hi6220_clk_register_divider(hi6220_div_clks_media,
 				ARRAY_SIZE(hi6220_div_clks_media), clk_data);
 }
-CLK_OF_DECLARE(hi6220_clk_media, "hisilicon,hi6220-mediactrl", hi6220_clk_media_init);
+CLK_OF_DECLARE_DRIVER(hi6220_clk_media, "hisilicon,hi6220-mediactrl", hi6220_clk_media_init);
 
 
 /* clocks in pmctrl */

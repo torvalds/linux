@@ -740,7 +740,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct net *net = entry->state.net;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
-	/* rcu_read_lock()ed by nf_hook_slow() */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	queue = instance_lookup(q, queuenum);
 	if (!queue)
 		return -ESRCH;
@@ -917,12 +917,14 @@ static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
 
-static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long ops_ptr)
+static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long entry_ptr)
 {
-	return entry->elem == (struct nf_hook_ops *)ops_ptr;
+	return rcu_access_pointer(entry->state.hook_entries) ==
+		(struct nf_hook_entry *)entry_ptr;
 }
 
-static void nfqnl_nf_hook_drop(struct net *net, struct nf_hook_ops *hook)
+static void nfqnl_nf_hook_drop(struct net *net,
+			       const struct nf_hook_entry *hook)
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int i;
@@ -1145,10 +1147,8 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int err;
 
-	queue = instance_lookup(q, queue_num);
-	if (!queue)
-		queue = verdict_instance_lookup(q, queue_num,
-						NETLINK_CB(skb).portid);
+	queue = verdict_instance_lookup(q, queue_num,
+					NETLINK_CB(skb).portid);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 
@@ -1524,9 +1524,16 @@ static int __init nfnetlink_queue_init(void)
 		goto cleanup_netlink_notifier;
 	}
 
-	register_netdevice_notifier(&nfqnl_dev_notifier);
+	status = register_netdevice_notifier(&nfqnl_dev_notifier);
+	if (status < 0) {
+		pr_err("nf_queue: failed to register netdevice notifier\n");
+		goto cleanup_netlink_subsys;
+	}
+
 	return status;
 
+cleanup_netlink_subsys:
+	nfnetlink_subsys_unregister(&nfqnl_subsys);
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
 	unregister_pernet_subsys(&nfnl_queue_net_ops);

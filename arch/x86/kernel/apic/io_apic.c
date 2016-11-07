@@ -39,7 +39,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/compiler.h>
 #include <linux/acpi.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscore_ops.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
@@ -981,7 +981,7 @@ static int alloc_irq_from_domain(struct irq_domain *domain, int ioapic, u32 gsi,
 
 	return __irq_domain_alloc_irqs(domain, irq, 1,
 				       ioapic_alloc_attr_node(info),
-				       info, legacy);
+				       info, legacy, NULL);
 }
 
 /*
@@ -1014,7 +1014,8 @@ static int alloc_isa_irq_from_domain(struct irq_domain *domain,
 					  info->ioapic_pin))
 			return -ENOMEM;
 	} else {
-		irq = __irq_domain_alloc_irqs(domain, irq, 1, node, info, true);
+		irq = __irq_domain_alloc_irqs(domain, irq, 1, node, info, true,
+					      NULL);
 		if (irq >= 0) {
 			irq_data = irq_domain_get_irq_data(domain, irq);
 			data = irq_data->chip_data;
@@ -1592,7 +1593,7 @@ void __init setup_ioapic_ids_from_mpc(void)
 	 * no meaning without the serial APIC bus.
 	 */
 	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		|| APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
+		|| APIC_XAPIC(boot_cpu_apic_version))
 		return;
 	setup_ioapic_ids_from_mpc_nocheck();
 }
@@ -2422,7 +2423,7 @@ static int io_apic_get_unique_id(int ioapic, int apic_id)
 static u8 io_apic_unique_id(int idx, u8 id)
 {
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
-	    !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
+	    !APIC_XAPIC(boot_cpu_apic_version))
 		return io_apic_get_unique_id(idx, id);
 	else
 		return id;
@@ -2567,29 +2568,25 @@ static struct resource * __init ioapic_setup_resources(void)
 	unsigned long n;
 	struct resource *res;
 	char *mem;
-	int i, num = 0;
+	int i;
 
-	for_each_ioapic(i)
-		num++;
-	if (num == 0)
+	if (nr_ioapics == 0)
 		return NULL;
 
 	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
-	n *= num;
+	n *= nr_ioapics;
 
 	mem = alloc_bootmem(n);
 	res = (void *)mem;
 
-	mem += sizeof(struct resource) * num;
+	mem += sizeof(struct resource) * nr_ioapics;
 
-	num = 0;
 	for_each_ioapic(i) {
-		res[num].name = mem;
-		res[num].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		res[i].name = mem;
+		res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		snprintf(mem, IOAPIC_RESOURCE_NAME_SIZE, "IOAPIC %u", i);
 		mem += IOAPIC_RESOURCE_NAME_SIZE;
-		ioapics[i].iomem_res = &res[num];
-		num++;
+		ioapics[i].iomem_res = &res[i];
 	}
 
 	ioapic_resources = res;

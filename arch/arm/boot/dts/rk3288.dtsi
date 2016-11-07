@@ -45,6 +45,7 @@
 #include <dt-bindings/clock/rk3288-cru.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/power/rk3288-power.h>
+#include <dt-bindings/soc/rockchip,boot-mode.h>
 #include "skeleton.dtsi"
 
 / {
@@ -279,6 +280,8 @@
 		#io-channel-cells = <1>;
 		clocks = <&cru SCLK_SARADC>, <&cru PCLK_SARADC>;
 		clock-names = "saradc", "apb_pclk";
+		resets = <&cru SRST_SARADC>;
+		reset-names = "saradc-apb";
 		status = "disabled";
 	};
 
@@ -539,8 +542,9 @@
 	gmac: ethernet@ff290000 {
 		compatible = "rockchip,rk3288-gmac";
 		reg = <0xff290000 0x10000>;
-		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq";
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&grf>;
 		clocks = <&cru SCLK_MAC>,
 			<&cru SCLK_MAC_RX>, <&cru SCLK_MAC_TX>,
@@ -790,6 +794,15 @@
 				clocks = <&cru ACLK_GPU>;
 			};
 		};
+
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x94>;
+			mode-normal = <BOOT_NORMAL>;
+			mode-recovery = <BOOT_RECOVERY>;
+			mode-bootloader = <BOOT_FASTBOOT>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
+		};
 	};
 
 	sgrf: syscon@ff740000 {
@@ -825,6 +838,42 @@
 			clock-names = "24m";
 			#phy-cells = <0>;
 			status = "disabled";
+		};
+
+		io_domains: io-domains {
+			compatible = "rockchip,rk3288-io-voltage-domain";
+			status = "disabled";
+		};
+
+		usbphy: usbphy {
+			compatible = "rockchip,rk3288-usb-phy";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			usbphy0: usb-phy@320 {
+				#phy-cells = <0>;
+				reg = <0x320>;
+				clocks = <&cru SCLK_OTGPHY0>;
+				clock-names = "phyclk";
+				#clock-cells = <0>;
+			};
+
+			usbphy1: usb-phy@334 {
+				#phy-cells = <0>;
+				reg = <0x334>;
+				clocks = <&cru SCLK_OTGPHY1>;
+				clock-names = "phyclk";
+				#clock-cells = <0>;
+			};
+
+			usbphy2: usb-phy@348 {
+				#phy-cells = <0>;
+				reg = <0x348>;
+				clocks = <&cru SCLK_OTGPHY2>;
+				clock-names = "phyclk";
+				#clock-cells = <0>;
+			};
 		};
 	};
 
@@ -1076,38 +1125,6 @@
 
 		cpu_leakage: cpu_leakage@17 {
 			reg = <0x17 0x1>;
-		};
-	};
-
-	usbphy: phy {
-		compatible = "rockchip,rk3288-usb-phy";
-		rockchip,grf = <&grf>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "disabled";
-
-		usbphy0: usb-phy@320 {
-			#phy-cells = <0>;
-			reg = <0x320>;
-			clocks = <&cru SCLK_OTGPHY0>;
-			clock-names = "phyclk";
-			#clock-cells = <0>;
-		};
-
-		usbphy1: usb-phy@334 {
-			#phy-cells = <0>;
-			reg = <0x334>;
-			clocks = <&cru SCLK_OTGPHY1>;
-			clock-names = "phyclk";
-			#clock-cells = <0>;
-		};
-
-		usbphy2: usb-phy@348 {
-			#phy-cells = <0>;
-			reg = <0x348>;
-			clocks = <&cru SCLK_OTGPHY2>;
-			clock-names = "phyclk";
-			#clock-cells = <0>;
 		};
 	};
 

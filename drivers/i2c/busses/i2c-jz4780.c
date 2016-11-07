@@ -729,6 +729,7 @@ static const struct of_device_id jz4780_i2c_of_matches[] = {
 	{ .compatible = "ingenic,jz4780-i2c", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, jz4780_i2c_of_matches);
 
 static int jz4780_i2c_probe(struct platform_device *pdev)
 {
@@ -791,10 +792,6 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 
 	jz4780_i2c_writew(i2c, JZ4780_I2C_INTM, 0x0);
 
-	i2c->cmd = 0;
-	memset(i2c->cmd_buf, 0, BUFSIZE);
-	memset(i2c->data_buf, 0, BUFSIZE);
-
 	i2c->irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(&pdev->dev, i2c->irq, jz4780_i2c_irq, 0,
 			       dev_name(&pdev->dev), i2c);
@@ -802,10 +799,8 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 		goto err;
 
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to add bus\n");
+	if (ret < 0)
 		goto err;
-	}
 
 	return 0;
 

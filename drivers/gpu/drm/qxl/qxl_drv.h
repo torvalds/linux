@@ -137,6 +137,7 @@ struct qxl_crtc {
 	int cur_y;
 	int hot_spot_x;
 	int hot_spot_y;
+	struct qxl_bo *cursor_bo;
 };
 
 struct qxl_output {
@@ -321,7 +322,6 @@ struct qxl_device {
 	struct qxl_bo *current_release_bo[3];
 	int current_release_bo_offset[3];
 
-	struct workqueue_struct *gc_queue;
 	struct work_struct gc_work;
 
 	struct drm_property *hotplug_mode_update_property;

@@ -24,9 +24,9 @@ static int orangefs_create(struct inode *dir,
 	struct inode *inode;
 	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %s\n",
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %pd\n",
 		     __func__,
-		     dentry->d_name.name);
+		     dentry);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_CREATE);
 	if (!new_op)
@@ -43,9 +43,9 @@ static int orangefs_create(struct inode *dir,
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: %s: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
+		     "%s: %pd: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
 		     __func__,
-		     dentry->d_name.name,
+		     dentry,
 		     &new_op->downcall.resp.create.refn.khandle,
 		     new_op->downcall.resp.create.refn.fs_id,
 		     new_op,
@@ -57,37 +57,39 @@ static int orangefs_create(struct inode *dir,
 	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
 				&new_op->downcall.resp.create.refn);
 	if (IS_ERR(inode)) {
-		gossip_err("%s: Failed to allocate inode for file :%s:\n",
+		gossip_err("%s: Failed to allocate inode for file :%pd:\n",
 			   __func__,
-			   dentry->d_name.name);
+			   dentry);
 		ret = PTR_ERR(inode);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: Assigned inode :%pU: for file :%s:\n",
+		     "%s: Assigned inode :%pU: for file :%pd:\n",
 		     __func__,
 		     get_khandle_from_ino(inode),
-		     dentry->d_name.name);
+		     dentry);
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	orangefs_set_timeout(dentry);
+	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: dentry instantiated for %s\n",
+		     "%s: dentry instantiated for %pd\n",
 		     __func__,
-		     dentry->d_name.name);
+		     dentry);
 
 	SetMtimeFlag(parent);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
 	op_release(new_op);
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: %s: returning %d\n",
+		     "%s: %pd: returning %d\n",
 		     __func__,
-		     dentry->d_name.name,
+		     dentry,
 		     ret);
 	return ret;
 }
@@ -113,8 +115,8 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 	 * -EEXIST on O_EXCL opens, which is broken if we skip this lookup
 	 * in the create path)
 	 */
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %s\n",
-		     __func__, dentry->d_name.name);
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %pd\n",
+		     __func__, dentry);
 
 	if (dentry->d_name.len > (ORANGEFS_NAME_MAX - 1))
 		return ERR_PTR(-ENAMETOOLONG);
@@ -167,9 +169,9 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 			gossip_debug(GOSSIP_NAME_DEBUG,
 				     "orangefs_lookup: Adding *negative* dentry "
-				     "%p for %s\n",
+				     "%p for %pd\n",
 				     dentry,
-				     dentry->d_name.name);
+				     dentry);
 
 			d_add(dentry, NULL);
 			res = NULL;
@@ -181,6 +183,8 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
+	orangefs_set_timeout(dentry);
+
 	inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
 	if (IS_ERR(inode)) {
 		gossip_debug(GOSSIP_NAME_DEBUG,
@@ -188,6 +192,8 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		res = ERR_CAST(inode);
 		goto out;
 	}
+
+	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s:%s:%d "
@@ -218,10 +224,10 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: called on %s\n"
+		     "%s: called on %pd\n"
 		     "  (inode %pU): Parent is %pU | fs_id %d\n",
 		     __func__,
-		     dentry->d_name.name,
+		     dentry,
 		     get_khandle_from_ino(inode),
 		     &parent->refn.khandle,
 		     parent->refn.fs_id);
@@ -248,7 +254,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 		drop_nlink(inode);
 
 		SetMtimeFlag(parent);
-		dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+		dir->i_mtime = dir->i_ctime = current_time(dir);
 		mark_inode_dirty_sync(dir);
 	}
 	return ret;
@@ -316,14 +322,16 @@ static int orangefs_symlink(struct inode *dir,
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	orangefs_set_timeout(dentry);
+	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Symlink) %pU -> %s\n",
+		     "Inode (Symlink) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
-		     dentry->d_name.name);
+		     dentry);
 
 	SetMtimeFlag(parent);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
@@ -378,18 +386,20 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
+	orangefs_set_timeout(dentry);
+	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Directory) %pU -> %s\n",
+		     "Inode (Directory) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
-		     dentry->d_name.name);
+		     dentry);
 
 	/*
 	 * NOTE: we have no good way to keep nlink consistent for directories
 	 * across clients; keep constant at 1.
 	 */
 	SetMtimeFlag(parent);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	mark_inode_dirty_sync(dir);
 out:
 	op_release(new_op);
@@ -399,18 +409,20 @@ out:
 static int orangefs_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
-			struct dentry *new_dentry)
+			struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
+	if (flags)
+		return -EINVAL;
+
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "orangefs_rename: called (%s/%s => %s/%s) ct=%d\n",
-		     old_dentry->d_parent->d_name.name,
-		     old_dentry->d_name.name,
-		     new_dentry->d_parent->d_name.name,
-		     new_dentry->d_name.name,
-		     d_count(new_dentry));
+		     "orangefs_rename: called (%pd2 => %pd2) ct=%d\n",
+		     old_dentry, new_dentry, d_count(new_dentry));
+
+	ORANGEFS_I(new_dentry->d_parent->d_inode)->getattr_time = jiffies - 1;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_RENAME);
 	if (!new_op)
@@ -435,14 +447,14 @@ static int orangefs_rename(struct inode *old_dir,
 		     ret);
 
 	if (new_dentry->d_inode)
-		new_dentry->d_inode->i_ctime = CURRENT_TIME;
+		new_dentry->d_inode->i_ctime = current_time(new_dentry->d_inode);
 
 	op_release(new_op);
 	return ret;
 }
 
 /* ORANGEFS implementation of VFS inode operations for directories */
-struct inode_operations orangefs_dir_inode_operations = {
+const struct inode_operations orangefs_dir_inode_operations = {
 	.lookup = orangefs_lookup,
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
@@ -454,9 +466,6 @@ struct inode_operations orangefs_dir_inode_operations = {
 	.rename = orangefs_rename,
 	.setattr = orangefs_setattr,
 	.getattr = orangefs_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
-	.removexattr = generic_removexattr,
 	.listxattr = orangefs_listxattr,
 	.permission = orangefs_permission,
 };

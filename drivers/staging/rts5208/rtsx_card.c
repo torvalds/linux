@@ -631,21 +631,21 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 {
 	int retval;
-	u8 N = (u8)(clk - 2), min_N, max_N;
+	u8 n = (u8)(clk - 2), min_n, max_n;
 	u8 mcu_cnt, div, max_div, ssc_depth, ssc_depth_mask;
 	int sd_vpclk_phase_reset = 0;
 
 	if (chip->cur_clk == clk)
 		return STATUS_SUCCESS;
 
-	min_N = 60;
-	max_N = 120;
+	min_n = 60;
+	max_n = 120;
 	max_div = CLK_DIV_4;
 
 	dev_dbg(rtsx_dev(chip), "Switch SSC clock to %dMHz (cur_clk = %d)\n",
 		clk, chip->cur_clk);
 
-	if ((clk <= 2) || (N > max_N)) {
+	if ((clk <= 2) || (n > max_n)) {
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}
@@ -655,15 +655,15 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 		mcu_cnt = 7;
 
 	div = CLK_DIV_1;
-	while ((N < min_N) && (div < max_div)) {
-		N = (N + 2) * 2 - 2;
+	while ((n < min_n) && (div < max_div)) {
+		n = (n + 2) * 2 - 2;
 		div++;
 	}
-	dev_dbg(rtsx_dev(chip), "N = %d, div = %d\n", N, div);
+	dev_dbg(rtsx_dev(chip), "n = %d, div = %d\n", n, div);
 
 	if (chip->ssc_en) {
 		ssc_depth = 0x01;
-		N -= 2;
+		n -= 2;
 	} else {
 		ssc_depth = 0;
 	}
@@ -677,7 +677,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CLK_DIV, 0xFF, (div << 4) | mcu_cnt);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, 0);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL2, ssc_depth_mask, ssc_depth);
-	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_DIV_N_0, 0xFF, N);
+	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_DIV_N_0, 0xFF, n);
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (sd_vpclk_phase_reset) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
@@ -1027,26 +1027,26 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 
 	if (CHECK_PID(chip, 0x5208)) {
 		mask = CARD_SHARE_MASK;
-		if (card == SD_CARD)
+		if (card == SD_CARD) {
 			value = CARD_SHARE_48_SD;
-		else if (card == MS_CARD)
+		} else if (card == MS_CARD) {
 			value = CARD_SHARE_48_MS;
-		else if (card == XD_CARD)
+		} else if (card == XD_CARD) {
 			value = CARD_SHARE_48_XD;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
 
 	} else if (CHECK_PID(chip, 0x5288)) {
 		mask = 0x03;
-		if (card == SD_CARD)
+		if (card == SD_CARD) {
 			value = CARD_SHARE_BAROSSA_SD;
-		else if (card == MS_CARD)
+		} else if (card == MS_CARD) {
 			value = CARD_SHARE_BAROSSA_MS;
-		else if (card == XD_CARD)
+		} else if (card == XD_CARD) {
 			value = CARD_SHARE_BAROSSA_XD;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
@@ -1065,7 +1065,6 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 	return STATUS_SUCCESS;
 }
 
-
 int select_card(struct rtsx_chip *chip, int card)
 {
 	int retval;
@@ -1073,15 +1072,15 @@ int select_card(struct rtsx_chip *chip, int card)
 	if (chip->cur_card != card) {
 		u8 mod;
 
-		if (card == SD_CARD)
+		if (card == SD_CARD) {
 			mod = SD_MOD_SEL;
-		else if (card == MS_CARD)
+		} else if (card == MS_CARD) {
 			mod = MS_MOD_SEL;
-		else if (card == XD_CARD)
+		} else if (card == XD_CARD) {
 			mod = XD_MOD_SEL;
-		else if (card == SPI_CARD)
+		} else if (card == SPI_CARD) {
 			mod = SPI_MOD_SEL;
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}

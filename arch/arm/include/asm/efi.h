@@ -28,10 +28,10 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 #define arch_efi_call_virt_setup()	efi_virtmap_load()
 #define arch_efi_call_virt_teardown()	efi_virtmap_unload()
 
-#define arch_efi_call_virt(f, args...)					\
+#define arch_efi_call_virt(p, f, args...)				\
 ({									\
 	efi_##f##_t *__f;						\
-	__f = efi.systab->runtime->f;					\
+	__f = p->f;							\
 	__f(args);							\
 })
 

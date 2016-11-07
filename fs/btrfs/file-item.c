@@ -250,7 +250,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 						offset + root->sectorsize - 1,
 						EXTENT_NODATASUM);
 				} else {
-					btrfs_info(BTRFS_I(inode)->root->fs_info,
+					btrfs_info_rl(BTRFS_I(inode)->root->fs_info,
 						   "no csum found for inode %llu start %llu",
 					       btrfs_ino(inode), offset);
 				}
@@ -699,7 +699,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 			 */
 			ret = btrfs_split_item(trans, root, path, &key, offset);
 			if (ret && ret != -EAGAIN) {
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 				goto out;
 			}
 

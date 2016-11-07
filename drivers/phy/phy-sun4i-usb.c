@@ -40,6 +40,8 @@
 #include <linux/power_supply.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
+#include <linux/spinlock.h>
+#include <linux/usb/of.h>
 #include <linux/workqueue.h>
 
 #define REG_ISCR			0x00
@@ -49,7 +51,7 @@
 #define REG_PHYCTL_A33			0x10
 #define REG_PHY_UNK_H3			0x20
 
-#define REG_PMU_UNK_H3			0x10
+#define REG_PMU_UNK1			0x10
 
 #define PHYCTL_DATA			BIT(7)
 
@@ -94,8 +96,10 @@
 
 enum sun4i_usb_phy_type {
 	sun4i_a10_phy,
+	sun6i_a31_phy,
 	sun8i_a33_phy,
 	sun8i_h3_phy,
+	sun50i_a64_phy,
 };
 
 struct sun4i_usb_phy_cfg {
@@ -104,12 +108,14 @@ struct sun4i_usb_phy_cfg {
 	u32 disc_thresh;
 	u8 phyctl_offset;
 	bool dedicated_clocks;
+	bool enable_pmu_unk1;
 };
 
 struct sun4i_usb_phy_data {
 	void __iomem *base;
 	const struct sun4i_usb_phy_cfg *cfg;
-	struct mutex mutex;
+	enum usb_dr_mode dr_mode;
+	spinlock_t reg_lock; /* guard access to phyctl reg */
 	struct sun4i_usb_phy {
 		struct phy *phy;
 		void __iomem *pmu;
@@ -122,12 +128,12 @@ struct sun4i_usb_phy_data {
 	/* phy0 / otg related variables */
 	struct extcon_dev *extcon;
 	bool phy0_init;
-	bool phy0_poll;
 	struct gpio_desc *id_det_gpio;
 	struct gpio_desc *vbus_det_gpio;
 	struct power_supply *vbus_power_supply;
 	struct notifier_block vbus_power_nb;
 	bool vbus_power_nb_registered;
+	bool force_session_end;
 	int id_det_irq;
 	int vbus_det_irq;
 	int id_det;
@@ -176,12 +182,14 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 	struct sun4i_usb_phy_data *phy_data = to_sun4i_usb_phy_data(phy);
 	u32 temp, usbc_bit = BIT(phy->index * 2);
 	void __iomem *phyctl = phy_data->base + phy_data->cfg->phyctl_offset;
+	unsigned long flags;
 	int i;
 
-	mutex_lock(&phy_data->mutex);
+	spin_lock_irqsave(&phy_data->reg_lock, flags);
 
-	if (phy_data->cfg->type == sun8i_a33_phy) {
-		/* A33 needs us to set phyctl to 0 explicitly */
+	if (phy_data->cfg->type == sun8i_a33_phy ||
+	    phy_data->cfg->type == sun50i_a64_phy) {
+		/* A33 or A64 needs us to set phyctl to 0 explicitly */
 		writel(0, phyctl);
 	}
 
@@ -215,7 +223,8 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 
 		data >>= 1;
 	}
-	mutex_unlock(&phy_data->mutex);
+
+	spin_unlock_irqrestore(&phy_data->reg_lock, flags);
 }
 
 static void sun4i_usb_phy_passby(struct sun4i_usb_phy *phy, int enable)
@@ -255,14 +264,16 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 		return ret;
 	}
 
+	if (data->cfg->enable_pmu_unk1) {
+		val = readl(phy->pmu + REG_PMU_UNK1);
+		writel(val & ~2, phy->pmu + REG_PMU_UNK1);
+	}
+
 	if (data->cfg->type == sun8i_h3_phy) {
 		if (phy->index == 0) {
 			val = readl(data->base + REG_PHY_UNK_H3);
 			writel(val & ~1, data->base + REG_PHY_UNK_H3);
 		}
-
-		val = readl(phy->pmu + REG_PMU_UNK_H3);
-		writel(val & ~2, phy->pmu + REG_PMU_UNK_H3);
 	} else {
 		/* Enable USB 45 Ohm resistor calibration */
 		if (phy->index == 0)
@@ -285,16 +296,10 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 		sun4i_usb_phy0_update_iscr(_phy, 0, ISCR_DPDM_PULLUP_EN);
 		sun4i_usb_phy0_update_iscr(_phy, 0, ISCR_ID_PULLUP_EN);
 
-		if (data->id_det_gpio) {
-			/* OTG mode, force ISCR and cable state updates */
-			data->id_det = -1;
-			data->vbus_det = -1;
-			queue_delayed_work(system_wq, &data->detect, 0);
-		} else {
-			/* Host only mode */
-			sun4i_usb_phy0_set_id_detect(_phy, 0);
-			sun4i_usb_phy0_set_vbus_detect(_phy, 1);
-		}
+		/* Force ISCR and cable state updates */
+		data->id_det = -1;
+		data->vbus_det = -1;
+		queue_delayed_work(system_wq, &data->detect, 0);
 	}
 
 	return 0;
@@ -317,6 +322,22 @@ static int sun4i_usb_phy_exit(struct phy *_phy)
 	clk_disable_unprepare(phy->clk);
 
 	return 0;
+}
+
+static int sun4i_usb_phy0_get_id_det(struct sun4i_usb_phy_data *data)
+{
+	switch (data->dr_mode) {
+	case USB_DR_MODE_OTG:
+		if (data->id_det_gpio)
+			return gpiod_get_value_cansleep(data->id_det_gpio);
+		else
+			return 1; /* Fallback to peripheral mode */
+	case USB_DR_MODE_HOST:
+		return 0;
+	case USB_DR_MODE_PERIPHERAL:
+	default:
+		return 1;
+	}
 }
 
 static int sun4i_usb_phy0_get_vbus_det(struct sun4i_usb_phy_data *data)
@@ -343,6 +364,24 @@ static bool sun4i_usb_phy0_have_vbus_det(struct sun4i_usb_phy_data *data)
 	return data->vbus_det_gpio || data->vbus_power_supply;
 }
 
+static bool sun4i_usb_phy0_poll(struct sun4i_usb_phy_data *data)
+{
+	if ((data->id_det_gpio && data->id_det_irq <= 0) ||
+	    (data->vbus_det_gpio && data->vbus_det_irq <= 0))
+		return true;
+
+	/*
+	 * The A31 companion pmic (axp221) does not generate vbus change
+	 * interrupts when the board is driving vbus, so we must poll
+	 * when using the pmic for vbus-det _and_ we're driving vbus.
+	 */
+	if (data->cfg->type == sun6i_a31_phy &&
+	    data->vbus_power_supply && data->phys[0].regulator_on)
+		return true;
+
+	return false;
+}
+
 static int sun4i_usb_phy_power_on(struct phy *_phy)
 {
 	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
@@ -354,8 +393,10 @@ static int sun4i_usb_phy_power_on(struct phy *_phy)
 
 	/* For phy0 only turn on Vbus if we don't have an ext. Vbus */
 	if (phy->index == 0 && sun4i_usb_phy0_have_vbus_det(data) &&
-				data->vbus_det)
+				data->vbus_det) {
+		dev_warn(&_phy->dev, "External vbus detected, not enabling our own vbus\n");
 		return 0;
+	}
 
 	ret = regulator_enable(phy->vbus);
 	if (ret)
@@ -364,7 +405,7 @@ static int sun4i_usb_phy_power_on(struct phy *_phy)
 	phy->regulator_on = true;
 
 	/* We must report Vbus high within OTG_TIME_A_WAIT_VRISE msec. */
-	if (phy->index == 0 && data->vbus_det_gpio && data->phy0_poll)
+	if (phy->index == 0 && sun4i_usb_phy0_poll(data))
 		mod_delayed_work(system_wq, &data->detect, DEBOUNCE_TIME);
 
 	return 0;
@@ -385,8 +426,37 @@ static int sun4i_usb_phy_power_off(struct phy *_phy)
 	 * phy0 vbus typically slowly discharges, sometimes this causes the
 	 * Vbus gpio to not trigger an edge irq on Vbus off, so force a rescan.
 	 */
-	if (phy->index == 0 && data->vbus_det_gpio && !data->phy0_poll)
+	if (phy->index == 0 && !sun4i_usb_phy0_poll(data))
 		mod_delayed_work(system_wq, &data->detect, POLL_TIME);
+
+	return 0;
+}
+
+static int sun4i_usb_phy_set_mode(struct phy *_phy, enum phy_mode mode)
+{
+	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
+	struct sun4i_usb_phy_data *data = to_sun4i_usb_phy_data(phy);
+
+	if (phy->index != 0)
+		return -EINVAL;
+
+	switch (mode) {
+	case PHY_MODE_USB_HOST:
+		data->dr_mode = USB_DR_MODE_HOST;
+		break;
+	case PHY_MODE_USB_DEVICE:
+		data->dr_mode = USB_DR_MODE_PERIPHERAL;
+		break;
+	case PHY_MODE_USB_OTG:
+		data->dr_mode = USB_DR_MODE_OTG;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dev_info(&_phy->dev, "Changing dr_mode to %d\n", (int)data->dr_mode);
+	data->force_session_end = true;
+	queue_delayed_work(system_wq, &data->detect, 0);
 
 	return 0;
 }
@@ -404,6 +474,7 @@ static const struct phy_ops sun4i_usb_phy_ops = {
 	.exit		= sun4i_usb_phy_exit,
 	.power_on	= sun4i_usb_phy_power_on,
 	.power_off	= sun4i_usb_phy_power_off,
+	.set_mode	= sun4i_usb_phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
@@ -412,9 +483,13 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	struct sun4i_usb_phy_data *data =
 		container_of(work, struct sun4i_usb_phy_data, detect.work);
 	struct phy *phy0 = data->phys[0].phy;
-	int id_det, vbus_det, id_notify = 0, vbus_notify = 0;
+	bool force_session_end, id_notify = false, vbus_notify = false;
+	int id_det, vbus_det;
 
-	id_det = gpiod_get_value_cansleep(data->id_det_gpio);
+	if (phy0 == NULL)
+		return;
+
+	id_det = sun4i_usb_phy0_get_id_det(data);
 	vbus_det = sun4i_usb_phy0_get_vbus_det(data);
 
 	mutex_lock(&phy0->mutex);
@@ -424,26 +499,30 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 		return;
 	}
 
+	force_session_end = data->force_session_end;
+	data->force_session_end = false;
+
 	if (id_det != data->id_det) {
-		/*
-		 * When a host cable (id == 0) gets plugged in on systems
-		 * without vbus detection report vbus low for long enough for
-		 * the musb-ip to end the current device session.
-		 */
-		if (!sun4i_usb_phy0_have_vbus_det(data) && id_det == 0) {
+		/* id-change, force session end if we've no vbus detection */
+		if (data->dr_mode == USB_DR_MODE_OTG &&
+		    !sun4i_usb_phy0_have_vbus_det(data))
+			force_session_end = true;
+
+		/* When entering host mode (id = 0) force end the session now */
+		if (force_session_end && id_det == 0) {
 			sun4i_usb_phy0_set_vbus_detect(phy0, 0);
 			msleep(200);
 			sun4i_usb_phy0_set_vbus_detect(phy0, 1);
 		}
 		sun4i_usb_phy0_set_id_detect(phy0, id_det);
 		data->id_det = id_det;
-		id_notify = 1;
+		id_notify = true;
 	}
 
 	if (vbus_det != data->vbus_det) {
 		sun4i_usb_phy0_set_vbus_detect(phy0, vbus_det);
 		data->vbus_det = vbus_det;
-		vbus_notify = 1;
+		vbus_notify = true;
 	}
 
 	mutex_unlock(&phy0->mutex);
@@ -451,12 +530,8 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	if (id_notify) {
 		extcon_set_cable_state_(data->extcon, EXTCON_USB_HOST,
 					!id_det);
-		/*
-		 * When a host cable gets unplugged (id == 1) on systems
-		 * without vbus detection report vbus low for long enough to
-		 * the musb-ip to end the current host session.
-		 */
-		if (!sun4i_usb_phy0_have_vbus_det(data) && id_det == 1) {
+		/* When leaving host mode force end the session here */
+		if (force_session_end && id_det == 1) {
 			mutex_lock(&phy0->mutex);
 			sun4i_usb_phy0_set_vbus_detect(phy0, 0);
 			msleep(1000);
@@ -468,7 +543,7 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 	if (vbus_notify)
 		extcon_set_cable_state_(data->extcon, EXTCON_USB, vbus_det);
 
-	if (data->phy0_poll)
+	if (sun4i_usb_phy0_poll(data))
 		queue_delayed_work(system_wq, &data->detect, POLL_TIME);
 }
 
@@ -543,7 +618,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	mutex_init(&data->mutex);
+	spin_lock_init(&data->reg_lock);
 	INIT_DELAYED_WORK(&data->detect, sun4i_usb_phy0_id_vbus_det_scan);
 	dev_set_drvdata(dev, data);
 	data->cfg = of_device_get_match_data(dev);
@@ -575,23 +650,16 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	/* vbus_det without id_det makes no sense, and is not supported */
-	if (sun4i_usb_phy0_have_vbus_det(data) && !data->id_det_gpio) {
-		dev_err(dev, "usb0_id_det missing or invalid\n");
-		return -ENODEV;
-	}
+	data->dr_mode = of_usb_get_dr_mode_by_phy(np, 0);
 
-	if (data->id_det_gpio) {
-		data->extcon = devm_extcon_dev_allocate(dev,
-							sun4i_usb_phy0_cable);
-		if (IS_ERR(data->extcon))
-			return PTR_ERR(data->extcon);
+	data->extcon = devm_extcon_dev_allocate(dev, sun4i_usb_phy0_cable);
+	if (IS_ERR(data->extcon))
+		return PTR_ERR(data->extcon);
 
-		ret = devm_extcon_dev_register(dev, data->extcon);
-		if (ret) {
-			dev_err(dev, "failed to register extcon: %d\n", ret);
-			return ret;
-		}
+	ret = devm_extcon_dev_register(dev, data->extcon);
+	if (ret) {
+		dev_err(dev, "failed to register extcon: %d\n", ret);
+		return ret;
 	}
 
 	for (i = 0; i < data->cfg->num_phys; i++) {
@@ -644,11 +712,6 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	data->id_det_irq = gpiod_to_irq(data->id_det_gpio);
-	data->vbus_det_irq = gpiod_to_irq(data->vbus_det_gpio);
-	if ((data->id_det_gpio && data->id_det_irq <= 0) ||
-	    (data->vbus_det_gpio && data->vbus_det_irq <= 0))
-		data->phy0_poll = true;
-
 	if (data->id_det_irq > 0) {
 		ret = devm_request_irq(dev, data->id_det_irq,
 				sun4i_usb_phy0_id_vbus_det_irq,
@@ -660,6 +723,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		}
 	}
 
+	data->vbus_det_irq = gpiod_to_irq(data->vbus_det_gpio);
 	if (data->vbus_det_irq > 0) {
 		ret = devm_request_irq(dev, data->vbus_det_irq,
 				sun4i_usb_phy0_id_vbus_det_irq,
@@ -699,6 +763,7 @@ static const struct sun4i_usb_phy_cfg sun4i_a10_cfg = {
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A10,
 	.dedicated_clocks = false,
+	.enable_pmu_unk1 = false,
 };
 
 static const struct sun4i_usb_phy_cfg sun5i_a13_cfg = {
@@ -707,14 +772,16 @@ static const struct sun4i_usb_phy_cfg sun5i_a13_cfg = {
 	.disc_thresh = 2,
 	.phyctl_offset = REG_PHYCTL_A10,
 	.dedicated_clocks = false,
+	.enable_pmu_unk1 = false,
 };
 
 static const struct sun4i_usb_phy_cfg sun6i_a31_cfg = {
 	.num_phys = 3,
-	.type = sun4i_a10_phy,
+	.type = sun6i_a31_phy,
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A10,
 	.dedicated_clocks = true,
+	.enable_pmu_unk1 = false,
 };
 
 static const struct sun4i_usb_phy_cfg sun7i_a20_cfg = {
@@ -723,6 +790,7 @@ static const struct sun4i_usb_phy_cfg sun7i_a20_cfg = {
 	.disc_thresh = 2,
 	.phyctl_offset = REG_PHYCTL_A10,
 	.dedicated_clocks = false,
+	.enable_pmu_unk1 = false,
 };
 
 static const struct sun4i_usb_phy_cfg sun8i_a23_cfg = {
@@ -731,6 +799,7 @@ static const struct sun4i_usb_phy_cfg sun8i_a23_cfg = {
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A10,
 	.dedicated_clocks = true,
+	.enable_pmu_unk1 = false,
 };
 
 static const struct sun4i_usb_phy_cfg sun8i_a33_cfg = {
@@ -739,6 +808,7 @@ static const struct sun4i_usb_phy_cfg sun8i_a33_cfg = {
 	.disc_thresh = 3,
 	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
+	.enable_pmu_unk1 = false,
 };
 
 static const struct sun4i_usb_phy_cfg sun8i_h3_cfg = {
@@ -746,6 +816,16 @@ static const struct sun4i_usb_phy_cfg sun8i_h3_cfg = {
 	.type = sun8i_h3_phy,
 	.disc_thresh = 3,
 	.dedicated_clocks = true,
+	.enable_pmu_unk1 = true,
+};
+
+static const struct sun4i_usb_phy_cfg sun50i_a64_cfg = {
+	.num_phys = 2,
+	.type = sun50i_a64_phy,
+	.disc_thresh = 3,
+	.phyctl_offset = REG_PHYCTL_A33,
+	.dedicated_clocks = true,
+	.enable_pmu_unk1 = true,
 };
 
 static const struct of_device_id sun4i_usb_phy_of_match[] = {
@@ -756,6 +836,8 @@ static const struct of_device_id sun4i_usb_phy_of_match[] = {
 	{ .compatible = "allwinner,sun8i-a23-usb-phy", .data = &sun8i_a23_cfg },
 	{ .compatible = "allwinner,sun8i-a33-usb-phy", .data = &sun8i_a33_cfg },
 	{ .compatible = "allwinner,sun8i-h3-usb-phy", .data = &sun8i_h3_cfg },
+	{ .compatible = "allwinner,sun50i-a64-usb-phy",
+	  .data = &sun50i_a64_cfg},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sun4i_usb_phy_of_match);

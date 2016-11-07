@@ -33,10 +33,17 @@
 #include <string.h>
 #include <unistd.h>
 
+/*
+ * glibc synced up and added the metag number but didn't add the relocations.
+ * Work around this in a crude manner for now.
+ */
 #ifndef EM_METAG
-/* Remove this when these make it to the standard system elf.h. */
 #define EM_METAG      174
+#endif
+#ifndef R_METAG_ADDR32
 #define R_METAG_ADDR32                   2
+#endif
+#ifndef R_METAG_NONE
 #define R_METAG_NONE                     3
 #endif
 
@@ -356,7 +363,9 @@ is_mcounted_section_name(char const *const txtname)
 		strcmp(".sched.text",    txtname) == 0 ||
 		strcmp(".spinlock.text", txtname) == 0 ||
 		strcmp(".irqentry.text", txtname) == 0 ||
+		strcmp(".softirqentry.text", txtname) == 0 ||
 		strcmp(".kprobes.text", txtname) == 0 ||
+		strcmp(".cpuidle.text", txtname) == 0 ||
 		strcmp(".text.unlikely", txtname) == 0;
 }
 

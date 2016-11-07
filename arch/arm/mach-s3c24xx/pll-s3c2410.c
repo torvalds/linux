@@ -32,11 +32,12 @@
 #include <plat/cpu.h>
 #include <plat/cpu-freq-core.h>
 
+/* This array should be sorted in ascending order of the frequencies */
 static struct cpufreq_frequency_table pll_vals_12MHz[] = {
     { .frequency = 34000000,  .driver_data = PLLVAL(82, 2, 3),   },
     { .frequency = 45000000,  .driver_data = PLLVAL(82, 1, 3),   },
-    { .frequency = 51000000,  .driver_data = PLLVAL(161, 3, 3),  },
     { .frequency = 48000000,  .driver_data = PLLVAL(120, 2, 3),  },
+    { .frequency = 51000000,  .driver_data = PLLVAL(161, 3, 3),  },
     { .frequency = 56000000,  .driver_data = PLLVAL(142, 2, 3),  },
     { .frequency = 68000000,  .driver_data = PLLVAL(82, 2, 2),   },
     { .frequency = 79000000,  .driver_data = PLLVAL(71, 1, 2),   },

@@ -150,7 +150,8 @@ static int mgag200_bo_verify_access(struct ttm_buffer_object *bo, struct file *f
 {
 	struct mgag200_bo *mgabo = mgag200_bo(bo);
 
-	return drm_vma_node_verify_access(&mgabo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&mgabo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int mgag200_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -185,17 +186,6 @@ static int mgag200_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 static void mgag200_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 }
-
-static int mgag200_bo_move(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
-		       struct ttm_mem_reg *new_mem)
-{
-	int r;
-	r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
-	return r;
-}
-
 
 static void mgag200_ttm_backend_destroy(struct ttm_tt *tt)
 {
@@ -241,7 +231,7 @@ struct ttm_bo_driver mgag200_bo_driver = {
 	.ttm_tt_unpopulate = mgag200_ttm_tt_unpopulate,
 	.init_mem_type = mgag200_bo_init_mem_type,
 	.evict_flags = mgag200_bo_evict_flags,
-	.move = mgag200_bo_move,
+	.move = NULL,
 	.verify_access = mgag200_bo_verify_access,
 	.io_mem_reserve = &mgag200_ttm_io_mem_reserve,
 	.io_mem_free = &mgag200_ttm_io_mem_free,
@@ -276,6 +266,9 @@ int mgag200_mm_init(struct mga_device *mdev)
 		return ret;
 	}
 
+	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
+				   pci_resource_len(dev->pdev, 0));
+
 	mdev->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					 pci_resource_len(dev->pdev, 0));
 
@@ -284,10 +277,14 @@ int mgag200_mm_init(struct mga_device *mdev)
 
 void mgag200_mm_fini(struct mga_device *mdev)
 {
+	struct drm_device *dev = mdev->dev;
+
 	ttm_bo_device_release(&mdev->ttm.bdev);
 
 	mgag200_ttm_global_release(mdev);
 
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
 	arch_phys_wc_del(mdev->fb_mtrr);
 	mdev->fb_mtrr = 0;
 }

@@ -150,7 +150,8 @@ static int ast_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct ast_bo *astbo = ast_bo(bo);
 
-	return drm_vma_node_verify_access(&astbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&astbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int ast_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -185,17 +186,6 @@ static int ast_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 static void ast_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 }
-
-static int ast_bo_move(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
-		       struct ttm_mem_reg *new_mem)
-{
-	int r;
-	r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
-	return r;
-}
-
 
 static void ast_ttm_backend_destroy(struct ttm_tt *tt)
 {
@@ -241,7 +231,7 @@ struct ttm_bo_driver ast_bo_driver = {
 	.ttm_tt_unpopulate = ast_ttm_tt_unpopulate,
 	.init_mem_type = ast_bo_init_mem_type,
 	.evict_flags = ast_bo_evict_flags,
-	.move = ast_bo_move,
+	.move = NULL,
 	.verify_access = ast_bo_verify_access,
 	.io_mem_reserve = &ast_ttm_io_mem_reserve,
 	.io_mem_free = &ast_ttm_io_mem_free,
@@ -277,6 +267,8 @@ int ast_mm_init(struct ast_private *ast)
 		return ret;
 	}
 
+	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
+				   pci_resource_len(dev->pdev, 0));
 	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					pci_resource_len(dev->pdev, 0));
 
@@ -285,11 +277,15 @@ int ast_mm_init(struct ast_private *ast)
 
 void ast_mm_fini(struct ast_private *ast)
 {
+	struct drm_device *dev = ast->dev;
+
 	ttm_bo_device_release(&ast->ttm.bdev);
 
 	ast_ttm_global_release(ast);
 
 	arch_phys_wc_del(ast->fb_mtrr);
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
 }
 
 void ast_ttm_placement(struct ast_bo *bo, int domain)

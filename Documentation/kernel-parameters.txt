@@ -33,6 +33,37 @@ can also be entered as
 Double-quotes can be used to protect spaces in values, e.g.:
 	param="spaces in here"
 
+cpu lists:
+----------
+
+Some kernel parameters take a list of CPUs as a value, e.g.  isolcpus,
+nohz_full, irqaffinity, rcu_nocbs.  The format of this list is:
+
+	<cpu number>,...,<cpu number>
+
+or
+
+	<cpu number>-<cpu number>
+	(must be a positive range in ascending order)
+
+or a mixture
+
+<cpu number>,...,<cpu number>-<cpu number>
+
+Note that for the special case of a range one can split the range into equal
+sized groups and for each group use some amount from the beginning of that
+group:
+
+	<cpu number>-cpu number>:<used size>/<group size>
+
+For example one can add to the command line following parameter:
+
+	isolcpus=1,2,10-20,100-2000:2/25
+
+where the final item represents CPUs 100,101,125,126,150,151,...
+
+
+
 This document may not be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
 module. Loadable modules, after being loaded into the running kernel, also
@@ -460,6 +491,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			driver will print ACPI tables for AMD IOMMU during
 			IOMMU initialization.
 
+	amd_iommu_intr=	[HW,X86-64]
+			Specifies one of the following AMD IOMMU interrupt
+			remapping modes:
+			legacy     - Use legacy interrupt remapping mode.
+			vapic      - Use virtual APIC mode, which allows IOMMU
+			             to inject interrupts directly into guest.
+			             This mode requires kvm-amd.avic=1.
+			             (Default when IOMMU HW support is present.)
+
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
@@ -582,6 +622,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
 
+	bert_disable	[ACPI]
+			Disable BERT OS support on buggy BIOSes.
+
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
 			kernel args too.
@@ -686,6 +729,23 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[SH] SuperH
 			[SPARC64] tick
 			[X86-64] hpet,tsc
+
+	clocksource.arm_arch_timer.evtstrm=
+			[ARM,ARM64]
+			Format: <bool>
+			Enable/disable the eventstream feature of the ARM
+			architected timer so that code using WFE-based polling
+			loops can be debugged more effectively on production
+			systems.
+
+	clocksource.arm_arch_timer.fsl-a008585=
+			[ARM64]
+			Format: <bool>
+			Enable/disable the workaround of Freescale/NXP
+			erratum A-008585.  This can be useful for KVM
+			guests, if the guest device tree doesn't show the
+			erratum.  If unspecified, the workaround is
+			enabled based on the device tree.
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
@@ -920,8 +980,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
 
+	disable_1tb_segments [PPC]
+			Disables the use of 1TB hash page table segments. This
+			causes the kernel to fall back to 256MB segments which
+			can be useful when debugging issues that require an SLB
+			miss to occur.
+
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.txt.
+
+	disable_radix	[PPC]
+			Disable RADIX MMU mode on POWER9
 
 	disable_cpu_apicid= [X86,APIC,SMP]
 			Format: <int>
@@ -1025,11 +1094,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			determined by the stdout-path property in device
 			tree's chosen node.
 
-		cdns,<addr>
-			Start an early, polled-mode console on a cadence serial
-			port at the specified address. The cadence serial port
-			must already be setup and configured. Options are not
-			yet supported.
+		cdns,<addr>[,options]
+			Start an early, polled-mode console on a Cadence
+			(xuartps) serial port at the specified address. Only
+			supported option is baud rate. If baud rate is not
+			specified, the serial port must already be setup and
+			configured.
 
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
@@ -1185,6 +1255,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Address Range Mirroring feature even if your box
 			doesn't support it.
 
+	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
+			that is to be dynamically loaded by Linux. If there are
+			multiple variables with the same name but with different
+			vendor GUIDs, all of them will be loaded. See
+			Documentation/acpi/ssdt-overlays.txt for details.
+
+
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
 
@@ -1337,6 +1414,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <unsigned int> such that (rxsize & ~0x1fffc0) == 0.
 			Default: 1024
 
+	gpio-mockup.gpio_mockup_ranges
+			[HW] Sets the ranges of gpiochip of for this device.
+			Format: <start1>,<end1>,<start2>,<end2>...
+
 	hardlockup_all_cpu_backtrace=
 			[KNL] Should the hard-lockup detector generate
 			backtraces on all cpus.
@@ -1430,7 +1511,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
-	i8042.reset	[HW] Reset the controller during init and cleanup
+	i8042.reset	[HW] Reset the controller during init, cleanup and
+			     suspend-to-ram transitions, only during s2r
+			     transitions, or never reset
+			Format: { 1 | Y | y | 0 | N | n }
+			1, Y, y: always reset controller
+			0, N, n: don't ever reset controller
+			Default: only on s2r transitions on x86; most other
+			architectures force reset to be always executed
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 	i8042.kbdreset  [HW] Reset device connected to KBD port
 
@@ -1616,6 +1704,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	initrd=		[BOOT] Specify the location of the initial ramdisk
 
+	init_pkru=	[x86] Specify the default memory protection keys rights
+			register contents for all processes.  0x55555554 by
+			default (disallow access to all but pkey 0).  Can
+			override in debugfs after boot.
+
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
 
@@ -1661,7 +1754,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	intel_idle.max_cstate=	[KNL,HW,ACPI,X86]
 			0	disables intel_idle and fall back on acpi_idle.
-			1 to 6	specify maximum depth of C-state.
+			1 to 9	specify maximum depth of C-state.
 
 	intel_pstate=  [X86]
 		       disable
@@ -1734,13 +1827,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	irqaffinity=	[SMP] Set the default irq affinity mask
-			Format:
-			<cpu number>,...,<cpu number>
-			or
-			<cpu number>-<cpu number>
-			(must be a positive range in ascending order)
-			or a mixture
-			<cpu number>,...,<cpu number>-<cpu number>
+			The argument is a cpu list, as described above.
 
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
@@ -1757,13 +1844,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
 	isolcpus=	[KNL,SMP] Isolate CPUs from the general scheduler.
-			Format:
-			<cpu number>,...,<cpu number>
-			or
-			<cpu number>-<cpu number>
-			(must be a positive range in ascending order)
-			or a mixture
-			<cpu number>,...,<cpu number>-<cpu number>
+			The argument is a cpu list, as described above.
 
 			This option can be used to specify one or more CPUs
 			to isolate from the general SMP balancing and scheduling
@@ -1803,12 +1884,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
 
-	kaslr/nokaslr	[X86]
-			Enable/disable kernel and module base offset ASLR
-			(Address Space Layout Randomization) if built into
-			the kernel. When CONFIG_HIBERNATION is selected,
-			kASLR is disabled by default. When kASLR is enabled,
-			hibernation will be disabled.
+	nokaslr		[KNL]
+			When CONFIG_RANDOMIZE_BASE is set, this disables
+			kernel and module base offset ASLR (Address Space
+			Layout Randomization).
 
 	keepinitrd	[HW,ARM]
 
@@ -2136,10 +2215,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			than or equal to this physical address is ignored.
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
-			should make use of.  maxcpus=n : n >= 0 limits the
-			kernel to using 'n' processors.  n=0 is a special case,
-			it is equivalent to "nosmp", which also disables
-			the IO APIC.
+			will bring up during bootup.  maxcpus=n : n >= 0 limits
+			the kernel to bring up 'n' processors. Surely after
+			bootup you can bring up the other plugged cpu by executing
+			"echo 1 > /sys/devices/system/cpu/cpuX/online". So maxcpus
+			only takes effect during system bootup.
+			While n=0 is a special case, it is equivalent to "nosmp",
+			which also disables the IO APIC.
 
 	max_loop=	[LOOP] The number of loop block devices that get
 	(loop.max_loop)	unconditionally pre-created at init time. The default
@@ -2295,6 +2377,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Note that if CONFIG_MODULE_SIG_FORCE is set, that
 			is always true, so this option does nothing.
 
+	module_blacklist=  [KNL] Do not load a comma-separated list of
+			modules.  Useful for debugging problem modules.
+
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
 			leaving touchpad surface for touch to be considered
@@ -2392,6 +2477,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nfsrootdebug	[NFS] enable nfsroot debugging messages.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
+	nfs.callback_nr_threads=
+			[NFSv4] set the total number of threads that the
+			NFS client will assign to service NFSv4 callback
+			requests.
+
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
@@ -2414,6 +2504,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			number for the readdir() and stat() syscalls instead
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
+
+	nfs.max_session_cb_slots=
+			[NFSv4.1] Sets the maximum number of session
+			slots the client will assign to the callback
+			channel. This determines the maximum number of
+			callbacks the client will process in parallel for
+			a particular server.
 
 	nfs.max_session_slots=
 			[NFSv4.1] Sets the maximum number of session slots
@@ -2543,8 +2640,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nodelayacct	[KNL] Disable per-task delay accounting
 
-	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
-
 	nodsp		[SH] Disable hardware DSP at boot time.
 
 	noefi		Disable EFI runtime services support.
@@ -2623,6 +2718,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Default: on
 
 	nohz_full=	[KNL,BOOT]
+			The argument is a cpu list, as described above.
 			In kernels built with CONFIG_NO_HZ_FULL=y, set
 			the specified list of CPUs whose tick will be stopped
 			whenever possible. The boot CPU will be forced outside
@@ -2745,9 +2841,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nr_cpus=	[SMP] Maximum number of processors that	an SMP kernel
 			could support.  nr_cpus=n : n >= 1 limits the kernel to
-			supporting 'n' processors. Later in runtime you can not
-			use hotplug cpu feature to put more cpu back to online.
-			just like you compile the kernel NR_CPUS=n
+			support 'n' processors. It could be larger than the
+			number of already plugged CPU during bootup, later in
+			runtime you can physically add extra cpu until it reaches
+			n. So during boot up some boot time memory for per-cpu
+			variables need be pre-allocated for later physical cpu
+			hot plugging.
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
@@ -2788,8 +2887,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			timer: [X86] Force use of architectural NMI
 				timer mode (see also oprofile.timer
 				for generic hr timer mode)
-				[s390] Force legacy basic mode sampling
-                                (report cpu_type "timer")
 
 	oops=panic	Always panic on oopses. Default is to just kill the
 			process, but there is a small probability of
@@ -2998,12 +3095,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		resource_alignment=
 				Format:
 				[<order of align>@][<domain>:]<bus>:<slot>.<func>[; ...]
+				[<order of align>@]pci:<vendor>:<device>\
+						[:<subvendor>:<subdevice>][; ...]
 				Specifies alignment and device to reassign
 				aligned memory resources.
 				If <order of align> is not specified,
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource
 				windows need to be expanded.
+				To specify the alignment for several
+				instances of a device, the PCI vendor,
+				device, subvendor, and subdevice may be
+				specified, e.g., 4096@pci:8086:9c22:103c:198f
 		ecrc=		Enable/disable PCIe ECRC (transaction layer
 				end-to-end CRC checking).
 				bios: Use BIOS/firmware settings. This is the
@@ -3016,6 +3119,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		hpmemsize=nn[KMG]	The fixed amount of bus space which is
 				reserved for hotplug bridge's memory window.
 				Default size is 2 megabytes.
+		hpbussize=nn	The minimum amount of additional bus numbers
+				reserved for buses below a hotplug bridge.
+				Default is 1.
 		realloc=	Enable/disable reallocating PCI bridge resources
 				if allocations done by BIOS are too small to
 				accommodate resources required by all child
@@ -3046,6 +3152,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unconditionally.
 		compat	Treat PCIe ports as PCI-to-PCI bridges, disable the PCIe
 			ports driver.
+
+	pcie_port_pm=	[PCIE] PCIe port power management handling:
+		off	Disable power management of all PCIe ports
+		force	Forcibly enable power management of all PCIe ports
 
 	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
 		nomsi	Do not use MSI for native PCIe PME signaling (this makes
@@ -3150,6 +3260,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 			default: disabled
 
+	printk.devkmsg={on,off,ratelimit}
+			Control writing to /dev/kmsg.
+			on - unlimited logging to /dev/kmsg from userspace
+			off - logging to /dev/kmsg disabled
+			ratelimit - ratelimit the logging
+			Default: ratelimit
+
 	printk.time=	Show timing data prefixed to each printk message line
 			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
 
@@ -3207,6 +3324,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/blockdev/ramdisk.txt.
 
 	rcu_nocbs=	[KNL]
+			The argument is a cpu list, as described above.
+
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
 			Invocation of these CPUs' RCU callbacks will
@@ -3547,7 +3666,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
-			See Documentation/cgroups/cpusets.txt.
+			See Documentation/cgroup-v1/cpusets.txt.
 
 	relative_sleep_states=
 			[SUSPEND] Use sleep state labeling where the deepest
@@ -3594,6 +3713,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				present during boot.
 		nocompress	Don't compress/decompress hibernation images.
 		no		Disable hibernation and resume.
+		protect_image	Turn on image protection during restoration
+				(that will set all pages holding image data
+				during restoration read-only).
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
@@ -3832,6 +3954,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			using these two parameters to set the minimum and
 			maximum port values.
 
+	sunrpc.svc_rpc_per_connection_limit=
+			[NFS,SUNRPC]
+			Limit the number of requests that the server will
+			process in parallel from a single connection.
+			The default value is 0 (no limit).
+
 	sunrpc.pool_mode=
 			[NFS]
 			Control how the NFS server code allocates CPUs to
@@ -3867,7 +3995,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	swapaccount=[0|1]
 			[KNL] Enable accounting of swap in memory resource
 			controller if no parameter or 1 is given or disable
-			it if 0 is given (See Documentation/cgroups/memory.txt)
+			it if 0 is given (See Documentation/cgroup-v1/memory.txt)
 
 	swiotlb=	[ARM,IA-64,PPC,MIPS,X86]
 			Format: { <int> | force }
@@ -3992,8 +4120,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	trace_event=[event-list]
 			[FTRACE] Set and start specified trace events in order
-			to facilitate early boot debugging.
-			See also Documentation/trace/events.txt
+			to facilitate early boot debugging. The event-list is a
+			comma separated list of trace events to enable. See
+			also Documentation/trace/events.txt
 
 	trace_options=[option-list]
 			[FTRACE] Enable or disable tracer options at boot.
@@ -4182,6 +4311,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				u = IGNORE_UAS (don't bind to the uas driver);
 				w = NO_WP_DETECT (don't test whether the
 					medium is write-protected).
+				y = ALWAYS_SYNC (issue a SYNCHRONIZE_CACHE
+					even if the device claims no cache)
 			Example: quirks=0419:aaf5:rl,0421:0433:rc
 
 	user_debug=	[KNL,ARM]

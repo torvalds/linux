@@ -45,6 +45,14 @@ struct skl_ipc_header {
 	u32 extension;
 };
 
+#define SKL_DSP_CORES_MAX  2
+
+struct skl_dsp_cores {
+	unsigned int count;
+	enum skl_dsp_states state[SKL_DSP_CORES_MAX];
+	int usage_count[SKL_DSP_CORES_MAX];
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -58,8 +66,23 @@ struct skl_sst {
 
 	/* callback for miscbdge */
 	void (*enable_miscbdcge)(struct device *dev, bool enable);
-	/*Is CGCTL.MISCBDCGE disabled*/
+	/* Is CGCTL.MISCBDCGE disabled */
 	bool miscbdcg_disabled;
+
+	/* Populate module information */
+	struct list_head uuid_list;
+
+	/* Is firmware loaded */
+	bool fw_loaded;
+
+	/* first boot ? */
+	bool is_first_boot;
+
+	/* multi-core */
+	struct skl_dsp_cores cores;
+
+	/* tplg manifest */
+	struct skl_dfw_manifest manifest;
 };
 
 struct skl_ipc_init_instance_msg {
@@ -68,6 +91,7 @@ struct skl_ipc_init_instance_msg {
 	u16 param_data_size;
 	u8 ppl_instance_id;
 	u8 core_id;
+	u8 domain;
 };
 
 struct skl_ipc_bind_unbind_msg {
@@ -128,6 +152,9 @@ int skl_ipc_set_large_config(struct sst_generic_ipc *ipc,
 int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 		struct skl_ipc_large_config_msg *msg, u32 *param);
 
+int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
+			u8 dma_id, u8 table_id);
+
 void skl_ipc_int_enable(struct sst_dsp *dsp);
 void skl_ipc_op_int_enable(struct sst_dsp *ctx);
 void skl_ipc_op_int_disable(struct sst_dsp *ctx);
@@ -136,5 +163,6 @@ void skl_ipc_int_disable(struct sst_dsp *dsp);
 bool skl_ipc_int_status(struct sst_dsp *dsp);
 void skl_ipc_free(struct sst_generic_ipc *ipc);
 int skl_ipc_init(struct device *dev, struct skl_sst *skl);
+void skl_clear_module_cnt(struct sst_dsp *ctx);
 
 #endif /* __SKL_IPC_H */

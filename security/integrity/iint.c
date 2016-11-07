@@ -79,6 +79,7 @@ static void iint_free(struct integrity_iint_cache *iint)
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
 	iint->ima_read_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
+	iint->measured_pcrs = 0;
 	kmem_cache_free(iint_cache, iint);
 }
 
@@ -159,6 +160,7 @@ static void init_once(void *foo)
 	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
 	iint->ima_read_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
+	iint->measured_pcrs = 0;
 }
 
 static int __init integrity_iintcache_init(void)

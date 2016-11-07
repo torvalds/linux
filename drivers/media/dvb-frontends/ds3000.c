@@ -959,6 +959,15 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 	/* enable ac coupling */
 	ds3000_writereg(state, 0x25, 0x8a);
 
+	if ((c->symbol_rate < ds3000_ops.info.symbol_rate_min) ||
+			(c->symbol_rate > ds3000_ops.info.symbol_rate_max)) {
+		dprintk("%s() symbol_rate %u out of range (%u ... %u)\n",
+				__func__, c->symbol_rate,
+				ds3000_ops.info.symbol_rate_min,
+				ds3000_ops.info.symbol_rate_max);
+		return -EINVAL;
+	}
+
 	/* enhance symbol rate performance */
 	if ((c->symbol_rate / 1000) <= 5000) {
 		value = 29777 / (c->symbol_rate / 1000) + 1;

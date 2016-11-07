@@ -41,6 +41,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_modeset_helper.h>
 
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
 extern int drm_crtc_helper_set_config(struct drm_mode_set *set);
@@ -48,18 +49,10 @@ extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     int x, int y,
 				     struct drm_framebuffer *old_fb);
-extern void drm_helper_crtc_enable_color_mgmt(struct drm_crtc *crtc,
-					      int degamma_lut_size,
-					      int gamma_lut_size);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 
 extern int drm_helper_connector_dpms(struct drm_connector *connector, int mode);
-
-extern void drm_helper_move_panel_connectors_to_head(struct drm_device *);
-
-extern void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-					   const struct drm_mode_fb_cmd2 *mode_cmd);
 
 extern void drm_helper_resume_force_mode(struct drm_device *dev);
 

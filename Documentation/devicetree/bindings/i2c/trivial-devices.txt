@@ -38,6 +38,7 @@ dallas,ds4510		CPU Supervisor with Nonvolatile Memory and Programmable I/O
 dallas,ds75		Digital Thermometer and Thermostat
 dlg,da9053		DA9053: flexible system level PMIC with multicore support
 dlg,da9063		DA9063: system PMIC for quad-core application processors
+domintech,dmard09	DMARD09: 3-axis Accelerometer
 epson,rx8010		I2C-BUS INTERFACE REAL TIME CLOCK MODULE
 epson,rx8025		High-Stability. I2C-Bus INTERFACE REAL TIME CLOCK MODULE
 epson,rx8581		I2C-BUS INTERFACE REAL TIME CLOCK MODULE
@@ -50,18 +51,83 @@ fsl,sgtl5000		SGTL5000: Ultra Low-Power Audio Codec
 gmt,g751		G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
 infineon,slb9635tt	Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
 infineon,slb9645tt	Infineon SLB9645 I2C TPM (new protocol, max 400khz)
-isil,isl12057		Intersil ISL12057 I2C RTC Chip
 isil,isl29028		Intersil ISL29028 Ambient Light and Proximity Sensor
 maxim,ds1050		5 Bit Programmable, Pulse-Width Modulator
 maxim,max1237		Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
 maxim,max6625		9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
 mc,rv3029c2		Real Time Clock Module with I2C-Bus
+mcube,mc3230		mCube 3-axis 8-bit digital accelerometer
+microchip,mcp4531-502	Microchip 7-bit Single I2C Digital Potentiometer (5k)
+microchip,mcp4531-103	Microchip 7-bit Single I2C Digital Potentiometer (10k)
+microchip,mcp4531-503	Microchip 7-bit Single I2C Digital Potentiometer (50k)
+microchip,mcp4531-104	Microchip 7-bit Single I2C Digital Potentiometer (100k)
+microchip,mcp4532-502	Microchip 7-bit Single I2C Digital Potentiometer (5k)
+microchip,mcp4532-103	Microchip 7-bit Single I2C Digital Potentiometer (10k)
+microchip,mcp4532-503	Microchip 7-bit Single I2C Digital Potentiometer (50k)
+microchip,mcp4532-104	Microchip 7-bit Single I2C Digital Potentiometer (100k)
+microchip,mcp4541-502	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4541-103	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4541-503	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4541-104	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4542-502	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4542-103	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4542-503	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4542-104	Microchip 7-bit Single I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4551-502	Microchip 8-bit Single I2C Digital Potentiometer (5k)
+microchip,mcp4551-103	Microchip 8-bit Single I2C Digital Potentiometer (10k)
+microchip,mcp4551-503	Microchip 8-bit Single I2C Digital Potentiometer (50k)
+microchip,mcp4551-104	Microchip 8-bit Single I2C Digital Potentiometer (100k)
+microchip,mcp4552-502	Microchip 8-bit Single I2C Digital Potentiometer (5k)
+microchip,mcp4552-103	Microchip 8-bit Single I2C Digital Potentiometer (10k)
+microchip,mcp4552-503	Microchip 8-bit Single I2C Digital Potentiometer (50k)
+microchip,mcp4552-104	Microchip 8-bit Single I2C Digital Potentiometer (100k)
+microchip,mcp4561-502	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4561-103	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4561-503	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4561-104	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4562-502	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4562-103	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4562-503	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4562-104	Microchip 8-bit Single I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4631-502	Microchip 7-bit Dual I2C Digital Potentiometer (5k)
+microchip,mcp4631-103	Microchip 7-bit Dual I2C Digital Potentiometer (10k)
+microchip,mcp4631-503	Microchip 7-bit Dual I2C Digital Potentiometer (50k)
+microchip,mcp4631-104	Microchip 7-bit Dual I2C Digital Potentiometer (100k)
+microchip,mcp4632-502	Microchip 7-bit Dual I2C Digital Potentiometer (5k)
+microchip,mcp4632-103	Microchip 7-bit Dual I2C Digital Potentiometer (10k)
+microchip,mcp4632-503	Microchip 7-bit Dual I2C Digital Potentiometer (50k)
+microchip,mcp4632-104	Microchip 7-bit Dual I2C Digital Potentiometer (100k)
+microchip,mcp4641-502	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4641-103	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4641-503	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4641-104	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4642-502	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4642-103	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4642-503	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4642-104	Microchip 7-bit Dual I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4651-502	Microchip 8-bit Dual I2C Digital Potentiometer (5k)
+microchip,mcp4651-103	Microchip 8-bit Dual I2C Digital Potentiometer (10k)
+microchip,mcp4651-503	Microchip 8-bit Dual I2C Digital Potentiometer (50k)
+microchip,mcp4651-104	Microchip 8-bit Dual I2C Digital Potentiometer (100k)
+microchip,mcp4652-502	Microchip 8-bit Dual I2C Digital Potentiometer (5k)
+microchip,mcp4652-103	Microchip 8-bit Dual I2C Digital Potentiometer (10k)
+microchip,mcp4652-503	Microchip 8-bit Dual I2C Digital Potentiometer (50k)
+microchip,mcp4652-104	Microchip 8-bit Dual I2C Digital Potentiometer (100k)
+microchip,mcp4661-502	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4661-103	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4661-503	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4661-104	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (100k)
+microchip,mcp4662-502	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (5k)
+microchip,mcp4662-103	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (10k)
+microchip,mcp4662-503	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (50k)
+microchip,mcp4662-104	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (100k)
 national,lm63		Temperature sensor with integrated fan control
 national,lm75		I2C TEMP SENSOR
 national,lm80		Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
 national,lm85		Temperature sensor with integrated fan control
 national,lm92		±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator with Two-Wire Interface
 nuvoton,npct501		i2c trusted platform module (TPM)
+nuvoton,npct601		i2c trusted platform module (TPM2)
 nxp,pca9556		Octal SMBus and I2C registered interface
 nxp,pca9557		8-bit I2C-bus and SMBus I/O port with reset
 nxp,pcf8563		Real-time clock/calendar
@@ -81,10 +147,10 @@ samsung,24ad0xd1	S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
 sgx,vz89x		SGX Sensortech VZ89X Sensors
 sii,s35390a		2-wire CMOS real-time clock
 skyworks,sky81452	Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply
-st-micro,24c256		i2c serial eeprom  (24cxx)
-stm,m41t00		Serial Access TIMEKEEPER
-stm,m41t62		Serial real-time clock (RTC) with alarm
-stm,m41t80		M41T80 - SERIAL ACCESS RTC WITH ALARMS
+st,24c256		i2c serial eeprom  (24cxx)
+st,m41t00		Serial real-time clock (RTC)
+st,m41t62		Serial real-time clock (RTC) with alarm
+st,m41t80		M41T80 - SERIAL ACCESS RTC WITH ALARMS
 taos,tsl2550		Ambient Light Sensor with SMBUS/Two Wire Serial Interface
 ti,ads7828		8-Channels, 12-bit ADC
 ti,ads7830		8-Channels, 8-bit ADC

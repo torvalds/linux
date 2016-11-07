@@ -41,15 +41,15 @@
 
 /**
  * i915_gem_batch_pool_init() - initialize a batch buffer pool
- * @dev: the drm device
+ * @engine: the associated request submission engine
  * @pool: the batch buffer pool
  */
-void i915_gem_batch_pool_init(struct drm_device *dev,
+void i915_gem_batch_pool_init(struct intel_engine_cs *engine,
 			      struct i915_gem_batch_pool *pool)
 {
 	int n;
 
-	pool->dev = dev;
+	pool->engine = engine;
 
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++)
 		INIT_LIST_HEAD(&pool->cache_list[n]);
@@ -65,18 +65,17 @@ void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool)
 {
 	int n;
 
-	WARN_ON(!mutex_is_locked(&pool->dev->struct_mutex));
+	lockdep_assert_held(&pool->engine->i915->drm.struct_mutex);
 
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
-		while (!list_empty(&pool->cache_list[n])) {
-			struct drm_i915_gem_object *obj =
-				list_first_entry(&pool->cache_list[n],
-						 struct drm_i915_gem_object,
-						 batch_pool_link);
+		struct drm_i915_gem_object *obj, *next;
 
-			list_del(&obj->batch_pool_link);
-			drm_gem_object_unreference(&obj->base);
-		}
+		list_for_each_entry_safe(obj, next,
+					 &pool->cache_list[n],
+					 batch_pool_link)
+			i915_gem_object_put(obj);
+
+		INIT_LIST_HEAD(&pool->cache_list[n]);
 	}
 }
 
@@ -102,7 +101,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	struct list_head *list;
 	int n;
 
-	WARN_ON(!mutex_is_locked(&pool->dev->struct_mutex));
+	lockdep_assert_held(&pool->engine->i915->drm.struct_mutex);
 
 	/* Compute a power-of-two bucket, but throw everything greater than
 	 * 16KiB into the same bucket: i.e. the the buckets hold objects of
@@ -115,13 +114,14 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 
 	list_for_each_entry_safe(tmp, next, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
-		if (tmp->active)
+		if (!i915_gem_active_is_idle(&tmp->last_read[pool->engine->id],
+					     &tmp->base.dev->struct_mutex))
 			break;
 
 		/* While we're looping, do some clean up */
 		if (tmp->madv == __I915_MADV_PURGED) {
 			list_del(&tmp->batch_pool_link);
-			drm_gem_object_unreference(&tmp->base);
+			i915_gem_object_put(tmp);
 			continue;
 		}
 
@@ -134,9 +134,9 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	if (obj == NULL) {
 		int ret;
 
-		obj = i915_gem_alloc_object(pool->dev, size);
-		if (obj == NULL)
-			return ERR_PTR(-ENOMEM);
+		obj = i915_gem_object_create(&pool->engine->i915->drm, size);
+		if (IS_ERR(obj))
+			return obj;
 
 		ret = i915_gem_object_get_pages(obj);
 		if (ret)

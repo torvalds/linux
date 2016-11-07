@@ -45,6 +45,7 @@ static void gfs2_init_inode_once(void *foo)
 	memset(&ip->i_res, 0, sizeof(ip->i_res));
 	RB_CLEAR_NODE(&ip->i_res.rs_node);
 	ip->i_hash_cache = NULL;
+	gfs2_holder_mark_uninitialized(&ip->i_iopen_gh);
 }
 
 static void gfs2_init_glock_once(void *foo)
@@ -144,7 +145,9 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_qadata_cachep)
 		goto fail;
 
-	register_shrinker(&gfs2_qd_shrinker);
+	error = register_shrinker(&gfs2_qd_shrinker);
+	if (error)
+		goto fail;
 
 	error = register_filesystem(&gfs2_fs_type);
 	if (error)

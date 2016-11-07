@@ -106,6 +106,7 @@
 
 /* DRD_CON */
 #define DRD_CON_PERI_CON	BIT(24)
+#define DRD_CON_VBOUT		BIT(0)
 
 /* USB_INT_ENA_1 and USB_INT_STA_1 */
 #define USB_INT_1_B3_PLLWKUP	BIT(31)
@@ -363,6 +364,7 @@ static void usb3_init_epc_registers(struct renesas_usb3 *usb3)
 {
 	/* FIXME: How to change host / peripheral mode as well? */
 	usb3_set_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON);
+	usb3_clear_bit(usb3, DRD_CON_VBOUT, USB3_DRD_CON);
 
 	usb3_write(usb3, ~0, USB3_USB_INT_STA_1);
 	usb3_enable_irq_1(usb3, USB_INT_1_VBUS_CNG);

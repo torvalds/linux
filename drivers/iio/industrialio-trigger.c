@@ -64,9 +64,15 @@ static struct attribute *iio_trig_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(iio_trig_dev);
 
+static struct iio_trigger *__iio_trigger_find_by_name(const char *name);
+
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
 	int ret;
+
+	/* trig_info->ops is required for the module member */
+	if (!trig_info->ops)
+		return -EINVAL;
 
 	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
 	if (trig_info->id < 0)
@@ -82,11 +88,19 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 	/* Add to list of available triggers held by the IIO core */
 	mutex_lock(&iio_trigger_list_lock);
+	if (__iio_trigger_find_by_name(trig_info->name)) {
+		pr_err("Duplicate trigger name '%s'\n", trig_info->name);
+		ret = -EEXIST;
+		goto error_device_del;
+	}
 	list_add_tail(&trig_info->list, &iio_trigger_list);
 	mutex_unlock(&iio_trigger_list_lock);
 
 	return 0;
 
+error_device_del:
+	mutex_unlock(&iio_trigger_list_lock);
+	device_del(&trig_info->dev);
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	return ret;
@@ -104,6 +118,34 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 	device_del(&trig_info->dev);
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
+
+int iio_trigger_set_immutable(struct iio_dev *indio_dev, struct iio_trigger *trig)
+{
+	if (!indio_dev || !trig)
+		return -EINVAL;
+
+	mutex_lock(&indio_dev->mlock);
+	WARN_ON(indio_dev->trig_readonly);
+
+	indio_dev->trig = iio_trigger_get(trig);
+	indio_dev->trig_readonly = true;
+	mutex_unlock(&indio_dev->mlock);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_trigger_set_immutable);
+
+/* Search for trigger by name, assuming iio_trigger_list_lock held */
+static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
+{
+	struct iio_trigger *iter;
+
+	list_for_each_entry(iter, &iio_trigger_list, list)
+		if (!strcmp(iter->name, name))
+			return iter;
+
+	return NULL;
+}
 
 static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 						    size_t len)
@@ -164,8 +206,7 @@ EXPORT_SYMBOL(iio_trigger_poll_chained);
 
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
-	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
-		trig->ops->try_reenable)
+	if (atomic_dec_and_test(&trig->use_count) && trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
 			/* Missed an interrupt so launch new poll now */
 			iio_trigger_poll(trig);
@@ -224,11 +265,19 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 		goto out_put_irq;
 
 	/* Enable trigger in driver */
-	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
+	if (trig->ops->set_trigger_state && notinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
 		if (ret < 0)
 			goto out_free_irq;
 	}
+
+	/*
+	 * Check if we just registered to our own trigger: we determine that
+	 * this is the case if the IIO device and the trigger device share the
+	 * same parent device.
+	 */
+	if (pf->indio_dev->dev.parent == trig->dev.parent)
+		trig->attached_own_device = true;
 
 	return ret;
 
@@ -249,11 +298,13 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 		= (bitmap_weight(trig->pool,
 				 CONFIG_IIO_CONSUMERS_PER_TRIGGER)
 		   == 1);
-	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
+	if (trig->ops->set_trigger_state && no_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
 			return ret;
 	}
+	if (pf->indio_dev->dev.parent == trig->dev.parent)
+		trig->attached_own_device = false;
 	iio_trigger_put_irq(trig, pf->irq);
 	free_irq(pf->irq, pf);
 	module_put(pf->indio_dev->info->driver_module);
@@ -264,7 +315,7 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 irqreturn_t iio_pollfunc_store_time(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	pf->timestamp = iio_get_time_ns();
+	pf->timestamp = iio_get_time_ns(pf->indio_dev);
 	return IRQ_WAKE_THREAD;
 }
 EXPORT_SYMBOL(iio_pollfunc_store_time);
@@ -359,6 +410,10 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}
+	if (indio_dev->trig_readonly) {
+		mutex_unlock(&indio_dev->mlock);
+		return -EPERM;
+	}
 	mutex_unlock(&indio_dev->mlock);
 
 	trig = iio_trigger_find_by_name(buf, len);
@@ -371,7 +426,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 			return ret;
 	}
 
-	if (trig && trig->ops && trig->ops->validate_device) {
+	if (trig && trig->ops->validate_device) {
 		ret = trig->ops->validate_device(trig, indio_dev);
 		if (ret)
 			return ret;
@@ -596,6 +651,71 @@ void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig)
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_iio_trigger_free);
+
+static void devm_iio_trigger_unreg(struct device *dev, void *res)
+{
+	iio_trigger_unregister(*(struct iio_trigger **)res);
+}
+
+/**
+ * devm_iio_trigger_register - Resource-managed iio_trigger_register()
+ * @dev:	device this trigger was allocated for
+ * @trig_info:	trigger to register
+ *
+ * Managed iio_trigger_register().  The IIO trigger registered with this
+ * function is automatically unregistered on driver detach. This function
+ * calls iio_trigger_register() internally. Refer to that function for more
+ * information.
+ *
+ * If an iio_trigger registered with this function needs to be unregistered
+ * separately, devm_iio_trigger_unregister() must be used.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int devm_iio_trigger_register(struct device *dev, struct iio_trigger *trig_info)
+{
+	struct iio_trigger **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_iio_trigger_unreg, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	*ptr = trig_info;
+	ret = iio_trigger_register(trig_info);
+	if (!ret)
+		devres_add(dev, ptr);
+	else
+		devres_free(ptr);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_iio_trigger_register);
+
+/**
+ * devm_iio_trigger_unregister - Resource-managed iio_trigger_unregister()
+ * @dev:	device this iio_trigger belongs to
+ * @trig_info:	the trigger associated with the device
+ *
+ * Unregister trigger registered with devm_iio_trigger_register().
+ */
+void devm_iio_trigger_unregister(struct device *dev,
+				 struct iio_trigger *trig_info)
+{
+	int rc;
+
+	rc = devres_release(dev, devm_iio_trigger_unreg, devm_iio_trigger_match,
+			    trig_info);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_iio_trigger_unregister);
+
+bool iio_trigger_using_own(struct iio_dev *indio_dev)
+{
+	return indio_dev->trig->attached_own_device;
+}
+EXPORT_SYMBOL(iio_trigger_using_own);
 
 void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {

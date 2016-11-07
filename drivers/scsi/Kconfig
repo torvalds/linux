@@ -396,18 +396,6 @@ config SCSI_3W_SAS
 	  Please read the comments at the top of
 	  <file:drivers/scsi/3w-sas.c>.
 
-config SCSI_7000FASST
-	tristate "7000FASST SCSI support"
-	depends on ISA && SCSI && ISA_DMA_API
-	select CHECK_SIGNATURE
-	help
-	  This driver supports the Western Digital 7000 SCSI host adapter
-	  family.  Some information is in the source:
-	  <file:drivers/scsi/wd7000.c>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called wd7000.
-
 config SCSI_ACARD
 	tristate "ACARD SCSI support"
 	depends on PCI && SCSI
@@ -512,18 +500,6 @@ config SCSI_ADVANSYS
 	  To compile this driver as a module, choose M here: the
 	  module will be called advansys.
 
-config SCSI_IN2000
-	tristate "Always IN2000 SCSI support"
-	depends on ISA && SCSI
-	help
-	  This is support for an ISA bus SCSI host adapter.  You'll find more
-	  information in <file:Documentation/scsi/in2000.txt>. If it doesn't work
-	  out of the box, you may have to change the jumpers for IRQ or
-	  address selection.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called in2000.
-
 config SCSI_ARCMSR
 	tristate "ARECA (ARC11xx/12xx/13xx/16xx) SATA/SAS RAID Host Adapter"
 	depends on PCI && SCSI
@@ -540,6 +516,7 @@ config SCSI_ARCMSR
 source "drivers/scsi/esas2r/Kconfig"
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 source "drivers/scsi/mpt3sas/Kconfig"
+source "drivers/scsi/smartpqi/Kconfig"
 source "drivers/scsi/ufs/Kconfig"
 
 config SCSI_HPTIOP
@@ -659,20 +636,6 @@ config SCSI_DMX3191D
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
-
-config SCSI_DTC3280
-	tristate "DTC3180/3280 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	select CHECK_SIGNATURE
-	help
-	  This is support for DTC 3180/3280 SCSI Host Adapters.  Please read
-	  the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, and the file
-	  <file:Documentation/scsi/dtc3x80.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dtc.
 
 config SCSI_EATA
 	tristate "EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support"
@@ -837,6 +800,23 @@ config SCSI_IBMVSCSI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvscsi.
+
+config SCSI_IBMVSCSIS
+	tristate "IBM Virtual SCSI Server support"
+	depends on PPC_PSERIES && TARGET_CORE && SCSI && PCI
+	help
+	  This is the IBM POWER Virtual SCSI Target Server
+	  This driver uses the SRP protocol for communication betwen servers
+	  guest and/or the host that run on the same server.
+	  More information on VSCSI protocol can be found at www.power.org
+
+	  The userspace configuration needed to initialize the driver can be
+	  be found here:
+
+	  https://github.com/powervm/ibmvscsis/wiki/Configuration
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvscsis.
 
 config SCSI_IBMVFC
 	tristate "IBM Virtual FC support"
@@ -1231,20 +1211,6 @@ config SCSI_NCR53C8XX_NO_DISCONNECT
 	  not allow targets to disconnect is not reasonable if there is more
 	  than 1 device on a SCSI bus. The normal answer therefore is N.
 
-config SCSI_PAS16
-	tristate "PAS16 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	---help---
-	  This is support for a SCSI host adapter.  It is explained in section
-	  3.10 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/pas16.h>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pas16.
-
 config SCSI_QLOGIC_FAS
 	tristate "Qlogic FAS SCSI support"
 	depends on ISA && SCSI
@@ -1364,89 +1330,6 @@ config SCSI_AM53C974
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called am53c974.
-
-config SCSI_T128
-	tristate "Trantor T128/T128F/T228 SCSI support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	select CHECK_SIGNATURE
-	---help---
-	  This is support for a SCSI host adapter. It is explained in section
-	  3.11 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/t128.h>.  Note that Trantor was purchased by
-	  Adaptec, and some former Trantor products are being sold under the
-	  Adaptec name.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called t128.
-
-config SCSI_U14_34F
-	tristate "UltraStor 14F/34F support"
-	depends on ISA && SCSI && ISA_DMA_API
-	---help---
-	  This is support for the UltraStor 14F and 34F SCSI-2 host adapters.
-	  The source at <file:drivers/scsi/u14-34f.c> contains some
-	  information about this hardware.  If the driver doesn't work out of
-	  the box, you may have to change some settings in
-	  <file: drivers/scsi/u14-34f.c>.  Read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that there is also
-	  another driver for the same hardware: "UltraStor SCSI support",
-	  below.  You should say Y to both only if you want 24F support as
-	  well.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called u14-34f.
-
-config SCSI_U14_34F_TAGGED_QUEUE
-	bool "enable tagged command queueing"
-	depends on SCSI_U14_34F
-	help
-	  This is a feature of SCSI-2 which improves performance: the host
-	  adapter can send several SCSI commands to a device's queue even if
-	  previous commands haven't finished yet.
-	  This is equivalent to the "u14-34f=tc:y" boot option.
-
-config SCSI_U14_34F_LINKED_COMMANDS
-	bool "enable elevator sorting"
-	depends on SCSI_U14_34F
-	help
-	  This option enables elevator sorting for all probed SCSI disks and
-	  CD-ROMs. It definitely reduces the average seek distance when doing
-	  random seeks, but this does not necessarily result in a noticeable
-	  performance improvement: your mileage may vary...
-	  This is equivalent to the "u14-34f=lc:y" boot option.
-
-config SCSI_U14_34F_MAX_TAGS
-	int "maximum number of queued commands"
-	depends on SCSI_U14_34F
-	default "8"
-	help
-	  This specifies how many SCSI commands can be maximally queued for
-	  each probed SCSI device. You should reduce the default value of 8
-	  only if you have disks with buggy or limited tagged command support.
-	  Minimum is 2 and maximum is 14. This value is also the window size
-	  used by the elevator sorting option above. The effective value used
-	  by the driver for each probed SCSI device is reported at boot time.
-	  This is equivalent to the "u14-34f=mq:8" boot option.
-
-config SCSI_ULTRASTOR
-	tristate "UltraStor SCSI support"
-	depends on X86 && ISA && SCSI
-	---help---
-	  This is support for the UltraStor 14F, 24F and 34F SCSI-2 host
-	  adapter family.  This driver is explained in section 3.12 of the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/ultrastor.h>.
-
-	  Note that there is also another driver for the same hardware:
-	  "UltraStor 14F/34F support", above.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ultrastor.
 
 config SCSI_NSP32
 	tristate "Workbit NinjaSCSI-32Bi/UDE support"

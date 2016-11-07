@@ -19,6 +19,84 @@
 #define UNIPERIF_MAX_FRAME_SZ 0x20
 #define UNIPERIF_ALLOWED_FRAME_SZ (0x08 | 0x10 | 0x18 | UNIPERIF_MAX_FRAME_SZ)
 
+struct sti_uniperiph_dev_data {
+	unsigned int id; /* Nb available player instances */
+	unsigned int version; /* player IP version */
+	unsigned int stream;
+	const char *dai_names;
+	enum uniperif_type type;
+};
+
+static const struct sti_uniperiph_dev_data sti_uniplayer_hdmi = {
+	.id = 0,
+	.version = SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0,
+	.stream = SNDRV_PCM_STREAM_PLAYBACK,
+	.dai_names = "Uni Player #0 (HDMI)",
+	.type = SND_ST_UNIPERIF_TYPE_HDMI
+};
+
+static const struct sti_uniperiph_dev_data sti_uniplayer_pcm_out = {
+	.id = 1,
+	.version = SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0,
+	.stream = SNDRV_PCM_STREAM_PLAYBACK,
+	.dai_names = "Uni Player #1 (PCM OUT)",
+	.type = SND_ST_UNIPERIF_TYPE_PCM | SND_ST_UNIPERIF_TYPE_TDM,
+};
+
+static const struct sti_uniperiph_dev_data sti_uniplayer_dac = {
+	.id = 2,
+	.version = SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0,
+	.stream = SNDRV_PCM_STREAM_PLAYBACK,
+	.dai_names = "Uni Player #2 (DAC)",
+	.type = SND_ST_UNIPERIF_TYPE_PCM,
+};
+
+static const struct sti_uniperiph_dev_data sti_uniplayer_spdif = {
+	.id = 3,
+	.version = SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0,
+	.stream = SNDRV_PCM_STREAM_PLAYBACK,
+	.dai_names = "Uni Player #3 (SPDIF)",
+	.type = SND_ST_UNIPERIF_TYPE_SPDIF
+};
+
+static const struct sti_uniperiph_dev_data sti_unireader_pcm_in = {
+	.id = 0,
+	.version = SND_ST_UNIPERIF_VERSION_UNI_RDR_1_0,
+	.stream = SNDRV_PCM_STREAM_CAPTURE,
+	.dai_names = "Uni Reader #0 (PCM IN)",
+	.type = SND_ST_UNIPERIF_TYPE_PCM | SND_ST_UNIPERIF_TYPE_TDM,
+};
+
+static const struct sti_uniperiph_dev_data sti_unireader_hdmi_in = {
+	.id = 1,
+	.version = SND_ST_UNIPERIF_VERSION_UNI_RDR_1_0,
+	.stream = SNDRV_PCM_STREAM_CAPTURE,
+	.dai_names = "Uni Reader #1 (HDMI IN)",
+	.type = SND_ST_UNIPERIF_TYPE_PCM,
+};
+
+static const struct of_device_id snd_soc_sti_match[] = {
+	{ .compatible = "st,stih407-uni-player-hdmi",
+	  .data = &sti_uniplayer_hdmi
+	},
+	{ .compatible = "st,stih407-uni-player-pcm-out",
+	  .data = &sti_uniplayer_pcm_out
+	},
+	{ .compatible = "st,stih407-uni-player-dac",
+	  .data = &sti_uniplayer_dac
+	},
+	{ .compatible = "st,stih407-uni-player-spdif",
+	  .data = &sti_uniplayer_spdif
+	},
+	{ .compatible = "st,stih407-uni-reader-pcm_in",
+	  .data = &sti_unireader_pcm_in
+	},
+	{ .compatible = "st,stih407-uni-reader-hdmi",
+	  .data = &sti_unireader_hdmi_in
+	},
+	{},
+};
+
 int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots,
 			       int slot_width)
@@ -167,8 +245,8 @@ static int sti_uniperiph_dai_create_ctrl(struct snd_soc_dai *dai)
 		 * Uniperipheral instance ID
 		 */
 		ctrl = &uni->snd_ctrls[i];
-		ctrl->index = uni->info->id;
-		ctrl->device = uni->info->id;
+		ctrl->index = uni->id;
+		ctrl->device = uni->id;
 	}
 
 	return snd_soc_add_dai_controls(dai, uni->snd_ctrls, uni->num_ctrls);
@@ -186,7 +264,7 @@ int sti_uniperiph_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	int transfer_size;
 
-	if (uni->info->type == SND_ST_UNIPERIF_TYPE_TDM)
+	if (uni->type == SND_ST_UNIPERIF_TYPE_TDM)
 		/* transfer size = user frame size (in 32-bits FIFO cell) */
 		transfer_size = snd_soc_params_to_frame_size(params) / 32;
 	else
@@ -235,7 +313,7 @@ static int sti_uniperiph_dai_resume(struct snd_soc_dai *dai)
 	struct uniperif *uni = priv->dai_data.uni;
 	int ret;
 
-	if (of_device_is_compatible(dai->dev->of_node, "st,sti-uni-player")) {
+	if (priv->dai_data.stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = uni_player_resume(uni);
 		if (ret)
 			return ret;
@@ -256,7 +334,7 @@ static int sti_uniperiph_dai_probe(struct snd_soc_dai *dai)
 	struct sti_uniperiph_dai *dai_data = &priv->dai_data;
 
 	/* DMA settings*/
-	if (of_device_is_compatible(dai->dev->of_node, "st,sti-uni-player"))
+	if (priv->dai_data.stream == SNDRV_PCM_STREAM_PLAYBACK)
 		snd_soc_dai_init_dma_data(dai, &dai_data->dma_data, NULL);
 	else
 		snd_soc_dai_init_dma_data(dai, NULL, &dai_data->dma_data);
@@ -280,25 +358,32 @@ static const struct snd_soc_component_driver sti_uniperiph_dai_component = {
 static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 				    struct sti_uniperiph_data *priv)
 {
-	const char *str;
-	int ret;
 	struct device *dev = &priv->pdev->dev;
 	struct sti_uniperiph_dai *dai_data = &priv->dai_data;
 	struct snd_soc_dai_driver *dai = priv->dai;
 	struct snd_soc_pcm_stream *stream;
 	struct uniperif *uni;
+	const struct of_device_id *of_id;
+	const struct sti_uniperiph_dev_data *dev_data;
+	const char *mode;
+
+	/* Populate data structure depending on compatibility */
+	of_id = of_match_node(snd_soc_sti_match, node);
+	if (!of_id->data) {
+		dev_err(dev, "data associated to device is missing");
+		return -EINVAL;
+	}
+	dev_data = (struct sti_uniperiph_dev_data *)of_id->data;
 
 	uni = devm_kzalloc(dev, sizeof(*uni), GFP_KERNEL);
 	if (!uni)
 		return -ENOMEM;
 
+	uni->id = dev_data->id;
+	uni->ver = dev_data->version;
+
 	*dai = sti_uniperiph_dai_template;
-	ret = of_property_read_string(node, "dai-name", &str);
-	if (ret < 0) {
-		dev_err(dev, "%s: dai name missing.\n", __func__);
-		return -EINVAL;
-	}
-	dai->name = str;
+	dai->name = dev_data->dai_names;
 
 	/* Get resources */
 	uni->mem_region = platform_get_resource(priv->pdev, IORESOURCE_MEM, 0);
@@ -322,9 +407,20 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 		return -ENXIO;
 	}
 
-	dai_data->uni = uni;
+	uni->type = dev_data->type;
 
-	if (of_device_is_compatible(node, "st,sti-uni-player")) {
+	/* check if player should be configured for tdm */
+	if (dev_data->type & SND_ST_UNIPERIF_TYPE_TDM) {
+		if (!of_property_read_string(node, "st,tdm-mode", &mode))
+			uni->type = SND_ST_UNIPERIF_TYPE_TDM;
+		else
+			uni->type = SND_ST_UNIPERIF_TYPE_PCM;
+	}
+
+	dai_data->uni = uni;
+	dai_data->stream = dev_data->stream;
+
+	if (priv->dai_data.stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		uni_player_init(priv->pdev, uni);
 		stream = &dai->playback;
 	} else {
@@ -375,12 +471,6 @@ static int sti_uniperiph_probe(struct platform_device *pdev)
 	return devm_snd_dmaengine_pcm_register(&pdev->dev,
 					       &dmaengine_pcm_config, 0);
 }
-
-static const struct of_device_id snd_soc_sti_match[] = {
-	{ .compatible = "st,sti-uni-player", },
-	{ .compatible = "st,sti-uni-reader", },
-	{},
-};
 
 static struct platform_driver sti_uniperiph_driver = {
 	.driver = {

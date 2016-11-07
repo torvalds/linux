@@ -87,6 +87,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 						       struct cgroup_subsys *ss);
 
 struct cgroup *cgroup_get_from_path(const char *path);
+struct cgroup *cgroup_get_from_fd(int fd);
 
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
@@ -96,7 +97,7 @@ int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
 void cgroup_file_notify(struct cgroup_file *cfile);
 
-char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
+int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry);
 int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 		     struct pid *pid, struct task_struct *tsk);
@@ -496,6 +497,23 @@ static inline bool cgroup_is_descendant(struct cgroup *cgrp,
 	return cgrp->ancestor_ids[ancestor->level] == ancestor->id;
 }
 
+/**
+ * task_under_cgroup_hierarchy - test task's membership of cgroup ancestry
+ * @task: the task to be tested
+ * @ancestor: possible ancestor of @task's cgroup
+ *
+ * Tests whether @task's default cgroup hierarchy is a descendant of @ancestor.
+ * It follows all the same rules as cgroup_is_descendant, and only applies
+ * to the default hierarchy.
+ */
+static inline bool task_under_cgroup_hierarchy(struct task_struct *task,
+					       struct cgroup *ancestor)
+{
+	struct css_set *cset = task_css_set(task);
+
+	return cgroup_is_descendant(cset->dfl_cgrp, ancestor);
+}
+
 /* no synchronization, the result can only be used as a hint */
 static inline bool cgroup_is_populated(struct cgroup *cgrp)
 {
@@ -537,8 +555,7 @@ static inline int cgroup_name(struct cgroup *cgrp, char *buf, size_t buflen)
 	return kernfs_name(cgrp->kn, buf, buflen);
 }
 
-static inline char * __must_check cgroup_path(struct cgroup *cgrp, char *buf,
-					      size_t buflen)
+static inline int cgroup_path(struct cgroup *cgrp, char *buf, size_t buflen)
 {
 	return kernfs_path(cgrp->kn, buf, buflen);
 }
@@ -556,6 +573,7 @@ static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 #else /* !CONFIG_CGROUPS */
 
 struct cgroup_subsys_state;
+struct cgroup;
 
 static inline void css_put(struct cgroup_subsys_state *css) {}
 static inline int cgroup_attach_task_all(struct task_struct *from,
@@ -573,6 +591,11 @@ static inline void cgroup_free(struct task_struct *p) {}
 static inline int cgroup_init_early(void) { return 0; }
 static inline int cgroup_init(void) { return 0; }
 
+static inline bool task_under_cgroup_hierarchy(struct task_struct *task,
+					       struct cgroup *ancestor)
+{
+	return true;
+}
 #endif /* !CONFIG_CGROUPS */
 
 /*
@@ -620,6 +643,7 @@ struct cgroup_namespace {
 	atomic_t		count;
 	struct ns_common	ns;
 	struct user_namespace	*user_ns;
+	struct ucounts		*ucounts;
 	struct css_set          *root_cset;
 };
 
@@ -633,8 +657,8 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 					struct user_namespace *user_ns,
 					struct cgroup_namespace *old_ns);
 
-char *cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
-		     struct cgroup_namespace *ns);
+int cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
+		   struct cgroup_namespace *ns);
 
 #else /* !CONFIG_CGROUPS */
 

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -34,6 +30,25 @@
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
  * lustre/fld/fld_internal.h
+ *
+ * Subsystem Description:
+ * FLD is FID Location Database, which stores where (IE, on which MDT)
+ * FIDs are located.
+ * The database is basically a record file, each record consists of a FID
+ * sequence range, MDT/OST index, and flags. The FLD for the whole FS
+ * is only stored on the sequence controller(MDT0) right now, but each target
+ * also has its local FLD, which only stores the local sequence.
+ *
+ * The FLD subsystem usually has two tasks:
+ * 1. maintain the database, i.e. when the sequence controller allocates
+ * new sequence ranges to some nodes, it will call the FLD API to insert the
+ * location information <sequence_range, node_index> in FLDB.
+ *
+ * 2. Handle requests from other nodes, i.e. if client needs to know where
+ * the FID is located, if it can not find the information in the local cache,
+ * it will send a FLD lookup RPC to the FLD service, and the FLD service will
+ * look up the FLDB entry and return the location information to client.
+ *
  *
  * Author: Yury Umanets <umka@clusterfs.com>
  * Author: Tom WangDi <wangdi@clusterfs.com>

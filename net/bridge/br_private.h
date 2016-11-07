@@ -75,6 +75,12 @@ struct bridge_mcast_querier {
 	struct br_ip addr;
 	struct net_bridge_port __rcu	*port;
 };
+
+/* IGMP/MLD statistics */
+struct bridge_mcast_stats {
+	struct br_mcast_stats mstats;
+	struct u64_stats_sync syncp;
+};
 #endif
 
 struct br_vlan_stats {
@@ -229,6 +235,7 @@ struct net_bridge_port
 	struct bridge_mcast_own_query	ip6_own_query;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 	unsigned char			multicast_router;
+	struct bridge_mcast_stats	__percpu *mcast_stats;
 	struct timer_list		multicast_router_timer;
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
@@ -243,6 +250,9 @@ struct net_bridge_port
 #endif
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
+#endif
+#ifdef CONFIG_NET_SWITCHDEV
+	int				offload_fwd_mark;
 #endif
 };
 
@@ -315,6 +325,7 @@ struct net_bridge
 	u8				multicast_querier:1;
 	u8				multicast_query_use_ifaddr:1;
 	u8				has_ipv6_addr:1;
+	u8				multicast_stats_enabled:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
@@ -337,6 +348,7 @@ struct net_bridge
 	struct bridge_mcast_other_query	ip4_other_query;
 	struct bridge_mcast_own_query	ip4_own_query;
 	struct bridge_mcast_querier	ip4_querier;
+	struct bridge_mcast_stats	__percpu *mcast_stats;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
@@ -350,6 +362,11 @@ struct net_bridge
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
 	u32				auto_cnt;
+
+#ifdef CONFIG_NET_SWITCHDEV
+	int offload_fwd_mark;
+#endif
+
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 	u8				vlan_enabled;
@@ -371,6 +388,10 @@ struct br_input_skb_cb {
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
+#endif
+
+#ifdef CONFIG_NET_SWITCHDEV
+	int offload_fwd_mark;
 #endif
 };
 
@@ -487,7 +508,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[], struct net_device *dev,
 	       const unsigned char *addr, u16 vid, u16 nlh_flags);
 int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
-		struct net_device *dev, struct net_device *fdev, int idx);
+		struct net_device *dev, struct net_device *fdev, int *idx);
 int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
 void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
 int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
@@ -496,14 +517,17 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
 
 /* br_forward.c */
-void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb);
+enum br_pkt_type {
+	BR_PKT_UNICAST,
+	BR_PKT_MULTICAST,
+	BR_PKT_BROADCAST
+};
 int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb);
-void br_forward(const struct net_bridge_port *to,
-		struct sk_buff *skb, struct sk_buff *skb0);
+void br_forward(const struct net_bridge_port *to, struct sk_buff *skb,
+		bool local_rcv, bool local_orig);
 int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
-void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb, bool unicast);
-void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
-		      struct sk_buff *skb2, bool unicast);
+void br_flood(struct net_bridge *br, struct sk_buff *skb,
+	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig);
 
 /* br_if.c */
 void br_port_carrier_check(struct net_bridge_port *p);
@@ -543,7 +567,7 @@ int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 		     struct sk_buff *skb, u16 vid);
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 					struct sk_buff *skb, u16 vid);
-void br_multicast_add_port(struct net_bridge_port *port);
+int br_multicast_add_port(struct net_bridge_port *port);
 void br_multicast_del_port(struct net_bridge_port *port);
 void br_multicast_enable_port(struct net_bridge_port *port);
 void br_multicast_disable_port(struct net_bridge_port *port);
@@ -551,10 +575,8 @@ void br_multicast_init(struct net_bridge *br);
 void br_multicast_open(struct net_bridge *br);
 void br_multicast_stop(struct net_bridge *br);
 void br_multicast_dev_del(struct net_bridge *br);
-void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
-			  struct sk_buff *skb);
-void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
-			  struct sk_buff *skb, struct sk_buff *skb2);
+void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
+			struct sk_buff *skb, bool local_rcv, bool local_orig);
 int br_multicast_set_router(struct net_bridge *br, unsigned long val);
 int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val);
 int br_multicast_toggle(struct net_bridge *br, unsigned long val);
@@ -576,6 +598,12 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 		   struct br_ip *group, int type, u8 flags);
 void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
 		   int type);
+void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
+			const struct sk_buff *skb, u8 type, u8 dir);
+int br_multicast_init_stats(struct net_bridge *br);
+void br_multicast_get_stats(const struct net_bridge *br,
+			    const struct net_bridge_port *p,
+			    struct br_mcast_stats *dest);
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
@@ -623,6 +651,11 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 		return false;
 	}
 }
+
+static inline int br_multicast_igmp_type(const struct sk_buff *skb)
+{
+	return BR_INPUT_SKB_CB(skb)->igmp;
+}
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
 				   struct net_bridge_port *port,
@@ -638,8 +671,9 @@ static inline struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	return NULL;
 }
 
-static inline void br_multicast_add_port(struct net_bridge_port *port)
+static inline int br_multicast_add_port(struct net_bridge_port *port)
 {
+	return 0;
 }
 
 static inline void br_multicast_del_port(struct net_bridge_port *port)
@@ -670,30 +704,46 @@ static inline void br_multicast_dev_del(struct net_bridge *br)
 {
 }
 
-static inline void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
-					struct sk_buff *skb)
+static inline void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
+				      struct sk_buff *skb,
+				      bool local_rcv, bool local_orig)
 {
 }
 
-static inline void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
-					struct sk_buff *skb,
-					struct sk_buff *skb2)
-{
-}
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
 	return 0;
 }
+
 static inline bool br_multicast_querier_exists(struct net_bridge *br,
 					       struct ethhdr *eth)
 {
 	return false;
 }
+
 static inline void br_mdb_init(void)
 {
 }
+
 static inline void br_mdb_uninit(void)
 {
+}
+
+static inline void br_multicast_count(struct net_bridge *br,
+				      const struct net_bridge_port *p,
+				      const struct sk_buff *skb,
+				      u8 type, u8 dir)
+{
+}
+
+static inline int br_multicast_init_stats(struct net_bridge *br)
+{
+	return 0;
+}
+
+static inline int br_multicast_igmp_type(const struct sk_buff *skb)
+{
+	return 0;
 }
 #endif
 
@@ -942,7 +992,7 @@ void __br_set_forward_delay(struct net_bridge *br, unsigned long t);
 int br_set_forward_delay(struct net_bridge *br, unsigned long x);
 int br_set_hello_time(struct net_bridge *br, unsigned long x);
 int br_set_max_age(struct net_bridge *br, unsigned long x);
-int br_set_ageing_time(struct net_bridge *br, u32 ageing_time);
+int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time);
 
 
 /* br_stp_if.c */
@@ -1000,5 +1050,30 @@ static inline int br_sysfs_renameif(struct net_bridge_port *p) { return 0; }
 static inline int br_sysfs_addbr(struct net_device *dev) { return 0; }
 static inline void br_sysfs_delbr(struct net_device *dev) { return; }
 #endif /* CONFIG_SYSFS */
+
+/* br_switchdev.c */
+#ifdef CONFIG_NET_SWITCHDEV
+int nbp_switchdev_mark_set(struct net_bridge_port *p);
+void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
+			      struct sk_buff *skb);
+bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
+				  const struct sk_buff *skb);
+#else
+static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
+{
+	return 0;
+}
+
+static inline void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
+					    struct sk_buff *skb)
+{
+}
+
+static inline bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
+						const struct sk_buff *skb)
+{
+	return true;
+}
+#endif /* CONFIG_NET_SWITCHDEV */
 
 #endif

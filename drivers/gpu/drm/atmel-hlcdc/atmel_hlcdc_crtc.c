@@ -374,8 +374,8 @@ static void atmel_hlcdc_crtc_finish_page_flip(struct atmel_hlcdc_crtc *crtc)
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (crtc->event) {
-		drm_send_vblank_event(dev, crtc->id, crtc->event);
-		drm_vblank_put(dev, crtc->id);
+		drm_crtc_send_vblank_event(&crtc->base, crtc->event);
+		drm_crtc_vblank_put(&crtc->base);
 		crtc->event = NULL;
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -383,11 +383,11 @@ static void atmel_hlcdc_crtc_finish_page_flip(struct atmel_hlcdc_crtc *crtc)
 
 void atmel_hlcdc_crtc_irq(struct drm_crtc *c)
 {
-	drm_handle_vblank(c->dev, 0);
+	drm_crtc_handle_vblank(c);
 	atmel_hlcdc_crtc_finish_page_flip(drm_crtc_to_atmel_hlcdc_crtc(c));
 }
 
-void atmel_hlcdc_crtc_reset(struct drm_crtc *crtc)
+static void atmel_hlcdc_crtc_reset(struct drm_crtc *crtc)
 {
 	struct atmel_hlcdc_crtc_state *state;
 

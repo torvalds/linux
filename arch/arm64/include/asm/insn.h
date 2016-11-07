@@ -120,6 +120,29 @@ enum aarch64_insn_register {
 	AARCH64_INSN_REG_SP = 31  /* Stack pointer: as load/store base reg */
 };
 
+enum aarch64_insn_special_register {
+	AARCH64_INSN_SPCLREG_SPSR_EL1	= 0xC200,
+	AARCH64_INSN_SPCLREG_ELR_EL1	= 0xC201,
+	AARCH64_INSN_SPCLREG_SP_EL0	= 0xC208,
+	AARCH64_INSN_SPCLREG_SPSEL	= 0xC210,
+	AARCH64_INSN_SPCLREG_CURRENTEL	= 0xC212,
+	AARCH64_INSN_SPCLREG_DAIF	= 0xDA11,
+	AARCH64_INSN_SPCLREG_NZCV	= 0xDA10,
+	AARCH64_INSN_SPCLREG_FPCR	= 0xDA20,
+	AARCH64_INSN_SPCLREG_DSPSR_EL0	= 0xDA28,
+	AARCH64_INSN_SPCLREG_DLR_EL0	= 0xDA29,
+	AARCH64_INSN_SPCLREG_SPSR_EL2	= 0xE200,
+	AARCH64_INSN_SPCLREG_ELR_EL2	= 0xE201,
+	AARCH64_INSN_SPCLREG_SP_EL1	= 0xE208,
+	AARCH64_INSN_SPCLREG_SPSR_INQ	= 0xE218,
+	AARCH64_INSN_SPCLREG_SPSR_ABT	= 0xE219,
+	AARCH64_INSN_SPCLREG_SPSR_UND	= 0xE21A,
+	AARCH64_INSN_SPCLREG_SPSR_FIQ	= 0xE21B,
+	AARCH64_INSN_SPCLREG_SPSR_EL3	= 0xF200,
+	AARCH64_INSN_SPCLREG_ELR_EL3	= 0xF201,
+	AARCH64_INSN_SPCLREG_SP_EL2	= 0xF210
+};
+
 enum aarch64_insn_variant {
 	AARCH64_INSN_VARIANT_32BIT,
 	AARCH64_INSN_VARIANT_64BIT
@@ -223,8 +246,16 @@ static __always_inline bool aarch64_insn_is_##abbr(u32 code) \
 static __always_inline u32 aarch64_insn_get_##abbr##_value(void) \
 { return (val); }
 
+__AARCH64_INSN_FUNCS(adr,	0x9F000000, 0x10000000)
+__AARCH64_INSN_FUNCS(adrp,	0x9F000000, 0x90000000)
+__AARCH64_INSN_FUNCS(prfm_lit,	0xFF000000, 0xD8000000)
 __AARCH64_INSN_FUNCS(str_reg,	0x3FE0EC00, 0x38206800)
 __AARCH64_INSN_FUNCS(ldr_reg,	0x3FE0EC00, 0x38606800)
+__AARCH64_INSN_FUNCS(ldr_lit,	0xBF000000, 0x18000000)
+__AARCH64_INSN_FUNCS(ldrsw_lit,	0xFF000000, 0x98000000)
+__AARCH64_INSN_FUNCS(exclusive,	0x3F800000, 0x08000000)
+__AARCH64_INSN_FUNCS(load_ex,	0x3F400000, 0x08400000)
+__AARCH64_INSN_FUNCS(store_ex,	0x3F400000, 0x08000000)
 __AARCH64_INSN_FUNCS(stp_post,	0x7FC00000, 0x28800000)
 __AARCH64_INSN_FUNCS(ldp_post,	0x7FC00000, 0x28C00000)
 __AARCH64_INSN_FUNCS(stp_pre,	0x7FC00000, 0x29800000)
@@ -273,19 +304,31 @@ __AARCH64_INSN_FUNCS(svc,	0xFFE0001F, 0xD4000001)
 __AARCH64_INSN_FUNCS(hvc,	0xFFE0001F, 0xD4000002)
 __AARCH64_INSN_FUNCS(smc,	0xFFE0001F, 0xD4000003)
 __AARCH64_INSN_FUNCS(brk,	0xFFE0001F, 0xD4200000)
+__AARCH64_INSN_FUNCS(exception,	0xFF000000, 0xD4000000)
 __AARCH64_INSN_FUNCS(hint,	0xFFFFF01F, 0xD503201F)
 __AARCH64_INSN_FUNCS(br,	0xFFFFFC1F, 0xD61F0000)
 __AARCH64_INSN_FUNCS(blr,	0xFFFFFC1F, 0xD63F0000)
 __AARCH64_INSN_FUNCS(ret,	0xFFFFFC1F, 0xD65F0000)
+__AARCH64_INSN_FUNCS(eret,	0xFFFFFFFF, 0xD69F03E0)
+__AARCH64_INSN_FUNCS(mrs,	0xFFF00000, 0xD5300000)
+__AARCH64_INSN_FUNCS(msr_imm,	0xFFF8F01F, 0xD500401F)
+__AARCH64_INSN_FUNCS(msr_reg,	0xFFF00000, 0xD5100000)
 
 #undef	__AARCH64_INSN_FUNCS
 
 bool aarch64_insn_is_nop(u32 insn);
 bool aarch64_insn_is_branch_imm(u32 insn);
 
+static inline bool aarch64_insn_is_adr_adrp(u32 insn)
+{
+	return aarch64_insn_is_adr(insn) || aarch64_insn_is_adrp(insn);
+}
+
 int aarch64_insn_read(void *addr, u32 *insnp);
 int aarch64_insn_write(void *addr, u32 insn);
 enum aarch64_insn_encoding_class aarch64_get_insn_class(u32 insn);
+bool aarch64_insn_uses_literal(u32 insn);
+bool aarch64_insn_is_branch(u32 insn);
 u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn);
 u32 aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 				  u32 insn, u64 imm);
@@ -361,15 +404,22 @@ int aarch64_insn_patch_text_nosync(void *addr, u32 insn);
 int aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt);
 int aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt);
 
+s32 aarch64_insn_adrp_get_offset(u32 insn);
+u32 aarch64_insn_adrp_set_offset(u32 insn, s32 offset);
+
 bool aarch32_insn_is_wide(u32 insn);
 
 #define A32_RN_OFFSET	16
 #define A32_RT_OFFSET	12
 #define A32_RT2_OFFSET	 0
 
+u32 aarch64_insn_extract_system_reg(u32 insn);
 u32 aarch32_insn_extract_reg_num(u32 insn, int offset);
 u32 aarch32_insn_mcr_extract_opc2(u32 insn);
 u32 aarch32_insn_mcr_extract_crm(u32 insn);
+
+typedef bool (pstate_check_t)(unsigned long);
+extern pstate_check_t * const aarch32_opcode_cond_checks[16];
 #endif /* __ASSEMBLY__ */
 
 #endif	/* __ASM_INSN_H */

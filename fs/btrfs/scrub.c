@@ -575,23 +575,25 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
-		btrfs_warn_in_rcu(fs_info, "%s at logical %llu on dev "
-			"%s, sector %llu, root %llu, inode %llu, offset %llu, "
-			"length %llu, links %u (path: %s)", swarn->errstr,
-			swarn->logical, rcu_str_deref(swarn->dev->name),
-			(unsigned long long)swarn->sector, root, inum, offset,
-			min(isize - offset, (u64)PAGE_SIZE), nlink,
-			(char *)(unsigned long)ipath->fspath->val[i]);
+		btrfs_warn_in_rcu(fs_info,
+				  "%s at logical %llu on dev %s, sector %llu, root %llu, inode %llu, offset %llu, length %llu, links %u (path: %s)",
+				  swarn->errstr, swarn->logical,
+				  rcu_str_deref(swarn->dev->name),
+				  (unsigned long long)swarn->sector,
+				  root, inum, offset,
+				  min(isize - offset, (u64)PAGE_SIZE), nlink,
+				  (char *)(unsigned long)ipath->fspath->val[i]);
 
 	free_ipath(ipath);
 	return 0;
 
 err:
-	btrfs_warn_in_rcu(fs_info, "%s at logical %llu on dev "
-		"%s, sector %llu, root %llu, inode %llu, offset %llu: path "
-		"resolving failed with ret=%d", swarn->errstr,
-		swarn->logical, rcu_str_deref(swarn->dev->name),
-		(unsigned long long)swarn->sector, root, inum, offset, ret);
+	btrfs_warn_in_rcu(fs_info,
+			  "%s at logical %llu on dev %s, sector %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
+			  swarn->errstr, swarn->logical,
+			  rcu_str_deref(swarn->dev->name),
+			  (unsigned long long)swarn->sector,
+			  root, inum, offset, ret);
 
 	free_ipath(ipath);
 	return 0;
@@ -645,9 +647,8 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 						      item_size, &ref_root,
 						      &ref_level);
 			btrfs_warn_in_rcu(fs_info,
-				"%s at logical %llu on dev %s, "
-				"sector %llu: metadata %s (level %d) in tree "
-				"%llu", errstr, swarn.logical,
+				"%s at logical %llu on dev %s, sector %llu: metadata %s (level %d) in tree %llu",
+				errstr, swarn.logical,
 				rcu_str_deref(dev->name),
 				(unsigned long long)swarn.sector,
 				ref_level ? "node" : "leaf",
@@ -1504,8 +1505,9 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 				sblock->no_io_error_seen = 0;
 		} else {
 			bio->bi_iter.bi_sector = page->physical >> 9;
+			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
-			if (btrfsic_submit_bio_wait(READ, bio))
+			if (btrfsic_submit_bio_wait(bio))
 				sblock->no_io_error_seen = 0;
 		}
 
@@ -1573,8 +1575,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 
 		if (!page_bad->dev->bdev) {
 			btrfs_warn_rl(sblock_bad->sctx->dev_root->fs_info,
-				"scrub_repair_page_from_good_copy(bdev == NULL) "
-				"is unexpected");
+				"scrub_repair_page_from_good_copy(bdev == NULL) is unexpected");
 			return -EIO;
 		}
 
@@ -1583,6 +1584,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		bio->bi_bdev = page_bad->dev->bdev;
 		bio->bi_iter.bi_sector = page_bad->physical >> 9;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		ret = bio_add_page(bio, page_good->page, PAGE_SIZE, 0);
 		if (PAGE_SIZE != ret) {
@@ -1590,7 +1592,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		}
 
-		if (btrfsic_submit_bio_wait(WRITE, bio)) {
+		if (btrfsic_submit_bio_wait(bio)) {
 			btrfs_dev_stat_inc_and_print(page_bad->dev,
 				BTRFS_DEV_STAT_WRITE_ERRS);
 			btrfs_dev_replace_stats_inc(
@@ -1684,6 +1686,7 @@ again:
 		bio->bi_end_io = scrub_wr_bio_end_io;
 		bio->bi_bdev = sbio->dev->bdev;
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		sbio->err = 0;
 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
 		   spage->physical_for_dev_replace ||
@@ -1731,7 +1734,7 @@ static void scrub_wr_submit(struct scrub_ctx *sctx)
 	 * orders the requests before sending them to the driver which
 	 * doubled the write performance on spinning disks when measured
 	 * with Linux 3.5 */
-	btrfsic_submit_bio(WRITE, sbio->bio);
+	btrfsic_submit_bio(sbio->bio);
 }
 
 static void scrub_wr_bio_end_io(struct bio *bio)
@@ -2041,7 +2044,7 @@ static void scrub_submit(struct scrub_ctx *sctx)
 	sbio = sctx->bios[sctx->curr];
 	sctx->curr = -1;
 	scrub_pending_bio_inc(sctx);
-	btrfsic_submit_bio(READ, sbio->bio);
+	btrfsic_submit_bio(sbio->bio);
 }
 
 static int scrub_add_page_to_rd_bio(struct scrub_ctx *sctx,
@@ -2088,6 +2091,7 @@ again:
 		bio->bi_end_io = scrub_bio_end_io;
 		bio->bi_bdev = sbio->dev->bdev;
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		sbio->err = 0;
 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
 		   spage->physical ||
@@ -2957,7 +2961,8 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 			    (key.objectid < logic_start ||
 			     key.objectid + bytes >
 			     logic_start + map->stripe_len)) {
-				btrfs_err(fs_info, "scrub: tree block %llu spanning stripes, ignored. logical=%llu",
+				btrfs_err(fs_info,
+					  "scrub: tree block %llu spanning stripes, ignored. logical=%llu",
 					  key.objectid, logic_start);
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.uncorrectable_errors++;
@@ -3308,8 +3313,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			     key.objectid + bytes >
 			     logical + map->stripe_len)) {
 				btrfs_err(fs_info,
-					   "scrub: tree block %llu spanning "
-					   "stripes, ignored. logical=%llu",
+					   "scrub: tree block %llu spanning stripes, ignored. logical=%llu",
 				       key.objectid, logical);
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.uncorrectable_errors++;
@@ -3636,7 +3640,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			 */
 			ro_set = 0;
 		} else {
-			btrfs_warn(fs_info, "failed setting block group ro, ret=%d\n",
+			btrfs_warn(fs_info,
+				   "failed setting block group ro, ret=%d\n",
 				   ret);
 			btrfs_put_block_group(cache);
 			break;
@@ -3781,27 +3786,27 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (fs_info->scrub_workers_refcnt == 0) {
 		if (is_dev_replace)
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("scrub", flags,
+				btrfs_alloc_workqueue(fs_info, "scrub", flags,
 						      1, 4);
 		else
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("scrub", flags,
+				btrfs_alloc_workqueue(fs_info, "scrub", flags,
 						      max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
 		fs_info->scrub_wr_completion_workers =
-			btrfs_alloc_workqueue("scrubwrc", flags,
+			btrfs_alloc_workqueue(fs_info, "scrubwrc", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_wr_completion_workers)
 			goto fail_scrub_wr_completion_workers;
 
 		fs_info->scrub_nocow_workers =
-			btrfs_alloc_workqueue("scrubnc", flags, 1, 0);
+			btrfs_alloc_workqueue(fs_info, "scrubnc", flags, 1, 0);
 		if (!fs_info->scrub_nocow_workers)
 			goto fail_scrub_nocow_workers;
 		fs_info->scrub_parity_workers =
-			btrfs_alloc_workqueue("scrubparity", flags,
+			btrfs_alloc_workqueue(fs_info, "scrubparity", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_parity_workers)
 			goto fail_scrub_parity_workers;
@@ -3856,9 +3861,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	if (fs_info->chunk_root->sectorsize != PAGE_SIZE) {
 		/* not supported for data w/o checksums */
-		btrfs_err(fs_info,
-			   "scrub: size assumption sectorsize != PAGE_SIZE "
-			   "(%d != %lu) fails",
+		btrfs_err_rl(fs_info,
+			   "scrub: size assumption sectorsize != PAGE_SIZE (%d != %lu) fails",
 		       fs_info->chunk_root->sectorsize, PAGE_SIZE);
 		return -EINVAL;
 	}
@@ -3871,8 +3875,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		 * would exhaust the array bounds of pagev member in
 		 * struct scrub_block
 		 */
-		btrfs_err(fs_info, "scrub: size assumption nodesize and sectorsize "
-			   "<= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails",
+		btrfs_err(fs_info,
+			  "scrub: size assumption nodesize and sectorsize <= SCRUB_MAX_PAGES_PER_BLOCK (%d <= %d && %d <= %d) fails",
 		       fs_info->chunk_root->nodesize,
 		       SCRUB_MAX_PAGES_PER_BLOCK,
 		       fs_info->chunk_root->sectorsize,
@@ -4198,10 +4202,10 @@ static void copy_nocow_pages_worker(struct btrfs_work *work)
 	ret = iterate_inodes_from_logical(logical, fs_info, path,
 					  record_inode_for_nocow, nocow_ctx);
 	if (ret != 0 && ret != -ENOENT) {
-		btrfs_warn(fs_info, "iterate_inodes_from_logical() failed: log %llu, "
-			"phys %llu, len %llu, mir %u, ret %d",
-			logical, physical_for_dev_replace, len, mirror_num,
-			ret);
+		btrfs_warn(fs_info,
+			   "iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %u, ret %d",
+			   logical, physical_for_dev_replace, len, mirror_num,
+			   ret);
 		not_written = 1;
 		goto out;
 	}
@@ -4436,6 +4440,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
 	bio->bi_bdev = dev->bdev;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_SYNC);
 	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
 	if (ret != PAGE_SIZE) {
 leave_with_eio:
@@ -4444,7 +4449,7 @@ leave_with_eio:
 		return -EIO;
 	}
 
-	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio))
+	if (btrfsic_submit_bio_wait(bio))
 		goto leave_with_eio;
 
 	bio_put(bio);

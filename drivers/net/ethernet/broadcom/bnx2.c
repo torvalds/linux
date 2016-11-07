@@ -50,7 +50,7 @@
 #include <linux/log2.h>
 #include <linux/aer.h>
 
-#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
+#if IS_ENABLED(CONFIG_CNIC)
 #define BCM_CNIC 1
 #include "cnic_if.h"
 #endif
@@ -6356,10 +6356,6 @@ bnx2_open(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
-	rc = bnx2_request_firmware(bp);
-	if (rc < 0)
-		goto out;
-
 	netif_carrier_off(dev);
 
 	bnx2_disable_int(bp);
@@ -6428,7 +6424,6 @@ open_err:
 	bnx2_free_irq(bp);
 	bnx2_free_mem(bp);
 	bnx2_del_napi(bp);
-	bnx2_release_firmware(bp);
 	goto out;
 }
 
@@ -8575,6 +8570,12 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
+	rc = bnx2_request_firmware(bp);
+	if (rc < 0)
+		goto error;
+
+
+	bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
 	memcpy(dev->dev_addr, bp->mac_addr, ETH_ALEN);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
@@ -8607,6 +8608,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 error:
+	bnx2_release_firmware(bp);
 	pci_iounmap(pdev, bp->regview);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

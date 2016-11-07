@@ -776,7 +776,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
-	/* No need for kvm_guest_exit. It's done in handle_exit.
+	/* No need for guest_exit. It's done in handle_exit.
 	   We also get here with interrupts enabled. */
 
 	/* Switch back to user space debug context */
@@ -1012,7 +1012,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	trace_kvm_exit(exit_nr, vcpu);
-	__kvm_guest_exit();
+	guest_exit_irqoff();
 
 	local_irq_enable();
 
@@ -2038,7 +2038,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		if (type == KVMPPC_DEBUG_NONE)
 			continue;
 
-		if (type & !(KVMPPC_DEBUG_WATCH_READ |
+		if (type & ~(KVMPPC_DEBUG_WATCH_READ |
 			     KVMPPC_DEBUG_WATCH_WRITE |
 			     KVMPPC_DEBUG_BREAKPOINT))
 			return -EINVAL;

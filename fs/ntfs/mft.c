@@ -592,7 +592,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 			clear_buffer_dirty(tbh);
 			get_bh(tbh);
 			tbh->b_end_io = end_buffer_write_sync;
-			submit_bh(WRITE, tbh);
+			submit_bh(REQ_OP_WRITE, 0, tbh);
 		}
 		/* Wait on i/o completion of buffers. */
 		for (i_bhs = 0; i_bhs < nr_bhs; i_bhs++) {
@@ -785,7 +785,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 		clear_buffer_dirty(tbh);
 		get_bh(tbh);
 		tbh->b_end_io = end_buffer_write_sync;
-		submit_bh(WRITE, tbh);
+		submit_bh(REQ_OP_WRITE, 0, tbh);
 	}
 	/* Synchronize the mft mirror now if not @sync. */
 	if (!sync && ni->mft_no < vol->mftmirr_size)
@@ -2692,7 +2692,7 @@ mft_rec_already_initialized:
 
 		/* Set the inode times to the current time. */
 		vi->i_atime = vi->i_mtime = vi->i_ctime =
-			current_fs_time(vi->i_sb);
+			current_time(vi);
 		/*
 		 * Set the file size to 0, the ntfs inode sizes are set to 0 by
 		 * the call to ntfs_init_big_inode() below.

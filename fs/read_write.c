@@ -730,6 +730,35 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
 /* A write operation does a read from user space and vice versa */
 #define vrfy_dir(type) ((type) == READ ? VERIFY_WRITE : VERIFY_READ)
 
+/**
+ * rw_copy_check_uvector() - Copy an array of &struct iovec from userspace
+ *     into the kernel and check that it is valid.
+ *
+ * @type: One of %CHECK_IOVEC_ONLY, %READ, or %WRITE.
+ * @uvector: Pointer to the userspace array.
+ * @nr_segs: Number of elements in userspace array.
+ * @fast_segs: Number of elements in @fast_pointer.
+ * @fast_pointer: Pointer to (usually small on-stack) kernel array.
+ * @ret_pointer: (output parameter) Pointer to a variable that will point to
+ *     either @fast_pointer, a newly allocated kernel array, or NULL,
+ *     depending on which array was used.
+ *
+ * This function copies an array of &struct iovec of @nr_segs from
+ * userspace into the kernel and checks that each element is valid (e.g.
+ * it does not point to a kernel address or cause overflow by being too
+ * large, etc.).
+ *
+ * As an optimization, the caller may provide a pointer to a small
+ * on-stack array in @fast_pointer, typically %UIO_FASTIOV elements long
+ * (the size of this array, or 0 if unused, should be given in @fast_segs).
+ *
+ * @ret_pointer will always point to the array that was used, so the
+ * caller must take care not to call kfree() on it e.g. in case the
+ * @fast_pointer array was used and it was allocated on the stack.
+ *
+ * Return: The total number of bytes covered by the iovec array on success
+ *   or a negative error code on error.
+ */
 ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
 			      unsigned long nr_segs, unsigned long fast_segs,
 			      struct iovec *fast_pointer,
@@ -1168,6 +1197,15 @@ COMPAT_SYSCALL_DEFINE5(preadv, compat_ulong_t, fd,
 	return do_compat_preadv64(fd, vec, vlen, pos, 0);
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64V2
+COMPAT_SYSCALL_DEFINE5(preadv64v2, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos, int, flags)
+{
+	return do_compat_preadv64(fd, vec, vlen, pos, flags);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE6(preadv2, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high,
@@ -1264,6 +1302,15 @@ COMPAT_SYSCALL_DEFINE5(pwritev, compat_ulong_t, fd,
 
 	return do_compat_pwritev64(fd, vec, vlen, pos, 0);
 }
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64V2
+COMPAT_SYSCALL_DEFINE5(pwritev64v2, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos, int, flags)
+{
+	return do_compat_pwritev64(fd, vec, vlen, pos, flags);
+}
+#endif
 
 COMPAT_SYSCALL_DEFINE6(pwritev2, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,

@@ -5,17 +5,77 @@
  * (GPL) Version 2, available from the file COPYING in the main directory of
  * this source tree.
  */
+#ifndef _COMMON_HSI_H
+#define _COMMON_HSI_H
+#include <linux/types.h>
+#include <asm/byteorder.h>
+#include <linux/bitops.h>
+#include <linux/slab.h>
+
+/* dma_addr_t manip */
+#define DMA_LO_LE(x)		cpu_to_le32(lower_32_bits(x))
+#define DMA_HI_LE(x)		cpu_to_le32(upper_32_bits(x))
+#define DMA_REGPAIR_LE(x, val)	do { \
+					(x).hi = DMA_HI_LE((val)); \
+					(x).lo = DMA_LO_LE((val)); \
+				} while (0)
+
+#define HILO_GEN(hi, lo, type)  ((((type)(hi)) << 32) + (lo))
+#define HILO_64(hi, lo) HILO_GEN((le32_to_cpu(hi)), (le32_to_cpu(lo)), u64)
+#define HILO_64_REGPAIR(regpair)        (HILO_64(regpair.hi, regpair.lo))
+#define HILO_DMA_REGPAIR(regpair)	((dma_addr_t)HILO_64_REGPAIR(regpair))
 
 #ifndef __COMMON_HSI__
 #define __COMMON_HSI__
 
-#define CORE_SPQE_PAGE_SIZE_BYTES                       4096
 
 #define X_FINAL_CLEANUP_AGG_INT 1
 
+#define EVENT_RING_PAGE_SIZE_BYTES          4096
+
+#define NUM_OF_GLOBAL_QUEUES                            128
+#define COMMON_QUEUE_ENTRY_MAX_BYTE_SIZE        64
+
+#define ISCSI_CDU_TASK_SEG_TYPE       0
+#define RDMA_CDU_TASK_SEG_TYPE        1
+
+#define FW_ASSERT_GENERAL_ATTN_IDX    32
+
+#define MAX_PINNED_CCFC                 32
+
+/* Queue Zone sizes in bytes */
+#define TSTORM_QZONE_SIZE 8
+#define MSTORM_QZONE_SIZE 16
+#define USTORM_QZONE_SIZE 8
+#define XSTORM_QZONE_SIZE 8
+#define YSTORM_QZONE_SIZE 0
+#define PSTORM_QZONE_SIZE 0
+
+#define MSTORM_VF_ZONE_DEFAULT_SIZE_LOG	7
+#define ETH_MAX_NUM_RX_QUEUES_PER_VF_DEFAULT	16
+#define ETH_MAX_NUM_RX_QUEUES_PER_VF_DOUBLE	48
+#define ETH_MAX_NUM_RX_QUEUES_PER_VF_QUAD	112
+
+/********************************/
+/* CORE (LIGHT L2) FW CONSTANTS */
+/********************************/
+
+#define CORE_LL2_MAX_RAMROD_PER_CON	8
+#define CORE_LL2_TX_BD_PAGE_SIZE_BYTES	4096
+#define CORE_LL2_RX_BD_PAGE_SIZE_BYTES	4096
+#define CORE_LL2_RX_CQE_PAGE_SIZE_BYTES	4096
+#define CORE_LL2_RX_NUM_NEXT_PAGE_BDS	1
+
+#define CORE_LL2_TX_MAX_BDS_PER_PACKET	12
+
+#define CORE_SPQE_PAGE_SIZE_BYTES	4096
+
+#define MAX_NUM_LL2_RX_QUEUES		32
+#define MAX_NUM_LL2_TX_STATS_COUNTERS	32
+
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	7
-#define FW_REVISION_VERSION	3
+#define FW_MINOR_VERSION	10
+#define FW_REVISION_VERSION	10
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -72,6 +132,20 @@
 #define NUM_OF_LCIDS		(320)
 #define NUM_OF_LTIDS		(320)
 
+/* Clock values */
+#define MASTER_CLK_FREQ_E4	(375e6)
+#define STORM_CLK_FREQ_E4	(1000e6)
+#define CLK25M_CLK_FREQ_E4	(25e6)
+
+/* Global PXP windows (GTT) */
+#define NUM_OF_GTT		19
+#define GTT_DWORD_SIZE_BITS	10
+#define GTT_BYTE_SIZE_BITS	(GTT_DWORD_SIZE_BITS + 2)
+#define GTT_DWORD_SIZE		BIT(GTT_DWORD_SIZE_BITS)
+
+/* Tools Version */
+#define TOOLS_VERSION 10
+
 /*****************/
 /* CDU CONSTANTS */
 /*****************/
@@ -79,6 +153,8 @@
 #define CDU_SEG_TYPE_OFFSET_REG_TYPE_SHIFT              (17)
 #define CDU_SEG_TYPE_OFFSET_REG_OFFSET_MASK             (0x1ffff)
 
+#define CDU_VF_FL_SEG_TYPE_OFFSET_REG_TYPE_SHIFT	(12)
+#define CDU_VF_FL_SEG_TYPE_OFFSET_REG_OFFSET_MASK	(0xfff)
 /*****************/
 /* DQ CONSTANTS  */
 /*****************/
@@ -97,45 +173,130 @@
 #define DQ_XCM_AGG_VAL_SEL_REG6   7
 
 /* XCM agg val selection */
-#define DQ_XCM_ETH_EDPM_NUM_BDS_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD2
-#define DQ_XCM_ETH_TX_BD_CONS_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD3
-#define DQ_XCM_CORE_TX_BD_CONS_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD3
-#define DQ_XCM_ETH_TX_BD_PROD_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD4
-#define DQ_XCM_CORE_TX_BD_PROD_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD4
-#define DQ_XCM_CORE_SPQ_PROD_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD4
-#define DQ_XCM_ETH_GO_TO_BD_CONS_CMD            DQ_XCM_AGG_VAL_SEL_WORD5
+#define	DQ_XCM_CORE_TX_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
+#define	DQ_XCM_CORE_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define	DQ_XCM_CORE_SPQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define	DQ_XCM_ETH_EDPM_NUM_BDS_CMD	DQ_XCM_AGG_VAL_SEL_WORD2
+#define	DQ_XCM_ETH_TX_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
+#define	DQ_XCM_ETH_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define	DQ_XCM_ETH_GO_TO_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD5
+#define DQ_XCM_ISCSI_SQ_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
+#define DQ_XCM_ISCSI_SQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_ISCSI_MORE_TO_SEND_SEQ_CMD DQ_XCM_AGG_VAL_SEL_REG3
+#define DQ_XCM_ISCSI_EXP_STAT_SN_CMD	DQ_XCM_AGG_VAL_SEL_REG6
+#define DQ_XCM_ROCE_SQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+
+/* UCM agg val selection (HW) */
+#define	DQ_UCM_AGG_VAL_SEL_WORD0	0
+#define	DQ_UCM_AGG_VAL_SEL_WORD1	1
+#define	DQ_UCM_AGG_VAL_SEL_WORD2	2
+#define	DQ_UCM_AGG_VAL_SEL_WORD3	3
+#define	DQ_UCM_AGG_VAL_SEL_REG0	4
+#define	DQ_UCM_AGG_VAL_SEL_REG1	5
+#define	DQ_UCM_AGG_VAL_SEL_REG2	6
+#define	DQ_UCM_AGG_VAL_SEL_REG3	7
+
+/* UCM agg val selection (FW) */
+#define DQ_UCM_ETH_PMD_TX_CONS_CMD	DQ_UCM_AGG_VAL_SEL_WORD2
+#define DQ_UCM_ETH_PMD_RX_CONS_CMD	DQ_UCM_AGG_VAL_SEL_WORD3
+#define DQ_UCM_ROCE_CQ_CONS_CMD		DQ_UCM_AGG_VAL_SEL_REG0
+#define DQ_UCM_ROCE_CQ_PROD_CMD		DQ_UCM_AGG_VAL_SEL_REG2
+
+/* TCM agg val selection (HW) */
+#define	DQ_TCM_AGG_VAL_SEL_WORD0	0
+#define	DQ_TCM_AGG_VAL_SEL_WORD1	1
+#define	DQ_TCM_AGG_VAL_SEL_WORD2	2
+#define	DQ_TCM_AGG_VAL_SEL_WORD3	3
+#define	DQ_TCM_AGG_VAL_SEL_REG1		4
+#define	DQ_TCM_AGG_VAL_SEL_REG2		5
+#define	DQ_TCM_AGG_VAL_SEL_REG6		6
+#define	DQ_TCM_AGG_VAL_SEL_REG9		7
+
+/* TCM agg val selection (FW) */
+#define DQ_TCM_L2B_BD_PROD_CMD \
+	DQ_TCM_AGG_VAL_SEL_WORD1
+#define DQ_TCM_ROCE_RQ_PROD_CMD	\
+	DQ_TCM_AGG_VAL_SEL_WORD0
 
 /* XCM agg counter flag selection */
-#define DQ_XCM_AGG_FLG_SHIFT_BIT14  0
-#define DQ_XCM_AGG_FLG_SHIFT_BIT15  1
-#define DQ_XCM_AGG_FLG_SHIFT_CF12   2
-#define DQ_XCM_AGG_FLG_SHIFT_CF13   3
-#define DQ_XCM_AGG_FLG_SHIFT_CF18   4
-#define DQ_XCM_AGG_FLG_SHIFT_CF19   5
-#define DQ_XCM_AGG_FLG_SHIFT_CF22   6
-#define DQ_XCM_AGG_FLG_SHIFT_CF23   7
+#define	DQ_XCM_AGG_FLG_SHIFT_BIT14	0
+#define	DQ_XCM_AGG_FLG_SHIFT_BIT15	1
+#define	DQ_XCM_AGG_FLG_SHIFT_CF12	2
+#define	DQ_XCM_AGG_FLG_SHIFT_CF13	3
+#define	DQ_XCM_AGG_FLG_SHIFT_CF18	4
+#define	DQ_XCM_AGG_FLG_SHIFT_CF19	5
+#define	DQ_XCM_AGG_FLG_SHIFT_CF22	6
+#define	DQ_XCM_AGG_FLG_SHIFT_CF23	7
 
 /* XCM agg counter flag selection */
-#define DQ_XCM_ETH_DQ_CF_CMD		(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF18)
-#define DQ_XCM_CORE_DQ_CF_CMD		(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF18)
-#define DQ_XCM_ETH_TERMINATE_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF19)
-#define DQ_XCM_CORE_TERMINATE_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF19)
-#define DQ_XCM_ETH_SLOW_PATH_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF22)
-#define DQ_XCM_CORE_SLOW_PATH_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF22)
-#define DQ_XCM_ETH_TPH_EN_CMD		(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_CORE_DQ_CF_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF18)
+#define DQ_XCM_CORE_TERMINATE_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_CORE_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
+#define DQ_XCM_ETH_DQ_CF_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF18)
+#define DQ_XCM_ETH_TERMINATE_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_ETH_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
+#define DQ_XCM_ETH_TPH_EN_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_ISCSI_DQ_FLUSH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_ISCSI_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
+#define DQ_XCM_ISCSI_PROC_ONLY_CLEANUP_CMD BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
+
+/* UCM agg counter flag selection (HW) */
+#define	DQ_UCM_AGG_FLG_SHIFT_CF0	0
+#define	DQ_UCM_AGG_FLG_SHIFT_CF1	1
+#define	DQ_UCM_AGG_FLG_SHIFT_CF3	2
+#define	DQ_UCM_AGG_FLG_SHIFT_CF4	3
+#define	DQ_UCM_AGG_FLG_SHIFT_CF5	4
+#define	DQ_UCM_AGG_FLG_SHIFT_CF6	5
+#define	DQ_UCM_AGG_FLG_SHIFT_RULE0EN	6
+#define	DQ_UCM_AGG_FLG_SHIFT_RULE1EN	7
+
+/* UCM agg counter flag selection (FW) */
+#define DQ_UCM_ETH_PMD_TX_ARM_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF4)
+#define DQ_UCM_ETH_PMD_RX_ARM_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
+#define DQ_UCM_ROCE_CQ_ARM_SE_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF4)
+#define DQ_UCM_ROCE_CQ_ARM_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
+
+/* TCM agg counter flag selection (HW) */
+#define DQ_TCM_AGG_FLG_SHIFT_CF0	0
+#define DQ_TCM_AGG_FLG_SHIFT_CF1	1
+#define DQ_TCM_AGG_FLG_SHIFT_CF2	2
+#define DQ_TCM_AGG_FLG_SHIFT_CF3	3
+#define DQ_TCM_AGG_FLG_SHIFT_CF4	4
+#define DQ_TCM_AGG_FLG_SHIFT_CF5	5
+#define DQ_TCM_AGG_FLG_SHIFT_CF6	6
+#define DQ_TCM_AGG_FLG_SHIFT_CF7	7
+/* TCM agg counter flag selection (FW) */
+#define DQ_TCM_ISCSI_FLUSH_Q0_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
+#define DQ_TCM_ISCSI_TIMER_STOP_ALL_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
+
+/* PWM address mapping */
+#define DQ_PWM_OFFSET_DPM_BASE	0x0
+#define DQ_PWM_OFFSET_DPM_END	0x27
+#define DQ_PWM_OFFSET_XCM16_BASE	0x40
+#define DQ_PWM_OFFSET_XCM32_BASE	0x44
+#define DQ_PWM_OFFSET_UCM16_BASE	0x48
+#define DQ_PWM_OFFSET_UCM32_BASE	0x4C
+#define DQ_PWM_OFFSET_UCM16_4	0x50
+#define DQ_PWM_OFFSET_TCM16_BASE	0x58
+#define DQ_PWM_OFFSET_TCM32_BASE	0x5C
+#define DQ_PWM_OFFSET_XCM_FLAGS	0x68
+#define DQ_PWM_OFFSET_UCM_FLAGS	0x69
+#define DQ_PWM_OFFSET_TCM_FLAGS	0x6B
+
+#define DQ_PWM_OFFSET_XCM_RDMA_SQ_PROD		(DQ_PWM_OFFSET_XCM16_BASE + 2)
+#define DQ_PWM_OFFSET_UCM_RDMA_CQ_CONS_32BIT	(DQ_PWM_OFFSET_UCM32_BASE)
+#define DQ_PWM_OFFSET_UCM_RDMA_CQ_CONS_16BIT	(DQ_PWM_OFFSET_UCM16_4)
+#define DQ_PWM_OFFSET_UCM_RDMA_INT_TIMEOUT	(DQ_PWM_OFFSET_UCM16_BASE + 2)
+#define DQ_PWM_OFFSET_UCM_RDMA_ARM_FLAGS	(DQ_PWM_OFFSET_UCM_FLAGS)
+#define DQ_PWM_OFFSET_TCM_ROCE_RQ_PROD		(DQ_PWM_OFFSET_TCM16_BASE + 1)
+#define DQ_PWM_OFFSET_TCM_IWARP_RQ_PROD		(DQ_PWM_OFFSET_TCM16_BASE + 3)
+#define	DQ_REGION_SHIFT	(12)
+
+/* DPM */
+#define	DQ_DPM_WQE_BUFF_SIZE	(320)
+
+/* Conn type ranges */
+#define	DQ_CONN_TYPE_RANGE_SHIFT	(4)
 
 /*****************/
 /* QM CONSTANTS  */
@@ -162,15 +323,17 @@
  */
 #define CM_TX_PQ_BASE	0x200
 
+/* number of global Vport/QCN rate limiters */
+#define MAX_QM_GLOBAL_RLS	256
 /* QM registers data */
 #define QM_LINE_CRD_REG_WIDTH		16
-#define QM_LINE_CRD_REG_SIGN_BIT	(1 << (QM_LINE_CRD_REG_WIDTH - 1))
+#define QM_LINE_CRD_REG_SIGN_BIT	BIT((QM_LINE_CRD_REG_WIDTH - 1))
 #define QM_BYTE_CRD_REG_WIDTH		24
-#define QM_BYTE_CRD_REG_SIGN_BIT	(1 << (QM_BYTE_CRD_REG_WIDTH - 1))
+#define QM_BYTE_CRD_REG_SIGN_BIT	BIT((QM_BYTE_CRD_REG_WIDTH - 1))
 #define QM_WFQ_CRD_REG_WIDTH		32
-#define QM_WFQ_CRD_REG_SIGN_BIT		(1 << (QM_WFQ_CRD_REG_WIDTH - 1))
+#define QM_WFQ_CRD_REG_SIGN_BIT		BIT((QM_WFQ_CRD_REG_WIDTH - 1))
 #define QM_RL_CRD_REG_WIDTH		32
-#define QM_RL_CRD_REG_SIGN_BIT		(1 << (QM_RL_CRD_REG_WIDTH - 1))
+#define QM_RL_CRD_REG_SIGN_BIT		BIT((QM_RL_CRD_REG_WIDTH - 1))
 
 /*****************/
 /* CAU CONSTANTS */
@@ -235,6 +398,17 @@
 /* PXP CONSTANTS */
 /*****************/
 
+/* Bars for Blocks */
+#define PXP_BAR_GRC	0
+#define PXP_BAR_TSDM	0
+#define PXP_BAR_USDM	0
+#define PXP_BAR_XSDM	0
+#define PXP_BAR_MSDM	0
+#define PXP_BAR_YSDM	0
+#define PXP_BAR_PSDM	0
+#define PXP_BAR_IGU	0
+#define PXP_BAR_DQ	1
+
 /* PTT and GTT */
 #define PXP_NUM_PF_WINDOWS		12
 #define PXP_PER_PF_ENTRY_SIZE		8
@@ -282,8 +456,52 @@
 	(PXP_EXTERNAL_BAR_GLOBAL_WINDOW_START + \
 	 PXP_EXTERNAL_BAR_GLOBAL_WINDOW_LENGTH - 1)
 
-#define PXP_ILT_PAGE_SIZE_NUM_BITS_MIN	12
-#define PXP_ILT_BLOCK_FACTOR_MULTIPLIER	1024
+/* PF BAR */
+#define PXP_BAR0_START_GRC	0x0000
+#define PXP_BAR0_GRC_LENGTH	0x1C00000
+#define PXP_BAR0_END_GRC	(PXP_BAR0_START_GRC + \
+				 PXP_BAR0_GRC_LENGTH - 1)
+
+#define PXP_BAR0_START_IGU	0x1C00000
+#define PXP_BAR0_IGU_LENGTH	0x10000
+#define PXP_BAR0_END_IGU	(PXP_BAR0_START_IGU + \
+				 PXP_BAR0_IGU_LENGTH - 1)
+
+#define PXP_BAR0_START_TSDM	0x1C80000
+#define PXP_BAR0_SDM_LENGTH	0x40000
+#define PXP_BAR0_SDM_RESERVED_LENGTH	0x40000
+#define PXP_BAR0_END_TSDM	(PXP_BAR0_START_TSDM + \
+				 PXP_BAR0_SDM_LENGTH - 1)
+
+#define PXP_BAR0_START_MSDM	0x1D00000
+#define PXP_BAR0_END_MSDM	(PXP_BAR0_START_MSDM + \
+				 PXP_BAR0_SDM_LENGTH - 1)
+
+#define PXP_BAR0_START_USDM	0x1D80000
+#define PXP_BAR0_END_USDM	(PXP_BAR0_START_USDM + \
+				 PXP_BAR0_SDM_LENGTH - 1)
+
+#define PXP_BAR0_START_XSDM	0x1E00000
+#define PXP_BAR0_END_XSDM	(PXP_BAR0_START_XSDM + \
+				 PXP_BAR0_SDM_LENGTH - 1)
+
+#define PXP_BAR0_START_YSDM	0x1E80000
+#define PXP_BAR0_END_YSDM	(PXP_BAR0_START_YSDM + \
+				 PXP_BAR0_SDM_LENGTH - 1)
+
+#define PXP_BAR0_START_PSDM	0x1F00000
+#define PXP_BAR0_END_PSDM	(PXP_BAR0_START_PSDM + \
+				 PXP_BAR0_SDM_LENGTH - 1)
+
+#define PXP_BAR0_FIRST_INVALID_ADDRESS	(PXP_BAR0_END_PSDM + 1)
+
+/* VF BAR */
+#define PXP_VF_BAR0	0
+
+#define PXP_VF_BAR0_START_GRC	0x3E00
+#define PXP_VF_BAR0_GRC_LENGTH	0x200
+#define PXP_VF_BAR0_END_GRC	(PXP_VF_BAR0_START_GRC + \
+				 PXP_VF_BAR0_GRC_LENGTH - 1)
 
 #define PXP_VF_BAR0_START_IGU                   0
 #define PXP_VF_BAR0_IGU_LENGTH                  0x3000
@@ -342,10 +560,27 @@
 
 #define PXP_VF_BAR0_GRC_WINDOW_LENGTH           32
 
+#define PXP_ILT_PAGE_SIZE_NUM_BITS_MIN		12
+#define PXP_ILT_BLOCK_FACTOR_MULTIPLIER		1024
+
 /* ILT Records */
 #define PXP_NUM_ILT_RECORDS_BB 7600
 #define PXP_NUM_ILT_RECORDS_K2 11000
 #define MAX_NUM_ILT_RECORDS MAX(PXP_NUM_ILT_RECORDS_BB, PXP_NUM_ILT_RECORDS_K2)
+#define PXP_QUEUES_ZONE_MAX_NUM 320
+/*****************/
+/* PRM CONSTANTS */
+/*****************/
+#define PRM_DMA_PAD_BYTES_NUM	2
+/******************/
+/* SDMs CONSTANTS */
+/******************/
+#define SDM_OP_GEN_TRIG_NONE	0
+#define SDM_OP_GEN_TRIG_WAKE_THREAD	1
+#define SDM_OP_GEN_TRIG_AGG_INT	2
+#define SDM_OP_GEN_TRIG_LOADER	4
+#define SDM_OP_GEN_TRIG_INDICATE_ERROR	6
+#define SDM_OP_GEN_TRIG_RELEASE_THREAD	7
 
 #define SDM_COMP_TYPE_NONE              0
 #define SDM_COMP_TYPE_WAKE_THREAD       1
@@ -371,12 +606,32 @@
 /* PRS CONSTANTS */
 /*****************/
 
+#define PRS_GFT_CAM_LINES_NO_MATCH	31
+
 /* Async data KCQ CQE */
 struct async_data {
 	__le32	cid;
 	__le16	itid;
 	u8	error_code;
 	u8	fw_debug_param;
+};
+
+struct coalescing_timeset {
+	u8 value;
+#define	COALESCING_TIMESET_TIMESET_MASK		0x7F
+#define	COALESCING_TIMESET_TIMESET_SHIFT	0
+#define	COALESCING_TIMESET_VALID_MASK		0x1
+#define	COALESCING_TIMESET_VALID_SHIFT		7
+};
+
+struct common_queue_zone {
+	__le16 ring_drv_data_consumer;
+	__le16 reserved;
+};
+
+struct eth_rx_prod_data {
+	__le16 bd_prod;
+	__le16 cqe_prod;
 };
 
 struct regpair {
@@ -388,11 +643,38 @@ struct vf_pf_channel_eqe_data {
 	struct regpair msg_addr;
 };
 
+struct iscsi_eqe_data {
+	__le32 cid;
+	__le16 conn_id;
+	u8 error_code;
+	u8 error_pdu_opcode_reserved;
+#define ISCSI_EQE_DATA_ERROR_PDU_OPCODE_MASK		0x3F
+#define ISCSI_EQE_DATA_ERROR_PDU_OPCODE_SHIFT		0
+#define ISCSI_EQE_DATA_ERROR_PDU_OPCODE_VALID_MASK	0x1
+#define ISCSI_EQE_DATA_ERROR_PDU_OPCODE_VALID_SHIFT	 6
+#define ISCSI_EQE_DATA_RESERVED0_MASK			0x1
+#define ISCSI_EQE_DATA_RESERVED0_SHIFT			7
+};
+
+struct malicious_vf_eqe_data {
+	u8 vf_id;
+	u8 err_id;
+	__le16 reserved[3];
+};
+
+struct initial_cleanup_eqe_data {
+	u8 vf_id;
+	u8 reserved[7];
+};
+
 /* Event Data Union */
 union event_ring_data {
-	u8				bytes[8];
-	struct vf_pf_channel_eqe_data	vf_pf_channel;
-	struct async_data		async_info;
+	u8 bytes[8];
+	struct vf_pf_channel_eqe_data vf_pf_channel;
+	struct iscsi_eqe_data iscsi_info;
+	struct malicious_vf_eqe_data malicious_vf;
+	struct initial_cleanup_eqe_data vf_init_cleanup;
+	struct regpair roce_handle;
 };
 
 /* Event Ring Entry */
@@ -420,9 +702,9 @@ enum mf_mode {
 
 /* Per-protocol connection types */
 enum protocol_type {
-	PROTOCOLID_RESERVED1,
+	PROTOCOLID_ISCSI,
 	PROTOCOLID_RESERVED2,
-	PROTOCOLID_RESERVED3,
+	PROTOCOLID_ROCE,
 	PROTOCOLID_CORE,
 	PROTOCOLID_ETH,
 	PROTOCOLID_RESERVED4,
@@ -431,6 +713,16 @@ enum protocol_type {
 	PROTOCOLID_COMMON,
 	PROTOCOLID_RESERVED6,
 	MAX_PROTOCOL_TYPE
+};
+
+struct ustorm_eth_queue_zone {
+	struct coalescing_timeset int_coalescing_timeset;
+	u8 reserved[3];
+};
+
+struct ustorm_queue_zone {
+	struct ustorm_eth_queue_zone eth;
+	struct common_queue_zone common;
 };
 
 /* status block structure */
@@ -509,6 +801,52 @@ enum db_dest {
 	MAX_DB_DEST
 };
 
+/* Enum of doorbell DPM types */
+enum db_dpm_type {
+	DPM_LEGACY,
+	DPM_ROCE,
+	DPM_L2_INLINE,
+	DPM_L2_BD,
+	MAX_DB_DPM_TYPE
+};
+
+/* Structure for doorbell data, in L2 DPM mode, for 1st db in a DPM burst */
+struct db_l2_dpm_data {
+	__le16 icid;
+	__le16 bd_prod;
+	__le32 params;
+#define DB_L2_DPM_DATA_SIZE_MASK	0x3F
+#define DB_L2_DPM_DATA_SIZE_SHIFT	0
+#define DB_L2_DPM_DATA_DPM_TYPE_MASK	0x3
+#define DB_L2_DPM_DATA_DPM_TYPE_SHIFT	6
+#define DB_L2_DPM_DATA_NUM_BDS_MASK	0xFF
+#define DB_L2_DPM_DATA_NUM_BDS_SHIFT	8
+#define DB_L2_DPM_DATA_PKT_SIZE_MASK	0x7FF
+#define DB_L2_DPM_DATA_PKT_SIZE_SHIFT	16
+#define DB_L2_DPM_DATA_RESERVED0_MASK	0x1
+#define DB_L2_DPM_DATA_RESERVED0_SHIFT 27
+#define DB_L2_DPM_DATA_SGE_NUM_MASK	0x7
+#define DB_L2_DPM_DATA_SGE_NUM_SHIFT	28
+#define DB_L2_DPM_DATA_RESERVED1_MASK	0x1
+#define DB_L2_DPM_DATA_RESERVED1_SHIFT 31
+};
+
+/* Structure for SGE in a DPM doorbell of type DPM_L2_BD */
+struct db_l2_dpm_sge {
+	struct regpair addr;
+	__le16 nbytes;
+	__le16 bitfields;
+#define DB_L2_DPM_SGE_TPH_ST_INDEX_MASK	0x1FF
+#define DB_L2_DPM_SGE_TPH_ST_INDEX_SHIFT 0
+#define DB_L2_DPM_SGE_RESERVED0_MASK	0x3
+#define DB_L2_DPM_SGE_RESERVED0_SHIFT	9
+#define DB_L2_DPM_SGE_ST_VALID_MASK	0x1
+#define DB_L2_DPM_SGE_ST_VALID_SHIFT	11
+#define DB_L2_DPM_SGE_RESERVED1_MASK	0xF
+#define DB_L2_DPM_SGE_RESERVED1_SHIFT	12
+	__le32 reserved2;
+};
+
 /* Structure for doorbell address, in legacy mode */
 struct db_legacy_addr {
 	__le32 addr;
@@ -518,6 +856,49 @@ struct db_legacy_addr {
 #define DB_LEGACY_ADDR_DEMS_SHIFT      2
 #define DB_LEGACY_ADDR_ICID_MASK       0x7FFFFFF
 #define DB_LEGACY_ADDR_ICID_SHIFT      5
+};
+
+/* Structure for doorbell address, in PWM mode */
+struct db_pwm_addr {
+	__le32 addr;
+#define DB_PWM_ADDR_RESERVED0_MASK	0x7
+#define DB_PWM_ADDR_RESERVED0_SHIFT 0
+#define DB_PWM_ADDR_OFFSET_MASK	0x7F
+#define DB_PWM_ADDR_OFFSET_SHIFT	3
+#define DB_PWM_ADDR_WID_MASK	0x3
+#define DB_PWM_ADDR_WID_SHIFT	10
+#define DB_PWM_ADDR_DPI_MASK	0xFFFF
+#define DB_PWM_ADDR_DPI_SHIFT	12
+#define DB_PWM_ADDR_RESERVED1_MASK	0xF
+#define DB_PWM_ADDR_RESERVED1_SHIFT 28
+};
+
+/* Parameters to RoCE firmware, passed in EDPM doorbell */
+struct db_roce_dpm_params {
+	__le32 params;
+#define DB_ROCE_DPM_PARAMS_SIZE_MASK		0x3F
+#define DB_ROCE_DPM_PARAMS_SIZE_SHIFT		0
+#define DB_ROCE_DPM_PARAMS_DPM_TYPE_MASK	0x3
+#define DB_ROCE_DPM_PARAMS_DPM_TYPE_SHIFT	6
+#define DB_ROCE_DPM_PARAMS_OPCODE_MASK		0xFF
+#define DB_ROCE_DPM_PARAMS_OPCODE_SHIFT		8
+#define DB_ROCE_DPM_PARAMS_WQE_SIZE_MASK	0x7FF
+#define DB_ROCE_DPM_PARAMS_WQE_SIZE_SHIFT	16
+#define DB_ROCE_DPM_PARAMS_RESERVED0_MASK	0x1
+#define DB_ROCE_DPM_PARAMS_RESERVED0_SHIFT	27
+#define DB_ROCE_DPM_PARAMS_COMPLETION_FLG_MASK	0x1
+#define DB_ROCE_DPM_PARAMS_COMPLETION_FLG_SHIFT 28
+#define DB_ROCE_DPM_PARAMS_S_FLG_MASK		0x1
+#define DB_ROCE_DPM_PARAMS_S_FLG_SHIFT		29
+#define DB_ROCE_DPM_PARAMS_RESERVED1_MASK	0x3
+#define DB_ROCE_DPM_PARAMS_RESERVED1_SHIFT	30
+};
+
+/* Structure for doorbell data, in ROCE DPM mode, for 1st db in a DPM burst */
+struct db_roce_dpm_data {
+	__le16 icid;
+	__le16 prod_val;
+	struct db_roce_dpm_params params;
 };
 
 /* Igu interrupt command */
@@ -588,7 +969,10 @@ struct parsing_and_err_flags {
 #define PARSING_AND_ERR_FLAGS_TUNNELL4CHKSMERROR_SHIFT         15
 };
 
-/* Concrete Function ID. */
+struct pb_context {
+	__le32 crc[4];
+};
+
 struct pxp_concrete_fid {
 	__le16 fid;
 #define PXP_CONCRETE_FID_PFID_MASK     0xF
@@ -654,6 +1038,86 @@ struct pxp_ptt_entry {
 	struct pxp_pretend_cmd	pretend;
 };
 
+/* VF Zone A Permission Register. */
+struct pxp_vf_zone_a_permission {
+	__le32 control;
+#define PXP_VF_ZONE_A_PERMISSION_VFID_MASK	0xFF
+#define PXP_VF_ZONE_A_PERMISSION_VFID_SHIFT	0
+#define PXP_VF_ZONE_A_PERMISSION_VALID_MASK	0x1
+#define PXP_VF_ZONE_A_PERMISSION_VALID_SHIFT	8
+#define PXP_VF_ZONE_A_PERMISSION_RESERVED0_MASK	0x7F
+#define PXP_VF_ZONE_A_PERMISSION_RESERVED0_SHIFT 9
+#define PXP_VF_ZONE_A_PERMISSION_RESERVED1_MASK	0xFFFF
+#define PXP_VF_ZONE_A_PERMISSION_RESERVED1_SHIFT 16
+};
+
+/* RSS hash type */
+struct rdif_task_context {
+	__le32 initial_ref_tag;
+	__le16 app_tag_value;
+	__le16 app_tag_mask;
+	u8 flags0;
+#define RDIF_TASK_CONTEXT_IGNOREAPPTAG_MASK            0x1
+#define RDIF_TASK_CONTEXT_IGNOREAPPTAG_SHIFT           0
+#define RDIF_TASK_CONTEXT_INITIALREFTAGVALID_MASK      0x1
+#define RDIF_TASK_CONTEXT_INITIALREFTAGVALID_SHIFT     1
+#define RDIF_TASK_CONTEXT_HOSTGUARDTYPE_MASK           0x1
+#define RDIF_TASK_CONTEXT_HOSTGUARDTYPE_SHIFT          2
+#define RDIF_TASK_CONTEXT_SETERRORWITHEOP_MASK         0x1
+#define RDIF_TASK_CONTEXT_SETERRORWITHEOP_SHIFT        3
+#define RDIF_TASK_CONTEXT_PROTECTIONTYPE_MASK          0x3
+#define RDIF_TASK_CONTEXT_PROTECTIONTYPE_SHIFT         4
+#define RDIF_TASK_CONTEXT_CRC_SEED_MASK                0x1
+#define RDIF_TASK_CONTEXT_CRC_SEED_SHIFT               6
+#define RDIF_TASK_CONTEXT_KEEPREFTAGCONST_MASK         0x1
+#define RDIF_TASK_CONTEXT_KEEPREFTAGCONST_SHIFT        7
+	u8 partial_dif_data[7];
+	__le16 partial_crc_value;
+	__le16 partial_checksum_value;
+	__le32 offset_in_io;
+	__le16 flags1;
+#define RDIF_TASK_CONTEXT_VALIDATEGUARD_MASK           0x1
+#define RDIF_TASK_CONTEXT_VALIDATEGUARD_SHIFT          0
+#define RDIF_TASK_CONTEXT_VALIDATEAPPTAG_MASK          0x1
+#define RDIF_TASK_CONTEXT_VALIDATEAPPTAG_SHIFT         1
+#define RDIF_TASK_CONTEXT_VALIDATEREFTAG_MASK          0x1
+#define RDIF_TASK_CONTEXT_VALIDATEREFTAG_SHIFT         2
+#define RDIF_TASK_CONTEXT_FORWARDGUARD_MASK            0x1
+#define RDIF_TASK_CONTEXT_FORWARDGUARD_SHIFT           3
+#define RDIF_TASK_CONTEXT_FORWARDAPPTAG_MASK           0x1
+#define RDIF_TASK_CONTEXT_FORWARDAPPTAG_SHIFT          4
+#define RDIF_TASK_CONTEXT_FORWARDREFTAG_MASK           0x1
+#define RDIF_TASK_CONTEXT_FORWARDREFTAG_SHIFT          5
+#define RDIF_TASK_CONTEXT_INTERVALSIZE_MASK            0x7
+#define RDIF_TASK_CONTEXT_INTERVALSIZE_SHIFT           6
+#define RDIF_TASK_CONTEXT_HOSTINTERFACE_MASK           0x3
+#define RDIF_TASK_CONTEXT_HOSTINTERFACE_SHIFT          9
+#define RDIF_TASK_CONTEXT_DIFBEFOREDATA_MASK           0x1
+#define RDIF_TASK_CONTEXT_DIFBEFOREDATA_SHIFT          11
+#define RDIF_TASK_CONTEXT_RESERVED0_MASK               0x1
+#define RDIF_TASK_CONTEXT_RESERVED0_SHIFT              12
+#define RDIF_TASK_CONTEXT_NETWORKINTERFACE_MASK        0x1
+#define RDIF_TASK_CONTEXT_NETWORKINTERFACE_SHIFT       13
+#define RDIF_TASK_CONTEXT_FORWARDAPPTAGWITHMASK_MASK   0x1
+#define RDIF_TASK_CONTEXT_FORWARDAPPTAGWITHMASK_SHIFT  14
+#define RDIF_TASK_CONTEXT_FORWARDREFTAGWITHMASK_MASK   0x1
+#define RDIF_TASK_CONTEXT_FORWARDREFTAGWITHMASK_SHIFT  15
+	__le16 state;
+#define RDIF_TASK_CONTEXT_RECEIVEDDIFBYTESLEFT_MASK    0xF
+#define RDIF_TASK_CONTEXT_RECEIVEDDIFBYTESLEFT_SHIFT   0
+#define RDIF_TASK_CONTEXT_TRANSMITEDDIFBYTESLEFT_MASK  0xF
+#define RDIF_TASK_CONTEXT_TRANSMITEDDIFBYTESLEFT_SHIFT 4
+#define RDIF_TASK_CONTEXT_ERRORINIO_MASK               0x1
+#define RDIF_TASK_CONTEXT_ERRORINIO_SHIFT              8
+#define RDIF_TASK_CONTEXT_CHECKSUMOVERFLOW_MASK        0x1
+#define RDIF_TASK_CONTEXT_CHECKSUMOVERFLOW_SHIFT       9
+#define RDIF_TASK_CONTEXT_REFTAGMASK_MASK              0xF
+#define RDIF_TASK_CONTEXT_REFTAGMASK_SHIFT             10
+#define RDIF_TASK_CONTEXT_RESERVED1_MASK               0x3
+#define RDIF_TASK_CONTEXT_RESERVED1_SHIFT              14
+	__le32 reserved2;
+};
+
 /* RSS hash type */
 enum rss_hash_type {
 	RSS_HASH_TYPE_DEFAULT	= 0,
@@ -683,19 +1147,123 @@ struct status_block {
 #define STATUS_BLOCK_ZERO_PAD3_SHIFT  24
 };
 
-struct tunnel_parsing_flags {
-	u8 flags;
-#define TUNNEL_PARSING_FLAGS_TYPE_MASK              0x3
-#define TUNNEL_PARSING_FLAGS_TYPE_SHIFT             0
-#define TUNNEL_PARSING_FLAGS_TENNANT_ID_EXIST_MASK  0x1
-#define TUNNEL_PARSING_FLAGS_TENNANT_ID_EXIST_SHIFT 2
-#define TUNNEL_PARSING_FLAGS_NEXT_PROTOCOL_MASK     0x3
-#define TUNNEL_PARSING_FLAGS_NEXT_PROTOCOL_SHIFT    3
-#define TUNNEL_PARSING_FLAGS_FIRSTHDRIPMATCH_MASK   0x1
-#define TUNNEL_PARSING_FLAGS_FIRSTHDRIPMATCH_SHIFT  5
-#define TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_MASK     0x1
-#define TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_SHIFT    6
-#define TUNNEL_PARSING_FLAGS_IPV4_OPTIONS_MASK      0x1
-#define TUNNEL_PARSING_FLAGS_IPV4_OPTIONS_SHIFT     7
+struct tdif_task_context {
+	__le32 initial_ref_tag;
+	__le16 app_tag_value;
+	__le16 app_tag_mask;
+	__le16 partial_crc_valueB;
+	__le16 partial_checksum_valueB;
+	__le16 stateB;
+#define TDIF_TASK_CONTEXT_RECEIVEDDIFBYTESLEFTB_MASK    0xF
+#define TDIF_TASK_CONTEXT_RECEIVEDDIFBYTESLEFTB_SHIFT   0
+#define TDIF_TASK_CONTEXT_TRANSMITEDDIFBYTESLEFTB_MASK  0xF
+#define TDIF_TASK_CONTEXT_TRANSMITEDDIFBYTESLEFTB_SHIFT 4
+#define TDIF_TASK_CONTEXT_ERRORINIOB_MASK               0x1
+#define TDIF_TASK_CONTEXT_ERRORINIOB_SHIFT              8
+#define TDIF_TASK_CONTEXT_CHECKSUMOVERFLOW_MASK         0x1
+#define TDIF_TASK_CONTEXT_CHECKSUMOVERFLOW_SHIFT        9
+#define TDIF_TASK_CONTEXT_RESERVED0_MASK                0x3F
+#define TDIF_TASK_CONTEXT_RESERVED0_SHIFT               10
+	u8 reserved1;
+	u8 flags0;
+#define TDIF_TASK_CONTEXT_IGNOREAPPTAG_MASK             0x1
+#define TDIF_TASK_CONTEXT_IGNOREAPPTAG_SHIFT            0
+#define TDIF_TASK_CONTEXT_INITIALREFTAGVALID_MASK       0x1
+#define TDIF_TASK_CONTEXT_INITIALREFTAGVALID_SHIFT      1
+#define TDIF_TASK_CONTEXT_HOSTGUARDTYPE_MASK            0x1
+#define TDIF_TASK_CONTEXT_HOSTGUARDTYPE_SHIFT           2
+#define TDIF_TASK_CONTEXT_SETERRORWITHEOP_MASK          0x1
+#define TDIF_TASK_CONTEXT_SETERRORWITHEOP_SHIFT         3
+#define TDIF_TASK_CONTEXT_PROTECTIONTYPE_MASK           0x3
+#define TDIF_TASK_CONTEXT_PROTECTIONTYPE_SHIFT          4
+#define TDIF_TASK_CONTEXT_CRC_SEED_MASK                 0x1
+#define TDIF_TASK_CONTEXT_CRC_SEED_SHIFT                6
+#define TDIF_TASK_CONTEXT_RESERVED2_MASK                0x1
+#define TDIF_TASK_CONTEXT_RESERVED2_SHIFT               7
+	__le32 flags1;
+#define TDIF_TASK_CONTEXT_VALIDATEGUARD_MASK            0x1
+#define TDIF_TASK_CONTEXT_VALIDATEGUARD_SHIFT           0
+#define TDIF_TASK_CONTEXT_VALIDATEAPPTAG_MASK           0x1
+#define TDIF_TASK_CONTEXT_VALIDATEAPPTAG_SHIFT          1
+#define TDIF_TASK_CONTEXT_VALIDATEREFTAG_MASK           0x1
+#define TDIF_TASK_CONTEXT_VALIDATEREFTAG_SHIFT          2
+#define TDIF_TASK_CONTEXT_FORWARDGUARD_MASK             0x1
+#define TDIF_TASK_CONTEXT_FORWARDGUARD_SHIFT            3
+#define TDIF_TASK_CONTEXT_FORWARDAPPTAG_MASK            0x1
+#define TDIF_TASK_CONTEXT_FORWARDAPPTAG_SHIFT           4
+#define TDIF_TASK_CONTEXT_FORWARDREFTAG_MASK            0x1
+#define TDIF_TASK_CONTEXT_FORWARDREFTAG_SHIFT           5
+#define TDIF_TASK_CONTEXT_INTERVALSIZE_MASK             0x7
+#define TDIF_TASK_CONTEXT_INTERVALSIZE_SHIFT            6
+#define TDIF_TASK_CONTEXT_HOSTINTERFACE_MASK            0x3
+#define TDIF_TASK_CONTEXT_HOSTINTERFACE_SHIFT           9
+#define TDIF_TASK_CONTEXT_DIFBEFOREDATA_MASK            0x1
+#define TDIF_TASK_CONTEXT_DIFBEFOREDATA_SHIFT           11
+#define TDIF_TASK_CONTEXT_RESERVED3_MASK                0x1
+#define TDIF_TASK_CONTEXT_RESERVED3_SHIFT               12
+#define TDIF_TASK_CONTEXT_NETWORKINTERFACE_MASK         0x1
+#define TDIF_TASK_CONTEXT_NETWORKINTERFACE_SHIFT        13
+#define TDIF_TASK_CONTEXT_RECEIVEDDIFBYTESLEFTA_MASK    0xF
+#define TDIF_TASK_CONTEXT_RECEIVEDDIFBYTESLEFTA_SHIFT   14
+#define TDIF_TASK_CONTEXT_TRANSMITEDDIFBYTESLEFTA_MASK  0xF
+#define TDIF_TASK_CONTEXT_TRANSMITEDDIFBYTESLEFTA_SHIFT 18
+#define TDIF_TASK_CONTEXT_ERRORINIOA_MASK               0x1
+#define TDIF_TASK_CONTEXT_ERRORINIOA_SHIFT              22
+#define TDIF_TASK_CONTEXT_CHECKSUMOVERFLOWA_MASK        0x1
+#define TDIF_TASK_CONTEXT_CHECKSUMOVERFLOWA_SHIFT       23
+#define TDIF_TASK_CONTEXT_REFTAGMASK_MASK               0xF
+#define TDIF_TASK_CONTEXT_REFTAGMASK_SHIFT              24
+#define TDIF_TASK_CONTEXT_FORWARDAPPTAGWITHMASK_MASK    0x1
+#define TDIF_TASK_CONTEXT_FORWARDAPPTAGWITHMASK_SHIFT   28
+#define TDIF_TASK_CONTEXT_FORWARDREFTAGWITHMASK_MASK    0x1
+#define TDIF_TASK_CONTEXT_FORWARDREFTAGWITHMASK_SHIFT   29
+#define TDIF_TASK_CONTEXT_KEEPREFTAGCONST_MASK          0x1
+#define TDIF_TASK_CONTEXT_KEEPREFTAGCONST_SHIFT         30
+#define TDIF_TASK_CONTEXT_RESERVED4_MASK                0x1
+#define TDIF_TASK_CONTEXT_RESERVED4_SHIFT               31
+	__le32 offset_in_iob;
+	__le16 partial_crc_value_a;
+	__le16 partial_checksum_valuea_;
+	__le32 offset_in_ioa;
+	u8 partial_dif_data_a[8];
+	u8 partial_dif_data_b[8];
+};
+
+struct timers_context {
+	__le32 logical_client_0;
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC0_MASK     0xFFFFFFF
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC0_SHIFT    0
+#define TIMERS_CONTEXT_VALIDLC0_MASK              0x1
+#define TIMERS_CONTEXT_VALIDLC0_SHIFT             28
+#define TIMERS_CONTEXT_ACTIVELC0_MASK             0x1
+#define TIMERS_CONTEXT_ACTIVELC0_SHIFT            29
+#define TIMERS_CONTEXT_RESERVED0_MASK             0x3
+#define TIMERS_CONTEXT_RESERVED0_SHIFT            30
+	__le32 logical_client_1;
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC1_MASK     0xFFFFFFF
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC1_SHIFT    0
+#define TIMERS_CONTEXT_VALIDLC1_MASK              0x1
+#define TIMERS_CONTEXT_VALIDLC1_SHIFT             28
+#define TIMERS_CONTEXT_ACTIVELC1_MASK             0x1
+#define TIMERS_CONTEXT_ACTIVELC1_SHIFT            29
+#define TIMERS_CONTEXT_RESERVED1_MASK             0x3
+#define TIMERS_CONTEXT_RESERVED1_SHIFT            30
+	__le32 logical_client_2;
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC2_MASK     0xFFFFFFF
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC2_SHIFT    0
+#define TIMERS_CONTEXT_VALIDLC2_MASK              0x1
+#define TIMERS_CONTEXT_VALIDLC2_SHIFT             28
+#define TIMERS_CONTEXT_ACTIVELC2_MASK             0x1
+#define TIMERS_CONTEXT_ACTIVELC2_SHIFT            29
+#define TIMERS_CONTEXT_RESERVED2_MASK             0x3
+#define TIMERS_CONTEXT_RESERVED2_SHIFT            30
+	__le32 host_expiration_fields;
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALUE_MASK  0xFFFFFFF
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALUE_SHIFT 0
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALID_MASK  0x1
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALID_SHIFT 28
+#define TIMERS_CONTEXT_RESERVED3_MASK             0x7
+#define TIMERS_CONTEXT_RESERVED3_SHIFT            29
 };
 #endif /* __COMMON_HSI__ */
+#endif

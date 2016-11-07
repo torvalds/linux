@@ -1,6 +1,7 @@
 #include <linux/percpu.h>
 #include <linux/jump_label.h>
 #include <asm/trace.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef HAVE_JUMP_LABEL
 struct static_key opal_tracepoint_key = STATIC_KEY_INIT;

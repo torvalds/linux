@@ -138,6 +138,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 	const struct iphdr *iph;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
+	unsigned int data_len = 0;
 	struct ip_tunnel *t;
 
 	switch (type) {
@@ -163,6 +164,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
 			return;
+		data_len = icmp_hdr(skb)->un.reserved[1] * 4; /* RFC 4884 4.1 */
 		break;
 
 	case ICMP_REDIRECT:
@@ -180,6 +182,13 @@ static void ipgre_err(struct sk_buff *skb, u32 info,
 
 	if (!t)
 		return;
+
+#if IS_ENABLED(CONFIG_IPV6)
+       if (tpi->proto == htons(ETH_P_IPV6) &&
+           !ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4 + tpi->hdr_len,
+				       type, data_len))
+               return;
+#endif
 
 	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
@@ -237,25 +246,6 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	ipgre_err(skb, info, &tpi);
 }
 
-static __be64 key_to_tunnel_id(__be32 key)
-{
-#ifdef __BIG_ENDIAN
-	return (__force __be64)((__force u32)key);
-#else
-	return (__force __be64)((__force u64)key << 32);
-#endif
-}
-
-/* Returns the least-significant 32 bits of a __be64. */
-static __be32 tunnel_id_to_key(__be64 x)
-{
-#ifdef __BIG_ENDIAN
-	return (__force __be32)x;
-#else
-	return (__force __be32)((__force u64)x >> 32);
-#endif
-}
-
 static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 		       struct ip_tunnel_net *itn, int hdr_len, bool raw_proto)
 {
@@ -281,7 +271,7 @@ static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 			__be64 tun_id;
 
 			flags = tpi->flags & (TUNNEL_CSUM | TUNNEL_KEY);
-			tun_id = key_to_tunnel_id(tpi->key);
+			tun_id = key32_to_tunnel_id(tpi->key);
 			tun_dst = ip_tun_rx_dst(skb, flags, tun_id, 0);
 			if (!tun_dst)
 				return PACKET_REJECT;
@@ -361,7 +351,6 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 			 tunnel->parms.o_flags, proto, tunnel->parms.o_key,
 			 htonl(tunnel->o_seqno));
 
-	skb_set_inner_protocol(skb, proto);
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
 
@@ -438,7 +427,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	flags = tun_info->key.tun_flags & (TUNNEL_CSUM | TUNNEL_KEY);
 	gre_build_header(skb, tunnel_hlen, flags, proto,
-			 tunnel_id_to_key(tun_info->key.tun_id), 0);
+			 tunnel_id_to_key32(tun_info->key.tun_id), 0);
 
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ?  htons(IP_DF) : 0;
 
@@ -837,17 +826,19 @@ out:
 	return ipgre_tunnel_validate(tb, data);
 }
 
-static void ipgre_netlink_parms(struct net_device *dev,
+static int ipgre_netlink_parms(struct net_device *dev,
 				struct nlattr *data[],
 				struct nlattr *tb[],
 				struct ip_tunnel_parm *parms)
 {
+	struct ip_tunnel *t = netdev_priv(dev);
+
 	memset(parms, 0, sizeof(*parms));
 
 	parms->iph.protocol = IPPROTO_GRE;
 
 	if (!data)
-		return;
+		return 0;
 
 	if (data[IFLA_GRE_LINK])
 		parms->link = nla_get_u32(data[IFLA_GRE_LINK]);
@@ -876,16 +867,26 @@ static void ipgre_netlink_parms(struct net_device *dev,
 	if (data[IFLA_GRE_TOS])
 		parms->iph.tos = nla_get_u8(data[IFLA_GRE_TOS]);
 
-	if (!data[IFLA_GRE_PMTUDISC] || nla_get_u8(data[IFLA_GRE_PMTUDISC]))
+	if (!data[IFLA_GRE_PMTUDISC] || nla_get_u8(data[IFLA_GRE_PMTUDISC])) {
+		if (t->ignore_df)
+			return -EINVAL;
 		parms->iph.frag_off = htons(IP_DF);
+	}
 
 	if (data[IFLA_GRE_COLLECT_METADATA]) {
-		struct ip_tunnel *t = netdev_priv(dev);
-
 		t->collect_md = true;
 		if (dev->type == ARPHRD_IPGRE)
 			dev->type = ARPHRD_NONE;
 	}
+
+	if (data[IFLA_GRE_IGNORE_DF]) {
+		if (nla_get_u8(data[IFLA_GRE_IGNORE_DF])
+		  && (parms->iph.frag_off & htons(IP_DF)))
+			return -EINVAL;
+		t->ignore_df = !!nla_get_u8(data[IFLA_GRE_IGNORE_DF]);
+	}
+
+	return 0;
 }
 
 /* This function returns true when ENCAP attributes are present in the nl msg */
@@ -956,16 +957,19 @@ static int ipgre_newlink(struct net *src_net, struct net_device *dev,
 {
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
+	int err;
 
 	if (ipgre_netlink_encap_parms(data, &ipencap)) {
 		struct ip_tunnel *t = netdev_priv(dev);
-		int err = ip_tunnel_encap_setup(t, &ipencap);
+		err = ip_tunnel_encap_setup(t, &ipencap);
 
 		if (err < 0)
 			return err;
 	}
 
-	ipgre_netlink_parms(dev, data, tb, &p);
+	err = ipgre_netlink_parms(dev, data, tb, &p);
+	if (err < 0)
+		return err;
 	return ip_tunnel_newlink(dev, tb, &p);
 }
 
@@ -974,16 +978,19 @@ static int ipgre_changelink(struct net_device *dev, struct nlattr *tb[],
 {
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
+	int err;
 
 	if (ipgre_netlink_encap_parms(data, &ipencap)) {
 		struct ip_tunnel *t = netdev_priv(dev);
-		int err = ip_tunnel_encap_setup(t, &ipencap);
+		err = ip_tunnel_encap_setup(t, &ipencap);
 
 		if (err < 0)
 			return err;
 	}
 
-	ipgre_netlink_parms(dev, data, tb, &p);
+	err = ipgre_netlink_parms(dev, data, tb, &p);
+	if (err < 0)
+		return err;
 	return ip_tunnel_changelink(dev, tb, &p);
 }
 
@@ -1020,6 +1027,8 @@ static size_t ipgre_get_size(const struct net_device *dev)
 		nla_total_size(2) +
 		/* IFLA_GRE_COLLECT_METADATA */
 		nla_total_size(0) +
+		/* IFLA_GRE_IGNORE_DF */
+		nla_total_size(1) +
 		0;
 }
 
@@ -1053,6 +1062,9 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			t->encap.flags))
 		goto nla_put_failure;
 
+	if (nla_put_u8(skb, IFLA_GRE_IGNORE_DF, t->ignore_df))
+		goto nla_put_failure;
+
 	if (t->collect_md) {
 		if (nla_put_flag(skb, IFLA_GRE_COLLECT_METADATA))
 			goto nla_put_failure;
@@ -1080,6 +1092,7 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_ENCAP_SPORT]	= { .type = NLA_U16 },
 	[IFLA_GRE_ENCAP_DPORT]	= { .type = NLA_U16 },
 	[IFLA_GRE_COLLECT_METADATA]	= { .type = NLA_FLAG },
+	[IFLA_GRE_IGNORE_DF]	= { .type = NLA_U8 },
 };
 
 static struct rtnl_link_ops ipgre_link_ops __read_mostly = {

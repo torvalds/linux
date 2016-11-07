@@ -42,11 +42,6 @@ config SND_SOC_RCAR
 	help
 	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
 
-config SND_SOC_RSRC_CARD
-	tristate "Renesas Sampling Rate Convert Sound Card"
-	help
-	  This option enables simple sound if you need sampling rate convert
-
 ##
 ## Boards
 ##

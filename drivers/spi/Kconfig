@@ -153,6 +153,16 @@ config SPI_BCM63XX_HSSPI
 	  This enables support for the High Speed SPI controller present on
 	  newer Broadcom BCM63XX SoCs.
 
+config SPI_BCM_QSPI
+	tristate "Broadcom BSPI and MSPI controller support"
+	depends on ARCH_BRCMSTB || ARCH_BCM || ARCH_BCM_IPROC || COMPILE_TEST
+	default ARCH_BCM_IPROC
+	help
+	  Enables support for the Broadcom SPI flash and MSPI controller.
+	  Select this option for any one of BRCMSTB, iProc NSP and NS2 SoCs
+	  based platforms. This driver works for both SPI master for spi-nor
+	  flash device as well as MSPI device.
+
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
 	help
@@ -285,6 +295,13 @@ config SPI_IMX
 	  This enables using the Freescale i.MX SPI controllers in master
 	  mode.
 
+config SPI_JCORE
+	tristate "J-Core SPI Master"
+	depends on OF && (SUPERH || COMPILE_TEST)
+	help
+	  This enables support for the SPI master controller in the J-Core
+	  synthesizable, open source SoC.
+
 config SPI_LM70_LLP
 	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
 	depends on PARPORT
@@ -411,6 +428,7 @@ config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
 	depends on HAS_DMA
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	select SG_SPLIT
 	help
 	  SPI master controller for OMAP24XX and later Multichannel SPI
 	  (McSPI) modules.
@@ -548,7 +566,7 @@ config SPI_SC18IS602
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
 	depends on HAVE_CLK && HAS_DMA
-	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
+	depends on ARCH_SHMOBILE || ARCH_RENESAS || COMPILE_TEST
 	help
 	  SPI driver for SuperH and SH Mobile MSIOF blocks.
 
@@ -629,6 +647,13 @@ config SPI_TEGRA20_SLINK
 	depends on RESET_CONTROLLER && HAS_DMA
 	help
 	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
+
+config SPI_THUNDERX
+	tristate "Cavium ThunderX SPI controller"
+	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
+	help
+	  SPI host driver for the hardware found on Cavium ThunderX
+	  SOCs.
 
 config SPI_TOPCLIFF_PCH
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) SPI"

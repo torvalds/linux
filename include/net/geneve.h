@@ -1,10 +1,7 @@
 #ifndef __NET_GENEVE_H
 #define __NET_GENEVE_H  1
 
-#ifdef CONFIG_INET
 #include <net/udp_tunnel.h>
-#endif
-
 
 /* Geneve Header:
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -61,12 +58,6 @@ struct genevehdr {
 	u8 rsvd2;
 	struct geneve_opt options[];
 };
-
-static inline void geneve_get_rx_port(struct net_device *netdev)
-{
-	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_OFFLOAD_PUSH_GENEVE, netdev);
-}
 
 #ifdef CONFIG_INET
 struct net_device *geneve_dev_create_fb(struct net *net, const char *name,

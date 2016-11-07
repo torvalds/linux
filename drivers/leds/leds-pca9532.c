@@ -21,6 +21,8 @@
 #include <linux/workqueue.h>
 #include <linux/leds-pca9532.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /* m =  num_leds*/
 #define PCA9532_REG_INPUT(i)	((i) >> 3)
@@ -86,9 +88,22 @@ static const struct pca9532_chip_info pca9532_chip_info_tbl[] = {
 	},
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_pca9532_leds_match[] = {
+	{ .compatible = "nxp,pca9530", .data = (void *)pca9530 },
+	{ .compatible = "nxp,pca9531", .data = (void *)pca9531 },
+	{ .compatible = "nxp,pca9532", .data = (void *)pca9532 },
+	{ .compatible = "nxp,pca9533", .data = (void *)pca9533 },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, of_pca9532_leds_match);
+#endif
+
 static struct i2c_driver pca9532_driver = {
 	.driver = {
 		.name = "leds-pca953x",
+		.of_match_table = of_match_ptr(of_pca9532_leds_match),
 	},
 	.probe = pca9532_probe,
 	.remove = pca9532_remove,
@@ -354,6 +369,7 @@ static int pca9532_configure(struct i2c_client *client,
 			led->state = pled->state;
 			led->name = pled->name;
 			led->ldev.name = led->name;
+			led->ldev.default_trigger = led->default_trigger;
 			led->ldev.brightness = LED_OFF;
 			led->ldev.brightness_set_blocking =
 						pca9532_set_brightness;
@@ -432,15 +448,66 @@ exit:
 	return err;
 }
 
+static struct pca9532_platform_data *
+pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
+{
+	struct pca9532_platform_data *pdata;
+	struct device_node *child;
+	const struct of_device_id *match;
+	int devid, maxleds;
+	int i = 0;
+
+	match = of_match_device(of_pca9532_leds_match, dev);
+	if (!match)
+		return ERR_PTR(-ENODEV);
+
+	devid = (int)(uintptr_t)match->data;
+	maxleds = pca9532_chip_info_tbl[devid].num_leds;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	for_each_child_of_node(np, child) {
+		if (of_property_read_string(child, "label",
+					    &pdata->leds[i].name))
+			pdata->leds[i].name = child->name;
+		of_property_read_u32(child, "type", &pdata->leds[i].type);
+		of_property_read_string(child, "linux,default-trigger",
+					&pdata->leds[i].default_trigger);
+		if (++i >= maxleds) {
+			of_node_put(child);
+			break;
+		}
+	}
+
+	return pdata;
+}
+
 static int pca9532_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
+	int devid;
 	struct pca9532_data *data = i2c_get_clientdata(client);
 	struct pca9532_platform_data *pca9532_pdata =
 			dev_get_platdata(&client->dev);
+	struct device_node *np = client->dev.of_node;
 
-	if (!pca9532_pdata)
-		return -EIO;
+	if (!pca9532_pdata) {
+		if (np) {
+			pca9532_pdata =
+				pca9532_of_populate_pdata(&client->dev, np);
+			if (IS_ERR(pca9532_pdata))
+				return PTR_ERR(pca9532_pdata);
+		} else {
+			dev_err(&client->dev, "no platform data\n");
+			return -EINVAL;
+		}
+		devid = (int)(uintptr_t)of_match_device(
+			of_pca9532_leds_match, &client->dev)->data;
+	} else {
+		devid = id->driver_data;
+	}
 
 	if (!i2c_check_functionality(client->adapter,
 		I2C_FUNC_SMBUS_BYTE_DATA))
@@ -450,7 +517,7 @@ static int pca9532_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	data->chip_info = &pca9532_chip_info_tbl[id->driver_data];
+	data->chip_info = &pca9532_chip_info_tbl[devid];
 
 	dev_info(&client->dev, "setting platform data\n");
 	i2c_set_clientdata(client, data);

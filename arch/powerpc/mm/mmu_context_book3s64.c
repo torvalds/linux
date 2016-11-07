@@ -181,7 +181,10 @@ void destroy_context(struct mm_struct *mm)
 #ifdef CONFIG_PPC_RADIX_MMU
 void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-	mtspr(SPRN_PID, next->context.id);
 	asm volatile("isync": : :"memory");
+	mtspr(SPRN_PID, next->context.id);
+	asm volatile("isync \n"
+		     PPC_SLBIA(0x7)
+		     : : :"memory");
 }
 #endif

@@ -1019,12 +1019,13 @@ il3945_hw_txq_ctx_free(struct il_priv *il)
 	int txq_id;
 
 	/* Tx queues */
-	if (il->txq)
+	if (il->txq) {
 		for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++)
 			if (txq_id == IL39_CMD_QUEUE_NUM)
 				il_cmd_queue_free(il);
 			else
 				il_tx_queue_free(il, txq_id);
+	}
 
 	/* free tx queue structure */
 	il_free_txq_mem(il);
@@ -2670,7 +2671,7 @@ const struct il_ops il3945_ops = {
 	.send_led_cmd = il3945_send_led_cmd,
 };
 
-static struct il_cfg il3945_bg_cfg = {
+static const struct il_cfg il3945_bg_cfg = {
 	.name = "3945BG",
 	.fw_name_pre = IL3945_FW_PRE,
 	.ucode_api_max = IL3945_UCODE_API_MAX,
@@ -2699,7 +2700,7 @@ static struct il_cfg il3945_bg_cfg = {
 	},
 };
 
-static struct il_cfg il3945_abg_cfg = {
+static const struct il_cfg il3945_abg_cfg = {
 	.name = "3945ABG",
 	.fw_name_pre = IL3945_FW_PRE,
 	.ucode_api_max = IL3945_UCODE_API_MAX,

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -332,15 +328,20 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
  */
 void libcfs_debug_dumplog_internal(void *arg)
 {
+	static time64_t last_dump_time;
+	time64_t current_time;
 	void *journal_info;
 
 	journal_info = current->journal_info;
 	current->journal_info = NULL;
+	current_time = ktime_get_real_seconds();
 
-	if (strncmp(libcfs_debug_file_path_arr, "NONE", 4) != 0) {
+	if (strncmp(libcfs_debug_file_path_arr, "NONE", 4) &&
+	    current_time > last_dump_time) {
+		last_dump_time = current_time;
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
 			 "%s.%lld.%ld", libcfs_debug_file_path_arr,
-			 (s64)ktime_get_real_seconds(), (long_ptr_t)arg);
+			 (s64)current_time, (long_ptr_t)arg);
 		pr_alert("LustreError: dumping log to %s\n", debug_file_name);
 		cfs_tracefile_dump_all_pages(debug_file_name);
 		libcfs_run_debug_log_upcall(debug_file_name);
@@ -366,12 +367,12 @@ void libcfs_debug_dumplog(void)
 	 * get to schedule()
 	 */
 	init_waitqueue_entry(&wait, current);
-	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&debug_ctlwq, &wait);
 
 	dumper = kthread_run(libcfs_debug_dumplog_thread,
 			     (void *)(long)current_pid(),
 			     "libcfs_debug_dumper");
+	set_current_state(TASK_INTERRUPTIBLE);
 	if (IS_ERR(dumper))
 		pr_err("LustreError: cannot start log dump thread: %ld\n",
 		       PTR_ERR(dumper));

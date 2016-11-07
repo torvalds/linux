@@ -78,21 +78,53 @@ static inline int atomic_##op##_return_relaxed(int a, atomic_t *v)	\
 	return t;							\
 }
 
+#define ATOMIC_FETCH_OP_RELAXED(op, asm_op)				\
+static inline int atomic_fetch_##op##_relaxed(int a, atomic_t *v)	\
+{									\
+	int res, t;							\
+									\
+	__asm__ __volatile__(						\
+"1:	lwarx	%0,0,%4		# atomic_fetch_" #op "_relaxed\n"	\
+	#asm_op " %1,%3,%0\n"						\
+	PPC405_ERR77(0, %4)						\
+"	stwcx.	%1,0,%4\n"						\
+"	bne-	1b\n"							\
+	: "=&r" (res), "=&r" (t), "+m" (v->counter)			\
+	: "r" (a), "r" (&v->counter)					\
+	: "cc");							\
+									\
+	return res;							\
+}
+
 #define ATOMIC_OPS(op, asm_op)						\
 	ATOMIC_OP(op, asm_op)						\
-	ATOMIC_OP_RETURN_RELAXED(op, asm_op)
+	ATOMIC_OP_RETURN_RELAXED(op, asm_op)				\
+	ATOMIC_FETCH_OP_RELAXED(op, asm_op)
 
 ATOMIC_OPS(add, add)
 ATOMIC_OPS(sub, subf)
 
-ATOMIC_OP(and, and)
-ATOMIC_OP(or, or)
-ATOMIC_OP(xor, xor)
-
 #define atomic_add_return_relaxed atomic_add_return_relaxed
 #define atomic_sub_return_relaxed atomic_sub_return_relaxed
 
+#define atomic_fetch_add_relaxed atomic_fetch_add_relaxed
+#define atomic_fetch_sub_relaxed atomic_fetch_sub_relaxed
+
 #undef ATOMIC_OPS
+#define ATOMIC_OPS(op, asm_op)						\
+	ATOMIC_OP(op, asm_op)						\
+	ATOMIC_FETCH_OP_RELAXED(op, asm_op)
+
+ATOMIC_OPS(and, and)
+ATOMIC_OPS(or, or)
+ATOMIC_OPS(xor, xor)
+
+#define atomic_fetch_and_relaxed atomic_fetch_and_relaxed
+#define atomic_fetch_or_relaxed  atomic_fetch_or_relaxed
+#define atomic_fetch_xor_relaxed atomic_fetch_xor_relaxed
+
+#undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP_RELAXED
 #undef ATOMIC_OP_RETURN_RELAXED
 #undef ATOMIC_OP
 
@@ -201,7 +233,7 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 	PPC_ATOMIC_ENTRY_BARRIER
 "1:	lwarx	%0,0,%1		# __atomic_add_unless\n\
 	cmpw	0,%0,%3 \n\
-	beq-	2f \n\
+	beq	2f \n\
 	add	%0,%2,%0 \n"
 	PPC405_ERR77(0,%2)
 "	stwcx.	%0,0,%1 \n\
@@ -329,20 +361,53 @@ atomic64_##op##_return_relaxed(long a, atomic64_t *v)			\
 	return t;							\
 }
 
+#define ATOMIC64_FETCH_OP_RELAXED(op, asm_op)				\
+static inline long							\
+atomic64_fetch_##op##_relaxed(long a, atomic64_t *v)			\
+{									\
+	long res, t;							\
+									\
+	__asm__ __volatile__(						\
+"1:	ldarx	%0,0,%4		# atomic64_fetch_" #op "_relaxed\n"	\
+	#asm_op " %1,%3,%0\n"						\
+"	stdcx.	%1,0,%4\n"						\
+"	bne-	1b\n"							\
+	: "=&r" (res), "=&r" (t), "+m" (v->counter)			\
+	: "r" (a), "r" (&v->counter)					\
+	: "cc");							\
+									\
+	return res;							\
+}
+
 #define ATOMIC64_OPS(op, asm_op)					\
 	ATOMIC64_OP(op, asm_op)						\
-	ATOMIC64_OP_RETURN_RELAXED(op, asm_op)
+	ATOMIC64_OP_RETURN_RELAXED(op, asm_op)				\
+	ATOMIC64_FETCH_OP_RELAXED(op, asm_op)
 
 ATOMIC64_OPS(add, add)
 ATOMIC64_OPS(sub, subf)
-ATOMIC64_OP(and, and)
-ATOMIC64_OP(or, or)
-ATOMIC64_OP(xor, xor)
 
 #define atomic64_add_return_relaxed atomic64_add_return_relaxed
 #define atomic64_sub_return_relaxed atomic64_sub_return_relaxed
 
+#define atomic64_fetch_add_relaxed atomic64_fetch_add_relaxed
+#define atomic64_fetch_sub_relaxed atomic64_fetch_sub_relaxed
+
+#undef ATOMIC64_OPS
+#define ATOMIC64_OPS(op, asm_op)					\
+	ATOMIC64_OP(op, asm_op)						\
+	ATOMIC64_FETCH_OP_RELAXED(op, asm_op)
+
+ATOMIC64_OPS(and, and)
+ATOMIC64_OPS(or, or)
+ATOMIC64_OPS(xor, xor)
+
+#define atomic64_fetch_and_relaxed atomic64_fetch_and_relaxed
+#define atomic64_fetch_or_relaxed  atomic64_fetch_or_relaxed
+#define atomic64_fetch_xor_relaxed atomic64_fetch_xor_relaxed
+
 #undef ATOPIC64_OPS
+#undef ATOMIC64_FETCH_OP_RELAXED
 #undef ATOMIC64_OP_RETURN_RELAXED
 #undef ATOMIC64_OP
 
@@ -474,7 +539,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 	PPC_ATOMIC_ENTRY_BARRIER
 "1:	ldarx	%0,0,%1		# __atomic_add_unless\n\
 	cmpd	0,%0,%3 \n\
-	beq-	2f \n\
+	beq	2f \n\
 	add	%0,%2,%0 \n"
 "	stdcx.	%0,0,%1 \n\
 	bne-	1b \n"

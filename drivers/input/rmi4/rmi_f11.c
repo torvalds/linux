@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
-#include <linux/kconfig.h>
 #include <linux/rmi.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -530,8 +529,8 @@ static void rmi_f11_rel_pos_report(struct f11_data *f11, u8 n_finger)
 	struct f11_2d_data *data = &f11->data;
 	s8 x, y;
 
-	x = data->rel_pos[n_finger * 2];
-	y = data->rel_pos[n_finger * 2 + 1];
+	x = data->rel_pos[n_finger * RMI_F11_REL_BYTES];
+	y = data->rel_pos[n_finger * RMI_F11_REL_BYTES + 1];
 
 	rmi_2d_sensor_rel_report(sensor, x, y);
 }
@@ -1241,7 +1240,6 @@ static int rmi_f11_attention(struct rmi_function *fn, unsigned long *irq_bits)
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	struct f11_data *f11 = dev_get_drvdata(&fn->dev);
 	u16 data_base_addr = fn->fd.data_base_addr;
-	u16 data_base_addr_offset = 0;
 	int error;
 
 	if (rmi_dev->xport->attn_data) {
@@ -1251,8 +1249,7 @@ static int rmi_f11_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		rmi_dev->xport->attn_size -= f11->sensor.attn_size;
 	} else {
 		error = rmi_read_block(rmi_dev,
-				data_base_addr + data_base_addr_offset,
-				f11->sensor.data_pkt,
+				data_base_addr, f11->sensor.data_pkt,
 				f11->sensor.pkt_size);
 		if (error < 0)
 			return error;
@@ -1260,7 +1257,6 @@ static int rmi_f11_attention(struct rmi_function *fn, unsigned long *irq_bits)
 
 	rmi_f11_finger_handler(f11, &f11->sensor, irq_bits,
 				drvdata->num_of_irq_regs);
-	data_base_addr_offset += f11->sensor.pkt_size;
 
 	return 0;
 }

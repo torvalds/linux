@@ -38,7 +38,6 @@
  *         Rolf Neugebauer <rolf.neugebauer@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -124,17 +123,17 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	 * first NFP_NET_CFG_BAR_SZ of the BAR.  This keeps the code
 	 * the identical for PF and VF drivers.
 	 */
-	ctrl_bar = ioremap_nocache(pci_resource_start(pdev, NFP_NET_CRTL_BAR),
+	ctrl_bar = ioremap_nocache(pci_resource_start(pdev, NFP_NET_CTRL_BAR),
 				   NFP_NET_CFG_BAR_SZ);
 	if (!ctrl_bar) {
 		dev_err(&pdev->dev,
-			"Failed to map resource %d\n", NFP_NET_CRTL_BAR);
+			"Failed to map resource %d\n", NFP_NET_CTRL_BAR);
 		err = -EIO;
 		goto err_pci_regions;
 	}
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
-	if (fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
+	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
 		dev_err(&pdev->dev, "Unknown Firmware ABI %d.%d.%d.%d\n",
 			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
 		err = -EINVAL;
@@ -142,16 +141,14 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Determine stride */
-	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 0) ||
-	    nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1) ||
-	    nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0x12, 0x48)) {
+	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1)) {
 		stride = 2;
 		tx_bar_no = NFP_NET_Q0_BAR;
 		rx_bar_no = NFP_NET_Q1_BAR;
 		dev_warn(&pdev->dev, "OBSOLETE Firmware detected - VF isolation not available\n");
 	} else {
 		switch (fw_ver.major) {
-		case 1 ... 3:
+		case 1 ... 4:
 			if (is_nfp3200) {
 				stride = 2;
 				tx_bar_no = NFP_NET_Q0_BAR;

@@ -13,6 +13,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>	/* symbol_get ; symbol_put */
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/major.h>

@@ -67,6 +67,8 @@ struct snd_compr_file {
 	struct snd_compr_stream stream;
 };
 
+static void error_delayed_work(struct work_struct *work);
+
 /*
  * a note on stream states used:
  * we use following states in the compressed core
@@ -123,6 +125,9 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 		snd_card_unref(compr->card);
 		return -ENOMEM;
 	}
+
+	INIT_DELAYED_WORK(&data->stream.error_work, error_delayed_work);
+
 	data->stream.ops = compr->ops;
 	data->stream.direction = dirn;
 	data->stream.private_data = compr->private_data;
@@ -152,6 +157,8 @@ static int snd_compr_free(struct inode *inode, struct file *f)
 {
 	struct snd_compr_file *data = f->private_data;
 	struct snd_compr_runtime *runtime = data->stream.runtime;
+
+	cancel_delayed_work_sync(&data->stream.error_work);
 
 	switch (runtime->state) {
 	case SNDRV_PCM_STATE_RUNNING:
@@ -236,6 +243,15 @@ snd_compr_ioctl_avail(struct snd_compr_stream *stream, unsigned long arg)
 
 	avail = snd_compr_calc_avail(stream, &ioctl_avail);
 	ioctl_avail.avail = avail;
+
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+		return -EBADFD;
+	case SNDRV_PCM_STATE_XRUN:
+		return -EPIPE;
+	default:
+		break;
+	}
 
 	if (copy_to_user((__u64 __user *)arg,
 				&ioctl_avail, sizeof(ioctl_avail)))
@@ -346,10 +362,12 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_PREPARED:
-	case SNDRV_PCM_STATE_XRUN:
 	case SNDRV_PCM_STATE_SUSPENDED:
 	case SNDRV_PCM_STATE_DISCONNECTED:
 		retval = -EBADFD;
+		goto out;
+	case SNDRV_PCM_STATE_XRUN:
+		retval = -EPIPE;
 		goto out;
 	}
 
@@ -399,10 +417,16 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 	stream = &data->stream;
 
 	mutex_lock(&stream->device->lock);
-	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
+
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+	case SNDRV_PCM_STATE_XRUN:
 		retval = snd_compr_get_poll(stream) | POLLERR;
 		goto out;
+	default:
+		break;
 	}
+
 	poll_wait(f, &stream->runtime->sleep, wait);
 
 	avail = snd_compr_get_avail(stream);
@@ -529,13 +553,9 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 		 * we should allow parameter change only when stream has been
 		 * opened not in other cases
 		 */
-		params = kmalloc(sizeof(*params), GFP_KERNEL);
-		if (!params)
-			return -ENOMEM;
-		if (copy_from_user(params, (void __user *)arg, sizeof(*params))) {
-			retval = -EFAULT;
-			goto out;
-		}
+		params = memdup_user((void __user *)arg, sizeof(*params));
+		if (IS_ERR(params))
+			return PTR_ERR(params);
 
 		retval = snd_compress_check_input(params);
 		if (retval)
@@ -697,6 +717,45 @@ static int snd_compr_stop(struct snd_compr_stream *stream)
 	return retval;
 }
 
+static void error_delayed_work(struct work_struct *work)
+{
+	struct snd_compr_stream *stream;
+
+	stream = container_of(work, struct snd_compr_stream, error_work.work);
+
+	mutex_lock(&stream->device->lock);
+
+	stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_STOP);
+	wake_up(&stream->runtime->sleep);
+
+	mutex_unlock(&stream->device->lock);
+}
+
+/*
+ * snd_compr_stop_error: Report a fatal error on a stream
+ * @stream: pointer to stream
+ * @state: state to transition the stream to
+ *
+ * Stop the stream and set its state.
+ *
+ * Should be called with compressed device lock held.
+ */
+int snd_compr_stop_error(struct snd_compr_stream *stream,
+			 snd_pcm_state_t state)
+{
+	if (stream->runtime->state == state)
+		return 0;
+
+	stream->runtime->state = state;
+
+	pr_debug("Changing state to: %d\n", state);
+
+	queue_delayed_work(system_power_efficient_wq, &stream->error_work, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_compr_stop_error);
+
 static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 {
 	int ret;
@@ -721,7 +780,7 @@ static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 	ret = wait_event_interruptible(stream->runtime->sleep,
 			(stream->runtime->state != SNDRV_PCM_STATE_DRAINING));
 	if (ret == -ERESTARTSYS)
-		pr_debug("wait aborted by a signal");
+		pr_debug("wait aborted by a signal\n");
 	else if (ret)
 		pr_debug("wait for drain failed with %d\n", ret);
 
@@ -903,7 +962,7 @@ static int snd_compress_dev_register(struct snd_device *device)
 				  compr->card, compr->device,
 				  &snd_compr_file_ops, compr, &compr->dev);
 	if (ret < 0) {
-		pr_err("snd_register_device failed\n %d", ret);
+		pr_err("snd_register_device failed %d\n", ret);
 		return ret;
 	}
 	return ret;

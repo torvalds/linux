@@ -122,6 +122,7 @@ config MMC_SDHCI_OF_ARASAN
 	tristate "SDHCI OF support for the Arasan SDHCI controllers"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
+	depends on COMMON_CLK
 	help
 	  This selects the Arasan Secure Digital Host Controller Interface
 	  (SDHCI). This hardware is found e.g. in Xilinx' Zynq SoC.
@@ -295,17 +296,6 @@ config MMC_SDHCI_BCM_KONA
 	  This is used in Broadcom mobile SoCs.
 
 	  If you have a controller with this interface, say Y or M here.
-
-config MMC_SDHCI_BCM2835
-	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
-	depends on ARCH_BCM2835
-	depends on MMC_SDHCI_PLTFM
-	select MMC_SDHCI_IO_ACCESSORS
-	help
-	  This selects the BCM2835 SD/MMC controller. If you have a BCM2835
-	  platform with SD or MMC devices, say Y or M here.
-
-	  If unsure, say N.
 
 config MMC_SDHCI_F_SDH30
 	tristate "SDHCI support for Fujitsu Semiconductor F_SDH30"
@@ -798,3 +788,13 @@ config MMC_SDHCI_MICROCHIP_PIC32
           If you have a controller with this interface, say Y or M here.
 
           If unsure, say N.
+config MMC_SDHCI_BRCMSTB
+	tristate "Broadcom SDIO/SD/MMC support"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	depends on MMC_SDHCI_PLTFM
+	default y
+	help
+	  This selects support for the SDIO/SD/MMC Host Controller on
+	  Broadcom STB SoCs.
+
+	  If unsure, say Y.

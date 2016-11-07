@@ -31,6 +31,7 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <net/ip.h>
+#include <net/ncsi.h>
 
 #include "ftgmac100.h"
 
@@ -59,6 +60,8 @@ struct ftgmac100 {
 	struct ftgmac100_descs *descs;
 	dma_addr_t descs_dma_addr;
 
+	struct page *rx_pages[RX_QUEUE_ENTRIES];
+
 	unsigned int rx_pointer;
 	unsigned int tx_clean_pointer;
 	unsigned int tx_pointer;
@@ -68,10 +71,17 @@ struct ftgmac100 {
 
 	struct net_device *netdev;
 	struct device *dev;
+	struct ncsi_dev *ndev;
 	struct napi_struct napi;
 
 	struct mii_bus *mii_bus;
 	int old_speed;
+	int int_mask_all;
+	bool use_ncsi;
+	bool enabled;
+
+	u32 rxdes0_edorr_mask;
+	u32 txdes0_edotr_mask;
 };
 
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
@@ -80,14 +90,6 @@ static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
 /******************************************************************************
  * internal functions (hardware register access)
  *****************************************************************************/
-#define INT_MASK_ALL_ENABLED	(FTGMAC100_INT_RPKT_LOST	| \
-				 FTGMAC100_INT_XPKT_ETH		| \
-				 FTGMAC100_INT_XPKT_LOST	| \
-				 FTGMAC100_INT_AHB_ERR		| \
-				 FTGMAC100_INT_PHYSTS_CHG	| \
-				 FTGMAC100_INT_RPKT_BUF		| \
-				 FTGMAC100_INT_NO_RXBUF)
-
 static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
 {
 	iowrite32(addr, priv->base + FTGMAC100_OFFSET_RXR_BADR);
@@ -139,6 +141,55 @@ static void ftgmac100_set_mac(struct ftgmac100 *priv, const unsigned char *mac)
 
 	iowrite32(maddr, priv->base + FTGMAC100_OFFSET_MAC_MADR);
 	iowrite32(laddr, priv->base + FTGMAC100_OFFSET_MAC_LADR);
+}
+
+static void ftgmac100_setup_mac(struct ftgmac100 *priv)
+{
+	u8 mac[ETH_ALEN];
+	unsigned int m;
+	unsigned int l;
+	void *addr;
+
+	addr = device_get_mac_address(priv->dev, mac, ETH_ALEN);
+	if (addr) {
+		ether_addr_copy(priv->netdev->dev_addr, mac);
+		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
+			 mac);
+		return;
+	}
+
+	m = ioread32(priv->base + FTGMAC100_OFFSET_MAC_MADR);
+	l = ioread32(priv->base + FTGMAC100_OFFSET_MAC_LADR);
+
+	mac[0] = (m >> 8) & 0xff;
+	mac[1] = m & 0xff;
+	mac[2] = (l >> 24) & 0xff;
+	mac[3] = (l >> 16) & 0xff;
+	mac[4] = (l >> 8) & 0xff;
+	mac[5] = l & 0xff;
+
+	if (is_valid_ether_addr(mac)) {
+		ether_addr_copy(priv->netdev->dev_addr, mac);
+		dev_info(priv->dev, "Read MAC address %pM from chip\n", mac);
+	} else {
+		eth_hw_addr_random(priv->netdev);
+		dev_info(priv->dev, "Generated random MAC address %pM\n",
+			 priv->netdev->dev_addr);
+	}
+}
+
+static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
+{
+	int ret;
+
+	ret = eth_prepare_mac_addr_change(dev, p);
+	if (ret < 0)
+		return ret;
+
+	eth_commit_mac_addr_change(dev, p);
+	ftgmac100_set_mac(netdev_priv(dev), dev->dev_addr);
+
+	return 0;
 }
 
 static void ftgmac100_init_hw(struct ftgmac100 *priv)
@@ -211,10 +262,11 @@ static bool ftgmac100_rxdes_packet_ready(struct ftgmac100_rxdes *rxdes)
 	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RXPKT_RDY);
 }
 
-static void ftgmac100_rxdes_set_dma_own(struct ftgmac100_rxdes *rxdes)
+static void ftgmac100_rxdes_set_dma_own(const struct ftgmac100 *priv,
+					struct ftgmac100_rxdes *rxdes)
 {
 	/* clear status bits */
-	rxdes->rxdes0 &= cpu_to_le32(FTGMAC100_RXDES0_EDORR);
+	rxdes->rxdes0 &= cpu_to_le32(priv->rxdes0_edorr_mask);
 }
 
 static bool ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
@@ -252,9 +304,10 @@ static bool ftgmac100_rxdes_multicast(struct ftgmac100_rxdes *rxdes)
 	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_MULTICAST);
 }
 
-static void ftgmac100_rxdes_set_end_of_ring(struct ftgmac100_rxdes *rxdes)
+static void ftgmac100_rxdes_set_end_of_ring(const struct ftgmac100 *priv,
+					    struct ftgmac100_rxdes *rxdes)
 {
-	rxdes->rxdes0 |= cpu_to_le32(FTGMAC100_RXDES0_EDORR);
+	rxdes->rxdes0 |= cpu_to_le32(priv->rxdes0_edorr_mask);
 }
 
 static void ftgmac100_rxdes_set_dma_addr(struct ftgmac100_rxdes *rxdes,
@@ -295,18 +348,27 @@ static bool ftgmac100_rxdes_ipcs_err(struct ftgmac100_rxdes *rxdes)
 	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_IP_CHKSUM_ERR);
 }
 
+static inline struct page **ftgmac100_rxdes_page_slot(struct ftgmac100 *priv,
+						      struct ftgmac100_rxdes *rxdes)
+{
+	return &priv->rx_pages[rxdes - priv->descs->rxdes];
+}
+
 /*
  * rxdes2 is not used by hardware. We use it to keep track of page.
  * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
  */
-static void ftgmac100_rxdes_set_page(struct ftgmac100_rxdes *rxdes, struct page *page)
+static void ftgmac100_rxdes_set_page(struct ftgmac100 *priv,
+				     struct ftgmac100_rxdes *rxdes,
+				     struct page *page)
 {
-	rxdes->rxdes2 = (unsigned int)page;
+	*ftgmac100_rxdes_page_slot(priv, rxdes) = page;
 }
 
-static struct page *ftgmac100_rxdes_get_page(struct ftgmac100_rxdes *rxdes)
+static struct page *ftgmac100_rxdes_get_page(struct ftgmac100 *priv,
+					     struct ftgmac100_rxdes *rxdes)
 {
-	return (struct page *)rxdes->rxdes2;
+	return *ftgmac100_rxdes_page_slot(priv, rxdes);
 }
 
 /******************************************************************************
@@ -336,7 +398,7 @@ ftgmac100_rx_locate_first_segment(struct ftgmac100 *priv)
 		if (ftgmac100_rxdes_first_segment(rxdes))
 			return rxdes;
 
-		ftgmac100_rxdes_set_dma_own(rxdes);
+		ftgmac100_rxdes_set_dma_own(priv, rxdes);
 		ftgmac100_rx_pointer_advance(priv);
 		rxdes = ftgmac100_current_rxdes(priv);
 	}
@@ -407,7 +469,7 @@ static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
 		if (ftgmac100_rxdes_last_segment(rxdes))
 			done = true;
 
-		ftgmac100_rxdes_set_dma_own(rxdes);
+		ftgmac100_rxdes_set_dma_own(priv, rxdes);
 		ftgmac100_rx_pointer_advance(priv);
 		rxdes = ftgmac100_current_rxdes(priv);
 	} while (!done && ftgmac100_rxdes_packet_ready(rxdes));
@@ -455,7 +517,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	do {
 		dma_addr_t map = ftgmac100_rxdes_get_dma_addr(rxdes);
-		struct page *page = ftgmac100_rxdes_get_page(rxdes);
+		struct page *page = ftgmac100_rxdes_get_page(priv, rxdes);
 		unsigned int size;
 
 		dma_unmap_page(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
@@ -499,10 +561,11 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 /******************************************************************************
  * internal functions (transmit descriptor)
  *****************************************************************************/
-static void ftgmac100_txdes_reset(struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_reset(const struct ftgmac100 *priv,
+				  struct ftgmac100_txdes *txdes)
 {
 	/* clear all except end of ring bit */
-	txdes->txdes0 &= cpu_to_le32(FTGMAC100_TXDES0_EDOTR);
+	txdes->txdes0 &= cpu_to_le32(priv->txdes0_edotr_mask);
 	txdes->txdes1 = 0;
 	txdes->txdes2 = 0;
 	txdes->txdes3 = 0;
@@ -523,9 +586,10 @@ static void ftgmac100_txdes_set_dma_own(struct ftgmac100_txdes *txdes)
 	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_TXDMA_OWN);
 }
 
-static void ftgmac100_txdes_set_end_of_ring(struct ftgmac100_txdes *txdes)
+static void ftgmac100_txdes_set_end_of_ring(const struct ftgmac100 *priv,
+					    struct ftgmac100_txdes *txdes)
 {
-	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_EDOTR);
+	txdes->txdes0 |= cpu_to_le32(priv->txdes0_edotr_mask);
 }
 
 static void ftgmac100_txdes_set_first_segment(struct ftgmac100_txdes *txdes)
@@ -644,7 +708,7 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 
 	dev_kfree_skb(skb);
 
-	ftgmac100_txdes_reset(txdes);
+	ftgmac100_txdes_reset(priv, txdes);
 
 	ftgmac100_tx_clean_pointer_advance(priv);
 
@@ -733,9 +797,9 @@ static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
 		return -ENOMEM;
 	}
 
-	ftgmac100_rxdes_set_page(rxdes, page);
+	ftgmac100_rxdes_set_page(priv, rxdes, page);
 	ftgmac100_rxdes_set_dma_addr(rxdes, map);
-	ftgmac100_rxdes_set_dma_own(rxdes);
+	ftgmac100_rxdes_set_dma_own(priv, rxdes);
 	return 0;
 }
 
@@ -745,7 +809,7 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
-		struct page *page = ftgmac100_rxdes_get_page(rxdes);
+		struct page *page = ftgmac100_rxdes_get_page(priv, rxdes);
 		dma_addr_t map = ftgmac100_rxdes_get_dma_addr(rxdes);
 
 		if (!page)
@@ -782,7 +846,8 @@ static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
 		return -ENOMEM;
 
 	/* initialize RX ring */
-	ftgmac100_rxdes_set_end_of_ring(&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);
+	ftgmac100_rxdes_set_end_of_ring(priv,
+					&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);
 
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
@@ -792,7 +857,8 @@ static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
 	}
 
 	/* initialize TX ring */
-	ftgmac100_txdes_set_end_of_ring(&priv->descs->txdes[TX_QUEUE_ENTRIES - 1]);
+	ftgmac100_txdes_set_end_of_ring(priv,
+					&priv->descs->txdes[TX_QUEUE_ENTRIES - 1]);
 	return 0;
 
 err:
@@ -952,7 +1018,10 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	struct net_device *netdev = dev_id;
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
-	if (likely(netif_running(netdev))) {
+	/* When running in NCSI mode, the interface should be ready for
+	 * receiving or transmitting NCSI packets before it's opened.
+	 */
+	if (likely(priv->use_ncsi || netif_running(netdev))) {
 		/* Disable interrupts for polling */
 		iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 		napi_schedule(&priv->napi);
@@ -1005,14 +1074,13 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		ftgmac100_tx_complete(priv);
 	}
 
-	if (status & (FTGMAC100_INT_NO_RXBUF | FTGMAC100_INT_RPKT_LOST |
-		      FTGMAC100_INT_AHB_ERR | FTGMAC100_INT_PHYSTS_CHG)) {
+	if (status & priv->int_mask_all & (FTGMAC100_INT_NO_RXBUF |
+			FTGMAC100_INT_RPKT_LOST | FTGMAC100_INT_AHB_ERR)) {
 		if (net_ratelimit())
-			netdev_info(netdev, "[ISR] = 0x%x: %s%s%s%s\n", status,
+			netdev_info(netdev, "[ISR] = 0x%x: %s%s%s\n", status,
 				    status & FTGMAC100_INT_NO_RXBUF ? "NO_RXBUF " : "",
 				    status & FTGMAC100_INT_RPKT_LOST ? "RPKT_LOST " : "",
-				    status & FTGMAC100_INT_AHB_ERR ? "AHB_ERR " : "",
-				    status & FTGMAC100_INT_PHYSTS_CHG ? "PHYSTS_CHG" : "");
+				    status & FTGMAC100_INT_AHB_ERR ? "AHB_ERR " : "");
 
 		if (status & FTGMAC100_INT_NO_RXBUF) {
 			/* RX buffer unavailable */
@@ -1029,7 +1097,8 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 
 		/* enable all interrupts */
-		iowrite32(INT_MASK_ALL_ENABLED, priv->base + FTGMAC100_OFFSET_IER);
+		iowrite32(priv->int_mask_all,
+			  priv->base + FTGMAC100_OFFSET_IER);
 	}
 
 	return rx;
@@ -1041,6 +1110,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 static int ftgmac100_open(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
+	unsigned int status;
 	int err;
 
 	err = ftgmac100_alloc_buffers(priv);
@@ -1065,17 +1135,38 @@ static int ftgmac100_open(struct net_device *netdev)
 		goto err_hw;
 
 	ftgmac100_init_hw(priv);
-	ftgmac100_start_hw(priv, 10);
+	ftgmac100_start_hw(priv, priv->use_ncsi ? 100 : 10);
 
-	phy_start(netdev->phydev);
+	/* Clear stale interrupts */
+	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
+	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
+
+	if (netdev->phydev)
+		phy_start(netdev->phydev);
+	else if (priv->use_ncsi)
+		netif_carrier_on(netdev);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(netdev);
 
 	/* enable all interrupts */
-	iowrite32(INT_MASK_ALL_ENABLED, priv->base + FTGMAC100_OFFSET_IER);
+	iowrite32(priv->int_mask_all, priv->base + FTGMAC100_OFFSET_IER);
+
+	/* Start the NCSI device */
+	if (priv->use_ncsi) {
+		err = ncsi_start_dev(priv->ndev);
+		if (err)
+			goto err_ncsi;
+	}
+
+	priv->enabled = true;
+
 	return 0;
 
+err_ncsi:
+	napi_disable(&priv->napi);
+	netif_stop_queue(netdev);
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 err_hw:
 	free_irq(priv->irq, netdev);
 err_irq:
@@ -1088,12 +1179,19 @@ static int ftgmac100_stop(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
+	if (!priv->enabled)
+		return 0;
+
 	/* disable all interrupts */
+	priv->enabled = false;
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
 	napi_disable(&priv->napi);
-	phy_stop(netdev->phydev);
+	if (netdev->phydev)
+		phy_stop(netdev->phydev);
+	else if (priv->use_ncsi)
+		ncsi_stop_dev(priv->ndev);
 
 	ftgmac100_stop_hw(priv);
 	free_irq(priv->irq, netdev);
@@ -1134,6 +1232,9 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 /* optional */
 static int ftgmac100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
+	if (!netdev->phydev)
+		return -ENXIO;
+
 	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 }
 
@@ -1141,10 +1242,82 @@ static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_open		= ftgmac100_open,
 	.ndo_stop		= ftgmac100_stop,
 	.ndo_start_xmit		= ftgmac100_hard_start_xmit,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= ftgmac100_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= ftgmac100_do_ioctl,
 };
+
+static int ftgmac100_setup_mdio(struct net_device *netdev)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+	struct platform_device *pdev = to_platform_device(priv->dev);
+	int i, err = 0;
+	u32 reg;
+
+	/* initialize mdio bus */
+	priv->mii_bus = mdiobus_alloc();
+	if (!priv->mii_bus)
+		return -EIO;
+
+	if (of_machine_is_compatible("aspeed,ast2400") ||
+	    of_machine_is_compatible("aspeed,ast2500")) {
+		/* This driver supports the old MDIO interface */
+		reg = ioread32(priv->base + FTGMAC100_OFFSET_REVR);
+		reg &= ~FTGMAC100_REVR_NEW_MDIO_INTERFACE;
+		iowrite32(reg, priv->base + FTGMAC100_OFFSET_REVR);
+	};
+
+	priv->mii_bus->name = "ftgmac100_mdio";
+	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%d",
+		 pdev->name, pdev->id);
+	priv->mii_bus->priv = priv->netdev;
+	priv->mii_bus->read = ftgmac100_mdiobus_read;
+	priv->mii_bus->write = ftgmac100_mdiobus_write;
+
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		priv->mii_bus->irq[i] = PHY_POLL;
+
+	err = mdiobus_register(priv->mii_bus);
+	if (err) {
+		dev_err(priv->dev, "Cannot register MDIO bus!\n");
+		goto err_register_mdiobus;
+	}
+
+	err = ftgmac100_mii_probe(priv);
+	if (err) {
+		dev_err(priv->dev, "MII Probe failed!\n");
+		goto err_mii_probe;
+	}
+
+	return 0;
+
+err_mii_probe:
+	mdiobus_unregister(priv->mii_bus);
+err_register_mdiobus:
+	mdiobus_free(priv->mii_bus);
+	return err;
+}
+
+static void ftgmac100_destroy_mdio(struct net_device *netdev)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	if (!netdev->phydev)
+		return;
+
+	phy_disconnect(netdev->phydev);
+	mdiobus_unregister(priv->mii_bus);
+	mdiobus_free(priv->mii_bus);
+}
+
+static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
+{
+	if (unlikely(nd->state != ncsi_dev_state_functional))
+		return;
+
+	netdev_info(nd->dev, "NCSI interface %s\n",
+		    nd->link_up ? "up" : "down");
+}
 
 /******************************************************************************
  * struct platform_driver functions
@@ -1155,7 +1328,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	int irq;
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
-	int err;
+	int err = 0;
 
 	if (!pdev)
 		return -ENODEV;
@@ -1179,7 +1352,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	netdev->ethtool_ops = &ftgmac100_ethtool_ops;
 	netdev->netdev_ops = &ftgmac100_netdev_ops;
-	netdev->features = NETIF_F_IP_CSUM | NETIF_F_GRO;
 
 	platform_set_drvdata(pdev, netdev);
 
@@ -1211,31 +1383,53 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	priv->irq = irq;
 
-	/* initialize mdio bus */
-	priv->mii_bus = mdiobus_alloc();
-	if (!priv->mii_bus) {
-		err = -EIO;
-		goto err_alloc_mdiobus;
+	/* MAC address from chip or random one */
+	ftgmac100_setup_mac(priv);
+
+	priv->int_mask_all = (FTGMAC100_INT_RPKT_LOST |
+			      FTGMAC100_INT_XPKT_ETH |
+			      FTGMAC100_INT_XPKT_LOST |
+			      FTGMAC100_INT_AHB_ERR |
+			      FTGMAC100_INT_RPKT_BUF |
+			      FTGMAC100_INT_NO_RXBUF);
+
+	if (of_machine_is_compatible("aspeed,ast2400") ||
+	    of_machine_is_compatible("aspeed,ast2500")) {
+		priv->rxdes0_edorr_mask = BIT(30);
+		priv->txdes0_edotr_mask = BIT(30);
+	} else {
+		priv->rxdes0_edorr_mask = BIT(15);
+		priv->txdes0_edotr_mask = BIT(15);
 	}
 
-	priv->mii_bus->name = "ftgmac100_mdio";
-	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "ftgmac100_mii");
+	if (pdev->dev.of_node &&
+	    of_get_property(pdev->dev.of_node, "use-ncsi", NULL)) {
+		if (!IS_ENABLED(CONFIG_NET_NCSI)) {
+			dev_err(&pdev->dev, "NCSI stack not enabled\n");
+			goto err_ncsi_dev;
+		}
 
-	priv->mii_bus->priv = netdev;
-	priv->mii_bus->read = ftgmac100_mdiobus_read;
-	priv->mii_bus->write = ftgmac100_mdiobus_write;
-
-	err = mdiobus_register(priv->mii_bus);
-	if (err) {
-		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
-		goto err_register_mdiobus;
+		dev_info(&pdev->dev, "Using NCSI interface\n");
+		priv->use_ncsi = true;
+		priv->ndev = ncsi_register_dev(netdev, ftgmac100_ncsi_handler);
+		if (!priv->ndev)
+			goto err_ncsi_dev;
+	} else {
+		priv->use_ncsi = false;
+		err = ftgmac100_setup_mdio(netdev);
+		if (err)
+			goto err_setup_mdio;
 	}
 
-	err = ftgmac100_mii_probe(priv);
-	if (err) {
-		dev_err(&pdev->dev, "MII Probe failed!\n");
-		goto err_mii_probe;
-	}
+	/* We have to disable on-chip IP checksum functionality
+	 * when NCSI is enabled on the interface. It doesn't work
+	 * in that case.
+	 */
+	netdev->features = NETIF_F_IP_CSUM | NETIF_F_GRO;
+	if (priv->use_ncsi &&
+	    of_get_property(pdev->dev.of_node, "no-hw-checksum", NULL))
+		netdev->features &= ~NETIF_F_IP_CSUM;
+
 
 	/* register network device */
 	err = register_netdev(netdev);
@@ -1246,21 +1440,12 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	netdev_info(netdev, "irq %d, mapped at %p\n", priv->irq, priv->base);
 
-	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		eth_hw_addr_random(netdev);
-		netdev_info(netdev, "generated random MAC address %pM\n",
-			    netdev->dev_addr);
-	}
-
 	return 0;
 
+err_ncsi_dev:
 err_register_netdev:
-	phy_disconnect(netdev->phydev);
-err_mii_probe:
-	mdiobus_unregister(priv->mii_bus);
-err_register_mdiobus:
-	mdiobus_free(priv->mii_bus);
-err_alloc_mdiobus:
+	ftgmac100_destroy_mdio(netdev);
+err_setup_mdio:
 	iounmap(priv->base);
 err_ioremap:
 	release_resource(priv->res);
@@ -1280,10 +1465,7 @@ static int __exit ftgmac100_remove(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
-
-	phy_disconnect(netdev->phydev);
-	mdiobus_unregister(priv->mii_bus);
-	mdiobus_free(priv->mii_bus);
+	ftgmac100_destroy_mdio(netdev);
 
 	iounmap(priv->base);
 	release_resource(priv->res);
@@ -1293,14 +1475,20 @@ static int __exit ftgmac100_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ftgmac100_of_match[] = {
+	{ .compatible = "faraday,ftgmac100" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ftgmac100_of_match);
+
 static struct platform_driver ftgmac100_driver = {
-	.probe		= ftgmac100_probe,
-	.remove		= __exit_p(ftgmac100_remove),
-	.driver		= {
-		.name	= DRV_NAME,
+	.probe	= ftgmac100_probe,
+	.remove	= __exit_p(ftgmac100_remove),
+	.driver	= {
+		.name		= DRV_NAME,
+		.of_match_table	= ftgmac100_of_match,
 	},
 };
-
 module_platform_driver(ftgmac100_driver);
 
 MODULE_AUTHOR("Po-Yu Chuang <ratbert@faraday-tech.com>");

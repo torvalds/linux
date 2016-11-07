@@ -1,8 +1,8 @@
 menuconfig ARCH_AT91
 	bool "Atmel SoCs"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V7
-	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK_AT91
+	select GPIOLIB
 	select PINCTRL
 	select SOC_BUS
 
@@ -55,7 +55,6 @@ config SOC_AT91RM9200
 	select ATMEL_ST
 	select CPU_ARM920T
 	select HAVE_AT91_USB_CLK
-	select MIGHT_HAVE_PCI
 	select PINCTRL_AT91
 	select SOC_SAM_V4_V5
 	select SRAM if PM

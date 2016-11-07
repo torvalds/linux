@@ -16,12 +16,14 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
 	compatible = "insignal,arndale-octa", "samsung,exynos5420", "samsung,exynos5";
 
-	memory {
+	memory@20000000 {
+		device_type = "memory";
 		reg = <0x20000000 0x80000000>;
 	};
 
@@ -67,6 +69,15 @@
 
 &cci {
 	status = "disabled";
+};
+
+&hdmi {
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	vdd_osc-supply = <&ldo7_reg>;
+	vdd_pll-supply = <&ldo6_reg>;
+	vdd-supply = <&ldo6_reg>;
+	ddc = <&i2c_2>;
+	status = "okay";
 };
 
 &hsi2c_4 {
@@ -346,9 +357,8 @@
 	};
 };
 
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
+&i2c_2 {
+	status = "okay";
 };
 
 &mmc_0 {
@@ -382,9 +392,9 @@
 &pinctrl_0 {
 	s2mps11_irq: s2mps11-irq {
 		samsung,pins = "gpx3-2";
-		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 };
 

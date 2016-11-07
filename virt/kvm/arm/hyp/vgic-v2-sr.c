@@ -19,20 +19,14 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/kvm_host.h>
 
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
-
-#ifdef CONFIG_KVM_NEW_VGIC
-extern struct vgic_global kvm_vgic_global_state;
-#define vgic_v2_params kvm_vgic_global_state
-#else
-extern struct vgic_params vgic_v2_params;
-#endif
 
 static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
 					    void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	u32 eisr0, eisr1;
 	int i;
 	bool expect_mi;
@@ -74,7 +68,7 @@ static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
 static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	u32 elrsr0, elrsr1;
 
 	elrsr0 = readl_relaxed(base + GICH_ELRSR0);
@@ -93,7 +87,7 @@ static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 static void __hyp_text save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	int i;
 
 	for (i = 0; i < nr_lr; i++) {
@@ -147,7 +141,7 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	void __iomem *base = kern_hyp_va(vgic->vctrl_base);
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	int i;
 	u64 live_lrs = 0;
 
@@ -174,3 +168,59 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 	writel_relaxed(cpu_if->vgic_vmcr, base + GICH_VMCR);
 	vcpu->arch.vgic_cpu.live_lrs = live_lrs;
 }
+
+#ifdef CONFIG_ARM64
+/*
+ * __vgic_v2_perform_cpuif_access -- perform a GICV access on behalf of the
+ *				     guest.
+ *
+ * @vcpu: the offending vcpu
+ *
+ * Returns:
+ *  1: GICV access successfully performed
+ *  0: Not a GICV access
+ * -1: Illegal GICV access
+ */
+int __hyp_text __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
+	struct vgic_dist *vgic = &kvm->arch.vgic;
+	phys_addr_t fault_ipa;
+	void __iomem *addr;
+	int rd;
+
+	/* Build the full address */
+	fault_ipa  = kvm_vcpu_get_fault_ipa(vcpu);
+	fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
+
+	/* If not for GICV, move on */
+	if (fault_ipa <  vgic->vgic_cpu_base ||
+	    fault_ipa >= (vgic->vgic_cpu_base + KVM_VGIC_V2_CPU_SIZE))
+		return 0;
+
+	/* Reject anything but a 32bit access */
+	if (kvm_vcpu_dabt_get_as(vcpu) != sizeof(u32))
+		return -1;
+
+	/* Not aligned? Don't bother */
+	if (fault_ipa & 3)
+		return -1;
+
+	rd = kvm_vcpu_dabt_get_rd(vcpu);
+	addr  = kern_hyp_va((kern_hyp_va(&kvm_vgic_global_state))->vcpu_base_va);
+	addr += fault_ipa - vgic->vgic_cpu_base;
+
+	if (kvm_vcpu_dabt_iswrite(vcpu)) {
+		u32 data = vcpu_data_guest_to_host(vcpu,
+						   vcpu_get_reg(vcpu, rd),
+						   sizeof(u32));
+		writel_relaxed(data, addr);
+	} else {
+		u32 data = readl_relaxed(addr);
+		vcpu_set_reg(vcpu, rd, vcpu_data_host_to_guest(vcpu, data,
+							       sizeof(u32)));
+	}
+
+	return 1;
+}
+#endif

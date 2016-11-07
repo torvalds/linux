@@ -64,3 +64,4 @@ Pressure sensors:
 - st,lps001wp-press
 - st,lps25h-press
 - st,lps331ap-press
+- st,lps22hb-press

@@ -2,7 +2,7 @@
  * zfcp device driver
  * debug feature declarations
  *
- * Copyright IBM Corp. 2008, 2010
+ * Copyright IBM Corp. 2008, 2015
  */
 
 #ifndef ZFCP_DBF_H
@@ -16,6 +16,11 @@
 #define ZFCP_DBF_TAG_LEN       7
 
 #define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
+
+enum zfcp_dbf_pseudo_erp_act_type {
+	ZFCP_PSEUDO_ERP_ACTION_RPORT_ADD = 0xff,
+	ZFCP_PSEUDO_ERP_ACTION_RPORT_DEL = 0xfe,
+};
 
 /**
  * struct zfcp_dbf_rec_trigger - trace record for triggered recovery action
@@ -110,6 +115,7 @@ struct zfcp_dbf_san {
 	u32 d_id;
 #define ZFCP_DBF_SAN_MAX_PAYLOAD (FC_CT_HDR_LEN + 32)
 	char payload[ZFCP_DBF_SAN_MAX_PAYLOAD];
+	u16 pl_len;
 } __packed;
 
 /**
@@ -126,6 +132,8 @@ struct zfcp_dbf_hba_res {
 	u8  prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
 	u32 fsf_status;
 	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
+	u32 port_handle;
+	u32 lun_handle;
 } __packed;
 
 /**
@@ -279,7 +287,7 @@ static inline
 void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 {
 	if (debug_level_enabled(req->adapter->dbf->hba, level))
-		zfcp_dbf_hba_fsf_res(tag, req);
+		zfcp_dbf_hba_fsf_res(tag, level, req);
 }
 
 /**
@@ -318,7 +326,7 @@ void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
 					scmd->device->host->hostdata[0];
 
 	if (debug_level_enabled(adapter->dbf->scsi, level))
-		zfcp_dbf_scsi(tag, scmd, req);
+		zfcp_dbf_scsi(tag, level, scmd, req);
 }
 
 /**

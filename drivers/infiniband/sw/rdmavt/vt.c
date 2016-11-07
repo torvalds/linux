@@ -370,6 +370,7 @@ enum {
 	REG_USER_MR,
 	DEREG_MR,
 	ALLOC_MR,
+	MAP_MR_SG,
 	ALLOC_FMR,
 	MAP_PHYS_FMR,
 	UNMAP_FMR,
@@ -528,7 +529,8 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 							 post_send),
 					   rvt_post_send))
 			if (!rdi->driver_f.schedule_send ||
-			    !rdi->driver_f.do_send)
+			    !rdi->driver_f.do_send ||
+			    !rdi->post_parms)
 				return -EINVAL;
 		break;
 
@@ -631,6 +633,12 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		check_driver_override(rdi, offsetof(struct ib_device,
 						    alloc_mr),
 				      rvt_alloc_mr);
+		break;
+
+	case MAP_MR_SG:
+		check_driver_override(rdi, offsetof(struct ib_device,
+						    map_mr_sg),
+				      rvt_map_mr_sg);
 		break;
 
 	case MAP_PHYS_FMR:

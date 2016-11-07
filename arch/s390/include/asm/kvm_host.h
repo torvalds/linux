@@ -28,7 +28,7 @@
 
 #define KVM_S390_BSCA_CPU_SLOTS 64
 #define KVM_S390_ESCA_CPU_SLOTS 248
-#define KVM_MAX_VCPUS KVM_S390_ESCA_CPU_SLOTS
+#define KVM_MAX_VCPUS 255
 #define KVM_USER_MEM_SLOTS 32
 
 /*
@@ -43,6 +43,7 @@
 /* s390-specific vcpu->requests bit members */
 #define KVM_REQ_ENABLE_IBS         8
 #define KVM_REQ_DISABLE_IBS        9
+#define KVM_REQ_ICPT_OPEREXC       10
 
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
@@ -145,7 +146,7 @@ struct kvm_s390_sie_block {
 	__u64	cputm;			/* 0x0028 */
 	__u64	ckc;			/* 0x0030 */
 	__u64	epoch;			/* 0x0038 */
-	__u8	reserved40[4];		/* 0x0040 */
+	__u32	svcc;			/* 0x0040 */
 #define LCTL_CR0	0x8000
 #define LCTL_CR6	0x0200
 #define LCTL_CR9	0x0040
@@ -154,6 +155,7 @@ struct kvm_s390_sie_block {
 #define LCTL_CR14	0x0002
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
+#define ICTL_OPEREXC	0x80000000
 #define ICTL_PINT	0x20000000
 #define ICTL_LPSW	0x00400000
 #define ICTL_STCTL	0x00040000
@@ -166,6 +168,9 @@ struct kvm_s390_sie_block {
 #define ICPT_INST	0x04
 #define ICPT_PROGI	0x08
 #define ICPT_INSTPROGI	0x0C
+#define ICPT_EXTINT	0x14
+#define ICPT_VALIDITY	0x20
+#define ICPT_STOP	0x28
 #define ICPT_OPEREXC	0x2C
 #define ICPT_PARTEXEC	0x38
 #define ICPT_IOINST	0x40
@@ -185,7 +190,9 @@ struct kvm_s390_sie_block {
 	__u32	scaol;			/* 0x0064 */
 	__u8	reserved68[4];		/* 0x0068 */
 	__u32	todpr;			/* 0x006c */
-	__u8	reserved70[32];		/* 0x0070 */
+	__u8	reserved70[16];		/* 0x0070 */
+	__u64	mso;			/* 0x0080 */
+	__u64	msl;			/* 0x0088 */
 	psw_t	gpsw;			/* 0x0090 */
 	__u64	gg14;			/* 0x00a0 */
 	__u64	gg15;			/* 0x00a8 */
@@ -223,7 +230,7 @@ struct kvm_s390_sie_block {
 	__u8	reserved1e6[2];		/* 0x01e6 */
 	__u64	itdba;			/* 0x01e8 */
 	__u64   riccbd;			/* 0x01f0 */
-	__u8    reserved1f8[8];		/* 0x01f8 */
+	__u64	gvrd;			/* 0x01f8 */
 } __attribute__((packed));
 
 struct kvm_s390_itdb {
@@ -238,69 +245,72 @@ struct sie_page {
 } __packed;
 
 struct kvm_vcpu_stat {
-	u32 exit_userspace;
-	u32 exit_null;
-	u32 exit_external_request;
-	u32 exit_external_interrupt;
-	u32 exit_stop_request;
-	u32 exit_validity;
-	u32 exit_instruction;
-	u32 exit_pei;
-	u32 halt_successful_poll;
-	u32 halt_attempted_poll;
-	u32 halt_poll_invalid;
-	u32 halt_wakeup;
-	u32 instruction_lctl;
-	u32 instruction_lctlg;
-	u32 instruction_stctl;
-	u32 instruction_stctg;
-	u32 exit_program_interruption;
-	u32 exit_instr_and_program;
-	u32 deliver_external_call;
-	u32 deliver_emergency_signal;
-	u32 deliver_service_signal;
-	u32 deliver_virtio_interrupt;
-	u32 deliver_stop_signal;
-	u32 deliver_prefix_signal;
-	u32 deliver_restart_signal;
-	u32 deliver_program_int;
-	u32 deliver_io_int;
-	u32 exit_wait_state;
-	u32 instruction_pfmf;
-	u32 instruction_stidp;
-	u32 instruction_spx;
-	u32 instruction_stpx;
-	u32 instruction_stap;
-	u32 instruction_storage_key;
-	u32 instruction_ipte_interlock;
-	u32 instruction_stsch;
-	u32 instruction_chsc;
-	u32 instruction_stsi;
-	u32 instruction_stfl;
-	u32 instruction_tprot;
-	u32 instruction_essa;
-	u32 instruction_sigp_sense;
-	u32 instruction_sigp_sense_running;
-	u32 instruction_sigp_external_call;
-	u32 instruction_sigp_emergency;
-	u32 instruction_sigp_cond_emergency;
-	u32 instruction_sigp_start;
-	u32 instruction_sigp_stop;
-	u32 instruction_sigp_stop_store_status;
-	u32 instruction_sigp_store_status;
-	u32 instruction_sigp_store_adtl_status;
-	u32 instruction_sigp_arch;
-	u32 instruction_sigp_prefix;
-	u32 instruction_sigp_restart;
-	u32 instruction_sigp_init_cpu_reset;
-	u32 instruction_sigp_cpu_reset;
-	u32 instruction_sigp_unknown;
-	u32 diagnose_10;
-	u32 diagnose_44;
-	u32 diagnose_9c;
-	u32 diagnose_258;
-	u32 diagnose_308;
-	u32 diagnose_500;
+	u64 exit_userspace;
+	u64 exit_null;
+	u64 exit_external_request;
+	u64 exit_external_interrupt;
+	u64 exit_stop_request;
+	u64 exit_validity;
+	u64 exit_instruction;
+	u64 exit_pei;
+	u64 halt_successful_poll;
+	u64 halt_attempted_poll;
+	u64 halt_poll_invalid;
+	u64 halt_wakeup;
+	u64 instruction_lctl;
+	u64 instruction_lctlg;
+	u64 instruction_stctl;
+	u64 instruction_stctg;
+	u64 exit_program_interruption;
+	u64 exit_instr_and_program;
+	u64 exit_operation_exception;
+	u64 deliver_external_call;
+	u64 deliver_emergency_signal;
+	u64 deliver_service_signal;
+	u64 deliver_virtio_interrupt;
+	u64 deliver_stop_signal;
+	u64 deliver_prefix_signal;
+	u64 deliver_restart_signal;
+	u64 deliver_program_int;
+	u64 deliver_io_int;
+	u64 exit_wait_state;
+	u64 instruction_pfmf;
+	u64 instruction_stidp;
+	u64 instruction_spx;
+	u64 instruction_stpx;
+	u64 instruction_stap;
+	u64 instruction_storage_key;
+	u64 instruction_ipte_interlock;
+	u64 instruction_stsch;
+	u64 instruction_chsc;
+	u64 instruction_stsi;
+	u64 instruction_stfl;
+	u64 instruction_tprot;
+	u64 instruction_sie;
+	u64 instruction_essa;
+	u64 instruction_sthyi;
+	u64 instruction_sigp_sense;
+	u64 instruction_sigp_sense_running;
+	u64 instruction_sigp_external_call;
+	u64 instruction_sigp_emergency;
+	u64 instruction_sigp_cond_emergency;
+	u64 instruction_sigp_start;
+	u64 instruction_sigp_stop;
+	u64 instruction_sigp_stop_store_status;
+	u64 instruction_sigp_store_status;
+	u64 instruction_sigp_store_adtl_status;
+	u64 instruction_sigp_arch;
+	u64 instruction_sigp_prefix;
+	u64 instruction_sigp_restart;
+	u64 instruction_sigp_init_cpu_reset;
+	u64 instruction_sigp_cpu_reset;
+	u64 instruction_sigp_unknown;
+	u64 diagnose_10;
+	u64 diagnose_44;
+	u64 diagnose_9c;
+	u64 diagnose_258;
+	u64 diagnose_308;
+	u64 diagnose_500;
 };
 
 #define PGM_OPERATION			0x01
@@ -541,12 +551,16 @@ struct kvm_guestdbg_info_arch {
 
 struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
+	/* if vsie is active, currently executed shadow sie control block */
+	struct kvm_s390_sie_block *vsie_block;
 	unsigned int      host_acrs[NUM_ACRS];
 	struct fpu	  host_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
 	struct gmap *gmap;
+	/* backup location for the currently enabled gmap when scheduled out */
+	struct gmap *enabled_gmap;
 	struct kvm_guestdbg_info_arch guestdbg;
 	unsigned long pfault_token;
 	unsigned long pfault_select;
@@ -563,7 +577,7 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_vm_stat {
-	u32 remote_tlb_flush;
+	ulong remote_tlb_flush;
 };
 
 struct kvm_arch_memory_slot {
@@ -631,6 +645,14 @@ struct sie_page2 {
 	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
 } __packed;
 
+struct kvm_s390_vsie {
+	struct mutex mutex;
+	struct radix_tree_root addr_to_page;
+	int page_count;
+	int next;
+	struct page *pages[KVM_MAX_VCPUS];
+};
+
 struct kvm_arch{
 	void *sca;
 	int use_esca;
@@ -646,15 +668,20 @@ struct kvm_arch{
 	int user_cpu_state_ctrl;
 	int user_sigp;
 	int user_stsi;
+	int user_instr0;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
+	struct ratelimit_state sthyi_limit;
 	spinlock_t start_stop_lock;
 	struct sie_page2 *sie_page2;
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
+	struct kvm_s390_vsie vsie;
 	u64 epoch;
+	/* subset of available cpu features enabled by user space */
+	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)

@@ -34,6 +34,7 @@
 #include <linux/signal.h>
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
+#include <linux/libfdt.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -58,6 +59,7 @@
 #include <asm/firmware.h>
 #include <asm/tm.h>
 #include <asm/trace.h>
+#include <asm/ps3.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -87,13 +89,12 @@
  *
  */
 
-#ifdef CONFIG_U3_DART
-extern unsigned long dart_tablebase;
-#endif /* CONFIG_U3_DART */
-
 static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 EXPORT_SYMBOL_GPL(mmu_psize_defs);
+
+u8 hpte_page_sizes[1 << LP_BITS];
+EXPORT_SYMBOL_GPL(hpte_page_sizes);
 
 struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
@@ -120,6 +121,8 @@ static u8 *linear_map_hash_slots;
 static unsigned long linear_map_hash_count;
 static DEFINE_SPINLOCK(linear_map_hash_lock);
 #endif /* CONFIG_DEBUG_PAGEALLOC */
+struct mmu_hash_ops mmu_hash_ops;
+EXPORT_SYMBOL(mmu_hash_ops);
 
 /* There are definitions of page sizes arrays to be used when none
  * is provided by the firmware.
@@ -278,9 +281,10 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		hash = hpt_hash(vpn, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		BUG_ON(!ppc_md.hpte_insert);
-		ret = ppc_md.hpte_insert(hpteg, vpn, paddr, tprot,
-					 HPTE_V_BOLTED, psize, psize, ssize);
+		BUG_ON(!mmu_hash_ops.hpte_insert);
+		ret = mmu_hash_ops.hpte_insert(hpteg, vpn, paddr, tprot,
+					       HPTE_V_BOLTED, psize, psize,
+					       ssize);
 
 		if (ret < 0)
 			break;
@@ -305,11 +309,11 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
 
-	if (!ppc_md.hpte_removebolted)
+	if (!mmu_hash_ops.hpte_removebolted)
 		return -ENODEV;
 
 	for (vaddr = vstart; vaddr < vend; vaddr += step) {
-		rc = ppc_md.hpte_removebolted(vaddr, psize, ssize);
+		rc = mmu_hash_ops.hpte_removebolted(vaddr, psize, ssize);
 		if (rc == -ENOENT) {
 			ret = -ENOENT;
 			continue;
@@ -320,6 +324,15 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 
 	return ret;
 }
+
+static bool disable_1tb_segments = false;
+
+static int __init parse_disable_1tb_segments(char *p)
+{
+	disable_1tb_segments = true;
+	return 0;
+}
+early_param("disable_1tb_segments", parse_disable_1tb_segments);
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
@@ -339,17 +352,18 @@ static int __init htab_dt_scan_seg_sizes(unsigned long node,
 	for (; size >= 4; size -= 4, ++prop) {
 		if (be32_to_cpu(prop[0]) == 40) {
 			DBG("1T segment support detected\n");
+
+			if (disable_1tb_segments) {
+				DBG("1T segments disabled by command line\n");
+				break;
+			}
+
 			cur_cpu_spec->mmu_features |= MMU_FTR_1T_SEGMENT;
 			return 1;
 		}
 	}
 	cur_cpu_spec->mmu_features &= ~MMU_FTR_NO_SLBIE_B;
 	return 0;
-}
-
-static void __init htab_init_seg_sizes(void)
-{
-	of_scan_flat_dt(htab_dt_scan_seg_sizes, NULL);
 }
 
 static int __init get_idx_from_shift(unsigned int shift)
@@ -514,7 +528,8 @@ static bool might_have_hea(void)
 	 * we will never see an HEA ethernet device.
 	 */
 #ifdef CONFIG_IBMEBUS
-	return !cpu_has_feature(CPU_FTR_ARCH_207S);
+	return !cpu_has_feature(CPU_FTR_ARCH_207S) &&
+		firmware_has_feature(FW_FEATURE_SPLPAR);
 #else
 	return false;
 #endif
@@ -522,7 +537,7 @@ static bool might_have_hea(void)
 
 #endif /* #ifdef CONFIG_PPC_64K_PAGES */
 
-static void __init htab_init_page_sizes(void)
+static void __init htab_scan_page_sizes(void)
 {
 	int rc;
 
@@ -537,17 +552,75 @@ static void __init htab_init_page_sizes(void)
 	 * Try to find the available page sizes in the device-tree
 	 */
 	rc = of_scan_flat_dt(htab_dt_scan_page_sizes, NULL);
-	if (rc != 0)  /* Found */
-		goto found;
-
-	/*
-	 * Not in the device-tree, let's fallback on known size
-	 * list for 16M capable GP & GR
-	 */
-	if (mmu_has_feature(MMU_FTR_16M_PAGE))
+	if (rc == 0 && early_mmu_has_feature(MMU_FTR_16M_PAGE)) {
+		/*
+		 * Nothing in the device-tree, but the CPU supports 16M pages,
+		 * so let's fallback on a known size list for 16M capable CPUs.
+		 */
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
-found:
+	}
+
+#ifdef CONFIG_HUGETLB_PAGE
+	/* Reserve 16G huge page memory sections for huge pages */
+	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
+#endif /* CONFIG_HUGETLB_PAGE */
+}
+
+/*
+ * Fill in the hpte_page_sizes[] array.
+ * We go through the mmu_psize_defs[] array looking for all the
+ * supported base/actual page size combinations.  Each combination
+ * has a unique pagesize encoding (penc) value in the low bits of
+ * the LP field of the HPTE.  For actual page sizes less than 1MB,
+ * some of the upper LP bits are used for RPN bits, meaning that
+ * we need to fill in several entries in hpte_page_sizes[].
+ *
+ * In diagrammatic form, with r = RPN bits and z = page size bits:
+ *        PTE LP     actual page size
+ *    rrrr rrrz		>=8KB
+ *    rrrr rrzz		>=16KB
+ *    rrrr rzzz		>=32KB
+ *    rrrr zzzz		>=64KB
+ *    ...
+ *
+ * The zzzz bits are implementation-specific but are chosen so that
+ * no encoding for a larger page size uses the same value in its
+ * low-order N bits as the encoding for the 2^(12+N) byte page size
+ * (if it exists).
+ */
+static void init_hpte_page_sizes(void)
+{
+	long int ap, bp;
+	long int shift, penc;
+
+	for (bp = 0; bp < MMU_PAGE_COUNT; ++bp) {
+		if (!mmu_psize_defs[bp].shift)
+			continue;	/* not a supported page size */
+		for (ap = bp; ap < MMU_PAGE_COUNT; ++ap) {
+			penc = mmu_psize_defs[bp].penc[ap];
+			if (penc == -1)
+				continue;
+			shift = mmu_psize_defs[ap].shift - LP_SHIFT;
+			if (shift <= 0)
+				continue;	/* should never happen */
+			/*
+			 * For page sizes less than 1MB, this loop
+			 * replicates the entry for all possible values
+			 * of the rrrr bits.
+			 */
+			while (penc < (1 << LP_BITS)) {
+				hpte_page_sizes[penc] = (ap << 4) | bp;
+				penc += 1 << shift;
+			}
+		}
+	}
+}
+
+static void __init htab_init_page_sizes(void)
+{
+	init_hpte_page_sizes();
+
 	if (!debug_pagealloc_enabled()) {
 		/*
 		 * Pick a size for the linear mapping. Currently, we only
@@ -580,7 +653,7 @@ found:
 			 * would stop us accessing the HEA ethernet. So if we
 			 * have the chance of ever seeing one, stay at 4k.
 			 */
-			if (!might_have_hea() || !machine_is(pseries))
+			if (!might_have_hea())
 				mmu_io_psize = MMU_PAGE_64K;
 		} else
 			mmu_ci_restrictions = 1;
@@ -613,11 +686,6 @@ found:
 	       ,mmu_psize_defs[mmu_vmemmap_psize].shift
 #endif
 	       );
-
-#ifdef CONFIG_HUGETLB_PAGE
-	/* Reserve 16G huge page memory sections for huge pages */
-	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
-#endif /* CONFIG_HUGETLB_PAGE */
 }
 
 static int __init htab_dt_scan_pftsize(unsigned long node,
@@ -698,11 +766,33 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+static void update_hid_for_hash(void)
+{
+	unsigned long hid0;
+	unsigned long rb = 3UL << PPC_BITLSHIFT(53); /* IS = 3 */
+
+	asm volatile("ptesync": : :"memory");
+	/* prs = 0, ric = 2, rs = 0, r = 1 is = 3 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(0), "i"(0), "i"(2), "r"(0) : "memory");
+	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
+	/*
+	 * now switch the HID
+	 */
+	hid0  = mfspr(SPRN_HID0);
+	hid0 &= ~HID0_POWER9_RADIX;
+	mtspr(SPRN_HID0, hid0);
+	asm volatile("isync": : :"memory");
+
+	/* Wait for it to happen */
+	while ((mfspr(SPRN_HID0) & HID0_POWER9_RADIX))
+		cpu_relax();
+}
+
 static void __init hash_init_partition_table(phys_addr_t hash_table,
-					     unsigned long pteg_count)
+					     unsigned long htab_size)
 {
 	unsigned long ps_field;
-	unsigned long htab_size;
 	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
 
 	/*
@@ -710,7 +800,7 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	 * We can ignore that for lpid 0
 	 */
 	ps_field = 0;
-	htab_size =  __ilog2(pteg_count) - 11;
+	htab_size =  __ilog2(htab_size) - 18;
 
 	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
 	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
@@ -724,7 +814,9 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	 * For now UPRT is 0 for us.
 	 */
 	partition_tb->patb1 = 0;
-	DBG("Partition table %p\n", partition_tb);
+	pr_info("Partition table %p\n", partition_tb);
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		update_hid_for_hash();
 	/*
 	 * update partition table control register,
 	 * 64 K size.
@@ -738,16 +830,10 @@ static void __init htab_initialize(void)
 	unsigned long table;
 	unsigned long pteg_count;
 	unsigned long prot;
-	unsigned long base = 0, size = 0, limit;
+	unsigned long base = 0, size = 0;
 	struct memblock_region *reg;
 
 	DBG(" -> htab_initialize()\n");
-
-	/* Initialize segment sizes */
-	htab_init_seg_sizes();
-
-	/* Initialize page sizes */
-	htab_init_page_sizes();
 
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		mmu_kernel_ssize = MMU_SEGSIZE_1T;
@@ -764,7 +850,8 @@ static void __init htab_initialize(void)
 
 	htab_hash_mask = pteg_count - 1;
 
-	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+	if (firmware_has_feature(FW_FEATURE_LPAR) ||
+	    firmware_has_feature(FW_FEATURE_PS3_LV1)) {
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
@@ -775,20 +862,26 @@ static void __init htab_initialize(void)
 		 * Clear the htab if firmware assisted dump is active so
 		 * that we dont end up using old mappings.
 		 */
-		if (is_fadump_active() && ppc_md.hpte_clear_all)
-			ppc_md.hpte_clear_all();
+		if (is_fadump_active() && mmu_hash_ops.hpte_clear_all)
+			mmu_hash_ops.hpte_clear_all();
 #endif
 	} else {
-		/* Find storage for the HPT.  Must be contiguous in
-		 * the absolute address space. On cell we want it to be
-		 * in the first 2 Gig so we can use it for IOMMU hacks.
-		 */
-		if (machine_is(cell))
-			limit = 0x80000000;
-		else
-			limit = MEMBLOCK_ALLOC_ANYWHERE;
+		unsigned long limit = MEMBLOCK_ALLOC_ANYWHERE;
 
-		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes, limit);
+#ifdef CONFIG_PPC_CELL
+		/*
+		 * Cell may require the hash table down low when using the
+		 * Axon IOMMU in order to fit the dynamic region over it, see
+		 * comments in cell/iommu.c
+		 */
+		if (fdt_subnode_offset(initial_boot_params, 0, "axon") > 0) {
+			limit = 0x80000000;
+			pr_info("Hash table forced below 2G for Axon IOMMU\n");
+		}
+#endif /* CONFIG_PPC_CELL */
+
+		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes,
+					    limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
@@ -796,7 +889,7 @@ static void __init htab_initialize(void)
 		htab_address = __va(table);
 
 		/* htab absolute addr + encoded htabsize */
-		_SDR1 = table + __ilog2(pteg_count) - 11;
+		_SDR1 = table + __ilog2(htab_size_bytes) - 18;
 
 		/* Initialize the HPT with no entries */
 		memset((void *)table, 0, htab_size_bytes);
@@ -805,7 +898,7 @@ static void __init htab_initialize(void)
 			/* Set SDR1 */
 			mtspr(SPRN_SDR1, _SDR1);
 		else
-			hash_init_partition_table(table, pteg_count);
+			hash_init_partition_table(table, htab_size_bytes);
 	}
 
 	prot = pgprot_val(PAGE_KERNEL);
@@ -832,34 +925,6 @@ static void __init htab_initialize(void)
 		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
 		    base, size, prot);
 
-#ifdef CONFIG_U3_DART
-		/* Do not map the DART space. Fortunately, it will be aligned
-		 * in such a way that it will not cross two memblock regions and
-		 * will fit within a single 16Mb page.
-		 * The DART space is assumed to be a full 16Mb region even if
-		 * we only use 2Mb of that space. We will use more of it later
-		 * for AGP GART. We have to use a full 16Mb large page.
-		 */
-		DBG("DART base: %lx\n", dart_tablebase);
-
-		if (dart_tablebase != 0 && dart_tablebase >= base
-		    && dart_tablebase < (base + size)) {
-			unsigned long dart_table_end = dart_tablebase + 16 * MB;
-			if (base != dart_tablebase)
-				BUG_ON(htab_bolt_mapping(base, dart_tablebase,
-							__pa(base), prot,
-							mmu_linear_psize,
-							mmu_kernel_ssize));
-			if ((base + size) > dart_table_end)
-				BUG_ON(htab_bolt_mapping(dart_tablebase+16*MB,
-							base + size,
-							__pa(dart_table_end),
-							 prot,
-							 mmu_linear_psize,
-							 mmu_kernel_ssize));
-			continue;
-		}
-#endif /* CONFIG_U3_DART */
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
 				prot, mmu_linear_psize, mmu_kernel_ssize));
 	}
@@ -890,8 +955,19 @@ static void __init htab_initialize(void)
 #undef KB
 #undef MB
 
+void __init hash__early_init_devtree(void)
+{
+	/* Initialize segment sizes */
+	of_scan_flat_dt(htab_dt_scan_seg_sizes, NULL);
+
+	/* Initialize page sizes */
+	htab_scan_page_sizes();
+}
+
 void __init hash__early_init_mmu(void)
 {
+	htab_init_page_sizes();
+
 	/*
 	 * initialize page table size
 	 */
@@ -926,12 +1002,24 @@ void __init hash__early_init_mmu(void)
 	pci_io_base = ISA_IO_BASE;
 #endif
 
+	/* Select appropriate backend */
+	if (firmware_has_feature(FW_FEATURE_PS3_LV1))
+		ps3_early_mm_init();
+	else if (firmware_has_feature(FW_FEATURE_LPAR))
+		hpte_init_pseries();
+	else if (IS_ENABLED(CONFIG_PPC_NATIVE))
+		hpte_init_native();
+
+	if (!mmu_hash_ops.hpte_insert)
+		panic("hash__early_init_mmu: No MMU hash ops defined!\n");
+
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is
 	 * currently where the page size encoding is obtained.
 	 */
 	htab_initialize();
 
+	pr_info("Initializing hash mmu with SLB\n");
 	/* Initialize SLB management */
 	slb_initialize();
 }
@@ -1452,6 +1540,29 @@ out_exit:
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void tm_flush_hash_page(int local)
+{
+	/*
+	 * Transactions are not aborted by tlbiel, only tlbie. Without, syncing a
+	 * page back to a block device w/PIO could pick up transactional data
+	 * (bad!) so we force an abort here. Before the sync the page will be
+	 * made read-only, which will flush_hash_page. BIG ISSUE here: if the
+	 * kernel uses a page from userspace without unmapping it first, it may
+	 * see the speculated version.
+	 */
+	if (local && cpu_has_feature(CPU_FTR_TM) && current->thread.regs &&
+	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
+		tm_enable();
+		tm_abort(TM_CAUSE_TLBI);
+	}
+}
+#else
+static inline void tm_flush_hash_page(int local)
+{
+}
+#endif
+
 /* WARNING: This is called from hash_low_64.S, if you change this prototype,
  *          do not forget to update the assembly call site !
  */
@@ -1474,24 +1585,11 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 		 * We use same base page size and actual psize, because we don't
 		 * use these functions for hugepage
 		 */
-		ppc_md.hpte_invalidate(slot, vpn, psize, psize, ssize, local);
+		mmu_hash_ops.hpte_invalidate(slot, vpn, psize, psize,
+					     ssize, local);
 	} pte_iterate_hashed_end();
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Transactions are not aborted by tlbiel, only tlbie.
-	 * Without, syncing a page back to a block device w/ PIO could pick up
-	 * transactional data (bad!) so we force an abort here.  Before the
-	 * sync the page will be made read-only, which will flush_hash_page.
-	 * BIG ISSUE here: if the kernel uses a page from userspace without
-	 * unmapping it first, it may see the speculated version.
-	 */
-	if (local && cpu_has_feature(CPU_FTR_TM) &&
-	    current->thread.regs &&
-	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
-		tm_enable();
-		tm_abort(TM_CAUSE_TLBI);
-	}
-#endif
+	tm_flush_hash_page(local);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -1515,9 +1613,9 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 	if (!hpte_slot_array)
 		return;
 
-	if (ppc_md.hugepage_invalidate) {
-		ppc_md.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
-					   psize, ssize, local);
+	if (mmu_hash_ops.hugepage_invalidate) {
+		mmu_hash_ops.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
+						 psize, ssize, local);
 		goto tm_abort;
 	}
 	/*
@@ -1544,33 +1642,18 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
-		ppc_md.hpte_invalidate(slot, vpn, psize,
-				       MMU_PAGE_16M, ssize, local);
+		mmu_hash_ops.hpte_invalidate(slot, vpn, psize,
+					     MMU_PAGE_16M, ssize, local);
 	}
 tm_abort:
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Transactions are not aborted by tlbiel, only tlbie.
-	 * Without, syncing a page back to a block device w/ PIO could pick up
-	 * transactional data (bad!) so we force an abort here.  Before the
-	 * sync the page will be made read-only, which will flush_hash_page.
-	 * BIG ISSUE here: if the kernel uses a page from userspace without
-	 * unmapping it first, it may see the speculated version.
-	 */
-	if (local && cpu_has_feature(CPU_FTR_TM) &&
-	    current->thread.regs &&
-	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
-		tm_enable();
-		tm_abort(TM_CAUSE_TLBI);
-	}
-#endif
-	return;
+	tm_flush_hash_page(local);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 void flush_hash_range(unsigned long number, int local)
 {
-	if (ppc_md.flush_hash_range)
-		ppc_md.flush_hash_range(number, local);
+	if (mmu_hash_ops.flush_hash_range)
+		mmu_hash_ops.flush_hash_range(number, local);
 	else {
 		int i;
 		struct ppc64_tlb_batch *batch =
@@ -1615,22 +1698,22 @@ repeat:
 		       HPTES_PER_GROUP) & ~0x7UL;
 
 	/* Insert into the hash table, primary slot */
-	slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, vflags,
-				  psize, psize, ssize);
+	slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags, vflags,
+					psize, psize, ssize);
 
 	/* Primary is full, try the secondary */
 	if (unlikely(slot == -1)) {
 		hpte_group = ((~hash & htab_hash_mask) *
 			      HPTES_PER_GROUP) & ~0x7UL;
-		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags,
-					  vflags | HPTE_V_SECONDARY,
-					  psize, psize, ssize);
+		slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags,
+						vflags | HPTE_V_SECONDARY,
+						psize, psize, ssize);
 		if (slot == -1) {
 			if (mftb() & 0x1)
 				hpte_group = ((hash & htab_hash_mask) *
 					      HPTES_PER_GROUP)&~0x7UL;
 
-			ppc_md.hpte_remove(hpte_group);
+			mmu_hash_ops.hpte_remove(hpte_group);
 			goto repeat;
 		}
 	}
@@ -1680,8 +1763,9 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 		hash = ~hash;
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 	slot += hidx & _PTEIDX_GROUP_IX;
-	ppc_md.hpte_invalidate(slot, vpn, mmu_linear_psize, mmu_linear_psize,
-			       mmu_kernel_ssize, 0);
+	mmu_hash_ops.hpte_invalidate(slot, vpn, mmu_linear_psize,
+				     mmu_linear_psize,
+				     mmu_kernel_ssize, 0);
 }
 
 void __kernel_map_pages(struct page *page, int numpages, int enable)

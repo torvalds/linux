@@ -434,7 +434,7 @@ static int iscsi_login_zero_tsih_s2(
 
 		/*
 		 * Make MaxRecvDataSegmentLength PAGE_SIZE aligned for
-		 * Immediate Data + Unsolicitied Data-OUT if necessary..
+		 * Immediate Data + Unsolicited Data-OUT if necessary..
 		 */
 		param = iscsi_find_param_from_key("MaxRecvDataSegmentLength",
 						  conn->param_list);
@@ -646,7 +646,7 @@ static void iscsi_post_login_start_timers(struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
 	/*
-	 * FIXME: Unsolicitied NopIN support for ISER
+	 * FIXME: Unsolicited NopIN support for ISER
 	 */
 	if (conn->conn_transport->transport_type == ISCSI_INFINIBAND)
 		return;
@@ -1371,8 +1371,9 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	}
 	login->zero_tsih = zero_tsih;
 
-	conn->sess->se_sess->sup_prot_ops =
-		conn->conn_transport->iscsit_get_sup_prot_ops(conn);
+	if (conn->sess)
+		conn->sess->se_sess->sup_prot_ops =
+			conn->conn_transport->iscsit_get_sup_prot_ops(conn);
 
 	tpg = conn->tpg;
 	if (!tpg) {

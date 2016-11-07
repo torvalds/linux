@@ -366,7 +366,6 @@ static int idmouse_probe(struct usb_interface *interface,
 			kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
 
 		if (!dev->bulk_in_buffer) {
-			dev_err(&interface->dev, "Unable to allocate input buffer.\n");
 			idmouse_delete(dev);
 			return -ENOMEM;
 		}

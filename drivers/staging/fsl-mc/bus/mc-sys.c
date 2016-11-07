@@ -32,13 +32,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../include/mc-sys.h"
-#include "../include/mc-cmd.h"
-#include "../include/mc.h"
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/io.h>
+#include "../include/mc-sys.h"
+#include "../include/mc-cmd.h"
+#include "../include/mc.h"
+
 #include "dpmcp.h"
 
 /**
@@ -53,155 +55,20 @@
 #define MC_CMD_COMPLETION_POLLING_MIN_SLEEP_USECS    10
 #define MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS    500
 
-#define MC_CMD_HDR_READ_CMDID(_hdr) \
-	((u16)mc_dec((_hdr), MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S))
-
-/**
- * Creates an MC I/O object
- *
- * @dev: device to be associated with the MC I/O object
- * @mc_portal_phys_addr: physical address of the MC portal to use
- * @mc_portal_size: size in bytes of the MC portal
- * @dpmcp-dev: Pointer to the DPMCP object associated with this MC I/O
- * object or NULL if none.
- * @flags: flags for the new MC I/O object
- * @new_mc_io: Area to return pointer to newly created MC I/O object
- *
- * Returns '0' on Success; Error code otherwise.
- */
-int __must_check fsl_create_mc_io(struct device *dev,
-				  phys_addr_t mc_portal_phys_addr,
-				  u32 mc_portal_size,
-				  struct fsl_mc_device *dpmcp_dev,
-				  u32 flags, struct fsl_mc_io **new_mc_io)
+static enum mc_cmd_status mc_cmd_hdr_read_status(struct mc_command *cmd)
 {
-	int error;
-	struct fsl_mc_io *mc_io;
-	void __iomem *mc_portal_virt_addr;
-	struct resource *res;
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 
-	mc_io = devm_kzalloc(dev, sizeof(*mc_io), GFP_KERNEL);
-	if (!mc_io)
-		return -ENOMEM;
-
-	mc_io->dev = dev;
-	mc_io->flags = flags;
-	mc_io->portal_phys_addr = mc_portal_phys_addr;
-	mc_io->portal_size = mc_portal_size;
-	if (flags & FSL_MC_IO_ATOMIC_CONTEXT_PORTAL)
-		spin_lock_init(&mc_io->spinlock);
-	else
-		mutex_init(&mc_io->mutex);
-
-	res = devm_request_mem_region(dev,
-				      mc_portal_phys_addr,
-				      mc_portal_size,
-				      "mc_portal");
-	if (!res) {
-		dev_err(dev,
-			"devm_request_mem_region failed for MC portal %#llx\n",
-			mc_portal_phys_addr);
-		return -EBUSY;
-	}
-
-	mc_portal_virt_addr = devm_ioremap_nocache(dev,
-						   mc_portal_phys_addr,
-						   mc_portal_size);
-	if (!mc_portal_virt_addr) {
-		dev_err(dev,
-			"devm_ioremap_nocache failed for MC portal %#llx\n",
-			mc_portal_phys_addr);
-		return -ENXIO;
-	}
-
-	mc_io->portal_virt_addr = mc_portal_virt_addr;
-	if (dpmcp_dev) {
-		error = fsl_mc_io_set_dpmcp(mc_io, dpmcp_dev);
-		if (error < 0)
-			goto error_destroy_mc_io;
-	}
-
-	*new_mc_io = mc_io;
-	return 0;
-
-error_destroy_mc_io:
-	fsl_destroy_mc_io(mc_io);
-	return error;
+	return (enum mc_cmd_status)hdr->status;
 }
-EXPORT_SYMBOL_GPL(fsl_create_mc_io);
 
-/**
- * Destroys an MC I/O object
- *
- * @mc_io: MC I/O object to destroy
- */
-void fsl_destroy_mc_io(struct fsl_mc_io *mc_io)
+static u16 mc_cmd_hdr_read_cmdid(struct mc_command *cmd)
 {
-	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
+	u16 cmd_id = le16_to_cpu(hdr->cmd_id);
 
-	if (dpmcp_dev)
-		fsl_mc_io_unset_dpmcp(mc_io);
-
-	devm_iounmap(mc_io->dev, mc_io->portal_virt_addr);
-	devm_release_mem_region(mc_io->dev,
-				mc_io->portal_phys_addr,
-				mc_io->portal_size);
-
-	mc_io->portal_virt_addr = NULL;
-	devm_kfree(mc_io->dev, mc_io);
+	return (cmd_id & MC_CMD_HDR_CMDID_MASK) >> MC_CMD_HDR_CMDID_SHIFT;
 }
-EXPORT_SYMBOL_GPL(fsl_destroy_mc_io);
-
-int fsl_mc_io_set_dpmcp(struct fsl_mc_io *mc_io,
-			struct fsl_mc_device *dpmcp_dev)
-{
-	int error;
-
-	if (WARN_ON(!dpmcp_dev))
-		return -EINVAL;
-
-	if (WARN_ON(mc_io->dpmcp_dev))
-		return -EINVAL;
-
-	if (WARN_ON(dpmcp_dev->mc_io))
-		return -EINVAL;
-
-	error = dpmcp_open(mc_io,
-			   0,
-			   dpmcp_dev->obj_desc.id,
-			   &dpmcp_dev->mc_handle);
-	if (error < 0)
-		return error;
-
-	mc_io->dpmcp_dev = dpmcp_dev;
-	dpmcp_dev->mc_io = mc_io;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fsl_mc_io_set_dpmcp);
-
-void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io)
-{
-	int error;
-	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
-
-	if (WARN_ON(!dpmcp_dev))
-		return;
-
-	if (WARN_ON(dpmcp_dev->mc_io != mc_io))
-		return;
-
-	error = dpmcp_close(mc_io,
-			    0,
-			    dpmcp_dev->mc_handle);
-	if (error < 0) {
-		dev_err(&dpmcp_dev->dev, "dpmcp_close() failed: %d\n",
-			error);
-	}
-
-	mc_io->dpmcp_dev = NULL;
-	dpmcp_dev->mc_io = NULL;
-}
-EXPORT_SYMBOL_GPL(fsl_mc_io_unset_dpmcp);
 
 static int mc_status_to_error(enum mc_cmd_status status)
 {
@@ -261,10 +128,11 @@ static inline void mc_write_command(struct mc_command __iomem *portal,
 
 	/* copy command parameters into the portal */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		writeq(cmd->params[i], &portal->params[i]);
+		__raw_writeq(cmd->params[i], &portal->params[i]);
+	__iowmb();
 
 	/* submit the command by writing the header */
-	writeq(cmd->header, &portal->header);
+	__raw_writeq(cmd->header, &portal->header);
 }
 
 /**
@@ -284,14 +152,17 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
 	enum mc_cmd_status status;
 
 	/* Copy command response header from MC portal: */
-	resp->header = readq(&portal->header);
-	status = MC_CMD_HDR_READ_STATUS(resp->header);
+	__iormb();
+	resp->header = __raw_readq(&portal->header);
+	__iormb();
+	status = mc_cmd_hdr_read_status(resp);
 	if (status != MC_CMD_STATUS_OK)
 		return status;
 
 	/* Copy command response data from MC portal: */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		resp->params[i] = readq(&portal->params[i]);
+		resp->params[i] = __raw_readq(&portal->params[i]);
+	__iormb();
 
 	return status;
 }
@@ -331,10 +202,8 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 			dev_dbg(mc_io->dev,
 				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
-				 (unsigned int)
-					MC_CMD_HDR_READ_TOKEN(cmd->header),
-				 (unsigned int)
-					MC_CMD_HDR_READ_CMDID(cmd->header));
+				 (unsigned int)mc_cmd_hdr_read_token(cmd),
+				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
 			return -ETIMEDOUT;
 		}
@@ -373,10 +242,8 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 			dev_dbg(mc_io->dev,
 				"MC command timed out (portal: %#llx, obj handle: %#x, command: %#x)\n",
 				 mc_io->portal_phys_addr,
-				 (unsigned int)
-					MC_CMD_HDR_READ_TOKEN(cmd->header),
-				 (unsigned int)
-					MC_CMD_HDR_READ_CMDID(cmd->header));
+				 (unsigned int)mc_cmd_hdr_read_token(cmd),
+				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
 			return -ETIMEDOUT;
 		}
@@ -429,8 +296,8 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 		dev_dbg(mc_io->dev,
 			"MC command failed: portal: %#llx, obj handle: %#x, command: %#x, status: %s (%#x)\n",
 			 mc_io->portal_phys_addr,
-			 (unsigned int)MC_CMD_HDR_READ_TOKEN(cmd->header),
-			 (unsigned int)MC_CMD_HDR_READ_CMDID(cmd->header),
+			 (unsigned int)mc_cmd_hdr_read_token(cmd),
+			 (unsigned int)mc_cmd_hdr_read_cmdid(cmd),
 			 mc_status_to_string(status),
 			 (unsigned int)status);
 

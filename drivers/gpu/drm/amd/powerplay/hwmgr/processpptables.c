@@ -794,19 +794,35 @@ static const ATOM_PPLIB_STATE_V2 *get_state_entry_v2(
 static const ATOM_PPLIB_POWERPLAYTABLE *get_powerplay_table(
 				     struct pp_hwmgr *hwmgr)
 {
-	const void *table_addr = NULL;
+	const void *table_addr = hwmgr->soft_pp_table;
 	uint8_t frev, crev;
 	uint16_t size;
 
-	table_addr = cgs_atom_get_data_table(hwmgr->device,
-			GetIndexIntoMasterTable(DATA, PowerPlayInfo),
-			&size, &frev, &crev);
+	if (!table_addr) {
+		table_addr = cgs_atom_get_data_table(hwmgr->device,
+				GetIndexIntoMasterTable(DATA, PowerPlayInfo),
+				&size, &frev, &crev);
 
-	hwmgr->soft_pp_table = table_addr;
+		hwmgr->soft_pp_table = table_addr;
+		hwmgr->soft_pp_table_size = size;
+	}
 
 	return (const ATOM_PPLIB_POWERPLAYTABLE *)table_addr;
 }
 
+int pp_tables_get_response_times(struct pp_hwmgr *hwmgr,
+				uint32_t *vol_rep_time, uint32_t *bb_rep_time)
+{
+	const ATOM_PPLIB_POWERPLAYTABLE *powerplay_tab = get_powerplay_table(hwmgr);
+
+	PP_ASSERT_WITH_CODE(NULL != powerplay_tab,
+			    "Missing PowerPlay Table!", return -EINVAL);
+
+	*vol_rep_time = (uint32_t)le16_to_cpu(powerplay_tab->usVoltageTime);
+	*bb_rep_time = (uint32_t)le16_to_cpu(powerplay_tab->usBackbiasTime);
+
+	return 0;
+}
 
 int pp_tables_get_num_of_entries(struct pp_hwmgr *hwmgr,
 				     unsigned long *num_of_entries)
@@ -1499,7 +1515,7 @@ int get_number_of_vce_state_table_entries(
 	const ATOM_PPLIB_VCE_State_Table *vce_table =
 				    get_vce_state_table(hwmgr, table);
 
-	if (vce_table > 0)
+	if (vce_table)
 		return vce_table->numEntries;
 
 	return 0;
@@ -1507,7 +1523,7 @@ int get_number_of_vce_state_table_entries(
 
 int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
 							unsigned long i,
-							struct PP_VCEState *vce_state,
+							struct pp_vce_state *vce_state,
 							void **clock_info,
 							unsigned long *flag)
 {
@@ -1589,11 +1605,6 @@ static int pp_tables_initialize(struct pp_hwmgr *hwmgr)
 
 static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->soft_pp_table) {
-		kfree(hwmgr->soft_pp_table);
-		hwmgr->soft_pp_table = NULL;
-	}
-
 	if (NULL != hwmgr->dyn_state.vddc_dependency_on_sclk) {
 		kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
 		hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;

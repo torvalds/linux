@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -38,63 +34,57 @@
 #define _MDC_INTERNAL_H
 
 #include "../include/lustre_mdc.h"
-#include "../include/lustre_mds.h"
 
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 
 void mdc_pack_body(struct ptlrpc_request *req, const struct lu_fid *fid,
-		   __u64 valid, int ea_size, __u32 suppgid, int flags);
-void mdc_is_subdir_pack(struct ptlrpc_request *req, const struct lu_fid *pfid,
-			const struct lu_fid *cfid, int flags);
+		   __u64 valid, size_t ea_size, __u32 suppgid, u32 flags);
 void mdc_swap_layouts_pack(struct ptlrpc_request *req,
 			   struct md_op_data *op_data);
-void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff, __u32 size,
+void mdc_readdir_pack(struct ptlrpc_request *req, __u64 pgoff, size_t size,
 		      const struct lu_fid *fid);
-void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
-		      struct md_op_data *data, int ea_size);
+void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, u32 flags,
+		      struct md_op_data *data, size_t ea_size);
 void mdc_setattr_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		      void *ea, int ealen, void *ea2, int ea2len);
+		      void *ea, size_t ealen, void *ea2, size_t ea2len);
 void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		     const void *data, int datalen, __u32 mode, __u32 uid,
-		     __u32 gid, cfs_cap_t capability, __u64 rdev);
+		     const void *data, size_t datalen, umode_t mode, uid_t uid,
+		     gid_t gid, cfs_cap_t capability, __u64 rdev);
 void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		   __u32 mode, __u64 rdev, __u64 flags, const void *data,
-		   int datalen);
+		   umode_t mode, __u64 rdev, __u64 flags, const void *data,
+		   size_t datalen);
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_rename_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		     const char *old, int oldlen, const char *new, int newlen);
+		     const char *old, size_t oldlen,
+		     const char *new, size_t newlen);
 void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
-int mdc_enter_request(struct client_obd *cli);
-void mdc_exit_request(struct client_obd *cli);
 
 /* mdc/mdc_locks.c */
 int mdc_set_lock_data(struct obd_export *exp,
-		      __u64 *lockh, void *data, __u64 *bits);
+		      const struct lustre_handle *lockh,
+		      void *data, __u64 *bits);
 
 int mdc_null_inode(struct obd_export *exp, const struct lu_fid *fid);
 
-int mdc_find_cbdata(struct obd_export *exp, const struct lu_fid *fid,
-		    ldlm_iterator_t it, void *data);
-
 int mdc_intent_lock(struct obd_export *exp,
-		    struct md_op_data *,
-		    void *lmm, int lmmsize,
-		    struct lookup_intent *, int,
+		    struct md_op_data *op_data,
+		    struct lookup_intent *it,
 		    struct ptlrpc_request **reqp,
 		    ldlm_blocking_callback cb_blocking,
 		    __u64 extra_lock_flags);
+
 int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
+		const ldlm_policy_data_t *policy,
 		struct lookup_intent *it, struct md_op_data *op_data,
-		struct lustre_handle *lockh, void *lmm, int lmmsize,
-		struct ptlrpc_request **req, __u64 extra_lock_flags);
+		struct lustre_handle *lockh, __u64 extra_lock_flags);
 
 int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    struct list_head *cancels, enum ldlm_mode  mode,
 			    __u64 bits);
 /* mdc/mdc_request.c */
-int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
-		  struct md_op_data *op_data);
+int mdc_fid_alloc(const struct lu_env *env, struct obd_export *exp,
+		  struct lu_fid *fid, struct md_op_data *op_data);
 struct obd_client_handle;
 
 int mdc_set_open_replay_data(struct obd_export *exp,
@@ -105,16 +95,17 @@ void mdc_commit_open(struct ptlrpc_request *req);
 void mdc_replay_open(struct ptlrpc_request *req);
 
 int mdc_create(struct obd_export *exp, struct md_op_data *op_data,
-	       const void *data, int datalen, int mode, __u32 uid, __u32 gid,
-	       cfs_cap_t capability, __u64 rdev,
+	       const void *data, size_t datalen, umode_t mode, uid_t uid,
+	       gid_t gid, cfs_cap_t capability, __u64 rdev,
 	       struct ptlrpc_request **request);
 int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	     struct ptlrpc_request **request);
 int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
-	       const char *old, int oldlen, const char *new, int newlen,
+	       const char *old, size_t oldlen,
+	       const char *new, size_t newlen,
 	       struct ptlrpc_request **request);
 int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
-		void *ea, int ealen, void *ea2, int ea2len,
+		void *ea, size_t ealen, void *ea2, size_t ea2len,
 		struct ptlrpc_request **request, struct md_open_data **mod);
 int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	       struct ptlrpc_request **request);
@@ -140,6 +131,14 @@ static inline int mdc_prep_elc_req(struct obd_export *exp,
 {
 	return ldlm_prep_elc_req(exp, req, LUSTRE_MDS_VERSION, opc, 0, cancels,
 				 count);
+}
+
+static inline unsigned long hash_x_index(__u64 hash, int hash64)
+{
+	if (BITS_PER_LONG == 32 && hash64)
+		hash >>= 32;
+	/* save hash 0 with hash 1 */
+	return ~0UL - (hash + !hash);
 }
 
 #endif

@@ -56,6 +56,8 @@ unsigned long vgic_mmio_read_enable(struct kvm_vcpu *vcpu,
 
 		if (irq->enabled)
 			value |= (1U << i);
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 
 	return value;
@@ -74,6 +76,8 @@ void vgic_mmio_write_senable(struct kvm_vcpu *vcpu,
 		spin_lock(&irq->irq_lock);
 		irq->enabled = true;
 		vgic_queue_irq_unlock(vcpu->kvm, irq);
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
@@ -92,6 +96,7 @@ void vgic_mmio_write_cenable(struct kvm_vcpu *vcpu,
 		irq->enabled = false;
 
 		spin_unlock(&irq->irq_lock);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
@@ -108,6 +113,8 @@ unsigned long vgic_mmio_read_pending(struct kvm_vcpu *vcpu,
 
 		if (irq->pending)
 			value |= (1U << i);
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 
 	return value;
@@ -129,6 +136,7 @@ void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 			irq->soft_pending = true;
 
 		vgic_queue_irq_unlock(vcpu->kvm, irq);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
@@ -152,6 +160,7 @@ void vgic_mmio_write_cpending(struct kvm_vcpu *vcpu,
 		}
 
 		spin_unlock(&irq->irq_lock);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
@@ -168,6 +177,8 @@ unsigned long vgic_mmio_read_active(struct kvm_vcpu *vcpu,
 
 		if (irq->active)
 			value |= (1U << i);
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 
 	return value;
@@ -242,6 +253,7 @@ void vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
 	for_each_set_bit(i, &val, len * 8) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 		vgic_mmio_change_active(vcpu, irq, false);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 	vgic_change_active_finish(vcpu, intid);
 }
@@ -257,6 +269,7 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 	for_each_set_bit(i, &val, len * 8) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 		vgic_mmio_change_active(vcpu, irq, true);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 	vgic_change_active_finish(vcpu, intid);
 }
@@ -272,6 +285,8 @@ unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
 		val |= (u64)irq->priority << (i * 8);
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 
 	return val;
@@ -298,6 +313,8 @@ void vgic_mmio_write_priority(struct kvm_vcpu *vcpu,
 		/* Narrow the priority range to what we actually support */
 		irq->priority = (val >> (i * 8)) & GENMASK(7, 8 - VGIC_PRI_BITS);
 		spin_unlock(&irq->irq_lock);
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
@@ -313,6 +330,8 @@ unsigned long vgic_mmio_read_config(struct kvm_vcpu *vcpu,
 
 		if (irq->config == VGIC_CONFIG_EDGE)
 			value |= (2U << (i * 2));
+
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 
 	return value;
@@ -326,7 +345,7 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 	int i;
 
 	for (i = 0; i < len * 4; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq;
 
 		/*
 		 * The configuration cannot be changed for SGIs in general,
@@ -337,14 +356,18 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 		if (intid + i < VGIC_NR_PRIVATE_IRQS)
 			continue;
 
+		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 		spin_lock(&irq->irq_lock);
+
 		if (test_bit(i * 2 + 1, &val)) {
 			irq->config = VGIC_CONFIG_EDGE;
 		} else {
 			irq->config = VGIC_CONFIG_LEVEL;
 			irq->pending = irq->line_level | irq->soft_pending;
 		}
+
 		spin_unlock(&irq->irq_lock);
+		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
 
@@ -450,8 +473,7 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 {
 	struct vgic_io_device *iodev = kvm_to_vgic_iodev(dev);
 	const struct vgic_register_region *region;
-	struct kvm_vcpu *r_vcpu;
-	unsigned long data;
+	unsigned long data = 0;
 
 	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
 				       addr - iodev->base_addr);
@@ -460,8 +482,21 @@ static int dispatch_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 		return 0;
 	}
 
-	r_vcpu = iodev->redist_vcpu ? iodev->redist_vcpu : vcpu;
-	data = region->read(r_vcpu, addr, len);
+	switch (iodev->iodev_type) {
+	case IODEV_CPUIF:
+		data = region->read(vcpu, addr, len);
+		break;
+	case IODEV_DIST:
+		data = region->read(vcpu, addr, len);
+		break;
+	case IODEV_REDIST:
+		data = region->read(iodev->redist_vcpu, addr, len);
+		break;
+	case IODEV_ITS:
+		data = region->its_read(vcpu->kvm, iodev->its, addr, len);
+		break;
+	}
+
 	vgic_data_host_to_mmio_bus(val, len, data);
 	return 0;
 }
@@ -471,7 +506,6 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 {
 	struct vgic_io_device *iodev = kvm_to_vgic_iodev(dev);
 	const struct vgic_register_region *region;
-	struct kvm_vcpu *r_vcpu;
 	unsigned long data = vgic_data_mmio_bus_to_host(val, len);
 
 	region = vgic_find_mmio_region(iodev->regions, iodev->nr_regions,
@@ -482,8 +516,21 @@ static int dispatch_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
 	if (!check_region(region, addr, len))
 		return 0;
 
-	r_vcpu = iodev->redist_vcpu ? iodev->redist_vcpu : vcpu;
-	region->write(r_vcpu, addr, len, data);
+	switch (iodev->iodev_type) {
+	case IODEV_CPUIF:
+		region->write(vcpu, addr, len, data);
+		break;
+	case IODEV_DIST:
+		region->write(vcpu, addr, len, data);
+		break;
+	case IODEV_REDIST:
+		region->write(iodev->redist_vcpu, addr, len, data);
+		break;
+	case IODEV_ITS:
+		region->its_write(vcpu->kvm, iodev->its, addr, len, data);
+		break;
+	}
+
 	return 0;
 }
 
@@ -503,16 +550,15 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 	case VGIC_V2:
 		len = vgic_v2_init_dist_iodev(io_device);
 		break;
-#ifdef CONFIG_KVM_ARM_VGIC_V3
 	case VGIC_V3:
 		len = vgic_v3_init_dist_iodev(io_device);
 		break;
-#endif
 	default:
 		BUG_ON(1);
 	}
 
 	io_device->base_addr = dist_base_address;
+	io_device->iodev_type = IODEV_DIST;
 	io_device->redist_vcpu = NULL;
 
 	mutex_lock(&kvm->slots_lock);

@@ -29,18 +29,15 @@
 #define BEQUIET
 
 static int isofs_hashi(const struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 #ifdef CONFIG_JOLIET
 static int isofs_hashi_ms(const struct dentry *parent, struct qstr *qstr);
 static int isofs_hash_ms(const struct dentry *parent, struct qstr *qstr);
-static int isofs_dentry_cmpi_ms(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmpi_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
-static int isofs_dentry_cmp_ms(const struct dentry *parent,
-		const struct dentry *dentry,
+static int isofs_dentry_cmp_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 #endif
 
@@ -174,7 +171,7 @@ struct iso9660_options{
  * Compute the hash for the isofs name corresponding to the dentry.
  */
 static int
-isofs_hashi_common(struct qstr *qstr, int ms)
+isofs_hashi_common(const struct dentry *dentry, struct qstr *qstr, int ms)
 {
 	const char *name;
 	int len;
@@ -188,7 +185,7 @@ isofs_hashi_common(struct qstr *qstr, int ms)
 			len--;
 	}
 
-	hash = init_name_hash();
+	hash = init_name_hash(dentry);
 	while (len--) {
 		c = tolower(*name++);
 		hash = partial_name_hash(c, hash);
@@ -231,11 +228,11 @@ static int isofs_dentry_cmp_common(
 static int
 isofs_hashi(const struct dentry *dentry, struct qstr *qstr)
 {
-	return isofs_hashi_common(qstr, 0);
+	return isofs_hashi_common(dentry, qstr, 0);
 }
 
 static int
-isofs_dentry_cmpi(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmpi(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 0, 1);
@@ -246,7 +243,7 @@ isofs_dentry_cmpi(const struct dentry *parent, const struct dentry *dentry,
  * Compute the hash for the isofs name corresponding to the dentry.
  */
 static int
-isofs_hash_common(struct qstr *qstr, int ms)
+isofs_hash_common(const struct dentry *dentry, struct qstr *qstr, int ms)
 {
 	const char *name;
 	int len;
@@ -258,7 +255,7 @@ isofs_hash_common(struct qstr *qstr, int ms)
 			len--;
 	}
 
-	qstr->hash = full_name_hash(name, len);
+	qstr->hash = full_name_hash(dentry, name, len);
 
 	return 0;
 }
@@ -266,24 +263,24 @@ isofs_hash_common(struct qstr *qstr, int ms)
 static int
 isofs_hash_ms(const struct dentry *dentry, struct qstr *qstr)
 {
-	return isofs_hash_common(qstr, 1);
+	return isofs_hash_common(dentry, qstr, 1);
 }
 
 static int
 isofs_hashi_ms(const struct dentry *dentry, struct qstr *qstr)
 {
-	return isofs_hashi_common(qstr, 1);
+	return isofs_hashi_common(dentry, qstr, 1);
 }
 
 static int
-isofs_dentry_cmp_ms(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmp_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 1, 0);
 }
 
 static int
-isofs_dentry_cmpi_ms(const struct dentry *parent, const struct dentry *dentry,
+isofs_dentry_cmpi_ms(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	return isofs_dentry_cmp_common(len, str, name, 1, 1);
@@ -690,6 +687,11 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	pri_bh = NULL;
 
 root_found:
+	/* We don't support read-write mounts */
+	if (!(s->s_flags & MS_RDONLY)) {
+		error = -EACCES;
+		goto out_freebh;
+	}
 
 	if (joliet_level && (pri == NULL || !opt.rock)) {
 		/* This is the case of Joliet with the norock mount flag.
@@ -1504,9 +1506,6 @@ struct inode *__isofs_iget(struct super_block *sb,
 static struct dentry *isofs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	/* We don't support read-write mounts */
-	if (!(flags & MS_RDONLY))
-		return ERR_PTR(-EACCES);
 	return mount_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
 }
 

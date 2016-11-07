@@ -18,20 +18,42 @@
 /* Temparory solution for building, will be removed later */
 #include <linux/pci.h>
 
-struct msi_desc *alloc_msi_entry(struct device *dev)
+/**
+ * alloc_msi_entry - Allocate an initialize msi_entry
+ * @dev:	Pointer to the device for which this is allocated
+ * @nvec:	The number of vectors used in this entry
+ * @affinity:	Optional pointer to an affinity mask array size of @nvec
+ *
+ * If @affinity is not NULL then a an affinity array[@nvec] is allocated
+ * and the affinity masks from @affinity are copied.
+ */
+struct msi_desc *
+alloc_msi_entry(struct device *dev, int nvec, const struct cpumask *affinity)
 {
-	struct msi_desc *desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	struct msi_desc *desc;
+
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return NULL;
 
 	INIT_LIST_HEAD(&desc->list);
 	desc->dev = dev;
+	desc->nvec_used = nvec;
+	if (affinity) {
+		desc->affinity = kmemdup(affinity,
+			nvec * sizeof(*desc->affinity), GFP_KERNEL);
+		if (!desc->affinity) {
+			kfree(desc);
+			return NULL;
+		}
+	}
 
 	return desc;
 }
 
 void free_msi_entry(struct msi_desc *entry)
 {
+	kfree(entry->affinity);
 	kfree(entry);
 }
 
@@ -324,7 +346,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 	struct msi_domain_ops *ops = info->ops;
 	msi_alloc_info_t arg;
 	struct msi_desc *desc;
-	int i, ret, virq = -1;
+	int i, ret, virq;
 
 	ret = msi_domain_prepare_irqs(domain, dev, nvec, &arg);
 	if (ret)
@@ -332,13 +354,10 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 
 	for_each_msi_entry(desc, dev) {
 		ops->set_desc(&arg, desc);
-		if (info->flags & MSI_FLAG_IDENTITY_MAP)
-			virq = (int)ops->get_hwirq(info, &arg);
-		else
-			virq = -1;
 
-		virq = __irq_domain_alloc_irqs(domain, virq, desc->nvec_used,
-					       dev_to_node(dev), &arg, false);
+		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
+					       dev_to_node(dev), &arg, false,
+					       desc->affinity);
 		if (virq < 0) {
 			ret = -ENOSPC;
 			if (ops->handle_error)
@@ -356,11 +375,23 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		ops->msi_finish(&arg, 0);
 
 	for_each_msi_entry(desc, dev) {
+		virq = desc->irq;
 		if (desc->nvec_used == 1)
 			dev_dbg(dev, "irq %d for MSI\n", virq);
 		else
 			dev_dbg(dev, "irq [%d-%d] for MSI\n",
 				virq, virq + desc->nvec_used - 1);
+		/*
+		 * This flag is set by the PCI layer as we need to activate
+		 * the MSI entries before the PCI layer enables MSI in the
+		 * card. Otherwise the card latches a random msi message.
+		 */
+		if (info->flags & MSI_FLAG_ACTIVATE_EARLY) {
+			struct irq_data *irq_data;
+
+			irq_data = irq_domain_get_irq_data(domain, desc->irq);
+			irq_domain_activate_irq(irq_data);
+		}
 	}
 
 	return 0;

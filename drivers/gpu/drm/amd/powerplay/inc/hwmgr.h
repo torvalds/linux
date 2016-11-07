@@ -31,15 +31,20 @@
 #include "hwmgr_ppt.h"
 #include "ppatomctrl.h"
 #include "hwmgr_ppt.h"
+#include "power_state.h"
 
 struct pp_instance;
 struct pp_hwmgr;
-struct pp_hw_power_state;
-struct pp_power_state;
-struct PP_VCEState;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
+extern int amdgpu_powercontainment;
+extern int amdgpu_sclk_deep_sleep_en;
+extern unsigned amdgpu_pp_feature_mask;
+
+#define VOLTAGE_SCALE 4
+
+uint8_t convert_to_vid(uint16_t vddc);
 
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
@@ -48,7 +53,6 @@ enum DISPLAY_GAP {
 	DISPLAY_GAP_IGNORE       = 3    /* Do not wait. */
 };
 typedef enum DISPLAY_GAP DISPLAY_GAP;
-
 
 struct vi_dpm_level {
 	bool enabled;
@@ -70,6 +74,19 @@ enum PP_Result {
 #define PCIE_PERF_REQ_GEN1         2
 #define PCIE_PERF_REQ_GEN2         3
 #define PCIE_PERF_REQ_GEN3         4
+
+enum PP_FEATURE_MASK {
+	PP_SCLK_DPM_MASK = 0x1,
+	PP_MCLK_DPM_MASK = 0x2,
+	PP_PCIE_DPM_MASK = 0x4,
+	PP_SCLK_DEEP_SLEEP_MASK = 0x8,
+	PP_POWER_CONTAINMENT_MASK = 0x10,
+	PP_UVD_HANDSHAKE_MASK = 0x20,
+	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
+	PP_VBI_TIME_SUPPORT_MASK = 0x80,
+	PP_ULV_MASK = 0x100,
+	PP_ENABLE_GFX_CG_THRU_SMU = 0x200
+};
 
 enum PHM_BackEnd_Magic {
 	PHM_Dummy_Magic       = 0xAA5555AA,
@@ -278,6 +295,8 @@ struct pp_hwmgr_func {
 
 	int (*dynamic_state_management_enable)(
 						struct pp_hwmgr *hw_mgr);
+	int (*dynamic_state_management_disable)(
+						struct pp_hwmgr *hw_mgr);
 
 	int (*patch_boot_state)(struct pp_hwmgr *hwmgr,
 				     struct pp_hw_power_state *hw_ps);
@@ -292,8 +311,6 @@ struct pp_hwmgr_func {
 	int (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
-	void (*print_current_perforce_level)(struct pp_hwmgr *hwmgr,
-							struct seq_file *m);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
@@ -333,11 +350,14 @@ struct pp_hwmgr_func {
 	int (*get_clock_by_type)(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
 	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
-	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
-	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
 	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
 	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
+	int (*get_sclk_od)(struct pp_hwmgr *hwmgr);
+	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
+	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
+	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
+	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
 };
 
 struct pp_table_func {
@@ -347,7 +367,7 @@ struct pp_table_func {
 	int (*pptable_get_vce_state_table_entry)(
 						struct pp_hwmgr *hwmgr,
 						unsigned long i,
-						struct PP_VCEState *vce_state,
+						struct pp_vce_state *vce_state,
 						void **clock_info,
 						unsigned long *flag);
 };
@@ -566,21 +586,43 @@ struct phm_microcode_version_info {
 	uint32_t NB;
 };
 
+#define PP_MAX_VCE_LEVELS 6
+
+enum PP_VCE_LEVEL {
+	PP_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
+	PP_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
+	PP_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
+	PP_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
+	PP_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
+	PP_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
+};
+
+
+enum PP_TABLE_VERSION {
+	PP_TABLE_V0 = 0,
+	PP_TABLE_V1,
+	PP_TABLE_V2,
+	PP_TABLE_MAX
+};
+
 /**
  * The main hardware manager structure.
  */
 struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
-	uint32_t hw_revision;
-	uint32_t sub_sys_id;
-	uint32_t sub_vendor_id;
 
+	uint32_t pp_table_version;
 	void *device;
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
 	uint32_t soft_pp_table_size;
+	void *hardcode_pp_table;
 	bool need_pp_table_upload;
+
+	struct pp_vce_state vce_states[PP_MAX_VCE_LEVELS];
+	uint32_t num_vce_state_tables;
+
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
@@ -618,6 +660,7 @@ struct pp_hwmgr {
 	struct pp_power_state    *boot_ps;
 	struct pp_power_state    *uvd_ps;
 	struct amd_pp_display_configuration display_config;
+	uint32_t feature_mask;
 };
 
 
@@ -631,16 +674,7 @@ extern int hw_init_power_state_table(struct pp_hwmgr *hwmgr);
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
 
-extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
-				uint32_t index, uint32_t value, uint32_t mask);
 
-extern uint32_t phm_read_indirect_register(struct pp_hwmgr *hwmgr,
-		uint32_t indirect_port, uint32_t index);
-
-extern void phm_write_indirect_register(struct pp_hwmgr *hwmgr,
-		uint32_t indirect_port,
-		uint32_t index,
-		uint32_t value);
 
 extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port,
@@ -648,12 +682,7 @@ extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t value,
 				uint32_t mask);
 
-extern void phm_wait_for_indirect_register_unequal(
-				struct pp_hwmgr *hwmgr,
-				uint32_t indirect_port,
-				uint32_t index,
-				uint32_t value,
-				uint32_t mask);
+
 
 extern bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr);
 extern bool phm_cf_want_vce_power_gating(struct pp_hwmgr *hwmgr);
@@ -667,6 +696,8 @@ extern void phm_trim_voltage_table_to_fit_state_table(uint32_t max_vol_steps, st
 extern int phm_reset_single_dpm_table(void *table, uint32_t count, int max);
 extern void phm_setup_pcie_table_entry(void *table, uint32_t index, uint32_t pcie_gen, uint32_t pcie_lanes);
 extern int32_t phm_get_dpm_level_enable_mask_value(void *table);
+extern uint8_t phm_get_voltage_id(struct pp_atomctrl_voltage_table *voltage_table,
+		uint32_t voltage);
 extern uint8_t phm_get_voltage_index(struct phm_ppt_v1_voltage_lookup_table *lookup_table, uint16_t voltage);
 extern uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, uint16_t vddci);
 extern int phm_find_boot_level(void *table, uint32_t value, uint32_t *boot_level);
@@ -676,6 +707,10 @@ extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr
 extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
+
+extern int smu7_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint32_t sclk, uint16_t id, uint16_t *voltage);
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 
@@ -690,44 +725,6 @@ extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 	(((value) & PHM_FIELD_MASK(reg, field)) >>	\
 	 PHM_FIELD_SHIFT(reg, field))
 
-
-#define PHM_WAIT_REGISTER_GIVEN_INDEX(hwmgr, index, value, mask)	\
-	phm_wait_on_register(hwmgr, index, value, mask)
-
-#define PHM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, index, value, mask)	\
-	phm_wait_for_register_unequal(hwmgr, index, value, mask)
-
-#define PHM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, index, value, mask)	\
-	phm_wait_on_indirect_register(hwmgr, mm##port##_INDEX, index, value, mask)
-
-#define PHM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, index, value, mask)	\
-	phm_wait_for_indirect_register_unequal(hwmgr, mm##port##_INDEX, index, value, mask)
-
-#define PHM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, index, value, mask)	\
-	phm_wait_on_indirect_register(hwmgr, mm##port##_INDEX_0, index, value, mask)
-
-#define PHM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, index, value, mask)	\
-	phm_wait_for_indirect_register_unequal(hwmgr, mm##port##_INDEX_0, index, value, mask)
-
-/* Operations on named registers. */
-
-#define PHM_WAIT_REGISTER(hwmgr, reg, value, mask)	\
-	PHM_WAIT_REGISTER_GIVEN_INDEX(hwmgr, mm##reg, value, mask)
-
-#define PHM_WAIT_REGISTER_UNEQUAL(hwmgr, reg, value, mask)	\
-	PHM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, mm##reg, value, mask)
-
-#define PHM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, value, mask)	\
-	PHM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
-
-#define PHM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, value, mask)	\
-	PHM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
-
-#define PHM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg, value, mask)	\
-	PHM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
-
-#define PHM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, value, mask)	\
-	PHM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
 /* Operations on named fields. */
 
@@ -756,60 +753,16 @@ extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 			PHM_SET_FIELD(cgs_read_ind_register(device, port, ix##reg),	\
 				reg, field, fieldval))
 
-#define PHM_WAIT_FIELD(hwmgr, reg, field, fieldval)	\
-	PHM_WAIT_REGISTER(hwmgr, reg, (fieldval)	\
-			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
+#define PHM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, index, value, mask)        \
+       phm_wait_on_indirect_register(hwmgr, mm##port##_INDEX, index, value, mask)
+
+
+#define PHM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, value, mask)      \
+       PHM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(hwmgr, port, ix##reg, value, mask)
 
 #define PHM_WAIT_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval)	\
 	PHM_WAIT_INDIRECT_REGISTER(hwmgr, port, reg, (fieldval)	\
 			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
 
-#define PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, port, reg, field, fieldval)	\
-	PHM_WAIT_VFPF_INDIRECT_REGISTER(hwmgr, port, reg, (fieldval)	\
-			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
-
-#define PHM_WAIT_FIELD_UNEQUAL(hwmgr, reg, field, fieldval)	\
-	PHM_WAIT_REGISTER_UNEQUAL(hwmgr, reg, (fieldval)	\
-			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
-
-#define PHM_WAIT_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval)	\
-	PHM_WAIT_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, (fieldval)	\
-			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
-
-#define PHM_WAIT_VFPF_INDIRECT_FIELD_UNEQUAL(hwmgr, port, reg, field, fieldval)	\
-	PHM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(hwmgr, port, reg, (fieldval)	\
-			<< PHM_FIELD_SHIFT(reg, field), PHM_FIELD_MASK(reg, field))
-
-/* Operations on arrays of registers & fields. */
-
-#define PHM_READ_ARRAY_REGISTER(device, reg, offset)	\
-	cgs_read_register(device, mm##reg + (offset))
-
-#define PHM_WRITE_ARRAY_REGISTER(device, reg, offset, value)	\
-	cgs_write_register(device, mm##reg + (offset), value)
-
-#define PHM_WAIT_ARRAY_REGISTER(hwmgr, reg, offset, value, mask)	\
-	PHM_WAIT_REGISTER_GIVEN_INDEX(hwmgr, mm##reg + (offset), value, mask)
-
-#define PHM_WAIT_ARRAY_REGISTER_UNEQUAL(hwmgr, reg, offset, value, mask)	\
-	PHM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, mm##reg + (offset), value, mask)
-
-#define PHM_READ_ARRAY_FIELD(hwmgr, reg, offset, field) \
-	PHM_GET_FIELD(PHM_READ_ARRAY_REGISTER(hwmgr->device, reg, offset), reg, field)
-
-#define PHM_WRITE_ARRAY_FIELD(hwmgr, reg, offset, field, fieldvalue)	\
-	PHM_WRITE_ARRAY_REGISTER(hwmgr->device, reg, offset,	\
-			PHM_SET_FIELD(PHM_READ_ARRAY_REGISTER(hwmgr->device, reg, offset),	\
-				reg, field, fieldvalue))
-
-#define PHM_WAIT_ARRAY_FIELD(hwmgr, reg, offset, field, fieldvalue)	\
-	PHM_WAIT_REGISTER_GIVEN_INDEX(hwmgr, mm##reg + (offset),	\
-			(fieldvalue) << PHM_FIELD_SHIFT(reg, field),	\
-			PHM_FIELD_MASK(reg, field))
-
-#define PHM_WAIT_ARRAY_FIELD_UNEQUAL(hwmgr, reg, offset, field, fieldvalue)	\
-	PHM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(hwmgr, mm##reg + (offset),	\
-			(fieldvalue) << PHM_FIELD_SHIFT(reg, field),	\
-			PHM_FIELD_MASK(reg, field))
 
 #endif /* _HWMGR_H_ */

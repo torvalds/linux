@@ -41,8 +41,10 @@
 #include <net/ipv6.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <net/calipso.h>
 #include <linux/atomic.h>
 
+#include "netlabel_calipso.h"
 #include "netlabel_domainhash.h"
 #include "netlabel_user.h"
 #include "netlabel_mgmt.h"
@@ -72,6 +74,8 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 	[NLBL_MGMT_A_PROTOCOL] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_VERSION] = { .type = NLA_U32 },
 	[NLBL_MGMT_A_CV4DOI] = { .type = NLA_U32 },
+	[NLBL_MGMT_A_FAMILY] = { .type = NLA_U16 },
+	[NLBL_MGMT_A_CLPDOI] = { .type = NLA_U32 },
 };
 
 /*
@@ -95,6 +99,9 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 	int ret_val = -EINVAL;
 	struct netlbl_domaddr_map *addrmap = NULL;
 	struct cipso_v4_doi *cipsov4 = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct calipso_doi *calipso = NULL;
+#endif
 	u32 tmp_val;
 	struct netlbl_dom_map *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 
@@ -119,6 +126,11 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_UNLABELED:
+		if (info->attrs[NLBL_MGMT_A_FAMILY])
+			entry->family =
+				nla_get_u16(info->attrs[NLBL_MGMT_A_FAMILY]);
+		else
+			entry->family = AF_UNSPEC;
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -128,11 +140,29 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		cipsov4 = cipso_v4_doi_getdef(tmp_val);
 		if (cipsov4 == NULL)
 			goto add_free_domain;
+		entry->family = AF_INET;
 		entry->def.cipso = cipsov4;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case NETLBL_NLTYPE_CALIPSO:
+		if (!info->attrs[NLBL_MGMT_A_CLPDOI])
+			goto add_free_domain;
+
+		tmp_val = nla_get_u32(info->attrs[NLBL_MGMT_A_CLPDOI]);
+		calipso = calipso_doi_getdef(tmp_val);
+		if (calipso == NULL)
+			goto add_free_domain;
+		entry->family = AF_INET6;
+		entry->def.calipso = calipso;
+		break;
+#endif /* IPv6 */
 	default:
 		goto add_free_domain;
 	}
+
+	if ((entry->family == AF_INET && info->attrs[NLBL_MGMT_A_IPV6ADDR]) ||
+	    (entry->family == AF_INET6 && info->attrs[NLBL_MGMT_A_IPV4ADDR]))
+		goto add_doi_put_def;
 
 	if (info->attrs[NLBL_MGMT_A_IPV4ADDR]) {
 		struct in_addr *addr;
@@ -178,6 +208,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 			goto add_free_addrmap;
 		}
 
+		entry->family = AF_INET;
 		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
 		entry->def.addrsel = addrmap;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -220,6 +251,8 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		map->list.mask = *mask;
 		map->list.valid = 1;
 		map->def.type = entry->def.type;
+		if (calipso)
+			map->def.calipso = calipso;
 
 		ret_val = netlbl_af6list_add(&map->list, &addrmap->list6);
 		if (ret_val != 0) {
@@ -227,6 +260,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 			goto add_free_addrmap;
 		}
 
+		entry->family = AF_INET6;
 		entry->def.type = NETLBL_NLTYPE_ADDRSELECT;
 		entry->def.addrsel = addrmap;
 #endif /* IPv6 */
@@ -242,6 +276,9 @@ add_free_addrmap:
 	kfree(addrmap);
 add_doi_put_def:
 	cipso_v4_doi_putdef(cipsov4);
+#if IS_ENABLED(CONFIG_IPV6)
+	calipso_doi_putdef(calipso);
+#endif
 add_free_domain:
 	kfree(entry->domain);
 add_free_entry:
@@ -277,6 +314,10 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		if (ret_val != 0)
 			return ret_val;
 	}
+
+	ret_val = nla_put_u16(skb, NLBL_MGMT_A_FAMILY, entry->family);
+	if (ret_val != 0)
+		return ret_val;
 
 	switch (entry->def.type) {
 	case NETLBL_NLTYPE_ADDRSELECT:
@@ -340,6 +381,15 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 			if (ret_val != 0)
 				return ret_val;
 
+			switch (map6->def.type) {
+			case NETLBL_NLTYPE_CALIPSO:
+				ret_val = nla_put_u32(skb, NLBL_MGMT_A_CLPDOI,
+						      map6->def.calipso->doi);
+				if (ret_val != 0)
+					return ret_val;
+				break;
+			}
+
 			nla_nest_end(skb, nla_b);
 		}
 #endif /* IPv6 */
@@ -347,14 +397,24 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 		nla_nest_end(skb, nla_a);
 		break;
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = nla_put_u32(skb,NLBL_MGMT_A_PROTOCOL,entry->def.type);
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+				      entry->def.type);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = nla_put_u32(skb,NLBL_MGMT_A_PROTOCOL,entry->def.type);
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+				      entry->def.type);
 		if (ret_val != 0)
 			return ret_val;
 		ret_val = nla_put_u32(skb, NLBL_MGMT_A_CV4DOI,
 				      entry->def.cipso->doi);
+		break;
+	case NETLBL_NLTYPE_CALIPSO:
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_PROTOCOL,
+				      entry->def.type);
+		if (ret_val != 0)
+			return ret_val;
+		ret_val = nla_put_u32(skb, NLBL_MGMT_A_CLPDOI,
+				      entry->def.calipso->doi);
 		break;
 	}
 
@@ -418,7 +478,7 @@ static int netlbl_mgmt_remove(struct sk_buff *skb, struct genl_info *info)
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	domain = nla_data(info->attrs[NLBL_MGMT_A_DOMAIN]);
-	return netlbl_domhsh_remove(domain, &audit_info);
+	return netlbl_domhsh_remove(domain, AF_UNSPEC, &audit_info);
 }
 
 /**
@@ -536,7 +596,7 @@ static int netlbl_mgmt_removedef(struct sk_buff *skb, struct genl_info *info)
 
 	netlbl_netlink_auditinfo(skb, &audit_info);
 
-	return netlbl_domhsh_remove_default(&audit_info);
+	return netlbl_domhsh_remove_default(AF_UNSPEC, &audit_info);
 }
 
 /**
@@ -556,6 +616,12 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 	struct sk_buff *ans_skb = NULL;
 	void *data;
 	struct netlbl_dom_map *entry;
+	u16 family;
+
+	if (info->attrs[NLBL_MGMT_A_FAMILY])
+		family = nla_get_u16(info->attrs[NLBL_MGMT_A_FAMILY]);
+	else
+		family = AF_INET;
 
 	ans_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
@@ -566,7 +632,7 @@ static int netlbl_mgmt_listdef(struct sk_buff *skb, struct genl_info *info)
 		goto listdef_failure;
 
 	rcu_read_lock();
-	entry = netlbl_domhsh_getentry(NULL);
+	entry = netlbl_domhsh_getentry(NULL, family);
 	if (entry == NULL) {
 		ret_val = -ENOENT;
 		goto listdef_failure_lock;
@@ -651,6 +717,15 @@ static int netlbl_mgmt_protocols(struct sk_buff *skb,
 			goto protocols_return;
 		protos_sent++;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
+	if (protos_sent == 2) {
+		if (netlbl_mgmt_protocols_cb(skb,
+					     cb,
+					     NETLBL_NLTYPE_CALIPSO) < 0)
+			goto protocols_return;
+		protos_sent++;
+	}
+#endif
 
 protocols_return:
 	cb->args[0] = protos_sent;

@@ -132,7 +132,7 @@ unsigned int cpm_pic_init(void)
 {
 	struct device_node *np = NULL;
 	struct resource res;
-	unsigned int sirq = NO_IRQ, hwirq, eirq;
+	unsigned int sirq = 0, hwirq, eirq;
 	int ret;
 
 	pr_debug("cpm_pic_init\n");
@@ -154,7 +154,7 @@ unsigned int cpm_pic_init(void)
 		goto end;
 
 	sirq = irq_of_parse_and_map(np, 0);
-	if (sirq == NO_IRQ)
+	if (!sirq)
 		goto end;
 
 	/* Initialize the CPM interrupt controller. */
@@ -168,7 +168,7 @@ unsigned int cpm_pic_init(void)
 	cpm_pic_host = irq_domain_add_linear(np, 64, &cpm_pic_host_ops, NULL);
 	if (cpm_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
-		sirq = NO_IRQ;
+		sirq = 0;
 		goto end;
 	}
 
@@ -182,7 +182,7 @@ unsigned int cpm_pic_init(void)
 	}
 
 	eirq = irq_of_parse_and_map(np, 0);
-	if (eirq == NO_IRQ)
+	if (!eirq)
 		goto end;
 
 	if (setup_irq(eirq, &cpm_error_irqaction))
@@ -233,8 +233,6 @@ void __init cpm_reset(void)
 	else
 		out_be32(&siu_conf->sc_sdcr, 1);
 	immr_unmap(siu_conf);
-
-	cpm_muram_init();
 }
 
 static DEFINE_SPINLOCK(cmd_lock);
@@ -534,7 +532,8 @@ struct cpm1_gpio16_chip {
 
 static void cpm1_gpio16_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct cpm1_gpio16_chip *cpm1_gc = gpiochip_get_data(&mm_gc->gc);
+	struct cpm1_gpio16_chip *cpm1_gc =
+		container_of(mm_gc, struct cpm1_gpio16_chip, mm_gc);
 	struct cpm_ioport16 __iomem *iop = mm_gc->regs;
 
 	cpm1_gc->cpdata = in_be16(&iop->dat);
@@ -649,7 +648,8 @@ struct cpm1_gpio32_chip {
 
 static void cpm1_gpio32_save_regs(struct of_mm_gpio_chip *mm_gc)
 {
-	struct cpm1_gpio32_chip *cpm1_gc = gpiochip_get_data(&mm_gc->gc);
+	struct cpm1_gpio32_chip *cpm1_gc =
+		container_of(mm_gc, struct cpm1_gpio32_chip, mm_gc);
 	struct cpm_ioport32b __iomem *iop = mm_gc->regs;
 
 	cpm1_gc->cpdata = in_be32(&iop->dat);

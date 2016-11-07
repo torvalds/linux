@@ -94,10 +94,7 @@ const struct inode_operations ceph_file_iops = {
 	.permission = ceph_permission,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = ceph_listxattr,
-	.removexattr = generic_removexattr,
 	.get_acl = ceph_get_acl,
 	.set_acl = ceph_set_acl,
 };
@@ -446,7 +443,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_symlink = NULL;
 
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
-	ci->i_pool_ns_len = 0;
+	RCU_INIT_POINTER(ci->i_layout.pool_ns, NULL);
 
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
@@ -468,7 +465,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ci->i_dirty_item);
 	INIT_LIST_HEAD(&ci->i_flushing_item);
 	ci->i_prealloc_cap_flush = NULL;
-	ci->i_cap_flush_tree = RB_ROOT;
+	INIT_LIST_HEAD(&ci->i_cap_flush_list);
 	init_waitqueue_head(&ci->i_cap_wq);
 	ci->i_hold_caps_min = 0;
 	ci->i_hold_caps_max = 0;
@@ -477,7 +474,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_head_snapc = NULL;
 	ci->i_snap_caps = 0;
 
-	for (i = 0; i < CEPH_FILE_MODE_NUM; i++)
+	for (i = 0; i < CEPH_FILE_MODE_BITS; i++)
 		ci->i_nr_by_mode[i] = 0;
 
 	mutex_init(&ci->i_truncate_mutex);
@@ -570,6 +567,8 @@ void ceph_destroy_inode(struct inode *inode)
 	if (ci->i_xattrs.prealloc_blob)
 		ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 
+	ceph_put_string(rcu_dereference_raw(ci->i_layout.pool_ns));
+
 	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
 
@@ -581,6 +580,14 @@ int ceph_drop_inode(struct inode *inode)
 	 * dropping all its aliases.
 	 */
 	return 1;
+}
+
+void ceph_evict_inode(struct inode *inode)
+{
+	/* wait unsafe sync writes */
+	ceph_sync_write_wait(inode);
+	truncate_inode_pages_final(&inode->i_data);
+	clear_inode(inode);
 }
 
 static inline blkcnt_t calc_inode_blocks(u64 size)
@@ -733,6 +740,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	int issued = 0, implemented, new_issued;
 	struct timespec mtime, atime, ctime;
 	struct ceph_buffer *xattr_blob = NULL;
+	struct ceph_string *pool_ns = NULL;
 	struct ceph_cap *new_cap = NULL;
 	int err = 0;
 	bool wake = false;
@@ -759,6 +767,10 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			pr_err("fill_inode ENOMEM xattr blob %d bytes\n",
 			       iinfo->xattr_len);
 	}
+
+	if (iinfo->pool_ns_len > 0)
+		pool_ns = ceph_find_or_create_string(iinfo->pool_ns_data,
+						     iinfo->pool_ns_len);
 
 	spin_lock(&ci->i_ceph_lock);
 
@@ -814,10 +826,18 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 
 	if (new_version ||
 	    (new_issued & (CEPH_CAP_ANY_FILE_RD | CEPH_CAP_ANY_FILE_WR))) {
-		if (ci->i_layout.fl_pg_pool != info->layout.fl_pg_pool)
+		s64 old_pool = ci->i_layout.pool_id;
+		struct ceph_string *old_ns;
+
+		ceph_file_layout_from_legacy(&ci->i_layout, &info->layout);
+		old_ns = rcu_dereference_protected(ci->i_layout.pool_ns,
+					lockdep_is_held(&ci->i_ceph_lock));
+		rcu_assign_pointer(ci->i_layout.pool_ns, pool_ns);
+
+		if (ci->i_layout.pool_id != old_pool || pool_ns != old_ns)
 			ci->i_ceph_flags &= ~CEPH_I_POOL_PERM;
-		ci->i_layout = info->layout;
-		ci->i_pool_ns_len = iinfo->pool_ns_len;
+
+		pool_ns = old_ns;
 
 		queue_trunc = ceph_fill_file_size(inode, issued,
 					le32_to_cpu(info->truncate_seq),
@@ -985,6 +1005,7 @@ out:
 		ceph_put_cap(mdsc, new_cap);
 	if (xattr_blob)
 		ceph_buffer_put(xattr_blob);
+	ceph_put_string(pool_ns);
 	return err;
 }
 
@@ -1018,7 +1039,7 @@ static void update_dentry_lease(struct dentry *dentry,
 		goto out_unlock;
 
 	if (di->lease_gen == session->s_cap_gen &&
-	    time_before(ttl, dentry->d_time))
+	    time_before(ttl, di->time))
 		goto out_unlock;  /* we already have a newer lease. */
 
 	if (di->lease_session && di->lease_session != session)
@@ -1032,7 +1053,7 @@ static void update_dentry_lease(struct dentry *dentry,
 	di->lease_seq = le32_to_cpu(lease->seq);
 	di->lease_renew_after = half_ttl;
 	di->lease_renew_from = 0;
-	dentry->d_time = ttl;
+	di->time = ttl;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
 	return;
@@ -1164,7 +1185,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 
 			dname.name = rinfo->dname;
 			dname.len = rinfo->dname_len;
-			dname.hash = full_name_hash(dname.name, dname.len);
+			dname.hash = full_name_hash(parent, dname.name, dname.len);
 			vino.ino = le64_to_cpu(rinfo->targeti.in->ino);
 			vino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
 retry_lookup:
@@ -1490,7 +1511,8 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 			ceph_fill_dirfrag(d_inode(parent), rinfo->dir_dir);
 	}
 
-	if (ceph_frag_is_leftmost(frag) && req->r_readdir_offset == 2) {
+	if (ceph_frag_is_leftmost(frag) && req->r_readdir_offset == 2 &&
+	    !(rinfo->hash_order && req->r_path2)) {
 		/* note dir version at start of readdir so we can tell
 		 * if any dentries get dropped */
 		req->r_dir_release_cnt = atomic64_read(&ci->i_release_count);
@@ -1508,7 +1530,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 
 		dname.name = rde->name;
 		dname.len = rde->name_len;
-		dname.hash = full_name_hash(dname.name, dname.len);
+		dname.hash = full_name_hash(parent, dname.name, dname.len);
 
 		vino.ino = le64_to_cpu(rde->inode.in->ino);
 		vino.snap = le64_to_cpu(rde->inode.in->snapid);
@@ -1861,10 +1883,7 @@ static const struct inode_operations ceph_symlink_iops = {
 	.get_link = simple_get_link,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = ceph_listxattr,
-	.removexattr = generic_removexattr,
 };
 
 int __ceph_setattr(struct inode *inode, struct iattr *attr)
@@ -1880,13 +1899,6 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	int err = 0;
 	int inode_dirty_flags = 0;
 	bool lock_snap_rwsem = false;
-
-	if (ceph_snap(inode) != CEPH_NOSNAP)
-		return -EROFS;
-
-	err = inode_change_ok(inode, attr);
-	if (err != 0)
-		return err;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
@@ -2056,7 +2068,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 	if (dirtied) {
 		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied,
 							   &prealloc_cf);
-		inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_time(inode);
 	}
 
 	release &= issued;
@@ -2100,7 +2112,17 @@ out_put:
  */
 int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	return __ceph_setattr(d_inode(dentry), attr);
+	struct inode *inode = d_inode(dentry);
+	int err;
+
+	if (ceph_snap(inode) != CEPH_NOSNAP)
+		return -EROFS;
+
+	err = setattr_prepare(dentry, attr);
+	if (err != 0)
+		return err;
+
+	return __ceph_setattr(inode, attr);
 }
 
 /*

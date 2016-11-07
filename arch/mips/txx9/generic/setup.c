@@ -15,7 +15,8 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/module.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
@@ -82,40 +83,6 @@ int txx9_ccfg_toeon __initdata;
 #else
 int txx9_ccfg_toeon __initdata = 1;
 #endif
-
-/* Minimum CLK support */
-
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	if (!strcmp(id, "spi-baseclk"))
-		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 2);
-	if (!strcmp(id, "imbus_clk"))
-		return (struct clk *)((unsigned long)txx9_gbus_clock / 2);
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get);
-
-int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return (unsigned long)clk;
-}
-EXPORT_SYMBOL(clk_get_rate);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
 
 #define BOARD_VEC(board)	extern struct txx9_board_vec board;
 #include <asm/txx9/boards.h>
@@ -560,8 +527,41 @@ void __init plat_time_init(void)
 	txx9_board_vec->time_init();
 }
 
+static void txx9_clk_init(void)
+{
+	struct clk_hw *hw;
+	int error;
+
+	hw = clk_hw_register_fixed_rate(NULL, "gbus", NULL, 0, txx9_gbus_clock);
+	if (IS_ERR(hw)) {
+		error = PTR_ERR(hw);
+		goto fail;
+	}
+
+	hw = clk_hw_register_fixed_factor(NULL, "imbus", "gbus", 0, 1, 2);
+	error = clk_hw_register_clkdev(hw, "imbus_clk", NULL);
+	if (error)
+		goto fail;
+
+#ifdef CONFIG_CPU_TX49XX
+	if (TX4938_REV_PCODE() == 0x4938) {
+		hw = clk_hw_register_fixed_factor(NULL, "spi", "gbus", 0, 1, 4);
+		error = clk_hw_register_clkdev(hw, "spi-baseclk", NULL);
+		if (error)
+			goto fail;
+	}
+#endif
+
+	return;
+
+fail:
+	pr_err("Failed to register clocks: %d\n", error);
+}
+
 static int __init _txx9_arch_init(void)
 {
+	txx9_clk_init();
+
 	if (txx9_board_vec->arch_init)
 		txx9_board_vec->arch_init();
 	return 0;
@@ -727,7 +727,7 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	int i;
 	static char *default_triggers[] __initdata = {
 		"heartbeat",
-		"ide-disk",
+		"disk-activity",
 		"nand-disk",
 		NULL,
 	};

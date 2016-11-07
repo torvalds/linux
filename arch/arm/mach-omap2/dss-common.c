@@ -27,7 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 
-#include <video/omapdss.h>
+#include <linux/platform_data/omapdss.h>
 #include <video/omap-panel-data.h>
 
 #include "soc.h"

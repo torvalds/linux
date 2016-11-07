@@ -24,8 +24,6 @@
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
-#include "pp_acpi.h"
-#include "amd_acpi.h"
 #include "pp_debug.h"
 
 #define PHM_FUNC_CHECK(hw) \
@@ -33,38 +31,6 @@
 		if ((hw) == NULL || (hw)->hwmgr_func == NULL)	\
 			return -EINVAL;				\
 	} while (0)
-
-void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr)
-{
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableVoltageTransition);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableEngineTransition);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMemoryTransition);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMGClockGating);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMGCGTSSM);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableLSClockGating);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_Force3DClockSupport);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableLightSleep);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMCLS);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisablePowerGating);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableDPM);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableSMUUVDHandshake);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_ThermalAutoThrottling);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_NoOD5Support);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UserMaxClockForMultiDisplays);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VpuRecoveryInProgress);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDDPM);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEDPM);
-
-	if (acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST) &&
-		acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION))
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
-}
 
 bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr)
 {
@@ -148,6 +114,30 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	}
 
 	enabled = ret == 0 ? true : false;
+
+	cgs_notify_dpm_enabled(hwmgr->device, enabled);
+
+	return ret;
+}
+
+int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
+{
+	int ret = -1;
+	bool enabled;
+
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_TablelessHardwareInterface)) {
+		if (hwmgr->hwmgr_func->dynamic_state_management_disable)
+			ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
+	} else {
+		ret = phm_dispatch_table(hwmgr,
+				&(hwmgr->disable_dynamic_state_management),
+				NULL, NULL);
+	}
+
+	enabled = ret == 0 ? false : true;
 
 	cgs_notify_dpm_enabled(hwmgr->device, enabled);
 
@@ -314,7 +304,7 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;
 
-	/* to do pass other display configuration in furture */
+	/* TODO: pass other display configuration in the future */
 
 	if (hwmgr->hwmgr_func->store_cc6_data)
 		hwmgr->hwmgr_func->store_cc6_data(hwmgr,

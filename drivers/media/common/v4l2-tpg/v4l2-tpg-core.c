@@ -504,14 +504,14 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 #define COEFF(v, r) ((int)(0.5 + (v) * (r) * 256.0))
 
 	static const int bt601[3][3] = {
-		{ COEFF(0.299, 219),  COEFF(0.587, 219),  COEFF(0.114, 219)  },
-		{ COEFF(-0.169, 224), COEFF(-0.331, 224), COEFF(0.5, 224)    },
-		{ COEFF(0.5, 224),    COEFF(-0.419, 224), COEFF(-0.081, 224) },
+		{ COEFF(0.299, 219),   COEFF(0.587, 219),   COEFF(0.114, 219)   },
+		{ COEFF(-0.1687, 224), COEFF(-0.3313, 224), COEFF(0.5, 224)     },
+		{ COEFF(0.5, 224),     COEFF(-0.4187, 224), COEFF(-0.0813, 224) },
 	};
 	static const int bt601_full[3][3] = {
-		{ COEFF(0.299, 255),  COEFF(0.587, 255),  COEFF(0.114, 255)  },
-		{ COEFF(-0.169, 255), COEFF(-0.331, 255), COEFF(0.5, 255)    },
-		{ COEFF(0.5, 255),    COEFF(-0.419, 255), COEFF(-0.081, 255) },
+		{ COEFF(0.299, 255),   COEFF(0.587, 255),   COEFF(0.114, 255)   },
+		{ COEFF(-0.1687, 255), COEFF(-0.3313, 255), COEFF(0.5, 255)     },
+		{ COEFF(0.5, 255),     COEFF(-0.4187, 255), COEFF(-0.0813, 255) },
 	};
 	static const int rec709[3][3] = {
 		{ COEFF(0.2126, 219),  COEFF(0.7152, 219),  COEFF(0.0722, 219)  },
@@ -558,7 +558,6 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
-	case V4L2_YCBCR_ENC_SYCC:
 		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_XV601:
@@ -674,7 +673,6 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
-	case V4L2_YCBCR_ENC_SYCC:
 		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_XV601:
@@ -777,7 +775,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	 * Remember that r, g and b are still in the 0 - 0xff0 range.
 	 */
 	if (tpg->real_rgb_range == V4L2_DV_RGB_RANGE_LIMITED &&
-	    tpg->rgb_range == V4L2_DV_RGB_RANGE_FULL) {
+	    tpg->rgb_range == V4L2_DV_RGB_RANGE_FULL && !tpg->is_yuv) {
 		/*
 		 * Convert from full range (which is what r, g and b are)
 		 * to limited range (which is the 'real' RGB range), which
@@ -787,7 +785,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		g = (g * 219) / 255 + (16 << 4);
 		b = (b * 219) / 255 + (16 << 4);
 	} else if (tpg->real_rgb_range != V4L2_DV_RGB_RANGE_LIMITED &&
-		   tpg->rgb_range == V4L2_DV_RGB_RANGE_LIMITED) {
+		   tpg->rgb_range == V4L2_DV_RGB_RANGE_LIMITED && !tpg->is_yuv) {
 		/*
 		 * Clamp r, g and b to the limited range and convert to full
 		 * range since that's what we deliver.

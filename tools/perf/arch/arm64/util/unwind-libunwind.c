@@ -1,11 +1,13 @@
 
+#ifndef REMOTE_UNWIND_LIBUNWIND
 #include <errno.h>
 #include <libunwind.h>
 #include "perf_regs.h"
 #include "../../util/unwind.h"
 #include "../../util/debug.h"
+#endif
 
-int libunwind__arch_reg_id(int regnum)
+int LIBUNWIND__ARCH_REG_ID(int regnum)
 {
 	switch (regnum) {
 	case UNW_AARCH64_X0:

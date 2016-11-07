@@ -44,6 +44,7 @@
 
 static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate);
 static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate);
+static void cz_dpm_fini(struct amdgpu_device *adev);
 
 static struct cz_ps *cz_get_ps(struct amdgpu_ps *rps)
 {
@@ -350,6 +351,8 @@ static int cz_parse_power_table(struct amdgpu_device *adev)
 
 		ps = kzalloc(sizeof(struct cz_ps), GFP_KERNEL);
 		if (ps == NULL) {
+			for (j = 0; j < i; j++)
+				kfree(adev->pm.dpm.ps[j].ps_priv);
 			kfree(adev->pm.dpm.ps);
 			return -ENOMEM;
 		}
@@ -409,11 +412,11 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 
 	ret = amdgpu_get_platform_caps(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = amdgpu_parse_extended_power_table(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	pi->sram_end = SMC_RAM_END;
 
@@ -425,7 +428,7 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 	pi->mgcg_cgtt_local1 = 0x0;
 	pi->clock_slow_down_step = 25000;
 	pi->skip_clock_slow_down = 1;
-	pi->enable_nb_ps_policy = 0;
+	pi->enable_nb_ps_policy = false;
 	pi->caps_power_containment = true;
 	pi->caps_cac = true;
 	pi->didt_enabled = false;
@@ -435,7 +438,11 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 		pi->caps_td_ramping = true;
 		pi->caps_tcp_ramping = true;
 	}
-	pi->caps_sclk_ds = true;
+	if (amdgpu_sclk_deep_sleep_en)
+		pi->caps_sclk_ds = true;
+	else
+		pi->caps_sclk_ds = false;
+
 	pi->voting_clients = 0x00c00033;
 	pi->auto_thermal_throttling_enabled = true;
 	pi->bapm_enabled = false;
@@ -463,23 +470,26 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 
 	ret = cz_parse_sys_info_table(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	cz_patch_voltage_values(adev);
 	cz_construct_boot_state(adev);
 
 	ret = cz_parse_power_table(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = cz_process_firmware_header(adev);
 	if (ret)
-		return ret;
+		goto err;
 
 	pi->dpm_enabled = true;
 	pi->uvd_dynamic_pg = false;
 
 	return 0;
+err:
+	cz_dpm_fini(adev);
+	return ret;
 }
 
 static void cz_dpm_fini(struct amdgpu_device *adev)
@@ -668,17 +678,12 @@ static void cz_reset_ap_mask(struct amdgpu_device *adev)
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	pi->active_process_mask = 0;
-
 }
 
 static int cz_dpm_download_pptable_from_smu(struct amdgpu_device *adev,
 							void **table)
 {
-	int ret = 0;
-
-	ret = cz_smu_download_pptable(adev, table);
-
-	return ret;
+	return cz_smu_download_pptable(adev, table);
 }
 
 static int cz_dpm_upload_pptable_to_smu(struct amdgpu_device *adev)
@@ -818,9 +823,9 @@ static void cz_init_sclk_limit(struct amdgpu_device *adev)
 	pi->sclk_dpm.hard_min_clk = 0;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxSclkLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].clk;
-	else {
+	} else {
 		DRM_ERROR("Invalid SLCK Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].clk;
 	}
@@ -846,9 +851,9 @@ static void cz_init_uvd_limit(struct amdgpu_device *adev)
 	pi->uvd_dpm.hard_min_clk = 0;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxUvdLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].vclk;
-	else {
+	} else {
 		DRM_ERROR("Invalid UVD Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].vclk;
 	}
@@ -874,9 +879,9 @@ static void cz_init_vce_limit(struct amdgpu_device *adev)
 	pi->vce_dpm.hard_min_clk = table->entries[0].ecclk;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxEclkLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].ecclk;
-	else {
+	} else {
 		/* future BIOS would fix this error */
 		DRM_ERROR("Invalid VCE Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].ecclk;
@@ -903,9 +908,9 @@ static void cz_init_acp_limit(struct amdgpu_device *adev)
 	pi->acp_dpm.hard_min_clk = 0;
 	cz_send_msg_to_smc(adev, PPSMC_MSG_GetMaxAclkLevel);
 	level = cz_get_argument(adev);
-	if (level < table->count)
+	if (level < table->count) {
 		clock = table->entries[level].clk;
-	else {
+	} else {
 		DRM_ERROR("Invalid ACP Voltage Dependency table entry.\n");
 		clock = table->entries[table->count - 1].clk;
 	}
@@ -930,7 +935,6 @@ static void cz_init_sclk_threshold(struct amdgpu_device *adev)
 	struct cz_power_info *pi = cz_get_pi(adev);
 
 	pi->low_sclk_interrupt_threshold = 0;
-
 }
 
 static void cz_dpm_setup_asic(struct amdgpu_device *adev)
@@ -1203,7 +1207,7 @@ static int cz_enable_didt(struct amdgpu_device *adev, bool enable)
 	int ret;
 
 	if (pi->caps_sq_ramping || pi->caps_db_ramping ||
-			pi->caps_td_ramping || pi->caps_tcp_ramping) {
+	    pi->caps_td_ramping || pi->caps_tcp_ramping) {
 		if (adev->gfx.gfx_current_status != AMDGPU_GFX_SAFE_MODE) {
 			ret = cz_disable_cgpg(adev);
 			if (ret) {
@@ -1277,7 +1281,7 @@ static void cz_apply_state_adjust_rules(struct amdgpu_device *adev,
 	ps->force_high = false;
 	ps->need_dfs_bypass = true;
 	pi->video_start = new_rps->dclk || new_rps->vclk ||
-				new_rps->evclk || new_rps->ecclk;
+			  new_rps->evclk || new_rps->ecclk;
 
 	if ((new_rps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) ==
 			ATOM_PPLIB_CLASSIFICATION_UI_BATTERY)
@@ -1335,7 +1339,6 @@ static int cz_dpm_enable(struct amdgpu_device *adev)
 	}
 
 	cz_reset_acp_boot_level(adev);
-
 	cz_update_current_ps(adev, adev->pm.dpm.boot_ps);
 
 	return 0;
@@ -1511,14 +1514,16 @@ static int cz_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
-/* borrowed from KV, need future unify */
 static int cz_dpm_get_temperature(struct amdgpu_device *adev)
 {
 	int actual_temp = 0;
-	uint32_t temp = RREG32_SMC(0xC0300E0C);
+	uint32_t val = RREG32_SMC(ixTHM_TCON_CUR_TMP);
+	uint32_t temp = REG_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP);
 
-	if (temp)
+	if (REG_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP_RANGE_SEL))
 		actual_temp = 1000 * ((temp / 8) - 49);
+	else
+		actual_temp = 1000 * (temp / 8);
 
 	return actual_temp;
 }
@@ -1665,7 +1670,6 @@ static void cz_dpm_post_set_power_state(struct amdgpu_device *adev)
 	struct amdgpu_ps *ps = &pi->requested_rps;
 
 	cz_update_current_ps(adev, ps);
-
 }
 
 static int cz_dpm_force_highest(struct amdgpu_device *adev)
@@ -2108,29 +2112,58 @@ static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 			/* disable clockgating so we can properly shut down the block */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_CG_STATE_UNGATE);
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating failed to set clockgating state\n");
+				return;
+			}
+
 			/* shutdown the UVD block */
 			ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_PG_STATE_GATE);
-			/* XXX: check for errors */
+
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating failed to set powergating state\n");
+				return;
+			}
 		}
 		cz_update_uvd_dpm(adev, gate);
-		if (pi->caps_uvd_pg)
+		if (pi->caps_uvd_pg) {
 			/* power off the UVD block */
-			cz_send_msg_to_smc(adev, PPSMC_MSG_UVDPowerOFF);
+			ret = cz_send_msg_to_smc(adev, PPSMC_MSG_UVDPowerOFF);
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating failed to send SMU PowerOFF message\n");
+				return;
+			}
+		}
 	} else {
 		if (pi->caps_uvd_pg) {
 			/* power on the UVD block */
 			if (pi->uvd_dynamic_pg)
-				cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 1);
+				ret = cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 1);
 			else
-				cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 0);
+				ret = cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 0);
+
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating Failed to send SMU PowerON message\n");
+				return;
+			}
+
 			/* re-init the UVD block */
 			ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_PG_STATE_UNGATE);
+
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating Failed to set powergating state\n");
+				return;
+			}
+
 			/* enable clockgating. hw will dynamically gate/ungate clocks on the fly */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
 							    AMD_CG_STATE_GATE);
-			/* XXX: check for errors */
+			if (ret) {
+				DRM_ERROR("UVD DPM Power Gating Failed to set clockgating state\n");
+				return;
+			}
 		}
 		cz_update_uvd_dpm(adev, gate);
 	}
@@ -2168,7 +2201,6 @@ static int cz_update_vce_dpm(struct amdgpu_device *adev)
 	/* Stable Pstate is enabled and we need to set the VCE DPM to highest level */
 	if (pi->caps_stable_power_state) {
 		pi->vce_dpm.hard_min_clk = table->entries[table->count-1].ecclk;
-
 	} else { /* non-stable p-state cases. without vce.Arbiter.EcclkHardMin */
 		/* leave it as set by user */
 		/*pi->vce_dpm.hard_min_clk = table->entries[0].ecclk;*/
@@ -2219,6 +2251,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 			}
 		}
 	} else { /*pi->caps_vce_pg*/
+		pi->vce_power_gated = gate;
 		cz_update_vce_dpm(adev);
 		cz_enable_vce_dpm(adev, !gate);
 	}

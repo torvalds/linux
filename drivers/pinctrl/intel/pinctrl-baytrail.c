@@ -15,7 +15,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -1809,6 +1808,8 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(vg->pctl_dev);
 	}
 
+	raw_spin_lock_init(&vg->lock);
+
 	ret = byt_gpio_probe(vg);
 	if (ret) {
 		pinctrl_unregister(vg->pctl_dev);
@@ -1816,19 +1817,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, vg);
-	raw_spin_lock_init(&vg->lock);
 	pm_runtime_enable(&pdev->dev);
-
-	return 0;
-}
-
-static int byt_pinctrl_remove(struct platform_device *pdev)
-{
-	struct byt_gpio *vg = platform_get_drvdata(pdev);
-
-	pm_runtime_disable(&pdev->dev);
-	gpiochip_remove(&vg->chip);
-	pinctrl_unregister(vg->pctl_dev);
 
 	return 0;
 }
@@ -1930,10 +1919,11 @@ static const struct dev_pm_ops byt_gpio_pm_ops = {
 
 static struct platform_driver byt_gpio_driver = {
 	.probe          = byt_pinctrl_probe,
-	.remove         = byt_pinctrl_remove,
 	.driver         = {
-		.name   = "byt_gpio",
-		.pm	= &byt_gpio_pm_ops,
+		.name			= "byt_gpio",
+		.pm			= &byt_gpio_pm_ops,
+		.suppress_bind_attrs	= true,
+
 		.acpi_match_table = ACPI_PTR(byt_gpio_acpi_match),
 	},
 };
@@ -1943,9 +1933,3 @@ static int __init byt_gpio_init(void)
 	return platform_driver_register(&byt_gpio_driver);
 }
 subsys_initcall(byt_gpio_init);
-
-static void __exit byt_gpio_exit(void)
-{
-	platform_driver_unregister(&byt_gpio_driver);
-}
-module_exit(byt_gpio_exit);

@@ -41,3 +41,15 @@ config SND_SOC_ROCKCHIP_RT5645
 	help
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using the RT5645/RT5650 codec, such as Veyron.
+
+config SND_SOC_RK3399_GRU_SOUND
+	tristate "ASoC support multiple codecs for Rockchip RK3399 GRU boards"
+	depends on SND_SOC_ROCKCHIP && I2C && GPIOLIB && CLKDEV_LOOKUP && SPI
+	select SND_SOC_ROCKCHIP_I2S
+	select SND_SOC_MAX98357A
+	select SND_SOC_RT5514
+	select SND_SOC_DA7219
+	select SND_SOC_RT5514_SPI
+	help
+	  Say Y or M here if you want to add support multiple codecs for SoC
+	  audio on Rockchip RK3399 GRU boards.

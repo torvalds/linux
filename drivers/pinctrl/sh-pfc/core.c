@@ -494,6 +494,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7791_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7792
+	{
+		.compatible = "renesas,pfc-r8a7792",
+		.data = &r8a7792_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7793
 	{
 		.compatible = "renesas,pfc-r8a7793",
@@ -510,6 +516,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 	{
 		.compatible = "renesas,pfc-r8a7795",
 		.data = &r8a7795_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7796
+	{
+		.compatible = "renesas,pfc-r8a7796",
+		.data = &r8a7796_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
@@ -598,15 +610,6 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sh_pfc_remove(struct platform_device *pdev)
-{
-#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
-	sh_pfc_unregister_gpiochip(platform_get_drvdata(pdev));
-#endif
-
-	return 0;
-}
-
 static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SH7203
 	{ "pfc-sh7203", (kernel_ulong_t)&sh7203_pinmux_info },
@@ -650,7 +653,6 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 
 static struct platform_driver sh_pfc_driver = {
 	.probe		= sh_pfc_probe,
-	.remove		= sh_pfc_remove,
 	.id_table	= sh_pfc_id_table,
 	.driver		= {
 		.name	= DRV_NAME,

@@ -49,8 +49,6 @@ struct fence_cb;
  * @timestamp: Timestamp when the fence was signaled.
  * @status: Optional, only valid if < 0, must be set before calling
  * fence_signal, indicates that the fence has completed with an error.
- * @child_list: list of children fences
- * @active_list: list of active fences
  *
  * the flags member must be manipulated and read using the appropriate
  * atomic ops (bit_*), so taking the spinlock will not be needed most
@@ -62,7 +60,7 @@ struct fence_cb;
  * implementer of the fence for its own purposes. Can be used in different
  * ways by different fence implementers, so do not rely on this.
  *
- * *) Since atomic bitops are used, this is not guaranteed to be the case.
+ * Since atomic bitops are used, this is not guaranteed to be the case.
  * Particularly, if the bit was set, but fence_signal was called right
  * before this bit was set, it would have been able to set the
  * FENCE_FLAG_SIGNALED_BIT, before enable_signaling was called.
@@ -77,12 +75,11 @@ struct fence {
 	struct rcu_head rcu;
 	struct list_head cb_list;
 	spinlock_t *lock;
-	unsigned context, seqno;
+	u64 context;
+	unsigned seqno;
 	unsigned long flags;
 	ktime_t timestamp;
 	int status;
-	struct list_head child_list;
-	struct list_head active_list;
 };
 
 enum fence_flag_bits {
@@ -180,7 +177,7 @@ struct fence_ops {
 };
 
 void fence_init(struct fence *fence, const struct fence_ops *ops,
-		spinlock_t *lock, unsigned context, unsigned seqno);
+		spinlock_t *lock, u64 context, unsigned seqno);
 
 void fence_release(struct kref *kref);
 void fence_free(struct fence *fence);
@@ -354,27 +351,27 @@ static inline signed long fence_wait(struct fence *fence, bool intr)
 	return ret < 0 ? ret : 0;
 }
 
-unsigned fence_context_alloc(unsigned num);
+u64 fence_context_alloc(unsigned num);
 
 #define FENCE_TRACE(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
-		if (config_enabled(CONFIG_FENCE_TRACE))			\
-			pr_info("f %u#%u: " fmt,			\
+		if (IS_ENABLED(CONFIG_FENCE_TRACE))			\
+			pr_info("f %llu#%u: " fmt,			\
 				__ff->context, __ff->seqno, ##args);	\
 	} while (0)
 
 #define FENCE_WARN(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
-		pr_warn("f %u#%u: " fmt, __ff->context, __ff->seqno,	\
+		pr_warn("f %llu#%u: " fmt, __ff->context, __ff->seqno,	\
 			 ##args);					\
 	} while (0)
 
 #define FENCE_ERR(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
-		pr_err("f %u#%u: " fmt, __ff->context, __ff->seqno,	\
+		pr_err("f %llu#%u: " fmt, __ff->context, __ff->seqno,	\
 			##args);					\
 	} while (0)
 

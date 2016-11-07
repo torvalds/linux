@@ -841,7 +841,6 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 	int retry_cnt;
 	int retry_loop_cnt;
 	int i;
-	cvmx_helper_link_info_t link_info;
 
 	/* Save values for restore at end */
 	uint64_t prtx_cfg =
@@ -1002,15 +1001,6 @@ fix_ipd_exit:
 		       (INDEX(FIX_IPD_OUTPORT), INTERFACE(FIX_IPD_OUTPORT)),
 		       frame_max);
 	cvmx_write_csr(CVMX_ASXX_PRT_LOOP(INTERFACE(FIX_IPD_OUTPORT)), 0);
-	/* Set link to down so autonegotiation will set it up again */
-	link_info.u64 = 0;
-	cvmx_helper_link_set(FIX_IPD_OUTPORT, link_info);
-
-	/*
-	 * Bring the link back up as autonegotiation is not done in
-	 * user applications.
-	 */
-	cvmx_helper_link_autoconf(FIX_IPD_OUTPORT);
 
 	CVMX_SYNC;
 	if (num_segs)

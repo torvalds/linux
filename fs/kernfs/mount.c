@@ -152,10 +152,13 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	struct dentry *root;
 
 	info->sb = sb;
+	/* Userspace would break if executables or devices appear on sysfs */
+	sb->s_iflags |= SB_I_NOEXEC | SB_I_NODEV;
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = magic;
 	sb->s_op = &kernfs_sops;
+	sb->s_xattr = kernfs_xattr_handlers;
 	sb->s_time_gran = 1;
 
 	/* get root inode, initialize and unlock it */
@@ -241,7 +244,8 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 	info->root = root;
 	info->ns = ns;
 
-	sb = sget(fs_type, kernfs_test_super, kernfs_set_super, flags, info);
+	sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
+			 &init_user_ns, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
 	if (IS_ERR(sb))

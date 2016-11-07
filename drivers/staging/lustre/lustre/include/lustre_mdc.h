@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -100,7 +96,7 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
 	if (it && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
-		   it->it_op == IT_LAYOUT))
+		   it->it_op == IT_LAYOUT || it->it_op == IT_READDIR))
 		return;
 
 	/* This would normally block until the existing request finishes.
@@ -140,7 +136,7 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
 	if (it && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
-		   it->it_op == IT_LAYOUT))
+		   it->it_op == IT_LAYOUT || it->it_op == IT_READDIR))
 		return;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */
@@ -160,38 +156,45 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 	mutex_unlock(&lck->rpcl_mutex);
 }
 
-/* Update the maximum observed easize and cookiesize.  The default easize
- * and cookiesize is initialized to the minimum value but allowed to grow
- * up to a single page in size if required to handle the common case.
+/**
+ * Update the maximum possible easize and cookiesize.
+ *
+ * The values are learned from ptlrpc replies sent by the MDT.  The
+ * default easize and cookiesize is initialized to the minimum value but
+ * allowed to grow up to a single page in size if required to handle the
+ * common case.
+ *
+ * \see client_obd::cl_default_mds_easize and
+ * client_obd::cl_default_mds_cookiesize
+ *
+ * \param[in] exp	export for MDC device
+ * \param[in] body	body of ptlrpc reply from MDT
+ *
  */
 static inline void mdc_update_max_ea_from_body(struct obd_export *exp,
 					       struct mdt_body *body)
 {
-	if (body->valid & OBD_MD_FLMODEASIZE) {
+	if (body->mbo_valid & OBD_MD_FLMODEASIZE) {
 		struct client_obd *cli = &exp->exp_obd->u.cli;
+		u32 def_cookiesize, def_easize;
 
-		if (cli->cl_max_mds_easize < body->max_mdsize) {
-			cli->cl_max_mds_easize = body->max_mdsize;
-			cli->cl_default_mds_easize =
-			    min_t(__u32, body->max_mdsize, PAGE_SIZE);
-		}
-		if (cli->cl_max_mds_cookiesize < body->max_cookiesize) {
-			cli->cl_max_mds_cookiesize = body->max_cookiesize;
-			cli->cl_default_mds_cookiesize =
-			    min_t(__u32, body->max_cookiesize, PAGE_SIZE);
-		}
+		if (cli->cl_max_mds_easize < body->mbo_max_mdsize)
+			cli->cl_max_mds_easize = body->mbo_max_mdsize;
+
+		def_easize = min_t(__u32, body->mbo_max_mdsize,
+				   OBD_MAX_DEFAULT_EA_SIZE);
+		cli->cl_default_mds_easize = def_easize;
+
+		if (cli->cl_max_mds_cookiesize < body->mbo_max_cookiesize)
+			cli->cl_max_mds_cookiesize = body->mbo_max_cookiesize;
+
+		def_cookiesize = min_t(__u32, body->mbo_max_cookiesize,
+				       OBD_MAX_DEFAULT_COOKIE_SIZE);
+		cli->cl_default_mds_cookiesize = def_cookiesize;
 	}
 }
 
-struct mdc_cache_waiter {
-	struct list_head	      mcw_entry;
-	wait_queue_head_t	     mcw_waitq;
-};
-
 /* mdc/mdc_locks.c */
-int it_disposition(struct lookup_intent *it, int flag);
-void it_clear_disposition(struct lookup_intent *it, int flag);
-void it_set_disposition(struct lookup_intent *it, int flag);
 int it_open_error(int phase, struct lookup_intent *it);
 
 static inline bool cl_is_lov_delay_create(unsigned int flags)

@@ -647,6 +647,7 @@ struct lpfc_hba {
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
 #define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
 #define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
+#define HBA_RECOVERABLE_UE	0x20000 /* Firmware supports recoverable UE */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 
@@ -694,7 +695,8 @@ struct lpfc_hba {
 	uint8_t  wwnn[8];
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
-	uint32_t fcp_embed_io;
+	uint8_t  fcp_embed_io;
+	uint8_t  mds_diags_support;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -741,6 +743,7 @@ struct lpfc_hba {
 #define OAS_FIND_ANY_VPORT	0x01
 #define OAS_FIND_ANY_TARGET	0x02
 #define OAS_LUN_VALID	0x04
+	uint32_t cfg_oas_priority;
 	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_hostmem_hgp;
@@ -751,6 +754,8 @@ struct lpfc_hba {
 	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
 	uint32_t cfg_rrq_xri_bitmap_sz;
+	uint32_t cfg_delay_discovery;
+	uint32_t cfg_sli_mode;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
 #define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
@@ -759,6 +764,7 @@ struct lpfc_hba {
 #define LPFC_FDMI_NO_SUPPORT	0	/* FDMI not supported */
 #define LPFC_FDMI_SUPPORT	1	/* FDMI supported? */
 	uint32_t cfg_enable_SmartSAN;
+	uint32_t cfg_enable_mds_diags;
 	lpfc_vpd_t vpd;		/* vital product data */
 
 	struct pci_dev *pcidev;
@@ -779,9 +785,9 @@ struct lpfc_hba {
 
 	atomic_t fcp_qidx;		/* next work queue to post work to */
 
-	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
-	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */
-	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
+	phys_addr_t pci_bar0_map;     /* Physical address for PCI BAR0 */
+	phys_addr_t pci_bar1_map;     /* Physical address for PCI BAR1 */
+	phys_addr_t pci_bar2_map;     /* Physical address for PCI BAR2 */
 	void __iomem *slim_memmap_p;	/* Kernel memory mapped address for
 					   PCI BAR0 */
 	void __iomem *ctrl_regs_memmap_p;/* Kernel memory mapped address for
@@ -827,6 +833,7 @@ struct lpfc_hba {
 
 	struct timer_list fcp_poll_timer;
 	struct timer_list eratt_poll;
+	uint32_t eratt_poll_interval;
 
 	/*
 	 * stat  counters
@@ -999,6 +1006,18 @@ struct lpfc_hba {
 	spinlock_t devicelock;	/* lock for luns list */
 	mempool_t *device_data_mem_pool;
 	struct list_head luns;
+#define LPFC_TRANSGRESSION_HIGH_TEMPERATURE	0x0080
+#define LPFC_TRANSGRESSION_LOW_TEMPERATURE	0x0040
+#define LPFC_TRANSGRESSION_HIGH_VOLTAGE		0x0020
+#define LPFC_TRANSGRESSION_LOW_VOLTAGE		0x0010
+#define LPFC_TRANSGRESSION_HIGH_TXBIAS		0x0008
+#define LPFC_TRANSGRESSION_LOW_TXBIAS		0x0004
+#define LPFC_TRANSGRESSION_HIGH_TXPOWER		0x0002
+#define LPFC_TRANSGRESSION_LOW_TXPOWER		0x0001
+#define LPFC_TRANSGRESSION_HIGH_RXPOWER		0x8000
+#define LPFC_TRANSGRESSION_LOW_RXPOWER		0x4000
+	uint16_t sfp_alarm;
+	uint16_t sfp_warning;
 };
 
 static inline struct Scsi_Host *

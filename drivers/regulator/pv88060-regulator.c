@@ -14,7 +14,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -25,8 +24,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/proc_fs.h>
-#include <linux/uaccess.h>
 #include "pv88060-regulator.h"
 
 #define PV88060_MAX_REGULATORS	14

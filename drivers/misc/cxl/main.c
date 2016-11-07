@@ -110,6 +110,11 @@ static inline void cxl_slbia_core(struct mm_struct *mm)
 
 static struct cxl_calls cxl_calls = {
 	.cxl_slbia = cxl_slbia_core,
+	.cxl_pci_associate_default_context = _cxl_pci_associate_default_context,
+	.cxl_pci_disable_device = _cxl_pci_disable_device,
+	.cxl_next_msi_hwirq = _cxl_next_msi_hwirq,
+	.cxl_cx4_setup_msi_irqs = _cxl_cx4_setup_msi_irqs,
+	.cxl_cx4_teardown_msi_irqs = _cxl_cx4_teardown_msi_irqs,
 	.owner = THIS_MODULE,
 };
 
@@ -238,8 +243,10 @@ struct cxl *cxl_alloc_adapter(void)
 	if (dev_set_name(&adapter->dev, "card%i", adapter->adapter_num))
 		goto err2;
 
-	return adapter;
+	/* start with context lock taken */
+	atomic_set(&adapter->contexts_num, -1);
 
+	return adapter;
 err2:
 	cxl_remove_adapter_nr(adapter);
 err1:
@@ -279,6 +286,44 @@ int cxl_afu_select_best_mode(struct cxl_afu *afu)
 	dev_warn(&afu->dev, "No supported programming modes available\n");
 	/* We don't fail this so the user can inspect sysfs */
 	return 0;
+}
+
+int cxl_adapter_context_get(struct cxl *adapter)
+{
+	int rc;
+
+	rc = atomic_inc_unless_negative(&adapter->contexts_num);
+	return rc >= 0 ? 0 : -EBUSY;
+}
+
+void cxl_adapter_context_put(struct cxl *adapter)
+{
+	atomic_dec_if_positive(&adapter->contexts_num);
+}
+
+int cxl_adapter_context_lock(struct cxl *adapter)
+{
+	int rc;
+	/* no active contexts -> contexts_num == 0 */
+	rc = atomic_cmpxchg(&adapter->contexts_num, 0, -1);
+	return rc ? -EBUSY : 0;
+}
+
+void cxl_adapter_context_unlock(struct cxl *adapter)
+{
+	int val = atomic_cmpxchg(&adapter->contexts_num, -1, 0);
+
+	/*
+	 * contexts lock taken -> contexts_num == -1
+	 * If not true then show a warning and force reset the lock.
+	 * This will happen when context_unlock was requested without
+	 * doing a context_lock.
+	 */
+	if (val != -1) {
+		atomic_set(&adapter->contexts_num, 0);
+		WARN(1, "Adapter context unlocked with %d active contexts",
+		     val);
+	}
 }
 
 static int __init init_cxl(void)

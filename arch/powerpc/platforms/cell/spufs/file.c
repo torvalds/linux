@@ -866,7 +866,7 @@ void spufs_wbox_callback(struct spu *spu)
  * - end of the mapped area
  *
  * If the file is opened without O_NONBLOCK, we wait here until
- * space is availabyl, but return when we have been able to
+ * space is available, but return when we have been able to
  * write something.
  */
 static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,

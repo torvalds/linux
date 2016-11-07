@@ -21,32 +21,17 @@
  * global variables declared here
  */
 
-/* array of client debug keyword/mask values */
-struct client_debug_mask *cdm_array;
-int cdm_element_count;
-
-char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN] = "none";
-char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
-
-char *debug_help_string;
-int help_string_initialized;
-struct dentry *help_file_dentry;
-struct dentry *client_debug_dentry;
-struct dentry *debug_dir;
-int client_verbose_index;
-int client_all_index;
-struct orangefs_stats g_orangefs_stats;
+struct orangefs_stats orangefs_stats;
 
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
 
 static ulong module_parm_debug_mask;
-__u64 gossip_debug_mask;
-struct client_debug_mask client_debug_mask = { NULL, 0, 0 };
-unsigned int kernel_mask_set_mod_init; /* implicitly false */
+__u64 orangefs_gossip_debug_mask;
 int op_timeout_secs = ORANGEFS_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = ORANGEFS_DEFAULT_SLOT_TIMEOUT_SECS;
+int orangefs_dcache_timeout_msecs = 50;
+int orangefs_getattr_timeout_msecs = 50;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ORANGEFS Development Team");
@@ -69,20 +54,17 @@ module_param(module_parm_debug_mask, ulong, 0644);
 module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 
-/* synchronizes the request device file */
-DEFINE_MUTEX(devreq_mutex);
-
 /*
  * Blocks non-priority requests from being queued for servicing.  This
  * could be used for protecting the request list data structure, but
  * for now it's only being used to stall the op addition to the request
  * list
  */
-DEFINE_MUTEX(request_mutex);
+DEFINE_MUTEX(orangefs_request_mutex);
 
 /* hash table for storing operations waiting for matching downcall */
-struct list_head *htable_ops_in_progress;
-DEFINE_SPINLOCK(htable_ops_in_progress_lock);
+struct list_head *orangefs_htable_ops_in_progress;
+DEFINE_SPINLOCK(orangefs_htable_ops_in_progress_lock);
 
 /* list for queueing upcall operations */
 LIST_HEAD(orangefs_request_list);
@@ -97,32 +79,6 @@ static int __init orangefs_init(void)
 {
 	int ret = -1;
 	__u32 i = 0;
-
-	/* convert input debug mask to a 64-bit unsigned integer */
-	gossip_debug_mask = (unsigned long long) module_parm_debug_mask;
-
-	/*
-	 * set the kernel's gossip debug string; invalid mask values will
-	 * be ignored.
-	 */
-	debug_mask_to_string(&gossip_debug_mask, 0);
-
-	/* remove any invalid values from the mask */
-	debug_string_to_mask(kernel_debug_string, &gossip_debug_mask, 0);
-
-	/*
-	 * if the mask has a non-zero value, then indicate that the mask
-	 * was set when the kernel module was loaded.  The orangefs dev ioctl
-	 * command will look at this boolean to determine if the kernel's
-	 * debug mask should be overwritten when the client-core is started.
-	 */
-	if (gossip_debug_mask != 0)
-		kernel_mask_set_mod_init = true;
-
-	pr_info("%s: called with debug mask: :%s: :%llx:\n",
-		__func__,
-		kernel_debug_string,
-		(unsigned long long)gossip_debug_mask);
 
 	ret = bdi_init(&orangefs_backing_dev_info);
 
@@ -144,9 +100,9 @@ static int __init orangefs_init(void)
 	if (ret < 0)
 		goto cleanup_op;
 
-	htable_ops_in_progress =
+	orangefs_htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
-	if (!htable_ops_in_progress) {
+	if (!orangefs_htable_ops_in_progress) {
 		gossip_err("Failed to initialize op hashtable");
 		ret = -ENOMEM;
 		goto cleanup_inode;
@@ -154,7 +110,7 @@ static int __init orangefs_init(void)
 
 	/* initialize a doubly linked at each hash table index */
 	for (i = 0; i < hash_table_size; i++)
-		INIT_LIST_HEAD(&htable_ops_in_progress[i]);
+		INIT_LIST_HEAD(&orangefs_htable_ops_in_progress[i]);
 
 	ret = fsid_key_table_initialize();
 	if (ret < 0)
@@ -177,13 +133,9 @@ static int __init orangefs_init(void)
 	if (ret)
 		goto cleanup_key_table;
 
-	ret = orangefs_debugfs_init();
+	ret = orangefs_debugfs_init(module_parm_debug_mask);
 	if (ret)
 		goto debugfs_init_failed;
-
-	ret = orangefs_kernel_debug_init();
-	if (ret)
-		goto kernel_debug_init_failed;
 
 	ret = orangefs_sysfs_init();
 	if (ret)
@@ -212,8 +164,6 @@ cleanup_device:
 
 sysfs_init_failed:
 
-kernel_debug_init_failed:
-
 debugfs_init_failed:
 	orangefs_debugfs_cleanup();
 
@@ -221,7 +171,7 @@ cleanup_key_table:
 	fsid_key_table_finalize();
 
 cleanup_progress_table:
-	kfree(htable_ops_in_progress);
+	kfree(orangefs_htable_ops_in_progress);
 
 cleanup_inode:
 	orangefs_inode_cache_finalize();
@@ -248,12 +198,12 @@ static void __exit orangefs_exit(void)
 	orangefs_dev_cleanup();
 	BUG_ON(!list_empty(&orangefs_request_list));
 	for (i = 0; i < hash_table_size; i++)
-		BUG_ON(!list_empty(&htable_ops_in_progress[i]));
+		BUG_ON(!list_empty(&orangefs_htable_ops_in_progress[i]));
 
 	orangefs_inode_cache_finalize();
 	op_cache_finalize();
 
-	kfree(htable_ops_in_progress);
+	kfree(orangefs_htable_ops_in_progress);
 
 	bdi_destroy(&orangefs_backing_dev_info);
 
@@ -272,10 +222,10 @@ void purge_inprogress_ops(void)
 		struct orangefs_kernel_op_s *op;
 		struct orangefs_kernel_op_s *next;
 
-		spin_lock(&htable_ops_in_progress_lock);
+		spin_lock(&orangefs_htable_ops_in_progress_lock);
 		list_for_each_entry_safe(op,
 					 next,
-					 &htable_ops_in_progress[i],
+					 &orangefs_htable_ops_in_progress[i],
 					 list) {
 			set_op_state_purged(op);
 			gossip_debug(GOSSIP_DEV_DEBUG,
@@ -285,7 +235,7 @@ void purge_inprogress_ops(void)
 				     op->op_state,
 				     current->comm);
 		}
-		spin_unlock(&htable_ops_in_progress_lock);
+		spin_unlock(&orangefs_htable_ops_in_progress_lock);
 	}
 }
 

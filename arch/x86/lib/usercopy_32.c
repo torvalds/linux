@@ -8,7 +8,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/backing-dev.h>
 #include <linux/interrupt.h>
 #include <asm/uaccess.h>

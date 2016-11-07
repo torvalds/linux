@@ -1569,10 +1569,9 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev) < 0)
 		return -ENODEV;
 
-	dev = vmalloc(sizeof(struct ddb));
+	dev = vzalloc(sizeof(struct ddb));
 	if (dev == NULL)
 		return -ENOMEM;
-	memset(dev, 0, sizeof(struct ddb));
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
@@ -1644,53 +1643,53 @@ fail:
 /******************************************************************************/
 /******************************************************************************/
 
-static struct ddb_info ddb_none = {
+static const struct ddb_info ddb_none = {
 	.type     = DDB_NONE,
 	.name     = "Digital Devices PCIe bridge",
 };
 
-static struct ddb_info ddb_octopus = {
+static const struct ddb_info ddb_octopus = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus DVB adapter",
 	.port_num = 4,
 };
 
-static struct ddb_info ddb_octopus_le = {
+static const struct ddb_info ddb_octopus_le = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus LE DVB adapter",
 	.port_num = 2,
 };
 
-static struct ddb_info ddb_octopus_mini = {
+static const struct ddb_info ddb_octopus_mini = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus Mini",
 	.port_num = 4,
 };
 
-static struct ddb_info ddb_v6 = {
+static const struct ddb_info ddb_v6 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine S2 V6 DVB adapter",
 	.port_num = 3,
 };
-static struct ddb_info ddb_v6_5 = {
+static const struct ddb_info ddb_v6_5 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Cine S2 V6.5 DVB adapter",
 	.port_num = 4,
 };
 
-static struct ddb_info ddb_dvbct = {
+static const struct ddb_info ddb_dvbct = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices DVBCT V6.1 DVB adapter",
 	.port_num = 3,
 };
 
-static struct ddb_info ddb_satixS2v3 = {
+static const struct ddb_info ddb_satixS2v3 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Mystique SaTiX-S2 V3 DVB adapter",
 	.port_num = 3,
 };
 
-static struct ddb_info ddb_octopusv3 = {
+static const struct ddb_info ddb_octopusv3 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Digital Devices Octopus V3 DVB adapter",
 	.port_num = 4,

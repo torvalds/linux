@@ -469,7 +469,9 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 	struct host_cmd_ds_rf_ant_siso *ant_siso = &resp->params.ant_siso;
 	struct mwifiex_adapter *adapter = priv->adapter;
 
-	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2) {
+		priv->tx_ant = le16_to_cpu(ant_mimo->tx_ant_mode);
+		priv->rx_ant = le16_to_cpu(ant_mimo->rx_ant_mode);
 		mwifiex_dbg(adapter, INFO,
 			    "RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x\t"
 			    "Rx action = 0x%x, Rx Mode = 0x%04x\n",
@@ -477,12 +479,14 @@ static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
 			    le16_to_cpu(ant_mimo->tx_ant_mode),
 			    le16_to_cpu(ant_mimo->action_rx),
 			    le16_to_cpu(ant_mimo->rx_ant_mode));
-	else
+	} else {
+		priv->tx_ant = le16_to_cpu(ant_siso->ant_mode);
+		priv->rx_ant = le16_to_cpu(ant_siso->ant_mode);
 		mwifiex_dbg(adapter, INFO,
 			    "RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
 			    le16_to_cpu(ant_siso->action),
 			    le16_to_cpu(ant_siso->ant_mode));
-
+	}
 	return 0;
 }
 
@@ -553,7 +557,8 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 	if (!memcmp(resp->params.deauth.mac_addr,
 		    &priv->curr_bss_params.bss_descriptor.mac_address,
 		    sizeof(resp->params.deauth.mac_addr)))
-		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
+		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING,
+					    false);
 
 	return 0;
 }
@@ -566,7 +571,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *resp)
 {
-	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
+	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING, false);
 	return 0;
 }
 
@@ -781,45 +786,44 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 	switch (type) {
 	case HostCmd_CMD_MAC_REG_ACCESS:
 		r.mac = &resp->params.mac_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
-		reg_rw->value = r.mac->value;
+		reg_rw->offset = (u32) le16_to_cpu(r.mac->offset);
+		reg_rw->value = le32_to_cpu(r.mac->value);
 		break;
 	case HostCmd_CMD_BBP_REG_ACCESS:
 		r.bbp = &resp->params.bbp_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
-		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.bbp->offset);
+		reg_rw->value = (u32) r.bbp->value;
 		break;
 
 	case HostCmd_CMD_RF_REG_ACCESS:
 		r.rf = &resp->params.rf_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
-		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.rf->offset);
+		reg_rw->value = (u32) r.bbp->value;
 		break;
 	case HostCmd_CMD_PMIC_REG_ACCESS:
 		r.pmic = &resp->params.pmic_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
-		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.pmic->offset);
+		reg_rw->value = (u32) r.pmic->value;
 		break;
 	case HostCmd_CMD_CAU_REG_ACCESS:
 		r.rf = &resp->params.rf_reg;
-		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
-		reg_rw->value = cpu_to_le32((u32) r.rf->value);
+		reg_rw->offset = (u32) le16_to_cpu(r.rf->offset);
+		reg_rw->value = (u32) r.rf->value;
 		break;
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
 		r.eeprom = &resp->params.eeprom;
-		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
-		if (le16_to_cpu(eeprom->byte_count) <
-		    le16_to_cpu(r.eeprom->byte_count)) {
-			eeprom->byte_count = cpu_to_le16(0);
+		pr_debug("info: EEPROM read len=%x\n",
+				le16_to_cpu(r.eeprom->byte_count));
+		if (eeprom->byte_count < le16_to_cpu(r.eeprom->byte_count)) {
+			eeprom->byte_count = 0;
 			pr_debug("info: EEPROM read length is too big\n");
 			return -1;
 		}
-		eeprom->offset = r.eeprom->offset;
-		eeprom->byte_count = r.eeprom->byte_count;
-		if (le16_to_cpu(eeprom->byte_count) > 0)
+		eeprom->offset = le16_to_cpu(r.eeprom->offset);
+		eeprom->byte_count = le16_to_cpu(r.eeprom->byte_count);
+		if (eeprom->byte_count > 0)
 			memcpy(&eeprom->value, &r.eeprom->value,
-			       le16_to_cpu(r.eeprom->byte_count));
-
+			       min((u16)MAX_EEPROM_DATA, eeprom->byte_count));
 		break;
 	default:
 		return -1;
@@ -958,7 +962,7 @@ static int mwifiex_ret_uap_sta_list(struct mwifiex_private *priv,
 	int i;
 	struct mwifiex_sta_node *sta_node;
 
-	for (i = 0; i < sta_list->sta_count; i++) {
+	for (i = 0; i < (le16_to_cpu(sta_list->sta_count)); i++) {
 		sta_node = mwifiex_get_sta_entry(priv, sta_info->mac);
 		if (unlikely(!sta_node))
 			continue;
@@ -1013,6 +1017,138 @@ static int mwifiex_ret_robust_coex(struct mwifiex_private *priv,
 			*is_timeshare = true;
 		else
 			*is_timeshare = false;
+	}
+
+	return 0;
+}
+
+static struct ieee80211_regdomain *
+mwifiex_create_custom_regdomain(struct mwifiex_private *priv,
+				u8 *buf, u16 buf_len)
+{
+	u16 num_chan = buf_len / 2;
+	struct ieee80211_regdomain *regd;
+	struct ieee80211_reg_rule *rule;
+	bool new_rule;
+	int regd_size, idx, freq, prev_freq = 0;
+	u32 bw, prev_bw = 0;
+	u8 chflags, prev_chflags = 0, valid_rules = 0;
+
+	if (WARN_ON_ONCE(num_chan > NL80211_MAX_SUPP_REG_RULES))
+		return ERR_PTR(-EINVAL);
+
+	regd_size = sizeof(struct ieee80211_regdomain) +
+		    num_chan * sizeof(struct ieee80211_reg_rule);
+
+	regd = kzalloc(regd_size, GFP_KERNEL);
+	if (!regd)
+		return ERR_PTR(-ENOMEM);
+
+	for (idx = 0; idx < num_chan; idx++) {
+		u8 chan;
+		enum nl80211_band band;
+
+		chan = *buf++;
+		if (!chan) {
+			kfree(regd);
+			return NULL;
+		}
+		chflags = *buf++;
+		band = (chan <= 14) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+		freq = ieee80211_channel_to_frequency(chan, band);
+		new_rule = false;
+
+		if (chflags & MWIFIEX_CHANNEL_DISABLED)
+			continue;
+
+		if (band == NL80211_BAND_5GHZ) {
+			if (!(chflags & MWIFIEX_CHANNEL_NOHT80))
+				bw = MHZ_TO_KHZ(80);
+			else if (!(chflags & MWIFIEX_CHANNEL_NOHT40))
+				bw = MHZ_TO_KHZ(40);
+			else
+				bw = MHZ_TO_KHZ(20);
+		} else {
+			if (!(chflags & MWIFIEX_CHANNEL_NOHT40))
+				bw = MHZ_TO_KHZ(40);
+			else
+				bw = MHZ_TO_KHZ(20);
+		}
+
+		if (idx == 0 || prev_chflags != chflags || prev_bw != bw ||
+		    freq - prev_freq > 20) {
+			valid_rules++;
+			new_rule = true;
+		}
+
+		rule = &regd->reg_rules[valid_rules - 1];
+
+		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(freq + 10);
+
+		prev_chflags = chflags;
+		prev_freq = freq;
+		prev_bw = bw;
+
+		if (!new_rule)
+			continue;
+
+		rule->freq_range.start_freq_khz = MHZ_TO_KHZ(freq - 10);
+		rule->power_rule.max_eirp = DBM_TO_MBM(19);
+
+		if (chflags & MWIFIEX_CHANNEL_PASSIVE)
+			rule->flags = NL80211_RRF_NO_IR;
+
+		if (chflags & MWIFIEX_CHANNEL_DFS)
+			rule->flags = NL80211_RRF_DFS;
+
+		rule->freq_range.max_bandwidth_khz = bw;
+	}
+
+	regd->n_reg_rules = valid_rules;
+	regd->alpha2[0] = '9';
+	regd->alpha2[1] = '9';
+
+	return regd;
+}
+
+static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
+				       struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_chan_region_cfg *reg = &resp->params.reg_cfg;
+	u16 action = le16_to_cpu(reg->action);
+	u16 tlv, tlv_buf_len, tlv_buf_left;
+	struct mwifiex_ie_types_header *head;
+	struct ieee80211_regdomain *regd;
+	u8 *tlv_buf;
+
+	if (action != HostCmd_ACT_GEN_GET)
+		return 0;
+
+	tlv_buf = (u8 *)reg + sizeof(*reg);
+	tlv_buf_left = le16_to_cpu(resp->size) - S_DS_GEN - sizeof(*reg);
+
+	while (tlv_buf_left >= sizeof(*head)) {
+		head = (struct mwifiex_ie_types_header *)tlv_buf;
+		tlv = le16_to_cpu(head->type);
+		tlv_buf_len = le16_to_cpu(head->len);
+
+		if (tlv_buf_left < (sizeof(*head) + tlv_buf_len))
+			break;
+
+		switch (tlv) {
+		case TLV_TYPE_CHAN_ATTR_CFG:
+			mwifiex_dbg_dump(priv->adapter, CMD_D, "CHAN:",
+					 (u8 *)head + sizeof(*head),
+					 tlv_buf_len);
+			regd = mwifiex_create_custom_regdomain(priv,
+				(u8 *)head + sizeof(*head), tlv_buf_len);
+			if (!IS_ERR(regd))
+				priv->adapter->regd = regd;
+			break;
+		}
+
+		tlv_buf += (sizeof(*head) + tlv_buf_len);
+		tlv_buf_left -= (sizeof(*head) + tlv_buf_len);
 	}
 
 	return 0;
@@ -1234,6 +1370,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_robust_coex(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG:
+		break;
+	case HostCmd_CMD_CHAN_REGION_CFG:
+		ret = mwifiex_ret_chan_region_cfg(priv, resp);
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,

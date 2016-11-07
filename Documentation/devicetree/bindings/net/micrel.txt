@@ -35,3 +35,13 @@ Optional properties:
 	supported clocks:
 	- KSZ8021, KSZ8031, KSZ8081, KSZ8091: "rmii-ref": The RMII reference
 	  input clock. Used to determine the XI input clock.
+
+ - micrel,fiber-mode: If present the PHY is configured to operate in fiber mode
+
+	Some PHYs, such as the KSZ8041FTL variant, support fiber mode, enabled
+	by the FXEN boot strapping pin. It can't be determined from the PHY
+	registers whether the PHY is in fiber mode, so this boolean device tree
+	property can be used to describe it.
+
+	In fiber mode, auto-negotiation is disabled and the PHY can only work in
+	100base-fx (full and half duplex) modes.

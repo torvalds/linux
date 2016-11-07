@@ -131,9 +131,10 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	vf_cb->mac_cb = dsaf_dev->mac_cb[port_id];
 
 	ae_handle->phy_if = vf_cb->mac_cb->phy_if;
-	ae_handle->phy_node = vf_cb->mac_cb->phy_node;
+	ae_handle->phy_dev = vf_cb->mac_cb->phy_dev;
 	ae_handle->if_support = vf_cb->mac_cb->if_support;
 	ae_handle->port_type = vf_cb->mac_cb->mac_type;
+	ae_handle->media_type = vf_cb->mac_cb->media_type;
 	ae_handle->dport_id = port_id;
 
 	return ae_handle;
@@ -206,6 +207,7 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	int ret;
 	char *mac_addr = (char *)addr;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	u8 port_num;
 
 	assert(mac_cb);
 
@@ -220,8 +222,11 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 		return ret;
 	}
 
-	ret = hns_mac_set_multi(mac_cb, DSAF_BASE_INNER_PORT_NUM,
-				mac_addr, true);
+	ret = hns_mac_get_inner_port_num(mac_cb, handle->vf_id, &port_num);
+	if (ret)
+		return ret;
+
+	ret = hns_mac_set_multi(mac_cb, port_num, mac_addr, true);
 	if (ret)
 		dev_err(handle->owner_dev,
 			"mac add mul_mac:%pM port%d  fail, ret = %#x!\n",
@@ -247,12 +252,21 @@ static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)
 static int hns_ae_start(struct hnae_handle *handle)
 {
 	int ret;
+	int k;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	ret = hns_mac_vm_config_bc_en(mac_cb, 0, true);
 	if (ret)
 		return ret;
 
+	for (k = 0; k < handle->q_num; k++) {
+		if (AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver))
+			hns_rcb_int_clr_hw(handle->qs[k],
+					   RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+		else
+			hns_rcbv2_int_clr_hw(handle->qs[k],
+					     RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
+	}
 	hns_ae_ring_enable_all(handle, 1);
 	msleep(100);
 
@@ -311,18 +325,6 @@ static void hns_aev2_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
 		flag = RCB_INT_FLAG_RX;
 
 	hns_rcbv2_int_ctrl_hw(ring->q, flag, mask);
-}
-
-static void hns_ae_toggle_queue_status(struct hnae_queue *queue, u32 val)
-{
-	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(queue->dev);
-
-	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
-		hns_rcb_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
-	else
-		hns_rcbv2_int_clr_hw(queue, RCB_INT_FLAG_TX | RCB_INT_FLAG_RX);
-
-	hns_rcb_start(queue, val);
 }
 
 static int hns_ae_get_link_status(struct hnae_handle *handle)
@@ -465,6 +467,30 @@ static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
 		ring_pair->port_id_in_comm, coalesce_frames);
 }
 
+static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
+				      u32 *tx_frames_low, u32 *rx_frames_low,
+				      u32 *tx_frames_high, u32 *rx_frames_high,
+				      u32 *tx_usecs_low, u32 *rx_usecs_low,
+				      u32 *tx_usecs_high, u32 *rx_usecs_high)
+{
+	struct dsaf_device *dsaf_dev;
+
+	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
+
+	*tx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
+	*rx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
+	*tx_frames_high =
+		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
+		HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
+	*rx_frames_high =
+		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
+		 HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
+	*tx_usecs_low   = 0;
+	*rx_usecs_low   = 0;
+	*tx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+	*rx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+}
+
 void hns_ae_update_stats(struct hnae_handle *handle,
 			 struct net_device_stats *net_stats)
 {
@@ -587,6 +613,7 @@ void hns_ae_get_strings(struct hnae_handle *handle,
 	int idx;
 	struct hns_mac_cb *mac_cb;
 	struct hns_ppe_cb *ppe_cb;
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 	u8 *p = data;
 	struct	hnae_vf_cb *vf_cb;
 
@@ -609,13 +636,14 @@ void hns_ae_get_strings(struct hnae_handle *handle,
 	p += ETH_GSTRING_LEN * hns_mac_get_sset_count(mac_cb, stringset);
 
 	if (mac_cb->mac_type == HNAE_PORT_SERVICE)
-		hns_dsaf_get_strings(stringset, p, port);
+		hns_dsaf_get_strings(stringset, p, port, dsaf_dev);
 }
 
 int hns_ae_get_sset_count(struct hnae_handle *handle, int stringset)
 {
 	u32 sset_count = 0;
 	struct hns_mac_cb *mac_cb;
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
 	assert(handle);
 
@@ -626,7 +654,7 @@ int hns_ae_get_sset_count(struct hnae_handle *handle, int stringset)
 	sset_count += hns_mac_get_sset_count(mac_cb, stringset);
 
 	if (mac_cb->mac_type == HNAE_PORT_SERVICE)
-		sset_count += hns_dsaf_get_sset_count(stringset);
+		sset_count += hns_dsaf_get_sset_count(dsaf_dev, stringset);
 
 	return sset_count;
 }
@@ -637,13 +665,15 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 	int ret;
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
 		ret = 0;
 		break;
 	case MAC_INTERNALLOOP_SERDES:
-		ret = hns_mac_config_sds_loopback(vf_cb->mac_cb, en);
+		ret = dsaf_dev->misc_op->cfg_serdes_loopback(vf_cb->mac_cb,
+							     !!en);
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		ret = hns_mac_config_mac_loopback(vf_cb->mac_cb, loop, en);
@@ -651,9 +681,6 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 	default:
 		ret = -EINVAL;
 	}
-
-	if (!ret)
-		hns_dsaf_set_inner_lb(mac_cb->dsaf_dev, mac_cb->mac_id, en);
 
 	return ret;
 }
@@ -780,7 +807,6 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.stop = hns_ae_stop,
 	.reset = hns_ae_reset,
 	.toggle_ring_irq = hns_ae_toggle_ring_irq,
-	.toggle_queue_status = hns_ae_toggle_queue_status,
 	.get_status = hns_ae_get_link_status,
 	.get_info = hns_ae_get_mac_info,
 	.adjust_link = hns_ae_adjust_link,
@@ -794,6 +820,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_rx_max_coalesced_frames = hns_ae_get_rx_max_coalesced_frames,
 	.set_coalesce_usecs = hns_ae_set_coalesce_usecs,
 	.set_coalesce_frames = hns_ae_set_coalesce_frames,
+	.get_coalesce_range = hns_ae_get_coalesce_range,
 	.set_promisc_mode = hns_ae_set_promisc_mode,
 	.set_mac_addr = hns_ae_set_mac_address,
 	.set_mc_addr = hns_ae_set_multicast_one,

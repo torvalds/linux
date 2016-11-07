@@ -21,6 +21,7 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/workqueue.h>
 
 /******* USB2.0 Host registers (original offset is +0x200) *******/
 #define USB2_INT_ENABLE		0x000
@@ -81,8 +82,24 @@ struct rcar_gen3_chan {
 	struct extcon_dev *extcon;
 	struct phy *phy;
 	struct regulator *vbus;
+	struct work_struct work;
+	bool extcon_host;
 	bool has_otg;
 };
+
+static void rcar_gen3_phy_usb2_work(struct work_struct *work)
+{
+	struct rcar_gen3_chan *ch = container_of(work, struct rcar_gen3_chan,
+						 work);
+
+	if (ch->extcon_host) {
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, true);
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB, false);
+	} else {
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, false);
+		extcon_set_cable_state_(ch->extcon, EXTCON_USB, true);
+	}
+}
 
 static void rcar_gen3_set_host_mode(struct rcar_gen3_chan *ch, int host)
 {
@@ -130,8 +147,8 @@ static void rcar_gen3_init_for_host(struct rcar_gen3_chan *ch)
 	rcar_gen3_set_host_mode(ch, 1);
 	rcar_gen3_enable_vbus_ctrl(ch, 1);
 
-	extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, true);
-	extcon_set_cable_state_(ch->extcon, EXTCON_USB, false);
+	ch->extcon_host = true;
+	schedule_work(&ch->work);
 }
 
 static void rcar_gen3_init_for_peri(struct rcar_gen3_chan *ch)
@@ -140,8 +157,8 @@ static void rcar_gen3_init_for_peri(struct rcar_gen3_chan *ch)
 	rcar_gen3_set_host_mode(ch, 0);
 	rcar_gen3_enable_vbus_ctrl(ch, 0);
 
-	extcon_set_cable_state_(ch->extcon, EXTCON_USB_HOST, false);
-	extcon_set_cable_state_(ch->extcon, EXTCON_USB, true);
+	ch->extcon_host = false;
+	schedule_work(&ch->work);
 }
 
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
@@ -263,6 +280,7 @@ static irqreturn_t rcar_gen3_phy_usb2_irq(int irq, void *_ch)
 
 static const struct of_device_id rcar_gen3_phy_usb2_match_table[] = {
 	{ .compatible = "renesas,usb2-phy-r8a7795" },
+	{ .compatible = "renesas,usb2-phy-r8a7796" },
 	{ .compatible = "renesas,rcar-gen3-usb2-phy" },
 	{ }
 };
@@ -301,6 +319,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (irq >= 0) {
 		int ret;
 
+		INIT_WORK(&channel->work, rcar_gen3_phy_usb2_work);
 		irq = devm_request_irq(dev, irq, rcar_gen3_phy_usb2_irq,
 				       IRQF_SHARED, dev_name(dev), channel);
 		if (irq < 0)

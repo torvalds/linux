@@ -388,6 +388,21 @@ config HID_LCPOWER
 	---help---
 	Support for LC-Power RC1000MCE RF remote control.
 
+config HID_LED
+	tristate "Simple RGB LED support"
+	depends on HID
+	depends on LEDS_CLASS
+	---help---
+	Support for simple RGB LED devices. Currently supported are:
+	- Riso Kagaku Webmail Notifier
+	- Dream Cheeky Webmail Notifier and Friends Alert
+	- ThingM blink(1)
+	- Delcom Visual Signal Indicator Generation 2
+	- Greynut Luxafor
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-led.
+
 config HID_LENOVO
 	tristate "Lenovo / Thinkpad devices"
 	depends on HID
@@ -442,8 +457,6 @@ config LOGITECH_FF
 	  - Logitech WingMan Cordless RumblePad
 	  - Logitech WingMan Cordless RumblePad 2
 	  - Logitech WingMan Force 3D
-	  - Logitech Formula Force EX
-	  - Logitech WingMan Formula Force GP
 
 	  and if you want to enable force feedback for them.
 	  Note: if you say N here, this device will still be supported, but without
@@ -473,15 +486,22 @@ config LOGIWHEELS_FF
 	select INPUT_FF_MEMLESS
 	default LOGITECH_FF
 	help
-	  Say Y here if you want to enable force feedback and range setting
+	  Say Y here if you want to enable force feedback and range setting(*)
 	  support for following Logitech wheels:
+	  - Logitech G25 (*)
+	  - Logitech G27 (*)
+	  - Logitech G29 (*)
 	  - Logitech Driving Force
-	  - Logitech Driving Force Pro
-	  - Logitech Driving Force GT
-	  - Logitech G25
-	  - Logitech G27
-	  - Logitech MOMO/MOMO 2
-	  - Logitech Formula Force EX
+	  - Logitech Driving Force Pro (*)
+	  - Logitech Driving Force GT (*)
+	  - Logitech Driving Force EX/RX
+	  - Logitech Driving Force Wireless
+	  - Logitech Speed Force Wireless
+	  - Logitech MOMO Force
+	  - Logitech MOMO Racing Force
+	  - Logitech Formula Force GP
+	  - Logitech Formula Force EX/RX
+	  - Logitech Wingman Formula Force GP
 
 config HID_MAGICMOUSE
 	tristate "Apple Magic Mouse/Trackpad multi-touch support"
@@ -819,11 +839,11 @@ config HID_THINGM
 	tristate "ThingM blink(1) USB RGB LED"
 	depends on HID
 	depends on LEDS_CLASS
+	select HID_LED
 	---help---
-	Support for the ThingM blink(1) USB RGB LED. This driver registers a
-	Linux LED class instance, plus additional sysfs attributes to control
-	RGB colors, fade time and playing. The device is exposed through hidraw
-	to access other functions.
+	Support for the ThingM blink(1) USB RGB LED. This driver has been
+	merged into the generic hid led driver. Config symbol HID_THINGM
+	just selects HID_LED and will be removed soon.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support"
@@ -847,6 +867,7 @@ config HID_WACOM
 	select POWER_SUPPLY
 	select NEW_LEDS
 	select LEDS_CLASS
+	select LEDS_TRIGGERS
 	help
 	  Say Y here if you want to use the USB or BT version of the Wacom Intuos
 	  or Graphire tablet.
@@ -936,6 +957,14 @@ config HID_SENSOR_CUSTOM_SENSOR
 	  standard sensors.
 	  Select this config option for custom/generic sensor support.
 
+config HID_ALPS
+	tristate "Alps HID device support"
+	depends on HID
+	---help---
+	Support for Alps I2C HID touchpads and StickPointer.
+	Say Y here if you have a Alps touchpads over i2c-hid or usbhid
+	and want support for its special functionalities.
+
 endmenu
 
 endif # HID
@@ -943,5 +972,7 @@ endif # HID
 source "drivers/hid/usbhid/Kconfig"
 
 source "drivers/hid/i2c-hid/Kconfig"
+
+source "drivers/hid/intel-ish-hid/Kconfig"
 
 endmenu

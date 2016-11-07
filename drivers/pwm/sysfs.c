@@ -208,16 +208,33 @@ static ssize_t polarity_store(struct device *child,
 	return ret ? : size;
 }
 
+static ssize_t capture_show(struct device *child,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct pwm_device *pwm = child_to_pwm_device(child);
+	struct pwm_capture result;
+	int ret;
+
+	ret = pwm_capture(pwm, &result, jiffies_to_msecs(HZ));
+	if (ret)
+		return ret;
+
+	return sprintf(buf, "%u %u\n", result.period, result.duty_cycle);
+}
+
 static DEVICE_ATTR_RW(period);
 static DEVICE_ATTR_RW(duty_cycle);
 static DEVICE_ATTR_RW(enable);
 static DEVICE_ATTR_RW(polarity);
+static DEVICE_ATTR_RO(capture);
 
 static struct attribute *pwm_attrs[] = {
 	&dev_attr_period.attr,
 	&dev_attr_duty_cycle.attr,
 	&dev_attr_enable.attr,
 	&dev_attr_polarity.attr,
+	&dev_attr_capture.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(pwm);
@@ -389,6 +406,24 @@ void pwmchip_sysfs_unexport(struct pwm_chip *chip)
 		/* for class_find_device() */
 		put_device(parent);
 		device_unregister(parent);
+	}
+}
+
+void pwmchip_sysfs_unexport_children(struct pwm_chip *chip)
+{
+	struct device *parent;
+	unsigned int i;
+
+	parent = class_find_device(&pwm_class, NULL, chip,
+				   pwmchip_sysfs_match);
+	if (!parent)
+		return;
+
+	for (i = 0; i < chip->npwm; i++) {
+		struct pwm_device *pwm = &chip->pwms[i];
+
+		if (test_bit(PWMF_EXPORTED, &pwm->flags))
+			pwm_unexport_child(parent, pwm);
 	}
 }
 

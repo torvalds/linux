@@ -11,8 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/kernel_stat.h>
-#include <linux/math64.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/pvclock_gtod.h>
@@ -31,44 +29,6 @@
 
 /* Xen may fire a timer up to this many ns early */
 #define TIMER_SLOP	100000
-#define NS_PER_TICK	(1000000000LL / HZ)
-
-/* snapshots of runstate info */
-static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate_snapshot);
-
-/* unused ns of stolen time */
-static DEFINE_PER_CPU(u64, xen_residual_stolen);
-
-static void do_stolen_accounting(void)
-{
-	struct vcpu_runstate_info state;
-	struct vcpu_runstate_info *snap;
-	s64 runnable, offline, stolen;
-	cputime_t ticks;
-
-	xen_get_runstate_snapshot(&state);
-
-	WARN_ON(state.state != RUNSTATE_running);
-
-	snap = this_cpu_ptr(&xen_runstate_snapshot);
-
-	/* work out how much time the VCPU has not been runn*ing*  */
-	runnable = state.time[RUNSTATE_runnable] - snap->time[RUNSTATE_runnable];
-	offline = state.time[RUNSTATE_offline] - snap->time[RUNSTATE_offline];
-
-	*snap = state;
-
-	/* Add the appropriate number of ticks of stolen time,
-	   including any left-overs from last time. */
-	stolen = runnable + offline + __this_cpu_read(xen_residual_stolen);
-
-	if (stolen < 0)
-		stolen = 0;
-
-	ticks = iter_div_u64_rem(stolen, NS_PER_TICK, &stolen);
-	__this_cpu_write(xen_residual_stolen, stolen);
-	account_steal_ticks(ticks);
-}
 
 /* Get the TSC speed from Xen */
 static unsigned long xen_tsc_khz(void)
@@ -263,8 +223,10 @@ static int xen_vcpuop_shutdown(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, cpu, NULL) ||
-	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, xen_vcpu_nr(cpu),
+			       NULL) ||
+	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+			       NULL))
 		BUG();
 
 	return 0;
@@ -274,7 +236,8 @@ static int xen_vcpuop_set_oneshot(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+			       NULL))
 		BUG();
 
 	return 0;
@@ -293,7 +256,8 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	/* Get an event anyway, even if the timeout is already expired */
 	single.flags = 0;
 
-	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, cpu, &single);
+	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, xen_vcpu_nr(cpu),
+				 &single);
 	BUG_ON(ret != 0);
 
 	return ret;
@@ -334,8 +298,6 @@ static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 		evt->event_handler(evt);
 		ret = IRQ_HANDLED;
 	}
-
-	do_stolen_accounting();
 
 	return ret;
 }
@@ -394,13 +356,15 @@ void xen_timer_resume(void)
 		return;
 
 	for_each_online_cpu(cpu) {
-		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer,
+				       xen_vcpu_nr(cpu), NULL))
 			BUG();
 	}
 }
 
 static const struct pv_time_ops xen_time_ops __initconst = {
 	.sched_clock = xen_clocksource_read,
+	.steal_clock = xen_steal_clock,
 };
 
 static void __init xen_time_init(void)
@@ -414,7 +378,8 @@ static void __init xen_time_init(void)
 
 	clocksource_register_hz(&xen_clocksource, NSEC_PER_SEC);
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL) == 0) {
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+			       NULL) == 0) {
 		/* Successfully turned off 100Hz tick, so we have the
 		   vcpuop-based timer interface */
 		printk(KERN_DEBUG "Xen: using vcpuop timer interface\n");
@@ -430,6 +395,8 @@ static void __init xen_time_init(void)
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();
+
+	xen_time_setup_guest();
 
 	if (xen_initial_domain())
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
@@ -465,11 +432,6 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
-	/* vector callback is needed otherwise we cannot receive interrupts
-	 * on cpu > 0 and at this point we don't know how many cpus are
-	 * available */
-	if (!xen_have_vector_callback)
-		return;
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
 		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"
 				"disable pv timer\n");

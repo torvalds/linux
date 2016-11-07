@@ -8,7 +8,7 @@ menuconfig ARCH_MVEBU
 	select SOC_BUS
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select PCI_QUIRKS if PCI
 	select OF_ADDRESS_PCI
 
@@ -23,6 +23,7 @@ config MACH_MVEBU_V7
 	select CACHE_L2X0
 	select ARM_CPU_SUSPEND
 	select MACH_MVEBU_ANY
+	select MVEBU_CLK_COREDIV
 
 config MACH_ARMADA_370
 	bool "Marvell Armada 370 boards"
@@ -32,7 +33,6 @@ config MACH_ARMADA_370
 	select CPU_PJ4B
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_370
-	select MVEBU_CLK_COREDIV
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 370 SoC with device tree.
@@ -50,7 +50,6 @@ config MACH_ARMADA_375
 	select HAVE_SMP
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_375
-	select MVEBU_CLK_COREDIV
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 375 SoC with device tree.
@@ -68,7 +67,6 @@ config MACH_ARMADA_38X
 	select HAVE_SMP
 	select MACH_MVEBU_V7
 	select PINCTRL_ARMADA_38X
-	select MVEBU_CLK_COREDIV
 	help
 	  Say 'Y' here if you want your kernel to support boards based
 	  on the Marvell Armada 380/385 SoC with device tree.
@@ -119,8 +117,8 @@ config MACH_DOVE
 config MACH_KIRKWOOD
 	bool "Marvell Kirkwood boards"
 	depends on ARCH_MULTI_V5
-	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
+	select GPIOLIB
 	select KIRKWOOD_CLK
 	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP

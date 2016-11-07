@@ -315,7 +315,7 @@ static void pxav3_set_power(struct sdhci_host *host, unsigned char mode,
 	struct mmc_host *mmc = host->mmc;
 	u8 pwr = host->pwr;
 
-	sdhci_set_power(host, mode, vdd);
+	sdhci_set_power_noreg(host, mode, vdd);
 
 	if (host->pwr == pwr)
 		return;
@@ -583,24 +583,17 @@ static int sdhci_pxav3_runtime_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops sdhci_pxav3_pmops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pxav3_suspend, sdhci_pxav3_resume)
 	SET_RUNTIME_PM_OPS(sdhci_pxav3_runtime_suspend,
 		sdhci_pxav3_runtime_resume, NULL)
 };
 
-#define SDHCI_PXAV3_PMOPS (&sdhci_pxav3_pmops)
-
-#else
-#define SDHCI_PXAV3_PMOPS NULL
-#endif
-
 static struct platform_driver sdhci_pxav3_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav3",
 		.of_match_table = of_match_ptr(sdhci_pxav3_of_match),
-		.pm	= SDHCI_PXAV3_PMOPS,
+		.pm	= &sdhci_pxav3_pmops,
 	},
 	.probe		= sdhci_pxav3_probe,
 	.remove		= sdhci_pxav3_remove,

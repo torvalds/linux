@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -123,6 +119,7 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 
 	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_rpcs_in_flight = val;
+	client_adjust_max_dirty(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
@@ -140,10 +137,10 @@ static ssize_t max_dirty_mb_show(struct kobject *kobj,
 	int mult;
 
 	spin_lock(&cli->cl_loi_list_lock);
-	val = cli->cl_dirty_max;
+	val = cli->cl_dirty_max_pages;
 	spin_unlock(&cli->cl_loi_list_lock);
 
-	mult = 1 << 20;
+	mult = 1 << (20 - PAGE_SHIFT);
 	return lprocfs_read_frac_helper(buf, PAGE_SIZE, val, mult);
 }
 
@@ -170,7 +167,7 @@ static ssize_t max_dirty_mb_store(struct kobject *kobj,
 		return -ERANGE;
 
 	spin_lock(&cli->cl_loi_list_lock);
-	cli->cl_dirty_max = (u32)(pages_number << PAGE_SHIFT);
+	cli->cl_dirty_max_pages = pages_number;
 	osc_wake_cache_waiters(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
@@ -185,11 +182,11 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 	int shift = 20 - PAGE_SHIFT;
 
 	seq_printf(m,
-		   "used_mb: %d\n"
-		   "busy_cnt: %d\n",
-		   (atomic_read(&cli->cl_lru_in_list) +
-		    atomic_read(&cli->cl_lru_busy)) >> shift,
-		   atomic_read(&cli->cl_lru_busy));
+		   "used_mb: %ld\n"
+		   "busy_cnt: %ld\n",
+		   (atomic_long_read(&cli->cl_lru_in_list) +
+		    atomic_long_read(&cli->cl_lru_busy)) >> shift,
+		   atomic_long_read(&cli->cl_lru_busy));
 
 	return 0;
 }
@@ -201,8 +198,10 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
-	int pages_number, mult, rc;
+	long pages_number, rc;
 	char kernbuf[128];
+	int mult;
+	u64 val;
 
 	if (count >= sizeof(kernbuf))
 		return -EINVAL;
@@ -214,14 +213,18 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 	mult = 1 << (20 - PAGE_SHIFT);
 	buffer += lprocfs_find_named_value(kernbuf, "used_mb:", &count) -
 		  kernbuf;
-	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
+	rc = lprocfs_write_frac_u64_helper(buffer, count, &val, mult);
 	if (rc)
 		return rc;
+
+	if (val > LONG_MAX)
+		return -ERANGE;
+	pages_number = (long)val;
 
 	if (pages_number < 0)
 		return -ERANGE;
 
-	rc = atomic_read(&cli->cl_lru_in_list) - pages_number;
+	rc = atomic_long_read(&cli->cl_lru_in_list) - pages_number;
 	if (rc > 0) {
 		struct lu_env *env;
 		int refcheck;
@@ -248,7 +251,7 @@ static ssize_t cur_dirty_bytes_show(struct kobject *kobj,
 	int len;
 
 	spin_lock(&cli->cl_loi_list_lock);
-	len = sprintf(buf, "%lu\n", cli->cl_dirty);
+	len = sprintf(buf, "%lu\n", cli->cl_dirty_pages << PAGE_SHIFT);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return len;
@@ -587,6 +590,7 @@ static ssize_t max_pages_per_rpc_store(struct kobject *kobj,
 	}
 	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_pages_per_rpc = val;
+	client_adjust_max_dirty(cli);
 	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
@@ -600,13 +604,14 @@ static ssize_t unstable_stats_show(struct kobject *kobj,
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
 	struct client_obd *cli = &dev->u.cli;
-	int pages, mb;
+	long pages;
+	int mb;
 
-	pages = atomic_read(&cli->cl_unstable_count);
+	pages = atomic_long_read(&cli->cl_unstable_count);
 	mb = (pages * PAGE_SIZE) >> 20;
 
-	return sprintf(buf, "unstable_pages: %8d\n"
-		       "unstable_mb:    %8d\n", pages, mb);
+	return sprintf(buf, "unstable_pages: %20ld\n"
+		       "unstable_mb:              %10d\n", pages, mb);
 }
 LUSTRE_RO_ATTR(unstable_stats);
 

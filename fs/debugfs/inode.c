@@ -45,7 +45,7 @@ static struct inode *debugfs_get_inode(struct super_block *sb)
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode->i_atime = inode->i_mtime =
-			inode->i_ctime = current_fs_time(sb);
+			inode->i_ctime = current_time(inode);
 	}
 	return inode;
 }
@@ -621,9 +621,6 @@ void debugfs_remove(struct dentry *dentry)
 		return;
 
 	parent = dentry->d_parent;
-	if (!parent || d_really_is_negative(parent))
-		return;
-
 	inode_lock(d_inode(parent));
 	ret = __debugfs_remove(dentry, parent);
 	inode_unlock(d_inode(parent));
@@ -652,10 +649,6 @@ void debugfs_remove_recursive(struct dentry *dentry)
 	struct dentry *child, *parent;
 
 	if (IS_ERR_OR_NULL(dentry))
-		return;
-
-	parent = dentry->d_parent;
-	if (!parent || d_really_is_negative(parent))
 		return;
 
 	parent = dentry;
@@ -755,7 +748,7 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 	old_name = fsnotify_oldname_init(old_dentry->d_name.name);
 
 	error = simple_rename(d_inode(old_dir), old_dentry, d_inode(new_dir),
-		dentry);
+			      dentry, 0);
 	if (error) {
 		fsnotify_oldname_free(old_name);
 		goto exit;

@@ -90,6 +90,7 @@
 #define IXGBE_DEV_ID_X550EM_A_SFP_N	0x15C4
 #define IXGBE_DEV_ID_X550EM_A_SGMII	0x15C6
 #define IXGBE_DEV_ID_X550EM_A_SGMII_L	0x15C7
+#define IXGBE_DEV_ID_X550EM_A_10G_T	0x15C8
 #define IXGBE_DEV_ID_X550EM_A_SFP	0x15CE
 
 /* VF Device IDs */
@@ -486,6 +487,13 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_FHFT(_n)	(0x09000 + ((_n) * 0x100)) /* Flex host filter table */
 #define IXGBE_FHFT_EXT(_n)	(0x09800 + ((_n) * 0x100)) /* Ext Flexible Host
 							    * Filter Table */
+
+/* masks for accessing VXLAN and GENEVE UDP ports */
+#define IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK     0x0000ffff /* VXLAN port */
+#define IXGBE_VXLANCTRL_GENEVE_UDPPORT_MASK    0xffff0000 /* GENEVE port */
+#define IXGBE_VXLANCTRL_ALL_UDPPORT_MASK       0xffffffff /* GENEVE/VXLAN */
+
+#define IXGBE_VXLANCTRL_GENEVE_UDPPORT_SHIFT   16
 
 #define IXGBE_FLEXIBLE_FILTER_COUNT_MAX         4
 #define IXGBE_EXT_FLEXIBLE_FILTER_COUNT_MAX     2
@@ -1823,6 +1831,9 @@ enum {
 #define IXGBE_LED_IVRT(_i)       IXGBE_LED_OFFSET(IXGBE_LED_IVRT_BASE, _i)
 #define IXGBE_LED_BLINK(_i)      IXGBE_LED_OFFSET(IXGBE_LED_BLINK_BASE, _i)
 #define IXGBE_LED_MODE_MASK(_i)  IXGBE_LED_OFFSET(IXGBE_LED_MODE_MASK_BASE, _i)
+#define IXGBE_X557_LED_MANUAL_SET_MASK	BIT(8)
+#define IXGBE_X557_MAX_LED_INDEX	3
+#define IXGBE_X557_LED_PROVISIONING	0xC430
 
 /* LED modes */
 #define IXGBE_LED_LINK_UP       0x0
@@ -3525,6 +3536,7 @@ struct ixgbe_hw {
 	bool				force_full_reset;
 	bool				allow_unsupported_sfp;
 	bool				wol_enabled;
+	bool				need_crosstalk_fix;
 };
 
 struct ixgbe_info {

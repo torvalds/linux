@@ -82,6 +82,7 @@ struct NCR_700_Device_Parameters {
 	 * cmnd[1], this could be in static storage */
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	__u8	depth;
+	struct scsi_cmnd *current_cmnd;	/* currently active command */
 };
 
 
@@ -423,23 +424,25 @@ struct NCR_700_Host_Parameters {
 #define script_patch_32(dev, script, symbol, value) \
 { \
 	int i; \
+	dma_addr_t da = value; \
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
-		__u32 val = bS_to_cpu((script)[A_##symbol##_used[i]]) + value; \
+		__u32 val = bS_to_cpu((script)[A_##symbol##_used[i]]) + da; \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
 		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
-		DEBUG((" script, patching %s at %d to 0x%lx\n", \
-		       #symbol, A_##symbol##_used[i], (value))); \
+		DEBUG((" script, patching %s at %d to %pad\n", \
+		       #symbol, A_##symbol##_used[i], &da)); \
 	} \
 }
 
 #define script_patch_32_abs(dev, script, symbol, value) \
 { \
 	int i; \
+	dma_addr_t da = value; \
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
-		(script)[A_##symbol##_used[i]] = bS_to_host(value); \
+		(script)[A_##symbol##_used[i]] = bS_to_host(da); \
 		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
-		DEBUG((" script, patching %s at %d to 0x%lx\n", \
-		       #symbol, A_##symbol##_used[i], (value))); \
+		DEBUG((" script, patching %s at %d to %pad\n", \
+		       #symbol, A_##symbol##_used[i], &da)); \
 	} \
 }
 

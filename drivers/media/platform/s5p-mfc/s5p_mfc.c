@@ -22,6 +22,7 @@
 #include <media/v4l2-event.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_reserved_mem.h>
 #include <media/videobuf2-v4l2.h>
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_ctrl.h"
@@ -29,11 +30,11 @@
 #include "s5p_mfc_dec.h"
 #include "s5p_mfc_enc.h"
 #include "s5p_mfc_intr.h"
+#include "s5p_mfc_iommu.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_pm.h"
 
-#define S5P_MFC_NAME		"s5p-mfc"
 #define S5P_MFC_DEC_NAME	"s5p-mfc-dec"
 #define S5P_MFC_ENC_NAME	"s5p-mfc-enc"
 
@@ -152,7 +153,7 @@ static void s5p_mfc_watchdog(unsigned long arg)
 		 * error. Now it is time to kill all instances and
 		 * reset the MFC. */
 		mfc_err("Time out during waiting for HW\n");
-		queue_work(dev->watchdog_workqueue, &dev->watchdog_work);
+		schedule_work(&dev->watchdog_work);
 	}
 	dev->watchdog_timer.expires = jiffies +
 					msecs_to_jiffies(MFC_WATCHDOG_INTERVAL);
@@ -493,7 +494,6 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	s5p_mfc_clock_off();
 	wake_up_dev(dev, reason, err);
-	return;
 }
 
 /* Header parsing interrupt handling */
@@ -758,7 +758,6 @@ static int s5p_mfc_open(struct file *file)
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		mfc_err("Not enough memory\n");
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
@@ -775,7 +774,7 @@ static int s5p_mfc_open(struct file *file)
 	while (dev->ctx[ctx->num]) {
 		ctx->num++;
 		if (ctx->num >= MFC_NUM_CONTEXTS) {
-			mfc_err("Too many open contexts\n");
+			mfc_debug(2, "Too many open contexts\n");
 			ret = -EBUSY;
 			goto err_no_ctx;
 		}
@@ -923,39 +922,50 @@ static int s5p_mfc_release(struct file *file)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct s5p_mfc_dev *dev = ctx->dev;
 
+	/* if dev is null, do cleanup that doesn't need dev */
 	mfc_debug_enter();
-	mutex_lock(&dev->mfc_mutex);
+	if (dev)
+		mutex_lock(&dev->mfc_mutex);
 	s5p_mfc_clock_on();
 	vb2_queue_release(&ctx->vq_src);
 	vb2_queue_release(&ctx->vq_dst);
-	/* Mark context as idle */
-	clear_work_bit_irqsave(ctx);
-	/* If instance was initialised and not yet freed,
-	 * return instance and free resources */
-	if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
-		mfc_debug(2, "Has to free instance\n");
-		s5p_mfc_close_mfc_inst(dev, ctx);
-	}
-	/* hardware locking scheme */
-	if (dev->curr_ctx == ctx->num)
-		clear_bit(0, &dev->hw_lock);
-	dev->num_inst--;
-	if (dev->num_inst == 0) {
-		mfc_debug(2, "Last instance\n");
-		s5p_mfc_deinit_hw(dev);
-		del_timer_sync(&dev->watchdog_timer);
-		if (s5p_mfc_power_off() < 0)
-			mfc_err("Power off failed\n");
+	if (dev) {
+		/* Mark context as idle */
+		clear_work_bit_irqsave(ctx);
+		/*
+		 * If instance was initialised and not yet freed,
+		 * return instance and free resources
+		*/
+		if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
+			mfc_debug(2, "Has to free instance\n");
+			s5p_mfc_close_mfc_inst(dev, ctx);
+		}
+		/* hardware locking scheme */
+		if (dev->curr_ctx == ctx->num)
+			clear_bit(0, &dev->hw_lock);
+		dev->num_inst--;
+		if (dev->num_inst == 0) {
+			mfc_debug(2, "Last instance\n");
+			s5p_mfc_deinit_hw(dev);
+			del_timer_sync(&dev->watchdog_timer);
+			if (s5p_mfc_power_off() < 0)
+				mfc_err("Power off failed\n");
+		}
 	}
 	mfc_debug(2, "Shutting down clock\n");
 	s5p_mfc_clock_off();
-	dev->ctx[ctx->num] = NULL;
+	if (dev)
+		dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
 	v4l2_fh_del(&ctx->fh);
-	v4l2_fh_exit(&ctx->fh);
+	/* vdev is gone if dev is null */
+	if (dev)
+		v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	mfc_debug_leave();
-	mutex_unlock(&dev->mfc_mutex);
+	if (dev)
+		mutex_unlock(&dev->mfc_mutex);
+
 	return 0;
 }
 
@@ -1043,54 +1053,93 @@ static const struct v4l2_file_operations s5p_mfc_fops = {
 	.mmap = s5p_mfc_mmap,
 };
 
-static int match_child(struct device *dev, void *data)
+/* DMA memory related helper functions */
+static void s5p_mfc_memdev_release(struct device *dev)
 {
-	if (!dev_name(dev))
-		return 0;
-	return !strcmp(dev_name(dev), (char *)data);
+	of_reserved_mem_device_release(dev);
+}
+
+static struct device *s5p_mfc_alloc_memdev(struct device *dev,
+					   const char *name, unsigned int idx)
+{
+	struct device *child;
+	int ret;
+
+	child = devm_kzalloc(dev, sizeof(struct device), GFP_KERNEL);
+	if (!child)
+		return NULL;
+
+	device_initialize(child);
+	dev_set_name(child, "%s:%s", dev_name(dev), name);
+	child->parent = dev;
+	child->bus = dev->bus;
+	child->coherent_dma_mask = dev->coherent_dma_mask;
+	child->dma_mask = dev->dma_mask;
+	child->release = s5p_mfc_memdev_release;
+
+	if (device_add(child) == 0) {
+		ret = of_reserved_mem_device_init_by_idx(child, dev->of_node,
+							 idx);
+		if (ret == 0)
+			return child;
+	}
+
+	put_device(child);
+	return NULL;
+}
+
+static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	/*
+	 * When IOMMU is available, we cannot use the default configuration,
+	 * because of MFC firmware requirements: address space limited to
+	 * 256M and non-zero default start address.
+	 * This is still simplified, not optimal configuration, but for now
+	 * IOMMU core doesn't allow to configure device's IOMMUs channel
+	 * separately.
+	 */
+	if (exynos_is_iommu_available(dev)) {
+		int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
+						 S5P_MFC_IOMMU_DMA_SIZE);
+		if (ret == 0)
+			mfc_dev->mem_dev_l = mfc_dev->mem_dev_r = dev;
+		return ret;
+	}
+
+	/*
+	 * Create and initialize virtual devices for accessing
+	 * reserved memory regions.
+	 */
+	mfc_dev->mem_dev_l = s5p_mfc_alloc_memdev(dev, "left",
+						  MFC_BANK1_ALLOC_CTX);
+	if (!mfc_dev->mem_dev_l)
+		return -ENODEV;
+	mfc_dev->mem_dev_r = s5p_mfc_alloc_memdev(dev, "right",
+						  MFC_BANK2_ALLOC_CTX);
+	if (!mfc_dev->mem_dev_r) {
+		device_unregister(mfc_dev->mem_dev_l);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	if (exynos_is_iommu_available(dev)) {
+		exynos_unconfigure_iommu(dev);
+		return;
+	}
+
+	device_unregister(mfc_dev->mem_dev_l);
+	device_unregister(mfc_dev->mem_dev_r);
 }
 
 static void *mfc_get_drv_data(struct platform_device *pdev);
-
-static int s5p_mfc_alloc_memdevs(struct s5p_mfc_dev *dev)
-{
-	unsigned int mem_info[2] = { };
-
-	dev->mem_dev_l = devm_kzalloc(&dev->plat_dev->dev,
-			sizeof(struct device), GFP_KERNEL);
-	if (!dev->mem_dev_l) {
-		mfc_err("Not enough memory\n");
-		return -ENOMEM;
-	}
-	device_initialize(dev->mem_dev_l);
-	of_property_read_u32_array(dev->plat_dev->dev.of_node,
-			"samsung,mfc-l", mem_info, 2);
-	if (dma_declare_coherent_memory(dev->mem_dev_l, mem_info[0],
-				mem_info[0], mem_info[1],
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0) {
-		mfc_err("Failed to declare coherent memory for\n"
-		"MFC device\n");
-		return -ENOMEM;
-	}
-
-	dev->mem_dev_r = devm_kzalloc(&dev->plat_dev->dev,
-			sizeof(struct device), GFP_KERNEL);
-	if (!dev->mem_dev_r) {
-		mfc_err("Not enough memory\n");
-		return -ENOMEM;
-	}
-	device_initialize(dev->mem_dev_r);
-	of_property_read_u32_array(dev->plat_dev->dev.of_node,
-			"samsung,mfc-r", mem_info, 2);
-	if (dma_declare_coherent_memory(dev->mem_dev_r, mem_info[0],
-				mem_info[0], mem_info[1],
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0) {
-		pr_err("Failed to declare coherent memory for\n"
-		"MFC device\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
 
 /* MFC probe function */
 static int s5p_mfc_probe(struct platform_device *pdev)
@@ -1117,14 +1166,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 
 	dev->variant = mfc_get_drv_data(pdev);
 
-	ret = s5p_mfc_init_pm(dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get mfc clock source\n");
-		return ret;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
@@ -1132,54 +1174,36 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to get irq resource\n");
-		ret = -ENOENT;
-		goto err_res;
+		return -ENOENT;
 	}
 	dev->irq = res->start;
 	ret = devm_request_irq(&pdev->dev, dev->irq, s5p_mfc_irq,
 					0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to install irq (%d)\n", ret);
-		goto err_res;
+		return ret;
 	}
 
-	if (pdev->dev.of_node) {
-		ret = s5p_mfc_alloc_memdevs(dev);
-		if (ret < 0)
-			goto err_res;
-	} else {
-		dev->mem_dev_l = device_find_child(&dev->plat_dev->dev,
-				"s5p-mfc-l", match_child);
-		if (!dev->mem_dev_l) {
-			mfc_err("Mem child (L) device get failed\n");
-			ret = -ENODEV;
-			goto err_res;
-		}
-		dev->mem_dev_r = device_find_child(&dev->plat_dev->dev,
-				"s5p-mfc-r", match_child);
-		if (!dev->mem_dev_r) {
-			mfc_err("Mem child (R) device get failed\n");
-			ret = -ENODEV;
-			goto err_res;
-		}
+	ret = s5p_mfc_configure_dma_memory(dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to configure DMA memory\n");
+		return ret;
 	}
 
-	dev->alloc_ctx[0] = vb2_dma_contig_init_ctx(dev->mem_dev_l);
-	if (IS_ERR(dev->alloc_ctx[0])) {
-		ret = PTR_ERR(dev->alloc_ctx[0]);
-		goto err_res;
+	ret = s5p_mfc_init_pm(dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get mfc clock source\n");
+		goto err_dma;
 	}
-	dev->alloc_ctx[1] = vb2_dma_contig_init_ctx(dev->mem_dev_r);
-	if (IS_ERR(dev->alloc_ctx[1])) {
-		ret = PTR_ERR(dev->alloc_ctx[1]);
-		goto err_mem_init_ctx_1;
-	}
+
+	vb2_dma_contig_set_max_seg_size(dev->mem_dev_l, DMA_BIT_MASK(32));
+	vb2_dma_contig_set_max_seg_size(dev->mem_dev_r, DMA_BIT_MASK(32));
 
 	mutex_init(&dev->mfc_mutex);
 
 	ret = s5p_mfc_alloc_firmware(dev);
 	if (ret)
-		goto err_alloc_fw;
+		goto err_res;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
@@ -1201,14 +1225,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_DEC_NAME);
 	dev->vfd_dec	= vfd;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		video_device_release(vfd);
-		goto err_dec_reg;
-	}
-	v4l2_info(&dev->v4l2_dev,
-		  "decoder registered as /dev/video%d\n", vfd->num);
 	video_set_drvdata(vfd, dev);
 
 	/* encoder */
@@ -1226,19 +1242,10 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_ENC_NAME);
 	dev->vfd_enc	= vfd;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		video_device_release(vfd);
-		goto err_enc_reg;
-	}
-	v4l2_info(&dev->v4l2_dev,
-		  "encoder registered as /dev/video%d\n", vfd->num);
 	video_set_drvdata(vfd, dev);
 	platform_set_drvdata(pdev, dev);
 
 	dev->hw_lock = 0;
-	dev->watchdog_workqueue = create_singlethread_workqueue(S5P_MFC_NAME);
 	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
 	atomic_set(&dev->watchdog_cnt, 0);
 	init_timer(&dev->watchdog_timer);
@@ -1250,26 +1257,41 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	s5p_mfc_init_hw_cmds(dev);
 	s5p_mfc_init_regs(dev);
 
+	/* Register decoder and encoder */
+	ret = video_register_device(dev->vfd_dec, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		goto err_dec_reg;
+	}
+	v4l2_info(&dev->v4l2_dev,
+		  "decoder registered as /dev/video%d\n", dev->vfd_dec->num);
+
+	ret = video_register_device(dev->vfd_enc, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		goto err_enc_reg;
+	}
+	v4l2_info(&dev->v4l2_dev,
+		  "encoder registered as /dev/video%d\n", dev->vfd_enc->num);
+
 	pr_debug("%s--\n", __func__);
 	return 0;
 
 /* Deinit MFC if probe had failed */
 err_enc_reg:
-	video_device_release(dev->vfd_enc);
-err_enc_alloc:
 	video_unregister_device(dev->vfd_dec);
 err_dec_reg:
+	video_device_release(dev->vfd_enc);
+err_enc_alloc:
 	video_device_release(dev->vfd_dec);
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_v4l2_dev_reg:
 	s5p_mfc_release_firmware(dev);
-err_alloc_fw:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
-err_mem_init_ctx_1:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
 err_res:
 	s5p_mfc_final_pm(dev);
+err_dma:
+	s5p_mfc_unconfigure_dma_memory(dev);
 
 	pr_debug("%s-- with error\n", __func__);
 	return ret;
@@ -1280,23 +1302,38 @@ err_res:
 static int s5p_mfc_remove(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev = platform_get_drvdata(pdev);
+	struct s5p_mfc_ctx *ctx;
+	int i;
 
 	v4l2_info(&dev->v4l2_dev, "Removing %s\n", pdev->name);
 
+	/*
+	 * Clear ctx dev pointer to avoid races between s5p_mfc_remove()
+	 * and s5p_mfc_release() and s5p_mfc_release() accessing ctx->dev
+	 * after s5p_mfc_remove() is run during unbind.
+	*/
+	mutex_lock(&dev->mfc_mutex);
+	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
+		ctx = dev->ctx[i];
+		if (!ctx)
+			continue;
+		/* clear ctx->dev */
+		ctx->dev = NULL;
+	}
+	mutex_unlock(&dev->mfc_mutex);
+
 	del_timer_sync(&dev->watchdog_timer);
-	flush_workqueue(dev->watchdog_workqueue);
-	destroy_workqueue(dev->watchdog_workqueue);
+	flush_work(&dev->watchdog_work);
 
 	video_unregister_device(dev->vfd_enc);
 	video_unregister_device(dev->vfd_dec);
+	video_device_release(dev->vfd_enc);
+	video_device_release(dev->vfd_dec);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	s5p_mfc_release_firmware(dev);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
-	if (pdev->dev.of_node) {
-		put_device(dev->mem_dev_l);
-		put_device(dev->mem_dev_r);
-	}
+	s5p_mfc_unconfigure_dma_memory(dev);
+	vb2_dma_contig_clear_max_seg_size(dev->mem_dev_l);
+	vb2_dma_contig_clear_max_seg_size(dev->mem_dev_r);
 
 	s5p_mfc_final_pm(dev);
 	return 0;

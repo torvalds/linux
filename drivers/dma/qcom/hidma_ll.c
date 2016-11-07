@@ -381,27 +381,6 @@ static int hidma_ll_reset(struct hidma_lldev *lldev)
 }
 
 /*
- * Abort all transactions and perform a reset.
- */
-static void hidma_ll_abort(unsigned long arg)
-{
-	struct hidma_lldev *lldev = (struct hidma_lldev *)arg;
-	u8 err_code = HIDMA_EVRE_STATUS_ERROR;
-	u8 err_info = 0xFF;
-	int rc;
-
-	hidma_cleanup_pending_tre(lldev, err_info, err_code);
-
-	/* reset the channel for recovery */
-	rc = hidma_ll_setup(lldev);
-	if (rc) {
-		dev_err(lldev->dev, "channel reinitialize failed after error\n");
-		return;
-	}
-	writel(ENABLE_IRQS, lldev->evca + HIDMA_EVCA_IRQ_EN_REG);
-}
-
-/*
  * The interrupt handler for HIDMA will try to consume as many pending
  * EVRE from the event queue as possible. Each EVRE has an associated
  * TRE that holds the user interface parameters. EVRE reports the
@@ -454,13 +433,18 @@ irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
 
 	while (cause) {
 		if (cause & HIDMA_ERR_INT_MASK) {
-			dev_err(lldev->dev, "error 0x%x, resetting...\n",
+			dev_err(lldev->dev, "error 0x%x, disabling...\n",
 					cause);
 
 			/* Clear out pending interrupts */
 			writel(cause, lldev->evca + HIDMA_EVCA_IRQ_CLR_REG);
 
-			tasklet_schedule(&lldev->rst_task);
+			/* No further submissions. */
+			hidma_ll_disable(lldev);
+
+			/* Driver completes the txn and intimates the client.*/
+			hidma_cleanup_pending_tre(lldev, 0xFF,
+						  HIDMA_EVRE_STATUS_ERROR);
 			goto out;
 		}
 
@@ -808,7 +792,6 @@ struct hidma_lldev *hidma_ll_init(struct device *dev, u32 nr_tres,
 		return NULL;
 
 	spin_lock_init(&lldev->lock);
-	tasklet_init(&lldev->rst_task, hidma_ll_abort, (unsigned long)lldev);
 	tasklet_init(&lldev->task, hidma_ll_tre_complete, (unsigned long)lldev);
 	lldev->initialized = 1;
 	writel(ENABLE_IRQS, lldev->evca + HIDMA_EVCA_IRQ_EN_REG);

@@ -77,9 +77,11 @@ static enum {
 	 LBR_IND_JMP	|\
 	 LBR_FAR)
 
-#define LBR_FROM_FLAG_MISPRED  (1ULL << 63)
-#define LBR_FROM_FLAG_IN_TX    (1ULL << 62)
-#define LBR_FROM_FLAG_ABORT    (1ULL << 61)
+#define LBR_FROM_FLAG_MISPRED	BIT_ULL(63)
+#define LBR_FROM_FLAG_IN_TX	BIT_ULL(62)
+#define LBR_FROM_FLAG_ABORT	BIT_ULL(61)
+
+#define LBR_FROM_SIGNEXT_2MSB	(BIT_ULL(60) | BIT_ULL(59))
 
 /*
  * x86control flow change classification
@@ -235,6 +237,97 @@ enum {
 	LBR_VALID,
 };
 
+/*
+ * For formats with LBR_TSX flags (e.g. LBR_FORMAT_EIP_FLAGS2), bits 61:62 in
+ * MSR_LAST_BRANCH_FROM_x are the TSX flags when TSX is supported, but when
+ * TSX is not supported they have no consistent behavior:
+ *
+ *   - For wrmsr(), bits 61:62 are considered part of the sign extension.
+ *   - For HW updates (branch captures) bits 61:62 are always OFF and are not
+ *     part of the sign extension.
+ *
+ * Therefore, if:
+ *
+ *   1) LBR has TSX format
+ *   2) CPU has no TSX support enabled
+ *
+ * ... then any value passed to wrmsr() must be sign extended to 63 bits and any
+ * value from rdmsr() must be converted to have a 61 bits sign extension,
+ * ignoring the TSX flags.
+ */
+static inline bool lbr_from_signext_quirk_needed(void)
+{
+	int lbr_format = x86_pmu.intel_cap.lbr_format;
+	bool tsx_support = boot_cpu_has(X86_FEATURE_HLE) ||
+			   boot_cpu_has(X86_FEATURE_RTM);
+
+	return !tsx_support && (lbr_desc[lbr_format] & LBR_TSX);
+}
+
+DEFINE_STATIC_KEY_FALSE(lbr_from_quirk_key);
+
+/* If quirk is enabled, ensure sign extension is 63 bits: */
+inline u64 lbr_from_signext_quirk_wr(u64 val)
+{
+	if (static_branch_unlikely(&lbr_from_quirk_key)) {
+		/*
+		 * Sign extend into bits 61:62 while preserving bit 63.
+		 *
+		 * Quirk is enabled when TSX is disabled. Therefore TSX bits
+		 * in val are always OFF and must be changed to be sign
+		 * extension bits. Since bits 59:60 are guaranteed to be
+		 * part of the sign extension bits, we can just copy them
+		 * to 61:62.
+		 */
+		val |= (LBR_FROM_SIGNEXT_2MSB & val) << 2;
+	}
+	return val;
+}
+
+/*
+ * If quirk is needed, ensure sign extension is 61 bits:
+ */
+u64 lbr_from_signext_quirk_rd(u64 val)
+{
+	if (static_branch_unlikely(&lbr_from_quirk_key)) {
+		/*
+		 * Quirk is on when TSX is not enabled. Therefore TSX
+		 * flags must be read as OFF.
+		 */
+		val &= ~(LBR_FROM_FLAG_IN_TX | LBR_FROM_FLAG_ABORT);
+	}
+	return val;
+}
+
+static inline void wrlbr_from(unsigned int idx, u64 val)
+{
+	val = lbr_from_signext_quirk_wr(val);
+	wrmsrl(x86_pmu.lbr_from + idx, val);
+}
+
+static inline void wrlbr_to(unsigned int idx, u64 val)
+{
+	wrmsrl(x86_pmu.lbr_to + idx, val);
+}
+
+static inline u64 rdlbr_from(unsigned int idx)
+{
+	u64 val;
+
+	rdmsrl(x86_pmu.lbr_from + idx, val);
+
+	return lbr_from_signext_quirk_rd(val);
+}
+
+static inline u64 rdlbr_to(unsigned int idx)
+{
+	u64 val;
+
+	rdmsrl(x86_pmu.lbr_to + idx, val);
+
+	return val;
+}
+
 static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 {
 	int i;
@@ -251,8 +344,9 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 	tos = task_ctx->tos;
 	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
-		wrmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
-		wrmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
+		wrlbr_from(lbr_idx, task_ctx->lbr_from[i]);
+		wrlbr_to  (lbr_idx, task_ctx->lbr_to[i]);
+
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
@@ -262,9 +356,9 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 
 static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 {
-	int i;
 	unsigned lbr_idx, mask;
 	u64 tos;
+	int i;
 
 	if (task_ctx->lbr_callstack_users == 0) {
 		task_ctx->lbr_stack_state = LBR_NONE;
@@ -275,8 +369,8 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 	tos = intel_pmu_lbr_tos();
 	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
-		rdmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
-		rdmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
+		task_ctx->lbr_from[i] = rdlbr_from(lbr_idx);
+		task_ctx->lbr_to[i]   = rdlbr_to(lbr_idx);
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
 			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
@@ -286,7 +380,6 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 
 void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
-	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
 
 	/*
@@ -296,31 +389,21 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 	 */
 	task_ctx = ctx ? ctx->task_ctx_data : NULL;
 	if (task_ctx) {
-		if (sched_in) {
+		if (sched_in)
 			__intel_pmu_lbr_restore(task_ctx);
-			cpuc->lbr_context = ctx;
-		} else {
+		else
 			__intel_pmu_lbr_save(task_ctx);
-		}
 		return;
 	}
 
 	/*
-	 * When sampling the branck stack in system-wide, it may be
-	 * necessary to flush the stack on context switch. This happens
-	 * when the branch stack does not tag its entries with the pid
-	 * of the current task. Otherwise it becomes impossible to
-	 * associate a branch entry with a task. This ambiguity is more
-	 * likely to appear when the branch stack supports priv level
-	 * filtering and the user sets it to monitor only at the user
-	 * level (which could be a useful measurement in system-wide
-	 * mode). In that case, the risk is high of having a branch
-	 * stack with branch from multiple tasks.
- 	 */
-	if (sched_in) {
+	 * Since a context switch can flip the address space and LBR entries
+	 * are not tagged with an identifier, we need to wipe the LBR, even for
+	 * per-cpu events. You simply cannot resolve the branches from the old
+	 * address space.
+	 */
+	if (sched_in)
 		intel_pmu_lbr_reset();
-		cpuc->lbr_context = ctx;
-	}
 }
 
 static inline bool branch_user_callstack(unsigned br_sel)
@@ -328,7 +411,7 @@ static inline bool branch_user_callstack(unsigned br_sel)
 	return (br_sel & X86_BR_USER) && (br_sel & X86_BR_CALL_STACK);
 }
 
-void intel_pmu_lbr_enable(struct perf_event *event)
+void intel_pmu_lbr_add(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
@@ -336,27 +419,38 @@ void intel_pmu_lbr_enable(struct perf_event *event)
 	if (!x86_pmu.lbr_nr)
 		return;
 
-	/*
-	 * Reset the LBR stack if we changed task context to
-	 * avoid data leaks.
-	 */
-	if (event->ctx->task && cpuc->lbr_context != event->ctx) {
-		intel_pmu_lbr_reset();
-		cpuc->lbr_context = event->ctx;
-	}
 	cpuc->br_sel = event->hw.branch_reg.reg;
 
-	if (branch_user_callstack(cpuc->br_sel) && event->ctx &&
-					event->ctx->task_ctx_data) {
+	if (branch_user_callstack(cpuc->br_sel) && event->ctx->task_ctx_data) {
 		task_ctx = event->ctx->task_ctx_data;
 		task_ctx->lbr_callstack_users++;
 	}
 
-	cpuc->lbr_users++;
+	/*
+	 * Request pmu::sched_task() callback, which will fire inside the
+	 * regular perf event scheduling, so that call will:
+	 *
+	 *  - restore or wipe; when LBR-callstack,
+	 *  - wipe; otherwise,
+	 *
+	 * when this is from __perf_event_task_sched_in().
+	 *
+	 * However, if this is from perf_install_in_context(), no such callback
+	 * will follow and we'll need to reset the LBR here if this is the
+	 * first LBR event.
+	 *
+	 * The problem is, we cannot tell these cases apart... but we can
+	 * exclude the biggest chunk of cases by looking at
+	 * event->total_time_running. An event that has accrued runtime cannot
+	 * be 'new'. Conversely, a new event can get installed through the
+	 * context switch path for the first time.
+	 */
 	perf_sched_cb_inc(event->ctx->pmu);
+	if (!cpuc->lbr_users++ && !event->total_time_running)
+		intel_pmu_lbr_reset();
 }
 
-void intel_pmu_lbr_disable(struct perf_event *event)
+void intel_pmu_lbr_del(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
@@ -364,8 +458,8 @@ void intel_pmu_lbr_disable(struct perf_event *event)
 	if (!x86_pmu.lbr_nr)
 		return;
 
-	if (branch_user_callstack(cpuc->br_sel) && event->ctx &&
-					event->ctx->task_ctx_data) {
+	if (branch_user_callstack(cpuc->br_sel) &&
+	    event->ctx->task_ctx_data) {
 		task_ctx = event->ctx->task_ctx_data;
 		task_ctx->lbr_callstack_users--;
 	}
@@ -373,12 +467,6 @@ void intel_pmu_lbr_disable(struct perf_event *event)
 	cpuc->lbr_users--;
 	WARN_ON_ONCE(cpuc->lbr_users < 0);
 	perf_sched_cb_dec(event->ctx->pmu);
-
-	if (cpuc->enabled && !cpuc->lbr_users) {
-		__intel_pmu_lbr_disable();
-		/* avoid stale pointer */
-		cpuc->lbr_context = NULL;
-	}
 }
 
 void intel_pmu_lbr_enable_all(bool pmi)
@@ -452,8 +540,8 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		u16 cycles = 0;
 		int lbr_flags = lbr_desc[lbr_format];
 
-		rdmsrl(x86_pmu.lbr_from + lbr_idx, from);
-		rdmsrl(x86_pmu.lbr_to   + lbr_idx, to);
+		from = rdlbr_from(lbr_idx);
+		to   = rdlbr_to(lbr_idx);
 
 		if (lbr_format == LBR_FORMAT_INFO && need_info) {
 			u64 info;
@@ -956,7 +1044,6 @@ void __init intel_pmu_lbr_init_core(void)
 	 * SW branch filter usage:
 	 * - compensate for lack of HW filter
 	 */
-	pr_cont("4-deep LBR, ");
 }
 
 /* nehalem/westmere */
@@ -977,7 +1064,6 @@ void __init intel_pmu_lbr_init_nhm(void)
 	 *   That requires LBR_FAR but that means far
 	 *   jmp need to be filtered out
 	 */
-	pr_cont("16-deep LBR, ");
 }
 
 /* sandy bridge */
@@ -997,7 +1083,6 @@ void __init intel_pmu_lbr_init_snb(void)
 	 *   That requires LBR_FAR but that means far
 	 *   jmp need to be filtered out
 	 */
-	pr_cont("16-deep LBR, ");
 }
 
 /* haswell */
@@ -1011,7 +1096,8 @@ void intel_pmu_lbr_init_hsw(void)
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
 
-	pr_cont("16-deep LBR, ");
+	if (lbr_from_signext_quirk_needed())
+		static_branch_enable(&lbr_from_quirk_key);
 }
 
 /* skylake */
@@ -1031,7 +1117,6 @@ __init void intel_pmu_lbr_init_skl(void)
 	 *   That requires LBR_FAR but that means far
 	 *   jmp need to be filtered out
 	 */
-	pr_cont("32-deep LBR, ");
 }
 
 /* atom */
@@ -1057,7 +1142,6 @@ void __init intel_pmu_lbr_init_atom(void)
 	 * SW branch filter usage:
 	 * - compensate for lack of HW filter
 	 */
-	pr_cont("8-deep LBR, ");
 }
 
 /* slm */
@@ -1088,6 +1172,4 @@ void intel_pmu_lbr_init_knl(void)
 
 	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
 	x86_pmu.lbr_sel_map  = snb_lbr_sel_map;
-
-	pr_cont("8-deep LBR, ");
 }

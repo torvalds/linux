@@ -22,6 +22,7 @@ struct nft_dynset {
 	enum nft_dynset_ops		op:8;
 	enum nft_registers		sreg_key:8;
 	enum nft_registers		sreg_data:8;
+	bool				invert;
 	u64				timeout;
 	struct nft_expr			*expr;
 	struct nft_set_binding		binding;
@@ -82,10 +83,14 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 
 		if (sexpr != NULL)
 			sexpr->ops->eval(sexpr, regs, pkt);
+
+		if (priv->invert)
+			regs->verdict.code = NFT_BREAK;
 		return;
 	}
 out:
-	regs->verdict.code = NFT_BREAK;
+	if (!priv->invert)
+		regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_dynset_policy[NFTA_DYNSET_MAX + 1] = {
@@ -96,6 +101,7 @@ static const struct nla_policy nft_dynset_policy[NFTA_DYNSET_MAX + 1] = {
 	[NFTA_DYNSET_SREG_DATA]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_TIMEOUT]	= { .type = NLA_U64 },
 	[NFTA_DYNSET_EXPR]	= { .type = NLA_NESTED },
+	[NFTA_DYNSET_FLAGS]	= { .type = NLA_U32 },
 };
 
 static int nft_dynset_init(const struct nft_ctx *ctx,
@@ -103,6 +109,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_dynset *priv = nft_expr_priv(expr);
+	u8 genmask = nft_genmask_next(ctx->net);
 	struct nft_set *set;
 	u64 timeout;
 	int err;
@@ -112,11 +119,22 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	    tb[NFTA_DYNSET_SREG_KEY] == NULL)
 		return -EINVAL;
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_DYNSET_SET_NAME]);
+	if (tb[NFTA_DYNSET_FLAGS]) {
+		u32 flags = ntohl(nla_get_be32(tb[NFTA_DYNSET_FLAGS]));
+
+		if (flags & ~NFT_DYNSET_F_INV)
+			return -EINVAL;
+		if (flags & NFT_DYNSET_F_INV)
+			priv->invert = true;
+	}
+
+	set = nf_tables_set_lookup(ctx->table, tb[NFTA_DYNSET_SET_NAME],
+				   genmask);
 	if (IS_ERR(set)) {
 		if (tb[NFTA_DYNSET_SET_ID])
 			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_DYNSET_SET_ID]);
+							tb[NFTA_DYNSET_SET_ID],
+							genmask);
 		if (IS_ERR(set))
 			return PTR_ERR(set);
 	}
@@ -217,6 +235,7 @@ static void nft_dynset_destroy(const struct nft_ctx *ctx,
 static int nft_dynset_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_dynset *priv = nft_expr_priv(expr);
+	u32 flags = priv->invert ? NFT_DYNSET_F_INV : 0;
 
 	if (nft_dump_register(skb, NFTA_DYNSET_SREG_KEY, priv->sreg_key))
 		goto nla_put_failure;
@@ -231,6 +250,8 @@ static int nft_dynset_dump(struct sk_buff *skb, const struct nft_expr *expr)
 			 NFTA_DYNSET_PAD))
 		goto nla_put_failure;
 	if (priv->expr && nft_expr_dump(skb, NFTA_DYNSET_EXPR, priv->expr))
+		goto nla_put_failure;
+	if (nla_put_be32(skb, NFTA_DYNSET_FLAGS, htonl(flags)))
 		goto nla_put_failure;
 	return 0;
 

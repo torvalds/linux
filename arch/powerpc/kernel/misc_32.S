@@ -33,6 +33,7 @@
 #include <asm/kexec.h>
 #include <asm/bug.h>
 #include <asm/ptrace.h>
+#include <asm/export.h>
 
 	.text
 
@@ -101,20 +102,6 @@ _GLOBAL(mulhdu)
 	addze	r10,r10
 2:	addc	r4,r4,r9
 	addze	r3,r10
-	blr
-
-/*
- * sub_reloc_offset(x) returns x - reloc_offset().
- */
-_GLOBAL(sub_reloc_offset)
-	mflr	r0
-	bl	1f
-1:	mflr	r5
-	lis	r4,1b@ha
-	addi	r4,r4,1b@l
-	subf	r5,r4,r5
-	subf	r3,r5,r3
-	mtlr	r0
 	blr
 
 /*
@@ -333,6 +320,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
 #endif /* CONFIG_4xx */
 	isync
 	blr
+EXPORT_SYMBOL(flush_instruction_cache)
 #endif /* CONFIG_PPC_8xx */
 
 /*
@@ -342,7 +330,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_UNIFIED_ID_CACHE)
  *
  * flush_icache_range(unsigned long start, unsigned long stop)
  */
-_KPROBE(flush_icache_range)
+_GLOBAL(flush_icache_range)
 BEGIN_FTR_SECTION
 	PURGE_PREFETCHED_INS
 	blr				/* for 601, do nothing */
@@ -372,6 +360,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	sync				/* additional sync needed on g4 */
 	isync
 	blr
+_ASM_NOKPROBE_SYMBOL(flush_icache_range)
+EXPORT_SYMBOL(flush_icache_range)
+
 /*
  * Flush a particular page from the data cache to RAM.
  * Note: this is necessary because the instruction cache does *not*
@@ -509,6 +500,7 @@ _GLOBAL(copy_page)
 	li	r0,MAX_COPY_PREFETCH
 	li	r11,4
 	b	2b
+EXPORT_SYMBOL(copy_page)
 
 /*
  * Extended precision shifts.
@@ -536,6 +528,7 @@ _GLOBAL(__ashrdi3)
 	sraw	r3,r3,r5	# MSW = MSW >> count
 	or	r4,r4,r7	# LSW |= t2
 	blr
+EXPORT_SYMBOL(__ashrdi3)
 
 _GLOBAL(__ashldi3)
 	subfic	r6,r5,32
@@ -547,6 +540,7 @@ _GLOBAL(__ashldi3)
 	slw	r4,r4,r5	# LSW = LSW << count
 	or	r3,r3,r7	# MSW |= t2
 	blr
+EXPORT_SYMBOL(__ashldi3)
 
 _GLOBAL(__lshrdi3)
 	subfic	r6,r5,32
@@ -558,6 +552,7 @@ _GLOBAL(__lshrdi3)
 	srw	r3,r3,r5	# MSW = MSW >> count
 	or	r4,r4,r7	# LSW |= t2
 	blr
+EXPORT_SYMBOL(__lshrdi3)
 
 /*
  * 64-bit comparison: __cmpdi2(s64 a, s64 b)
@@ -573,6 +568,7 @@ _GLOBAL(__cmpdi2)
 	bltlr
 	li	r3,2
 	blr
+EXPORT_SYMBOL(__cmpdi2)
 /*
  * 64-bit comparison: __ucmpdi2(u64 a, u64 b)
  * Returns 0 if a < b, 1 if a == b, 2 if a > b.
@@ -587,6 +583,7 @@ _GLOBAL(__ucmpdi2)
 	bltlr
 	li	r3,2
 	blr
+EXPORT_SYMBOL(__ucmpdi2)
 
 _GLOBAL(__bswapdi2)
 	rotlwi  r9,r4,8
@@ -598,6 +595,7 @@ _GLOBAL(__bswapdi2)
 	mr      r3,r9
 	mr      r4,r10
 	blr
+EXPORT_SYMBOL(__bswapdi2)
 
 #ifdef CONFIG_SMP
 _GLOBAL(start_secondary_resume)

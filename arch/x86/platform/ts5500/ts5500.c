@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_data/gpio-ts5500.h>
 #include <linux/platform_data/max197.h>
 #include <linux/platform_device.h>
@@ -345,7 +345,3 @@ error:
 	return err;
 }
 device_initcall(ts5500_init);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Savoir-faire Linux Inc. <kernel@savoirfairelinux.com>");
-MODULE_DESCRIPTION("Technologic Systems TS-5500 platform driver");

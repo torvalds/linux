@@ -34,7 +34,7 @@
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void __iomem * __init_refok
+void __iomem * __ref
 __ioremap_caller(phys_addr_t phys_addr, unsigned long size,
 		 pgprot_t pgprot, void *caller)
 {

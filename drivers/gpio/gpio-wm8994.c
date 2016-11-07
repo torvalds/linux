@@ -249,7 +249,7 @@ static void wm8994_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define wm8994_gpio_dbg_show NULL
 #endif
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "wm8994",
 	.owner			= THIS_MODULE,
 	.request		= wm8994_gpio_request,
@@ -299,7 +299,6 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver wm8994_gpio_driver = {
 	.driver.name	= "wm8994-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= wm8994_gpio_probe,
 };
 

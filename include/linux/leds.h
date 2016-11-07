@@ -325,10 +325,10 @@ static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 #endif /* CONFIG_LEDS_TRIGGERS */
 
 /* Trigger specific functions */
-#ifdef CONFIG_LEDS_TRIGGER_IDE_DISK
-extern void ledtrig_ide_activity(void);
+#ifdef CONFIG_LEDS_TRIGGER_DISK
+extern void ledtrig_disk_activity(void);
 #else
-static inline void ledtrig_ide_activity(void) {}
+static inline void ledtrig_disk_activity(void) {}
 #endif
 
 #ifdef CONFIG_LEDS_TRIGGER_MTD
@@ -359,6 +359,11 @@ struct led_platform_data {
 	struct led_info	*leds;
 };
 
+struct gpio_desc;
+typedef int (*gpio_blink_set_t)(struct gpio_desc *desc, int state,
+				unsigned long *delay_on,
+				unsigned long *delay_off);
+
 /* For the leds-gpio driver */
 struct gpio_led {
 	const char *name;
@@ -382,13 +387,19 @@ struct gpio_led_platform_data {
 #define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
 #define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
 #define GPIO_LED_BLINK		2	/* Please, blink */
-	int		(*gpio_blink_set)(struct gpio_desc *desc, int state,
-					unsigned long *delay_on,
-					unsigned long *delay_off);
+	gpio_blink_set_t	gpio_blink_set;
 };
 
+#ifdef CONFIG_NEW_LEDS
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
+#else
+static inline struct platform_device *gpio_led_register_device(
+		int id, const struct gpio_led_platform_data *pdata)
+{
+	return 0;
+}
+#endif
 
 enum cpu_led_event {
 	CPU_LED_IDLE_START,	/* CPU enters idle */

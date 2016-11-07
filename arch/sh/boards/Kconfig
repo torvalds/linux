@@ -11,6 +11,7 @@ config SH_DEVICE_TREE
 	select OF
 	select OF_EARLY_FLATTREE
 	select CLKSRC_OF
+	select COMMON_CLK
 	select GENERIC_CALIBRATE_DELAY
 	help
 	  Select Board Described by Device Tree to build a kernel that
@@ -20,6 +21,16 @@ config SH_DEVICE_TREE
 	  time, only boards based on the open-hardware J-Core processors
 	  have sufficient driver coverage to use this option; do not
 	  select it if you are using original SuperH hardware.
+
+config SH_JCORE_SOC
+	bool "J-Core SoC"
+	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
+	select CLKSRC_JCORE_PIT
+	select JCORE_AIC
+	default y if CPU_J2
+	help
+	  Select this option to include drivers core components of the
+	  J-Core SoC, including interrupt controllers and timers.
 
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
@@ -70,7 +81,7 @@ config SH_7724_SOLUTION_ENGINE
 	bool "SolutionEngine7724"
 	select SOLUTION_ENGINE
 	depends on CPU_SUBTYPE_SH7724
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
@@ -174,7 +185,6 @@ config SH_SDK7786
 	depends on CPU_SUBTYPE_SH7786
 	select SYS_SUPPORTS_PCI
 	select NO_IOPORT_MAP if !PCI
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_SRAM_POOL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
@@ -190,7 +200,7 @@ config SH_HIGHLANDER
 config SH_SH7757LCR
 	bool "SH7757LCR"
 	depends on CPU_SUBTYPE_SH7757
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config SH_SH7785LCR
@@ -217,14 +227,14 @@ config SH_SH7785LCR_PT
 config SH_URQUELL
 	bool "Urquell"
 	depends on CPU_SUBTYPE_SH7786
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select SYS_SUPPORTS_PCI
 	select NO_IOPORT_MAP if !PCI
 
 config SH_MIGOR
 	bool "Migo-R"
 	depends on CPU_SUBTYPE_SH7722
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  Select Migo-R if configuring for the SH7722 Migo-R platform
@@ -233,7 +243,7 @@ config SH_MIGOR
 config SH_AP325RXA
 	bool "AP-325RXA"
 	depends on CPU_SUBTYPE_SH7723
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  Renesas "AP-325RXA" support.
@@ -242,7 +252,7 @@ config SH_AP325RXA
 config SH_KFR2R09
 	bool "KFR2R09"
 	depends on CPU_SUBTYPE_SH7724
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  "Kit For R2R for 2009" support.
@@ -250,7 +260,7 @@ config SH_KFR2R09
 config SH_ECOVEC
 	bool "EcoVec"
 	depends on CPU_SUBTYPE_SH7724
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select SND_SOC_DA7210 if SND_SIMPLE_CARD
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
@@ -327,7 +337,7 @@ config SH_X3PROTO
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"
 	depends on CPU_SUBTYPE_SH7720
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	help
 	  Select Magic Panel R2 if configuring for Magic Panel R2.

@@ -286,22 +286,21 @@ static void ipu_irq_handler(struct irq_desc *desc)
 		raw_spin_unlock(&bank_lock);
 		while ((line = ffs(status))) {
 			struct ipu_irq_map *map;
-			unsigned int irq = NO_IRQ;
+			unsigned int irq;
 
 			line--;
 			status &= ~(1UL << line);
 
 			raw_spin_lock(&bank_lock);
 			map = src2map(32 * i + line);
-			if (map)
-				irq = map->irq;
-			raw_spin_unlock(&bank_lock);
-
 			if (!map) {
+				raw_spin_unlock(&bank_lock);
 				pr_err("IPU: Interrupt on unmapped source %u bank %d\n",
 				       line, i);
 				continue;
 			}
+			irq = map->irq;
+			raw_spin_unlock(&bank_lock);
 			generic_handle_irq(irq);
 		}
 	}

@@ -12,6 +12,7 @@
  * for more details.
  */
 
+#include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -27,7 +28,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
-#include <asm/rtc.h>
 #include <asm/bootinfo.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
@@ -180,7 +180,7 @@ void __init config_q40(void)
 	mach_reset = q40_reset;
 	mach_get_model = q40_get_model;
 
-#if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep = q40_mksound;
 #endif
 #ifdef CONFIG_HEARTBEAT

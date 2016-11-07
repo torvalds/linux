@@ -159,7 +159,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *parent = dentry->d_parent;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
@@ -172,7 +172,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 	list_for_each(p, head) {
 		struct autofs_info *ino;
 		struct dentry *active;
-		struct qstr *qstr;
+		const struct qstr *qstr;
 
 		ino = list_entry(p, struct autofs_info, active);
 		active = ino->dentry;
@@ -214,7 +214,7 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry,
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *parent = dentry->d_parent;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
@@ -227,7 +227,7 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry,
 	list_for_each(p, head) {
 		struct autofs_info *ino;
 		struct dentry *expiring;
-		struct qstr *qstr;
+		const struct qstr *qstr;
 
 		if (rcu_walk) {
 			spin_unlock(&sbi->lookup_lock);
@@ -577,8 +577,6 @@ static int autofs4_dir_symlink(struct inode *dir,
 	inode = autofs4_get_inode(dir->i_sb, S_IFLNK | 0555);
 	if (!inode) {
 		kfree(cp);
-		if (!dentry->d_fsdata)
-			kfree(ino);
 		return -ENOMEM;
 	}
 	inode->i_private = cp;
@@ -591,7 +589,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	if (p_ino && !IS_ROOT(dentry))
 		atomic_inc(&p_ino->count);
 
-	dir->i_mtime = CURRENT_TIME;
+	dir->i_mtime = current_time(dir);
 
 	return 0;
 }
@@ -631,7 +629,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	d_inode(dentry)->i_size = 0;
 	clear_nlink(d_inode(dentry));
 
-	dir->i_mtime = CURRENT_TIME;
+	dir->i_mtime = current_time(dir);
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs4_add_expiring(dentry);
@@ -762,7 +760,7 @@ static int autofs4_dir_mkdir(struct inode *dir,
 	if (p_ino && !IS_ROOT(dentry))
 		atomic_inc(&p_ino->count);
 	inc_nlink(dir);
-	dir->i_mtime = CURRENT_TIME;
+	dir->i_mtime = current_time(dir);
 
 	return 0;
 }
@@ -842,7 +840,7 @@ static inline int autofs4_ask_umount(struct vfsmount *mnt, int __user *p)
 	if (may_umount(mnt))
 		status = 1;
 
-	pr_debug("returning %d\n", status);
+	pr_debug("may umount %d\n", status);
 
 	status = put_user(status, p);
 

@@ -109,10 +109,10 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh = NULL;
 	int dir_has_error = 0;
-	struct ext4_str fname_crypto_str = {.name = NULL, .len = 0};
+	struct fscrypt_str fstr = FSTR_INIT(NULL, 0);
 
 	if (ext4_encrypted_inode(inode)) {
-		err = ext4_get_encryption_info(inode);
+		err = fscrypt_get_encryption_info(inode);
 		if (err && err != -ENOKEY)
 			return err;
 	}
@@ -139,8 +139,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	if (ext4_encrypted_inode(inode)) {
-		err = ext4_fname_crypto_alloc_buffer(inode, EXT4_NAME_LEN,
-						     &fname_crypto_str);
+		err = fscrypt_fname_alloc_buffer(inode, EXT4_NAME_LEN, &fstr);
 		if (err < 0)
 			return err;
 	}
@@ -253,16 +252,20 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 					    get_dtype(sb, de->file_type)))
 						goto done;
 				} else {
-					int save_len = fname_crypto_str.len;
+					int save_len = fstr.len;
+					struct fscrypt_str de_name =
+							FSTR_INIT(de->name,
+								de->name_len);
 
 					/* Directory is encrypted */
-					err = ext4_fname_disk_to_usr(inode,
-						NULL, de, &fname_crypto_str);
-					fname_crypto_str.len = save_len;
-					if (err < 0)
+					err = fscrypt_fname_disk_to_usr(inode,
+						0, 0, &de_name, &fstr);
+					de_name = fstr;
+					fstr.len = save_len;
+					if (err)
 						goto errout;
 					if (!dir_emit(ctx,
-					    fname_crypto_str.name, err,
+					    de_name.name, de_name.len,
 					    le32_to_cpu(de->inode),
 					    get_dtype(sb, de->file_type)))
 						goto done;
@@ -281,7 +284,7 @@ done:
 	err = 0;
 errout:
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-	ext4_fname_crypto_free_buffer(&fname_crypto_str);
+	fscrypt_fname_free_buffer(&fstr);
 #endif
 	brelse(bh);
 	return err;
@@ -432,7 +435,7 @@ void ext4_htree_free_dir_info(struct dir_private_info *p)
 int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 			     __u32 minor_hash,
 			    struct ext4_dir_entry_2 *dirent,
-			    struct ext4_str *ent_name)
+			    struct fscrypt_str *ent_name)
 {
 	struct rb_node **p, *parent = NULL;
 	struct fname *fname, *new_fn;
@@ -609,7 +612,7 @@ finished:
 static int ext4_dir_open(struct inode * inode, struct file * filp)
 {
 	if (ext4_encrypted_inode(inode))
-		return ext4_get_encryption_info(inode) ? -EACCES : 0;
+		return fscrypt_get_encryption_info(inode) ? -EACCES : 0;
 	return 0;
 }
 
@@ -625,7 +628,7 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 		      int buf_size)
 {
 	struct ext4_dir_entry_2 *de;
-	int nlen, rlen;
+	int rlen;
 	unsigned int offset = 0;
 	char *top;
 
@@ -635,7 +638,6 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 buf, buf_size, offset))
 			return -EFSCORRUPTED;
-		nlen = EXT4_DIR_REC_LEN(de->name_len);
 		rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
 		de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
 		offset += rlen;

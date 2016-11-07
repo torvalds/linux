@@ -513,6 +513,22 @@ __be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
 			count));
 }
 
+ssize_t nfsd_copy_file_range(struct file *src, u64 src_pos, struct file *dst,
+			     u64 dst_pos, u64 count)
+{
+
+	/*
+	 * Limit copy to 4MB to prevent indefinitely blocking an nfsd
+	 * thread and client rpc slot.  The choice of 4MB is somewhat
+	 * arbitrary.  We might instead base this on r/wsize, or make it
+	 * tunable, or use a time instead of a byte limit, or implement
+	 * asynchronous copy.  In theory a client could also recognize a
+	 * limit like this and pipeline multiple COPY requests.
+	 */
+	count = min_t(u64, count, 1 << 22);
+	return vfs_copy_file_range(src, src_pos, dst, dst_pos, count, 0);
+}
+
 __be32 nfsd4_vfs_fallocate(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			   struct file *file, loff_t offset, loff_t len,
 			   int flags)
@@ -1135,96 +1151,37 @@ nfsd_check_ignore_resizing(struct iattr *iap)
 		iap->ia_valid &= ~ATTR_SIZE;
 }
 
-/*
- * Create a file (regular, directory, device, fifo); UNIX sockets 
- * not yet implemented.
- * If the response fh has been verified, the parent directory should
- * already be locked. Note that the parent directory is left locked.
- *
- * N.B. Every call to nfsd_create needs an fh_put for _both_ fhp and resfhp
- */
+/* The parent directory should already be locked: */
 __be32
-nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
+nfsd_create_locked(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		char *fname, int flen, struct iattr *iap,
 		int type, dev_t rdev, struct svc_fh *resfhp)
 {
-	struct dentry	*dentry, *dchild = NULL;
+	struct dentry	*dentry, *dchild;
 	struct inode	*dirp;
 	__be32		err;
 	__be32		err2;
 	int		host_err;
 
-	err = nfserr_perm;
-	if (!flen)
-		goto out;
-	err = nfserr_exist;
-	if (isdotent(fname, flen))
-		goto out;
-
-	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_CREATE);
-	if (err)
-		goto out;
-
 	dentry = fhp->fh_dentry;
 	dirp = d_inode(dentry);
 
-	err = nfserr_notdir;
-	if (!dirp->i_op->lookup)
-		goto out;
-	/*
-	 * Check whether the response file handle has been verified yet.
-	 * If it has, the parent directory should already be locked.
-	 */
-	if (!resfhp->fh_dentry) {
-		host_err = fh_want_write(fhp);
-		if (host_err)
-			goto out_nfserr;
-
-		/* called from nfsd_proc_mkdir, or possibly nfsd3_proc_create */
-		fh_lock_nested(fhp, I_MUTEX_PARENT);
-		dchild = lookup_one_len(fname, dentry, flen);
-		host_err = PTR_ERR(dchild);
-		if (IS_ERR(dchild))
-			goto out_nfserr;
-		err = fh_compose(resfhp, fhp->fh_export, dchild, fhp);
-		if (err)
-			goto out;
-	} else {
-		/* called from nfsd_proc_create */
-		dchild = dget(resfhp->fh_dentry);
-		if (!fhp->fh_locked) {
-			/* not actually possible */
-			printk(KERN_ERR
-				"nfsd_create: parent %pd2 not locked!\n",
+	dchild = dget(resfhp->fh_dentry);
+	if (!fhp->fh_locked) {
+		WARN_ONCE(1, "nfsd_create: parent %pd2 not locked!\n",
 				dentry);
-			err = nfserr_io;
-			goto out;
-		}
+		err = nfserr_io;
+		goto out;
 	}
-	/*
-	 * Make sure the child dentry is still negative ...
-	 */
-	err = nfserr_exist;
-	if (d_really_is_positive(dchild)) {
-		dprintk("nfsd_create: dentry %pd/%pd not negative!\n",
-			dentry, dchild);
-		goto out; 
-	}
+
+	err = nfsd_permission(rqstp, fhp->fh_export, dentry, NFSD_MAY_CREATE);
+	if (err)
+		goto out;
 
 	if (!(iap->ia_valid & ATTR_MODE))
 		iap->ia_mode = 0;
 	iap->ia_mode = (iap->ia_mode & S_IALLUGO) | type;
 
-	err = nfserr_inval;
-	if (!S_ISREG(type) && !S_ISDIR(type) && !special_file(type)) {
-		printk(KERN_WARNING "nfsd: bad file type %o in nfsd_create\n",
-		       type);
-		goto out;
-	}
-
-	/*
-	 * Get the dir op function pointer.
-	 */
 	err = 0;
 	host_err = 0;
 	switch (type) {
@@ -1242,6 +1199,10 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	case S_IFSOCK:
 		host_err = vfs_mknod(dirp, dchild, iap->ia_mode, rdev);
 		break;
+	default:
+		printk(KERN_WARNING "nfsd: bad file type %o in nfsd_create\n",
+		       type);
+		host_err = -EINVAL;
 	}
 	if (host_err < 0)
 		goto out_nfserr;
@@ -1251,7 +1212,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	/*
 	 * nfsd_create_setattr already committed the child.  Transactional
 	 * filesystems had a chance to commit changes for both parent and
-	 * child * simultaneously making the following commit_metadata a
+	 * child simultaneously making the following commit_metadata a
 	 * noop.
 	 */
 	err2 = nfserrno(commit_metadata(fhp));
@@ -1263,13 +1224,59 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!err)
 		err = fh_update(resfhp);
 out:
-	if (dchild && !IS_ERR(dchild))
-		dput(dchild);
+	dput(dchild);
 	return err;
 
 out_nfserr:
 	err = nfserrno(host_err);
 	goto out;
+}
+
+/*
+ * Create a filesystem object (regular, directory, special).
+ * Note that the parent directory is left locked.
+ *
+ * N.B. Every call to nfsd_create needs an fh_put for _both_ fhp and resfhp
+ */
+__be32
+nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		char *fname, int flen, struct iattr *iap,
+		int type, dev_t rdev, struct svc_fh *resfhp)
+{
+	struct dentry	*dentry, *dchild = NULL;
+	struct inode	*dirp;
+	__be32		err;
+	int		host_err;
+
+	if (isdotent(fname, flen))
+		return nfserr_exist;
+
+	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_NOP);
+	if (err)
+		return err;
+
+	dentry = fhp->fh_dentry;
+	dirp = d_inode(dentry);
+
+	host_err = fh_want_write(fhp);
+	if (host_err)
+		return nfserrno(host_err);
+
+	fh_lock_nested(fhp, I_MUTEX_PARENT);
+	dchild = lookup_one_len(fname, dentry, flen);
+	host_err = PTR_ERR(dchild);
+	if (IS_ERR(dchild))
+		return nfserrno(host_err);
+	err = fh_compose(resfhp, fhp->fh_export, dchild, fhp);
+	/*
+	 * We unconditionally drop our ref to dchild as fh_compose will have
+	 * already grabbed its own ref for it.
+	 */
+	dput(dchild);
+	if (err)
+		return err;
+	return nfsd_create_locked(rqstp, fhp, fname, flen, iap, type,
+					rdev, resfhp);
 }
 
 #ifdef CONFIG_NFSD_V3
@@ -1303,12 +1310,6 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	dentry = fhp->fh_dentry;
 	dirp = d_inode(dentry);
-
-	/* Get all the sanity checks out of the way before
-	 * we lock the parent. */
-	err = nfserr_notdir;
-	if (!dirp->i_op->lookup)
-		goto out;
 
 	host_err = fh_want_write(fhp);
 	if (host_err)

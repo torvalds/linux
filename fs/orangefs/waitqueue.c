@@ -87,9 +87,9 @@ retry_servicing:
 	 */
 	if (!(flags & ORANGEFS_OP_NO_MUTEX)) {
 		if (flags & ORANGEFS_OP_INTERRUPTIBLE)
-			ret = mutex_lock_interruptible(&request_mutex);
+			ret = mutex_lock_interruptible(&orangefs_request_mutex);
 		else
-			ret = mutex_lock_killable(&request_mutex);
+			ret = mutex_lock_killable(&orangefs_request_mutex);
 		/*
 		 * check to see if we were interrupted while waiting for
 		 * mutex
@@ -129,7 +129,7 @@ retry_servicing:
 	spin_unlock(&orangefs_request_list_lock);
 
 	if (!(flags & ORANGEFS_OP_NO_MUTEX))
-		mutex_unlock(&request_mutex);
+		mutex_unlock(&orangefs_request_mutex);
 
 	ret = wait_for_matching_downcall(op, timeout,
 					 flags & ORANGEFS_OP_INTERRUPTIBLE);
@@ -272,9 +272,9 @@ static void
 	} else if (op_state_in_progress(op)) {
 		/* op must be removed from the in progress htable */
 		spin_unlock(&op->lock);
-		spin_lock(&htable_ops_in_progress_lock);
+		spin_lock(&orangefs_htable_ops_in_progress_lock);
 		list_del_init(&op->list);
-		spin_unlock(&htable_ops_in_progress_lock);
+		spin_unlock(&orangefs_htable_ops_in_progress_lock);
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "Interrupted: Removed op %p"
 			     " from htable_ops_in_progress\n",

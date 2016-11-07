@@ -397,7 +397,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 	struct dma_chan *chan;
 	enum dma_transfer_direction tr_dir;
 	dma_addr_t dma_addr;
-	dma_cookie_t cookie = -EINVAL;
+	dma_cookie_t cookie;
 	uint32_t reg;
 	int ret;
 
@@ -423,6 +423,12 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 		desc->callback = flctl_dma_complete;
 		desc->callback_param = flctl;
 		cookie = dmaengine_submit(desc);
+		if (dma_submit_error(cookie)) {
+			ret = dma_submit_error(cookie);
+			dev_warn(&flctl->pdev->dev,
+				 "DMA submit failed, falling back to PIO\n");
+			goto out;
+		}
 
 		dma_async_issue_pending(chan);
 	} else {

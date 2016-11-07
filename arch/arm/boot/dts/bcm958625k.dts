@@ -46,6 +46,11 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x80000000>;
+	};
 };
 
 &uart0 {
@@ -53,6 +58,14 @@
 };
 
 &uart1 {
+	status = "okay";
+};
+
+&amac0 {
+	status = "okay";
+};
+
+&amac1 {
 	status = "okay";
 };
 
@@ -65,6 +78,18 @@
 };
 
 &pcie2 {
+	status = "okay";
+};
+
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 

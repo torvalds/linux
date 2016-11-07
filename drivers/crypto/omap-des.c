@@ -39,6 +39,7 @@
 #include <crypto/scatterwalk.h>
 #include <crypto/des.h>
 #include <crypto/algapi.h>
+#include <crypto/engine.h>
 
 #define DST_MAXBURST			2
 
@@ -506,7 +507,7 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 	pr_debug("err: %d\n", err);
 
 	pm_runtime_put(dd->dev);
-	crypto_finalize_request(dd->engine, req, err);
+	crypto_finalize_cipher_request(dd->engine, req, err);
 }
 
 static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
@@ -560,10 +561,12 @@ static int omap_des_copy_sgs(struct omap_des_dev *dd)
 	sg_init_table(&dd->in_sgl, 1);
 	sg_set_buf(&dd->in_sgl, buf_in, dd->total);
 	dd->in_sg = &dd->in_sgl;
+	dd->in_sg_len = 1;
 
 	sg_init_table(&dd->out_sgl, 1);
 	sg_set_buf(&dd->out_sgl, buf_out, dd->total);
 	dd->out_sg = &dd->out_sgl;
+	dd->out_sg_len = 1;
 
 	return 0;
 }
@@ -572,7 +575,7 @@ static int omap_des_handle_queue(struct omap_des_dev *dd,
 				 struct ablkcipher_request *req)
 {
 	if (req)
-		return crypto_transfer_request_to_engine(dd->engine, req);
+		return crypto_transfer_cipher_request_to_engine(dd->engine, req);
 
 	return 0;
 }
@@ -595,6 +598,14 @@ static int omap_des_prepare_req(struct crypto_engine *engine,
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
 
+	dd->in_sg_len = sg_nents_for_len(dd->in_sg, dd->total);
+	if (dd->in_sg_len < 0)
+		return dd->in_sg_len;
+
+	dd->out_sg_len = sg_nents_for_len(dd->out_sg, dd->total);
+	if (dd->out_sg_len < 0)
+		return dd->out_sg_len;
+
 	if (omap_des_copy_needed(dd->in_sg) ||
 	    omap_des_copy_needed(dd->out_sg)) {
 		if (omap_des_copy_sgs(dd))
@@ -603,10 +614,6 @@ static int omap_des_prepare_req(struct crypto_engine *engine,
 	} else {
 		dd->sgs_copied = 0;
 	}
-
-	dd->in_sg_len = scatterwalk_bytes_sglen(dd->in_sg, dd->total);
-	dd->out_sg_len = scatterwalk_bytes_sglen(dd->out_sg, dd->total);
-	BUG_ON(dd->in_sg_len < 0 || dd->out_sg_len < 0);
 
 	rctx = ablkcipher_request_ctx(req);
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
@@ -1072,6 +1079,19 @@ static int omap_des_probe(struct platform_device *pdev)
 	list_add_tail(&dd->list, &dev_list);
 	spin_unlock(&list_lock);
 
+	/* Initialize des crypto engine */
+	dd->engine = crypto_engine_alloc_init(dev, 1);
+	if (!dd->engine) {
+		err = -ENOMEM;
+		goto err_engine;
+	}
+
+	dd->engine->prepare_cipher_request = omap_des_prepare_req;
+	dd->engine->cipher_one_request = omap_des_crypt_req;
+	err = crypto_engine_start(dd->engine);
+	if (err)
+		goto err_engine;
+
 	for (i = 0; i < dd->pdata->algs_info_size; i++) {
 		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
 			algp = &dd->pdata->algs_info[i].algs_list[j];
@@ -1087,26 +1107,17 @@ static int omap_des_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Initialize des crypto engine */
-	dd->engine = crypto_engine_alloc_init(dev, 1);
-	if (!dd->engine)
-		goto err_algs;
-
-	dd->engine->prepare_request = omap_des_prepare_req;
-	dd->engine->crypt_one_request = omap_des_crypt_req;
-	err = crypto_engine_start(dd->engine);
-	if (err)
-		goto err_engine;
-
 	return 0;
 
-err_engine:
-	crypto_engine_exit(dd->engine);
 err_algs:
 	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
+
+err_engine:
+	if (dd->engine)
+		crypto_engine_exit(dd->engine);
 
 	omap_des_dma_cleanup(dd);
 err_irq:
