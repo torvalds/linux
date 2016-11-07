@@ -942,7 +942,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 	else if (pctl->data->model == SX150X_456)
 		err = sx150x_i2c_write(pctl->client,
 				pctl->data->pri.x456.reg_advance,
-				0x04);
+				0x00);
 	else
 		err = sx150x_i2c_write(pctl->client,
 				pctl->data->pri.x123.reg_advance,
