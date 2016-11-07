@@ -465,11 +465,9 @@ static int sx150x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 {
 	struct sx150x_pinctrl *pctl = (struct sx150x_pinctrl *)dev_id;
-	unsigned int nhandled = 0;
-	unsigned int sub_irq;
-	unsigned int n;
-	s32 err;
+	unsigned long n, status;
 	unsigned int val;
+	int err;
 
 	err = regmap_read(pctl->regmap, pctl->data->reg_irq_src, &val);
 	if (err < 0)
@@ -479,15 +477,11 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 	if (err < 0)
 		return IRQ_NONE;
 
-	for (n = 0; n < pctl->data->ngpios; ++n) {
-		if (val & BIT(n)) {
-			sub_irq = irq_find_mapping(pctl->gpio.irqdomain, n);
-			handle_nested_irq(sub_irq);
-			++nhandled;
-		}
-	}
+	status = val;
+	for_each_set_bit(n, &status, pctl->data->ngpios)
+		handle_nested_irq(irq_find_mapping(pctl->gpio.irqdomain, n));
 
-	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+	return IRQ_HANDLED;
 }
 
 static void sx150x_irq_bus_lock(struct irq_data *d)
