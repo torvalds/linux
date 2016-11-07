@@ -369,9 +369,14 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 		struct sas_phy *sphy = sas_phy->phy;
 
 		sphy->negotiated_linkrate = sas_phy->linkrate;
-		sphy->minimum_linkrate = phy->minimum_linkrate;
 		sphy->minimum_linkrate_hw = SAS_LINK_RATE_1_5_GBPS;
-		sphy->maximum_linkrate = phy->maximum_linkrate;
+		sphy->maximum_linkrate_hw =
+			hisi_hba->hw->phy_get_max_linkrate();
+		if (sphy->minimum_linkrate == SAS_LINK_RATE_UNKNOWN)
+			sphy->minimum_linkrate = phy->minimum_linkrate;
+
+		if (sphy->maximum_linkrate == SAS_LINK_RATE_UNKNOWN)
+			sphy->maximum_linkrate = phy->maximum_linkrate;
 	}
 
 	if (phy->phy_type & PORT_TYPE_SAS) {
@@ -645,6 +650,9 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 		break;
 
 	case PHY_FUNC_SET_LINK_RATE:
+		hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_no, funcdata);
+		break;
+
 	case PHY_FUNC_RELEASE_SPINUP_HOLD:
 	default:
 		return -EOPNOTSUPP;

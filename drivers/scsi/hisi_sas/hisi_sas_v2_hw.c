@@ -1060,6 +1060,49 @@ static void sl_notify_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_CONTROL, sl_control);
 }
 
+static enum sas_linkrate phy_get_max_linkrate_v2_hw(void)
+{
+	return SAS_LINK_RATE_12_0_GBPS;
+}
+
+static void phy_set_linkrate_v2_hw(struct hisi_hba *hisi_hba, int phy_no,
+		struct sas_phy_linkrates *r)
+{
+	u32 prog_phy_link_rate =
+		hisi_sas_phy_read32(hisi_hba, phy_no, PROG_PHY_LINK_RATE);
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	int i;
+	enum sas_linkrate min, max;
+	u32 rate_mask = 0;
+
+	if (r->maximum_linkrate == SAS_LINK_RATE_UNKNOWN) {
+		max = sas_phy->phy->maximum_linkrate;
+		min = r->minimum_linkrate;
+	} else if (r->minimum_linkrate == SAS_LINK_RATE_UNKNOWN) {
+		max = r->maximum_linkrate;
+		min = sas_phy->phy->minimum_linkrate;
+	} else
+		return;
+
+	sas_phy->phy->maximum_linkrate = max;
+	sas_phy->phy->minimum_linkrate = min;
+
+	min -= SAS_LINK_RATE_1_5_GBPS;
+	max -= SAS_LINK_RATE_1_5_GBPS;
+
+	for (i = 0; i <= max; i++)
+		rate_mask |= 1 << (i * 2);
+
+	prog_phy_link_rate &= ~0xff;
+	prog_phy_link_rate |= rate_mask;
+
+	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
+			prog_phy_link_rate);
+
+	phy_hard_reset_v2_hw(hisi_hba, phy_no);
+}
+
 static int get_wideport_bitmap_v2_hw(struct hisi_hba *hisi_hba, int port_id)
 {
 	int i, bitmap = 0;
@@ -2739,6 +2782,8 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.phy_enable = enable_phy_v2_hw,
 	.phy_disable = disable_phy_v2_hw,
 	.phy_hard_reset = phy_hard_reset_v2_hw,
+	.phy_set_linkrate = phy_set_linkrate_v2_hw,
+	.phy_get_max_linkrate = phy_get_max_linkrate_v2_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V2_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v2_hdr),
 };
