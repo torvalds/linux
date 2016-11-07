@@ -3502,6 +3502,7 @@ static int try_smi_init(struct smi_info *new_smi)
 {
 	int rv = 0;
 	int i;
+	char *init_name = NULL;
 
 	printk(KERN_INFO PFX "Trying %s-specified %s state"
 	       " machine at %s address 0x%lx, slave address 0x%x,"
@@ -3529,6 +3530,26 @@ static int try_smi_init(struct smi_info *new_smi)
 		/* No support for anything else yet. */
 		rv = -EIO;
 		goto out_err;
+	}
+
+	/* Do this early so it's available for logs. */
+	if (!new_smi->dev) {
+		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d", 0);
+
+		/*
+		 * If we don't already have a device from something
+		 * else (like PCI), then register a new one.
+		 */
+		new_smi->pdev = platform_device_alloc("ipmi_si",
+						      new_smi->intf_num);
+		if (!new_smi->pdev) {
+			pr_err(PFX "Unable to allocate platform device\n");
+			goto out_err;
+		}
+		new_smi->dev = &new_smi->pdev->dev;
+		new_smi->dev->driver = &ipmi_driver.driver;
+		/* Nulled by device_add() */
+		new_smi->dev->init_name = init_name;
 	}
 
 	/* Allocate the state machine's data and initialize it. */
@@ -3604,21 +3625,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		atomic_set(&new_smi->req_events, 1);
 	}
 
-	if (!new_smi->dev) {
-		/*
-		 * If we don't already have a device from something
-		 * else (like PCI), then register a new one.
-		 */
-		new_smi->pdev = platform_device_alloc("ipmi_si",
-						      new_smi->intf_num);
-		if (!new_smi->pdev) {
-			printk(KERN_ERR PFX
-			       "Unable to allocate platform device\n");
-			goto out_err;
-		}
-		new_smi->dev = &new_smi->pdev->dev;
-		new_smi->dev->driver = &ipmi_driver.driver;
-
+	if (new_smi->pdev) {
 		rv = platform_device_add(new_smi->pdev);
 		if (rv) {
 			printk(KERN_ERR PFX
@@ -3668,6 +3675,9 @@ static int try_smi_init(struct smi_info *new_smi)
 	dev_info(new_smi->dev, "IPMI %s interface initialized\n",
 		 si_to_str[new_smi->si_type]);
 
+	WARN_ON(new_smi->dev->init_name != NULL);
+	kfree(init_name);
+
 	return 0;
 
 out_err_stop_timer:
@@ -3712,7 +3722,13 @@ out_err:
 	if (new_smi->dev_registered) {
 		platform_device_unregister(new_smi->pdev);
 		new_smi->dev_registered = false;
+		new_smi->pdev = NULL;
+	} else if (new_smi->pdev) {
+		platform_device_put(new_smi->pdev);
+		new_smi->pdev = NULL;
 	}
+
+	kfree(init_name);
 
 	return rv;
 }
