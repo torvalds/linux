@@ -85,5 +85,12 @@
 		pcie: pcie@0x01000000 {
 			compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
 		};
+
+		aips-bus@02100000 {
+			mmdc0: mmdc@021b0000 { /* MMDC0 */
+				compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
+				reg = <0x021b0000 0x4000>;
+			};
+		};
 	};
 };
