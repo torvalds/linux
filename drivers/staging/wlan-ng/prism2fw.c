@@ -443,7 +443,6 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		dest = fchunk[c].data + chunkoff;
 		*dest = 0xde;
 		*(dest + 1) = 0xc0;
-
 	}
 	return result;
 }
@@ -469,7 +468,6 @@ static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks)
 
 	*nfchunks = 0;
 	memset(fchunk, 0, sizeof(*fchunk));
-
 }
 
 /*----------------------------------------------------------------
@@ -645,7 +643,6 @@ static int mkpdrlist(struct pda *pda)
 
 		(pda->nrec)++;
 		curroff += le16_to_cpu(pda16[curroff]) + 1;
-
 	}
 	if (curroff >= (HFA384x_PDA_LEN_MAX / 2 - 1)) {
 		pr_err("no end record found or invalid lengths in PDR data, exiting. %x %d\n",
@@ -761,7 +758,6 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		}
 	}
 	return result;
-
 }
 
 /*----------------------------------------------------------------
@@ -890,7 +886,6 @@ static int read_fwfile(const struct ihex_binrec *record)
 	pr_debug("Reading fw file ...\n");
 
 	while (record) {
-
 		rcnt++;
 
 		len = be16_to_cpu(record->len);
@@ -1118,7 +1113,6 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 				result = 1;
 				goto free_result;
 			}
-
 		}
 	}
 
