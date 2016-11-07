@@ -115,15 +115,27 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 }
 
 /* Can be uninlined because referenced by paravirt */
-notrace static inline void native_write_msr(unsigned int msr,
+static notrace inline void __native_write_msr_notrace(unsigned int msr,
 					    unsigned low, unsigned high)
 {
 	asm volatile("1: wrmsr\n"
 		     "2:\n"
 		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_wrmsr_unsafe)
 		     : : "c" (msr), "a"(low), "d" (high) : "memory");
+}
+
+/* Can be uninlined because referenced by paravirt */
+static notrace inline void native_write_msr(unsigned int msr,
+					    unsigned low, unsigned high)
+{
+	__native_write_msr_notrace(msr, low, high);
 	if (msr_tracepoint_active(__tracepoint_write_msr))
 		do_trace_write_msr(msr, ((u64)high << 32 | low), 0);
+}
+
+static inline void wrmsr_notrace(unsigned msr, unsigned low, unsigned high)
+{
+	__native_write_msr_notrace(msr, low, high);
 }
 
 /* Can be uninlined because referenced by paravirt */
