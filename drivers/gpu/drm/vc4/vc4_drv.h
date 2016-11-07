@@ -381,6 +381,8 @@ struct vc4_validated_shader_info {
 
 	uint32_t num_uniform_addr_offsets;
 	uint32_t *uniform_addr_offsets;
+
+	bool is_threaded;
 };
 
 /**
