@@ -3448,8 +3448,16 @@ static int is_new_interface(struct smi_info *info)
 	list_for_each_entry(e, &smi_infos, link) {
 		if (e->io.addr_type != info->io.addr_type)
 			continue;
-		if (e->io.addr_data == info->io.addr_data)
+		if (e->io.addr_data == info->io.addr_data) {
+			/*
+			 * This is a cheap hack, ACPI doesn't have a defined
+			 * slave address but SMBIOS does.  Pick it up from
+			 * any source that has it available.
+			 */
+			if (info->slave_addr && !e->slave_addr)
+				e->slave_addr = info->slave_addr;
 			return 0;
+		}
 	}
 
 	return 1;
