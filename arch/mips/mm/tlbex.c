@@ -2041,7 +2041,7 @@ build_r4000_tlbchange_handler_tail(u32 **p, struct uasm_label **l,
 
 static void build_r4000_tlb_load_handler(void)
 {
-	u32 *p = handle_tlbl;
+	u32 *p = (u32 *)msk_isa16_mode((ulong)handle_tlbl);
 	const int handle_tlbl_size = handle_tlbl_end - handle_tlbl;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
@@ -2224,7 +2224,7 @@ static void build_r4000_tlb_load_handler(void)
 
 static void build_r4000_tlb_store_handler(void)
 {
-	u32 *p = handle_tlbs;
+	u32 *p = (u32 *)msk_isa16_mode((ulong)handle_tlbs);
 	const int handle_tlbs_size = handle_tlbs_end - handle_tlbs;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
@@ -2279,7 +2279,7 @@ static void build_r4000_tlb_store_handler(void)
 
 static void build_r4000_tlb_modify_handler(void)
 {
-	u32 *p = handle_tlbm;
+	u32 *p = (u32 *)msk_isa16_mode((ulong)handle_tlbm);
 	const int handle_tlbm_size = handle_tlbm_end - handle_tlbm;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
