@@ -8,6 +8,7 @@
  */
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define EX(insn,reg,addr,handler)			\
@@ -27,11 +28,13 @@
  */
 	.macro __BUILD_STRNLEN_ASM func
 LEAF(__strnlen_\func\()_asm)
+EXPORT_SYMBOL(__strnlen_\func\()_asm)
 	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
 	and		v0, a0
 	bnez		v0, .Lfault\@
 
 FEXPORT(__strnlen_\func\()_nocheck_asm)
+EXPORT_SYMBOL(__strnlen_\func\()_nocheck_asm)
 	move		v0, a0
 	PTR_ADDU	a1, a0			# stop pointer
 1:

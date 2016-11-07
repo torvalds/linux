@@ -19,20 +19,6 @@
 
 extern void *__bzero_kernel(void *__s, size_t __count);
 extern void *__bzero(void *__s, size_t __count);
-extern long __strncpy_from_kernel_nocheck_asm(char *__to,
-					      const char *__from, long __len);
-extern long __strncpy_from_kernel_asm(char *__to, const char *__from,
-				      long __len);
-extern long __strncpy_from_user_nocheck_asm(char *__to,
-					    const char *__from, long __len);
-extern long __strncpy_from_user_asm(char *__to, const char *__from,
-				    long __len);
-extern long __strlen_kernel_asm(const char *s);
-extern long __strlen_user_asm(const char *s);
-extern long __strnlen_kernel_nocheck_asm(const char *s);
-extern long __strnlen_kernel_asm(const char *s);
-extern long __strnlen_user_nocheck_asm(const char *s);
-extern long __strnlen_user_asm(const char *s);
 
 /*
  * String functions
@@ -60,13 +46,3 @@ EXPORT_SYMBOL(__copy_user_inatomic_eva);
 EXPORT_SYMBOL(__bzero_kernel);
 #endif
 EXPORT_SYMBOL(__bzero);
-EXPORT_SYMBOL(__strncpy_from_kernel_nocheck_asm);
-EXPORT_SYMBOL(__strncpy_from_kernel_asm);
-EXPORT_SYMBOL(__strncpy_from_user_nocheck_asm);
-EXPORT_SYMBOL(__strncpy_from_user_asm);
-EXPORT_SYMBOL(__strlen_kernel_asm);
-EXPORT_SYMBOL(__strlen_user_asm);
-EXPORT_SYMBOL(__strnlen_kernel_nocheck_asm);
-EXPORT_SYMBOL(__strnlen_kernel_asm);
-EXPORT_SYMBOL(__strnlen_user_nocheck_asm);
-EXPORT_SYMBOL(__strnlen_user_asm);

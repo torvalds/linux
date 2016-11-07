@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define EX(insn,reg,addr,handler)			\
@@ -30,11 +31,13 @@
 
 	.macro __BUILD_STRNCPY_ASM func
 LEAF(__strncpy_from_\func\()_asm)
+EXPORT_SYMBOL(__strncpy_from_\func\()_asm)
 	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
 	and		v0, a1
 	bnez		v0, .Lfault\@
 
 FEXPORT(__strncpy_from_\func\()_nocheck_asm)
+EXPORT_SYMBOL(__strncpy_from_\func\()_nocheck_asm)
 	move		t0, zero
 	move		v1, a1
 .ifeqs "\func","kernel"
@@ -72,6 +75,8 @@ FEXPORT(__strncpy_from_\func\()_nocheck_asm)
 	.global __strncpy_from_user_nocheck_asm
 	.set __strncpy_from_user_asm, __strncpy_from_kernel_asm
 	.set __strncpy_from_user_nocheck_asm, __strncpy_from_kernel_nocheck_asm
+	EXPORT_SYMBOL(__strncpy_from_user_asm)
+	EXPORT_SYMBOL(__strncpy_from_user_nocheck_asm)
 #endif
 
 __BUILD_STRNCPY_ASM kernel
