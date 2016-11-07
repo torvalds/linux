@@ -372,15 +372,21 @@ static int __sx150x_gpio_set(struct sx150x_pinctrl *pctl, unsigned int offset,
 				 BIT(offset), value ? BIT(offset) : 0);
 }
 
+static int sx150x_gpio_oscio_set(struct sx150x_pinctrl *pctl,
+				 int value)
+{
+	return regmap_write(pctl->regmap,
+			    pctl->data->pri.x789.reg_clock,
+			    (value ? 0x1f : 0x10));
+}
+
 static void sx150x_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			       int value)
 {
 	struct sx150x_pinctrl *pctl = gpiochip_get_data(chip);
 
 	if (sx150x_pin_is_oscio(pctl, offset))
-		regmap_write(pctl->regmap,
-			     pctl->data->pri.x789.reg_clock,
-			     (value ? 0x1f : 0x10));
+		sx150x_gpio_oscio_set(pctl, value);
 	else
 		__sx150x_gpio_set(pctl, offset, value);
 
@@ -405,10 +411,8 @@ static int sx150x_gpio_direction_output(struct gpio_chip *chip,
 	struct sx150x_pinctrl *pctl = gpiochip_get_data(chip);
 	int ret;
 
-	if (sx150x_pin_is_oscio(pctl, offset)) {
-		sx150x_gpio_set(chip, offset, value);
-		return 0;
-	}
+	if (sx150x_pin_is_oscio(pctl, offset))
+		return sx150x_gpio_oscio_set(pctl, value);
 
 	ret = __sx150x_gpio_set(pctl, offset, value);
 	if (ret < 0)
