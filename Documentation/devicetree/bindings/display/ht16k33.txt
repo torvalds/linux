@@ -1,0 +1,42 @@
+Holtek ht16k33 RAM mapping 16*8 LED controller driver with keyscan
+-------------------------------------------------------------------------------
+
+Required properties:
+- compatible:		"holtek,ht16k33"
+- reg:			I2C slave address of the chip.
+- interrupt-parent:	A phandle pointing to the interrupt controller
+			serving the interrupt for this chip.
+- interrupts:		Interrupt specification for the key pressed interrupt.
+- refresh-rate-hz:	Display update interval in HZ.
+- debounce-delay-ms:	Debouncing interval time in milliseconds.
+- linux,keymap: 	The keymap for keys as described in the binding
+			document (devicetree/bindings/input/matrix-keymap.txt).
+
+Optional properties:
+- linux,no-autorepeat:	Disable keyrepeat.
+- default-brightness-level: Initial brightness level [0-15] (default: 15).
+
+Example:
+
+&i2c1 {
+	ht16k33: ht16k33@70 {
+		compatible = "holtek,ht16k33";
+		reg = <0x70>;
+		refresh-rate-hz = <20>;
+		debounce-delay-ms = <50>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <5 (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_EDGE_RISING)>;
+		linux,keymap = <
+			MATRIX_KEY(2, 0, KEY_F6)
+			MATRIX_KEY(3, 0, KEY_F8)
+			MATRIX_KEY(4, 0, KEY_F10)
+			MATRIX_KEY(5, 0, KEY_F4)
+			MATRIX_KEY(6, 0, KEY_F2)
+			MATRIX_KEY(2, 1, KEY_F5)
+			MATRIX_KEY(3, 1, KEY_F7)
+			MATRIX_KEY(4, 1, KEY_F9)
+			MATRIX_KEY(5, 1, KEY_F3)
+			MATRIX_KEY(6, 1, KEY_F1)
+		>;
+	};
+};
