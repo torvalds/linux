@@ -1757,4 +1757,28 @@
 #define mmVGT_VTX_CNT_EN 0xA2AE
 #define mmVGT_VTX_VECT_EJECT_REG 0x222C
 
+/* manually added from old sid.h */
+#define mmCB_PERFCOUNTER0_SELECT0                       0x2688
+#define mmCB_PERFCOUNTER1_SELECT0                       0x268A
+#define mmCB_PERFCOUNTER1_SELECT1                       0x268B
+#define mmCB_PERFCOUNTER2_SELECT0                       0x268C
+#define mmCB_PERFCOUNTER2_SELECT1                       0x268D
+#define mmCB_PERFCOUNTER3_SELECT0                       0x268E
+#define mmCB_PERFCOUNTER3_SELECT1                       0x268F
+#define mmCP_COHER_CNTL2                                0x217A
+#define mmCP_DEBUG                                      0x307F
+#define mmRLC_SERDES_MASTER_BUSY_0                      0x3119
+#define mmRLC_SERDES_MASTER_BUSY_1                      0x311A
+#define mmRLC_RL_BASE                                   0x30C1
+#define mmRLC_RL_SIZE                                   0x30C2
+#define mmRLC_UCODE_ADDR                                0x30CB
+#define mmRLC_UCODE_DATA                                0x30CC
+#define mmRLC_GCPM_GENERAL_3                            0x311E
+#define mmRLC_SERDES_WR_MASTER_MASK_0                   0x3115
+#define mmRLC_SERDES_WR_MASTER_MASK_1                   0x3116
+#define mmRLC_TTOP_D                                    0x3105
+#define mmRLC_CLEAR_STATE_RESTORE_BASE                  0x30C8
+#define mmRLC_PG_AO_CU_MASK                             0x310B
+#define mmSPI_STATIC_THREAD_MGMT_3                      0x243A
+
 #endif

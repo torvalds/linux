@@ -269,4 +269,7 @@
 #define mmVCE_CONFIG 0x0F94
 #define mmXDMA_MSTR_MEM_OVERFLOW_CNTL 0x03F8
 
+/* from the old sid.h */
+#define mmDMA_TILING_CONFIG 0x342E
+
 #endif
