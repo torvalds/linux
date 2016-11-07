@@ -961,6 +961,9 @@ static int hisi_sas_query_task(struct sas_task *task)
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			break;
+		default:
+			rc = TMF_RESP_FUNC_FAILED;
+			break;
 		}
 	}
 	return rc;
