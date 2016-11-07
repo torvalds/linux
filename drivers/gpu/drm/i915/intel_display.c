@@ -15289,14 +15289,14 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		struct intel_plane *plane;
 
 		plane = intel_sprite_plane_create(dev_priv, pipe, sprite);
-		if (!plane) {
+		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			goto fail;
 		}
 	}
 
 	cursor = intel_cursor_plane_create(dev_priv, pipe);
-	if (!cursor) {
+	if (IS_ERR(cursor)) {
 		ret = PTR_ERR(cursor);
 		goto fail;
 	}
