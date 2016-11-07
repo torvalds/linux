@@ -1256,7 +1256,7 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 	case KEY_SYSRQ:
 		/*
 		 * Real AT keyboards (that's what we're trying
-		 * to emulate here emit 0xe0 0x2a 0xe0 0x37 when
+		 * to emulate here) emit 0xe0 0x2a 0xe0 0x37 when
 		 * pressing PrtSc/SysRq alone, but simply 0x54
 		 * when pressing Alt+PrtSc/SysRq.
 		 */
