@@ -196,7 +196,7 @@ static inline void native_apic_msr_write(u32 reg, u32 v)
 
 static inline void native_apic_msr_eoi_write(u32 reg, u32 v)
 {
-	wrmsr(APIC_BASE_MSR + (APIC_EOI >> 4), APIC_EOI_ACK, 0);
+	wrmsr_notrace(APIC_BASE_MSR + (APIC_EOI >> 4), APIC_EOI_ACK, 0);
 }
 
 static inline u32 native_apic_msr_read(u32 reg)
@@ -332,6 +332,7 @@ struct apic {
 	 * on write for EOI.
 	 */
 	void (*eoi_write)(u32 reg, u32 v);
+	void (*native_eoi_write)(u32 reg, u32 v);
 	u64 (*icr_read)(void);
 	void (*icr_write)(u32 low, u32 high);
 	void (*wait_icr_idle)(void);
