@@ -1,7 +1,7 @@
 Bug hunting
 +++++++++++
 
-Last updated: 20 December 2005
+Last updated: 28 October 2016
 
 Introduction
 ============
@@ -20,120 +20,62 @@ Before you submit a bug report read
 Devices not appearing
 =====================
 
-Often this is caused by udev. Check that first before blaming it on the
-kernel.
+Often this is caused by udev/systemd. Check that first before blaming it
+on the kernel.
 
 Finding patch that caused a bug
 ===============================
-
-
-
-Finding using ``git-bisect``
-----------------------------
 
 Using the provided tools with ``git`` makes finding bugs easy provided the bug
 is reproducible.
 
 Steps to do it:
 
-- start using git for the kernel source
-- read the man page for ``git-bisect``
-- have fun
+- build the Kernel from its git source
+- start bisect with [#f1]_::
 
-Finding it the old way
-----------------------
+	$ git bisect start
 
-[Sat Mar  2 10:32:33 PST 1996 KERNEL_BUG-HOWTO lm@sgi.com (Larry McVoy)]
+- mark the broken changeset with::
 
-This is how to track down a bug if you know nothing about kernel hacking.
-It's a brute force approach but it works pretty well.
+	$ git bisect bad [commit]
 
-You need:
+- mark a changeset where the code is known to work with::
 
-        - A reproducible bug - it has to happen predictably (sorry)
-        - All the kernel tar files from a revision that worked to the
-          revision that doesn't
+	$ git bisect good [commit]
 
-You will then do:
+- rebuild the Kernel and test
+- interact with git bisect by using either::
 
-        - Rebuild a revision that you believe works, install, and verify that.
-        - Do a binary search over the kernels to figure out which one
-          introduced the bug.  I.e., suppose 1.3.28 didn't have the bug, but
-          you know that 1.3.69 does.  Pick a kernel in the middle and build
-          that, like 1.3.50.  Build & test; if it works, pick the mid point
-          between .50 and .69, else the mid point between .28 and .50.
-        - You'll narrow it down to the kernel that introduced the bug.  You
-          can probably do better than this but it gets tricky.
+	$ git bisect good
 
-        - Narrow it down to a subdirectory
+  or::
 
-          - Copy kernel that works into "test".  Let's say that 3.62 works,
-            but 3.63 doesn't.  So you diff -r those two kernels and come
-            up with a list of directories that changed.  For each of those
-            directories:
+	$ git bisect bad
 
-                Copy the non-working directory next to the working directory
-                as "dir.63".
-                One directory at time, try moving the working directory to
-                "dir.62" and mv dir.63 dir"time, try::
+  depending if the bug happened on the changeset you're testing
+- After some interactions, git bisect will give you the changeset that
+  likely caused the bug.
 
-                        mv dir dir.62
-                        mv dir.63 dir
-                        find dir -name '*.[oa]' -print | xargs rm -f
+- For example, if you know that the current version is bad, and version
+  4.8 is good, you could do::
 
-                And then rebuild and retest.  Assuming that all related
-                changes were contained in the sub directory, this should
-                isolate the change to a directory.
+           $ git bisect start
+           $ git bisect bad                 # Current version is bad
+           $ git bisect good v4.8
 
-                Problems: changes in header files may have occurred; I've
-                found in my case that they were self explanatory - you may
-                or may not want to give up when that happens.
 
-        - Narrow it down to a file
+.. [#f1] You can, optionally, provide both good and bad arguments at git
+	 start::
 
-          - You can apply the same technique to each file in the directory,
-            hoping that the changes in that file are self contained.
+		git bisect start [BAD] [GOOD]
 
-        - Narrow it down to a routine
+For further references, please read:
 
-          - You can take the old file and the new file and manually create
-            a merged file that has::
-
-                #ifdef VER62
-                routine()
-                {
-                        ...
-                }
-                #else
-                routine()
-                {
-                        ...
-                }
-                #endif
-
-            And then walk through that file, one routine at a time and
-            prefix it with::
-
-                #define VER62
-                /* both routines here */
-                #undef VER62
-
-            Then recompile, retest, move the ifdefs until you find the one
-            that makes the difference.
-
-Finally, you take all the info that you have, kernel revisions, bug
-description, the extent to which you have narrowed it down, and pass
-that off to whomever you believe is the maintainer of that section.
-A post to linux.dev.kernel isn't such a bad idea if you've done some
-work to narrow it down.
-
-If you get it down to a routine, you'll probably get a fix in 24 hours.
-
-My apologies to Linus and the other kernel hackers for describing this
-brute force approach, it's hardly what a kernel hacker would do.  However,
-it does work and it lets non-hackers help fix bugs.  And it is cool
-because Linux snapshots will let you do this - something that you can't
-do with vendor supplied releases.
+- The man page for ``git-bisect``
+- `Fighting regressions with git bisect <https://www.kernel.org/pub/software/scm/git/docs/git-bisect-lk2009.html>`_
+- `Fully automated bisecting with "git bisect run" <https://lwn.net/Articles/317154>`_
+- `Using Git bisect to figure out when brokenness was introduced <http://webchick.net/node/99>`_
 
 Fixing the bug
 ==============
@@ -141,13 +83,16 @@ Fixing the bug
 Nobody is going to tell you how to fix bugs. Seriously. You need to work it
 out. But below are some hints on how to use the tools.
 
+objdump
+-------
+
 To debug a kernel, use objdump and look for the hex offset from the crash
 output to find the valid line of code/assembler. Without debug symbols, you
 will see the assembler code for the routine shown, but if your kernel has
 debug symbols the C code will also be available. (Debug symbols can be enabled
 in the kernel hacking menu of the menu configuration.) For example::
 
-    objdump -r -S -l --disassemble net/dccp/ipv4.o
+    $ objdump -r -S -l --disassemble net/dccp/ipv4.o
 
 .. note::
 
@@ -157,7 +102,7 @@ in the kernel hacking menu of the menu configuration.) For example::
 If you don't have access to the code you can also debug on some crash dumps
 e.g. crash dump output as shown by Dave Miller::
 
-     EIP is at ip_queue_xmit+0x14/0x4c0
+     EIP is at 	+0x14/0x4c0
       ...
      Code: 44 24 04 e8 6f 05 00 00 e9 e8 fe ff ff 8d 76 00 8d bc 27 00 00
      00 00 55 57  56 53 81 ec bc 00 00 00 8b ac 24 d0 00 00 00 8b 5d 08
@@ -185,16 +130,25 @@ e.g. crash dump output as shown by Dave Miller::
          mov        0x8(%ebp), %ebx         ! %ebx = skb->sk
          mov        0x13c(%ebx), %eax       ! %eax = inet_sk(sk)->opt
 
+gdb
+---
+
 In addition, you can use GDB to figure out the exact file and line
-number of the OOPS from the ``vmlinux`` file. If you have
-``CONFIG_DEBUG_INFO`` enabled, you can simply copy the EIP value from the
-OOPS::
+number of the OOPS from the ``vmlinux`` file.
+
+The usage of gdb requires a kernel compiled with ``CONFIG_DEBUG_INFO``.
+This can be set by running::
+
+  $ ./scripts/config -d COMPILE_TEST -e DEBUG_KERNEL -e DEBUG_INFO
+
+On a kernel compiled with ``CONFIG_DEBUG_INFO``, you can simply copy the
+EIP value from the OOPS::
 
  EIP:    0060:[<c021e50e>]    Not tainted VLI
 
 And use GDB to translate that to human-readable form::
 
-  gdb vmlinux
+  $ gdb vmlinux
   (gdb) l *0xc021e50e
 
 If you don't have ``CONFIG_DEBUG_INFO`` enabled, you use the function
@@ -204,14 +158,32 @@ offset from the OOPS::
 
 And recompile the kernel with ``CONFIG_DEBUG_INFO`` enabled::
 
-  make vmlinux
-  gdb vmlinux
+  $ make vmlinux
+  $ gdb vmlinux
+  (gdb) l *vt_ioctl+0xda8
+  0x1888 is in vt_ioctl (drivers/tty/vt/vt_ioctl.c:293).
+  288	{
+  289		struct vc_data *vc = NULL;
+  290		int ret = 0;
+  291
+  292		console_lock();
+  293		if (VT_BUSY(vc_num))
+  294			ret = -EBUSY;
+  295		else if (vc_num)
+  296			vc = vc_deallocate(vc_num);
+  297		console_unlock();
+
+or, if you want to be more verbose::
+
   (gdb) p vt_ioctl
-  (gdb) l *(0x<address of vt_ioctl> + 0xda8)
+  $1 = {int (struct tty_struct *, unsigned int, unsigned long)} 0xae0 <vt_ioctl>
+  (gdb) l *0xae0+0xda8
 
-or, as one command::
+You could, instead, use the object file::
 
-  (gdb) l *(vt_ioctl + 0xda8)
+  $ make drivers/tty/
+  $ gdb drivers/tty/vt/vt_ioctl.o
+  (gdb) l *vt_ioctl+0xda8
 
 If you have a call trace, such as::
 
@@ -221,17 +193,11 @@ If you have a call trace, such as::
       [<ffffffff8802770b>] :jbd:journal_stop+0x1be/0x1ee
       ...
 
-this shows the problem in the :jbd: module. You can load that module in gdb
-and list the relevant code::
+this shows the problem likely in the :jbd: module. You can load that module
+in gdb and list the relevant code::
 
-  gdb fs/jbd/jbd.ko
-  (gdb) p log_wait_commit
-  (gdb) l *(0x<address> + 0xa3)
-
-or::
-
-  (gdb) l *(log_wait_commit + 0xa3)
-
+  $ gdb fs/jbd/jbd.ko
+  (gdb) l *log_wait_commit+0xa3
 
 Another very useful option of the Kernel Hacking section in menuconfig is
 Debug memory allocations. This will help you see whether data has been
