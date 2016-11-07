@@ -993,6 +993,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_dai **codec_dais;
 	struct snd_soc_platform *platform;
+	struct device_node *platform_of_node;
 	const char *platform_name;
 	int i;
 
@@ -1042,9 +1043,12 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 
 	/* find one from the set of registered platforms */
 	list_for_each_entry(platform, &platform_list, list) {
+		platform_of_node = platform->dev->of_node;
+		if (!platform_of_node && platform->dev->parent->of_node)
+			platform_of_node = platform->dev->parent->of_node;
+
 		if (dai_link->platform_of_node) {
-			if (platform->dev->of_node !=
-			    dai_link->platform_of_node)
+			if (platform_of_node != dai_link->platform_of_node)
 				continue;
 		} else {
 			if (strcmp(platform->component.name, platform_name))
