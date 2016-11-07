@@ -26,6 +26,7 @@ problems and bugs in particular.
    reporting-bugs
    security-bugs
    bug-hunting
+   bug-bisect
    oops-tracing
    ramoops
    dynamic-debug-howto
