@@ -17,7 +17,6 @@
 #include <linux/kprobes.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
-#include <asm/kprobes.h>
 #include <asm/insn.h>
 #include <asm/sections.h>
 
