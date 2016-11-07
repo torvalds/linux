@@ -2766,6 +2766,13 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		goto out_rearm;
 	}
 
+	/*
+	 * New request retired after this work handler started, extend active
+	 * period until next instance of the work.
+	 */
+	if (work_pending(work))
+		goto out_unlock;
+
 	if (dev_priv->gt.active_requests)
 		goto out_unlock;
 
