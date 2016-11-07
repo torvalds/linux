@@ -125,7 +125,7 @@ int wep_change_key(struct wlandevice *wlandev, int keynum, u8 *key, int keylen)
 		return -1;
 	if (keylen >= MAX_KEYLEN)
 		return -1;
-	if (key == NULL)
+	if (!key)
 		return -1;
 	if (keynum < 0)
 		return -1;
