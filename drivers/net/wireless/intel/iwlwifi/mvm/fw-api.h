@@ -1256,13 +1256,16 @@ struct iwl_missed_beacons_notif {
  * @external_ver: external image version
  * @status: MFUART loading status
  * @duration: MFUART loading time
+ * @image_size: MFUART image size in bytes
 */
 struct iwl_mfuart_load_notif {
 	__le32 installed_ver;
 	__le32 external_ver;
 	__le32 status;
 	__le32 duration;
-} __packed; /*MFU_LOADER_NTFY_API_S_VER_1*/
+	/* image size valid only in v2 of the command */
+	__le32 image_size;
+} __packed; /*MFU_LOADER_NTFY_API_S_VER_2*/
 
 /**
  * struct iwl_set_calib_default_cmd - set default value for calibration.
