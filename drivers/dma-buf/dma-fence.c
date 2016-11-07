@@ -161,9 +161,6 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 	if (WARN_ON(timeout < 0))
 		return -EINVAL;
 
-	if (timeout == 0)
-		return dma_fence_is_signaled(fence);
-
 	trace_dma_fence_wait_start(fence);
 	ret = fence->ops->wait(fence, intr, timeout);
 	trace_dma_fence_wait_end(fence);
