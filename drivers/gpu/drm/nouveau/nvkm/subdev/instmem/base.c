@@ -104,7 +104,7 @@ nvkm_instobj_dtor(struct nvkm_memory *memory)
 	return iobj;
 }
 
-const struct nvkm_memory_func
+static const struct nvkm_memory_func
 nvkm_instobj_func = {
 	.dtor = nvkm_instobj_dtor,
 	.target = nvkm_instobj_target,
@@ -156,7 +156,7 @@ nvkm_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
 	return nvkm_wo32(iobj->parent, offset, data);
 }
 
-const struct nvkm_memory_func
+static const struct nvkm_memory_func
 nvkm_instobj_func_slow = {
 	.dtor = nvkm_instobj_dtor,
 	.target = nvkm_instobj_target,

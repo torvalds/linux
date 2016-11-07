@@ -59,7 +59,7 @@ gp104_disp_core_init(struct nv50_disp_dmac *chan)
 	return 0;
 }
 
-const struct nv50_disp_dmac_func
+static const struct nv50_disp_dmac_func
 gp104_disp_core_func = {
 	.init = gp104_disp_core_init,
 	.fini = gf119_disp_core_fini,

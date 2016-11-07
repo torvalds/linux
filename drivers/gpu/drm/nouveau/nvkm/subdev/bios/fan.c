@@ -25,7 +25,7 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/fan.h>
 
-u16
+static u16
 nvbios_fan_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_P;
@@ -52,7 +52,7 @@ nvbios_fan_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	return 0x0000;
 }
 
-u16
+static u16
 nvbios_fan_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 		 u8 *cnt, u8 *len)
 {

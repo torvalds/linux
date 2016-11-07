@@ -288,7 +288,8 @@ nvkm_iccsense_init(struct nvkm_subdev *subdev)
 	return 0;
 }
 
-struct nvkm_subdev_func iccsense_func = {
+static const struct nvkm_subdev_func
+iccsense_func = {
 	.oneinit = nvkm_iccsense_oneinit,
 	.init = nvkm_iccsense_init,
 	.dtor = nvkm_iccsense_dtor,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,19 +22,19 @@
 #include "priv.h"
 #include "gf100.h"
 
-/* GK20A's FB is similar to GF100's, but without the ability to allocate VRAM */
+/* GM20B's FB is similar to GM200, but without the ability to allocate VRAM */
 static const struct nvkm_fb_func
-gk20a_fb = {
+gm20b_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
-	.init = gf100_fb_init,
-	.init_page = gf100_fb_init_page,
+	.init = gm200_fb_init,
+	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
 	.memtype_valid = gf100_fb_memtype_valid,
 };
 
 int
-gk20a_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+gm20b_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	return gf100_fb_new_(&gk20a_fb, device, index, pfb);
+	return gf100_fb_new_(&gm20b_fb, device, index, pfb);
 }

@@ -204,6 +204,10 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 	if (unlikely(drm_debug & DRM_UT_DRIVER))                               \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
+#define NV_ATOMIC(drm,f,a...) do {                                             \
+	if (unlikely(drm_debug & DRM_UT_ATOMIC))                               \
+		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+} while(0)
 
 extern int nouveau_modeset;
 
