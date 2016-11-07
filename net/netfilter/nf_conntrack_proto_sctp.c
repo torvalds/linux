@@ -816,32 +816,21 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.init_net		= sctp_init_net,
 };
 
+static struct nf_conntrack_l4proto *sctp_proto[] = {
+	&nf_conntrack_l4proto_sctp4,
+	&nf_conntrack_l4proto_sctp6,
+};
+
 static int sctp_net_init(struct net *net)
 {
-	int ret = 0;
-
-	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_sctp4);
-	if (ret < 0) {
-		pr_err("nf_conntrack_sctp4: pernet registration failed.\n");
-		goto out;
-	}
-	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_sctp6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_sctp6: pernet registration failed.\n");
-		goto cleanup_sctp4;
-	}
-	return 0;
-
-cleanup_sctp4:
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_sctp4);
-out:
-	return ret;
+	return nf_ct_l4proto_pernet_register(net, sctp_proto,
+					     ARRAY_SIZE(sctp_proto));
 }
 
 static void sctp_net_exit(struct net *net)
 {
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_sctp6);
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_sctp4);
+	nf_ct_l4proto_pernet_unregister(net, sctp_proto,
+					ARRAY_SIZE(sctp_proto));
 }
 
 static struct pernet_operations sctp_net_ops = {
@@ -857,29 +846,16 @@ static int __init nf_conntrack_proto_sctp_init(void)
 
 	ret = register_pernet_subsys(&sctp_net_ops);
 	if (ret < 0)
-		goto out_pernet;
-
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_sctp4);
+		return ret;
+	ret = nf_ct_l4proto_register(sctp_proto, ARRAY_SIZE(sctp_proto));
 	if (ret < 0)
-		goto out_sctp4;
-
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_sctp6);
-	if (ret < 0)
-		goto out_sctp6;
-
-	return 0;
-out_sctp6:
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
-out_sctp4:
-	unregister_pernet_subsys(&sctp_net_ops);
-out_pernet:
+		unregister_pernet_subsys(&sctp_net_ops);
 	return ret;
 }
 
 static void __exit nf_conntrack_proto_sctp_fini(void)
 {
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
+	nf_ct_l4proto_unregister(sctp_proto, ARRAY_SIZE(sctp_proto));
 	unregister_pernet_subsys(&sctp_net_ops);
 }
 
