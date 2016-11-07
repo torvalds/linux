@@ -17,32 +17,8 @@
 #include <asm/fpu.h>
 #include <asm/msa.h>
 
-extern void *__bzero_kernel(void *__s, size_t __count);
-extern void *__bzero(void *__s, size_t __count);
-
-/*
- * String functions
- */
-EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memmove);
-
 /*
  * Functions that operate on entire pages.  Mostly used by memory management.
  */
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
-
-/*
- * Userspace access stuff.
- */
-EXPORT_SYMBOL(__copy_user);
-EXPORT_SYMBOL(__copy_user_inatomic);
-#ifdef CONFIG_EVA
-EXPORT_SYMBOL(__copy_from_user_eva);
-EXPORT_SYMBOL(__copy_in_user_eva);
-EXPORT_SYMBOL(__copy_to_user_eva);
-EXPORT_SYMBOL(__copy_user_inatomic_eva);
-EXPORT_SYMBOL(__bzero_kernel);
-#endif
-EXPORT_SYMBOL(__bzero);
