@@ -450,7 +450,7 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
 	REG64_IDX(RING_TIMESTAMP, RENDER_RING_BASE),
-	REG32(OACONTROL), /* Only allowed for LRI and SRM. See below. */
+	REG32(GEN7_OACONTROL), /* Only allowed for LRI and SRM. See below. */
 	REG64(MI_PREDICATE_SRC0),
 	REG64(MI_PREDICATE_SRC1),
 	REG32(GEN7_3DPRIM_END_OFFSET),
@@ -1108,7 +1108,7 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 			 * to the register. Hence, limit OACONTROL writes to
 			 * only MI_LOAD_REGISTER_IMM commands.
 			 */
-			if (reg_addr == i915_mmio_reg_offset(OACONTROL)) {
+			if (reg_addr == i915_mmio_reg_offset(GEN7_OACONTROL)) {
 				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
 					DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
 					return false;

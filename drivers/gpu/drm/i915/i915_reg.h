@@ -615,7 +615,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define HSW_CS_GPR(n)                   _MMIO(0x2600 + (n) * 8)
 #define HSW_CS_GPR_UDW(n)               _MMIO(0x2600 + (n) * 8 + 4)
 
-#define OACONTROL _MMIO(0x2360)
+#define GEN7_OACONTROL _MMIO(0x2360)
 
 #define _GEN7_PIPEA_DE_LOAD_SL	0x70068
 #define _GEN7_PIPEB_DE_LOAD_SL	0x71068
