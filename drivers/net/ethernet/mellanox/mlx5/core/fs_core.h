@@ -117,6 +117,7 @@ struct mlx5_flow_table {
 	struct mutex			lock;
 	/* FWD rules that point on this flow table */
 	struct list_head		fwd_rules;
+	u32				flags;
 };
 
 struct mlx5_fc_cache {

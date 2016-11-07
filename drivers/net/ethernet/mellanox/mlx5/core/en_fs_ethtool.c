@@ -99,7 +99,7 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 			   MLX5E_ETHTOOL_NUM_ENTRIES);
 	ft = mlx5_create_auto_grouped_flow_table(ns, prio,
 						 table_size,
-						 MLX5E_ETHTOOL_NUM_GROUPS, 0);
+						 MLX5E_ETHTOOL_NUM_GROUPS, 0, 0);
 	if (IS_ERR(ft))
 		return (void *)ft;
 

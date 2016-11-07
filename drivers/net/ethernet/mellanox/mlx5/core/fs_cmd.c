@@ -37,6 +37,7 @@
 #include "fs_core.h"
 #include "fs_cmd.h"
 #include "mlx5_core.h"
+#include "eswitch.h"
 
 int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 			    struct mlx5_flow_table *ft)
@@ -61,8 +62,9 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 			       enum fs_flow_table_op_mod op_mod,
 			       enum fs_flow_table_type type, unsigned int level,
 			       unsigned int log_size, struct mlx5_flow_table
-			       *next_ft, unsigned int *table_id)
+			       *next_ft, unsigned int *table_id, u32 flags)
 {
+	int en_encap_decap = !!(flags & MLX5_FLOW_TABLE_TUNNEL_EN);
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)]   = {0};
 	int err;
@@ -77,6 +79,9 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 		MLX5_SET(create_flow_table_in, in, vport_number, vport);
 		MLX5_SET(create_flow_table_in, in, other_vport, 1);
 	}
+
+	MLX5_SET(create_flow_table_in, in, decap_en, en_encap_decap);
+	MLX5_SET(create_flow_table_in, in, encap_en, en_encap_decap);
 
 	switch (op_mod) {
 	case FS_FT_OP_MOD_NORMAL:

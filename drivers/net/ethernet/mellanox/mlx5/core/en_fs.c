@@ -777,7 +777,7 @@ static int mlx5e_create_ttc_table(struct mlx5e_priv *priv)
 	int err;
 
 	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_TTC_TABLE_SIZE, MLX5E_TTC_FT_LEVEL);
+				       MLX5E_TTC_TABLE_SIZE, MLX5E_TTC_FT_LEVEL, 0);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
 		ft->t = NULL;
@@ -948,7 +948,7 @@ static int mlx5e_create_l2_table(struct mlx5e_priv *priv)
 
 	ft->num_groups = 0;
 	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_L2_TABLE_SIZE, MLX5E_L2_FT_LEVEL);
+				       MLX5E_L2_TABLE_SIZE, MLX5E_L2_FT_LEVEL, 0);
 
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
@@ -1038,7 +1038,7 @@ static int mlx5e_create_vlan_table(struct mlx5e_priv *priv)
 
 	ft->num_groups = 0;
 	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_VLAN_TABLE_SIZE, MLX5E_VLAN_FT_LEVEL);
+				       MLX5E_VLAN_TABLE_SIZE, MLX5E_VLAN_FT_LEVEL, 0);
 
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);

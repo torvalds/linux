@@ -83,7 +83,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 							    MLX5E_TC_PRIO,
 							    MLX5E_TC_TABLE_NUM_ENTRIES,
 							    MLX5E_TC_TABLE_NUM_GROUPS,
-							    0);
+							    0, 0);
 		if (IS_ERR(priv->fs.tc.t)) {
 			netdev_err(priv->netdev,
 				   "Failed to create tc offload table\n");
