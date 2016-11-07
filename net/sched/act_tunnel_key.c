@@ -16,7 +16,6 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
-#include <net/dst_metadata.h>
 
 #include <linux/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_tunnel_key.h>
