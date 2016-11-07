@@ -82,6 +82,21 @@ static u32 i915_perf_stream_paranoid = true;
 #define INVALID_CTX_ID 0xffffffff
 
 
+/* For sysctl proc_dointvec_minmax of i915_oa_max_sample_rate
+ *
+ * 160ns is the smallest sampling period we can theoretically program the OA
+ * unit with on Haswell, corresponding to 6.25MHz.
+ */
+static int oa_sample_rate_hard_limit = 6250000;
+
+/* Theoretically we can program the OA unit to sample every 160ns but don't
+ * allow that by default unless root...
+ *
+ * The default threshold of 100000Hz is based on perf's similar
+ * kernel.perf_event_max_sample_rate sysctl parameter.
+ */
+static u32 i915_oa_max_sample_rate = 100000;
+
 /* XXX: beware if future OA HW adds new report formats that the current
  * code assumes all reports have a power-of-two size and ~(size - 1) can
  * be used as a mask to align the OA tail pointer.
@@ -1314,6 +1329,7 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 	}
 
 	for (i = 0; i < n_props; i++) {
+		u64 oa_period, oa_freq_hz;
 		u64 id, value;
 		int ret;
 
@@ -1359,21 +1375,35 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 				return -EINVAL;
 			}
 
-			/* NB: The exponent represents a period as follows:
-			 *
-			 *   80ns * 2^(period_exponent + 1)
-			 *
-			 * Theoretically we can program the OA unit to sample
+			/* Theoretically we can program the OA unit to sample
 			 * every 160ns but don't allow that by default unless
 			 * root.
 			 *
-			 * Referring to perf's
-			 * kernel.perf_event_max_sample_rate for a precedent
-			 * (100000 by default); with an OA exponent of 6 we get
-			 * a period of 10.240 microseconds -just under 100000Hz
+			 * On Haswell the period is derived from the exponent
+			 * as:
+			 *
+			 *   period = 80ns * 2^(exponent + 1)
 			 */
-			if (value < 6 && !capable(CAP_SYS_ADMIN)) {
-				DRM_ERROR("Minimum OA sampling exponent is 6 without root privileges\n");
+			BUILD_BUG_ON(sizeof(oa_period) != 8);
+			oa_period = 80ull * (2ull << value);
+
+			/* This check is primarily to ensure that oa_period <=
+			 * UINT32_MAX (before passing to do_div which only
+			 * accepts a u32 denominator), but we can also skip
+			 * checking anything < 1Hz which implicitly can't be
+			 * limited via an integer oa_max_sample_rate.
+			 */
+			if (oa_period <= NSEC_PER_SEC) {
+				u64 tmp = NSEC_PER_SEC;
+				do_div(tmp, oa_period);
+				oa_freq_hz = tmp;
+			} else
+				oa_freq_hz = 0;
+
+			if (oa_freq_hz > i915_oa_max_sample_rate &&
+			    !capable(CAP_SYS_ADMIN)) {
+				DRM_ERROR("OA exponent would exceed the max sampling frequency (sysctl dev.i915.oa_max_sample_rate) %uHz without root privileges\n",
+					  i915_oa_max_sample_rate);
 				return -EACCES;
 			}
 
@@ -1480,6 +1510,15 @@ static struct ctl_table oa_table[] = {
 	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = &zero,
 	 .extra2 = &one,
+	 },
+	{
+	 .procname = "oa_max_sample_rate",
+	 .data = &i915_oa_max_sample_rate,
+	 .maxlen = sizeof(i915_oa_max_sample_rate),
+	 .mode = 0644,
+	 .proc_handler = proc_dointvec_minmax,
+	 .extra1 = &zero,
+	 .extra2 = &oa_sample_rate_hard_limit,
 	 },
 	{}
 };
