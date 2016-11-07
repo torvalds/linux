@@ -82,6 +82,8 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS |
 				      MLX5_MATCH_MISC_PARAMETERS;
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DECAP)
+		spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
 
 	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
 				   spec, &flow_act, dest, i);
@@ -409,6 +411,7 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	u32 *flow_group_in;
 	void *match_criteria;
 	int table_size, ix, err = 0;
+	u32 flags = 0;
 
 	flow_group_in = mlx5_vzalloc(inlen);
 	if (!flow_group_in)
@@ -423,10 +426,14 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	esw_debug(dev, "Create offloads FDB table, log_max_size(%d)\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
+		flags |= MLX5_FLOW_TABLE_TUNNEL_EN;
+
 	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
 						  ESW_OFFLOADS_NUM_ENTRIES,
 						  ESW_OFFLOADS_NUM_GROUPS, 0,
-						  0);
+						  flags);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create Fast path FDB Table err %d\n", err);
