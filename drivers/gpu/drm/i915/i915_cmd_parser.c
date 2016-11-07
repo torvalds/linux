@@ -1272,7 +1272,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 
 		if (!check_cmd(engine, desc, cmd, length, is_master,
 			       &oacontrol_set)) {
-			ret = -EINVAL;
+			ret = -EACCES;
 			break;
 		}
 
@@ -1333,6 +1333,9 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 	 * 5. GPGPU dispatch compute indirect registers.
 	 * 6. TIMESTAMP register and Haswell CS GPR registers
 	 * 7. Allow MI_LOAD_REGISTER_REG between whitelisted registers.
+	 * 8. Don't report cmd_check() failures as EINVAL errors to userspace;
+	 *    rely on the HW to NOOP disallowed commands as it would without
+	 *    the parser enabled.
 	 */
-	return 7;
+	return 8;
 }
