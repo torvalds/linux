@@ -575,10 +575,11 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	mac |= TXEN | RXEN;     /* enable RX/TX */
 
-	/* We don't have ethtool support yet, so force flow-control mode
-	 * to 'full' always.
-	 */
-	mac |= TXFC | RXFC;
+	/* Configure MAC flow control to match the PHY's settings. */
+	if (phydev->pause)
+		mac |= RXFC;
+	if (phydev->pause != phydev->asym_pause)
+		mac |= TXFC;
 
 	/* setup link speed */
 	mac &= ~SPEED_MASK;
