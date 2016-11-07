@@ -83,6 +83,12 @@ struct af9033_config {
 	 * returned by that driver
 	 */
 	struct dvb_frontend **fe;
+
+	/*
+	 * regmap for IT913x integrated tuner driver
+	 * returned by that driver
+	 */
+	struct regmap *regmap;
 };
 
 struct af9033_ops {

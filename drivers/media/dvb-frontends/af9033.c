@@ -1150,6 +1150,7 @@ static int af9033_probe(struct i2c_client *client,
 		cfg->ops->pid_filter = af9033_pid_filter;
 		cfg->ops->pid_filter_ctrl = af9033_pid_filter_ctrl;
 	}
+	cfg->regmap = dev->regmap;
 	i2c_set_clientdata(client, dev);
 
 	dev_info(&client->dev, "Afatech AF9033 successfully attached\n");
