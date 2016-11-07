@@ -3561,7 +3561,6 @@ static int vop_early_resume(struct rk_lcdc_driver *dev_drv)
 	spin_lock(&vop_dev->reg_lock);
 
 	vop_msk_reg(vop_dev, DSP_CTRL0, V_DSP_OUT_ZERO(0));
-	vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(0));
 	vop_msk_reg(vop_dev, DSP_CTRL0, V_DSP_BLANK_EN(0));
 	vop_cfg_done(vop_dev);
 	spin_unlock(&vop_dev->reg_lock);
@@ -3573,6 +3572,11 @@ static int vop_early_resume(struct rk_lcdc_driver *dev_drv)
 		mdelay(50);
 		rockchip_iovmm_activate(dev_drv->dev);
 	}
+
+	spin_lock(&vop_dev->reg_lock);
+	vop_msk_reg(vop_dev, SYS_CTRL, V_VOP_STANDBY_EN(0));
+	vop_cfg_done(vop_dev);
+	spin_unlock(&vop_dev->reg_lock);
 
 	dev_drv->suspend_flag = 0;
 
