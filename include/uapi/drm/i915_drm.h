@@ -258,6 +258,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_USERPTR		0x33
 #define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
 #define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
+#define DRM_I915_PERF_OPEN		0x36
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -311,6 +312,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_USERPTR			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_USERPTR, struct drm_i915_gem_userptr)
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
+#define DRM_IOCTL_I915_PERF_OPEN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_OPEN, struct drm_i915_perf_open_param)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -1226,6 +1228,71 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
 #define I915_CONTEXT_PARAM_BANNABLE	0x5
 	__u64 value;
+};
+
+enum drm_i915_perf_property_id {
+	/**
+	 * Open the stream for a specific context handle (as used with
+	 * execbuffer2). A stream opened for a specific context this way
+	 * won't typically require root privileges.
+	 */
+	DRM_I915_PERF_PROP_CTX_HANDLE = 1,
+
+	DRM_I915_PERF_PROP_MAX /* non-ABI */
+};
+
+struct drm_i915_perf_open_param {
+	__u32 flags;
+#define I915_PERF_FLAG_FD_CLOEXEC	(1<<0)
+#define I915_PERF_FLAG_FD_NONBLOCK	(1<<1)
+#define I915_PERF_FLAG_DISABLED		(1<<2)
+
+	/** The number of u64 (id, value) pairs */
+	__u32 num_properties;
+
+	/**
+	 * Pointer to array of u64 (id, value) pairs configuring the stream
+	 * to open.
+	 */
+	__u64 __user properties_ptr;
+};
+
+#define I915_PERF_IOCTL_ENABLE	_IO('i', 0x0)
+#define I915_PERF_IOCTL_DISABLE	_IO('i', 0x1)
+
+/**
+ * Common to all i915 perf records
+ */
+struct drm_i915_perf_record_header {
+	__u32 type;
+	__u16 pad;
+	__u16 size;
+};
+
+enum drm_i915_perf_record_type {
+
+	/**
+	 * Samples are the work horse record type whose contents are extensible
+	 * and defined when opening an i915 perf stream based on the given
+	 * properties.
+	 *
+	 * Boolean properties following the naming convention
+	 * DRM_I915_PERF_SAMPLE_xyz_PROP request the inclusion of 'xyz' data in
+	 * every sample.
+	 *
+	 * The order of these sample properties given by userspace has no
+	 * affect on the ordering of data within a sample. The order will be
+	 * documented here.
+	 *
+	 * struct {
+	 *     struct drm_i915_perf_record_header header;
+	 *
+	 *     TODO: itemize extensible sample data here
+	 * };
+	 */
+	DRM_I915_PERF_RECORD_SAMPLE = 1,
+
+	DRM_I915_PERF_RECORD_MAX /* non-ABI */
 };
 
 #if defined(__cplusplus)
