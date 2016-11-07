@@ -924,6 +924,31 @@ static int sx150x_reset(struct sx150x_pinctrl *pctl)
 	return err;
 }
 
+static int sx150x_init_misc(struct sx150x_pinctrl *pctl)
+{
+	u8 reg, value;
+
+	switch (pctl->data->model) {
+	case SX150X_789:
+		reg   = pctl->data->pri.x789.reg_misc;
+		value = SX150X_789_REG_MISC_AUTOCLEAR_OFF;
+		break;
+	case SX150X_456:
+		reg   = pctl->data->pri.x456.reg_advance;
+		value = 0x00;
+		break;
+	case SX150X_123:
+		reg   = pctl->data->pri.x123.reg_advance;
+		value = 0x00;
+		break;
+	default:
+		WARN(1, "Unknown chip model %d\n", pctl->data->model);
+		return -EINVAL;
+	}
+
+	return sx150x_i2c_write(pctl->client, reg, value);
+}
+
 static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 {
 	int err;
@@ -935,18 +960,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 			return err;
 	}
 
-	if (pctl->data->model == SX150X_789)
-		err = sx150x_i2c_write(pctl->client,
-				pctl->data->pri.x789.reg_misc,
-				SX150X_789_REG_MISC_AUTOCLEAR_OFF);
-	else if (pctl->data->model == SX150X_456)
-		err = sx150x_i2c_write(pctl->client,
-				pctl->data->pri.x456.reg_advance,
-				0x00);
-	else
-		err = sx150x_i2c_write(pctl->client,
-				pctl->data->pri.x123.reg_advance,
-				0x00);
+	err = sx150x_init_misc(pctl);
 	if (err < 0)
 		return err;
 
