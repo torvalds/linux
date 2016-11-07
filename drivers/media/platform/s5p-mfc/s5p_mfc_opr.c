@@ -45,7 +45,8 @@ int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
 	b->virt = dma_alloc_coherent(dev, b->size, &b->dma, GFP_KERNEL);
 
 	if (!b->virt) {
-		mfc_err("Allocating private buffer failed\n");
+		mfc_err("Allocating private buffer of size %zu failed\n",
+			b->size);
 		return -ENOMEM;
 	}
 
