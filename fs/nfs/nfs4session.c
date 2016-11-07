@@ -198,7 +198,7 @@ static int nfs4_slot_get_seqid(struct nfs4_slot_table  *tbl, u32 slotid,
 static bool nfs4_slot_seqid_in_use(struct nfs4_slot_table *tbl,
 		u32 slotid, u32 seq_nr)
 {
-	u32 cur_seq;
+	u32 cur_seq = 0;
 	bool ret = false;
 
 	spin_lock(&tbl->slot_tbl_lock);
