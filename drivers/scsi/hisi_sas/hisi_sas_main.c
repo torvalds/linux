@@ -764,7 +764,8 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task = NULL;
 	}
 ex_err:
-	WARN_ON(retry == TASK_RETRY);
+	if (retry == TASK_RETRY)
+		dev_warn(dev, "abort tmf: executing internal task failed!\n");
 	sas_free_task(task);
 	return res;
 }
