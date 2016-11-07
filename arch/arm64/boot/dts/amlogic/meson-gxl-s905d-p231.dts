@@ -49,3 +49,9 @@
 	compatible = "amlogic,p231", "amlogic,s905d", "amlogic,meson-gxl";
 	model = "Amlogic Meson GXL (S905D) P231 Development Board";
 };
+
+/* P231 has only internal PHY port */
+&ethmac {
+	phy-mode = "rmii";
+	phy-handle = <&internal_phy>;
+};
