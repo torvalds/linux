@@ -217,8 +217,8 @@ static ssize_t pinger_show(struct kobject *kobj, struct attribute *attr,
 	return sprintf(buf, "%s\n", "on");
 }
 
-static ssize_t health_show(struct kobject *kobj, struct attribute *attr,
-			   char *buf)
+static ssize_t
+health_check_show(struct kobject *kobj, struct attribute *attr, char *buf)
 {
 	bool healthy = true;
 	int i;
@@ -311,14 +311,14 @@ EXPORT_SYMBOL_GPL(debugfs_lustre_root);
 
 LUSTRE_RO_ATTR(version);
 LUSTRE_RO_ATTR(pinger);
-LUSTRE_RO_ATTR(health);
+LUSTRE_RO_ATTR(health_check);
 LUSTRE_RW_ATTR(jobid_var);
 LUSTRE_RW_ATTR(jobid_name);
 
 static struct attribute *lustre_attrs[] = {
 	&lustre_attr_version.attr,
 	&lustre_attr_pinger.attr,
-	&lustre_attr_health.attr,
+	&lustre_attr_health_check.attr,
 	&lustre_attr_jobid_name.attr,
 	&lustre_attr_jobid_var.attr,
 	NULL,
