@@ -611,7 +611,7 @@ static int mkpdrlist(struct pda *pda)
 	curroff = 0;
 	while (curroff < (HFA384x_PDA_LEN_MAX / 2 - 1) &&
 	       le16_to_cpu(pda16[curroff + 1]) != HFA384x_PDR_END_OF_PDA) {
-		pda->rec[pda->nrec] = (struct hfa384x_pdrec *)&(pda16[curroff]);
+		pda->rec[pda->nrec] = (struct hfa384x_pdrec *)&pda16[curroff];
 
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_NICID) {
@@ -649,7 +649,7 @@ static int mkpdrlist(struct pda *pda)
 		       curroff, pda->nrec);
 		return 1;
 	}
-	pda->rec[pda->nrec] = (struct hfa384x_pdrec *)&(pda16[curroff]);
+	pda->rec[pda->nrec] = (struct hfa384x_pdrec *)&pda16[curroff];
 	(pda->nrec)++;
 	return 0;
 }
@@ -754,7 +754,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 			memset(dest, 0, s3plug[i].len);
 			strncpy(dest, PRISM2_USB_FWFILE, s3plug[i].len - 1);
 		} else {	/* plug a PDR */
-			memcpy(dest, &(pda->rec[j]->data), s3plug[i].len);
+			memcpy(dest, &pda->rec[j]->data, s3plug[i].len);
 		}
 	}
 	return result;
@@ -950,7 +950,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 				return 1;
 			}
 
-			tmpinfo = (u16 *)&(s3info[ns3info].info.version);
+			tmpinfo = (u16 *)&s3info[ns3info].info.version;
 			pr_debug("            info=");
 			for (i = 0; i < s3info[ns3info].len - 1; i++) {
 				tmpinfo[i] = *(ptr16 + 2 + i);
