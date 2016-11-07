@@ -537,7 +537,7 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
-	struct hisi_sas_port *port = &hisi_hba->port[sas_phy->id];
+	struct hisi_sas_port *port = &hisi_hba->port[phy->port_id];
 	unsigned long flags;
 
 	if (!sas_port)
