@@ -232,8 +232,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 		rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
 	if (rc)
 		goto err_out;
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, &dlvry_queue,
-					 &dlvry_queue_slot);
+	rc = hisi_hba->hw->get_free_slot(hisi_hba, sas_dev->device_id,
+					&dlvry_queue, &dlvry_queue_slot);
 	if (rc)
 		goto err_out_tag;
 
@@ -987,8 +987,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
 	if (rc)
 		goto err_out;
-	rc = hisi_hba->hw->get_free_slot(hisi_hba, &dlvry_queue,
-					 &dlvry_queue_slot);
+	rc = hisi_hba->hw->get_free_slot(hisi_hba, sas_dev->device_id,
+					&dlvry_queue, &dlvry_queue_slot);
 	if (rc)
 		goto err_out_tag;
 

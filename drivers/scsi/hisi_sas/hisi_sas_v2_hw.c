@@ -1089,29 +1089,24 @@ static int get_wideport_bitmap_v2_hw(struct hisi_hba *hisi_hba, int port_id)
  * The callpath to this function and upto writing the write
  * queue pointer should be safe from interruption.
  */
-static int get_free_slot_v2_hw(struct hisi_hba *hisi_hba, int *q, int *s)
+static int get_free_slot_v2_hw(struct hisi_hba *hisi_hba, u32 dev_id,
+				int *q, int *s)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
 	struct hisi_sas_dq *dq;
 	u32 r, w;
-	int queue = hisi_hba->queue;
+	int queue = dev_id % hisi_hba->queue_count;
 
-	while (1) {
-		dq = &hisi_hba->dq[queue];
-		w = dq->wr_point;
-		r = hisi_sas_read32_relaxed(hisi_hba,
-					    DLVRY_Q_0_RD_PTR + (queue * 0x14));
-		if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
-			queue = (queue + 1) % hisi_hba->queue_count;
-			if (queue == hisi_hba->queue) {
-				dev_warn(dev, "could not find free slot\n");
-				return -EAGAIN;
-			}
-			continue;
-		}
-		break;
+	dq = &hisi_hba->dq[queue];
+	w = dq->wr_point;
+	r = hisi_sas_read32_relaxed(hisi_hba,
+				DLVRY_Q_0_RD_PTR + (queue * 0x14));
+	if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
+		dev_warn(dev, "full queue=%d r=%d w=%d\n\n",
+				queue, r, w);
+		return -EAGAIN;
 	}
-	hisi_hba->queue = (queue + 1) % hisi_hba->queue_count;
+
 	*q = queue;
 	*s = w;
 	return 0;

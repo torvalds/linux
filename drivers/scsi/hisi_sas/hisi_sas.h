@@ -150,7 +150,8 @@ struct hisi_sas_hw {
 				struct domain_device *device);
 	struct hisi_sas_device *(*alloc_dev)(struct domain_device *device);
 	void (*sl_notify)(struct hisi_hba *hisi_hba, int phy_no);
-	int (*get_free_slot)(struct hisi_hba *hisi_hba, int *q, int *s);
+	int (*get_free_slot)(struct hisi_hba *hisi_hba, u32 dev_id,
+			int *q, int *s);
 	void (*start_delivery)(struct hisi_hba *hisi_hba);
 	int (*prep_ssp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot, int is_tmf,
@@ -207,7 +208,6 @@ struct hisi_hba {
 	struct hisi_sas_port port[HISI_SAS_MAX_PHYS];
 
 	int	queue_count;
-	int	queue;
 	struct hisi_sas_slot	*slot_prep;
 
 	struct dma_pool *sge_page_pool;
