@@ -1242,13 +1242,15 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_FIRST)
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
-	dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
-		entry->src_id, entry->src_data);
-	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-		addr);
-	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-		status);
-	gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
+	if (printk_ratelimit()) {
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
+			entry->src_id, entry->src_data);
+		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
+			addr);
+		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
+			status);
+		gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
+	}
 
 	return 0;
 }
