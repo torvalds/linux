@@ -80,7 +80,3 @@ EXPORT_SYMBOL(__csum_partial_copy_from_user);
 #endif
 
 EXPORT_SYMBOL(invalid_pte_table);
-#ifdef CONFIG_FUNCTION_TRACER
-/* _mcount is defined in arch/mips/kernel/mcount.S */
-EXPORT_SYMBOL(_mcount);
-#endif
