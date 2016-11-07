@@ -3350,7 +3350,7 @@ static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid,
 	if (opblk_va == NULL) {
 		dma_free_coherent(&pHba->pDev->dev, sizeof(u8) * (8+buflen),
 			resblk_va, resblk_pa);
-		printk(KERN_CRIT "%s: query operatio failed; Out of memory.\n",
+		printk(KERN_CRIT "%s: query operation failed; Out of memory.\n",
 			pHba->name);
 		return -ENOMEM;
 	}
