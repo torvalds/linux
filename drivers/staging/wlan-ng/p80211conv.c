@@ -618,8 +618,6 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	rxmeta = kzalloc(sizeof(*rxmeta), GFP_ATOMIC);
 
 	if (!rxmeta) {
-		netdev_err(wlandev->netdev,
-			   "%s: Failed to allocate rxmeta.\n", wlandev->name);
 		result = 1;
 		goto exit;
 	}
