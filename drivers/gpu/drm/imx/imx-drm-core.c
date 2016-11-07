@@ -158,6 +158,7 @@ static int imx_drm_atomic_commit(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	struct drm_plane *plane;
 	struct dma_buf *dma_buf;
+	struct dma_fence *fence;
 	int i;
 
 	/*
@@ -170,8 +171,9 @@ static int imx_drm_atomic_commit(struct drm_device *dev,
 							 0)->base.dma_buf;
 			if (!dma_buf)
 				continue;
-			plane_state->fence =
-				reservation_object_get_excl_rcu(dma_buf->resv);
+			fence = reservation_object_get_excl_rcu(dma_buf->resv);
+
+			drm_atomic_set_fence_for_plane(plane_state, fence);
 		}
 	}
 
