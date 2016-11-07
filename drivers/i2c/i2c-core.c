@@ -1769,6 +1769,36 @@ struct i2c_adapter *of_get_i2c_adapter_by_node(struct device_node *node)
 	return adapter;
 }
 EXPORT_SYMBOL(of_get_i2c_adapter_by_node);
+
+static const struct of_device_id*
+i2c_of_match_device_sysfs(const struct of_device_id *matches,
+				  struct i2c_client *client)
+{
+	const char *name;
+
+	for (; matches->compatible[0]; matches++) {
+		/*
+		 * Adding devices through the i2c sysfs interface provides us
+		 * a string to match which may be compatible with the device
+		 * tree compatible strings, however with no actual of_node the
+		 * of_match_device() will not match
+		 */
+		if (sysfs_streq(client->name, matches->compatible))
+			return matches;
+
+		name = strchr(matches->compatible, ',');
+		if (!name)
+			name = matches->compatible;
+		else
+			name++;
+
+		if (sysfs_streq(client->name, name))
+			return matches;
+	}
+
+	return NULL;
+}
+
 #else
 static void of_i2c_register_devices(struct i2c_adapter *adap) { }
 #endif /* CONFIG_OF */
