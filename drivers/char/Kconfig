@@ -577,7 +577,7 @@ config DEVPORT
 source "drivers/s390/char/Kconfig"
 
 config TILE_SROM
-	bool "Character-device access via hypervisor to the Tilera SPI ROM"
+	tristate "Character-device access via hypervisor to the Tilera SPI ROM"
 	depends on TILE
 	default y
 	---help---
