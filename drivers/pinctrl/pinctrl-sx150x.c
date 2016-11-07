@@ -936,6 +936,13 @@ static int sx150x_init_misc(struct sx150x_pinctrl *pctl)
 	case SX150X_456:
 		reg   = pctl->data->pri.x456.reg_advance;
 		value = 0x00;
+
+		/*
+		 * Only SX1506 has RegAdvanced, SX1504/5 are expected
+		 * to initialize this offset to zero
+		 */
+		if (!reg)
+			return 0;
 		break;
 	case SX150X_123:
 		reg   = pctl->data->pri.x123.reg_advance;
