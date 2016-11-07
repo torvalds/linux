@@ -2162,7 +2162,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_KVM_SYSTEM_TIME_NEW:
 	case MSR_KVM_SYSTEM_TIME: {
-		u64 gpa_offset;
 		struct kvm_arch *ka = &vcpu->kvm->arch;
 
 		kvmclock_reset(vcpu);
@@ -2183,8 +2182,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* we verify if the enable bit is set... */
 		if (!(data & 1))
 			break;
-
-		gpa_offset = data & ~(PAGE_MASK | 1);
 
 		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
 		     &vcpu->arch.pv_time, data & ~1ULL,
