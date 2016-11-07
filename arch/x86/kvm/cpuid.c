@@ -865,9 +865,9 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
-	u32 function, eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 
-	function = eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
+	eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx);
 	kvm_register_write(vcpu, VCPU_REGS_RAX, eax);
