@@ -1230,6 +1230,18 @@ struct drm_i915_gem_context_param {
 	__u64 value;
 };
 
+enum drm_i915_oa_format {
+	I915_OA_FORMAT_A13 = 1,
+	I915_OA_FORMAT_A29,
+	I915_OA_FORMAT_A13_B8_C8,
+	I915_OA_FORMAT_B4_C8,
+	I915_OA_FORMAT_A45_B8_C8,
+	I915_OA_FORMAT_B4_C8_A16,
+	I915_OA_FORMAT_C4_B8,
+
+	I915_OA_FORMAT_MAX	    /* non-ABI */
+};
+
 enum drm_i915_perf_property_id {
 	/**
 	 * Open the stream for a specific context handle (as used with
@@ -1237,6 +1249,32 @@ enum drm_i915_perf_property_id {
 	 * won't typically require root privileges.
 	 */
 	DRM_I915_PERF_PROP_CTX_HANDLE = 1,
+
+	/**
+	 * A value of 1 requests the inclusion of raw OA unit reports as
+	 * part of stream samples.
+	 */
+	DRM_I915_PERF_PROP_SAMPLE_OA,
+
+	/**
+	 * The value specifies which set of OA unit metrics should be
+	 * be configured, defining the contents of any OA unit reports.
+	 */
+	DRM_I915_PERF_PROP_OA_METRICS_SET,
+
+	/**
+	 * The value specifies the size and layout of OA unit reports.
+	 */
+	DRM_I915_PERF_PROP_OA_FORMAT,
+
+	/**
+	 * Specifying this property implicitly requests periodic OA unit
+	 * sampling and (at least on Haswell) the sampling frequency is derived
+	 * from this exponent as follows:
+	 *
+	 *   80ns * 2^(period_exponent + 1)
+	 */
+	DRM_I915_PERF_PROP_OA_EXPONENT,
 
 	DRM_I915_PERF_PROP_MAX /* non-ABI */
 };
@@ -1257,7 +1295,23 @@ struct drm_i915_perf_open_param {
 	__u64 __user properties_ptr;
 };
 
+/**
+ * Enable data capture for a stream that was either opened in a disabled state
+ * via I915_PERF_FLAG_DISABLED or was later disabled via
+ * I915_PERF_IOCTL_DISABLE.
+ *
+ * It is intended to be cheaper to disable and enable a stream than it may be
+ * to close and re-open a stream with the same configuration.
+ *
+ * It's undefined whether any pending data for the stream will be lost.
+ */
 #define I915_PERF_IOCTL_ENABLE	_IO('i', 0x0)
+
+/**
+ * Disable data capture for a stream.
+ *
+ * It is an error to try and read a stream that is disabled.
+ */
 #define I915_PERF_IOCTL_DISABLE	_IO('i', 0x1)
 
 /**
@@ -1281,16 +1335,29 @@ enum drm_i915_perf_record_type {
 	 * every sample.
 	 *
 	 * The order of these sample properties given by userspace has no
-	 * affect on the ordering of data within a sample. The order will be
+	 * affect on the ordering of data within a sample. The order is
 	 * documented here.
 	 *
 	 * struct {
 	 *     struct drm_i915_perf_record_header header;
 	 *
-	 *     TODO: itemize extensible sample data here
+	 *     { u32 oa_report[]; } && DRM_I915_PERF_PROP_SAMPLE_OA
 	 * };
 	 */
 	DRM_I915_PERF_RECORD_SAMPLE = 1,
+
+	/*
+	 * Indicates that one or more OA reports were not written by the
+	 * hardware. This can happen for example if an MI_REPORT_PERF_COUNT
+	 * command collides with periodic sampling - which would be more likely
+	 * at higher sampling frequencies.
+	 */
+	DRM_I915_PERF_RECORD_OA_REPORT_LOST = 2,
+
+	/**
+	 * An error occurred that resulted in all pending OA reports being lost.
+	 */
+	DRM_I915_PERF_RECORD_OA_BUFFER_LOST = 3,
 
 	DRM_I915_PERF_RECORD_MAX /* non-ABI */
 };
