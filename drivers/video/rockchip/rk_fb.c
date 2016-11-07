@@ -2395,7 +2395,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		 * reg_win_data->reg_area_data[i].y_offset =
 		 *		yoffset*stride+xoffset*pixel_width/8;
 		 */
-		if ((screen->y_mirror == 1) || (reg_win_data->mirror_en)) {
+		if (screen->y_mirror || reg_win_data->mirror_en) {
 			if (screen->interlace == 1) {
 				reg_win_data->reg_area_data[i].y_offset =
 				    yoffset * stride * 2 +
@@ -2419,7 +2419,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			}
 		}
 		if (IS_RGB_FMT(fb_data_fmt) && dev_drv->iommu_enabled) {
-			buff_len = reg_win_data->reg_area_data[i].y_offset +
+			buff_len = yoffset * stride +
+				xoffset * pixel_width / 8 +
 				reg_win_data->reg_area_data[i].xvir *
 				reg_win_data->reg_area_data[i].yact *
 				pixel_width / 8 -
@@ -2505,7 +2506,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			}
 		}
 		buff_len = reg_win_data->reg_area_data[0].cbr_start +
-			reg_win_data->reg_area_data[0].c_offset +
+			uv_y_off * uv_stride + uv_x_off * pixel_width / 8 +
 			reg_win_data->reg_area_data[0].xvir *
 			reg_win_data->reg_area_data[0].yact *
 			pixel_width / 16 -
@@ -4086,8 +4087,8 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	screen->overscan.right = 100;
 	screen->overscan.bottom = 100;
 
-	screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
-	screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
+	screen->x_mirror = !!(dev_drv->rotate_mode & X_MIRROR);
+	screen->y_mirror = !!(dev_drv->rotate_mode & Y_MIRROR);
 
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
@@ -4209,6 +4210,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	int i = 0, ret = 0, index = 0;
 	unsigned long flags;
 	char time_line_name[16];
+	int mirror = 0;
 
 	if (rk_fb->num_lcdc == RK30_MAX_LCDC_SUPPORT)
 		return -ENXIO;
@@ -4353,11 +4355,12 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			int ymirror = 0;
 			struct page **pages;
 			char *vaddr;
-			int i = 0;
+			int logo_len, i = 0;
 
 			if (dev_drv->ops->get_dspbuf_info)
 				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
 					&yact, &format,	&dsp_addr, &ymirror);
+			logo_len = rk_fb_pixel_width(format) * xact * yact >> 3;
 			nr_pages = size >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
 					GFP_KERNEL);
@@ -4393,9 +4396,11 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			local_irq_save(flags);
 			if (dev_drv->ops->wait_frame_start)
 				dev_drv->ops->wait_frame_start(dev_drv, 0);
+			mirror = ymirror || dev_drv->cur_screen->y_mirror;
 			if (dev_drv->ops->post_dspbuf) {
 				dev_drv->ops->post_dspbuf(dev_drv,
-					main_fbi->fix.smem_start,
+					main_fbi->fix.smem_start +
+					(mirror ? logo_len : 0),
 					rk_fb_data_fmt(0, bits),
 					width, height, xvir,
 					ymirror);
@@ -4456,9 +4461,10 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			local_irq_save(flags);
 			if (dev_drv->ops->wait_frame_start)
 				dev_drv->ops->wait_frame_start(dev_drv, 0);
+			mirror = y_mirror || dev_drv->cur_screen->y_mirror;
 			dev_drv->ops->post_dspbuf(dev_drv,
 					main_fbi->fix.smem_start +
-					(y_mirror ? logo_len : 0),
+					(mirror ? logo_len : 0),
 					format,	xact, yact,
 					xvir,
 					y_mirror);
