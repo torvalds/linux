@@ -362,7 +362,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	int plane = intel_plane->plane;
 	u32 sprctl;
 	u32 sprsurf_offset, linear_offset;
-	unsigned int rotation = dplane->state->rotation;
+	unsigned int rotation = plane_state->base.rotation;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
