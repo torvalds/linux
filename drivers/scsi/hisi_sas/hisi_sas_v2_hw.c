@@ -2537,6 +2537,16 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 		goto end;
 	}
 
+	/* check ERR bit of Status Register */
+	if (fis->status & ATA_ERR) {
+		dev_warn(dev, "sata int: phy%d FIS status: 0x%x\n", phy_no,
+				fis->status);
+		disable_phy_v2_hw(hisi_hba, phy_no);
+		enable_phy_v2_hw(hisi_hba, phy_no);
+		res = IRQ_NONE;
+		goto end;
+	}
+
 	if (unlikely(phy_no == 8)) {
 		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
 
