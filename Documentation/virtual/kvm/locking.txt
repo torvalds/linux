@@ -4,7 +4,17 @@ KVM Lock Overview
 1. Acquisition Orders
 ---------------------
 
-(to be written)
+The acquisition orders for mutexes are as follows:
+
+- kvm->lock is taken outside vcpu->mutex
+
+- kvm->lock is taken outside kvm->slots_lock and kvm->irq_lock
+
+- kvm->slots_lock is taken outside kvm->irq_lock, though acquiring
+  them together is quite rare.
+
+For spinlocks, kvm_lock is taken outside kvm->mmu_lock.  Everything
+else is a leaf: no other lock is taken inside the critical sections.
 
 2: Exception
 ------------

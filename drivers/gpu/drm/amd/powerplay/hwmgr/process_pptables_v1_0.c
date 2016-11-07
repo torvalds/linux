@@ -1201,11 +1201,14 @@ static uint32_t make_classification_flags(struct pp_hwmgr *hwmgr,
 static int ppt_get_num_of_vce_state_table_entries_v1_0(struct pp_hwmgr *hwmgr)
 {
 	const ATOM_Tonga_POWERPLAYTABLE *pp_table = get_powerplay_table(hwmgr);
-	const ATOM_Tonga_VCE_State_Table *vce_state_table =
-				(ATOM_Tonga_VCE_State_Table *)(((unsigned long)pp_table) + le16_to_cpu(pp_table->usVCEStateTableOffset));
+	const ATOM_Tonga_VCE_State_Table *vce_state_table;
 
-	if (vce_state_table == NULL)
+
+	if (pp_table == NULL)
 		return 0;
+
+	vce_state_table = (void *)pp_table +
+			le16_to_cpu(pp_table->usVCEStateTableOffset);
 
 	return vce_state_table->ucNumEntries;
 }

@@ -1168,8 +1168,8 @@ int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is already running right now, no need to enable DPM!",
-			return 0);
+			"DPM is already running",
+			);
 
 	if (smu7_voltage_control(hwmgr)) {
 		tmp_result = smu7_enable_voltage_control(hwmgr);
@@ -2127,15 +2127,18 @@ static int smu7_patch_acp_vddc(struct pp_hwmgr *hwmgr,
 }
 
 static int smu7_patch_limits_vddc(struct pp_hwmgr *hwmgr,
-				     struct phm_clock_and_voltage_limits *tab)
+				  struct phm_clock_and_voltage_limits *tab)
 {
+	uint32_t vddc, vddci;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (tab) {
-		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, (uint32_t *)&tab->vddc,
-							&data->vddc_leakage);
-		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, (uint32_t *)&tab->vddci,
-							&data->vddci_leakage);
+		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddc,
+						   &data->vddc_leakage);
+		tab->vddc = vddc;
+		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddci,
+						   &data->vddci_leakage);
+		tab->vddci = vddci;
 	}
 
 	return 0;

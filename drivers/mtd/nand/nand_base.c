@@ -1095,10 +1095,11 @@ static void nand_release_data_interface(struct nand_chip *chip)
 /**
  * nand_reset - Reset and initialize a NAND device
  * @chip: The NAND chip
+ * @chipnr: Internal die id
  *
  * Returns 0 for success or negative error code otherwise
  */
-int nand_reset(struct nand_chip *chip)
+int nand_reset(struct nand_chip *chip, int chipnr)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
@@ -1107,9 +1108,17 @@ int nand_reset(struct nand_chip *chip)
 	if (ret)
 		return ret;
 
+	/*
+	 * The CS line has to be released before we can apply the new NAND
+	 * interface settings, hence this weird ->select_chip() dance.
+	 */
+	chip->select_chip(mtd, chipnr);
 	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+	chip->select_chip(mtd, -1);
 
+	chip->select_chip(mtd, chipnr);
 	ret = nand_setup_data_interface(chip);
+	chip->select_chip(mtd, -1);
 	if (ret)
 		return ret;
 
@@ -1185,8 +1194,6 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	/* Shift to get chip number */
 	chipnr = ofs >> chip->chip_shift;
 
-	chip->select_chip(mtd, chipnr);
-
 	/*
 	 * Reset the chip.
 	 * If we want to check the WP through READ STATUS and check the bit 7
@@ -1194,7 +1201,9 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	 * some operation can also clear the bit 7 of status register
 	 * eg. erase/program a locked block
 	 */
-	nand_reset(chip);
+	nand_reset(chip, chipnr);
+
+	chip->select_chip(mtd, chipnr);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
@@ -1244,8 +1253,6 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	/* Shift to get chip number */
 	chipnr = ofs >> chip->chip_shift;
 
-	chip->select_chip(mtd, chipnr);
-
 	/*
 	 * Reset the chip.
 	 * If we want to check the WP through READ STATUS and check the bit 7
@@ -1253,7 +1260,9 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	 * some operation can also clear the bit 7 of status register
 	 * eg. erase/program a locked block
 	 */
-	nand_reset(chip);
+	nand_reset(chip, chipnr);
+
+	chip->select_chip(mtd, chipnr);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
@@ -2940,10 +2949,6 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	}
 
 	chipnr = (int)(to >> chip->chip_shift);
-	chip->select_chip(mtd, chipnr);
-
-	/* Shift to get page */
-	page = (int)(to >> chip->page_shift);
 
 	/*
 	 * Reset the chip. Some chips (like the Toshiba TC5832DC found in one
@@ -2951,7 +2956,12 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	 * if we don't do this. I have no clue why, but I seem to have 'fixed'
 	 * it in the doc2000 driver in August 1999.  dwmw2.
 	 */
-	nand_reset(chip);
+	nand_reset(chip, chipnr);
+
+	chip->select_chip(mtd, chipnr);
+
+	/* Shift to get page */
+	page = (int)(to >> chip->page_shift);
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
@@ -3984,14 +3994,14 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	int i, maf_idx;
 	u8 id_data[8];
 
-	/* Select the device */
-	chip->select_chip(mtd, 0);
-
 	/*
 	 * Reset the chip, required by some chips (e.g. Micron MT29FxGxxxxx)
 	 * after power-up.
 	 */
-	nand_reset(chip);
+	nand_reset(chip, 0);
+
+	/* Select the device */
+	chip->select_chip(mtd, 0);
 
 	/* Send the command for reading device ID */
 	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
@@ -4329,7 +4339,20 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 		return PTR_ERR(type);
 	}
 
+	/* Initialize the ->data_interface field. */
 	ret = nand_init_data_interface(chip);
+	if (ret)
+		return ret;
+
+	/*
+	 * Setup the data interface correctly on the chip and controller side.
+	 * This explicit call to nand_setup_data_interface() is only required
+	 * for the first die, because nand_reset() has been called before
+	 * ->data_interface and ->default_onfi_timing_mode were set.
+	 * For the other dies, nand_reset() will automatically switch to the
+	 * best mode for us.
+	 */
+	ret = nand_setup_data_interface(chip);
 	if (ret)
 		return ret;
 
@@ -4337,9 +4360,10 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 
 	/* Check for a chip array */
 	for (i = 1; i < maxchips; i++) {
-		chip->select_chip(mtd, i);
 		/* See comment in nand_get_flash_type for reset */
-		nand_reset(chip);
+		nand_reset(chip, i);
+
+		chip->select_chip(mtd, i);
 		/* Send the command for reading device ID */
 		chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 		/* Read manufacturer and device IDs */
