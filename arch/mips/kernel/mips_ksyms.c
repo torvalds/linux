@@ -70,11 +70,3 @@ EXPORT_SYMBOL(__strnlen_kernel_nocheck_asm);
 EXPORT_SYMBOL(__strnlen_kernel_asm);
 EXPORT_SYMBOL(__strnlen_user_nocheck_asm);
 EXPORT_SYMBOL(__strnlen_user_asm);
-
-#ifndef CONFIG_CPU_MIPSR6
-EXPORT_SYMBOL(csum_partial);
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
-EXPORT_SYMBOL(__csum_partial_copy_kernel);
-EXPORT_SYMBOL(__csum_partial_copy_to_user);
-EXPORT_SYMBOL(__csum_partial_copy_from_user);
-#endif
