@@ -78,5 +78,3 @@ EXPORT_SYMBOL(__csum_partial_copy_kernel);
 EXPORT_SYMBOL(__csum_partial_copy_to_user);
 EXPORT_SYMBOL(__csum_partial_copy_from_user);
 #endif
-
-EXPORT_SYMBOL(invalid_pte_table);
