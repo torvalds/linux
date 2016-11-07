@@ -43,6 +43,9 @@ enum {
 	SX150X_456,
 	SX150X_789,
 };
+enum {
+	SX150X_789_REG_MISC_AUTOCLEAR_OFF = 1 << 0,
+};
 
 struct sx150x_123_pri {
 	u8 reg_pld_mode;
@@ -935,7 +938,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 	if (pctl->data->model == SX150X_789)
 		err = sx150x_i2c_write(pctl->client,
 				pctl->data->pri.x789.reg_misc,
-				0x01);
+				SX150X_789_REG_MISC_AUTOCLEAR_OFF);
 	else if (pctl->data->model == SX150X_456)
 		err = sx150x_i2c_write(pctl->client,
 				pctl->data->pri.x456.reg_advance,
