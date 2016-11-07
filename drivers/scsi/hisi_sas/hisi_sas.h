@@ -111,7 +111,7 @@ struct hisi_sas_device {
 	struct domain_device	*sas_device;
 	u64 attached_phy;
 	u64 device_id;
-	u64 running_req;
+	atomic64_t running_req;
 	u8 dev_status;
 };
 
