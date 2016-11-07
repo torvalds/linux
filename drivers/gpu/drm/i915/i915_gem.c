@@ -1806,7 +1806,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		/* Use a partial view if it is bigger than available space */
 		chunk_size = MIN_CHUNK_PAGES;
 		if (i915_gem_object_is_tiled(obj))
-			chunk_size = max(chunk_size, tile_row_pages(obj));
+			chunk_size = roundup(chunk_size, tile_row_pages(obj));
 
 		memset(&view, 0, sizeof(view));
 		view.type = I915_GGTT_VIEW_PARTIAL;
