@@ -1128,6 +1128,16 @@
 				interrupt-names = "linestate";
 				status = "disabled";
 			};
+
+			u2phy0_otg: otg-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH 0>;
+				interrupt-names = "otg-bvalid", "otg-id",
+						  "linestate";
+				status = "disabled";
+			};
 		};
 
 		u2phy1: usb2-phy@e460 {
@@ -1143,6 +1153,16 @@
 				#phy-cells = <0>;
 				interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH 0>;
 				interrupt-names = "linestate";
+				status = "disabled";
+			};
+
+			u2phy1_otg: otg-port {
+				#phy-cells = <0>;
+				interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH 0>,
+					     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH 0>;
+				interrupt-names = "otg-bvalid", "otg-id",
+						  "linestate";
 				status = "disabled";
 			};
 		};
