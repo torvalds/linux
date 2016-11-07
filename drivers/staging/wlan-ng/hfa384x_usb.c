@@ -682,7 +682,7 @@ init_cmd_completor(struct usbctlx_cmd_completor *completor,
 	completor->head.complete = usbctlx_cmd_completor_fn;
 	completor->cmdresp = cmdresp;
 	completor->result = result;
-	return &(completor->head);
+	return &completor->head;
 }
 
 /*----------------------------------------------------------------
@@ -729,7 +729,7 @@ init_rrid_completor(struct usbctlx_rrid_completor *completor,
 	completor->rridresp = rridresp;
 	completor->riddata = riddata;
 	completor->riddatalen = riddatalen;
-	return &(completor->head);
+	return &completor->head;
 }
 
 /*----------------------------------------------------------------
@@ -779,7 +779,7 @@ init_rmem_completor(struct usbctlx_rmem_completor *completor,
 	completor->rmemresp = rmemresp;
 	completor->data = data;
 	completor->len = len;
-	return &(completor->head);
+	return &completor->head;
 }
 
 /*----------------------------------------------------------------
@@ -1836,7 +1836,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 
 	/* Retrieve the buffer loc&size and timeout */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
-					&(hw->bufinfo), sizeof(hw->bufinfo));
+					&hw->bufinfo, sizeof(hw->bufinfo));
 	if (result)
 		return result;
 
@@ -1844,7 +1844,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
 	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
 	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
-					  &(hw->dltimeout));
+					  &hw->dltimeout);
 	if (result)
 		return result;
 
@@ -2648,7 +2648,7 @@ int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 	    cpu_to_le16(hw->txbuff.txfrm.desc.tx_control);
 
 	/* copy the header over to the txdesc */
-	memcpy(&(hw->txbuff.txfrm.desc.frame_control), p80211_hdr,
+	memcpy(&hw->txbuff.txfrm.desc.frame_control, p80211_hdr,
 	       sizeof(union p80211_hdr));
 
 	/* if we're using host WEP, increase size by IV+ICV */
@@ -2678,9 +2678,9 @@ int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 		memcpy(ptr, p80211_wep->icv, sizeof(p80211_wep->icv));
 
 	/* Send the USB packet */
-	usb_fill_bulk_urb(&(hw->tx_urb), hw->usb,
+	usb_fill_bulk_urb(&hw->tx_urb, hw->usb,
 			  hw->endp_out,
-			  &(hw->txbuff), ROUNDUP64(usbpktlen),
+			  &hw->txbuff, ROUNDUP64(usbpktlen),
 			  hfa384x_usbout_callback, hw->wlandev);
 	hw->tx_urb.transfer_flags |= USB_QUEUE_BULK;
 
@@ -2962,9 +2962,9 @@ static void hfa384x_usbctlxq_run(struct hfa384x *hw)
 		list_move_tail(&head->list, &hw->ctlxq.active);
 
 		/* Fill the out packet */
-		usb_fill_bulk_urb(&(hw->ctlx_urb), hw->usb,
+		usb_fill_bulk_urb(&hw->ctlx_urb, hw->usb,
 				  hw->endp_out,
-				  &(head->outbuf), ROUNDUP64(head->outbufsize),
+				  &head->outbuf, ROUNDUP64(head->outbufsize),
 				  hfa384x_ctlxout_callback, hw);
 		hw->ctlx_urb.transfer_flags |= USB_QUEUE_BULK;
 
@@ -3470,7 +3470,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 				  struct hfa384x_usb_rxfrm *rxfrm)
 {
-	struct hfa384x_rx_frame *rxdesc = &(rxfrm->desc);
+	struct hfa384x_rx_frame *rxdesc = &rxfrm->desc;
 	unsigned int hdrlen = 0;
 	unsigned int datalen = 0;
 	unsigned int skblen = 0;
@@ -3528,7 +3528,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	 * (ctl frames may be less than a full header)
 	 */
 	datap = skb_put(skb, hdrlen);
-	memcpy(datap, &(rxdesc->frame_control), hdrlen);
+	memcpy(datap, &rxdesc->frame_control, hdrlen);
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {
