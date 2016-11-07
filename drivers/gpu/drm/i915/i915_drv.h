@@ -2577,24 +2577,24 @@ struct drm_i915_cmd_table {
 #define HAS_128_BYTE_Y_TILING(dev_priv) (!IS_GEN2(dev_priv) && \
 					 !(IS_I915G(dev_priv) || \
 					 IS_I915GM(dev_priv)))
-#define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
-#define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
+#define SUPPORTS_TV(dev_priv)		((dev_priv)->info.supports_tv)
+#define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.has_hotplug)
 
-#define HAS_FW_BLC(dev_priv) (INTEL_GEN(dev_priv) > 2)
-#define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
-#define HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
+#define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
+#define HAS_PIPE_CXSR(dev_priv) ((dev_priv)->info.has_pipe_cxsr)
+#define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
 
 #define HAS_IPS(dev_priv)	(IS_HSW_ULT(dev_priv) || IS_BROADWELL(dev_priv))
 
-#define HAS_DP_MST(dev)	(INTEL_INFO(dev)->has_dp_mst)
+#define HAS_DP_MST(dev_priv)	((dev_priv)->info.has_dp_mst)
 
-#define HAS_DDI(dev_priv)	((dev_priv)->info.has_ddi)
-#define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
-#define HAS_PSR(dev)		(INTEL_INFO(dev)->has_psr)
-#define HAS_RC6(dev)		(INTEL_INFO(dev)->has_rc6)
-#define HAS_RC6p(dev)		(INTEL_INFO(dev)->has_rc6p)
+#define HAS_DDI(dev_priv)		 ((dev_priv)->info.has_ddi)
+#define HAS_FPGA_DBG_UNCLAIMED(dev_priv) ((dev_priv)->info.has_fpga_dbg)
+#define HAS_PSR(dev_priv)		 ((dev_priv)->info.has_psr)
+#define HAS_RC6(dev_priv)		 ((dev_priv)->info.has_rc6)
+#define HAS_RC6p(dev_priv)		 ((dev_priv)->info.has_rc6p)
 
-#define HAS_CSR(dev)	(INTEL_INFO(dev)->has_csr)
+#define HAS_CSR(dev_priv)	((dev_priv)->info.has_csr)
 
 #define HAS_RUNTIME_PM(dev_priv) ((dev_priv)->info.has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) ((dev_priv)->info.has_64bit_reloc)

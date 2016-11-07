@@ -3678,7 +3678,7 @@ static void i915_irq_preinstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int pipe;
 
-	if (I915_HAS_HOTPLUG(dev)) {
+	if (I915_HAS_HOTPLUG(dev_priv)) {
 		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	}
@@ -3712,7 +3712,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		I915_USER_INTERRUPT;
 
-	if (I915_HAS_HOTPLUG(dev)) {
+	if (I915_HAS_HOTPLUG(dev_priv)) {
 		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 		POSTING_READ(PORT_HOTPLUG_EN);
 
@@ -3880,7 +3880,7 @@ static void i915_irq_uninstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int pipe;
 
-	if (I915_HAS_HOTPLUG(dev)) {
+	if (I915_HAS_HOTPLUG(dev_priv)) {
 		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	}

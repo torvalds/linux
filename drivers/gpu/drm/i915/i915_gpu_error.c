@@ -573,7 +573,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		   pdev->subsystem_device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
-	if (HAS_CSR(dev)) {
+	if (HAS_CSR(dev_priv)) {
 		struct intel_csr *csr = &dev_priv->csr;
 
 		err_printf(m, "DMC loaded: %s\n",

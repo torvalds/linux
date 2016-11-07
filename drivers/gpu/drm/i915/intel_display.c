@@ -8440,7 +8440,7 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		}
 	}
 
-	if (HAS_PIPE_CXSR(dev)) {
+	if (HAS_PIPE_CXSR(dev_priv)) {
 		if (intel_crtc->lowfreq_avail) {
 			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
@@ -15652,7 +15652,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	} else if (IS_GEN2(dev_priv))
 		intel_dvo_init(dev);
 
-	if (SUPPORTS_TV(dev))
+	if (SUPPORTS_TV(dev_priv))
 		intel_tv_init(dev);
 
 	intel_psr_init(dev);
