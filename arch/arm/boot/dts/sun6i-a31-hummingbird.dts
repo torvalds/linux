@@ -69,6 +69,19 @@
 	};
 };
 
+&codec {
+	allwinner,audio-routing =
+		"Headphone", "HP",
+		"Speaker", "LINEOUT",
+		"LINEIN", "Line In",
+		"MIC1", "Mic",
+		"MIC2", "Headset Mic",
+		"Mic",	"MBIAS",
+		"Headset Mic", "HBIAS";
+	allwinner,pa-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&reg_dcdc3>;
 };
