@@ -3057,7 +3057,10 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		goto exit;
 
 	skb = hw->rx_urb_skb;
-	BUG_ON(!skb || (skb->data != urb->transfer_buffer));
+	if (!skb || (skb->data != urb->transfer_buffer)) {
+		WARN_ON(1);
+		return;
+	}
 
 	hw->rx_urb_skb = NULL;
 
