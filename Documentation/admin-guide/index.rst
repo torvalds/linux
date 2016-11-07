@@ -27,7 +27,6 @@ problems and bugs in particular.
    security-bugs
    bug-hunting
    bug-bisect
-   oops-tracing
    tainted-kernels
    ramoops
    dynamic-debug-howto
