@@ -43,12 +43,14 @@
 #define STATUS_AE_BIT		5	/* Exception active */
 #define STATUS_DE_BIT		6	/* PC is in delay slot */
 #define STATUS_U_BIT		7	/* User/Kernel mode */
+#define STATUS_Z_BIT            11
 #define STATUS_L_BIT		12	/* Loop inhibit */
 
 /* These masks correspond to the status word(STATUS_32) bits */
 #define STATUS_AE_MASK		(1<<STATUS_AE_BIT)
 #define STATUS_DE_MASK		(1<<STATUS_DE_BIT)
 #define STATUS_U_MASK		(1<<STATUS_U_BIT)
+#define STATUS_Z_MASK		(1<<STATUS_Z_BIT)
 #define STATUS_L_MASK		(1<<STATUS_L_BIT)
 
 /*
