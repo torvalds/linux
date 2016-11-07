@@ -47,6 +47,8 @@ enum {
 enum {
 	SX150X_789_REG_MISC_AUTOCLEAR_OFF = 1 << 0,
 	SX150X_MAX_REGISTER = 0xad,
+	SX150X_IRQ_TYPE_EDGE_RISING = 0x1,
+	SX150X_IRQ_TYPE_EDGE_FALLING = 0x2,
 };
 
 struct sx150x_123_pri {
@@ -441,6 +443,21 @@ static void sx150x_irq_unmask(struct irq_data *d)
 	pctl->irq.masked &= ~BIT(n);
 }
 
+static void sx150x_irq_set_sense(struct sx150x_pinctrl *pctl,
+				 unsigned int line, unsigned int sense)
+{
+	/*
+	 * Every interrupt line is represented by two bits shifted
+	 * proportionally to the line number
+	 */
+	const unsigned int n = line * 2;
+	const unsigned int mask = ~((SX150X_IRQ_TYPE_EDGE_RISING |
+				     SX150X_IRQ_TYPE_EDGE_FALLING) << n);
+
+	pctl->irq.sense &= mask;
+	pctl->irq.sense |= sense << n;
+}
+
 static int sx150x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct sx150x_pinctrl *pctl =
@@ -453,12 +470,11 @@ static int sx150x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	n = d->hwirq;
 
 	if (flow_type & IRQ_TYPE_EDGE_RISING)
-		val |= 0x1;
+		val |= SX150X_IRQ_TYPE_EDGE_RISING;
 	if (flow_type & IRQ_TYPE_EDGE_FALLING)
-		val |= 0x2;
+		val |= SX150X_IRQ_TYPE_EDGE_FALLING;
 
-	pctl->irq.sense &= ~(3UL << (n * 2));
-	pctl->irq.sense |= val << (n * 2);
+	sx150x_irq_set_sense(pctl, n, val);
 	return 0;
 }
 
