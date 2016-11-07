@@ -5442,7 +5442,11 @@ static void gfx_v8_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
 {
-	WREG32(mmSQ_IND_INDEX, (wave & 0xF) | ((simd & 0x3) << 4) | (address << 16) | (1 << 13));
+	WREG32(mmSQ_IND_INDEX,
+		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
+		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
+		(address << SQ_IND_INDEX__INDEX__SHIFT) |
+		(SQ_IND_INDEX__FORCE_READ_MASK));
 	return RREG32(mmSQ_IND_DATA);
 }
 
