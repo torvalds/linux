@@ -1251,8 +1251,13 @@ static const struct attribute_group *thermal_zone_attribute_groups[] = {
  */
 static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 {
-	int indx;
 	int size = sizeof(struct thermal_attr) * tz->trips;
+	struct attribute **attrs;
+	int indx;
+
+	/* This function works only for zones with at least one trip */
+	if (tz->trips <= 0)
+		return -EINVAL;
 
 	tz->trip_type_attrs = kzalloc(size, GFP_KERNEL);
 	if (!tz->trip_type_attrs)
@@ -1273,6 +1278,15 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 		}
 	}
 
+	attrs = kzalloc(sizeof(*attrs) * (tz->trips * 3 + 1), GFP_KERNEL);
+	if (!attrs) {
+		kfree(tz->trip_type_attrs);
+		kfree(tz->trip_temp_attrs);
+		if (tz->ops->get_trip_hyst)
+			kfree(tz->trip_hyst_attrs);
+		return -ENOMEM;
+	}
+
 	for (indx = 0; indx < tz->trips; indx++) {
 		/* create trip type attribute */
 		snprintf(tz->trip_type_attrs[indx].name, THERMAL_NAME_LENGTH,
@@ -1283,9 +1297,7 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 						tz->trip_type_attrs[indx].name;
 		tz->trip_type_attrs[indx].attr.attr.mode = S_IRUGO;
 		tz->trip_type_attrs[indx].attr.show = trip_point_type_show;
-
-		device_create_file(&tz->device,
-				   &tz->trip_type_attrs[indx].attr);
+		attrs[indx] = &tz->trip_type_attrs[indx].attr.attr;
 
 		/* create trip temp attribute */
 		snprintf(tz->trip_temp_attrs[indx].name, THERMAL_NAME_LENGTH,
@@ -1302,9 +1314,7 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 			tz->trip_temp_attrs[indx].attr.store =
 							trip_point_temp_store;
 		}
-
-		device_create_file(&tz->device,
-				   &tz->trip_temp_attrs[indx].attr);
+		attrs[indx + tz->trips] = &tz->trip_temp_attrs[indx].attr.attr;
 
 		/* create Optional trip hyst attribute */
 		if (!tz->ops->get_trip_hyst)
@@ -1322,44 +1332,42 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 			tz->trip_hyst_attrs[indx].attr.store =
 					trip_point_hyst_store;
 		}
-
-		device_create_file(&tz->device,
-				   &tz->trip_hyst_attrs[indx].attr);
+		attrs[indx + tz->trips * 2] =
+					&tz->trip_hyst_attrs[indx].attr.attr;
 	}
+	attrs[tz->trips * 3] = NULL;
+
+	tz->trips_attribute_group.attrs = attrs;
+
 	return 0;
 }
 
-static void remove_trip_attrs(struct thermal_zone_device *tz)
-{
-	int indx;
-
-	for (indx = 0; indx < tz->trips; indx++) {
-		device_remove_file(&tz->device,
-				   &tz->trip_type_attrs[indx].attr);
-		device_remove_file(&tz->device,
-				   &tz->trip_temp_attrs[indx].attr);
-		if (tz->ops->get_trip_hyst)
-			device_remove_file(&tz->device,
-					   &tz->trip_hyst_attrs[indx].attr);
-	}
-	kfree(tz->trip_type_attrs);
-	kfree(tz->trip_temp_attrs);
-	kfree(tz->trip_hyst_attrs);
-}
-
-static int thermal_zone_create_device_groups(struct thermal_zone_device *tz)
+static int thermal_zone_create_device_groups(struct thermal_zone_device *tz,
+					     int mask)
 {
 	const struct attribute_group **groups;
-	int i, size;
+	int i, size, result;
 
-	size = ARRAY_SIZE(thermal_zone_attribute_groups) + 1;
+	/* we need one extra for trips and the NULL to terminate the array */
+	size = ARRAY_SIZE(thermal_zone_attribute_groups) + 2;
 	/* This also takes care of API requirement to be NULL terminated */
 	groups = kcalloc(size, sizeof(*groups), GFP_KERNEL);
 	if (!groups)
 		return -ENOMEM;
 
-	for (i = 0; i < size - 1; i++)
+	for (i = 0; i < size - 2; i++)
 		groups[i] = thermal_zone_attribute_groups[i];
+
+	if (tz->trips) {
+		result = create_trip_attrs(tz, mask);
+		if (result) {
+			kfree(groups);
+
+			return result;
+		}
+
+		groups[size - 2] = &tz->trips_attribute_group;
+	}
 
 	tz->device.groups = groups;
 
@@ -2000,8 +2008,12 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	tz->passive_delay = passive_delay;
 	tz->polling_delay = polling_delay;
 
+	/* sys I/F */
 	/* Add nodes that are always present via .groups */
-	thermal_zone_create_device_groups(tz);
+	result = thermal_zone_create_device_groups(tz, mask);
+	if (result)
+		goto unregister;
+
 	/* A new thermal zone needs to be updated anyway. */
 	atomic_set(&tz->need_update, 1);
 
@@ -2012,11 +2024,6 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 		kfree(tz);
 		return ERR_PTR(result);
 	}
-
-	/* sys I/F */
-	result = create_trip_attrs(tz, mask);
-	if (result)
-		goto unregister;
 
 	for (count = 0; count < trips; count++) {
 		if (tz->ops->get_trip_type(tz, count, &trip_type))
@@ -2122,7 +2129,10 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 	thermal_zone_device_set_polling(tz, 0);
 
-	remove_trip_attrs(tz);
+	kfree(tz->trip_type_attrs);
+	kfree(tz->trip_temp_attrs);
+	kfree(tz->trip_hyst_attrs);
+	kfree(tz->trips_attribute_group.attrs);
 	thermal_set_governor(tz, NULL);
 
 	thermal_remove_hwmon_sysfs(tz);
