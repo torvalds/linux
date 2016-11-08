@@ -1064,6 +1064,7 @@ static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
 static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
 static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
 
+/* These attributes are unconditionally added to a thermal zone */
 static struct attribute *thermal_zone_dev_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_temp.attr,
@@ -1087,8 +1088,35 @@ static struct attribute_group thermal_zone_attribute_group = {
 	.attrs = thermal_zone_dev_attrs,
 };
 
+/* We expose mode only if .get_mode is present */
+static struct attribute *thermal_zone_mode_attrs[] = {
+	&dev_attr_mode.attr,
+	NULL,
+};
+
+static umode_t thermal_zone_mode_is_visible(struct kobject *kobj,
+					    struct attribute *attr,
+					    int attrno)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct thermal_zone_device *tz;
+
+	tz = container_of(dev, struct thermal_zone_device, device);
+
+	if (tz->ops->get_mode)
+		return attr->mode;
+
+	return 0;
+}
+
+static struct attribute_group thermal_zone_mode_attribute_group = {
+	.attrs = thermal_zone_mode_attrs,
+	.is_visible = thermal_zone_mode_is_visible,
+};
+
 static const struct attribute_group *thermal_zone_attribute_groups[] = {
 	&thermal_zone_attribute_group,
+	&thermal_zone_mode_attribute_group,
 	NULL
 };
 
@@ -1932,12 +1960,6 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	}
 
 	/* sys I/F */
-	if (ops->get_mode) {
-		result = device_create_file(&tz->device, &dev_attr_mode);
-		if (result)
-			goto unregister;
-	}
-
 	result = create_trip_attrs(tz, mask);
 	if (result)
 		goto unregister;
@@ -2054,8 +2076,6 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 	thermal_zone_device_set_polling(tz, 0);
 
-	if (tz->ops->get_mode)
-		device_remove_file(&tz->device, &dev_attr_mode);
 	remove_trip_attrs(tz);
 	thermal_set_governor(tz, NULL);
 
