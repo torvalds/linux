@@ -3913,25 +3913,16 @@ static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 	return a->start < b->end && b->start < a->end;
 }
 
-bool skl_ddb_allocation_overlaps(struct drm_atomic_state *state,
-				 struct intel_crtc *intel_crtc)
+bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry **entries,
+				 const struct skl_ddb_entry *ddb,
+				 int ignore)
 {
-	struct drm_crtc *other_crtc;
-	struct drm_crtc_state *other_cstate;
-	struct intel_crtc *other_intel_crtc;
-	const struct skl_ddb_entry *ddb =
-		&to_intel_crtc_state(intel_crtc->base.state)->wm.skl.ddb;
 	int i;
 
-	for_each_crtc_in_state(state, other_crtc, other_cstate, i) {
-		other_intel_crtc = to_intel_crtc(other_crtc);
-
-		if (other_intel_crtc == intel_crtc)
-			continue;
-
-		if (skl_ddb_entries_overlap(ddb, &other_intel_crtc->hw_ddb))
+	for (i = 0; i < I915_MAX_PIPES; i++)
+		if (i != ignore && entries[i] &&
+		    skl_ddb_entries_overlap(ddb, entries[i]))
 			return true;
-	}
 
 	return false;
 }
@@ -4240,8 +4231,6 @@ static void skl_initial_wm(struct intel_atomic_state *state,
 		skl_atomic_update_crtc_wm(state, cstate);
 
 	skl_copy_wm_for_pipe(hw_vals, results, pipe);
-
-	intel_crtc->hw_ddb = cstate->wm.skl.ddb;
 
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }

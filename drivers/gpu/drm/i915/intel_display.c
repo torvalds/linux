@@ -14304,6 +14304,14 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 	unsigned int updated = 0;
 	bool progress;
 	enum pipe pipe;
+	int i;
+
+	const struct skl_ddb_entry *entries[I915_MAX_PIPES] = {};
+
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i)
+		/* ignore allocations for crtc's that have been turned off. */
+		if (crtc->state->active)
+			entries[i] = &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb;
 
 	/*
 	 * Whenever the number of active pipes changes, we need to make sure we
@@ -14312,7 +14320,6 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 	 * cause pipe underruns and other bad stuff.
 	 */
 	do {
-		int i;
 		progress = false;
 
 		for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
@@ -14323,12 +14330,14 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 			cstate = to_intel_crtc_state(crtc->state);
 			pipe = intel_crtc->pipe;
 
-			if (updated & cmask || !crtc->state->active)
+			if (updated & cmask || !cstate->base.active)
 				continue;
-			if (skl_ddb_allocation_overlaps(state, intel_crtc))
+
+			if (skl_ddb_allocation_overlaps(entries, &cstate->wm.skl.ddb, i))
 				continue;
 
 			updated |= cmask;
+			entries[i] = &cstate->wm.skl.ddb;
 
 			/*
 			 * If this is an already active pipe, it's DDB changed,
