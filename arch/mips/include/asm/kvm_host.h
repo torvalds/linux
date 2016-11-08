@@ -107,6 +107,20 @@
 #define KVM_INVALID_INST		0xdeadbeef
 #define KVM_INVALID_ADDR		0xdeadbeef
 
+/*
+ * EVA has overlapping user & kernel address spaces, so user VAs may be >
+ * PAGE_OFFSET. For this reason we can't use the default KVM_HVA_ERR_BAD of
+ * PAGE_OFFSET.
+ */
+
+#define KVM_HVA_ERR_BAD			(-1UL)
+#define KVM_HVA_ERR_RO_BAD		(-2UL)
+
+static inline bool kvm_is_error_hva(unsigned long addr)
+{
+	return IS_ERR_VALUE(addr);
+}
+
 extern atomic_t kvm_mips_instance;
 
 struct kvm_vm_stat {
@@ -279,7 +293,10 @@ struct kvm_vcpu_arch {
 	/* Host KSEG0 address of the EI/DI offset */
 	void *kseg0_commpage;
 
-	u32 io_gpr;		/* GPR used as IO source/target */
+	/* Resume PC after MMIO completion */
+	unsigned long io_pc;
+	/* GPR used as IO source/target */
+	u32 io_gpr;
 
 	struct hrtimer comparecount_timer;
 	/* Count timer control KVM register */
@@ -301,8 +318,6 @@ struct kvm_vcpu_arch {
 	/* Bitmask of pending exceptions to be cleared */
 	unsigned long pending_exceptions_clr;
 
-	u32 pending_load_cause;
-
 	/* Save/Restore the entryhi register when are are preempted/scheduled back in */
 	unsigned long preempt_entryhi;
 
@@ -313,6 +328,9 @@ struct kvm_vcpu_arch {
 	u32 guest_user_asid[NR_CPUS];
 	u32 guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
+
+	/* Guest ASID of last user mode execution */
+	unsigned int last_user_gasid;
 
 	int last_sched_cpu;
 

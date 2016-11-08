@@ -1348,12 +1348,14 @@ static struct snd_soc_codec_driver pcm512x_codec_driver = {
 	.set_bias_level = pcm512x_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = pcm512x_controls,
-	.num_controls = ARRAY_SIZE(pcm512x_controls),
-	.dapm_widgets = pcm512x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(pcm512x_dapm_widgets),
-	.dapm_routes = pcm512x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(pcm512x_dapm_routes),
+	.component_driver = {
+		.controls		= pcm512x_controls,
+		.num_controls		= ARRAY_SIZE(pcm512x_controls),
+		.dapm_widgets		= pcm512x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(pcm512x_dapm_widgets),
+		.dapm_routes		= pcm512x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(pcm512x_dapm_routes),
+	},
 };
 
 static const struct regmap_range_cfg pcm512x_range = {

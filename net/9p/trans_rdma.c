@@ -680,7 +680,7 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		goto error;
 
 	/* Create the Protection Domain */
-	rdma->pd = ib_alloc_pd(rdma->cm_id->device);
+	rdma->pd = ib_alloc_pd(rdma->cm_id->device, 0);
 	if (IS_ERR(rdma->pd))
 		goto error;
 

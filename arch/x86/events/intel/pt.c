@@ -69,6 +69,8 @@ static struct pt_cap_desc {
 	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
 	PT_CAP(ip_filtering,		0, CR_EBX, BIT(2)),
 	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
+	PT_CAP(ptwrite,			0, CR_EBX, BIT(4)),
+	PT_CAP(power_event_trace,	0, CR_EBX, BIT(5)),
 	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
 	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
 	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
@@ -259,10 +261,16 @@ fail:
 #define RTIT_CTL_MTC	(RTIT_CTL_MTC_EN	| \
 			 RTIT_CTL_MTC_RANGE)
 
+#define RTIT_CTL_PTW	(RTIT_CTL_PTW_EN	| \
+			 RTIT_CTL_FUP_ON_PTW)
+
 #define PT_CONFIG_MASK (RTIT_CTL_TSC_EN		| \
 			RTIT_CTL_DISRETC	| \
 			RTIT_CTL_CYC_PSB	| \
-			RTIT_CTL_MTC)
+			RTIT_CTL_MTC		| \
+			RTIT_CTL_PWR_EVT_EN	| \
+			RTIT_CTL_FUP_ON_PTW	| \
+			RTIT_CTL_PTW_EN)
 
 static bool pt_event_valid(struct perf_event *event)
 {
@@ -308,6 +316,20 @@ static bool pt_event_valid(struct perf_event *event)
 			RTIT_CTL_MTC_RANGE_OFFSET;
 
 		if (!(allowed & BIT(requested)))
+			return false;
+	}
+
+	if (config & RTIT_CTL_PWR_EVT_EN &&
+	    !pt_cap_get(PT_CAP_power_event_trace))
+		return false;
+
+	if (config & RTIT_CTL_PTW) {
+		if (!pt_cap_get(PT_CAP_ptwrite))
+			return false;
+
+		/* FUPonPTW without PTW doesn't make sense */
+		if ((config & RTIT_CTL_FUP_ON_PTW) &&
+		    !(config & RTIT_CTL_PTW_EN))
 			return false;
 	}
 

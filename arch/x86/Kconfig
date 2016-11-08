@@ -23,11 +23,11 @@ config X86
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_GIGANTIC_PAGE		if X86_64
 	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_MMIO_FLUSH
@@ -93,6 +93,7 @@ config X86
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_ARCH_WITHIN_STACK_FRAMES
 	select HAVE_EBPF_JIT			if X86_64
+	select HAVE_ARCH_VMAP_STACK		if X86_64
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
@@ -109,7 +110,6 @@ config X86
 	select HAVE_EXIT_THREAD
 	select HAVE_FENTRY			if X86_64
 	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_FUNCTION_GRAPH_FP_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
@@ -157,6 +157,7 @@ config X86
 	select SPARSE_IRQ
 	select SRCU
 	select SYSCTL_EXCEPTION_TRACE
+	select THREAD_INFO_IN_TASK
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_TO_BUS
 	select X86_DEV_DMA_OPS			if X86_64
@@ -549,6 +550,18 @@ config X86_INTEL_QUARK
 	  Say Y here if you have a Quark based system such as the Arduino
 	  compatible Intel Galileo.
 
+config MLX_PLATFORM
+	tristate "Mellanox Technologies platform support"
+	depends on X86_64
+	depends on X86_EXTENDED_PLATFORM
+	---help---
+	  This option enables system support for the Mellanox Technologies
+	  platform.
+
+	  Say Y here if you are building a kernel for Mellanox system.
+
+	  Otherwise, say N.
+
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
 	depends on X86 && ACPI
@@ -705,7 +718,6 @@ config PARAVIRT_DEBUG
 config PARAVIRT_SPINLOCKS
 	bool "Paravirtualization layer for spinlocks"
 	depends on PARAVIRT && SMP
-	select UNINLINE_SPIN_UNLOCK if !QUEUED_SPINLOCKS
 	---help---
 	  Paravirtualized spinlocks allow a pvops backend to replace the
 	  spinlock implementation with something virtualization-friendly
@@ -718,7 +730,7 @@ config PARAVIRT_SPINLOCKS
 
 config QUEUED_LOCK_STAT
 	bool "Paravirt queued spinlock statistics"
-	depends on PARAVIRT_SPINLOCKS && DEBUG_FS && QUEUED_SPINLOCKS
+	depends on PARAVIRT_SPINLOCKS && DEBUG_FS
 	---help---
 	  Enable the collection of statistical data on the slowpath
 	  behavior of paravirtualized queued spinlocks and report
@@ -2744,19 +2756,6 @@ config X86_DMA_REMAP
 config PMC_ATOM
 	def_bool y
         depends on PCI
-
-config VMD
-	depends on PCI_MSI
-	tristate "Volume Management Device Driver"
-	default N
-	---help---
-	  Adds support for the Intel Volume Management Device (VMD). VMD is a
-	  secondary PCI host bridge that allows PCI Express root ports,
-	  and devices attached to them, to be removed from the default
-	  PCI domain and placed within the VMD domain. This provides
-	  more bus resources than are otherwise possible with a
-	  single domain. If you know your system provides one of these and
-	  has devices attached to it, say Y; if you are not sure, say N.
 
 source "net/Kconfig"
 

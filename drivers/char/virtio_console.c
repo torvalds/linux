@@ -38,7 +38,6 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
-#include <linux/kconfig.h>
 #include "../tty/hvc/hvc_console.h"
 
 #define is_rproc_enabled IS_ENABLED(CONFIG_REMOTEPROC)
@@ -889,7 +888,7 @@ static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		return 0;
 
 	/* Try lock this page */
-	if (buf->ops->steal(pipe, buf) == 0) {
+	if (pipe_buf_steal(pipe, buf) == 0) {
 		/* Get reference and unlock page for moving */
 		get_page(buf->page);
 		unlock_page(buf->page);
@@ -1540,19 +1539,29 @@ static void remove_port_data(struct port *port)
 	spin_lock_irq(&port->inbuf_lock);
 	/* Remove unused data this port might have received. */
 	discard_port_data(port);
+	spin_unlock_irq(&port->inbuf_lock);
 
 	/* Remove buffers we queued up for the Host to send us data in. */
-	while ((buf = virtqueue_detach_unused_buf(port->in_vq)))
-		free_buf(buf, true);
-	spin_unlock_irq(&port->inbuf_lock);
+	do {
+		spin_lock_irq(&port->inbuf_lock);
+		buf = virtqueue_detach_unused_buf(port->in_vq);
+		spin_unlock_irq(&port->inbuf_lock);
+		if (buf)
+			free_buf(buf, true);
+	} while (buf);
 
 	spin_lock_irq(&port->outvq_lock);
 	reclaim_consumed_buffers(port);
+	spin_unlock_irq(&port->outvq_lock);
 
 	/* Free pending buffers from the out-queue. */
-	while ((buf = virtqueue_detach_unused_buf(port->out_vq)))
-		free_buf(buf, true);
-	spin_unlock_irq(&port->outvq_lock);
+	do {
+		spin_lock_irq(&port->outvq_lock);
+		buf = virtqueue_detach_unused_buf(port->out_vq);
+		spin_unlock_irq(&port->outvq_lock);
+		if (buf)
+			free_buf(buf, true);
+	} while (buf);
 }
 
 /*

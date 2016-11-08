@@ -3387,7 +3387,10 @@ int smp_register(struct hci_dev *hdev)
 	if (!lmp_sc_capable(hdev)) {
 		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,
 				    hdev, &force_bredr_smp_fops);
-		return 0;
+
+		/* Flag can be already set here (due to power toggle) */
+		if (!hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
+			return 0;
 	}
 
 	if (WARN_ON(hdev->smp_bredr_data)) {

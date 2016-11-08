@@ -40,30 +40,13 @@ static int amdgpu_ih_ring_alloc(struct amdgpu_device *adev)
 
 	/* Allocate ring buffer */
 	if (adev->irq.ih.ring_obj == NULL) {
-		r = amdgpu_bo_create(adev, adev->irq.ih.ring_size,
-				     PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,
-				     NULL, NULL, &adev->irq.ih.ring_obj);
+		r = amdgpu_bo_create_kernel(adev, adev->irq.ih.ring_size,
+					    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+					    &adev->irq.ih.ring_obj,
+					    &adev->irq.ih.gpu_addr,
+					    (void **)&adev->irq.ih.ring);
 		if (r) {
 			DRM_ERROR("amdgpu: failed to create ih ring buffer (%d).\n", r);
-			return r;
-		}
-		r = amdgpu_bo_reserve(adev->irq.ih.ring_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = amdgpu_bo_pin(adev->irq.ih.ring_obj,
-				  AMDGPU_GEM_DOMAIN_GTT,
-				  &adev->irq.ih.gpu_addr);
-		if (r) {
-			amdgpu_bo_unreserve(adev->irq.ih.ring_obj);
-			DRM_ERROR("amdgpu: failed to pin ih ring buffer (%d).\n", r);
-			return r;
-		}
-		r = amdgpu_bo_kmap(adev->irq.ih.ring_obj,
-				   (void **)&adev->irq.ih.ring);
-		amdgpu_bo_unreserve(adev->irq.ih.ring_obj);
-		if (r) {
-			DRM_ERROR("amdgpu: failed to map ih ring buffer (%d).\n", r);
 			return r;
 		}
 	}
@@ -136,8 +119,6 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
  */
 void amdgpu_ih_ring_fini(struct amdgpu_device *adev)
 {
-	int r;
-
 	if (adev->irq.ih.use_bus_addr) {
 		if (adev->irq.ih.ring) {
 			/* add 8 bytes for the rptr/wptr shadows and
@@ -149,17 +130,9 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev)
 			adev->irq.ih.ring = NULL;
 		}
 	} else {
-		if (adev->irq.ih.ring_obj) {
-			r = amdgpu_bo_reserve(adev->irq.ih.ring_obj, false);
-			if (likely(r == 0)) {
-				amdgpu_bo_kunmap(adev->irq.ih.ring_obj);
-				amdgpu_bo_unpin(adev->irq.ih.ring_obj);
-				amdgpu_bo_unreserve(adev->irq.ih.ring_obj);
-			}
-			amdgpu_bo_unref(&adev->irq.ih.ring_obj);
-			adev->irq.ih.ring = NULL;
-			adev->irq.ih.ring_obj = NULL;
-		}
+		amdgpu_bo_free_kernel(&adev->irq.ih.ring_obj,
+				      &adev->irq.ih.gpu_addr,
+				      (void **)&adev->irq.ih.ring);
 		amdgpu_wb_free(adev, adev->irq.ih.wptr_offs);
 		amdgpu_wb_free(adev, adev->irq.ih.rptr_offs);
 	}

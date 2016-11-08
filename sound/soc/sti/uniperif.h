@@ -1220,16 +1220,16 @@
 #define UNIPERIF_FIFO_FRAMES		4  /* FDMA trigger limit in frames */
 
 #define UNIPERIF_TYPE_IS_HDMI(p) \
-	((p)->info->type == SND_ST_UNIPERIF_TYPE_HDMI)
+	((p)->type == SND_ST_UNIPERIF_TYPE_HDMI)
 #define UNIPERIF_TYPE_IS_PCM(p) \
-	((p)->info->type == SND_ST_UNIPERIF_TYPE_PCM)
+	((p)->type == SND_ST_UNIPERIF_TYPE_PCM)
 #define UNIPERIF_TYPE_IS_SPDIF(p) \
-	((p)->info->type == SND_ST_UNIPERIF_TYPE_SPDIF)
+	((p)->type == SND_ST_UNIPERIF_TYPE_SPDIF)
 #define UNIPERIF_TYPE_IS_IEC958(p) \
 	(UNIPERIF_TYPE_IS_HDMI(p) || \
 		UNIPERIF_TYPE_IS_SPDIF(p))
 #define UNIPERIF_TYPE_IS_TDM(p) \
-	((p)->info->type == SND_ST_UNIPERIF_TYPE_TDM)
+	((p)->type == SND_ST_UNIPERIF_TYPE_TDM)
 
 /*
  * Uniperipheral IP revisions
@@ -1249,11 +1249,11 @@ enum uniperif_version {
 };
 
 enum uniperif_type {
-	SND_ST_UNIPERIF_TYPE_NONE,
-	SND_ST_UNIPERIF_TYPE_HDMI,
-	SND_ST_UNIPERIF_TYPE_PCM,
-	SND_ST_UNIPERIF_TYPE_SPDIF,
-	SND_ST_UNIPERIF_TYPE_TDM
+	SND_ST_UNIPERIF_TYPE_NONE	= 0x00,
+	SND_ST_UNIPERIF_TYPE_HDMI	= 0x01,
+	SND_ST_UNIPERIF_TYPE_PCM	= 0x02,
+	SND_ST_UNIPERIF_TYPE_SPDIF	= 0x04,
+	SND_ST_UNIPERIF_TYPE_TDM	= 0x08
 };
 
 enum uniperif_state {
@@ -1278,12 +1278,6 @@ enum uniperif_word_pos {
 	WORD_MAX
 };
 
-struct uniperif_info {
-	int id; /* instance value of the uniperipheral IP */
-	enum uniperif_type type;
-	int underflow_enabled;		/* Underflow recovery mode */
-};
-
 struct uniperif_iec958_settings {
 	enum uniperif_iec958_encoding_mode encoding_mode;
 	struct snd_aes_iec958 iec958;
@@ -1298,8 +1292,10 @@ struct dai_tdm_slot {
 
 struct uniperif {
 	/* System information */
-	struct uniperif_info *info;
+	enum uniperif_type type;
+	int underflow_enabled; /* Underflow recovery mode */
 	struct device *dev;
+	int id; /* instance value of the uniperipheral IP */
 	int ver; /* IP version, used by register access macros */
 	struct regmap_field *clk_sel;
 	struct regmap_field *valid_sel;

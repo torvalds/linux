@@ -343,7 +343,7 @@ static int spear_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return ret;
 }
 
-static struct rtc_class_ops spear_rtc_ops = {
+static const struct rtc_class_ops spear_rtc_ops = {
 	.read_time = spear_rtc_read_time,
 	.set_time = spear_rtc_set_time,
 	.read_alarm = spear_rtc_read_alarm,

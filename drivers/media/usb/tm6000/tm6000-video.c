@@ -635,7 +635,6 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
-			tm6000_err("cannot alloc isoc_ctl.urb %i\n", i);
 			tm6000_uninit_isoc(dev);
 			usb_free_urb(urb);
 			return -ENOMEM;

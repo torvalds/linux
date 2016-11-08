@@ -18,7 +18,7 @@
 #include "serialio.h"
 
 #define MAXSYNTHS       16      /* Max number of synths in array. */
-static struct spk_synth *synths[MAXSYNTHS];
+static struct spk_synth *synths[MAXSYNTHS + 1];
 struct spk_synth *synth;
 char spk_pitch_buff[32] = "";
 static int module_status;
@@ -407,7 +407,7 @@ static int do_synth_init(struct spk_synth *in_synth)
 	if (!spk_quiet_boot)
 		synth_printf("%s found\n", synth->long_name);
 	if (synth->attributes.name
-	&& sysfs_create_group(speakup_kobj, &(synth->attributes)) < 0)
+	&& sysfs_create_group(speakup_kobj, &synth->attributes) < 0)
 		return -ENOMEM;
 	synth_flags = synth->flags;
 	wake_up_interruptible_all(&speakup_event);
@@ -429,7 +429,7 @@ void synth_release(void)
 	del_timer(&thread_timer);
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	if (synth->attributes.name)
-		sysfs_remove_group(speakup_kobj, &(synth->attributes));
+		sysfs_remove_group(speakup_kobj, &synth->attributes);
 	for (var = synth->vars; var->var_id != MAXVARS; var++)
 		speakup_unregister_var(var->var_id);
 	spk_stop_serial_interrupt();

@@ -264,7 +264,7 @@ static int mt9t031_set_params(struct i2c_client *client,
 
 	/*
 	 * The caller provides a supported format, as guaranteed by
-	 * .set_fmt(FORMAT_TRY), soc_camera_s_crop() and soc_camera_cropcap()
+	 * .set_fmt(FORMAT_TRY), soc_camera_s_selection() and soc_camera_cropcap()
 	 */
 	if (ret >= 0)
 		ret = reg_write(client, MT9T031_COLUMN_START, rect->left);
@@ -294,11 +294,17 @@ static int mt9t031_set_params(struct i2c_client *client,
 	return ret < 0 ? ret : 0;
 }
 
-static int mt9t031_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
+static int mt9t031_set_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
-	struct v4l2_rect rect = a->c;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
+	struct v4l2_rect rect = sel->r;
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+	    sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	rect.width = ALIGN(rect.width, 2);
 	rect.height = ALIGN(rect.height, 2);
@@ -312,29 +318,30 @@ static int mt9t031_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	return mt9t031_set_params(client, &rect, mt9t031->xskip, mt9t031->yskip);
 }
 
-static int mt9t031_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9t031_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
-	a->c	= mt9t031->rect;
-	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int mt9t031_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= MT9T031_COLUMN_SKIP;
-	a->bounds.top			= MT9T031_ROW_SKIP;
-	a->bounds.width			= MT9T031_MAX_WIDTH;
-	a->bounds.height		= MT9T031_MAX_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.left = MT9T031_COLUMN_SKIP;
+		sel->r.top = MT9T031_ROW_SKIP;
+		sel->r.width = MT9T031_MAX_WIDTH;
+		sel->r.height = MT9T031_MAX_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = mt9t031->rect;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mt9t031_get_fmt(struct v4l2_subdev *sd,
@@ -721,9 +728,6 @@ static int mt9t031_s_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_stream	= mt9t031_s_stream,
-	.s_crop		= mt9t031_s_crop,
-	.g_crop		= mt9t031_g_crop,
-	.cropcap	= mt9t031_cropcap,
 	.g_mbus_config	= mt9t031_g_mbus_config,
 	.s_mbus_config	= mt9t031_s_mbus_config,
 };
@@ -734,6 +738,8 @@ static const struct v4l2_subdev_sensor_ops mt9t031_subdev_sensor_ops = {
 
 static const struct v4l2_subdev_pad_ops mt9t031_subdev_pad_ops = {
 	.enum_mbus_code = mt9t031_enum_mbus_code,
+	.get_selection	= mt9t031_get_selection,
+	.set_selection	= mt9t031_set_selection,
 	.get_fmt	= mt9t031_get_fmt,
 	.set_fmt	= mt9t031_set_fmt,
 };

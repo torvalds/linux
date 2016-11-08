@@ -27,7 +27,8 @@
 		i2c7 = &i2c_max77836;
 	};
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg =  <0x40000000 0x1ff00000>;
 	};
 

@@ -353,7 +353,7 @@ static void netup_unidvb_stop_streaming(struct vb2_queue *q)
 	netup_unidvb_queue_cleanup(dma);
 }
 
-static struct vb2_ops dvb_qops = {
+static const struct vb2_ops dvb_qops = {
 	.queue_setup		= netup_unidvb_queue_setup,
 	.buf_prepare		= netup_unidvb_buf_prepare,
 	.buf_queue		= netup_unidvb_buf_queue,

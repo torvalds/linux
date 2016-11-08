@@ -128,11 +128,12 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 /* note: already called with rcu_read_lock */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	bool local_rcv = false, mcast_hit = false, unicast = true;
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	enum br_pkt_type pkt_type = BR_PKT_UNICAST;
 	struct net_bridge_fdb_entry *dst = NULL;
 	struct net_bridge_mdb_entry *mdst;
+	bool local_rcv, mcast_hit = false;
 	struct net_bridge *br;
 	u16 vid = 0;
 
@@ -142,29 +143,36 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid))
 		goto out;
 
+	nbp_switchdev_frame_mark(p, skb);
+
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
 	if (p->flags & BR_LEARNING)
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
-	if (!is_broadcast_ether_addr(dest) && is_multicast_ether_addr(dest) &&
-	    br_multicast_rcv(br, p, skb, vid))
-		goto drop;
+	local_rcv = !!(br->dev->flags & IFF_PROMISC);
+	if (is_multicast_ether_addr(dest)) {
+		/* by definition the broadcast is also a multicast address */
+		if (is_broadcast_ether_addr(dest)) {
+			pkt_type = BR_PKT_BROADCAST;
+			local_rcv = true;
+		} else {
+			pkt_type = BR_PKT_MULTICAST;
+			if (br_multicast_rcv(br, p, skb, vid))
+				goto drop;
+		}
+	}
 
 	if (p->state == BR_STATE_LEARNING)
 		goto drop;
 
 	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
-	local_rcv = !!(br->dev->flags & IFF_PROMISC);
-
 	if (IS_ENABLED(CONFIG_INET) && skb->protocol == htons(ETH_P_ARP))
 		br_do_proxy_arp(skb, br, vid, p);
 
-	if (is_broadcast_ether_addr(dest)) {
-		local_rcv = true;
-		unicast = false;
-	} else if (is_multicast_ether_addr(dest)) {
+	switch (pkt_type) {
+	case BR_PKT_MULTICAST:
 		mdst = br_mdb_get(br, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(br, eth_hdr(skb))) {
@@ -178,18 +186,22 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			local_rcv = true;
 			br->dev->stats.multicast++;
 		}
-		unicast = false;
-	} else if ((dst = __br_fdb_get(br, dest, vid)) && dst->is_local) {
-		/* Do not forward the packet since it's local. */
-		return br_pass_frame_up(skb);
+		break;
+	case BR_PKT_UNICAST:
+		dst = __br_fdb_get(br, dest, vid);
+	default:
+		break;
 	}
 
 	if (dst) {
+		if (dst->is_local)
+			return br_pass_frame_up(skb);
+
 		dst->used = jiffies;
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
-			br_flood(br, skb, unicast, local_rcv, false);
+			br_flood(br, skb, pkt_type, local_rcv, false);
 		else
 			br_multicast_flood(mdst, skb, local_rcv, false);
 	}

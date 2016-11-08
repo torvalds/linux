@@ -399,7 +399,6 @@ static int peak_usb_start(struct peak_usb_device *dev)
 		/* create a URB, and a buffer for it, to receive usb messages */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			netdev_err(netdev, "No memory left for URBs\n");
 			err = -ENOMEM;
 			break;
 		}
@@ -454,7 +453,6 @@ static int peak_usb_start(struct peak_usb_device *dev)
 		/* create a URB and a buffer for it, to transmit usb messages */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			netdev_err(netdev, "No memory left for URBs\n");
 			err = -ENOMEM;
 			break;
 		}
@@ -651,10 +649,8 @@ static int peak_usb_restart(struct peak_usb_device *dev)
 
 	/* first allocate a urb to handle the asynchronous steps */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_err(dev->netdev, "no memory left for urb\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 
 	/* also allocate enough space for the commands to send */
 	buf = kmalloc(PCAN_USB_MAX_CMD_LEN, GFP_ATOMIC);

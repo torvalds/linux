@@ -20,8 +20,8 @@ Synopsis
     #include <fcntl.h>
 
 
-.. cpp:function:: int open( const char *device_name, int flags )
-
+.. c:function:: int open( const char *device_name, int flags )
+    :name: mc-open
 
 Arguments
 =========

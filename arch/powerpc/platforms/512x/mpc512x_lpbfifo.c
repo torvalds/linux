@@ -473,7 +473,7 @@ static int mpc512x_lpbfifo_probe(struct platform_device *pdev)
 	}
 
 	lpbfifo.irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	if (lpbfifo.irq == NO_IRQ) {
+	if (!lpbfifo.irq) {
 		dev_err(&pdev->dev, "mapping irq failed\n");
 		ret = -ENODEV;
 		goto err0;

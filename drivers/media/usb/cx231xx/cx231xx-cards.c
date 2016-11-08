@@ -486,7 +486,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.output_mode = OUT_MODE_VIP11,
 		.demod_xfer_mode = 0,
 		.ctl_pin_status_mask = 0xFFFFFFC4,
-		.agc_analog_digital_select_gpio = 0x00,	/* According with PV cxPolaris.inf file */
+		.agc_analog_digital_select_gpio = 0x1c,
 		.tuner_sif_gpio = -1,
 		.tuner_scl_gpio = -1,
 		.tuner_sda_gpio = -1,
@@ -1186,11 +1186,11 @@ static void cx231xx_unregister_media_device(struct cx231xx *dev)
 */
 void cx231xx_release_resources(struct cx231xx *dev)
 {
+	cx231xx_ir_exit(dev);
+
 	cx231xx_release_analog_resources(dev);
 
 	cx231xx_remove_from_devlist(dev);
-
-	cx231xx_ir_exit(dev);
 
 	/* Release I2C buses */
 	cx231xx_dev_uninit(dev);

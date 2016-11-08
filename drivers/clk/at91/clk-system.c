@@ -88,13 +88,14 @@ static const struct clk_ops system_ops = {
 	.is_prepared = clk_system_is_prepared,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91_clk_register_system(struct regmap *regmap, const char *name,
 			 const char *parent_name, u8 id)
 {
 	struct clk_system *sys;
-	struct clk *clk = NULL;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	if (!parent_name || id > SYSTEM_MAX_ID)
 		return ERR_PTR(-EINVAL);
@@ -113,18 +114,21 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 	sys->hw.init = &init;
 	sys->regmap = regmap;
 
-	clk = clk_register(NULL, &sys->hw);
-	if (IS_ERR(clk))
+	hw = &sys->hw;
+	ret = clk_hw_register(NULL, &sys->hw);
+	if (ret) {
 		kfree(sys);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }
 
 static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 {
 	int num;
 	u32 id;
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *name;
 	struct device_node *sysclknp;
 	const char *parent_name;
@@ -147,11 +151,11 @@ static void __init of_at91rm9200_clk_sys_setup(struct device_node *np)
 
 		parent_name = of_clk_get_parent_name(sysclknp, 0);
 
-		clk = at91_clk_register_system(regmap, name, parent_name, id);
-		if (IS_ERR(clk))
+		hw = at91_clk_register_system(regmap, name, parent_name, id);
+		if (IS_ERR(hw))
 			continue;
 
-		of_clk_add_provider(sysclknp, of_clk_src_simple_get, clk);
+		of_clk_add_hw_provider(sysclknp, of_clk_hw_simple_get, hw);
 	}
 }
 CLK_OF_DECLARE(at91rm9200_clk_sys, "atmel,at91rm9200-clk-system",

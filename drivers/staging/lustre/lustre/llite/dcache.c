@@ -37,7 +37,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "../include/obd_support.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_dlm.h"
 
@@ -102,39 +101,6 @@ static int ll_dcompare(const struct dentry *dentry,
 	return 0;
 }
 
-static inline int return_if_equal(struct ldlm_lock *lock, void *data)
-{
-	return (ldlm_is_canceling(lock) && ldlm_is_discard_data(lock)) ?
-		LDLM_ITER_CONTINUE : LDLM_ITER_STOP;
-}
-
-/* find any ldlm lock of the inode in mdc and lov
- * return 0    not find
- *	1    find one
- *      < 0    error
- */
-static int find_cbdata(struct inode *inode)
-{
-	struct ll_sb_info *sbi = ll_i2sbi(inode);
-	struct lov_stripe_md *lsm;
-	int rc = 0;
-
-	LASSERT(inode);
-	rc = md_find_cbdata(sbi->ll_md_exp, ll_inode2fid(inode),
-			    return_if_equal, NULL);
-	if (rc != 0)
-		return rc;
-
-	lsm = ccc_inode_lsm_get(inode);
-	if (!lsm)
-		return rc;
-
-	rc = obd_find_cbdata(sbi->ll_dt_exp, lsm, return_if_equal, NULL);
-	ccc_inode_lsm_put(inode, lsm);
-
-	return rc;
-}
-
 /**
  * Called when last reference to a dentry is dropped and dcache wants to know
  * whether or not it should cache it:
@@ -154,19 +120,6 @@ static int ll_ddelete(const struct dentry *de)
 
 	/* kernel >= 2.6.38 last refcount is decreased after this function. */
 	LASSERT(d_count(de) == 1);
-
-	/* Disable this piece of code temporarily because this is called
-	 * inside dcache_lock so it's not appropriate to do lots of work
-	 * here. ATTENTION: Before this piece of code enabling, LU-2487 must be
-	 * resolved.
-	 */
-#if 0
-	/* if not ldlm lock for this inode, set i_nlink to 0 so that
-	 * this inode can be recycled later b=20433
-	 */
-	if (d_really_is_positive(de) && !find_cbdata(d_inode(de)))
-		clear_nlink(d_inode(de));
-#endif
 
 	if (d_lustre_invalid((struct dentry *)de))
 		return 1;
@@ -325,14 +278,13 @@ static int ll_revalidate_dentry(struct dentry *dentry,
 	if (lookup_flags & (LOOKUP_PARENT | LOOKUP_OPEN | LOOKUP_CREATE))
 		return 1;
 
-	if (d_need_statahead(dir, dentry) <= 0)
+	if (!dentry_may_statahead(dir, dentry))
 		return 1;
 
 	if (lookup_flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	do_statahead_enter(dir, &dentry, !d_inode(dentry));
-	ll_statahead_mark(dir, dentry);
+	ll_statahead(dir, &dentry, !d_inode(dentry));
 	return 1;
 }
 
@@ -347,18 +299,9 @@ static int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 	return ll_revalidate_dentry(dentry, flags);
 }
 
-static void ll_d_iput(struct dentry *de, struct inode *inode)
-{
-	LASSERT(inode);
-	if (!find_cbdata(inode))
-		clear_nlink(inode);
-	iput(inode);
-}
-
 const struct dentry_operations ll_d_ops = {
 	.d_revalidate = ll_revalidate_nd,
 	.d_release = ll_release,
 	.d_delete  = ll_ddelete,
-	.d_iput    = ll_d_iput,
 	.d_compare = ll_dcompare,
 };

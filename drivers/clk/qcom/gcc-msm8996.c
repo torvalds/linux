@@ -2592,9 +2592,9 @@ static struct clk_branch gcc_pcie_2_aux_clk = {
 };
 
 static struct clk_branch gcc_pcie_2_pipe_clk = {
-	.halt_reg = 0x6e108,
+	.halt_reg = 0x6e018,
 	.clkr = {
-		.enable_reg = 0x6e108,
+		.enable_reg = 0x6e018,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie_2_pipe_clk",
@@ -3329,6 +3329,8 @@ static const struct qcom_reset_map gcc_msm8996_resets[] = {
 	[GCC_USB_20_BCR] = { 0x12000 },
 	[GCC_QUSB2PHY_PRIM_BCR] = { 0x12038 },
 	[GCC_QUSB2PHY_SEC_BCR] = { 0x1203c },
+	[GCC_USB3_PHY_BCR] = { 0x50020 },
+	[GCC_USB3PHY_PHY_BCR] = { 0x50024 },
 	[GCC_USB_PHY_CFG_AHB2PHY_BCR] = { 0x6a000 },
 	[GCC_SDCC1_BCR] = { 0x13000 },
 	[GCC_SDCC2_BCR] = { 0x14000 },
@@ -3404,6 +3406,8 @@ static const struct qcom_reset_map gcc_msm8996_resets[] = {
 	[GCC_PCIE_2_BCR] = { 0x6e000 },
 	[GCC_PCIE_2_PHY_BCR] = { 0x6e038 },
 	[GCC_PCIE_PHY_BCR] = { 0x6f000 },
+	[GCC_PCIE_PHY_COM_BCR] = { 0x6f014 },
+	[GCC_PCIE_PHY_COM_NOCSR_BCR] = { 0x6f00c },
 	[GCC_DCD_BCR] = { 0x70000 },
 	[GCC_OBT_ODT_BCR] = { 0x73000 },
 	[GCC_UFS_BCR] = { 0x75000 },
@@ -3447,9 +3451,8 @@ MODULE_DEVICE_TABLE(of, gcc_msm8996_match_table);
 
 static int gcc_msm8996_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
 	struct device *dev = &pdev->dev;
-	int i;
+	int i, ret;
 	struct regmap *regmap;
 
 	regmap = qcom_cc_map(pdev, &gcc_msm8996_desc);
@@ -3463,9 +3466,9 @@ static int gcc_msm8996_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x52008, BIT(21), BIT(21));
 
 	for (i = 0; i < ARRAY_SIZE(gcc_msm8996_hws); i++) {
-		clk = devm_clk_register(dev, gcc_msm8996_hws[i]);
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+		ret = devm_clk_hw_register(dev, gcc_msm8996_hws[i]);
+		if (ret)
+			return ret;
 	}
 
 	return qcom_cc_really_probe(pdev, &gcc_msm8996_desc, regmap);

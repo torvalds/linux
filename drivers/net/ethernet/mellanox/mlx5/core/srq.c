@@ -175,8 +175,8 @@ static int create_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	MLX5_SET(create_srq_in, create_in, opcode,
 		 MLX5_CMD_OP_CREATE_SRQ);
 
-	err = mlx5_cmd_exec_check_status(dev, create_in, inlen, create_out,
-					 sizeof(create_out));
+	err = mlx5_cmd_exec(dev, create_in, inlen, create_out,
+			    sizeof(create_out));
 	kvfree(create_in);
 	if (!err)
 		srq->srqn = MLX5_GET(create_srq_out, create_out, srqn);
@@ -194,8 +194,8 @@ static int destroy_srq_cmd(struct mlx5_core_dev *dev,
 		 MLX5_CMD_OP_DESTROY_SRQ);
 	MLX5_SET(destroy_srq_in, srq_in, srqn, srq->srqn);
 
-	return mlx5_cmd_exec_check_status(dev, srq_in, sizeof(srq_in),
-					  srq_out, sizeof(srq_out));
+	return mlx5_cmd_exec(dev, srq_in, sizeof(srq_in),
+			     srq_out, sizeof(srq_out));
 }
 
 static int arm_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
@@ -209,8 +209,8 @@ static int arm_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	MLX5_SET(arm_xrc_srq_in, srq_in, xrc_srqn, srq->srqn);
 	MLX5_SET(arm_xrc_srq_in, srq_in, lwm,      lwm);
 
-	return  mlx5_cmd_exec_check_status(dev, srq_in, sizeof(srq_in),
-					   srq_out, sizeof(srq_out));
+	return  mlx5_cmd_exec(dev, srq_in, sizeof(srq_in),
+			      srq_out, sizeof(srq_out));
 }
 
 static int query_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
@@ -228,9 +228,8 @@ static int query_srq_cmd(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	MLX5_SET(query_srq_in, srq_in, opcode,
 		 MLX5_CMD_OP_QUERY_SRQ);
 	MLX5_SET(query_srq_in, srq_in, srqn, srq->srqn);
-	err =  mlx5_cmd_exec_check_status(dev, srq_in, sizeof(srq_in),
-					  srq_out,
-					  MLX5_ST_SZ_BYTES(query_srq_out));
+	err =  mlx5_cmd_exec(dev, srq_in, sizeof(srq_in),
+			     srq_out, MLX5_ST_SZ_BYTES(query_srq_out));
 	if (err)
 		goto out;
 
@@ -272,8 +271,8 @@ static int create_xrc_srq_cmd(struct mlx5_core_dev *dev,
 		 MLX5_CMD_OP_CREATE_XRC_SRQ);
 
 	memset(create_out, 0, sizeof(create_out));
-	err = mlx5_cmd_exec_check_status(dev, create_in, inlen, create_out,
-					 sizeof(create_out));
+	err = mlx5_cmd_exec(dev, create_in, inlen, create_out,
+			    sizeof(create_out));
 	if (err)
 		goto out;
 
@@ -286,36 +285,30 @@ out:
 static int destroy_xrc_srq_cmd(struct mlx5_core_dev *dev,
 			       struct mlx5_core_srq *srq)
 {
-	u32 xrcsrq_in[MLX5_ST_SZ_DW(destroy_xrc_srq_in)];
-	u32 xrcsrq_out[MLX5_ST_SZ_DW(destroy_xrc_srq_out)];
-
-	memset(xrcsrq_in, 0, sizeof(xrcsrq_in));
-	memset(xrcsrq_out, 0, sizeof(xrcsrq_out));
+	u32 xrcsrq_in[MLX5_ST_SZ_DW(destroy_xrc_srq_in)]   = {0};
+	u32 xrcsrq_out[MLX5_ST_SZ_DW(destroy_xrc_srq_out)] = {0};
 
 	MLX5_SET(destroy_xrc_srq_in, xrcsrq_in, opcode,
 		 MLX5_CMD_OP_DESTROY_XRC_SRQ);
 	MLX5_SET(destroy_xrc_srq_in, xrcsrq_in, xrc_srqn, srq->srqn);
 
-	return mlx5_cmd_exec_check_status(dev, xrcsrq_in, sizeof(xrcsrq_in),
-					  xrcsrq_out, sizeof(xrcsrq_out));
+	return mlx5_cmd_exec(dev, xrcsrq_in, sizeof(xrcsrq_in),
+			     xrcsrq_out, sizeof(xrcsrq_out));
 }
 
 static int arm_xrc_srq_cmd(struct mlx5_core_dev *dev,
 			   struct mlx5_core_srq *srq, u16 lwm)
 {
-	u32 xrcsrq_in[MLX5_ST_SZ_DW(arm_xrc_srq_in)];
-	u32 xrcsrq_out[MLX5_ST_SZ_DW(arm_xrc_srq_out)];
-
-	memset(xrcsrq_in, 0, sizeof(xrcsrq_in));
-	memset(xrcsrq_out, 0, sizeof(xrcsrq_out));
+	u32 xrcsrq_in[MLX5_ST_SZ_DW(arm_xrc_srq_in)]   = {0};
+	u32 xrcsrq_out[MLX5_ST_SZ_DW(arm_xrc_srq_out)] = {0};
 
 	MLX5_SET(arm_xrc_srq_in, xrcsrq_in, opcode,   MLX5_CMD_OP_ARM_XRC_SRQ);
 	MLX5_SET(arm_xrc_srq_in, xrcsrq_in, op_mod,   MLX5_ARM_XRC_SRQ_IN_OP_MOD_XRC_SRQ);
 	MLX5_SET(arm_xrc_srq_in, xrcsrq_in, xrc_srqn, srq->srqn);
 	MLX5_SET(arm_xrc_srq_in, xrcsrq_in, lwm,      lwm);
 
-	return  mlx5_cmd_exec_check_status(dev, xrcsrq_in, sizeof(xrcsrq_in),
-					   xrcsrq_out, sizeof(xrcsrq_out));
+	return  mlx5_cmd_exec(dev, xrcsrq_in, sizeof(xrcsrq_in),
+			      xrcsrq_out, sizeof(xrcsrq_out));
 }
 
 static int query_xrc_srq_cmd(struct mlx5_core_dev *dev,
@@ -335,9 +328,9 @@ static int query_xrc_srq_cmd(struct mlx5_core_dev *dev,
 	MLX5_SET(query_xrc_srq_in, xrcsrq_in, opcode,
 		 MLX5_CMD_OP_QUERY_XRC_SRQ);
 	MLX5_SET(query_xrc_srq_in, xrcsrq_in, xrc_srqn, srq->srqn);
-	err =  mlx5_cmd_exec_check_status(dev, xrcsrq_in, sizeof(xrcsrq_in),
-					  xrcsrq_out,
-					  MLX5_ST_SZ_BYTES(query_xrc_srq_out));
+
+	err =  mlx5_cmd_exec(dev, xrcsrq_in, sizeof(xrcsrq_in), xrcsrq_out,
+			     MLX5_ST_SZ_BYTES(query_xrc_srq_out));
 	if (err)
 		goto out;
 

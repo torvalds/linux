@@ -916,58 +916,18 @@ static struct kobj_type ktype_cpufreq = {
 	.release	= cpufreq_sysfs_release,
 };
 
-static int add_cpu_dev_symlink(struct cpufreq_policy *policy, int cpu)
+static int add_cpu_dev_symlink(struct cpufreq_policy *policy,
+			       struct device *dev)
 {
-	struct device *cpu_dev;
-
-	pr_debug("%s: Adding symlink for CPU: %u\n", __func__, cpu);
-
-	if (!policy)
-		return 0;
-
-	cpu_dev = get_cpu_device(cpu);
-	if (WARN_ON(!cpu_dev))
-		return 0;
-
-	return sysfs_create_link(&cpu_dev->kobj, &policy->kobj, "cpufreq");
+	dev_dbg(dev, "%s: Adding symlink\n", __func__);
+	return sysfs_create_link(&dev->kobj, &policy->kobj, "cpufreq");
 }
 
-static void remove_cpu_dev_symlink(struct cpufreq_policy *policy, int cpu)
+static void remove_cpu_dev_symlink(struct cpufreq_policy *policy,
+				   struct device *dev)
 {
-	struct device *cpu_dev;
-
-	pr_debug("%s: Removing symlink for CPU: %u\n", __func__, cpu);
-
-	cpu_dev = get_cpu_device(cpu);
-	if (WARN_ON(!cpu_dev))
-		return;
-
-	sysfs_remove_link(&cpu_dev->kobj, "cpufreq");
-}
-
-/* Add/remove symlinks for all related CPUs */
-static int cpufreq_add_dev_symlink(struct cpufreq_policy *policy)
-{
-	unsigned int j;
-	int ret = 0;
-
-	/* Some related CPUs might not be present (physically hotplugged) */
-	for_each_cpu(j, policy->real_cpus) {
-		ret = add_cpu_dev_symlink(policy, j);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
-static void cpufreq_remove_dev_symlink(struct cpufreq_policy *policy)
-{
-	unsigned int j;
-
-	/* Some related CPUs might not be present (physically hotplugged) */
-	for_each_cpu(j, policy->real_cpus)
-		remove_cpu_dev_symlink(policy, j);
+	dev_dbg(dev, "%s: Removing symlink\n", __func__);
+	sysfs_remove_link(&dev->kobj, "cpufreq");
 }
 
 static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
@@ -999,7 +959,7 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 			return ret;
 	}
 
-	return cpufreq_add_dev_symlink(policy);
+	return 0;
 }
 
 __weak struct cpufreq_governor *cpufreq_default_governor(void)
@@ -1073,12 +1033,8 @@ static void handle_update(struct work_struct *work)
 
 static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 {
-	struct device *dev = get_cpu_device(cpu);
 	struct cpufreq_policy *policy;
 	int ret;
-
-	if (WARN_ON(!dev))
-		return NULL;
 
 	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
 	if (!policy)
@@ -1133,7 +1089,6 @@ static void cpufreq_policy_put_kobj(struct cpufreq_policy *policy, bool notify)
 
 	down_write(&policy->rwsem);
 	cpufreq_stats_free_table(policy);
-	cpufreq_remove_dev_symlink(policy);
 	kobj = &policy->kobj;
 	cmp = &policy->kobj_unregister;
 	up_write(&policy->rwsem);
@@ -1215,8 +1170,8 @@ static int cpufreq_online(unsigned int cpu)
 	if (new_policy) {
 		/* related_cpus should at least include policy->cpus. */
 		cpumask_copy(policy->related_cpus, policy->cpus);
-		/* Remember CPUs present at the policy creation time. */
-		cpumask_and(policy->real_cpus, policy->cpus, cpu_present_mask);
+		/* Clear mask of registered CPUs */
+		cpumask_clear(policy->real_cpus);
 	}
 
 	/*
@@ -1331,6 +1286,8 @@ out_free_policy:
 	return ret;
 }
 
+static int cpufreq_offline(unsigned int cpu);
+
 /**
  * cpufreq_add_dev - the cpufreq interface for a CPU device.
  * @dev: CPU device.
@@ -1340,25 +1297,31 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
 	struct cpufreq_policy *policy;
 	unsigned cpu = dev->id;
+	int ret;
 
 	dev_dbg(dev, "%s: adding CPU%u\n", __func__, cpu);
 
-	if (cpu_online(cpu))
-		return cpufreq_online(cpu);
+	if (cpu_online(cpu)) {
+		ret = cpufreq_online(cpu);
+		if (ret)
+			return ret;
+	}
 
-	/*
-	 * A hotplug notifier will follow and we will handle it as CPU online
-	 * then.  For now, just create the sysfs link, unless there is no policy
-	 * or the link is already present.
-	 */
+	/* Create sysfs link on CPU registration */
 	policy = per_cpu(cpufreq_cpu_data, cpu);
 	if (!policy || cpumask_test_and_set_cpu(cpu, policy->real_cpus))
 		return 0;
 
-	return add_cpu_dev_symlink(policy, cpu);
+	ret = add_cpu_dev_symlink(policy, dev);
+	if (ret) {
+		cpumask_clear_cpu(cpu, policy->real_cpus);
+		cpufreq_offline(cpu);
+	}
+
+	return ret;
 }
 
-static void cpufreq_offline(unsigned int cpu)
+static int cpufreq_offline(unsigned int cpu)
 {
 	struct cpufreq_policy *policy;
 	int ret;
@@ -1368,7 +1331,7 @@ static void cpufreq_offline(unsigned int cpu)
 	policy = cpufreq_cpu_get_raw(cpu);
 	if (!policy) {
 		pr_debug("%s: No cpu_data found\n", __func__);
-		return;
+		return 0;
 	}
 
 	down_write(&policy->rwsem);
@@ -1417,6 +1380,7 @@ static void cpufreq_offline(unsigned int cpu)
 
 unlock:
 	up_write(&policy->rwsem);
+	return 0;
 }
 
 /**
@@ -1436,7 +1400,7 @@ static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 		cpufreq_offline(cpu);
 
 	cpumask_clear_cpu(cpu, policy->real_cpus);
-	remove_cpu_dev_symlink(policy, cpu);
+	remove_cpu_dev_symlink(policy, dev);
 
 	if (cpumask_empty(policy->real_cpus))
 		cpufreq_policy_free(policy, true);
@@ -2332,28 +2296,6 @@ unlock:
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
-static int cpufreq_cpu_callback(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		cpufreq_online(cpu);
-		break;
-
-	case CPU_DOWN_PREPARE:
-		cpufreq_offline(cpu);
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block __refdata cpufreq_cpu_notifier = {
-	.notifier_call = cpufreq_cpu_callback,
-};
-
 /*********************************************************************
  *               BOOST						     *
  *********************************************************************/
@@ -2455,6 +2397,7 @@ EXPORT_SYMBOL_GPL(cpufreq_boost_enabled);
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *
  *********************************************************************/
+static enum cpuhp_state hp_online;
 
 /**
  * cpufreq_register_driver - register a CPU Frequency driver
@@ -2517,7 +2460,14 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		goto err_if_unreg;
 	}
 
-	register_hotcpu_notifier(&cpufreq_cpu_notifier);
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "cpufreq:online",
+					cpufreq_online,
+					cpufreq_offline);
+	if (ret < 0)
+		goto err_if_unreg;
+	hp_online = ret;
+	ret = 0;
+
 	pr_debug("driver %s up and running\n", driver_data->name);
 	goto out;
 
@@ -2556,7 +2506,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 	get_online_cpus();
 	subsys_interface_unregister(&cpufreq_interface);
 	remove_boost_sysfs_file();
-	unregister_hotcpu_notifier(&cpufreq_cpu_notifier);
+	cpuhp_remove_state_nocalls(hp_online);
 
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 

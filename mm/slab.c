@@ -233,6 +233,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 	spin_lock_init(&parent->list_lock);
 	parent->free_objects = 0;
 	parent->free_touched = 0;
+	parent->num_slabs = 0;
 }
 
 #define MAKE_LIST(cachep, listp, slab, nodeid)				\
@@ -886,6 +887,7 @@ static int init_cache_node(struct kmem_cache *cachep, int node, gfp_t gfp)
 	return 0;
 }
 
+#if (defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)) || defined(CONFIG_SMP)
 /*
  * Allocates and initializes node for a node on each slab cache, used for
  * either memory or cpu hotplug.  If memory is being hot-added, the kmem_cache_node
@@ -908,6 +910,7 @@ static int init_cache_node_node(int node)
 
 	return 0;
 }
+#endif
 
 static int setup_kmem_cache_node(struct kmem_cache *cachep,
 				int node, gfp_t gfp, bool force_change)
@@ -964,7 +967,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
 	 * guaranteed to be valid until irq is re-enabled, because it will be
 	 * freed after synchronize_sched().
 	 */
-	if (force_change)
+	if (old_shared && force_change)
 		synchronize_sched();
 
 fail:
@@ -974,6 +977,8 @@ fail:
 
 	return ret;
 }
+
+#ifdef CONFIG_SMP
 
 static void cpuup_canceled(long cpu)
 {
@@ -1075,65 +1080,54 @@ bad:
 	return -ENOMEM;
 }
 
-static int cpuup_callback(struct notifier_block *nfb,
-				    unsigned long action, void *hcpu)
+int slab_prepare_cpu(unsigned int cpu)
 {
-	long cpu = (long)hcpu;
-	int err = 0;
+	int err;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		mutex_lock(&slab_mutex);
-		err = cpuup_prepare(cpu);
-		mutex_unlock(&slab_mutex);
-		break;
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		start_cpu_timer(cpu);
-		break;
-#ifdef CONFIG_HOTPLUG_CPU
-  	case CPU_DOWN_PREPARE:
-  	case CPU_DOWN_PREPARE_FROZEN:
-		/*
-		 * Shutdown cache reaper. Note that the slab_mutex is
-		 * held so that if cache_reap() is invoked it cannot do
-		 * anything expensive but will only modify reap_work
-		 * and reschedule the timer.
-		*/
-		cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu));
-		/* Now the cache_reaper is guaranteed to be not running. */
-		per_cpu(slab_reap_work, cpu).work.func = NULL;
-  		break;
-  	case CPU_DOWN_FAILED:
-  	case CPU_DOWN_FAILED_FROZEN:
-		start_cpu_timer(cpu);
-  		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		/*
-		 * Even if all the cpus of a node are down, we don't free the
-		 * kmem_cache_node of any cache. This to avoid a race between
-		 * cpu_down, and a kmalloc allocation from another cpu for
-		 * memory from the node of the cpu going down.  The node
-		 * structure is usually allocated from kmem_cache_create() and
-		 * gets destroyed at kmem_cache_destroy().
-		 */
-		/* fall through */
-#endif
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		mutex_lock(&slab_mutex);
-		cpuup_canceled(cpu);
-		mutex_unlock(&slab_mutex);
-		break;
-	}
-	return notifier_from_errno(err);
+	mutex_lock(&slab_mutex);
+	err = cpuup_prepare(cpu);
+	mutex_unlock(&slab_mutex);
+	return err;
 }
 
-static struct notifier_block cpucache_notifier = {
-	&cpuup_callback, NULL, 0
-};
+/*
+ * This is called for a failed online attempt and for a successful
+ * offline.
+ *
+ * Even if all the cpus of a node are down, we don't free the
+ * kmem_list3 of any cache. This to avoid a race between cpu_down, and
+ * a kmalloc allocation from another cpu for memory from the node of
+ * the cpu going down.  The list3 structure is usually allocated from
+ * kmem_cache_create() and gets destroyed at kmem_cache_destroy().
+ */
+int slab_dead_cpu(unsigned int cpu)
+{
+	mutex_lock(&slab_mutex);
+	cpuup_canceled(cpu);
+	mutex_unlock(&slab_mutex);
+	return 0;
+}
+#endif
+
+static int slab_online_cpu(unsigned int cpu)
+{
+	start_cpu_timer(cpu);
+	return 0;
+}
+
+static int slab_offline_cpu(unsigned int cpu)
+{
+	/*
+	 * Shutdown cache reaper. Note that the slab_mutex is held so
+	 * that if cache_reap() is invoked it cannot do anything
+	 * expensive but will only modify reap_work and reschedule the
+	 * timer.
+	 */
+	cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu));
+	/* Now the cache_reaper is guaranteed to be not running. */
+	per_cpu(slab_reap_work, cpu).work.func = NULL;
+	return 0;
+}
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)
 /*
@@ -1336,12 +1330,6 @@ void __init kmem_cache_init_late(void)
 	/* Done! */
 	slab_state = FULL;
 
-	/*
-	 * Register a cpu startup notifier callback that initializes
-	 * cpu_cache_get for all new cpus
-	 */
-	register_cpu_notifier(&cpucache_notifier);
-
 #ifdef CONFIG_NUMA
 	/*
 	 * Register a memory hotplug callback that initializes and frees
@@ -1358,13 +1346,14 @@ void __init kmem_cache_init_late(void)
 
 static int __init cpucache_init(void)
 {
-	int cpu;
+	int ret;
 
 	/*
 	 * Register the timers that return unneeded pages to the page allocator
 	 */
-	for_each_online_cpu(cpu)
-		start_cpu_timer(cpu);
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "SLAB online",
+				slab_online_cpu, slab_offline_cpu);
+	WARN_ON(ret < 0);
 
 	/* Done! */
 	slab_state = FULL;
@@ -1394,24 +1383,27 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 	for_each_kmem_cache_node(cachep, node, n) {
 		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
 		unsigned long active_slabs = 0, num_slabs = 0;
+		unsigned long num_slabs_partial = 0, num_slabs_free = 0;
+		unsigned long num_slabs_full;
 
 		spin_lock_irqsave(&n->list_lock, flags);
-		list_for_each_entry(page, &n->slabs_full, lru) {
-			active_objs += cachep->num;
-			active_slabs++;
-		}
+		num_slabs = n->num_slabs;
 		list_for_each_entry(page, &n->slabs_partial, lru) {
 			active_objs += page->active;
-			active_slabs++;
+			num_slabs_partial++;
 		}
 		list_for_each_entry(page, &n->slabs_free, lru)
-			num_slabs++;
+			num_slabs_free++;
 
 		free_objects += n->free_objects;
 		spin_unlock_irqrestore(&n->list_lock, flags);
 
-		num_slabs += active_slabs;
 		num_objs = num_slabs * cachep->num;
+		active_slabs = num_slabs - num_slabs_free;
+		num_slabs_full = num_slabs -
+			(num_slabs_partial + num_slabs_free);
+		active_objs += (num_slabs_full * cachep->num);
+
 		pr_warn("  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
 			node, active_slabs, num_slabs, active_objs, num_objs,
 			free_objects);
@@ -2326,6 +2318,7 @@ static int drain_freelist(struct kmem_cache *cache,
 
 		page = list_entry(p, struct page, lru);
 		list_del(&page->lru);
+		n->num_slabs--;
 		/*
 		 * Safe to drop the lock. The slab is no longer linked
 		 * to the cache.
@@ -2764,6 +2757,8 @@ static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
 		list_add_tail(&page->lru, &(n->slabs_free));
 	else
 		fixup_slab_list(cachep, n, page, &list);
+
+	n->num_slabs++;
 	STATS_INC_GROWN(cachep);
 	n->free_objects += cachep->num - page->active;
 	spin_unlock(&n->list_lock);
@@ -3455,6 +3450,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
 
 		page = list_last_entry(&n->slabs_free, struct page, lru);
 		list_move(&page->lru, list);
+		n->num_slabs--;
 	}
 }
 
@@ -4111,6 +4107,8 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
 	unsigned long num_objs;
 	unsigned long active_slabs = 0;
 	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
+	unsigned long num_slabs_partial = 0, num_slabs_free = 0;
+	unsigned long num_slabs_full = 0;
 	const char *name;
 	char *error = NULL;
 	int node;
@@ -4123,33 +4121,34 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
 		check_irq_on();
 		spin_lock_irq(&n->list_lock);
 
-		list_for_each_entry(page, &n->slabs_full, lru) {
-			if (page->active != cachep->num && !error)
-				error = "slabs_full accounting error";
-			active_objs += cachep->num;
-			active_slabs++;
-		}
+		num_slabs += n->num_slabs;
+
 		list_for_each_entry(page, &n->slabs_partial, lru) {
 			if (page->active == cachep->num && !error)
 				error = "slabs_partial accounting error";
 			if (!page->active && !error)
 				error = "slabs_partial accounting error";
 			active_objs += page->active;
-			active_slabs++;
+			num_slabs_partial++;
 		}
+
 		list_for_each_entry(page, &n->slabs_free, lru) {
 			if (page->active && !error)
 				error = "slabs_free accounting error";
-			num_slabs++;
+			num_slabs_free++;
 		}
+
 		free_objects += n->free_objects;
 		if (n->shared)
 			shared_avail += n->shared->avail;
 
 		spin_unlock_irq(&n->list_lock);
 	}
-	num_slabs += active_slabs;
 	num_objs = num_slabs * cachep->num;
+	active_slabs = num_slabs - num_slabs_free;
+	num_slabs_full = num_slabs - (num_slabs_partial + num_slabs_free);
+	active_objs += (num_slabs_full * cachep->num);
+
 	if (num_objs - active_objs != free_objects && !error)
 		error = "free_objects accounting error";
 

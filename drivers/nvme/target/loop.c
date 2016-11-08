@@ -273,7 +273,6 @@ static int nvme_loop_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 static struct blk_mq_ops nvme_loop_mq_ops = {
 	.queue_rq	= nvme_loop_queue_rq,
 	.complete	= nvme_loop_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_loop_init_request,
 	.init_hctx	= nvme_loop_init_hctx,
 	.timeout	= nvme_loop_timeout,
@@ -282,7 +281,6 @@ static struct blk_mq_ops nvme_loop_mq_ops = {
 static struct blk_mq_ops nvme_loop_admin_mq_ops = {
 	.queue_rq	= nvme_loop_queue_rq,
 	.complete	= nvme_loop_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_loop_init_admin_request,
 	.init_hctx	= nvme_loop_init_admin_hctx,
 	.timeout	= nvme_loop_timeout,

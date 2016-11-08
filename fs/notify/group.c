@@ -45,9 +45,9 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
  */
 void fsnotify_group_stop_queueing(struct fsnotify_group *group)
 {
-	mutex_lock(&group->notification_mutex);
+	spin_lock(&group->notification_lock);
 	group->shutdown = true;
-	mutex_unlock(&group->notification_mutex);
+	spin_unlock(&group->notification_lock);
 }
 
 /*
@@ -125,7 +125,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	atomic_set(&group->refcnt, 1);
 	atomic_set(&group->num_marks, 0);
 
-	mutex_init(&group->notification_mutex);
+	spin_lock_init(&group->notification_lock);
 	INIT_LIST_HEAD(&group->notification_list);
 	init_waitqueue_head(&group->notification_waitq);
 	group->max_events = UINT_MAX;

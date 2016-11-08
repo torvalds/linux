@@ -41,11 +41,6 @@ static inline u32 fcpu(struct device_node *cpu, const char *n)
 	return val;
 }
 
-static inline u32 fcpu_has(struct device_node *cpu, const char *n)
-{
-	return of_get_property(cpu, n, NULL) ? 1 : 0;
-}
-
 void __init setup_cpuinfo(void)
 {
 	struct device_node *cpu;
@@ -56,7 +51,7 @@ void __init setup_cpuinfo(void)
 	if (!cpu)
 		panic("%s: No CPU found in devicetree!\n", __func__);
 
-	if (!fcpu_has(cpu, "altr,has-initda"))
+	if (!of_property_read_bool(cpu, "altr,has-initda"))
 		panic("initda instruction is unimplemented. Please update your "
 			"hardware system to have more than 4-byte line data "
 			"cache\n");
@@ -69,10 +64,10 @@ void __init setup_cpuinfo(void)
 	else
 		strcpy(cpuinfo.cpu_impl, "<unknown>");
 
-	cpuinfo.has_div = fcpu_has(cpu, "altr,has-div");
-	cpuinfo.has_mul = fcpu_has(cpu, "altr,has-mul");
-	cpuinfo.has_mulx = fcpu_has(cpu, "altr,has-mulx");
-	cpuinfo.mmu = fcpu_has(cpu, "altr,has-mmu");
+	cpuinfo.has_div = of_property_read_bool(cpu, "altr,has-div");
+	cpuinfo.has_mul = of_property_read_bool(cpu, "altr,has-mul");
+	cpuinfo.has_mulx = of_property_read_bool(cpu, "altr,has-mulx");
+	cpuinfo.mmu = of_property_read_bool(cpu, "altr,has-mmu");
 
 	if (IS_ENABLED(CONFIG_NIOS2_HW_DIV_SUPPORT) && !cpuinfo.has_div)
 		err_cpu("DIV");

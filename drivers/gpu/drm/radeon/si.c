@@ -1547,7 +1547,7 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 {
 	const __be32 *fw_data = NULL;
 	const __le32 *new_fw_data = NULL;
-	u32 running, blackout = 0;
+	u32 running;
 	u32 *io_mc_regs = NULL;
 	const __le32 *new_io_mc_regs = NULL;
 	int i, regs_size, ucode_size;
@@ -1598,11 +1598,6 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 	running = RREG32(MC_SEQ_SUP_CNTL) & RUN_MASK;
 
 	if (running == 0) {
-		if (running) {
-			blackout = RREG32(MC_SHARED_BLACKOUT_CNTL);
-			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout | 1);
-		}
-
 		/* reset the engine and set to writable */
 		WREG32(MC_SEQ_SUP_CNTL, 0x00000008);
 		WREG32(MC_SEQ_SUP_CNTL, 0x00000010);
@@ -1641,9 +1636,6 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 				break;
 			udelay(1);
 		}
-
-		if (running)
-			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout);
 	}
 
 	return 0;
@@ -4439,6 +4431,7 @@ static bool si_vm_reg_valid(u32 reg)
 	case SPI_CONFIG_CNTL:
 	case SPI_CONFIG_CNTL_1:
 	case TA_CNTL_AUX:
+	case TA_CS_BC_BASE_ADDR:
 		return true;
 	default:
 		DRM_ERROR("Invalid register 0x%x in CS\n", reg);
@@ -6928,7 +6921,7 @@ static void si_uvd_resume(struct radeon_device *rdev)
 		return;
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, RADEON_CP_PACKET2);
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, PACKET0(UVD_NO_OP, 0));
 	if (r) {
 		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
 		return;

@@ -290,6 +290,37 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 	return 0;
 }
 
+int cxl_data_cache_flush(struct cxl *adapter)
+{
+	u64 reg;
+	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+
+	pr_devel("Flushing data cache\n");
+
+	reg = cxl_p1_read(adapter, CXL_PSL_Control);
+	reg |= CXL_PSL_Control_Fr;
+	cxl_p1_write(adapter, CXL_PSL_Control, reg);
+
+	reg = cxl_p1_read(adapter, CXL_PSL_Control);
+	while ((reg & CXL_PSL_Control_Fs_MASK) != CXL_PSL_Control_Fs_Complete) {
+		if (time_after_eq(jiffies, timeout)) {
+			dev_warn(&adapter->dev, "WARNING: cache flush timed out!\n");
+			return -EBUSY;
+		}
+
+		if (!cxl_ops->link_ok(adapter, NULL)) {
+			dev_warn(&adapter->dev, "WARNING: link down when flushing cache\n");
+			return -EIO;
+		}
+		cpu_relax();
+		reg = cxl_p1_read(adapter, CXL_PSL_Control);
+	}
+
+	reg &= ~CXL_PSL_Control_Fr;
+	cxl_p1_write(adapter, CXL_PSL_Control, reg);
+	return 0;
+}
+
 static int cxl_write_sstp(struct cxl_afu *afu, u64 sstp0, u64 sstp1)
 {
 	int rc;

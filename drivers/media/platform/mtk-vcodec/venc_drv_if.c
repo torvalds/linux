@@ -26,8 +26,8 @@
 #include "mtk_vcodec_enc_pm.h"
 #include "mtk_vpu.h"
 
-struct venc_common_if *get_h264_enc_comm_if(void);
-struct venc_common_if *get_vp8_enc_comm_if(void);
+const struct venc_common_if *get_h264_enc_comm_if(void);
+const struct venc_common_if *get_vp8_enc_comm_if(void);
 
 int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 {

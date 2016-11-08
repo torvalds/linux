@@ -162,14 +162,21 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it);
 
 /*
  * Locking:
+ * a) global sem_lock() for read/write
  *	sem_undo.id_next,
  *	sem_array.complex_count,
- *	sem_array.pending{_alter,_cont},
- *	sem_array.sem_undo: global sem_lock() for read/write
- *	sem_undo.proc_next: only "current" is allowed to read/write that field.
+ *	sem_array.complex_mode
+ *	sem_array.pending{_alter,_const},
+ *	sem_array.sem_undo
  *
+ * b) global or semaphore sem_lock() for read/write:
  *	sem_array.sem_base[i].pending_{const,alter}:
- *		global or semaphore sem_lock() for read/write
+ *	sem_array.complex_mode (for read)
+ *
+ * c) special:
+ *	sem_undo_list.list_proc:
+ *	* undo_list->lock for write
+ *	* rcu for read
  */
 
 #define sc_semmsl	sem_ctls[0]
@@ -260,30 +267,61 @@ static void sem_rcu_free(struct rcu_head *head)
 }
 
 /*
- * Wait until all currently ongoing simple ops have completed.
+ * Enter the mode suitable for non-simple operations:
  * Caller must own sem_perm.lock.
- * New simple ops cannot start, because simple ops first check
- * that sem_perm.lock is free.
- * that a) sem_perm.lock is free and b) complex_count is 0.
  */
-static void sem_wait_array(struct sem_array *sma)
+static void complexmode_enter(struct sem_array *sma)
 {
 	int i;
 	struct sem *sem;
 
-	if (sma->complex_count)  {
-		/* The thread that increased sma->complex_count waited on
-		 * all sem->lock locks. Thus we don't need to wait again.
-		 */
+	if (sma->complex_mode)  {
+		/* We are already in complex_mode. Nothing to do */
 		return;
 	}
+
+	/* We need a full barrier after seting complex_mode:
+	 * The write to complex_mode must be visible
+	 * before we read the first sem->lock spinlock state.
+	 */
+	smp_store_mb(sma->complex_mode, true);
 
 	for (i = 0; i < sma->sem_nsems; i++) {
 		sem = sma->sem_base + i;
 		spin_unlock_wait(&sem->lock);
 	}
+	/*
+	 * spin_unlock_wait() is not a memory barriers, it is only a
+	 * control barrier. The code must pair with spin_unlock(&sem->lock),
+	 * thus just the control barrier is insufficient.
+	 *
+	 * smp_rmb() is sufficient, as writes cannot pass the control barrier.
+	 */
+	smp_rmb();
 }
 
+/*
+ * Try to leave the mode that disallows simple operations:
+ * Caller must own sem_perm.lock.
+ */
+static void complexmode_tryleave(struct sem_array *sma)
+{
+	if (sma->complex_count)  {
+		/* Complex ops are sleeping.
+		 * We must stay in complex mode
+		 */
+		return;
+	}
+	/*
+	 * Immediately after setting complex_mode to false,
+	 * a simple op can start. Thus: all memory writes
+	 * performed by the current operation must be visible
+	 * before we set complex_mode to false.
+	 */
+	smp_store_release(&sma->complex_mode, false);
+}
+
+#define SEM_GLOBAL_LOCK	(-1)
 /*
  * If the request contains only one semaphore operation, and there are
  * no complex transactions pending, lock only the semaphore involved.
@@ -300,56 +338,42 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 		/* Complex operation - acquire a full lock */
 		ipc_lock_object(&sma->sem_perm);
 
-		/* And wait until all simple ops that are processed
-		 * right now have dropped their locks.
-		 */
-		sem_wait_array(sma);
-		return -1;
+		/* Prevent parallel simple ops */
+		complexmode_enter(sma);
+		return SEM_GLOBAL_LOCK;
 	}
 
 	/*
 	 * Only one semaphore affected - try to optimize locking.
-	 * The rules are:
-	 * - optimized locking is possible if no complex operation
-	 *   is either enqueued or processed right now.
-	 * - The test for enqueued complex ops is simple:
-	 *      sma->complex_count != 0
-	 * - Testing for complex ops that are processed right now is
-	 *   a bit more difficult. Complex ops acquire the full lock
-	 *   and first wait that the running simple ops have completed.
-	 *   (see above)
-	 *   Thus: If we own a simple lock and the global lock is free
-	 *	and complex_count is now 0, then it will stay 0 and
-	 *	thus just locking sem->lock is sufficient.
+	 * Optimized locking is possible if no complex operation
+	 * is either enqueued or processed right now.
+	 *
+	 * Both facts are tracked by complex_mode.
 	 */
 	sem = sma->sem_base + sops->sem_num;
 
-	if (sma->complex_count == 0) {
+	/*
+	 * Initial check for complex_mode. Just an optimization,
+	 * no locking, no memory barrier.
+	 */
+	if (!sma->complex_mode) {
 		/*
 		 * It appears that no complex operation is around.
 		 * Acquire the per-semaphore lock.
 		 */
 		spin_lock(&sem->lock);
 
-		/* Then check that the global lock is free */
-		if (!spin_is_locked(&sma->sem_perm.lock)) {
-			/*
-			 * We need a memory barrier with acquire semantics,
-			 * otherwise we can race with another thread that does:
-			 *	complex_count++;
-			 *	spin_unlock(sem_perm.lock);
-			 */
-			smp_acquire__after_ctrl_dep();
+		/*
+		 * See 51d7d5205d33
+		 * ("powerpc: Add smp_mb() to arch_spin_is_locked()"):
+		 * A full barrier is required: the write of sem->lock
+		 * must be visible before the read is executed
+		 */
+		smp_mb();
 
-			/*
-			 * Now repeat the test of complex_count:
-			 * It can't change anymore until we drop sem->lock.
-			 * Thus: if is now 0, then it will stay 0.
-			 */
-			if (sma->complex_count == 0) {
-				/* fast path successful! */
-				return sops->sem_num;
-			}
+		if (!smp_load_acquire(&sma->complex_mode)) {
+			/* fast path successful! */
+			return sops->sem_num;
 		}
 		spin_unlock(&sem->lock);
 	}
@@ -369,15 +393,16 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 		/* Not a false alarm, thus complete the sequence for a
 		 * full lock.
 		 */
-		sem_wait_array(sma);
-		return -1;
+		complexmode_enter(sma);
+		return SEM_GLOBAL_LOCK;
 	}
 }
 
 static inline void sem_unlock(struct sem_array *sma, int locknum)
 {
-	if (locknum == -1) {
+	if (locknum == SEM_GLOBAL_LOCK) {
 		unmerge_queues(sma);
+		complexmode_tryleave(sma);
 		ipc_unlock_object(&sma->sem_perm);
 	} else {
 		struct sem *sem = sma->sem_base + locknum;
@@ -529,6 +554,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	}
 
 	sma->complex_count = 0;
+	sma->complex_mode = true; /* dropped by sem_unlock below */
 	INIT_LIST_HEAD(&sma->pending_alter);
 	INIT_LIST_HEAD(&sma->pending_const);
 	INIT_LIST_HEAD(&sma->list_id);
@@ -2079,6 +2105,8 @@ void exit_sem(struct task_struct *tsk)
 		struct list_head tasks;
 		int semid, i;
 
+		cond_resched();
+
 		rcu_read_lock();
 		un = list_entry_rcu(ulp->list_proc.next,
 				    struct sem_undo, list_proc);
@@ -2184,10 +2212,10 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it)
 	/*
 	 * The proc interface isn't aware of sem_lock(), it calls
 	 * ipc_lock_object() directly (in sysvipc_find_ipc).
-	 * In order to stay compatible with sem_lock(), we must wait until
-	 * all simple semop() calls have left their critical regions.
+	 * In order to stay compatible with sem_lock(), we must
+	 * enter / leave complex_mode.
 	 */
-	sem_wait_array(sma);
+	complexmode_enter(sma);
 
 	sem_otime = get_semotime(sma);
 
@@ -2203,6 +2231,8 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it)
 		   from_kgid_munged(user_ns, sma->sem_perm.cgid),
 		   sem_otime,
 		   sma->sem_ctime);
+
+	complexmode_tryleave(sma);
 
 	return 0;
 }

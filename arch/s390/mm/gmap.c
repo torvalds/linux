@@ -94,6 +94,7 @@ out:
 struct gmap *gmap_create(struct mm_struct *mm, unsigned long limit)
 {
 	struct gmap *gmap;
+	unsigned long gmap_asce;
 
 	gmap = gmap_alloc(limit);
 	if (!gmap)
@@ -101,6 +102,11 @@ struct gmap *gmap_create(struct mm_struct *mm, unsigned long limit)
 	gmap->mm = mm;
 	spin_lock(&mm->context.gmap_lock);
 	list_add_rcu(&gmap->list, &mm->context.gmap_list);
+	if (list_is_singular(&mm->context.gmap_list))
+		gmap_asce = gmap->asce;
+	else
+		gmap_asce = -1UL;
+	WRITE_ONCE(mm->context.gmap_asce, gmap_asce);
 	spin_unlock(&mm->context.gmap_lock);
 	return gmap;
 }
@@ -230,6 +236,7 @@ EXPORT_SYMBOL_GPL(gmap_put);
 void gmap_remove(struct gmap *gmap)
 {
 	struct gmap *sg, *next;
+	unsigned long gmap_asce;
 
 	/* Remove all shadow gmaps linked to this gmap */
 	if (!list_empty(&gmap->children)) {
@@ -243,6 +250,14 @@ void gmap_remove(struct gmap *gmap)
 	/* Remove gmap from the pre-mm list */
 	spin_lock(&gmap->mm->context.gmap_lock);
 	list_del_rcu(&gmap->list);
+	if (list_empty(&gmap->mm->context.gmap_list))
+		gmap_asce = 0;
+	else if (list_is_singular(&gmap->mm->context.gmap_list))
+		gmap_asce = list_first_entry(&gmap->mm->context.gmap_list,
+					     struct gmap, list)->asce;
+	else
+		gmap_asce = -1UL;
+	WRITE_ONCE(gmap->mm->context.gmap_asce, gmap_asce);
 	spin_unlock(&gmap->mm->context.gmap_lock);
 	synchronize_rcu();
 	/* Put reference */

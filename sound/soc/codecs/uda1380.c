@@ -765,12 +765,14 @@ static struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	.reg_cache_default = uda1380_reg,
 	.reg_cache_step = 1,
 
-	.controls = uda1380_snd_controls,
-	.num_controls = ARRAY_SIZE(uda1380_snd_controls),
-	.dapm_widgets = uda1380_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(uda1380_dapm_widgets),
-	.dapm_routes = uda1380_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(uda1380_dapm_routes),
+	.component_driver = {
+		.controls		= uda1380_snd_controls,
+		.num_controls		= ARRAY_SIZE(uda1380_snd_controls),
+		.dapm_widgets		= uda1380_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(uda1380_dapm_widgets),
+		.dapm_routes		= uda1380_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(uda1380_dapm_routes),
+	},
 };
 
 #if IS_ENABLED(CONFIG_I2C)

@@ -1708,9 +1708,9 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_set_features	= xgbe_set_features,
 };
 
-struct net_device_ops *xgbe_get_netdev_ops(void)
+const struct net_device_ops *xgbe_get_netdev_ops(void)
 {
-	return (struct net_device_ops *)&xgbe_netdev_ops;
+	return &xgbe_netdev_ops;
 }
 
 static void xgbe_rx_refresh(struct xgbe_channel *channel)

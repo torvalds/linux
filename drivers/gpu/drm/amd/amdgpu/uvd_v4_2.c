@@ -116,7 +116,7 @@ static int uvd_v4_2_sw_init(void *handle)
 
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, CP_PACKET2, 0xf,
+	r = amdgpu_ring_init(adev, ring, 512, PACKET0(mmUVD_NO_OP, 0), 0xf,
 			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
 
 	return r;
@@ -526,6 +526,20 @@ static void uvd_v4_2_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
+static unsigned uvd_v4_2_ring_get_emit_ib_size(struct amdgpu_ring *ring)
+{
+	return
+		4; /* uvd_v4_2_ring_emit_ib */
+}
+
+static unsigned uvd_v4_2_ring_get_dma_frame_size(struct amdgpu_ring *ring)
+{
+	return
+		2 + /* uvd_v4_2_ring_emit_hdp_flush */
+		2 + /* uvd_v4_2_ring_emit_hdp_invalidate */
+		14; /* uvd_v4_2_ring_emit_fence  x1 no user fence */
+}
+
 /**
  * uvd_v4_2_mc_resume - memory controller programming
  *
@@ -756,6 +770,8 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.get_emit_ib_size = uvd_v4_2_ring_get_emit_ib_size,
+	.get_dma_frame_size = uvd_v4_2_ring_get_dma_frame_size,
 };
 
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev)

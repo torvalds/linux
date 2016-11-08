@@ -38,12 +38,26 @@
 
 #define DRV_NAME "LiquidIO"
 
-/**
- * \brief determines if a given console has debug enabled.
- * @param console console to check
- * @returns  1 = enabled. 0 otherwise
+/** This structure is used by NIC driver to store information required
+ * to free the sk_buff when the packet has been fetched by Octeon.
+ * Bytes offset below assume worst-case of a 64-bit system.
  */
-int octeon_console_debug_enabled(u32 console);
+struct octnet_buf_free_info {
+	/** Bytes 1-8.  Pointer to network device private structure. */
+	struct lio *lio;
+
+	/** Bytes 9-16.  Pointer to sk_buff. */
+	struct sk_buff *skb;
+
+	/** Bytes 17-24.  Pointer to gather list. */
+	struct octnic_gather *g;
+
+	/** Bytes 25-32. Physical address of skb->data or gather list. */
+	u64 dptr;
+
+	/** Bytes 33-47. Piggybacked soft command, if any */
+	struct octeon_soft_command *sc;
+};
 
 /* BQL-related functions */
 void octeon_report_sent_bytes_to_bql(void *buf, int reqtype);
@@ -167,22 +181,26 @@ cnnic_numa_alloc_aligned_dma(u32 size,
 #define cnnic_free_aligned_dma(pci_dev, ptr, size, orig_ptr, dma_addr) \
 		free_pages(orig_ptr, get_order(size))
 
-static inline void
+static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {
+	int errno = 0;
 	wait_queue_t we;
 
 	init_waitqueue_entry(&we, current);
 	add_wait_queue(wait_queue, &we);
 	while (!(READ_ONCE(*condition))) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
+		if (signal_pending(current)) {
+			errno = -EINTR;
 			goto out;
+		}
 		schedule();
 	}
 out:
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(wait_queue, &we);
+	return errno;
 }
 
 static inline void

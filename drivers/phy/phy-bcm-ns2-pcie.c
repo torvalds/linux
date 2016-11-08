@@ -18,11 +18,6 @@
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
 
-struct ns2_pci_phy {
-	struct mdio_device *mdiodev;
-	struct phy *phy;
-};
-
 #define BLK_ADDR_REG_OFFSET	0x1f
 #define PLL_AFE1_100MHZ_BLK	0x2100
 #define PLL_CLK_AMP_OFFSET	0x03
@@ -30,17 +25,17 @@ struct ns2_pci_phy {
 
 static int ns2_pci_phy_init(struct phy *p)
 {
-	struct ns2_pci_phy *phy = phy_get_drvdata(p);
+	struct mdio_device *mdiodev = phy_get_drvdata(p);
 	int rc;
 
 	/* select the AFE 100MHz block page */
-	rc = mdiobus_write(phy->mdiodev->bus, phy->mdiodev->addr,
+	rc = mdiobus_write(mdiodev->bus, mdiodev->addr,
 			   BLK_ADDR_REG_OFFSET, PLL_AFE1_100MHZ_BLK);
 	if (rc)
 		goto err;
 
 	/* set the 100 MHz reference clock amplitude to 2.05 v */
-	rc = mdiobus_write(phy->mdiodev->bus, phy->mdiodev->addr,
+	rc = mdiobus_write(mdiodev->bus, mdiodev->addr,
 			   PLL_CLK_AMP_OFFSET, PLL_CLK_AMP_2P05V);
 	if (rc)
 		goto err;
@@ -48,19 +43,19 @@ static int ns2_pci_phy_init(struct phy *p)
 	return 0;
 
 err:
-	dev_err(&phy->mdiodev->dev, "Error %d writing to phy\n", rc);
+	dev_err(&mdiodev->dev, "Error %d writing to phy\n", rc);
 	return rc;
 }
 
-static struct phy_ops ns2_pci_phy_ops = {
+static const struct phy_ops ns2_pci_phy_ops = {
 	.init = ns2_pci_phy_init,
+	.owner = THIS_MODULE,
 };
 
 static int ns2_pci_phy_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
 	struct phy_provider *provider;
-	struct ns2_pci_phy *p;
 	struct phy *phy;
 
 	phy = devm_phy_create(dev, dev->of_node, &ns2_pci_phy_ops);
@@ -69,16 +64,7 @@ static int ns2_pci_phy_probe(struct mdio_device *mdiodev)
 		return PTR_ERR(phy);
 	}
 
-	p = devm_kmalloc(dev, sizeof(struct ns2_pci_phy),
-			 GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	p->mdiodev = mdiodev;
-	dev_set_drvdata(dev, p);
-
-	p->phy = phy;
-	phy_set_drvdata(phy, p);
+	phy_set_drvdata(phy, mdiodev);
 
 	provider = devm_of_phy_provider_register(&phy->dev,
 						 of_phy_simple_xlate);

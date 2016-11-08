@@ -612,12 +612,7 @@ EXPORT_SYMBOL_GPL(mcryptd_alloc_ahash);
 
 int ahash_mcryptd_digest(struct ahash_request *desc)
 {
-	int err;
-
-	err = crypto_ahash_init(desc) ?:
-	      ahash_mcryptd_finup(desc);
-
-	return err;
+	return crypto_ahash_init(desc) ?: ahash_mcryptd_finup(desc);
 }
 
 int ahash_mcryptd_update(struct ahash_request *desc)

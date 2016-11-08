@@ -19,17 +19,13 @@
 #ifndef __BERLIN2_AVPLL_H
 #define __BERLIN2_AVPLL_H
 
-struct clk;
-
 #define BERLIN2_AVPLL_BIT_QUIRK		BIT(0)
 #define BERLIN2_AVPLL_SCRAMBLE_QUIRK	BIT(1)
 
-struct clk * __init
-berlin2_avpll_vco_register(void __iomem *base, const char *name,
+int berlin2_avpll_vco_register(void __iomem *base, const char *name,
 	   const char *parent_name, u8 vco_flags, unsigned long flags);
 
-struct clk * __init
-berlin2_avpll_channel_register(void __iomem *base, const char *name,
+int berlin2_avpll_channel_register(void __iomem *base, const char *name,
 		       u8 index, const char *parent_name, u8 ch_flags,
 		       unsigned long flags);
 

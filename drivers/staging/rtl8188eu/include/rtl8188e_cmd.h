@@ -49,12 +49,6 @@ enum RTL8188E_H2C_CMD_ID {
 	 H2C_RESET_TSF			= 0xc0,
 };
 
-struct cmd_msg_parm {
-	u8 eid; /* element id */
-	u8 sz; /*  sz */
-	u8 buf[6];
-};
-
 enum {
 	PWRS
 };
@@ -67,15 +61,6 @@ struct setpwrmode_parm {
 	u8 PwrState;/* AllON(0x0c),RFON(0x04),RFOFF(0x00) */
 };
 
-struct H2C_SS_RFOFF_PARAM {
-	u8 ROFOn; /*  1: on, 0:off */
-	u16 gpio_period; /*  unit: 1024 us */
-} __packed;
-
-struct joinbssrpt_parm {
-	u8 OpMode;	/*  RT_MEDIA_STATUS */
-};
-
 struct rsvdpage_loc {
 	u8 LocProbeRsp;
 	u8 LocPsPoll;
@@ -84,26 +69,9 @@ struct rsvdpage_loc {
 	u8 LocBTQosNull;
 };
 
-struct P2P_PS_Offload_t {
-	u8 Offload_En:1;
-	u8 role:1; /*  1: Owner, 0: Client */
-	u8 CTWindow_En:1;
-	u8 NoA0_En:1;
-	u8 NoA1_En:1;
-	u8 AllStaSleep:1; /*  Only valid in Owner */
-	u8 discovery:1;
-	u8 rsvd:1;
-};
-
-struct P2P_PS_CTWPeriod_t {
-	u8 CTWPeriod;	/* TU */
-};
-
 /*  host message to firmware cmd */
 void rtl8188e_set_FwPwrMode_cmd(struct adapter *padapter, u8 Mode);
 void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *padapter, u8 mstatus);
-void rtl8188e_Add_RateATid(struct adapter *padapter, u32 bitmap, u8 arg,
-			   u8 rssi_level);
 
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt);
 

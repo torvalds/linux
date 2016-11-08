@@ -274,4 +274,31 @@ config PCIE_ARTPEC6
 	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
 	  SoCs.  This PCIe controller uses the DesignWare core.
 
+config PCIE_ROCKCHIP
+	bool "Rockchip PCIe controller"
+	depends on ARCH_ROCKCHIP
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select MFD_SYSCON
+	help
+	  Say Y here if you want internal PCI support on Rockchip SoC.
+	  There is 1 internal PCIe port available to support GEN2 with
+	  4 slots.
+
+config VMD
+	depends on PCI_MSI && X86_64
+	tristate "Intel Volume Management Device Driver"
+	default N
+	---help---
+	  Adds support for the Intel Volume Management Device (VMD). VMD is a
+	  secondary PCI host bridge that allows PCI Express root ports,
+	  and devices attached to them, to be removed from the default
+	  PCI domain and placed within the VMD domain. This provides
+	  more bus resources than are otherwise possible with a
+	  single domain. If you know your system provides one of these and
+	  has devices attached to it, say Y; if you are not sure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmd.
+
 endmenu

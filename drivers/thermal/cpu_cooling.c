@@ -74,7 +74,7 @@ struct power_table {
  *	cpufreq frequencies.
  * @allowed_cpus: all the cpus involved for this cpufreq_cooling_device.
  * @node: list_head to link all cpufreq_cooling_device together.
- * @last_load: load measured by the latest call to cpufreq_get_actual_power()
+ * @last_load: load measured by the latest call to cpufreq_get_requested_power()
  * @time_in_idle: previous reading of the absolute time that this cpu was idle
  * @time_in_idle_timestamp: wall time of the last invocation of
  *	get_cpu_idle_time_us()

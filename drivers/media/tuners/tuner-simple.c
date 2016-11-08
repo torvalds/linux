@@ -1035,7 +1035,7 @@ static int simple_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
-static struct dvb_tuner_ops simple_tuner_ops = {
+static const struct dvb_tuner_ops simple_tuner_ops = {
 	.init              = simple_init,
 	.sleep             = simple_sleep,
 	.set_analog_params = simple_set_params,

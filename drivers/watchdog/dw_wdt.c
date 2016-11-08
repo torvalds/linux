@@ -54,6 +54,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 struct dw_wdt {
 	void __iomem		*regs;
 	struct clk		*clk;
+	unsigned long		rate;
 	struct notifier_block	restart_handler;
 	struct watchdog_device	wdd;
 };
@@ -72,7 +73,7 @@ static inline int dw_wdt_top_in_seconds(struct dw_wdt *dw_wdt, unsigned top)
 	 * There are 16 possible timeout values in 0..15 where the number of
 	 * cycles is 2 ^ (16 + i) and the watchdog counts down.
 	 */
-	return (1U << (16 + top)) / clk_get_rate(dw_wdt->clk);
+	return (1U << (16 + top)) / dw_wdt->rate;
 }
 
 static int dw_wdt_get_top(struct dw_wdt *dw_wdt)
@@ -163,7 +164,7 @@ static unsigned int dw_wdt_get_timeleft(struct watchdog_device *wdd)
 	struct dw_wdt *dw_wdt = to_dw_wdt(wdd);
 
 	return readl(dw_wdt->regs + WDOG_CURRENT_COUNT_REG_OFFSET) /
-		clk_get_rate(dw_wdt->clk);
+		dw_wdt->rate;
 }
 
 static const struct watchdog_info dw_wdt_ident = {
@@ -230,6 +231,12 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(dw_wdt->clk);
 	if (ret)
 		return ret;
+
+	dw_wdt->rate = clk_get_rate(dw_wdt->clk);
+	if (dw_wdt->rate == 0) {
+		ret = -EINVAL;
+		goto out_disable_clk;
+	}
 
 	wdd = &dw_wdt->wdd;
 	wdd->info = &dw_wdt_ident;

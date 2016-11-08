@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 		.macro	pack, rd, hw1, hw2
 #ifndef __ARMEB__
@@ -129,3 +130,4 @@ ENTRY(__raw_readsw)
 		strneb	ip, [r1]
 		ldmfd	sp!, {r4, pc}
 ENDPROC(__raw_readsw)
+EXPORT_SYMBOL(__raw_readsw)

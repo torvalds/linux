@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_BLANK
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_BLANK, boolean mode)
+.. c:function:: int ioctl(fd, VIDEO_SET_BLANK, boolean mode)
+    :name: VIDEO_SET_BLANK
 
 
 Arguments

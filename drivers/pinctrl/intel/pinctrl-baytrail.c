@@ -1808,6 +1808,8 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(vg->pctl_dev);
 	}
 
+	raw_spin_lock_init(&vg->lock);
+
 	ret = byt_gpio_probe(vg);
 	if (ret) {
 		pinctrl_unregister(vg->pctl_dev);
@@ -1815,7 +1817,6 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, vg);
-	raw_spin_lock_init(&vg->lock);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;

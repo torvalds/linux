@@ -13,6 +13,7 @@
 /include/ "vdk_axs10x_mb.dtsi"
 
 / {
+	model = "snps,vdk_archs";
 	compatible = "snps,axs103";
 
 	chosen {

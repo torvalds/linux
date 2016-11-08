@@ -19,9 +19,15 @@ struct vm_fault;
 #define IOMAP_UNWRITTEN	0x04	/* blocks allocated @blkno in unwritten state */
 
 /*
- * Flags for iomap mappings:
+ * Flags for all iomap mappings:
  */
-#define IOMAP_F_MERGED	0x01	/* contains multiple blocks/extents */
+#define IOMAP_F_NEW	0x01	/* blocks have been newly allocated */
+
+/*
+ * Flags that only need to be reported for IOMAP_REPORT requests:
+ */
+#define IOMAP_F_MERGED	0x10	/* contains multiple blocks/extents */
+#define IOMAP_F_SHARED	0x20	/* block shared with another file */
 
 /*
  * Magic value for blkno:
@@ -40,8 +46,9 @@ struct iomap {
 /*
  * Flags for iomap_begin / iomap_end.  No flag implies a read.
  */
-#define IOMAP_WRITE		(1 << 0)
-#define IOMAP_ZERO		(1 << 1)
+#define IOMAP_WRITE		(1 << 0) /* writing, must allocate blocks */
+#define IOMAP_ZERO		(1 << 1) /* zeroing operation, may skip holes */
+#define IOMAP_REPORT		(1 << 2) /* report extent status, e.g. FIEMAP */
 
 struct iomap_ops {
 	/*
@@ -63,6 +70,8 @@ struct iomap_ops {
 };
 
 ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
+		struct iomap_ops *ops);
+int iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
 		struct iomap_ops *ops);
 int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
 		bool *did_zero, struct iomap_ops *ops);

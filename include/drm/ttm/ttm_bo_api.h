@@ -45,37 +45,7 @@ struct ttm_bo_device;
 
 struct drm_mm_node;
 
-/**
- * struct ttm_place
- *
- * @fpfn:	first valid page frame number to put the object
- * @lpfn:	last valid page frame number to put the object
- * @flags:	memory domain and caching flags for the object
- *
- * Structure indicating a possible place to put an object.
- */
-struct ttm_place {
-	unsigned	fpfn;
-	unsigned	lpfn;
-	uint32_t	flags;
-};
-
-/**
- * struct ttm_placement
- *
- * @num_placement:	number of preferred placements
- * @placement:		preferred placements
- * @num_busy_placement:	number of preferred placements when need to evict buffer
- * @busy_placement:	preferred placements when need to evict buffer
- *
- * Structure indicating the placement you request for an object.
- */
-struct ttm_placement {
-	unsigned		num_placement;
-	const struct ttm_place	*placement;
-	unsigned		num_busy_placement;
-	const struct ttm_place	*busy_placement;
-};
+struct ttm_placement;
 
 /**
  * struct ttm_bus_placement

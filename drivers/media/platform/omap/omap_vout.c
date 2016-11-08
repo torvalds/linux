@@ -214,7 +214,7 @@ static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
 	if (!vec)
 		return -ENOMEM;
 
-	ret = get_vaddr_frames(virtp, 1, true, false, vec);
+	ret = get_vaddr_frames(virtp, 1, FOLL_WRITE, vec);
 	if (ret != 1) {
 		frame_vector_destroy(vec);
 		return -EINVAL;
@@ -1247,36 +1247,33 @@ static int vidioc_g_fmt_vid_overlay(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *fh,
-		struct v4l2_cropcap *cropcap)
+static int vidioc_g_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct omap_vout_device *vout = fh;
 	struct v4l2_pix_format *pix = &vout->pix;
 
-	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
-	/* Width and height are always even */
-	cropcap->bounds.width = pix->width & ~1;
-	cropcap->bounds.height = pix->height & ~1;
-
-	omap_vout_default_crop(&vout->pix, &vout->fbuf, &cropcap->defrect);
-	cropcap->pixelaspect.numerator = 1;
-	cropcap->pixelaspect.denominator = 1;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		sel->r = vout->crop;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		omap_vout_default_crop(&vout->pix, &vout->fbuf, &sel->r);
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		/* Width and height are always even */
+		sel->r.width = pix->width & ~1;
+		sel->r.height = pix->height & ~1;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
-{
-	struct omap_vout_device *vout = fh;
-
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		return -EINVAL;
-	crop->c = vout->crop;
-	return 0;
-}
-
-static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
+static int vidioc_s_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	int ret = -EINVAL;
 	struct omap_vout_device *vout = fh;
@@ -1284,6 +1281,12 @@ static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr
 	struct omap_overlay *ovl;
 	struct omap_video_timings *timing;
 	struct omap_dss_device *dssdev;
+
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	if (vout->streaming)
 		return -EBUSY;
@@ -1309,9 +1312,8 @@ static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr
 		vout->fbuf.fmt.width = timing->x_res;
 	}
 
-	if (crop->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		ret = omap_vout_new_crop(&vout->pix, &vout->crop, &vout->win,
-				&vout->fbuf, &crop->c);
+	ret = omap_vout_new_crop(&vout->pix, &vout->crop, &vout->win,
+				 &vout->fbuf, &sel->r);
 
 s_crop_err:
 	mutex_unlock(&vout->lock);
@@ -1780,9 +1782,8 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 	.vidioc_try_fmt_vid_out_overlay		= vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_out_overlay		= vidioc_s_fmt_vid_overlay,
 	.vidioc_g_fmt_vid_out_overlay		= vidioc_g_fmt_vid_overlay,
-	.vidioc_cropcap				= vidioc_cropcap,
-	.vidioc_g_crop				= vidioc_g_crop,
-	.vidioc_s_crop				= vidioc_s_crop,
+	.vidioc_g_selection			= vidioc_g_selection,
+	.vidioc_s_selection			= vidioc_s_selection,
 	.vidioc_reqbufs				= vidioc_reqbufs,
 	.vidioc_querybuf			= vidioc_querybuf,
 	.vidioc_qbuf				= vidioc_qbuf,

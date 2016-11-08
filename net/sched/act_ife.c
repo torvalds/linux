@@ -63,6 +63,23 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 }
 EXPORT_SYMBOL_GPL(ife_tlv_meta_encode);
 
+int ife_encode_meta_u16(u16 metaval, void *skbdata, struct tcf_meta_info *mi)
+{
+	u16 edata = 0;
+
+	if (mi->metaval)
+		edata = *(u16 *)mi->metaval;
+	else if (metaval)
+		edata = metaval;
+
+	if (!edata) /* will not encode */
+		return 0;
+
+	edata = htons(edata);
+	return ife_tlv_meta_encode(skbdata, mi->metaid, 2, &edata);
+}
+EXPORT_SYMBOL_GPL(ife_encode_meta_u16);
+
 int ife_get_meta_u32(struct sk_buff *skb, struct tcf_meta_info *mi)
 {
 	if (mi->metaval)
@@ -80,6 +97,15 @@ int ife_check_meta_u32(u32 metaval, struct tcf_meta_info *mi)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ife_check_meta_u32);
+
+int ife_check_meta_u16(u16 metaval, struct tcf_meta_info *mi)
+{
+	if (metaval || mi->metaval)
+		return 8; /* T+L+(V) == 2+2+(2+2bytepad) */
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ife_check_meta_u16);
 
 int ife_encode_meta_u32(u32 metaval, void *skbdata, struct tcf_meta_info *mi)
 {

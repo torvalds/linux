@@ -142,12 +142,12 @@ int main(void)
 	DEFINE(THREAD_TM_PPR, offsetof(struct thread_struct, tm_ppr));
 	DEFINE(THREAD_TM_DSCR, offsetof(struct thread_struct, tm_dscr));
 	DEFINE(PT_CKPT_REGS, offsetof(struct thread_struct, ckpt_regs));
-	DEFINE(THREAD_TRANSACT_VRSTATE, offsetof(struct thread_struct,
-						 transact_vr));
-	DEFINE(THREAD_TRANSACT_VRSAVE, offsetof(struct thread_struct,
-					    transact_vrsave));
-	DEFINE(THREAD_TRANSACT_FPSTATE, offsetof(struct thread_struct,
-						 transact_fp));
+	DEFINE(THREAD_CKVRSTATE, offsetof(struct thread_struct,
+						 ckvr_state));
+	DEFINE(THREAD_CKVRSAVE, offsetof(struct thread_struct,
+					    ckvrsave));
+	DEFINE(THREAD_CKFPSTATE, offsetof(struct thread_struct,
+						 ckfp_state));
 	/* Local pt_regs on stack for Transactional Memory funcs. */
 	DEFINE(TM_FRAME_SIZE, STACK_FRAME_OVERHEAD +
 	       sizeof(struct pt_regs) + 16);

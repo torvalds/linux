@@ -1614,7 +1614,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 				   &gpio_irqchip,
 				   0,
 				   handle_edge_irq,
-				   IRQ_TYPE_EDGE_BOTH);
+				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&pdev->dev, "at91_gpio.%d: Couldn't add irqchip to gpiochip.\n",
 			at91_gpio->pioc_idx);

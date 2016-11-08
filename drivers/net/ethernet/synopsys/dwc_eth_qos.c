@@ -982,11 +982,13 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	if (netif_msg_probe(lp))
 		phy_attached_info(phydev);
 
-	phydev->supported &= PHY_GBIT_FEATURES;
+	phydev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
+			     SUPPORTED_Asym_Pause;
 
 	lp->link    = 0;
 	lp->speed   = 0;
 	lp->duplex  = DUPLEX_UNKNOWN;
+	lp->flowcontrol.autoneg = AUTONEG_ENABLE;
 
 	return 0;
 }
@@ -2743,7 +2745,7 @@ static void dwceqos_set_msglevel(struct net_device *ndev, u32 msglevel)
 	lp->msg_enable = msglevel;
 }
 
-static struct ethtool_ops dwceqos_ethtool_ops = {
+static const struct ethtool_ops dwceqos_ethtool_ops = {
 	.get_drvinfo    = dwceqos_get_drvinfo,
 	.get_link       = ethtool_op_get_link,
 	.get_pauseparam = dwceqos_get_pauseparam,
@@ -2761,7 +2763,7 @@ static struct ethtool_ops dwceqos_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
-static struct net_device_ops netdev_ops = {
+static const struct net_device_ops netdev_ops = {
 	.ndo_open		= dwceqos_open,
 	.ndo_stop		= dwceqos_stop,
 	.ndo_start_xmit		= dwceqos_start_xmit,

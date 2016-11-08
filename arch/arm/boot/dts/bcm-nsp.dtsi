@@ -209,6 +209,24 @@
 			#dma-cells = <1>;
 		};
 
+		amac0: ethernet@22000 {
+			compatible = "brcm,nsp-amac";
+			reg = <0x022000 0x1000>,
+			      <0x110000 0x1000>;
+			reg-names = "amac_base", "idm_base";
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		amac1: ethernet@23000 {
+			compatible = "brcm,nsp-amac";
+			reg = <0x023000 0x1000>,
+			      <0x111000 0x1000>;
+			reg-names = "amac_base", "idm_base";
+			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		nand: nand@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
@@ -221,6 +239,14 @@
 			#size-cells = <0>;
 
 			brcm,nand-has-wp;
+		};
+
+		pwm: pwm@31000 {
+			compatible = "brcm,iproc-pwm";
+			reg = <0x31000 0x28>;
+			clocks = <&osc>;
+			#pwm-cells = <3>;
+			status = "disabled";
 		};
 
 		rng: rng@33000 {
@@ -244,6 +270,17 @@
 				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>;
 			clock-names = "apb_pclk";
+		};
+
+		srab: srab@36000 {
+			compatible = "brcm,nsp-srab";
+			reg = <0x36000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+
+			/* ports are defined in board DTS */
 		};
 
 		i2c0: i2c@38000 {

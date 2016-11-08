@@ -86,3 +86,14 @@ bool __init hypervisor_x2apic_available(void)
 	       x86_hyper->x2apic_available &&
 	       x86_hyper->x2apic_available();
 }
+
+void hypervisor_pin_vcpu(int cpu)
+{
+	if (!x86_hyper)
+		return;
+
+	if (x86_hyper->pin_vcpu)
+		x86_hyper->pin_vcpu(cpu);
+	else
+		WARN_ONCE(1, "vcpu pinning requested but not supported!\n");
+}

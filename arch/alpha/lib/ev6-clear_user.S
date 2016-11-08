@@ -43,6 +43,7 @@
  *	want to leave a hole (and we also want to avoid repeating lots of work)
  */
 
+#include <asm/export.h>
 /* Allow an exception for an insn; exit if we get one.  */
 #define EX(x,y...)			\
 	99: x,##y;			\
@@ -222,4 +223,4 @@ $exception:			# Destination for exception recovery(?)
 	nop			# .. E  .. ..	:
 	ret	$31, ($28), 1	# L0 .. .. ..	: L U L U
 	.end __do_clear_user
-
+	EXPORT_SYMBOL(__do_clear_user)

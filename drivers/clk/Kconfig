@@ -31,22 +31,12 @@ config COMMON_CLK_WM831X
 
 source "drivers/clk/versatile/Kconfig"
 
-config COMMON_CLK_MAX_GEN
-        bool
-
 config COMMON_CLK_MAX77686
-	tristate "Clock driver for Maxim 77686 MFD"
-	depends on MFD_MAX77686
-	select COMMON_CLK_MAX_GEN
+	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
+	depends on MFD_MAX77686 || MFD_MAX77620
 	---help---
-	  This driver supports Maxim 77686 crystal oscillator clock. 
-
-config COMMON_CLK_MAX77802
-	tristate "Clock driver for Maxim 77802 PMIC"
-	depends on MFD_MAX77686
-	select COMMON_CLK_MAX_GEN
-	---help---
-	  This driver supports Maxim 77802 crystal oscillator clock.
+	  This driver supports Maxim 77620/77686/77802 crystal oscillator
+	  clock.
 
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK808/RK818"
@@ -210,6 +200,7 @@ config COMMON_CLK_OXNAS
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
 source "drivers/clk/qcom/Kconfig"
@@ -218,5 +209,6 @@ source "drivers/clk/samsung/Kconfig"
 source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
+source "drivers/clk/uniphier/Kconfig"
 
 endmenu

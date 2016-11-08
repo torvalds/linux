@@ -222,7 +222,7 @@ static void osc_lock_lvb_update(const struct lu_env *env,
 		ldlm_lock_allow_match_locked(dlmlock);
 	}
 
-	cl_object_attr_set(env, obj, attr, valid);
+	cl_object_attr_update(env, obj, attr, valid);
 	cl_object_attr_unlock(obj);
 }
 
@@ -467,7 +467,7 @@ static int osc_dlm_blocking_ast0(const struct lu_env *env,
 		 */
 		attr->cat_kms = ldlm_extent_shift_kms(dlmlock, old_kms);
 
-		cl_object_attr_set(env, obj, attr, CAT_KMS);
+		cl_object_attr_update(env, obj, attr, CAT_KMS);
 		cl_object_attr_unlock(obj);
 		unlock_res_and_lock(dlmlock);
 

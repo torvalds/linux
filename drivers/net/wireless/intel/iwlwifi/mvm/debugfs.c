@@ -917,6 +917,59 @@ static ssize_t iwl_dbgfs_indirection_tbl_write(struct iwl_mvm *mvm,
 	return ret ?: count;
 }
 
+static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
+					     char *buf, size_t count,
+					     loff_t *ppos)
+{
+	struct iwl_rx_cmd_buffer rxb = {
+		._rx_page_order = 0,
+		.truesize = 0, /* not used */
+		._offset = 0,
+	};
+	struct iwl_rx_packet *pkt;
+	struct iwl_rx_mpdu_desc *desc;
+	int bin_len = count / 2;
+	int ret = -EINVAL;
+
+	/* supporting only 9000 descriptor */
+	if (!mvm->trans->cfg->mq_rx_supported)
+		return -ENOTSUPP;
+
+	rxb._page = alloc_pages(GFP_ATOMIC, 0);
+	if (!rxb._page)
+		return -ENOMEM;
+	pkt = rxb_addr(&rxb);
+
+	ret = hex2bin(page_address(rxb._page), buf, bin_len);
+	if (ret)
+		goto out;
+
+	/* avoid invalid memory access */
+	if (bin_len < sizeof(*pkt) + sizeof(*desc))
+		goto out;
+
+	/* check this is RX packet */
+	if (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd) !=
+	    WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD))
+		goto out;
+
+	/* check the length in metadata matches actual received length */
+	desc = (void *)pkt->data;
+	if (le16_to_cpu(desc->mpdu_len) !=
+	    (bin_len - sizeof(*desc) - sizeof(*pkt)))
+		goto out;
+
+	local_bh_disable();
+	iwl_mvm_rx_mpdu_mq(mvm, NULL, &rxb, 0);
+	local_bh_enable();
+	ret = 0;
+
+out:
+	iwl_free_rxb(&rxb);
+
+	return ret ?: count;
+}
+
 static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -1454,6 +1507,7 @@ MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
+MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1463,6 +1517,132 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
 #ifdef CONFIG_PM_SLEEP
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
 #endif
+
+static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_dbg_mem_access_cmd cmd = {};
+	struct iwl_dbg_mem_access_rsp *rsp;
+	struct iwl_host_cmd hcmd = {
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &cmd, },
+		.len = { sizeof(cmd) },
+	};
+	size_t delta, len;
+	ssize_t ret;
+
+	hcmd.id = iwl_cmd_id(*ppos >> 24 ? UMAC_RD_WR : LMAC_RD_WR,
+			     DEBUG_GROUP, 0);
+	cmd.op = cpu_to_le32(DEBUG_MEM_OP_READ);
+
+	/* Take care of alignment of both the position and the length */
+	delta = *ppos & 0x3;
+	cmd.addr = cpu_to_le32(*ppos - delta);
+	cmd.len = cpu_to_le32(min(ALIGN(count + delta, 4) / 4,
+				  (size_t)DEBUG_MEM_MAX_SIZE_DWORDS));
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	mutex_unlock(&mvm->mutex);
+
+	if (ret < 0)
+		return ret;
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (le32_to_cpu(rsp->status) != DEBUG_MEM_STATUS_SUCCESS) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	len = min((size_t)le32_to_cpu(rsp->len) << 2,
+		  iwl_rx_packet_payload_len(hcmd.resp_pkt) - sizeof(*rsp));
+	len = min(len - delta, count);
+	if (len < 0) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = len - copy_to_user(user_buf, (void *)rsp->data + delta, len);
+	*ppos += ret;
+
+out:
+	iwl_free_resp(&hcmd);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_mem_write(struct file *file,
+				   const char __user *user_buf, size_t count,
+				   loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_dbg_mem_access_cmd *cmd;
+	struct iwl_dbg_mem_access_rsp *rsp;
+	struct iwl_host_cmd hcmd = {};
+	size_t cmd_size;
+	size_t data_size;
+	u32 op, len;
+	ssize_t ret;
+
+	hcmd.id = iwl_cmd_id(*ppos >> 24 ? UMAC_RD_WR : LMAC_RD_WR,
+			     DEBUG_GROUP, 0);
+
+	if (*ppos & 0x3 || count < 4) {
+		op = DEBUG_MEM_OP_WRITE_BYTES;
+		len = min(count, (size_t)(4 - (*ppos & 0x3)));
+		data_size = len;
+	} else {
+		op = DEBUG_MEM_OP_WRITE;
+		len = min(count >> 2, (size_t)DEBUG_MEM_MAX_SIZE_DWORDS);
+		data_size = len << 2;
+	}
+
+	cmd_size = sizeof(*cmd) + ALIGN(data_size, 4);
+	cmd = kzalloc(cmd_size, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->op = cpu_to_le32(op);
+	cmd->len = cpu_to_le32(len);
+	cmd->addr = cpu_to_le32(*ppos);
+	if (copy_from_user((void *)cmd->data, user_buf, data_size)) {
+		kfree(cmd);
+		return -EFAULT;
+	}
+
+	hcmd.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+	hcmd.data[0] = (void *)cmd;
+	hcmd.len[0] = cmd_size;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	mutex_unlock(&mvm->mutex);
+
+	kfree(cmd);
+
+	if (ret < 0)
+		return ret;
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (rsp->status != DEBUG_MEM_STATUS_SUCCESS) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	ret = data_size;
+	*ppos += ret;
+
+out:
+	iwl_free_resp(&hcmd);
+	return ret;
+}
+
+static const struct file_operations iwl_dbgfs_mem_ops = {
+	.read = iwl_dbgfs_mem_read,
+	.write = iwl_dbgfs_mem_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 {
@@ -1502,6 +1682,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, S_IWUSR);
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
 				 S_IRUSR | S_IWUSR,
 				 mvm->debugfs_dir,
@@ -1560,13 +1741,14 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 				 mvm->debugfs_dir, &mvm->nvm_phy_sku_blob))
 		goto err;
 
+	debugfs_create_file("mem", S_IRUSR | S_IWUSR, dbgfs_dir, mvm,
+			    &iwl_dbgfs_mem_ops);
+
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211
 	 * exists (before the opmode exists which removes the target.)
 	 */
-	snprintf(buf, 100, "../../%s/%s",
-		 dbgfs_dir->d_parent->d_parent->d_name.name,
-		 dbgfs_dir->d_parent->d_name.name);
+	snprintf(buf, 100, "../../%pd2", dbgfs_dir->d_parent);
 	if (!debugfs_create_symlink("iwlwifi", mvm->hw->wiphy->debugfsdir, buf))
 		goto err;
 

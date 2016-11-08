@@ -15,7 +15,8 @@ VIDIOC_ENUMSTD - Enumerate supported video standards
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_standard *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_ENUMSTD, struct v4l2_standard *argp )
+    :name: VIDIOC_ENUMSTD
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_ENUMSTD
 
 ``argp``
 
@@ -35,7 +33,7 @@ Description
 
 To query the attributes of a video standard, especially a custom (driver
 defined) one, applications initialize the ``index`` field of struct
-:ref:`v4l2_standard <v4l2-standard>` and call the :ref:`VIDIOC_ENUMSTD`
+:c:type:`v4l2_standard` and call the :ref:`VIDIOC_ENUMSTD`
 ioctl with a pointer to this structure. Drivers fill the rest of the
 structure or return an ``EINVAL`` error code when the index is out of
 bounds. To enumerate all standards applications shall begin at index
@@ -44,99 +42,64 @@ enumerate a different set of standards after switching the video input
 or output. [#f1]_
 
 
-.. _v4l2-standard:
+.. c:type:: v4l2_standard
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_standard
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``index``
-
-       -  Number of the video standard, set by the application.
-
-    -  .. row 2
-
-       -  :ref:`v4l2_std_id <v4l2-std-id>`
-
-       -  ``id``
-
-       -  The bits in this field identify the standard as one of the common
-	  standards listed in :ref:`v4l2-std-id`, or if bits 32 to 63 are
-	  set as custom standards. Multiple bits can be set if the hardware
-	  does not distinguish between these standards, however separate
-	  indices do not indicate the opposite. The ``id`` must be unique.
-	  No other enumerated :ref:`struct v4l2_standard <v4l2-standard>` structure,
-	  for this input or output anyway, can contain the same set of bits.
-
-    -  .. row 3
-
-       -  __u8
-
-       -  ``name``\ [24]
-
-       -  Name of the standard, a NUL-terminated ASCII string, for example:
-	  "PAL-B/G", "NTSC Japan". This information is intended for the
-	  user.
-
-    -  .. row 4
-
-       -  struct :ref:`v4l2_fract <v4l2-fract>`
-
-       -  ``frameperiod``
-
-       -  The frame period (not field period) is numerator / denominator.
-	  For example M/NTSC has a frame period of 1001 / 30000 seconds.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``framelines``
-
-       -  Total lines per frame including blanking, e. g. 625 for B/PAL.
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``reserved``\ [4]
-
-       -  Reserved for future extensions. Drivers must set the array to
-	  zero.
+    * - __u32
+      - ``index``
+      - Number of the video standard, set by the application.
+    * - :ref:`v4l2_std_id <v4l2-std-id>`
+      - ``id``
+      - The bits in this field identify the standard as one of the common
+	standards listed in :ref:`v4l2-std-id`, or if bits 32 to 63 are
+	set as custom standards. Multiple bits can be set if the hardware
+	does not distinguish between these standards, however separate
+	indices do not indicate the opposite. The ``id`` must be unique.
+	No other enumerated struct :c:type:`v4l2_standard` structure,
+	for this input or output anyway, can contain the same set of bits.
+    * - __u8
+      - ``name``\ [24]
+      - Name of the standard, a NUL-terminated ASCII string, for example:
+	"PAL-B/G", "NTSC Japan". This information is intended for the
+	user.
+    * - struct :c:type:`v4l2_fract`
+      - ``frameperiod``
+      - The frame period (not field period) is numerator / denominator.
+	For example M/NTSC has a frame period of 1001 / 30000 seconds.
+    * - __u32
+      - ``framelines``
+      - Total lines per frame including blanking, e. g. 625 for B/PAL.
+    * - __u32
+      - ``reserved``\ [4]
+      - Reserved for future extensions. Drivers must set the array to
+	zero.
 
 
 
-.. _v4l2-fract:
+.. c:type:: v4l2_fract
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_fract
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``numerator``
-
-       -
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``denominator``
-
-       -
+    * - __u32
+      - ``numerator``
+      -
+    * - __u32
+      - ``denominator``
+      -
 
 
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. _v4l2-std-id:
 
@@ -145,17 +108,12 @@ or output. [#f1]_
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u64
-
-       -  ``v4l2_std_id``
-
-       -  This type is a set, each bit representing another video standard
-	  as listed below and in :ref:`video-standards`. The 32 most
-	  significant bits are reserved for custom (driver defined) video
-	  standards.
+    * - __u64
+      - ``v4l2_std_id``
+      - This type is a set, each bit representing another video standard
+	as listed below and in :ref:`video-standards`. The 32 most
+	significant bits are reserved for custom (driver defined) video
+	standards.
 
 
 
@@ -266,124 +224,77 @@ support digital TV. See also the Linux DVB API at
     #define V4L2_STD_ALL            (V4L2_STD_525_60        |
 		     V4L2_STD_625_50)
 
+.. raw:: latex
+
+    \begin{adjustbox}{width=\columnwidth}
+
+..                            NTSC/M   PAL/M    /N       /B       /D       /H       /I        SECAM/B    /D       /K1     /L
+.. tabularcolumns:: |p{2.7cm}|p{2.6cm}|p{3.0cm}|p{3.2cm}|p{3.2cm}|p{2.2cm}|p{1.2cm}|p{3.2cm}|p{3.0cm}|p{2.0cm}|p{2.0cm}|p{2.0cm}|
 
 .. _video-standards:
 
-.. flat-table:: Video Standards (based on [])
+.. flat-table:: Video Standards (based on :ref:`itu470`)
     :header-rows:  1
     :stub-columns: 0
 
+    * - Characteristics
+      - M/NTSC [#f2]_
+      - M/PAL
+      - N/PAL [#f3]_
+      - B, B1, G/PAL
+      - D, D1, K/PAL
+      - H/PAL
+      - I/PAL
+      - B, G/SECAM
+      - D, K/SECAM
+      - K1/SECAM
+      - L/SECAM
+    * - Frame lines
+      - :cspan:`1` 525
+      - :cspan:`8` 625
+    * - Frame period (s)
+      - :cspan:`1` 1001/30000
+      - :cspan:`8` 1/25
+    * - Chrominance sub-carrier frequency (Hz)
+      - 3579545 ± 10
+      - 3579611.49 ± 10
+      - 4433618.75 ± 5
 
-    -  .. row 1
+	(3582056.25 ± 5)
+      - :cspan:`3` 4433618.75 ± 5
+      - 4433618.75 ± 1
+      - :cspan:`2` f\ :sub:`OR` = 4406250 ± 2000,
 
-       -  Characteristics
+	f\ :sub:`OB` = 4250000 ± 2000
+    * - Nominal radio-frequency channel bandwidth (MHz)
+      - 6
+      - 6
+      - 6
+      - B: 7; B1, G: 8
+      - 8
+      - 8
+      - 8
+      - 8
+      - 8
+      - 8
+      - 8
+    * - Sound carrier relative to vision carrier (MHz)
+      - 4.5
+      - 4.5
+      - 4.5
+      - 5.5 ± 0.001  [#f4]_  [#f5]_  [#f6]_  [#f7]_
+      - 6.5 ± 0.001
+      - 5.5
+      - 5.9996 ± 0.0005
+      - 5.5 ± 0.001
+      - 6.5 ± 0.001
+      - 6.5
+      - 6.5 [#f8]_
 
-       -  M/NTSC [#f2]_
+.. raw:: latex
 
-       -  M/PAL
+    \end{adjustbox}\newline\newline
 
-       -  N/PAL [#f3]_
-
-       -  B, B1, G/PAL
-
-       -  D, D1, K/PAL
-
-       -  H/PAL
-
-       -  I/PAL
-
-       -  B, G/SECAM
-
-       -  D, K/SECAM
-
-       -  K1/SECAM
-
-       -  L/SECAM
-
-    -  .. row 2
-
-       -  Frame lines
-
-       -  :cspan:`1` 525
-
-       -  :cspan:`9` 625
-
-    -  .. row 3
-
-       -  Frame period (s)
-
-       -  :cspan:`1` 1001/30000
-
-       -  :cspan:`9` 1/25
-
-    -  .. row 4
-
-       -  Chrominance sub-carrier frequency (Hz)
-
-       -  3579545 ± 10
-
-       -  3579611.49 ± 10
-
-       -  4433618.75 ± 5 (3582056.25 ± 5)
-
-       -  :cspan:`3` 4433618.75 ± 5
-
-       -  4433618.75 ± 1
-
-       -  :cspan:`3` f\ :sub:`OR` = 4406250 ± 2000, f\ :sub:`OB` = 4250000
-	  ± 2000
-
-    -  .. row 5
-
-       -  Nominal radio-frequency channel bandwidth (MHz)
-
-       -  6
-
-       -  6
-
-       -  6
-
-       -  B: 7; B1, G: 8
-
-       -  8
-
-       -  8
-
-       -  8
-
-       -  8
-
-       -  8
-
-       -  8
-
-       -  8
-
-    -  .. row 6
-
-       -  Sound carrier relative to vision carrier (MHz)
-
-       -  + 4.5
-
-       -  + 4.5
-
-       -  + 4.5
-
-       -  + 5.5 ± 0.001  [#f4]_  [#f5]_  [#f6]_  [#f7]_
-
-       -  + 6.5 ± 0.001
-
-       -  + 5.5
-
-       -  + 5.9996 ± 0.0005
-
-       -  + 5.5 ± 0.001
-
-       -  + 6.5 ± 0.001
-
-       -  + 6.5
-
-       -  + 6.5  [#f8]_
 
 
 Return Value
@@ -394,7 +305,7 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :ref:`v4l2_standard <v4l2-standard>` ``index`` is out
+    The struct :c:type:`v4l2_standard` ``index`` is out
     of bounds.
 
 ENODATA

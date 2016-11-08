@@ -204,7 +204,18 @@ out:
 	return retval;
 }
 
-static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
+			     u64 lastuse)
+{
+	struct tcf_mirred *m = to_mirred(a);
+	struct tcf_t *tm = &m->tcf_tm;
+
+	_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
+	tm->lastuse = lastuse;
+}
+
+static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind,
+			   int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_mirred *m = to_mirred(a);
@@ -280,6 +291,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.type		=	TCA_ACT_MIRRED,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred,
+	.stats_update	=	tcf_stats_update,
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_release,
 	.init		=	tcf_mirred_init,

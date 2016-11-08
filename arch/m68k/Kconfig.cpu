@@ -62,6 +62,7 @@ config MCPU32
 config M68020
 	bool "68020 support"
 	depends on MMU
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
@@ -72,6 +73,7 @@ config M68020
 config M68030
 	bool "68030 support"
 	depends on MMU && !MMU_SUN3
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
@@ -81,6 +83,7 @@ config M68030
 config M68040
 	bool "68040 support"
 	depends on MMU && !MMU_SUN3
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
@@ -91,6 +94,7 @@ config M68040
 config M68060
 	bool "68060 support"
 	depends on MMU && !MMU_SUN3
+	select FPU
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68060
@@ -259,6 +263,7 @@ config M547x
 	bool "MCF547x"
 	select M54xx
 	select MMU_COLDFIRE if MMU
+	select FPU if MMU
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	select CPU_NO_EFFICIENT_FFS
@@ -268,6 +273,7 @@ config M547x
 config M548x
 	bool "MCF548x"
 	select MMU_COLDFIRE if MMU
+	select FPU if MMU
 	select M54xx
 	select HAVE_CACHE_CB
 	select HAVE_MBAR

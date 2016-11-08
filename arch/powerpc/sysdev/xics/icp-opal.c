@@ -51,14 +51,14 @@ static unsigned int icp_opal_get_irq(void)
 
 	rc = opal_int_get_xirr(&xirr, false);
 	if (rc < 0)
-		return NO_IRQ;
+		return 0;
 	xirr = be32_to_cpu(xirr);
 	vec = xirr & 0x00ffffff;
 	if (vec == XICS_IRQ_SPURIOUS)
-		return NO_IRQ;
+		return 0;
 
 	irq = irq_find_mapping(xics_host, vec);
-	if (likely(irq != NO_IRQ)) {
+	if (likely(irq)) {
 		xics_push_cppr(vec);
 		return irq;
 	}
@@ -69,7 +69,7 @@ static unsigned int icp_opal_get_irq(void)
 	/* We might learn about it later, so EOI it */
 	opal_int_eoi(xirr);
 
-	return NO_IRQ;
+	return 0;
 }
 
 static void icp_opal_set_cpu_priority(unsigned char cppr)

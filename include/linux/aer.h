@@ -63,7 +63,7 @@ static inline int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 }
 #endif
 
-void cper_print_aer(struct pci_dev *dev, int cper_severity,
+void cper_print_aer(struct pci_dev *dev, int aer_severity,
 		    struct aer_capability_regs *aer);
 int cper_severity_to_aer(int cper_severity);
 void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,

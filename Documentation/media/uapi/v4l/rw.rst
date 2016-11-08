@@ -9,7 +9,7 @@ Read/Write
 Input and output devices support the :ref:`read() <func-read>` and
 :ref:`write() <func-write>` function, respectively, when the
 ``V4L2_CAP_READWRITE`` flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set.
 
 Drivers may need the CPU to copy the data, but they may also support DMA

@@ -41,6 +41,7 @@ struct device_node;
 struct fwnode_handle;
 struct iommu_ops;
 struct iommu_group;
+struct iommu_fwspec;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -765,6 +766,7 @@ struct device_dma_parameters {
  * 		gone away. This should be set by the allocator of the
  * 		device (i.e. the bus driver that discovered the device).
  * @iommu_group: IOMMU group the device belongs to.
+ * @iommu_fwspec: IOMMU-specific properties supplied by firmware.
  *
  * @offline_disabled: If set, the device is permanently online.
  * @offline:	Set after successful invocation of bus type's .offline().
@@ -849,6 +851,7 @@ struct device {
 
 	void	(*release)(struct device *dev);
 	struct iommu_group	*iommu_group;
+	struct iommu_fwspec	*iommu_fwspec;
 
 	bool			offline_disabled:1;
 	bool			offline:1;

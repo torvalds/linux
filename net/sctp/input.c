@@ -605,7 +605,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 		/* PMTU discovery (RFC1191) */
 		if (ICMP_FRAG_NEEDED == code) {
 			sctp_icmp_frag_needed(sk, asoc, transport,
-					      WORD_TRUNC(info));
+					      SCTP_TRUNC4(info));
 			goto out_unlock;
 		} else {
 			if (ICMP_PROT_UNREACH == code) {
@@ -673,7 +673,7 @@ static int sctp_rcv_ootb(struct sk_buff *skb)
 		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
 			break;
 
-		ch_end = offset + WORD_ROUND(ntohs(ch->length));
+		ch_end = offset + SCTP_PAD4(ntohs(ch->length));
 		if (ch_end > skb->len)
 			break;
 
@@ -1128,7 +1128,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
 			break;
 
-		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
+		ch_end = ((__u8 *)ch) + SCTP_PAD4(ntohs(ch->length));
 		if (ch_end > skb_tail_pointer(skb))
 			break;
 
@@ -1197,7 +1197,7 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 	 * that the chunk length doesn't cause overflow.  Otherwise, we'll
 	 * walk off the end.
 	 */
-	if (WORD_ROUND(ntohs(ch->length)) > skb->len)
+	if (SCTP_PAD4(ntohs(ch->length)) > skb->len)
 		return NULL;
 
 	/* If this is INIT/INIT-ACK look inside the chunk too. */

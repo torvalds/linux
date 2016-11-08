@@ -24,6 +24,7 @@ What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status0_luminance
 Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets the status LED luminance (1..127)
 		when the stylus does not touch the tablet surface, and no
 		button is pressed on the stylus. This luminance level is
@@ -33,6 +34,7 @@ What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status1_luminance
 Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets the status LED luminance (1..127)
 		when the stylus touches the tablet surface, or any button is
 		pressed on the stylus.
@@ -41,6 +43,7 @@ What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status_led0_select
 Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets which one of the four (for Intuos 4
 		and Intuos 5) or of the right four (for Cintiq 21UX2 and Cintiq
 		24HD) status LEDs is active (0..3). The other three LEDs on the
@@ -50,6 +53,7 @@ What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_led/status_led1_select
 Date:		August 2014
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Writing to this file sets which one of the left four (for Cintiq 21UX2
 		and Cintiq 24HD) status LEDs is active (0..3). The other three LEDs on
 		the left are always inactive.
@@ -91,6 +95,7 @@ What:		/sys/bus/hid/devices/<bus>:<vid>:<pid>.<n>/wacom_remote/<serial_number>/r
 Date:		July 2015
 Contact:	linux-input@vger.kernel.org
 Description:
+		<obsoleted by the LED class API now exported by the driver>
 		Reading from this file reports the mode status of the
 		remote as indicated by the LED lights on the device. If no
 		reports have been received from the paired device, reading
