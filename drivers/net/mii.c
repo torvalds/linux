@@ -213,6 +213,8 @@ int mii_ethtool_get_link_ksettings(struct mii_if_info *mii,
 				    SPEED_100 : SPEED_10));
 		cmd->base.duplex = (bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
+
+		lp_advertising = 0;
 	}
 
 	mii->full_duplex = cmd->base.duplex;
