@@ -95,7 +95,7 @@ struct lowcore {
 
 	/* Current process. */
 	__u64	current_task;			/* 0x0310 */
-	__u64	thread_info;			/* 0x0318 */
+	__u8	pad_0x318[0x320-0x318];		/* 0x0318 */
 	__u64	kernel_stack;			/* 0x0320 */
 
 	/* Interrupt, panic and restart stack. */

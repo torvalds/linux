@@ -329,8 +329,7 @@ static void __init setup_lowcore(void)
 	lc->panic_stack = (unsigned long)
 		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0)
 		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
-	lc->thread_info = (unsigned long) &init_thread_union;
+	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
 	lc->preempt_count = S390_lowcore.preempt_count;

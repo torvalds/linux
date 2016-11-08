@@ -263,7 +263,6 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 
 	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->thread_info = (unsigned long) task_thread_info(tsk);
 	lc->current_task = (unsigned long) tsk;
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;

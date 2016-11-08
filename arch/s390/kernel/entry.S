@@ -186,14 +186,13 @@ ENTRY(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lgr	%r1,%r2
 	aghi	%r1,__TASK_thread		# thread_struct of prev task
-	lg	%r5,__TASK_thread_info(%r3)	# get thread_info of next
+	lg	%r5,__TASK_stack(%r3)		# start of kernel stack of next
 	stg	%r15,__THREAD_ksp(%r1)		# store kernel stack of prev
 	lgr	%r1,%r3
 	aghi	%r1,__TASK_thread		# thread_struct of next task
 	lgr	%r15,%r5
 	aghi	%r15,STACK_INIT			# end of kernel stack of next
 	stg	%r3,__LC_CURRENT		# store task struct of next
-	stg	%r5,__LC_THREAD_INFO		# store thread info of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1)		# load kernel stack of next
 	/* c4 is used in guest detection: arch/s390/kernel/perf_cpum_sf.c */
@@ -274,7 +273,7 @@ ENTRY(system_call)
 .Lsysc_stmg:
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lg	%r10,__LC_LAST_BREAK
-	lg	%r12,__LC_THREAD_INFO
+	lg	%r12,__LC_CURRENT
 	lghi	%r14,_PIF_SYSCALL
 .Lsysc_per:
 	lg	%r15,__LC_KERNEL_STACK
@@ -457,7 +456,7 @@ ENTRY(system_call)
 #
 ENTRY(ret_from_fork)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	lg	%r12,__LC_THREAD_INFO
+	lg	%r12,__LC_CURRENT
 	brasl	%r14,schedule_tail
 	TRACE_IRQS_ON
 	ssm	__LC_SVC_NEW_PSW	# reenable interrupts
@@ -478,7 +477,7 @@ ENTRY(pgm_check_handler)
 	stpt	__LC_SYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lg	%r10,__LC_LAST_BREAK
-	lg	%r12,__LC_THREAD_INFO
+	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
 	tmhh	%r8,0x0001		# test problem state bit
@@ -501,7 +500,7 @@ ENTRY(pgm_check_handler)
 2:	LAST_BREAK %r14
 	UPDATE_VTIME %r14,%r15,__LC_SYNC_ENTER_TIMER
 	lg	%r15,__LC_KERNEL_STACK
-	lg	%r14,__TI_task(%r12)
+	lgr	%r14,%r12
 	aghi	%r14,__TASK_thread	# pointer to thread_struct
 	lghi	%r13,__LC_PGM_TDB
 	tm	__LC_PGM_ILC+2,0x02	# check for transaction abort
@@ -567,7 +566,7 @@ ENTRY(io_int_handler)
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
-	lg	%r12,__LC_THREAD_INFO
+	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
 	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER
@@ -741,7 +740,7 @@ ENTRY(ext_int_handler)
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
-	lg	%r12,__LC_THREAD_INFO
+	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
 	SWITCH_ASYNC __LC_SAVE_AREA_ASYNC,__LC_ASYNC_ENTER_TIMER
@@ -889,7 +888,7 @@ ENTRY(mcck_int_handler)
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
 	lg	%r10,__LC_LAST_BREAK
-	lg	%r12,__LC_THREAD_INFO
+	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE

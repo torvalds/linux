@@ -25,7 +25,7 @@
 int main(void)
 {
 	/* task struct offsets */
-	OFFSET(__TASK_thread_info, task_struct, stack);
+	OFFSET(__TASK_stack, task_struct, stack);
 	OFFSET(__TASK_thread, task_struct, thread);
 	OFFSET(__TASK_pid, task_struct, pid);
 	BLANK();
@@ -39,13 +39,11 @@ int main(void)
 	OFFSET(__THREAD_trap_tdb, thread_struct, trap_tdb);
 	BLANK();
 	/* thread info offsets */
-	OFFSET(__TI_task, thread_info, task);
-	OFFSET(__TI_flags, thread_info, flags);
-	OFFSET(__TI_sysc_table, thread_info, sys_call_table);
-	OFFSET(__TI_cpu, thread_info, cpu);
-	OFFSET(__TI_user_timer, thread_info, user_timer);
-	OFFSET(__TI_system_timer, thread_info, system_timer);
-	OFFSET(__TI_last_break, thread_info, last_break);
+	OFFSET(__TI_flags, task_struct, thread_info.flags);
+	OFFSET(__TI_sysc_table,  task_struct, thread_info.sys_call_table);
+	OFFSET(__TI_user_timer, task_struct, thread_info.user_timer);
+	OFFSET(__TI_system_timer, task_struct, thread_info.system_timer);
+	OFFSET(__TI_last_break, task_struct, thread_info.last_break);
 	BLANK();
 	/* pt_regs offsets */
 	OFFSET(__PT_ARGS, pt_regs, args);
@@ -160,7 +158,6 @@ int main(void)
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
 	OFFSET(__LC_MCCK_CLOCK, lowcore, mcck_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
-	OFFSET(__LC_THREAD_INFO, lowcore, thread_info);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
 	OFFSET(__LC_PANIC_STACK, lowcore, panic_stack);

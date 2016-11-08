@@ -30,10 +30,8 @@
  * - if the contents of this structure are changed, the assembly constants must also be changed
  */
 struct thread_info {
-	struct task_struct	*task;		/* main task structure */
 	unsigned long		flags;		/* low level flags */
 	unsigned long		sys_call_table;	/* System call table address */
-	unsigned int		cpu;		/* current CPU */
 	unsigned int		system_call;
 	__u64			user_timer;
 	__u64			system_timer;
@@ -45,19 +43,10 @@ struct thread_info {
  */
 #define INIT_THREAD_INFO(tsk)			\
 {						\
-	.task		= &tsk,			\
 	.flags		= 0,			\
-	.cpu		= 0,			\
 }
 
-#define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
-
-/* how to get the thread information struct from C */
-static inline struct thread_info *current_thread_info(void)
-{
-	return (struct thread_info *) S390_lowcore.thread_info;
-}
 
 void arch_release_task_struct(struct task_struct *tsk);
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
