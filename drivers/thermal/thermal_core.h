@@ -60,6 +60,7 @@ void thermal_zone_device_rebind_exception(struct thermal_zone_device *,
 					  const char *, size_t);
 void thermal_zone_device_unbind_exception(struct thermal_zone_device *,
 					  const char *, size_t);
+int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
 
 #ifdef CONFIG_THERMAL_GOV_STEP_WISE
 int thermal_gov_step_wise_register(void);
