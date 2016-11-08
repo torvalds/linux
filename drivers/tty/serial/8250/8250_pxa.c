@@ -37,8 +37,7 @@ struct pxa8250_data {
 	struct clk		*clk;
 };
 
-#ifdef CONFIG_PM
-static int serial_pxa_suspend(struct device *dev)
+static int __maybe_unused serial_pxa_suspend(struct device *dev)
 {
 	struct pxa8250_data *data = dev_get_drvdata(dev);
 
@@ -47,7 +46,7 @@ static int serial_pxa_suspend(struct device *dev)
 	return 0;
 }
 
-static int serial_pxa_resume(struct device *dev)
+static int __maybe_unused serial_pxa_resume(struct device *dev)
 {
 	struct pxa8250_data *data = dev_get_drvdata(dev);
 
@@ -55,7 +54,6 @@ static int serial_pxa_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops serial_pxa_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(serial_pxa_suspend, serial_pxa_resume)
