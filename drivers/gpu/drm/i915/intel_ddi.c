@@ -1866,7 +1866,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 
 	if (intel_crtc->config->has_audio) {
 		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-		intel_audio_codec_enable(intel_encoder);
+		intel_audio_codec_enable(intel_encoder, pipe_config, conn_state);
 	}
 }
 

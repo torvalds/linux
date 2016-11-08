@@ -1187,7 +1187,9 @@ u32 intel_fb_stride_alignment(const struct drm_i915_private *dev_priv,
 
 /* intel_audio.c */
 void intel_init_audio_hooks(struct drm_i915_private *dev_priv);
-void intel_audio_codec_enable(struct intel_encoder *encoder);
+void intel_audio_codec_enable(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state,
+			      const struct drm_connector_state *conn_state);
 void intel_audio_codec_disable(struct intel_encoder *encoder);
 void i915_audio_component_init(struct drm_i915_private *dev_priv);
 void i915_audio_component_cleanup(struct drm_i915_private *dev_priv);

@@ -2735,7 +2735,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 }
 
 static void intel_enable_dp(struct intel_encoder *encoder,
-			    struct intel_crtc_state *pipe_config)
+			    struct intel_crtc_state *pipe_config,
+			    struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -2777,7 +2778,7 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 	if (pipe_config->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
 				 pipe_name(pipe));
-		intel_audio_codec_enable(encoder);
+		intel_audio_codec_enable(encoder, pipe_config, conn_state);
 	}
 }
 
@@ -2787,7 +2788,7 @@ static void g4x_enable_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	intel_enable_dp(encoder, pipe_config);
+	intel_enable_dp(encoder, pipe_config, conn_state);
 	intel_edp_backlight_on(intel_dp);
 }
 
@@ -2924,7 +2925,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder,
 {
 	vlv_phy_pre_encoder_enable(encoder);
 
-	intel_enable_dp(encoder, pipe_config);
+	intel_enable_dp(encoder, pipe_config, conn_state);
 }
 
 static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
@@ -2942,7 +2943,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder,
 {
 	chv_phy_pre_encoder_enable(encoder);
 
-	intel_enable_dp(encoder, pipe_config);
+	intel_enable_dp(encoder, pipe_config, conn_state);
 
 	/* Second common lane will stay alive on its own now */
 	chv_phy_release_cl2_override(encoder);

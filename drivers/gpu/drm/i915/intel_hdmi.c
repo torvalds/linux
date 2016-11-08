@@ -984,7 +984,7 @@ static void intel_enable_hdmi_audio(struct intel_encoder *encoder,
 	WARN_ON(!crtc->config->has_hdmi_sink);
 	DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 			 pipe_name(crtc->pipe));
-	intel_audio_codec_enable(encoder);
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void g4x_enable_hdmi(struct intel_encoder *encoder,

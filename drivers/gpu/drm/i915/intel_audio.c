@@ -574,23 +574,26 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 /**
  * intel_audio_codec_enable - Enable the audio codec for HD audio
  * @intel_encoder: encoder on which to enable audio
+ * @crtc_state: pointer to the current crtc state.
+ * @conn_state: pointer to the current connector state.
  *
  * The enable sequences may only be performed after enabling the transcoder and
  * port, and after completed link training.
  */
-void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
+void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
+			      const struct intel_crtc_state *crtc_state,
+			      const struct drm_connector_state *conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
-	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
 	struct drm_connector *connector;
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
 	enum port port = intel_encoder->port;
-	enum pipe pipe = crtc->pipe;
+	enum pipe pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
 
-	connector = drm_select_eld(encoder);
-	if (!connector)
+	connector = conn_state->connector;
+	if (!connector || !connector->eld[0])
 		return;
 
 	DRM_DEBUG_DRIVER("ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
@@ -601,7 +604,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 
 	/* ELD Conn_Type */
 	connector->eld[5] &= ~(3 << 2);
-	if (intel_crtc_has_dp_encoder(crtc->config))
+	if (intel_crtc_has_dp_encoder(crtc_state))
 		connector->eld[5] |= (1 << 2);
 
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
