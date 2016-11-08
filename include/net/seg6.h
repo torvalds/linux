@@ -18,6 +18,7 @@
 #include <linux/ipv6.h>
 #include <net/lwtunnel.h>
 #include <linux/seg6.h>
+#include <linux/rhashtable.h>
 
 static inline void update_csum_diff4(struct sk_buff *skb, __be32 from,
 				     __be32 to)
@@ -41,6 +42,9 @@ static inline void update_csum_diff16(struct sk_buff *skb, __be32 *from,
 struct seg6_pernet_data {
 	struct mutex lock;
 	struct in6_addr __rcu *tun_src;
+#ifdef CONFIG_IPV6_SEG6_HMAC
+	struct rhashtable hmac_infos;
+#endif
 };
 
 static inline struct seg6_pernet_data *seg6_pernet(struct net *net)
