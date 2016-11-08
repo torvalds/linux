@@ -38,7 +38,7 @@
 #define MDREFR_DB2_MASK	(MDREFR_K2DB2 | MDREFR_K1DB2)
 #define MDREFR_DRI_MASK	0xFFF
 
-DEFINE_SPINLOCK(lock);
+static DEFINE_SPINLOCK(pxa_clk_lock);
 
 static struct clk *pxa_clocks[CLK_MAX];
 static struct clk_onecell_data onecell_data = {
@@ -109,7 +109,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks)
 		pxa_clk->lp = clks[i].lp;
 		pxa_clk->hp = clks[i].hp;
 		pxa_clk->gate = clks[i].gate;
-		pxa_clk->gate.lock = &lock;
+		pxa_clk->gate.lock = &pxa_clk_lock;
 		clk = clk_register_composite(NULL, clks[i].name,
 					     clks[i].parent_names, 2,
 					     &pxa_clk->hw, &cken_mux_ops,
@@ -155,7 +155,8 @@ void pxa2xx_core_turbo_switch(bool on)
 }
 
 void pxa2xx_cpll_change(struct pxa2xx_freq *freq,
-			u32 (*mdrefr_dri)(unsigned int), u32 *mdrefr, u32 *cccr)
+			u32 (*mdrefr_dri)(unsigned int), void __iomem *mdrefr,
+			void __iomem *cccr)
 {
 	unsigned int clkcfg = freq->clkcfg;
 	unsigned int unused, preset_mdrefr, postset_mdrefr;
