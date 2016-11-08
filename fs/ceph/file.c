@@ -906,7 +906,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 					pos >> PAGE_SHIFT,
 					(pos + count) >> PAGE_SHIFT);
 		if (ret2 < 0)
-			dout("invalidate_inode_pages2_range returned %d\n", ret);
+			dout("invalidate_inode_pages2_range returned %d\n", ret2);
 
 		flags = CEPH_OSD_FLAG_ORDERSNAP |
 			CEPH_OSD_FLAG_ONDISK |
