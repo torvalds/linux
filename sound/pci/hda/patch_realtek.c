@@ -420,7 +420,7 @@ static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 }
 
 /* generic shutup callback;
- * just turning off EPAD and a little pause for avoiding pop-noise
+ * just turning off EAPD and a little pause for avoiding pop-noise
  */
 static void alc_eapd_shutup(struct hda_codec *codec)
 {
