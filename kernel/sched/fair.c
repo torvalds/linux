@@ -2828,6 +2828,26 @@ __update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 	return decayed;
 }
 
+/*
+ * Signed add and clamp on underflow.
+ *
+ * Explicitly do a load-store to ensure the intermediate value never hits
+ * memory. This allows lockless observations without ever seeing the negative
+ * values.
+ */
+#define add_positive(_ptr, _val) do {                           \
+	typeof(_ptr) ptr = (_ptr);                              \
+	typeof(_val) val = (_val);                              \
+	typeof(*ptr) res, var = READ_ONCE(*ptr);                \
+								\
+	res = var + val;                                        \
+								\
+	if (val < 0 && res > var)                               \
+		res = 0;                                        \
+								\
+	WRITE_ONCE(*ptr, res);                                  \
+} while (0)
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /**
  * update_tg_load_avg - update the tg's load avg
@@ -2849,14 +2869,196 @@ static inline void update_tg_load_avg(struct cfs_rq *cfs_rq, int force)
 {
 	long delta = cfs_rq->avg.load_avg - cfs_rq->tg_load_avg_contrib;
 
+	/*
+	 * No need to update load_avg for root_task_group as it is not used.
+	 */
+	if (cfs_rq->tg == &root_task_group)
+		return;
+
 	if (force || abs(delta) > cfs_rq->tg_load_avg_contrib / 64) {
 		atomic_long_add(delta, &cfs_rq->tg->load_avg);
 		cfs_rq->tg_load_avg_contrib = cfs_rq->avg.load_avg;
 	}
 }
 
+/*
+ * Called within set_task_rq() right before setting a task's cpu. The
+ * caller only guarantees p->pi_lock is held; no other assumptions,
+ * including the state of rq->lock, should be made.
+ */
+void set_task_rq_fair(struct sched_entity *se,
+		      struct cfs_rq *prev, struct cfs_rq *next)
+{
+	if (!sched_feat(ATTACH_AGE_LOAD))
+		return;
+
+	/*
+	 * We are supposed to update the task to "current" time, then its up to
+	 * date and ready to go to new CPU/cfs_rq. But we have difficulty in
+	 * getting what current time is, so simply throw away the out-of-date
+	 * time. This will result in the wakee task is less decayed, but giving
+	 * the wakee more load sounds not bad.
+	 */
+	if (se->avg.last_update_time && prev) {
+		u64 p_last_update_time;
+		u64 n_last_update_time;
+
+#ifndef CONFIG_64BIT
+		u64 p_last_update_time_copy;
+		u64 n_last_update_time_copy;
+
+		do {
+			p_last_update_time_copy = prev->load_last_update_time_copy;
+			n_last_update_time_copy = next->load_last_update_time_copy;
+
+			smp_rmb();
+
+			p_last_update_time = prev->avg.last_update_time;
+			n_last_update_time = next->avg.last_update_time;
+
+		} while (p_last_update_time != p_last_update_time_copy ||
+			 n_last_update_time != n_last_update_time_copy);
+#else
+		p_last_update_time = prev->avg.last_update_time;
+		n_last_update_time = next->avg.last_update_time;
+#endif
+		__update_load_avg(p_last_update_time, cpu_of(rq_of(prev)),
+				  &se->avg, 0, 0, NULL);
+		se->avg.last_update_time = n_last_update_time;
+	}
+}
+
+/* Take into account change of utilization of a child task group */
+static inline void
+update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	struct cfs_rq *gcfs_rq = group_cfs_rq(se);
+	long delta = gcfs_rq->avg.util_avg - se->avg.util_avg;
+
+	/* Nothing to update */
+	if (!delta)
+		return;
+
+	/* Set new sched_entity's utilization */
+	se->avg.util_avg = gcfs_rq->avg.util_avg;
+	se->avg.util_sum = se->avg.util_avg * LOAD_AVG_MAX;
+
+	/* Update parent cfs_rq utilization */
+	add_positive(&cfs_rq->avg.util_avg, delta);
+	cfs_rq->avg.util_sum = cfs_rq->avg.util_avg * LOAD_AVG_MAX;
+}
+
+/* Take into account change of load of a child task group */
+static inline void
+update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	struct cfs_rq *gcfs_rq = group_cfs_rq(se);
+	long delta, load = gcfs_rq->avg.load_avg;
+
+	/*
+	 * If the load of group cfs_rq is null, the load of the
+	 * sched_entity will also be null so we can skip the formula
+	 */
+	if (load) {
+		long tg_load;
+
+		/* Get tg's load and ensure tg_load > 0 */
+		tg_load = atomic_long_read(&gcfs_rq->tg->load_avg) + 1;
+
+		/* Ensure tg_load >= load and updated with current load*/
+		tg_load -= gcfs_rq->tg_load_avg_contrib;
+		tg_load += load;
+
+		/*
+		 * We need to compute a correction term in the case that the
+		 * task group is consuming more CPU than a task of equal
+		 * weight. A task with a weight equals to tg->shares will have
+		 * a load less or equal to scale_load_down(tg->shares).
+		 * Similarly, the sched_entities that represent the task group
+		 * at parent level, can't have a load higher than
+		 * scale_load_down(tg->shares). And the Sum of sched_entities'
+		 * load must be <= scale_load_down(tg->shares).
+		 */
+		if (tg_load > scale_load_down(gcfs_rq->tg->shares)) {
+			/* scale gcfs_rq's load into tg's shares*/
+			load *= scale_load_down(gcfs_rq->tg->shares);
+			load /= tg_load;
+		}
+	}
+
+	delta = load - se->avg.load_avg;
+
+	/* Nothing to update */
+	if (!delta)
+		return;
+
+	/* Set new sched_entity's load */
+	se->avg.load_avg = load;
+	se->avg.load_sum = se->avg.load_avg * LOAD_AVG_MAX;
+
+	/* Update parent cfs_rq load */
+	add_positive(&cfs_rq->avg.load_avg, delta);
+	cfs_rq->avg.load_sum = cfs_rq->avg.load_avg * LOAD_AVG_MAX;
+
+	/*
+	 * If the sched_entity is already enqueued, we also have to update the
+	 * runnable load avg.
+	 */
+	if (se->on_rq) {
+		/* Update parent cfs_rq runnable_load_avg */
+		add_positive(&cfs_rq->runnable_load_avg, delta);
+		cfs_rq->runnable_load_sum = cfs_rq->runnable_load_avg * LOAD_AVG_MAX;
+	}
+}
+
+static inline void set_tg_cfs_propagate(struct cfs_rq *cfs_rq)
+{
+	cfs_rq->propagate_avg = 1;
+}
+
+static inline int test_and_clear_tg_cfs_propagate(struct sched_entity *se)
+{
+	struct cfs_rq *cfs_rq = group_cfs_rq(se);
+
+	if (!cfs_rq->propagate_avg)
+		return 0;
+
+	cfs_rq->propagate_avg = 0;
+	return 1;
+}
+
+/* Update task and its cfs_rq load average */
+static inline int propagate_entity_load_avg(struct sched_entity *se)
+{
+	struct cfs_rq *cfs_rq;
+
+	if (entity_is_task(se))
+		return 0;
+
+	if (!test_and_clear_tg_cfs_propagate(se))
+		return 0;
+
+	cfs_rq = cfs_rq_of(se);
+
+	set_tg_cfs_propagate(cfs_rq);
+
+	update_tg_cfs_util(cfs_rq, se);
+	update_tg_cfs_load(cfs_rq, se);
+
+	return 1;
+}
+
 #else /* CONFIG_FAIR_GROUP_SCHED */
+
 static inline void update_tg_load_avg(struct cfs_rq *cfs_rq, int force) {}
+
+static inline int propagate_entity_load_avg(struct sched_entity *se)
+{
+	return 0;
+}
+
+static inline void set_tg_cfs_propagate(struct cfs_rq *cfs_rq) {}
+
 #endif /* CONFIG_FAIR_GROUP_SCHED */
 
 static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
@@ -2968,6 +3170,7 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	u64 now = cfs_rq_clock_task(cfs_rq);
 	int cpu = cpu_of(rq_of(cfs_rq));
+	int decayed;
 
 	/*
 	 * Track task load average for carrying it to new CPU after migrated, and
@@ -2979,7 +3182,10 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 			  cfs_rq->curr == se, NULL);
 	}
 
-	if (update_cfs_rq_load_avg(now, cfs_rq, true) && (flags & UPDATE_TG))
+	decayed  = update_cfs_rq_load_avg(now, cfs_rq, true);
+	decayed |= propagate_entity_load_avg(se);
+
+	if (decayed && (flags & UPDATE_TG))
 		update_tg_load_avg(cfs_rq, 0);
 
 	if (entity_is_task(se))
@@ -3001,6 +3207,7 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
 	cfs_rq->avg.load_sum += se->avg.load_sum;
 	cfs_rq->avg.util_avg += se->avg.util_avg;
 	cfs_rq->avg.util_sum += se->avg.util_sum;
+	set_tg_cfs_propagate(cfs_rq);
 
 	cfs_rq_util_change(cfs_rq);
 }
@@ -3020,6 +3227,7 @@ static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
 	sub_positive(&cfs_rq->avg.load_sum, se->avg.load_sum);
 	sub_positive(&cfs_rq->avg.util_avg, se->avg.util_avg);
 	sub_positive(&cfs_rq->avg.util_sum, se->avg.util_sum);
+	set_tg_cfs_propagate(cfs_rq);
 
 	cfs_rq_util_change(cfs_rq);
 }
@@ -9408,6 +9616,31 @@ static inline bool vruntime_normalized(struct task_struct *p)
 	return false;
 }
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+/*
+ * Propagate the changes of the sched_entity across the tg tree to make it
+ * visible to the root
+ */
+static void propagate_entity_cfs_rq(struct sched_entity *se)
+{
+	struct cfs_rq *cfs_rq;
+
+	/* Start to propagate at parent */
+	se = se->parent;
+
+	for_each_sched_entity(se) {
+		cfs_rq = cfs_rq_of(se);
+
+		if (cfs_rq_throttled(cfs_rq))
+			break;
+
+		update_load_avg(se, UPDATE_TG);
+	}
+}
+#else
+static void propagate_entity_cfs_rq(struct sched_entity *se) { }
+#endif
+
 static void detach_entity_cfs_rq(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
@@ -9416,6 +9649,7 @@ static void detach_entity_cfs_rq(struct sched_entity *se)
 	update_load_avg(se, 0);
 	detach_entity_load_avg(cfs_rq, se);
 	update_tg_load_avg(cfs_rq, false);
+	propagate_entity_cfs_rq(se);
 }
 
 static void attach_entity_cfs_rq(struct sched_entity *se)
@@ -9434,6 +9668,7 @@ static void attach_entity_cfs_rq(struct sched_entity *se)
 	update_load_avg(se, sched_feat(ATTACH_AGE_LOAD) ? 0 : SKIP_AGE_LOAD);
 	attach_entity_load_avg(cfs_rq, se);
 	update_tg_load_avg(cfs_rq, false);
+	propagate_entity_cfs_rq(se);
 }
 
 static void detach_task_cfs_rq(struct task_struct *p)
@@ -9512,6 +9747,9 @@ void init_cfs_rq(struct cfs_rq *cfs_rq)
 	cfs_rq->min_vruntime_copy = cfs_rq->min_vruntime;
 #endif
 #ifdef CONFIG_SMP
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	cfs_rq->propagate_avg = 0;
+#endif
 	atomic_long_set(&cfs_rq->removed_load_avg, 0);
 	atomic_long_set(&cfs_rq->removed_util_avg, 0);
 #endif

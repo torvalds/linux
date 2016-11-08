@@ -376,6 +376,7 @@ struct cfs_rq {
 	unsigned long runnable_load_avg;
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	unsigned long tg_load_avg_contrib;
+	unsigned long propagate_avg;
 #endif
 	atomic_long_t removed_load_avg, removed_util_avg;
 #ifndef CONFIG_64BIT
