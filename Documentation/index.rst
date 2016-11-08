@@ -57,6 +57,7 @@ needed).
    media/index
    gpu/index
    80211/index
+   security/index
 
 Indices and tables
 ==================
