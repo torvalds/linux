@@ -834,7 +834,7 @@ static bool need_to_wait_for_sync(struct r1conf *conf, struct bio *bio)
 	else if (conf->barrier && bio_data_dir(bio) == WRITE) {
 		if ((conf->mddev->curr_resync_completed
 		     >= bio_end_sector(bio)) ||
-		    (conf->next_resync + NEXT_NORMALIO_DISTANCE
+		    (conf->start_next_window + NEXT_NORMALIO_DISTANCE
 		     <= bio->bi_iter.bi_sector))
 			wait = false;
 		else
