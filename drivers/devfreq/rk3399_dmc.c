@@ -461,7 +461,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	data->volt = regulator_get_voltage(data->vdd_center);
 
 	devp->initial_freq = data->rate;
-	data->devfreq = devfreq_add_device(dev, devp,
+	data->devfreq = devm_devfreq_add_device(dev, devp,
 					   "simple_ondemand",
 					   &data->ondemand_data);
 	if (IS_ERR(data->devfreq))
