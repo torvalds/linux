@@ -59,6 +59,14 @@ needed).
    80211/index
    security/index
 
+Korean translations
+-------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/ko_KR/index
+
 Indices and tables
 ==================
 
