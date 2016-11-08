@@ -747,7 +747,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 err:
 	if (reads_done &&
 	    test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
-		btree_readahead_hook(fs_info, eb, eb->start, ret);
+		btree_readahead_hook(fs_info, eb, ret);
 
 	if (ret) {
 		/*
@@ -772,7 +772,7 @@ static int btree_io_failed_hook(struct page *page, int failed_mirror)
 	eb->read_mirror = failed_mirror;
 	atomic_dec(&eb->io_pages);
 	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
-		btree_readahead_hook(eb->fs_info, eb, eb->start, -EIO);
+		btree_readahead_hook(eb->fs_info, eb, -EIO);
 	return -EIO;	/* we fixed nothing */
 }
 

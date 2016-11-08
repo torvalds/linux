@@ -209,12 +209,8 @@ cleanup:
 	return;
 }
 
-/*
- * start is passed separately in case eb in NULL, which may be the case with
- * failed I/O
- */
 int btree_readahead_hook(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *eb, u64 start, int err)
+			 struct extent_buffer *eb, int err)
 {
 	int ret = 0;
 	struct reada_extent *re;
@@ -222,7 +218,7 @@ int btree_readahead_hook(struct btrfs_fs_info *fs_info,
 	/* find extent */
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree,
-			       start >> PAGE_SHIFT);
+			       eb->start >> PAGE_SHIFT);
 	if (re)
 		re->refcnt++;
 	spin_unlock(&fs_info->reada_lock);

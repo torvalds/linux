@@ -3661,7 +3661,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 int btrfs_reada_wait(void *handle);
 void btrfs_reada_detach(void *handle);
 int btree_readahead_hook(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *eb, u64 start, int err);
+			 struct extent_buffer *eb, int err);
 
 static inline int is_fstree(u64 rootid)
 {
