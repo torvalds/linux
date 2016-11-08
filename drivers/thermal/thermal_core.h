@@ -71,6 +71,17 @@ int thermal_build_list_of_policies(char *buf);
 
 /* sysfs I/F */
 int thermal_zone_create_device_groups(struct thermal_zone_device *, int);
+void thermal_cooling_device_setup_sysfs(struct thermal_cooling_device *);
+/* used only at binding time */
+ssize_t
+thermal_cooling_device_trip_point_show(struct device *,
+				       struct device_attribute *, char *);
+ssize_t thermal_cooling_device_weight_show(struct device *,
+					   struct device_attribute *, char *);
+
+ssize_t thermal_cooling_device_weight_store(struct device *,
+					    struct device_attribute *,
+					    const char *, size_t);
 
 #ifdef CONFIG_THERMAL_GOV_STEP_WISE
 int thermal_gov_step_wise_register(void);
