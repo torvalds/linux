@@ -436,7 +436,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
 
-	data->devfreq = devfreq_add_device(dev,
+	data->devfreq = devm_devfreq_add_device(dev,
 					   &rk3399_devfreq_dmc_profile,
 					   "simple_ondemand",
 					   &data->ondemand_data);
