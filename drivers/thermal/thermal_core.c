@@ -320,7 +320,7 @@ static void __bind(struct thermal_zone_device *tz, int mask,
 }
 
 static void __unbind(struct thermal_zone_device *tz, int mask,
-			struct thermal_cooling_device *cdev)
+		     struct thermal_cooling_device *cdev)
 {
 	int i;
 
