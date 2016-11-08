@@ -231,6 +231,9 @@ err_put_device:
 
 void rmi_unregister_function(struct rmi_function *fn)
 {
+	rmi_dbg(RMI_DEBUG_CORE, &fn->dev, "Unregistering F%02X.\n",
+			fn->fd.function_number);
+
 	device_del(&fn->dev);
 	of_node_put(fn->dev.of_node);
 	put_device(&fn->dev);
