@@ -147,14 +147,15 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 			       int signr)
 {
 	bust_spinlocks(0);
-	die_owner = -1;
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	die_nest_count--;
 	oops_exit();
 	printk("\n");
-	if (!die_nest_count)
+	if (!die_nest_count) {
 		/* Nest count reaches zero, release the lock. */
+		die_owner = -1;
 		arch_spin_unlock(&die_lock);
+	}
 	raw_local_irq_restore(flags);
 
 	crash_fadump(regs, "die oops");
