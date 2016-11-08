@@ -166,19 +166,33 @@ static int ap_configuration_available(void)
 }
 
 /**
+ * ap_apft_available(): Test if AP facilities test (APFT)
+ * facility is available.
+ *
+ * Returns 1 if APFT is is available.
+ */
+static int ap_apft_available(void)
+{
+	return test_facility(15);
+}
+
+/**
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
+ * @tbit: Test facilities bit
  * @info: Pointer to queue descriptor
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status
-ap_test_queue(ap_qid_t qid, unsigned long *info)
+struct ap_queue_status ap_test_queue(ap_qid_t qid,
+				     int tbit,
+				     unsigned long *info)
 {
-	if (test_facility(15))
-		qid |= 1UL << 23;		/* set APFT T bit*/
+	if (tbit)
+		qid |= 1UL << 23; /* set T bit*/
 	return ap_tapq(qid, info);
 }
+EXPORT_SYMBOL(ap_test_queue);
 
 static inline int ap_query_configuration(void)
 {
@@ -261,7 +275,7 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 	if (!ap_test_config_card_id(AP_QID_CARD(qid)))
 		return -ENODEV;
 
-	status = ap_test_queue(qid, &info);
+	status = ap_test_queue(qid, ap_apft_available(), &info);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		*queue_depth = (int)(info & 0xff);
@@ -940,7 +954,9 @@ static int ap_select_domain(void)
 		for (j = 0; j < AP_DEVICES; j++) {
 			if (!ap_test_config_card_id(j))
 				continue;
-			status = ap_test_queue(AP_MKQID(j, i), NULL);
+			status = ap_test_queue(AP_MKQID(j, i),
+					       ap_apft_available(),
+					       NULL);
 			if (status.response_code != AP_RESPONSE_NORMAL)
 				continue;
 			count++;

@@ -362,7 +362,7 @@ static enum ap_wait ap_sm_setirq_wait(struct ap_queue *aq)
 		/* Get the status with TAPQ */
 		status = ap_tapq(aq->qid, NULL);
 
-	if (status.int_enabled == 1) {
+	if (status.irq_enabled == 1) {
 		/* Irqs are now enabled */
 		aq->interrupt = AP_INTR_ENABLED;
 		aq->state = (aq->queue_count > 0) ?
