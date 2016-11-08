@@ -486,7 +486,7 @@ xfs_reflink_trim_irec_to_next_cow(
 	/* This is the extent before; try sliding up one. */
 	if (irec.br_startoff < offset_fsb) {
 		idx++;
-		if (idx >= ifp->if_bytes / sizeof(xfs_bmbt_rec_t))
+		if (idx >= xfs_iext_count(ifp))
 			return 0;
 		gotp = xfs_iext_get_ext(ifp, idx);
 		xfs_bmbt_get_all(gotp, &irec);
@@ -566,7 +566,7 @@ xfs_reflink_cancel_cow_blocks(
 			xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
 		}
 
-		if (++idx >= ifp->if_bytes / sizeof(struct xfs_bmbt_rec))
+		if (++idx >= xfs_iext_count(ifp))
 			break;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
