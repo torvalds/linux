@@ -696,6 +696,13 @@
 			mode-fastboot = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_LOADER>;
 		};
+
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,rk3366-pmu-pvtm";
+			clocks = <&cru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+			status = "disabled";
+		};
 	};
 
 	amba {
@@ -784,6 +791,13 @@
 				interrupt-names = "linestate";
 				status = "okay";
 			};
+		};
+
+		pvtm: pvtm {
+			compatible = "rockchip,rk3366-pvtm";
+			clocks = <&cru SCLK_PVTM_CORE>, <&cru SCLK_PVTM_GPU>;
+			clock-names = "core", "gpu";
+			status = "disabled";
 		};
 	};
 

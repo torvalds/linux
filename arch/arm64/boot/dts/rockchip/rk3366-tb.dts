@@ -885,3 +885,11 @@
 	mali-supply = <&vdd_logic>;
 	status = "okay";
 };
+
+&pvtm {
+	status = "okay";
+};
+
+&pmu_pvtm {
+	status = "okay";
+};
