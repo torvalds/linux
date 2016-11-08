@@ -141,7 +141,6 @@ struct ufs_qcom_phy_specific_ops {
 struct ufs_qcom_phy *get_ufs_qcom_phy(struct phy *generic_phy);
 int ufs_qcom_phy_power_on(struct phy *generic_phy);
 int ufs_qcom_phy_power_off(struct phy *generic_phy);
-int ufs_qcom_phy_exit(struct phy *generic_phy);
 int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common);
 int ufs_qcom_phy_init_vregulators(struct ufs_qcom_phy *phy_common);
 int ufs_qcom_phy_remove(struct phy *generic_phy,

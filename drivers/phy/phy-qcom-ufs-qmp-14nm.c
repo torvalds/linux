@@ -47,6 +47,11 @@ static int ufs_qcom_phy_qmp_14nm_init(struct phy *generic_phy)
 	return 0;
 }
 
+static int ufs_qcom_phy_qmp_14nm_exit(struct phy *generic_phy)
+{
+	return 0;
+}
+
 static
 void ufs_qcom_phy_qmp_14nm_power_control(struct ufs_qcom_phy *phy, bool val)
 {
@@ -94,7 +99,7 @@ static int ufs_qcom_phy_qmp_14nm_is_pcs_ready(struct ufs_qcom_phy *phy_common)
 
 static const struct phy_ops ufs_qcom_phy_qmp_14nm_phy_ops = {
 	.init		= ufs_qcom_phy_qmp_14nm_init,
-	.exit		= ufs_qcom_phy_exit,
+	.exit		= ufs_qcom_phy_qmp_14nm_exit,
 	.power_on	= ufs_qcom_phy_power_on,
 	.power_off	= ufs_qcom_phy_power_off,
 	.owner		= THIS_MODULE,

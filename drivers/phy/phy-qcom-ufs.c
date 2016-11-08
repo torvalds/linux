@@ -602,17 +602,6 @@ int ufs_qcom_phy_calibrate_phy(struct phy *generic_phy, bool is_rate_B)
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_calibrate_phy);
 
-int ufs_qcom_phy_exit(struct phy *generic_phy)
-{
-	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
-
-	if (ufs_qcom_phy->is_powered_on)
-		phy_power_off(generic_phy);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_exit);
-
 int ufs_qcom_phy_is_pcs_ready(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
@@ -633,6 +622,9 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
 	struct device *dev = phy_common->dev;
 	int err;
+
+	if (phy_common->is_powered_on)
+		return 0;
 
 	err = ufs_qcom_phy_enable_vreg(dev, &phy_common->vdda_phy);
 	if (err) {
@@ -695,6 +687,9 @@ EXPORT_SYMBOL_GPL(ufs_qcom_phy_power_on);
 int ufs_qcom_phy_power_off(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
+
+	if (!phy_common->is_powered_on)
+		return 0;
 
 	phy_common->phy_spec_ops->power_control(phy_common, false);
 
