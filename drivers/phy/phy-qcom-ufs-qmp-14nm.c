@@ -48,14 +48,14 @@ static int ufs_qcom_phy_qmp_14nm_init(struct phy *generic_phy)
 	struct ufs_qcom_phy *phy_common = &phy->common_cfg;
 	int err;
 
-	err = ufs_qcom_phy_init_clks(generic_phy, phy_common);
+	err = ufs_qcom_phy_init_clks(phy_common);
 	if (err) {
 		dev_err(phy_common->dev, "%s: ufs_qcom_phy_init_clks() failed %d\n",
 			__func__, err);
 		goto out;
 	}
 
-	err = ufs_qcom_phy_init_vregulators(generic_phy, phy_common);
+	err = ufs_qcom_phy_init_vregulators(phy_common);
 	if (err) {
 		dev_err(phy_common->dev, "%s: ufs_qcom_phy_init_vregulators() failed %d\n",
 			__func__, err);
