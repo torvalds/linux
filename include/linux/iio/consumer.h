@@ -226,6 +226,34 @@ int iio_read_channel_processed(struct iio_channel *chan, int *val);
 int iio_write_channel_raw(struct iio_channel *chan, int val);
 
 /**
+ * iio_read_max_channel_raw() - read maximum available raw value from a given
+ *				channel, i.e. the maximum possible value.
+ * @chan:		The channel being queried.
+ * @val:		Value read back.
+ *
+ * Note raw reads from iio channels are in adc counts and hence
+ * scale will need to be applied if standard units are required.
+ */
+int iio_read_max_channel_raw(struct iio_channel *chan, int *val);
+
+/**
+ * iio_read_avail_channel_raw() - read available raw values from a given channel
+ * @chan:		The channel being queried.
+ * @vals:		Available values read back.
+ * @length:		Number of entries in vals.
+ *
+ * Returns an error code, IIO_AVAIL_RANGE or IIO_AVAIL_LIST.
+ *
+ * For ranges, three vals are always returned; min, step and max.
+ * For lists, all the possible values are enumerated.
+ *
+ * Note raw available values from iio channels are in adc counts and
+ * hence scale will need to be applied if standard units are required.
+ */
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length);
+
+/**
  * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.

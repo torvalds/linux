@@ -315,6 +315,23 @@ static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 		(chan->info_mask_shared_by_all & BIT(type));
 }
 
+/**
+ * iio_channel_has_available() - Checks if a channel has an available attribute
+ * @chan: The channel to be queried
+ * @type: Type of the available attribute to be checked
+ *
+ * Returns true if the channel supports reporting available values for the
+ * given attribute type, false otherwise.
+ */
+static inline bool iio_channel_has_available(const struct iio_chan_spec *chan,
+					     enum iio_chan_info_enum type)
+{
+	return (chan->info_mask_separate_available & BIT(type)) |
+		(chan->info_mask_shared_by_type_available & BIT(type)) |
+		(chan->info_mask_shared_by_dir_available & BIT(type)) |
+		(chan->info_mask_shared_by_all_available & BIT(type));
+}
+
 #define IIO_CHAN_SOFT_TIMESTAMP(_si) {					\
 	.type = IIO_TIMESTAMP,						\
 	.channel = -1,							\
