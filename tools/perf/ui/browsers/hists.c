@@ -1337,8 +1337,8 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		}
 
 		if (first) {
-			ui_browser__printf(&browser->b, "%c", folded_sign);
-			width--;
+			ui_browser__printf(&browser->b, "%c ", folded_sign);
+			width -= 2;
 			first = false;
 		} else {
 			ui_browser__printf(&browser->b, "  ");
@@ -1555,7 +1555,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 	int indent = hists->nr_hpp_node - 2;
 	bool first_node, first_col;
 
-	ret = scnprintf(buf, size, " ");
+	ret = scnprintf(buf, size, "  ");
 	if (advance_hpp_check(&dummy_hpp, ret))
 		return ret;
 
