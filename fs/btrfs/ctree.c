@@ -3348,7 +3348,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	root_add_used(root, root->nodesize);
 
-	memset_extent_buffer(c, 0, 0, sizeof(struct btrfs_header));
+	memzero_extent_buffer(c, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_nritems(c, 1);
 	btrfs_set_header_level(c, level);
 	btrfs_set_header_bytenr(c, c->start);
@@ -3484,7 +3484,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 
 	root_add_used(root, root->nodesize);
 
-	memset_extent_buffer(split, 0, 0, sizeof(struct btrfs_header));
+	memzero_extent_buffer(split, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_level(split, btrfs_header_level(c));
 	btrfs_set_header_bytenr(split, split->start);
 	btrfs_set_header_generation(split, trans->transid);
@@ -4270,7 +4270,7 @@ again:
 
 	root_add_used(root, root->nodesize);
 
-	memset_extent_buffer(right, 0, 0, sizeof(struct btrfs_header));
+	memzero_extent_buffer(right, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_bytenr(right, right->start);
 	btrfs_set_header_generation(right, trans->transid);
 	btrfs_set_header_backref_rev(right, BTRFS_MIXED_BACKREF_REV);

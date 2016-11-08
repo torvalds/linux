@@ -306,7 +306,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	int ret;
 
 	memset(bitmap, 0, len);
-	memset_extent_buffer(eb, 0, 0, len);
+	memzero_extent_buffer(eb, 0, len);
 	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
 		test_msg("Bitmap was not zeroed\n");
 		return -EINVAL;
