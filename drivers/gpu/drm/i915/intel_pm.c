@@ -3120,7 +3120,11 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 	 * we currently hold.
 	 */
 	if (!intel_state->active_pipe_changes) {
-		*alloc = to_intel_crtc(for_crtc)->hw_ddb;
+		/*
+		 * alloc may be cleared by clear_intel_crtc_state,
+		 * copy from old state to be sure
+		 */
+		*alloc = to_intel_crtc_state(for_crtc->state)->wm.skl.ddb;
 		return;
 	}
 

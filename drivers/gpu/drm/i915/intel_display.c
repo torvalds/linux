@@ -14337,7 +14337,7 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 			 * new ddb allocation to take effect.
 			 */
 			if (!skl_ddb_entry_equal(&cstate->wm.skl.ddb,
-						 &intel_crtc->hw_ddb) &&
+						 &to_intel_crtc_state(old_crtc_state)->wm.skl.ddb) &&
 			    !crtc->state->active_changed &&
 			    intel_state->wm_results.dirty_pipes != updated)
 				vbl_wait = true;
