@@ -40,7 +40,10 @@ static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v5_0_set_irq_funcs(struct amdgpu_device *adev);
 static int uvd_v5_0_start(struct amdgpu_device *adev);
 static void uvd_v5_0_stop(struct amdgpu_device *adev);
-
+static int uvd_v5_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state);
+static void uvd_v5_0_enable_mgcg(struct amdgpu_device *adev,
+				 bool enable);
 /**
  * uvd_v5_0_ring_get_rptr - get read pointer
  *
@@ -149,9 +152,6 @@ static int uvd_v5_0_hw_init(void *handle)
 	uint32_t tmp;
 	int r;
 
-	/* raise clocks while booting up the VCPU */
-	amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-
 	r = uvd_v5_0_start(adev);
 	if (r)
 		goto done;
@@ -189,11 +189,7 @@ static int uvd_v5_0_hw_init(void *handle)
 	amdgpu_ring_write(ring, 3);
 
 	amdgpu_ring_commit(ring);
-
 done:
-	/* lower clocks again */
-	amdgpu_asic_set_uvd_clocks(adev, 0, 0);
-
 	if (!r)
 		DRM_INFO("UVD initialized successfully.\n");
 
@@ -226,6 +222,7 @@ static int uvd_v5_0_suspend(void *handle)
 	r = uvd_v5_0_hw_fini(adev);
 	if (r)
 		return r;
+	uvd_v5_0_set_clockgating_state(adev, AMD_CG_STATE_GATE);
 
 	r = amdgpu_uvd_suspend(adev);
 	if (r)
@@ -313,8 +310,9 @@ static int uvd_v5_0_start(struct amdgpu_device *adev)
 
 	uvd_v5_0_mc_resume(adev);
 
-	/* disable clock gating */
-	WREG32(mmUVD_CGC_GATE, 0);
+	amdgpu_asic_set_uvd_clocks(adev, 10000, 10000);
+	uvd_v5_0_set_clockgating_state(adev, AMD_CG_STATE_UNGATE);
+	uvd_v5_0_enable_mgcg(adev, true);
 
 	/* disable interupt */
 	WREG32_P(mmUVD_MASTINT_EN, 0, ~(1 << 1));
@@ -628,22 +626,61 @@ static int uvd_v5_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void uvd_v5_0_set_sw_clock_gating(struct amdgpu_device *adev)
+static void uvd_v5_0_enable_clock_gating(struct amdgpu_device *adev, bool enable)
 {
-	uint32_t data, data1, data2, suvd_flags;
+	uint32_t data1, data3, suvd_flags;
 
-	data = RREG32(mmUVD_CGC_CTRL);
 	data1 = RREG32(mmUVD_SUVD_CGC_GATE);
-	data2 = RREG32(mmUVD_SUVD_CGC_CTRL);
-
-	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
-		  UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
+	data3 = RREG32(mmUVD_CGC_GATE);
 
 	suvd_flags = UVD_SUVD_CGC_GATE__SRE_MASK |
 		     UVD_SUVD_CGC_GATE__SIT_MASK |
 		     UVD_SUVD_CGC_GATE__SMP_MASK |
 		     UVD_SUVD_CGC_GATE__SCM_MASK |
 		     UVD_SUVD_CGC_GATE__SDB_MASK;
+
+	if (enable) {
+		data3 |= (UVD_CGC_GATE__SYS_MASK       |
+			UVD_CGC_GATE__UDEC_MASK      |
+			UVD_CGC_GATE__MPEG2_MASK     |
+			UVD_CGC_GATE__RBC_MASK       |
+			UVD_CGC_GATE__LMI_MC_MASK    |
+			UVD_CGC_GATE__IDCT_MASK      |
+			UVD_CGC_GATE__MPRD_MASK      |
+			UVD_CGC_GATE__MPC_MASK       |
+			UVD_CGC_GATE__LBSI_MASK      |
+			UVD_CGC_GATE__LRBBM_MASK     |
+			UVD_CGC_GATE__UDEC_RE_MASK   |
+			UVD_CGC_GATE__UDEC_CM_MASK   |
+			UVD_CGC_GATE__UDEC_IT_MASK   |
+			UVD_CGC_GATE__UDEC_DB_MASK   |
+			UVD_CGC_GATE__UDEC_MP_MASK   |
+			UVD_CGC_GATE__WCB_MASK       |
+			UVD_CGC_GATE__VCPU_MASK      |
+			UVD_CGC_GATE__JPEG_MASK      |
+			UVD_CGC_GATE__SCPU_MASK);
+		data3 &= ~UVD_CGC_GATE__REGS_MASK;
+		data1 |= suvd_flags;
+	} else {
+		data3 = 0;
+		data1 = 0;
+	}
+
+	WREG32(mmUVD_SUVD_CGC_GATE, data1);
+	WREG32(mmUVD_CGC_GATE, data3);
+}
+
+static void uvd_v5_0_set_sw_clock_gating(struct amdgpu_device *adev)
+{
+	uint32_t data, data2;
+
+	data = RREG32(mmUVD_CGC_CTRL);
+	data2 = RREG32(mmUVD_SUVD_CGC_CTRL);
+
+
+	data &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK |
+		  UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
+
 
 	data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
 		(1 << REG_FIELD_SHIFT(UVD_CGC_CTRL, CLK_GATE_DLY_TIMER)) |
@@ -675,11 +712,8 @@ static void uvd_v5_0_set_sw_clock_gating(struct amdgpu_device *adev)
 			UVD_SUVD_CGC_CTRL__SMP_MODE_MASK |
 			UVD_SUVD_CGC_CTRL__SCM_MODE_MASK |
 			UVD_SUVD_CGC_CTRL__SDB_MODE_MASK);
-	data1 |= suvd_flags;
 
 	WREG32(mmUVD_CGC_CTRL, data);
-	WREG32(mmUVD_CGC_GATE, 0);
-	WREG32(mmUVD_SUVD_CGC_GATE, data1);
 	WREG32(mmUVD_SUVD_CGC_CTRL, data2);
 }
 
@@ -724,6 +758,31 @@ static void uvd_v5_0_set_hw_clock_gating(struct amdgpu_device *adev)
 }
 #endif
 
+static void uvd_v5_0_enable_mgcg(struct amdgpu_device *adev,
+				 bool enable)
+{
+	u32 orig, data;
+
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG)) {
+		data = RREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL);
+		data |= 0xfff;
+		WREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL, data);
+
+		orig = data = RREG32(mmUVD_CGC_CTRL);
+		data |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+		if (orig != data)
+			WREG32(mmUVD_CGC_CTRL, data);
+	} else {
+		data = RREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL);
+		data &= ~0xfff;
+		WREG32_UVD_CTX(ixUVD_CGC_MEM_CTRL, data);
+
+		orig = data = RREG32(mmUVD_CGC_CTRL);
+		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+		if (orig != data)
+			WREG32(mmUVD_CGC_CTRL, data);
+	}
+}
 
 static int uvd_v5_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
@@ -740,17 +799,18 @@ static int uvd_v5_0_set_clockgating_state(void *handle,
 
 	curstate = state;
 	if (enable) {
-		/* disable HW gating and enable Sw gating */
-		uvd_v5_0_set_sw_clock_gating(adev);
-	} else {
 		/* wait for STATUS to clear */
 		if (uvd_v5_0_wait_for_idle(handle))
 			return -EBUSY;
+		uvd_v5_0_enable_clock_gating(adev, true);
 
 		/* enable HW gates because UVD is idle */
 /*		uvd_v5_0_set_hw_clock_gating(adev); */
+	} else {
+		uvd_v5_0_enable_clock_gating(adev, false);
 	}
 
+	uvd_v5_0_set_sw_clock_gating(adev);
 	return 0;
 }
 
