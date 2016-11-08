@@ -776,7 +776,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (unlikely(ctx == NULL)) {
+	if (unlikely(!ctx)) {
 		ttm_mem_global_free(vmw_mem_glob(dev_priv),
 				    vmw_user_context_size);
 		ret = -ENOMEM;

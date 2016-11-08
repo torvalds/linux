@@ -264,7 +264,7 @@ static int vmw_resource_val_add(struct vmw_sw_context *sw_context,
 	}
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (unlikely(node == NULL)) {
+	if (unlikely(!node)) {
 		DRM_ERROR("Failed to allocate a resource validation "
 			  "entry.\n");
 		return -ENOMEM;
@@ -452,7 +452,7 @@ static int vmw_resource_relocation_add(struct list_head *list,
 	struct vmw_resource_relocation *rel;
 
 	rel = kmalloc(sizeof(*rel), GFP_KERNEL);
-	if (unlikely(rel == NULL)) {
+	if (unlikely(!rel)) {
 		DRM_ERROR("Failed to allocate a resource relocation.\n");
 		return -ENOMEM;
 	}

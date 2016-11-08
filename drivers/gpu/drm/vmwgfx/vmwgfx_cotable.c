@@ -583,7 +583,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 		return ERR_PTR(ret);
 
 	vcotbl = kzalloc(sizeof(*vcotbl), GFP_KERNEL);
-	if (unlikely(vcotbl == NULL)) {
+	if (unlikely(!vcotbl)) {
 		ret = -ENOMEM;
 		goto out_no_alloc;
 	}
