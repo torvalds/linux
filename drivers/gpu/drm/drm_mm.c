@@ -105,6 +105,8 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 						enum drm_mm_search_flags flags);
 
 #ifdef CONFIG_DRM_DEBUG_MM
+#include <linux/stackdepot.h>
+
 #define STACKDEPTH 32
 #define BUFSZ 4096
 
