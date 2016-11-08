@@ -1002,16 +1002,29 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	psw_bits(regs.psw).as = sfr->basic.AS;
 
 	/*
-	 * A non-zero guest program parameter indicates a guest
-	 * sample.
-	 * Note that some early samples or samples from guests without
+	 * Use the hardware provided configuration level to decide if the
+	 * sample belongs to a guest or host. If that is not available,
+	 * fall back to the following heuristics:
+	 * A non-zero guest program parameter always indicates a guest
+	 * sample. Some early samples or samples from guests without
 	 * lpp usage would be misaccounted to the host. We use the asn
-	 * value as a heuristic to detect most of these guest samples.
-	 * If the value differs from the host hpp value, we assume
-	 * it to be a KVM guest.
+	 * value as an addon heuristic to detect most of these guest samples.
+	 * If the value differs from the host hpp value, we assume to be a
+	 * KVM guest.
 	 */
-	if (sfr->basic.gpp || sfr->basic.prim_asn != (u16) sfr->basic.hpp)
+	switch (sfr->basic.CL) {
+	case 1: /* logical partition */
+		sde_regs->in_guest = 0;
+		break;
+	case 2: /* virtual machine */
 		sde_regs->in_guest = 1;
+		break;
+	default: /* old machine, use heuristics */
+		if (sfr->basic.gpp ||
+		    sfr->basic.prim_asn != (u16)sfr->basic.hpp)
+			sde_regs->in_guest = 1;
+		break;
+	}
 
 	overflow = 0;
 	if (perf_exclude_event(event, &regs, sde_regs))
