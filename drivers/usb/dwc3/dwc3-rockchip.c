@@ -86,7 +86,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	struct xhci_hcd		*xhci;
 	unsigned long		flags;
 	int			ret;
-	u32			reg;
+	u32			reg, count;
 
 	mutex_lock(&rockchip->lock);
 
@@ -225,6 +225,21 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 
 			if (hcd->state != HC_STATE_HALT) {
 				xhci->xhc_state |= XHCI_STATE_REMOVING;
+				count = 0;
+
+				/*
+				 * Wait until XHCI controller resume from
+				 * PM suspend, them we can remove hcd safely.
+				 */
+				while (dwc->xhci->dev.power.is_suspended) {
+					if (++count > 100) {
+						dev_err(rockchip->dev,
+							"wait for XHCI resume 10s timeout!\n");
+						goto out;
+					}
+					msleep(100);
+				}
+
 				usb_remove_hcd(hcd->shared_hcd);
 				usb_remove_hcd(hcd);
 			}
