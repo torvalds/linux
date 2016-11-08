@@ -1206,12 +1206,13 @@ int power_actor_get_min_power(struct thermal_cooling_device *cdev,
 }
 
 /**
- * power_actor_set_power() - limit the maximum power that a cooling device can consume
+ * power_actor_set_power() - limit the maximum power a cooling device consumes
  * @cdev:	pointer to &thermal_cooling_device
  * @instance:	thermal instance to update
  * @power:	the power in milliwatts
  *
- * Set the cooling device to consume at most @power milliwatts.
+ * Set the cooling device to consume at most @power milliwatts. The limit is
+ * expected to be a cap at the maximum power consumption.
  *
  * Return: 0 on success, -EINVAL if the cooling device does not
  * implement the power actor API or -E* for other failures.
