@@ -435,6 +435,26 @@ FOP_END;
 FOP_START(salc) "pushf; sbb %al, %al; popf \n\t" FOP_RET
 FOP_END;
 
+/*
+ * XXX: inoutclob user must know where the argument is being expanded.
+ *      Relying on CC_HAVE_ASM_GOTO would allow us to remove _fault.
+ */
+#define asm_safe(insn, inoutclob...) \
+({ \
+	int _fault = 0; \
+ \
+	asm volatile("1:" insn "\n" \
+	             "2:\n" \
+	             ".pushsection .fixup, \"ax\"\n" \
+	             "3: movl $1, %[_fault]\n" \
+	             "   jmp  2b\n" \
+	             ".popsection\n" \
+	             _ASM_EXTABLE(1b, 3b) \
+	             : [_fault] "+qm"(_fault) inoutclob ); \
+ \
+	_fault ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE; \
+})
+
 static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 				    enum x86_intercept intercept,
 				    enum x86_intercept_stage stage)
@@ -5086,21 +5106,13 @@ static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
 
 static int flush_pending_x87_faults(struct x86_emulate_ctxt *ctxt)
 {
-	bool fault = false;
+	int rc;
 
 	ctxt->ops->get_fpu(ctxt);
-	asm volatile("1: fwait \n\t"
-		     "2: \n\t"
-		     ".pushsection .fixup,\"ax\" \n\t"
-		     "3: \n\t"
-		     "movb $1, %[fault] \n\t"
-		     "jmp 2b \n\t"
-		     ".popsection \n\t"
-		     _ASM_EXTABLE(1b, 3b)
-		     : [fault]"+qm"(fault));
+	rc = asm_safe("fwait");
 	ctxt->ops->put_fpu(ctxt);
 
-	if (unlikely(fault))
+	if (unlikely(rc != X86EMUL_CONTINUE))
 		return emulate_exception(ctxt, MF_VECTOR, 0, false);
 
 	return X86EMUL_CONTINUE;
