@@ -207,6 +207,9 @@ static void i40evf_misc_irq_disable(struct i40evf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
 
+	if (!adapter->msix_entries)
+		return;
+
 	wr32(hw, I40E_VFINT_DYN_CTL01, 0);
 
 	/* read flush */
@@ -653,6 +656,9 @@ static void i40evf_free_traffic_irqs(struct i40evf_adapter *adapter)
 static void i40evf_free_misc_irq(struct i40evf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+
+	if (!adapter->msix_entries)
+		return;
 
 	free_irq(adapter->msix_entries[0].vector, netdev);
 }
@@ -1428,6 +1434,9 @@ static void i40evf_free_q_vectors(struct i40evf_adapter *adapter)
 	int q_idx, num_q_vectors;
 	int napi_vectors;
 
+	if (!adapter->q_vectors)
+		return;
+
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 	napi_vectors = adapter->num_active_queues;
 
@@ -1437,6 +1446,7 @@ static void i40evf_free_q_vectors(struct i40evf_adapter *adapter)
 			netif_napi_del(&q_vector->napi);
 	}
 	kfree(adapter->q_vectors);
+	adapter->q_vectors = NULL;
 }
 
 /**
@@ -2862,12 +2872,10 @@ static void i40evf_remove(struct pci_dev *pdev)
 		msleep(50);
 	}
 
-	if (adapter->msix_entries) {
-		i40evf_misc_irq_disable(adapter);
-		i40evf_free_misc_irq(adapter);
-		i40evf_reset_interrupt_capability(adapter);
-		i40evf_free_q_vectors(adapter);
-	}
+	i40evf_misc_irq_disable(adapter);
+	i40evf_free_misc_irq(adapter);
+	i40evf_reset_interrupt_capability(adapter);
+	i40evf_free_q_vectors(adapter);
 
 	if (adapter->watchdog_timer.function)
 		del_timer_sync(&adapter->watchdog_timer);
