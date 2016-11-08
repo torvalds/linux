@@ -77,6 +77,9 @@ static int lpass_platform_pcmops_open(struct snd_pcm_substream *substream)
 
 	if (v->alloc_dma_channel)
 		dma_ch = v->alloc_dma_channel(drvdata, dir);
+	else
+		dma_ch = 0;
+
 	if (dma_ch < 0)
 		return dma_ch;
 
