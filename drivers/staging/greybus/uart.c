@@ -623,9 +623,6 @@ static int get_serial_info(struct gb_tty *gb_tty,
 {
 	struct serial_struct tmp;
 
-	if (!info)
-		return -EINVAL;
-
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.flags = ASYNC_LOW_LATENCY | ASYNC_SKIP_TEST;
 	tmp.type = PORT_16550A;
