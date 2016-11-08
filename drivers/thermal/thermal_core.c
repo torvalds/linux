@@ -202,7 +202,6 @@ void thermal_unregister_governor(struct thermal_governor *governor)
 	list_del(&governor->governor_list);
 exit:
 	mutex_unlock(&thermal_governor_lock);
-	return;
 }
 
 int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
@@ -1069,7 +1068,6 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
 	release_idr(&thermal_cdev_idr, &thermal_idr_lock, cdev->id);
 	device_unregister(&cdev->device);
-	return;
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_unregister);
 
