@@ -897,7 +897,7 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 trip_point_temp_store(struct device *dev, struct device_attribute *attr,
-		     const char *buf, size_t count)
+		      const char *buf, size_t count)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int trip, ret;
@@ -945,7 +945,7 @@ trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+		      const char *buf, size_t count)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int trip, ret;
@@ -975,7 +975,7 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
+		     char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int trip, ret;
@@ -994,7 +994,7 @@ trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 passive_store(struct device *dev, struct device_attribute *attr,
-		    const char *buf, size_t count)
+	      const char *buf, size_t count)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int state;
@@ -1028,7 +1028,7 @@ passive_store(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 passive_show(struct device *dev, struct device_attribute *attr,
-		   char *buf)
+	     char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
@@ -1037,7 +1037,7 @@ passive_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t
 policy_store(struct device *dev, struct device_attribute *attr,
-		    const char *buf, size_t count)
+	     const char *buf, size_t count)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	char name[THERMAL_NAME_LENGTH];
@@ -1069,7 +1069,7 @@ available_policies_show(struct device *dev, struct device_attribute *devattr,
 
 static ssize_t
 emul_temp_store(struct device *dev, struct device_attribute *attr,
-		     const char *buf, size_t count)
+		const char *buf, size_t count)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	int ret = 0;
