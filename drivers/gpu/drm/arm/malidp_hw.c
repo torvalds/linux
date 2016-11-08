@@ -125,6 +125,7 @@ static void malidp500_leave_config_mode(struct malidp_hw_device *hwdev)
 {
 	u32 status, count = 100;
 
+	malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
 	malidp_hw_clearbits(hwdev, MALIDP500_DC_CONFIG_REQ, MALIDP500_DC_CONTROL);
 	while (count) {
 		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
@@ -266,6 +267,7 @@ static void malidp550_leave_config_mode(struct malidp_hw_device *hwdev)
 {
 	u32 status, count = 100;
 
+	malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
 	malidp_hw_clearbits(hwdev, MALIDP550_DC_CONFIG_REQ, MALIDP550_DC_CONTROL);
 	while (count) {
 		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
