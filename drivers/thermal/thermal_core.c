@@ -1236,7 +1236,7 @@ static const struct attribute_group *thermal_zone_attribute_groups[] = {
 	&thermal_zone_attribute_group,
 	&thermal_zone_mode_attribute_group,
 	&thermal_zone_passive_attribute_group,
-	NULL
+	/* This is not NULL terminated as we create the group dynamically */
 };
 
 /**
@@ -1345,6 +1345,25 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
 	kfree(tz->trip_type_attrs);
 	kfree(tz->trip_temp_attrs);
 	kfree(tz->trip_hyst_attrs);
+}
+
+static int thermal_zone_create_device_groups(struct thermal_zone_device *tz)
+{
+	const struct attribute_group **groups;
+	int i, size;
+
+	size = ARRAY_SIZE(thermal_zone_attribute_groups) + 1;
+	/* This also takes care of API requirement to be NULL terminated */
+	groups = kcalloc(size, sizeof(*groups), GFP_KERNEL);
+	if (!groups)
+		return -ENOMEM;
+
+	for (i = 0; i < size - 1; i++)
+		groups[i] = thermal_zone_attribute_groups[i];
+
+	tz->device.groups = groups;
+
+	return 0;
 }
 
 /* sys I/F for cooling device */
@@ -1982,7 +2001,7 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	tz->polling_delay = polling_delay;
 
 	/* Add nodes that are always present via .groups */
-	tz->device.groups = thermal_zone_attribute_groups;
+	thermal_zone_create_device_groups(tz);
 	/* A new thermal zone needs to be updated anyway. */
 	atomic_set(&tz->need_update, 1);
 
@@ -2111,7 +2130,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	idr_destroy(&tz->idr);
 	mutex_destroy(&tz->lock);
 	device_unregister(&tz->device);
-	return;
+	kfree(tz->device.groups);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_unregister);
 
