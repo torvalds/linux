@@ -207,16 +207,15 @@ static struct irq_chip idu_irq_chip = {
 
 };
 
-static int idu_first_irq;
+static irq_hw_number_t idu_first_hwirq;
 
 static void idu_cascade_isr(struct irq_desc *desc)
 {
-	struct irq_domain *domain = irq_desc_get_handler_data(desc);
-	unsigned int core_irq = irq_desc_get_irq(desc);
-	unsigned int idu_irq;
+	struct irq_domain *idu_domain = irq_desc_get_handler_data(desc);
+	irq_hw_number_t core_hwirq = irqd_to_hwirq(irq_desc_get_irq_data(desc));
+	irq_hw_number_t idu_hwirq = core_hwirq - idu_first_hwirq;
 
-	idu_irq = core_irq - idu_first_irq;
-	generic_handle_irq(irq_find_mapping(domain, idu_irq));
+	generic_handle_irq(irq_find_mapping(idu_domain, idu_hwirq));
 }
 
 static int idu_irq_map(struct irq_domain *d, unsigned int virq, irq_hw_number_t hwirq)
@@ -282,7 +281,7 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 	struct irq_domain *domain;
 	/* Read IDU BCR to confirm nr_irqs */
 	int nr_irqs = of_irq_count(intc);
-	int i, irq;
+	int i, virq;
 	struct mcip_bcr mp;
 
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
@@ -303,11 +302,11 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 		 * however we need it to get the parent virq and set IDU handler
 		 * as first level isr
 		 */
-		irq = irq_of_parse_and_map(intc, i);
+		virq = irq_of_parse_and_map(intc, i);
 		if (!i)
-			idu_first_irq = irq;
+			idu_first_hwirq = irqd_to_hwirq(irq_get_irq_data(virq));
 
-		irq_set_chained_handler_and_data(irq, idu_cascade_isr, domain);
+		irq_set_chained_handler_and_data(virq, idu_cascade_isr, domain);
 	}
 
 	__mcip_cmd(CMD_IDU_ENABLE, 0);
