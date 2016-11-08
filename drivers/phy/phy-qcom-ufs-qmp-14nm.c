@@ -163,21 +163,6 @@ out:
 	return err;
 }
 
-static int ufs_qcom_phy_qmp_14nm_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct phy *generic_phy = to_phy(dev);
-	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
-	int err = 0;
-
-	err = ufs_qcom_phy_remove(generic_phy, ufs_qcom_phy);
-	if (err)
-		dev_err(dev, "%s: ufs_qcom_phy_remove failed = %d\n",
-			__func__, err);
-
-	return err;
-}
-
 static const struct of_device_id ufs_qcom_phy_qmp_14nm_of_match[] = {
 	{.compatible = "qcom,ufs-phy-qmp-14nm"},
 	{.compatible = "qcom,msm8996-ufs-phy-qmp-14nm"},
@@ -187,7 +172,6 @@ MODULE_DEVICE_TABLE(of, ufs_qcom_phy_qmp_14nm_of_match);
 
 static struct platform_driver ufs_qcom_phy_qmp_14nm_driver = {
 	.probe = ufs_qcom_phy_qmp_14nm_probe,
-	.remove = ufs_qcom_phy_qmp_14nm_remove,
 	.driver = {
 		.of_match_table = ufs_qcom_phy_qmp_14nm_of_match,
 		.name = "ufs_qcom_phy_qmp_14nm",

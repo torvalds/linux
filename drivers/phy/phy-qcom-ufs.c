@@ -619,15 +619,6 @@ int ufs_qcom_phy_calibrate_phy(struct phy *generic_phy, bool is_rate_B)
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_calibrate_phy);
 
-int ufs_qcom_phy_remove(struct phy *generic_phy,
-			struct ufs_qcom_phy *ufs_qcom_phy)
-{
-	phy_power_off(generic_phy);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_remove);
-
 int ufs_qcom_phy_exit(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
