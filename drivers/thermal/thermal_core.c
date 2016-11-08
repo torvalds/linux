@@ -1047,42 +1047,47 @@ create_s32_tzp_attr(slope);
 create_s32_tzp_attr(offset);
 #undef create_s32_tzp_attr
 
+/*
+ * These are thermal zone device attributes that will always be present.
+ * All the attributes created for tzp (create_s32_tzp_attr) also are always
+ * present on the sysfs interface.
+ */
 static DEVICE_ATTR(type, 0444, type_show, NULL);
 static DEVICE_ATTR(temp, 0444, temp_show, NULL);
-static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
-static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
 static DEVICE_ATTR(policy, S_IRUGO | S_IWUSR, policy_show, policy_store);
 static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
-static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
 static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
 		   sustainable_power_store);
 
-static struct device_attribute *dev_tzp_attrs[] = {
-	&dev_attr_sustainable_power,
-	&dev_attr_k_po,
-	&dev_attr_k_pu,
-	&dev_attr_k_i,
-	&dev_attr_k_d,
-	&dev_attr_integral_cutoff,
-	&dev_attr_slope,
-	&dev_attr_offset,
+/* These thermal zone device attributes are created based on conditions */
+static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
+static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
+static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
+
+static struct attribute *thermal_zone_dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_temp.attr,
+	&dev_attr_policy.attr,
+	&dev_attr_available_policies.attr,
+	&dev_attr_sustainable_power.attr,
+	&dev_attr_k_po.attr,
+	&dev_attr_k_pu.attr,
+	&dev_attr_k_i.attr,
+	&dev_attr_k_d.attr,
+	&dev_attr_integral_cutoff.attr,
+	&dev_attr_slope.attr,
+	&dev_attr_offset.attr,
+	NULL,
 };
 
-static int create_tzp_attrs(struct device *dev)
-{
-	int i;
+static struct attribute_group thermal_zone_attribute_group = {
+	.attrs = thermal_zone_dev_attrs,
+};
 
-	for (i = 0; i < ARRAY_SIZE(dev_tzp_attrs); i++) {
-		int ret;
-		struct device_attribute *dev_attr = dev_tzp_attrs[i];
-
-		ret = device_create_file(dev, dev_attr);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
+static const struct attribute_group *thermal_zone_attribute_groups[] = {
+	&thermal_zone_attribute_group,
+	NULL
+};
 
 /**
  * power_actor_get_max_power() - get the maximum power that a cdev can consume
@@ -1909,6 +1914,9 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	tz->trips = trips;
 	tz->passive_delay = passive_delay;
 	tz->polling_delay = polling_delay;
+
+	/* Add nodes that are always present via .groups */
+	tz->device.groups = thermal_zone_attribute_groups;
 	/* A new thermal zone needs to be updated anyway. */
 	atomic_set(&tz->need_update, 1);
 
@@ -1954,29 +1962,6 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 		if (result)
 			goto unregister;
 	}
-
-	result = device_create_file(&tz->device, &dev_attr_type);
-	if (result)
-		goto unregister;
-
-	result = device_create_file(&tz->device, &dev_attr_temp);
-	if (result)
-		goto unregister;
-
-	/* Create policy attribute */
-	result = device_create_file(&tz->device, &dev_attr_policy);
-	if (result)
-		goto unregister;
-
-	/* Create available_policies attribute */
-	result = device_create_file(&tz->device, &dev_attr_available_policies);
-	if (result)
-		goto unregister;
-
-	/* Add thermal zone params */
-	result = create_tzp_attrs(&tz->device);
-	if (result)
-		goto unregister;
 
 	/* Update 'this' zone's governor information */
 	mutex_lock(&thermal_governor_lock);
@@ -2072,12 +2057,8 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 	thermal_zone_device_set_polling(tz, 0);
 
-	device_remove_file(&tz->device, &dev_attr_type);
-	device_remove_file(&tz->device, &dev_attr_temp);
 	if (tz->ops->get_mode)
 		device_remove_file(&tz->device, &dev_attr_mode);
-	device_remove_file(&tz->device, &dev_attr_policy);
-	device_remove_file(&tz->device, &dev_attr_available_policies);
 	remove_trip_attrs(tz);
 	thermal_set_governor(tz, NULL);
 
