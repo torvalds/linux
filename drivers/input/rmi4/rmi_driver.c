@@ -423,6 +423,7 @@ static void rmi_driver_copy_pdt_to_fd(const struct pdt_entry *pdt,
 
 static int rmi_scan_pdt_page(struct rmi_device *rmi_dev,
 			     int page,
+			     int *empty_pages,
 			     void *ctx,
 			     int (*callback)(struct rmi_device *rmi_dev,
 					     void *ctx,
@@ -450,7 +451,16 @@ static int rmi_scan_pdt_page(struct rmi_device *rmi_dev,
 			return retval;
 	}
 
-	return (data->f01_bootloader_mode || addr == pdt_start) ?
+	/*
+	 * Count number of empty PDT pages. If a gap of two pages
+	 * or more is found, stop scanning.
+	 */
+	if (addr == pdt_start)
+		++*empty_pages;
+	else
+		*empty_pages = 0;
+
+	return (data->f01_bootloader_mode || *empty_pages >= 2) ?
 					RMI_SCAN_DONE : RMI_SCAN_CONTINUE;
 }
 
@@ -460,10 +470,12 @@ static int rmi_scan_pdt(struct rmi_device *rmi_dev, void *ctx,
 					const struct pdt_entry *entry))
 {
 	int page;
+	int empty_pages = 0;
 	int retval = RMI_SCAN_DONE;
 
 	for (page = 0; page <= RMI4_MAX_PAGE; page++) {
-		retval = rmi_scan_pdt_page(rmi_dev, page, ctx, callback);
+		retval = rmi_scan_pdt_page(rmi_dev, page, &empty_pages,
+					   ctx, callback);
 		if (retval != RMI_SCAN_CONTINUE)
 			break;
 	}
