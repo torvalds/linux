@@ -211,7 +211,7 @@ void pxa2xx_cpll_change(struct pxa2xx_freq *freq,
 int pxa2xx_determine_rate(struct clk_rate_request *req,
 			  struct pxa2xx_freq *freqs, int nb_freqs)
 {
-	int i, closest_below = -1, closest_above = -1, ret = 0;
+	int i, closest_below = -1, closest_above = -1;
 	unsigned long rate;
 
 	for (i = 0; i < nb_freqs; i++) {
@@ -230,18 +230,19 @@ int pxa2xx_determine_rate(struct clk_rate_request *req,
 
 	req->best_parent_hw = NULL;
 
-	if (i < nb_freqs)
-		ret = 0;
-	else if (closest_below >= 0)
+	if (i < nb_freqs) {
+		rate = req->rate;
+	} else if (closest_below >= 0) {
 		rate = freqs[closest_below].cpll;
-	else if (closest_above >= 0)
+	} else if (closest_above >= 0) {
 		rate = freqs[closest_above].cpll;
-	else
-		ret = -EINVAL;
+	} else {
+		pr_debug("%s(rate=%lu) no match\n", __func__, req->rate);
+		return -EINVAL;
+	}
 
-	pr_debug("%s(rate=%lu) rate=%lu: %d\n", __func__, req->rate, rate, ret);
-	if (!rate)
-		req->rate = rate;
+	pr_debug("%s(rate=%lu) rate=%lu\n", __func__, req->rate, rate);
+	req->rate = rate;
 
-	return ret;
+	return 0;
 }
