@@ -555,6 +555,7 @@ static irqreturn_t hidma_chirq_handler(int chirq, void *arg)
 	return hidma_ll_inthandler(chirq, lldev);
 }
 
+#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 static irqreturn_t hidma_chirq_handler_msi(int chirq, void *arg)
 {
 	struct hidma_lldev **lldevp = arg;
@@ -563,6 +564,7 @@ static irqreturn_t hidma_chirq_handler_msi(int chirq, void *arg)
 	return hidma_ll_inthandler_msi(chirq, *lldevp,
 				       1 << (chirq - dmadev->msi_virqbase));
 }
+#endif
 
 static ssize_t hidma_show_values(struct device *dev,
 				 struct device_attribute *attr, char *buf)
