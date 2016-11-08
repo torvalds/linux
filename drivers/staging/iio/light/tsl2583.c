@@ -816,8 +816,7 @@ static int taos_probe(struct i2c_client *clientp,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int taos_suspend(struct device *dev)
+static int __maybe_unused taos_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -834,7 +833,7 @@ static int taos_suspend(struct device *dev)
 	return ret;
 }
 
-static int taos_resume(struct device *dev)
+static int __maybe_unused taos_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -850,10 +849,6 @@ static int taos_resume(struct device *dev)
 }
 
 static SIMPLE_DEV_PM_OPS(taos_pm_ops, taos_suspend, taos_resume);
-#define TAOS_PM_OPS (&taos_pm_ops)
-#else
-#define TAOS_PM_OPS NULL
-#endif
 
 static struct i2c_device_id taos_idtable[] = {
 	{ "tsl2580", 0 },
@@ -863,7 +858,6 @@ static struct i2c_device_id taos_idtable[] = {
 };
 MODULE_DEVICE_TABLE(i2c, taos_idtable);
 
-#ifdef CONFIG_OF
 static const struct of_device_id taos2583_of_match[] = {
 	{ .compatible = "amstaos,tsl2580", },
 	{ .compatible = "amstaos,tsl2581", },
@@ -871,15 +865,12 @@ static const struct of_device_id taos2583_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, taos2583_of_match);
-#else
-#define taos2583_of_match NULL
-#endif
 
 /* Driver definition */
 static struct i2c_driver taos_driver = {
 	.driver = {
 		.name = "tsl2583",
-		.pm = TAOS_PM_OPS,
+		.pm = &taos_pm_ops,
 		.of_match_table = taos2583_of_match,
 	},
 	.id_table = taos_idtable,
