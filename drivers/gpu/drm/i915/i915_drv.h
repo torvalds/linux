@@ -2047,13 +2047,6 @@ struct drm_i915_private {
 		 */
 		uint16_t skl_latency[8];
 
-		/*
-		 * The skl_wm_values structure is a bit too big for stack
-		 * allocation, so we keep the staging struct where we store
-		 * intermediate results here instead.
-		 */
-		struct skl_wm_values skl_results;
-
 		/* current hardware state */
 		union {
 			struct ilk_wm_values hw;
