@@ -1268,7 +1268,6 @@ out_disable_phy:
 out_unregister_bus:
 	phy_exit(host->generic_phy);
 out_host_free:
-	devm_kfree(dev, host);
 	ufshcd_set_variant(hba, NULL);
 out:
 	return err;
