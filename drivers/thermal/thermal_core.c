@@ -1921,14 +1921,6 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	}
 
 	/* sys I/F */
-	result = device_create_file(&tz->device, &dev_attr_type);
-	if (result)
-		goto unregister;
-
-	result = device_create_file(&tz->device, &dev_attr_temp);
-	if (result)
-		goto unregister;
-
 	if (ops->get_mode) {
 		result = device_create_file(&tz->device, &dev_attr_mode);
 		if (result)
@@ -1963,18 +1955,26 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 			goto unregister;
 	}
 
+	result = device_create_file(&tz->device, &dev_attr_type);
+	if (result)
+		goto unregister;
+
+	result = device_create_file(&tz->device, &dev_attr_temp);
+	if (result)
+		goto unregister;
+
 	/* Create policy attribute */
 	result = device_create_file(&tz->device, &dev_attr_policy);
 	if (result)
 		goto unregister;
 
-	/* Add thermal zone params */
-	result = create_tzp_attrs(&tz->device);
+	/* Create available_policies attribute */
+	result = device_create_file(&tz->device, &dev_attr_available_policies);
 	if (result)
 		goto unregister;
 
-	/* Create available_policies attribute */
-	result = device_create_file(&tz->device, &dev_attr_available_policies);
+	/* Add thermal zone params */
+	result = create_tzp_attrs(&tz->device);
 	if (result)
 		goto unregister;
 
