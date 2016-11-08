@@ -106,6 +106,9 @@
 &usdhc2 {
 	pinctrl-0 = <&pinctrl_wifi>;
 	bus-width = <4>;
+	non-removable;
+	cd-post;
+	pm-ignore-notify;
 };
 
 &usdhc3 {
