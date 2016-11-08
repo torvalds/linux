@@ -24,6 +24,7 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 
@@ -1204,7 +1205,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 	u32			csr;
 	unsigned int		bits = spi->bits_per_word;
 	unsigned int		npcs_pin;
-	int			ret;
 
 	as = spi_master_get_devdata(spi->master);
 
@@ -1247,16 +1247,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 		if (!asd)
 			return -ENOMEM;
 
-		if (as->use_cs_gpios) {
-			ret = gpio_request(npcs_pin, dev_name(&spi->dev));
-			if (ret) {
-				kfree(asd);
-				return ret;
-			}
-
+		if (as->use_cs_gpios)
 			gpio_direction_output(npcs_pin,
 					      !(spi->mode & SPI_CS_HIGH));
-		}
 
 		asd->npcs_pin = npcs_pin;
 		spi->controller_state = asd;
@@ -1471,13 +1464,11 @@ msg_done:
 static void atmel_spi_cleanup(struct spi_device *spi)
 {
 	struct atmel_spi_device	*asd = spi->controller_state;
-	unsigned		gpio = (unsigned long) spi->controller_data;
 
 	if (!asd)
 		return;
 
 	spi->controller_state = NULL;
-	gpio_free(gpio);
 	kfree(asd);
 }
 
@@ -1499,6 +1490,39 @@ static void atmel_get_caps(struct atmel_spi *as)
 }
 
 /*-------------------------------------------------------------------------*/
+static int atmel_spi_gpio_cs(struct platform_device *pdev)
+{
+	struct spi_master	*master = platform_get_drvdata(pdev);
+	struct atmel_spi	*as = spi_master_get_devdata(master);
+	struct device_node	*np = master->dev.of_node;
+	int			i;
+	int			ret = 0;
+	int			nb = 0;
+
+	if (!as->use_cs_gpios)
+		return 0;
+
+	if (!np)
+		return 0;
+
+	nb = of_gpio_named_count(np, "cs-gpios");
+	for (i = 0; i < nb; i++) {
+		int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
+						"cs-gpios", i);
+
+			if (cs_gpio == -EPROBE_DEFER)
+				return cs_gpio;
+
+			if (gpio_is_valid(cs_gpio)) {
+				ret = devm_gpio_request(&pdev->dev, cs_gpio,
+							dev_name(&pdev->dev));
+				if (ret)
+					return ret;
+			}
+	}
+
+	return 0;
+}
 
 static int atmel_spi_probe(struct platform_device *pdev)
 {
@@ -1576,6 +1600,10 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		as->use_cs_gpios = false;
 		master->num_chipselect = 4;
 	}
+
+	ret = atmel_spi_gpio_cs(pdev);
+	if (ret)
+		goto out_unmap_regs;
 
 	as->use_dma = false;
 	as->use_pdc = false;
