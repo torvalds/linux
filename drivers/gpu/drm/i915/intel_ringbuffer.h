@@ -578,7 +578,6 @@ static inline bool intel_engine_wakeup(const struct intel_engine_cs *engine)
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-unsigned int intel_kick_waiters(struct drm_i915_private *i915);
-unsigned int intel_kick_signalers(struct drm_i915_private *i915);
+unsigned int intel_breadcrumbs_busy(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

@@ -241,9 +241,8 @@ static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	if (!i915_seqno_passed(seqno, atomic_read(&timeline->next_seqno))) {
-		while (intel_kick_waiters(i915) || intel_kick_signalers(i915))
-			yield();
-		yield();
+		while (intel_breadcrumbs_busy(i915))
+			cond_resched(); /* spin until threads are complete */
 	}
 	atomic_set(&timeline->next_seqno, seqno);
 
