@@ -393,7 +393,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	ret = radix_tree_insert(&fs_info->reada_tree, index, re);
 	if (ret == -EEXIST) {
 		re_exist = radix_tree_lookup(&fs_info->reada_tree, index);
-		BUG_ON(!re_exist);
 		re_exist->refcnt++;
 		spin_unlock(&fs_info->reada_lock);
 		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
