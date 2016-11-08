@@ -1012,8 +1012,6 @@ static int get_serial_info(struct tty_struct *tty, struct serial_state *state,
 {
 	struct serial_struct tmp;
    
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tty_lock(tty);
 	tmp.line = tty->index;
