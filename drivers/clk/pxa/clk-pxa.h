@@ -143,7 +143,7 @@ struct pxa2xx_freq {
 	unsigned int clkcfg;
 };
 
-static int dummy_clk_set_parent(struct clk_hw *hw, u8 index)
+static inline int dummy_clk_set_parent(struct clk_hw *hw, u8 index)
 {
 	return 0;
 }
