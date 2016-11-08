@@ -276,7 +276,8 @@
 #define H_GET_MPP_X		0x314
 #define H_SET_MODE		0x31C
 #define H_CLEAR_HPT		0x358
-#define MAX_HCALL_OPCODE	H_CLEAR_HPT
+#define H_SIGNAL_SYS_RESET	0x380
+#define MAX_HCALL_OPCODE	H_SIGNAL_SYS_RESET
 
 /* H_VIOCTL functions */
 #define H_GET_VIOA_DUMP_SIZE	0x01
@@ -306,6 +307,11 @@
 #define H_SET_MODE_RESOURCE_SET_DAWR		2
 #define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE	3
 #define H_SET_MODE_RESOURCE_LE			4
+
+/* Values for argument to H_SIGNAL_SYS_RESET */
+#define H_SIGNAL_SYS_RESET_ALL			-1
+#define H_SIGNAL_SYS_RESET_ALL_OTHERS		-2
+/* >= 0 values are CPU number */
 
 #ifndef __ASSEMBLY__
 

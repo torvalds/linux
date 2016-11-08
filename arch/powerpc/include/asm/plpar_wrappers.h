@@ -308,4 +308,9 @@ static inline long plapr_set_watchpoint0(unsigned long dawr0, unsigned long dawr
 	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_DAWR, dawr0, dawrx0);
 }
 
+static inline long plapr_signal_sys_reset(long cpu)
+{
+	return plpar_hcall_norets(H_SIGNAL_SYS_RESET, cpu);
+}
+
 #endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */
