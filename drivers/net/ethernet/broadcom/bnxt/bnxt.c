@@ -4954,7 +4954,6 @@ static void bnxt_init_napi(struct bnxt *bp)
 			bnapi = bp->bnapi[cp_nr_rings];
 			netif_napi_add(bp->dev, &bnapi->napi,
 				       bnxt_poll_nitroa0, 64);
-			napi_hash_add(&bnapi->napi);
 		}
 	} else {
 		bnapi = bp->bnapi[0];
