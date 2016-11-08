@@ -122,9 +122,6 @@ static unsigned long oops_begin(struct pt_regs *regs)
 	int cpu;
 	unsigned long flags;
 
-	if (debugger(regs))
-		return 1;
-
 	oops_enter();
 
 	/* racy, but better than risking deadlock. */
@@ -227,8 +224,12 @@ NOKPROBE_SYMBOL(__die);
 
 void die(const char *str, struct pt_regs *regs, long err)
 {
-	unsigned long flags = oops_begin(regs);
+	unsigned long flags;
 
+	if (debugger(regs))
+		return;
+
+	flags = oops_begin(regs);
 	if (__die(str, regs, err))
 		err = 0;
 	oops_end(flags, regs, err);
