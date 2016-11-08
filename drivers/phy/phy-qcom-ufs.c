@@ -251,7 +251,7 @@ static int __ufs_qcom_phy_init_vreg(struct phy *phy,
 
 	char prop_name[MAX_PROP_NAME];
 
-	vreg->name = kstrdup(name, GFP_KERNEL);
+	vreg->name = devm_kstrdup(dev, name, GFP_KERNEL);
 	if (!vreg->name) {
 		err = -ENOMEM;
 		goto out;
@@ -636,9 +636,6 @@ int ufs_qcom_phy_remove(struct phy *generic_phy,
 			struct ufs_qcom_phy *ufs_qcom_phy)
 {
 	phy_power_off(generic_phy);
-
-	kfree(ufs_qcom_phy->vdda_pll.name);
-	kfree(ufs_qcom_phy->vdda_phy.name);
 
 	return 0;
 }
