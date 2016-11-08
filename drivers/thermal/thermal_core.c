@@ -1054,6 +1054,7 @@ create_s32_tzp_attr(offset);
  */
 static DEVICE_ATTR(type, 0444, type_show, NULL);
 static DEVICE_ATTR(temp, 0444, temp_show, NULL);
+static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
 static DEVICE_ATTR(policy, S_IRUGO | S_IWUSR, policy_show, policy_store);
 static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
 static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
@@ -1062,11 +1063,13 @@ static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
 /* These thermal zone device attributes are created based on conditions */
 static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
 static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
-static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
 
 static struct attribute *thermal_zone_dev_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_temp.attr,
+#if (IS_ENABLED(CONFIG_THERMAL_EMULATION))
+	&dev_attr_emul_temp.attr,
+#endif
 	&dev_attr_policy.attr,
 	&dev_attr_available_policies.attr,
 	&dev_attr_sustainable_power.attr,
@@ -1953,12 +1956,6 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 
 	if (!passive) {
 		result = device_create_file(&tz->device, &dev_attr_passive);
-		if (result)
-			goto unregister;
-	}
-
-	if (IS_ENABLED(CONFIG_THERMAL_EMULATION)) {
-		result = device_create_file(&tz->device, &dev_attr_emul_temp);
 		if (result)
 			goto unregister;
 	}
