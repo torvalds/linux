@@ -818,7 +818,6 @@ static int __init setup_css(int nr)
 	css->device.release = channel_subsystem_release;
 
 	mutex_init(&css->mutex);
-	css->valid = 1;
 	css->cssid = chsc_get_cssid(nr);
 	css_generate_pgid(css, (u32) (get_tod_clock() >> 32));
 

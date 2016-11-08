@@ -114,7 +114,6 @@ void css_update_ssd_info(struct subchannel *sch);
 
 struct channel_subsystem {
 	int cssid;
-	int valid;
 	struct channel_path *chps[__MAX_CHPID + 1];
 	struct device device;
 	struct pgid global_pgid;
