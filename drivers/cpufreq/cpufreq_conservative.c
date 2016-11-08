@@ -58,7 +58,7 @@ static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
  * Any frequency increase takes it to the maximum frequency. Frequency reduction
  * happens at minimum steps of 5% (default) of maximum frequency
  */
-static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
+static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct cs_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
@@ -305,7 +305,7 @@ static void cs_start(struct cpufreq_policy *policy)
 static struct dbs_governor cs_governor = {
 	.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("conservative"),
 	.kobj_type = { .default_attrs = cs_attributes },
-	.gov_dbs_timer = cs_dbs_timer,
+	.gov_dbs_update = cs_dbs_update,
 	.alloc = cs_alloc,
 	.free = cs_free,
 	.init = cs_init,
