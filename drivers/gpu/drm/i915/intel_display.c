@@ -13568,11 +13568,15 @@ static void verify_wm_state(struct drm_crtc *crtc,
 }
 
 static void
-verify_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
+verify_connector_state(struct drm_device *dev,
+		       struct drm_atomic_state *state,
+		       struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
+	struct drm_connector_state *old_conn_state;
+	int i;
 
-	drm_for_each_connector(connector, dev) {
+	for_each_connector_in_state(state, connector, old_conn_state, i) {
 		struct drm_encoder *encoder = connector->encoder;
 		struct drm_connector_state *state = connector->state;
 
@@ -13780,15 +13784,16 @@ verify_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
 
 static void
 intel_modeset_verify_crtc(struct drm_crtc *crtc,
-			 struct drm_crtc_state *old_state,
-			 struct drm_crtc_state *new_state)
+			  struct drm_atomic_state *state,
+			  struct drm_crtc_state *old_state,
+			  struct drm_crtc_state *new_state)
 {
 	if (!needs_modeset(new_state) &&
 	    !to_intel_crtc_state(new_state)->update_pipe)
 		return;
 
 	verify_wm_state(crtc, new_state);
-	verify_connector_state(crtc->dev, crtc);
+	verify_connector_state(crtc->dev, state, crtc);
 	verify_crtc_state(crtc, old_state, new_state);
 	verify_shared_dpll_state(crtc->dev, crtc, old_state, new_state);
 }
@@ -13804,10 +13809,11 @@ verify_disabled_dpll_state(struct drm_device *dev)
 }
 
 static void
-intel_modeset_verify_disabled(struct drm_device *dev)
+intel_modeset_verify_disabled(struct drm_device *dev,
+			      struct drm_atomic_state *state)
 {
 	verify_encoder_state(dev);
-	verify_connector_state(dev, NULL);
+	verify_connector_state(dev, state, NULL);
 	verify_disabled_dpll_state(dev);
 }
 
@@ -14427,7 +14433,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!intel_can_enable_sagv(state))
 			intel_disable_sagv(dev_priv);
 
-		intel_modeset_verify_disabled(dev);
+		intel_modeset_verify_disabled(dev, state);
 	}
 
 	/* Complete the events for pipes that have now been disabled */
@@ -14479,7 +14485,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);
 
-		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
+		intel_modeset_verify_crtc(crtc, state, old_crtc_state, crtc->state);
 	}
 
 	if (intel_state->modeset && intel_can_enable_sagv(state))
