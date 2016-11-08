@@ -251,8 +251,6 @@ static int tegra_powergate_lookup(struct tegra_pmc *pmc, const char *name)
 			return i;
 	}
 
-	dev_err(pmc->dev, "powergate %s not found\n", name);
-
 	return -ENODEV;
 }
 
@@ -469,13 +467,12 @@ disable_clks:
 static int tegra_genpd_power_on(struct generic_pm_domain *domain)
 {
 	struct tegra_powergate *pg = to_powergate(domain);
-	struct tegra_pmc *pmc = pg->pmc;
 	int err;
 
 	err = tegra_powergate_power_up(pg, true);
 	if (err)
-		dev_err(pmc->dev, "failed to turn on PM domain %s: %d\n",
-			pg->genpd.name, err);
+		pr_err("failed to turn on PM domain %s: %d\n", pg->genpd.name,
+		       err);
 
 	return err;
 }
@@ -483,13 +480,12 @@ static int tegra_genpd_power_on(struct generic_pm_domain *domain)
 static int tegra_genpd_power_off(struct generic_pm_domain *domain)
 {
 	struct tegra_powergate *pg = to_powergate(domain);
-	struct tegra_pmc *pmc = pg->pmc;
 	int err;
 
 	err = tegra_powergate_power_down(pg);
 	if (err)
-		dev_err(pmc->dev, "failed to turn off PM domain %s: %d\n",
-			pg->genpd.name, err);
+		pr_err("failed to turn off PM domain %s: %d\n",
+		       pg->genpd.name, err);
 
 	return err;
 }
@@ -814,8 +810,7 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	id = tegra_powergate_lookup(pmc, np->name);
 	if (id < 0) {
-		dev_err(pmc->dev, "powergate lookup failed for %s: %d\n",
-			np->name, id);
+		pr_err("powergate lookup failed for %s: %d\n", np->name, id);
 		goto free_mem;
 	}
 
@@ -835,15 +830,13 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	err = tegra_powergate_of_get_clks(pg, np);
 	if (err < 0) {
-		dev_err(pmc->dev, "failed to get clocks for %s: %d\n",
-			np->name, err);
+		pr_err("failed to get clocks for %s: %d\n", np->name, err);
 		goto set_available;
 	}
 
 	err = tegra_powergate_of_get_resets(pg, np, off);
 	if (err < 0) {
-		dev_err(pmc->dev, "failed to get resets for %s: %d\n",
-			np->name, err);
+		pr_err("failed to get resets for %s: %d\n", np->name, err);
 		goto remove_clks;
 	}
 
@@ -866,12 +859,12 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	err = of_genpd_add_provider_simple(np, &pg->genpd);
 	if (err < 0) {
-		dev_err(pmc->dev, "failed to add genpd provider for %s: %d\n",
-			np->name, err);
+		pr_err("failed to add genpd provider for %s: %d\n", np->name,
+		       err);
 		goto remove_resets;
 	}
 
-	dev_dbg(pmc->dev, "added power domain %s\n", pg->genpd.name);
+	pr_debug("added power domain %s\n", pg->genpd.name);
 
 	return;
 
@@ -940,8 +933,10 @@ static int tegra_io_pad_prepare(enum tegra_io_pad id, unsigned long *request,
 	unsigned long rate, value;
 
 	pad = tegra_io_pad_find(pmc, id);
-	if (!pad)
+	if (!pad) {
+		pr_err("invalid I/O pad ID %u\n", id);
 		return -ENOENT;
+	}
 
 	if (pad->dpd == UINT_MAX)
 		return -ENOTSUPP;
@@ -957,8 +952,10 @@ static int tegra_io_pad_prepare(enum tegra_io_pad id, unsigned long *request,
 	}
 
 	rate = clk_get_rate(pmc->clk);
-	if (!rate)
+	if (!rate) {
+		pr_err("failed to get clock rate\n");
 		return -ENODEV;
+	}
 
 	tegra_pmc_writel(DPD_SAMPLE_ENABLE, DPD_SAMPLE);
 
@@ -1009,7 +1006,7 @@ int tegra_io_pad_power_enable(enum tegra_io_pad id)
 
 	err = tegra_io_pad_prepare(id, &request, &status, &mask);
 	if (err < 0) {
-		dev_err(pmc->dev, "tegra_io_pad_prepare() failed: %d\n", err);
+		pr_err("failed to prepare I/O pad: %d\n", err);
 		goto unlock;
 	}
 
@@ -1017,7 +1014,7 @@ int tegra_io_pad_power_enable(enum tegra_io_pad id)
 
 	err = tegra_io_pad_poll(status, mask, 0, 250);
 	if (err < 0) {
-		dev_err(pmc->dev, "tegra_io_pad_poll() failed: %d\n", err);
+		pr_err("failed to enable I/O pad: %d\n", err);
 		goto unlock;
 	}
 
@@ -1045,7 +1042,7 @@ int tegra_io_pad_power_disable(enum tegra_io_pad id)
 
 	err = tegra_io_pad_prepare(id, &request, &status, &mask);
 	if (err < 0) {
-		dev_err(pmc->dev, "tegra_io_pad_prepare() failed: %d\n", err);
+		pr_err("failed to prepare I/O pad: %d\n", err);
 		goto unlock;
 	}
 
@@ -1053,7 +1050,7 @@ int tegra_io_pad_power_disable(enum tegra_io_pad id)
 
 	err = tegra_io_pad_poll(status, mask, mask, 250);
 	if (err < 0) {
-		dev_err(pmc->dev, "tegra_io_pad_poll() failed: %d\n", err);
+		pr_err("failed to disable I/O pad: %d\n", err);
 		goto unlock;
 	}
 
