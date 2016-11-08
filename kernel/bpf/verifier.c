@@ -1499,7 +1499,6 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 {
 	struct bpf_reg_state *regs = env->cur_state.regs, *dst_reg;
 	u64 min_val = BPF_REGISTER_MIN_RANGE, max_val = BPF_REGISTER_MAX_RANGE;
-	bool min_set = false, max_set = false;
 	u8 opcode = BPF_OP(insn->code);
 
 	dst_reg = &regs[insn->dst_reg];
@@ -1522,7 +1521,6 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 	} else if (insn->imm < BPF_REGISTER_MAX_RANGE &&
 		   (s64)insn->imm > BPF_REGISTER_MIN_RANGE) {
 		min_val = max_val = insn->imm;
-		min_set = max_set = true;
 	}
 
 	/* We don't know anything about what was done to this register, mark it
