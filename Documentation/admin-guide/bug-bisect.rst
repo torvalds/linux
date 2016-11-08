@@ -66,9 +66,7 @@ Steps to do it:
 
 
 .. [#f1] You can, optionally, provide both good and bad arguments at git
-	 start::
-
-		git bisect start [BAD] [GOOD]
+	 start with ``git bisect start [BAD] [GOOD]``
 
 For further references, please read:
 
