@@ -840,9 +840,9 @@ static struct lock_list *alloc_list_entry(void)
 /*
  * Add a new dependency to the head of the list:
  */
-static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
-			    struct list_head *head, unsigned long ip,
-			    int distance, struct stack_trace *trace)
+static int add_lock_to_list(struct lock_class *this, struct list_head *head,
+			    unsigned long ip, int distance,
+			    struct stack_trace *trace)
 {
 	struct lock_list *entry;
 	/*
@@ -1869,14 +1869,14 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * Ok, all validations passed, add the new lock
 	 * to the previous lock's dependency list:
 	 */
-	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
+	ret = add_lock_to_list(hlock_class(next),
 			       &hlock_class(prev)->locks_after,
 			       next->acquire_ip, distance, &trace);
 
 	if (!ret)
 		return 0;
 
-	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
+	ret = add_lock_to_list(hlock_class(prev),
 			       &hlock_class(next)->locks_before,
 			       next->acquire_ip, distance, &trace);
 	if (!ret)
