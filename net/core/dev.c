@@ -7651,7 +7651,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	if (!dev->tx_queue_len) {
 		dev->priv_flags |= IFF_NO_QUEUE;
-		dev->tx_queue_len = 1;
+		dev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
 	}
 
 	dev->num_tx_queues = txqs;
