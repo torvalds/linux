@@ -503,10 +503,13 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 		if (host->ops->card_busy) {
 			busy = host->ops->card_busy(host);
 		} else {
-			err = __mmc_send_status(card, &status, ignore_crc);
-			if (err)
+			err = mmc_send_status(card, &status);
+			if (ignore_crc && err == -EILSEQ)
+				busy = true;
+			else if (err)
 				return err;
-			busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
+			else
+				busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
 		}
 
 		/* Timeout if the device still remains busy. */
