@@ -207,6 +207,16 @@ config DA9150_GPADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called berlin2-adc.
 
+config ENVELOPE_DETECTOR
+	tristate "Envelope detector using a DAC and a comparator"
+	depends on OF
+	help
+	  Say yes here to build support for an envelope detector using a DAC
+	  and a comparator.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called envelope-detector.
+
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
