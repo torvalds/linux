@@ -1812,17 +1812,17 @@ static u32 dwc2_hsotg_ep0_mps(unsigned int mps)
  * @hsotg: The driver state.
  * @ep: The index number of the endpoint
  * @mps: The maximum packet size in bytes
+ * @mc: The multicount value
  *
  * Configure the maximum packet size for the given endpoint, updating
  * the hardware control registers to reflect this.
  */
 static void dwc2_hsotg_set_ep_maxpacket(struct dwc2_hsotg *hsotg,
-			unsigned int ep, unsigned int mps, unsigned int dir_in)
+					unsigned int ep, unsigned int mps,
+					unsigned int mc, unsigned int dir_in)
 {
 	struct dwc2_hsotg_ep *hs_ep;
 	void __iomem *regs = hsotg->regs;
-	u32 mpsval;
-	u32 mcval;
 	u32 reg;
 
 	hs_ep = index_to_ep(hsotg, ep, dir_in);
@@ -1830,32 +1830,32 @@ static void dwc2_hsotg_set_ep_maxpacket(struct dwc2_hsotg *hsotg,
 		return;
 
 	if (ep == 0) {
+		u32 mps_bytes = mps;
+
 		/* EP0 is a special case */
-		mpsval = dwc2_hsotg_ep0_mps(mps);
-		if (mpsval > 3)
+		mps = dwc2_hsotg_ep0_mps(mps_bytes);
+		if (mps > 3)
 			goto bad_mps;
-		hs_ep->ep.maxpacket = mps;
+		hs_ep->ep.maxpacket = mps_bytes;
 		hs_ep->mc = 1;
 	} else {
-		mpsval = mps & DXEPCTL_MPS_MASK;
-		if (mpsval > 1024)
+		if (mps > 1024)
 			goto bad_mps;
-		mcval = ((mps >> 11) & 0x3) + 1;
-		hs_ep->mc = mcval;
-		if (mcval > 3)
+		hs_ep->mc = mc;
+		if (mc > 3)
 			goto bad_mps;
-		hs_ep->ep.maxpacket = mpsval;
+		hs_ep->ep.maxpacket = mps;
 	}
 
 	if (dir_in) {
 		reg = dwc2_readl(regs + DIEPCTL(ep));
 		reg &= ~DXEPCTL_MPS_MASK;
-		reg |= mpsval;
+		reg |= mps;
 		dwc2_writel(reg, regs + DIEPCTL(ep));
 	} else {
 		reg = dwc2_readl(regs + DOEPCTL(ep));
 		reg &= ~DXEPCTL_MPS_MASK;
-		reg |= mpsval;
+		reg |= mps;
 		dwc2_writel(reg, regs + DOEPCTL(ep));
 	}
 
@@ -2390,13 +2390,15 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 	if (ep0_mps) {
 		int i;
 		/* Initialize ep0 for both in and out directions */
-		dwc2_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps, 1);
-		dwc2_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps, 0);
+		dwc2_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps, 0, 1);
+		dwc2_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps, 0, 0);
 		for (i = 1; i < hsotg->num_of_eps; i++) {
 			if (hsotg->eps_in[i])
-				dwc2_hsotg_set_ep_maxpacket(hsotg, i, ep_mps, 1);
+				dwc2_hsotg_set_ep_maxpacket(hsotg, i, ep_mps,
+							    0, 1);
 			if (hsotg->eps_out[i])
-				dwc2_hsotg_set_ep_maxpacket(hsotg, i, ep_mps, 0);
+				dwc2_hsotg_set_ep_maxpacket(hsotg, i, ep_mps,
+							    0, 0);
 		}
 	}
 
@@ -2952,6 +2954,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	u32 epctrl_reg;
 	u32 epctrl;
 	u32 mps;
+	u32 mc;
 	u32 mask;
 	unsigned int dir_in;
 	unsigned int i, val, size;
@@ -2975,6 +2978,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	}
 
 	mps = usb_endpoint_maxp(desc);
+	mc = usb_endpoint_maxp_mult(desc);
 
 	/* note, we handle this here instead of dwc2_hsotg_set_ep_maxpacket */
 
@@ -2996,7 +3000,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	epctrl |= DXEPCTL_USBACTEP;
 
 	/* update the endpoint state */
-	dwc2_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps, dir_in);
+	dwc2_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps, mc, dir_in);
 
 	/* default, set to non-periodic */
 	hs_ep->isochronous = 0;
