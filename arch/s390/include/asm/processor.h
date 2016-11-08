@@ -110,6 +110,8 @@ typedef struct {
 struct thread_struct {
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
+	unsigned long user_timer;	/* task cputime in user space */
+	unsigned long system_timer;	/* task cputime in kernel space */
 	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
 	unsigned int gmap_write_flag;	/* gmap fault write indication */

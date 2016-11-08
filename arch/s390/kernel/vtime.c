@@ -96,7 +96,6 @@ static void update_mt_scaling(void)
  */
 static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 {
-	struct thread_info *ti = task_thread_info(tsk);
 	u64 timer, clock, user, system, steal;
 	u64 user_scaled, system_scaled;
 
@@ -119,13 +118,13 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 	    time_after64(jiffies_64, this_cpu_read(mt_scaling_jiffies)))
 		update_mt_scaling();
 
-	user = S390_lowcore.user_timer - ti->user_timer;
+	user = S390_lowcore.user_timer - tsk->thread.user_timer;
 	S390_lowcore.steal_timer -= user;
-	ti->user_timer = S390_lowcore.user_timer;
+	tsk->thread.user_timer = S390_lowcore.user_timer;
 
-	system = S390_lowcore.system_timer - ti->system_timer;
+	system = S390_lowcore.system_timer - tsk->thread.system_timer;
 	S390_lowcore.steal_timer -= system;
-	ti->system_timer = S390_lowcore.system_timer;
+	tsk->thread.system_timer = S390_lowcore.system_timer;
 
 	user_scaled = user;
 	system_scaled = system;
@@ -151,15 +150,11 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 
 void vtime_task_switch(struct task_struct *prev)
 {
-	struct thread_info *ti;
-
 	do_account_vtime(prev, 0);
-	ti = task_thread_info(prev);
-	ti->user_timer = S390_lowcore.user_timer;
-	ti->system_timer = S390_lowcore.system_timer;
-	ti = task_thread_info(current);
-	S390_lowcore.user_timer = ti->user_timer;
-	S390_lowcore.system_timer = ti->system_timer;
+	prev->thread.user_timer = S390_lowcore.user_timer;
+	prev->thread.system_timer = S390_lowcore.system_timer;
+	S390_lowcore.user_timer = current->thread.user_timer;
+	S390_lowcore.system_timer = current->thread.system_timer;
 }
 
 /*
@@ -179,7 +174,6 @@ void vtime_account_user(struct task_struct *tsk)
  */
 void vtime_account_irq_enter(struct task_struct *tsk)
 {
-	struct thread_info *ti = task_thread_info(tsk);
 	u64 timer, system, system_scaled;
 
 	timer = S390_lowcore.last_update_timer;
@@ -191,9 +185,9 @@ void vtime_account_irq_enter(struct task_struct *tsk)
 	    time_after64(jiffies_64, this_cpu_read(mt_scaling_jiffies)))
 		update_mt_scaling();
 
-	system = S390_lowcore.system_timer - ti->system_timer;
+	system = S390_lowcore.system_timer - tsk->thread.system_timer;
 	S390_lowcore.steal_timer -= system;
-	ti->system_timer = S390_lowcore.system_timer;
+	tsk->thread.system_timer = S390_lowcore.system_timer;
 	system_scaled = system;
 	/* Do MT utilization scaling */
 	if (smp_cpu_mtid) {

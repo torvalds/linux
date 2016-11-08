@@ -41,8 +41,6 @@ int main(void)
 	/* thread info offsets */
 	OFFSET(__TI_flags, task_struct, thread_info.flags);
 	OFFSET(__TI_sysc_table,  task_struct, thread_info.sys_call_table);
-	OFFSET(__TI_user_timer, task_struct, thread_info.user_timer);
-	OFFSET(__TI_system_timer, task_struct, thread_info.system_timer);
 	OFFSET(__TI_last_break, task_struct, thread_info.last_break);
 	BLANK();
 	/* pt_regs offsets */
