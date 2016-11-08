@@ -1871,10 +1871,11 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	struct device_node *np = dev->of_node;
 	struct platform_device_info pdevinfo;
 	struct device_node *ddc_node;
-	struct dw_hdmi_audio_data audio;
 	struct dw_hdmi *hdmi;
 	int ret;
 	u32 val = 1;
+	u8 config0;
+	u8 config1;
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
@@ -2011,7 +2012,12 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	pdevinfo.parent = dev;
 	pdevinfo.id = PLATFORM_DEVID_AUTO;
 
-	if (hdmi_readb(hdmi, HDMI_CONFIG1_ID) & HDMI_CONFIG1_AHB) {
+	config0 = hdmi_readb(hdmi, HDMI_CONFIG0_ID);
+	config1 = hdmi_readb(hdmi, HDMI_CONFIG1_ID);
+
+	if (config1 & HDMI_CONFIG1_AHB) {
+		struct dw_hdmi_audio_data audio;
+
 		audio.phys = iores->start;
 		audio.base = hdmi->regs;
 		audio.irq = irq;
@@ -2019,6 +2025,18 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		audio.eld = hdmi->connector.eld;
 
 		pdevinfo.name = "dw-hdmi-ahb-audio";
+		pdevinfo.data = &audio;
+		pdevinfo.size_data = sizeof(audio);
+		pdevinfo.dma_mask = DMA_BIT_MASK(32);
+		hdmi->audio = platform_device_register_full(&pdevinfo);
+	} else if (config0 & HDMI_CONFIG0_I2S) {
+		struct dw_hdmi_i2s_audio_data audio;
+
+		audio.hdmi	= hdmi;
+		audio.write	= hdmi_writeb;
+		audio.read	= hdmi_readb;
+
+		pdevinfo.name = "dw-hdmi-i2s-audio";
 		pdevinfo.data = &audio;
 		pdevinfo.size_data = sizeof(audio);
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);
