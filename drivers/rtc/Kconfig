@@ -1565,7 +1565,7 @@ config RTC_DRV_LPC24XX
 	  NXP LPC178x/18xx/408x/43xx devices.
 
 	  If you have one of the devices above enable this driver to use
-	  the hardware RTC. This driver can also be buillt as a module. If
+	  the hardware RTC. This driver can also be built as a module. If
 	  so, the module will be called rtc-lpc24xx.
 
 config RTC_DRV_LPC32XX
@@ -1574,7 +1574,7 @@ config RTC_DRV_LPC32XX
 	help
 	  This enables support for the NXP RTC in the LPC32XX
 
-	  This driver can also be buillt as a module. If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called rtc-lpc32xx.
 
 config RTC_DRV_PM8XXX
