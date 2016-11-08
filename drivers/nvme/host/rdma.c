@@ -625,11 +625,18 @@ static int nvme_rdma_connect_io_queues(struct nvme_rdma_ctrl *ctrl)
 
 	for (i = 1; i < ctrl->queue_count; i++) {
 		ret = nvmf_connect_io_queue(&ctrl->ctrl, i);
-		if (ret)
-			break;
+		if (ret) {
+			dev_info(ctrl->ctrl.device,
+				"failed to connect i/o queue: %d\n", ret);
+			goto out_free_queues;
+		}
 		set_bit(NVME_RDMA_Q_LIVE, &ctrl->queues[i].flags);
 	}
 
+	return 0;
+
+out_free_queues:
+	nvme_rdma_free_io_queues(ctrl);
 	return ret;
 }
 
