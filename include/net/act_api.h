@@ -42,7 +42,6 @@ struct tc_action {
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue __percpu *cpu_qstats;
 };
-#define tcf_act		common.tcfa_act
 #define tcf_head	common.tcfa_head
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
