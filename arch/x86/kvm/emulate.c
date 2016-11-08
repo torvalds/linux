@@ -172,6 +172,7 @@
 #define NearBranch  ((u64)1 << 52)  /* Near branches */
 #define No16	    ((u64)1 << 53)  /* No 16 bit operand */
 #define IncSP       ((u64)1 << 54)  /* SP is incremented before ModRM calc */
+#define Aligned16   ((u64)1 << 55)  /* Aligned to 16 byte boundary (e.g. FXSAVE) */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -620,21 +621,24 @@ static void set_segment_selector(struct x86_emulate_ctxt *ctxt, u16 selector,
  * depending on whether they're AVX encoded or not.
  *
  * Also included is CMPXCHG16B which is not a vector instruction, yet it is
- * subject to the same check.
+ * subject to the same check.  FXSAVE and FXRSTOR are checked here too as their
+ * 512 bytes of data must be aligned to a 16 byte boundary.
  */
-static bool insn_aligned(struct x86_emulate_ctxt *ctxt, unsigned size)
+static unsigned insn_alignment(struct x86_emulate_ctxt *ctxt, unsigned size)
 {
 	if (likely(size < 16))
-		return false;
+		return 1;
 
 	if (ctxt->d & Aligned)
-		return true;
+		return size;
 	else if (ctxt->d & Unaligned)
-		return false;
+		return 1;
 	else if (ctxt->d & Avx)
-		return false;
+		return 1;
+	else if (ctxt->d & Aligned16)
+		return 16;
 	else
-		return true;
+		return size;
 }
 
 static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
@@ -692,7 +696,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 		}
 		break;
 	}
-	if (insn_aligned(ctxt, size) && ((la & (size - 1)) != 0))
+	if (la & (insn_alignment(ctxt, size) - 1))
 		return emulate_gp(ctxt, 0);
 	return X86EMUL_CONTINUE;
 bad:
