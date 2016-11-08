@@ -109,15 +109,11 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 			     struct reada_extent *re, struct extent_buffer *eb,
 			     u64 start, int err)
 {
-	int level = 0;
 	int nritems;
 	int i;
 	u64 bytenr;
 	u64 generation;
 	struct list_head list;
-
-	if (eb)
-		level = btrfs_header_level(eb);
 
 	spin_lock(&re->lock);
 	/*
@@ -143,7 +139,7 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 	 * trigger more readahead depending from the content, e.g.
 	 * fetch the checksums for the extents in the leaf.
 	 */
-	if (!level)
+	if (!btrfs_header_level(eb))
 		goto cleanup;
 
 	nritems = btrfs_header_nritems(eb);
