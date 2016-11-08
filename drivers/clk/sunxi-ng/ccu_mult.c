@@ -85,7 +85,7 @@ static unsigned long ccu_mult_recalc_rate(struct clk_hw *hw,
 	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
 						&parent_rate);
 
-	return parent_rate * (val + 1);
+	return parent_rate * (val + cm->mult.offset);
 }
 
 static int ccu_mult_determine_rate(struct clk_hw *hw,
@@ -121,9 +121,9 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	reg = readl(cm->common.base + cm->common.reg);
 	reg &= ~GENMASK(cm->mult.width + cm->mult.shift - 1, cm->mult.shift);
+	reg |= ((_cm.mult - cm->mult.offset) << cm->mult.shift);
 
-	writel(reg | ((_cm.mult - 1) << cm->mult.shift),
-	       cm->common.base + cm->common.reg);
+	writel(reg, cm->common.base + cm->common.reg);
 
 	spin_unlock_irqrestore(cm->common.lock, flags);
 

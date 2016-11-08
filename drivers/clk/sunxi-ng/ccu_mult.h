@@ -6,20 +6,28 @@
 #include "ccu_mux.h"
 
 struct ccu_mult_internal {
+	u8	offset;
 	u8	shift;
 	u8	width;
 	u8	min;
 };
 
-#define _SUNXI_CCU_MULT_MIN(_shift, _width, _min)	\
-	{						\
-		.shift	= _shift,			\
-		.width	= _width,			\
-		.min	= _min,				\
+#define _SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, _offset, _min)	\
+	{								\
+		.min	= _min,						\
+		.offset	= _offset,					\
+		.shift	= _shift,					\
+		.width	= _width,					\
 	}
 
+#define _SUNXI_CCU_MULT_MIN(_shift, _width, _min)	\
+	_SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, 1, _min)
+
+#define _SUNXI_CCU_MULT_OFFSET(_shift, _width, _offset)	\
+	_SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, _offset, 1)
+
 #define _SUNXI_CCU_MULT(_shift, _width)		\
-	_SUNXI_CCU_MULT_MIN(_shift, _width, 1)
+	_SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, 1, 1)
 
 struct ccu_mult {
 	u32			enable;
