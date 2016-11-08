@@ -474,6 +474,7 @@ struct sdvo_device_mapping {
 
 struct intel_connector;
 struct intel_encoder;
+struct intel_atomic_state;
 struct intel_crtc_state;
 struct intel_initial_plane_config;
 struct intel_crtc;
@@ -487,8 +488,12 @@ struct drm_i915_display_funcs {
 	int (*compute_intermediate_wm)(struct drm_device *dev,
 				       struct intel_crtc *intel_crtc,
 				       struct intel_crtc_state *newstate);
-	void (*initial_watermarks)(struct intel_crtc_state *cstate);
-	void (*optimize_watermarks)(struct intel_crtc_state *cstate);
+	void (*initial_watermarks)(struct intel_atomic_state *state,
+				   struct intel_crtc_state *cstate);
+	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
+					 struct intel_crtc_state *cstate);
+	void (*optimize_watermarks)(struct intel_atomic_state *state,
+				    struct intel_crtc_state *cstate);
 	int (*compute_global_watermarks)(struct drm_atomic_state *state);
 	void (*update_wm)(struct intel_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
