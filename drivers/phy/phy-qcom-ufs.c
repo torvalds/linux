@@ -322,8 +322,6 @@ int ufs_qcom_phy_cfg_vreg(struct phy *phy,
 	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(phy);
 	struct device *dev = ufs_qcom_phy->dev;
 
-	BUG_ON(!vreg);
-
 	if (regulator_count_voltages(reg) > 0) {
 		min_uV = on ? vreg->min_uV : 0;
 		ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
