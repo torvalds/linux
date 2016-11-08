@@ -3611,32 +3611,6 @@ int drm_av_sync_delay(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_av_sync_delay);
 
 /**
- * drm_select_eld - select one ELD from multiple HDMI/DP sinks
- * @encoder: the encoder just changed display mode
- *
- * It's possible for one encoder to be associated with multiple HDMI/DP sinks.
- * The policy is now hard coded to simply use the first HDMI/DP sink's ELD.
- *
- * Return: The connector associated with the first HDMI/DP sink that has ELD
- * attached to it.
- */
-struct drm_connector *drm_select_eld(struct drm_encoder *encoder)
-{
-	struct drm_connector *connector;
-	struct drm_device *dev = encoder->dev;
-
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-
-	drm_for_each_connector(connector, dev)
-		if (connector->encoder == encoder && connector->eld[0])
-			return connector;
-
-	return NULL;
-}
-EXPORT_SYMBOL(drm_select_eld);
-
-/**
  * drm_detect_hdmi_monitor - detect whether monitor is HDMI
  * @edid: monitor EDID information
  *
