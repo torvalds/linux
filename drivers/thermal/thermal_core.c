@@ -248,8 +248,9 @@ int get_tz_trend(struct thermal_zone_device *tz, int trip)
 }
 EXPORT_SYMBOL(get_tz_trend);
 
-struct thermal_instance *get_thermal_instance(struct thermal_zone_device *tz,
-			struct thermal_cooling_device *cdev, int trip)
+struct thermal_instance *
+get_thermal_instance(struct thermal_zone_device *tz,
+		     struct thermal_cooling_device *cdev, int trip)
 {
 	struct thermal_instance *pos = NULL;
 	struct thermal_instance *target_instance = NULL;
@@ -513,7 +514,7 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 		if (!ret && *temp < crit_temp)
 			*temp = tz->emul_temperature;
 	}
- 
+
 	mutex_unlock(&tz->lock);
 exit:
 	return ret;
@@ -1192,7 +1193,7 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 	/* Make sure cdev enters the deepest cooling state */
 	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
 		dev_dbg(&cdev->device, "zone%d->target=%lu\n",
-				instance->tz->id, instance->target);
+			instance->tz->id, instance->target);
 		if (instance->target == THERMAL_NO_TARGET)
 			continue;
 		if (instance->target > target)
