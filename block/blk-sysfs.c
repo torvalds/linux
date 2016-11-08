@@ -401,6 +401,26 @@ static ssize_t queue_dax_show(struct request_queue *q, char *page)
 	return queue_var_show(blk_queue_dax(q), page);
 }
 
+static ssize_t print_stat(char *page, struct blk_rq_stat *stat, const char *pre)
+{
+	return sprintf(page, "%s samples=%llu, mean=%lld, min=%lld, max=%lld\n",
+			pre, (long long) stat->nr_samples,
+			(long long) stat->mean, (long long) stat->min,
+			(long long) stat->max);
+}
+
+static ssize_t queue_stats_show(struct request_queue *q, char *page)
+{
+	struct blk_rq_stat stat[2];
+	ssize_t ret;
+
+	blk_queue_stat_get(q, stat);
+
+	ret = print_stat(page, &stat[BLK_STAT_READ], "read :");
+	ret += print_stat(page + ret, &stat[BLK_STAT_WRITE], "write:");
+	return ret;
+}
+
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -553,6 +573,11 @@ static struct queue_sysfs_entry queue_dax_entry = {
 	.show = queue_dax_show,
 };
 
+static struct queue_sysfs_entry queue_stats_entry = {
+	.attr = {.name = "stats", .mode = S_IRUGO },
+	.show = queue_stats_show,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -582,6 +607,7 @@ static struct attribute *default_attrs[] = {
 	&queue_poll_entry.attr,
 	&queue_wc_entry.attr,
 	&queue_dax_entry.attr,
+	&queue_stats_entry.attr,
 	NULL,
 };
 
