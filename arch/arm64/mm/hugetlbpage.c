@@ -51,20 +51,8 @@ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
 	*pgsize = PAGE_SIZE;
 	if (!pte_cont(pte))
 		return 1;
-	if (!pgd_present(*pgd)) {
-		VM_BUG_ON(!pgd_present(*pgd));
-		return 1;
-	}
 	pud = pud_offset(pgd, addr);
-	if (!pud_present(*pud)) {
-		VM_BUG_ON(!pud_present(*pud));
-		return 1;
-	}
 	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd)) {
-		VM_BUG_ON(!pmd_present(*pmd));
-		return 1;
-	}
 	if ((pte_t *)pmd == ptep) {
 		*pgsize = PMD_SIZE;
 		return CONT_PMDS;
