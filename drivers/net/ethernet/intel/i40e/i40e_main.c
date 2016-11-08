@@ -1245,13 +1245,6 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 	if (!vsi || !macaddr)
 		return NULL;
 
-	/* Do not allow broadcast filter to be added since broadcast filter
-	 * is added as part of add VSI for any newly created VSI except
-	 * FDIR VSI
-	 */
-	if (is_broadcast_ether_addr(macaddr))
-		return NULL;
-
 	f = i40e_find_filter(vsi, macaddr, vlan);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
@@ -1857,6 +1850,47 @@ void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
 }
 
 /**
+ * i40e_aqc_broadcast_filter - Set promiscuous broadcast flags
+ * @vsi: pointer to the VSI
+ * @f: filter data
+ *
+ * This function sets or clears the promiscuous broadcast flags for VLAN
+ * filters in order to properly receive broadcast frames. Assumes that only
+ * broadcast filters are passed.
+ **/
+static
+void i40e_aqc_broadcast_filter(struct i40e_vsi *vsi, const char *vsi_name,
+			       struct i40e_mac_filter *f)
+{
+	bool enable = f->state == I40E_FILTER_NEW;
+	struct i40e_hw *hw = &vsi->back->hw;
+	i40e_status aq_ret;
+
+	if (f->vlan == I40E_VLAN_ANY) {
+		aq_ret = i40e_aq_set_vsi_broadcast(hw,
+						   vsi->seid,
+						   enable,
+						   NULL);
+	} else {
+		aq_ret = i40e_aq_set_vsi_bc_promisc_on_vlan(hw,
+							    vsi->seid,
+							    enable,
+							    f->vlan,
+							    NULL);
+	}
+
+	if (aq_ret) {
+		dev_warn(&vsi->back->pdev->dev,
+			 "Error %s setting broadcast promiscuous mode on %s\n",
+			 i40e_aq_str(hw, hw->aq.asq_last_status),
+			 vsi_name);
+		f->state = I40E_FILTER_FAILED;
+	} else if (enable) {
+		f->state = I40E_FILTER_ACTIVE;
+	}
+}
+
+/**
  * i40e_sync_vsi_filters - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
  *
@@ -2004,6 +2038,17 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		hlist_for_each_entry_safe(f, h, &tmp_del_list, hlist) {
 			cmd_flags = 0;
 
+			/* handle broadcast filters by updating the broadcast
+			 * promiscuous flag instead of deleting a MAC filter.
+			 */
+			if (is_broadcast_ether_addr(f->macaddr)) {
+				i40e_aqc_broadcast_filter(vsi, vsi_name, f);
+
+				hlist_del(&f->hlist);
+				kfree(f);
+				continue;
+			}
+
 			/* add to delete list */
 			ether_addr_copy(del_list[num_del].mac_addr, f->macaddr);
 			if (f->vlan == I40E_VLAN_ANY) {
@@ -2060,12 +2105,25 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			goto err_no_memory;
 
 		num_add = 0;
-		hlist_for_each_entry(f, &tmp_add_list, hlist) {
+		hlist_for_each_entry_safe(f, h, &tmp_add_list, hlist) {
 			if (test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
 				     &vsi->state)) {
 				f->state = I40E_FILTER_FAILED;
 				continue;
 			}
+
+			/* handle broadcast filters by updating the broadcast
+			 * promiscuous flag instead of adding a MAC filter.
+			 */
+			if (is_broadcast_ether_addr(f->macaddr)) {
+				u64 key = i40e_addr_to_hkey(f->macaddr);
+				i40e_aqc_broadcast_filter(vsi, vsi_name, f);
+
+				hlist_del(&f->hlist);
+				hash_add(vsi->mac_filter_hash, &f->hlist, key);
+				continue;
+			}
+
 			/* add to add array */
 			if (num_add == 0)
 				add_head = f;
@@ -9178,6 +9236,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_netdev_priv *np;
 	struct net_device *netdev;
+	u8 broadcast[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	int etherdev_size;
 
@@ -9245,6 +9304,24 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY);
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 	}
+
+	/* Add the broadcast filter so that we initially will receive
+	 * broadcast packets. Note that when a new VLAN is first added the
+	 * driver will convert all filters marked I40E_VLAN_ANY into VLAN
+	 * specific filters as part of transitioning into "vlan" operation.
+	 * When more VLANs are added, the driver will copy each existing MAC
+	 * filter and add it for the new VLAN.
+	 *
+	 * Broadcast filters are handled specially by
+	 * i40e_sync_filters_subtask, as the driver must to set the broadcast
+	 * promiscuous bit instead of adding this directly as a MAC/VLAN
+	 * filter. The subtask will update the correct broadcast promiscuous
+	 * bits as VLANs become active or inactive.
+	 */
+	eth_broadcast_addr(broadcast);
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	i40e_add_filter(vsi, broadcast, I40E_VLAN_ANY);
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
 	ether_addr_copy(netdev->dev_addr, mac_addr);
 	ether_addr_copy(netdev->perm_addr, mac_addr);
@@ -9328,7 +9405,6 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi)
 static int i40e_add_vsi(struct i40e_vsi *vsi)
 {
 	int ret = -ENODEV;
-	i40e_status aq_ret = 0;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vsi_context ctxt;
@@ -9517,18 +9593,6 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		vsi->info.valid_sections = 0;
 		vsi->seid = ctxt.seid;
 		vsi->id = ctxt.vsi_number;
-	}
-	/* Except FDIR VSI, for all othet VSI set the broadcast filter */
-	if (vsi->type != I40E_VSI_FDIR) {
-		aq_ret = i40e_aq_set_vsi_broadcast(hw, vsi->seid, true, NULL);
-		if (aq_ret) {
-			ret = i40e_aq_rc_to_posix(aq_ret,
-						  hw->aq.asq_last_status);
-			dev_info(&pf->pdev->dev,
-				 "set brdcast promisc failed, err %s, aq_err %s\n",
-				 i40e_stat_str(hw, aq_ret),
-				 i40e_aq_str(hw, hw->aq.asq_last_status));
-		}
 	}
 
 	vsi->active_filters = 0;
