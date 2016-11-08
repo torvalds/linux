@@ -354,7 +354,9 @@
 				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x02080000 0x4000>;
 				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_PWM1>;
+				clocks = <&clks IMX6SLL_CLK_PWM1>,
+					 <&clks IMX6SLL_CLK_PWM1>;
+				clock-names = "ipg", "per";
 				#pwm-cells = <2>;
 			};
 
@@ -362,7 +364,9 @@
 				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x02084000 0x4000>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_PWM2>;
+				clocks = <&clks IMX6SLL_CLK_PWM2>,
+					 <&clks IMX6SLL_CLK_PWM2>;
+				clock-names = "ipg", "per";
 				#pwm-cells = <2>;
 			};
 
@@ -370,7 +374,9 @@
 				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x02088000 0x4000>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_PWM3>;
+				clocks = <&clks IMX6SLL_CLK_PWM3>,
+					 <&clks IMX6SLL_CLK_PWM3>;
+				clock-names = "ipg", "per";
 				#pwm-cells = <2>;
 			};
 
@@ -378,7 +384,9 @@
 				compatible = "fsl,imx6sll-pwm", "fsl,imx27-pwm";
 				reg = <0x0208c000 0x4000>;
 				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_PWM4>;
+				clocks = <&clks IMX6SLL_CLK_PWM4>,
+					 <&clks IMX6SLL_CLK_PWM4>;
+				clock-names = "ipg", "per";
 				#pwm-cells = <2>;
 			};
 
