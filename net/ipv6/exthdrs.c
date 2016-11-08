@@ -49,6 +49,9 @@
 #endif
 #include <linux/seg6.h>
 #include <net/seg6.h>
+#ifdef CONFIG_IPV6_SEG6_HMAC
+#include <net/seg6_hmac.h>
+#endif
 
 #include <linux/uaccess.h>
 
@@ -339,6 +342,13 @@ static int ipv6_srh_rcv(struct sk_buff *skb)
 		kfree_skb(skb);
 		return -1;
 	}
+
+#ifdef CONFIG_IPV6_SEG6_HMAC
+	if (!seg6_hmac_validate_skb(skb)) {
+		kfree_skb(skb);
+		return -1;
+	}
+#endif
 
 looped_back:
 	if (hdr->segments_left > 0) {
