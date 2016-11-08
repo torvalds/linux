@@ -48,16 +48,12 @@ static inline int __dax_zero_page_range(struct block_device *bdev,
 }
 #endif
 
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE)
-int dax_pmd_fault(struct vm_area_struct *, unsigned long addr, pmd_t *,
-				unsigned int flags, get_block_t);
-#else
 static inline int dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 				pmd_t *pmd, unsigned int flags, get_block_t gb)
 {
 	return VM_FAULT_FALLBACK;
 }
-#endif
+
 int dax_pfn_mkwrite(struct vm_area_struct *, struct vm_fault *);
 #define dax_mkwrite(vma, vmf, gb)	dax_fault(vma, vmf, gb)
 
