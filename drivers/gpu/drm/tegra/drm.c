@@ -164,6 +164,8 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	drm->mode_config.max_width = 4096;
 	drm->mode_config.max_height = 4096;
 
+	drm->mode_config.allow_fb_modifiers = true;
+
 	drm->mode_config.funcs = &tegra_drm_mode_funcs;
 
 	err = tegra_drm_fb_prepare(drm);
