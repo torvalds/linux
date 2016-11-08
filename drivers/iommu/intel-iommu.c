@@ -1672,6 +1672,7 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 	if (!iommu->domains || !iommu->domain_ids)
 		return;
 
+again:
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry_safe(info, tmp, &device_domain_list, global) {
 		struct dmar_domain *domain;
@@ -1684,10 +1685,19 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 
 		domain = info->domain;
 
-		dmar_remove_one_dev_info(domain, info->dev);
+		__dmar_remove_one_dev_info(info);
 
-		if (!domain_type_is_vm_or_si(domain))
+		if (!domain_type_is_vm_or_si(domain)) {
+			/*
+			 * The domain_exit() function  can't be called under
+			 * device_domain_lock, as it takes this lock itself.
+			 * So release the lock here and re-run the loop
+			 * afterwards.
+			 */
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 			domain_exit(domain);
+			goto again;
+		}
 	}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
