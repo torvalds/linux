@@ -327,9 +327,8 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		return -EINVAL;
 
 	*sa_bo = kmalloc(sizeof(struct amdgpu_sa_bo), GFP_KERNEL);
-	if ((*sa_bo) == NULL) {
+	if (!(*sa_bo))
 		return -ENOMEM;
-	}
 	(*sa_bo)->manager = sa_manager;
 	(*sa_bo)->fence = NULL;
 	INIT_LIST_HEAD(&(*sa_bo)->olist);
