@@ -533,7 +533,7 @@ int cpdma_chan_destroy(struct cpdma_chan *chan)
 		cpdma_chan_stop(chan);
 	ctlr->channels[chan->chan_num] = NULL;
 	ctlr->chan_num--;
-
+	devm_kfree(ctlr->dev, chan);
 	cpdma_chan_split_pool(ctlr);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
