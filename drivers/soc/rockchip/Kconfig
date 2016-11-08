@@ -3,6 +3,13 @@ if ARCH_ROCKCHIP || COMPILE_TEST
 #
 # Rockchip Soc drivers
 #
+config ROCKCHIP_PM_TEST
+	bool "Rockchip pm_test support"
+	default n
+	help
+	  Say y here to enable pm_test support.
+	  Add /sys/pm_tests/ node, only for internal testing.
+
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM
