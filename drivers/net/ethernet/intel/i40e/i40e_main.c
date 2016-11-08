@@ -11302,7 +11302,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((pf->hw.device_id == I40E_DEV_ID_10G_BASE_T) ||
 	    (pf->hw.device_id == I40E_DEV_ID_10G_BASE_T4))
 		pf->flags |= I40E_FLAG_HAVE_10GBASET_PHY;
-
+	if (pf->hw.device_id == I40E_DEV_ID_SFP_I_X722)
+		pf->flags |= I40E_FLAG_HAVE_CRT_RETIMER;
 	/* print a string summarizing features */
 	i40e_print_features(pf);
 

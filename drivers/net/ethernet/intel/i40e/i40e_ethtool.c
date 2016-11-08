@@ -345,11 +345,13 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf, u32 *supported,
 			*advertising |= ADVERTISED_20000baseKR2_Full;
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_10GBASE_KR) {
-		*supported |= SUPPORTED_10000baseKR_Full |
-			      SUPPORTED_Autoneg;
+		if (!(pf->flags & I40E_FLAG_HAVE_CRT_RETIMER))
+			*supported |= SUPPORTED_10000baseKR_Full |
+				      SUPPORTED_Autoneg;
 		*advertising |= ADVERTISED_Autoneg;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
-			*advertising |= ADVERTISED_10000baseKR_Full;
+			if (!(pf->flags & I40E_FLAG_HAVE_CRT_RETIMER))
+				*advertising |= ADVERTISED_10000baseKR_Full;
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_10GBASE_KX4) {
 		*supported |= SUPPORTED_10000baseKX4_Full |
@@ -359,11 +361,13 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf, u32 *supported,
 			*advertising |= ADVERTISED_10000baseKX4_Full;
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_1000BASE_KX) {
-		*supported |= SUPPORTED_1000baseKX_Full |
-			      SUPPORTED_Autoneg;
+		if (!(pf->flags & I40E_FLAG_HAVE_CRT_RETIMER))
+			*supported |= SUPPORTED_1000baseKX_Full |
+				      SUPPORTED_Autoneg;
 		*advertising |= ADVERTISED_Autoneg;
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
-			*advertising |= ADVERTISED_1000baseKX_Full;
+			if (!(pf->flags & I40E_FLAG_HAVE_CRT_RETIMER))
+				*advertising |= ADVERTISED_1000baseKX_Full;
 	}
 }
 
