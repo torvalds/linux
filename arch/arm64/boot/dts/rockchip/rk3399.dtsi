@@ -1148,6 +1148,13 @@
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
 		};
+
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,rk3399-pmu-pvtm";
+			clocks = <&pmucru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+			status = "disabled";
+		};
 	};
 
 	spi3: spi@ff350000 {
@@ -1485,6 +1492,16 @@
 			#phy-cells = <1>;
 			resets = <&cru SRST_PCIEPHY>;
 			reset-names = "phy";
+			status = "disabled";
+		};
+
+		pvtm: pvtm {
+			compatible = "rockchip,rk3399-pvtm";
+			clocks = <&cru SCLK_PVTM_CORE_L>,
+				 <&cru SCLK_PVTM_CORE_B>,
+				 <&cru SCLK_PVTM_GPU>,
+				 <&cru SCLK_PVTM_DDR>;
+			clock-names = "core_l", "core_b", "gpu", "ddr";
 			status = "disabled";
 		};
 	};
