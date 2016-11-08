@@ -14548,10 +14548,6 @@ static void intel_atomic_track_fbs(struct drm_atomic_state *state)
  * This function commits a top-level state object that has been validated
  * with drm_atomic_helper_check().
  *
- * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
- * nonblocking commits are only safe for pure plane updates. Everything else
- * should work though.
- *
  * RETURNS
  * Zero for success or -errno.
  */
@@ -14562,11 +14558,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
-
-	if (intel_state->modeset && nonblock) {
-		DRM_DEBUG_KMS("nonblocking commit for modeset not yet implemented.\n");
-		return -EINVAL;
-	}
 
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
