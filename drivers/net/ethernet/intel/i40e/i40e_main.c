@@ -2515,17 +2515,6 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 	/* Locked once because all functions invoked below iterates list*/
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
 
-	if (vsi->netdev) {
-		add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, vid);
-		if (!add_f) {
-			dev_info(&vsi->back->pdev->dev,
-				 "Could not add vlan filter %d for %pM\n",
-				 vid, vsi->netdev->dev_addr);
-			spin_unlock_bh(&vsi->mac_filter_hash_lock);
-			return -ENOMEM;
-		}
-	}
-
 	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 		if (f->state == I40E_FILTER_REMOVE)
 			continue;
@@ -2539,28 +2528,14 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 		}
 	}
 
-	/* Now if we add a vlan tag, make sure to check if it is the first
-	 * tag (i.e. a "tag" -1 does exist) and if so replace the -1 "tag"
-	 * with 0, so we now accept untagged and specified tagged traffic
-	 * (and not all tags along with untagged)
+	/* When we add a new VLAN filter, we need to make sure that all existing
+	 * filters which are marked as vid=-1 (I40E_VLAN_ANY) are converted to
+	 * vid=0. The simplest way is just search for all filters marked as
+	 * vid=-1 and replace them with vid=0. This converts all filters that
+	 * were marked to receive all traffic (tagged or untagged) into
+	 * filters to receive only untagged traffic, so that we don't receive
+	 * tagged traffic for VLANs which we have not configured.
 	 */
-	if (vid > 0 && vsi->netdev) {
-		del_f = i40e_find_filter(vsi, vsi->netdev->dev_addr,
-					 I40E_VLAN_ANY);
-		if (del_f) {
-			__i40e_del_filter(vsi, del_f);
-			add_f = i40e_add_filter(vsi, vsi->netdev->dev_addr, 0);
-			if (!add_f) {
-				dev_info(&vsi->back->pdev->dev,
-					 "Could not add filter 0 for %pM\n",
-					 vsi->netdev->dev_addr);
-				spin_unlock_bh(&vsi->mac_filter_hash_lock);
-				return -ENOMEM;
-			}
-		}
-	}
-
-	/* Do not assume that I40E_VLAN_ANY should be reset to VLAN 0 */
 	if (vid > 0 && !vsi->info.pvid) {
 		hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 			if (f->state == I40E_FILTER_REMOVE)
@@ -2597,16 +2572,12 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
  **/
 void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 {
-	struct net_device *netdev = vsi->netdev;
 	struct i40e_mac_filter *f;
 	struct hlist_node *h;
 	int bkt;
 
 	/* Locked once because all functions invoked below iterates list */
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
-
-	if (vsi->netdev)
-		i40e_del_filter(vsi, netdev->dev_addr, vid);
 
 	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 		if (f->vlan == vid)
