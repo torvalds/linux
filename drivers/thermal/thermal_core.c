@@ -975,7 +975,6 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 
 	return ret ? ret : count;
 }
-static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
 
 static ssize_t
 sustainable_power_show(struct device *dev, struct device_attribute *devattr,
@@ -1006,8 +1005,6 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 
 	return count;
 }
-static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
-		sustainable_power_store);
 
 #define create_s32_tzp_attr(name)					\
 	static ssize_t							\
@@ -1049,6 +1046,16 @@ create_s32_tzp_attr(integral_cutoff);
 create_s32_tzp_attr(slope);
 create_s32_tzp_attr(offset);
 #undef create_s32_tzp_attr
+
+static DEVICE_ATTR(type, 0444, type_show, NULL);
+static DEVICE_ATTR(temp, 0444, temp_show, NULL);
+static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
+static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
+static DEVICE_ATTR(policy, S_IRUGO | S_IWUSR, policy_show, policy_store);
+static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
+static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
+static DEVICE_ATTR(sustainable_power, S_IWUSR | S_IRUGO, sustainable_power_show,
+		   sustainable_power_store);
 
 static struct device_attribute *dev_tzp_attrs[] = {
 	&dev_attr_sustainable_power,
@@ -1158,13 +1165,6 @@ int power_actor_set_power(struct thermal_cooling_device *cdev,
 
 	return 0;
 }
-
-static DEVICE_ATTR(type, 0444, type_show, NULL);
-static DEVICE_ATTR(temp, 0444, temp_show, NULL);
-static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
-static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
-static DEVICE_ATTR(policy, S_IRUGO | S_IWUSR, policy_show, policy_store);
-static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
 
 /* sys I/F for cooling device */
 #define to_cooling_device(_dev)	\
