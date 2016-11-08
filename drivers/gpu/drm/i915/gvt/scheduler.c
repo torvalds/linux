@@ -455,6 +455,8 @@ static int workload_thread(void *priv)
 		if (lret < 0) {
 			workload->status = lret;
 			gvt_err("fail to wait workload, skip\n");
+		} else {
+			workload->status = 0;
 		}
 
 complete:

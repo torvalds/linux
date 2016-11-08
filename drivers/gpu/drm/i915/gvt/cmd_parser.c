@@ -1418,8 +1418,8 @@ static int cmd_handler_mi_op_2e(struct parser_exec_state *s)
 static int cmd_handler_mi_op_2f(struct parser_exec_state *s)
 {
 	int gmadr_bytes = s->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
-	int op_size = ((1 << (cmd_val(s, 0) & GENMASK(20, 19) >> 19)) *
-			sizeof(u32));
+	int op_size = (1 << ((cmd_val(s, 0) & GENMASK(20, 19)) >> 19)) *
+			sizeof(u32);
 	unsigned long gma, gma_high;
 	int ret = 0;
 
