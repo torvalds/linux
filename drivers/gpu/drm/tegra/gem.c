@@ -36,6 +36,8 @@ static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
+	*sgt = obj->sgt;
+
 	return obj->paddr;
 }
 
