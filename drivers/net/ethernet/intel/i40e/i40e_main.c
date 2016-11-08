@@ -5225,12 +5225,16 @@ out:
  */
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 {
+	enum i40e_aq_link_speed new_speed;
 	char *speed = "Unknown";
 	char *fc = "Unknown";
 
-	if (vsi->current_isup == isup)
+	new_speed = vsi->back->hw.phy.link_info.link_speed;
+
+	if ((vsi->current_isup == isup) && (vsi->current_speed == new_speed))
 		return;
 	vsi->current_isup = isup;
+	vsi->current_speed = new_speed;
 	if (!isup) {
 		netdev_info(vsi->netdev, "NIC Link is Down\n");
 		return;

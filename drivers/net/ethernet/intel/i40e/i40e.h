@@ -596,6 +596,7 @@ struct i40e_vsi {
 	u16 veb_idx;		/* index of VEB parent */
 	struct kobject *kobj;	/* sysfs object */
 	bool current_isup;	/* Sync 'link up' logging */
+	enum i40e_aq_link_speed current_speed;	/* Sync link speed logging */
 
 	void *priv;	/* client driver data reference. */
 
