@@ -468,17 +468,6 @@ static inline void napi_complete(struct napi_struct *n)
 }
 
 /**
- *	napi_hash_add - add a NAPI to global hashtable
- *	@napi: NAPI context
- *
- * Generate a new napi_id and store a @napi under it in napi_hash.
- * Used for busy polling (CONFIG_NET_RX_BUSY_POLL).
- * Note: This is normally automatically done from netif_napi_add(),
- * so might disappear in a future Linux version.
- */
-void napi_hash_add(struct napi_struct *napi);
-
-/**
  *	napi_hash_del - remove a NAPI from global table
  *	@napi: NAPI context
  *
