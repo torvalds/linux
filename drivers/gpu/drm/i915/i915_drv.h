@@ -72,8 +72,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20161024"
-#define DRIVER_TIMESTAMP	1477290335
+#define DRIVER_DATE		"20161108"
+#define DRIVER_TIMESTAMP	1478587895
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
