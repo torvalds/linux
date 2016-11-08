@@ -194,12 +194,23 @@ struct ap_queue_status ap_test_queue(ap_qid_t qid,
 }
 EXPORT_SYMBOL(ap_test_queue);
 
-static inline int ap_query_configuration(void)
+/*
+ * ap_query_configuration(): Fetch cryptographic config info
+ *
+ * Returns the ap configuration info fetched via PQAP(QCI).
+ * On success 0 is returned, on failure a negative errno
+ * is returned, e.g. if the PQAP(QCI) instruction is not
+ * available, the return value will be -EOPNOTSUPP.
+ */
+int ap_query_configuration(struct ap_config_info *info)
 {
-	if (!ap_configuration)
+	if (!ap_configuration_available())
 		return -EOPNOTSUPP;
-	return ap_qci(ap_configuration);
+	if (!info)
+		return -EINVAL;
+	return ap_qci(info);
 }
+EXPORT_SYMBOL(ap_query_configuration);
 
 /**
  * ap_init_configuration(): Allocate and query configuration array.
@@ -212,7 +223,7 @@ static void ap_init_configuration(void)
 	ap_configuration = kzalloc(sizeof(*ap_configuration), GFP_KERNEL);
 	if (!ap_configuration)
 		return;
-	if (ap_query_configuration() != 0) {
+	if (ap_query_configuration(ap_configuration) != 0) {
 		kfree(ap_configuration);
 		ap_configuration = NULL;
 		return;
@@ -1009,7 +1020,7 @@ static void ap_scan_bus(struct work_struct *unused)
 
 	AP_DBF(DBF_DEBUG, "ap_scan_bus running\n");
 
-	ap_query_configuration();
+	ap_query_configuration(ap_configuration);
 	if (ap_select_domain() != 0)
 		goto out;
 

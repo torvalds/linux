@@ -61,4 +61,30 @@ struct ap_queue_status ap_test_queue(ap_qid_t qid,
 				     int tbit,
 				     unsigned long *info);
 
+struct ap_config_info {
+	unsigned int apsc	 : 1;	/* S bit */
+	unsigned int apxa	 : 1;	/* N bit */
+	unsigned int qact	 : 1;	/* C bit */
+	unsigned int rc8a	 : 1;	/* R bit */
+	unsigned char _reserved1 : 4;
+	unsigned char _reserved2[3];
+	unsigned char Na;		/* max # of APs - 1 */
+	unsigned char Nd;		/* max # of Domains - 1 */
+	unsigned char _reserved3[10];
+	unsigned int apm[8];		/* AP ID mask */
+	unsigned int aqm[8];		/* AP queue mask */
+	unsigned int adm[8];		/* AP domain mask */
+	unsigned char _reserved4[16];
+} __aligned(8);
+
+/*
+ * ap_query_configuration(): Fetch cryptographic config info
+ *
+ * Returns the ap configuration info fetched via PQAP(QCI).
+ * On success 0 is returned, on failure a negative errno
+ * is returned, e.g. if the PQAP(QCI) instruction is not
+ * available, the return value will be -EOPNOTSUPP.
+ */
+int ap_query_configuration(struct ap_config_info *info);
+
 #endif /* _ASM_S390_AP_H_ */

@@ -204,17 +204,6 @@ struct ap_message {
 			struct ap_message *);
 };
 
-struct ap_config_info {
-	unsigned int special_command:1;
-	unsigned int ap_extended:1;
-	unsigned char reserved1:6;
-	unsigned char reserved2[15];
-	unsigned int apm[8];		/* AP ID mask */
-	unsigned int aqm[8];		/* AP queue mask */
-	unsigned int adm[8];		/* AP domain mask */
-	unsigned char reserved4[16];
-} __packed;
-
 /**
  * ap_init_message() - Initialize ap_message.
  * Initialize a message before using. Otherwise this might result in
