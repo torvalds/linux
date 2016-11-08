@@ -1138,3 +1138,11 @@
 		};
 	};
 };
+
+&pvtm {
+	status = "okay";
+};
+
+&pmu_pvtm {
+	status = "okay";
+};

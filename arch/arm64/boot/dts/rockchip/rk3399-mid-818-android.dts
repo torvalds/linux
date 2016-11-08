@@ -1221,3 +1221,11 @@
 &edp_rk_fb {
 	status = "okay";
 };
+
+&pvtm {
+	status = "okay";
+};
+
+&pmu_pvtm {
+	status = "okay";
+};

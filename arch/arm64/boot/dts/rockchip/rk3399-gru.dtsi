@@ -939,6 +939,14 @@ ap_i2c_audio: &i2c8 {
 	status = "disabled";
 };
 
+&pvtm {
+	status = "okay";
+};
+
+&pmu_pvtm {
+	status = "okay";
+};
+
 /* PINCTRL: always below everything else */
 
 &pinctrl {
