@@ -163,13 +163,13 @@
 		function = "avb";
 	};
 
-	sdhi0_pins_3v3: sd0_3v3 {
+	sdhi0_pins: sd0 {
 		groups = "sdhi0_data4", "sdhi0_ctrl";
 		function = "sdhi0";
 		power-source = <3300>;
 	};
 
-	sdhi0_pins_1v8: sd0_1v8 {
+	sdhi0_pins_uhs: sd0 {
 		groups = "sdhi0_data4", "sdhi0_ctrl";
 		function = "sdhi0";
 		power-source = <1800>;
@@ -291,8 +291,8 @@
 };
 
 &sdhi0 {
-	pinctrl-0 = <&sdhi0_pins_3v3>;
-	pinctrl-1 = <&sdhi0_pins_1v8>;
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-1 = <&sdhi0_pins_uhs>;
 	pinctrl-names = "default", "state_uhs";
 
 	vmmc-supply = <&vcc_sdhi0>;
