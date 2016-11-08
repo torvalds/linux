@@ -109,6 +109,17 @@ enum mei_cb_file_ops {
 	MEI_FOP_NOTIFY_STOP,
 };
 
+/**
+ * enum mei_cl_io_mode - io mode between driver and fw
+ *
+ * @MEI_CL_IO_TX_BLOCKING: send is blocking
+ * @MEI_CL_IO_TX_INTERNAL: internal communication between driver and FW
+ */
+enum mei_cl_io_mode {
+	MEI_CL_IO_TX_BLOCKING = BIT(0),
+	MEI_CL_IO_TX_INTERNAL = BIT(1),
+};
+
 /*
  * Intel MEI message data struct
  */
@@ -169,6 +180,7 @@ struct mei_cl;
  * @fp: pointer to file structure
  * @status: io status of the cb
  * @internal: communication between driver and FW flag
+ * @blocking: transmission blocking mode
  * @completed: the transfer or reception has completed
  */
 struct mei_cl_cb {
@@ -180,6 +192,7 @@ struct mei_cl_cb {
 	const struct file *fp;
 	int status;
 	u32 internal:1;
+	u32 blocking:1;
 	u32 completed:1;
 };
 
@@ -304,7 +317,7 @@ void mei_cl_bus_rescan(struct mei_device *bus);
 void mei_cl_bus_rescan_work(struct work_struct *work);
 void mei_cl_bus_dev_fixup(struct mei_cl_device *dev);
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
-			bool blocking);
+		      unsigned int mode);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
 bool mei_cl_bus_notify_event(struct mei_cl *cl);

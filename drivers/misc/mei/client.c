@@ -1598,18 +1598,17 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * @cl: host client
  * @cb: write callback with filled data
- * @blocking: block until completed
  *
  * Return: number of bytes sent on success, <0 on failure.
  */
-int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
+int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
 	struct mei_device *dev;
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
 	int size;
 	int rets;
-
+	bool blocking;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1621,6 +1620,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 
 	buf = &cb->buf;
 	size = buf->size;
+	blocking = cb->blocking;
 
 	cl_dbg(dev, cl, "size=%d\n", size);
 

@@ -322,7 +322,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	rets = mei_cl_write(cl, cb, false);
+	rets = mei_cl_write(cl, cb);
 out:
 	mutex_unlock(&dev->device_lock);
 	return rets;

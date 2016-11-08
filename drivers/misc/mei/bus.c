@@ -36,12 +36,12 @@
  * @cl: host client
  * @buf: buffer to send
  * @length: buffer length
- * @blocking: wait for write completion
+ * @mode: sending mode
  *
  * Return: written size bytes or < 0 on error
  */
 ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
-			bool blocking)
+		      unsigned int mode)
 {
 	struct mei_device *bus;
 	struct mei_cl_cb *cb;
@@ -80,9 +80,11 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		goto out;
 	}
 
+	cb->internal = !!(mode & MEI_CL_IO_TX_INTERNAL);
+	cb->blocking = !!(mode & MEI_CL_IO_TX_BLOCKING);
 	memcpy(cb->buf.data, buf, length);
 
-	rets = mei_cl_write(cl, cb, blocking);
+	rets = mei_cl_write(cl, cb);
 
 out:
 	mutex_unlock(&bus->device_lock);
@@ -188,7 +190,7 @@ ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 	if (cl == NULL)
 		return -ENODEV;
 
-	return __mei_cl_send(cl, buf, length, 1);
+	return __mei_cl_send(cl, buf, length, MEI_CL_IO_TX_BLOCKING);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_send);
 
