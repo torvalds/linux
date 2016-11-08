@@ -182,6 +182,10 @@ int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 {
 	int err;
 
+	if (of_device_is_compatible(phy_common->dev->of_node,
+				"qcom,msm8996-ufs-phy-qmp-14nm"))
+		goto skip_txrx_clk;
+
 	err = ufs_qcom_phy_clk_get(phy_common->dev, "tx_iface_clk",
 				   &phy_common->tx_iface_clk);
 	if (err)
@@ -197,6 +201,7 @@ int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 	if (err)
 		goto out;
 
+skip_txrx_clk:
 	/*
 	 * "ref_clk_parent" is optional hence don't abort init if it's not
 	 * found.
