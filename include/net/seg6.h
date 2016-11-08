@@ -14,6 +14,9 @@
 #ifndef _NET_SEG6_H
 #define _NET_SEG6_H
 
+#include <linux/net.h>
+#include <linux/ipv6.h>
+
 static inline void update_csum_diff4(struct sk_buff *skb, __be32 from,
 				     __be32 to)
 {
@@ -32,5 +35,18 @@ static inline void update_csum_diff16(struct sk_buff *skb, __be32 *from,
 
 	skb->csum = ~csum_partial((char *)diff, sizeof(diff), ~skb->csum);
 }
+
+struct seg6_pernet_data {
+	struct mutex lock;
+	struct in6_addr __rcu *tun_src;
+};
+
+static inline struct seg6_pernet_data *seg6_pernet(struct net *net)
+{
+	return net->ipv6.seg6_data;
+}
+
+extern int seg6_init(void);
+extern void seg6_exit(void);
 
 #endif
