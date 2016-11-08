@@ -378,16 +378,12 @@ void aac_define_int_mode(struct aac_dev *dev)
 	if (msi_count > AAC_MAX_MSIX)
 		msi_count = AAC_MAX_MSIX;
 
-	for (i = 0; i < msi_count; i++)
-		dev->msixentry[i].entry = i;
-
 	if (msi_count > 1 &&
 	    pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX)) {
 		min_msix = 2;
-		i = pci_enable_msix_range(dev->pdev,
-				    dev->msixentry,
-				    min_msix,
-				    msi_count);
+		i = pci_alloc_irq_vectors(dev->pdev,
+					  min_msix, msi_count,
+					  PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 		if (i > 0) {
 			dev->msi_enabled = 1;
 			msi_count = i;
