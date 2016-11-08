@@ -199,6 +199,9 @@ static int qxl_add_monitors_config_modes(struct drm_connector *connector,
 	mode = drm_cvt_mode(dev, head->width, head->height, 60, false, false,
 			    false);
 	mode->type |= DRM_MODE_TYPE_PREFERRED;
+	mode->hdisplay = head->width;
+	mode->vdisplay = head->height;
+	drm_mode_set_name(mode);
 	*pwidth = head->width;
 	*pheight = head->height;
 	drm_mode_probed_add(connector, mode);
