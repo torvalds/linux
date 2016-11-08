@@ -975,7 +975,9 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	pipe_config->lane_count = 4;
 }
 
-static void intel_enable_hdmi_audio(struct intel_encoder *encoder)
+static void intel_enable_hdmi_audio(struct intel_encoder *encoder,
+				    struct intel_crtc_state *pipe_config,
+				    struct drm_connector_state *conn_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
@@ -991,21 +993,20 @@ static void g4x_enable_hdmi(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	u32 temp;
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 
 	temp |= SDVO_ENABLE;
-	if (crtc->config->has_audio)
+	if (pipe_config->has_audio)
 		temp |= SDVO_AUDIO_ENABLE;
 
 	I915_WRITE(intel_hdmi->hdmi_reg, temp);
 	POSTING_READ(intel_hdmi->hdmi_reg);
 
-	if (crtc->config->has_audio)
-		intel_enable_hdmi_audio(encoder);
+	if (pipe_config->has_audio)
+		intel_enable_hdmi_audio(encoder, pipe_config, conn_state);
 }
 
 static void ibx_enable_hdmi(struct intel_encoder *encoder,
@@ -1040,8 +1041,8 @@ static void ibx_enable_hdmi(struct intel_encoder *encoder,
 	 * FIXME: BSpec says this should be done at the end of
 	 * of the modeset sequence, so not sure if this isn't too soon.
 	 */
-	if (crtc->config->pipe_bpp > 24 &&
-	    crtc->config->pixel_multiplier > 1) {
+	if (pipe_config->pipe_bpp > 24 &&
+	    pipe_config->pixel_multiplier > 1) {
 		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 
@@ -1055,8 +1056,8 @@ static void ibx_enable_hdmi(struct intel_encoder *encoder,
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 
-	if (crtc->config->has_audio)
-		intel_enable_hdmi_audio(encoder);
+	if (pipe_config->has_audio)
+		intel_enable_hdmi_audio(encoder, pipe_config, conn_state);
 }
 
 static void cpt_enable_hdmi(struct intel_encoder *encoder,
@@ -1073,7 +1074,7 @@ static void cpt_enable_hdmi(struct intel_encoder *encoder,
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 
 	temp |= SDVO_ENABLE;
-	if (crtc->config->has_audio)
+	if (pipe_config->has_audio)
 		temp |= SDVO_AUDIO_ENABLE;
 
 	/*
@@ -1086,7 +1087,7 @@ static void cpt_enable_hdmi(struct intel_encoder *encoder,
 	 * 4. enable HDMI clock gating
 	 */
 
-	if (crtc->config->pipe_bpp > 24) {
+	if (pipe_config->pipe_bpp > 24) {
 		I915_WRITE(TRANS_CHICKEN1(pipe),
 			   I915_READ(TRANS_CHICKEN1(pipe)) |
 			   TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
@@ -1098,7 +1099,7 @@ static void cpt_enable_hdmi(struct intel_encoder *encoder,
 	I915_WRITE(intel_hdmi->hdmi_reg, temp);
 	POSTING_READ(intel_hdmi->hdmi_reg);
 
-	if (crtc->config->pipe_bpp > 24) {
+	if (pipe_config->pipe_bpp > 24) {
 		temp &= ~SDVO_COLOR_FORMAT_MASK;
 		temp |= HDMI_COLOR_FORMAT_12bpc;
 
@@ -1110,8 +1111,8 @@ static void cpt_enable_hdmi(struct intel_encoder *encoder,
 			   ~TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
 	}
 
-	if (crtc->config->has_audio)
-		intel_enable_hdmi_audio(encoder);
+	if (pipe_config->has_audio)
+		intel_enable_hdmi_audio(encoder, pipe_config, conn_state);
 }
 
 static void vlv_enable_hdmi(struct intel_encoder *encoder,
@@ -1178,9 +1179,7 @@ static void g4x_disable_hdmi(struct intel_encoder *encoder,
 			     struct intel_crtc_state *old_crtc_state,
 			     struct drm_connector_state *old_conn_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-
-	if (crtc->config->has_audio)
+	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder);
 
 	intel_disable_hdmi(encoder, old_crtc_state, old_conn_state);
@@ -1190,9 +1189,7 @@ static void pch_disable_hdmi(struct intel_encoder *encoder,
 			     struct intel_crtc_state *old_crtc_state,
 			     struct drm_connector_state *old_conn_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-
-	if (crtc->config->has_audio)
+	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder);
 }
 
@@ -1645,13 +1642,12 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder,
 				  struct drm_connector_state *conn_state)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	intel_hdmi_prepare(encoder);
 
 	intel_hdmi->set_infoframes(&encoder->base,
-				   intel_crtc->config->has_hdmi_sink,
+				   pipe_config->has_hdmi_sink,
 				   adjusted_mode);
 }
 
@@ -1663,9 +1659,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = &dport->hdmi;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(encoder->base.crtc);
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	vlv_phy_pre_encoder_enable(encoder);
 
@@ -1674,7 +1668,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder,
 				 0x2b247878);
 
 	intel_hdmi->set_infoframes(&encoder->base,
-				   intel_crtc->config->has_hdmi_sink,
+				   pipe_config->has_hdmi_sink,
 				   adjusted_mode);
 
 	g4x_enable_hdmi(encoder, pipe_config, conn_state);
