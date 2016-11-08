@@ -865,19 +865,19 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	err = pm_genpd_init(&pg->genpd, NULL, off);
 	if (err < 0) {
-		pr_err("failed to initialise power domain %s: %d\n", np->name,
+		pr_err("failed to initialise PM domain %s: %d\n", np->name,
 		       err);
 		goto remove_resets;
 	}
 
 	err = of_genpd_add_provider_simple(np, &pg->genpd);
 	if (err < 0) {
-		pr_err("failed to add genpd provider for %s: %d\n", np->name,
-		       err);
+		pr_err("failed to add PM domain provider for %s: %d\n",
+		       np->name, err);
 		goto remove_genpd;
 	}
 
-	pr_debug("added power domain %s\n", pg->genpd.name);
+	pr_debug("added PM domain %s\n", pg->genpd.name);
 
 	return;
 
