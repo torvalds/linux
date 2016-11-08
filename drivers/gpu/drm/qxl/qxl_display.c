@@ -36,7 +36,7 @@ static bool qxl_head_enabled(struct qxl_head *head)
 	return head->width && head->height;
 }
 
-void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned count)
+static void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned count)
 {
 	if (qdev->client_monitors_config &&
 	    count > qdev->client_monitors_config->count) {
@@ -607,7 +607,7 @@ static bool qxl_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-void
+static void
 qxl_send_monitors_config(struct qxl_device *qdev)
 {
 	int i;
