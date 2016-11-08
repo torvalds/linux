@@ -115,9 +115,11 @@ struct thread_struct {
 	unsigned int gmap_write_flag;	/* gmap fault write indication */
 	unsigned int gmap_int_code;	/* int code of last gmap fault */
 	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
+	/* Per-thread information related to debugging */
 	struct per_regs per_user;	/* User specified PER registers */
 	struct per_event per_event;	/* Cause of the last PER trap */
 	unsigned long per_flags;	/* Flags to control debug behavior */
+	unsigned int system_call;	/* system call number in signal */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;

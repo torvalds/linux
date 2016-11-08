@@ -467,13 +467,13 @@ void do_signal(struct pt_regs *regs)
 	 * the debugger may change all our registers, including the system
 	 * call information.
 	 */
-	current_thread_info()->system_call =
+	current->thread.system_call =
 		test_pt_regs_flag(regs, PIF_SYSCALL) ? regs->int_code : 0;
 
 	if (get_signal(&ksig)) {
 		/* Whee!  Actually deliver the signal.  */
-		if (current_thread_info()->system_call) {
-			regs->int_code = current_thread_info()->system_call;
+		if (current->thread.system_call) {
+			regs->int_code = current->thread.system_call;
 			/* Check for system call restarting. */
 			switch (regs->gprs[2]) {
 			case -ERESTART_RESTARTBLOCK:
@@ -506,8 +506,8 @@ void do_signal(struct pt_regs *regs)
 
 	/* No handlers present - check for system call restart */
 	clear_pt_regs_flag(regs, PIF_SYSCALL);
-	if (current_thread_info()->system_call) {
-		regs->int_code = current_thread_info()->system_call;
+	if (current->thread.system_call) {
+		regs->int_code = current->thread.system_call;
 		switch (regs->gprs[2]) {
 		case -ERESTART_RESTARTBLOCK:
 			/* Restart with sys_restart_syscall */
