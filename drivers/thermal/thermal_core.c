@@ -1018,11 +1018,11 @@ static void __unbind(struct thermal_zone_device *tz, int mask,
 }
 
 /**
- * thermal_cooling_device_unregister - removes the registered thermal cooling device
+ * thermal_cooling_device_unregister - removes a thermal cooling device
  * @cdev:	the thermal cooling device to remove.
  *
- * thermal_cooling_device_unregister() must be called when the device is no
- * longer needed.
+ * thermal_cooling_device_unregister() must be called when a registered
+ * thermal cooling device is no longer needed.
  */
 void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 {
