@@ -21,7 +21,7 @@ config DRM_I915_DEBUG
         select PREEMPT_COUNT
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
-        select DRM_DEBUG_MM
+        select DRM_DEBUG_MM if DRM=y
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
