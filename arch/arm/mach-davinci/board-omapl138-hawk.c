@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/gpio.h>
+#include <linux/mfd/da8xx-cfgchip.h>
 #include <linux/platform_data/gpio-davinci.h>
 
 #include <asm/mach-types.h>
@@ -254,7 +255,7 @@ static __init void omapl138_hawk_usb_init(void)
 	/* Setup the Ref. clock frequency for the HAWK at 24 MHz. */
 
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
-	cfgchip2 &= ~CFGCHIP2_REFFREQ;
+	cfgchip2 &= ~CFGCHIP2_REFFREQ_MASK;
 	cfgchip2 |=  CFGCHIP2_REFFREQ_24MHZ;
 	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
