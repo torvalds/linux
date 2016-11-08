@@ -31,7 +31,9 @@ other program after you have done the following:
    more about the configuration process.
 
 3) Add the following entries to ``/etc/rc.local`` or similar script
-   to be run at system startup::
+   to be run at system startup:
+
+   .. code-block:: sh
 
     # Insert BINFMT_MISC module into the kernel
     if [ ! -e /proc/sys/fs/binfmt_misc/register ]; then

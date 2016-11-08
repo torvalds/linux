@@ -136,7 +136,7 @@ pygments_style = 'sphinx'
 todo_include_todos = False
 
 primary_domain = 'C'
-highlight_language = 'guess'
+highlight_language = 'none'
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -336,7 +336,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('user/index', 'linux-user.tex', 'Linux Kernel User Documentation',
+    ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
      'The kernel development community', 'manual'),
     ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
      'The kernel development community', 'manual'),

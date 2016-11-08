@@ -78,7 +78,9 @@ Setting the ramoops parameters can be done in several different manners:
 	};
 
  C. Use a platform device and set the platform data. The parameters can then
- be set through that platform data. An example of doing that is::
+ be set through that platform data. An example of doing that is:
+
+ .. code-block:: c
 
   #include <linux/pstore_ram.h>
   [...]
