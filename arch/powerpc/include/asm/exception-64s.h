@@ -91,7 +91,7 @@
  */
 #define LOAD_HANDLER(reg, label)					\
 	ld	reg,PACAKBASE(r13);	/* get high part of &label */	\
-	ori	reg,reg,(FIXED_SYMBOL_ABS_ADDR(label))@l;
+	ori	reg,reg,FIXED_SYMBOL_ABS_ADDR(label);
 
 #define __LOAD_HANDLER(reg, label)					\
 	ld	reg,PACAKBASE(r13);					\
