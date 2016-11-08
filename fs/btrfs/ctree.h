@@ -799,7 +799,6 @@ struct btrfs_fs_info {
 	spinlock_t super_lock;
 	struct btrfs_super_block *super_copy;
 	struct btrfs_super_block *super_for_commit;
-	struct block_device *__bdev;
 	struct super_block *sb;
 	struct inode *btree_inode;
 	struct backing_dev_info bdi;
