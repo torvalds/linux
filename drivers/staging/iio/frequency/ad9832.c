@@ -211,6 +211,13 @@ static int ad9832_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
+
+	spi_set_drvdata(spi, indio_dev);
+	st = iio_priv(indio_dev);
+
 	st->avdd = devm_regulator_get(&spi->dev, "avdd");
 	if (IS_ERR(st->avdd))
 		return PTR_ERR(st->avdd);
@@ -233,13 +240,6 @@ static int ad9832_probe(struct spi_device *spi)
 		goto error_disable_avdd;
 	}
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (!indio_dev) {
-		ret = -ENOMEM;
-		goto error_disable_dvdd;
-	}
-	spi_set_drvdata(spi, indio_dev);
-	st = iio_priv(indio_dev);
 	st->mclk = pdata->mclk;
 	st->spi = spi;
 
