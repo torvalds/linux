@@ -586,7 +586,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 
 	/*
 	 * The task might have changed its scheduling policy to something
-	 * different than SCHED_DEADLINE (through switched_fromd_dl()).
+	 * different than SCHED_DEADLINE (through switched_from_dl()).
 	 */
 	if (!dl_task(p)) {
 		__dl_clear_params(p);
