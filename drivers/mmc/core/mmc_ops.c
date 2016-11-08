@@ -461,7 +461,7 @@ int mmc_switch_status(struct mmc_card *card)
 }
 
 static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
-			bool send_status, bool ignore_crc)
+			bool send_status, bool retry_crc_err)
 {
 	struct mmc_host *host = card->host;
 	int err;
@@ -496,7 +496,7 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 			busy = host->ops->card_busy(host);
 		} else {
 			err = mmc_send_status(card, &status);
-			if (ignore_crc && err == -EILSEQ)
+			if (retry_crc_err && err == -EILSEQ)
 				busy = true;
 			else if (err)
 				return err;
@@ -528,13 +528,13 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
  *                   timeout of zero implies maximum possible timeout
  *	@use_busy_signal: use the busy signal as response type
  *	@send_status: send status cmd to poll for busy
- *	@ignore_crc: ignore CRC errors when sending status cmd to poll for busy
+ *	@retry_crc_err: retry when CRC errors when polling with CMD13 for busy
  *
  *	Modifies the EXT_CSD register for selected card.
  */
 int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		unsigned int timeout_ms, bool use_busy_signal, bool send_status,
-		bool ignore_crc)
+		bool retry_crc_err)
 {
 	struct mmc_host *host = card->host;
 	int err;
@@ -590,7 +590,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	}
 
 	/* Let's try to poll to find out when the command is completed. */
-	err = mmc_poll_for_busy(card, timeout_ms, send_status, ignore_crc);
+	err = mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err);
 out:
 	mmc_retune_release(host);
 
