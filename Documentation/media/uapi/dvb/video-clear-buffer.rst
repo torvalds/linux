@@ -11,11 +11,13 @@ Name
 
 VIDEO_CLEAR_BUFFER
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_CLEAR_BUFFER)
+.. c:function:: int ioctl(fd, VIDEO_CLEAR_BUFFER)
+    :name: VIDEO_CLEAR_BUFFER
 
 
 Arguments

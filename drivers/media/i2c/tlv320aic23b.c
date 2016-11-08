@@ -210,7 +210,6 @@ MODULE_DEVICE_TABLE(i2c, tlv320aic23b_id);
 
 static struct i2c_driver tlv320aic23b_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tlv320aic23b",
 	},
 	.probe		= tlv320aic23b_probe,

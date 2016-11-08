@@ -77,6 +77,9 @@ enum vsp1_pipeline_state {
  * @uds_input: entity at the input of the UDS, if the UDS is present
  * @entities: list of entities in the pipeline
  * @dl: display list associated with the pipeline
+ * @div_size: The maximum allowed partition size for the pipeline
+ * @partitions: The number of partitions used to process one frame
+ * @current_partition: The partition number currently being configured
  */
 struct vsp1_pipeline {
 	struct media_pipeline pipe;
@@ -104,6 +107,11 @@ struct vsp1_pipeline {
 	struct list_head entities;
 
 	struct vsp1_dl_list *dl;
+
+	unsigned int div_size;
+	unsigned int partitions;
+	struct v4l2_rect partition;
+	unsigned int current_partition;
 };
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);
@@ -122,6 +130,7 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 void vsp1_pipelines_suspend(struct vsp1_device *vsp1);
 void vsp1_pipelines_resume(struct vsp1_device *vsp1);
 
-const struct vsp1_format_info *vsp1_get_format_info(u32 fourcc);
+const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
+						    u32 fourcc);
 
 #endif /* __VSP1_PIPE_H__ */

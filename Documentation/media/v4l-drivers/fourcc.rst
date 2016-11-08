@@ -1,4 +1,4 @@
-Guidelines for Linux4Linux pixel format 4CCs
+Guidelines for Video4Linux pixel format 4CCs
 ============================================
 
 Guidelines for Video4Linux 4CC codes defined using v4l2_fourcc() are

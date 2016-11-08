@@ -8,7 +8,7 @@ Streaming I/O (User Pointers)
 
 Input and output devices support this I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set. If the
 particular user pointer method (not only memory mapping) is supported
 must be determined by calling the :ref:`VIDIOC_REQBUFS` ioctl
@@ -18,8 +18,8 @@ This I/O method combines advantages of the read/write and memory mapping
 methods. Buffers (planes) are allocated by the application itself, and
 can reside for example in virtual or shared memory. Only pointers to
 data are exchanged, these pointers and meta-information are passed in
-struct :ref:`v4l2_buffer <v4l2-buffer>` (or in struct
-:ref:`v4l2_plane <v4l2-plane>` in the multi-planar API case). The
+struct :c:type:`v4l2_buffer` (or in struct
+:c:type:`v4l2_plane` in the multi-planar API case). The
 driver must be switched into user pointer I/O mode by calling the
 :ref:`VIDIOC_REQBUFS` with the desired buffer type.
 No buffers (planes) are allocated beforehand, consequently they are not
@@ -88,11 +88,13 @@ To start and stop capturing or output applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctl.
 
-.. note:: ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
+.. note::
+
+   ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
    both queues and unlocks all buffers as a side effect. Since there is no
    notion of doing anything "now" on a multitasking system, if an
    application needs to synchronize with another event it should examine
-   the struct :ref:`v4l2_buffer <v4l2-buffer>` ``timestamp`` of captured or
+   the struct :c:type:`v4l2_buffer` ``timestamp`` of captured or
    outputted buffers.
 
 Drivers implementing user pointer I/O must support the

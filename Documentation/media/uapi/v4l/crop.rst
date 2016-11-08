@@ -15,7 +15,9 @@ offset into a video signal.
 Applications can use the following API to select an area in the video
 signal, query the default area and the hardware limits.
 
-.. note:: Despite their name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
+.. note::
+
+   Despite their name, the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>`,
    :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and :ref:`VIDIOC_S_CROP
    <VIDIOC_G_CROP>` ioctls apply to input as well as output devices.
 
@@ -38,7 +40,9 @@ support scaling or the :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and
 :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctls. Their size (and position
 where applicable) will be fixed in this case.
 
-.. note:: All capture and output devices must support the
+.. note::
+
+   All capture and output devices must support the
    :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` ioctl such that applications
    can determine if scaling takes place.
 
@@ -61,7 +65,7 @@ Cropping Structures
 
 For capture devices the coordinates of the top left corner, width and
 height of the area which can be sampled is given by the ``bounds``
-substructure of the struct :ref:`v4l2_cropcap <v4l2-cropcap>` returned
+substructure of the struct :c:type:`v4l2_cropcap` returned
 by the :ref:`VIDIOC_CROPCAP <VIDIOC_CROPCAP>` ioctl. To support a wide
 range of hardware this specification does not define an origin or units.
 However by convention drivers should horizontally count unscaled samples
@@ -73,8 +77,8 @@ can capture both fields.
 
 The top left corner, width and height of the source rectangle, that is
 the area actually sampled, is given by struct
-:ref:`v4l2_crop <v4l2-crop>` using the same coordinate system as
-struct :ref:`v4l2_cropcap <v4l2-cropcap>`. Applications can use the
+:c:type:`v4l2_crop` using the same coordinate system as
+struct :c:type:`v4l2_cropcap`. Applications can use the
 :ref:`VIDIOC_G_CROP <VIDIOC_G_CROP>` and :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>`
 ioctls to get and set this rectangle. It must lie completely within the
 capture boundaries and the driver may further adjust the requested size
@@ -82,7 +86,7 @@ and/or position according to hardware limitations.
 
 Each capture device has a default source rectangle, given by the
 ``defrect`` substructure of struct
-:ref:`v4l2_cropcap <v4l2-cropcap>`. The center of this rectangle
+:c:type:`v4l2_cropcap`. The center of this rectangle
 shall align with the center of the active picture area of the video
 signal, and cover what the driver writer considers the complete picture.
 Drivers shall reset the source rectangle to the default when the driver
@@ -100,11 +104,11 @@ Video hardware can have various cropping, insertion and scaling
 limitations. It may only scale up or down, support only discrete scaling
 factors, or have different scaling abilities in horizontal and vertical
 direction. Also it may not support scaling at all. At the same time the
-struct :ref:`v4l2_crop <v4l2-crop>` rectangle may have to be aligned,
+struct :c:type:`v4l2_crop` rectangle may have to be aligned,
 and both the source and target rectangles may have arbitrary upper and
 lower size limits. In particular the maximum ``width`` and ``height`` in
-struct :ref:`v4l2_crop <v4l2-crop>` may be smaller than the struct
-:ref:`v4l2_cropcap <v4l2-cropcap>`. ``bounds`` area. Therefore, as
+struct :c:type:`v4l2_crop` may be smaller than the struct
+:c:type:`v4l2_cropcap`. ``bounds`` area. Therefore, as
 usual, drivers are expected to adjust the requested parameters and
 return the actual values selected.
 
@@ -144,7 +148,9 @@ reopening a device, such that piping data into or out of a device will
 work without special preparations. More advanced applications should
 ensure the parameters are suitable before starting I/O.
 
-.. note:: On the next two examples, a video capture device is assumed;
+.. note::
+
+   On the next two examples, a video capture device is assumed;
    change ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` for other types of device.
 
 Example: Resetting the cropping parameters

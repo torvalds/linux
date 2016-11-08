@@ -469,16 +469,16 @@ static int vp8_enc_deinit(unsigned long handle)
 	return ret;
 }
 
-static struct venc_common_if venc_vp8_if = {
+static const struct venc_common_if venc_vp8_if = {
 	vp8_enc_init,
 	vp8_enc_encode,
 	vp8_enc_set_param,
 	vp8_enc_deinit,
 };
 
-struct venc_common_if *get_vp8_enc_comm_if(void);
+const struct venc_common_if *get_vp8_enc_comm_if(void);
 
-struct venc_common_if *get_vp8_enc_comm_if(void)
+const struct venc_common_if *get_vp8_enc_comm_if(void)
 {
 	return &venc_vp8_if;
 }

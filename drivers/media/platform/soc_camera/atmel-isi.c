@@ -536,7 +536,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	pm_runtime_put(ici->v4l2_dev.dev);
 }
 
-static struct vb2_ops isi_video_qops = {
+static const struct vb2_ops isi_video_qops = {
 	.queue_setup		= queue_setup,
 	.buf_init		= buffer_init,
 	.buf_prepare		= buffer_prepare,

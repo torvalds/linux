@@ -797,16 +797,11 @@ static int imon_probe(struct usb_interface *interface,
 		goto free_rbuf;
 	}
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rx_urb) {
-		dev_err(dev, "%s: usb_alloc_urb failed for IR urb\n", __func__);
+	if (!rx_urb)
 		goto free_lirc_buf;
-	}
 	tx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!tx_urb) {
-		dev_err(dev, "%s: usb_alloc_urb failed for display urb\n",
-		    __func__);
+	if (!tx_urb)
 		goto free_rx_urb;
-	}
 
 	mutex_init(&context->ctx_lock);
 	context->vfd_proto_6p = vfd_proto_6p;

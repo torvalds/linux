@@ -934,7 +934,6 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 	for (i = 0; i < usb_bufs->num_bufs; i++) {
 		urb = usb_alloc_urb(usb_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
-			em28xx_err("cannot alloc usb_ctl.urb %i\n", i);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
