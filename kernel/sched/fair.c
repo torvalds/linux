@@ -719,9 +719,7 @@ void init_entity_runnable_average(struct sched_entity *se)
 }
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
-static int update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq);
-static void update_tg_load_avg(struct cfs_rq *cfs_rq, int force);
-static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se);
+static void attach_entity_cfs_rq(struct sched_entity *se);
 
 /*
  * With new tasks being created, their initial util_avgs are extrapolated
@@ -753,7 +751,6 @@ void post_init_entity_util_avg(struct sched_entity *se)
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	struct sched_avg *sa = &se->avg;
 	long cap = (long)(SCHED_CAPACITY_SCALE - cfs_rq->avg.util_avg) / 2;
-	u64 now = cfs_rq_clock_task(cfs_rq);
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
@@ -785,14 +782,12 @@ void post_init_entity_util_avg(struct sched_entity *se)
 			 * such that the next switched_to_fair() has the
 			 * expected state.
 			 */
-			se->avg.last_update_time = now;
+			se->avg.last_update_time = cfs_rq_clock_task(cfs_rq);
 			return;
 		}
 	}
 
-	update_cfs_rq_load_avg(now, cfs_rq, false);
-	attach_entity_load_avg(cfs_rq, se);
-	update_tg_load_avg(cfs_rq, false);
+	attach_entity_cfs_rq(se);
 }
 
 static inline unsigned long cfs_rq_runnable_load_avg(struct cfs_rq *cfs_rq);
@@ -9393,20 +9388,10 @@ static inline bool vruntime_normalized(struct task_struct *p)
 	return false;
 }
 
-static void detach_task_cfs_rq(struct task_struct *p)
+static void detach_entity_cfs_rq(struct sched_entity *se)
 {
-	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	u64 now = cfs_rq_clock_task(cfs_rq);
-
-	if (!vruntime_normalized(p)) {
-		/*
-		 * Fix up our vruntime so that the current sleep doesn't
-		 * cause 'unlimited' sleep bonus.
-		 */
-		place_entity(cfs_rq, se, 0);
-		se->vruntime -= cfs_rq->min_vruntime;
-	}
 
 	/* Catch up with the cfs_rq and remove our load when we leave */
 	update_cfs_rq_load_avg(now, cfs_rq, false);
@@ -9414,9 +9399,8 @@ static void detach_task_cfs_rq(struct task_struct *p)
 	update_tg_load_avg(cfs_rq, false);
 }
 
-static void attach_task_cfs_rq(struct task_struct *p)
+static void attach_entity_cfs_rq(struct sched_entity *se)
 {
-	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 	u64 now = cfs_rq_clock_task(cfs_rq);
 
@@ -9428,10 +9412,35 @@ static void attach_task_cfs_rq(struct task_struct *p)
 	se->depth = se->parent ? se->parent->depth + 1 : 0;
 #endif
 
-	/* Synchronize task with its cfs_rq */
+	/* Synchronize entity with its cfs_rq */
 	update_cfs_rq_load_avg(now, cfs_rq, false);
 	attach_entity_load_avg(cfs_rq, se);
 	update_tg_load_avg(cfs_rq, false);
+}
+
+static void detach_task_cfs_rq(struct task_struct *p)
+{
+	struct sched_entity *se = &p->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+	if (!vruntime_normalized(p)) {
+		/*
+		 * Fix up our vruntime so that the current sleep doesn't
+		 * cause 'unlimited' sleep bonus.
+		 */
+		place_entity(cfs_rq, se, 0);
+		se->vruntime -= cfs_rq->min_vruntime;
+	}
+
+	detach_entity_cfs_rq(se);
+}
+
+static void attach_task_cfs_rq(struct task_struct *p)
+{
+	struct sched_entity *se = &p->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+	attach_entity_cfs_rq(se);
 
 	if (!vruntime_normalized(p))
 		se->vruntime += cfs_rq->min_vruntime;
