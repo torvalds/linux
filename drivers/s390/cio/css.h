@@ -130,6 +130,16 @@ struct channel_subsystem {
 
 extern struct channel_subsystem *channel_subsystems[];
 
+/* Dummy helper which needs to change once we support more than one css. */
+static inline struct channel_subsystem *css_by_id(u8 cssid)
+{
+	return channel_subsystems[0];
+}
+
+/* Dummy iterator which needs to change once we support more than one css. */
+#define for_each_css(css)						\
+	for ((css) = channel_subsystems[0]; (css); (css) = NULL)
+
 /* Helper functions to build lists for the slow path. */
 void css_schedule_eval(struct subchannel_id schid);
 void css_schedule_eval_all(void);

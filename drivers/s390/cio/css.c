@@ -36,7 +36,8 @@
 int css_init_done = 0;
 int max_ssid;
 
-struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
+#define MAX_CSS_IDX 0
+struct channel_subsystem *channel_subsystems[MAX_CSS_IDX + 1];
 static struct bus_type css_bus_type;
 
 int
@@ -805,13 +806,11 @@ static int css_reboot_event(struct notifier_block *this,
 			    unsigned long event,
 			    void *ptr)
 {
-	int ret, i;
+	struct channel_subsystem *css;
+	int ret;
 
 	ret = NOTIFY_DONE;
-	for (i = 0; i <= __MAX_CSSID; i++) {
-		struct channel_subsystem *css;
-
-		css = channel_subsystems[i];
+	for_each_css(css) {
 		mutex_lock(&css->mutex);
 		if (css->cm_enabled)
 			if (chsc_secm(css, 0))
@@ -835,16 +834,14 @@ static struct notifier_block css_reboot_notifier = {
 static int css_power_event(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	int ret, i;
+	struct channel_subsystem *css;
+	int ret;
 
 	switch (event) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
 		ret = NOTIFY_DONE;
-		for (i = 0; i <= __MAX_CSSID; i++) {
-			struct channel_subsystem *css;
-
-			css = channel_subsystems[i];
+		for_each_css(css) {
 			mutex_lock(&css->mutex);
 			if (!css->cm_enabled) {
 				mutex_unlock(&css->mutex);
@@ -858,10 +855,7 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
 		ret = NOTIFY_DONE;
-		for (i = 0; i <= __MAX_CSSID; i++) {
-			struct channel_subsystem *css;
-
-			css = channel_subsystems[i];
+		for_each_css(css) {
 			mutex_lock(&css->mutex);
 			if (!css->cm_enabled) {
 				mutex_unlock(&css->mutex);
@@ -916,7 +910,7 @@ static int __init css_bus_init(void)
 		goto out;
 
 	/* Setup css structure. */
-	for (i = 0; i <= __MAX_CSSID; i++) {
+	for (i = 0; i <= MAX_CSS_IDX; i++) {
 		struct channel_subsystem *css;
 
 		css = kmalloc(sizeof(struct channel_subsystem), GFP_KERNEL);
@@ -993,10 +987,8 @@ out:
 static void __init css_bus_cleanup(void)
 {
 	struct channel_subsystem *css;
-	int i;
 
-	for (i = 0; i <= __MAX_CSSID; i++) {
-		css = channel_subsystems[i];
+	for_each_css(css) {
 		device_unregister(&css->pseudo_subchannel->dev);
 		css->pseudo_subchannel = NULL;
 		if (css_chsc_characteristics.secm)
