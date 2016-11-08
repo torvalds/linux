@@ -4439,19 +4439,12 @@ i40e_status i40e_read_phy_register_clause22(struct i40e_hw *hw,
 	if (status) {
 		i40e_debug(hw, I40E_DEBUG_PHY,
 			   "PHY: Can't write command to external PHY.\n");
-		goto phy_read_end;
-	}
-
-	if (!status) {
+	} else {
 		command = rd32(hw, I40E_GLGEN_MSRWD(port_num));
 		*value = (command & I40E_GLGEN_MSRWD_MDIRDDATA_MASK) >>
 			 I40E_GLGEN_MSRWD_MDIRDDATA_SHIFT;
-	} else {
-		i40e_debug(hw, I40E_DEBUG_PHY,
-			   "PHY: Can't read register value from external PHY.\n");
 	}
 
-phy_read_end:
 	return status;
 }
 
