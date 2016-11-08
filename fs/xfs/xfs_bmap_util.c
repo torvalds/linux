@@ -1792,6 +1792,7 @@ xfs_swap_extent_forks(
 	struct xfs_ifork	tempifp, *ifp, *tifp;
 	int			aforkblks = 0;
 	int			taforkblks = 0;
+	xfs_extnum_t		nextents;
 	__uint64_t		tmp;
 	int			error;
 
@@ -1881,7 +1882,8 @@ xfs_swap_extent_forks(
 		 * pointer.  Otherwise it's already NULL or
 		 * pointing to the extent.
 		 */
-		if (ip->i_d.di_nextents <= XFS_INLINE_EXTS) {
+		nextents = ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+		if (nextents <= XFS_INLINE_EXTS) {
 			ifp->if_u1.if_extents =
 				ifp->if_u2.if_inline_ext;
 		}
@@ -1900,7 +1902,8 @@ xfs_swap_extent_forks(
 		 * pointer.  Otherwise it's already NULL or
 		 * pointing to the extent.
 		 */
-		if (tip->i_d.di_nextents <= XFS_INLINE_EXTS) {
+		nextents = tip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+		if (nextents <= XFS_INLINE_EXTS) {
 			tifp->if_u1.if_extents =
 				tifp->if_u2.if_inline_ext;
 		}
