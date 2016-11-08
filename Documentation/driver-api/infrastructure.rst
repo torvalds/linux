@@ -86,10 +86,10 @@ reservation
 fence
 ~~~~~
 
-.. kernel-doc:: drivers/dma-buf/fence.c
+.. kernel-doc:: drivers/dma-buf/dma-fence.c
    :export:
 
-.. kernel-doc:: include/linux/fence.h
+.. kernel-doc:: include/linux/dma-fence.h
    :internal:
 
 .. kernel-doc:: drivers/dma-buf/seqno-fence.c
@@ -98,10 +98,10 @@ fence
 .. kernel-doc:: include/linux/seqno-fence.h
    :internal:
 
-.. kernel-doc:: drivers/dma-buf/fence-array.c
+.. kernel-doc:: drivers/dma-buf/dma-fence-array.c
    :export:
 
-.. kernel-doc:: include/linux/fence-array.h
+.. kernel-doc:: include/linux/dma-fence-array.h
    :internal:
 
 .. kernel-doc:: drivers/dma-buf/reservation.c
