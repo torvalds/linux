@@ -756,15 +756,13 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	struct cifs_ses *ses = sess_data->ses;
 
 	mutex_lock(&ses->server->srv_mutex);
-	if (ses->server->sign && ses->server->ops->generate_signingkey) {
+	if (ses->server->ops->generate_signingkey) {
 		rc = ses->server->ops->generate_signingkey(ses);
-		kfree(ses->auth_key.response);
-		ses->auth_key.response = NULL;
 		if (rc) {
 			cifs_dbg(FYI,
 				"SMB3 session key generation failed\n");
 			mutex_unlock(&ses->server->srv_mutex);
-			goto keygen_exit;
+			return rc;
 		}
 	}
 	if (!ses->server->session_estab) {
@@ -778,12 +776,6 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	ses->status = CifsGood;
 	ses->need_reconnect = false;
 	spin_unlock(&GlobalMid_Lock);
-
-keygen_exit:
-	if (!ses->server->sign) {
-		kfree(ses->auth_key.response);
-		ses->auth_key.response = NULL;
-	}
 	return rc;
 }
 
