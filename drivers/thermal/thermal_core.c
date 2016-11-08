@@ -799,9 +799,6 @@ int thermal_build_list_of_policies(char *buf)
 }
 
 /* sys I/F for cooling device */
-#define to_cooling_device(_dev)	\
-	container_of(_dev, struct thermal_cooling_device, device)
-
 static ssize_t
 thermal_cooling_device_type_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
