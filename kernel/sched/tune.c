@@ -640,6 +640,7 @@ schedtune_boostgroup_init(struct schedtune *st)
 		bg = &per_cpu(cpu_boost_groups, cpu);
 		bg->group[st->idx].boost = 0;
 		bg->group[st->idx].tasks = 0;
+		raw_spin_lock_init(&bg->lock);
 	}
 
 	return 0;
