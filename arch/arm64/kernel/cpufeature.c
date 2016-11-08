@@ -746,6 +746,14 @@ static bool hyp_offset_low(const struct arm64_cpu_capabilities *entry,
 	return idmap_addr > GENMASK(VA_BITS - 2, 0) && !is_kernel_in_hyp_mode();
 }
 
+static bool has_no_fpsimd(const struct arm64_cpu_capabilities *entry, int __unused)
+{
+	u64 pfr0 = read_system_reg(SYS_ID_AA64PFR0_EL1);
+
+	return cpuid_feature_extract_signed_field(pfr0,
+					ID_AA64PFR0_FP_SHIFT) < 0;
+}
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "GIC system register CPU interface",
@@ -828,6 +836,13 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HYP_OFFSET_LOW,
 		.def_scope = SCOPE_SYSTEM,
 		.matches = hyp_offset_low,
+	},
+	{
+		/* FP/SIMD is not implemented */
+		.capability = ARM64_HAS_NO_FPSIMD,
+		.def_scope = SCOPE_SYSTEM,
+		.min_field_value = 0,
+		.matches = has_no_fpsimd,
 	},
 	{},
 };

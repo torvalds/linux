@@ -38,8 +38,13 @@
 #define ARM64_HAS_32BIT_EL0			13
 #define ARM64_HYP_OFFSET_LOW			14
 #define ARM64_MISMATCHED_CACHE_LINE_SIZE	15
+/*
+ * The macro below will be moved to asm/cpucaps.h together with the
+ * ARM64_NCAPS update.
+ */
+#define ARM64_HAS_NO_FPSIMD			16
 
-#define ARM64_NCAPS				16
+#define ARM64_NCAPS				17
 
 #ifndef __ASSEMBLY__
 
@@ -229,6 +234,11 @@ static inline bool system_supports_32bit_el0(void)
 static inline bool system_supports_mixed_endian_el0(void)
 {
 	return id_aa64mmfr0_mixed_endian_el0(read_system_reg(SYS_ID_AA64MMFR0_EL1));
+}
+
+static inline bool system_supports_fpsimd(void)
+{
+	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
 }
 
 #endif /* __ASSEMBLY__ */
