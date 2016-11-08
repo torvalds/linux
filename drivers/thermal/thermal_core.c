@@ -286,6 +286,17 @@ static void thermal_unregister_governors(void)
 	thermal_gov_power_allocator_unregister();
 }
 
+/*
+ * Zone update section: main control loop applied to each zone while monitoring
+ *
+ * in polling mode. The monitoring is done using a workqueue.
+ * Same update may be done on a zone by calling thermal_zone_device_update().
+ *
+ * An update means:
+ * - Non-critical trips will invoke the governor responsible for that zone;
+ * - Hot trips will produce a notification to userspace;
+ * - Critical trip point will cause a system shutdown.
+ */
 static void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 					    int delay)
 {
