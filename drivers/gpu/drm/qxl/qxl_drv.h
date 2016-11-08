@@ -398,9 +398,6 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
 int qxl_create_monitors_object(struct qxl_device *qdev);
 int qxl_destroy_monitors_object(struct qxl_device *qdev);
 
-/* used by qxl_debugfs only */
-void qxl_crtc_set_from_monitors_config(struct qxl_device *qdev);
-
 /* qxl_gem.c */
 int qxl_gem_init(struct qxl_device *qdev);
 void qxl_gem_fini(struct qxl_device *qdev);
