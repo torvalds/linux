@@ -26,6 +26,43 @@
 #include <linux/seg6.h>
 #include <linux/seg6_genl.h>
 
+bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len)
+{
+	int trailing;
+	unsigned int tlv_offset;
+
+	if (srh->type != IPV6_SRCRT_TYPE_4)
+		return false;
+
+	if (((srh->hdrlen + 1) << 3) != len)
+		return false;
+
+	if (srh->segments_left != srh->first_segment)
+		return false;
+
+	tlv_offset = sizeof(*srh) + ((srh->first_segment + 1) << 4);
+
+	trailing = len - tlv_offset;
+	if (trailing < 0)
+		return false;
+
+	while (trailing) {
+		struct sr6_tlv *tlv;
+		unsigned int tlv_len;
+
+		tlv = (struct sr6_tlv *)((unsigned char *)srh + tlv_offset);
+		tlv_len = sizeof(*tlv) + tlv->len;
+
+		trailing -= tlv_len;
+		if (trailing < 0)
+			return false;
+
+		tlv_offset += tlv_len;
+	}
+
+	return true;
+}
+
 static struct genl_family seg6_genl_family;
 
 static const struct nla_policy seg6_genl_policy[SEG6_ATTR_MAX + 1] = {
@@ -198,10 +235,16 @@ int __init seg6_init(void)
 	if (err)
 		goto out_unregister_genl;
 
+	err = seg6_iptunnel_init();
+	if (err)
+		goto out_unregister_pernet;
+
 	pr_info("Segment Routing with IPv6\n");
 
 out:
 	return err;
+out_unregister_pernet:
+	unregister_pernet_subsys(&ip6_segments_ops);
 out_unregister_genl:
 	genl_unregister_family(&seg6_genl_family);
 	goto out;
@@ -209,6 +252,7 @@ out_unregister_genl:
 
 void seg6_exit(void)
 {
+	seg6_iptunnel_exit();
 	unregister_pernet_subsys(&ip6_segments_ops);
 	genl_unregister_family(&seg6_genl_family);
 }

@@ -16,6 +16,8 @@
 
 #include <linux/net.h>
 #include <linux/ipv6.h>
+#include <net/lwtunnel.h>
+#include <linux/seg6.h>
 
 static inline void update_csum_diff4(struct sk_buff *skb, __be32 from,
 				     __be32 to)
@@ -48,5 +50,9 @@ static inline struct seg6_pernet_data *seg6_pernet(struct net *net)
 
 extern int seg6_init(void);
 extern void seg6_exit(void);
+extern int seg6_iptunnel_init(void);
+extern void seg6_iptunnel_exit(void);
+
+extern bool seg6_validate_srh(struct ipv6_sr_hdr *srh, int len);
 
 #endif
