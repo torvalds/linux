@@ -3579,7 +3579,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	    (ena_mask & I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK)) {
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
 		icr0 &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
-		dev_info(&pf->pdev->dev, "cleared PE_CRITERR\n");
+		dev_dbg(&pf->pdev->dev, "cleared PE_CRITERR\n");
 	}
 
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
