@@ -5546,6 +5546,20 @@ void memzero_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	}
 }
 
+void copy_extent_buffer_full(struct extent_buffer *dst,
+			     struct extent_buffer *src)
+{
+	int i;
+	unsigned num_pages;
+
+	ASSERT(dst->len == src->len);
+
+	num_pages = num_extent_pages(dst->start, dst->len);
+	for (i = 0; i < num_pages; i++)
+		copy_page(page_address(dst->pages[i]),
+				page_address(src->pages[i]));
+}
+
 void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 			unsigned long dst_offset, unsigned long src_offset,
 			unsigned long len)

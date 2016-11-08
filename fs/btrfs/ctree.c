@@ -260,7 +260,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
-	copy_extent_buffer(cow, buf, 0, 0, cow->len);
+	copy_extent_buffer_full(cow, buf);
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_backref_rev(cow, BTRFS_MIXED_BACKREF_REV);
@@ -1129,7 +1129,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	/* cow is set to blocking by btrfs_init_new_buffer */
 
-	copy_extent_buffer(cow, buf, 0, 0, cow->len);
+	copy_extent_buffer_full(cow, buf);
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_backref_rev(cow, BTRFS_MIXED_BACKREF_REV);
