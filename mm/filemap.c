@@ -137,8 +137,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
 		} else {
 			/* DAX can replace empty locked entry with a hole */
 			WARN_ON_ONCE(p !=
-				(void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
-					 RADIX_DAX_ENTRY_LOCK));
+				dax_radix_locked_entry(0, RADIX_DAX_EMPTY));
 			/* DAX accounts exceptional entries as normal pages */
 			if (node)
 				workingset_node_pages_dec(node);
