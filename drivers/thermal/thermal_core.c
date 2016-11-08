@@ -1900,7 +1900,7 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
 				   &tz->trip_temp_attrs[indx].attr);
 		if (tz->ops->get_trip_hyst)
 			device_remove_file(&tz->device,
-				  &tz->trip_hyst_attrs[indx].attr);
+					   &tz->trip_hyst_attrs[indx].attr);
 	}
 	kfree(tz->trip_type_attrs);
 	kfree(tz->trip_temp_attrs);
