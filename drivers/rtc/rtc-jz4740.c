@@ -252,12 +252,11 @@ static irqreturn_t jz4740_rtc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void jz4740_rtc_poweroff(struct device *dev)
+static void jz4740_rtc_poweroff(struct device *dev)
 {
 	struct jz4740_rtc *rtc = dev_get_drvdata(dev);
 	jz4740_rtc_reg_write(rtc, JZ_REG_RTC_HIBERNATE, 1);
 }
-EXPORT_SYMBOL_GPL(jz4740_rtc_poweroff);
 
 static void jz4740_rtc_power_off(void)
 {
