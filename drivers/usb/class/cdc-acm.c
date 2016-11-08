@@ -877,9 +877,6 @@ static int get_serial_info(struct acm *acm, struct serial_struct __user *info)
 {
 	struct serial_struct tmp;
 
-	if (!info)
-		return -EINVAL;
-
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.flags = ASYNC_LOW_LATENCY;
 	tmp.xmit_fifo_size = acm->writesize;
