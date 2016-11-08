@@ -26,6 +26,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/pmu.h>
+#include <subdev/timer.h>
 
 static void
 pmu_code(struct nv50_devinit *init, u32 pmu, u32 img, u32 len, bool sec)
@@ -128,8 +129,11 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 		nvkm_mask(device, 0x000200, 0x00002000, 0x00000000);
 		nvkm_mask(device, 0x000200, 0x00002000, 0x00002000);
 		nvkm_rd32(device, 0x000200);
-		while (nvkm_rd32(device, 0x10a10c) & 0x00000006) {
-		}
+		if (nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x10a10c) & 0x00000006))
+				break;
+		) < 0)
+			return -ETIMEDOUT;
 	}
 
 	ret = pmu_load(init, 0x04, post, &exec, &args);
@@ -156,8 +160,11 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 	if (post) {
 		nvkm_wr32(device, 0x10a040, 0x00005000);
 		pmu_exec(init, exec);
-		while (!(nvkm_rd32(device, 0x10a040) & 0x00002000)) {
-		}
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x10a040) & 0x00002000)
+				break;
+		) < 0)
+			return -ETIMEDOUT;
 	}
 
 	/* load and execute some other ucode image (bios therm?) */
