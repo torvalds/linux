@@ -31,6 +31,8 @@ int main(void)
 	BLANK();
 	/* thread struct offsets */
 	OFFSET(__THREAD_ksp, thread_struct, ksp);
+	OFFSET(__THREAD_sysc_table,  thread_struct, sys_call_table);
+	OFFSET(__THREAD_last_break, thread_struct, last_break);
 	OFFSET(__THREAD_FPU_fpc, thread_struct, fpu.fpc);
 	OFFSET(__THREAD_FPU_regs, thread_struct, fpu.regs);
 	OFFSET(__THREAD_per_cause, thread_struct, per_event.cause);
@@ -40,8 +42,6 @@ int main(void)
 	BLANK();
 	/* thread info offsets */
 	OFFSET(__TI_flags, task_struct, thread_info.flags);
-	OFFSET(__TI_sysc_table,  task_struct, thread_info.sys_call_table);
-	OFFSET(__TI_last_break, task_struct, thread_info.last_break);
 	BLANK();
 	/* pt_regs offsets */
 	OFFSET(__PT_ARGS, pt_regs, args);

@@ -112,6 +112,7 @@ struct thread_struct {
         unsigned long ksp;              /* kernel stack pointer             */
 	unsigned long user_timer;	/* task cputime in user space */
 	unsigned long system_timer;	/* task cputime in kernel space */
+	unsigned long sys_call_table;	/* system call table address */
 	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
 	unsigned int gmap_write_flag;	/* gmap fault write indication */
@@ -122,6 +123,7 @@ struct thread_struct {
 	struct per_event per_event;	/* Cause of the last PER trap */
 	unsigned long per_flags;	/* Flags to control debug behavior */
 	unsigned int system_call;	/* system call number in signal */
+	unsigned long last_break;	/* last breaking-event-address. */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;

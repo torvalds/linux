@@ -31,8 +31,6 @@
  */
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
-	unsigned long		sys_call_table;	/* System call table address */
-	unsigned long		last_break;	/* last breaking-event-address. */
 };
 
 /*

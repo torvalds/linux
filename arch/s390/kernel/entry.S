@@ -124,7 +124,12 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	.macro	LAST_BREAK scratch
 	srag	\scratch,%r10,23
 	jz	.+10
-	stg	%r10,__TI_last_break(%r12)
+#ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
+	stg	%r10,__TASK_thread+__THREAD_last_break(%r12)
+#else
+	lghi	\scratch,__TASK_thread
+	stg	%r10,__THREAD_last_break(\scratch,%r12)
+#endif
 	.endm
 
 	.macro REENABLE_IRQS
@@ -287,7 +292,13 @@ ENTRY(system_call)
 	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
 	stg	%r14,__PT_FLAGS(%r11)
 .Lsysc_do_svc:
-	lg	%r10,__TI_sysc_table(%r12)	# address of system call table
+	# load address of system call table
+#ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
+	lg	%r10,__TASK_thread+__THREAD_sysc_table(%r12)
+#else
+	lghi	%r13,__TASK_thread
+	lg	%r10,__THREAD_sysc_table(%r13,%r12)
+#endif
 	llgh	%r8,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r8,2			# shift and test for svc 0
 	jnz	.Lsysc_nr_ok
@@ -388,7 +399,6 @@ ENTRY(system_call)
 	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
 	jno	.Lsysc_return
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
-	lg	%r10,__TI_sysc_table(%r12)	# address of system call table
 	lghi	%r8,0			# svc 0 returns -ENOSYS
 	llgh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
 	cghi	%r1,NR_syscalls
@@ -1084,7 +1094,7 @@ cleanup_critical:
 	jhe	0f
 	# set up saved registers r10 and r12
 	stg	%r10,16(%r11)		# r10 last break
-	stg	%r12,32(%r11)		# r12 thread-info pointer
+	stg	%r12,32(%r11)		# r12 task struct pointer
 0:	# check if the user time update has been done
 	clg	%r9,BASED(.Lcleanup_system_call_insn+24)
 	jh	0f
@@ -1105,7 +1115,9 @@ cleanup_critical:
 	lg	%r9,16(%r11)
 	srag	%r9,%r9,23
 	jz	0f
-	mvc	__TI_last_break(8,%r12),16(%r11)
+	lgr	%r9,%r12
+	aghi	%r9,__TASK_thread
+	mvc	__THREAD_last_break(8,%r9),16(%r11)
 0:	# set up saved register r11
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r9,STACK_FRAME_OVERHEAD(%r15)
