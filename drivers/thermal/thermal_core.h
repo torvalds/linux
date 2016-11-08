@@ -66,6 +66,9 @@ void thermal_zone_device_unbind_exception(struct thermal_zone_device *,
 int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
 int thermal_build_list_of_policies(char *buf);
 
+/* sysfs I/F */
+int thermal_zone_create_device_groups(struct thermal_zone_device *, int);
+
 #ifdef CONFIG_THERMAL_GOV_STEP_WISE
 int thermal_gov_step_wise_register(void);
 void thermal_gov_step_wise_unregister(void);
