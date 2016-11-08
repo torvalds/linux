@@ -15013,11 +15013,16 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		state->scaler_id = -1;
 	}
 	primary->pipe = pipe;
-	primary->plane = pipe;
+	/*
+	 * On gen2/3 only plane A can do FBC, but the panel fitter and LVDS
+	 * port is hooked to pipe B. Hence we want plane A feeding pipe B.
+	 */
+	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) < 4)
+		primary->plane = (enum plane) !pipe;
+	else
+		primary->plane = (enum plane) pipe;
 	primary->frontbuffer_bit = INTEL_FRONTBUFFER_PRIMARY(pipe);
 	primary->check_plane = intel_check_primary_plane;
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) < 4)
-		primary->plane = !pipe;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
@@ -15327,16 +15332,8 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (ret)
 		goto fail;
 
-	/*
-	 * On gen2/3 only plane A can do fbc, but the panel fitter and lvds port
-	 * is hooked to pipe B. Hence we want plane A feeding pipe B.
-	 */
 	intel_crtc->pipe = pipe;
-	intel_crtc->plane = (enum plane) pipe;
-	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) < 4) {
-		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
-		intel_crtc->plane = !pipe;
-	}
+	intel_crtc->plane = primary->plane;
 
 	intel_crtc->cursor_base = ~0;
 	intel_crtc->cursor_cntl = ~0;
