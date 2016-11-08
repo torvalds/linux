@@ -800,9 +800,6 @@ int thermal_build_list_of_policies(char *buf)
 
 /* sys I/F for thermal zone */
 
-#define to_thermal_zone(_dev) \
-	container_of(_dev, struct thermal_zone_device, device)
-
 static ssize_t
 type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {

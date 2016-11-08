@@ -54,6 +54,9 @@ struct thermal_instance {
 	unsigned int weight; /* The weight of the cooling device */
 };
 
+#define to_thermal_zone(_dev) \
+	container_of(_dev, struct thermal_zone_device, device)
+
 int thermal_register_governor(struct thermal_governor *);
 void thermal_unregister_governor(struct thermal_governor *);
 void thermal_zone_device_rebind_exception(struct thermal_zone_device *,
