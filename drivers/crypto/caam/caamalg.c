@@ -117,8 +117,7 @@
 
 static void dbg_dump_sg(const char *level, const char *prefix_str,
 			int prefix_type, int rowsize, int groupsize,
-			struct scatterlist *sg, size_t tlen, bool ascii,
-			bool may_sleep)
+			struct scatterlist *sg, size_t tlen, bool ascii)
 {
 	struct scatterlist *it;
 	void *it_page;
@@ -2033,7 +2032,7 @@ static void ablkcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		       edesc->src_nents > 1 ? 100 : ivsize, 1);
 	dbg_dump_sg(KERN_ERR, "dst    @"__stringify(__LINE__)": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
-		    edesc->dst_nents > 1 ? 100 : req->nbytes, 1, true);
+		    edesc->dst_nents > 1 ? 100 : req->nbytes, 1);
 #endif
 
 	ablkcipher_unmap(jrdev, edesc, req);
@@ -2065,7 +2064,7 @@ static void ablkcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		       ivsize, 1);
 	dbg_dump_sg(KERN_ERR, "dst    @"__stringify(__LINE__)": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
-		    edesc->dst_nents > 1 ? 100 : req->nbytes, 1, true);
+		    edesc->dst_nents > 1 ? 100 : req->nbytes, 1);
 #endif
 
 	ablkcipher_unmap(jrdev, edesc, req);
@@ -2220,15 +2219,13 @@ static void init_ablkcipher_job(u32 *sh_desc, dma_addr_t ptr,
 	int len, sec4_sg_index = 0;
 
 #ifdef DEBUG
-	bool may_sleep = ((req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-					      CRYPTO_TFM_REQ_MAY_SLEEP)) != 0);
 	print_hex_dump(KERN_ERR, "presciv@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, req->info,
 		       ivsize, 1);
 	printk(KERN_ERR "asked=%d, nbytes%d\n", (int)edesc->src_nents ? 100 : req->nbytes, req->nbytes);
 	dbg_dump_sg(KERN_ERR, "src    @"__stringify(__LINE__)": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->src,
-		    edesc->src_nents ? 100 : req->nbytes, 1, may_sleep);
+		    edesc->src_nents ? 100 : req->nbytes, 1);
 #endif
 
 	len = desc_len(sh_desc);
@@ -2280,14 +2277,12 @@ static void init_ablkcipher_giv_job(u32 *sh_desc, dma_addr_t ptr,
 	int len, sec4_sg_index = 0;
 
 #ifdef DEBUG
-	bool may_sleep = ((req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-					      CRYPTO_TFM_REQ_MAY_SLEEP)) != 0);
 	print_hex_dump(KERN_ERR, "presciv@" __stringify(__LINE__) ": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, req->info,
 		       ivsize, 1);
 	dbg_dump_sg(KERN_ERR, "src    @" __stringify(__LINE__) ": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->src,
-		    edesc->src_nents ? 100 : req->nbytes, 1, may_sleep);
+		    edesc->src_nents ? 100 : req->nbytes, 1);
 #endif
 
 	len = desc_len(sh_desc);
@@ -2556,11 +2551,9 @@ static int aead_decrypt(struct aead_request *req)
 	int ret = 0;
 
 #ifdef DEBUG
-	bool may_sleep = ((req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
-					      CRYPTO_TFM_REQ_MAY_SLEEP)) != 0);
 	dbg_dump_sg(KERN_ERR, "dec src@"__stringify(__LINE__)": ",
 		    DUMP_PREFIX_ADDRESS, 16, 4, req->src,
-		    req->assoclen + req->cryptlen, 1, may_sleep);
+		    req->assoclen + req->cryptlen, 1);
 #endif
 
 	/* allocate extended descriptor */
