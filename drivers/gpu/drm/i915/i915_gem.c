@@ -4639,7 +4639,7 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv;
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DEBUG("\n");
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
