@@ -62,8 +62,6 @@
 #define CAAM_MAX_KEY_SIZE		(AES_MAX_KEY_SIZE + \
 					 CTR_RFC3686_NONCE_SIZE + \
 					 SHA512_DIGEST_SIZE * 2)
-/* max IV is max of AES_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE */
-#define CAAM_MAX_IV_LENGTH		16
 
 #define AEAD_DESC_JOB_IO_LEN		(DESC_JOB_IO_LEN + CAAM_CMD_SZ * 2)
 #define GCM_DESC_JOB_IO_LEN		(AEAD_DESC_JOB_IO_LEN + \
@@ -1873,20 +1871,16 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 /*
  * aead_edesc - s/w-extended aead descriptor
- * @assoc_nents: number of segments in associated data (SPI+Seq) scatterlist
  * @src_nents: number of segments in input scatterlist
  * @dst_nents: number of segments in output scatterlist
- * @iv_dma: dma address of iv for checking continuity and link table
- * @desc: h/w descriptor (variable length; must not exceed MAX_CAAM_DESCSIZE)
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
+ * @sec4_sg: pointer to h/w link table
  * @hw_desc: the h/w job descriptor followed by any referenced link tables
  */
 struct aead_edesc {
-	int assoc_nents;
 	int src_nents;
 	int dst_nents;
-	dma_addr_t iv_dma;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
 	struct sec4_sg_entry *sec4_sg;
@@ -1898,9 +1892,9 @@ struct aead_edesc {
  * @src_nents: number of segments in input scatterlist
  * @dst_nents: number of segments in output scatterlist
  * @iv_dma: dma address of iv for checking continuity and link table
- * @desc: h/w descriptor (variable length; must not exceed MAX_CAAM_DESCSIZE)
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
  * @sec4_sg_dma: bus physical mapped address of h/w link table
+ * @sec4_sg: pointer to h/w link table
  * @hw_desc: the h/w job descriptor followed by any referenced link tables
  */
 struct ablkcipher_edesc {
@@ -2017,8 +2011,7 @@ static void ablkcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
-	edesc = (struct ablkcipher_edesc *)((char *)desc -
-		 offsetof(struct ablkcipher_edesc, hw_desc));
+	edesc = container_of(desc, struct ablkcipher_edesc, hw_desc[0]);
 
 	if (err)
 		caam_jr_strstatus(jrdev, err);
@@ -2050,8 +2043,7 @@ static void ablkcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
-	edesc = (struct ablkcipher_edesc *)((char *)desc -
-		 offsetof(struct ablkcipher_edesc, hw_desc));
+	edesc = container_of(desc, struct ablkcipher_edesc, hw_desc[0]);
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 

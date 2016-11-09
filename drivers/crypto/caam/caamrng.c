@@ -100,8 +100,7 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 {
 	struct buf_data *bd;
 
-	bd = (struct buf_data *)((char *)desc -
-	      offsetof(struct buf_data, hw_desc));
+	bd = container_of(desc, struct buf_data, hw_desc[0]);
 
 	if (err)
 		caam_jr_strstatus(jrdev, err);

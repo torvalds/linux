@@ -636,8 +636,7 @@ static void ahash_done(struct device *jrdev, u32 *desc, u32 err,
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
-	edesc = (struct ahash_edesc *)((char *)desc -
-		 offsetof(struct ahash_edesc, hw_desc));
+	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
@@ -671,8 +670,7 @@ static void ahash_done_bi(struct device *jrdev, u32 *desc, u32 err,
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
-	edesc = (struct ahash_edesc *)((char *)desc -
-		 offsetof(struct ahash_edesc, hw_desc));
+	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
@@ -706,8 +704,7 @@ static void ahash_done_ctx_src(struct device *jrdev, u32 *desc, u32 err,
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
-	edesc = (struct ahash_edesc *)((char *)desc -
-		 offsetof(struct ahash_edesc, hw_desc));
+	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
@@ -741,8 +738,7 @@ static void ahash_done_ctx_dst(struct device *jrdev, u32 *desc, u32 err,
 	dev_err(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 #endif
 
-	edesc = (struct ahash_edesc *)((char *)desc -
-		 offsetof(struct ahash_edesc, hw_desc));
+	edesc = container_of(desc, struct ahash_edesc, hw_desc[0]);
 	if (err)
 		caam_jr_strstatus(jrdev, err);
 
