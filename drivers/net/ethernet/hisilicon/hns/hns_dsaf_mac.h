@@ -31,7 +31,7 @@ struct dsaf_device;
 #define MAC_MIN_MTU		68
 #define MAC_MAX_MTU_DBG		MAC_DEFAULT_MTU
 
-#define MAC_DEFAULT_PAUSE_TIME 0xff
+#define MAC_DEFAULT_PAUSE_TIME 0xffff
 
 #define MAC_GMAC_IDX 0
 #define MAC_XGMAC_IDX 1
