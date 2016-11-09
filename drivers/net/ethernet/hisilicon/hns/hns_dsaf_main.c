@@ -1532,6 +1532,7 @@ int hns_dsaf_set_mac_uc_entry(
 	struct dsaf_drv_priv *priv =
 	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
+	struct dsaf_tbl_tcam_data tcam_data;
 
 	/* mac addr check */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
@@ -1573,9 +1574,10 @@ int hns_dsaf_set_mac_uc_entry(
 	/* default config dvc to 0 */
 	mac_data.tbl_ucast_dvc = 0;
 	mac_data.tbl_ucast_out_port = mac_entry->port_num;
-	hns_dsaf_tcam_uc_cfg(
-		dsaf_dev, entry_index,
-		(struct dsaf_tbl_tcam_data *)(&mac_key), &mac_data);
+	tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
+	tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
+
+	hns_dsaf_tcam_uc_cfg(dsaf_dev, entry_index, &tcam_data, &mac_data);
 
 	/* config software entry */
 	soft_mac_entry += entry_index;
@@ -1950,6 +1952,7 @@ int hns_dsaf_get_mac_uc_entry(struct dsaf_device *dsaf_dev,
 	struct dsaf_drv_tbl_tcam_key mac_key;
 
 	struct dsaf_tbl_tcam_ucast_cfg mac_data;
+	struct dsaf_tbl_tcam_data tcam_data;
 
 	/* check macaddr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
@@ -1978,9 +1981,12 @@ int hns_dsaf_get_mac_uc_entry(struct dsaf_device *dsaf_dev,
 		dsaf_dev->ae_dev.name, mac_key.high.val,
 		mac_key.low.val, entry_index);
 
-	/*read entry*/
-	hns_dsaf_tcam_uc_get(dsaf_dev, entry_index,
-			     (struct dsaf_tbl_tcam_data *)&mac_key, &mac_data);
+	/* read entry */
+	hns_dsaf_tcam_uc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
+
+	mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
+	mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
+
 	mac_entry->port_num = mac_data.tbl_ucast_out_port;
 
 	return 0;
