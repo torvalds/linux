@@ -977,7 +977,6 @@ static struct gsc_driverdata gsc_v_100_drvdata = {
 		[3] = &gsc_v_100_variant,
 	},
 	.num_entities = 4,
-	.lclk_frequency = 266000000UL,
 };
 
 static const struct of_device_id exynos_gsc_match[] = {
