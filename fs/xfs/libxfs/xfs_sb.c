@@ -262,6 +262,12 @@ xfs_mount_validate_sb(
 		return -EFSCORRUPTED;
 	}
 
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    sbp->sb_blocksize < XFS_MIN_CRC_BLOCKSIZE) {
+		xfs_notice(mp, "v5 SB sanity check failed");
+		return -EFSCORRUPTED;
+	}
+
 	/*
 	 * Until this is fixed only page-sized or smaller data blocks work.
 	 */
