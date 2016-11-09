@@ -58,8 +58,11 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_LOG_LEVEL] != NULL &&
 	    tb[NFTA_LOG_GROUP] != NULL)
 		return -EINVAL;
-	if (tb[NFTA_LOG_GROUP] != NULL)
+	if (tb[NFTA_LOG_GROUP] != NULL) {
 		li->type = NF_LOG_TYPE_ULOG;
+		if (tb[NFTA_LOG_FLAGS] != NULL)
+			return -EINVAL;
+	}
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {
@@ -87,6 +90,10 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		if (tb[NFTA_LOG_FLAGS] != NULL) {
 			li->u.log.logflags =
 				ntohl(nla_get_be32(tb[NFTA_LOG_FLAGS]));
+			if (li->u.log.logflags & ~NF_LOG_MASK) {
+				err = -EINVAL;
+				goto err1;
+			}
 		}
 		break;
 	case NF_LOG_TYPE_ULOG:

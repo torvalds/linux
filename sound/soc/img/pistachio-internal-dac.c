@@ -134,12 +134,14 @@ static int pistachio_internal_dac_codec_probe(struct snd_soc_codec *codec)
 static const struct snd_soc_codec_driver pistachio_internal_dac_driver = {
 	.probe = pistachio_internal_dac_codec_probe,
 	.idle_bias_off = true,
-	.controls = pistachio_internal_dac_snd_controls,
-	.num_controls = ARRAY_SIZE(pistachio_internal_dac_snd_controls),
-	.dapm_widgets = pistachio_internal_dac_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(pistachio_internal_dac_widgets),
-	.dapm_routes = pistachio_internal_dac_routes,
-	.num_dapm_routes = ARRAY_SIZE(pistachio_internal_dac_routes),
+	.component_driver = {
+		.controls		= pistachio_internal_dac_snd_controls,
+		.num_controls		= ARRAY_SIZE(pistachio_internal_dac_snd_controls),
+		.dapm_widgets		= pistachio_internal_dac_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(pistachio_internal_dac_widgets),
+		.dapm_routes		= pistachio_internal_dac_routes,
+		.num_dapm_routes	= ARRAY_SIZE(pistachio_internal_dac_routes),
+	},
 };
 
 static int pistachio_internal_dac_probe(struct platform_device *pdev)

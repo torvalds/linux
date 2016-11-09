@@ -396,11 +396,12 @@ copy_to_user(void __user *to, const void *from, long n)
 extern inline long
 copy_from_user(void *to, const void __user *from, long n)
 {
+	long res = n;
 	if (likely(__access_ok((unsigned long)from, n, get_fs())))
-		n = __copy_tofrom_user_nocheck(to, (__force void *)from, n);
-	else
-		memset(to, 0, n);
-	return n;
+		res = __copy_from_user_inatomic(to, from, n);
+	if (unlikely(res))
+		memset(to + (n - res), 0, res);
+	return res;
 }
 
 extern void __do_clear_user(void);

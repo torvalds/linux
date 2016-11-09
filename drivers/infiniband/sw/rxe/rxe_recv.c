@@ -387,7 +387,8 @@ int rxe_rcv(struct sk_buff *skb)
 	pack_icrc = be32_to_cpu(*icrcp);
 
 	calc_icrc = rxe_icrc_hdr(pkt, skb);
-	calc_icrc = crc32_le(calc_icrc, (u8 *)payload_addr(pkt), payload_size(pkt));
+	calc_icrc = crc32_le(calc_icrc, (u8 *)payload_addr(pkt),
+			     payload_size(pkt));
 	calc_icrc = cpu_to_be32(~calc_icrc);
 	if (unlikely(calc_icrc != pack_icrc)) {
 		char saddr[sizeof(struct in6_addr)];

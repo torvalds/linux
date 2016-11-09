@@ -206,7 +206,7 @@ static int full_proxy_release(struct inode *inode, struct file *filp)
 	replace_fops(filp, d_inode(dentry)->i_fop);
 	kfree((void *)proxy_fops);
 	fops_put(real_fops);
-	return 0;
+	return r;
 }
 
 static void __full_proxy_fops_init(struct file_operations *proxy_fops,

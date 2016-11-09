@@ -45,6 +45,8 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace.h>
+#include <asm/sections.h>
+#include <asm/sysreg.h>
 
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
@@ -75,10 +77,7 @@ static inline bool is_hyp_mode_mismatched(void)
 
 static inline bool is_kernel_in_hyp_mode(void)
 {
-	u64 el;
-
-	asm("mrs %0, CurrentEL" : "=r" (el));
-	return el == CurrentEL_EL2;
+	return read_sysreg(CurrentEL) == CurrentEL_EL2;
 }
 
 #ifdef CONFIG_ARM64_VHE
@@ -86,14 +85,6 @@ extern void verify_cpu_run_el(void);
 #else
 static inline void verify_cpu_run_el(void) {}
 #endif
-
-/* The section containing the hypervisor idmap text */
-extern char __hyp_idmap_text_start[];
-extern char __hyp_idmap_text_end[];
-
-/* The section containing the hypervisor text */
-extern char __hyp_text_start[];
-extern char __hyp_text_end[];
 
 #endif /* __ASSEMBLY__ */
 

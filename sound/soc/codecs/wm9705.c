@@ -352,7 +352,7 @@ static int wm9705_soc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
 	.probe = 	wm9705_soc_probe,
 	.remove = 	wm9705_soc_remove,
 	.suspend =	wm9705_soc_suspend,
@@ -364,12 +364,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
 	.reg_cache_step = 2,
 	.reg_cache_default = wm9705_reg,
 
-	.controls = wm9705_snd_ac97_controls,
-	.num_controls = ARRAY_SIZE(wm9705_snd_ac97_controls),
-	.dapm_widgets = wm9705_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm9705_dapm_widgets),
-	.dapm_routes = wm9705_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(wm9705_audio_map),
+	.component_driver = {
+		.controls		= wm9705_snd_ac97_controls,
+		.num_controls		= ARRAY_SIZE(wm9705_snd_ac97_controls),
+		.dapm_widgets		= wm9705_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm9705_dapm_widgets),
+		.dapm_routes		= wm9705_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(wm9705_audio_map),
+	},
 };
 
 static int wm9705_probe(struct platform_device *pdev)

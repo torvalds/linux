@@ -273,7 +273,7 @@ exit:
 	return rc;
 }
 
-static struct gpio_chip it87_template_chip = {
+static const struct gpio_chip it87_template_chip = {
 	.label			= KBUILD_MODNAME,
 	.owner			= THIS_MODULE,
 	.request		= it87_gpio_request,

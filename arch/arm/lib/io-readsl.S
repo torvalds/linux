@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 ENTRY(__raw_readsl)
 		teq	r2, #0		@ do we have to check for the zero len?
@@ -77,3 +78,4 @@ ENTRY(__raw_readsl)
 		strb	r3, [r1, #0]
 		ret	lr
 ENDPROC(__raw_readsl)
+EXPORT_SYMBOL(__raw_readsl)

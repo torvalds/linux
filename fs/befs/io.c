@@ -27,7 +27,7 @@ struct buffer_head *
 befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 {
 	struct buffer_head *bh;
-	befs_blocknr_t block = 0;
+	befs_blocknr_t block;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_debug(sb, "---> Enter %s "
@@ -53,30 +53,6 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 	}
 
 	befs_debug(sb, "<--- %s", __func__);
-	return bh;
-
-      error:
-	befs_debug(sb, "<--- %s ERROR", __func__);
-	return NULL;
-}
-
-struct buffer_head *
-befs_bread(struct super_block *sb, befs_blocknr_t block)
-{
-	struct buffer_head *bh;
-
-	befs_debug(sb, "---> Enter %s %lu", __func__, (unsigned long)block);
-
-	bh = sb_bread(sb, block);
-
-	if (bh == NULL) {
-		befs_error(sb, "Failed to read block %lu",
-			   (unsigned long)block);
-		goto error;
-	}
-
-	befs_debug(sb, "<--- %s", __func__);
-
 	return bh;
 
       error:

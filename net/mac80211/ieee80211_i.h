@@ -3,7 +3,7 @@
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2013-2015  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -85,6 +85,8 @@ struct ieee80211_local;
 	IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
 
 #define IEEE80211_DEAUTH_FRAME_LEN	(24 /* hdr */ + 2 /* reason */)
+
+#define IEEE80211_MAX_NAN_INSTANCE_ID 255
 
 struct ieee80211_fragment_entry {
 	struct sk_buff_head skb_list;
@@ -813,15 +815,37 @@ enum txq_info_flags {
  * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
  *	a fq_flow which is already owned by a different tin
  * @def_cvars: codel vars for @def_flow
+ * @frags: used to keep fragments created after dequeue
  */
 struct txq_info {
 	struct fq_tin tin;
 	struct fq_flow def_flow;
 	struct codel_vars def_cvars;
+	struct codel_stats cstats;
+	struct sk_buff_head frags;
 	unsigned long flags;
 
 	/* keep last! */
 	struct ieee80211_txq txq;
+};
+
+struct ieee80211_if_mntr {
+	u32 flags;
+	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
+};
+
+/**
+ * struct ieee80211_if_nan - NAN state
+ *
+ * @conf: current NAN configuration
+ * @func_ids: a bitmap of available instance_id's
+ */
+struct ieee80211_if_nan {
+	struct cfg80211_nan_conf conf;
+
+	/* protects function_inst_ids */
+	spinlock_t func_lock;
+	struct idr function_inst_ids;
 };
 
 struct ieee80211_sub_if_data {
@@ -922,7 +946,8 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_ibss ibss;
 		struct ieee80211_if_mesh mesh;
 		struct ieee80211_if_ocb ocb;
-		u32 mntr_flags;
+		struct ieee80211_if_mntr mntr;
+		struct ieee80211_if_nan nan;
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -1112,7 +1137,6 @@ struct ieee80211_local {
 	struct fq fq;
 	struct codel_vars *cvars;
 	struct codel_params cparams;
-	struct codel_stats cstats;
 
 	const struct ieee80211_ops *ops;
 
@@ -1208,7 +1232,7 @@ struct ieee80211_local {
 	spinlock_t tim_lock;
 	unsigned long num_sta;
 	struct list_head sta_list;
-	struct rhashtable sta_hash;
+	struct rhltable sta_hash;
 	struct timer_list sta_cleanup;
 	int sta_generation;
 
@@ -1474,6 +1498,13 @@ static inline struct ieee80211_local *hw_to_local(
 static inline struct txq_info *to_txq_info(struct ieee80211_txq *txq)
 {
 	return container_of(txq, struct txq_info, txq);
+}
+
+static inline bool txq_has_queue(struct ieee80211_txq *txq)
+{
+	struct txq_info *txqi = to_txq_info(txq);
+
+	return !(skb_queue_empty(&txqi->frags) && !txqi->tin.backlog_packets);
 }
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)

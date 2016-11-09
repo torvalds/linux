@@ -11,7 +11,7 @@
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
-const char	default_sort_order[] = "comm,dso,symbol";
+const char	*default_sort_order = "comm,dso,symbol";
 const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
 const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked";
 const char	default_top_sort_order[] = "dso,symbol";
@@ -867,7 +867,7 @@ struct sort_entry sort_cycles = {
 };
 
 /* --sort daddr_sym */
-static int64_t
+int64_t
 sort__daddr_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t l = 0, r = 0;
@@ -896,7 +896,7 @@ static int hist_entry__daddr_snprintf(struct hist_entry *he, char *bf,
 					 width);
 }
 
-static int64_t
+int64_t
 sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t l = 0, r = 0;
@@ -1062,7 +1062,7 @@ static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
-static int64_t
+int64_t
 sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	u64 l, r;
@@ -1492,7 +1492,8 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 }
 
 static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct hists *hists)
+			      struct hists *hists, int line __maybe_unused,
+			      int *span __maybe_unused)
 {
 	struct hpp_sort_entry *hse;
 	size_t len = fmt->user_len;
@@ -1797,7 +1798,9 @@ static void update_dynamic_len(struct hpp_dynamic_entry *hde,
 }
 
 static int __sort__hde_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct hists *hists __maybe_unused)
+			      struct hists *hists __maybe_unused,
+			      int line __maybe_unused,
+			      int *span __maybe_unused)
 {
 	struct hpp_dynamic_entry *hde;
 	size_t len = fmt->user_len;
@@ -2305,9 +2308,9 @@ int hpp_dimension__add_output(unsigned col)
 	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
 }
 
-static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			       struct perf_evlist *evlist,
-			       int level)
+int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
+			struct perf_evlist *evlist,
+			int level)
 {
 	unsigned int i;
 
@@ -2682,7 +2685,7 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-static int output_field_add(struct perf_hpp_list *list, char *tok)
+int output_field_add(struct perf_hpp_list *list, char *tok)
 {
 	unsigned int i;
 
@@ -2745,7 +2748,7 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 	return ret;
 }
 
-static void reset_dimensions(void)
+void reset_dimensions(void)
 {
 	unsigned int i;
 

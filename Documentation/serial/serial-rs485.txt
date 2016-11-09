@@ -45,9 +45,8 @@
 
 	#include <linux/serial.h>
 
-	/* RS485 ioctls: */
-	#define TIOCGRS485      0x542E
-	#define TIOCSRS485      0x542F
+	/* Include definition for RS485 ioctls: TIOCGRS485 and TIOCSRS485 */
+	#include <sys/ioctl.h>
 
 	/* Open your specific device (e.g., /dev/mydevice): */
 	int fd = open ("/dev/mydevice", O_RDWR);

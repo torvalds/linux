@@ -6,7 +6,7 @@ void ddk750_setDPMS(DPMS_t state)
 {
 	unsigned int value;
 
-	if (getChipType() == SM750LE) {
+	if (sm750_get_chip_type() == SM750LE) {
 		value = PEEK32(CRT_DISPLAY_CTRL) & ~CRT_DISPLAY_CTRL_DPMS_MASK;
 		value |= (state << CRT_DISPLAY_CTRL_DPMS_SHIFT);
 		POKE32(CRT_DISPLAY_CTRL, value);
@@ -19,7 +19,7 @@ void ddk750_setDPMS(DPMS_t state)
 
 static unsigned int getPowerMode(void)
 {
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return 0;
 	return PEEK32(POWER_MODE_CTRL) & POWER_MODE_CTRL_MODE_MASK;
 }
@@ -35,7 +35,7 @@ void setPowerMode(unsigned int powerMode)
 
 	control_value = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
 
-	if (getChipType() == SM750LE)
+	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	switch (powerMode) {

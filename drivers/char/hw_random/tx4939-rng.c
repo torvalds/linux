@@ -144,22 +144,13 @@ static int __init tx4939_rng_probe(struct platform_device *dev)
 	}
 
 	platform_set_drvdata(dev, rngdev);
-	return hwrng_register(&rngdev->rng);
-}
-
-static int __exit tx4939_rng_remove(struct platform_device *dev)
-{
-	struct tx4939_rng *rngdev = platform_get_drvdata(dev);
-
-	hwrng_unregister(&rngdev->rng);
-	return 0;
+	return devm_hwrng_register(&dev->dev, &rngdev->rng);
 }
 
 static struct platform_driver tx4939_rng_driver = {
 	.driver		= {
 		.name	= "tx4939-rng",
 	},
-	.remove = tx4939_rng_remove,
 };
 
 module_platform_driver_probe(tx4939_rng_driver, tx4939_rng_probe);

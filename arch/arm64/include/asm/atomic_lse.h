@@ -86,8 +86,8 @@ static inline int atomic_add_return##name(int i, atomic_t *v)		\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	__LL_SC_ATOMIC(add_return##name),				\
+	__LL_SC_ATOMIC(add_return##name)				\
+	__nops(1),							\
 	/* LSE atomics */						\
 	"	ldadd" #mb "	%w[i], w30, %[v]\n"			\
 	"	add	%w[i], %w[i], w30")				\
@@ -112,8 +112,8 @@ static inline void atomic_and(int i, atomic_t *v)
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC(and),
+	__LL_SC_ATOMIC(and)
+	__nops(1),
 	/* LSE atomics */
 	"	mvn	%w[i], %w[i]\n"
 	"	stclr	%w[i], %[v]")
@@ -130,8 +130,8 @@ static inline int atomic_fetch_and##name(int i, atomic_t *v)		\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	__LL_SC_ATOMIC(fetch_and##name),				\
+	__LL_SC_ATOMIC(fetch_and##name)					\
+	__nops(1),							\
 	/* LSE atomics */						\
 	"	mvn	%w[i], %w[i]\n"					\
 	"	ldclr" #mb "	%w[i], %w[i], %[v]")			\
@@ -156,8 +156,8 @@ static inline void atomic_sub(int i, atomic_t *v)
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC(sub),
+	__LL_SC_ATOMIC(sub)
+	__nops(1),
 	/* LSE atomics */
 	"	neg	%w[i], %w[i]\n"
 	"	stadd	%w[i], %[v]")
@@ -174,9 +174,8 @@ static inline int atomic_sub_return##name(int i, atomic_t *v)		\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
 	__LL_SC_ATOMIC(sub_return##name)				\
-	"	nop",							\
+	__nops(2),							\
 	/* LSE atomics */						\
 	"	neg	%w[i], %w[i]\n"					\
 	"	ldadd" #mb "	%w[i], w30, %[v]\n"			\
@@ -203,8 +202,8 @@ static inline int atomic_fetch_sub##name(int i, atomic_t *v)		\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	__LL_SC_ATOMIC(fetch_sub##name),				\
+	__LL_SC_ATOMIC(fetch_sub##name)					\
+	__nops(1),							\
 	/* LSE atomics */						\
 	"	neg	%w[i], %w[i]\n"					\
 	"	ldadd" #mb "	%w[i], %w[i], %[v]")			\
@@ -284,8 +283,8 @@ static inline long atomic64_add_return##name(long i, atomic64_t *v)	\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	__LL_SC_ATOMIC64(add_return##name),				\
+	__LL_SC_ATOMIC64(add_return##name)				\
+	__nops(1),							\
 	/* LSE atomics */						\
 	"	ldadd" #mb "	%[i], x30, %[v]\n"			\
 	"	add	%[i], %[i], x30")				\
@@ -310,8 +309,8 @@ static inline void atomic64_and(long i, atomic64_t *v)
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC64(and),
+	__LL_SC_ATOMIC64(and)
+	__nops(1),
 	/* LSE atomics */
 	"	mvn	%[i], %[i]\n"
 	"	stclr	%[i], %[v]")
@@ -328,8 +327,8 @@ static inline long atomic64_fetch_and##name(long i, atomic64_t *v)	\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	__LL_SC_ATOMIC64(fetch_and##name),				\
+	__LL_SC_ATOMIC64(fetch_and##name)				\
+	__nops(1),							\
 	/* LSE atomics */						\
 	"	mvn	%[i], %[i]\n"					\
 	"	ldclr" #mb "	%[i], %[i], %[v]")			\
@@ -354,8 +353,8 @@ static inline void atomic64_sub(long i, atomic64_t *v)
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
-	"	nop\n"
-	__LL_SC_ATOMIC64(sub),
+	__LL_SC_ATOMIC64(sub)
+	__nops(1),
 	/* LSE atomics */
 	"	neg	%[i], %[i]\n"
 	"	stadd	%[i], %[v]")
@@ -372,9 +371,8 @@ static inline long atomic64_sub_return##name(long i, atomic64_t *v)	\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
 	__LL_SC_ATOMIC64(sub_return##name)				\
-	"	nop",							\
+	__nops(2),							\
 	/* LSE atomics */						\
 	"	neg	%[i], %[i]\n"					\
 	"	ldadd" #mb "	%[i], x30, %[v]\n"			\
@@ -401,8 +399,8 @@ static inline long atomic64_fetch_sub##name(long i, atomic64_t *v)	\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	__LL_SC_ATOMIC64(fetch_sub##name),				\
+	__LL_SC_ATOMIC64(fetch_sub##name)				\
+	__nops(1),							\
 	/* LSE atomics */						\
 	"	neg	%[i], %[i]\n"					\
 	"	ldadd" #mb "	%[i], %[i], %[v]")			\
@@ -426,13 +424,8 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 
 	asm volatile(ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
-	"	nop\n"
 	__LL_SC_ATOMIC64(dec_if_positive)
-	"	nop\n"
-	"	nop\n"
-	"	nop\n"
-	"	nop\n"
-	"	nop",
+	__nops(6),
 	/* LSE atomics */
 	"1:	ldr	x30, %[v]\n"
 	"	subs	%[ret], x30, #1\n"
@@ -464,9 +457,8 @@ static inline unsigned long __cmpxchg_case_##name(volatile void *ptr,	\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-		__LL_SC_CMPXCHG(name)					\
-	"	nop",							\
+	__LL_SC_CMPXCHG(name)						\
+	__nops(2),							\
 	/* LSE atomics */						\
 	"	mov	" #w "30, %" #w "[old]\n"			\
 	"	cas" #mb #sz "\t" #w "30, %" #w "[new], %[v]\n"		\
@@ -517,10 +509,8 @@ static inline long __cmpxchg_double##name(unsigned long old1,		\
 									\
 	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
 	/* LL/SC */							\
-	"	nop\n"							\
-	"	nop\n"							\
-	"	nop\n"							\
-	__LL_SC_CMPXCHG_DBL(name),					\
+	__LL_SC_CMPXCHG_DBL(name)					\
+	__nops(3),							\
 	/* LSE atomics */						\
 	"	casp" #mb "\t%[old1], %[old2], %[new1], %[new2], %[v]\n"\
 	"	eor	%[old1], %[old1], %[oldval1]\n"			\

@@ -149,8 +149,6 @@ static void put_io_block(struct log_writes_c *lc)
 static void log_end_io(struct bio *bio)
 {
 	struct log_writes_c *lc = bio->bi_private;
-	struct bio_vec *bvec;
-	int i;
 
 	if (bio->bi_error) {
 		unsigned long flags;
@@ -161,9 +159,7 @@ static void log_end_io(struct bio *bio)
 		spin_unlock_irqrestore(&lc->blocks_lock, flags);
 	}
 
-	bio_for_each_segment_all(bvec, bio, i)
-		__free_page(bvec->bv_page);
-
+	bio_free_pages(bio);
 	put_io_block(lc);
 	bio_put(bio);
 }

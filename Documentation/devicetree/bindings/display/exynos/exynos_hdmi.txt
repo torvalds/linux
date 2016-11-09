@@ -9,7 +9,7 @@ Required properties:
 - reg: physical base address of the hdmi and length of memory mapped
 	region.
 - interrupts: interrupt number to the cpu.
-- hpd-gpio: following information about the hotplug gpio pin.
+- hpd-gpios: following information about the hotplug gpio pin.
 	a) phandle of the gpio controller node.
 	b) pin number within the gpio controller.
 	c) optional flags and pull up/down.
@@ -56,7 +56,7 @@ Example:
 		compatible = "samsung,exynos4212-hdmi";
 		reg = <0x14530000 0x100000>;
 		interrupts = <0 95 0>;
-		hpd-gpio = <&gpx3 7 1>;
+		hpd-gpios = <&gpx3 7 1>;
 		ddc = <&hdmi_ddc_node>;
 		phy = <&hdmi_phy_node>;
 		samsung,syscon-phandle = <&pmu_system_controller>;

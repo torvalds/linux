@@ -573,17 +573,19 @@ err_get:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8737 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8737 = {
 	.probe		= wm8737_probe,
 	.set_bias_level = wm8737_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8737_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8737_snd_controls),
-	.dapm_widgets = wm8737_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8737_dapm_widgets),
-	.dapm_routes = intercon,
-	.num_dapm_routes = ARRAY_SIZE(intercon),
+	.component_driver = {
+		.controls		= wm8737_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8737_snd_controls),
+		.dapm_widgets		= wm8737_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8737_dapm_widgets),
+		.dapm_routes		= intercon,
+		.num_dapm_routes	= ARRAY_SIZE(intercon),
+	},
 };
 
 static const struct of_device_id wm8737_of_match[] = {

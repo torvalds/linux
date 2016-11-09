@@ -1332,7 +1332,6 @@ static struct platform_driver gcc_ipq4019_driver = {
 	.probe		= gcc_ipq4019_probe,
 	.driver		= {
 		.name	= "qcom,gcc-ipq4019",
-		.owner	= THIS_MODULE,
 		.of_match_table = gcc_ipq4019_match_table,
 	},
 };

@@ -2326,49 +2326,6 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int whence)
 	return retval;
 }
 
-static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
-			unsigned int nr_segs, size_t bytes, bool to_user)
-{
-	struct iov_iter ii;
-	int page_idx = 0;
-
-	if (!bytes)
-		return 0;
-
-	iov_iter_init(&ii, to_user ? READ : WRITE, iov, nr_segs, bytes);
-
-	while (iov_iter_count(&ii)) {
-		struct page *page = pages[page_idx++];
-		size_t todo = min_t(size_t, PAGE_SIZE, iov_iter_count(&ii));
-		void *kaddr;
-
-		kaddr = kmap(page);
-
-		while (todo) {
-			char __user *uaddr = ii.iov->iov_base + ii.iov_offset;
-			size_t iov_len = ii.iov->iov_len - ii.iov_offset;
-			size_t copy = min(todo, iov_len);
-			size_t left;
-
-			if (!to_user)
-				left = copy_from_user(kaddr, uaddr, copy);
-			else
-				left = copy_to_user(uaddr, kaddr, copy);
-
-			if (unlikely(left))
-				return -EFAULT;
-
-			iov_iter_advance(&ii, copy);
-			todo -= copy;
-			kaddr += copy;
-		}
-
-		kunmap(page);
-	}
-
-	return 0;
-}
-
 /*
  * CUSE servers compiled on 32bit broke on 64bit kernels because the
  * ABI was defined to be 'struct iovec' which is different on 32bit
@@ -2520,8 +2477,9 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	struct iovec *iov_page = NULL;
 	struct iovec *in_iov = NULL, *out_iov = NULL;
 	unsigned int in_iovs = 0, out_iovs = 0, num_pages = 0, max_pages;
-	size_t in_size, out_size, transferred;
-	int err;
+	size_t in_size, out_size, transferred, c;
+	int err, i;
+	struct iov_iter ii;
 
 #if BITS_PER_LONG == 32
 	inarg.flags |= FUSE_IOCTL_32BIT;
@@ -2603,10 +2561,13 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		req->in.args[1].size = in_size;
 		req->in.argpages = 1;
 
-		err = fuse_ioctl_copy_user(pages, in_iov, in_iovs, in_size,
-					   false);
-		if (err)
-			goto out;
+		err = -EFAULT;
+		iov_iter_init(&ii, WRITE, in_iov, in_iovs, in_size);
+		for (i = 0; iov_iter_count(&ii) && !WARN_ON(i >= num_pages); i++) {
+			c = copy_page_from_iter(pages[i], 0, PAGE_SIZE, &ii);
+			if (c != PAGE_SIZE && iov_iter_count(&ii))
+				goto out;
+		}
 	}
 
 	req->out.numargs = 2;
@@ -2672,7 +2633,14 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	if (transferred > inarg.out_size)
 		goto out;
 
-	err = fuse_ioctl_copy_user(pages, out_iov, out_iovs, transferred, true);
+	err = -EFAULT;
+	iov_iter_init(&ii, READ, out_iov, out_iovs, transferred);
+	for (i = 0; iov_iter_count(&ii) && !WARN_ON(i >= num_pages); i++) {
+		c = copy_page_to_iter(pages[i], 0, PAGE_SIZE, &ii);
+		if (c != PAGE_SIZE && iov_iter_count(&ii))
+			goto out;
+	}
+	err = 0;
  out:
 	if (req)
 		fuse_put_request(fc, req);
@@ -2842,7 +2810,7 @@ static void fuse_do_truncate(struct file *file)
 	attr.ia_file = file;
 	attr.ia_valid |= ATTR_FILE;
 
-	fuse_do_setattr(inode, &attr, file);
+	fuse_do_setattr(file_dentry(file), &attr, file);
 }
 
 static inline loff_t fuse_round_up(loff_t off)

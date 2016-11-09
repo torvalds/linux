@@ -14,7 +14,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/cpu.h>
 #include <asm/cpu-type.h>
@@ -67,8 +67,11 @@ void local_flush_tlb_all(void)
 
 	entry = read_c0_wired();
 
-	/* Blast 'em all away. */
-	if (cpu_has_tlbinv) {
+	/*
+	 * Blast 'em all away.
+	 * If there are any wired entries, fall back to iterating
+	 */
+	if (cpu_has_tlbinv && !entry) {
 		if (current_cpu_data.tlbsizevtlb) {
 			write_c0_index(0);
 			mtc0_tlbw_hazard();

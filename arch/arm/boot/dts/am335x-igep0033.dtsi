@@ -20,7 +20,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
@@ -31,14 +31,14 @@
 
 		compatible = "gpio-leds";
 
-		led@0 {
+		led0 {
 			label = "com:green:user";
 			gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
 
-	vbat: fixedregulator@0 {
+	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
@@ -46,7 +46,7 @@
 		regulator-boot-on;
 	};
 
-	vmmc: fixedregulator@0 {
+	vmmc: fixedregulator1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc";
 		regulator-min-microvolt = <3300000>;

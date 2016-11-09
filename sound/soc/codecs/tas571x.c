@@ -658,10 +658,12 @@ static const struct snd_soc_codec_driver tas571x_codec = {
 	.set_bias_level = tas571x_set_bias_level,
 	.idle_bias_off = true,
 
-	.dapm_widgets = tas571x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tas571x_dapm_widgets),
-	.dapm_routes = tas571x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tas571x_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= tas571x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tas571x_dapm_widgets),
+		.dapm_routes		= tas571x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(tas571x_dapm_routes),
+	},
 };
 
 static struct snd_soc_dai_driver tas571x_dai = {
@@ -754,8 +756,8 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 
 
 	memcpy(&priv->codec_driver, &tas571x_codec, sizeof(priv->codec_driver));
-	priv->codec_driver.controls = priv->chip->controls;
-	priv->codec_driver.num_controls = priv->chip->num_controls;
+	priv->codec_driver.component_driver.controls = priv->chip->controls;
+	priv->codec_driver.component_driver.num_controls = priv->chip->num_controls;
 
 	if (priv->chip->vol_reg_size == 2) {
 		/*

@@ -31,6 +31,7 @@
 #include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
+#include "cn23xx_pf_device.h"
 
 #define     CVM_MIN(d1, d2)           (((d1) < (d2)) ? (d1) : (d2))
 #define     CVM_MAX(d1, d2)           (((d1) > (d2)) ? (d1) : (d2))
@@ -92,22 +93,25 @@ static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
 	return fn_arg;
 }
 
-/** Check for packets on Droq. This function should be called with
- * lock held.
+/** Check for packets on Droq. This function should be called with lock held.
  *  @param  droq - Droq on which count is checked.
  *  @return Returns packet count.
  */
 u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq)
 {
 	u32 pkt_count = 0;
+	u32 last_count;
 
 	pkt_count = readl(droq->pkts_sent_reg);
-	if (pkt_count) {
-		atomic_add(pkt_count, &droq->pkts_pending);
-		writel(pkt_count, droq->pkts_sent_reg);
-	}
 
-	return pkt_count;
+	last_count = pkt_count - droq->pkt_count;
+	droq->pkt_count = pkt_count;
+
+	/* we shall write to cnts  at napi irq enable or end of droq tasklet */
+	if (last_count)
+		atomic_add(last_count, &droq->pkts_pending);
+
+	return last_count;
 }
 
 static void octeon_droq_compute_max_packet_bufs(struct octeon_droq *droq)
@@ -259,6 +263,11 @@ int octeon_init_droq(struct octeon_device *oct,
 		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf6x);
 		c_refill_threshold =
 			(u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
+	} else if (OCTEON_CN23XX_PF(oct)) {
+		struct octeon_config *conf23 = CHIP_FIELD(oct, cn23xx_pf, conf);
+
+		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf23);
+		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf23);
 	} else {
 		return 1;
 	}
@@ -564,7 +573,7 @@ octeon_droq_dispatch_pkt(struct octeon_device *oct,
 			(unsigned int)rh->r.opcode,
 			(unsigned int)rh->r.subcode);
 		droq->stats.dropped_nodispatch++;
-	}                       /* else (dispatch_fn ... */
+	}
 
 	return cnt;
 }
@@ -735,15 +744,19 @@ octeon_droq_process_packets(struct octeon_device *oct,
 	u32 pkt_count = 0, pkts_processed = 0;
 	struct list_head *tmp, *tmp2;
 
+	/* Grab the droq lock */
+	spin_lock(&droq->lock);
+
+	octeon_droq_check_hw_for_pkts(droq);
 	pkt_count = atomic_read(&droq->pkts_pending);
-	if (!pkt_count)
+
+	if (!pkt_count) {
+		spin_unlock(&droq->lock);
 		return 0;
+	}
 
 	if (pkt_count > budget)
 		pkt_count = budget;
-
-	/* Grab the droq lock */
-	spin_lock(&droq->lock);
 
 	pkts_processed = octeon_droq_fast_process_packets(oct, droq, pkt_count);
 
@@ -789,6 +802,8 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 	spin_lock(&droq->lock);
 
 	while (total_pkts_processed < budget) {
+		octeon_droq_check_hw_for_pkts(droq);
+
 		pkts_available =
 			CVM_MIN((budget - total_pkts_processed),
 				(u32)(atomic_read(&droq->pkts_pending)));
@@ -803,8 +818,6 @@ octeon_droq_process_poll_pkts(struct octeon_device *oct,
 		atomic_sub(pkts_processed, &droq->pkts_pending);
 
 		total_pkts_processed += pkts_processed;
-
-		octeon_droq_check_hw_for_pkts(droq);
 	}
 
 	spin_unlock(&droq->lock);
@@ -874,8 +887,11 @@ octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
 			return 0;
 		}
 		break;
+		case OCTEON_CN23XX_PF_VID: {
+			lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
 		}
-
+		break;
+		}
 		return 0;
 	}
 

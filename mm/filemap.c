@@ -790,9 +790,7 @@ EXPORT_SYMBOL(__page_cache_alloc);
  */
 wait_queue_head_t *page_waitqueue(struct page *page)
 {
-	const struct zone *zone = page_zone(page);
-
-	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+	return bit_waitqueue(page, 0);
 }
 EXPORT_SYMBOL(page_waitqueue);
 
@@ -1725,7 +1723,9 @@ find_page:
 			 * wait_on_page_locked is used to avoid unnecessarily
 			 * serialisations and why it's safe.
 			 */
-			wait_on_page_locked_killable(page);
+			error = wait_on_page_locked_killable(page);
+			if (unlikely(error))
+				goto readpage_error;
 			if (PageUptodate(page))
 				goto page_ok;
 
@@ -1927,17 +1927,19 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
+		struct iov_iter data = *iter;
 		loff_t size;
 
 		size = i_size_read(inode);
 		retval = filemap_write_and_wait_range(mapping, iocb->ki_pos,
 					iocb->ki_pos + count - 1);
-		if (!retval) {
-			struct iov_iter data = *iter;
-			retval = mapping->a_ops->direct_IO(iocb, &data);
-		}
+		if (retval < 0)
+			goto out;
 
-		if (retval > 0) {
+		file_accessed(file);
+
+		retval = mapping->a_ops->direct_IO(iocb, &data);
+		if (retval >= 0) {
 			iocb->ki_pos += retval;
 			iov_iter_advance(iter, retval);
 		}
@@ -1952,10 +1954,8 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * DAX files, so don't bother trying.
 		 */
 		if (retval < 0 || !iov_iter_count(iter) || iocb->ki_pos >= size ||
-		    IS_DAX(inode)) {
-			file_accessed(file);
+		    IS_DAX(inode))
 			goto out;
-		}
 	}
 
 	retval = do_generic_file_read(file, &iocb->ki_pos, iter, retval);

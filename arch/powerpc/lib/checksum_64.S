@@ -16,6 +16,7 @@
 #include <asm/processor.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 /*
  * Computes the checksum of a memory block at buff, length len,
@@ -180,6 +181,7 @@ _GLOBAL(__csum_partial)
 	add	r3,r4,r0
 	srdi	r3,r3,32
 	blr
+EXPORT_SYMBOL(__csum_partial)
 
 
 	.macro srcnr
@@ -438,3 +440,4 @@ dstnr;	stb	r6,0(r4)
 	li	r6,-EFAULT
 	stw	r6,0(r8)
 	blr
+EXPORT_SYMBOL(csum_partial_copy_generic)

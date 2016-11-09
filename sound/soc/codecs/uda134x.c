@@ -523,10 +523,12 @@ static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.set_bias_level = uda134x_set_bias_level,
 	.suspend_bias_off = true,
 
-	.dapm_widgets = uda134x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(uda134x_dapm_widgets),
-	.dapm_routes = uda134x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(uda134x_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= uda134x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(uda134x_dapm_widgets),
+		.dapm_routes		= uda134x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(uda134x_dapm_routes),
+	},
 };
 
 static const struct regmap_config uda134x_regmap_config = {
@@ -544,6 +546,7 @@ static int uda134x_codec_probe(struct platform_device *pdev)
 {
 	struct uda134x_platform_data *pd = pdev->dev.platform_data;
 	struct uda134x_priv *uda134x;
+	int ret;
 
 	if (!pd) {
 		dev_err(&pdev->dev, "Missing L3 bitbang function\n");
@@ -556,6 +559,12 @@ static int uda134x_codec_probe(struct platform_device *pdev)
 
 	uda134x->pd = pd;
 	platform_set_drvdata(pdev, uda134x);
+
+	if (pd->l3.use_gpios) {
+		ret = l3_set_gpio_ops(&pdev->dev, &uda134x->pd->l3);
+		if (ret < 0)
+			return ret;
+	}
 
 	uda134x->regmap = devm_regmap_init(&pdev->dev, NULL, pd,
 		&uda134x_regmap_config);

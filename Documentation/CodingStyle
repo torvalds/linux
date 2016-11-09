@@ -1,8 +1,10 @@
+.. _codingstyle:
 
-		Linux kernel coding style
+Linux kernel coding style
+=========================
 
 This is a short document describing the preferred coding style for the
-linux kernel.  Coding style is very personal, and I won't _force_ my
+linux kernel.  Coding style is very personal, and I won't **force** my
 views on anybody, but this is what goes for anything that I have to be
 able to maintain, and I'd prefer it for most other things too.  Please
 at least consider the points made here.
@@ -13,7 +15,8 @@ and NOT read it.  Burn them, it's a great symbolic gesture.
 Anyway, here goes:
 
 
-		Chapter 1: Indentation
+1) Indentation
+--------------
 
 Tabs are 8 characters, and thus indentations are also 8 characters.
 There are heretic movements that try to make indentations 4 (or even 2!)
@@ -36,8 +39,10 @@ benefit of warning you when you're nesting your functions too deep.
 Heed that warning.
 
 The preferred way to ease multiple indentation levels in a switch statement is
-to align the "switch" and its subordinate "case" labels in the same column
-instead of "double-indenting" the "case" labels.  E.g.:
+to align the ``switch`` and its subordinate ``case`` labels in the same column
+instead of ``double-indenting`` the ``case`` labels.  E.g.:
+
+.. code-block:: c
 
 	switch (suffix) {
 	case 'G':
@@ -59,6 +64,8 @@ instead of "double-indenting" the "case" labels.  E.g.:
 Don't put multiple statements on a single line unless you have
 something to hide:
 
+.. code-block:: c
+
 	if (condition) do_this;
 	  do_something_everytime;
 
@@ -71,7 +78,8 @@ used for indentation, and the above example is deliberately broken.
 Get a decent editor and don't leave whitespace at the end of lines.
 
 
-		Chapter 2: Breaking long lines and strings
+2) Breaking long lines and strings
+----------------------------------
 
 Coding style is all about readability and maintainability using commonly
 available tools.
@@ -87,7 +95,8 @@ with a long argument list. However, never break user-visible strings such as
 printk messages, because that breaks the ability to grep for them.
 
 
-		Chapter 3: Placing Braces and Spaces
+3) Placing Braces and Spaces
+----------------------------
 
 The other issue that always comes up in C styling is the placement of
 braces.  Unlike the indent size, there are few technical reasons to
@@ -95,12 +104,16 @@ choose one placement strategy over the other, but the preferred way, as
 shown to us by the prophets Kernighan and Ritchie, is to put the opening
 brace last on the line, and put the closing brace first, thusly:
 
+.. code-block:: c
+
 	if (x is true) {
 		we do y
 	}
 
 This applies to all non-function statement blocks (if, switch, for,
 while, do).  E.g.:
+
+.. code-block:: c
 
 	switch (action) {
 	case KOBJ_ADD:
@@ -116,6 +129,8 @@ while, do).  E.g.:
 However, there is one special case, namely functions: they have the
 opening brace at the beginning of the next line, thus:
 
+.. code-block:: c
+
 	int function(int x)
 	{
 		body of function
@@ -123,19 +138,23 @@ opening brace at the beginning of the next line, thus:
 
 Heretic people all over the world have claimed that this inconsistency
 is ...  well ...  inconsistent, but all right-thinking people know that
-(a) K&R are _right_ and (b) K&R are right.  Besides, functions are
+(a) K&R are **right** and (b) K&R are right.  Besides, functions are
 special anyway (you can't nest them in C).
 
-Note that the closing brace is empty on a line of its own, _except_ in
+Note that the closing brace is empty on a line of its own, **except** in
 the cases where it is followed by a continuation of the same statement,
-ie a "while" in a do-statement or an "else" in an if-statement, like
+ie a ``while`` in a do-statement or an ``else`` in an if-statement, like
 this:
+
+.. code-block:: c
 
 	do {
 		body of do-loop
 	} while (condition);
 
 and
+
+.. code-block:: c
 
 	if (x == y) {
 		..
@@ -155,10 +174,14 @@ comments on.
 
 Do not unnecessarily use braces where a single statement will do.
 
+.. code-block:: c
+
 	if (condition)
 		action();
 
 and
+
+.. code-block:: none
 
 	if (condition)
 		do_this();
@@ -168,6 +191,8 @@ and
 This does not apply if only one branch of a conditional statement is a single
 statement; in the latter case use braces in both branches:
 
+.. code-block:: c
+
 	if (condition) {
 		do_this();
 		do_that();
@@ -175,57 +200,67 @@ statement; in the latter case use braces in both branches:
 		otherwise();
 	}
 
-		3.1:  Spaces
+3.1) Spaces
+***********
 
 Linux kernel style for use of spaces depends (mostly) on
 function-versus-keyword usage.  Use a space after (most) keywords.  The
 notable exceptions are sizeof, typeof, alignof, and __attribute__, which look
 somewhat like functions (and are usually used with parentheses in Linux,
-although they are not required in the language, as in: "sizeof info" after
-"struct fileinfo info;" is declared).
+although they are not required in the language, as in: ``sizeof info`` after
+``struct fileinfo info;`` is declared).
 
-So use a space after these keywords:
+So use a space after these keywords::
 
 	if, switch, case, for, do, while
 
 but not with sizeof, typeof, alignof, or __attribute__.  E.g.,
 
+.. code-block:: c
+
+
 	s = sizeof(struct file);
 
 Do not add spaces around (inside) parenthesized expressions.  This example is
-*bad*:
+**bad**:
+
+.. code-block:: c
+
 
 	s = sizeof( struct file );
 
 When declaring pointer data or a function that returns a pointer type, the
-preferred use of '*' is adjacent to the data name or function name and not
+preferred use of ``*`` is adjacent to the data name or function name and not
 adjacent to the type name.  Examples:
+
+.. code-block:: c
+
 
 	char *linux_banner;
 	unsigned long long memparse(char *ptr, char **retptr);
 	char *match_strdup(substring_t *s);
 
 Use one space around (on each side of) most binary and ternary operators,
-such as any of these:
+such as any of these::
 
 	=  +  -  <  >  *  /  %  |  &  ^  <=  >=  ==  !=  ?  :
 
-but no space after unary operators:
+but no space after unary operators::
 
 	&  *  +  -  ~  !  sizeof  typeof  alignof  __attribute__  defined
 
-no space before the postfix increment & decrement unary operators:
+no space before the postfix increment & decrement unary operators::
 
 	++  --
 
-no space after the prefix increment & decrement unary operators:
+no space after the prefix increment & decrement unary operators::
 
 	++  --
 
-and no space around the '.' and "->" structure member operators.
+and no space around the ``.`` and ``->`` structure member operators.
 
 Do not leave trailing whitespace at the ends of lines.  Some editors with
-"smart" indentation will insert whitespace at the beginning of new lines as
+``smart`` indentation will insert whitespace at the beginning of new lines as
 appropriate, so you can start typing the next line of code right away.
 However, some such editors do not remove the whitespace if you end up not
 putting a line of code there, such as if you leave a blank line.  As a result,
@@ -237,22 +272,23 @@ of patches, this may make later patches in the series fail by changing their
 context lines.
 
 
-		Chapter 4: Naming
+4) Naming
+---------
 
 C is a Spartan language, and so should your naming be.  Unlike Modula-2
 and Pascal programmers, C programmers do not use cute names like
 ThisVariableIsATemporaryCounter.  A C programmer would call that
-variable "tmp", which is much easier to write, and not the least more
+variable ``tmp``, which is much easier to write, and not the least more
 difficult to understand.
 
 HOWEVER, while mixed-case names are frowned upon, descriptive names for
-global variables are a must.  To call a global function "foo" is a
+global variables are a must.  To call a global function ``foo`` is a
 shooting offense.
 
-GLOBAL variables (to be used only if you _really_ need them) need to
+GLOBAL variables (to be used only if you **really** need them) need to
 have descriptive names, as do global functions.  If you have a function
 that counts the number of active users, you should call that
-"count_active_users()" or similar, you should _not_ call it "cntusr()".
+``count_active_users()`` or similar, you should **not** call it ``cntusr()``.
 
 Encoding the type of a function into the name (so-called Hungarian
 notation) is brain damaged - the compiler knows the types anyway and can
@@ -260,9 +296,9 @@ check those, and it only confuses the programmer.  No wonder MicroSoft
 makes buggy programs.
 
 LOCAL variable names should be short, and to the point.  If you have
-some random integer loop counter, it should probably be called "i".
-Calling it "loop_counter" is non-productive, if there is no chance of it
-being mis-understood.  Similarly, "tmp" can be just about any type of
+some random integer loop counter, it should probably be called ``i``.
+Calling it ``loop_counter`` is non-productive, if there is no chance of it
+being mis-understood.  Similarly, ``tmp`` can be just about any type of
 variable that is used to hold a temporary value.
 
 If you are afraid to mix up your local variable names, you have another
@@ -270,59 +306,69 @@ problem, which is called the function-growth-hormone-imbalance syndrome.
 See chapter 6 (Functions).
 
 
-		Chapter 5: Typedefs
+5) Typedefs
+-----------
 
-Please don't use things like "vps_t".
-It's a _mistake_ to use typedef for structures and pointers. When you see a
+Please don't use things like ``vps_t``.
+It's a **mistake** to use typedef for structures and pointers. When you see a
+
+.. code-block:: c
+
 
 	vps_t a;
 
 in the source, what does it mean?
 In contrast, if it says
 
+.. code-block:: c
+
 	struct virtual_container *a;
 
-you can actually tell what "a" is.
+you can actually tell what ``a`` is.
 
-Lots of people think that typedefs "help readability". Not so. They are
+Lots of people think that typedefs ``help readability``. Not so. They are
 useful only for:
 
- (a) totally opaque objects (where the typedef is actively used to _hide_
+ (a) totally opaque objects (where the typedef is actively used to **hide**
      what the object is).
 
-     Example: "pte_t" etc. opaque objects that you can only access using
+     Example: ``pte_t`` etc. opaque objects that you can only access using
      the proper accessor functions.
 
-     NOTE! Opaqueness and "accessor functions" are not good in themselves.
-     The reason we have them for things like pte_t etc. is that there
-     really is absolutely _zero_ portably accessible information there.
+     .. note::
 
- (b) Clear integer types, where the abstraction _helps_ avoid confusion
-     whether it is "int" or "long".
+       Opaqueness and ``accessor functions`` are not good in themselves.
+       The reason we have them for things like pte_t etc. is that there
+       really is absolutely **zero** portably accessible information there.
+
+ (b) Clear integer types, where the abstraction **helps** avoid confusion
+     whether it is ``int`` or ``long``.
 
      u8/u16/u32 are perfectly fine typedefs, although they fit into
      category (d) better than here.
 
-     NOTE! Again - there needs to be a _reason_ for this. If something is
-     "unsigned long", then there's no reason to do
+     .. note::
+
+       Again - there needs to be a **reason** for this. If something is
+       ``unsigned long``, then there's no reason to do
 
 	typedef unsigned long myflags_t;
 
      but if there is a clear reason for why it under certain circumstances
-     might be an "unsigned int" and under other configurations might be
-     "unsigned long", then by all means go ahead and use a typedef.
+     might be an ``unsigned int`` and under other configurations might be
+     ``unsigned long``, then by all means go ahead and use a typedef.
 
- (c) when you use sparse to literally create a _new_ type for
+ (c) when you use sparse to literally create a **new** type for
      type-checking.
 
  (d) New types which are identical to standard C99 types, in certain
      exceptional circumstances.
 
      Although it would only take a short amount of time for the eyes and
-     brain to become accustomed to the standard types like 'uint32_t',
+     brain to become accustomed to the standard types like ``uint32_t``,
      some people object to their use anyway.
 
-     Therefore, the Linux-specific 'u8/u16/u32/u64' types and their
+     Therefore, the Linux-specific ``u8/u16/u32/u64`` types and their
      signed equivalents which are identical to standard types are
      permitted -- although they are not mandatory in new code of your
      own.
@@ -333,7 +379,7 @@ useful only for:
  (e) Types safe for use in userspace.
 
      In certain structures which are visible to userspace, we cannot
-     require C99 types and cannot use the 'u32' form above. Thus, we
+     require C99 types and cannot use the ``u32`` form above. Thus, we
      use __u32 and similar types in all structures which are shared
      with userspace.
 
@@ -341,10 +387,11 @@ Maybe there are other cases too, but the rule should basically be to NEVER
 EVER use a typedef unless you can clearly match one of those rules.
 
 In general, a pointer, or a struct that has elements that can reasonably
-be directly accessed should _never_ be a typedef.
+be directly accessed should **never** be a typedef.
 
 
-		Chapter 6: Functions
+6) Functions
+------------
 
 Functions should be short and sweet, and do just one thing.  They should
 fit on one or two screenfuls of text (the ISO/ANSI screen size is 80x24,
@@ -372,8 +419,10 @@ and it gets confused.  You know you're brilliant, but maybe you'd like
 to understand what you did 2 weeks from now.
 
 In source files, separate functions with one blank line.  If the function is
-exported, the EXPORT* macro for it should follow immediately after the closing
-function brace line.  E.g.:
+exported, the **EXPORT** macro for it should follow immediately after the
+closing function brace line.  E.g.:
+
+.. code-block:: c
 
 	int system_is_up(void)
 	{
@@ -386,7 +435,8 @@ Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
 
-		Chapter 7: Centralized exiting of functions
+7) Centralized exiting of functions
+-----------------------------------
 
 Albeit deprecated by some people, the equivalent of the goto statement is
 used frequently by compilers in form of the unconditional jump instruction.
@@ -396,17 +446,20 @@ locations and some common work such as cleanup has to be done.  If there is no
 cleanup needed then just return directly.
 
 Choose label names which say what the goto does or why the goto exists.  An
-example of a good name could be "out_buffer:" if the goto frees "buffer".  Avoid
-using GW-BASIC names like "err1:" and "err2:".  Also don't name them after the
-goto location like "err_kmalloc_failed:"
+example of a good name could be ``out_free_buffer:`` if the goto frees ``buffer``.
+Avoid using GW-BASIC names like ``err1:`` and ``err2:``, as you would have to
+renumber them if you ever add or remove exit paths, and they make correctness
+difficult to verify anyway.
 
 The rationale for using gotos is:
 
 - unconditional statements are easier to understand and follow
 - nesting is reduced
 - errors by not updating individual exit points when making
-    modifications are prevented
+  modifications are prevented
 - saves the compiler work to optimize redundant code away ;)
+
+.. code-block:: c
 
 	int fun(int a)
 	{
@@ -425,27 +478,41 @@ The rationale for using gotos is:
 			goto out_buffer;
 		}
 		...
-	out_buffer:
+	out_free_buffer:
 		kfree(buffer);
 		return result;
 	}
 
-A common type of bug to be aware of is "one err bugs" which look like this:
+A common type of bug to be aware of is ``one err bugs`` which look like this:
+
+.. code-block:: c
 
 	err:
 		kfree(foo->bar);
 		kfree(foo);
 		return ret;
 
-The bug in this code is that on some exit paths "foo" is NULL.  Normally the
-fix for this is to split it up into two error labels "err_bar:" and "err_foo:".
+The bug in this code is that on some exit paths ``foo`` is NULL.  Normally the
+fix for this is to split it up into two error labels ``err_free_bar:`` and
+``err_free_foo:``:
+
+.. code-block:: c
+
+	 err_free_bar:
+		kfree(foo->bar);
+	 err_free_foo:
+		kfree(foo);
+		return ret;
+
+Ideally you should simulate errors to test all exit paths.
 
 
-		Chapter 8: Commenting
+8) Commenting
+-------------
 
 Comments are good, but there is also a danger of over-commenting.  NEVER
 try to explain HOW your code works in a comment: it's much better to
-write the code so that the _working_ is obvious, and it's a waste of
+write the code so that the **working** is obvious, and it's a waste of
 time to explain badly written code.
 
 Generally, you want your comments to tell WHAT your code does, not HOW.
@@ -461,10 +528,9 @@ When commenting the kernel API functions, please use the kernel-doc format.
 See the files Documentation/kernel-documentation.rst and scripts/kernel-doc
 for details.
 
-Linux style for comments is the C89 "/* ... */" style.
-Don't use C99-style "// ..." comments.
-
 The preferred style for long (multi-line) comments is:
+
+.. code-block:: c
 
 	/*
 	 * This is the preferred style for multi-line
@@ -477,6 +543,8 @@ The preferred style for long (multi-line) comments is:
 
 For files in net/ and drivers/net/ the preferred style for long (multi-line)
 comments is a little different.
+
+.. code-block:: c
 
 	/* The preferred comment style for files in net/ and drivers/net
 	 * looks like this.
@@ -491,10 +559,11 @@ multiple data declarations).  This leaves you room for a small comment on each
 item, explaining its use.
 
 
-		Chapter 9: You've made a mess of it
+9) You've made a mess of it
+---------------------------
 
 That's OK, we all do.  You've probably been told by your long-time Unix
-user helper that "GNU emacs" automatically formats the C sources for
+user helper that ``GNU emacs`` automatically formats the C sources for
 you, and you've noticed that yes, it does do that, but the defaults it
 uses are less than desirable (in fact, they are worse than random
 typing - an infinite number of monkeys typing into GNU emacs would never
@@ -503,63 +572,66 @@ make a good program).
 So, you can either get rid of GNU emacs, or change it to use saner
 values.  To do the latter, you can stick the following in your .emacs file:
 
-(defun c-lineup-arglist-tabs-only (ignored)
-  "Line up argument lists by tabs, not spaces"
-  (let* ((anchor (c-langelem-pos c-syntactic-element))
-         (column (c-langelem-2nd-pos c-syntactic-element))
-         (offset (- (1+ column) anchor))
-         (steps (floor offset c-basic-offset)))
-    (* (max steps 1)
-       c-basic-offset)))
+.. code-block:: none
 
-(add-hook 'c-mode-common-hook
-          (lambda ()
-            ;; Add kernel style
-            (c-add-style
-             "linux-tabs-only"
-             '("linux" (c-offsets-alist
-                        (arglist-cont-nonempty
-                         c-lineup-gcc-asm-reg
-                         c-lineup-arglist-tabs-only))))))
+  (defun c-lineup-arglist-tabs-only (ignored)
+    "Line up argument lists by tabs, not spaces"
+    (let* ((anchor (c-langelem-pos c-syntactic-element))
+           (column (c-langelem-2nd-pos c-syntactic-element))
+           (offset (- (1+ column) anchor))
+           (steps (floor offset c-basic-offset)))
+      (* (max steps 1)
+         c-basic-offset)))
 
-(add-hook 'c-mode-hook
-          (lambda ()
-            (let ((filename (buffer-file-name)))
-              ;; Enable kernel mode for the appropriate files
-              (when (and filename
-                         (string-match (expand-file-name "~/src/linux-trees")
-                                       filename))
-                (setq indent-tabs-mode t)
-                (setq show-trailing-whitespace t)
-                (c-set-style "linux-tabs-only")))))
+  (add-hook 'c-mode-common-hook
+            (lambda ()
+              ;; Add kernel style
+              (c-add-style
+               "linux-tabs-only"
+               '("linux" (c-offsets-alist
+                          (arglist-cont-nonempty
+                           c-lineup-gcc-asm-reg
+                           c-lineup-arglist-tabs-only))))))
+
+  (add-hook 'c-mode-hook
+            (lambda ()
+              (let ((filename (buffer-file-name)))
+                ;; Enable kernel mode for the appropriate files
+                (when (and filename
+                           (string-match (expand-file-name "~/src/linux-trees")
+                                         filename))
+                  (setq indent-tabs-mode t)
+                  (setq show-trailing-whitespace t)
+                  (c-set-style "linux-tabs-only")))))
 
 This will make emacs go better with the kernel coding style for C
-files below ~/src/linux-trees.
+files below ``~/src/linux-trees``.
 
 But even if you fail in getting emacs to do sane formatting, not
-everything is lost: use "indent".
+everything is lost: use ``indent``.
 
 Now, again, GNU indent has the same brain-dead settings that GNU emacs
 has, which is why you need to give it a few command line options.
 However, that's not too bad, because even the makers of GNU indent
 recognize the authority of K&R (the GNU people aren't evil, they are
 just severely misguided in this matter), so you just give indent the
-options "-kr -i8" (stands for "K&R, 8 character indents"), or use
-"scripts/Lindent", which indents in the latest style.
+options ``-kr -i8`` (stands for ``K&R, 8 character indents``), or use
+``scripts/Lindent``, which indents in the latest style.
 
-"indent" has a lot of options, and especially when it comes to comment
+``indent`` has a lot of options, and especially when it comes to comment
 re-formatting you may want to take a look at the man page.  But
-remember: "indent" is not a fix for bad programming.
+remember: ``indent`` is not a fix for bad programming.
 
 
-		Chapter 10: Kconfig configuration files
+10) Kconfig configuration files
+-------------------------------
 
 For all of the Kconfig* configuration files throughout the source tree,
-the indentation is somewhat different.  Lines under a "config" definition
+the indentation is somewhat different.  Lines under a ``config`` definition
 are indented with one tab, while help text is indented an additional two
-spaces.  Example:
+spaces.  Example::
 
-config AUDIT
+  config AUDIT
 	bool "Auditing support"
 	depends on NET
 	help
@@ -569,9 +641,9 @@ config AUDIT
 	  auditing without CONFIG_AUDITSYSCALL.
 
 Seriously dangerous features (such as write support for certain
-filesystems) should advertise this prominently in their prompt string:
+filesystems) should advertise this prominently in their prompt string::
 
-config ADFS_FS_RW
+  config ADFS_FS_RW
 	bool "ADFS write support (DANGEROUS)"
 	depends on ADFS_FS
 	...
@@ -580,40 +652,44 @@ For full documentation on the configuration files, see the file
 Documentation/kbuild/kconfig-language.txt.
 
 
-		Chapter 11: Data structures
+11) Data structures
+-------------------
 
 Data structures that have visibility outside the single-threaded
 environment they are created and destroyed in should always have
 reference counts.  In the kernel, garbage collection doesn't exist (and
 outside the kernel garbage collection is slow and inefficient), which
-means that you absolutely _have_ to reference count all your uses.
+means that you absolutely **have** to reference count all your uses.
 
 Reference counting means that you can avoid locking, and allows multiple
 users to have access to the data structure in parallel - and not having
 to worry about the structure suddenly going away from under them just
 because they slept or did something else for a while.
 
-Note that locking is _not_ a replacement for reference counting.
+Note that locking is **not** a replacement for reference counting.
 Locking is used to keep data structures coherent, while reference
 counting is a memory management technique.  Usually both are needed, and
 they are not to be confused with each other.
 
 Many data structures can indeed have two levels of reference counting,
-when there are users of different "classes".  The subclass count counts
+when there are users of different ``classes``.  The subclass count counts
 the number of subclass users, and decrements the global count just once
 when the subclass count goes to zero.
 
-Examples of this kind of "multi-level-reference-counting" can be found in
-memory management ("struct mm_struct": mm_users and mm_count), and in
-filesystem code ("struct super_block": s_count and s_active).
+Examples of this kind of ``multi-level-reference-counting`` can be found in
+memory management (``struct mm_struct``: mm_users and mm_count), and in
+filesystem code (``struct super_block``: s_count and s_active).
 
 Remember: if another thread can find your data structure, and you don't
 have a reference count on it, you almost certainly have a bug.
 
 
-		Chapter 12: Macros, Enums and RTL
+12) Macros, Enums and RTL
+-------------------------
 
 Names of macros defining constants and labels in enums are capitalized.
+
+.. code-block:: c
 
 	#define CONSTANT 0x12345
 
@@ -626,7 +702,9 @@ Generally, inline functions are preferable to macros resembling functions.
 
 Macros with multiple statements should be enclosed in a do - while block:
 
-	#define macrofun(a, b, c) 			\
+.. code-block:: c
+
+	#define macrofun(a, b, c)			\
 		do {					\
 			if (a == 5)			\
 				do_this(b, c);		\
@@ -636,16 +714,20 @@ Things to avoid when using macros:
 
 1) macros that affect control flow:
 
+.. code-block:: c
+
 	#define FOO(x)					\
 		do {					\
 			if (blah(x) < 0)		\
 				return -EBUGGERED;	\
 		} while (0)
 
-is a _very_ bad idea.  It looks like a function call but exits the "calling"
+is a **very** bad idea.  It looks like a function call but exits the ``calling``
 function; don't break the internal parsers of those who will read the code.
 
 2) macros that depend on having a local variable with a magic name:
+
+.. code-block:: c
 
 	#define FOO(val) bar(index, val)
 
@@ -659,18 +741,22 @@ bite you if somebody e.g. turns FOO into an inline function.
 must enclose the expression in parentheses. Beware of similar issues with
 macros using parameters.
 
+.. code-block:: c
+
 	#define CONSTANT 0x4000
 	#define CONSTEXP (CONSTANT | 3)
 
 5) namespace collisions when defining local variables in macros resembling
 functions:
 
-#define FOO(x)				\
-({					\
-	typeof(x) ret;			\
-	ret = calc_ret(x);		\
-	(ret);				\
-})
+.. code-block:: c
+
+	#define FOO(x)				\
+	({					\
+		typeof(x) ret;			\
+		ret = calc_ret(x);		\
+		(ret);				\
+	})
 
 ret is a common name for a local variable - __foo_ret is less likely
 to collide with an existing variable.
@@ -679,11 +765,12 @@ The cpp manual deals with macros exhaustively. The gcc internals manual also
 covers RTL which is used frequently with assembly language in the kernel.
 
 
-		Chapter 13: Printing kernel messages
+13) Printing kernel messages
+----------------------------
 
 Kernel developers like to be seen as literate. Do mind the spelling
 of kernel messages to make a good impression. Do not use crippled
-words like "dont"; use "do not" or "don't" instead.  Make the messages
+words like ``dont``; use ``do not`` or ``don't`` instead.  Make the messages
 concise, clear, and unambiguous.
 
 Kernel messages do not have to be terminated with a period.
@@ -713,7 +800,8 @@ already inside a debug-related #ifdef section, printk(KERN_DEBUG ...) can be
 used.
 
 
-		Chapter 14: Allocating memory
+14) Allocating memory
+---------------------
 
 The kernel provides the following general purpose memory allocators:
 kmalloc(), kzalloc(), kmalloc_array(), kcalloc(), vmalloc(), and
@@ -721,6 +809,8 @@ vzalloc().  Please refer to the API documentation for further information
 about them.
 
 The preferred form for passing a size of a struct is the following:
+
+.. code-block:: c
 
 	p = kmalloc(sizeof(*p), ...);
 
@@ -734,9 +824,13 @@ language.
 
 The preferred form for allocating an array is the following:
 
+.. code-block:: c
+
 	p = kmalloc_array(n, sizeof(...), ...);
 
 The preferred form for allocating a zeroed array is the following:
+
+.. code-block:: c
 
 	p = kcalloc(n, sizeof(...), ...);
 
@@ -744,10 +838,11 @@ Both forms check for overflow on the allocation size n * sizeof(...),
 and return NULL if that occurred.
 
 
-		Chapter 15: The inline disease
+15) The inline disease
+----------------------
 
 There appears to be a common misperception that gcc has a magic "make me
-faster" speedup option called "inline". While the use of inlines can be
+faster" speedup option called ``inline``. While the use of inlines can be
 appropriate (for example as a means of replacing macros, see Chapter 12), it
 very often is not. Abundant use of the inline keyword leads to a much bigger
 kernel, which in turn slows the system as a whole down, due to a bigger
@@ -771,26 +866,27 @@ appears outweighs the potential value of the hint that tells gcc to do
 something it would have done anyway.
 
 
-		Chapter 16: Function return values and names
+16) Function return values and names
+------------------------------------
 
 Functions can return values of many different kinds, and one of the
 most common is a value indicating whether the function succeeded or
 failed.  Such a value can be represented as an error-code integer
-(-Exxx = failure, 0 = success) or a "succeeded" boolean (0 = failure,
+(-Exxx = failure, 0 = success) or a ``succeeded`` boolean (0 = failure,
 non-zero = success).
 
 Mixing up these two sorts of representations is a fertile source of
 difficult-to-find bugs.  If the C language included a strong distinction
 between integers and booleans then the compiler would find these mistakes
 for us... but it doesn't.  To help prevent such bugs, always follow this
-convention:
+convention::
 
 	If the name of a function is an action or an imperative command,
 	the function should return an error-code integer.  If the name
 	is a predicate, the function should return a "succeeded" boolean.
 
-For example, "add work" is a command, and the add_work() function returns 0
-for success or -EBUSY for failure.  In the same way, "PCI device present" is
+For example, ``add work`` is a command, and the add_work() function returns 0
+for success or -EBUSY for failure.  In the same way, ``PCI device present`` is
 a predicate, and the pci_dev_present() function returns 1 if it succeeds in
 finding a matching device or 0 if it doesn't.
 
@@ -805,16 +901,21 @@ result.  Typical examples would be functions that return pointers; they use
 NULL or the ERR_PTR mechanism to report failure.
 
 
-		Chapter 17:  Don't re-invent the kernel macros
+17) Don't re-invent the kernel macros
+-------------------------------------
 
 The header file include/linux/kernel.h contains a number of macros that
 you should use, rather than explicitly coding some variant of them yourself.
 For example, if you need to calculate the length of an array, take advantage
 of the macro
 
+.. code-block:: c
+
 	#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 Similarly, if you need to calculate the size of some structure member, use
+
+.. code-block:: c
 
 	#define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 
@@ -823,15 +924,20 @@ need them.  Feel free to peruse that header file to see what else is already
 defined that you shouldn't reproduce in your code.
 
 
-		Chapter 18:  Editor modelines and other cruft
+18) Editor modelines and other cruft
+------------------------------------
 
 Some editors can interpret configuration information embedded in source files,
 indicated with special markers.  For example, emacs interprets lines marked
 like this:
 
+.. code-block:: c
+
 	-*- mode: c -*-
 
 Or like this:
+
+.. code-block:: c
 
 	/*
 	Local Variables:
@@ -840,6 +946,8 @@ Or like this:
 	*/
 
 Vim interprets markers that look like this:
+
+.. code-block:: c
 
 	/* vim:set sw=8 noet */
 
@@ -850,7 +958,8 @@ own custom mode, or may have some other magic method for making indentation
 work correctly.
 
 
-		Chapter 19:  Inline assembly
+19) Inline assembly
+-------------------
 
 In architecture-specific code, you may need to use inline assembly to interface
 with CPU or platform functionality.  Don't hesitate to do so when necessary.
@@ -863,7 +972,7 @@ that inline assembly can use C parameters.
 
 Large, non-trivial assembly functions should go in .S files, with corresponding
 C prototypes defined in C header files.  The C prototypes for assembly
-functions should use "asmlinkage".
+functions should use ``asmlinkage``.
 
 You may need to mark your asm statement as volatile, to prevent GCC from
 removing it if GCC doesn't notice any side effects.  You don't always need to
@@ -874,12 +983,15 @@ instructions, put each instruction on a separate line in a separate quoted
 string, and end each string except the last with \n\t to properly indent the
 next instruction in the assembly output:
 
+.. code-block:: c
+
 	asm ("magic %reg1, #42\n\t"
 	     "more_magic %reg2, %reg3"
 	     : /* outputs */ : /* inputs */ : /* clobbers */);
 
 
-		Chapter 20: Conditional Compilation
+20) Conditional Compilation
+---------------------------
 
 Wherever possible, don't use preprocessor conditionals (#if, #ifdef) in .c
 files; doing so makes code harder to read and logic harder to follow.  Instead,
@@ -903,6 +1015,8 @@ unused, delete it.)
 Within code, where possible, use the IS_ENABLED macro to convert a Kconfig
 symbol into a C boolean expression, and use it in a normal C conditional:
 
+.. code-block:: c
+
 	if (IS_ENABLED(CONFIG_SOMETHING)) {
 		...
 	}
@@ -918,12 +1032,15 @@ At the end of any non-trivial #if or #ifdef block (more than a few lines),
 place a comment after the #endif on the same line, noting the conditional
 expression used.  For instance:
 
+.. code-block:: c
+
 	#ifdef CONFIG_SOMETHING
 	...
 	#endif /* CONFIG_SOMETHING */
 
 
-		Appendix I: References
+Appendix I) References
+----------------------
 
 The C Programming Language, Second Edition
 by Brian W. Kernighan and Dennis M. Ritchie.
@@ -943,4 +1060,3 @@ language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
 
 Kernel CodingStyle, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/
-

@@ -257,23 +257,6 @@
 			};
 		};
 	};
-
-	vreg_boost: vreg-boost {
-		compatible = "regulator-fixed";
-
-		regulator-name = "vreg-boost";
-		regulator-min-microvolt = <3150000>;
-		regulator-max-microvolt = <3150000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-
-		gpio = <&pm8941_gpios 21 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&boost_bypass_n_pin>;
-     };
 };
 
 &soc {
@@ -311,6 +294,45 @@
 		pinctrl-0 = <&blsp1_uart2_pin_a>;
 	};
 
+	i2c@f9924000 {
+		status = "ok";
+
+		clock-frequency = <355000>;
+		qcom,src-freq = <50000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_pins>;
+
+		synaptics@2c {
+			compatible = "syna,rmi4-i2c";
+			reg = <0x2c>;
+
+			interrupts-extended = <&msmgpio 61 IRQ_TYPE_EDGE_FALLING>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd-supply = <&pm8941_l22>;
+			vio-supply = <&pm8941_lvs3>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&ts_int_pin>;
+
+			syna,startup-delay-ms = <10>;
+
+			rmi4-f01@1 {
+				reg = <0x1>;
+				syna,nosleep-mode = <1>;
+			};
+
+			rmi4-f11@11 {
+				reg = <0x11>;
+				touchscreen-inverted-x;
+				syna,sensor-type = <1>;
+			};
+		};
+	};
+
 	pinctrl@fd510000 {
 		blsp1_uart2_pin_a: blsp1-uart2-pin-active {
 			rx {
@@ -326,6 +348,16 @@
 				function = "blsp_uart2";
 
 				drive-strength = <4>;
+				bias-disable;
+			};
+		};
+
+		i2c2_pins: i2c2 {
+			mux {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c2";
+
+				drive-strength = <2>;
 				bias-disable;
 			};
 		};
@@ -366,6 +398,16 @@
 			};
 		};
 
+		ts_int_pin: touch-int {
+			pin {
+				pins = "gpio61";
+				function = "gpio";
+
+				drive-strength = <2>;
+				bias-disable;
+				input-enable;
+			};
+		};
 	};
 
 	dma-controller@f9944000 {
@@ -387,11 +429,6 @@
 		};
 
 		gpios@c000 {
-			boost_bypass_n_pin: boost-bypass {
-				pins = "gpio21";
-				function = "normal";
-			};
-
 			gpio_keys_pin_a: gpio-keys-active {
 				pins = "gpio2", "gpio3", "gpio4", "gpio5";
 				function = "normal";

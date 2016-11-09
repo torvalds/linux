@@ -80,12 +80,17 @@
 #define WINDOW_BAR_ENABLE(chan)	(0x40 + ((chan) << 2))
 #define WINDOW_OVERRIDE_CTRL(chan)	(0xA0 + ((chan) << 2))
 
+#define WINDOW_COUNT		8
+
 struct mv_xor_device {
 	void __iomem	     *xor_base;
 	void __iomem	     *xor_high_base;
 	struct clk	     *clk;
 	struct mv_xor_chan   *channels[MV_XOR_MAX_CHANNELS];
 	int		     xor_type;
+
+	u32                  win_start[WINDOW_COUNT];
+	u32                  win_end[WINDOW_COUNT];
 };
 
 /**
@@ -127,6 +132,8 @@ struct mv_xor_chan {
 	char			dummy_dst[MV_XOR_MIN_BYTE_COUNT];
 	dma_addr_t		dummy_src_addr, dummy_dst_addr;
 	u32                     saved_config_reg, saved_int_mask_reg;
+
+	struct mv_xor_device	*xordev;
 };
 
 /**

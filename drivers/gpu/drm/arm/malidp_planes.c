@@ -108,7 +108,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
-	if (state->rotation != BIT(DRM_ROTATE_0) &&
+	if (state->rotation != DRM_ROTATE_0 &&
 	    (state->fb->pixel_format == DRM_FORMAT_RGB888 ||
 	     state->fb->pixel_format == DRM_FORMAT_BGR888))
 		return -EINVAL;
@@ -188,9 +188,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	/* setup the rotation and axis flip bits */
 	if (plane->state->rotation & DRM_ROTATE_MASK)
 		val = ilog2(plane->state->rotation & DRM_ROTATE_MASK) << LAYER_ROT_OFFSET;
-	if (plane->state->rotation & BIT(DRM_REFLECT_X))
+	if (plane->state->rotation & DRM_REFLECT_X)
 		val |= LAYER_V_FLIP;
-	if (plane->state->rotation & BIT(DRM_REFLECT_Y))
+	if (plane->state->rotation & DRM_REFLECT_Y)
 		val |= LAYER_H_FLIP;
 
 	/* set the 'enable layer' bit */
@@ -255,12 +255,12 @@ int malidp_de_planes_init(struct drm_device *drm)
 			goto cleanup;
 
 		if (!drm->mode_config.rotation_property) {
-			unsigned long flags = BIT(DRM_ROTATE_0) |
-					      BIT(DRM_ROTATE_90) |
-					      BIT(DRM_ROTATE_180) |
-					      BIT(DRM_ROTATE_270) |
-					      BIT(DRM_REFLECT_X) |
-					      BIT(DRM_REFLECT_Y);
+			unsigned long flags = DRM_ROTATE_0 |
+					      DRM_ROTATE_90 |
+					      DRM_ROTATE_180 |
+					      DRM_ROTATE_270 |
+					      DRM_REFLECT_X |
+					      DRM_REFLECT_Y;
 			drm->mode_config.rotation_property =
 				drm_mode_create_rotation_property(drm, flags);
 		}
@@ -268,7 +268,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 		if (drm->mode_config.rotation_property && (id != DE_SMART))
 			drm_object_attach_property(&plane->base.base,
 						   drm->mode_config.rotation_property,
-						   BIT(DRM_ROTATE_0));
+						   DRM_ROTATE_0);
 
 		drm_plane_helper_add(&plane->base,
 				     &malidp_de_plane_helper_funcs);

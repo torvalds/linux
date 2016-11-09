@@ -1,8 +1,9 @@
 /*
- * Texas Instruments' TPS65218 Power Button Input Driver
+ * Texas Instruments' TPS65217 and TPS65218 Power Button Input Driver
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Felipe Balbi <balbi@ti.com>
+ * Author: Marcin Niestroj <m.niestroj@grinn-global.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,31 +19,61 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mfd/tps65217.h>
 #include <linux/mfd/tps65218.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 
-struct tps65218_pwrbutton {
-	struct device *dev;
-	struct tps65218 *tps;
-	struct input_dev *idev;
+struct tps6521x_data {
+	unsigned int reg_status;
+	unsigned int pb_mask;
+	const char *name;
 };
 
-static irqreturn_t tps65218_pwr_irq(int irq, void *_pwr)
+static const struct tps6521x_data tps65217_data = {
+	.reg_status = TPS65217_REG_STATUS,
+	.pb_mask = TPS65217_STATUS_PB,
+	.name = "tps65217_pwrbutton",
+};
+
+static const struct tps6521x_data tps65218_data = {
+	.reg_status = TPS65218_REG_STATUS,
+	.pb_mask = TPS65218_STATUS_PB_STATE,
+	.name = "tps65218_pwrbutton",
+};
+
+struct tps6521x_pwrbutton {
+	struct device *dev;
+	struct regmap *regmap;
+	struct input_dev *idev;
+	const struct tps6521x_data *data;
+	char phys[32];
+};
+
+static const struct of_device_id of_tps6521x_pb_match[] = {
+	{ .compatible = "ti,tps65217-pwrbutton", .data = &tps65217_data },
+	{ .compatible = "ti,tps65218-pwrbutton", .data = &tps65218_data },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_tps6521x_pb_match);
+
+static irqreturn_t tps6521x_pb_irq(int irq, void *_pwr)
 {
-	struct tps65218_pwrbutton *pwr = _pwr;
+	struct tps6521x_pwrbutton *pwr = _pwr;
+	const struct tps6521x_data *tps_data = pwr->data;
 	unsigned int reg;
 	int error;
 
-	error = tps65218_reg_read(pwr->tps, TPS65218_REG_STATUS, &reg);
+	error = regmap_read(pwr->regmap, tps_data->reg_status, &reg);
 	if (error) {
 		dev_err(pwr->dev, "can't read register: %d\n", error);
 		goto out;
 	}
 
-	if (reg & TPS65218_STATUS_PB_STATE) {
+	if (reg & tps_data->pb_mask) {
 		input_report_key(pwr->idev, KEY_POWER, 1);
 		pm_wakeup_event(pwr->dev, 0);
 	} else {
@@ -55,42 +86,55 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int tps65218_pwron_probe(struct platform_device *pdev)
+static int tps6521x_pb_probe(struct platform_device *pdev)
 {
-	struct tps65218 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct tps65218_pwrbutton *pwr;
+	struct tps6521x_pwrbutton *pwr;
 	struct input_dev *idev;
+	const struct of_device_id *match;
 	int error;
 	int irq;
+
+	match = of_match_node(of_tps6521x_pb_match, pdev->dev.of_node);
+	if (!match)
+		return -ENXIO;
 
 	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
 	if (!pwr)
 		return -ENOMEM;
 
+	pwr->data = match->data;
+
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
 		return -ENOMEM;
 
-	idev->name = "tps65218_pwrbutton";
-	idev->phys = "tps65218_pwrbutton/input0";
+	idev->name = pwr->data->name;
+	snprintf(pwr->phys, sizeof(pwr->phys), "%s/input0",
+		pwr->data->name);
+	idev->phys = pwr->phys;
 	idev->dev.parent = dev;
 	idev->id.bustype = BUS_I2C;
 
 	input_set_capability(idev, EV_KEY, KEY_POWER);
 
-	pwr->tps = tps;
+	pwr->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	pwr->dev = dev;
 	pwr->idev = idev;
 	platform_set_drvdata(pdev, pwr);
 	device_init_wakeup(dev, true);
 
 	irq = platform_get_irq(pdev, 0);
-	error = devm_request_threaded_irq(dev, irq, NULL, tps65218_pwr_irq,
+	if (irq < 0) {
+		dev_err(dev, "No IRQ resource!\n");
+		return -EINVAL;
+	}
+
+	error = devm_request_threaded_irq(dev, irq, NULL, tps6521x_pb_irq,
 					  IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-					  "tps65218-pwrbutton", pwr);
+					  pwr->data->name, pwr);
 	if (error) {
 		dev_err(dev, "failed to request IRQ #%d: %d\n",
 			irq, error);
@@ -106,21 +150,15 @@ static int tps65218_pwron_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id of_tps65218_pwr_match[] = {
-	{ .compatible = "ti,tps65218-pwrbutton" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, of_tps65218_pwr_match);
-
-static struct platform_driver tps65218_pwron_driver = {
-	.probe	= tps65218_pwron_probe,
+static struct platform_driver tps6521x_pb_driver = {
+	.probe	= tps6521x_pb_probe,
 	.driver	= {
-		.name	= "tps65218_pwrbutton",
-		.of_match_table = of_tps65218_pwr_match,
+		.name	= "tps6521x_pwrbutton",
+		.of_match_table = of_tps6521x_pb_match,
 	},
 };
-module_platform_driver(tps65218_pwron_driver);
+module_platform_driver(tps6521x_pb_driver);
 
-MODULE_DESCRIPTION("TPS65218 Power Button");
+MODULE_DESCRIPTION("TPS6521X Power Button");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");

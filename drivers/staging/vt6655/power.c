@@ -52,7 +52,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-/*+
+/*
  *
  * Routine Description:
  * Enable hw power saving functions
@@ -60,7 +60,7 @@
  * Return Value:
  *    None.
  *
- -*/
+ */
 
 void
 PSvEnablePowerSaving(
@@ -104,7 +104,7 @@ PSvEnablePowerSaving(
 	pr_debug("PS:Power Saving Mode Enable...\n");
 }
 
-/*+
+/*
  *
  * Routine Description:
  * Disable hw power saving functions
@@ -112,7 +112,7 @@ PSvEnablePowerSaving(
  * Return Value:
  *    None.
  *
- -*/
+ */
 
 void
 PSvDisablePowerSaving(
@@ -134,7 +134,7 @@ PSvDisablePowerSaving(
 }
 
 
-/*+
+/*
  *
  * Routine Description:
  * Check if Next TBTT must wake up
@@ -142,7 +142,7 @@ PSvDisablePowerSaving(
  * Return Value:
  *    None.
  *
- -*/
+ */
 
 bool
 PSbIsNextTBTTWakeUp(

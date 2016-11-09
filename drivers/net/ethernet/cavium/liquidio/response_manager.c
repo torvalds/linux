@@ -91,8 +91,13 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 
 		sc = (struct octeon_soft_command *)ordered_sc_list->
 		    head.next;
-		rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
-		rptr = sc->cmd.cmd2.rptr;
+		if (OCTEON_CN23XX_PF(octeon_dev)) {
+			rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd3.rdp;
+			rptr = sc->cmd.cmd3.rptr;
+		} else {
+			rdp = (struct octeon_instr_rdp *)&sc->cmd.cmd2.rdp;
+			rptr = sc->cmd.cmd2.rptr;
+		}
 
 		status = OCTEON_REQUEST_PENDING;
 

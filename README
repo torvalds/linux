@@ -229,10 +229,6 @@ CONFIGURING the kernel:
       under some circumstances lead to problems: probing for a
       nonexistent controller card may confuse your other controllers
 
-    - Compiling the kernel with "Processor type" set higher than 386
-      will result in a kernel that does NOT work on a 386.  The
-      kernel will detect this on bootup, and give up.
-
     - A kernel with math-emulation compiled in will still use the
       coprocessor if one is present: the math emulation will just
       never get used in that case.  The kernel will be slightly larger,
@@ -289,7 +285,7 @@ COMPILING the kernel:
    LOCALVERSION can be set in the "General Setup" menu.
 
  - In order to boot your new kernel, you'll need to copy the kernel
-   image (e.g. .../linux/arch/i386/boot/bzImage after compilation)
+   image (e.g. .../linux/arch/x86/boot/bzImage after compilation)
    to the place where your regular bootable kernel is found.
 
  - Booting a kernel directly from a floppy without the assistance of a
@@ -391,7 +387,7 @@ IF SOMETHING GOES WRONG:
 
  - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you
    cannot change values or set break points.) To do this, first compile the
-   kernel with -g; edit arch/i386/Makefile appropriately, then do a "make
+   kernel with -g; edit arch/x86/Makefile appropriately, then do a "make
    clean". You'll also need to enable CONFIG_PROC_FS (via "make config").
 
    After you've rebooted with the new kernel, do "gdb vmlinux /proc/kcore".

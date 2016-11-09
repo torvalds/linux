@@ -766,7 +766,11 @@ static struct clk * __init create_one_cmux(struct clockgen *cg, int idx)
 	if (!hwc)
 		return NULL;
 
-	hwc->reg = cg->regs + 0x20 * idx;
+	if (cg->info.flags & CG_VER3)
+		hwc->reg = cg->regs + 0x70000 + 0x20 * idx;
+	else
+		hwc->reg = cg->regs + 0x20 * idx;
+
 	hwc->info = cg->info.cmux_groups[cg->info.cmux_to_group[idx]];
 
 	/*

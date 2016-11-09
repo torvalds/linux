@@ -277,12 +277,11 @@ static inline void llog_ctxt_put(struct llog_ctxt *ctxt)
 	__llog_ctxt_put(NULL, ctxt);
 }
 
-static inline void llog_group_init(struct obd_llog_group *olg, int group)
+static inline void llog_group_init(struct obd_llog_group *olg)
 {
 	init_waitqueue_head(&olg->olg_waitq);
 	spin_lock_init(&olg->olg_lock);
 	mutex_init(&olg->olg_cat_processing);
-	olg->olg_seq = group;
 }
 
 static inline int llog_group_set_ctxt(struct obd_llog_group *olg,

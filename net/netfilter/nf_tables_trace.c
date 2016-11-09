@@ -113,20 +113,22 @@ static int nf_trace_fill_pkt_info(struct sk_buff *nlskb,
 				  const struct nft_pktinfo *pkt)
 {
 	const struct sk_buff *skb = pkt->skb;
-	unsigned int len = min_t(unsigned int,
-				 pkt->xt.thoff - skb_network_offset(skb),
-				 NFT_TRACETYPE_NETWORK_HSIZE);
 	int off = skb_network_offset(skb);
+	unsigned int len, nh_end;
 
+	nh_end = pkt->tprot_set ? pkt->xt.thoff : skb->len;
+	len = min_t(unsigned int, nh_end - skb_network_offset(skb),
+		    NFT_TRACETYPE_NETWORK_HSIZE);
 	if (trace_fill_header(nlskb, NFTA_TRACE_NETWORK_HEADER, skb, off, len))
 		return -1;
 
-	len = min_t(unsigned int, skb->len - pkt->xt.thoff,
-		    NFT_TRACETYPE_TRANSPORT_HSIZE);
-
-	if (trace_fill_header(nlskb, NFTA_TRACE_TRANSPORT_HEADER, skb,
-			      pkt->xt.thoff, len))
-		return -1;
+	if (pkt->tprot_set) {
+		len = min_t(unsigned int, skb->len - pkt->xt.thoff,
+			    NFT_TRACETYPE_TRANSPORT_HSIZE);
+		if (trace_fill_header(nlskb, NFTA_TRACE_TRANSPORT_HEADER, skb,
+				      pkt->xt.thoff, len))
+			return -1;
+	}
 
 	if (!skb_mac_header_was_set(skb))
 		return 0;

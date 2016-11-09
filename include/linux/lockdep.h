@@ -16,6 +16,8 @@ struct lockdep_map;
 extern int prove_locking;
 extern int lock_stat;
 
+#define MAX_LOCKDEP_SUBCLASSES		8UL
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
@@ -28,8 +30,6 @@ extern int lock_stat;
  * the total number of states... :-(
  */
 #define XXX_LOCK_USAGE_STATES		(1+3*4)
-
-#define MAX_LOCKDEP_SUBCLASSES		8UL
 
 /*
  * NR_LOCKDEP_CACHING_CLASSES ... Number of classes

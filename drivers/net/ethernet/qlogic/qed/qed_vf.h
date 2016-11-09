@@ -86,7 +86,7 @@ struct vfpf_acquire_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	struct vf_pf_vfdev_info {
-#define VFPF_ACQUIRE_CAP_OBSOLETE	(1 << 0)
+#define VFPF_ACQUIRE_CAP_PRE_FP_HSI     (1 << 0) /* VF pre-FP hsi version */
 #define VFPF_ACQUIRE_CAP_100G		(1 << 1) /* VF can support 100g */
 		u64 capabilities;
 		u8 fw_major;
@@ -551,6 +551,11 @@ struct qed_vf_iov {
 
 	/* we set aside a copy of the acquire response */
 	struct pfvf_acquire_resp_tlv acquire_resp;
+
+	/* In case PF originates prior to the fp-hsi version comparison,
+	 * this has to be propagated as it affects the fastpath.
+	 */
+	bool b_pre_fp_hsi;
 };
 
 #ifdef CONFIG_QED_SRIOV

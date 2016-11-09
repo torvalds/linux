@@ -568,6 +568,7 @@ struct kvm_vcpu_arch {
 		struct kvm_steal_time steal;
 	} st;
 
+	u64 tsc_offset;
 	u64 last_guest_tsc;
 	u64 last_host_tsc;
 	u64 tsc_offset_adjustment;
@@ -701,6 +702,8 @@ struct kvm_hv {
 	/* Hyper-v based guest crash (NT kernel bugcheck) parameters */
 	u64 hv_crash_param[HV_X64_MSR_CRASH_PARAMS];
 	u64 hv_crash_ctl;
+
+	HV_REFERENCE_TSC_PAGE tsc_ref;
 };
 
 struct kvm_arch {
@@ -781,9 +784,11 @@ struct kvm_arch {
 	bool disabled_lapic_found;
 
 	/* Struct members for AVIC */
+	u32 avic_vm_id;
 	u32 ldr_mode;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
+	struct hlist_node hnode;
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
@@ -943,7 +948,6 @@ struct kvm_x86_ops {
 	int (*get_lpage_level)(void);
 	bool (*rdtscp_supported)(void);
 	bool (*invpcid_supported)(void);
-	void (*adjust_tsc_offset_guest)(struct kvm_vcpu *vcpu, s64 adjustment);
 
 	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 
@@ -951,10 +955,7 @@ struct kvm_x86_ops {
 
 	bool (*has_wbinvd_exit)(void);
 
-	u64 (*read_tsc_offset)(struct kvm_vcpu *vcpu);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
-
-	u64 (*read_l1_tsc)(struct kvm_vcpu *vcpu, u64 host_tsc);
 
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2);
 

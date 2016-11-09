@@ -47,7 +47,7 @@ static char *id = SNDRV_DEFAULT_STR1;
 module_param(id, charp, S_IRUGO);
 MODULE_PARM_DESC(id, "ID string for the USB MIDI Gadget adapter.");
 
-static unsigned int buflen = 256;
+static unsigned int buflen = 512;
 module_param(buflen, uint, S_IRUGO);
 MODULE_PARM_DESC(buflen, "MIDI buffer length");
 

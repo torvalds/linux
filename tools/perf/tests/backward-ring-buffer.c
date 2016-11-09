@@ -97,7 +97,7 @@ int test__backward_ring_buffer(int subtest __maybe_unused)
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("No ehough memory to create evlist\n");
+		pr_debug("No enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 

@@ -157,27 +157,6 @@ static inline unsigned int logical_to_bytes(struct scsi_device *sdev, sector_t b
 }
 
 /*
- * A DIF-capable target device can be formatted with different
- * protection schemes.  Currently 0 through 3 are defined:
- *
- * Type 0 is regular (unprotected) I/O
- *
- * Type 1 defines the contents of the guard and reference tags
- *
- * Type 2 defines the contents of the guard and reference tags and
- * uses 32-byte commands to seed the latter
- *
- * Type 3 defines the contents of the guard tag only
- */
-
-enum sd_dif_target_protection_types {
-	SD_DIF_TYPE0_PROTECTION = 0x0,
-	SD_DIF_TYPE1_PROTECTION = 0x1,
-	SD_DIF_TYPE2_PROTECTION = 0x2,
-	SD_DIF_TYPE3_PROTECTION = 0x3,
-};
-
-/*
  * Look up the DIX operation based on whether the command is read or
  * write and whether dix and dif are enabled.
  */
@@ -238,15 +217,6 @@ static inline unsigned int sd_prot_flag_mask(unsigned int prot_op)
 
 	return flag_mask[prot_op];
 }
-
-/*
- * Data Integrity Field tuple.
- */
-struct sd_dif_tuple {
-       __be16 guard_tag;	/* Checksum */
-       __be16 app_tag;		/* Opaque storage */
-       __be32 ref_tag;		/* Target LBA or indirect LBA */
-};
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 

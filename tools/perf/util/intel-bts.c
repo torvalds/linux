@@ -346,7 +346,7 @@ static int intel_bts_get_next_insn(struct intel_bts_queue *btsq, u64 ip)
 		goto out_put;
 
 	/* Load maps to ensure dso->is_64_bit has been updated */
-	map__load(al.map, machine->symbol_filter);
+	map__load(al.map);
 
 	x86_64 = al.map->dso->is_64_bit;
 

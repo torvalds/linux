@@ -1,0 +1,58 @@
+* Microsemi - vsc8531 Giga bit ethernet phy
+
+Required properties:
+- compatible	: Should contain phy id as "ethernet-phy-idAAAA.BBBB"
+		  The PHY device uses the binding described in
+		  Documentation/devicetree/bindings/net/phy.txt
+
+Optional properties:
+- vsc8531,vddmac	: The vddmac in mV.
+- vsc8531,edge-slowdown	: % the edge should be slowed down relative to
+			  the fastest possible edge time. Native sign
+			  need not enter.
+			  Edge rate sets the drive strength of the MAC
+			  interface output signals.  Changing the drive
+			  strength will affect the edge rate of the output
+			  signal.  The goal of this setting is to help
+			  reduce electrical emission (EMI) by being able
+			  to reprogram drive strength and in effect slow
+			  down the edge rate if desired.  Table 1 shows the
+			  impact to the edge rate per VDDMAC supply for each
+			  drive strength setting.
+			  Ref: Table:1 - Edge rate change below.
+
+Note: see dt-bindings/net/mscc-phy-vsc8531.h for applicable values
+
+Table: 1 - Edge rate change
+----------------------------------------------------------------|
+| 		Edge Rate Change (VDDMAC)			|
+|								|
+| 3300 mV	2500 mV		1800 mV		1500 mV		|
+|---------------------------------------------------------------|
+| Default	Deafult		Default		Default		|
+| (Fastest)			(recommended)	(recommended)	|
+|---------------------------------------------------------------|
+| -2%		-3%		-5%		-6%		|
+|---------------------------------------------------------------|
+| -4%		-6%		-9%		-14%		|
+|---------------------------------------------------------------|
+| -7%		-10%		-16%		-21%		|
+|(recommended)	(recommended)					|
+|---------------------------------------------------------------|
+| -10%		-14%		-23%		-29%		|
+|---------------------------------------------------------------|
+| -17%		-23%		-35%		-42%		|
+|---------------------------------------------------------------|
+| -29%		-37%		-52%		-58%		|
+|---------------------------------------------------------------|
+| -53%		-63%		-76%		-77%		|
+| (slowest)							|
+|---------------------------------------------------------------|
+
+Example:
+
+        vsc8531_0: ethernet-phy@0 {
+                compatible = "ethernet-phy-id0007.0570";
+                vsc8531,vddmac		= <3300>;
+                vsc8531,edge-slowdown	= <21>;
+        };

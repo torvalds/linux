@@ -487,10 +487,8 @@ static int diolan_u2c_probe(struct usb_interface *interface,
 
 	/* and finally attach to i2c layer */
 	ret = i2c_add_adapter(&dev->adapter);
-	if (ret < 0) {
-		dev_err(&interface->dev, "failed to add I2C adapter\n");
+	if (ret < 0)
 		goto error_free;
-	}
 
 	dev_dbg(&interface->dev, "connected " DRIVER_NAME "\n");
 

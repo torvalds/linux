@@ -15,7 +15,7 @@
 	model = "TI OMAP37XX EVM (TMDSEVM3730)";
 	compatible = "ti,omap3-evm-37xx", "ti,omap3630", "ti,omap3";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};

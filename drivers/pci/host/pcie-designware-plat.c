@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
  *
- * Authors: Joao Pinto <jpinto@synopsys.com>
+ * Authors: Joao Pinto <jpmpinto@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,8 +25,7 @@
 #include "pcie-designware.h"
 
 struct dw_plat_pcie {
-	void __iomem		*mem_base;
-	struct pcie_port	pp;
+	struct pcie_port	pp;	/* pp.dbi_base is DT 0th resource */
 };
 
 static irqreturn_t dw_plat_pcie_msi_irq_handler(int irq, void *arg)
@@ -52,6 +51,7 @@ static struct pcie_host_ops dw_plat_pcie_host_ops = {
 static int dw_plat_add_pcie_port(struct pcie_port *pp,
 				 struct platform_device *pdev)
 {
+	struct device *dev = pp->dev;
 	int ret;
 
 	pp->irq = platform_get_irq(pdev, 1);
@@ -63,11 +63,11 @@ static int dw_plat_add_pcie_port(struct pcie_port *pp,
 		if (pp->msi_irq < 0)
 			return pp->msi_irq;
 
-		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
+		ret = devm_request_irq(dev, pp->msi_irq,
 					dw_plat_pcie_msi_irq_handler,
 					IRQF_SHARED, "dw-plat-pcie-msi", pp);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to request MSI IRQ\n");
+			dev_err(dev, "failed to request MSI IRQ\n");
 			return ret;
 		}
 	}
@@ -77,7 +77,7 @@ static int dw_plat_add_pcie_port(struct pcie_port *pp,
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize host\n");
+		dev_err(dev, "failed to initialize host\n");
 		return ret;
 	}
 
@@ -86,34 +86,28 @@ static int dw_plat_add_pcie_port(struct pcie_port *pp,
 
 static int dw_plat_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct dw_plat_pcie *dw_plat_pcie;
 	struct pcie_port *pp;
 	struct resource *res;  /* Resource from DT */
 	int ret;
 
-	dw_plat_pcie = devm_kzalloc(&pdev->dev, sizeof(*dw_plat_pcie),
-					GFP_KERNEL);
+	dw_plat_pcie = devm_kzalloc(dev, sizeof(*dw_plat_pcie), GFP_KERNEL);
 	if (!dw_plat_pcie)
 		return -ENOMEM;
 
 	pp = &dw_plat_pcie->pp;
-	pp->dev = &pdev->dev;
+	pp->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	dw_plat_pcie->mem_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dw_plat_pcie->mem_base))
-		return PTR_ERR(dw_plat_pcie->mem_base);
-
-	pp->dbi_base = dw_plat_pcie->mem_base;
+	pp->dbi_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pp->dbi_base))
+		return PTR_ERR(pp->dbi_base);
 
 	ret = dw_plat_add_pcie_port(pp, pdev);
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, dw_plat_pcie);
 	return 0;
 }
 

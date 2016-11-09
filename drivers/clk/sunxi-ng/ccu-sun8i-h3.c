@@ -184,15 +184,15 @@ static SUNXI_CCU_MP_WITH_MUX(apb2_clk, "apb2", apb2_parents, 0x058,
 			     0);
 
 static const char * const ahb2_parents[] = { "ahb1" , "pll-periph0" };
+static const struct ccu_mux_fixed_prediv ahb2_fixed_predivs[] = {
+	{ .index = 1, .div = 2 },
+};
 static struct ccu_mux ahb2_clk = {
 	.mux		= {
 		.shift	= 0,
 		.width	= 1,
-
-		.fixed_prediv	= {
-			.index	= 1,
-			.div	= 2,
-		},
+		.fixed_predivs	= ahb2_fixed_predivs,
+		.n_predivs	= ARRAY_SIZE(ahb2_fixed_predivs),
 	},
 
 	.common		= {

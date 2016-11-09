@@ -6,6 +6,8 @@
 FE_SET_FRONTEND
 ***************
 
+.. attention:: This ioctl is deprecated.
+
 Name
 ====
 
@@ -15,35 +17,18 @@ FE_SET_FRONTEND
 Synopsis
 ========
 
-.. cpp:function:: int ioctl(int fd, int request = FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
+.. c:function:: int ioctl(int fd, FE_SET_FRONTEND, struct dvb_frontend_parameters *p)
+    :name: FE_SET_FRONTEND
 
 
 Arguments
 =========
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals :ref:`FE_SET_FRONTEND` for this
-	  command.
-
-    -  .. row 3
-
-       -  struct dvb_frontend_parameters \*p
-
-       -  Points to parameters for tuning operation.
+``p``
+    Points to parameters for tuning operation.
 
 
 Description

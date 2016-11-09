@@ -58,7 +58,6 @@
 #include "trace.h"
 #include "user_sdma.h"
 #include "user_exp_rcv.h"
-#include "eprom.h"
 #include "aspm.h"
 #include "mmu_rb.h"
 
@@ -440,9 +439,10 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 	struct hfi1_filedata *fd = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd;
-	unsigned long flags, pfn;
+	unsigned long flags;
 	u64 token = vma->vm_pgoff << PAGE_SHIFT,
 		memaddr = 0;
+	void *memvirt = NULL;
 	u8 subctxt, mapio = 0, vmf = 0, type;
 	ssize_t memlen = 0;
 	int ret = 0;
@@ -493,7 +493,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * second or third page allocated for credit returns (if number
 		 * of enabled contexts > 64 and 128 respectively).
 		 */
-		memaddr = dd->cr_base[uctxt->numa_id].pa +
+		memvirt = dd->cr_base[uctxt->numa_id].va;
+		memaddr = virt_to_phys(memvirt) +
 			(((u64)uctxt->sc->hw_free -
 			  (u64)dd->cr_base[uctxt->numa_id].va) & PAGE_MASK);
 		memlen = PAGE_SIZE;
@@ -508,8 +509,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		mapio = 1;
 		break;
 	case RCV_HDRQ:
-		memaddr = uctxt->rcvhdrq_phys;
 		memlen = uctxt->rcvhdrq_size;
+		memvirt = uctxt->rcvhdrq;
 		break;
 	case RCV_EGRBUF: {
 		unsigned long addr;
@@ -533,14 +534,21 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		vma->vm_flags &= ~VM_MAYWRITE;
 		addr = vma->vm_start;
 		for (i = 0 ; i < uctxt->egrbufs.numbufs; i++) {
+			memlen = uctxt->egrbufs.buffers[i].len;
+			memvirt = uctxt->egrbufs.buffers[i].addr;
 			ret = remap_pfn_range(
 				vma, addr,
-				uctxt->egrbufs.buffers[i].phys >> PAGE_SHIFT,
-				uctxt->egrbufs.buffers[i].len,
+				/*
+				 * virt_to_pfn() does the same, but
+				 * it's not available on x86_64
+				 * when CONFIG_MMU is enabled.
+				 */
+				PFN_DOWN(__pa(memvirt)),
+				memlen,
 				vma->vm_page_prot);
 			if (ret < 0)
 				goto done;
-			addr += uctxt->egrbufs.buffers[i].len;
+			addr += memlen;
 		}
 		ret = 0;
 		goto done;
@@ -596,8 +604,8 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 			ret = -EPERM;
 			goto done;
 		}
-		memaddr = uctxt->rcvhdrqtailaddr_phys;
 		memlen = PAGE_SIZE;
+		memvirt = (void *)uctxt->rcvhdrtail_kvaddr;
 		flags &= ~VM_MAYWRITE;
 		break;
 	case SUBCTXT_UREGS:
@@ -650,16 +658,24 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		  "%u:%u type:%u io/vf:%d/%d, addr:0x%llx, len:%lu(%lu), flags:0x%lx\n",
 		    ctxt, subctxt, type, mapio, vmf, memaddr, memlen,
 		    vma->vm_end - vma->vm_start, vma->vm_flags);
-	pfn = (unsigned long)(memaddr >> PAGE_SHIFT);
 	if (vmf) {
-		vma->vm_pgoff = pfn;
+		vma->vm_pgoff = PFN_DOWN(memaddr);
 		vma->vm_ops = &vm_ops;
 		ret = 0;
 	} else if (mapio) {
-		ret = io_remap_pfn_range(vma, vma->vm_start, pfn, memlen,
+		ret = io_remap_pfn_range(vma, vma->vm_start,
+					 PFN_DOWN(memaddr),
+					 memlen,
 					 vma->vm_page_prot);
+	} else if (memvirt) {
+		ret = remap_pfn_range(vma, vma->vm_start,
+				      PFN_DOWN(__pa(memvirt)),
+				      memlen,
+				      vma->vm_page_prot);
 	} else {
-		ret = remap_pfn_range(vma, vma->vm_start, pfn, memlen,
+		ret = remap_pfn_range(vma, vma->vm_start,
+				      PFN_DOWN(memaddr),
+				      memlen,
 				      vma->vm_page_prot);
 	}
 done:
@@ -961,14 +977,16 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	 */
 	uctxt->sc = sc_alloc(dd, SC_USER, uctxt->rcvhdrqentsize,
 			     uctxt->dd->node);
-	if (!uctxt->sc)
-		return -ENOMEM;
-
+	if (!uctxt->sc) {
+		ret = -ENOMEM;
+		goto ctxdata_free;
+	}
 	hfi1_cdbg(PROC, "allocated send context %u(%u)\n", uctxt->sc->sw_index,
 		  uctxt->sc->hw_context);
 	ret = sc_enable(uctxt->sc);
 	if (ret)
-		return ret;
+		goto ctxdata_free;
+
 	/*
 	 * Setup shared context resources if the user-level has requested
 	 * shared contexts and this is the 'master' process.
@@ -982,7 +1000,7 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 		 * send context because it will be done during file close
 		 */
 		if (ret)
-			return ret;
+			goto ctxdata_free;
 	}
 	uctxt->userversion = uinfo->userversion;
 	uctxt->flags = hfi1_cap_mask; /* save current flag state */
@@ -1002,6 +1020,11 @@ static int allocate_ctxt(struct file *fp, struct hfi1_devdata *dd,
 	fd->uctxt = uctxt;
 
 	return 0;
+
+ctxdata_free:
+	dd->rcd[ctxt] = NULL;
+	hfi1_free_ctxtdata(dd, uctxt);
+	return ret;
 }
 
 static int init_subctxts(struct hfi1_ctxtdata *uctxt,
@@ -1260,7 +1283,7 @@ static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 					       uctxt->rcvhdrq);
 	binfo.rcvegr_bufbase = HFI1_MMAP_TOKEN(RCV_EGRBUF, uctxt->ctxt,
 					       fd->subctxt,
-					       uctxt->egrbufs.rcvtids[0].phys);
+					       uctxt->egrbufs.rcvtids[0].dma);
 	binfo.sdma_comp_bufbase = HFI1_MMAP_TOKEN(SDMA_COMP, uctxt->ctxt,
 						 fd->subctxt, 0);
 	/*

@@ -35,8 +35,8 @@ ksocknal_alloc_tx(int type, int size)
 		spin_lock(&ksocknal_data.ksnd_tx_lock);
 
 		if (!list_empty(&ksocknal_data.ksnd_idle_noop_txs)) {
-			tx = list_entry(ksocknal_data.ksnd_idle_noop_txs. \
-					    next, struct ksock_tx, tx_list);
+			tx = list_entry(ksocknal_data.ksnd_idle_noop_txs.next,
+					struct ksock_tx, tx_list);
 			LASSERT(tx->tx_desc_size == size);
 			list_del(&tx->tx_list);
 		}
@@ -164,13 +164,13 @@ ksocknal_send_kiov(struct ksock_conn *conn, struct ksock_tx *tx)
 	do {
 		LASSERT(tx->tx_nkiov > 0);
 
-		if (nob < (int)kiov->kiov_len) {
-			kiov->kiov_offset += nob;
-			kiov->kiov_len -= nob;
+		if (nob < (int)kiov->bv_len) {
+			kiov->bv_offset += nob;
+			kiov->bv_len -= nob;
 			return rc;
 		}
 
-		nob -= (int)kiov->kiov_len;
+		nob -= (int)kiov->bv_len;
 		tx->tx_kiov = ++kiov;
 		tx->tx_nkiov--;
 	} while (nob);
@@ -326,13 +326,13 @@ ksocknal_recv_kiov(struct ksock_conn *conn)
 	do {
 		LASSERT(conn->ksnc_rx_nkiov > 0);
 
-		if (nob < (int)kiov->kiov_len) {
-			kiov->kiov_offset += nob;
-			kiov->kiov_len -= nob;
+		if (nob < (int)kiov->bv_len) {
+			kiov->bv_offset += nob;
+			kiov->bv_len -= nob;
 			return -EAGAIN;
 		}
 
-		nob -= kiov->kiov_len;
+		nob -= kiov->bv_len;
 		conn->ksnc_rx_kiov = ++kiov;
 		conn->ksnc_rx_nkiov--;
 	} while (nob);
@@ -1325,38 +1325,35 @@ ksocknal_process_receive(struct ksock_conn *conn)
 
 int
 ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
-	      unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
-	      unsigned int offset, unsigned int mlen, unsigned int rlen)
+	      struct iov_iter *to, unsigned int rlen)
 {
 	struct ksock_conn *conn = private;
 	struct ksock_sched *sched = conn->ksnc_scheduler;
 
-	LASSERT(mlen <= rlen);
-	LASSERT(niov <= LNET_MAX_IOV);
+	LASSERT(iov_iter_count(to) <= rlen);
+	LASSERT(to->nr_segs <= LNET_MAX_IOV);
 
 	conn->ksnc_cookie = msg;
-	conn->ksnc_rx_nob_wanted = mlen;
+	conn->ksnc_rx_nob_wanted = iov_iter_count(to);
 	conn->ksnc_rx_nob_left = rlen;
 
-	if (!mlen || iov) {
+	if (to->type & ITER_KVEC) {
 		conn->ksnc_rx_nkiov = 0;
 		conn->ksnc_rx_kiov = NULL;
 		conn->ksnc_rx_iov = conn->ksnc_rx_iov_space.iov;
 		conn->ksnc_rx_niov =
 			lnet_extract_iov(LNET_MAX_IOV, conn->ksnc_rx_iov,
-					 niov, iov, offset, mlen);
+					 to->nr_segs, to->kvec,
+					 to->iov_offset, iov_iter_count(to));
 	} else {
 		conn->ksnc_rx_niov = 0;
 		conn->ksnc_rx_iov = NULL;
 		conn->ksnc_rx_kiov = conn->ksnc_rx_iov_space.kiov;
 		conn->ksnc_rx_nkiov =
 			lnet_extract_kiov(LNET_MAX_IOV, conn->ksnc_rx_kiov,
-					  niov, kiov, offset, mlen);
+					 to->nr_segs, to->bvec,
+					 to->iov_offset, iov_iter_count(to));
 	}
-
-	LASSERT(mlen ==
-		lnet_iov_nob(conn->ksnc_rx_niov, conn->ksnc_rx_iov) +
-		lnet_kiov_nob(conn->ksnc_rx_nkiov, conn->ksnc_rx_kiov));
 
 	LASSERT(conn->ksnc_rx_scheduled);
 
@@ -2008,13 +2005,6 @@ ksocknal_connect(struct ksock_route *route)
 		list_splice_init(&peer->ksnp_tx_queue, &zombies);
 	}
 
-#if 0	   /* irrelevant with only eager routes */
-	if (!route->ksnr_deleted) {
-		/* make this route least-favourite for re-selection */
-		list_del(&route->ksnr_list);
-		list_add_tail(&route->ksnr_list, &peer->ksnp_routes);
-	}
-#endif
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
 	ksocknal_peer_failed(peer);

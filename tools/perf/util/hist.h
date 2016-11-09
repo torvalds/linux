@@ -230,7 +230,7 @@ struct perf_hpp {
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-		      struct hists *hists);
+		      struct hists *hists, int line, int *span);
 	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hists *hists);
 	int (*color)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -259,6 +259,7 @@ struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
 
+	int nr_header_lines;
 	int need_collapse;
 	int parent;
 	int sym;
@@ -367,6 +368,7 @@ static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format,
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__set_user_width(const char *width_list_str);
+void hists__reset_column_width(struct hists *hists);
 
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);
@@ -483,5 +485,10 @@ static inline struct rb_node *rb_hierarchy_next(struct rb_node *node)
 #define HIERARCHY_INDENT  3
 
 bool hist_entry__has_hierarchy_children(struct hist_entry *he, float limit);
+int hpp_color_scnprintf(struct perf_hpp *hpp, const char *fmt, ...);
+int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...);
+int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
+			   struct perf_hpp_list *hpp_list);
+int hists__fprintf_headers(struct hists *hists, FILE *fp);
 
 #endif	/* __PERF_HIST_H */
