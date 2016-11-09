@@ -37,6 +37,8 @@
  *      - implemented limited ABI16/NVIF interop
  */
 
+#include <linux/notifier.h>
+
 #include <nvif/client.h>
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
@@ -161,6 +163,10 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
+#ifdef CONFIG_ACPI
+	struct notifier_block acpi_nb;
+	struct work_struct acpi_work;
+#endif
 
 	/* power management */
 	struct nouveau_hwmon *hwmon;
