@@ -2054,6 +2054,7 @@ int hns_dsaf_get_mac_entry_by_index(
 
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
 	struct dsaf_tbl_tcam_ucast_cfg mac_uc_data;
+	struct dsaf_tbl_tcam_data tcam_data;
 	char mac_addr[ETH_ALEN] = {0};
 
 	if (entry_index >= dsaf_dev->tcam_max_num) {
@@ -2064,8 +2065,10 @@ int hns_dsaf_get_mac_entry_by_index(
 	}
 
 	/* mc entry, do read opt */
-	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index,
-			     (struct dsaf_tbl_tcam_data *)&mac_key, &mac_data);
+	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
+
+	mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
+	mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
 
 	mac_entry->port_mask[0] = mac_data.tbl_mcast_port_msk[0] & 0x3F;
 
@@ -2082,9 +2085,12 @@ int hns_dsaf_get_mac_entry_by_index(
 		/**mc donot do*/
 	} else {
 		/*is not mc, just uc... */
-		hns_dsaf_tcam_uc_get(dsaf_dev, entry_index,
-				     (struct dsaf_tbl_tcam_data *)&mac_key,
+		hns_dsaf_tcam_uc_get(dsaf_dev, entry_index, &tcam_data,
 				     &mac_uc_data);
+
+		mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
+		mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
+
 		mac_entry->port_mask[0] = (1 << mac_uc_data.tbl_ucast_out_port);
 	}
 
