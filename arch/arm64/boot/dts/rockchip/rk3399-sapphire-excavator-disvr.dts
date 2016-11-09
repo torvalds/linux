@@ -67,6 +67,7 @@
 	status = "okay";
 	extcon = <&fusb0>;
 	dp_vop_sel = <DISPLAY_SOURCE_LCDC0>;
+	dp_defaultmode = <0>;
 };
 
 &cdn_dp_sound {
