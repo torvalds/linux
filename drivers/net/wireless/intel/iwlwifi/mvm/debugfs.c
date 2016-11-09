@@ -798,7 +798,7 @@ static ssize_t iwl_dbgfs_drv_rx_stats_read(struct file *file,
 static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 					  size_t count, loff_t *ppos)
 {
-	int ret;
+	int __maybe_unused ret;
 
 	mutex_lock(&mvm->mutex);
 
