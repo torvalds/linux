@@ -97,6 +97,13 @@ nvkm_pmu_reset(struct nvkm_pmu *pmu)
 }
 
 static int
+nvkm_pmu_preinit(struct nvkm_subdev *subdev)
+{
+	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
+	return nvkm_pmu_reset(pmu);
+}
+
+static int
 nvkm_pmu_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
@@ -115,6 +122,7 @@ nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 static const struct nvkm_subdev_func
 nvkm_pmu = {
 	.dtor = nvkm_pmu_dtor,
+	.preinit = nvkm_pmu_preinit,
 	.init = nvkm_pmu_init,
 	.fini = nvkm_pmu_fini,
 	.intr = nvkm_pmu_intr,
