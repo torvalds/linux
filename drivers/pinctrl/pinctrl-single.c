@@ -1223,7 +1223,7 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 						unsigned *num_maps,
 						const char **pgnames)
 {
-	const char *name = "pinctrl-single,pins";
+	const char *name = "pinctrl-single,bits";
 	struct pcs_func_vals *vals;
 	int rows, *pins, found = 0, res = -ENOMEM, i;
 	int npins_in_row;
