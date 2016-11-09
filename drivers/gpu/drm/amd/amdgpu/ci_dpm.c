@@ -5991,7 +5991,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 			tmp |= CNB_PWRMGT_CNTL__DPM_ENABLED_MASK;
 			break;
 		default:
-			DRM_ERROR("Invalid PCC GPIO: %u!\n", gpio.shift);
+			DRM_INFO("Invalid PCC GPIO: %u!\n", gpio.shift);
 			break;
 		}
 		WREG32_SMC(ixCNB_PWRMGT_CNTL, tmp);
