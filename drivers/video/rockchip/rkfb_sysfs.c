@@ -254,8 +254,10 @@ static ssize_t show_dump_buffer(struct device *dev,
 
 	size = snprintf(buf, PAGE_SIZE,
 			"bmp       -- dump buffer to bmp image\n"
+			"             can't support dump to single file\n"
 			"bin       -- dump buffer to bin image\n"
-			"multi    --  each dump will create new file\n"
+			"multi     -- each dump will create new file\n"
+			"             only works on trace context\n"
 			"win=num   -- mask win to dump, default mask all\n"
 			"             win=1, will dump win1 buffer\n"
 			"             win=23, will dump win2 area3 buffer\n"
@@ -382,8 +384,7 @@ static ssize_t set_dump_buffer(struct device *dev,
 			continue;
 		}
 		if (!strncmp(p, "multi", 5)) {
-			is_append = true;
-			is_bmp = false;
+			is_append = false;
 			continue;
 		}
 
@@ -457,8 +458,7 @@ static ssize_t set_dump_buffer(struct device *dev,
 					 area_data->smem_start,
 					 area_data->xvir, area_data->yvir,
 					 area_data->data_format,
-					 trace->count_frame,
-					 i, j, trace->is_bmp, trace->is_append);
+					 0, i, j, is_bmp, false);
 				if (area_data->ion_handle)
 					ion_handle_put(area_data->ion_handle);
 			}
