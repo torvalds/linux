@@ -2267,7 +2267,6 @@ int amdgpu_dm_atomic_commit(
 	uint32_t flip_crtcs_count = 0;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
-
 	const struct dc_stream *commit_streams[MAX_STREAMS];
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
 	const struct dc_stream *new_stream;
