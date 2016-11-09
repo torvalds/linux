@@ -99,6 +99,8 @@ struct rmi_2d_sensor_platform_data {
 	bool topbuttonpad;
 	bool kernel_tracking;
 	int dmax;
+	int dribble;
+	int palm_detect;
 };
 
 /**
@@ -116,14 +118,17 @@ struct rmi_f30_data {
 	bool disable;
 };
 
-/**
- * struct rmi_f01_power - override default power management settings.
- *
+
+/*
+ * Set the state of a register
+ *	DEFAULT - use the default value set by the firmware config
+ *	OFF - explicitly disable the register
+ *	ON - explicitly enable the register
  */
-enum rmi_f01_nosleep {
-	RMI_F01_NOSLEEP_DEFAULT = 0,
-	RMI_F01_NOSLEEP_OFF = 1,
-	RMI_F01_NOSLEEP_ON = 2
+enum rmi_reg_state {
+	RMI_REG_STATE_DEFAULT = 0,
+	RMI_REG_STATE_OFF = 1,
+	RMI_REG_STATE_ON = 2
 };
 
 /**
@@ -143,7 +148,7 @@ enum rmi_f01_nosleep {
  * when the touch sensor is in doze mode, in units of 10ms.
  */
 struct rmi_f01_power_management {
-	enum rmi_f01_nosleep nosleep;
+	enum rmi_reg_state nosleep;
 	u8 wakeup_threshold;
 	u8 doze_holdoff;
 	u8 doze_interval;

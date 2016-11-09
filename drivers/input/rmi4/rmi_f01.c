@@ -327,12 +327,12 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	}
 
 	switch (pdata->power_management.nosleep) {
-	case RMI_F01_NOSLEEP_DEFAULT:
+	case RMI_REG_STATE_DEFAULT:
 		break;
-	case RMI_F01_NOSLEEP_OFF:
+	case RMI_REG_STATE_OFF:
 		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_NOSLEEP_BIT;
 		break;
-	case RMI_F01_NOSLEEP_ON:
+	case RMI_REG_STATE_ON:
 		f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
 		break;
 	}

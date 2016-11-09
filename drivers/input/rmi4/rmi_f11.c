@@ -1142,6 +1142,8 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	sensor->topbuttonpad = f11->sensor_pdata.topbuttonpad;
 	sensor->kernel_tracking = f11->sensor_pdata.kernel_tracking;
 	sensor->dmax = f11->sensor_pdata.dmax;
+	sensor->dribble = f11->sensor_pdata.dribble;
+	sensor->palm_detect = f11->sensor_pdata.palm_detect;
 
 	if (f11->sens_query.has_physical_props) {
 		sensor->x_mm = f11->sens_query.x_sensor_size_mm;
@@ -1209,11 +1211,33 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 		ctrl->ctrl0_11[RMI_F11_DELTA_Y_THRESHOLD] =
 			sensor->axis_align.delta_y_threshold;
 
-	if (f11->sens_query.has_dribble)
-		ctrl->ctrl0_11[0] = ctrl->ctrl0_11[0] & ~BIT(6);
+	if (f11->sens_query.has_dribble) {
+		switch (sensor->dribble) {
+		case RMI_REG_STATE_OFF:
+			ctrl->ctrl0_11[0] &= ~BIT(6);
+			break;
+		case RMI_REG_STATE_ON:
+			ctrl->ctrl0_11[0] |= BIT(6);
+			break;
+		case RMI_REG_STATE_DEFAULT:
+		default:
+			break;
+		}
+	}
 
-	if (f11->sens_query.has_palm_det)
-		ctrl->ctrl0_11[11] = ctrl->ctrl0_11[11] & ~BIT(0);
+	if (f11->sens_query.has_palm_det) {
+		switch (sensor->palm_detect) {
+		case RMI_REG_STATE_OFF:
+			ctrl->ctrl0_11[11] &= ~BIT(0);
+			break;
+		case RMI_REG_STATE_ON:
+			ctrl->ctrl0_11[11] |= BIT(0);
+			break;
+		case RMI_REG_STATE_DEFAULT:
+		default:
+			break;
+		}
+	}
 
 	rc = f11_write_control_regs(fn, &f11->sens_query,
 			   &f11->dev_controls, fn->fd.query_base_addr);
