@@ -224,13 +224,13 @@
 				clock-names = "pp_clk", "gop_clk";
 				status = "disabled";
 
-				eth0: eth0@c4000 {
+				eth0: eth0 {
 					interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <0>;
 					status = "disabled";
 				};
 
-				eth1: eth1@c5000 {
+				eth1: eth1 {
 					interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <1>;
 					status = "disabled";
