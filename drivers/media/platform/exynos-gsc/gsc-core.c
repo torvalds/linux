@@ -1085,7 +1085,7 @@ static int gsc_probe(struct platform_device *pdev)
 		return PTR_ERR(gsc->clock);
 	}
 
-	ret = clk_prepare(gsc->clock);
+	ret = clk_prepare_enable(gsc->clock);
 	if (ret) {
 		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
 			GSC_CLOCK_GATE_NAME);
@@ -1108,24 +1108,23 @@ static int gsc_probe(struct platform_device *pdev)
 		goto err_v4l2;
 
 	platform_set_drvdata(pdev, gsc);
-	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0)
-		goto err_m2m;
+
+	gsc_hw_set_sw_reset(gsc);
+	gsc_wait_reset(gsc);
 
 	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
 	dev_dbg(dev, "gsc-%d registered successfully\n", gsc->id);
 
-	pm_runtime_put(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	return 0;
 
-err_m2m:
-	gsc_unregister_m2m_device(gsc);
 err_v4l2:
 	v4l2_device_unregister(&gsc->v4l2_dev);
 err_clk:
-	clk_unprepare(gsc->clock);
+	clk_disable_unprepare(gsc->clock);
 	return ret;
 }
 
