@@ -8,3 +8,4 @@ Designs and Implementations
    procfile
    powersave
    oss-emulation
+   seq-oss
