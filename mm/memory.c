@@ -2099,9 +2099,31 @@ static inline int wp_page_reuse(struct fault_env *fe, pte_t orig_pte,
 
 static bool pte_spinlock(struct fault_env *fe)
 {
+	bool ret = false;
+
+	/* Check if vma is still valid */
+	if (!(fe->flags & FAULT_FLAG_SPECULATIVE)) {
+		fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
+		spin_lock(fe->ptl);
+		return true;
+	}
+
+	local_irq_disable();
+	if (vma_is_dead(fe->vma, fe->sequence))
+		goto out;
+
 	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
 	spin_lock(fe->ptl);
-	return true;
+
+	if (vma_is_dead(fe->vma, fe->sequence)) {
+		spin_unlock(fe->ptl);
+		goto out;
+	}
+
+	ret = true;
+out:
+	local_irq_enable();
+	return ret;
 }
 
 static bool pte_map_lock(struct fault_env *fe)
