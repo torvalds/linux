@@ -279,7 +279,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
-#include <asm/unaligned.h>
 #include <net/busy_poll.h>
 
 int sysctl_tcp_min_tso_segs __read_mostly = 2;
@@ -2722,11 +2721,11 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	/* Report meaningful fields for all TCP states, including listeners */
 	rate = READ_ONCE(sk->sk_pacing_rate);
 	rate64 = rate != ~0U ? rate : ~0ULL;
-	put_unaligned(rate64, &info->tcpi_pacing_rate);
+	info->tcpi_pacing_rate = rate64;
 
 	rate = READ_ONCE(sk->sk_max_pacing_rate);
 	rate64 = rate != ~0U ? rate : ~0ULL;
-	put_unaligned(rate64, &info->tcpi_max_pacing_rate);
+	info->tcpi_max_pacing_rate = rate64;
 
 	info->tcpi_reordering = tp->reordering;
 	info->tcpi_snd_cwnd = tp->snd_cwnd;
@@ -2792,8 +2791,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 	slow = lock_sock_fast(sk);
 
-	put_unaligned(tp->bytes_acked, &info->tcpi_bytes_acked);
-	put_unaligned(tp->bytes_received, &info->tcpi_bytes_received);
+	info->tcpi_bytes_acked = tp->bytes_acked;
+	info->tcpi_bytes_received = tp->bytes_received;
 	info->tcpi_notsent_bytes = max_t(int, 0, tp->write_seq - tp->snd_nxt);
 
 	unlock_sock_fast(sk, slow);
@@ -2811,7 +2810,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	if (rate && intv) {
 		rate64 = (u64)rate * tp->mss_cache * USEC_PER_SEC;
 		do_div(rate64, intv);
-		put_unaligned(rate64, &info->tcpi_delivery_rate);
+		info->tcpi_delivery_rate = rate64;
 	}
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
