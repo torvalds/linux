@@ -22,12 +22,6 @@
 #define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
 #define SEC4_SG_OFFSET_MASK	0x00001fff
 
-struct sec4_sg_entry {
-	u64 ptr;
-	u32 len;
-	u32 bpid_offset;
-};
-
 /* Max size of any CAAM descriptor in 32-bit words, inclusive of header */
 #define MAX_CAAM_DESCSIZE	64
 
