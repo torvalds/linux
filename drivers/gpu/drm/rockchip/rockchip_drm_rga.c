@@ -42,6 +42,15 @@
 #define RGA_MMU_SRC1_BASE		0x0174
 #define RGA_MMU_DST_BASE		0x0178
 
+static void __user *rga_compat_ptr(u64 value)
+{
+#ifdef CONFIG_ARM64
+	return (void __user *)(value);
+#else
+	return (void __user *)((u32)(value));
+#endif
+}
+
 static void rga_dma_flush_range(void *ptr, int size)
 {
 #ifdef CONFIG_ARM
@@ -550,13 +559,13 @@ int rockchip_rga_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	 * command have two integer, one for register offset, another for
 	 * register value.
 	 */
-	if (copy_from_user(cmdlist->data, (void __user *)req->cmd,
+	if (copy_from_user(cmdlist->data, rga_compat_ptr(req->cmd),
 			   sizeof(struct drm_rockchip_rga_cmd) * req->cmd_nr))
 		return -EFAULT;
 	cmdlist->last += req->cmd_nr * 2;
 
 	if (copy_from_user(&cmdlist->data[cmdlist->last],
-			   (void __user *)req->cmd_buf,
+			   rga_compat_ptr(req->cmd_buf),
 			   sizeof(struct drm_rockchip_rga_cmd) * req->cmd_buf_nr))
 		return -EFAULT;
 	cmdlist->last += req->cmd_buf_nr * 2;
