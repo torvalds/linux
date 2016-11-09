@@ -306,8 +306,6 @@ struct dsaf_misc_op {
 	/* reset series function, it will be reset if the dereset is 0 */
 	void (*dsaf_reset)(struct dsaf_device *dsaf_dev, bool dereset);
 	void (*xge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
-	void (*xge_core_srst)(struct dsaf_device *dsaf_dev, u32 port,
-			      bool dereset);
 	void (*ge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_comm_srst)(struct dsaf_device *dsaf_dev, bool dereset);
