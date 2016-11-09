@@ -1336,7 +1336,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Failed to get reset control\n");
 			return PTR_ERR(scodec->rst);
 		}
-	};
+	}
 
 	scodec->gpio_pa = devm_gpiod_get_optional(&pdev->dev, "allwinner,pa",
 						  GPIOD_OUT_LOW);
