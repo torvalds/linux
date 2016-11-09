@@ -530,6 +530,7 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
  *	@value: value to program into EXT_CSD register
  *	@timeout_ms: timeout (ms) for operation performed by register write,
  *                   timeout of zero implies maximum possible timeout
+ *	@timing: new timing to change to
  *	@use_busy_signal: use the busy signal as response type
  *	@send_status: send status cmd to poll for busy
  *	@retry_crc_err: retry when CRC errors when polling with CMD13 for busy
@@ -537,13 +538,14 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
  *	Modifies the EXT_CSD register for selected card.
  */
 int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
-		unsigned int timeout_ms, bool use_busy_signal, bool send_status,
-		bool retry_crc_err)
+		unsigned int timeout_ms, unsigned char timing,
+		bool use_busy_signal, bool send_status,	bool retry_crc_err)
 {
 	struct mmc_host *host = card->host;
 	int err;
 	struct mmc_command cmd = {0};
 	bool use_r1b_resp = use_busy_signal;
+	unsigned char old_timing = host->ios.timing;
 
 	mmc_retune_hold(host);
 
@@ -585,16 +587,24 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	if (!use_busy_signal)
 		goto out;
 
+	/* Switch to new timing before poll and check switch status. */
+	if (timing)
+		mmc_set_timing(host, timing);
+
 	/*If SPI or used HW busy detection above, then we don't need to poll. */
 	if (((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp) ||
 		mmc_host_is_spi(host)) {
 		if (send_status)
 			err = mmc_switch_status(card);
-		goto out;
+		goto out_tim;
 	}
 
 	/* Let's try to poll to find out when the command is completed. */
 	err = mmc_poll_for_busy(card, timeout_ms, send_status, retry_crc_err);
+
+out_tim:
+	if (err && timing)
+		mmc_set_timing(host, old_timing);
 out:
 	mmc_retune_release(host);
 
@@ -604,8 +614,8 @@ out:
 int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		unsigned int timeout_ms)
 {
-	return __mmc_switch(card, set, index, value, timeout_ms, true, true,
-				false);
+	return __mmc_switch(card, set, index, value, timeout_ms, 0,
+			true, true, false);
 }
 EXPORT_SYMBOL_GPL(mmc_switch);
 
