@@ -1451,14 +1451,12 @@ int denali_init(struct denali_nand_info *denali)
 	denali_hw_init(denali);
 	denali_drv_init(denali);
 
-	/*
-	 * denali_isr register is done after all the hardware
-	 * initilization is finished
-	 */
-	if (devm_request_irq(denali->dev, denali->irq, denali_isr, IRQF_SHARED,
-			     DENALI_NAND_NAME, denali)) {
+	/* Request IRQ after all the hardware initialization is finished */
+	ret = devm_request_irq(denali->dev, denali->irq, denali_isr,
+			       IRQF_SHARED, DENALI_NAND_NAME, denali);
+	if (ret) {
 		dev_err(denali->dev, "Unable to request IRQ\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	/* now that our ISR is registered, we can enable interrupts */
