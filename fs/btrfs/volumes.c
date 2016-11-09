@@ -1595,8 +1595,8 @@ static int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_dev_extent_chunk_objectid(leaf, extent, chunk_objectid);
 	btrfs_set_dev_extent_chunk_offset(leaf, extent, chunk_offset);
 
-	write_extent_buffer(leaf, root->fs_info->chunk_tree_uuid,
-		    btrfs_dev_extent_chunk_tree_uuid(extent), BTRFS_UUID_SIZE);
+	write_extent_buffer_chunk_tree_uuid(leaf,
+			root->fs_info->chunk_tree_uuid);
 
 	btrfs_set_dev_extent_length(leaf, extent, num_bytes);
 	btrfs_mark_buffer_dirty(leaf);

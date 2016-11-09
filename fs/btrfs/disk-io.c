@@ -1419,11 +1419,8 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_header_owner(leaf, objectid);
 	root->node = leaf;
 
-	write_extent_buffer(leaf, fs_info->fsid, btrfs_header_fsid(),
-			    BTRFS_FSID_SIZE);
-	write_extent_buffer(leaf, fs_info->chunk_tree_uuid,
-			    btrfs_header_chunk_tree_uuid(leaf),
-			    BTRFS_UUID_SIZE);
+	write_extent_buffer_fsid(leaf, fs_info->fsid);
+	write_extent_buffer_chunk_tree_uuid(leaf, fs_info->chunk_tree_uuid);
 	btrfs_mark_buffer_dirty(leaf);
 
 	root->commit_root = btrfs_root_node(root);
@@ -1506,8 +1503,7 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_header_owner(leaf, BTRFS_TREE_LOG_OBJECTID);
 	root->node = leaf;
 
-	write_extent_buffer(root->node, root->fs_info->fsid,
-			    btrfs_header_fsid(), BTRFS_FSID_SIZE);
+	write_extent_buffer_fsid(root->node, root->fs_info->fsid);
 	btrfs_mark_buffer_dirty(root->node);
 	btrfs_tree_unlock(root->node);
 	return root;
