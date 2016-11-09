@@ -4397,7 +4397,8 @@ static u64 *get_written_sptes(struct kvm_mmu_page *sp, gpa_t gpa, int *nspte)
 }
 
 static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-			      const u8 *new, int bytes)
+			      const u8 *new, int bytes,
+			      struct kvm_page_track_notifier_node *node)
 {
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm_mmu_page *sp;
@@ -4610,7 +4611,8 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 }
 
 static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,
-			struct kvm_memory_slot *slot)
+			struct kvm_memory_slot *slot,
+			struct kvm_page_track_notifier_node *node)
 {
 	kvm_mmu_invalidate_zap_all_pages(kvm);
 }
