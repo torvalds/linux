@@ -164,6 +164,8 @@
 
 #define WM_ADSP_ACKED_CTL_TIMEOUT_MS         100
 #define WM_ADSP_ACKED_CTL_N_QUICKPOLLS       10
+#define WM_ADSP_ACKED_CTL_MIN_VALUE          0
+#define WM_ADSP_ACKED_CTL_MAX_VALUE          0xFFFFFF
 
 /*
  * Event control messages
@@ -761,8 +763,20 @@ static int wm_coeff_info(struct snd_kcontrol *kctl,
 		(struct soc_bytes_ext *)kctl->private_value;
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
-	uinfo->count = ctl->len;
+	switch (ctl->type) {
+	case WMFW_CTL_TYPE_ACKED:
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+		uinfo->value.integer.min = WM_ADSP_ACKED_CTL_MIN_VALUE;
+		uinfo->value.integer.max = WM_ADSP_ACKED_CTL_MAX_VALUE;
+		uinfo->value.integer.step = 1;
+		uinfo->count = 1;
+		break;
+	default:
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+		uinfo->count = ctl->len;
+		break;
+	}
+
 	return 0;
 }
 
@@ -910,6 +924,30 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 	return ret;
 }
 
+static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_bytes_ext *bytes_ext =
+		(struct soc_bytes_ext *)kctl->private_value;
+	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
+	unsigned int val = ucontrol->value.integer.value[0];
+	int ret;
+
+	if (val == 0)
+		return 0;	/* 0 means no event */
+
+	mutex_lock(&ctl->dsp->pwr_lock);
+
+	if (ctl->enabled)
+		ret = wm_coeff_write_acked_control(ctl, val);
+	else
+		ret = -EPERM;
+
+	mutex_unlock(&ctl->dsp->pwr_lock);
+
+	return ret;
+}
+
 static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 				 void *buf, size_t len)
 {
@@ -1005,6 +1043,21 @@ static int wm_coeff_tlv_get(struct snd_kcontrol *kctl,
 	return ret;
 }
 
+static int wm_coeff_get_acked(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	/*
+	 * Although it's not useful to read an acked control, we must satisfy
+	 * user-side assumptions that all controls are readable and that a
+	 * write of the same value should be filtered out (it's valid to send
+	 * the same event number again to the firmware). We therefore return 0,
+	 * meaning "no event" so valid event numbers will always be a change
+	 */
+	ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
 struct wmfw_ctl_work {
 	struct wm_adsp *dsp;
 	struct wm_coeff_ctl *ctl;
@@ -1057,17 +1110,25 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 
 	kcontrol->name = ctl->name;
 	kcontrol->info = wm_coeff_info;
-	kcontrol->get = wm_coeff_get;
-	kcontrol->put = wm_coeff_put;
 	kcontrol->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kcontrol->tlv.c = snd_soc_bytes_tlv_callback;
 	kcontrol->private_value = (unsigned long)&ctl->bytes_ext;
-
-	ctl->bytes_ext.max = ctl->len;
-	ctl->bytes_ext.get = wm_coeff_tlv_get;
-	ctl->bytes_ext.put = wm_coeff_tlv_put;
-
 	kcontrol->access = wmfw_convert_flags(ctl->flags, ctl->len);
+
+	switch (ctl->type) {
+	case WMFW_CTL_TYPE_ACKED:
+		kcontrol->get = wm_coeff_get_acked;
+		kcontrol->put = wm_coeff_put_acked;
+		break;
+	default:
+		kcontrol->get = wm_coeff_get;
+		kcontrol->put = wm_coeff_put;
+
+		ctl->bytes_ext.max = ctl->len;
+		ctl->bytes_ext.get = wm_coeff_tlv_get;
+		ctl->bytes_ext.put = wm_coeff_tlv_put;
+		break;
+	}
 
 	ret = snd_soc_add_card_controls(dsp->card, kcontrol, 1);
 	if (ret < 0)
@@ -1428,6 +1489,18 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 
 		switch (coeff_blk.ctl_type) {
 		case SNDRV_CTL_ELEM_TYPE_BYTES:
+			break;
+		case WMFW_CTL_TYPE_ACKED:
+			if (coeff_blk.flags & WMFW_CTL_FLAG_SYS)
+				continue;	/* ignore */
+
+			ret = wm_adsp_check_coeff_flags(dsp, &coeff_blk,
+						WMFW_CTL_FLAG_VOLATILE |
+						WMFW_CTL_FLAG_WRITEABLE |
+						WMFW_CTL_FLAG_READABLE,
+						0);
+			if (ret)
+				return -EINVAL;
 			break;
 		case WMFW_CTL_TYPE_HOSTEVENT:
 			ret = wm_adsp_check_coeff_flags(dsp, &coeff_blk,
