@@ -17,6 +17,7 @@
 #include <linux/bitmap.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/irq.h>
 #include <linux/kconfig.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -136,7 +137,7 @@ static void process_one_interrupt(struct rmi_driver_data *data,
 	}
 }
 
-int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
+static int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 {
 	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
 	struct device *dev = &rmi_dev->dev;
@@ -181,7 +182,42 @@ int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rmi_process_interrupt_requests);
+
+static irqreturn_t rmi_irq_fn(int irq, void *dev_id)
+{
+	struct rmi_device *rmi_dev = dev_id;
+	int ret;
+
+	ret = rmi_process_interrupt_requests(rmi_dev);
+	if (ret)
+		rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev,
+			"Failed to process interrupt request: %d\n", ret);
+
+	return IRQ_HANDLED;
+}
+
+static int rmi_irq_init(struct rmi_device *rmi_dev)
+{
+	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	int irq_flags = irq_get_trigger_type(pdata->irq);
+	int ret;
+
+	if (!irq_flags)
+		irq_flags = IRQF_TRIGGER_LOW;
+
+	ret = devm_request_threaded_irq(&rmi_dev->dev, pdata->irq, NULL,
+					rmi_irq_fn, irq_flags | IRQF_ONESHOT,
+					dev_name(rmi_dev->xport->dev),
+					rmi_dev);
+	if (ret < 0) {
+		dev_err(&rmi_dev->dev, "Failed to register interrupt %d\n",
+			pdata->irq);
+
+		return ret;
+	}
+
+	return 0;
+}
 
 static int suspend_one_function(struct rmi_function *fn)
 {
@@ -802,8 +838,10 @@ err_put_fn:
 	return error;
 }
 
-int rmi_driver_suspend(struct rmi_device *rmi_dev)
+int rmi_driver_suspend(struct rmi_device *rmi_dev, bool enable_wake)
 {
+	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	int irq = pdata->irq;
 	int retval = 0;
 
 	retval = rmi_suspend_functions(rmi_dev);
@@ -811,13 +849,32 @@ int rmi_driver_suspend(struct rmi_device *rmi_dev)
 		dev_warn(&rmi_dev->dev, "Failed to suspend functions: %d\n",
 			retval);
 
+	disable_irq(irq);
+	if (enable_wake && device_may_wakeup(rmi_dev->xport->dev)) {
+		retval = enable_irq_wake(irq);
+		if (!retval)
+			dev_warn(&rmi_dev->dev,
+				 "Failed to enable irq for wake: %d\n",
+				 retval);
+	}
 	return retval;
 }
 EXPORT_SYMBOL_GPL(rmi_driver_suspend);
 
-int rmi_driver_resume(struct rmi_device *rmi_dev)
+int rmi_driver_resume(struct rmi_device *rmi_dev, bool clear_wake)
 {
+	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	int irq = pdata->irq;
 	int retval;
+
+	enable_irq(irq);
+	if (clear_wake && device_may_wakeup(rmi_dev->xport->dev)) {
+		retval = disable_irq_wake(irq);
+		if (!retval)
+			dev_warn(&rmi_dev->dev,
+				 "Failed to disable irq for wake: %d\n",
+				 retval);
+	}
 
 	retval = rmi_resume_functions(rmi_dev);
 	if (retval)
@@ -831,6 +888,10 @@ EXPORT_SYMBOL_GPL(rmi_driver_resume);
 static int rmi_driver_remove(struct device *dev)
 {
 	struct rmi_device *rmi_dev = to_rmi_device(dev);
+	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	int irq = pdata->irq;
+
+	disable_irq(irq);
 
 	rmi_free_function_list(rmi_dev);
 
@@ -1049,6 +1110,10 @@ static int rmi_driver_probe(struct device *dev)
 			}
 		}
 	}
+
+	retval = rmi_irq_init(rmi_dev);
+	if (retval < 0)
+		goto err_destroy_functions;
 
 	if (data->f01_container->dev.driver)
 		/* Driver already bound, so enable ATTN now. */
