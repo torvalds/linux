@@ -780,8 +780,10 @@ s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
 	ixgbe_link_speed speed;
 	bool link_up;
 
-	/*
-	 * Link should be up in order for the blink bit in the LED control
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
+
+	/* Link should be up in order for the blink bit in the LED control
 	 * register to work. Force link and speed in the MAC if link is down.
 	 * This will be reversed when we stop the blinking.
 	 */
@@ -813,6 +815,9 @@ s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
 {
 	u32 macc_reg;
 	u32 ledctl_reg;
+
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
 
 	/* Restore the LED to its default value. */
 	ledctl_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
