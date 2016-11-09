@@ -365,11 +365,8 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 	 */
 	val = (rd_reg32(&r4tst->rtsdctl) & RTSDCTL_ENT_DLY_MASK)
 	      >> RTSDCTL_ENT_DLY_SHIFT;
-	if (ent_delay <= val) {
-		/* put RNG4 into run mode */
-		clrsetbits_32(&r4tst->rtmctl, RTMCTL_PRGM, 0);
-		return;
-	}
+	if (ent_delay <= val)
+		goto start_rng;
 
 	val = rd_reg32(&r4tst->rtsdctl);
 	val = (val & ~RTSDCTL_ENT_DLY_MASK) |
@@ -381,15 +378,12 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 	wr_reg32(&r4tst->rtfrqmax, RTFRQMAX_DISABLE);
 	/* read the control register */
 	val = rd_reg32(&r4tst->rtmctl);
+start_rng:
 	/*
 	 * select raw sampling in both entropy shifter
-	 * and statistical checker
+	 * and statistical checker; ; put RNG4 into run mode
 	 */
-	clrsetbits_32(&val, 0, RTMCTL_SAMP_MODE_RAW_ES_SC);
-	/* put RNG4 into run mode */
-	clrsetbits_32(&val, RTMCTL_PRGM, 0);
-	/* write back the control register */
-	wr_reg32(&r4tst->rtmctl, val);
+	clrsetbits_32(&r4tst->rtmctl, RTMCTL_PRGM, RTMCTL_SAMP_MODE_RAW_ES_SC);
 }
 
 /**
@@ -545,13 +539,13 @@ static int caam_probe(struct platform_device *pdev)
 	else
 		BLOCK_OFFSET = PG_SIZE_64K;
 
-	ctrlpriv->ctrl = (struct caam_ctrl __force *)ctrl;
-	ctrlpriv->assure = (struct caam_assurance __force *)
-			   ((uint8_t *)ctrl +
+	ctrlpriv->ctrl = (struct caam_ctrl __iomem __force *)ctrl;
+	ctrlpriv->assure = (struct caam_assurance __iomem __force *)
+			   ((__force uint8_t *)ctrl +
 			    BLOCK_OFFSET * ASSURE_BLOCK_NUMBER
 			   );
-	ctrlpriv->deco = (struct caam_deco __force *)
-			 ((uint8_t *)ctrl +
+	ctrlpriv->deco = (struct caam_deco __iomem __force *)
+			 ((__force uint8_t *)ctrl +
 			 BLOCK_OFFSET * DECO_BLOCK_NUMBER
 			 );
 
@@ -630,8 +624,8 @@ static int caam_probe(struct platform_device *pdev)
 					ring);
 				continue;
 			}
-			ctrlpriv->jr[ring] = (struct caam_job_ring __force *)
-					     ((uint8_t *)ctrl +
+			ctrlpriv->jr[ring] = (struct caam_job_ring __iomem __force *)
+					     ((__force uint8_t *)ctrl +
 					     (ring + JR_BLOCK_NUMBER) *
 					      BLOCK_OFFSET
 					     );
@@ -644,8 +638,8 @@ static int caam_probe(struct platform_device *pdev)
 			!!(rd_reg32(&ctrl->perfmon.comp_parms_ms) &
 			   CTPR_MS_QI_MASK);
 	if (ctrlpriv->qi_present) {
-		ctrlpriv->qi = (struct caam_queue_if __force *)
-			       ((uint8_t *)ctrl +
+		ctrlpriv->qi = (struct caam_queue_if __iomem __force *)
+			       ((__force uint8_t *)ctrl +
 				 BLOCK_OFFSET * QI_BLOCK_NUMBER
 			       );
 		/* This is all that's required to physically enable QI */
@@ -803,7 +797,7 @@ static int caam_probe(struct platform_device *pdev)
 				    &caam_fops_u32_ro);
 
 	/* Internal covering keys (useful in non-secure mode only) */
-	ctrlpriv->ctl_kek_wrap.data = &ctrlpriv->ctrl->kek[0];
+	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	ctrlpriv->ctl_kek = debugfs_create_blob("kek",
 						S_IRUSR |
@@ -811,7 +805,7 @@ static int caam_probe(struct platform_device *pdev)
 						ctrlpriv->ctl,
 						&ctrlpriv->ctl_kek_wrap);
 
-	ctrlpriv->ctl_tkek_wrap.data = &ctrlpriv->ctrl->tkek[0];
+	ctrlpriv->ctl_tkek_wrap.data = (__force void *)&ctrlpriv->ctrl->tkek[0];
 	ctrlpriv->ctl_tkek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	ctrlpriv->ctl_tkek = debugfs_create_blob("tkek",
 						 S_IRUSR |
@@ -819,7 +813,7 @@ static int caam_probe(struct platform_device *pdev)
 						 ctrlpriv->ctl,
 						 &ctrlpriv->ctl_tkek_wrap);
 
-	ctrlpriv->ctl_tdsk_wrap.data = &ctrlpriv->ctrl->tdsk[0];
+	ctrlpriv->ctl_tdsk_wrap.data = (__force void *)&ctrlpriv->ctrl->tdsk[0];
 	ctrlpriv->ctl_tdsk_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	ctrlpriv->ctl_tdsk = debugfs_create_blob("tdsk",
 						 S_IRUSR |
