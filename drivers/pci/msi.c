@@ -1179,11 +1179,12 @@ int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 EXPORT_SYMBOL(pci_enable_msix_range);
 
 /**
- * pci_alloc_irq_vectors - allocate multiple IRQs for a device
+ * pci_alloc_irq_vectors_affinity - allocate multiple IRQs for a device
  * @dev:		PCI device to operate on
  * @min_vecs:		minimum number of vectors required (must be >= 1)
  * @max_vecs:		maximum (desired) number of vectors
  * @flags:		flags or quirks for the allocation
+ * @affd:		optional description of the affinity requirements
  *
  * Allocate up to @max_vecs interrupt vectors for @dev, using MSI-X or MSI
  * vectors if available, and fall back to a single legacy vector
@@ -1195,15 +1196,20 @@ EXPORT_SYMBOL(pci_enable_msix_range);
  * To get the Linux IRQ number used for a vector that can be passed to
  * request_irq() use the pci_irq_vector() helper.
  */
-int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
-		unsigned int max_vecs, unsigned int flags)
+int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
+				   unsigned int max_vecs, unsigned int flags,
+				   const struct irq_affinity *affd)
 {
 	static const struct irq_affinity msi_default_affd;
-	const struct irq_affinity *affd = NULL;
 	int vecs = -ENOSPC;
 
-	if (flags & PCI_IRQ_AFFINITY)
-		affd = &msi_default_affd;
+	if (flags & PCI_IRQ_AFFINITY) {
+		if (!affd)
+			affd = &msi_default_affd;
+	} else {
+		if (WARN_ON(affd))
+			affd = NULL;
+	}
 
 	if (flags & PCI_IRQ_MSIX) {
 		vecs = __pci_enable_msix_range(dev, NULL, min_vecs, max_vecs,
@@ -1226,7 +1232,7 @@ int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 
 	return vecs;
 }
-EXPORT_SYMBOL(pci_alloc_irq_vectors);
+EXPORT_SYMBOL(pci_alloc_irq_vectors_affinity);
 
 /**
  * pci_free_irq_vectors - free previously allocated IRQs for a device
