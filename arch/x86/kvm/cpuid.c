@@ -87,6 +87,10 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 			best->ecx |= F(OSXSAVE);
 	}
 
+	best->edx &= ~F(APIC);
+	if (vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE)
+		best->edx |= F(APIC);
+
 	if (apic) {
 		if (best->ecx & F(TSC_DEADLINE_TIMER))
 			apic->lapic_timer.timer_mode_mask = 3 << 17;
