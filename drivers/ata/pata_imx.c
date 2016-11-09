@@ -13,14 +13,12 @@
  * - dmaengine support
  * - check if timing stuff needed
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/blkdev.h>
-#include <scsi/scsi_host.h>
+
 #include <linux/ata.h>
-#include <linux/libata.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/libata.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #define DRV_NAME "pata_imx"
 
