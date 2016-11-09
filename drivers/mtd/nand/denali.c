@@ -1436,7 +1436,6 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 /* initialize driver data structures */
 static void denali_drv_init(struct denali_nand_info *denali)
 {
-	/* setup interrupt handler */
 	/*
 	 * the completion object will be used to notify
 	 * the callee that the interrupt is done
