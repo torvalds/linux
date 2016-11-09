@@ -467,7 +467,6 @@ struct denali_nand_info {
 	spinlock_t irq_lock;
 	uint32_t irq_status;
 	int irq_debug_array[32];
-	int idx;
 	int irq;
 
 	uint32_t devnum;	/* represent how many nands connected */
