@@ -18,9 +18,6 @@
 #include "hns_dsaf_rcb.h"
 
 #define AE_NAME_PORT_ID_IDX 6
-#define ETH_STATIC_REG	 1
-#define ETH_DUMP_REG	 5
-#define ETH_GSTRING_LEN	32
 
 static struct hns_mac_cb *hns_get_mac_cb(struct hnae_handle *handle)
 {
