@@ -84,10 +84,12 @@ int intel_gvt_init_host(void)
 				symbol_get(xengt_mpt), "xengt");
 		intel_gvt_host.hypervisor_type = INTEL_GVT_HYPERVISOR_XEN;
 	} else {
+#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 		/* not in Xen. Try KVMGT */
 		intel_gvt_host.mpt = try_then_request_module(
-				symbol_get(kvmgt_mpt), "kvm");
+				symbol_get(kvmgt_mpt), "kvmgt");
 		intel_gvt_host.hypervisor_type = INTEL_GVT_HYPERVISOR_KVM;
+#endif
 	}
 
 	/* Fail to load MPT modules - bail out */

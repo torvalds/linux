@@ -161,6 +161,20 @@ struct intel_vgpu {
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 	struct notifier_block shadow_ctx_notifier_block;
+
+#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
+	struct {
+		struct device *mdev;
+		struct vfio_region *region;
+		int num_regions;
+		struct eventfd_ctx *intx_trigger;
+		struct eventfd_ctx *msi_trigger;
+		struct rb_root cache;
+		struct mutex cache_lock;
+		void *vfio_group;
+		struct notifier_block iommu_notifier;
+	} vdev;
+#endif
 };
 
 struct intel_gvt_gm {
