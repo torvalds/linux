@@ -1573,14 +1573,6 @@ int denali_init(struct denali_nand_info *denali)
 	denali->nand.ecc.bytes *= denali->devnum;
 	denali->nand.ecc.strength *= denali->devnum;
 
-	/*
-	 * Let driver know the total blocks number and how many blocks
-	 * contained by each nand chip. blksperchip will help driver to
-	 * know how many blocks is taken by FW.
-	 */
-	denali->totalblks = mtd->size >> denali->nand.phys_erase_shift;
-	denali->blksperchip = denali->totalblks / denali->nand.numchips;
-
 	/* override the default read operations */
 	denali->nand.ecc.size = ECC_SECTOR_SIZE * denali->devnum;
 	denali->nand.ecc.read_page = denali_read_page;

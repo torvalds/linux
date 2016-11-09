@@ -462,8 +462,6 @@ struct denali_nand_info {
 	int irq;
 
 	uint32_t devnum;	/* represent how many nands connected */
-	uint32_t totalblks;
-	uint32_t blksperchip;
 	uint32_t bbtskipbytes;
 	uint32_t max_banks;
 };
