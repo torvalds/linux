@@ -87,4 +87,40 @@ struct ap_config_info {
  */
 int ap_query_configuration(struct ap_config_info *info);
 
+/*
+ * struct ap_qirq_ctrl - convenient struct for easy invocation
+ * of the ap_queue_irq_ctrl() function. This struct is passed
+ * as GR1 parameter to the PQAP(AQIC) instruction. For details
+ * please see the AR documentation.
+ */
+struct ap_qirq_ctrl {
+	unsigned int _res1 : 8;
+	unsigned int zone  : 8;  /* zone info */
+	unsigned int ir    : 1;  /* ir flag: enable (1) or disable (0) irq */
+	unsigned int _res2 : 4;
+	unsigned int gisc  : 3;  /* guest isc field */
+	unsigned int _res3 : 6;
+	unsigned int gf    : 2;  /* gisa format */
+	unsigned int _res4 : 1;
+	unsigned int gisa  : 27; /* gisa origin */
+	unsigned int _res5 : 1;
+	unsigned int isc   : 3;  /* irq sub class */
+};
+
+/**
+ * ap_queue_irq_ctrl(): Control interruption on a AP queue.
+ * @qid: The AP queue number
+ * @qirqctrl: struct ap_qirq_ctrl, see above
+ * @ind: The notification indicator byte
+ *
+ * Returns AP queue status.
+ *
+ * Control interruption on the given AP queue.
+ * Just a simple wrapper function for the low level PQAP(AQIC)
+ * instruction available for other kernel modules.
+ */
+struct ap_queue_status ap_queue_irq_ctrl(ap_qid_t qid,
+					 struct ap_qirq_ctrl qirqctrl,
+					 void *ind);
+
 #endif /* _ASM_S390_AP_H_ */
