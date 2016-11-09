@@ -1274,8 +1274,8 @@ static int mtd_ooblayout_get_bytes(struct mtd_info *mtd, u8 *buf,
 					    int section,
 					    struct mtd_oob_region *oobregion))
 {
-	struct mtd_oob_region oobregion = { };
-	int section = 0, ret;
+	struct mtd_oob_region oobregion;
+	int section, ret;
 
 	ret = mtd_ooblayout_find_region(mtd, start, &section,
 					&oobregion, iter);
@@ -1317,8 +1317,8 @@ static int mtd_ooblayout_set_bytes(struct mtd_info *mtd, const u8 *buf,
 					    int section,
 					    struct mtd_oob_region *oobregion))
 {
-	struct mtd_oob_region oobregion = { };
-	int section = 0, ret;
+	struct mtd_oob_region oobregion;
+	int section, ret;
 
 	ret = mtd_ooblayout_find_region(mtd, start, &section,
 					&oobregion, iter);
