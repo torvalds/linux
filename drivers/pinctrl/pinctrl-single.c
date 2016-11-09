@@ -1133,8 +1133,10 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 	struct pcs_function *function;
 
 	rows = pinctrl_count_index_with_args(np, name);
-	if (rows == -EINVAL)
-		return rows;
+	if (rows <= 0) {
+		dev_err(pcs->dev, "Ivalid number of rows: %d\n", rows);
+		return -EINVAL;
+	}
 
 	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows, GFP_KERNEL);
 	if (!vals)
@@ -1228,8 +1230,10 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 	struct pcs_function *function;
 
 	rows = pinctrl_count_index_with_args(np, name);
-	if (rows == -EINVAL)
-		return rows;
+	if (rows <= 0) {
+		dev_err(pcs->dev, "Invalid number of rows: %d\n", rows);
+		return -EINVAL;
+	}
 
 	npins_in_row = pcs->width / pcs->bits_per_pin;
 
