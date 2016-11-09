@@ -348,7 +348,7 @@ static int __init caam_rng_init(void)
 		pr_err("Job Ring Device allocation for transform failed\n");
 		return PTR_ERR(dev);
 	}
-	rng_ctx = kmalloc(sizeof(*rng_ctx), GFP_DMA);
+	rng_ctx = kmalloc(sizeof(*rng_ctx), GFP_DMA | GFP_KERNEL);
 	if (!rng_ctx) {
 		err = -ENOMEM;
 		goto free_caam_alloc;

@@ -2346,10 +2346,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	/* Check if data are contiguous. */
 	all_contig = !src_nents;
-	if (!all_contig) {
-		src_nents = src_nents ? : 1;
+	if (!all_contig)
 		sec4_sg_len = src_nents;
-	}
 
 	sec4_sg_len += dst_nents;
 
