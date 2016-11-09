@@ -1179,26 +1179,9 @@ static int gsc_runtime_suspend(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-static int gsc_resume(struct device *dev)
-{
-	if (!pm_runtime_suspended(dev))
-		return gsc_runtime_resume(dev);
-
-	return 0;
-}
-
-static int gsc_suspend(struct device *dev)
-{
-	if (!pm_runtime_suspended(dev))
-		return gsc_runtime_suspend(dev);
-
-	return 0;
-}
-#endif
-
 static const struct dev_pm_ops gsc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(gsc_suspend, gsc_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(gsc_runtime_suspend, gsc_runtime_resume, NULL)
 };
 
