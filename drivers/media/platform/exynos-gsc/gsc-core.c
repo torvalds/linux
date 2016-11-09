@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <media/v4l2-ioctl.h>
 
 #include "gsc-core.h"
@@ -988,24 +989,12 @@ static const struct of_device_id exynos_gsc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos_gsc_match);
 
-static void *gsc_get_drv_data(struct platform_device *pdev)
-{
-	struct gsc_driverdata *driver_data = NULL;
-	const struct of_device_id *match;
-
-	match = of_match_node(exynos_gsc_match, pdev->dev.of_node);
-	if (match)
-		driver_data = (struct gsc_driverdata *)match->data;
-
-	return driver_data;
-}
-
 static int gsc_probe(struct platform_device *pdev)
 {
 	struct gsc_dev *gsc;
 	struct resource *res;
-	struct gsc_driverdata *drv_data = gsc_get_drv_data(pdev);
 	struct device *dev = &pdev->dev;
+	const struct gsc_driverdata *drv_data = of_device_get_match_data(dev);
 	int ret;
 
 	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
