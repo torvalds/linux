@@ -590,7 +590,7 @@ static inline int hnae_alloc_buffer_attach(struct hnae_ring *ring, int i)
 	if (ret)
 		return ret;
 
-	ring->desc[i].addr = (__le64)ring->desc_cb[i].dma;
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
 
 	return 0;
 }
@@ -621,14 +621,14 @@ static inline void hnae_replace_buffer(struct hnae_ring *ring, int i,
 
 	bops->unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
-	ring->desc[i].addr = (__le64)ring->desc_cb[i].dma;
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
 
 static inline void hnae_reuse_buffer(struct hnae_ring *ring, int i)
 {
 	ring->desc_cb[i].reuse_flag = 0;
-	ring->desc[i].addr = (__le64)(ring->desc_cb[i].dma
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
 		+ ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
