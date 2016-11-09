@@ -220,7 +220,7 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 }
 
-static void rds_tcp_tc_info(struct socket *sock, unsigned int len,
+static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 			    struct rds_info_iterator *iter,
 			    struct rds_info_lengths *lens)
 {
@@ -229,6 +229,7 @@ static void rds_tcp_tc_info(struct socket *sock, unsigned int len,
 	unsigned long flags;
 	struct sockaddr_in sin;
 	int sinlen;
+	struct socket *sock;
 
 	spin_lock_irqsave(&rds_tcp_tc_list_lock, flags);
 
@@ -237,12 +238,17 @@ static void rds_tcp_tc_info(struct socket *sock, unsigned int len,
 
 	list_for_each_entry(tc, &rds_tcp_tc_list, t_list_item) {
 
-		sock->ops->getname(sock, (struct sockaddr *)&sin, &sinlen, 0);
-		tsinfo.local_addr = sin.sin_addr.s_addr;
-		tsinfo.local_port = sin.sin_port;
-		sock->ops->getname(sock, (struct sockaddr *)&sin, &sinlen, 1);
-		tsinfo.peer_addr = sin.sin_addr.s_addr;
-		tsinfo.peer_port = sin.sin_port;
+		sock = tc->t_sock;
+		if (sock) {
+			sock->ops->getname(sock, (struct sockaddr *)&sin,
+					   &sinlen, 0);
+			tsinfo.local_addr = sin.sin_addr.s_addr;
+			tsinfo.local_port = sin.sin_port;
+			sock->ops->getname(sock, (struct sockaddr *)&sin,
+					   &sinlen, 1);
+			tsinfo.peer_addr = sin.sin_addr.s_addr;
+			tsinfo.peer_port = sin.sin_port;
+		}
 
 		tsinfo.hdr_rem = tc->t_tinc_hdr_rem;
 		tsinfo.data_rem = tc->t_tinc_data_rem;
