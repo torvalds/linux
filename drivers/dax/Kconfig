@@ -14,7 +14,7 @@ if DEV_DAX
 
 config DEV_DAX_PMEM
 	tristate "PMEM DAX: direct access to persistent memory"
-	depends on NVDIMM_DAX
+	depends on LIBNVDIMM && NVDIMM_DAX
 	default DEV_DAX
 	help
 	  Support raw access to persistent memory.  Note that this

@@ -575,6 +575,7 @@ static const struct of_device_id emac_dt_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, emac_dt_match);
 
 #if IS_ENABLED(CONFIG_ACPI)
 static const struct acpi_device_id emac_acpi_match[] = {

@@ -1102,6 +1102,14 @@ static int __set_port_type(struct mlx4_port_info *info,
 	int i;
 	int err = 0;
 
+	if ((port_type & mdev->caps.supported_type[info->port]) != port_type) {
+		mlx4_err(mdev,
+			 "Requested port type for port %d is not supported on this HCA\n",
+			 info->port);
+		err = -EINVAL;
+		goto err_sup;
+	}
+
 	mlx4_stop_sense(mdev);
 	mutex_lock(&priv->port_mutex);
 	info->tmp_type = port_type;
@@ -1147,7 +1155,7 @@ static int __set_port_type(struct mlx4_port_info *info,
 out:
 	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
-
+err_sup:
 	return err;
 }
 
