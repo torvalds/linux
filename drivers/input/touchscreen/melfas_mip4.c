@@ -1477,6 +1477,7 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	input->id.bustype = BUS_I2C;
 	input->id.vendor = 0x13c5;
+	input->id.product = ts->product_id;
 
 	input->open = mip4_input_open;
 	input->close = mip4_input_close;
@@ -1614,6 +1615,6 @@ static struct i2c_driver mip4_driver = {
 module_i2c_driver(mip4_driver);
 
 MODULE_DESCRIPTION("MELFAS MIP4 Touchscreen");
-MODULE_VERSION("2016.10.24");
+MODULE_VERSION("2016.10.31");
 MODULE_AUTHOR("Sangwon Jee <jeesw@melfas.com>");
 MODULE_LICENSE("GPL");
