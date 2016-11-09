@@ -106,13 +106,13 @@ your driver:
 		int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
-		void (\*adap_log_status)(struct cec_adapter *adap);
+		void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 
 		/* High-level callbacks */
 		...
 	};
 
-The three low-level ops deal with various aspects of controlling the CEC adapter
+The five low-level ops deal with various aspects of controlling the CEC adapter
 hardware:
 
 
@@ -238,6 +238,18 @@ When a CEC message was received:
 
 Speaks for itself.
 
+Implementing the interrupt handler
+----------------------------------
+
+Typically the CEC hardware provides interrupts that signal when a transmit
+finished and whether it was successful or not, and it provides and interrupt
+when a CEC message was received.
+
+The CEC driver should always process the transmit interrupts first before
+handling the receive interrupt. The framework expects to see the cec_transmit_done
+call before the cec_received_msg call, otherwise it can get confused if the
+received message was in reply to the transmitted message.
+
 Implementing the High-Level CEC Adapter
 ---------------------------------------
 
@@ -247,11 +259,11 @@ CEC protocol driven. The following high-level callbacks are available:
 .. code-block:: none
 
 	struct cec_adap_ops {
-		/\* Low-level callbacks \*/
+		/* Low-level callbacks */
 		...
 
-		/\* High-level CEC message callback \*/
-		int (\*received)(struct cec_adapter \*adap, struct cec_msg \*msg);
+		/* High-level CEC message callback */
+		int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
 	};
 
 The received() callback allows the driver to optionally handle a newly
@@ -263,7 +275,7 @@ received CEC message
 If the driver wants to process a CEC message, then it can implement this
 callback. If it doesn't want to handle this message, then it should return
 -ENOMSG, otherwise the CEC framework assumes it processed this message and
-it will not no anything with it.
+it will not do anything with it.
 
 
 CEC framework functions
