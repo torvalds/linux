@@ -124,18 +124,6 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 		return -EINVAL;
 	}
 
-	/* reset PMU and load init table parser ucode */
-	if (post) {
-		nvkm_mask(device, 0x000200, 0x00002000, 0x00000000);
-		nvkm_mask(device, 0x000200, 0x00002000, 0x00002000);
-		nvkm_rd32(device, 0x000200);
-		if (nvkm_msec(device, 2000,
-			if (!(nvkm_rd32(device, 0x10a10c) & 0x00000006))
-				break;
-		) < 0)
-			return -ETIMEDOUT;
-	}
-
 	ret = pmu_load(init, 0x04, post, &exec, &args);
 	if (ret)
 		return ret;
