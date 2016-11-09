@@ -334,6 +334,8 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 		mpc8xxx_spi->tx_len = mpc8xxx_spi->rxskip;
 		mpc8xxx_spi->rx_len = t->len - mpc8xxx_spi->rxskip;
 		mpc8xxx_spi->rx = t->rx_buf + mpc8xxx_spi->rxskip;
+		if (t->rx_nbits == SPI_NBITS_DUAL)
+			spcom |= SPCOM_DO;
 	}
 
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPCOM, spcom);
@@ -369,6 +371,11 @@ static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 	int ret;
 
 	mspi->rxskip = fsl_espi_check_rxskip_mode(m);
+	if (trans->rx_nbits == SPI_NBITS_DUAL && !mspi->rxskip) {
+		dev_err(mspi->dev, "Dual output mode requires RXSKIP mode!\n");
+		return -EINVAL;
+	}
+
 	fsl_espi_copy_to_buf(m, mspi);
 	fsl_espi_setup_transfer(spi, trans);
 
@@ -387,7 +394,7 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 			       struct spi_message *m)
 {
 	struct mpc8xxx_spi *mspi = spi_master_get_devdata(m->spi->master);
-	unsigned int delay_usecs = 0;
+	unsigned int delay_usecs = 0, rx_nbits = 0;
 	struct spi_transfer *t, trans = {};
 	int ret;
 
@@ -398,6 +405,8 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 		if (t->delay_usecs > delay_usecs)
 			delay_usecs = t->delay_usecs;
+		if (t->rx_nbits > rx_nbits)
+			rx_nbits = t->rx_nbits;
 	}
 
 	t = list_first_entry(&m->transfers, struct spi_transfer,
@@ -409,6 +418,7 @@ static int fsl_espi_do_one_msg(struct spi_master *master,
 	trans.delay_usecs = delay_usecs;
 	trans.tx_buf = mspi->local_buf;
 	trans.rx_buf = mspi->local_buf;
+	trans.rx_nbits = rx_nbits;
 
 	if (trans.len)
 		ret = fsl_espi_trans(m, &trans);
@@ -580,6 +590,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 
 	mpc8xxx_spi_probe(dev, mem, irq);
 
+	master->mode_bits |= SPI_RX_DUAL;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	master->setup = fsl_espi_setup;
 	master->cleanup = fsl_espi_cleanup;
