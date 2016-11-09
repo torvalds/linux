@@ -39,6 +39,7 @@
 #include "../dmaengine.h"
 
 static char *chanerr_str[] = {
+	"DMA Transfer Source Address Error",
 	"DMA Transfer Destination Address Error",
 	"Next Descriptor Address Error",
 	"Descriptor Error",
