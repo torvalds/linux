@@ -597,6 +597,8 @@ static void uvd_v4_2_set_dcm(struct amdgpu_device *adev,
 {
 	u32 tmp, tmp2;
 
+	WREG32_FIELD(UVD_CGC_GATE, REGS, 0);
+
 	tmp = RREG32(mmUVD_CGC_CTRL);
 	tmp &= ~(UVD_CGC_CTRL__CLK_OFF_DELAY_MASK | UVD_CGC_CTRL__CLK_GATE_DLY_TIMER_MASK);
 	tmp |= UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK |
