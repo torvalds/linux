@@ -323,7 +323,7 @@ __setup("hugepagesz=", setup_hugepagesz);
 static __init int add_default_hugepagesz(void)
 {
 	if (size_to_hstate(CONT_PTES * PAGE_SIZE) == NULL)
-		hugetlb_add_hstate(CONT_PMD_SHIFT);
+		hugetlb_add_hstate(CONT_PTE_SHIFT);
 	return 0;
 }
 arch_initcall(add_default_hugepagesz);
