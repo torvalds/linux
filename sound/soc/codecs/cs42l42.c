@@ -1969,7 +1969,6 @@ MODULE_DEVICE_TABLE(i2c, cs42l42_id);
 static struct i2c_driver cs42l42_i2c_driver = {
 	.driver = {
 		.name = "cs42l42",
-		.owner = THIS_MODULE,
 		.pm = &cs42l42_runtime_pm,
 		.of_match_table = cs42l42_of_match,
 		},
