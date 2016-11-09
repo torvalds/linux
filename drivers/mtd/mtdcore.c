@@ -1283,7 +1283,7 @@ static int mtd_ooblayout_get_bytes(struct mtd_info *mtd, u8 *buf,
 	while (!ret) {
 		int cnt;
 
-		cnt = oobregion.length > nbytes ? nbytes : oobregion.length;
+		cnt = min_t(int, nbytes, oobregion.length);
 		memcpy(buf, oobbuf + oobregion.offset, cnt);
 		buf += cnt;
 		nbytes -= cnt;
@@ -1326,7 +1326,7 @@ static int mtd_ooblayout_set_bytes(struct mtd_info *mtd, const u8 *buf,
 	while (!ret) {
 		int cnt;
 
-		cnt = oobregion.length > nbytes ? nbytes : oobregion.length;
+		cnt = min_t(int, nbytes, oobregion.length);
 		memcpy(oobbuf + oobregion.offset, buf, cnt);
 		buf += cnt;
 		nbytes -= cnt;
