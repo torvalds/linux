@@ -35,8 +35,6 @@ struct hns_mac_cb;
 
 #define DSAF_CFG_READ_CNT   30
 
-#define MAC_NUM_OCTETS_PER_ADDR 6
-
 #define DSAF_DUMP_REGS_NUM 504
 #define DSAF_STATIC_NUM 28
 #define DSAF_V2_STATIC_NUM	44
@@ -165,7 +163,7 @@ enum dsaf_mode {
 /*mac entry, mc or uc entry*/
 struct dsaf_drv_mac_single_dest_entry {
 	/* mac addr, match the entry*/
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR];
+	u8 addr[ETH_ALEN];
 	u16 in_vlan_id; /* value of VlanId */
 
 	/* the vld input port num, dsaf-mode fix 0, */
@@ -179,7 +177,7 @@ struct dsaf_drv_mac_single_dest_entry {
 /*only mc entry*/
 struct dsaf_drv_mac_multi_dest_entry {
 	/* mac addr, match the entry*/
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR];
+	u8 addr[ETH_ALEN];
 	u16 in_vlan_id;
 	/* this mac addr output port,*/
 	/*	bit0-bit5 means Port0-Port5(1bit is vld)**/

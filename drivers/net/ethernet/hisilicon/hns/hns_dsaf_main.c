@@ -591,6 +591,16 @@ static void hns_dsaf_voq_bp_all_thrd_cfg(struct dsaf_device *dsaf_dev)
 	}
 }
 
+static void hns_dsaf_tbl_tcam_match_cfg(
+	struct dsaf_device *dsaf_dev,
+	struct dsaf_tbl_tcam_data *ptbl_tcam_data)
+{
+	dsaf_write_dev(dsaf_dev, DSAF_TBL_TCAM_MATCH_CFG_L_REG,
+		       ptbl_tcam_data->tbl_tcam_data_low);
+	dsaf_write_dev(dsaf_dev, DSAF_TBL_TCAM_MATCH_CFG_H_REG,
+		       ptbl_tcam_data->tbl_tcam_data_high);
+}
+
 /**
  * hns_dsaf_tbl_tcam_data_cfg - tbl
  * @dsaf_id: dsa fabric id
@@ -894,15 +904,16 @@ static void hns_dsaf_tcam_uc_cfg(
 }
 
 /**
- * hns_dsaf_tcam_mc_cfg - INT
- * @dsaf_id: dsa fabric id
- * @address,
- * @ptbl_tcam_data,
- * @ptbl_tcam_mcast,
+ * hns_dsaf_tcam_mc_cfg - cfg the tcam for mc
+ * @dsaf_dev: dsa fabric device struct pointer
+ * @address: tcam index
+ * @ptbl_tcam_data: tcam data struct pointer
+ * @ptbl_tcam_mcast: tcam mask struct pointer, it must be null for HNSv1
  */
 static void hns_dsaf_tcam_mc_cfg(
 	struct dsaf_device *dsaf_dev, u32 address,
 	struct dsaf_tbl_tcam_data *ptbl_tcam_data,
+	struct dsaf_tbl_tcam_data *ptbl_tcam_mask,
 	struct dsaf_tbl_tcam_mcast_cfg *ptbl_tcam_mcast)
 {
 	spin_lock_bh(&dsaf_dev->tcam_lock);
@@ -913,7 +924,11 @@ static void hns_dsaf_tcam_mc_cfg(
 	hns_dsaf_tbl_tcam_data_cfg(dsaf_dev, ptbl_tcam_data);
 	/*Write Tcam Mcast*/
 	hns_dsaf_tbl_tcam_mcast_cfg(dsaf_dev, ptbl_tcam_mcast);
-	/*Write Plus*/
+	/* Write Match Data */
+	if (ptbl_tcam_mask)
+		hns_dsaf_tbl_tcam_match_cfg(dsaf_dev, ptbl_tcam_mask);
+
+	/* Write Puls */
 	hns_dsaf_tbl_tcam_data_mcast_pul(dsaf_dev);
 
 	spin_unlock_bh(&dsaf_dev->tcam_lock);
@@ -1625,7 +1640,7 @@ int hns_dsaf_set_mac_mc_entry(
 
 	hns_dsaf_tcam_mc_cfg(
 		dsaf_dev, entry_index,
-		(struct dsaf_tbl_tcam_data *)(&mac_key), &mac_data);
+		(struct dsaf_tbl_tcam_data *)(&mac_key), NULL, &mac_data);
 
 	/* config software entry */
 	soft_mac_entry += entry_index;
@@ -1634,6 +1649,16 @@ int hns_dsaf_set_mac_mc_entry(
 	soft_mac_entry->tcam_key.low.val = mac_key.low.val;
 
 	return 0;
+}
+
+static void hns_dsaf_mc_mask_bit_clear(char *dst, const char *src)
+{
+	u16 *a = (u16 *)dst;
+	const u16 *b = (const u16 *)src;
+
+	a[0] &= b[0];
+	a[1] &= b[1];
+	a[2] &= b[2];
 }
 
 /**
@@ -1646,11 +1671,14 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 {
 	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
 	struct dsaf_drv_tbl_tcam_key mac_key;
+	struct dsaf_drv_tbl_tcam_key mask_key;
+	struct dsaf_tbl_tcam_data *pmask_key = NULL;
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
-	struct dsaf_drv_priv *priv =
-	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
+	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
-	struct dsaf_drv_tbl_tcam_key tmp_mac_key;
+	struct dsaf_tbl_tcam_data tcam_data;
+	u8 mc_addr[ETH_ALEN];
+	u8 *mc_mask;
 	int mskid;
 
 	/*chechk mac addr */
@@ -1660,14 +1688,28 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 		return -EINVAL;
 	}
 
+	ether_addr_copy(mc_addr, mac_entry->addr);
+	mc_mask = dsaf_dev->mac_cb[mac_entry->in_port_num]->mc_mask;
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		/* prepare for key data setting */
+		hns_dsaf_mc_mask_bit_clear(mc_addr, mc_mask);
+
+		/* config key mask */
+		hns_dsaf_set_mac_key(dsaf_dev, &mask_key,
+				     0x0,
+				     0xff,
+				     mc_mask);
+		pmask_key = (struct dsaf_tbl_tcam_data *)(&mask_key);
+	}
+
 	/*config key */
 	hns_dsaf_set_mac_key(
 		dsaf_dev, &mac_key, mac_entry->in_vlan_id,
-		mac_entry->in_port_num, mac_entry->addr);
+		mac_entry->in_port_num, mc_addr);
 
 	memset(&mac_data, 0, sizeof(struct dsaf_tbl_tcam_mcast_cfg));
 
-	/*check exist? */
+	/* check if the tcam is exist */
 	entry_index = hns_dsaf_find_soft_mac_entry(dsaf_dev, &mac_key);
 	if (entry_index == DSAF_INVALID_ENTRY_IDX) {
 		/*if hasnot , find a empty*/
@@ -1681,11 +1723,11 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 			return -EINVAL;
 		}
 	} else {
-		/*if exist, add in */
-		hns_dsaf_tcam_mc_get(
-			dsaf_dev, entry_index,
-			(struct dsaf_tbl_tcam_data *)(&tmp_mac_key), &mac_data);
+		/* if exist, add in */
+		hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data,
+				     &mac_data);
 	}
+
 	/* config hardware entry */
 	if (mac_entry->port_num < DSAF_SERVICE_NW_NUM) {
 		mskid = mac_entry->port_num;
@@ -1708,9 +1750,12 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 		dsaf_dev->ae_dev.name, mac_key.high.val,
 		mac_key.low.val, entry_index);
 
-	hns_dsaf_tcam_mc_cfg(
-		dsaf_dev, entry_index,
-		(struct dsaf_tbl_tcam_data *)(&mac_key), &mac_data);
+	tcam_data.tbl_tcam_data_high = mac_key.high.val;
+	tcam_data.tbl_tcam_data_low = mac_key.low.val;
+
+	/* config mc entry with mask */
+	hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index, &tcam_data,
+			     pmask_key, &mac_data);
 
 	/*config software entry */
 	soft_mac_entry += entry_index;
@@ -1782,25 +1827,24 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 {
 	u16 entry_index = DSAF_INVALID_ENTRY_IDX;
 	struct dsaf_drv_tbl_tcam_key mac_key;
-	struct dsaf_drv_priv *priv =
-	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
+	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
 	u16 vlan_id;
 	u8 in_port_num;
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
-	struct dsaf_drv_tbl_tcam_key tmp_mac_key;
+	struct dsaf_tbl_tcam_data tcam_data;
 	int mskid;
 	const u8 empty_msk[sizeof(mac_data.tbl_mcast_port_msk)] = {0};
+	struct dsaf_drv_tbl_tcam_key mask_key;
+	struct dsaf_tbl_tcam_data *pmask_key = NULL;
+	u8 mc_addr[ETH_ALEN];
+	u8 *mc_mask;
 
 	if (!(void *)mac_entry) {
 		dev_err(dsaf_dev->dev,
 			"hns_dsaf_del_mac_mc_port mac_entry is NULL\n");
 		return -EINVAL;
 	}
-
-	/*get key info*/
-	vlan_id = mac_entry->in_vlan_id;
-	in_port_num = mac_entry->in_port_num;
 
 	/*check mac addr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr)) {
@@ -1809,11 +1853,28 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 		return -EINVAL;
 	}
 
-	/*config key */
-	hns_dsaf_set_mac_key(dsaf_dev, &mac_key, vlan_id, in_port_num,
-			     mac_entry->addr);
+	/* always mask vlan_id field */
+	ether_addr_copy(mc_addr, mac_entry->addr);
+	mc_mask = dsaf_dev->mac_cb[mac_entry->in_port_num]->mc_mask;
 
-	/*check is exist? */
+	if (!AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		/* prepare for key data setting */
+		hns_dsaf_mc_mask_bit_clear(mc_addr, mc_mask);
+
+		/* config key mask */
+		hns_dsaf_set_mac_key(dsaf_dev, &mask_key, 0x00, 0xff, mc_addr);
+
+		pmask_key = (struct dsaf_tbl_tcam_data *)(&mask_key);
+	}
+
+	/* get key info */
+	vlan_id = mac_entry->in_vlan_id;
+	in_port_num = mac_entry->in_port_num;
+
+	/* config key */
+	hns_dsaf_set_mac_key(dsaf_dev, &mac_key, vlan_id, in_port_num, mc_addr);
+
+	/* check if the tcam entry is exist */
 	entry_index = hns_dsaf_find_soft_mac_entry(dsaf_dev, &mac_key);
 	if (entry_index == DSAF_INVALID_ENTRY_IDX) {
 		/*find none */
@@ -1829,10 +1890,8 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 		dsaf_dev->ae_dev.name, mac_key.high.val,
 		mac_key.low.val, entry_index);
 
-	/*read entry*/
-	hns_dsaf_tcam_mc_get(
-		dsaf_dev, entry_index,
-		(struct dsaf_tbl_tcam_data *)(&tmp_mac_key), &mac_data);
+	/* read entry */
+	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
 
 	/*del the port*/
 	if (mac_entry->port_num < DSAF_SERVICE_NW_NUM) {
@@ -1857,10 +1916,13 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 		/* del soft entry */
 		soft_mac_entry += entry_index;
 		soft_mac_entry->index = DSAF_INVALID_ENTRY_IDX;
-	} else { /* not zer, just del port, updata*/
-		hns_dsaf_tcam_mc_cfg(
-			dsaf_dev, entry_index,
-			(struct dsaf_tbl_tcam_data *)(&mac_key), &mac_data);
+	} else { /* not zero, just del port, update */
+		tcam_data.tbl_tcam_data_high = mac_key.high.val;
+		tcam_data.tbl_tcam_data_low = mac_key.low.val;
+
+		hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index,
+				     &tcam_data,
+				     pmask_key, &mac_data);
 	}
 
 	return 0;
@@ -1976,7 +2038,7 @@ int hns_dsaf_get_mac_entry_by_index(
 
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
 	struct dsaf_tbl_tcam_ucast_cfg mac_uc_data;
-	char mac_addr[MAC_NUM_OCTETS_PER_ADDR] = {0};
+	char mac_addr[ETH_ALEN] = {0};
 
 	if (entry_index >= DSAF_TCAM_SUM) {
 		/* find none, del error */

@@ -335,8 +335,7 @@ static void hns_mac_param_get(struct mac_params *param,
 {
 	param->vaddr = (void *)mac_cb->vaddr;
 	param->mac_mode = hns_get_enet_interface(mac_cb);
-	memcpy(param->addr, mac_cb->addr_entry_idx[0].addr,
-	       MAC_NUM_OCTETS_PER_ADDR);
+	ether_addr_copy(param->addr, mac_cb->addr_entry_idx[0].addr);
 	param->mac_id = mac_cb->mac_id;
 	param->dev = mac_cb->dev;
 }
@@ -353,8 +352,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR]
-		= {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
 	/* directy return ok in debug network mode */
@@ -389,8 +387,7 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	u8 port_num;
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR]
-		= {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mac_entry_idx *uc_mac_entry;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
@@ -866,6 +863,13 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 				break;
 			}
 		}
+	}
+
+	if (fwnode_property_read_u8_array(mac_cb->fw_port, "mc-mac-mask",
+					  mac_cb->mc_mask, ETH_ALEN)) {
+		dev_warn(mac_cb->dev,
+			 "no mc-mac-mask property, set to default value.\n");
+		eth_broadcast_addr(mac_cb->mc_mask);
 	}
 
 	return 0;

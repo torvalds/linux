@@ -56,9 +56,6 @@ struct dsaf_device;
 /*check mac addr multicast*/
 #define MAC_IS_MULTICAST(p)	((*((u8 *)((p) + 0)) & 0x01) ? (1) : (0))
 
-/**< Number of octets (8-bit bytes) in an ethernet address */
-#define MAC_NUM_OCTETS_PER_ADDR 6
-
 struct mac_priv {
 	void *mac;
 };
@@ -189,7 +186,7 @@ struct mac_statistics {
 
 /*mac para struct ,mac get param from nic or dsaf when initialize*/
 struct mac_params {
-	char addr[MAC_NUM_OCTETS_PER_ADDR];
+	char addr[ETH_ALEN];
 	void *vaddr; /*virtual address*/
 	struct device *dev;
 	u8 mac_id;
@@ -214,7 +211,7 @@ struct mac_info {
 };
 
 struct mac_entry_idx {
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR];
+	u8 addr[ETH_ALEN];
 	u16 vlan_id:12;
 	u16 valid:1;
 	u16 qos:3;
@@ -317,6 +314,7 @@ struct hns_mac_cb {
 	u8 __iomem *serdes_vaddr;
 	struct regmap *serdes_ctrl;
 	struct regmap *cpld_ctrl;
+	char mc_mask[ETH_ALEN];
 	u32 cpld_ctrl_reg;
 	u32 port_rst_off;
 	u32 port_mode_off;
