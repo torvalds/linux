@@ -181,9 +181,6 @@ static uint16_t denali_nand_reset(struct denali_nand_info *denali)
 {
 	int i;
 
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-		__FILE__, __LINE__, __func__);
-
 	for (i = 0; i < denali->max_banks; i++)
 		iowrite32(INTR_STATUS__RST_COMP | INTR_STATUS__TIME_OUT,
 		denali->flash_reg + INTR_STATUS(i));
@@ -232,9 +229,6 @@ static void nand_onfi_timing_set(struct denali_nand_info *denali,
 	uint16_t en_lo, en_hi;
 	uint16_t acc_clks;
 	uint16_t addr_2_data, re_2_we, re_2_re, we_2_re, cs_cnt;
-
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-		__FILE__, __LINE__, __func__);
 
 	en_lo = CEIL_DIV(Trp[mode], CLK_X);
 	en_hi = CEIL_DIV(Treh[mode], CLK_X);
@@ -480,9 +474,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 	uint8_t maf_id, device_id;
 	int i;
 
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-			__FILE__, __LINE__, __func__);
-
 	/*
 	 * Use read id method to get device ID and other params.
 	 * For some NAND chips, controller can't report the correct
@@ -537,9 +528,6 @@ static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 static void denali_set_intr_modes(struct denali_nand_info *denali,
 					uint16_t INT_ENABLE)
 {
-	dev_dbg(denali->dev, "%s, Line %d, Function: %s\n",
-		__FILE__, __LINE__, __func__);
-
 	if (INT_ENABLE)
 		iowrite32(1, denali->flash_reg + GLOBAL_INT_ENABLE);
 	else
