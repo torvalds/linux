@@ -43,6 +43,7 @@ struct fl_flow_key {
 		struct flow_dissector_key_ipv4_addrs enc_ipv4;
 		struct flow_dissector_key_ipv6_addrs enc_ipv6;
 	};
+	struct flow_dissector_key_ports enc_tp;
 } __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
 
 struct fl_flow_mask_range {
@@ -155,6 +156,8 @@ static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		}
 
 		skb_key.enc_key_id.keyid = tunnel_id_to_key32(key->tun_id);
+		skb_key.enc_tp.src = key->tp_src;
+		skb_key.enc_tp.dst = key->tp_dst;
 	}
 
 	skb_key.indev_ifindex = skb->skb_iif;
@@ -348,6 +351,10 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_SCTP_DST_MASK]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_SCTP_SRC]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_SCTP_DST]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_ENC_UDP_SRC_PORT]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_ENC_UDP_SRC_PORT_MASK]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_ENC_UDP_DST_PORT]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK]	= { .type = NLA_U16 },
 };
 
 static void fl_set_key_val(struct nlattr **tb,
@@ -500,6 +507,14 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		       &mask->enc_key_id.keyid, TCA_FLOWER_UNSPEC,
 		       sizeof(key->enc_key_id.keyid));
 
+	fl_set_key_val(tb, &key->enc_tp.src, TCA_FLOWER_KEY_ENC_UDP_SRC_PORT,
+		       &mask->enc_tp.src, TCA_FLOWER_KEY_ENC_UDP_SRC_PORT_MASK,
+		       sizeof(key->enc_tp.src));
+
+	fl_set_key_val(tb, &key->enc_tp.dst, TCA_FLOWER_KEY_ENC_UDP_DST_PORT,
+		       &mask->enc_tp.dst, TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK,
+		       sizeof(key->enc_tp.dst));
+
 	return 0;
 }
 
@@ -567,6 +582,18 @@ static void fl_init_dissector(struct cls_fl_head *head,
 			     FLOW_DISSECTOR_KEY_PORTS, tp);
 	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
 			     FLOW_DISSECTOR_KEY_VLAN, vlan);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_ENC_KEYID, enc_key_id);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS, enc_ipv4);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS, enc_ipv6);
+	if (FL_KEY_IS_MASKED(&mask->key, enc_ipv4) ||
+	    FL_KEY_IS_MASKED(&mask->key, enc_ipv6))
+		FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_ENC_CONTROL,
+			   enc_control);
+	FL_KEY_SET_IF_MASKED(&mask->key, keys, cnt,
+			     FLOW_DISSECTOR_KEY_ENC_PORTS, enc_tp);
 
 	skb_flow_dissector_init(&head->dissector, keys, cnt);
 }
@@ -941,7 +968,17 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	if (fl_dump_key_val(skb, &key->enc_key_id, TCA_FLOWER_KEY_ENC_KEY_ID,
 			    &mask->enc_key_id, TCA_FLOWER_UNSPEC,
-			    sizeof(key->enc_key_id)))
+			    sizeof(key->enc_key_id)) ||
+	    fl_dump_key_val(skb, &key->enc_tp.src,
+			    TCA_FLOWER_KEY_ENC_UDP_SRC_PORT,
+			    &mask->enc_tp.src,
+			    TCA_FLOWER_KEY_ENC_UDP_SRC_PORT_MASK,
+			    sizeof(key->enc_tp.src)) ||
+	    fl_dump_key_val(skb, &key->enc_tp.dst,
+			    TCA_FLOWER_KEY_ENC_UDP_DST_PORT,
+			    &mask->enc_tp.dst,
+			    TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK,
+			    sizeof(key->enc_tp.dst)))
 		goto nla_put_failure;
 
 	nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags);

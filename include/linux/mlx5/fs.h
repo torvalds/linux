@@ -42,6 +42,10 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO	= 1 << 16,
 };
 
+enum {
+	MLX5_FLOW_TABLE_TUNNEL_EN = BIT(0),
+};
+
 #define LEFTOVERS_RULE_NUM	 2
 static inline void build_leftovers_ft_param(int *priority,
 					    int *n_ent,
@@ -97,13 +101,15 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 				    int prio,
 				    int num_flow_table_entries,
 				    int max_num_groups,
-				    u32 level);
+				    u32 level,
+				    u32 flags);
 
 struct mlx5_flow_table *
 mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 		       int prio,
 		       int num_flow_table_entries,
-		       u32 level);
+		       u32 level,
+		       u32 flags);
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
 			     int prio,
@@ -124,14 +130,19 @@ struct mlx5_flow_group *
 mlx5_create_flow_group(struct mlx5_flow_table *ft, u32 *in);
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
+struct mlx5_flow_act {
+	u32 action;
+	u32 flow_tag;
+	u32 encap_id;
+};
+
 /* Single destination per rule.
  * Group ID is implied by the match criteria.
  */
 struct mlx5_flow_handle *
 mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    struct mlx5_flow_spec *spec,
-		    u32 action,
-		    u32 flow_tag,
+		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
 		    int dest_num);
 void mlx5_del_flow_rules(struct mlx5_flow_handle *fr);

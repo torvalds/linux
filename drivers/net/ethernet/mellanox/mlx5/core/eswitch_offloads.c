@@ -49,23 +49,23 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_esw_flow_attr *attr)
 {
 	struct mlx5_flow_destination dest[2] = {};
+	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_fc *counter = NULL;
 	struct mlx5_flow_handle *rule;
 	void *misc;
-	int action;
 	int i = 0;
 
 	if (esw->mode != SRIOV_OFFLOADS)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	action = attr->action;
+	flow_act.action = attr->action;
 
-	if (action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 		dest[i].vport_num = attr->out_rep->vport;
 		i++;
 	}
-	if (action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		counter = mlx5_fc_create(esw->dev, true);
 		if (IS_ERR(counter))
 			return ERR_CAST(counter);
@@ -82,9 +82,14 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS |
 				      MLX5_MATCH_MISC_PARAMETERS;
+	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_DECAP)
+		spec->match_criteria_enable |= MLX5_MATCH_INNER_HEADERS;
+
+	if (attr->encap)
+		flow_act.encap_id = attr->encap->encap_id;
 
 	rule = mlx5_add_flow_rules((struct mlx5_flow_table *)esw->fdb_table.fdb,
-				   spec, action, 0, dest, i);
+				   spec, &flow_act, dest, i);
 	if (IS_ERR(rule))
 		mlx5_fc_destroy(esw->dev, counter);
 
@@ -274,6 +279,7 @@ out:
 static struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
+	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_destination dest;
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
@@ -297,10 +303,10 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport_num = vport;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
-					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-					0, &dest, 1);
+					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule))
 		esw_warn(esw->dev, "FDB: Failed to add send to vport rule err %ld\n", PTR_ERR(flow_rule));
 out:
@@ -363,6 +369,7 @@ out_err:
 
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 {
+	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_destination dest;
 	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_spec *spec;
@@ -377,10 +384,10 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport_num = 0;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
-					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-					0, &dest, 1);
+					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		err = PTR_ERR(flow_rule);
 		esw_warn(esw->dev,  "FDB: Failed to add miss flow rule err %d\n", err);
@@ -407,6 +414,7 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	u32 *flow_group_in;
 	void *match_criteria;
 	int table_size, ix, err = 0;
+	u32 flags = 0;
 
 	flow_group_in = mlx5_vzalloc(inlen);
 	if (!flow_group_in)
@@ -421,9 +429,14 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	esw_debug(dev, "Create offloads FDB table, log_max_size(%d)\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(dev, decap))
+		flags |= MLX5_FLOW_TABLE_TUNNEL_EN;
+
 	fdb = mlx5_create_auto_grouped_flow_table(root_ns, FDB_FAST_PATH,
 						  ESW_OFFLOADS_NUM_ENTRIES,
-						  ESW_OFFLOADS_NUM_GROUPS, 0);
+						  ESW_OFFLOADS_NUM_GROUPS, 0,
+						  flags);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create Fast path FDB Table err %d\n", err);
@@ -432,7 +445,7 @@ static int esw_create_offloads_fdb_table(struct mlx5_eswitch *esw, int nvports)
 	esw->fdb_table.fdb = fdb;
 
 	table_size = nvports + MAX_PF_SQ + 1;
-	fdb = mlx5_create_flow_table(root_ns, FDB_SLOW_PATH, table_size, 0);
+	fdb = mlx5_create_flow_table(root_ns, FDB_SLOW_PATH, table_size, 0, 0);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
 		esw_warn(dev, "Failed to create slow path FDB Table err %d\n", err);
@@ -524,7 +537,7 @@ static int esw_create_offloads_table(struct mlx5_eswitch *esw)
 		return -ENOMEM;
 	}
 
-	ft_offloads = mlx5_create_flow_table(ns, 0, dev->priv.sriov.num_vfs + 2, 0);
+	ft_offloads = mlx5_create_flow_table(ns, 0, dev->priv.sriov.num_vfs + 2, 0, 0);
 	if (IS_ERR(ft_offloads)) {
 		err = PTR_ERR(ft_offloads);
 		esw_warn(esw->dev, "Failed to create offloads table, err %d\n", err);
@@ -590,6 +603,7 @@ static void esw_destroy_vport_rx_group(struct mlx5_eswitch *esw)
 struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 {
+	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_destination dest;
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
@@ -612,9 +626,9 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dest.tir_num = tirn;
 
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule = mlx5_add_flow_rules(esw->offloads.ft_offloads, spec,
-					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-					0, &dest, 1);
+				       &flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev, "fs offloads: Failed to add vport rx rule err %ld\n", PTR_ERR(flow_rule));
 		goto out;

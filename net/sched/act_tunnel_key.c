@@ -16,7 +16,6 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
-#include <net/dst_metadata.h>
 
 #include <linux/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_tunnel_key.h>
@@ -67,6 +66,7 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_IPV6_SRC] = { .len = sizeof(struct in6_addr) },
 	[TCA_TUNNEL_KEY_ENC_IPV6_DST] = { .len = sizeof(struct in6_addr) },
 	[TCA_TUNNEL_KEY_ENC_KEY_ID]   = { .type = NLA_U32 },
+	[TCA_TUNNEL_KEY_ENC_DST_PORT] = {.type = NLA_U16},
 };
 
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
@@ -81,6 +81,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	struct tc_tunnel_key *parm;
 	struct tcf_tunnel_key *t;
 	bool exists = false;
+	__be16 dst_port = 0;
 	__be64 key_id;
 	int ret = 0;
 	int err;
@@ -111,6 +112,9 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 		key_id = key32_to_tunnel_id(nla_get_be32(tb[TCA_TUNNEL_KEY_ENC_KEY_ID]));
 
+		if (tb[TCA_TUNNEL_KEY_ENC_DST_PORT])
+			dst_port = nla_get_be16(tb[TCA_TUNNEL_KEY_ENC_DST_PORT]);
+
 		if (tb[TCA_TUNNEL_KEY_ENC_IPV4_SRC] &&
 		    tb[TCA_TUNNEL_KEY_ENC_IPV4_DST]) {
 			__be32 saddr;
@@ -120,7 +124,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			daddr = nla_get_in_addr(tb[TCA_TUNNEL_KEY_ENC_IPV4_DST]);
 
 			metadata = __ip_tun_set_dst(saddr, daddr, 0, 0,
-						    TUNNEL_KEY, key_id, 0);
+						    dst_port, TUNNEL_KEY,
+						    key_id, 0);
 		} else if (tb[TCA_TUNNEL_KEY_ENC_IPV6_SRC] &&
 			   tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]) {
 			struct in6_addr saddr;
@@ -130,7 +135,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			daddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]);
 
 			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, 0,
-						      TUNNEL_KEY, key_id, 0);
+						      dst_port, TUNNEL_KEY,
+						      key_id, 0);
 		}
 
 		if (!metadata) {
@@ -258,7 +264,8 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 
 		if (nla_put_be32(skb, TCA_TUNNEL_KEY_ENC_KEY_ID, key_id) ||
 		    tunnel_key_dump_addresses(skb,
-					      &params->tcft_enc_metadata->u.tun_info))
+					      &params->tcft_enc_metadata->u.tun_info) ||
+		    nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT, key->tp_dst))
 			goto nla_put_failure;
 	}
 
