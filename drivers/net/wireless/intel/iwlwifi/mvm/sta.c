@@ -2738,68 +2738,97 @@ static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
 
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				struct iwl_mvm_sta *mvm_sta,
-				struct ieee80211_key_conf *keyconf, bool mcast,
+				struct ieee80211_key_conf *key, bool mcast,
 				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags,
 				u8 key_offset)
 {
-	struct iwl_mvm_add_sta_key_cmd cmd = {};
+	union {
+		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
+		struct iwl_mvm_add_sta_key_cmd cmd;
+	} u = {};
 	__le16 key_flags;
 	int ret;
 	u32 status;
 	u16 keyidx;
-	int i;
-	u8 sta_id = mvm_sta->sta_id;
+	u64 pn = 0;
+	int i, size;
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
 
-	keyidx = (keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
+	keyidx = (key->keyidx << STA_KEY_FLG_KEYID_POS) &
 		 STA_KEY_FLG_KEYID_MSK;
 	key_flags = cpu_to_le16(keyidx);
 	key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_KEY_MAP);
 
-	switch (keyconf->cipher) {
+	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_TKIP);
-		cmd.tkip_rx_tsc_byte2 = tkip_iv32;
-		for (i = 0; i < 5; i++)
-			cmd.tkip_rx_ttak[i] = cpu_to_le16(tkip_p1k[i]);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		if (new_api) {
+			memcpy((void *)&u.cmd.tx_mic_key,
+			       &key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+			       IWL_MIC_KEY_SIZE);
+
+			memcpy((void *)&u.cmd.rx_mic_key,
+			       &key->key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+			       IWL_MIC_KEY_SIZE);
+			pn = atomic64_read(&key->tx_pn);
+
+		} else {
+			u.cmd_v1.tkip_rx_tsc_byte2 = tkip_iv32;
+			for (i = 0; i < 5; i++)
+				u.cmd_v1.tkip_rx_ttak[i] =
+					cpu_to_le16(tkip_p1k[i]);
+		}
+		memcpy(u.cmd.common.key, key->key, key->keylen);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_CCM);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key, key->key, key->keylen);
+		if (new_api)
+			pn = atomic64_read(&key->tx_pn);
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_13BYTES);
 		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP);
-		memcpy(cmd.key + 3, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key + 3, key->key, key->keylen);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_KEY_32BYTES);
 		/* fall through */
 	case WLAN_CIPHER_SUITE_GCMP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_GCMP);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key, key->key, key->keylen);
+		if (new_api)
+			pn = atomic64_read(&key->tx_pn);
 		break;
 	default:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
-		memcpy(cmd.key, keyconf->key, keyconf->keylen);
+		memcpy(u.cmd.common.key, key->key, key->keylen);
 	}
 
 	if (mcast)
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
-	cmd.key_offset = key_offset;
-	cmd.key_flags = key_flags;
-	cmd.sta_id = sta_id;
+	u.cmd.common.key_offset = key_offset;
+	u.cmd.common.key_flags = key_flags;
+	u.cmd.common.sta_id = mvm_sta->sta_id;
+
+	if (new_api) {
+		u.cmd.transmit_seq_cnt = cpu_to_le64(pn);
+		size = sizeof(u.cmd);
+	} else {
+		size = sizeof(u.cmd_v1);
+	}
 
 	status = ADD_STA_SUCCESS;
 	if (cmd_flags & CMD_ASYNC)
-		ret =  iwl_mvm_send_cmd_pdu(mvm, ADD_STA_KEY, CMD_ASYNC,
-					    sizeof(cmd), &cmd);
+		ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA_KEY, CMD_ASYNC, size,
+					   &u.cmd);
 	else
-		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
-						  &cmd, &status);
+		ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, size,
+						  &u.cmd, &status);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:
@@ -2952,9 +2981,14 @@ static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
 				    struct ieee80211_key_conf *keyconf,
 				    bool mcast)
 {
-	struct iwl_mvm_add_sta_key_cmd cmd = {};
+	union {
+		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
+		struct iwl_mvm_add_sta_key_cmd cmd;
+	} u = {};
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
 	__le16 key_flags;
-	int ret;
+	int ret, size;
 	u32 status;
 
 	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
@@ -2965,13 +2999,19 @@ static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
 	if (mcast)
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
-	cmd.key_flags = key_flags;
-	cmd.key_offset = keyconf->hw_key_idx;
-	cmd.sta_id = sta_id;
+	/*
+	 * The fields assigned here are in the same location at the start
+	 * of the command, so we can do this union trick.
+	 */
+	u.cmd.common.key_flags = key_flags;
+	u.cmd.common.key_offset = keyconf->hw_key_idx;
+	u.cmd.common.sta_id = sta_id;
+
+	size = new_api ? sizeof(u.cmd) : sizeof(u.cmd_v1);
 
 	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
-					  &cmd, &status);
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, size, &u.cmd,
+					  &status);
 
 	switch (status) {
 	case ADD_STA_SUCCESS:
