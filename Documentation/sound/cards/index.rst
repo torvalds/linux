@@ -5,3 +5,4 @@ Card-Specific Information
    :maxdepth: 2
 
    joystick
+   cmipci

@@ -1,7 +1,8 @@
-         Brief Notes on C-Media 8338/8738/8768/8770 Driver
-         =================================================
+=================================================
+Brief Notes on C-Media 8338/8738/8768/8770 Driver
+=================================================
 
-                   Takashi Iwai <tiwai@suse.de>
+Takashi Iwai <tiwai@suse.de>
 
 
 Front/Rear Multi-channel Playback
@@ -30,19 +31,20 @@ The rear output can be heard only when "Four Channel Mode" switch is
 disabled.  Otherwise no signal will be routed to the rear speakers.
 As default it's turned on.
 
-*** WARNING ***
-When "Four Channel Mode" switch is off, the output from rear speakers
-will be FULL VOLUME regardless of Master and PCM volumes.
-This might damage your audio equipment.  Please disconnect speakers
-before your turn off this switch.
-*** WARNING ***
+.. WARNING::
+  When "Four Channel Mode" switch is off, the output from rear speakers
+  will be FULL VOLUME regardless of Master and PCM volumes [#]_.
+  This might damage your audio equipment.  Please disconnect speakers
+  before your turn off this switch.
 
-[ Well.. I once got the output with correct volume (i.e. same with the
+
+.. [#]
+  Well.. I once got the output with correct volume (i.e. same with the
   front one) and was so excited.  It was even with "Four Channel" bit
   on and "double DAC" mode.  Actually I could hear separate 4 channels
   from front and rear speakers!  But.. after reboot, all was gone.
   It's a very pity that I didn't save the register dump at that
-  time..  Maybe there is an unknown register to achieve this... ]
+  time..  Maybe there is an unknown register to achieve this...
 
 If your card has an extra output jack for the rear output, the rear
 playback should be routed there as default.  If not, there is a
@@ -73,12 +75,14 @@ cannot operate with full-duplex.
 
 The 4.0 and 5.1 modes are defined as the pcm "surround40" and "surround51"
 in alsa-lib.  For example, you can play a WAV file with 6 channels like
+::
 
 	% aplay -Dsurround51 sixchannels.wav
 
 For programming the 4/6 channel playback, you need to specify the PCM
 channels as you like and set the format S16LE.  For example, for playback
 with 4 channels,
+::
 
 	snd_pcm_hw_params_set_access(pcm, hw, SND_PCM_ACCESS_RW_INTERLEAVED);
 	    // or mmap if you like
@@ -89,13 +93,15 @@ and use the interleaved 4 channel data.
 
 There are some control switches affecting to the speaker connections:
 
-"Line-In Mode"	- an enum control to change the behavior of line-in
+Line-In Mode
+	an enum control to change the behavior of line-in
 	jack.  Either "Line-In", "Rear Output" or "Bass Output" can
 	be selected.  The last item is available only with model 039
 	or newer. 
 	When "Rear Output" is chosen, the surround channels 3 and 4
 	are output to line-in jack.
-"Mic-In Mode"	- an enum control to change the behavior of mic-in
+Mic-In Mode
+	an enum control to change the behavior of mic-in
 	jack.  Either "Mic-In" or "Center/LFE Output" can be
 	selected. 
 	When "Center/LFE Output" is chosen, the center and bass
@@ -111,10 +117,13 @@ The SPDIF playback and capture are done via the third PCM device
 (hw:0,2).  Usually this is assigned to the PCM device "spdif".
 The available rates are 44100 and 48000 Hz.
 For playback with aplay, you can run like below:
+::
 
 	% aplay -Dhw:0,2 foo.wav
 
 or
+
+::
 
 	% aplay -Dspdif foo.wav
 
@@ -140,31 +149,40 @@ off.  (Also don't forget to turn on "IEC958 Output Switch", too.)
 
 Additionally there are relevant control switches:
 
-"IEC958 Mix Analog" - Mix analog PCM playback and FM-OPL/3 streams and
+IEC958 Mix Analog
+	Mix analog PCM playback and FM-OPL/3 streams and
 	output through SPDIF.  This switch appears only on old chip
 	models (CM8738 033 and 037).
+
 	Note: without this control you can output PCM to SPDIF.
 	This is "mixing" of streams, so e.g. it's not for AC3 output
 	(see the next section).
 
-"IEC958 In Select"  - Select SPDIF input, the internal CD-in (false)
+IEC958 In Select
+	Select SPDIF input, the internal CD-in (false)
 	and the external input (true).
 
-"IEC958 Loop"       - SPDIF input data is loop back into SPDIF
+IEC958 Loop
+	SPDIF input data is loop back into SPDIF
 	output (aka bypass)
 
-"IEC958 Copyright"  - Set the copyright bit.
+IEC958 Copyright
+	Set the copyright bit.
 
-"IEC958 5V"         - Select 0.5V (coax) or 5V (optical) interface.
+IEC958 5V
+	Select 0.5V (coax) or 5V (optical) interface.
 	On some cards this doesn't work and you need to change the
 	configuration with hardware dip-switch.
 
-"IEC958 In Monitor" - SPDIF input is routed to DAC.
+IEC958 In Monitor
+	SPDIF input is routed to DAC.
 
-"IEC958 In Phase Inverse" - Set SPDIF input format as inverse.
+IEC958 In Phase Inverse
+	Set SPDIF input format as inverse.
 	[FIXME: this doesn't work on all chips..]
 
-"IEC958 In Valid"   - Set input validity flag detection.
+IEC958 In Valid
+	Set input validity flag detection.
 
 Note: When "PCM Playback Switch" is on, you'll hear the digital output
 stream through analog line-out.
@@ -217,7 +235,7 @@ to enable MIDI support.  Valid I/O ports are 0x300, 0x310, 0x320 and
 With CMI8738 and newer chips, the MIDI interface is enabled by default
 and the driver automatically chooses a port address.
 
-There is _no_ hardware wavetable function on this chip (except for
+There is *no* hardware wavetable function on this chip (except for
 OPL3 synth below).
 What's said as MIDI synth on Windows is a software synthesizer
 emulation.  On Linux use TiMidity or other softsynth program for
