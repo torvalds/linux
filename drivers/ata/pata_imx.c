@@ -38,28 +38,17 @@ struct pata_imx_priv {
 	u32 ata_ctl;
 };
 
-static int pata_imx_set_mode(struct ata_link *link, struct ata_device **unused)
+static void pata_imx_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	struct ata_device *dev;
-	struct ata_port *ap = link->ap;
 	struct pata_imx_priv *priv = ap->host->private_data;
 	u32 val;
 
-	ata_for_each_dev(dev, link, ENABLED) {
-		dev->pio_mode = dev->xfer_mode = XFER_PIO_0;
-		dev->xfer_shift = ATA_SHIFT_PIO;
-		dev->flags |= ATA_DFLAG_PIO;
-
-		val = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
-		if (ata_pio_need_iordy(dev))
-			val |= PATA_IMX_ATA_CTRL_IORDY_EN;
-		else
-			val &= ~PATA_IMX_ATA_CTRL_IORDY_EN;
-		__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
-
-		ata_dev_info(dev, "configured for PIO\n");
-	}
-	return 0;
+	val = __raw_readl(priv->host_regs + PATA_IMX_ATA_CONTROL);
+	if (ata_pio_need_iordy(adev))
+		val |= PATA_IMX_ATA_CTRL_IORDY_EN;
+	else
+		val &= ~PATA_IMX_ATA_CTRL_IORDY_EN;
+	__raw_writel(val, priv->host_regs + PATA_IMX_ATA_CONTROL);
 }
 
 static struct scsi_host_template pata_imx_sht = {
@@ -70,7 +59,7 @@ static struct ata_port_operations pata_imx_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 	.sff_data_xfer		= ata_sff_data_xfer_noirq,
 	.cable_detect		= ata_cable_unknown,
-	.set_mode		= pata_imx_set_mode,
+	.set_piomode		= pata_imx_set_piomode,
 };
 
 static void pata_imx_setup_port(struct ata_ioports *ioaddr)
