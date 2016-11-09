@@ -7049,11 +7049,11 @@ insert:
 		 * extent causing the -EEXIST.
 		 */
 		if (existing->start == em->start &&
-		    extent_map_end(existing) == extent_map_end(em) &&
+		    extent_map_end(existing) >= extent_map_end(em) &&
 		    em->block_start == existing->block_start) {
 			/*
-			 * these two extents are the same, it happens
-			 * with inlines especially
+			 * The existing extent map already encompasses the
+			 * entire extent map we tried to add.
 			 */
 			free_extent_map(em);
 			em = existing;
