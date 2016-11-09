@@ -121,6 +121,32 @@ config BLK_CMDLINE_PARSER
 
 	See Documentation/block/cmdline-partition.txt for more information.
 
+config BLK_WBT
+	bool "Enable support for block device writeback throttling"
+	default n
+	---help---
+	Enabling this option enables the block layer to throttle buffered
+	background writeback from the VM, making it more smooth and having
+	less impact on foreground operations. The throttling is done
+	dynamically on an algorithm loosely based on CoDel, factoring in
+	the realtime performance of the disk.
+
+config BLK_WBT_SQ
+	bool "Single queue writeback throttling"
+	default n
+	depends on BLK_WBT
+	---help---
+	Enable writeback throttling by default on legacy single queue devices
+
+config BLK_WBT_MQ
+	bool "Multiqueue writeback throttling"
+	default y
+	depends on BLK_WBT
+	---help---
+	Enable writeback throttling by default on multiqueue devices.
+	Multiqueue currently doesn't have support for IO scheduling,
+	enabling this option is recommended.
+
 menu "Partition Types"
 
 source "block/partitions/Kconfig"
