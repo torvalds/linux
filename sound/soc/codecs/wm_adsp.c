@@ -756,6 +756,24 @@ static inline struct wm_coeff_ctl *bytes_ext_to_ctl(struct soc_bytes_ext *ext)
 	return container_of(ext, struct wm_coeff_ctl, bytes_ext);
 }
 
+static int wm_coeff_base_reg(struct wm_coeff_ctl *ctl, unsigned int *reg)
+{
+	const struct wm_adsp_alg_region *alg_region = &ctl->alg_region;
+	struct wm_adsp *dsp = ctl->dsp;
+	const struct wm_adsp_region *mem;
+
+	mem = wm_adsp_find_region(dsp, alg_region->type);
+	if (!mem) {
+		adsp_err(dsp, "No base for region %x\n",
+			 alg_region->type);
+		return -EINVAL;
+	}
+
+	*reg = wm_adsp_region_to_reg(mem, ctl->alg_region.base + ctl->offset);
+
+	return 0;
+}
+
 static int wm_coeff_info(struct snd_kcontrol *kctl,
 			 struct snd_ctl_elem_info *uinfo)
 {
@@ -843,22 +861,14 @@ static int wm_coeff_write_acked_control(struct wm_coeff_ctl *ctl,
 static int wm_coeff_write_control(struct wm_coeff_ctl *ctl,
 				  const void *buf, size_t len)
 {
-	struct wm_adsp_alg_region *alg_region = &ctl->alg_region;
-	const struct wm_adsp_region *mem;
 	struct wm_adsp *dsp = ctl->dsp;
 	void *scratch;
 	int ret;
 	unsigned int reg;
 
-	mem = wm_adsp_find_region(dsp, alg_region->type);
-	if (!mem) {
-		adsp_err(dsp, "No base for region %x\n",
-			 alg_region->type);
-		return -EINVAL;
-	}
-
-	reg = ctl->alg_region.base + ctl->offset;
-	reg = wm_adsp_region_to_reg(mem, reg);
+	ret = wm_coeff_base_reg(ctl, &reg);
+	if (ret)
+		return ret;
 
 	scratch = kmemdup(buf, len, GFP_KERNEL | GFP_DMA);
 	if (!scratch)
@@ -951,22 +961,14 @@ static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
 static int wm_coeff_read_control(struct wm_coeff_ctl *ctl,
 				 void *buf, size_t len)
 {
-	struct wm_adsp_alg_region *alg_region = &ctl->alg_region;
-	const struct wm_adsp_region *mem;
 	struct wm_adsp *dsp = ctl->dsp;
 	void *scratch;
 	int ret;
 	unsigned int reg;
 
-	mem = wm_adsp_find_region(dsp, alg_region->type);
-	if (!mem) {
-		adsp_err(dsp, "No base for region %x\n",
-			 alg_region->type);
-		return -EINVAL;
-	}
-
-	reg = ctl->alg_region.base + ctl->offset;
-	reg = wm_adsp_region_to_reg(mem, reg);
+	ret = wm_coeff_base_reg(ctl, &reg);
+	if (ret)
+		return ret;
 
 	scratch = kmalloc(len, GFP_KERNEL | GFP_DMA);
 	if (!scratch)
