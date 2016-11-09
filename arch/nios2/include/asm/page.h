@@ -76,8 +76,6 @@ extern unsigned long memory_size;
 
 extern struct page *mem_map;
 
-#endif /* !__ASSEMBLY__ */
-
 # define __pa(x)		\
 	((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
 # define __va(x)		\
@@ -105,5 +103,7 @@ extern struct page *mem_map;
 #include <asm-generic/memory_model.h>
 
 #include <asm-generic/getorder.h>
+
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_NIOS2_PAGE_H */
