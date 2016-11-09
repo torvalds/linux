@@ -291,7 +291,7 @@ extern int
 irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
 
 struct cpumask *irq_create_affinity_masks(const struct cpumask *affinity, int nvec);
-int irq_calc_affinity_vectors(const struct cpumask *affinity, int maxvec);
+int irq_calc_affinity_vectors(int maxvec, const struct irq_affinity *affd);
 
 #else /* CONFIG_SMP */
 
@@ -331,7 +331,7 @@ irq_create_affinity_masks(const struct cpumask *affinity, int nvec)
 }
 
 static inline int
-irq_calc_affinity_vectors(const struct cpumask *affinity, int maxvec)
+irq_calc_affinity_vectors(int maxvec, const struct irq_affinity *affd)
 {
 	return maxvec;
 }

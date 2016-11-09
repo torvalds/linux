@@ -1061,6 +1061,7 @@ EXPORT_SYMBOL(pci_msi_enabled);
 static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 		unsigned int flags)
 {
+	static const struct irq_affinity default_affd;
 	bool affinity = flags & PCI_IRQ_AFFINITY;
 	int nvec;
 	int rc;
@@ -1091,8 +1092,7 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 
 	for (;;) {
 		if (affinity) {
-			nvec = irq_calc_affinity_vectors(dev->irq_affinity,
-					nvec);
+			nvec = irq_calc_affinity_vectors(nvec, &default_affd);
 			if (nvec < minvec)
 				return -ENOSPC;
 		}
@@ -1132,6 +1132,7 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 		struct msix_entry *entries, int minvec, int maxvec,
 		unsigned int flags)
 {
+	static const struct irq_affinity default_affd;
 	bool affinity = flags & PCI_IRQ_AFFINITY;
 	int rc, nvec = maxvec;
 
@@ -1140,8 +1141,7 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 
 	for (;;) {
 		if (affinity) {
-			nvec = irq_calc_affinity_vectors(dev->irq_affinity,
-					nvec);
+			nvec = irq_calc_affinity_vectors(nvec, &default_affd);
 			if (nvec < minvec)
 				return -ENOSPC;
 		}

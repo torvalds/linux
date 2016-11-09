@@ -131,24 +131,20 @@ out:
 }
 
 /**
- * irq_calc_affinity_vectors - Calculate to optimal number of vectors for a given affinity mask
- * @affinity:		The affinity mask to spread. If NULL cpu_online_mask
- *			is used
- * @maxvec:		The maximum number of vectors available
+ * irq_calc_affinity_vectors - Calculate the optimal number of vectors
+ * @maxvec:	The maximum number of vectors available
+ * @affd:	Description of the affinity requirements
  */
-int irq_calc_affinity_vectors(const struct cpumask *affinity, int maxvec)
+int irq_calc_affinity_vectors(int maxvec, const struct irq_affinity *affd)
 {
-	int cpus, ret;
+	int resv = affd->pre_vectors + affd->post_vectors;
+	int vecs = maxvec - resv;
+	int cpus;
 
 	/* Stabilize the cpumasks */
 	get_online_cpus();
-	/* If the supplied affinity mask is NULL, use cpu online mask */
-	if (!affinity)
-		affinity = cpu_online_mask;
-
-	cpus = cpumask_weight(affinity);
-	ret = (cpus < maxvec) ? cpus : maxvec;
-
+	cpus = cpumask_weight(cpu_online_mask);
 	put_online_cpus();
-	return ret;
+
+	return min(cpus, vecs) + resv;
 }
