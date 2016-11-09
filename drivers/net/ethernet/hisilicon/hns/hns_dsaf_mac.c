@@ -330,6 +330,18 @@ int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac)
 	return 0;
 }
 
+int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	u8 port_num;
+	int ret = hns_mac_get_inner_port_num(mac_cb, vfn, &port_num);
+
+	if (ret)
+		return ret;
+
+	return hns_dsaf_clr_mac_mc_port(dsaf_dev, mac_cb->mac_id, port_num);
+}
+
 static void hns_mac_param_get(struct mac_params *param,
 			      struct hns_mac_cb *mac_cb)
 {

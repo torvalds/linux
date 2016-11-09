@@ -232,6 +232,16 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	return ret;
 }
 
+static int hns_ae_clr_multicast(struct hnae_handle *handle)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return 0;
+
+	return hns_mac_clr_multicast(mac_cb, handle->vf_id);
+}
+
 static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
@@ -821,6 +831,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.set_promisc_mode = hns_ae_set_promisc_mode,
 	.set_mac_addr = hns_ae_set_mac_address,
 	.set_mc_addr = hns_ae_set_multicast_one,
+	.clr_mc_addr = hns_ae_clr_multicast,
 	.set_mtu = hns_ae_set_mtu,
 	.update_stats = hns_ae_update_stats,
 	.set_tso_stats = hns_ae_set_tso_stats,

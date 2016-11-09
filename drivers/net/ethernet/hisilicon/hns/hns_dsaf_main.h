@@ -468,5 +468,8 @@ void hns_dsaf_get_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
 				  u32 *en);
 int hns_dsaf_set_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
 				 u32 en);
+int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
+			     u8 mac_id, u8 port_num);
+
 
 #endif /* __HNS_DSAF_MAIN_H__ */

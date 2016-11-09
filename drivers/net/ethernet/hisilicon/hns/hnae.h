@@ -426,6 +426,8 @@ enum hnae_media_type {
  *   get mac address
  * set_mac_addr()
  *   set mac address
+ * clr_mc_addr()
+ *   clear mcast tcam table
  * set_mc_addr()
  *   set multicast mode
  * set_mtu()
@@ -488,6 +490,7 @@ struct hnae_ae_ops {
 	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
 	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
 	int (*set_mac_addr)(struct hnae_handle *handle, void *p);
+	int (*clr_mc_addr)(struct hnae_handle *handle);
 	int (*set_mc_addr)(struct hnae_handle *handle, void *addr);
 	int (*set_mtu)(struct hnae_handle *handle, int new_mtu);
 	void (*set_tso_stats)(struct hnae_handle *handle, int enable);

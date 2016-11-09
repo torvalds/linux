@@ -959,6 +959,16 @@ static void hns_dsaf_tcam_mc_invld(struct dsaf_device *dsaf_dev, u32 address)
 	spin_unlock_bh(&dsaf_dev->tcam_lock);
 }
 
+void hns_dsaf_tcam_addr_get(struct dsaf_drv_tbl_tcam_key *mac_key, u8 *addr)
+{
+	addr[0] = mac_key->high.bits.mac_0;
+	addr[1] = mac_key->high.bits.mac_1;
+	addr[2] = mac_key->high.bits.mac_2;
+	addr[3] = mac_key->high.bits.mac_3;
+	addr[4] = mac_key->low.bits.mac_4;
+	addr[5] = mac_key->low.bits.mac_5;
+}
+
 /**
  * hns_dsaf_tcam_uc_get - INT
  * @dsaf_id: dsa fabric id
@@ -1959,6 +1969,75 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 	}
 
 	return 0;
+}
+
+int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev, u8 mac_id,
+			     u8 port_num)
+{
+	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
+	struct dsaf_drv_soft_mac_tbl *soft_mac_entry;
+	struct dsaf_tbl_tcam_mcast_cfg mac_data;
+	int ret = 0, i;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return 0;
+
+	for (i = 0; i < DSAF_TCAM_SUM - DSAFV2_MAC_FUZZY_TCAM_NUM; i++) {
+		u8 addr[ETH_ALEN];
+		u8 port;
+
+		soft_mac_entry = priv->soft_mac_tbl + i;
+
+		hns_dsaf_tcam_addr_get(&soft_mac_entry->tcam_key, addr);
+		port = dsaf_get_field(
+				soft_mac_entry->tcam_key.low.bits.port_vlan,
+				DSAF_TBL_TCAM_KEY_PORT_M,
+				DSAF_TBL_TCAM_KEY_PORT_S);
+		/* check valid tcam mc entry */
+		if (soft_mac_entry->index != DSAF_INVALID_ENTRY_IDX &&
+		    port == mac_id &&
+		    is_multicast_ether_addr(addr) &&
+		    !is_broadcast_ether_addr(addr)) {
+			const u32 empty_msk[DSAF_PORT_MSK_NUM] = {0};
+			struct dsaf_drv_mac_single_dest_entry mac_entry;
+
+			/* disable receiving of this multicast address for
+			 * the VF.
+			 */
+			ether_addr_copy(mac_entry.addr, addr);
+			mac_entry.in_vlan_id = dsaf_get_field(
+				soft_mac_entry->tcam_key.low.bits.port_vlan,
+				DSAF_TBL_TCAM_KEY_VLAN_M,
+				DSAF_TBL_TCAM_KEY_VLAN_S);
+			mac_entry.in_port_num = mac_id;
+			mac_entry.port_num = port_num;
+			if (hns_dsaf_del_mac_mc_port(dsaf_dev, &mac_entry)) {
+				ret = -EINVAL;
+				continue;
+			}
+
+			/* disable receiving of this multicast address for
+			 * the mac port if all VF are disable
+			 */
+			hns_dsaf_tcam_mc_get(dsaf_dev, i,
+					     (struct dsaf_tbl_tcam_data *)
+					     (&soft_mac_entry->tcam_key),
+					     &mac_data);
+			dsaf_set_bit(mac_data.tbl_mcast_port_msk[mac_id / 32],
+				     mac_id % 32, 0);
+			if (!memcmp(mac_data.tbl_mcast_port_msk, empty_msk,
+				    sizeof(u32) * DSAF_PORT_MSK_NUM)) {
+				mac_entry.port_num = mac_id;
+				if (hns_dsaf_del_mac_mc_port(dsaf_dev,
+							     &mac_entry)) {
+					ret = -EINVAL;
+					continue;
+				}
+			}
+		}
+	}
+
+	return ret;
 }
 
 /**
