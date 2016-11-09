@@ -765,7 +765,7 @@ static void hns_dsaf_tbl_tcam_data_ucast_pul(
 
 void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 {
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) && !HNS_DSAF_IS_DEBUG(dsaf_dev))
 		dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG,
 				 DSAF_CFG_MIX_MODE_S, !!en);
 }
@@ -1384,6 +1384,12 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
 		return 0;
 
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		dsaf_dev->tcam_max_num = DSAF_TCAM_SUM;
+	else
+		dsaf_dev->tcam_max_num =
+			DSAF_TCAM_SUM - DSAFV2_MAC_FUZZY_TCAM_NUM;
+
 	spin_lock_init(&dsaf_dev->tcam_lock);
 	ret = hns_dsaf_init_hw(dsaf_dev);
 	if (ret)
@@ -1439,7 +1445,7 @@ static u16 hns_dsaf_find_soft_mac_entry(
 	u32 i;
 
 	soft_mac_entry = priv->soft_mac_tbl;
-	for (i = 0; i < DSAF_TCAM_SUM; i++) {
+	for (i = 0; i < dsaf_dev->tcam_max_num; i++) {
 		/* invall tab entry */
 		if ((soft_mac_entry->index != DSAF_INVALID_ENTRY_IDX) &&
 		    (soft_mac_entry->tcam_key.high.val == mac_key->high.val) &&
@@ -1464,7 +1470,7 @@ static u16 hns_dsaf_find_empty_mac_entry(struct dsaf_device *dsaf_dev)
 	u32 i;
 
 	soft_mac_entry = priv->soft_mac_tbl;
-	for (i = 0; i < DSAF_TCAM_SUM; i++) {
+	for (i = 0; i < dsaf_dev->tcam_max_num; i++) {
 		/* inv all entry */
 		if (soft_mac_entry->index == DSAF_INVALID_ENTRY_IDX)
 			/* return find result --soft index */
@@ -2040,7 +2046,7 @@ int hns_dsaf_get_mac_entry_by_index(
 	struct dsaf_tbl_tcam_ucast_cfg mac_uc_data;
 	char mac_addr[ETH_ALEN] = {0};
 
-	if (entry_index >= DSAF_TCAM_SUM) {
+	if (entry_index >= dsaf_dev->tcam_max_num) {
 		/* find none, del error */
 		dev_err(dsaf_dev->dev, "get_uc_entry failed, %s\n",
 			dsaf_dev->ae_dev.name);
@@ -2730,6 +2736,55 @@ void hns_dsaf_get_strings(int stringset, u8 *data, int port,
 int hns_dsaf_get_regs_count(void)
 {
 	return DSAF_DUMP_REGS_NUM;
+}
+
+/* Reserve the last TCAM entry for promisc support */
+#define dsaf_promisc_tcam_entry(port) \
+	(DSAF_TCAM_SUM - DSAFV2_MAC_FUZZY_TCAM_NUM + (port))
+void hns_dsaf_set_promisc_tcam(struct dsaf_device *dsaf_dev,
+			       u32 port, bool enable)
+{
+	struct dsaf_drv_priv *priv = hns_dsaf_dev_priv(dsaf_dev);
+	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
+	u16 entry_index;
+	struct dsaf_drv_tbl_tcam_key tbl_tcam_data, tbl_tcam_mask;
+	struct dsaf_tbl_tcam_mcast_cfg mac_data = {0};
+
+	if ((AE_IS_VER1(dsaf_dev->dsaf_ver)) || HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return;
+
+	/* find the tcam entry index for promisc */
+	entry_index = dsaf_promisc_tcam_entry(port);
+
+	/* config key mask */
+	if (enable) {
+		memset(&tbl_tcam_data, 0, sizeof(tbl_tcam_data));
+		memset(&tbl_tcam_mask, 0, sizeof(tbl_tcam_mask));
+		tbl_tcam_data.low.bits.port = port;
+		tbl_tcam_mask.low.bits.port = 0xf;  /* [3:0]: port id */
+
+		/* SUB_QID */
+		dsaf_set_bit(mac_data.tbl_mcast_port_msk[0],
+			     DSAF_SERVICE_NW_NUM, true);
+		mac_data.tbl_mcast_item_vld = true;	/* item_vld bit */
+	} else {
+		mac_data.tbl_mcast_item_vld = false;	/* item_vld bit */
+	}
+
+	dev_dbg(dsaf_dev->dev,
+		"set_promisc_entry, %s Mac key(%#x:%#x) entry_index%d\n",
+		dsaf_dev->ae_dev.name, tbl_tcam_data.high.val,
+		tbl_tcam_data.low.val, entry_index);
+
+	/* config promisc entry with mask */
+	hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index,
+			     (struct dsaf_tbl_tcam_data *)&tbl_tcam_data,
+			     (struct dsaf_tbl_tcam_data *)&tbl_tcam_mask,
+			     &mac_data);
+
+	/* config software entry */
+	soft_mac_entry += entry_index;
+	soft_mac_entry->index = enable ? entry_index : DSAF_INVALID_ENTRY_IDX;
 }
 
 /**

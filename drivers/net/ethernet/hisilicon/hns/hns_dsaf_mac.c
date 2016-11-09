@@ -1085,6 +1085,8 @@ void hns_mac_set_promisc(struct hns_mac_cb *mac_cb, u8 en)
 {
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 
+	hns_dsaf_set_promisc_tcam(mac_cb->dsaf_dev, mac_cb->mac_id, !!en);
+
 	if (mac_ctrl_drv->set_promiscuous)
 		mac_ctrl_drv->set_promiscuous(mac_ctrl_drv, en);
 }
