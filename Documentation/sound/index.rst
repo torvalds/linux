@@ -9,6 +9,7 @@ Linux Sound Subsystem Documentation
    designs/index
    alsa-configuration
    hd-audio/index
+   cards/index
 
 .. only::  subproject
 
