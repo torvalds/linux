@@ -172,6 +172,7 @@ static struct platform_driver serial_pxa_driver = {
 
 module_platform_driver(serial_pxa_driver);
 
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init early_serial_pxa_setup(struct earlycon_device *device,
 				  const char *options)
 {
@@ -184,6 +185,7 @@ static int __init early_serial_pxa_setup(struct earlycon_device *device,
 	return early_serial8250_setup(device, NULL);
 }
 OF_EARLYCON_DECLARE(early_pxa, "mrvl,pxa-uart", early_serial_pxa_setup);
+#endif
 
 MODULE_AUTHOR("Sergei Ianovich");
 MODULE_LICENSE("GPL");
