@@ -710,7 +710,9 @@ int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 	uint32_t vol;
 	int ret = 0;
 
-	if (hwmgr->chip_id < CHIP_POLARIS10) {
+	if (hwmgr->chip_id < CHIP_TONGA) {
+		ret = atomctrl_get_voltage_evv(hwmgr, id, voltage);
+	} else if (hwmgr->chip_id < CHIP_POLARIS10) {
 		ret = atomctrl_get_voltage_evv_on_sclk(hwmgr, voltage_type, sclk, id, voltage);
 		if (*voltage >= 2000 || *voltage == 0)
 			*voltage = 1150;
