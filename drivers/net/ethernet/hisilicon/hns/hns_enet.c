@@ -1493,6 +1493,29 @@ static netdev_features_t hns_nic_fix_features(
 	return features;
 }
 
+static int hns_nic_uc_sync(struct net_device *netdev, const unsigned char *addr)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_handle *h = priv->ae_handle;
+
+	if (h->dev->ops->add_uc_addr)
+		return h->dev->ops->add_uc_addr(h, addr);
+
+	return 0;
+}
+
+static int hns_nic_uc_unsync(struct net_device *netdev,
+			     const unsigned char *addr)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_handle *h = priv->ae_handle;
+
+	if (h->dev->ops->rm_uc_addr)
+		return h->dev->ops->rm_uc_addr(h, addr);
+
+	return 0;
+}
+
 /**
  * nic_set_multicast_list - set mutl mac address
  * @netdev: net device
@@ -1535,6 +1558,9 @@ void hns_nic_set_rx_mode(struct net_device *ndev)
 	}
 
 	hns_set_multicast_list(ndev);
+
+	if (__dev_uc_sync(ndev, hns_nic_uc_sync, hns_nic_uc_unsync))
+		netdev_err(ndev, "sync uc address fail\n");
 }
 
 struct rtnl_link_stats64 *hns_nic_get_stats64(struct net_device *ndev,

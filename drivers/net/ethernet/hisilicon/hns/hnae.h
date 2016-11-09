@@ -430,6 +430,10 @@ enum hnae_media_type {
  *   clear mcast tcam table
  * set_mc_addr()
  *   set multicast mode
+ * add_uc_addr()
+ *   add ucast address
+ * rm_uc_addr()
+ *   remove ucast address
  * set_mtu()
  *   set mtu
  * update_stats()
@@ -490,6 +494,10 @@ struct hnae_ae_ops {
 	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
 	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
 	int (*set_mac_addr)(struct hnae_handle *handle, void *p);
+	int (*add_uc_addr)(struct hnae_handle *handle,
+			   const unsigned char *addr);
+	int (*rm_uc_addr)(struct hnae_handle *handle,
+			  const unsigned char *addr);
 	int (*clr_mc_addr)(struct hnae_handle *handle);
 	int (*set_mc_addr)(struct hnae_handle *handle, void *addr);
 	int (*set_mtu)(struct hnae_handle *handle, int new_mtu);

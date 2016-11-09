@@ -263,6 +263,46 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb,
 	return 0;
 }
 
+int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+			const unsigned char *addr)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	struct dsaf_drv_mac_single_dest_entry mac_entry;
+	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return -ENOSPC;
+
+	memset(&mac_entry, 0, sizeof(mac_entry));
+	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+	mac_entry.in_port_num = mac_cb->mac_id;
+	ret = hns_mac_get_inner_port_num(mac_cb, vf_id, &mac_entry.port_num);
+	if (ret)
+		return ret;
+
+	return hns_dsaf_set_mac_uc_entry(dsaf_dev, &mac_entry);
+}
+
+int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+		       const unsigned char *addr)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	struct dsaf_drv_mac_single_dest_entry mac_entry;
+	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return -ENOSPC;
+
+	memset(&mac_entry, 0, sizeof(mac_entry));
+	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+	mac_entry.in_port_num = mac_cb->mac_id;
+	ret = hns_mac_get_inner_port_num(mac_cb, vf_id, &mac_entry.port_num);
+	if (ret)
+		return ret;
+
+	return hns_dsaf_rm_mac_addr(dsaf_dev, &mac_entry);
+}
+
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		      u32 port_num, char *addr, bool enable)
 {
