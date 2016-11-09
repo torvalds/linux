@@ -1084,6 +1084,8 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param)
 		 * here and stop, unmap, free and del each of the linked
 		 * requests instead of what we do now.
 		 */
+		if (req->trb)
+			memset(req->trb, 0, sizeof(struct dwc3_trb));
 		dep->queued_requests--;
 		dwc3_gadget_giveback(dep, req, ret);
 		return ret;
