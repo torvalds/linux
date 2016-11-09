@@ -203,7 +203,7 @@
 				      <0xc100 0x100>;
 			};
 
-			mdio: mdio {
+			mdio: mdio@c0054 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
