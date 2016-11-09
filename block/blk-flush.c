@@ -396,6 +396,13 @@ void blk_insert_flush(struct request *rq)
 		rq->cmd_flags &= ~REQ_FUA;
 
 	/*
+	 * REQ_PREFLUSH|REQ_FUA implies REQ_SYNC, so if we clear any
+	 * of those flags, we have to set REQ_SYNC to avoid skewing
+	 * the request accounting.
+	 */
+	rq->cmd_flags |= REQ_SYNC;
+
+	/*
 	 * An empty flush handed down from a stacking driver may
 	 * translate into nothing if the underlying device does not
 	 * advertise a write-back cache.  In this case, simply
