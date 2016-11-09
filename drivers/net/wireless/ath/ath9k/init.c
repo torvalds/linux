@@ -360,7 +360,6 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		sc->tx.txq_map[i] = ath_txq_setup(sc, ATH9K_TX_QUEUE_DATA, i);
 		sc->tx.txq_map[i]->mac80211_qnum = i;
-		sc->tx.txq_max_pending[i] = ATH_MAX_QDEPTH;
 	}
 	return 0;
 }
@@ -919,6 +918,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->max_rate_tries = 10;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
+	hw->txq_data_size = sizeof(struct ath_atx_tid);
 	hw->extra_tx_headroom = 4;
 
 	hw->wiphy->available_antennas_rx = BIT(ah->caps.max_rxchains) - 1;
