@@ -110,6 +110,10 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 
 	/* Read the gpi led data. */
 	if (rmi_dev->xport->attn_data) {
+		if (rmi_dev->xport->attn_size < f30->register_count) {
+			dev_warn(&fn->dev, "F30 interrupted, but data is missing\n");
+			return 0;
+		}
 		memcpy(f30->data_regs, rmi_dev->xport->attn_data,
 			f30->register_count);
 		rmi_dev->xport->attn_data += f30->register_count;

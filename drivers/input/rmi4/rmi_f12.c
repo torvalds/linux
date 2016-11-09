@@ -26,6 +26,8 @@ enum rmi_f12_object_type {
 	RMI_F12_OBJECT_SMALL_OBJECT		= 0x0D,
 };
 
+#define F12_DATA1_BYTES_PER_OBJ			8
+
 struct f12_data {
 	struct rmi_2d_sensor sensor;
 	struct rmi_2d_sensor_platform_data sensor_pdata;
@@ -146,12 +148,16 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	return 0;
 }
 
-static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1)
+static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1, int size)
 {
 	int i;
 	struct rmi_2d_sensor *sensor = &f12->sensor;
+	int objects = f12->data1->num_subpackets;
 
-	for (i = 0; i < f12->data1->num_subpackets; i++) {
+	if ((f12->data1->num_subpackets * F12_DATA1_BYTES_PER_OBJ) > size)
+		objects = size / F12_DATA1_BYTES_PER_OBJ;
+
+	for (i = 0; i < objects; i++) {
 		struct rmi_2d_sensor_abs_object *obj = &sensor->objs[i];
 
 		obj->type = RMI_2D_OBJECT_NONE;
@@ -182,7 +188,7 @@ static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1)
 
 		rmi_2d_sensor_abs_process(sensor, obj, i);
 
-		data1 += 8;
+		data1 += F12_DATA1_BYTES_PER_OBJ;
 	}
 
 	if (sensor->kernel_tracking)
@@ -192,7 +198,7 @@ static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1)
 				      sensor->nbr_fingers,
 				      sensor->dmax);
 
-	for (i = 0; i < sensor->nbr_fingers; i++)
+	for (i = 0; i < objects; i++)
 		rmi_2d_sensor_abs_report(sensor, &sensor->objs[i], i);
 }
 
@@ -203,10 +209,15 @@ static int rmi_f12_attention(struct rmi_function *fn,
 	struct rmi_device *rmi_dev = fn->rmi_dev;
 	struct f12_data *f12 = dev_get_drvdata(&fn->dev);
 	struct rmi_2d_sensor *sensor = &f12->sensor;
+	int valid_bytes = sensor->pkt_size;
 
 	if (rmi_dev->xport->attn_data) {
+		if (sensor->attn_size > rmi_dev->xport->attn_size)
+			valid_bytes = rmi_dev->xport->attn_size;
+		else
+			valid_bytes = sensor->attn_size;
 		memcpy(sensor->data_pkt, rmi_dev->xport->attn_data,
-			sensor->attn_size);
+			valid_bytes);
 		rmi_dev->xport->attn_data += sensor->attn_size;
 		rmi_dev->xport->attn_size -= sensor->attn_size;
 	} else {
@@ -221,7 +232,7 @@ static int rmi_f12_attention(struct rmi_function *fn,
 
 	if (f12->data1)
 		rmi_f12_process_objects(f12,
-			&sensor->data_pkt[f12->data1_offset]);
+			&sensor->data_pkt[f12->data1_offset], valid_bytes);
 
 	input_mt_sync_frame(sensor->input);
 
