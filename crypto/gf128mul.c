@@ -263,48 +263,6 @@ EXPORT_SYMBOL(gf128mul_bbe);
  * t[1][BYTE] contains g*x^8*BYTE
  *  ..
  * t[15][BYTE] contains g*x^120*BYTE */
-struct gf128mul_64k *gf128mul_init_64k_lle(const be128 *g)
-{
-	struct gf128mul_64k *t;
-	int i, j, k;
-
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
-	if (!t)
-		goto out;
-
-	for (i = 0; i < 16; i++) {
-		t->t[i] = kzalloc(sizeof(*t->t[i]), GFP_KERNEL);
-		if (!t->t[i]) {
-			gf128mul_free_64k(t);
-			t = NULL;
-			goto out;
-		}
-	}
-
-	t->t[0]->t[128] = *g;
-	for (j = 64; j > 0; j >>= 1)
-		gf128mul_x_lle(&t->t[0]->t[j], &t->t[0]->t[j + j]);
-
-	for (i = 0;;) {
-		for (j = 2; j < 256; j += j)
-			for (k = 1; k < j; ++k)
-				be128_xor(&t->t[i]->t[j + k],
-					  &t->t[i]->t[j], &t->t[i]->t[k]);
-
-		if (++i >= 16)
-			break;
-
-		for (j = 128; j > 0; j >>= 1) {
-			t->t[i]->t[j] = t->t[i - 1]->t[j];
-			gf128mul_x8_lle(&t->t[i]->t[j]);
-		}
-	}
-
-out:
-	return t;
-}
-EXPORT_SYMBOL(gf128mul_init_64k_lle);
-
 struct gf128mul_64k *gf128mul_init_64k_bbe(const be128 *g)
 {
 	struct gf128mul_64k *t;
@@ -356,19 +314,6 @@ void gf128mul_free_64k(struct gf128mul_64k *t)
 	kfree(t);
 }
 EXPORT_SYMBOL(gf128mul_free_64k);
-
-void gf128mul_64k_lle(be128 *a, struct gf128mul_64k *t)
-{
-	u8 *ap = (u8 *)a;
-	be128 r[1];
-	int i;
-
-	*r = t->t[0]->t[ap[0]];
-	for (i = 1; i < 16; ++i)
-		be128_xor(r, r, &t->t[i]->t[ap[i]]);
-	*a = *r;
-}
-EXPORT_SYMBOL(gf128mul_64k_lle);
 
 void gf128mul_64k_bbe(be128 *a, struct gf128mul_64k *t)
 {
