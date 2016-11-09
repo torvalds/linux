@@ -48,9 +48,6 @@
 #define	GSC_CTX_ABORT			(1 << 7)
 
 enum gsc_dev_flags {
-	/* for global */
-	ST_SUSPEND,
-
 	/* for m2m node */
 	ST_M2M_OPEN,
 	ST_M2M_RUN,
