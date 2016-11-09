@@ -27,6 +27,18 @@ config RMI4_SPI
 
 	  If unsure, say N.
 
+config RMI4_SMB
+	tristate "RMI4 SMB Support"
+	depends on RMI4_CORE && I2C
+	help
+	  Say Y here if you want to support RMI4 devices connected to an SMB
+	  bus.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called rmi_smbus.
+
 config RMI4_2D_SENSOR
 	bool
 	depends on RMI4_CORE
