@@ -874,6 +874,10 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	msg->sequence = msg->reply = msg->timeout = 0;
 	msg->tx_status = 0;
 	msg->tx_ts = 0;
+	msg->tx_arb_lost_cnt = 0;
+	msg->tx_nack_cnt = 0;
+	msg->tx_low_drive_cnt = 0;
+	msg->tx_error_cnt = 0;
 	msg->flags = 0;
 	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 
