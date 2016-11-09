@@ -1460,19 +1460,19 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table = NULL;
 
 
-	if (table_info == NULL)
-		return -EINVAL;
-
-	sclk_table = table_info->vdd_dep_on_sclk;
-
 	for (i = 0; i < SMU7_MAX_LEAKAGE_COUNT; i++) {
 		vv_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
 
 		if (data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
-			if (0 == phm_get_sclk_for_voltage_evv(hwmgr,
+			if ((hwmgr->pp_table_version == PP_TABLE_V1)
+			    && !phm_get_sclk_for_voltage_evv(hwmgr,
 						table_info->vddgfx_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_ClockStretcher)) {
+					if (table_info == NULL)
+						return -EINVAL;
+					sclk_table = table_info->vdd_dep_on_sclk;
+
 					for (j = 1; j < sclk_table->count; j++) {
 						if (sclk_table->entries[j].clk == sclk &&
 								sclk_table->entries[j].cks_enable == 0) {
@@ -1498,12 +1498,15 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				}
 			}
 		} else {
-
 			if ((hwmgr->pp_table_version == PP_TABLE_V0)
 				|| !phm_get_sclk_for_voltage_evv(hwmgr,
 					table_info->vddc_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_ClockStretcher)) {
+					if (table_info == NULL)
+						return -EINVAL;
+					sclk_table = table_info->vdd_dep_on_sclk;
+
 					for (j = 1; j < sclk_table->count; j++) {
 						if (sclk_table->entries[j].clk == sclk &&
 								sclk_table->entries[j].cks_enable == 0) {
