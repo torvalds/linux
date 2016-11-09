@@ -6,6 +6,7 @@ Linux Sound Subsystem Documentation
    :maxdepth: 2
 
    kernel-api/index
+   designs/index
    alsa-configuration
    hd-audio/index
 
