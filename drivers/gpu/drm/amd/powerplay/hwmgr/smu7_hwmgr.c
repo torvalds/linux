@@ -2133,9 +2133,11 @@ static int smu7_patch_limits_vddc(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (tab) {
+		vddc = tab->vddc;
 		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddc,
 						   &data->vddc_leakage);
 		tab->vddc = vddc;
+		vddci = tab->vddci;
 		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddci,
 						   &data->vddci_leakage);
 		tab->vddci = vddci;
