@@ -1718,6 +1718,10 @@ int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 				     0x0,
 				     0xff,
 				     mc_mask);
+
+		mask_key.high.val = le32_to_cpu(mask_key.high.val);
+		mask_key.low.val = le32_to_cpu(mask_key.low.val);
+
 		pmask_key = (struct dsaf_tbl_tcam_data *)(&mask_key);
 	}
 
@@ -1886,6 +1890,9 @@ int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 
 		/* config key mask */
 		hns_dsaf_set_mac_key(dsaf_dev, &mask_key, 0x00, 0xff, mc_addr);
+
+		mask_key.high.val = le32_to_cpu(mask_key.high.val);
+		mask_key.low.val = le32_to_cpu(mask_key.low.val);
 
 		pmask_key = (struct dsaf_tbl_tcam_data *)(&mask_key);
 	}
