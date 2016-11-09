@@ -44,6 +44,7 @@ struct iomap {
  */
 #define IOMAP_WRITE		(1 << 0)
 #define IOMAP_ZERO		(1 << 1)
+#define IOMAP_FAULT		(1 << 3) /* mapping for page fault */
 
 struct iomap_ops {
 	/*

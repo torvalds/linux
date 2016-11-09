@@ -1266,7 +1266,7 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
 	sector_t sector;
 	struct iomap iomap = { 0 };
-	unsigned flags = 0;
+	unsigned flags = IOMAP_FAULT;
 	int error, major = 0;
 	int locked_status = 0;
 	void *entry;
@@ -1467,7 +1467,7 @@ int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	unsigned long pmd_addr = address & PMD_MASK;
 	bool write = flags & FAULT_FLAG_WRITE;
-	unsigned int iomap_flags = write ? IOMAP_WRITE : 0;
+	unsigned int iomap_flags = (write ? IOMAP_WRITE : 0) | IOMAP_FAULT;
 	struct inode *inode = mapping->host;
 	int result = VM_FAULT_FALLBACK;
 	struct iomap iomap = { 0 };
