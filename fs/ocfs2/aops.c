@@ -2263,10 +2263,10 @@ out:
 	return ret;
 }
 
-static void ocfs2_dio_end_io_write(struct inode *inode,
-				   struct ocfs2_dio_write_ctxt *dwc,
-				   loff_t offset,
-				   ssize_t bytes)
+static int ocfs2_dio_end_io_write(struct inode *inode,
+				  struct ocfs2_dio_write_ctxt *dwc,
+				  loff_t offset,
+				  ssize_t bytes)
 {
 	struct ocfs2_cached_dealloc_ctxt dealloc;
 	struct ocfs2_extent_tree et;
@@ -2374,6 +2374,8 @@ out:
 	if (locked)
 		inode_unlock(inode);
 	ocfs2_dio_free_write_ctx(inode, dwc);
+
+	return ret;
 }
 
 /*
@@ -2388,6 +2390,7 @@ static int ocfs2_dio_end_io(struct kiocb *iocb,
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	int level;
+	int ret = 0;
 
 	if (bytes <= 0)
 		return 0;
@@ -2396,13 +2399,13 @@ static int ocfs2_dio_end_io(struct kiocb *iocb,
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
 
 	if (private)
-		ocfs2_dio_end_io_write(inode, private, offset, bytes);
+		ret = ocfs2_dio_end_io_write(inode, private, offset, bytes);
 
 	ocfs2_iocb_clear_rw_locked(iocb);
 
 	level = ocfs2_iocb_rw_locked_level(iocb);
 	ocfs2_rw_unlock(inode, level);
-	return 0;
+	return ret;
 }
 
 static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
