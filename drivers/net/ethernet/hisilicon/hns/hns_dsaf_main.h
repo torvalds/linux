@@ -357,6 +357,11 @@ static inline void *hns_dsaf_dev_priv(const struct dsaf_device *dsaf_dev)
 	return (void *)((u8 *)dsaf_dev + sizeof(*dsaf_dev));
 }
 
+#define DSAF_TBL_TCAM_KEY_PORT_S 0
+#define DSAF_TBL_TCAM_KEY_PORT_M (((1ULL << 4) - 1) << 0)
+#define DSAF_TBL_TCAM_KEY_VLAN_S 4
+#define DSAF_TBL_TCAM_KEY_VLAN_M (((1ULL << 12) - 1) << 4)
+
 struct dsaf_drv_tbl_tcam_key {
 	union {
 		struct {
@@ -370,11 +375,9 @@ struct dsaf_drv_tbl_tcam_key {
 	} high;
 	union {
 		struct {
-			u32 port:4; /* port id, */
-			/* dsaf-mode fixed 0, non-dsaf-mode port id*/
-			u32 vlan:12; /* vlan id */
-			u32 mac_5:8;
-			u32 mac_4:8;
+			u16 port_vlan;
+			u8 mac_5;
+			u8 mac_4;
 		} bits;
 
 		u32 val;

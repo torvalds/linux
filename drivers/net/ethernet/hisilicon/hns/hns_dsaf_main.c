@@ -1509,8 +1509,12 @@ static void hns_dsaf_set_mac_key(
 	mac_key->high.bits.mac_3 = addr[3];
 	mac_key->low.bits.mac_4 = addr[4];
 	mac_key->low.bits.mac_5 = addr[5];
-	mac_key->low.bits.vlan = vlan_id;
-	mac_key->low.bits.port = port;
+	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_VLAN_M,
+		       DSAF_TBL_TCAM_KEY_VLAN_S, vlan_id);
+	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_PORT_M,
+		       DSAF_TBL_TCAM_KEY_PORT_S, port);
+
+	mac_key->low.bits.port_vlan = le16_to_cpu(mac_key->low.bits.port_vlan);
 }
 
 /**
@@ -2760,8 +2764,12 @@ void hns_dsaf_set_promisc_tcam(struct dsaf_device *dsaf_dev,
 	if (enable) {
 		memset(&tbl_tcam_data, 0, sizeof(tbl_tcam_data));
 		memset(&tbl_tcam_mask, 0, sizeof(tbl_tcam_mask));
-		tbl_tcam_data.low.bits.port = port;
-		tbl_tcam_mask.low.bits.port = 0xf;  /* [3:0]: port id */
+		dsaf_set_field(tbl_tcam_data.low.bits.port_vlan,
+			       DSAF_TBL_TCAM_KEY_PORT_M,
+			       DSAF_TBL_TCAM_KEY_PORT_S, port);
+		dsaf_set_field(tbl_tcam_mask.low.bits.port_vlan,
+			       DSAF_TBL_TCAM_KEY_PORT_M,
+			       DSAF_TBL_TCAM_KEY_PORT_S, 0xf);
 
 		/* SUB_QID */
 		dsaf_set_bit(mac_data.tbl_mcast_port_msk[0],
