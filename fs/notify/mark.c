@@ -99,15 +99,18 @@ static DECLARE_WORK(connector_reaper_work, fsnotify_connector_destroy_workfn);
 
 void fsnotify_get_mark(struct fsnotify_mark *mark)
 {
+	WARN_ON_ONCE(!atomic_read(&mark->refcnt));
 	atomic_inc(&mark->refcnt);
 }
 
 void fsnotify_put_mark(struct fsnotify_mark *mark)
 {
 	if (atomic_dec_and_test(&mark->refcnt)) {
-		if (mark->group)
-			fsnotify_put_group(mark->group);
-		mark->free_mark(mark);
+		spin_lock(&destroy_lock);
+		list_add(&mark->g_list, &destroy_list);
+		spin_unlock(&destroy_lock);
+		queue_delayed_work(system_unbound_wq, &reaper_work,
+				   FSNOTIFY_REAPER_DELAY);
 	}
 }
 
@@ -217,14 +220,18 @@ static struct inode *fsnotify_detach_from_object(struct fsnotify_mark *mark)
  * Remove mark from inode / vfsmount list, group list, drop inode reference
  * if we got one.
  *
- * Must be called with group->mark_mutex held.
+ * Must be called with group->mark_mutex held. The caller must either hold
+ * reference to the mark or be protected by fsnotify_mark_srcu.
  */
 void fsnotify_detach_mark(struct fsnotify_mark *mark)
 {
 	struct inode *inode = NULL;
 	struct fsnotify_group *group = mark->group;
 
-	BUG_ON(!mutex_is_locked(&group->mark_mutex));
+	WARN_ON_ONCE(!mutex_is_locked(&group->mark_mutex));
+	WARN_ON_ONCE(!srcu_read_lock_held(&fsnotify_mark_srcu) &&
+		     atomic_read(&mark->refcnt) < 1 +
+			!!(mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED));
 
 	spin_lock(&mark->lock);
 
@@ -253,18 +260,20 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 		iput(inode);
 
 	atomic_dec(&group->num_marks);
+
+	/* Drop mark reference acquired in fsnotify_add_mark_locked() */
+	fsnotify_put_mark(mark);
 }
 
 /*
- * Prepare mark for freeing and add it to the list of marks prepared for
- * freeing. The actual freeing must happen after SRCU period ends and the
- * caller is responsible for this.
+ * Free fsnotify mark. The mark is actually only marked as being freed.  The
+ * freeing is actually happening only once last reference to the mark is
+ * dropped from a workqueue which first waits for srcu period end.
  *
- * The function returns true if the mark was added to the list of marks for
- * freeing. The function returns false if someone else has already called
- * __fsnotify_free_mark() for the mark.
+ * Caller must have a reference to the mark or be protected by
+ * fsnotify_mark_srcu.
  */
-static bool __fsnotify_free_mark(struct fsnotify_mark *mark)
+void fsnotify_free_mark(struct fsnotify_mark *mark)
 {
 	struct fsnotify_group *group = mark->group;
 
@@ -272,7 +281,7 @@ static bool __fsnotify_free_mark(struct fsnotify_mark *mark)
 	/* something else already called this function on this mark */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
 		spin_unlock(&mark->lock);
-		return false;
+		return;
 	}
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 	spin_unlock(&mark->lock);
@@ -284,25 +293,6 @@ static bool __fsnotify_free_mark(struct fsnotify_mark *mark)
 	 */
 	if (group->ops->freeing_mark)
 		group->ops->freeing_mark(mark, group);
-
-	spin_lock(&destroy_lock);
-	list_add(&mark->g_list, &destroy_list);
-	spin_unlock(&destroy_lock);
-
-	return true;
-}
-
-/*
- * Free fsnotify mark. The freeing is actually happening from a workqueue which
- * first waits for srcu period end. Caller must have a reference to the mark
- * or be protected by fsnotify_mark_srcu.
- */
-void fsnotify_free_mark(struct fsnotify_mark *mark)
-{
-	if (__fsnotify_free_mark(mark)) {
-		queue_delayed_work(system_unbound_wq, &reaper_work,
-				   FSNOTIFY_REAPER_DELAY);
-	}
 }
 
 void fsnotify_destroy_mark(struct fsnotify_mark *mark,
@@ -531,20 +521,13 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 
 	return ret;
 err:
-	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
+	mark->flags &= ~(FSNOTIFY_MARK_FLAG_ALIVE |
+			 FSNOTIFY_MARK_FLAG_ATTACHED);
 	list_del_init(&mark->g_list);
-	fsnotify_put_group(group);
-	mark->group = NULL;
 	atomic_dec(&group->num_marks);
-
 	spin_unlock(&mark->lock);
 
-	spin_lock(&destroy_lock);
-	list_add(&mark->g_list, &destroy_list);
-	spin_unlock(&destroy_lock);
-	queue_delayed_work(system_unbound_wq, &reaper_work,
-				FSNOTIFY_REAPER_DELAY);
-
+	fsnotify_put_mark(mark);
 	return ret;
 }
 
@@ -645,7 +628,7 @@ void fsnotify_detach_group_marks(struct fsnotify_group *group)
 		fsnotify_get_mark(mark);
 		fsnotify_detach_mark(mark);
 		mutex_unlock(&group->mark_mutex);
-		__fsnotify_free_mark(mark);
+		fsnotify_free_mark(mark);
 		fsnotify_put_mark(mark);
 	}
 }
@@ -703,7 +686,9 @@ void fsnotify_mark_destroy_list(void)
 
 	list_for_each_entry_safe(mark, next, &private_destroy_list, g_list) {
 		list_del_init(&mark->g_list);
-		fsnotify_put_mark(mark);
+		if (mark->group)
+			fsnotify_put_group(mark->group);
+		mark->free_mark(mark);
 	}
 }
 
