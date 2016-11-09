@@ -15,28 +15,28 @@ DPMS_t;
 }
 
 void ddk750_set_dpms(DPMS_t);
-void set_power_mode(unsigned int powerMode);
-void set_current_gate(unsigned int gate);
+void sm750_set_power_mode(unsigned int powerMode);
+void sm750_set_current_gate(unsigned int gate);
 
 /*
  * This function enable/disable the 2D engine.
  */
-void enable_2d_engine(unsigned int enable);
+void sm750_enable_2d_engine(unsigned int enable);
 
 /*
  * This function enable/disable the DMA Engine
  */
-void enable_dma(unsigned int enable);
+void sm750_enable_dma(unsigned int enable);
 
 /*
  * This function enable/disable the GPIO Engine
  */
-void enable_gpio(unsigned int enable);
+void sm750_enable_gpio(unsigned int enable);
 
 /*
  * This function enable/disable the I2C Engine
  */
-void enable_i2c(unsigned int enable);
+void sm750_enable_i2c(unsigned int enable);
 
 
 #endif

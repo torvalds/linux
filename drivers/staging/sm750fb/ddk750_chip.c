@@ -68,16 +68,16 @@ static void set_chip_clock(unsigned int frequency)
 		pll.clockType = MXCLK_PLL;
 
 		/*
-		 * Call calc_pll_value() to fill the other fields of the PLL
+		 * Call sm750_calc_pll_value() to fill the other fields of the PLL
 		 * structure. Sometimes, the chip cannot set up the exact
 		 * clock required by the User.
-		 * Return value of calc_pll_value gives the actual possible
+		 * Return value of sm750_calc_pll_value gives the actual possible
 		 * clock.
 		 */
-		ulActualMxClk = calc_pll_value(frequency, &pll);
+		ulActualMxClk = sm750_calc_pll_value(frequency, &pll);
 
 		/* Master Clock Control: MXCLK_PLL */
-		POKE32(MXCLK_PLL_CTRL, format_pll_reg(&pll));
+		POKE32(MXCLK_PLL_CTRL, sm750_format_pll_reg(&pll));
 	}
 }
 
@@ -121,7 +121,7 @@ static void set_memory_clock(unsigned int frequency)
 			break;
 		}
 
-		set_current_gate(reg);
+		sm750_set_current_gate(reg);
 	}
 }
 
@@ -173,7 +173,7 @@ static void set_master_clock(unsigned int frequency)
 			break;
 		}
 
-		set_current_gate(reg);
+		sm750_set_current_gate(reg);
 		}
 }
 
@@ -215,12 +215,12 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 
 	if (pInitParam->powerMode != 0)
 		pInitParam->powerMode = 0;
-	set_power_mode(pInitParam->powerMode);
+	sm750_set_power_mode(pInitParam->powerMode);
 
 	/* Enable display power gate & LOCALMEM power gate*/
 	reg = PEEK32(CURRENT_GATE);
 	reg |= (CURRENT_GATE_DISPLAY | CURRENT_GATE_LOCALMEM);
-	set_current_gate(reg);
+	sm750_set_current_gate(reg);
 
 	if (sm750_get_chip_type() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
@@ -261,7 +261,7 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	}
 
 	if (pInitParam->setAllEngOff == 1) {
-		enable_2d_engine(0);
+		sm750_enable_2d_engine(0);
 
 		/* Disable Overlay, if a former application left it on */
 		reg = PEEK32(VIDEO_DISPLAY_CTRL);
@@ -284,7 +284,7 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 		POKE32(DMA_ABORT_INTERRUPT, reg);
 
 		/* Disable DMA Power, if a former application left it on */
-		enable_dma(0);
+		sm750_enable_dma(0);
 	}
 
 	/* We can add more initialization as needed. */
@@ -309,7 +309,7 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
  * M = {1,...,255}
  * N = {2,...,15}
  */
-unsigned int calc_pll_value(unsigned int request_orig, struct pll_value *pll)
+unsigned int sm750_calc_pll_value(unsigned int request_orig, struct pll_value *pll)
 {
 	/*
 	 * as sm750 register definition,
@@ -381,7 +381,7 @@ unsigned int calc_pll_value(unsigned int request_orig, struct pll_value *pll)
 	return ret;
 }
 
-unsigned int format_pll_reg(struct pll_value *pPLL)
+unsigned int sm750_format_pll_reg(struct pll_value *pPLL)
 {
 #ifndef VALIDATION_CHIP
 	unsigned int POD = pPLL->POD;

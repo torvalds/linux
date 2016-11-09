@@ -29,7 +29,7 @@ static unsigned int get_power_mode(void)
  * SM50x can operate in one of three modes: 0, 1 or Sleep.
  * On hardware reset, power mode 0 is default.
  */
-void set_power_mode(unsigned int mode)
+void sm750_set_power_mode(unsigned int mode)
 {
 	unsigned int ctrl = 0;
 
@@ -72,7 +72,7 @@ void set_power_mode(unsigned int mode)
 	POKE32(POWER_MODE_CTRL, ctrl);
 }
 
-void set_current_gate(unsigned int gate)
+void sm750_set_current_gate(unsigned int gate)
 {
 	if (get_power_mode() == POWER_MODE_CTRL_MODE_MODE1)
 		POKE32(MODE1_GATE, gate);
@@ -85,7 +85,7 @@ void set_current_gate(unsigned int gate)
 /*
  * This function enable/disable the 2D engine.
  */
-void enable_2d_engine(unsigned int enable)
+void sm750_enable_2d_engine(unsigned int enable)
 {
 	u32 gate;
 
@@ -95,10 +95,10 @@ void enable_2d_engine(unsigned int enable)
 	else
 		gate &= ~(CURRENT_GATE_DE | CURRENT_GATE_CSC);
 
-	set_current_gate(gate);
+	sm750_set_current_gate(gate);
 }
 
-void enable_dma(unsigned int enable)
+void sm750_enable_dma(unsigned int enable)
 {
 	u32 gate;
 
@@ -109,13 +109,13 @@ void enable_dma(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_DMA;
 
-	set_current_gate(gate);
+	sm750_set_current_gate(gate);
 }
 
 /*
  * This function enable/disable the GPIO Engine
  */
-void enable_gpio(unsigned int enable)
+void sm750_enable_gpio(unsigned int enable)
 {
 	u32 gate;
 
@@ -126,13 +126,13 @@ void enable_gpio(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_GPIO;
 
-	set_current_gate(gate);
+	sm750_set_current_gate(gate);
 }
 
 /*
  * This function enable/disable the I2C Engine
  */
-void enable_i2c(unsigned int enable)
+void sm750_enable_i2c(unsigned int enable)
 {
 	u32 gate;
 
@@ -143,7 +143,7 @@ void enable_i2c(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_I2C;
 
-	set_current_gate(gate);
+	sm750_set_current_gate(gate);
 }
 
 

@@ -275,7 +275,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 			fmt = 2;
 			break;
 		}
-		hw_set2dformat(&sm750_dev->accel, fmt);
+		sm750_hw_set2dformat(&sm750_dev->accel, fmt);
 	}
 
 	/* set timing */
@@ -479,7 +479,7 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 {
 	u32 reg;
 
-	enable_2d_engine(1);
+	sm750_enable_2d_engine(1);
 
 	if (sm750_get_chip_type() == SM750LE) {
 		reg = PEEK32(DE_STATE1);
