@@ -707,7 +707,7 @@ static int gen8_48b_mm_switch(struct i915_hw_ppgtt *ppgtt,
  */
 static void mark_tlbs_dirty(struct i915_hw_ppgtt *ppgtt)
 {
-	ppgtt->pd_dirty_rings = INTEL_INFO(ppgtt->base.dev)->ring_mask;
+	ppgtt->pd_dirty_rings = INTEL_INFO(to_i915(ppgtt->base.dev))->ring_mask;
 }
 
 /* Removes entries from a single page table, releasing it if it's empty.

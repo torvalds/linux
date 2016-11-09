@@ -345,11 +345,10 @@ static void haswell_load_luts(struct drm_crtc_state *crtc_state)
 static void broadwell_load_luts(struct drm_crtc_state *state)
 {
 	struct drm_crtc *crtc = state->crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
-	uint32_t i, lut_size = INTEL_INFO(dev)->color.degamma_lut_size;
+	uint32_t i, lut_size = INTEL_INFO(dev_priv)->color.degamma_lut_size;
 
 	if (crtc_state_is_legacy(state)) {
 		haswell_load_luts(state);
@@ -428,8 +427,7 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 static void cherryview_load_luts(struct drm_crtc_state *state)
 {
 	struct drm_crtc *crtc = state->crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	struct drm_color_lut *lut;
 	uint32_t i, lut_size;
@@ -446,7 +444,7 @@ static void cherryview_load_luts(struct drm_crtc_state *state)
 
 	if (state->degamma_lut) {
 		lut = (struct drm_color_lut *) state->degamma_lut->data;
-		lut_size = INTEL_INFO(dev)->color.degamma_lut_size;
+		lut_size = INTEL_INFO(dev_priv)->color.degamma_lut_size;
 		for (i = 0; i < lut_size; i++) {
 			/* Write LUT in U0.14 format. */
 			word0 =
@@ -461,7 +459,7 @@ static void cherryview_load_luts(struct drm_crtc_state *state)
 
 	if (state->gamma_lut) {
 		lut = (struct drm_color_lut *) state->gamma_lut->data;
-		lut_size = INTEL_INFO(dev)->color.gamma_lut_size;
+		lut_size = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 		for (i = 0; i < lut_size; i++) {
 			/* Write LUT in U0.10 format. */
 			word0 =
@@ -497,12 +495,12 @@ void intel_color_load_luts(struct drm_crtc_state *crtc_state)
 int intel_color_check(struct drm_crtc *crtc,
 		      struct drm_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	size_t gamma_length, degamma_length;
 
-	degamma_length = INTEL_INFO(dev)->color.degamma_lut_size *
+	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size *
 		sizeof(struct drm_color_lut);
-	gamma_length = INTEL_INFO(dev)->color.gamma_lut_size *
+	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size *
 		sizeof(struct drm_color_lut);
 
 	/*
@@ -529,8 +527,7 @@ int intel_color_check(struct drm_crtc *crtc,
 
 void intel_color_init(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
@@ -549,10 +546,10 @@ void intel_color_init(struct drm_crtc *crtc)
 	}
 
 	/* Enable color management support when we have degamma & gamma LUTs. */
-	if (INTEL_INFO(dev)->color.degamma_lut_size != 0 &&
-	    INTEL_INFO(dev)->color.gamma_lut_size != 0)
+	if (INTEL_INFO(dev_priv)->color.degamma_lut_size != 0 &&
+	    INTEL_INFO(dev_priv)->color.gamma_lut_size != 0)
 		drm_crtc_enable_color_mgmt(crtc,
-					INTEL_INFO(dev)->color.degamma_lut_size,
-					true,
-					INTEL_INFO(dev)->color.gamma_lut_size);
+					   INTEL_INFO(dev_priv)->color.degamma_lut_size,
+					   true,
+					   INTEL_INFO(dev_priv)->color.gamma_lut_size);
 }

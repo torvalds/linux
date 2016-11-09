@@ -7059,7 +7059,7 @@ static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		}
 	}
 
-	if (INTEL_INFO(dev)->num_pipes == 2)
+	if (INTEL_INFO(dev_priv)->num_pipes == 2)
 		return 0;
 
 	/* Ivybridge 3 pipe is really complicated */
@@ -14738,8 +14738,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 {
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(new_state->state);
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
@@ -14796,7 +14795,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	}
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
-	    INTEL_INFO(dev)->cursor_needs_physical) {
+	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
 		int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
 		if (ret) {
@@ -14829,7 +14828,7 @@ void
 intel_cleanup_plane_fb(struct drm_plane *plane,
 		       struct drm_plane_state *old_state)
 {
-	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct intel_plane_state *old_intel_state;
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
 	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
@@ -14840,7 +14839,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		return;
 
 	if (old_obj && (plane->type != DRM_PLANE_TYPE_CURSOR ||
-	    !INTEL_INFO(dev)->cursor_needs_physical))
+	    !INTEL_INFO(dev_priv)->cursor_needs_physical))
 		intel_unpin_fb_obj(old_state->fb, old_state->rotation);
 }
 
@@ -15165,13 +15164,13 @@ intel_update_cursor_plane(struct drm_plane *plane,
 {
 	struct drm_crtc *crtc = crtc_state->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(state->base.fb);
 	uint32_t addr;
 
 	if (!obj)
 		addr = 0;
-	else if (!INTEL_INFO(dev)->cursor_needs_physical)
+	else if (!INTEL_INFO(dev_priv)->cursor_needs_physical)
 		addr = i915_gem_object_ggtt_offset(obj, NULL);
 	else
 		addr = obj->phys_handle->busaddr;
@@ -16453,7 +16452,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_init_pm(dev_priv);
 
-	if (INTEL_INFO(dev)->num_pipes == 0)
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return 0;
 
 	/*
@@ -16499,8 +16498,8 @@ int intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.fb_base = ggtt->mappable_base;
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		      INTEL_INFO(dev)->num_pipes,
-		      INTEL_INFO(dev)->num_pipes > 1 ? "s" : "");
+		      INTEL_INFO(dev_priv)->num_pipes,
+		      INTEL_INFO(dev_priv)->num_pipes > 1 ? "s" : "");
 
 	for_each_pipe(dev_priv, pipe) {
 		int ret;
@@ -16588,11 +16587,10 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 static bool
 intel_check_plane_mapping(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 val;
 
-	if (INTEL_INFO(dev)->num_pipes == 1)
+	if (INTEL_INFO(dev_priv)->num_pipes == 1)
 		return true;
 
 	val = I915_READ(DSPCNTR(!crtc->plane));
@@ -17345,7 +17343,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 	if (!error)
 		return;
 
-	err_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev)->num_pipes);
+	err_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev_priv)->num_pipes);
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		err_printf(m, "PWR_WELL_CTL2: %08x\n",
 			   error->power_well_driver);

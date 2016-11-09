@@ -150,7 +150,7 @@ static void intel_detect_pch(struct drm_device *dev)
 	/* In all current cases, num_pipes is equivalent to the PCH_NOP setting
 	 * (which really amounts to a PCH but no South Display).
 	 */
-	if (INTEL_INFO(dev)->num_pipes == 0) {
+	if (INTEL_INFO(dev_priv)->num_pipes == 0) {
 		dev_priv->pch_type = PCH_NOP;
 		return;
 	}
@@ -607,7 +607,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_gem_init(dev);
 
-	if (INTEL_INFO(dev)->num_pipes == 0)
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return 0;
 
 	ret = intel_fbdev_init(dev);
