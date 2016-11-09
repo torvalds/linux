@@ -160,7 +160,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 	ap = host->ports[0];
 
 	ap->ops = &pata_imx_port_ops;
-	ap->pio_mask = ATA_PIO0;
+	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
