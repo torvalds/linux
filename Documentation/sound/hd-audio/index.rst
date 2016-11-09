@@ -5,3 +5,4 @@ HD-Audio
    :maxdepth: 2
 
    notes
+   models
