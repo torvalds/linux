@@ -3255,8 +3255,6 @@ ath10k_mac_tx_h_get_txmode(struct ath10k *ar,
 	if (ar->htt.target_version_major < 3 &&
 	    (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc)) &&
 	    !test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
-		      ar->running_fw->fw_file.fw_features) &&
-	    !test_bit(ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR,
 		      ar->running_fw->fw_file.fw_features))
 		return ATH10K_HW_TXRX_MGMT;
 
