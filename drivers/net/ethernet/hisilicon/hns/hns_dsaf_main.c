@@ -1604,6 +1604,7 @@ int hns_dsaf_set_mac_mc_entry(
 	    (struct dsaf_drv_priv *)hns_dsaf_dev_priv(dsaf_dev);
 	struct dsaf_drv_soft_mac_tbl *soft_mac_entry = priv->soft_mac_tbl;
 	struct dsaf_drv_tbl_tcam_key tmp_mac_key;
+	struct dsaf_tbl_tcam_data tcam_data;
 
 	/* mac addr check */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr)) {
@@ -1636,9 +1637,12 @@ int hns_dsaf_set_mac_mc_entry(
 		       0, sizeof(mac_data.tbl_mcast_port_msk));
 	} else {
 		/* config hardware entry */
-		hns_dsaf_tcam_mc_get(
-			dsaf_dev, entry_index,
-			(struct dsaf_tbl_tcam_data *)(&tmp_mac_key), &mac_data);
+		hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data,
+				     &mac_data);
+
+		tmp_mac_key.high.val =
+			le32_to_cpu(tcam_data.tbl_tcam_data_high);
+		tmp_mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
 	}
 	mac_data.tbl_mcast_old_en = 0;
 	mac_data.tbl_mcast_item_vld = 1;
@@ -1650,9 +1654,11 @@ int hns_dsaf_set_mac_mc_entry(
 		dsaf_dev->ae_dev.name, mac_key.high.val,
 		mac_key.low.val, entry_index);
 
-	hns_dsaf_tcam_mc_cfg(
-		dsaf_dev, entry_index,
-		(struct dsaf_tbl_tcam_data *)(&mac_key), NULL, &mac_data);
+	tcam_data.tbl_tcam_data_high = cpu_to_le32(mac_key.high.val);
+	tcam_data.tbl_tcam_data_low = cpu_to_le32(mac_key.low.val);
+
+	hns_dsaf_tcam_mc_cfg(dsaf_dev, entry_index, &tcam_data, NULL,
+			     &mac_data);
 
 	/* config software entry */
 	soft_mac_entry += entry_index;
@@ -2012,6 +2018,7 @@ int hns_dsaf_get_mac_mc_entry(struct dsaf_device *dsaf_dev,
 	struct dsaf_drv_tbl_tcam_key mac_key;
 
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
+	struct dsaf_tbl_tcam_data tcam_data;
 
 	/*check mac addr */
 	if (MAC_IS_ALL_ZEROS(mac_entry->addr) ||
@@ -2041,8 +2048,10 @@ int hns_dsaf_get_mac_mc_entry(struct dsaf_device *dsaf_dev,
 		mac_key.low.val, entry_index);
 
 	/*read entry */
-	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index,
-			     (struct dsaf_tbl_tcam_data *)&mac_key, &mac_data);
+	hns_dsaf_tcam_mc_get(dsaf_dev, entry_index, &tcam_data, &mac_data);
+
+	mac_key.high.val = le32_to_cpu(tcam_data.tbl_tcam_data_high);
+	mac_key.low.val = le32_to_cpu(tcam_data.tbl_tcam_data_low);
 
 	mac_entry->port_mask[0] = mac_data.tbl_mcast_port_msk[0] & 0x3F;
 	return 0;
