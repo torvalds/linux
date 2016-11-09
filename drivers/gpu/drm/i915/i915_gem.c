@@ -2232,6 +2232,30 @@ static unsigned int swiotlb_max_size(void)
 #endif
 }
 
+static void i915_sg_trim(struct sg_table *orig_st)
+{
+	struct sg_table new_st;
+	struct scatterlist *sg, *new_sg;
+	unsigned int i;
+
+	if (orig_st->nents == orig_st->orig_nents)
+		return;
+
+	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL))
+		return;
+
+	new_sg = new_st.sgl;
+	for_each_sg(orig_st->sgl, sg, orig_st->nents, i) {
+		sg_set_page(new_sg, sg_page(sg), sg->length, 0);
+		/* called before being DMA mapped, no need to copy sg->dma_* */
+		new_sg = sg_next(new_sg);
+	}
+
+	sg_free_table(orig_st);
+
+	*orig_st = new_st;
+}
+
 static struct sg_table *
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
@@ -2316,6 +2340,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	}
 	if (sg) /* loop terminated early; short sg table */
 		sg_mark_end(sg);
+
+	/* Trim unused sg entries to avoid wasting memory. */
+	i915_sg_trim(st);
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
 	if (ret)
