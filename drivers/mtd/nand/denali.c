@@ -1474,10 +1474,9 @@ int denali_init(struct denali_nand_info *denali)
 	 * this is the first stage in a two step process to register
 	 * with the nand subsystem
 	 */
-	if (nand_scan_ident(mtd, denali->max_banks, NULL)) {
-		ret = -ENXIO;
+	ret = nand_scan_ident(mtd, denali->max_banks, NULL);
+	if (ret)
 		goto failed_req_irq;
-	}
 
 	/* allocate the right size buffer now */
 	devm_kfree(denali->dev, denali->buf.buf);
@@ -1580,10 +1579,9 @@ int denali_init(struct denali_nand_info *denali)
 	denali->nand.ecc.write_oob = denali_write_oob;
 	denali->nand.erase = denali_erase;
 
-	if (nand_scan_tail(mtd)) {
-		ret = -ENXIO;
+	ret = nand_scan_tail(mtd);
+	if (ret)
 		goto failed_req_irq;
-	}
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
