@@ -402,7 +402,7 @@ static void get_hynix_nand_para(struct denali_nand_info *denali,
 		break;
 	default:
 		dev_warn(denali->dev,
-			 "Spectra: Unknown Hynix NAND (Device ID: 0x%x).\n"
+			 "Unknown Hynix NAND (Device ID: 0x%x).\n"
 			 "Will use default parameter values instead.\n",
 			 device_id);
 	}
@@ -1458,7 +1458,7 @@ int denali_init(struct denali_nand_info *denali)
 	 */
 	if (request_irq(denali->irq, denali_isr, IRQF_SHARED,
 			DENALI_NAND_NAME, denali)) {
-		pr_err("Spectra: Unable to allocate IRQ\n");
+		dev_err(denali->dev, "Unable to request IRQ\n");
 		return -ENODEV;
 	}
 
@@ -1495,7 +1495,7 @@ int denali_init(struct denali_nand_info *denali)
 	/* Is 32-bit DMA supported? */
 	ret = dma_set_mask(denali->dev, DMA_BIT_MASK(32));
 	if (ret) {
-		pr_err("Spectra: no usable DMA configuration\n");
+		dev_err(denali->dev, "No usable DMA configuration\n");
 		goto failed_req_irq;
 	}
 
@@ -1503,7 +1503,7 @@ int denali_init(struct denali_nand_info *denali)
 			     mtd->writesize + mtd->oobsize,
 			     DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(denali->dev, denali->buf.dma_buf)) {
-		dev_err(denali->dev, "Spectra: failed to map DMA buffer\n");
+		dev_err(denali->dev, "Failed to map DMA buffer\n");
 		ret = -EIO;
 		goto failed_req_irq;
 	}
@@ -1598,8 +1598,7 @@ int denali_init(struct denali_nand_info *denali)
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
-		dev_err(denali->dev, "Spectra: Failed to register MTD: %d\n",
-				ret);
+		dev_err(denali->dev, "Failed to register MTD: %d\n", ret);
 		goto failed_req_irq;
 	}
 	return 0;
