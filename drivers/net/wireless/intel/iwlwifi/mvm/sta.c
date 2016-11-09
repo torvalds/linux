@@ -868,7 +868,6 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 		.scd_queue = queue,
 		.action = SCD_CFG_UPDATE_QUEUE_TID,
 	};
-	s8 sta_id;
 	int tid;
 	unsigned long tid_bitmap;
 	int ret;
@@ -876,7 +875,6 @@ static void iwl_mvm_change_queue_owner(struct iwl_mvm *mvm, int queue)
 	lockdep_assert_held(&mvm->mutex);
 
 	spin_lock_bh(&mvm->queue_info_lock);
-	sta_id = mvm->queue_info[queue].ra_sta_id;
 	tid_bitmap = mvm->queue_info[queue].tid_bitmap;
 	spin_unlock_bh(&mvm->queue_info_lock);
 
