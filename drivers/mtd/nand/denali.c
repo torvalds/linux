@@ -1510,16 +1510,16 @@ int denali_init(struct denali_nand_info *denali)
 	 * the real pagesize and anything necessery
 	 */
 	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
-	denali->nand.chipsize <<= (denali->devnum - 1);
-	denali->nand.page_shift += (denali->devnum - 1);
+	denali->nand.chipsize <<= denali->devnum - 1;
+	denali->nand.page_shift += denali->devnum - 1;
 	denali->nand.pagemask = (denali->nand.chipsize >>
 						denali->nand.page_shift) - 1;
-	denali->nand.bbt_erase_shift += (denali->devnum - 1);
+	denali->nand.bbt_erase_shift += denali->devnum - 1;
 	denali->nand.phys_erase_shift = denali->nand.bbt_erase_shift;
-	denali->nand.chip_shift += (denali->devnum - 1);
-	mtd->writesize <<= (denali->devnum - 1);
-	mtd->oobsize <<= (denali->devnum - 1);
-	mtd->erasesize <<= (denali->devnum - 1);
+	denali->nand.chip_shift += denali->devnum - 1;
+	mtd->writesize <<= denali->devnum - 1;
+	mtd->oobsize <<= denali->devnum - 1;
+	mtd->erasesize <<= denali->devnum - 1;
 	mtd->size = denali->nand.numchips * denali->nand.chipsize;
 	denali->bbtskipbytes *= denali->devnum;
 
