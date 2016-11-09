@@ -214,7 +214,7 @@ int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param)
 				ret = -EINVAL;
 			break;
 		}
-	} while (timeout--);
+	} while (--timeout);
 
 	if (!timeout) {
 		ret = -ETIMEDOUT;
