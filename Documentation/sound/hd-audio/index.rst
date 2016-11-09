@@ -6,3 +6,4 @@ HD-Audio
 
    notes
    models
+   controls
