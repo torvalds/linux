@@ -575,7 +575,6 @@ static void denali_irq_init(struct denali_nand_info *denali)
 static void denali_irq_cleanup(int irqnum, struct denali_nand_info *denali)
 {
 	denali_set_intr_modes(denali, false);
-	free_irq(irqnum, denali);
 }
 
 static void denali_irq_enable(struct denali_nand_info *denali,
@@ -1456,8 +1455,8 @@ int denali_init(struct denali_nand_info *denali)
 	 * denali_isr register is done after all the hardware
 	 * initilization is finished
 	 */
-	if (request_irq(denali->irq, denali_isr, IRQF_SHARED,
-			DENALI_NAND_NAME, denali)) {
+	if (devm_request_irq(denali->dev, denali->irq, denali_isr, IRQF_SHARED,
+			     DENALI_NAND_NAME, denali)) {
 		dev_err(denali->dev, "Unable to request IRQ\n");
 		return -ENODEV;
 	}
