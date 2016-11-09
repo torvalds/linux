@@ -60,10 +60,11 @@
 #include <linux/medusa/l1/process_handlers.h>
 #include "../l2/kobject_process.h"
 #include "../l2/kobject_file.h"
+#include "../l0/init_medusa.h"
 
 #ifdef CONFIG_SECURITY_MEDUSA
 
-static int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
+int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 int medusa_l1_inode_alloc_security(struct inode *inode);
 
 
@@ -194,7 +195,7 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 	return 0;
 }
 
-static void medusa_l1_inode_free_security(struct inode *inode)
+void medusa_l1_inode_free_security(struct inode *inode)
 {
 		struct medusa_l1_inode_s *med;
 
@@ -476,7 +477,7 @@ static void medusa_l1_task_free(struct task_struct *task)
 {
 }
 
-static int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 {
 	struct medusa_l1_task_s* med;
 	struct cred* tmp;
@@ -499,7 +500,7 @@ static int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 	return 0;
 }
 
-static void medusa_l1_cred_free(struct cred *cred)
+void medusa_l1_cred_free(struct cred *cred)
 {
 	if (cred->security)
 		kfree(cred->security);
@@ -1511,12 +1512,11 @@ static int __init medusa_l1_init(void){
 	if (!security_module_enable("medusa")) {
 		return 0;
 	}
-
 	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks));
-		//panic("medusa: Unable to register medusa with kernel.\n");
-	//else 
-		printk("medusa: registered with the kernel\n");
-
+	printk("medusa: registered with the kernel\n");
+    
+    extern bool l1_initialized;
+    l1_initialized = true;
 
 	medusa_init();
 
