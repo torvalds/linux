@@ -1354,7 +1354,7 @@ static int mtd_ooblayout_count_bytes(struct mtd_info *mtd,
 					    int section,
 					    struct mtd_oob_region *oobregion))
 {
-	struct mtd_oob_region oobregion = { };
+	struct mtd_oob_region oobregion;
 	int section = 0, ret, nbytes = 0;
 
 	while (1) {
