@@ -1193,6 +1193,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 				cur_uf = __dwc3_gadget_get_frame(dwc);
 				__dwc3_gadget_start_isoc(dwc, dep, cur_uf);
+				dep->flags &= ~DWC3_EP_PENDING_REQUEST;
 			}
 		}
 		return 0;
