@@ -234,6 +234,7 @@ void bpf_register_map_type(struct bpf_map_type_list *tl);
 struct bpf_prog *bpf_prog_get(u32 ufd);
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type);
 struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i);
+void bpf_prog_sub(struct bpf_prog *prog, int i);
 struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog);
 void bpf_prog_put(struct bpf_prog *prog);
 
@@ -301,6 +302,10 @@ static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
 static inline struct bpf_prog *bpf_prog_add(struct bpf_prog *prog, int i)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void bpf_prog_sub(struct bpf_prog *prog, int i)
+{
 }
 
 static inline void bpf_prog_put(struct bpf_prog *prog)
