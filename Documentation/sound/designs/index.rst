@@ -7,3 +7,4 @@ Designs and Implementations
    channel-mapping-api
    procfile
    powersave
+   oss-emulation
