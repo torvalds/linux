@@ -464,6 +464,15 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	trace_ocfs2_bmap((unsigned long long)OCFS2_I(inode)->ip_blkno,
 			 (unsigned long long)block);
 
+	/*
+	 * The swap code (ab-)uses ->bmap to get a block mapping and then
+	 * bypasseѕ the file system for actual I/O.  We really can't allow
+	 * that on refcounted inodes, so we have to skip out here.  And yes,
+	 * 0 is the magic code for a bmap error..
+	 */
+	if (ocfs2_is_refcount_inode(inode))
+		return 0;
+
 	/* We don't need to lock journal system files, since they aren't
 	 * accessed concurrently from multiple nodes.
 	 */
