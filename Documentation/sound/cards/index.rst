@@ -8,4 +8,4 @@ Card-Specific Information
    cmipci
    sb-live-mixer
    audigy-mixer
-  
+   emu10k1-jack
