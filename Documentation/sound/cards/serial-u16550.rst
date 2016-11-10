@@ -1,14 +1,14 @@
-
-			Serial UART 16450/16550 MIDI driver
-			===================================
+===================================
+Serial UART 16450/16550 MIDI driver
+===================================
 
 The adaptor module parameter allows you to select either:
 
-  0 - Roland Soundcanvas support (default)
-  1 - Midiator MS-124T support (1)
-  2 - Midiator MS-124W S/A mode (2)
-  3 - MS-124W M/B mode support (3)
-  4 - Generic device with multiple input support (4)
+* 0 - Roland Soundcanvas support (default)
+* 1 - Midiator MS-124T support (1)
+* 2 - Midiator MS-124W S/A mode (2)
+* 3 - MS-124W M/B mode support (3)
+* 4 - Generic device with multiple input support (4)
 
 For the Midiator MS-124W, you must set the physical M-S and A-B
 switches on the Midiator to match the driver mode you select.
@@ -22,11 +22,13 @@ substream. The driver provides no way to send F5 00 (no selection) or to not
 send the F5 NN command sequence at all; perhaps it ought to.
 
 Usage example for simple serial converter:
+::
 
 	/sbin/setserial /dev/ttyS0 uart none
 	/sbin/modprobe snd-serial-u16550 port=0x3f8 irq=4 speed=115200
 
 Usage example for Roland SoundCanvas with 4 MIDI ports:
+::
 
 	/sbin/setserial /dev/ttyS0 uart none
 	/sbin/modprobe snd-serial-u16550 port=0x3f8 irq=4 outs=4
@@ -37,6 +39,7 @@ all four MIDI Out connectors.  Set the A-B switch and the speed module
 parameter to match (A=19200, B=9600).
 
 Usage example for MS-124T, with A-B switch in A position:
+::
 
 	/sbin/setserial /dev/ttyS0 uart none
 	/sbin/modprobe snd-serial-u16550 port=0x3f8 irq=4 adaptor=1 \
@@ -47,6 +50,7 @@ the outs module parameter is automatically set to 1. The driver sends
 the same data to all four MIDI Out connectors at full MIDI speed.
 
 Usage example for S/A mode:
+::
 
 	/sbin/setserial /dev/ttyS0 uart none
 	/sbin/modprobe snd-serial-u16550 port=0x3f8 irq=4 adaptor=2
@@ -63,6 +67,7 @@ at most one byte every 520 us, as compared with the full MIDI data rate of
 one byte every 320 us per port.
 
 Usage example for M/B mode:
+::
 
 	/sbin/setserial /dev/ttyS0 uart none
 	/sbin/modprobe snd-serial-u16550 port=0x3f8 irq=4 adaptor=3

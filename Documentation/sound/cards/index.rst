@@ -15,3 +15,4 @@ Card-Specific Information
    bt87x
    maya44
    hdspm
+   serial-u16550
