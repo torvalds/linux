@@ -791,7 +791,8 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 				pskb_trim(skb, ETH_HLEN);
 		}
 
-		if (likely(!mru || (skb->len <= mru + ETH_HLEN))) {
+		if (likely(!mru ||
+		           (skb->len <= mru + vport->dev->hard_header_len))) {
 			ovs_vport_send(vport, skb);
 		} else if (mru <= vport->dev->mtu) {
 			struct net *net = read_pnet(&dp->net);

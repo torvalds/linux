@@ -464,9 +464,10 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	return 0;
 }
 
-static unsigned int packet_length(const struct sk_buff *skb)
+static unsigned int packet_length(const struct sk_buff *skb,
+				  struct net_device *dev)
 {
-	unsigned int length = skb->len - ETH_HLEN;
+	unsigned int length = skb->len - dev->hard_header_len;
 
 	if (!skb_vlan_tag_present(skb) &&
 	    eth_type_vlan(skb->protocol))
@@ -484,10 +485,11 @@ void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 {
 	int mtu = vport->dev->mtu;
 
-	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
+	if (unlikely(packet_length(skb, vport->dev) > mtu &&
+		     !skb_is_gso(skb))) {
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
 				     vport->dev->name,
-				     packet_length(skb), mtu);
+				     packet_length(skb, vport->dev), mtu);
 		vport->dev->stats.tx_errors++;
 		goto drop;
 	}
