@@ -1583,9 +1583,10 @@ static enum i40iw_status_code i40iw_del_multiple_qhash(
 static struct net_device *i40iw_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 {
 	struct net_device *ip_dev = NULL;
-#if IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr laddr6;
 
+	if (!IS_ENABLED(CONFIG_IPV6))
+		return NULL;
 	i40iw_copy_ip_htonl(laddr6.in6_u.u6_addr32, addr);
 	if (vlan_id)
 		*vlan_id = I40IW_NO_VLAN;
@@ -1602,7 +1603,6 @@ static struct net_device *i40iw_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *ma
 		}
 	}
 	rcu_read_unlock();
-#endif
 	return ip_dev;
 }
 
