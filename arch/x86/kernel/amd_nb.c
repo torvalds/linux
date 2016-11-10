@@ -26,7 +26,7 @@ const struct pci_device_id amd_nb_misc_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F3) },
 	{}
 };
-EXPORT_SYMBOL(amd_nb_misc_ids);
+EXPORT_SYMBOL_GPL(amd_nb_misc_ids);
 
 static const struct pci_device_id amd_nb_link_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
@@ -50,19 +50,19 @@ u16 amd_nb_num(void)
 {
 	return amd_northbridges.num;
 }
-EXPORT_SYMBOL(amd_nb_num);
+EXPORT_SYMBOL_GPL(amd_nb_num);
 
 bool amd_nb_has_feature(unsigned int feature)
 {
 	return ((amd_northbridges.flags & feature) == feature);
 }
-EXPORT_SYMBOL(amd_nb_has_feature);
+EXPORT_SYMBOL_GPL(amd_nb_has_feature);
 
 struct amd_northbridge *node_to_amd_nb(int node)
 {
 	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
 }
-EXPORT_SYMBOL(node_to_amd_nb);
+EXPORT_SYMBOL_GPL(node_to_amd_nb);
 
 static struct pci_dev *next_northbridge(struct pci_dev *dev,
 					const struct pci_device_id *ids)
@@ -91,7 +91,7 @@ int amd_cache_northbridges(void)
 	if (!i)
 		return -ENODEV;
 
-	nb = kzalloc(i * sizeof(struct amd_northbridge), GFP_KERNEL);
+	nb = kcalloc(i, sizeof(struct amd_northbridge), GFP_KERNEL);
 	if (!nb)
 		return -ENOMEM;
 
@@ -156,13 +156,13 @@ struct resource *amd_get_mmconfig_range(struct resource *res)
 {
 	u32 address;
 	u64 base, msr;
-	unsigned segn_busn_bits;
+	unsigned int segn_busn_bits;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return NULL;
 
 	/* assume all cpus from fam10h have mmconfig */
-        if (boot_cpu_data.x86 < 0x10)
+	if (boot_cpu_data.x86 < 0x10)
 		return NULL;
 
 	address = MSR_FAM10H_MMIO_CONF_BASE;
@@ -263,10 +263,12 @@ void amd_flush_garts(void)
 	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
-	/* Avoid races between AGP and IOMMU. In theory it's not needed
-	   but I'm not sure if the hardware won't lose flush requests
-	   when another is pending. This whole thing is so expensive anyways
-	   that it doesn't matter to serialize more. -AK */
+	/*
+	 * Avoid races between AGP and IOMMU. In theory it's not needed
+	 * but I'm not sure if the hardware won't lose flush requests
+	 * when another is pending. This whole thing is so expensive anyways
+	 * that it doesn't matter to serialize more. -AK
+	 */
 	spin_lock_irqsave(&gart_lock, flags);
 	flushed = 0;
 	for (i = 0; i < amd_northbridges.num; i++) {
