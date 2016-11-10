@@ -387,26 +387,22 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 			  __u32 index, int gen)
 {
 	struct lmv_obd      *lmv = &obd->u.lmv;
+	struct obd_device *mdc_obd;
 	struct lmv_tgt_desc *tgt;
 	int orig_tgt_count = 0;
 	int		  rc = 0;
 
 	CDEBUG(D_CONFIG, "Target uuid: %s. index %d\n", uuidp->uuid, index);
 
-	mutex_lock(&lmv->lmv_init_mutex);
-
-	if (lmv->desc.ld_tgt_count == 0) {
-		struct obd_device *mdc_obd;
-
-		mdc_obd = class_find_client_obd(uuidp, LUSTRE_MDC_NAME,
-						&obd->obd_uuid);
-		if (!mdc_obd) {
-			mutex_unlock(&lmv->lmv_init_mutex);
-			CERROR("%s: Target %s not attached: rc = %d\n",
-			       obd->obd_name, uuidp->uuid, -EINVAL);
-			return -EINVAL;
-		}
+	mdc_obd = class_find_client_obd(uuidp, LUSTRE_MDC_NAME,
+					&obd->obd_uuid);
+	if (!mdc_obd) {
+		CERROR("%s: Target %s not attached: rc = %d\n",
+		       obd->obd_name, uuidp->uuid, -EINVAL);
+		return -EINVAL;
 	}
+
+	mutex_lock(&lmv->lmv_init_mutex);
 
 	if ((index < lmv->tgts_size) && lmv->tgts[index]) {
 		tgt = lmv->tgts[index];
@@ -463,22 +459,27 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		lmv->desc.ld_tgt_count = index + 1;
 	}
 
-	if (lmv->connected) {
-		rc = lmv_connect_mdc(obd, tgt);
-		if (rc) {
-			spin_lock(&lmv->lmv_lock);
-			if (lmv->desc.ld_tgt_count == index + 1)
-				lmv->desc.ld_tgt_count = orig_tgt_count;
-			memset(tgt, 0, sizeof(*tgt));
-			spin_unlock(&lmv->lmv_lock);
-		} else {
-			int easize = sizeof(struct lmv_stripe_md) +
-				lmv->desc.ld_tgt_count * sizeof(struct lu_fid);
-			lmv_init_ea_size(obd->obd_self_export, easize, 0);
-		}
+	if (!lmv->connected) {
+		/* lmv_check_connect() will connect this target. */
+		mutex_unlock(&lmv->lmv_init_mutex);
+		return rc;
 	}
 
+	/* Otherwise let's connect it ourselves */
 	mutex_unlock(&lmv->lmv_init_mutex);
+	rc = lmv_connect_mdc(obd, tgt);
+	if (rc) {
+		spin_lock(&lmv->lmv_lock);
+		if (lmv->desc.ld_tgt_count == index + 1)
+			lmv->desc.ld_tgt_count = orig_tgt_count;
+		memset(tgt, 0, sizeof(*tgt));
+		spin_unlock(&lmv->lmv_lock);
+	} else {
+		int easize = sizeof(struct lmv_stripe_md) +
+			     lmv->desc.ld_tgt_count * sizeof(struct lu_fid);
+		lmv_init_ea_size(obd->obd_self_export, easize, 0);
+	}
+
 	return rc;
 }
 
