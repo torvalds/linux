@@ -175,7 +175,7 @@ struct test_bulk_req_v1 {
 	__u16		   blk_opc;	   /* bulk operation code */
 	__u16		   blk_flags;	   /* data check flags */
 	__u32		   blk_len;	   /* data length */
-	__u32		   blk_offset;	   /* reserved: offset */
+	__u32		   blk_offset;	   /* offset */
 } WIRE_ATTR;
 
 struct test_ping_req {
