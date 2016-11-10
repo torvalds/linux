@@ -16,3 +16,4 @@ Card-Specific Information
    maya44
    hdspm
    serial-u16550
+   img-spdif-in
