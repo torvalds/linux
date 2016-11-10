@@ -425,10 +425,10 @@ struct uart_8250_port *serial8250_get_port(int line)
 EXPORT_SYMBOL_GPL(serial8250_get_port);
 
 static void (*serial8250_isa_config)(int port, struct uart_port *up,
-	unsigned short *capabilities);
+	u32 *capabilities);
 
 void serial8250_set_isa_configurator(
-	void (*v)(int port, struct uart_port *up, unsigned short *capabilities))
+	void (*v)(int port, struct uart_port *up, u32 *capabilities))
 {
 	serial8250_isa_config = v;
 }

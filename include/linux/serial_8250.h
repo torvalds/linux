@@ -94,7 +94,7 @@ struct uart_8250_port {
 	struct uart_port	port;
 	struct timer_list	timer;		/* "no irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
-	unsigned short		capabilities;	/* port capabilities */
+	u32			capabilities;	/* port capabilities */
 	unsigned short		bugs;		/* port bugs */
 	bool			fifo_bug;	/* min RX trigger if enabled */
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
@@ -168,6 +168,6 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe);
 
 extern void serial8250_set_isa_configurator(void (*v)
 					(int port, struct uart_port *up,
-						unsigned short *capabilities));
+						u32 *capabilities));
 
 #endif
