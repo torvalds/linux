@@ -1897,7 +1897,7 @@ static int xgbe_disable_int(struct xgbe_channel *channel,
 	return 0;
 }
 
-static int xgbe_exit(struct xgbe_prv_data *pdata)
+static int __xgbe_exit(struct xgbe_prv_data *pdata)
 {
 	unsigned int count = 2000;
 
@@ -1917,6 +1917,20 @@ static int xgbe_exit(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_exit\n");
 
 	return 0;
+}
+
+static int xgbe_exit(struct xgbe_prv_data *pdata)
+{
+	int ret;
+
+	/* To guard against possible incorrectly generated interrupts,
+	 * issue the software reset twice.
+	 */
+	ret = __xgbe_exit(pdata);
+	if (ret)
+		return ret;
+
+	return __xgbe_exit(pdata);
 }
 
 static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
