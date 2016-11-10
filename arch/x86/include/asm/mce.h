@@ -356,7 +356,7 @@ enum smca_bank_types {
 	N_SMCA_BANK_TYPES
 };
 
-#define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
+#define HWID_MCATYPE(hwid, mcatype) (((hwid) << 16) | (mcatype))
 
 struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
