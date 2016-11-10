@@ -5105,7 +5105,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	if (hsotg->params.dma_desc_enable ||
 	    hsotg->params.dma_desc_fs_enable) {
 		hsotg->desc_gen_cache = kmem_cache_create("dwc2-gen-desc",
-				sizeof(struct dwc2_hcd_dma_desc) *
+				sizeof(struct dwc2_dma_desc) *
 				MAX_DMA_DESC_NUM_GENERIC, 512, SLAB_CACHE_DMA,
 				NULL);
 		if (!hsotg->desc_gen_cache) {
@@ -5121,7 +5121,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 		}
 
 		hsotg->desc_hsisoc_cache = kmem_cache_create("dwc2-hsisoc-desc",
-				sizeof(struct dwc2_hcd_dma_desc) *
+				sizeof(struct dwc2_dma_desc) *
 				MAX_DMA_DESC_NUM_HS_ISOC, 512, 0, NULL);
 		if (!hsotg->desc_hsisoc_cache) {
 			dev_err(hsotg->dev,

@@ -348,7 +348,7 @@ struct dwc2_qh {
 	struct list_head qtd_list;
 	struct dwc2_host_chan *channel;
 	struct list_head qh_list_entry;
-	struct dwc2_hcd_dma_desc *desc_list;
+	struct dwc2_dma_desc *desc_list;
 	dma_addr_t desc_list_dma;
 	u32 desc_list_sz;
 	u32 *n_bytes;

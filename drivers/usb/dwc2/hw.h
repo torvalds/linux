@@ -790,7 +790,8 @@
 #define HCFIFO(_ch)			HSOTG_REG(0x1000 + 0x1000 * (_ch))
 
 /**
- * struct dwc2_hcd_dma_desc - Host-mode DMA descriptor structure
+ * struct dwc2_dma_desc - DMA descriptor structure,
+ * used for both host and gadget modes
  *
  * @status: DMA descriptor status quadlet
  * @buf:    DMA descriptor data buffer pointer
@@ -798,7 +799,7 @@
  * DMA Descriptor structure contains two quadlets:
  * Status quadlet and Data buffer pointer.
  */
-struct dwc2_hcd_dma_desc {
+struct dwc2_dma_desc {
 	u32 status;
 	u32 buf;
 };
