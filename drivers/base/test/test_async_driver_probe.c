@@ -36,7 +36,6 @@ static int test_probe(struct platform_device *pdev)
 static struct platform_driver async_driver = {
 	.driver = {
 		.name = "test_async_driver",
-		.owner = THIS_MODULE,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = test_probe,
@@ -45,7 +44,6 @@ static struct platform_driver async_driver = {
 static struct platform_driver sync_driver = {
 	.driver = {
 		.name = "test_sync_driver",
-		.owner = THIS_MODULE,
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = test_probe,
