@@ -163,6 +163,7 @@ static int xgbe_config_msi(struct xgbe_prv_data *pdata)
 		pdata->channel_irq_count = j;
 
 		pdata->per_channel_irq = 1;
+		pdata->channel_irq_mode = XGBE_IRQ_MODE_LEVEL;
 	} else {
 		pdata->ecc_irq = pdata->pcidev->irq;
 		pdata->i2c_irq = pdata->pcidev->irq;
@@ -215,6 +216,7 @@ static int xgbe_config_msix(struct xgbe_prv_data *pdata)
 	pdata->channel_irq_count = j;
 
 	pdata->per_channel_irq = 1;
+	pdata->channel_irq_mode = XGBE_IRQ_MODE_LEVEL;
 
 	if (netif_msg_probe(pdata))
 		dev_dbg(pdata->dev, "MSI-X interrupts enabled\n");

@@ -426,8 +426,10 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	pdata->phy_mode = PHY_INTERFACE_MODE_XGMII;
 
 	/* Check for per channel interrupt support */
-	if (device_property_present(dev, XGBE_DMA_IRQS_PROPERTY))
+	if (device_property_present(dev, XGBE_DMA_IRQS_PROPERTY)) {
 		pdata->per_channel_irq = 1;
+		pdata->channel_irq_mode = XGBE_IRQ_MODE_EDGE;
+	}
 
 	/* Obtain device settings unique to ACPI/OF */
 	if (pdata->use_acpi)

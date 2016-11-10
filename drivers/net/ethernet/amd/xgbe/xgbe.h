@@ -171,6 +171,10 @@
 #define XGBE_DMA_SYS_ARCACHE	0x0
 #define XGBE_DMA_SYS_AWCACHE	0x0
 
+/* DMA channel interrupt modes */
+#define XGBE_IRQ_MODE_EDGE	0
+#define XGBE_IRQ_MODE_LEVEL	1
+
 #define XGBE_DMA_INTERRUPT_MASK	0x31c7
 
 #define XGMAC_MIN_PACKET	60
@@ -874,6 +878,7 @@ struct xgbe_prv_data {
 	unsigned int irq_shared;
 	unsigned int irq_count;
 	unsigned int channel_irq_count;
+	unsigned int channel_irq_mode;
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_phy_if phy_if;

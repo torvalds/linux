@@ -646,6 +646,11 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 	unsigned int dma_ch_isr, dma_ch_ier;
 	unsigned int i;
 
+	/* Set the interrupt mode if supported */
+	if (pdata->channel_irq_mode)
+		XGMAC_IOWRITE_BITS(pdata, DMA_MR, INTM,
+				   pdata->channel_irq_mode);
+
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
 		/* Clear all the interrupts which are set */
@@ -667,19 +672,21 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 		if (channel->tx_ring) {
 			/* Enable the following Tx interrupts
 			 *   TIE  - Transmit Interrupt Enable (unless using
-			 *          per channel interrupts)
+			 *          per channel interrupts in edge triggered
+			 *          mode)
 			 */
-			if (!pdata->per_channel_irq)
+			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
 				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
 		}
 		if (channel->rx_ring) {
 			/* Enable following Rx interrupts
 			 *   RBUE - Receive Buffer Unavailable Enable
 			 *   RIE  - Receive Interrupt Enable (unless using
-			 *          per channel interrupts)
+			 *          per channel interrupts in edge triggered
+			 *          mode)
 			 */
 			XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
-			if (!pdata->per_channel_irq)
+			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
 				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
 		}
 
