@@ -79,7 +79,7 @@ enum inode_flags {
 	BEFS_INODE_WAS_WRITTEN = 0x00020000,
 	BEFS_NO_TRANSACTION = 0x00040000,
 };
-/* 
+/*
  * On-Disk datastructures of BeFS
  */
 
@@ -139,7 +139,7 @@ typedef struct {
 
 } PACKED befs_super_block;
 
-/* 
+/*
  * Note: the indirect and dbl_indir block_runs may
  * be longer than one block!
  */

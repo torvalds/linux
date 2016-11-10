@@ -84,9 +84,9 @@ static const struct address_space_operations befs_symlink_aops = {
 	.readpage	= befs_symlink_readpage,
 };
 
-/* 
+/*
  * Called by generic_file_read() to read a page of data
- * 
+ *
  * In turn, simply calls a generic block read function and
  * passes it the address of befs_get_block, for mapping file
  * positions to disk blocks.
@@ -103,8 +103,8 @@ befs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, befs_get_block);
 }
 
-/* 
- * Generic function to map a file position (block) to a 
+/*
+ * Generic function to map a file position (block) to a
  * disk offset (passed back in bh_result).
  *
  * Used by many higher level functions.
@@ -337,7 +337,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	/*
 	 * set uid and gid.  But since current BeOS is single user OS, so
 	 * you can change by "uid" or "gid" options.
-	 */   
+	 */
 
 	inode->i_uid = befs_sb->mount_opts.use_uid ?
 		befs_sb->mount_opts.uid :
@@ -352,14 +352,14 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	 * BEFS's time is 64 bits, but current VFS is 32 bits...
 	 * BEFS don't have access time. Nor inode change time. VFS
 	 * doesn't have creation time.
-	 * Also, the lower 16 bits of the last_modified_time and 
+	 * Also, the lower 16 bits of the last_modified_time and
 	 * create_time are just a counter to help ensure uniqueness
 	 * for indexing purposes. (PFD, page 54)
 	 */
 
 	inode->i_mtime.tv_sec =
 	    fs64_to_cpu(sb, raw_inode->last_modified_time) >> 16;
-	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */	
+	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */
 	inode->i_ctime = inode->i_mtime;
 	inode->i_atime = inode->i_mtime;
 
@@ -441,7 +441,7 @@ befs_init_inodecache(void)
 }
 
 /* Called at fs teardown.
- * 
+ *
  * Taken from NFS implementation by Al Viro.
  */
 static void
@@ -491,7 +491,7 @@ fail:
 
 /*
  * UTF-8 to NLS charset convert routine
- * 
+ *
  * Uses uni2char() / char2uni() rather than the nls tables directly
  */
 static int
@@ -556,18 +556,18 @@ conv_err:
  * @in_len: Length of input string in bytes
  * @out: The output string in UTF-8 format
  * @out_len: Length of the output buffer
- * 
+ *
  * Converts input string @in, which is in the format of the loaded NLS map,
  * into a utf8 string.
- * 
+ *
  * The destination string @out is allocated by this function and the caller is
  * responsible for freeing it with kfree()
- * 
+ *
  * On return, *@out_len is the length of @out in bytes.
  *
  * On success, the return value is the number of utf8 characters written to
  * the output buffer @out.
- *  
+ *
  * On Failure, a negative number coresponding to the error code is returned.
  */
 
@@ -719,7 +719,7 @@ parse_options(char *options, struct befs_mount_options *opts)
 }
 
 /* This function has the responsibiltiy of getting the
- * filesystem ready for unmounting. 
+ * filesystem ready for unmounting.
  * Basically, we free everything that we allocated in
  * befs_read_inode
  */
@@ -780,7 +780,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Linux 2.4.10 and later refuse to read blocks smaller than
 	 * the logical block size for the device. But we also need to read at
 	 * least 1k to get the second 512 bytes of the volume.
-	 */ 
+	 */
 	blocksize = sb_min_blocksize(sb, 1024);
 	if (!blocksize) {
 		if (!silent)
@@ -917,7 +917,7 @@ static struct file_system_type befs_fs_type = {
 	.name		= "befs",
 	.mount		= befs_mount,
 	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,	
+	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("befs");
 

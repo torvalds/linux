@@ -1,6 +1,6 @@
 /*
  * btree.h
- * 
+ *
  */
 
 int befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
