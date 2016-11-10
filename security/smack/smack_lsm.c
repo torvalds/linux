@@ -769,6 +769,31 @@ static int smack_set_mnt_opts(struct super_block *sb,
 	if (sp->smk_flags & SMK_SB_INITIALIZED)
 		return 0;
 
+	if (!smack_privileged(CAP_MAC_ADMIN)) {
+		/*
+		 * Unprivileged mounts don't get to specify Smack values.
+		 */
+		if (num_opts)
+			return -EPERM;
+		/*
+		 * Unprivileged mounts get root and default from the caller.
+		 */
+		skp = smk_of_current();
+		sp->smk_root = skp;
+		sp->smk_default = skp;
+		/*
+		 * For a handful of fs types with no user-controlled
+		 * backing store it's okay to trust security labels
+		 * in the filesystem. The rest are untrusted.
+		 */
+		if (sb->s_user_ns != &init_user_ns &&
+		    sb->s_magic != SYSFS_MAGIC && sb->s_magic != TMPFS_MAGIC &&
+		    sb->s_magic != RAMFS_MAGIC) {
+			transmute = 1;
+			sp->smk_flags |= SMK_SB_UNTRUSTED;
+		}
+	}
+
 	sp->smk_flags |= SMK_SB_INITIALIZED;
 
 	for (i = 0; i < num_opts; i++) {
@@ -806,31 +831,6 @@ static int smack_set_mnt_opts(struct super_block *sb,
 			break;
 		default:
 			break;
-		}
-	}
-
-	if (!smack_privileged(CAP_MAC_ADMIN)) {
-		/*
-		 * Unprivileged mounts don't get to specify Smack values.
-		 */
-		if (num_opts)
-			return -EPERM;
-		/*
-		 * Unprivileged mounts get root and default from the caller.
-		 */
-		skp = smk_of_current();
-		sp->smk_root = skp;
-		sp->smk_default = skp;
-		/*
-		 * For a handful of fs types with no user-controlled
-		 * backing store it's okay to trust security labels
-		 * in the filesystem. The rest are untrusted.
-		 */
-		if (sb->s_user_ns != &init_user_ns &&
-		    sb->s_magic != SYSFS_MAGIC && sb->s_magic != TMPFS_MAGIC &&
-		    sb->s_magic != RAMFS_MAGIC) {
-			transmute = 1;
-			sp->smk_flags |= SMK_SB_UNTRUSTED;
 		}
 	}
 
