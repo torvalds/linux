@@ -81,7 +81,7 @@ struct lov_stripe_md *lsm_alloc_plain(u16 stripe_count)
 	size_t oinfo_ptrs_size, lsm_size;
 	struct lov_stripe_md *lsm;
 	struct lov_oinfo     *loi;
-	unsigned int i;
+	int i;
 
 	LASSERT(stripe_count <= LOV_MAX_STRIPE_COUNT);
 
