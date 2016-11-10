@@ -804,6 +804,8 @@ struct dwc2_dma_desc {
 	u32 buf;
 } __packed;
 
+/* Host Mode DMA descriptor status quadlet */
+
 #define HOST_DMA_A			(1 << 31)
 #define HOST_DMA_STS_MASK		(0x3 << 28)
 #define HOST_DMA_STS_SHIFT		28
@@ -818,6 +820,41 @@ struct dwc2_dma_desc {
 #define HOST_DMA_ISOC_NBYTES_SHIFT	0
 #define HOST_DMA_NBYTES_MASK		(0x1ffff << 0)
 #define HOST_DMA_NBYTES_SHIFT		0
+
+/* Device Mode DMA descriptor status quadlet */
+
+#define DEV_DMA_BUFF_STS_MASK		(0x3 << 30)
+#define DEV_DMA_BUFF_STS_SHIFT		30
+#define DEV_DMA_BUFF_STS_HREADY		0
+#define DEV_DMA_BUFF_STS_DMABUSY	1
+#define DEV_DMA_BUFF_STS_DMADONE	2
+#define DEV_DMA_BUFF_STS_HBUSY		3
+#define DEV_DMA_STS_MASK		(0x3 << 28)
+#define DEV_DMA_STS_SHIFT		28
+#define DEV_DMA_STS_SUCC		0
+#define DEV_DMA_STS_BUFF_FLUSH		1
+#define DEV_DMA_STS_BUFF_ERR		3
+#define DEV_DMA_L			(1 << 27)
+#define DEV_DMA_SHORT			(1 << 26)
+#define DEV_DMA_IOC			(1 << 25)
+#define DEV_DMA_SR			(1 << 24)
+#define DEV_DMA_MTRF			(1 << 23)
+#define DEV_DMA_ISOC_PID_MASK		(0x3 << 23)
+#define DEV_DMA_ISOC_PID_SHIFT		23
+#define DEV_DMA_ISOC_PID_DATA0		0
+#define DEV_DMA_ISOC_PID_DATA2		1
+#define DEV_DMA_ISOC_PID_DATA1		2
+#define DEV_DMA_ISOC_PID_MDATA		3
+#define DEV_DMA_ISOC_FRNUM_MASK		(0x7ff << 12)
+#define DEV_DMA_ISOC_FRNUM_SHIFT	12
+#define DEV_DMA_ISOC_TX_NBYTES_MASK	(0xfff << 0)
+#define DEV_DMA_ISOC_TX_NBYTES_LIMIT	0xfff
+#define DEV_DMA_ISOC_RX_NBYTES_MASK	(0x7ff << 0)
+#define DEV_DMA_ISOC_RX_NBYTES_LIMIT	0x7ff
+#define DEV_DMA_ISOC_NBYTES_SHIFT	0
+#define DEV_DMA_NBYTES_MASK		(0xffff << 0)
+#define DEV_DMA_NBYTES_SHIFT		0
+#define DEV_DMA_NBYTES_LIMIT		0xffff
 
 #define MAX_DMA_DESC_SIZE		131071
 #define MAX_DMA_DESC_NUM_GENERIC	64
