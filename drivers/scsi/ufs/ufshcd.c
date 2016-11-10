@@ -4357,6 +4357,8 @@ static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
 	task_req_upiup->input_param1 = cpu_to_be32(lun_id);
 	task_req_upiup->input_param2 = cpu_to_be32(task_id);
 
+	ufshcd_vops_setup_task_mgmt(hba, free_slot, tm_function);
+
 	/* send command to the controller */
 	__set_bit(free_slot, &hba->outstanding_tasks);
 
