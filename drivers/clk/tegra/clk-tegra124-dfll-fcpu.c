@@ -163,9 +163,4 @@ static struct platform_driver tegra124_dfll_fcpu_driver = {
 		.pm = &tegra124_dfll_pm_ops,
 	},
 };
-
-static int __init tegra124_dfll_fcpu_init(void)
-{
-	return platform_driver_register(&tegra124_dfll_fcpu_driver);
-}
-device_initcall(tegra124_dfll_fcpu_init);
+builtin_platform_driver(tegra124_dfll_fcpu_driver);
