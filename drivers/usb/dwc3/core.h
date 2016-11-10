@@ -539,7 +539,6 @@ struct dwc3_ep {
 
 	struct dwc3_trb		*trb_pool;
 	dma_addr_t		trb_pool_dma;
-	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	struct dwc3		*dwc;
 
 	u32			saved_state;
