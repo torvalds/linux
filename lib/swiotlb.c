@@ -781,8 +781,8 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 	if (dma_capable(dev, dev_addr, size))
 		return dev_addr;
 
-	swiotlb_tbl_unmap_single(dev, map, size, dir,
-				 attrs | DMA_ATTR_SKIP_CPU_SYNC);
+	attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	swiotlb_tbl_unmap_single(dev, map, size, dir, attrs);
 
 	return phys_to_dma(dev, io_tlb_overflow_buffer);
 }
@@ -912,6 +912,7 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
 				swiotlb_full(hwdev, sg->length, dir, 0);
+				attrs |= DMA_ATTR_SKIP_CPU_SYNC;
 				swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
 						       attrs);
 				sg_dma_len(sgl) = 0;
@@ -943,7 +944,6 @@ swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 	for_each_sg(sgl, sg, nelems, i)
 		unmap_single(hwdev, sg->dma_address, sg_dma_len(sg), dir,
 			     attrs);
-
 }
 EXPORT_SYMBOL(swiotlb_unmap_sg_attrs);
 

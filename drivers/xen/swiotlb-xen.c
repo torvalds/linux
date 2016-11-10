@@ -420,8 +420,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 	if (dma_capable(dev, dev_addr, size))
 		return dev_addr;
 
-	swiotlb_tbl_unmap_single(dev, map, size, dir,
-				 attrs | DMA_ATTR_SKIP_CPU_SYNC);
+	attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	swiotlb_tbl_unmap_single(dev, map, size, dir, attrs);
 
 	return DMA_ERROR_CODE;
 }
