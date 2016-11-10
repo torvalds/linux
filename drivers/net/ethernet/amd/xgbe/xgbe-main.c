@@ -190,6 +190,7 @@ struct xgbe_prv_data *xgbe_alloc_pdata(struct device *dev)
 	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
 
 	set_bit(XGBE_DOWN, &pdata->dev_state);
+	set_bit(XGBE_STOPPED, &pdata->dev_state);
 
 	return pdata;
 }
@@ -262,6 +263,14 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	netdev->irq = pdata->dev_irq;
 	netdev->base_addr = (unsigned long)pdata->xgmac_regs;
 	memcpy(netdev->dev_addr, pdata->mac_addr, netdev->addr_len);
+
+	/* Initialize ECC timestamps */
+	pdata->tx_sec_period = jiffies;
+	pdata->tx_ded_period = jiffies;
+	pdata->rx_sec_period = jiffies;
+	pdata->rx_ded_period = jiffies;
+	pdata->desc_sec_period = jiffies;
+	pdata->desc_ded_period = jiffies;
 
 	/* Issue software reset to device */
 	pdata->hw_if.exit(pdata);
@@ -382,6 +391,10 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 
 	/* Create the PHY/ANEG name based on netdev name */
 	snprintf(pdata->an_name, sizeof(pdata->an_name) - 1, "%s-pcs",
+		 netdev_name(netdev));
+
+	/* Create the ECC name based on netdev name */
+	snprintf(pdata->ecc_name, sizeof(pdata->ecc_name) - 1, "%s-ecc",
 		 netdev_name(netdev));
 
 	/* Create workqueues */

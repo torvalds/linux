@@ -724,6 +724,65 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xffffffff);
 }
 
+static void xgbe_enable_ecc_interrupts(struct xgbe_prv_data *pdata)
+{
+	unsigned int ecc_isr, ecc_ier = 0;
+
+	if (!pdata->vdata->ecc_support)
+		return;
+
+	/* Clear all the interrupts which are set */
+	ecc_isr = XP_IOREAD(pdata, XP_ECC_ISR);
+	XP_IOWRITE(pdata, XP_ECC_ISR, ecc_isr);
+
+	/* Enable ECC interrupts */
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_SEC, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_SEC, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_SEC, 1);
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
+}
+
+static void xgbe_disable_ecc_ded(struct xgbe_prv_data *pdata)
+{
+	unsigned int ecc_ier;
+
+	ecc_ier = XP_IOREAD(pdata, XP_ECC_IER);
+
+	/* Disable ECC DED interrupts */
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_DED, 0);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_DED, 0);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_DED, 0);
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
+}
+
+static void xgbe_disable_ecc_sec(struct xgbe_prv_data *pdata,
+				 enum xgbe_ecc_sec sec)
+{
+	unsigned int ecc_ier;
+
+	ecc_ier = XP_IOREAD(pdata, XP_ECC_IER);
+
+	/* Disable ECC SEC interrupt */
+	switch (sec) {
+	case XGBE_ECC_SEC_TX:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_SEC, 0);
+		break;
+	case XGBE_ECC_SEC_RX:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_SEC, 0);
+		break;
+	case XGBE_ECC_SEC_DESC:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_SEC, 0);
+		break;
+	}
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
+}
+
 static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
 {
 	unsigned int ss;
@@ -3294,6 +3353,11 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_mmc(pdata);
 	xgbe_enable_mac_interrupts(pdata);
 
+	/*
+	 * Initialize ECC related features
+	 */
+	xgbe_enable_ecc_interrupts(pdata);
+
 	DBGPR("<--xgbe_init\n");
 
 	return 0;
@@ -3398,6 +3462,10 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->disable_rss = xgbe_disable_rss;
 	hw_if->set_rss_hash_key = xgbe_set_rss_hash_key;
 	hw_if->set_rss_lookup_table = xgbe_set_rss_lookup_table;
+
+	/* For ECC */
+	hw_if->disable_ecc_ded = xgbe_disable_ecc_ded;
+	hw_if->disable_ecc_sec = xgbe_disable_ecc_sec;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

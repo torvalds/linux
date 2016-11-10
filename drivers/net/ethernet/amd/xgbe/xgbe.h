@@ -285,6 +285,9 @@
 #define XGBE_SGMII_AN_LINK_SPEED_1000	0x08
 #define XGBE_SGMII_AN_LINK_DUPLEX	BIT(4)
 
+/* ECC correctable error notification window (seconds) */
+#define XGBE_ECC_LIMIT			60
+
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
@@ -461,6 +464,7 @@ enum xgbe_state {
 	XGBE_DOWN,
 	XGBE_LINK_INIT,
 	XGBE_LINK_ERR,
+	XGBE_STOPPED,
 };
 
 enum xgbe_int {
@@ -478,6 +482,12 @@ enum xgbe_int {
 enum xgbe_int_state {
 	XGMAC_INT_STATE_SAVE,
 	XGMAC_INT_STATE_RESTORE,
+};
+
+enum xgbe_ecc_sec {
+	XGBE_ECC_SEC_TX,
+	XGBE_ECC_SEC_RX,
+	XGBE_ECC_SEC_DESC,
 };
 
 enum xgbe_speed {
@@ -694,6 +704,10 @@ struct xgbe_hw_if {
 	int (*disable_rss)(struct xgbe_prv_data *);
 	int (*set_rss_hash_key)(struct xgbe_prv_data *, const u8 *);
 	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
+
+	/* For ECC */
+	void (*disable_ecc_ded)(struct xgbe_prv_data *);
+	void (*disable_ecc_sec)(struct xgbe_prv_data *, enum xgbe_ecc_sec);
 };
 
 /* This structure represents implementation specific routines for an
@@ -827,6 +841,7 @@ struct xgbe_version_data {
 	unsigned int tx_max_fifo_size;
 	unsigned int rx_max_fifo_size;
 	unsigned int tx_tstamp_workaround;
+	unsigned int ecc_support;
 };
 
 struct xgbe_prv_data {
@@ -868,6 +883,21 @@ struct xgbe_prv_data {
 	/* Flags representing xgbe_state */
 	unsigned long dev_state;
 
+	/* ECC support */
+	unsigned long tx_sec_period;
+	unsigned long tx_ded_period;
+	unsigned long rx_sec_period;
+	unsigned long rx_ded_period;
+	unsigned long desc_sec_period;
+	unsigned long desc_ded_period;
+
+	unsigned int tx_sec_count;
+	unsigned int tx_ded_count;
+	unsigned int rx_sec_count;
+	unsigned int rx_ded_count;
+	unsigned int desc_ded_count;
+	unsigned int desc_sec_count;
+
 	struct msix_entry *msix_entries;
 	int dev_irq;
 	int ecc_irq;
@@ -879,6 +909,8 @@ struct xgbe_prv_data {
 	unsigned int irq_count;
 	unsigned int channel_irq_count;
 	unsigned int channel_irq_mode;
+
+	char ecc_name[IFNAMSIZ + 32];
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_phy_if phy_if;
@@ -990,8 +1022,9 @@ struct xgbe_prv_data {
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
 
-	/* Device restart work structure */
+	/* Device work structures */
 	struct work_struct restart_work;
+	struct work_struct stopdev_work;
 
 	/* Keeps track of power mode */
 	unsigned int power_down;

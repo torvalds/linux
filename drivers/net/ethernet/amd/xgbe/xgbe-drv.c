@@ -114,6 +114,7 @@
  *     THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
@@ -126,8 +127,35 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
+static unsigned int ecc_sec_info_threshold = 10;
+static unsigned int ecc_sec_warn_threshold = 10000;
+static unsigned int ecc_sec_period = 600;
+static unsigned int ecc_ded_threshold = 2;
+static unsigned int ecc_ded_period = 600;
+
+#ifdef CONFIG_AMD_XGBE_HAVE_ECC
+/* Only expose the ECC parameters if supported */
+module_param(ecc_sec_info_threshold, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(ecc_sec_info_threshold,
+		 " ECC corrected error informational threshold setting");
+
+module_param(ecc_sec_warn_threshold, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(ecc_sec_warn_threshold,
+		 " ECC corrected error warning threshold setting");
+
+module_param(ecc_sec_period, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(ecc_sec_period, " ECC corrected error period (in seconds)");
+
+module_param(ecc_ded_threshold, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(ecc_ded_threshold, " ECC detected error threshold setting");
+
+module_param(ecc_ded_period, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(ecc_ded_period, " ECC detected error period (in seconds)");
+#endif
+
 static int xgbe_one_poll(struct napi_struct *, int);
 static int xgbe_all_poll(struct napi_struct *, int);
+static void xgbe_stop(struct xgbe_prv_data *);
 
 static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 {
@@ -308,6 +336,107 @@ static void xgbe_disable_rx_tx_ints(struct xgbe_prv_data *pdata)
 		xgbe_disable_rx_tx_int(pdata, channel);
 }
 
+static bool xgbe_ecc_sec(struct xgbe_prv_data *pdata, unsigned long *period,
+			 unsigned int *count, const char *area)
+{
+	if (time_before(jiffies, *period)) {
+		(*count)++;
+	} else {
+		*period = jiffies + (ecc_sec_period * HZ);
+		*count = 1;
+	}
+
+	if (*count > ecc_sec_info_threshold)
+		dev_warn_once(pdata->dev,
+			      "%s ECC corrected errors exceed informational threshold\n",
+			      area);
+
+	if (*count > ecc_sec_warn_threshold) {
+		dev_warn_once(pdata->dev,
+			      "%s ECC corrected errors exceed warning threshold\n",
+			      area);
+		return true;
+	}
+
+	return false;
+}
+
+static bool xgbe_ecc_ded(struct xgbe_prv_data *pdata, unsigned long *period,
+			 unsigned int *count, const char *area)
+{
+	if (time_before(jiffies, *period)) {
+		(*count)++;
+	} else {
+		*period = jiffies + (ecc_ded_period * HZ);
+		*count = 1;
+	}
+
+	if (*count > ecc_ded_threshold) {
+		netdev_alert(pdata->netdev,
+			     "%s ECC detected errors exceed threshold\n",
+			     area);
+		return true;
+	}
+
+	return false;
+}
+
+static irqreturn_t xgbe_ecc_isr(int irq, void *data)
+{
+	struct xgbe_prv_data *pdata = data;
+	unsigned int ecc_isr;
+	bool stop = false;
+
+	/* Mask status with only the interrupts we care about */
+	ecc_isr = XP_IOREAD(pdata, XP_ECC_ISR);
+	ecc_isr &= XP_IOREAD(pdata, XP_ECC_IER);
+	netif_dbg(pdata, intr, pdata->netdev, "ECC_ISR=%#010x\n", ecc_isr);
+
+	if (XP_GET_BITS(ecc_isr, XP_ECC_ISR, TX_DED)) {
+		stop |= xgbe_ecc_ded(pdata, &pdata->tx_ded_period,
+				     &pdata->tx_ded_count, "TX fifo");
+	}
+
+	if (XP_GET_BITS(ecc_isr, XP_ECC_ISR, RX_DED)) {
+		stop |= xgbe_ecc_ded(pdata, &pdata->rx_ded_period,
+				     &pdata->rx_ded_count, "RX fifo");
+	}
+
+	if (XP_GET_BITS(ecc_isr, XP_ECC_ISR, DESC_DED)) {
+		stop |= xgbe_ecc_ded(pdata, &pdata->desc_ded_period,
+				     &pdata->desc_ded_count,
+				     "descriptor cache");
+	}
+
+	if (stop) {
+		pdata->hw_if.disable_ecc_ded(pdata);
+		schedule_work(&pdata->stopdev_work);
+		goto out;
+	}
+
+	if (XP_GET_BITS(ecc_isr, XP_ECC_ISR, TX_SEC)) {
+		if (xgbe_ecc_sec(pdata, &pdata->tx_sec_period,
+				 &pdata->tx_sec_count, "TX fifo"))
+			pdata->hw_if.disable_ecc_sec(pdata, XGBE_ECC_SEC_TX);
+	}
+
+	if (XP_GET_BITS(ecc_isr, XP_ECC_ISR, RX_SEC))
+		if (xgbe_ecc_sec(pdata, &pdata->rx_sec_period,
+				 &pdata->rx_sec_count, "RX fifo"))
+			pdata->hw_if.disable_ecc_sec(pdata, XGBE_ECC_SEC_RX);
+
+	if (XP_GET_BITS(ecc_isr, XP_ECC_ISR, DESC_SEC))
+		if (xgbe_ecc_sec(pdata, &pdata->desc_sec_period,
+				 &pdata->desc_sec_count, "descriptor cache"))
+			pdata->hw_if.disable_ecc_sec(pdata, XGBE_ECC_SEC_DESC);
+
+out:
+	/* Clear all ECC interrupts */
+	XP_IOWRITE(pdata, XP_ECC_ISR, ecc_isr);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t xgbe_isr(int irq, void *data)
 {
 	struct xgbe_prv_data *pdata = data;
@@ -396,6 +525,10 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	/* If there is not a separate AN irq, handle it here */
 	if (pdata->dev_irq == pdata->an_irq)
 		pdata->phy_if.an_isr(irq, pdata);
+
+	/* If there is not a separate ECC irq, handle it here */
+	if (pdata->vdata->ecc_support && (pdata->dev_irq == pdata->ecc_irq))
+		xgbe_ecc_isr(irq, pdata);
 
 isr_done:
 	return IRQ_HANDLED;
@@ -679,6 +812,16 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
+	if (pdata->vdata->ecc_support && (pdata->dev_irq != pdata->ecc_irq)) {
+		ret = devm_request_irq(pdata->dev, pdata->ecc_irq, xgbe_ecc_isr,
+				       0, pdata->ecc_name, pdata);
+		if (ret) {
+			netdev_alert(netdev, "error requesting ecc irq %d\n",
+				     pdata->ecc_irq);
+			goto err_dev_irq;
+		}
+	}
+
 	if (!pdata->per_channel_irq)
 		return 0;
 
@@ -695,17 +838,21 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 		if (ret) {
 			netdev_alert(netdev, "error requesting irq %d\n",
 				     channel->dma_irq);
-			goto err_irq;
+			goto err_dma_irq;
 		}
 	}
 
 	return 0;
 
-err_irq:
+err_dma_irq:
 	/* Using an unsigned int, 'i' will go to UINT_MAX and exit */
 	for (i--, channel--; i < pdata->channel_count; i--, channel--)
 		devm_free_irq(pdata->dev, channel->dma_irq, channel);
 
+	if (pdata->vdata->ecc_support && (pdata->dev_irq != pdata->ecc_irq))
+		devm_free_irq(pdata->dev, pdata->ecc_irq, pdata);
+
+err_dev_irq:
 	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
 
 	return ret;
@@ -717,6 +864,9 @@ static void xgbe_free_irqs(struct xgbe_prv_data *pdata)
 	unsigned int i;
 
 	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
+
+	if (pdata->vdata->ecc_support && (pdata->dev_irq != pdata->ecc_irq))
+		devm_free_irq(pdata->dev, pdata->ecc_irq, pdata);
 
 	if (!pdata->per_channel_irq)
 		return;
@@ -919,6 +1069,8 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	xgbe_start_timers(pdata);
 	queue_work(pdata->dev_workqueue, &pdata->service_work);
 
+	clear_bit(XGBE_STOPPED, &pdata->dev_state);
+
 	DBGPR("<--xgbe_start\n");
 
 	return 0;
@@ -945,6 +1097,9 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 	DBGPR("-->xgbe_stop\n");
 
+	if (test_bit(XGBE_STOPPED, &pdata->dev_state))
+		return;
+
 	netif_tx_stop_all_queues(netdev);
 
 	xgbe_stop_timers(pdata);
@@ -970,7 +1125,27 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 		netdev_tx_reset_queue(txq);
 	}
 
+	set_bit(XGBE_STOPPED, &pdata->dev_state);
+
 	DBGPR("<--xgbe_stop\n");
+}
+
+static void xgbe_stopdev(struct work_struct *work)
+{
+	struct xgbe_prv_data *pdata = container_of(work,
+						   struct xgbe_prv_data,
+						   stopdev_work);
+
+	rtnl_lock();
+
+	xgbe_stop(pdata);
+
+	xgbe_free_tx_data(pdata);
+	xgbe_free_rx_data(pdata);
+
+	rtnl_unlock();
+
+	netdev_alert(pdata->netdev, "device stopped\n");
 }
 
 static void xgbe_restart_dev(struct xgbe_prv_data *pdata)
@@ -1355,6 +1530,7 @@ static int xgbe_open(struct net_device *netdev)
 
 	INIT_WORK(&pdata->service_work, xgbe_service);
 	INIT_WORK(&pdata->restart_work, xgbe_restart);
+	INIT_WORK(&pdata->stopdev_work, xgbe_stopdev);
 	INIT_WORK(&pdata->tx_tstamp_work, xgbe_tx_tstamp);
 	xgbe_init_timers(pdata);
 
