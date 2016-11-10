@@ -345,6 +345,7 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 
 #define GEN9_LP_FEATURES \
 	.gen = 9, \
+	.is_lp = 1, \
 	.has_hotplug = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
 	.num_pipes = 3, \

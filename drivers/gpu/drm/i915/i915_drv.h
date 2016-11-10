@@ -705,6 +705,7 @@ struct intel_csr {
 	func(is_broxton); \
 	func(is_geminilake); \
 	func(is_kabylake); \
+	func(is_lp); \
 	func(is_alpha_support); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
@@ -2610,6 +2611,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_GEN7(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(6)))
 #define IS_GEN8(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(7)))
 #define IS_GEN9(dev_priv)	(!!((dev_priv)->info.gen_mask & BIT(8)))
+
+#define IS_GEN9_LP(dev_priv)	(IS_GEN9(dev_priv) && INTEL_INFO(dev_priv)->is_lp)
 
 #define ENGINE_MASK(id)	BIT(id)
 #define RENDER_RING	ENGINE_MASK(RCS)
