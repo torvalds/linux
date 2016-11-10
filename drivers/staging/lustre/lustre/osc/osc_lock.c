@@ -607,9 +607,11 @@ static int osc_ldlm_glimpse_ast(struct ldlm_lock *dlmlock, void *data)
 			lvb = req_capsule_server_get(cap, &RMF_DLM_LVB);
 			result = cl_object_glimpse(env, obj, lvb);
 		}
-		if (!exp_connect_lvb_type(req->rq_export))
-		req_capsule_shrink(&req->rq_pill, &RMF_DLM_LVB,
-				   sizeof(struct ost_lvb_v1), RCL_SERVER);
+		if (!exp_connect_lvb_type(req->rq_export)) {
+			req_capsule_shrink(&req->rq_pill, &RMF_DLM_LVB,
+					   sizeof(struct ost_lvb_v1),
+					   RCL_SERVER);
+		}
 		cl_object_put(env, obj);
 	} else {
 		/*
