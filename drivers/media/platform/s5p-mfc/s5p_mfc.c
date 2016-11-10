@@ -1442,6 +1442,7 @@ static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.buf_size	= &buf_size_v5,
 	.buf_align	= &mfc_buf_align_v5,
 	.fw_name[0]	= "s5p-mfc.fw",
+	.use_clock_gating = true,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {

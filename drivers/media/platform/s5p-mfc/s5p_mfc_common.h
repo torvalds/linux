@@ -199,6 +199,7 @@ struct s5p_mfc_buf {
 struct s5p_mfc_pm {
 	struct clk	*clock;
 	struct clk	*clock_gate;
+	bool		use_clock_gating;
 	atomic_t	power;
 	struct device	*device;
 };
@@ -235,6 +236,7 @@ struct s5p_mfc_variant {
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
 	char	*fw_name[MFC_FW_MAX_VERSIONS];
+	bool		use_clock_gating;
 };
 
 /**
