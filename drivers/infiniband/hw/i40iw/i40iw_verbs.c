@@ -608,6 +608,9 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	if (init_attr->cap.max_send_sge > I40IW_MAX_WQ_FRAGMENT_COUNT)
 		init_attr->cap.max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
 
+	if (init_attr->cap.max_recv_sge > I40IW_MAX_WQ_FRAGMENT_COUNT)
+		init_attr->cap.max_recv_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+
 	memset(&init_info, 0, sizeof(init_info));
 
 	sq_size = init_attr->cap.max_send_wr;
@@ -813,8 +816,9 @@ static int i40iw_query_qp(struct ib_qp *ibqp,
 	attr->qp_access_flags = 0;
 	attr->cap.max_send_wr = qp->qp_uk.sq_size;
 	attr->cap.max_recv_wr = qp->qp_uk.rq_size;
-	attr->cap.max_recv_sge = 1;
 	attr->cap.max_inline_data = I40IW_MAX_INLINE_DATA_SIZE;
+	attr->cap.max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	attr->cap.max_recv_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
 	init_attr->event_handler = iwqp->ibqp.event_handler;
 	init_attr->qp_context = iwqp->ibqp.qp_context;
 	init_attr->send_cq = iwqp->ibqp.send_cq;
