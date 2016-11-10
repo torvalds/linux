@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/version.h>
 #include <linux/pm.h>
+#include <linux/of.h>
 #ifdef CONFIG_PM_RUNTIME
 #include <linux/pm_runtime.h>
 #endif
@@ -224,18 +225,14 @@ int mali_platform_device_init(struct platform_device *pdev)
 
 	D("mali_platform_device_register() called\n");
 
-	/*
-	if (cpu_is_rk312x())
-		num_pp_cores = 2;
-	else if (cpu_is_rk3036())
-	*/
+	if (of_machine_is_compatible("rockchip,rk3036"))
 		num_pp_cores = 1;
-	/*
-	else if (cpu_is_rk3188())
-		num_pp_cores = 4;
-	else if (cpu_is_rk3228())
+	else if (of_machine_is_compatible("rockchip,rk3228h"))
 		num_pp_cores = 2;
-	*/
+	else if (of_machine_is_compatible("rockchip,rk3328h"))
+		num_pp_cores = 2;
+	else
+		num_pp_cores = 2;
 
 	D("to add config.");
 	mali_platform_device_add_config(pdev);

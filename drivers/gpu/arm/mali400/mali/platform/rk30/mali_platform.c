@@ -232,9 +232,9 @@ static ssize_t show_utilisation(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", mali_dvfs_utilisation(dev));
 }
 
-static int error_count_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static ssize_t error_count_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
 {
 	return sprintf(buf, "%d\n", mali_group_error);
 }

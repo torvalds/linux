@@ -497,8 +497,10 @@ static int mali_probe(struct platform_device *pdev)
 		int i = 0;
 
 		for(i = 0; i < mali_platform_device->num_resources; i++)
-			dev_info(&pdev->dev, "mali_platform_device->resource[%d].start = 0x%08x\n",
-				i, mali_platform_device->resource[i].start);
+			dev_info(&pdev->dev,
+				 "resource[%d].start = 0x%pa\n",
+				 i,
+				 &mali_platform_device->resource[i].start);
 	}
 
 #ifdef CONFIG_MALI_DT
