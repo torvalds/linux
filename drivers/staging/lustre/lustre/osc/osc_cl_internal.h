@@ -614,6 +614,10 @@ struct osc_extent {
 			   oe_rw:1,
 	/** sync extent, queued by osc_queue_sync_pages() */
 				oe_sync:1,
+	/** set if this extent has partial, sync pages.
+	 * Extents with partial page(s) can't merge with others in RPC
+	 */
+				oe_no_merge:1,
 			   oe_srvlock:1,
 			   oe_memalloc:1,
 	/** an ACTIVE extent is going to be truncated, so when this extent
