@@ -55,6 +55,8 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
+static bool thresholding_en;
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -1077,9 +1079,12 @@ free_out:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }
 
-static void threshold_remove_device(unsigned int cpu)
+int mce_threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
+
+	if (!thresholding_en)
+		return 0;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
@@ -1088,14 +1093,18 @@ static void threshold_remove_device(unsigned int cpu)
 	}
 	kfree(per_cpu(threshold_banks, cpu));
 	per_cpu(threshold_banks, cpu) = NULL;
+	return 0;
 }
 
 /* create dir/files for all valid threshold banks */
-static int threshold_create_device(unsigned int cpu)
+int mce_threshold_create_device(unsigned int cpu)
 {
 	unsigned int bank;
 	struct threshold_bank **bp;
 	int err = 0;
+
+	if (!thresholding_en)
+		return 0;
 
 	bp = per_cpu(threshold_banks, cpu);
 	if (bp)
@@ -1117,26 +1126,8 @@ static int threshold_create_device(unsigned int cpu)
 	}
 	return err;
 err:
-	threshold_remove_device(cpu);
+	mce_threshold_remove_device(cpu);
 	return err;
-}
-
-/* get notified when a cpu comes on/off */
-static void
-amd_64_threshold_cpu_callback(unsigned long action, unsigned int cpu)
-{
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		threshold_create_device(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		threshold_remove_device(cpu);
-		break;
-	default:
-		break;
-	}
 }
 
 static __init int threshold_init_device(void)
@@ -1145,12 +1136,13 @@ static __init int threshold_init_device(void)
 
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
-		int err = threshold_create_device(lcpu);
+		int err = mce_threshold_create_device(lcpu);
 
 		if (err)
 			return err;
 	}
-	threshold_cpu_callback = amd_64_threshold_cpu_callback;
+
+	thresholding_en = true;
 
 	return 0;
 }
