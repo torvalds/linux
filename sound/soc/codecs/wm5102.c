@@ -1945,6 +1945,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
+	arizona_init_notifiers(codec);
 
 	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 

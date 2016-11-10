@@ -1063,6 +1063,7 @@ static int wm8997_codec_probe(struct snd_soc_codec *codec)
 	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	arizona_init_spk(codec);
+	arizona_init_notifiers(codec);
 
 	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
 
