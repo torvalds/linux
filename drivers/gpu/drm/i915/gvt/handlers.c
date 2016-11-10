@@ -1372,6 +1372,7 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 	unsigned int id = 0;
 
 	write_vreg(vgpu, offset, p_data, bytes);
+	vgpu_vreg(vgpu, offset) = 0;
 
 	switch (offset) {
 	case 0x4260:
