@@ -346,7 +346,7 @@ ip_set_get_skbinfo(struct ip_set_skbinfo *skbinfo,
 }
 
 static inline bool
-ip_set_put_skbinfo(struct sk_buff *skb, struct ip_set_skbinfo *skbinfo)
+ip_set_put_skbinfo(struct sk_buff *skb, const struct ip_set_skbinfo *skbinfo)
 {
 	/* Send nonzero parameters only */
 	return ((skbinfo->skbmark || skbinfo->skbmarkmask) &&
@@ -373,7 +373,7 @@ ip_set_init_skbinfo(struct ip_set_skbinfo *skbinfo,
 }
 
 static inline bool
-ip_set_put_counter(struct sk_buff *skb, struct ip_set_counter *counter)
+ip_set_put_counter(struct sk_buff *skb, const struct ip_set_counter *counter)
 {
 	return nla_put_net64(skb, IPSET_ATTR_BYTES,
 			     cpu_to_be64(ip_set_get_bytes(counter)),
