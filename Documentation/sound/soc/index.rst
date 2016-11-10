@@ -16,3 +16,4 @@ The documentation is spilt into the following sections:-
    pops-clicks
    clocking
    jack
+   dpcm
