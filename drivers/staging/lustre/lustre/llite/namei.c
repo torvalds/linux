@@ -296,10 +296,38 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 
 				hash = cl_fid_build_ino(&lli->lli_pfid,
 							ll_need_32bit_api(ll_i2sbi(inode)));
-
-				master_inode = ilookup5(inode->i_sb, hash,
-							ll_test_inode_by_fid,
-							(void *)&lli->lli_pfid);
+				/*
+				 * Do not lookup the inode with ilookup5,
+				 * otherwise it will cause dead lock,
+				 *
+				 * 1. Client1 send chmod req to the MDT0, then
+				 * on MDT0, it enqueues master and all of its
+				 * slaves lock, (mdt_attr_set() ->
+				 * mdt_lock_slaves()), after gets master and
+				 * stripe0 lock, it will send the enqueue req
+				 * (for stripe1) to MDT1, then MDT1 finds the
+				 * lock has been granted to client2. Then MDT1
+				 * sends blocking ast to client2.
+				 *
+				 * 2. At the same time, client2 tries to unlink
+				 * the striped dir (rm -rf striped_dir), and
+				 * during lookup, it will hold the master inode
+				 * of the striped directory, whose inode state
+				 * is NEW, then tries to revalidate all of its
+				 * slaves, (ll_prep_inode()->ll_iget()->
+				 * ll_read_inode2()-> ll_update_inode().). And
+				 * it will be blocked on the server side because
+				 * of 1.
+				 *
+				 * 3. Then the client get the blocking_ast req,
+				 * cancel the lock, but being blocked if using
+				 * ->ilookup5()), because master inode state is
+				 *  NEW.
+				 */
+				master_inode = ilookup5_nowait(inode->i_sb,
+							       hash,
+							       ll_test_inode_by_fid,
+							       (void *)&lli->lli_pfid);
 				if (master_inode) {
 					ll_invalidate_negative_children(master_inode);
 					iput(master_inode);
