@@ -1087,6 +1087,7 @@ static void threshold_remove_device(unsigned int cpu)
 		threshold_remove_bank(cpu, bank);
 	}
 	kfree(per_cpu(threshold_banks, cpu));
+	per_cpu(threshold_banks, cpu) = NULL;
 }
 
 /* create dir/files for all valid threshold banks */
@@ -1108,9 +1109,11 @@ static int threshold_create_device(unsigned int cpu)
 			continue;
 		err = threshold_create_bank(cpu, bank);
 		if (err)
-			return err;
+			goto err;
 	}
-
+	return err;
+err:
+	threshold_remove_device(cpu);
 	return err;
 }
 
