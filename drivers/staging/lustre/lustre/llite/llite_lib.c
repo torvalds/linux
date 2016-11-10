@@ -1567,11 +1567,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * setting times to past, but it is necessary due to possible
 		 * time de-synchronization between MDT inode and OST objects
 		 */
-		if (attr->ia_valid & ATTR_SIZE)
-			down_write(&lli->lli_trunc_sem);
 		rc = cl_setattr_ost(ll_i2info(inode)->lli_clob, attr, 0);
-		if (attr->ia_valid & ATTR_SIZE)
-			up_write(&lli->lli_trunc_sem);
 	}
 out:
 	if (op_data)

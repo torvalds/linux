@@ -704,9 +704,8 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	int                    rc;
 	int		       saved_rc = 0;
 
-	req_fmt = &RQF_MDS_CLOSE;
 	if (op_data->op_bias & MDS_HSM_RELEASE) {
-		req_fmt = &RQF_MDS_RELEASE_CLOSE;
+		req_fmt = &RQF_MDS_INTENT_CLOSE;
 
 		/* allocate a FID for volatile file */
 		rc = mdc_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
@@ -716,6 +715,10 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 			/* save the errcode and proceed to close */
 			saved_rc = rc;
 		}
+	} else if (op_data->op_bias & MDS_CLOSE_LAYOUT_SWAP) {
+		req_fmt = &RQF_MDS_INTENT_CLOSE;
+	} else {
+		req_fmt = &RQF_MDS_CLOSE;
 	}
 
 	*request = NULL;

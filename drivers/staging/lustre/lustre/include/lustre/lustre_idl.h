@@ -1604,7 +1604,9 @@ lov_mds_md_max_stripe_count(size_t buf_size, __u32 lmm_magic)
 /*	OBD_MD_FLRMTRGETFACL (0x0008000000000000ULL) lfs rgetfacl, obsolete */
 
 #define OBD_MD_FLDATAVERSION (0x0010000000000000ULL) /* iversion sum */
-#define OBD_MD_FLRELEASED    (0x0020000000000000ULL) /* file released */
+#define OBD_MD_CLOSE_INTENT_EXECED (0x0020000000000000ULL) /* close intent
+							    * executed
+							    */
 
 #define OBD_MD_DEFAULT_MEA   (0x0040000000000000ULL) /* default MEA */
 
@@ -2139,6 +2141,7 @@ enum mds_op_bias {
 	MDS_OWNEROVERRIDE	= 1 << 11,
 	MDS_HSM_RELEASE		= 1 << 12,
 	MDS_RENAME_MIGRATE	= BIT(13),
+	MDS_CLOSE_LAYOUT_SWAP   = BIT(14),
 };
 
 /* instance of mdt_reint_rec */

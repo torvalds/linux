@@ -430,25 +430,29 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, u32 flags,
 			      op_data->op_namelen);
 }
 
-static void mdc_hsm_release_pack(struct ptlrpc_request *req,
-				 struct md_op_data *op_data)
+static void mdc_intent_close_pack(struct ptlrpc_request *req,
+				  struct md_op_data *op_data)
 {
-	if (op_data->op_bias & MDS_HSM_RELEASE) {
-		struct close_data *data;
-		struct ldlm_lock *lock;
+	enum mds_op_bias bias = op_data->op_bias;
+	struct close_data *data;
+	struct ldlm_lock *lock;
 
-		data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
+	if (!(bias & (MDS_HSM_RELEASE | MDS_CLOSE_LAYOUT_SWAP |
+		      MDS_RENAME_MIGRATE)))
+		return;
 
-		lock = ldlm_handle2lock(&op_data->op_lease_handle);
-		if (lock) {
-			data->cd_handle = lock->l_remote_handle;
-			LDLM_LOCK_PUT(lock);
-		}
-		ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
+	data = req_capsule_client_get(&req->rq_pill, &RMF_CLOSE_DATA);
+	LASSERT(data);
 
-		data->cd_data_version = op_data->op_data_version;
-		data->cd_fid = op_data->op_fid2;
+	lock = ldlm_handle2lock(&op_data->op_lease_handle);
+	if (lock) {
+		data->cd_handle = lock->l_remote_handle;
+		LDLM_LOCK_PUT(lock);
 	}
+	ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
+
+	data->cd_data_version = op_data->op_data_version;
+	data->cd_fid = op_data->op_fid2;
 }
 
 void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
@@ -473,5 +477,5 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 		rec->sa_valid &= ~MDS_ATTR_ATIME;
 
 	mdc_ioepoch_pack(epoch, op_data);
-	mdc_hsm_release_pack(req, op_data);
+	mdc_intent_close_pack(req, op_data);
 }

@@ -121,7 +121,7 @@ static const struct req_msg_field *mdt_close_client[] = {
 	&RMF_CAPA1
 };
 
-static const struct req_msg_field *mdt_release_close_client[] = {
+static const struct req_msg_field *mdt_intent_close_client[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_MDT_EPOCH,
 	&RMF_REC_REINT,
@@ -666,7 +666,7 @@ static struct req_format *req_formats[] = {
 	&RQF_MDS_GETXATTR,
 	&RQF_MDS_SYNC,
 	&RQF_MDS_CLOSE,
-	&RQF_MDS_RELEASE_CLOSE,
+	&RQF_MDS_INTENT_CLOSE,
 	&RQF_MDS_READPAGE,
 	&RQF_MDS_WRITEPAGE,
 	&RQF_MDS_REINT,
@@ -1365,10 +1365,10 @@ struct req_format RQF_MDS_CLOSE =
 			mdt_close_client, mds_last_unlink_server);
 EXPORT_SYMBOL(RQF_MDS_CLOSE);
 
-struct req_format RQF_MDS_RELEASE_CLOSE =
+struct req_format RQF_MDS_INTENT_CLOSE =
 	DEFINE_REQ_FMT0("MDS_CLOSE",
-			mdt_release_close_client, mds_last_unlink_server);
-EXPORT_SYMBOL(RQF_MDS_RELEASE_CLOSE);
+			mdt_intent_close_client, mds_last_unlink_server);
+EXPORT_SYMBOL(RQF_MDS_INTENT_CLOSE);
 
 struct req_format RQF_MDS_READPAGE =
 	DEFINE_REQ_FMT0("MDS_READPAGE",
