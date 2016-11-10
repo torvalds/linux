@@ -654,8 +654,8 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	hw->ident_sta_fw.minor = le16_to_cpu(hw->ident_sta_fw.minor);
 
 	/* strip out the 'special' variant bits */
-	hw->mm_mods = hw->ident_sta_fw.variant & (BIT(14) | BIT(15));
-	hw->ident_sta_fw.variant &= ~((u16)(BIT(14) | BIT(15)));
+	hw->mm_mods = hw->ident_sta_fw.variant & GENMASK(15, 14);
+	hw->ident_sta_fw.variant &= ~((u16)GENMASK(15, 14));
 
 	if (hw->ident_sta_fw.id == 0x1f) {
 		netdev_info(wlandev->netdev,
