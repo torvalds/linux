@@ -2234,7 +2234,7 @@ static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
 		i40iw_dec_refcnt_listen(cm_core, cm_node->listener, 0, true);
 	} else {
 		if (!i40iw_listen_port_in_use(cm_core, cm_node->loc_port) &&
-		    cm_node->apbvt_set && cm_node->iwdev) {
+		    cm_node->apbvt_set) {
 			i40iw_manage_apbvt(cm_node->iwdev,
 					   cm_node->loc_port,
 					   I40IW_MANAGE_APBVT_DEL);
