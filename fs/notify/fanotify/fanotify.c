@@ -57,14 +57,26 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 static int fanotify_get_response(struct fsnotify_group *group,
-				 struct fanotify_perm_event_info *event)
+				 struct fanotify_perm_event_info *event,
+				 struct fsnotify_iter_info *iter_info)
 {
 	int ret;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
+	/*
+	 * fsnotify_prepare_user_wait() fails if we race with mark deletion.
+	 * Just let the operation pass in that case.
+	 */
+	if (!fsnotify_prepare_user_wait(iter_info)) {
+		event->response = FAN_ALLOW;
+		goto out;
+	}
+
 	wait_event(group->fanotify_data.access_waitq, event->response);
 
+	fsnotify_finish_user_wait(iter_info);
+out:
 	/* userspace responded, convert to something usable */
 	switch (event->response) {
 	case FAN_ALLOW:
@@ -216,7 +228,8 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (mask & FAN_ALL_PERM_EVENTS) {
-		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event));
+		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event),
+					    iter_info);
 		fsnotify_destroy_event(group, fsn_event);
 	}
 #endif
