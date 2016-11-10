@@ -239,8 +239,8 @@ static int ad7766_probe(struct spi_device *spi)
 
 	ret = devm_regulator_bulk_get(&spi->dev, ARRAY_SIZE(ad7766->reg),
 		ad7766->reg);
-	if (IS_ERR(ad7766->reg))
-		return PTR_ERR(ad7766->reg);
+	if (ret)
+		return ret;
 
 	ad7766->pd_gpio = devm_gpiod_get_optional(&spi->dev, "powerdown",
 		GPIOD_OUT_HIGH);
