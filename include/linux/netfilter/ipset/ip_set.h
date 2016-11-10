@@ -336,14 +336,15 @@ ip_set_update_counter(struct ip_set_counter *counter,
 
 static inline void
 ip_set_get_skbinfo(struct ip_set_skbinfo *skbinfo,
-		      const struct ip_set_ext *ext,
-		      struct ip_set_ext *mext, u32 flags)
+		   const struct ip_set_ext *ext,
+		   struct ip_set_ext *mext, u32 flags)
 {
-		mext->skbmark = skbinfo->skbmark;
-		mext->skbmarkmask = skbinfo->skbmarkmask;
-		mext->skbprio = skbinfo->skbprio;
-		mext->skbqueue = skbinfo->skbqueue;
+	mext->skbmark = skbinfo->skbmark;
+	mext->skbmarkmask = skbinfo->skbmarkmask;
+	mext->skbprio = skbinfo->skbprio;
+	mext->skbqueue = skbinfo->skbqueue;
 }
+
 static inline bool
 ip_set_put_skbinfo(struct sk_buff *skb, struct ip_set_skbinfo *skbinfo)
 {
