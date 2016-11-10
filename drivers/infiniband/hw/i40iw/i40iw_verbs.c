@@ -1135,7 +1135,8 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	ukinfo->cq_id = cq_num;
 	iwcq->ibcq.cqe = info.cq_uk_init_info.cq_size;
 	info.ceqe_mask = 0;
-	info.ceq_id = 0;
+	if (attr->comp_vector < iwdev->ceqs_count)
+		info.ceq_id = attr->comp_vector;
 	info.ceq_id_valid = true;
 	info.ceqe_mask = 1;
 	info.type = I40IW_CQ_TYPE_IWARP;
@@ -2619,7 +2620,7 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	    (1ull << IB_USER_VERBS_CMD_POST_RECV) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND);
 	iwibdev->ibdev.phys_port_cnt = 1;
-	iwibdev->ibdev.num_comp_vectors = 1;
+	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dma_device = &pcidev->dev;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
 	iwibdev->ibdev.query_port = i40iw_query_port;

@@ -270,6 +270,7 @@ static void i40iw_disable_irq(struct i40iw_sc_dev *dev,
 		i40iw_wr32(dev->hw, I40E_PFINT_DYN_CTLN(msix_vec->idx - 1), 0);
 	else
 		i40iw_wr32(dev->hw, I40E_VFINT_DYN_CTLN1(msix_vec->idx - 1), 0);
+	irq_set_affinity_hint(msix_vec->irq, NULL);
 	free_irq(msix_vec->irq, dev_id);
 }
 
@@ -688,6 +689,7 @@ static enum i40iw_status_code i40iw_configure_ceq_vector(struct i40iw_device *iw
 							 struct i40iw_msix_vector *msix_vec)
 {
 	enum i40iw_status_code status;
+	cpumask_t mask;
 
 	if (iwdev->msix_shared && !ceq_id) {
 		tasklet_init(&iwdev->dpc_tasklet, i40iw_dpc, (unsigned long)iwdev);
@@ -697,12 +699,15 @@ static enum i40iw_status_code i40iw_configure_ceq_vector(struct i40iw_device *iw
 		status = request_irq(msix_vec->irq, i40iw_ceq_handler, 0, "CEQ", iwceq);
 	}
 
+	cpumask_clear(&mask);
+	cpumask_set_cpu(msix_vec->cpu_affinity, &mask);
+	irq_set_affinity_hint(msix_vec->irq, &mask);
+
 	if (status) {
 		i40iw_pr_err("ceq irq config fail\n");
 		return I40IW_ERR_CONFIG;
 	}
 	msix_vec->ceq_id = ceq_id;
-	msix_vec->cpu_affinity = 0;
 
 	return 0;
 }
@@ -1396,6 +1401,7 @@ static enum i40iw_status_code i40iw_save_msix_info(struct i40iw_device *iwdev,
 	for (i = 0, ceq_idx = 0; i < iwdev->msix_count; i++, iw_qvinfo++) {
 		iwdev->iw_msixtbl[i].idx = ldev->msix_entries[i].entry;
 		iwdev->iw_msixtbl[i].irq = ldev->msix_entries[i].vector;
+		iwdev->iw_msixtbl[i].cpu_affinity = ceq_idx;
 		if (i == 0) {
 			iw_qvinfo->aeq_idx = 0;
 			if (iwdev->msix_shared)
