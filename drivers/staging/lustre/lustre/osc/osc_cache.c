@@ -360,6 +360,7 @@ static struct osc_extent *osc_extent_alloc(struct osc_object *obj)
 
 	RB_CLEAR_NODE(&ext->oe_node);
 	ext->oe_obj = obj;
+	cl_object_get(osc2cl(obj));
 	atomic_set(&ext->oe_refc, 1);
 	atomic_set(&ext->oe_users, 0);
 	INIT_LIST_HEAD(&ext->oe_link);
@@ -398,6 +399,7 @@ static void osc_extent_put(const struct lu_env *env, struct osc_extent *ext)
 			LDLM_LOCK_PUT(ext->oe_dlmlock);
 			ext->oe_dlmlock = NULL;
 		}
+		cl_object_put(env, osc2cl(ext->oe_obj));
 		osc_extent_free(ext);
 	}
 }
