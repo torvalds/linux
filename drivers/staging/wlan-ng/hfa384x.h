@@ -137,21 +137,11 @@
 #define		HFA384x_DLSTATE_FLASHENABLED		2
 
 /*--- Register Field Masks --------------------------*/
-#define		HFA384x_CMD_AINFO		((u16)(BIT(14) | BIT(13) \
-							| BIT(12) | BIT(11) \
-							| BIT(10) | BIT(9) \
-							| BIT(8)))
-#define		HFA384x_CMD_MACPORT		((u16)(BIT(10) | BIT(9) | \
-							BIT(8)))
-#define		HFA384x_CMD_PROGMODE		((u16)(BIT(9) | BIT(8)))
-#define		HFA384x_CMD_CMDCODE		((u16)(BIT(5) | BIT(4) | \
-							BIT(3) | BIT(2) | \
-							BIT(1) | BIT(0)))
-
-#define		HFA384x_STATUS_RESULT		((u16)(BIT(14) | BIT(13) \
-							| BIT(12) | BIT(11) \
-							| BIT(10) | BIT(9) \
-							| BIT(8)))
+#define		HFA384x_CMD_AINFO		((u16)GENMASK(14, 8))
+#define		HFA384x_CMD_MACPORT		((u16)GENMASK(10, 8))
+#define		HFA384x_CMD_PROGMODE		((u16)GENMASK(9, 8))
+#define		HFA384x_CMD_CMDCODE		((u16)GENMASK(5, 0))
+#define		HFA384x_STATUS_RESULT		((u16)GENMASK(14, 8))
 
 /*--- Command Code Constants --------------------------*/
 /*--- Controller Commands --------------------------*/
@@ -511,9 +501,8 @@ struct hfa384x_tx_frame {
 #define		HFA384x_TXSTATUS_AGEDERR		((u16)BIT(1))
 #define		HFA384x_TXSTATUS_RETRYERR		((u16)BIT(0))
 /*-- Transmit Control Field --*/
-#define		HFA384x_TX_MACPORT			((u16)(BIT(10) | \
-							  BIT(9) | BIT(8)))
-#define		HFA384x_TX_STRUCTYPE			((u16)(BIT(4) | BIT(3)))
+#define		HFA384x_TX_MACPORT			((u16)GENMASK(10, 8))
+#define		HFA384x_TX_STRUCTYPE			((u16)GENMASK(4, 3))
 #define		HFA384x_TX_TXEX				((u16)BIT(2))
 #define		HFA384x_TX_TXOK				((u16)BIT(1))
 /*--------------------------------------------------------------------
@@ -571,9 +560,7 @@ struct hfa384x_rx_frame {
  */
 
 /*-- Status Fields --*/
-#define		HFA384x_RXSTATUS_MACPORT		((u16)(BIT(10) | \
-								BIT(9) | \
-								BIT(8)))
+#define		HFA384x_RXSTATUS_MACPORT		((u16)GENMASK(10, 8))
 #define		HFA384x_RXSTATUS_FCSERR			((u16)BIT(0))
 /*--------------------------------------------------------------------
  * Communication Frames: Test/Get/Set Field Values for Receive Frames
