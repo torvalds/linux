@@ -751,6 +751,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	key->phy.skb_mark = skb->mark;
 	ovs_ct_fill_key(skb, key);
 	key->ovs_flow_hash = 0;
+	key->mac_proto = MAC_PROTO_ETHERNET;
 	key->recirc_id = 0;
 
 	return key_extract(skb, key);

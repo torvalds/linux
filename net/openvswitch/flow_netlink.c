@@ -1059,6 +1059,11 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 				   sizeof(*cl), is_mask);
 		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_LABELS);
 	}
+
+	/* Always exact match mac_proto */
+	SW_FLOW_KEY_PUT(match, mac_proto, is_mask ? 0xff : MAC_PROTO_ETHERNET,
+			is_mask);
+
 	return 0;
 }
 

@@ -137,12 +137,12 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 
 static void invalidate_flow_key(struct sw_flow_key *key)
 {
-	key->eth.type = htons(0);
+	key->mac_proto |= SW_FLOW_KEY_INVALID;
 }
 
 static bool is_flow_key_valid(const struct sw_flow_key *key)
 {
-	return !!key->eth.type;
+	return !(key->mac_proto & SW_FLOW_KEY_INVALID);
 }
 
 static void update_ethertype(struct sk_buff *skb, struct ethhdr *hdr,
@@ -796,16 +796,8 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 			ovs_vport_send(vport, skb);
 		} else if (mru <= vport->dev->mtu) {
 			struct net *net = read_pnet(&dp->net);
-			__be16 ethertype = key->eth.type;
 
-			if (!is_flow_key_valid(key)) {
-				if (eth_p_mpls(skb->protocol))
-					ethertype = skb->inner_protocol;
-				else
-					ethertype = vlan_get_protocol(skb);
-			}
-
-			ovs_fragment(net, vport, skb, mru, ethertype);
+			ovs_fragment(net, vport, skb, mru, key->eth.type);
 		} else {
 			kfree_skb(skb);
 		}
