@@ -8,3 +8,4 @@ The documentation is spilt into the following sections:-
    :maxdepth: 2
 
    overview
+   codec
