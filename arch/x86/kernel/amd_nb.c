@@ -44,8 +44,25 @@ const struct amd_nb_bus_dev_range amd_nb_bus_dev_ranges[] __initconst = {
 	{ }
 };
 
-struct amd_northbridge_info amd_northbridges;
-EXPORT_SYMBOL(amd_northbridges);
+static struct amd_northbridge_info amd_northbridges;
+
+u16 amd_nb_num(void)
+{
+	return amd_northbridges.num;
+}
+EXPORT_SYMBOL(amd_nb_num);
+
+bool amd_nb_has_feature(unsigned int feature)
+{
+	return ((amd_northbridges.flags & feature) == feature);
+}
+EXPORT_SYMBOL(amd_nb_has_feature);
+
+struct amd_northbridge *node_to_amd_nb(int node)
+{
+	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
+}
+EXPORT_SYMBOL(node_to_amd_nb);
 
 static struct pci_dev *next_northbridge(struct pci_dev *dev,
 					const struct pci_device_id *ids)
@@ -64,7 +81,7 @@ int amd_cache_northbridges(void)
 	struct amd_northbridge *nb;
 	struct pci_dev *misc, *link;
 
-	if (amd_nb_num())
+	if (amd_northbridges.num)
 		return 0;
 
 	misc = NULL;
@@ -82,7 +99,7 @@ int amd_cache_northbridges(void)
 	amd_northbridges.num = i;
 
 	link = misc = NULL;
-	for (i = 0; i != amd_nb_num(); i++) {
+	for (i = 0; i != amd_northbridges.num; i++) {
 		node_to_amd_nb(i)->misc = misc =
 			next_northbridge(misc, amd_nb_misc_ids);
 		node_to_amd_nb(i)->link = link =
@@ -226,14 +243,14 @@ static void amd_cache_gart(void)
 	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
-	flush_words = kmalloc(amd_nb_num() * sizeof(u32), GFP_KERNEL);
+	flush_words = kmalloc_array(amd_northbridges.num, sizeof(u32), GFP_KERNEL);
 	if (!flush_words) {
 		amd_northbridges.flags &= ~AMD_NB_GART;
 		pr_notice("Cannot initialize GART flush words, GART support disabled\n");
 		return;
 	}
 
-	for (i = 0; i != amd_nb_num(); i++)
+	for (i = 0; i != amd_northbridges.num; i++)
 		pci_read_config_dword(node_to_amd_nb(i)->misc, 0x9c, &flush_words[i]);
 }
 
@@ -252,12 +269,12 @@ void amd_flush_garts(void)
 	   that it doesn't matter to serialize more. -AK */
 	spin_lock_irqsave(&gart_lock, flags);
 	flushed = 0;
-	for (i = 0; i < amd_nb_num(); i++) {
+	for (i = 0; i < amd_northbridges.num; i++) {
 		pci_write_config_dword(node_to_amd_nb(i)->misc, 0x9c,
 				       flush_words[i] | 1);
 		flushed++;
 	}
-	for (i = 0; i < amd_nb_num(); i++) {
+	for (i = 0; i < amd_northbridges.num; i++) {
 		u32 w;
 		/* Make sure the hardware actually executed the flush*/
 		for (;;) {

@@ -66,7 +66,6 @@ struct amd_northbridge_info {
 	u64 flags;
 	struct amd_northbridge *nb;
 };
-extern struct amd_northbridge_info amd_northbridges;
 
 #define AMD_NB_GART			BIT(0)
 #define AMD_NB_L3_INDEX_DISABLE		BIT(1)
@@ -74,20 +73,9 @@ extern struct amd_northbridge_info amd_northbridges;
 
 #ifdef CONFIG_AMD_NB
 
-static inline u16 amd_nb_num(void)
-{
-	return amd_northbridges.num;
-}
-
-static inline bool amd_nb_has_feature(unsigned feature)
-{
-	return ((amd_northbridges.flags & feature) == feature);
-}
-
-static inline struct amd_northbridge *node_to_amd_nb(int node)
-{
-	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
-}
+u16 amd_nb_num(void);
+bool amd_nb_has_feature(unsigned int feature);
+struct amd_northbridge *node_to_amd_nb(int node);
 
 static inline u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
 {
