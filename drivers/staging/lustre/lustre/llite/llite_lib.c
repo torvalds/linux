@@ -717,6 +717,18 @@ static int ll_options(char *options, int *flags)
 			*flags &= ~tmp;
 			goto next;
 		}
+		tmp = ll_set_opt("context", s1, 1);
+		if (tmp)
+			goto next;
+		tmp = ll_set_opt("fscontext", s1, 1);
+		if (tmp)
+			goto next;
+		tmp = ll_set_opt("defcontext", s1, 1);
+		if (tmp)
+			goto next;
+		tmp = ll_set_opt("rootcontext", s1, 1);
+		if (tmp)
+			goto next;
 		tmp = ll_set_opt("user_fid2path", s1, LL_SBI_USER_FID2PATH);
 		if (tmp) {
 			*flags |= tmp;

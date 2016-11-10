@@ -1216,8 +1216,7 @@ static struct file_system_type lustre_fs_type = {
 	.name	 = "lustre",
 	.mount	= lustre_mount,
 	.kill_sb      = lustre_kill_super,
-	.fs_flags     = FS_BINARY_MOUNTDATA | FS_REQUIRES_DEV |
-			FS_RENAME_DOES_D_MOVE,
+	.fs_flags	= FS_REQUIRES_DEV | FS_RENAME_DOES_D_MOVE,
 };
 MODULE_ALIAS_FS("lustre");
 
