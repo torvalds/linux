@@ -189,6 +189,7 @@ struct xgbe_prv_data *xgbe_alloc_pdata(struct device *dev)
 	spin_lock_init(&pdata->tstamp_lock);
 	mutex_init(&pdata->i2c_mutex);
 	init_completion(&pdata->i2c_complete);
+	init_completion(&pdata->mdio_complete);
 
 	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
 

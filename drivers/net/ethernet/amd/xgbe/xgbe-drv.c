@@ -443,7 +443,7 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_channel *channel;
 	unsigned int dma_isr, dma_ch_isr;
-	unsigned int mac_isr, mac_tssr;
+	unsigned int mac_isr, mac_tssr, mac_mdioisr;
 	unsigned int i;
 
 	/* The DMA interrupt status register also reports MAC and MTL
@@ -503,6 +503,9 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	if (XGMAC_GET_BITS(dma_isr, DMA_ISR, MACIS)) {
 		mac_isr = XGMAC_IOREAD(pdata, MAC_ISR);
 
+		netif_dbg(pdata, intr, pdata->netdev, "MAC_ISR=%#010x\n",
+			  mac_isr);
+
 		if (XGMAC_GET_BITS(mac_isr, MAC_ISR, MMCTXIS))
 			hw_if->tx_mmc_int(pdata);
 
@@ -512,6 +515,9 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 		if (XGMAC_GET_BITS(mac_isr, MAC_ISR, TSIS)) {
 			mac_tssr = XGMAC_IOREAD(pdata, MAC_TSSR);
 
+			netif_dbg(pdata, intr, pdata->netdev,
+				  "MAC_TSSR=%#010x\n", mac_tssr);
+
 			if (XGMAC_GET_BITS(mac_tssr, MAC_TSSR, TXTSC)) {
 				/* Read Tx Timestamp to clear interrupt */
 				pdata->tx_tstamp =
@@ -519,6 +525,17 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 				queue_work(pdata->dev_workqueue,
 					   &pdata->tx_tstamp_work);
 			}
+		}
+
+		if (XGMAC_GET_BITS(mac_isr, MAC_ISR, SMI)) {
+			mac_mdioisr = XGMAC_IOREAD(pdata, MAC_MDIOISR);
+
+			netif_dbg(pdata, intr, pdata->netdev,
+				  "MAC_MDIOISR=%#010x\n", mac_mdioisr);
+
+			if (XGMAC_GET_BITS(mac_mdioisr, MAC_MDIOISR,
+					   SNGLCOMPINT))
+				complete(&pdata->mdio_complete);
 		}
 	}
 

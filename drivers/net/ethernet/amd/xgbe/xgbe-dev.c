@@ -722,6 +722,9 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 	/* Enable all counter interrupts */
 	XGMAC_IOWRITE_BITS(pdata, MMC_RIER, ALL_INTERRUPTS, 0xffffffff);
 	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xffffffff);
+
+	/* Enable MDIO single command completion interrupt */
+	XGMAC_IOWRITE_BITS(pdata, MAC_MDIOIER, SNGLCOMPIE, 1);
 }
 
 static void xgbe_enable_ecc_interrupts(struct xgbe_prv_data *pdata)
@@ -1092,6 +1095,36 @@ static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
+static int xgbe_clr_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
+{
+	unsigned int reg;
+
+	if (gpio > 16)
+		return -EINVAL;
+
+	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
+
+	reg &= ~(1 << (gpio + 16));
+	XGMAC_IOWRITE(pdata, MAC_GPIOSR, reg);
+
+	return 0;
+}
+
+static int xgbe_set_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
+{
+	unsigned int reg;
+
+	if (gpio > 16)
+		return -EINVAL;
+
+	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
+
+	reg |= (1 << (gpio + 16));
+	XGMAC_IOWRITE(pdata, MAC_GPIOSR, reg);
+
+	return 0;
+}
+
 static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 				 int mmd_reg)
 {
@@ -1234,6 +1267,79 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	default:
 		return xgbe_write_mmd_regs_v2(pdata, prtad, mmd_reg, mmd_data);
 	}
+}
+
+static int xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
+				   int reg, u16 val)
+{
+	unsigned int mdio_sca, mdio_sccd;
+
+	reinit_completion(&pdata->mdio_complete);
+
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, REG, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, DA, addr);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
+
+	mdio_sccd = 0;
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, DATA, val);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, CMD, 1);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
+
+	if (!wait_for_completion_timeout(&pdata->mdio_complete, HZ)) {
+		netdev_err(pdata->netdev, "mdio write operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
+				  int reg)
+{
+	unsigned int mdio_sca, mdio_sccd;
+
+	reinit_completion(&pdata->mdio_complete);
+
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, REG, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, DA, addr);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
+
+	mdio_sccd = 0;
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, CMD, 3);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
+
+	if (!wait_for_completion_timeout(&pdata->mdio_complete, HZ)) {
+		netdev_err(pdata->netdev, "mdio read operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return XGMAC_IOREAD_BITS(pdata, MAC_MDIOSCCDR, DATA);
+}
+
+static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
+				 enum xgbe_mdio_mode mode)
+{
+	unsigned int reg_val = 0;
+
+	switch (mode) {
+	case XGBE_MDIO_MODE_CL22:
+		if (port > XGMAC_MAX_C22_PORT)
+			return -EINVAL;
+		reg_val |= (1 << port);
+		break;
+	case XGBE_MDIO_MODE_CL45:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	XGMAC_IOWRITE(pdata, MAC_MDIOCL22R, reg_val);
+
+	return 0;
 }
 
 static int xgbe_tx_complete(struct xgbe_ring_desc *rdesc)
@@ -3385,6 +3491,13 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->write_mmd_regs = xgbe_write_mmd_regs;
 
 	hw_if->set_speed = xgbe_set_speed;
+
+	hw_if->set_ext_mii_mode = xgbe_set_ext_mii_mode;
+	hw_if->read_ext_mii_regs = xgbe_read_ext_mii_regs;
+	hw_if->write_ext_mii_regs = xgbe_write_ext_mii_regs;
+
+	hw_if->set_gpio = xgbe_set_gpio;
+	hw_if->clr_gpio = xgbe_clr_gpio;
 
 	hw_if->enable_tx = xgbe_enable_tx;
 	hw_if->disable_tx = xgbe_disable_tx;

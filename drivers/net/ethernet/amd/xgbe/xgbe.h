@@ -289,6 +289,9 @@
 /* ECC correctable error notification window (seconds) */
 #define XGBE_ECC_LIMIT			60
 
+/* MDIO port types */
+#define XGMAC_MAX_C22_PORT		3
+
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
@@ -674,6 +677,14 @@ struct xgbe_hw_if {
 	int (*read_mmd_regs)(struct xgbe_prv_data *, int, int);
 	void (*write_mmd_regs)(struct xgbe_prv_data *, int, int, int);
 	int (*set_speed)(struct xgbe_prv_data *, int);
+
+	int (*set_ext_mii_mode)(struct xgbe_prv_data *, unsigned int,
+				enum xgbe_mdio_mode);
+	int (*read_ext_mii_regs)(struct xgbe_prv_data *, int, int);
+	int (*write_ext_mii_regs)(struct xgbe_prv_data *, int, int, u16);
+
+	int (*set_gpio)(struct xgbe_prv_data *, unsigned int);
+	int (*clr_gpio)(struct xgbe_prv_data *, unsigned int);
 
 	void (*enable_tx)(struct xgbe_prv_data *);
 	void (*disable_tx)(struct xgbe_prv_data *);
@@ -1111,6 +1122,7 @@ struct xgbe_prv_data {
 	struct xgbe_phy phy;
 	int mdio_mmd;
 	unsigned long link_check;
+	struct completion mdio_complete;
 
 	char an_name[IFNAMSIZ + 32];
 	struct workqueue_struct *an_workqueue;
