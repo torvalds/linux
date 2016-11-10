@@ -109,6 +109,16 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 	atomic_inc(&mark->refcnt);
 }
 
+/*
+ * Get mark reference when we found the mark via lockless traversal of object
+ * list. Mark can be already removed from the list by now and on its way to be
+ * destroyed once SRCU period ends.
+ */
+static bool fsnotify_get_mark_safe(struct fsnotify_mark *mark)
+{
+	return atomic_inc_not_zero(&mark->refcnt);
+}
+
 static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 {
 	u32 new_mask = 0;
@@ -241,6 +251,72 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	spin_unlock(&destroy_lock);
 	queue_delayed_work(system_unbound_wq, &reaper_work,
 			   FSNOTIFY_REAPER_DELAY);
+}
+
+bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info)
+{
+	struct fsnotify_group *group;
+
+	if (WARN_ON_ONCE(!iter_info->inode_mark && !iter_info->vfsmount_mark))
+		return false;
+
+	if (iter_info->inode_mark)
+		group = iter_info->inode_mark->group;
+	else
+		group = iter_info->vfsmount_mark->group;
+
+	/*
+	 * Since acquisition of mark reference is an atomic op as well, we can
+	 * be sure this inc is seen before any effect of refcount increment.
+	 */
+	atomic_inc(&group->user_waits);
+
+	if (iter_info->inode_mark) {
+		/* This can fail if mark is being removed */
+		if (!fsnotify_get_mark_safe(iter_info->inode_mark))
+			goto out_wait;
+	}
+	if (iter_info->vfsmount_mark) {
+		if (!fsnotify_get_mark_safe(iter_info->vfsmount_mark))
+			goto out_inode;
+	}
+
+	/*
+	 * Now that both marks are pinned by refcount in the inode / vfsmount
+	 * lists, we can drop SRCU lock, and safely resume the list iteration
+	 * once userspace returns.
+	 */
+	srcu_read_unlock(&fsnotify_mark_srcu, iter_info->srcu_idx);
+
+	return true;
+out_inode:
+	if (iter_info->inode_mark)
+		fsnotify_put_mark(iter_info->inode_mark);
+out_wait:
+	if (atomic_dec_and_test(&group->user_waits) && group->shutdown)
+		wake_up(&group->notification_waitq);
+	return false;
+}
+
+void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info)
+{
+	struct fsnotify_group *group = NULL;
+
+	iter_info->srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
+	if (iter_info->inode_mark) {
+		group = iter_info->inode_mark->group;
+		fsnotify_put_mark(iter_info->inode_mark);
+	}
+	if (iter_info->vfsmount_mark) {
+		group = iter_info->vfsmount_mark->group;
+		fsnotify_put_mark(iter_info->vfsmount_mark);
+	}
+	/*
+	 * We abuse notification_waitq on group shutdown for waiting for all
+	 * marks pinned when waiting for userspace.
+	 */
+	if (atomic_dec_and_test(&group->user_waits) && group->shutdown)
+		wake_up(&group->notification_waitq);
 }
 
 /*
@@ -647,6 +723,12 @@ void fsnotify_detach_group_marks(struct fsnotify_group *group)
 		fsnotify_free_mark(mark);
 		fsnotify_put_mark(mark);
 	}
+	/*
+	 * Some marks can still be pinned when waiting for response from
+	 * userspace. Wait for those now. fsnotify_prepare_user_wait() will
+	 * not succeed now so this wait is race-free.
+	 */
+	wait_event(group->notification_waitq, !atomic_read(&group->user_waits));
 }
 
 /* Destroy all marks attached to inode / vfsmount */
