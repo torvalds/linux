@@ -33,21 +33,14 @@
 #ifndef _GVT_HYPERCALL_H_
 #define _GVT_HYPERCALL_H_
 
-struct intel_gvt_io_emulation_ops {
-	int (*emulate_cfg_read)(void *, unsigned int, void *, unsigned int);
-	int (*emulate_cfg_write)(void *, unsigned int, void *, unsigned int);
-	int (*emulate_mmio_read)(void *, u64, void *, unsigned int);
-	int (*emulate_mmio_write)(void *, u64, void *, unsigned int);
-};
-
-extern struct intel_gvt_io_emulation_ops intel_gvt_io_emulation_ops;
-
 /*
  * Specific GVT-g MPT modules function collections. Currently GVT-g supports
  * both Xen and KVM by providing dedicated hypervisor-related MPT modules.
  */
 struct intel_gvt_mpt {
 	int (*detect_host)(void);
+	int (*host_init)(struct device *dev, void *gvt, const void *ops);
+	void (*host_exit)(struct device *dev, void *gvt);
 	int (*attach_vgpu)(void *vgpu, unsigned long *handle);
 	void (*detach_vgpu)(unsigned long handle);
 	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);
@@ -60,8 +53,7 @@ struct intel_gvt_mpt {
 			 unsigned long len);
 	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
 	int (*map_gfn_to_mfn)(unsigned long handle, unsigned long gfn,
-			      unsigned long mfn, unsigned int nr, bool map,
-			      int type);
+			      unsigned long mfn, unsigned int nr, bool map);
 	int (*set_trap_area)(unsigned long handle, u64 start, u64 end,
 			     bool map);
 };

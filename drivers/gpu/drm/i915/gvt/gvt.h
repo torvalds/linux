@@ -161,6 +161,20 @@ struct intel_vgpu {
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 	struct notifier_block shadow_ctx_notifier_block;
+
+#if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
+	struct {
+		struct device *mdev;
+		struct vfio_region *region;
+		int num_regions;
+		struct eventfd_ctx *intx_trigger;
+		struct eventfd_ctx *msi_trigger;
+		struct rb_root cache;
+		struct mutex cache_lock;
+		void *vfio_group;
+		struct notifier_block iommu_notifier;
+	} vdev;
+#endif
 };
 
 struct intel_gvt_gm {
@@ -190,6 +204,16 @@ struct intel_gvt_opregion {
 	u32 opregion_pa;
 };
 
+#define NR_MAX_INTEL_VGPU_TYPES 20
+struct intel_vgpu_type {
+	char name[16];
+	unsigned int max_instance;
+	unsigned int avail_instance;
+	unsigned int low_gm_size;
+	unsigned int high_gm_size;
+	unsigned int fence;
+};
+
 struct intel_gvt {
 	struct mutex lock;
 	struct drm_i915_private *dev_priv;
@@ -205,6 +229,8 @@ struct intel_gvt {
 	struct intel_gvt_opregion opregion;
 	struct intel_gvt_workload_scheduler scheduler;
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
+	struct intel_vgpu_type *types;
+	unsigned int num_types;
 
 	struct task_struct *service_thread;
 	wait_queue_head_t service_thread_wq;
@@ -229,6 +255,14 @@ static inline void intel_gvt_request_service(struct intel_gvt *gvt,
 
 void intel_gvt_free_firmware(struct intel_gvt *gvt);
 int intel_gvt_load_firmware(struct intel_gvt *gvt);
+
+/* Aperture/GM space definitions for GVT device */
+#define MB_TO_BYTES(mb) ((mb) << 20ULL)
+#define BYTES_TO_MB(b) ((b) >> 20ULL)
+
+#define HOST_LOW_GM_SIZE MB_TO_BYTES(128)
+#define HOST_HIGH_GM_SIZE MB_TO_BYTES(384)
+#define HOST_FENCE 4
 
 /* Aperture/GM space definitions for GVT device */
 #define gvt_aperture_sz(gvt)	  (gvt->dev_priv->ggtt.mappable_end)
@@ -330,11 +364,14 @@ static inline void intel_vgpu_write_pci_bar(struct intel_vgpu *vgpu,
 	}
 }
 
-struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
-					 struct intel_vgpu_creation_params *
-					 param);
+int intel_gvt_init_vgpu_types(struct intel_gvt *gvt);
+void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt);
 
+struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
+					 struct intel_vgpu_type *type);
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_reset_vgpu(struct intel_vgpu *vgpu);
+
 
 /* validating GM functions */
 #define vgpu_gmadr_is_aperture(vgpu, gmadr) \
@@ -369,10 +406,10 @@ int intel_gvt_ggtt_index_g2h(struct intel_vgpu *vgpu, unsigned long g_index,
 int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
 			     unsigned long *g_index);
 
-int intel_vgpu_emulate_cfg_read(void *__vgpu, unsigned int offset,
+int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
 
-int intel_vgpu_emulate_cfg_write(void *__vgpu, unsigned int offset,
+int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
 
 void intel_gvt_clean_opregion(struct intel_gvt *gvt);
@@ -384,6 +421,22 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 int setup_vgpu_mmio(struct intel_vgpu *vgpu);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
+
+struct intel_gvt_ops {
+	int (*emulate_cfg_read)(struct intel_vgpu *, unsigned int, void *,
+				unsigned int);
+	int (*emulate_cfg_write)(struct intel_vgpu *, unsigned int, void *,
+				unsigned int);
+	int (*emulate_mmio_read)(struct intel_vgpu *, u64, void *,
+				unsigned int);
+	int (*emulate_mmio_write)(struct intel_vgpu *, u64, void *,
+				unsigned int);
+	struct intel_vgpu *(*vgpu_create)(struct intel_gvt *,
+				struct intel_vgpu_type *);
+	void (*vgpu_destroy)(struct intel_vgpu *);
+	void (*vgpu_reset)(struct intel_vgpu *);
+};
+
 
 #include "mpt.h"
 
