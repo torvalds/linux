@@ -1475,6 +1475,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 
 				alias = ll_splice_alias(inode, *dentryp);
 				if (IS_ERR(alias)) {
+					ll_intent_release(&it);
 					rc = PTR_ERR(alias);
 					goto out_unplug;
 				}
@@ -1493,6 +1494,7 @@ static int revalidate_statahead_dentry(struct inode *dir,
 				       *dentryp,
 				       PFID(ll_inode2fid((*dentryp)->d_inode)),
 				       PFID(ll_inode2fid(inode)));
+				ll_intent_release(&it);
 				rc = -ESTALE;
 				goto out_unplug;
 			}
