@@ -418,9 +418,7 @@ enum dwc2_ep0_state {
  *			needed.
  *			0 - No (default)
  *			1 - Yes
- * @g_dma:              If true, enables dma usage on the device. This
- *                      setting is not auto-detected. It must be
- *                      explicitly enabled (default: false).
+ * @g_dma:              Enables gadget dma usage (default: autodetect).
  * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
  *			DWORDS from 16-32768 (default: 2048 if
  *			possible, otherwise autodetect).

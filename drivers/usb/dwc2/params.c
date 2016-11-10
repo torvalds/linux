@@ -1086,6 +1086,19 @@ static void dwc2_set_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 	}
 }
 
+static void dwc2_set_gadget_dma(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+	struct dwc2_core_params *p = &hsotg->params;
+	bool dma_capable = !(hw->arch == GHWCFG2_SLAVE_ONLY_ARCH);
+
+	/* Buffer DMA */
+	dwc2_set_param_bool(hsotg, &p->g_dma,
+			    false, "gadget-dma",
+			    true, false,
+			    dma_capable);
+}
+
 /**
  * dwc2_set_parameters() - Set all core parameters.
  *
@@ -1161,9 +1174,7 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
 		dev_dbg(hsotg->dev, "Setting peripheral device properties\n");
 
-		dwc2_set_param_bool(hsotg, &p->g_dma, true, "g-use-dma",
-				    false, false,
-				    dma_capable);
+		dwc2_set_gadget_dma(hsotg);
 
 		/*
 		 * The values for g_rx_fifo_size (2048) and
