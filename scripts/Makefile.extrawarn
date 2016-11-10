@@ -60,8 +60,6 @@ endif
 KBUILD_CFLAGS += $(warning)
 else
 
-KBUILD_CFLAGS += $(call cc-disable-warning, maybe-uninitialized)
-
 ifeq ($(cc-name),clang)
 KBUILD_CFLAGS += $(call cc-disable-warning, initializer-overrides)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-value)
