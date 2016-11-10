@@ -172,6 +172,9 @@ struct dwc2_hsotg_req;
  * @periodic: Set if this is a periodic ep, such as Interrupt
  * @isochronous: Set if this is a isochronous ep
  * @send_zlp: Set if we need to send a zero-length packet.
+ * @desc_list_dma: The DMA address of descriptor chain currently in use.
+ * @desc_list: Pointer to descriptor DMA chain head currently in use.
+ * @desc_count: Count of entries within the DMA descriptor chain of EP.
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
@@ -218,6 +221,10 @@ struct dwc2_hsotg_ep {
 	unsigned int            target_frame;
 #define TARGET_FRAME_INITIAL   0xFFFFFFFF
 	bool			frame_overrun;
+
+	dma_addr_t		desc_list_dma;
+	struct dwc2_dma_desc	*desc_list;
+	u8			desc_count;
 
 	char                    name[10];
 };

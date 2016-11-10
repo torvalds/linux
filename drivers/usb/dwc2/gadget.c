@@ -3077,6 +3077,18 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	dev_dbg(hsotg->dev, "%s: read DxEPCTL=0x%08x from 0x%08x\n",
 		__func__, epctrl, epctrl_reg);
 
+	/* Allocate DMA descriptor chain for non-ctrl endpoints */
+	if (using_desc_dma(hsotg)) {
+		hs_ep->desc_list = dma_alloc_coherent(hsotg->dev,
+			MAX_DMA_DESC_NUM_GENERIC *
+			sizeof(struct dwc2_dma_desc),
+			&hs_ep->desc_list_dma, GFP_KERNEL);
+		if (!hs_ep->desc_list) {
+			ret = -ENOMEM;
+			goto error2;
+		}
+	}
+
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	epctrl &= ~(DXEPCTL_EPTYPE_MASK | DXEPCTL_MPS_MASK);
@@ -3160,7 +3172,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 			dev_err(hsotg->dev,
 				"%s: No suitable fifo found\n", __func__);
 			ret = -ENOMEM;
-			goto error;
+			goto error1;
 		}
 		hsotg->fifo_map |= 1 << fifo_index;
 		epctrl |= DXEPCTL_TXFNUM(fifo_index);
@@ -3182,8 +3194,17 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	/* enable the endpoint interrupt */
 	dwc2_hsotg_ctrl_epint(hsotg, index, dir_in, 1);
 
-error:
+error1:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+error2:
+	if (ret && using_desc_dma(hsotg) && hs_ep->desc_list) {
+		dma_free_coherent(hsotg->dev, MAX_DMA_DESC_NUM_GENERIC *
+			sizeof(struct dwc2_dma_desc),
+			hs_ep->desc_list, hs_ep->desc_list_dma);
+		hs_ep->desc_list = NULL;
+	}
+
 	return ret;
 }
 
@@ -3206,6 +3227,14 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 	if (ep == &hsotg->eps_out[0]->ep) {
 		dev_err(hsotg->dev, "%s: called for ep0\n", __func__);
 		return -EINVAL;
+	}
+
+	/* Remove DMA memory allocated for non-control Endpoints */
+	if (using_desc_dma(hsotg)) {
+		dma_free_coherent(hsotg->dev, MAX_DMA_DESC_NUM_GENERIC *
+				  sizeof(struct dwc2_dma_desc),
+				  hs_ep->desc_list, hs_ep->desc_list_dma);
+		hs_ep->desc_list = NULL;
 	}
 
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
