@@ -244,6 +244,3 @@ obj-y					+= $(onenand-m) $(onenand-y)
 
 nand-$(CONFIG_MTD_NAND_OMAP2)		:= gpmc-nand.o
 obj-y					+= $(nand-m) $(nand-y)
-
-
-obj-y					+= common-board-devices.o dss-common.o

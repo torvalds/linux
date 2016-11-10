@@ -31,7 +31,6 @@
 
 #include "common.h"
 #include "common-board-devices.h"
-#include "dss-common.h"
 #include "control.h"
 #include "omap_device.h"
 #include "omap-pm.h"
