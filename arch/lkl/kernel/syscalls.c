@@ -88,7 +88,7 @@ static void del_host_task(void *arg)
 	do_exit(0);
 }
 
-static unsigned int task_key;
+static struct lkl_tls_key *task_key;
 
 long lkl_syscall(long no, long *params)
 {
@@ -121,19 +121,17 @@ out:
 
 int syscalls_init(void)
 {
-	int ret = 0;
-
 	snprintf(current->comm, sizeof(current->comm), "host0");
 	set_thread_flag(TIF_HOST_THREAD);
 	host0 = current;
 
 	if (lkl_ops->tls_alloc) {
-		ret = lkl_ops->tls_alloc(&task_key, del_host_task);
-		if (ret)
-			return ret;
+		task_key = lkl_ops->tls_alloc(del_host_task);
+		if (!task_key)
+			return -1;
 	}
 
-	return ret;
+	return 0;
 }
 
 void syscalls_cleanup(void)

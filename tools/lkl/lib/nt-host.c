@@ -17,6 +17,10 @@ struct lkl_sem {
 	HANDLE sem;
 };
 
+struct lkl_tls_key {
+	DWORD key;
+};
+
 static struct lkl_sem *sem_alloc(int count)
 {
 	struct lkl_sem *sem = malloc(sizeof(struct lkl_sem));
@@ -122,28 +126,34 @@ static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 	return a == b;
 }
 
-static int tls_alloc(unsigned int *key, void (*destructor)(void *))
+static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
 {
-	*key = FlsAlloc((PFLS_CALLBACK_FUNCTION)destructor);
-	return *key == TLS_OUT_OF_INDEXES ? -1 : 0;
+	struct lkl_tls_key *ret = malloc(sizeof(struct lkl_tls_key));
+
+	ret->key = FlsAlloc((PFLS_CALLBACK_FUNCTION)destructor);
+	if (ret->key == TLS_OUT_OF_INDEXES) {
+		free(ret);
+		return -1;
+	}
+	return 0;
 }
 
-static int tls_free(unsigned int key)
+static void tls_free(struct lkl_tls_key *key)
 {
 	/* setting to NULL first to prevent the callback from being called */
-	if (!FlsSetValue(key, NULL))
-		return -1;
-	return FlsFree(key) ? 0 : -1;
+	FlsSetValue(key->key, NULL);
+	FlsFree(key->key);
+	free(key);
 }
 
-static int tls_set(unsigned int key, void *data)
+static int tls_set(struct lkl_tls_key *key, void *data)
 {
-	return FlsSetValue(key, data) ? 0 : -1;
+	return FlsSetValue(key->key, data) ? 0 : -1;
 }
 
-static void *tls_get(unsigned int key)
+static void *tls_get(struct lkl_tls_key *key)
 {
-	return FlsGetValue(key);
+	return FlsGetValue(key->key);
 }
 
 

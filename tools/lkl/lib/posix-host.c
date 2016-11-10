@@ -49,6 +49,10 @@ struct lkl_sem {
 #endif /* _POSIX_SEMAPHORES */
 };
 
+struct lkl_tls_key {
+	pthread_key_t key;
+};
+
 #define WARN_UNLESS(exp) do {						\
 		if (exp < 0)						\
 			lkl_printf("%s: %s\n", #exp, strerror(errno));	\
@@ -216,24 +220,33 @@ static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 	return pthread_equal(a, b);
 }
 
-static int tls_alloc(unsigned int *key, void (*destructor)(void *))
+static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
 {
-	return pthread_key_create((pthread_key_t *)key, destructor);
+	struct lkl_tls_key *ret = malloc(sizeof(struct lkl_tls_key));
+
+	if (WARN_PTHREAD(pthread_key_create(&ret->key, destructor))) {
+		free(ret);
+		return NULL;
+	}
+	return ret;
 }
 
-static int tls_free(unsigned int key)
+static void tls_free(struct lkl_tls_key *key)
 {
-	return pthread_key_delete(key);
+	WARN_PTHREAD(pthread_key_delete(key->key));
+	free(key);
 }
 
-static int tls_set(unsigned int key, void *data)
+static int tls_set(struct lkl_tls_key *key, void *data)
 {
-	return pthread_setspecific(key, data);
+	if (WARN_PTHREAD(pthread_setspecific(key->key, data)))
+		return -1;
+	return 0;
 }
 
-static void *tls_get(unsigned int key)
+static void *tls_get(struct lkl_tls_key *key)
 {
-	return pthread_getspecific(key);
+	return pthread_getspecific(key->key);
 }
 
 static unsigned long long time_ns(void)

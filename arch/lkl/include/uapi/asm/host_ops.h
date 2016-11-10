@@ -4,6 +4,7 @@
 /* Defined in {posix,nt}-host.c */
 struct lkl_mutex;
 struct lkl_sem;
+struct lkl_tls_key;
 typedef unsigned long lkl_thread_t;
 struct lkl_jmp_buf {
 	unsigned long buf[32];
@@ -93,10 +94,10 @@ struct lkl_host_operations {
 	lkl_thread_t (*thread_self)(void);
 	int (*thread_equal)(lkl_thread_t a, lkl_thread_t b);
 
-	int (*tls_alloc)(unsigned int *key, void (*destructor)(void *));
-	int (*tls_free)(unsigned int key);
-	int (*tls_set)(unsigned int key, void *data);
-	void *(*tls_get)(unsigned int key);
+	struct lkl_tls_key *(*tls_alloc)(void (*destructor)(void *));
+	void (*tls_free)(struct lkl_tls_key *key);
+	int (*tls_set)(struct lkl_tls_key *key, void *data);
+	void *(*tls_get)(struct lkl_tls_key *key);
 
 	void* (*mem_alloc)(unsigned long);
 	void (*mem_free)(void *);
