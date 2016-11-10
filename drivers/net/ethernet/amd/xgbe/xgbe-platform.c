@@ -581,6 +581,7 @@ static const struct xgbe_version_data xgbe_v1 = {
 	.xpcs_access			= XGBE_XPCS_ACCESS_V1,
 	.tx_max_fifo_size		= 81920,
 	.rx_max_fifo_size		= 81920,
+	.tx_tstamp_workaround		= 1,
 };
 
 #ifdef CONFIG_ACPI

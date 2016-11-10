@@ -805,6 +805,7 @@ struct xgbe_version_data {
 	unsigned int mmc_64bit;
 	unsigned int tx_max_fifo_size;
 	unsigned int rx_max_fifo_size;
+	unsigned int tx_tstamp_workaround;
 };
 
 struct xgbe_prv_data {

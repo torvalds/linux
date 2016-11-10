@@ -1360,14 +1360,21 @@ static u64 xgbe_get_tstamp_time(struct xgbe_prv_data *pdata)
 
 static u64 xgbe_get_tx_tstamp(struct xgbe_prv_data *pdata)
 {
-	unsigned int tx_snr;
+	unsigned int tx_snr, tx_ssr;
 	u64 nsec;
 
-	tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	if (pdata->vdata->tx_tstamp_workaround) {
+		tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+		tx_ssr = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	} else {
+		tx_ssr = XGMAC_IOREAD(pdata, MAC_TXSSR);
+		tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	}
+
 	if (XGMAC_GET_BITS(tx_snr, MAC_TXSNR, TXTSSTSMIS))
 		return 0;
 
-	nsec = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	nsec = tx_ssr;
 	nsec *= NSEC_PER_SEC;
 	nsec += tx_snr;
 
