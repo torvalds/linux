@@ -537,13 +537,14 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 {
 	if (fid_seq_is_mdt0(oi->oi.oi_seq)) {
 		if (oid >= IDIF_MAX_OID) {
-			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
+			CERROR("Too large OID %#llx to set MDT0 " DOSTID "\n",
+			       oid, POSTID(oi));
 			return;
 		}
 		oi->oi.oi_id = oid;
 	} else if (fid_is_idif(&oi->oi_fid)) {
 		if (oid >= IDIF_MAX_OID) {
-			CERROR("Bad %llu to set "DOSTID"\n",
+			CERROR("Too large OID %#llx to set IDIF " DOSTID "\n",
 			       oid, POSTID(oi));
 			return;
 		}
@@ -569,7 +570,7 @@ static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
 
 	if (fid_is_idif(fid)) {
 		if (oid >= IDIF_MAX_OID) {
-			CERROR("Too large OID %#llx to set IDIF "DFID"\n",
+			CERROR("Too large OID %#llx to set IDIF " DFID "\n",
 			       (unsigned long long)oid, PFID(fid));
 			return -EBADF;
 		}
@@ -578,7 +579,7 @@ static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
 		fid->f_ver = oid >> 48;
 	} else {
 		if (oid >= OBIF_MAX_OID) {
-			CERROR("Too large OID %#llx to set REG "DFID"\n",
+			CERROR("Too large OID %#llx to set REG " DFID "\n",
 			       (unsigned long long)oid, PFID(fid));
 			return -EBADF;
 		}
