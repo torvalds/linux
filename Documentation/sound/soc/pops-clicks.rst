@@ -1,3 +1,4 @@
+=====================
 Audio Pops and Clicks
 =====================
 
@@ -20,10 +21,11 @@ currently, however future audio codec hardware will have better pop and click
 suppression.  Pops can be reduced within playback by powering the audio
 components in a specific order. This order is different for startup and
 shutdown and follows some basic rules:-
+::
 
- Startup Order :- DAC --> Mixers --> Output PGA --> Digital Unmute
-
- Shutdown Order :- Digital Mute --> Output PGA --> Mixers --> DAC
+   Startup Order :- DAC --> Mixers --> Output PGA --> Digital Unmute
+  
+   Shutdown Order :- Digital Mute --> Output PGA --> Mixers --> DAC
 
 This assumes that the codec PCM output path from the DAC is via a mixer and then
 a PGA (programmable gain amplifier) before being output to the speakers.
@@ -36,10 +38,11 @@ Capture artifacts are somewhat easier to get rid as we can delay activating the
 ADC until all the pops have occurred. This follows similar power rules to
 playback in that components are powered in a sequence depending upon stream
 startup or shutdown.
+::
 
- Startup Order - Input PGA --> Mixers --> ADC
-
- Shutdown Order - ADC --> Mixers --> Input PGA
+   Startup Order - Input PGA --> Mixers --> ADC
+  
+   Shutdown Order - ADC --> Mixers --> Input PGA
 
 
 Zipper Noise

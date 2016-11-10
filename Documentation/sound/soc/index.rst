@@ -13,3 +13,4 @@ The documentation is spilt into the following sections:-
    dapm
    platform
    machine
+   pops-clicks
