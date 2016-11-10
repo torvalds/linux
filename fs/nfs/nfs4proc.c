@@ -1221,6 +1221,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	atomic_inc(&sp->so_count);
 	p->o_arg.open_flags = flags;
 	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
+	p->o_arg.claim = nfs4_map_atomic_open_claim(server, claim);
 	p->o_arg.share_access = nfs4_map_atomic_open_share(server,
 			fmode, flags);
 	/* don't put an ACCESS op in OPEN compound if O_EXCL, because ACCESS
@@ -1228,8 +1229,16 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	if (!(flags & O_EXCL)) {
 		/* ask server to check for all possible rights as results
 		 * are cached */
-		p->o_arg.access = NFS4_ACCESS_READ | NFS4_ACCESS_MODIFY |
-				  NFS4_ACCESS_EXTEND | NFS4_ACCESS_EXECUTE;
+		switch (p->o_arg.claim) {
+		default:
+			break;
+		case NFS4_OPEN_CLAIM_NULL:
+		case NFS4_OPEN_CLAIM_FH:
+			p->o_arg.access = NFS4_ACCESS_READ |
+				NFS4_ACCESS_MODIFY |
+				NFS4_ACCESS_EXTEND |
+				NFS4_ACCESS_EXECUTE;
+		}
 	}
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
 	p->o_arg.id.create_time = ktime_to_ns(sp->so_seqid.create_time);
@@ -1239,7 +1248,6 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.bitmask = nfs4_bitmask(server, label);
 	p->o_arg.open_bitmap = &nfs4_fattr_bitmap[0];
 	p->o_arg.label = nfs4_label_copy(p->a_label, label);
-	p->o_arg.claim = nfs4_map_atomic_open_claim(server, claim);
 	switch (p->o_arg.claim) {
 	case NFS4_OPEN_CLAIM_NULL:
 	case NFS4_OPEN_CLAIM_DELEGATE_CUR:
