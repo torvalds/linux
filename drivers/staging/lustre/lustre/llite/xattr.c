@@ -112,8 +112,9 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 		return -EPERM;
 
 	/* b10667: ignore lustre special xattr for now */
-	if ((handler->flags == XATTR_TRUSTED_T && !strcmp(name, "lov")) ||
-	    (handler->flags == XATTR_LUSTRE_T && !strcmp(name, "lov")))
+	if (!strcmp(name, "hsm") ||
+	    ((handler->flags == XATTR_TRUSTED_T && !strcmp(name, "lov")) ||
+	     (handler->flags == XATTR_LUSTRE_T && !strcmp(name, "lov"))))
 		return 0;
 
 	/* b15587: ignore security.capability xattr for now */
@@ -145,6 +146,37 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 
 	ptlrpc_req_finished(req);
 	return 0;
+}
+
+static int get_hsm_state(struct inode *inode, u32 *hus_states)
+{
+	struct md_op_data *op_data;
+	struct hsm_user_state *hus;
+	int rc;
+
+	hus = kzalloc(sizeof(*hus), GFP_NOFS);
+	if (!hus)
+		return -ENOMEM;
+
+	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, hus);
+	if (!IS_ERR(op_data)) {
+		rc = obd_iocontrol(LL_IOC_HSM_STATE_GET, ll_i2mdexp(inode),
+				   sizeof(*op_data), op_data, NULL);
+		if (!rc)
+			*hus_states = hus->hus_states;
+		else
+			CDEBUG(D_VFSTRACE, "obd_iocontrol failed. rc = %d\n",
+			       rc);
+
+		ll_finish_md_op_data(op_data);
+	} else {
+		rc = PTR_ERR(op_data);
+		CDEBUG(D_VFSTRACE, "Could not prepare the opdata. rc = %d\n",
+		       rc);
+	}
+	kfree(hus);
+	return rc;
 }
 
 static int ll_xattr_set(const struct xattr_handler *handler,
@@ -182,6 +214,31 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 		 */
 		if (lump && lump->lmm_stripe_offset == 0)
 			lump->lmm_stripe_offset = -1;
+
+		/* Avoid anyone directly setting the RELEASED flag. */
+		if (lump && (lump->lmm_pattern & LOV_PATTERN_F_RELEASED)) {
+			/* Only if we have a released flag check if the file
+			 * was indeed archived.
+			 */
+			u32 state = HS_NONE;
+
+			rc = get_hsm_state(inode, &state);
+			if (rc)
+				return rc;
+
+			if (!(state & HS_ARCHIVED)) {
+				CDEBUG(D_VFSTRACE,
+				       "hus_states state = %x, pattern = %x\n",
+				state, lump->lmm_pattern);
+				/*
+				 * Here the state is: real file is not
+				 * archived but user is requesting to set
+				 * the RELEASED flag so we mask off the
+				 * released flag from the request
+				 */
+				lump->lmm_pattern ^= LOV_PATTERN_F_RELEASED;
+			}
+		}
 
 		if (lump && S_ISREG(inode->i_mode)) {
 			__u64 it_flags = FMODE_WRITE;

@@ -995,6 +995,7 @@ struct ioc_data_version {
  * See HSM_FLAGS below.
  */
 enum hsm_states {
+	HS_NONE		= 0x00000000,
 	HS_EXISTS	= 0x00000001,
 	HS_DIRTY	= 0x00000002,
 	HS_RELEASED	= 0x00000004,
