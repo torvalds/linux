@@ -508,6 +508,7 @@ enum xgbe_xpcs_access {
 
 enum xgbe_an_mode {
 	XGBE_AN_MODE_CL73 = 0,
+	XGBE_AN_MODE_CL73_REDRV,
 	XGBE_AN_MODE_CL37,
 	XGBE_AN_MODE_CL37_SGMII,
 	XGBE_AN_MODE_NONE,
@@ -806,6 +807,9 @@ struct xgbe_phy_impl_if {
 
 	/* Configure auto-negotiation settings */
 	int (*an_config)(struct xgbe_prv_data *);
+
+	/* Set/override auto-negotiation advertisement settings */
+	unsigned int (*an_advertising)(struct xgbe_prv_data *);
 
 	/* Process results of auto-negotiation */
 	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);
@@ -1123,6 +1127,8 @@ struct xgbe_prv_data {
 	int mdio_mmd;
 	unsigned long link_check;
 	struct completion mdio_complete;
+
+	unsigned int kr_redrv;
 
 	char an_name[IFNAMSIZ + 32];
 	struct workqueue_struct *an_workqueue;

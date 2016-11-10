@@ -277,6 +277,26 @@ enum xgbe_mdio_reset {
 	XGBE_MDIO_RESET_MAX,
 };
 
+/* Re-driver related definitions */
+enum xgbe_phy_redrv_if {
+	XGBE_PHY_REDRV_IF_MDIO = 0,
+	XGBE_PHY_REDRV_IF_I2C,
+	XGBE_PHY_REDRV_IF_MAX,
+};
+
+enum xgbe_phy_redrv_model {
+	XGBE_PHY_REDRV_MODEL_4223 = 0,
+	XGBE_PHY_REDRV_MODEL_4227,
+	XGBE_PHY_REDRV_MODEL_MAX,
+};
+
+enum xgbe_phy_redrv_mode {
+	XGBE_PHY_REDRV_MODE_CX = 5,
+	XGBE_PHY_REDRV_MODE_SR = 9,
+};
+
+#define XGBE_PHY_REDRV_MODE_REG	0x12b0
+
 /* PHY related configuration information */
 struct xgbe_phy_data {
 	enum xgbe_port_mode port_mode;
@@ -327,6 +347,13 @@ struct xgbe_phy_data {
 	enum xgbe_mdio_reset mdio_reset;
 	unsigned int mdio_reset_addr;
 	unsigned int mdio_reset_gpio;
+
+	/* Re-driver support */
+	unsigned int redrv;
+	unsigned int redrv_if;
+	unsigned int redrv_addr;
+	unsigned int redrv_lane;
+	unsigned int redrv_model;
 };
 
 /* I2C, MDIO and GPIO lines are muxed, so only one device at a time */
@@ -344,6 +371,68 @@ static int xgbe_phy_i2c_xfer(struct xgbe_prv_data *pdata,
 		return -EIO;
 
 	return pdata->i2c_if.i2c_xfer(pdata, i2c_op);
+}
+
+static int xgbe_phy_redrv_write(struct xgbe_prv_data *pdata, unsigned int reg,
+				unsigned int val)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	struct xgbe_i2c_op i2c_op;
+	__be16 *redrv_val;
+	u8 redrv_data[5], csum;
+	unsigned int i, retry;
+	int ret;
+
+	/* High byte of register contains read/write indicator */
+	redrv_data[0] = ((reg >> 8) & 0xff) << 1;
+	redrv_data[1] = reg & 0xff;
+	redrv_val = (__be16 *)&redrv_data[2];
+	*redrv_val = cpu_to_be16(val);
+
+	/* Calculate 1 byte checksum */
+	csum = 0;
+	for (i = 0; i < 4; i++) {
+		csum += redrv_data[i];
+		if (redrv_data[i] > csum)
+			csum++;
+	}
+	redrv_data[4] = ~csum;
+
+	retry = 1;
+again1:
+	i2c_op.cmd = XGBE_I2C_CMD_WRITE;
+	i2c_op.target = phy_data->redrv_addr;
+	i2c_op.len = sizeof(redrv_data);
+	i2c_op.buf = redrv_data;
+	ret = xgbe_phy_i2c_xfer(pdata, &i2c_op);
+	if (ret) {
+		if ((ret == -EAGAIN) && retry--)
+			goto again1;
+
+		return ret;
+	}
+
+	retry = 1;
+again2:
+	i2c_op.cmd = XGBE_I2C_CMD_READ;
+	i2c_op.target = phy_data->redrv_addr;
+	i2c_op.len = 1;
+	i2c_op.buf = redrv_data;
+	ret = xgbe_phy_i2c_xfer(pdata, &i2c_op);
+	if (ret) {
+		if ((ret == -EAGAIN) && retry--)
+			goto again2;
+
+		return ret;
+	}
+
+	if (redrv_data[0] != 0xff) {
+		netif_dbg(pdata, drv, pdata->netdev,
+			  "Redriver write checksum error\n");
+		ret = -EIO;
+	}
+
+	return ret;
 }
 
 static int xgbe_phy_i2c_write(struct xgbe_prv_data *pdata, unsigned int target,
@@ -1144,38 +1233,49 @@ put:
 	xgbe_phy_put_comm_ownership(pdata);
 }
 
-static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
+static void xgbe_phy_phydev_flowctrl(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	u16 lcl_adv = 0, rmt_adv = 0;
+	u8 fc;
+
+	pdata->phy.tx_pause = 0;
+	pdata->phy.rx_pause = 0;
+
+	if (!phy_data->phydev)
+		return;
+
+	if (phy_data->phydev->advertising & ADVERTISED_Pause)
+		lcl_adv |= ADVERTISE_PAUSE_CAP;
+	if (phy_data->phydev->advertising & ADVERTISED_Asym_Pause)
+		lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+	if (phy_data->phydev->pause) {
+		pdata->phy.lp_advertising |= ADVERTISED_Pause;
+		rmt_adv |= LPA_PAUSE_CAP;
+	}
+	if (phy_data->phydev->asym_pause) {
+		pdata->phy.lp_advertising |= ADVERTISED_Asym_Pause;
+		rmt_adv |= LPA_PAUSE_ASYM;
+	}
+
+	fc = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+	if (fc & FLOW_CTRL_TX)
+		pdata->phy.tx_pause = 1;
+	if (fc & FLOW_CTRL_RX)
+		pdata->phy.rx_pause = 1;
+}
+
+static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
+{
 	enum xgbe_mode mode;
 
 	pdata->phy.lp_advertising |= ADVERTISED_Autoneg;
 	pdata->phy.lp_advertising |= ADVERTISED_TP;
 
-	if (pdata->phy.pause_autoneg && phy_data->phydev) {
-		/* Flow control is obtained from the attached PHY */
-		u16 lcl_adv = 0, rmt_adv = 0;
-		u8 fc;
-
-		pdata->phy.tx_pause = 0;
-		pdata->phy.rx_pause = 0;
-
-		if (phy_data->phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (phy_data->phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
-
-		if (phy_data->phydev->pause)
-			rmt_adv |= LPA_PAUSE_CAP;
-		if (phy_data->phydev->asym_pause)
-			rmt_adv |= LPA_PAUSE_ASYM;
-
-		fc = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
-		if (fc & FLOW_CTRL_TX)
-			pdata->phy.tx_pause = 1;
-		if (fc & FLOW_CTRL_RX)
-			pdata->phy.rx_pause = 1;
-	}
+	/* Use external PHY to determine flow control */
+	if (pdata->phy.pause_autoneg)
+		xgbe_phy_phydev_flowctrl(pdata);
 
 	switch (pdata->an_status & XGBE_SGMII_AN_LINK_SPEED) {
 	case XGBE_SGMII_AN_LINK_SPEED_100:
@@ -1249,6 +1349,83 @@ static enum xgbe_mode xgbe_phy_an37_outcome(struct xgbe_prv_data *pdata)
 	return mode;
 }
 
+static enum xgbe_mode xgbe_phy_an73_redrv_outcome(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	enum xgbe_mode mode;
+	unsigned int ad_reg, lp_reg;
+
+	pdata->phy.lp_advertising |= ADVERTISED_Autoneg;
+	pdata->phy.lp_advertising |= ADVERTISED_Backplane;
+
+	/* Use external PHY to determine flow control */
+	if (pdata->phy.pause_autoneg)
+		xgbe_phy_phydev_flowctrl(pdata);
+
+	/* Compare Advertisement and Link Partner register 2 */
+	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1);
+	lp_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_LPA + 1);
+	if (lp_reg & 0x80)
+		pdata->phy.lp_advertising |= ADVERTISED_10000baseKR_Full;
+	if (lp_reg & 0x20)
+		pdata->phy.lp_advertising |= ADVERTISED_1000baseKX_Full;
+
+	ad_reg &= lp_reg;
+	if (ad_reg & 0x80) {
+		switch (phy_data->port_mode) {
+		case XGBE_PORT_MODE_BACKPLANE:
+			mode = XGBE_MODE_KR;
+			break;
+		default:
+			mode = XGBE_MODE_SFI;
+			break;
+		}
+	} else if (ad_reg & 0x20) {
+		switch (phy_data->port_mode) {
+		case XGBE_PORT_MODE_BACKPLANE:
+			mode = XGBE_MODE_KX_1000;
+			break;
+		case XGBE_PORT_MODE_1000BASE_X:
+			mode = XGBE_MODE_X;
+			break;
+		case XGBE_PORT_MODE_SFP:
+			switch (phy_data->sfp_base) {
+			case XGBE_SFP_BASE_1000_T:
+				if (phy_data->phydev &&
+				    (phy_data->phydev->speed == SPEED_100))
+					mode = XGBE_MODE_SGMII_100;
+				else
+					mode = XGBE_MODE_SGMII_1000;
+				break;
+			case XGBE_SFP_BASE_1000_SX:
+			case XGBE_SFP_BASE_1000_LX:
+			case XGBE_SFP_BASE_1000_CX:
+			default:
+				mode = XGBE_MODE_X;
+				break;
+			}
+			break;
+		default:
+			if (phy_data->phydev &&
+			    (phy_data->phydev->speed == SPEED_100))
+				mode = XGBE_MODE_SGMII_100;
+			else
+				mode = XGBE_MODE_SGMII_1000;
+			break;
+		}
+	} else {
+		mode = XGBE_MODE_UNKNOWN;
+	}
+
+	/* Compare Advertisement and Link Partner register 3 */
+	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2);
+	lp_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_LPA + 2);
+	if (lp_reg & 0xc000)
+		pdata->phy.lp_advertising |= ADVERTISED_10000baseR_FEC;
+
+	return mode;
+}
+
 static enum xgbe_mode xgbe_phy_an73_outcome(struct xgbe_prv_data *pdata)
 {
 	enum xgbe_mode mode;
@@ -1311,6 +1488,8 @@ static enum xgbe_mode xgbe_phy_an_outcome(struct xgbe_prv_data *pdata)
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
 		return xgbe_phy_an73_outcome(pdata);
+	case XGBE_AN_MODE_CL73_REDRV:
+		return xgbe_phy_an73_redrv_outcome(pdata);
 	case XGBE_AN_MODE_CL37:
 		return xgbe_phy_an37_outcome(pdata);
 	case XGBE_AN_MODE_CL37_SGMII:
@@ -1318,6 +1497,63 @@ static enum xgbe_mode xgbe_phy_an_outcome(struct xgbe_prv_data *pdata)
 	default:
 		return XGBE_MODE_UNKNOWN;
 	}
+}
+
+static unsigned int xgbe_phy_an_advertising(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	unsigned int advertising;
+
+	/* Without a re-driver, just return current advertising */
+	if (!phy_data->redrv)
+		return pdata->phy.advertising;
+
+	/* With the KR re-driver we need to advertise a single speed */
+	advertising = pdata->phy.advertising;
+	advertising &= ~ADVERTISED_1000baseKX_Full;
+	advertising &= ~ADVERTISED_10000baseKR_Full;
+
+	switch (phy_data->port_mode) {
+	case XGBE_PORT_MODE_BACKPLANE:
+		advertising |= ADVERTISED_10000baseKR_Full;
+		break;
+	case XGBE_PORT_MODE_BACKPLANE_2500:
+		advertising |= ADVERTISED_1000baseKX_Full;
+		break;
+	case XGBE_PORT_MODE_1000BASE_T:
+	case XGBE_PORT_MODE_1000BASE_X:
+	case XGBE_PORT_MODE_NBASE_T:
+		advertising |= ADVERTISED_1000baseKX_Full;
+		break;
+	case XGBE_PORT_MODE_10GBASE_T:
+		if (phy_data->phydev &&
+		    (phy_data->phydev->speed == SPEED_10000))
+			advertising |= ADVERTISED_10000baseKR_Full;
+		else
+			advertising |= ADVERTISED_1000baseKX_Full;
+		break;
+	case XGBE_PORT_MODE_10GBASE_R:
+		advertising |= ADVERTISED_10000baseKR_Full;
+		break;
+	case XGBE_PORT_MODE_SFP:
+		switch (phy_data->sfp_base) {
+		case XGBE_SFP_BASE_1000_T:
+		case XGBE_SFP_BASE_1000_SX:
+		case XGBE_SFP_BASE_1000_LX:
+		case XGBE_SFP_BASE_1000_CX:
+			advertising |= ADVERTISED_1000baseKX_Full;
+			break;
+		default:
+			advertising |= ADVERTISED_10000baseKR_Full;
+			break;
+		}
+		break;
+	default:
+		advertising |= ADVERTISED_10000baseKR_Full;
+		break;
+	}
+
+	return advertising;
 }
 
 static int xgbe_phy_an_config(struct xgbe_prv_data *pdata)
@@ -1364,6 +1600,10 @@ static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
+	/* A KR re-driver will always require CL73 AN */
+	if (phy_data->redrv)
+		return XGBE_AN_MODE_CL73_REDRV;
+
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
 		return XGBE_AN_MODE_CL73;
@@ -1384,6 +1624,61 @@ static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
 	default:
 		return XGBE_AN_MODE_NONE;
 	}
+}
+
+static int xgbe_phy_set_redrv_mode_mdio(struct xgbe_prv_data *pdata,
+					enum xgbe_phy_redrv_mode mode)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	u16 redrv_reg, redrv_val;
+
+	redrv_reg = XGBE_PHY_REDRV_MODE_REG + (phy_data->redrv_lane * 0x1000);
+	redrv_val = (u16)mode;
+
+	return pdata->hw_if.write_ext_mii_regs(pdata, phy_data->redrv_addr,
+					       redrv_reg, redrv_val);
+}
+
+static int xgbe_phy_set_redrv_mode_i2c(struct xgbe_prv_data *pdata,
+				       enum xgbe_phy_redrv_mode mode)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	unsigned int redrv_reg;
+	int ret;
+
+	/* Calculate the register to write */
+	redrv_reg = XGBE_PHY_REDRV_MODE_REG + (phy_data->redrv_lane * 0x1000);
+
+	ret = xgbe_phy_redrv_write(pdata, redrv_reg, mode);
+
+	return ret;
+}
+
+static void xgbe_phy_set_redrv_mode(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	enum xgbe_phy_redrv_mode mode;
+	int ret;
+
+	if (!phy_data->redrv)
+		return;
+
+	mode = XGBE_PHY_REDRV_MODE_CX;
+	if ((phy_data->port_mode == XGBE_PORT_MODE_SFP) &&
+	    (phy_data->sfp_base != XGBE_SFP_BASE_1000_CX) &&
+	    (phy_data->sfp_base != XGBE_SFP_BASE_10000_CR))
+		mode = XGBE_PHY_REDRV_MODE_SR;
+
+	ret = xgbe_phy_get_comm_ownership(pdata);
+	if (ret)
+		return;
+
+	if (phy_data->redrv_if)
+		xgbe_phy_set_redrv_mode_i2c(pdata, mode);
+	else
+		xgbe_phy_set_redrv_mode_mdio(pdata, mode);
+
+	xgbe_phy_put_comm_ownership(pdata);
 }
 
 static void xgbe_phy_start_ratechange(struct xgbe_prv_data *pdata)
@@ -1457,6 +1752,8 @@ static void xgbe_phy_sfi_mode(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
 
+	xgbe_phy_set_redrv_mode(pdata);
+
 	xgbe_phy_start_ratechange(pdata);
 
 	/* 10G/SFI */
@@ -1492,6 +1789,8 @@ static void xgbe_phy_x_mode(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
 
+	xgbe_phy_set_redrv_mode(pdata);
+
 	xgbe_phy_start_ratechange(pdata);
 
 	/* 1G/X */
@@ -1515,6 +1814,8 @@ static void xgbe_phy_sgmii_1000_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
+
+	xgbe_phy_set_redrv_mode(pdata);
 
 	xgbe_phy_start_ratechange(pdata);
 
@@ -1540,6 +1841,8 @@ static void xgbe_phy_sgmii_100_mode(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
 
+	xgbe_phy_set_redrv_mode(pdata);
+
 	xgbe_phy_start_ratechange(pdata);
 
 	/* 1G/SGMII */
@@ -1563,6 +1866,8 @@ static void xgbe_phy_kr_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
+
+	xgbe_phy_set_redrv_mode(pdata);
 
 	xgbe_phy_start_ratechange(pdata);
 
@@ -1588,6 +1893,8 @@ static void xgbe_phy_kx_2500_mode(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
 
+	xgbe_phy_set_redrv_mode(pdata);
+
 	xgbe_phy_start_ratechange(pdata);
 
 	/* 2.5G/KX */
@@ -1611,6 +1918,8 @@ static void xgbe_phy_kx_1000_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int s0;
+
+	xgbe_phy_set_redrv_mode(pdata);
 
 	xgbe_phy_start_ratechange(pdata);
 
@@ -2232,6 +2541,30 @@ static int xgbe_phy_mdio_reset(struct xgbe_prv_data *pdata)
 	return ret;
 }
 
+static bool xgbe_phy_redrv_error(struct xgbe_phy_data *phy_data)
+{
+	if (!phy_data->redrv)
+		return false;
+
+	if (phy_data->redrv_if >= XGBE_PHY_REDRV_IF_MAX)
+		return true;
+
+	switch (phy_data->redrv_model) {
+	case XGBE_PHY_REDRV_MODEL_4223:
+		if (phy_data->redrv_lane > 3)
+			return true;
+		break;
+	case XGBE_PHY_REDRV_MODEL_4227:
+		if (phy_data->redrv_lane > 1)
+			return true;
+		break;
+	default:
+		return true;
+	}
+
+	return false;
+}
+
 static int xgbe_phy_mdio_reset_setup(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
@@ -2481,6 +2814,20 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		dev_dbg(pdata->dev, "mdio addr=%u\n", phy_data->mdio_addr);
 	}
 
+	reg = XP_IOREAD(pdata, XP_PROP_4);
+	phy_data->redrv = XP_GET_BITS(reg, XP_PROP_4, REDRV_PRESENT);
+	phy_data->redrv_if = XP_GET_BITS(reg, XP_PROP_4, REDRV_IF);
+	phy_data->redrv_addr = XP_GET_BITS(reg, XP_PROP_4, REDRV_ADDR);
+	phy_data->redrv_lane = XP_GET_BITS(reg, XP_PROP_4, REDRV_LANE);
+	phy_data->redrv_model = XP_GET_BITS(reg, XP_PROP_4, REDRV_MODEL);
+	if (phy_data->redrv && netif_msg_probe(pdata)) {
+		dev_dbg(pdata->dev, "redrv present\n");
+		dev_dbg(pdata->dev, "redrv i/f=%u\n", phy_data->redrv_if);
+		dev_dbg(pdata->dev, "redrv addr=%#x\n", phy_data->redrv_addr);
+		dev_dbg(pdata->dev, "redrv lane=%u\n", phy_data->redrv_lane);
+		dev_dbg(pdata->dev, "redrv model=%u\n", phy_data->redrv_model);
+	}
+
 	/* Validate the connection requested */
 	if (xgbe_phy_conn_type_mismatch(pdata)) {
 		dev_err(pdata->dev, "phy mode/connection mismatch (%#x/%#x)\n",
@@ -2498,6 +2845,13 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	ret = xgbe_phy_mdio_reset_setup(pdata);
 	if (ret)
 		return ret;
+
+	/* Validate the re-driver information */
+	if (xgbe_phy_redrv_error(phy_data)) {
+		dev_err(pdata->dev, "phy re-driver settings error\n");
+		return -EINVAL;
+	}
+	pdata->kr_redrv = phy_data->redrv;
 
 	/* Indicate current mode is unknown */
 	phy_data->cur_mode = XGBE_MODE_UNKNOWN;
@@ -2651,6 +3005,29 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		dev_dbg(pdata->dev, "phy supported=%#x\n",
 			pdata->phy.supported);
 
+	if ((phy_data->conn_type & XGBE_CONN_TYPE_MDIO) &&
+	    (phy_data->phydev_mode != XGBE_MDIO_MODE_NONE)) {
+		ret = pdata->hw_if.set_ext_mii_mode(pdata, phy_data->mdio_addr,
+						    phy_data->phydev_mode);
+		if (ret) {
+			dev_err(pdata->dev,
+				"mdio port/clause not compatible (%d/%u)\n",
+				phy_data->mdio_addr, phy_data->phydev_mode);
+			return -EINVAL;
+		}
+	}
+
+	if (phy_data->redrv && !phy_data->redrv_if) {
+		ret = pdata->hw_if.set_ext_mii_mode(pdata, phy_data->redrv_addr,
+						    XGBE_MDIO_MODE_CL22);
+		if (ret) {
+			dev_err(pdata->dev,
+				"redriver mdio port not compatible (%u)\n",
+				phy_data->redrv_addr);
+			return -EINVAL;
+		}
+	}
+
 	/* Register for driving external PHYs */
 	mii = devm_mdiobus_alloc(pdata->dev);
 	if (!mii) {
@@ -2699,6 +3076,8 @@ void xgbe_init_function_ptrs_phy_v2(struct xgbe_phy_if *phy_if)
 	phy_impl->an_mode		= xgbe_phy_an_mode;
 
 	phy_impl->an_config		= xgbe_phy_an_config;
+
+	phy_impl->an_advertising	= xgbe_phy_an_advertising;
 
 	phy_impl->an_outcome		= xgbe_phy_an_outcome;
 }

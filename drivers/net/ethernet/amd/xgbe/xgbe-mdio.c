@@ -179,6 +179,7 @@ static void xgbe_an_enable_interrupts(struct xgbe_prv_data *pdata)
 {
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
 		xgbe_an73_enable_interrupts(pdata);
 		break;
 	case XGBE_AN_MODE_CL37:
@@ -254,6 +255,10 @@ static void xgbe_kx_1000_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_sfi_mode(struct xgbe_prv_data *pdata)
 {
+	/* If a KR re-driver is present, change to KR mode instead */
+	if (pdata->kr_redrv)
+		return xgbe_kr_mode(pdata);
+
 	/* Disable KR training */
 	xgbe_an73_disable_kr_training(pdata);
 
@@ -433,6 +438,7 @@ static void xgbe_an_restart(struct xgbe_prv_data *pdata)
 {
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
 		xgbe_an73_restart(pdata);
 		break;
 	case XGBE_AN_MODE_CL37:
@@ -448,6 +454,7 @@ static void xgbe_an_disable(struct xgbe_prv_data *pdata)
 {
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
 		xgbe_an73_disable(pdata);
 		break;
 	case XGBE_AN_MODE_CL37:
@@ -687,6 +694,7 @@ static irqreturn_t xgbe_an_isr(int irq, void *data)
 
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
 		xgbe_an73_isr(pdata);
 		break;
 	case XGBE_AN_MODE_CL37:
@@ -895,6 +903,7 @@ static void xgbe_an_state_machine(struct work_struct *work)
 
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
 		xgbe_an73_state_machine(pdata);
 		break;
 	case XGBE_AN_MODE_CL37:
@@ -910,16 +919,18 @@ static void xgbe_an_state_machine(struct work_struct *work)
 
 static void xgbe_an37_init(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
+	unsigned int advertising, reg;
+
+	advertising = pdata->phy_if.phy_impl.an_advertising(pdata);
 
 	/* Set up Advertisement register */
 	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_ADVERTISE);
-	if (pdata->phy.advertising & ADVERTISED_Pause)
+	if (advertising & ADVERTISED_Pause)
 		reg |= 0x100;
 	else
 		reg &= ~0x100;
 
-	if (pdata->phy.advertising & ADVERTISED_Asym_Pause)
+	if (advertising & ADVERTISED_Asym_Pause)
 		reg |= 0x80;
 	else
 		reg &= ~0x80;
@@ -954,11 +965,13 @@ static void xgbe_an37_init(struct xgbe_prv_data *pdata)
 
 static void xgbe_an73_init(struct xgbe_prv_data *pdata)
 {
-	unsigned int reg;
+	unsigned int advertising, reg;
+
+	advertising = pdata->phy_if.phy_impl.an_advertising(pdata);
 
 	/* Set up Advertisement register 3 first */
 	reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2);
-	if (pdata->phy.advertising & ADVERTISED_10000baseR_FEC)
+	if (advertising & ADVERTISED_10000baseR_FEC)
 		reg |= 0xc000;
 	else
 		reg &= ~0xc000;
@@ -967,13 +980,13 @@ static void xgbe_an73_init(struct xgbe_prv_data *pdata)
 
 	/* Set up Advertisement register 2 next */
 	reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1);
-	if (pdata->phy.advertising & ADVERTISED_10000baseKR_Full)
+	if (advertising & ADVERTISED_10000baseKR_Full)
 		reg |= 0x80;
 	else
 		reg &= ~0x80;
 
-	if ((pdata->phy.advertising & ADVERTISED_1000baseKX_Full) ||
-	    (pdata->phy.advertising & ADVERTISED_2500baseX_Full))
+	if ((advertising & ADVERTISED_1000baseKX_Full) ||
+	    (advertising & ADVERTISED_2500baseX_Full))
 		reg |= 0x20;
 	else
 		reg &= ~0x20;
@@ -982,12 +995,12 @@ static void xgbe_an73_init(struct xgbe_prv_data *pdata)
 
 	/* Set up Advertisement register 1 last */
 	reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE);
-	if (pdata->phy.advertising & ADVERTISED_Pause)
+	if (advertising & ADVERTISED_Pause)
 		reg |= 0x400;
 	else
 		reg &= ~0x400;
 
-	if (pdata->phy.advertising & ADVERTISED_Asym_Pause)
+	if (advertising & ADVERTISED_Asym_Pause)
 		reg |= 0x800;
 	else
 		reg &= ~0x800;
@@ -1006,6 +1019,7 @@ static void xgbe_an_init(struct xgbe_prv_data *pdata)
 	pdata->an_mode = pdata->phy_if.phy_impl.an_mode(pdata);
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL73:
+	case XGBE_AN_MODE_CL73_REDRV:
 		xgbe_an73_init(pdata);
 		break;
 	case XGBE_AN_MODE_CL37:
@@ -1149,10 +1163,15 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 	if (ret)
 		return ret;
 
-	if (pdata->phy.autoneg != AUTONEG_ENABLE)
-		return xgbe_phy_config_fixed(pdata);
+	if (pdata->phy.autoneg != AUTONEG_ENABLE) {
+		ret = xgbe_phy_config_fixed(pdata);
+		if (ret || !pdata->kr_redrv)
+			return ret;
 
-	netif_dbg(pdata, link, pdata->netdev, "AN PHY configuration\n");
+		netif_dbg(pdata, link, pdata->netdev, "AN redriver support\n");
+	} else {
+		netif_dbg(pdata, link, pdata->netdev, "AN PHY configuration\n");
+	}
 
 	/* Disable auto-negotiation interrupt */
 	disable_irq(pdata->an_irq);
