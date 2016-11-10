@@ -2025,8 +2025,11 @@ int audit_set_loginuid(kuid_t loginuid)
 		goto out;
 
 	/* are we setting or clearing? */
-	if (uid_valid(loginuid))
+	if (uid_valid(loginuid)) {
 		sessionid = (unsigned int)atomic_inc_return(&session_id);
+		if (unlikely(sessionid == (unsigned int)-1))
+			sessionid = (unsigned int)atomic_inc_return(&session_id);
+	}
 
 	task->sessionid = sessionid;
 	task->loginuid = loginuid;
