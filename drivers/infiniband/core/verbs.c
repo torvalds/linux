@@ -328,7 +328,7 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
-static int ib_get_header_version(const union rdma_network_hdr *hdr)
+int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 {
 	const struct iphdr *ip4h = (struct iphdr *)&hdr->roce4grh;
 	struct iphdr ip4h_checked;
@@ -359,6 +359,7 @@ static int ib_get_header_version(const union rdma_network_hdr *hdr)
 		return 4;
 	return 6;
 }
+EXPORT_SYMBOL(ib_get_rdma_header_version);
 
 static enum rdma_network_type ib_get_net_type_by_grh(struct ib_device *device,
 						     u8 port_num,
@@ -369,7 +370,7 @@ static enum rdma_network_type ib_get_net_type_by_grh(struct ib_device *device,
 	if (rdma_protocol_ib(device, port_num))
 		return RDMA_NETWORK_IB;
 
-	grh_version = ib_get_header_version((union rdma_network_hdr *)grh);
+	grh_version = ib_get_rdma_header_version((union rdma_network_hdr *)grh);
 
 	if (grh_version == 4)
 		return RDMA_NETWORK_IPV4;
@@ -415,9 +416,9 @@ static int get_sgid_index_from_eth(struct ib_device *device, u8 port_num,
 				     &context, gid_index);
 }
 
-static int get_gids_from_rdma_hdr(union rdma_network_hdr *hdr,
-				  enum rdma_network_type net_type,
-				  union ib_gid *sgid, union ib_gid *dgid)
+int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
+			      enum rdma_network_type net_type,
+			      union ib_gid *sgid, union ib_gid *dgid)
 {
 	struct sockaddr_in  src_in;
 	struct sockaddr_in  dst_in;
@@ -447,6 +448,7 @@ static int get_gids_from_rdma_hdr(union rdma_network_hdr *hdr,
 		return -EINVAL;
 	}
 }
+EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
@@ -469,8 +471,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 			net_type = ib_get_net_type_by_grh(device, port_num, grh);
 		gid_type = ib_network_to_gid_type(net_type);
 	}
-	ret = get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
-				     &sgid, &dgid);
+	ret = ib_get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
+					&sgid, &dgid);
 	if (ret)
 		return ret;
 

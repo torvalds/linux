@@ -2581,6 +2581,24 @@ void ib_dealloc_pd(struct ib_pd *pd);
 struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
 
 /**
+ * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header
+ *   work completion.
+ * @hdr: the L3 header to parse
+ * @net_type: type of header to parse
+ * @sgid: place to store source gid
+ * @dgid: place to store destination gid
+ */
+int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
+			      enum rdma_network_type net_type,
+			      union ib_gid *sgid, union ib_gid *dgid);
+
+/**
+ * ib_get_rdma_header_version - Get the header version
+ * @hdr: the L3 header to parse
+ */
+int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
+
+/**
  * ib_init_ah_from_wc - Initializes address handle attributes from a
  *   work completion.
  * @device: Device on which the received message arrived.
@@ -3357,4 +3375,5 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
+
 #endif /* IB_VERBS_H */
