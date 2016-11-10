@@ -2511,21 +2511,8 @@ static int
 mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct timer_list *t = &per_cpu(mce_timer, cpu);
 
 	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-
-		mce_device_create(cpu);
-
-		if (mce_threshold_create_device(cpu)) {
-			mce_device_remove(cpu);
-			return NOTIFY_BAD;
-		}
-		mce_reenable_cpu();
-		mce_start_timer(cpu, t);
-		break;
 	case CPU_DEAD:
 		mce_intel_hcpu_update(cpu);
 
@@ -2534,15 +2521,39 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			cmci_rediscover();
 		break;
 	case CPU_DOWN_PREPARE:
-		mce_disable_cpu();
-		del_timer_sync(t);
 
-		mce_threshold_remove_device(cpu);
-		mce_device_remove(cpu);
 		break;
 	}
 
 	return NOTIFY_OK;
+}
+
+static int mce_cpu_online(unsigned int cpu)
+{
+	struct timer_list *t = &per_cpu(mce_timer, cpu);
+	int ret;
+
+	mce_device_create(cpu);
+
+	ret = mce_threshold_create_device(cpu);
+	if (ret) {
+		mce_device_remove(cpu);
+		return ret;
+	}
+	mce_reenable_cpu();
+	mce_start_timer(cpu, t);
+	return 0;
+}
+
+static int mce_cpu_pre_down(unsigned int cpu)
+{
+	struct timer_list *t = &per_cpu(mce_timer, cpu);
+
+	mce_disable_cpu();
+	del_timer_sync(t);
+	mce_threshold_remove_device(cpu);
+	mce_device_remove(cpu);
+	return 0;
 }
 
 static struct notifier_block mce_cpu_notifier = {
@@ -2569,8 +2580,8 @@ static __init void mce_init_banks(void)
 
 static __init int mcheck_init_device(void)
 {
+	enum cpuhp_state hp_online;
 	int err;
-	int i = 0;
 
 	if (!mce_available(&boot_cpu_data)) {
 		err = -EIO;
@@ -2588,21 +2599,13 @@ static __init int mcheck_init_device(void)
 	if (err)
 		goto err_out_mem;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(i) {
-		err = mce_device_create(i);
-		if (err) {
-			/*
-			 * Register notifier anyway (and do not unreg it) so
-			 * that we don't leave undeleted timers, see notifier
-			 * callback above.
-			 */
-			__register_hotcpu_notifier(&mce_cpu_notifier);
-			cpu_notifier_register_done();
-			goto err_device_create;
-		}
-	}
+	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/mce:online",
+				mce_cpu_online, mce_cpu_pre_down);
+	if (err < 0)
+		goto err_out_mem;
+	hp_online = err;
 
+	cpu_notifier_register_begin();
 	__register_hotcpu_notifier(&mce_cpu_notifier);
 	cpu_notifier_register_done();
 
@@ -2617,16 +2620,7 @@ static __init int mcheck_init_device(void)
 
 err_register:
 	unregister_syscore_ops(&mce_syscore_ops);
-
-err_device_create:
-	/*
-	 * We didn't keep track of which devices were created above, but
-	 * even if we had, the set of online cpus might have changed.
-	 * Play safe and remove for every possible cpu, since
-	 * mce_device_remove() will do the right thing.
-	 */
-	for_each_possible_cpu(i)
-		mce_device_remove(i);
+	cpuhp_remove_state(hp_online);
 
 err_out_mem:
 	free_cpumask_var(mce_device_initialized);
