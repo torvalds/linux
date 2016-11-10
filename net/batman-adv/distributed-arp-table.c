@@ -949,6 +949,41 @@ static unsigned short batadv_dat_get_vid(struct sk_buff *skb, int *hdr_size)
 }
 
 /**
+ * batadv_dat_arp_create_reply - create an ARP Reply
+ * @bat_priv: the bat priv with all the soft interface information
+ * @ip_src: ARP sender IP
+ * @ip_dst: ARP target IP
+ * @hw_src: Ethernet source and ARP sender MAC
+ * @hw_dst: Ethernet destination and ARP target MAC
+ * @vid: VLAN identifier (optional, set to zero otherwise)
+ *
+ * Creates an ARP Reply from the given values, optionally encapsulated in a
+ * VLAN header.
+ *
+ * Return: An skb containing an ARP Reply.
+ */
+static struct sk_buff *
+batadv_dat_arp_create_reply(struct batadv_priv *bat_priv, __be32 ip_src,
+			    __be32 ip_dst, u8 *hw_src, u8 *hw_dst,
+			    unsigned short vid)
+{
+	struct sk_buff *skb;
+
+	skb = arp_create(ARPOP_REPLY, ETH_P_ARP, ip_dst, bat_priv->soft_iface,
+			 ip_src, hw_dst, hw_src, hw_dst);
+	if (!skb)
+		return NULL;
+
+	skb_reset_mac_header(skb);
+
+	if (vid & BATADV_VLAN_HAS_TAG)
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q),
+				      vid & VLAN_VID_MASK);
+
+	return skb;
+}
+
+/**
  * batadv_dat_snoop_outgoing_arp_request - snoop the ARP request and try to
  * answer using DAT
  * @bat_priv: the bat priv with all the soft interface information
@@ -1005,20 +1040,12 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 			goto out;
 		}
 
-		skb_new = arp_create(ARPOP_REPLY, ETH_P_ARP, ip_src,
-				     bat_priv->soft_iface, ip_dst, hw_src,
-				     dat_entry->mac_addr, hw_src);
+		skb_new = batadv_dat_arp_create_reply(bat_priv, ip_dst, ip_src,
+						      dat_entry->mac_addr,
+						      hw_src, vid);
 		if (!skb_new)
 			goto out;
 
-		if (vid & BATADV_VLAN_HAS_TAG) {
-			skb_new = vlan_insert_tag(skb_new, htons(ETH_P_8021Q),
-						  vid & VLAN_VID_MASK);
-			if (!skb_new)
-				goto out;
-		}
-
-		skb_reset_mac_header(skb_new);
 		skb_new->protocol = eth_type_trans(skb_new,
 						   bat_priv->soft_iface);
 		bat_priv->stats.rx_packets++;
@@ -1081,24 +1108,10 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	if (!dat_entry)
 		goto out;
 
-	skb_new = arp_create(ARPOP_REPLY, ETH_P_ARP, ip_src,
-			     bat_priv->soft_iface, ip_dst, hw_src,
-			     dat_entry->mac_addr, hw_src);
-
+	skb_new = batadv_dat_arp_create_reply(bat_priv, ip_dst, ip_src,
+					      dat_entry->mac_addr, hw_src, vid);
 	if (!skb_new)
 		goto out;
-
-	/* the rest of the TX path assumes that the mac_header offset pointing
-	 * to the inner Ethernet header has been set, therefore reset it now.
-	 */
-	skb_reset_mac_header(skb_new);
-
-	if (vid & BATADV_VLAN_HAS_TAG) {
-		skb_new = vlan_insert_tag(skb_new, htons(ETH_P_8021Q),
-					  vid & VLAN_VID_MASK);
-		if (!skb_new)
-			goto out;
-	}
 
 	/* To preserve backwards compatibility, the node has choose the outgoing
 	 * format based on the incoming request packet type. The assumption is

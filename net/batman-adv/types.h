@@ -123,8 +123,8 @@ struct batadv_hard_iface_bat_v {
  * @list: list node for batadv_hardif_list
  * @if_num: identificator of the interface
  * @if_status: status of the interface for batman-adv
- * @net_dev: pointer to the net_device
  * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
+ * @net_dev: pointer to the net_device
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
  * @batman_adv_ptype: packet type describing packets that should be processed by
@@ -141,8 +141,8 @@ struct batadv_hard_iface {
 	struct list_head list;
 	s16 if_num;
 	char if_status;
-	struct net_device *net_dev;
 	u8 num_bcasts;
+	struct net_device *net_dev;
 	struct kobject *hardif_obj;
 	struct kref refcount;
 	struct packet_type batman_adv_ptype;
@@ -408,6 +408,7 @@ struct batadv_hardif_neigh_node_bat_v {
  * struct batadv_hardif_neigh_node - unique neighbor per hard-interface
  * @list: list node for batadv_hard_iface::neigh_list
  * @addr: the MAC address of the neighboring interface
+ * @orig: the address of the originator this neighbor node belongs to
  * @if_incoming: pointer to incoming hard-interface
  * @last_seen: when last packet via this neighbor was received
  * @bat_v: B.A.T.M.A.N. V private data
@@ -417,6 +418,7 @@ struct batadv_hardif_neigh_node_bat_v {
 struct batadv_hardif_neigh_node {
 	struct hlist_node list;
 	u8 addr[ETH_ALEN];
+	u8 orig[ETH_ALEN];
 	struct batadv_hard_iface *if_incoming;
 	unsigned long last_seen;
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
@@ -785,9 +787,10 @@ struct batadv_mcast_querier_state {
  * @num_want_all_ipv6: counter for items in want_all_ipv6_list
  * @want_lists_lock: lock for protecting modifications to mcast want lists
  *  (traversals are rcu-locked)
+ * @work: work queue callback item for multicast TT and TVLV updates
  */
 struct batadv_priv_mcast {
-	struct hlist_head mla_list;
+	struct hlist_head mla_list; /* see __batadv_mcast_mla_update() */
 	struct hlist_head want_all_unsnoopables_list;
 	struct hlist_head want_all_ipv4_list;
 	struct hlist_head want_all_ipv6_list;
@@ -802,6 +805,7 @@ struct batadv_priv_mcast {
 	atomic_t num_want_all_ipv6;
 	/* protects want_all_{unsnoopables,ipv4,ipv6}_list */
 	spinlock_t want_lists_lock;
+	struct delayed_work work;
 };
 #endif
 

@@ -64,8 +64,11 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
  * If neigh_node is NULL, then the packet is broadcasted using hard_iface,
  * otherwise it is sent as unicast to the given neighbor.
  *
- * Return: NET_TX_DROP in case of error or the result of dev_queue_xmit(skb)
- * otherwise
+ * Regardless of the return value, the skb is consumed.
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
  */
 int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
@@ -73,7 +76,6 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv;
 	struct ethhdr *ethhdr;
-	int ret;
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
@@ -111,15 +113,8 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
 	 * (which is > 0). This will not be treated as an error.
-	 *
-	 * a negative value cannot be returned because it could be interepreted
-	 * as not consumed skb by callers of batadv_send_skb_to_orig.
 	 */
-	ret = dev_queue_xmit(skb);
-	if (ret < 0)
-		ret = NET_XMIT_DROP;
-
-	return ret;
+	return dev_queue_xmit(skb);
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
@@ -165,11 +160,9 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
  * host, NULL can be passed as recv_if and no interface alternating is
  * attempted.
  *
- * Return: -1 on failure (and the skb is not consumed), -EINPROGRESS if the
- * skb is buffered for later transmit or the NET_XMIT status returned by the
+ * Return: negative errno code on a failure, -EINPROGRESS if the skb is
+ * buffered for later transmit or the NET_XMIT status returned by the
  * lower routine if the packet has been passed down.
- *
- * If the returning value is not -1 the skb has been consumed.
  */
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
@@ -177,12 +170,14 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv = orig_node->bat_priv;
 	struct batadv_neigh_node *neigh_node;
-	int ret = -1;
+	int ret;
 
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
-	if (!neigh_node)
-		goto out;
+	if (!neigh_node) {
+		ret = -EINVAL;
+		goto free_skb;
+	}
 
 	/* Check if the skb is too large to send in one piece and fragment
 	 * it if needed.
@@ -191,8 +186,10 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
 		/* Fragment and send packet. */
 		ret = batadv_frag_send_packet(skb, orig_node, neigh_node);
+		/* skb was consumed */
+		skb = NULL;
 
-		goto out;
+		goto put_neigh_node;
 	}
 
 	/* try to network code the packet, if it is received on an interface
@@ -204,9 +201,13 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	else
 		ret = batadv_send_unicast_skb(skb, neigh_node);
 
-out:
-	if (neigh_node)
-		batadv_neigh_node_put(neigh_node);
+	/* skb was consumed */
+	skb = NULL;
+
+put_neigh_node:
+	batadv_neigh_node_put(neigh_node);
+free_skb:
+	kfree_skb(skb);
 
 	return ret;
 }
@@ -327,7 +328,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 {
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr;
-	int res, ret = NET_XMIT_DROP;
+	int ret = NET_XMIT_DROP;
 
 	if (!orig_node)
 		goto out;
@@ -364,13 +365,12 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
-	res = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (res != -1)
-		ret = NET_XMIT_SUCCESS;
+	ret = batadv_send_skb_to_orig(skb, orig_node, NULL);
+	 /* skb was consumed */
+	skb = NULL;
 
 out:
-	if (ret == NET_XMIT_DROP)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	return ret;
 }
 
@@ -451,13 +451,19 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 /**
  * batadv_forw_packet_free - free a forwarding packet
  * @forw_packet: The packet to free
+ * @dropped: whether the packet is freed because is is dropped
  *
  * This frees a forwarding packet and releases any resources it might
  * have claimed.
  */
-void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
+void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet,
+			     bool dropped)
 {
-	kfree_skb(forw_packet->skb);
+	if (dropped)
+		kfree_skb(forw_packet->skb);
+	else
+		consume_skb(forw_packet->skb);
+
 	if (forw_packet->if_incoming)
 		batadv_hardif_put(forw_packet->if_incoming);
 	if (forw_packet->if_outgoing)
@@ -549,6 +555,7 @@ _batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: broadcast packet to add
  * @delay: number of jiffies to wait before sending
+ * @own_packet: true if it is a self-generated broadcast packet
  *
  * add a broadcast packet to the queue and setup timers. broadcast packets
  * are sent multiple times to increase probability for being received.
@@ -560,7 +567,8 @@ _batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
  */
 int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				    const struct sk_buff *skb,
-				    unsigned long delay)
+				    unsigned long delay,
+				    bool own_packet)
 {
 	struct batadv_hard_iface *primary_if;
 	struct batadv_forw_packet *forw_packet;
@@ -586,9 +594,8 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	bcast_packet = (struct batadv_bcast_packet *)newskb->data;
 	bcast_packet->ttl--;
 
-	skb_reset_mac_header(newskb);
-
 	forw_packet->skb = newskb;
+	forw_packet->own = own_packet;
 
 	INIT_DELAYED_WORK(&forw_packet->delayed_work,
 			  batadv_send_outstanding_bcast_packet);
@@ -597,7 +604,7 @@ int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 	return NETDEV_TX_OK;
 
 err_packet_free:
-	batadv_forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet, true);
 err:
 	return NETDEV_TX_BUSY;
 }
@@ -605,11 +612,17 @@ err:
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 {
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_hardif_neigh_node *neigh_node;
 	struct delayed_work *delayed_work;
 	struct batadv_forw_packet *forw_packet;
+	struct batadv_bcast_packet *bcast_packet;
 	struct sk_buff *skb1;
 	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
+	bool dropped = false;
+	u8 *neigh_addr;
+	u8 *orig_neigh;
+	int ret = 0;
 
 	delayed_work = to_delayed_work(work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
@@ -621,11 +634,17 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	hlist_del(&forw_packet->list);
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING) {
+		dropped = true;
 		goto out;
+	}
 
-	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet))
+	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet)) {
+		dropped = true;
 		goto out;
+	}
+
+	bcast_packet = (struct batadv_bcast_packet *)forw_packet->skb->data;
 
 	/* rebroadcast packet */
 	rcu_read_lock();
@@ -635,6 +654,49 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 
 		if (forw_packet->num_packets >= hard_iface->num_bcasts)
 			continue;
+
+		if (forw_packet->own) {
+			neigh_node = NULL;
+		} else {
+			neigh_addr = eth_hdr(forw_packet->skb)->h_source;
+			neigh_node = batadv_hardif_neigh_get(hard_iface,
+							     neigh_addr);
+		}
+
+		orig_neigh = neigh_node ? neigh_node->orig : NULL;
+
+		ret = batadv_hardif_no_broadcast(hard_iface, bcast_packet->orig,
+						 orig_neigh);
+
+		if (ret) {
+			char *type;
+
+			switch (ret) {
+			case BATADV_HARDIF_BCAST_NORECIPIENT:
+				type = "no neighbor";
+				break;
+			case BATADV_HARDIF_BCAST_DUPFWD:
+				type = "single neighbor is source";
+				break;
+			case BATADV_HARDIF_BCAST_DUPORIG:
+				type = "single neighbor is originator";
+				break;
+			default:
+				type = "unknown";
+			}
+
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s surpressed: %s\n",
+				   bcast_packet->orig,
+				   hard_iface->net_dev->name, type);
+
+			if (neigh_node)
+				batadv_hardif_neigh_put(neigh_node);
+
+			continue;
+		}
+
+		if (neigh_node)
+			batadv_hardif_neigh_put(neigh_node);
 
 		if (!kref_get_unless_zero(&hard_iface->refcount))
 			continue;
@@ -658,7 +720,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	}
 
 out:
-	batadv_forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet, dropped);
 }
 
 void
@@ -699,7 +761,7 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 
 		if (pending) {
 			hlist_del(&forw_packet->list);
-			batadv_forw_packet_free(forw_packet);
+			batadv_forw_packet_free(forw_packet, true);
 		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
@@ -726,7 +788,7 @@ batadv_purge_outstanding_packets(struct batadv_priv *bat_priv,
 
 		if (pending) {
 			hlist_del(&forw_packet->list);
-			batadv_forw_packet_free(forw_packet);
+			batadv_forw_packet_free(forw_packet, true);
 		}
 	}
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);

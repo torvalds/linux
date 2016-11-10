@@ -698,7 +698,7 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 
 	forw_packet_aggr->skb = netdev_alloc_skb_ip_align(NULL, skb_size);
 	if (!forw_packet_aggr->skb) {
-		batadv_forw_packet_free(forw_packet_aggr);
+		batadv_forw_packet_free(forw_packet_aggr, true);
 		return;
 	}
 
@@ -1611,7 +1611,7 @@ out:
 	if (hardif_neigh)
 		batadv_hardif_neigh_put(hardif_neigh);
 
-	kfree_skb(skb_priv);
+	consume_skb(skb_priv);
 }
 
 /**
@@ -1783,6 +1783,7 @@ static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 	struct delayed_work *delayed_work;
 	struct batadv_forw_packet *forw_packet;
 	struct batadv_priv *bat_priv;
+	bool dropped = false;
 
 	delayed_work = to_delayed_work(work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
@@ -1792,8 +1793,10 @@ static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 	hlist_del(&forw_packet->list);
 	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING) {
+		dropped = true;
 		goto out;
+	}
 
 	batadv_iv_ogm_emit(forw_packet);
 
@@ -1810,7 +1813,7 @@ static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 		batadv_iv_ogm_schedule(forw_packet->if_incoming);
 
 out:
-	batadv_forw_packet_free(forw_packet);
+	batadv_forw_packet_free(forw_packet, dropped);
 }
 
 static int batadv_iv_ogm_receive(struct sk_buff *skb,
@@ -1820,17 +1823,18 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	struct batadv_ogm_packet *ogm_packet;
 	u8 *packet_pos;
 	int ogm_offset;
-	bool ret;
+	bool res;
+	int ret = NET_RX_DROP;
 
-	ret = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
-	if (!ret)
-		return NET_RX_DROP;
+	res = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
+	if (!res)
+		goto free_skb;
 
 	/* did we receive a B.A.T.M.A.N. IV OGM packet on an interface
 	 * that does not have B.A.T.M.A.N. IV enabled ?
 	 */
 	if (bat_priv->algo_ops->iface.enable != batadv_iv_ogm_iface_enable)
-		return NET_RX_DROP;
+		goto free_skb;
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_RX);
 	batadv_add_counter(bat_priv, BATADV_CNT_MGMT_RX_BYTES,
@@ -1851,8 +1855,15 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 		ogm_packet = (struct batadv_ogm_packet *)packet_pos;
 	}
 
-	kfree_skb(skb);
-	return NET_RX_SUCCESS;
+	ret = NET_RX_SUCCESS;
+
+free_skb:
+	if (ret == NET_RX_SUCCESS)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
+
+	return ret;
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS

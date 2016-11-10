@@ -228,6 +228,58 @@ bool batadv_is_wifi_netdev(struct net_device *net_device)
 	return false;
 }
 
+/**
+ * batadv_hardif_no_broadcast - check whether (re)broadcast is necessary
+ * @if_outgoing: the outgoing interface checked and considered for (re)broadcast
+ * @orig_addr: the originator of this packet
+ * @orig_neigh: originator address of the forwarder we just got the packet from
+ *  (NULL if we originated)
+ *
+ * Checks whether a packet needs to be (re)broadcasted on the given interface.
+ *
+ * Return:
+ *	BATADV_HARDIF_BCAST_NORECIPIENT: No neighbor on interface
+ *	BATADV_HARDIF_BCAST_DUPFWD: Just one neighbor, but it is the forwarder
+ *	BATADV_HARDIF_BCAST_DUPORIG: Just one neighbor, but it is the originator
+ *	BATADV_HARDIF_BCAST_OK: Several neighbors, must broadcast
+ */
+int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
+			       u8 *orig_addr, u8 *orig_neigh)
+{
+	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct hlist_node *first;
+	int ret = BATADV_HARDIF_BCAST_OK;
+
+	rcu_read_lock();
+
+	/* 0 neighbors -> no (re)broadcast */
+	first = rcu_dereference(hlist_first_rcu(&if_outgoing->neigh_list));
+	if (!first) {
+		ret = BATADV_HARDIF_BCAST_NORECIPIENT;
+		goto out;
+	}
+
+	/* >1 neighbors -> (re)brodcast */
+	if (rcu_dereference(hlist_next_rcu(first)))
+		goto out;
+
+	hardif_neigh = hlist_entry(first, struct batadv_hardif_neigh_node,
+				   list);
+
+	/* 1 neighbor, is the originator -> no rebroadcast */
+	if (orig_addr && batadv_compare_eth(hardif_neigh->orig, orig_addr)) {
+		ret = BATADV_HARDIF_BCAST_DUPORIG;
+	/* 1 neighbor, is the one we received from -> no rebroadcast */
+	} else if (orig_neigh &&
+		   batadv_compare_eth(hardif_neigh->orig, orig_neigh)) {
+		ret = BATADV_HARDIF_BCAST_DUPFWD;
+	}
+
+out:
+	rcu_read_unlock();
+	return ret;
+}
+
 static struct batadv_hard_iface *
 batadv_hardif_get_active(const struct net_device *soft_iface)
 {

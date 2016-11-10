@@ -357,12 +357,12 @@ send:
 		seqno = atomic_inc_return(&bat_priv->bcast_seqno);
 		bcast_packet->seqno = htonl(seqno);
 
-		batadv_add_bcast_packet_to_list(bat_priv, skb, brd_delay);
+		batadv_add_bcast_packet_to_list(bat_priv, skb, brd_delay, true);
 
 		/* a copy is stored in the bcast list, therefore removing
 		 * the original skb.
 		 */
-		kfree_skb(skb);
+		consume_skb(skb);
 
 	/* unicast packet */
 	} else {
@@ -386,7 +386,7 @@ send:
 			ret = batadv_send_skb_via_tt(bat_priv, skb, dst_hint,
 						     vid);
 		}
-		if (ret == NET_XMIT_DROP)
+		if (ret != NET_XMIT_SUCCESS)
 			goto dropped_freed;
 	}
 

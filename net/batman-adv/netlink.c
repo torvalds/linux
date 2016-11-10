@@ -20,11 +20,14 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
+#include <linux/cache.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/genetlink.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/printk.h>
@@ -527,7 +530,7 @@ batadv_netlink_dump_hardifs(struct sk_buff *msg, struct netlink_callback *cb)
 	return msg->len;
 }
 
-static struct genl_ops batadv_netlink_ops[] = {
+static const struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_MESH_INFO,
 		.flags = GENL_ADMIN_PERM,
