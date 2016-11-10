@@ -443,8 +443,8 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 			goto out;
 		}
 	} else if (md->body->mbo_valid & OBD_MD_FLDIREA) {
-		int lmvsize;
-		struct lov_mds_md *lmv;
+		const union lmv_mds_md *lmv;
+		size_t lmv_size;
 
 		if (!S_ISDIR(md->body->mbo_mode)) {
 			CDEBUG(D_INFO,
@@ -453,22 +453,21 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 			goto out;
 		}
 
-		if (md->body->mbo_eadatasize == 0) {
+		lmv_size = md->body->mbo_eadatasize;
+		if (!lmv_size) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLDIREA is set, but eadatasize 0\n");
 			return -EPROTO;
 		}
 		if (md->body->mbo_valid & OBD_MD_MEA) {
-			lmvsize = md->body->mbo_eadatasize;
 			lmv = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
-							   lmvsize);
+							   lmv_size);
 			if (!lmv) {
 				rc = -EPROTO;
 				goto out;
 			}
 
-			rc = obd_unpackmd(md_exp, (void *)&md->lmv, lmv,
-					  lmvsize);
+			rc = md_unpackmd(md_exp, &md->lmv, lmv, lmv_size);
 			if (rc < 0)
 				goto out;
 

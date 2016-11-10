@@ -2804,8 +2804,8 @@ static int lmv_unpack_md_v1(struct obd_export *exp, struct lmv_stripe_md *lsm,
 	return rc;
 }
 
-int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
-		  const union lmv_mds_md *lmm, int stripe_count)
+static int lmv_unpackmd(struct obd_export *exp, struct lmv_stripe_md **lsmp,
+			const union lmv_mds_md *lmm, size_t lmm_size)
 {
 	struct lmv_stripe_md *lsm;
 	bool allocated = false;
@@ -2831,17 +2831,6 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 
 		kvfree(lsm);
 		*lsmp = NULL;
-		return 0;
-	}
-
-	/* Alloc memmd */
-	if (!lsm && !lmm) {
-		lsm_size = lmv_stripe_md_size(stripe_count);
-		lsm = libcfs_kvzalloc(lsm_size, GFP_NOFS);
-		if (!lsm)
-			return -ENOMEM;
-		lsm->lsm_md_stripe_count = stripe_count;
-		*lsmp = lsm;
 		return 0;
 	}
 
@@ -2892,14 +2881,12 @@ int lmv_unpack_md(struct obd_export *exp, struct lmv_stripe_md **lsmp,
 	}
 	return lsm_size;
 }
-EXPORT_SYMBOL(lmv_unpack_md);
 
-static int lmv_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
-			struct lov_mds_md *lmm, int disk_len)
+void lmv_free_memmd(struct lmv_stripe_md *lsm)
 {
-	return lmv_unpack_md(exp, (struct lmv_stripe_md **)lsmp,
-			     (union lmv_mds_md *)lmm, disk_len);
+	lmv_unpackmd(NULL, &lsm, NULL, 0);
 }
+EXPORT_SYMBOL(lmv_free_memmd);
 
 static int lmv_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
 			     ldlm_policy_data_t *policy, enum ldlm_mode mode,
@@ -3204,7 +3191,6 @@ static struct obd_ops lmv_obd_ops = {
 	.statfs		= lmv_statfs,
 	.get_info	= lmv_get_info,
 	.set_info_async	= lmv_set_info_async,
-	.unpackmd	= lmv_unpackmd,
 	.notify		= lmv_notify,
 	.get_uuid	= lmv_get_uuid,
 	.iocontrol	= lmv_iocontrol,
@@ -3240,6 +3226,7 @@ static struct md_ops lmv_md_ops = {
 	.intent_getattr_async	= lmv_intent_getattr_async,
 	.revalidate_lock	= lmv_revalidate_lock,
 	.get_fid_from_lsm	= lmv_get_fid_from_lsm,
+	.unpackmd		= lmv_unpackmd,
 };
 
 static int __init lmv_init(void)

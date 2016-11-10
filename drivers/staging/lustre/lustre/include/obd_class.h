@@ -609,39 +609,6 @@ obd_process_config(struct obd_device *obd, int datalen, void *data)
 	return rc;
 }
 
-/* Unpack an MD struct from disk to in-memory format.
- * Returns +ve size of unpacked MD (0 for free), or -ve error.
- *
- * If @mem_tgt == NULL, MD size is returned (max size if @disk_src == NULL).
- * If @*mem_tgt != NULL and @disk_src == NULL, @*mem_tgt will be freed.
- * If @*mem_tgt == NULL, it will be allocated
- */
-static inline int obd_unpackmd(struct obd_export *exp,
-			       struct lov_stripe_md **mem_tgt,
-			       struct lov_mds_md *disk_src,
-			       int disk_len)
-{
-	int rc;
-
-	EXP_CHECK_DT_OP(exp, unpackmd);
-	EXP_COUNTER_INCREMENT(exp, unpackmd);
-
-	rc = OBP(exp->exp_obd, unpackmd)(exp, mem_tgt, disk_src, disk_len);
-	return rc;
-}
-
-static inline int obd_free_memmd(struct obd_export *exp,
-				 struct lov_stripe_md **mem_tgt)
-{
-	int rc;
-
-	LASSERT(mem_tgt);
-	LASSERT(*mem_tgt);
-	rc = obd_unpackmd(exp, mem_tgt, NULL, 0);
-	*mem_tgt = NULL;
-	return rc;
-}
-
 static inline int obd_create(const struct lu_env *env, struct obd_export *exp,
 			     struct obdo *obdo)
 {
@@ -1504,6 +1471,24 @@ static inline int md_get_fid_from_lsm(struct obd_export *exp,
 	EXP_CHECK_MD_OP(exp, get_fid_from_lsm);
 	EXP_MD_COUNTER_INCREMENT(exp, get_fid_from_lsm);
 	rc = MDP(exp->exp_obd, get_fid_from_lsm)(exp, lsm, name, namelen, fid);
+	return rc;
+}
+
+/* Unpack an MD struct from disk to in-memory format.
+ * Returns +ve size of unpacked MD (0 for free), or -ve error.
+ *
+ * If *plsm != NULL and lmm == NULL then *lsm will be freed.
+ * If *plsm == NULL then it will be allocated.
+ */
+static inline int md_unpackmd(struct obd_export *exp,
+			      struct lmv_stripe_md **plsm,
+			      const union lmv_mds_md *lmm, size_t lmm_size)
+{
+	int rc;
+
+	EXP_CHECK_MD_OP(exp, unpackmd);
+	EXP_MD_COUNTER_INCREMENT(exp, unpackmd);
+	rc = MDP(exp->exp_obd, unpackmd)(exp, plsm, lmm, lmm_size);
 	return rc;
 }
 

@@ -784,9 +784,6 @@ struct obd_ops {
 		      struct obd_statfs *osfs, __u64 max_age, __u32 flags);
 	int (*statfs_async)(struct obd_export *exp, struct obd_info *oinfo,
 			    __u64 max_age, struct ptlrpc_request_set *set);
-	int (*unpackmd)(struct obd_export *exp,
-			struct lov_stripe_md **mem_tgt,
-			struct lov_mds_md *disk_src, int disk_len);
 	int (*create)(const struct lu_env *env, struct obd_export *exp,
 		      struct obdo *oa);
 	int (*destroy)(const struct lu_env *env, struct obd_export *exp,
@@ -954,6 +951,8 @@ struct md_ops {
 	int (*revalidate_lock)(struct obd_export *, struct lookup_intent *,
 			       struct lu_fid *, __u64 *bits);
 
+	int (*unpackmd)(struct obd_export *exp, struct lmv_stripe_md **plsm,
+			const union lmv_mds_md *lmv, size_t lmv_size);
 	/*
 	 * NOTE: If adding ops, add another LPROCFS_MD_OP_INIT() line to
 	 * lprocfs_alloc_md_stats() in obdclass/lprocfs_status.c. Also, add a
