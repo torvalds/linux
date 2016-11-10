@@ -4185,7 +4185,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 	u16 ddp_seg_len;
 	int copy_len = 0;
 	u8 is_tagged = 0;
-	enum i40iw_flush_opcode flush_code = FLUSH_INVALID;
 	u32 opcode;
 	struct i40iw_terminate_hdr *termhdr;
 
@@ -4357,9 +4356,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 
 	if (copy_len)
 		memcpy(termhdr + 1, pkt, copy_len);
-
-	if (flush_code && !info->in_rdrsp_wr)
-		qp->sq_flush = (info->sq) ? true : false;
 
 	return sizeof(struct i40iw_terminate_hdr) + copy_len;
 }
