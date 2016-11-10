@@ -1297,7 +1297,7 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 	 * powered on/off in that context.
 	 */
 	if (!genpd_is_irq_safe(genpd) && genpd_is_irq_safe(subdomain)) {
-		WARN("Parent %s of subdomain %s must be IRQ safe\n",
+		WARN(1, "Parent %s of subdomain %s must be IRQ safe\n",
 				genpd->name, subdomain->name);
 		return -EINVAL;
 	}
