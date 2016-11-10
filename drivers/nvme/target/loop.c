@@ -127,7 +127,8 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 	 */
 	if (unlikely(nvme_loop_queue_idx(iod->queue) == 0 &&
 			cqe->command_id >= NVME_LOOP_AQ_BLKMQ_DEPTH)) {
-		nvme_complete_async_event(&iod->queue->ctrl->ctrl, cqe);
+		nvme_complete_async_event(&iod->queue->ctrl->ctrl, cqe->status,
+				&cqe->result);
 	} else {
 		struct request *rq = blk_mq_rq_from_pdu(iod);
 
