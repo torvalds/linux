@@ -1,18 +1,23 @@
+=================
+ALSA BT87x Driver
+=================
+
 Intro
 =====
 
 You might have noticed that the bt878 grabber cards have actually
-_two_ PCI functions:
+*two* PCI functions:
+::
 
-$ lspci
-[ ... ]
-00:0a.0 Multimedia video controller: Brooktree Corporation Bt878 (rev 02)
-00:0a.1 Multimedia controller: Brooktree Corporation Bt878 (rev 02)
-[ ... ]
+  $ lspci
+  [ ... ]
+  00:0a.0 Multimedia video controller: Brooktree Corporation Bt878 (rev 02)
+  00:0a.1 Multimedia controller: Brooktree Corporation Bt878 (rev 02)
+  [ ... ]
 
 The first does video, it is backward compatible to the bt848.  The second
 does audio.  snd-bt87x is a driver for the second function.  It's a sound
-driver which can be used for recording sound (and _only_ recording, no
+driver which can be used for recording sound (and *only* recording, no
 playback).  As most TV cards come with a short cable which can be plugged
 into your sound card's line-in you probably don't need this driver if all
 you want to do is just watching TV...
@@ -30,9 +35,9 @@ The driver is now stable.  However, it doesn't know about many TV cards,
 and it refuses to load for cards it doesn't know.
 
 If the driver complains ("Unknown TV card found, the audio driver will
-not load"), you can specify the load_all=1 option to force the driver to
+not load"), you can specify the ``load_all=1`` option to force the driver to
 try to use the audio capture function of your card.  If the frequency of
-recorded data is not right, try to specify the digital_rate option with
+recorded data is not right, try to specify the ``digital_rate`` option with
 other values than the default 32000 (often it's 44100 or 64000).
 
 If you have an unknown card, please mail the ID and board name to

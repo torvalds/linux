@@ -12,3 +12,4 @@ Card-Specific Information
    via82xx-mixer
    audiophile-usb
    mixart
+   bt87x
