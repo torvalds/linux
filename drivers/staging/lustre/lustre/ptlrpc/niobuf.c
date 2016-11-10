@@ -114,7 +114,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	int rc2;
 	int posted_md;
 	int total_md;
-	__u64 xid;
+	u64 mbits;
 	lnet_handle_me_t me_h;
 	lnet_md_t md;
 
@@ -142,40 +142,37 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_cbid.cbid_fn == client_bulk_callback);
 	LASSERT(desc->bd_cbid.cbid_arg == desc);
 
-	/* An XID is only used for a single request from the client.
-	 * For retried bulk transfers, a new XID will be allocated in
-	 * in ptlrpc_check_set() if it needs to be resent, so it is not
-	 * using the same RDMA match bits after an error.
-	 *
-	 * For multi-bulk RPCs, rq_xid is the last XID needed for bulks. The
-	 * first bulk XID is power-of-two aligned before rq_xid. LU-1431
-	 */
-	xid = req->rq_xid & ~((__u64)desc->bd_md_max_brw - 1);
+	total_md = (desc->bd_iov_count + LNET_MAX_IOV - 1) / LNET_MAX_IOV;
+	/* rq_mbits is matchbits of the final bulk */
+	mbits = req->rq_mbits - total_md + 1;
+
+	LASSERTF(mbits == (req->rq_mbits & PTLRPC_BULK_OPS_MASK),
+		 "first mbits = x%llu, last mbits = x%llu\n",
+		 mbits, req->rq_mbits);
 	LASSERTF(!(desc->bd_registered &&
 		   req->rq_send_state != LUSTRE_IMP_REPLAY) ||
-		 xid != desc->bd_last_xid,
-		 "registered: %d  rq_xid: %llu bd_last_xid: %llu\n",
-		 desc->bd_registered, xid, desc->bd_last_xid);
+		 mbits != desc->bd_last_mbits,
+		 "registered: %d  rq_mbits: %llu bd_last_mbits: %llu\n",
+		 desc->bd_registered, mbits, desc->bd_last_mbits);
 
-	total_md = (desc->bd_iov_count + LNET_MAX_IOV - 1) / LNET_MAX_IOV;
 	desc->bd_registered = 1;
-	desc->bd_last_xid = xid;
+	desc->bd_last_mbits = mbits;
 	desc->bd_md_count = total_md;
 	md.user_ptr = &desc->bd_cbid;
 	md.eq_handle = ptlrpc_eq_h;
 	md.threshold = 1;		       /* PUT or GET */
 
-	for (posted_md = 0; posted_md < total_md; posted_md++, xid++) {
+	for (posted_md = 0; posted_md < total_md; posted_md++, mbits++) {
 		md.options = PTLRPC_MD_OPTIONS |
 			     (ptlrpc_is_bulk_op_get(desc->bd_type) ?
 			      LNET_MD_OP_GET : LNET_MD_OP_PUT);
 		ptlrpc_fill_bulk_md(&md, desc, posted_md);
 
-		rc = LNetMEAttach(desc->bd_portal, peer, xid, 0,
+		rc = LNetMEAttach(desc->bd_portal, peer, mbits, 0,
 				  LNET_UNLINK, LNET_INS_AFTER, &me_h);
 		if (rc != 0) {
 			CERROR("%s: LNetMEAttach failed x%llu/%d: rc = %d\n",
-			       desc->bd_import->imp_obd->obd_name, xid,
+			       desc->bd_import->imp_obd->obd_name, mbits,
 			       posted_md, rc);
 			break;
 		}
@@ -185,7 +182,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 				  &desc->bd_mds[posted_md]);
 		if (rc != 0) {
 			CERROR("%s: LNetMDAttach failed x%llu/%d: rc = %d\n",
-			       desc->bd_import->imp_obd->obd_name, xid,
+			       desc->bd_import->imp_obd->obd_name, mbits,
 			       posted_md, rc);
 			rc2 = LNetMEUnlink(me_h);
 			LASSERT(rc2 == 0);
@@ -204,27 +201,19 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		return -ENOMEM;
 	}
 
-	/* Set rq_xid to matchbits of the final bulk so that server can
-	 * infer the number of bulks that were prepared
-	 */
-	req->rq_xid = --xid;
-	LASSERTF(desc->bd_last_xid == (req->rq_xid & PTLRPC_BULK_OPS_MASK),
-		 "bd_last_xid = x%llu, rq_xid = x%llu\n",
-		 desc->bd_last_xid, req->rq_xid);
-
 	spin_lock(&desc->bd_lock);
-	/* Holler if peer manages to touch buffers before he knows the xid */
+	/* Holler if peer manages to touch buffers before he knows the mbits */
 	if (desc->bd_md_count != total_md)
 		CWARN("%s: Peer %s touched %d buffers while I registered\n",
 		      desc->bd_import->imp_obd->obd_name, libcfs_id2str(peer),
 		      total_md - desc->bd_md_count);
 	spin_unlock(&desc->bd_lock);
 
-	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, xid x%#llx-%#llx, portal %u\n",
+	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, mbits x%#llx-%#llx, portal %u\n",
 	       desc->bd_md_count,
 	       ptlrpc_is_bulk_op_get(desc->bd_type) ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
-	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);
+	       desc->bd_last_mbits, req->rq_mbits, desc->bd_portal);
 
 	return 0;
 }
@@ -519,6 +508,20 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	lustre_msg_set_type(request->rq_reqmsg, PTL_RPC_MSG_REQUEST);
 	lustre_msg_set_conn_cnt(request->rq_reqmsg, imp->imp_conn_cnt);
 	lustre_msghdr_set_flags(request->rq_reqmsg, imp->imp_msghdr_flags);
+
+	if (request->rq_nr_resend) {
+		/*
+		 * resend for EINPROGRESS, allocate new xid to avoid reply
+		 * reconstruction
+		 */
+		request->rq_xid = ptlrpc_next_xid();
+		DEBUG_REQ(D_RPCTRACE, request, "Allocating new xid for resend on EINPROGRESS");
+	}
+
+	if (request->rq_bulk) {
+		ptlrpc_set_bulk_mbits(request);
+		lustre_msg_set_mbits(request->rq_reqmsg, request->rq_mbits);
+	}
 
 	/**
 	 * For enabled AT all request should have AT_SUPPORT in the

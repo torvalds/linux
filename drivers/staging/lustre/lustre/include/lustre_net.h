@@ -797,6 +797,8 @@ struct ptlrpc_request {
 	__u64 rq_transno;
 	/** xid */
 	__u64 rq_xid;
+	/** bulk match bits */
+	u64				rq_mbits;
 	/**
 	 * List item to for replay list. Not yet committed requests get linked
 	 * there.
@@ -1209,7 +1211,7 @@ struct ptlrpc_bulk_desc {
 	int		    bd_nob;	  /* # bytes covered */
 	int		    bd_nob_transferred; /* # bytes GOT/PUT */
 
-	__u64		  bd_last_xid;
+	u64			bd_last_mbits;
 
 	struct ptlrpc_cb_id    bd_cbid;	 /* network callback info */
 	lnet_nid_t	     bd_sender;       /* stash event::sender */
@@ -2081,6 +2083,7 @@ void lustre_msg_set_timeout(struct lustre_msg *msg, __u32 timeout);
 void lustre_msg_set_service_time(struct lustre_msg *msg, __u32 service_time);
 void lustre_msg_set_jobid(struct lustre_msg *msg, char *jobid);
 void lustre_msg_set_cksum(struct lustre_msg *msg, __u32 cksum);
+void lustre_msg_set_mbits(struct lustre_msg *msg, u64 mbits);
 
 static inline void
 lustre_shrink_reply(struct ptlrpc_request *req, int segment,

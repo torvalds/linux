@@ -1007,8 +1007,11 @@ struct ptlrpc_body_v3 {
 	__u64 pb_slv;
 	/* VBR: pre-versions */
 	__u64 pb_pre_versions[PTLRPC_NUM_VERSIONS];
+	__u64 pb_mbits; /**< match bits for bulk request */
 	/* padding for future needs */
-	__u64 pb_padding[4];
+	__u64 pb_padding64_0;
+	__u64 pb_padding64_1;
+	__u64 pb_padding64_2;
 	char  pb_jobid[LUSTRE_JOBID_SIZE];
 };
 
@@ -1037,8 +1040,11 @@ struct ptlrpc_body_v2 {
 	__u64 pb_slv;
 	/* VBR: pre-versions */
 	__u64 pb_pre_versions[PTLRPC_NUM_VERSIONS];
+	__u64 pb_mbits; /**< unused in V2 */
 	/* padding for future needs */
-	__u64 pb_padding[4];
+	__u64 pb_padding64_0;
+	__u64 pb_padding64_1;
+	__u64 pb_padding64_2;
 };
 
 void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
@@ -1183,6 +1189,8 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 						       *  RPCs in parallel
 						       */
 #define OBD_CONNECT_DIR_STRIPE	 0x400000000000000ULL/* striped DNE dir */
+/** bulk matchbits is sent within ptlrpc_body */
+#define OBD_CONNECT_BULK_MBITS	 0x2000000000000000ULL
 
 /* XXX README XXX:
  * Please DO NOT add flag values here before first ensuring that this same
