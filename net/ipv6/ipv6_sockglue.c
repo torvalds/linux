@@ -52,6 +52,7 @@
 #include <net/udplite.h>
 #include <net/xfrm.h>
 #include <net/compat.h>
+#include <net/seg6.h>
 
 #include <asm/uaccess.h>
 
@@ -430,6 +431,15 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 				break;
 #endif
+			case IPV6_SRCRT_TYPE_4:
+			{
+				struct ipv6_sr_hdr *srh = (struct ipv6_sr_hdr *)
+							  opt->srcrt;
+
+				if (!seg6_validate_srh(srh, optlen))
+					goto sticky_done;
+				break;
+			}
 			default:
 				goto sticky_done;
 			}
