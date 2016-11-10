@@ -710,11 +710,20 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 {
 	/* Power off the PHY */
 	xgbe_phy_power_off(pdata);
+
+	/* Stop the I2C controller */
+	pdata->i2c_if.i2c_stop(pdata);
 }
 
 static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
+	int ret;
+
+	/* Start the I2C controller */
+	ret = pdata->i2c_if.i2c_start(pdata);
+	if (ret)
+		return ret;
 
 	/* Start in highest supported mode */
 	xgbe_phy_set_mode(pdata, phy_data->start_mode);
@@ -744,12 +753,18 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data;
 	unsigned int reg;
+	int ret;
 
 	/* Check if enabled */
 	if (!xgbe_phy_port_enabled(pdata)) {
 		dev_info(pdata->dev, "device is not enabled\n");
 		return -ENODEV;
 	}
+
+	/* Initialize the I2C controller */
+	ret = pdata->i2c_if.i2c_init(pdata);
+	if (ret)
+		return ret;
 
 	phy_data = devm_kzalloc(pdata->dev, sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)

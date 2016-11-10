@@ -161,6 +161,7 @@ static void xgbe_init_all_fptrs(struct xgbe_prv_data *pdata)
 {
 	xgbe_init_function_ptrs_dev(&pdata->hw_if);
 	xgbe_init_function_ptrs_phy(&pdata->phy_if);
+	xgbe_init_function_ptrs_i2c(&pdata->i2c_if);
 	xgbe_init_function_ptrs_desc(&pdata->desc_if);
 
 	pdata->vdata->init_function_ptrs_phy_impl(&pdata->phy_if);
@@ -186,6 +187,8 @@ struct xgbe_prv_data *xgbe_alloc_pdata(struct device *dev)
 	spin_lock_init(&pdata->xpcs_lock);
 	mutex_init(&pdata->rss_mutex);
 	spin_lock_init(&pdata->tstamp_lock);
+	mutex_init(&pdata->i2c_mutex);
+	init_completion(&pdata->i2c_complete);
 
 	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
 
@@ -395,6 +398,10 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 
 	/* Create the ECC name based on netdev name */
 	snprintf(pdata->ecc_name, sizeof(pdata->ecc_name) - 1, "%s-ecc",
+		 netdev_name(netdev));
+
+	/* Create the I2C name based on netdev name */
+	snprintf(pdata->i2c_name, sizeof(pdata->i2c_name) - 1, "%s-i2c",
 		 netdev_name(netdev));
 
 	/* Create workqueues */

@@ -1000,6 +1000,65 @@
 #define XP_PROP_2_TX_FIFO_SIZE_INDEX		0
 #define XP_PROP_2_TX_FIFO_SIZE_WIDTH		16
 
+/* I2C Control register offsets */
+#define IC_CON					0x0000
+#define IC_TAR					0x0004
+#define IC_DATA_CMD				0x0010
+#define IC_INTR_STAT				0x002c
+#define IC_INTR_MASK				0x0030
+#define IC_RAW_INTR_STAT			0x0034
+#define IC_CLR_INTR				0x0040
+#define IC_CLR_TX_ABRT				0x0054
+#define IC_CLR_STOP_DET				0x0060
+#define IC_ENABLE				0x006c
+#define IC_TXFLR				0x0074
+#define IC_RXFLR				0x0078
+#define IC_TX_ABRT_SOURCE			0x0080
+#define IC_ENABLE_STATUS			0x009c
+#define IC_COMP_PARAM_1				0x00f4
+
+/* I2C Control register entry bit positions and sizes */
+#define IC_COMP_PARAM_1_MAX_SPEED_MODE_INDEX	2
+#define IC_COMP_PARAM_1_MAX_SPEED_MODE_WIDTH	2
+#define IC_COMP_PARAM_1_RX_BUFFER_DEPTH_INDEX	8
+#define IC_COMP_PARAM_1_RX_BUFFER_DEPTH_WIDTH	8
+#define IC_COMP_PARAM_1_TX_BUFFER_DEPTH_INDEX	16
+#define IC_COMP_PARAM_1_TX_BUFFER_DEPTH_WIDTH	8
+#define IC_CON_MASTER_MODE_INDEX		0
+#define IC_CON_MASTER_MODE_WIDTH		1
+#define IC_CON_RESTART_EN_INDEX			5
+#define IC_CON_RESTART_EN_WIDTH			1
+#define IC_CON_RX_FIFO_FULL_HOLD_INDEX		9
+#define IC_CON_RX_FIFO_FULL_HOLD_WIDTH		1
+#define IC_CON_SLAVE_DISABLE_INDEX		6
+#define IC_CON_SLAVE_DISABLE_WIDTH		1
+#define IC_CON_SPEED_INDEX			1
+#define IC_CON_SPEED_WIDTH			2
+#define IC_DATA_CMD_CMD_INDEX			8
+#define IC_DATA_CMD_CMD_WIDTH			1
+#define IC_DATA_CMD_STOP_INDEX			9
+#define IC_DATA_CMD_STOP_WIDTH			1
+#define IC_ENABLE_ABORT_INDEX			1
+#define IC_ENABLE_ABORT_WIDTH			1
+#define IC_ENABLE_EN_INDEX			0
+#define IC_ENABLE_EN_WIDTH			1
+#define IC_ENABLE_STATUS_EN_INDEX		0
+#define IC_ENABLE_STATUS_EN_WIDTH		1
+#define IC_INTR_MASK_TX_EMPTY_INDEX		4
+#define IC_INTR_MASK_TX_EMPTY_WIDTH		1
+#define IC_RAW_INTR_STAT_RX_FULL_INDEX		2
+#define IC_RAW_INTR_STAT_RX_FULL_WIDTH		1
+#define IC_RAW_INTR_STAT_STOP_DET_INDEX		9
+#define IC_RAW_INTR_STAT_STOP_DET_WIDTH		1
+#define IC_RAW_INTR_STAT_TX_ABRT_INDEX		6
+#define IC_RAW_INTR_STAT_TX_ABRT_WIDTH		1
+#define IC_RAW_INTR_STAT_TX_EMPTY_INDEX		4
+#define IC_RAW_INTR_STAT_TX_EMPTY_WIDTH		1
+
+/* I2C Control register value */
+#define IC_TX_ABRT_7B_ADDR_NOACK		0x0001
+#define IC_TX_ABRT_ARB_LOST			0x1000
+
 /* Descriptor/Packet entry bit positions and sizes */
 #define RX_PACKET_ERRORS_CRC_INDEX		2
 #define RX_PACKET_ERRORS_CRC_WIDTH		1
@@ -1467,6 +1526,39 @@ do {									\
 		 _reg##_##_field##_INDEX,				\
 		 _reg##_##_field##_WIDTH, (_val));			\
 	XP_IOWRITE((_pdata), (_reg), reg_val);				\
+} while (0)
+
+/* Macros for building, reading or writing register values or bits
+ * within the register values of I2C Control registers.
+ */
+#define XI2C_GET_BITS(_var, _prefix, _field)				\
+	GET_BITS((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH)
+
+#define XI2C_SET_BITS(_var, _prefix, _field, _val)			\
+	SET_BITS((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH, (_val))
+
+#define XI2C_IOREAD(_pdata, _reg)					\
+	ioread32((_pdata)->xi2c_regs + (_reg))
+
+#define XI2C_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XI2C_IOREAD((_pdata), (_reg)),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XI2C_IOWRITE(_pdata, _reg, _val)				\
+	iowrite32((_val), (_pdata)->xi2c_regs + (_reg))
+
+#define XI2C_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u32 reg_val = XI2C_IOREAD((_pdata), (_reg));			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XI2C_IOWRITE((_pdata), (_reg), reg_val);			\
 } while (0)
 
 /* Macros for building, reading or writing register values or bits

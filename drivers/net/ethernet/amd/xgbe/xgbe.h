@@ -127,6 +127,7 @@
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
+#include <linux/completion.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
@@ -555,6 +556,43 @@ struct xgbe_phy {
 	int rx_pause;
 };
 
+enum xgbe_i2c_cmd {
+	XGBE_I2C_CMD_READ = 0,
+	XGBE_I2C_CMD_WRITE,
+};
+
+struct xgbe_i2c_op {
+	enum xgbe_i2c_cmd cmd;
+
+	unsigned int target;
+
+	void *buf;
+	unsigned int len;
+};
+
+struct xgbe_i2c_op_state {
+	struct xgbe_i2c_op *op;
+
+	unsigned int tx_len;
+	unsigned char *tx_buf;
+
+	unsigned int rx_len;
+	unsigned char *rx_buf;
+
+	unsigned int tx_abort_source;
+
+	int ret;
+};
+
+struct xgbe_i2c {
+	unsigned int started;
+	unsigned int max_speed_mode;
+	unsigned int rx_fifo_size;
+	unsigned int tx_fifo_size;
+
+	struct xgbe_i2c_op_state op_state;
+};
+
 struct xgbe_mmc_stats {
 	/* Tx Stats */
 	u64 txoctetcount_gb;
@@ -777,6 +815,21 @@ struct xgbe_phy_if {
 	struct xgbe_phy_impl_if phy_impl;
 };
 
+struct xgbe_i2c_if {
+	/* For initial I2C setup */
+	int (*i2c_init)(struct xgbe_prv_data *);
+
+	/* For I2C support when setting device up/down */
+	int (*i2c_start)(struct xgbe_prv_data *);
+	void (*i2c_stop)(struct xgbe_prv_data *);
+
+	/* For performing I2C operations */
+	int (*i2c_xfer)(struct xgbe_prv_data *, struct xgbe_i2c_op *);
+
+	/* For single interrupt support */
+	irqreturn_t (*i2c_isr)(int, struct xgbe_prv_data *);
+};
+
 struct xgbe_desc_if {
 	int (*alloc_ring_resources)(struct xgbe_prv_data *);
 	void (*free_ring_resources)(struct xgbe_prv_data *);
@@ -842,6 +895,7 @@ struct xgbe_version_data {
 	unsigned int rx_max_fifo_size;
 	unsigned int tx_tstamp_workaround;
 	unsigned int ecc_support;
+	unsigned int i2c_support;
 };
 
 struct xgbe_prv_data {
@@ -915,6 +969,7 @@ struct xgbe_prv_data {
 	struct xgbe_hw_if hw_if;
 	struct xgbe_phy_if phy_if;
 	struct xgbe_desc_if desc_if;
+	struct xgbe_i2c_if i2c_if;
 
 	/* AXI DMA settings */
 	unsigned int coherent;
@@ -1065,6 +1120,12 @@ struct xgbe_prv_data {
 	unsigned long an_start;
 	enum xgbe_an_mode an_mode;
 
+	/* I2C support */
+	struct xgbe_i2c i2c;
+	struct mutex i2c_mutex;
+	struct completion i2c_complete;
+	char i2c_name[IFNAMSIZ + 32];
+
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
 
 #ifdef CONFIG_DEBUG_FS
@@ -1076,6 +1137,8 @@ struct xgbe_prv_data {
 	unsigned int debugfs_xpcs_reg;
 
 	unsigned int debugfs_xprop_reg;
+
+	unsigned int debugfs_xi2c_reg;
 #endif
 };
 
@@ -1101,6 +1164,7 @@ void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_phy_v1(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_phy_v2(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
+void xgbe_init_function_ptrs_i2c(struct xgbe_i2c_if *);
 const struct net_device_ops *xgbe_get_netdev_ops(void);
 const struct ethtool_ops *xgbe_get_ethtool_ops(void);
 

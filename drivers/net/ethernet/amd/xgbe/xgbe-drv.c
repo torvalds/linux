@@ -530,6 +530,10 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	if (pdata->vdata->ecc_support && (pdata->dev_irq == pdata->ecc_irq))
 		xgbe_ecc_isr(irq, pdata);
 
+	/* If there is not a separate I2C irq, handle it here */
+	if (pdata->vdata->i2c_support && (pdata->dev_irq == pdata->i2c_irq))
+		pdata->i2c_if.i2c_isr(irq, pdata);
+
 isr_done:
 	return IRQ_HANDLED;
 }
