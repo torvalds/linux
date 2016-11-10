@@ -142,18 +142,16 @@
 
 &vopb_rk_fb {
 	status = "okay";
-	rockchip,prop = <EXTEND>;
 };
 
 &disp_timings {
-	timing0 {
-		screen-width = <120>;
-		screen-hight = <68>;
+	/* for rayken dp */
+	timing1 {
+		screen-width = <68>;
+		screen-hight = <120>;
 	};
 };
 
 &vopl_rk_fb {
 	status = "okay";
-	rockchip,prop = <PRMRY>;
-
 };
