@@ -21,6 +21,10 @@ extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
 extern int amd_set_subcaches(int, unsigned long);
 
+extern int amd_smn_read(u16 node, u32 address, u32 *value);
+extern int amd_smn_write(u16 node, u32 address, u32 value);
+extern int amd_df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo);
+
 struct amd_l3_cache {
 	unsigned indices;
 	u8	 subcaches[4];
@@ -55,6 +59,7 @@ struct threshold_bank {
 };
 
 struct amd_northbridge {
+	struct pci_dev *root;
 	struct pci_dev *misc;
 	struct pci_dev *link;
 	struct amd_l3_cache l3_cache;

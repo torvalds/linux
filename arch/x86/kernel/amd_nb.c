@@ -13,10 +13,19 @@
 #include <linux/spinlock.h>
 #include <asm/amd_nb.h>
 
+#define PCI_DEVICE_ID_AMD_17H_ROOT	0x1450
 #define PCI_DEVICE_ID_AMD_17H_DF_F3	0x1463
 #define PCI_DEVICE_ID_AMD_17H_DF_F4	0x1464
 
+/* Protect the PCI config register pairs used for SMN and DF indirect access. */
+static DEFINE_MUTEX(smn_mutex);
+
 static u32 *flush_words;
+
+static const struct pci_device_id amd_root_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_17H_ROOT) },
+	{}
+};
 
 const struct pci_device_id amd_nb_misc_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MISC) },
@@ -80,11 +89,104 @@ static struct pci_dev *next_northbridge(struct pci_dev *dev,
 	return dev;
 }
 
+static int __amd_smn_rw(u16 node, u32 address, u32 *value, bool write)
+{
+	struct pci_dev *root;
+	int err = -ENODEV;
+
+	if (node >= amd_northbridges.num)
+		goto out;
+
+	root = node_to_amd_nb(node)->root;
+	if (!root)
+		goto out;
+
+	mutex_lock(&smn_mutex);
+
+	err = pci_write_config_dword(root, 0x60, address);
+	if (err) {
+		pr_warn("Error programming SMN address 0x%x.\n", address);
+		goto out_unlock;
+	}
+
+	err = (write ? pci_write_config_dword(root, 0x64, *value)
+		     : pci_read_config_dword(root, 0x64, value));
+	if (err)
+		pr_warn("Error %s SMN address 0x%x.\n",
+			(write ? "writing to" : "reading from"), address);
+
+out_unlock:
+	mutex_unlock(&smn_mutex);
+
+out:
+	return err;
+}
+
+int amd_smn_read(u16 node, u32 address, u32 *value)
+{
+	return __amd_smn_rw(node, address, value, false);
+}
+EXPORT_SYMBOL_GPL(amd_smn_read);
+
+int amd_smn_write(u16 node, u32 address, u32 value)
+{
+	return __amd_smn_rw(node, address, &value, true);
+}
+EXPORT_SYMBOL_GPL(amd_smn_write);
+
+/*
+ * Data Fabric Indirect Access uses FICAA/FICAD.
+ *
+ * Fabric Indirect Configuration Access Address (FICAA): Constructed based
+ * on the device's Instance Id and the PCI function and register offset of
+ * the desired register.
+ *
+ * Fabric Indirect Configuration Access Data (FICAD): There are FICAD LO
+ * and FICAD HI registers but so far we only need the LO register.
+ */
+int amd_df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo)
+{
+	struct pci_dev *F4;
+	u32 ficaa;
+	int err = -ENODEV;
+
+	if (node >= amd_northbridges.num)
+		goto out;
+
+	F4 = node_to_amd_nb(node)->link;
+	if (!F4)
+		goto out;
+
+	ficaa  = 1;
+	ficaa |= reg & 0x3FC;
+	ficaa |= (func & 0x7) << 11;
+	ficaa |= instance_id << 16;
+
+	mutex_lock(&smn_mutex);
+
+	err = pci_write_config_dword(F4, 0x5C, ficaa);
+	if (err) {
+		pr_warn("Error writing DF Indirect FICAA, FICAA=0x%x\n", ficaa);
+		goto out_unlock;
+	}
+
+	err = pci_read_config_dword(F4, 0x98, lo);
+	if (err)
+		pr_warn("Error reading DF Indirect FICAD LO, FICAA=0x%x.\n", ficaa);
+
+out_unlock:
+	mutex_unlock(&smn_mutex);
+
+out:
+	return err;
+}
+EXPORT_SYMBOL_GPL(amd_df_indirect_read);
+
 int amd_cache_northbridges(void)
 {
 	u16 i = 0;
 	struct amd_northbridge *nb;
-	struct pci_dev *misc, *link;
+	struct pci_dev *root, *misc, *link;
 
 	if (amd_northbridges.num)
 		return 0;
@@ -103,8 +205,10 @@ int amd_cache_northbridges(void)
 	amd_northbridges.nb = nb;
 	amd_northbridges.num = i;
 
-	link = misc = NULL;
+	link = misc = root = NULL;
 	for (i = 0; i != amd_northbridges.num; i++) {
+		node_to_amd_nb(i)->root = root =
+			next_northbridge(root, amd_root_ids);
 		node_to_amd_nb(i)->misc = misc =
 			next_northbridge(misc, amd_nb_misc_ids);
 		node_to_amd_nb(i)->link = link =
