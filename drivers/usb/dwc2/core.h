@@ -884,6 +884,12 @@ struct dwc2_hregs_backup {
  * @ctrl_req:           Request for EP0 control packets.
  * @ep0_state:          EP0 control transfers state
  * @test_mode:          USB test mode requested by the host
+ * @setup_desc_dma:	EP0 setup stage desc chain DMA address
+ * @setup_desc:		EP0 setup stage desc chain pointer
+ * @ctrl_in_desc_dma:	EP0 IN data phase desc chain DMA address
+ * @ctrl_in_desc:	EP0 IN data phase desc chain pointer
+ * @ctrl_out_desc_dma:	EP0 OUT data phase desc chain DMA address
+ * @ctrl_out_desc:	EP0 OUT data phase desc chain pointer
  * @eps:                The endpoints being supplied to the gadget framework
  */
 struct dwc2_hsotg {
@@ -1026,6 +1032,13 @@ struct dwc2_hsotg {
 	void *ctrl_buff;
 	enum dwc2_ep0_state ep0_state;
 	u8 test_mode;
+
+	dma_addr_t setup_desc_dma[2];
+	struct dwc2_dma_desc *setup_desc[2];
+	dma_addr_t ctrl_in_desc_dma;
+	struct dwc2_dma_desc *ctrl_in_desc;
+	dma_addr_t ctrl_out_desc_dma;
+	struct dwc2_dma_desc *ctrl_out_desc;
 
 	struct usb_gadget gadget;
 	unsigned int enabled:1;

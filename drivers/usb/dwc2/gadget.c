@@ -324,6 +324,54 @@ static void dwc2_hsotg_unmap_dma(struct dwc2_hsotg *hsotg,
 	usb_gadget_unmap_request(&hsotg->gadget, req, hs_ep->dir_in);
 }
 
+/*
+ * dwc2_gadget_alloc_ctrl_desc_chains - allocate DMA descriptor chains
+ * for Control endpoint
+ * @hsotg: The device state.
+ *
+ * This function will allocate 4 descriptor chains for EP 0: 2 for
+ * Setup stage, per one for IN and OUT data/status transactions.
+ */
+static int dwc2_gadget_alloc_ctrl_desc_chains(struct dwc2_hsotg *hsotg)
+{
+	hsotg->setup_desc[0] =
+		dmam_alloc_coherent(hsotg->dev,
+				    sizeof(struct dwc2_dma_desc),
+				    &hsotg->setup_desc_dma[0],
+				    GFP_KERNEL);
+	if (!hsotg->setup_desc[0])
+		goto fail;
+
+	hsotg->setup_desc[1] =
+		dmam_alloc_coherent(hsotg->dev,
+				    sizeof(struct dwc2_dma_desc),
+				    &hsotg->setup_desc_dma[1],
+				    GFP_KERNEL);
+	if (!hsotg->setup_desc[1])
+		goto fail;
+
+	hsotg->ctrl_in_desc =
+		dmam_alloc_coherent(hsotg->dev,
+				    sizeof(struct dwc2_dma_desc),
+				    &hsotg->ctrl_in_desc_dma,
+				    GFP_KERNEL);
+	if (!hsotg->ctrl_in_desc)
+		goto fail;
+
+	hsotg->ctrl_out_desc =
+		dmam_alloc_coherent(hsotg->dev,
+				    sizeof(struct dwc2_dma_desc),
+				    &hsotg->ctrl_out_desc_dma,
+				    GFP_KERNEL);
+	if (!hsotg->ctrl_out_desc)
+		goto fail;
+
+	return 0;
+
+fail:
+	return -ENOMEM;
+}
+
 /**
  * dwc2_hsotg_write_fifo - write packet Data to the TxFIFO
  * @hsotg: The controller state.
@@ -3856,6 +3904,12 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
 	if (!hsotg->ep0_buff)
 		return -ENOMEM;
+
+	if (using_desc_dma(hsotg)) {
+		ret = dwc2_gadget_alloc_ctrl_desc_chains(hsotg);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = devm_request_irq(hsotg->dev, irq, dwc2_hsotg_irq, IRQF_SHARED,
 				dev_name(hsotg->dev), hsotg);
