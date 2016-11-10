@@ -641,8 +641,11 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_MFC_R2H_CMD_ERR_RET:
 		/* An error has occurred */
 		if (ctx->state == MFCINST_RUNNING &&
-			s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
-				dev->warn_start)
+			(s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
+				dev->warn_start ||
+				err == S5P_FIMV_ERR_NO_VALID_SEQ_HDR ||
+				err == S5P_FIMV_ERR_INCOMPLETE_FRAME ||
+				err == S5P_FIMV_ERR_TIMEOUT))
 			s5p_mfc_handle_frame(ctx, reason, err);
 		else
 			s5p_mfc_handle_error(dev, ctx, reason, err);
