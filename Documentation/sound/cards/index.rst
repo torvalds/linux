@@ -10,3 +10,4 @@ Card-Specific Information
    audigy-mixer
    emu10k1-jack
    via82xx-mixer
+   audiophile-usb
