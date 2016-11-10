@@ -1675,8 +1675,15 @@ restart:
 
 	if (cld_is_recover(cld)) {
 		rc = 0; /* this is not a fatal error for recover log */
-		if (rcl == 0)
+		if (!rcl) {
 			rc = mgc_process_recover_log(mgc, cld);
+			if (rc) {
+				CERROR("%s: recover log %s failed: rc = %d not fatal.\n",
+				       mgc->obd_name, cld->cld_logname, rc);
+				rc = 0;
+				cld->cld_lostlock = 1;
+			}
+		}
 	} else {
 		rc = mgc_process_cfg_log(mgc, cld, rcl != 0);
 	}
