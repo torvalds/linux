@@ -110,6 +110,32 @@ static ssize_t show_screen_info(struct device *dev,
 			fps, screen->type, screen->mode.vmode);
 }
 
+static ssize_t set_screen_info(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+	int xmirror = 0, ymirror = 0, ret = 0, rotate = 0;
+
+	ret = kstrtoint(buf, 0, &rotate);
+	if (ret)
+		return ret;
+	xmirror = !!(rotate & X_MIRROR);
+	ymirror = !!(rotate & Y_MIRROR);
+	dev_drv->cur_screen->x_mirror = xmirror;
+	dev_drv->cur_screen->y_mirror = ymirror;
+	mutex_lock(&dev_drv->output_lock);
+	mutex_lock(&dev_drv->win_config);
+	if (dev_drv->ops->extern_func)
+		dev_drv->ops->extern_func(dev_drv, SET_DSP_MIRROR);
+	mutex_unlock(&dev_drv->win_config);
+	mutex_unlock(&dev_drv->output_lock);
+
+	return count;
+}
+
 static ssize_t show_disp_info(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -1262,7 +1288,8 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
 	__ATTR(dump_buf, S_IRUGO | S_IWUSR, show_dump_buffer, set_dump_buffer),
 	__ATTR(dsp_buf, S_IRUGO | S_IWUSR, show_dsp_buffer, set_dsp_buffer),
-	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
+	__ATTR(screen_info, S_IRUGO | S_IWUSR,
+	       show_screen_info, set_screen_info),
 	__ATTR(dual_mode, S_IRUGO, show_dual_mode, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
 	__ATTR(overlay, S_IRUGO | S_IWUSR, show_overlay, set_overlay),

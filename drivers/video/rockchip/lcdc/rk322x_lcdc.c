@@ -4820,6 +4820,7 @@ static int vop_extern_func(struct rk_lcdc_driver *dev_drv, int cmd)
 {
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
+	u64 val;
 
 	if (unlikely(!vop_dev->clk_on)) {
 		pr_info("%s,clk_on = %d\n", __func__, vop_dev->clk_on);
@@ -4829,6 +4830,14 @@ static int vop_extern_func(struct rk_lcdc_driver *dev_drv, int cmd)
 	switch (cmd) {
 	case UPDATE_CABC_PWM:
 		vop_cfg_done(vop_dev);
+		break;
+	case SET_DSP_MIRROR:
+		val = V_DSP_X_MIR_EN(dev_drv->cur_screen->x_mirror) |
+			V_DSP_Y_MIR_EN(dev_drv->cur_screen->y_mirror);
+		vop_msk_reg(vop_dev, DSP_CTRL0, val);
+		pr_info("%s: xmirror: %d, ymirror: %d\n",
+			__func__, dev_drv->cur_screen->x_mirror,
+			dev_drv->cur_screen->y_mirror);
 		break;
 	default:
 		break;
