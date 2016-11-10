@@ -223,6 +223,8 @@ source "drivers/gpu/drm/hisilicon/Kconfig"
 
 source "drivers/gpu/drm/mediatek/Kconfig"
 
+source "drivers/gpu/drm/meson/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
