@@ -361,7 +361,7 @@ static int m88e1111_config_aneg(struct phy_device *phydev)
 static int marvell_of_reg_init(struct phy_device *phydev)
 {
 	const __be32 *paddr;
-	int len, i, saved_page, current_page, page_changed, ret;
+	int len, i, saved_page, current_page, ret;
 
 	if (!phydev->mdio.dev.of_node)
 		return 0;
@@ -374,7 +374,6 @@ static int marvell_of_reg_init(struct phy_device *phydev)
 	saved_page = phy_read(phydev, MII_MARVELL_PHY_PAGE);
 	if (saved_page < 0)
 		return saved_page;
-	page_changed = 0;
 	current_page = saved_page;
 
 	ret = 0;
@@ -388,7 +387,6 @@ static int marvell_of_reg_init(struct phy_device *phydev)
 
 		if (reg_page != current_page) {
 			current_page = reg_page;
-			page_changed = 1;
 			ret = phy_write(phydev, MII_MARVELL_PHY_PAGE, reg_page);
 			if (ret < 0)
 				goto err;
@@ -411,7 +409,7 @@ static int marvell_of_reg_init(struct phy_device *phydev)
 
 	}
 err:
-	if (page_changed) {
+	if (current_page != saved_page) {
 		i = phy_write(phydev, MII_MARVELL_PHY_PAGE, saved_page);
 		if (ret == 0)
 			ret = i;
