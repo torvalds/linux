@@ -14,3 +14,4 @@ The documentation is spilt into the following sections:-
    platform
    machine
    pops-clicks
+   clocking
