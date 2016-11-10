@@ -1000,7 +1000,7 @@ static void audit_log_execve_info(struct audit_context *context,
 	long len_rem;
 	long len_full;
 	long len_buf;
-	long len_abuf;
+	long len_abuf = 0;
 	long len_tmp;
 	bool require_data;
 	bool encode;
