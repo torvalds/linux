@@ -236,8 +236,7 @@ void xgbe_set_counts(struct xgbe_prv_data *pdata)
 
 	pdata->tx_q_count = pdata->tx_ring_count;
 
-	pdata->rx_ring_count = min_t(unsigned int,
-				     netif_get_num_default_rss_queues(),
+	pdata->rx_ring_count = min_t(unsigned int, num_online_cpus(),
 				     pdata->hw_feat.rx_ch_cnt);
 	pdata->rx_ring_count = min_t(unsigned int, pdata->rx_ring_count,
 				     pdata->rx_max_channel_count);
