@@ -164,12 +164,12 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		if (ports[i]) {
 			/* At this point we have our region reserved */
 			magic_configure(i, 0, magic); /* no IRQ yet */
-			outb(0xc0, ports[i] + 9);
-			if (inb(ports[i] + 9) != 0x80) {
+			base = ports[i];
+			outb(0xc0, base + 9);
+			if (inb(base + 9) != 0x80) {
 				ret = -ENODEV;
 				goto out_release;
 			}
-			base = ports[i];
 			port_idx = i;
 		} else
 			return -EINVAL;
