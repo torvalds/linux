@@ -131,9 +131,8 @@
 /*                        SET_FC_FSTYPE(WLAN_FSTYPE_RTS) );   */
 /*------------------------------------------------------------*/
 
-#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT(2) | BIT(3))) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & \
-				(BIT(4) | BIT(5) | BIT(6) | BIT(7))) >> 4)
+#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & GENMASK(3, 2)) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & GENMASK(7, 4)) >> 4)
 #define WLAN_GET_FC_TODS(n)	((((u16)(n)) & (BIT(8))) >> 8)
 #define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT(9))) >> 9)
 #define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT(14))) >> 14)
