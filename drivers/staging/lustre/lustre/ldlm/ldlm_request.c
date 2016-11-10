@@ -93,11 +93,7 @@ static int ldlm_expired_completion_wait(void *data)
 	if (!lock->l_conn_export) {
 		static unsigned long next_dump, last_dump;
 
-		LCONSOLE_WARN("lock timed out (enqueued at %lld, %llds ago)\n",
-			      (s64)lock->l_last_activity,
-			      (s64)(ktime_get_real_seconds() -
-				    lock->l_last_activity));
-		LDLM_DEBUG(lock, "lock timed out (enqueued at %lld, %llds ago); not entering recovery in server code, just going back to sleep",
+		LDLM_ERROR(lock, "lock timed out (enqueued at %lld, %llds ago); not entering recovery in server code, just going back to sleep",
 			   (s64)lock->l_last_activity,
 			   (s64)(ktime_get_real_seconds() -
 				 lock->l_last_activity));
