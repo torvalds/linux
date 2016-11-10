@@ -356,10 +356,10 @@ static int ldlm_pool_recalc(struct ldlm_pool *pl)
 	u32 recalc_interval_sec;
 	int count;
 
-	recalc_interval_sec = ktime_get_seconds() - pl->pl_recalc_time;
+	recalc_interval_sec = ktime_get_real_seconds() - pl->pl_recalc_time;
 	if (recalc_interval_sec > 0) {
 		spin_lock(&pl->pl_lock);
-		recalc_interval_sec = ktime_get_seconds() - pl->pl_recalc_time;
+		recalc_interval_sec = ktime_get_real_seconds() - pl->pl_recalc_time;
 
 		if (recalc_interval_sec > 0) {
 			/*
@@ -382,7 +382,7 @@ static int ldlm_pool_recalc(struct ldlm_pool *pl)
 				    count);
 	}
 
-	recalc_interval_sec = pl->pl_recalc_time - ktime_get_seconds() +
+	recalc_interval_sec = pl->pl_recalc_time - ktime_get_real_seconds() +
 			      pl->pl_recalc_period;
 	if (recalc_interval_sec <= 0) {
 		/* DEBUG: should be re-removed after LU-4536 is fixed */
@@ -657,7 +657,7 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 
 	spin_lock_init(&pl->pl_lock);
 	atomic_set(&pl->pl_granted, 0);
-	pl->pl_recalc_time = ktime_get_seconds();
+	pl->pl_recalc_time = ktime_get_real_seconds();
 	atomic_set(&pl->pl_lock_volume_factor, 1);
 
 	atomic_set(&pl->pl_grant_rate, 0);
