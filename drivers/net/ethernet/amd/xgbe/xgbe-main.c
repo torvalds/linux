@@ -291,6 +291,19 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_RX_DESC_CNT);
 	pdata->rx_desc_count = XGBE_RX_DESC_CNT;
 
+	/* Adjust the number of queues based on interrupts assigned */
+	if (pdata->channel_irq_count) {
+		pdata->tx_ring_count = min_t(unsigned int, pdata->tx_ring_count,
+					     pdata->channel_irq_count);
+		pdata->rx_ring_count = min_t(unsigned int, pdata->rx_ring_count,
+					     pdata->channel_irq_count);
+
+		if (netif_msg_probe(pdata))
+			dev_dbg(pdata->dev,
+				"adjusted TX/RX DMA channel count = %u/%u\n",
+				pdata->tx_ring_count, pdata->rx_ring_count);
+	}
+
 	/* Set the number of queues */
 	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
 	if (ret) {
@@ -393,6 +406,11 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 
 	xgbe_debugfs_init(pdata);
 
+	netif_dbg(pdata, drv, pdata->netdev, "%u Tx software queues\n",
+		  pdata->tx_ring_count);
+	netif_dbg(pdata, drv, pdata->netdev, "%u Rx software queues\n",
+		  pdata->rx_ring_count);
+
 	return 0;
 
 err_wq:
@@ -431,11 +449,17 @@ static int __init xgbe_mod_init(void)
 	if (ret)
 		return ret;
 
+	ret = xgbe_pci_init();
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static void __exit xgbe_mod_exit(void)
 {
+	xgbe_pci_exit();
+
 	xgbe_platform_exit();
 }
 

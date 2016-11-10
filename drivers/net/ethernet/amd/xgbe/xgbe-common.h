@@ -858,7 +858,14 @@
 
 /* PCS register offsets */
 #define PCS_V1_WINDOW_SELECT		0x03fc
+#define PCS_V2_WINDOW_DEF		0x9060
 #define PCS_V2_WINDOW_SELECT		0x9064
+
+/* PCS register entry bit positions and sizes */
+#define PCS_V2_WINDOW_DEF_OFFSET_INDEX	6
+#define PCS_V2_WINDOW_DEF_OFFSET_WIDTH	14
+#define PCS_V2_WINDOW_DEF_SIZE_INDEX	2
+#define PCS_V2_WINDOW_DEF_SIZE_WIDTH	4
 
 /* SerDes integration register offsets */
 #define SIR0_KR_RT_1			0x002c
@@ -901,6 +908,55 @@
 #define RXTX_REG114_PQ_REG_WIDTH	7
 #define RXTX_REG129_RXDFE_CONFIG_INDEX	14
 #define RXTX_REG129_RXDFE_CONFIG_WIDTH	2
+
+/* MAC Control register offsets */
+#define XP_PROP_0			0x0000
+#define XP_PROP_1			0x0004
+#define XP_PROP_2			0x0008
+#define XP_PROP_3			0x000c
+#define XP_PROP_4			0x0010
+#define XP_PROP_5			0x0014
+#define XP_MAC_ADDR_LO			0x0020
+#define XP_MAC_ADDR_HI			0x0024
+#define XP_DRIVER_INT_REQ		0x0060
+#define XP_DRIVER_INT_RO		0x0064
+#define XP_DRIVER_SCRATCH_0		0x0068
+#define XP_DRIVER_SCRATCH_1		0x006c
+#define XP_INT_EN			0x0078
+
+/* MAC Control register entry bit positions and sizes */
+#define XP_DRIVER_INT_REQ_REQUEST_INDEX		0
+#define XP_DRIVER_INT_REQ_REQUEST_WIDTH		1
+#define XP_DRIVER_INT_RO_STATUS_INDEX		0
+#define XP_DRIVER_INT_RO_STATUS_WIDTH		1
+#define XP_DRIVER_SCRATCH_0_COMMAND_INDEX	0
+#define XP_DRIVER_SCRATCH_0_COMMAND_WIDTH	8
+#define XP_DRIVER_SCRATCH_0_SUB_COMMAND_INDEX	8
+#define XP_DRIVER_SCRATCH_0_SUB_COMMAND_WIDTH	8
+#define XP_MAC_ADDR_HI_VALID_INDEX		31
+#define XP_MAC_ADDR_HI_VALID_WIDTH		1
+#define XP_PROP_0_CONN_TYPE_INDEX		28
+#define XP_PROP_0_CONN_TYPE_WIDTH		3
+#define XP_PROP_0_MDIO_ADDR_INDEX		16
+#define XP_PROP_0_MDIO_ADDR_WIDTH		5
+#define XP_PROP_0_PORT_ID_INDEX			0
+#define XP_PROP_0_PORT_ID_WIDTH			8
+#define XP_PROP_0_PORT_MODE_INDEX		8
+#define XP_PROP_0_PORT_MODE_WIDTH		4
+#define XP_PROP_0_PORT_SPEEDS_INDEX		23
+#define XP_PROP_0_PORT_SPEEDS_WIDTH		4
+#define XP_PROP_1_MAX_RX_DMA_INDEX		24
+#define XP_PROP_1_MAX_RX_DMA_WIDTH		5
+#define XP_PROP_1_MAX_RX_QUEUES_INDEX		8
+#define XP_PROP_1_MAX_RX_QUEUES_WIDTH		5
+#define XP_PROP_1_MAX_TX_DMA_INDEX		16
+#define XP_PROP_1_MAX_TX_DMA_WIDTH		5
+#define XP_PROP_1_MAX_TX_QUEUES_INDEX		0
+#define XP_PROP_1_MAX_TX_QUEUES_WIDTH		5
+#define XP_PROP_2_RX_FIFO_SIZE_INDEX		16
+#define XP_PROP_2_RX_FIFO_SIZE_WIDTH		16
+#define XP_PROP_2_TX_FIFO_SIZE_INDEX		0
+#define XP_PROP_2_TX_FIFO_SIZE_WIDTH		16
 
 /* Descriptor/Packet entry bit positions and sizes */
 #define RX_PACKET_ERRORS_CRC_INDEX		2
@@ -1240,6 +1296,16 @@ do {									\
 /* Macros for building, reading or writing register values or bits
  * within the register values of XPCS registers.
  */
+#define XPCS_GET_BITS(_var, _prefix, _field)				\
+	GET_BITS((_var),                                                \
+		 _prefix##_##_field##_INDEX,                            \
+		 _prefix##_##_field##_WIDTH)
+
+#define XPCS_SET_BITS(_var, _prefix, _field, _val)                      \
+	SET_BITS((_var),                                                \
+		 _prefix##_##_field##_INDEX,                            \
+		 _prefix##_##_field##_WIDTH, (_val))
+
 #define XPCS32_IOWRITE(_pdata, _off, _val)				\
 	iowrite32(_val, (_pdata)->xpcs_regs + (_off))
 
@@ -1326,6 +1392,39 @@ do {									\
 		 _reg##_##_field##_INDEX,				\
 		 _reg##_##_field##_WIDTH, (_val));			\
 	XRXTX_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
+
+/* Macros for building, reading or writing register values or bits
+ * within the register values of MAC Control registers.
+ */
+#define XP_GET_BITS(_var, _prefix, _field)				\
+	GET_BITS((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH)
+
+#define XP_SET_BITS(_var, _prefix, _field, _val)			\
+	SET_BITS((_var),						\
+		 _prefix##_##_field##_INDEX,				\
+		 _prefix##_##_field##_WIDTH, (_val))
+
+#define XP_IOREAD(_pdata, _reg)						\
+	ioread32((_pdata)->xprop_regs + (_reg))
+
+#define XP_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XP_IOREAD((_pdata), (_reg)),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XP_IOWRITE(_pdata, _reg, _val)					\
+	iowrite32((_val), (_pdata)->xprop_regs + (_reg))
+
+#define XP_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u32 reg_val = XP_IOREAD((_pdata), (_reg));			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XP_IOWRITE((_pdata), (_reg), reg_val);				\
 } while (0)
 
 /* Macros for building, reading or writing register values or bits

@@ -200,6 +200,20 @@
 #define XGBE_ACPI_DMA_FREQ	"amd,dma-freq"
 #define XGBE_ACPI_PTP_FREQ	"amd,ptp-freq"
 
+/* PCI BAR mapping */
+#define XGBE_XGMAC_BAR		0
+#define XGBE_XPCS_BAR		1
+#define XGBE_MAC_PROP_OFFSET	0x1d000
+#define XGBE_I2C_CTRL_OFFSET	0x1e000
+
+/* PCI MSIx support */
+#define XGBE_MSIX_BASE_COUNT	4
+#define XGBE_MSIX_MIN_COUNT	(XGBE_MSIX_BASE_COUNT + 1)
+
+/* PCI clock frequencies */
+#define XGBE_V2_DMA_CLOCK_FREQ	500000000	/* 500 MHz */
+#define XGBE_V2_PTP_CLOCK_FREQ	125000000	/* 125 MHz */
+
 /* Timestamp support - values based on 50MHz PTP clock
  *   50MHz => 20 nsec
  */
@@ -738,6 +752,9 @@ struct xgbe_phy_if {
 	/* For PHY settings validation */
 	bool (*phy_valid_speed)(struct xgbe_prv_data *, int);
 
+	/* For single interrupt support */
+	irqreturn_t (*an_isr)(int, struct xgbe_prv_data *);
+
 	/* PHY implementation specific services */
 	struct xgbe_phy_impl_if phy_impl;
 };
@@ -810,6 +827,7 @@ struct xgbe_version_data {
 
 struct xgbe_prv_data {
 	struct net_device *netdev;
+	struct pci_dev *pcidev;
 	struct platform_device *platdev;
 	struct acpi_device *adev;
 	struct device *dev;
@@ -828,6 +846,8 @@ struct xgbe_prv_data {
 	void __iomem *rxtx_regs;	/* SerDes Rx/Tx CSRs */
 	void __iomem *sir0_regs;	/* SerDes integration registers (1/2) */
 	void __iomem *sir1_regs;	/* SerDes integration registers (2/2) */
+	void __iomem *xprop_regs;	/* XGBE property registers */
+	void __iomem *xi2c_regs;	/* XGBE I2C CSRs */
 
 	/* Overall device lock */
 	spinlock_t lock;
@@ -844,9 +864,16 @@ struct xgbe_prv_data {
 	/* Flags representing xgbe_state */
 	unsigned long dev_state;
 
+	struct msix_entry *msix_entries;
 	int dev_irq;
-	unsigned int per_channel_irq;
+	int ecc_irq;
+	int i2c_irq;
 	int channel_irq[XGBE_MAX_DMA_CHANNELS];
+
+	unsigned int per_channel_irq;
+	unsigned int irq_shared;
+	unsigned int irq_count;
+	unsigned int channel_irq_count;
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_phy_if phy_if;
@@ -1009,6 +1036,8 @@ struct xgbe_prv_data {
 
 	unsigned int debugfs_xpcs_mmd;
 	unsigned int debugfs_xpcs_reg;
+
+	unsigned int debugfs_xprop_reg;
 #endif
 };
 
@@ -1021,10 +1050,18 @@ void xgbe_deconfig_netdev(struct xgbe_prv_data *);
 
 int xgbe_platform_init(void);
 void xgbe_platform_exit(void);
+#ifdef CONFIG_PCI
+int xgbe_pci_init(void);
+void xgbe_pci_exit(void);
+#else
+static inline int xgbe_pci_init(void) { return 0; }
+static inline void xgbe_pci_exit(void) { }
+#endif
 
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_phy_v1(struct xgbe_phy_if *);
+void xgbe_init_function_ptrs_phy_v2(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
 const struct net_device_ops *xgbe_get_netdev_ops(void);
 const struct ethtool_ops *xgbe_get_ethtool_ops(void);

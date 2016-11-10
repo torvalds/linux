@@ -640,6 +640,11 @@ static irqreturn_t xgbe_an_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t xgbe_an_combined_isr(int irq, struct xgbe_prv_data *pdata)
+{
+	return xgbe_an_isr(irq, pdata);
+}
+
 static void xgbe_an_irq_work(struct work_struct *work)
 {
 	struct xgbe_prv_data *pdata = container_of(work,
@@ -1237,7 +1242,8 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 	/* Disable auto-negotiation */
 	xgbe_an_disable_all(pdata);
 
-	devm_free_irq(pdata->dev, pdata->an_irq, pdata);
+	if (pdata->dev_irq != pdata->an_irq)
+		devm_free_irq(pdata->dev, pdata->an_irq, pdata);
 
 	pdata->phy_if.phy_impl.stop(pdata);
 
@@ -1258,12 +1264,15 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(pdata->dev, pdata->an_irq,
-			       xgbe_an_isr, 0, pdata->an_name,
-			       pdata);
-	if (ret) {
-		netdev_err(netdev, "phy irq request failed\n");
-		goto err_stop;
+	/* If we have a separate AN irq, enable it */
+	if (pdata->dev_irq != pdata->an_irq) {
+		ret = devm_request_irq(pdata->dev, pdata->an_irq,
+				       xgbe_an_isr, 0, pdata->an_name,
+				       pdata);
+		if (ret) {
+			netdev_err(netdev, "phy irq request failed\n");
+			goto err_stop;
+		}
 	}
 
 	/* Set initial mode - call the mode setting routines
@@ -1289,7 +1298,8 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 	return xgbe_phy_config_aneg(pdata);
 
 err_irq:
-	devm_free_irq(pdata->dev, pdata->an_irq, pdata);
+	if (pdata->dev_irq != pdata->an_irq)
+		devm_free_irq(pdata->dev, pdata->an_irq, pdata);
 
 err_stop:
 	pdata->phy_if.phy_impl.stop(pdata);
@@ -1442,4 +1452,6 @@ void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *phy_if)
 	phy_if->phy_config_aneg = xgbe_phy_config_aneg;
 
 	phy_if->phy_valid_speed = xgbe_phy_valid_speed;
+
+	phy_if->an_isr          = xgbe_an_combined_isr;
 }

@@ -374,6 +374,10 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 		}
 	}
 
+	/* If there is not a separate AN irq, handle it here */
+	if (pdata->dev_irq == pdata->an_irq)
+		pdata->phy_if.an_isr(irq, pdata);
+
 isr_done:
 	return IRQ_HANDLED;
 }
@@ -864,15 +868,15 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	hw_if->init(pdata);
 
-	ret = phy_if->phy_start(pdata);
-	if (ret)
-		goto err_phy;
-
 	xgbe_napi_enable(pdata, 1);
 
 	ret = xgbe_request_irqs(pdata);
 	if (ret)
 		goto err_napi;
+
+	ret = phy_if->phy_start(pdata);
+	if (ret)
+		goto err_irqs;
 
 	hw_if->enable_tx(pdata);
 	hw_if->enable_rx(pdata);
@@ -886,12 +890,12 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	return 0;
 
+err_irqs:
+	xgbe_free_irqs(pdata);
+
 err_napi:
 	xgbe_napi_disable(pdata, 1);
 
-	phy_if->phy_stop(pdata);
-
-err_phy:
 	hw_if->exit(pdata);
 
 	return ret;
