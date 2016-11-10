@@ -13,3 +13,4 @@ Card-Specific Information
    audiophile-usb
    mixart
    bt87x
+   maya44
