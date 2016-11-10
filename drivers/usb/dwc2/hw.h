@@ -802,7 +802,7 @@
 struct dwc2_dma_desc {
 	u32 status;
 	u32 buf;
-};
+} __packed;
 
 #define HOST_DMA_A			(1 << 31)
 #define HOST_DMA_STS_MASK		(0x3 << 28)
