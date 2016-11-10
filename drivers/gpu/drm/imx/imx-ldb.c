@@ -319,18 +319,6 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int mux, ret;
 
-	/*
-	 * imx_ldb_encoder_disable is called by
-	 * drm_helper_disable_unused_functions without
-	 * the encoder being enabled before.
-	 */
-	if (imx_ldb_ch == &ldb->channel[0] &&
-	    (ldb->ldb_ctrl & LDB_CH0_MODE_EN_MASK) == 0)
-		return;
-	else if (imx_ldb_ch == &ldb->channel[1] &&
-		 (ldb->ldb_ctrl & LDB_CH1_MODE_EN_MASK) == 0)
-		return;
-
 	drm_panel_disable(imx_ldb_ch->panel);
 
 	if (imx_ldb_ch == &ldb->channel[0])
