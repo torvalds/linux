@@ -66,6 +66,7 @@ struct ovs_frag_data {
 	u16 vlan_tci;
 	__be16 vlan_proto;
 	unsigned int l2_len;
+	u8 mac_proto;
 	u8 l2_data[MAX_L2_LEN];
 };
 
@@ -673,7 +674,7 @@ static int ovs_vport_output(struct net *net, struct sock *sk, struct sk_buff *sk
 		skb_reset_mac_len(skb);
 	}
 
-	ovs_vport_send(vport, skb);
+	ovs_vport_send(vport, skb, data->mac_proto);
 	return 0;
 }
 
@@ -692,7 +693,7 @@ static struct dst_ops ovs_dst_ops = {
  * ovs_vport_output(), which is called once per fragmented packet.
  */
 static void prepare_frag(struct vport *vport, struct sk_buff *skb,
-			 u16 orig_network_offset)
+			 u16 orig_network_offset, u8 mac_proto)
 {
 	unsigned int hlen = skb_network_offset(skb);
 	struct ovs_frag_data *data;
@@ -705,6 +706,7 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb,
 	data->network_offset = orig_network_offset;
 	data->vlan_tci = skb->vlan_tci;
 	data->vlan_proto = skb->vlan_proto;
+	data->mac_proto = mac_proto;
 	data->l2_len = hlen;
 	memcpy(&data->l2_data, skb->data, hlen);
 
@@ -713,7 +715,8 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb,
 }
 
 static void ovs_fragment(struct net *net, struct vport *vport,
-			 struct sk_buff *skb, u16 mru, __be16 ethertype)
+			 struct sk_buff *skb, u16 mru,
+			 struct sw_flow_key *key)
 {
 	u16 orig_network_offset = 0;
 
@@ -727,11 +730,12 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		goto err;
 	}
 
-	if (ethertype == htons(ETH_P_IP)) {
+	if (key->eth.type == htons(ETH_P_IP)) {
 		struct dst_entry ovs_dst;
 		unsigned long orig_dst;
 
-		prepare_frag(vport, skb, orig_network_offset);
+		prepare_frag(vport, skb, orig_network_offset,
+			     ovs_key_mac_proto(key));
 		dst_init(&ovs_dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
 		ovs_dst.dev = vport->dev;
@@ -742,7 +746,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 
 		ip_do_fragment(net, skb->sk, skb, ovs_vport_output);
 		refdst_drop(orig_dst);
-	} else if (ethertype == htons(ETH_P_IPV6)) {
+	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		unsigned long orig_dst;
 		struct rt6_info ovs_rt;
@@ -751,7 +755,8 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 			goto err;
 		}
 
-		prepare_frag(vport, skb, orig_network_offset);
+		prepare_frag(vport, skb, orig_network_offset,
+			     ovs_key_mac_proto(key));
 		memset(&ovs_rt, 0, sizeof(ovs_rt));
 		dst_init(&ovs_rt.dst, &ovs_dst_ops, NULL, 1,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
@@ -765,7 +770,7 @@ static void ovs_fragment(struct net *net, struct vport *vport,
 		refdst_drop(orig_dst);
 	} else {
 		WARN_ONCE(1, "Failed fragment ->%s: eth=%04x, MRU=%d, MTU=%d.",
-			  ovs_vport_name(vport), ntohs(ethertype), mru,
+			  ovs_vport_name(vport), ntohs(key->eth.type), mru,
 			  vport->dev->mtu);
 		goto err;
 	}
@@ -785,19 +790,19 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 		u32 cutlen = OVS_CB(skb)->cutlen;
 
 		if (unlikely(cutlen > 0)) {
-			if (skb->len - cutlen > ETH_HLEN)
+			if (skb->len - cutlen > ovs_mac_header_len(key))
 				pskb_trim(skb, skb->len - cutlen);
 			else
-				pskb_trim(skb, ETH_HLEN);
+				pskb_trim(skb, ovs_mac_header_len(key));
 		}
 
 		if (likely(!mru ||
 		           (skb->len <= mru + vport->dev->hard_header_len))) {
-			ovs_vport_send(vport, skb);
+			ovs_vport_send(vport, skb, ovs_key_mac_proto(key));
 		} else if (mru <= vport->dev->mtu) {
 			struct net *net = read_pnet(&dp->net);
 
-			ovs_fragment(net, vport, skb, mru, key->eth.type);
+			ovs_fragment(net, vport, skb, mru, key);
 		} else {
 			kfree_skb(skb);
 		}

@@ -481,7 +481,7 @@ static unsigned int packet_length(const struct sk_buff *skb,
 	return length;
 }
 
-void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto)
 {
 	int mtu = vport->dev->mtu;
 
