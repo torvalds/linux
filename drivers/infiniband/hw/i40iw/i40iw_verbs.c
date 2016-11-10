@@ -67,13 +67,13 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->vendor_part_id = iwdev->ldev->pcidev->device;
 	props->hw_ver = (u32)iwdev->sc_dev.hw_rev;
 	props->max_mr_size = I40IW_MAX_OUTBOUND_MESSAGE_SIZE;
-	props->max_qp = iwdev->max_qp;
+	props->max_qp = iwdev->max_qp - iwdev->used_qps;
 	props->max_qp_wr = (I40IW_MAX_WQ_ENTRIES >> 2) - 1;
 	props->max_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
-	props->max_cq = iwdev->max_cq;
+	props->max_cq = iwdev->max_cq - iwdev->used_cqs;
 	props->max_cqe = iwdev->max_cqe;
-	props->max_mr = iwdev->max_mr;
-	props->max_pd = iwdev->max_pd;
+	props->max_mr = iwdev->max_mr - iwdev->used_mrs;
+	props->max_pd = iwdev->max_pd - iwdev->used_pds;
 	props->max_sge_rd = I40IW_MAX_SGE_RD;
 	props->max_qp_rd_atom = I40IW_MAX_IRD_SIZE;
 	props->max_qp_init_rd_atom = props->max_qp_rd_atom;

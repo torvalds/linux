@@ -76,7 +76,8 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_ORD_SIZE =			127,
 	I40IW_MAX_WQ_ENTRIES =			2048,
 	I40IW_Q2_BUFFER_SIZE =			(248 + 100),
-	I40IW_QP_CTX_SIZE =			248
+	I40IW_QP_CTX_SIZE =			248,
+	I40IW_MAX_PDS = 			32768
 };
 
 #define i40iw_handle void *

@@ -303,6 +303,10 @@ struct i40iw_device {
 	u32 mr_stagmask;
 	u32 mpa_version;
 	bool dcb;
+	u32 used_pds;
+	u32 used_cqs;
+	u32 used_mrs;
+	u32 used_qps;
 };
 
 struct i40iw_ib_device {

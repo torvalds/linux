@@ -62,7 +62,7 @@ u32 i40iw_initialize_hw_resources(struct i40iw_device *iwdev)
 	max_mr = iwdev->sc_dev.hmc_info->hmc_obj[I40IW_HMC_IW_MR].cnt;
 	arp_table_size = iwdev->sc_dev.hmc_info->hmc_obj[I40IW_HMC_IW_ARP].cnt;
 	iwdev->max_cqe = 0xFFFFF;
-	num_pds = max_qp * 4;
+	num_pds = I40IW_MAX_PDS;
 	resources_size = sizeof(struct i40iw_arp_entry) * arp_table_size;
 	resources_size += sizeof(unsigned long) * BITS_TO_LONGS(max_qp);
 	resources_size += sizeof(unsigned long) * BITS_TO_LONGS(max_mr);

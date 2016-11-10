@@ -1558,6 +1558,20 @@ exit:
 }
 
 /**
+ * i40iw_get_used_rsrc - determine resources used internally
+ * @iwdev: iwarp device
+ *
+ * Called after internal allocations
+ */
+static void i40iw_get_used_rsrc(struct i40iw_device *iwdev)
+{
+	iwdev->used_pds = find_next_zero_bit(iwdev->allocated_pds, iwdev->max_pd, 0);
+	iwdev->used_qps = find_next_zero_bit(iwdev->allocated_qps, iwdev->max_qp, 0);
+	iwdev->used_cqs = find_next_zero_bit(iwdev->allocated_cqs, iwdev->max_cq, 0);
+	iwdev->used_mrs = find_next_zero_bit(iwdev->allocated_mrs, iwdev->max_mr, 0);
+}
+
+/**
  * i40iw_open - client interface operation open for iwarp/uda device
  * @ldev: lan device information
  * @client: iwarp client information, provided during registration
@@ -1629,6 +1643,7 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 		status = i40iw_initialize_hw_resources(iwdev);
 		if (status)
 			break;
+		i40iw_get_used_rsrc(iwdev);
 		dev->ccq_ops->ccq_arm(dev->ccq);
 		status = i40iw_hmc_init_pble(&iwdev->sc_dev, iwdev->pble_rsrc);
 		if (status)
