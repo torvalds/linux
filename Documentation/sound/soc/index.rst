@@ -11,3 +11,4 @@ The documentation is spilt into the following sections:-
    codec
    dai
    dapm
+   platform
