@@ -2266,24 +2266,32 @@ free_bus:
 	return ret;
 }
 
-/**
- * hv_pci_remove() - Remove routine for this VMBus channel
- * @hdev:	VMBus's tracking struct for this root PCI bus
- *
- * Return: 0 on success, -errno on failure
- */
-static int hv_pci_remove(struct hv_device *hdev)
+static void hv_pci_bus_exit(struct hv_device *hdev)
 {
-	int ret;
-	struct hv_pcibus_device *hbus;
-	union {
+	struct hv_pcibus_device *hbus = hv_get_drvdata(hdev);
+	struct {
 		struct pci_packet teardown_packet;
-		u8 buffer[0x100];
+		u8 buffer[sizeof(struct pci_message)];
 	} pkt;
 	struct pci_bus_relations relations;
 	struct hv_pci_compl comp_pkt;
+	int ret;
 
-	hbus = hv_get_drvdata(hdev);
+	/*
+	 * After the host sends the RESCIND_CHANNEL message, it doesn't
+	 * access the per-channel ringbuffer any longer.
+	 */
+	if (hdev->channel->rescind)
+		return;
+
+	/* Delete any children which might still exist. */
+	memset(&relations, 0, sizeof(relations));
+	hv_pci_devices_present(hbus, &relations);
+
+	ret = hv_send_resources_released(hdev);
+	if (ret)
+		dev_err(&hdev->device,
+			"Couldn't send resources released packet(s)\n");
 
 	memset(&pkt.teardown_packet, 0, sizeof(pkt.teardown_packet));
 	init_completion(&comp_pkt.host_event);
@@ -2298,7 +2306,19 @@ static int hv_pci_remove(struct hv_device *hdev)
 			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (!ret)
 		wait_for_completion_timeout(&comp_pkt.host_event, 10 * HZ);
+}
 
+/**
+ * hv_pci_remove() - Remove routine for this VMBus channel
+ * @hdev:	VMBus's tracking struct for this root PCI bus
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int hv_pci_remove(struct hv_device *hdev)
+{
+	struct hv_pcibus_device *hbus;
+
+	hbus = hv_get_drvdata(hdev);
 	if (hbus->state == hv_pcibus_installed) {
 		/* Remove the bus from PCI's point of view. */
 		pci_lock_rescan_remove();
@@ -2307,16 +2327,9 @@ static int hv_pci_remove(struct hv_device *hdev)
 		pci_unlock_rescan_remove();
 	}
 
-	ret = hv_send_resources_released(hdev);
-	if (ret)
-		dev_err(&hdev->device,
-			"Couldn't send resources released packet(s)\n");
+	hv_pci_bus_exit(hdev);
 
 	vmbus_close(hdev->channel);
-
-	/* Delete any children which might still exist. */
-	memset(&relations, 0, sizeof(relations));
-	hv_pci_devices_present(hbus, &relations);
 
 	iounmap(hbus->cfg_addr);
 	hv_free_config_window(hbus);
