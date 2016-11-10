@@ -401,9 +401,9 @@ struct niobuf_local {
 	__u32		lnb_page_offset;
 	__u32		lnb_len;
 	__u32		lnb_flags;
+	int		lnb_rc;
 	struct page	*lnb_page;
 	void		*lnb_data;
-	int		lnb_rc;
 };
 
 #define LUSTRE_FLD_NAME	 "fld"
@@ -504,15 +504,14 @@ struct lvfs_run_ctxt {
 
 struct obd_device {
 	struct obd_type	*obd_type;
-	__u32		   obd_magic;
+	u32			 obd_magic; /* OBD_DEVICE_MAGIC */
+	int			 obd_minor; /* device number: lctl dl */
+	struct lu_device	*obd_lu_dev;
 
 	/* common and UUID name of this device */
-	char		    obd_name[MAX_OBD_NAME];
-	struct obd_uuid	 obd_uuid;
+	struct obd_uuid		 obd_uuid;
+	char			 obd_name[MAX_OBD_NAME];
 
-	struct lu_device       *obd_lu_dev;
-
-	int		     obd_minor;
 	/* bitfield modification is protected by obd_dev_lock */
 	unsigned long obd_attached:1,      /* finished attach */
 		      obd_set_up:1,	/* finished setup */
@@ -536,22 +535,22 @@ struct obd_device {
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
 	struct cfs_hash	     *obd_uuid_hash;
-	atomic_t	    obd_refcount;
 	wait_queue_head_t	     obd_refcount_waitq;
 	struct list_head	      obd_exports;
 	struct list_head	      obd_unlinked_exports;
 	struct list_head	      obd_delayed_exports;
+	atomic_t			obd_refcount;
 	int		     obd_num_exports;
 	spinlock_t		obd_nid_lock;
 	struct ldlm_namespace  *obd_namespace;
 	struct ptlrpc_client	obd_ldlm_client; /* XXX OST/MDS only */
 	/* a spinlock is OK for what we do now, may need a semaphore later */
 	spinlock_t		obd_dev_lock; /* protect OBD bitfield above */
-	struct mutex		obd_dev_mutex;
-	__u64			obd_last_committed;
 	spinlock_t		obd_osfs_lock;
 	struct obd_statfs	obd_osfs;       /* locked by obd_osfs_lock */
 	__u64			obd_osfs_age;
+	u64			obd_last_committed;
+	struct mutex		obd_dev_mutex;
 	struct lvfs_run_ctxt	obd_lvfs_ctxt;
 	struct obd_llog_group	obd_olg;	/* default llog group */
 	struct obd_device	*obd_observer;
@@ -565,12 +564,13 @@ struct obd_device {
 		struct lov_obd lov;
 		struct lmv_obd lmv;
 	} u;
-	/* Fields used by LProcFS */
-	unsigned int	   obd_cntr_base;
-	struct lprocfs_stats  *obd_stats;
 
-	unsigned int	   md_cntr_base;
-	struct lprocfs_stats  *md_stats;
+	/* Fields used by LProcFS */
+	struct lprocfs_stats	*obd_stats;
+	unsigned int		 obd_cntr_base;
+
+	struct lprocfs_stats	*md_stats;
+	unsigned int		 md_cntr_base;
 
 	struct dentry		*obd_debugfs_entry;
 	struct dentry		*obd_svc_debugfs_entry;
@@ -582,17 +582,17 @@ struct obd_device {
 	/**
 	 * Ldlm pool part. Save last calculated SLV and Limit.
 	 */
-	rwlock_t		obd_pool_lock;
-	int		    obd_pool_limit;
-	__u64		  obd_pool_slv;
+	rwlock_t		 obd_pool_lock;
+	u64			 obd_pool_slv;
+	int			 obd_pool_limit;
+
+	int			 obd_conn_inprogress;
 
 	/**
 	 * A list of outstanding class_incref()'s against this obd. For
 	 * debugging.
 	 */
 	struct lu_ref	  obd_reference;
-
-	int		       obd_conn_inprogress;
 
 	struct kobject		obd_kobj; /* sysfs object */
 	struct completion	obd_kobj_unregister;

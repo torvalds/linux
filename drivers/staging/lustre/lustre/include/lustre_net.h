@@ -438,6 +438,10 @@ struct ptlrpc_reply_state {
 	unsigned long	  rs_committed:1;/* the transaction was committed
 					  * and the rs was dispatched
 					  */
+	atomic_t		rs_refcount;	/* number of users */
+	/** Number of locks awaiting client ACK */
+	int			rs_nlocks;
+
 	/** Size of the state */
 	int		    rs_size;
 	/** opcode */
@@ -450,7 +454,6 @@ struct ptlrpc_reply_state {
 	struct ptlrpc_service_part *rs_svcpt;
 	/** Lnet metadata handle for the reply */
 	lnet_handle_md_t       rs_md_h;
-	atomic_t	   rs_refcount;
 
 	/** Context for the service thread */
 	struct ptlrpc_svc_ctx *rs_svc_ctx;
@@ -467,8 +470,6 @@ struct ptlrpc_reply_state {
 	 */
 	struct lustre_msg     *rs_msg;	  /* reply message */
 
-	/** Number of locks awaiting client ACK */
-	int		    rs_nlocks;
 	/** Handles of locks awaiting client reply ACK */
 	struct lustre_handle   rs_locks[RS_MAX_LOCKS];
 	/** Lock modes of locks in \a rs_locks */
