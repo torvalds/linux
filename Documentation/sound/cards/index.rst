@@ -14,3 +14,4 @@ Card-Specific Information
    mixart
    bt87x
    maya44
+   hdspm
