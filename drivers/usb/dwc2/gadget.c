@@ -96,6 +96,17 @@ static inline bool using_dma(struct dwc2_hsotg *hsotg)
 	return hsotg->params.g_dma;
 }
 
+/*
+ * using_desc_dma - return the descriptor DMA status of the driver.
+ * @hsotg: The driver state.
+ *
+ * Return true if we're using descriptor DMA.
+ */
+static inline bool using_desc_dma(struct dwc2_hsotg *hsotg)
+{
+	return hsotg->params.g_dma_desc;
+}
+
 /**
  * dwc2_gadget_incr_frame_num - Increments the targeted frame number.
  * @hs_ep: The endpoint

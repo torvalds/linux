@@ -419,6 +419,7 @@ enum dwc2_ep0_state {
  *			0 - No (default)
  *			1 - Yes
  * @g_dma:              Enables gadget dma usage (default: autodetect).
+ * @g_dma_desc:         Enables gadget descriptor DMA (default: autodetect).
  * @g_rx_fifo_size:	The periodic rx fifo size for the device, in
  *			DWORDS from 16-32768 (default: 2048 if
  *			possible, otherwise autodetect).
@@ -498,6 +499,7 @@ struct dwc2_core_params {
 
 	/* Gadget parameters */
 	bool g_dma;
+	bool g_dma_desc;
 	u16 g_rx_fifo_size;
 	u16 g_np_tx_fifo_size;
 	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
