@@ -487,21 +487,20 @@ mtype_expire(struct ip_set *set, struct htype *h)
 				continue;
 			}
 			data = ahash_data(n, j, dsize);
-			if (ip_set_timeout_expired(ext_timeout(data, set))) {
-				pr_debug("expired %u/%u\n", i, j);
-				clear_bit(j, n->used);
-				smp_mb__after_atomic();
+			if (!ip_set_timeout_expired(ext_timeout(data, set)))
+				continue;
+			pr_debug("expired %u/%u\n", i, j);
+			clear_bit(j, n->used);
+			smp_mb__after_atomic();
 #ifdef IP_SET_HASH_WITH_NETS
-				for (k = 0; k < IPSET_NET_COUNT; k++)
-					mtype_del_cidr(h,
-						NCIDR_PUT(DCIDR_GET(data->cidr,
-								    k)),
-						nets_length, k);
+			for (k = 0; k < IPSET_NET_COUNT; k++)
+				mtype_del_cidr(h,
+					NCIDR_PUT(DCIDR_GET(data->cidr, k)),
+					nets_length, k);
 #endif
-				ip_set_ext_destroy(set, data);
-				set->elements--;
-				d++;
-			}
+			ip_set_ext_destroy(set, data);
+			set->elements--;
+			d++;
 		}
 		if (d >= AHASH_INIT_SIZE) {
 			if (d >= n->size) {
