@@ -656,7 +656,7 @@ extern void sdhci_free_host(struct sdhci_host *host);
 
 static inline void *sdhci_priv(struct sdhci_host *host)
 {
-	return (void *)host->private;
+	return host->private;
 }
 
 extern void sdhci_card_detect(struct sdhci_host *host);
