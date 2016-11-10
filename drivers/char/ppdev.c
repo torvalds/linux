@@ -305,10 +305,10 @@ static int register_device(int minor, struct pp_struct *pp)
 	ppdev_cb.private = pp;
 	pdev = parport_register_dev_model(port, name, &ppdev_cb, minor);
 	parport_put_port(port);
+	kfree(name);
 
 	if (!pdev) {
 		printk(KERN_WARNING "%s: failed to register device!\n", name);
-		kfree(name);
 		return -ENXIO;
 	}
 
