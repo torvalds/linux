@@ -3669,10 +3669,11 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 		return PTR_ERR(skp);
 
 	/*
-	 * No process is ever allowed the web ("@") label.
+	 * No process is ever allowed the web ("@") label
+	 * and the star ("*") label.
 	 */
-	if (skp == &smack_known_web)
-		return -EPERM;
+	if (skp == &smack_known_web || skp == &smack_known_star)
+		return -EINVAL;
 
 	if (!smack_privileged(CAP_MAC_ADMIN)) {
 		rc = -EPERM;
