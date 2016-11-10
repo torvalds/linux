@@ -1271,9 +1271,9 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	struct hv_pci_dev *hpdev;
 	struct pci_child_message *res_req;
 	struct q_res_req_compl comp_pkt;
-	union {
-	struct pci_packet init_packet;
-		u8 buffer[0x100];
+	struct {
+		struct pci_packet init_packet;
+		u8 buffer[sizeof(struct pci_child_message)];
 	} pkt;
 	unsigned long flags;
 	int ret;
