@@ -91,7 +91,6 @@ struct netns_ct {
 	struct nf_ip_net	nf_ct_proto;
 #if defined(CONFIG_NF_CONNTRACK_LABELS)
 	unsigned int		labels_used;
-	u8			label_words;
 #endif
 };
 #endif
