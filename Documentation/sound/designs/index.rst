@@ -7,6 +7,7 @@ Designs and Implementations
    control-names
    channel-mapping-api
    compress-offload
+   timestamping
    procfile
    powersave
    oss-emulation
