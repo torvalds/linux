@@ -36,6 +36,7 @@
 	(NVME_LOOP_AQ_DEPTH - NVME_LOOP_NR_AEN_COMMANDS)
 
 struct nvme_loop_iod {
+	struct nvme_request	nvme_req;
 	struct nvme_command	cmd;
 	struct nvme_completion	rsp;
 	struct nvmet_req	req;
@@ -112,10 +113,10 @@ static void nvme_loop_complete_rq(struct request *req)
 	blk_mq_end_request(req, error);
 }
 
-static void nvme_loop_queue_response(struct nvmet_req *nvme_req)
+static void nvme_loop_queue_response(struct nvmet_req *req)
 {
 	struct nvme_loop_iod *iod =
-		container_of(nvme_req, struct nvme_loop_iod, req);
+		container_of(req, struct nvme_loop_iod, req);
 	struct nvme_completion *cqe = &iod->rsp;
 
 	/*
@@ -128,11 +129,10 @@ static void nvme_loop_queue_response(struct nvmet_req *nvme_req)
 			cqe->command_id >= NVME_LOOP_AQ_BLKMQ_DEPTH)) {
 		nvme_complete_async_event(&iod->queue->ctrl->ctrl, cqe);
 	} else {
-		struct request *req = blk_mq_rq_from_pdu(iod);
+		struct request *rq = blk_mq_rq_from_pdu(iod);
 
-		if (req->cmd_type == REQ_TYPE_DRV_PRIV && req->special)
-			memcpy(req->special, cqe, sizeof(*cqe));
-		blk_mq_complete_request(req, le16_to_cpu(cqe->status) >> 1);
+		iod->nvme_req.result = cqe->result;
+		blk_mq_complete_request(rq, le16_to_cpu(cqe->status) >> 1);
 	}
 }
 

@@ -238,7 +238,7 @@ static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
-	req->rsp->result = cpu_to_le32(result);
+	req->rsp->result.u32 = cpu_to_le32(result);
 }
 
 /*

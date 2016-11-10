@@ -146,14 +146,6 @@ struct nvme_nvm_command {
 	};
 };
 
-struct nvme_nvm_completion {
-	__le64	result;		/* Used by LightNVM to return ppa completions */
-	__le16	sq_head;	/* how much of this queue may be reclaimed */
-	__le16	sq_id;		/* submission queue that generated this entry */
-	__u16	command_id;	/* of the command which completed */
-	__le16	status;		/* did the command fail, and if so, why? */
-};
-
 #define NVME_NVM_LP_MLC_PAIRS 886
 struct nvme_nvm_lp_mlc {
 	__le16			num_pairs;
@@ -481,11 +473,8 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 static void nvme_nvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
-	struct nvme_nvm_completion *cqe = rq->special;
 
-	if (cqe)
-		rqd->ppa_status = le64_to_cpu(cqe->result);
-
+	rqd->ppa_status = nvme_req(rq)->result.u64;
 	nvm_end_io(rqd, error);
 
 	kfree(rq->cmd);
@@ -500,20 +489,18 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct bio *bio = rqd->bio;
 	struct nvme_nvm_command *cmd;
 
-	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
-	if (IS_ERR(rq))
+	cmd = kzalloc(sizeof(struct nvme_nvm_command), GFP_KERNEL);
+	if (!cmd)
 		return -ENOMEM;
 
-	cmd = kzalloc(sizeof(struct nvme_nvm_command) +
-				sizeof(struct nvme_nvm_completion), GFP_KERNEL);
-	if (!cmd) {
-		blk_mq_free_request(rq);
+	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0, NVME_QID_ANY);
+	if (IS_ERR(rq)) {
+		kfree(cmd);
 		return -ENOMEM;
 	}
+	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->ioprio = bio_prio(bio);
-
 	if (bio_has_data(bio))
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
 
@@ -521,10 +508,6 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	rq->bio = rq->biotail = bio;
 
 	nvme_nvm_rqtocmd(rq, rqd, ns, cmd);
-
-	rq->cmd = (unsigned char *)cmd;
-	rq->cmd_len = sizeof(struct nvme_nvm_command);
-	rq->special = cmd + 1;
 
 	rq->end_io_data = rqd;
 
