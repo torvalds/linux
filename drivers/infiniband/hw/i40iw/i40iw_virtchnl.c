@@ -496,11 +496,7 @@ enum i40iw_status_code i40iw_vchnl_recv_pf(struct i40iw_sc_dev *dev,
 				i40iw_debug(dev, I40IW_DEBUG_VIRT,
 					    "VF%u error CQP HMC Function operation.\n",
 					    vf_id);
-			ret_code = i40iw_device_init_pestat(&vf_dev->dev_pestat);
-			if (ret_code)
-				i40iw_debug(dev, I40IW_DEBUG_VIRT,
-					    "VF%u - i40iw_device_init_pestat failed\n",
-					    vf_id);
+			i40iw_device_init_pestat(&vf_dev->dev_pestat);
 			vf_dev->dev_pestat.ops.iw_hw_stat_init(&vf_dev->dev_pestat,
 							      (u8)vf_dev->pmf_index,
 							      dev->hw, false);

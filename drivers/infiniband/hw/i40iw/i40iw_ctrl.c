@@ -4853,10 +4853,9 @@ static const struct i40iw_device_pestat_ops iw_device_pestat_ops = {
  * i40iw_device_init_pestat - Initialize the pestat structure
  * @dev: pestat struct
  */
-enum i40iw_status_code i40iw_device_init_pestat(struct i40iw_dev_pestat *devstat)
+void i40iw_device_init_pestat(struct i40iw_dev_pestat *devstat)
 {
 	devstat->ops = iw_device_pestat_ops;
-	return 0;
 }
 
 /**
@@ -4881,12 +4880,7 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 
 	dev->debug_mask = info->debug_mask;
 
-	ret_code = i40iw_device_init_pestat(&dev->dev_pestat);
-	if (ret_code) {
-		i40iw_debug(dev, I40IW_DEBUG_DEV,
-			    "%s: i40iw_device_init_pestat failed\n", __func__);
-		return ret_code;
-	}
+	i40iw_device_init_pestat(&dev->dev_pestat);
 	dev->hmc_fn_id = info->hmc_fn_id;
 	i40iw_fill_qos_list(info->l2params.qs_handle_list);
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {

@@ -47,7 +47,7 @@ void i40iw_debug_buf(struct i40iw_sc_dev *dev, enum i40iw_debug_flag mask,
 enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 					 struct i40iw_device_init_info *info);
 
-enum i40iw_status_code i40iw_device_init_pestat(struct i40iw_dev_pestat *);
+void i40iw_device_init_pestat(struct i40iw_dev_pestat *devstat);
 
 void i40iw_sc_cqp_post_sq(struct i40iw_sc_cqp *cqp);
 
