@@ -1097,6 +1097,10 @@ static int threshold_create_device(unsigned int cpu)
 	struct threshold_bank **bp;
 	int err = 0;
 
+	bp = per_cpu(threshold_banks, cpu);
+	if (bp)
+		return 0;
+
 	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
 		     GFP_KERNEL);
 	if (!bp)
