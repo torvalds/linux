@@ -2403,14 +2403,19 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			goto err_steer_qp_release;
 		}
 
-		bitmap_zero(ibdev->ib_uc_qpns_bitmap, ibdev->steer_qpn_count);
-
-		err = mlx4_FLOW_STEERING_IB_UC_QP_RANGE(
-				dev, ibdev->steer_qpn_base,
-				ibdev->steer_qpn_base +
-				ibdev->steer_qpn_count - 1);
-		if (err)
-			goto err_steer_free_bitmap;
+		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DMFS_IPOIB) {
+			bitmap_zero(ibdev->ib_uc_qpns_bitmap,
+				    ibdev->steer_qpn_count);
+			err = mlx4_FLOW_STEERING_IB_UC_QP_RANGE(
+					dev, ibdev->steer_qpn_base,
+					ibdev->steer_qpn_base +
+					ibdev->steer_qpn_count - 1);
+			if (err)
+				goto err_steer_free_bitmap;
+		} else {
+			bitmap_fill(ibdev->ib_uc_qpns_bitmap,
+				    ibdev->steer_qpn_count);
+		}
 	}
 
 	for (j = 1; j <= ibdev->dev->caps.num_ports; j++)
