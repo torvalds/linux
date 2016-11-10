@@ -1010,31 +1010,6 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	return err;
 }
 
-/* create dir/files for all valid threshold banks */
-static int threshold_create_device(unsigned int cpu)
-{
-	unsigned int bank;
-	struct threshold_bank **bp;
-	int err = 0;
-
-	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
-		     GFP_KERNEL);
-	if (!bp)
-		return -ENOMEM;
-
-	per_cpu(threshold_banks, cpu) = bp;
-
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
-			continue;
-		err = threshold_create_bank(cpu, bank);
-		if (err)
-			return err;
-	}
-
-	return err;
-}
-
 static void deallocate_threshold_block(unsigned int cpu,
 						 unsigned int bank)
 {
@@ -1112,6 +1087,31 @@ static void threshold_remove_device(unsigned int cpu)
 		threshold_remove_bank(cpu, bank);
 	}
 	kfree(per_cpu(threshold_banks, cpu));
+}
+
+/* create dir/files for all valid threshold banks */
+static int threshold_create_device(unsigned int cpu)
+{
+	unsigned int bank;
+	struct threshold_bank **bp;
+	int err = 0;
+
+	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
+		     GFP_KERNEL);
+	if (!bp)
+		return -ENOMEM;
+
+	per_cpu(threshold_banks, cpu) = bp;
+
+	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
+			continue;
+		err = threshold_create_bank(cpu, bank);
+		if (err)
+			return err;
+	}
+
+	return err;
 }
 
 /* get notified when a cpu comes on/off */
