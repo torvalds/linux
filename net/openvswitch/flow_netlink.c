@@ -2383,6 +2383,8 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_HASH] = sizeof(struct ovs_action_hash),
 			[OVS_ACTION_ATTR_CT] = (u32)-1,
 			[OVS_ACTION_ATTR_TRUNC] = sizeof(struct ovs_action_trunc),
+			[OVS_ACTION_ATTR_PUSH_ETH] = sizeof(struct ovs_action_push_eth),
+			[OVS_ACTION_ATTR_POP_ETH] = 0,
 		};
 		const struct ovs_action_push_vlan *vlan;
 		int type = nla_type(a);
@@ -2515,6 +2517,22 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			if (err)
 				return err;
 			skip_copy = true;
+			break;
+
+		case OVS_ACTION_ATTR_PUSH_ETH:
+			/* Disallow pushing an Ethernet header if one
+			 * is already present */
+			if (mac_proto != MAC_PROTO_NONE)
+				return -EINVAL;
+			mac_proto = MAC_PROTO_NONE;
+			break;
+
+		case OVS_ACTION_ATTR_POP_ETH:
+			if (mac_proto != MAC_PROTO_ETHERNET)
+				return -EINVAL;
+			if (vlan_tci & htons(VLAN_TAG_PRESENT))
+				return -EINVAL;
+			mac_proto = MAC_PROTO_ETHERNET;
 			break;
 
 		default:
