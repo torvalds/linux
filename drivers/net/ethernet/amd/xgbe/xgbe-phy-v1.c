@@ -295,6 +295,12 @@ static enum xgbe_mode xgbe_phy_an_outcome(struct xgbe_prv_data *pdata)
 	return mode;
 }
 
+static int xgbe_phy_an_config(struct xgbe_prv_data *pdata)
+{
+	/* Nothing uniquely required for an configuration */
+	return 0;
+}
+
 static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
 {
 	return XGBE_AN_MODE_CL73;
@@ -607,9 +613,11 @@ static bool xgbe_phy_valid_speed(struct xgbe_prv_data *pdata, int speed)
 	}
 }
 
-static int xgbe_phy_link_status(struct xgbe_prv_data *pdata)
+static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 {
 	unsigned int reg;
+
+	*an_restart = 0;
 
 	/* Link status is latched low, so read once to clear
 	 * and then read again to get current state
@@ -820,6 +828,8 @@ void xgbe_init_function_ptrs_phy_v1(struct xgbe_phy_if *phy_if)
 	phy_impl->cur_mode		= xgbe_phy_cur_mode;
 
 	phy_impl->an_mode		= xgbe_phy_an_mode;
+
+	phy_impl->an_config		= xgbe_phy_an_config;
 
 	phy_impl->an_outcome		= xgbe_phy_an_outcome;
 

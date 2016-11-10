@@ -530,12 +530,22 @@ enum xgbe_mode {
 	XGBE_MODE_KX_1000 = 0,
 	XGBE_MODE_KX_2500,
 	XGBE_MODE_KR,
+	XGBE_MODE_X,
+	XGBE_MODE_SGMII_100,
+	XGBE_MODE_SGMII_1000,
+	XGBE_MODE_SFI,
 	XGBE_MODE_UNKNOWN,
 };
 
 enum xgbe_speedset {
 	XGBE_SPEEDSET_1000_10000 = 0,
 	XGBE_SPEEDSET_2500_10000,
+};
+
+enum xgbe_mdio_mode {
+	XGBE_MDIO_MODE_NONE = 0,
+	XGBE_MDIO_MODE_CL22,
+	XGBE_MDIO_MODE_CL45,
 };
 
 struct xgbe_phy {
@@ -764,7 +774,7 @@ struct xgbe_phy_impl_if {
 	void (*stop)(struct xgbe_prv_data *);
 
 	/* Return the link status */
-	int (*link_status)(struct xgbe_prv_data *);
+	int (*link_status)(struct xgbe_prv_data *, int *);
 
 	/* Indicate if a particular speed is valid */
 	bool (*valid_speed)(struct xgbe_prv_data *, int);
@@ -782,6 +792,9 @@ struct xgbe_phy_impl_if {
 
 	/* Retrieve current auto-negotiation mode */
 	enum xgbe_an_mode (*an_mode)(struct xgbe_prv_data *);
+
+	/* Configure auto-negotiation settings */
+	int (*an_config)(struct xgbe_prv_data *);
 
 	/* Process results of auto-negotiation */
 	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);

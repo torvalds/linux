@@ -252,6 +252,54 @@ static void xgbe_kx_1000_mode(struct xgbe_prv_data *pdata)
 	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_KX_1000);
 }
 
+static void xgbe_sfi_mode(struct xgbe_prv_data *pdata)
+{
+	/* Disable KR training */
+	xgbe_an73_disable_kr_training(pdata);
+
+	/* Set MAC to 10G speed */
+	pdata->hw_if.set_speed(pdata, SPEED_10000);
+
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_SFI);
+}
+
+static void xgbe_x_mode(struct xgbe_prv_data *pdata)
+{
+	/* Disable KR training */
+	xgbe_an73_disable_kr_training(pdata);
+
+	/* Set MAC to 1G speed */
+	pdata->hw_if.set_speed(pdata, SPEED_1000);
+
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_X);
+}
+
+static void xgbe_sgmii_1000_mode(struct xgbe_prv_data *pdata)
+{
+	/* Disable KR training */
+	xgbe_an73_disable_kr_training(pdata);
+
+	/* Set MAC to 1G speed */
+	pdata->hw_if.set_speed(pdata, SPEED_1000);
+
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_SGMII_1000);
+}
+
+static void xgbe_sgmii_100_mode(struct xgbe_prv_data *pdata)
+{
+	/* Disable KR training */
+	xgbe_an73_disable_kr_training(pdata);
+
+	/* Set MAC to 1G speed */
+	pdata->hw_if.set_speed(pdata, SPEED_1000);
+
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_SGMII_100);
+}
+
 static enum xgbe_mode xgbe_cur_mode(struct xgbe_prv_data *pdata)
 {
 	return pdata->phy_if.phy_impl.cur_mode(pdata);
@@ -274,6 +322,18 @@ static void xgbe_change_mode(struct xgbe_prv_data *pdata,
 		break;
 	case XGBE_MODE_KR:
 		xgbe_kr_mode(pdata);
+		break;
+	case XGBE_MODE_SGMII_100:
+		xgbe_sgmii_100_mode(pdata);
+		break;
+	case XGBE_MODE_SGMII_1000:
+		xgbe_sgmii_1000_mode(pdata);
+		break;
+	case XGBE_MODE_X:
+		xgbe_x_mode(pdata);
+		break;
+	case XGBE_MODE_SFI:
+		xgbe_sfi_mode(pdata);
 		break;
 	case XGBE_MODE_UNKNOWN:
 		break;
@@ -972,6 +1032,8 @@ static const char *xgbe_phy_fc_string(struct xgbe_prv_data *pdata)
 static const char *xgbe_phy_speed_string(int speed)
 {
 	switch (speed) {
+	case SPEED_100:
+		return "100Mbps";
 	case SPEED_1000:
 		return "1Gbps";
 	case SPEED_2500:
@@ -1057,6 +1119,10 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	case XGBE_MODE_KX_1000:
 	case XGBE_MODE_KX_2500:
 	case XGBE_MODE_KR:
+	case XGBE_MODE_SGMII_100:
+	case XGBE_MODE_SGMII_1000:
+	case XGBE_MODE_X:
+	case XGBE_MODE_SFI:
 		break;
 	case XGBE_MODE_UNKNOWN:
 	default:
@@ -1074,8 +1140,14 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 
 static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 {
+	int ret;
+
 	set_bit(XGBE_LINK_INIT, &pdata->dev_state);
 	pdata->link_check = jiffies;
+
+	ret = pdata->phy_if.phy_impl.an_config(pdata);
+	if (ret)
+		return ret;
 
 	if (pdata->phy.autoneg != AUTONEG_ENABLE)
 		return xgbe_phy_config_fixed(pdata);
@@ -1092,6 +1164,14 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 		xgbe_set_mode(pdata, XGBE_MODE_KX_2500);
 	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_1000)) {
 		xgbe_set_mode(pdata, XGBE_MODE_KX_1000);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SFI)) {
+		xgbe_set_mode(pdata, XGBE_MODE_SFI);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_X)) {
+		xgbe_set_mode(pdata, XGBE_MODE_X);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_1000)) {
+		xgbe_set_mode(pdata, XGBE_MODE_SGMII_1000);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_100)) {
+		xgbe_set_mode(pdata, XGBE_MODE_SGMII_100);
 	} else {
 		enable_irq(pdata->an_irq);
 		return -EINVAL;
@@ -1167,13 +1247,19 @@ static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 		mode = xgbe_phy_status_aneg(pdata);
 
 	switch (mode) {
+	case XGBE_MODE_SGMII_100:
+		pdata->phy.speed = SPEED_100;
+		break;
+	case XGBE_MODE_X:
 	case XGBE_MODE_KX_1000:
+	case XGBE_MODE_SGMII_1000:
 		pdata->phy.speed = SPEED_1000;
 		break;
 	case XGBE_MODE_KX_2500:
 		pdata->phy.speed = SPEED_2500;
 		break;
 	case XGBE_MODE_KR:
+	case XGBE_MODE_SFI:
 		pdata->phy.speed = SPEED_10000;
 		break;
 	case XGBE_MODE_UNKNOWN:
@@ -1189,6 +1275,7 @@ static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 static void xgbe_phy_status(struct xgbe_prv_data *pdata)
 {
 	unsigned int link_aneg;
+	int an_restart;
 
 	if (test_bit(XGBE_LINK_ERR, &pdata->dev_state)) {
 		netif_carrier_off(pdata->netdev);
@@ -1199,7 +1286,13 @@ static void xgbe_phy_status(struct xgbe_prv_data *pdata)
 
 	link_aneg = (pdata->phy.autoneg == AUTONEG_ENABLE);
 
-	pdata->phy.link = pdata->phy_if.phy_impl.link_status(pdata);
+	pdata->phy.link = pdata->phy_if.phy_impl.link_status(pdata,
+							     &an_restart);
+	if (an_restart) {
+		xgbe_phy_config_aneg(pdata);
+		return;
+	}
+
 	if (pdata->phy.link) {
 		if (link_aneg && !xgbe_phy_aneg_done(pdata)) {
 			xgbe_check_link_timeout(pdata);
@@ -1284,6 +1377,14 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 		xgbe_kx_2500_mode(pdata);
 	} else if (xgbe_use_mode(pdata, XGBE_MODE_KX_1000)) {
 		xgbe_kx_1000_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SFI)) {
+		xgbe_sfi_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_X)) {
+		xgbe_x_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_1000)) {
+		xgbe_sgmii_1000_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_100)) {
+		xgbe_sgmii_100_mode(pdata);
 	} else {
 		ret = -EINVAL;
 		goto err_irq;
@@ -1367,10 +1468,16 @@ static int xgbe_phy_best_advertised_speed(struct xgbe_prv_data *pdata)
 {
 	if (pdata->phy.advertising & ADVERTISED_10000baseKR_Full)
 		return SPEED_10000;
+	else if (pdata->phy.advertising & ADVERTISED_10000baseT_Full)
+		return SPEED_10000;
 	else if (pdata->phy.advertising & ADVERTISED_2500baseX_Full)
 		return SPEED_2500;
 	else if (pdata->phy.advertising & ADVERTISED_1000baseKX_Full)
 		return SPEED_1000;
+	else if (pdata->phy.advertising & ADVERTISED_1000baseT_Full)
+		return SPEED_1000;
+	else if (pdata->phy.advertising & ADVERTISED_100baseT_Full)
+		return SPEED_100;
 
 	return SPEED_UNKNOWN;
 }
