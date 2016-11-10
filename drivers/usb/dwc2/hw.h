@@ -820,6 +820,7 @@ struct dwc2_dma_desc {
 #define HOST_DMA_ISOC_NBYTES_SHIFT	0
 #define HOST_DMA_NBYTES_MASK		(0x1ffff << 0)
 #define HOST_DMA_NBYTES_SHIFT		0
+#define HOST_DMA_NBYTES_LIMIT		131071
 
 /* Device Mode DMA descriptor status quadlet */
 
@@ -856,7 +857,6 @@ struct dwc2_dma_desc {
 #define DEV_DMA_NBYTES_SHIFT		0
 #define DEV_DMA_NBYTES_LIMIT		0xffff
 
-#define MAX_DMA_DESC_SIZE		131071
 #define MAX_DMA_DESC_NUM_GENERIC	64
 #define MAX_DMA_DESC_NUM_HS_ISOC	256
 
