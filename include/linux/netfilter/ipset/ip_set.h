@@ -79,10 +79,12 @@ enum ip_set_ext_id {
 	IPSET_EXT_ID_MAX,
 };
 
+struct ip_set;
+
 /* Extension type */
 struct ip_set_ext_type {
 	/* Destroy extension private data (can be NULL) */
-	void (*destroy)(void *ext);
+	void (*destroy)(struct ip_set *set, void *ext);
 	enum ip_set_extension type;
 	enum ipset_cadt_flags flag;
 	/* Size and minimal alignment */
@@ -252,6 +254,8 @@ struct ip_set {
 	u32 timeout;
 	/* Number of elements (vs timeout) */
 	u32 elements;
+	/* Size of the dynamic extensions (vs timeout) */
+	size_t ext_size;
 	/* Element data size */
 	size_t dsize;
 	/* Offsets to extensions in elements */
@@ -268,7 +272,7 @@ ip_set_ext_destroy(struct ip_set *set, void *data)
 	 */
 	if (SET_WITH_COMMENT(set))
 		ip_set_extensions[IPSET_EXT_ID_COMMENT].destroy(
-			ext_comment(data, set));
+			set, ext_comment(data, set));
 }
 
 static inline int

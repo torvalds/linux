@@ -343,21 +343,13 @@ mtype_del_cidr(struct htype *h, u8 cidr, u8 nets_length, u8 n)
 /* Calculate the actual memory size of the set data */
 static size_t
 mtype_ahash_memsize(const struct htype *h, const struct htable *t,
-		    u8 nets_length, size_t dsize)
+		    u8 nets_length)
 {
-	u32 i;
-	struct hbucket *n;
 	size_t memsize = sizeof(*h) + sizeof(*t);
 
 #ifdef IP_SET_HASH_WITH_NETS
 	memsize += sizeof(struct net_prefixes) * nets_length;
 #endif
-	for (i = 0; i < jhash_size(t->htable_bits); i++) {
-		n = rcu_dereference_bh(hbucket(t, i));
-		if (!n)
-			continue;
-		memsize += sizeof(struct hbucket) + n->size * dsize;
-	}
 
 	return memsize;
 }
@@ -400,6 +392,7 @@ mtype_flush(struct ip_set *set)
 	memset(h->nets, 0, sizeof(struct net_prefixes) * NLEN(set->family));
 #endif
 	set->elements = 0;
+	set->ext_size = 0;
 }
 
 /* Destroy the hashtable part of the set */
@@ -531,6 +524,7 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 				d++;
 			}
 			tmp->pos = d;
+			set->ext_size -= AHASH_INIT_SIZE * dsize;
 			rcu_assign_pointer(hbucket(t, i), tmp);
 			kfree_rcu(n, rcu);
 		}
@@ -562,7 +556,7 @@ mtype_resize(struct ip_set *set, bool retried)
 	struct htype *h = set->data;
 	struct htable *t, *orig;
 	u8 htable_bits;
-	size_t dsize = set->dsize;
+	size_t extsize, dsize = set->dsize;
 #ifdef IP_SET_HASH_WITH_NETS
 	u8 flags;
 	struct mtype_elem *tmp;
@@ -605,6 +599,7 @@ retry:
 	/* There can't be another parallel resizing, but dumping is possible */
 	atomic_set(&orig->ref, 1);
 	atomic_inc(&orig->uref);
+	extsize = 0;
 	pr_debug("attempt to resize set %s from %u to %u, t %p\n",
 		 set->name, orig->htable_bits, htable_bits, orig);
 	for (i = 0; i < jhash_size(orig->htable_bits); i++) {
@@ -635,6 +630,7 @@ retry:
 					goto cleanup;
 				}
 				m->size = AHASH_INIT_SIZE;
+				extsize = sizeof(*m) + AHASH_INIT_SIZE * dsize;
 				RCU_INIT_POINTER(hbucket(t, key), m);
 			} else if (m->pos >= m->size) {
 				struct hbucket *ht;
@@ -654,6 +650,7 @@ retry:
 				memcpy(ht, m, sizeof(struct hbucket) +
 					      m->size * dsize);
 				ht->size = m->size + AHASH_INIT_SIZE;
+				extsize += AHASH_INIT_SIZE * dsize;
 				kfree(m);
 				m = ht;
 				RCU_INIT_POINTER(hbucket(t, key), ht);
@@ -667,6 +664,7 @@ retry:
 		}
 	}
 	rcu_assign_pointer(h->table, t);
+	set->ext_size = extsize;
 
 	spin_unlock_bh(&set->lock);
 
@@ -740,6 +738,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		if (!n)
 			return -ENOMEM;
 		n->size = AHASH_INIT_SIZE;
+		set->ext_size += sizeof(*n) + AHASH_INIT_SIZE * set->dsize;
 		goto copy_elem;
 	}
 	for (i = 0; i < n->pos; i++) {
@@ -803,6 +802,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		memcpy(n, old, sizeof(struct hbucket) +
 		       old->size * set->dsize);
 		n->size = old->size + AHASH_INIT_SIZE;
+		set->ext_size += AHASH_INIT_SIZE * set->dsize;
 	}
 
 copy_elem:
@@ -823,7 +823,7 @@ overwrite_extensions:
 	if (SET_WITH_COUNTER(set))
 		ip_set_init_counter(ext_counter(data, set), ext);
 	if (SET_WITH_COMMENT(set))
-		ip_set_init_comment(ext_comment(data, set), ext);
+		ip_set_init_comment(set, ext_comment(data, set), ext);
 	if (SET_WITH_SKBINFO(set))
 		ip_set_init_skbinfo(ext_skbinfo(data, set), ext);
 	/* Must come last for the case when timed out entry is reused */
@@ -895,6 +895,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				k++;
 		}
 		if (n->pos == 0 && k == 0) {
+			set->ext_size -= sizeof(*n) + n->size * dsize;
 			rcu_assign_pointer(hbucket(t, key), NULL);
 			kfree_rcu(n, rcu);
 		} else if (k >= AHASH_INIT_SIZE) {
@@ -913,6 +914,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 				k++;
 			}
 			tmp->pos = k;
+			set->ext_size -= AHASH_INIT_SIZE * dsize;
 			rcu_assign_pointer(hbucket(t, key), tmp);
 			kfree_rcu(n, rcu);
 		}
@@ -1061,7 +1063,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh_nfnl(h->table);
-	memsize = mtype_ahash_memsize(h, t, NLEN(set->family), set->dsize);
+	memsize = mtype_ahash_memsize(h, t, NLEN(set->family)) + set->ext_size;
 	htable_bits = t->htable_bits;
 	rcu_read_unlock_bh();
 

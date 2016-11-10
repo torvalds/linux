@@ -20,13 +20,14 @@ ip_set_comment_uget(struct nlattr *tb)
  * The kadt functions don't use the comment extensions in any way.
  */
 static inline void
-ip_set_init_comment(struct ip_set_comment *comment,
+ip_set_init_comment(struct ip_set *set, struct ip_set_comment *comment,
 		    const struct ip_set_ext *ext)
 {
 	struct ip_set_comment_rcu *c = rcu_dereference_protected(comment->c, 1);
 	size_t len = ext->comment ? strlen(ext->comment) : 0;
 
 	if (unlikely(c)) {
+		set->ext_size -= sizeof(*c) + strlen(c->str) + 1;
 		kfree_rcu(c, rcu);
 		rcu_assign_pointer(comment->c, NULL);
 	}
@@ -38,6 +39,7 @@ ip_set_init_comment(struct ip_set_comment *comment,
 	if (unlikely(!c))
 		return;
 	strlcpy(c->str, ext->comment, len + 1);
+	set->ext_size += sizeof(*c) + strlen(c->str) + 1;
 	rcu_assign_pointer(comment->c, c);
 }
 
@@ -58,13 +60,14 @@ ip_set_put_comment(struct sk_buff *skb, const struct ip_set_comment *comment)
  * of the set data anymore.
  */
 static inline void
-ip_set_comment_free(struct ip_set_comment *comment)
+ip_set_comment_free(struct ip_set *set, struct ip_set_comment *comment)
 {
 	struct ip_set_comment_rcu *c;
 
 	c = rcu_dereference_protected(comment->c, 1);
 	if (unlikely(!c))
 		return;
+	set->ext_size -= sizeof(*c) + strlen(c->str) + 1;
 	kfree_rcu(c, rcu);
 	rcu_assign_pointer(comment->c, NULL);
 }

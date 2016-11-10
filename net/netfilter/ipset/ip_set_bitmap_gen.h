@@ -84,6 +84,7 @@ mtype_flush(struct ip_set *set)
 		mtype_ext_cleanup(set);
 	memset(map->members, 0, map->memsize);
 	set->elements = 0;
+	set->ext_size = 0;
 }
 
 /* Calculate the actual memory size of the set data */
@@ -99,7 +100,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 {
 	const struct mtype *map = set->data;
 	struct nlattr *nested;
-	size_t memsize = mtype_memsize(map, set->dsize);
+	size_t memsize = mtype_memsize(map, set->dsize) + set->ext_size;
 
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
@@ -173,7 +174,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	if (SET_WITH_COUNTER(set))
 		ip_set_init_counter(ext_counter(x, set), ext);
 	if (SET_WITH_COMMENT(set))
-		ip_set_init_comment(ext_comment(x, set), ext);
+		ip_set_init_comment(set, ext_comment(x, set), ext);
 	if (SET_WITH_SKBINFO(set))
 		ip_set_init_skbinfo(ext_skbinfo(x, set), ext);
 
