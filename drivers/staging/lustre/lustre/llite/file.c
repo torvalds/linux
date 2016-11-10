@@ -2674,6 +2674,13 @@ static int ll_inode_revalidate_fini(struct inode *inode, int rc)
 	/* Already unlinked. Just update nlink and return success */
 	if (rc == -ENOENT) {
 		clear_nlink(inode);
+		/* If it is striped directory, and there is bad stripe
+		 * Let's revalidate the dentry again, instead of returning
+		 * error
+		 */
+		if (S_ISDIR(inode->i_mode) && ll_i2info(inode)->lli_lsm_md)
+			return 0;
+
 		/* This path cannot be hit for regular files unless in
 		 * case of obscure races, so no need to validate size.
 		 */
