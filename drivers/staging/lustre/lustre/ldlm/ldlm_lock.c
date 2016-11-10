@@ -105,7 +105,7 @@ void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
 	convert(wpolicy, lpolicy);
 }
 
-char *ldlm_it2str(int it)
+const char *ldlm_it2str(enum ldlm_intent_flags it)
 {
 	switch (it) {
 	case IT_OPEN:
@@ -127,7 +127,7 @@ char *ldlm_it2str(int it)
 	case IT_LAYOUT:
 		return "layout";
 	default:
-		CERROR("Unknown intent %d\n", it);
+		CERROR("Unknown intent 0x%08x\n", it);
 		return "UNKNOWN";
 	}
 }

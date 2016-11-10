@@ -977,7 +977,7 @@ struct ldlm_enqueue_info {
 extern struct obd_ops ldlm_obd_ops;
 
 extern char *ldlm_lockname[];
-char *ldlm_it2str(int it);
+const char *ldlm_it2str(enum ldlm_intent_flags it);
 
 /**
  * Just a fancy CDEBUG call with log level preset to LDLM_DEBUG.

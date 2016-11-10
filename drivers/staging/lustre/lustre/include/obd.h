@@ -636,22 +636,6 @@ enum obd_cleanup_stage {
 
 struct lu_context;
 
-/* /!\ must be coherent with include/linux/namei.h on patched kernel */
-#define IT_OPEN     (1 << 0)
-#define IT_CREAT    (1 << 1)
-#define IT_READDIR  (1 << 2)
-#define IT_GETATTR  (1 << 3)
-#define IT_LOOKUP   (1 << 4)
-#define IT_UNLINK   (1 << 5)
-#define IT_TRUNC    (1 << 6)
-#define IT_GETXATTR (1 << 7)
-#define IT_EXEC     (1 << 8)
-#define IT_PIN      (1 << 9)
-#define IT_LAYOUT   (1 << 10)
-#define IT_QUOTA_DQACQ (1 << 11)
-#define IT_QUOTA_CONN  (1 << 12)
-#define IT_SETXATTR (1 << 13)
-
 static inline int it_to_lock_mode(struct lookup_intent *it)
 {
 	/* CREAT needs to be tested before open (both could be set) */
