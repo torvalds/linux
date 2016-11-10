@@ -989,7 +989,8 @@ static int audit_tree_handle_event(struct fsnotify_group *group,
 				   struct fsnotify_mark *inode_mark,
 				   struct fsnotify_mark *vfsmount_mark,
 				   u32 mask, const void *data, int data_type,
-				   const unsigned char *file_name, u32 cookie)
+				   const unsigned char *file_name, u32 cookie,
+				   struct fsnotify_iter_info *iter_info)
 {
 	return 0;
 }
