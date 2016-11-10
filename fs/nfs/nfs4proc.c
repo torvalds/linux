@@ -5569,6 +5569,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		renew_lease(data->res.server, data->timestamp);
+		break;
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_EXPIRED:
@@ -5579,8 +5580,6 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_STALE_STATEID:
 		task->tk_status = 0;
-		if (data->roc)
-			pnfs_roc_set_barrier(data->inode, data->roc_barrier);
 		break;
 	default:
 		if (nfs4_async_handle_error(task, data->res.server,
@@ -5590,6 +5589,8 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		}
 	}
 	data->rpc_status = task->tk_status;
+	if (data->roc && data->rpc_status == 0)
+		pnfs_roc_set_barrier(data->inode, data->roc_barrier);
 }
 
 static void nfs4_delegreturn_release(void *calldata)
