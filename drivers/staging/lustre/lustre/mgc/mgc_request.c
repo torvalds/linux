@@ -684,35 +684,33 @@ static int mgc_llog_fini(const struct lu_env *env, struct obd_device *obd)
 }
 
 static atomic_t mgc_count = ATOMIC_INIT(0);
-static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
+static int mgc_precleanup(struct obd_device *obd)
 {
 	int rc = 0;
 	int temp;
 
-	switch (stage) {
-	case OBD_CLEANUP_EARLY:
-		break;
-	case OBD_CLEANUP_EXPORTS:
-		if (atomic_dec_and_test(&mgc_count)) {
-			LASSERT(rq_state & RQ_RUNNING);
-			/* stop requeue thread */
-			temp = RQ_STOP;
-		} else {
-			/* wakeup requeue thread to clean our cld */
-			temp = RQ_NOW | RQ_PRECLEANUP;
-		}
-		spin_lock(&config_list_lock);
-		rq_state |= temp;
-		spin_unlock(&config_list_lock);
-		wake_up(&rq_waitq);
-		if (temp & RQ_STOP)
-			wait_for_completion(&rq_exit);
-		obd_cleanup_client_import(obd);
-		rc = mgc_llog_fini(NULL, obd);
-		if (rc != 0)
-			CERROR("failed to cleanup llogging subsystems\n");
-		break;
+	if (atomic_dec_and_test(&mgc_count)) {
+		LASSERT(rq_state & RQ_RUNNING);
+		/* stop requeue thread */
+		temp = RQ_STOP;
+	} else {
+		/* wakeup requeue thread to clean our cld */
+		temp = RQ_NOW | RQ_PRECLEANUP;
 	}
+
+	spin_lock(&config_list_lock);
+	rq_state |= temp;
+	spin_unlock(&config_list_lock);
+	wake_up(&rq_waitq);
+
+	if (temp & RQ_STOP)
+		wait_for_completion(&rq_exit);
+	obd_cleanup_client_import(obd);
+
+	rc = mgc_llog_fini(NULL, obd);
+	if (rc)
+		CERROR("failed to cleanup llogging subsystems\n");
+
 	return rc;
 }
 

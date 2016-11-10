@@ -446,7 +446,7 @@ static int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	LASSERT(obd->obd_self_export);
 
 	/* Precleanup, we must make sure all exports get destroyed. */
-	err = obd_precleanup(obd, OBD_CLEANUP_EXPORTS);
+	err = obd_precleanup(obd);
 	if (err)
 		CERROR("Precleanup %s returned %d\n",
 		       obd->obd_name, err);

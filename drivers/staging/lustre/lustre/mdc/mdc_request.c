@@ -2660,23 +2660,16 @@ static int mdc_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize)
 	return 0;
 }
 
-static int mdc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
+static int mdc_precleanup(struct obd_device *obd)
 {
-	switch (stage) {
-	case OBD_CLEANUP_EARLY:
-		break;
-	case OBD_CLEANUP_EXPORTS:
-		/* Failsafe, ok if racy */
-		if (obd->obd_type->typ_refcnt <= 1)
-			libcfs_kkuc_group_rem(0, KUC_GRP_HSM);
+	/* Failsafe, ok if racy */
+	if (obd->obd_type->typ_refcnt <= 1)
+		libcfs_kkuc_group_rem(0, KUC_GRP_HSM);
 
-		obd_cleanup_client_import(obd);
-		ptlrpc_lprocfs_unregister_obd(obd);
-		lprocfs_obd_cleanup(obd);
-
-		mdc_llog_finish(obd);
-		break;
-	}
+	obd_cleanup_client_import(obd);
+	ptlrpc_lprocfs_unregister_obd(obd);
+	lprocfs_obd_cleanup(obd);
+	mdc_llog_finish(obd);
 	return 0;
 }
 

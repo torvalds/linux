@@ -825,29 +825,6 @@ out:
 	return rc;
 }
 
-static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
-{
-	struct lov_obd *lov = &obd->u.lov;
-
-	switch (stage) {
-	case OBD_CLEANUP_EARLY: {
-		int i;
-
-		for (i = 0; i < lov->desc.ld_tgt_count; i++) {
-			if (!lov->lov_tgts[i] || !lov->lov_tgts[i]->ltd_active)
-				continue;
-			obd_precleanup(class_exp2obd(lov->lov_tgts[i]->ltd_exp),
-				       OBD_CLEANUP_EARLY);
-		}
-		break;
-	}
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int lov_cleanup(struct obd_device *obd)
 {
 	struct lov_obd *lov = &obd->u.lov;
@@ -1399,7 +1376,6 @@ static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 static struct obd_ops lov_obd_ops = {
 	.owner          = THIS_MODULE,
 	.setup          = lov_setup,
-	.precleanup     = lov_precleanup,
 	.cleanup        = lov_cleanup,
 	/*.process_config       = lov_process_config,*/
 	.connect        = lov_connect,
