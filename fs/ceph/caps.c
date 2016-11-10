@@ -1057,6 +1057,13 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	fc->gid = cpu_to_le32(from_kgid(&init_user_ns, gid));
 	fc->mode = cpu_to_le32(mode);
 
+	fc->xattr_version = cpu_to_le64(xattr_version);
+	if (xattrs_buf) {
+		msg->middle = ceph_buffer_get(xattrs_buf);
+		fc->xattr_len = cpu_to_le32(xattrs_buf->vec.iov_len);
+		msg->hdr.middle_len = cpu_to_le32(xattrs_buf->vec.iov_len);
+	}
+
 	p = fc + 1;
 	/* flock buffer size */
 	ceph_encode_32(&p, 0);
@@ -1068,13 +1075,6 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	ceph_encode_32(&p, 0);
 	/* oldest_flush_tid */
 	ceph_encode_64(&p, oldest_flush_tid);
-
-	fc->xattr_version = cpu_to_le64(xattr_version);
-	if (xattrs_buf) {
-		msg->middle = ceph_buffer_get(xattrs_buf);
-		fc->xattr_len = cpu_to_le32(xattrs_buf->vec.iov_len);
-		msg->hdr.middle_len = cpu_to_le32(xattrs_buf->vec.iov_len);
-	}
 
 	ceph_con_send(&session->s_con, msg);
 	return 0;
