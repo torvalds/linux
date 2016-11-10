@@ -41,7 +41,7 @@ static void clean_vgpu_mmio(struct intel_vgpu *vgpu)
 	vgpu->mmio.vreg = vgpu->mmio.sreg = NULL;
 }
 
-static int setup_vgpu_mmio(struct intel_vgpu *vgpu)
+int setup_vgpu_mmio(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	const struct intel_gvt_device_info *info = &gvt->device_info;
@@ -103,7 +103,7 @@ static void setup_vgpu_cfg_space(struct intel_vgpu *vgpu,
 	}
 }
 
-static void populate_pvinfo_page(struct intel_vgpu *vgpu)
+void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
 	/* setup the ballooning information */
 	vgpu_vreg64(vgpu, vgtif_reg(magic)) = VGT_MAGIC;

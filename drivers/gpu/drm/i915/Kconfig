@@ -11,6 +11,7 @@ config DRM_I915
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_MIPI_DSI
+	select RELAY
 	# i915 depends on ACPI_VIDEO when ACPI is enabled
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
 	select BACKLIGHT_LCD_SUPPORT if ACPI
@@ -24,15 +25,16 @@ config DRM_I915
 	  including 830M, 845G, 852GM, 855GM, 865G, 915G, 945G, 965G,
 	  G35, G41, G43, G45 chipsets and Celeron, Pentium, Core i3,
 	  Core i5, Core i7 as well as Atom CPUs with integrated graphics.
-	  If M is selected, the module will be called i915.  AGP support
-	  is required for this driver to work. This driver is used by
-	  the Intel driver in X.org 6.8 and XFree86 4.4 and above. It
-	  replaces the older i830 module that supported a subset of the
-	  hardware in older X.org releases.
+
+	  This driver is used by the Intel driver in X.org 6.8 and
+	  XFree86 4.4 and above. It replaces the older i830 module that
+	  supported a subset of the hardware in older X.org releases.
 
 	  Note that the older i810/i815 chipsets require the use of the
 	  i810 driver instead, and the Atom z5xx series has an entirely
 	  different implementation.
+
+	  If "M" is selected, the module will be called i915.
 
 config DRM_I915_PRELIMINARY_HW_SUPPORT
 	bool "Enable preliminary support for prerelease Intel hardware by default"
@@ -85,6 +87,7 @@ config DRM_I915_USERPTR
 config DRM_I915_GVT
         bool "Enable Intel GVT-g graphics virtualization host support"
         depends on DRM_I915
+        depends on 64BIT
         default n
         help
 	  Choose this option if you want to enable Intel GVT-g graphics

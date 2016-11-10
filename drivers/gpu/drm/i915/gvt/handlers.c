@@ -239,13 +239,27 @@ static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
 	vgpu->resetting = true;
 
 	intel_vgpu_stop_schedule(vgpu);
-	if (scheduler->current_vgpu == vgpu) {
+	/*
+	 * The current_vgpu will set to NULL after stopping the
+	 * scheduler when the reset is triggered by current vgpu.
+	 */
+	if (scheduler->current_vgpu == NULL) {
 		mutex_unlock(&vgpu->gvt->lock);
 		intel_gvt_wait_vgpu_idle(vgpu);
 		mutex_lock(&vgpu->gvt->lock);
 	}
 
 	intel_vgpu_reset_execlist(vgpu, bitmap);
+
+	/* full GPU reset */
+	if (bitmap == 0xff) {
+		mutex_unlock(&vgpu->gvt->lock);
+		intel_vgpu_clean_gtt(vgpu);
+		mutex_lock(&vgpu->gvt->lock);
+		setup_vgpu_mmio(vgpu);
+		populate_pvinfo_page(vgpu);
+		intel_vgpu_init_gtt(vgpu);
+	}
 
 	vgpu->resetting = false;
 
@@ -258,6 +272,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	u32 data;
 	u64 bitmap = 0;
 
+	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
 	if (data & GEN6_GRDOM_FULL) {
@@ -1305,7 +1320,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
-	int ret;
+	int ret = 0;
 
 	if (WARN_ON(ring_id < 0 || ring_id > I915_NUM_ENGINES - 1))
 		return -EINVAL;
@@ -1313,12 +1328,15 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	execlist = &vgpu->execlist[ring_id];
 
 	execlist->elsp_dwords.data[execlist->elsp_dwords.index] = data;
-	if (execlist->elsp_dwords.index == 3)
+	if (execlist->elsp_dwords.index == 3) {
 		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
+		if(ret)
+			gvt_err("fail submit workload on ring %d\n", ring_id);
+	}
 
 	++execlist->elsp_dwords.index;
 	execlist->elsp_dwords.index &= 0x3;
-	return 0;
+	return ret;
 }
 
 static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,

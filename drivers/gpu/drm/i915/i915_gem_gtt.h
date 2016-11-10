@@ -211,6 +211,7 @@ struct i915_vma {
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	struct i915_gem_active last_write;
 	struct i915_gem_active last_fence;
 
 	/**
@@ -226,6 +227,7 @@ struct i915_vma {
 	struct list_head vm_link;
 
 	struct list_head obj_link; /* Link in the object's VMA list */
+	struct rb_node obj_node;
 
 	/** This vma's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
@@ -341,6 +343,7 @@ struct i915_pml4 {
 
 struct i915_address_space {
 	struct drm_mm mm;
+	struct i915_gem_timeline timeline;
 	struct drm_device *dev;
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
@@ -612,7 +615,8 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 int i915_ppgtt_init_hw(struct drm_device *dev);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
-					struct drm_i915_file_private *fpriv);
+					struct drm_i915_file_private *fpriv,
+					const char *name);
 static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)
@@ -628,8 +632,10 @@ void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
-int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
-void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
+					    struct sg_table *pages);
+void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
+			       struct sg_table *pages);
 
 /* Flags used by pin/bind&friends. */
 #define PIN_NONBLOCK		BIT(0)

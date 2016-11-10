@@ -415,17 +415,13 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	if (INTEL_GEN(m->i915) >= 6) {
 		err_printf(m, "  RC PSMI: 0x%08x\n", ee->rc_psmi);
 		err_printf(m, "  FAULT_REG: 0x%08x\n", ee->fault_reg);
-		err_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
-			   ee->semaphore_mboxes[0],
-			   ee->semaphore_seqno[0]);
-		err_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
-			   ee->semaphore_mboxes[1],
-			   ee->semaphore_seqno[1]);
-		if (HAS_VEBOX(m->i915)) {
-			err_printf(m, "  SYNC_2: 0x%08x [last synced 0x%08x]\n",
-				   ee->semaphore_mboxes[2],
-				   ee->semaphore_seqno[2]);
-		}
+		err_printf(m, "  SYNC_0: 0x%08x\n",
+			   ee->semaphore_mboxes[0]);
+		err_printf(m, "  SYNC_1: 0x%08x\n",
+			   ee->semaphore_mboxes[1]);
+		if (HAS_VEBOX(m->i915))
+			err_printf(m, "  SYNC_2: 0x%08x\n",
+				   ee->semaphore_mboxes[2]);
 	}
 	if (USES_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
@@ -546,9 +542,13 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	}
 
 	err_printf(m, "%s\n", error->error_msg);
-	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
-		   error->time.tv_usec);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	err_printf(m, "Time: %ld s %ld us\n",
+		   error->time.tv_sec, error->time.tv_usec);
+	err_printf(m, "Boottime: %ld s %ld us\n",
+		   error->boottime.tv_sec, error->boottime.tv_usec);
+	err_printf(m, "Uptime: %ld s %ld us\n",
+		   error->uptime.tv_sec, error->uptime.tv_usec);
 	err_print_capabilities(m, &error->device_info);
 	max_hangcheck_score = 0;
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -702,6 +702,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	print_error_obj(m, NULL, "Semaphores", error->semaphore);
 
+	print_error_obj(m, NULL, "GuC log buffer", error->guc_log);
+
 	if (error->overlay)
 		intel_overlay_print_error_state(m, error->overlay);
 
@@ -782,6 +784,7 @@ static void i915_error_state_free(struct kref *error_ref)
 	}
 
 	i915_error_object_free(error->semaphore);
+	i915_error_object_free(error->guc_log);
 
 	for (i = 0; i < ARRAY_SIZE(error->active_bo); i++)
 		kfree(error->active_bo[i]);
@@ -880,17 +883,17 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->name = obj->base.name;
 
 	for (i = 0; i < I915_NUM_ENGINES; i++)
-		err->rseqno[i] = __active_get_seqno(&obj->last_read[i]);
-	err->wseqno = __active_get_seqno(&obj->last_write);
-	err->engine = __active_get_engine_id(&obj->last_write);
+		err->rseqno[i] = __active_get_seqno(&vma->last_read[i]);
+	err->wseqno = __active_get_seqno(&vma->last_write);
+	err->engine = __active_get_engine_id(&vma->last_write);
 
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = vma->fence ? vma->fence->id : -1;
 	err->tiling = i915_gem_object_get_tiling(obj);
-	err->dirty = obj->dirty;
-	err->purgeable = obj->madv != I915_MADV_WILLNEED;
+	err->dirty = obj->mm.dirty;
+	err->purgeable = obj->mm.madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
 	err->cache_level = obj->cache_level;
 }
@@ -965,6 +968,26 @@ static void i915_gem_record_fences(struct drm_i915_private *dev_priv,
 	}
 }
 
+static inline u32
+gen8_engine_sync_index(struct intel_engine_cs *engine,
+		       struct intel_engine_cs *other)
+{
+	int idx;
+
+	/*
+	 * rcs -> 0 = vcs, 1 = bcs, 2 = vecs, 3 = vcs2;
+	 * vcs -> 0 = bcs, 1 = vecs, 2 = vcs2, 3 = rcs;
+	 * bcs -> 0 = vecs, 1 = vcs2. 2 = rcs, 3 = vcs;
+	 * vecs -> 0 = vcs2, 1 = rcs, 2 = vcs, 3 = bcs;
+	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
+	 */
+
+	idx = (other - engine) - 1;
+	if (idx < 0)
+		idx += I915_NUM_ENGINES;
+
+	return idx;
+}
 
 static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 					struct intel_engine_cs *engine,
@@ -988,10 +1011,9 @@ static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 		signal_offset =
 			(GEN8_SIGNAL_OFFSET(engine, id) & (PAGE_SIZE - 1)) / 4;
 		tmp = error->semaphore->pages[0];
-		idx = intel_engine_sync_index(engine, to);
+		idx = gen8_engine_sync_index(engine, to);
 
 		ee->semaphore_mboxes[idx] = tmp[signal_offset];
-		ee->semaphore_seqno[idx] = engine->semaphore.sync_seqno[idx];
 	}
 }
 
@@ -1002,14 +1024,9 @@ static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
 
 	ee->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(engine->mmio_base));
 	ee->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(engine->mmio_base));
-	ee->semaphore_seqno[0] = engine->semaphore.sync_seqno[0];
-	ee->semaphore_seqno[1] = engine->semaphore.sync_seqno[1];
-
-	if (HAS_VEBOX(dev_priv)) {
+	if (HAS_VEBOX(dev_priv))
 		ee->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(engine->mmio_base));
-		ee->semaphore_seqno[2] = engine->semaphore.sync_seqno[2];
-	}
 }
 
 static void error_record_engine_waiters(struct intel_engine_cs *engine,
@@ -1026,7 +1043,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	if (RB_EMPTY_ROOT(&b->waiters))
 		return;
 
-	if (!spin_trylock(&b->lock)) {
+	if (!spin_trylock_irq(&b->lock)) {
 		ee->waiters = ERR_PTR(-EDEADLK);
 		return;
 	}
@@ -1034,7 +1051,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	count = 0;
 	for (rb = rb_first(&b->waiters); rb != NULL; rb = rb_next(rb))
 		count++;
-	spin_unlock(&b->lock);
+	spin_unlock_irq(&b->lock);
 
 	waiter = NULL;
 	if (count)
@@ -1044,7 +1061,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 	if (!waiter)
 		return;
 
-	if (!spin_trylock(&b->lock)) {
+	if (!spin_trylock_irq(&b->lock)) {
 		kfree(waiter);
 		ee->waiters = ERR_PTR(-EDEADLK);
 		return;
@@ -1062,7 +1079,7 @@ static void error_record_engine_waiters(struct intel_engine_cs *engine,
 		if (++ee->num_waiters == count)
 			break;
 	}
-	spin_unlock(&b->lock);
+	spin_unlock_irq(&b->lock);
 }
 
 static void error_record_engine_registers(struct drm_i915_error_state *error,
@@ -1103,7 +1120,7 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ee->acthd = intel_engine_get_active_head(engine);
 	ee->seqno = intel_engine_get_seqno(engine);
-	ee->last_seqno = engine->last_submitted_seqno;
+	ee->last_seqno = intel_engine_last_submit(engine);
 	ee->start = I915_READ_START(engine);
 	ee->head = I915_READ_HEAD(engine);
 	ee->tail = I915_READ_TAIL(engine);
@@ -1169,7 +1186,7 @@ static void record_request(struct drm_i915_gem_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
-	erq->seqno = request->fence.seqno;
+	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->head = request->head;
 	erq->tail = request->tail;
@@ -1188,7 +1205,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->request_list, link)
+	list_for_each_entry_from(request, &engine->timeline->requests, link)
 		count++;
 	if (!count)
 		return;
@@ -1201,7 +1218,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->request_list, link) {
+	list_for_each_entry_from(request, &engine->timeline->requests, link) {
 		if (count >= ee->num_requests) {
 			/*
 			 * If the ring request list was changed in
@@ -1408,6 +1425,17 @@ static void i915_capture_pinned_buffers(struct drm_i915_private *dev_priv,
 	error->pinned_bo = bo;
 }
 
+static void i915_gem_capture_guc_log_buffer(struct drm_i915_private *dev_priv,
+					    struct drm_i915_error_state *error)
+{
+	/* Capturing log buf contents won't be useful if logging was disabled */
+	if (!dev_priv->guc.log.vma || (i915.guc_log_level < 0))
+		return;
+
+	error->guc_log = i915_error_object_create(dev_priv,
+						  dev_priv->guc.log.vma);
+}
+
 /* Capture all registers which don't fit into another category. */
 static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
@@ -1532,8 +1560,13 @@ static int capture(void *data)
 	i915_gem_record_rings(error->i915, error);
 	i915_capture_active_buffers(error->i915, error);
 	i915_capture_pinned_buffers(error->i915, error);
+	i915_gem_capture_guc_log_buffer(error->i915, error);
 
 	do_gettimeofday(&error->time);
+	error->boottime = ktime_to_timeval(ktime_get_boottime());
+	error->uptime =
+		ktime_to_timeval(ktime_sub(ktime_get(),
+					   error->i915->gt.last_init_time));
 
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);

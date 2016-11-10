@@ -83,16 +83,18 @@ static void irq_enable(struct intel_engine_cs *engine)
 	 */
 	engine->breadcrumbs.irq_posted = true;
 
-	spin_lock_irq(&engine->i915->irq_lock);
+	/* Caller disables interrupts */
+	spin_lock(&engine->i915->irq_lock);
 	engine->irq_enable(engine);
-	spin_unlock_irq(&engine->i915->irq_lock);
+	spin_unlock(&engine->i915->irq_lock);
 }
 
 static void irq_disable(struct intel_engine_cs *engine)
 {
-	spin_lock_irq(&engine->i915->irq_lock);
+	/* Caller disables interrupts */
+	spin_lock(&engine->i915->irq_lock);
 	engine->irq_disable(engine);
-	spin_unlock_irq(&engine->i915->irq_lock);
+	spin_unlock(&engine->i915->irq_lock);
 
 	engine->breadcrumbs.irq_posted = false;
 }
@@ -293,9 +295,9 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 	bool first;
 
-	spin_lock(&b->lock);
+	spin_lock_irq(&b->lock);
 	first = __intel_engine_add_wait(engine, wait);
-	spin_unlock(&b->lock);
+	spin_unlock_irq(&b->lock);
 
 	return first;
 }
@@ -326,7 +328,7 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 	if (RB_EMPTY_NODE(&wait->node))
 		return;
 
-	spin_lock(&b->lock);
+	spin_lock_irq(&b->lock);
 
 	if (RB_EMPTY_NODE(&wait->node))
 		goto out_unlock;
@@ -400,7 +402,7 @@ out_unlock:
 	GEM_BUG_ON(rb_first(&b->waiters) !=
 		   (b->first_wait ? &b->first_wait->node : NULL));
 	GEM_BUG_ON(!rcu_access_pointer(b->irq_seqno_bh) ^ RB_EMPTY_ROOT(&b->waiters));
-	spin_unlock(&b->lock);
+	spin_unlock_irq(&b->lock);
 }
 
 static bool signal_complete(struct drm_i915_gem_request *request)
@@ -473,14 +475,14 @@ static int intel_breadcrumbs_signaler(void *arg)
 			 * we just completed - so double check we are still
 			 * the oldest before picking the next one.
 			 */
-			spin_lock(&b->lock);
+			spin_lock_irq(&b->lock);
 			if (request == b->first_signal) {
 				struct rb_node *rb =
 					rb_next(&request->signaling.node);
 				b->first_signal = rb ? to_signaler(rb) : NULL;
 			}
 			rb_erase(&request->signaling.node, &b->signals);
-			spin_unlock(&b->lock);
+			spin_unlock_irq(&b->lock);
 
 			i915_gem_request_put(request);
 		} else {
@@ -502,11 +504,20 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	struct rb_node *parent, **p;
 	bool first, wakeup;
 
-	/* locked by dma_fence_enable_sw_signaling() */
+	/* Note that we may be called from an interrupt handler on another
+	 * device (e.g. nouveau signaling a fence completion causing us
+	 * to submit a request, and so enable signaling). As such,
+	 * we need to make sure that all other users of b->lock protect
+	 * against interrupts, i.e. use spin_lock_irqsave.
+	 */
+
+	/* locked by dma_fence_enable_sw_signaling() (irqsafe fence->lock) */
 	assert_spin_locked(&request->lock);
+	if (!request->global_seqno)
+		return;
 
 	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.seqno = request->fence.seqno;
+	request->signaling.wait.seqno = request->global_seqno;
 	i915_gem_request_get(request);
 
 	spin_lock(&b->lock);
@@ -530,8 +541,8 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	p = &b->signals.rb_node;
 	while (*p) {
 		parent = *p;
-		if (i915_seqno_passed(request->fence.seqno,
-				      to_signaler(parent)->fence.seqno)) {
+		if (i915_seqno_passed(request->global_seqno,
+				      to_signaler(parent)->global_seqno)) {
 			p = &parent->rb_right;
 			first = false;
 		} else {
@@ -592,7 +603,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	cancel_fake_irq(engine);
-	spin_lock(&b->lock);
+	spin_lock_irq(&b->lock);
 
 	__intel_breadcrumbs_disable_irq(b);
 	if (intel_engine_has_waiter(engine)) {
@@ -605,7 +616,7 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 		irq_disable(engine);
 	}
 
-	spin_unlock(&b->lock);
+	spin_unlock_irq(&b->lock);
 }
 
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)

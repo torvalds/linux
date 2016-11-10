@@ -1547,7 +1547,6 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 {
 	const struct bxt_ddi_buf_trans *ddi_translations;
 	u32 n_entries, i;
-	uint32_t val;
 
 	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
 		n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
@@ -1576,38 +1575,11 @@ static void bxt_ddi_vswing_sequence(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	/*
-	 * While we write to the group register to program all lanes at once we
-	 * can read only lane registers and we pick lanes 0/1 for that.
-	 */
-	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
-	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
-	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_TX_DW2_LN0(port));
-	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
-	val |= ddi_translations[level].margin << MARGIN_000_SHIFT |
-	       ddi_translations[level].scale << UNIQ_TRANS_SCALE_SHIFT;
-	I915_WRITE(BXT_PORT_TX_DW2_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_TX_DW3_LN0(port));
-	val &= ~SCALE_DCOMP_METHOD;
-	if (ddi_translations[level].enable)
-		val |= SCALE_DCOMP_METHOD;
-
-	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
-		DRM_ERROR("Disabled scaling while ouniqetrangenmethod was set");
-
-	I915_WRITE(BXT_PORT_TX_DW3_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_TX_DW4_LN0(port));
-	val &= ~DE_EMPHASIS;
-	val |= ddi_translations[level].deemphasis << DEEMPH_SHIFT;
-	I915_WRITE(BXT_PORT_TX_DW4_GRP(port), val);
-
-	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
-	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
-	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+	bxt_ddi_phy_set_signal_level(dev_priv, port,
+				     ddi_translations[level].margin,
+				     ddi_translations[level].scale,
+				     ddi_translations[level].enable,
+				     ddi_translations[level].deemphasis);
 }
 
 static uint32_t translate_signal_level(int signal_levels)
@@ -1923,332 +1895,14 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder,
 	}
 }
 
-bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
-			    enum dpio_phy phy)
-{
-	enum port port;
-
-	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
-		return false;
-
-	if ((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
-	     (PHY_POWER_GOOD | PHY_RESERVED)) != PHY_POWER_GOOD) {
-		DRM_DEBUG_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
-				 phy);
-
-		return false;
-	}
-
-	if (phy == DPIO_PHY1 &&
-	    !(I915_READ(BXT_PORT_REF_DW3(DPIO_PHY1)) & GRC_DONE)) {
-		DRM_DEBUG_DRIVER("DDI PHY 1 powered, but GRC isn't done\n");
-
-		return false;
-	}
-
-	if (!(I915_READ(BXT_PHY_CTL_FAMILY(phy)) & COMMON_RESET_DIS)) {
-		DRM_DEBUG_DRIVER("DDI PHY %d powered, but still in reset\n",
-				 phy);
-
-		return false;
-	}
-
-	for_each_port_masked(port,
-			     phy == DPIO_PHY0 ? BIT(PORT_B) | BIT(PORT_C) :
-						BIT(PORT_A)) {
-		u32 tmp = I915_READ(BXT_PHY_CTL(port));
-
-		if (tmp & BXT_PHY_CMNLANE_POWERDOWN_ACK) {
-			DRM_DEBUG_DRIVER("DDI PHY %d powered, but common lane "
-					 "for port %c powered down "
-					 "(PHY_CTL %08x)\n",
-					 phy, port_name(port), tmp);
-
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
-{
-	u32 val = I915_READ(BXT_PORT_REF_DW6(phy));
-
-	return (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
-}
-
-static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
-				  enum dpio_phy phy)
-{
-	if (intel_wait_for_register(dev_priv,
-				    BXT_PORT_REF_DW3(phy),
-				    GRC_DONE, GRC_DONE,
-				    10))
-		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
-}
-
-void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
-{
-	u32 val;
-
-	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
-		/* Still read out the GRC value for state verification */
-		if (phy == DPIO_PHY0)
-			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
-
-		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
-			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
-					 "won't reprogram it\n", phy);
-
-			return;
-		}
-
-		DRM_DEBUG_DRIVER("DDI PHY %d enabled with invalid state, "
-				 "force reprogramming it\n", phy);
-	}
-
-	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
-	val |= GT_DISPLAY_POWER_ON(phy);
-	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
-
-	/*
-	 * The PHY registers start out inaccessible and respond to reads with
-	 * all 1s.  Eventually they become accessible as they power up, then
-	 * the reserved bit will give the default 0.  Poll on the reserved bit
-	 * becoming 0 to find when the PHY is accessible.
-	 * HW team confirmed that the time to reach phypowergood status is
-	 * anywhere between 50 us and 100us.
-	 */
-	if (wait_for_us(((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
-		(PHY_RESERVED | PHY_POWER_GOOD)) == PHY_POWER_GOOD), 100)) {
-		DRM_ERROR("timeout during PHY%d power on\n", phy);
-	}
-
-	/* Program PLL Rcomp code offset */
-	val = I915_READ(BXT_PORT_CL1CM_DW9(phy));
-	val &= ~IREF0RC_OFFSET_MASK;
-	val |= 0xE4 << IREF0RC_OFFSET_SHIFT;
-	I915_WRITE(BXT_PORT_CL1CM_DW9(phy), val);
-
-	val = I915_READ(BXT_PORT_CL1CM_DW10(phy));
-	val &= ~IREF1RC_OFFSET_MASK;
-	val |= 0xE4 << IREF1RC_OFFSET_SHIFT;
-	I915_WRITE(BXT_PORT_CL1CM_DW10(phy), val);
-
-	/* Program power gating */
-	val = I915_READ(BXT_PORT_CL1CM_DW28(phy));
-	val |= OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN |
-		SUS_CLK_CONFIG;
-	I915_WRITE(BXT_PORT_CL1CM_DW28(phy), val);
-
-	if (phy == DPIO_PHY0) {
-		val = I915_READ(BXT_PORT_CL2CM_DW6_BC);
-		val |= DW6_OLDO_DYN_PWR_DOWN_EN;
-		I915_WRITE(BXT_PORT_CL2CM_DW6_BC, val);
-	}
-
-	val = I915_READ(BXT_PORT_CL1CM_DW30(phy));
-	val &= ~OCL2_LDOFUSE_PWR_DIS;
-	/*
-	 * On PHY1 disable power on the second channel, since no port is
-	 * connected there. On PHY0 both channels have a port, so leave it
-	 * enabled.
-	 * TODO: port C is only connected on BXT-P, so on BXT0/1 we should
-	 * power down the second channel on PHY0 as well.
-	 *
-	 * FIXME: Clarify programming of the following, the register is
-	 * read-only with bit 6 fixed at 0 at least in stepping A.
-	 */
-	if (phy == DPIO_PHY1)
-		val |= OCL2_LDOFUSE_PWR_DIS;
-	I915_WRITE(BXT_PORT_CL1CM_DW30(phy), val);
-
-	if (phy == DPIO_PHY0) {
-		uint32_t grc_code;
-		/*
-		 * PHY0 isn't connected to an RCOMP resistor so copy over
-		 * the corresponding calibrated value from PHY1, and disable
-		 * the automatic calibration on PHY0.
-		 */
-		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, DPIO_PHY1);
-		grc_code = val << GRC_CODE_FAST_SHIFT |
-			   val << GRC_CODE_SLOW_SHIFT |
-			   val;
-		I915_WRITE(BXT_PORT_REF_DW6(DPIO_PHY0), grc_code);
-
-		val = I915_READ(BXT_PORT_REF_DW8(DPIO_PHY0));
-		val |= GRC_DIS | GRC_RDY_OVRD;
-		I915_WRITE(BXT_PORT_REF_DW8(DPIO_PHY0), val);
-	}
-
-	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
-	val |= COMMON_RESET_DIS;
-	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
-
-	if (phy == DPIO_PHY1)
-		bxt_phy_wait_grc_done(dev_priv, DPIO_PHY1);
-}
-
-void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
-{
-	uint32_t val;
-
-	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
-	val &= ~COMMON_RESET_DIS;
-	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
-
-	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
-	val &= ~GT_DISPLAY_POWER_ON(phy);
-	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
-}
-
-static bool __printf(6, 7)
-__phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
-		       i915_reg_t reg, u32 mask, u32 expected,
-		       const char *reg_fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-	u32 val;
-
-	val = I915_READ(reg);
-	if ((val & mask) == expected)
-		return true;
-
-	va_start(args, reg_fmt);
-	vaf.fmt = reg_fmt;
-	vaf.va = &args;
-
-	DRM_DEBUG_DRIVER("DDI PHY %d reg %pV [%08x] state mismatch: "
-			 "current %08x, expected %08x (mask %08x)\n",
-			 phy, &vaf, reg.reg, val, (val & ~mask) | expected,
-			 mask);
-
-	va_end(args);
-
-	return false;
-}
-
-bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
-			      enum dpio_phy phy)
-{
-	uint32_t mask;
-	bool ok;
-
-#define _CHK(reg, mask, exp, fmt, ...)					\
-	__phy_reg_verify_state(dev_priv, phy, reg, mask, exp, fmt,	\
-			       ## __VA_ARGS__)
-
-	if (!bxt_ddi_phy_is_enabled(dev_priv, phy))
-		return false;
-
-	ok = true;
-
-	/* PLL Rcomp code offset */
-	ok &= _CHK(BXT_PORT_CL1CM_DW9(phy),
-		    IREF0RC_OFFSET_MASK, 0xe4 << IREF0RC_OFFSET_SHIFT,
-		    "BXT_PORT_CL1CM_DW9(%d)", phy);
-	ok &= _CHK(BXT_PORT_CL1CM_DW10(phy),
-		    IREF1RC_OFFSET_MASK, 0xe4 << IREF1RC_OFFSET_SHIFT,
-		    "BXT_PORT_CL1CM_DW10(%d)", phy);
-
-	/* Power gating */
-	mask = OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN | SUS_CLK_CONFIG;
-	ok &= _CHK(BXT_PORT_CL1CM_DW28(phy), mask, mask,
-		    "BXT_PORT_CL1CM_DW28(%d)", phy);
-
-	if (phy == DPIO_PHY0)
-		ok &= _CHK(BXT_PORT_CL2CM_DW6_BC,
-			   DW6_OLDO_DYN_PWR_DOWN_EN, DW6_OLDO_DYN_PWR_DOWN_EN,
-			   "BXT_PORT_CL2CM_DW6_BC");
-
-	/*
-	 * TODO: Verify BXT_PORT_CL1CM_DW30 bit OCL2_LDOFUSE_PWR_DIS,
-	 * at least on stepping A this bit is read-only and fixed at 0.
-	 */
-
-	if (phy == DPIO_PHY0) {
-		u32 grc_code = dev_priv->bxt_phy_grc;
-
-		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
-			   grc_code << GRC_CODE_SLOW_SHIFT |
-			   grc_code;
-		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
-		       GRC_CODE_NOM_MASK;
-		ok &= _CHK(BXT_PORT_REF_DW6(DPIO_PHY0), mask, grc_code,
-			    "BXT_PORT_REF_DW6(%d)", DPIO_PHY0);
-
-		mask = GRC_DIS | GRC_RDY_OVRD;
-		ok &= _CHK(BXT_PORT_REF_DW8(DPIO_PHY0), mask, mask,
-			    "BXT_PORT_REF_DW8(%d)", DPIO_PHY0);
-	}
-
-	return ok;
-#undef _CHK
-}
-
-static uint8_t
-bxt_ddi_phy_calc_lane_lat_optim_mask(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config)
-{
-	switch (pipe_config->lane_count) {
-	case 1:
-		return 0;
-	case 2:
-		return BIT(2) | BIT(0);
-	case 4:
-		return BIT(3) | BIT(2) | BIT(0);
-	default:
-		MISSING_CASE(pipe_config->lane_count);
-
-		return 0;
-	}
-}
-
 static void bxt_ddi_pre_pll_enable(struct intel_encoder *encoder,
 				   struct intel_crtc_state *pipe_config,
 				   struct drm_connector_state *conn_state)
 {
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
-	enum port port = dport->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	int lane;
+	uint8_t mask = intel_crtc->config->lane_lat_optim_mask;
 
-	for (lane = 0; lane < 4; lane++) {
-		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
-
-		/*
-		 * Note that on CHV this flag is called UPAR, but has
-		 * the same function.
-		 */
-		val &= ~LATENCY_OPTIM;
-		if (intel_crtc->config->lane_lat_optim_mask & BIT(lane))
-			val |= LATENCY_OPTIM;
-
-		I915_WRITE(BXT_PORT_TX_DW14_LN(port, lane), val);
-	}
-}
-
-static uint8_t
-bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
-{
-	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
-	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
-	enum port port = dport->port;
-	int lane;
-	uint8_t mask;
-
-	mask = 0;
-	for (lane = 0; lane < 4; lane++) {
-		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
-
-		if (val & LATENCY_OPTIM)
-			mask |= BIT(lane);
-	}
-
-	return mask;
+	bxt_ddi_phy_set_lane_optim_mask(encoder, mask);
 }
 
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
@@ -2417,7 +2071,7 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 	if (IS_BROXTON(dev_priv) && ret)
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(encoder,
-							     pipe_config);
+							     pipe_config->lane_count);
 
 	return ret;
 

@@ -174,7 +174,7 @@ cleanup:
 	return ret;
 }
 
-void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno)
+void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
@@ -204,13 +204,13 @@ void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 				       I915_NUM_ENGINES * gen8_semaphore_seqno_size);
 		kunmap(page);
 	}
-	memset(engine->semaphore.sync_seqno, 0,
-	       sizeof(engine->semaphore.sync_seqno));
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 	if (engine->irq_seqno_barrier)
 		engine->irq_seqno_barrier(engine);
-	engine->last_submitted_seqno = seqno;
+
+	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
+	engine->timeline->last_submitted_seqno = seqno;
 
 	engine->hangcheck.seqno = seqno;
 
@@ -220,15 +220,9 @@ void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 	intel_engine_wakeup(engine);
 }
 
-void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
+static void intel_engine_init_timeline(struct intel_engine_cs *engine)
 {
-	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
-}
-
-static void intel_engine_init_requests(struct intel_engine_cs *engine)
-{
-	init_request_active(&engine->last_request, NULL);
-	INIT_LIST_HEAD(&engine->request_list);
+	engine->timeline = &engine->i915->gt.global_timeline.engine[engine->id];
 }
 
 /**
@@ -245,9 +239,7 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 	INIT_LIST_HEAD(&engine->execlist_queue);
 	spin_lock_init(&engine->execlist_lock);
 
-	engine->fence_context = dma_fence_context_alloc(1);
-
-	intel_engine_init_requests(engine);
+	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);
 	i915_gem_batch_pool_init(engine, &engine->batch_pool);
 
@@ -264,7 +256,7 @@ int intel_engine_create_scratch(struct intel_engine_cs *engine, int size)
 
 	obj = i915_gem_object_create_stolen(&engine->i915->drm, size);
 	if (!obj)
-		obj = i915_gem_object_create(&engine->i915->drm, size);
+		obj = i915_gem_object_create_internal(engine->i915, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate scratch page\n");
 		return PTR_ERR(obj);
@@ -314,6 +306,10 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
+	ret = i915_gem_render_state_init(engine);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -328,6 +324,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	intel_engine_cleanup_scratch(engine);
 
+	i915_gem_render_state_fini(engine);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);

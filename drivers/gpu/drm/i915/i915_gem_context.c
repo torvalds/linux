@@ -155,9 +155,10 @@ void i915_gem_context_free(struct kref *ctx_ref)
 		if (ce->ring)
 			intel_ring_free(ce->ring);
 
-		i915_vma_put(ce->state);
+		__i915_gem_object_release_unless_active(ce->state->obj);
 	}
 
+	kfree(ctx->name);
 	put_pid(ctx->pid);
 	list_del(&ctx->link);
 
@@ -303,19 +304,28 @@ __create_hw_context(struct drm_device *dev,
 	}
 
 	/* Default context will never have a file_priv */
-	if (file_priv != NULL) {
+	ret = DEFAULT_CONTEXT_HANDLE;
+	if (file_priv) {
 		ret = idr_alloc(&file_priv->context_idr, ctx,
 				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
 		if (ret < 0)
 			goto err_out;
-	} else
-		ret = DEFAULT_CONTEXT_HANDLE;
+	}
+	ctx->user_handle = ret;
 
 	ctx->file_priv = file_priv;
-	if (file_priv)
+	if (file_priv) {
 		ctx->pid = get_task_pid(current, PIDTYPE_PID);
+		ctx->name = kasprintf(GFP_KERNEL, "%s[%d]/%x",
+				      current->comm,
+				      pid_nr(ctx->pid),
+				      ctx->user_handle);
+		if (!ctx->name) {
+			ret = -ENOMEM;
+			goto err_pid;
+		}
+	}
 
-	ctx->user_handle = ret;
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
 	 * is no remap info, it will be a NOP. */
@@ -329,6 +339,9 @@ __create_hw_context(struct drm_device *dev,
 
 	return ctx;
 
+err_pid:
+	put_pid(ctx->pid);
+	idr_remove(&file_priv->context_idr, ctx->user_handle);
 err_out:
 	context_close(ctx);
 	return ERR_PTR(ret);
@@ -352,9 +365,9 @@ i915_gem_create_context(struct drm_device *dev,
 		return ctx;
 
 	if (USES_FULL_PPGTT(dev)) {
-		struct i915_hw_ppgtt *ppgtt =
-			i915_ppgtt_create(to_i915(dev), file_priv);
+		struct i915_hw_ppgtt *ppgtt;
 
+		ppgtt = i915_ppgtt_create(to_i915(dev), file_priv, ctx->name);
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
@@ -751,12 +764,36 @@ needs_pd_load_post(struct i915_hw_ppgtt *ppgtt,
 	return false;
 }
 
+struct i915_vma *
+i915_gem_context_pin_legacy(struct i915_gem_context *ctx,
+			    unsigned int flags)
+{
+	struct i915_vma *vma = ctx->engine[RCS].state;
+	int ret;
+
+	/* Clear this page out of any CPU caches for coherent swap-in/out.
+	 * We only want to do this on the first bind so that we do not stall
+	 * on an active context (which by nature is already on the GPU).
+	 */
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	ret = i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | flags);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return vma;
+}
+
 static int do_rcs_switch(struct drm_i915_gem_request *req)
 {
 	struct i915_gem_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
 	struct i915_hw_ppgtt *ppgtt = to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
-	struct i915_vma *vma = to->engine[RCS].state;
+	struct i915_vma *vma;
 	struct i915_gem_context *from;
 	u32 hw_flags;
 	int ret, i;
@@ -764,17 +801,10 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	if (skip_rcs_switch(ppgtt, engine, to))
 		return 0;
 
-	/* Clear this page out of any CPU caches for coherent swap-in/out. */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
-		if (ret)
-			return ret;
-	}
-
 	/* Trying to pin first makes error handling easier. */
-	ret = i915_vma_pin(vma, 0, to->ggtt_alignment, PIN_GLOBAL);
-	if (ret)
-		return ret;
+	vma = i915_gem_context_pin_legacy(to, 0);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
 
 	/*
 	 * Pin can switch back to the default context if we end up calling into
@@ -931,21 +961,32 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	struct i915_gem_timeline *timeline;
 	enum intel_engine_id id;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *req;
 		int ret;
 
-		if (engine->last_context == NULL)
-			continue;
-
-		if (engine->last_context == dev_priv->kernel_context)
-			continue;
-
 		req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
+
+		/* Queue this switch after all other activity */
+		list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
+			struct drm_i915_gem_request *prev;
+			struct intel_timeline *tl;
+
+			tl = &timeline->engine[engine->id];
+			prev = i915_gem_active_raw(&tl->last_request,
+						   &dev_priv->drm.struct_mutex);
+			if (prev)
+				i915_sw_fence_await_sw_fence_gfp(&req->submit,
+								 &prev->submit,
+								 GFP_KERNEL);
+		}
 
 		ret = i915_switch_context(req);
 		i915_add_request_no_flush(req);

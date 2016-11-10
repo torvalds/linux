@@ -1164,7 +1164,7 @@ static void intel_disable_hdmi(struct intel_encoder *encoder,
 		I915_WRITE(intel_hdmi->hdmi_reg, temp);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 
-		intel_wait_for_vblank_if_active(&dev_priv->drm, PIPE_A);
+		intel_wait_for_vblank_if_active(dev_priv, PIPE_A);
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}

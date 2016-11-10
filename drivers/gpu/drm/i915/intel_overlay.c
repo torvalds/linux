@@ -1222,7 +1222,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	drm_modeset_unlock_all(dev);
-	i915_gem_object_put_unlocked(new_bo);
+	i915_gem_object_put(new_bo);
 out_free:
 	kfree(params);
 
@@ -1466,7 +1466,7 @@ void intel_cleanup_overlay(struct drm_i915_private *dev_priv)
 	 * hardware should be off already */
 	WARN_ON(dev_priv->overlay->active);
 
-	i915_gem_object_put_unlocked(dev_priv->overlay->reg_bo);
+	i915_gem_object_put(dev_priv->overlay->reg_bo);
 	kfree(dev_priv->overlay);
 }
 

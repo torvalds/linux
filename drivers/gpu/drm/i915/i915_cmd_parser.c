@@ -1290,7 +1290,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	}
 
 	if (ret == 0 && needs_clflush_after)
-		drm_clflush_virt_range(shadow_batch_obj->mapping, batch_len);
+		drm_clflush_virt_range(shadow_batch_obj->mm.mapping, batch_len);
 	i915_gem_object_unpin_map(shadow_batch_obj);
 
 	return ret;
