@@ -1,3 +1,7 @@
+=======================
+HD-Audio DP-MST Support
+=======================
+
 To support DP MST audio, HD Audio hdmi codec driver introduces virtual pin
 and dynamic pcm assignment.
 
@@ -44,10 +48,12 @@ Build Jack
 ----------
 
 - dyn_pcm_assign
-Will not use hda_jack but use snd_jack in spec->pcm_rec[pcm_idx].jack directly.
+
+  Will not use hda_jack but use snd_jack in spec->pcm_rec[pcm_idx].jack directly.
 
 - !dyn_pcm_assign
-Use hda_jack and assign spec->pcm_rec[pcm_idx].jack = jack->jack statically.
+
+  Use hda_jack and assign spec->pcm_rec[pcm_idx].jack = jack->jack statically.
 
 
 Unsolicited Event Enabling
@@ -58,16 +64,20 @@ Enable unsolicited event if !acomp.
 Monitor Hotplug Event Handling
 ------------------------------
 - acomp
-pin_eld_notify() -> check_presence_and_report() -> hdmi_present_sense() ->
-sync_eld_via_acomp().
-Use directly snd_jack_report() on spec->pcm_rec[pcm_idx].jack for
-both dyn_pcm_assign and !dyn_pcm_assign
+
+  pin_eld_notify() -> check_presence_and_report() -> hdmi_present_sense() ->
+  sync_eld_via_acomp().
+
+  Use directly snd_jack_report() on spec->pcm_rec[pcm_idx].jack for
+  both dyn_pcm_assign and !dyn_pcm_assign
 
 - !acomp
-Hdmi_unsol_event() -> hdmi_intrinsic_event() -> check_presence_and_report() ->
-hdmi_present_sense() -> hdmi_prepsent_sense_via_verbs()
-Use directly snd_jack_report() on spec->pcm_rec[pcm_idx].jack for dyn_pcm_assign.
-Use hda_jack mechanism to handle jack events.
+
+  hdmi_unsol_event() -> hdmi_intrinsic_event() -> check_presence_and_report() ->
+  hdmi_present_sense() -> hdmi_prepsent_sense_via_verbs()
+
+  Use directly snd_jack_report() on spec->pcm_rec[pcm_idx].jack for dyn_pcm_assign.
+  Use hda_jack mechanism to handle jack events.
 
 
 Others to be added later

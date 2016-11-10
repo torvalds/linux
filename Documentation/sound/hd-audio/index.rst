@@ -7,3 +7,4 @@ HD-Audio
    notes
    models
    controls
+   dp-mst
