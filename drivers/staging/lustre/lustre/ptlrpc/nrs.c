@@ -82,15 +82,8 @@ static int nrs_policy_ctl_locked(struct ptlrpc_nrs_policy *policy,
 
 static void nrs_policy_stop0(struct ptlrpc_nrs_policy *policy)
 {
-	struct ptlrpc_nrs *nrs = policy->pol_nrs;
-
-	if (policy->pol_desc->pd_ops->op_policy_stop) {
-		spin_unlock(&nrs->nrs_lock);
-
+	if (policy->pol_desc->pd_ops->op_policy_stop)
 		policy->pol_desc->pd_ops->op_policy_stop(policy);
-
-		spin_lock(&nrs->nrs_lock);
-	}
 
 	LASSERT(list_empty(&policy->pol_list_queued));
 	LASSERT(policy->pol_req_queued == 0 &&
@@ -619,11 +612,8 @@ static int nrs_policy_ctl(struct ptlrpc_nrs *nrs, char *name,
 		goto out;
 	}
 
-	/**
-	 * Wait for the policy to be fully started before attempting
-	 * to operate it.
-	 */
-	if (policy->pol_state == NRS_POL_STATE_STARTING) {
+	if (policy->pol_state != NRS_POL_STATE_STARTED &&
+	    policy->pol_state != NRS_POL_STATE_STOPPED) {
 		rc = -EAGAIN;
 		goto out;
 	}
