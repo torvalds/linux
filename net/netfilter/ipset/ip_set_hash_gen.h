@@ -465,14 +465,15 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 
 /* Delete expired elements from the hashtable */
 static void
-mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
+mtype_expire(struct ip_set *set, struct htype *h)
 {
 	struct htable *t;
 	struct hbucket *n, *tmp;
 	struct mtype_elem *data;
 	u32 i, j, d;
+	size_t dsize = set->dsize;
 #ifdef IP_SET_HASH_WITH_NETS
-	u8 k;
+	u8 k, nets_length = NLEN(set->family);
 #endif
 
 	t = ipset_dereference_protected(h->table, set);
@@ -539,7 +540,7 @@ mtype_gc(unsigned long ul_set)
 
 	pr_debug("called\n");
 	spin_lock_bh(&set->lock);
-	mtype_expire(set, h, NLEN(set->family), set->dsize);
+	mtype_expire(set, h);
 	spin_unlock_bh(&set->lock);
 
 	h->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
@@ -715,7 +716,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	if (set->elements >= h->maxelem) {
 		if (SET_WITH_TIMEOUT(set))
 			/* FIXME: when set is full, we slow down here */
-			mtype_expire(set, h, NLEN(set->family), set->dsize);
+			mtype_expire(set, h);
 		if (set->elements >= h->maxelem && SET_WITH_FORCEADD(set))
 			forceadd = true;
 	}
