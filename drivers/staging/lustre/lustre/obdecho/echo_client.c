@@ -505,9 +505,6 @@ static const struct lu_device_operations echo_device_lu_ops = {
 
 /** @} echo_lu_dev_ops */
 
-static const struct cl_device_operations echo_device_cl_ops = {
-};
-
 /** \defgroup echo_init Setup and teardown
  *
  * Init and fini functions for echo client.
@@ -620,7 +617,6 @@ static struct lu_device *echo_device_alloc(const struct lu_env *env,
 		goto out_free;
 
 	cd->cd_lu_dev.ld_ops = &echo_device_lu_ops;
-	cd->cd_ops = &echo_device_cl_ops;
 
 	obd = class_name2obd(lustre_cfg_string(cfg, 0));
 	LASSERT(obd);

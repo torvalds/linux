@@ -49,12 +49,6 @@
  *
  */
 
-static struct osc_req *cl2osc_req(const struct cl_req_slice *slice)
-{
-	LINVRNT(slice->crs_dev->cd_lu_dev.ld_type == &osc_device_type);
-	return container_of0(slice, struct osc_req, or_cl);
-}
-
 static struct osc_io *cl2osc_io(const struct lu_env *env,
 				const struct cl_io_slice *slice)
 {
@@ -62,20 +56,6 @@ static struct osc_io *cl2osc_io(const struct lu_env *env,
 
 	LINVRNT(oio == osc_env_io(env));
 	return oio;
-}
-
-static struct osc_page *osc_cl_page_osc(struct cl_page *page,
-					struct osc_object *osc)
-{
-	const struct cl_page_slice *slice;
-
-	if (osc)
-		slice = cl_object_page_slice(&osc->oo_cl, page);
-	else
-		slice = cl_page_at(page, &osc_device_type);
-	LASSERT(slice);
-
-	return cl2osc_page(slice);
 }
 
 /*****************************************************************************
@@ -883,103 +863,6 @@ static const struct cl_io_operations osc_io_ops = {
  *
  */
 
-static int osc_req_prep(const struct lu_env *env,
-			const struct cl_req_slice *slice)
-{
-	return 0;
-}
-
-static void osc_req_completion(const struct lu_env *env,
-			       const struct cl_req_slice *slice, int ioret)
-{
-	struct osc_req *or;
-
-	or = cl2osc_req(slice);
-	kmem_cache_free(osc_req_kmem, or);
-}
-
-/**
- * Implementation of struct cl_req_operations::cro_attr_set() for osc
- * layer. osc is responsible for struct obdo::o_id and struct obdo::o_seq
- * fields.
- */
-static void osc_req_attr_set(const struct lu_env *env,
-			     const struct cl_req_slice *slice,
-			     const struct cl_object *obj,
-			     struct cl_req_attr *attr, u64 flags)
-{
-	struct lov_oinfo *oinfo;
-	struct cl_req *clerq;
-	struct cl_page *apage; /* _some_ page in @clerq */
-	struct ldlm_lock *lock;  /* _some_ lock protecting @apage */
-	struct osc_page *opg;
-	struct obdo *oa;
-	struct ost_lvb *lvb;
-
-	oinfo = cl2osc(obj)->oo_oinfo;
-	lvb = &oinfo->loi_lvb;
-	oa = attr->cra_oa;
-
-	if ((flags & OBD_MD_FLMTIME) != 0) {
-		oa->o_mtime = lvb->lvb_mtime;
-		oa->o_valid |= OBD_MD_FLMTIME;
-	}
-	if ((flags & OBD_MD_FLATIME) != 0) {
-		oa->o_atime = lvb->lvb_atime;
-		oa->o_valid |= OBD_MD_FLATIME;
-	}
-	if ((flags & OBD_MD_FLCTIME) != 0) {
-		oa->o_ctime = lvb->lvb_ctime;
-		oa->o_valid |= OBD_MD_FLCTIME;
-	}
-	if (flags & OBD_MD_FLGROUP) {
-		ostid_set_seq(&oa->o_oi, ostid_seq(&oinfo->loi_oi));
-		oa->o_valid |= OBD_MD_FLGROUP;
-	}
-	if (flags & OBD_MD_FLID) {
-		ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
-		oa->o_valid |= OBD_MD_FLID;
-	}
-	if (flags & OBD_MD_FLHANDLE) {
-		clerq = slice->crs_req;
-		LASSERT(!list_empty(&clerq->crq_pages));
-		apage = container_of(clerq->crq_pages.next,
-				     struct cl_page, cp_flight);
-		opg = osc_cl_page_osc(apage, NULL);
-		lock = osc_dlmlock_at_pgoff(env, cl2osc(obj), osc_index(opg),
-					    OSC_DAP_FL_TEST_LOCK | OSC_DAP_FL_CANCELING);
-		if (!lock && !opg->ops_srvlock) {
-			struct ldlm_resource *res;
-			struct ldlm_res_id *resname;
-
-			CL_PAGE_DEBUG(D_ERROR, env, apage, "uncovered page!\n");
-
-			resname = &osc_env_info(env)->oti_resname;
-			ostid_build_res_name(&oinfo->loi_oi, resname);
-			res = ldlm_resource_get(
-				osc_export(cl2osc(obj))->exp_obd->obd_namespace,
-				NULL, resname, LDLM_EXTENT, 0);
-			ldlm_resource_dump(D_ERROR, res);
-
-			dump_stack();
-			LBUG();
-		}
-
-		/* check for lockless io. */
-		if (lock) {
-			oa->o_handle = lock->l_remote_handle;
-			oa->o_valid |= OBD_MD_FLHANDLE;
-			LDLM_LOCK_PUT(lock);
-		}
-	}
-}
-
-static const struct cl_req_operations osc_req_ops = {
-	.cro_prep       = osc_req_prep,
-	.cro_attr_set   = osc_req_attr_set,
-	.cro_completion = osc_req_completion
-};
-
 int osc_io_init(const struct lu_env *env,
 		struct cl_object *obj, struct cl_io *io)
 {
@@ -988,22 +871,6 @@ int osc_io_init(const struct lu_env *env,
 	CL_IO_SLICE_CLEAN(oio, oi_cl);
 	cl_io_slice_add(io, &oio->oi_cl, obj, &osc_io_ops);
 	return 0;
-}
-
-int osc_req_init(const struct lu_env *env, struct cl_device *dev,
-		 struct cl_req *req)
-{
-	struct osc_req *or;
-	int result;
-
-	or = kmem_cache_zalloc(osc_req_kmem, GFP_NOFS);
-	if (or) {
-		cl_req_slice_add(req, &or->or_cl, dev, &osc_req_ops);
-		result = 0;
-	} else {
-		result = -ENOMEM;
-	}
-	return result;
 }
 
 /** @} osc */

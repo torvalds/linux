@@ -120,7 +120,6 @@ extern struct lu_context_key vvp_thread_key;
 
 extern struct kmem_cache *vvp_lock_kmem;
 extern struct kmem_cache *vvp_object_kmem;
-extern struct kmem_cache *vvp_req_kmem;
 
 struct vvp_thread_info {
 	struct cl_lock		vti_lock;
@@ -242,16 +241,11 @@ static inline pgoff_t vvp_index(struct vvp_page *vvp)
 
 struct vvp_device {
 	struct cl_device    vdv_cl;
-	struct super_block *vdv_sb;
 	struct cl_device   *vdv_next;
 };
 
 struct vvp_lock {
 	struct cl_lock_slice vlk_cl;
-};
-
-struct vvp_req {
-	struct cl_req_slice  vrq_cl;
 };
 
 void *ccc_key_init(const struct lu_context *ctx,
@@ -316,8 +310,6 @@ int vvp_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io);
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_page *page, pgoff_t index);
-int vvp_req_init(const struct lu_env *env, struct cl_device *dev,
-		 struct cl_req *req);
 struct lu_object *vvp_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);

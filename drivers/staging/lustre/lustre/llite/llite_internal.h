@@ -662,8 +662,6 @@ enum {
 	LPROC_LL_WRITE_BYTES,
 	LPROC_LL_BRW_READ,
 	LPROC_LL_BRW_WRITE,
-	LPROC_LL_OSC_READ,
-	LPROC_LL_OSC_WRITE,
 	LPROC_LL_IOCTL,
 	LPROC_LL_OPEN,
 	LPROC_LL_RELEASE,
@@ -1214,15 +1212,6 @@ struct ll_dio_pages {
 	/** # of pages in the array. */
 	int	   ldp_nr;
 };
-
-static inline void cl_stats_tally(struct cl_device *dev, enum cl_req_type crt,
-				  int rc)
-{
-	int opc = (crt == CRT_READ) ? LPROC_LL_OSC_READ :
-				      LPROC_LL_OSC_WRITE;
-
-	ll_stats_ops_tally(ll_s2sbi(cl2vvp_dev(dev)->vdv_sb), opc, rc);
-}
 
 ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 			   int rw, struct inode *inode,

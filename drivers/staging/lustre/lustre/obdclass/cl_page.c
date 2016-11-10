@@ -99,7 +99,6 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 
 	PASSERT(env, page, list_empty(&page->cp_batch));
 	PASSERT(env, page, !page->cp_owner);
-	PASSERT(env, page, !page->cp_req);
 	PASSERT(env, page, page->cp_state == CPS_FREEING);
 
 	while (!list_empty(&page->cp_layers)) {
@@ -150,7 +149,6 @@ struct cl_page *cl_page_alloc(const struct lu_env *env,
 		page->cp_type = type;
 		INIT_LIST_HEAD(&page->cp_layers);
 		INIT_LIST_HEAD(&page->cp_batch);
-		INIT_LIST_HEAD(&page->cp_flight);
 		lu_ref_init(&page->cp_reference);
 		head = o->co_lu.lo_header;
 		list_for_each_entry(o, &head->loh_layers, co_lu.lo_linkage) {
@@ -528,7 +526,6 @@ static int cl_page_own0(const struct lu_env *env, struct cl_io *io,
 					io, nonblock);
 		if (result == 0) {
 			PASSERT(env, pg, !pg->cp_owner);
-			PASSERT(env, pg, !pg->cp_req);
 			pg->cp_owner = cl_io_top(io);
 			cl_page_owner_set(pg);
 			if (pg->cp_state != CPS_FREEING) {
@@ -821,8 +818,6 @@ void cl_page_completion(const struct lu_env *env,
 	struct cl_sync_io *anchor = pg->cp_sync_io;
 
 	PASSERT(env, pg, crt < CRT_NR);
-	/* cl_page::cp_req already cleared by the caller (osc_completion()) */
-	PASSERT(env, pg, !pg->cp_req);
 	PASSERT(env, pg, pg->cp_state == cl_req_type_state(crt));
 
 	CL_PAGE_HEADER(D_TRACE, env, pg, "%d %d\n", crt, ioret);
@@ -836,16 +831,8 @@ void cl_page_completion(const struct lu_env *env,
 	if (anchor) {
 		LASSERT(pg->cp_sync_io == anchor);
 		pg->cp_sync_io = NULL;
-	}
-	/*
-	 * As page->cp_obj is pinned by a reference from page->cp_req, it is
-	 * safe to call cl_page_put() without risking object destruction in a
-	 * non-blocking context.
-	 */
-	cl_page_put(env, pg);
-
-	if (anchor)
 		cl_sync_io_note(env, anchor, ioret);
+	}
 }
 EXPORT_SYMBOL(cl_page_completion);
 
@@ -927,10 +914,10 @@ void cl_page_header_print(const struct lu_env *env, void *cookie,
 			  lu_printer_t printer, const struct cl_page *pg)
 {
 	(*printer)(env, cookie,
-		   "page@%p[%d %p %d %d %p %p]\n",
+		   "page@%p[%d %p %d %d %p]\n",
 		   pg, atomic_read(&pg->cp_ref), pg->cp_obj,
 		   pg->cp_state, pg->cp_type,
-		   pg->cp_owner, pg->cp_req);
+		   pg->cp_owner);
 }
 EXPORT_SYMBOL(cl_page_header_print);
 

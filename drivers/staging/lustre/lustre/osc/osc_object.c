@@ -344,6 +344,76 @@ int osc_object_is_contended(struct osc_object *obj)
 	return 1;
 }
 
+/**
+ * Implementation of struct cl_object_operations::coo_req_attr_set() for osc
+ * layer. osc is responsible for struct obdo::o_id and struct obdo::o_seq
+ * fields.
+ */
+static void osc_req_attr_set(const struct lu_env *env, struct cl_object *obj,
+			     struct cl_req_attr *attr)
+{
+	u64 flags = attr->cra_flags;
+	struct lov_oinfo *oinfo;
+	struct ost_lvb *lvb;
+	struct obdo *oa;
+
+	oinfo = cl2osc(obj)->oo_oinfo;
+	lvb = &oinfo->loi_lvb;
+	oa = attr->cra_oa;
+
+	if (flags & OBD_MD_FLMTIME) {
+		oa->o_mtime = lvb->lvb_mtime;
+		oa->o_valid |= OBD_MD_FLMTIME;
+	}
+	if (flags & OBD_MD_FLATIME) {
+		oa->o_atime = lvb->lvb_atime;
+		oa->o_valid |= OBD_MD_FLATIME;
+	}
+	if (flags & OBD_MD_FLCTIME) {
+		oa->o_ctime = lvb->lvb_ctime;
+		oa->o_valid |= OBD_MD_FLCTIME;
+	}
+	if (flags & OBD_MD_FLGROUP) {
+		ostid_set_seq(&oa->o_oi, ostid_seq(&oinfo->loi_oi));
+		oa->o_valid |= OBD_MD_FLGROUP;
+	}
+	if (flags & OBD_MD_FLID) {
+		ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
+		oa->o_valid |= OBD_MD_FLID;
+	}
+	if (flags & OBD_MD_FLHANDLE) {
+		struct ldlm_lock *lock;
+		struct osc_page *opg;
+
+		opg = osc_cl_page_osc(attr->cra_page, cl2osc(obj));
+		lock = osc_dlmlock_at_pgoff(env, cl2osc(obj), osc_index(opg),
+					    OSC_DAP_FL_TEST_LOCK | OSC_DAP_FL_CANCELING);
+		if (!lock && !opg->ops_srvlock) {
+			struct ldlm_resource *res;
+			struct ldlm_res_id *resname;
+
+			CL_PAGE_DEBUG(D_ERROR, env, attr->cra_page,
+				      "uncovered page!\n");
+
+			resname = &osc_env_info(env)->oti_resname;
+			ostid_build_res_name(&oinfo->loi_oi, resname);
+			res = ldlm_resource_get(
+				osc_export(cl2osc(obj))->exp_obd->obd_namespace,
+				NULL, resname, LDLM_EXTENT, 0);
+			ldlm_resource_dump(D_ERROR, res);
+
+			LBUG();
+		}
+
+		/* check for lockless io. */
+		if (lock) {
+			oa->o_handle = lock->l_remote_handle;
+			oa->o_valid |= OBD_MD_FLHANDLE;
+			LDLM_LOCK_PUT(lock);
+		}
+	}
+}
+
 static const struct cl_object_operations osc_ops = {
 	.coo_page_init = osc_page_init,
 	.coo_lock_init = osc_lock_init,
@@ -352,7 +422,8 @@ static const struct cl_object_operations osc_ops = {
 	.coo_attr_update = osc_attr_update,
 	.coo_glimpse   = osc_object_glimpse,
 	.coo_prune	 = osc_object_prune,
-	.coo_fiemap	 = osc_object_fiemap,
+	.coo_fiemap		= osc_object_fiemap,
+	.coo_req_attr_set	= osc_req_attr_set
 };
 
 static const struct lu_object_operations osc_lu_obj_ops = {

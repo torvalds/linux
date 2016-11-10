@@ -184,6 +184,26 @@ static int vvp_object_glimpse(const struct lu_env *env,
 	return 0;
 }
 
+static void vvp_req_attr_set(const struct lu_env *env, struct cl_object *obj,
+			     struct cl_req_attr *attr)
+{
+	u64 valid_flags = OBD_MD_FLTYPE;
+	struct inode *inode;
+	struct obdo *oa;
+
+	oa = attr->cra_oa;
+	inode = vvp_object_inode(obj);
+
+	if (attr->cra_type == CRT_WRITE)
+		valid_flags |= OBD_MD_FLMTIME | OBD_MD_FLCTIME |
+			       OBD_MD_FLUID | OBD_MD_FLGID;
+	obdo_from_inode(oa, inode, valid_flags & attr->cra_flags);
+	obdo_set_parent_fid(oa, &ll_i2info(inode)->lli_fid);
+	if (OBD_FAIL_CHECK(OBD_FAIL_LFSCK_INVALID_PFID))
+		oa->o_parent_oid++;
+	memcpy(attr->cra_jobid, ll_i2info(inode)->lli_jobid, LUSTRE_JOBID_SIZE);
+}
+
 static const struct cl_object_operations vvp_ops = {
 	.coo_page_init = vvp_page_init,
 	.coo_lock_init = vvp_lock_init,
@@ -192,7 +212,8 @@ static const struct cl_object_operations vvp_ops = {
 	.coo_attr_update = vvp_attr_update,
 	.coo_conf_set  = vvp_conf_set,
 	.coo_prune     = vvp_prune,
-	.coo_glimpse   = vvp_object_glimpse
+	.coo_glimpse		= vvp_object_glimpse,
+	.coo_req_attr_set	= vvp_req_attr_set
 };
 
 static int vvp_object_init0(const struct lu_env *env,
