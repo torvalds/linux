@@ -72,9 +72,7 @@ static const struct file_operations sis_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 

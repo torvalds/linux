@@ -37,6 +37,7 @@ struct drm_crtc;
 struct drm_encoder;
 struct drm_property;
 struct drm_property_blob;
+struct drm_printer;
 struct edid;
 
 enum drm_connector_force {
@@ -481,6 +482,18 @@ struct drm_connector_funcs {
 				   const struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses struct &drm_connector_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_connector_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_connector_state *state);
 };
 
 /* mode specified on the command line */

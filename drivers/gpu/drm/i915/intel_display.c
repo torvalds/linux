@@ -2821,14 +2821,8 @@ valid_fb:
 	plane_state->crtc_w = fb->width;
 	plane_state->crtc_h = fb->height;
 
-	intel_state->base.src.x1 = plane_state->src_x;
-	intel_state->base.src.y1 = plane_state->src_y;
-	intel_state->base.src.x2 = plane_state->src_x + plane_state->src_w;
-	intel_state->base.src.y2 = plane_state->src_y + plane_state->src_h;
-	intel_state->base.dst.x1 = plane_state->crtc_x;
-	intel_state->base.dst.y1 = plane_state->crtc_y;
-	intel_state->base.dst.x2 = plane_state->crtc_x + plane_state->crtc_w;
-	intel_state->base.dst.y2 = plane_state->crtc_y + plane_state->crtc_h;
+	intel_state->base.src = drm_plane_state_src(plane_state);
+	intel_state->base.dst = drm_plane_state_dest(plane_state);
 
 	obj = intel_fb_obj(fb);
 	if (i915_gem_object_is_tiled(obj))

@@ -84,7 +84,7 @@ static inline struct sync_pt *dma_fence_to_sync_pt(struct dma_fence *fence)
  * Creates a new sync_timeline. Returns the sync_timeline object or NULL in
  * case of error.
  */
-struct sync_timeline *sync_timeline_create(const char *name)
+static struct sync_timeline *sync_timeline_create(const char *name)
 {
 	struct sync_timeline *obj;
 
@@ -316,8 +316,8 @@ static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 	}
 
 	sync_file = sync_file_create(&pt->base);
+	dma_fence_put(&pt->base);
 	if (!sync_file) {
-		dma_fence_put(&pt->base);
 		err = -ENOMEM;
 		goto err;
 	}

@@ -51,10 +51,11 @@ DEFINE_MUTEX(drm_global_mutex);
  * Drivers must define the file operations structure that forms the DRM
  * userspace API entry point, even though most of those operations are
  * implemented in the DRM core. The mandatory functions are drm_open(),
- * drm_read(), drm_ioctl() and drm_compat_ioctl if CONFIG_COMPAT is enabled.
- * Drivers which implement private ioctls that require 32/64 bit compatibility
- * support must provided their onw .compat_ioctl() handler that processes
- * private ioctls and calls drm_compat_ioctl() for core ioctls.
+ * drm_read(), drm_ioctl() and drm_compat_ioctl() if CONFIG_COMPAT is enabled
+ * (note that drm_compat_ioctl will be NULL if CONFIG_COMPAT=n). Drivers which
+ * implement private ioctls that require 32/64 bit compatibility support must
+ * provide their own .compat_ioctl() handler that processes private ioctls and
+ * calls drm_compat_ioctl() for core ioctls.
  *
  * In addition drm_read() and drm_poll() provide support for DRM events. DRM
  * events are a generic and extensible means to send asynchronous events to
@@ -75,9 +76,7 @@ DEFINE_MUTEX(drm_global_mutex);
  *             .open = drm_open,
  *             .release = drm_release,
  *             .unlocked_ioctl = drm_ioctl,
- *     #ifdef CONFIG_COMPAT
- *             .compat_ioctl = drm_compat_ioctl,
- *     #endif
+ *             .compat_ioctl = drm_compat_ioctl, // NULL if CONFIG_COMPAT=n
  *             .poll = drm_poll,
  *             .read = drm_read,
  *             .llseek = no_llseek,

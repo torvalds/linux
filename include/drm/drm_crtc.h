@@ -53,6 +53,7 @@ struct drm_device;
 struct drm_mode_set;
 struct drm_file;
 struct drm_clip_rect;
+struct drm_printer;
 struct device_node;
 struct dma_fence;
 struct edid;
@@ -594,6 +595,18 @@ struct drm_crtc_funcs {
 	 */
 	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
 			      size_t *values_cnt);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses struct &drm_crtc_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_crtc_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_crtc_state *state);
 };
 
 /**

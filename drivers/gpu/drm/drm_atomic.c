@@ -30,6 +30,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -605,6 +606,28 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void drm_atomic_crtc_print_state(struct drm_printer *p,
+		const struct drm_crtc_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+
+	drm_printf(p, "crtc[%u]: %s\n", crtc->base.id, crtc->name);
+	drm_printf(p, "\tenable=%d\n", state->enable);
+	drm_printf(p, "\tactive=%d\n", state->active);
+	drm_printf(p, "\tplanes_changed=%d\n", state->planes_changed);
+	drm_printf(p, "\tmode_changed=%d\n", state->mode_changed);
+	drm_printf(p, "\tactive_changed=%d\n", state->active_changed);
+	drm_printf(p, "\tconnectors_changed=%d\n", state->connectors_changed);
+	drm_printf(p, "\tcolor_mgmt_changed=%d\n", state->color_mgmt_changed);
+	drm_printf(p, "\tplane_mask=%x\n", state->plane_mask);
+	drm_printf(p, "\tconnector_mask=%x\n", state->connector_mask);
+	drm_printf(p, "\tencoder_mask=%x\n", state->encoder_mask);
+	drm_printf(p, "\tmode: " DRM_MODE_FMT "\n", DRM_MODE_ARG(&state->mode));
+
+	if (crtc->funcs->atomic_print_state)
+		crtc->funcs->atomic_print_state(p, state);
+}
+
 /**
  * drm_atomic_get_plane_state - get plane state
  * @state: global atomic state object
@@ -881,6 +904,38 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	return 0;
 }
 
+static void drm_atomic_plane_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	struct drm_plane *plane = state->plane;
+	struct drm_rect src  = drm_plane_state_src(state);
+	struct drm_rect dest = drm_plane_state_dest(state);
+
+	drm_printf(p, "plane[%u]: %s\n", plane->base.id, plane->name);
+	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+	drm_printf(p, "\tfb=%u\n", state->fb ? state->fb->base.id : 0);
+	if (state->fb) {
+		struct drm_framebuffer *fb = state->fb;
+		int i, n = drm_format_num_planes(fb->pixel_format);
+
+		drm_printf(p, "\t\tformat=%s\n",
+				drm_get_format_name(fb->pixel_format));
+		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
+		drm_printf(p, "\t\tlayers:\n");
+		for (i = 0; i < n; i++) {
+			drm_printf(p, "\t\t\tpitch[%d]=%u\n", i, fb->pitches[i]);
+			drm_printf(p, "\t\t\toffset[%d]=%u\n", i, fb->offsets[i]);
+			drm_printf(p, "\t\t\tmodifier[%d]=0x%llx\n", i, fb->modifier[i]);
+		}
+	}
+	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
+	drm_printf(p, "\tsrc-pos=" DRM_RECT_FP_FMT "\n", DRM_RECT_FP_ARG(&src));
+	drm_printf(p, "\trotation=%x\n", state->rotation);
+
+	if (plane->funcs->atomic_print_state)
+		plane->funcs->atomic_print_state(p, state);
+}
+
 /**
  * drm_atomic_get_connector_state - get connector state
  * @state: global atomic state object
@@ -995,6 +1050,18 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_connector_set_property);
+
+static void drm_atomic_connector_print_state(struct drm_printer *p,
+		const struct drm_connector_state *state)
+{
+	struct drm_connector *connector = state->connector;
+
+	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
+	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+
+	if (connector->funcs->atomic_print_state)
+		connector->funcs->atomic_print_state(p, state);
+}
 
 /**
  * drm_atomic_connector_get_property - get property value from connector state
@@ -1148,6 +1215,36 @@ drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 				 plane_state);
 }
 EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
+
+/**
+ * drm_atomic_set_fence_for_plane - set fence for plane
+ * @plane_state: atomic state object for the plane
+ * @fence: dma_fence to use for the plane
+ *
+ * Helper to setup the plane_state fence in case it is not set yet.
+ * By using this drivers doesn't need to worry if the user choose
+ * implicit or explicit fencing.
+ *
+ * This function will not set the fence to the state if it was set
+ * via explicit fencing interfaces on the atomic ioctl. It will
+ * all drope the reference to the fence as we not storing it
+ * anywhere.
+ *
+ * Otherwise, if plane_state->fence is not set this function we
+ * just set it with the received implict fence.
+ */
+void
+drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
+			       struct dma_fence *fence)
+{
+	if (plane_state->fence) {
+		dma_fence_put(fence);
+		return;
+	}
+
+	plane_state->fence = fence;
+}
+EXPORT_SYMBOL(drm_atomic_set_fence_for_plane);
 
 /**
  * drm_atomic_set_crtc_for_connector - set crtc for connector
@@ -1460,6 +1557,92 @@ int drm_atomic_nonblocking_commit(struct drm_atomic_state *state)
 }
 EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
 
+static void drm_atomic_print_state(const struct drm_atomic_state *state)
+{
+	struct drm_printer p = drm_info_printer(state->dev->dev);
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector *connector;
+	struct drm_connector_state *connector_state;
+	int i;
+
+	DRM_DEBUG_ATOMIC("checking %p\n", state);
+
+	for_each_plane_in_state(state, plane, plane_state, i)
+		drm_atomic_plane_print_state(&p, plane_state);
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		drm_atomic_crtc_print_state(&p, crtc_state);
+
+	for_each_connector_in_state(state, connector, connector_state, i)
+		drm_atomic_connector_print_state(&p, connector_state);
+}
+
+/**
+ * drm_state_dump - dump entire device atomic state
+ * @dev: the drm device
+ * @p: where to print the state to
+ *
+ * Just for debugging.  Drivers might want an option to dump state
+ * to dmesg in case of error irq's.  (Hint, you probably want to
+ * ratelimit this!)
+ *
+ * The caller must drm_modeset_lock_all(), or if this is called
+ * from error irq handler, it should not be enabled by default.
+ * (Ie. if you are debugging errors you might not care that this
+ * is racey.  But calling this without all modeset locks held is
+ * not inherently safe.)
+ */
+void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+
+	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+		return;
+
+	list_for_each_entry(plane, &config->plane_list, head)
+		drm_atomic_plane_print_state(p, plane->state);
+
+	list_for_each_entry(crtc, &config->crtc_list, head)
+		drm_atomic_crtc_print_state(p, crtc->state);
+
+	list_for_each_entry(connector, &config->connector_list, head)
+		drm_atomic_connector_print_state(p, connector->state);
+}
+EXPORT_SYMBOL(drm_state_dump);
+
+#ifdef CONFIG_DEBUG_FS
+static int drm_state_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	drm_modeset_lock_all(dev);
+	drm_state_dump(dev, &p);
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+/* any use in debugfs files to dump individual planes/crtc/etc? */
+static const struct drm_info_list drm_atomic_debugfs_list[] = {
+	{"state", drm_state_info, 0},
+};
+
+int drm_atomic_debugfs_init(struct drm_minor *minor)
+{
+	return drm_debugfs_create_files(drm_atomic_debugfs_list,
+			ARRAY_SIZE(drm_atomic_debugfs_list),
+			minor->debugfs_root, minor);
+}
+#endif
+
 /*
  * The big monstor ioctl
  */
@@ -1749,6 +1932,9 @@ retry:
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);
 	} else {
+		if (unlikely(drm_debug & DRM_UT_STATE))
+			drm_atomic_print_state(state);
+
 		ret = drm_atomic_commit(state);
 	}
 

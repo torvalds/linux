@@ -44,6 +44,9 @@
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
 #endif
+#ifdef CONFIG_DRM_DEBUG_MM
+#include <linux/stackdepot.h>
+#endif
 
 enum drm_mm_search_flags {
 	DRM_MM_SEARCH_DEFAULT =		0,
@@ -74,6 +77,9 @@ struct drm_mm_node {
 	u64 size;
 	u64 __subtree_last;
 	struct drm_mm *mm;
+#ifdef CONFIG_DRM_DEBUG_MM
+	depot_stack_handle_t stack;
+#endif
 };
 
 struct drm_mm {

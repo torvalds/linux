@@ -249,9 +249,7 @@ static const struct file_operations mtk_drm_fops = {
 	.mmap = mtk_drm_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 };
 
 static struct drm_driver mtk_drm_driver = {

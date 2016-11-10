@@ -345,6 +345,8 @@ drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
 			      struct drm_crtc *crtc);
 void drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 				 struct drm_framebuffer *fb);
+void drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
+				    struct dma_fence *fence);
 int __must_check
 drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 				  struct drm_crtc *crtc);
@@ -363,6 +365,13 @@ drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
 int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
+
+void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
+
+#ifdef CONFIG_DEBUG_FS
+struct drm_minor;
+int drm_atomic_debugfs_init(struct drm_minor *minor);
+#endif
 
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
