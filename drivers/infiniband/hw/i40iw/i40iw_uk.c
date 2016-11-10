@@ -1186,12 +1186,8 @@ enum i40iw_status_code i40iw_inline_data_size_to_wqesize(u32 data_size,
 
 	if (data_size <= 16)
 		*wqe_size = I40IW_QP_WQE_MIN_SIZE;
-	else if (data_size <= 48)
-		*wqe_size = 64;
-	else if (data_size <= 80)
-		*wqe_size = 96;
 	else
-		*wqe_size = 128;
+		*wqe_size = 64;
 
 	return 0;
 }
