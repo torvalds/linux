@@ -1618,27 +1618,28 @@ lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 	 * ct_restore().
 	 */
 	if (op_data->op_bias & MDS_CREATE_VOLATILE &&
-	    (int)op_data->op_mds != -1 && lsm) {
+	    (int)op_data->op_mds != -1) {
 		int i;
 
 		tgt = lmv_get_target(lmv, op_data->op_mds, NULL);
 		if (IS_ERR(tgt))
 			return tgt;
 
-		/* refill the right parent fid */
-		for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
-			struct lmv_oinfo *oinfo;
+		if (lsm) {
+			/* refill the right parent fid */
+			for (i = 0; i < lsm->lsm_md_stripe_count; i++) {
+				struct lmv_oinfo *oinfo;
 
-			oinfo = &lsm->lsm_md_oinfo[i];
-			if (oinfo->lmo_mds == op_data->op_mds) {
-				*fid = oinfo->lmo_fid;
-				break;
+				oinfo = &lsm->lsm_md_oinfo[i];
+				if (oinfo->lmo_mds == op_data->op_mds) {
+					*fid = oinfo->lmo_fid;
+					break;
+				}
 			}
-		}
 
-		/* Hmm, can not find the stripe by mdt_index(op_mds) */
-		if (i == lsm->lsm_md_stripe_count)
-			tgt = ERR_PTR(-EINVAL);
+			if (i == lsm->lsm_md_stripe_count)
+				*fid = lsm->lsm_md_oinfo[0].lmo_fid;
+		}
 
 		return tgt;
 	}
