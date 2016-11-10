@@ -706,6 +706,15 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 	mce_gather_info(&m, NULL);
 
+	/*
+	 * m.tsc was set in mce_setup(). Clear it if not requested.
+	 *
+	 * FIXME: Propagate @flags to mce_gather_info/mce_setup() to avoid
+	 *	  that dance.
+	 */
+	if (!(flags & MCP_TIMESTAMP))
+		m.tsc = 0;
+
 	for (i = 0; i < mca_cfg.banks; i++) {
 		if (!mce_banks[i].ctl || !test_bit(i, *b))
 			continue;
@@ -713,13 +722,11 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		m.misc = 0;
 		m.addr = 0;
 		m.bank = i;
-		m.tsc = 0;
 
 		barrier();
 		m.status = mce_rdmsrl(msr_ops.status(i));
 		if (!(m.status & MCI_STATUS_VAL))
 			continue;
-
 
 		/*
 		 * Uncorrected or signalled events are handled by the exception
@@ -734,9 +741,6 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		error_seen = true;
 
 		mce_read_aux(&m, i);
-
-		if (!(flags & MCP_TIMESTAMP))
-			m.tsc = 0;
 
 		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
@@ -1394,7 +1398,7 @@ static void mce_timer_fn(unsigned long data)
 	iv = __this_cpu_read(mce_next_interval);
 
 	if (mce_available(this_cpu_ptr(&cpu_info))) {
-		machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_poll_banks));
+		machine_check_poll(0, this_cpu_ptr(&mce_poll_banks));
 
 		if (mce_intel_cmci_poll()) {
 			iv = mce_adjust_timer(iv);

@@ -130,7 +130,7 @@ bool mce_intel_cmci_poll(void)
 	 * Reset the counter if we've logged an error in the last poll
 	 * during the storm.
 	 */
-	if (machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned)))
+	if (machine_check_poll(0, this_cpu_ptr(&mce_banks_owned)))
 		this_cpu_write(cmci_backoff_cnt, INITIAL_CHECK_INTERVAL);
 	else
 		this_cpu_dec(cmci_backoff_cnt);
@@ -342,7 +342,7 @@ void cmci_recheck(void)
 		return;
 
 	local_irq_save(flags);
-	machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned));
+	machine_check_poll(0, this_cpu_ptr(&mce_banks_owned));
 	local_irq_restore(flags);
 }
 
