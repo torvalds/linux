@@ -1168,8 +1168,8 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 
 /**
  * i915_driver_load - setup chip and create an initial config
- * @dev: DRM device
- * @flags: startup flags
+ * @pdev: PCI device
+ * @ent: matching PCI ID entry
  *
  * The driver load routine has to do several things:
  *   - drive output discovery via intel_modeset_init()
