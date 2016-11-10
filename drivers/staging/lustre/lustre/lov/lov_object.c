@@ -802,6 +802,7 @@ int lov_object_init(const struct lu_env *env, struct lu_object *obj,
 	init_waitqueue_head(&lov->lo_waitq);
 	cl_object_page_init(lu2cl(obj), sizeof(struct lov_page));
 
+	lov->lo_type = LLT_EMPTY;
 	if (cconf->u.coc_layout.lb_buf) {
 		lsm = lov_unpackmd(dev->ld_lov,
 				   cconf->u.coc_layout.lb_buf,

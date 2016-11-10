@@ -301,4 +301,9 @@ static inline bool lov_oinfo_is_dummy(const struct lov_oinfo *loi)
 	return false;
 }
 
+static inline struct obd_device *lov2obd(const struct lov_obd *lov)
+{
+	return container_of0(lov, struct obd_device, u.lov);
+}
+
 #endif
