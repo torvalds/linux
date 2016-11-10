@@ -390,6 +390,7 @@ static int it913x_probe(struct platform_device *pdev)
 	struct it913x_platform_data *pdata = pdev->dev.platform_data;
 	struct dvb_frontend *fe = pdata->fe;
 	struct it913x_dev *dev;
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int ret;
 	char *chip_ver_str;
 
@@ -403,7 +404,7 @@ static int it913x_probe(struct platform_device *pdev)
 	dev->pdev = pdev;
 	dev->regmap = pdata->regmap;
 	dev->fe = pdata->fe;
-	dev->chip_ver = pdata->chip_ver;
+	dev->chip_ver = id->driver_data;
 	dev->role = pdata->role;
 
 	fe->tuner_priv = dev;
@@ -441,6 +442,13 @@ static int it913x_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id it913x_id_table[] = {
+	{"it9133ax-tuner", 1},
+	{"it9133bx-tuner", 2},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, it913x_id_table);
+
 static struct platform_driver it913x_driver = {
 	.driver = {
 		.name	= "it913x",
@@ -448,6 +456,7 @@ static struct platform_driver it913x_driver = {
 	},
 	.probe		= it913x_probe,
 	.remove		= it913x_remove,
+	.id_table	= it913x_id_table,
 };
 
 module_platform_driver(it913x_driver);

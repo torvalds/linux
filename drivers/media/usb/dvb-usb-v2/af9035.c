@@ -1495,6 +1495,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 	case AF9033_TUNER_IT9135_62:
 	{
 		struct platform_device *pdev;
+		const char *name;
 		struct it913x_platform_data it913x_pdata = {
 			.regmap = state->af9033_config[adap->id].regmap,
 			.fe = adap->fe[0],
@@ -1504,12 +1505,12 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		case AF9033_TUNER_IT9135_38:
 		case AF9033_TUNER_IT9135_51:
 		case AF9033_TUNER_IT9135_52:
-			it913x_pdata.chip_ver = 1;
+			name = "it9133ax-tuner";
 			break;
 		case AF9033_TUNER_IT9135_60:
 		case AF9033_TUNER_IT9135_61:
 		case AF9033_TUNER_IT9135_62:
-			it913x_pdata.chip_ver = 2;
+			name = "it9133bx-tuner";
 			break;
 		default:
 			ret = -ENODEV;
@@ -1526,8 +1527,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		}
 
 		request_module("%s", "it913x");
-		pdev = platform_device_register_data(&d->intf->dev,
-						     "it913x",
+		pdev = platform_device_register_data(&d->intf->dev, name,
 						     PLATFORM_DEVID_AUTO,
 						     &it913x_pdata,
 						     sizeof(it913x_pdata));
