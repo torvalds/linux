@@ -7,3 +7,5 @@ Card-Specific Information
    joystick
    cmipci
    sb-live-mixer
+   audigy-mixer
+  
