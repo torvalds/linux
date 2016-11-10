@@ -1,3 +1,7 @@
+==================
+ALSA Jack Controls
+==================
+
 Why we need Jack kcontrols
 ==========================
 
@@ -29,11 +33,12 @@ How to use jack kcontrols
 =========================
 
 In order to keep compatibility, snd_jack_new() has been modified by
-adding two params :-
+adding two params:
 
- - @initial_kctl: if true, create a kcontrol and add it to the jack
-	list.
- - @phantom_jack: Don't create a input device for phantom jacks.
+initial_kctl
+  if true, create a kcontrol and add it to the jack list.
+phantom_jack
+  Don't create a input device for phantom jacks.
 
 HDA jacks can set phantom_jack to true in order to create a phantom
 jack and set initial_kctl to true to create an initial kcontrol with

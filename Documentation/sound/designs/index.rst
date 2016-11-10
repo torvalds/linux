@@ -8,6 +8,7 @@ Designs and Implementations
    channel-mapping-api
    compress-offload
    timestamping
+   jack-controls
    procfile
    powersave
    oss-emulation
