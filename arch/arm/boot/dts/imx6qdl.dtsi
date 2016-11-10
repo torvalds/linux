@@ -236,6 +236,13 @@
 			status = "disabled";
 		};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 		aips-bus@02000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
@@ -936,6 +943,7 @@
                                 interrupt-parent = <&intc>; /* interrupts = <0 92 0x4>; */
                                 clocks = <&clks IMX6QDL_CAAM_MEM>, <&clks IMX6QDL_CAAM_ACLK>, <&clks IMX6QDL_CAAM_IPG> ,<&clks IMX6QDL_CLK_EIM_SLOW>;
                                 clock-names = "caam_mem", "caam_aclk", "caam_ipg", "caam_emi_slow";
+				status = "disabled";
 
                                 sec_jr0: jr0@1000 {
                                         compatible = "fsl,sec-v4.0-job-ring";

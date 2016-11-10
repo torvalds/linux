@@ -46,10 +46,26 @@ void __init imx_scu_map_io(void)
 	imx_scu_base = IMX_IO_ADDRESS(base);
 }
 
+#include <linux/arm-smccc.h>
+#define OPTEE_SMC_CALLID_BOOT_SECONDARY	12
+#define OPTEE_SMC_BOOT_SECONDARY \
+	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32, \
+			   ARM_SMCCC_OWNER_TRUSTED_OS, \
+			   OPTEE_SMC_CALLID_BOOT_SECONDARY)
 static int imx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+#if 1
+//	imx_set_cpu_jump(cpu, v7_secondary_startup);
+//	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+	struct arm_smccc_res  res;
+	arm_smccc_smc(OPTEE_SMC_BOOT_SECONDARY,
+		      cpu, 0, virt_to_phys(secondary_startup),
+		      0, 0, 0, 0, &res);
+	printk("%s %d %x %x %d\n", __func__, cpu, (unsigned int)secondary_startup, virt_to_phys(secondary_startup), res.a0);
+#else
 	imx_set_cpu_jump(cpu, v7_secondary_startup);
 	imx_enable_cpu(cpu, true);
+#endif
 	return 0;
 }
 

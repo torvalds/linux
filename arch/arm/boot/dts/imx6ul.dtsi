@@ -45,6 +45,13 @@
 		usbphy1 = &usbphy2;
 	};
 
+    firmware {
+       optee {
+           compatible = "linaro,optee-tz";
+           method = "smc";
+       };
+   };
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
