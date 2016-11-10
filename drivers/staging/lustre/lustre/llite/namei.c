@@ -117,6 +117,14 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 			rc = cl_file_inode_init(inode, md);
 
 		if (rc) {
+			/*
+			 * Let's clear directory lsm here, otherwise
+			 * make_bad_inode() will reset the inode mode
+			 * to regular, then ll_clear_inode will not
+			 * be able to clear lsm_md
+			 */
+			if (S_ISDIR(inode->i_mode))
+				ll_dir_clear_lsm_md(inode);
 			make_bad_inode(inode);
 			unlock_new_inode(inode);
 			iput(inode);
@@ -129,6 +137,8 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 		CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p): rc = %d\n",
 		       PFID(&md->body->mbo_fid1), inode, rc);
 		if (rc) {
+			if (S_ISDIR(inode->i_mode))
+				ll_dir_clear_lsm_md(inode);
 			iput(inode);
 			inode = ERR_PTR(rc);
 		}

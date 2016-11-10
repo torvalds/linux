@@ -1055,7 +1055,7 @@ struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
 	return inode;
 }
 
-static void ll_dir_clear_lsm_md(struct inode *inode)
+void ll_dir_clear_lsm_md(struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 
