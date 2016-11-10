@@ -62,6 +62,9 @@ int wait_for_notification_wrapper(struct mali_session_data *session_data, _mali_
 
 	MALI_CHECK_NON_NULL(uargs, -EINVAL);
 
+	/* zero kargs to make sure we don't leak stack info to userspace */
+	memset(&kargs, 0, sizeof(_mali_uk_wait_for_notification_s));
+
 	kargs.ctx = (uintptr_t)session_data;
 	err = _mali_ukk_wait_for_notification(&kargs);
 	if (_MALI_OSK_ERR_OK != err) return map_errcode(err);
@@ -103,6 +106,9 @@ int get_user_settings_wrapper(struct mali_session_data *session_data, _mali_uk_g
 	_mali_osk_errcode_t err;
 
 	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+
+	/* zero kargs to make sure we don't leak stack info to userspace */
+        memset(&kargs, 0, sizeof(_mali_uk_get_user_settings_s));
 
 	kargs.ctx = (uintptr_t)session_data;
 	err = _mali_ukk_get_user_settings(&kargs);
