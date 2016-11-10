@@ -602,6 +602,32 @@ static u32 dwc2_hsotg_read_frameno(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_gadget_get_chain_limit - get the maximum data payload value of the
+ * DMA descriptor chain prepared for specific endpoint
+ * @hs_ep: The endpoint
+ *
+ * Return the maximum data that can be queued in one go on a given endpoint
+ * depending on its descriptor chain capacity so that transfers that
+ * are too long can be split.
+ */
+static unsigned int dwc2_gadget_get_chain_limit(struct dwc2_hsotg_ep *hs_ep)
+{
+	int is_isoc = hs_ep->isochronous;
+	unsigned int maxsize;
+
+	if (is_isoc)
+		maxsize = hs_ep->dir_in ? DEV_DMA_ISOC_TX_NBYTES_LIMIT :
+					   DEV_DMA_ISOC_RX_NBYTES_LIMIT;
+	else
+		maxsize = DEV_DMA_NBYTES_LIMIT;
+
+	/* Above size of one descriptor was chosen, multiple it */
+	maxsize *= MAX_DMA_DESC_NUM_GENERIC;
+
+	return maxsize;
+}
+
+/**
  * dwc2_hsotg_start_req - start a USB request from an endpoint's queue
  * @hsotg: The controller state.
  * @hs_ep: The endpoint to process a request for
@@ -659,7 +685,11 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	dev_dbg(hsotg->dev, "ureq->length:%d ureq->actual:%d\n",
 		ureq->length, ureq->actual);
 
-	maxreq = get_ep_limit(hs_ep);
+	if (!using_desc_dma(hsotg))
+		maxreq = get_ep_limit(hs_ep);
+	else
+		maxreq = dwc2_gadget_get_chain_limit(hs_ep);
+
 	if (length > maxreq) {
 		int round = maxreq % hs_ep->ep.maxpacket;
 
