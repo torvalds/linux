@@ -1,5 +1,8 @@
-    Alsa driver for Digigram miXart8 and miXart8AES/EBU soundcards
-	    Digigram <alsa@digigram.com>
+==============================================================
+Alsa driver for Digigram miXart8 and miXart8AES/EBU soundcards
+==============================================================
+
+Digigram <alsa@digigram.com>
 
 
 GENERAL
@@ -48,11 +51,15 @@ formats are supported.
 
 Mixer
 -----
-<Master> and <Master Capture> : analog volume control of playback and capture PCM.
-<PCM 0-3> and <PCM Capture> : digital volume control of each analog substream.
-<AES 0-3> and <AES Capture> : digital volume control of each AES/EBU substream.
-<Monitoring> : Loopback from 'pcm0c' to 'pcm0p' with digital volume
-and mute control.
+<Master> and <Master Capture>
+	analog volume control of playback and capture PCM.
+<PCM 0-3> and <PCM Capture>
+	digital volume control of each analog substream.
+<AES 0-3> and <AES Capture>
+	digital volume control of each AES/EBU substream.
+<Monitoring>
+	Loopback from 'pcm0c' to 'pcm0p' with digital volume
+	and mute control.
 
 Rem : for best audio quality try to keep a 0 attenuation on the PCM
 and AES volume controls which is set by 219 in the range from 0 to 255
@@ -79,11 +86,14 @@ FIRMWARE
 For loading the firmware automatically after the module is loaded, use a
 install command.  For example, add the following entry to
 /etc/modprobe.d/mixart.conf for miXart driver:
+::
 
 	install snd-mixart /sbin/modprobe --first-time -i snd-mixart && \
 			   /usr/bin/mixartloader
+
+
 (for 2.2/2.4 kernels, add "post-install snd-mixart /usr/bin/vxloader" to
- /etc/modules.conf, instead.)
+/etc/modules.conf, instead.)
 
 The firmware binaries are installed on /usr/share/alsa/firmware
 (or /usr/local/share/alsa/firmware, depending to the prefix option of
