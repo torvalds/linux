@@ -1931,6 +1931,9 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	struct fib_entry_notifier_info *fen_info = ptr;
 	int err;
 
+	if (!net_eq(fen_info->info.net, &init_net))
+		return NOTIFY_DONE;
+
 	switch (event) {
 	case FIB_EVENT_ENTRY_ADD:
 		err = mlxsw_sp_router_fib4_add(mlxsw_sp, fen_info);
