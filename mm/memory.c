@@ -2095,6 +2095,13 @@ static inline int wp_page_reuse(struct fault_env *fe, pte_t orig_pte,
 	return VM_FAULT_WRITE;
 }
 
+static bool pte_spinlock(struct fault_env *fe)
+{
+	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
+	spin_lock(fe->ptl);
+	return true;
+}
+
 static bool pte_map_lock(struct fault_env *fe)
 {
 	fe->pte = pte_offset_map_lock(fe->vma->vm_mm, fe->pmd, fe->address, &fe->ptl);
@@ -3366,8 +3373,8 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
 	* page table entry is not accessible, so there would be no
 	* concurrent hardware modifications to the PTE.
 	*/
-	fe->ptl = pte_lockptr(vma->vm_mm, fe->pmd);
-	spin_lock(fe->ptl);
+	if (!pte_spinlock(fe))
+		return VM_FAULT_RETRY;
 	if (unlikely(!pte_same(*fe->pte, pte))) {
 		pte_unmap_unlock(fe->pte, fe->ptl);
 		goto out;
@@ -3535,8 +3542,8 @@ static int handle_pte_fault(struct fault_env *fe)
 	if (pte_protnone(entry) && vma_is_accessible(fe->vma))
 		return do_numa_page(fe, entry);
 
-	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
-	spin_lock(fe->ptl);
+	if (!pte_spinlock(fe))
+		return VM_FAULT_RETRY;
 	if (unlikely(!pte_same(*fe->pte, entry)))
 		goto unlock;
 	if (fe->flags & FAULT_FLAG_WRITE) {
