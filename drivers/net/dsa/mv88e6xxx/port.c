@@ -63,9 +63,10 @@ static int mv88e6xxx_port_set_rgmii_delay(struct mv88e6xxx_chip *chip, int port,
 		reg |= PORT_PCS_CTRL_RGMII_DELAY_RXCLK |
 			PORT_PCS_CTRL_RGMII_DELAY_TXCLK;
 		break;
-	default:
-		/* no delay */
+	case PHY_INTERFACE_MODE_RGMII:
 		break;
+	default:
+		return 0;
 	}
 
 	err = mv88e6xxx_port_write(chip, port, PORT_PCS_CTRL, reg);
