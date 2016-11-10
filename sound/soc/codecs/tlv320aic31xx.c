@@ -1253,6 +1253,7 @@ static const struct of_device_id tlv320aic31xx_of_match[] = {
 	{ .compatible = "ti,tlv320aic3110" },
 	{ .compatible = "ti,tlv320aic3120" },
 	{ .compatible = "ti,tlv320aic3111" },
+	{ .compatible = "ti,tlv320dac3100" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tlv320aic31xx_of_match);
