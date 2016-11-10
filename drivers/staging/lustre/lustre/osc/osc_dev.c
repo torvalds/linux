@@ -94,8 +94,6 @@ struct lu_kmem_descr osc_caches[] = {
 	}
 };
 
-struct lock_class_key osc_ast_guard_class;
-
 /*****************************************************************************
  *
  * Type conversions.

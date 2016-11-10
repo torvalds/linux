@@ -2845,7 +2845,6 @@ static struct obd_ops osc_obd_ops = {
 };
 
 extern struct lu_kmem_descr osc_caches[];
-extern struct lock_class_key osc_ast_guard_class;
 
 static int __init osc_init(void)
 {
