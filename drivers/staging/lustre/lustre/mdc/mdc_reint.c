@@ -40,17 +40,15 @@
 #include "../include/lustre_fid.h"
 
 /* mdc_setattr does its own semaphore handling */
-static int mdc_reint(struct ptlrpc_request *request,
-		     struct mdc_rpc_lock *rpc_lock,
-		     int level)
+static int mdc_reint(struct ptlrpc_request *request, int level)
 {
 	int rc;
 
 	request->rq_send_state = level;
 
-	mdc_get_rpc_lock(rpc_lock, NULL);
+	mdc_get_mod_rpc_slot(request, NULL);
 	rc = ptlrpc_queue_wait(request);
-	mdc_put_rpc_lock(rpc_lock, NULL);
+	mdc_put_mod_rpc_slot(request, NULL);
 	if (rc)
 		CDEBUG(D_INFO, "error in handling %d\n", rc);
 	else if (!req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY))
@@ -103,8 +101,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 {
 	LIST_HEAD(cancels);
 	struct ptlrpc_request *req;
-	struct mdc_rpc_lock *rpc_lock;
-	struct obd_device *obd = exp->exp_obd;
 	int count = 0, rc;
 	__u64 bits;
 
@@ -131,8 +127,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 		return rc;
 	}
 
-	rpc_lock = obd->u.cli.cl_rpc_lock;
-
 	if (op_data->op_attr.ia_valid & (ATTR_MTIME | ATTR_CTIME))
 		CDEBUG(D_INODE, "setting mtime %ld, ctime %ld\n",
 		       LTIME_S(op_data->op_attr.ia_mtime),
@@ -141,7 +135,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_reint(req, rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 
 	if (rc == -ERESTARTSYS)
 		rc = 0;
@@ -220,7 +214,7 @@ rebuild:
 	}
 	level = LUSTRE_IMP_FULL;
  resend:
-	rc = mdc_reint(req, exp->exp_obd->u.cli.cl_rpc_lock, level);
+	rc = mdc_reint(req, level);
 
 	/* Resend if we were told to. */
 	if (rc == -ERESTARTSYS) {
@@ -292,7 +286,7 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 
 	*request = req;
 
-	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 	if (rc == -ERESTARTSYS)
 		rc = 0;
 	return rc;
@@ -302,7 +296,6 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	     struct ptlrpc_request **request)
 {
 	LIST_HEAD(cancels);
-	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req;
 	int count = 0, rc;
 
@@ -334,7 +327,7 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	mdc_link_pack(req, op_data);
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 	*request = req;
 	if (rc == -ERESTARTSYS)
 		rc = 0;
@@ -398,7 +391,7 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 			     obd->u.cli.cl_default_mds_easize);
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_reint(req, obd->u.cli.cl_rpc_lock, LUSTRE_IMP_FULL);
+	rc = mdc_reint(req, LUSTRE_IMP_FULL);
 	*request = req;
 	if (rc == -ERESTARTSYS)
 		rc = 0;

@@ -766,15 +766,16 @@ resend:
 		req->rq_sent = ktime_get_real_seconds() + resends;
 	}
 
-	/* It is important to obtain rpc_lock first (if applicable), so that
-	 * threads that are serialised with rpc_lock are not polluting our
-	 * rpcs in flight counter. We do not do flock request limiting, though
+	/* It is important to obtain modify RPC slot first (if applicable), so
+	 * that threads that are waiting for a modify RPC slot are not polluting
+	 * our rpcs in flight counter.
+	 * We do not do flock request limiting, though
 	 */
 	if (it) {
-		mdc_get_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
+		mdc_get_mod_rpc_slot(req, it);
 		rc = obd_get_request_slot(&obddev->u.cli);
 		if (rc != 0) {
-			mdc_put_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
+			mdc_put_mod_rpc_slot(req, it);
 			mdc_clear_replay_flag(req, 0);
 			ptlrpc_req_finished(req);
 			return rc;
@@ -801,7 +802,7 @@ resend:
 	}
 
 	obd_put_request_slot(&obddev->u.cli);
-	mdc_put_rpc_lock(obddev->u.cli.cl_rpc_lock, it);
+	mdc_put_mod_rpc_slot(req, it);
 
 	if (rc < 0) {
 		CDEBUG(D_INFO, "%s: ldlm_cli_enqueue failed: rc = %d\n",

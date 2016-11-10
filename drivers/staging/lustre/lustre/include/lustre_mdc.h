@@ -156,6 +156,30 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 	mutex_unlock(&lck->rpcl_mutex);
 }
 
+static inline void mdc_get_mod_rpc_slot(struct ptlrpc_request *req,
+					struct lookup_intent *it)
+{
+	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
+	u32 opc;
+	u16 tag;
+
+	opc = lustre_msg_get_opc(req->rq_reqmsg);
+	tag = obd_get_mod_rpc_slot(cli, opc, it);
+	lustre_msg_set_tag(req->rq_reqmsg, tag);
+}
+
+static inline void mdc_put_mod_rpc_slot(struct ptlrpc_request *req,
+					struct lookup_intent *it)
+{
+	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
+	u32 opc;
+	u16 tag;
+
+	opc = lustre_msg_get_opc(req->rq_reqmsg);
+	tag = lustre_msg_get_tag(req->rq_reqmsg);
+	obd_put_mod_rpc_slot(cli, opc, it, tag);
+}
+
 /**
  * Update the maximum possible easize.
  *
