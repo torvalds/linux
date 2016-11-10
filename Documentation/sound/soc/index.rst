@@ -12,3 +12,4 @@ The documentation is spilt into the following sections:-
    dai
    dapm
    platform
+   machine
