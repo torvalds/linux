@@ -568,6 +568,9 @@ err_minors:
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
 	mutex_destroy(&dev->master_mutex);
+	mutex_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->filelist_mutex);
+	mutex_destroy(&dev->struct_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_init);
@@ -630,6 +633,9 @@ static void drm_dev_release(struct kref *ref)
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	mutex_destroy(&dev->master_mutex);
+	mutex_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->filelist_mutex);
+	mutex_destroy(&dev->struct_mutex);
 	kfree(dev->unique);
 	kfree(dev);
 }
