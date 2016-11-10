@@ -478,6 +478,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 
 	lcc = ll_cl_find(file);
 	if (!lcc) {
+		io = NULL;
 		result = -EIO;
 		goto out;
 	}
@@ -558,6 +559,8 @@ out:
 			lu_ref_del(&page->cp_reference, "cl_io", io);
 			cl_page_put(env, page);
 		}
+		if (io)
+			io->ci_result = result;
 	} else {
 		*pagep = vmpage;
 		*fsdata = lcc;
@@ -627,6 +630,8 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	    file->f_flags & O_SYNC || IS_SYNC(file_inode(file)))
 		result = vvp_io_write_commit(env, io);
 
+	if (result < 0)
+		io->ci_result = result;
 	return result >= 0 ? copied : result;
 }
 
