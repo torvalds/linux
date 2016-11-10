@@ -1273,9 +1273,9 @@ scsih_target_alloc(struct scsi_target *starget)
 			sas_target_priv_data->handle = raid_device->handle;
 			sas_target_priv_data->sas_address = raid_device->wwid;
 			sas_target_priv_data->flags |= MPT_TARGET_FLAGS_VOLUME;
-			sas_target_priv_data->raid_device = raid_device;
 			if (ioc->is_warpdrive)
-				raid_device->starget = starget;
+				sas_target_priv_data->raid_device = raid_device;
+			raid_device->starget = starget;
 		}
 		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
 		return 0;
