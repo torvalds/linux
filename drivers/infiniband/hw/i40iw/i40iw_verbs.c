@@ -2145,7 +2145,6 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 		case IB_WR_REG_MR:
 		{
 			struct i40iw_mr *iwmr = to_iwmr(reg_wr(ib_wr)->mr);
-			int page_shift = ilog2(reg_wr(ib_wr)->mr->page_size);
 			int flags = reg_wr(ib_wr)->access;
 			struct i40iw_pble_alloc *palloc = &iwmr->iwpbl.pble_alloc;
 			struct i40iw_sc_dev *dev = &iwqp->iwdev->sc_dev;
@@ -2156,6 +2155,7 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.access_rights |= i40iw_get_user_access(flags);
 			info.stag_key = reg_wr(ib_wr)->key & 0xff;
 			info.stag_idx = reg_wr(ib_wr)->key >> 8;
+			info.page_size = reg_wr(ib_wr)->mr->page_size;
 			info.wr_id = ib_wr->wr_id;
 
 			info.addr_type = I40IW_ADDR_TYPE_VA_BASED;
@@ -2168,9 +2168,6 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 
 			if (iwmr->npages > I40IW_MIN_PAGES_PER_FMR)
 				info.chunk_size = 1;
-
-			if (page_shift == 21)
-				info.page_size = 1; /* 2M page */
 
 			ret = dev->iw_priv_qp_ops->iw_mr_fast_register(&iwqp->sc_qp, &info, true);
 			if (ret)
