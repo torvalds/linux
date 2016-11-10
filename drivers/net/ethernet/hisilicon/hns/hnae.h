@@ -426,8 +426,14 @@ enum hnae_media_type {
  *   get mac address
  * set_mac_addr()
  *   set mac address
+ * clr_mc_addr()
+ *   clear mcast tcam table
  * set_mc_addr()
  *   set multicast mode
+ * add_uc_addr()
+ *   add ucast address
+ * rm_uc_addr()
+ *   remove ucast address
  * set_mtu()
  *   set mtu
  * update_stats()
@@ -488,6 +494,11 @@ struct hnae_ae_ops {
 	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
 	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
 	int (*set_mac_addr)(struct hnae_handle *handle, void *p);
+	int (*add_uc_addr)(struct hnae_handle *handle,
+			   const unsigned char *addr);
+	int (*rm_uc_addr)(struct hnae_handle *handle,
+			  const unsigned char *addr);
+	int (*clr_mc_addr)(struct hnae_handle *handle);
 	int (*set_mc_addr)(struct hnae_handle *handle, void *addr);
 	int (*set_mtu)(struct hnae_handle *handle, int new_mtu);
 	void (*set_tso_stats)(struct hnae_handle *handle, int enable);
@@ -590,7 +601,7 @@ static inline int hnae_alloc_buffer_attach(struct hnae_ring *ring, int i)
 	if (ret)
 		return ret;
 
-	ring->desc[i].addr = (__le64)ring->desc_cb[i].dma;
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
 
 	return 0;
 }
@@ -621,14 +632,14 @@ static inline void hnae_replace_buffer(struct hnae_ring *ring, int i,
 
 	bops->unmap_buffer(ring, &ring->desc_cb[i]);
 	ring->desc_cb[i] = *res_cb;
-	ring->desc[i].addr = (__le64)ring->desc_cb[i].dma;
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
 
 static inline void hnae_reuse_buffer(struct hnae_ring *ring, int i)
 {
 	ring->desc_cb[i].reuse_flag = 0;
-	ring->desc[i].addr = (__le64)(ring->desc_cb[i].dma
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
 		+ ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
