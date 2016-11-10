@@ -560,7 +560,6 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow *flow;
 	struct sw_flow_actions *sf_acts;
 	struct datapath *dp;
-	struct ethhdr *eth;
 	struct vport *input_vport;
 	u16 mru = 0;
 	int len;
@@ -580,17 +579,6 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	skb_reserve(packet, NET_IP_ALIGN);
 
 	nla_memcpy(__skb_put(packet, len), a[OVS_PACKET_ATTR_PACKET], len);
-
-	skb_reset_mac_header(packet);
-	eth = eth_hdr(packet);
-
-	/* Normally, setting the skb 'protocol' field would be handled by a
-	 * call to eth_type_trans(), but it assumes there's a sending
-	 * device, which we may not have. */
-	if (eth_proto_is_802_3(eth->h_proto))
-		packet->protocol = eth->h_proto;
-	else
-		packet->protocol = htons(ETH_P_802_2);
 
 	/* Set packet's mru */
 	if (a[OVS_PACKET_ATTR_MRU]) {
@@ -618,6 +606,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	rcu_assign_pointer(flow->sf_acts, acts);
 	packet->priority = flow->key.phy.priority;
 	packet->mark = flow->key.phy.skb_mark;
+	packet->protocol = flow->key.eth.type;
 
 	rcu_read_lock();
 	dp = get_dp_rcu(net, ovs_header->dp_ifindex);

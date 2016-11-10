@@ -485,6 +485,25 @@ void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto)
 {
 	int mtu = vport->dev->mtu;
 
+	switch (vport->dev->type) {
+	case ARPHRD_NONE:
+		if (mac_proto == MAC_PROTO_ETHERNET) {
+			skb_reset_network_header(skb);
+			skb_reset_mac_len(skb);
+			skb->protocol = htons(ETH_P_TEB);
+		} else if (mac_proto != MAC_PROTO_NONE) {
+			WARN_ON_ONCE(1);
+			goto drop;
+		}
+		break;
+	case ARPHRD_ETHER:
+		if (mac_proto != MAC_PROTO_ETHERNET)
+			goto drop;
+		break;
+	default:
+		goto drop;
+	}
+
 	if (unlikely(packet_length(skb, vport->dev) > mtu &&
 		     !skb_is_gso(skb))) {
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
