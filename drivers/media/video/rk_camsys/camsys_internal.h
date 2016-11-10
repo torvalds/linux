@@ -142,8 +142,10 @@
 		1) modify for mipiphy hsfreqrange.
 *v0.0x21.6:
 		1) support drm iommu.
+*v0.0x21.7:
+*       1) remove memset function wrong called code.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 6)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 7)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"

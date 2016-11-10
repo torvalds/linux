@@ -171,7 +171,6 @@ struct platform_device *pdev, camsys_dev_t *camsys_dev)
 			}
 		}
 
-		memset(str, sizeof(str), 0x00);
 		sprintf(str, "hclk_mipiphy%d", i);
 
 		clk = devm_clk_get(&pdev->dev, str);
