@@ -226,6 +226,12 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		resource_size_t offset, void *buf, size_t size, int rw)
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
+	sector_t sector = offset >> 9;
+	int rc = 0;
+
+	if (unlikely(!size))
+		return 0;
 
 	if (unlikely(offset + size > nsio->size)) {
 		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
@@ -233,17 +239,33 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 	}
 
 	if (rw == READ) {
-		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
-
-		if (unlikely(is_bad_pmem(&nsio->bb, offset / 512, sz_align)))
+		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align)))
 			return -EIO;
 		return memcpy_from_pmem(buf, nsio->addr + offset, size);
 	} else {
+
+		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {
+			if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)) {
+				long cleared;
+
+				cleared = nvdimm_clear_poison(&ndns->dev,
+							      offset, size);
+				if (cleared != size) {
+					size = cleared;
+					rc = -EIO;
+				}
+
+				badblocks_clear(&nsio->bb, sector,
+						cleared >> 9);
+			} else
+				rc = -EIO;
+		}
+
 		memcpy_to_pmem(nsio->addr + offset, buf, size);
 		nvdimm_flush(to_nd_region(ndns->dev.parent));
 	}
 
-	return 0;
+	return rc;
 }
 
 int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
