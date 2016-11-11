@@ -303,7 +303,6 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 				"maybe the host is dead\n");
 		del_timer(&xhci->cmd_timer);
 		xhci->xhc_state |= XHCI_STATE_DYING;
-		xhci_quiesce(xhci);
 		xhci_halt(xhci);
 		return -ESHUTDOWN;
 	}
