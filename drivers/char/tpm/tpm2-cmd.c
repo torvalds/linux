@@ -1063,15 +1063,76 @@ out:
 	return rc;
 }
 
+static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
+{
+	struct tpm_buf buf;
+	u32 nr_commands;
+	u32 *attrs;
+	u32 cc;
+	int i;
+	int rc;
+
+	rc = tpm2_get_tpm_pt(chip, TPM_PT_TOTAL_COMMANDS, &nr_commands, NULL);
+	if (rc)
+		goto out;
+
+	if (nr_commands > 0xFFFFF) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	chip->cc_attrs_tbl = devm_kzalloc(&chip->dev, 4 * nr_commands,
+					  GFP_KERNEL);
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_GET_CAPABILITY);
+	if (rc)
+		goto out;
+
+	tpm_buf_append_u32(&buf, TPM2_CAP_COMMANDS);
+	tpm_buf_append_u32(&buf, TPM2_CC_FIRST);
+	tpm_buf_append_u32(&buf, nr_commands);
+
+	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 9 + 4 * nr_commands,
+			      0, NULL);
+	if (rc) {
+		tpm_buf_destroy(&buf);
+		goto out;
+	}
+
+	if (nr_commands !=
+	    be32_to_cpup((__be32 *)&buf.data[TPM_HEADER_SIZE + 5])) {
+		tpm_buf_destroy(&buf);
+		goto out;
+	}
+
+	chip->nr_commands = nr_commands;
+
+	attrs = (u32 *)&buf.data[TPM_HEADER_SIZE + 9];
+	for (i = 0; i < nr_commands; i++, attrs++) {
+		chip->cc_attrs_tbl[i] = be32_to_cpup(attrs);
+		cc = chip->cc_attrs_tbl[i] & 0xFFFF;
+
+		if (cc == TPM2_CC_CONTEXT_SAVE || cc == TPM2_CC_FLUSH_CONTEXT) {
+			chip->cc_attrs_tbl[i] &=
+				~(GENMASK(2, 0) << TPM2_CC_ATTR_CHANDLES);
+			chip->cc_attrs_tbl[i] |= 1 << TPM2_CC_ATTR_CHANDLES;
+		}
+	}
+
+	tpm_buf_destroy(&buf);
+
+out:
+	if (rc > 0)
+		rc = -ENODEV;
+	return rc;
+}
+
 /**
  * tpm2_auto_startup - Perform the standard automatic TPM initialization
  *                     sequence
  * @chip: TPM chip to use
  *
- * Initializes timeout values for operation and command durations, conducts
- * a self-test and reads the list of active PCR banks.
- *
- * Return: 0 on success. Otherwise, a system error code is returned.
+ * Returns 0 on success, < 0 in case of fatal error.
  */
 int tpm2_auto_startup(struct tpm_chip *chip)
 {
@@ -1100,9 +1161,24 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 	}
 
 	rc = tpm2_get_pcr_allocation(chip);
+	if (rc)
+		goto out;
+
+	rc = tpm2_get_cc_attrs_tbl(chip);
 
 out:
 	if (rc > 0)
 		rc = -ENODEV;
 	return rc;
+}
+
+int tpm2_find_cc(struct tpm_chip *chip, u32 cc)
+{
+	int i;
+
+	for (i = 0; i < chip->nr_commands; i++)
+		if (cc == (chip->cc_attrs_tbl[i] & GENMASK(15, 0)))
+			return i;
+
+	return -1;
 }
