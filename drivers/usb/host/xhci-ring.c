@@ -2036,84 +2036,79 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct xhci_ring *ep_ring;
 	struct urb_priv *urb_priv;
 	int idx;
-	int len = 0;
-	union xhci_trb *cur_trb;
-	struct xhci_segment *cur_seg;
 	struct usb_iso_packet_descriptor *frame;
 	u32 trb_comp_code;
-	bool skip_td = false;
+	bool sum_trbs_for_length = false;
+	u32 remaining, requested, ep_trb_len;
+	int short_framestatus;
 
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	urb_priv = td->urb->hcpriv;
 	idx = urb_priv->td_cnt;
 	frame = &td->urb->iso_frame_desc[idx];
+	requested = frame->length;
+	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
+	ep_trb_len = TRB_LEN(le32_to_cpu(ep_trb->generic.field[2]));
+	short_framestatus = td->urb->transfer_flags & URB_SHORT_NOT_OK ?
+		-EREMOTEIO : 0;
 
 	/* handle completion code */
 	switch (trb_comp_code) {
 	case COMP_SUCCESS:
-		if (EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) == 0) {
-			frame->status = 0;
+		if (remaining) {
+			frame->status = short_framestatus;
+			if (xhci->quirks & XHCI_TRUST_TX_LENGTH)
+				sum_trbs_for_length = true;
 			break;
 		}
-		if ((xhci->quirks & XHCI_TRUST_TX_LENGTH))
-			trb_comp_code = COMP_SHORT_TX;
-	/* fallthrough */
-	case COMP_STOP_SHORT:
+		frame->status = 0;
+		break;
 	case COMP_SHORT_TX:
-		frame->status = td->urb->transfer_flags & URB_SHORT_NOT_OK ?
-				-EREMOTEIO : 0;
+		frame->status = short_framestatus;
+		sum_trbs_for_length = true;
 		break;
 	case COMP_BW_OVER:
 		frame->status = -ECOMM;
-		skip_td = true;
 		break;
 	case COMP_BUFF_OVER:
 	case COMP_BABBLE:
 		frame->status = -EOVERFLOW;
-		skip_td = true;
 		break;
 	case COMP_DEV_ERR:
 	case COMP_STALL:
 		frame->status = -EPROTO;
-		skip_td = true;
 		break;
 	case COMP_TX_ERR:
 		frame->status = -EPROTO;
 		if (ep_trb != td->last_trb)
 			return 0;
-		skip_td = true;
 		break;
 	case COMP_STOP:
+		sum_trbs_for_length = true;
+		break;
+	case COMP_STOP_SHORT:
+		/* field normally containing residue now contains tranferred */
+		frame->status = short_framestatus;
+		requested = remaining;
+		break;
 	case COMP_STOP_INVAL:
+		requested = 0;
+		remaining = 0;
 		break;
 	default:
+		sum_trbs_for_length = true;
 		frame->status = -1;
 		break;
 	}
 
-	if (trb_comp_code == COMP_SUCCESS || skip_td) {
-		frame->actual_length = frame->length;
-		td->urb->actual_length += frame->length;
-	} else if (trb_comp_code == COMP_STOP_SHORT) {
-		frame->actual_length =
-			EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
-		td->urb->actual_length += frame->actual_length;
-	} else {
-		for (cur_trb = ep_ring->dequeue,
-		     cur_seg = ep_ring->deq_seg; cur_trb != ep_trb;
-		     next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-			if (!trb_is_noop(cur_trb) && !trb_is_link(cur_trb))
-				len += TRB_LEN(le32_to_cpu(cur_trb->generic.field[2]));
-		}
-		len += TRB_LEN(le32_to_cpu(cur_trb->generic.field[2])) -
-			EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
+	if (sum_trbs_for_length)
+		frame->actual_length = sum_trb_lengths(xhci, ep_ring, ep_trb) +
+			ep_trb_len - remaining;
+	else
+		frame->actual_length = requested;
 
-		if (trb_comp_code != COMP_STOP_INVAL) {
-			frame->actual_length = len;
-			td->urb->actual_length += len;
-		}
-	}
+	td->urb->actual_length += frame->actual_length;
 
 	return finish_td(xhci, td, ep_trb, event, ep, status, false);
 }
