@@ -658,12 +658,10 @@ static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
 		return false;
 
 	if (amdgpu_passthrough(adev)) {
-		/* for FIJI: In whole GPU pass-through virtualization case
-		 * old smc fw won't clear some registers (e.g. MEM_SIZE, BIOS_SCRATCH)
-		 * so amdgpu_card_posted return false and driver will incorrectly skip vPost.
-		 * but if we force vPost do in pass-through case, the driver reload will hang.
-		 * whether doing vPost depends on amdgpu_card_posted if smc version is above
-		 * 00160e00 for FIJI.
+		/* for FIJI: In whole GPU pass-through virtualization case, after VM reboot
+		 * some old smc fw still need driver do vPost otherwise gpu hang, while
+		 * those smc fw version above 22.15 doesn't have this flaw, so we force
+		 * vpost executed for smc version below 22.15
 		 */
 		if (adev->asic_type == CHIP_FIJI) {
 			int err;
@@ -674,22 +672,11 @@ static bool amdgpu_vpost_needed(struct amdgpu_device *adev)
 				return true;
 
 			fw_ver = *((uint32_t *)adev->pm.fw->data + 69);
-			if (fw_ver >= 0x00160e00)
-				return !amdgpu_card_posted(adev);
+			if (fw_ver < 0x00160e00)
+				return true;
 		}
-	} else {
-		/* in bare-metal case, amdgpu_card_posted return false
-		 * after system reboot/boot, and return true if driver
-		 * reloaded.
-		 * we shouldn't do vPost after driver reload otherwise GPU
-		 * could hang.
-		 */
-		if (amdgpu_card_posted(adev))
-			return false;
 	}
-
-	/* we assume vPost is neede for all other cases */
-	return true;
+	return !amdgpu_card_posted(adev);
 }
 
 /**
