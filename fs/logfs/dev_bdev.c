@@ -143,7 +143,6 @@ static void erase_end_io(struct bio *bio)
 	struct logfs_super *super = logfs_super(sb); 
 
 	BUG_ON(bio->bi_error); /* FIXME: Retry io or write elsewhere */ 
-	BUG_ON(bio->bi_vcnt == 0); 
 	bio_put(bio); 
 	if (atomic_dec_and_test(&super->s_pending_writes))
 		wake_up(&wq); 
