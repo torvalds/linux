@@ -190,6 +190,9 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_LID_OPEN		= 0x5002, /* laptop lid opened */
 	TP_HKEY_EV_TABLET_TABLET	= 0x5009, /* tablet swivel up */
 	TP_HKEY_EV_TABLET_NOTEBOOK	= 0x500a, /* tablet swivel down */
+	TP_HKEY_EV_TABLET_CHANGED	= 0x60c0, /* X1 Yoga (2016):
+						   * enter/leave tablet mode
+						   */
 	TP_HKEY_EV_PEN_INSERTED		= 0x500b, /* tablet pen inserted */
 	TP_HKEY_EV_PEN_REMOVED		= 0x500c, /* tablet pen removed */
 	TP_HKEY_EV_BRGHT_CHANGED	= 0x5010, /* backlight control event */
@@ -305,6 +308,8 @@ static struct {
 	enum {
 		TP_HOTKEY_TABLET_NONE = 0,
 		TP_HOTKEY_TABLET_USES_MHKG,
+		/* X1 Yoga 2016, seen on BIOS N1FET44W */
+		TP_HOTKEY_TABLET_USES_CMMD,
 	} hotkey_tablet;
 	u32 kbdlight:1;
 	u32 light:1;
@@ -2062,6 +2067,8 @@ static void hotkey_poll_setup(const bool may_warn);
 
 /* HKEY.MHKG() return bits */
 #define TP_HOTKEY_TABLET_MASK (1 << 3)
+/* ThinkPad X1 Yoga (2016) */
+#define TP_EC_CMMD_TABLET_MODE 0x6
 
 static int hotkey_get_wlsw(void)
 {
@@ -2086,10 +2093,23 @@ static int hotkey_get_tablet_mode(int *status)
 {
 	int s;
 
-	if (!acpi_evalf(hkey_handle, &s, "MHKG", "d"))
-		return -EIO;
+	switch (tp_features.hotkey_tablet) {
+	case TP_HOTKEY_TABLET_USES_MHKG:
+		if (!acpi_evalf(hkey_handle, &s, "MHKG", "d"))
+			return -EIO;
 
-	*status = ((s & TP_HOTKEY_TABLET_MASK) != 0);
+		*status = ((s & TP_HOTKEY_TABLET_MASK) != 0);
+		break;
+	case TP_HOTKEY_TABLET_USES_CMMD:
+		if (!acpi_evalf(ec_handle, &s, "CMMD", "d"))
+			return -EIO;
+
+		*status = (s == TP_EC_CMMD_TABLET_MODE);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
@@ -3125,11 +3145,16 @@ static int hotkey_init_tablet_mode(void)
 	int in_tablet_mode, res;
 	char *type;
 
-	/* For X41t, X60t, X61t Tablets... */
 	if (acpi_evalf(hkey_handle, &res, "MHKG", "qd")) {
+		/* For X41t, X60t, X61t Tablets... */
 		tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_MHKG;
 		in_tablet_mode = !!(res & TP_HOTKEY_TABLET_MASK);
 		type = "MHKG";
+	} else if (acpi_evalf(ec_handle, &res, "CMMD", "qd")) {
+		/* For X1 Yoga (2016) */
+		tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_CMMD;
+		in_tablet_mode = res == TP_EC_CMMD_TABLET_MODE;
+		type = "CMMD";
 	}
 
 	if (!tp_features.hotkey_tablet)
@@ -3920,6 +3945,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		*send_acpi_ev = false;
 		*ignore_acpi_ev = true;
 		return true;
+
+	case TP_HKEY_EV_TABLET_CHANGED:
+		tpacpi_input_send_tabletsw();
+		hotkey_tablet_mode_notify_change();
+		*send_acpi_ev = false;
+		break;
 
 	default:
 		pr_warn("unknown possible thermal alarm or keyboard event received\n");
