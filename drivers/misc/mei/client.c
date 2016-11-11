@@ -425,7 +425,7 @@ static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
  *
  * @cl: host client
  * @length: size of the buffer
- * @type: operation type
+ * @fop_type: operation type
  * @fp: associated file pointer (might be NULL)
  *
  * Return: cb on success and NULL on failure
@@ -459,7 +459,7 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
  *
  * @cl: host client
  * @length: size of the buffer
- * @type: operation type
+ * @fop_type: operation type
  * @fp: associated file pointer (might be NULL)
  *
  * Return: cb on success and NULL on failure
