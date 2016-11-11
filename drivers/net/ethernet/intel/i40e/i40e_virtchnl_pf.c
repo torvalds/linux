@@ -1943,7 +1943,7 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 
 		f = i40e_find_mac(vsi, al->list[i].addr);
 		if (!f)
-			f = i40e_put_mac_in_vlan(vsi, al->list[i].addr);
+			f = i40e_add_mac_filter(vsi, al->list[i].addr);
 
 		if (!f) {
 			dev_err(&pf->pdev->dev,
@@ -2008,7 +2008,7 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
 	/* delete addresses from the list */
 	for (i = 0; i < al->num_elements; i++)
-		if (i40e_del_mac_all_vlan(vsi, al->list[i].addr)) {
+		if (i40e_del_mac_filter(vsi, al->list[i].addr)) {
 			ret = I40E_ERR_INVALID_MAC_ADDR;
 			spin_unlock_bh(&vsi->mac_filter_hash_lock);
 			goto error_param;

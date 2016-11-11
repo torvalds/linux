@@ -855,9 +855,9 @@ int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, u16 vid);
 void i40e_rm_vlan_all_mac(struct i40e_vsi *vsi, s16 vid);
 void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, u16 vid);
-struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
-					     const u8 *macaddr);
-int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, const u8 *macaddr);
+struct i40e_mac_filter *i40e_add_mac_filter(struct i40e_vsi *vsi,
+					    const u8 *macaddr);
+int i40e_del_mac_filter(struct i40e_vsi *vsi, const u8 *macaddr);
 bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi);
 struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, const u8 *macaddr);
 #ifdef I40E_FCOE

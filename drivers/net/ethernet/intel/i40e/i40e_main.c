@@ -1477,18 +1477,19 @@ void i40e_del_filter(struct i40e_vsi *vsi, const u8 *macaddr, s16 vlan)
 }
 
 /**
- * i40e_put_mac_in_vlan - Make macvlan filters from macaddrs and vlans
+ * i40e_add_mac_filter - Add a MAC filter for all active VLANs
  * @vsi: the VSI to be searched
  * @macaddr: the mac address to be filtered
  *
- * Goes through all the macvlan filters and adds a macvlan filter for each
+ * If we're not in VLAN mode, just add the filter to I40E_VLAN_ANY. Otherwise,
+ * go through all the macvlan filters and add a macvlan filter for each
  * unique vlan that already exists. If a PVID has been assigned, instead only
  * add the macaddr to that VLAN.
  *
  * Returns last filter added on success, else NULL
  **/
-struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
-					     const u8 *macaddr)
+struct i40e_mac_filter *i40e_add_mac_filter(struct i40e_vsi *vsi,
+					    const u8 *macaddr)
 {
 	struct i40e_mac_filter *f, *add = NULL;
 	struct hlist_node *h;
@@ -1513,15 +1514,16 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
 }
 
 /**
- * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
+ * i40e_del_mac_filter - Remove a MAC filter from all VLANs
  * @vsi: the VSI to be searched
  * @macaddr: the mac address to be removed
  *
- * Removes a given MAC address from a VSI, regardless of VLAN
+ * Removes a given MAC address from a VSI regardless of what VLAN it has been
+ * associated with.
  *
  * Returns 0 for success, or error
  **/
-int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, const u8 *macaddr)
+int i40e_del_mac_filter(struct i40e_vsi *vsi, const u8 *macaddr)
 {
 	struct i40e_mac_filter *f;
 	struct hlist_node *h;
@@ -1582,8 +1584,8 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		netdev_info(netdev, "set new mac address %pM\n", addr->sa_data);
 
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
-	i40e_del_mac_all_vlan(vsi, netdev->dev_addr);
-	i40e_put_mac_in_vlan(vsi, addr->sa_data);
+	i40e_del_mac_filter(vsi, netdev->dev_addr);
+	i40e_add_mac_filter(vsi, addr->sa_data);
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 	if (vsi->type == I40E_VSI_MAIN) {
@@ -1760,7 +1762,7 @@ static int i40e_addr_sync(struct net_device *netdev, const u8 *addr)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 
-	if (i40e_put_mac_in_vlan(vsi, addr))
+	if (i40e_add_mac_filter(vsi, addr))
 		return 0;
 	else
 		return -ENOMEM;
@@ -1779,7 +1781,7 @@ static int i40e_addr_unsync(struct net_device *netdev, const u8 *addr)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 
-	i40e_del_mac_all_vlan(vsi, addr);
+	i40e_del_mac_filter(vsi, addr);
 
 	return 0;
 }
