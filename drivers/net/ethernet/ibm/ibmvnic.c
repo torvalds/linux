@@ -3844,6 +3844,9 @@ static int ibmvnic_remove(struct vio_dev *dev)
 	if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
 		debugfs_remove_recursive(adapter->debugfs_dir);
 
+	dma_unmap_single(&dev->dev, adapter->stats_token,
+			 sizeof(struct ibmvnic_statistics), DMA_FROM_DEVICE);
+
 	if (adapter->ras_comps)
 		dma_free_coherent(&dev->dev,
 				  adapter->ras_comp_num *
