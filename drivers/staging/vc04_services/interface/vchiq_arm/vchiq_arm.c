@@ -1814,9 +1814,8 @@ vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state)
 
 		arm_state->suspend_timer_timeout = SUSPEND_TIMER_TIMEOUT_MS;
 		arm_state->suspend_timer_running = 0;
-		init_timer(&arm_state->suspend_timer);
-		arm_state->suspend_timer.data = (unsigned long)(state);
-		arm_state->suspend_timer.function = suspend_timer_callback;
+		setup_timer(&arm_state->suspend_timer, suspend_timer_callback,
+			    (unsigned long)(state));
 
 		arm_state->first_connect = 0;
 
