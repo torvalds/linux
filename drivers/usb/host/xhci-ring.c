@@ -1919,6 +1919,21 @@ td_cleanup:
 	return ret;
 }
 
+/* sum trb lengths from ring dequeue up to stop_trb, _excluding_ stop_trb */
+static int sum_trb_lengths(struct xhci_hcd *xhci, struct xhci_ring *ring,
+			   union xhci_trb *stop_trb)
+{
+	u32 sum;
+	union xhci_trb *trb = ring->dequeue;
+	struct xhci_segment *seg = ring->deq_seg;
+
+	for (sum = 0; trb != stop_trb; next_trb(xhci, ring, &seg, &trb)) {
+		if (!trb_is_noop(trb) && !trb_is_link(trb))
+			sum += TRB_LEN(le32_to_cpu(trb->generic.field[2]));
+	}
+	return sum;
+}
+
 /*
  * Process control tds, update urb status and actual_length.
  */
@@ -2140,88 +2155,57 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct xhci_virt_ep *ep, int *status)
 {
 	struct xhci_ring *ep_ring;
-	union xhci_trb *cur_trb;
-	struct xhci_segment *cur_seg;
 	u32 trb_comp_code;
+	u32 remaining, requested, event_trb_len;
 
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
+	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
+	event_trb_len =	TRB_LEN(le32_to_cpu(event_trb->generic.field[2]));
+	requested = td->urb->transfer_buffer_length;
 
 	switch (trb_comp_code) {
 	case COMP_SUCCESS:
-		/* Double check that the HW transferred everything. */
-		if (event_trb != td->last_trb ||
-		    EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) != 0) {
+		/* handle success with untransferred data as short packet */
+		if (event_trb != td->last_trb || remaining) {
 			xhci_warn(xhci, "WARN Successful completion on short TX\n");
-			if ((xhci->quirks & XHCI_TRUST_TX_LENGTH))
-				trb_comp_code = COMP_SHORT_TX;
+			xhci_dbg(xhci, "ep %#x - asked for %d bytes, %d bytes untransferred\n",
+				 td->urb->ep->desc.bEndpointAddress,
+				 requested, remaining);
 		}
+		*status = 0;
+		break;
+	case COMP_SHORT_TX:
+		xhci_dbg(xhci, "ep %#x - asked for %d bytes, %d bytes untransferred\n",
+			 td->urb->ep->desc.bEndpointAddress,
+			 requested, remaining);
 		*status = 0;
 		break;
 	case COMP_STOP_SHORT:
-	case COMP_SHORT_TX:
-		*status = 0;
+		td->urb->actual_length = remaining;
+		goto finish_td;
+	case COMP_STOP_INVAL:
+		/* stopped on ep trb with invalid length, exclude it */
+		event_trb_len	= 0;
+		remaining	= 0;
 		break;
 	default:
-		/* Others already handled above */
+		/* do nothing */
 		break;
 	}
-	if (trb_comp_code == COMP_SHORT_TX)
-		xhci_dbg(xhci, "ep %#x - asked for %d bytes, "
-				"%d bytes untransferred\n",
-				td->urb->ep->desc.bEndpointAddress,
-				td->urb->transfer_buffer_length,
-				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)));
-	/* Stopped - short packet completion */
-	if (trb_comp_code == COMP_STOP_SHORT) {
+
+	if (event_trb == td->last_trb)
+		td->urb->actual_length = requested - remaining;
+	else
 		td->urb->actual_length =
-			EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
-
-		if (td->urb->transfer_buffer_length <
-				td->urb->actual_length) {
-			xhci_warn(xhci, "HC gave bad length of %d bytes txed\n",
-				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)));
-			td->urb->actual_length = 0;
-			 /* status will be set by usb core for canceled urbs */
-		}
-	/* Fast path - was this the last TRB in the TD for this URB? */
-	} else if (event_trb == td->last_trb) {
-		if (EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) != 0) {
-			td->urb->actual_length =
-				td->urb->transfer_buffer_length -
-				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
-			if (td->urb->transfer_buffer_length <
-					td->urb->actual_length) {
-				xhci_warn(xhci, "HC gave bad length of %d bytes left\n",
-					  EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)));
-				td->urb->actual_length = 0;
-				*status = 0;
-			}
-			/* Don't overwrite a previously set error code */
-			if (*status == -EINPROGRESS)
-				*status = 0;
-		}
-	} else {
-		/* Slow path - walk the list, starting from the dequeue
-		 * pointer, to get the actual length transferred.
-		 */
+			sum_trb_lengths(xhci, ep_ring, event_trb) +
+			event_trb_len - remaining;
+finish_td:
+	if (remaining > requested) {
+		xhci_warn(xhci, "bad transfer trb length %d in event trb\n",
+			  remaining);
 		td->urb->actual_length = 0;
-		for (cur_trb = ep_ring->dequeue, cur_seg = ep_ring->deq_seg;
-				cur_trb != event_trb;
-				next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-			if (!trb_is_noop(cur_trb) && !trb_is_link(cur_trb))
-				td->urb->actual_length +=
-					TRB_LEN(le32_to_cpu(cur_trb->generic.field[2]));
-		}
-		/* If the ring didn't stop on a Link or No-op TRB, add
-		 * in the actual bytes transferred from the Normal TRB
-		 */
-		if (trb_comp_code != COMP_STOP_INVAL)
-			td->urb->actual_length +=
-				TRB_LEN(le32_to_cpu(cur_trb->generic.field[2])) -
-				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
 	}
-
 	return finish_td(xhci, td, event_trb, event, ep, status, false);
 }
 
