@@ -77,6 +77,15 @@ struct sf_buffer {
 	unsigned long	 *tail;	    /* last sample-data-block-table */
 };
 
+struct aux_buffer {
+	struct sf_buffer sfb;
+	unsigned long head;	   /* index of SDB of buffer head */
+	unsigned long alert_mark;  /* index of SDB of alert request position */
+	unsigned long empty_mark;  /* mark of SDB not marked full */
+	unsigned long *sdb_index;  /* SDB address for fast lookup */
+	unsigned long *sdbt_index; /* SDBT address for fast lookup */
+};
+
 struct cpu_hw_sf {
 	/* CPU-measurement sampling information block */
 	struct hws_qsi_info_block qsi;
@@ -85,6 +94,7 @@ struct cpu_hw_sf {
 	struct sf_buffer sfb;	    /* Sampling buffer */
 	unsigned int flags;	    /* Status flags */
 	struct perf_event *event;   /* Scheduled perf event */
+	struct perf_output_handle handle; /* AUX buffer output handle */
 };
 static DEFINE_PER_CPU(struct cpu_hw_sf, cpu_hw_sf);
 
@@ -1291,6 +1301,439 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 				    sampl_overflow, event_overflow);
 }
 
+#define AUX_SDB_INDEX(aux, i) ((i) % aux->sfb.num_sdb)
+#define AUX_SDB_NUM(aux, start, end) (end >= start ? end - start + 1 : 0)
+#define AUX_SDB_NUM_ALERT(aux) AUX_SDB_NUM(aux, aux->head, aux->alert_mark)
+#define AUX_SDB_NUM_EMPTY(aux) AUX_SDB_NUM(aux, aux->head, aux->empty_mark)
+
+/*
+ * Get trailer entry by index of SDB.
+ */
+static struct hws_trailer_entry *aux_sdb_trailer(struct aux_buffer *aux,
+						 unsigned long index)
+{
+	unsigned long sdb;
+
+	index = AUX_SDB_INDEX(aux, index);
+	sdb = aux->sdb_index[index];
+	return (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+}
+
+/*
+ * Finish sampling on the cpu. Called by cpumsf_pmu_del() with pmu
+ * disabled. Collect the full SDBs in AUX buffer which have not reached
+ * the point of alert indicator. And ignore the SDBs which are not
+ * full.
+ *
+ * 1. Scan SDBs to see how much data is there and consume them.
+ * 2. Remove alert indicator in the buffer.
+ */
+static void aux_output_end(struct perf_output_handle *handle)
+{
+	unsigned long i, range_scan, idx;
+	struct aux_buffer *aux;
+	struct hws_trailer_entry *te;
+
+	aux = perf_get_aux(handle);
+	if (!aux)
+		return;
+
+	range_scan = AUX_SDB_NUM_ALERT(aux);
+	for (i = 0, idx = aux->head; i < range_scan; i++, idx++) {
+		te = aux_sdb_trailer(aux, idx);
+		if (!(te->flags & SDB_TE_BUFFER_FULL_MASK))
+			break;
+	}
+	/* i is num of SDBs which are full */
+	perf_aux_output_end(handle, i << PAGE_SHIFT);
+
+	/* Remove alert indicators in the buffer */
+	te = aux_sdb_trailer(aux, aux->alert_mark);
+	te->flags &= ~SDB_TE_ALERT_REQ_MASK;
+
+	debug_sprintf_event(sfdbg, 6, "aux_output_end: collect %lx SDBs\n", i);
+}
+
+/*
+ * Start sampling on the CPU. Called by cpumsf_pmu_add() when an event
+ * is first added to the CPU or rescheduled again to the CPU. It is called
+ * with pmu disabled.
+ *
+ * 1. Reset the trailer of SDBs to get ready for new data.
+ * 2. Tell the hardware where to put the data by reset the SDBs buffer
+ *    head(tear/dear).
+ */
+static int aux_output_begin(struct perf_output_handle *handle,
+			    struct aux_buffer *aux,
+			    struct cpu_hw_sf *cpuhw)
+{
+	unsigned long range;
+	unsigned long i, range_scan, idx;
+	unsigned long head, base, offset;
+	struct hws_trailer_entry *te;
+
+	if (WARN_ON_ONCE(handle->head & ~PAGE_MASK))
+		return -EINVAL;
+
+	aux->head = handle->head >> PAGE_SHIFT;
+	range = (handle->size + 1) >> PAGE_SHIFT;
+	if (range <= 1)
+		return -ENOMEM;
+
+	/*
+	 * SDBs between aux->head and aux->empty_mark are already ready
+	 * for new data. range_scan is num of SDBs not within them.
+	 */
+	if (range > AUX_SDB_NUM_EMPTY(aux)) {
+		range_scan = range - AUX_SDB_NUM_EMPTY(aux);
+		idx = aux->empty_mark + 1;
+		for (i = 0; i < range_scan; i++, idx++) {
+			te = aux_sdb_trailer(aux, idx);
+			te->flags = te->flags & ~SDB_TE_BUFFER_FULL_MASK;
+			te->flags = te->flags & ~SDB_TE_ALERT_REQ_MASK;
+			te->overflow = 0;
+		}
+		/* Save the position of empty SDBs */
+		aux->empty_mark = aux->head + range - 1;
+	}
+
+	/* Set alert indicator */
+	aux->alert_mark = aux->head + range/2 - 1;
+	te = aux_sdb_trailer(aux, aux->alert_mark);
+	te->flags = te->flags | SDB_TE_ALERT_REQ_MASK;
+
+	/* Reset hardware buffer head */
+	head = AUX_SDB_INDEX(aux, aux->head);
+	base = aux->sdbt_index[head / CPUM_SF_SDB_PER_TABLE];
+	offset = head % CPUM_SF_SDB_PER_TABLE;
+	cpuhw->lsctl.tear = base + offset * sizeof(unsigned long);
+	cpuhw->lsctl.dear = aux->sdb_index[head];
+
+	debug_sprintf_event(sfdbg, 6, "aux_output_begin: "
+			    "head->alert_mark->empty_mark (num_alert, range)"
+			    "[%lx -> %lx -> %lx] (%lx, %lx) "
+			    "tear index %lx, tear %lx dear %lx\n",
+			    aux->head, aux->alert_mark, aux->empty_mark,
+			    AUX_SDB_NUM_ALERT(aux), range,
+			    head / CPUM_SF_SDB_PER_TABLE,
+			    cpuhw->lsctl.tear,
+			    cpuhw->lsctl.dear);
+
+	return 0;
+}
+
+/*
+ * Set alert indicator on SDB at index @alert_index while sampler is running.
+ *
+ * Return true if successfully.
+ * Return false if full indicator is already set by hardware sampler.
+ */
+static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
+			  unsigned long long *overflow)
+{
+	unsigned long long orig_overflow, orig_flags, new_flags;
+	struct hws_trailer_entry *te;
+
+	te = aux_sdb_trailer(aux, alert_index);
+	do {
+		orig_flags = te->flags;
+		orig_overflow = te->overflow;
+		*overflow = orig_overflow;
+		if (orig_flags & SDB_TE_BUFFER_FULL_MASK) {
+			/*
+			 * SDB is already set by hardware.
+			 * Abort and try to set somewhere
+			 * behind.
+			 */
+			return false;
+		}
+		new_flags = orig_flags | SDB_TE_ALERT_REQ_MASK;
+	} while (!cmpxchg_double(&te->flags, &te->overflow,
+				 orig_flags, orig_overflow,
+				 new_flags, 0ULL));
+	return true;
+}
+
+/*
+ * aux_reset_buffer() - Scan and setup SDBs for new samples
+ * @aux:	The AUX buffer to set
+ * @range:	The range of SDBs to scan started from aux->head
+ * @overflow:	Set to overflow count
+ *
+ * Set alert indicator on the SDB at index of aux->alert_mark. If this SDB is
+ * marked as empty, check if it is already set full by the hardware sampler.
+ * If yes, that means new data is already there before we can set an alert
+ * indicator. Caller should try to set alert indicator to some position behind.
+ *
+ * Scan the SDBs in AUX buffer from behind aux->empty_mark. They are used
+ * previously and have already been consumed by user space. Reset these SDBs
+ * (clear full indicator and alert indicator) for new data.
+ * If aux->alert_mark fall in this area, just set it. Overflow count is
+ * recorded while scanning.
+ *
+ * SDBs between aux->head and aux->empty_mark are already reset at last time.
+ * and ready for new samples. So scanning on this area could be skipped.
+ *
+ * Return true if alert indicator is set successfully and false if not.
+ */
+static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
+			     unsigned long long *overflow)
+{
+	unsigned long long orig_overflow, orig_flags, new_flags;
+	unsigned long i, range_scan, idx;
+	struct hws_trailer_entry *te;
+
+	if (range <= AUX_SDB_NUM_EMPTY(aux))
+		/*
+		 * No need to scan. All SDBs in range are marked as empty.
+		 * Just set alert indicator. Should check race with hardware
+		 * sampler.
+		 */
+		return aux_set_alert(aux, aux->alert_mark, overflow);
+
+	if (aux->alert_mark <= aux->empty_mark)
+		/*
+		 * Set alert indicator on empty SDB. Should check race
+		 * with hardware sampler.
+		 */
+		if (!aux_set_alert(aux, aux->alert_mark, overflow))
+			return false;
+
+	/*
+	 * Scan the SDBs to clear full and alert indicator used previously.
+	 * Start scanning from one SDB behind empty_mark. If the new alert
+	 * indicator fall into this range, set it.
+	 */
+	range_scan = range - AUX_SDB_NUM_EMPTY(aux);
+	idx = aux->empty_mark + 1;
+	for (i = 0; i < range_scan; i++, idx++) {
+		te = aux_sdb_trailer(aux, idx);
+		do {
+			orig_flags = te->flags;
+			orig_overflow = te->overflow;
+			new_flags = orig_flags & ~SDB_TE_BUFFER_FULL_MASK;
+			if (idx == aux->alert_mark)
+				new_flags |= SDB_TE_ALERT_REQ_MASK;
+			else
+				new_flags &= ~SDB_TE_ALERT_REQ_MASK;
+		} while (!cmpxchg_double(&te->flags, &te->overflow,
+					 orig_flags, orig_overflow,
+					 new_flags, 0ULL));
+		*overflow += orig_overflow;
+	}
+
+	/* Update empty_mark to new position */
+	aux->empty_mark = aux->head + range - 1;
+
+	return true;
+}
+
+/*
+ * Measurement alert handler for diagnostic mode sampling.
+ */
+static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
+{
+	struct aux_buffer *aux;
+	int done = 0;
+	unsigned long range = 0, size;
+	unsigned long long overflow = 0;
+	struct perf_output_handle *handle = &cpuhw->handle;
+	unsigned long num_sdb;
+
+	aux = perf_get_aux(handle);
+	if (WARN_ON_ONCE(!aux))
+		return;
+
+	/* Inform user space new data arrived */
+	size = AUX_SDB_NUM_ALERT(aux) << PAGE_SHIFT;
+	perf_aux_output_end(handle, size);
+	num_sdb = aux->sfb.num_sdb;
+
+	while (!done) {
+		/* Get an output handle */
+		aux = perf_aux_output_begin(handle, cpuhw->event);
+		if (handle->size == 0) {
+			pr_err("The AUX buffer with %lu pages for the "
+			       "diagnostic-sampling mode is full\n",
+				num_sdb);
+			debug_sprintf_event(sfdbg, 1, "AUX buffer used up\n");
+			break;
+		}
+		if (WARN_ON_ONCE(!aux))
+			return;
+
+		/* Update head and alert_mark to new position */
+		aux->head = handle->head >> PAGE_SHIFT;
+		range = (handle->size + 1) >> PAGE_SHIFT;
+		if (range == 1)
+			aux->alert_mark = aux->head;
+		else
+			aux->alert_mark = aux->head + range/2 - 1;
+
+		if (aux_reset_buffer(aux, range, &overflow)) {
+			if (!overflow) {
+				done = 1;
+				break;
+			}
+			size = range << PAGE_SHIFT;
+			perf_aux_output_end(&cpuhw->handle, size);
+			pr_err("Sample data caused the AUX buffer with %lu "
+			       "pages to overflow\n", num_sdb);
+			debug_sprintf_event(sfdbg, 1, "head %lx range %lx "
+					    "overflow %llx\n",
+					    aux->head, range, overflow);
+		} else {
+			size = AUX_SDB_NUM_ALERT(aux) << PAGE_SHIFT;
+			perf_aux_output_end(&cpuhw->handle, size);
+			debug_sprintf_event(sfdbg, 6, "head %lx alert %lx "
+					    "already full, try another\n",
+					    aux->head, aux->alert_mark);
+		}
+	}
+
+	if (done)
+		debug_sprintf_event(sfdbg, 6, "aux_reset_buffer: "
+				    "[%lx -> %lx -> %lx] (%lx, %lx)\n",
+				    aux->head, aux->alert_mark, aux->empty_mark,
+				    AUX_SDB_NUM_ALERT(aux), range);
+}
+
+/*
+ * Callback when freeing AUX buffers.
+ */
+static void aux_buffer_free(void *data)
+{
+	struct aux_buffer *aux = data;
+	unsigned long i, num_sdbt;
+
+	if (!aux)
+		return;
+
+	/* Free SDBT. SDB is freed by the caller */
+	num_sdbt = aux->sfb.num_sdbt;
+	for (i = 0; i < num_sdbt; i++)
+		free_page(aux->sdbt_index[i]);
+
+	kfree(aux->sdbt_index);
+	kfree(aux->sdb_index);
+	kfree(aux);
+
+	debug_sprintf_event(sfdbg, 4, "aux_buffer_free: free "
+			    "%lu SDBTs\n", num_sdbt);
+}
+
+/*
+ * aux_buffer_setup() - Setup AUX buffer for diagnostic mode sampling
+ * @cpu:	On which to allocate, -1 means current
+ * @pages:	Array of pointers to buffer pages passed from perf core
+ * @nr_pages:	Total pages
+ * @snapshot:	Flag for snapshot mode
+ *
+ * This is the callback when setup an event using AUX buffer. Perf tool can
+ * trigger this by an additional mmap() call on the event. Unlike the buffer
+ * for basic samples, AUX buffer belongs to the event. It is scheduled with
+ * the task among online cpus when it is a per-thread event.
+ *
+ * Return the private AUX buffer structure if success or NULL if fails.
+ */
+static void *aux_buffer_setup(int cpu, void **pages, int nr_pages,
+			      bool snapshot)
+{
+	struct sf_buffer *sfb;
+	struct aux_buffer *aux;
+	unsigned long *new, *tail;
+	int i, n_sdbt;
+
+	if (!nr_pages || !pages)
+		return NULL;
+
+	if (nr_pages > CPUM_SF_MAX_SDB * CPUM_SF_SDB_DIAG_FACTOR) {
+		pr_err("AUX buffer size (%i pages) is larger than the "
+		       "maximum sampling buffer limit\n",
+		       nr_pages);
+		return NULL;
+	} else if (nr_pages < CPUM_SF_MIN_SDB * CPUM_SF_SDB_DIAG_FACTOR) {
+		pr_err("AUX buffer size (%i pages) is less than the "
+		       "minimum sampling buffer limit\n",
+		       nr_pages);
+		return NULL;
+	}
+
+	/* Allocate aux_buffer struct for the event */
+	aux = kmalloc(sizeof(struct aux_buffer), GFP_KERNEL);
+	if (!aux)
+		goto no_aux;
+	sfb = &aux->sfb;
+
+	/* Allocate sdbt_index for fast reference */
+	n_sdbt = (nr_pages + CPUM_SF_SDB_PER_TABLE - 1) / CPUM_SF_SDB_PER_TABLE;
+	aux->sdbt_index = kmalloc_array(n_sdbt, sizeof(void *), GFP_KERNEL);
+	if (!aux->sdbt_index)
+		goto no_sdbt_index;
+
+	/* Allocate sdb_index for fast reference */
+	aux->sdb_index = kmalloc_array(nr_pages, sizeof(void *), GFP_KERNEL);
+	if (!aux->sdb_index)
+		goto no_sdb_index;
+
+	/* Allocate the first SDBT */
+	sfb->num_sdbt = 0;
+	sfb->sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+	if (!sfb->sdbt)
+		goto no_sdbt;
+	aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)sfb->sdbt;
+	tail = sfb->tail = sfb->sdbt;
+
+	/*
+	 * Link the provided pages of AUX buffer to SDBT.
+	 * Allocate SDBT if needed.
+	 */
+	for (i = 0; i < nr_pages; i++, tail++) {
+		if (require_table_link(tail)) {
+			new = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+			if (!new)
+				goto no_sdbt;
+			aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)new;
+			/* Link current page to tail of chain */
+			*tail = (unsigned long)(void *) new + 1;
+			tail = new;
+		}
+		/* Tail is the entry in a SDBT */
+		*tail = (unsigned long)pages[i];
+		aux->sdb_index[i] = (unsigned long)pages[i];
+	}
+	sfb->num_sdb = nr_pages;
+
+	/* Link the last entry in the SDBT to the first SDBT */
+	*tail = (unsigned long) sfb->sdbt + 1;
+	sfb->tail = tail;
+
+	/*
+	 * Initial all SDBs are zeroed. Mark it as empty.
+	 * So there is no need to clear the full indicator
+	 * when this event is first added.
+	 */
+	aux->empty_mark = sfb->num_sdb - 1;
+
+	debug_sprintf_event(sfdbg, 4, "aux_buffer_setup: setup %lu SDBTs"
+			    " and %lu SDBs\n",
+			    sfb->num_sdbt, sfb->num_sdb);
+
+	return aux;
+
+no_sdbt:
+	/* SDBs (AUX buffer pages) are freed by caller */
+	for (i = 0; i < sfb->num_sdbt; i++)
+		free_page(aux->sdbt_index[i]);
+	kfree(aux->sdb_index);
+no_sdb_index:
+	kfree(aux->sdbt_index);
+no_sdbt_index:
+	kfree(aux);
+no_aux:
+	return NULL;
+}
+
 static void cpumsf_pmu_read(struct perf_event *event)
 {
 	/* Nothing to do ... updates are interrupt-driven */
@@ -1448,6 +1891,9 @@ static struct pmu cpumf_sampling = {
 	.read	      = cpumsf_pmu_read,
 
 	.attr_groups  = cpumsf_pmu_attr_groups,
+
+	.setup_aux    = aux_buffer_setup,
+	.free_aux     = aux_buffer_free,
 };
 
 static void cpumf_measurement_alert(struct ext_code ext_code,
