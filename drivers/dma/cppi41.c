@@ -366,8 +366,11 @@ static int cppi41_dma_alloc_chan_resources(struct dma_chan *chan)
 	int error;
 
 	error = pm_runtime_get_sync(cdd->ddev.dev);
-	if (error < 0)
+	if (error < 0) {
+		pm_runtime_put_noidle(cdd->ddev.dev);
+
 		return error;
+	}
 
 	dma_cookie_init(chan);
 	dma_async_tx_descriptor_init(&c->txd, chan);
@@ -389,8 +392,11 @@ static void cppi41_dma_free_chan_resources(struct dma_chan *chan)
 	int error;
 
 	error = pm_runtime_get_sync(cdd->ddev.dev);
-	if (error < 0)
+	if (error < 0) {
+		pm_runtime_put_noidle(cdd->ddev.dev);
+
 		return;
+	}
 
 	WARN_ON(!list_empty(&cdd->pending));
 
@@ -466,6 +472,7 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 
 	error = pm_runtime_get(cdd->ddev.dev);
 	if ((error != -EINPROGRESS) && error < 0) {
+		pm_runtime_put_noidle(cdd->ddev.dev);
 		dev_err(cdd->ddev.dev, "Failed to pm_runtime_get: %i\n",
 			error);
 
