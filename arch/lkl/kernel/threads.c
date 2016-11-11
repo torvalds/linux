@@ -225,6 +225,11 @@ void threads_init(void)
 	ti->tid = lkl_ops->thread_self();
 }
 
+void threads_cnt_dec(void)
+{
+	__sync_fetch_and_sub(&threads_counter, 1);
+}
+
 void threads_cleanup(void)
 {
 	struct task_struct *p;
