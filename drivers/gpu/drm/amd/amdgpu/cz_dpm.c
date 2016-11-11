@@ -2111,9 +2111,8 @@ static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 
 	if (gate) {
 		if (pi->caps_uvd_pg) {
-			/* disable clockgating so we can properly shut down the block */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_UNGATE);
+							    AMD_CG_STATE_GATE);
 			if (ret) {
 				DRM_ERROR("UVD DPM Power Gating failed to set clockgating state\n");
 				return;
@@ -2159,9 +2158,8 @@ static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 				return;
 			}
 
-			/* enable clockgating. hw will dynamically gate/ungate clocks on the fly */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_GATE);
+							    AMD_CG_STATE_UNGATE);
 			if (ret) {
 				DRM_ERROR("UVD DPM Power Gating Failed to set clockgating state\n");
 				return;
