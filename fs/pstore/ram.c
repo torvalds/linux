@@ -85,10 +85,10 @@ MODULE_PARM_DESC(ramoops_ecc,
 		"bytes ECC)");
 
 struct ramoops_context {
-	struct persistent_ram_zone **przs;
-	struct persistent_ram_zone *cprz;
-	struct persistent_ram_zone **fprzs;
-	struct persistent_ram_zone *mprz;
+	struct persistent_ram_zone **dprzs;	/* Oops dump zones */
+	struct persistent_ram_zone *cprz;	/* Console zone */
+	struct persistent_ram_zone **fprzs;	/* Ftrace zones */
+	struct persistent_ram_zone *mprz;	/* PMSG zone */
 	phys_addr_t phys_addr;
 	unsigned long size;
 	unsigned int memtype;
@@ -256,7 +256,7 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 
 	/* Find the next valid persistent_ram_zone for DMESG */
 	while (cxt->dump_read_cnt < cxt->max_dump_cnt && !prz) {
-		prz = ramoops_get_next_prz(cxt->przs, &cxt->dump_read_cnt,
+		prz = ramoops_get_next_prz(cxt->dprzs, &cxt->dump_read_cnt,
 					   cxt->max_dump_cnt, id, type,
 					   PSTORE_TYPE_DMESG, 1);
 		if (!prz_ok(prz))
@@ -430,10 +430,10 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 	if (part != 1)
 		return -ENOSPC;
 
-	if (!cxt->przs)
+	if (!cxt->dprzs)
 		return -ENOSPC;
 
-	prz = cxt->przs[cxt->dump_write_cnt];
+	prz = cxt->dprzs[cxt->dump_write_cnt];
 
 	hlen = ramoops_write_kmsg_hdr(prz, compressed);
 	if (size + hlen > prz->buffer_size)
@@ -473,7 +473,7 @@ static int ramoops_pstore_erase(enum pstore_type_id type, u64 id, int count,
 	case PSTORE_TYPE_DMESG:
 		if (id >= cxt->max_dump_cnt)
 			return -EINVAL;
-		prz = cxt->przs[id];
+		prz = cxt->dprzs[id];
 		break;
 	case PSTORE_TYPE_CONSOLE:
 		prz = cxt->cprz;
@@ -513,11 +513,11 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 	int i;
 
 	/* Free dump PRZs */
-	if (cxt->przs) {
+	if (cxt->dprzs) {
 		for (i = 0; i < cxt->max_dump_cnt; i++)
-			persistent_ram_free(cxt->przs[i]);
+			persistent_ram_free(cxt->dprzs[i]);
 
-		kfree(cxt->przs);
+		kfree(cxt->dprzs);
 		cxt->max_dump_cnt = 0;
 	}
 
@@ -771,7 +771,7 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
 			- cxt->pmsg_size;
-	err = ramoops_init_przs("dump", dev, cxt, &cxt->przs, &paddr,
+	err = ramoops_init_przs("dump", dev, cxt, &cxt->dprzs, &paddr,
 				dump_mem_sz, cxt->record_size,
 				&cxt->max_dump_cnt, 0, 0);
 	if (err)
