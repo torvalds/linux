@@ -43,6 +43,8 @@
 #define GAIN_AUGMENT 22500
 #define SIDETONE_BASE 207000
 
+/* the maximum frequency of CLK_ADC and CLK_DAC */
+#define CLK_DA_AD_MAX 6144000
 
 static int nau8825_configure_sysclk(struct nau8825 *nau8825,
 		int clk_id, unsigned int freq);
@@ -93,6 +95,27 @@ static const struct nau8825_fll_attr fll_pre_scalar[] = {
 	{ 2, 0x1 },
 	{ 4, 0x2 },
 	{ 8, 0x3 },
+};
+
+/* over sampling rate */
+struct nau8825_osr_attr {
+	unsigned int osr;
+	unsigned int clk_src;
+};
+
+static const struct nau8825_osr_attr osr_dac_sel[] = {
+	{ 64, 2 },	/* OSR 64, SRC 1/4 */
+	{ 256, 0 },	/* OSR 256, SRC 1 */
+	{ 128, 1 },	/* OSR 128, SRC 1/2 */
+	{ 0, 0 },
+	{ 32, 3 },	/* OSR 32, SRC 1/8 */
+};
+
+static const struct nau8825_osr_attr osr_adc_sel[] = {
+	{ 32, 3 },	/* OSR 32, SRC 1/8 */
+	{ 64, 2 },	/* OSR 64, SRC 1/4 */
+	{ 128, 1 },	/* OSR 128, SRC 1/2 */
+	{ 256, 0 },	/* OSR 256, SRC 1 */
 };
 
 static const struct reg_default nau8825_reg_defaults[] = {
@@ -1179,15 +1202,64 @@ static const struct snd_soc_dapm_route nau8825_dapm_routes[] = {
 	{"HPOR", NULL, "Class G"},
 };
 
+static int nau8825_clock_check(struct nau8825 *nau8825,
+	int stream, int rate, int osr)
+{
+	int osrate;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (osr >= ARRAY_SIZE(osr_dac_sel))
+			return -EINVAL;
+		osrate = osr_dac_sel[osr].osr;
+	} else {
+		if (osr >= ARRAY_SIZE(osr_adc_sel))
+			return -EINVAL;
+		osrate = osr_adc_sel[osr].osr;
+	}
+
+	if (!osrate || rate * osr > CLK_DA_AD_MAX) {
+		dev_err(nau8825->dev, "exceed the maximum frequency of CLK_ADC or CLK_DAC\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nau8825_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val_len = 0;
+	unsigned int val_len = 0, osr;
 
 	nau8825_sema_acquire(nau8825, 2 * HZ);
+
+	/* CLK_DAC or CLK_ADC = OSR * FS
+	 * DAC or ADC clock frequency is defined as Over Sampling Rate (OSR)
+	 * multiplied by the audio sample rate (Fs). Note that the OSR and Fs
+	 * values must be selected such that the maximum frequency is less
+	 * than 6.144 MHz.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(nau8825->regmap, NAU8825_REG_DAC_CTRL1, &osr);
+		osr &= NAU8825_DAC_OVERSAMPLE_MASK;
+		if (nau8825_clock_check(nau8825, substream->stream,
+			params_rate(params), osr))
+			return -EINVAL;
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
+			NAU8825_CLK_DAC_SRC_MASK,
+			osr_dac_sel[osr].clk_src << NAU8825_CLK_DAC_SRC_SFT);
+	} else {
+		regmap_read(nau8825->regmap, NAU8825_REG_ADC_RATE, &osr);
+		osr &= NAU8825_ADC_SYNC_DOWN_MASK;
+		if (nau8825_clock_check(nau8825, substream->stream,
+			params_rate(params), osr))
+			return -EINVAL;
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
+			NAU8825_CLK_ADC_SRC_MASK,
+			osr_adc_sel[osr].clk_src << NAU8825_CLK_ADC_SRC_SFT);
+	}
 
 	switch (params_width(params)) {
 	case 16:
@@ -1774,9 +1846,9 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	 * (audible hiss). Set it to something better.
 	 */
 	regmap_update_bits(regmap, NAU8825_REG_ADC_RATE,
-		NAU8825_ADC_SYNC_DOWN_MASK, NAU8825_ADC_SYNC_DOWN_128);
+		NAU8825_ADC_SYNC_DOWN_MASK, NAU8825_ADC_SYNC_DOWN_64);
 	regmap_update_bits(regmap, NAU8825_REG_DAC_CTRL1,
-		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_128);
+		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_64);
 	/* Disable DACR/L power */
 	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
 		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
