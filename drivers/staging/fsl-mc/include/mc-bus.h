@@ -42,8 +42,8 @@ struct msi_domain_info;
  */
 struct fsl_mc_resource_pool {
 	enum fsl_mc_pool_type type;
-	int16_t max_count;
-	int16_t free_count;
+	s16 max_count;
+	s16 free_count;
 	struct mutex mutex;	/* serializes access to free_list */
 	struct list_head free_list;
 	struct fsl_mc_bus *mc_bus;
