@@ -1055,23 +1055,16 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 			   struct drm_atomic_state *state)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	bool fbc_crtc_present = false, crtc_chosen = false;
+	bool crtc_chosen = false;
 	int i;
 
 	mutex_lock(&fbc->lock);
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (fbc->crtc == to_intel_crtc(crtc)) {
-			fbc_crtc_present = true;
-			break;
-		}
-	}
-	/* This atomic commit doesn't involve the CRTC currently tied to FBC. */
-	if (!fbc_crtc_present && fbc->crtc != NULL)
+	/* Does this atomic commit involve the CRTC currently tied to FBC? */
+	if (fbc->crtc &&
+	    !drm_atomic_get_existing_crtc_state(state, &fbc->crtc->base))
 		goto out;
 
 	if (!intel_fbc_can_enable(dev_priv))
