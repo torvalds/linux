@@ -96,7 +96,7 @@ static void wb_timestamp(struct rq_wb *rwb, unsigned long *var)
  */
 static bool wb_recent_wait(struct rq_wb *rwb)
 {
-	struct bdi_writeback *wb = &rwb->bdi->wb;
+	struct bdi_writeback *wb = &rwb->queue->backing_dev_info.wb;
 
 	return time_before(jiffies, wb->dirty_sleep + HZ);
 }
@@ -279,6 +279,7 @@ enum {
 
 static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 {
+	struct backing_dev_info *bdi = &rwb->queue->backing_dev_info;
 	u64 thislat;
 
 	/*
@@ -293,7 +294,7 @@ static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 	thislat = rwb_sync_issue_lat(rwb);
 	if (thislat > rwb->cur_win_nsec ||
 	    (thislat > rwb->min_lat_nsec && !stat[0].nr_samples)) {
-		trace_wbt_lat(rwb->bdi, thislat);
+		trace_wbt_lat(bdi, thislat);
 		return LAT_EXCEEDED;
 	}
 
@@ -317,13 +318,13 @@ static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 	 * If the 'min' latency exceeds our target, step down.
 	 */
 	if (stat[0].min > rwb->min_lat_nsec) {
-		trace_wbt_lat(rwb->bdi, stat[0].min);
-		trace_wbt_stat(rwb->bdi, stat);
+		trace_wbt_lat(bdi, stat[0].min);
+		trace_wbt_stat(bdi, stat);
 		return LAT_EXCEEDED;
 	}
 
 	if (rwb->scale_step)
-		trace_wbt_stat(rwb->bdi, stat);
+		trace_wbt_stat(bdi, stat);
 
 	return LAT_OK;
 }
@@ -338,7 +339,9 @@ static int latency_exceeded(struct rq_wb *rwb)
 
 static void rwb_trace_step(struct rq_wb *rwb, const char *msg)
 {
-	trace_wbt_step(rwb->bdi, msg, rwb->scale_step, rwb->cur_win_nsec,
+	struct backing_dev_info *bdi = &rwb->queue->backing_dev_info;
+
+	trace_wbt_step(bdi, msg, rwb->scale_step, rwb->cur_win_nsec,
 			rwb->wb_background, rwb->wb_normal, rwb->wb_max);
 }
 
@@ -420,7 +423,8 @@ static void wb_timer_fn(unsigned long data)
 
 	status = latency_exceeded(rwb);
 
-	trace_wbt_timer(rwb->bdi, status, rwb->scale_step, inflight);
+	trace_wbt_timer(&rwb->queue->backing_dev_info, status, rwb->scale_step,
+			inflight);
 
 	/*
 	 * If we exceeded the latency target, step down. If we did not,
@@ -700,7 +704,7 @@ int wbt_init(struct request_queue *q, struct wb_stat_ops *ops)
 	rwb->wc = 1;
 	rwb->queue_depth = RWB_DEF_DEPTH;
 	rwb->last_comp = rwb->last_issue = jiffies;
-	rwb->bdi = &q->backing_dev_info;
+	rwb->queue = q;
 	rwb->win_nsec = RWB_WINDOW_NSEC;
 	rwb->stat_ops = ops;
 	rwb->ops_data = q;

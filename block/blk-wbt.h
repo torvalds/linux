@@ -87,7 +87,7 @@ struct rq_wb {
 	unsigned long last_issue;		/* last non-throttled issue */
 	unsigned long last_comp;		/* last non-throttled comp */
 	unsigned long min_lat_nsec;
-	struct backing_dev_info *bdi;
+	struct request_queue *queue;
 	struct rq_wait rq_wait[WBT_NUM_RWQ];
 
 	struct wb_stat_ops *stat_ops;
@@ -103,8 +103,6 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 
 	return ret;
 }
-
-struct backing_dev_info;
 
 #ifdef CONFIG_BLK_WBT
 
