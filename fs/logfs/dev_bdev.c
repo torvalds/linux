@@ -153,49 +153,35 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 		size_t nr_pages)
 {
 	struct logfs_super *super = logfs_super(sb);
-	struct bio *bio;
+	struct bio *bio = NULL;
 	unsigned int max_pages;
-	int i;
+	int i, ret;
 
 	max_pages = min_t(size_t, nr_pages, BIO_MAX_PAGES);
 
-	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio);
-
 	for (i = 0; i < nr_pages; i++) {
-		if (i >= max_pages) {
-			/* Block layer cannot split bios :( */
-			bio->bi_vcnt = i;
-			bio->bi_iter.bi_size = i * PAGE_SIZE;
+		if (!bio) {
+			bio = bio_alloc(GFP_NOFS, max_pages);
+			BUG_ON(!bio);
+
 			bio->bi_bdev = super->s_bdev;
 			bio->bi_iter.bi_sector = ofs >> 9;
 			bio->bi_private = sb;
 			bio->bi_end_io = erase_end_io;
 			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+		}
+		ret = bio_add_page(bio, super->s_erase_page, PAGE_SIZE, 0);
+		if (!ret) {
+			/* Block layer cannot split bios :( */
+			ofs += bio->bi_iter.bi_size;
 			atomic_inc(&super->s_pending_writes);
 			submit_bio(bio);
-
-			ofs += i * PAGE_SIZE;
-			index += i;
-			nr_pages -= i;
-			i = 0;
-
-			bio = bio_alloc(GFP_NOFS, max_pages);
-			BUG_ON(!bio);
 		}
-		bio->bi_io_vec[i].bv_page = super->s_erase_page;
-		bio->bi_io_vec[i].bv_len = PAGE_SIZE;
-		bio->bi_io_vec[i].bv_offset = 0;
 	}
-	bio->bi_vcnt = nr_pages;
-	bio->bi_iter.bi_size = nr_pages * PAGE_SIZE;
-	bio->bi_bdev = super->s_bdev;
-	bio->bi_iter.bi_sector = ofs >> 9;
-	bio->bi_private = sb;
-	bio->bi_end_io = erase_end_io;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-	atomic_inc(&super->s_pending_writes);
-	submit_bio(bio);
+	if (bio) {
+		atomic_inc(&super->s_pending_writes);
+		submit_bio(bio);
+	}
 	return 0;
 }
 
