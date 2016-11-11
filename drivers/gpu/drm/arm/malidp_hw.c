@@ -125,6 +125,7 @@ static void malidp500_leave_config_mode(struct malidp_hw_device *hwdev)
 {
 	u32 status, count = 100;
 
+	malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP500_CONFIG_VALID);
 	malidp_hw_clearbits(hwdev, MALIDP500_DC_CONFIG_REQ, MALIDP500_DC_CONTROL);
 	while (count) {
 		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
@@ -266,6 +267,7 @@ static void malidp550_leave_config_mode(struct malidp_hw_device *hwdev)
 {
 	u32 status, count = 100;
 
+	malidp_hw_clearbits(hwdev, MALIDP_CFG_VALID, MALIDP550_CONFIG_VALID);
 	malidp_hw_clearbits(hwdev, MALIDP550_DC_CONFIG_REQ, MALIDP550_DC_CONTROL);
 	while (count) {
 		status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
@@ -436,6 +438,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 			},
 			.input_formats = malidp500_de_formats,
 			.n_input_formats = ARRAY_SIZE(malidp500_de_formats),
+			.bus_align_bytes = 8,
 		},
 		.query_hw = malidp500_query_hw,
 		.enter_config_mode = malidp500_enter_config_mode,
@@ -468,6 +471,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 			},
 			.input_formats = malidp550_de_formats,
 			.n_input_formats = ARRAY_SIZE(malidp550_de_formats),
+			.bus_align_bytes = 8,
 		},
 		.query_hw = malidp550_query_hw,
 		.enter_config_mode = malidp550_enter_config_mode,
@@ -501,6 +505,7 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 			},
 			.input_formats = malidp550_de_formats,
 			.n_input_formats = ARRAY_SIZE(malidp550_de_formats),
+			.bus_align_bytes = 16,
 		},
 		.query_hw = malidp650_query_hw,
 		.enter_config_mode = malidp550_enter_config_mode,

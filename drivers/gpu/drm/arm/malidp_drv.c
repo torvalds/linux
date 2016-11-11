@@ -42,6 +42,7 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int ret;
 
+	atomic_set(&malidp->config_valid, 0);
 	hwdev->set_config_valid(hwdev);
 	/* don't wait for config_valid flag if we are in config mode */
 	if (hwdev->in_config_mode(hwdev))
@@ -91,8 +92,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state,
-					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+	drm_atomic_helper_commit_planes(drm, state, 0);
 
 	malidp_atomic_commit_hw_done(state);
 
@@ -153,6 +153,12 @@ static int malidp_init(struct drm_device *drm)
 	}
 
 	return 0;
+}
+
+static void malidp_fini(struct drm_device *drm)
+{
+	malidp_de_planes_destroy(drm);
+	drm_mode_config_cleanup(drm);
 }
 
 static int malidp_irq_init(struct platform_device *pdev)
@@ -375,6 +381,8 @@ static int malidp_bind(struct device *dev)
 	if (ret < 0)
 		goto irq_init_fail;
 
+	drm->irq_enabled = true;
+
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
@@ -400,6 +408,7 @@ fbdev_fail:
 vblank_fail:
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
+	drm->irq_enabled = false;
 irq_init_fail:
 	component_unbind_all(dev, drm);
 bind_fail:
@@ -408,8 +417,7 @@ bind_fail:
 port_fail:
 	drm_dev_unregister(drm);
 register_fail:
-	malidp_de_planes_destroy(drm);
-	drm_mode_config_cleanup(drm);
+	malidp_fini(drm);
 init_fail:
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
@@ -442,8 +450,7 @@ static void malidp_unbind(struct device *dev)
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
 	drm_dev_unregister(drm);
-	malidp_de_planes_destroy(drm);
-	drm_mode_config_cleanup(drm);
+	malidp_fini(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
 	clk_disable_unprepare(hwdev->mclk);
