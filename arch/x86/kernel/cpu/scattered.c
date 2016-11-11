@@ -17,23 +17,24 @@ struct cpuid_bit {
 	u32 sub_leaf;
 };
 
+/* Please keep the leaf sorted by cpuid_bit.level for faster search. */
+static const struct cpuid_bit cpuid_bits[] = {
+	{ X86_FEATURE_APERFMPERF,       CPUID_ECX,  0, 0x00000006, 0 },
+	{ X86_FEATURE_EPB,              CPUID_ECX,  3, 0x00000006, 0 },
+	{ X86_FEATURE_INTEL_PT,         CPUID_EBX, 25, 0x00000007, 0 },
+	{ X86_FEATURE_AVX512_4VNNIW,    CPUID_EDX,  2, 0x00000007, 0 },
+	{ X86_FEATURE_AVX512_4FMAPS,    CPUID_EDX,  3, 0x00000007, 0 },
+	{ X86_FEATURE_HW_PSTATE,        CPUID_EDX,  7, 0x80000007, 0 },
+	{ X86_FEATURE_CPB,              CPUID_EDX,  9, 0x80000007, 0 },
+	{ X86_FEATURE_PROC_FEEDBACK,    CPUID_EDX, 11, 0x80000007, 0 },
+	{ 0, 0, 0, 0, 0 }
+};
+
 void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 {
 	u32 max_level;
 	u32 regs[4];
 	const struct cpuid_bit *cb;
-
-	static const struct cpuid_bit cpuid_bits[] = {
-		{ X86_FEATURE_INTEL_PT,		CPUID_EBX, 25, 0x00000007, 0 },
-		{ X86_FEATURE_AVX512_4VNNIW,	CPUID_EDX,  2, 0x00000007, 0 },
-		{ X86_FEATURE_AVX512_4FMAPS,	CPUID_EDX,  3, 0x00000007, 0 },
-		{ X86_FEATURE_APERFMPERF,	CPUID_ECX,  0, 0x00000006, 0 },
-		{ X86_FEATURE_EPB,		CPUID_ECX,  3, 0x00000006, 0 },
-		{ X86_FEATURE_HW_PSTATE,	CPUID_EDX,  7, 0x80000007, 0 },
-		{ X86_FEATURE_CPB,		CPUID_EDX,  9, 0x80000007, 0 },
-		{ X86_FEATURE_PROC_FEEDBACK,	CPUID_EDX, 11, 0x80000007, 0 },
-		{ 0, 0, 0, 0, 0 }
-	};
 
 	for (cb = cpuid_bits; cb->feature; cb++) {
 
@@ -51,3 +52,27 @@ void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, cb->feature);
 	}
 }
+
+u32 get_scattered_cpuid_leaf(unsigned int level, unsigned int sub_leaf,
+			     enum cpuid_regs_idx reg)
+{
+	const struct cpuid_bit *cb;
+	u32 cpuid_val = 0;
+
+	for (cb = cpuid_bits; cb->feature; cb++) {
+
+		if (level > cb->level)
+			continue;
+
+		if (level < cb->level)
+			break;
+
+		if (reg == cb->reg && sub_leaf == cb->sub_leaf) {
+			if (cpu_has(&boot_cpu_data, cb->feature))
+				cpuid_val |= BIT(cb->bit);
+		}
+	}
+
+	return cpuid_val;
+}
+EXPORT_SYMBOL_GPL(get_scattered_cpuid_leaf);
