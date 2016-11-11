@@ -1180,7 +1180,7 @@ static void xhci_handle_cmd_nec_get_fw(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
 	if (!(xhci->quirks & XHCI_NEC_HOST)) {
-		xhci->error_bitmask |= 1 << 6;
+		xhci_warn(xhci, "WARN NEC_GET_FW command on non-NEC host\n");
 		return;
 	}
 	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
@@ -1322,14 +1322,13 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	cmd_trb = xhci->cmd_ring->dequeue;
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
 			cmd_trb);
-	/* Is the command ring deq ptr out of sync with the deq seg ptr? */
-	if (cmd_dequeue_dma == 0) {
-		xhci->error_bitmask |= 1 << 4;
-		return;
-	}
-	/* Does the DMA address match our internal dequeue pointer address? */
-	if (cmd_dma != (u64) cmd_dequeue_dma) {
-		xhci->error_bitmask |= 1 << 5;
+	/*
+	 * Check whether the completion event is for our internal kept
+	 * command.
+	 */
+	if (!cmd_dequeue_dma || cmd_dma != (u64)cmd_dequeue_dma) {
+		xhci_warn(xhci,
+			  "ERROR mismatched command completion event\n");
 		return;
 	}
 
@@ -1415,7 +1414,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		break;
 	default:
 		/* Skip over unknown commands on the event ring */
-		xhci->error_bitmask |= 1 << 6;
+		xhci_info(xhci, "INFO unknown command type %d\n", cmd_type);
 		break;
 	}
 
@@ -1516,10 +1515,10 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	bool bogus_port_status = false;
 
 	/* Port status change events always have a successful completion code */
-	if (GET_COMP_CODE(le32_to_cpu(event->generic.field[2])) != COMP_SUCCESS) {
-		xhci_warn(xhci, "WARN: xHC returned failed port status event\n");
-		xhci->error_bitmask |= 1 << 8;
-	}
+	if (GET_COMP_CODE(le32_to_cpu(event->generic.field[2])) != COMP_SUCCESS)
+		xhci_warn(xhci,
+			  "WARN: xHC returned failed port status event\n");
+
 	port_id = GET_PORT_ID(le32_to_cpu(event->generic.field[0]));
 	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
 
@@ -2522,18 +2521,17 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 	int update_ptrs = 1;
 	int ret;
 
+	/* Event ring hasn't been allocated yet. */
 	if (!xhci->event_ring || !xhci->event_ring->dequeue) {
-		xhci->error_bitmask |= 1 << 1;
-		return 0;
+		xhci_err(xhci, "ERROR event ring not ready\n");
+		return -ENOMEM;
 	}
 
 	event = xhci->event_ring->dequeue;
 	/* Does the HC or OS own the TRB? */
 	if ((le32_to_cpu(event->event_cmd.flags) & TRB_CYCLE) !=
-	    xhci->event_ring->cycle_state) {
-		xhci->error_bitmask |= 1 << 2;
+	    xhci->event_ring->cycle_state)
 		return 0;
-	}
 
 	/*
 	 * Barrier between reading the TRB_CYCLE (valid) flag above and any
@@ -2541,7 +2539,7 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 	 */
 	rmb();
 	/* FIXME: Handle more event types. */
-	switch ((le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK)) {
+	switch (le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK) {
 	case TRB_TYPE(TRB_COMPLETION):
 		handle_cmd_completion(xhci, &event->event_cmd);
 		break;
@@ -2551,9 +2549,7 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 		break;
 	case TRB_TYPE(TRB_TRANSFER):
 		ret = handle_tx_event(xhci, &event->trans_event);
-		if (ret < 0)
-			xhci->error_bitmask |= 1 << 9;
-		else
+		if (ret >= 0)
 			update_ptrs = 0;
 		break;
 	case TRB_TYPE(TRB_DEV_NOTE):
@@ -2564,7 +2560,9 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 		    TRB_TYPE(48))
 			handle_vendor_event(xhci, event);
 		else
-			xhci->error_bitmask |= 1 << 3;
+			xhci_warn(xhci, "ERROR unknown event type %d\n",
+				  TRB_FIELD_TO_TYPE(
+				  le32_to_cpu(event->event_cmd.flags)));
 	}
 	/* Any of the above functions may drop and re-acquire the lock, so check
 	 * to make sure a watchdog timer didn't mark the host as non-responsive.
