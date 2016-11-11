@@ -472,9 +472,8 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		if (new_deq == cur_td->last_trb)
 			td_last_trb_found = true;
 
-		if (cycle_found &&
-		    TRB_TYPE_LINK_LE32(new_deq->generic.field[3]) &&
-		    new_deq->generic.field[3] & cpu_to_le32(LINK_TOGGLE))
+		if (cycle_found && trb_is_link(new_deq) &&
+		    link_trb_toggles_cycle(new_deq))
 			state->new_cycle_state ^= 0x1;
 
 		next_trb(xhci, ep_ring, &new_seg, &new_deq);
@@ -518,7 +517,7 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	for (cur_seg = cur_td->start_seg, cur_trb = cur_td->first_trb;
 			true;
 			next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-		if (TRB_TYPE_LINK_LE32(cur_trb->generic.field[3])) {
+		if (trb_is_link(cur_trb)) {
 			/* Unchain any chained Link TRBs, but
 			 * leave the pointers intact.
 			 */
@@ -2114,7 +2113,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		     cur_seg = ep_ring->deq_seg; cur_trb != event_trb;
 		     next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
 			if (!TRB_TYPE_NOOP_LE32(cur_trb->generic.field[3]) &&
-			    !TRB_TYPE_LINK_LE32(cur_trb->generic.field[3]))
+			    !trb_is_link(cur_trb))
 				len += TRB_LEN(le32_to_cpu(cur_trb->generic.field[2]));
 		}
 		len += TRB_LEN(le32_to_cpu(cur_trb->generic.field[2])) -
@@ -2260,7 +2259,7 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 				cur_trb != event_trb;
 				next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
 			if (!TRB_TYPE_NOOP_LE32(cur_trb->generic.field[3]) &&
-			    !TRB_TYPE_LINK_LE32(cur_trb->generic.field[3]))
+			    !trb_is_link(cur_trb))
 				td->urb->actual_length +=
 					TRB_LEN(le32_to_cpu(cur_trb->generic.field[2]));
 		}
