@@ -8684,7 +8684,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 				 pf->hw.func_caps.fd_filters_best_effort;
 	}
 
-	if (i40e_is_mac_710(&pf->hw) &&
+	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
 	    (pf->hw.aq.fw_maj_ver < 4))) {
 		pf->flags |= I40E_FLAG_RESTART_AUTONEG;
@@ -8693,13 +8693,13 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	}
 
 	/* Disable FW LLDP if FW < v4.3 */
-	if (i40e_is_mac_710(&pf->hw) &&
+	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
 	    (pf->hw.aq.fw_maj_ver < 4)))
 		pf->flags |= I40E_FLAG_STOP_FW_LLDP;
 
 	/* Use the FW Set LLDP MIB API if FW > v4.40 */
-	if (i40e_is_mac_710(&pf->hw) &&
+	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver >= 40)) ||
 	    (pf->hw.aq.fw_maj_ver >= 5)))
 		pf->flags |= I40E_FLAG_USE_SET_LLDP_MIB;

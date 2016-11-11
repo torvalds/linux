@@ -134,19 +134,6 @@
 /* default to trying for four seconds */
 #define I40E_TRY_LINK_TIMEOUT	(4 * HZ)
 
-/**
- * i40e_is_mac_710 - Return true if MAC is X710/XL710
- * @hw: ptr to the hardware info
- **/
-static inline bool i40e_is_mac_710(struct i40e_hw *hw)
-{
-	if ((hw->mac.type == I40E_MAC_X710) ||
-	    (hw->mac.type == I40E_MAC_XL710))
-		return true;
-
-	return false;
-}
-
 /* driver state flags */
 enum i40e_state_t {
 	__I40E_TESTING,
