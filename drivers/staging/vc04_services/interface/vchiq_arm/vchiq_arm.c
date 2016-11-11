@@ -190,8 +190,8 @@ static const char *const ioctl_names[] = {
 	"CLOSE_DELIVERED"
 };
 
-vchiq_static_assert((sizeof(ioctl_names)/sizeof(ioctl_names[0])) ==
-	(VCHIQ_IOC_MAX + 1));
+vchiq_static_assert(ARRAY_SIZE(ioctl_names) ==
+		    (VCHIQ_IOC_MAX + 1));
 
 static void
 dump_phys_mem(void *virt_addr, uint32_t num_bytes);
