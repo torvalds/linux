@@ -539,6 +539,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	return	0;
 }
 
+#define TIMEOUT_FOR_HW_RDY_MS			300
+
 /**
  * ish_fw_reset_work_fn() - FW reset worker function
  * @unused: not used
@@ -552,7 +554,7 @@ static void fw_reset_work_fn(struct work_struct *unused)
 	rv = ish_fw_reset_handler(ishtp_dev);
 	if (!rv) {
 		/* ISH is ILUP & ISHTP-ready. Restart ISHTP */
-		schedule_timeout(HZ / 3);
+		msleep_interruptible(TIMEOUT_FOR_HW_RDY_MS);
 		ishtp_dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
