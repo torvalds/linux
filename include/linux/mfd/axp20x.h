@@ -115,6 +115,8 @@ enum {
 #define AXP806_CLDO2_V_CTRL		0x25
 #define AXP806_CLDO3_V_CTRL		0x26
 #define AXP806_VREF_TEMP_WARN_L		0xf3
+#define AXP806_BUS_ADDR_EXT		0xfe
+#define AXP806_REG_ADDR_EXT		0xff
 
 /* Interrupt */
 #define AXP152_IRQ1_EN			0x40
