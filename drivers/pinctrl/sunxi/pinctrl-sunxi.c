@@ -438,15 +438,91 @@ static const struct pinctrl_ops sunxi_pctrl_ops = {
 	.get_group_pins		= sunxi_pctrl_get_group_pins,
 };
 
+static int sunxi_pconf_reg(unsigned pin, enum pin_config_param param,
+			   u32 *offset, u32 *shift, u32 *mask)
+{
+	switch (param) {
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		*offset = sunxi_dlevel_reg(pin);
+		*shift = sunxi_dlevel_offset(pin);
+		*mask = DLEVEL_PINS_MASK;
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_DISABLE:
+		*offset = sunxi_pull_reg(pin);
+		*shift = sunxi_pull_offset(pin);
+		*mask = PULL_PINS_MASK;
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int sunxi_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
+			   unsigned long *config)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	u32 offset, shift, mask, val;
+	u16 arg;
+	int ret;
+
+	pin -= pctl->desc->pin_base;
+
+	ret = sunxi_pconf_reg(pin, param, &offset, &shift, &mask);
+	if (ret < 0)
+		return ret;
+
+	val = (readl(pctl->membase + offset) >> shift) & mask;
+
+	switch (pinconf_to_config_param(*config)) {
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		arg = (val + 1) * 10;
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_UP:
+		if (val != SUN4I_PINCTRL_PULL_UP)
+			return -EINVAL;
+		arg = 1; /* hardware is weak pull-up */
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		if (val != SUN4I_PINCTRL_PULL_DOWN)
+			return -EINVAL;
+		arg = 1; /* hardware is weak pull-down */
+		break;
+
+	case PIN_CONFIG_BIAS_DISABLE:
+		if (val != SUN4I_PINCTRL_NO_PULL)
+			return -EINVAL;
+		arg = 0;
+		break;
+
+	default:
+		/* sunxi_pconf_reg should catch anything unsupported */
+		WARN_ON(1);
+		return -ENOTSUPP;
+	}
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+}
+
 static int sunxi_pconf_group_get(struct pinctrl_dev *pctldev,
 				 unsigned group,
 				 unsigned long *config)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	struct sunxi_pinctrl_group *g = &pctl->groups[group];
 
-	*config = pctl->groups[group].config;
-
-	return 0;
+	/* We only support 1 pin per group. Chain it to the pin callback */
+	return sunxi_pconf_get(pctldev, g->pin, config);
 }
 
 static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
@@ -508,8 +584,6 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 		default:
 			break;
 		}
-		/* cache the config value */
-		g->config = configs[i];
 	} /* for each config */
 
 	spin_unlock_irqrestore(&pctl->lock, flags);
@@ -518,6 +592,8 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops sunxi_pconf_ops = {
+	.is_generic		= true,
+	.pin_config_get		= sunxi_pconf_get,
 	.pin_config_group_get	= sunxi_pconf_group_get,
 	.pin_config_group_set	= sunxi_pconf_group_set,
 };

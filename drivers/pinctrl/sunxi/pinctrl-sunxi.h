@@ -109,7 +109,6 @@ struct sunxi_pinctrl_function {
 
 struct sunxi_pinctrl_group {
 	const char	*name;
-	unsigned long	config;
 	unsigned	pin;
 };
 
