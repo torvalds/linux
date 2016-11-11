@@ -876,24 +876,6 @@ static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 	return true;
 }
 
-static bool intel_fbc_can_choose(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_fbc *fbc = &dev_priv->fbc;
-
-	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A) {
-		fbc->no_fbc_reason = "no enabled pipes can have FBC";
-		return false;
-	}
-
-	if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A) {
-		fbc->no_fbc_reason = "no enabled planes can have FBC";
-		return false;
-	}
-
-	return true;
-}
-
 static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 				     struct intel_fbc_reg_params *params)
 {
@@ -1077,7 +1059,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	bool fbc_crtc_present = false;
+	bool fbc_crtc_present = false, crtc_chosen = false;
 	int i;
 
 	mutex_lock(&fbc->lock);
@@ -1103,20 +1085,27 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 		struct intel_plane_state *intel_plane_state =
 			to_intel_plane_state(plane_state);
 		struct intel_crtc_state *intel_crtc_state;
+		struct intel_crtc *crtc = to_intel_crtc(plane_state->crtc);
 
 		if (!intel_plane_state->base.visible)
 			continue;
 
-		if (!intel_fbc_can_choose(to_intel_crtc(plane_state->crtc)))
+		if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
+			continue;
+
+		if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A)
 			continue;
 
 		intel_crtc_state = to_intel_crtc_state(
-			drm_atomic_get_existing_crtc_state(state,
-							   plane_state->crtc));
+			drm_atomic_get_existing_crtc_state(state, &crtc->base));
 
 		intel_crtc_state->enable_fbc = true;
+		crtc_chosen = true;
 		break;
 	}
+
+	if (!crtc_chosen)
+		fbc->no_fbc_reason = "no suitable CRTC for FBC";
 
 out:
 	mutex_unlock(&fbc->lock);
