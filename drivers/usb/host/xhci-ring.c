@@ -115,6 +115,20 @@ static bool link_trb_toggles_cycle(union xhci_trb *trb)
 	return le32_to_cpu(trb->link.control) & LINK_TOGGLE;
 }
 
+static bool last_td_in_urb(struct xhci_td *td)
+{
+	struct urb_priv *urb_priv = td->urb->hcpriv;
+
+	return urb_priv->td_cnt == urb_priv->length;
+}
+
+static void inc_td_cnt(struct urb *urb)
+{
+	struct urb_priv *urb_priv = urb->hcpriv;
+
+	urb_priv->td_cnt++;
+}
+
 /* Updates trb to point to the next TRB in the ring, and updates seg if the next
  * TRB is in a new segment.  This does not skip over link TRBs, and it does not
  * effect the ring dequeue or enqueue pointers.
@@ -555,64 +569,28 @@ static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 		ep->stop_cmds_pending--;
 }
 
-
-/* Must be called with xhci->lock held in interrupt context */
-static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
-		struct xhci_td *cur_td, int status)
-{
-	struct usb_hcd *hcd;
-	struct urb	*urb;
-	struct urb_priv	*urb_priv;
-
-	urb = cur_td->urb;
-	urb_priv = urb->hcpriv;
-	urb_priv->td_cnt++;
-	hcd = bus_to_hcd(urb->dev->bus);
-
-	/* Only giveback urb when this is the last td in urb */
-	if (urb_priv->td_cnt == urb_priv->length) {
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-			xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
-			if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs	== 0) {
-				if (xhci->quirks & XHCI_AMD_PLL_FIX)
-					usb_amd_quirk_pll_enable();
-			}
-		}
-		usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-		spin_unlock(&xhci->lock);
-		usb_hcd_giveback_urb(hcd, urb, status);
-		xhci_urb_free_priv(urb_priv);
-		spin_lock(&xhci->lock);
-	}
-}
-
 /*
- * giveback urb, must be called with xhci->lock held.
- * releases and re-aquires xhci->lock
+ * Must be called with xhci->lock held in interrupt context,
+ * releases and re-acquires xhci->lock
  */
-static void xhci_giveback_urb_locked(struct xhci_hcd *xhci, struct xhci_td *td,
-				     int status)
+static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
+				     struct xhci_td *cur_td, int status)
 {
-	struct urb *urb	= td->urb;
-	struct urb_priv	*urb_priv = urb->hcpriv;
+	struct urb	*urb		= cur_td->urb;
+	struct urb_priv	*urb_priv	= urb->hcpriv;
+	struct usb_hcd	*hcd		= bus_to_hcd(urb->dev->bus);
 
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+		xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+		if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs	== 0) {
+			if (xhci->quirks & XHCI_AMD_PLL_FIX)
+				usb_amd_quirk_pll_enable();
+		}
+	}
 	xhci_urb_free_priv(urb_priv);
-
-	usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);
-	if ((urb->actual_length != urb->transfer_buffer_length &&
-	     (urb->transfer_flags & URB_SHORT_NOT_OK)) ||
-	    (status != 0 && !usb_endpoint_xfer_isoc(&urb->ep->desc)))
-		xhci_dbg(xhci, "Giveback URB %p, len = %d, expected = %d, status = %d\n",
-			 urb, urb->actual_length,
-			 urb->transfer_buffer_length, status);
+	usb_hcd_unlink_urb_from_ep(hcd, urb);
 	spin_unlock(&xhci->lock);
-	/* EHCI, UHCI, and OHCI always unconditionally set the
-	 * urb->status of an isochronous endpoint to 0.
-	 */
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
-		status = 0;
-	usb_hcd_giveback_urb(bus_to_hcd(urb->dev->bus), urb, status);
+	usb_hcd_giveback_urb(hcd, urb, status);
 	spin_lock(&xhci->lock);
 }
 
@@ -763,7 +741,9 @@ remove_finished_td:
 		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
 		if (ep_ring && cur_td->bounce_seg)
 			xhci_unmap_td_bounce_buffer(xhci, ep_ring, cur_td);
-		xhci_giveback_urb_in_irq(xhci, cur_td, 0);
+		inc_td_cnt(cur_td->urb);
+		if (last_td_in_urb(cur_td))
+			xhci_giveback_urb_in_irq(xhci, cur_td, 0);
 
 		/* Stop processing the cancelled list if the watchdog timer is
 		 * running.
@@ -788,7 +768,10 @@ static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
 
 		if (cur_td->bounce_seg)
 			xhci_unmap_td_bounce_buffer(xhci, ring, cur_td);
-		xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
+
+		inc_td_cnt(cur_td->urb);
+		if (last_td_in_urb(cur_td))
+			xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
 	}
 }
 
@@ -825,7 +808,10 @@ static void xhci_kill_endpoint_urbs(struct xhci_hcd *xhci,
 		cur_td = list_first_entry(&ep->cancelled_td_list,
 				struct xhci_td, cancelled_td_list);
 		list_del_init(&cur_td->cancelled_td_list);
-		xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
+
+		inc_td_cnt(cur_td->urb);
+		if (last_td_in_urb(cur_td))
+			xhci_giveback_urb_in_irq(xhci, cur_td, -ESHUTDOWN);
 	}
 }
 
@@ -1899,30 +1885,31 @@ td_cleanup:
 	 * unsigned).  Play it safe and say we didn't transfer anything.
 	 */
 	if (urb->actual_length > urb->transfer_buffer_length) {
-		xhci_warn(xhci, "URB transfer length is wrong, xHC issue? req. len = %u, act. len = %u\n",
-			urb->transfer_buffer_length,
-			urb->actual_length);
+		xhci_warn(xhci, "URB req %u and actual %u transfer length mismatch\n",
+			  urb->transfer_buffer_length, urb->actual_length);
 		urb->actual_length = 0;
-			*status = 0;
+		*status = 0;
 	}
 	list_del_init(&td->td_list);
 	/* Was this TD slated to be cancelled but completed anyway? */
 	if (!list_empty(&td->cancelled_td_list))
 		list_del_init(&td->cancelled_td_list);
 
-	urb_priv->td_cnt++;
+	inc_td_cnt(urb);
 	/* Giveback the urb when all the tds are completed */
-	if (urb_priv->td_cnt == urb_priv->length) {
-		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-			xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
-			if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs == 0) {
-				if (xhci->quirks & XHCI_AMD_PLL_FIX)
-					usb_amd_quirk_pll_enable();
-			}
-		}
-		xhci_giveback_urb_locked(xhci, td, *status);
-	}
+	if (last_td_in_urb(td)) {
+		if ((urb->actual_length != urb->transfer_buffer_length &&
+		     (urb->transfer_flags & URB_SHORT_NOT_OK)) ||
+		    (*status != 0 && !usb_endpoint_xfer_isoc(&urb->ep->desc)))
+			xhci_dbg(xhci, "Giveback URB %p, len = %d, expected = %d, status = %d\n",
+				 urb, urb->actual_length,
+				 urb->transfer_buffer_length, *status);
 
+		/* set isoc urb status to 0 just as EHCI, UHCI, and OHCI */
+		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+			*status = 0;
+		xhci_giveback_urb_in_irq(xhci, td, *status);
+	}
 	return 0;
 }
 
