@@ -773,7 +773,8 @@ static int xgbe_probe(struct platform_device *pdev)
 		goto err_wq;
 	}
 
-	xgbe_ptp_register(pdata);
+	if (IS_REACHABLE(CONFIG_PTP_1588_CLOCK))
+		xgbe_ptp_register(pdata);
 
 	xgbe_debugfs_init(pdata);
 
@@ -812,7 +813,8 @@ static int xgbe_remove(struct platform_device *pdev)
 
 	xgbe_debugfs_exit(pdata);
 
-	xgbe_ptp_unregister(pdata);
+	if (IS_REACHABLE(CONFIG_PTP_1588_CLOCK))
+		xgbe_ptp_unregister(pdata);
 
 	flush_workqueue(pdata->an_workqueue);
 	destroy_workqueue(pdata->an_workqueue);

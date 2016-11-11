@@ -122,30 +122,6 @@ struct ptp_clock_info {
 
 struct ptp_clock;
 
-/**
- * ptp_clock_register() - register a PTP hardware clock driver
- *
- * @info:   Structure describing the new clock.
- * @parent: Pointer to the parent device of the new clock.
- *
- * Returns a valid pointer on success or PTR_ERR on failure.  If PHC
- * support is missing at the configuration level, this function
- * returns NULL, and drivers are expected to gracefully handle that
- * case separately.
- */
-
-extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
-					    struct device *parent);
-
-/**
- * ptp_clock_unregister() - unregister a PTP hardware clock driver
- *
- * @ptp:  The clock to remove from service.
- */
-
-extern int ptp_clock_unregister(struct ptp_clock *ptp);
-
-
 enum ptp_clock_events {
 	PTP_CLOCK_ALARM,
 	PTP_CLOCK_EXTTS,
@@ -170,6 +146,31 @@ struct ptp_clock_event {
 		struct pps_event_time pps_times;
 	};
 };
+
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
+
+/**
+ * ptp_clock_register() - register a PTP hardware clock driver
+ *
+ * @info:   Structure describing the new clock.
+ * @parent: Pointer to the parent device of the new clock.
+ *
+ * Returns a valid pointer on success or PTR_ERR on failure.  If PHC
+ * support is missing at the configuration level, this function
+ * returns NULL, and drivers are expected to gracefully handle that
+ * case separately.
+ */
+
+extern struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+					    struct device *parent);
+
+/**
+ * ptp_clock_unregister() - unregister a PTP hardware clock driver
+ *
+ * @ptp:  The clock to remove from service.
+ */
+
+extern int ptp_clock_unregister(struct ptp_clock *ptp);
 
 /**
  * ptp_clock_event() - notify the PTP layer about an event
@@ -201,5 +202,21 @@ extern int ptp_clock_index(struct ptp_clock *ptp);
 
 int ptp_find_pin(struct ptp_clock *ptp,
 		 enum ptp_pin_function func, unsigned int chan);
+
+#else
+static inline struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
+						   struct device *parent)
+{ return NULL; }
+static inline int ptp_clock_unregister(struct ptp_clock *ptp)
+{ return 0; }
+static inline void ptp_clock_event(struct ptp_clock *ptp,
+				   struct ptp_clock_event *event)
+{ }
+static inline int ptp_clock_index(struct ptp_clock *ptp)
+{ return -1; }
+static inline int ptp_find_pin(struct ptp_clock *ptp,
+			       enum ptp_pin_function func, unsigned int chan)
+{ return -1; }
+#endif
 
 #endif

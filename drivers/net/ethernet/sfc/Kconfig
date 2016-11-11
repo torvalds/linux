@@ -5,7 +5,7 @@ config SFC
 	select CRC32
 	select I2C
 	select I2C_ALGOBIT
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports 10/40-gigabit Ethernet cards based on
 	  the Solarflare SFC4000, SFC9000-family and SFC9100-family
