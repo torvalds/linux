@@ -223,8 +223,8 @@ static int omap4_keypad_parse_dt(struct device *dev,
 	struct device_node *np = dev->of_node;
 	int err;
 
-	err = matrix_keypad_parse_of_params(dev, &keypad_data->rows,
-					    &keypad_data->cols);
+	err = matrix_keypad_parse_properties(dev, &keypad_data->rows,
+					     &keypad_data->cols);
 	if (err)
 		return err;
 

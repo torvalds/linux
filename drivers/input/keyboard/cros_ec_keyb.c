@@ -229,7 +229,8 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
 	if (!ckdev)
 		return -ENOMEM;
-	err = matrix_keypad_parse_of_params(dev, &ckdev->rows, &ckdev->cols);
+
+	err = matrix_keypad_parse_properties(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
 		return err;
 

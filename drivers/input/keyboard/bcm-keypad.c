@@ -213,7 +213,7 @@ static int bcm_kp_matrix_key_parse_dt(struct bcm_kp *kp)
 	/* Initialize the KPCR Keypad Configuration Register */
 	kp->kpcr = KPCR_STATUSFILTERENABLE | KPCR_COLFILTERENABLE;
 
-	error = matrix_keypad_parse_of_params(dev, &kp->n_rows, &kp->n_cols);
+	error = matrix_keypad_parse_properties(dev, &kp->n_rows, &kp->n_cols);
 	if (error) {
 		dev_err(dev, "failed to parse kp params\n");
 		return error;

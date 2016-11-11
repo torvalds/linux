@@ -295,7 +295,7 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 		struct device_node *np = dev->of_node;
 		int err;
 
-		err = matrix_keypad_parse_of_params(dev, &rows, &cols);
+		err = matrix_keypad_parse_properties(dev, &rows, &cols);
 		if (err)
 			return err;
 		rep = of_property_read_bool(np, "keypad,autorepeat");

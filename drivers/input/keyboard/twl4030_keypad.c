@@ -374,8 +374,8 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 		kp->autorepeat = pdata->rep;
 		keymap_data = pdata->keymap_data;
 	} else {
-		error = matrix_keypad_parse_of_params(&pdev->dev, &kp->n_rows,
-						      &kp->n_cols);
+		error = matrix_keypad_parse_properties(&pdev->dev, &kp->n_rows,
+						       &kp->n_cols);
 		if (error)
 			return error;
 
