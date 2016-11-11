@@ -770,27 +770,6 @@ struct kobj_type blk_queue_ktype = {
 	.release	= blk_release_queue,
 };
 
-static void blk_wb_stat_get(void *data, struct blk_rq_stat *stat)
-{
-	blk_queue_stat_get(data, stat);
-}
-
-static void blk_wb_stat_clear(void *data)
-{
-	blk_stat_clear(data);
-}
-
-static bool blk_wb_stat_is_current(struct blk_rq_stat *stat)
-{
-	return blk_stat_is_current(stat);
-}
-
-static struct wb_stat_ops wb_stat_ops = {
-	.get		= blk_wb_stat_get,
-	.is_current	= blk_wb_stat_is_current,
-	.clear		= blk_wb_stat_clear,
-};
-
 static void blk_wb_init(struct request_queue *q)
 {
 #ifndef CONFIG_BLK_WBT_MQ
@@ -805,7 +784,7 @@ static void blk_wb_init(struct request_queue *q)
 	/*
 	 * If this fails, we don't get throttling
 	 */
-	wbt_init(q, &wb_stat_ops);
+	wbt_init(q);
 }
 
 int blk_register_queue(struct gendisk *disk)

@@ -308,7 +308,7 @@ static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 		 * waited or still has writes in flights, consider us doing
 		 * just writes as well.
 		 */
-		if ((stat[1].nr_samples && rwb->stat_ops->is_current(stat)) ||
+		if ((stat[1].nr_samples && blk_stat_is_current(stat)) ||
 		    wb_recent_wait(rwb) || wbt_inflight(rwb))
 			return LAT_UNKNOWN_WRITES;
 		return LAT_UNKNOWN;
@@ -333,7 +333,7 @@ static int latency_exceeded(struct rq_wb *rwb)
 {
 	struct blk_rq_stat stat[2];
 
-	rwb->stat_ops->get(rwb->ops_data, stat);
+	blk_queue_stat_get(rwb->queue, stat);
 	return __latency_exceeded(rwb, stat);
 }
 
@@ -355,7 +355,7 @@ static void scale_up(struct rq_wb *rwb)
 
 	rwb->scale_step--;
 	rwb->unknown_cnt = 0;
-	rwb->stat_ops->clear(rwb->ops_data);
+	blk_stat_clear(rwb->queue);
 
 	rwb->scaled_max = calc_wb_limits(rwb);
 
@@ -385,7 +385,7 @@ static void scale_down(struct rq_wb *rwb, bool hard_throttle)
 
 	rwb->scaled_max = false;
 	rwb->unknown_cnt = 0;
-	rwb->stat_ops->clear(rwb->ops_data);
+	blk_stat_clear(rwb->queue);
 	calc_wb_limits(rwb);
 	rwb_trace_step(rwb, "step down");
 }
@@ -675,7 +675,7 @@ void wbt_disable(struct rq_wb *rwb)
 }
 EXPORT_SYMBOL_GPL(wbt_disable);
 
-int wbt_init(struct request_queue *q, struct wb_stat_ops *ops)
+int wbt_init(struct request_queue *q)
 {
 	struct rq_wb *rwb;
 	int i;
@@ -687,9 +687,6 @@ int wbt_init(struct request_queue *q, struct wb_stat_ops *ops)
 	 */
 	BUILD_BUG_ON(RWB_WINDOW_NSEC > BLK_STAT_NSEC);
 	BUILD_BUG_ON(WBT_NR_BITS > BLK_STAT_RES_BITS);
-
-	if (!ops->get || !ops->is_current || !ops->clear)
-		return -EINVAL;
 
 	rwb = kzalloc(sizeof(*rwb), GFP_KERNEL);
 	if (!rwb)
@@ -706,8 +703,6 @@ int wbt_init(struct request_queue *q, struct wb_stat_ops *ops)
 	rwb->last_comp = rwb->last_issue = jiffies;
 	rwb->queue = q;
 	rwb->win_nsec = RWB_WINDOW_NSEC;
-	rwb->stat_ops = ops;
-	rwb->ops_data = q;
 	wbt_update_limits(rwb);
 
 	/*
