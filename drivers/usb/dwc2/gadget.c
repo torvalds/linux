@@ -186,10 +186,9 @@ static void dwc2_hsotg_ctrl_epint(struct dwc2_hsotg *hsotg,
  */
 static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 {
-	unsigned int fifo;
+	unsigned int ep;
 	unsigned int addr;
 	int timeout;
-	u32 dptxfsizn;
 	u32 val;
 
 	/* Reset fifo map if not correctly cleared during previous session */
@@ -217,16 +216,16 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 	 * them to endpoints dynamically according to maxpacket size value of
 	 * given endpoint.
 	 */
-	for (fifo = 1; fifo < MAX_EPS_CHANNELS; fifo++) {
-		dptxfsizn = dwc2_readl(hsotg->regs + DPTXFSIZN(fifo));
+	for (ep = 1; ep < MAX_EPS_CHANNELS; ep++) {
+		if (!hsotg->g_tx_fifo_sz[ep])
+			continue;
+		val = addr;
+		val |= hsotg->g_tx_fifo_sz[ep] << FIFOSIZE_DEPTH_SHIFT;
+		WARN_ONCE(addr + hsotg->g_tx_fifo_sz[ep] > hsotg->fifo_mem,
+			  "insufficient fifo memory");
+		addr += hsotg->g_tx_fifo_sz[ep];
 
-		val = (dptxfsizn & FIFOSIZE_DEPTH_MASK) | addr;
-		addr += dptxfsizn >> FIFOSIZE_DEPTH_SHIFT;
-
-		if (addr > hsotg->fifo_mem)
-			break;
-
-		dwc2_writel(val, hsotg->regs + DPTXFSIZN(fifo));
+		dwc2_writel(val, hsotg->regs + DPTXFSIZN(ep));
 	}
 
 	/*
@@ -3807,10 +3806,36 @@ static void dwc2_hsotg_dump(struct dwc2_hsotg *hsotg)
 static void dwc2_hsotg_of_probe(struct dwc2_hsotg *hsotg)
 {
 	struct device_node *np = hsotg->dev->of_node;
+	u32 len = 0;
+	u32 i = 0;
 
 	/* Enable dma if requested in device tree */
 	hsotg->g_using_dma = of_property_read_bool(np, "g-use-dma");
 
+	/*
+	* Register TX periodic fifo size per endpoint.
+	* EP0 is excluded since it has no fifo configuration.
+	*/
+	if (!of_find_property(np, "g-tx-fifo-size", &len))
+		goto rx_fifo;
+
+	len /= sizeof(u32);
+
+	/* Read tx fifo sizes other than ep0 */
+	if (of_property_read_u32_array(np, "g-tx-fifo-size",
+						&hsotg->g_tx_fifo_sz[1], len))
+		goto rx_fifo;
+
+	/* Add ep0 */
+	len++;
+
+	/* Make remaining TX fifos unavailable */
+	if (len < MAX_EPS_CHANNELS) {
+		for (i = len; i < MAX_EPS_CHANNELS; i++)
+			hsotg->g_tx_fifo_sz[i] = 0;
+	}
+
+rx_fifo:
 	/* Register RX fifo size */
 	of_property_read_u32(np, "g-rx-fifo-size", &hsotg->g_rx_fifo_sz);
 
@@ -3832,10 +3857,13 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	struct device *dev = hsotg->dev;
 	int epnum;
 	int ret;
+	int i;
+	u32 p_tx_fifo[] = DWC2_G_P_LEGACY_TX_FIFO_SIZE;
 
 	/* Initialize to legacy fifo configuration values */
 	hsotg->g_rx_fifo_sz = 2048;
 	hsotg->g_np_g_tx_fifo_sz = 1024;
+	memcpy(&hsotg->g_tx_fifo_sz[1], p_tx_fifo, sizeof(p_tx_fifo));
 	/* Device tree specific probe */
 	dwc2_hsotg_of_probe(hsotg);
 
@@ -3853,6 +3881,9 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	dev_dbg(dev, "NonPeriodic TXFIFO size: %d\n",
 						hsotg->g_np_g_tx_fifo_sz);
 	dev_dbg(dev, "RXFIFO size: %d\n", hsotg->g_rx_fifo_sz);
+	for (i = 0; i < MAX_EPS_CHANNELS; i++)
+		dev_dbg(dev, "Periodic TXFIFO%2d size: %d\n", i,
+						hsotg->g_tx_fifo_sz[i]);
 
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &dwc2_hsotg_gadget_ops;

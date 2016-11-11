@@ -32,9 +32,16 @@ static struct addr_range prep_kernel(void)
 	void *addr = 0;
 	struct elf_info ei;
 	long len;
+	int uncompressed_image = 0;
 
-	partial_decompress(vmlinuz_addr, vmlinuz_size,
+	len = partial_decompress(vmlinuz_addr, vmlinuz_size,
 		elfheader, sizeof(elfheader), 0);
+	/* assume uncompressed data if -1 is returned */
+	if (len == -1) {
+		uncompressed_image = 1;
+		memcpy(elfheader, vmlinuz_addr, sizeof(elfheader));
+		printf("No valid compressed data found, assume uncompressed data\n\r");
+	}
 
 	if (!parse_elf64(elfheader, &ei) && !parse_elf32(elfheader, &ei))
 		fatal("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
@@ -67,6 +74,13 @@ static struct addr_range prep_kernel(void)
 					"device tree\n\r");
 	}
 
+	if (uncompressed_image) {
+		memcpy(addr, vmlinuz_addr + ei.elfoffset, ei.loadsize);
+		printf("0x%lx bytes of uncompressed data copied\n\r",
+		       ei.loadsize);
+		goto out;
+	}
+
 	/* Finally, decompress the kernel */
 	printf("Decompressing (0x%p <- 0x%p:0x%p)...\n\r", addr,
 	       vmlinuz_addr, vmlinuz_addr+vmlinuz_size);
@@ -82,7 +96,7 @@ static struct addr_range prep_kernel(void)
 			 len, ei.loadsize);
 
 	printf("Done! Decompressed 0x%lx bytes\n\r", len);
-
+out:
 	flush_cache(addr, ei.loadsize);
 
 	return (struct addr_range){addr, ei.memsize};

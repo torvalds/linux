@@ -21,7 +21,7 @@ obj-y				+= video/
 obj-y				+= idle/
 
 # IPMI must come before ACPI in order to provide IPMI opregion support
-obj-$(CONFIG_IPMI_HANDLER)	+= char/ipmi/
+obj-y				+= char/ipmi/
 
 obj-$(CONFIG_ACPI)		+= acpi/
 obj-$(CONFIG_SFI)		+= sfi/

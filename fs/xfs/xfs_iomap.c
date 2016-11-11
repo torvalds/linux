@@ -566,6 +566,17 @@ xfs_file_iomap_begin_delay(
 	xfs_bmap_search_extents(ip, offset_fsb, XFS_DATA_FORK, &eof, &idx,
 			&got, &prev);
 	if (!eof && got.br_startoff <= offset_fsb) {
+		if (xfs_is_reflink_inode(ip)) {
+			bool		shared;
+
+			end_fsb = min(XFS_B_TO_FSB(mp, offset + count),
+					maxbytes_fsb);
+			xfs_trim_extent(&got, offset_fsb, end_fsb - offset_fsb);
+			error = xfs_reflink_reserve_cow(ip, &got, &shared);
+			if (error)
+				goto out_unlock;
+		}
+
 		trace_xfs_iomap_found(ip, offset, count, 0, &got);
 		goto done;
 	}
@@ -961,18 +972,12 @@ xfs_file_iomap_begin(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
-	bool			shared, trimmed;
 	int			nimaps = 1, error = 0;
+	bool			shared = false, trimmed = false;
 	unsigned		lockmode;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-
-	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
-		error = xfs_reflink_reserve_cow_range(ip, offset, length);
-		if (error < 0)
-			return error;
-	}
 
 	if ((flags & IOMAP_WRITE) && !IS_DAX(inode) &&
 		   !xfs_get_extsz_hint(ip)) {
@@ -981,7 +986,16 @@ xfs_file_iomap_begin(
 				iomap);
 	}
 
-	lockmode = xfs_ilock_data_map_shared(ip);
+	/*
+	 * COW writes will allocate delalloc space, so we need to make sure
+	 * to take the lock exclusively here.
+	 */
+	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
+		lockmode = XFS_ILOCK_EXCL;
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+	} else {
+		lockmode = xfs_ilock_data_map_shared(ip);
+	}
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);
 	if ((xfs_fsize_t)offset + length > mp->m_super->s_maxbytes)
@@ -991,16 +1005,24 @@ xfs_file_iomap_begin(
 
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
 			       &nimaps, 0);
-	if (error) {
-		xfs_iunlock(ip, lockmode);
-		return error;
+	if (error)
+		goto out_unlock;
+
+	if (flags & IOMAP_REPORT) {
+		/* Trim the mapping to the nearest shared extent boundary. */
+		error = xfs_reflink_trim_around_shared(ip, &imap, &shared,
+				&trimmed);
+		if (error)
+			goto out_unlock;
 	}
 
-	/* Trim the mapping to the nearest shared extent boundary. */
-	error = xfs_reflink_trim_around_shared(ip, &imap, &shared, &trimmed);
-	if (error) {
-		xfs_iunlock(ip, lockmode);
-		return error;
+	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
+		error = xfs_reflink_reserve_cow(ip, &imap, &shared);
+		if (error)
+			goto out_unlock;
+
+		end_fsb = imap.br_startoff + imap.br_blockcount;
+		length = XFS_FSB_TO_B(mp, end_fsb) - offset;
 	}
 
 	if ((flags & IOMAP_WRITE) && imap_needs_alloc(inode, &imap, nimaps)) {
@@ -1039,6 +1061,9 @@ xfs_file_iomap_begin(
 	if (shared)
 		iomap->flags |= IOMAP_F_SHARED;
 	return 0;
+out_unlock:
+	xfs_iunlock(ip, lockmode);
+	return error;
 }
 
 static int

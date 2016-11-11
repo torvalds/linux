@@ -107,4 +107,7 @@ config QEDE
 	---help---
 	  This enables the support for ...
 
+config QED_RDMA
+	bool
+
 endif # NET_VENDOR_QLOGIC

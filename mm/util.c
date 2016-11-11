@@ -230,8 +230,10 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 }
 
 /* Check if the vma is being used as a stack by this task */
-int vma_is_stack_for_task(struct vm_area_struct *vma, struct task_struct *t)
+int vma_is_stack_for_current(struct vm_area_struct *vma)
 {
+	struct task_struct * __maybe_unused t = current;
+
 	return (vma->vm_start <= KSTK_ESP(t) && vma->vm_end >= KSTK_ESP(t));
 }
 
