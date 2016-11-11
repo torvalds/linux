@@ -514,54 +514,32 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
  * of this TD.)  This is used to remove partially enqueued isoc TDs from a ring.
  */
 static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
-		struct xhci_td *cur_td, bool flip_cycle)
+		       struct xhci_td *td, bool flip_cycle)
 {
-	struct xhci_segment *cur_seg;
-	union xhci_trb *cur_trb;
+	struct xhci_segment *seg	= td->start_seg;
+	union xhci_trb *trb		= td->first_trb;
 
-	for (cur_seg = cur_td->start_seg, cur_trb = cur_td->first_trb;
-			true;
-			next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-		if (trb_is_link(cur_trb)) {
-			/* Unchain any chained Link TRBs, but
-			 * leave the pointers intact.
-			 */
-			cur_trb->generic.field[3] &= cpu_to_le32(~TRB_CHAIN);
-			/* Flip the cycle bit (link TRBs can't be the first
-			 * or last TRB).
-			 */
-			if (flip_cycle)
-				cur_trb->generic.field[3] ^=
-					cpu_to_le32(TRB_CYCLE);
-			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-					"Cancel (unchain) link TRB");
-			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-					"Address = %p (0x%llx dma); "
-					"in seg %p (0x%llx dma)",
-					cur_trb,
-					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
-					cur_seg,
-					(unsigned long long)cur_seg->dma);
+	while (1) {
+		if (trb_is_link(trb)) {
+			/* unchain chained link TRBs */
+			trb->link.control &= cpu_to_le32(~TRB_CHAIN);
 		} else {
-			cur_trb->generic.field[0] = 0;
-			cur_trb->generic.field[1] = 0;
-			cur_trb->generic.field[2] = 0;
+			trb->generic.field[0] = 0;
+			trb->generic.field[1] = 0;
+			trb->generic.field[2] = 0;
 			/* Preserve only the cycle bit of this TRB */
-			cur_trb->generic.field[3] &= cpu_to_le32(TRB_CYCLE);
-			/* Flip the cycle bit except on the first or last TRB */
-			if (flip_cycle && cur_trb != cur_td->first_trb &&
-					cur_trb != cur_td->last_trb)
-				cur_trb->generic.field[3] ^=
-					cpu_to_le32(TRB_CYCLE);
-			cur_trb->generic.field[3] |= cpu_to_le32(
+			trb->generic.field[3] &= cpu_to_le32(TRB_CYCLE);
+			trb->generic.field[3] |= cpu_to_le32(
 				TRB_TYPE(TRB_TR_NOOP));
-			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-					"TRB to noop at offset 0x%llx",
-					(unsigned long long)
-					xhci_trb_virt_to_dma(cur_seg, cur_trb));
 		}
-		if (cur_trb == cur_td->last_trb)
+		/* flip cycle if asked to */
+		if (flip_cycle && trb != td->first_trb && trb != td->last_trb)
+			trb->generic.field[3] ^= cpu_to_le32(TRB_CYCLE);
+
+		if (trb == td->last_trb)
 			break;
+
+		next_trb(xhci, ep_ring, &seg, &trb);
 	}
 }
 
