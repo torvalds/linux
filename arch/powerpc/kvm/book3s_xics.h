@@ -31,16 +31,19 @@
 /* Priority value to use for disabling an interrupt */
 #define MASKED	0xff
 
+#define PQ_PRESENTED	1
+#define PQ_QUEUED	2
+
 /* State for one irq source */
 struct ics_irq_state {
 	u32 number;
 	u32 server;
+	u32 pq_state;
 	u8  priority;
 	u8  saved_priority;
 	u8  resend;
 	u8  masked_pending;
 	u8  lsi;		/* level-sensitive interrupt */
-	u8  asserted; /* Only for LSI */
 	u8  exists;
 	int intr_cpu;
 	u32 host_irq;
