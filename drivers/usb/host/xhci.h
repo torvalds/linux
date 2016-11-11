@@ -999,7 +999,6 @@ struct xhci_virt_device {
 	int				num_rings_cached;
 #define	XHCI_MAX_RINGS_CACHED	31
 	struct xhci_virt_ep		eps[31];
-	struct completion		cmd_completion;
 	u8				fake_port;
 	u8				real_port;
 	struct xhci_interval_bw_table	*bw_table;
