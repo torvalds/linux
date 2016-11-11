@@ -543,6 +543,9 @@ static int dwc3_rockchip_resume(struct device *dev)
 
 	rockchip->suspended = false;
 
+	if (rockchip->edev)
+		schedule_work(&rockchip->otg_work);
+
 	return 0;
 }
 
