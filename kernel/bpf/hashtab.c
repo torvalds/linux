@@ -420,6 +420,24 @@ static void free_htab_elem(struct bpf_htab *htab, struct htab_elem *l)
 	}
 }
 
+static void pcpu_copy_value(struct bpf_htab *htab, void __percpu *pptr,
+			    void *value, bool onallcpus)
+{
+	if (!onallcpus) {
+		/* copy true value_size bytes */
+		memcpy(this_cpu_ptr(pptr), value, htab->map.value_size);
+	} else {
+		u32 size = round_up(htab->map.value_size, 8);
+		int off = 0, cpu;
+
+		for_each_possible_cpu(cpu) {
+			bpf_long_memcpy(per_cpu_ptr(pptr, cpu),
+					value + off, size);
+			off += size;
+		}
+	}
+}
+
 static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 					 void *value, u32 key_size, u32 hash,
 					 bool percpu, bool onallcpus,
@@ -479,18 +497,8 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 			}
 		}
 
-		if (!onallcpus) {
-			/* copy true value_size bytes */
-			memcpy(this_cpu_ptr(pptr), value, htab->map.value_size);
-		} else {
-			int off = 0, cpu;
+		pcpu_copy_value(htab, pptr, value, onallcpus);
 
-			for_each_possible_cpu(cpu) {
-				bpf_long_memcpy(per_cpu_ptr(pptr, cpu),
-						value + off, size);
-				off += size;
-			}
-		}
 		if (!prealloc)
 			htab_elem_set_ptr(l_new, key_size, pptr);
 	} else {
@@ -606,22 +614,9 @@ static int __htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 		goto err;
 
 	if (l_old) {
-		void __percpu *pptr = htab_elem_get_ptr(l_old, key_size);
-		u32 size = htab->map.value_size;
-
 		/* per-cpu hash map can update value in-place */
-		if (!onallcpus) {
-			memcpy(this_cpu_ptr(pptr), value, size);
-		} else {
-			int off = 0, cpu;
-
-			size = round_up(size, 8);
-			for_each_possible_cpu(cpu) {
-				bpf_long_memcpy(per_cpu_ptr(pptr, cpu),
-						value + off, size);
-				off += size;
-			}
-		}
+		pcpu_copy_value(htab, htab_elem_get_ptr(l_old, key_size),
+				value, onallcpus);
 	} else {
 		l_new = alloc_htab_elem(htab, key, value, key_size,
 					hash, true, onallcpus, false);
