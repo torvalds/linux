@@ -129,7 +129,6 @@ int reuseport_add_sock(struct sock *sk, struct sock *sk2)
 
 	return 0;
 }
-EXPORT_SYMBOL(reuseport_add_sock);
 
 static void reuseport_free_rcu(struct rcu_head *head)
 {

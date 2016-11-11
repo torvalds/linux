@@ -9135,10 +9135,14 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 		goto fwd_add_err;
 	fwd_adapter->pool = pool;
 	fwd_adapter->real_adapter = adapter;
-	err = ixgbe_fwd_ring_up(vdev, fwd_adapter);
-	if (err)
-		goto fwd_add_err;
-	netif_tx_start_all_queues(vdev);
+
+	if (netif_running(pdev)) {
+		err = ixgbe_fwd_ring_up(vdev, fwd_adapter);
+		if (err)
+			goto fwd_add_err;
+		netif_tx_start_all_queues(vdev);
+	}
+
 	return fwd_adapter;
 fwd_add_err:
 	/* unwind counter and free adapter struct */

@@ -640,7 +640,6 @@ static const u32 stoney_mgcg_cgcg_init[] =
 	mmCP_MEM_SLP_CNTL, 0xffffffff, 0x00020201,
 	mmRLC_MEM_SLP_CNTL, 0xffffffff, 0x00020201,
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96940200,
-	mmATC_MISC_CG, 0xffffffff, 0x000c0200,
 };
 
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev);

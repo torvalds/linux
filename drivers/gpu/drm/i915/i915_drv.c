@@ -1447,8 +1447,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
-	intel_display_set_init_power(dev_priv, false);
-
 	intel_csr_ucode_suspend(dev_priv);
 
 out:
@@ -1465,6 +1463,8 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	int ret;
 
 	disable_rpm_wakeref_asserts(dev_priv);
+
+	intel_display_set_init_power(dev_priv, false);
 
 	fw_csr = !IS_BROXTON(dev_priv) &&
 		suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;

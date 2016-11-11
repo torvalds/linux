@@ -2978,7 +2978,8 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	/* Rotate src coordinates to match rotated GTT view */
 	if (intel_rotation_90_or_270(rotation))
 		drm_rect_rotate(&plane_state->base.src,
-				fb->width, fb->height, DRM_ROTATE_270);
+				fb->width << 16, fb->height << 16,
+				DRM_ROTATE_270);
 
 	/*
 	 * Handle the AUX surface first since
@@ -14310,7 +14311,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		struct intel_plane_state *intel_plane_state =
-			to_intel_plane_state(plane_state);
+			to_intel_plane_state(plane->state);
 
 		if (!intel_plane_state->wait_req)
 			continue;
