@@ -107,8 +107,8 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
 	char name[BDEVNAME_SIZE];
 	struct bio *check;
-	struct bio_vec bv;
-	struct bvec_iter iter;
+	struct bio_vec bv, cbv;
+	struct bvec_iter iter, citer = { 0 };
 
 	check = bio_clone(bio, GFP_NOIO);
 	if (!check)
@@ -120,9 +120,13 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 
 	submit_bio_wait(check);
 
+	citer.bi_size = UINT_MAX;
 	bio_for_each_segment(bv, bio, iter) {
 		void *p1 = kmap_atomic(bv.bv_page);
-		void *p2 = page_address(check->bi_io_vec[iter.bi_idx].bv_page);
+		void *p2;
+
+		cbv = bio_iter_iovec(check, citer);
+		p2 = page_address(cbv.bv_page);
 
 		cache_set_err_on(memcmp(p1 + bv.bv_offset,
 					p2 + bv.bv_offset,
@@ -133,6 +137,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 				 (uint64_t) bio->bi_iter.bi_sector);
 
 		kunmap_atomic(p1);
+		bio_advance_iter(check, &citer, bv.bv_len);
 	}
 
 	bio_free_pages(check);
