@@ -355,6 +355,37 @@ static void pmap_unschedule(unsigned long *map, int bits_per_period,
 	}
 }
 
+/**
+ * dwc2_get_ls_map() - Get the map used for the given qh
+ *
+ * @hsotg: The HCD state structure for the DWC OTG controller.
+ * @qh:    QH for the periodic transfer.
+ *
+ * We'll always get the periodic map out of our TT.  Note that even if we're
+ * running the host straight in low speed / full speed mode it appears as if
+ * a TT is allocated for us, so we'll use it.  If that ever changes we can
+ * add logic here to get a map out of "hsotg" if !qh->do_split.
+ *
+ * Returns: the map or NULL if a map couldn't be found.
+ */
+static unsigned long *dwc2_get_ls_map(struct dwc2_hsotg *hsotg,
+				      struct dwc2_qh *qh)
+{
+	unsigned long *map;
+
+	/* Don't expect to be missing a TT and be doing low speed scheduling */
+	if (WARN_ON(!qh->dwc_tt))
+		return NULL;
+
+	/* Get the map and adjust if this is a multi_tt hub */
+	map = qh->dwc_tt->periodic_bitmaps;
+	if (qh->dwc_tt->usb_tt->multi)
+		map += DWC2_ELEMENTS_PER_LS_BITMAP * qh->ttport;
+
+	return map;
+}
+
+#ifdef DWC2_PRINT_SCHEDULE
 /*
  * cat_printf() - A printf() + strcat() helper
  *
@@ -454,35 +485,6 @@ static void pmap_print(unsigned long *map, int bits_per_period,
 	}
 }
 
-/**
- * dwc2_get_ls_map() - Get the map used for the given qh
- *
- * @hsotg: The HCD state structure for the DWC OTG controller.
- * @qh:    QH for the periodic transfer.
- *
- * We'll always get the periodic map out of our TT.  Note that even if we're
- * running the host straight in low speed / full speed mode it appears as if
- * a TT is allocated for us, so we'll use it.  If that ever changes we can
- * add logic here to get a map out of "hsotg" if !qh->do_split.
- *
- * Returns: the map or NULL if a map couldn't be found.
- */
-static unsigned long *dwc2_get_ls_map(struct dwc2_hsotg *hsotg,
-				      struct dwc2_qh *qh)
-{
-	unsigned long *map;
-
-	/* Don't expect to be missing a TT and be doing low speed scheduling */
-	if (WARN_ON(!qh->dwc_tt))
-		return NULL;
-
-	/* Get the map and adjust if this is a multi_tt hub */
-	map = qh->dwc_tt->periodic_bitmaps;
-	if (qh->dwc_tt->usb_tt->multi)
-		map += DWC2_ELEMENTS_PER_LS_BITMAP * qh->ttport;
-
-	return map;
-}
 
 struct dwc2_qh_print_data {
 	struct dwc2_hsotg *hsotg;
@@ -519,9 +521,6 @@ static void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
 	 * If we don't have tracing turned on, don't run unless the special
 	 * define is turned on.
 	 */
-#ifndef DWC2_PRINT_SCHEDULE
-	return;
-#endif
 
 	if (qh->schedule_low_speed) {
 		unsigned long *map = dwc2_get_ls_map(hsotg, qh);
@@ -559,8 +558,12 @@ static void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
 			   DWC2_HS_SCHEDULE_UFRAMES, "uFrame", "us",
 			   dwc2_qh_print, &print_data);
 	}
-
+	return;
 }
+#else
+static inline void dwc2_qh_schedule_print(struct dwc2_hsotg *hsotg,
+					  struct dwc2_qh *qh) {};
+#endif
 
 /**
  * dwc2_ls_pmap_schedule() - Schedule a low speed QH
