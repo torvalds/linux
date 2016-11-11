@@ -1424,6 +1424,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 
 	if (list_empty(&isc->subdev_entities)) {
 		dev_err(dev, "no subdev found\n");
+		ret = -ENODEV;
 		goto unregister_v4l2_device;
 	}
 
