@@ -1,10 +1,10 @@
-        Linux kernel release 4.x <http://kernel.org/>
+#Linux kernel release 4.x <http://kernel.org/>
 
 These are the release notes for Linux version 4.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong.
 
-WHAT IS LINUX?
+##WHAT IS LINUX?
 
   Linux is a clone of the operating system Unix, written from scratch by
   Linus Torvalds with assistance from a loosely-knit team of hackers across
@@ -18,7 +18,7 @@ WHAT IS LINUX?
   It is distributed under the GNU General Public License - see the
   accompanying COPYING file for more details.
 
-ON WHAT HARDWARE DOES IT RUN?
+##ON WHAT HARDWARE DOES IT RUN?
 
   Although originally developed first for 32-bit x86-based PCs (386 or higher),
   today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
@@ -34,7 +34,7 @@ ON WHAT HARDWARE DOES IT RUN?
   Linux has also been ported to itself. You can now run the kernel as a
   userspace application - this is called UserMode Linux (UML).
 
-DOCUMENTATION:
+##DOCUMENTATION:
 
  - There is a lot of documentation available both in electronic form on
    the Internet and in books, both Linux-specific and pertaining to
@@ -56,7 +56,7 @@ DOCUMENTATION:
    After installation, "make psdocs", "make pdfdocs", "make htmldocs",
    or "make mandocs" will render the documentation in the requested format.
 
-INSTALLING the kernel source:
+##INSTALLING the kernel source:
 
  - If you install the full sources, put the kernel tarball in a
    directory where you have permissions (e.g. your home directory) and
@@ -110,7 +110,7 @@ INSTALLING the kernel source:
 
    You should now have the sources correctly installed.
 
-SOFTWARE REQUIREMENTS
+###SOFTWARE REQUIREMENTS
 
    Compiling and running the 4.x kernels requires up-to-date
    versions of various software packages.  Consult
@@ -121,7 +121,7 @@ SOFTWARE REQUIREMENTS
    you can just update packages when obvious problems arise during
    build or operation.
 
-BUILD directory for the kernel:
+###BUILD directory for the kernel:
 
    When compiling the kernel, all output files will per default be
    stored together with the kernel source code.
@@ -142,7 +142,7 @@ BUILD directory for the kernel:
    Please note: If the 'O=output/dir' option is used, then it must be
    used for all invocations of make.
 
-CONFIGURING the kernel:
+###CONFIGURING the kernel:
 
    Do not skip this step even if you are only upgrading one minor
    version.  New configuration options are added in each release, and
@@ -242,7 +242,7 @@ CONFIGURING the kernel:
       should probably answer 'n' to the questions for "development",
       "experimental", or "debugging" features.
 
-COMPILING the kernel:
+###COMPILING the kernel:
 
  - Make sure you have at least gcc 3.2 available.
    For more information, refer to Documentation/Changes.
@@ -314,7 +314,7 @@ COMPILING the kernel:
 
  - Reboot with the new kernel and enjoy.
 
-IF SOMETHING GOES WRONG:
+###IF SOMETHING GOES WRONG:
 
  - If you have problems that seem to be due to kernel bugs, please check
    the file MAINTAINERS to see if there is a particular person associated
