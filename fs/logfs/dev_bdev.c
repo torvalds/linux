@@ -20,13 +20,9 @@ static int sync_request(struct page *page, struct block_device *bdev, int op)
 	struct bio_vec bio_vec;
 
 	bio_init(&bio, &bio_vec, 1);
-	bio_vec.bv_page = page;
-	bio_vec.bv_len = PAGE_SIZE;
-	bio_vec.bv_offset = 0;
-	bio.bi_vcnt = 1;
 	bio.bi_bdev = bdev;
+	bio_add_page(&bio, page, PAGE_SIZE, 0);
 	bio.bi_iter.bi_sector = page->index * (PAGE_SIZE >> 9);
-	bio.bi_iter.bi_size = PAGE_SIZE;
 	bio_set_op_attrs(&bio, op, 0);
 
 	return submit_bio_wait(&bio);
