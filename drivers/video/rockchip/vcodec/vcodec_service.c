@@ -898,7 +898,7 @@ static int vcodec_fd_to_iova(struct vpu_subdev_data *data,
 	if (mem_region == NULL) {
 		vpu_err("allocate memory for iommu memory region failed\n");
 		ion_free(pservice->ion_client, hdl);
-		return -1;
+		return -ENOMEM;
 	}
 
 	mem_region->hdl = hdl;
@@ -916,7 +916,7 @@ static int vcodec_fd_to_iova(struct vpu_subdev_data *data,
 		vpu_err("fd %d ion map iommu failed\n", fd);
 		kfree(mem_region);
 		ion_free(pservice->ion_client, hdl);
-		return ret;
+		return -EFAULT;
 	}
 	INIT_LIST_HEAD(&mem_region->reg_lnk);
 	list_add_tail(&mem_region->reg_lnk, &reg->mem_region_list);
@@ -938,7 +938,7 @@ static int vcodec_fd_to_iova(struct vpu_subdev_data *data,
  * on current decoding task. Then kernel driver can only translate the first
  * address then copy it all pps buffer.
  */
-static void fill_scaling_list_addr_in_pps(
+static int fill_scaling_list_addr_in_pps(
 		struct vpu_subdev_data *data,
 		struct vpu_reg *reg,
 		char *pps,
@@ -961,6 +961,9 @@ static void fill_scaling_list_addr_in_pps(
 	if (scaling_fd > 0) {
 		int i = 0;
 		u32 tmp = vcodec_fd_to_iova(data, reg, scaling_fd);
+
+		if (IS_ERR_VALUE(tmp))
+			return -1;
 		tmp += scaling_offset;
 
 		for (i = 0; i < pps_info_count; i++, base += pps_info_size) {
@@ -970,6 +973,8 @@ static void fill_scaling_list_addr_in_pps(
 			pps[base + 3] = (tmp >> 24) & 0xff;
 		}
 	}
+
+	return 0;
 }
 
 static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, const u8 *tbl,
@@ -1085,11 +1090,14 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, const u8 *tbl,
 					  "scaling list setting pps %p\n", pps);
 				pps += pps_info_offset;
 
-				fill_scaling_list_addr_in_pps(
+				if (fill_scaling_list_addr_in_pps(
 						data, reg, pps,
 						pps_info_count,
 						pps_info_size,
-						scaling_list_addr_offset);
+						scaling_list_addr_offset) < 0) {
+					ion_free(pservice->ion_client, hdl);
+					return -1;
+				}
 			}
 		}
 
@@ -1097,7 +1105,7 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, const u8 *tbl,
 
 		if (!mem_region) {
 			ion_free(pservice->ion_client, hdl);
-			return -1;
+			return -ENOMEM;
 		}
 
 		mem_region->hdl = hdl;
@@ -1206,7 +1214,7 @@ static struct vpu_reg *reg_init(struct vpu_subdev_data *data,
 	vpu_debug_enter();
 
 	if (NULL == reg) {
-		vpu_err("error: kmalloc fail in reg_init\n");
+		vpu_err("error: kmalloc failed\n");
 		return NULL;
 	}
 
@@ -1228,13 +1236,13 @@ static struct vpu_reg *reg_init(struct vpu_subdev_data *data,
 	INIT_LIST_HEAD(&reg->mem_region_list);
 
 	if (copy_from_user(&reg->reg[0], (void __user *)src, size)) {
-		vpu_err("error: copy_from_user failed in reg_init\n");
+		vpu_err("error: copy_from_user failed\n");
 		kfree(reg);
 		return NULL;
 	}
 
 	if (copy_from_user(&extra_info, (u8 *)src + size, extra_size)) {
-		vpu_err("error: copy_from_user failed in reg_init\n");
+		vpu_err("error: copy_from_user failed\n");
 		kfree(reg);
 		return NULL;
 	}
@@ -1610,7 +1618,7 @@ static void try_set_reg(struct vpu_subdev_data *data)
 
 	mutex_lock(&pservice->shutdown_lock);
 	if (atomic_read(&pservice->service_on) == 0) {
-		mutex_lock(&pservice->shutdown_lock);
+		mutex_unlock(&pservice->shutdown_lock);
 		return;
 	}
 	if (!list_empty(&pservice->waiting)) {
@@ -1711,7 +1719,7 @@ static int return_reg(struct vpu_subdev_data *data,
 	}
 
 	if (copy_to_user(dst, &reg->reg[base], size)) {
-		vpu_err("error: return_reg copy_to_user failed\n");
+		vpu_err("error: copy_to_user failed\n");
 		return -EFAULT;
 	}
 
