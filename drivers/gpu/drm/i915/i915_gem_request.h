@@ -30,6 +30,9 @@
 #include "i915_gem.h"
 #include "i915_sw_fence.h"
 
+struct drm_file;
+struct drm_i915_gem_object;
+
 struct intel_wait {
 	struct rb_node node;
 	struct task_struct *tsk;
