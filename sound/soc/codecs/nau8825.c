@@ -1811,6 +1811,9 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 		NAU8825_DACL_CH_SEL_MASK, NAU8825_DACL_CH_SEL_L);
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_DACR_CTRL,
 		NAU8825_DACL_CH_SEL_MASK, NAU8825_DACL_CH_SEL_R);
+	/* Disable short Frame Sync detection logic */
+	regmap_update_bits(regmap, NAU8825_REG_LEFT_TIME_SLOT,
+		NAU8825_DIS_FS_SHORT_DET, NAU8825_DIS_FS_SHORT_DET);
 }
 
 static const struct regmap_config nau8825_regmap_config = {
