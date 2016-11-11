@@ -2493,18 +2493,23 @@ static void i40e_vlan_rx_register(struct net_device *netdev, u32 features)
 }
 
 /**
- * i40e_vsi_add_vlan - Add vsi membership for given vlan
+ * i40e_add_vlan_all_mac - Add a MAC/VLAN filter for each existing MAC address
  * @vsi: the vsi being configured
  * @vid: vlan id to be added (0 = untagged only , -1 = any)
+ *
+ * This is a helper function for adding a new MAC/VLAN filter with the
+ * specified VLAN for each existing MAC address already in the hash table.
+ * This function does *not* perform any accounting to update filters based on
+ * VLAN mode.
+ *
+ * NOTE: this function expects to be called while under the
+ * mac_filter_hash_lock
  **/
-int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
+static int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
 {
-	struct i40e_mac_filter *f, *add_f, *del_f;
+	struct i40e_mac_filter *f, *add_f;
 	struct hlist_node *h;
 	int bkt;
-
-	/* Locked once because all functions invoked below iterates list*/
-	spin_lock_bh(&vsi->mac_filter_hash_lock);
 
 	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 		if (f->state == I40E_FILTER_REMOVE)
@@ -2514,9 +2519,31 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 			dev_info(&vsi->back->pdev->dev,
 				 "Could not add vlan filter %d for %pM\n",
 				 vid, f->macaddr);
-			spin_unlock_bh(&vsi->mac_filter_hash_lock);
 			return -ENOMEM;
 		}
+	}
+
+	return 0;
+}
+
+/**
+ * i40e_vsi_add_vlan - Add VSI membership for given VLAN
+ * @vsi: the VSI being configured
+ * @vid: VLAN id to be added (0 = untagged only , -1 = any)
+ **/
+int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
+{
+	struct i40e_mac_filter *f, *add_f, *del_f;
+	struct hlist_node *h;
+	int bkt, err;
+
+	/* Locked once because all functions invoked below iterates list*/
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+
+	err = i40e_add_vlan_all_mac(vsi, vid);
+	if (err) {
+		spin_unlock_bh(&vsi->mac_filter_hash_lock);
+		return err;
 	}
 
 	/* When we add a new VLAN filter, we need to make sure that all existing
@@ -2557,24 +2584,39 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 }
 
 /**
- * i40e_vsi_kill_vlan - Remove vsi membership for given vlan
+ * i40e_rm_vlan_all_mac - Remove MAC/VLAN pair for all MAC with the given VLAN
  * @vsi: the vsi being configured
  * @vid: vlan id to be removed (0 = untagged only , -1 = any)
- **/
-void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
+ *
+ * This function should be used to remove all VLAN filters which match the
+ * given VID. It does not schedule the service event and does not take the
+ * mac_filter_hash_lock so it may be combined with other operations under
+ * a single invocation of the mac_filter_hash_lock.
+ *
+ * NOTE: this function expects to be called while under the
+ * mac_filter_hash_lock
+ */
+static void i40e_rm_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
 {
 	struct i40e_mac_filter *f;
 	struct hlist_node *h;
 	int bkt;
 
-	/* Locked once because all functions invoked below iterates list */
-	spin_lock_bh(&vsi->mac_filter_hash_lock);
-
 	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 		if (f->vlan == vid)
 			__i40e_del_filter(vsi, f);
 	}
+}
 
+/**
+ * i40e_vsi_kill_vlan - Remove VSI membership for given VLAN
+ * @vsi: the VSI being configured
+ * @vid: VLAN id to be removed (0 = untagged only , -1 = any)
+ **/
+void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
+{
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	i40e_rm_vlan_all_mac(vsi, vid);
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
 	/* schedule our worker thread which will take care of
