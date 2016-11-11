@@ -1994,8 +1994,10 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 		NAU8825_CLK_SRC_MASK | NAU8825_CLK_MCLK_SRC_MASK,
 		NAU8825_CLK_SRC_MCLK | fll_param->mclk_src);
+	/* Make DSP operate at high speed for better performance. */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL1,
-			NAU8825_FLL_RATIO_MASK, fll_param->ratio);
+		NAU8825_FLL_RATIO_MASK | NAU8825_ICTRL_LATCH_MASK,
+		fll_param->ratio | (0x6 << NAU8825_ICTRL_LATCH_SFT));
 	/* FLL 16-bit fractional input */
 	regmap_write(nau8825->regmap, NAU8825_REG_FLL2, fll_param->fll_frac);
 	/* FLL 10-bit integer input */
@@ -2011,19 +2013,22 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 	regmap_update_bits(nau8825->regmap,
 		NAU8825_REG_FLL6, NAU8825_DCO_EN, 0);
 	if (fll_param->fll_frac) {
+		/* set FLL loop filter enable and cutoff frequency at 500Khz */
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
 			NAU8825_FLL_FTR_SW_MASK,
 			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
 			NAU8825_FLL_FTR_SW_FILTER);
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL6,
-			NAU8825_SDM_EN, NAU8825_SDM_EN);
+			NAU8825_SDM_EN | NAU8825_CUTOFF500,
+			NAU8825_SDM_EN | NAU8825_CUTOFF500);
 	} else {
+		/* disable FLL loop filter and cutoff frequency */
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
 			NAU8825_FLL_FTR_SW_MASK, NAU8825_FLL_FTR_SW_ACCU);
-		regmap_update_bits(nau8825->regmap,
-			NAU8825_REG_FLL6, NAU8825_SDM_EN, 0);
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL6,
+			NAU8825_SDM_EN | NAU8825_CUTOFF500, 0);
 	}
 }
 
@@ -2089,6 +2094,9 @@ static void nau8825_configure_mclk_as_sysclk(struct regmap *regmap)
 		NAU8825_CLK_SRC_MASK, NAU8825_CLK_SRC_MCLK);
 	regmap_update_bits(regmap, NAU8825_REG_FLL6,
 		NAU8825_DCO_EN, 0);
+	/* Make DSP operate as default setting for power saving. */
+	regmap_update_bits(regmap, NAU8825_REG_FLL1,
+		NAU8825_ICTRL_LATCH_MASK, 0);
 }
 
 static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
@@ -2132,10 +2140,13 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 				NAU8825_DCO_EN, NAU8825_DCO_EN);
 			regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 				NAU8825_CLK_SRC_MASK, NAU8825_CLK_SRC_VCO);
-			/* Decrease the VCO frequency for power saving */
+			/* Decrease the VCO frequency and make DSP operate
+			 * as default setting for power saving.
+			 */
 			regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 				NAU8825_CLK_MCLK_SRC_MASK, 0xf);
 			regmap_update_bits(regmap, NAU8825_REG_FLL1,
+				NAU8825_ICTRL_LATCH_MASK |
 				NAU8825_FLL_RATIO_MASK, 0x10);
 			regmap_update_bits(regmap, NAU8825_REG_FLL6,
 				NAU8825_SDM_EN, NAU8825_SDM_EN);
@@ -2159,8 +2170,13 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * preparation halted until cross talk process finish.
 		 */
 		nau8825_sema_acquire(nau8825, 2 * HZ);
+		/* Higher FLL reference input frequency can only set lower
+		 * gain error, such as 0000 for input reference from MCLK
+		 * 12.288Mhz.
+		 */
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
-			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_MCLK);
+			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
+			NAU8825_FLL_CLK_SRC_MCLK | 0);
 		/* Release the semaphone. */
 		nau8825_sema_release(nau8825);
 
@@ -2176,8 +2192,16 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * preparation halted until cross talk process finish.
 		 */
 		nau8825_sema_acquire(nau8825, 2 * HZ);
+		/* If FLL reference input is from low frequency source,
+		 * higher error gain can apply such as 0xf which has
+		 * the most sensitive gain error correction threshold,
+		 * Therefore, FLL has the most accurate DCO to
+		 * target frequency.
+		 */
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
-			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_BLK);
+			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
+			NAU8825_FLL_CLK_SRC_BLK |
+			(0xf << NAU8825_GAIN_ERR_SFT));
 		/* Release the semaphone. */
 		nau8825_sema_release(nau8825);
 
@@ -2194,8 +2218,16 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * preparation halted until cross talk process finish.
 		 */
 		nau8825_sema_acquire(nau8825, 2 * HZ);
+		/* If FLL reference input is from low frequency source,
+		 * higher error gain can apply such as 0xf which has
+		 * the most sensitive gain error correction threshold,
+		 * Therefore, FLL has the most accurate DCO to
+		 * target frequency.
+		 */
 		regmap_update_bits(regmap, NAU8825_REG_FLL3,
-			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_FS);
+			NAU8825_FLL_CLK_SRC_MASK | NAU8825_GAIN_ERR_MASK,
+			NAU8825_FLL_CLK_SRC_FS |
+			(0xf << NAU8825_GAIN_ERR_SFT));
 		/* Release the semaphone. */
 		nau8825_sema_release(nau8825);
 
