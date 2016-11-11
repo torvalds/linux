@@ -668,14 +668,69 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	return check_too_hard(xics, icp);
 }
 
-int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+static int ics_rm_eoi(struct kvm_vcpu *vcpu, u32 irq)
 {
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
 	struct kvmppc_ics *ics;
 	struct ics_irq_state *state;
-	u32 irq = xirr & 0x00ffffff;
 	u16 src;
+	u32 pq_old, pq_new;
+
+	/*
+	 * ICS EOI handling: For LSI, if P bit is still set, we need to
+	 * resend it.
+	 *
+	 * For MSI, we move Q bit into P (and clear Q). If it is set,
+	 * resend it.
+	 */
+
+	ics = kvmppc_xics_find_ics(xics, irq, &src);
+	if (!ics)
+		goto bail;
+
+	state = &ics->irq_state[src];
+
+	if (state->lsi)
+		pq_new = state->pq_state;
+	else
+		do {
+			pq_old = state->pq_state;
+			pq_new = pq_old >> 1;
+		} while (cmpxchg(&state->pq_state, pq_old, pq_new) != pq_old);
+
+	if (pq_new & PQ_PRESENTED)
+		icp_rm_deliver_irq(xics, NULL, irq);
+
+	if (!hlist_empty(&vcpu->kvm->irq_ack_notifier_list)) {
+		icp->rm_action |= XICS_RM_NOTIFY_EOI;
+		icp->rm_eoied_irq = irq;
+	}
+
+	if (state->host_irq) {
+		++vcpu->stat.pthru_all;
+		if (state->intr_cpu != -1) {
+			int pcpu = raw_smp_processor_id();
+
+			pcpu = cpu_first_thread_sibling(pcpu);
+			++vcpu->stat.pthru_host;
+			if (state->intr_cpu != pcpu) {
+				++vcpu->stat.pthru_bad_aff;
+				xics_opal_rm_set_server(state->host_irq, pcpu);
+			}
+			state->intr_cpu = -1;
+		}
+	}
+
+ bail:
+	return check_too_hard(xics, icp);
+}
+
+int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+{
+	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
+	struct kvmppc_icp *icp = vcpu->arch.icp;
+	u32 irq = xirr & 0x00ffffff;
 
 	if (!xics || !xics->real_mode)
 		return H_TOO_HARD;
@@ -698,43 +753,9 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 
 	/* IPIs have no EOI */
 	if (irq == XICS_IPI)
-		goto bail;
-	/*
-	 * EOI handling: If the interrupt is still asserted, we need to
-	 * resend it. We can take a lockless "peek" at the ICS state here.
-	 *
-	 * "Message" interrupts will never have "asserted" set
-	 */
-	ics = kvmppc_xics_find_ics(xics, irq, &src);
-	if (!ics)
-		goto bail;
-	state = &ics->irq_state[src];
+		return check_too_hard(xics, icp);
 
-	/* Still asserted, resend it */
-	if (state->asserted)
-		icp_rm_deliver_irq(xics, icp, irq);
-
-	if (!hlist_empty(&vcpu->kvm->irq_ack_notifier_list)) {
-		icp->rm_action |= XICS_RM_NOTIFY_EOI;
-		icp->rm_eoied_irq = irq;
-	}
-
-	if (state->host_irq) {
-		++vcpu->stat.pthru_all;
-		if (state->intr_cpu != -1) {
-			int pcpu = raw_smp_processor_id();
-
-			pcpu = cpu_first_thread_sibling(pcpu);
-			++vcpu->stat.pthru_host;
-			if (state->intr_cpu != pcpu) {
-				++vcpu->stat.pthru_bad_aff;
-				xics_opal_rm_set_server(state->host_irq, pcpu);
-			}
-			state->intr_cpu = -1;
-		}
-	}
- bail:
-	return check_too_hard(xics, icp);
+	return ics_rm_eoi(vcpu, irq);
 }
 
 unsigned long eoi_rc;
@@ -817,14 +838,33 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 {
 	struct kvmppc_xics *xics;
 	struct kvmppc_icp *icp;
+	struct kvmppc_ics *ics;
+	struct ics_irq_state *state;
 	u32 irq;
+	u16 src;
+	u32 pq_old, pq_new;
 
 	irq = irq_map->v_hwirq;
 	xics = vcpu->kvm->arch.xics;
 	icp = vcpu->arch.icp;
 
 	kvmppc_rm_handle_irq_desc(irq_map->desc);
-	icp_rm_deliver_irq(xics, icp, irq);
+
+	ics = kvmppc_xics_find_ics(xics, irq, &src);
+	if (!ics)
+		return 2;
+
+	state = &ics->irq_state[src];
+
+	/* only MSIs register bypass producers, so it must be MSI here */
+	do {
+		pq_old = state->pq_state;
+		pq_new = ((pq_old << 1) & 3) | PQ_PRESENTED;
+	} while (cmpxchg(&state->pq_state, pq_old, pq_new) != pq_old);
+
+	/* Test P=1, Q=0, this is the only case where we present */
+	if (pq_new == PQ_PRESENTED)
+		icp_rm_deliver_irq(xics, icp, irq);
 
 	/* EOI the interrupt */
 	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr);
