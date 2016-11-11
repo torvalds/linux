@@ -691,7 +691,8 @@ static void mei_txe_hw_config(struct mei_device *dev)
  */
 
 static int mei_txe_write(struct mei_device *dev,
-		struct mei_msg_hdr *header, unsigned char *buf)
+			 struct mei_msg_hdr *header,
+			 const unsigned char *buf)
 {
 	struct mei_txe_hw *hw = to_txe_hw(dev);
 	unsigned long rem;

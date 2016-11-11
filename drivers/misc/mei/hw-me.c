@@ -450,7 +450,7 @@ static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
 
 
 /**
- * mei_me_write_message - writes a message to mei device.
+ * mei_me_hbuf_write - writes a message to host hw buffer.
  *
  * @dev: the device structure
  * @header: mei HECI header of message
@@ -458,9 +458,9 @@ static size_t mei_me_hbuf_max_len(const struct mei_device *dev)
  *
  * Return: -EIO if write has failed
  */
-static int mei_me_write_message(struct mei_device *dev,
-			struct mei_msg_hdr *header,
-			unsigned char *buf)
+static int mei_me_hbuf_write(struct mei_device *dev,
+			     struct mei_msg_hdr *header,
+			     const unsigned char *buf)
 {
 	unsigned long rem;
 	unsigned long length = header->length;
@@ -1243,7 +1243,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.hbuf_is_ready = mei_me_hbuf_is_empty,
 	.hbuf_max_len = mei_me_hbuf_max_len,
 
-	.write = mei_me_write_message,
+	.write = mei_me_hbuf_write,
 
 	.rdbuf_full_slots = mei_me_count_full_read_slots,
 	.read_hdr = mei_me_mecbrw_read,

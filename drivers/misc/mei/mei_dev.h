@@ -300,10 +300,9 @@ struct mei_hw_ops {
 	int (*hbuf_free_slots)(struct mei_device *dev);
 	bool (*hbuf_is_ready)(struct mei_device *dev);
 	size_t (*hbuf_max_len)(const struct mei_device *dev);
-
 	int (*write)(struct mei_device *dev,
 		     struct mei_msg_hdr *hdr,
-		     unsigned char *buf);
+		     const unsigned char *buf);
 
 	int (*rdbuf_full_slots)(struct mei_device *dev);
 
@@ -665,7 +664,7 @@ static inline size_t mei_hbuf_max_len(const struct mei_device *dev)
 }
 
 static inline int mei_write_message(struct mei_device *dev,
-			struct mei_msg_hdr *hdr, void *buf)
+				    struct mei_msg_hdr *hdr, const void *buf)
 {
 	return dev->ops->write(dev, hdr, buf);
 }
