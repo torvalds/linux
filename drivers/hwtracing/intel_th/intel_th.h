@@ -103,7 +103,8 @@ enum {
 	GTH_NONE = 0,
 	GTH_MSU,	/* memory/usb */
 	GTH_CTP,	/* Common Trace Port */
-	GTH_PTI = 4,	/* MIPI-PTI */
+	GTH_LPP,	/* Low Power Path */
+	GTH_PTI,	/* MIPI-PTI */
 };
 
 /**

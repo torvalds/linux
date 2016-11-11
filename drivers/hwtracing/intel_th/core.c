@@ -504,6 +504,21 @@ static const struct intel_th_subdevice {
 		.nres	= 1,
 		.res	= {
 			{
+				.start	= REG_PTI_OFFSET,
+				.end	= REG_PTI_OFFSET + REG_PTI_LENGTH - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+		},
+		.id	= -1,
+		.name	= "lpp",
+		.type	= INTEL_TH_OUTPUT,
+		.otype	= GTH_LPP,
+		.scrpd	= SCRPD_PTI_IS_PRIM_DEST,
+	},
+	{
+		.nres	= 1,
+		.res	= {
+			{
 				.start	= REG_DCIH_OFFSET,
 				.end	= REG_DCIH_OFFSET + REG_DCIH_LENGTH - 1,
 				.flags	= IORESOURCE_MEM,
