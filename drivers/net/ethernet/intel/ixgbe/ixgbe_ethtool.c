@@ -340,6 +340,9 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 			break;
+		case IXGBE_LINK_SPEED_5GB_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_5000);
+			break;
 		case IXGBE_LINK_SPEED_2_5GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_2500);
 			break;
