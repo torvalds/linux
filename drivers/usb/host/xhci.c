@@ -167,6 +167,12 @@ int xhci_reset(struct xhci_hcd *xhci)
 	int ret, i;
 
 	state = readl(&xhci->op_regs->status);
+
+	if (state == ~(u32)0) {
+		xhci_warn(xhci, "Host not accessible, reset failed.\n");
+		return -ENODEV;
+	}
+
 	if ((state & STS_HALT) == 0) {
 		xhci_warn(xhci, "Host controller not halted, aborting reset.\n");
 		return 0;
@@ -690,7 +696,6 @@ void xhci_stop(struct usb_hcd *hcd)
 		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
 		xhci_halt(xhci);
 		xhci_reset(xhci);
-
 		spin_unlock_irq(&xhci->lock);
 	}
 
