@@ -1785,8 +1785,6 @@ exit:
 VCHIQ_STATUS_T
 vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state)
 {
-	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
-
 	if (arm_state) {
 		rwlock_init(&arm_state->susp_res_lock);
 
@@ -1820,7 +1818,7 @@ vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state)
 		arm_state->first_connect = 0;
 
 	}
-	return status;
+	return VCHIQ_SUCCESS;
 }
 
 /*
