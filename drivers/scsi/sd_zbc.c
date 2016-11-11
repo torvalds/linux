@@ -612,6 +612,10 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp,
 	if (ret)
 		goto err;
 
+	/* READ16/WRITE16 is mandatory for ZBC disks */
+	sdkp->device->use_16_for_rw = 1;
+	sdkp->device->use_10_for_rw = 0;
+
 	return 0;
 
 err:
