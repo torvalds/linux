@@ -94,7 +94,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	return 0;
 
 err_register:
-	clk_disable(trng->clk);
+	clk_disable_unprepare(trng->clk);
 	return ret;
 }
 
