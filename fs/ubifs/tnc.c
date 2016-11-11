@@ -1783,7 +1783,7 @@ int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu)
  * @node: the node is returned here
  * @nm: node name
  *
- * This function look up and reads a node which contains name hash in the key.
+ * This function looks up and reads a node which contains name hash in the key.
  * Since the hash may have collisions, there may be many nodes with the same
  * key, so we have to sequentially look to all of them until the needed one is
  * found. This function returns zero in case of success, %-ENOENT if the node
@@ -1831,7 +1831,7 @@ out_unlock:
  * @node: the node is returned here
  * @nm: node name
  *
- * This function look up and reads a node which contains name hash in the key.
+ * This function looks up and reads a node which contains name hash in the key.
  * Since the hash may have collisions, there may be many nodes with the same
  * key, so we have to sequentially look to all of them until the needed one is
  * found. This function returns zero in case of success, %-ENOENT if the node
@@ -1859,7 +1859,93 @@ int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 	 * Unluckily, there are hash collisions and we have to iterate over
 	 * them look at each direntry with colliding name hash sequentially.
 	 */
+
 	return do_lookup_nm(c, key, node, nm);
+}
+
+static int do_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
+			struct ubifs_dent_node *dent, uint32_t cookie)
+{
+	int n, err, type = key_type(c, key);
+	struct ubifs_znode *znode;
+	struct ubifs_zbranch *zbr;
+	union ubifs_key *dkey, start_key;
+
+	ubifs_assert(is_hash_key(c, key));
+
+	lowest_dent_key(c, &start_key, key_inum(c, key));
+
+	mutex_lock(&c->tnc_mutex);
+	err = ubifs_lookup_level0(c, &start_key, &znode, &n);
+	if (unlikely(err < 0))
+		goto out_unlock;
+
+	for (;;) {
+		if (!err) {
+			err = tnc_next(c, &znode, &n);
+			if (err)
+				goto out_unlock;
+		}
+
+		zbr = &znode->zbranch[n];
+		dkey = &zbr->key;
+
+		if (key_inum(c, dkey) != key_inum(c, key) ||
+		    key_type(c, dkey) != type) {
+			err = -ENOENT;
+			goto out_unlock;
+		}
+
+		err = tnc_read_hashed_node(c, zbr, dent);
+		if (err)
+			goto out_unlock;
+
+		if (key_hash(c, key) == key_hash(c, dkey) &&
+		    le32_to_cpu(dent->cookie) == cookie)
+			goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&c->tnc_mutex);
+	return err;
+}
+
+/**
+ * ubifs_tnc_lookup_dh - look up a "double hashed" node.
+ * @c: UBIFS file-system description object
+ * @key: node key to lookup
+ * @node: the node is returned here
+ * @cookie: node cookie for collision resolution
+ *
+ * This function looks up and reads a node which contains name hash in the key.
+ * Since the hash may have collisions, there may be many nodes with the same
+ * key, so we have to sequentially look to all of them until the needed one
+ * with the same cookie value is found.
+ * This function returns zero in case of success, %-ENOENT if the node
+ * was not found, and a negative error code in case of failure.
+ */
+int ubifs_tnc_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
+			void *node, uint32_t cookie)
+{
+	int err;
+	const struct ubifs_dent_node *dent = node;
+
+	/*
+	 * We assume that in most of the cases there are no name collisions and
+	 * 'ubifs_tnc_lookup()' returns us the right direntry.
+	 */
+	err = ubifs_tnc_lookup(c, key, node);
+	if (err)
+		return err;
+
+	if (le32_to_cpu(dent->cookie) == cookie)
+		return 0;
+
+	/*
+	 * Unluckily, there are hash collisions and we have to iterate over
+	 * them look at each direntry with colliding name hash sequentially.
+	 */
+	return do_lookup_dh(c, key, node, cookie);
 }
 
 /**

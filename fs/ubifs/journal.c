@@ -78,7 +78,6 @@ static inline void zero_ino_node_unused(struct ubifs_ino_node *ino)
 static inline void zero_dent_node_unused(struct ubifs_dent_node *dent)
 {
 	dent->padding1 = 0;
-	memset(dent->padding2, 0, 4);
 }
 
 /**

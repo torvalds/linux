@@ -253,7 +253,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		ubifs_assert(fname_len(&nm) == 0);
 		ubifs_assert(fname_name(&nm) == NULL);
 		dent_key_init_hash(c, &key, dir->i_ino, nm.hash);
-		err = ubifs_tnc_lookup(c, &key, dent);
+		err = ubifs_tnc_lookup_dh(c, &key, dent, nm.minor_hash);
 	} else {
 		dent_key_init(c, &key, dir->i_ino, &nm);
 		err = ubifs_tnc_lookup_nm(c, &key, dent, &nm);
@@ -628,7 +628,10 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 		if (encrypted) {
 			fstr.len = fstr_real_len;
 
-			err = fscrypt_fname_disk_to_usr(dir, key_hash_flash(c, &dent->key), 0, &nm.disk_name, &fstr);
+			err = fscrypt_fname_disk_to_usr(dir, key_hash_flash(c,
+							&dent->key),
+							le32_to_cpu(dent->cookie),
+							&nm.disk_name, &fstr);
 			if (err)
 				goto out;
 		} else {

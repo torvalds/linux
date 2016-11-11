@@ -530,7 +530,8 @@ struct ubifs_ino_node {
  * @padding1: reserved for future, zeroes
  * @type: type of the target inode (%UBIFS_ITYPE_REG, %UBIFS_ITYPE_DIR, etc)
  * @nlen: name length
- * @padding2: reserved for future, zeroes
+ * @cookie: A 32bits random number, used to construct a 64bits
+ *          identifier.
  * @name: zero-terminated name
  *
  * Note, do not forget to amend 'zero_dent_node_unused()' function when
@@ -543,7 +544,7 @@ struct ubifs_dent_node {
 	__u8 padding1;
 	__u8 type;
 	__le16 nlen;
-	__u8 padding2[4]; /* Watch 'zero_dent_node_unused()' if changing! */
+	__le32 cookie;
 	__u8 name[];
 } __packed;
 
