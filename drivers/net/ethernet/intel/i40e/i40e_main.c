@@ -1227,6 +1227,107 @@ bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi)
 }
 
 /**
+ * i40e_correct_mac_vlan_filters - Correct non-VLAN filters if necessary
+ * @vsi: the VSI to configure
+ * @tmp_add_list: list of filters ready to be added
+ * @tmp_del_list: list of filters ready to be deleted
+ * @vlan_filters: the number of active VLAN filters
+ *
+ * Update VLAN=0 and VLAN=-1 (I40E_VLAN_ANY) filters properly so that they
+ * behave as expected. If we have any active VLAN filters remaining or about
+ * to be added then we need to update non-VLAN filters to be marked as VLAN=0
+ * so that they only match against untagged traffic. If we no longer have any
+ * active VLAN filters, we need to make all non-VLAN filters marked as VLAN=-1
+ * so that they match against both tagged and untagged traffic. In this way,
+ * we ensure that we correctly receive the desired traffic. This ensures that
+ * when we have an active VLAN we will receive only untagged traffic and
+ * traffic matching active VLANs. If we have no active VLANs then we will
+ * operate in non-VLAN mode and receive all traffic, tagged or untagged.
+ *
+ * Finally, in a similar fashion, this function also corrects filters when
+ * there is an active PVID assigned to this VSI.
+ *
+ * In case of memory allocation failure return -ENOMEM. Otherwise, return 0.
+ *
+ * This function is only expected to be called from within
+ * i40e_sync_vsi_filters.
+ *
+ * NOTE: This function expects to be called while under the
+ * mac_filter_hash_lock
+ */
+static int i40e_correct_mac_vlan_filters(struct i40e_vsi *vsi,
+					 struct hlist_head *tmp_add_list,
+					 struct hlist_head *tmp_del_list,
+					 int vlan_filters)
+{
+	struct i40e_mac_filter *f, *add_head;
+	struct hlist_node *h;
+	int bkt, new_vlan;
+
+	/* To determine if a particular filter needs to be replaced we
+	 * have the three following conditions:
+	 *
+	 * a) if we have a PVID assigned, then all filters which are
+	 *    not marked as VLAN=PVID must be replaced with filters that
+	 *    are.
+	 * b) otherwise, if we have any active VLANS, all filters
+	 *    which are marked as VLAN=-1 must be replaced with
+	 *    filters marked as VLAN=0
+	 * c) finally, if we do not have any active VLANS, all filters
+	 *    which are marked as VLAN=0 must be replaced with filters
+	 *    marked as VLAN=-1
+	 */
+
+	/* Update the filters about to be added in place */
+	hlist_for_each_entry(f, tmp_add_list, hlist) {
+		if (vsi->info.pvid && f->vlan != vsi->info.pvid)
+			f->vlan = vsi->info.pvid;
+		else if (vlan_filters && f->vlan == I40E_VLAN_ANY)
+			f->vlan = 0;
+		else if (!vlan_filters && f->vlan == 0)
+			f->vlan = I40E_VLAN_ANY;
+	}
+
+	/* Update the remaining active filters */
+	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
+		/* Combine the checks for whether a filter needs to be changed
+		 * and then determine the new VLAN inside the if block, in
+		 * order to avoid duplicating code for adding the new filter
+		 * then deleting the old filter.
+		 */
+		if ((vsi->info.pvid && f->vlan != vsi->info.pvid) ||
+		    (vlan_filters && f->vlan == I40E_VLAN_ANY) ||
+		    (!vlan_filters && f->vlan == 0)) {
+			/* Determine the new vlan we will be adding */
+			if (vsi->info.pvid)
+				new_vlan = vsi->info.pvid;
+			else if (vlan_filters)
+				new_vlan = 0;
+			else
+				new_vlan = I40E_VLAN_ANY;
+
+			/* Create the new filter */
+			add_head = i40e_add_filter(vsi, f->macaddr, new_vlan);
+			if (!add_head)
+				return -ENOMEM;
+
+			/* Put the replacement filter into the add list */
+			hash_del(&add_head->hlist);
+			hlist_add_head(&add_head->hlist, tmp_add_list);
+
+			/* Put the original filter into the delete list */
+			f->state = I40E_FILTER_REMOVE;
+			hash_del(&f->hlist);
+			hlist_add_head(&f->hlist, tmp_del_list);
+		}
+	}
+
+	vsi->has_vlan_filter = !!vlan_filters;
+
+	return 0;
+}
+
+/**
  * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
  * @vsi: the PF Main VSI - inappropriate for any other VSI
  * @macaddr: the MAC address
@@ -1916,8 +2017,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 	struct hlist_head tmp_add_list, tmp_del_list;
 	struct i40e_mac_filter *f, *add_head = NULL;
 	struct i40e_hw *hw = &vsi->back->hw;
-	unsigned int vlan_any_filters = 0;
-	unsigned int non_vlan_filters = 0;
 	unsigned int failed_filters = 0;
 	unsigned int vlan_filters = 0;
 	bool promisc_changed = false;
@@ -1974,66 +2073,21 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 				hlist_add_head(&f->hlist, &tmp_add_list);
 			}
 
-			/* Count the number of each type of filter we have
-			 * remaining, ignoring any filters we're about to
-			 * delete.
+			/* Count the number of active (current and new) VLAN
+			 * filters we have now. Does not count filters which
+			 * are marked for deletion.
 			 */
 			if (f->vlan > 0)
 				vlan_filters++;
-			else if (!f->vlan)
-				non_vlan_filters++;
-			else
-				vlan_any_filters++;
 		}
 
-		/* We should never have VLAN=-1 filters at the same time as we
-		 * have either VLAN=0 or VLAN>0 filters, so warn about this
-		 * case here to help catch any issues.
-		 */
-		WARN_ON(vlan_any_filters && (vlan_filters + non_vlan_filters));
+		retval = i40e_correct_mac_vlan_filters(vsi,
+						       &tmp_add_list,
+						       &tmp_del_list,
+						       vlan_filters);
+		if (retval)
+			goto err_no_memory_locked;
 
-		/* If we only have VLAN=0 filters remaining, and don't have
-		 * any other VLAN filters, we need to convert these VLAN=0
-		 * filters into VLAN=-1 (I40E_VLAN_ANY) so that we operate
-		 * correctly in non-VLAN mode and receive all traffic tagged
-		 * or untagged.
-		 */
-		if (non_vlan_filters && !vlan_filters) {
-			hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f,
-					   hlist) {
-				/* Only replace VLAN=0 filters */
-				if (f->vlan)
-					continue;
-
-				/* Allocate a replacement element */
-				add_head = kzalloc(sizeof(*add_head),
-						   GFP_KERNEL);
-				if (!add_head)
-					goto err_no_memory_locked;
-
-				/* Copy the filter, with new state and VLAN */
-				*add_head = *f;
-				add_head->state = I40E_FILTER_NEW;
-				add_head->vlan = I40E_VLAN_ANY;
-
-				/* Move the replacement to the add list */
-				INIT_HLIST_NODE(&add_head->hlist);
-				hlist_add_head(&add_head->hlist,
-					       &tmp_add_list);
-
-				/* Move the original to the delete list */
-				f->state = I40E_FILTER_REMOVE;
-				hash_del(&f->hlist);
-				hlist_add_head(&f->hlist, &tmp_del_list);
-			}
-
-			/* Also update any filters on the tmp_add list */
-			hlist_for_each_entry(f, &tmp_add_list, hlist) {
-				if (!f->vlan)
-					f->vlan = I40E_VLAN_ANY;
-			}
-			add_head = NULL;
-		}
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 	}
 
@@ -2097,14 +2151,6 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		kfree(del_list);
 		del_list = NULL;
 	}
-
-	/* After finishing notifying firmware of the deleted filters, update
-	 * the cached value of vsi->has_vlan_filter. Note that we are safe to
-	 * use just !!vlan_filters here because if we only have VLAN=0 (that
-	 * is, non_vlan_filters) these will all be converted to VLAN=-1 in the
-	 * logic above already so this value would still be correct.
-	 */
-	vsi->has_vlan_filter = !!vlan_filters;
 
 	if (!hlist_empty(&tmp_add_list)) {
 		/* Do all the adds now. */
@@ -2533,48 +2579,14 @@ int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
  **/
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 {
-	struct i40e_mac_filter *f, *add_f, *del_f;
-	struct hlist_node *h;
-	int bkt, err;
+	int err;
 
 	/* Locked once because all functions invoked below iterates list*/
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
-
 	err = i40e_add_vlan_all_mac(vsi, vid);
-	if (err) {
-		spin_unlock_bh(&vsi->mac_filter_hash_lock);
-		return err;
-	}
-
-	/* When we add a new VLAN filter, we need to make sure that all existing
-	 * filters which are marked as vid=-1 (I40E_VLAN_ANY) are converted to
-	 * vid=0. The simplest way is just search for all filters marked as
-	 * vid=-1 and replace them with vid=0. This converts all filters that
-	 * were marked to receive all traffic (tagged or untagged) into
-	 * filters to receive only untagged traffic, so that we don't receive
-	 * tagged traffic for VLANs which we have not configured.
-	 */
-	if (vid > 0 && !vsi->info.pvid) {
-		hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
-			if (f->state == I40E_FILTER_REMOVE)
-				continue;
-			del_f = i40e_find_filter(vsi, f->macaddr,
-						 I40E_VLAN_ANY);
-			if (!del_f)
-				continue;
-			add_f = i40e_add_filter(vsi, f->macaddr, 0);
-			if (!add_f) {
-				dev_info(&vsi->back->pdev->dev,
-					 "Could not add filter 0 for %pM\n",
-					f->macaddr);
-				spin_unlock_bh(&vsi->mac_filter_hash_lock);
-				return -ENOMEM;
-			}
-			__i40e_del_filter(vsi, del_f);
-		}
-	}
-
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
+	if (err)
+		return err;
 
 	/* schedule our worker thread which will take care of
 	 * applying the new filter changes
