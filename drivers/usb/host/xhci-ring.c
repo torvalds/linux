@@ -1896,9 +1896,6 @@ td_cleanup:
 			urb->transfer_buffer_length,
 			urb->actual_length);
 		urb->actual_length = 0;
-		if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-			*status = -EREMOTEIO;
-		else
 			*status = 0;
 	}
 	list_del_init(&td->td_list);
@@ -1958,9 +1955,6 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 		break;
 	case COMP_SHORT_TX:
-		if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-			*status = -EREMOTEIO;
-		else
 			*status = 0;
 		break;
 	case COMP_STOP_SHORT:
@@ -2007,16 +2001,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	if (event_trb != ep_ring->dequeue) {
 		/* The event was for the status stage */
 		if (event_trb == td->last_trb) {
-			if (td->urb_length_set) {
-				/* Don't overwrite a previously set error code
-				 */
-				if ((*status == -EINPROGRESS || *status == 0) &&
-						(td->urb->transfer_flags
-						 & URB_SHORT_NOT_OK))
-					/* Did we already see a short data
-					 * stage? */
-					*status = -EREMOTEIO;
-			} else {
+			if (!td->urb_length_set) {
 				td->urb->actual_length =
 					td->urb->transfer_buffer_length;
 			}
@@ -2180,24 +2165,15 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		/* Double check that the HW transferred everything. */
 		if (event_trb != td->last_trb ||
 		    EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) != 0) {
-			xhci_warn(xhci, "WARN Successful completion "
-					"on short TX\n");
-			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-				*status = -EREMOTEIO;
-			else
-				*status = 0;
+			xhci_warn(xhci, "WARN Successful completion on short TX\n");
 			if ((xhci->quirks & XHCI_TRUST_TX_LENGTH))
 				trb_comp_code = COMP_SHORT_TX;
-		} else {
-			*status = 0;
 		}
+		*status = 0;
 		break;
 	case COMP_STOP_SHORT:
 	case COMP_SHORT_TX:
-		if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-			*status = -EREMOTEIO;
-		else
-			*status = 0;
+		*status = 0;
 		break;
 	default:
 		/* Others already handled above */
@@ -2229,29 +2205,13 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
 			if (td->urb->transfer_buffer_length <
 					td->urb->actual_length) {
-				xhci_warn(xhci, "HC gave bad length "
-						"of %d bytes left\n",
+				xhci_warn(xhci, "HC gave bad length of %d bytes left\n",
 					  EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)));
 				td->urb->actual_length = 0;
-				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-					*status = -EREMOTEIO;
-				else
-					*status = 0;
+				*status = 0;
 			}
 			/* Don't overwrite a previously set error code */
-			if (*status == -EINPROGRESS) {
-				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-					*status = -EREMOTEIO;
-				else
-					*status = 0;
-			}
-		} else {
-			td->urb->actual_length =
-				td->urb->transfer_buffer_length;
-			/* Ignore a short packet completion if the
-			 * untransferred length was zero.
-			 */
-			if (*status == -EREMOTEIO)
+			if (*status == -EINPROGRESS)
 				*status = 0;
 		}
 	} else {
