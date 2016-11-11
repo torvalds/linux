@@ -431,16 +431,13 @@ static ssize_t set_dump_buffer(struct device *dev,
 		return PTR_ERR(dentry);
 	}
 
+	mutex_lock(&dev_drv->front_lock);
 	if (!num_frames) {
-		mutex_lock(&dev_drv->front_lock);
-
 		if (!dev_drv->front_regs) {
 			u16 xact, yact;
 			int data_format;
 			u32 dsp_addr;
 			int ymirror;
-
-			mutex_unlock(&dev_drv->front_lock);
 
 			if (dev_drv->ops->get_dspbuf_info)
 				dev_drv->ops->get_dspbuf_info(dev_drv, &xact,
@@ -452,8 +449,10 @@ static ssize_t set_dump_buffer(struct device *dev,
 			goto out;
 		}
 		front_regs = kmalloc(sizeof(*front_regs), GFP_KERNEL);
-		if (!front_regs)
+		if (!front_regs) {
+			mutex_unlock(&dev_drv->front_lock);
 			return -ENOMEM;
+		}
 		memcpy(front_regs, dev_drv->front_regs, sizeof(*front_regs));
 
 		for (i = 0; i < front_regs->win_num; i++) {
@@ -491,8 +490,6 @@ static ssize_t set_dump_buffer(struct device *dev,
 		}
 
 		kfree(front_regs);
-
-		mutex_unlock(&dev_drv->front_lock);
 	} else {
 		trace->num_frames = num_frames;
 		trace->count_frame = 0;
@@ -502,7 +499,7 @@ static ssize_t set_dump_buffer(struct device *dev,
 		trace->mask_area = mask_area;
 	}
 out:
-
+	mutex_unlock(&dev_drv->front_lock);
 	return count;
 }
 
