@@ -555,6 +555,7 @@ static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 		ep->stop_cmds_pending--;
 }
 
+
 /* Must be called with xhci->lock held in interrupt context */
 static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 		struct xhci_td *cur_td, int status)
@@ -584,6 +585,35 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 		xhci_urb_free_priv(urb_priv);
 		spin_lock(&xhci->lock);
 	}
+}
+
+/*
+ * giveback urb, must be called with xhci->lock held.
+ * releases and re-aquires xhci->lock
+ */
+static void xhci_giveback_urb_locked(struct xhci_hcd *xhci, struct xhci_td *td,
+				     int status)
+{
+	struct urb *urb	= td->urb;
+	struct urb_priv	*urb_priv = urb->hcpriv;
+
+	xhci_urb_free_priv(urb_priv);
+
+	usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);
+	if ((urb->actual_length != urb->transfer_buffer_length &&
+	     (urb->transfer_flags & URB_SHORT_NOT_OK)) ||
+	    (status != 0 && !usb_endpoint_xfer_isoc(&urb->ep->desc)))
+		xhci_dbg(xhci, "Giveback URB %p, len = %d, expected = %d, status = %d\n",
+			 urb, urb->actual_length,
+			 urb->transfer_buffer_length, status);
+	spin_unlock(&xhci->lock);
+	/* EHCI, UHCI, and OHCI always unconditionally set the
+	 * urb->status of an isochronous endpoint to 0.
+	 */
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+		status = 0;
+	usb_hcd_giveback_urb(bus_to_hcd(urb->dev->bus), urb, status);
+	spin_lock(&xhci->lock);
 }
 
 static void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci,
@@ -2200,9 +2230,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	dma_addr_t ep_trb_dma;
 	struct xhci_segment *ep_seg;
 	union xhci_trb *ep_trb;
-	struct urb *urb = NULL;
 	int status = -EINPROGRESS;
-	struct urb_priv *urb_priv;
 	struct xhci_ep_ctx *ep_ctx;
 	struct list_head *tmp;
 	u32 trb_comp_code;
@@ -2497,33 +2525,8 @@ cleanup:
 		if (!handling_skipped_tds)
 			inc_deq(xhci, xhci->event_ring);
 
-		if (ret) {
-			urb = td->urb;
-			urb_priv = urb->hcpriv;
-
-			xhci_urb_free_priv(urb_priv);
-
-			usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);
-			if ((urb->actual_length != urb->transfer_buffer_length &&
-						(urb->transfer_flags &
-						 URB_SHORT_NOT_OK)) ||
-					(status != 0 &&
-					 !usb_endpoint_xfer_isoc(&urb->ep->desc)))
-				xhci_dbg(xhci, "Giveback URB %p, len = %d, "
-						"expected = %d, status = %d\n",
-						urb, urb->actual_length,
-						urb->transfer_buffer_length,
-						status);
-			spin_unlock(&xhci->lock);
-			/* EHCI, UHCI, and OHCI always unconditionally set the
-			 * urb->status of an isochronous endpoint to 0.
-			 */
-			if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
-				status = 0;
-			usb_hcd_giveback_urb(bus_to_hcd(urb->dev->bus), urb, status);
-			spin_lock(&xhci->lock);
-		}
-
+		if (ret)
+			xhci_giveback_urb_locked(xhci, td, status);
 	/*
 	 * If ep->skip is set, it means there are missed tds on the
 	 * endpoint ring need to take care of.
