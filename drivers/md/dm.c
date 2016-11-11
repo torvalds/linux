@@ -2260,8 +2260,6 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	if (md->bs)
 		bioset_free(md->bs);
 
-	cleanup_srcu_struct(&md->io_barrier);
-
 	if (md->disk) {
 		spin_lock(&_minor_lock);
 		md->disk->private_data = NULL;
@@ -2272,6 +2270,8 @@ static void cleanup_mapped_device(struct mapped_device *md)
 
 	if (md->queue)
 		blk_cleanup_queue(md->queue);
+
+	cleanup_srcu_struct(&md->io_barrier);
 
 	if (md->bdev) {
 		bdput(md->bdev);

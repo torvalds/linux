@@ -956,7 +956,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
 		if (status & RIRB_INT_RESPONSE) {
-			if (chip->driver_caps & AZX_DCAPS_RIRB_PRE_DELAY)
+			if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
 				udelay(80);
 			snd_hdac_bus_update_rirb(bus);
 		}
@@ -1054,11 +1054,6 @@ int azx_bus_init(struct azx *chip, const char *model,
 		bus->core.bdl_pos_adj = chip->bdl_pos_adj[chip->dev_index];
 	if (chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)
 		bus->core.corbrp_self_clear = true;
-
-	if (chip->driver_caps & AZX_DCAPS_RIRB_DELAY) {
-		dev_dbg(chip->card->dev, "Enable delay in RIRB handling\n");
-		bus->needs_damn_long_delay = 1;
-	}
 
 	if (chip->driver_caps & AZX_DCAPS_4K_BDLE_BOUNDARY)
 		bus->core.align_bdle_4k = true;

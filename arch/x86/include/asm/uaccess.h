@@ -339,7 +339,7 @@ do {									\
 #define __get_user_asm_u64(x, ptr, retval, errret) \
 	 __get_user_asm(x, ptr, retval, "q", "", "=r", errret)
 #define __get_user_asm_ex_u64(x, ptr) \
-	 __get_user_asm_ex(x, ptr, "q", "", "=r")
+	 __get_user_asm_ex(x, ptr, "q", "", "=&r")
 #endif
 
 #define __get_user_size(x, ptr, size, retval, errret)			\
@@ -386,13 +386,13 @@ do {									\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__get_user_asm_ex(x, ptr, "b", "b", "=q");		\
+		__get_user_asm_ex(x, ptr, "b", "b", "=&q");		\
 		break;							\
 	case 2:								\
-		__get_user_asm_ex(x, ptr, "w", "w", "=r");		\
+		__get_user_asm_ex(x, ptr, "w", "w", "=&r");		\
 		break;							\
 	case 4:								\
-		__get_user_asm_ex(x, ptr, "l", "k", "=r");		\
+		__get_user_asm_ex(x, ptr, "l", "k", "=&r");		\
 		break;							\
 	case 8:								\
 		__get_user_asm_ex_u64(x, ptr);				\
@@ -406,7 +406,7 @@ do {									\
 	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
 		     "2:\n"						\
 		     _ASM_EXTABLE_EX(1b, 2b)				\
-		     : ltype(x) : "m" (__m(addr)))
+		     : ltype(x) : "m" (__m(addr)), "0" (0))
 
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\

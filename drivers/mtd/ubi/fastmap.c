@@ -513,10 +513,11 @@ static int scan_pool(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			unsigned long long ec = be64_to_cpu(ech->ec);
 			unmap_peb(ai, pnum);
 			dbg_bld("Adding PEB to free: %i", pnum);
+
 			if (err == UBI_IO_FF_BITFLIPS)
-				add_aeb(ai, free, pnum, ec, 1);
-			else
-				add_aeb(ai, free, pnum, ec, 0);
+				scrub = 1;
+
+			add_aeb(ai, free, pnum, ec, scrub);
 			continue;
 		} else if (err == 0 || err == UBI_IO_BITFLIPS) {
 			dbg_bld("Found non empty PEB:%i in pool", pnum);
@@ -748,11 +749,11 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 			     fmvhdr->vol_type,
 			     be32_to_cpu(fmvhdr->last_eb_bytes));
 
-		if (!av)
-			goto fail_bad;
-		if (PTR_ERR(av) == -EINVAL) {
-			ubi_err(ubi, "volume (ID %i) already exists",
-				fmvhdr->vol_id);
+		if (IS_ERR(av)) {
+			if (PTR_ERR(av) == -EEXIST)
+				ubi_err(ubi, "volume (ID %i) already exists",
+					fmvhdr->vol_id);
+
 			goto fail_bad;
 		}
 

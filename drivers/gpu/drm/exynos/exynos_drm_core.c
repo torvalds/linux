@@ -101,7 +101,7 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 
 err:
-	list_for_each_entry_reverse(subdrv, &subdrv->list, list) {
+	list_for_each_entry_continue_reverse(subdrv, &exynos_drm_subdrv_list, list) {
 		if (subdrv->close)
 			subdrv->close(dev, subdrv->dev, file);
 	}

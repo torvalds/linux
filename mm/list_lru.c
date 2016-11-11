@@ -554,6 +554,8 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
 	err = memcg_init_list_lru(lru, memcg_aware);
 	if (err) {
 		kfree(lru->node);
+		/* Do this so a list_lru_destroy() doesn't crash: */
+		lru->node = NULL;
 		goto out;
 	}
 
