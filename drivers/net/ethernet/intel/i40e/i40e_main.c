@@ -2535,7 +2535,6 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 						 I40E_VLAN_ANY);
 			if (!del_f)
 				continue;
-			__i40e_del_filter(vsi, del_f);
 			add_f = i40e_add_filter(vsi, f->macaddr, 0);
 			if (!add_f) {
 				dev_info(&vsi->back->pdev->dev,
@@ -2544,6 +2543,7 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 				spin_unlock_bh(&vsi->mac_filter_hash_lock);
 				return -ENOMEM;
 			}
+			__i40e_del_filter(vsi, del_f);
 		}
 	}
 
