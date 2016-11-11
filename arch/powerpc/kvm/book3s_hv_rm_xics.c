@@ -35,7 +35,7 @@ int kvm_irq_bypass = 1;
 EXPORT_SYMBOL(kvm_irq_bypass);
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
-			    u32 new_irq);
+			    u32 new_irq, bool check_resend);
 static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu);
 
 /* -- ICS routines -- */
@@ -44,22 +44,12 @@ static void ics_rm_check_resend(struct kvmppc_xics *xics,
 {
 	int i;
 
-	arch_spin_lock(&ics->lock);
-
 	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
 		struct ics_irq_state *state = &ics->irq_state[i];
-
-		if (!state->resend)
-			continue;
-
-		state->resend = 0;
-
-		arch_spin_unlock(&ics->lock);
-		icp_rm_deliver_irq(xics, icp, state->number);
-		arch_spin_lock(&ics->lock);
+		if (state->resend)
+			icp_rm_deliver_irq(xics, icp, state->number, true);
 	}
 
-	arch_spin_unlock(&ics->lock);
 }
 
 /* -- ICP routines -- */
@@ -292,7 +282,7 @@ static bool icp_rm_try_to_deliver(struct kvmppc_icp *icp, u32 irq, u8 priority,
 }
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
-			    u32 new_irq)
+			    u32 new_irq, bool check_resend)
 {
 	struct ics_irq_state *state;
 	struct kvmppc_ics *ics;
@@ -336,6 +326,10 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			goto out;
 		}
 	}
+
+	if (check_resend)
+		if (!state->resend)
+			goto out;
 
 	/* Clear the resend bit of that interrupt */
 	state->resend = 0;
@@ -384,6 +378,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			arch_spin_unlock(&ics->lock);
 			icp->n_reject++;
 			new_irq = reject;
+			check_resend = 0;
 			goto again;
 		}
 	} else {
@@ -391,8 +386,14 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 * We failed to deliver the interrupt we need to set the
 		 * resend map bit and mark the ICS state as needing a resend
 		 */
-		set_bit(ics->icsid, icp->resend_map);
 		state->resend = 1;
+
+		/*
+		 * Make sure when checking resend, we don't miss the resend
+		 * if resend_map bit is seen and cleared.
+		 */
+		smp_wmb();
+		set_bit(ics->icsid, icp->resend_map);
 
 		/*
 		 * If the need_resend flag got cleared in the ICP some time
@@ -404,6 +405,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		if (!icp->state.need_resend) {
 			state->resend = 0;
 			arch_spin_unlock(&ics->lock);
+			check_resend = 0;
 			goto again;
 		}
 	}
@@ -598,7 +600,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	/* Handle reject in real mode */
 	if (reject && reject != XICS_IPI) {
 		this_icp->n_reject++;
-		icp_rm_deliver_irq(xics, icp, reject);
+		icp_rm_deliver_irq(xics, icp, reject, false);
 	}
 
 	/* Handle resends in real mode */
@@ -666,7 +668,7 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	 */
 	if (reject && reject != XICS_IPI) {
 		icp->n_reject++;
-		icp_rm_deliver_irq(xics, icp, reject);
+		icp_rm_deliver_irq(xics, icp, reject, false);
 	}
  bail:
 	return check_too_hard(xics, icp);
@@ -704,7 +706,7 @@ static int ics_rm_eoi(struct kvm_vcpu *vcpu, u32 irq)
 		} while (cmpxchg(&state->pq_state, pq_old, pq_new) != pq_old);
 
 	if (pq_new & PQ_PRESENTED)
-		icp_rm_deliver_irq(xics, NULL, irq);
+		icp_rm_deliver_irq(xics, NULL, irq, false);
 
 	if (!hlist_empty(&vcpu->kvm->irq_ack_notifier_list)) {
 		icp->rm_action |= XICS_RM_NOTIFY_EOI;
@@ -874,7 +876,7 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 
 	/* Test P=1, Q=0, this is the only case where we present */
 	if (pq_new == PQ_PRESENTED)
-		icp_rm_deliver_irq(xics, icp, irq);
+		icp_rm_deliver_irq(xics, icp, irq, false);
 
 	/* EOI the interrupt */
 	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr,
