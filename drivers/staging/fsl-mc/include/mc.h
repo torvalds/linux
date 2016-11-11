@@ -81,7 +81,7 @@ enum fsl_mc_pool_type {
  */
 struct fsl_mc_resource {
 	enum fsl_mc_pool_type type;
-	int32_t id;
+	s32 id;
 	void *data;
 	struct fsl_mc_resource_pool *parent_pool;
 	struct list_head node;
