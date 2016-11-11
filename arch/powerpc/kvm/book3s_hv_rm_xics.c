@@ -52,6 +52,8 @@ static void ics_rm_check_resend(struct kvmppc_xics *xics,
 		if (!state->resend)
 			continue;
 
+		state->resend = 0;
+
 		arch_spin_unlock(&ics->lock);
 		icp_rm_deliver_irq(xics, icp, state->number);
 		arch_spin_lock(&ics->lock);
@@ -400,6 +402,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 */
 		smp_mb();
 		if (!icp->state.need_resend) {
+			state->resend = 0;
 			arch_spin_unlock(&ics->lock);
 			goto again;
 		}

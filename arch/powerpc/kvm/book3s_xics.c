@@ -125,6 +125,8 @@ static void ics_check_resend(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 		if (!state->resend)
 			continue;
 
+		state->resend = 0;
+
 		XICS_DBG("resend %#x prio %#x\n", state->number,
 			      state->priority);
 
@@ -155,6 +157,7 @@ static bool write_xive(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 	deliver = false;
 	if ((state->masked_pending || state->resend) && priority != MASKED) {
 		state->masked_pending = 0;
+		state->resend = 0;
 		deliver = true;
 	}
 
@@ -488,6 +491,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 */
 		smp_mb();
 		if (!icp->state.need_resend) {
+			state->resend = 0;
 			arch_spin_unlock(&ics->lock);
 			local_irq_restore(flags);
 			goto again;
