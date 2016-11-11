@@ -780,6 +780,10 @@ static int __hw_perf_event_init(struct perf_event *event)
 	hwc->extra_reg.reg = REG_OVERFLOW;
 	OVERFLOW_REG(hwc) = 0;
 
+	/* Use AUX buffer. No need to allocate it by ourself */
+	if (attr->config == PERF_EVENT_CPUM_SF_DIAG)
+		return 0;
+
 	/* Allocate the per-CPU sampling buffer using the CPU information
 	 * from the event.  If the event is not pinned to a particular
 	 * CPU (event->cpu == -1; or cpuhw == NULL), allocate sampling
@@ -876,10 +880,15 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	 */
 	if (cpuhw->event) {
 		hwc = &cpuhw->event->hw;
-		/* Account number of overflow-designated buffer extents */
-		sfb_account_overflows(cpuhw, hwc);
-		if (sfb_has_pending_allocs(&cpuhw->sfb, hwc))
-			extend_sampling_buffer(&cpuhw->sfb, hwc);
+		if (!(SAMPL_DIAG_MODE(hwc))) {
+			/*
+			 * Account number of overflow-designated
+			 * buffer extents
+			 */
+			sfb_account_overflows(cpuhw, hwc);
+			if (sfb_has_pending_allocs(&cpuhw->sfb, hwc))
+				extend_sampling_buffer(&cpuhw->sfb, hwc);
+		}
 	}
 
 	/* (Re)enable the PMU and sampling facility */
@@ -1224,6 +1233,13 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	unsigned long *sdbt;
 	unsigned long long event_overflow, sampl_overflow, num_sdb, te_flags;
 	int done;
+
+	/*
+	 * AUX buffer is used when in diagnostic sampling mode.
+	 * No perf events/samples are created.
+	 */
+	if (SAMPL_DIAG_MODE(&event->hw))
+		return;
 
 	if (flush_all && SDB_FULL_BLOCKS(hwc))
 		flush_all = 0;
@@ -1785,12 +1801,13 @@ static void cpumsf_pmu_stop(struct perf_event *event, int flags)
 static int cpumsf_pmu_add(struct perf_event *event, int flags)
 {
 	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
+	struct aux_buffer *aux;
 	int err;
 
 	if (cpuhw->flags & PMU_F_IN_USE)
 		return -EAGAIN;
 
-	if (!cpuhw->sfb.sdbt)
+	if (!SAMPL_DIAG_MODE(&event->hw) && !cpuhw->sfb.sdbt)
 		return -EINVAL;
 
 	err = 0;
@@ -1805,10 +1822,12 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	 */
 	cpuhw->lsctl.s = 0;
 	cpuhw->lsctl.h = 1;
-	cpuhw->lsctl.tear = (unsigned long) cpuhw->sfb.sdbt;
-	cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
 	cpuhw->lsctl.interval = SAMPL_RATE(&event->hw);
-	hw_reset_registers(&event->hw, cpuhw->sfb.sdbt);
+	if (!SAMPL_DIAG_MODE(&event->hw)) {
+		cpuhw->lsctl.tear = (unsigned long) cpuhw->sfb.sdbt;
+		cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
+		hw_reset_registers(&event->hw, cpuhw->sfb.sdbt);
+	}
 
 	/* Ensure sampling functions are in the disabled state.  If disabled,
 	 * switch on sampling enable control. */
@@ -1816,9 +1835,18 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 		err = -EAGAIN;
 		goto out;
 	}
-	cpuhw->lsctl.es = 1;
-	if (SAMPL_DIAG_MODE(&event->hw))
+	if (SAMPL_DIAG_MODE(&event->hw)) {
+		aux = perf_aux_output_begin(&cpuhw->handle, event);
+		if (!aux) {
+			err = -EINVAL;
+			goto out;
+		}
+		err = aux_output_begin(&cpuhw->handle, aux, cpuhw);
+		if (err)
+			goto out;
 		cpuhw->lsctl.ed = 1;
+	}
+	cpuhw->lsctl.es = 1;
 
 	/* Set in_use flag and store event */
 	cpuhw->event = event;
@@ -1844,6 +1872,8 @@ static void cpumsf_pmu_del(struct perf_event *event, int flags)
 	cpuhw->flags &= ~PMU_F_IN_USE;
 	cpuhw->event = NULL;
 
+	if (SAMPL_DIAG_MODE(&event->hw))
+		aux_output_end(&cpuhw->handle);
 	perf_event_update_userpage(event);
 	perf_pmu_enable(event->pmu);
 }
@@ -1917,7 +1947,10 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 	/* Program alert request */
 	if (alert & CPU_MF_INT_SF_PRA) {
 		if (cpuhw->flags & PMU_F_IN_USE)
-			hw_perf_event_update(cpuhw->event, 0);
+			if (SAMPL_DIAG_MODE(&cpuhw->event->hw))
+				hw_collect_aux(cpuhw);
+			else
+				hw_perf_event_update(cpuhw->event, 0);
 		else
 			WARN_ON_ONCE(!(cpuhw->flags & PMU_F_IN_USE));
 	}
