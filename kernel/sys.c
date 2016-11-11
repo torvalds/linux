@@ -1416,7 +1416,8 @@ int do_prlimit(struct task_struct *tsk, unsigned int resource,
 	 * applications, so we live with it
 	 */
 	 if (!retval && new_rlim && resource == RLIMIT_CPU &&
-			 new_rlim->rlim_cur != RLIM_INFINITY)
+	     new_rlim->rlim_cur != RLIM_INFINITY &&
+	     IS_ENABLED(CONFIG_POSIX_TIMERS))
 		update_rlimit_cpu(tsk, new_rlim->rlim_cur);
 out:
 	read_unlock(&tasklist_lock);

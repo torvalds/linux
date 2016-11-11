@@ -6,7 +6,7 @@ menu "PTP clock support"
 
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
-	depends on NET
+	depends on NET && POSIX_TIMERS
 	select PPS
 	select NET_PTP_CLASSIFY
 	help

@@ -846,8 +846,10 @@ static int __init alarmtimer_init(void)
 
 	alarmtimer_rtc_timer_init();
 
-	posix_timers_register_clock(CLOCK_REALTIME_ALARM, &alarm_clock);
-	posix_timers_register_clock(CLOCK_BOOTTIME_ALARM, &alarm_clock);
+	if (IS_ENABLED(CONFIG_POSIX_TIMERS)) {
+		posix_timers_register_clock(CLOCK_REALTIME_ALARM, &alarm_clock);
+		posix_timers_register_clock(CLOCK_BOOTTIME_ALARM, &alarm_clock);
+	}
 
 	/* Initialize alarm bases */
 	alarm_bases[ALARM_REALTIME].base_clockid = CLOCK_REALTIME;

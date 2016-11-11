@@ -542,6 +542,7 @@ config HANGCHECK_TIMER
 config MMTIMER
 	tristate "MMTIMER Memory mapped RTC for SGI Altix"
 	depends on IA64_GENERIC || IA64_SGI_SN2
+	depends on POSIX_TIMERS
 	default y
 	help
 	  The mmtimer device allows direct userspace access to the

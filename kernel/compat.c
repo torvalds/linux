@@ -307,11 +307,16 @@ static inline long put_compat_itimerval(struct compat_itimerval __user *o,
 		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
 }
 
+asmlinkage long sys_ni_posix_timers(void);
+
 COMPAT_SYSCALL_DEFINE2(getitimer, int, which,
 		struct compat_itimerval __user *, it)
 {
 	struct itimerval kit;
 	int error;
+
+	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
+		return sys_ni_posix_timers();
 
 	error = do_getitimer(which, &kit);
 	if (!error && put_compat_itimerval(it, &kit))
@@ -325,6 +330,9 @@ COMPAT_SYSCALL_DEFINE3(setitimer, int, which,
 {
 	struct itimerval kin, kout;
 	int error;
+
+	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
+		return sys_ni_posix_timers();
 
 	if (in) {
 		if (get_compat_itimerval(&kin, in))
