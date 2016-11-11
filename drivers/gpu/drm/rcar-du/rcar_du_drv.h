@@ -65,6 +65,7 @@ struct rcar_du_device_info {
 	unsigned int num_crtcs;
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
+	unsigned int dpll_ch;
 };
 
 #define RCAR_DU_MAX_CRTCS		4
