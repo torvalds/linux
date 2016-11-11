@@ -1,3 +1,7 @@
+==================================
+ASoC Digital Audio Interface (DAI)
+==================================
+
 ASoC currently supports the three main Digital Audio Interfaces (DAI) found on
 SoC controllers and portable audio CODECs today, namely AC97, I2S and PCM.
 
@@ -5,21 +9,21 @@ SoC controllers and portable audio CODECs today, namely AC97, I2S and PCM.
 AC97
 ====
 
-  AC97 is a five wire interface commonly found on many PC sound cards. It is
+AC97 is a five wire interface commonly found on many PC sound cards. It is
 now also popular in many portable devices. This DAI has a reset line and time
 multiplexes its data on its SDATA_OUT (playback) and SDATA_IN (capture) lines.
 The bit clock (BCLK) is always driven by the CODEC (usually 12.288MHz) and the
 frame (FRAME) (usually 48kHz) is always driven by the controller. Each AC97
 frame is 21uS long and is divided into 13 time slots.
 
-The AC97 specification can be found at :-
+The AC97 specification can be found at :
 http://www.intel.com/p/en_US/business/design
 
 
 I2S
 ===
 
- I2S is a common 4 wire DAI used in HiFi, STB and portable devices. The Tx and
+I2S is a common 4 wire DAI used in HiFi, STB and portable devices. The Tx and
 Rx lines are used for audio transmission, whilst the bit clock (BCLK) and
 left/right clock (LRC) synchronise the link. I2S is flexible in that either the
 controller or CODEC can drive (master) the BCLK and LRC clock lines. Bit clock
@@ -30,13 +34,15 @@ different sample rates.
 
 I2S has several different operating modes:-
 
- o I2S - MSB is transmitted on the falling edge of the first BCLK after LRC
-         transition.
+I2S
+  MSB is transmitted on the falling edge of the first BCLK after LRC
+  transition.
 
- o Left Justified - MSB is transmitted on transition of LRC.
+Left Justified
+  MSB is transmitted on transition of LRC.
 
- o Right Justified - MSB is transmitted sample size BCLKs before LRC
-                     transition.
+Right Justified
+  MSB is transmitted sample size BCLKs before LRC transition.
 
 PCM
 ===
@@ -51,6 +57,8 @@ is sometimes referred to as network mode).
 
 Common PCM operating modes:-
 
- o Mode A - MSB is transmitted on falling edge of first BCLK after FRAME/SYNC.
+Mode A
+  MSB is transmitted on falling edge of first BCLK after FRAME/SYNC.
 
- o Mode B - MSB is transmitted on rising edge of FRAME/SYNC.
+Mode B
+  MSB is transmitted on rising edge of FRAME/SYNC.

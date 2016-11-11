@@ -1,5 +1,6 @@
-ALSA SoC Layer
-==============
+=======================
+ALSA SoC Layer Overview
+=======================
 
 The overall project goal of the ALSA System on Chip (ASoC) layer is to
 provide better ALSA support for embedded system-on-chip processors (e.g.
@@ -66,30 +67,3 @@ multiple re-usable component drivers :-
     describes and binds the other component drivers together to form an ALSA
     "sound card device". It handles any machine specific controls and
     machine level audio events (e.g. turning on an amp at start of playback).
-
-
-Documentation
-=============
-
-The documentation is spilt into the following sections:-
-
-overview.txt: This file.
-
-codec.txt: Codec driver internals.
-
-DAI.txt: Description of Digital Audio Interface standards and how to configure
-a DAI within your codec and CPU DAI drivers.
-
-dapm.txt: Dynamic Audio Power Management
-
-platform.txt: Platform audio DMA and DAI.
-
-machine.txt: Machine driver internals.
-
-pop_clicks.txt: How to minimise audio artifacts.
-
-clocking.txt: ASoC clocking for best power performance.
-
-jack.txt: ASoC jack detection.
-
-DPCM.txt: Dynamic PCM - Describes DPCM with DSP examples.
