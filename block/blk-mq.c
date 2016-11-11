@@ -1291,11 +1291,11 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	return rq;
 }
 
-static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
-				      struct request *rq, blk_qc_t *cookie)
+static void blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie)
 {
 	int ret;
 	struct request_queue *q = rq->q;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, rq->mq_ctx->cpu);
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
 		.list = NULL,
@@ -1414,11 +1414,11 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		if (!(data.hctx->flags & BLK_MQ_F_BLOCKING)) {
 			rcu_read_lock();
-			blk_mq_try_issue_directly(data.hctx, old_rq, &cookie);
+			blk_mq_try_issue_directly(old_rq, &cookie);
 			rcu_read_unlock();
 		} else {
 			srcu_idx = srcu_read_lock(&data.hctx->queue_rq_srcu);
-			blk_mq_try_issue_directly(data.hctx, old_rq, &cookie);
+			blk_mq_try_issue_directly(old_rq, &cookie);
 			srcu_read_unlock(&data.hctx->queue_rq_srcu, srcu_idx);
 		}
 		goto done;
