@@ -17,3 +17,4 @@ The documentation is spilt into the following sections:-
    clocking
    jack
    dpcm
+   codec-to-codec

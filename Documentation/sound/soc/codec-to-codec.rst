@@ -1,37 +1,41 @@
+==============================================
 Creating codec to codec dai link for ALSA dapm
-===================================================
+==============================================
 
 Mostly the flow of audio is always from CPU to codec so your system
 will look as below:
+::
 
- ---------          ---------
-|         |  dai   |         |
-    CPU    ------->    codec
-|         |        |         |
- ---------          ---------
+   ---------          ---------
+  |         |  dai   |         |
+      CPU    ------->    codec
+  |         |        |         |
+   ---------          ---------
 
 In case your system looks as below:
-                     ---------
-                    |         |
-                      codec-2
-                    |         |
-                     ---------
-                         |
-                       dai-2
-                         |
- ----------          ---------
-|          |  dai-1 |         |
-    CPU     ------->  codec-1
-|          |        |         |
- ----------          ---------
-                         |
-                       dai-3
-                         |
-                     ---------
-                    |         |
-                      codec-3
-                    |         |
-                     ---------
+::
+
+                       ---------
+                      |         |
+                        codec-2
+                      |         |
+                      ---------
+                           |
+                         dai-2
+                           |
+   ----------          ---------
+  |          |  dai-1 |         |
+      CPU     ------->  codec-1
+  |          |        |         |
+   ----------          ---------
+                           |
+                         dai-3
+                           |
+                       ---------
+                      |         |
+                        codec-3
+                      |         |
+                       ---------
 
 Suppose codec-2 is a bluetooth chip and codec-3 is connected to
 a speaker and you have a below scenario:
@@ -42,20 +46,21 @@ connection should be used.
 
 Your dai_link should appear as below in your machine
 file:
+::
 
-/*
- * this pcm stream only supports 24 bit, 2 channel and
- * 48k sampling rate.
- */
-static const struct snd_soc_pcm_stream dsp_codec_params = {
+ /*
+  * this pcm stream only supports 24 bit, 2 channel and
+  * 48k sampling rate.
+  */
+ static const struct snd_soc_pcm_stream dsp_codec_params = {
         .formats = SNDRV_PCM_FMTBIT_S24_LE,
         .rate_min = 48000,
         .rate_max = 48000,
         .channels_min = 2,
         .channels_max = 2,
-};
+ };
 
-{
+ {
     .name = "CPU-DSP",
     .stream_name = "CPU-DSP",
     .cpu_dai_name = "samsung-i2s.0",
@@ -66,8 +71,8 @@ static const struct snd_soc_pcm_stream dsp_codec_params = {
             | SND_SOC_DAIFMT_CBM_CFM,
     .ignore_suspend = 1,
     .params = &dsp_codec_params,
-},
-{
+ },
+ {
     .name = "DSP-CODEC",
     .stream_name = "DSP-CODEC",
     .cpu_dai_name = "wm0010-sdi2",
@@ -77,7 +82,7 @@ static const struct snd_soc_pcm_stream dsp_codec_params = {
             | SND_SOC_DAIFMT_CBM_CFM,
     .ignore_suspend = 1,
     .params = &dsp_codec_params,
-},
+ },
 
 Above code snippet is motivated from sound/soc/samsung/speyside.c.
 
