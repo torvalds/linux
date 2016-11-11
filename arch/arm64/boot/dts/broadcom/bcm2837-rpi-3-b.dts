@@ -16,13 +16,6 @@
 		act {
 			gpios = <&gpio 47 0>;
 		};
-
-		pwr {
-			label = "PWR";
-			gpios = <&gpio 35 0>;
-			default-state = "keep";
-			linux,default-trigger = "default-on";
-		};
 	};
 };
 
