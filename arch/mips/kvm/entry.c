@@ -91,6 +91,21 @@ static void *kvm_mips_build_ret_from_exit(void *addr);
 static void *kvm_mips_build_ret_to_guest(void *addr);
 static void *kvm_mips_build_ret_to_host(void *addr);
 
+/*
+ * The version of this function in tlbex.c uses current_cpu_type(), but for KVM
+ * we assume symmetry.
+ */
+static int c0_kscratch(void)
+{
+	switch (boot_cpu_type()) {
+	case CPU_XLP:
+	case CPU_XLR:
+		return 22;
+	default:
+		return 31;
+	}
+}
+
 /**
  * kvm_mips_entry_setup() - Perform global setup for entry code.
  *
@@ -105,18 +120,18 @@ int kvm_mips_entry_setup(void)
 	 * We prefer to use KScratchN registers if they are available over the
 	 * defaults above, which may not work on all cores.
 	 */
-	unsigned int kscratch_mask = cpu_data[0].kscratch_mask & 0xfc;
+	unsigned int kscratch_mask = cpu_data[0].kscratch_mask;
 
 	/* Pick a scratch register for storing VCPU */
 	if (kscratch_mask) {
-		scratch_vcpu[0] = 31;
+		scratch_vcpu[0] = c0_kscratch();
 		scratch_vcpu[1] = ffs(kscratch_mask) - 1;
 		kscratch_mask &= ~BIT(scratch_vcpu[1]);
 	}
 
 	/* Pick a scratch register to use as a temp for saving state */
 	if (kscratch_mask) {
-		scratch_tmp[0] = 31;
+		scratch_tmp[0] = c0_kscratch();
 		scratch_tmp[1] = ffs(kscratch_mask) - 1;
 		kscratch_mask &= ~BIT(scratch_tmp[1]);
 	}
@@ -132,7 +147,7 @@ static void kvm_mips_build_save_scratch(u32 **p, unsigned int tmp,
 	UASM_i_SW(p, tmp, offsetof(struct pt_regs, cp0_epc), frame);
 
 	/* Save the temp scratch register value in cp0_cause of stack frame */
-	if (scratch_tmp[0] == 31) {
+	if (scratch_tmp[0] == c0_kscratch()) {
 		UASM_i_MFC0(p, tmp, scratch_tmp[0], scratch_tmp[1]);
 		UASM_i_SW(p, tmp, offsetof(struct pt_regs, cp0_cause), frame);
 	}
@@ -148,7 +163,7 @@ static void kvm_mips_build_restore_scratch(u32 **p, unsigned int tmp,
 	UASM_i_LW(p, tmp, offsetof(struct pt_regs, cp0_epc), frame);
 	UASM_i_MTC0(p, tmp, scratch_vcpu[0], scratch_vcpu[1]);
 
-	if (scratch_tmp[0] == 31) {
+	if (scratch_tmp[0] == c0_kscratch()) {
 		UASM_i_LW(p, tmp, offsetof(struct pt_regs, cp0_cause), frame);
 		UASM_i_MTC0(p, tmp, scratch_tmp[0], scratch_tmp[1]);
 	}
