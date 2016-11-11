@@ -2725,7 +2725,7 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	 * anyway.
 	 */
 	hash_for_each(vsi->mac_filter_hash, bkt, f, hlist)
-		i40e_del_filter(vsi, f->macaddr, f->vlan);
+		__i40e_del_filter(vsi, f);
 
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 

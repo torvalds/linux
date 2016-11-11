@@ -1434,7 +1434,7 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
  * the "safe" variants of any list iterators, e.g. list_for_each_entry_safe()
  * instead of list_for_each_entry().
  **/
-static void __i40e_del_filter(struct i40e_vsi *vsi, struct i40e_mac_filter *f)
+void __i40e_del_filter(struct i40e_vsi *vsi, struct i40e_mac_filter *f)
 {
 	if (!f)
 		return;
