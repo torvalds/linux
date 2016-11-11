@@ -689,17 +689,15 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 
 		spin_lock_bh(&vsi->mac_filter_hash_lock);
 		if (is_valid_ether_addr(vf->default_lan_addr.addr)) {
-			f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
-				       vf->port_vlan_id ?
-				       vf->port_vlan_id : -1);
+			f = i40e_add_mac_filter(vsi,
+						vf->default_lan_addr.addr);
 			if (!f)
 				dev_info(&pf->pdev->dev,
 					 "Could not add MAC filter %pM for VF %d\n",
 					vf->default_lan_addr.addr, vf->vf_id);
 		}
 		eth_broadcast_addr(broadcast);
-		f = i40e_add_filter(vsi, broadcast,
-				    vf->port_vlan_id ? vf->port_vlan_id : -1);
+		f = i40e_add_mac_filter(vsi, broadcast);
 		if (!f)
 			dev_info(&pf->pdev->dev,
 				 "Could not allocate VF broadcast filter\n");
@@ -2718,8 +2716,7 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 
 	/* delete the temporary mac address */
 	if (!is_zero_ether_addr(vf->default_lan_addr.addr))
-		i40e_del_filter(vsi, vf->default_lan_addr.addr,
-				vf->port_vlan_id ? vf->port_vlan_id : -1);
+		i40e_del_mac_filter(vsi, vf->default_lan_addr.addr);
 
 	/* Delete all the filters for this VSI - we're going to kill it
 	 * anyway.
