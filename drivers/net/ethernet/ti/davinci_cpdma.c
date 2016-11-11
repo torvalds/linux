@@ -387,7 +387,7 @@ int cpdma_ctlr_stop(struct cpdma_ctlr *ctlr)
 	int i;
 
 	spin_lock_irqsave(&ctlr->lock, flags);
-	if (ctlr->state == CPDMA_STATE_TEARDOWN) {
+	if (ctlr->state != CPDMA_STATE_ACTIVE) {
 		spin_unlock_irqrestore(&ctlr->lock, flags);
 		return -EINVAL;
 	}
