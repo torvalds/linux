@@ -800,6 +800,26 @@ static void mlxsw_sp_router_neigh_rec_process(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+static bool mlxsw_sp_router_rauhtd_is_full(char *rauhtd_pl)
+{
+	u8 num_rec, last_rec_index, num_entries;
+
+	num_rec = mlxsw_reg_rauhtd_num_rec_get(rauhtd_pl);
+	last_rec_index = num_rec - 1;
+
+	if (num_rec < MLXSW_REG_RAUHTD_REC_MAX_NUM)
+		return false;
+	if (mlxsw_reg_rauhtd_rec_type_get(rauhtd_pl, last_rec_index) ==
+	    MLXSW_REG_RAUHTD_TYPE_IPV6)
+		return true;
+
+	num_entries = mlxsw_reg_rauhtd_ipv4_rec_num_entries_get(rauhtd_pl,
+								last_rec_index);
+	if (++num_entries == MLXSW_REG_RAUHTD_IPV4_ENT_PER_REC)
+		return true;
+	return false;
+}
+
 static int mlxsw_sp_router_neighs_update_rauhtd(struct mlxsw_sp *mlxsw_sp)
 {
 	char *rauhtd_pl;
@@ -826,7 +846,7 @@ static int mlxsw_sp_router_neighs_update_rauhtd(struct mlxsw_sp *mlxsw_sp)
 		for (i = 0; i < num_rec; i++)
 			mlxsw_sp_router_neigh_rec_process(mlxsw_sp, rauhtd_pl,
 							  i);
-	} while (num_rec);
+	} while (mlxsw_sp_router_rauhtd_is_full(rauhtd_pl));
 	rtnl_unlock();
 
 	kfree(rauhtd_pl);
