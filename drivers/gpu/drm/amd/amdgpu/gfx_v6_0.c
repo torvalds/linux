@@ -426,7 +426,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4));
 				break;
-			case 1: 
+			case 1:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -446,7 +446,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4));
 				break;
-			case 3:  
+			case 3:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -456,7 +456,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4));
 				break;
-			case 4:  
+			case 4:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -466,7 +466,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 5:  
+			case 5:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -476,7 +476,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 6:  
+			case 6:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -486,7 +486,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 7:  
+			case 7:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -496,7 +496,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4));
 				break;
-			case 8: 
+			case 8:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_LINEAR_ALIGNED) |
 						 MICRO_TILE_MODE(ADDR_SURF_DISPLAY_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -506,7 +506,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 9:  
+			case 9:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DISPLAY_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -516,7 +516,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 10:  
+			case 10:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DISPLAY_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -526,7 +526,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4));
 				break;
-			case 11:  
+			case 11:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DISPLAY_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -536,7 +536,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 12:  
+			case 12:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_DISPLAY_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -546,7 +546,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 13:  
+			case 13:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_1D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -556,7 +556,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 14:  
+			case 14:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -566,7 +566,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 15:  
+			case 15:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -576,7 +576,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 16:  
+			case 16:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -586,7 +586,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 17:  
+			case 17:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -596,7 +596,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 21:  
+			case 21:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -606,7 +606,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 22:  
+			case 22:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -616,7 +616,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_4) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_4));
 				break;
-			case 23: 
+			case 23:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -626,7 +626,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_2) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 24: 
+			case 24:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -636,7 +636,7 @@ static void gfx_v6_0_tiling_mode_table_init(struct amdgpu_device *adev)
 						 BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 						 MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
 				break;
-			case 25: 
+			case 25:
 				gb_tile_moden = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 						 MICRO_TILE_MODE(ADDR_SURF_THIN_MICRO_TILING) |
 						 PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -1463,6 +1463,13 @@ static void gfx_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0x1);
 }
 
+static void gfx_v6_0_ring_emit_vgt_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VGT_FLUSH) |
+		EVENT_INDEX(0));
+}
+
 /**
  * gfx_v6_0_ring_emit_hdp_invalidate - emit an hdp invalidate on the cp
  *
@@ -1917,7 +1924,7 @@ static int gfx_v6_0_cp_load_microcode(struct amdgpu_device *adev)
 
 static void gfx_v6_0_enable_gui_idle_interrupt(struct amdgpu_device *adev,
 					       bool enable)
-{	
+{
 	u32 tmp = RREG32(mmCP_INT_CNTL_RING0);
 	u32 mask;
 	int i;
@@ -2802,6 +2809,8 @@ static uint64_t gfx_v6_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 
 static void gfx_v6_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 {
+	if (flags & AMDGPU_HAVE_CTX_SWITCH)
+		gfx_v6_0_ring_emit_vgt_flush(ring);
 	amdgpu_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
 	amdgpu_ring_write(ring, 0x80000000);
 	amdgpu_ring_write(ring, 0);
@@ -3265,7 +3274,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 		14 + 14 + 14 + /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
 		7 + 4 + /* gfx_v6_0_ring_emit_pipeline_sync */
 		17 + 6 + /* gfx_v6_0_ring_emit_vm_flush */
-		3, /* gfx_v6_ring_emit_cntxcntl */
+		3 + 2, /* gfx_v6_ring_emit_cntxcntl including vgt flush */
 	.emit_ib_size = 6, /* gfx_v6_0_ring_emit_ib */
 	.emit_ib = gfx_v6_0_ring_emit_ib,
 	.emit_fence = gfx_v6_0_ring_emit_fence,

@@ -6186,6 +6186,18 @@ static void gfx_v8_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0x20); /* poll interval */
 }
 
+static void gfx_v8_0_ring_emit_vgt_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VS_PARTIAL_FLUSH) |
+		EVENT_INDEX(4));
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VGT_FLUSH) |
+		EVENT_INDEX(0));
+}
+
+
 static void gfx_v8_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
@@ -6371,6 +6383,7 @@ static void gfx_v8_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 
 	dw2 |= 0x80000000; /* set load_enable otherwise this package is just NOPs */
 	if (flags & AMDGPU_HAVE_CTX_SWITCH) {
+		gfx_v8_0_ring_emit_vgt_flush(ring);
 		/* set load_global_config & load_global_uconfig */
 		dw2 |= 0x8001;
 		/* set load_cs_sh_regs */
@@ -6574,7 +6587,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
 		128 + 19 + /* gfx_v8_0_ring_emit_vm_flush */
 		2 + /* gfx_v8_ring_emit_sb */
-		3, /* gfx_v8_ring_emit_cntxcntl */
+		3 + 4, /* gfx_v8_ring_emit_cntxcntl including vgt flush */
 	.emit_ib_size =	4, /* gfx_v8_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v8_0_ring_emit_fence_gfx,
