@@ -75,6 +75,7 @@ int __init lkl_start_kernel(struct lkl_host_operations *ops,
 	}
 
 	lkl_ops->sem_down(init_sem);
+	lkl_ops->sem_free(init_sem);
 	current_thread_info()->tid = lkl_ops->thread_self();
 	lkl_cpu_change_owner(current_thread_info()->tid);
 

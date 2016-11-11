@@ -232,16 +232,16 @@ void threads_cnt_dec(void)
 
 void threads_cleanup(void)
 {
-	struct task_struct *p;
+	struct task_struct *p, *t;
 
-	for_each_process(p) {
-		struct thread_info *ti = task_thread_info(p);
+	for_each_process_thread(p, t) {
+		struct thread_info *ti = task_thread_info(t);
 
-		if (p->pid != 1)
-			WARN(!(p->flags & PF_KTHREAD),
-			     "non kernel thread task %p\n", p->comm);
-		WARN(p->state == TASK_RUNNING,
-		     "thread %s still running while halting\n", p->comm);
+		if (t->pid != 1 && !test_ti_thread_flag(ti, TIF_HOST_THREAD))
+			WARN(!(t->flags & PF_KTHREAD),
+			     "non kernel thread task %s\n", t->comm);
+		WARN(t->state == TASK_RUNNING,
+		     "thread %s still running while halting\n", t->comm);
 
 		kill_thread(ti);
 	}
