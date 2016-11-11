@@ -832,10 +832,6 @@ int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 		icp->n_rm_check_resend++;
 		icp_check_resend(xics, icp->rm_resend_icp);
 	}
-	if (icp->rm_action & XICS_RM_REJECT) {
-		icp->n_rm_reject++;
-		icp_deliver_irq(xics, icp, icp->rm_reject);
-	}
 	if (icp->rm_action & XICS_RM_NOTIFY_EOI) {
 		icp->n_rm_notify_eoi++;
 		kvm_notify_acked_irq(vcpu->kvm, 0, icp->rm_eoied_irq);
@@ -920,7 +916,7 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	int icsid, i;
 	unsigned long flags;
 	unsigned long t_rm_kick_vcpu, t_rm_check_resend;
-	unsigned long t_rm_reject, t_rm_notify_eoi;
+	unsigned long t_rm_notify_eoi;
 	unsigned long t_reject, t_check_resend;
 
 	if (!kvm)
@@ -929,7 +925,6 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	t_rm_kick_vcpu = 0;
 	t_rm_notify_eoi = 0;
 	t_rm_check_resend = 0;
-	t_rm_reject = 0;
 	t_check_resend = 0;
 	t_reject = 0;
 
@@ -952,14 +947,13 @@ static int xics_debug_show(struct seq_file *m, void *private)
 		t_rm_kick_vcpu += icp->n_rm_kick_vcpu;
 		t_rm_notify_eoi += icp->n_rm_notify_eoi;
 		t_rm_check_resend += icp->n_rm_check_resend;
-		t_rm_reject += icp->n_rm_reject;
 		t_check_resend += icp->n_check_resend;
 		t_reject += icp->n_reject;
 	}
 
-	seq_printf(m, "ICP Guest->Host totals: kick_vcpu=%lu check_resend=%lu reject=%lu notify_eoi=%lu\n",
+	seq_printf(m, "ICP Guest->Host totals: kick_vcpu=%lu check_resend=%lu notify_eoi=%lu\n",
 			t_rm_kick_vcpu, t_rm_check_resend,
-			t_rm_reject, t_rm_notify_eoi);
+			t_rm_notify_eoi);
 	seq_printf(m, "ICP Real Mode totals: check_resend=%lu resend=%lu\n",
 			t_check_resend, t_reject);
 	for (icsid = 0; icsid <= KVMPPC_XICS_MAX_ICS_ID; icsid++) {
