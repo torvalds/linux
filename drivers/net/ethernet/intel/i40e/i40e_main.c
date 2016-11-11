@@ -1498,6 +1498,9 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
 		return i40e_add_filter(vsi, macaddr,
 				       le16_to_cpu(vsi->info.pvid));
 
+	if (!i40e_is_vsi_in_vlan(vsi))
+		return i40e_add_filter(vsi, macaddr, I40E_VLAN_ANY);
+
 	hash_for_each_safe(vsi->mac_filter_hash, bkt, h, f, hlist) {
 		if (f->state == I40E_FILTER_REMOVE)
 			continue;
@@ -1756,14 +1759,8 @@ static int i40e_addr_sync(struct net_device *netdev, const u8 *addr)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
-	struct i40e_mac_filter *f;
 
-	if (i40e_is_vsi_in_vlan(vsi))
-		f = i40e_put_mac_in_vlan(vsi, addr);
-	else
-		f = i40e_add_filter(vsi, addr, I40E_VLAN_ANY);
-
-	if (f)
+	if (i40e_put_mac_in_vlan(vsi, addr))
 		return 0;
 	else
 		return -ENOMEM;
