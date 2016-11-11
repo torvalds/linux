@@ -530,7 +530,8 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 	}
 }
 
-static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
+static int ramoops_init_przs(const char *name,
+			     struct device *dev, struct ramoops_context *cxt,
 			     struct persistent_ram_zone ***przs,
 			     phys_addr_t *paddr, size_t mem_sz,
 			     ssize_t record_size,
@@ -556,24 +557,33 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 		if (*cnt == 0)
 			return 0;
 		record_size = mem_sz / *cnt;
-		if (record_size == 0)
+		if (record_size == 0) {
+			dev_err(dev, "%s record size == 0 (%zu / %u)\n",
+				name, mem_sz, *cnt);
 			goto fail;
+		}
 	} else {
 		*cnt = mem_sz / record_size;
-		if (*cnt == 0)
+		if (*cnt == 0) {
+			dev_err(dev, "%s record count == 0 (%zu / %zu)\n",
+				name, mem_sz, record_size);
 			goto fail;
+		}
 	}
 
 	if (*paddr + mem_sz - cxt->phys_addr > cxt->size) {
-		dev_err(dev, "no room for mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+		dev_err(dev, "no room for %s mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+			name,
 			mem_sz, (unsigned long long)*paddr,
 			cxt->size, (unsigned long long)cxt->phys_addr);
 		goto fail;
 	}
 
 	zone_sz = mem_sz / *cnt;
-	if (!zone_sz)
+	if (!zone_sz) {
+		dev_err(dev, "%s zone size == 0\n", name);
 		goto fail;
+	}
 
 	prz_ar = kcalloc(*cnt, sizeof(**przs), GFP_KERNEL);
 	if (!prz_ar)
@@ -585,8 +595,9 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 						  cxt->memtype, flags);
 		if (IS_ERR(prz_ar[i])) {
 			err = PTR_ERR(prz_ar[i]);
-			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
-				record_size, (unsigned long long)*paddr, err);
+			dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
+				name, record_size,
+				(unsigned long long)*paddr, err);
 
 			while (i > 0) {
 				i--;
@@ -606,7 +617,8 @@ fail:
 	return err;
 }
 
-static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
+static int ramoops_init_prz(const char *name,
+			    struct device *dev, struct ramoops_context *cxt,
 			    struct persistent_ram_zone **prz,
 			    phys_addr_t *paddr, size_t sz, u32 sig)
 {
@@ -614,8 +626,8 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 		return 0;
 
 	if (*paddr + sz - cxt->phys_addr > cxt->size) {
-		dev_err(dev, "no room for mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
-			sz, (unsigned long long)*paddr,
+		dev_err(dev, "no room for %s mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+			name, sz, (unsigned long long)*paddr,
 			cxt->size, (unsigned long long)cxt->phys_addr);
 		return -ENOMEM;
 	}
@@ -625,8 +637,8 @@ static int ramoops_init_prz(struct device *dev, struct ramoops_context *cxt,
 	if (IS_ERR(*prz)) {
 		int err = PTR_ERR(*prz);
 
-		dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
-			sz, (unsigned long long)*paddr, err);
+		dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
+			name, sz, (unsigned long long)*paddr, err);
 		return err;
 	}
 
@@ -712,6 +724,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (dev_of_node(dev) && !pdata) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
+			pr_err("cannot allocate platform data buffer\n");
 			err = -ENOMEM;
 			goto fail_out;
 		}
@@ -758,12 +771,13 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
 			- cxt->pmsg_size;
-	err = ramoops_init_przs(dev, cxt, &cxt->przs, &paddr, dump_mem_sz,
-				cxt->record_size, &cxt->max_dump_cnt, 0, 0);
+	err = ramoops_init_przs("dump", dev, cxt, &cxt->przs, &paddr,
+				dump_mem_sz, cxt->record_size,
+				&cxt->max_dump_cnt, 0, 0);
 	if (err)
 		goto fail_out;
 
-	err = ramoops_init_prz(dev, cxt, &cxt->cprz, &paddr,
+	err = ramoops_init_prz("console", dev, cxt, &cxt->cprz, &paddr,
 			       cxt->console_size, 0);
 	if (err)
 		goto fail_init_cprz;
@@ -771,15 +785,16 @@ static int ramoops_probe(struct platform_device *pdev)
 	cxt->max_ftrace_cnt = (cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 				? nr_cpu_ids
 				: 1;
-	err = ramoops_init_przs(dev, cxt, &cxt->fprzs, &paddr, cxt->ftrace_size,
-				-1, &cxt->max_ftrace_cnt,
-				LINUX_VERSION_CODE,
+	err = ramoops_init_przs("ftrace", dev, cxt, &cxt->fprzs, &paddr,
+				cxt->ftrace_size, -1,
+				&cxt->max_ftrace_cnt, LINUX_VERSION_CODE,
 				(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 					? PRZ_FLAG_NO_LOCK : 0);
 	if (err)
 		goto fail_init_fprz;
 
-	err = ramoops_init_prz(dev, cxt, &cxt->mprz, &paddr, cxt->pmsg_size, 0);
+	err = ramoops_init_prz("pmsg", dev, cxt, &cxt->mprz, &paddr,
+				cxt->pmsg_size, 0);
 	if (err)
 		goto fail_init_mprz;
 
