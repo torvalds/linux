@@ -2501,7 +2501,7 @@ static int i40iw_get_hw_stats(struct ib_device *ibdev,
 			return -ENOSYS;
 	}
 
-	memcpy(&stats->value[0], &hw_stats, sizeof(*hw_stats));
+	memcpy(&stats->value[0], hw_stats, sizeof(*hw_stats));
 
 	return stats->num_counters;
 }
