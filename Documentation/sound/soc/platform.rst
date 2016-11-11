@@ -1,3 +1,4 @@
+====================
 ASoC Platform Driver
 ====================
 
@@ -9,21 +10,23 @@ Audio DMA
 =========
 
 The platform DMA driver optionally supports the following ALSA operations:-
+::
 
-/* SoC audio ops */
-struct snd_soc_ops {
+  /* SoC audio ops */
+  struct snd_soc_ops {
 	int (*startup)(struct snd_pcm_substream *);
 	void (*shutdown)(struct snd_pcm_substream *);
 	int (*hw_params)(struct snd_pcm_substream *, struct snd_pcm_hw_params *);
 	int (*hw_free)(struct snd_pcm_substream *);
 	int (*prepare)(struct snd_pcm_substream *);
 	int (*trigger)(struct snd_pcm_substream *, int);
-};
+  };
 
 The platform driver exports its DMA functionality via struct
 snd_soc_platform_driver:-
+::
 
-struct snd_soc_platform_driver {
+  struct snd_soc_platform_driver {
 	char *name;
 
 	int (*probe)(struct platform_device *pdev);
@@ -44,7 +47,7 @@ struct snd_soc_platform_driver {
 
 	/* platform stream ops */
 	struct snd_pcm_ops *pcm_ops;
-};
+  };
 
 Please refer to the ALSA driver documentation for details of audio DMA.
 http://www.alsa-project.org/~iwai/writing-an-alsa-driver/
@@ -57,11 +60,11 @@ SoC DAI Drivers
 
 Each SoC DAI driver must provide the following features:-
 
- 1) Digital audio interface (DAI) description
- 2) Digital audio interface configuration
- 3) PCM's description
- 4) SYSCLK configuration
- 5) Suspend and resume (optional)
+1. Digital audio interface (DAI) description
+2. Digital audio interface configuration
+3. PCM's description
+4. SYSCLK configuration
+5. Suspend and resume (optional)
 
 Please see codec.txt for a description of items 1 - 4.
 
@@ -71,9 +74,9 @@ SoC DSP Drivers
 
 Each SoC DSP driver usually supplies the following features :-
 
- 1) DAPM graph
- 2) Mixer controls
- 3) DMA IO to/from DSP buffers (if applicable)
- 4) Definition of DSP front end (FE) PCM devices.
+1. DAPM graph
+2. Mixer controls
+3. DMA IO to/from DSP buffers (if applicable)
+4. Definition of DSP front end (FE) PCM devices.
 
 Please see DPCM.txt for a description of item 4.

@@ -1,3 +1,4 @@
+==============
 Audio Clocking
 ==============
 
@@ -30,15 +31,9 @@ runs at exactly the sample rate (LRC = Rate).
 
 Bit Clock can be generated as follows:-
 
-BCLK = MCLK / x
-
- or
-
-BCLK = LRC * x
-
- or
-
-BCLK = LRC * Channels * Word Size
+- BCLK = MCLK / x, or
+- BCLK = LRC * x, or
+- BCLK = LRC * Channels * Word Size
 
 This relationship depends on the codec or SoC CPU in particular. In general
 it is best to configure BCLK to the lowest possible speed (depending on your

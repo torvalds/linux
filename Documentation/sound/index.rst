@@ -7,6 +7,7 @@ Linux Sound Subsystem Documentation
 
    kernel-api/index
    designs/index
+   soc/index
    alsa-configuration
    hd-audio/index
    cards/index

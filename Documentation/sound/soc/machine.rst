@@ -1,3 +1,4 @@
+===================
 ASoC Machine Driver
 ===================
 
@@ -9,9 +10,10 @@ interrupts, clocking, jacks and voltage regulators.
 The machine driver can contain codec and platform specific code. It registers
 the audio subsystem with the kernel as a platform device and is represented by
 the following struct:-
+::
 
-/* SoC machine */
-struct snd_soc_card {
+  /* SoC machine */
+  struct snd_soc_card {
 	char *name;
 
 	...
@@ -33,7 +35,7 @@ struct snd_soc_card {
 	int num_links;
 
 	...
-};
+  };
 
 probe()/remove()
 ----------------
@@ -55,9 +57,10 @@ initialisation e.g. the machine audio map can be connected to the codec audio
 map, unconnected codec pins can be set as such.
 
 struct snd_soc_dai_link is used to set up each DAI in your machine. e.g.
+::
 
-/* corgi digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link corgi_dai = {
+  /* corgi digital audio interface glue - connects codec <--> CPU */
+  static struct snd_soc_dai_link corgi_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
 	.cpu_dai_name = "pxa-is2-dai",
@@ -66,16 +69,17 @@ static struct snd_soc_dai_link corgi_dai = {
 	.codec_name = "wm8713-codec.0-001a",
 	.init = corgi_wm8731_init,
 	.ops = &corgi_ops,
-};
+  };
 
 struct snd_soc_card then sets up the machine with its DAIs. e.g.
+::
 
-/* corgi audio machine driver */
-static struct snd_soc_card snd_soc_corgi = {
+  /* corgi audio machine driver */
+  static struct snd_soc_card snd_soc_corgi = {
 	.name = "Corgi",
 	.dai_link = &corgi_dai,
 	.num_links = 1,
-};
+  };
 
 
 Machine Power Map
