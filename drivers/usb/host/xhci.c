@@ -3706,7 +3706,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	wait_for_completion(command->completion);
-	slot_id = xhci->slot_id;
+	slot_id = command->slot_id;
 	mutex_unlock(&xhci->mutex);
 
 	if (!slot_id || command->status != COMP_SUCCESS) {

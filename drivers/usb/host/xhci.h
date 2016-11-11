@@ -791,6 +791,7 @@ struct xhci_command {
 	/* Input context for changing device state */
 	struct xhci_container_ctx	*in_ctx;
 	u32				status;
+	int				slot_id;
 	/* If completion is null, no one is waiting on this command
 	 * and the structure can be freed after the command completes.
 	 */
@@ -1584,7 +1585,6 @@ struct xhci_hcd {
 	/* slot enabling and address device helpers */
 	/* these are not thread safe so use mutex */
 	struct mutex mutex;
-	int slot_id;
 	/* For USB 3.0 LPM enable/disable. */
 	struct xhci_command		*lpm_command;
 	/* Internal mirror of the HW's dcbaa */
