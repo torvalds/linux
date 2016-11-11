@@ -4510,9 +4510,6 @@ static void dwc2_dump_urb_info(struct usb_hcd *hcd, struct urb *urb,
 	case PIPE_ISOCHRONOUS:
 		pipetype = "ISOCHRONOUS";
 		break;
-	default:
-		pipetype = "UNKNOWN";
-		break;
 	}
 
 	dev_vdbg(hsotg->dev, "  Endpoint type: %s %s (%s)\n", pipetype,
@@ -4609,8 +4606,6 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	case PIPE_INTERRUPT:
 		ep_type = USB_ENDPOINT_XFER_INT;
 		break;
-	default:
-		dev_warn(hsotg->dev, "Wrong ep type\n");
 	}
 
 	dwc2_urb = dwc2_hcd_urb_alloc(hsotg, urb->number_of_packets,
