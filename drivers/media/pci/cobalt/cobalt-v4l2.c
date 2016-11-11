@@ -527,7 +527,7 @@ static void cobalt_video_input_status_show(struct cobalt_stream *s)
 	cvi_ctrl = ioread32(&cvi->control);
 	cvi_stat = ioread32(&cvi->status);
 	vmr_ctrl = ioread32(&vmr->control);
-	vmr_stat = ioread32(&vmr->control);
+	vmr_stat = ioread32(&vmr->status);
 	cobalt_info("rx%d: cvi resolution: %dx%d\n", rx,
 		    ioread32(&cvi->frame_width), ioread32(&cvi->frame_height));
 	cobalt_info("rx%d: cvi control: %s%s%s\n", rx,
