@@ -408,8 +408,21 @@ static void sunxi_pctrl_dt_free_map(struct pinctrl_dev *pctldev,
 				    struct pinctrl_map *map,
 				    unsigned num_maps)
 {
-	/* All the maps have the same pin config, free only the first one */
-	kfree(map[0].data.configs.configs);
+	int i;
+
+	/* pin config is never in the first map */
+	for (i = 1; i < num_maps; i++) {
+		if (map[i].type != PIN_MAP_TYPE_CONFIGS_GROUP)
+			continue;
+
+		/*
+		 * All the maps share the same pin config,
+		 * free only the first one we find.
+		 */
+		kfree(map[i].data.configs.configs);
+		break;
+	}
+
 	kfree(map);
 }
 
