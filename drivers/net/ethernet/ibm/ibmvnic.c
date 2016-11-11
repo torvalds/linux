@@ -3705,7 +3705,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	struct net_device *netdev;
 	unsigned char *mac_addr_p;
 	struct dentry *ent;
-	char buf[16]; /* debugfs name buf */
+	char buf[17]; /* debugfs name buf */
 	int rc;
 
 	dev_dbg(&dev->dev, "entering ibmvnic_probe for UA 0x%x\n",
