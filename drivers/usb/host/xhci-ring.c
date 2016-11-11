@@ -89,6 +89,11 @@ dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 	return seg->dma + (segment_offset * sizeof(*trb));
 }
 
+static bool trb_is_noop(union xhci_trb *trb)
+{
+	return TRB_TYPE_NOOP_LE32(trb->generic.field[3]);
+}
+
 static bool trb_is_link(union xhci_trb *trb)
 {
 	return TRB_TYPE_LINK_LE32(trb->link.control);
@@ -2112,8 +2117,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		for (cur_trb = ep_ring->dequeue,
 		     cur_seg = ep_ring->deq_seg; cur_trb != event_trb;
 		     next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-			if (!TRB_TYPE_NOOP_LE32(cur_trb->generic.field[3]) &&
-			    !trb_is_link(cur_trb))
+			if (!trb_is_noop(cur_trb) && !trb_is_link(cur_trb))
 				len += TRB_LEN(le32_to_cpu(cur_trb->generic.field[2]));
 		}
 		len += TRB_LEN(le32_to_cpu(cur_trb->generic.field[2])) -
@@ -2258,8 +2262,7 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		for (cur_trb = ep_ring->dequeue, cur_seg = ep_ring->deq_seg;
 				cur_trb != event_trb;
 				next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-			if (!TRB_TYPE_NOOP_LE32(cur_trb->generic.field[3]) &&
-			    !trb_is_link(cur_trb))
+			if (!trb_is_noop(cur_trb) && !trb_is_link(cur_trb))
 				td->urb->actual_length +=
 					TRB_LEN(le32_to_cpu(cur_trb->generic.field[2]));
 		}
@@ -2559,9 +2562,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 * corresponding TD has been cancelled. Just ignore
 		 * the TD.
 		 */
-		if (TRB_TYPE_NOOP_LE32(event_trb->generic.field[3])) {
-			xhci_dbg(xhci,
-				 "event_trb is a no-op TRB. Skip it\n");
+		if (trb_is_noop(event_trb)) {
+			xhci_dbg(xhci, "event_trb is a no-op TRB. Skip it\n");
 			goto cleanup;
 		}
 
