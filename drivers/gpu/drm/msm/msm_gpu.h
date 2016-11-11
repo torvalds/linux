@@ -80,7 +80,7 @@ struct msm_gpu {
 
 	/* ringbuffer: */
 	struct msm_ringbuffer *rb;
-	uint32_t rb_iova;
+	uint64_t rb_iova;
 
 	/* list of GEM active objects: */
 	struct list_head active_list;

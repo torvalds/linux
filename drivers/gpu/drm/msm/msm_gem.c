@@ -309,7 +309,7 @@ put_iova(struct drm_gem_object *obj)
  * the refcnt counter needs to be atomic_t.
  */
 int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
-		uint32_t *iova)
+		uint64_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
@@ -336,7 +336,7 @@ int msm_gem_get_iova_locked(struct drm_gem_object *obj, int id,
 }
 
 /* get iova, taking a reference.  Should have a matching put */
-int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
+int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint64_t *iova)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret;
@@ -358,7 +358,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj, int id, uint32_t *iova)
 /* get iova without taking a reference, used in places where you have
  * already done a 'msm_gem_get_iova()'.
  */
-uint32_t msm_gem_iova(struct drm_gem_object *obj, int id)
+uint64_t msm_gem_iova(struct drm_gem_object *obj, int id)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	WARN_ON(!msm_obj->domain[id].iova);

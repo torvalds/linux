@@ -981,7 +981,7 @@ static int dsi_tx_buf_alloc(struct msm_dsi_host *msm_host, int size)
 	struct drm_device *dev = msm_host->dev;
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
-	u32 iova;
+	uint64_t iova;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
 		mutex_lock(&dev->struct_mutex);
@@ -1146,7 +1146,7 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
-	u32 dma_base;
+	uint64_t dma_base;
 	bool triggered;
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {

@@ -153,7 +153,7 @@ struct adreno_gpu {
 	// different for z180..
 	struct adreno_rbmemptrs *memptrs;
 	struct drm_gem_object *memptrs_bo;
-	uint32_t memptrs_iova;
+	uint64_t memptrs_iova;
 
 	/*
 	 * Register offsets are different between some GPUs.
