@@ -373,6 +373,8 @@ static struct iommu_group *acpihid_device_group(struct device *dev)
 
 	if (!entry->group)
 		entry->group = generic_device_group(dev);
+	else
+		iommu_group_ref_get(entry->group);
 
 	return entry->group;
 }
