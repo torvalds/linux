@@ -405,53 +405,78 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 }
 
 static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
-			     phys_addr_t *paddr, size_t dump_mem_sz)
+			     struct persistent_ram_zone ***przs,
+			     phys_addr_t *paddr, size_t mem_sz,
+			     ssize_t record_size,
+			     unsigned int *cnt, u32 sig, u32 flags)
 {
 	int err = -ENOMEM;
 	int i;
+	size_t zone_sz;
+	struct persistent_ram_zone **prz_ar;
 
-	if (!cxt->record_size)
+	/* Allocate nothing for 0 mem_sz or 0 record_size. */
+	if (mem_sz == 0 || record_size == 0) {
+		*cnt = 0;
 		return 0;
-
-	if (*paddr + dump_mem_sz - cxt->phys_addr > cxt->size) {
-		dev_err(dev, "no room for dumps\n");
-		return -ENOMEM;
 	}
 
-	cxt->max_dump_cnt = dump_mem_sz / cxt->record_size;
-	if (!cxt->max_dump_cnt)
-		return -ENOMEM;
-
-	cxt->przs = kzalloc(sizeof(*cxt->przs) * cxt->max_dump_cnt,
-			     GFP_KERNEL);
-	if (!cxt->przs) {
-		dev_err(dev, "failed to initialize a prz array for dumps\n");
-		goto fail_mem;
+	/*
+	 * If we have a negative record size, calculate it based on
+	 * mem_sz / *cnt. If we have a positive record size, calculate
+	 * cnt from mem_sz / record_size.
+	 */
+	if (record_size < 0) {
+		if (*cnt == 0)
+			return 0;
+		record_size = mem_sz / *cnt;
+		if (record_size == 0)
+			goto fail;
+	} else {
+		*cnt = mem_sz / record_size;
+		if (*cnt == 0)
+			goto fail;
 	}
 
-	for (i = 0; i < cxt->max_dump_cnt; i++) {
-		cxt->przs[i] = persistent_ram_new(*paddr, cxt->record_size, 0,
+	if (*paddr + mem_sz - cxt->phys_addr > cxt->size) {
+		dev_err(dev, "no room for mem region (0x%zx@0x%llx) in (0x%lx@0x%llx)\n",
+			mem_sz, (unsigned long long)*paddr,
+			cxt->size, (unsigned long long)cxt->phys_addr);
+		goto fail;
+	}
+
+	zone_sz = mem_sz / *cnt;
+	if (!zone_sz)
+		goto fail;
+
+	prz_ar = kcalloc(*cnt, sizeof(**przs), GFP_KERNEL);
+	if (!prz_ar)
+		goto fail;
+
+	for (i = 0; i < *cnt; i++) {
+		prz_ar[i] = persistent_ram_new(*paddr, zone_sz, sig,
 						  &cxt->ecc_info,
-						  cxt->memtype, 0);
-		if (IS_ERR(cxt->przs[i])) {
-			err = PTR_ERR(cxt->przs[i]);
+						  cxt->memtype, flags);
+		if (IS_ERR(prz_ar[i])) {
+			err = PTR_ERR(prz_ar[i]);
 			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
-				cxt->record_size, (unsigned long long)*paddr, err);
+				record_size, (unsigned long long)*paddr, err);
 
 			while (i > 0) {
 				i--;
-				persistent_ram_free(cxt->przs[i]);
+				persistent_ram_free(prz_ar[i]);
 			}
-			goto fail_prz;
+			kfree(prz_ar);
+			goto fail;
 		}
-		*paddr += cxt->record_size;
+		*paddr += zone_sz;
 	}
 
+	*przs = prz_ar;
 	return 0;
-fail_prz:
-	kfree(cxt->przs);
-fail_mem:
-	cxt->max_dump_cnt = 0;
+
+fail:
+	*cnt = 0;
 	return err;
 }
 
@@ -605,7 +630,8 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
 			- cxt->pmsg_size;
-	err = ramoops_init_przs(dev, cxt, &paddr, dump_mem_sz);
+	err = ramoops_init_przs(dev, cxt, &cxt->przs, &paddr, dump_mem_sz,
+				cxt->record_size, &cxt->max_dump_cnt, 0, 0);
 	if (err)
 		goto fail_out;
 
