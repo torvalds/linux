@@ -3362,13 +3362,15 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	int num_active;
 	int id, i;
 
+	/* Clear the partitioning for disabled planes. */
+	memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
+	memset(ddb->y_plane[pipe], 0, sizeof(ddb->y_plane[pipe]));
+
 	if (WARN_ON(!state))
 		return 0;
 
 	if (!cstate->base.active) {
 		ddb->pipe[pipe].start = ddb->pipe[pipe].end = 0;
-		memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
-		memset(ddb->y_plane[pipe], 0, sizeof(ddb->y_plane[pipe]));
 		return 0;
 	}
 
@@ -3468,12 +3470,6 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	return 0;
 }
 
-static uint32_t skl_pipe_pixel_rate(const struct intel_crtc_state *config)
-{
-	/* TODO: Take into account the scalers once we support them */
-	return config->base.adjusted_mode.crtc_clock;
-}
-
 /*
  * The max latency should be 257 (max the punit can code is 255 and we add 2us
  * for the read latency) and cpp should always be <= 8, so that
@@ -3524,7 +3520,7 @@ static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cst
 	 * Adjusted plane pixel rate is just the pipe's adjusted pixel rate
 	 * with additional adjustments for plane-specific scaling.
 	 */
-	adjusted_pixel_rate = skl_pipe_pixel_rate(cstate);
+	adjusted_pixel_rate = ilk_pipe_pixel_rate(cstate);
 	downscale_amount = skl_plane_downscale_amount(pstate);
 
 	pixel_rate = adjusted_pixel_rate * downscale_amount >> 16;
@@ -3736,11 +3732,11 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 	if (!cstate->base.active)
 		return 0;
 
-	if (WARN_ON(skl_pipe_pixel_rate(cstate) == 0))
+	if (WARN_ON(ilk_pipe_pixel_rate(cstate) == 0))
 		return 0;
 
 	return DIV_ROUND_UP(8 * cstate->base.adjusted_mode.crtc_htotal * 1000,
-			    skl_pipe_pixel_rate(cstate));
+			    ilk_pipe_pixel_rate(cstate));
 }
 
 static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
@@ -4049,6 +4045,12 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		realloc_pipes = ~0;
 		intel_state->wm_results.dirty_pipes = ~0;
 	}
+
+	/*
+	 * We're not recomputing for the pipes not included in the commit, so
+	 * make sure we start with the current state.
+	 */
+	memcpy(ddb, &dev_priv->wm.skl_hw.ddb, sizeof(*ddb));
 
 	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
 		struct intel_crtc_state *cstate;

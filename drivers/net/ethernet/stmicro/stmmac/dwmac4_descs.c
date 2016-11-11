@@ -347,10 +347,9 @@ static void dwmac4_display_ring(void *head, unsigned int size, bool rx)
 	pr_info("%s descriptor ring:\n", rx ? "RX" : "TX");
 
 	for (i = 0; i < size; i++) {
-		if (p->des0)
-			pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
-				i, (unsigned int)virt_to_phys(p),
-				p->des0, p->des1, p->des2, p->des3);
+		pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
+			i, (unsigned int)virt_to_phys(p),
+			p->des0, p->des1, p->des2, p->des3);
 		p++;
 	}
 }

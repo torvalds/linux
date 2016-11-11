@@ -645,6 +645,7 @@ void amd_sched_fini(struct amd_gpu_scheduler *sched)
 {
 	if (sched->thread)
 		kthread_stop(sched->thread);
+	rcu_barrier();
 	if (atomic_dec_and_test(&sched_fence_slab_ref))
 		kmem_cache_destroy(sched_fence_slab);
 }

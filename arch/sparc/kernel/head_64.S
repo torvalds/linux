@@ -926,47 +926,10 @@ tlb_type:	.word	0	/* Must NOT end up in BSS */
 EXPORT_SYMBOL(tlb_type)
 	.section	".fixup",#alloc,#execinstr
 
-	.globl	__ret_efault, __retl_efault, __ret_one, __retl_one
-ENTRY(__ret_efault)
-	ret
-	 restore %g0, -EFAULT, %o0
-ENDPROC(__ret_efault)
-EXPORT_SYMBOL(__ret_efault)
-
 ENTRY(__retl_efault)
 	retl
 	 mov	-EFAULT, %o0
 ENDPROC(__retl_efault)
-
-ENTRY(__retl_one)
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one)
-
-ENTRY(__retl_one_fp)
-	VISExitHalf
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one_fp)
-
-ENTRY(__ret_one_asi)
-	wr	%g0, ASI_AIUS, %asi
-	ret
-	 restore %g0, 1, %o0
-ENDPROC(__ret_one_asi)
-
-ENTRY(__retl_one_asi)
-	wr	%g0, ASI_AIUS, %asi
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one_asi)
-
-ENTRY(__retl_one_asi_fp)
-	wr	%g0, ASI_AIUS, %asi
-	VISExitHalf
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one_asi_fp)
 
 ENTRY(__retl_o1)
 	retl

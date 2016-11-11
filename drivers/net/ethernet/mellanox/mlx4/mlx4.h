@@ -145,9 +145,10 @@ enum mlx4_resource {
 	RES_MTT,
 	RES_MAC,
 	RES_VLAN,
-	RES_EQ,
+	RES_NPORT_ID,
 	RES_COUNTER,
 	RES_FS_RULE,
+	RES_EQ,
 	MLX4_NUM_OF_RESOURCE_TYPE
 };
 
@@ -1329,8 +1330,6 @@ int mlx4_SET_VLAN_FLTR_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_cmd_info *cmd);
 int mlx4_common_set_vlan_fltr(struct mlx4_dev *dev, int function,
 				     int port, void *buf);
-int mlx4_common_dump_eth_stats(struct mlx4_dev *dev, int slave, u32 in_mod,
-				struct mlx4_cmd_mailbox *outbox);
 int mlx4_DUMP_ETH_STATS_wrapper(struct mlx4_dev *dev, int slave,
 				   struct mlx4_vhcr *vhcr,
 				   struct mlx4_cmd_mailbox *inbox,
