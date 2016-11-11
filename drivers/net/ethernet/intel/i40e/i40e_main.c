@@ -1757,7 +1757,6 @@ static void i40e_undo_filter_entries(struct i40e_vsi *vsi,
  * @count: Number of filters added
  * @add_list: return data from fw
  * @head: pointer to first filter in current batch
- * @aq_err: status from fw
  *
  * MAC filter entries from list were slated to be added to device. Returns
  * number of successful filters. Note that 0 does NOT mean success!
@@ -1765,47 +1764,30 @@ static void i40e_undo_filter_entries(struct i40e_vsi *vsi,
 static int
 i40e_update_filter_state(int count,
 			 struct i40e_aqc_add_macvlan_element_data *add_list,
-			 struct i40e_mac_filter *add_head, int aq_err)
+			 struct i40e_mac_filter *add_head)
 {
 	int retval = 0;
 	int i;
 
-
-	if (!aq_err) {
-		retval = count;
-		/* Everything's good, mark all filters active. */
-		for (i = 0; i < count ; i++) {
-			add_head->state = I40E_FILTER_ACTIVE;
-			add_head = hlist_entry(add_head->hlist.next,
-					       typeof(struct i40e_mac_filter),
-					       hlist);
-		}
-	} else if (aq_err == I40E_AQ_RC_ENOSPC) {
-		/* Device ran out of filter space. Check the return value
-		 * for each filter to see which ones are active.
+	for (i = 0; i < count; i++) {
+		/* Always check status of each filter. We don't need to check
+		 * the firmware return status because we pre-set the filter
+		 * status to I40E_AQC_MM_ERR_NO_RES when sending the filter
+		 * request to the adminq. Thus, if it no longer matches then
+		 * we know the filter is active.
 		 */
-		for (i = 0; i < count ; i++) {
-			if (add_list[i].match_method ==
-			    I40E_AQC_MM_ERR_NO_RES) {
-				add_head->state = I40E_FILTER_FAILED;
-			} else {
-				add_head->state = I40E_FILTER_ACTIVE;
-				retval++;
-			}
-			add_head = hlist_entry(add_head->hlist.next,
-					       typeof(struct i40e_mac_filter),
-					       hlist);
-		}
-	} else {
-		/* Some other horrible thing happened, fail all filters */
-		retval = 0;
-		for (i = 0; i < count ; i++) {
+		if (add_list[i].match_method == I40E_AQC_MM_ERR_NO_RES) {
 			add_head->state = I40E_FILTER_FAILED;
-			add_head = hlist_entry(add_head->hlist.next,
-					       typeof(struct i40e_mac_filter),
-					       hlist);
+		} else {
+			add_head->state = I40E_FILTER_ACTIVE;
+			retval++;
 		}
+
+		add_head = hlist_entry(add_head->hlist.next,
+				       typeof(struct i40e_mac_filter),
+				       hlist);
 	}
+
 	return retval;
 }
 
@@ -1864,12 +1846,11 @@ void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
 			  int num_add, bool *promisc_changed)
 {
 	struct i40e_hw *hw = &vsi->back->hw;
-	i40e_status aq_ret;
 	int aq_err, fcnt;
 
-	aq_ret = i40e_aq_add_macvlan(hw, vsi->seid, list, num_add, NULL);
+	i40e_aq_add_macvlan(hw, vsi->seid, list, num_add, NULL);
 	aq_err = hw->aq.asq_last_status;
-	fcnt = i40e_update_filter_state(num_add, list, add_head, aq_ret);
+	fcnt = i40e_update_filter_state(num_add, list, add_head);
 
 	if (fcnt != num_add) {
 		*promisc_changed = true;
@@ -2168,6 +2149,9 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 					cpu_to_le16((u16)(f->vlan));
 			}
 			add_list[num_add].queue_number = 0;
+			/* set invalid match method for later detection */
+			add_list[num_add].match_method =
+				cpu_to_le16((u16)I40E_AQC_MM_ERR_NO_RES);
 			cmd_flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
 			add_list[num_add].flags = cpu_to_le16(cmd_flags);
 			num_add++;
