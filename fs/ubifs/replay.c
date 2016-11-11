@@ -61,7 +61,7 @@ struct replay_entry {
 	struct list_head list;
 	union ubifs_key key;
 	union {
-		struct qstr nm;
+		struct fscrypt_name nm;
 		struct {
 			loff_t old_size;
 			loff_t new_size;
@@ -327,7 +327,7 @@ static void destroy_replay_list(struct ubifs_info *c)
 
 	list_for_each_entry_safe(r, tmp, &c->replay_list, list) {
 		if (is_hash_key(c, &r->key))
-			kfree(r->nm.name);
+			kfree(fname_name(&r->nm));
 		list_del(&r->list);
 		kfree(r);
 	}
@@ -430,10 +430,10 @@ static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
 	r->deletion = !!deletion;
 	r->sqnum = sqnum;
 	key_copy(c, key, &r->key);
-	r->nm.len = nlen;
+	fname_len(&r->nm) = nlen;
 	memcpy(nbuf, name, nlen);
 	nbuf[nlen] = '\0';
-	r->nm.name = nbuf;
+	fname_name(&r->nm) = nbuf;
 
 	list_add_tail(&r->list, &c->replay_list);
 	return 0;

@@ -97,7 +97,7 @@ static const struct file_operations empty_fops;
  * of failure.
  */
 static int create_xattr(struct ubifs_info *c, struct inode *host,
-			const struct qstr *nm, const void *value, int size)
+			const struct fscrypt_name *nm, const void *value, int size)
 {
 	int err, names_len;
 	struct inode *inode;
@@ -117,7 +117,7 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	 * extended attributes if the name list becomes larger. This limitation
 	 * is artificial for UBIFS, though.
 	 */
-	names_len = host_ui->xattr_names + host_ui->xattr_cnt + nm->len + 1;
+	names_len = host_ui->xattr_names + host_ui->xattr_cnt + fname_len(nm) + 1;
 	if (names_len > XATTR_LIST_MAX) {
 		ubifs_err(c, "cannot add one more xattr name to inode %lu, total names length would become %d, max. is %d",
 			  host->i_ino, names_len, XATTR_LIST_MAX);
@@ -154,9 +154,9 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	mutex_lock(&host_ui->ui_mutex);
 	host->i_ctime = ubifs_current_time(host);
 	host_ui->xattr_cnt += 1;
-	host_ui->xattr_size += CALC_DENT_SIZE(nm->len);
+	host_ui->xattr_size += CALC_DENT_SIZE(fname_len(nm));
 	host_ui->xattr_size += CALC_XATTR_BYTES(size);
-	host_ui->xattr_names += nm->len;
+	host_ui->xattr_names += fname_len(nm);
 
 	/*
 	 * We handle UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT here because we
@@ -164,7 +164,7 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	 * To avoid multiple updates of the same inode in the same operation,
 	 * let's do it here.
 	 */
-	if (strcmp(nm->name, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT) == 0)
+	if (strcmp(fname_name(nm), UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT) == 0)
 		host_ui->flags |= UBIFS_CRYPT_FL;
 
 	err = ubifs_jnl_update(c, host, nm, inode, 0, 1);
@@ -179,9 +179,9 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 
 out_cancel:
 	host_ui->xattr_cnt -= 1;
-	host_ui->xattr_size -= CALC_DENT_SIZE(nm->len);
+	host_ui->xattr_size -= CALC_DENT_SIZE(fname_len(nm));
 	host_ui->xattr_size -= CALC_XATTR_BYTES(size);
-	host_ui->xattr_names -= nm->len;
+	host_ui->xattr_names -= fname_len(nm);
 	host_ui->flags &= ~UBIFS_CRYPT_FL;
 	mutex_unlock(&host_ui->ui_mutex);
 out_free:
@@ -284,7 +284,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
-	struct qstr nm = QSTR_INIT(name, strlen(name));
+	struct fscrypt_name nm = { .disk_name = FSTR_INIT((char *)name, strlen(name))};
 	struct ubifs_dent_node *xent;
 	union ubifs_key key;
 	int err;
@@ -300,7 +300,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 	if (size > UBIFS_MAX_INO_DATA)
 		return -ERANGE;
 
-	if (nm.len > UBIFS_MAX_NLEN)
+	if (fname_len(&nm) > UBIFS_MAX_NLEN)
 		return -ENAMETOOLONG;
 
 	xent = kmalloc(UBIFS_MAX_XENT_NODE_SZ, GFP_NOFS);
@@ -350,13 +350,13 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
-	struct qstr nm = QSTR_INIT(name, strlen(name));
+	struct fscrypt_name nm = { .disk_name = FSTR_INIT((char *)name, strlen(name))};
 	struct ubifs_inode *ui;
 	struct ubifs_dent_node *xent;
 	union ubifs_key key;
 	int err;
 
-	if (nm.len > UBIFS_MAX_NLEN)
+	if (fname_len(&nm) > UBIFS_MAX_NLEN)
 		return -ENAMETOOLONG;
 
 	xent = kmalloc(UBIFS_MAX_XENT_NODE_SZ, GFP_NOFS);
@@ -425,7 +425,7 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_dent_node *xent, *pxent = NULL;
 	int err, len, written = 0;
-	struct qstr nm = { .name = NULL };
+	struct fscrypt_name nm = {0};
 
 	dbg_gen("ino %lu ('%pd'), buffer size %zd", host->i_ino,
 		dentry, size);
@@ -449,12 +449,12 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			break;
 		}
 
-		nm.name = xent->name;
-		nm.len = le16_to_cpu(xent->nlen);
+		fname_name(&nm) = xent->name;
+		fname_len(&nm) = le16_to_cpu(xent->nlen);
 
 		if (xattr_visible(xent->name)) {
-			memcpy(buffer + written, nm.name, nm.len + 1);
-			written += nm.len + 1;
+			memcpy(buffer + written, fname_name(&nm), fname_len(&nm) + 1);
+			written += fname_len(&nm) + 1;
 		}
 
 		kfree(pxent);
@@ -473,7 +473,7 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 }
 
 static int remove_xattr(struct ubifs_info *c, struct inode *host,
-			struct inode *inode, const struct qstr *nm)
+			struct inode *inode, const struct fscrypt_name *nm)
 {
 	int err;
 	struct ubifs_inode *host_ui = ubifs_inode(host);
@@ -490,9 +490,9 @@ static int remove_xattr(struct ubifs_info *c, struct inode *host,
 	mutex_lock(&host_ui->ui_mutex);
 	host->i_ctime = ubifs_current_time(host);
 	host_ui->xattr_cnt -= 1;
-	host_ui->xattr_size -= CALC_DENT_SIZE(nm->len);
+	host_ui->xattr_size -= CALC_DENT_SIZE(fname_len(nm));
 	host_ui->xattr_size -= CALC_XATTR_BYTES(ui->data_len);
-	host_ui->xattr_names -= nm->len;
+	host_ui->xattr_names -= fname_len(nm);
 
 	err = ubifs_jnl_delete_xattr(c, host, inode, nm);
 	if (err)
@@ -504,9 +504,9 @@ static int remove_xattr(struct ubifs_info *c, struct inode *host,
 
 out_cancel:
 	host_ui->xattr_cnt += 1;
-	host_ui->xattr_size += CALC_DENT_SIZE(nm->len);
+	host_ui->xattr_size += CALC_DENT_SIZE(fname_len(nm));
 	host_ui->xattr_size += CALC_XATTR_BYTES(ui->data_len);
-	host_ui->xattr_names += nm->len;
+	host_ui->xattr_names += fname_len(nm);
 	mutex_unlock(&host_ui->ui_mutex);
 	ubifs_release_budget(c, &req);
 	make_bad_inode(inode);
@@ -517,14 +517,14 @@ static int ubifs_xattr_remove(struct inode *host, const char *name)
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
-	struct qstr nm = QSTR_INIT(name, strlen(name));
+	struct fscrypt_name nm = { .disk_name = FSTR_INIT((char *)name, strlen(name))};
 	struct ubifs_dent_node *xent;
 	union ubifs_key key;
 	int err;
 
 	ubifs_assert(inode_is_locked(host));
 
-	if (nm.len > UBIFS_MAX_NLEN)
+	if (fname_len(&nm) > UBIFS_MAX_NLEN)
 		return -ENAMETOOLONG;
 
 	xent = kmalloc(UBIFS_MAX_XENT_NODE_SZ, GFP_NOFS);

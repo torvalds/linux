@@ -530,7 +530,7 @@ static void mark_inode_clean(struct ubifs_info *c, struct ubifs_inode *ui)
  * success. In case of failure, a negative error code is returned.
  */
 int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
-		     const struct qstr *nm, const struct inode *inode,
+		     const struct fscrypt_name *nm, const struct inode *inode,
 		     int deletion, int xent)
 {
 	int err, dlen, ilen, len, lnum, ino_offs, dent_offs;
@@ -542,11 +542,11 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	struct ubifs_ino_node *ino;
 	union ubifs_key dent_key, ino_key;
 
-	dbg_jnl("ino %lu, dent '%.*s', data len %d in dir ino %lu",
-		inode->i_ino, nm->len, nm->name, ui->data_len, dir->i_ino);
+	//dbg_jnl("ino %lu, dent '%.*s', data len %d in dir ino %lu",
+	//	inode->i_ino, nm->len, nm->name, ui->data_len, dir->i_ino);
 	ubifs_assert(mutex_is_locked(&host_ui->ui_mutex));
 
-	dlen = UBIFS_DENT_NODE_SZ + nm->len + 1;
+	dlen = UBIFS_DENT_NODE_SZ + fname_len(nm) + 1;
 	ilen = UBIFS_INO_NODE_SZ;
 
 	/*
@@ -587,9 +587,10 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	key_write(c, &dent_key, dent->key);
 	dent->inum = deletion ? 0 : cpu_to_le64(inode->i_ino);
 	dent->type = get_dent_type(inode->i_mode);
-	dent->nlen = cpu_to_le16(nm->len);
-	memcpy(dent->name, nm->name, nm->len);
-	dent->name[nm->len] = '\0';
+	dent->nlen = cpu_to_le16(fname_len(nm));
+	memcpy(dent->name, fname_name(nm), fname_len(nm));
+	dent->name[fname_len(nm)] = '\0';
+
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen, 0);
 
@@ -914,9 +915,11 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
  * ubifs_jnl_xrename - cross rename two directory entries.
  * @c: UBIFS file-system description object
  * @fst_dir: parent inode of 1st directory entry to exchange
- * @fst_dentry: 1st directory entry to exchange
+ * @fst_inode: 1st inode to exchange
+ * @fst_nm: name of 1st inode to exchange
  * @snd_dir: parent inode of 2nd directory entry to exchange
- * @snd_dentry: 2nd directory entry to exchange
+ * @snd_inode: 2nd inode to exchange
+ * @snd_nm: name of 2nd inode to exchange
  * @sync: non-zero if the write-buffer has to be synchronized
  *
  * This function implements the cross rename operation which may involve
@@ -925,29 +928,29 @@ int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
  * returned.
  */
 int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
-		      const struct dentry *fst_dentry,
+		      const struct inode *fst_inode,
+		      const struct fscrypt_name *fst_nm,
 		      const struct inode *snd_dir,
-		      const struct dentry *snd_dentry, int sync)
+		      const struct inode *snd_inode,
+		      const struct fscrypt_name *snd_nm, int sync)
 {
 	union ubifs_key key;
 	struct ubifs_dent_node *dent1, *dent2;
 	int err, dlen1, dlen2, lnum, offs, len, plen = UBIFS_INO_NODE_SZ;
 	int aligned_dlen1, aligned_dlen2;
 	int twoparents = (fst_dir != snd_dir);
-	const struct inode *fst_inode = d_inode(fst_dentry);
-	const struct inode *snd_inode = d_inode(snd_dentry);
 	void *p;
 
-	dbg_jnl("dent '%pd' in dir ino %lu between dent '%pd' in dir ino %lu",
-		fst_dentry, fst_dir->i_ino, snd_dentry, snd_dir->i_ino);
+	//dbg_jnl("dent '%pd' in dir ino %lu between dent '%pd' in dir ino %lu",
+	//	fst_dentry, fst_dir->i_ino, snd_dentry, snd_dir->i_ino);
 
 	ubifs_assert(ubifs_inode(fst_dir)->data_len == 0);
 	ubifs_assert(ubifs_inode(snd_dir)->data_len == 0);
 	ubifs_assert(mutex_is_locked(&ubifs_inode(fst_dir)->ui_mutex));
 	ubifs_assert(mutex_is_locked(&ubifs_inode(snd_dir)->ui_mutex));
 
-	dlen1 = UBIFS_DENT_NODE_SZ + snd_dentry->d_name.len + 1;
-	dlen2 = UBIFS_DENT_NODE_SZ + fst_dentry->d_name.len + 1;
+	dlen1 = UBIFS_DENT_NODE_SZ + fname_len(snd_nm) + 1;
+	dlen2 = UBIFS_DENT_NODE_SZ + fname_len(fst_nm) + 1;
 	aligned_dlen1 = ALIGN(dlen1, 8);
 	aligned_dlen2 = ALIGN(dlen2, 8);
 
@@ -966,24 +969,24 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 
 	/* Make new dent for 1st entry */
 	dent1->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent1->key, snd_dir->i_ino, &snd_dentry->d_name);
+	dent_key_init_flash(c, &dent1->key, snd_dir->i_ino, snd_nm);
 	dent1->inum = cpu_to_le64(fst_inode->i_ino);
 	dent1->type = get_dent_type(fst_inode->i_mode);
-	dent1->nlen = cpu_to_le16(snd_dentry->d_name.len);
-	memcpy(dent1->name, snd_dentry->d_name.name, snd_dentry->d_name.len);
-	dent1->name[snd_dentry->d_name.len] = '\0';
+	dent1->nlen = cpu_to_le16(fname_len(snd_nm));
+	memcpy(dent1->name, fname_name(snd_nm), fname_len(snd_nm));
+	dent1->name[fname_len(snd_nm)] = '\0';
 	zero_dent_node_unused(dent1);
 	ubifs_prep_grp_node(c, dent1, dlen1, 0);
 
 	/* Make new dent for 2nd entry */
 	dent2 = (void *)dent1 + aligned_dlen1;
 	dent2->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent2->key, fst_dir->i_ino, &fst_dentry->d_name);
+	dent_key_init_flash(c, &dent2->key, fst_dir->i_ino, fst_nm);
 	dent2->inum = cpu_to_le64(snd_inode->i_ino);
 	dent2->type = get_dent_type(snd_inode->i_mode);
-	dent2->nlen = cpu_to_le16(fst_dentry->d_name.len);
-	memcpy(dent2->name, fst_dentry->d_name.name, fst_dentry->d_name.len);
-	dent2->name[fst_dentry->d_name.len] = '\0';
+	dent2->nlen = cpu_to_le16(fname_len(fst_nm));
+	memcpy(dent2->name, fname_name(fst_nm), fname_len(fst_nm));
+	dent2->name[fname_len(fst_nm)] = '\0';
 	zero_dent_node_unused(dent2);
 	ubifs_prep_grp_node(c, dent2, dlen2, 0);
 
@@ -1007,14 +1010,14 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	}
 	release_head(c, BASEHD);
 
-	dent_key_init(c, &key, snd_dir->i_ino, &snd_dentry->d_name);
-	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, &snd_dentry->d_name);
+	dent_key_init(c, &key, snd_dir->i_ino, snd_nm);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, snd_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen1;
-	dent_key_init(c, &key, fst_dir->i_ino, &fst_dentry->d_name);
-	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, &fst_dentry->d_name);
+	dent_key_init(c, &key, fst_dir->i_ino, fst_nm);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, fst_nm);
 	if (err)
 		goto out_ro;
 
@@ -1066,31 +1069,31 @@ out_free:
  * returned.
  */
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
-		     const struct dentry *old_dentry,
+		     const struct inode *old_inode,
+		     const struct fscrypt_name *old_nm,
 		     const struct inode *new_dir,
-		     const struct dentry *new_dentry,
+		     const struct inode *new_inode,
+		     const struct fscrypt_name *new_nm,
 		     const struct inode *whiteout, int sync)
 {
 	void *p;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent, *dent2;
 	int err, dlen1, dlen2, ilen, lnum, offs, len;
-	const struct inode *old_inode = d_inode(old_dentry);
-	const struct inode *new_inode = d_inode(new_dentry);
 	int aligned_dlen1, aligned_dlen2, plen = UBIFS_INO_NODE_SZ;
 	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
 	int move = (old_dir != new_dir);
 	struct ubifs_inode *uninitialized_var(new_ui);
 
-	dbg_jnl("dent '%pd' in dir ino %lu to dent '%pd' in dir ino %lu",
-		old_dentry, old_dir->i_ino, new_dentry, new_dir->i_ino);
+	//dbg_jnl("dent '%pd' in dir ino %lu to dent '%pd' in dir ino %lu",
+	//	old_dentry, old_dir->i_ino, new_dentry, new_dir->i_ino);
 	ubifs_assert(ubifs_inode(old_dir)->data_len == 0);
 	ubifs_assert(ubifs_inode(new_dir)->data_len == 0);
 	ubifs_assert(mutex_is_locked(&ubifs_inode(old_dir)->ui_mutex));
 	ubifs_assert(mutex_is_locked(&ubifs_inode(new_dir)->ui_mutex));
 
-	dlen1 = UBIFS_DENT_NODE_SZ + new_dentry->d_name.len + 1;
-	dlen2 = UBIFS_DENT_NODE_SZ + old_dentry->d_name.len + 1;
+	dlen1 = UBIFS_DENT_NODE_SZ + fname_len(new_nm) + 1;
+	dlen2 = UBIFS_DENT_NODE_SZ + fname_len(old_nm) + 1;
 	if (new_inode) {
 		new_ui = ubifs_inode(new_inode);
 		ubifs_assert(mutex_is_locked(&new_ui->ui_mutex));
@@ -1116,19 +1119,18 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 
 	/* Make new dent */
 	dent->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent->key, new_dir->i_ino, &new_dentry->d_name);
+	dent_key_init_flash(c, &dent->key, new_dir->i_ino, new_nm);
 	dent->inum = cpu_to_le64(old_inode->i_ino);
 	dent->type = get_dent_type(old_inode->i_mode);
-	dent->nlen = cpu_to_le16(new_dentry->d_name.len);
-	memcpy(dent->name, new_dentry->d_name.name, new_dentry->d_name.len);
-	dent->name[new_dentry->d_name.len] = '\0';
+	dent->nlen = cpu_to_le16(fname_len(new_nm));
+	memcpy(dent->name, fname_name(new_nm), fname_len(new_nm));
+	dent->name[fname_len(new_nm)] = '\0';
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen1, 0);
 
 	dent2 = (void *)dent + aligned_dlen1;
 	dent2->ch.node_type = UBIFS_DENT_NODE;
-	dent_key_init_flash(c, &dent2->key, old_dir->i_ino,
-			    &old_dentry->d_name);
+	dent_key_init_flash(c, &dent2->key, old_dir->i_ino, old_nm);
 
 	if (whiteout) {
 		dent2->inum = cpu_to_le64(whiteout->i_ino);
@@ -1138,9 +1140,9 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		dent2->inum = 0;
 		dent2->type = DT_UNKNOWN;
 	}
-	dent2->nlen = cpu_to_le16(old_dentry->d_name.len);
-	memcpy(dent2->name, old_dentry->d_name.name, old_dentry->d_name.len);
-	dent2->name[old_dentry->d_name.len] = '\0';
+	dent2->nlen = cpu_to_le16(fname_len(old_nm));
+	memcpy(dent2->name, fname_name(old_nm), fname_len(old_nm));
+	dent2->name[fname_len(old_nm)] = '\0';
 	zero_dent_node_unused(dent2);
 	ubifs_prep_grp_node(c, dent2, dlen2, 0);
 
@@ -1181,15 +1183,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	}
 	release_head(c, BASEHD);
 
-	dent_key_init(c, &key, new_dir->i_ino, &new_dentry->d_name);
-	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, &new_dentry->d_name);
+	dent_key_init(c, &key, new_dir->i_ino, new_nm);
+	err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen1, new_nm);
 	if (err)
 		goto out_ro;
 
 	offs += aligned_dlen1;
 	if (whiteout) {
-		dent_key_init(c, &key, old_dir->i_ino, &old_dentry->d_name);
-		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, &old_dentry->d_name);
+		dent_key_init(c, &key, old_dir->i_ino, old_nm);
+		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, old_nm);
 		if (err)
 			goto out_ro;
 
@@ -1199,8 +1201,8 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (err)
 			goto out_ro;
 
-		dent_key_init(c, &key, old_dir->i_ino, &old_dentry->d_name);
-		err = ubifs_tnc_remove_nm(c, &key, &old_dentry->d_name);
+		dent_key_init(c, &key, old_dir->i_ino, old_nm);
+		err = ubifs_tnc_remove_nm(c, &key, old_nm);
 		if (err)
 			goto out_ro;
 	}
@@ -1461,7 +1463,8 @@ out_free:
  * error code in case of failure.
  */
 int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
-			   const struct inode *inode, const struct qstr *nm)
+			   const struct inode *inode,
+			   const struct fscrypt_name *nm)
 {
 	int err, xlen, hlen, len, lnum, xent_offs, aligned_xlen;
 	struct ubifs_dent_node *xent;
@@ -1470,9 +1473,9 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	int sync = IS_DIRSYNC(host);
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 
-	dbg_jnl("host %lu, xattr ino %lu, name '%s', data len %d",
-		host->i_ino, inode->i_ino, nm->name,
-		ubifs_inode(inode)->data_len);
+	//dbg_jnl("host %lu, xattr ino %lu, name '%s', data len %d",
+	//	host->i_ino, inode->i_ino, nm->name,
+	//	ubifs_inode(inode)->data_len);
 	ubifs_assert(inode->i_nlink == 0);
 	ubifs_assert(mutex_is_locked(&host_ui->ui_mutex));
 
@@ -1480,7 +1483,7 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	 * Since we are deleting the inode, we do not bother to attach any data
 	 * to it and assume its length is %UBIFS_INO_NODE_SZ.
 	 */
-	xlen = UBIFS_DENT_NODE_SZ + nm->len + 1;
+	xlen = UBIFS_DENT_NODE_SZ + fname_len(nm) + 1;
 	aligned_xlen = ALIGN(xlen, 8);
 	hlen = host_ui->data_len + UBIFS_INO_NODE_SZ;
 	len = aligned_xlen + UBIFS_INO_NODE_SZ + ALIGN(hlen, 8);
@@ -1501,9 +1504,9 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	key_write(c, &xent_key, xent->key);
 	xent->inum = 0;
 	xent->type = get_dent_type(inode->i_mode);
-	xent->nlen = cpu_to_le16(nm->len);
-	memcpy(xent->name, nm->name, nm->len);
-	xent->name[nm->len] = '\0';
+	xent->nlen = cpu_to_le16(fname_len(nm));
+	memcpy(xent->name, fname_name(nm), fname_len(nm));
+	xent->name[fname_len(nm)] = '\0';
 	zero_dent_node_unused(xent);
 	ubifs_prep_grp_node(c, xent, xlen, 0);
 
