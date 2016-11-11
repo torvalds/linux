@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include "client.h"
 #include "hw-ish.h"
-#include "utils.h"
 #include "hbm.h"
 
 /* For FW reset flow */
@@ -427,6 +426,59 @@ static int ipc_send_mng_msg(struct ishtp_device *dev, uint32_t msg_code,
 		sizeof(uint32_t) + size);
 }
 
+#define WAIT_FOR_FW_RDY			0x1
+#define WAIT_FOR_INPUT_RDY		0x2
+
+/**
+ * timed_wait_for_timeout() - wait special event with timeout
+ * @dev: ISHTP device pointer
+ * @condition: indicate the condition for waiting
+ * @timeinc: time slice for every wait cycle, in ms
+ * @timeout: time in ms for timeout
+ *
+ * This function will check special event to be ready in a loop, the loop
+ * period is specificd in timeinc. Wait timeout will causes failure.
+ *
+ * Return: 0 for success else failure code
+ */
+static int timed_wait_for_timeout(struct ishtp_device *dev, int condition,
+				unsigned int timeinc, unsigned int timeout)
+{
+	bool complete = false;
+	int ret;
+
+	do {
+		if (condition == WAIT_FOR_FW_RDY) {
+			complete = ishtp_fw_is_ready(dev);
+		} else if (condition == WAIT_FOR_INPUT_RDY) {
+			complete = ish_is_input_ready(dev);
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (!complete) {
+			unsigned long left_time;
+
+			left_time = msleep_interruptible(timeinc);
+			timeout -= (timeinc - left_time);
+		}
+	} while (!complete && timeout > 0);
+
+	if (complete)
+		ret = 0;
+	else
+		ret = -EBUSY;
+
+out:
+	return ret;
+}
+
+#define TIME_SLICE_FOR_FW_RDY_MS		100
+#define TIME_SLICE_FOR_INPUT_RDY_MS		100
+#define TIMEOUT_FOR_FW_RDY_MS			2000
+#define TIMEOUT_FOR_INPUT_RDY_MS		2000
+
 /**
  * ish_fw_reset_handler() - FW reset handler
  * @dev: ishtp device pointer
@@ -456,8 +508,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	ishtp_reset_handler(dev);
 
 	if (!ish_is_input_ready(dev))
-		timed_wait_for_timeout(WAIT_FOR_SEND_SLICE,
-			ish_is_input_ready(dev), (2 * HZ));
+		timed_wait_for_timeout(dev, WAIT_FOR_INPUT_RDY,
+			TIME_SLICE_FOR_INPUT_RDY_MS, TIMEOUT_FOR_INPUT_RDY_MS);
 
 	/* ISH FW is dead */
 	if (!ish_is_input_ready(dev))
@@ -472,8 +524,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 			 sizeof(uint32_t));
 
 	/* Wait for ISH FW'es ILUP and ISHTP_READY */
-	timed_wait_for_timeout(WAIT_FOR_SEND_SLICE, ishtp_fw_is_ready(dev),
-		(2 * HZ));
+	timed_wait_for_timeout(dev, WAIT_FOR_FW_RDY,
+			TIME_SLICE_FOR_FW_RDY_MS, TIMEOUT_FOR_FW_RDY_MS);
 	if (!ishtp_fw_is_ready(dev)) {
 		/* ISH FW is dead */
 		uint32_t	ish_status;
