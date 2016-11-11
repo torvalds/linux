@@ -3687,20 +3687,19 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	int ret, slot_id;
 	struct xhci_command *command;
 
-	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, false, true, GFP_KERNEL);
 	if (!command)
 		return 0;
 
 	/* xhci->slot_id and xhci->addr_dev are not thread-safe */
 	mutex_lock(&xhci->mutex);
 	spin_lock_irqsave(&xhci->lock, flags);
-	command->completion = &xhci->addr_dev;
 	ret = xhci_queue_slot_control(xhci, command, TRB_ENABLE_SLOT, 0);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		mutex_unlock(&xhci->mutex);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
-		kfree(command);
+		xhci_free_command(xhci, command);
 		return 0;
 	}
 	xhci_ring_cmd_db(xhci);
@@ -3715,7 +3714,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_err(xhci, "Max number of devices this xHCI host supports is %u.\n",
 				HCS_MAX_SLOTS(
 					readl(&xhci->cap_regs->hcs_params1)));
-		kfree(command);
+		xhci_free_command(xhci, command);
 		return 0;
 	}
 
@@ -3751,7 +3750,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 #endif
 
 
-	kfree(command);
+	xhci_free_command(xhci, command);
 	/* Is this a LS or FS device under a HS hub? */
 	/* Hub or peripherial? */
 	return 1;
@@ -3759,6 +3758,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 disable_slot:
 	/* Disable slot, if we can do it without mem alloc */
 	spin_lock_irqsave(&xhci->lock, flags);
+	kfree(command->completion);
 	command->completion = NULL;
 	command->status = 0;
 	if (!xhci_queue_slot_control(xhci, command, TRB_DISABLE_SLOT,
@@ -3820,14 +3820,13 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		}
 	}
 
-	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, false, true, GFP_KERNEL);
 	if (!command) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	command->in_ctx = virt_dev->in_ctx;
-	command->completion = &xhci->addr_dev;
 
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
 	ctrl_ctx = xhci_get_input_control_ctx(virt_dev->in_ctx);
@@ -3945,7 +3944,10 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		       le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK);
 out:
 	mutex_unlock(&xhci->mutex);
-	kfree(command);
+	if (command) {
+		kfree(command->completion);
+		kfree(command);
+	}
 	return ret;
 }
 
