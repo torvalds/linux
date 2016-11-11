@@ -583,7 +583,6 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
 	struct node_info ni;
-	int seg = CURSEG_WARM_DATA;
 	pgoff_t fofs;
 	blkcnt_t count = 1;
 
@@ -601,11 +600,8 @@ alloc:
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
-	if (dn->ofs_in_node == 0 && dn->inode_page == dn->node_page)
-		seg = CURSEG_DIRECT_IO;
-
 	allocate_data_block(sbi, NULL, dn->data_blkaddr, &dn->data_blkaddr,
-								&sum, seg);
+						&sum, CURSEG_WARM_DATA);
 	set_data_blkaddr(dn);
 
 	/* update i_size */
