@@ -2035,18 +2035,14 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	taskout = req_task->out_size;
 	taskin = req_task->in_size;
 	/* 130560 = 512 * 0xFF*/
-	if (taskin > 130560 || taskout > 130560) {
-		err = -EINVAL;
-		goto abort;
-	}
+	if (taskin > 130560 || taskout > 130560)
+		return -EINVAL;
 
 	if (taskout) {
 		outbuf = memdup_user(buf + outtotal, taskout);
-		if (IS_ERR(outbuf)) {
-			err = PTR_ERR(outbuf);
-			outbuf = NULL;
-			goto abort;
-		}
+		if (IS_ERR(outbuf))
+			return PTR_ERR(outbuf);
+
 		outbuf_dma = pci_map_single(dd->pdev,
 					 outbuf,
 					 taskout,
