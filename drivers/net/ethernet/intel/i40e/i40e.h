@@ -360,6 +360,7 @@ struct i40e_pf {
 #define I40E_FLAG_PF_MAC			BIT_ULL(50)
 #define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT_ULL(51)
 #define I40E_FLAG_HAVE_CRT_RETIMER		BIT_ULL(52)
+#define I40E_FLAG_PTP_L4_CAPABLE		BIT_ULL(53)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;
