@@ -876,9 +876,9 @@ exit:
 
 static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
 {
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	DEFINE_WAIT(wait);
 	int done;
 
 	do {
@@ -892,9 +892,9 @@ static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
 		if (signal_pending(current))
 			return sock_intr_errno(*timeo_p);
 
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		done = sk_wait_event(sk, timeo_p, !tsk->link_cong);
-		finish_wait(sk_sleep(sk), &wait);
+		add_wait_queue(sk_sleep(sk), &wait);
+		done = sk_wait_event(sk, timeo_p, !tsk->link_cong, &wait);
+		remove_wait_queue(sk_sleep(sk), &wait);
 	} while (!done);
 	return 0;
 }
@@ -1031,9 +1031,9 @@ new_mtu:
 
 static int tipc_wait_for_sndpkt(struct socket *sock, long *timeo_p)
 {
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	DEFINE_WAIT(wait);
 	int done;
 
 	do {
@@ -1049,12 +1049,12 @@ static int tipc_wait_for_sndpkt(struct socket *sock, long *timeo_p)
 		if (signal_pending(current))
 			return sock_intr_errno(*timeo_p);
 
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+		add_wait_queue(sk_sleep(sk), &wait);
 		done = sk_wait_event(sk, timeo_p,
 				     (!tsk->link_cong &&
 				      !tsk_conn_cong(tsk)) ||
-				      !tipc_sk_connected(sk));
-		finish_wait(sk_sleep(sk), &wait);
+				      !tipc_sk_connected(sk), &wait);
+		remove_wait_queue(sk_sleep(sk), &wait);
 	} while (!done);
 	return 0;
 }
@@ -1929,8 +1929,8 @@ xmit:
 
 static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)
 {
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct sock *sk = sock->sk;
-	DEFINE_WAIT(wait);
 	int done;
 
 	do {
@@ -1942,10 +1942,10 @@ static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)
 		if (signal_pending(current))
 			return sock_intr_errno(*timeo_p);
 
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
+		add_wait_queue(sk_sleep(sk), &wait);
 		done = sk_wait_event(sk, timeo_p,
-				     sk->sk_state != TIPC_CONNECTING);
-		finish_wait(sk_sleep(sk), &wait);
+				     sk->sk_state != TIPC_CONNECTING, &wait);
+		remove_wait_queue(sk_sleep(sk), &wait);
 	} while (!done);
 	return 0;
 }
