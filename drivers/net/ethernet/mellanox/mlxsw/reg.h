@@ -4424,7 +4424,7 @@ enum mlxsw_reg_mfcr_pwm_frequency {
  * Controls the frequency of the PWM signal.
  * Access: RW
  */
-MLXSW_ITEM32(reg, mfcr, pwm_frequency, 0x00, 0, 6);
+MLXSW_ITEM32(reg, mfcr, pwm_frequency, 0x00, 0, 7);
 
 #define MLXSW_MFCR_TACHOS_MAX 10
 
