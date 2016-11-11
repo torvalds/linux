@@ -552,6 +552,19 @@ struct iommu_group *iommu_group_get(struct device *dev)
 EXPORT_SYMBOL_GPL(iommu_group_get);
 
 /**
+ * iommu_group_ref_get - Increment reference on a group
+ * @group: the group to use, must not be NULL
+ *
+ * This function is called by iommu drivers to take additional references on an
+ * existing group.  Returns the given group for convenience.
+ */
+struct iommu_group *iommu_group_ref_get(struct iommu_group *group)
+{
+	kobject_get(group->devices_kobj);
+	return group;
+}
+
+/**
  * iommu_group_put - Decrement group reference
  * @group: the group to use
  *
