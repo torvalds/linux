@@ -2505,7 +2505,7 @@ static void i40e_vlan_rx_register(struct net_device *netdev, u32 features)
  * NOTE: this function expects to be called while under the
  * mac_filter_hash_lock
  **/
-static int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
+int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
 {
 	struct i40e_mac_filter *f, *add_f;
 	struct hlist_node *h;
@@ -2596,7 +2596,7 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
  * NOTE: this function expects to be called while under the
  * mac_filter_hash_lock
  */
-static void i40e_rm_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
+void i40e_rm_vlan_all_mac(struct i40e_vsi *vsi, s16 vid)
 {
 	struct i40e_mac_filter *f;
 	struct hlist_node *h;
