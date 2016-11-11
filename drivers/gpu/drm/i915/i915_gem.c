@@ -2934,11 +2934,20 @@ static int wait_for_timeline(struct i915_gem_timeline *tl, unsigned int flags)
 
 int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
-	struct i915_gem_timeline *tl;
 	int ret;
 
-	list_for_each_entry(tl, &i915->gt.timelines, link) {
-		ret = wait_for_timeline(tl, flags);
+	if (flags & I915_WAIT_LOCKED) {
+		struct i915_gem_timeline *tl;
+
+		lockdep_assert_held(&i915->drm.struct_mutex);
+
+		list_for_each_entry(tl, &i915->gt.timelines, link) {
+			ret = wait_for_timeline(tl, flags);
+			if (ret)
+				return ret;
+		}
+	} else {
+		ret = wait_for_timeline(&i915->gt.global_timeline, flags);
 		if (ret)
 			return ret;
 	}
