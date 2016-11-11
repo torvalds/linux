@@ -291,12 +291,16 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 
 	if (sunxi_pctrl_has_bias_prop(node)) {
 		int pull = sunxi_pctrl_parse_bias_prop(node);
+		int arg = 0;
 		if (pull < 0) {
 			ret = pull;
 			goto err_free;
 		}
 
-		pinconfig[idx++] = pinconf_to_config_packed(pull, 0);
+		if (pull != PIN_CONFIG_BIAS_DISABLE)
+			arg = 1; /* hardware uses weak pull resistors */
+
+		pinconfig[idx++] = pinconf_to_config_packed(pull, arg);
 	}
 
 
