@@ -353,7 +353,7 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 #endif
 
 
-static int probe_irq __initdata;
+static int probe_irq;
 
 /**
  * probe_intr	-	helper for IRQ autoprobe
@@ -365,7 +365,7 @@ static int probe_irq __initdata;
  * used by the IRQ probe code.
  */
 
-static irqreturn_t __init probe_intr(int irq, void *dev_id)
+static irqreturn_t probe_intr(int irq, void *dev_id)
 {
 	probe_irq = irq;
 	return IRQ_HANDLED;
@@ -380,7 +380,7 @@ static irqreturn_t __init probe_intr(int irq, void *dev_id)
  * and then looking to see what interrupt actually turned up.
  */
 
-static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
+static int __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 						int possible)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);

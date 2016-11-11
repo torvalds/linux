@@ -112,7 +112,7 @@ struct afs_call {
 	bool			need_attention;	/* T if RxRPC poked us */
 	u16			service_id;	/* RxRPC service ID to call */
 	__be16			port;		/* target UDP port */
-	__be32			operation_ID;	/* operation ID for an incoming call */
+	u32			operation_ID;	/* operation ID for an incoming call */
 	u32			count;		/* count for use in unmarshalling */
 	__be32			tmp;		/* place to extract temporary data */
 	afs_dataversion_t	store_version;	/* updated version expected from store */

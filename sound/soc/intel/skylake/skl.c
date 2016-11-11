@@ -674,7 +674,7 @@ static int skl_probe(struct pci_dev *pci,
 
 	if (skl->nhlt == NULL) {
 		err = -ENODEV;
-		goto out_free;
+		goto out_display_power_off;
 	}
 
 	skl_nhlt_update_topology_bin(skl);
@@ -746,6 +746,9 @@ out_mach_free:
 	skl_machine_device_unregister(skl);
 out_nhlt_free:
 	skl_nhlt_free(skl->nhlt);
+out_display_power_off:
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		snd_hdac_display_power(bus, false);
 out_free:
 	skl->init_failed = 1;
 	skl_free(ebus);
@@ -785,8 +788,7 @@ static void skl_remove(struct pci_dev *pci)
 
 	release_firmware(skl->tplg);
 
-	if (pci_dev_run_wake(pci))
-		pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(ebus);

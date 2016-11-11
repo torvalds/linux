@@ -21,7 +21,7 @@
 
 #include "gcc-common.h"
 
-int plugin_is_GPL_compatible;
+__visible int plugin_is_GPL_compatible;
 
 tree sancov_fndecl;
 
@@ -86,7 +86,7 @@ static void sancov_start_unit(void __unused *gcc_data, void __unused *user_data)
 #endif
 }
 
-int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
+__visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
 {
 	int i;
 	struct register_pass_info sancov_plugin_pass_info;
