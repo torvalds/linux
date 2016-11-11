@@ -87,12 +87,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	resp.bar_len = bar->len;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_RQ);
@@ -101,12 +101,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.rq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_WQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_WQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_WQ);
@@ -115,12 +115,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.wq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_CQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_CQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_CQ);
