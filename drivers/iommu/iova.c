@@ -56,7 +56,7 @@ EXPORT_SYMBOL_GPL(init_iova_domain);
 static struct rb_node *
 __get_cached_rbnode(struct iova_domain *iovad, unsigned long *limit_pfn)
 {
-	if ((*limit_pfn != iovad->dma_32bit_pfn) ||
+	if ((*limit_pfn > iovad->dma_32bit_pfn) ||
 		(iovad->cached32_node == NULL))
 		return rb_last(&iovad->rbroot);
 	else {
