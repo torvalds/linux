@@ -1096,15 +1096,15 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 		if (!intel_plane_state->base.visible)
 			continue;
 
+		if (!intel_fbc_can_choose(to_intel_crtc(plane_state->crtc)))
+			continue;
+
 		for_each_crtc_in_state(state, crtc, crtc_state, j) {
 			struct intel_crtc_state *intel_crtc_state =
 				to_intel_crtc_state(crtc_state);
 
 			if (plane_state->crtc != crtc)
 				continue;
-
-			if (!intel_fbc_can_choose(to_intel_crtc(crtc)))
-				break;
 
 			intel_crtc_state->enable_fbc = true;
 			goto out;
