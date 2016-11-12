@@ -13,34 +13,6 @@
 #include <linux/posix_acl.h>
 #include "overlayfs.h"
 
-static int ovl_copy_up_truncate(struct dentry *dentry)
-{
-	int err;
-	struct dentry *parent;
-	struct kstat stat;
-	struct path lowerpath;
-	const struct cred *old_cred;
-
-	parent = dget_parent(dentry);
-	err = ovl_copy_up(parent);
-	if (err)
-		goto out_dput_parent;
-
-	ovl_path_lower(dentry, &lowerpath);
-
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&lowerpath, &stat);
-	if (!err) {
-		stat.size = 0;
-		err = ovl_copy_up_one(parent, dentry, &lowerpath, &stat);
-	}
-	revert_creds(old_cred);
-
-out_dput_parent:
-	dput(parent);
-	return err;
-}
-
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
@@ -281,10 +253,7 @@ int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 	if (ovl_open_need_copy_up(file_flags, type, realpath.dentry)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
-			if (file_flags & O_TRUNC)
-				err = ovl_copy_up_truncate(dentry);
-			else
-				err = ovl_copy_up(dentry);
+			err = ovl_copy_up_flags(dentry, file_flags);
 			ovl_drop_write(dentry);
 		}
 	}
