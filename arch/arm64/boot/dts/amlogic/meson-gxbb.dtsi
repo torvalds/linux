@@ -87,6 +87,7 @@
 			compatible = "amlogic,meson-gxbb-usb2-phy";
 			#phy-cells = <0>;
 			reg = <0x0 0xc0000020 0x0 0x20>;
+			resets = <&reset RESET_USB_OTG>;
 			clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
 			clock-names = "usb_general", "usb";
 			status = "disabled";
