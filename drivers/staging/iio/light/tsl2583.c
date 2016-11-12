@@ -221,7 +221,11 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 		goto return_max;
 
 	if (!ch0) {
-		/* have no data, so return LAST VALUE */
+		/*
+		 * The sensor appears to be in total darkness so set the
+		 * calculated lux to 0 and return early to avoid a division by
+		 * zero below when calculating the ratio.
+		 */
 		ret = 0;
 		chip->als_cur_info.lux = 0;
 		goto done;
