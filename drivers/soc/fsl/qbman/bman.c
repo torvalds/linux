@@ -391,7 +391,7 @@ static void bm_rcr_finish(struct bm_portal *portal)
 
 	i = bm_in(portal, BM_REG_RCR_PI_CINH) & (BM_RCR_SIZE - 1);
 	if (i != rcr_ptr2idx(rcr->cursor))
-		pr_crit("losing uncommited RCR entries\n");
+		pr_crit("losing uncommitted RCR entries\n");
 
 	i = bm_in(portal, BM_REG_RCR_CI_CINH) & (BM_RCR_SIZE - 1);
 	if (i != rcr->ci)

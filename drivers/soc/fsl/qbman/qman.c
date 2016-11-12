@@ -443,7 +443,7 @@ static inline void qm_eqcr_finish(struct qm_portal *portal)
 
 	DPAA_ASSERT(!eqcr->busy);
 	if (pi != eqcr_ptr2idx(eqcr->cursor))
-		pr_crit("losing uncommited EQCR entries\n");
+		pr_crit("losing uncommitted EQCR entries\n");
 	if (ci != eqcr->ci)
 		pr_crit("missing existing EQCR completions\n");
 	if (eqcr->ci != eqcr_ptr2idx(eqcr->cursor))
