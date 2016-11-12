@@ -501,16 +501,27 @@ static ssize_t in_illuminance_calibrate_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int value;
+	int value, ret;
 
 	if (kstrtoint(buf, 0, &value) || value != 1)
 		return -EINVAL;
 
 	mutex_lock(&chip->als_mutex);
-	taos_als_calibrate(indio_dev);
+
+	if (chip->taos_chip_status != TSL258X_CHIP_WORKING) {
+		ret = -EBUSY;
+		goto done;
+	}
+
+	ret = taos_als_calibrate(indio_dev);
+	if (ret < 0)
+		goto done;
+
+	ret = len;
+done:
 	mutex_unlock(&chip->als_mutex);
 
-	return len;
+	return ret;
 }
 
 static ssize_t in_illuminance_lux_table_show(struct device *dev,
