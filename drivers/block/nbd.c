@@ -599,7 +599,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 			return -EINVAL;
 
 		sreq = blk_mq_alloc_request(bdev_get_queue(bdev), WRITE, 0);
-		if (!sreq)
+		if (IS_ERR(sreq))
 			return -ENOMEM;
 
 		mutex_unlock(&nbd->tx_lock);
