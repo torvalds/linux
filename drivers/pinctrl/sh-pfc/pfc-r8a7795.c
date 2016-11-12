@@ -5367,13 +5367,12 @@ static unsigned int r8a7795_pinmux_get_bias(struct sh_pfc *pfc,
 	reg = pullups[pin].reg;
 	bit = BIT(pullups[pin].bit);
 
-	if (sh_pfc_read_reg(pfc, PUEN + reg, 32) & bit) {
-		if (sh_pfc_read_reg(pfc, PUD + reg, 32) & bit)
-			return PIN_CONFIG_BIAS_PULL_UP;
-		else
-			return PIN_CONFIG_BIAS_PULL_DOWN;
-	} else
+	if (!(sh_pfc_read_reg(pfc, PUEN + reg, 32) & bit))
 		return PIN_CONFIG_BIAS_DISABLE;
+	else if (sh_pfc_read_reg(pfc, PUD + reg, 32) & bit)
+		return PIN_CONFIG_BIAS_PULL_UP;
+	else
+		return PIN_CONFIG_BIAS_PULL_DOWN;
 }
 
 static void r8a7795_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
