@@ -44,19 +44,19 @@
 /* tsl2583 cmd reg masks */
 #define TSL2583_CMD_REG			0x80
 #define TSL2583_CMD_SPL_FN		0x60
-#define TSL2583_CMD_ALS_INT_CLR	0X01
+#define TSL2583_CMD_ALS_INT_CLR		0x01
 
 /* tsl2583 cntrl reg masks */
-#define TSL2583_CNTL_ADC_ENBL	0x02
+#define TSL2583_CNTL_ADC_ENBL		0x02
 #define TSL2583_CNTL_PWR_OFF		0x00
 #define TSL2583_CNTL_PWR_ON		0x01
 
 /* tsl2583 status reg masks */
-#define TSL2583_STA_ADC_VALID	0x01
-#define TSL2583_STA_ADC_INTR	0x10
+#define TSL2583_STA_ADC_VALID		0x01
+#define TSL2583_STA_ADC_INTR		0x10
 
 /* Lux calculation constants */
-#define	TSL2583_LUX_CALC_OVER_FLOW		65535
+#define TSL2583_LUX_CALC_OVER_FLOW	65535
 
 #define TSL2583_INTERRUPT_DISABLED	0x00
 
