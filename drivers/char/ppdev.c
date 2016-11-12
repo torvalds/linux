@@ -86,6 +86,9 @@ struct pp_struct {
 	long default_inactivity;
 };
 
+/* should we use PARDEVICE_MAX here? */
+static struct device *devices[PARPORT_MAX];
+
 /* pp_struct.flags bitfields */
 #define PP_CLAIMED    (1<<0)
 #define PP_EXCL       (1<<1)
@@ -789,13 +792,29 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	device_create(ppdev_class, port->dev, MKDEV(PP_MAJOR, port->number),
-		      NULL, "parport%d", port->number);
+	struct device *ret;
+
+	if (devices[port->number])
+		return;
+
+	ret = device_create(ppdev_class, port->dev,
+			    MKDEV(PP_MAJOR, port->number), NULL,
+			    "parport%d", port->number);
+	if (IS_ERR(ret)) {
+		pr_err("Failed to create device parport%d\n",
+		       port->number);
+		return;
+	}
+	devices[port->number] = ret;
 }
 
 static void pp_detach(struct parport *port)
 {
+	if (!devices[port->number])
+		return;
+
 	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
+	devices[port->number] = NULL;
 }
 
 static int pp_probe(struct pardevice *par_dev)
