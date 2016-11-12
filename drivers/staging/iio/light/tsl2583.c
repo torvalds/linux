@@ -782,10 +782,6 @@ static const struct iio_info tsl2583_info = {
 	.write_raw = tsl2583_write_raw,
 };
 
-/*
- * Client probe function - When a valid device is found, the driver's device
- * data structure is updated, and initialization completes successfully.
- */
 static int tsl2583_probe(struct i2c_client *clientp,
 			 const struct i2c_device_id *idp)
 {
