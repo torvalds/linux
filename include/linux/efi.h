@@ -1148,6 +1148,26 @@ struct efi_generic_dev_path {
 	u16 length;
 } __attribute ((packed));
 
+struct efi_dev_path {
+	u8 type;	/* can be replaced with unnamed */
+	u8 sub_type;	/* struct efi_generic_dev_path; */
+	u16 length;	/* once we've moved to -std=c11 */
+	union {
+		struct {
+			u32 hid;
+			u32 uid;
+		} acpi;
+		struct {
+			u8 fn;
+			u8 dev;
+		} pci;
+	};
+} __attribute ((packed));
+
+#if IS_ENABLED(CONFIG_EFI_DEV_PATH_PARSER)
+struct device *efi_get_device_by_path(struct efi_dev_path **node, size_t *len);
+#endif
+
 static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
 {
 	*npages = PFN_UP(*addr + (*npages<<EFI_PAGE_SHIFT)) - PFN_DOWN(*addr);

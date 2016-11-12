@@ -133,3 +133,8 @@ endmenu
 
 config UEFI_CPER
 	bool
+
+config EFI_DEV_PATH_PARSER
+	bool
+	depends on ACPI
+	default n
