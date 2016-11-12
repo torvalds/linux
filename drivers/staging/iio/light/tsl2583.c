@@ -167,8 +167,6 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	struct tsl2583_lux *p;
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int i, ret;
-	u32 ch0lux = 0;
-	u32 ch1lux = 0;
 
 	ret = i2c_smbus_read_byte_data(chip->client, TSL2583_CMD_REG);
 	if (ret < 0) {
@@ -242,22 +240,25 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	if (p->ratio == 0) {
 		lux = 0;
 	} else {
+		u32 ch0lux, ch1lux;
+
 		ch0lux = ((ch0 * p->ch0) +
 			  (gainadj[chip->als_settings.als_gain].ch0 >> 1))
 			 / gainadj[chip->als_settings.als_gain].ch0;
 		ch1lux = ((ch1 * p->ch1) +
 			  (gainadj[chip->als_settings.als_gain].ch1 >> 1))
 			 / gainadj[chip->als_settings.als_gain].ch1;
-		lux = ch0lux - ch1lux;
-	}
 
-	/* note: lux is 31 bit max at this point */
-	if (ch1lux > ch0lux) {
-		dev_dbg(&chip->client->dev, "%s: No Data - Returning 0\n",
-			__func__);
-		ret = 0;
-		chip->als_cur_info.lux = 0;
-		goto done;
+		/* note: lux is 31 bit max at this point */
+		if (ch1lux > ch0lux) {
+			dev_dbg(&chip->client->dev, "%s: No Data - Returning 0\n",
+				__func__);
+			ret = 0;
+			chip->als_cur_info.lux = 0;
+			goto done;
+		}
+
+		lux = ch0lux - ch1lux;
 	}
 
 	/* adjust for active time scale */
