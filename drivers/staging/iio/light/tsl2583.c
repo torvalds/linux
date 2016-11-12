@@ -178,13 +178,6 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	u32 ch0lux = 0;
 	u32 ch1lux = 0;
 
-	if (chip->taos_chip_status != TSL258X_CHIP_WORKING) {
-		/* device is not enabled */
-		dev_err(&chip->client->dev, "taos_get_lux device is not enabled\n");
-		ret = -EBUSY;
-		goto done;
-	}
-
 	ret = i2c_smbus_read_byte_data(chip->client, TSL258X_CMD_REG);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "taos_get_lux failed to read CMD_REG\n");
