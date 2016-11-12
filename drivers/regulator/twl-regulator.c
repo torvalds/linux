@@ -1175,51 +1175,26 @@ static int twlreg_probe(struct platform_device *pdev)
 	struct regulator_init_data	*initdata;
 	struct regulation_constraints	*c;
 	struct regulator_dev		*rdev;
-	struct twl_regulator_driver_data	*drvdata;
 	const struct of_device_id	*match;
 	struct regulator_config		config = { };
 
 	match = of_match_device(twl_of_match, &pdev->dev);
-	if (match) {
-		template = match->data;
-		id = template->desc.id;
-		initdata = of_get_regulator_init_data(&pdev->dev,
-						      pdev->dev.of_node,
-						      &template->desc);
-		drvdata = NULL;
-	} else {
-		id = pdev->id;
-		initdata = dev_get_platdata(&pdev->dev);
-		for (i = 0, template = NULL; i < ARRAY_SIZE(twl_of_match); i++) {
-			template = twl_of_match[i].data;
-			if (template && template->desc.id == id)
-				break;
-		}
-		if (i == ARRAY_SIZE(twl_of_match))
-			return -ENODEV;
+	if (!match)
+		return -ENODEV;
 
-		drvdata = initdata->driver_data;
-		if (!drvdata)
-			return -EINVAL;
-	}
-
+	template = match->data;
 	if (!template)
 		return -ENODEV;
 
+	id = template->desc.id;
+	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+						&template->desc);
 	if (!initdata)
 		return -EINVAL;
 
 	info = devm_kmemdup(&pdev->dev, template, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
-
-	if (drvdata) {
-		/* copy the driver data into regulator data */
-		info->features = drvdata->features;
-		info->data = drvdata->data;
-		info->set_voltage = drvdata->set_voltage;
-		info->get_voltage = drvdata->get_voltage;
-	}
 
 	/* Constrain board-specific capabilities according to what
 	 * this driver and the chip itself can actually do.
