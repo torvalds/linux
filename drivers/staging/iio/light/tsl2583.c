@@ -510,7 +510,7 @@ static ssize_t in_illuminance_lux_table_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	int i;
+	unsigned int i;
 	int offset = 0;
 
 	for (i = 0; i < ARRAY_SIZE(tsl2583_device_lux); i++) {
@@ -541,7 +541,8 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int value[ARRAY_SIZE(tsl2583_device_lux) * 3 + 1];
-	int n, ret = -EINVAL;
+	int ret = -EINVAL;
+	unsigned int n;
 
 	mutex_lock(&chip->als_mutex);
 
@@ -719,7 +720,7 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
-			int i;
+			unsigned int i;
 
 			for (i = 0; i < ARRAY_SIZE(gainadj); i++) {
 				if (gainadj[i].mean == val) {
