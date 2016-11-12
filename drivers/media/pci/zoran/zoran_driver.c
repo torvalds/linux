@@ -1488,7 +1488,7 @@ zoran_set_input (struct zoran *zr,
 	if (input < 0 || input >= zr->card.inputs) {
 		dprintk(1,
 			KERN_ERR
-			"%s: %s - unnsupported input %d\n",
+			"%s: %s - unsupported input %d\n",
 			ZR_DEVNAME(zr), __func__, input);
 		return -EINVAL;
 	}
