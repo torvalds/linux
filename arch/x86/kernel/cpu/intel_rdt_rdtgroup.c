@@ -799,6 +799,7 @@ static void rmdir_all_sub(void)
 {
 	struct rdtgroup *rdtgrp, *tmp;
 	struct task_struct *p, *t;
+	int cpu;
 
 	/* move all tasks to default resource group */
 	read_lock(&tasklist_lock);
@@ -813,14 +814,29 @@ static void rmdir_all_sub(void)
 	smp_call_function_many(cpu_online_mask, rdt_reset_pqr_assoc_closid,
 			       NULL, 1);
 	put_cpu();
+
 	list_for_each_entry_safe(rdtgrp, tmp, &rdt_all_groups, rdtgroup_list) {
 		/* Remove each rdtgroup other than root */
 		if (rdtgrp == &rdtgroup_default)
 			continue;
+
+		/*
+		 * Give any CPUs back to the default group. We cannot copy
+		 * cpu_online_mask because a CPU might have executed the
+		 * offline callback already, but is still marked online.
+		 */
+		cpumask_or(&rdtgroup_default.cpu_mask,
+			   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
+
 		kernfs_remove(rdtgrp->kn);
 		list_del(&rdtgrp->rdtgroup_list);
 		kfree(rdtgrp);
 	}
+
+	/* Reset all per cpu closids to the default value */
+	for_each_cpu(cpu, &rdtgroup_default.cpu_mask)
+		per_cpu(cpu_closid, cpu) = 0;
+
 	kernfs_remove(kn_info);
 }
 
