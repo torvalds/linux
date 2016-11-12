@@ -53,7 +53,6 @@ struct af9005_device_state {
 	u8 sequence;
 	int led_state;
 	unsigned char data[256];
-	struct mutex data_mutex;
 };
 
 static int af9005_generic_read_write(struct dvb_usb_device *d, u16 reg,
@@ -72,7 +71,7 @@ static int af9005_generic_read_write(struct dvb_usb_device *d, u16 reg,
 		return -EINVAL;
 	}
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = 14;		/* rest of buffer length low */
 	st->data[1] = 0;		/* rest of buffer length high */
 
@@ -140,7 +139,7 @@ static int af9005_generic_read_write(struct dvb_usb_device *d, u16 reg,
 			values[i] = st->data[8 + i];
 
 ret:
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 	return ret;
 
 }
@@ -481,7 +480,7 @@ int af9005_send_command(struct dvb_usb_device *d, u8 command, u8 * wbuf,
 	}
 	packet_len = wlen + 5;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 
 	st->data[0] = (u8) (packet_len & 0xff);
 	st->data[1] = (u8) ((packet_len & 0xff00) >> 8);
@@ -512,7 +511,7 @@ int af9005_send_command(struct dvb_usb_device *d, u8 command, u8 * wbuf,
 			rbuf[i] = st->data[i + 7];
 	}
 
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 	return ret;
 }
 
@@ -523,7 +522,7 @@ int af9005_read_eeprom(struct dvb_usb_device *d, u8 address, u8 * values,
 	u8 seq;
 	int ret, i;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 
 	memset(st->data, 0, sizeof(st->data));
 
@@ -559,7 +558,7 @@ int af9005_read_eeprom(struct dvb_usb_device *d, u8 address, u8 * values,
 		for (i = 0; i < len; i++)
 			values[i] = st->data[6 + i];
 	}
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 
 	return ret;
 }
@@ -847,7 +846,7 @@ static int af9005_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 		return 0;
 	}
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 
 	/* deb_info("rc_query\n"); */
 	st->data[0] = 3;		/* rest of packet length low */
@@ -890,7 +889,7 @@ static int af9005_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	}
 
 ret:
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 	return ret;
 }
 
@@ -1004,20 +1003,8 @@ static struct dvb_usb_device_properties af9005_properties;
 static int af9005_usb_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
-	struct af9005_device_state *st;
-	int ret;
-
-	ret = dvb_usb_device_init(intf, &af9005_properties,
-				  THIS_MODULE, &d, adapter_nr);
-
-	if (ret < 0)
-		return ret;
-
-	st = d->priv;
-	mutex_init(&st->data_mutex);
-
-	return 0;
+	return dvb_usb_device_init(intf, &af9005_properties,
+				  THIS_MODULE, NULL, adapter_nr);
 }
 
 enum af9005_usb_table_entry {
