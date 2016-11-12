@@ -433,6 +433,7 @@ hijack_fini(void)
 {
 	int i;
 	char *dump = getenv("LKL_HIJACK_DUMP");
+	int err;
 
 	/* The following pauses the kernel before exiting allowing one
 	 * to debug or collect stattistics/diagnosis info from it.
@@ -453,5 +454,7 @@ hijack_fini(void)
 	if (nd)
 		lkl_netdev_free(nd);
 
-	lkl_sys_halt();
+	err = lkl_sys_halt();
+	if (err)
+		fprintf(stderr, "lkl_sys_halt: %s\n", lkl_strerror(err));
 }

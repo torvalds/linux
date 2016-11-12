@@ -113,6 +113,13 @@ long lkl_syscall(long no, long *params)
 
 	ret = run_syscall(no, params);
 
+	if (no == __NR_reboot) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (!thread_set_sched_jmp())
+			schedule();
+		return ret;
+	}
+
 out:
 	lkl_cpu_put();
 

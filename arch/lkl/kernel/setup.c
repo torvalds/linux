@@ -75,6 +75,7 @@ int __init lkl_start_kernel(struct lkl_host_operations *ops,
 	}
 
 	lkl_ops->sem_down(init_sem);
+	lkl_ops->sem_free(init_sem);
 	current_thread_info()->tid = lkl_ops->thread_self();
 	lkl_cpu_change_owner(current_thread_info()->tid);
 
@@ -112,7 +113,8 @@ void machine_restart(char *unused)
 long lkl_sys_halt(void)
 {
 	long err;
-	long params[6] = { 0, };
+	long params[6] = {LINUX_REBOOT_MAGIC1,
+		LINUX_REBOOT_MAGIC2, LINUX_REBOOT_CMD_RESTART, };
 
 	err = lkl_syscall(__NR_reboot, params);
 	if (err < 0)
@@ -158,6 +160,7 @@ static int lkl_run_init(struct linux_binprm *bprm)
 	init_pid_ns.child_reaper = 0;
 
 	syscalls_init();
+	threads_cnt_dec();
 
 	lkl_ops->sem_up(init_sem);
 	lkl_ops->thread_exit();
