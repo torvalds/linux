@@ -599,6 +599,7 @@ void efi_native_runtime_setup(void);
  */
 #define LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID	EFI_GUID(0xe03fc20a, 0x85dc, 0x406e,  0xb9, 0x0e, 0x4a, 0xb5, 0x02, 0x37, 0x1d, 0x95)
 #define LINUX_EFI_LOADER_ENTRY_GUID		EFI_GUID(0x4a67b082, 0x0a4c, 0x41cf,  0xb6, 0xc7, 0x44, 0x0b, 0x29, 0xbb, 0x8c, 0x4f)
+#define LINUX_EFI_RANDOM_SEED_TABLE_GUID	EFI_GUID(0x1ce1e5bc, 0x7ceb, 0x42f2,  0x81, 0xe5, 0x8a, 0xad, 0xf1, 0x80, 0xf5, 0x7b)
 
 typedef struct {
 	efi_guid_t guid;
@@ -872,6 +873,7 @@ extern struct efi {
 	unsigned long esrt;		/* ESRT table */
 	unsigned long properties_table;	/* properties table */
 	unsigned long mem_attr_table;	/* memory attributes table */
+	unsigned long rng_seed;		/* UEFI firmware random seed */
 	efi_get_time_t *get_time;
 	efi_set_time_t *set_time;
 	efi_get_wakeup_time_t *get_wakeup_time;
@@ -1493,4 +1495,10 @@ efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table,
 				    struct efi_boot_memmap *map,
 				    void *priv,
 				    efi_exit_boot_map_processing priv_func);
+
+struct linux_efi_random_seed {
+	u32	size;
+	u8	bits[];
+};
+
 #endif /* _LINUX_EFI_H */
