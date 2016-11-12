@@ -205,8 +205,9 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 	}
 
 	/*
-	 * clear status, really interrupt status (interrupts are off), but
-	 * we use the bit anyway - don't forget 0x80 - this is a command
+	 * Clear the pending interrupt status bit on the chip to allow the next
+	 * integration cycle to start. This has to be done even though this
+	 * driver currently does not support interrupts.
 	 */
 	ret = i2c_smbus_write_byte(chip->client,
 				   (TSL2583_CMD_REG | TSL2583_CMD_SPL_FN |
