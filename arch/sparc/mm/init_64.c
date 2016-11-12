@@ -803,7 +803,7 @@ static int num_mblocks;
 static int find_numa_node_for_addr(unsigned long pa,
 				   struct node_mem_mask *pnode_mask);
 
-static unsigned long ra_to_pa(unsigned long addr)
+static unsigned long __init ra_to_pa(unsigned long addr)
 {
 	int i;
 
@@ -819,7 +819,7 @@ static unsigned long ra_to_pa(unsigned long addr)
 	return addr;
 }
 
-static int find_node(unsigned long addr)
+static int __init find_node(unsigned long addr)
 {
 	static bool search_mdesc = true;
 	static struct node_mem_mask last_mem_mask = { ~0UL, ~0UL };
@@ -856,7 +856,7 @@ static int find_node(unsigned long addr)
 	return last_index;
 }
 
-static u64 memblock_nid_range(u64 start, u64 end, int *nid)
+static u64 __init memblock_nid_range(u64 start, u64 end, int *nid)
 {
 	*nid = find_node(start);
 	start += PAGE_SIZE;
