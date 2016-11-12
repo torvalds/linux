@@ -80,7 +80,7 @@ static void sun6i_drc_unbind(struct device *dev, struct device *master,
 	reset_control_assert(drc->reset);
 }
 
-static struct component_ops sun6i_drc_ops = {
+static const struct component_ops sun6i_drc_ops = {
 	.bind	= sun6i_drc_bind,
 	.unbind	= sun6i_drc_unbind,
 };

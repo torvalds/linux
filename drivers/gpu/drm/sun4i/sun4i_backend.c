@@ -389,7 +389,7 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 	reset_control_assert(backend->reset);
 }
 
-static struct component_ops sun4i_backend_ops = {
+static const struct component_ops sun4i_backend_ops = {
 	.bind	= sun4i_backend_bind,
 	.unbind	= sun4i_backend_unbind,
 };

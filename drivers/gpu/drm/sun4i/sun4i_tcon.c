@@ -551,7 +551,7 @@ static void sun4i_tcon_unbind(struct device *dev, struct device *master,
 	sun4i_tcon_free_clocks(tcon);
 }
 
-static struct component_ops sun4i_tcon_ops = {
+static const struct component_ops sun4i_tcon_ops = {
 	.bind	= sun4i_tcon_bind,
 	.unbind	= sun4i_tcon_unbind,
 };

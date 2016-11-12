@@ -667,7 +667,7 @@ static void sun4i_tv_unbind(struct device *dev, struct device *master,
 	clk_disable_unprepare(tv->clk);
 }
 
-static struct component_ops sun4i_tv_ops = {
+static const struct component_ops sun4i_tv_ops = {
 	.bind	= sun4i_tv_bind,
 	.unbind	= sun4i_tv_unbind,
 };
