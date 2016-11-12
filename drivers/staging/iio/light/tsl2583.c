@@ -93,9 +93,11 @@ struct tsl2583_lux {
 	unsigned int ch1;
 };
 
-/* This structure is intentionally large to accommodate updates via sysfs. */
-/* Sized to 11 = max 10 segments + 1 termination segment */
-/* Assumption is one and only one type of glass used  */
+/*
+ * This structure is intentionally large to accommodate updates via sysfs.
+ * Sized to 11 = max 10 segments + 1 termination segment. Assumption is that
+ * one and only one type of glass used.
+ */
 static struct tsl2583_lux tsl2583_device_lux[11] = {
 	{  9830,  8520, 15729 },
 	{ 12452, 10807, 23344 },
@@ -261,7 +263,8 @@ static int tsl2583_get_lux(struct iio_dev *indio_dev)
 		lux = (lux + (chip->als_time_scale >> 1)) /
 			chip->als_time_scale;
 
-	/* Adjust for active gain scale.
+	/*
+	 * Adjust for active gain scale.
 	 * The tsl2583_device_lux tables above have a factor of 8192 built in,
 	 * so we need to shift right.
 	 * User-specified gain provides a multiplier.
@@ -553,7 +556,8 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 
 	get_options(buf, ARRAY_SIZE(value), value);
 
-	/* We now have an array of ints starting at value[1], and
+	/*
+	 * We now have an array of ints starting at value[1], and
 	 * enumerated by value[0].
 	 * We expect each group of three ints is one table entry,
 	 * and the last table entry is all 0.
