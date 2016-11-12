@@ -849,7 +849,7 @@ static int __maybe_unused tsl2583_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&chip->als_mutex);
 
@@ -865,7 +865,7 @@ static int __maybe_unused tsl2583_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&chip->als_mutex);
 
