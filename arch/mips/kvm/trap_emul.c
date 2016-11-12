@@ -633,15 +633,15 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-static int kvm_trap_emul_vcpu_get_regs(struct kvm_vcpu *vcpu)
+static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	kvm_lose_fpu(vcpu);
-
 	return 0;
 }
 
-static int kvm_trap_emul_vcpu_set_regs(struct kvm_vcpu *vcpu)
+static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvm_lose_fpu(vcpu);
+
 	return 0;
 }
 
@@ -675,8 +675,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.copy_reg_indices = kvm_trap_emul_copy_reg_indices,
 	.get_one_reg = kvm_trap_emul_get_one_reg,
 	.set_one_reg = kvm_trap_emul_set_one_reg,
-	.vcpu_get_regs = kvm_trap_emul_vcpu_get_regs,
-	.vcpu_set_regs = kvm_trap_emul_vcpu_set_regs,
+	.vcpu_load = kvm_trap_emul_vcpu_load,
+	.vcpu_put = kvm_trap_emul_vcpu_put,
 };
 
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)

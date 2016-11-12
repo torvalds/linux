@@ -539,8 +539,8 @@ struct kvm_mips_callbacks {
 			   const struct kvm_one_reg *reg, s64 *v);
 	int (*set_one_reg)(struct kvm_vcpu *vcpu,
 			   const struct kvm_one_reg *reg, s64 v);
-	int (*vcpu_get_regs)(struct kvm_vcpu *vcpu);
-	int (*vcpu_set_regs)(struct kvm_vcpu *vcpu);
+	int (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
+	int (*vcpu_put)(struct kvm_vcpu *vcpu, int cpu);
 };
 extern struct kvm_mips_callbacks *kvm_mips_callbacks;
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);

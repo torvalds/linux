@@ -294,7 +294,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	/* restore guest state to registers */
-	kvm_mips_callbacks->vcpu_set_regs(vcpu);
+	kvm_mips_callbacks->vcpu_load(vcpu, cpu);
 
 	local_irq_restore(flags);
 
@@ -312,7 +312,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	vcpu->arch.last_sched_cpu = cpu;
 
 	/* save guest state in registers */
-	kvm_mips_callbacks->vcpu_get_regs(vcpu);
+	kvm_mips_callbacks->vcpu_put(vcpu, cpu);
 
 	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
 	     asid_version_mask(cpu))) {
