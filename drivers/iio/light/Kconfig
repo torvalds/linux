@@ -338,6 +338,13 @@ config SENSORS_TSL2563
 	 This driver can also be built as a module.  If so, the module
 	 will be called tsl2563.
 
+config TSL2583
+	tristate "TAOS TSL2580, TSL2581 and TSL2583 light-to-digital converters"
+	depends on I2C
+	help
+	 Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
+	 Access ALS data via iio, sysfs.
+
 config TSL4531
 	tristate "TAOS TSL4531 ambient light sensors"
 	depends on I2C
