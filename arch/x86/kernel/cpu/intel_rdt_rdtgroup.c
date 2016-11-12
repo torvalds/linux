@@ -644,15 +644,28 @@ static int parse_rdtgroupfs_options(char *data)
  */
 static struct rdtgroup *kernfs_to_rdtgroup(struct kernfs_node *kn)
 {
-	if (kernfs_type(kn) == KERNFS_DIR)
-		return kn->priv;
-	else
+	if (kernfs_type(kn) == KERNFS_DIR) {
+		/*
+		 * All the resource directories use "kn->priv"
+		 * to point to the "struct rdtgroup" for the
+		 * resource. "info" and its subdirectories don't
+		 * have rdtgroup structures, so return NULL here.
+		 */
+		if (kn == kn_info || kn->parent == kn_info)
+			return NULL;
+		else
+			return kn->priv;
+	} else {
 		return kn->parent->priv;
+	}
 }
 
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
 {
 	struct rdtgroup *rdtgrp = kernfs_to_rdtgroup(kn);
+
+	if (!rdtgrp)
+		return NULL;
 
 	atomic_inc(&rdtgrp->waitcount);
 	kernfs_break_active_protection(kn);
@@ -669,6 +682,9 @@ struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
 void rdtgroup_kn_unlock(struct kernfs_node *kn)
 {
 	struct rdtgroup *rdtgrp = kernfs_to_rdtgroup(kn);
+
+	if (!rdtgrp)
+		return;
 
 	mutex_unlock(&rdtgroup_mutex);
 
@@ -918,7 +934,7 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 	rdtgrp = rdtgroup_kn_lock_live(kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(kn);
-		return -ENOENT;
+		return -EPERM;
 	}
 
 	/* Give any tasks back to the default group */
