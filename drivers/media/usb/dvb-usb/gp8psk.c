@@ -67,7 +67,6 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 		return ret;
 
 	while (ret >= 0 && ret != blen && try < 3) {
-		memcpy(st->data, b, blen);
 		ret = usb_control_msg(d->udev,
 			usb_rcvctrlpipe(d->udev,0),
 			req,
@@ -81,8 +80,10 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 	if (ret < 0 || ret != blen) {
 		warn("usb in %d operation failed.", req);
 		ret = -EIO;
-	} else
+	} else {
 		ret = 0;
+		memcpy(b, st->data, blen);
+	}
 
 	deb_xfer("in: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
 	debug_dump(b,blen,deb_xfer);
