@@ -582,7 +582,7 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 
 	/* Zero out the table */
 	memset(tsl2583_device_lux, 0, sizeof(tsl2583_device_lux));
-	memcpy(tsl2583_device_lux, &value[1], value[0] * 4);
+	memcpy(tsl2583_device_lux, &value[1], value[0] * sizeof(value[1]));
 
 	ret = len;
 
