@@ -591,9 +591,6 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 		goto done;
 	}
 
-	/* Zero out the table */
-	memset(chip->als_settings.als_device_lux, 0,
-	       sizeof(chip->als_settings.als_device_lux));
 	memcpy(chip->als_settings.als_device_lux, &value[1],
 	       value[0] * sizeof(value[1]));
 
