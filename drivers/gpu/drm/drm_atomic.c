@@ -861,9 +861,10 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	/* Check whether this plane supports the fb pixel format. */
 	ret = drm_plane_check_pixel_format(plane, state->fb->pixel_format);
 	if (ret) {
-		char *format_name = drm_get_format_name(state->fb->pixel_format);
-		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n", format_name);
-		kfree(format_name);
+		struct drm_format_name_buf format_name;
+		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n",
+		                 drm_get_format_name(state->fb->pixel_format,
+		                                     &format_name));
 		return ret;
 	}
 
@@ -917,9 +918,10 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	if (state->fb) {
 		struct drm_framebuffer *fb = state->fb;
 		int i, n = drm_format_num_planes(fb->pixel_format);
+		struct drm_format_name_buf format_name;
 
 		drm_printf(p, "\t\tformat=%s\n",
-				drm_get_format_name(fb->pixel_format));
+		              drm_get_format_name(fb->pixel_format, &format_name));
 		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
 		drm_printf(p, "\t\tlayers:\n");
 		for (i = 0; i < n; i++) {

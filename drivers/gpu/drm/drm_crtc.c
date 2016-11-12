@@ -827,9 +827,10 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			ret = drm_plane_check_pixel_format(crtc->primary,
 							   fb->pixel_format);
 			if (ret) {
-				char *format_name = drm_get_format_name(fb->pixel_format);
-				DRM_DEBUG_KMS("Invalid pixel format %s\n", format_name);
-				kfree(format_name);
+				struct drm_format_name_buf format_name;
+				DRM_DEBUG_KMS("Invalid pixel format %s\n",
+				              drm_get_format_name(fb->pixel_format,
+				                                  &format_name));
 				goto out;
 			}
 		}

@@ -75,10 +75,11 @@ void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 
 	info = drm_format_info(mode_cmd->pixel_format);
 	if (!info || !info->depth) {
-		char *format_name = drm_get_format_name(mode_cmd->pixel_format);
+		struct drm_format_name_buf format_name;
 
-		DRM_DEBUG_KMS("non-RGB pixel format %s\n", format_name);
-		kfree(format_name);
+		DRM_DEBUG_KMS("non-RGB pixel format %s\n",
+		              drm_get_format_name(mode_cmd->pixel_format,
+		                                  &format_name));
 
 		fb->depth = 0;
 		fb->bits_per_pixel = 0;

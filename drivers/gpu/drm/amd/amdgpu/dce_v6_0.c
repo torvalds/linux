@@ -1456,6 +1456,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
+	struct drm_format_name_buf format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1559,7 +1560,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
-			  drm_get_format_name(target_fb->pixel_format));
+		          drm_get_format_name(target_fb->pixel_format, &format_name));
 		return -EINVAL;
 	}
 
