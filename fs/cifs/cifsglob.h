@@ -525,6 +525,7 @@ struct smb_vol {
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
 	unsigned int echo_interval; /* echo interval in secs */
+	__u64 snapshot_time; /* needed for timewarp tokens */
 	unsigned int max_credits; /* smb3 max_credits 10 < credits < 60000 */
 };
 
@@ -932,6 +933,7 @@ struct cifs_tcon {
 	__u32 maximal_access;
 	__u32 vol_serial_number;
 	__le64 vol_create_time;
+	__u64 snapshot_time; /* for timewarp tokens - timestamp of snapshot */
 	__u32 ss_flags;		/* sector size flags */
 	__u32 perf_sector_size; /* best sector size for perf */
 	__u32 max_chunks;
