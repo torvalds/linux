@@ -335,7 +335,7 @@ static int kernfs_xattr_set(const struct xattr_handler *handler,
 	return simple_xattr_set(&attrs->xattrs, name, value, size, flags);
 }
 
-const struct xattr_handler kernfs_trusted_xattr_handler = {
+static const struct xattr_handler kernfs_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = kernfs_xattr_get,
 	.set = kernfs_xattr_set,
@@ -372,7 +372,7 @@ static int kernfs_security_xattr_set(const struct xattr_handler *handler,
 	return error;
 }
 
-const struct xattr_handler kernfs_security_xattr_handler = {
+static const struct xattr_handler kernfs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = kernfs_xattr_get,
 	.set = kernfs_security_xattr_set,
