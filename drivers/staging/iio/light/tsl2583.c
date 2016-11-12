@@ -412,13 +412,6 @@ static int tsl2583_chip_init_and_power_on(struct iio_dev *indio_dev)
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int ret;
 
-	/* and make sure we're not already on */
-	if (chip->taos_chip_status == TSL258X_CHIP_WORKING) {
-		/* if forcing a register update - turn off, then on */
-		dev_info(&chip->client->dev, "device is already enabled\n");
-		return -EINVAL;
-	}
-
 	/* Power on the device; ADC off. */
 	ret = tsl2583_set_power_state(chip, TSL258X_CNTL_PWR_ON);
 	if (ret < 0)
@@ -841,10 +834,8 @@ static int __maybe_unused taos_suspend(struct device *dev)
 
 	mutex_lock(&chip->als_mutex);
 
-	if (chip->taos_chip_status == TSL258X_CHIP_WORKING) {
-		ret = tsl2583_set_power_state(chip, TSL258X_CNTL_PWR_OFF);
-		chip->taos_chip_status = TSL258X_CHIP_SUSPENDED;
-	}
+	ret = tsl2583_set_power_state(chip, TSL258X_CNTL_PWR_OFF);
+	chip->taos_chip_status = TSL258X_CHIP_SUSPENDED;
 
 	mutex_unlock(&chip->als_mutex);
 	return ret;
@@ -858,8 +849,7 @@ static int __maybe_unused taos_resume(struct device *dev)
 
 	mutex_lock(&chip->als_mutex);
 
-	if (chip->taos_chip_status == TSL258X_CHIP_SUSPENDED)
-		ret = tsl2583_chip_init_and_power_on(indio_dev);
+	ret = tsl2583_chip_init_and_power_on(indio_dev);
 
 	mutex_unlock(&chip->als_mutex);
 	return ret;
