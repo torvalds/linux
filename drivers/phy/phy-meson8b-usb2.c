@@ -240,8 +240,7 @@ static int phy_meson8b_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk_usb))
 		return PTR_ERR(priv->clk_usb);
 
-	priv->reset = devm_reset_control_get_optional_exclusive(&pdev->dev,
-								NULL);
+	priv->reset = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
 	if (PTR_ERR(priv->reset) == -EPROBE_DEFER)
 		return PTR_ERR(priv->reset);
 
