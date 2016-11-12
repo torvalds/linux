@@ -3,6 +3,7 @@
  * within the TAOS tsl258x family of devices (tsl2580, tsl2581, tsl2583).
  *
  * Copyright (c) 2011, TAOS Corporation.
+ * Copyright (c) 2016 Brian Masney <masneyb@onstation.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -906,6 +907,7 @@ static struct i2c_driver tsl2583_driver = {
 };
 module_i2c_driver(tsl2583_driver);
 
-MODULE_AUTHOR("J. August Brenner<jbrenner@taosinc.com>");
+MODULE_AUTHOR("J. August Brenner <jbrenner@taosinc.com>");
+MODULE_AUTHOR("Brian Masney <masneyb@onstation.org>");
 MODULE_DESCRIPTION("TAOS tsl2583 ambient light sensor driver");
 MODULE_LICENSE("GPL");
