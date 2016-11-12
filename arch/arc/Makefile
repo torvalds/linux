@@ -50,6 +50,9 @@ atleast_gcc44 :=  $(call cc-ifversion, -ge, 0404, y)
 
 cflags-$(atleast_gcc44)			+= -fsection-anchors
 
+cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
+cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
+
 ifdef CONFIG_ISA_ARCV2
 
 ifndef CONFIG_ARC_HAS_LL64
