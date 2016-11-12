@@ -348,7 +348,7 @@ static int tsl2583_als_calibrate(struct iio_dev *indio_dev)
 
 	chip->als_settings.als_gain_trim = (int)gain_trim_val;
 
-	return (int)gain_trim_val;
+	return 0;
 }
 
 static int tsl2583_set_als_time(struct tsl2583_chip *chip)
