@@ -574,7 +574,7 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 			__func__, TSL2583_MAX_LUX_INTS);
 		goto done;
 	}
-	if ((value[(n - 2)] | value[(n - 1)] | value[n]) != 0) {
+	if ((value[n - 2] | value[n - 1] | value[n]) != 0) {
 		dev_err(dev, "%s: The last 3 entries in the lux table must be zeros.\n",
 			__func__);
 		goto done;
@@ -582,7 +582,7 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 
 	/* Zero out the table */
 	memset(tsl2583_device_lux, 0, sizeof(tsl2583_device_lux));
-	memcpy(tsl2583_device_lux, &value[1], (value[0] * 4));
+	memcpy(tsl2583_device_lux, &value[1], value[0] * 4);
 
 	ret = len;
 
