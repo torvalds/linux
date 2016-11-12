@@ -8,6 +8,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/log2.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -41,8 +42,9 @@ efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
  */
 static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 					 unsigned long size,
-					 unsigned long align)
+					 unsigned long align_shift)
 {
+	unsigned long align = 1UL << align_shift;
 	u64 start, end;
 
 	if (md->type != EFI_CONVENTIONAL_MEMORY)
@@ -55,7 +57,7 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 	if (start > end)
 		return 0;
 
-	return (end - start + 1) / align;
+	return (end - start + 1) >> align_shift;
 }
 
 /*
@@ -98,7 +100,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 		efi_memory_desc_t *md = (void *)memory_map + map_offset;
 		unsigned long slots;
 
-		slots = get_entry_num_slots(md, size, align);
+		slots = get_entry_num_slots(md, size, ilog2(align));
 		MD_NUM_SLOTS(md) = slots;
 		total_slots += slots;
 	}

@@ -32,15 +32,6 @@
 
 static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 
-/*
- * Allow the platform to override the allocation granularity: this allows
- * systems that have the capability to run with a larger page size to deal
- * with the allocations for initrd and fdt more efficiently.
- */
-#ifndef EFI_ALLOC_ALIGN
-#define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
-#endif
-
 #define EFI_MMAP_NR_SLACK_SLOTS	8
 
 struct file_info {
