@@ -225,6 +225,15 @@ static int egpio_direction_output(struct gpio_chip *chip,
 	}
 }
 
+static int egpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct egpio_chip *egpio;
+
+	egpio = gpiochip_get_data(chip);
+
+	return !test_bit(offset, &egpio->is_out);
+}
+
 static void egpio_write_cache(struct egpio_info *ei)
 {
 	int               i;
@@ -327,6 +336,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 		chip->set             = egpio_set;
 		chip->direction_input = egpio_direction_input;
 		chip->direction_output = egpio_direction_output;
+		chip->get_direction   = egpio_get_direction;
 		chip->base            = pdata->chip[i].gpio_base;
 		chip->ngpio           = pdata->chip[i].num_gpios;
 
