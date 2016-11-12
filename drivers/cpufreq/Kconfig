@@ -120,6 +120,15 @@ config CPU_FREQ_DEFAULT_GOV_SCHED
 	  cpu frequency using CPU utilization estimates from the
 	  scheduler.
 
+config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
+	bool "schedutil"
+	depends on SMP
+	select CPU_FREQ_GOV_SCHEDUTIL
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	  Use the 'schedutil' CPUFreq governor by default. If unsure,
+	  have a look at the help section of that governor. The fallback
+	  governor will be 'performance'.
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -225,6 +234,23 @@ config CPU_FREQ_GOV_SCHED
 	  scheduler as a function of cpu capacity utilization. It does
 	  not evaluate utilization on a periodic basis (as ondemand
 	  does) but instead is event-driven by the scheduler.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_SCHEDUTIL
+	bool "'schedutil' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  This governor makes decisions based on the utilization data provided
+	  by the scheduler.  It sets the CPU frequency to be proportional to
+	  the utilization/capacity ratio coming from the scheduler.  If the
+	  utilization is frequency-invariant, the new frequency is also
+	  proportional to the maximum available frequency.  If that is not the
+	  case, it is proportional to the current frequency of the CPU.  The
+	  frequency tipping point is at utilization/capacity equal to 80% in
+	  both cases.
 
 	  If in doubt, say N.
 
