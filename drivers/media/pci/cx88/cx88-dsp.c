@@ -19,14 +19,14 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx88.h"
+#include "cx88-reg.h"
+
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <asm/div64.h>
-
-#include "cx88.h"
-#include "cx88-reg.h"
 
 #define INT_PI			((s32)(3.141592653589 * 32768.0))
 
@@ -71,8 +71,11 @@ static unsigned int dsp_debug;
 module_param(dsp_debug, int, 0644);
 MODULE_PARM_DESC(dsp_debug, "enable audio dsp debug messages");
 
-#define dprintk(level, fmt, arg...)	if (dsp_debug >= level) \
-	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
+#define dprintk(level, fmt, arg...) do {				\
+	if (dsp_debug >= level)						\
+		printk(KERN_DEBUG pr_fmt("%s: dsp:" fmt),		\
+			__func__, ##arg);				\
+} while (0)
 
 static s32 int_cos(u32 x)
 {
@@ -176,8 +179,8 @@ static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 		dual_freq = FREQ_EIAJ_DUAL;
 		break;
 	default:
-		printk(KERN_WARNING "%s/0: unsupported audio mode %d for %s\n",
-		       core->name, core->tvaudio, __func__);
+		pr_warn("unsupported audio mode %d for %s\n",
+			core->tvaudio, __func__);
 		return UNSET;
 	}
 

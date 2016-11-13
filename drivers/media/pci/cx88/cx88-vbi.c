@@ -1,17 +1,21 @@
 /*
  */
+
+#include "cx88.h"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-
-#include "cx88.h"
 
 static unsigned int vbi_debug;
 module_param(vbi_debug,int,0644);
 MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
 
-#define dprintk(level,fmt, arg...)	if (vbi_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, dev->core->name , ## arg)
+#define dprintk(level, fmt, arg...) do {			\
+	if (vbi_debug >= level)					\
+		printk(KERN_DEBUG pr_fmt("%s: vbi:" fmt),	\
+			__func__, ##arg);			\
+} while (0)
 
 /* ------------------------------------------------------------------ */
 

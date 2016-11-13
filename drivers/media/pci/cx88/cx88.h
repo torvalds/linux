@@ -19,6 +19,11 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef CX88_H
+#define CX88_H
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -614,7 +619,7 @@ struct cx8802_dev {
 
 extern unsigned int cx88_core_debug;
 
-extern void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
+extern void cx88_print_irqbits(const char *tag, const char *strings[],
 			       int len, u32 bits, u32 mask);
 
 extern int cx88_core_irq(struct cx88_core *core, u32 status);
@@ -738,3 +743,5 @@ int cx88_set_freq(struct cx88_core  *core, const struct v4l2_frequency *f);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
 void cx88_querycap(struct file *file, struct cx88_core *core,
 		struct v4l2_capability *cap);
+
+#endif

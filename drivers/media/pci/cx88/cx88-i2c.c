@@ -27,12 +27,13 @@
 
 */
 
+#include "cx88.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
 
-#include "cx88.h"
 #include <media/v4l2-common.h>
 
 static unsigned int i2c_debug;
@@ -47,8 +48,11 @@ static unsigned int i2c_udelay = 5;
 module_param(i2c_udelay, int, 0644);
 MODULE_PARM_DESC(i2c_udelay, "i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
 
-#define dprintk(level,fmt, arg...)	if (i2c_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, core->name , ## arg)
+#define dprintk(level, fmt, arg...) do {				\
+	if (i2c_debug >= level)						\
+		printk(KERN_DEBUG pr_fmt("%s: i2c:" fmt),		\
+			__func__, ##arg);				\
+} while (0)
 
 /* ----------------------------------------------------------------------- */
 
@@ -126,8 +130,8 @@ static void do_i2c_scan(const char *name, struct i2c_client *c)
 		rc = i2c_master_recv(c,&buf,0);
 		if (rc < 0)
 			continue;
-		printk("%s: i2c scan: found device @ 0x%x  [%s]\n",
-		       name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
+		pr_info("i2c scan: found device @ 0x%x  [%s]\n",
+			i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
 }
 
@@ -166,8 +170,7 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 			case CX88_BOARD_HAUPPAUGE_HVR1300:
 			case CX88_BOARD_HAUPPAUGE_HVR3000:
 			case CX88_BOARD_HAUPPAUGE_HVR4000:
-				printk("%s: i2c init: enabling analog demod on HVR1300/3000/4000 tuner\n",
-					core->name);
+				pr_info("i2c init: enabling analog demod on HVR1300/3000/4000 tuner\n");
 				i2c_transfer(core->i2c_client.adapter, &tuner_msg, 1);
 				break;
 			default:
@@ -176,7 +179,7 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 		if (i2c_scan)
 			do_i2c_scan(core->name,&core->i2c_client);
 	} else
-		printk("%s: i2c register FAILED\n", core->name);
+		pr_err("i2c register FAILED\n");
 
 	return core->i2c_rc;
 }

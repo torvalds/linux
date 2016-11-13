@@ -25,6 +25,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx88.h"
+
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -38,7 +40,6 @@
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
 
-#include "cx88.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 
@@ -60,10 +61,15 @@ static unsigned int nocomb;
 module_param(nocomb,int,0644);
 MODULE_PARM_DESC(nocomb,"disable comb filter");
 
-#define dprintk(level,fmt, arg...)	do {				\
-	if (cx88_core_debug >= level)					\
-		printk(KERN_DEBUG "%s: " fmt, core->name , ## arg);	\
-	} while(0)
+#define dprintk0(fmt, arg...)				\
+	printk(KERN_DEBUG pr_fmt("%s: core:" fmt),	\
+		__func__, ##arg)			\
+
+#define dprintk(level, fmt, arg...)	do {			\
+	if (cx88_core_debug >= level)				\
+		printk(KERN_DEBUG pr_fmt("%s: core:" fmt),	\
+		       __func__, ##arg);			\
+} while (0)
 
 static unsigned int cx88_devcount;
 static LIST_HEAD(cx88_devlist);
@@ -363,7 +369,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 	cx_write(ch->cnt1_reg, (bpl >> 3) -1);
 	cx_write(ch->cnt2_reg, (lines*16) >> 3);
 
-	dprintk(2,"sram setup %s: bpl=%d lines=%d\n", ch->name, bpl, lines);
+	dprintk(2, "sram setup %s: bpl=%d lines=%d\n", ch->name, bpl, lines);
 	return 0;
 }
 
@@ -399,12 +405,12 @@ static int cx88_risc_decode(u32 risc)
 	};
 	int i;
 
-	printk(KERN_DEBUG "0x%08x [ %s", risc,
+	dprintk0("0x%08x [ %s", risc,
 	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
 	for (i = ARRAY_SIZE(bits)-1; i >= 0; i--)
 		if (risc & (1 << (i + 12)))
-			printk(KERN_CONT " %s", bits[i]);
-	printk(KERN_CONT " count=%d ]\n", risc & 0xfff);
+			pr_cont(" %s", bits[i]);
+	pr_cont(" count=%d ]\n", risc & 0xfff);
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
@@ -428,43 +434,39 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 	u32 risc;
 	unsigned int i,j,n;
 
-	printk(KERN_DEBUG "%s: %s - dma channel status dump\n",
-	       core->name,ch->name);
+	dprintk0("%s - dma channel status dump\n",
+		ch->name);
 	for (i = 0; i < ARRAY_SIZE(name); i++)
-		printk(KERN_DEBUG "%s:   cmds: %-12s: 0x%08x\n",
-		       core->name,name[i],
-		       cx_read(ch->cmds_start + 4*i));
+		dprintk0("   cmds: %-12s: 0x%08x\n",
+			name[i],
+			cx_read(ch->cmds_start + 4*i));
 	for (n = 1, i = 0; i < 4; i++) {
 		risc = cx_read(ch->cmds_start + 4 * (i+11));
-		printk(KERN_CONT "%s:   risc%d: ", core->name, i);
+		pr_cont("  risc%d: ", i);
 		if (--n)
-			printk(KERN_CONT "0x%08x [ arg #%d ]\n", risc, n);
+			pr_cont("0x%08x [ arg #%d ]\n", risc, n);
 		else
 			n = cx88_risc_decode(risc);
 	}
 	for (i = 0; i < 16; i += n) {
 		risc = cx_read(ch->ctrl_start + 4 * i);
-		printk(KERN_DEBUG "%s:   iq %x: ", core->name, i);
+		dprintk0("  iq %x: ", i);
 		n = cx88_risc_decode(risc);
 		for (j = 1; j < n; j++) {
 			risc = cx_read(ch->ctrl_start + 4 * (i+j));
-			printk(KERN_CONT "%s:   iq %x: 0x%08x [ arg #%d ]\n",
-			       core->name, i+j, risc, j);
+			pr_cont("  iq %x: 0x%08x [ arg #%d ]\n",
+				i + j, risc, j);
 		}
 	}
 
-	printk(KERN_DEBUG "%s: fifo: 0x%08x -> 0x%x\n",
-	       core->name, ch->fifo_start, ch->fifo_start+ch->fifo_size);
-	printk(KERN_DEBUG "%s: ctrl: 0x%08x -> 0x%x\n",
-	       core->name, ch->ctrl_start, ch->ctrl_start+6*16);
-	printk(KERN_DEBUG "%s:   ptr1_reg: 0x%08x\n",
-	       core->name,cx_read(ch->ptr1_reg));
-	printk(KERN_DEBUG "%s:   ptr2_reg: 0x%08x\n",
-	       core->name,cx_read(ch->ptr2_reg));
-	printk(KERN_DEBUG "%s:   cnt1_reg: 0x%08x\n",
-	       core->name,cx_read(ch->cnt1_reg));
-	printk(KERN_DEBUG "%s:   cnt2_reg: 0x%08x\n",
-	       core->name,cx_read(ch->cnt2_reg));
+	dprintk0("fifo: 0x%08x -> 0x%x\n",
+	       ch->fifo_start, ch->fifo_start+ch->fifo_size);
+	dprintk0("ctrl: 0x%08x -> 0x%x\n",
+	       ch->ctrl_start, ch->ctrl_start + 6 * 16);
+	dprintk0("  ptr1_reg: 0x%08x\n", cx_read(ch->ptr1_reg));
+	dprintk0("  ptr2_reg: 0x%08x\n", cx_read(ch->ptr2_reg));
+	dprintk0("  cnt1_reg: 0x%08x\n", cx_read(ch->cnt1_reg));
+	dprintk0("  cnt2_reg: 0x%08x\n", cx_read(ch->cnt2_reg));
 }
 
 static const char *cx88_pci_irqs[32] = {
@@ -474,24 +476,24 @@ static const char *cx88_pci_irqs[32] = {
 	"i2c", "i2c_rack", "ir_smp", "gpio0", "gpio1"
 };
 
-void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
+void cx88_print_irqbits(const char *tag, const char *strings[],
 			int len, u32 bits, u32 mask)
 {
 	unsigned int i;
 
-	printk(KERN_DEBUG "%s: %s [0x%x]", name, tag, bits);
+	dprintk0("%s [0x%x]", tag, bits);
 	for (i = 0; i < len; i++) {
 		if (!(bits & (1 << i)))
 			continue;
 		if (strings[i])
-			printk(KERN_CONT " %s", strings[i]);
+			pr_cont(" %s", strings[i]);
 		else
-			printk(KERN_CONT " %d", i);
+			pr_cont(" %d", i);
 		if (!(mask & (1 << i)))
 			continue;
-		printk(KERN_CONT "*");
+		pr_cont("*");
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 }
 
 /* ------------------------------------------------------------------ */
@@ -505,7 +507,7 @@ int cx88_core_irq(struct cx88_core *core, u32 status)
 		handled++;
 	}
 	if (!handled)
-		cx88_print_irqbits(core->name, "irq pci",
+		cx88_print_irqbits("irq pci",
 				   cx88_pci_irqs, ARRAY_SIZE(cx88_pci_irqs),
 				   status, core->pci_irqmask);
 	return handled;
@@ -551,7 +553,7 @@ void cx88_shutdown(struct cx88_core *core)
 
 int cx88_reset(struct cx88_core *core)
 {
-	dprintk(1,"%s\n",__func__);
+	dprintk(1, "");
 	cx88_shutdown(core);
 
 	/* clear irq status */
@@ -663,7 +665,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	unsigned int sheight = norm_maxh(core->tvnorm);
 	u32 value;
 
-	dprintk(1,"set_scale: %dx%d [%s%s,%s]\n", width, height,
+	dprintk(1, "set_scale: %dx%d [%s%s,%s]\n", width, height,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
 		v4l2_norm_to_name(core->tvnorm));
@@ -675,30 +677,30 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	value &= 0x3fe;
 	cx_write(MO_HDELAY_EVEN,  value);
 	cx_write(MO_HDELAY_ODD,   value);
-	dprintk(1,"set_scale: hdelay  0x%04x (width %d)\n", value,swidth);
+	dprintk(1, "set_scale: hdelay  0x%04x (width %d)\n", value, swidth);
 
 	value = (swidth * 4096 / width) - 4096;
 	cx_write(MO_HSCALE_EVEN,  value);
 	cx_write(MO_HSCALE_ODD,   value);
-	dprintk(1,"set_scale: hscale  0x%04x\n", value);
+	dprintk(1, "set_scale: hscale  0x%04x\n", value);
 
 	cx_write(MO_HACTIVE_EVEN, width);
 	cx_write(MO_HACTIVE_ODD,  width);
-	dprintk(1,"set_scale: hactive 0x%04x\n", width);
+	dprintk(1, "set_scale: hactive 0x%04x\n", width);
 
 	// recalc V scale Register (delay is constant)
 	cx_write(MO_VDELAY_EVEN, norm_vdelay(core->tvnorm));
 	cx_write(MO_VDELAY_ODD,  norm_vdelay(core->tvnorm));
-	dprintk(1,"set_scale: vdelay  0x%04x\n", norm_vdelay(core->tvnorm));
+	dprintk(1, "set_scale: vdelay  0x%04x\n", norm_vdelay(core->tvnorm));
 
 	value = (0x10000 - (sheight * 512 / height - 512)) & 0x1fff;
 	cx_write(MO_VSCALE_EVEN,  value);
 	cx_write(MO_VSCALE_ODD,   value);
-	dprintk(1,"set_scale: vscale  0x%04x\n", value);
+	dprintk(1, "set_scale: vscale  0x%04x\n", value);
 
 	cx_write(MO_VACTIVE_EVEN, sheight);
 	cx_write(MO_VACTIVE_ODD,  sheight);
-	dprintk(1,"set_scale: vactive 0x%04x\n", sheight);
+	dprintk(1, "set_scale: vactive 0x%04x\n", sheight);
 
 	// setup filters
 	value = 0;
@@ -720,7 +722,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 
 	cx_andor(MO_FILTER_EVEN,  0x7ffc7f, value); /* preserve PEAKEN, PSEL */
 	cx_andor(MO_FILTER_ODD,   0x7ffc7f, value);
-	dprintk(1,"set_scale: filter  0x%04x\n", value);
+	dprintk(1, "set_scale: filter  0x%04x\n", value);
 
 	return 0;
 }
@@ -743,11 +745,11 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 	do_div(pll,xtal);
 	reg = (pll & 0x3ffffff) | (pre[prescale] << 26);
 	if (((reg >> 20) & 0x3f) < 14) {
-		printk("%s/0: pll out of range\n",core->name);
+		pr_err("pll out of range\n");
 		return -1;
 	}
 
-	dprintk(1,"set_pll:    MO_PLL_REG       0x%08x [old=0x%08x,freq=%d]\n",
+	dprintk(1, "set_pll:    MO_PLL_REG       0x%08x [old=0x%08x,freq=%d]\n",
 		reg, cx_read(MO_PLL_REG), ofreq);
 	cx_write(MO_PLL_REG, reg);
 	for (i = 0; i < 100; i++) {
@@ -757,10 +759,10 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 				prescale,ofreq);
 			return 0;
 		}
-		dprintk(1,"pll not locked yet, waiting ...\n");
+		dprintk(1, "pll not locked yet, waiting ...\n");
 		msleep(10);
 	}
-	dprintk(1,"pll NOT locked [pre=%d,ofreq=%d]\n",prescale,ofreq);
+	dprintk(1, "pll NOT locked [pre=%d,ofreq=%d]\n", prescale, ofreq);
 	return -1;
 }
 
@@ -836,8 +838,8 @@ static int set_tvaudio(struct cx88_core *core)
 		core->tvaudio = WW_EIAJ;
 
 	} else {
-		printk("%s/0: tvaudio support needs work for this tv norm [%s], sorry\n",
-		       core->name, v4l2_norm_to_name(core->tvnorm));
+		pr_info("tvaudio support needs work for this tv norm [%s], sorry\n",
+			v4l2_norm_to_name(core->tvnorm));
 		core->tvaudio = WW_NONE;
 		return 0;
 	}
@@ -912,12 +914,12 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 		cxoformat = 0x181f0008;
 	}
 
-	dprintk(1,"set_tvnorm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
+	dprintk(1, "set_tvnorm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
 		v4l2_norm_to_name(core->tvnorm), fsc8, adc_clock, vdec_clock,
 		step_db, step_dr);
 	set_pll(core,2,vdec_clock);
 
-	dprintk(1,"set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
 		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
 	/* Chroma AGC must be disabled if SECAM is used, we enable it
 	   by default on PAL and NTSC */
@@ -925,35 +927,36 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 		 norm & V4L2_STD_SECAM ? cxiformat : cxiformat | 0x400);
 
 	// FIXME: as-is from DScaler
-	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
 		cxoformat, cx_read(MO_OUTPUT_FORMAT));
 	cx_write(MO_OUTPUT_FORMAT, cxoformat);
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
 	tmp64  = adc_clock * (u64)(1 << 17);
 	do_div(tmp64, vdec_clock);
-	dprintk(1,"set_tvnorm: MO_SCONV_REG     0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvnorm: MO_SCONV_REG     0x%08x [old=0x%08x]\n",
 		(u32)tmp64, cx_read(MO_SCONV_REG));
 	cx_write(MO_SCONV_REG, (u32)tmp64);
 
 	// MO_SUB_STEP = 8 * fsc / video dec clock * 2^22
 	tmp64  = step_db * (u64)(1 << 22);
 	do_div(tmp64, vdec_clock);
-	dprintk(1,"set_tvnorm: MO_SUB_STEP      0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvnorm: MO_SUB_STEP      0x%08x [old=0x%08x]\n",
 		(u32)tmp64, cx_read(MO_SUB_STEP));
 	cx_write(MO_SUB_STEP, (u32)tmp64);
 
 	// MO_SUB_STEP_DR = 8 * 4406250 / video dec clock * 2^22
 	tmp64  = step_dr * (u64)(1 << 22);
 	do_div(tmp64, vdec_clock);
-	dprintk(1,"set_tvnorm: MO_SUB_STEP_DR   0x%08x [old=0x%08x]\n",
+	dprintk(1, "set_tvnorm: MO_SUB_STEP_DR   0x%08x [old=0x%08x]\n",
 		(u32)tmp64, cx_read(MO_SUB_STEP_DR));
 	cx_write(MO_SUB_STEP_DR, (u32)tmp64);
 
 	// bdelay + agcdelay
 	bdelay   = vdec_clock * 65 / 20000000 + 21;
 	agcdelay = vdec_clock * 68 / 20000000 + 15;
-	dprintk(1,"set_tvnorm: MO_AGC_BURST     0x%08x [old=0x%08x,bdelay=%d,agcdelay=%d]\n",
+	dprintk(1,
+		"set_tvnorm: MO_AGC_BURST     0x%08x [old=0x%08x,bdelay=%d,agcdelay=%d]\n",
 		(bdelay << 8) | agcdelay, cx_read(MO_AGC_BURST), bdelay, agcdelay);
 	cx_write(MO_AGC_BURST, (bdelay << 8) | agcdelay);
 
@@ -961,7 +964,8 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	tmp64 = norm_htotal(norm) * (u64)vdec_clock;
 	do_div(tmp64, fsc8);
 	htotal = (u32)tmp64;
-	dprintk(1,"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
+	dprintk(1,
+		"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_andor(MO_HTOTAL, 0x07ff, htotal);
 

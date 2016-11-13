@@ -24,6 +24,9 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx88.h"
+#include "cx88-reg.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
@@ -42,18 +45,11 @@
 #include <sound/tlv.h>
 #include <media/i2c/wm8775.h>
 
-#include "cx88.h"
-#include "cx88-reg.h"
-
 #define dprintk(level, fmt, arg...) do {				\
 	if (debug + 1 > level)						\
-		printk(KERN_INFO "%s/1: " fmt, chip->core->name , ## arg);\
-} while(0)
-
-#define dprintk_core(level, fmt, arg...) do {				\
-	if (debug + 1 > level)						\
-		printk(KERN_DEBUG "%s/1: " fmt, chip->core->name , ## arg);\
-} while(0)
+		printk(KERN_DEBUG pr_fmt("%s: alsa: " fmt),		\
+			chip->core->name, ##arg);			\
+} while (0)
 
 /****************************************************************************
 	Data type declarations - Can be moded to a header file later
@@ -230,12 +226,12 @@ static void cx8801_aud_irq(snd_cx88_card_t *chip)
 		return;
 	cx_write(MO_AUD_INTSTAT, status);
 	if (debug > 1  ||  (status & mask & ~0xff))
-		cx88_print_irqbits(core->name, "irq aud",
+		cx88_print_irqbits("irq aud",
 				   cx88_aud_irqs, ARRAY_SIZE(cx88_aud_irqs),
 				   status, mask);
 	/* risc op code error */
 	if (status & AUD_INT_OPC_ERR) {
-		printk(KERN_WARNING "%s/1: Audio risc op code error\n",core->name);
+		pr_warn("Audio risc op code error\n");
 		cx_clear(MO_AUD_DMACNTRL, 0x11);
 		cx88_sram_channel_dump(core, &cx88_sram_channels[SRAM_CH25]);
 	}
@@ -279,9 +275,7 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 	}
 
 	if (MAX_IRQ_LOOP == loop) {
-		printk(KERN_ERR
-		       "%s/1: IRQ loop detected, disabling interrupts\n",
-		       core->name);
+		pr_err("IRQ loop detected, disabling interrupts\n");
 		cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
 	}
 
@@ -423,7 +417,7 @@ static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 
 	if (!chip) {
-		printk(KERN_ERR "BUG: cx88 can't find device struct. Can't proceed with open\n");
+		pr_err("BUG: cx88 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 

@@ -35,6 +35,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#include "cx88.h"
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/freezer.h>
@@ -50,8 +52,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 
-#include "cx88.h"
-
 static unsigned int audio_debug;
 module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
@@ -64,9 +64,11 @@ static unsigned int radio_deemphasis;
 module_param(radio_deemphasis,int,0644);
 MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
 
-#define dprintk(fmt, arg...)	if (audio_debug) \
-	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
-
+#define dprintk(fmt, arg...) do {				\
+	if (audio_debug)						\
+		printk(KERN_DEBUG pr_fmt("%s: tvaudio:" fmt),		\
+			__func__, ##arg);				\
+} while (0)
 /* ----------------------------------------------------------- */
 
 static const char * const aud_ctl_names[64] = {
@@ -797,8 +799,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		break;
 	case WW_NONE:
 	case WW_I2SPT:
-		printk("%s/0: unknown tv audio mode [%d]\n",
-		       core->name, core->tvaudio);
+		pr_info("unknown tv audio mode [%d]\n", core->tvaudio);
 		break;
 	}
 	return;

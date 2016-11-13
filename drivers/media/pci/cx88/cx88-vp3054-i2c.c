@@ -22,14 +22,14 @@
 
 */
 
+#include "cx88.h"
+#include "cx88-vp3054-i2c.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
-
-#include "cx88.h"
-#include "cx88-vp3054-i2c.h"
 
 MODULE_DESCRIPTION("driver for cx2388x VP3054 design");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -133,7 +133,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 
 	rc = i2c_bit_add_bus(&vp3054_i2c->adap);
 	if (0 != rc) {
-		printk("%s: vp3054_i2c register FAILED\n", core->name);
+		pr_err("vp3054_i2c register FAILED\n");
 
 		kfree(dev->vp3054);
 		dev->vp3054 = NULL;

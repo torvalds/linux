@@ -22,13 +22,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include "cx88.h"
+
 #include <linux/init.h>
 #include <linux/hrtimer.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#include "cx88.h"
 #include <media/rc-core.h>
 
 #define MODULE_NAME "cx88xx"

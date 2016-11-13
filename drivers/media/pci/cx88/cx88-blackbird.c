@@ -26,6 +26,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx88.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -38,8 +40,6 @@
 #include <media/v4l2-event.h>
 #include <media/drv-intf/cx2341x.h>
 
-#include "cx88.h"
-
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -49,10 +49,11 @@ static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
-#define dprintk(level, fmt, arg...) do {				      \
-	if (debug + 1 > level)						      \
-		printk(KERN_DEBUG "%s/2-bb: " fmt, dev->core->name , ## arg); \
-} while(0)
+#define dprintk(level, fmt, arg...) do {				\
+	if (debug + 1 > level)						\
+		printk(KERN_DEBUG pr_fmt("%s: blackbird:" fmt),		\
+			__func__, ##arg);				\
+} while (0)
 
 /* ------------------------------------------------------------------ */
 
@@ -446,14 +447,14 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 
 	if (retval != 0) {
 		pr_err("Hotplug firmware request failed (%s).\n",
-			CX2341X_FIRM_ENC_FILENAME);
+		       CX2341X_FIRM_ENC_FILENAME);
 		pr_err("Please fix your hotplug setup, the board will not work without firmware loaded!\n");
 		return -EIO;
 	}
 
 	if (firmware->size != BLACKBIRD_FIRM_IMAGE_SIZE) {
 		pr_err("Firmware size mismatch (have %zd, expected %d)\n",
-			firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
+		       firmware->size, BLACKBIRD_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -EINVAL;
 	}
@@ -1118,12 +1119,11 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 	dev->mpeg_dev.queue = &dev->vb2_mpegq;
 	err = video_register_device(&dev->mpeg_dev, VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
-		printk(KERN_INFO "%s/2: can't register mpeg device\n",
-		       dev->core->name);
+		pr_info("can't register mpeg device\n");
 		return err;
 	}
-	printk(KERN_INFO "%s/2: registered device %s [mpeg]\n",
-	       dev->core->name, video_device_node_name(&dev->mpeg_dev));
+	pr_info("registered device %s [mpeg]\n",
+		video_device_node_name(&dev->mpeg_dev));
 	return 0;
 }
 
@@ -1158,8 +1158,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	v4l2_ctrl_add_handler(&dev->cxhdl.hdl, &core->video_hdl, NULL);
 
 	/* blackbird stuff */
-	printk("%s/2: cx23416 based mpeg encoder (blackbird reference design)\n",
-	       core->name);
+	pr_info("cx23416 based mpeg encoder (blackbird reference design)\n");
 	host_setup(dev->core);
 
 	blackbird_initialize_codec(dev);
@@ -1219,8 +1218,8 @@ static struct cx8802_driver cx8802_blackbird_driver = {
 
 static int __init blackbird_init(void)
 {
-	printk(KERN_INFO "cx2388x blackbird driver version %s loaded\n",
-	       CX88_VERSION);
+	pr_info("cx2388x blackbird driver version %s loaded\n",
+		CX88_VERSION);
 	return cx8802_register_driver(&cx8802_blackbird_driver);
 }
 
