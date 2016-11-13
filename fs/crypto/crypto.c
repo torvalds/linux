@@ -149,6 +149,7 @@ typedef enum {
 static int do_page_crypto(struct inode *inode,
 			fscrypt_direction_t rw, pgoff_t index,
 			struct page *src_page, struct page *dest_page,
+			unsigned int src_len, unsigned int src_offset,
 			gfp_t gfp_flags)
 {
 	struct {
@@ -179,10 +180,10 @@ static int do_page_crypto(struct inode *inode,
 	memset(xts_tweak.padding, 0, sizeof(xts_tweak.padding));
 
 	sg_init_table(&dst, 1);
-	sg_set_page(&dst, dest_page, PAGE_SIZE, 0);
+	sg_set_page(&dst, dest_page, src_len, src_offset);
 	sg_init_table(&src, 1);
-	sg_set_page(&src, src_page, PAGE_SIZE, 0);
-	skcipher_request_set_crypt(req, &src, &dst, PAGE_SIZE, &xts_tweak);
+	sg_set_page(&src, src_page, src_len, src_offset);
+	skcipher_request_set_crypt(req, &src, &dst, src_len, &xts_tweak);
 	if (rw == FS_DECRYPT)
 		res = crypto_skcipher_decrypt(req);
 	else
@@ -213,9 +214,11 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
 
 /**
  * fscypt_encrypt_page() - Encrypts a page
- * @inode:          The inode for which the encryption should take place
- * @plaintext_page: The page to encrypt. Must be locked.
- * @gfp_flags:      The gfp flag for memory allocation
+ * @inode:            The inode for which the encryption should take place
+ * @plaintext_page:   The page to encrypt. Must be locked.
+ * @plaintext_len:    Length of plaintext within page
+ * @plaintext_offset: Offset of plaintext within page
+ * @gfp_flags:        The gfp flag for memory allocation
  *
  * Encrypts plaintext_page using the ctx encryption context. If
  * the filesystem supports it, encryption is performed in-place, otherwise a
@@ -229,13 +232,17 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
  * error value or NULL.
  */
 struct page *fscrypt_encrypt_page(struct inode *inode,
-				struct page *plaintext_page, gfp_t gfp_flags)
+				struct page *plaintext_page,
+				unsigned int plaintext_len,
+				unsigned int plaintext_offset,
+				gfp_t gfp_flags)
+
 {
 	struct fscrypt_ctx *ctx;
 	struct page *ciphertext_page = plaintext_page;
 	int err;
 
-	BUG_ON(!PageLocked(plaintext_page));
+	BUG_ON(plaintext_len % FS_CRYPTO_BLOCK_SIZE != 0);
 
 	ctx = fscrypt_get_ctx(inode, gfp_flags);
 	if (IS_ERR(ctx))
@@ -251,6 +258,7 @@ struct page *fscrypt_encrypt_page(struct inode *inode,
 	ctx->w.control_page = plaintext_page;
 	err = do_page_crypto(inode, FS_ENCRYPT, plaintext_page->index,
 					plaintext_page, ciphertext_page,
+					plaintext_len, plaintext_offset,
 					gfp_flags);
 	if (err) {
 		ciphertext_page = ERR_PTR(err);
@@ -270,9 +278,11 @@ errout:
 EXPORT_SYMBOL(fscrypt_encrypt_page);
 
 /**
- * f2crypt_decrypt_page() - Decrypts a page in-place
- * @inode: The encrypted inode to decrypt.
+ * fscrypt_decrypt_page() - Decrypts a page in-place
+ * @inode: Encrypted inode to decrypt.
  * @page:  The page to decrypt. Must be locked.
+ * @len:   Number of bytes in @page to be decrypted.
+ * @offs:  Start of data in @page.
  *
  * Decrypts page in-place using the ctx encryption context.
  *
@@ -280,11 +290,10 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int fscrypt_decrypt_page(struct inode *inode, struct page *page)
+int fscrypt_decrypt_page(struct inode *inode, struct page *page,
+			unsigned int len, unsigned int offs)
 {
-	BUG_ON(!PageLocked(page));
-
-	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page,
+	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page, len, offs,
 			GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_page);
@@ -312,7 +321,7 @@ int fscrypt_zeroout_range(struct inode *inode, pgoff_t lblk,
 	while (len--) {
 		err = do_page_crypto(inode, FS_ENCRYPT, lblk,
 					ZERO_PAGE(0), ciphertext_page,
-					GFP_NOFS);
+					PAGE_SIZE, 0, GFP_NOFS);
 		if (err)
 			goto errout;
 
@@ -420,7 +429,8 @@ static void completion_pages(struct work_struct *work)
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		int ret = fscrypt_decrypt_page(page->mapping->host, page);
+		int ret = fscrypt_decrypt_page(page->mapping->host, page,
+				PAGE_SIZE, 0);
 
 		if (ret) {
 			WARN_ON_ONCE(1);
