@@ -6904,12 +6904,14 @@ bnx2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 /* All ethtool functions called with rtnl_lock */
 
 static int
-bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+bnx2_get_link_ksettings(struct net_device *dev,
+			struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	int support_serdes = 0, support_copper = 0;
+	u32 supported, advertising;
 
-	cmd->supported = SUPPORTED_Autoneg;
+	supported = SUPPORTED_Autoneg;
 	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP) {
 		support_serdes = 1;
 		support_copper = 1;
@@ -6919,56 +6921,59 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		support_copper = 1;
 
 	if (support_serdes) {
-		cmd->supported |= SUPPORTED_1000baseT_Full |
+		supported |= SUPPORTED_1000baseT_Full |
 			SUPPORTED_FIBRE;
 		if (bp->phy_flags & BNX2_PHY_FLAG_2_5G_CAPABLE)
-			cmd->supported |= SUPPORTED_2500baseX_Full;
-
+			supported |= SUPPORTED_2500baseX_Full;
 	}
 	if (support_copper) {
-		cmd->supported |= SUPPORTED_10baseT_Half |
+		supported |= SUPPORTED_10baseT_Half |
 			SUPPORTED_10baseT_Full |
 			SUPPORTED_100baseT_Half |
 			SUPPORTED_100baseT_Full |
 			SUPPORTED_1000baseT_Full |
 			SUPPORTED_TP;
-
 	}
 
 	spin_lock_bh(&bp->phy_lock);
-	cmd->port = bp->phy_port;
-	cmd->advertising = bp->advertising;
+	cmd->base.port = bp->phy_port;
+	advertising = bp->advertising;
 
 	if (bp->autoneg & AUTONEG_SPEED) {
-		cmd->autoneg = AUTONEG_ENABLE;
+		cmd->base.autoneg = AUTONEG_ENABLE;
 	} else {
-		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
 	}
 
 	if (netif_carrier_ok(dev)) {
-		ethtool_cmd_speed_set(cmd, bp->line_speed);
-		cmd->duplex = bp->duplex;
+		cmd->base.speed = bp->line_speed;
+		cmd->base.duplex = bp->duplex;
 		if (!(bp->phy_flags & BNX2_PHY_FLAG_SERDES)) {
 			if (bp->phy_flags & BNX2_PHY_FLAG_MDIX)
-				cmd->eth_tp_mdix = ETH_TP_MDI_X;
+				cmd->base.eth_tp_mdix = ETH_TP_MDI_X;
 			else
-				cmd->eth_tp_mdix = ETH_TP_MDI;
+				cmd->base.eth_tp_mdix = ETH_TP_MDI;
 		}
 	}
 	else {
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
-		cmd->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 	spin_unlock_bh(&bp->phy_lock);
 
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->phy_address = bp->phy_addr;
+	cmd->base.phy_address = bp->phy_addr;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
 static int
-bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+bnx2_set_link_ksettings(struct net_device *dev,
+			const struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	u8 autoneg = bp->autoneg;
@@ -6979,24 +6984,26 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	spin_lock_bh(&bp->phy_lock);
 
-	if (cmd->port != PORT_TP && cmd->port != PORT_FIBRE)
+	if (cmd->base.port != PORT_TP && cmd->base.port != PORT_FIBRE)
 		goto err_out_unlock;
 
-	if (cmd->port != bp->phy_port &&
+	if (cmd->base.port != bp->phy_port &&
 	    !(bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP))
 		goto err_out_unlock;
 
 	/* If device is down, we can store the settings only if the user
 	 * is setting the currently active port.
 	 */
-	if (!netif_running(dev) && cmd->port != bp->phy_port)
+	if (!netif_running(dev) && cmd->base.port != bp->phy_port)
 		goto err_out_unlock;
 
-	if (cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		autoneg |= AUTONEG_SPEED;
 
-		advertising = cmd->advertising;
-		if (cmd->port == PORT_TP) {
+		ethtool_convert_link_mode_to_legacy_u32(
+			&advertising, cmd->link_modes.advertising);
+
+		if (cmd->base.port == PORT_TP) {
 			advertising &= ETHTOOL_ALL_COPPER_SPEED;
 			if (!advertising)
 				advertising = ETHTOOL_ALL_COPPER_SPEED;
@@ -7008,11 +7015,12 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		advertising |= ADVERTISED_Autoneg;
 	}
 	else {
-		u32 speed = ethtool_cmd_speed(cmd);
-		if (cmd->port == PORT_FIBRE) {
+		u32 speed = cmd->base.speed;
+
+		if (cmd->base.port == PORT_FIBRE) {
 			if ((speed != SPEED_1000 &&
 			     speed != SPEED_2500) ||
-			    (cmd->duplex != DUPLEX_FULL))
+			    (cmd->base.duplex != DUPLEX_FULL))
 				goto err_out_unlock;
 
 			if (speed == SPEED_2500 &&
@@ -7023,7 +7031,7 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 		autoneg &= ~AUTONEG_SPEED;
 		req_line_speed = speed;
-		req_duplex = cmd->duplex;
+		req_duplex = cmd->base.duplex;
 		advertising = 0;
 	}
 
@@ -7037,7 +7045,7 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	 * brought up.
 	 */
 	if (netif_running(dev))
-		err = bnx2_setup_phy(bp, cmd->port);
+		err = bnx2_setup_phy(bp, cmd->base.port);
 
 err_out_unlock:
 	spin_unlock_bh(&bp->phy_lock);
@@ -7822,8 +7830,6 @@ static int bnx2_set_channels(struct net_device *dev,
 }
 
 static const struct ethtool_ops bnx2_ethtool_ops = {
-	.get_settings		= bnx2_get_settings,
-	.set_settings		= bnx2_set_settings,
 	.get_drvinfo		= bnx2_get_drvinfo,
 	.get_regs_len		= bnx2_get_regs_len,
 	.get_regs		= bnx2_get_regs,
@@ -7847,6 +7853,8 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.get_sset_count		= bnx2_get_sset_count,
 	.get_channels		= bnx2_get_channels,
 	.set_channels		= bnx2_set_channels,
+	.get_link_ksettings	= bnx2_get_link_ksettings,
+	.set_link_ksettings	= bnx2_set_link_ksettings,
 };
 
 /* Called with rtnl_lock */
