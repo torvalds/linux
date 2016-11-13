@@ -28,13 +28,6 @@ struct mpc8xxx_spi {
 	/* rx & tx bufs from the spi_transfer */
 	const void *tx;
 	void *rx;
-#if IS_ENABLED(CONFIG_SPI_FSL_ESPI)
-	unsigned int rx_len;
-	unsigned int tx_len;
-	unsigned int rxskip;
-	u8 *local_buf;
-	spinlock_t lock;
-#endif
 
 	int subblock;
 	struct spi_pram __iomem *pram;

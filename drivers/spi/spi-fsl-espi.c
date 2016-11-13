@@ -23,8 +23,6 @@
 #include <linux/pm_runtime.h>
 #include <sysdev/fsl_soc.h>
 
-#include "spi-fsl-lib.h"
-
 /* eSPI Controller registers */
 #define ESPI_SPMODE	0x00	/* eSPI mode register */
 #define ESPI_SPIE	0x04	/* eSPI event register */
