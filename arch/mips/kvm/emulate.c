@@ -807,47 +807,6 @@ enum emulation_result kvm_mips_emul_tlbr(struct kvm_vcpu *vcpu)
 	return EMULATE_FAIL;
 }
 
-/**
- * kvm_mips_invalidate_guest_tlb() - Indicates a change in guest MMU map.
- * @vcpu:	VCPU with changed mappings.
- * @tlb:	TLB entry being removed.
- *
- * This is called to indicate a single change in guest MMU mappings, so that we
- * can arrange TLB flushes on this and other CPUs.
- */
-static void kvm_mips_invalidate_guest_tlb(struct kvm_vcpu *vcpu,
-					  struct kvm_mips_tlb *tlb)
-{
-	int cpu, i;
-	bool user;
-
-	/* No need to flush for entries which are already invalid */
-	if (!((tlb->tlb_lo[0] | tlb->tlb_lo[1]) & ENTRYLO_V))
-		return;
-	/* User address space doesn't need flushing for KSeg2/3 changes */
-	user = tlb->tlb_hi < KVM_GUEST_KSEG0;
-
-	preempt_disable();
-
-	/*
-	 * Probe the shadow host TLB for the entry being overwritten, if one
-	 * matches, invalidate it
-	 */
-	kvm_mips_host_tlb_inv(vcpu, tlb->tlb_hi);
-
-	/* Invalidate the whole ASID on other CPUs */
-	cpu = smp_processor_id();
-	for_each_possible_cpu(i) {
-		if (i == cpu)
-			continue;
-		if (user)
-			vcpu->arch.guest_user_asid[i] = 0;
-		vcpu->arch.guest_kernel_asid[i] = 0;
-	}
-
-	preempt_enable();
-}
-
 /* Write Guest TLB Entry @ Index */
 enum emulation_result kvm_mips_emul_tlbwi(struct kvm_vcpu *vcpu)
 {
@@ -867,8 +826,11 @@ enum emulation_result kvm_mips_emul_tlbwi(struct kvm_vcpu *vcpu)
 	}
 
 	tlb = &vcpu->arch.guest_tlb[index];
-
-	kvm_mips_invalidate_guest_tlb(vcpu, tlb);
+	/*
+	 * Probe the shadow host TLB for the entry being overwritten, if one
+	 * matches, invalidate it
+	 */
+	kvm_mips_host_tlb_inv(vcpu, tlb->tlb_hi);
 
 	tlb->tlb_mask = kvm_read_c0_guest_pagemask(cop0);
 	tlb->tlb_hi = kvm_read_c0_guest_entryhi(cop0);
@@ -897,7 +859,11 @@ enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 
 	tlb = &vcpu->arch.guest_tlb[index];
 
-	kvm_mips_invalidate_guest_tlb(vcpu, tlb);
+	/*
+	 * Probe the shadow host TLB for the entry being overwritten, if one
+	 * matches, invalidate it
+	 */
+	kvm_mips_host_tlb_inv(vcpu, tlb->tlb_hi);
 
 	tlb->tlb_mask = kvm_read_c0_guest_pagemask(cop0);
 	tlb->tlb_hi = kvm_read_c0_guest_entryhi(cop0);
@@ -1016,7 +982,6 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 	int32_t rt, rd, copz, sel, co_bit, op;
 	uint32_t pc = vcpu->arch.pc;
 	unsigned long curr_pc;
-	int cpu, i;
 
 	/*
 	 * Update PC and hold onto current PC in case there is
@@ -1124,16 +1089,8 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 						vcpu->arch.gprs[rt]
 						& ASID_MASK);
 
-					preempt_disable();
 					/* Blow away the shadow host TLBs */
 					kvm_mips_flush_host_tlb(1);
-					cpu = smp_processor_id();
-					for_each_possible_cpu(i)
-						if (i != cpu) {
-							vcpu->arch.guest_user_asid[i] = 0;
-							vcpu->arch.guest_kernel_asid[i] = 0;
-						}
-					preempt_enable();
 				}
 				kvm_write_c0_guest_entryhi(cop0,
 							   vcpu->arch.gprs[rt]);
