@@ -87,6 +87,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4709-buffalo-wxr-1900dhp.dtb \
 	bcm4709-netgear-r7000.dtb \
 	bcm4709-netgear-r8000.dtb \
+	bcm4709-tplink-archer-c9-v1.dtb \
 	bcm47094-dlink-dir-885l.dtb \
 	bcm47094-luxul-xwr-3100.dtb \
 	bcm47094-netgear-r8500.dtb \
