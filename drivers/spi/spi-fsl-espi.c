@@ -661,7 +661,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	}
 
 	/* Enable SPI interface */
-	regval = pdata->initial_spmode | SPMODE_INIT_VAL | SPMODE_ENABLE;
+	regval = SPMODE_INIT_VAL | SPMODE_ENABLE;
 
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, regval);
 
@@ -786,7 +786,7 @@ static int of_fsl_espi_resume(struct device *dev)
 				      CSMODE_INIT_VAL);
 
 	/* Enable SPI interface */
-	regval = pdata->initial_spmode | SPMODE_INIT_VAL | SPMODE_ENABLE;
+	regval = SPMODE_INIT_VAL | SPMODE_ENABLE;
 
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, regval);
 
