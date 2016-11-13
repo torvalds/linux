@@ -366,6 +366,31 @@
 			};
 		};
 
+		sdmmc {
+			sdmmc_clk: sdmmc-clk {
+				rockchip,pins = <3 RK_PC4 RK_FUNC_1 &pcfg_pull_none_drv_4ma>;
+			};
+
+			sdmmc_cmd: sdmmc-cmd {
+				rockchip,pins = <3 RK_PC5 RK_FUNC_1 &pcfg_pull_up_drv_4ma>;
+			};
+
+			sdmmc_cd: sdmmc-cd {
+				rockchip,pins = <0 RK_PA1 RK_FUNC_1 &pcfg_pull_up_drv_4ma>;
+			};
+
+			sdmmc_bus1: sdmmc-bus1 {
+				rockchip,pins = <3 RK_PC3 RK_FUNC_1 &pcfg_pull_up_drv_4ma>;
+			};
+
+			sdmmc_bus4: sdmmc-bus4 {
+				rockchip,pins = <3 RK_PC3 RK_FUNC_1 &pcfg_pull_up_drv_4ma>,
+						<3 RK_PC2 RK_FUNC_1 &pcfg_pull_up_drv_4ma>,
+						<3 RK_PC1 RK_FUNC_1 &pcfg_pull_up_drv_4ma>,
+						<3 RK_PC0 RK_FUNC_1 &pcfg_pull_up_drv_4ma>;
+			};
+		};
+
 		uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <3 RK_PA6 RK_FUNC_1 &pcfg_pull_up>,
