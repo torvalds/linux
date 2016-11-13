@@ -218,6 +218,8 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
  * @plaintext_page:   The page to encrypt. Must be locked.
  * @plaintext_len:    Length of plaintext within page
  * @plaintext_offset: Offset of plaintext within page
+ * @index:            Index for encryption. This is mainly the page index, but
+ *                    but might be different for multiple calls on same page.
  * @gfp_flags:        The gfp flag for memory allocation
  *
  * Encrypts plaintext_page using the ctx encryption context. If
@@ -235,7 +237,7 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 				struct page *plaintext_page,
 				unsigned int plaintext_len,
 				unsigned int plaintext_offset,
-				gfp_t gfp_flags)
+				pgoff_t index, gfp_t gfp_flags)
 
 {
 	struct fscrypt_ctx *ctx;
@@ -256,7 +258,7 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 	}
 
 	ctx->w.control_page = plaintext_page;
-	err = do_page_crypto(inode, FS_ENCRYPT, plaintext_page->index,
+	err = do_page_crypto(inode, FS_ENCRYPT, index,
 					plaintext_page, ciphertext_page,
 					plaintext_len, plaintext_offset,
 					gfp_flags);
@@ -283,6 +285,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  * @page:  The page to decrypt. Must be locked.
  * @len:   Number of bytes in @page to be decrypted.
  * @offs:  Start of data in @page.
+ * @index: Index for encryption.
  *
  * Decrypts page in-place using the ctx encryption context.
  *
@@ -291,7 +294,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  * Return: Zero on success, non-zero otherwise.
  */
 int fscrypt_decrypt_page(const struct inode *inode, struct page *page,
-			unsigned int len, unsigned int offs)
+			unsigned int len, unsigned int offs, pgoff_t index)
 {
 	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page, len, offs,
 			GFP_NOFS);
@@ -430,7 +433,7 @@ static void completion_pages(struct work_struct *work)
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 		int ret = fscrypt_decrypt_page(page->mapping->host, page,
-				PAGE_SIZE, 0);
+				PAGE_SIZE, 0, page->index);
 
 		if (ret) {
 			WARN_ON_ONCE(1);

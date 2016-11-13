@@ -1196,8 +1196,9 @@ int do_write_data_page(struct f2fs_io_info *fio)
 retry_encrypt:
 		BUG_ON(!PageLocked(fio->page));
 		fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page,
-								PAGE_SIZE, 0,
-								gfp_flags);
+							PAGE_SIZE, 0,
+							fio->page->index,
+							gfp_flags);
 		if (IS_ERR(fio->encrypted_page)) {
 			err = PTR_ERR(fio->encrypted_page);
 			if (err == -ENOMEM) {
