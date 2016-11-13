@@ -37,7 +37,6 @@ struct cxusb_state {
 	struct i2c_client *i2c_client_tuner;
 
 	unsigned char data[MAX_XFER_SIZE];
-	struct mutex data_mutex;
 };
 
 #endif

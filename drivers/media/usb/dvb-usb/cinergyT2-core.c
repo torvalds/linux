@@ -42,7 +42,6 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 struct cinergyt2_state {
 	u8 rc_counter;
 	unsigned char data[64];
-	struct mutex data_mutex;
 };
 
 /* We are missing a release hook with usb_device data */
@@ -56,12 +55,12 @@ static int cinergyt2_streaming_ctrl(struct dvb_usb_adapter *adap, int enable)
 	struct cinergyt2_state *st = d->priv;
 	int ret;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = CINERGYT2_EP1_CONTROL_STREAM_TRANSFER;
 	st->data[1] = enable ? 1 : 0;
 
 	ret = dvb_usb_generic_rw(d, st->data, 2, st->data, 64, 0);
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 
 	return ret;
 }
@@ -71,12 +70,12 @@ static int cinergyt2_power_ctrl(struct dvb_usb_device *d, int enable)
 	struct cinergyt2_state *st = d->priv;
 	int ret;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = CINERGYT2_EP1_SLEEP_MODE;
 	st->data[1] = enable ? 0 : 1;
 
 	ret = dvb_usb_generic_rw(d, st->data, 2, st->data, 3, 0);
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 
 	return ret;
 }
@@ -89,7 +88,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 
 	adap->fe_adap[0].fe = cinergyt2_fe_attach(adap->dev);
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = CINERGYT2_EP1_GET_FIRMWARE_VERSION;
 
 	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 3, 0);
@@ -97,7 +96,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 		deb_rc("cinergyt2_power_ctrl() Failed to retrieve sleep "
 			"state info\n");
 	}
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 
 	/* Copy this pointer as we are gonna need it in the release phase */
 	cinergyt2_usb_device = adap->dev;
@@ -166,7 +165,7 @@ static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	mutex_lock(&st->data_mutex);
+	mutex_lock(&d->data_mutex);
 	st->data[0] = CINERGYT2_EP1_GET_RC_EVENTS;
 
 	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 5, 0);
@@ -202,28 +201,16 @@ static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	}
 
 ret:
-	mutex_unlock(&st->data_mutex);
+	mutex_unlock(&d->data_mutex);
 	return ret;
 }
 
 static int cinergyt2_usb_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
-	struct cinergyt2_state *st;
-	int ret;
-
-	ret = dvb_usb_device_init(intf, &cinergyt2_properties,
-				  THIS_MODULE, &d, adapter_nr);
-	if (ret < 0)
-		return ret;
-
-	st = d->priv;
-	mutex_init(&st->data_mutex);
-
-	return 0;
+	return dvb_usb_device_init(intf, &cinergyt2_properties,
+				   THIS_MODULE, NULL, adapter_nr);
 }
-
 
 static struct usb_device_id cinergyt2_usb_table[] = {
 	{ USB_DEVICE(USB_VID_TERRATEC, 0x0038) },
