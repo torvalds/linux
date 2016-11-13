@@ -706,7 +706,6 @@ static int of_fsl_espi_get_chipselects(struct device *dev)
 	}
 
 	pdata->max_chipselect = num_cs;
-	pdata->cs_control = NULL;
 
 	return 0;
 }
