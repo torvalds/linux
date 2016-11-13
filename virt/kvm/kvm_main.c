@@ -1346,21 +1346,19 @@ unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *w
 static int get_user_page_nowait(unsigned long start, int write,
 		struct page **page)
 {
-	int flags = FOLL_TOUCH | FOLL_NOWAIT | FOLL_HWPOISON | FOLL_GET;
+	int flags = FOLL_NOWAIT | FOLL_HWPOISON;
 
 	if (write)
 		flags |= FOLL_WRITE;
 
-	return __get_user_pages(current, current->mm, start, 1, flags, page,
-			NULL, NULL);
+	return get_user_pages(start, 1, flags, page, NULL);
 }
 
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
-	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
+	int rc, flags = FOLL_HWPOISON | FOLL_WRITE;
 
-	rc = __get_user_pages(current, current->mm, addr, 1,
-			      flags, NULL, NULL, NULL);
+	rc = get_user_pages(addr, 1, flags, NULL, NULL);
 	return rc == -EHWPOISON;
 }
 
@@ -3846,7 +3844,12 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	 * kvm_arch_init makes sure there's at most one caller
 	 * for architectures that support multiple implementations,
 	 * like intel and amd on x86.
+	 * kvm_arch_init must be called before kvm_irqfd_init to avoid creating
+	 * conflicts in case kvm is already setup for another implementation.
 	 */
+	r = kvm_irqfd_init();
+	if (r)
+		goto out_irqfd;
 
 	if (!zalloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
 		r = -ENOMEM;
@@ -3928,6 +3931,7 @@ out_free_0a:
 	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
 	kvm_irqfd_exit();
+out_irqfd:
 	kvm_arch_exit();
 out_fail:
 	return r;

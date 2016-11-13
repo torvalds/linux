@@ -154,7 +154,7 @@ const struct uniphier_reset_data uniphier_sld3_mio_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
-const struct uniphier_reset_data uniphier_pro5_mio_reset_data[] = {
+const struct uniphier_reset_data uniphier_pro5_sd_reset_data[] = {
 	UNIPHIER_MIO_RESET_SD(0, 0),
 	UNIPHIER_MIO_RESET_SD(1, 1),
 	UNIPHIER_MIO_RESET_EMMC_HW_RESET(6, 1),
@@ -360,7 +360,7 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.compatible = "socionext,uniphier-ld20-reset",
 		.data = uniphier_ld20_sys_reset_data,
 	},
-	/* Media I/O reset */
+	/* Media I/O reset, SD reset */
 	{
 		.compatible = "socionext,uniphier-sld3-mio-reset",
 		.data = uniphier_sld3_mio_reset_data,
@@ -378,20 +378,20 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.data = uniphier_sld3_mio_reset_data,
 	},
 	{
-		.compatible = "socionext,uniphier-pro5-mio-reset",
-		.data = uniphier_pro5_mio_reset_data,
+		.compatible = "socionext,uniphier-pro5-sd-reset",
+		.data = uniphier_pro5_sd_reset_data,
 	},
 	{
-		.compatible = "socionext,uniphier-pxs2-mio-reset",
-		.data = uniphier_pro5_mio_reset_data,
+		.compatible = "socionext,uniphier-pxs2-sd-reset",
+		.data = uniphier_pro5_sd_reset_data,
 	},
 	{
 		.compatible = "socionext,uniphier-ld11-mio-reset",
 		.data = uniphier_sld3_mio_reset_data,
 	},
 	{
-		.compatible = "socionext,uniphier-ld20-mio-reset",
-		.data = uniphier_pro5_mio_reset_data,
+		.compatible = "socionext,uniphier-ld20-sd-reset",
+		.data = uniphier_pro5_sd_reset_data,
 	},
 	/* Peripheral reset */
 	{

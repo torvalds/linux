@@ -450,6 +450,7 @@ struct ath10k_debug {
 	u32 pktlog_filter;
 	u32 reg_addr;
 	u32 nf_cal_period;
+	void *cal_data;
 
 	struct ath10k_fw_crash_data *fw_crash_data;
 };

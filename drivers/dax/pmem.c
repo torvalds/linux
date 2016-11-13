@@ -44,7 +44,6 @@ static void dax_pmem_percpu_exit(void *data)
 
 	dev_dbg(dax_pmem->dev, "%s\n", __func__);
 	percpu_ref_exit(ref);
-	wait_for_completion(&dax_pmem->cmp);
 }
 
 static void dax_pmem_percpu_kill(void *data)
@@ -54,6 +53,7 @@ static void dax_pmem_percpu_kill(void *data)
 
 	dev_dbg(dax_pmem->dev, "%s\n", __func__);
 	percpu_ref_kill(ref);
+	wait_for_completion(&dax_pmem->cmp);
 }
 
 static int dax_pmem_probe(struct device *dev)

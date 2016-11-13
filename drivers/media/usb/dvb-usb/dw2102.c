@@ -852,7 +852,7 @@ static int su3000_power_ctrl(struct dvb_usb_device *d, int i)
 	if (i && !state->initialized) {
 		state->initialized = 1;
 		/* reset board */
-		dvb_usb_generic_rw(d, obuf, 2, NULL, 0, 0);
+		return dvb_usb_generic_rw(d, obuf, 2, NULL, 0, 0);
 	}
 
 	return 0;

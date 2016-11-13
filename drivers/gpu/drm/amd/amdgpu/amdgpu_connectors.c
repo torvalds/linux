@@ -769,7 +769,7 @@ static void amdgpu_connector_unregister(struct drm_connector *connector)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-	if (amdgpu_connector->ddc_bus->has_aux) {
+	if (amdgpu_connector->ddc_bus && amdgpu_connector->ddc_bus->has_aux) {
 		drm_dp_aux_unregister(&amdgpu_connector->ddc_bus->aux);
 		amdgpu_connector->ddc_bus->has_aux = false;
 	}

@@ -1255,6 +1255,7 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 
 	map_dma_buffer(request, musb, musb_ep);
 
+	pm_runtime_get_sync(musb->controller);
 	spin_lock_irqsave(&musb->lock, lockflags);
 
 	/* don't queue if the ep is down */
@@ -1275,6 +1276,9 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 
 unlock:
 	spin_unlock_irqrestore(&musb->lock, lockflags);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
+
 	return status;
 }
 

@@ -106,6 +106,7 @@ static const struct of_device_id exynos_audss_clk_of_match[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(of, exynos_audss_clk_of_match);
 
 static void exynos_audss_clk_teardown(void)
 {

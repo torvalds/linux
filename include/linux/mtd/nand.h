@@ -1184,7 +1184,7 @@ int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
 
 /* Reset and initialize a NAND device */
-int nand_reset(struct nand_chip *chip);
+int nand_reset(struct nand_chip *chip, int chipnr);
 
 /* Free resources held by the NAND device */
 void nand_cleanup(struct nand_chip *chip);

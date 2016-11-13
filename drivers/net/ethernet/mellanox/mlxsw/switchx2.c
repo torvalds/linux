@@ -1088,6 +1088,7 @@ err_port_stp_state_set:
 err_port_admin_status_set:
 err_port_mtu_set:
 err_port_speed_set:
+	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
 err_port_swid_set:
 err_port_system_port_mapping_set:
 port_not_usable:

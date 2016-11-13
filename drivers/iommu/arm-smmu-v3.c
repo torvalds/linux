@@ -2636,17 +2636,26 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	/* And we're up. Go go go! */
 	of_iommu_set_ops(dev->of_node, &arm_smmu_ops);
 #ifdef CONFIG_PCI
-	pci_request_acs();
-	ret = bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
-	if (ret)
-		return ret;
+	if (pci_bus_type.iommu_ops != &arm_smmu_ops) {
+		pci_request_acs();
+		ret = bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
+		if (ret)
+			return ret;
+	}
 #endif
 #ifdef CONFIG_ARM_AMBA
-	ret = bus_set_iommu(&amba_bustype, &arm_smmu_ops);
-	if (ret)
-		return ret;
+	if (amba_bustype.iommu_ops != &arm_smmu_ops) {
+		ret = bus_set_iommu(&amba_bustype, &arm_smmu_ops);
+		if (ret)
+			return ret;
+	}
 #endif
-	return bus_set_iommu(&platform_bus_type, &arm_smmu_ops);
+	if (platform_bus_type.iommu_ops != &arm_smmu_ops) {
+		ret = bus_set_iommu(&platform_bus_type, &arm_smmu_ops);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static int arm_smmu_device_remove(struct platform_device *pdev)

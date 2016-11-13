@@ -765,11 +765,11 @@ static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	card->dai_link = sun4i_codec_create_link(dev, &card->num_links);
 	if (!card->dai_link)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	card->dev		= dev;
 	card->name		= "sun4i-codec";
@@ -829,12 +829,6 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(scodec->clk_module);
 	}
 
-	/* Enable the bus clock */
-	if (clk_prepare_enable(scodec->clk_apb)) {
-		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
-		return -EINVAL;
-	}
-
 	scodec->gpio_pa = devm_gpiod_get_optional(&pdev->dev, "allwinner,pa",
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(scodec->gpio_pa)) {
@@ -842,6 +836,12 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "Failed to get pa gpio: %d\n", ret);
 		return ret;
+	}
+
+	/* Enable the bus clock */
+	if (clk_prepare_enable(scodec->clk_apb)) {
+		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
+		return -EINVAL;
 	}
 
 	/* DMA configuration for TX FIFO */
@@ -876,7 +876,8 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	card = sun4i_codec_create_card(&pdev->dev);
-	if (!card) {
+	if (IS_ERR(card)) {
+		ret = PTR_ERR(card);
 		dev_err(&pdev->dev, "Failed to create our card\n");
 		goto err_unregister_codec;
 	}

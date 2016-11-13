@@ -213,13 +213,21 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 usb_rcvctrlpipe(d->udev, 0),
 						 REQUEST_NEW_I2C_READ,
 						 USB_TYPE_VENDOR | USB_DIR_IN,
-						 value, index, msg[i].buf,
+						 value, index, st->buf,
 						 msg[i].len,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
 				deb_info("i2c read error (status = %d)\n", result);
 				break;
 			}
+
+			if (msg[i].len > sizeof(st->buf)) {
+				deb_info("buffer too small to fit %d bytes\n",
+					 msg[i].len);
+				return -EIO;
+			}
+
+			memcpy(msg[i].buf, st->buf, msg[i].len);
 
 			deb_data("<<< ");
 			debug_dump(msg[i].buf, msg[i].len, deb_data);
@@ -238,6 +246,13 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 			/* I2C ctrl + FE bus; */
 			st->buf[3] = ((gen_mode << 6) & 0xC0) |
 				 ((bus_mode << 4) & 0x30);
+
+			if (msg[i].len > sizeof(st->buf) - 4) {
+				deb_info("i2c message to big: %d\n",
+					 msg[i].len);
+				return -EIO;
+			}
+
 			/* The Actual i2c payload */
 			memcpy(&st->buf[4], msg[i].buf, msg[i].len);
 
@@ -283,6 +298,11 @@ static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
 		/* fill in the address */
 		st->buf[1] = msg[i].addr << 1;
 		/* fill the buffer */
+		if (msg[i].len > sizeof(st->buf) - 2) {
+			deb_info("i2c xfer to big: %d\n",
+				msg[i].len);
+			return -EIO;
+		}
 		memcpy(&st->buf[2], msg[i].buf, msg[i].len);
 
 		/* write/read request */
@@ -292,12 +312,19 @@ static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
 
 			/* special thing in the current firmware: when length is zero the read-failed */
 			len = dib0700_ctrl_rd(d, st->buf, msg[i].len + 2,
-					msg[i+1].buf, msg[i+1].len);
+					      st->buf, msg[i + 1].len);
 			if (len <= 0) {
 				deb_info("I2C read failed on address 0x%02x\n",
 						msg[i].addr);
 				break;
 			}
+
+			if (msg[i + 1].len > sizeof(st->buf)) {
+				deb_info("i2c xfer buffer to small for %d\n",
+					msg[i].len);
+				return -EIO;
+			}
+			memcpy(msg[i + 1].buf, st->buf, msg[i + 1].len);
 
 			msg[i+1].len = len;
 
@@ -677,7 +704,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	struct dvb_usb_device *d = purb->context;
 	struct dib0700_rc_response *poll_reply;
 	enum rc_type protocol;
-	u32 uninitialized_var(keycode);
+	u32 keycode;
 	u8 toggle;
 
 	deb_info("%s()\n", __func__);
@@ -718,7 +745,8 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		    poll_reply->nec.data       == 0x00 &&
 		    poll_reply->nec.not_data   == 0xff) {
 			poll_reply->data_state = 2;
-			break;
+			rc_repeat(d->rc_dev);
+			goto resubmit;
 		}
 
 		if ((poll_reply->nec.data ^ poll_reply->nec.not_data) != 0xff) {
