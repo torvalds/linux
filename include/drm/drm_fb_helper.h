@@ -228,7 +228,9 @@ struct drm_fb_helper {
 	.fb_set_par	= drm_fb_helper_set_par, \
 	.fb_setcmap	= drm_fb_helper_setcmap, \
 	.fb_blank	= drm_fb_helper_blank, \
-	.fb_pan_display	= drm_fb_helper_pan_display
+	.fb_pan_display	= drm_fb_helper_pan_display, \
+	.fb_debug_enter = drm_fb_helper_debug_enter, \
+	.fb_debug_leave = drm_fb_helper_debug_leave
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
