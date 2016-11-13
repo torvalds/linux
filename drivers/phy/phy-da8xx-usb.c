@@ -198,7 +198,8 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	} else {
 		int ret;
 
-		ret = phy_create_lookup(d_phy->usb11_phy, "usb-phy", "ohci.0");
+		ret = phy_create_lookup(d_phy->usb11_phy, "usb-phy",
+					"ohci-da8xx");
 		if (ret)
 			dev_warn(dev, "Failed to create usb11 phy lookup\n");
 		ret = phy_create_lookup(d_phy->usb20_phy, "usb-phy",
@@ -216,7 +217,7 @@ static int da8xx_usb_phy_remove(struct platform_device *pdev)
 
 	if (!pdev->dev.of_node) {
 		phy_remove_lookup(d_phy->usb20_phy, "usb-phy", "musb-da8xx");
-		phy_remove_lookup(d_phy->usb11_phy, "usb-phy", "ohci.0");
+		phy_remove_lookup(d_phy->usb11_phy, "usb-phy", "ohci-da8xx");
 	}
 
 	return 0;
