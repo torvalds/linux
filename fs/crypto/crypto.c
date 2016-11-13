@@ -271,7 +271,8 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
 
 /**
  * f2crypt_decrypt_page() - Decrypts a page in-place
- * @page: The page to decrypt. Must be locked.
+ * @inode: The encrypted inode to decrypt.
+ * @page:  The page to decrypt. Must be locked.
  *
  * Decrypts page in-place using the ctx encryption context.
  *
@@ -279,12 +280,12 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int fscrypt_decrypt_page(struct page *page)
+int fscrypt_decrypt_page(struct inode *inode, struct page *page)
 {
 	BUG_ON(!PageLocked(page));
 
-	return do_page_crypto(page->mapping->host,
-			FS_DECRYPT, page->index, page, page, GFP_NOFS);
+	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page,
+			GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_page);
 
@@ -419,7 +420,7 @@ static void completion_pages(struct work_struct *work)
 
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
-		int ret = fscrypt_decrypt_page(page);
+		int ret = fscrypt_decrypt_page(page->mapping->host, page);
 
 		if (ret) {
 			WARN_ON_ONCE(1);

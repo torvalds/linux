@@ -249,7 +249,7 @@ int fscrypt_initialize(void);
 extern struct fscrypt_ctx *fscrypt_get_ctx(struct inode *, gfp_t);
 extern void fscrypt_release_ctx(struct fscrypt_ctx *);
 extern struct page *fscrypt_encrypt_page(struct inode *, struct page *, gfp_t);
-extern int fscrypt_decrypt_page(struct page *);
+extern int fscrypt_decrypt_page(struct inode *, struct page *);
 extern void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *, struct bio *);
 extern void fscrypt_pullback_bio_page(struct page **, bool);
 extern void fscrypt_restore_control_page(struct page *);
@@ -298,7 +298,8 @@ static inline struct page *fscrypt_notsupp_encrypt_page(struct inode *i,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline int fscrypt_notsupp_decrypt_page(struct page *p)
+static inline int fscrypt_notsupp_decrypt_page(struct inode *i,
+						struct page *p)
 {
 	return -EOPNOTSUPP;
 }
