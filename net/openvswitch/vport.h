@@ -197,6 +197,6 @@ int __ovs_vport_ops_register(struct vport_ops *ops);
 	})
 
 void ovs_vport_ops_unregister(struct vport_ops *ops);
-void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto);
 
 #endif /* vport.h */
