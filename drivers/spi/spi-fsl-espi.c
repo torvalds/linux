@@ -576,13 +576,58 @@ static size_t fsl_espi_max_message_size(struct spi_device *spi)
 	return SPCOM_TRANLEN_MAX;
 }
 
+static void fsl_espi_init_regs(struct device *dev, bool initial)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct mpc8xxx_spi *mspi = spi_master_get_devdata(master);
+	struct device_node *nc;
+	u32 csmode, cs, prop;
+	int ret;
+
+	/* SPI controller initializations */
+	fsl_espi_write_reg(mspi, ESPI_SPMODE, 0);
+	fsl_espi_write_reg(mspi, ESPI_SPIM, 0);
+	fsl_espi_write_reg(mspi, ESPI_SPCOM, 0);
+	fsl_espi_write_reg(mspi, ESPI_SPIE, 0xffffffff);
+
+	/* Init eSPI CS mode register */
+	for_each_available_child_of_node(master->dev.of_node, nc) {
+		/* get chip select */
+		ret = of_property_read_u32(nc, "reg", &cs);
+		if (ret || cs >= master->num_chipselect)
+			continue;
+
+		csmode = CSMODE_INIT_VAL;
+
+		/* check if CSBEF is set in device tree */
+		ret = of_property_read_u32(nc, "fsl,csbef", &prop);
+		if (!ret) {
+			csmode &= ~(CSMODE_BEF(0xf));
+			csmode |= CSMODE_BEF(prop);
+		}
+
+		/* check if CSAFT is set in device tree */
+		ret = of_property_read_u32(nc, "fsl,csaft", &prop);
+		if (!ret) {
+			csmode &= ~(CSMODE_AFT(0xf));
+			csmode |= CSMODE_AFT(prop);
+		}
+
+		fsl_espi_write_reg(mspi, ESPI_SPMODEx(cs), csmode);
+
+		if (initial)
+			dev_info(dev, "cs=%u, init_csmode=0x%x\n", cs, csmode);
+	}
+
+	/* Enable SPI interface */
+	fsl_espi_write_reg(mspi, ESPI_SPMODE, SPMODE_INIT_VAL | SPMODE_ENABLE);
+}
+
 static int fsl_espi_probe(struct device *dev, struct resource *mem,
 			  unsigned int irq, unsigned int num_cs)
 {
 	struct spi_master *master;
 	struct mpc8xxx_spi *mpc8xxx_spi;
-	struct device_node *nc;
-	u32 regval, csmode, cs, prop;
 	int ret;
 
 	master = spi_alloc_master(dev, sizeof(struct mpc8xxx_spi));
@@ -634,44 +679,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	if (ret)
 		goto err_probe;
 
-	/* SPI controller initializations */
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, 0);
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIM, 0);
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPCOM, 0);
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIE, 0xffffffff);
-
-	/* Init eSPI CS mode register */
-	for_each_available_child_of_node(master->dev.of_node, nc) {
-		/* get chip select */
-		ret = of_property_read_u32(nc, "reg", &cs);
-		if (ret || cs >= num_cs)
-			continue;
-
-		csmode = CSMODE_INIT_VAL;
-
-		/* check if CSBEF is set in device tree */
-		ret = of_property_read_u32(nc, "fsl,csbef", &prop);
-		if (!ret) {
-			csmode &= ~(CSMODE_BEF(0xf));
-			csmode |= CSMODE_BEF(prop);
-		}
-
-		/* check if CSAFT is set in device tree */
-		ret = of_property_read_u32(nc, "fsl,csaft", &prop);
-		if (!ret) {
-			csmode &= ~(CSMODE_AFT(0xf));
-			csmode |= CSMODE_AFT(prop);
-		}
-
-		fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(cs), csmode);
-
-		dev_info(dev, "cs=%u, init_csmode=0x%x\n", cs, csmode);
-	}
-
-	/* Enable SPI interface */
-	regval = SPMODE_INIT_VAL | SPMODE_ENABLE;
-
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, regval);
+	fsl_espi_init_regs(dev, true);
 
 	pm_runtime_set_autosuspend_delay(dev, AUTOSUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
@@ -771,27 +779,9 @@ static int of_fsl_espi_suspend(struct device *dev)
 static int of_fsl_espi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
-	struct mpc8xxx_spi *mpc8xxx_spi;
-	u32 regval;
-	int i, ret;
+	int ret;
 
-	mpc8xxx_spi = spi_master_get_devdata(master);
-
-	/* SPI controller initializations */
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, 0);
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIM, 0);
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPCOM, 0);
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIE, 0xffffffff);
-
-	/* Init eSPI CS mode register */
-	for (i = 0; i < master->num_chipselect; i++)
-		fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(i),
-				      CSMODE_INIT_VAL);
-
-	/* Enable SPI interface */
-	regval = SPMODE_INIT_VAL | SPMODE_ENABLE;
-
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, regval);
+	fsl_espi_init_regs(dev, false);
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret < 0)
