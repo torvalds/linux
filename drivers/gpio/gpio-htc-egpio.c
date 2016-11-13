@@ -160,10 +160,14 @@ static int egpio_get(struct gpio_chip *chip, unsigned offset)
 	bit   = egpio_bit(ei, offset);
 	reg   = egpio->reg_start + egpio_pos(ei, offset);
 
-	value = egpio_readw(ei, reg);
-	pr_debug("readw(%p + %x) = %x\n",
-			ei->base_addr, reg << ei->bus_shift, value);
-	return !!(value & bit);
+	if (test_bit(offset, &egpio->is_out)) {
+		return !!(egpio->cached_values & (1 << offset));
+	} else {
+		value = egpio_readw(ei, reg);
+		pr_debug("readw(%p + %x) = %x\n",
+			 ei->base_addr, reg << ei->bus_shift, value);
+		return !!(value & bit);
+	}
 }
 
 static int egpio_direction_input(struct gpio_chip *chip, unsigned offset)
