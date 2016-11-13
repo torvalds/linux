@@ -615,8 +615,8 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	}
 
 	/* Register for SPI Interrupt */
-	ret = devm_request_irq(dev, mpc8xxx_spi->irq, fsl_espi_irq,
-			  0, "fsl_espi", mpc8xxx_spi);
+	ret = devm_request_irq(dev, irq, fsl_espi_irq, 0, "fsl_espi",
+			       mpc8xxx_spi);
 	if (ret)
 		goto err_probe;
 
@@ -669,8 +669,7 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	if (ret < 0)
 		goto err_pm;
 
-	dev_info(dev, "at 0x%p (irq = %d)\n", mpc8xxx_spi->reg_base,
-		 mpc8xxx_spi->irq);
+	dev_info(dev, "at 0x%p (irq = %u)\n", mpc8xxx_spi->reg_base, irq);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
