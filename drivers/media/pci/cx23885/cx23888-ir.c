@@ -16,14 +16,14 @@
  *  GNU General Public License for more details.
  */
 
+#include "cx23885.h"
+#include "cx23888-ir.h"
+
 #include <linux/kfifo.h>
 #include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/rc-core.h>
-
-#include "cx23885.h"
-#include "cx23888-ir.h"
 
 static unsigned int ir_888_debug;
 module_param(ir_888_debug, int, 0644);
