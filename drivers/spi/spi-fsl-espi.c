@@ -587,9 +587,9 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 
 	dev_set_drvdata(dev, master);
 
-	mpc8xxx_spi_probe(dev, mem, irq);
-
-	master->mode_bits |= SPI_RX_DUAL;
+	master->mode_bits = SPI_RX_DUAL | SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
+			    SPI_LSB_FIRST | SPI_LOOP;
+	master->dev.of_node = dev->of_node;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	master->setup = fsl_espi_setup;
 	master->cleanup = fsl_espi_cleanup;
@@ -600,6 +600,16 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	spin_lock_init(&mpc8xxx_spi->lock);
+
+	mpc8xxx_spi->dev = dev;
+	mpc8xxx_spi->spibrg = fsl_get_sys_freq();
+	if (mpc8xxx_spi->spibrg == -1) {
+		dev_err(dev, "Can't get sys frequency!\n");
+		ret = -EINVAL;
+		goto err_probe;
+	}
+
+	init_completion(&mpc8xxx_spi->done);
 
 	mpc8xxx_spi->local_buf =
 		devm_kmalloc(dev, SPCOM_TRANLEN_MAX, GFP_KERNEL);
@@ -712,10 +722,6 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 		dev_err(dev, "mode property is not supported on ESPI!\n");
 		return -EINVAL;
 	}
-
-	ret = of_mpc8xxx_spi_probe(ofdev);
-	if (ret)
-		return ret;
 
 	num_cs = of_fsl_espi_get_chipselects(dev);
 	if (!num_cs)
