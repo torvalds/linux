@@ -256,6 +256,9 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 				continue;
 
 			funcs =	mode_set->crtc->helper_private;
+			if (funcs->mode_set_base_atomic == NULL)
+				continue;
+
 			drm_fb_helper_save_lut_atomic(mode_set->crtc, helper);
 			funcs->mode_set_base_atomic(mode_set->crtc,
 						    mode_set->fb,
@@ -308,6 +311,9 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 			DRM_ERROR("no fb to restore??\n");
 			continue;
 		}
+
+		if (funcs->mode_set_base_atomic == NULL)
+			continue;
 
 		drm_fb_helper_restore_lut_atomic(mode_set->crtc);
 		funcs->mode_set_base_atomic(mode_set->crtc, fb, crtc->x,
