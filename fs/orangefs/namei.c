@@ -72,7 +72,7 @@ static int orangefs_create(struct inode *dir,
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
-	dentry->d_time = jiffies + orangefs_dcache_timeout_msecs*HZ/1000;
+	orangefs_set_timeout(dentry);
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -183,7 +183,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	dentry->d_time = jiffies + orangefs_dcache_timeout_msecs*HZ/1000;
+	orangefs_set_timeout(dentry);
 
 	inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
 	if (IS_ERR(inode)) {
@@ -322,7 +322,7 @@ static int orangefs_symlink(struct inode *dir,
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
-	dentry->d_time = jiffies + orangefs_dcache_timeout_msecs*HZ/1000;
+	orangefs_set_timeout(dentry);
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -386,7 +386,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
-	dentry->d_time = jiffies + orangefs_dcache_timeout_msecs*HZ/1000;
+	orangefs_set_timeout(dentry);
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,

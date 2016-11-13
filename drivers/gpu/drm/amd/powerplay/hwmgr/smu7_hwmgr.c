@@ -1030,20 +1030,19 @@ static int smu7_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	/* disable SCLK dpm */
-	if (!data->sclk_dpm_key_disabled)
-		PP_ASSERT_WITH_CODE(
-				(smum_send_msg_to_smc(hwmgr->smumgr,
-						PPSMC_MSG_DPM_Disable) == 0),
-				"Failed to disable SCLK DPM!",
-				return -EINVAL);
+	if (!data->sclk_dpm_key_disabled) {
+		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
+				"Trying to disable SCLK DPM when DPM is disabled",
+				return 0);
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DPM_Disable);
+	}
 
 	/* disable MCLK dpm */
 	if (!data->mclk_dpm_key_disabled) {
-		PP_ASSERT_WITH_CODE(
-				(smum_send_msg_to_smc(hwmgr->smumgr,
-						PPSMC_MSG_MCLKDPM_Disable) == 0),
-				"Failed to disable MCLK DPM!",
-				return -EINVAL);
+		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
+				"Trying to disable MCLK DPM when DPM is disabled",
+				return 0);
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_MCLKDPM_Disable);
 	}
 
 	return 0;
@@ -1069,10 +1068,13 @@ static int smu7_stop_dpm(struct pp_hwmgr *hwmgr)
 				return -EINVAL);
 	}
 
-	if (smu7_disable_sclk_mclk_dpm(hwmgr)) {
-		printk(KERN_ERR "Failed to disable Sclk DPM and Mclk DPM!");
-		return -EINVAL;
-	}
+	smu7_disable_sclk_mclk_dpm(hwmgr);
+
+	PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
+			"Trying to disable voltage DPM when DPM is disabled",
+			return 0);
+
+	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Disable);
 
 	return 0;
 }
@@ -1166,8 +1168,8 @@ int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is already running right now, no need to enable DPM!",
-			return 0);
+			"DPM is already running",
+			);
 
 	if (smu7_voltage_control(hwmgr)) {
 		tmp_result = smu7_enable_voltage_control(hwmgr);
@@ -1226,7 +1228,7 @@ int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable VR hot GPIO interrupt!", result = tmp_result);
 
-	smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay);
+	smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_NoDisplay);
 
 	tmp_result = smu7_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
@@ -1305,6 +1307,12 @@ int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = smu7_disable_thermal_auto_throttle(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable thermal auto throttle!", result = tmp_result);
+
+	if (1 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON)) {
+		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableAvfs)),
+					"Failed to disable AVFS!",
+					return -EINVAL);
+	}
 
 	tmp_result = smu7_stop_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
@@ -1452,17 +1460,19 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table = NULL;
 
 
-	if (table_info != NULL)
-		sclk_table = table_info->vdd_dep_on_sclk;
-
 	for (i = 0; i < SMU7_MAX_LEAKAGE_COUNT; i++) {
 		vv_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
 
 		if (data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
-			if (0 == phm_get_sclk_for_voltage_evv(hwmgr,
+			if ((hwmgr->pp_table_version == PP_TABLE_V1)
+			    && !phm_get_sclk_for_voltage_evv(hwmgr,
 						table_info->vddgfx_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_ClockStretcher)) {
+					if (table_info == NULL)
+						return -EINVAL;
+					sclk_table = table_info->vdd_dep_on_sclk;
+
 					for (j = 1; j < sclk_table->count; j++) {
 						if (sclk_table->entries[j].clk == sclk &&
 								sclk_table->entries[j].cks_enable == 0) {
@@ -1488,12 +1498,15 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				}
 			}
 		} else {
-
 			if ((hwmgr->pp_table_version == PP_TABLE_V0)
 				|| !phm_get_sclk_for_voltage_evv(hwmgr,
 					table_info->vddc_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_ClockStretcher)) {
+					if (table_info == NULL)
+						return -EINVAL;
+					sclk_table = table_info->vdd_dep_on_sclk;
+
 					for (j = 1; j < sclk_table->count; j++) {
 						if (sclk_table->entries[j].clk == sclk &&
 								sclk_table->entries[j].cks_enable == 0) {
@@ -2117,15 +2130,20 @@ static int smu7_patch_acp_vddc(struct pp_hwmgr *hwmgr,
 }
 
 static int smu7_patch_limits_vddc(struct pp_hwmgr *hwmgr,
-				     struct phm_clock_and_voltage_limits *tab)
+				  struct phm_clock_and_voltage_limits *tab)
 {
+	uint32_t vddc, vddci;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (tab) {
-		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, (uint32_t *)&tab->vddc,
-							&data->vddc_leakage);
-		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, (uint32_t *)&tab->vddci,
-							&data->vddci_leakage);
+		vddc = tab->vddc;
+		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddc,
+						   &data->vddc_leakage);
+		tab->vddc = vddc;
+		vddci = tab->vddci;
+		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddci,
+						   &data->vddci_leakage);
+		tab->vddci = vddci;
 	}
 
 	return 0;
@@ -3802,13 +3820,15 @@ static inline bool smu7_are_power_levels_equal(const struct smu7_performance_lev
 
 int smu7_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
 {
-	const struct smu7_power_state *psa = cast_const_phw_smu7_power_state(pstate1);
-	const struct smu7_power_state *psb = cast_const_phw_smu7_power_state(pstate2);
+	const struct smu7_power_state *psa;
+	const struct smu7_power_state *psb;
 	int i;
 
 	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
 		return -EINVAL;
 
+	psa = cast_const_phw_smu7_power_state(pstate1);
+	psb = cast_const_phw_smu7_power_state(pstate2);
 	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
 	if (psa->performance_level_count != psb->performance_level_count) {
 		*equal = false;
@@ -4213,18 +4233,26 @@ static int smu7_get_sclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 {
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table = NULL;
+	struct phm_clock_voltage_dependency_table *sclk_table;
 	int i;
 
-	if (table_info == NULL)
-		return -EINVAL;
-
-	dep_sclk_table = table_info->vdd_dep_on_sclk;
-
-	for (i = 0; i < dep_sclk_table->count; i++) {
-		clocks->clock[i] = dep_sclk_table->entries[i].clk;
-		clocks->count++;
+	if (hwmgr->pp_table_version == PP_TABLE_V1) {
+		if (table_info == NULL || table_info->vdd_dep_on_sclk == NULL)
+			return -EINVAL;
+		dep_sclk_table = table_info->vdd_dep_on_sclk;
+		for (i = 0; i < dep_sclk_table->count; i++) {
+			clocks->clock[i] = dep_sclk_table->entries[i].clk;
+			clocks->count++;
+		}
+	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
+		sclk_table = hwmgr->dyn_state.vddc_dependency_on_sclk;
+		for (i = 0; i < sclk_table->count; i++) {
+			clocks->clock[i] = sclk_table->entries[i].clk;
+			clocks->count++;
+		}
 	}
+
 	return 0;
 }
 
@@ -4246,17 +4274,24 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table;
 	int i;
+	struct phm_clock_voltage_dependency_table *mclk_table;
 
-	if (table_info == NULL)
-		return -EINVAL;
-
-	dep_mclk_table = table_info->vdd_dep_on_mclk;
-
-	for (i = 0; i < dep_mclk_table->count; i++) {
-		clocks->clock[i] = dep_mclk_table->entries[i].clk;
-		clocks->latency[i] = smu7_get_mem_latency(hwmgr,
+	if (hwmgr->pp_table_version == PP_TABLE_V1) {
+		if (table_info == NULL)
+			return -EINVAL;
+		dep_mclk_table = table_info->vdd_dep_on_mclk;
+		for (i = 0; i < dep_mclk_table->count; i++) {
+			clocks->clock[i] = dep_mclk_table->entries[i].clk;
+			clocks->latency[i] = smu7_get_mem_latency(hwmgr,
 						dep_mclk_table->entries[i].clk);
-		clocks->count++;
+			clocks->count++;
+		}
+	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
+		mclk_table = hwmgr->dyn_state.vddc_dependency_on_mclk;
+		for (i = 0; i < mclk_table->count; i++) {
+			clocks->clock[i] = mclk_table->entries[i].clk;
+			clocks->count++;
+		}
 	}
 	return 0;
 }
@@ -4324,6 +4359,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.set_mclk_od = smu7_set_mclk_od,
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.read_sensor = smu7_read_sensor,
+	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

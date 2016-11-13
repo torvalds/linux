@@ -20,75 +20,114 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2 (or-able))." DVB_USB
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+struct dtt200u_state {
+	unsigned char data[80];
+	struct mutex data_mutex;
+};
+
 static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	u8 b = SET_INIT;
+	struct dtt200u_state *st = d->priv;
+	int ret = 0;
+
+	mutex_lock(&st->data_mutex);
+
+	st->data[0] = SET_INIT;
 
 	if (onoff)
-		dvb_usb_generic_write(d,&b,2);
+		ret = dvb_usb_generic_write(d, st->data, 2);
 
-	return 0;
+	mutex_unlock(&st->data_mutex);
+	return ret;
 }
 
 static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	u8 b_streaming[2] = { SET_STREAMING, onoff };
-	u8 b_rst_pid = RESET_PID_FILTER;
+	struct dtt200u_state *st = adap->dev->priv;
+	int ret;
 
-	dvb_usb_generic_write(adap->dev, b_streaming, 2);
+	mutex_lock(&st->data_mutex);
+	st->data[0] = SET_STREAMING;
+	st->data[1] = onoff;
 
-	if (onoff == 0)
-		dvb_usb_generic_write(adap->dev, &b_rst_pid, 1);
-	return 0;
+	ret = dvb_usb_generic_write(adap->dev, st->data, 2);
+	if (ret < 0)
+		goto ret;
+
+	if (onoff)
+		goto ret;
+
+	st->data[0] = RESET_PID_FILTER;
+	ret = dvb_usb_generic_write(adap->dev, st->data, 1);
+
+ret:
+	mutex_unlock(&st->data_mutex);
+
+	return ret;
 }
 
 static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
-	u8 b_pid[4];
+	struct dtt200u_state *st = adap->dev->priv;
+	int ret;
+
 	pid = onoff ? pid : 0;
 
-	b_pid[0] = SET_PID_FILTER;
-	b_pid[1] = index;
-	b_pid[2] = pid & 0xff;
-	b_pid[3] = (pid >> 8) & 0x1f;
+	mutex_lock(&st->data_mutex);
+	st->data[0] = SET_PID_FILTER;
+	st->data[1] = index;
+	st->data[2] = pid & 0xff;
+	st->data[3] = (pid >> 8) & 0x1f;
 
-	return dvb_usb_generic_write(adap->dev, b_pid, 4);
+	ret = dvb_usb_generic_write(adap->dev, st->data, 4);
+	mutex_unlock(&st->data_mutex);
+
+	return ret;
 }
 
 static int dtt200u_rc_query(struct dvb_usb_device *d)
 {
-	u8 key[5],cmd = GET_RC_CODE;
+	struct dtt200u_state *st = d->priv;
 	u32 scancode;
+	int ret;
 
-	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
-	if (key[0] == 1) {
+	mutex_lock(&st->data_mutex);
+	st->data[0] = GET_RC_CODE;
+
+	ret = dvb_usb_generic_rw(d, st->data, 1, st->data, 5, 0);
+	if (ret < 0)
+		goto ret;
+
+	if (st->data[0] == 1) {
 		enum rc_type proto = RC_TYPE_NEC;
 
-		scancode = key[1];
-		if ((u8) ~key[1] != key[2]) {
+		scancode = st->data[1];
+		if ((u8) ~st->data[1] != st->data[2]) {
 			/* Extended NEC */
 			scancode = scancode << 8;
-			scancode |= key[2];
+			scancode |= st->data[2];
 			proto = RC_TYPE_NECX;
 		}
 		scancode = scancode << 8;
-		scancode |= key[3];
+		scancode |= st->data[3];
 
 		/* Check command checksum is ok */
-		if ((u8) ~key[3] == key[4])
+		if ((u8) ~st->data[3] == st->data[4])
 			rc_keydown(d->rc_dev, proto, scancode, 0);
 		else
 			rc_keyup(d->rc_dev);
-	} else if (key[0] == 2) {
+	} else if (st->data[0] == 2) {
 		rc_repeat(d->rc_dev);
 	} else {
 		rc_keyup(d->rc_dev);
 	}
 
-	if (key[0] != 0)
-		deb_info("key: %*ph\n", 5, key);
+	if (st->data[0] != 0)
+		deb_info("st->data: %*ph\n", 5, st->data);
 
-	return 0;
+ret:
+	mutex_unlock(&st->data_mutex);
+	return ret;
 }
 
 static int dtt200u_frontend_attach(struct dvb_usb_adapter *adap)
@@ -106,17 +145,24 @@ static struct dvb_usb_device_properties wt220u_miglia_properties;
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
+	struct dvb_usb_device *d;
+	struct dtt200u_state *st;
+
 	if (0 == dvb_usb_device_init(intf, &dtt200u_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_fc_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_zl0353_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &wt220u_miglia_properties,
-				     THIS_MODULE, NULL, adapter_nr))
+				     THIS_MODULE, &d, adapter_nr)) {
+		st = d->priv;
+		mutex_init(&st->data_mutex);
+
 		return 0;
+	}
 
 	return -ENODEV;
 }
@@ -139,6 +185,8 @@ MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
 static struct dvb_usb_device_properties dtt200u_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-dtt200u-01.fw",
+
+	.size_of_priv     = sizeof(struct dtt200u_state),
 
 	.num_adapters = 1,
 	.adapter = {
@@ -190,6 +238,8 @@ static struct dvb_usb_device_properties wt220u_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-02.fw",
 
+	.size_of_priv     = sizeof(struct dtt200u_state),
+
 	.num_adapters = 1,
 	.adapter = {
 		{
@@ -239,6 +289,8 @@ static struct dvb_usb_device_properties wt220u_properties = {
 static struct dvb_usb_device_properties wt220u_fc_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-fc03.fw",
+
+	.size_of_priv     = sizeof(struct dtt200u_state),
 
 	.num_adapters = 1,
 	.adapter = {
@@ -290,6 +342,8 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-zl0353-01.fw",
 
+	.size_of_priv     = sizeof(struct dtt200u_state),
+
 	.num_adapters = 1,
 	.adapter = {
 		{
@@ -339,6 +393,8 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 static struct dvb_usb_device_properties wt220u_miglia_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-miglia-01.fw",
+
+	.size_of_priv     = sizeof(struct dtt200u_state),
 
 	.num_adapters = 1,
 	.generic_bulk_ctrl_endpoint = 0x01,

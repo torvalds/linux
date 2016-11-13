@@ -5,7 +5,6 @@
 
 #include <linux/stringify.h>
 #include <asm/alternative.h>
-#include <asm/cpufeature.h>
 
 #ifdef __ASSEMBLER__
 

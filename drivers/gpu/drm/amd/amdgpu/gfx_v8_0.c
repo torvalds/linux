@@ -640,7 +640,6 @@ static const u32 stoney_mgcg_cgcg_init[] =
 	mmCP_MEM_SLP_CNTL, 0xffffffff, 0x00020201,
 	mmRLC_MEM_SLP_CNTL, 0xffffffff, 0x00020201,
 	mmCGTS_SM_CTRL_REG, 0xffffffff, 0x96940200,
-	mmATC_MISC_CG, 0xffffffff, 0x000c0200,
 };
 
 static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -4087,14 +4086,21 @@ static int gfx_v8_0_rlc_load_microcode(struct amdgpu_device *adev)
 static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 {
 	int r;
+	u32 tmp;
 
 	gfx_v8_0_rlc_stop(adev);
 
 	/* disable CG */
-	WREG32(mmRLC_CGCG_CGLS_CTRL, 0);
+	tmp = RREG32(mmRLC_CGCG_CGLS_CTRL);
+	tmp &= ~(RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK |
+		 RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
+	WREG32(mmRLC_CGCG_CGLS_CTRL, tmp);
 	if (adev->asic_type == CHIP_POLARIS11 ||
-	    adev->asic_type == CHIP_POLARIS10)
-		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, 0);
+	    adev->asic_type == CHIP_POLARIS10) {
+		tmp = RREG32(mmRLC_CGCG_CGLS_CTRL_3D);
+		tmp &= ~0x3;
+		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, tmp);
+	}
 
 	/* disable PG */
 	WREG32(mmRLC_PG_CNTL, 0);
@@ -5137,7 +5143,7 @@ static int gfx_v8_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int gfx_v8_0_check_soft_reset(void *handle)
+static bool gfx_v8_0_check_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
@@ -5189,16 +5195,14 @@ static int gfx_v8_0_check_soft_reset(void *handle)
 						SRBM_SOFT_RESET, SOFT_RESET_SEM, 1);
 
 	if (grbm_soft_reset || srbm_soft_reset) {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang = true;
 		adev->gfx.grbm_soft_reset = grbm_soft_reset;
 		adev->gfx.srbm_soft_reset = srbm_soft_reset;
+		return true;
 	} else {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang = false;
 		adev->gfx.grbm_soft_reset = 0;
 		adev->gfx.srbm_soft_reset = 0;
+		return false;
 	}
-
-	return 0;
 }
 
 static void gfx_v8_0_inactive_hqd(struct amdgpu_device *adev,
@@ -5226,7 +5230,8 @@ static int gfx_v8_0_pre_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang)
+	if ((!adev->gfx.grbm_soft_reset) &&
+	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;
@@ -5264,7 +5269,8 @@ static int gfx_v8_0_soft_reset(void *handle)
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang)
+	if ((!adev->gfx.grbm_soft_reset) &&
+	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;
@@ -5334,7 +5340,8 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GFX].hang)
+	if ((!adev->gfx.grbm_soft_reset) &&
+	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;

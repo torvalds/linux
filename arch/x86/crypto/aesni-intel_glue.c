@@ -888,7 +888,7 @@ static int helper_rfc4106_encrypt(struct aead_request *req)
 	unsigned long auth_tag_len = crypto_aead_authsize(tfm);
 	u8 iv[16] __attribute__ ((__aligned__(AESNI_ALIGN)));
 	struct scatter_walk src_sg_walk;
-	struct scatter_walk dst_sg_walk;
+	struct scatter_walk dst_sg_walk = {};
 	unsigned int i;
 
 	/* Assuming we are supporting rfc4106 64-bit extended */
@@ -968,7 +968,7 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 	u8 iv[16] __attribute__ ((__aligned__(AESNI_ALIGN)));
 	u8 authTag[16];
 	struct scatter_walk src_sg_walk;
-	struct scatter_walk dst_sg_walk;
+	struct scatter_walk dst_sg_walk = {};
 	unsigned int i;
 
 	if (unlikely(req->assoclen != 16 && req->assoclen != 20))

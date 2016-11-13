@@ -820,7 +820,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		    mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT)
 			break;
 		rcu_read_lock();
-		sta = sta_info_get(sdata, mgmt->da);
+		sta = sta_info_get_bss(sdata, mgmt->da);
 		rcu_read_unlock();
 		if (!sta)
 			return -ENOLINK;

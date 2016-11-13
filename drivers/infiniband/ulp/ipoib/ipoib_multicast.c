@@ -796,9 +796,11 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 			__ipoib_mcast_add(dev, mcast);
 			list_add_tail(&mcast->list, &priv->multicast_list);
 		}
-		if (skb_queue_len(&mcast->pkt_queue) < IPOIB_MAX_MCAST_QUEUE)
+		if (skb_queue_len(&mcast->pkt_queue) < IPOIB_MAX_MCAST_QUEUE) {
+			/* put pseudoheader back on for next time */
+			skb_push(skb, sizeof(struct ipoib_pseudo_header));
 			skb_queue_tail(&mcast->pkt_queue, skb);
-		else {
+		} else {
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}

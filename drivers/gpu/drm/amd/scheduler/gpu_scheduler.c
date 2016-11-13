@@ -34,9 +34,6 @@ static bool amd_sched_entity_is_ready(struct amd_sched_entity *entity);
 static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
 static void amd_sched_process_job(struct fence *f, struct fence_cb *cb);
 
-struct kmem_cache *sched_fence_slab;
-atomic_t sched_fence_slab_ref = ATOMIC_INIT(0);
-
 /* Initialize a given run queue struct */
 static void amd_sched_rq_init(struct amd_sched_rq *rq)
 {
@@ -618,13 +615,6 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 	INIT_LIST_HEAD(&sched->ring_mirror_list);
 	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
-	if (atomic_inc_return(&sched_fence_slab_ref) == 1) {
-		sched_fence_slab = kmem_cache_create(
-			"amd_sched_fence", sizeof(struct amd_sched_fence), 0,
-			SLAB_HWCACHE_ALIGN, NULL);
-		if (!sched_fence_slab)
-			return -ENOMEM;
-	}
 
 	/* Each scheduler will run on a seperate kernel thread */
 	sched->thread = kthread_run(amd_sched_main, sched, sched->name);
@@ -645,6 +635,4 @@ void amd_sched_fini(struct amd_gpu_scheduler *sched)
 {
 	if (sched->thread)
 		kthread_stop(sched->thread);
-	if (atomic_dec_and_test(&sched_fence_slab_ref))
-		kmem_cache_destroy(sched_fence_slab);
 }

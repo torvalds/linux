@@ -813,9 +813,6 @@ int tpm_do_selftest(struct tpm_chip *chip)
 			continue;
 		}
 
-		if (rc < TPM_HEADER_SIZE)
-			return -EFAULT;
-
 		if (rc == TPM_ERR_DISABLED || rc == TPM_ERR_DEACTIVATED) {
 			dev_info(&chip->dev,
 				 "TPM is disabled/deactivated (0x%X)\n", rc);

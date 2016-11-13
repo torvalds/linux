@@ -43,6 +43,9 @@ Optional properties:
   reset signal present internally in some host controller IC designs.
   See Documentation/devicetree/bindings/reset/reset.txt for details.
 
+* reset-names: request name for using "resets" property. Must be "reset".
+	(It will be used together with "resets" property.)
+
 * clocks: from common clock binding: handle to biu and ciu clocks for the
   bus interface unit clock and the card interface unit clock.
 
@@ -103,6 +106,8 @@ board specific portions as listed below.
 		interrupts = <0 75 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		resets = <&rst 20>;
+		reset-names = "reset";
 	};
 
 [board specific internal DMA resources]

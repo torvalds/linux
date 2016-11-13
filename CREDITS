@@ -1864,10 +1864,11 @@ S: The Netherlands
 
 N: Martin Kepplinger
 E: martink@posteo.de
-E: martin.kepplinger@theobroma-systems.com
+E: martin.kepplinger@ginzinger.com
 W: http://www.martinkepplinger.com
 D: mma8452 accelerators iio driver
-D: Kernel cleanups
+D: pegasus_notetaker input driver
+D: Kernel fixes and cleanups
 S: Garnisonstraße 26
 S: 4020 Linz
 S: Austria

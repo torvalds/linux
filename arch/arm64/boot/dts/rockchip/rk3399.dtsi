@@ -300,8 +300,11 @@
 		ranges = <0x83000000 0x0 0xfa000000 0x0 0xfa000000 0x0 0x600000
 			  0x81000000 0x0 0xfa600000 0x0 0xfa600000 0x0 0x100000>;
 		resets = <&cru SRST_PCIE_CORE>, <&cru SRST_PCIE_MGMT>,
-			 <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE>;
-		reset-names = "core", "mgmt", "mgmt-sticky", "pipe";
+			 <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE>,
+			 <&cru SRST_PCIE_PM>, <&cru SRST_P_PCIE>,
+			 <&cru SRST_A_PCIE>;
+		reset-names = "core", "mgmt", "mgmt-sticky", "pipe",
+			      "pm", "pclk", "aclk";
 		status = "disabled";
 
 		pcie0_intc: interrupt-controller {

@@ -100,6 +100,7 @@ static const u32 cz_mgcg_cgcg_init[] =
 
 static const u32 stoney_mgcg_cgcg_init[] =
 {
+	mmATC_MISC_CG, 0xffffffff, 0x000c0200,
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
 
@@ -1099,7 +1100,7 @@ static int gmc_v8_0_wait_for_idle(void *handle)
 
 }
 
-static int gmc_v8_0_check_soft_reset(void *handle)
+static bool gmc_v8_0_check_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1116,20 +1117,19 @@ static int gmc_v8_0_check_soft_reset(void *handle)
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}
 	if (srbm_soft_reset) {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang = true;
 		adev->mc.srbm_soft_reset = srbm_soft_reset;
+		return true;
 	} else {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang = false;
 		adev->mc.srbm_soft_reset = 0;
+		return false;
 	}
-	return 0;
 }
 
 static int gmc_v8_0_pre_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+	if (!adev->mc.srbm_soft_reset)
 		return 0;
 
 	gmc_v8_0_mc_stop(adev, &adev->mc.save);
@@ -1145,7 +1145,7 @@ static int gmc_v8_0_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+	if (!adev->mc.srbm_soft_reset)
 		return 0;
 	srbm_soft_reset = adev->mc.srbm_soft_reset;
 
@@ -1175,7 +1175,7 @@ static int gmc_v8_0_post_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang)
+	if (!adev->mc.srbm_soft_reset)
 		return 0;
 
 	gmc_v8_0_mc_resume(adev, &adev->mc.save);
