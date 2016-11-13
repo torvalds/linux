@@ -81,16 +81,10 @@ static struct fb_deferred_io qxl_defio = {
 
 static struct fb_ops qxlfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par, /* TODO: copy vmwgfx */
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static void qxlfb_destroy_pinned_object(struct drm_gem_object *gobj)
