@@ -696,7 +696,7 @@ static irqreturn_t mtu3_u2_common_isr(struct mtu3 *mtu)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t mtu3_irq(int irq, void *data)
+static irqreturn_t mtu3_irq(int irq, void *data)
 {
 	struct mtu3 *mtu = (struct mtu3 *)data;
 	unsigned long flags;
