@@ -93,6 +93,10 @@
 
 #define AUTOSUSPEND_TIMEOUT 2000
 
+struct fsl_espi_cs {
+	u32 hw_mode;
+};
+
 static inline u32 fsl_espi_read_reg(struct mpc8xxx_spi *mspi, int offset)
 {
 	return ioread32be(mspi->reg_base + offset);
@@ -280,7 +284,7 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	int bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
 	u32 pm, hz = t ? t->speed_hz : spi->max_speed_hz;
-	struct spi_mpc8xxx_cs *cs = spi->controller_state;
+	struct fsl_espi_cs *cs = spi_get_ctldata(spi);
 	u32 hw_mode_old = cs->hw_mode;
 
 	/* mask out bits we are going to set */
@@ -437,7 +441,7 @@ static int fsl_espi_setup(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
 	u32 loop_mode;
-	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
+	struct fsl_espi_cs *cs = spi_get_ctldata(spi);
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
@@ -483,7 +487,7 @@ static int fsl_espi_setup(struct spi_device *spi)
 
 static void fsl_espi_cleanup(struct spi_device *spi)
 {
-	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
+	struct fsl_espi_cs *cs = spi_get_ctldata(spi);
 
 	kfree(cs);
 	spi_set_ctldata(spi, NULL);
