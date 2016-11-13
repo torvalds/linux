@@ -88,7 +88,7 @@ EXPORT_SYMBOL(fscrypt_release_ctx);
  * Return: An allocated and initialized encryption context on success; error
  * value or NULL otherwise.
  */
-struct fscrypt_ctx *fscrypt_get_ctx(struct inode *inode, gfp_t gfp_flags)
+struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode, gfp_t gfp_flags)
 {
 	struct fscrypt_ctx *ctx = NULL;
 	struct fscrypt_info *ci = inode->i_crypt_info;
@@ -146,7 +146,7 @@ typedef enum {
 	FS_ENCRYPT,
 } fscrypt_direction_t;
 
-static int do_page_crypto(struct inode *inode,
+static int do_page_crypto(const struct inode *inode,
 			fscrypt_direction_t rw, pgoff_t index,
 			struct page *src_page, struct page *dest_page,
 			unsigned int src_len, unsigned int src_offset,
@@ -231,7 +231,7 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
  * Return: An allocated page with the encrypted content on success. Else, an
  * error value or NULL.
  */
-struct page *fscrypt_encrypt_page(struct inode *inode,
+struct page *fscrypt_encrypt_page(const struct inode *inode,
 				struct page *plaintext_page,
 				unsigned int plaintext_len,
 				unsigned int plaintext_offset,
@@ -290,7 +290,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int fscrypt_decrypt_page(struct inode *inode, struct page *page,
+int fscrypt_decrypt_page(const struct inode *inode, struct page *page,
 			unsigned int len, unsigned int offs)
 {
 	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page, len, offs,
@@ -298,7 +298,7 @@ int fscrypt_decrypt_page(struct inode *inode, struct page *page,
 }
 EXPORT_SYMBOL(fscrypt_decrypt_page);
 
-int fscrypt_zeroout_range(struct inode *inode, pgoff_t lblk,
+int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 				sector_t pblk, unsigned int len)
 {
 	struct fscrypt_ctx *ctx;

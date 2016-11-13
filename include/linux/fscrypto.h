@@ -212,7 +212,7 @@ static inline struct page *fscrypt_control_page(struct page *page)
 #endif
 }
 
-static inline int fscrypt_has_encryption_key(struct inode *inode)
+static inline int fscrypt_has_encryption_key(const struct inode *inode)
 {
 #if IS_ENABLED(CONFIG_FS_ENCRYPTION)
 	return (inode->i_crypt_info != NULL);
@@ -246,17 +246,17 @@ static inline void fscrypt_set_d_op(struct dentry *dentry)
 extern struct kmem_cache *fscrypt_info_cachep;
 int fscrypt_initialize(void);
 
-extern struct fscrypt_ctx *fscrypt_get_ctx(struct inode *, gfp_t);
+extern struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *, gfp_t);
 extern void fscrypt_release_ctx(struct fscrypt_ctx *);
-extern struct page *fscrypt_encrypt_page(struct inode *, struct page *,
+extern struct page *fscrypt_encrypt_page(const struct inode *, struct page *,
 						unsigned int, unsigned int,
 						gfp_t);
-extern int fscrypt_decrypt_page(struct inode *, struct page *, unsigned int,
+extern int fscrypt_decrypt_page(const struct inode *, struct page *, unsigned int,
 				unsigned int);
 extern void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *, struct bio *);
 extern void fscrypt_pullback_bio_page(struct page **, bool);
 extern void fscrypt_restore_control_page(struct page *);
-extern int fscrypt_zeroout_range(struct inode *, pgoff_t, sector_t,
+extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
 						unsigned int);
 /* policy.c */
 extern int fscrypt_process_policy(struct file *, const struct fscrypt_policy *);
@@ -273,8 +273,8 @@ extern void fscrypt_put_encryption_info(struct inode *, struct fscrypt_info *);
 extern int fscrypt_setup_filename(struct inode *, const struct qstr *,
 				int lookup, struct fscrypt_name *);
 extern void fscrypt_free_filename(struct fscrypt_name *);
-extern u32 fscrypt_fname_encrypted_size(struct inode *, u32);
-extern int fscrypt_fname_alloc_buffer(struct inode *, u32,
+extern u32 fscrypt_fname_encrypted_size(const struct inode *, u32);
+extern int fscrypt_fname_alloc_buffer(const struct inode *, u32,
 				struct fscrypt_str *);
 extern void fscrypt_fname_free_buffer(struct fscrypt_str *);
 extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
@@ -284,7 +284,7 @@ extern int fscrypt_fname_usr_to_disk(struct inode *, const struct qstr *,
 #endif
 
 /* crypto.c */
-static inline struct fscrypt_ctx *fscrypt_notsupp_get_ctx(struct inode *i,
+static inline struct fscrypt_ctx *fscrypt_notsupp_get_ctx(const struct inode *i,
 							gfp_t f)
 {
 	return ERR_PTR(-EOPNOTSUPP);
@@ -295,7 +295,7 @@ static inline void fscrypt_notsupp_release_ctx(struct fscrypt_ctx *c)
 	return;
 }
 
-static inline struct page *fscrypt_notsupp_encrypt_page(struct inode *i,
+static inline struct page *fscrypt_notsupp_encrypt_page(const struct inode *i,
 						struct page *p,
 						unsigned int len,
 						unsigned int offs,
@@ -304,7 +304,7 @@ static inline struct page *fscrypt_notsupp_encrypt_page(struct inode *i,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline int fscrypt_notsupp_decrypt_page(struct inode *i, struct page *p,
+static inline int fscrypt_notsupp_decrypt_page(const struct inode *i, struct page *p,
 						unsigned int len, unsigned int offs)
 {
 	return -EOPNOTSUPP;
@@ -326,7 +326,7 @@ static inline void fscrypt_notsupp_restore_control_page(struct page *p)
 	return;
 }
 
-static inline int fscrypt_notsupp_zeroout_range(struct inode *i, pgoff_t p,
+static inline int fscrypt_notsupp_zeroout_range(const struct inode *i, pgoff_t p,
 					sector_t s, unsigned int f)
 {
 	return -EOPNOTSUPP;
