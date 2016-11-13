@@ -620,12 +620,6 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 	if (ret)
 		goto err_probe;
 
-	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-		dev_err(dev, "SPI_QE_CPU_MODE is not supported on ESPI!\n");
-		ret = -EINVAL;
-		goto err_probe;
-	}
-
 	/* SPI controller initializations */
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODE, 0);
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIM, 0);
@@ -714,6 +708,11 @@ static int of_fsl_espi_probe(struct platform_device *ofdev)
 	struct resource mem;
 	unsigned int irq, num_cs;
 	int ret;
+
+	if (of_property_read_bool(np, "mode")) {
+		dev_err(dev, "mode property is not supported on ESPI!\n");
+		return -EINVAL;
+	}
 
 	ret = of_mpc8xxx_spi_probe(ofdev);
 	if (ret)
