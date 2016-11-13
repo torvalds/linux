@@ -217,8 +217,9 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
  * @plaintext_page: The page to encrypt. Must be locked.
  * @gfp_flags:      The gfp flag for memory allocation
  *
- * Allocates a ciphertext page and encrypts plaintext_page into it using the ctx
- * encryption context.
+ * Encrypts plaintext_page using the ctx encryption context. If
+ * the filesystem supports it, encryption is performed in-place, otherwise a
+ * new ciphertext_page is allocated and returned.
  *
  * Called on the page write path.  The caller must call
  * fscrypt_restore_control_page() on the returned ciphertext page to
@@ -231,7 +232,7 @@ struct page *fscrypt_encrypt_page(struct inode *inode,
 				struct page *plaintext_page, gfp_t gfp_flags)
 {
 	struct fscrypt_ctx *ctx;
-	struct page *ciphertext_page = NULL;
+	struct page *ciphertext_page = plaintext_page;
 	int err;
 
 	BUG_ON(!PageLocked(plaintext_page));
@@ -240,10 +241,12 @@ struct page *fscrypt_encrypt_page(struct inode *inode,
 	if (IS_ERR(ctx))
 		return (struct page *)ctx;
 
-	/* The encryption operation will require a bounce page. */
-	ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
-	if (IS_ERR(ciphertext_page))
-		goto errout;
+	if (!(inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION)) {
+		/* The encryption operation will require a bounce page. */
+		ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
+		if (IS_ERR(ciphertext_page))
+			goto errout;
+	}
 
 	ctx->w.control_page = plaintext_page;
 	err = do_page_crypto(inode, FS_ENCRYPT, plaintext_page->index,
@@ -253,9 +256,11 @@ struct page *fscrypt_encrypt_page(struct inode *inode,
 		ciphertext_page = ERR_PTR(err);
 		goto errout;
 	}
-	SetPagePrivate(ciphertext_page);
-	set_page_private(ciphertext_page, (unsigned long)ctx);
-	lock_page(ciphertext_page);
+	if (!(inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION)) {
+		SetPagePrivate(ciphertext_page);
+		set_page_private(ciphertext_page, (unsigned long)ctx);
+		lock_page(ciphertext_page);
+	}
 	return ciphertext_page;
 
 errout:

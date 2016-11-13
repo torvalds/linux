@@ -154,9 +154,15 @@ struct fscrypt_name {
 #define fname_len(p)		((p)->disk_name.len)
 
 /*
+ * fscrypt superblock flags
+ */
+#define FS_CFLG_INPLACE_ENCRYPTION (1U << 1)
+
+/*
  * crypto opertions for filesystems
  */
 struct fscrypt_operations {
+	unsigned int flags;
 	int (*get_context)(struct inode *, void *, size_t);
 	int (*key_prefix)(struct inode *, u8 **);
 	int (*prepare_context)(struct inode *);
