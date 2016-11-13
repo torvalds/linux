@@ -127,6 +127,7 @@
 #include <linux/timecounter.h>
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
+#include <linux/completion.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
@@ -171,6 +172,10 @@
 #define XGBE_DMA_SYS_ARCACHE	0x0
 #define XGBE_DMA_SYS_AWCACHE	0x0
 
+/* DMA channel interrupt modes */
+#define XGBE_IRQ_MODE_EDGE	0
+#define XGBE_IRQ_MODE_LEVEL	1
+
 #define XGBE_DMA_INTERRUPT_MASK	0x31c7
 
 #define XGMAC_MIN_PACKET	60
@@ -199,6 +204,20 @@
 /* ACPI property names */
 #define XGBE_ACPI_DMA_FREQ	"amd,dma-freq"
 #define XGBE_ACPI_PTP_FREQ	"amd,ptp-freq"
+
+/* PCI BAR mapping */
+#define XGBE_XGMAC_BAR		0
+#define XGBE_XPCS_BAR		1
+#define XGBE_MAC_PROP_OFFSET	0x1d000
+#define XGBE_I2C_CTRL_OFFSET	0x1e000
+
+/* PCI MSIx support */
+#define XGBE_MSIX_BASE_COUNT	4
+#define XGBE_MSIX_MIN_COUNT	(XGBE_MSIX_BASE_COUNT + 1)
+
+/* PCI clock frequencies */
+#define XGBE_V2_DMA_CLOCK_FREQ	500000000	/* 500 MHz */
+#define XGBE_V2_PTP_CLOCK_FREQ	125000000	/* 125 MHz */
 
 /* Timestamp support - values based on 50MHz PTP clock
  *   50MHz => 20 nsec
@@ -266,6 +285,12 @@
 #define XGBE_SGMII_AN_LINK_SPEED_100	0x04
 #define XGBE_SGMII_AN_LINK_SPEED_1000	0x08
 #define XGBE_SGMII_AN_LINK_DUPLEX	BIT(4)
+
+/* ECC correctable error notification window (seconds) */
+#define XGBE_ECC_LIMIT			60
+
+/* MDIO port types */
+#define XGMAC_MAX_C22_PORT		3
 
 struct xgbe_prv_data;
 
@@ -443,6 +468,7 @@ enum xgbe_state {
 	XGBE_DOWN,
 	XGBE_LINK_INIT,
 	XGBE_LINK_ERR,
+	XGBE_STOPPED,
 };
 
 enum xgbe_int {
@@ -462,6 +488,12 @@ enum xgbe_int_state {
 	XGMAC_INT_STATE_RESTORE,
 };
 
+enum xgbe_ecc_sec {
+	XGBE_ECC_SEC_TX,
+	XGBE_ECC_SEC_RX,
+	XGBE_ECC_SEC_DESC,
+};
+
 enum xgbe_speed {
 	XGBE_SPEED_1000 = 0,
 	XGBE_SPEED_2500,
@@ -476,6 +508,7 @@ enum xgbe_xpcs_access {
 
 enum xgbe_an_mode {
 	XGBE_AN_MODE_CL73 = 0,
+	XGBE_AN_MODE_CL73_REDRV,
 	XGBE_AN_MODE_CL37,
 	XGBE_AN_MODE_CL37_SGMII,
 	XGBE_AN_MODE_NONE,
@@ -501,12 +534,22 @@ enum xgbe_mode {
 	XGBE_MODE_KX_1000 = 0,
 	XGBE_MODE_KX_2500,
 	XGBE_MODE_KR,
+	XGBE_MODE_X,
+	XGBE_MODE_SGMII_100,
+	XGBE_MODE_SGMII_1000,
+	XGBE_MODE_SFI,
 	XGBE_MODE_UNKNOWN,
 };
 
 enum xgbe_speedset {
 	XGBE_SPEEDSET_1000_10000 = 0,
 	XGBE_SPEEDSET_2500_10000,
+};
+
+enum xgbe_mdio_mode {
+	XGBE_MDIO_MODE_NONE = 0,
+	XGBE_MDIO_MODE_CL22,
+	XGBE_MDIO_MODE_CL45,
 };
 
 struct xgbe_phy {
@@ -525,6 +568,43 @@ struct xgbe_phy {
 	int pause_autoneg;
 	int tx_pause;
 	int rx_pause;
+};
+
+enum xgbe_i2c_cmd {
+	XGBE_I2C_CMD_READ = 0,
+	XGBE_I2C_CMD_WRITE,
+};
+
+struct xgbe_i2c_op {
+	enum xgbe_i2c_cmd cmd;
+
+	unsigned int target;
+
+	void *buf;
+	unsigned int len;
+};
+
+struct xgbe_i2c_op_state {
+	struct xgbe_i2c_op *op;
+
+	unsigned int tx_len;
+	unsigned char *tx_buf;
+
+	unsigned int rx_len;
+	unsigned char *rx_buf;
+
+	unsigned int tx_abort_source;
+
+	int ret;
+};
+
+struct xgbe_i2c {
+	unsigned int started;
+	unsigned int max_speed_mode;
+	unsigned int rx_fifo_size;
+	unsigned int tx_fifo_size;
+
+	struct xgbe_i2c_op_state op_state;
 };
 
 struct xgbe_mmc_stats {
@@ -598,6 +678,14 @@ struct xgbe_hw_if {
 	int (*read_mmd_regs)(struct xgbe_prv_data *, int, int);
 	void (*write_mmd_regs)(struct xgbe_prv_data *, int, int, int);
 	int (*set_speed)(struct xgbe_prv_data *, int);
+
+	int (*set_ext_mii_mode)(struct xgbe_prv_data *, unsigned int,
+				enum xgbe_mdio_mode);
+	int (*read_ext_mii_regs)(struct xgbe_prv_data *, int, int);
+	int (*write_ext_mii_regs)(struct xgbe_prv_data *, int, int, u16);
+
+	int (*set_gpio)(struct xgbe_prv_data *, unsigned int);
+	int (*clr_gpio)(struct xgbe_prv_data *, unsigned int);
 
 	void (*enable_tx)(struct xgbe_prv_data *);
 	void (*disable_tx)(struct xgbe_prv_data *);
@@ -676,6 +764,10 @@ struct xgbe_hw_if {
 	int (*disable_rss)(struct xgbe_prv_data *);
 	int (*set_rss_hash_key)(struct xgbe_prv_data *, const u8 *);
 	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
+
+	/* For ECC */
+	void (*disable_ecc_ded)(struct xgbe_prv_data *);
+	void (*disable_ecc_sec)(struct xgbe_prv_data *, enum xgbe_ecc_sec);
 };
 
 /* This structure represents implementation specific routines for an
@@ -694,7 +786,7 @@ struct xgbe_phy_impl_if {
 	void (*stop)(struct xgbe_prv_data *);
 
 	/* Return the link status */
-	int (*link_status)(struct xgbe_prv_data *);
+	int (*link_status)(struct xgbe_prv_data *, int *);
 
 	/* Indicate if a particular speed is valid */
 	bool (*valid_speed)(struct xgbe_prv_data *, int);
@@ -712,6 +804,12 @@ struct xgbe_phy_impl_if {
 
 	/* Retrieve current auto-negotiation mode */
 	enum xgbe_an_mode (*an_mode)(struct xgbe_prv_data *);
+
+	/* Configure auto-negotiation settings */
+	int (*an_config)(struct xgbe_prv_data *);
+
+	/* Set/override auto-negotiation advertisement settings */
+	unsigned int (*an_advertising)(struct xgbe_prv_data *);
 
 	/* Process results of auto-negotiation */
 	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);
@@ -738,8 +836,26 @@ struct xgbe_phy_if {
 	/* For PHY settings validation */
 	bool (*phy_valid_speed)(struct xgbe_prv_data *, int);
 
+	/* For single interrupt support */
+	irqreturn_t (*an_isr)(int, struct xgbe_prv_data *);
+
 	/* PHY implementation specific services */
 	struct xgbe_phy_impl_if phy_impl;
+};
+
+struct xgbe_i2c_if {
+	/* For initial I2C setup */
+	int (*i2c_init)(struct xgbe_prv_data *);
+
+	/* For I2C support when setting device up/down */
+	int (*i2c_start)(struct xgbe_prv_data *);
+	void (*i2c_stop)(struct xgbe_prv_data *);
+
+	/* For performing I2C operations */
+	int (*i2c_xfer)(struct xgbe_prv_data *, struct xgbe_i2c_op *);
+
+	/* For single interrupt support */
+	irqreturn_t (*i2c_isr)(int, struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -805,10 +921,14 @@ struct xgbe_version_data {
 	unsigned int mmc_64bit;
 	unsigned int tx_max_fifo_size;
 	unsigned int rx_max_fifo_size;
+	unsigned int tx_tstamp_workaround;
+	unsigned int ecc_support;
+	unsigned int i2c_support;
 };
 
 struct xgbe_prv_data {
 	struct net_device *netdev;
+	struct pci_dev *pcidev;
 	struct platform_device *platdev;
 	struct acpi_device *adev;
 	struct device *dev;
@@ -827,6 +947,8 @@ struct xgbe_prv_data {
 	void __iomem *rxtx_regs;	/* SerDes Rx/Tx CSRs */
 	void __iomem *sir0_regs;	/* SerDes integration registers (1/2) */
 	void __iomem *sir1_regs;	/* SerDes integration registers (2/2) */
+	void __iomem *xprop_regs;	/* XGBE property registers */
+	void __iomem *xi2c_regs;	/* XGBE I2C CSRs */
 
 	/* Overall device lock */
 	spinlock_t lock;
@@ -843,13 +965,39 @@ struct xgbe_prv_data {
 	/* Flags representing xgbe_state */
 	unsigned long dev_state;
 
+	/* ECC support */
+	unsigned long tx_sec_period;
+	unsigned long tx_ded_period;
+	unsigned long rx_sec_period;
+	unsigned long rx_ded_period;
+	unsigned long desc_sec_period;
+	unsigned long desc_ded_period;
+
+	unsigned int tx_sec_count;
+	unsigned int tx_ded_count;
+	unsigned int rx_sec_count;
+	unsigned int rx_ded_count;
+	unsigned int desc_ded_count;
+	unsigned int desc_sec_count;
+
+	struct msix_entry *msix_entries;
 	int dev_irq;
-	unsigned int per_channel_irq;
+	int ecc_irq;
+	int i2c_irq;
 	int channel_irq[XGBE_MAX_DMA_CHANNELS];
+
+	unsigned int per_channel_irq;
+	unsigned int irq_shared;
+	unsigned int irq_count;
+	unsigned int channel_irq_count;
+	unsigned int channel_irq_mode;
+
+	char ecc_name[IFNAMSIZ + 32];
 
 	struct xgbe_hw_if hw_if;
 	struct xgbe_phy_if phy_if;
 	struct xgbe_desc_if desc_if;
+	struct xgbe_i2c_if i2c_if;
 
 	/* AXI DMA settings */
 	unsigned int coherent;
@@ -957,8 +1105,9 @@ struct xgbe_prv_data {
 	/* Hardware features of the device */
 	struct xgbe_hw_features hw_feat;
 
-	/* Device restart work structure */
+	/* Device work structures */
 	struct work_struct restart_work;
+	struct work_struct stopdev_work;
 
 	/* Keeps track of power mode */
 	unsigned int power_down;
@@ -977,6 +1126,9 @@ struct xgbe_prv_data {
 	struct xgbe_phy phy;
 	int mdio_mmd;
 	unsigned long link_check;
+	struct completion mdio_complete;
+
+	unsigned int kr_redrv;
 
 	char an_name[IFNAMSIZ + 32];
 	struct workqueue_struct *an_workqueue;
@@ -999,6 +1151,12 @@ struct xgbe_prv_data {
 	unsigned long an_start;
 	enum xgbe_an_mode an_mode;
 
+	/* I2C support */
+	struct xgbe_i2c i2c;
+	struct mutex i2c_mutex;
+	struct completion i2c_complete;
+	char i2c_name[IFNAMSIZ + 32];
+
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
 
 #ifdef CONFIG_DEBUG_FS
@@ -1008,6 +1166,10 @@ struct xgbe_prv_data {
 
 	unsigned int debugfs_xpcs_mmd;
 	unsigned int debugfs_xpcs_reg;
+
+	unsigned int debugfs_xprop_reg;
+
+	unsigned int debugfs_xi2c_reg;
 #endif
 };
 
@@ -1020,11 +1182,20 @@ void xgbe_deconfig_netdev(struct xgbe_prv_data *);
 
 int xgbe_platform_init(void);
 void xgbe_platform_exit(void);
+#ifdef CONFIG_PCI
+int xgbe_pci_init(void);
+void xgbe_pci_exit(void);
+#else
+static inline int xgbe_pci_init(void) { return 0; }
+static inline void xgbe_pci_exit(void) { }
+#endif
 
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_phy_v1(struct xgbe_phy_if *);
+void xgbe_init_function_ptrs_phy_v2(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
+void xgbe_init_function_ptrs_i2c(struct xgbe_i2c_if *);
 const struct net_device_ops *xgbe_get_netdev_ops(void);
 const struct ethtool_ops *xgbe_get_ethtool_ops(void);
 

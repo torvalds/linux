@@ -426,8 +426,10 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	pdata->phy_mode = PHY_INTERFACE_MODE_XGMII;
 
 	/* Check for per channel interrupt support */
-	if (device_property_present(dev, XGBE_DMA_IRQS_PROPERTY))
+	if (device_property_present(dev, XGBE_DMA_IRQS_PROPERTY)) {
 		pdata->per_channel_irq = 1;
+		pdata->channel_irq_mode = XGBE_IRQ_MODE_EDGE;
+	}
 
 	/* Obtain device settings unique to ACPI/OF */
 	if (pdata->use_acpi)
@@ -462,6 +464,9 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	/* Set the hardware channel and queue counts */
 	xgbe_set_counts(pdata);
 
+	/* Always have XGMAC and XPCS (auto-negotiation) interrupts */
+	pdata->irq_count = 2;
+
 	/* Get the device interrupt */
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
@@ -485,6 +490,10 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 			pdata->channel_irq[i] = ret;
 		}
+
+		pdata->channel_irq_count = max;
+
+		pdata->irq_count += max;
 	}
 
 	/* Get the auto-negotiation interrupt */
@@ -581,6 +590,7 @@ static const struct xgbe_version_data xgbe_v1 = {
 	.xpcs_access			= XGBE_XPCS_ACCESS_V1,
 	.tx_max_fifo_size		= 81920,
 	.rx_max_fifo_size		= 81920,
+	.tx_tstamp_workaround		= 1,
 };
 
 #ifdef CONFIG_ACPI
@@ -608,7 +618,7 @@ static SIMPLE_DEV_PM_OPS(xgbe_platform_pm_ops,
 
 static struct platform_driver xgbe_driver = {
 	.driver = {
-		.name = "amd-xgbe",
+		.name = XGBE_DRV_NAME,
 #ifdef CONFIG_ACPI
 		.acpi_match_table = xgbe_acpi_match,
 #endif

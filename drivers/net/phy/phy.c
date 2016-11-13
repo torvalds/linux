@@ -143,13 +143,14 @@ static int phy_config_interrupt(struct phy_device *phydev, u32 interrupts)
  * Returns > 0 on success or < 0 on error. 0 means that auto-negotiation
  * is still pending.
  */
-static inline int phy_aneg_done(struct phy_device *phydev)
+int phy_aneg_done(struct phy_device *phydev)
 {
 	if (phydev->drv->aneg_done)
 		return phydev->drv->aneg_done(phydev);
 
 	return genphy_aneg_done(phydev);
 }
+EXPORT_SYMBOL(phy_aneg_done);
 
 /* A structure for mapping a particular speed and duplex
  * combination to a particular SUPPORTED and ADVERTISED value

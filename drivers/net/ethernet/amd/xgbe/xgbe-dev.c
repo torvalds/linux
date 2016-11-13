@@ -646,6 +646,11 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 	unsigned int dma_ch_isr, dma_ch_ier;
 	unsigned int i;
 
+	/* Set the interrupt mode if supported */
+	if (pdata->channel_irq_mode)
+		XGMAC_IOWRITE_BITS(pdata, DMA_MR, INTM,
+				   pdata->channel_irq_mode);
+
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
 		/* Clear all the interrupts which are set */
@@ -667,19 +672,21 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 		if (channel->tx_ring) {
 			/* Enable the following Tx interrupts
 			 *   TIE  - Transmit Interrupt Enable (unless using
-			 *          per channel interrupts)
+			 *          per channel interrupts in edge triggered
+			 *          mode)
 			 */
-			if (!pdata->per_channel_irq)
+			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
 				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
 		}
 		if (channel->rx_ring) {
 			/* Enable following Rx interrupts
 			 *   RBUE - Receive Buffer Unavailable Enable
 			 *   RIE  - Receive Interrupt Enable (unless using
-			 *          per channel interrupts)
+			 *          per channel interrupts in edge triggered
+			 *          mode)
 			 */
 			XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
-			if (!pdata->per_channel_irq)
+			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
 				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
 		}
 
@@ -715,6 +722,68 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 	/* Enable all counter interrupts */
 	XGMAC_IOWRITE_BITS(pdata, MMC_RIER, ALL_INTERRUPTS, 0xffffffff);
 	XGMAC_IOWRITE_BITS(pdata, MMC_TIER, ALL_INTERRUPTS, 0xffffffff);
+
+	/* Enable MDIO single command completion interrupt */
+	XGMAC_IOWRITE_BITS(pdata, MAC_MDIOIER, SNGLCOMPIE, 1);
+}
+
+static void xgbe_enable_ecc_interrupts(struct xgbe_prv_data *pdata)
+{
+	unsigned int ecc_isr, ecc_ier = 0;
+
+	if (!pdata->vdata->ecc_support)
+		return;
+
+	/* Clear all the interrupts which are set */
+	ecc_isr = XP_IOREAD(pdata, XP_ECC_ISR);
+	XP_IOWRITE(pdata, XP_ECC_ISR, ecc_isr);
+
+	/* Enable ECC interrupts */
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_SEC, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_SEC, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_DED, 1);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_SEC, 1);
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
+}
+
+static void xgbe_disable_ecc_ded(struct xgbe_prv_data *pdata)
+{
+	unsigned int ecc_ier;
+
+	ecc_ier = XP_IOREAD(pdata, XP_ECC_IER);
+
+	/* Disable ECC DED interrupts */
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_DED, 0);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_DED, 0);
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_DED, 0);
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
+}
+
+static void xgbe_disable_ecc_sec(struct xgbe_prv_data *pdata,
+				 enum xgbe_ecc_sec sec)
+{
+	unsigned int ecc_ier;
+
+	ecc_ier = XP_IOREAD(pdata, XP_ECC_IER);
+
+	/* Disable ECC SEC interrupt */
+	switch (sec) {
+	case XGBE_ECC_SEC_TX:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, TX_SEC, 0);
+		break;
+	case XGBE_ECC_SEC_RX:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, RX_SEC, 0);
+		break;
+	case XGBE_ECC_SEC_DESC:
+	XP_SET_BITS(ecc_ier, XP_ECC_IER, DESC_SEC, 0);
+		break;
+	}
+
+	XP_IOWRITE(pdata, XP_ECC_IER, ecc_ier);
 }
 
 static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
@@ -1026,6 +1095,36 @@ static int xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 	return 0;
 }
 
+static int xgbe_clr_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
+{
+	unsigned int reg;
+
+	if (gpio > 16)
+		return -EINVAL;
+
+	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
+
+	reg &= ~(1 << (gpio + 16));
+	XGMAC_IOWRITE(pdata, MAC_GPIOSR, reg);
+
+	return 0;
+}
+
+static int xgbe_set_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
+{
+	unsigned int reg;
+
+	if (gpio > 16)
+		return -EINVAL;
+
+	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
+
+	reg |= (1 << (gpio + 16));
+	XGMAC_IOWRITE(pdata, MAC_GPIOSR, reg);
+
+	return 0;
+}
+
 static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 				 int mmd_reg)
 {
@@ -1168,6 +1267,79 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	default:
 		return xgbe_write_mmd_regs_v2(pdata, prtad, mmd_reg, mmd_data);
 	}
+}
+
+static int xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
+				   int reg, u16 val)
+{
+	unsigned int mdio_sca, mdio_sccd;
+
+	reinit_completion(&pdata->mdio_complete);
+
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, REG, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, DA, addr);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
+
+	mdio_sccd = 0;
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, DATA, val);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, CMD, 1);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
+
+	if (!wait_for_completion_timeout(&pdata->mdio_complete, HZ)) {
+		netdev_err(pdata->netdev, "mdio write operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
+				  int reg)
+{
+	unsigned int mdio_sca, mdio_sccd;
+
+	reinit_completion(&pdata->mdio_complete);
+
+	mdio_sca = 0;
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, REG, reg);
+	XGMAC_SET_BITS(mdio_sca, MAC_MDIOSCAR, DA, addr);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCAR, mdio_sca);
+
+	mdio_sccd = 0;
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, CMD, 3);
+	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
+	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
+
+	if (!wait_for_completion_timeout(&pdata->mdio_complete, HZ)) {
+		netdev_err(pdata->netdev, "mdio read operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return XGMAC_IOREAD_BITS(pdata, MAC_MDIOSCCDR, DATA);
+}
+
+static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
+				 enum xgbe_mdio_mode mode)
+{
+	unsigned int reg_val = 0;
+
+	switch (mode) {
+	case XGBE_MDIO_MODE_CL22:
+		if (port > XGMAC_MAX_C22_PORT)
+			return -EINVAL;
+		reg_val |= (1 << port);
+		break;
+	case XGBE_MDIO_MODE_CL45:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	XGMAC_IOWRITE(pdata, MAC_MDIOCL22R, reg_val);
+
+	return 0;
 }
 
 static int xgbe_tx_complete(struct xgbe_ring_desc *rdesc)
@@ -1360,14 +1532,21 @@ static u64 xgbe_get_tstamp_time(struct xgbe_prv_data *pdata)
 
 static u64 xgbe_get_tx_tstamp(struct xgbe_prv_data *pdata)
 {
-	unsigned int tx_snr;
+	unsigned int tx_snr, tx_ssr;
 	u64 nsec;
 
-	tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	if (pdata->vdata->tx_tstamp_workaround) {
+		tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+		tx_ssr = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	} else {
+		tx_ssr = XGMAC_IOREAD(pdata, MAC_TXSSR);
+		tx_snr = XGMAC_IOREAD(pdata, MAC_TXSNR);
+	}
+
 	if (XGMAC_GET_BITS(tx_snr, MAC_TXSNR, TXTSSTSMIS))
 		return 0;
 
-	nsec = XGMAC_IOREAD(pdata, MAC_TXSSR);
+	nsec = tx_ssr;
 	nsec *= NSEC_PER_SEC;
 	nsec += tx_snr;
 
@@ -1897,7 +2076,7 @@ static int xgbe_disable_int(struct xgbe_channel *channel,
 	return 0;
 }
 
-static int xgbe_exit(struct xgbe_prv_data *pdata)
+static int __xgbe_exit(struct xgbe_prv_data *pdata)
 {
 	unsigned int count = 2000;
 
@@ -1917,6 +2096,20 @@ static int xgbe_exit(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_exit\n");
 
 	return 0;
+}
+
+static int xgbe_exit(struct xgbe_prv_data *pdata)
+{
+	int ret;
+
+	/* To guard against possible incorrectly generated interrupts,
+	 * issue the software reset twice.
+	 */
+	ret = __xgbe_exit(pdata);
+	if (ret)
+		return ret;
+
+	return __xgbe_exit(pdata);
 }
 
 static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
@@ -3266,6 +3459,11 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_mmc(pdata);
 	xgbe_enable_mac_interrupts(pdata);
 
+	/*
+	 * Initialize ECC related features
+	 */
+	xgbe_enable_ecc_interrupts(pdata);
+
 	DBGPR("<--xgbe_init\n");
 
 	return 0;
@@ -3293,6 +3491,13 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->write_mmd_regs = xgbe_write_mmd_regs;
 
 	hw_if->set_speed = xgbe_set_speed;
+
+	hw_if->set_ext_mii_mode = xgbe_set_ext_mii_mode;
+	hw_if->read_ext_mii_regs = xgbe_read_ext_mii_regs;
+	hw_if->write_ext_mii_regs = xgbe_write_ext_mii_regs;
+
+	hw_if->set_gpio = xgbe_set_gpio;
+	hw_if->clr_gpio = xgbe_clr_gpio;
 
 	hw_if->enable_tx = xgbe_enable_tx;
 	hw_if->disable_tx = xgbe_disable_tx;
@@ -3370,6 +3575,10 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->disable_rss = xgbe_disable_rss;
 	hw_if->set_rss_hash_key = xgbe_set_rss_hash_key;
 	hw_if->set_rss_lookup_table = xgbe_set_rss_lookup_table;
+
+	/* For ECC */
+	hw_if->disable_ecc_ded = xgbe_disable_ecc_ded;
+	hw_if->disable_ecc_sec = xgbe_disable_ecc_sec;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }

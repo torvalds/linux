@@ -161,6 +161,7 @@ static void xgbe_init_all_fptrs(struct xgbe_prv_data *pdata)
 {
 	xgbe_init_function_ptrs_dev(&pdata->hw_if);
 	xgbe_init_function_ptrs_phy(&pdata->phy_if);
+	xgbe_init_function_ptrs_i2c(&pdata->i2c_if);
 	xgbe_init_function_ptrs_desc(&pdata->desc_if);
 
 	pdata->vdata->init_function_ptrs_phy_impl(&pdata->phy_if);
@@ -186,10 +187,14 @@ struct xgbe_prv_data *xgbe_alloc_pdata(struct device *dev)
 	spin_lock_init(&pdata->xpcs_lock);
 	mutex_init(&pdata->rss_mutex);
 	spin_lock_init(&pdata->tstamp_lock);
+	mutex_init(&pdata->i2c_mutex);
+	init_completion(&pdata->i2c_complete);
+	init_completion(&pdata->mdio_complete);
 
 	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
 
 	set_bit(XGBE_DOWN, &pdata->dev_state);
+	set_bit(XGBE_STOPPED, &pdata->dev_state);
 
 	return pdata;
 }
@@ -236,8 +241,7 @@ void xgbe_set_counts(struct xgbe_prv_data *pdata)
 
 	pdata->tx_q_count = pdata->tx_ring_count;
 
-	pdata->rx_ring_count = min_t(unsigned int,
-				     netif_get_num_default_rss_queues(),
+	pdata->rx_ring_count = min_t(unsigned int, num_online_cpus(),
 				     pdata->hw_feat.rx_ch_cnt);
 	pdata->rx_ring_count = min_t(unsigned int, pdata->rx_ring_count,
 				     pdata->rx_max_channel_count);
@@ -263,6 +267,14 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	netdev->irq = pdata->dev_irq;
 	netdev->base_addr = (unsigned long)pdata->xgmac_regs;
 	memcpy(netdev->dev_addr, pdata->mac_addr, netdev->addr_len);
+
+	/* Initialize ECC timestamps */
+	pdata->tx_sec_period = jiffies;
+	pdata->tx_ded_period = jiffies;
+	pdata->rx_sec_period = jiffies;
+	pdata->rx_ded_period = jiffies;
+	pdata->desc_sec_period = jiffies;
+	pdata->desc_ded_period = jiffies;
 
 	/* Issue software reset to device */
 	pdata->hw_if.exit(pdata);
@@ -290,6 +302,19 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_RX_DESC_CNT);
 	pdata->rx_desc_count = XGBE_RX_DESC_CNT;
+
+	/* Adjust the number of queues based on interrupts assigned */
+	if (pdata->channel_irq_count) {
+		pdata->tx_ring_count = min_t(unsigned int, pdata->tx_ring_count,
+					     pdata->channel_irq_count);
+		pdata->rx_ring_count = min_t(unsigned int, pdata->rx_ring_count,
+					     pdata->channel_irq_count);
+
+		if (netif_msg_probe(pdata))
+			dev_dbg(pdata->dev,
+				"adjusted TX/RX DMA channel count = %u/%u\n",
+				pdata->tx_ring_count, pdata->rx_ring_count);
+	}
 
 	/* Set the number of queues */
 	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
@@ -372,6 +397,14 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	snprintf(pdata->an_name, sizeof(pdata->an_name) - 1, "%s-pcs",
 		 netdev_name(netdev));
 
+	/* Create the ECC name based on netdev name */
+	snprintf(pdata->ecc_name, sizeof(pdata->ecc_name) - 1, "%s-ecc",
+		 netdev_name(netdev));
+
+	/* Create the I2C name based on netdev name */
+	snprintf(pdata->i2c_name, sizeof(pdata->i2c_name) - 1, "%s-i2c",
+		 netdev_name(netdev));
+
 	/* Create workqueues */
 	pdata->dev_workqueue =
 		create_singlethread_workqueue(netdev_name(netdev));
@@ -392,6 +425,11 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	xgbe_ptp_register(pdata);
 
 	xgbe_debugfs_init(pdata);
+
+	netif_dbg(pdata, drv, pdata->netdev, "%u Tx software queues\n",
+		  pdata->tx_ring_count);
+	netif_dbg(pdata, drv, pdata->netdev, "%u Rx software queues\n",
+		  pdata->rx_ring_count);
 
 	return 0;
 
@@ -431,11 +469,17 @@ static int __init xgbe_mod_init(void)
 	if (ret)
 		return ret;
 
+	ret = xgbe_pci_init();
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static void __exit xgbe_mod_exit(void)
 {
+	xgbe_pci_exit();
+
 	xgbe_platform_exit();
 }
 
