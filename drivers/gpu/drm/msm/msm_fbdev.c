@@ -39,6 +39,7 @@ struct msm_fbdev {
 
 static struct fb_ops msm_fb_ops = {
 	.owner = THIS_MODULE,
+	DRM_FB_HELPER_DEFAULT_OPS,
 
 	/* Note: to properly handle manual update displays, we wrap the
 	 * basic fbdev ops which write to the framebuffer
@@ -49,12 +50,6 @@ static struct fb_ops msm_fb_ops = {
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
 	.fb_mmap = msm_fbdev_mmap,
-
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
 static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
