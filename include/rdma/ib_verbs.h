@@ -1599,7 +1599,8 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_IPV6	= 0x31,
 	/* L4 headers*/
 	IB_FLOW_SPEC_TCP	= 0x40,
-	IB_FLOW_SPEC_UDP	= 0x41
+	IB_FLOW_SPEC_UDP	= 0x41,
+	IB_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
 };
 #define IB_FLOW_SPEC_LAYER_MASK	0xF0
 #define IB_FLOW_SPEC_SUPPORT_LAYERS 4
@@ -1707,6 +1708,21 @@ struct ib_flow_spec_tcp_udp {
 	struct ib_flow_tcp_udp_filter mask;
 };
 
+struct ib_flow_tunnel_filter {
+	__be32	tunnel_id;
+	u8	real_sz[0];
+};
+
+/* ib_flow_spec_tunnel describes the Vxlan tunnel
+ * the tunnel_id from val has the vni value
+ */
+struct ib_flow_spec_tunnel {
+	enum ib_flow_spec_type	      type;
+	u16			      size;
+	struct ib_flow_tunnel_filter  val;
+	struct ib_flow_tunnel_filter  mask;
+};
+
 union ib_flow_spec {
 	struct {
 		enum ib_flow_spec_type	type;
@@ -1717,6 +1733,7 @@ union ib_flow_spec {
 	struct ib_flow_spec_ipv4        ipv4;
 	struct ib_flow_spec_tcp_udp	tcp_udp;
 	struct ib_flow_spec_ipv6        ipv6;
+	struct ib_flow_spec_tunnel      tunnel;
 };
 
 struct ib_flow_attr {
