@@ -1200,14 +1200,13 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 				er = EMULATE_FAIL;
 				break;
 			}
-#define C0_EBASE_CORE_MASK 0xff
 			if ((rd == MIPS_CP0_PRID) && (sel == 1)) {
-				/* Preserve CORE number */
-				kvm_change_c0_guest_ebase(cop0,
-							  ~(C0_EBASE_CORE_MASK),
+				/*
+				 * Preserve core number, and keep the exception
+				 * base in guest KSeg0.
+				 */
+				kvm_change_c0_guest_ebase(cop0, 0x1ffff000,
 							  vcpu->arch.gprs[rt]);
-				kvm_err("MTCz, cop0->reg[EBASE]: %#lx\n",
-					kvm_read_c0_guest_ebase(cop0));
 			} else if (rd == MIPS_CP0_TLB_HI && sel == 0) {
 				u32 nasid =
 					vcpu->arch.gprs[rt] & KVM_ENTRYHI_ASID;
@@ -1917,6 +1916,22 @@ unknown:
 	return er;
 }
 
+/**
+ * kvm_mips_guest_exception_base() - Find guest exception vector base address.
+ *
+ * Returns:	The base address of the current guest exception vector, taking
+ *		both Guest.CP0_Status.BEV and Guest.CP0_EBase into account.
+ */
+long kvm_mips_guest_exception_base(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+
+	if (kvm_read_c0_guest_status(cop0) & ST0_BEV)
+		return KVM_GUEST_CKSEG1ADDR(0x1fc00200);
+	else
+		return kvm_read_c0_guest_ebase(cop0) & MIPS_EBASE_BASE;
+}
+
 enum emulation_result kvm_mips_emulate_syscall(u32 cause,
 					       u32 *opc,
 					       struct kvm_run *run,
@@ -1942,7 +1957,7 @@ enum emulation_result kvm_mips_emulate_syscall(u32 cause,
 					  (EXCCODE_SYS << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver SYSCALL when EXL is already set\n");
@@ -1976,13 +1991,13 @@ enum emulation_result kvm_mips_emulate_tlbmiss_ld(u32 cause,
 			  arch->pc);
 
 		/* set pc to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x0;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x0;
 
 	} else {
 		kvm_debug("[EXL == 1] delivering TLB MISS @ pc %#lx\n",
 			  arch->pc);
 
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 	}
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
@@ -2019,15 +2034,13 @@ enum emulation_result kvm_mips_emulate_tlbinv_ld(u32 cause,
 
 		kvm_debug("[EXL == 0] delivering TLB INV @ pc %#lx\n",
 			  arch->pc);
-
-		/* set pc to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
-
 	} else {
 		kvm_debug("[EXL == 1] delivering TLB MISS @ pc %#lx\n",
 			  arch->pc);
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
 	}
+
+	/* set pc to the exception entry point */
+	arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
 				  (EXCCODE_TLBL << CAUSEB_EXCCODE));
@@ -2064,11 +2077,11 @@ enum emulation_result kvm_mips_emulate_tlbmiss_st(u32 cause,
 			  arch->pc);
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x0;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x0;
 	} else {
 		kvm_debug("[EXL == 1] Delivering TLB MISS @ pc %#lx\n",
 			  arch->pc);
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 	}
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
@@ -2104,14 +2117,13 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(u32 cause,
 
 		kvm_debug("[EXL == 0] Delivering TLB MISS @ pc %#lx\n",
 			  arch->pc);
-
-		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
 	} else {
 		kvm_debug("[EXL == 1] Delivering TLB MISS @ pc %#lx\n",
 			  arch->pc);
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
 	}
+
+	/* Set PC to the exception entry point */
+	arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
 				  (EXCCODE_TLBS << CAUSEB_EXCCODE));
@@ -2146,13 +2158,12 @@ enum emulation_result kvm_mips_emulate_tlbmod(u32 cause,
 
 		kvm_debug("[EXL == 0] Delivering TLB MOD @ pc %#lx\n",
 			  arch->pc);
-
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
 	} else {
 		kvm_debug("[EXL == 1] Delivering TLB MOD @ pc %#lx\n",
 			  arch->pc);
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
 	}
+
+	arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
 				  (EXCCODE_MOD << CAUSEB_EXCCODE));
@@ -2185,7 +2196,7 @@ enum emulation_result kvm_mips_emulate_fpu_exc(u32 cause,
 
 	}
 
-	arch->pc = KVM_GUEST_KSEG0 + 0x180;
+	arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	kvm_change_c0_guest_cause(cop0, (0xff),
 				  (EXCCODE_CPU << CAUSEB_EXCCODE));
@@ -2219,7 +2230,7 @@ enum emulation_result kvm_mips_emulate_ri_exc(u32 cause,
 					  (EXCCODE_RI << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver RI when EXL is already set\n");
@@ -2254,7 +2265,7 @@ enum emulation_result kvm_mips_emulate_bp_exc(u32 cause,
 					  (EXCCODE_BP << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver BP when EXL is already set\n");
@@ -2289,7 +2300,7 @@ enum emulation_result kvm_mips_emulate_trap_exc(u32 cause,
 					  (EXCCODE_TR << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver TRAP when EXL is already set\n");
@@ -2324,7 +2335,7 @@ enum emulation_result kvm_mips_emulate_msafpe_exc(u32 cause,
 					  (EXCCODE_MSAFPE << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver MSAFPE when EXL is already set\n");
@@ -2359,7 +2370,7 @@ enum emulation_result kvm_mips_emulate_fpe_exc(u32 cause,
 					  (EXCCODE_FPE << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver FPE when EXL is already set\n");
@@ -2394,7 +2405,7 @@ enum emulation_result kvm_mips_emulate_msadis_exc(u32 cause,
 					  (EXCCODE_MSADIS << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 
 	} else {
 		kvm_err("Trying to deliver MSADIS when EXL is already set\n");
@@ -2560,7 +2571,7 @@ static enum emulation_result kvm_mips_emulate_exc(u32 cause,
 					  (exccode << CAUSEB_EXCCODE));
 
 		/* Set PC to the exception entry point */
-		arch->pc = KVM_GUEST_KSEG0 + 0x180;
+		arch->pc = kvm_mips_guest_exception_base(vcpu) + 0x180;
 		kvm_write_c0_guest_badvaddr(cop0, vcpu->arch.host_cp0_badvaddr);
 
 		kvm_debug("Delivering EXC %d @ pc %#lx, badVaddr: %#lx\n",

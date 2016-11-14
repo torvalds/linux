@@ -88,6 +88,7 @@
 
 #define KVM_GUEST_KUSEG			0x00000000UL
 #define KVM_GUEST_KSEG0			0x40000000UL
+#define KVM_GUEST_KSEG1			0x40000000UL
 #define KVM_GUEST_KSEG23		0x60000000UL
 #define KVM_GUEST_KSEGX(a)		((_ACAST32_(a)) & 0xe0000000)
 #define KVM_GUEST_CPHYSADDR(a)		((_ACAST32_(a)) & 0x1fffffff)
@@ -712,6 +713,8 @@ extern enum emulation_result kvm_mips_emulate_inst(u32 cause,
 						   u32 *opc,
 						   struct kvm_run *run,
 						   struct kvm_vcpu *vcpu);
+
+long kvm_mips_guest_exception_base(struct kvm_vcpu *vcpu);
 
 extern enum emulation_result kvm_mips_emulate_syscall(u32 cause,
 						      u32 *opc,

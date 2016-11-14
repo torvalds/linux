@@ -653,6 +653,7 @@ static u64 kvm_trap_emul_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_CAUSE,
 	KVM_REG_MIPS_CP0_EPC,
 	KVM_REG_MIPS_CP0_PRID,
+	KVM_REG_MIPS_CP0_EBASE,
 	KVM_REG_MIPS_CP0_CONFIG,
 	KVM_REG_MIPS_CP0_CONFIG1,
 	KVM_REG_MIPS_CP0_CONFIG2,
@@ -734,6 +735,9 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_PRID:
 		*v = (long)kvm_read_c0_guest_prid(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_EBASE:
+		*v = (long)kvm_read_c0_guest_ebase(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_CONFIG:
 		*v = (long)kvm_read_c0_guest_config(cop0);
@@ -836,6 +840,14 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_PRID:
 		kvm_write_c0_guest_prid(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_EBASE:
+		/*
+		 * Allow core number to be written, but the exception base must
+		 * remain in guest KSeg0.
+		 */
+		kvm_change_c0_guest_ebase(cop0, 0x1ffff000 | MIPS_EBASE_CPUNUM,
+					  v);
 		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		kvm_mips_write_count(vcpu, v);
