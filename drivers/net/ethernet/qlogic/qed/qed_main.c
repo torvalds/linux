@@ -839,20 +839,19 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 {
 	int i;
 
+	if (IS_ENABLED(CONFIG_QED_RDMA)) {
+		params->rdma_pf_params.num_qps = QED_ROCE_QPS;
+		params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
+		/* divide by 3 the MRs to avoid MF ILT overflow */
+		params->rdma_pf_params.num_mrs = RDMA_MAX_TIDS;
+		params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
+	}
+
 	for (i = 0; i < cdev->num_hwfns; i++) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		p_hwfn->pf_params = *params;
 	}
-
-	if (!IS_ENABLED(CONFIG_QED_RDMA))
-		return;
-
-	params->rdma_pf_params.num_qps = QED_ROCE_QPS;
-	params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
-	/* divide by 3 the MRs to avoid MF ILT overflow */
-	params->rdma_pf_params.num_mrs = RDMA_MAX_TIDS;
-	params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 }
 
 static int qed_slowpath_start(struct qed_dev *cdev,

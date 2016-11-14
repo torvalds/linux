@@ -448,7 +448,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	if (__ipv6_addr_needs_scope_id(addr_type))
 		iif = skb->dev->ifindex;
 	else
-		iif = l3mdev_master_ifindex(skb->dev);
+		iif = l3mdev_master_ifindex(skb_dst(skb)->dev);
 
 	/*
 	 *	Must not send error if the source does not uniquely

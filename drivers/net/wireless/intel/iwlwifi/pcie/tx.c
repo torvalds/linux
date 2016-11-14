@@ -592,6 +592,7 @@ error:
 static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 			      int slots_num, u32 txq_id)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
 	txq->need_update = false;
@@ -606,6 +607,13 @@ static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 		return ret;
 
 	spin_lock_init(&txq->lock);
+
+	if (txq_id == trans_pcie->cmd_queue) {
+		static struct lock_class_key iwl_pcie_cmd_queue_lock_class;
+
+		lockdep_set_class(&txq->lock, &iwl_pcie_cmd_queue_lock_class);
+	}
+
 	__skb_queue_head_init(&txq->overflow_q);
 
 	/*

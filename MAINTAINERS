@@ -8057,6 +8057,7 @@ F:	drivers/infiniband/hw/mlx4/
 F:	include/linux/mlx4/
 
 MELLANOX MLX5 core VPI driver
+M:	Saeed Mahameed <saeedm@mellanox.com>
 M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	netdev@vger.kernel.org

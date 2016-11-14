@@ -1505,9 +1505,8 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		    adapter->max_rx_add_entries_per_subcrq > entries_page ?
 		    entries_page : adapter->max_rx_add_entries_per_subcrq;
 
-		/* Choosing the maximum number of queues supported by firmware*/
-		adapter->req_tx_queues = adapter->max_tx_queues;
-		adapter->req_rx_queues = adapter->max_rx_queues;
+		adapter->req_tx_queues = adapter->opt_tx_comp_sub_queues;
+		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
 		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
 
 		adapter->req_mtu = adapter->max_mtu;
@@ -3706,7 +3705,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	struct net_device *netdev;
 	unsigned char *mac_addr_p;
 	struct dentry *ent;
-	char buf[16]; /* debugfs name buf */
+	char buf[17]; /* debugfs name buf */
 	int rc;
 
 	dev_dbg(&dev->dev, "entering ibmvnic_probe for UA 0x%x\n",
@@ -3844,6 +3843,9 @@ static int ibmvnic_remove(struct vio_dev *dev)
 
 	if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
 		debugfs_remove_recursive(adapter->debugfs_dir);
+
+	dma_unmap_single(&dev->dev, adapter->stats_token,
+			 sizeof(struct ibmvnic_statistics), DMA_FROM_DEVICE);
 
 	if (adapter->ras_comps)
 		dma_free_coherent(&dev->dev,
