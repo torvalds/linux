@@ -161,33 +161,23 @@ static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 	return min(source_max, sink_max);
 }
 
-/*
- * The units on the numbers in the next two are... bizarre.  Examples will
- * make it clearer; this one parallels an example in the eDP spec.
- *
- * intel_dp_max_data_rate for one lane of 2.7GHz evaluates as:
- *
- *     270000 * 1 * 8 / 10 == 216000
- *
- * The actual data capacity of that configuration is 2.16Gbit/s, so the
- * units are decakilobits.  ->clock in a drm_display_mode is in kilohertz -
- * or equivalently, kilopixels per second - so for 1680x1050R it'd be
- * 119000.  At 18bpp that's 2142000 kilobits per second.
- *
- * Thus the strange-looking division by 10 in intel_dp_link_required, to
- * get the result in decakilobits instead of kilobits.
- */
-
 static int
 intel_dp_link_required(int pixel_clock, int bpp)
 {
-	return (pixel_clock * bpp + 9) / 10;
+	/* pixel_clock is in kHz, divide bpp by 8 for bit to Byte conversion */
+	return DIV_ROUND_UP(pixel_clock * bpp, 8);
 }
 
 static int
 intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 {
-	return (max_link_clock * max_lanes * 8) / 10;
+	/* max_link_clock is the link symbol clock (LS_Clk) in kHz and not the
+	 * link rate that is generally expressed in Gbps. Since, 8 bits of data
+	 * is transmitted every LS_Clk per lane, there is no need to account for
+	 * the channel encoding that is done in the PHY layer here.
+	 */
+
+	return max_link_clock * max_lanes;
 }
 
 static int
@@ -3573,7 +3563,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 			if (val == 0)
 				break;
 
-			/* Value read is in kHz while drm clock is saved in deca-kHz */
+			/* Value read multiplied by 200kHz gives the per-lane
+			 * link rate in kHz. The source rates are, however,
+			 * stored in terms of LS_Clk kHz. The full conversion
+			 * back to symbols is
+			 * (val * 200kHz)*(8/10 ch. encoding)*(1/8 bit to Byte)
+			 */
 			intel_dp->sink_rates[i] = (val * 200) / 10;
 		}
 		intel_dp->num_sink_rates = i;
