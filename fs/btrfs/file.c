@@ -2232,9 +2232,15 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 	key.offset = offset;
 
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
-	if (ret < 0)
+	if (ret <= 0) {
+		/*
+		 * We should have dropped this offset, so if we find it then
+		 * something has gone horribly wrong.
+		 */
+		if (ret == 0)
+			ret = -EINVAL;
 		return ret;
-	BUG_ON(!ret);
+	}
 
 	leaf = path->nodes[0];
 	if (hole_mergeable(inode, leaf, path->slots[0]-1, offset, end)) {
@@ -2537,6 +2543,13 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 			ret = fill_holes(trans, inode, path, cur_offset,
 					 drop_end);
 			if (ret) {
+				/*
+				 * If we failed then we didn't insert our hole
+				 * entries for the area we dropped, so now the
+				 * fs is corrupted, so we must abort the
+				 * transaction.
+				 */
+				btrfs_abort_transaction(trans, ret);
 				err = ret;
 				break;
 			}
@@ -2601,6 +2614,8 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	if (cur_offset < ino_size && cur_offset < drop_end) {
 		ret = fill_holes(trans, inode, path, cur_offset, drop_end);
 		if (ret) {
+			/* Same comment as above. */
+			btrfs_abort_transaction(trans, ret);
 			err = ret;
 			goto out_trans;
 		}
