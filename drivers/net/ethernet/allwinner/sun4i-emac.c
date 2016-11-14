@@ -592,8 +592,7 @@ static void emac_rx(struct net_device *dev)
 		/* A packet ready now  & Get status/length */
 		good_packet = true;
 
-		emac_inblk_32bit(db->membase + EMAC_RX_IO_DATA_REG,
-				&rxhdr, sizeof(rxhdr));
+		rxhdr = readl(db->membase + EMAC_RX_IO_DATA_REG);
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "rxhdr: %x\n", *((int *)(&rxhdr)));
