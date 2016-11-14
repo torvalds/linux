@@ -67,14 +67,6 @@ static inline uint64_t I642U64(int64_t val)
 	return (uint64_t)*((uint64_t *)&val);
 }
 
-/* data corresponds to displayid vend/prod/serial */
-struct drm_tile_group {
-	struct kref refcount;
-	struct drm_device *dev;
-	int id;
-	u8 group_data[8];
-};
-
 struct drm_crtc;
 struct drm_encoder;
 struct drm_pending_vblank_event;
@@ -809,13 +801,6 @@ extern int drm_crtc_force_disable(struct drm_crtc *crtc);
 extern int drm_crtc_force_disable_all(struct drm_device *dev);
 
 extern int drm_mode_set_config_internal(struct drm_mode_set *set);
-
-extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
-							 char topology[8]);
-extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
-					       char topology[8]);
-extern void drm_mode_put_tile_group(struct drm_device *dev,
-				   struct drm_tile_group *tg);
 
 /* Helpers */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
