@@ -322,11 +322,21 @@ struct octeon_pf_vf_hs_word {
 };
 
 struct octeon_sriov_info {
+	/* Number of rings assigned to VF */
+	u32	rings_per_vf;
+
+	/** Max Number of VF devices that can be enabled. This variable can
+	 *  specified during load time or it will be derived after allocating
+	 *  PF queues. When max_vfs is derived then each VF will get one queue
+	 **/
+	u32	max_vfs;
+
 	/* Actual rings left for PF device */
 	u32	num_pf_rings;
 
-	/* SRN of PF usable IO queues   */
+	/* SRN of PF usable IO queues */
 	u32	pf_srn;
+
 	/* total pf rings */
 	u32	trs;
 
