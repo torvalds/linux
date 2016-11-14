@@ -179,20 +179,20 @@ static void macvlan_hash_change_addr(struct macvlan_dev *vlan,
 	macvlan_hash_add(vlan);
 }
 
-static int macvlan_addr_busy(const struct macvlan_port *port,
-				const unsigned char *addr)
+static bool macvlan_addr_busy(const struct macvlan_port *port,
+			      const unsigned char *addr)
 {
 	/* Test to see if the specified multicast address is
 	 * currently in use by the underlying device or
 	 * another macvlan.
 	 */
 	if (ether_addr_equal_64bits(port->dev->dev_addr, addr))
-		return 1;
+		return true;
 
 	if (macvlan_hash_lookup(port, addr))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 
