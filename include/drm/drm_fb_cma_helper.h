@@ -41,6 +41,9 @@ struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 	unsigned int plane);
 
+int drm_fb_cma_prepare_fb(struct drm_plane *plane,
+			  struct drm_plane_state *state);
+
 #ifdef CONFIG_DEBUG_FS
 struct seq_file;
 

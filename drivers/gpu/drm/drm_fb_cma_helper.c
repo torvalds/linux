@@ -18,13 +18,16 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/reservation.h>
 
 #define DEFAULT_FBDEFIO_DELAY_MS 50
 
@@ -264,6 +267,38 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 	return fb_cma->obj[plane];
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
+
+/**
+ * drm_fb_cma_prepare_fb() - Prepare CMA framebuffer
+ * @plane: Which plane
+ * @state: Plane state attach fence to
+ *
+ * This should be put into prepare_fb hook of struct &drm_plane_helper_funcs .
+ *
+ * This function checks if the plane FB has an dma-buf attached, extracts
+ * the exclusive fence and attaches it to plane state for the atomic helper
+ * to wait on.
+ *
+ * There is no need for cleanup_fb for CMA based framebuffer drivers.
+ */
+int drm_fb_cma_prepare_fb(struct drm_plane *plane,
+			  struct drm_plane_state *state)
+{
+	struct dma_buf *dma_buf;
+	struct dma_fence *fence;
+
+	if ((plane->state->fb == state->fb) || !state->fb)
+		return 0;
+
+	dma_buf = drm_fb_cma_get_gem_obj(state->fb, 0)->base.dma_buf;
+	if (dma_buf) {
+		fence = reservation_object_get_excl_rcu(dma_buf->resv);
+		drm_atomic_set_fence_for_plane(state, fence);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_prepare_fb);
 
 #ifdef CONFIG_DEBUG_FS
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
