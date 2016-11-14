@@ -24,14 +24,15 @@
 #include <linux/acpi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/dmi.h>
 
 MODULE_AUTHOR("Azael Avalos");
 MODULE_DESCRIPTION("Toshiba WMI Hotkey Driver");
 MODULE_LICENSE("GPL");
 
-#define TOSHIBA_WMI_EVENT_GUID	"59142400-C6A3-40FA-BADB-8A2652834100"
+#define WMI_EVENT_GUID	"59142400-C6A3-40FA-BADB-8A2652834100"
 
-MODULE_ALIAS("wmi:"TOSHIBA_WMI_EVENT_GUID);
+MODULE_ALIAS("wmi:"WMI_EVENT_GUID);
 
 static struct input_dev *toshiba_wmi_input_dev;
 
@@ -63,6 +64,16 @@ static void toshiba_wmi_notify(u32 value, void *context)
 	kfree(response.pointer);
 }
 
+static struct dmi_system_id toshiba_wmi_dmi_table[] __initdata = {
+	{
+		.ident = "Toshiba laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		},
+	},
+	{}
+};
+
 static int __init toshiba_wmi_input_setup(void)
 {
 	acpi_status status;
@@ -81,7 +92,7 @@ static int __init toshiba_wmi_input_setup(void)
 	if (err)
 		goto err_free_dev;
 
-	status = wmi_install_notify_handler(TOSHIBA_WMI_EVENT_GUID,
+	status = wmi_install_notify_handler(WMI_EVENT_GUID,
 					    toshiba_wmi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
@@ -95,7 +106,7 @@ static int __init toshiba_wmi_input_setup(void)
 	return 0;
 
  err_remove_notifier:
-	wmi_remove_notify_handler(TOSHIBA_WMI_EVENT_GUID);
+	wmi_remove_notify_handler(WMI_EVENT_GUID);
  err_free_keymap:
 	sparse_keymap_free(toshiba_wmi_input_dev);
  err_free_dev:
@@ -105,7 +116,7 @@ static int __init toshiba_wmi_input_setup(void)
 
 static void toshiba_wmi_input_destroy(void)
 {
-	wmi_remove_notify_handler(TOSHIBA_WMI_EVENT_GUID);
+	wmi_remove_notify_handler(WMI_EVENT_GUID);
 	sparse_keymap_free(toshiba_wmi_input_dev);
 	input_unregister_device(toshiba_wmi_input_dev);
 }
@@ -114,7 +125,8 @@ static int __init toshiba_wmi_init(void)
 {
 	int ret;
 
-	if (!wmi_has_guid(TOSHIBA_WMI_EVENT_GUID))
+	if (!wmi_has_guid(WMI_EVENT_GUID) ||
+	    !dmi_check_system(toshiba_wmi_dmi_table))
 		return -ENODEV;
 
 	ret = toshiba_wmi_input_setup();
@@ -130,7 +142,7 @@ static int __init toshiba_wmi_init(void)
 
 static void __exit toshiba_wmi_exit(void)
 {
-	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID))
+	if (wmi_has_guid(WMI_EVENT_GUID))
 		toshiba_wmi_input_destroy();
 }
 

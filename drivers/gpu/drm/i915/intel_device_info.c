@@ -192,7 +192,7 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	struct sseu_dev_info *sseu = &mkwrite_device_info(dev_priv)->sseu;
 	const int s_max = 3, ss_max = 3, eu_max = 8;
 	int s, ss;
-	u32 fuse2, eu_disable[s_max];
+	u32 fuse2, eu_disable[3]; /* s_max */
 
 	fuse2 = I915_READ(GEN8_FUSE2);
 	sseu->slice_mask = (fuse2 & GEN8_F2_S_ENA_MASK) >> GEN8_F2_S_ENA_SHIFT;

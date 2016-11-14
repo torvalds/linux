@@ -2081,9 +2081,10 @@ void cxgbi_cleanup_task(struct iscsi_task *task)
 	/*  never reached the xmit task callout */
 	if (tdata->skb)
 		__kfree_skb(tdata->skb);
-	memset(tdata, 0, sizeof(*tdata));
 
 	task_release_itt(task, task->hdr_itt);
+	memset(tdata, 0, sizeof(*tdata));
+
 	iscsi_tcp_cleanup_task(task);
 }
 EXPORT_SYMBOL_GPL(cxgbi_cleanup_task);

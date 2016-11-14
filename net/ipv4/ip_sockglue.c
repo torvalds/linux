@@ -98,7 +98,7 @@ static void ip_cmsg_recv_retopts(struct msghdr *msg, struct sk_buff *skb)
 }
 
 static void ip_cmsg_recv_checksum(struct msghdr *msg, struct sk_buff *skb,
-				  int offset)
+				  int tlen, int offset)
 {
 	__wsum csum = skb->csum;
 
@@ -106,8 +106,9 @@ static void ip_cmsg_recv_checksum(struct msghdr *msg, struct sk_buff *skb,
 		return;
 
 	if (offset != 0)
-		csum = csum_sub(csum, csum_partial(skb_transport_header(skb),
-						   offset, 0));
+		csum = csum_sub(csum,
+				csum_partial(skb_transport_header(skb) + tlen,
+					     offset, 0));
 
 	put_cmsg(msg, SOL_IP, IP_CHECKSUM, sizeof(__wsum), &csum);
 }
@@ -153,7 +154,7 @@ static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 }
 
 void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb,
-			 int offset)
+			 int tlen, int offset)
 {
 	struct inet_sock *inet = inet_sk(skb->sk);
 	unsigned int flags = inet->cmsg_flags;
@@ -216,7 +217,7 @@ void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb,
 	}
 
 	if (flags & IP_CMSG_CHECKSUM)
-		ip_cmsg_recv_checksum(msg, skb, offset);
+		ip_cmsg_recv_checksum(msg, skb, tlen, offset);
 }
 EXPORT_SYMBOL(ip_cmsg_recv_offset);
 

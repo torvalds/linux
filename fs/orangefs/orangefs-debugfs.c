@@ -141,6 +141,9 @@ static struct client_debug_mask client_debug_mask;
  */
 static DEFINE_MUTEX(orangefs_debug_lock);
 
+/* Used to protect data in ORANGEFS_KMOD_DEBUG_HELP_FILE */
+static DEFINE_MUTEX(orangefs_help_file_lock);
+
 /*
  * initialize kmod debug operations, create orangefs debugfs dir and
  * ORANGEFS_KMOD_DEBUG_HELP_FILE.
@@ -289,6 +292,8 @@ static void *help_start(struct seq_file *m, loff_t *pos)
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_start: start\n");
 
+	mutex_lock(&orangefs_help_file_lock);
+
 	if (*pos == 0)
 		payload = m->private;
 
@@ -305,6 +310,7 @@ static void *help_next(struct seq_file *m, void *v, loff_t *pos)
 static void help_stop(struct seq_file *m, void *p)
 {
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_stop: start\n");
+	mutex_unlock(&orangefs_help_file_lock);
 }
 
 static int help_show(struct seq_file *m, void *v)
@@ -610,32 +616,54 @@ out:
  * /sys/kernel/debug/orangefs/debug-help can be catted to
  * see all the available kernel and client debug keywords.
  *
- * When the kernel boots, we have no idea what keywords the
+ * When orangefs.ko initializes, we have no idea what keywords the
  * client supports, nor their associated masks.
  *
- * We pass through this function once at boot and stamp a
+ * We pass through this function once at module-load and stamp a
  * boilerplate "we don't know" message for the client in the
  * debug-help file. We pass through here again when the client
  * starts and then we can fill out the debug-help file fully.
  *
  * The client might be restarted any number of times between
- * reboots, we only build the debug-help file the first time.
+ * module reloads, we only build the debug-help file the first time.
  */
 int orangefs_prepare_debugfs_help_string(int at_boot)
 {
-	int rc = -EINVAL;
-	int i;
-	int byte_count = 0;
 	char *client_title = "Client Debug Keywords:\n";
 	char *kernel_title = "Kernel Debug Keywords:\n";
+	size_t string_size =  DEBUG_HELP_STRING_SIZE;
+	size_t result_size;
+	size_t i;
+	char *new;
+	int rc = -EINVAL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
-	if (at_boot) {
-		byte_count += strlen(HELP_STRING_UNINITIALIZED);
+	if (at_boot)
 		client_title = HELP_STRING_UNINITIALIZED;
-	} else {
-		/*
+
+	/* build a new debug_help_string. */
+	new = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
+	if (!new) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * strlcat(dst, src, size) will append at most
+	 * "size - strlen(dst) - 1" bytes of src onto dst,
+	 * null terminating the result, and return the total
+	 * length of the string it tried to create.
+	 *
+	 * We'll just plow through here building our new debug
+	 * help string and let strlcat take care of assuring that
+	 * dst doesn't overflow.
+	 */
+	strlcat(new, client_title, string_size);
+
+	if (!at_boot) {
+
+                /*
 		 * fill the client keyword/mask array and remember
 		 * how many elements there were.
 		 */
@@ -644,64 +672,40 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 		if (cdm_element_count <= 0)
 			goto out;
 
-		/* Count the bytes destined for debug_help_string. */
-		byte_count += strlen(client_title);
-
 		for (i = 0; i < cdm_element_count; i++) {
-			byte_count += strlen(cdm_array[i].keyword + 2);
-			if (byte_count >= DEBUG_HELP_STRING_SIZE) {
-				pr_info("%s: overflow 1!\n", __func__);
-				goto out;
-			}
+			strlcat(new, "\t", string_size);
+			strlcat(new, cdm_array[i].keyword, string_size);
+			strlcat(new, "\n", string_size);
 		}
-
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "%s: cdm_element_count:%d:\n",
-			     __func__,
-			     cdm_element_count);
 	}
 
-	byte_count += strlen(kernel_title);
+	strlcat(new, "\n", string_size);
+	strlcat(new, kernel_title, string_size);
+
 	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
-		byte_count +=
-			strlen(s_kmod_keyword_mask_map[i].keyword + 2);
-		if (byte_count >= DEBUG_HELP_STRING_SIZE) {
-			pr_info("%s: overflow 2!\n", __func__);
-			goto out;
-		}
+		strlcat(new, "\t", string_size);
+		strlcat(new, s_kmod_keyword_mask_map[i].keyword, string_size);
+		result_size = strlcat(new, "\n", string_size);
 	}
 
-	/* build debug_help_string. */
-	debug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
-	if (!debug_help_string) {
-		rc = -ENOMEM;
+	/* See if we tried to put too many bytes into "new"... */
+	if (result_size >= string_size) {
+		kfree(new);
 		goto out;
 	}
 
-	strcat(debug_help_string, client_title);
-
-	if (!at_boot) {
-		for (i = 0; i < cdm_element_count; i++) {
-			strcat(debug_help_string, "\t");
-			strcat(debug_help_string, cdm_array[i].keyword);
-			strcat(debug_help_string, "\n");
-		}
-	}
-
-	strcat(debug_help_string, "\n");
-	strcat(debug_help_string, kernel_title);
-
-	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
-		strcat(debug_help_string, "\t");
-		strcat(debug_help_string, s_kmod_keyword_mask_map[i].keyword);
-		strcat(debug_help_string, "\n");
+	if (at_boot) {
+		debug_help_string = new;
+	} else {
+		mutex_lock(&orangefs_help_file_lock);
+		memset(debug_help_string, 0, DEBUG_HELP_STRING_SIZE);
+		strlcat(debug_help_string, new, string_size);
+		mutex_unlock(&orangefs_help_file_lock);
 	}
 
 	rc = 0;
 
-out:
-
-	return rc;
+out:	return rc;
 
 }
 
@@ -959,8 +963,12 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 	ret = copy_from_user(&client_debug_array_string,
                                      (void __user *)arg,
                                      ORANGEFS_MAX_DEBUG_STRING_LEN);
-	if (ret != 0)
+
+	if (ret != 0) {
+		pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
+			__func__);
 		return -EIO;
+	}
 
 	/*
 	 * The real client-core makes an effort to ensure
@@ -975,45 +983,18 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 	client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN - 1] =
 		'\0';
 	
-	if (ret != 0) {
-		pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
-			__func__);
-		return -EIO;
-	}
-
 	pr_info("%s: client debug array string has been received.\n",
 		__func__);
 
 	if (!help_string_initialized) {
 
-		/* Free the "we don't know yet" default string... */
-		kfree(debug_help_string);
-
-		/* build a proper debug help string */
+		/* Build a proper debug help string. */
 		if (orangefs_prepare_debugfs_help_string(0)) {
 			gossip_err("%s: no debug help string \n",
 				   __func__);
 			return -EIO;
 		}
 
-		/* Replace the boilerplate boot-time debug-help file. */
-		debugfs_remove(help_file_dentry);
-
-		help_file_dentry =
-			debugfs_create_file(
-				ORANGEFS_KMOD_DEBUG_HELP_FILE,
-				0444,
-				debug_dir,
-				debug_help_string,
-				&debug_help_fops);
-
-		if (!help_file_dentry) {
-			gossip_err("%s: debugfs_create_file failed for"
-				   " :%s:!\n",
-				   __func__,
-				   ORANGEFS_KMOD_DEBUG_HELP_FILE);
-			return -EIO;
-		}
 	}
 
 	debug_mask_to_string(&client_debug_mask, 1);

@@ -249,6 +249,11 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 			snd_soc_dapm_force_enable_pin(dapm, "LDO1");
 			snd_soc_dapm_sync(dapm);
 
+			regmap_update_bits(rt298->regmap,
+				RT298_POWER_CTRL1, 0x1001, 0);
+			regmap_update_bits(rt298->regmap,
+				RT298_POWER_CTRL2, 0x4, 0x4);
+
 			regmap_write(rt298->regmap, RT298_SET_MIC1, 0x24);
 			msleep(50);
 
