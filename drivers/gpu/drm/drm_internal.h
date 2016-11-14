@@ -24,9 +24,6 @@
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
-/* drm_irq.c */
-extern unsigned int drm_timestamp_monotonic;
-
 /* drm_fops.c */
 extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
@@ -56,6 +53,11 @@ int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
 /* drm_irq.c */
+extern unsigned int drm_timestamp_monotonic;
+
+/* IOCTLS */
+int drm_wait_vblank(struct drm_device *dev, void *data,
+		    struct drm_file *filp);
 int drm_control(struct drm_device *dev, void *data,
 		struct drm_file *file_priv);
 int drm_modeset_ctl(struct drm_device *dev, void *data,
