@@ -594,8 +594,11 @@ static int mlxsw_sp_vrs_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 }
 
+static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp);
+
 static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	kfree(mlxsw_sp->router.vrs);
 }
 
@@ -1867,18 +1870,18 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
 
-static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_resources *resources;
 	struct mlxsw_sp_fib_entry *fib_entry;
 	struct mlxsw_sp_fib_entry *tmp;
 	struct mlxsw_sp_vr *vr;
 	int i;
-	int err;
 
 	resources = mlxsw_core_resources_get(mlxsw_sp->core);
 	for (i = 0; i < resources->max_virtual_routers; i++) {
 		vr = &mlxsw_sp->router.vrs[i];
+
 		if (!vr->used)
 			continue;
 
@@ -1894,6 +1897,13 @@ static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
 				break;
 		}
 	}
+}
+
+static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
+{
+	int err;
+
+	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	mlxsw_sp->router.aborted = true;
 	err = mlxsw_sp_router_set_abort_trap(mlxsw_sp);
 	if (err)
