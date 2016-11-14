@@ -50,9 +50,6 @@
 #error TEXT_OFFSET must be less than 2MB
 #endif
 
-#define KERNEL_START	_text
-#define KERNEL_END	_end
-
 /*
  * Kernel startup entry point.
  * ---------------------------
@@ -666,7 +663,7 @@ ENDPROC(__secondary_switched)
  * If it isn't, park the CPU
  */
 	.section	".idmap.text", "ax"
-__enable_mmu:
+ENTRY(__enable_mmu)
 	mrs	x18, sctlr_el1			// preserve old SCTLR_EL1 value
 	mrs	x1, ID_AA64MMFR0_EL1
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4

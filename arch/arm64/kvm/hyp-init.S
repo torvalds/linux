@@ -21,6 +21,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
 #include <asm/pgtable-hwdef.h>
+#include <asm/sysreg.h>
 
 	.text
 	.pushsection	.hyp.idmap.text, "ax"
@@ -96,6 +97,14 @@ __do_hyp_init:
 
 	ldr	x4, =VTCR_EL2_FLAGS
 	bfi	x4, x5, #16, #3
+	/*
+	 * Read the VMIDBits bits from ID_AA64MMFR1_EL1 and set the VS bit in
+	 * VTCR_EL2.
+	 */
+	mrs	x5, ID_AA64MMFR1_EL1
+	ubfx	x5, x5, #5, #1
+	lsl	x5, x5, #VTCR_EL2_VS
+	orr	x4, x4, x5
 
 	msr	vtcr_el2, x4
 
@@ -108,8 +117,8 @@ __do_hyp_init:
 	dsb	sy
 
 	mrs	x4, sctlr_el2
-	and	x4, x4, #SCTLR_EL2_EE	// preserve endianness of EL2
-	ldr	x5, =SCTLR_EL2_FLAGS
+	and	x4, x4, #SCTLR_ELx_EE	// preserve endianness of EL2
+	ldr	x5, =SCTLR_ELx_FLAGS
 	orr	x4, x4, x5
 	msr	sctlr_el2, x4
 	isb

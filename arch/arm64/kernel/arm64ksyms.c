@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/kprobes.h>
+#include <linux/arm-smccc.h>
 
 #include <asm/checksum.h>
 
@@ -70,3 +71,7 @@ EXPORT_SYMBOL(test_and_change_bit);
 EXPORT_SYMBOL(_mcount);
 NOKPROBE_SYMBOL(_mcount);
 #endif
+
+	/* arm-smccc */
+EXPORT_SYMBOL(arm_smccc_smc);
+EXPORT_SYMBOL(arm_smccc_hvc);
