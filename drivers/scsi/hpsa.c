@@ -8220,7 +8220,7 @@ static void hpsa_free_irqs(struct ctlr_info *h)
 
 	if (!h->msix_vectors || h->intr_mode != PERF_MODE_INT) {
 		/* Single reply queue, only one irq to free */
-		free_irq(pci_irq_vector(h->pdev, 0), &h->q[i]);
+		free_irq(pci_irq_vector(h->pdev, 0), &h->q[h->intr_mode]);
 		h->q[h->intr_mode] = 0;
 		return;
 	}
