@@ -769,10 +769,12 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 	spin_lock_irqsave(&domain->lock, flags);
 
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
+		spin_lock(&data->lock);
 		__sysmmu_disable(data);
 		data->pgtable = 0;
 		data->domain = NULL;
 		list_del_init(&data->domain_node);
+		spin_unlock(&data->lock);
 	}
 
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -810,17 +812,22 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 	if (!has_sysmmu(dev) || owner->domain != iommu_domain)
 		return;
 
+	list_for_each_entry(data, &owner->controllers, owner_node) {
+		__sysmmu_disable(data);
+		pm_runtime_put(data->sysmmu);
+	}
+
 	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
-		__sysmmu_disable(data);
+		spin_lock(&data->lock);
 		data->pgtable = 0;
 		data->domain = NULL;
 		list_del_init(&data->domain_node);
-		pm_runtime_put(data->sysmmu);
+		spin_unlock(&data->lock);
 	}
+	owner->domain = NULL;
 	spin_unlock_irqrestore(&domain->lock, flags);
 
-	owner->domain = NULL;
 
 	dev_dbg(dev, "%s: Detached IOMMU with pgtable %pa\n", __func__,
 		&pagetable);
@@ -841,18 +848,22 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	if (owner->domain)
 		exynos_iommu_detach_device(owner->domain, dev);
 
+	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(data, &owner->controllers, owner_node) {
+		spin_lock(&data->lock);
 		data->pgtable = pagetable;
 		data->domain = domain;
+		list_add_tail(&data->domain_node, &domain->clients);
+		spin_unlock(&data->lock);
+	}
+	owner->domain = iommu_domain;
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	list_for_each_entry(data, &owner->controllers, owner_node) {
 		pm_runtime_get_sync(data->sysmmu);
 		__sysmmu_enable(data);
-
-		spin_lock_irqsave(&domain->lock, flags);
-		list_add_tail(&data->domain_node, &domain->clients);
-		spin_unlock_irqrestore(&domain->lock, flags);
 	}
 
-	owner->domain = iommu_domain;
 	dev_dbg(dev, "%s: Attached IOMMU with pgtable %pa\n", __func__,
 		&pagetable);
 
