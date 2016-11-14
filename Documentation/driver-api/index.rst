@@ -20,6 +20,7 @@ available subsections can be seen below.
    sound
    frame-buffer
    input
+   usb
    spi
    i2c
    hsi
