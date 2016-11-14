@@ -373,6 +373,13 @@ static const struct intel_device_info intel_broxton_info = {
 	.ddb_size = 512,
 };
 
+static const struct intel_device_info intel_geminilake_info = {
+	.is_alpha_support = 1,
+	.is_geminilake = 1,
+	GEN9_LP_FEATURES,
+	.ddb_size = 1024,
+};
+
 static const struct intel_device_info intel_kabylake_info = {
 	BDW_FEATURES,
 	.is_kabylake = 1,
