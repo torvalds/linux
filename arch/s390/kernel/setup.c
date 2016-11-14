@@ -35,6 +35,7 @@
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/kernel_stat.h>
+#include <linux/dma-contiguous.h>
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pfn.h>
@@ -903,6 +904,7 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_memory_end();
 	setup_memory();
+	dma_contiguous_reserve(memory_end);
 
 	check_initrd();
 	reserve_crashkernel();
