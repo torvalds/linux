@@ -37,16 +37,16 @@ struct cs_dbs_tuners {
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 
-static inline unsigned int get_freq_target(struct cs_dbs_tuners *cs_tuners,
-					   struct cpufreq_policy *policy)
+static inline unsigned int get_freq_step(struct cs_dbs_tuners *cs_tuners,
+					 struct cpufreq_policy *policy)
 {
-	unsigned int freq_target = (cs_tuners->freq_step * policy->max) / 100;
+	unsigned int freq_step = (cs_tuners->freq_step * policy->max) / 100;
 
 	/* max freq cannot be less than 100. But who knows... */
-	if (unlikely(freq_target == 0))
-		freq_target = DEF_FREQUENCY_STEP;
+	if (unlikely(freq_step == 0))
+		freq_step = DEF_FREQUENCY_STEP;
 
-	return freq_target;
+	return freq_step;
 }
 
 /*
@@ -90,7 +90,7 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 		if (requested_freq == policy->max)
 			goto out;
 
-		requested_freq += get_freq_target(cs_tuners, policy);
+		requested_freq += get_freq_step(cs_tuners, policy);
 		if (requested_freq > policy->max)
 			requested_freq = policy->max;
 
@@ -106,16 +106,16 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 
 	/* Check for frequency decrease */
 	if (load < cs_tuners->down_threshold) {
-		unsigned int freq_target;
+		unsigned int freq_step;
 		/*
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
 		if (requested_freq == policy->min)
 			goto out;
 
-		freq_target = get_freq_target(cs_tuners, policy);
-		if (requested_freq > freq_target)
-			requested_freq -= freq_target;
+		freq_step = get_freq_step(cs_tuners, policy);
+		if (requested_freq > freq_step)
+			requested_freq -= freq_step;
 		else
 			requested_freq = policy->min;
 
