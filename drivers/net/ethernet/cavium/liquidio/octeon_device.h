@@ -38,6 +38,7 @@
 #define  OCTEON_CN68XX                0x0091
 #define  OCTEON_CN66XX                0x0092
 #define  OCTEON_CN23XX_PF_VID         0x9702
+#define  OCTEON_CN23XX_VF_VID         0x9712
 
 /**RevisionId for the chips */
 #define  OCTEON_CN23XX_REV_1_0        0x00
@@ -331,6 +332,9 @@ struct octeon_sriov_info {
 	 **/
 	u32	max_vfs;
 
+	/** Number of VF devices enabled using sysfs. */
+	u32	num_vfs_alloced;
+
 	/* Actual rings left for PF device */
 	u32	num_pf_rings;
 
@@ -340,6 +344,10 @@ struct octeon_sriov_info {
 	/* total pf rings */
 	u32	trs;
 
+	u32	sriov_enabled;
+
+	/*lookup table that maps DPI ring number to VF pci_dev struct pointer*/
+	struct pci_dev *dpiring_to_vfpcidev_lut[MAX_POSSIBLE_VFS];
 };
 
 struct octeon_ioq_vector {

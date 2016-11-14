@@ -180,6 +180,10 @@ struct octeon_device_priv {
 	unsigned long napi_mask;
 };
 
+#ifdef CONFIG_PCI_IOV
+static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs);
+#endif
+
 static int octeon_device_init(struct octeon_device *);
 static int liquidio_stop(struct net_device *netdev);
 static void liquidio_remove(struct pci_dev *pdev);
@@ -517,6 +521,9 @@ static struct pci_driver liquidio_pci_driver = {
 #ifdef CONFIG_PM
 	.suspend	= liquidio_suspend,
 	.resume		= liquidio_resume,
+#endif
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure = liquidio_enable_sriov,
 #endif
 };
 
@@ -1472,6 +1479,10 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 				continue;
 			octeon_delete_instr_queue(oct, i);
 		}
+#ifdef CONFIG_PCI_IOV
+		if (oct->sriov_info.sriov_enabled)
+			pci_disable_sriov(oct->pci_dev);
+#endif
 		/* fallthrough */
 	case OCT_DEV_SC_BUFF_POOL_INIT_DONE:
 		octeon_free_sc_buffer_pool(oct);
@@ -3989,6 +4000,101 @@ setup_nic_wait_intr:
 	}
 	return -ENODEV;
 }
+
+#ifdef CONFIG_PCI_IOV
+static int octeon_enable_sriov(struct octeon_device *oct)
+{
+	unsigned int num_vfs_alloced = oct->sriov_info.num_vfs_alloced;
+	struct pci_dev *vfdev;
+	int err;
+	u32 u;
+
+	if (OCTEON_CN23XX_PF(oct) && num_vfs_alloced) {
+		err = pci_enable_sriov(oct->pci_dev,
+				       oct->sriov_info.num_vfs_alloced);
+		if (err) {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: Failed to enable PCI sriov: %d\n",
+				err);
+			oct->sriov_info.num_vfs_alloced = 0;
+			return err;
+		}
+		oct->sriov_info.sriov_enabled = 1;
+
+		/* init lookup table that maps DPI ring number to VF pci_dev
+		 * struct pointer
+		 */
+		u = 0;
+		vfdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
+				       OCTEON_CN23XX_VF_VID, NULL);
+		while (vfdev) {
+			if (vfdev->is_virtfn &&
+			    (vfdev->physfn == oct->pci_dev)) {
+				oct->sriov_info.dpiring_to_vfpcidev_lut[u] =
+					vfdev;
+				u += oct->sriov_info.rings_per_vf;
+			}
+			vfdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
+					       OCTEON_CN23XX_VF_VID, vfdev);
+		}
+	}
+
+	return num_vfs_alloced;
+}
+
+static int lio_pci_sriov_disable(struct octeon_device *oct)
+{
+	int u;
+
+	if (pci_vfs_assigned(oct->pci_dev)) {
+		dev_err(&oct->pci_dev->dev, "VFs are still assigned to VMs.\n");
+		return -EPERM;
+	}
+
+	pci_disable_sriov(oct->pci_dev);
+
+	u = 0;
+	while (u < MAX_POSSIBLE_VFS) {
+		oct->sriov_info.dpiring_to_vfpcidev_lut[u] = NULL;
+		u += oct->sriov_info.rings_per_vf;
+	}
+
+	oct->sriov_info.num_vfs_alloced = 0;
+	dev_info(&oct->pci_dev->dev, "oct->pf_num:%d disabled VFs\n",
+		 oct->pf_num);
+
+	return 0;
+}
+
+static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs)
+{
+	struct octeon_device *oct = pci_get_drvdata(dev);
+	int ret = 0;
+
+	if ((num_vfs == oct->sriov_info.num_vfs_alloced) &&
+	    (oct->sriov_info.sriov_enabled)) {
+		dev_info(&oct->pci_dev->dev, "oct->pf_num:%d already enabled num_vfs:%d\n",
+			 oct->pf_num, num_vfs);
+		return 0;
+	}
+
+	if (!num_vfs) {
+		ret = lio_pci_sriov_disable(oct);
+	} else if (num_vfs > oct->sriov_info.max_vfs) {
+		dev_err(&oct->pci_dev->dev,
+			"OCTEON: Max allowed VFs:%d user requested:%d",
+			oct->sriov_info.max_vfs, num_vfs);
+		ret = -EPERM;
+	} else {
+		oct->sriov_info.num_vfs_alloced = num_vfs;
+		ret = octeon_enable_sriov(oct);
+		dev_info(&oct->pci_dev->dev, "oct->pf_num:%d num_vfs:%d\n",
+			 oct->pf_num, num_vfs);
+	}
+
+	return ret;
+}
+#endif
 
 /**
  * \brief initialize the NIC
