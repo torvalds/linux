@@ -4442,4 +4442,16 @@
 #define mmXDMA_TEST_DEBUG_DATA 0x041D
 #define mmXDMA_TEST_DEBUG_INDEX 0x041C
 
+/* Registers that spilled out of sid.h */
+#define mmDATA_FORMAT                              0x1AC0
+#define mmDESKTOP_HEIGHT                           0x1AC1
+#define mmDC_LB_MEMORY_SPLIT                       0x1AC3
+#define mmPRIORITY_A_CNT                           0x1AC6
+#define mmPRIORITY_B_CNT                           0x1AC7
+#define mmDPG_PIPE_ARBITRATION_CONTROL3            0x1B32
+#define mmINT_MASK                                 0x1AD0
+#define mmVLINE_STATUS                             0x1AEE
+#define mmVBLANK_STATUS                            0x1AEF
+
+
 #endif

@@ -23,6 +23,84 @@
 #ifndef SI_ENUMS_H
 #define SI_ENUMS_H
 
+#define VBLANK_INT_MASK                (1 << 0)
+#define DC_HPDx_INT_EN                 (1 << 16)
+#define VBLANK_ACK                     (1 << 4)
+#define VLINE_ACK                      (1 << 4)
+
+#define CURSOR_WIDTH 64
+#define CURSOR_HEIGHT 64
+
+#define VGA_VSTATUS_CNTL               0xFFFCFFFF
+#define PRIORITY_MARK_MASK             0x7fff
+#define PRIORITY_OFF                   (1 << 16)
+#define PRIORITY_ALWAYS_ON             (1 << 20)
+#define INTERLEAVE_EN                  (1 << 0)
+
+#define LATENCY_WATERMARK_MASK(x)      ((x) << 16)
+#define DC_LB_MEMORY_CONFIG(x)         ((x) << 20)
+#define ICON_DEGAMMA_MODE(x)           (((x) & 0x3) << 8)
+
+#define GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
+#define GRPH_ENDIAN_NONE               0
+#define GRPH_ENDIAN_8IN16              1
+#define GRPH_ENDIAN_8IN32              2
+#define GRPH_ENDIAN_8IN64              3
+
+#define GRPH_DEPTH(x)                  (((x) & 0x3) << 0)
+#define GRPH_DEPTH_8BPP                0
+#define GRPH_DEPTH_16BPP               1
+#define GRPH_DEPTH_32BPP               2
+
+#define GRPH_FORMAT(x)                 (((x) & 0x7) << 8)
+#define GRPH_FORMAT_INDEXED            0
+#define GRPH_FORMAT_ARGB1555           0
+#define GRPH_FORMAT_ARGB565            1
+#define GRPH_FORMAT_ARGB4444           2
+#define GRPH_FORMAT_AI88               3
+#define GRPH_FORMAT_MONO16             4
+#define GRPH_FORMAT_BGRA5551           5
+#define GRPH_FORMAT_ARGB8888           0
+#define GRPH_FORMAT_ARGB2101010        1
+#define GRPH_FORMAT_32BPP_DIG          2
+#define GRPH_FORMAT_8B_ARGB2101010     3
+#define GRPH_FORMAT_BGRA1010102        4
+#define GRPH_FORMAT_8B_BGRA1010102     5
+#define GRPH_FORMAT_RGB111110          6
+#define GRPH_FORMAT_BGR101111          7
+
+#define GRPH_NUM_BANKS(x)              (((x) & 0x3) << 2)
+#define GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
+#define GRPH_ARRAY_LINEAR_GENERAL      0
+#define GRPH_ARRAY_LINEAR_ALIGNED      1
+#define GRPH_ARRAY_1D_TILED_THIN1      2
+#define GRPH_ARRAY_2D_TILED_THIN1      4
+#define GRPH_TILE_SPLIT(x)             (((x) & 0x7) << 13)
+#define GRPH_BANK_WIDTH(x)             (((x) & 0x3) << 6)
+#define GRPH_BANK_HEIGHT(x)            (((x) & 0x3) << 11)
+#define GRPH_MACRO_TILE_ASPECT(x)      (((x) & 0x3) << 18)
+#define GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
+#define GRPH_PIPE_CONFIG(x)                   (((x) & 0x1f) << 24)
+
+#define CURSOR_EN                      (1 << 0)
+#define CURSOR_MODE(x)                 (((x) & 0x3) << 8)
+#define CURSOR_MONO                    0
+#define CURSOR_24_1                    1
+#define CURSOR_24_8_PRE_MULT           2
+#define CURSOR_24_8_UNPRE_MULT         3
+#define CURSOR_2X_MAGNIFY              (1 << 16)
+#define CURSOR_FORCE_MC_ON             (1 << 20)
+#define CURSOR_URGENT_CONTROL(x)       (((x) & 0x7) << 24)
+#define CURSOR_URGENT_ALWAYS           0
+#define CURSOR_URGENT_1_8              1
+#define CURSOR_URGENT_1_4              2
+#define CURSOR_URGENT_3_8              3
+#define CURSOR_URGENT_1_2              4
+#define CURSOR_UPDATE_PENDING          (1 << 0)
+#define CURSOR_UPDATE_TAKEN            (1 << 1)
+#define CURSOR_UPDATE_LOCK             (1 << 16)
+#define CURSOR_DISABLE_MULTIPLE_UPDATE (1 << 24)
+
 #define AMDGPU_NUM_OF_VMIDS                     8
 #define SI_CRTC0_REGISTER_OFFSET                0
 #define SI_CRTC1_REGISTER_OFFSET                0x300
