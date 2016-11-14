@@ -491,9 +491,6 @@ static bool __sysmmu_disable(struct sysmmu_drvdata *data)
 		__sysmmu_disable_nocount(data);
 
 		dev_dbg(data->sysmmu, "Disabled\n");
-	} else  {
-		dev_dbg(data->sysmmu, "%d times left to disable\n",
-					data->activations);
 	}
 
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -541,29 +538,18 @@ static void __sysmmu_enable_nocount(struct sysmmu_drvdata *data)
 static int __sysmmu_enable(struct sysmmu_drvdata *data, phys_addr_t pgtable,
 			   struct exynos_iommu_domain *domain)
 {
-	int ret = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&data->lock, flags);
 	if (set_sysmmu_active(data)) {
 		data->pgtable = pgtable;
 		data->domain = domain;
-
 		__sysmmu_enable_nocount(data);
-
 		dev_dbg(data->sysmmu, "Enabled\n");
-	} else {
-		ret = (pgtable == data->pgtable) ? 1 : -EBUSY;
-
-		dev_dbg(data->sysmmu, "already enabled\n");
 	}
-
-	if (WARN_ON(ret < 0))
-		set_sysmmu_inactive(data); /* decrement count */
-
 	spin_unlock_irqrestore(&data->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
@@ -831,8 +817,8 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 	spin_lock_irqsave(&domain->lock, flags);
 
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
-		if (__sysmmu_disable(data))
-			data->master = NULL;
+		__sysmmu_disable(data);
+		data->master = NULL;
 		list_del_init(&data->domain_node);
 	}
 
@@ -867,31 +853,23 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 	phys_addr_t pagetable = virt_to_phys(domain->pgtable);
 	struct sysmmu_drvdata *data, *next;
 	unsigned long flags;
-	bool found = false;
 
 	if (!has_sysmmu(dev) || owner->domain != iommu_domain)
 		return;
 
 	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
-		if (data->master == dev) {
-			if (__sysmmu_disable(data)) {
-				data->master = NULL;
-				list_del_init(&data->domain_node);
-			}
-			pm_runtime_put(data->sysmmu);
-			found = true;
-		}
+		__sysmmu_disable(data);
+		data->master = NULL;
+		list_del_init(&data->domain_node);
+		pm_runtime_put(data->sysmmu);
 	}
 	spin_unlock_irqrestore(&domain->lock, flags);
 
 	owner->domain = NULL;
 
-	if (found)
-		dev_dbg(dev, "%s: Detached IOMMU with pgtable %pa\n",
-					__func__, &pagetable);
-	else
-		dev_err(dev, "%s: No IOMMU is attached\n", __func__);
+	dev_dbg(dev, "%s: Detached IOMMU with pgtable %pa\n", __func__,
+		&pagetable);
 }
 
 static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
@@ -902,7 +880,6 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	struct sysmmu_drvdata *data;
 	phys_addr_t pagetable = virt_to_phys(domain->pgtable);
 	unsigned long flags;
-	int ret = -ENODEV;
 
 	if (!has_sysmmu(dev))
 		return -ENODEV;
@@ -912,27 +889,19 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 
 	list_for_each_entry(data, &owner->controllers, owner_node) {
 		pm_runtime_get_sync(data->sysmmu);
-		ret = __sysmmu_enable(data, pagetable, domain);
-		if (ret >= 0) {
-			data->master = dev;
+		__sysmmu_enable(data, pagetable, domain);
+		data->master = dev;
 
-			spin_lock_irqsave(&domain->lock, flags);
-			list_add_tail(&data->domain_node, &domain->clients);
-			spin_unlock_irqrestore(&domain->lock, flags);
-		}
-	}
-
-	if (ret < 0) {
-		dev_err(dev, "%s: Failed to attach IOMMU with pgtable %pa\n",
-					__func__, &pagetable);
-		return ret;
+		spin_lock_irqsave(&domain->lock, flags);
+		list_add_tail(&data->domain_node, &domain->clients);
+		spin_unlock_irqrestore(&domain->lock, flags);
 	}
 
 	owner->domain = iommu_domain;
-	dev_dbg(dev, "%s: Attached IOMMU with pgtable %pa %s\n",
-		__func__, &pagetable, (ret == 0) ? "" : ", again");
+	dev_dbg(dev, "%s: Attached IOMMU with pgtable %pa\n", __func__,
+		&pagetable);
 
-	return ret;
+	return 0;
 }
 
 static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
