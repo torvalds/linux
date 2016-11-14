@@ -476,6 +476,7 @@ int i915_gem_context_init(struct drm_device *dev)
 		return PTR_ERR(ctx);
 	}
 
+	ctx->priority = I915_PRIORITY_MIN; /* lowest priority; idle task */
 	dev_priv->kernel_context = ctx;
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",

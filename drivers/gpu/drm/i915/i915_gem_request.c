@@ -867,7 +867,7 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * run at the earliest possible convenience.
 	 */
 	if (engine->schedule)
-		engine->schedule(request, 0);
+		engine->schedule(request, request->ctx->priority);
 
 	local_bh_disable();
 	i915_sw_fence_commit(&request->submit);

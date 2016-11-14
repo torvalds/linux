@@ -936,6 +936,7 @@ struct i915_gem_context {
 	/* Unique identifier for this context, used by the hw for tracking */
 	unsigned int hw_id;
 	u32 user_handle;
+	int priority; /* greater priorities are serviced first */
 
 	u32 ggtt_alignment;
 
