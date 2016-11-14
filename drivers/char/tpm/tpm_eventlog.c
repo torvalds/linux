@@ -349,6 +349,7 @@ static int tpm_bios_measurements_open(struct inode *inode,
 }
 
 static const struct file_operations tpm_bios_measurements_ops = {
+	.owner = THIS_MODULE,
 	.open = tpm_bios_measurements_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
