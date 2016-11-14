@@ -468,7 +468,7 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "Num frags in rx ring............%u\n",
 			       NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr,
-				       pdcs->nrxpost));
+					  pdcs->nrxpost));
 
 	if (out_offset > out_count)
 		out_offset = out_count;
@@ -683,7 +683,7 @@ pdc_receive(struct pdc_state *pdcs)
 
 	/* read last_rx_curr from register once */
 	pdcs->last_rx_curr =
-	    (ioread32((void *)&pdcs->rxregs_64->status0) &
+	    (ioread32(&pdcs->rxregs_64->status0) &
 	     CRYPTO_D64_RS0_CD_MASK) / RING_ENTRY_SIZE;
 
 	do {
@@ -793,8 +793,8 @@ static int pdc_tx_list_final(struct pdc_state *pdcs)
 	 * before chip starts to process new request
 	 */
 	wmb();
-	iowrite32(pdcs->rxout << 4, (void *)&pdcs->rxregs_64->ptr);
-	iowrite32(pdcs->txout << 4, (void *)&pdcs->txregs_64->ptr);
+	iowrite32(pdcs->rxout << 4, &pdcs->rxregs_64->ptr);
+	iowrite32(pdcs->txout << 4, &pdcs->txregs_64->ptr);
 	pdcs->pdc_requests++;
 
 	return PDC_SUCCESS;
@@ -1034,47 +1034,46 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 	/* But first disable DMA and set curptr to 0 for both TX & RX */
 	iowrite32(PDC_TX_CTL, &dma_reg->dmaxmt.control);
 	iowrite32((PDC_RX_CTL + (pdcs->rx_status_len << 1)),
-		  (void *)&dma_reg->dmarcv.control);
-	iowrite32(0, (void *)&dma_reg->dmaxmt.ptr);
-	iowrite32(0, (void *)&dma_reg->dmarcv.ptr);
+		  &dma_reg->dmarcv.control);
+	iowrite32(0, &dma_reg->dmaxmt.ptr);
+	iowrite32(0, &dma_reg->dmarcv.ptr);
 
 	/* Set base DMA addresses */
 	iowrite32(lower_32_bits(pdcs->tx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmaxmt.addrlow);
+		  &dma_reg->dmaxmt.addrlow);
 	iowrite32(upper_32_bits(pdcs->tx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmaxmt.addrhigh);
+		  &dma_reg->dmaxmt.addrhigh);
 
 	iowrite32(lower_32_bits(pdcs->rx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmarcv.addrlow);
+		  &dma_reg->dmarcv.addrlow);
 	iowrite32(upper_32_bits(pdcs->rx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmarcv.addrhigh);
+		  &dma_reg->dmarcv.addrhigh);
 
 	/* Re-enable DMA */
 	iowrite32(PDC_TX_CTL | PDC_TX_ENABLE, &dma_reg->dmaxmt.control);
 	iowrite32((PDC_RX_CTL | PDC_RX_ENABLE | (pdcs->rx_status_len << 1)),
-		  (void *)&dma_reg->dmarcv.control);
+		  &dma_reg->dmarcv.control);
 
 	/* Initialize descriptors */
 	for (i = 0; i < PDC_RING_ENTRIES; i++) {
 		/* Every tx descriptor can be used for start of frame. */
 		if (i != pdcs->ntxpost) {
 			iowrite32(D64_CTRL1_SOF | D64_CTRL1_EOF,
-				  (void *)&pdcs->txd_64[i].ctrl1);
+				  &pdcs->txd_64[i].ctrl1);
 		} else {
 			/* Last descriptor in ringset. Set End of Table. */
 			iowrite32(D64_CTRL1_SOF | D64_CTRL1_EOF |
-				  D64_CTRL1_EOT,
-				  (void *)&pdcs->txd_64[i].ctrl1);
+				  D64_CTRL1_EOT, &pdcs->txd_64[i].ctrl1);
 		}
 
 		/* Every rx descriptor can be used for start of frame */
 		if (i != pdcs->nrxpost) {
 			iowrite32(D64_CTRL1_SOF,
-				  (void *)&pdcs->rxd_64[i].ctrl1);
+				  &pdcs->rxd_64[i].ctrl1);
 		} else {
 			/* Last descriptor in ringset. Set End of Table. */
 			iowrite32(D64_CTRL1_SOF | D64_CTRL1_EOT,
-				  (void *)&pdcs->rxd_64[i].ctrl1);
+				  &pdcs->rxd_64[i].ctrl1);
 		}
 	}
 	return PDC_SUCCESS;
@@ -1300,10 +1299,10 @@ void pdc_hw_init(struct pdc_state *pdcs)
 	/* initialize data structures */
 	pdcs->regs = (struct pdc_regs *)pdcs->pdc_reg_vbase;
 	pdcs->txregs_64 = (struct dma64_regs *)
-	    (void *)(((u8 *)pdcs->pdc_reg_vbase) +
+	    (((u8 *)pdcs->pdc_reg_vbase) +
 		     PDC_TXREGS_OFFSET + (sizeof(struct dma64) * ringset));
 	pdcs->rxregs_64 = (struct dma64_regs *)
-	    (void *)(((u8 *)pdcs->pdc_reg_vbase) +
+	    (((u8 *)pdcs->pdc_reg_vbase) +
 		     PDC_RXREGS_OFFSET + (sizeof(struct dma64) * ringset));
 
 	pdcs->ntxd = PDC_RING_ENTRIES;
@@ -1318,7 +1317,7 @@ void pdc_hw_init(struct pdc_state *pdcs)
 	iowrite32(PDC_TX_CTL, &dma_reg->dmaxmt.control);
 
 	iowrite32(PDC_RX_CTL + (pdcs->rx_status_len << 1),
-		  (void *)&dma_reg->dmarcv.control);
+		  &dma_reg->dmarcv.control);
 
 	/* Reset current index pointers after making sure DMA is disabled */
 	iowrite32(0, &dma_reg->dmaxmt.ptr);
@@ -1567,7 +1566,7 @@ static int pdc_probe(struct platform_device *pdev)
 	pdc_hw_init(pdcs);
 
 	/* Init tasklet for deferred DMA rx processing */
-	tasklet_init(&pdcs->rx_tasklet, pdc_tasklet_cb, (unsigned long) pdcs);
+	tasklet_init(&pdcs->rx_tasklet, pdc_tasklet_cb, (unsigned long)pdcs);
 
 	err = pdc_interrupts_init(pdcs);
 	if (err)
