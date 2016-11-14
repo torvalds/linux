@@ -15,6 +15,17 @@ be setup by initializing the following fields.
 -  struct drm_mode_config_funcs \*funcs;
    Mode setting functions.
 
+Mode Configuration
+
+KMS Core Structures and Functions
+=================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_mode_config.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_mode_config.h
+   :internal:
+
 Modeset Base Object Abstraction
 ===============================
 
@@ -24,18 +35,6 @@ Modeset Base Object Abstraction
 .. kernel-doc:: drivers/gpu/drm/drm_mode_object.c
    :export:
 
-KMS Data Structures
-===================
-
-.. kernel-doc:: include/drm/drm_crtc.h
-   :internal:
-
-KMS API Functions
-=================
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
-   :export:
-
 Atomic Mode Setting Function Reference
 ======================================
 
@@ -43,6 +42,15 @@ Atomic Mode Setting Function Reference
    :export:
 
 .. kernel-doc:: include/drm/drm_atomic.h
+   :internal:
+
+CRTC Abstraction
+================
+
+.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_crtc.h
    :internal:
 
 Frame Buffer Abstraction
