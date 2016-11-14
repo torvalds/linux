@@ -20,12 +20,14 @@
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
-int read_log(struct tpm_bios_log *log)
+int read_log(struct tpm_chip *chip)
 {
 	struct device_node *np;
 	const u32 *sizep;
 	const u64 *basep;
+	struct tpm_bios_log *log;
 
+	log = &chip->log;
 	if (log->bios_event_log != NULL) {
 		pr_err("%s: ERROR - Eventlog already initialized\n", __func__);
 		return -EFAULT;

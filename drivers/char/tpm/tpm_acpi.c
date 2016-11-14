@@ -9,7 +9,7 @@
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
- * Access to the eventlog extended by the TCG BIOS of PC platform
+ * Access to the event log extended by the TCG BIOS of PC platform
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,13 +45,15 @@ struct acpi_tcpa {
 };
 
 /* read binary bios log */
-int read_log(struct tpm_bios_log *log)
+int read_log(struct tpm_chip *chip)
 {
 	struct acpi_tcpa *buff;
 	acpi_status status;
 	void __iomem *virt;
 	u64 len, start;
+	struct tpm_bios_log *log;
 
+	log = &chip->log;
 	if (log->bios_event_log != NULL) {
 		printk(KERN_ERR
 		       "%s: ERROR - Eventlog already initialized\n",
@@ -97,13 +99,18 @@ int read_log(struct tpm_bios_log *log)
 
 	virt = acpi_os_map_iomem(start, len);
 	if (!virt) {
-		kfree(log->bios_event_log);
 		printk("%s: ERROR - Unable to map memory\n", __func__);
-		return -EIO;
+		goto err;
 	}
 
 	memcpy_fromio(log->bios_event_log, virt, len);
 
 	acpi_os_unmap_iomem(virt, len);
 	return 0;
+
+err:
+	kfree(log->bios_event_log);
+	log->bios_event_log = NULL;
+	return -EIO;
+
 }

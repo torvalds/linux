@@ -127,6 +127,7 @@ static void tpm_dev_release(struct device *dev)
 	idr_remove(&dev_nums_idr, chip->dev_num);
 	mutex_unlock(&idr_lock);
 
+	kfree(chip->log.bios_event_log);
 	kfree(chip);
 }
 
@@ -345,7 +346,7 @@ int tpm_chip_register(struct tpm_chip *chip)
 	tpm_sysfs_add_device(chip);
 
 	rc = tpm_bios_log_setup(chip);
-	if (rc)
+	if (rc == -ENODEV)
 		return rc;
 
 	tpm_add_ppi(chip);
