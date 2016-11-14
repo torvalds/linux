@@ -70,7 +70,6 @@ enum {
 	INTERFACE_MODE_MIXED,
 };
 
-#define ARRAY_LENGTH(a) (sizeof(a) / sizeof((a)[0]))
 #define OCT_ETHTOOL_REGDUMP_LEN  4096
 #define OCT_ETHTOOL_REGDUMP_LEN_23XX  (4096 * 11)
 #define OCT_ETHTOOL_REGSVER  1
@@ -255,14 +254,14 @@ lio_ethtool_get_channels(struct net_device *dev,
 	u32 max_rx = 0, max_tx = 0, tx_count = 0, rx_count = 0;
 
 	if (OCTEON_CN6XXX(oct)) {
-		struct octeon_config *conf6x = CHIP_FIELD(oct, cn6xxx, conf);
+		struct octeon_config *conf6x = CHIP_CONF(oct, cn6xxx);
 
 		max_rx = CFG_GET_OQ_MAX_Q(conf6x);
 		max_tx = CFG_GET_IQ_MAX_Q(conf6x);
 		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf6x, lio->ifidx);
 		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		struct octeon_config *conf23 = CHIP_FIELD(oct, cn23xx_pf, conf);
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
 
 		max_rx = CFG_GET_OQ_MAX_Q(conf23);
 		max_tx = CFG_GET_IQ_MAX_Q(conf23);
@@ -585,14 +584,14 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 	    rx_pending = 0;
 
 	if (OCTEON_CN6XXX(oct)) {
-		struct octeon_config *conf6x = CHIP_FIELD(oct, cn6xxx, conf);
+		struct octeon_config *conf6x = CHIP_CONF(oct, cn6xxx);
 
 		tx_max_pending = CN6XXX_MAX_IQ_DESCRIPTORS;
 		rx_max_pending = CN6XXX_MAX_OQ_DESCRIPTORS;
 		rx_pending = CFG_GET_NUM_RX_DESCS_NIC_IF(conf6x, lio->ifidx);
 		tx_pending = CFG_GET_NUM_TX_DESCS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		struct octeon_config *conf23 = CHIP_FIELD(oct, cn23xx_pf, conf);
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
 
 		tx_max_pending = CN23XX_MAX_IQ_DESCRIPTORS;
 		rx_max_pending = CN23XX_MAX_OQ_DESCRIPTORS;

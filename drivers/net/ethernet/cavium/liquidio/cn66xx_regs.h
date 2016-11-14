@@ -438,10 +438,10 @@
 #define    CN6XXX_SLI_S2M_PORT0_CTL              0x3D80
 #define    CN6XXX_SLI_S2M_PORT1_CTL              0x3D90
 #define    CN6XXX_SLI_S2M_PORTX_CTL(port)        \
-	(CN6XXX_SLI_S2M_PORT0_CTL + (port * 0x10))
+	(CN6XXX_SLI_S2M_PORT0_CTL + ((port) * 0x10))
 
 #define    CN6XXX_SLI_INT_ENB64(port)            \
-	(CN6XXX_SLI_INT_ENB64_PORT0 + (port * 0x10))
+	(CN6XXX_SLI_INT_ENB64_PORT0 + ((port) * 0x10))
 
 #define    CN6XXX_SLI_MAC_NUMBER                 0x3E00
 
@@ -453,7 +453,7 @@
 #define    CN6XXX_PCI_BAR1_OFFSET                  0x8
 
 #define    CN6XXX_BAR1_REG(idx, port) \
-		(CN6XXX_BAR1_INDEX_START + (port * CN6XXX_PEM_OFFSET) + \
+		(CN6XXX_BAR1_INDEX_START + ((port) * CN6XXX_PEM_OFFSET) + \
 		(CN6XXX_PCI_BAR1_OFFSET * (idx)))
 
 /*############################ DPI #########################*/
@@ -471,17 +471,17 @@
 #define    CN6XXX_DPI_DMA_ENG0_ENB        0x0001df0000000080ULL
 
 #define    CN6XXX_DPI_DMA_ENG_ENB(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_ENB + (q_no * 8))
+	(CN6XXX_DPI_DMA_ENG0_ENB + ((q_no) * 8))
 
 #define    CN6XXX_DPI_DMA_ENG0_BUF        0x0001df0000000880ULL
 
 #define    CN6XXX_DPI_DMA_ENG_BUF(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_BUF + (q_no * 8))
+	(CN6XXX_DPI_DMA_ENG0_BUF + ((q_no) * 8))
 
 #define    CN6XXX_DPI_SLI_PRT0_CFG        0x0001df0000000900ULL
 #define    CN6XXX_DPI_SLI_PRT1_CFG        0x0001df0000000908ULL
 #define    CN6XXX_DPI_SLI_PRTX_CFG(port)        \
-	(CN6XXX_DPI_SLI_PRT0_CFG + (port * 0x10))
+	(CN6XXX_DPI_SLI_PRT0_CFG + ((port) * 0x10))
 
 #define    CN6XXX_DPI_DMA_COMMIT_MODE     BIT_ULL(58)
 #define    CN6XXX_DPI_DMA_PKT_HP          BIT_ULL(57)

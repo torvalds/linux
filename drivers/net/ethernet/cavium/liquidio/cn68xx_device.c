@@ -72,7 +72,7 @@ static void lio_cn68xx_setup_pkt_ctl_regs(struct octeon_device *oct)
 	pktctl = octeon_read_csr64(oct, CN6XXX_SLI_PKT_CTL);
 
 	/* 68XX specific */
-	max_oqs = CFG_GET_OQ_MAX_Q(CHIP_FIELD(oct, cn6xxx, conf));
+	max_oqs = CFG_GET_OQ_MAX_Q(CHIP_CONF(oct, cn6xxx));
 	tx_pipe  = octeon_read_csr64(oct, CN68XX_SLI_TX_PIPE);
 	tx_pipe &= 0xffffffffff00ffffULL; /* clear out NUMP field */
 	tx_pipe |= max_oqs << 16; /* put max_oqs in NUMP field */

@@ -516,11 +516,6 @@ static struct octeon_config default_cn23xx_conf = {
 	}
 };
 
-enum {
-	OCTEON_CONFIG_TYPE_DEFAULT = 0,
-	NUM_OCTEON_CONFS,
-};
-
 static struct octeon_config_ptr {
 	u32 conf_type;
 } oct_conf_info[MAX_OCTEON_DEVICES] = {
@@ -792,10 +787,9 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
-			CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn6xxx));
 	else if (OCTEON_CN23XX_PF(oct))
-		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn23xx_pf,
-								conf));
+		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn23xx_pf));
 
 	oct->num_iqs = 0;
 
@@ -835,14 +829,12 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =
-			CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_NUM_DEF_RX_DESCS(CHIP_CONF(oct, cn6xxx));
 		desc_size =
-			CFG_GET_DEF_RX_BUF_SIZE(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn6xxx));
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn23xx_pf,
-								conf));
-		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_FIELD(oct, cn23xx_pf,
-							       conf));
+		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_CONF(oct, cn23xx_pf));
+		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_pf));
 	}
 	oct->num_oqs = 0;
 	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
@@ -1071,10 +1063,10 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 
 	if (OCTEON_CN6XXX(oct))
 		num_nic_ports =
-			CFG_GET_NUM_NIC_PORTS(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_NUM_NIC_PORTS(CHIP_CONF(oct, cn6xxx));
 	else if (OCTEON_CN23XX_PF(oct))
 		num_nic_ports =
-			CFG_GET_NUM_NIC_PORTS(CHIP_FIELD(oct, cn23xx_pf, conf));
+			CFG_GET_NUM_NIC_PORTS(CHIP_CONF(oct, cn23xx_pf));
 
 	if (atomic_read(&oct->status) >= OCT_DEV_RUNNING) {
 		dev_err(&oct->pci_dev->dev, "Received CORE OK when device state is 0x%x\n",
@@ -1169,10 +1161,10 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 
 	if (OCTEON_CN6XXX(oct)) {
 		default_oct_conf =
-			(struct octeon_config *)(CHIP_FIELD(oct, cn6xxx, conf));
+			(struct octeon_config *)(CHIP_CONF(oct, cn6xxx));
 	} else if (OCTEON_CN23XX_PF(oct)) {
 		default_oct_conf = (struct octeon_config *)
-			(CHIP_FIELD(oct, cn23xx_pf, conf));
+			(CHIP_CONF(oct, cn23xx_pf));
 	}
 	return default_oct_conf;
 }

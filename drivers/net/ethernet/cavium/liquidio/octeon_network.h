@@ -128,7 +128,7 @@ struct lio {
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
 
-#define CIU3_WDOG(c)                 (0x1010000020000ULL + (c << 3))
+#define CIU3_WDOG(c)                 (0x1010000020000ULL + ((c) << 3))
 #define CIU3_WDOG_MASK               12ULL
 #define LIO_MONITOR_WDOG_EXPIRE      1
 #define LIO_MONITOR_CORE_STUCK_MSGD  2
@@ -339,9 +339,9 @@ static inline void tx_buffer_free(void *buffer)
 }
 
 #define lio_dma_alloc(oct, size, dma_addr) \
-	dma_alloc_coherent(&oct->pci_dev->dev, size, dma_addr, GFP_KERNEL)
+	dma_alloc_coherent(&(oct)->pci_dev->dev, size, dma_addr, GFP_KERNEL)
 #define lio_dma_free(oct, size, virt_addr, dma_addr) \
-	dma_free_coherent(&oct->pci_dev->dev, size, virt_addr, dma_addr)
+	dma_free_coherent(&(oct)->pci_dev->dev, size, virt_addr, dma_addr)
 
 static inline
 void *get_rbd(struct sk_buff *skb)

@@ -36,7 +36,7 @@ octeon_toggle_bar1_swapmode(struct octeon_device *oct, u32 idx)
 	oct->fn_list.bar1_idx_write(oct, idx, mask);
 }
 #else
-#define octeon_toggle_bar1_swapmode(oct, idx) (oct = oct)
+#define octeon_toggle_bar1_swapmode(oct, idx)
 #endif
 
 static void

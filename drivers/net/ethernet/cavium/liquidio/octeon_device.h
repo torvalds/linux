@@ -48,6 +48,11 @@ enum octeon_pci_swap_mode {
 	OCTEON_PCI_32BIT_LW_SWAP = 3
 };
 
+enum {
+	OCTEON_CONFIG_TYPE_DEFAULT = 0,
+	NUM_OCTEON_CONFS,
+};
+
 #define  OCTEON_OUTPUT_INTR   (2)
 #define  OCTEON_MBOX_INTR     (4)
 #define  OCTEON_ALL_INTR      0xff
@@ -524,12 +529,14 @@ struct octeon_device {
 
 #define  OCT_DRV_ONLINE 1
 #define  OCT_DRV_OFFLINE 2
-#define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
-				       (oct->chip_id == OCTEON_CN68XX))
-#define  OCTEON_CN23XX_PF(oct)        (oct->chip_id == OCTEON_CN23XX_PF_VID)
+#define  OCTEON_CN6XXX(oct)	({					\
+				 typeof(oct) _oct = (oct);		\
+				 ((_oct->chip_id == OCTEON_CN66XX) ||	\
+				  (_oct->chip_id == OCTEON_CN68XX));	})
+#define  OCTEON_CN23XX_PF(oct)        ((oct)->chip_id == OCTEON_CN23XX_PF_VID)
 #define  OCTEON_CN23XX_VF(oct)        ((oct)->chip_id == OCTEON_CN23XX_VF_VID)
-#define CHIP_FIELD(oct, TYPE, field)             \
-	(((struct octeon_ ## TYPE  *)(oct->chip))->field)
+#define CHIP_CONF(oct, TYPE)             \
+	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
 
 struct oct_intrmod_cmd {
 	struct octeon_device *oct_dev;
@@ -641,16 +648,16 @@ void lio_pci_writeq(struct octeon_device *oct, u64 val, u64 addr);
 
 /* Routines for reading and writing CSRs */
 #define   octeon_write_csr(oct_dev, reg_off, value) \
-		writel(value, oct_dev->mmio[0].hw_addr + reg_off)
+		writel(value, (oct_dev)->mmio[0].hw_addr + (reg_off))
 
 #define   octeon_write_csr64(oct_dev, reg_off, val64) \
-		writeq(val64, oct_dev->mmio[0].hw_addr + reg_off)
+		writeq(val64, (oct_dev)->mmio[0].hw_addr + (reg_off))
 
 #define   octeon_read_csr(oct_dev, reg_off)         \
-		readl(oct_dev->mmio[0].hw_addr + reg_off)
+		readl((oct_dev)->mmio[0].hw_addr + (reg_off))
 
 #define   octeon_read_csr64(oct_dev, reg_off)         \
-		readq(oct_dev->mmio[0].hw_addr + reg_off)
+		readq((oct_dev)->mmio[0].hw_addr + (reg_off))
 
 /**
  * Checks if memory access is okay

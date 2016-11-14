@@ -48,9 +48,6 @@ MODULE_PARM_DESC(ddr_timeout,
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
-	(octeon_dev_ptr->instr_queue[iq_no]->stats.field += count)
-
 static int debug = -1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
@@ -58,10 +55,6 @@ MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
 static char fw_type[LIO_MAX_FW_TYPE_LEN];
 module_param_string(fw_type, fw_type, sizeof(fw_type), 0000);
 MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded. Default \"nic\"");
-
-static int conf_type;
-module_param(conf_type, int, 0);
-MODULE_PARM_DESC(conf_type, "select octeon configuration 0 default 1 ovs");
 
 static int ptp_enable = 1;
 
@@ -3726,7 +3719,7 @@ static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
 	return 0;
 }
 
-static struct net_device_ops lionetdevops = {
+static const struct net_device_ops lionetdevops = {
 	.ndo_open		= liquidio_open,
 	.ndo_stop		= liquidio_stop,
 	.ndo_start_xmit		= liquidio_xmit,
@@ -3747,6 +3740,7 @@ static struct net_device_ops lionetdevops = {
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
+	.ndo_select_queue	= select_q
 };
 
 /** \brief Entry point for the liquidio module
@@ -3758,7 +3752,7 @@ static int __init liquidio_init(void)
 
 	init_completion(&first_stage);
 
-	octeon_init_device_list(conf_type);
+	octeon_init_device_list(OCTEON_CONFIG_TYPE_DEFAULT);
 
 	if (liquidio_init_pci())
 		return -EINVAL;
@@ -3978,9 +3972,6 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		}
 
 		SET_NETDEV_DEV(netdev, &octeon_dev->pci_dev->dev);
-
-		if (num_iqueues > 1)
-			lionetdevops.ndo_select_queue = select_q;
 
 		/* Associate the routines that will handle different
 		 * netdev tasks.

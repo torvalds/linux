@@ -66,7 +66,7 @@ enum octeon_tag_type {
 /* Subcodes are used by host driver/apps to identify the sub-operation
  * for the core. They only need to by unique for a given subsystem.
  */
-#define OPCODE_SUBCODE(op, sub)       (((op & 0x0f) << 8) | ((sub) & 0x7f))
+#define OPCODE_SUBCODE(op, sub)       ((((op) & 0x0f) << 8) | ((sub) & 0x7f))
 
 /** OPCODE_CORE subcodes. For future use. */
 
@@ -89,10 +89,6 @@ enum octeon_tag_type {
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
-#define OPCODE_SLOW_PATH(rh)  \
-	(OPCODE_SUBCODE(rh->r.opcode, rh->r.subcode) != \
-		OPCODE_SUBCODE(OPCODE_NIC, OPCODE_NIC_NW_DATA))
-
 /* Application codes advertised by the core driver initialization packet. */
 #define CVM_DRV_APP_START           0x0
 #define CVM_DRV_NO_APP              0
@@ -102,31 +98,15 @@ enum octeon_tag_type {
 #define CVM_DRV_INVALID_APP         (CVM_DRV_APP_START + 0x2)
 #define CVM_DRV_APP_END             (CVM_DRV_INVALID_APP - 1)
 
-/* Macro to increment index.
- * Index is incremented by count; if the sum exceeds
- * max, index is wrapped-around to the start.
- */
-#define INCR_INDEX(index, count, max)                \
-do {                                                 \
-	if (((index) + (count)) >= (max))            \
-		index = ((index) + (count)) - (max); \
-	else                                         \
-		index += (count);                    \
-} while (0)
+static inline u32 incr_index(u32 index, u32 count, u32 max)
+{
+	if ((index + count) >= max)
+		index = index + count - max;
+	else
+		index += count;
 
-#define INCR_INDEX_BY1(index, max)	\
-do {                                    \
-	if ((++(index)) == (max))       \
-		index = 0;	        \
-} while (0)
-
-#define DECR_INDEX(index, count, max)                  \
-do {						       \
-	if ((count) > (index))                         \
-		index = ((max) - ((count - index)));   \
-	else                                           \
-		index -= count;			       \
-} while (0)
+	return index;
+}
 
 #define OCT_BOARD_NAME 32
 #define OCT_SERIAL_LEN 64
@@ -826,6 +806,16 @@ struct oct_link_stats {
 	struct nic_tx_stats fromhost;
 
 };
+
+static inline int opcode_slow_path(union octeon_rh *rh)
+{
+	u16 subcode1, subcode2;
+
+	subcode1 = OPCODE_SUBCODE((rh)->r.opcode, (rh)->r.subcode);
+	subcode2 = OPCODE_SUBCODE(OPCODE_NIC, OPCODE_NIC_NW_DATA);
+
+	return (subcode2 != subcode1);
+}
 
 #define LIO68XX_LED_CTRL_ADDR     0x3501
 #define LIO68XX_LED_CTRL_CFGON    0x1f

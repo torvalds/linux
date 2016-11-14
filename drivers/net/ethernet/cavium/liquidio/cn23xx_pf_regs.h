@@ -58,7 +58,7 @@
 
 #define     CN23XX_CONFIG_SRIOV_BAR_START	   0x19C
 #define     CN23XX_CONFIG_SRIOV_BARX(i)		\
-		(CN23XX_CONFIG_SRIOV_BAR_START + (i * 4))
+		(CN23XX_CONFIG_SRIOV_BAR_START + ((i) * 4))
 #define     CN23XX_CONFIG_SRIOV_BAR_PF		   0x08
 #define     CN23XX_CONFIG_SRIOV_BAR_64BIT	   0x04
 #define     CN23XX_CONFIG_SRIOV_BAR_IO		   0x01
@@ -508,7 +508,7 @@
 /* 4 Registers (64 - bit) */
 #define    CN23XX_SLI_S2M_PORT_CTL_START         0x23D80
 #define    CN23XX_SLI_S2M_PORTX_CTL(port)	\
-		(CN23XX_SLI_S2M_PORT_CTL_START + (port * 0x10))
+		(CN23XX_SLI_S2M_PORT_CTL_START + ((port) * 0x10))
 
 #define    CN23XX_SLI_MAC_NUMBER                 0x20050
 
@@ -549,26 +549,26 @@
  * Provides DMA Engine Queue Enable
  */
 #define    CN23XX_DPI_DMA_ENG0_ENB        0x0001df0000000080ULL
-#define    CN23XX_DPI_DMA_ENG_ENB(eng) (CN23XX_DPI_DMA_ENG0_ENB + (eng * 8))
+#define    CN23XX_DPI_DMA_ENG_ENB(eng) (CN23XX_DPI_DMA_ENG0_ENB + ((eng) * 8))
 
 /* 8 register (64-bit) - DPI_DMA(0..7)_REQQ_CTL
  * Provides control bits for transaction on 8 Queues
  */
 #define    CN23XX_DPI_DMA_REQQ0_CTL       0x0001df0000000180ULL
 #define    CN23XX_DPI_DMA_REQQ_CTL(q_no)	\
-		(CN23XX_DPI_DMA_REQQ0_CTL + (q_no * 8))
+		(CN23XX_DPI_DMA_REQQ0_CTL + ((q_no) * 8))
 
 /* 6 register (64-bit) - DPI_ENG(0..5)_BUF
  * Provides DMA Engine FIFO (Queue) Size
  */
 #define    CN23XX_DPI_DMA_ENG0_BUF        0x0001df0000000880ULL
 #define    CN23XX_DPI_DMA_ENG_BUF(eng)   \
-		(CN23XX_DPI_DMA_ENG0_BUF + (eng * 8))
+		(CN23XX_DPI_DMA_ENG0_BUF + ((eng) * 8))
 
 /* 4 Registers (64-bit) */
 #define    CN23XX_DPI_SLI_PRT_CFG_START   0x0001df0000000900ULL
 #define    CN23XX_DPI_SLI_PRTX_CFG(port)        \
-		(CN23XX_DPI_SLI_PRT_CFG_START + (port * 0x8))
+		(CN23XX_DPI_SLI_PRT_CFG_START + ((port) * 0x8))
 
 /* Masks for DPI_DMA_CONTROL Register */
 #define    CN23XX_DPI_DMA_COMMIT_MODE     BIT_ULL(58)

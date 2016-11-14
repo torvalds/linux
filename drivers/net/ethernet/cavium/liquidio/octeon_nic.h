@@ -64,7 +64,7 @@ struct octnic_ctrl_pkt {
 	octnic_ctrl_pkt_cb_fn_t cb_fn;
 };
 
-#define MAX_UDD_SIZE(nctrl) (sizeof(nctrl->udd))
+#define MAX_UDD_SIZE(nctrl) (sizeof((nctrl)->udd))
 
 /** Structure of data information passed by the NIC module to the OSI
  * layer when forwarding data to Octeon device software.

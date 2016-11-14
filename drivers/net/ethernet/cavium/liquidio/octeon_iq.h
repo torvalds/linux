@@ -303,6 +303,9 @@ struct octeon_sc_buffer_pool {
 	atomic_t alloc_buf_count;
 };
 
+#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
+		(((octeon_dev_ptr)->instr_queue[iq_no]->stats.field) += count)
+
 int octeon_setup_sc_buffer_pool(struct octeon_device *oct);
 int octeon_free_sc_buffer_pool(struct octeon_device *oct);
 struct octeon_soft_command *
