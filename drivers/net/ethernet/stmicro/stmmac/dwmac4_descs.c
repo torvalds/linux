@@ -123,22 +123,29 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		x->ipv4_pkt_rcvd++;
 	if (rdes1 & RDES1_IPV6_HEADER)
 		x->ipv6_pkt_rcvd++;
-	if (message_type == RDES_EXT_SYNC)
-		x->rx_msg_type_sync++;
+
+	if (message_type == RDES_EXT_NO_PTP)
+		x->no_ptp_rx_msg_type_ext++;
+	else if (message_type == RDES_EXT_SYNC)
+		x->ptp_rx_msg_type_sync++;
 	else if (message_type == RDES_EXT_FOLLOW_UP)
-		x->rx_msg_type_follow_up++;
+		x->ptp_rx_msg_type_follow_up++;
 	else if (message_type == RDES_EXT_DELAY_REQ)
-		x->rx_msg_type_delay_req++;
+		x->ptp_rx_msg_type_delay_req++;
 	else if (message_type == RDES_EXT_DELAY_RESP)
-		x->rx_msg_type_delay_resp++;
+		x->ptp_rx_msg_type_delay_resp++;
 	else if (message_type == RDES_EXT_PDELAY_REQ)
-		x->rx_msg_type_pdelay_req++;
+		x->ptp_rx_msg_type_pdelay_req++;
 	else if (message_type == RDES_EXT_PDELAY_RESP)
-		x->rx_msg_type_pdelay_resp++;
+		x->ptp_rx_msg_type_pdelay_resp++;
 	else if (message_type == RDES_EXT_PDELAY_FOLLOW_UP)
-		x->rx_msg_type_pdelay_follow_up++;
-	else
-		x->rx_msg_type_ext_no_ptp++;
+		x->ptp_rx_msg_type_pdelay_follow_up++;
+	else if (message_type == RDES_PTP_ANNOUNCE)
+		x->ptp_rx_msg_type_announce++;
+	else if (message_type == RDES_PTP_MANAGEMENT)
+		x->ptp_rx_msg_type_management++;
+	else if (message_type == RDES_PTP_PKT_RESERVED_TYPE)
+		x->ptp_rx_msg_pkt_reserved_type++;
 
 	if (rdes1 & RDES1_PTP_PACKET_TYPE)
 		x->ptp_frame_type++;
