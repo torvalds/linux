@@ -299,6 +299,14 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 	}
 }
 
+static void
+pnfs_clear_layoutreturn_info(struct pnfs_layout_hdr *lo)
+{
+	lo->plh_return_iomode = 0;
+	lo->plh_return_seq = 0;
+	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+}
+
 /*
  * Mark a pnfs_layout_hdr and all associated layout segments as invalid
  *
@@ -317,6 +325,7 @@ pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
 	};
 
 	set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+	pnfs_clear_layoutreturn_info(lo);
 	return pnfs_mark_matching_lsegs_invalid(lo, lseg_list, &range, 0);
 }
 
@@ -816,14 +825,6 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 	nfs4_deviceid_purge_client(clp);
 
 	pnfs_destroy_layouts_byclid(clp, false);
-}
-
-static void
-pnfs_clear_layoutreturn_info(struct pnfs_layout_hdr *lo)
-{
-	lo->plh_return_iomode = 0;
-	lo->plh_return_seq = 0;
-	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 }
 
 /* update lo->plh_stateid with new if is more recent */
