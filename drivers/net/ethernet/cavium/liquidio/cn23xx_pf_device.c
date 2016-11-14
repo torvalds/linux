@@ -1,27 +1,21 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
-#include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 #include "liquidio_common.h"
@@ -421,10 +415,10 @@ static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 		return -1;
 
 	/** Set the MAC_NUM and PVF_NUM in IQ_PKT_CONTROL reg
-	* for all queues.Only PF can set these bits.
-	* bits 29:30 indicate the MAC num.
-	* bits 32:47 indicate the PVF num.
-	*/
+	 * for all queues.Only PF can set these bits.
+	 * bits 29:30 indicate the MAC num.
+	 * bits 32:47 indicate the PVF num.
+	 */
 	for (q_no = 0; q_no < ern; q_no++) {
 		reg_val = oct->pcie_port << CN23XX_PKT_INPUT_CTL_MAC_NUM_POS;
 
@@ -547,8 +541,8 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	writeq(0x40, (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_WMARK);
 
 	/** Disabling setting OQs in reset when ring has no dorebells
-	  * enabling this will cause of head of line blocking
-	  */
+	 * enabling this will cause of head of line blocking
+	 */
 	/* Do it only for pass1.1. and pass1.2 */
 	if ((oct->rev_id == OCTEON_CN23XX_REV_1_0) ||
 	    (oct->rev_id == OCTEON_CN23XX_REV_1_1))
@@ -1391,8 +1385,7 @@ void cn23xx_dump_iq_regs(struct octeon_device *oct)
 		dev_dbg(&oct->pci_dev->dev, "SLI_PKT[%d]_INPUT_CTL [0x%x]: 0x%016llx\n",
 			q_no, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
 			CVM_CAST64(octeon_read_csr64
-				(oct,
-					CN23XX_SLI_IQ_PKT_CONTROL64(q_no))));
+				(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no))));
 	}
 
 	pci_read_config_dword(oct->pci_dev, CN23XX_CONFIG_PCIE_DEVCTL, &regval);

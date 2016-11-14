@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -13,13 +13,8 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
- **********************************************************************/
-
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file octeon_main.h
  *  \brief Host Driver: This file is included by all host driver source files
  *  to include common definitions.
@@ -78,10 +73,10 @@ static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
 }
 
 /**
-  * \brief unmaps a PCI BAR
-  * @param oct Pointer to Octeon device
-  * @param baridx bar index
-  */
+ * \brief unmaps a PCI BAR
+ * @param oct Pointer to Octeon device
+ * @param baridx bar index
+ */
 static inline void octeon_unmap_pci_barx(struct octeon_device *oct, int baridx)
 {
 	dev_dbg(&oct->pci_dev->dev, "Freeing PCI mapped regions for Bar%d\n",

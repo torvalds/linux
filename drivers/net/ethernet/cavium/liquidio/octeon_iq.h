@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -13,13 +13,8 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
- **********************************************************************/
-
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*!  \file  octeon_iq.h
  *   \brief Host Driver: Implementation of Octeon input queues. "Input" is
  *   with respect to the Octeon device on the NIC. From this driver's
@@ -77,7 +72,7 @@ struct oct_iq_stats {
  *  The input queue is used to post raw (instruction) mode data or packet
  *  data to Octeon device from the host. Each input queue (upto 4) for
  *  a Octeon device has one such structure to represent it.
-*/
+ */
 struct octeon_instr_queue {
 	struct octeon_device *oct_dev;
 
@@ -117,8 +112,8 @@ struct octeon_instr_queue {
 	u32 octeon_read_index;
 
 	/** This index aids in finding the window in the queue where Octeon
-	  * has read the commands.
-	  */
+	 *  has read the commands.
+	 */
 	u32 flush_index;
 
 	/** This field keeps track of the instructions pending in this queue. */
@@ -149,8 +144,8 @@ struct octeon_instr_queue {
 	u64 last_db_time;
 
 	/** The doorbell timeout. If the doorbell was not rung for this time and
-	  * fill_cnt is non-zero, ring the doorbell again.
-	  */
+	 * fill_cnt is non-zero, ring the doorbell again.
+	 */
 	u32 db_timeout;
 
 	/** Statistics for this input queue. */

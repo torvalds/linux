@@ -1,25 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*! \file octeon_device.h
  *  \brief Host Driver: This file defines the octeon device structure.
  */
@@ -93,9 +88,9 @@ enum octeon_pci_swap_mode {
 #define    OCT_DEV_STATES                 OCT_DEV_STATE_INVALID
 
 /** Octeon Device interrupts
-  *  These interrupt bits are set in int_status filed of
-  *  octeon_device structure
-  */
+ * These interrupt bits are set in int_status filed of
+ * octeon_device structure
+ */
 #define	   OCT_DEV_INTR_DMA0_FORCE	  0x01
 #define	   OCT_DEV_INTR_DMA1_FORCE	  0x02
 #define	   OCT_DEV_INTR_PKT_DATA	  0x04
@@ -548,7 +543,7 @@ struct oct_intrmod_cmd {
 void octeon_init_device_list(int conf_type);
 
 /** Free memory for Input and Output queue structures for a octeon device */
-void octeon_free_device_mem(struct octeon_device *);
+void octeon_free_device_mem(struct octeon_device *oct);
 
 /* Look up a free entry in the octeon_device table and allocate resources
  * for the octeon_device structure for an octeon device. Called at init
