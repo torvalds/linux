@@ -104,11 +104,11 @@ config DA9063_WATCHDOG
 	  This driver can be built as a module. The module name is da9063_wdt.
 
 config DA9062_WATCHDOG
-	tristate "Dialog DA9062 Watchdog"
+	tristate "Dialog DA9062/61 Watchdog"
 	depends on MFD_DA9062
 	select WATCHDOG_CORE
 	help
-	  Support for the watchdog in the DA9062 PMIC.
+	  Support for the watchdog in the DA9062 and DA9061 PMICs.
 
 	  This driver can be built as a module. The module name is da9062_wdt.
 
