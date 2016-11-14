@@ -43,7 +43,6 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int mst_pbn;
 
-	pipe_config->dp_encoder_is_mst = true;
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
 	/*

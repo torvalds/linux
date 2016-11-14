@@ -652,7 +652,6 @@ struct intel_crtc_state {
 
 	bool double_wide;
 
-	bool dp_encoder_is_mst;
 	int pbn;
 
 	struct intel_crtc_scaler_state scaler_state;
