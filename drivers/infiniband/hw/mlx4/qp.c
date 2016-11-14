@@ -644,7 +644,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	int qpn;
 	int err;
 	struct ib_qp_cap backup_cap;
-	struct mlx4_ib_sqp *sqp;
+	struct mlx4_ib_sqp *sqp = NULL;
 	struct mlx4_ib_qp *qp;
 	enum mlx4_ib_qp_type qp_type = (enum mlx4_ib_qp_type) init_attr->qp_type;
 	struct mlx4_ib_cq *mcq;
@@ -933,7 +933,9 @@ err_db:
 		mlx4_db_free(dev->dev, &qp->db);
 
 err:
-	if (!*caller_qp)
+	if (sqp)
+		kfree(sqp);
+	else if (!*caller_qp)
 		kfree(qp);
 	return err;
 }
