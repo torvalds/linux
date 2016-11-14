@@ -99,6 +99,7 @@ static void setup_vgpu_cfg_space(struct intel_vgpu *vgpu,
 	 */
 	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_1, 0, 4);
 	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_3, 0, 4);
+	memset(vgpu_cfg_space(vgpu) + INTEL_GVT_PCI_OPREGION, 0, 4);
 
 	for (i = 0; i < INTEL_GVT_MAX_BAR_NUM; i++) {
 		vgpu->cfg_space.bar[i].size = pci_resource_len(
