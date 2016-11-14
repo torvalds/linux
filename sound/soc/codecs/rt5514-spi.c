@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
