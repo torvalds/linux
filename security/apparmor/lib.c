@@ -95,7 +95,8 @@ void *__aa_kvmalloc(size_t size, gfp_t flags)
 
 	/* do not attempt kmalloc if we need more than 16 pages at once */
 	if (size <= (16*PAGE_SIZE))
-		buffer = kmalloc(size, flags | GFP_NOIO | __GFP_NOWARN);
+		buffer = kmalloc(size, flags | GFP_KERNEL | __GFP_NORETRY |
+				 __GFP_NOWARN);
 	if (!buffer) {
 		if (flags & __GFP_ZERO)
 			buffer = vzalloc(size);
