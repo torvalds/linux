@@ -1832,7 +1832,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
-	unsigned int mask = (s->maxdata + 1) >> 1;
+	unsigned int mask = s->maxdata;
 	int i, n;
 	unsigned int signbits;
 	unsigned int d;
