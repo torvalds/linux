@@ -430,6 +430,9 @@ vlv_update_plane(struct drm_plane *dplane,
 	if (rotation & DRM_ROTATE_180)
 		sprctl |= SP_ROTATE_180;
 
+	if (rotation & DRM_REFLECT_X)
+		sprctl |= SP_MIRROR;
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
@@ -442,6 +445,8 @@ vlv_update_plane(struct drm_plane *dplane,
 	if (rotation & DRM_ROTATE_180) {
 		x += src_w;
 		y += src_h;
+	} else if (rotation & DRM_REFLECT_X) {
+		x += src_w;
 	}
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
@@ -1121,6 +1126,10 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		supported_rotations =
 			DRM_ROTATE_0 | DRM_ROTATE_90 |
 			DRM_ROTATE_180 | DRM_ROTATE_270;
+	} else if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
+		supported_rotations =
+			DRM_ROTATE_0 | DRM_ROTATE_180 |
+			DRM_REFLECT_X;
 	} else {
 		supported_rotations =
 			DRM_ROTATE_0 | DRM_ROTATE_180;

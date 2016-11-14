@@ -106,6 +106,7 @@ intel_plane_destroy_state(struct drm_plane *plane,
 static int intel_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_crtc *crtc = state->crtc;
 	struct intel_crtc *intel_crtc;
 	struct intel_crtc_state *crtc_state;
@@ -165,6 +166,14 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		default:
 			break;
 		}
+	}
+
+	/* CHV ignores the mirror bit when the rotate bit is set :( */
+	if (IS_CHERRYVIEW(dev_priv) &&
+	    state->rotation & DRM_ROTATE_180 &&
+	    state->rotation & DRM_REFLECT_X) {
+		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
+		return -EINVAL;
 	}
 
 	intel_state->base.visible = false;
