@@ -320,7 +320,7 @@ static int __init zcore_init(void)
 		goto fail;
 	}
 
-	pr_alert("DETECTED 'S390X (64 bit) OS'\n");
+	pr_alert("The dump process started for a 64-bit operating system\n");
 	rc = init_cpu_info();
 	if (rc)
 		goto fail;
