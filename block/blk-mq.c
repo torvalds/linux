@@ -332,6 +332,7 @@ static void __blk_mq_free_request(struct blk_mq_hw_ctx *hctx,
 	rq->rq_flags = 0;
 
 	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
+	clear_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags);
 	blk_mq_put_tag(hctx, ctx, tag);
 	blk_queue_exit(q);
 }
@@ -2468,10 +2469,59 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 }
 EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 
+static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
+				     struct request *rq)
+{
+	struct hrtimer_sleeper hs;
+	enum hrtimer_mode mode;
+	ktime_t kt;
+
+	if (!q->poll_nsec || test_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags))
+		return false;
+
+	set_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags);
+
+	/*
+	 * This will be replaced with the stats tracking code, using
+	 * 'avg_completion_time / 2' as the pre-sleep target.
+	 */
+	kt = ktime_set(0, q->poll_nsec);
+
+	mode = HRTIMER_MODE_REL;
+	hrtimer_init_on_stack(&hs.timer, CLOCK_MONOTONIC, mode);
+	hrtimer_set_expires(&hs.timer, kt);
+
+	hrtimer_init_sleeper(&hs, current);
+	do {
+		if (test_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags))
+			break;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		hrtimer_start_expires(&hs.timer, mode);
+		if (hs.task)
+			io_schedule();
+		hrtimer_cancel(&hs.timer);
+		mode = HRTIMER_MODE_ABS;
+	} while (hs.task && !signal_pending(current));
+
+	__set_current_state(TASK_RUNNING);
+	destroy_hrtimer_on_stack(&hs.timer);
+	return true;
+}
+
 static bool __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 {
 	struct request_queue *q = hctx->queue;
 	long state;
+
+	/*
+	 * If we sleep, have the caller restart the poll loop to reset
+	 * the state. Like for the other success return cases, the
+	 * caller is responsible for checking if the IO completed. If
+	 * the IO isn't complete, we'll get called again and will go
+	 * straight to the busy poll loop.
+	 */
+	if (blk_mq_poll_hybrid_sleep(q, rq))
+		return true;
 
 	hctx->poll_considered++;
 
