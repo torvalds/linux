@@ -337,7 +337,7 @@ int octeon_init_droq(struct octeon_device *oct,
 	/* For 56xx Pass1, this function won't be called, so no checks. */
 	oct->fn_list.setup_oq_regs(oct, q_no);
 
-	oct->io_qmask.oq |= (1ULL << q_no);
+	oct->io_qmask.oq |= BIT_ULL(q_no);
 
 	return 0;
 

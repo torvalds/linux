@@ -757,9 +757,6 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	/*sum of oct->instr_queue[iq_no]->stats.tx_dropped */
 	data[i++] = CVM_CAST64(netstats->tx_dropped);
 
-	/*data[i++] = CVM_CAST64(stats->multicast); */
-	/*data[i++] = CVM_CAST64(stats->collisions); */
-
 	/* firmware tx stats */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[mdata->from_ifidx].
 	 *fromhost.fw_total_sent
@@ -910,9 +907,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	/*lio->link_changes*/
 	data[i++] = CVM_CAST64(lio->link_changes);
 
-	/* TX  -- lio_update_stats(lio); */
 	for (j = 0; j < MAX_OCTEON_INSTR_QUEUES(oct_dev); j++) {
-		if (!(oct_dev->io_qmask.iq & (1ULL << j)))
+		if (!(oct_dev->io_qmask.iq & BIT_ULL(j)))
 			continue;
 		/*packets to network port*/
 		/*# of packets tx to network */
@@ -954,9 +950,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	}
 
 	/* RX */
-	/* for (j = 0; j < oct_dev->num_oqs; j++) { */
 	for (j = 0; j < MAX_OCTEON_OUTPUT_QUEUES(oct_dev); j++) {
-		if (!(oct_dev->io_qmask.oq & (1ULL << j)))
+		if (!(oct_dev->io_qmask.oq & BIT_ULL(j)))
 			continue;
 
 		/*packets send to TCP/IP network stack */
@@ -1030,7 +1025,7 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 		num_iq_stats = ARRAY_SIZE(oct_iq_stats_strings);
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct_dev); i++) {
-			if (!(oct_dev->io_qmask.iq & (1ULL << i)))
+			if (!(oct_dev->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			for (j = 0; j < num_iq_stats; j++) {
 				sprintf(data, "tx-%d-%s", i,
@@ -1040,9 +1035,8 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		}
 
 		num_oq_stats = ARRAY_SIZE(oct_droq_stats_strings);
-		/* for (i = 0; i < oct_dev->num_oqs; i++) { */
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct_dev); i++) {
-			if (!(oct_dev->io_qmask.oq & (1ULL << i)))
+			if (!(oct_dev->io_qmask.oq & BIT_ULL(i)))
 				continue;
 			for (j = 0; j < num_oq_stats; j++) {
 				sprintf(data, "rx-%d-%s", i,

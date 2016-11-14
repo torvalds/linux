@@ -275,7 +275,6 @@ void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
 {
 	struct octeon_instr_queue *iq = oct->instr_queue[iq_no];
 
-	/* Disable Packet-by-Packet mode; No Parse Mode or Skip length */
 	octeon_write_csr64(oct, CN6XXX_SLI_IQ_PKT_INSTR_HDR64(iq_no), 0);
 
 	/* Write the start of the input queue's ring and its size  */
@@ -378,7 +377,7 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 
 	/* Reset the doorbell register for each Input queue. */
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.iq & (1ULL << i)))
+		if (!(oct->io_qmask.iq & BIT_ULL(i)))
 			continue;
 		octeon_write_csr(oct, CN6XXX_SLI_IQ_DOORBELL(i), 0xFFFFFFFF);
 		d32 = octeon_read_csr(oct, CN6XXX_SLI_IQ_DOORBELL(i));
@@ -400,9 +399,8 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 	;
 
 	/* Reset the doorbell register for each Output queue. */
-	/* for (i = 0; i < oct->num_oqs; i++) { */
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.oq & (1ULL << i)))
+		if (!(oct->io_qmask.oq & BIT_ULL(i)))
 			continue;
 		octeon_write_csr(oct, CN6XXX_SLI_OQ_PKTS_CREDIT(i), 0xFFFFFFFF);
 		d32 = octeon_read_csr(oct, CN6XXX_SLI_OQ_PKTS_CREDIT(i));
@@ -537,15 +535,14 @@ static int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct)
 
 	oct->droq_intr = 0;
 
-	/* for (oq_no = 0; oq_no < oct->num_oqs; oq_no++) { */
 	for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct); oq_no++) {
-		if (!(droq_mask & (1ULL << oq_no)))
+		if (!(droq_mask & BIT_ULL(oq_no)))
 			continue;
 
 		droq = oct->droq[oq_no];
 		pkt_count = octeon_droq_check_hw_for_pkts(droq);
 		if (pkt_count) {
-			oct->droq_intr |= (1ULL << oq_no);
+			oct->droq_intr |= BIT_ULL(oq_no);
 			if (droq->ops.poll_mode) {
 				u32 value;
 				u32 reg;
@@ -721,8 +718,6 @@ int lio_setup_cn66xx_octeon_device(struct octeon_device *oct)
 int lio_validate_cn6xxx_config_info(struct octeon_device *oct,
 				    struct octeon_config *conf6xxx)
 {
-	/* int total_instrs = 0; */
-
 	if (CFG_GET_IQ_MAX_Q(conf6xxx) > CN6XXX_MAX_INPUT_QUEUES) {
 		dev_err(&oct->pci_dev->dev, "%s: Num IQ (%d) exceeds Max (%d)\n",
 			__func__, CFG_GET_IQ_MAX_Q(conf6xxx),

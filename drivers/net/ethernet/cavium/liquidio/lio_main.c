@@ -19,10 +19,8 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
-#include <linux/ptp_clock_kernel.h>
 #include <net/vxlan.h>
 #include <linux/kthread.h>
 #include "liquidio_common.h"
@@ -201,9 +199,8 @@ static void octeon_droq_bh(unsigned long pdev)
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
 
-	/* for (q_no = 0; q_no < oct->num_oqs; q_no++) { */
 	for (q_no = 0; q_no < MAX_OCTEON_OUTPUT_QUEUES(oct); q_no++) {
-		if (!(oct->io_qmask.oq & (1ULL << q_no)))
+		if (!(oct->io_qmask.oq & BIT_ULL(q_no)))
 			continue;
 		reschedule |= octeon_droq_process_packets(oct, oct->droq[q_no],
 							  MAX_PACKET_BUDGET);
@@ -238,7 +235,7 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 		pending_pkts = 0;
 
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-			if (!(oct->io_qmask.oq & (1ULL << i)))
+			if (!(oct->io_qmask.oq & BIT_ULL(i)))
 				continue;
 			pkt_cnt += octeon_droq_check_hw_for_pkts(oct->droq[i]);
 		}
@@ -320,7 +317,7 @@ static inline void pcierror_quiesce_device(struct octeon_device *oct)
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 		struct octeon_instr_queue *iq;
 
-		if (!(oct->io_qmask.iq & (1ULL << i)))
+		if (!(oct->io_qmask.iq & BIT_ULL(i)))
 			continue;
 		iq = oct->instr_queue[i];
 
@@ -386,7 +383,6 @@ static void stop_pci_io(struct octeon_device *oct)
 	dev_dbg(&oct->pci_dev->dev, "Device state is now %s\n",
 		lio_get_state_string(&oct->status));
 
-	/* cn63xx_cleanup_aer_uncorrect_error_status(oct->pci_dev); */
 	/* making it a common function for all OCTEON models */
 	cleanup_aer_uncorrect_error_status(oct->pci_dev);
 }
@@ -941,7 +937,6 @@ static inline void update_link_status(struct net_device *netdev,
 
 		if (lio->linfo.link.s.link_up) {
 			netif_carrier_on(netdev);
-			/* start_txq(netdev); */
 			txqs_wake(netdev);
 		} else {
 			netif_carrier_off(netdev);
@@ -1019,7 +1014,7 @@ static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 	if (oct->int_status & OCT_DEV_INTR_PKT_DATA) {
 		for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct);
 		     oq_no++) {
-			if (!(oct->droq_intr & (1ULL << oq_no)))
+			if (!(oct->droq_intr & BIT_ULL(oq_no)))
 				continue;
 
 			droq = oct->droq[oq_no];
@@ -1468,7 +1463,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	/* fallthrough */
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
-		/*atomic_set(&oct->status, OCT_DEV_DROQ_INIT_DONE);*/
+		/* Wait for any pending operations */
 		mdelay(100);
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
 			if (!(oct->io_qmask.oq & BIT_ULL(i)))
@@ -2461,7 +2456,6 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 		 * Return back if tx_done is false.
 		 */
 		update_txq_status(oct, iq_no);
-		/*tx_done = (iq->flush_index == iq->octeon_read_index);*/
 	} else {
 		dev_err(&oct->pci_dev->dev, "%s:  iq (%d) num invalid\n",
 			__func__, iq_no);

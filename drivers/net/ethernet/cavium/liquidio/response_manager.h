@@ -85,7 +85,6 @@ enum {
 /**  A value of 0x00000000 indicates no error i.e. success */
 #define DRIVER_ERROR_NONE                 0x00000000
 
-/**  (Major number: 0x0000; Minor Number: 0x0001) */
 #define DRIVER_ERROR_REQ_PENDING          0x00000001
 #define DRIVER_ERROR_REQ_TIMEOUT          0x00000003
 #define DRIVER_ERROR_REQ_EINTR            0x00000004

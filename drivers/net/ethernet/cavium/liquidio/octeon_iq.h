@@ -69,7 +69,6 @@ struct oct_iq_stats {
 	u64 tx_vxlan; /* tunnel */
 	u64 tx_dmamap_fail;
 	u64 tx_restart;
-	/*u64 tx_timeout_count;*/
 };
 
 #define OCT_IQ_STATS_SIZE   (sizeof(struct oct_iq_stats))

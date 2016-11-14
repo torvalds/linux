@@ -207,24 +207,6 @@ out:
 	return errno;
 }
 
-static inline void
-sleep_atomic_cond(wait_queue_head_t *waitq, atomic_t *pcond)
-{
-	wait_queue_t we;
-
-	init_waitqueue_entry(&we, current);
-	add_wait_queue(waitq, &we);
-	while (!atomic_read(pcond)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current))
-			goto out;
-		schedule();
-	}
-out:
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(waitq, &we);
-}
-
 /* Gives up the CPU for a timeout period.
  * Check that the condition is not true before we go to sleep for a
  * timeout period.

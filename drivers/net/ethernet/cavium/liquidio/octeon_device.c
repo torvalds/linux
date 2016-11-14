@@ -649,12 +649,12 @@ void octeon_free_device_mem(struct octeon_device *oct)
 	int i;
 
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (oct->io_qmask.oq & (1ULL << i))
+		if (oct->io_qmask.oq & BIT_ULL(i))
 			vfree(oct->droq[i]);
 	}
 
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-		if (oct->io_qmask.iq & (1ULL << i))
+		if (oct->io_qmask.iq & BIT_ULL(i))
 			vfree(oct->instr_queue[i]);
 	}
 
@@ -1148,7 +1148,7 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 {
 	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES(oct)) &&
-	    (oct->io_qmask.iq & (1ULL << q_no)))
+	    (oct->io_qmask.iq & BIT_ULL(q_no)))
 		return oct->instr_queue[q_no]->max_count;
 
 	return -1;
@@ -1157,7 +1157,7 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
 {
 	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
-	    (oct->io_qmask.oq & (1ULL << q_no)))
+	    (oct->io_qmask.oq & BIT_ULL(q_no)))
 		return oct->droq[q_no]->max_count;
 	return -1;
 }

@@ -81,11 +81,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 		spin_lock_bh(&ordered_sc_list->lock);
 
 		if (ordered_sc_list->head.next == &ordered_sc_list->head) {
-			/* ordered_sc_list is empty; there is
-			 * nothing to process
-			 */
-			spin_unlock_bh
-			    (&ordered_sc_list->lock);
+			spin_unlock_bh(&ordered_sc_list->lock);
 			return 1;
 		}
 

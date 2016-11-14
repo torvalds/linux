@@ -145,7 +145,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 
 	spin_lock_init(&iq->iq_flush_running_lock);
 
-	oct->io_qmask.iq |= (1ULL << iq_no);
+	oct->io_qmask.iq |= BIT_ULL(iq_no);
 
 	/* Set the 32B/64B mode for each input queue */
 	oct->io_qmask.iq64B |= ((conf->instr_type == 64) << iq_no);
@@ -252,9 +252,8 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 	do {
 		instr_cnt = 0;
 
-		/*for (i = 0; i < oct->num_iqs; i++) {*/
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-			if (!(oct->io_qmask.iq & (1ULL << i)))
+			if (!(oct->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			pending =
 			    atomic_read(&oct->
@@ -579,8 +578,6 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 	/* This is only done here to expedite packets being flushed
 	 * for cases where there are no IQ completion interrupts.
 	 */
-	/*if (iq->do_auto_flush)*/
-	/*	octeon_flush_iq(oct, iq, 2, 0);*/
 
 	return st.status;
 }

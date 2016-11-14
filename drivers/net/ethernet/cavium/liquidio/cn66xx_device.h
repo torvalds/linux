@@ -96,8 +96,8 @@ void lio_cn6xxx_setup_reg_address(struct octeon_device *oct, void *chip,
 				  struct octeon_reg_list *reg_list);
 u32 lio_cn6xxx_coprocessor_clock(struct octeon_device *oct);
 u32 lio_cn6xxx_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us);
-int lio_setup_cn66xx_octeon_device(struct octeon_device *);
+int lio_setup_cn66xx_octeon_device(struct octeon_device *oct);
 int lio_validate_cn6xxx_config_info(struct octeon_device *oct,
-				    struct octeon_config *);
+				    struct octeon_config *conf6xxx);
 
 #endif

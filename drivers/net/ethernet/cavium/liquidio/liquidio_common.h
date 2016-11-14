@@ -68,8 +68,6 @@ enum octeon_tag_type {
  */
 #define OPCODE_CORE 0           /* used for generic core operations */
 #define OPCODE_NIC  1           /* used for NIC operations */
-#define OPCODE_LAST OPCODE_NIC
-
 /* Subcodes are used by host driver/apps to identify the sub-operation
  * for the core. They only need to by unique for a given subsystem.
  */
