@@ -378,7 +378,7 @@ struct dentry **tpm_bios_log_setup(const char *name)
 
 	bin_file =
 	    securityfs_create_file("binary_bios_measurements",
-				   S_IRUSR | S_IRGRP, tpm_dir,
+				   0440, tpm_dir,
 				   (void *)&tpm_binary_b_measurements_seqops,
 				   &tpm_bios_measurements_ops);
 	if (is_bad(bin_file))
@@ -386,7 +386,7 @@ struct dentry **tpm_bios_log_setup(const char *name)
 
 	ascii_file =
 	    securityfs_create_file("ascii_bios_measurements",
-				   S_IRUSR | S_IRGRP, tpm_dir,
+				   0440, tpm_dir,
 				   (void *)&tpm_ascii_b_measurements_seqops,
 				   &tpm_bios_measurements_ops);
 	if (is_bad(ascii_file))
