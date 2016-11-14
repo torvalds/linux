@@ -826,7 +826,7 @@ static int __init xenbus_init(void)
 	 * Create xenfs mountpoint in /proc for compatibility with
 	 * utilities that expect to find "xenbus" under "/proc/xen".
 	 */
-	proc_mkdir("xen", NULL);
+	proc_create_mount_point("xen");
 #endif
 
 out_error:
