@@ -717,10 +717,11 @@ void __init omap5_init_early(void)
 			      OMAP2_L4_IO_ADDRESS(OMAP54XX_SCM_BASE));
 	omap2_set_globals_prcm_mpu(OMAP2_L4_IO_ADDRESS(OMAP54XX_PRCM_MPU_BASE));
 	omap2_control_base_init();
-	omap4_pm_init_early();
 	omap2_prcm_base_init();
 	omap5xxx_check_revision();
 	omap4_sar_ram_init();
+	omap4_mpuss_early_init();
+	omap4_pm_init_early();
 	omap54xx_voltagedomains_init();
 	omap54xx_powerdomains_init();
 	omap54xx_clockdomains_init();
