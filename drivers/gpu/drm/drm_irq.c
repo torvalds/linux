@@ -234,6 +234,16 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	store_vblank(dev, pipe, diff, &t_vblank, cur_vblank);
 }
 
+static u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
+{
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+
+	if (WARN_ON(pipe >= dev->num_crtcs))
+		return 0;
+
+	return vblank->count;
+}
+
 /**
  * drm_accurate_vblank_count - retrieve the master vblank counter
  * @crtc: which counter to retrieve
@@ -888,39 +898,12 @@ drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
 }
 
 /**
- * drm_vblank_count - retrieve "cooked" vblank counter value
- * @dev: DRM device
- * @pipe: index of CRTC for which to retrieve the counter
- *
- * Fetches the "cooked" vblank count value that represents the number of
- * vblank events since the system was booted, including lost events due to
- * modesetting activity.
- *
- * This is the legacy version of drm_crtc_vblank_count().
- *
- * Returns:
- * The software vblank counter.
- */
-u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
-{
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-
-	if (WARN_ON(pipe >= dev->num_crtcs))
-		return 0;
-
-	return vblank->count;
-}
-EXPORT_SYMBOL(drm_vblank_count);
-
-/**
  * drm_crtc_vblank_count - retrieve "cooked" vblank counter value
  * @crtc: which counter to retrieve
  *
  * Fetches the "cooked" vblank count value that represents the number of
  * vblank events since the system was booted, including lost events due to
  * modesetting activity.
- *
- * This is the native KMS version of drm_vblank_count().
  *
  * Returns:
  * The software vblank counter.
