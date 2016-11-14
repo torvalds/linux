@@ -60,7 +60,13 @@
 #define RING_ENTRY_SIZE   sizeof(struct dma64dd)
 
 /* # entries in PDC dma ring */
-#define PDC_RING_ENTRIES  128
+#define PDC_RING_ENTRIES  512
+/*
+ * Minimum number of ring descriptor entries that must be free to tell mailbox
+ * framework that it can submit another request
+ */
+#define PDC_RING_SPACE_MIN  15
+
 #define PDC_RING_SIZE    (PDC_RING_ENTRIES * RING_ENTRY_SIZE)
 /* Rings are 8k aligned */
 #define RING_ALIGN_ORDER  13
@@ -93,11 +99,9 @@
  * Interrupt mask and status definitions. Enable interrupts for tx and rx on
  * ring 0
  */
-#define PDC_XMTINT_0         (24 + PDC_RINGSET)
 #define PDC_RCVINT_0         (16 + PDC_RINGSET)
-#define PDC_XMTINTEN_0       BIT(PDC_XMTINT_0)
 #define PDC_RCVINTEN_0       BIT(PDC_RCVINT_0)
-#define PDC_INTMASK  (PDC_XMTINTEN_0 | PDC_RCVINTEN_0)
+#define PDC_INTMASK	     (PDC_RCVINTEN_0)
 #define PDC_LAZY_FRAMECOUNT  1
 #define PDC_LAZY_TIMEOUT     10000
 #define PDC_LAZY_INT  (PDC_LAZY_TIMEOUT | (PDC_LAZY_FRAMECOUNT << 24))
@@ -258,9 +262,6 @@ struct pdc_ring_alloc {
 
 /* PDC state structure */
 struct pdc_state {
-	/* synchronize access to this PDC state structure */
-	spinlock_t pdc_lock;
-
 	/* Index of the PDC whose state is in this structure instance */
 	u8 pdc_idx;
 
@@ -401,11 +402,14 @@ struct pdc_state {
 	struct dentry *debugfs_stats;  /* debug FS stats file for this PDC */
 
 	/* counters */
-	u32  pdc_requests;    /* number of request messages submitted */
-	u32  pdc_replies;     /* number of reply messages received */
-	u32  txnobuf;         /* count of tx ring full */
-	u32  rxnobuf;         /* count of rx ring full */
-	u32  rx_oflow;        /* count of rx overflows */
+	u32  pdc_requests;     /* number of request messages submitted */
+	u32  pdc_replies;      /* number of reply messages received */
+	u32  last_tx_not_done; /* too few tx descriptors to indicate done */
+	u32  tx_ring_full;     /* unable to accept msg because tx ring full */
+	u32  rx_ring_full;     /* unable to accept msg because rx ring full */
+	u32  txnobuf;          /* unable to create tx descriptor */
+	u32  rxnobuf;          /* unable to create rx descriptor */
+	u32  rx_oflow;         /* count of rx overflows */
 };
 
 /* Global variables */
@@ -438,20 +442,33 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "SPU %u stats:\n", pdcs->pdc_idx);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "PDC requests............%u\n",
+			       "PDC requests....................%u\n",
 			       pdcs->pdc_requests);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "PDC responses...........%u\n",
+			       "PDC responses...................%u\n",
 			       pdcs->pdc_replies);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Tx err ring full........%u\n",
+			       "Tx not done.....................%u\n",
+			       pdcs->last_tx_not_done);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Tx ring full....................%u\n",
+			       pdcs->tx_ring_full);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Rx ring full....................%u\n",
+			       pdcs->rx_ring_full);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Tx desc write fail. Ring full...%u\n",
 			       pdcs->txnobuf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Rx err ring full........%u\n",
+			       "Rx desc write fail. Ring full...%u\n",
 			       pdcs->rxnobuf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Receive overflow........%u\n",
+			       "Receive overflow................%u\n",
 			       pdcs->rx_oflow);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Num frags in rx ring............%u\n",
+			       NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr,
+				       pdcs->nrxpost));
 
 	if (out_offset > out_count)
 		out_offset = out_count;
@@ -582,8 +599,6 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 	u32 rx_idx;      /* ring index of start of receive frame */
 	dma_addr_t resp_hdr_daddr;
 
-	spin_lock(&pdcs->pdc_lock);
-
 	/*
 	 * return if a complete response message is not yet ready.
 	 * rxin_numd[rxin] is the number of fragments in the next msg
@@ -600,7 +615,6 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 		if ((frags_rdy == 0) ||
 		    (frags_rdy < pdcs->rxin_numd[pdcs->rxin])) {
 			/* No response ready */
-			spin_unlock(&pdcs->pdc_lock);
 			return -EAGAIN;
 		}
 		/* can't read descriptors/data until write index is read */
@@ -629,8 +643,6 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 
 	for (i = 0; i < num_frags; i++)
 		pdcs->rxin = NEXTRXD(pdcs->rxin, pdcs->nrxpost);
-
-	spin_unlock(&pdcs->pdc_lock);
 
 	dev_dbg(dev, "PDC %u reclaimed %d rx descriptors",
 		pdcs->pdc_idx, num_frags);
@@ -920,8 +932,6 @@ static irqreturn_t pdc_irq_handler(int irq, void *cookie)
 	struct pdc_state *pdcs = cookie;
 	u32 intstatus = ioread32(pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
-	if (intstatus & PDC_XMTINTEN_0)
-		set_bit(PDC_XMTINT_0, &pdcs->intstatus);
 	if (intstatus & PDC_RCVINTEN_0)
 		set_bit(PDC_RCVINT_0, &pdcs->intstatus);
 
@@ -953,45 +963,35 @@ static irqreturn_t pdc_irq_thread(int irq, void *cookie)
 	struct pdc_state *pdcs = cookie;
 	struct mbox_controller *mbc;
 	struct mbox_chan *chan;
-	bool tx_int;
 	bool rx_int;
 	int rx_status;
 	struct brcm_message mssg;
 
-	tx_int = test_and_clear_bit(PDC_XMTINT_0, &pdcs->intstatus);
 	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
 
-	if (pdcs && (tx_int || rx_int)) {
+	if (pdcs && rx_int) {
 		dev_dbg(&pdcs->pdev->dev,
-			"%s() got irq %d with tx_int %s, rx_int %s",
-			__func__, irq,
-			tx_int ? "set" : "clear", rx_int ? "set" : "clear");
+			"%s() got irq %d with rx_int %s",
+			__func__, irq, rx_int ? "set" : "clear");
 
 		mbc = &pdcs->mbc;
 		chan = &mbc->chans[0];
 
-		if (tx_int) {
-			dev_dbg(&pdcs->pdev->dev, "%s(): tx done", __func__);
-			/* only one frame in flight at a time */
-			mbox_chan_txdone(chan, PDC_SUCCESS);
-		}
-		if (rx_int) {
-			while (1) {
-				/* Could be many frames ready */
-				memset(&mssg, 0, sizeof(mssg));
-				mssg.type = BRCM_MESSAGE_SPU;
-				rx_status = pdc_receive(pdcs, &mssg);
-				if (rx_status >= 0) {
-					dev_dbg(&pdcs->pdev->dev,
-						"%s(): invoking client rx cb",
-						__func__);
-					mbox_chan_received_data(chan, &mssg);
-				} else {
-					dev_dbg(&pdcs->pdev->dev,
-						"%s(): no SPU response available",
-						__func__);
-					break;
-				}
+		while (1) {
+			/* Could be many frames ready */
+			memset(&mssg, 0, sizeof(mssg));
+			mssg.type = BRCM_MESSAGE_SPU;
+			rx_status = pdc_receive(pdcs, &mssg);
+			if (rx_status >= 0) {
+				dev_dbg(&pdcs->pdev->dev,
+					"%s(): invoking client rx cb",
+					__func__);
+				mbox_chan_received_data(chan, &mssg);
+			} else {
+				dev_dbg(&pdcs->pdev->dev,
+					"%s(): no SPU response available",
+					__func__);
+				break;
 			}
 		}
 		return IRQ_HANDLED;
@@ -1035,9 +1035,6 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 	dev_dbg(dev, " - base virtual addr of tx ring  %p", tx.vbase);
 	dev_dbg(dev, " - base DMA addr of rx ring      %pad", &rx.dmabase);
 	dev_dbg(dev, " - base virtual addr of rx ring  %p", rx.vbase);
-
-	/* lock after ring allocation to avoid scheduling while atomic */
-	spin_lock(&pdcs->pdc_lock);
 
 	memcpy(&pdcs->tx_ring_alloc, &tx, sizeof(tx));
 	memcpy(&pdcs->rx_ring_alloc, &rx, sizeof(rx));
@@ -1103,7 +1100,6 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 				  (void *)&pdcs->rxd_64[i].ctrl1);
 		}
 	}
-	spin_unlock(&pdcs->pdc_lock);
 	return PDC_SUCCESS;
 
 fail_dealloc:
@@ -1125,6 +1121,80 @@ static void pdc_ring_free(struct pdc_state *pdcs)
 			      pdcs->rx_ring_alloc.dmabase);
 		pdcs->rx_ring_alloc.vbase = NULL;
 	}
+}
+
+/**
+ * pdc_desc_count() - Count the number of DMA descriptors that will be required
+ * for a given scatterlist. Account for the max length of a DMA buffer.
+ * @sg:    Scatterlist to be DMA'd
+ * Return: Number of descriptors required
+ */
+static u32 pdc_desc_count(struct scatterlist *sg)
+{
+	u32 cnt = 0;
+
+	while (sg) {
+		cnt += ((sg->length / PDC_DMA_BUF_MAX) + 1);
+		sg = sg_next(sg);
+	}
+	return cnt;
+}
+
+/**
+ * pdc_rings_full() - Check whether the tx ring has room for tx_cnt descriptors
+ * and the rx ring has room for rx_cnt descriptors.
+ * @pdcs:  PDC state
+ * @tx_cnt: The number of descriptors required in the tx ring
+ * @rx_cnt: The number of descriptors required i the rx ring
+ *
+ * Return: true if one of the rings does not have enough space
+ *         false if sufficient space is available in both rings
+ */
+static bool pdc_rings_full(struct pdc_state *pdcs, int tx_cnt, int rx_cnt)
+{
+	u32 rx_avail;
+	u32 tx_avail;
+	bool full = false;
+
+	/* Check if the tx and rx rings are likely to have enough space */
+	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
+					      pdcs->nrxpost);
+	if (unlikely(rx_cnt > rx_avail)) {
+		pdcs->rx_ring_full++;
+		full = true;
+	}
+
+	if (likely(!full)) {
+		tx_avail = pdcs->ntxpost - NTXDACTIVE(pdcs->txin, pdcs->txout,
+						      pdcs->ntxpost);
+		if (unlikely(tx_cnt > tx_avail)) {
+			pdcs->tx_ring_full++;
+			full = true;
+		}
+	}
+	return full;
+}
+
+/**
+ * pdc_last_tx_done() - If both the tx and rx rings have at least
+ * PDC_RING_SPACE_MIN descriptors available, then indicate that the mailbox
+ * framework can submit another message.
+ * @chan:  mailbox channel to check
+ * Return: true if PDC can accept another message on this channel
+ */
+static bool pdc_last_tx_done(struct mbox_chan *chan)
+{
+	struct pdc_state *pdcs = chan->con_priv;
+	bool ret;
+
+	if (unlikely(pdc_rings_full(pdcs, PDC_RING_SPACE_MIN,
+				    PDC_RING_SPACE_MIN))) {
+		pdcs->last_tx_not_done++;
+		ret = false;
+	} else {
+		ret = true;
+	}
+	return ret;
 }
 
 /**
@@ -1158,6 +1228,8 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	int src_nent;
 	int dst_nent;
 	int nent;
+	u32 tx_desc_req;
+	u32 rx_desc_req;
 
 	if (mssg->type != BRCM_MESSAGE_SPU)
 		return -ENOTSUPP;
@@ -1180,7 +1252,19 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 		}
 	}
 
-	spin_lock(&pdcs->pdc_lock);
+	/*
+	 * Check if the tx and rx rings have enough space. Do this prior to
+	 * writing any tx or rx descriptors. Need to ensure that we do not write
+	 * a partial set of descriptors, or write just rx descriptors but
+	 * corresponding tx descriptors don't fit. Note that we want this check
+	 * and the entire sequence of descriptor to happen without another
+	 * thread getting in. The channel spin lock in the mailbox framework
+	 * ensures this.
+	 */
+	tx_desc_req = pdc_desc_count(mssg->spu.src);
+	rx_desc_req = pdc_desc_count(mssg->spu.dst);
+	if (pdc_rings_full(pdcs, tx_desc_req, rx_desc_req + 1))
+		return -ENOSPC;
 
 	/* Create rx descriptors to SPU catch response */
 	err = pdc_rx_list_init(pdcs, mssg->spu.dst, mssg->ctx);
@@ -1189,8 +1273,6 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	/* Create tx descriptors to submit SPU request */
 	err |= pdc_tx_list_sg_add(pdcs, mssg->spu.src);
 	err |= pdc_tx_list_final(pdcs);	/* initiate transfer */
-
-	spin_unlock(&pdcs->pdc_lock);
 
 	if (err)
 		dev_err(&pdcs->pdev->dev,
@@ -1359,6 +1441,7 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 
 static const struct mbox_chan_ops pdc_mbox_chan_ops = {
 	.send_data = pdc_send_data,
+	.last_tx_done = pdc_last_tx_done,
 	.startup = pdc_startup,
 	.shutdown = pdc_shutdown
 };
@@ -1391,8 +1474,9 @@ static int pdc_mb_init(struct pdc_state *pdcs)
 	if (!mbc->chans)
 		return -ENOMEM;
 
-	mbc->txdone_irq = true;
-	mbc->txdone_poll = false;
+	mbc->txdone_irq = false;
+	mbc->txdone_poll = true;
+	mbc->txpoll_period = 1;
 	for (chan_index = 0; chan_index < mbc->num_chans; chan_index++)
 		mbc->chans[chan_index].con_priv = pdcs;
 
@@ -1462,7 +1546,6 @@ static int pdc_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	spin_lock_init(&pdcs->pdc_lock);
 	pdcs->pdev = pdev;
 	platform_set_drvdata(pdev, pdcs);
 	pdcs->pdc_idx = pdcg.num_spu;
