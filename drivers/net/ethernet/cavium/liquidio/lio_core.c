@@ -264,3 +264,34 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 			nctrl->ncmd.s.cmd);
 	}
 }
+
+void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
+{
+	bool macaddr_changed = false;
+	struct net_device *netdev;
+	struct lio *lio;
+
+	rtnl_lock();
+
+	netdev = oct->props[0].netdev;
+	lio = GET_LIO(netdev);
+
+	lio->linfo.macaddr_is_admin_asgnd = true;
+
+	if (!ether_addr_equal(netdev->dev_addr, mac)) {
+		macaddr_changed = true;
+		ether_addr_copy(netdev->dev_addr, mac);
+		ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, mac);
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, netdev);
+	}
+
+	rtnl_unlock();
+
+	if (macaddr_changed)
+		dev_info(&oct->pci_dev->dev,
+			 "PF changed VF's MAC address to %pM\n", mac);
+
+	/* no need to notify the firmware of the macaddr change because
+	 * the PF did that already
+	 */
+}

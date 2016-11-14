@@ -492,6 +492,9 @@ struct octeon_device {
 
 	int msix_on;
 
+	/** Mail Box details of each octeon queue. */
+	struct octeon_mbox  *mbox[MAX_POSSIBLE_VFS];
+
 	/** IOq information of it's corresponding MSI-X interrupt. */
 	struct octeon_ioq_vector    *ioq_vector;
 
@@ -511,6 +514,7 @@ struct octeon_device {
 #define  OCTEON_CN6XXX(oct)           ((oct->chip_id == OCTEON_CN66XX) || \
 				       (oct->chip_id == OCTEON_CN68XX))
 #define  OCTEON_CN23XX_PF(oct)        (oct->chip_id == OCTEON_CN23XX_PF_VID)
+#define  OCTEON_CN23XX_VF(oct)        ((oct)->chip_id == OCTEON_CN23XX_VF_VID)
 #define CHIP_FIELD(oct, TYPE, field)             \
 	(((struct octeon_ ## TYPE  *)(oct->chip))->field)
 

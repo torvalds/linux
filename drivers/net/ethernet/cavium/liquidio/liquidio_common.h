@@ -731,13 +731,15 @@ struct oct_link_info {
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	u64 gmxport:16;
-	u64 rsvd:32;
+	u64 macaddr_is_admin_asgnd:1;
+	u64 rsvd:31;
 	u64 num_txpciq:8;
 	u64 num_rxpciq:8;
 #else
 	u64 num_rxpciq:8;
 	u64 num_txpciq:8;
-	u64 rsvd:32;
+	u64 rsvd:31;
+	u64 macaddr_is_admin_asgnd:1;
 	u64 gmxport:16;
 #endif
 
