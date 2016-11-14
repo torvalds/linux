@@ -880,7 +880,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 	}
 
 	if (audio.config == 0) {
-		dev_err(dev, "%s: No audio configutation found\n", __func__);
+		dev_err(dev, "%s: No audio configuration found\n", __func__);
 		return -EINVAL;
 	}
 
