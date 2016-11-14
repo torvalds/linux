@@ -4434,12 +4434,18 @@ i915_gem_load_init(struct drm_device *dev)
 	if (!dev_priv->requests)
 		goto err_vmas;
 
+	dev_priv->dependencies = KMEM_CACHE(i915_dependency,
+					    SLAB_HWCACHE_ALIGN |
+					    SLAB_RECLAIM_ACCOUNT);
+	if (!dev_priv->dependencies)
+		goto err_requests;
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
 	err = i915_gem_timeline_init__global(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (err)
-		goto err_requests;
+		goto err_dependencies;
 
 	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
@@ -4467,6 +4473,8 @@ i915_gem_load_init(struct drm_device *dev)
 
 	return 0;
 
+err_dependencies:
+	kmem_cache_destroy(dev_priv->dependencies);
 err_requests:
 	kmem_cache_destroy(dev_priv->requests);
 err_vmas:
@@ -4483,6 +4491,7 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 
 	WARN_ON(!llist_empty(&dev_priv->mm.free_list));
 
+	kmem_cache_destroy(dev_priv->dependencies);
 	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);
