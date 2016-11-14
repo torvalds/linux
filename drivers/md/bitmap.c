@@ -27,6 +27,7 @@
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
 #include <linux/seq_file.h>
+#include <trace/events/block.h>
 #include "md.h"
 #include "bitmap.h"
 
@@ -1008,8 +1009,12 @@ void bitmap_unplug(struct bitmap *bitmap)
 		need_write = test_and_clear_page_attr(bitmap, i,
 						      BITMAP_PAGE_NEEDWRITE);
 		if (dirty || need_write) {
-			if (!writing)
+			if (!writing) {
 				bitmap_wait_writes(bitmap);
+				if (bitmap->mddev->queue)
+					blk_add_trace_msg(bitmap->mddev->queue,
+							  "md bitmap_unplug");
+			}
 			clear_page_attr(bitmap, i, BITMAP_PAGE_PENDING);
 			write_page(bitmap, bitmap->storage.filemap[i], 0);
 			writing = 1;
@@ -1233,6 +1238,10 @@ void bitmap_daemon_work(struct mddev *mddev)
 		goto done;
 	}
 	bitmap->allclean = 1;
+
+	if (bitmap->mddev->queue)
+		blk_add_trace_msg(bitmap->mddev->queue,
+				  "md bitmap_daemon_work");
 
 	/* Any file-page which is PENDING now needs to be written.
 	 * So set NEEDWRITE now, then after we make any last-minute changes
