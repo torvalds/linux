@@ -316,41 +316,54 @@ static void kvmppc_set_pvr_hv(struct kvm_vcpu *vcpu, u32 pvr)
 	vcpu->arch.pvr = pvr;
 }
 
+/* Dummy value used in computing PCR value below */
+#define PCR_ARCH_300	(PCR_ARCH_207 << 1)
+
 static int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 {
-	unsigned long pcr = 0;
+	unsigned long host_pcr_bit = 0, guest_pcr_bit = 0;
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
+	/* We can (emulate) our own architecture version and anything older */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		host_pcr_bit = PCR_ARCH_300;
+	else if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		host_pcr_bit = PCR_ARCH_207;
+	else if (cpu_has_feature(CPU_FTR_ARCH_206))
+		host_pcr_bit = PCR_ARCH_206;
+	else
+		host_pcr_bit = PCR_ARCH_205;
+
+	/* Determine lowest PCR bit needed to run guest in given PVR level */
+	guest_pcr_bit = host_pcr_bit;
 	if (arch_compat) {
 		switch (arch_compat) {
 		case PVR_ARCH_205:
-			/*
-			 * If an arch bit is set in PCR, all the defined
-			 * higher-order arch bits also have to be set.
-			 */
-			pcr = PCR_ARCH_206 | PCR_ARCH_205;
+			guest_pcr_bit = PCR_ARCH_205;
 			break;
 		case PVR_ARCH_206:
 		case PVR_ARCH_206p:
-			pcr = PCR_ARCH_206;
+			guest_pcr_bit = PCR_ARCH_206;
 			break;
 		case PVR_ARCH_207:
+			guest_pcr_bit = PCR_ARCH_207;
+			break;
+		case PVR_ARCH_300:
+			guest_pcr_bit = PCR_ARCH_300;
 			break;
 		default:
 			return -EINVAL;
 		}
-
-		if (!cpu_has_feature(CPU_FTR_ARCH_207S)) {
-			/* POWER7 can't emulate POWER8 */
-			if (!(pcr & PCR_ARCH_206))
-				return -EINVAL;
-			pcr &= ~PCR_ARCH_206;
-		}
 	}
+
+	/* Check requested PCR bits don't exceed our capabilities */
+	if (guest_pcr_bit > host_pcr_bit)
+		return -EINVAL;
 
 	spin_lock(&vc->lock);
 	vc->arch_compat = arch_compat;
-	vc->pcr = pcr;
+	/* Set all PCR bits for which guest_pcr_bit <= bit < host_pcr_bit */
+	vc->pcr = host_pcr_bit - guest_pcr_bit;
 	spin_unlock(&vc->lock);
 
 	return 0;
