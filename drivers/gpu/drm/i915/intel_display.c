@@ -3084,7 +3084,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 		intel_crtc->dspaddr_offset =
 			intel_compute_tile_offset(&x, &y, plane_state, 0);
 
-	if (rotation == DRM_ROTATE_180) {
+	if (rotation & DRM_ROTATE_180) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		x += (crtc_state->pipe_src_w - 1);
@@ -3188,7 +3188,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	intel_crtc->dspaddr_offset =
 		intel_compute_tile_offset(&x, &y, plane_state, 0);
 
-	if (rotation == DRM_ROTATE_180) {
+	if (rotation & DRM_ROTATE_180) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
 		if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv)) {
@@ -10881,7 +10881,7 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 		if (HAS_DDI(dev_priv))
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 
-		if (plane_state->base.rotation == DRM_ROTATE_180)
+		if (plane_state->base.rotation & DRM_ROTATE_180)
 			cntl |= CURSOR_ROTATE_180;
 	}
 
@@ -10927,7 +10927,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 		/* ILK+ do this automagically */
 		if (HAS_GMCH_DISPLAY(dev_priv) &&
-		    plane_state->base.rotation == DRM_ROTATE_180) {
+		    plane_state->base.rotation & DRM_ROTATE_180) {
 			base += (plane_state->base.crtc_h *
 				 plane_state->base.crtc_w - 1) * 4;
 		}

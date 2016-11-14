@@ -436,7 +436,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 	sprsurf_offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
 
-	if (rotation == DRM_ROTATE_180) {
+	if (rotation & DRM_ROTATE_180) {
 		sprctl |= SP_ROTATE_180;
 
 		x += src_w;
@@ -566,7 +566,7 @@ ivb_update_plane(struct drm_plane *plane,
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 	sprsurf_offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
 
-	if (rotation == DRM_ROTATE_180) {
+	if (rotation & DRM_ROTATE_180) {
 		sprctl |= SPRITE_ROTATE_180;
 
 		/* HSW and BDW does this automagically in hardware */
@@ -700,7 +700,7 @@ ilk_update_plane(struct drm_plane *plane,
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 	dvssurf_offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
 
-	if (rotation == DRM_ROTATE_180) {
+	if (rotation & DRM_ROTATE_180) {
 		dvscntr |= DVS_ROTATE_180;
 
 		x += src_w;
