@@ -54,7 +54,7 @@ loop_cmd = $(echo-cmd) $(cmd_$(1))
 #    e.g. "media" for the linux-tv book-set at ./Documentation/media
 
 quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
-      cmd_sphinx = $(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/media all;\
+      cmd_sphinx = $(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/media $2;\
 	BUILDDIR=$(abspath $(BUILDDIR)) SPHINX_CONF=$(abspath $(srctree)/$(src)/$5/$(SPHINX_CONF)) \
 	$(SPHINXBUILD) \
 	-b $2 \
@@ -98,6 +98,7 @@ installmandocs:
 
 cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
+	$(Q)$(MAKE) -C Documentation/media clean
 
 endif # HAVE_SPHINX
 

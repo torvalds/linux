@@ -55,7 +55,7 @@ Overview
 
 .. _stb_components:
 
-.. figure::  intro_files/dvbstb.*
+.. figure::  dvbstb.*
     :alt:    dvbstb.pdf / dvbstb.svg
     :align:  center
 

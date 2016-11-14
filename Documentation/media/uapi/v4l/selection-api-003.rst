@@ -7,7 +7,7 @@ Selection targets
 
 .. _sel-targets-capture:
 
-.. figure::  selection-api-003_files/selection.*
+.. figure::  selection.png
     :alt:    selection.png
     :align:  center
 
