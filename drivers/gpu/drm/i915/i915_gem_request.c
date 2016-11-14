@@ -346,7 +346,7 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 				request->ring->vaddr + request->postfix);
 	engine->submit_request(request);
 
-	spin_lock_nested(&request->timeline->lock, SINGLE_DEPTH_NESTING);
+	spin_lock(&request->timeline->lock);
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 

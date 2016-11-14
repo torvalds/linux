@@ -4432,9 +4432,7 @@ i915_gem_load_init(struct drm_device *dev)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	INIT_LIST_HEAD(&dev_priv->gt.timelines);
-	err = i915_gem_timeline_init(dev_priv,
-				     &dev_priv->gt.global_timeline,
-				     "[execution]");
+	err = i915_gem_timeline_init__global(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (err)
 		goto err_requests;
