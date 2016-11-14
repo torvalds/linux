@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/file.h>
+#include <linux/fcntl.h>
+#include <linux/fs.h>
 #include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 

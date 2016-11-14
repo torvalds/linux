@@ -16,9 +16,9 @@
  * GNU General Public License for more details.
  ******************************************************************************/
 
+#include <linux/slab.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_erl0.h"
 #include "iscsi_target_login.h"
