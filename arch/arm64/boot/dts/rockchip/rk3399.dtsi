@@ -825,7 +825,8 @@
 			/* These power domains are grouped by VD_LOGIC */
 			pd_gmac@RK3399_PD_GMAC {
 				reg = <RK3399_PD_GMAC>;
-				clocks = <&cru ACLK_GMAC>;
+				clocks = <&cru ACLK_GMAC>,
+					 <&cru PCLK_GMAC>;
 				pm_qos = <&qos_gmac>;
 			};
 			pd_vio@RK3399_PD_VIO {
