@@ -590,6 +590,11 @@
 		};
 	};
 
+	prr: chipid@ff000044 {
+		compatible = "renesas,prr";
+		reg = <0xff000044 4>;
+	};
+
 	sysc: system-controller@ffd85000 {
 		compatible = "renesas,r8a7779-sysc";
 		reg = <0xffd85000 0x0200>;
