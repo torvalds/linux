@@ -29,7 +29,8 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	struct tpm_bios_log *log;
 
 	log = &chip->log;
-	np = of_find_node_by_name(NULL, "vtpm");
+	if (chip->dev.parent->of_node)
+		np = chip->dev.parent->of_node;
 	if (!np) {
 		pr_err("%s: ERROR - IBMVTPM not supported\n", __func__);
 		return -ENODEV;
@@ -55,18 +56,15 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	if (!log->bios_event_log) {
 		pr_err("%s: ERROR - Not enough memory for BIOS measurements\n",
 		       __func__);
-		of_node_put(np);
 		return -ENOMEM;
 	}
 
 	log->bios_event_log_end = log->bios_event_log + *sizep;
 
 	memcpy(log->bios_event_log, __va(*basep), *sizep);
-	of_node_put(np);
 
 	return 0;
 
 cleanup_eio:
-	of_node_put(np);
 	return -EIO;
 }
