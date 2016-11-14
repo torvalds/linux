@@ -169,33 +169,6 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 	return -ETIMEDOUT;
 }
 
-/**
- * dwc3_soft_reset - Issue soft reset
- * @dwc: Pointer to our controller context structure
- */
-static int dwc3_soft_reset(struct dwc3 *dwc)
-{
-	unsigned long timeout;
-	u32 reg;
-
-	timeout = jiffies + msecs_to_jiffies(500);
-	dwc3_writel(dwc->regs, DWC3_DCTL, DWC3_DCTL_CSFTRST);
-	do {
-		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-		if (!(reg & DWC3_DCTL_CSFTRST))
-			break;
-
-		if (time_after(jiffies, timeout)) {
-			dev_err(dwc->dev, "Reset Timed Out\n");
-			return -ETIMEDOUT;
-		}
-
-		cpu_relax();
-	} while (true);
-
-	return 0;
-}
-
 /*
  * dwc3_frame_length_adjustment - Adjusts frame length if required
  * @dwc3: Pointer to our controller context structure
@@ -515,13 +488,6 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 		}
 		/* FALLTHROUGH */
 	case DWC3_GHWPARAMS3_HSPHY_IFC_ULPI:
-		/* Making sure the interface and PHY are operational */
-		ret = dwc3_soft_reset(dwc);
-		if (ret)
-			return ret;
-
-		udelay(1);
-
 		ret = dwc3_ulpi_init(dwc);
 		if (ret)
 			return ret;
@@ -709,11 +675,6 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		if (dwc->maximum_speed == USB_SPEED_SUPER)
 			dwc->maximum_speed = USB_SPEED_HIGH;
 	}
-
-	/* issue device SoftReset too */
-	ret = dwc3_soft_reset(dwc);
-	if (ret)
-		goto err0;
 
 	ret = dwc3_core_soft_reset(dwc);
 	if (ret)
