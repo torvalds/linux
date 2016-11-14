@@ -167,7 +167,7 @@
 	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
 	non-removable;
-	enable-sdio-wakeup;
+	wakeup-source;
 	status = "okay";
 
 	brcmf: bcrmf@1 {
