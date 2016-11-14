@@ -611,9 +611,6 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 			sysmmu_unblock(data);
 		}
 		clk_disable(data->clk_master);
-	} else {
-		dev_dbg(data->master,
-			"disabled. Skipping TLB invalidation @ %#x\n", iova);
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
 }
