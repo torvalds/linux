@@ -140,16 +140,10 @@ static void eznps_init_per_cpu(int cpu)
 	mtm_enable_core(cpu);
 }
 
-static void eznps_ipi_clear(int irq)
-{
-	write_aux_reg(CTOP_AUX_IACK, 1 << irq);
-}
-
 struct plat_smp_ops plat_smp_ops = {
 	.info		= smp_cpuinfo_buf,
 	.init_early_smp	= eznps_init_cpumasks,
 	.cpu_kick	= eznps_smp_wakeup_cpu,
 	.ipi_send	= eznps_ipi_send,
 	.init_per_cpu	= eznps_init_per_cpu,
-	.ipi_clear	= eznps_ipi_clear,
 };

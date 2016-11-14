@@ -14,11 +14,27 @@
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
-#include "gp8psk.h"
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include "gp8psk-fe.h"
+#include "dvb_frontend.h"
+
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+
+#define dprintk(fmt, arg...) do {					\
+	if (debug)							\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+		       __func__, ##arg);				\
+} while (0)
 
 struct gp8psk_fe_state {
 	struct dvb_frontend fe;
-	struct dvb_usb_device *d;
+	void *priv;
+	const struct gp8psk_fe_ops *ops;
+	bool is_rev1;
 	u8 lock;
 	u16 snr;
 	unsigned long next_status_check;
@@ -29,22 +45,24 @@ static int gp8psk_tuned_to_DCII(struct dvb_frontend *fe)
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 	u8 status;
-	gp8psk_usb_in_op(st->d, GET_8PSK_CONFIG, 0, 0, &status, 1);
+
+	st->ops->in(st->priv, GET_8PSK_CONFIG, 0, 0, &status, 1);
 	return status & bmDCtuned;
 }
 
 static int gp8psk_set_tuner_mode(struct dvb_frontend *fe, int mode)
 {
-	struct gp8psk_fe_state *state = fe->demodulator_priv;
-	return gp8psk_usb_out_op(state->d, SET_8PSK_CONFIG, mode, 0, NULL, 0);
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
+
+	return st->ops->out(st->priv, SET_8PSK_CONFIG, mode, 0, NULL, 0);
 }
 
 static int gp8psk_fe_update_status(struct gp8psk_fe_state *st)
 {
 	u8 buf[6];
 	if (time_after(jiffies,st->next_status_check)) {
-		gp8psk_usb_in_op(st->d, GET_SIGNAL_LOCK, 0,0,&st->lock,1);
-		gp8psk_usb_in_op(st->d, GET_SIGNAL_STRENGTH, 0,0,buf,6);
+		st->ops->in(st->priv, GET_SIGNAL_LOCK, 0, 0, &st->lock, 1);
+		st->ops->in(st->priv, GET_SIGNAL_STRENGTH, 0, 0, buf, 6);
 		st->snr = (buf[1]) << 8 | buf[0];
 		st->next_status_check = jiffies + (st->status_check_interval*HZ)/1000;
 	}
@@ -116,13 +134,12 @@ static int gp8psk_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_front
 
 static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 {
-	struct gp8psk_fe_state *state = fe->demodulator_priv;
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 cmd[10];
 	u32 freq = c->frequency * 1000;
-	int gp_product_id = le16_to_cpu(state->d->udev->descriptor.idProduct);
 
-	deb_fe("%s()\n", __func__);
+	dprintk("%s()\n", __func__);
 
 	cmd[4] = freq         & 0xff;
 	cmd[5] = (freq >> 8)  & 0xff;
@@ -136,21 +153,21 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 	switch (c->delivery_system) {
 	case SYS_DVBS:
 		if (c->modulation != QPSK) {
-			deb_fe("%s: unsupported modulation selected (%d)\n",
+			dprintk("%s: unsupported modulation selected (%d)\n",
 				__func__, c->modulation);
 			return -EOPNOTSUPP;
 		}
 		c->fec_inner = FEC_AUTO;
 		break;
 	case SYS_DVBS2: /* kept for backwards compatibility */
-		deb_fe("%s: DVB-S2 delivery system selected\n", __func__);
+		dprintk("%s: DVB-S2 delivery system selected\n", __func__);
 		break;
 	case SYS_TURBO:
-		deb_fe("%s: Turbo-FEC delivery system selected\n", __func__);
+		dprintk("%s: Turbo-FEC delivery system selected\n", __func__);
 		break;
 
 	default:
-		deb_fe("%s: unsupported delivery system selected (%d)\n",
+		dprintk("%s: unsupported delivery system selected (%d)\n",
 			__func__, c->delivery_system);
 		return -EOPNOTSUPP;
 	}
@@ -161,9 +178,9 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 	cmd[3] = (c->symbol_rate >> 24) & 0xff;
 	switch (c->modulation) {
 	case QPSK:
-		if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
+		if (st->is_rev1)
 			if (gp8psk_tuned_to_DCII(fe))
-				gp8psk_bcm4500_reload(state->d);
+				st->ops->reload(st->priv);
 		switch (c->fec_inner) {
 		case FEC_1_2:
 			cmd[9] = 0; break;
@@ -207,18 +224,18 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 		cmd[9] = 0;
 		break;
 	default: /* Unknown modulation */
-		deb_fe("%s: unsupported modulation selected (%d)\n",
+		dprintk("%s: unsupported modulation selected (%d)\n",
 			__func__, c->modulation);
 		return -EOPNOTSUPP;
 	}
 
-	if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
+	if (st->is_rev1)
 		gp8psk_set_tuner_mode(fe, 0);
-	gp8psk_usb_out_op(state->d, TUNE_8PSK, 0, 0, cmd, 10);
+	st->ops->out(st->priv, TUNE_8PSK, 0, 0, cmd, 10);
 
-	state->lock = 0;
-	state->next_status_check = jiffies;
-	state->status_check_interval = 200;
+	st->lock = 0;
+	st->next_status_check = jiffies;
+	st->status_check_interval = 200;
 
 	return 0;
 }
@@ -228,9 +245,9 @@ static int gp8psk_fe_send_diseqc_msg (struct dvb_frontend* fe,
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 
-	deb_fe("%s\n",__func__);
+	dprintk("%s\n", __func__);
 
-	if (gp8psk_usb_out_op(st->d,SEND_DISEQC_COMMAND, m->msg[0], 0,
+	if (st->ops->out(st->priv, SEND_DISEQC_COMMAND, m->msg[0], 0,
 			m->msg, m->msg_len)) {
 		return -EINVAL;
 	}
@@ -243,12 +260,12 @@ static int gp8psk_fe_send_diseqc_burst(struct dvb_frontend *fe,
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 	u8 cmd;
 
-	deb_fe("%s\n",__func__);
+	dprintk("%s\n", __func__);
 
 	/* These commands are certainly wrong */
 	cmd = (burst == SEC_MINI_A) ? 0x00 : 0x01;
 
-	if (gp8psk_usb_out_op(st->d,SEND_DISEQC_COMMAND, cmd, 0,
+	if (st->ops->out(st->priv, SEND_DISEQC_COMMAND, cmd, 0,
 			&cmd, 0)) {
 		return -EINVAL;
 	}
@@ -258,10 +275,10 @@ static int gp8psk_fe_send_diseqc_burst(struct dvb_frontend *fe,
 static int gp8psk_fe_set_tone(struct dvb_frontend *fe,
 			      enum fe_sec_tone_mode tone)
 {
-	struct gp8psk_fe_state* state = fe->demodulator_priv;
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
 
-	if (gp8psk_usb_out_op(state->d,SET_22KHZ_TONE,
-		 (tone == SEC_TONE_ON), 0, NULL, 0)) {
+	if (st->ops->out(st->priv, SET_22KHZ_TONE,
+			 (tone == SEC_TONE_ON), 0, NULL, 0)) {
 		return -EINVAL;
 	}
 	return 0;
@@ -270,9 +287,9 @@ static int gp8psk_fe_set_tone(struct dvb_frontend *fe,
 static int gp8psk_fe_set_voltage(struct dvb_frontend *fe,
 				 enum fe_sec_voltage voltage)
 {
-	struct gp8psk_fe_state* state = fe->demodulator_priv;
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
 
-	if (gp8psk_usb_out_op(state->d,SET_LNB_VOLTAGE,
+	if (st->ops->out(st->priv, SET_LNB_VOLTAGE,
 			 voltage == SEC_VOLTAGE_18, 0, NULL, 0)) {
 		return -EINVAL;
 	}
@@ -281,52 +298,60 @@ static int gp8psk_fe_set_voltage(struct dvb_frontend *fe,
 
 static int gp8psk_fe_enable_high_lnb_voltage(struct dvb_frontend* fe, long onoff)
 {
-	struct gp8psk_fe_state* state = fe->demodulator_priv;
-	return gp8psk_usb_out_op(state->d, USE_EXTRA_VOLT, onoff, 0,NULL,0);
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
+
+	return st->ops->out(st->priv, USE_EXTRA_VOLT, onoff, 0, NULL, 0);
 }
 
 static int gp8psk_fe_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long sw_cmd)
 {
-	struct gp8psk_fe_state* state = fe->demodulator_priv;
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
 	u8 cmd = sw_cmd & 0x7f;
 
-	if (gp8psk_usb_out_op(state->d,SET_DN_SWITCH, cmd, 0,
-			NULL, 0)) {
+	if (st->ops->out(st->priv, SET_DN_SWITCH, cmd, 0, NULL, 0))
 		return -EINVAL;
-	}
-	if (gp8psk_usb_out_op(state->d,SET_LNB_VOLTAGE, !!(sw_cmd & 0x80),
-			0, NULL, 0)) {
+
+	if (st->ops->out(st->priv, SET_LNB_VOLTAGE, !!(sw_cmd & 0x80),
+			0, NULL, 0))
 		return -EINVAL;
-	}
 
 	return 0;
 }
 
 static void gp8psk_fe_release(struct dvb_frontend* fe)
 {
-	struct gp8psk_fe_state *state = fe->demodulator_priv;
-	kfree(state);
+	struct gp8psk_fe_state *st = fe->demodulator_priv;
+
+	kfree(st);
 }
 
 static struct dvb_frontend_ops gp8psk_fe_ops;
 
-struct dvb_frontend * gp8psk_fe_attach(struct dvb_usb_device *d)
+struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
+				      void *priv, bool is_rev1)
 {
-	struct gp8psk_fe_state *s = kzalloc(sizeof(struct gp8psk_fe_state), GFP_KERNEL);
-	if (s == NULL)
-		goto error;
+	struct gp8psk_fe_state *st;
 
-	s->d = d;
-	memcpy(&s->fe.ops, &gp8psk_fe_ops, sizeof(struct dvb_frontend_ops));
-	s->fe.demodulator_priv = s;
+	if (!ops || !ops->in || !ops->out || !ops->reload) {
+		pr_err("Error! gp8psk-fe ops not defined.\n");
+		return NULL;
+	}
 
-	goto success;
-error:
-	return NULL;
-success:
-	return &s->fe;
+	st = kzalloc(sizeof(struct gp8psk_fe_state), GFP_KERNEL);
+	if (!st)
+		return NULL;
+
+	memcpy(&st->fe.ops, &gp8psk_fe_ops, sizeof(struct dvb_frontend_ops));
+	st->fe.demodulator_priv = st;
+	st->ops = ops;
+	st->priv = priv;
+	st->is_rev1 = is_rev1;
+
+	pr_info("Frontend %sattached\n", is_rev1 ? "revision 1 " : "");
+
+	return &st->fe;
 }
-
+EXPORT_SYMBOL_GPL(gp8psk_fe_attach);
 
 static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.delsys = { SYS_DVBS },

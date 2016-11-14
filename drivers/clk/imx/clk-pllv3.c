@@ -223,7 +223,7 @@ static unsigned long clk_pllv3_av_recalc_rate(struct clk_hw *hw,
 	temp64 *= mfn;
 	do_div(temp64, mfd);
 
-	return (parent_rate * div) + (u32)temp64;
+	return parent_rate * div + (unsigned long)temp64;
 }
 
 static long clk_pllv3_av_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -247,7 +247,11 @@ static long clk_pllv3_av_round_rate(struct clk_hw *hw, unsigned long rate,
 	do_div(temp64, parent_rate);
 	mfn = temp64;
 
-	return parent_rate * div + parent_rate * mfn / mfd;
+	temp64 = (u64)parent_rate;
+	temp64 *= mfn;
+	do_div(temp64, mfd);
+
+	return parent_rate * div + (unsigned long)temp64;
 }
 
 static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,

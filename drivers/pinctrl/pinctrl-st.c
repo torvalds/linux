@@ -1512,7 +1512,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	if (info->irqmux_base || gpio_irq > 0) {
 		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
 					   0, handle_simple_irq,
-					   IRQ_TYPE_LEVEL_LOW);
+					   IRQ_TYPE_NONE);
 		if (err) {
 			gpiochip_remove(&bank->gpio_chip);
 			dev_info(dev, "could not add irqchip\n");

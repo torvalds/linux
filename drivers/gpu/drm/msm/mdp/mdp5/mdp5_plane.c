@@ -292,8 +292,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		format = to_mdp_format(msm_framebuffer_format(state->fb));
 		if (MDP_FORMAT_IS_YUV(format) &&
 			!pipe_supports_yuv(mdp5_plane->caps)) {
-			dev_err(plane->dev->dev,
-				"Pipe doesn't support YUV\n");
+			DBG("Pipe doesn't support YUV\n");
 
 			return -EINVAL;
 		}
@@ -301,8 +300,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		if (!(mdp5_plane->caps & MDP_PIPE_CAP_SCALE) &&
 			(((state->src_w >> 16) != state->crtc_w) ||
 			((state->src_h >> 16) != state->crtc_h))) {
-			dev_err(plane->dev->dev,
-				"Pipe doesn't support scaling (%dx%d -> %dx%d)\n",
+			DBG("Pipe doesn't support scaling (%dx%d -> %dx%d)\n",
 				state->src_w >> 16, state->src_h >> 16,
 				state->crtc_w, state->crtc_h);
 
@@ -313,8 +311,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		vflip = !!(state->rotation & DRM_REFLECT_Y);
 		if ((vflip && !(mdp5_plane->caps & MDP_PIPE_CAP_VFLIP)) ||
 			(hflip && !(mdp5_plane->caps & MDP_PIPE_CAP_HFLIP))) {
-			dev_err(plane->dev->dev,
-				"Pipe doesn't support flip\n");
+			DBG("Pipe doesn't support flip\n");
 
 			return -EINVAL;
 		}

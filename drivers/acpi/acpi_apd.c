@@ -122,7 +122,7 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 	int ret;
 
 	if (!dev_desc) {
-		pdev = acpi_create_platform_device(adev);
+		pdev = acpi_create_platform_device(adev, NULL);
 		return IS_ERR_OR_NULL(pdev) ? PTR_ERR(pdev) : 1;
 	}
 
@@ -139,14 +139,8 @@ static int acpi_apd_create_device(struct acpi_device *adev,
 			goto err_out;
 	}
 
-	if (dev_desc->properties) {
-		ret = device_add_properties(&adev->dev, dev_desc->properties);
-		if (ret)
-			goto err_out;
-	}
-
 	adev->driver_data = pdata;
-	pdev = acpi_create_platform_device(adev);
+	pdev = acpi_create_platform_device(adev, dev_desc->properties);
 	if (!IS_ERR_OR_NULL(pdev))
 		return 1;
 

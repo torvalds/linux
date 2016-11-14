@@ -324,8 +324,10 @@ struct arm_smmu_master_cfg {
 #define INVALID_SMENDX			-1
 #define __fwspec_cfg(fw) ((struct arm_smmu_master_cfg *)fw->iommu_priv)
 #define fwspec_smmu(fw)  (__fwspec_cfg(fw)->smmu)
+#define fwspec_smendx(fw, i) \
+	(i >= fw->num_ids ? INVALID_SMENDX : __fwspec_cfg(fw)->smendx[i])
 #define for_each_cfg_sme(fw, i, idx) \
-	for (i = 0; idx = __fwspec_cfg(fw)->smendx[i], i < fw->num_ids; ++i)
+	for (i = 0; idx = fwspec_smendx(fw, i), i < fw->num_ids; ++i)
 
 struct arm_smmu_device {
 	struct device			*dev;
@@ -1228,6 +1230,16 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
+	/*
+	 * FIXME: The arch/arm DMA API code tries to attach devices to its own
+	 * domains between of_xlate() and add_device() - we have no way to cope
+	 * with that, so until ARM gets converted to rely on groups and default
+	 * domains, just say no (but more politely than by dereferencing NULL).
+	 * This should be at least a WARN_ON once that's sorted.
+	 */
+	if (!fwspec->iommu_priv)
+		return -ENODEV;
+
 	smmu = fwspec_smmu(fwspec);
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
@@ -1390,7 +1402,7 @@ static int arm_smmu_add_device(struct device *dev)
 		fwspec = dev->iommu_fwspec;
 		if (ret)
 			goto out_free;
-	} else if (fwspec) {
+	} else if (fwspec && fwspec->ops == &arm_smmu_ops) {
 		smmu = arm_smmu_get_by_node(to_of_node(fwspec->iommu_fwnode));
 	} else {
 		return -ENODEV;

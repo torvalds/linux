@@ -256,6 +256,7 @@ static const struct of_device_id b53_mmap_of_table[] = {
 	{ .compatible = "brcm,bcm63xx-switch" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, b53_mmap_of_table);
 
 static struct platform_driver b53_mmap_driver = {
 	.probe = b53_mmap_probe,
