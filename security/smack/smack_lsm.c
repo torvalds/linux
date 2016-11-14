@@ -1384,20 +1384,14 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 		skp = smk_import_entry(value, size);
 		if (!IS_ERR(skp))
 			isp->smk_inode = skp;
-		else
-			isp->smk_inode = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
 		skp = smk_import_entry(value, size);
 		if (!IS_ERR(skp))
 			isp->smk_task = skp;
-		else
-			isp->smk_task = &smack_known_invalid;
 	} else if (strcmp(name, XATTR_NAME_SMACKMMAP) == 0) {
 		skp = smk_import_entry(value, size);
 		if (!IS_ERR(skp))
 			isp->smk_mmap = skp;
-		else
-			isp->smk_mmap = &smack_known_invalid;
 	}
 
 	return;
@@ -2068,12 +2062,8 @@ static void smack_cred_transfer(struct cred *new, const struct cred *old)
 static int smack_kernel_act_as(struct cred *new, u32 secid)
 {
 	struct task_smack *new_tsp = new->security;
-	struct smack_known *skp = smack_from_secid(secid);
 
-	if (skp == NULL)
-		return -EINVAL;
-
-	new_tsp->smk_task = skp;
+	new_tsp->smk_task = smack_from_secid(secid);
 	return 0;
 }
 
@@ -3894,21 +3884,11 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 			return &smack_known_web;
 		return &smack_known_star;
 	}
-	if ((sap->flags & NETLBL_SECATTR_SECID) != 0) {
+	if ((sap->flags & NETLBL_SECATTR_SECID) != 0)
 		/*
 		 * Looks like a fallback, which gives us a secid.
 		 */
-		skp = smack_from_secid(sap->attr.secid);
-		/*
-		 * This has got to be a bug because it is
-		 * impossible to specify a fallback without
-		 * specifying the label, which will ensure
-		 * it has a secid, and the only way to get a
-		 * secid is from a fallback.
-		 */
-		BUG_ON(skp == NULL);
-		return skp;
-	}
+		return smack_from_secid(sap->attr.secid);
 	/*
 	 * Without guidance regarding the smack value
 	 * for the packet fall back on the network
@@ -4771,7 +4751,6 @@ static __init void init_smack_known_list(void)
 	mutex_init(&smack_known_hat.smk_rules_lock);
 	mutex_init(&smack_known_floor.smk_rules_lock);
 	mutex_init(&smack_known_star.smk_rules_lock);
-	mutex_init(&smack_known_invalid.smk_rules_lock);
 	mutex_init(&smack_known_web.smk_rules_lock);
 	/*
 	 * Initialize rule lists
@@ -4780,7 +4759,6 @@ static __init void init_smack_known_list(void)
 	INIT_LIST_HEAD(&smack_known_hat.smk_rules);
 	INIT_LIST_HEAD(&smack_known_star.smk_rules);
 	INIT_LIST_HEAD(&smack_known_floor.smk_rules);
-	INIT_LIST_HEAD(&smack_known_invalid.smk_rules);
 	INIT_LIST_HEAD(&smack_known_web.smk_rules);
 	/*
 	 * Create the known labels list
@@ -4789,7 +4767,6 @@ static __init void init_smack_known_list(void)
 	smk_insert_entry(&smack_known_hat);
 	smk_insert_entry(&smack_known_star);
 	smk_insert_entry(&smack_known_floor);
-	smk_insert_entry(&smack_known_invalid);
 	smk_insert_entry(&smack_known_web);
 }
 
