@@ -136,7 +136,6 @@ extern int drm_irq_uninstall(struct drm_device *dev);
 extern int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs);
 extern int drm_wait_vblank(struct drm_device *dev, void *data,
 			   struct drm_file *filp);
-extern u32 drm_vblank_count(struct drm_device *dev, unsigned int pipe);
 extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
 extern u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
 					  struct timeval *vblanktime);
@@ -150,8 +149,6 @@ extern int drm_crtc_vblank_get(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_put(struct drm_crtc *crtc);
 extern void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe);
 extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
-extern void drm_vblank_off(struct drm_device *dev, unsigned int pipe);
-extern void drm_vblank_on(struct drm_device *dev, unsigned int pipe);
 extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
