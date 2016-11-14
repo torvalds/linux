@@ -268,8 +268,8 @@ struct sysmmu_drvdata {
 	struct clk *aclk;		/* SYSMMU's aclk clock */
 	struct clk *pclk;		/* SYSMMU's pclk clock */
 	struct clk *clk_master;		/* master's device clock */
-	int activations;		/* number of calls to sysmmu_enable */
 	spinlock_t lock;		/* lock for modyfying state */
+	bool active;			/* current status */
 	struct exynos_iommu_domain *domain; /* domain we belong to */
 	struct list_head domain_node;	/* node for domain clients list */
 	struct list_head owner_node;	/* node for owner controllers list */
@@ -280,25 +280,6 @@ struct sysmmu_drvdata {
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct exynos_iommu_domain, domain);
-}
-
-static bool set_sysmmu_active(struct sysmmu_drvdata *data)
-{
-	/* return true if the System MMU was not active previously
-	   and it needs to be initialized */
-	return ++data->activations == 1;
-}
-
-static bool set_sysmmu_inactive(struct sysmmu_drvdata *data)
-{
-	/* return true if the System MMU is needed to be disabled */
-	BUG_ON(data->activations < 1);
-	return --data->activations == 0;
-}
-
-static bool is_sysmmu_active(struct sysmmu_drvdata *data)
-{
-	return data->activations > 0;
 }
 
 static void sysmmu_unblock(struct sysmmu_drvdata *data)
@@ -419,7 +400,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	unsigned short reg_status, reg_clear;
 	int ret = -ENOSYS;
 
-	WARN_ON(!is_sysmmu_active(data));
+	WARN_ON(!data->active);
 
 	if (MMU_MAJ_VER(data->version) < 5) {
 		reg_status = REG_INT_STATUS;
@@ -465,37 +446,19 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __sysmmu_disable_nocount(struct sysmmu_drvdata *data)
+static void __sysmmu_disable(struct sysmmu_drvdata *data)
 {
-	clk_enable(data->clk_master);
-
-	writel(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
-	writel(0, data->sfrbase + REG_MMU_CFG);
-
-	__sysmmu_disable_clocks(data);
-}
-
-static bool __sysmmu_disable(struct sysmmu_drvdata *data)
-{
-	bool disabled;
 	unsigned long flags;
 
+	clk_enable(data->clk_master);
+
 	spin_lock_irqsave(&data->lock, flags);
-
-	disabled = set_sysmmu_inactive(data);
-
-	if (disabled) {
-		data->pgtable = 0;
-		data->domain = NULL;
-
-		__sysmmu_disable_nocount(data);
-
-		dev_dbg(data->sysmmu, "Disabled\n");
-	}
-
+	writel(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
+	writel(0, data->sfrbase + REG_MMU_CFG);
+	data->active = false;
 	spin_unlock_irqrestore(&data->lock, flags);
 
-	return disabled;
+	__sysmmu_disable_clocks(data);
 }
 
 static void __sysmmu_init_config(struct sysmmu_drvdata *data)
@@ -514,17 +477,19 @@ static void __sysmmu_init_config(struct sysmmu_drvdata *data)
 	writel(cfg, data->sfrbase + REG_MMU_CFG);
 }
 
-static void __sysmmu_enable_nocount(struct sysmmu_drvdata *data)
+static void __sysmmu_enable(struct sysmmu_drvdata *data)
 {
+	unsigned long flags;
+
 	__sysmmu_enable_clocks(data);
 
+	spin_lock_irqsave(&data->lock, flags);
 	writel(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
-
 	__sysmmu_init_config(data);
-
 	__sysmmu_set_ptbase(data, data->pgtable);
-
 	writel(CTRL_ENABLE, data->sfrbase + REG_MMU_CTRL);
+	data->active = true;
+	spin_unlock_irqrestore(&data->lock, flags);
 
 	/*
 	 * SYSMMU driver keeps master's clock enabled only for the short
@@ -535,37 +500,18 @@ static void __sysmmu_enable_nocount(struct sysmmu_drvdata *data)
 	clk_disable(data->clk_master);
 }
 
-static int __sysmmu_enable(struct sysmmu_drvdata *data, phys_addr_t pgtable,
-			   struct exynos_iommu_domain *domain)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&data->lock, flags);
-	if (set_sysmmu_active(data)) {
-		data->pgtable = pgtable;
-		data->domain = domain;
-		__sysmmu_enable_nocount(data);
-		dev_dbg(data->sysmmu, "Enabled\n");
-	}
-	spin_unlock_irqrestore(&data->lock, flags);
-
-	return 0;
-}
-
 static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
 					    sysmmu_iova_t iova)
 {
 	unsigned long flags;
 
-
 	spin_lock_irqsave(&data->lock, flags);
-	if (is_sysmmu_active(data) && data->version >= MAKE_MMU_VER(3, 3)) {
+	if (data->active && data->version >= MAKE_MMU_VER(3, 3)) {
 		clk_enable(data->clk_master);
 		__sysmmu_tlb_invalidate_entry(data, iova, 1);
 		clk_disable(data->clk_master);
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
-
 }
 
 static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
@@ -574,7 +520,7 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 	unsigned long flags;
 
 	spin_lock_irqsave(&data->lock, flags);
-	if (is_sysmmu_active(data)) {
+	if (data->active) {
 		unsigned int num_inv = 1;
 
 		clk_enable(data->clk_master);
@@ -690,10 +636,11 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 static int exynos_sysmmu_suspend(struct device *dev)
 {
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
+	struct device *master = data->master;
 
 	dev_dbg(dev, "suspend\n");
-	if (is_sysmmu_active(data)) {
-		__sysmmu_disable_nocount(data);
+	if (master) {
+		__sysmmu_disable(data);
 		pm_runtime_put(dev);
 	}
 	return 0;
@@ -702,11 +649,12 @@ static int exynos_sysmmu_suspend(struct device *dev)
 static int exynos_sysmmu_resume(struct device *dev)
 {
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
+	struct device *master = data->master;
 
 	dev_dbg(dev, "resume\n");
-	if (is_sysmmu_active(data)) {
+	if (master) {
 		pm_runtime_get_sync(dev);
-		__sysmmu_enable_nocount(data);
+		__sysmmu_enable(data);
 	}
 	return 0;
 }
@@ -818,6 +766,8 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
 		__sysmmu_disable(data);
+		data->pgtable = 0;
+		data->domain = NULL;
 		data->master = NULL;
 		list_del_init(&data->domain_node);
 	}
@@ -861,6 +811,8 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
 		__sysmmu_disable(data);
 		data->master = NULL;
+		data->pgtable = 0;
+		data->domain = NULL;
 		list_del_init(&data->domain_node);
 		pm_runtime_put(data->sysmmu);
 	}
@@ -888,8 +840,10 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 		exynos_iommu_detach_device(owner->domain, dev);
 
 	list_for_each_entry(data, &owner->controllers, owner_node) {
+		data->pgtable = pagetable;
+		data->domain = domain;
 		pm_runtime_get_sync(data->sysmmu);
-		__sysmmu_enable(data, pagetable, domain);
+		__sysmmu_enable(data);
 		data->master = dev;
 
 		spin_lock_irqsave(&domain->lock, flags);
