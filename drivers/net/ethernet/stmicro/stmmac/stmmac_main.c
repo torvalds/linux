@@ -340,18 +340,17 @@ out:
 
 /* stmmac_get_tx_hwtstamp - get HW TX timestamps
  * @priv: driver private structure
- * @entry : descriptor index to be used.
+ * @p : descriptor pointer
  * @skb : the socket buffer
  * Description :
  * This function will read timestamp from the descriptor & pass it to stack.
  * and also perform some sanity checks.
  */
 static void stmmac_get_tx_hwtstamp(struct stmmac_priv *priv,
-				   unsigned int entry, struct sk_buff *skb)
+				   struct dma_desc *p, struct sk_buff *skb)
 {
 	struct skb_shared_hwtstamps shhwtstamp;
 	u64 ns;
-	void *desc = NULL;
 
 	if (!priv->hwts_tx_en)
 		return;
@@ -360,58 +359,55 @@ static void stmmac_get_tx_hwtstamp(struct stmmac_priv *priv,
 	if (likely(!skb || !(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)))
 		return;
 
-	if (priv->adv_ts)
-		desc = (priv->dma_etx + entry);
-	else
-		desc = (priv->dma_tx + entry);
-
 	/* check tx tstamp status */
-	if (!priv->hw->desc->get_tx_timestamp_status((struct dma_desc *)desc))
-		return;
+	if (!priv->hw->desc->get_tx_timestamp_status(p)) {
+		/* get the valid tstamp */
+		ns = priv->hw->desc->get_timestamp(p, priv->adv_ts);
 
-	/* get the valid tstamp */
-	ns = priv->hw->desc->get_timestamp(desc, priv->adv_ts);
+		memset(&shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
+		shhwtstamp.hwtstamp = ns_to_ktime(ns);
 
-	memset(&shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
-	shhwtstamp.hwtstamp = ns_to_ktime(ns);
-	/* pass tstamp to stack */
-	skb_tstamp_tx(skb, &shhwtstamp);
+		netdev_info(priv->dev, "get valid TX hw timestamp %llu\n", ns);
+		/* pass tstamp to stack */
+		skb_tstamp_tx(skb, &shhwtstamp);
+	}
 
 	return;
 }
 
 /* stmmac_get_rx_hwtstamp - get HW RX timestamps
  * @priv: driver private structure
- * @entry : descriptor index to be used.
+ * @p : descriptor pointer
+ * @np : next descriptor pointer
  * @skb : the socket buffer
  * Description :
  * This function will read received packet's timestamp from the descriptor
  * and pass it to stack. It also perform some sanity checks.
  */
-static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv,
-				   unsigned int entry, struct sk_buff *skb)
+static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
+				   struct dma_desc *np, struct sk_buff *skb)
 {
 	struct skb_shared_hwtstamps *shhwtstamp = NULL;
 	u64 ns;
-	void *desc = NULL;
 
 	if (!priv->hwts_rx_en)
 		return;
 
-	if (priv->adv_ts)
-		desc = (priv->dma_erx + entry);
-	else
-		desc = (priv->dma_rx + entry);
+	/* Check if timestamp is available */
+	if (!priv->hw->desc->get_rx_timestamp_status(p, priv->adv_ts)) {
+		/* For GMAC4, the valid timestamp is from CTX next desc. */
+		if (priv->plat->has_gmac4)
+			ns = priv->hw->desc->get_timestamp(np, priv->adv_ts);
+		else
+			ns = priv->hw->desc->get_timestamp(p, priv->adv_ts);
 
-	/* exit if rx tstamp is not valid */
-	if (!priv->hw->desc->get_rx_timestamp_status(desc, priv->adv_ts))
-		return;
-
-	/* get valid tstamp */
-	ns = priv->hw->desc->get_timestamp(desc, priv->adv_ts);
-	shhwtstamp = skb_hwtstamps(skb);
-	memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
-	shhwtstamp->hwtstamp = ns_to_ktime(ns);
+		netdev_info(priv->dev, "get valid RX hw timestamp %llu\n", ns);
+		shhwtstamp = skb_hwtstamps(skb);
+		memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
+		shhwtstamp->hwtstamp = ns_to_ktime(ns);
+	} else  {
+		netdev_err(priv->dev, "cannot get RX hw timestamp\n");
+	}
 }
 
 /**
@@ -598,17 +594,18 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	priv->hwts_tx_en = config.tx_type == HWTSTAMP_TX_ON;
 
 	if (!priv->hwts_tx_en && !priv->hwts_rx_en)
-		priv->hw->ptp->config_hw_tstamping(priv->ioaddr, 0);
+		priv->hw->ptp->config_hw_tstamping(priv->ptpaddr, 0);
 	else {
 		value = (PTP_TCR_TSENA | PTP_TCR_TSCFUPDT | PTP_TCR_TSCTRLSSR |
 			 tstamp_all | ptp_v2 | ptp_over_ethernet |
 			 ptp_over_ipv6_udp | ptp_over_ipv4_udp | ts_event_en |
 			 ts_master_en | snap_type_sel);
-		priv->hw->ptp->config_hw_tstamping(priv->ioaddr, value);
+		priv->hw->ptp->config_hw_tstamping(priv->ptpaddr, value);
 
 		/* program Sub Second Increment reg */
 		sec_inc = priv->hw->ptp->config_sub_second_increment(
-			priv->ioaddr, priv->clk_ptp_rate);
+			priv->ptpaddr, priv->clk_ptp_rate,
+			priv->plat->has_gmac4);
 		temp = div_u64(1000000000ULL, sec_inc);
 
 		/* calculate default added value:
@@ -618,14 +615,14 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		 */
 		temp = (u64)(temp << 32);
 		priv->default_addend = div_u64(temp, priv->clk_ptp_rate);
-		priv->hw->ptp->config_addend(priv->ioaddr,
+		priv->hw->ptp->config_addend(priv->ptpaddr,
 					     priv->default_addend);
 
 		/* initialize system time */
 		ktime_get_real_ts64(&now);
 
 		/* lower 32 bits of tv_sec are safe until y2106 */
-		priv->hw->ptp->init_systime(priv->ioaddr, (u32)now.tv_sec,
+		priv->hw->ptp->init_systime(priv->ptpaddr, (u32)now.tv_sec,
 					    now.tv_nsec);
 	}
 
@@ -1340,7 +1337,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 				priv->dev->stats.tx_packets++;
 				priv->xstats.tx_pkt_n++;
 			}
-			stmmac_get_tx_hwtstamp(priv, entry, skb);
+			stmmac_get_tx_hwtstamp(priv, p, skb);
 		}
 
 		if (likely(priv->tx_skbuff_dma[entry].buf)) {
@@ -1486,10 +1483,13 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 	unsigned int mode = MMC_CNTRL_RESET_ON_READ | MMC_CNTRL_COUNTER_RESET |
 			    MMC_CNTRL_PRESET | MMC_CNTRL_FULL_HALF_PRESET;
 
-	if (priv->synopsys_id >= DWMAC_CORE_4_00)
+	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+		priv->ptpaddr = priv->ioaddr + PTP_GMAC4_OFFSET;
 		priv->mmcaddr = priv->ioaddr + MMC_GMAC4_OFFSET;
-	else
+	} else {
+		priv->ptpaddr = priv->ioaddr + PTP_GMAC3_X_OFFSET;
 		priv->mmcaddr = priv->ioaddr + MMC_GMAC3_X_OFFSET;
+	}
 
 	dwmac_mmc_intr_all_mask(priv->mmcaddr);
 
@@ -2484,7 +2484,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 	if (netif_msg_rx_status(priv)) {
 		void *rx_head;
 
-		pr_debug("%s: descriptor ring:\n", __func__);
+		pr_info(">>>>>> %s: descriptor ring:\n", __func__);
 		if (priv->extend_desc)
 			rx_head = (void *)priv->dma_erx;
 		else
@@ -2495,6 +2495,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 	while (count < limit) {
 		int status;
 		struct dma_desc *p;
+		struct dma_desc *np;
 
 		if (priv->extend_desc)
 			p = (struct dma_desc *)(priv->dma_erx + entry);
@@ -2514,9 +2515,11 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 		next_entry = priv->cur_rx;
 
 		if (priv->extend_desc)
-			prefetch(priv->dma_erx + next_entry);
+			np = (struct dma_desc *)(priv->dma_erx + next_entry);
 		else
-			prefetch(priv->dma_rx + next_entry);
+			np = priv->dma_rx + next_entry;
+
+		prefetch(np);
 
 		if ((priv->extend_desc) && (priv->hw->desc->rx_extended_status))
 			priv->hw->desc->rx_extended_status(&priv->dev->stats,
@@ -2568,7 +2571,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				frame_len -= ETH_FCS_LEN;
 
 			if (netif_msg_rx_status(priv)) {
-				pr_debug("\tdesc: %p [entry %d] buff=0x%x\n",
+				pr_info("\tdesc: %p [entry %d] buff=0x%x\n",
 					p, entry, des);
 				if (frame_len > ETH_FRAME_LEN)
 					pr_debug("\tframe size %d, COE: %d\n",
@@ -2625,12 +2628,12 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 						 DMA_FROM_DEVICE);
 			}
 
-			stmmac_get_rx_hwtstamp(priv, entry, skb);
-
 			if (netif_msg_pktdata(priv)) {
 				pr_debug("frame received (%dbytes)", frame_len);
 				print_pkt(skb->data, frame_len);
 			}
+
+			stmmac_get_rx_hwtstamp(priv, p, np, skb);
 
 			stmmac_rx_vlan(priv->dev, skb);
 
