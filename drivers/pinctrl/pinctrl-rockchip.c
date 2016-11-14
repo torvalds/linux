@@ -1373,15 +1373,19 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		data |= (extra_value << extra_bit);
 
 		/* write drive strength of N channel */
-		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data))
+		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data)) {
+			spin_unlock_irqrestore(&bank->slock, flags);
 			return -EINVAL;
+		}
 
-		if (extra_drv_type == DRV_TYPE_EXTRA_SAME_OFFSET)
+		if (extra_drv_type == DRV_TYPE_EXTRA_SAME_OFFSET) {
 			extra_bit += 2;
-		else if (extra_drv_type == DRV_TYPE_EXTRA_SAME_BITS)
+		} else if (extra_drv_type == DRV_TYPE_EXTRA_SAME_BITS) {
 			extra_reg += 0x4;
-		else
+		} else {
+			spin_unlock_irqrestore(&bank->slock, flags);
 			return -EINVAL;
+		}
 
 		/* enable the write to the equivalent lower bits */
 		data = ((1 << rmask_bits) - 1) << (extra_bit + 16);
@@ -1389,8 +1393,10 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		data |= (extra_value << extra_bit);
 
 		/* write drive strength of P channel */
-		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data))
+		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data)) {
+			spin_unlock_irqrestore(&bank->slock, flags);
 			return -EINVAL;
+		}
 
 		break;
 	case DRV_TYPE_IO_DEFAULT:
