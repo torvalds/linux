@@ -142,6 +142,7 @@ static int inv_hid_register_devcie(struct rkvr_iio_hw_device *hw_device)
 		list_for_each_entry(p, &rkvr_hid_hw_device_list, l) {
 			if (!strcmp(hw_device->name, p->name)) {
 				pr_err("%s already exist ,abort\n", hw_device->name);
+				mutex_unlock(&device_list_lock);
 				return -1;
 			}
 		}
