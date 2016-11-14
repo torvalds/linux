@@ -2016,7 +2016,14 @@ struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_preferred_vco_freq;
-	unsigned int cdclk_freq, max_cdclk_freq, atomic_cdclk_freq;
+	unsigned int cdclk_freq, max_cdclk_freq;
+
+	/*
+	 * For reading holding any crtc lock is sufficient,
+	 * for writing must hold all of them.
+	 */
+	unsigned int atomic_cdclk_freq;
+
 	unsigned int max_dotclk_freq;
 	unsigned int rawclk_freq;
 	unsigned int hpll_freq;

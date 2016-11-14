@@ -13914,13 +13914,32 @@ static int haswell_mode_set_planes_workaround(struct drm_atomic_state *state)
 	return 0;
 }
 
+static int intel_lock_all_pipes(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+
+	/* Add all pipes to the state */
+	for_each_crtc(state->dev, crtc) {
+		struct drm_crtc_state *crtc_state;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
+	return 0;
+}
+
 static int intel_modeset_all_pipes(struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int ret = 0;
 
-	/* add all active pipes to the state */
+	/*
+	 * Add all pipes to the state, and force
+	 * a modeset on all the active ones.
+	 */
 	for_each_crtc(state->dev, crtc) {
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
@@ -13986,12 +14005,24 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 		if (ret < 0)
 			return ret;
 
-		if (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
-		    intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco)
-			ret = intel_modeset_all_pipes(state);
+		/*
+		 * Writes to dev_priv->atomic_cdclk_freq must protected by
+		 * holding all the crtc locks, even if we don't end up
+		 * touching the hardware
+		 */
+		if (intel_state->cdclk != dev_priv->atomic_cdclk_freq) {
+			ret = intel_lock_all_pipes(state);
+			if (ret < 0)
+				return ret;
+		}
 
-		if (ret < 0)
-			return ret;
+		/* All pipes must be switched off while we change the cdclk. */
+		if (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
+		    intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco) {
+			ret = intel_modeset_all_pipes(state);
+			if (ret < 0)
+				return ret;
+		}
 
 		DRM_DEBUG_KMS("New cdclk calculated to be atomic %u, actual %u\n",
 			      intel_state->cdclk, intel_state->dev_cdclk);
