@@ -1510,15 +1510,15 @@ static int atmel_spi_gpio_cs(struct platform_device *pdev)
 		int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
 						"cs-gpios", i);
 
-			if (cs_gpio == -EPROBE_DEFER)
-				return cs_gpio;
+		if (cs_gpio == -EPROBE_DEFER)
+			return cs_gpio;
 
-			if (gpio_is_valid(cs_gpio)) {
-				ret = devm_gpio_request(&pdev->dev, cs_gpio,
-							dev_name(&pdev->dev));
-				if (ret)
-					return ret;
-			}
+		if (gpio_is_valid(cs_gpio)) {
+			ret = devm_gpio_request(&pdev->dev, cs_gpio,
+						dev_name(&pdev->dev));
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
