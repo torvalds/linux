@@ -205,7 +205,7 @@
 		clock-names = "saradc", "apb_pclk";
 		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
-		resets = <&cru SRST_SARADC>;
+		resets = <&cru SRST_TSADC>;
 		reset-names = "saradc-apb";
 		status = "disabled";
 	};
