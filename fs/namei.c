@@ -1747,7 +1747,7 @@ static inline int should_follow_link(struct nameidata *nd, struct path *link,
 	return pick_link(nd, link, inode, seq);
 }
 
-enum {WALK_GET = 1, WALK_PUT = 2};
+enum {WALK_GET = 1, WALK_MORE = 2};
 
 static int walk_component(struct nameidata *nd, int flags)
 {
@@ -1762,7 +1762,7 @@ static int walk_component(struct nameidata *nd, int flags)
 	 */
 	if (unlikely(nd->last_type != LAST_NORM)) {
 		err = handle_dots(nd, nd->last_type);
-		if (flags & WALK_PUT)
+		if (!(flags & WALK_MORE) && nd->depth)
 			put_link(nd);
 		return err;
 	}
@@ -1789,7 +1789,7 @@ static int walk_component(struct nameidata *nd, int flags)
 		inode = d_backing_inode(path.dentry);
 	}
 
-	if (flags & WALK_PUT)
+	if (!(flags & WALK_MORE) && nd->depth)
 		put_link(nd);
 	err = should_follow_link(nd, &path, flags & WALK_GET, inode, seq);
 	if (unlikely(err))
@@ -2104,9 +2104,10 @@ OK:
 			if (!name)
 				return 0;
 			/* last component of nested symlink */
-			err = walk_component(nd, WALK_GET | WALK_PUT);
-		} else {
 			err = walk_component(nd, WALK_GET);
+		} else {
+			/* not the last component */
+			err = walk_component(nd, WALK_GET | WALK_MORE);
 		}
 		if (err < 0)
 			return err;
@@ -2248,7 +2249,7 @@ static inline int lookup_last(struct nameidata *nd)
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	return walk_component(nd, nd->depth ? WALK_PUT : 0);
+	return walk_component(nd, 0);
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
