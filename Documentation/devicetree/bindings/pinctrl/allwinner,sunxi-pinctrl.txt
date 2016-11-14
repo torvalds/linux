@@ -28,6 +28,20 @@ Required properties:
 - reg: Should contain the register physical address and length for the
   pin controller.
 
+- clocks: phandle to the clocks feeding the pin controller:
+  - "apb": the gated APB parent clock
+  - "hosc": the high frequency oscillator in the system
+  - "losc": the low frequency oscillator in the system
+
+Note: For backward compatibility reasons, the hosc and losc clocks are only
+required if you need to use the optional input-debounce property. Any new
+device tree should set them.
+
+Optional properties:
+  - input-debounce: Array of debouncing periods in microseconds. One period per
+    irq bank found in the controller. 0 if no setup required.
+
+
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices.
 

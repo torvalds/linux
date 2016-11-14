@@ -1122,6 +1122,88 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	return 0;
 }
 
+static int sunxi_pinctrl_get_debounce_div(struct clk *clk, int freq, int *diff)
+{
+	unsigned long clock = clk_get_rate(clk);
+	unsigned int best_diff = ~0, best_div;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		int cur_diff = abs(freq - (clock >> i));
+
+		if (cur_diff < best_diff) {
+			best_diff = cur_diff;
+			best_div = i;
+		}
+	}
+
+	*diff = best_diff;
+	return best_div;
+}
+
+static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
+					struct device_node *node)
+{
+	unsigned int hosc_diff, losc_diff;
+	unsigned int hosc_div, losc_div;
+	struct clk *hosc, *losc;
+	u8 div, src;
+	int i, ret;
+
+	/* Deal with old DTs that didn't have the oscillators */
+	if (of_count_phandle_with_args(node, "clocks", "#clock-cells") != 3)
+		return 0;
+
+	/* If we don't have any setup, bail out */
+	if (!of_find_property(node, "input-debounce", NULL))
+		return 0;
+
+	losc = devm_clk_get(pctl->dev, "losc");
+	if (IS_ERR(losc))
+		return PTR_ERR(losc);
+
+	hosc = devm_clk_get(pctl->dev, "hosc");
+	if (IS_ERR(hosc))
+		return PTR_ERR(hosc);
+
+	for (i = 0; i < pctl->desc->irq_banks; i++) {
+		unsigned long debounce_freq;
+		u32 debounce;
+
+		ret = of_property_read_u32_index(node, "input-debounce",
+						 i, &debounce);
+		if (ret)
+			return ret;
+
+		if (!debounce)
+			continue;
+
+		debounce_freq = DIV_ROUND_CLOSEST(USEC_PER_SEC, debounce);
+		losc_div = sunxi_pinctrl_get_debounce_div(losc,
+							  debounce_freq,
+							  &losc_diff);
+
+		hosc_div = sunxi_pinctrl_get_debounce_div(hosc,
+							  debounce_freq,
+							  &hosc_diff);
+
+		if (hosc_diff < losc_diff) {
+			div = hosc_div;
+			src = 1;
+		} else {
+			div = losc_div;
+			src = 0;
+		}
+
+		writel(src | div << 4,
+		       pctl->membase +
+		       sunxi_irq_debounce_reg_from_bank(i,
+							pctl->desc->irq_bank_base));
+	}
+
+	return 0;
+}
+
 int sunxi_pinctrl_init(struct platform_device *pdev,
 		       const struct sunxi_pinctrl_desc *desc)
 {
@@ -1283,6 +1365,8 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 						 sunxi_pinctrl_irq_handler,
 						 pctl);
 	}
+
+	sunxi_pinctrl_setup_debounce(pctl, node);
 
 	dev_info(&pdev->dev, "initialized sunXi PIO driver\n");
 
