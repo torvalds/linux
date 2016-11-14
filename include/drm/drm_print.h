@@ -74,11 +74,6 @@ struct drm_printer {
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 
-/**
- * drm_printf - print to a &drm_printer stream
- * @p: the &drm_printer
- * @f: format string
- */
 void drm_printf(struct drm_printer *p, const char *f, ...);
 
 
