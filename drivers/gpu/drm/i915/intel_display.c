@@ -14799,6 +14799,8 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 						      GFP_KERNEL);
 		if (ret < 0)
 			return ret;
+
+		i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
 	}
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&

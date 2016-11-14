@@ -3091,6 +3091,11 @@ int i915_gem_object_wait(struct drm_i915_gem_object *obj,
 			 unsigned int flags,
 			 long timeout,
 			 struct intel_rps_client *rps);
+int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
+				  unsigned int flags,
+				  int priority);
+#define I915_PRIORITY_DISPLAY I915_PRIORITY_MAX
+
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
 				  bool write);
