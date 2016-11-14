@@ -822,6 +822,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	if (octeon_init_instr_queue(oct, txpciq, num_descs)) {
 		/* prevent memory leak */
 		vfree(oct->instr_queue[0]);
+		oct->instr_queue[0] = NULL;
 		return 1;
 	}
 
@@ -854,8 +855,11 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	if (!oct->droq[0])
 		return 1;
 
-	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL))
+	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL)) {
+		vfree(oct->droq[oq_no]);
+		oct->droq[oq_no] = NULL;
 		return 1;
+	}
 	oct->num_oqs++;
 
 	return 0;

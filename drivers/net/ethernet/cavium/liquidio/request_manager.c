@@ -157,6 +157,8 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 						     WQ_MEM_RECLAIM,
 						     0);
 	if (!oct->check_db_wq[iq_no].wq) {
+		vfree(iq->request_list);
+		iq->request_list = NULL;
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "check db wq create failed for iq %d\n",
 			iq_no);
@@ -749,8 +751,10 @@ int octeon_setup_sc_buffer_pool(struct octeon_device *oct)
 			lio_dma_alloc(oct,
 				      SOFT_COMMAND_BUFFER_SIZE,
 					  (dma_addr_t *)&dma_addr);
-		if (!sc)
+		if (!sc) {
+			octeon_free_sc_buffer_pool(oct);
 			return 1;
+		}
 
 		sc->dma_addr = dma_addr;
 		sc->size = SOFT_COMMAND_BUFFER_SIZE;

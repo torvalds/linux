@@ -116,7 +116,7 @@ static inline int octeon_map_pci_barx(struct octeon_device *oct,
 
 	mapped_len = oct->mmio[baridx].len;
 	if (!mapped_len)
-		return 1;
+		goto err_release_region;
 
 	if (max_map_len && (mapped_len > max_map_len))
 		mapped_len = max_map_len;
@@ -132,11 +132,15 @@ static inline int octeon_map_pci_barx(struct octeon_device *oct,
 	if (!oct->mmio[baridx].hw_addr) {
 		dev_err(&oct->pci_dev->dev, "error ioremap for bar %d\n",
 			baridx);
-		return 1;
+		goto err_release_region;
 	}
 	oct->mmio[baridx].done = 1;
 
 	return 0;
+
+err_release_region:
+	pci_release_region(oct->pci_dev, baridx * 2);
+	return 1;
 }
 
 static inline void *

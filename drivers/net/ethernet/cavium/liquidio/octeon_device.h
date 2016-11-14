@@ -72,20 +72,23 @@ enum octeon_pci_swap_mode {
  *  as it is initialized.
  */
 #define    OCT_DEV_BEGIN_STATE            0x0
-#define    OCT_DEV_PCI_MAP_DONE           0x1
-#define    OCT_DEV_DISPATCH_INIT_DONE     0x2
-#define    OCT_DEV_INSTR_QUEUE_INIT_DONE  0x3
-#define    OCT_DEV_SC_BUFF_POOL_INIT_DONE 0x4
-#define    OCT_DEV_RESP_LIST_INIT_DONE    0x5
-#define    OCT_DEV_DROQ_INIT_DONE         0x6
+#define    OCT_DEV_PCI_ENABLE_DONE        0x1
+#define    OCT_DEV_PCI_MAP_DONE           0x2
+#define    OCT_DEV_DISPATCH_INIT_DONE     0x3
+#define    OCT_DEV_INSTR_QUEUE_INIT_DONE  0x4
+#define    OCT_DEV_SC_BUFF_POOL_INIT_DONE 0x5
+#define    OCT_DEV_RESP_LIST_INIT_DONE    0x6
+#define    OCT_DEV_DROQ_INIT_DONE         0x7
 #define    OCT_DEV_MBOX_SETUP_DONE        0x8
-#define    OCT_DEV_IO_QUEUES_DONE         0x9
-#define    OCT_DEV_CONSOLE_INIT_DONE      0xa
-#define    OCT_DEV_HOST_OK                0xb
-#define    OCT_DEV_CORE_OK                0xc
-#define    OCT_DEV_RUNNING                0xd
-#define    OCT_DEV_IN_RESET               0xe
-#define    OCT_DEV_STATE_INVALID          0xf
+#define    OCT_DEV_MSIX_ALLOC_VECTOR_DONE 0x9
+#define    OCT_DEV_INTR_SET_DONE          0xa
+#define    OCT_DEV_IO_QUEUES_DONE         0xb
+#define    OCT_DEV_CONSOLE_INIT_DONE      0xc
+#define    OCT_DEV_HOST_OK                0xd
+#define    OCT_DEV_CORE_OK                0xe
+#define    OCT_DEV_RUNNING                0xf
+#define    OCT_DEV_IN_RESET               0x10
+#define    OCT_DEV_STATE_INVALID          0x11
 
 #define    OCT_DEV_STATES                 OCT_DEV_STATE_INVALID
 

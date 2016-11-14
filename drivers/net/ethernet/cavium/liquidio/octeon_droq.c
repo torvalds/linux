@@ -988,7 +988,8 @@ int octeon_create_droq(struct octeon_device *oct,
 	if (!droq)
 		droq = vmalloc(sizeof(*droq));
 	if (!droq)
-		goto create_droq_fail;
+		return -1;
+
 	memset(droq, 0, sizeof(struct octeon_droq));
 
 	/*Disable the pkt o/p for this Q  */
@@ -996,7 +997,11 @@ int octeon_create_droq(struct octeon_device *oct,
 	oct->droq[q_no] = droq;
 
 	/* Initialize the Droq */
-	octeon_init_droq(oct, q_no, num_descs, desc_size, app_ctx);
+	if (octeon_init_droq(oct, q_no, num_descs, desc_size, app_ctx)) {
+		vfree(oct->droq[q_no]);
+		oct->droq[q_no] = NULL;
+		return -1;
+	}
 
 	oct->num_oqs++;
 
@@ -1009,8 +1014,4 @@ int octeon_create_droq(struct octeon_device *oct,
 	 * the same time.
 	 */
 	return 0;
-
-create_droq_fail:
-	octeon_delete_droq(oct, q_no);
-	return -ENOMEM;
 }
