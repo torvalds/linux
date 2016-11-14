@@ -179,8 +179,8 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 
 	ret = of_property_read_u32(intc, "xlnx,kind-of-intr", &irqc->intr_mask);
 	if (ret < 0) {
-		pr_err("irq-xilinx: unable to read xlnx,kind-of-intr\n");
-		goto err_alloc;
+		pr_warn("irq-xilinx: unable to read xlnx,kind-of-intr\n");
+		irqc->intr_mask = 0;
 	}
 
 	if (irqc->intr_mask >> nr_irq)
