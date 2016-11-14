@@ -3573,6 +3573,151 @@ static void liquidio_del_vxlan_port(struct net_device *netdev,
 				    OCTNET_CMD_VXLAN_PORT_DEL);
 }
 
+static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
+				 u8 *mac, bool is_admin_assigned)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+
+	if (!is_valid_ether_addr(mac))
+		return -EINVAL;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.max_vfs)
+		return -EINVAL;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MACADDR;
+	/* vfidx is 0 based, but vf_num (param1) is 1 based */
+	nctrl.ncmd.s.param1 = vfidx + 1;
+	nctrl.ncmd.s.param2 = (is_admin_assigned ? 1 : 0);
+	nctrl.ncmd.s.more = 1;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = 0;
+	nctrl.wait_time = LIO_CMD_WAIT_TM;
+
+	nctrl.udd[0] = 0;
+	/* The MAC Address is presented in network byte order. */
+	ether_addr_copy((u8 *)&nctrl.udd[0] + 2, mac);
+
+	oct->sriov_info.vf_macaddr[vfidx] = nctrl.udd[0];
+
+	octnet_send_nic_ctrl_pkt(oct, &nctrl);
+
+	return 0;
+}
+
+static int liquidio_set_vf_mac(struct net_device *netdev, int vfidx, u8 *mac)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	int retval;
+
+	retval = __liquidio_set_vf_mac(netdev, vfidx, mac, true);
+	if (!retval)
+		cn23xx_tell_vf_its_macaddr_changed(oct, vfidx, mac);
+
+	return retval;
+}
+
+static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
+				u16 vlan, u8 qos, __be16 vlan_proto)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	u16 vlantci;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
+
+	if (vlan >= VLAN_N_VID || qos > 7)
+		return -EINVAL;
+
+	if (vlan)
+		vlantci = vlan | (u16)qos << VLAN_PRIO_SHIFT;
+	else
+		vlantci = 0;
+
+	if (oct->sriov_info.vf_vlantci[vfidx] == vlantci)
+		return 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	if (vlan)
+		nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
+	else
+		nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
+
+	nctrl.ncmd.s.param1 = vlantci;
+	nctrl.ncmd.s.param2 =
+	    vfidx + 1; /* vfidx is 0 based, but vf_num (param2) is 1 based */
+	nctrl.ncmd.s.more = 0;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = 0;
+	nctrl.wait_time = LIO_CMD_WAIT_TM;
+
+	octnet_send_nic_ctrl_pkt(oct, &nctrl);
+
+	oct->sriov_info.vf_vlantci[vfidx] = vlantci;
+
+	return 0;
+}
+
+static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
+				  struct ifla_vf_info *ivi)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	u8 *macaddr;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	ivi->vf = vfidx;
+	macaddr = 2 + (u8 *)&oct->sriov_info.vf_macaddr[vfidx];
+	ether_addr_copy(&ivi->mac[0], macaddr);
+	ivi->vlan = oct->sriov_info.vf_vlantci[vfidx] & VLAN_VID_MASK;
+	ivi->qos = oct->sriov_info.vf_vlantci[vfidx] >> VLAN_PRIO_SHIFT;
+	ivi->linkstate = oct->sriov_info.vf_linkstate[vfidx];
+	return 0;
+}
+
+static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
+				      int linkstate)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	if (oct->sriov_info.vf_linkstate[vfidx] == linkstate)
+		return 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_VF_LINKSTATE;
+	nctrl.ncmd.s.param1 =
+	    vfidx + 1; /* vfidx is 0 based, but vf_num (param1) is 1 based */
+	nctrl.ncmd.s.param2 = linkstate;
+	nctrl.ncmd.s.more = 0;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = 0;
+	nctrl.wait_time = LIO_CMD_WAIT_TM;
+
+	octnet_send_nic_ctrl_pkt(oct, &nctrl);
+
+	oct->sriov_info.vf_linkstate[vfidx] = linkstate;
+
+	return 0;
+}
+
 static struct net_device_ops lionetdevops = {
 	.ndo_open		= liquidio_open,
 	.ndo_stop		= liquidio_stop,
@@ -3590,6 +3735,10 @@ static struct net_device_ops lionetdevops = {
 	.ndo_set_features	= liquidio_set_features,
 	.ndo_udp_tunnel_add	= liquidio_add_vxlan_port,
 	.ndo_udp_tunnel_del	= liquidio_del_vxlan_port,
+	.ndo_set_vf_mac		= liquidio_set_vf_mac,
+	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
+	.ndo_get_vf_config	= liquidio_get_vf_config,
+	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
 };
 
 /** \brief Entry point for the liquidio module
@@ -3912,6 +4061,19 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			"if%d gmx: %d hw_addr: 0x%llx\n", i,
 			lio->linfo.gmxport, CVM_CAST64(lio->linfo.hw_addr));
 
+		for (j = 0; j < octeon_dev->sriov_info.max_vfs; j++) {
+			u8 vfmac[ETH_ALEN];
+
+			random_ether_addr(&vfmac[0]);
+			if (__liquidio_set_vf_mac(netdev, j,
+						  &vfmac[0], false)) {
+				dev_err(&octeon_dev->pci_dev->dev,
+					"Error setting VF%d MAC address\n",
+					j);
+				goto setup_nic_dev_fail;
+			}
+		}
+
 		/* 64-bit swap required on LE machines */
 		octeon_swap_8B_data(&lio->linfo.hw_addr, 1);
 		for (j = 0; j < 6; j++)
@@ -4207,6 +4369,52 @@ static void nic_starter(struct work_struct *work)
 	complete(&handshake[oct->octeon_id].started);
 }
 
+static int
+octeon_recv_vf_drv_notice(struct octeon_recv_info *recv_info, void *buf)
+{
+	struct octeon_device *oct = (struct octeon_device *)buf;
+	struct octeon_recv_pkt *recv_pkt = recv_info->recv_pkt;
+	int i, notice, vf_idx;
+	u64 *data, vf_num;
+
+	notice = recv_pkt->rh.r.ossp;
+	data = (u64 *)get_rbd(recv_pkt->buffer_ptr[0]);
+
+	/* the first 64-bit word of data is the vf_num */
+	vf_num = data[0];
+	octeon_swap_8B_data(&vf_num, 1);
+	vf_idx = (int)vf_num - 1;
+
+	if (notice == VF_DRV_LOADED) {
+		if (!(oct->sriov_info.vf_drv_loaded_mask & BIT_ULL(vf_idx))) {
+			oct->sriov_info.vf_drv_loaded_mask |= BIT_ULL(vf_idx);
+			dev_info(&oct->pci_dev->dev,
+				 "driver for VF%d was loaded\n", vf_idx);
+			try_module_get(THIS_MODULE);
+		}
+	} else if (notice == VF_DRV_REMOVED) {
+		if (oct->sriov_info.vf_drv_loaded_mask & BIT_ULL(vf_idx)) {
+			oct->sriov_info.vf_drv_loaded_mask &= ~BIT_ULL(vf_idx);
+			dev_info(&oct->pci_dev->dev,
+				 "driver for VF%d was removed\n", vf_idx);
+			module_put(THIS_MODULE);
+		}
+	} else if (notice == VF_DRV_MACADDR_CHANGED) {
+		u8 *b = (u8 *)&data[1];
+
+		oct->sriov_info.vf_macaddr[vf_idx] = data[1];
+		dev_info(&oct->pci_dev->dev,
+			 "VF driver changed VF%d's MAC address to %pM\n",
+			 vf_idx, b + 2);
+	}
+
+	for (i = 0; i < recv_pkt->buffer_count; i++)
+		recv_buffer_free(recv_pkt->buffer_ptr[i]);
+	octeon_free_recv_info(recv_info);
+
+	return 0;
+}
+
 /**
  * \brief Device initialization for each Octeon device that is probed
  * @param octeon_dev  octeon device
@@ -4265,6 +4473,9 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 				    octeon_core_drv_init,
 				    octeon_dev);
 
+	octeon_register_dispatch_fn(octeon_dev, OPCODE_NIC,
+				    OPCODE_NIC_VF_DRV_NOTICE,
+				    octeon_recv_vf_drv_notice, octeon_dev);
 	INIT_DELAYED_WORK(&octeon_dev->nic_poll_work.work, nic_starter);
 	octeon_dev->nic_poll_work.ctxptr = (void *)octeon_dev;
 	schedule_delayed_work(&octeon_dev->nic_poll_work.work,

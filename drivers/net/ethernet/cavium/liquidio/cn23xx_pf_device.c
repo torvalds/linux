@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/etherdevice.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -1415,4 +1416,25 @@ int cn23xx_fw_loaded(struct octeon_device *oct)
 
 	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1);
 	return (val >> 1) & 1ULL;
+}
+
+void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
+					u8 *mac)
+{
+	if (oct->sriov_info.vf_drv_loaded_mask & BIT_ULL(vfidx)) {
+		struct octeon_mbox_cmd mbox_cmd;
+
+		mbox_cmd.msg.u64 = 0;
+		mbox_cmd.msg.s.type = OCTEON_MBOX_REQUEST;
+		mbox_cmd.msg.s.resp_needed = 0;
+		mbox_cmd.msg.s.cmd = OCTEON_PF_CHANGED_VF_MACADDR;
+		mbox_cmd.msg.s.len = 1;
+		mbox_cmd.recv_len = 0;
+		mbox_cmd.recv_status = 0;
+		mbox_cmd.fn = NULL;
+		mbox_cmd.fn_arg = 0;
+		ether_addr_copy(mbox_cmd.msg.s.params, mac);
+		mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
+		octeon_mbox_write(oct, &mbox_cmd);
+	}
 }

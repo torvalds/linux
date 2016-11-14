@@ -89,6 +89,10 @@ enum octeon_tag_type {
 #define OPCODE_NIC_TIMESTAMP           0x07
 #define OPCODE_NIC_INTRMOD_CFG         0x08
 #define OPCODE_NIC_IF_CFG              0x09
+#define OPCODE_NIC_VF_DRV_NOTICE       0x0A
+#define VF_DRV_LOADED                  1
+#define VF_DRV_REMOVED                -1
+#define VF_DRV_MACADDR_CHANGED         2
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
@@ -235,6 +239,7 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_CMD_ID_ACTIVE         0x1a
 
+#define   OCTNET_CMD_SET_VF_LINKSTATE  0x1c
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
 #define   OCTNET_CMD_RXCSUM_ENABLE     0x0

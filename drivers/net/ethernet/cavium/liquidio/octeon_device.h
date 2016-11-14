@@ -354,6 +354,14 @@ struct octeon_sriov_info {
 
 	/*lookup table that maps DPI ring number to VF pci_dev struct pointer*/
 	struct pci_dev *dpiring_to_vfpcidev_lut[MAX_POSSIBLE_VFS];
+
+	u64	vf_macaddr[MAX_POSSIBLE_VFS];
+
+	u16	vf_vlantci[MAX_POSSIBLE_VFS];
+
+	int	vf_linkstate[MAX_POSSIBLE_VFS];
+
+	u64	vf_drv_loaded_mask;
 };
 
 struct octeon_ioq_vector {
