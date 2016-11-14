@@ -15,17 +15,14 @@
 #ifndef _KREF_H_
 #define _KREF_H_
 
-#include <linux/bug.h>
-#include <linux/atomic.h>
-#include <linux/kernel.h>
-#include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/refcount.h>
 
 struct kref {
-	atomic_t refcount;
+	refcount_t refcount;
 };
 
-#define KREF_INIT(n)	{ .refcount = ATOMIC_INIT(n), }
+#define KREF_INIT(n)	{ .refcount = REFCOUNT_INIT(n), }
 
 /**
  * kref_init - initialize object.
@@ -33,12 +30,12 @@ struct kref {
  */
 static inline void kref_init(struct kref *kref)
 {
-	atomic_set(&kref->refcount, 1);
+	refcount_set(&kref->refcount, 1);
 }
 
-static inline int kref_read(const struct kref *kref)
+static inline unsigned int kref_read(const struct kref *kref)
 {
-	return atomic_read(&kref->refcount);
+	return refcount_read(&kref->refcount);
 }
 
 /**
@@ -47,11 +44,7 @@ static inline int kref_read(const struct kref *kref)
  */
 static inline void kref_get(struct kref *kref)
 {
-	/* If refcount was 0 before incrementing then we have a race
-	 * condition when this kref is freeing by some other thread right now.
-	 * In this case one should use kref_get_unless_zero()
-	 */
-	WARN_ON_ONCE(atomic_inc_return(&kref->refcount) < 2);
+	refcount_inc(&kref->refcount);
 }
 
 /**
@@ -75,7 +68,7 @@ static inline int kref_put(struct kref *kref, void (*release)(struct kref *kref)
 {
 	WARN_ON(release == NULL);
 
-	if (atomic_dec_and_test(&kref->refcount)) {
+	if (refcount_dec_and_test(&kref->refcount)) {
 		release(kref);
 		return 1;
 	}
@@ -88,7 +81,7 @@ static inline int kref_put_mutex(struct kref *kref,
 {
 	WARN_ON(release == NULL);
 
-	if (atomic_dec_and_mutex_lock(&kref->refcount, lock)) {
+	if (refcount_dec_and_mutex_lock(&kref->refcount, lock)) {
 		release(kref);
 		return 1;
 	}
@@ -101,7 +94,7 @@ static inline int kref_put_lock(struct kref *kref,
 {
 	WARN_ON(release == NULL);
 
-	if (atomic_dec_and_lock(&kref->refcount, lock)) {
+	if (refcount_dec_and_lock(&kref->refcount, lock)) {
 		release(kref);
 		return 1;
 	}
@@ -126,6 +119,6 @@ static inline int kref_put_lock(struct kref *kref,
  */
 static inline int __must_check kref_get_unless_zero(struct kref *kref)
 {
-	return atomic_add_unless(&kref->refcount, 1, 0);
+	return refcount_inc_not_zero(&kref->refcount);
 }
 #endif /* _KREF_H_ */
