@@ -37,7 +37,7 @@ from load_config import loadConfig
 extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include', 'cdomain']
 
 # The name of the math extension changed on Sphinx 1.4
-if minor > 3:
+if major == 1 and minor > 3:
     extensions.append("sphinx.ext.imgmath")
 else:
     extensions.append("sphinx.ext.pngmath")
@@ -331,6 +331,10 @@ latex_elements = {
 
      '''
 }
+
+# Fix reference escape troubles with Sphinx 1.4.x
+if major == 1 and minor > 3:
+    latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
