@@ -77,7 +77,11 @@ static inline void decode_ctrl_reg(u32 reg,
 /* Lengths */
 #define ARM_BREAKPOINT_LEN_1	0x1
 #define ARM_BREAKPOINT_LEN_2	0x3
+#define ARM_BREAKPOINT_LEN_3	0x7
 #define ARM_BREAKPOINT_LEN_4	0xf
+#define ARM_BREAKPOINT_LEN_5	0x1f
+#define ARM_BREAKPOINT_LEN_6	0x3f
+#define ARM_BREAKPOINT_LEN_7	0x7f
 #define ARM_BREAKPOINT_LEN_8	0xff
 
 /* Kernel stepping */
