@@ -762,14 +762,14 @@ struct drm_mode_set {
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
 
-extern __printf(6, 7)
+__printf(6, 7)
 int drm_crtc_init_with_planes(struct drm_device *dev,
 			      struct drm_crtc *crtc,
 			      struct drm_plane *primary,
 			      struct drm_plane *cursor,
 			      const struct drm_crtc_funcs *funcs,
 			      const char *name, ...);
-extern void drm_crtc_cleanup(struct drm_crtc *crtc);
+void drm_crtc_cleanup(struct drm_crtc *crtc);
 
 /**
  * drm_crtc_index - find the index of a registered CRTC
@@ -795,12 +795,12 @@ static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 	return 1 << drm_crtc_index(crtc);
 }
 
-extern void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
-				   int *hdisplay, int *vdisplay);
-extern int drm_crtc_force_disable(struct drm_crtc *crtc);
-extern int drm_crtc_force_disable_all(struct drm_device *dev);
+void drm_crtc_get_hv_timing(const struct drm_display_mode *mode,
+			    int *hdisplay, int *vdisplay);
+int drm_crtc_force_disable(struct drm_crtc *crtc);
+int drm_crtc_force_disable_all(struct drm_device *dev);
 
-extern int drm_mode_set_config_internal(struct drm_mode_set *set);
+int drm_mode_set_config_internal(struct drm_mode_set *set);
 
 /* Helpers */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
