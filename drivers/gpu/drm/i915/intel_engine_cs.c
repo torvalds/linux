@@ -102,6 +102,9 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
 
+	/* Nothing to do here, execute in order of dependencies */
+	engine->schedule = NULL;
+
 	dev_priv->engine[id] = engine;
 	return 0;
 }

@@ -323,6 +323,10 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		 */
 		value = i915_gem_mmap_gtt_version();
 		break;
+	case I915_PARAM_HAS_SCHEDULER:
+		value = dev_priv->engine[RCS] &&
+			dev_priv->engine[RCS]->schedule;
+		break;
 	case I915_PARAM_MMAP_VERSION:
 		/* Remember to bump this if the version changes! */
 	case I915_PARAM_HAS_GEM:

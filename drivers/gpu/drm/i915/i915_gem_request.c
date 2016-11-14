@@ -762,6 +762,19 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 
 	i915_gem_mark_busy(engine);
 
+	/* Let the backend know a new request has arrived that may need
+	 * to adjust the existing execution schedule due to a high priority
+	 * request - i.e. we may want to preempt the current request in order
+	 * to run a high priority dependency chain *before* we can execute this
+	 * request.
+	 *
+	 * This is called before the request is ready to run so that we can
+	 * decide whether to preempt the entire chain so that it is ready to
+	 * run at the earliest possible convenience.
+	 */
+	if (engine->schedule)
+		engine->schedule(request, 0);
+
 	local_bh_disable();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */
