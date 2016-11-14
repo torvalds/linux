@@ -132,6 +132,7 @@ __i915_priotree_add_dependency(struct i915_priotree *pt,
 			       struct i915_dependency *dep,
 			       unsigned long flags)
 {
+	INIT_LIST_HEAD(&dep->dfs_link);
 	list_add(&dep->wait_link, &signal->waiters_list);
 	list_add(&dep->signal_link, &pt->signalers_list);
 	dep->signaler = signal;
@@ -158,6 +159,8 @@ i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
 {
 	struct i915_dependency *dep, *next;
 
+	GEM_BUG_ON(!RB_EMPTY_NODE(&pt->node));
+
 	/* Everyone we depended upon (the fences we wait to be signaled)
 	 * should retire before us and remove themselves from our list.
 	 * However, retirement is run independently on each timeline and
@@ -182,6 +185,8 @@ i915_priotree_init(struct i915_priotree *pt)
 {
 	INIT_LIST_HEAD(&pt->signalers_list);
 	INIT_LIST_HEAD(&pt->waiters_list);
+	RB_CLEAR_NODE(&pt->node);
+	pt->priority = INT_MIN;
 }
 
 void i915_gem_retire_noop(struct i915_gem_active *active,

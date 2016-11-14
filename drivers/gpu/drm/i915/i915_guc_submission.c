@@ -1532,6 +1532,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	/* Take over from manual control of ELSP (execlists) */
 	for_each_engine(engine, dev_priv, id) {
 		engine->submit_request = i915_guc_submit;
+		engine->schedule = NULL;
 
 		/* Replay the current set of previously submitted requests */
 		list_for_each_entry(request,

@@ -48,6 +48,7 @@ struct i915_dependency {
 	struct i915_priotree *signaler;
 	struct list_head signal_link;
 	struct list_head wait_link;
+	struct list_head dfs_link;
 	unsigned long flags;
 #define I915_DEPENDENCY_ALLOC BIT(0)
 };
@@ -64,6 +65,10 @@ struct i915_dependency {
 struct i915_priotree {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
+	struct rb_node node;
+	int priority;
+#define I915_PRIORITY_MAX 1024
+#define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
 };
 
 /**
@@ -194,9 +199,6 @@ struct drm_i915_gem_request {
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
 	struct list_head client_list;
-
-	/** Link in the execlist submission queue, guarded by execlist_lock. */
-	struct list_head execlist_link;
 };
 
 extern const struct dma_fence_ops i915_fence_ops;

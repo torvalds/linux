@@ -2721,10 +2721,11 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 
 		spin_lock_irqsave(&engine->timeline->lock, flags);
 
-		INIT_LIST_HEAD(&engine->execlist_queue);
 		i915_gem_request_put(engine->execlist_port[0].request);
 		i915_gem_request_put(engine->execlist_port[1].request);
 		memset(engine->execlist_port, 0, sizeof(engine->execlist_port));
+		engine->execlist_queue = RB_ROOT;
+		engine->execlist_first = NULL;
 
 		spin_unlock_irqrestore(&engine->timeline->lock, flags);
 	}

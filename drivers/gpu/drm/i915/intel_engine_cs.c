@@ -239,7 +239,8 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
-	INIT_LIST_HEAD(&engine->execlist_queue);
+	engine->execlist_queue = RB_ROOT;
+	engine->execlist_first = NULL;
 
 	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);

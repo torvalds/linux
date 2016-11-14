@@ -348,7 +348,8 @@ struct intel_engine_cs {
 		struct drm_i915_gem_request *request;
 		unsigned int count;
 	} execlist_port[2];
-	struct list_head execlist_queue;
+	struct rb_root execlist_queue;
+	struct rb_node *execlist_first;
 	unsigned int fw_domains;
 	bool disable_lite_restore_wa;
 	bool preempt_wa;
