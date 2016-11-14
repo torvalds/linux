@@ -141,12 +141,6 @@
 #define   PCIE_RC_CONFIG_DCR_CSPL_LIMIT		0xff
 #define   PCIE_RC_CONFIG_DCR_CPLS_SHIFT		26
 #define PCIE_RC_CONFIG_LCS		(PCIE_RC_CONFIG_BASE + 0xd0)
-#define   PCIE_RC_CONFIG_LCS_RETRAIN_LINK	BIT(5)
-#define   PCIE_RC_CONFIG_LCS_CCC		BIT(6)
-#define   PCIE_RC_CONFIG_LCS_LBMIE		BIT(10)
-#define   PCIE_RC_CONFIG_LCS_LABIE		BIT(11)
-#define   PCIE_RC_CONFIG_LCS_LBMS		BIT(30)
-#define   PCIE_RC_CONFIG_LCS_LAMS		BIT(31)
 #define PCIE_RC_CONFIG_L1_SUBSTATE_CTRL2 (PCIE_RC_CONFIG_BASE + 0x90c)
 #define PCIE_RC_CONFIG_THP_CAP		(PCIE_RC_CONFIG_BASE + 0x274)
 #define   PCIE_RC_CONFIG_THP_CAP_NEXT_MASK	GENMASK(31, 20)
@@ -232,7 +226,7 @@ static void rockchip_pcie_enable_bw_int(struct rockchip_pcie *rockchip)
 	u32 status;
 
 	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_LCS);
-	status |= (PCIE_RC_CONFIG_LCS_LBMIE | PCIE_RC_CONFIG_LCS_LABIE);
+	status |= (PCI_EXP_LNKCTL_LBMIE | PCI_EXP_LNKCTL_LABIE);
 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
 }
 
@@ -241,7 +235,7 @@ static void rockchip_pcie_clr_bw_int(struct rockchip_pcie *rockchip)
 	u32 status;
 
 	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_LCS);
-	status |= (PCIE_RC_CONFIG_LCS_LBMS | PCIE_RC_CONFIG_LCS_LAMS);
+	status |= (PCI_EXP_LNKSTA_LBMS | PCI_EXP_LNKSTA_LABS) << 16;
 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
 }
 
@@ -581,7 +575,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 
 	/* Set RC's clock architecture as common clock */
 	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_LCS);
-	status |= PCIE_RC_CONFIG_LCS_CCC;
+	status |= PCI_EXP_LNKCTL_CCC;
 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
 
 	/* Enable Gen1 training */
@@ -616,7 +610,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		 * gen1 finished.
 		 */
 		status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_LCS);
-		status |= PCIE_RC_CONFIG_LCS_RETRAIN_LINK;
+		status |= PCI_EXP_LNKCTL_RL;
 		rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
 
 		timeout = jiffies + msecs_to_jiffies(500);
