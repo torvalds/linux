@@ -315,7 +315,7 @@ ENTRY(startup_kdump)
 	jg	startup_continue
 
 .Lstack:
-	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_ORDER))
+	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_SIZE_ORDER))
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 

@@ -12,10 +12,10 @@
 /*
  * Size of kernel stack for each process
  */
-#define THREAD_ORDER 2
+#define THREAD_SIZE_ORDER 2
 #define ASYNC_ORDER  2
 
-#define THREAD_SIZE (PAGE_SIZE << THREAD_ORDER)
+#define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 #define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
 
 #ifndef __ASSEMBLY__
@@ -45,8 +45,6 @@ struct thread_info {
 
 void arch_release_task_struct(struct task_struct *tsk);
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
-
-#define THREAD_SIZE_ORDER THREAD_ORDER
 
 #endif
 
