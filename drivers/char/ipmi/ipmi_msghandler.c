@@ -158,15 +158,16 @@ struct seq_table {
  * Store the information in a msgid (long) to allow us to find a
  * sequence table entry from the msgid.
  */
-#define STORE_SEQ_IN_MSGID(seq, seqid) (((seq&0xff)<<26) | (seqid&0x3ffffff))
+#define STORE_SEQ_IN_MSGID(seq, seqid) \
+	((((seq) & 0x3f) << 26) | ((seqid) & 0x3ffffff))
 
 #define GET_SEQ_FROM_MSGID(msgid, seq, seqid) \
 	do {								\
-		seq = ((msgid >> 26) & 0x3f);				\
-		seqid = (msgid & 0x3fffff);				\
+		seq = (((msgid) >> 26) & 0x3f);				\
+		seqid = ((msgid) & 0x3ffffff);				\
 	} while (0)
 
-#define NEXT_SEQID(seqid) (((seqid) + 1) & 0x3fffff)
+#define NEXT_SEQID(seqid) (((seqid) + 1) & 0x3ffffff)
 
 struct ipmi_channel {
 	unsigned char medium;
