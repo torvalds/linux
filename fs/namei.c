@@ -1725,7 +1725,7 @@ static int pick_link(struct nameidata *nd, struct path *link,
 	return 1;
 }
 
-enum {WALK_GET = 1, WALK_MORE = 2};
+enum {WALK_FOLLOW = 1, WALK_MORE = 2};
 
 /*
  * Do we need to follow links? We _really_ want to be able
@@ -1733,22 +1733,25 @@ enum {WALK_GET = 1, WALK_MORE = 2};
  * so we keep a cache of "no, this doesn't need follow_link"
  * for the common case.
  */
-static inline int should_follow_link(struct nameidata *nd, struct path *link,
-				     int flags,
-				     struct inode *inode, unsigned seq)
+static inline int step_into(struct nameidata *nd, struct path *path,
+			    int flags, struct inode *inode, unsigned seq)
 {
 	if (!(flags & WALK_MORE) && nd->depth)
 		put_link(nd);
-	if (likely(!d_is_symlink(link->dentry)))
+	if (likely(!d_is_symlink(path->dentry)) ||
+	   !(flags & WALK_FOLLOW || nd->flags & LOOKUP_FOLLOW)) {
+		/* not a symlink or should not follow */
+		path_to_nameidata(path, nd);
+		nd->inode = inode;
+		nd->seq = seq;
 		return 0;
-	if (!(flags & WALK_GET) && !(nd->flags & LOOKUP_FOLLOW))
-		return 0;
+	}
 	/* make sure that d_is_symlink above matches inode */
 	if (nd->flags & LOOKUP_RCU) {
-		if (read_seqcount_retry(&link->dentry->d_seq, seq))
+		if (read_seqcount_retry(&path->dentry->d_seq, seq))
 			return -ECHILD;
 	}
-	return pick_link(nd, link, inode, seq);
+	return pick_link(nd, path, inode, seq);
 }
 
 static int walk_component(struct nameidata *nd, int flags)
@@ -1791,13 +1794,7 @@ static int walk_component(struct nameidata *nd, int flags)
 		inode = d_backing_inode(path.dentry);
 	}
 
-	err = should_follow_link(nd, &path, flags, inode, seq);
-	if (unlikely(err))
-		return err;
-	path_to_nameidata(&path, nd);
-	nd->inode = inode;
-	nd->seq = seq;
-	return 0;
+	return step_into(nd, &path, flags, inode, seq);
 }
 
 /*
@@ -2104,10 +2101,10 @@ OK:
 			if (!name)
 				return 0;
 			/* last component of nested symlink */
-			err = walk_component(nd, WALK_GET);
+			err = walk_component(nd, WALK_FOLLOW);
 		} else {
 			/* not the last component */
-			err = walk_component(nd, WALK_GET | WALK_MORE);
+			err = walk_component(nd, WALK_FOLLOW | WALK_MORE);
 		}
 		if (err < 0)
 			return err;
@@ -2617,12 +2614,7 @@ mountpoint_last(struct nameidata *nd)
 		return -ENOENT;
 	}
 	path.mnt = nd->path.mnt;
-	error = should_follow_link(nd, &path, 0,
-				   d_backing_inode(path.dentry), 0);
-	if (unlikely(error))
-		return error;
-	path_to_nameidata(&path, nd);
-	return 0;
+	return step_into(nd, &path, 0, d_backing_inode(path.dentry), 0);
 }
 
 /**
@@ -3311,15 +3303,11 @@ static int do_last(struct nameidata *nd,
 	seq = 0;	/* out of RCU mode, so the value doesn't matter */
 	inode = d_backing_inode(path.dentry);
 finish_lookup:
-	error = should_follow_link(nd, &path, 0, inode, seq);
+	error = step_into(nd, &path, 0, inode, seq);
 	if (unlikely(error))
 		return error;
-
-	path_to_nameidata(&path, nd);
-	nd->inode = inode;
-	nd->seq = seq;
-	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 finish_open:
+	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 	error = complete_walk(nd);
 	if (error)
 		return error;
