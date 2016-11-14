@@ -834,7 +834,7 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 
 	/* allocate a buffer for the dma rx status */
 	vaddr = dma_pool_zalloc(pdcs->rx_buf_pool, GFP_ATOMIC, &daddr);
-	if (!vaddr)
+	if (unlikely(!vaddr))
 		return -ENOMEM;
 
 	/*
@@ -945,14 +945,14 @@ static irqreturn_t pdc_irq_handler(int irq, void *cookie)
 	struct pdc_state *pdcs = cookie;
 	u32 intstatus = ioread32(pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
-	if (intstatus & PDC_RCVINTEN_0)
+	if (likely(intstatus & PDC_RCVINTEN_0))
 		set_bit(PDC_RCVINT_0, &pdcs->intstatus);
 
 	/* Clear interrupt flags in device */
 	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
 	/* Wakeup IRQ thread */
-	if (pdcs && (irq == pdcs->pdc_irq) && (intstatus & PDC_INTMASK))
+	if (likely(pdcs && (irq == pdcs->pdc_irq) && (intstatus & PDC_INTMASK)))
 		return IRQ_WAKE_THREAD;
 
 	return IRQ_NONE;
@@ -976,7 +976,7 @@ static irqreturn_t pdc_irq_thread(int irq, void *cookie)
 	bool rx_int;
 
 	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
-	if (pdcs && rx_int) {
+	if (likely(pdcs && rx_int)) {
 		dev_dbg(&pdcs->pdev->dev,
 			"%s() got irq %d with rx_int %s",
 			__func__, irq, rx_int ? "set" : "clear");
@@ -1007,14 +1007,14 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 
 	/* Allocate tx ring */
 	tx.vbase = dma_pool_zalloc(pdcs->ring_pool, GFP_KERNEL, &tx.dmabase);
-	if (!tx.vbase) {
+	if (unlikely(!tx.vbase)) {
 		err = -ENOMEM;
 		goto done;
 	}
 
 	/* Allocate rx ring */
 	rx.vbase = dma_pool_zalloc(pdcs->ring_pool, GFP_KERNEL, &rx.dmabase);
-	if (!rx.vbase) {
+	if (unlikely(!rx.vbase)) {
 		err = -ENOMEM;
 		goto fail_dealloc;
 	}
@@ -1219,21 +1219,21 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	u32 tx_desc_req;
 	u32 rx_desc_req;
 
-	if (mssg->type != BRCM_MESSAGE_SPU)
+	if (unlikely(mssg->type != BRCM_MESSAGE_SPU))
 		return -ENOTSUPP;
 
 	src_nent = sg_nents(mssg->spu.src);
-	if (src_nent) {
+	if (likely(src_nent)) {
 		nent = dma_map_sg(dev, mssg->spu.src, src_nent, DMA_TO_DEVICE);
-		if (nent == 0)
+		if (unlikely(nent == 0))
 			return -EIO;
 	}
 
 	dst_nent = sg_nents(mssg->spu.dst);
-	if (dst_nent) {
+	if (likely(dst_nent)) {
 		nent = dma_map_sg(dev, mssg->spu.dst, dst_nent,
 				  DMA_FROM_DEVICE);
-		if (nent == 0) {
+		if (unlikely(nent == 0)) {
 			dma_unmap_sg(dev, mssg->spu.src, src_nent,
 				     DMA_TO_DEVICE);
 			return -EIO;
@@ -1251,7 +1251,7 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	 */
 	tx_desc_req = pdc_desc_count(mssg->spu.src);
 	rx_desc_req = pdc_desc_count(mssg->spu.dst);
-	if (pdc_rings_full(pdcs, tx_desc_req, rx_desc_req + 1))
+	if (unlikely(pdc_rings_full(pdcs, tx_desc_req, rx_desc_req + 1)))
 		return -ENOSPC;
 
 	/* Create rx descriptors to SPU catch response */
@@ -1262,7 +1262,7 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	err |= pdc_tx_list_sg_add(pdcs, mssg->spu.src);
 	err |= pdc_tx_list_final(pdcs);	/* initiate transfer */
 
-	if (err)
+	if (unlikely(err))
 		dev_err(&pdcs->pdev->dev,
 			"%s failed with error %d", __func__, err);
 
