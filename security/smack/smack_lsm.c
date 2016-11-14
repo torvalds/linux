@@ -692,12 +692,12 @@ static int smack_parse_opts_str(char *options,
 		}
 	}
 
-	opts->mnt_opts = kcalloc(NUM_SMK_MNT_OPTS, sizeof(char *), GFP_ATOMIC);
+	opts->mnt_opts = kcalloc(NUM_SMK_MNT_OPTS, sizeof(char *), GFP_KERNEL);
 	if (!opts->mnt_opts)
 		goto out_err;
 
 	opts->mnt_opts_flags = kcalloc(NUM_SMK_MNT_OPTS, sizeof(int),
-			GFP_ATOMIC);
+			GFP_KERNEL);
 	if (!opts->mnt_opts_flags) {
 		kfree(opts->mnt_opts);
 		goto out_err;
