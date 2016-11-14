@@ -624,6 +624,7 @@ void gpstate_timer_handler(unsigned long data)
 
 	if (gpstates->elapsed_time > MAX_RAMP_DOWN_TIME) {
 		gpstate_idx = pstate_to_idx(freq_data.pstate_id);
+		lpstate_idx = gpstate_idx;
 		reset_gpstates(policy);
 		gpstates->highest_lpstate_idx = gpstate_idx;
 	} else {
