@@ -18,6 +18,7 @@
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
 
+#include <asm/debug-monitors.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
 
