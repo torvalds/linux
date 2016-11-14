@@ -287,7 +287,7 @@ static inline struct aa_profile *aa_get_profile(struct aa_profile *p)
  */
 static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
 {
-	if (p && kref_get_not0(&p->count))
+	if (p && kref_get_unless_zero(&p->count))
 		return p;
 
 	return NULL;
@@ -307,7 +307,7 @@ static inline struct aa_profile *aa_get_profile_rcu(struct aa_profile __rcu **p)
 	rcu_read_lock();
 	do {
 		c = rcu_dereference(*p);
-	} while (c && !kref_get_not0(&c->count));
+	} while (c && !kref_get_unless_zero(&c->count));
 	rcu_read_unlock();
 
 	return c;
