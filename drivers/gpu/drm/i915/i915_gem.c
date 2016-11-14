@@ -2386,7 +2386,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			page = shmem_read_mapping_page(mapping, i);
 			if (IS_ERR(page)) {
 				ret = PTR_ERR(page);
-				goto err_pages;
+				goto err_sg;
 			}
 		}
 		if (!i ||
@@ -2419,8 +2419,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 
 	return st;
 
-err_pages:
+err_sg:
 	sg_mark_end(sg);
+err_pages:
 	for_each_sgt_page(page, sgt_iter, st)
 		put_page(page);
 	sg_free_table(st);
