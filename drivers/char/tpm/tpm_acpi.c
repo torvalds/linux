@@ -6,6 +6,7 @@
  *	Stefan Berger <stefanb@us.ibm.com>
  *	Reiner Sailer <sailer@watson.ibm.com>
  *	Kylene Hall <kjhall@us.ibm.com>
+ *	Nayna Jain <nayna@linux.vnet.ibm.com>
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
@@ -45,7 +46,7 @@ struct acpi_tcpa {
 };
 
 /* read binary bios log */
-int read_log(struct tpm_chip *chip)
+int tpm_read_log_acpi(struct tpm_chip *chip)
 {
 	struct acpi_tcpa *buff;
 	acpi_status status;
@@ -54,12 +55,6 @@ int read_log(struct tpm_chip *chip)
 	struct tpm_bios_log *log;
 
 	log = &chip->log;
-	if (log->bios_event_log != NULL) {
-		printk(KERN_ERR
-		       "%s: ERROR - Eventlog already initialized\n",
-		       __func__);
-		return -EFAULT;
-	}
 
 	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
 	status = acpi_get_table(ACPI_SIG_TCPA, 1,

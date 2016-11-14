@@ -2,6 +2,7 @@
  * Copyright 2012 IBM Corporation
  *
  * Author: Ashley Lai <ashleydlai@gmail.com>
+ *         Nayna Jain <nayna@linux.vnet.ibm.com>
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
@@ -20,7 +21,7 @@
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
-int read_log(struct tpm_chip *chip)
+int tpm_read_log_of(struct tpm_chip *chip)
 {
 	struct device_node *np;
 	const u32 *sizep;
@@ -28,11 +29,6 @@ int read_log(struct tpm_chip *chip)
 	struct tpm_bios_log *log;
 
 	log = &chip->log;
-	if (log->bios_event_log != NULL) {
-		pr_err("%s: ERROR - Eventlog already initialized\n", __func__);
-		return -EFAULT;
-	}
-
 	np = of_find_node_by_name(NULL, "vtpm");
 	if (!np) {
 		pr_err("%s: ERROR - IBMVTPM not supported\n", __func__);

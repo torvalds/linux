@@ -356,6 +356,26 @@ static const struct file_operations tpm_bios_measurements_ops = {
 	.release = tpm_bios_measurements_release,
 };
 
+static int tpm_read_log(struct tpm_chip *chip)
+{
+	int rc;
+
+	if (chip->log.bios_event_log != NULL) {
+		dev_dbg(&chip->dev,
+			"%s: ERROR - event log already initialized\n",
+			__func__);
+		return -EFAULT;
+	}
+
+	rc = tpm_read_log_acpi(chip);
+	if ((rc == 0) || (rc == -ENOMEM))
+		return rc;
+
+	rc = tpm_read_log_of(chip);
+
+	return rc;
+}
+
 int tpm_bios_log_setup(struct tpm_chip *chip)
 {
 	const char *name = dev_name(&chip->dev);
@@ -365,7 +385,7 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		return 0;
 
-	rc = read_log(chip);
+	rc = tpm_read_log(chip);
 	/*
 	 * read_log failure means event log is not supported except for ENOMEM.
 	 */
