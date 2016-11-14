@@ -350,8 +350,16 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 
+	i915_sw_fence_commit(&request->execute);
+
 	spin_unlock_irqrestore(&timeline->lock, flags);
 
+	return NOTIFY_DONE;
+}
+
+static int __i915_sw_fence_call
+execute_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
 	return NOTIFY_DONE;
 }
 
@@ -440,6 +448,12 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       __timeline_get_seqno(req->timeline->common));
 
 	i915_sw_fence_init(&req->submit, submit_notify);
+	i915_sw_fence_init(&req->execute, execute_notify);
+	/* Ensure that the execute fence completes after the submit fence -
+	 * as we complete the execute fence from within the submit fence
+	 * callback, its completion would otherwise be visible first.
+	 */
+	i915_sw_fence_await_sw_fence(&req->execute, &req->submit, &req->execq);
 
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
@@ -816,9 +830,9 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 }
 
 static long
-__i915_request_wait_for_submit(struct drm_i915_gem_request *request,
-			       unsigned int flags,
-			       long timeout)
+__i915_request_wait_for_execute(struct drm_i915_gem_request *request,
+				unsigned int flags,
+				long timeout)
 {
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
@@ -830,9 +844,9 @@ __i915_request_wait_for_submit(struct drm_i915_gem_request *request,
 		add_wait_queue(q, &reset);
 
 	do {
-		prepare_to_wait(&request->submit.wait, &wait, state);
+		prepare_to_wait(&request->execute.wait, &wait, state);
 
-		if (i915_sw_fence_done(&request->submit))
+		if (i915_sw_fence_done(&request->execute))
 			break;
 
 		if (flags & I915_WAIT_LOCKED &&
@@ -850,7 +864,7 @@ __i915_request_wait_for_submit(struct drm_i915_gem_request *request,
 
 		timeout = io_schedule_timeout(timeout);
 	} while (timeout);
-	finish_wait(&request->submit.wait, &wait);
+	finish_wait(&request->execute.wait, &wait);
 
 	if (flags & I915_WAIT_LOCKED)
 		remove_wait_queue(q, &reset);
@@ -902,13 +916,14 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 	trace_i915_gem_request_wait_begin(req);
 
-	if (!i915_sw_fence_done(&req->submit)) {
-		timeout = __i915_request_wait_for_submit(req, flags, timeout);
+	if (!i915_sw_fence_done(&req->execute)) {
+		timeout = __i915_request_wait_for_execute(req, flags, timeout);
 		if (timeout < 0)
 			goto complete;
 
-		GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
+		GEM_BUG_ON(!i915_sw_fence_done(&req->execute));
 	}
+	GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
 	GEM_BUG_ON(!req->global_seqno);
 
 	/* Optimistic short spin before touching IRQs */
