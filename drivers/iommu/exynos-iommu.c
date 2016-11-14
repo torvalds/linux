@@ -237,6 +237,7 @@ static const struct sysmmu_fault_info sysmmu_v5_faults[] = {
 struct exynos_iommu_owner {
 	struct list_head controllers;	/* list of sysmmu_drvdata.owner_node */
 	struct iommu_domain *domain;	/* domain this device is attached */
+	struct mutex rpm_lock;		/* for runtime pm of all sysmmus */
 };
 
 /*
@@ -632,40 +633,46 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int exynos_sysmmu_suspend(struct device *dev)
+static int __maybe_unused exynos_sysmmu_suspend(struct device *dev)
 {
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
 	struct device *master = data->master;
 
 	if (master) {
-		pm_runtime_put(dev);
+		struct exynos_iommu_owner *owner = master->archdata.iommu;
+
+		mutex_lock(&owner->rpm_lock);
 		if (data->domain) {
 			dev_dbg(data->sysmmu, "saving state\n");
 			__sysmmu_disable(data);
 		}
+		mutex_unlock(&owner->rpm_lock);
 	}
 	return 0;
 }
 
-static int exynos_sysmmu_resume(struct device *dev)
+static int __maybe_unused exynos_sysmmu_resume(struct device *dev)
 {
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
 	struct device *master = data->master;
 
 	if (master) {
-		pm_runtime_get_sync(dev);
+		struct exynos_iommu_owner *owner = master->archdata.iommu;
+
+		mutex_lock(&owner->rpm_lock);
 		if (data->domain) {
 			dev_dbg(data->sysmmu, "restoring state\n");
 			__sysmmu_enable(data);
 		}
+		mutex_unlock(&owner->rpm_lock);
 	}
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sysmmu_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(exynos_sysmmu_suspend, exynos_sysmmu_resume)
+	SET_RUNTIME_PM_OPS(exynos_sysmmu_suspend, exynos_sysmmu_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 };
 
 static const struct of_device_id sysmmu_of_match[] __initconst = {
@@ -813,7 +820,15 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 		return;
 
 	list_for_each_entry(data, &owner->controllers, owner_node) {
-		__sysmmu_disable(data);
+		pm_runtime_put_sync(data->sysmmu);
+	}
+
+	mutex_lock(&owner->rpm_lock);
+
+	list_for_each_entry(data, &owner->controllers, owner_node) {
+		pm_runtime_get_noresume(data->sysmmu);
+		if (pm_runtime_active(data->sysmmu))
+			__sysmmu_disable(data);
 		pm_runtime_put(data->sysmmu);
 	}
 
@@ -828,6 +843,7 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 	owner->domain = NULL;
 	spin_unlock_irqrestore(&domain->lock, flags);
 
+	mutex_unlock(&owner->rpm_lock);
 
 	dev_dbg(dev, "%s: Detached IOMMU with pgtable %pa\n", __func__,
 		&pagetable);
@@ -848,6 +864,8 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	if (owner->domain)
 		exynos_iommu_detach_device(owner->domain, dev);
 
+	mutex_lock(&owner->rpm_lock);
+
 	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry(data, &owner->controllers, owner_node) {
 		spin_lock(&data->lock);
@@ -860,8 +878,16 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	spin_unlock_irqrestore(&domain->lock, flags);
 
 	list_for_each_entry(data, &owner->controllers, owner_node) {
+		pm_runtime_get_noresume(data->sysmmu);
+		if (pm_runtime_active(data->sysmmu))
+			__sysmmu_enable(data);
+		pm_runtime_put(data->sysmmu);
+	}
+
+	mutex_unlock(&owner->rpm_lock);
+
+	list_for_each_entry(data, &owner->controllers, owner_node) {
 		pm_runtime_get_sync(data->sysmmu);
-		__sysmmu_enable(data);
 	}
 
 	dev_dbg(dev, "%s: Attached IOMMU with pgtable %pa\n", __func__,
@@ -1239,6 +1265,7 @@ static int exynos_iommu_of_xlate(struct device *dev,
 			return -ENOMEM;
 
 		INIT_LIST_HEAD(&owner->controllers);
+		mutex_init(&owner->rpm_lock);
 		dev->archdata.iommu = owner;
 	}
 
