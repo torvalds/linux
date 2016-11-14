@@ -460,7 +460,7 @@ static void arc_emac_set_rx_mode(struct net_device *ndev)
 		if (ndev->flags & IFF_ALLMULTI) {
 			arc_reg_set(priv, R_LAFL, ~0);
 			arc_reg_set(priv, R_LAFH, ~0);
-		} else {
+		} else if (ndev->flags & IFF_MULTICAST) {
 			struct netdev_hw_addr *ha;
 			unsigned int filter[2] = { 0, 0 };
 			int bit;
@@ -472,6 +472,9 @@ static void arc_emac_set_rx_mode(struct net_device *ndev)
 
 			arc_reg_set(priv, R_LAFL, filter[0]);
 			arc_reg_set(priv, R_LAFH, filter[1]);
+		} else {
+			arc_reg_set(priv, R_LAFL, 0);
+			arc_reg_set(priv, R_LAFH, 0);
 		}
 	}
 }
