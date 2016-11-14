@@ -1526,6 +1526,22 @@ static void set_proto(void *outer_c, void *outer_v, u8 mask, u8 val)
 	MLX5_SET(fte_match_set_lyr_2_4, outer_v, ip_protocol, val);
 }
 
+static void set_flow_label(void *misc_c, void *misc_v, u8 mask, u8 val,
+			   bool inner)
+{
+	if (inner) {
+		MLX5_SET(fte_match_set_misc,
+			 misc_c, inner_ipv6_flow_label, mask);
+		MLX5_SET(fte_match_set_misc,
+			 misc_v, inner_ipv6_flow_label, val);
+	} else {
+		MLX5_SET(fte_match_set_misc,
+			 misc_c, outer_ipv6_flow_label, mask);
+		MLX5_SET(fte_match_set_misc,
+			 misc_v, outer_ipv6_flow_label, val);
+	}
+}
+
 static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
 {
 	MLX5_SET(fte_match_set_lyr_2_4, outer_c, ip_ecn, mask);
@@ -1552,155 +1568,164 @@ static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
 static int parse_flow_attr(u32 *match_c, u32 *match_v,
 			   const union ib_flow_spec *ib_spec)
 {
-	void *outer_headers_c = MLX5_ADDR_OF(fte_match_param, match_c,
-					     outer_headers);
-	void *outer_headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
-					     outer_headers);
 	void *misc_params_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					   misc_parameters);
 	void *misc_params_v = MLX5_ADDR_OF(fte_match_param, match_v,
 					   misc_parameters);
+	void *headers_c;
+	void *headers_v;
 
-	switch (ib_spec->type) {
+	if (ib_spec->type & IB_FLOW_SPEC_INNER) {
+		headers_c = MLX5_ADDR_OF(fte_match_param, match_c,
+					 inner_headers);
+		headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
+					 inner_headers);
+	} else {
+		headers_c = MLX5_ADDR_OF(fte_match_param, match_c,
+					 outer_headers);
+		headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
+					 outer_headers);
+	}
+
+	switch (ib_spec->type & ~IB_FLOW_SPEC_INNER) {
 	case IB_FLOW_SPEC_ETH:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->eth.mask, LAST_ETH_FIELD))
 			return -ENOTSUPP;
 
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 					     dmac_47_16),
 				ib_spec->eth.mask.dst_mac);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 					     dmac_47_16),
 				ib_spec->eth.val.dst_mac);
 
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 					     smac_47_16),
 				ib_spec->eth.mask.src_mac);
-		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+		ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 					     smac_47_16),
 				ib_spec->eth.val.src_mac);
 
 		if (ib_spec->eth.mask.vlan_tag) {
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 vlan_tag, 1);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 				 vlan_tag, 1);
 
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 first_vid, ntohs(ib_spec->eth.mask.vlan_tag));
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 				 first_vid, ntohs(ib_spec->eth.val.vlan_tag));
 
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 first_cfi,
 				 ntohs(ib_spec->eth.mask.vlan_tag) >> 12);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 				 first_cfi,
 				 ntohs(ib_spec->eth.val.vlan_tag) >> 12);
 
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 first_prio,
 				 ntohs(ib_spec->eth.mask.vlan_tag) >> 13);
-			MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 				 first_prio,
 				 ntohs(ib_spec->eth.val.vlan_tag) >> 13);
 		}
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 			 ethertype, ntohs(ib_spec->eth.mask.ether_type));
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 ethertype, ntohs(ib_spec->eth.val.ether_type));
 		break;
 	case IB_FLOW_SPEC_IPV4:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv4.mask, LAST_IPV4_FIELD))
 			return -ENOTSUPP;
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 			 ethertype, 0xffff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 ethertype, ETH_P_IP);
 
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
 		       &ib_spec->ipv4.mask.src_ip,
 		       sizeof(ib_spec->ipv4.mask.src_ip));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
 		       &ib_spec->ipv4.val.src_ip,
 		       sizeof(ib_spec->ipv4.val.src_ip));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 		       &ib_spec->ipv4.mask.dst_ip,
 		       sizeof(ib_spec->ipv4.mask.dst_ip));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 		       &ib_spec->ipv4.val.dst_ip,
 		       sizeof(ib_spec->ipv4.val.dst_ip));
 
-		set_tos(outer_headers_c, outer_headers_v,
+		set_tos(headers_c, headers_v,
 			ib_spec->ipv4.mask.tos, ib_spec->ipv4.val.tos);
 
-		set_proto(outer_headers_c, outer_headers_v,
+		set_proto(headers_c, headers_v,
 			  ib_spec->ipv4.mask.proto, ib_spec->ipv4.val.proto);
 		break;
 	case IB_FLOW_SPEC_IPV6:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv6.mask, LAST_IPV6_FIELD))
 			return -ENOTSUPP;
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 			 ethertype, 0xffff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 ethertype, ETH_P_IPV6);
 
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
 		       &ib_spec->ipv6.mask.src_ip,
 		       sizeof(ib_spec->ipv6.mask.src_ip));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
 		       &ib_spec->ipv6.val.src_ip,
 		       sizeof(ib_spec->ipv6.val.src_ip));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_c,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
 		       &ib_spec->ipv6.mask.dst_ip,
 		       sizeof(ib_spec->ipv6.mask.dst_ip));
-		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, outer_headers_v,
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
 				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
 		       &ib_spec->ipv6.val.dst_ip,
 		       sizeof(ib_spec->ipv6.val.dst_ip));
 
-		set_tos(outer_headers_c, outer_headers_v,
+		set_tos(headers_c, headers_v,
 			ib_spec->ipv6.mask.traffic_class,
 			ib_spec->ipv6.val.traffic_class);
 
-		set_proto(outer_headers_c, outer_headers_v,
+		set_proto(headers_c, headers_v,
 			  ib_spec->ipv6.mask.next_hdr,
 			  ib_spec->ipv6.val.next_hdr);
 
-		MLX5_SET(fte_match_set_misc, misc_params_c,
-			 outer_ipv6_flow_label,
-			 ntohl(ib_spec->ipv6.mask.flow_label));
-		MLX5_SET(fte_match_set_misc, misc_params_v,
-			 outer_ipv6_flow_label,
-			 ntohl(ib_spec->ipv6.val.flow_label));
+		set_flow_label(misc_params_c, misc_params_v,
+			       ntohl(ib_spec->ipv6.mask.flow_label),
+			       ntohl(ib_spec->ipv6.val.flow_label),
+			       ib_spec->type & IB_FLOW_SPEC_INNER);
+
 		break;
 	case IB_FLOW_SPEC_TCP:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->tcp_udp.mask,
 					 LAST_TCP_UDP_FIELD))
 			return -ENOTSUPP;
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_protocol,
 			 0xff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ip_protocol,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol,
 			 IPPROTO_TCP);
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, tcp_sport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, tcp_sport,
 			 ntohs(ib_spec->tcp_udp.mask.src_port));
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, tcp_sport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, tcp_sport,
 			 ntohs(ib_spec->tcp_udp.val.src_port));
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, tcp_dport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, tcp_dport,
 			 ntohs(ib_spec->tcp_udp.mask.dst_port));
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, tcp_dport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, tcp_dport,
 			 ntohs(ib_spec->tcp_udp.val.dst_port));
 		break;
 	case IB_FLOW_SPEC_UDP:
@@ -1708,19 +1733,19 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 					 LAST_TCP_UDP_FIELD))
 			return -ENOTSUPP;
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_protocol,
 			 0xff);
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, ip_protocol,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_protocol,
 			 IPPROTO_UDP);
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, udp_sport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_sport,
 			 ntohs(ib_spec->tcp_udp.mask.src_port));
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, udp_sport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_sport,
 			 ntohs(ib_spec->tcp_udp.val.src_port));
 
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_c, udp_dport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, udp_dport,
 			 ntohs(ib_spec->tcp_udp.mask.dst_port));
-		MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v, udp_dport,
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, udp_dport,
 			 ntohs(ib_spec->tcp_udp.val.dst_port));
 		break;
 	case IB_FLOW_SPEC_VXLAN_TUNNEL:
