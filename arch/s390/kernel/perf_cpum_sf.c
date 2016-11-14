@@ -995,27 +995,11 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	regs.int_parm = CPU_MF_INT_SF_PRA;
 	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
 
-	regs.psw.addr = sfr->basic.ia;
-	if (sfr->basic.T)
-		regs.psw.mask |= PSW_MASK_DAT;
-	if (sfr->basic.W)
-		regs.psw.mask |= PSW_MASK_WAIT;
-	if (sfr->basic.P)
-		regs.psw.mask |= PSW_MASK_PSTATE;
-	switch (sfr->basic.AS) {
-	case 0x0:
-		regs.psw.mask |= PSW_ASC_PRIMARY;
-		break;
-	case 0x1:
-		regs.psw.mask |= PSW_ASC_ACCREG;
-		break;
-	case 0x2:
-		regs.psw.mask |= PSW_ASC_SECONDARY;
-		break;
-	case 0x3:
-		regs.psw.mask |= PSW_ASC_HOME;
-		break;
-	}
+	psw_bits(regs.psw).ia = sfr->basic.ia;
+	psw_bits(regs.psw).t  = sfr->basic.T;
+	psw_bits(regs.psw).w  = sfr->basic.W;
+	psw_bits(regs.psw).p  = sfr->basic.P;
+	psw_bits(regs.psw).as = sfr->basic.AS;
 
 	/*
 	 * A non-zero guest program parameter indicates a guest
