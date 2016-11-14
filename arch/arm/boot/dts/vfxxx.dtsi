@@ -573,6 +573,9 @@
 				clocks = <&clks VF610_CLK_DSPI2>;
 				clock-names = "dspi";
 				spi-num-chipselects = <2>;
+				dmas = <&edma1 0 10>,
+					<&edma1 0 11>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -585,6 +588,9 @@
 				clocks = <&clks VF610_CLK_DSPI3>;
 				clock-names = "dspi";
 				spi-num-chipselects = <2>;
+				dmas = <&edma1 0 12>,
+					<&edma1 0 13>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
