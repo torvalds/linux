@@ -783,8 +783,6 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	return ret;
 }
 
-static void cont_flush(void);
-
 static ssize_t devkmsg_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
@@ -800,7 +798,6 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 	raw_spin_lock_irq(&logbuf_lock);
-	cont_flush();
 	while (user->seq == log_next_seq) {
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
@@ -863,7 +860,6 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 		return -ESPIPE;
 
 	raw_spin_lock_irq(&logbuf_lock);
-	cont_flush();
 	switch (whence) {
 	case SEEK_SET:
 		/* the first record */
@@ -902,7 +898,6 @@ static unsigned int devkmsg_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &log_wait, wait);
 
 	raw_spin_lock_irq(&logbuf_lock);
-	cont_flush();
 	if (user->seq < log_next_seq) {
 		/* return error when data has vanished underneath us */
 		if (user->seq < log_first_seq)
@@ -1289,7 +1284,6 @@ static int syslog_print(char __user *buf, int size)
 		size_t skip;
 
 		raw_spin_lock_irq(&logbuf_lock);
-		cont_flush();
 		if (syslog_seq < log_first_seq) {
 			/* messages are gone, move to first one */
 			syslog_seq = log_first_seq;
@@ -1349,7 +1343,6 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		return -ENOMEM;
 
 	raw_spin_lock_irq(&logbuf_lock);
-	cont_flush();
 	if (buf) {
 		u64 next_seq;
 		u64 seq;
@@ -1511,7 +1504,6 @@ int do_syslog(int type, char __user *buf, int len, int source)
 	/* Number of chars in the log buffer */
 	case SYSLOG_ACTION_SIZE_UNREAD:
 		raw_spin_lock_irq(&logbuf_lock);
-		cont_flush();
 		if (syslog_seq < log_first_seq) {
 			/* messages are gone, move to first one */
 			syslog_seq = log_first_seq;
@@ -3028,7 +3020,6 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		dumper->active = true;
 
 		raw_spin_lock_irqsave(&logbuf_lock, flags);
-		cont_flush();
 		dumper->cur_seq = clear_seq;
 		dumper->cur_idx = clear_idx;
 		dumper->next_seq = log_next_seq;
@@ -3119,7 +3110,6 @@ bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
 	bool ret;
 
 	raw_spin_lock_irqsave(&logbuf_lock, flags);
-	cont_flush();
 	ret = kmsg_dump_get_line_nolock(dumper, syslog, line, size, len);
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 
@@ -3162,7 +3152,6 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
 		goto out;
 
 	raw_spin_lock_irqsave(&logbuf_lock, flags);
-	cont_flush();
 	if (dumper->cur_seq < log_first_seq) {
 		/* messages are gone, move to first available one */
 		dumper->cur_seq = log_first_seq;
