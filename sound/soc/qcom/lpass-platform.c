@@ -75,6 +75,7 @@ static int lpass_platform_pcmops_open(struct snd_pcm_substream *substream)
 	data->i2s_port = cpu_dai->driver->id;
 	runtime->private_data = data;
 
+	dma_ch = 0;
 	if (v->alloc_dma_channel)
 		dma_ch = v->alloc_dma_channel(drvdata, dir);
 	if (dma_ch < 0)
