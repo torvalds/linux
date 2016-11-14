@@ -276,28 +276,6 @@ static void tpm_del_char_device(struct tpm_chip *chip)
 	up_write(&chip->ops_sem);
 }
 
-static int tpm1_chip_register(struct tpm_chip *chip)
-{
-	int rc;
-
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		return 0;
-
-	tpm_sysfs_add_device(chip);
-
-	rc = tpm_bios_log_setup(chip);
-
-	return rc;
-}
-
-static void tpm1_chip_unregister(struct tpm_chip *chip)
-{
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		return;
-
-	tpm_bios_log_teardown(chip);
-}
-
 static void tpm_del_legacy_sysfs(struct tpm_chip *chip)
 {
 	struct attribute **i;
@@ -364,7 +342,9 @@ int tpm_chip_register(struct tpm_chip *chip)
 			return rc;
 	}
 
-	rc = tpm1_chip_register(chip);
+	tpm_sysfs_add_device(chip);
+
+	rc = tpm_bios_log_setup(chip);
 	if (rc)
 		return rc;
 
@@ -372,7 +352,7 @@ int tpm_chip_register(struct tpm_chip *chip)
 
 	rc = tpm_add_char_device(chip);
 	if (rc) {
-		tpm1_chip_unregister(chip);
+		tpm_bios_log_teardown(chip);
 		return rc;
 	}
 
@@ -402,8 +382,7 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
 void tpm_chip_unregister(struct tpm_chip *chip)
 {
 	tpm_del_legacy_sysfs(chip);
-
-	tpm1_chip_unregister(chip);
+	tpm_bios_log_teardown(chip);
 	tpm_del_char_device(chip);
 }
 EXPORT_SYMBOL_GPL(tpm_chip_unregister);
