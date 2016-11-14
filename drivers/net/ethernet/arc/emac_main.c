@@ -764,8 +764,6 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	ndev->netdev_ops = &arc_emac_netdev_ops;
 	ndev->ethtool_ops = &arc_emac_ethtool_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;
-	/* FIXME :: no multicast support yet */
-	ndev->flags &= ~IFF_MULTICAST;
 
 	priv = netdev_priv(ndev);
 	priv->dev = dev;
