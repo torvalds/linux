@@ -153,8 +153,8 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 		goto out;
 	}
 
-	pr_info("creating controller %d for NQN %s.\n",
-			ctrl->cntlid, ctrl->hostnqn);
+	pr_info("creating controller %d for subsystem %s for NQN %s.\n",
+		ctrl->cntlid, ctrl->subsys->subsysnqn, ctrl->hostnqn);
 	req->rsp->result.u16 = cpu_to_le16(ctrl->cntlid);
 
 out:
