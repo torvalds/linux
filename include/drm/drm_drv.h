@@ -328,13 +328,59 @@ struct drm_driver {
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
-	/* dumb alloc support */
+	/**
+	 * @dumb_create:
+	 *
+	 * This creates a new dumb buffer in the driver's backing storage manager (GEM,
+	 * TTM or something else entirely) and returns the resulting buffer handle. This
+	 * handle can then be wrapped up into a framebuffer modeset object.
+	 *
+	 * Note that userspace is not allowed to use such objects for render
+	 * acceleration - drivers must create their own private ioctls for such a use
+	 * case.
+	 *
+	 * Width, height and depth are specified in the &drm_mode_create_dumb
+	 * argument. The callback needs to fill the handle, pitch and size for
+	 * the created buffer.
+	 *
+	 * Called by the user via ioctl.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, negative errno on failure.
+	 */
 	int (*dumb_create)(struct drm_file *file_priv,
 			   struct drm_device *dev,
 			   struct drm_mode_create_dumb *args);
+	/**
+	 * @dumb_map_offset:
+	 *
+	 * Allocate an offset in the drm device node's address space to be able to
+	 * memory map a dumb buffer. GEM-based drivers must use
+	 * drm_gem_create_mmap_offset() to implement this.
+	 *
+	 * Called by the user via ioctl.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, negative errno on failure.
+	 */
 	int (*dumb_map_offset)(struct drm_file *file_priv,
 			       struct drm_device *dev, uint32_t handle,
 			       uint64_t *offset);
+	/**
+	 * @dumb_destroy:
+	 *
+	 * This destroys the userspace handle for the given dumb backing storage buffer.
+	 * Since buffer objects must be reference counted in the kernel a buffer object
+	 * won't be immediately freed if a framebuffer modeset object still uses it.
+	 *
+	 * Called by the user via ioctl.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, negative errno on failure.
+	 */
 	int (*dumb_destroy)(struct drm_file *file_priv,
 			    struct drm_device *dev,
 			    uint32_t handle);

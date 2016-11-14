@@ -72,46 +72,8 @@ DRM Format Handling
 Dumb Buffer Objects
 ===================
 
-The KMS API doesn't standardize backing storage object creation and
-leaves it to driver-specific ioctls. Furthermore actually creating a
-buffer object even for GEM-based drivers is done through a
-driver-specific ioctl - GEM only has a common userspace interface for
-sharing and destroying objects. While not an issue for full-fledged
-graphics stacks that include device-specific userspace components (in
-libdrm for instance), this limit makes DRM-based early boot graphics
-unnecessarily complex.
-
-Dumb objects partly alleviate the problem by providing a standard API to
-create dumb buffers suitable for scanout, which can then be used to
-create KMS frame buffers.
-
-To support dumb objects drivers must implement the dumb_create,
-dumb_destroy and dumb_map_offset operations.
-
--  int (\*dumb_create)(struct drm_file \*file_priv, struct
-   drm_device \*dev, struct drm_mode_create_dumb \*args);
-   The dumb_create operation creates a driver object (GEM or TTM
-   handle) suitable for scanout based on the width, height and depth
-   from the struct :c:type:`struct drm_mode_create_dumb
-   <drm_mode_create_dumb>` argument. It fills the argument's
-   handle, pitch and size fields with a handle for the newly created
-   object and its line pitch and size in bytes.
-
--  int (\*dumb_destroy)(struct drm_file \*file_priv, struct
-   drm_device \*dev, uint32_t handle);
-   The dumb_destroy operation destroys a dumb object created by
-   dumb_create.
-
--  int (\*dumb_map_offset)(struct drm_file \*file_priv, struct
-   drm_device \*dev, uint32_t handle, uint64_t \*offset);
-   The dumb_map_offset operation associates an mmap fake offset with
-   the object given by the handle and returns it. Drivers must use the
-   :c:func:`drm_gem_create_mmap_offset()` function to associate
-   the fake offset as described in ?.
-
-Note that dumb objects may not be used for gpu acceleration, as has been
-attempted on some ARM embedded platforms. Such drivers really must have
-a hardware-specific ioctl to allocate suitable buffer objects.
+.. kernel-doc:: drivers/gpu/drm/drm_dumb_buffers.c
+   :doc: overview
 
 Plane Abstraction
 =================

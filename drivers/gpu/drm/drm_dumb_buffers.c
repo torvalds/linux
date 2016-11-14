@@ -28,24 +28,29 @@
 #include "drm_crtc_internal.h"
 
 /**
- * drm_mode_create_dumb_ioctl - create a dumb backing storage buffer
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
+ * DOC: overview
  *
- * This creates a new dumb buffer in the driver's backing storage manager (GEM,
- * TTM or something else entirely) and returns the resulting buffer handle. This
- * handle can then be wrapped up into a framebuffer modeset object.
+ * The KMS API doesn't standardize backing storage object creation and leaves it
+ * to driver-specific ioctls. Furthermore actually creating a buffer object even
+ * for GEM-based drivers is done through a driver-specific ioctl - GEM only has
+ * a common userspace interface for sharing and destroying objects. While not an
+ * issue for full-fledged graphics stacks that include device-specific userspace
+ * components (in libdrm for instance), this limit makes DRM-based early boot
+ * graphics unnecessarily complex.
  *
- * Note that userspace is not allowed to use such objects for render
- * acceleration - drivers must create their own private ioctls for such a use
- * case.
+ * Dumb objects partly alleviate the problem by providing a standard API to
+ * create dumb buffers suitable for scanout, which can then be used to create
+ * KMS frame buffers.
  *
- * Called by the user via ioctl.
+ * To support dumb objects drivers must implement the dumb_create,
+ * dumb_destroy and dumb_map_offset operations from struct &drm_driver. See
+ * there for further details.
  *
- * Returns:
- * Zero on success, negative errno on failure.
+ * Note that dumb objects may not be used for gpu acceleration, as has been
+ * attempted on some ARM embedded platforms. Such drivers really must have
+ * a hardware-specific ioctl to allocate suitable buffer objects.
  */
+
 int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv)
 {
@@ -110,21 +115,6 @@ int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 	return dev->driver->dumb_map_offset(file_priv, dev, args->handle, &args->offset);
 }
 
-/**
- * drm_mode_destroy_dumb_ioctl - destroy a dumb backing strage buffer
- * @dev: DRM device
- * @data: ioctl data
- * @file_priv: DRM file info
- *
- * This destroys the userspace handle for the given dumb backing storage buffer.
- * Since buffer objects must be reference counted in the kernel a buffer object
- * won't be immediately freed if a framebuffer modeset object still uses it.
- *
- * Called by the user via ioctl.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv)
 {
