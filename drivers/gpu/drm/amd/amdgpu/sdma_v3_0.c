@@ -981,7 +981,7 @@ static void sdma_v3_0_vm_write_pte(struct amdgpu_ib *ib, uint64_t pe,
 	ib->ptr[ib->length_dw++] = lower_32_bits(pe);
 	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 	ib->ptr[ib->length_dw++] = ndw;
-	for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+	for (; ndw > 0; ndw -= 2) {
 		ib->ptr[ib->length_dw++] = lower_32_bits(value);
 		ib->ptr[ib->length_dw++] = upper_32_bits(value);
 		value += incr;
