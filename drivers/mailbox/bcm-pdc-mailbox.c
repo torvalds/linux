@@ -480,7 +480,8 @@ static void pdc_setup_debugfs(struct pdc_state *pdcs)
 	if (!debugfs_dir)
 		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
-	pdcs->debugfs_stats = debugfs_create_file(spu_stats_name, S_IRUSR,
+	/* S_IRUSR == 0400 */
+	pdcs->debugfs_stats = debugfs_create_file(spu_stats_name, 0400,
 						  debugfs_dir, pdcs,
 						  &pdc_debugfs_stats);
 }
