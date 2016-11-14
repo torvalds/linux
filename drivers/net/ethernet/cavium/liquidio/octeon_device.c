@@ -767,6 +767,7 @@ octeon_allocate_ioq_vector(struct octeon_device  *oct)
 		ioq_vector->oct_dev	= oct;
 		ioq_vector->iq_index	= i;
 		ioq_vector->droq_index	= i;
+		ioq_vector->mbox	= oct->mbox[i];
 
 		cpu_num = i % num_online_cpus();
 		cpumask_set_cpu(cpu_num, &ioq_vector->affinity_mask);

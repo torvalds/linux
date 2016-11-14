@@ -54,6 +54,7 @@ enum octeon_pci_swap_mode {
 };
 
 #define  OCTEON_OUTPUT_INTR   (2)
+#define  OCTEON_MBOX_INTR     (4)
 #define  OCTEON_ALL_INTR      0xff
 
 /*---------------   PCI BAR1 index registers -------------*/
@@ -77,13 +78,14 @@ enum octeon_pci_swap_mode {
 #define    OCT_DEV_SC_BUFF_POOL_INIT_DONE 0x4
 #define    OCT_DEV_RESP_LIST_INIT_DONE    0x5
 #define    OCT_DEV_DROQ_INIT_DONE         0x6
-#define    OCT_DEV_IO_QUEUES_DONE         0x7
-#define    OCT_DEV_CONSOLE_INIT_DONE      0x8
-#define    OCT_DEV_HOST_OK                0x9
-#define    OCT_DEV_CORE_OK                0xa
-#define    OCT_DEV_RUNNING                0xb
-#define    OCT_DEV_IN_RESET               0xc
-#define    OCT_DEV_STATE_INVALID          0xd
+#define    OCT_DEV_MBOX_SETUP_DONE        0x8
+#define    OCT_DEV_IO_QUEUES_DONE         0x9
+#define    OCT_DEV_CONSOLE_INIT_DONE      0xa
+#define    OCT_DEV_HOST_OK                0xb
+#define    OCT_DEV_CORE_OK                0xc
+#define    OCT_DEV_RUNNING                0xd
+#define    OCT_DEV_IN_RESET               0xe
+#define    OCT_DEV_STATE_INVALID          0xf
 
 #define    OCT_DEV_STATES                 OCT_DEV_STATE_INVALID
 
@@ -209,6 +211,10 @@ struct octeon_fn_list {
 
 	irqreturn_t (*process_interrupt_regs)(void *);
 	u64 (*msix_interrupt_handler)(void *);
+
+	int (*setup_mbox)(struct octeon_device *);
+	int (*free_mbox)(struct octeon_device *);
+
 	int (*soft_reset)(struct octeon_device *);
 	int (*setup_device_regs)(struct octeon_device *);
 	void (*bar1_idx_setup)(struct octeon_device *, u64, u32, int);
@@ -355,6 +361,7 @@ struct octeon_ioq_vector {
 	int		        iq_index;
 	int		        droq_index;
 	int			vector;
+	struct octeon_mbox     *mbox;
 	struct cpumask		affinity_mask;
 	u32			ioq_num;
 };

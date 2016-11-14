@@ -1445,6 +1445,12 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		if (OCTEON_CN23XX_PF(oct))
 			octeon_free_ioq_vector(oct);
+
+	/* fallthrough */
+	case OCT_DEV_MBOX_SETUP_DONE:
+		if (OCTEON_CN23XX_PF(oct))
+			oct->fn_list.free_mbox(oct);
+
 	/* fallthrough */
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
@@ -4315,6 +4321,12 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	atomic_set(&octeon_dev->status, OCT_DEV_DROQ_INIT_DONE);
 
 	if (OCTEON_CN23XX_PF(octeon_dev)) {
+		if (octeon_dev->fn_list.setup_mbox(octeon_dev)) {
+			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: Mailbox setup failed\n");
+			return 1;
+		}
+		atomic_set(&octeon_dev->status, OCT_DEV_MBOX_SETUP_DONE);
+
 		if (octeon_allocate_ioq_vector(octeon_dev)) {
 			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: ioq vector allocation failed\n");
 			return 1;
