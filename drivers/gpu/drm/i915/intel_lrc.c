@@ -471,7 +471,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 */
 
 	spin_lock_irqsave(&engine->timeline->lock, flags);
-	spin_lock(&engine->execlist_lock);
 	list_for_each_entry(cursor, &engine->execlist_queue, execlist_link) {
 		/* Can we combine this request with the current port? It has to
 		 * be the same context/ringbuffer and not have any exceptions
@@ -524,7 +523,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 
 		i915_gem_request_assign(&port->request, last);
 	}
-	spin_unlock(&engine->execlist_lock);
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	if (submit)
@@ -633,13 +631,14 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->execlist_lock, flags);
+	/* Will be called from irq-context when using foreign fences. */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
 
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	if (execlists_elsp_idle(engine))
 		tasklet_hi_schedule(&engine->irq_tasklet);
 
-	spin_unlock_irqrestore(&engine->execlist_lock, flags);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)

@@ -335,7 +335,6 @@ struct intel_engine_cs {
 
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
-	spinlock_t execlist_lock; /* used inside tasklet, use spin_lock_bh */
 	struct execlist_port {
 		struct drm_i915_gem_request *request;
 		unsigned int count;
