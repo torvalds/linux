@@ -502,8 +502,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 	 * ACK of I2C_WRITE
 	 * returned byte if it is READ
 	 */
-
-	aux_data_for_write |= (GVT_AUX_I2C_REPLY_ACK & 0xff) << 24;
+	aux_data_for_write |= GVT_AUX_I2C_REPLY_ACK << 24;
 	vgpu_vreg(vgpu, offset + 4) = aux_data_for_write;
 }
 
