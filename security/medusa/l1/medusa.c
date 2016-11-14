@@ -1504,22 +1504,51 @@ static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
 }
 
 
-static int __init medusa_l1_init(void){
+static int __init medusa_l1_init(void)
+{
 	struct task_struct* process;
 	//struct inode* inode; unused JK march 2015
 
 	/* register the hooks */	
-	if (!security_module_enable("medusa")) {
+	if (!security_module_enable("medusa"))
 		return 0;
-	}
+	
 	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks));
-	printk("medusa: registered with the kernel\n");
+	printk("medusa: l1 registered with the kernel\n");
     
     extern bool l1_initialized;
+    extern struct cred_list l0_cred_list;
+    extern struct inode_list l0_inode_list;
+    extern struct mutex l0_mutex;
+
+    mutex_lock(&l0_mutex);
+
+    struct list_head *pos, *q;
+    struct inode_list *tmp;
+    struct cred_list *tmp_cred;
+
+    list_for_each_safe(pos, q, &l0_inode_list.list) {
+        tmp = list_entry(pos, struct inode_list, list);
+        medusa_l1_inode_alloc_security(tmp->inode);
+        // printk("medusa: l1_alloc_security for an entry in the l0 list");
+        list_del(pos);
+        kfree(tmp); 
+    }
+
+    list_for_each_safe(pos, q, &l0_cred_list.list) {
+        tmp_cred = list_entry(pos, struct cred_list, list);
+        medusa_l1_cred_alloc_blank(tmp_cred->cred, tmp_cred->gfp);
+        // printk("medusa: l1_cred_allo_blank for an entry in the l0 list");
+        list_del(pos);
+        kfree(tmp); 
+    }
+
     l1_initialized = true;
 
-	medusa_init();
+    mutex_unlock(&l0_mutex);
 
+	medusa_init();
+    
 	for_each_process(process) {
 		struct medusa_l1_task_s* med;
 		struct cred* tmp;
