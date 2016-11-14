@@ -241,6 +241,16 @@
 			brcm,nand-has-wp;
 		};
 
+		gpiob: gpio@30000 {
+			compatible = "brcm,iproc-nsp-gpio", "brcm,iproc-gpio";
+			reg = <0x30000 0x50>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			ngpios = <4>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		pwm: pwm@31000 {
 			compatible = "brcm,iproc-pwm";
 			reg = <0x31000 0x28>;
