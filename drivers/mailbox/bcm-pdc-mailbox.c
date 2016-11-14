@@ -298,14 +298,6 @@ struct pdc_state {
 
 	unsigned int pdc_irq;
 
-	/*
-	 * Last interrupt status read from PDC device. Saved in interrupt
-	 * handler so the handler can clear the interrupt in the device,
-	 * and the interrupt thread called later can know which interrupt
-	 * bits are active.
-	 */
-	unsigned long intstatus;
-
 	/* tasklet for deferred processing after DMA rx interrupt */
 	struct tasklet_struct rx_tasklet;
 
@@ -955,32 +947,30 @@ static irqreturn_t pdc_irq_handler(int irq, void *data)
 	struct pdc_state *pdcs = dev_get_drvdata(dev);
 	u32 intstatus = ioread32(pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
-	if (likely(intstatus & PDC_RCVINTEN_0))
-		set_bit(PDC_RCVINT_0, &pdcs->intstatus);
-
-	/* Clear interrupt flags in device */
-	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
+	if (unlikely(intstatus == 0))
+		return IRQ_NONE;
 
 	/* Disable interrupts until soft handler runs */
 	iowrite32(0, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
 
+	/* Clear interrupt flags in device */
+	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
+
 	/* Wakeup IRQ thread */
-	if (likely(pdcs && (irq == pdcs->pdc_irq) &&
-		   (intstatus & PDC_INTMASK))) {
-		tasklet_schedule(&pdcs->rx_tasklet);
-		return IRQ_HANDLED;
-	}
-	return IRQ_NONE;
+	tasklet_schedule(&pdcs->rx_tasklet);
+	return IRQ_HANDLED;
 }
 
+/**
+ * pdc_tasklet_cb() - Tasklet callback that runs the deferred processing after
+ * a DMA receive interrupt. Reenables the receive interrupt.
+ * @data: PDC state structure
+ */
 static void pdc_tasklet_cb(unsigned long data)
 {
 	struct pdc_state *pdcs = (struct pdc_state *)data;
-	bool rx_int;
 
-	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
-	if (likely(pdcs && rx_int))
-		pdc_receive(pdcs);
+	pdc_receive(pdcs);
 
 	/* reenable interrupts */
 	iowrite32(PDC_INTMASK, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
@@ -1404,8 +1394,6 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = pdev->dev.of_node;
 	int err;
-
-	pdcs->intstatus = 0;
 
 	/* interrupt configuration */
 	iowrite32(PDC_INTMASK, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
