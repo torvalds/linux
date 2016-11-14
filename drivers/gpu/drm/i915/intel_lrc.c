@@ -434,6 +434,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *cursor, *last;
 	struct execlist_port *port = engine->execlist_port;
+	unsigned long flags;
 	bool submit = false;
 
 	last = port->request;
@@ -469,6 +470,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * and context switches) submission.
 	 */
 
+	spin_lock_irqsave(&engine->timeline->lock, flags);
 	spin_lock(&engine->execlist_lock);
 	list_for_each_entry(cursor, &engine->execlist_queue, execlist_link) {
 		/* Can we combine this request with the current port? It has to
@@ -501,6 +503,17 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			i915_gem_request_assign(&port->request, last);
 			port++;
 		}
+
+		/* We keep the previous context alive until we retire the
+		 * following request. This ensures that any the context object
+		 * is still pinned for any residual writes the HW makes into it
+		 * on the context switch into the next object following the
+		 * breadcrumb. Otherwise, we may retire the context too early.
+		 */
+		cursor->previous_context = engine->last_context;
+		engine->last_context = cursor->ctx;
+
+		__i915_gem_request_submit(cursor);
 		last = cursor;
 		submit = true;
 	}
@@ -512,6 +525,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		i915_gem_request_assign(&port->request, last);
 	}
 	spin_unlock(&engine->execlist_lock);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	if (submit)
 		execlists_submit_ports(engine);
@@ -620,15 +634,6 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 	unsigned long flags;
 
 	spin_lock_irqsave(&engine->execlist_lock, flags);
-
-	/* We keep the previous context alive until we retire the following
-	 * request. This ensures that any the context object is still pinned
-	 * for any residual writes the HW makes into it on the context switch
-	 * into the next object following the breadcrumb. Otherwise, we may
-	 * retire the context too early.
-	 */
-	request->previous_context = engine->last_context;
-	engine->last_context = request->ctx;
 
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	if (execlists_elsp_idle(engine))

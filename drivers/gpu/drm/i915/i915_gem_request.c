@@ -306,25 +306,16 @@ static u32 timeline_get_seqno(struct i915_gem_timeline *tl)
 	return atomic_inc_return(&tl->next_seqno);
 }
 
-static int __i915_sw_fence_call
-submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 {
-	struct drm_i915_gem_request *request =
-		container_of(fence, typeof(*request), submit);
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_timeline *timeline;
-	unsigned long flags;
 	u32 seqno;
-
-	if (state != FENCE_COMPLETE)
-		return NOTIFY_DONE;
 
 	/* Transfer from per-context onto the global per-engine timeline */
 	timeline = engine->timeline;
 	GEM_BUG_ON(timeline == request->timeline);
-
-	/* Will be called from irq-context when using foreign DMA fences */
-	spin_lock_irqsave(&timeline->lock, flags);
+	assert_spin_locked(&timeline->lock);
 
 	seqno = timeline_get_seqno(timeline->common);
 	GEM_BUG_ON(!seqno);
@@ -344,15 +335,36 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	GEM_BUG_ON(!request->global_seqno);
 	engine->emit_breadcrumb(request,
 				request->ring->vaddr + request->postfix);
-	engine->submit_request(request);
 
 	spin_lock(&request->timeline->lock);
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 
 	i915_sw_fence_commit(&request->execute);
+}
 
-	spin_unlock_irqrestore(&timeline->lock, flags);
+void i915_gem_request_submit(struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *engine = request->engine;
+	unsigned long flags;
+
+	/* Will be called from irq-context when using foreign fences. */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	__i915_gem_request_submit(request);
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+}
+
+static int __i915_sw_fence_call
+submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	if (state == FENCE_COMPLETE) {
+		struct drm_i915_gem_request *request =
+			container_of(fence, typeof(*request), submit);
+
+		request->engine->submit_request(request);
+	}
 
 	return NOTIFY_DONE;
 }

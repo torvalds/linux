@@ -232,6 +232,9 @@ void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request_no_flush(req) \
 	__i915_add_request(req, false)
 
+void __i915_gem_request_submit(struct drm_i915_gem_request *request);
+void i915_gem_request_submit(struct drm_i915_gem_request *request);
+
 struct intel_rps_client;
 #define NO_WAITBOOST ERR_PTR(-1)
 #define IS_RPS_CLIENT(p) (!IS_ERR(p))
