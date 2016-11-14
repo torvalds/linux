@@ -40,6 +40,7 @@ enum tpm_const {
 	TPM_BUFSIZE = 4096,
 	TPM_NUM_DEVICES = 65536,
 	TPM_RETRY = 50,		/* 5 seconds */
+	TPM_NUM_EVENT_LOG_FILES = 3,
 };
 
 enum tpm_timeout {
@@ -171,7 +172,7 @@ struct tpm_chip {
 	unsigned long duration[3]; /* jiffies */
 	bool duration_adjusted;
 
-	struct dentry **bios_dir;
+	struct dentry *bios_dir[TPM_NUM_EVENT_LOG_FILES];
 
 	const struct attribute_group *groups[3];
 	unsigned int groups_cnt;

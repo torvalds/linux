@@ -278,14 +278,16 @@ static void tpm_del_char_device(struct tpm_chip *chip)
 
 static int tpm1_chip_register(struct tpm_chip *chip)
 {
+	int rc;
+
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		return 0;
 
 	tpm_sysfs_add_device(chip);
 
-	chip->bios_dir = tpm_bios_log_setup(dev_name(&chip->dev));
+	rc = tpm_bios_log_setup(chip);
 
-	return 0;
+	return rc;
 }
 
 static void tpm1_chip_unregister(struct tpm_chip *chip)
@@ -293,8 +295,7 @@ static void tpm1_chip_unregister(struct tpm_chip *chip)
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		return;
 
-	if (chip->bios_dir)
-		tpm_bios_log_teardown(chip->bios_dir);
+	tpm_bios_log_teardown(chip);
 }
 
 static void tpm_del_legacy_sysfs(struct tpm_chip *chip)

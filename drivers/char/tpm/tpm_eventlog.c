@@ -359,63 +359,50 @@ static const struct file_operations tpm_bios_measurements_ops = {
 	.release = tpm_bios_measurements_release,
 };
 
-static int is_bad(void *p)
+int tpm_bios_log_setup(struct tpm_chip *chip)
 {
-	if (!p)
-		return 1;
-	if (IS_ERR(p) && (PTR_ERR(p) != -ENODEV))
-		return 1;
-	return 0;
-}
+	const char *name = dev_name(&chip->dev);
+	unsigned int cnt;
 
-struct dentry **tpm_bios_log_setup(const char *name)
-{
-	struct dentry **ret = NULL, *tpm_dir, *bin_file, *ascii_file;
+	cnt = 0;
+	chip->bios_dir[cnt] = securityfs_create_dir(name, NULL);
+	/* NOTE: securityfs_create_dir can return ENODEV if securityfs is
+	 * compiled out. The caller should ignore the ENODEV return code.
+	 */
+	if (IS_ERR(chip->bios_dir[cnt]))
+		goto err;
+	cnt++;
 
-	tpm_dir = securityfs_create_dir(name, NULL);
-	if (is_bad(tpm_dir))
-		goto out;
-
-	bin_file =
+	chip->bios_dir[cnt] =
 	    securityfs_create_file("binary_bios_measurements",
-				   0440, tpm_dir,
+				   0440, chip->bios_dir[0],
 				   (void *)&tpm_binary_b_measurements_seqops,
 				   &tpm_bios_measurements_ops);
-	if (is_bad(bin_file))
-		goto out_tpm;
+	if (IS_ERR(chip->bios_dir[cnt]))
+		goto err;
+	cnt++;
 
-	ascii_file =
+	chip->bios_dir[cnt] =
 	    securityfs_create_file("ascii_bios_measurements",
-				   0440, tpm_dir,
+				   0440, chip->bios_dir[0],
 				   (void *)&tpm_ascii_b_measurements_seqops,
 				   &tpm_bios_measurements_ops);
-	if (is_bad(ascii_file))
-		goto out_bin;
+	if (IS_ERR(chip->bios_dir[cnt]))
+		goto err;
+	cnt++;
 
-	ret = kmalloc(3 * sizeof(struct dentry *), GFP_KERNEL);
-	if (!ret)
-		goto out_ascii;
+	return 0;
 
-	ret[0] = ascii_file;
-	ret[1] = bin_file;
-	ret[2] = tpm_dir;
-
-	return ret;
-
-out_ascii:
-	securityfs_remove(ascii_file);
-out_bin:
-	securityfs_remove(bin_file);
-out_tpm:
-	securityfs_remove(tpm_dir);
-out:
-	return NULL;
+err:
+	chip->bios_dir[cnt] = NULL;
+	tpm_bios_log_teardown(chip);
+	return -EIO;
 }
 
-void tpm_bios_log_teardown(struct dentry **lst)
+void tpm_bios_log_teardown(struct tpm_chip *chip)
 {
 	int i;
 
-	for (i = 0; i < 3; i++)
-		securityfs_remove(lst[i]);
+	for (i = (TPM_NUM_EVENT_LOG_FILES - 1); i >= 0; i--)
+		securityfs_remove(chip->bios_dir[i]);
 }
