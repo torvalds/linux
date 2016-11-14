@@ -1592,14 +1592,14 @@ enum ib_flow_attr_type {
 /* Supported steering header types */
 enum ib_flow_spec_type {
 	/* L2 headers*/
-	IB_FLOW_SPEC_ETH	= 0x20,
-	IB_FLOW_SPEC_IB		= 0x22,
+	IB_FLOW_SPEC_ETH		= 0x20,
+	IB_FLOW_SPEC_IB			= 0x22,
 	/* L3 header*/
-	IB_FLOW_SPEC_IPV4	= 0x30,
-	IB_FLOW_SPEC_IPV6	= 0x31,
+	IB_FLOW_SPEC_IPV4		= 0x30,
+	IB_FLOW_SPEC_IPV6		= 0x31,
 	/* L4 headers*/
-	IB_FLOW_SPEC_TCP	= 0x40,
-	IB_FLOW_SPEC_UDP	= 0x41,
+	IB_FLOW_SPEC_TCP		= 0x40,
+	IB_FLOW_SPEC_UDP		= 0x41,
 	IB_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
 };
 #define IB_FLOW_SPEC_LAYER_MASK	0xF0
