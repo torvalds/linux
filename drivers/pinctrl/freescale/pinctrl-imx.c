@@ -687,6 +687,7 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 	if (!info->functions)
 		return -ENOMEM;
 
+	info->group_index = 0;
 	if (flat_funcs) {
 		info->ngroups = of_get_child_count(np);
 	} else {

@@ -33,10 +33,8 @@
 #include "qed_hw.h"
 #include "qed_selftest.h"
 
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
-#endif
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -682,9 +680,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 				  enum qed_int_mode int_mode)
 {
 	struct qed_sb_cnt_info sb_cnt_info;
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
-	int num_l2_queues;
-#endif
+	int num_l2_queues = 0;
 	int rc;
 	int i;
 
@@ -715,8 +711,9 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	cdev->int_params.fp_msix_cnt = cdev->int_params.out.num_vectors -
 				       cdev->num_hwfns;
 
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
-	num_l2_queues = 0;
+	if (!IS_ENABLED(CONFIG_QED_RDMA))
+		return 0;
+
 	for_each_hwfn(cdev, i)
 		num_l2_queues += FEAT_NUM(&cdev->hwfns[i], QED_PF_L2_QUE);
 
@@ -738,7 +735,6 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	DP_VERBOSE(cdev, QED_MSG_RDMA, "roce_msix_cnt=%d roce_msix_base=%d\n",
 		   cdev->int_params.rdma_msix_cnt,
 		   cdev->int_params.rdma_msix_base);
-#endif
 
 	return 0;
 }
@@ -843,18 +839,20 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 {
 	int i;
 
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
-	params->rdma_pf_params.num_qps = QED_ROCE_QPS;
-	params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
-	/* divide by 3 the MRs to avoid MF ILT overflow */
-	params->rdma_pf_params.num_mrs = RDMA_MAX_TIDS;
-	params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
-#endif
 	for (i = 0; i < cdev->num_hwfns; i++) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		p_hwfn->pf_params = *params;
 	}
+
+	if (!IS_ENABLED(CONFIG_QED_RDMA))
+		return;
+
+	params->rdma_pf_params.num_qps = QED_ROCE_QPS;
+	params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
+	/* divide by 3 the MRs to avoid MF ILT overflow */
+	params->rdma_pf_params.num_mrs = RDMA_MAX_TIDS;
+	params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 }
 
 static int qed_slowpath_start(struct qed_dev *cdev,
@@ -880,6 +878,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		}
 	}
 
+	cdev->rx_coalesce_usecs = QED_DEFAULT_RX_USECS;
 	rc = qed_nic_setup(cdev);
 	if (rc)
 		goto err;
@@ -1432,7 +1431,7 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	return status;
 }
 
-struct qed_selftest_ops qed_selftest_ops_pass = {
+static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
 	.selftest_register = &qed_selftest_register,

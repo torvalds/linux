@@ -8,7 +8,7 @@ obj-$(CONFIG_DVB_USB_VP7045) += dvb-usb-vp7045.o
 dvb-usb-vp702x-objs := vp702x.o vp702x-fe.o
 obj-$(CONFIG_DVB_USB_VP702X) += dvb-usb-vp702x.o
 
-dvb-usb-gp8psk-objs := gp8psk.o gp8psk-fe.o
+dvb-usb-gp8psk-objs := gp8psk.o
 obj-$(CONFIG_DVB_USB_GP8PSK) += dvb-usb-gp8psk.o
 
 dvb-usb-dtt200u-objs := dtt200u.o dtt200u-fe.o

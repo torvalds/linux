@@ -173,12 +173,6 @@ static inline void console_sysfs_notify(void)
 #endif
 extern bool console_suspend_enabled;
 
-#ifdef CONFIG_OF
-extern void console_set_by_of(void);
-#else
-static inline void console_set_by_of(void) {}
-#endif
-
 /* Suspend and resume console messages over PM events */
 extern void suspend_console(void);
 extern void resume_console(void);

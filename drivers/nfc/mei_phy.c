@@ -133,7 +133,7 @@ static int mei_nfc_if_version(struct nfc_mei_phy *phy)
 		return -ENOMEM;
 
 	bytes_recv = mei_cldev_recv(phy->cldev, (u8 *)reply, if_version_length);
-	if (bytes_recv < 0 || bytes_recv < sizeof(struct mei_nfc_reply)) {
+	if (bytes_recv < 0 || bytes_recv < if_version_length) {
 		pr_err("Could not read IF version\n");
 		r = -EIO;
 		goto err;
