@@ -638,10 +638,12 @@ static int exynos_sysmmu_suspend(struct device *dev)
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
 	struct device *master = data->master;
 
-	dev_dbg(dev, "suspend\n");
 	if (master) {
-		__sysmmu_disable(data);
 		pm_runtime_put(dev);
+		if (data->domain) {
+			dev_dbg(data->sysmmu, "saving state\n");
+			__sysmmu_disable(data);
+		}
 	}
 	return 0;
 }
@@ -651,10 +653,12 @@ static int exynos_sysmmu_resume(struct device *dev)
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
 	struct device *master = data->master;
 
-	dev_dbg(dev, "resume\n");
 	if (master) {
 		pm_runtime_get_sync(dev);
-		__sysmmu_enable(data);
+		if (data->domain) {
+			dev_dbg(data->sysmmu, "restoring state\n");
+			__sysmmu_enable(data);
+		}
 	}
 	return 0;
 }
@@ -768,7 +772,6 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 		__sysmmu_disable(data);
 		data->pgtable = 0;
 		data->domain = NULL;
-		data->master = NULL;
 		list_del_init(&data->domain_node);
 	}
 
@@ -810,7 +813,6 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 	spin_lock_irqsave(&domain->lock, flags);
 	list_for_each_entry_safe(data, next, &domain->clients, domain_node) {
 		__sysmmu_disable(data);
-		data->master = NULL;
 		data->pgtable = 0;
 		data->domain = NULL;
 		list_del_init(&data->domain_node);
@@ -844,7 +846,6 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 		data->domain = domain;
 		pm_runtime_get_sync(data->sysmmu);
 		__sysmmu_enable(data);
-		data->master = dev;
 
 		spin_lock_irqsave(&domain->lock, flags);
 		list_add_tail(&data->domain_node, &domain->clients);
@@ -1231,6 +1232,7 @@ static int exynos_iommu_of_xlate(struct device *dev,
 	}
 
 	list_add_tail(&data->owner_node, &owner->controllers);
+	data->master = dev;
 	return 0;
 }
 
