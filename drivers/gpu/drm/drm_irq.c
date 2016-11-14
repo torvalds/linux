@@ -1445,30 +1445,8 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_on);
 
-/**
- * drm_vblank_pre_modeset - account for vblanks across mode sets
- * @dev: DRM device
- * @pipe: CRTC index
- *
- * Account for vblank events across mode setting events, which will likely
- * reset the hardware frame counter.
- *
- * This is done by grabbing a temporary vblank reference to ensure that the
- * vblank interrupt keeps running across the modeset sequence. With this the
- * software-side vblank frame counting will ensure that there are no jumps or
- * discontinuities.
- *
- * Unfortunately this approach is racy and also doesn't work when the vblank
- * interrupt stops running, e.g. across system suspend resume. It is therefore
- * highly recommended that drivers use the newer drm_vblank_off() and
- * drm_vblank_on() instead. drm_vblank_pre_modeset() only works correctly when
- * using "cooked" software vblank frame counters and not relying on any hardware
- * counters.
- *
- * Drivers must call drm_vblank_post_modeset() when re-enabling the same crtc
- * again.
- */
-void drm_vblank_pre_modeset(struct drm_device *dev, unsigned int pipe)
+static void drm_legacy_vblank_pre_modeset(struct drm_device *dev,
+					  unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
@@ -1492,17 +1470,9 @@ void drm_vblank_pre_modeset(struct drm_device *dev, unsigned int pipe)
 			vblank->inmodeset |= 0x2;
 	}
 }
-EXPORT_SYMBOL(drm_vblank_pre_modeset);
 
-/**
- * drm_vblank_post_modeset - undo drm_vblank_pre_modeset changes
- * @dev: DRM device
- * @pipe: CRTC index
- *
- * This function again drops the temporary vblank reference acquired in
- * drm_vblank_pre_modeset.
- */
-void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe)
+static void drm_legacy_vblank_post_modeset(struct drm_device *dev,
+					   unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	unsigned long irqflags;
@@ -1525,7 +1495,6 @@ void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe)
 		vblank->inmodeset = 0;
 	}
 }
-EXPORT_SYMBOL(drm_vblank_post_modeset);
 
 /*
  * drm_modeset_ctl - handle vblank event counter changes across mode switch
@@ -1558,10 +1527,10 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 
 	switch (modeset->cmd) {
 	case _DRM_PRE_MODESET:
-		drm_vblank_pre_modeset(dev, pipe);
+		drm_legacy_vblank_pre_modeset(dev, pipe);
 		break;
 	case _DRM_POST_MODESET:
-		drm_vblank_post_modeset(dev, pipe);
+		drm_legacy_vblank_post_modeset(dev, pipe);
 		break;
 	default:
 		return -EINVAL;

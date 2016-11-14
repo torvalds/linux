@@ -727,10 +727,6 @@ void drm_clflush_virt_range(void *addr, unsigned long length);
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
  */
 
-/* Modesetting support */
-extern void drm_vblank_pre_modeset(struct drm_device *dev, unsigned int pipe);
-extern void drm_vblank_post_modeset(struct drm_device *dev, unsigned int pipe);
-
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)
 extern int drm_debugfs_create_files(const struct drm_info_list *files,
