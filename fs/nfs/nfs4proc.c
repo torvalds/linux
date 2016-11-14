@@ -3122,7 +3122,8 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	} else if (is_rdwr)
 		calldata->arg.fmode |= FMODE_READ|FMODE_WRITE;
 
-	if (!nfs4_valid_open_stateid(state))
+	if (!nfs4_valid_open_stateid(state) ||
+	    test_bit(NFS_OPEN_STATE, &state->flags) == 0)
 		call_close = 0;
 	spin_unlock(&state->owner->so_lock);
 
