@@ -294,7 +294,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  * Instruction field definitions used by the command parser
  */
 #define INSTR_CLIENT_SHIFT      29
-#define INSTR_CLIENT_MASK       0xE0000000
 #define   INSTR_MI_CLIENT       0x0
 #define   INSTR_BC_CLIENT       0x2
 #define   INSTR_RC_CLIENT       0x3

@@ -558,7 +558,7 @@ static const struct drm_i915_reg_table hsw_blt_reg_tables[] = {
 
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 {
-	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
+	u32 client = cmd_header >> INSTR_CLIENT_SHIFT;
 	u32 subclient =
 		(cmd_header & INSTR_SUBCLIENT_MASK) >> INSTR_SUBCLIENT_SHIFT;
 
@@ -577,7 +577,7 @@ static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 
 static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 {
-	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
+	u32 client = cmd_header >> INSTR_CLIENT_SHIFT;
 	u32 subclient =
 		(cmd_header & INSTR_SUBCLIENT_MASK) >> INSTR_SUBCLIENT_SHIFT;
 	u32 op = (cmd_header & INSTR_26_TO_24_MASK) >> INSTR_26_TO_24_SHIFT;
@@ -600,7 +600,7 @@ static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 
 static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 {
-	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
+	u32 client = cmd_header >> INSTR_CLIENT_SHIFT;
 
 	if (client == INSTR_MI_CLIENT)
 		return 0x3F;
