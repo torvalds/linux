@@ -43,14 +43,14 @@ void nft_rt_get_eval(const struct nft_expr *expr,
 		break;
 #endif
 	case NFT_RT_NEXTHOP4:
-		if (pkt->pf != NFPROTO_IPV4)
+		if (nft_pf(pkt) != NFPROTO_IPV4)
 			goto err;
 
 		*dest = rt_nexthop((const struct rtable *)dst,
 				   ip_hdr(skb)->daddr);
 		break;
 	case NFT_RT_NEXTHOP6:
-		if (pkt->pf != NFPROTO_IPV6)
+		if (nft_pf(pkt) != NFPROTO_IPV6)
 			goto err;
 
 		memcpy(dest, rt6_nexthop((struct rt6_info *)dst,

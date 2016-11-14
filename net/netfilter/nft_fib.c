@@ -144,7 +144,7 @@ void nft_fib_store_result(void *reg, enum nft_fib_result r,
 		*dreg = index;
 		break;
 	case NFT_FIB_RESULT_OIFNAME:
-		dev = dev_get_by_index_rcu(pkt->net, index);
+		dev = dev_get_by_index_rcu(nft_net(pkt), index);
 		strncpy(reg, dev ? dev->name : "", IFNAMSIZ);
 		break;
 	default:

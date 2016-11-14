@@ -919,7 +919,7 @@ static struct notifier_block nfqnl_dev_notifier = {
 
 static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long entry_ptr)
 {
-	return rcu_access_pointer(entry->state.hook_entries) ==
+	return rcu_access_pointer(entry->hook) ==
 		(struct nf_hook_entry *)entry_ptr;
 }
 

@@ -45,9 +45,9 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 	__be32 addr;
 
 	if (priv->flags & NFTA_FIB_F_IIF)
-		dev = pkt->in;
+		dev = nft_in(pkt);
 	else if (priv->flags & NFTA_FIB_F_OIF)
-		dev = pkt->out;
+		dev = nft_out(pkt);
 
 	iph = ip_hdr(pkt->skb);
 	if (priv->flags & NFTA_FIB_F_DADDR)
@@ -55,7 +55,7 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 	else
 		addr = iph->saddr;
 
-	*dst = inet_dev_addr_type(pkt->net, dev, addr);
+	*dst = inet_dev_addr_type(nft_net(pkt), dev, addr);
 }
 EXPORT_SYMBOL_GPL(nft_fib4_eval_type);
 
@@ -89,13 +89,13 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	 * Search results for the desired outinterface instead.
 	 */
 	if (priv->flags & NFTA_FIB_F_OIF)
-		oif = pkt->out;
+		oif = nft_out(pkt);
 	else if (priv->flags & NFTA_FIB_F_IIF)
-		oif = pkt->in;
+		oif = nft_in(pkt);
 	else
 		oif = NULL;
 
-	if (pkt->hook == NF_INET_PRE_ROUTING && fib4_is_local(pkt->skb)) {
+	if (nft_hook(pkt) == NF_INET_PRE_ROUTING && fib4_is_local(pkt->skb)) {
 		nft_fib_store_result(dest, priv->result, pkt, LOOPBACK_IFINDEX);
 		return;
 	}
@@ -122,7 +122,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		fl4.saddr = get_saddr(iph->daddr);
 	}
 
-	if (fib_lookup(pkt->net, &fl4, &res, FIB_LOOKUP_IGNORE_LINKSTATE))
+	if (fib_lookup(nft_net(pkt), &fl4, &res, FIB_LOOKUP_IGNORE_LINKSTATE))
 		return;
 
 	switch (res.type) {

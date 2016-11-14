@@ -148,7 +148,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_payload_type;
 static const struct nft_expr_ops nft_payload_ops = {
 	.type		= &nft_payload_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_payload)),
@@ -320,20 +319,10 @@ nft_payload_select_ops(const struct nft_ctx *ctx,
 		return &nft_payload_ops;
 }
 
-static struct nft_expr_type nft_payload_type __read_mostly = {
+struct nft_expr_type nft_payload_type __read_mostly = {
 	.name		= "payload",
 	.select_ops	= nft_payload_select_ops,
 	.policy		= nft_payload_policy,
 	.maxattr	= NFTA_PAYLOAD_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_payload_module_init(void)
-{
-	return nft_register_expr(&nft_payload_type);
-}
-
-void nft_payload_module_exit(void)
-{
-	nft_unregister_expr(&nft_payload_type);
-}

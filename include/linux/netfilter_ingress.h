@@ -26,10 +26,10 @@ static inline int nf_hook_ingress(struct sk_buff *skb)
 	if (unlikely(!e))
 		return 0;
 
-	nf_hook_state_init(&state, e, NF_NETDEV_INGRESS, INT_MIN,
+	nf_hook_state_init(&state, NF_NETDEV_INGRESS,
 			   NFPROTO_NETDEV, skb->dev, NULL, NULL,
 			   dev_net(skb->dev), NULL);
-	return nf_hook_slow(skb, &state);
+	return nf_hook_slow(skb, &state, e);
 }
 
 static inline void nf_hook_ingress_init(struct net_device *dev)
