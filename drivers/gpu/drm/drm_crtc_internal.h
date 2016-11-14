@@ -43,14 +43,6 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 
 void drm_fb_release(struct drm_file *file_priv);
 
-/* dumb buffer support IOCTLs */
-int drm_mode_create_dumb_ioctl(struct drm_device *dev,
-			       void *data, struct drm_file *file_priv);
-int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
-			     void *data, struct drm_file *file_priv);
-int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
-				void *data, struct drm_file *file_priv);
-
 /* IOCTLs */
 int drm_mode_getresources(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
@@ -58,6 +50,16 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
 int drm_mode_setcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
+
+/* drm_dumb_buffers.c */
+
+/* IOCTLs */
+int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file_priv);
+int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);
+int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv);
 
 /* drm_color_mgmt.c */
 
