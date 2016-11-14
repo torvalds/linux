@@ -2561,7 +2561,6 @@ EXPORT_SYMBOL(user_path_at_empty);
 /**
  * mountpoint_last - look up last component for umount
  * @nd:   pathwalk nameidata - currently pointing at parent directory of "last"
- * @path: pointer to container for result
  *
  * This is a special lookup_last function just for umount. In this case, we
  * need to resolve the path without doing any revalidation.
@@ -2574,23 +2573,20 @@ EXPORT_SYMBOL(user_path_at_empty);
  *
  * Returns:
  * -error: if there was an error during lookup. This includes -ENOENT if the
- *         lookup found a negative dentry. The nd->path reference will also be
- *         put in this case.
+ *         lookup found a negative dentry.
  *
- * 0:      if we successfully resolved nd->path and found it to not to be a
- *         symlink that needs to be followed. "path" will also be populated.
- *         The nd->path reference will also be put.
+ * 0:      if we successfully resolved nd->last and found it to not to be a
+ *         symlink that needs to be followed.
  *
  * 1:      if we successfully resolved nd->last and found it to be a symlink
- *         that needs to be followed. "path" will be populated with the path
- *         to the link, and nd->path will *not* be put.
+ *         that needs to be followed.
  */
 static int
-mountpoint_last(struct nameidata *nd, struct path *path)
+mountpoint_last(struct nameidata *nd)
 {
 	int error = 0;
-	struct dentry *dentry;
 	struct dentry *dir = nd->path.dentry;
+	struct path path;
 
 	/* If we're in rcuwalk, drop out of it to handle last component */
 	if (nd->flags & LOOKUP_RCU) {
@@ -2604,36 +2600,34 @@ mountpoint_last(struct nameidata *nd, struct path *path)
 		error = handle_dots(nd, nd->last_type);
 		if (error)
 			return error;
-		dentry = dget(nd->path.dentry);
+		path.dentry = dget(nd->path.dentry);
 	} else {
-		dentry = d_lookup(dir, &nd->last);
-		if (!dentry) {
+		path.dentry = d_lookup(dir, &nd->last);
+		if (!path.dentry) {
 			/*
 			 * No cached dentry. Mounted dentries are pinned in the
 			 * cache, so that means that this dentry is probably
 			 * a symlink or the path doesn't actually point
 			 * to a mounted dentry.
 			 */
-			dentry = lookup_slow(&nd->last, dir,
+			path.dentry = lookup_slow(&nd->last, dir,
 					     nd->flags | LOOKUP_NO_REVAL);
-			if (IS_ERR(dentry))
-				return PTR_ERR(dentry);
+			if (IS_ERR(path.dentry))
+				return PTR_ERR(path.dentry);
 		}
 	}
-	if (d_is_negative(dentry)) {
-		dput(dentry);
+	if (d_is_negative(path.dentry)) {
+		dput(path.dentry);
 		return -ENOENT;
 	}
 	if (nd->depth)
 		put_link(nd);
-	path->dentry = dentry;
-	path->mnt = nd->path.mnt;
-	error = should_follow_link(nd, path, nd->flags & LOOKUP_FOLLOW,
-				   d_backing_inode(dentry), 0);
+	path.mnt = nd->path.mnt;
+	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW,
+				   d_backing_inode(path.dentry), 0);
 	if (unlikely(error))
 		return error;
-	mntget(path->mnt);
-	follow_mount(path);
+	path_to_nameidata(&path, nd);
 	return 0;
 }
 
@@ -2654,12 +2648,18 @@ path_mountpoint(struct nameidata *nd, unsigned flags, struct path *path)
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 	while (!(err = link_path_walk(s, nd)) &&
-		(err = mountpoint_last(nd, path)) > 0) {
+		(err = mountpoint_last(nd)) > 0) {
 		s = trailing_symlink(nd);
 		if (IS_ERR(s)) {
 			err = PTR_ERR(s);
 			break;
 		}
+	}
+	if (!err) {
+		*path = nd->path;
+		nd->path.mnt = NULL;
+		nd->path.dentry = NULL;
+		follow_mount(path);
 	}
 	terminate_walk(nd);
 	return err;
