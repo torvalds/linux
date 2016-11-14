@@ -790,6 +790,7 @@ static struct tracer wakeup_dl_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
