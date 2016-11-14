@@ -260,6 +260,27 @@ struct pdc_ring_alloc {
 	u32	    size;    /* ring allocation size in bytes */
 };
 
+/*
+ * context associated with a receive descriptor.
+ * @rxp_ctx: opaque context associated with frame that starts at each
+ *           rx ring index.
+ * @dst_sg:  Scatterlist used to form reply frames beginning at a given ring
+ *           index. Retained in order to unmap each sg after reply is processed.
+ * @rxin_numd: Number of rx descriptors associated with the message that starts
+ *             at a descriptor index. Not set for every index. For example,
+ *             if descriptor index i points to a scatterlist with 4 entries,
+ *             then the next three descriptor indexes don't have a value set.
+ * @resp_hdr: Virtual address of buffer used to catch DMA rx status
+ * @resp_hdr_daddr: physical address of DMA rx status buffer
+ */
+struct pdc_rx_ctx {
+	void *rxp_ctx;
+	struct scatterlist *dst_sg;
+	u32  rxin_numd;
+	void *resp_hdr;
+	dma_addr_t resp_hdr_daddr;
+};
+
 /* PDC state structure */
 struct pdc_state {
 	/* Index of the PDC whose state is in this structure instance */
@@ -377,11 +398,7 @@ struct pdc_state {
 	/* Index of next rx descriptor to post. */
 	u32  rxout;
 
-	/*
-	 * opaque context associated with frame that starts at each
-	 * rx ring index.
-	 */
-	void *rxp_ctx[PDC_RING_ENTRIES];
+	struct pdc_rx_ctx rx_ctx[PDC_RING_ENTRIES];
 
 	/*
 	 * Scatterlists used to form request and reply frames beginning at a
@@ -389,18 +406,6 @@ struct pdc_state {
 	 * is processed
 	 */
 	struct scatterlist *src_sg[PDC_RING_ENTRIES];
-	struct scatterlist *dst_sg[PDC_RING_ENTRIES];
-
-	/*
-	 * Number of rx descriptors associated with the message that starts
-	 * at this descriptor index. Not set for every index. For example,
-	 * if descriptor index i points to a scatterlist with 4 entries, then
-	 * the next three descriptor indexes don't have a value set.
-	 */
-	u32  rxin_numd[PDC_RING_ENTRIES];
-
-	void *resp_hdr[PDC_RING_ENTRIES];
-	dma_addr_t resp_hdr_daddr[PDC_RING_ENTRIES];
 
 	struct dentry *debugfs_stats;  /* debug FS stats file for this PDC */
 
@@ -591,11 +596,11 @@ pdc_receive_one(struct pdc_state *pdcs)
 	struct brcm_message mssg;
 	u32 len, rx_status;
 	u32 num_frags;
-	int i;
 	u8 *resp_hdr;    /* virtual addr of start of resp message DMA header */
 	u32 frags_rdy;   /* number of fragments ready to read */
 	u32 rx_idx;      /* ring index of start of receive frame */
 	dma_addr_t resp_hdr_daddr;
+	struct pdc_rx_ctx *rx_ctx;
 
 	mbc = &pdcs->mbc;
 	chan = &mbc->chans[0];
@@ -607,7 +612,8 @@ pdc_receive_one(struct pdc_state *pdcs)
 	 * to read.
 	 */
 	frags_rdy = NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr, pdcs->nrxpost);
-	if ((frags_rdy == 0) || (frags_rdy < pdcs->rxin_numd[pdcs->rxin]))
+	if ((frags_rdy == 0) ||
+	    (frags_rdy < pdcs->rx_ctx[pdcs->rxin].rxin_numd))
 		/* No response ready */
 		return -EAGAIN;
 
@@ -617,24 +623,23 @@ pdc_receive_one(struct pdc_state *pdcs)
 	dma_unmap_sg(dev, pdcs->src_sg[pdcs->txin],
 		     sg_nents(pdcs->src_sg[pdcs->txin]), DMA_TO_DEVICE);
 
-	for (i = 0; i < num_frags; i++)
-		pdcs->txin = NEXTTXD(pdcs->txin, pdcs->ntxpost);
+	pdcs->txin = (pdcs->txin + num_frags) & pdcs->ntxpost;
 
 	dev_dbg(dev, "PDC %u reclaimed %d tx descriptors",
 		pdcs->pdc_idx, num_frags);
 
 	rx_idx = pdcs->rxin;
-	num_frags = pdcs->rxin_numd[rx_idx];
+	rx_ctx = &pdcs->rx_ctx[rx_idx];
+	num_frags = rx_ctx->rxin_numd;
 	/* Return opaque context with result */
-	mssg.ctx = pdcs->rxp_ctx[rx_idx];
-	pdcs->rxp_ctx[rx_idx] = NULL;
-	resp_hdr = pdcs->resp_hdr[rx_idx];
-	resp_hdr_daddr = pdcs->resp_hdr_daddr[rx_idx];
-	dma_unmap_sg(dev, pdcs->dst_sg[rx_idx],
-		     sg_nents(pdcs->dst_sg[rx_idx]), DMA_FROM_DEVICE);
+	mssg.ctx = rx_ctx->rxp_ctx;
+	rx_ctx->rxp_ctx = NULL;
+	resp_hdr = rx_ctx->resp_hdr;
+	resp_hdr_daddr = rx_ctx->resp_hdr_daddr;
+	dma_unmap_sg(dev, rx_ctx->dst_sg, sg_nents(rx_ctx->dst_sg),
+		     DMA_FROM_DEVICE);
 
-	for (i = 0; i < num_frags; i++)
-		pdcs->rxin = NEXTRXD(pdcs->rxin, pdcs->nrxpost);
+	pdcs->rxin = (pdcs->rxin + num_frags) & pdcs->nrxpost;
 
 	dev_dbg(dev, "PDC %u reclaimed %d rx descriptors",
 		pdcs->pdc_idx, num_frags);
@@ -826,6 +831,7 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 	u32 rx_pkt_cnt = 1;	/* Adding a single rx buffer */
 	dma_addr_t daddr;
 	void *vaddr;
+	struct pdc_rx_ctx *rx_ctx;
 
 	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
 					      pdcs->nrxpost);
@@ -849,15 +855,16 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 
 	/* This is always the first descriptor in the receive sequence */
 	flags = D64_CTRL1_SOF;
-	pdcs->rxin_numd[pdcs->rx_msg_start] = 1;
+	pdcs->rx_ctx[pdcs->rx_msg_start].rxin_numd = 1;
 
 	if (unlikely(pdcs->rxout == (pdcs->nrxd - 1)))
 		flags |= D64_CTRL1_EOT;
 
-	pdcs->rxp_ctx[pdcs->rxout] = ctx;
-	pdcs->dst_sg[pdcs->rxout] = dst_sg;
-	pdcs->resp_hdr[pdcs->rxout] = vaddr;
-	pdcs->resp_hdr_daddr[pdcs->rxout] = daddr;
+	rx_ctx = &pdcs->rx_ctx[pdcs->rxout];
+	rx_ctx->rxp_ctx = ctx;
+	rx_ctx->dst_sg = dst_sg;
+	rx_ctx->resp_hdr = vaddr;
+	rx_ctx->resp_hdr_daddr = daddr;
 	pdc_build_rxd(pdcs, daddr, pdcs->pdc_resp_hdr_len, flags);
 	return PDC_SUCCESS;
 }
@@ -925,7 +932,7 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
 		desc_w++;
 		sg = sg_next(sg);
 	}
-	pdcs->rxin_numd[pdcs->rx_msg_start] += desc_w;
+	pdcs->rx_ctx[pdcs->rx_msg_start].rxin_numd += desc_w;
 
 	return PDC_SUCCESS;
 }
@@ -954,6 +961,9 @@ static irqreturn_t pdc_irq_handler(int irq, void *data)
 	/* Clear interrupt flags in device */
 	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
+	/* Disable interrupts until soft handler runs */
+	iowrite32(0, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
+
 	/* Wakeup IRQ thread */
 	if (likely(pdcs && (irq == pdcs->pdc_irq) &&
 		   (intstatus & PDC_INTMASK))) {
@@ -971,6 +981,9 @@ static void pdc_tasklet_cb(unsigned long data)
 	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
 	if (likely(pdcs && rx_int))
 		pdc_receive(pdcs);
+
+	/* reenable interrupts */
+	iowrite32(PDC_INTMASK, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
 }
 
 /**
