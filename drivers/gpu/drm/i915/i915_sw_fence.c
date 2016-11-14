@@ -116,11 +116,14 @@ static void i915_sw_fence_await(struct i915_sw_fence *fence)
 	WARN_ON(atomic_inc_return(&fence->pending) <= 1);
 }
 
-void i915_sw_fence_init(struct i915_sw_fence *fence, i915_sw_fence_notify_t fn)
+void __i915_sw_fence_init(struct i915_sw_fence *fence,
+			  i915_sw_fence_notify_t fn,
+			  const char *name,
+			  struct lock_class_key *key)
 {
 	BUG_ON((unsigned long)fn & ~I915_SW_FENCE_MASK);
 
-	init_waitqueue_head(&fence->wait);
+	__init_waitqueue_head(&fence->wait, name, key);
 	kref_init(&fence->kref);
 	atomic_set(&fence->pending, 1);
 	fence->flags = (unsigned long)fn;
