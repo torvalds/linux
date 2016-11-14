@@ -39,65 +39,54 @@ static void fname_crypt_complete(struct crypto_async_request *req, int res)
 static int fname_encrypt(struct inode *inode,
 			const struct qstr *iname, struct fscrypt_str *oname)
 {
-	u32 ciphertext_len;
 	struct skcipher_request *req = NULL;
 	DECLARE_FS_COMPLETION_RESULT(ecr);
 	struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 	char iv[FS_CRYPTO_BLOCK_SIZE];
-	struct scatterlist src_sg, dst_sg;
+	struct scatterlist sg;
 	int padding = 4 << (ci->ci_flags & FS_POLICY_FLAGS_PAD_MASK);
-	char *workbuf, buf[32], *alloc_buf = NULL;
-	unsigned lim;
+	unsigned int lim;
+	unsigned int cryptlen;
 
 	lim = inode->i_sb->s_cop->max_namelen(inode);
 	if (iname->len <= 0 || iname->len > lim)
 		return -EIO;
 
-	ciphertext_len = max(iname->len, (u32)FS_CRYPTO_BLOCK_SIZE);
-	ciphertext_len = round_up(ciphertext_len, padding);
-	ciphertext_len = min(ciphertext_len, lim);
+	/*
+	 * Copy the filename to the output buffer for encrypting in-place and
+	 * pad it with the needed number of NUL bytes.
+	 */
+	cryptlen = max_t(unsigned int, iname->len, FS_CRYPTO_BLOCK_SIZE);
+	cryptlen = round_up(cryptlen, padding);
+	cryptlen = min(cryptlen, lim);
+	memcpy(oname->name, iname->name, iname->len);
+	memset(oname->name + iname->len, 0, cryptlen - iname->len);
 
-	if (ciphertext_len <= sizeof(buf)) {
-		workbuf = buf;
-	} else {
-		alloc_buf = kmalloc(ciphertext_len, GFP_NOFS);
-		if (!alloc_buf)
-			return -ENOMEM;
-		workbuf = alloc_buf;
-	}
+	/* Initialize the IV */
+	memset(iv, 0, FS_CRYPTO_BLOCK_SIZE);
 
-	/* Allocate request */
+	/* Set up the encryption request */
 	req = skcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
-			"%s: crypto_request_alloc() failed\n", __func__);
-		kfree(alloc_buf);
+			"%s: skcipher_request_alloc() failed\n", __func__);
 		return -ENOMEM;
 	}
 	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			fname_crypt_complete, &ecr);
+	sg_init_one(&sg, oname->name, cryptlen);
+	skcipher_request_set_crypt(req, &sg, &sg, cryptlen, iv);
 
-	/* Copy the input */
-	memcpy(workbuf, iname->name, iname->len);
-	if (iname->len < ciphertext_len)
-		memset(workbuf + iname->len, 0, ciphertext_len - iname->len);
-
-	/* Initialize IV */
-	memset(iv, 0, FS_CRYPTO_BLOCK_SIZE);
-
-	/* Create encryption request */
-	sg_init_one(&src_sg, workbuf, ciphertext_len);
-	sg_init_one(&dst_sg, oname->name, ciphertext_len);
-	skcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
+	/* Do the encryption */
 	res = crypto_skcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
+		/* Request is being completed asynchronously; wait for it */
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	kfree(alloc_buf);
 	skcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(KERN_ERR
@@ -105,7 +94,7 @@ static int fname_encrypt(struct inode *inode,
 		return res;
 	}
 
-	oname->len = ciphertext_len;
+	oname->len = cryptlen;
 	return 0;
 }
 
@@ -220,7 +209,7 @@ static int digest_decode(const char *src, int len, char *dst)
 	return cp - dst;
 }
 
-u32 fscrypt_fname_encrypted_size(struct inode *inode, u32 ilen)
+u32 fscrypt_fname_encrypted_size(const struct inode *inode, u32 ilen)
 {
 	int padding = 32;
 	struct fscrypt_info *ci = inode->i_crypt_info;
@@ -238,7 +227,7 @@ EXPORT_SYMBOL(fscrypt_fname_encrypted_size);
  * Allocates an output buffer that is sufficient for the crypto operation
  * specified by the context and the direction.
  */
-int fscrypt_fname_alloc_buffer(struct inode *inode,
+int fscrypt_fname_alloc_buffer(const struct inode *inode,
 				u32 ilen, struct fscrypt_str *crypto_str)
 {
 	unsigned int olen = fscrypt_fname_encrypted_size(inode, ilen);
