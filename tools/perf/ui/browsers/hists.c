@@ -1337,8 +1337,8 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		}
 
 		if (first) {
-			ui_browser__printf(&browser->b, "%c", folded_sign);
-			width--;
+			ui_browser__printf(&browser->b, "%c ", folded_sign);
+			width -= 2;
 			first = false;
 		} else {
 			ui_browser__printf(&browser->b, "  ");
@@ -1361,8 +1361,10 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		width -= hpp.buf - s;
 	}
 
-	ui_browser__write_nstring(&browser->b, "", hierarchy_indent);
-	width -= hierarchy_indent;
+	if (!first) {
+		ui_browser__write_nstring(&browser->b, "", hierarchy_indent);
+		width -= hierarchy_indent;
+	}
 
 	if (column >= browser->b.horiz_scroll) {
 		char s[2048];
@@ -1381,7 +1383,13 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		}
 
 		perf_hpp_list__for_each_format(entry->hpp_list, fmt) {
-			ui_browser__write_nstring(&browser->b, "", 2);
+			if (first) {
+				ui_browser__printf(&browser->b, "%c ", folded_sign);
+				first = false;
+			} else {
+				ui_browser__write_nstring(&browser->b, "", 2);
+			}
+
 			width -= 2;
 
 			/*
@@ -1555,10 +1563,11 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 	int indent = hists->nr_hpp_node - 2;
 	bool first_node, first_col;
 
-	ret = scnprintf(buf, size, " ");
+	ret = scnprintf(buf, size, "  ");
 	if (advance_hpp_check(&dummy_hpp, ret))
 		return ret;
 
+	first_node = true;
 	/* the first hpp_list_node is for overhead columns */
 	fmt_node = list_first_entry(&hists->hpp_formats,
 				    struct perf_hpp_list_node, list);
@@ -1573,12 +1582,16 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "  ");
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
+
+		first_node = false;
 	}
 
-	ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
-			indent * HIERARCHY_INDENT, "");
-	if (advance_hpp_check(&dummy_hpp, ret))
-		return ret;
+	if (!first_node) {
+		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
+				indent * HIERARCHY_INDENT, "");
+		if (advance_hpp_check(&dummy_hpp, ret))
+			return ret;
+	}
 
 	first_node = true;
 	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
@@ -2076,8 +2089,21 @@ void hist_browser__init(struct hist_browser *browser,
 	browser->b.use_navkeypressed	= true;
 	browser->show_headers		= symbol_conf.show_hist_headers;
 
-	hists__for_each_format(hists, fmt)
+	if (symbol_conf.report_hierarchy) {
+		struct perf_hpp_list_node *fmt_node;
+
+		/* count overhead columns (in the first node) */
+		fmt_node = list_first_entry(&hists->hpp_formats,
+					    struct perf_hpp_list_node, list);
+		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
+			++browser->b.columns;
+
+		/* add a single column for whole hierarchy sort keys*/
 		++browser->b.columns;
+	} else {
+		hists__for_each_format(hists, fmt)
+			++browser->b.columns;
+	}
 
 	hists__reset_column_width(hists);
 }

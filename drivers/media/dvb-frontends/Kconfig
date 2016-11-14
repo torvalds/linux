@@ -513,6 +513,11 @@ config DVB_AS102_FE
 	depends on DVB_CORE
 	default DVB_AS102
 
+config DVB_GP8PSK_FE
+	tristate
+	depends on DVB_CORE
+	default DVB_USB_GP8PSK
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 

@@ -99,6 +99,8 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	if ((amdgpu_runtime_pm != 0) &&
 	    amdgpu_has_atpx() &&
+	    (amdgpu_is_atpx_hybrid() ||
+	     amdgpu_has_atpx_dgpu_power_cntl()) &&
 	    ((flags & AMD_IS_APU) == 0))
 		flags |= AMD_IS_PX;
 

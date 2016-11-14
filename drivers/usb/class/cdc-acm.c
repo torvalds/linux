@@ -932,8 +932,6 @@ static int wait_serial_change(struct acm *acm, unsigned long arg)
 	DECLARE_WAITQUEUE(wait, current);
 	struct async_icount old, new;
 
-	if (arg & (TIOCM_DSR | TIOCM_RI | TIOCM_CD))
-		return -EINVAL;
 	do {
 		spin_lock_irq(&acm->read_lock);
 		old = acm->oldcount;
@@ -1160,6 +1158,8 @@ static int acm_probe(struct usb_interface *intf,
 
 	if (quirks == IGNORE_DEVICE)
 		return -ENODEV;
+
+	memset(&h, 0x00, sizeof(struct usb_cdc_parsed_header));
 
 	num_rx_buf = (quirks == SINGLE_RX_URB) ? 1 : ACM_NR;
 
