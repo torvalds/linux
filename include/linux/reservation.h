@@ -177,17 +177,14 @@ static inline struct dma_fence *
 reservation_object_get_excl_rcu(struct reservation_object *obj)
 {
 	struct dma_fence *fence;
-	unsigned seq;
-retry:
-	seq = read_seqcount_begin(&obj->seq);
+
+	if (!rcu_access_pointer(obj->fence_excl))
+		return NULL;
+
 	rcu_read_lock();
-	fence = rcu_dereference(obj->fence_excl);
-	if (read_seqcount_retry(&obj->seq, seq)) {
-		rcu_read_unlock();
-		goto retry;
-	}
-	fence = dma_fence_get(fence);
+	fence = dma_fence_get_rcu_safe(&obj->fence_excl);
 	rcu_read_unlock();
+
 	return fence;
 }
 
