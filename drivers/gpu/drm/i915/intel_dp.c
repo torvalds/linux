@@ -1791,9 +1791,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			trans_dp &= ~TRANS_DP_ENH_FRAMING;
 		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
-		if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
-		    !IS_CHERRYVIEW(dev_priv) &&
-		    pipe_config->limited_color_range)
+		if (IS_G4X(dev_priv) && pipe_config->limited_color_range)
 			intel_dp->DP |= DP_COLOR_RANGE_16_235;
 
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -2515,8 +2513,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->base.adjusted_mode.flags |= flags;
 
-	if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
-	    !IS_CHERRYVIEW(dev_priv) && tmp & DP_COLOR_RANGE_16_235)
+	if (IS_G4X(dev_priv) && tmp & DP_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
 	pipe_config->lane_count =
