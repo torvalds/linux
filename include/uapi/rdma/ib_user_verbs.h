@@ -908,6 +908,23 @@ struct ib_uverbs_flow_spec_ipv6 {
 	struct ib_uverbs_flow_ipv6_filter mask;
 };
 
+struct ib_uverbs_flow_tunnel_filter {
+	__be32 tunnel_id;
+};
+
+struct ib_uverbs_flow_spec_tunnel {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	struct ib_uverbs_flow_tunnel_filter val;
+	struct ib_uverbs_flow_tunnel_filter mask;
+};
+
 struct ib_uverbs_flow_attr {
 	__u32 type;
 	__u16 size;
