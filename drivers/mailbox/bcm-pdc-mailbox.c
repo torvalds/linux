@@ -570,27 +570,23 @@ pdc_build_txd(struct pdc_state *pdcs, dma_addr_t dma_addr, u32 buf_len,
 }
 
 /**
- * pdc_receive() - Receive a response message from a given SPU.
+ * pdc_receive_one() - Receive a response message from a given SPU.
  * @pdcs:    PDC state for the SPU to receive from
- * @mssg:    mailbox message to be returned to client
  *
  * When the return code indicates success, the response message is available in
  * the receive buffers provided prior to submission of the request.
- *
- * Input:
- *   pdcs - PDC state structure for the SPU to be polled
- *   mssg - mailbox message to be returned to client. This function sets the
- *	    context pointer on the message to help the client associate the
- *	    response with a request.
  *
  * Return:  PDC_SUCCESS if one or more receive descriptors was processed
  *          -EAGAIN indicates that no response message is available
  *          -EIO an error occurred
  */
 static int
-pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
+pdc_receive_one(struct pdc_state *pdcs)
 {
 	struct device *dev = &pdcs->pdev->dev;
+	struct mbox_controller *mbc;
+	struct mbox_chan *chan;
+	struct brcm_message mssg;
 	u32 len, rx_status;
 	u32 num_frags;
 	int i;
@@ -599,29 +595,23 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 	u32 rx_idx;      /* ring index of start of receive frame */
 	dma_addr_t resp_hdr_daddr;
 
+	mbc = &pdcs->mbc;
+	chan = &mbc->chans[0];
+	mssg.type = BRCM_MESSAGE_SPU;
+
 	/*
 	 * return if a complete response message is not yet ready.
 	 * rxin_numd[rxin] is the number of fragments in the next msg
 	 * to read.
 	 */
 	frags_rdy = NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr, pdcs->nrxpost);
-	if ((frags_rdy == 0) || (frags_rdy < pdcs->rxin_numd[pdcs->rxin])) {
-		/* See if the hw has written more fragments than we know */
-		pdcs->last_rx_curr =
-		    (ioread32((void *)&pdcs->rxregs_64->status0) &
-		     CRYPTO_D64_RS0_CD_MASK) / RING_ENTRY_SIZE;
-		frags_rdy = NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr,
-				       pdcs->nrxpost);
-		if ((frags_rdy == 0) ||
-		    (frags_rdy < pdcs->rxin_numd[pdcs->rxin])) {
-			/* No response ready */
-			return -EAGAIN;
-		}
-		/* can't read descriptors/data until write index is read */
-		rmb();
-	}
+	if ((frags_rdy == 0) || (frags_rdy < pdcs->rxin_numd[pdcs->rxin]))
+		/* No response ready */
+		return -EAGAIN;
 
 	num_frags = pdcs->txin_numd[pdcs->txin];
+	WARN_ON(num_frags == 0);
+
 	dma_unmap_sg(dev, pdcs->src_sg[pdcs->txin],
 		     sg_nents(pdcs->src_sg[pdcs->txin]), DMA_TO_DEVICE);
 
@@ -634,7 +624,7 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 	rx_idx = pdcs->rxin;
 	num_frags = pdcs->rxin_numd[rx_idx];
 	/* Return opaque context with result */
-	mssg->ctx = pdcs->rxp_ctx[rx_idx];
+	mssg.ctx = pdcs->rxp_ctx[rx_idx];
 	pdcs->rxp_ctx[rx_idx] = NULL;
 	resp_hdr = pdcs->resp_hdr[rx_idx];
 	resp_hdr_daddr = pdcs->resp_hdr_daddr[rx_idx];
@@ -674,12 +664,35 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 
 	dma_pool_free(pdcs->rx_buf_pool, resp_hdr, resp_hdr_daddr);
 
+	mbox_chan_received_data(chan, &mssg);
+
 	pdcs->pdc_replies++;
-	/* if we read one or more rx descriptors, claim success */
-	if (num_frags > 0)
-		return PDC_SUCCESS;
-	else
-		return -EIO;
+	return PDC_SUCCESS;
+}
+
+/**
+ * pdc_receive() - Process as many responses as are available in the rx ring.
+ * @pdcs:  PDC state
+ *
+ * Called within the hard IRQ.
+ * Return:
+ */
+static int
+pdc_receive(struct pdc_state *pdcs)
+{
+	int rx_status;
+
+	/* read last_rx_curr from register once */
+	pdcs->last_rx_curr =
+	    (ioread32((void *)&pdcs->rxregs_64->status0) &
+	     CRYPTO_D64_RS0_CD_MASK) / RING_ENTRY_SIZE;
+
+	do {
+		/* Could be many frames ready */
+		rx_status = pdc_receive_one(pdcs);
+	} while (rx_status == PDC_SUCCESS);
+
+	return 0;
 }
 
 /**
@@ -946,14 +959,13 @@ static irqreturn_t pdc_irq_handler(int irq, void *cookie)
 }
 
 /**
- * pdc_irq_thread() - Function invoked on deferred thread when a DMA tx has
- * completed or data is available to receive.
+ * pdc_irq_thread() - Function invoked on deferred thread when data is available
+ * to receive.
  * @irq:    Interrupt number
  * @cookie: PDC state for PDC that generated the interrupt
  *
- * On DMA tx complete, notify the mailbox client. On DMA rx complete, process
- * as many SPU response messages as are available and send each to the mailbox
- * client.
+ * On DMA rx complete, process as many SPU response messages as are available
+ * and send each to the mailbox client.
  *
  * Return: IRQ_HANDLED if we recognized and handled the interrupt
  *         IRQ_NONE otherwise
@@ -961,39 +973,15 @@ static irqreturn_t pdc_irq_handler(int irq, void *cookie)
 static irqreturn_t pdc_irq_thread(int irq, void *cookie)
 {
 	struct pdc_state *pdcs = cookie;
-	struct mbox_controller *mbc;
-	struct mbox_chan *chan;
 	bool rx_int;
-	int rx_status;
-	struct brcm_message mssg;
 
 	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
-
 	if (pdcs && rx_int) {
 		dev_dbg(&pdcs->pdev->dev,
 			"%s() got irq %d with rx_int %s",
 			__func__, irq, rx_int ? "set" : "clear");
 
-		mbc = &pdcs->mbc;
-		chan = &mbc->chans[0];
-
-		while (1) {
-			/* Could be many frames ready */
-			memset(&mssg, 0, sizeof(mssg));
-			mssg.type = BRCM_MESSAGE_SPU;
-			rx_status = pdc_receive(pdcs, &mssg);
-			if (rx_status >= 0) {
-				dev_dbg(&pdcs->pdev->dev,
-					"%s(): invoking client rx cb",
-					__func__);
-				mbox_chan_received_data(chan, &mssg);
-			} else {
-				dev_dbg(&pdcs->pdev->dev,
-					"%s(): no SPU response available",
-					__func__);
-				break;
-			}
-		}
+		pdc_receive(pdcs);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
