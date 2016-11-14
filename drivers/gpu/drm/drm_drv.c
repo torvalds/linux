@@ -32,7 +32,10 @@
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drmP.h>
+
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
@@ -257,10 +260,7 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 	drm_debugfs_cleanup(minor);
 }
 
-/**
- * drm_minor_acquire - Acquire a DRM minor
- * @minor_id: Minor ID of the DRM-minor
- *
+/*
  * Looks up the given minor-ID and returns the respective DRM-minor object. The
  * refence-count of the underlying device is increased so you must release this
  * object with drm_minor_release().
@@ -268,10 +268,6 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
  * As long as you hold this minor, it is guaranteed that the object and the
  * minor->dev pointer will stay valid! However, the device may get unplugged and
  * unregistered while you hold the minor.
- *
- * Returns:
- * Pointer to minor-object with increased device-refcount, or PTR_ERR on
- * failure.
  */
 struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 {
@@ -294,12 +290,6 @@ struct drm_minor *drm_minor_acquire(unsigned int minor_id)
 	return minor;
 }
 
-/**
- * drm_minor_release - Release DRM minor
- * @minor: Pointer to DRM minor object
- *
- * Release a minor that was previously acquired via drm_minor_acquire().
- */
 void drm_minor_release(struct drm_minor *minor)
 {
 	drm_dev_unref(minor->dev);
