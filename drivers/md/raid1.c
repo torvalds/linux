@@ -71,6 +71,9 @@ static void allow_barrier(struct r1conf *conf, sector_t start_next_window,
 			  sector_t bi_sector);
 static void lower_barrier(struct r1conf *conf);
 
+#define raid1_log(md, fmt, args...)				\
+	do { if ((md)->queue) blk_add_trace_msg((md)->queue, "raid1 " fmt, ##args); } while (0)
+
 static void * r1bio_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct pool_info *pi = data;
@@ -861,6 +864,7 @@ static sector_t wait_barrier(struct r1conf *conf, struct bio *bio)
 		 * that queue to allow conf->start_next_window
 		 * to increase.
 		 */
+		raid1_log(conf->mddev, "wait barrier");
 		wait_event_lock_irq(conf->wait_barrier,
 				    !conf->array_frozen &&
 				    (!conf->barrier ||
@@ -940,6 +944,7 @@ static void freeze_array(struct r1conf *conf, int extra)
 	 */
 	spin_lock_irq(&conf->resync_lock);
 	conf->array_frozen = 1;
+	raid1_log(conf->mddev, "wait freeze");
 	wait_event_lock_irq_cmd(conf->wait_barrier,
 				conf->nr_pending == conf->nr_queued+extra,
 				conf->resync_lock,
@@ -1144,6 +1149,7 @@ read_again:
 			 * take care not to over-take any writes
 			 * that are 'behind'
 			 */
+			raid1_log(mddev, "wait behind writes");
 			wait_event(bitmap->behind_wait,
 				   atomic_read(&bitmap->behind_writes) == 0);
 		}
@@ -1208,6 +1214,7 @@ read_again:
 	 */
 	if (conf->pending_count >= max_queued_requests) {
 		md_wakeup_thread(mddev->thread);
+		raid1_log(mddev, "wait queued");
 		wait_event(conf->wait_barrier,
 			   conf->pending_count < max_queued_requests);
 	}
@@ -1299,6 +1306,7 @@ read_again:
 				rdev_dec_pending(conf->mirrors[j].rdev, mddev);
 		r1_bio->state = 0;
 		allow_barrier(conf, start_next_window, bio->bi_iter.bi_sector);
+		raid1_log(mddev, "wait rdev %d blocked", blocked_rdev->raid_disk);
 		md_wait_for_blocked_rdev(blocked_rdev, mddev);
 		start_next_window = wait_barrier(conf, bio);
 		/*
