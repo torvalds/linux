@@ -4173,11 +4173,13 @@ int ext4_truncate(struct inode *inode)
 	ext4_discard_preallocations(inode);
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		ext4_ext_truncate(handle, inode);
+		err = ext4_ext_truncate(handle, inode);
 	else
 		ext4_ind_truncate(handle, inode);
 
 	up_write(&ei->i_data_sem);
+	if (err)
+		goto out_stop;
 
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
