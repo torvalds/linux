@@ -671,8 +671,8 @@ static int __maybe_unused exynos_sysmmu_resume(struct device *dev)
 
 static const struct dev_pm_ops sysmmu_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_sysmmu_suspend, exynos_sysmmu_resume, NULL)
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static const struct of_device_id sysmmu_of_match[] __initconst = {
@@ -819,10 +819,6 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 	if (!has_sysmmu(dev) || owner->domain != iommu_domain)
 		return;
 
-	list_for_each_entry(data, &owner->controllers, owner_node) {
-		pm_runtime_put_sync(data->sysmmu);
-	}
-
 	mutex_lock(&owner->rpm_lock);
 
 	list_for_each_entry(data, &owner->controllers, owner_node) {
@@ -885,10 +881,6 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	}
 
 	mutex_unlock(&owner->rpm_lock);
-
-	list_for_each_entry(data, &owner->controllers, owner_node) {
-		pm_runtime_get_sync(data->sysmmu);
-	}
 
 	dev_dbg(dev, "%s: Attached IOMMU with pgtable %pa\n", __func__,
 		&pagetable);
@@ -1271,6 +1263,14 @@ static int exynos_iommu_of_xlate(struct device *dev,
 
 	list_add_tail(&data->owner_node, &owner->controllers);
 	data->master = dev;
+
+	/*
+	 * SYSMMU will be runtime activated via device link (dependency) to its
+	 * master device, so there are no direct calls to pm_runtime_get/put
+	 * in this driver.
+	 */
+	device_link_add(dev, data->sysmmu, DL_FLAG_PM_RUNTIME);
+
 	return 0;
 }
 
