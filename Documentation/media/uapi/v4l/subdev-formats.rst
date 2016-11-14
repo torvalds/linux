@@ -1526,9 +1526,16 @@ The following table lists existing packed Bayer formats. The data
 organization is given as an example for the first pixel only.
 
 
+.. HACK: ideally, we would be using adjustbox here. However, Sphinx
+.. is a very bad behaviored guy: if the table has more than 30 cols,
+.. it switches to long table, and there's no way to override it.
+
+
 .. raw:: latex
 
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
+    \begingroup
+    \tiny
+    \setlength{\tabcolsep}{2pt}
 
 .. tabularcolumns:: |p{7.6cm}|p{1.6cm}|p{0.7cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|
 
@@ -2314,7 +2321,7 @@ organization is given as an example for the first pixel only.
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \endgroup
 
 
 Packed YUV Formats
