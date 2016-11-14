@@ -352,24 +352,34 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 
 static ssize_t queue_poll_delay_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(q->poll_nsec / 1000, page);
+	int val;
+
+	if (q->poll_nsec == -1)
+		val = -1;
+	else
+		val = q->poll_nsec / 1000;
+
+	return sprintf(page, "%d\n", val);
 }
 
 static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 				size_t count)
 {
-	unsigned long poll_usec;
-	ssize_t ret;
+	int err, val;
 
 	if (!q->mq_ops || !q->mq_ops->poll)
 		return -EINVAL;
 
-	ret = queue_var_store(&poll_usec, page, count);
-	if (ret < 0)
-		return ret;
+	err = kstrtoint(page, 10, &val);
+	if (err < 0)
+		return err;
 
-	q->poll_nsec = poll_usec * 1000;
-	return ret;
+	if (val == -1)
+		q->poll_nsec = -1;
+	else
+		q->poll_nsec = val * 1000;
+
+	return count;
 }
 
 static ssize_t queue_poll_show(struct request_queue *q, char *page)
