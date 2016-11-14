@@ -296,6 +296,7 @@ struct atmel_spi {
 	int			irq;
 	struct clk		*clk;
 	struct platform_device	*pdev;
+	unsigned long		spi_clk;
 
 	struct spi_transfer	*current_transfer;
 	int			current_remaining_bytes;
@@ -865,7 +866,7 @@ static int atmel_spi_set_xfer_speed(struct atmel_spi *as,
 	unsigned long		bus_hz;
 
 	/* v1 chips start out at half the peripheral bus speed. */
-	bus_hz = clk_get_rate(as->clk);
+	bus_hz = as->spi_clk;
 	if (!atmel_spi_is_v2(as))
 		bus_hz /= 2;
 
@@ -1634,6 +1635,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(clk);
 	if (ret)
 		goto out_free_irq;
+
+	as->spi_clk = clk_get_rate(clk);
+
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	if (as->caps.has_wdrbt) {
