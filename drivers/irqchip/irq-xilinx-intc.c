@@ -58,7 +58,7 @@ static void intc_enable_or_unmask(struct irq_data *d)
 {
 	unsigned long mask = 1 << d->hwirq;
 
-	pr_debug("enable_or_unmask: %ld\n", d->hwirq);
+	pr_debug("irq-xilinx: enable_or_unmask: %ld\n", d->hwirq);
 
 	/* ack level irqs because they can't be acked during
 	 * ack function since the handle_level_irq function
@@ -72,13 +72,13 @@ static void intc_enable_or_unmask(struct irq_data *d)
 
 static void intc_disable_or_mask(struct irq_data *d)
 {
-	pr_debug("disable: %ld\n", d->hwirq);
+	pr_debug("irq-xilinx: disable: %ld\n", d->hwirq);
 	write_fn(1 << d->hwirq, intc_baseaddr + CIE);
 }
 
 static void intc_ack(struct irq_data *d)
 {
-	pr_debug("ack: %ld\n", d->hwirq);
+	pr_debug("irq-xilinx: ack: %ld\n", d->hwirq);
 	write_fn(1 << d->hwirq, intc_baseaddr + IAR);
 }
 
@@ -86,7 +86,7 @@ static void intc_mask_ack(struct irq_data *d)
 {
 	unsigned long mask = 1 << d->hwirq;
 
-	pr_debug("disable_and_ack: %ld\n", d->hwirq);
+	pr_debug("irq-xilinx: disable_and_ack: %ld\n", d->hwirq);
 	write_fn(mask, intc_baseaddr + CIE);
 	write_fn(mask, intc_baseaddr + IAR);
 }
@@ -109,7 +109,7 @@ unsigned int get_irq(void)
 	if (hwirq != -1U)
 		irq = irq_find_mapping(root_domain, hwirq);
 
-	pr_debug("get_irq: hwirq=%d, irq=%d\n", hwirq, irq);
+	pr_debug("irq-xilinx: hwirq=%d, irq=%d\n", hwirq, irq);
 
 	return irq;
 }
@@ -146,20 +146,20 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 
 	ret = of_property_read_u32(intc, "xlnx,num-intr-inputs", &nr_irq);
 	if (ret < 0) {
-		pr_err("%s: unable to read xlnx,num-intr-inputs\n", __func__);
+		pr_err("irq-xilinx: unable to read xlnx,num-intr-inputs\n");
 		return ret;
 	}
 
 	ret = of_property_read_u32(intc, "xlnx,kind-of-intr", &intr_mask);
 	if (ret < 0) {
-		pr_err("%s: unable to read xlnx,kind-of-intr\n", __func__);
+		pr_err("irq-xilinx: unable to read xlnx,kind-of-intr\n");
 		return ret;
 	}
 
 	if (intr_mask >> nr_irq)
-		pr_warn("%s: mismatch in kind-of-intr param\n", __func__);
+		pr_warn("irq-xilinx: mismatch in kind-of-intr param\n");
 
-	pr_info("%s: num_irq=%d, edge=0x%x\n",
+	pr_info("irq-xilinx: %s: num_irq=%d, edge=0x%x\n",
 		intc->full_name, nr_irq, intr_mask);
 
 	write_fn = intc_write32;
