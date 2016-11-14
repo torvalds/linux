@@ -37,6 +37,7 @@
 #include <asm/mmu.h>
 #include <asm/machdep.h>
 
+#include "pseries.h"
 
 /*
  * This isn't a module but we expose that to userspace
