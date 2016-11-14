@@ -285,6 +285,9 @@ struct pdc_state {
 	 */
 	unsigned long intstatus;
 
+	/* tasklet for deferred processing after DMA rx interrupt */
+	struct tasklet_struct rx_tasklet;
+
 	/* Number of bytes of receive status prior to each rx frame */
 	u32 rx_status_len;
 	/* Whether a BCM header is prepended to each frame */
@@ -931,7 +934,7 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
 /**
  * pdc_irq_handler() - Interrupt handler called in interrupt context.
  * @irq:      Interrupt number that has fired
- * @cookie:   PDC state for DMA engine that generated the interrupt
+ * @data:     device struct for DMA engine that generated the interrupt
  *
  * We have to clear the device interrupt status flags here. So cache the
  * status for later use in the thread function. Other than that, just return
@@ -940,9 +943,10 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
  * Return: IRQ_WAKE_THREAD if interrupt is ours
  *         IRQ_NONE otherwise
  */
-static irqreturn_t pdc_irq_handler(int irq, void *cookie)
+static irqreturn_t pdc_irq_handler(int irq, void *data)
 {
-	struct pdc_state *pdcs = cookie;
+	struct device *dev = (struct device *)data;
+	struct pdc_state *pdcs = dev_get_drvdata(dev);
 	u32 intstatus = ioread32(pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
 	if (likely(intstatus & PDC_RCVINTEN_0))
@@ -952,39 +956,22 @@ static irqreturn_t pdc_irq_handler(int irq, void *cookie)
 	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
 	/* Wakeup IRQ thread */
-	if (likely(pdcs && (irq == pdcs->pdc_irq) && (intstatus & PDC_INTMASK)))
-		return IRQ_WAKE_THREAD;
-
-	return IRQ_NONE;
-}
-
-/**
- * pdc_irq_thread() - Function invoked on deferred thread when data is available
- * to receive.
- * @irq:    Interrupt number
- * @cookie: PDC state for PDC that generated the interrupt
- *
- * On DMA rx complete, process as many SPU response messages as are available
- * and send each to the mailbox client.
- *
- * Return: IRQ_HANDLED if we recognized and handled the interrupt
- *         IRQ_NONE otherwise
- */
-static irqreturn_t pdc_irq_thread(int irq, void *cookie)
-{
-	struct pdc_state *pdcs = cookie;
-	bool rx_int;
-
-	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
-	if (likely(pdcs && rx_int)) {
-		dev_dbg(&pdcs->pdev->dev,
-			"%s() got irq %d with rx_int %s",
-			__func__, irq, rx_int ? "set" : "clear");
-
-		pdc_receive(pdcs);
+	if (likely(pdcs && (irq == pdcs->pdc_irq) &&
+		   (intstatus & PDC_INTMASK))) {
+		tasklet_schedule(&pdcs->rx_tasklet);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
+}
+
+static void pdc_tasklet_cb(unsigned long data)
+{
+	struct pdc_state *pdcs = (struct pdc_state *)data;
+	bool rx_int;
+
+	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
+	if (likely(pdcs && rx_int))
+		pdc_receive(pdcs);
 }
 
 /**
@@ -1416,11 +1403,11 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 	pdcs->pdc_irq = irq_of_parse_and_map(dn, 0);
 	dev_dbg(dev, "pdc device %s irq %u for pdcs %p",
 		dev_name(dev), pdcs->pdc_irq, pdcs);
-	err = devm_request_threaded_irq(dev, pdcs->pdc_irq,
-					pdc_irq_handler,
-					pdc_irq_thread, 0, dev_name(dev), pdcs);
+
+	err = devm_request_irq(dev, pdcs->pdc_irq, pdc_irq_handler, 0,
+			       dev_name(dev), dev);
 	if (err) {
-		dev_err(dev, "threaded tx IRQ %u request failed with err %d\n",
+		dev_err(dev, "IRQ %u request failed with err %d\n",
 			pdcs->pdc_irq, err);
 		return err;
 	}
@@ -1579,6 +1566,9 @@ static int pdc_probe(struct platform_device *pdev)
 
 	pdc_hw_init(pdcs);
 
+	/* Init tasklet for deferred DMA rx processing */
+	tasklet_init(&pdcs->rx_tasklet, pdc_tasklet_cb, (unsigned long) pdcs);
+
 	err = pdc_interrupts_init(pdcs);
 	if (err)
 		goto cleanup_buf_pool;
@@ -1595,6 +1585,7 @@ static int pdc_probe(struct platform_device *pdev)
 	return PDC_SUCCESS;
 
 cleanup_buf_pool:
+	tasklet_kill(&pdcs->rx_tasklet);
 	dma_pool_destroy(pdcs->rx_buf_pool);
 
 cleanup_ring_pool:
@@ -1609,6 +1600,8 @@ static int pdc_remove(struct platform_device *pdev)
 	struct pdc_state *pdcs = platform_get_drvdata(pdev);
 
 	pdc_free_debugfs();
+
+	tasklet_kill(&pdcs->rx_tasklet);
 
 	pdc_hw_disable(pdcs);
 
