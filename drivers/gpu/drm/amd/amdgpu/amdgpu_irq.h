@@ -88,9 +88,6 @@ int amdgpu_irq_update(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		      unsigned type);
 int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned type);
-bool amdgpu_irq_get_delayed(struct amdgpu_device *adev,
-			    struct amdgpu_irq_src *src,
-			    unsigned type);
 int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned type);
 bool amdgpu_irq_enabled(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
