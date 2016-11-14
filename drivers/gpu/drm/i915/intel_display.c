@@ -13933,14 +13933,15 @@ static int intel_lock_all_pipes(struct drm_atomic_state *state)
 static int intel_modeset_all_pipes(struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	int ret = 0;
 
 	/*
 	 * Add all pipes to the state, and force
 	 * a modeset on all the active ones.
 	 */
 	for_each_crtc(state->dev, crtc) {
+		struct drm_crtc_state *crtc_state;
+		int ret;
+
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state))
 			return PTR_ERR(crtc_state);
@@ -13952,14 +13953,14 @@ static int intel_modeset_all_pipes(struct drm_atomic_state *state)
 
 		ret = drm_atomic_add_affected_connectors(state, crtc);
 		if (ret)
-			break;
+			return ret;
 
 		ret = drm_atomic_add_affected_planes(state, crtc);
 		if (ret)
-			break;
+			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int intel_modeset_checks(struct drm_atomic_state *state)
