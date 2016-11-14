@@ -990,9 +990,9 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
 	}
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00)
-		p->des0 = priv->rx_skbuff_dma[i];
+		p->des0 = cpu_to_le32(priv->rx_skbuff_dma[i]);
 	else
-		p->des2 = priv->rx_skbuff_dma[i];
+		p->des2 = cpu_to_le32(priv->rx_skbuff_dma[i]);
 
 	if ((priv->hw->mode->init_desc3) &&
 	    (priv->dma_buf_sz == BUF_SIZE_16KiB))
@@ -1946,7 +1946,7 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
 		priv->cur_tx = STMMAC_GET_ENTRY(priv->cur_tx, DMA_TX_SIZE);
 		desc = priv->dma_tx + priv->cur_tx;
 
-		desc->des0 = des + (total_len - tmp_len);
+		desc->des0 = cpu_to_le32(des + (total_len - tmp_len));
 		buff_size = tmp_len >= TSO_MAX_BUFF_SIZE ?
 			    TSO_MAX_BUFF_SIZE : tmp_len;
 
@@ -2048,11 +2048,11 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->tx_skbuff_dma[first_entry].len = skb_headlen(skb);
 	priv->tx_skbuff[first_entry] = skb;
 
-	first->des0 = des;
+	first->des0 = cpu_to_le32(des);
 
 	/* Fill start of payload in buff2 of first descriptor */
 	if (pay_len)
-		first->des1 =  des + proto_hdr_len;
+		first->des1 = cpu_to_le32(des + proto_hdr_len);
 
 	/* If needed take extra descriptors to fill the remaining payload */
 	tmp_pay_len = pay_len - TSO_MAX_BUFF_SIZE;
@@ -2241,13 +2241,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		priv->tx_skbuff[entry] = NULL;
 
-		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
-			desc->des0 = des;
-			priv->tx_skbuff_dma[entry].buf = desc->des0;
-		} else {
-			desc->des2 = des;
-			priv->tx_skbuff_dma[entry].buf = desc->des2;
-		}
+		priv->tx_skbuff_dma[entry].buf = des;
+		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
+			desc->des0 = cpu_to_le32(des);
+		else
+			desc->des2 = cpu_to_le32(des);
 
 		priv->tx_skbuff_dma[entry].map_as_page = true;
 		priv->tx_skbuff_dma[entry].len = len;
@@ -2318,13 +2316,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (dma_mapping_error(priv->device, des))
 			goto dma_map_err;
 
-		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
-			first->des0 = des;
-			priv->tx_skbuff_dma[first_entry].buf = first->des0;
-		} else {
-			first->des2 = des;
-			priv->tx_skbuff_dma[first_entry].buf = first->des2;
-		}
+		priv->tx_skbuff_dma[first_entry].buf = des;
+		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
+			first->des0 = cpu_to_le32(des);
+		else
+			first->des2 = cpu_to_le32(des);
 
 		priv->tx_skbuff_dma[first_entry].len = nopaged_len;
 		priv->tx_skbuff_dma[first_entry].last_segment = last_segment;
@@ -2438,10 +2434,10 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			}
 
 			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00)) {
-				p->des0 = priv->rx_skbuff_dma[entry];
+				p->des0 = cpu_to_le32(priv->rx_skbuff_dma[entry]);
 				p->des1 = 0;
 			} else {
-				p->des2 = priv->rx_skbuff_dma[entry];
+				p->des2 = cpu_to_le32(priv->rx_skbuff_dma[entry]);
 			}
 			if (priv->hw->mode->refill_desc3)
 				priv->hw->mode->refill_desc3(priv, p);
@@ -2542,9 +2538,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			unsigned int des;
 
 			if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-				des = p->des0;
+				des = le32_to_cpu(p->des0);
 			else
-				des = p->des2;
+				des = le32_to_cpu(p->des2);
 
 			frame_len = priv->hw->desc->get_rx_frame_len(p, coe);
 
@@ -2901,14 +2897,17 @@ static void sysfs_display_ring(void *head, int size, int extend_desc,
 			x = *(u64 *) ep;
 			seq_printf(seq, "%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
 				   i, (unsigned int)virt_to_phys(ep),
-				   ep->basic.des0, ep->basic.des1,
-				   ep->basic.des2, ep->basic.des3);
+				   le32_to_cpu(ep->basic.des0),
+				   le32_to_cpu(ep->basic.des1),
+				   le32_to_cpu(ep->basic.des2),
+				   le32_to_cpu(ep->basic.des3));
 			ep++;
 		} else {
 			x = *(u64 *) p;
 			seq_printf(seq, "%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
 				   i, (unsigned int)virt_to_phys(ep),
-				   p->des0, p->des1, p->des2, p->des3);
+				   le32_to_cpu(p->des0), le32_to_cpu(p->des1),
+				   le32_to_cpu(p->des2), le32_to_cpu(p->des3));
 			p++;
 		}
 		seq_printf(seq, "\n");
