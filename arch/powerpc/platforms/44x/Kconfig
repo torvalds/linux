@@ -241,6 +241,7 @@ config XILINX_VIRTEX440_GENERIC_BOARD
 	depends on 44x
 	default n
 	select XILINX_VIRTEX_5_FXT
+	select XILINX_INTC
 	help
 	  This option enables generic support for Xilinx Virtex based boards
 	  that use a 440 based processor in the Virtex 5 FXT FPGA architecture.
