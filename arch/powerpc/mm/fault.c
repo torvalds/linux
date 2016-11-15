@@ -391,6 +391,12 @@ good_area:
 
 	if (is_exec) {
 		/*
+		 * An execution fault + no execute ?
+		 */
+		if (regs->msr & SRR1_ISI_N_OR_G)
+			goto bad_area;
+
+		/*
 		 * Allow execution from readable areas if the MMU does not
 		 * provide separate controls over reading and executing.
 		 *
@@ -404,6 +410,7 @@ good_area:
 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
 			goto bad_area;
+
 #ifdef CONFIG_PPC_STD_MMU
 		/*
 		 * protfault should only happen due to us
