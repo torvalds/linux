@@ -412,6 +412,7 @@
 /* Device mode registers */
 
 #define DCFG				HSOTG_REG(0x800)
+#define DCFG_DESCDMA_EN			(1 << 23)
 #define DCFG_EPMISCNT_MASK		(0x1f << 18)
 #define DCFG_EPMISCNT_SHIFT		18
 #define DCFG_EPMISCNT_LIMIT		0x1f

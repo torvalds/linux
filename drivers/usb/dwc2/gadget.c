@@ -2888,15 +2888,21 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);
 
-	if (using_dma(hsotg))
+	if (using_dma(hsotg)) {
 		dwc2_writel(GAHBCFG_GLBL_INTR_EN | GAHBCFG_DMA_EN |
 			    (GAHBCFG_HBSTLEN_INCR4 << GAHBCFG_HBSTLEN_SHIFT),
 			    hsotg->regs + GAHBCFG);
-	else
+
+		/* Set DDMA mode support in the core if needed */
+		if (using_desc_dma(hsotg))
+			__orr32(hsotg->regs + DCFG, DCFG_DESCDMA_EN);
+
+	} else {
 		dwc2_writel(((hsotg->dedicated_fifos) ?
 						(GAHBCFG_NP_TXF_EMP_LVL |
 						 GAHBCFG_P_TXF_EMP_LVL) : 0) |
 			    GAHBCFG_GLBL_INTR_EN, hsotg->regs + GAHBCFG);
+	}
 
 	/*
 	 * If INTknTXFEmpMsk is enabled, it's important to disable ep interrupts
