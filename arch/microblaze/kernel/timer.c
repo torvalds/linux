@@ -259,7 +259,7 @@ static int __init xilinx_timer_init(struct device_node *timer)
 	int ret;
 
 	if (initialized)
-		return;
+		return -EINVAL;
 
 	initialized = 1;
 
