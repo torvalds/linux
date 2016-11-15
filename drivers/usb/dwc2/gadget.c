@@ -1991,7 +1991,9 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 		 */
 	}
 
-	if (epnum == 0 && hsotg->ep0_state == DWC2_EP0_DATA_OUT) {
+	/* DDMA IN status phase will start from StsPhseRcvd interrupt */
+	if (!using_desc_dma(hsotg) && epnum == 0 &&
+	    hsotg->ep0_state == DWC2_EP0_DATA_OUT) {
 		/* Move to STATUS IN */
 		dwc2_hsotg_ep0_zlp(hsotg, true);
 		return;
@@ -2614,8 +2616,13 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 		}
 	}
 
-	if (ints & DXEPINT_STSPHSERCVD)
+	if (ints & DXEPINT_STSPHSERCVD) {
 		dev_dbg(hsotg->dev, "%s: StsPhseRcvd\n", __func__);
+
+		/* Move to STATUS IN for DDMA */
+		if (using_desc_dma(hsotg))
+			dwc2_hsotg_ep0_zlp(hsotg, true);
+	}
 
 	if (ints & DXEPINT_BACK2BACKSETUP)
 		dev_dbg(hsotg->dev, "%s: B2BSetup/INEPNakEff\n", __func__);
