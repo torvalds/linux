@@ -201,6 +201,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_request_completed(request));
+	GEM_BUG_ON(!request->i915->gt.active_requests);
 
 	trace_i915_gem_request_retire(request);
 
@@ -218,7 +219,12 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 */
 	list_del(&request->ring_link);
 	request->ring->last_retired_head = request->postfix;
-	request->i915->gt.active_requests--;
+	if (!--request->i915->gt.active_requests) {
+		GEM_BUG_ON(!request->i915->gt.awake);
+		mod_delayed_work(request->i915->wq,
+				 &request->i915->gt.idle_work,
+				 msecs_to_jiffies(100));
+	}
 
 	/* Walk through the active list, calling retire on each. This allows
 	 * objects to track their GPU activity and mark themselves as idle
@@ -763,6 +769,8 @@ static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
 	if (dev_priv->gt.awake)
 		return;
 
+	GEM_BUG_ON(!dev_priv->gt.active_requests);
+
 	intel_runtime_pm_get_noresume(dev_priv);
 	dev_priv->gt.awake = true;
 
@@ -1146,13 +1154,6 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 	if (!dev_priv->gt.active_requests)
 		return;
 
-	GEM_BUG_ON(!dev_priv->gt.awake);
-
 	for_each_engine(engine, dev_priv, id)
 		engine_retire_requests(engine);
-
-	if (!dev_priv->gt.active_requests)
-		mod_delayed_work(dev_priv->wq,
-				 &dev_priv->gt.idle_work,
-				 msecs_to_jiffies(100));
 }
