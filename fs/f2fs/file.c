@@ -1853,7 +1853,7 @@ static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
 		mutex_lock(&sbi->gc_mutex);
 	}
 
-	ret = f2fs_gc(sbi, sync);
+	ret = f2fs_gc(sbi, sync, true);
 out:
 	mnt_drop_write_file(filp);
 	return ret;
