@@ -73,7 +73,6 @@ struct max77620_regulator_info {
 };
 
 struct max77620_regulator_pdata {
-	struct regulator_init_data *reg_idata;
 	int active_fps_src;
 	int active_fps_pd_slot;
 	int active_fps_pu_slot;
