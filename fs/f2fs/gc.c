@@ -82,7 +82,7 @@ static int gc_thread_func(void *data)
 		stat_inc_bggc_count(sbi);
 
 		/* if return value is not zero, no victim was selected */
-		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC)))
+		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC), true))
 			wait_ms = gc_th->no_gc_sleep_time;
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
@@ -905,7 +905,7 @@ next:
 	return sec_freed;
 }
 
-int f2fs_gc(struct f2fs_sb_info *sbi, bool sync)
+int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background)
 {
 	unsigned int segno;
 	int gc_type = sync ? FG_GC : BG_GC;
@@ -946,6 +946,9 @@ gc_more:
 			if (ret)
 				goto stop;
 		}
+	} else if (gc_type == BG_GC && !background) {
+		/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
+		goto stop;
 	}
 
 	if (segno == NULL_SEGNO && !__get_victim(sbi, &segno, gc_type))
