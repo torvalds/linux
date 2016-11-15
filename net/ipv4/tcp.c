@@ -2300,7 +2300,7 @@ EXPORT_SYMBOL(tcp_disconnect);
 static inline bool tcp_can_repair_sock(const struct sock *sk)
 {
 	return ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN) &&
-		((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_ESTABLISHED));
+		(sk->sk_state != TCP_LISTEN);
 }
 
 static int tcp_repair_set_window(struct tcp_sock *tp, char __user *optbuf, int len)
