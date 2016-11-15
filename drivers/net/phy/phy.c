@@ -1441,3 +1441,14 @@ int phy_ethtool_set_link_ksettings(struct net_device *ndev,
 	return phy_ethtool_ksettings_set(phydev, cmd);
 }
 EXPORT_SYMBOL(phy_ethtool_set_link_ksettings);
+
+int phy_ethtool_nway_reset(struct net_device *ndev)
+{
+	struct phy_device *phydev = ndev->phydev;
+
+	if (!phydev)
+		return -ENODEV;
+
+	return genphy_restart_aneg(phydev);
+}
+EXPORT_SYMBOL(phy_ethtool_nway_reset);
