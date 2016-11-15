@@ -28,8 +28,8 @@
 #include "tilcdc_regs.h"
 
 #define TILCDC_VBLANK_SAFETY_THRESHOLD_US	1000
-#define TILCDC_REV1_PALETTE_SIZE		32
-#define TILCDC_REV1_PALETTE_FIRST_ENTRY		0x4000
+#define TILCDC_PALETTE_SIZE			32
+#define TILCDC_PALETTE_FIRST_ENTRY		0x4000
 
 struct tilcdc_crtc {
 	struct drm_crtc base;
@@ -62,7 +62,7 @@ struct tilcdc_crtc {
 	struct work_struct recover_work;
 
 	dma_addr_t palette_dma_handle;
-	void *palette_base;
+	u16 *palette_base;
 	struct completion palette_loaded;
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
@@ -114,23 +114,17 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 }
 
 /*
- * The driver currently only supports the RGB565 format for revision 1. For
- * 16 bits-per-pixel the palette block is bypassed, but the first 32 bytes of
- * the framebuffer are still considered palette. The first 16-bit entry must
- * be 0x4000 while all other entries must be zeroed.
+ * The driver currently only supports only true color formats. For
+ * true color the palette block is bypassed, but a 32 byte palette
+ * should still be loaded. The first 16-bit entry must be 0x4000 while
+ * all other entries must be zeroed.
  */
 static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
 {
 	u32 dma_fb_base, dma_fb_ceiling, raster_ctl;
-	struct tilcdc_crtc *tilcdc_crtc;
-	struct drm_device *dev;
-	u16 *first_entry;
-
-	dev = crtc->dev;
-	tilcdc_crtc = to_tilcdc_crtc(crtc);
-	first_entry = tilcdc_crtc->palette_base;
-
-	*first_entry = TILCDC_REV1_PALETTE_FIRST_ENTRY;
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	dma_fb_base = tilcdc_read(dev, LCDC_DMA_FB_BASE_ADDR_0_REG);
 	dma_fb_ceiling = tilcdc_read(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG);
@@ -140,23 +134,34 @@ static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
 	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG,
 		     tilcdc_crtc->palette_dma_handle);
 	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG,
-		     (u32)tilcdc_crtc->palette_dma_handle
-				+ TILCDC_REV1_PALETTE_SIZE - 1);
+		     (u32) tilcdc_crtc->palette_dma_handle +
+		     TILCDC_PALETTE_SIZE - 1);
 
-	/* Load it. */
-	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
-		     LCDC_PALETTE_LOAD_MODE(DATA_ONLY));
-	tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
-		   LCDC_PALETTE_LOAD_MODE(PALETTE_ONLY));
+	/* Set dma load mode for palette loading only. */
+	tilcdc_write_mask(dev, LCDC_RASTER_CTRL_REG,
+			  LCDC_PALETTE_LOAD_MODE(PALETTE_ONLY),
+			  LCDC_PALETTE_LOAD_MODE_MASK);
 
-	/* Enable the LCDC and wait for palette to be loaded. */
-	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
+	/* Enable DMA Palette Loaded Interrupt */
+	if (priv->rev == 1)
+		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
+	else
+		tilcdc_write(dev, LCDC_INT_ENABLE_SET_REG, LCDC_V2_PL_INT_ENA);
+
+	/* Enable LCDC DMA and wait for palette to be loaded. */
+	tilcdc_clear_irqstatus(dev, 0xffffffff);
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
 
 	wait_for_completion(&tilcdc_crtc->palette_loaded);
 
-	/* Restore the registers. */
+	/* Disable LCDC DMA and DMA Palette Loaded Interrupt. */
 	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
+	if (priv->rev == 1)
+		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
+	else
+		tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG, LCDC_V2_PL_INT_ENA);
+
+	/* Restore the registers. */
 	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG, dma_fb_base);
 	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG, dma_fb_ceiling);
 	tilcdc_write(dev, LCDC_RASTER_CTRL_REG, raster_ctl);
@@ -218,7 +223,6 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
-	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	mutex_lock(&tilcdc_crtc->enable_lock);
@@ -231,7 +235,7 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 
 	reset(crtc);
 
-	if (priv->rev == 1 && !completion_done(&tilcdc_crtc->palette_loaded))
+	if (!completion_done(&tilcdc_crtc->palette_loaded))
 		tilcdc_crtc_load_palette(crtc);
 
 	tilcdc_crtc_enable_irqs(dev);
@@ -281,8 +285,7 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	 * LCDC will not retain the palette when reset. Make sure it gets
 	 * reloaded on tilcdc_crtc_enable().
 	 */
-	if (priv->rev == 1)
-		reinit_completion(&tilcdc_crtc->palette_loaded);
+	reinit_completion(&tilcdc_crtc->palette_loaded);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -917,12 +920,14 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underflow",
 				    __func__, stat);
 
-	if (priv->rev == 1) {
-		if (stat & LCDC_PL_LOAD_DONE) {
-			complete(&tilcdc_crtc->palette_loaded);
-			tilcdc_clear(dev,
-				     LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
-		}
+	if (stat & LCDC_PL_LOAD_DONE) {
+		complete(&tilcdc_crtc->palette_loaded);
+		if (priv->rev == 1)
+			tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
+				     LCDC_V1_PL_INT_ENA);
+		else
+			tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
+				     LCDC_V2_PL_INT_ENA);
 	}
 
 	if (stat & LCDC_SYNC_LOST) {
@@ -972,15 +977,14 @@ int tilcdc_crtc_create(struct drm_device *dev)
 		return -ENOMEM;
 	}
 
-	if (priv->rev == 1) {
-		init_completion(&tilcdc_crtc->palette_loaded);
-		tilcdc_crtc->palette_base = dmam_alloc_coherent(dev->dev,
-					TILCDC_REV1_PALETTE_SIZE,
+	init_completion(&tilcdc_crtc->palette_loaded);
+	tilcdc_crtc->palette_base = dmam_alloc_coherent(dev->dev,
+					TILCDC_PALETTE_SIZE,
 					&tilcdc_crtc->palette_dma_handle,
 					GFP_KERNEL | __GFP_ZERO);
-		if (!tilcdc_crtc->palette_base)
-			return -ENOMEM;
-	}
+	if (!tilcdc_crtc->palette_base)
+		return -ENOMEM;
+	*tilcdc_crtc->palette_base = TILCDC_PALETTE_FIRST_ENTRY;
 
 	crtc = &tilcdc_crtc->base;
 
