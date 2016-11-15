@@ -3811,6 +3811,7 @@ static const struct net_device_ops mvneta_netdev_ops = {
 };
 
 const struct ethtool_ops mvneta_eth_tool_ops = {
+	.nway_reset	= phy_ethtool_nway_reset,
 	.get_link       = ethtool_op_get_link,
 	.set_coalesce   = mvneta_ethtool_set_coalesce,
 	.get_coalesce   = mvneta_ethtool_get_coalesce,
