@@ -227,3 +227,8 @@
 	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
 };
+
+&usbphy {
+	/* VBUS on usb host ports are tied to DC5V and therefore always on */
+	status = "okay";
+};
