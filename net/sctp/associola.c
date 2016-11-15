@@ -700,11 +700,15 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Set the peer's active state. */
 	peer->state = peer_state;
 
+	/* Add this peer into the transport hashtable */
+	if (sctp_hash_transport(peer)) {
+		sctp_transport_free(peer);
+		return NULL;
+	}
+
 	/* Attach the remote transport to our asoc.  */
 	list_add_tail_rcu(&peer->transports, &asoc->peer.transport_addr_list);
 	asoc->peer.transport_count++;
-	/* Add this peer into the transport hashtable */
-	sctp_hash_transport(peer);
 
 	/* If we do not yet have a primary path, set one.  */
 	if (!asoc->peer.primary_path) {

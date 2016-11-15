@@ -124,7 +124,7 @@ extern struct sctp_globals {
 	/* This is the sctp port control hash.	*/
 	struct sctp_bind_hashbucket *port_hashtable;
 	/* This is the hash of all transports. */
-	struct rhashtable transport_hashtable;
+	struct rhltable transport_hashtable;
 
 	/* Sizes of above hashtables. */
 	int ep_hashsize;
@@ -761,7 +761,7 @@ static inline int sctp_packet_empty(struct sctp_packet *packet)
 struct sctp_transport {
 	/* A list of transports. */
 	struct list_head transports;
-	struct rhash_head node;
+	struct rhlist_head node;
 
 	/* Reference counting. */
 	atomic_t refcnt;

@@ -164,7 +164,7 @@ void sctp_backlog_migrate(struct sctp_association *assoc,
 			  struct sock *oldsk, struct sock *newsk);
 int sctp_transport_hashtable_init(void);
 void sctp_transport_hashtable_destroy(void);
-void sctp_hash_transport(struct sctp_transport *t);
+int sctp_hash_transport(struct sctp_transport *t);
 void sctp_unhash_transport(struct sctp_transport *t);
 struct sctp_transport *sctp_addrs_lookup_transport(
 				struct net *net,
