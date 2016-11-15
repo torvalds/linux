@@ -85,6 +85,8 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_PERCPU_ARRAY,
 	BPF_MAP_TYPE_STACK_TRACE,
 	BPF_MAP_TYPE_CGROUP_ARRAY,
+	BPF_MAP_TYPE_LRU_HASH,
+	BPF_MAP_TYPE_LRU_PERCPU_HASH,
 };
 
 enum bpf_prog_type {
@@ -106,6 +108,13 @@ enum bpf_prog_type {
 #define BPF_EXIST	2 /* update existing element */
 
 #define BPF_F_NO_PREALLOC	(1U << 0)
+/* Instead of having one common LRU list in the
+ * BPF_MAP_TYPE_LRU_[PERCPU_]HASH map, use a percpu LRU list
+ * which can scale and perform better.
+ * Note, the LRU nodes (including free nodes) cannot be moved
+ * across different LRU lists.
+ */
+#define BPF_F_NO_COMMON_LRU	(1U << 1)
 
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
