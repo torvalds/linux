@@ -1700,25 +1700,11 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
+static void iwl_mvm_enable_aux_queue(struct iwl_mvm *mvm)
 {
 	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
 					mvm->cfg->base_params->wd_timeout :
 					IWL_WATCHDOG_DISABLED;
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	if (!iwl_mvm_is_dqa_supported(mvm))
-		iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue, mvm->aux_queue,
-				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
-
-	/* Allocate aux station and assign to it the aux queue */
-	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
-				       NL80211_IFTYPE_UNSPECIFIED);
-	if (ret)
-		return ret;
 
 	if (iwl_mvm_is_dqa_supported(mvm)) {
 		struct iwl_trans_txq_scd_cfg cfg = {
@@ -1731,14 +1717,43 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 
 		iwl_mvm_enable_txq(mvm, mvm->aux_queue, mvm->aux_queue, 0, &cfg,
 				   wdg_timeout);
+	} else {
+		iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue, mvm->aux_queue,
+				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 	}
+}
+
+int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Allocate aux station and assign to it the aux queue */
+	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
+				       NL80211_IFTYPE_UNSPECIFIED);
+	if (ret)
+		return ret;
+
+	/* Map Aux queue to fifo - needs to happen before adding Aux station */
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		iwl_mvm_enable_aux_queue(mvm);
 
 	ret = iwl_mvm_add_int_sta_common(mvm, &mvm->aux_sta, NULL,
 					 MAC_INDEX_AUX, 0);
-
-	if (ret)
+	if (ret) {
 		iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
-	return ret;
+		return ret;
+	}
+
+	/*
+	 * For a000 firmware and on we cannot add queue to a station unknown
+	 * to firmware so enable queue here - after the station was added
+	 */
+	if (iwl_mvm_has_new_tx_api(mvm))
+		iwl_mvm_enable_aux_queue(mvm);
+
+	return 0;
 }
 
 int iwl_mvm_add_snif_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -1789,22 +1804,21 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_int_sta *bsta = &mvmvif->bcast_sta;
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	const u8 *baddr = _baddr;
+	int queue = 0;
 	int ret;
+	unsigned int wdg_timeout =
+		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = IWL_MVM_TX_FIFO_VO,
+		.sta_id = mvmvif->bcast_sta.sta_id,
+		.tid = IWL_MAX_TID_COUNT,
+		.aggregate = false,
+		.frame_limit = IWL_FRAME_LIMIT,
+	};
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_is_dqa_supported(mvm)) {
-		struct iwl_trans_txq_scd_cfg cfg = {
-			.fifo = IWL_MVM_TX_FIFO_VO,
-			.sta_id = mvmvif->bcast_sta.sta_id,
-			.tid = IWL_MAX_TID_COUNT,
-			.aggregate = false,
-			.frame_limit = IWL_FRAME_LIMIT,
-		};
-		unsigned int wdg_timeout =
-			iwl_mvm_get_wd_timeout(mvm, vif, false, false);
-		int queue;
-
 		if (vif->type == NL80211_IFTYPE_AP ||
 		    vif->type == NL80211_IFTYPE_ADHOC)
 			queue = mvm->probe_queue;
@@ -1813,9 +1827,11 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		else if (WARN(1, "Missing required TXQ for adding bcast STA\n"))
 			return -EINVAL;
 
-		iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[0], 0, &cfg,
-				   wdg_timeout);
 		bsta->tfd_queue_msk |= BIT(queue);
+
+		if (!iwl_mvm_has_new_tx_api(mvm))
+			iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[0], 0,
+					   &cfg, wdg_timeout);
 	}
 
 	if (vif->type == NL80211_IFTYPE_ADHOC)
@@ -1830,28 +1846,12 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return ret;
 
 	/*
-	 * In AP vif type, we also need to enable the cab_queue. However, we
-	 * have to enable it after the ADD_STA command is sent, otherwise the
-	 * FW will throw an assert once we send the ADD_STA command (it'll
-	 * detect a mismatch in the tfd_queue_msk, as we can't add the
-	 * enabled-cab_queue to the mask)
+	 * For a000 firmware and on we cannot add queue to a station unknown
+	 * to firmware so enable queue here - after the station was added
 	 */
-	if (iwl_mvm_is_dqa_supported(mvm) &&
-	    (vif->type == NL80211_IFTYPE_AP ||
-	     vif->type == NL80211_IFTYPE_ADHOC)) {
-		struct iwl_trans_txq_scd_cfg cfg = {
-			.fifo = IWL_MVM_TX_FIFO_MCAST,
-			.sta_id = mvmvif->bcast_sta.sta_id,
-			.tid = IWL_MAX_TID_COUNT,
-			.aggregate = false,
-			.frame_limit = IWL_FRAME_LIMIT,
-		};
-		unsigned int wdg_timeout =
-			iwl_mvm_get_wd_timeout(mvm, vif, false, false);
-
-		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue,
-				   0, &cfg, wdg_timeout);
-	}
+	if (iwl_mvm_has_new_tx_api(mvm))
+		iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[0], 0, &cfg,
+				   wdg_timeout);
 
 	return 0;
 }
