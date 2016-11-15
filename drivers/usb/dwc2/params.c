@@ -1276,7 +1276,9 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	 */
 	hw->snpsid = dwc2_readl(hsotg->regs + GSNPSID);
 	if ((hw->snpsid & 0xfffff000) != 0x4f542000 &&
-	    (hw->snpsid & 0xfffff000) != 0x4f543000) {
+	    (hw->snpsid & 0xfffff000) != 0x4f543000 &&
+	    (hw->snpsid & 0xffff0000) != 0x55310000 &&
+	    (hw->snpsid & 0xffff0000) != 0x55320000) {
 		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
 			hw->snpsid);
 		return -ENODEV;
@@ -1417,6 +1419,11 @@ int dwc2_init_params(struct dwc2_hsotg *hsotg)
 		params = *((struct dwc2_core_params *)match->data);
 	else
 		params = params_default;
+
+	if (dwc2_is_fs_iot(hsotg)) {
+		params.speed = DWC2_SPEED_PARAM_FULL;
+		params.phy_type = DWC2_PHY_TYPE_PARAM_FS;
+	}
 
 	dwc2_set_parameters(hsotg, &params);
 

@@ -950,6 +950,8 @@ struct dwc2_hsotg {
 #define DWC2_CORE_REV_2_94a	0x4f54294a
 #define DWC2_CORE_REV_3_00a	0x4f54300a
 #define DWC2_CORE_REV_3_10a	0x4f54310a
+#define DWC2_FS_IOT_REV_1_00a	0x5531100a
+#define DWC2_HS_IOT_REV_1_00a	0x5532100a
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	union dwc2_hcd_internal_flags {
@@ -1077,6 +1079,22 @@ enum dwc2_halt_status {
 	DWC2_HC_XFER_PERIODIC_INCOMPLETE,
 	DWC2_HC_XFER_URB_DEQUEUE,
 };
+
+/* Core version information */
+static inline bool dwc2_is_iot(struct dwc2_hsotg *hsotg)
+{
+	return (hsotg->hw_params.snpsid & 0xfff00000) == 0x55300000;
+}
+
+static inline bool dwc2_is_fs_iot(struct dwc2_hsotg *hsotg)
+{
+	return (hsotg->hw_params.snpsid & 0xffff0000) == 0x55310000;
+}
+
+static inline bool dwc2_is_hs_iot(struct dwc2_hsotg *hsotg)
+{
+	return (hsotg->hw_params.snpsid & 0xffff0000) == 0x55320000;
+}
 
 /*
  * The following functions support initialization of the core driver component
