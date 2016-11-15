@@ -276,6 +276,9 @@ static int hpsa_find_cfg_addrs(struct pci_dev *pdev, void __iomem *vaddr,
 static int hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 				    unsigned long *memory_bar);
 static int hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id);
+static int wait_for_device_to_become_ready(struct ctlr_info *h,
+					   unsigned char lunaddr[],
+					   int reply_queue);
 static int hpsa_wait_for_board_state(struct pci_dev *pdev, void __iomem *vaddr,
 				     int wait_for_ready);
 static inline void finish_cmd(struct CommandList *c);
@@ -2540,7 +2543,7 @@ static void complete_scsi_command(struct CommandList *cp)
 
 	if ((unlikely(hpsa_is_pending_event(cp)))) {
 		if (cp->reset_pending)
-			return hpsa_cmd_resolve_and_free(h, cp);
+			return hpsa_cmd_free_and_done(h, cp, cmd);
 		if (cp->abort_pending)
 			return hpsa_cmd_abort_and_free(h, cp, cmd);
 	}
@@ -3079,6 +3082,8 @@ static int hpsa_do_reset(struct ctlr_info *h, struct hpsa_scsi_dev_t *dev,
 
 	if (unlikely(rc))
 		atomic_set(&dev->reset_cmds_out, 0);
+	else
+		wait_for_device_to_become_ready(h, scsi3addr, 0);
 
 	mutex_unlock(&h->reset_mutex);
 	return rc;
@@ -5562,6 +5567,14 @@ static void hpsa_scan_start(struct Scsi_Host *sh)
 
 	if (unlikely(lockup_detected(h)))
 		return hpsa_scan_complete(h);
+
+	/*
+	 * Do the scan after a reset completion
+	 */
+	if (h->reset_in_progress) {
+		h->drv_req_rescan = 1;
+		return;
+	}
 
 	hpsa_update_scsi_devices(h);
 
@@ -8589,6 +8602,14 @@ static void hpsa_rescan_ctlr_worker(struct work_struct *work)
 
 	if (h->remove_in_progress)
 		return;
+
+	/*
+	 * Do the scan after the reset
+	 */
+	if (h->reset_in_progress) {
+		h->drv_req_rescan = 1;
+		return;
+	}
 
 	if (hpsa_ctlr_needs_rescan(h) || hpsa_offline_devices_ready(h)) {
 		scsi_host_get(h->scsi_host);
