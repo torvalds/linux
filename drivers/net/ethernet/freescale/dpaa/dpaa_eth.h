@@ -177,4 +177,8 @@ struct dpaa_priv {
 
 /* from dpaa_ethtool.c */
 extern const struct ethtool_ops dpaa_ethtool_ops;
+
+/* from dpaa_eth_sysfs.c */
+void dpaa_eth_sysfs_remove(struct device *dev);
+void dpaa_eth_sysfs_init(struct device *dev);
 #endif	/* __DPAA_H */
