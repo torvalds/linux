@@ -153,7 +153,7 @@ static ssize_t xgbe_common_write(const char __user *buffer, size_t count,
 	int ret;
 
 	if (*ppos != 0)
-		return 0;
+		return -EINVAL;
 
 	if (count >= sizeof(workarea))
 		return -ENOSPC;
