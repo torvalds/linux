@@ -104,6 +104,7 @@ struct acr_r352_func {
 				    u64);
 	void (*fixup_hs_desc)(struct acr_r352 *, struct nvkm_secboot *, void *);
 	u32 hs_bl_desc_size;
+	bool shadow_blob;
 
 	struct ls_ucode_img *(*ls_ucode_img_load)(const struct acr_r352 *,
 						  enum nvkm_secboot_falcon);

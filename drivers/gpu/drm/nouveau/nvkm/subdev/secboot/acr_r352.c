@@ -491,7 +491,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	struct ls_ucode_img *img, *t;
 	unsigned long managed_falcons = acr->base.managed_falcons;
 	int managed_count = 0;
-	u32 image_wpr_size;
+	u32 image_wpr_size, ls_blob_size;
 	int falcon_id;
 	int ret;
 
@@ -542,8 +542,17 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	image_wpr_size = acr->func->ls_fill_headers(acr, &imgs);
 	image_wpr_size = ALIGN(image_wpr_size, WPR_ALIGNMENT);
 
+	ls_blob_size = image_wpr_size;
+
+	/*
+	 * If we need a shadow area, allocate twice the size and use the
+	 * upper half as WPR
+	 */
+	if (wpr_size == 0 && acr->func->shadow_blob)
+		ls_blob_size *= 2;
+
 	/* Allocate GPU object that will contain the WPR region */
-	ret = nvkm_gpuobj_new(subdev->device, image_wpr_size, WPR_ALIGNMENT,
+	ret = nvkm_gpuobj_new(subdev->device, ls_blob_size, WPR_ALIGNMENT,
 			      false, NULL, &acr->ls_blob);
 	if (ret)
 		goto cleanup;
@@ -554,6 +563,9 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	/* If WPR address and size are not fixed, set them to fit the LS blob */
 	if (wpr_size == 0) {
 		wpr_addr = acr->ls_blob->addr;
+		if (acr->func->shadow_blob)
+			wpr_addr += acr->ls_blob->size / 2;
+
 		wpr_size = image_wpr_size;
 	/*
 	 * But if the WPR region is set by the bootloader, it is illegal for
