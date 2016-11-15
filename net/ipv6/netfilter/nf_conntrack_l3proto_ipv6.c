@@ -325,6 +325,12 @@ static int ipv6_hooks_register(struct net *net)
 	if (cnet->users > 1)
 		goto out_unlock;
 
+	err = nf_defrag_ipv6_enable(net);
+	if (err < 0) {
+		cnet->users = 0;
+		goto out_unlock;
+	}
+
 	err = nf_register_net_hooks(net, ipv6_conntrack_ops,
 				    ARRAY_SIZE(ipv6_conntrack_ops));
 	if (err)
@@ -427,7 +433,6 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	int ret = 0;
 
 	need_conntrack();
-	nf_defrag_ipv6_enable();
 
 	ret = nf_register_sockopt(&so_getorigdst6);
 	if (ret < 0) {

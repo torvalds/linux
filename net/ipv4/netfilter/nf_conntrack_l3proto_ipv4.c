@@ -325,6 +325,12 @@ static int ipv4_hooks_register(struct net *net)
 	if (cnet->users > 1)
 		goto out_unlock;
 
+	err = nf_defrag_ipv4_enable(net);
+	if (err) {
+		cnet->users = 0;
+		goto out_unlock;
+	}
+
 	err = nf_register_net_hooks(net, ipv4_conntrack_ops,
 				    ARRAY_SIZE(ipv4_conntrack_ops));
 
@@ -422,7 +428,6 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 	int ret = 0;
 
 	need_conntrack();
-	nf_defrag_ipv4_enable();
 
 	ret = nf_register_sockopt(&so_getorigdst);
 	if (ret < 0) {
