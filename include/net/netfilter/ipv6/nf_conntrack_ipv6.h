@@ -9,6 +9,9 @@ extern struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6;
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6;
 #endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+extern struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6;
+#endif
 
 #include <linux/sysctl.h>
 extern struct ctl_table nf_ct_ipv6_sysctl_table[];

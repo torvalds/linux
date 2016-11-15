@@ -9,6 +9,9 @@
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 #include <linux/netfilter/nf_conntrack_dccp.h>
 #endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+#include <linux/netfilter/nf_conntrack_sctp.h>
+#endif
 #include <linux/seqlock.h>
 
 struct ctl_table_header;
@@ -59,6 +62,13 @@ struct nf_dccp_net {
 };
 #endif
 
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+struct nf_sctp_net {
+	struct nf_proto_net pn;
+	unsigned int timeouts[SCTP_CONNTRACK_MAX];
+};
+#endif
+
 struct nf_ip_net {
 	struct nf_generic_net   generic;
 	struct nf_tcp_net	tcp;
@@ -67,6 +77,9 @@ struct nf_ip_net {
 	struct nf_icmp_net	icmpv6;
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 	struct nf_dccp_net	dccp;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	struct nf_sctp_net	sctp;
 #endif
 };
 

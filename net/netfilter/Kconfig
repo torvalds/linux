@@ -159,15 +159,14 @@ config NF_CT_PROTO_GRE
 	tristate
 
 config NF_CT_PROTO_SCTP
-	tristate 'SCTP protocol connection tracking support'
+	bool 'SCTP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
-	default IP_SCTP
+	default y
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on SCTP connections.
 
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  If unsure, say Y.
 
 config NF_CT_PROTO_UDPLITE
 	tristate 'UDP-Lite protocol connection tracking support'

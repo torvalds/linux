@@ -18,6 +18,9 @@ extern struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp;
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 extern struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4;
 #endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+extern struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4;
+#endif
 
 int nf_conntrack_ipv4_compat_init(void);
 void nf_conntrack_ipv4_compat_fini(void);
