@@ -146,12 +146,12 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		enable ? "ON" : "OFF");
 	spin_lock_irqsave(&priv->mstp_lock, flags);
 
-	value = clk_readl(priv->base + SMSTPCR(reg));
+	value = readl(priv->base + SMSTPCR(reg));
 	if (enable)
 		value &= ~bitmask;
 	else
 		value |= bitmask;
-	clk_writel(value, priv->base + SMSTPCR(reg));
+	writel(value, priv->base + SMSTPCR(reg));
 
 	spin_unlock_irqrestore(&priv->mstp_lock, flags);
 
@@ -159,8 +159,7 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		return 0;
 
 	for (i = 1000; i > 0; --i) {
-		if (!(clk_readl(priv->base + MSTPSR(reg)) &
-		      bitmask))
+		if (!(readl(priv->base + MSTPSR(reg)) & bitmask))
 			break;
 		cpu_relax();
 	}
@@ -190,7 +189,7 @@ static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 	struct cpg_mssr_priv *priv = clock->priv;
 	u32 value;
 
-	value = clk_readl(priv->base + MSTPSR(clock->index / 32));
+	value = readl(priv->base + MSTPSR(clock->index / 32));
 
 	return !(value & BIT(clock->index % 32));
 }
@@ -309,7 +308,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 	return;
 
 fail:
-	dev_err(dev, "Failed to register %s clock %s: %ld\n", "core,",
+	dev_err(dev, "Failed to register %s clock %s: %ld\n", "core",
 		core->name, PTR_ERR(clk));
 }
 
@@ -377,7 +376,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	return;
 
 fail:
-	dev_err(dev, "Failed to register %s clock %s: %ld\n", "module,",
+	dev_err(dev, "Failed to register %s clock %s: %ld\n", "module",
 		mod->name, PTR_ERR(clk));
 	kfree(clock);
 }
