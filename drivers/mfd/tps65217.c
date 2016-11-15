@@ -424,6 +424,24 @@ static int tps65217_probe(struct i2c_client *client,
 	return 0;
 }
 
+static int tps65217_remove(struct i2c_client *client)
+{
+	struct tps65217 *tps = i2c_get_clientdata(client);
+	unsigned int virq;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tps65217_irqs); i++) {
+		virq = irq_find_mapping(tps->irq_domain, i);
+		if (virq)
+			irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(tps->irq_domain);
+	tps->irq_domain = NULL;
+
+	return 0;
+}
+
 static const struct i2c_device_id tps65217_id_table[] = {
 	{"tps65217", TPS65217},
 	{ /* sentinel */ }
@@ -437,6 +455,7 @@ static struct i2c_driver tps65217_driver = {
 	},
 	.id_table	= tps65217_id_table,
 	.probe		= tps65217_probe,
+	.remove		= tps65217_remove,
 };
 
 static int __init tps65217_init(void)
