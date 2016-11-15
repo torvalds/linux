@@ -3209,13 +3209,25 @@ static u16 mellanox_broken_intx_devs[] = {
 	PCI_DEVICE_ID_MELLANOX_CONNECTX2,
 	PCI_DEVICE_ID_MELLANOX_CONNECTX3,
 	PCI_DEVICE_ID_MELLANOX_CONNECTX3_PRO,
-	PCI_DEVICE_ID_MELLANOX_CONNECTIB,
-	PCI_DEVICE_ID_MELLANOX_CONNECTX4,
-	PCI_DEVICE_ID_MELLANOX_CONNECTX4_LX,
 };
 
+#define CONNECTX_4_CURR_MAX_MINOR 99
+#define CONNECTX_4_INTX_SUPPORT_MINOR 14
+
+/*
+ * Check ConnectX-4/LX FW version to see if it supports legacy interrupts.
+ * If so, don't mark it as broken.
+ * FW minor > 99 means older FW version format and no INTx masking support.
+ * FW minor < 14 means new FW version format and no INTx masking support.
+ */
 static void mellanox_check_broken_intx_masking(struct pci_dev *pdev)
 {
+	__be32 __iomem *fw_ver;
+	u16 fw_major;
+	u16 fw_minor;
+	u16 fw_subminor;
+	u32 fw_maj_min;
+	u32 fw_sub_min;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mellanox_broken_intx_devs); i++) {
@@ -3224,6 +3236,47 @@ static void mellanox_check_broken_intx_masking(struct pci_dev *pdev)
 			return;
 		}
 	}
+
+	/* Getting here means Connect-IB cards and up. Connect-IB has no INTx
+	 * support so shouldn't be checked further
+	 */
+	if (pdev->device == PCI_DEVICE_ID_MELLANOX_CONNECTIB)
+		return;
+
+	if (pdev->device != PCI_DEVICE_ID_MELLANOX_CONNECTX4 &&
+	    pdev->device != PCI_DEVICE_ID_MELLANOX_CONNECTX4_LX)
+		return;
+
+	/* For ConnectX-4 and ConnectX-4LX, need to check FW support */
+	if (pci_enable_device_mem(pdev)) {
+		dev_warn(&pdev->dev, "Can't enable device memory\n");
+		return;
+	}
+
+	fw_ver = ioremap(pci_resource_start(pdev, 0), 4);
+	if (!fw_ver) {
+		dev_warn(&pdev->dev, "Can't map ConnectX-4 initialization segment\n");
+		goto out;
+	}
+
+	/* Reading from resource space should be 32b aligned */
+	fw_maj_min = ioread32be(fw_ver);
+	fw_sub_min = ioread32be(fw_ver + 1);
+	fw_major = fw_maj_min & 0xffff;
+	fw_minor = fw_maj_min >> 16;
+	fw_subminor = fw_sub_min & 0xffff;
+	if (fw_minor > CONNECTX_4_CURR_MAX_MINOR ||
+	    fw_minor < CONNECTX_4_INTX_SUPPORT_MINOR) {
+		dev_warn(&pdev->dev, "ConnectX-4: FW %u.%u.%u doesn't support INTx masking, disabling. Please upgrade FW to %d.14.1100 and up for INTx support\n",
+			 fw_major, fw_minor, fw_subminor, pdev->device ==
+			 PCI_DEVICE_ID_MELLANOX_CONNECTX4 ? 12 : 14);
+		pdev->broken_intx_masking = 1;
+	}
+
+	iounmap(fw_ver);
+
+out:
+	pci_disable_device(pdev);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_ANY_ID,
 			mellanox_check_broken_intx_masking);
