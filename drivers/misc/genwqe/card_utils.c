@@ -352,17 +352,27 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		if (copy_from_user(sgl->lpage, user_addr + user_size -
 				   sgl->lpage_size, sgl->lpage_size)) {
 			rc = -EFAULT;
-			goto err_out1;
+			goto err_out2;
 		}
 	}
 	return 0;
 
+ err_out2:
+	__genwqe_free_consistent(cd, PAGE_SIZE, sgl->lpage,
+				 sgl->lpage_dma_addr);
+	sgl->lpage = NULL;
+	sgl->lpage_dma_addr = 0;
  err_out1:
 	__genwqe_free_consistent(cd, PAGE_SIZE, sgl->fpage,
 				 sgl->fpage_dma_addr);
+	sgl->fpage = NULL;
+	sgl->fpage_dma_addr = 0;
  err_out:
 	__genwqe_free_consistent(cd, sgl->sgl_size, sgl->sgl,
 				 sgl->sgl_dma_addr);
+	sgl->sgl = NULL;
+	sgl->sgl_dma_addr = 0;
+	sgl->sgl_size = 0;
 	return -ENOMEM;
 }
 

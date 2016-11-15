@@ -1077,7 +1077,8 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 	serial->disconnected = 0;
 
-	usb_serial_console_init(serial->port[0]->minor);
+	if (num_ports > 0)
+		usb_serial_console_init(serial->port[0]->minor);
 exit:
 	module_put(type->driver.owner);
 	return 0;

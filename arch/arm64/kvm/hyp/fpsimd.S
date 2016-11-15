@@ -1,4 +1,7 @@
 /*
+ * Copyright (C) 2015 - ARM Ltd
+ * Author: Marc Zyngier <marc.zyngier@arm.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -8,24 +11,23 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Copyright (C) 2015 ARM Limited
- *
- * Author: Mark Rutland <mark.rutland@arm.com>
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/linkage.h>
 
-#include <asm/opcodes-sec.h>
-#include <asm/opcodes-virt.h>
+#include <asm/fpsimdmacros.h>
 
-/* int __invoke_psci_fn_hvc(u32 function_id, u32 arg0, u32 arg1, u32 arg2) */
-ENTRY(__invoke_psci_fn_hvc)
-	__HVC(0)
-	bx	lr
-ENDPROC(__invoke_psci_fn_hvc)
+	.text
+	.pushsection	.hyp.text, "ax"
 
-/* int __invoke_psci_fn_smc(u32 function_id, u32 arg0, u32 arg1, u32 arg2) */
-ENTRY(__invoke_psci_fn_smc)
-	__SMC(0)
-	bx	lr
-ENDPROC(__invoke_psci_fn_smc)
+ENTRY(__fpsimd_save_state)
+	fpsimd_save	x0, 1
+	ret
+ENDPROC(__fpsimd_save_state)
+
+ENTRY(__fpsimd_restore_state)
+	fpsimd_restore	x0, 1
+	ret
+ENDPROC(__fpsimd_restore_state)
