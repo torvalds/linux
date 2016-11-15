@@ -3137,8 +3137,9 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x22b5, quirk_remove_d3_delay);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x22b7, quirk_remove_d3_delay);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x2298, quirk_remove_d3_delay);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x229c, quirk_remove_d3_delay);
+
 /*
- * Some devices may pass our check in pci_intx_mask_supported if
+ * Some devices may pass our check in pci_intx_mask_supported() if
  * PCI_COMMAND_INTX_DISABLE works though they actually do not properly
  * support this feature.
  */
@@ -3150,6 +3151,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CHELSIO, 0x0030,
 			quirk_broken_intx_masking);
 DECLARE_PCI_FIXUP_FINAL(0x1814, 0x0601, /* Ralink RT2800 802.11n PCI */
 			quirk_broken_intx_masking);
+
 /*
  * Realtek RTL8169 PCI Gigabit Ethernet Controller (rev 10)
  * Subsystem: Realtek RTL8169/8110 Family PCI Gigabit Ethernet NIC
@@ -3157,8 +3159,6 @@ DECLARE_PCI_FIXUP_FINAL(0x1814, 0x0601, /* Ralink RT2800 802.11n PCI */
  * RTL8110SC - Fails under PCI device assignment using DisINTx masking.
  */
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_REALTEK, 0x8169,
-			quirk_broken_intx_masking);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_ANY_ID,
 			quirk_broken_intx_masking);
 
 /*
@@ -3193,6 +3193,40 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d1,
 			quirk_broken_intx_masking);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x37d2,
 			quirk_broken_intx_masking);
+
+static u16 mellanox_broken_intx_devs[] = {
+	PCI_DEVICE_ID_MELLANOX_HERMON_SDR,
+	PCI_DEVICE_ID_MELLANOX_HERMON_DDR,
+	PCI_DEVICE_ID_MELLANOX_HERMON_QDR,
+	PCI_DEVICE_ID_MELLANOX_HERMON_DDR_GEN2,
+	PCI_DEVICE_ID_MELLANOX_HERMON_QDR_GEN2,
+	PCI_DEVICE_ID_MELLANOX_HERMON_EN,
+	PCI_DEVICE_ID_MELLANOX_HERMON_EN_GEN2,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX_EN,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX_EN_T_GEN2,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX_EN_GEN2,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX_EN_5_GEN2,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX2,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX3,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX3_PRO,
+	PCI_DEVICE_ID_MELLANOX_CONNECTIB,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX4,
+	PCI_DEVICE_ID_MELLANOX_CONNECTX4_LX,
+};
+
+static void mellanox_check_broken_intx_masking(struct pci_dev *pdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mellanox_broken_intx_devs); i++) {
+		if (pdev->device == mellanox_broken_intx_devs[i]) {
+			pdev->broken_intx_masking = 1;
+			return;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX, PCI_ANY_ID,
+			mellanox_check_broken_intx_masking);
 
 static void quirk_no_bus_reset(struct pci_dev *dev)
 {
