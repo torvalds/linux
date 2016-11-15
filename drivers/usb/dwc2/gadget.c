@@ -3007,6 +3007,8 @@ static void dwc2_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 
 	case DSTS_ENUMSPD_LS:
 		hsotg->gadget.speed = USB_SPEED_LOW;
+		ep0_mps = 8;
+		ep_mps = 8;
 		/*
 		 * note, we don't actually support LS in this driver at the
 		 * moment, and the documentation seems to imply that it isn't
