@@ -31,7 +31,7 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	log = &chip->log;
 	if (chip->dev.parent->of_node)
 		np = chip->dev.parent->of_node;
-	if (!np)
+	else
 		return -ENODEV;
 
 	sizep = of_get_property(np, "linux,sml-size", NULL);
