@@ -134,6 +134,9 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 		pr_debug("%s: invalid region access at %016llx\n", __func__, ea);
 		return 1;
 	}
+	/* Bad address */
+	if (!vsid)
+		return 1;
 
 	vsid = (vsid << slb_vsid_shift(ssize)) | vsidkey;
 
