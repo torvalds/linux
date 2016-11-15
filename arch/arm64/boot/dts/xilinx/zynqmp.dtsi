@@ -72,7 +72,7 @@
 			     <1 10 0xf08>;
 	};
 
-	amba_apu {
+	amba_apu: amba_apu@0 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
