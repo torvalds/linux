@@ -39,6 +39,9 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 	BUG_ON(!list_empty(&child->ptrace_entry));
 	list_add(&child->ptrace_entry, &new_parent->ptraced);
 	child->parent = new_parent;
+	rcu_read_lock();
+	child->ptracer_cred = get_cred(__task_cred(new_parent));
+	rcu_read_unlock();
 }
 
 /**
@@ -71,11 +74,15 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
  */
 void __ptrace_unlink(struct task_struct *child)
 {
+	const struct cred *old_cred;
 	BUG_ON(!child->ptrace);
 
 	child->ptrace = 0;
 	child->parent = child->real_parent;
 	list_del_init(&child->ptrace_entry);
+	old_cred = child->ptracer_cred;
+	child->ptracer_cred = NULL;
+	put_cred(old_cred);
 
 	spin_lock(&child->sighand->siglock);
 
@@ -325,11 +332,6 @@ static int ptrace_attach(struct task_struct *task, long request,
 
 	task_lock(task);
 	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH_REALCREDS);
-	if (!retval) {
-		struct mm_struct *mm = task->mm;
-		if (mm && ns_capable(mm->user_ns, CAP_SYS_PTRACE))
-			flags |= PT_PTRACE_CAP;
-	}
 	task_unlock(task);
 	if (retval)
 		goto unlock_creds;
