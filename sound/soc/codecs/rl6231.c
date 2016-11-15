@@ -102,6 +102,7 @@ struct pll_calc_map {
 };
 
 static const struct pll_calc_map pll_preset_table[] = {
+	{19200000,  4096000,  23, 14, 1, false},
 	{19200000,  24576000,  3, 30, 3, false},
 };
 
