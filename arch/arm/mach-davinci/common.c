@@ -118,6 +118,5 @@ err:
 void __init davinci_init_late(void)
 {
 	davinci_cpufreq_init();
-	davinci_pm_init();
 	davinci_clk_disable_unused();
 }

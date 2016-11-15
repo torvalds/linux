@@ -21,15 +21,24 @@
 
 #include <mach/common.h>
 #include <mach/da8xx.h>
-#include "sram.h"
+#include <mach/mux.h>
 #include <mach/pm.h>
 
 #include "clock.h"
+#include "psc.h"
+#include "sram.h"
 
+#define DA850_PLL1_BASE		0x01e1a000
 #define DEEPSLEEP_SLEEPCOUNT_MASK	0xFFFF
+#define DEEPSLEEP_SLEEPCOUNT		128
 
 static void (*davinci_sram_suspend) (struct davinci_pm_config *);
-static struct davinci_pm_config *pdata;
+static struct davinci_pm_config pm_config = {
+	.sleepcount = DEEPSLEEP_SLEEPCOUNT,
+	.ddrpsc_num = DA8XX_LPSC1_EMIF3C,
+};
+
+static struct davinci_pm_config *pdata = &pm_config;
 
 static void davinci_sram_push(void *dest, void *src, unsigned int size)
 {
@@ -117,17 +126,36 @@ static const struct platform_suspend_ops davinci_pm_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
-static int __init davinci_pm_probe(struct platform_device *pdev)
+int __init davinci_pm_init(void)
 {
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(&pdev->dev, "cannot get platform data\n");
-		return -ENOENT;
+	int ret;
+
+	ret = davinci_cfg_reg(DA850_RTC_ALARM);
+	if (ret)
+		return ret;
+
+	pdata->ddr2_ctlr_base = da8xx_get_mem_ctlr();
+	pdata->deepsleep_reg = DA8XX_SYSCFG1_VIRT(DA8XX_DEEPSLEEP_REG);
+
+	pdata->cpupll_reg_base = ioremap(DA8XX_PLL0_BASE, SZ_4K);
+	if (!pdata->cpupll_reg_base)
+		return -ENOMEM;
+
+	pdata->ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
+	if (!pdata->ddrpll_reg_base) {
+		ret = -ENOMEM;
+		goto no_ddrpll_mem;
+	}
+
+	pdata->ddrpsc_reg_base = ioremap(DA8XX_PSC1_BASE, SZ_4K);
+	if (!pdata->ddrpsc_reg_base) {
+		ret = -ENOMEM;
+		goto no_ddrpsc_mem;
 	}
 
 	davinci_sram_suspend = sram_alloc(davinci_cpu_suspend_sz, NULL);
 	if (!davinci_sram_suspend) {
-		dev_err(&pdev->dev, "cannot allocate SRAM memory\n");
+		pr_err("PM: cannot allocate SRAM memory\n");
 		return -ENOMEM;
 	}
 
@@ -136,23 +164,9 @@ static int __init davinci_pm_probe(struct platform_device *pdev)
 
 	suspend_set_ops(&davinci_pm_ops);
 
-	return 0;
-}
-
-static int __exit davinci_pm_remove(struct platform_device *pdev)
-{
-	sram_free(davinci_sram_suspend, davinci_cpu_suspend_sz);
-	return 0;
-}
-
-static struct platform_driver davinci_pm_driver = {
-	.driver = {
-		.name	 = "pm-davinci",
-	},
-	.remove = __exit_p(davinci_pm_remove),
-};
-
-int __init davinci_pm_init(void)
-{
-	return platform_driver_probe(&davinci_pm_driver, davinci_pm_probe);
+no_ddrpsc_mem:
+	iounmap(pdata->ddrpll_reg_base);
+no_ddrpll_mem:
+	iounmap(pdata->cpupll_reg_base);
+	return ret;
 }
