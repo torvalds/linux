@@ -469,6 +469,7 @@ struct nfs_closeargs {
 	fmode_t			fmode;
 	u32			share_access;
 	const u32 *		bitmask;
+	struct nfs4_layoutreturn_args *lr_args;
 };
 
 struct nfs_closeres {
@@ -477,6 +478,8 @@ struct nfs_closeres {
 	struct nfs_fattr *	fattr;
 	struct nfs_seqid *	seqid;
 	const struct nfs_server *server;
+	struct nfs4_layoutreturn_res *lr_res;
+	int lr_ret;
 };
 /*
  *  * Arguments to the lock,lockt, and locku call.

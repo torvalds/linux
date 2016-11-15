@@ -3035,10 +3035,14 @@ struct nfs4_closedata {
 	struct nfs4_state *state;
 	struct nfs_closeargs arg;
 	struct nfs_closeres res;
+	struct {
+		struct nfs4_layoutreturn_args arg;
+		struct nfs4_layoutreturn_res res;
+		u32 roc_barrier;
+		bool roc;
+	} lr;
 	struct nfs_fattr fattr;
 	unsigned long timestamp;
-	bool roc;
-	u32 roc_barrier;
 };
 
 static void nfs4_free_closedata(void *data)
@@ -3047,7 +3051,7 @@ static void nfs4_free_closedata(void *data)
 	struct nfs4_state_owner *sp = calldata->state->owner;
 	struct super_block *sb = calldata->state->inode->i_sb;
 
-	if (calldata->roc)
+	if (calldata->lr.roc)
 		pnfs_roc_release(calldata->state->inode);
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
@@ -3067,15 +3071,41 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
 	trace_nfs4_close(state, &calldata->arg, &calldata->res, task->tk_status);
+
+	/* Handle Layoutreturn errors */
+	if (calldata->arg.lr_args && task->tk_status != 0) {
+		switch (calldata->res.lr_ret) {
+		default:
+			calldata->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
+			break;
+		case 0:
+			calldata->arg.lr_args = NULL;
+			calldata->res.lr_res = NULL;
+			break;
+		case -NFS4ERR_ADMIN_REVOKED:
+		case -NFS4ERR_DELEG_REVOKED:
+		case -NFS4ERR_EXPIRED:
+		case -NFS4ERR_BAD_STATEID:
+		case -NFS4ERR_OLD_STATEID:
+		case -NFS4ERR_UNKNOWN_LAYOUTTYPE:
+		case -NFS4ERR_WRONG_CRED:
+			calldata->arg.lr_args = NULL;
+			calldata->res.lr_res = NULL;
+			calldata->res.lr_ret = 0;
+			rpc_restart_call_prepare(task);
+			return;
+		}
+	}
+
         /* hmm. we are done with the inode, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
 	 */
 	switch (task->tk_status) {
 		case 0:
 			res_stateid = &calldata->res.stateid;
-			if (calldata->roc)
+			if (calldata->lr.roc)
 				pnfs_roc_set_barrier(state->inode,
-						     calldata->roc_barrier);
+						     calldata->lr.roc_barrier);
 			renew_lease(server, calldata->timestamp);
 			break;
 		case -NFS4ERR_ADMIN_REVOKED:
@@ -3151,7 +3181,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		goto out_no_action;
 	}
 
-	if (nfs4_wait_on_layoutreturn(inode, task)) {
+	if (!calldata->arg.lr_args && nfs4_wait_on_layoutreturn(inode, task)) {
 		nfs_release_seqid(calldata->arg.seqid);
 		goto out_wait;
 	}
@@ -3165,8 +3195,8 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		else
 			calldata->arg.bitmask = NULL;
 	}
-	if (calldata->roc)
-		pnfs_roc_get_barrier(inode, &calldata->roc_barrier);
+	if (calldata->lr.roc)
+		pnfs_roc_get_barrier(inode, &calldata->lr.roc_barrier);
 
 	calldata->arg.share_access =
 		nfs4_map_atomic_open_share(NFS_SERVER(inode),
@@ -3250,7 +3280,8 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
-	calldata->roc = nfs4_roc(state->inode);
+	calldata->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
+	calldata->lr.roc = nfs4_roc(state->inode);
 	nfs_sb_active(calldata->inode->i_sb);
 
 	msg.rpc_argp = &calldata->arg;
