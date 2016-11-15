@@ -1010,7 +1010,7 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 
 	elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
 
-	while (elem && (elem->ops.priority <= NF_BR_PRI_BRNF))
+	while (elem && (nf_hook_entry_priority(elem) <= NF_BR_PRI_BRNF))
 		elem = rcu_dereference(elem->next);
 
 	if (!elem)
