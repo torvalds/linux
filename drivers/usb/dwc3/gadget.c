@@ -2834,7 +2834,7 @@ static irqreturn_t dwc3_process_event_buf(struct dwc3_event_buffer *evt)
 		 * boundary so I worry about that once we try to handle
 		 * that.
 		 */
-		evt->lpos = (evt->lpos + 4) % DWC3_EVENT_BUFFERS_SIZE;
+		evt->lpos = (evt->lpos + 4) % evt->length;
 		left -= 4;
 
 		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(0), 4);
