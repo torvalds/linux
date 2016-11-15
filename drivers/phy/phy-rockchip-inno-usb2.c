@@ -286,7 +286,7 @@ static inline bool property_enabled(struct rockchip_usb2phy *rphy,
 	return tmp == reg->enable;
 }
 
-static int rockchip_usb2phy_clk480m_enable(struct clk_hw *hw)
+static int rockchip_usb2phy_clk480m_prepare(struct clk_hw *hw)
 {
 	struct rockchip_usb2phy *rphy =
 		container_of(hw, struct rockchip_usb2phy, clk480m_hw);
@@ -305,7 +305,7 @@ static int rockchip_usb2phy_clk480m_enable(struct clk_hw *hw)
 	return 0;
 }
 
-static void rockchip_usb2phy_clk480m_disable(struct clk_hw *hw)
+static void rockchip_usb2phy_clk480m_unprepare(struct clk_hw *hw)
 {
 	struct rockchip_usb2phy *rphy =
 		container_of(hw, struct rockchip_usb2phy, clk480m_hw);
@@ -314,7 +314,7 @@ static void rockchip_usb2phy_clk480m_disable(struct clk_hw *hw)
 	property_enable(rphy, &rphy->phy_cfg->clkout_ctl, false);
 }
 
-static int rockchip_usb2phy_clk480m_enabled(struct clk_hw *hw)
+static int rockchip_usb2phy_clk480m_prepared(struct clk_hw *hw)
 {
 	struct rockchip_usb2phy *rphy =
 		container_of(hw, struct rockchip_usb2phy, clk480m_hw);
@@ -330,9 +330,9 @@ rockchip_usb2phy_clk480m_recalc_rate(struct clk_hw *hw,
 }
 
 static const struct clk_ops rockchip_usb2phy_clkout_ops = {
-	.enable = rockchip_usb2phy_clk480m_enable,
-	.disable = rockchip_usb2phy_clk480m_disable,
-	.is_enabled = rockchip_usb2phy_clk480m_enabled,
+	.prepare = rockchip_usb2phy_clk480m_prepare,
+	.unprepare = rockchip_usb2phy_clk480m_unprepare,
+	.is_prepared = rockchip_usb2phy_clk480m_prepared,
 	.recalc_rate = rockchip_usb2phy_clk480m_recalc_rate,
 };
 
