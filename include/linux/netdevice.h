@@ -463,16 +463,17 @@ static inline bool napi_reschedule(struct napi_struct *napi)
 	return false;
 }
 
-void __napi_complete(struct napi_struct *n);
-void napi_complete_done(struct napi_struct *n, int work_done);
+bool __napi_complete(struct napi_struct *n);
+bool napi_complete_done(struct napi_struct *n, int work_done);
 /**
  *	napi_complete - NAPI processing complete
  *	@n: NAPI context
  *
  * Mark NAPI processing as complete.
  * Consider using napi_complete_done() instead.
+ * Return false if device should avoid rearming interrupts.
  */
-static inline void napi_complete(struct napi_struct *n)
+static inline bool napi_complete(struct napi_struct *n)
 {
 	return napi_complete_done(n, 0);
 }
