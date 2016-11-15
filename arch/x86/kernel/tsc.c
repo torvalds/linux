@@ -1283,10 +1283,15 @@ static int __init init_tsc_clocksource(void)
 		clocksource_tsc.flags |= CLOCK_SOURCE_SUSPEND_NONSTOP;
 
 	/*
-	 * Trust the results of the earlier calibration on systems
-	 * exporting a reliable TSC.
+	 * When TSC frequency is known (retrieved via MSR or CPUID), we skip
+	 * the refined calibration and directly register it as a clocksource.
+	 *
+	 * We still keep the TSC_RELIABLE flag here to avoid regressions -
+	 * it will be removed after all the conversion for other code paths
+	 * connected to this flag is done.
 	 */
-	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE)) {
+	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE) ||
+		boot_cpu_has(X86_FEATURE_TSC_KNOWN_FREQ)) {
 		clocksource_register_khz(&clocksource_tsc, tsc_khz);
 		return 0;
 	}
