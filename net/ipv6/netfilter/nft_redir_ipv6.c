@@ -39,12 +39,19 @@ static void nft_redir_ipv6_eval(const struct nft_expr *expr,
 		nf_nat_redirect_ipv6(pkt->skb, &range, nft_hook(pkt));
 }
 
+static void
+nft_redir_ipv6_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
+{
+	nf_ct_netns_put(ctx->net, NFPROTO_IPV6);
+}
+
 static struct nft_expr_type nft_redir_ipv6_type;
 static const struct nft_expr_ops nft_redir_ipv6_ops = {
 	.type		= &nft_redir_ipv6_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_redir)),
 	.eval		= nft_redir_ipv6_eval,
 	.init		= nft_redir_init,
+	.destroy	= nft_redir_ipv6_destroy,
 	.dump		= nft_redir_dump,
 	.validate	= nft_redir_validate,
 };
