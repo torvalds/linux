@@ -2656,7 +2656,9 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 	struct skb_frag_struct *fragfrom, *fragto;
 
 	BUG_ON(shiftlen > skb->len);
-	BUG_ON(skb_headlen(skb));	/* Would corrupt stream */
+
+	if (skb_headlen(skb))
+		return 0;
 
 	todo = shiftlen;
 	from = 0;
