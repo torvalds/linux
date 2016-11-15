@@ -189,10 +189,9 @@ static int tps65217_irq_init(struct tps65217 *tps, int irq)
 	tps->irq = irq;
 
 	/* Mask all interrupt sources */
-	tps->irq_mask = (TPS65217_INT_RESERVEDM | TPS65217_INT_PBM
-			| TPS65217_INT_ACM | TPS65217_INT_USBM);
-	tps65217_reg_write(tps, TPS65217_REG_INT, tps->irq_mask,
-			TPS65217_PROTECT_NONE);
+	tps->irq_mask = TPS65217_INT_MASK;
+	tps65217_set_bits(tps, TPS65217_REG_INT, TPS65217_INT_MASK,
+			  TPS65217_INT_MASK, TPS65217_PROTECT_NONE);
 
 	tps->irq_domain = irq_domain_add_linear(tps->dev->of_node,
 		TPS65217_NUM_IRQ, &tps65217_irq_domain_ops, tps);
