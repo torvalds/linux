@@ -22,7 +22,7 @@ sample. Each sample is stored in a 16-bit word. Each n-pixel row contains
 n/2 green samples and n/2 blue or red samples, with alternating red and blue
 rows. Bytes are stored in memory in little endian order. They are
 conventionally described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is
-an example of one of these formats:
+an example of a small V4L2_PIX_FMT_SBGGR16 image:
 
 **Byte Order.**
 Each cell is one byte.
