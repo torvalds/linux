@@ -454,17 +454,17 @@ static int sugov_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto fail;
 
- out:
+out:
 	mutex_unlock(&global_tunables_lock);
 
 	cpufreq_enable_fast_switch(policy);
 	return 0;
 
- fail:
+fail:
 	policy->governor_data = NULL;
 	sugov_tunables_free(tunables);
 
- free_sg_policy:
+free_sg_policy:
 	mutex_unlock(&global_tunables_lock);
 
 	sugov_policy_free(sg_policy);
