@@ -269,6 +269,7 @@ struct rockchip_usb3phy_port_cfg {
 	struct usb3phy_reg usb3host_port;
 	struct usb3phy_reg external_psm;
 	struct usb3phy_reg pipe_status;
+	struct usb3phy_reg uphy_dp_sel;
 };
 
 struct rockchip_typec_phy {
@@ -762,6 +763,7 @@ static const struct phy_ops rockchip_usb3_phy_ops = {
 static int rockchip_dp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
+	struct rockchip_usb3phy_port_cfg *cfg = &tcphy->port_cfgs;
 	int new_mode, ret = 0;
 	u32 val;
 
@@ -791,6 +793,8 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 	} else if (tcphy->mode == MODE_DISCONNECT) {
 		tcphy_phy_init(tcphy, new_mode);
 	}
+
+	property_enable(tcphy, &cfg->uphy_dp_sel, 1);
 
 	ret = readx_poll_timeout(readl, tcphy->base + DP_MODE_CTL,
 				 val, val & DP_MODE_A2, 1000,
@@ -902,6 +906,11 @@ static int tcphy_parse_dt(struct rockchip_typec_phy *tcphy,
 
 	ret = tcphy_get_param(dev, &cfg->pipe_status,
 			      "rockchip,pipe-status");
+	if (ret)
+		return ret;
+
+	ret = tcphy_get_param(dev, &cfg->uphy_dp_sel,
+			      "rockchip,uphy-dp-sel");
 	if (ret)
 		return ret;
 
