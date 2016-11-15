@@ -476,7 +476,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, card);
 
 	ret = mwifiex_add_card(card, &add_remove_card_sem, &usb_ops,
-			       MWIFIEX_USB);
+			       MWIFIEX_USB, &card->udev->dev);
 	if (ret) {
 		pr_err("%s: mwifiex_add_card failed: %d\n", __func__, ret);
 		usb_reset_device(udev);
@@ -927,7 +927,6 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
 
 	card->adapter = adapter;
-	adapter->dev = &card->udev->dev;
 
 	switch (le16_to_cpu(card->udev->descriptor.idProduct)) {
 	case USB8997_PID_1:

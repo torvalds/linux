@@ -1412,7 +1412,9 @@ static inline u8 mwifiex_is_tdls_link_setup(u8 status)
 
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
-int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
+int mwifiex_add_card(void *card, struct semaphore *sem,
+		     struct mwifiex_if_ops *if_ops, u8 iface_type,
+		     struct device *dev);
 int mwifiex_remove_card(struct mwifiex_adapter *, struct semaphore *);
 
 void mwifiex_get_version(struct mwifiex_adapter *adapter, char *version,

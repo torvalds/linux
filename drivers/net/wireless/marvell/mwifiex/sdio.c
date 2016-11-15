@@ -206,7 +206,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	}
 
 	ret = mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
-			       MWIFIEX_SDIO);
+			       MWIFIEX_SDIO, &func->dev);
 	if (ret) {
 		dev_err(&func->dev, "add card failed\n");
 		goto err_disable;
@@ -2103,9 +2103,6 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 			    "cannot set SDIO block size\n");
 		return ret;
 	}
-
-
-	adapter->dev = &func->dev;
 
 	strcpy(adapter->fw_name, card->firmware);
 	if (card->fw_dump_enh) {
