@@ -760,6 +760,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	unsigned length;
 	unsigned packets;
 	unsigned maxreq;
+	unsigned int dma_reg;
 
 	if (index != 0) {
 		if (hs_ep->req && !continuing) {
@@ -774,6 +775,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		}
 	}
 
+	dma_reg = dir_in ? DIEPDMA(index) : DOEPDMA(index);
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
 	epsize_reg = dir_in ? DIEPTSIZ(index) : DOEPTSIZ(index);
 
@@ -849,22 +851,51 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	/* store the request as the current one we're doing */
 	hs_ep->req = hs_req;
 
-	/* write size / packets */
-	dwc2_writel(epsize, hsotg->regs + epsize_reg);
+	if (using_desc_dma(hsotg)) {
+		u32 offset = 0;
+		u32 mps = hs_ep->ep.maxpacket;
 
-	if (using_dma(hsotg) && !continuing) {
-		unsigned int dma_reg;
+		/* Adjust length: EP0 - MPS, other OUT EPs - multiple of MPS */
+		if (!dir_in) {
+			if (!index)
+				length = mps;
+			else if (length % mps)
+				length += (mps - (length % mps));
+		}
 
 		/*
-		 * write DMA address to control register, buffer already
-		 * synced by dwc2_hsotg_ep_queue().
+		 * If more data to send, adjust DMA for EP0 out data stage.
+		 * ureq->dma stays unchanged, hence increment it by already
+		 * passed passed data count before starting new transaction.
 		 */
+		if (!index && hsotg->ep0_state == DWC2_EP0_DATA_OUT &&
+		    continuing)
+			offset = ureq->actual;
 
-		dma_reg = dir_in ? DIEPDMA(index) : DOEPDMA(index);
-		dwc2_writel(ureq->dma, hsotg->regs + dma_reg);
+		/* Fill DDMA chain entries */
+		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, ureq->dma + offset,
+						     length);
 
-		dev_dbg(hsotg->dev, "%s: %pad => 0x%08x\n",
-			__func__, &ureq->dma, dma_reg);
+		/* write descriptor chain address to control register */
+		dwc2_writel(hs_ep->desc_list_dma, hsotg->regs + dma_reg);
+
+		dev_dbg(hsotg->dev, "%s: %08x pad => 0x%08x\n",
+			__func__, (u32)hs_ep->desc_list_dma, dma_reg);
+	} else {
+		/* write size / packets */
+		dwc2_writel(epsize, hsotg->regs + epsize_reg);
+
+		if (using_dma(hsotg) && !continuing) {
+			/*
+			 * write DMA address to control register, buffer
+			 * already synced by dwc2_hsotg_ep_queue().
+			 */
+
+			dwc2_writel(ureq->dma, hsotg->regs + dma_reg);
+
+			dev_dbg(hsotg->dev, "%s: %pad => 0x%08x\n",
+				__func__, &ureq->dma, dma_reg);
+		}
 	}
 
 	if (hs_ep->isochronous && hs_ep->interval == 1) {
@@ -1863,6 +1894,36 @@ static void dwc2_hsotg_change_ep_iso_parity(struct dwc2_hsotg *hsotg,
 	dwc2_writel(ctrl, hsotg->regs + epctl_reg);
 }
 
+/*
+ * dwc2_gadget_get_xfersize_ddma - get transferred bytes amount from desc
+ * @hs_ep - The endpoint on which transfer went
+ *
+ * Iterate over endpoints descriptor chain and get info on bytes remained
+ * in DMA descriptors after transfer has completed. Used for non isoc EPs.
+ */
+static unsigned int dwc2_gadget_get_xfersize_ddma(struct dwc2_hsotg_ep *hs_ep)
+{
+	struct dwc2_hsotg *hsotg = hs_ep->parent;
+	unsigned int bytes_rem = 0;
+	struct dwc2_dma_desc *desc = hs_ep->desc_list;
+	int i;
+	u32 status;
+
+	if (!desc)
+		return -EINVAL;
+
+	for (i = 0; i < hs_ep->desc_count; ++i) {
+		status = desc->status;
+		bytes_rem += status & DEV_DMA_NBYTES_MASK;
+
+		if (status & DEV_DMA_STS_MASK)
+			dev_err(hsotg->dev, "descriptor %d closed with %x\n",
+				i, status & DEV_DMA_STS_MASK);
+	}
+
+	return bytes_rem;
+}
+
 /**
  * dwc2_hsotg_handle_outdone - handle receiving OutDone/SetupDone from RXFIFO
  * @hsotg: The device instance
@@ -1892,6 +1953,9 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 		dwc2_hsotg_enqueue_setup(hsotg);
 		return;
 	}
+
+	if (using_desc_dma(hsotg))
+		size_left = dwc2_gadget_get_xfersize_ddma(hs_ep);
 
 	if (using_dma(hsotg)) {
 		unsigned size_done;
@@ -2224,8 +2288,14 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	 * past the end of the buffer (DMA transfers are always 32bit
 	 * aligned).
 	 */
-
-	size_left = DXEPTSIZ_XFERSIZE_GET(epsize);
+	if (using_desc_dma(hsotg)) {
+		size_left = dwc2_gadget_get_xfersize_ddma(hs_ep);
+		if (size_left < 0)
+			dev_err(hsotg->dev, "error parsing DDMA results %d\n",
+				size_left);
+	} else {
+		size_left = DXEPTSIZ_XFERSIZE_GET(epsize);
+	}
 
 	size_done = hs_ep->size_loaded - size_left;
 	size_done += hs_ep->last_load;
