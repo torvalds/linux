@@ -637,12 +637,63 @@ bool find_process(const char *name)
 	return ret ? false : true;
 }
 
+static int
+fetch_ubuntu_kernel_version(unsigned int *puint)
+{
+	ssize_t len;
+	size_t line_len = 0;
+	char *ptr, *line = NULL;
+	int version, patchlevel, sublevel, err;
+	FILE *vsig = fopen("/proc/version_signature", "r");
+
+	if (!vsig) {
+		pr_debug("Open /proc/version_signature failed: %s\n",
+			 strerror(errno));
+		return -1;
+	}
+
+	len = getline(&line, &line_len, vsig);
+	fclose(vsig);
+	err = -1;
+	if (len <= 0) {
+		pr_debug("Reading from /proc/version_signature failed: %s\n",
+			 strerror(errno));
+		goto errout;
+	}
+
+	ptr = strrchr(line, ' ');
+	if (!ptr) {
+		pr_debug("Parsing /proc/version_signature failed: %s\n", line);
+		goto errout;
+	}
+
+	err = sscanf(ptr + 1, "%d.%d.%d",
+		     &version, &patchlevel, &sublevel);
+	if (err != 3) {
+		pr_debug("Unable to get kernel version from /proc/version_signature '%s'\n",
+			 line);
+		goto errout;
+	}
+
+	if (puint)
+		*puint = (version << 16) + (patchlevel << 8) + sublevel;
+	err = 0;
+errout:
+	free(line);
+	return err;
+}
+
 int
 fetch_kernel_version(unsigned int *puint, char *str,
 		     size_t str_size)
 {
 	struct utsname utsname;
 	int version, patchlevel, sublevel, err;
+	bool int_ver_ready = false;
+
+	if (access("/proc/version_signature", R_OK) == 0)
+		if (!fetch_ubuntu_kernel_version(puint))
+			int_ver_ready = true;
 
 	if (uname(&utsname))
 		return -1;
@@ -656,12 +707,12 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		     &version, &patchlevel, &sublevel);
 
 	if (err != 3) {
-		pr_debug("Unablt to get kernel version from uname '%s'\n",
+		pr_debug("Unable to get kernel version from uname '%s'\n",
 			 utsname.release);
 		return -1;
 	}
 
-	if (puint)
+	if (puint && !int_ver_ready)
 		*puint = (version << 16) + (patchlevel << 8) + sublevel;
 	return 0;
 }
