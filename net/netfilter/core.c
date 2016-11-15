@@ -107,10 +107,9 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	mutex_lock(&nf_hook_mutex);
 
 	/* Find the spot in the list */
-	while ((p = nf_entry_dereference(*pp)) != NULL) {
+	for (; (p = nf_entry_dereference(*pp)) != NULL; pp = &p->next) {
 		if (reg->priority < nf_hook_entry_priority(p))
 			break;
-		pp = &p->next;
 	}
 	rcu_assign_pointer(entry->next, p);
 	rcu_assign_pointer(*pp, entry);
@@ -137,12 +136,11 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 		return;
 
 	mutex_lock(&nf_hook_mutex);
-	while ((p = nf_entry_dereference(*pp)) != NULL) {
+	for (; (p = nf_entry_dereference(*pp)) != NULL; pp = &p->next) {
 		if (nf_hook_entry_ops(p) == reg) {
 			rcu_assign_pointer(*pp, p->next);
 			break;
 		}
-		pp = &p->next;
 	}
 	mutex_unlock(&nf_hook_mutex);
 	if (!p) {
