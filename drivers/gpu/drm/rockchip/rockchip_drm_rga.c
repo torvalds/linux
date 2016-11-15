@@ -56,7 +56,7 @@ static void rga_dma_flush_range(void *ptr, int size)
 #ifdef CONFIG_ARM
 	dmac_flush_range(ptr, ptr + size);
 	outer_flush_range(virt_to_phys(ptr), virt_to_phys(ptr + size));
-#elif CONFIG_ARM64
+#elif defined CONFIG_ARM64
 	__dma_flush_range(ptr, ptr + size);
 #endif
 }
@@ -332,6 +332,8 @@ static int rga_map_cmdlist_gem(struct rockchip_rga *rga,
 		case RGA_SRC_Y_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
 			fd = cmdlist->data[index + 1];
 			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
+			if (IS_ERR(attach))
+				return PTR_ERR(attach);
 
 			cmdlist->src_attach = attach;
 			cmdlist->src_mmu_pages = mmu_pages;
@@ -340,6 +342,8 @@ static int rga_map_cmdlist_gem(struct rockchip_rga *rga,
 		case RGA_DST_Y_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
 			fd = cmdlist->data[index + 1];
 			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
+			if (IS_ERR(attach))
+				return PTR_ERR(attach);
 
 			cmdlist->dst_attach = attach;
 			cmdlist->dst_mmu_pages = mmu_pages;
@@ -473,6 +477,13 @@ static struct rga_cmdlist_node *rga_get_cmdlist(struct rockchip_rga *rga)
 	return node;
 }
 
+static void rga_put_cmdlist(struct rockchip_rga *rga, struct rga_cmdlist_node *node)
+{
+	mutex_lock(&rga->cmdlist_mutex);
+	list_move_tail(&node->list, &rga->free_cmdlist);
+	mutex_unlock(&rga->cmdlist_mutex);
+}
+
 static void rga_add_cmdlist_to_inuse(struct rockchip_drm_rga_private *rga_priv,
 				     struct rga_cmdlist_node *node)
 {
@@ -542,17 +553,17 @@ int rockchip_rga_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	if (!rga)
 		return -EFAULT;
 
+	if (req->cmd_nr > RGA_CMDLIST_SIZE || req->cmd_buf_nr > RGA_CMDBUF_SIZE) {
+		dev_err(rga->dev, "cmdlist size is too big\n");
+		return -EINVAL;
+	}
+
 	node = rga_get_cmdlist(rga);
 	if (!node)
 		return -ENOMEM;
 
 	cmdlist = &node->cmdlist;
 	cmdlist->last = 0;
-
-	if (req->cmd_nr > RGA_CMDLIST_SIZE || req->cmd_buf_nr > RGA_CMDBUF_SIZE) {
-		dev_err(rga->dev, "cmdlist size is too big\n");
-		return -EINVAL;
-	}
 
 	/*
 	 * Copy the command / buffer registers setting from userspace, each
@@ -575,16 +586,27 @@ int rockchip_rga_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	 * create the RGA mmu pages or get the framebuffer dma address.
 	 */
 	ret = rga_check_reg_offset(rga->dev, node);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		dev_err(rga->dev, "Check reg offset failed\n");
+		goto err_free_cmdlist;
+	}
 
 	ret = rga_map_cmdlist_gem(rga, node, drm_dev, file);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		dev_err(rga->dev, "Failed to map cmdlist\n");
+		goto err_unmap_cmdlist;
+	}
 
 	rga_add_cmdlist_to_inuse(rga_priv, node);
 
 	return 0;
+
+err_unmap_cmdlist:
+	rga_unmap_cmdlist_gem(rga, node);
+err_free_cmdlist:
+	rga_put_cmdlist(rga, node);
+
+	return ret;
 }
 
 /*
