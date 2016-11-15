@@ -656,9 +656,9 @@ static void *kvm_alloc_hwpgd(void)
  * kvm_alloc_stage2_pgd - allocate level-1 table for stage-2 translation.
  * @kvm:	The KVM struct pointer for the VM.
  *
- * Allocates the 1st level table only of size defined by S2_PGD_ORDER (can
- * support either full 40-bit input addresses or limited to 32-bit input
- * addresses). Clears the allocated pages.
+ * Allocates only the stage-2 HW PGD level table(s) (can support either full
+ * 40-bit input addresses or limited to 32-bit input addresses). Clears the
+ * allocated pages.
  *
  * Note we don't need locking here as this is only called when the VM is
  * created, which can only be done once.
