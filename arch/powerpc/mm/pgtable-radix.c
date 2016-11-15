@@ -324,6 +324,26 @@ static void radix_init_amor(void)
 	mtspr(SPRN_AMOR, (3ul << 62));
 }
 
+static void radix_init_iamr(void)
+{
+	unsigned long iamr;
+
+	/*
+	 * The IAMR should set to 0 on DD1.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		iamr = 0;
+	else
+		iamr = (1ul << 62);
+
+	/*
+	 * Radix always uses key0 of the IAMR to determine if an access is
+	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
+	 * fetch.
+	 */
+	mtspr(SPRN_IAMR, iamr);
+}
+
 void __init radix__early_init_mmu(void)
 {
 	unsigned long lpcr;
@@ -385,6 +405,7 @@ void __init radix__early_init_mmu(void)
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 
+	radix_init_iamr();
 	radix_init_pgtable();
 }
 
@@ -402,6 +423,7 @@ void radix__early_init_mmu_secondary(void)
 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
 		radix_init_amor();
 	}
+	radix_init_iamr();
 }
 
 void radix__mmu_cleanup_all(void)
