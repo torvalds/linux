@@ -167,7 +167,7 @@ struct mtk_mdp_dev {
 	struct mtk_mdp_comp		*comp[MTK_MDP_COMP_ID_MAX];
 	struct v4l2_m2m_dev		*m2m_dev;
 	struct list_head		ctx_list;
-	struct video_device		vdev;
+	struct video_device		*vdev;
 	struct v4l2_device		v4l2_dev;
 	struct workqueue_struct		*job_wq;
 	struct platform_device		*vpu_dev;
