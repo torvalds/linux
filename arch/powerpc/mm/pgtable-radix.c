@@ -312,6 +312,18 @@ static void update_hid_for_radix(void)
 		cpu_relax();
 }
 
+static void radix_init_amor(void)
+{
+	/*
+	* In HV mode, we init AMOR (Authority Mask Override Register) so that
+	* the hypervisor and guest can setup IAMR (Instruction Authority Mask
+	* Register), enable key 0 and set it to 1.
+	*
+	* AMOR = 0b1100 .... 0000 (Mask for key 0 is 11)
+	*/
+	mtspr(SPRN_AMOR, (3ul << 62));
+}
+
 void __init radix__early_init_mmu(void)
 {
 	unsigned long lpcr;
@@ -368,6 +380,7 @@ void __init radix__early_init_mmu(void)
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
+		radix_init_amor();
 	}
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
@@ -387,6 +400,7 @@ void radix__early_init_mmu_secondary(void)
 
 		mtspr(SPRN_PTCR,
 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+		radix_init_amor();
 	}
 }
 
