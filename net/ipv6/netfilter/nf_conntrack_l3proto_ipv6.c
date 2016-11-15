@@ -346,6 +346,9 @@ static struct nf_conntrack_l4proto *builtin_l4proto6[] = {
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 	&nf_conntrack_l4proto_sctp6,
 #endif
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+	&nf_conntrack_l4proto_udplite6,
+#endif
 };
 
 static int ipv6_net_init(struct net *net)
