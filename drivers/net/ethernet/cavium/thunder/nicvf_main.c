@@ -473,9 +473,6 @@ int nicvf_set_real_num_queues(struct net_device *netdev,
 static int nicvf_init_resources(struct nicvf *nic)
 {
 	int err;
-	union nic_mbx mbx = {};
-
-	mbx.msg.msg = NIC_MBOX_MSG_CFG_DONE;
 
 	/* Enable Qset */
 	nicvf_qset_config(nic, true);
@@ -487,9 +484,6 @@ static int nicvf_init_resources(struct nicvf *nic)
 			   "Failed to alloc/config VF's QSet resources\n");
 		return err;
 	}
-
-	/* Send VF config done msg to PF */
-	nicvf_write_to_mbx(nic, &mbx);
 
 	return 0;
 }
@@ -1184,6 +1178,7 @@ int nicvf_open(struct net_device *netdev)
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 	struct nicvf_cq_poll *cq_poll = NULL;
+	union nic_mbx mbx = {};
 
 	netif_carrier_off(netdev);
 
@@ -1270,6 +1265,10 @@ int nicvf_open(struct net_device *netdev)
 	/* Enable RBDR threshold interrupt */
 	for (qidx = 0; qidx < qs->rbdr_cnt; qidx++)
 		nicvf_enable_intr(nic, NICVF_INTR_RBDR, qidx);
+
+	/* Send VF config done msg to PF */
+	mbx.msg.msg = NIC_MBOX_MSG_CFG_DONE;
+	nicvf_write_to_mbx(nic, &mbx);
 
 	return 0;
 cleanup:

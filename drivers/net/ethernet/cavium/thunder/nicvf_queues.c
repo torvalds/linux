@@ -271,7 +271,8 @@ refill:
 			      rbdr_idx, new_rb);
 next_rbdr:
 	/* Re-enable RBDR interrupts only if buffer allocation is success */
-	if (!nic->rb_alloc_fail && rbdr->enable)
+	if (!nic->rb_alloc_fail && rbdr->enable &&
+	    netif_running(nic->pnicvf->netdev))
 		nicvf_enable_intr(nic, NICVF_INTR_RBDR, rbdr_idx);
 
 	if (rbdr_idx)
@@ -362,6 +363,8 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 
 static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 {
+	struct sk_buff *skb;
+
 	if (!sq)
 		return;
 	if (!sq->dmem.base)
@@ -372,6 +375,15 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 				  sq->dmem.q_len * TSO_HEADER_SIZE,
 				  sq->tso_hdrs, sq->tso_hdrs_phys);
 
+	/* Free pending skbs in the queue */
+	smp_rmb();
+	while (sq->head != sq->tail) {
+		skb = (struct sk_buff *)sq->skbuff[sq->head];
+		if (skb)
+			dev_kfree_skb_any(skb);
+		sq->head++;
+		sq->head &= (sq->dmem.q_len - 1);
+	}
 	kfree(sq->skbuff);
 	nicvf_free_q_desc_mem(nic, &sq->dmem);
 }
