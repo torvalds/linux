@@ -1205,22 +1205,28 @@ bool pnfs_roc(struct inode *ino)
 			goto out_noroc;
 	}
 
-	/* always send layoutreturn if being marked so */
-	if (test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
-		layoutreturn = pnfs_prepare_layoutreturn(lo,
-				&stateid, NULL);
 
-	list_for_each_entry_safe(lseg, tmp, &lo->plh_segs, pls_list)
+	list_for_each_entry_safe(lseg, tmp, &lo->plh_segs, pls_list) {
 		/* If we are sending layoutreturn, invalidate all valid lsegs */
-		if (layoutreturn || test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
+		if (test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
 			mark_lseg_invalid(lseg, &tmp_list);
 			found = true;
 		}
+	}
+
+	/* always send layoutreturn if being marked so */
+	if (test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags)) {
+		layoutreturn = pnfs_prepare_layoutreturn(lo,
+				&stateid, NULL);
+		if (layoutreturn)
+			goto out_noroc;
+	}
+
 	/* ROC in two conditions:
 	 * 1. there are ROC lsegs
 	 * 2. we don't send layoutreturn
 	 */
-	if (found && !layoutreturn) {
+	if (found) {
 		/* lo ref dropped in pnfs_roc_release() */
 		pnfs_get_layout_hdr(lo);
 		roc = true;
