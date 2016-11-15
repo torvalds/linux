@@ -453,6 +453,16 @@ config STM32_ADC_CORE
 	  This driver can also be built as a module.  If so, the module
 	  will be called stm32-adc-core.
 
+config STM32_ADC
+	tristate "STMicroelectronics STM32 adc"
+	depends on STM32_ADC_CORE
+	help
+	  Say yes here to build support for STMicroelectronics stm32 Analog
+	  to Digital Converter (ADC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-adc.
+
 config STX104
 	tristate "Apex Embedded Systems STX104 driver"
 	depends on X86 && ISA_BUS_API
