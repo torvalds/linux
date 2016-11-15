@@ -52,6 +52,10 @@ struct nf_conntrack_l3proto {
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 
+	/* Called when netns wants to use connection tracking */
+	int (*net_ns_get)(struct net *);
+	void (*net_ns_put)(struct net *);
+
 	/*
 	 * Calculate size of tuple nlattr
 	 */

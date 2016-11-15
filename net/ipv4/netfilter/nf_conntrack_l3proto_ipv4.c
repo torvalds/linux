@@ -31,6 +31,13 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/nf_log.h>
 
+static int conntrack4_net_id __read_mostly;
+static DEFINE_MUTEX(register_ipv4_hooks);
+
+struct conntrack4_net {
+	unsigned int users;
+};
+
 static bool ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
 			      struct nf_conntrack_tuple *tuple)
 {
@@ -307,6 +314,38 @@ static struct nf_sockopt_ops so_getorigdst = {
 	.owner		= THIS_MODULE,
 };
 
+static int ipv4_hooks_register(struct net *net)
+{
+	struct conntrack4_net *cnet = net_generic(net, conntrack4_net_id);
+	int err = 0;
+
+	mutex_lock(&register_ipv4_hooks);
+
+	cnet->users++;
+	if (cnet->users > 1)
+		goto out_unlock;
+
+	err = nf_register_net_hooks(net, ipv4_conntrack_ops,
+				    ARRAY_SIZE(ipv4_conntrack_ops));
+
+	if (err)
+		cnet->users = 0;
+ out_unlock:
+	mutex_unlock(&register_ipv4_hooks);
+	return err;
+}
+
+static void ipv4_hooks_unregister(struct net *net)
+{
+	struct conntrack4_net *cnet = net_generic(net, conntrack4_net_id);
+
+	mutex_lock(&register_ipv4_hooks);
+	if (cnet->users && (--cnet->users == 0))
+		nf_unregister_net_hooks(net, ipv4_conntrack_ops,
+					ARRAY_SIZE(ipv4_conntrack_ops));
+	mutex_unlock(&register_ipv4_hooks);
+}
+
 struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.l3proto	 = PF_INET,
 	.name		 = "ipv4",
@@ -320,6 +359,8 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.nlattr_to_tuple = ipv4_nlattr_to_tuple,
 	.nla_policy	 = ipv4_nla_policy,
 #endif
+	.net_ns_get	 = ipv4_hooks_register,
+	.net_ns_put	 = ipv4_hooks_unregister,
 	.me		 = THIS_MODULE,
 };
 
@@ -372,6 +413,8 @@ static void ipv4_net_exit(struct net *net)
 static struct pernet_operations ipv4_net_ops = {
 	.init = ipv4_net_init,
 	.exit = ipv4_net_exit,
+	.id = &conntrack4_net_id,
+	.size = sizeof(struct conntrack4_net),
 };
 
 static int __init nf_conntrack_l3proto_ipv4_init(void)
@@ -393,17 +436,10 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		goto cleanup_sockopt;
 	}
 
-	ret = nf_register_hooks(ipv4_conntrack_ops,
-				ARRAY_SIZE(ipv4_conntrack_ops));
-	if (ret < 0) {
-		pr_err("nf_conntrack_ipv4: can't register hooks.\n");
-		goto cleanup_pernet;
-	}
-
 	ret = nf_ct_l4proto_register(builtin_l4proto4,
 				     ARRAY_SIZE(builtin_l4proto4));
 	if (ret < 0)
-		goto cleanup_hooks;
+		goto cleanup_pernet;
 
 	ret = nf_ct_l3proto_register(&nf_conntrack_l3proto_ipv4);
 	if (ret < 0) {
@@ -415,8 +451,6 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 cleanup_l4proto:
 	nf_ct_l4proto_unregister(builtin_l4proto4,
 				 ARRAY_SIZE(builtin_l4proto4));
- cleanup_hooks:
-	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
  cleanup_pernet:
 	unregister_pernet_subsys(&ipv4_net_ops);
  cleanup_sockopt:
@@ -430,7 +464,6 @@ static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
 	nf_ct_l4proto_unregister(builtin_l4proto4,
 				 ARRAY_SIZE(builtin_l4proto4));
-	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 	unregister_pernet_subsys(&ipv4_net_ops);
 	nf_unregister_sockopt(&so_getorigdst);
 }

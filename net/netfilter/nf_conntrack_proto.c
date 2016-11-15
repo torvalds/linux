@@ -127,12 +127,48 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
 int nf_ct_netns_get(struct net *net, u8 nfproto)
 {
-	return nf_ct_l3proto_try_module_get(nfproto);
+	const struct nf_conntrack_l3proto *l3proto;
+	int ret;
+
+	might_sleep();
+
+	ret = nf_ct_l3proto_try_module_get(nfproto);
+	if (ret < 0)
+		return ret;
+
+	/* we already have a reference, can't fail */
+	rcu_read_lock();
+	l3proto = __nf_ct_l3proto_find(nfproto);
+	rcu_read_unlock();
+
+	if (!l3proto->net_ns_get)
+		return 0;
+
+	ret = l3proto->net_ns_get(net);
+	if (ret < 0)
+		nf_ct_l3proto_module_put(nfproto);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_get);
 
 void nf_ct_netns_put(struct net *net, u8 nfproto)
 {
+	const struct nf_conntrack_l3proto *l3proto;
+
+	might_sleep();
+
+	/* same as nf_conntrack_netns_get(), reference assumed */
+	rcu_read_lock();
+	l3proto = __nf_ct_l3proto_find(nfproto);
+	rcu_read_unlock();
+
+	if (WARN_ON(!l3proto))
+		return;
+
+	if (l3proto->net_ns_put)
+		l3proto->net_ns_put(net);
+
 	nf_ct_l3proto_module_put(nfproto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_put);
