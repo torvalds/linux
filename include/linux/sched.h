@@ -2248,10 +2248,8 @@ extern cputime_t task_gtime(struct task_struct *t);
 static inline void task_cputime(struct task_struct *t,
 				cputime_t *utime, cputime_t *stime)
 {
-	if (utime)
-		*utime = t->utime;
-	if (stime)
-		*stime = t->stime;
+	*utime = t->utime;
+	*stime = t->stime;
 }
 
 static inline cputime_t task_gtime(struct task_struct *t)
@@ -2265,10 +2263,8 @@ static inline void task_cputime_scaled(struct task_struct *t,
 				       cputime_t *utimescaled,
 				       cputime_t *stimescaled)
 {
-	if (utimescaled)
-		*utimescaled = t->utimescaled;
-	if (stimescaled)
-		*stimescaled = t->stimescaled;
+	*utimescaled = t->utimescaled;
+	*stimescaled = t->stimescaled;
 }
 #else
 static inline void task_cputime_scaled(struct task_struct *t,
