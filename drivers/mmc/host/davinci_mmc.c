@@ -1167,6 +1167,7 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	struct platform_device *pdev = to_platform_device(mmc->parent);
 	struct davinci_mmc_config *pdata = pdev->dev.platform_data;
 	struct mmc_davinci_host *host;
+	int ret;
 
 	if (!pdata)
 		return -EINVAL;
@@ -1184,13 +1185,23 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	if (pdata && (pdata->wires == 8))
 		mmc->caps |= (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA);
 
-	mmc->caps |= MMC_CAP_NEEDS_POLL;
 	mmc->f_min = 312500;
 	mmc->f_max = 25000000;
 	if (pdata && pdata->max_freq)
 		mmc->f_max = pdata->max_freq;
 	if (pdata && pdata->caps)
 		mmc->caps |= pdata->caps;
+
+	/* Register a cd gpio, if there is not one, enable polling */
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	if (ret == -EPROBE_DEFER)
+		return ret;
+	else if (ret)
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
+
+	ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+	if (ret == -EPROBE_DEFER)
+		return ret;
 
 	return 0;
 }
