@@ -170,7 +170,7 @@ static void __bpf_lru_list_rotate_inactive(struct bpf_lru *lru,
 					   struct bpf_lru_list *l)
 {
 	struct list_head *inactive = &l->lists[BPF_LRU_LIST_T_INACTIVE];
-	struct list_head *cur, *next, *last;
+	struct list_head *cur, *last, *next = inactive;
 	struct bpf_lru_node *node;
 	unsigned int i = 0;
 
