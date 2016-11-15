@@ -612,7 +612,7 @@ int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node,
 
 	ret = nvm_register(dev);
 
-	ns->lba_shift = ilog2(dev->sec_size) - 9;
+	ns->lba_shift = ilog2(dev->sec_size);
 
 	if (sysfs_create_group(&dev->dev.kobj, attrs))
 		pr_warn("%s: failed to create sysfs group for identification\n",

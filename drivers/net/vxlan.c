@@ -944,7 +944,9 @@ static bool vxlan_group_used(struct vxlan_net *vn, struct vxlan_dev *dev)
 {
 	struct vxlan_dev *vxlan;
 	struct vxlan_sock *sock4;
-	struct vxlan_sock *sock6 = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct vxlan_sock *sock6;
+#endif
 	unsigned short family = dev->default_dst.remote_ip.sa.sa_family;
 
 	sock4 = rtnl_dereference(dev->vn4_sock);
