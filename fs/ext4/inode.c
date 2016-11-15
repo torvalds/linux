@@ -5474,18 +5474,20 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
 	if (err)
 		return err;
-	if (ext4_handle_valid(handle) &&
-	    EXT4_I(inode)->i_extra_isize < sbi->s_want_extra_isize &&
+	if (EXT4_I(inode)->i_extra_isize < sbi->s_want_extra_isize &&
 	    !ext4_test_inode_state(inode, EXT4_STATE_NO_EXPAND)) {
 		/*
-		 * We need extra buffer credits since we may write into EA block
+		 * In nojournal mode, we can immediately attempt to expand
+		 * the inode.  When journaled, we first need to obtain extra
+		 * buffer credits since we may write into the EA block
 		 * with this same handle. If journal_extend fails, then it will
 		 * only result in a minor loss of functionality for that inode.
 		 * If this is felt to be critical, then e2fsck should be run to
 		 * force a large enough s_min_extra_isize.
 		 */
-		if ((jbd2_journal_extend(handle,
-			     EXT4_DATA_TRANS_BLOCKS(inode->i_sb))) == 0) {
+		if (!ext4_handle_valid(handle) ||
+		    jbd2_journal_extend(handle,
+			     EXT4_DATA_TRANS_BLOCKS(inode->i_sb)) == 0) {
 			ret = ext4_expand_extra_isize(inode,
 						      sbi->s_want_extra_isize,
 						      iloc, handle);
