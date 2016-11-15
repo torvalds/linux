@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -345,9 +345,10 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
 };
 
-enum iwl_fmac_debug_cmds {
+enum iwl_debug_cmds {
 	LMAC_RD_WR = 0x0,
 	UMAC_RD_WR = 0x1,
+	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
 /* command groups */
@@ -1237,6 +1238,25 @@ struct iwl_mfuart_load_notif {
 	/* image size valid only in v2 of the command */
 	__le32 image_size;
 } __packed; /*MFU_LOADER_NTFY_API_S_VER_2*/
+
+/**
+ * struct iwl_mfu_assert_dump_notif - mfuart dump logs
+ * ( MFU_ASSERT_DUMP_NTF = 0xfe )
+ * @assert_id: mfuart assert id that cause the notif
+ * @curr_reset_num: number of asserts since uptime
+ * @index_num: current chunk id
+ * @parts_num: total number of chunks
+ * @data_size: number of data bytes sent
+ * @data: data buffer
+ */
+struct iwl_mfu_assert_dump_notif {
+	__le32   assert_id;
+	__le32   curr_reset_num;
+	__le16   index_num;
+	__le16   parts_num;
+	__le32   data_size;
+	__le32   data[0];
+} __packed; /*MFU_DUMP_ASSERT_API_S_VER_1*/
 
 /**
  * struct iwl_set_calib_default_cmd - set default value for calibration.
