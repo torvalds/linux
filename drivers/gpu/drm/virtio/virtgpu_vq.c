@@ -75,7 +75,7 @@ void virtio_gpu_cursor_ack(struct virtqueue *vq)
 int virtio_gpu_alloc_vbufs(struct virtio_gpu_device *vgdev)
 {
 	struct virtio_gpu_vbuffer *vbuf;
-	int i, size, count = 0;
+	int i, size, count = 16;
 	void *ptr;
 
 	INIT_LIST_HEAD(&vgdev->free_vbufs);
