@@ -1551,7 +1551,9 @@ static __latent_entropy struct task_struct *copy_process(
 	init_sigpending(&p->pending);
 
 	p->utime = p->stime = p->gtime = 0;
+#ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
 	p->utimescaled = p->stimescaled = 0;
+#endif
 	prev_cputime_init(&p->prev_cputime);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN

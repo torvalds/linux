@@ -512,6 +512,9 @@ config HAVE_CONTEXT_TRACKING
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
 
+config ARCH_HAS_SCALED_CPUTIME
+	bool
+
 config HAVE_VIRT_CPU_ACCOUNTING_GEN
 	bool
 	default y if 64BIT
