@@ -2552,9 +2552,6 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 	if (idx == 0 && (ints & (DXEPINT_SETUP | DXEPINT_SETUP_RCVD)))
 		ints &= ~DXEPINT_XFERCOMPL;
 
-	if (ints & DXEPINT_STSPHSERCVD)
-		dev_dbg(hsotg->dev, "%s: StsPhseRcvd asserted\n", __func__);
-
 	if (ints & DXEPINT_XFERCOMPL) {
 		dev_dbg(hsotg->dev,
 			"%s: XferCompl: DxEPCTL=0x%08x, DXEPTSIZ=%08x\n",
@@ -2616,6 +2613,9 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 				dwc2_hsotg_handle_outdone(hsotg, 0);
 		}
 	}
+
+	if (ints & DXEPINT_STSPHSERCVD)
+		dev_dbg(hsotg->dev, "%s: StsPhseRcvd\n", __func__);
 
 	if (ints & DXEPINT_BACK2BACKSETUP)
 		dev_dbg(hsotg->dev, "%s: B2BSetup/INEPNakEff\n", __func__);
@@ -2905,11 +2905,12 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	/*
 	 * don't need XferCompl, we get that from RXFIFO in slave mode. In
-	 * DMA mode we may need this.
+	 * DMA mode we may need this and StsPhseRcvd.
 	 */
-	dwc2_writel((using_dma(hsotg) ? (DIEPMSK_XFERCOMPLMSK) : 0) |
+	dwc2_writel((using_dma(hsotg) ? (DIEPMSK_XFERCOMPLMSK |
+		DOEPMSK_STSPHSERCVDMSK) : 0) |
 		DOEPMSK_EPDISBLDMSK | DOEPMSK_AHBERRMSK |
-		DOEPMSK_SETUPMSK | DOEPMSK_STSPHSERCVDMSK,
+		DOEPMSK_SETUPMSK,
 		hsotg->regs + DOEPMSK);
 
 	dwc2_writel(0, hsotg->regs + DAINTMSK);
