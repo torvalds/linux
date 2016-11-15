@@ -77,6 +77,10 @@ const struct family_string_key family_string_lookup[] = {
 	{"zynq7000", 0x12},
 	{"UltraScale Virtex", 0x13},
 	{"UltraScale Kintex", 0x14},
+	{"UltraScale+ Zynq", 0x15},
+	{"UltraScale+ Virtex", 0x16},
+	{"UltraScale+ Kintex", 0x17},
+	{"Spartan7", 0x18},
 	{NULL, 0},
 };
 
