@@ -1552,6 +1552,16 @@ void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare)
 }
 EXPORT_SYMBOL_GPL(mwifiex_do_flr);
 
+static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
+{
+	struct device *dev = adapter->dev;
+
+	if (!dev->of_node)
+		return;
+
+	adapter->dt_node = dev->of_node;
+}
+
 /*
  * This function adds the card.
  *
@@ -1581,6 +1591,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	}
 
 	adapter->dev = dev;
+	mwifiex_probe_of(adapter);
+
 	adapter->iface_type = iface_type;
 	adapter->card_sem = sem;
 
