@@ -1253,7 +1253,7 @@ drop:
 }
 EXPORT_SYMBOL_GPL(__udp_enqueue_schedule_skb);
 
-static void udp_destruct_sock(struct sock *sk)
+void udp_destruct_sock(struct sock *sk)
 {
 	/* reclaim completely the forward allocated memory */
 	unsigned int total = 0;
@@ -1267,6 +1267,7 @@ static void udp_destruct_sock(struct sock *sk)
 
 	inet_sock_destruct(sk);
 }
+EXPORT_SYMBOL_GPL(udp_destruct_sock);
 
 int udp_init_sock(struct sock *sk)
 {
