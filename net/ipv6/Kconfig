@@ -289,9 +289,20 @@ config IPV6_PIMSM_V2
 	  Support for IPv6 PIM multicast routing protocol PIM-SMv2.
 	  If unsure, say N.
 
+config IPV6_SEG6_LWTUNNEL
+	bool "IPv6: Segment Routing Header encapsulation support"
+	depends on IPV6
+	select LWTUNNEL
+	---help---
+	  Support for encapsulation of packets within an outer IPv6
+	  header and a Segment Routing Header using the lightweight
+	  tunnels mechanism.
+
+	  If unsure, say N.
+
 config IPV6_SEG6_INLINE
 	bool "IPv6: direct Segment Routing Header insertion "
-	depends on IPV6
+	depends on IPV6_SEG6_LWTUNNEL
 	---help---
 	  Support for direct insertion of the Segment Routing Header,
 	  also known as inline mode. Be aware that direct insertion of

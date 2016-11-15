@@ -451,9 +451,11 @@ int __init seg6_init(void)
 	if (err)
 		goto out_unregister_genl;
 
+#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 	err = seg6_iptunnel_init();
 	if (err)
 		goto out_unregister_pernet;
+#endif
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	err = seg6_hmac_init();
@@ -467,10 +469,14 @@ out:
 	return err;
 #ifdef CONFIG_IPV6_SEG6_HMAC
 out_unregister_iptun:
+#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 	seg6_iptunnel_exit();
 #endif
+#endif
+#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 out_unregister_pernet:
 	unregister_pernet_subsys(&ip6_segments_ops);
+#endif
 out_unregister_genl:
 	genl_unregister_family(&seg6_genl_family);
 	goto out;
@@ -481,7 +487,9 @@ void seg6_exit(void)
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	seg6_hmac_exit();
 #endif
+#ifdef CONFIG_IPV6_SEG6_LWTUNNEL
 	seg6_iptunnel_exit();
+#endif
 	unregister_pernet_subsys(&ip6_segments_ops);
 	genl_unregister_family(&seg6_genl_family);
 }
