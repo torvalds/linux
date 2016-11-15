@@ -63,15 +63,14 @@ struct acr_r361_flcn_bl_desc {
 
 static void
 acr_r361_generate_flcn_bl_desc(const struct nvkm_acr *acr,
-			       const struct ls_ucode_img *_img, u64 wpr_addr,
+			       const struct ls_ucode_img *img, u64 wpr_addr,
 			       void *_desc)
 {
-	struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
 	struct acr_r361_flcn_bl_desc *desc = _desc;
-	const struct ls_ucode_img_desc *pdesc = &img->base.ucode_desc;
+	const struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
 	u64 base, addr_code, addr_data;
 
-	base = wpr_addr + img->lsb_header.ucode_off + pdesc->app_start_offset;
+	base = wpr_addr + img->ucode_off + pdesc->app_start_offset;
 	addr_code = base + pdesc->app_resident_code_offset;
 	addr_data = base + pdesc->app_resident_data_offset;
 

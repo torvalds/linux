@@ -83,6 +83,7 @@ struct ls_ucode_img_desc {
  * @ucode_desc:		loaded or generated map of ucode_data
  * @ucode_data:		firmware payload (code and data)
  * @ucode_size:		size in bytes of data in ucode_data
+ * @ucode_off:		offset of the ucode in ucode_data
  * @sig:		signature for this firmware
  * @sig:size:		size of the signature in bytes
  *
@@ -97,6 +98,7 @@ struct ls_ucode_img {
 	struct ls_ucode_img_desc ucode_desc;
 	u8 *ucode_data;
 	u32 ucode_size;
+	u32 ucode_off;
 
 	u8 *sig;
 	u32 sig_size;
