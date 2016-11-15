@@ -56,6 +56,47 @@
 		};
 	};
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "nvidia,tegra186-denver", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x000>;
+		};
+
+		cpu@1 {
+			compatible = "nvidia,tegra186-denver", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x001>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a57", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x100>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a57", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x101>;
+		};
+
+		cpu@4 {
+			compatible = "arm,cortex-a57", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x102>;
+		};
+
+		cpu@5 {
+			compatible = "arm,cortex-a57", "arm,armv8";
+			device_type = "cpu";
+			reg = <0x103>;
+		};
+	};
+
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
 		mboxes = <&hsp_top0 0 19>;
