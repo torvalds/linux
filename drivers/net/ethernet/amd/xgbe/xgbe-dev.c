@@ -1099,7 +1099,7 @@ static int xgbe_clr_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
 {
 	unsigned int reg;
 
-	if (gpio > 16)
+	if (gpio > 15)
 		return -EINVAL;
 
 	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
@@ -1114,7 +1114,7 @@ static int xgbe_set_gpio(struct xgbe_prv_data *pdata, unsigned int gpio)
 {
 	unsigned int reg;
 
-	if (gpio > 16)
+	if (gpio > 15)
 		return -EINVAL;
 
 	reg = XGMAC_IOREAD(pdata, MAC_GPIOSR);
