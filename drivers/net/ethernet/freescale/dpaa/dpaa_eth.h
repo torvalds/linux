@@ -37,6 +37,7 @@
 
 #include "fman.h"
 #include "mac.h"
+#include "dpaa_eth_trace.h"
 
 #define DPAA_ETH_TXQ_NUM	NR_CPUS
 

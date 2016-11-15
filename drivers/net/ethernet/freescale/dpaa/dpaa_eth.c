@@ -59,6 +59,12 @@
 #include "mac.h"
 #include "dpaa_eth.h"
 
+/* CREATE_TRACE_POINTS only needs to be defined once. Other dpaa files
+ * using trace events only need to #include <trace/events/sched.h>
+ */
+#define CREATE_TRACE_POINTS
+#include "dpaa_eth_trace.h"
+
 static int debug = -1;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Module/Driver verbosity level (0=none,...,16=all)");
@@ -1863,6 +1869,9 @@ static inline int dpaa_xmit(struct dpaa_priv *priv,
 	if (fd->bpid == FSL_DPAA_BPID_INV)
 		fd->cmd |= qman_fq_fqid(priv->conf_fqs[queue]);
 
+	/* Trace this Tx fd */
+	trace_dpaa_tx_fd(priv->net_dev, egress_fq, fd);
+
 	for (i = 0; i < DPAA_ENQUEUE_RETRIES; i++) {
 		err = qman_enqueue(egress_fq, fd);
 		if (err != -EBUSY)
@@ -2097,6 +2106,9 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	if (!dpaa_bp)
 		return qman_cb_dqrr_consume;
 
+	/* Trace the Rx fd */
+	trace_dpaa_rx_fd(net_dev, fq, &dq->fd);
+
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 	percpu_stats = &percpu_priv->stats;
 
@@ -2193,6 +2205,9 @@ static enum qman_cb_dqrr_result conf_dflt_dqrr(struct qman_portal *portal,
 
 	net_dev = ((struct dpaa_fq *)fq)->net_dev;
 	priv = netdev_priv(net_dev);
+
+	/* Trace the fd */
+	trace_dpaa_tx_conf_fd(net_dev, fq, &dq->fd);
 
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 

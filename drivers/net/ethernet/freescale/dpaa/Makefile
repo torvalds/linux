@@ -9,3 +9,4 @@ ccflags-y += -I$(FMAN)
 obj-$(CONFIG_FSL_DPAA_ETH) += fsl_dpa.o
 
 fsl_dpa-objs += dpaa_eth.o dpaa_ethtool.o dpaa_eth_sysfs.o
+CFLAGS_dpaa_eth.o := -I$(src)
