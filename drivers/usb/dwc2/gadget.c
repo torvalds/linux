@@ -2880,8 +2880,10 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 		GINTSTS_GOUTNAKEFF | GINTSTS_GINNAKEFF |
 		GINTSTS_USBRST | GINTSTS_RESETDET |
 		GINTSTS_ENUMDONE | GINTSTS_OTGINT |
-		GINTSTS_USBSUSP | GINTSTS_WKUPINT |
-		GINTSTS_INCOMPL_SOIN | GINTSTS_INCOMPL_SOOUT;
+		GINTSTS_USBSUSP | GINTSTS_WKUPINT;
+
+	if (!using_desc_dma(hsotg))
+		intmsk |= GINTSTS_INCOMPL_SOIN | GINTSTS_INCOMPL_SOOUT;
 
 	if (hsotg->params.external_id_pin_ctl <= 0)
 		intmsk |= GINTSTS_CONIDSTSCHNG;
