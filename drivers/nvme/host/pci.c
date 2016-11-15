@@ -328,7 +328,7 @@ static int nvme_init_iod(struct request *rq, unsigned size,
 		rq->retries = 0;
 		rq->rq_flags |= RQF_DONTPREP;
 	}
-	return 0;
+	return BLK_MQ_RQ_QUEUE_OK;
 }
 
 static void nvme_free_iod(struct nvme_dev *dev, struct request *req)
@@ -598,17 +598,17 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	map_len = nvme_map_len(req);
 	ret = nvme_init_iod(req, map_len, dev);
-	if (ret)
+	if (ret != BLK_MQ_RQ_QUEUE_OK)
 		return ret;
 
 	ret = nvme_setup_cmd(ns, req, &cmnd);
-	if (ret)
+	if (ret != BLK_MQ_RQ_QUEUE_OK)
 		goto out;
 
 	if (req->nr_phys_segments)
 		ret = nvme_map_data(dev, req, map_len, &cmnd);
 
-	if (ret)
+	if (ret != BLK_MQ_RQ_QUEUE_OK)
 		goto out;
 
 	cmnd.common.command_id = req->tag;

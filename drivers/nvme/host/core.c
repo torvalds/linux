@@ -269,7 +269,7 @@ static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 	 */
 	req->__data_len = nr_bytes;
 
-	return 0;
+	return BLK_MQ_RQ_QUEUE_OK;
 }
 
 static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
@@ -317,7 +317,7 @@ static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
 int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *cmd)
 {
-	int ret = 0;
+	int ret = BLK_MQ_RQ_QUEUE_OK;
 
 	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
 		memcpy(cmd, nvme_req(req)->cmd, sizeof(*cmd));

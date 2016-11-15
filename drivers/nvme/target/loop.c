@@ -169,7 +169,7 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	int ret;
 
 	ret = nvme_setup_cmd(ns, req, &iod->cmd);
-	if (ret)
+	if (ret != BLK_MQ_RQ_QUEUE_OK)
 		return ret;
 
 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
@@ -179,7 +179,7 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		nvme_cleanup_cmd(req);
 		blk_mq_start_request(req);
 		nvme_loop_queue_response(&iod->req);
-		return 0;
+		return BLK_MQ_RQ_QUEUE_OK;
 	}
 
 	if (blk_rq_bytes(req)) {
@@ -198,7 +198,7 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(req);
 
 	schedule_work(&iod->work);
-	return 0;
+	return BLK_MQ_RQ_QUEUE_OK;
 }
 
 static void nvme_loop_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
