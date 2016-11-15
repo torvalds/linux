@@ -181,6 +181,8 @@ struct ceph_cap_snap {
 	u64 size;
 	struct timespec mtime, atime, ctime;
 	u64 time_warp_seq;
+	u64 truncate_size;
+	u32 truncate_seq;
 	int writing;   /* a sync write is still in progress */
 	int dirty_pages;     /* dirty pages awaiting writeback */
 	bool inline_data;
