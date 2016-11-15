@@ -12,6 +12,8 @@ struct drm_fb_helper;
 struct drm_device;
 struct drm_file;
 struct drm_mode_fb_cmd2;
+struct drm_plane;
+struct drm_plane_state;
 
 struct drm_fbdev_cma *drm_fbdev_cma_init_with_funcs(struct drm_device *dev,
 	unsigned int preferred_bpp, unsigned int num_crtc,
