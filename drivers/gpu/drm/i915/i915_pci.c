@@ -363,6 +363,7 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_hw_contexts = 1,
 	.has_logical_ring_contexts = 1,
 	.has_guc = 1,
+	.has_decoupled_mmio = 1,
 	.ddb_size = 512,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
