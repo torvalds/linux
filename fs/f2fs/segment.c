@@ -2176,7 +2176,6 @@ out:
 static int build_sit_info(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
-	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct sit_info *sit_i;
 	unsigned int sit_segs, start;
 	char *src_bitmap, *dst_bitmap;
@@ -2243,7 +2242,7 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 
 	sit_i->sit_base_addr = le32_to_cpu(raw_super->sit_blkaddr);
 	sit_i->sit_blocks = sit_segs << sbi->log_blocks_per_seg;
-	sit_i->written_valid_blocks = le64_to_cpu(ckpt->valid_block_count);
+	sit_i->written_valid_blocks = 0;
 	sit_i->sit_bitmap = dst_bitmap;
 	sit_i->bitmap_size = bitmap_size;
 	sit_i->dirty_sentries = 0;
@@ -2397,6 +2396,9 @@ static void init_free_segmap(struct f2fs_sb_info *sbi)
 		struct seg_entry *sentry = get_seg_entry(sbi, start);
 		if (!sentry->valid_blocks)
 			__set_free(sbi, start);
+		else
+			SIT_I(sbi)->written_valid_blocks +=
+						sentry->valid_blocks;
 	}
 
 	/* set use the current segments */
