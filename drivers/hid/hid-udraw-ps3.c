@@ -54,7 +54,7 @@ enum {
  * Accelerometer min/max values
  * in order, X, Y and Z
  */
-struct {
+static struct {
 	int min;
 	int max;
 } accel_limits[] = {
