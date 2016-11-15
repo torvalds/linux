@@ -34,7 +34,6 @@
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_page_alloc.h>
-#include <ttm/ttm_memory.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include <linux/seq_file.h>
@@ -65,7 +64,7 @@ static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
 	ttm_mem_global_release(ref->object);
 }
 
-int amdgpu_ttm_global_init(struct amdgpu_device *adev)
+static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
 	struct amdgpu_ring *ring;
@@ -1151,6 +1150,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	unsigned i, j;
 	int r;
 
+	r = amdgpu_ttm_global_init(adev);
+	if (r) {
+		return r;
+	}
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       adev->mman.bo_global_ref.ref.object,
@@ -1649,9 +1652,4 @@ static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
 #endif
 
 #endif
-}
-
-u64 amdgpu_ttm_get_gtt_mem_size(struct amdgpu_device *adev)
-{
-	return ttm_get_kernel_zone_memory_size(adev->mman.mem_global_ref.object);
 }
