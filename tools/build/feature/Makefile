@@ -47,7 +47,8 @@ FILES=					\
 	test-bpf.bin			\
 	test-get_cpuid.bin		\
 	test-sdt.bin			\
-	test-cxx.bin
+	test-cxx.bin			\
+	test-jvmti.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -224,6 +225,9 @@ $(OUTPUT)test-sdt.bin:
 
 $(OUTPUT)test-cxx.bin:
 	$(BUILDXX) -std=gnu++11
+
+$(OUTPUT)test-jvmti.bin:
+	$(BUILD)
 
 -include $(OUTPUT)*.d
 

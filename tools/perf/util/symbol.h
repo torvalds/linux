@@ -100,6 +100,7 @@ struct symbol_conf {
 			show_total_period,
 			use_callchain,
 			cumulate_callchain,
+			show_branchflag_count,
 			exclude_other,
 			show_cpu_utilization,
 			initialized,

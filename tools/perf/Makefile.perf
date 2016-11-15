@@ -86,6 +86,8 @@ include ../scripts/utilities.mak
 #
 # Define FEATURES_DUMP to provide features detection dump file
 # and bypass the feature detection
+#
+# Define NO_JVMTI if you do not want jvmti agent built
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -281,6 +283,12 @@ endif
 
 ifndef NO_PERF_READ_VDSOX32
 PROGRAMS += $(OUTPUT)perf-read-vdsox32
+endif
+
+LIBJVMTI = libperf-jvmti.so
+
+ifndef NO_JVMTI
+PROGRAMS += $(OUTPUT)$(LIBJVMTI)
 endif
 
 # what 'all' will build and 'install' will install, in perfexecdir
@@ -551,6 +559,16 @@ $(OUTPUT)perf-read-vdsox32: perf-read-vdso.c util/find-vdso-map.c
 	$(QUIET_CC)$(CC) -mx32 $(filter -static,$(LDFLAGS)) -Wall -Werror -o $@ perf-read-vdso.c
 endif
 
+ifndef NO_JVMTI
+LIBJVMTI_IN := $(OUTPUT)jvmti/jvmti-in.o
+
+$(LIBJVMTI_IN): FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=jvmti obj=jvmti
+
+$(OUTPUT)$(LIBJVMTI): $(LIBJVMTI_IN)
+	$(QUIET_LINK)$(CC) -shared -Wl,-soname -Wl,$(LIBJVMTI) -o $@ $< -lelf -lrt
+endif
+
 $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 LIBPERF_IN := $(OUTPUT)libperf-in.o
@@ -688,6 +706,10 @@ ifndef NO_PERF_READ_VDSOX32
 	$(call QUIET_INSTALL, perf-read-vdsox32) \
 		$(INSTALL) $(OUTPUT)perf-read-vdsox32 '$(DESTDIR_SQ)$(bindir_SQ)';
 endif
+ifndef NO_JVMTI
+	$(call QUIET_INSTALL, $(LIBJVMTI)) \
+		$(INSTALL) $(OUTPUT)$(LIBJVMTI) '$(DESTDIR_SQ)$(libdir_SQ)';
+endif
 	$(call QUIET_INSTALL, libexec) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 	$(call QUIET_INSTALL, perf-archive) \
@@ -754,7 +776,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
-	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32 $(OUTPUT)pmu-events/jevents
+	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32 $(OUTPUT)pmu-events/jevents $(OUTPUT)$(LIBJVMTI).so
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
 		$(OUTPUT)util/intel-pt-decoder/inat-tables.c $(OUTPUT)fixdep \
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
