@@ -133,11 +133,6 @@ struct ls_ucode_img_r352 {
  * HS blob structures
  */
 
-struct hsf_load_header_app {
-	u32 sec_code_off;
-	u32 sec_code_size;
-};
-
 /**
  * struct hsf_load_header - HS firmware load header
  */
@@ -147,8 +142,30 @@ struct hsf_load_header {
 	u32 data_dma_base;
 	u32 data_size;
 	u32 num_apps;
-	struct hsf_load_header_app app[0];
+	/*
+	 * Organized as follows:
+	 * - app0_code_off
+	 * - app1_code_off
+	 * - ...
+	 * - appn_code_off
+	 * - app0_code_size
+	 * - app1_code_size
+	 * - ...
+	 */
+	u32 apps[0];
 };
+
+static inline u32
+hsf_load_header_app_off(const struct hsf_load_header *hdr, u32 app)
+{
+	return hdr->apps[app];
+}
+
+static inline u32
+hsf_load_header_app_size(const struct hsf_load_header *hdr, u32 app)
+{
+	return hdr->apps[hdr->num_apps + app];
+}
 
 /**
  * struct acr_r352_ls_func - manages a single LS firmware
@@ -204,14 +221,14 @@ struct acr_r352 {
 	struct nvkm_gpuobj *load_blob;
 	struct {
 		struct hsf_load_header load_bl_header;
-		struct hsf_load_header_app __load_apps[ACR_R352_MAX_APPS];
+		u32 __load_apps[ACR_R352_MAX_APPS * 2];
 	};
 
 	/* HS FW - unlock WPR region (dGPU only) */
 	struct nvkm_gpuobj *unload_blob;
 	struct {
 		struct hsf_load_header unload_bl_header;
-		struct hsf_load_header_app __unload_apps[ACR_R352_MAX_APPS];
+		u32 __unload_apps[ACR_R352_MAX_APPS * 2];
 	};
 
 	/* HS bootloader */

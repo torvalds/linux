@@ -533,8 +533,8 @@ acr_r352_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 	bl_desc->code_dma_base = lower_32_bits(addr_code);
 	bl_desc->non_sec_code_off = hdr->non_sec_code_off;
 	bl_desc->non_sec_code_size = hdr->non_sec_code_size;
-	bl_desc->sec_code_off = hdr->app[0].sec_code_off;
-	bl_desc->sec_code_size = hdr->app[0].sec_code_size;
+	bl_desc->sec_code_off = hsf_load_header_app_off(hdr, 0);
+	bl_desc->sec_code_size = hsf_load_header_app_size(hdr, 0);
 	bl_desc->code_entry_point = 0;
 	bl_desc->data_dma_base = lower_32_bits(addr_data);
 	bl_desc->data_size = hdr->data_size;
@@ -589,7 +589,7 @@ acr_r352_prepare_hs_blob(struct acr_r352 *acr, struct nvkm_secboot *sb,
 		goto cleanup;
 	}
 	memcpy(load_header, load_hdr, sizeof(*load_header) +
-			       (sizeof(load_hdr->app[0]) * load_hdr->num_apps));
+			  (sizeof(load_hdr->apps[0]) * 2 * load_hdr->num_apps));
 
 	/* Create ACR blob and copy HS data to it */
 	ret = nvkm_gpuobj_new(subdev->device, ALIGN(hsbin_hdr->data_size, 256),

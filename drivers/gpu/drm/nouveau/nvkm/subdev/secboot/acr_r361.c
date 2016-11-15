@@ -94,8 +94,8 @@ acr_r361_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 	bl_desc->code_dma_base = u64_to_flcn64(offset);
 	bl_desc->non_sec_code_off = hdr->non_sec_code_off;
 	bl_desc->non_sec_code_size = hdr->non_sec_code_size;
-	bl_desc->sec_code_off = hdr->app[0].sec_code_off;
-	bl_desc->sec_code_size = hdr->app[0].sec_code_size;
+	bl_desc->sec_code_off = hsf_load_header_app_off(hdr, 0);
+	bl_desc->sec_code_size = hsf_load_header_app_size(hdr, 0);
 	bl_desc->code_entry_point = 0;
 	bl_desc->data_dma_base = u64_to_flcn64(offset + hdr->data_dma_base);
 	bl_desc->data_size = hdr->data_size;
