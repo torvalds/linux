@@ -702,6 +702,13 @@ unsigned long native_calibrate_tsc(void)
 		}
 	}
 
+	/*
+	 * TSC frequency determined by CPUID is a "hardware reported"
+	 * frequency and is the most accurate one so far we have. This
+	 * is considered a known frequency.
+	 */
+	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+
 	return crystal_khz * ebx_numerator / eax_denominator;
 }
 
