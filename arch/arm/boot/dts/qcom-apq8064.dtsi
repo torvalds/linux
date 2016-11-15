@@ -627,6 +627,33 @@
 			clock-names = "core";
 		};
 
+		ssbi@c00000 {
+			compatible = "qcom,ssbi";
+			reg = <0x00c00000 0x1000>;
+			qcom,controller-type = "pmic-arbiter";
+
+			pm8821: pmic@1 {
+				compatible = "qcom,pm8821";
+				interrupt-parent = <&tlmm_pinmux>;
+				interrupts = <76 IRQ_TYPE_LEVEL_LOW>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pm8821_mpps: mpps@50 {
+					compatible = "qcom,pm8821-mpp", "qcom,ssbi-mpp";
+					reg = <0x50>;
+					interrupts = <24 IRQ_TYPE_NONE>,
+						     <25 IRQ_TYPE_NONE>,
+						     <26 IRQ_TYPE_NONE>,
+						     <27 IRQ_TYPE_NONE>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+			};
+		};
+
 		qcom,ssbi@500000 {
 			compatible = "qcom,ssbi";
 			reg = <0x00500000 0x1000>;
