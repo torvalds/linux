@@ -207,6 +207,7 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		free_cpumask_var(tmpmask);
 		return -ENOMEM;
 	}
+
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
 		ret = -ENOENT;
@@ -217,12 +218,11 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 	if (ret)
 		goto unlock;
 
-	get_online_cpus();
 	/* check that user didn't specify any offline cpus */
 	cpumask_andnot(tmpmask, newmask, cpu_online_mask);
 	if (cpumask_weight(tmpmask)) {
 		ret = -EINVAL;
-		goto end;
+		goto unlock;
 	}
 
 	/* Check whether cpus are dropped from this group */
@@ -231,7 +231,7 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		/* Can't drop from default group */
 		if (rdtgrp == &rdtgroup_default) {
 			ret = -EINVAL;
-			goto end;
+			goto unlock;
 		}
 		/* Give any dropped cpus to rdtgroup_default */
 		cpumask_or(&rdtgroup_default.cpu_mask,
@@ -258,8 +258,6 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 	/* Done pushing/pulling - update this group with new mask */
 	cpumask_copy(&rdtgrp->cpu_mask, newmask);
 
-end:
-	put_online_cpus();
 unlock:
 	rdtgroup_kn_unlock(of->kn);
 	free_cpumask_var(tmpmask);
