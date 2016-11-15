@@ -700,10 +700,15 @@ static void dpaa_eth_cgscn(struct qman_portal *qm, struct qman_cgr *cgr,
 	struct dpaa_priv *priv = (struct dpaa_priv *)container_of(cgr,
 		struct dpaa_priv, cgr_data.cgr);
 
-	if (congested)
+	if (congested) {
+		priv->cgr_data.congestion_start_jiffies = jiffies;
 		netif_tx_stop_all_queues(priv->net_dev);
-	else
+		priv->cgr_data.cgr_congested_count++;
+	} else {
+		priv->cgr_data.congested_jiffies +=
+			(jiffies - priv->cgr_data.congestion_start_jiffies);
 		netif_tx_wake_all_queues(priv->net_dev);
+	}
 }
 
 static int dpaa_eth_cgr_init(struct dpaa_priv *priv)
@@ -1215,6 +1220,37 @@ static void dpaa_fd_release(const struct net_device *net_dev,
 	}
 
 	dpaa_bman_release(dpaa_bp, &bmb, 1);
+}
+
+static void count_ern(struct dpaa_percpu_priv *percpu_priv,
+		      const union qm_mr_entry *msg)
+{
+	switch (msg->ern.rc & QM_MR_RC_MASK) {
+	case QM_MR_RC_CGR_TAILDROP:
+		percpu_priv->ern_cnt.cg_tdrop++;
+		break;
+	case QM_MR_RC_WRED:
+		percpu_priv->ern_cnt.wred++;
+		break;
+	case QM_MR_RC_ERROR:
+		percpu_priv->ern_cnt.err_cond++;
+		break;
+	case QM_MR_RC_ORPWINDOW_EARLY:
+		percpu_priv->ern_cnt.early_window++;
+		break;
+	case QM_MR_RC_ORPWINDOW_LATE:
+		percpu_priv->ern_cnt.late_window++;
+		break;
+	case QM_MR_RC_FQ_TAILDROP:
+		percpu_priv->ern_cnt.fq_tdrop++;
+		break;
+	case QM_MR_RC_ORPWINDOW_RETIRED:
+		percpu_priv->ern_cnt.fq_retired++;
+		break;
+	case QM_MR_RC_ORP_ZERO:
+		percpu_priv->ern_cnt.orp_zero++;
+		break;
+	}
 }
 
 /* Turn on HW checksum computation for this outgoing frame.
@@ -1882,6 +1918,7 @@ static int dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	    likely(skb_shinfo(skb)->nr_frags < DPAA_SGT_MAX_ENTRIES)) {
 		/* Just create a S/G fd based on the skb */
 		err = skb_to_sg_fd(priv, skb, &fd);
+		percpu_priv->tx_frag_skbuffs++;
 	} else {
 		/* If the egress skb contains more fragments than we support
 		 * we have no choice but to linearize it ourselves.
@@ -1917,6 +1954,15 @@ static void dpaa_rx_error(struct net_device *net_dev,
 			  fd->status & FM_FD_STAT_RX_ERRORS);
 
 	percpu_priv->stats.rx_errors++;
+
+	if (fd->status & FM_FD_ERR_DMA)
+		percpu_priv->rx_errors.dme++;
+	if (fd->status & FM_FD_ERR_PHYSICAL)
+		percpu_priv->rx_errors.fpe++;
+	if (fd->status & FM_FD_ERR_SIZE)
+		percpu_priv->rx_errors.fse++;
+	if (fd->status & FM_FD_ERR_PRS_HDR_ERR)
+		percpu_priv->rx_errors.phe++;
 
 	dpaa_fd_release(net_dev, fd);
 }
@@ -1973,6 +2019,8 @@ static void dpaa_tx_conf(struct net_device *net_dev,
 		percpu_priv->stats.tx_errors++;
 	}
 
+	percpu_priv->tx_confirm++;
+
 	skb = dpaa_cleanup_tx_fd(priv, fd);
 
 	consume_skb(skb);
@@ -1987,6 +2035,7 @@ static inline int dpaa_eth_napi_schedule(struct dpaa_percpu_priv *percpu_priv,
 
 		percpu_priv->np.p = portal;
 		napi_schedule(&percpu_priv->np.napi);
+		percpu_priv->in_interrupt++;
 		return 1;
 	}
 	return 0;
@@ -2171,6 +2220,7 @@ static void egress_ern(struct qman_portal *portal,
 
 	percpu_priv->stats.tx_dropped++;
 	percpu_priv->stats.tx_fifo_errors++;
+	count_ern(percpu_priv, msg);
 
 	skb = dpaa_cleanup_tx_fd(priv, fd);
 	dev_kfree_skb_any(skb);

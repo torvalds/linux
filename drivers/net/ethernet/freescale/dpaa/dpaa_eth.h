@@ -95,6 +95,25 @@ struct dpaa_bp {
 	atomic_t refs;
 };
 
+struct dpaa_rx_errors {
+	u64 dme;		/* DMA Error */
+	u64 fpe;		/* Frame Physical Error */
+	u64 fse;		/* Frame Size Error */
+	u64 phe;		/* Header Error */
+};
+
+/* Counters for QMan ERN frames - one counter per rejection code */
+struct dpaa_ern_cnt {
+	u64 cg_tdrop;		/* Congestion group taildrop */
+	u64 wred;		/* WRED congestion */
+	u64 err_cond;		/* Error condition */
+	u64 early_window;	/* Order restoration, frame too early */
+	u64 late_window;	/* Order restoration, frame too late */
+	u64 fq_tdrop;		/* FQ taildrop */
+	u64 fq_retired;		/* FQ is retired */
+	u64 orp_zero;		/* ORP disabled */
+};
+
 struct dpaa_napi_portal {
 	struct napi_struct napi;
 	struct qman_portal *p;
@@ -104,7 +123,13 @@ struct dpaa_napi_portal {
 struct dpaa_percpu_priv {
 	struct net_device *net_dev;
 	struct dpaa_napi_portal np;
+	u64 in_interrupt;
+	u64 tx_confirm;
+	/* fragmented (non-linear) skbuffs received from the stack */
+	u64 tx_frag_skbuffs;
 	struct rtnl_link_stats64 stats;
+	struct dpaa_rx_errors rx_errors;
+	struct dpaa_ern_cnt ern_cnt;
 };
 
 struct dpaa_buffer_layout {
@@ -133,6 +158,14 @@ struct dpaa_priv {
 		 * (and the same) congestion group.
 		 */
 		struct qman_cgr cgr;
+		/* If congested, when it began. Used for performance stats. */
+		u32 congestion_start_jiffies;
+		/* Number of jiffies the Tx port was congested. */
+		u32 congested_jiffies;
+		/* Counter for the number of times the CGR
+		 * entered congestion state
+		 */
+		u32 cgr_congested_count;
 	} cgr_data;
 	/* Use a per-port CGR for ingress traffic. */
 	bool use_ingress_cgr;
