@@ -34,11 +34,14 @@
 
 /* LCDC DMA Control Register */
 #define LCDC_DMA_BURST_SIZE(x)                   ((x) << 4)
+#define LCDC_DMA_BURST_SIZE_MASK                 ((0x7) << 4)
 #define LCDC_DMA_BURST_1                         0x0
 #define LCDC_DMA_BURST_2                         0x1
 #define LCDC_DMA_BURST_4                         0x2
 #define LCDC_DMA_BURST_8                         0x3
 #define LCDC_DMA_BURST_16                        0x4
+#define LCDC_DMA_FIFO_THRESHOLD(x)               ((x) << 8)
+#define LCDC_DMA_FIFO_THRESHOLD_MASK             ((0x3) << 8)
 #define LCDC_V1_END_OF_FRAME_INT_ENA             BIT(2)
 #define LCDC_V2_END_OF_FRAME0_INT_ENA            BIT(8)
 #define LCDC_V2_END_OF_FRAME1_INT_ENA            BIT(9)
@@ -46,10 +49,12 @@
 
 /* LCDC Control Register */
 #define LCDC_CLK_DIVISOR(x)                      ((x) << 8)
+#define LCDC_CLK_DIVISOR_MASK                    ((0xFF) << 8)
 #define LCDC_RASTER_MODE                         0x01
 
 /* LCDC Raster Control Register */
 #define LCDC_PALETTE_LOAD_MODE(x)                ((x) << 20)
+#define LCDC_PALETTE_LOAD_MODE_MASK              ((0x3) << 20)
 #define PALETTE_AND_DATA                         0x00
 #define PALETTE_ONLY                             0x01
 #define DATA_ONLY                                0x02
@@ -75,7 +80,9 @@
 
 /* LCDC Raster Timing 2 Register */
 #define LCDC_AC_BIAS_TRANSITIONS_PER_INT(x)      ((x) << 16)
+#define LCDC_AC_BIAS_TRANSITIONS_PER_INT_MASK    ((0xF) << 16)
 #define LCDC_AC_BIAS_FREQUENCY(x)                ((x) << 8)
+#define LCDC_AC_BIAS_FREQUENCY_MASK              ((0xFF) << 8)
 #define LCDC_SYNC_CTRL                           BIT(25)
 #define LCDC_SYNC_EDGE                           BIT(24)
 #define LCDC_INVERT_PIXEL_CLOCK                  BIT(22)
@@ -138,6 +145,12 @@ static inline u32 tilcdc_read(struct drm_device *dev, u32 reg)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	return ioread32(priv->mmio + reg);
+}
+
+static inline void tilcdc_write_mask(struct drm_device *dev, u32 reg,
+				     u32 val, u32 mask)
+{
+	tilcdc_write(dev, reg, (tilcdc_read(dev, reg) & ~mask) | (val & mask));
 }
 
 static inline void tilcdc_set(struct drm_device *dev, u32 reg, u32 mask)
