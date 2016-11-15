@@ -665,6 +665,7 @@ static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block, cpu = smp_processor_id();
+	struct thresh_restart tr;
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
@@ -701,6 +702,11 @@ static void amd_threshold_interrupt(void)
 
 log:
 	__log_error(bank, false, true, ((u64)high << 32) | low);
+
+	/* Reset threshold block after logging error. */
+	memset(&tr, 0, sizeof(tr));
+	tr.b = &per_cpu(threshold_banks, cpu)[bank]->blocks[block];
+	threshold_restart_bank(&tr);
 }
 
 /*
