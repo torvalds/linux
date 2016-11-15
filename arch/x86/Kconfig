@@ -411,6 +411,7 @@ config INTEL_RDT_A
 	bool "Intel Resource Director Technology Allocation support"
 	default n
 	depends on X86 && CPU_SUP_INTEL
+	select KERNFS
 	help
 	  Select to enable resource allocation which is a sub-feature of
 	  Intel Resource Director Technology(RDT). More information about
