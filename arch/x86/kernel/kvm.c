@@ -415,15 +415,6 @@ void kvm_disable_steal_time(void)
 	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
 }
 
-static bool kvm_vcpu_is_preempted(int cpu)
-{
-	struct kvm_steal_time *src;
-
-	src = &per_cpu(steal_time, cpu);
-
-	return !!src->preempted;
-}
-
 #ifdef CONFIG_SMP
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
@@ -480,9 +471,6 @@ void __init kvm_guest_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		has_steal_clock = 1;
 		pv_time_ops.steal_clock = kvm_steal_clock;
-#ifdef CONFIG_PARAVIRT_SPINLOCKS
-		pv_lock_ops.vcpu_is_preempted = kvm_vcpu_is_preempted;
-#endif
 	}
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
@@ -604,6 +592,14 @@ out:
 	local_irq_restore(flags);
 }
 
+__visible bool __kvm_vcpu_is_preempted(int cpu)
+{
+	struct kvm_steal_time *src = &per_cpu(steal_time, cpu);
+
+	return !!src->preempted;
+}
+PV_CALLEE_SAVE_REGS_THUNK(__kvm_vcpu_is_preempted);
+
 /*
  * Setup pv_lock_ops to exploit KVM_FEATURE_PV_UNHALT if present.
  */
@@ -620,6 +616,11 @@ void __init kvm_spinlock_init(void)
 	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
 	pv_lock_ops.wait = kvm_wait;
 	pv_lock_ops.kick = kvm_kick_cpu;
+
+	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
+		pv_lock_ops.vcpu_is_preempted =
+			PV_CALLEE_SAVE(__kvm_vcpu_is_preempted);
+	}
 }
 
 static __init int kvm_spinlock_init_jump(void)
