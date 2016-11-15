@@ -807,11 +807,6 @@ static void fs_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		regs->version = 0;
 }
 
-static int fs_nway_reset(struct net_device *dev)
-{
-	return 0;
-}
-
 static u32 fs_get_msglevel(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
@@ -865,7 +860,7 @@ static int fs_set_tunable(struct net_device *dev,
 static const struct ethtool_ops fs_ethtool_ops = {
 	.get_drvinfo = fs_get_drvinfo,
 	.get_regs_len = fs_get_regs_len,
-	.nway_reset = fs_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = fs_get_msglevel,
 	.set_msglevel = fs_set_msglevel,

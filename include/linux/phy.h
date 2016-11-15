@@ -860,6 +860,7 @@ int phy_ethtool_get_link_ksettings(struct net_device *ndev,
 				   struct ethtool_link_ksettings *cmd);
 int phy_ethtool_set_link_ksettings(struct net_device *ndev,
 				   const struct ethtool_link_ksettings *cmd);
+int phy_ethtool_nway_reset(struct net_device *ndev);
 
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);

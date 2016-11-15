@@ -967,13 +967,8 @@ static const struct attribute_group temac_attr_group = {
 };
 
 /* ethtool support */
-static int temac_nway_reset(struct net_device *ndev)
-{
-	return phy_start_aneg(ndev->phydev);
-}
-
 static const struct ethtool_ops temac_ethtool_ops = {
-	.nway_reset = temac_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = ethtool_op_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,

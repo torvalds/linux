@@ -1639,14 +1639,6 @@ static void mv643xx_eth_get_drvinfo(struct net_device *dev,
 	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 }
 
-static int mv643xx_eth_nway_reset(struct net_device *dev)
-{
-	if (!dev->phydev)
-		return -EINVAL;
-
-	return genphy_restart_aneg(dev->phydev);
-}
-
 static int
 mv643xx_eth_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
@@ -1770,7 +1762,7 @@ static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 
 static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
-	.nway_reset		= mv643xx_eth_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= mv643xx_eth_get_coalesce,
 	.set_coalesce		= mv643xx_eth_set_coalesce,

@@ -1001,11 +1001,6 @@ static void ixp4xx_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, "internal", sizeof(info->bus_info));
 }
 
-static int ixp4xx_nway_reset(struct net_device *dev)
-{
-	return phy_start_aneg(dev->phydev);
-}
-
 int ixp46x_phc_index = -1;
 EXPORT_SYMBOL_GPL(ixp46x_phc_index);
 
@@ -1037,7 +1032,7 @@ static int ixp4xx_get_ts_info(struct net_device *dev,
 
 static const struct ethtool_ops ixp4xx_ethtool_ops = {
 	.get_drvinfo = ixp4xx_get_drvinfo,
-	.nway_reset = ixp4xx_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link = ethtool_op_get_link,
 	.get_ts_info = ixp4xx_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
