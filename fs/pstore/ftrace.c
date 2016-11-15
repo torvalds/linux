@@ -75,10 +75,13 @@ static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 	if (!on ^ pstore_ftrace_enabled)
 		goto out;
 
-	if (on)
+	if (on) {
+		ftrace_ops_set_global_filter(&pstore_ftrace_ops);
 		ret = register_ftrace_function(&pstore_ftrace_ops);
-	else
+	} else {
 		ret = unregister_ftrace_function(&pstore_ftrace_ops);
+	}
+
 	if (ret) {
 		pr_err("%s: unable to %sregister ftrace ops: %zd\n",
 		       __func__, on ? "" : "un", ret);
