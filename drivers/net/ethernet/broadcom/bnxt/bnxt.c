@@ -6309,6 +6309,7 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 			 struct tc_to_netdev *ntc)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	bool sh = false;
 	u8 tc;
 
 	if (ntc->type != TC_SETUP_MQPRIO)
@@ -6325,12 +6326,11 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (netdev_get_num_tc(dev) == tc)
 		return 0;
 
+	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+		sh = true;
+
 	if (tc) {
 		int max_rx_rings, max_tx_rings, rc;
-		bool sh = false;
-
-		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
-			sh = true;
 
 		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 		if (rc || bp->tx_nr_rings_per_tc * tc > max_tx_rings)
@@ -6348,7 +6348,8 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 		netdev_reset_tc(dev);
 	}
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
+			       bp->tx_nr_rings + bp->rx_nr_rings;
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
 	if (netif_running(bp->dev))

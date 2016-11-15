@@ -175,16 +175,23 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 	for (i = 0, k = 0; i < QEDE_QUEUE_CNT(edev); i++) {
 		int tc;
 
-		for (j = 0; j < QEDE_NUM_RQSTATS; j++)
-			sprintf(buf + (k + j) * ETH_GSTRING_LEN,
-				"%d:   %s", i, qede_rqstats_arr[j].string);
-		k += QEDE_NUM_RQSTATS;
-		for (tc = 0; tc < edev->num_tc; tc++) {
-			for (j = 0; j < QEDE_NUM_TQSTATS; j++)
+		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
+			for (j = 0; j < QEDE_NUM_RQSTATS; j++)
 				sprintf(buf + (k + j) * ETH_GSTRING_LEN,
-					"%d.%d: %s", i, tc,
-					qede_tqstats_arr[j].string);
-			k += QEDE_NUM_TQSTATS;
+					"%d:   %s", i,
+					qede_rqstats_arr[j].string);
+			k += QEDE_NUM_RQSTATS;
+		}
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			for (tc = 0; tc < edev->num_tc; tc++) {
+				for (j = 0; j < QEDE_NUM_TQSTATS; j++)
+					sprintf(buf + (k + j) *
+						ETH_GSTRING_LEN,
+						"%d.%d: %s", i, tc,
+						qede_tqstats_arr[j].string);
+				k += QEDE_NUM_TQSTATS;
+			}
 		}
 	}
 

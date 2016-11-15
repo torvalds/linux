@@ -708,8 +708,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 			if (!qmgr_stat_below_low_watermark(rxq) &&
 			    napi_reschedule(napi)) { /* not empty again */
 #if DEBUG_RX
-				printk(KERN_DEBUG "%s: eth_poll"
-				       " napi_reschedule successed\n",
+				printk(KERN_DEBUG "%s: eth_poll napi_reschedule succeeded\n",
 				       dev->name);
 #endif
 				qmgr_disable_irq(rxq);
