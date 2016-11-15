@@ -709,6 +709,13 @@ unsigned long native_calibrate_tsc(void)
 	 */
 	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
 
+	/*
+	 * For Atom SoCs TSC is the only reliable clocksource.
+	 * Mark TSC reliable so no watchdog on it.
+	 */
+	if (boot_cpu_data.x86_model == INTEL_FAM6_ATOM_GOLDMONT)
+		setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
+
 	return crystal_khz * ebx_numerator / eax_denominator;
 }
 
