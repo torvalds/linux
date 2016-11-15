@@ -876,6 +876,37 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	return 0;
 }
 
+/**
+ * Check if the WPR region has been indeed set by the ACR firmware, and
+ * matches where it should be.
+ */
+static bool
+acr_r352_wpr_is_set(const struct acr_r352 *acr, const struct nvkm_secboot *sb)
+{
+	const struct nvkm_subdev *subdev = &sb->subdev;
+	const struct nvkm_device *device = subdev->device;
+	u64 wpr_lo, wpr_hi;
+	u64 wpr_range_lo, wpr_range_hi;
+
+	nvkm_wr32(device, 0x100cd4, 0x2);
+	wpr_lo = (nvkm_rd32(device, 0x100cd4) & ~0xff);
+	wpr_lo <<= 8;
+	nvkm_wr32(device, 0x100cd4, 0x3);
+	wpr_hi = (nvkm_rd32(device, 0x100cd4) & ~0xff);
+	wpr_hi <<= 8;
+
+	if (sb->wpr_size != 0) {
+		wpr_range_lo = sb->wpr_addr;
+		wpr_range_hi = wpr_range_lo + sb->wpr_size;
+	} else {
+		wpr_range_lo = acr->ls_blob->addr;
+		wpr_range_hi = wpr_range_lo + acr->ls_blob->size;
+	}
+
+	return (wpr_lo >= wpr_range_lo && wpr_lo < wpr_range_hi &&
+		wpr_hi > wpr_range_lo && wpr_hi <= wpr_range_hi);
+}
+
 static int
 acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
@@ -896,11 +927,17 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	ret = sb->func->run_blob(sb, acr->load_blob);
 	/* clear halt interrupt */
 	nvkm_falcon_clear_interrupt(sb->boot_falcon, 0x10);
+	sb->wpr_set = acr_r352_wpr_is_set(acr, sb);
 	if (ret)
 		return ret;
 	nvkm_debug(subdev, "HS load blob completed\n");
-
-	sb->wpr_set = true;
+	if (ret)
+		return ret;
+	/* WPR must be set at this point */
+	if (!sb->wpr_set) {
+		nvkm_error(subdev, "ACR blob completed but WPR not set!\n");
+		return -EINVAL;
+	}
 
 	/* Run LS firmwares post_run hooks */
 	for_each_set_bit(falcon_id, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
