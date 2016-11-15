@@ -125,6 +125,18 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
+int nf_ct_netns_get(struct net *net, u8 nfproto)
+{
+	return nf_ct_l3proto_try_module_get(nfproto);
+}
+EXPORT_SYMBOL_GPL(nf_ct_netns_get);
+
+void nf_ct_netns_put(struct net *net, u8 nfproto)
+{
+	nf_ct_l3proto_module_put(nfproto);
+}
+EXPORT_SYMBOL_GPL(nf_ct_netns_put);
+
 struct nf_conntrack_l4proto *
 nf_ct_l4proto_find_get(u_int16_t l3num, u_int8_t l4num)
 {
