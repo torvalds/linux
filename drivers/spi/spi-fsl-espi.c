@@ -783,11 +783,7 @@ static int of_fsl_espi_suspend(struct device *dev)
 		return ret;
 	}
 
-	ret = pm_runtime_force_suspend(dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return pm_runtime_force_suspend(dev);
 }
 
 static int of_fsl_espi_resume(struct device *dev)
