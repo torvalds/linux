@@ -3867,23 +3867,35 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 		DOEPINT(hs_ep->index);
 
 	dev_dbg(hsotg->dev, "%s: stopping transfer on %s\n", __func__,
-			hs_ep->name);
+		hs_ep->name);
+
 	if (hs_ep->dir_in) {
-		__orr32(hsotg->regs + epctrl_reg, DXEPCTL_SNAK);
-		/* Wait for Nak effect */
-		if (dwc2_hsotg_wait_bit_set(hsotg, epint_reg,
-						DXEPINT_INEPNAKEFF, 100))
-			dev_warn(hsotg->dev,
-				"%s: timeout DIEPINT.NAKEFF\n", __func__);
+		if (hsotg->dedicated_fifos || hs_ep->periodic) {
+			__orr32(hsotg->regs + epctrl_reg, DXEPCTL_SNAK);
+			/* Wait for Nak effect */
+			if (dwc2_hsotg_wait_bit_set(hsotg, epint_reg,
+						    DXEPINT_INEPNAKEFF, 100))
+				dev_warn(hsotg->dev,
+					 "%s: timeout DIEPINT.NAKEFF\n",
+					 __func__);
+		} else {
+			__orr32(hsotg->regs + DCTL, DCTL_SGNPINNAK);
+			/* Wait for Nak effect */
+			if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
+						    GINTSTS_GINNAKEFF, 100))
+				dev_warn(hsotg->dev,
+					 "%s: timeout GINTSTS.GINNAKEFF\n",
+					 __func__);
+		}
 	} else {
 		if (!(dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_GOUTNAKEFF))
 			__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 
 		/* Wait for global nak to take effect */
 		if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
-						GINTSTS_GOUTNAKEFF, 100))
-			dev_warn(hsotg->dev,
-				"%s: timeout GINTSTS.GOUTNAKEFF\n", __func__);
+					    GINTSTS_GOUTNAKEFF, 100))
+			dev_warn(hsotg->dev, "%s: timeout GINTSTS.GOUTNAKEFF\n",
+				 __func__);
 	}
 
 	/* Disable ep */
@@ -3892,23 +3904,29 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 	/* Wait for ep to be disabled */
 	if (dwc2_hsotg_wait_bit_set(hsotg, epint_reg, DXEPINT_EPDISBLD, 100))
 		dev_warn(hsotg->dev,
-			"%s: timeout DOEPCTL.EPDisable\n", __func__);
+			 "%s: timeout DOEPCTL.EPDisable\n", __func__);
+
+	/* Clear EPDISBLD interrupt */
+	__orr32(hsotg->regs + epint_reg, DXEPINT_EPDISBLD);
 
 	if (hs_ep->dir_in) {
-		if (hsotg->dedicated_fifos) {
-			dwc2_writel(GRSTCTL_TXFNUM(hs_ep->fifo_index) |
-				GRSTCTL_TXFFLSH, hsotg->regs + GRSTCTL);
-			/* Wait for fifo flush */
-			if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL,
-							GRSTCTL_TXFFLSH, 100))
-				dev_warn(hsotg->dev,
-					"%s: timeout flushing fifos\n",
-					__func__);
-		}
-		/* TODO: Flush shared tx fifo */
+		unsigned short fifo_index;
+
+		if (hsotg->dedicated_fifos || hs_ep->periodic)
+			fifo_index = hs_ep->fifo_index;
+		else
+			fifo_index = 0;
+
+		/* Flush TX FIFO */
+		dwc2_flush_tx_fifo(hsotg, fifo_index);
+
+		/* Clear Global In NP NAK in Shared FIFO for non periodic ep */
+		if (!hsotg->dedicated_fifos && !hs_ep->periodic)
+			__orr32(hsotg->regs + DCTL, DCTL_CGNPINNAK);
+
 	} else {
 		/* Remove global NAKs */
-		__bic32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
+		__orr32(hsotg->regs + DCTL, DCTL_CGOUTNAK);
 	}
 }
 
