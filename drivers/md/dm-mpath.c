@@ -580,16 +580,17 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 		 * .request_fn stacked on blk-mq path(s) and
 		 * blk-mq stacked on blk-mq path(s).
 		 */
-		*__clone = blk_mq_alloc_request(bdev_get_queue(bdev),
-						rq_data_dir(rq), BLK_MQ_REQ_NOWAIT);
-		if (IS_ERR(*__clone)) {
-			/* ENOMEM, requeue */
+		clone = blk_mq_alloc_request(bdev_get_queue(bdev),
+					     rq_data_dir(rq), BLK_MQ_REQ_NOWAIT);
+		if (IS_ERR(clone)) {
+			/* EBUSY, ENODEV or EWOULDBLOCK: requeue */
 			clear_request_fn_mpio(m, map_context);
 			return r;
 		}
-		(*__clone)->bio = (*__clone)->biotail = NULL;
-		(*__clone)->rq_disk = bdev->bd_disk;
-		(*__clone)->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+		clone->bio = clone->biotail = NULL;
+		clone->rq_disk = bdev->bd_disk;
+		clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+		*__clone = clone;
 	}
 
 	if (pgpath->pg->ps.type->start_io)
