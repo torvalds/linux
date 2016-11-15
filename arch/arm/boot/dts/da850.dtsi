@@ -209,6 +209,10 @@
 			};
 
 		};
+		prictrl: priority-controller@14110 {
+			compatible = "ti,da850-mstpri";
+			reg = <0x14110 0x0c>;
+		};
 		cfgchip: chip-controller@1417c {
 			compatible = "ti,da830-cfgchip", "syscon", "simple-mfd";
 			reg = <0x1417c 0x14>;
@@ -449,5 +453,9 @@
 		ranges = <0 0 0x60000000 0x08000000
 			  1 0 0x68000000 0x00008000>;
 		status = "disabled";
+	};
+	memctrl: memory-controller@b0000000 {
+		compatible = "ti,da850-ddr-controller";
+		reg = <0xb0000000 0xe8>;
 	};
 };
