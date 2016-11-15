@@ -121,15 +121,12 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
  */
 static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
 {
-	u32 dma_fb_base, dma_fb_ceiling, raster_ctl;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	int ret;
 
-	dma_fb_base = tilcdc_read(dev, LCDC_DMA_FB_BASE_ADDR_0_REG);
-	dma_fb_ceiling = tilcdc_read(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG);
-	raster_ctl = tilcdc_read(dev, LCDC_RASTER_CTRL_REG);
+	reinit_completion(&tilcdc_crtc->palette_loaded);
 
 	/* Tell the LCDC where the palette is located. */
 	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG,
@@ -164,11 +161,6 @@ static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
 		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
 	else
 		tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG, LCDC_V2_PL_INT_ENA);
-
-	/* Restore the registers. */
-	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG, dma_fb_base);
-	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG, dma_fb_ceiling);
-	tilcdc_write(dev, LCDC_RASTER_CTRL_REG, raster_ctl);
 }
 
 static void tilcdc_crtc_enable_irqs(struct drm_device *dev)
@@ -239,9 +231,6 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 
 	reset(crtc);
 
-	if (!completion_done(&tilcdc_crtc->palette_loaded))
-		tilcdc_crtc_load_palette(crtc);
-
 	tilcdc_crtc_enable_irqs(dev);
 
 	tilcdc_clear(dev, LCDC_DMA_CTRL_REG, LCDC_DUAL_FRAME_BUFFER_ENABLE);
@@ -284,12 +273,6 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 			dev_err(dev->dev, "%s: timeout waiting for framedone\n",
 				__func__);
 	}
-
-	/*
-	 * LCDC will not retain the palette when reset. Make sure it gets
-	 * reloaded on tilcdc_crtc_enable().
-	 */
-	reinit_completion(&tilcdc_crtc->palette_loaded);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -678,9 +661,11 @@ static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	drm_framebuffer_reference(fb);
 
-	set_scanout(crtc, fb);
-
 	tilcdc_crtc_set_clk(crtc);
+
+	tilcdc_crtc_load_palette(crtc);
+
+	set_scanout(crtc, fb);
 
 	crtc->hwmode = crtc->state->adjusted_mode;
 }
