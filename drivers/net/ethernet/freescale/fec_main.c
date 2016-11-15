@@ -2344,16 +2344,6 @@ static int fec_enet_get_sset_count(struct net_device *dev, int sset)
 }
 #endif /* !defined(CONFIG_M5272) */
 
-static int fec_enet_nway_reset(struct net_device *dev)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return genphy_restart_aneg(phydev);
-}
-
 /* ITR clock source is enet system clock (clk_ahb).
  * TCTT unit is cycle_ns * 64 cycle
  * So, the ICTT value = X us / (cycle_ns * 64)
@@ -2553,7 +2543,7 @@ static const struct ethtool_ops fec_enet_ethtool_ops = {
 	.get_drvinfo		= fec_enet_get_drvinfo,
 	.get_regs_len		= fec_enet_get_regs_len,
 	.get_regs		= fec_enet_get_regs,
-	.nway_reset		= fec_enet_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= fec_enet_get_coalesce,
 	.set_coalesce		= fec_enet_set_coalesce,
