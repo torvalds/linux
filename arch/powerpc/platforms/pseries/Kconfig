@@ -127,3 +127,8 @@ config HV_PERF_CTRS
 	  systems. 24x7 is available on Power 8 systems.
 
           If unsure, select Y.
+
+config IBMVIO
+	depends on PPC_PSERIES
+	bool
+	default y
