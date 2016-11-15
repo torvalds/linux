@@ -46,8 +46,6 @@ extern cputime_t cputime_one_jiffy;
  * Convert cputime <-> jiffies
  */
 extern u64 __cputime_jiffies_factor;
-DECLARE_PER_CPU(unsigned long, cputime_last_delta);
-DECLARE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 static inline unsigned long cputime_to_jiffies(const cputime_t ct)
 {
@@ -58,11 +56,6 @@ static inline unsigned long cputime_to_jiffies(const cputime_t ct)
  * the last scaled to real ratio */
 static inline cputime_t cputime_to_scaled(const cputime_t ct)
 {
-	if (cpu_has_feature(CPU_FTR_SPURR) &&
-	    __this_cpu_read(cputime_last_delta))
-		return (__force u64) ct *
-			__this_cpu_read(cputime_scaled_last_delta) /
-			__this_cpu_read(cputime_last_delta);
 	return ct;
 }
 
