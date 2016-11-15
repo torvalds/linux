@@ -382,3 +382,38 @@ void kvm_local_flush_tlb_all(void)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(kvm_local_flush_tlb_all);
+
+/**
+ * kvm_mips_suspend_mm() - Suspend the active mm.
+ * @cpu		The CPU we're running on.
+ *
+ * Suspend the active_mm, ready for a switch to a KVM guest virtual address
+ * space. This is left active for the duration of guest context, including time
+ * with interrupts enabled, so we need to be careful not to confuse e.g. cache
+ * management IPIs.
+ *
+ * kvm_mips_resume_mm() should be called before context switching to a different
+ * process so we don't need to worry about reference counting.
+ *
+ * This needs to be in static kernel code to avoid exporting init_mm.
+ */
+void kvm_mips_suspend_mm(int cpu)
+{
+	cpumask_clear_cpu(cpu, mm_cpumask(current->active_mm));
+	current->active_mm = &init_mm;
+}
+EXPORT_SYMBOL_GPL(kvm_mips_suspend_mm);
+
+/**
+ * kvm_mips_resume_mm() - Resume the current process mm.
+ * @cpu		The CPU we're running on.
+ *
+ * Resume the mm of the current process, after a switch back from a KVM guest
+ * virtual address space (see kvm_mips_suspend_mm()).
+ */
+void kvm_mips_resume_mm(int cpu)
+{
+	cpumask_set_cpu(cpu, mm_cpumask(current->mm));
+	current->active_mm = current->mm;
+}
+EXPORT_SYMBOL_GPL(kvm_mips_resume_mm);
