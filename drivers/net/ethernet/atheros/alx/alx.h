@@ -113,7 +113,6 @@ struct alx_priv {
 	/* msi-x vectors */
 	int num_vec;
 	struct msix_entry *msix_entries;
-	char irq_lbl[IFNAMSIZ + 8];
 
 	/* all descriptor memory */
 	struct {
@@ -134,10 +133,6 @@ struct alx_priv {
 	unsigned int tx_ringsz;
 	unsigned int rx_ringsz;
 	unsigned int rxbuf_size;
-
-	struct napi_struct napi;
-	struct alx_tx_queue txq;
-	struct alx_rx_queue rxq;
 
 	struct work_struct link_check_wk;
 	struct work_struct reset_wk;
