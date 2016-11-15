@@ -1123,9 +1123,6 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	bool dma_capable = !(hw->arch == GHWCFG2_SLAVE_ONLY_ARCH);
 
 	dwc2_set_param_otg_cap(hsotg, params->otg_cap);
-	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
-	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
-
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
 		dev_dbg(hsotg->dev, "Setting HOST parameters\n");
@@ -1135,6 +1132,8 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 				    true, false,
 				    dma_capable);
 	}
+	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
+	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
 
 	dwc2_set_param_host_support_fs_ls_low_power(hsotg,
 			params->host_support_fs_ls_low_power);
