@@ -2156,7 +2156,7 @@ static void quirk_blacklist_vpd(struct pci_dev *dev)
 {
 	if (dev->vpd) {
 		dev->vpd->len = 0;
-		dev_warn(&dev->dev, FW_BUG "VPD access disabled\n");
+		dev_warn(&dev->dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
 	}
 }
 
