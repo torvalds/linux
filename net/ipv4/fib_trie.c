@@ -1743,8 +1743,10 @@ struct fib_table *fib_trie_unmerge(struct fib_table *oldtb)
 				local_l = fib_find_node(lt, &local_tp, l->key);
 
 			if (fib_insert_alias(lt, local_tp, local_l, new_fa,
-					     NULL, l->key))
+					     NULL, l->key)) {
+				kmem_cache_free(fn_alias_kmem, new_fa);
 				goto out;
+			}
 		}
 
 		/* stop loop if key wrapped back to 0 */
