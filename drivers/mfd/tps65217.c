@@ -105,6 +105,7 @@ static void tps65217_irq_disable(struct irq_data *data)
 }
 
 static struct irq_chip tps65217_irq_chip = {
+	.name			= "tps65217",
 	.irq_bus_lock		= tps65217_irq_lock,
 	.irq_bus_sync_unlock	= tps65217_irq_sync_unlock,
 	.irq_enable		= tps65217_irq_enable,
