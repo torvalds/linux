@@ -95,12 +95,32 @@ static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
 		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB8888;
 		break;
 
+	case DRM_FORMAT_ARGB4444:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB4444;
+		break;
+
+	case DRM_FORMAT_ARGB1555:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB1555;
+		break;
+
+	case DRM_FORMAT_RGBA5551:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGBA5551;
+		break;
+
+	case DRM_FORMAT_RGBA4444:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGBA4444;
+		break;
+
 	case DRM_FORMAT_XRGB8888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_XRGB8888;
 		break;
 
 	case DRM_FORMAT_RGB888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_RGB888;
+		break;
+
+	case DRM_FORMAT_RGB565:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGB565;
 		break;
 
 	default:
@@ -408,6 +428,7 @@ static int sun4i_backend_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_backend_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-backend" },
+	{ .compatible = "allwinner,sun6i-a31-display-backend" },
 	{ .compatible = "allwinner,sun8i-a33-display-backend" },
 	{ }
 };
