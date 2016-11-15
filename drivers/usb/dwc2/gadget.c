@@ -2838,6 +2838,16 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 	if (idx == 0 && (ints & (DXEPINT_SETUP | DXEPINT_SETUP_RCVD)))
 		ints &= ~DXEPINT_XFERCOMPL;
 
+	/*
+	 * Don't process XferCompl interrupt in DDMA if EP0 is still in SETUP
+	 * stage and xfercomplete was generated without SETUP phase done
+	 * interrupt. SW should parse received setup packet only after host's
+	 * exit from setup phase of control transfer.
+	 */
+	if (using_desc_dma(hsotg) && idx == 0 && !hs_ep->dir_in &&
+	    hsotg->ep0_state == DWC2_EP0_SETUP && !(ints & DXEPINT_SETUP))
+		ints &= ~DXEPINT_XFERCOMPL;
+
 	if (ints & DXEPINT_XFERCOMPL) {
 		dev_dbg(hsotg->dev,
 			"%s: XferCompl: DxEPCTL=0x%08x, DXEPTSIZ=%08x\n",
