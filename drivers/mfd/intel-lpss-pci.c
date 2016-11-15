@@ -41,6 +41,7 @@ static int intel_lpss_pci_probe(struct pci_dev *pdev,
 
 	/* Probably it is enough to set this for iDMA capable devices only */
 	pci_set_master(pdev);
+	pci_try_set_mwi(pdev);
 
 	ret = intel_lpss_probe(&pdev->dev, info);
 	if (ret)
