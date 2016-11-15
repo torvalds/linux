@@ -372,16 +372,13 @@ static int __pg_init_all_paths(struct multipath *m)
 	return atomic_read(&m->pg_init_in_progress);
 }
 
-static int pg_init_all_paths(struct multipath *m)
+static void pg_init_all_paths(struct multipath *m)
 {
-	int r;
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	r = __pg_init_all_paths(m);
+	__pg_init_all_paths(m);
 	spin_unlock_irqrestore(&m->lock, flags);
-
-	return r;
 }
 
 static void __switch_pg(struct multipath *m, struct priority_group *pg)
