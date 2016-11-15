@@ -2065,8 +2065,10 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				     dst->sin.sin_addr.s_addr,
 				     &src->sin.sin_addr.s_addr,
 				     dst_cache, info);
-		if (IS_ERR(rt))
+		if (IS_ERR(rt)) {
+			err = PTR_ERR(rt);
 			goto tx_error;
+		}
 
 		/* Bypass encapsulation if the destination is local */
 		if (!info) {
@@ -2100,6 +2102,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 					&src->sin6.sin6_addr,
 					dst_cache, info);
 		if (IS_ERR(ndst)) {
+			err = PTR_ERR(ndst);
 			ndst = NULL;
 			goto tx_error;
 		}
