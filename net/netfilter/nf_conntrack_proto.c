@@ -193,14 +193,6 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_register);
 int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto)
 {
-	int ret;
-
-	if (proto->init_net) {
-		ret = proto->init_net(net);
-		if (ret < 0)
-			return ret;
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_pernet_register);

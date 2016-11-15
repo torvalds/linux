@@ -63,9 +63,6 @@ struct nf_conntrack_l3proto {
 
 	size_t nla_size;
 
-	/* Init l3proto pernet data */
-	int (*init_net)(struct net *net);
-
 	/* Module (if any) which this is connected to. */
 	struct module *me;
 };
