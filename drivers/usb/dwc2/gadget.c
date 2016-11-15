@@ -3356,6 +3356,8 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		hs_ep->isochronous = 1;
 		hs_ep->interval = 1 << (desc->bInterval - 1);
 		hs_ep->target_frame = TARGET_FRAME_INITIAL;
+		hs_ep->isoc_chain_num = 0;
+		hs_ep->next_desc = 0;
 		if (dir_in) {
 			hs_ep->periodic = 1;
 			mask = dwc2_readl(hsotg->regs + DIEPMSK);

@@ -175,6 +175,8 @@ struct dwc2_hsotg_req;
  * @desc_list_dma: The DMA address of descriptor chain currently in use.
  * @desc_list: Pointer to descriptor DMA chain head currently in use.
  * @desc_count: Count of entries within the DMA descriptor chain of EP.
+ * @isoc_chain_num: Number of ISOC chain currently in use - either 0 or 1.
+ * @next_desc: index of next free descriptor in the ISOC chain under SW control.
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
@@ -225,6 +227,9 @@ struct dwc2_hsotg_ep {
 	dma_addr_t		desc_list_dma;
 	struct dwc2_dma_desc	*desc_list;
 	u8			desc_count;
+
+	unsigned char		isoc_chain_num;
+	unsigned int		next_desc;
 
 	char                    name[10];
 };
