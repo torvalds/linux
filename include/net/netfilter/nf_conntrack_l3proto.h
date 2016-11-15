@@ -73,9 +73,18 @@ struct nf_conntrack_l3proto {
 
 extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[AF_MAX];
 
+#ifdef CONFIG_SYSCTL
 /* Protocol pernet registration. */
 int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto);
+#else
+static inline int nf_ct_l3proto_pernet_register(struct net *n,
+						struct nf_conntrack_l3proto *p)
+{
+	return 0;
+}
+#endif
+
 void nf_ct_l3proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l3proto *proto);
 

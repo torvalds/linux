@@ -238,12 +238,19 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_register);
 
+#ifdef CONFIG_SYSCTL
+extern unsigned int nf_conntrack_default_on;
+
 int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto)
 {
-	return 0;
+	if (nf_conntrack_default_on == 0)
+		return 0;
+
+	return proto->net_ns_get ? proto->net_ns_get(net) : 0;
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_pernet_register);
+#endif
 
 void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
@@ -264,6 +271,16 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_unregister);
 void nf_ct_l3proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l3proto *proto)
 {
+	/*
+	 * nf_conntrack_default_on *might* have registered hooks.
+	 * ->net_ns_put must cope with more puts() than get(), i.e.
+	 * if nf_conntrack_default_on was 0 at time of
+	 * nf_ct_l3proto_pernet_register invocation this net_ns_put()
+	 * should be a noop.
+	 */
+	if (proto->net_ns_put)
+		proto->net_ns_put(net);
+
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(net, kill_l3proto, proto, 0, 0);
 }
