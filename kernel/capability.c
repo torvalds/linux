@@ -473,3 +473,23 @@ bool capable_wrt_inode_uidgid(const struct inode *inode, int cap)
 		kgid_has_mapping(ns, inode->i_gid);
 }
 EXPORT_SYMBOL(capable_wrt_inode_uidgid);
+
+/**
+ * ptracer_capable - Determine if the ptracer holds CAP_SYS_PTRACE in the namespace
+ * @tsk: The task that may be ptraced
+ * @ns: The user namespace to search for CAP_SYS_PTRACE in
+ *
+ * Return true if the task that is ptracing the current task had CAP_SYS_PTRACE
+ * in the specified user namespace.
+ */
+bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns)
+{
+	int ret = 0;  /* An absent tracer adds no restrictions */
+	const struct cred *cred;
+	rcu_read_lock();
+	cred = rcu_dereference(tsk->ptracer_cred);
+	if (cred)
+		ret = security_capable_noaudit(cred, ns, CAP_SYS_PTRACE);
+	rcu_read_unlock();
+	return (ret == 0);
+}
