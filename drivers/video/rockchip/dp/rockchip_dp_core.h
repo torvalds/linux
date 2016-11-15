@@ -5,9 +5,6 @@
 #define GRF_SOC_CON9		0x6224
 #define GRF_SOC_CON26		0x6268
 
-#define UPHY_SEL_BIT		3
-#define UPHY_SEL_MASK		BIT(19)
-
 #define DPTX_HPD_SEL		(3 << 12)
 #define DPTX_HPD_DEL		(2 << 12)
 #define DPTX_HPD_SEL_MASK	(3 << 28)

@@ -679,11 +679,6 @@ static int cdn_dp_start_work(struct cdn_dp_device *dp,
 	if (dp->fw_loaded)
 		cdn_dp_set_firmware_active(dp, true);
 
-	ret = cdn_dp_grf_write(dp, GRF_SOC_CON26,
-			       (port->id << UPHY_SEL_BIT) | UPHY_SEL_MASK);
-	if (ret)
-		goto err_phy;
-
 	ret = phy_power_on(port->phy);
 	if (ret) {
 		dev_err(dp->dev, "phy power on failed: %d\n", ret);
