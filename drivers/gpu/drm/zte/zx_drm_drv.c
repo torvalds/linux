@@ -107,8 +107,8 @@ static int zx_drm_bind(struct device *dev)
 		return -ENOMEM;
 
 	drm = drm_dev_alloc(&zx_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drm->dev_private = priv;
 	dev_set_drvdata(dev, drm);
