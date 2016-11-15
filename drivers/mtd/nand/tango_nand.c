@@ -343,7 +343,7 @@ static void aux_write(struct nand_chip *chip, const u8 **buf, int len, int *pos)
  * buf = |      PKT_0      | ... |      PKT_N      |
  *       +-----------------+-----+-----------------+
  */
-static int raw_read(struct nand_chip *chip, u8 *buf, u8 *oob)
+static void raw_read(struct nand_chip *chip, u8 *buf, u8 *oob)
 {
 	u8 *oob_orig = oob;
 	const int page_size = chip->mtd.writesize;
@@ -367,11 +367,9 @@ static int raw_read(struct nand_chip *chip, u8 *buf, u8 *oob)
 	aux_read(chip, &oob_orig, BBM_SIZE, &pos);
 	aux_read(chip, &buf, pkt_size - rem, &pos);
 	aux_read(chip, &oob, ecc_size, &pos);
-
-	return 0;
 }
 
-static int raw_write(struct nand_chip *chip, const u8 *buf, const u8 *oob)
+static void raw_write(struct nand_chip *chip, const u8 *buf, const u8 *oob)
 {
 	const u8 *oob_orig = oob;
 	const int page_size = chip->mtd.writesize;
@@ -395,15 +393,14 @@ static int raw_write(struct nand_chip *chip, const u8 *buf, const u8 *oob)
 	aux_write(chip, &oob_orig, BBM_SIZE, &pos);
 	aux_write(chip, &buf, pkt_size - rem, &pos);
 	aux_write(chip, &oob, ecc_size, &pos);
-
-	return 0;
 }
 
 static int tango_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 			       u8 *buf, int oob_required, int page)
 {
 	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-	return raw_read(chip, buf, chip->oob_poi);
+	raw_read(chip, buf, chip->oob_poi);
+	return 0;
 }
 
 static int tango_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
@@ -419,7 +416,8 @@ static int tango_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			  int page)
 {
 	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-	return raw_read(chip, NULL, chip->oob_poi);
+	raw_read(chip, NULL, chip->oob_poi);
+	return 0;
 }
 
 static int tango_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
