@@ -2001,6 +2001,10 @@ static void dwc2_gadget_complete_isoc_request_ddma(struct dwc2_hsotg_ep *hs_ep)
 	ureq->actual = ureq->length -
 		       ((desc_sts & mask) >> DEV_DMA_ISOC_NBYTES_SHIFT);
 
+	/* Adjust actual length for ISOC Out if length is not align of 4 */
+	if (!hs_ep->dir_in && ureq->length & 0x3)
+		ureq->actual += 4 - (ureq->length & 0x3);
+
 	dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
 }
 
