@@ -243,8 +243,6 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 {
-	struct amdgpu_mode_mc_save save;
-	u32 tmp;
 	int i, j;
 
 	/* Initialize HDP */
@@ -256,11 +254,6 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 		WREG32((0xb09 + j), 0x00000000);
 	}
 	WREG32(mmHDP_REG_COHERENCY_FLUSH_CNTL, 0);
-
-	if (adev->mode_info.num_crtc)
-		amdgpu_display_set_vga_render_state(adev, false);
-
-	gmc_v6_0_mc_stop(adev, &save);
 
 	if (gmc_v6_0_wait_for_idle((void *)adev)) {
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
@@ -274,13 +267,6 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	       adev->mc.vram_end >> 12);
 	WREG32(mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR,
 	       adev->vram_scratch.gpu_addr >> 12);
-	tmp = ((adev->mc.vram_end >> 24) & 0xFFFF) << 16;
-	tmp |= ((adev->mc.vram_start >> 24) & 0xFFFF);
-	WREG32(mmMC_VM_FB_LOCATION, tmp);
-	/* XXX double check these! */
-	WREG32(mmHDP_NONSURFACE_BASE, (adev->mc.vram_start >> 8));
-	WREG32(mmHDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
-	WREG32(mmHDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	WREG32(mmMC_VM_AGP_BASE, 0);
 	WREG32(mmMC_VM_AGP_TOP, 0x0FFFFFFF);
 	WREG32(mmMC_VM_AGP_BOT, 0x0FFFFFFF);
@@ -288,7 +274,6 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 	if (gmc_v6_0_wait_for_idle((void *)adev)) {
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 	}
-	gmc_v6_0_mc_resume(adev, &save);
 }
 
 static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
