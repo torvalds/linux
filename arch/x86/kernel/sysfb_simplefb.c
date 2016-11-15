@@ -66,8 +66,8 @@ __init int create_simplefb(const struct screen_info *si,
 {
 	struct platform_device *pd;
 	struct resource res;
-	unsigned long len;
-	u64 base;
+	u64 base, size;
+	u32 length;
 
 	/*
 	 * If the 64BIT_BASE capability is set, ext_lfb_base will contain the
@@ -82,11 +82,20 @@ __init int create_simplefb(const struct screen_info *si,
 		return -EINVAL;
 	}
 
-	/* don't use lfb_size as it may contain the whole VMEM instead of only
-	 * the part that is occupied by the framebuffer */
-	len = mode->height * mode->stride;
-	len = PAGE_ALIGN(len);
-	if (len > (u64)si->lfb_size << 16) {
+	/*
+	 * Don't use lfb_size as IORESOURCE size, since it may contain the
+	 * entire VMEM, and thus require huge mappings. Use just the part we
+	 * need, that is, the part where the framebuffer is located. But verify
+	 * that it does not exceed the advertised VMEM.
+	 * Note that in case of VBE, the lfb_size is shifted by 16 bits for
+	 * historical reasons.
+	 */
+	size = si->lfb_size;
+	if (si->orig_video_isVGA == VIDEO_TYPE_VLFB)
+		size <<= 16;
+	length = mode->height * mode->stride;
+	length = PAGE_ALIGN(length);
+	if (length > size) {
 		printk(KERN_WARNING "sysfb: VRAM smaller than advertised\n");
 		return -EINVAL;
 	}
@@ -96,7 +105,7 @@ __init int create_simplefb(const struct screen_info *si,
 	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	res.name = simplefb_resname;
 	res.start = base;
-	res.end = res.start + len - 1;
+	res.end = res.start + length - 1;
 	if (res.end <= res.start)
 		return -EINVAL;
 
