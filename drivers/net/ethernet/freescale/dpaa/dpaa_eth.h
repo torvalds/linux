@@ -141,4 +141,7 @@ struct dpaa_priv {
 	struct dpaa_buffer_layout buf_layout[2];
 	u16 rx_headroom;
 };
+
+/* from dpaa_ethtool.c */
+extern const struct ethtool_ops dpaa_ethtool_ops;
 #endif	/* __DPAA_H */
