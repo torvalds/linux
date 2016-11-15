@@ -901,7 +901,8 @@ static size_t rtnl_port_size(const struct net_device *dev,
 
 static size_t rtnl_xdp_size(const struct net_device *dev)
 {
-	size_t xdp_size = nla_total_size(1);	/* XDP_ATTACHED */
+	size_t xdp_size = nla_total_size(0) +	/* nest IFLA_XDP */
+			  nla_total_size(1);	/* XDP_ATTACHED */
 
 	if (!dev->netdev_ops->ndo_xdp)
 		return 0;
