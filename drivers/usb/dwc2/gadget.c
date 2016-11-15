@@ -3153,6 +3153,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	u32 intmsk;
 	u32 val;
 	u32 usbcfg;
+	u32 dcfg = 0;
 
 	/* Kill any ep0 requests as controller will be reinitialized */
 	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
@@ -3171,10 +3172,16 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	usbcfg &= ~(GUSBCFG_TOUTCAL_MASK | GUSBCFG_PHYIF16 | GUSBCFG_SRPCAP |
 		GUSBCFG_HNPCAP);
 
-	/* set the PLL on, remove the HNP/SRP and set the PHY */
-	val = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
-	usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-		(val << GUSBCFG_USBTRDTIM_SHIFT);
+	if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS &&
+	    hsotg->params.speed == DWC2_SPEED_PARAM_FULL) {
+		/* FS/LS Dedicated Transceiver Interface */
+		usbcfg |= GUSBCFG_PHYSEL;
+	} else {
+		/* set the PLL on, remove the HNP/SRP and set the PHY */
+		val = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
+		usbcfg |= hsotg->phyif | GUSBCFG_TOUTCAL(7) |
+			(val << GUSBCFG_USBTRDTIM_SHIFT);
+	}
 	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	dwc2_hsotg_init_fifo(hsotg);
@@ -3182,7 +3189,16 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	if (!is_usb_reset)
 		__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
 
-	dwc2_writel(DCFG_EPMISCNT(1) | DCFG_DEVSPD_HS,  hsotg->regs + DCFG);
+	dcfg |= DCFG_EPMISCNT(1);
+	if (hsotg->params.speed == DWC2_SPEED_PARAM_FULL) {
+		if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS)
+			dcfg |= DCFG_DEVSPD_FS48;
+		else
+			dcfg |= DCFG_DEVSPD_FS;
+	} else {
+		dcfg |= DCFG_DEVSPD_HS;
+	}
+	dwc2_writel(dcfg,  hsotg->regs + DCFG);
 
 	/* Clear any pending OTG interrupts */
 	dwc2_writel(0xffffffff, hsotg->regs + GOTGINT);
