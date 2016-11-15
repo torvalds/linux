@@ -98,7 +98,7 @@ void MichaelAppend(struct michel_mic_t *Mic, uint8_t *src, int nBytes)
 static
 void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t *dst)
 {
-	uint8_t *data = Mic->M;
+	u8 *data = Mic->M;
 
 	switch (Mic->nBytesInM) {
 	case 0:
@@ -125,11 +125,11 @@ void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t *dst)
 	MichaelClear(Mic);
 }
 
-void MichaelMICFunction(struct michel_mic_t *Mic, uint8_t *Key,
-			uint8_t *Data, int Len, uint8_t priority,
-			uint8_t *Result)
+void MichaelMICFunction(struct michel_mic_t *Mic, u8 *Key,
+			u8 *Data, int Len, u8 priority,
+			u8 *Result)
 {
-	uint8_t pad_data[4] = { priority, 0, 0, 0 };
+	u8 pad_data[4] = { priority, 0, 0, 0 };
 	// Compute the MIC value
 	/*
 	 * IEEE802.11i  page 47
