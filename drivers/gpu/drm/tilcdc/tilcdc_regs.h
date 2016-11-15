@@ -61,6 +61,7 @@
 #define LCDC_V2_UNDERFLOW_INT_ENA                BIT(5)
 #define LCDC_V1_PL_INT_ENA                       BIT(4)
 #define LCDC_V2_PL_INT_ENA                       BIT(6)
+#define LCDC_V1_SYNC_LOST_INT_ENA                BIT(5)
 #define LCDC_MONOCHROME_MODE                     BIT(1)
 #define LCDC_RASTER_ENABLE                       BIT(0)
 #define LCDC_TFT_ALT_ENABLE                      BIT(23)

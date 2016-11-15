@@ -113,6 +113,7 @@ static void tilcdc_crtc_enable_irqs(struct drm_device *dev)
 
 	if (priv->rev == 1) {
 		tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
+			LCDC_V1_SYNC_LOST_INT_ENA |
 			LCDC_V1_UNDERFLOW_INT_ENA);
 		tilcdc_set(dev, LCDC_DMA_CTRL_REG,
 			LCDC_V1_END_OF_FRAME_INT_ENA);
@@ -131,6 +132,7 @@ static void tilcdc_crtc_disable_irqs(struct drm_device *dev)
 	/* disable irqs that we might have enabled: */
 	if (priv->rev == 1) {
 		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
+			LCDC_V1_SYNC_LOST_INT_ENA |
 			LCDC_V1_UNDERFLOW_INT_ENA | LCDC_V1_PL_INT_ENA);
 		tilcdc_clear(dev, LCDC_DMA_CTRL_REG,
 			LCDC_V1_END_OF_FRAME_INT_ENA);
@@ -845,26 +847,29 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underflow",
 				    __func__, stat);
 
+	if (stat & LCDC_SYNC_LOST) {
+		dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
+				    __func__, stat);
+		tilcdc_crtc->frame_intact = false;
+		if (tilcdc_crtc->sync_lost_count++ >
+		    SYNC_LOST_COUNT_LIMIT) {
+			dev_err(dev->dev, "%s(0x%08x): Sync lost flood detected, recovering", __func__, stat);
+			queue_work(system_wq, &tilcdc_crtc->recover_work);
+			if (priv->rev == 1)
+				tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
+					     LCDC_V1_SYNC_LOST_INT_ENA);
+			else
+				tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
+					     LCDC_SYNC_LOST);
+			tilcdc_crtc->sync_lost_count = 0;
+		}
+	}
+
 	/* For revision 2 only */
 	if (priv->rev == 2) {
 		if (stat & LCDC_FRAME_DONE) {
 			tilcdc_crtc->frame_done = true;
 			wake_up(&tilcdc_crtc->frame_done_wq);
-		}
-
-		if (stat & LCDC_SYNC_LOST) {
-			dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
-					    __func__, stat);
-			tilcdc_crtc->frame_intact = false;
-			if (tilcdc_crtc->sync_lost_count++ >
-			    SYNC_LOST_COUNT_LIMIT) {
-				dev_err(dev->dev, "%s(0x%08x): Sync lost flood detected, recovering", __func__, stat);
-				queue_work(system_wq,
-					   &tilcdc_crtc->recover_work);
-				tilcdc_write(dev, LCDC_INT_ENABLE_CLR_REG,
-					     LCDC_SYNC_LOST);
-				tilcdc_crtc->sync_lost_count = 0;
-			}
 		}
 
 		/* Indicate to LCDC that the interrupt service routine has
