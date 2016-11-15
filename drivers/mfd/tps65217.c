@@ -42,26 +42,6 @@ static struct resource pb_resources[] = {
 	DEFINE_RES_IRQ_NAMED(TPS65217_IRQ_PB, "PB"),
 };
 
-struct tps65217_irq {
-	int mask;
-	int interrupt;
-};
-
-static const struct tps65217_irq tps65217_irqs[] = {
-	[TPS65217_IRQ_PB] = {
-		.mask = TPS65217_INT_PBM,
-		.interrupt = TPS65217_INT_PBI,
-	},
-	[TPS65217_IRQ_AC] = {
-		.mask = TPS65217_INT_ACM,
-		.interrupt = TPS65217_INT_ACI,
-	},
-	[TPS65217_IRQ_USB] = {
-		.mask = TPS65217_INT_USBM,
-		.interrupt = TPS65217_INT_USBI,
-	},
-};
-
 static void tps65217_irq_lock(struct irq_data *data)
 {
 	struct tps65217 *tps = irq_data_get_irq_chip_data(data);
@@ -74,34 +54,28 @@ static void tps65217_irq_sync_unlock(struct irq_data *data)
 	struct tps65217 *tps = irq_data_get_irq_chip_data(data);
 	int ret;
 
-	ret = tps65217_reg_write(tps, TPS65217_REG_INT, tps->irq_mask,
-				TPS65217_PROTECT_NONE);
+	ret = tps65217_set_bits(tps, TPS65217_REG_INT, TPS65217_INT_MASK,
+				tps->irq_mask, TPS65217_PROTECT_NONE);
 	if (ret != 0)
 		dev_err(tps->dev, "Failed to sync IRQ masks\n");
 
 	mutex_unlock(&tps->irq_lock);
 }
 
-static inline const struct tps65217_irq *
-irq_to_tps65217_irq(struct tps65217 *tps, struct irq_data *data)
-{
-	return &tps65217_irqs[data->hwirq];
-}
-
 static void tps65217_irq_enable(struct irq_data *data)
 {
 	struct tps65217 *tps = irq_data_get_irq_chip_data(data);
-	const struct tps65217_irq *irq_data = irq_to_tps65217_irq(tps, data);
+	u8 mask = BIT(data->hwirq) << TPS65217_INT_SHIFT;
 
-	tps->irq_mask &= ~irq_data->mask;
+	tps->irq_mask &= ~mask;
 }
 
 static void tps65217_irq_disable(struct irq_data *data)
 {
 	struct tps65217 *tps = irq_data_get_irq_chip_data(data);
-	const struct tps65217_irq *irq_data = irq_to_tps65217_irq(tps, data);
+	u8 mask = BIT(data->hwirq) << TPS65217_INT_SHIFT;
 
-	tps->irq_mask |= irq_data->mask;
+	tps->irq_mask |= mask;
 }
 
 static struct irq_chip tps65217_irq_chip = {
@@ -150,8 +124,8 @@ static irqreturn_t tps65217_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(tps65217_irqs); i++) {
-		if (status & tps65217_irqs[i].interrupt) {
+	for (i = 0; i < TPS65217_NUM_IRQ; i++) {
+		if (status & BIT(i)) {
 			handle_nested_irq(irq_find_mapping(tps->irq_domain, i));
 			handled = true;
 		}
@@ -430,7 +404,7 @@ static int tps65217_remove(struct i2c_client *client)
 	unsigned int virq;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(tps65217_irqs); i++) {
+	for (i = 0; i < TPS65217_NUM_IRQ; i++) {
 		virq = irq_find_mapping(tps->irq_domain, i);
 		if (virq)
 			irq_dispose_mapping(virq);
