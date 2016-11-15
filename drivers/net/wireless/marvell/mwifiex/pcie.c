@@ -131,6 +131,7 @@ static int mwifiex_pcie_suspend(struct device *dev)
 	}
 
 	adapter = card->adapter;
+	mwifiex_enable_wake(adapter);
 
 	/* Enable the Host Sleep */
 	if (!mwifiex_enable_hs(adapter)) {
@@ -186,6 +187,7 @@ static int mwifiex_pcie_resume(struct device *dev)
 
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
 			  MWIFIEX_ASYNC_CMD);
+	mwifiex_disable_wake(adapter);
 
 	return 0;
 }

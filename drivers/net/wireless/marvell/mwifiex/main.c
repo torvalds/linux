@@ -1552,14 +1552,55 @@ void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare)
 }
 EXPORT_SYMBOL_GPL(mwifiex_do_flr);
 
+static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
+{
+	struct mwifiex_adapter *adapter = priv;
+
+	if (adapter->irq_wakeup >= 0) {
+		dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
+		adapter->wake_by_wifi = true;
+		disable_irq_nosync(irq);
+	}
+
+	/* Notify PM core we are wakeup source */
+	pm_wakeup_event(adapter->dev, 0);
+
+	return IRQ_HANDLED;
+}
+
 static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
 {
+	int ret;
 	struct device *dev = adapter->dev;
 
 	if (!dev->of_node)
 		return;
 
 	adapter->dt_node = dev->of_node;
+	adapter->irq_wakeup = irq_of_parse_and_map(adapter->dt_node, 0);
+	if (!adapter->irq_wakeup) {
+		dev_info(dev, "fail to parse irq_wakeup from device tree\n");
+		return;
+	}
+
+	ret = devm_request_irq(dev, adapter->irq_wakeup,
+			       mwifiex_irq_wakeup_handler, IRQF_TRIGGER_LOW,
+			       "wifi_wake", adapter);
+	if (ret) {
+		dev_err(dev, "Failed to request irq_wakeup %d (%d)\n",
+			adapter->irq_wakeup, ret);
+		goto err_exit;
+	}
+
+	disable_irq(adapter->irq_wakeup);
+	if (device_init_wakeup(dev, true)) {
+		dev_err(dev, "fail to init wakeup for mwifiex\n");
+		goto err_exit;
+	}
+	return;
+
+err_exit:
+	adapter->irq_wakeup = 0;
 }
 
 /*

@@ -1011,6 +1011,10 @@ struct mwifiex_adapter {
 	bool usb_mc_setup;
 	struct cfg80211_wowlan_nd_info *nd_info;
 	struct ieee80211_regdomain *regd;
+
+	/* Wake-on-WLAN (WoWLAN) */
+	int irq_wakeup;
+	bool wake_by_wifi;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1408,6 +1412,27 @@ static inline u8 mwifiex_is_tdls_link_setup(u8 status)
 	}
 
 	return false;
+}
+
+/* Disable platform specific wakeup interrupt */
+static inline void mwifiex_disable_wake(struct mwifiex_adapter *adapter)
+{
+	if (adapter->irq_wakeup >= 0) {
+		disable_irq_wake(adapter->irq_wakeup);
+		if (!adapter->wake_by_wifi)
+			disable_irq(adapter->irq_wakeup);
+	}
+}
+
+/* Enable platform specific wakeup interrupt */
+static inline void mwifiex_enable_wake(struct mwifiex_adapter *adapter)
+{
+	/* Enable platform specific wakeup interrupt */
+	if (adapter->irq_wakeup >= 0) {
+		adapter->wake_by_wifi = false;
+		enable_irq(adapter->irq_wakeup);
+		enable_irq_wake(adapter->irq_wakeup);
+	}
 }
 
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
