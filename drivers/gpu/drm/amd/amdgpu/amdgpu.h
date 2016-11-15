@@ -1121,10 +1121,6 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
  * Testing
  */
 void amdgpu_test_moves(struct amdgpu_device *adev);
-void amdgpu_test_ring_sync(struct amdgpu_device *adev,
-			   struct amdgpu_ring *cpA,
-			   struct amdgpu_ring *cpB);
-void amdgpu_test_syncing(struct amdgpu_device *adev);
 
 /*
  * MMU Notifier

@@ -1912,12 +1912,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		else
 			DRM_INFO("amdgpu: acceleration disabled, skipping move tests\n");
 	}
-	if ((amdgpu_testing & 2)) {
-		if (adev->accel_working)
-			amdgpu_test_syncing(adev);
-		else
-			DRM_INFO("amdgpu: acceleration disabled, skipping sync tests\n");
-	}
 	if (amdgpu_benchmarking) {
 		if (adev->accel_working)
 			amdgpu_benchmark(adev, amdgpu_benchmarking);
