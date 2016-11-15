@@ -47,7 +47,7 @@
 
 /* Min/Max packet size */
 #define	NIC_HW_MIN_FRS			64
-#define	NIC_HW_MAX_FRS			9200 /* 9216 max packet including FCS */
+#define	NIC_HW_MAX_FRS			9190 /* Excluding L2 header and FCS */
 
 /* Max pkinds */
 #define	NIC_MAX_PKIND			16
@@ -282,7 +282,6 @@ struct nicvf {
 
 	u8			node;
 	u8			cpi_alg;
-	u16			mtu;
 	bool			link_up;
 	u8			duplex;
 	u32			speed;

@@ -1189,14 +1189,23 @@ int nicvf_stop(struct net_device *netdev)
 	return 0;
 }
 
+static int nicvf_update_hw_max_frs(struct nicvf *nic, int mtu)
+{
+	union nic_mbx mbx = {};
+
+	mbx.frs.msg = NIC_MBOX_MSG_SET_MAX_FRS;
+	mbx.frs.max_frs = mtu;
+	mbx.frs.vf_id = nic->vf_id;
+
+	return nicvf_send_msg_to_pf(nic, &mbx);
+}
+
 int nicvf_open(struct net_device *netdev)
 {
 	int err, qidx;
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 	struct nicvf_cq_poll *cq_poll = NULL;
-
-	nic->mtu = netdev->mtu;
 
 	netif_carrier_off(netdev);
 
@@ -1248,9 +1257,12 @@ int nicvf_open(struct net_device *netdev)
 	if (nic->sqs_mode)
 		nicvf_get_primary_vf_struct(nic);
 
-	/* Configure receive side scaling */
-	if (!nic->sqs_mode)
+	/* Configure receive side scaling and MTU */
+	if (!nic->sqs_mode) {
 		nicvf_rss_init(nic);
+		if (nicvf_update_hw_max_frs(nic, netdev->mtu))
+			goto cleanup;
+	}
 
 	err = nicvf_register_interrupts(nic);
 	if (err)
@@ -1297,17 +1309,6 @@ napi_del:
 	return err;
 }
 
-static int nicvf_update_hw_max_frs(struct nicvf *nic, int mtu)
-{
-	union nic_mbx mbx = {};
-
-	mbx.frs.msg = NIC_MBOX_MSG_SET_MAX_FRS;
-	mbx.frs.max_frs = mtu;
-	mbx.frs.vf_id = nic->vf_id;
-
-	return nicvf_send_msg_to_pf(nic, &mbx);
-}
-
 static int nicvf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nicvf *nic = netdev_priv(netdev);
@@ -1318,10 +1319,13 @@ static int nicvf_change_mtu(struct net_device *netdev, int new_mtu)
 	if (new_mtu < NIC_HW_MIN_FRS)
 		return -EINVAL;
 
+	netdev->mtu = new_mtu;
+
+	if (!netif_running(netdev))
+		return 0;
+
 	if (nicvf_update_hw_max_frs(nic, new_mtu))
 		return -EINVAL;
-	netdev->mtu = new_mtu;
-	nic->mtu = new_mtu;
 
 	return 0;
 }

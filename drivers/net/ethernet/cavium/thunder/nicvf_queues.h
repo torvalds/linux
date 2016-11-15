@@ -158,6 +158,7 @@ enum CQ_TX_ERROP_E {
 	CQ_TX_ERROP_DESC_FAULT = 0x10,
 	CQ_TX_ERROP_HDR_CONS_ERR = 0x11,
 	CQ_TX_ERROP_SUBDC_ERR = 0x12,
+	CQ_TX_ERROP_MAX_SIZE_VIOL = 0x13,
 	CQ_TX_ERROP_IMM_SIZE_OFLOW = 0x80,
 	CQ_TX_ERROP_DATA_SEQUENCE_ERR = 0x81,
 	CQ_TX_ERROP_MEM_SEQUENCE_ERR = 0x82,
@@ -177,6 +178,7 @@ struct cmp_queue_stats {
 		u64 desc_fault;
 		u64 hdr_cons_err;
 		u64 subdesc_err;
+		u64 max_size_exceeded;
 		u64 imm_size_oflow;
 		u64 data_seq_err;
 		u64 mem_seq_err;

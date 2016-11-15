@@ -1530,6 +1530,9 @@ int nicvf_check_cqe_tx_errs(struct nicvf *nic,
 	case CQ_TX_ERROP_SUBDC_ERR:
 		stats->tx.subdesc_err++;
 		break;
+	case CQ_TX_ERROP_MAX_SIZE_VIOL:
+		stats->tx.max_size_exceeded++;
+		break;
 	case CQ_TX_ERROP_IMM_SIZE_OFLOW:
 		stats->tx.imm_size_oflow++;
 		break;
