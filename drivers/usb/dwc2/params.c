@@ -1124,16 +1124,11 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
-		bool disable;
-
 		dev_dbg(hsotg->dev, "Setting HOST parameters\n");
-
-		disable = device_property_read_bool(hsotg->dev,
-						    "snps,host-dma-disable");
 
 		dwc2_set_param_bool(hsotg, &p->host_dma,
 				    false, "host-dma",
-				    !disable, false,
+				    true, false,
 				    dma_capable);
 	}
 
