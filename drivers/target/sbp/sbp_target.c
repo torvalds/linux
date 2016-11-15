@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/configfs.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <scsi/scsi_proto.h>
