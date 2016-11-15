@@ -22,6 +22,16 @@ config SH_DEVICE_TREE
 	  have sufficient driver coverage to use this option; do not
 	  select it if you are using original SuperH hardware.
 
+config SH_JCORE_SOC
+	bool "J-Core SoC"
+	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
+	select CLKSRC_JCORE_PIT
+	select JCORE_AIC
+	default y if CPU_J2
+	help
+	  Select this option to include drivers core components of the
+	  J-Core SoC, including interrupt controllers and timers.
+
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
 	select SOLUTION_ENGINE

@@ -1498,6 +1498,10 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	u32 val32;
 	u8 val8;
 
+	val32 = rtl8xxxu_read32(priv, REG_RX_WAIT_CCA);
+	val32 |= (BIT(22) | BIT(23));
+	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
+
 	/*
 	 * No indication anywhere as to what 0x0790 does. The 2 antenna
 	 * vendor code preserves bits 6-7 here.

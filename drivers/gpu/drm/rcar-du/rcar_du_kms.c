@@ -231,8 +231,16 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 	struct rcar_du_device *rcdu = dev->dev_private;
 	int ret;
 
-	ret = drm_atomic_helper_check(dev, state);
-	if (ret < 0)
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
 		return ret;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))

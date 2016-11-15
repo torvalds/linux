@@ -1031,6 +1031,77 @@ static u8 translate_iboost(u8 val)
 	return mapping[val];
 }
 
+static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
+			     enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	enum port p;
+
+	if (!info->alternate_ddc_pin)
+		return;
+
+	for_each_port_masked(p, (1 << port) - 1) {
+		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
+
+		if (info->alternate_ddc_pin != i->alternate_ddc_pin)
+			continue;
+
+		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
+			      "disabling port %c DVI/HDMI support\n",
+			      port_name(p), i->alternate_ddc_pin,
+			      port_name(port), port_name(p));
+
+		/*
+		 * If we have multiple ports supposedly sharing the
+		 * pin, then dvi/hdmi couldn't exist on the shared
+		 * port. Otherwise they share the same ddc bin and
+		 * system couldn't communicate with them separately.
+		 *
+		 * Due to parsing the ports in alphabetical order,
+		 * a higher port will always clobber a lower one.
+		 */
+		i->supports_dvi = false;
+		i->supports_hdmi = false;
+		i->alternate_ddc_pin = 0;
+	}
+}
+
+static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
+			    enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	enum port p;
+
+	if (!info->alternate_aux_channel)
+		return;
+
+	for_each_port_masked(p, (1 << port) - 1) {
+		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
+
+		if (info->alternate_aux_channel != i->alternate_aux_channel)
+			continue;
+
+		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
+			      "disabling port %c DP support\n",
+			      port_name(p), i->alternate_aux_channel,
+			      port_name(port), port_name(p));
+
+		/*
+		 * If we have multiple ports supposedlt sharing the
+		 * aux channel, then DP couldn't exist on the shared
+		 * port. Otherwise they share the same aux channel
+		 * and system couldn't communicate with them separately.
+		 *
+		 * Due to parsing the ports in alphabetical order,
+		 * a higher port will always clobber a lower one.
+		 */
+		i->supports_dp = false;
+		i->alternate_aux_channel = 0;
+	}
+}
+
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			   const struct bdb_header *bdb)
 {
@@ -1105,54 +1176,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
-		if (port == PORT_E) {
-			info->alternate_ddc_pin = ddc_pin;
-			/* if DDIE share ddc pin with other port, then
-			 * dvi/hdmi couldn't exist on the shared port.
-			 * Otherwise they share the same ddc bin and system
-			 * couldn't communicate with them seperately. */
-			if (ddc_pin == DDC_PIN_B) {
-				dev_priv->vbt.ddi_port_info[PORT_B].supports_dvi = 0;
-				dev_priv->vbt.ddi_port_info[PORT_B].supports_hdmi = 0;
-			} else if (ddc_pin == DDC_PIN_C) {
-				dev_priv->vbt.ddi_port_info[PORT_C].supports_dvi = 0;
-				dev_priv->vbt.ddi_port_info[PORT_C].supports_hdmi = 0;
-			} else if (ddc_pin == DDC_PIN_D) {
-				dev_priv->vbt.ddi_port_info[PORT_D].supports_dvi = 0;
-				dev_priv->vbt.ddi_port_info[PORT_D].supports_hdmi = 0;
-			}
-		} else if (ddc_pin == DDC_PIN_B && port != PORT_B)
-			DRM_DEBUG_KMS("Unexpected DDC pin for port B\n");
-		else if (ddc_pin == DDC_PIN_C && port != PORT_C)
-			DRM_DEBUG_KMS("Unexpected DDC pin for port C\n");
-		else if (ddc_pin == DDC_PIN_D && port != PORT_D)
-			DRM_DEBUG_KMS("Unexpected DDC pin for port D\n");
+		info->alternate_ddc_pin = ddc_pin;
+
+		sanitize_ddc_pin(dev_priv, port);
 	}
 
 	if (is_dp) {
-		if (port == PORT_E) {
-			info->alternate_aux_channel = aux_channel;
-			/* if DDIE share aux channel with other port, then
-			 * DP couldn't exist on the shared port. Otherwise
-			 * they share the same aux channel and system
-			 * couldn't communicate with them seperately. */
-			if (aux_channel == DP_AUX_A)
-				dev_priv->vbt.ddi_port_info[PORT_A].supports_dp = 0;
-			else if (aux_channel == DP_AUX_B)
-				dev_priv->vbt.ddi_port_info[PORT_B].supports_dp = 0;
-			else if (aux_channel == DP_AUX_C)
-				dev_priv->vbt.ddi_port_info[PORT_C].supports_dp = 0;
-			else if (aux_channel == DP_AUX_D)
-				dev_priv->vbt.ddi_port_info[PORT_D].supports_dp = 0;
-		}
-		else if (aux_channel == DP_AUX_A && port != PORT_A)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port A\n");
-		else if (aux_channel == DP_AUX_B && port != PORT_B)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port B\n");
-		else if (aux_channel == DP_AUX_C && port != PORT_C)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port C\n");
-		else if (aux_channel == DP_AUX_D && port != PORT_D)
-			DRM_DEBUG_KMS("Unexpected AUX channel for port D\n");
+		info->alternate_aux_channel = aux_channel;
+
+		sanitize_aux_ch(dev_priv, port);
 	}
 
 	if (bdb->version >= 158) {

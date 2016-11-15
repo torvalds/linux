@@ -17,28 +17,27 @@
 #include "key.h"
 #include "aes_gmac.h"
 
-#define GMAC_MIC_LEN 16
-#define GMAC_NONCE_LEN 12
-#define AAD_LEN 20
-
 int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 		       const u8 *data, size_t data_len, u8 *mic)
 {
 	struct scatterlist sg[4];
-	char aead_req_data[sizeof(struct aead_request) +
-			   crypto_aead_reqsize(tfm)]
-		__aligned(__alignof__(struct aead_request));
-	struct aead_request *aead_req = (void *)aead_req_data;
-	u8 zero[GMAC_MIC_LEN], iv[AES_BLOCK_SIZE];
+	u8 *zero, *__aad, iv[AES_BLOCK_SIZE];
+	struct aead_request *aead_req;
+	int reqsize = sizeof(*aead_req) + crypto_aead_reqsize(tfm);
 
 	if (data_len < GMAC_MIC_LEN)
 		return -EINVAL;
 
-	memset(aead_req, 0, sizeof(aead_req_data));
+	aead_req = kzalloc(reqsize + GMAC_MIC_LEN + GMAC_AAD_LEN, GFP_ATOMIC);
+	if (!aead_req)
+		return -ENOMEM;
 
-	memset(zero, 0, GMAC_MIC_LEN);
+	zero = (u8 *)aead_req + reqsize;
+	__aad = zero + GMAC_MIC_LEN;
+	memcpy(__aad, aad, GMAC_AAD_LEN);
+
 	sg_init_table(sg, 4);
-	sg_set_buf(&sg[0], aad, AAD_LEN);
+	sg_set_buf(&sg[0], __aad, GMAC_AAD_LEN);
 	sg_set_buf(&sg[1], data, data_len - GMAC_MIC_LEN);
 	sg_set_buf(&sg[2], zero, GMAC_MIC_LEN);
 	sg_set_buf(&sg[3], mic, GMAC_MIC_LEN);
@@ -49,9 +48,10 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 
 	aead_request_set_tfm(aead_req, tfm);
 	aead_request_set_crypt(aead_req, sg, sg, 0, iv);
-	aead_request_set_ad(aead_req, AAD_LEN + data_len);
+	aead_request_set_ad(aead_req, GMAC_AAD_LEN + data_len);
 
 	crypto_aead_encrypt(aead_req);
+	kzfree(aead_req);
 
 	return 0;
 }
