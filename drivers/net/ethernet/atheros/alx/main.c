@@ -834,7 +834,7 @@ static bool alx_enable_msix(struct alx_priv *alx)
 {
 	int i, err, num_vec, num_txq, num_rxq;
 
-	num_txq = 1;
+	num_txq = min_t(int, num_online_cpus(), ALX_MAX_TX_QUEUES);
 	num_rxq = 1;
 	num_vec = max_t(int, num_txq, num_rxq) + 1;
 
@@ -1240,6 +1240,9 @@ static int __alx_open(struct alx_priv *alx, bool resume)
 	err = alx_request_irq(alx);
 	if (err)
 		goto out_free_rings;
+
+	netif_set_real_num_tx_queues(alx->dev, alx->num_txq);
+	netif_set_real_num_rx_queues(alx->dev, alx->num_rxq);
 
 	/* clear old interrupts */
 	alx_write_mem32(&alx->hw, ALX_ISR, ~(u32)ALX_ISR_DIS);
@@ -1749,7 +1752,8 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_pci_release;
 	}
 
-	netdev = alloc_etherdev(sizeof(*alx));
+	netdev = alloc_etherdev_mqs(sizeof(*alx),
+				    ALX_MAX_TX_QUEUES, 1);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto out_pci_release;
