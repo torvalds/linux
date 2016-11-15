@@ -334,6 +334,16 @@ enum {
 	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
 	NAPI_STATE_HASHED,	/* In NAPI hash (busy polling possible) */
 	NAPI_STATE_NO_BUSY_POLL,/* Do not add in napi_hash, no busy polling */
+	NAPI_STATE_IN_BUSY_POLL,/* sk_busy_loop() owns this NAPI */
+};
+
+enum {
+	NAPIF_STATE_SCHED	 = (1UL << NAPI_STATE_SCHED),
+	NAPIF_STATE_DISABLE	 = (1UL << NAPI_STATE_DISABLE),
+	NAPIF_STATE_NPSVC	 = (1UL << NAPI_STATE_NPSVC),
+	NAPIF_STATE_HASHED	 = (1UL << NAPI_STATE_HASHED),
+	NAPIF_STATE_NO_BUSY_POLL = (1UL << NAPI_STATE_NO_BUSY_POLL),
+	NAPIF_STATE_IN_BUSY_POLL = (1UL << NAPI_STATE_IN_BUSY_POLL),
 };
 
 enum gro_result {
