@@ -627,6 +627,114 @@ static unsigned int dwc2_gadget_get_chain_limit(struct dwc2_hsotg_ep *hs_ep)
 	return maxsize;
 }
 
+/*
+ * dwc2_gadget_get_desc_params - get DMA descriptor parameters.
+ * @hs_ep: The endpoint
+ * @mask: RX/TX bytes mask to be defined
+ *
+ * Returns maximum data payload for one descriptor after analyzing endpoint
+ * characteristics.
+ * DMA descriptor transfer bytes limit depends on EP type:
+ * Control out - MPS,
+ * Isochronous - descriptor rx/tx bytes bitfield limit,
+ * Control In/Bulk/Interrupt - multiple of mps. This will allow to not
+ * have concatenations from various descriptors within one packet.
+ *
+ * Selects corresponding mask for RX/TX bytes as well.
+ */
+static u32 dwc2_gadget_get_desc_params(struct dwc2_hsotg_ep *hs_ep, u32 *mask)
+{
+	u32 mps = hs_ep->ep.maxpacket;
+	int dir_in = hs_ep->dir_in;
+	u32 desc_size = 0;
+
+	if (!hs_ep->index && !dir_in) {
+		desc_size = mps;
+		*mask = DEV_DMA_NBYTES_MASK;
+	} else if (hs_ep->isochronous) {
+		if (dir_in) {
+			desc_size = DEV_DMA_ISOC_TX_NBYTES_LIMIT;
+			*mask = DEV_DMA_ISOC_TX_NBYTES_MASK;
+		} else {
+			desc_size = DEV_DMA_ISOC_RX_NBYTES_LIMIT;
+			*mask = DEV_DMA_ISOC_RX_NBYTES_MASK;
+		}
+	} else {
+		desc_size = DEV_DMA_NBYTES_LIMIT;
+		*mask = DEV_DMA_NBYTES_MASK;
+
+		/* Round down desc_size to be mps multiple */
+		desc_size -= desc_size % mps;
+	}
+
+	return desc_size;
+}
+
+/*
+ * dwc2_gadget_config_nonisoc_xfer_ddma - prepare non ISOC DMA desc chain.
+ * @hs_ep: The endpoint
+ * @dma_buff: DMA address to use
+ * @len: Length of the transfer
+ *
+ * This function will iterate over descriptor chain and fill its entries
+ * with corresponding information based on transfer data.
+ */
+static void dwc2_gadget_config_nonisoc_xfer_ddma(struct dwc2_hsotg_ep *hs_ep,
+						 dma_addr_t dma_buff,
+						 unsigned int len)
+{
+	struct dwc2_hsotg *hsotg = hs_ep->parent;
+	int dir_in = hs_ep->dir_in;
+	struct dwc2_dma_desc *desc = hs_ep->desc_list;
+	u32 mps = hs_ep->ep.maxpacket;
+	u32 maxsize = 0;
+	u32 offset = 0;
+	u32 mask = 0;
+	int i;
+
+	maxsize = dwc2_gadget_get_desc_params(hs_ep, &mask);
+
+	hs_ep->desc_count = (len / maxsize) +
+				((len % maxsize) ? 1 : 0);
+	if (len == 0)
+		hs_ep->desc_count = 1;
+
+	for (i = 0; i < hs_ep->desc_count; ++i) {
+		desc->status = 0;
+		desc->status |= (DEV_DMA_BUFF_STS_HBUSY
+				 << DEV_DMA_BUFF_STS_SHIFT);
+
+		if (len > maxsize) {
+			if (!hs_ep->index && !dir_in)
+				desc->status |= (DEV_DMA_L | DEV_DMA_IOC);
+
+			desc->status |= (maxsize <<
+						DEV_DMA_NBYTES_SHIFT & mask);
+			desc->buf = dma_buff + offset;
+
+			len -= maxsize;
+			offset += maxsize;
+		} else {
+			desc->status |= (DEV_DMA_L | DEV_DMA_IOC);
+
+			if (dir_in)
+				desc->status |= (len % mps) ? DEV_DMA_SHORT :
+					((hs_ep->send_zlp) ? DEV_DMA_SHORT : 0);
+			if (len > maxsize)
+				dev_err(hsotg->dev, "wrong len %d\n", len);
+
+			desc->status |=
+				len << DEV_DMA_NBYTES_SHIFT & mask;
+			desc->buf = dma_buff + offset;
+		}
+
+		desc->status &= ~DEV_DMA_BUFF_STS_MASK;
+		desc->status |= (DEV_DMA_BUFF_STS_HREADY
+				 << DEV_DMA_BUFF_STS_SHIFT);
+		desc++;
+	}
+}
+
 /**
  * dwc2_hsotg_start_req - start a USB request from an endpoint's queue
  * @hsotg: The controller state.
@@ -926,6 +1034,41 @@ static bool dwc2_gadget_target_frame_elapsed(struct dwc2_hsotg_ep *hs_ep)
 	return false;
 }
 
+/*
+ * dwc2_gadget_set_ep0_desc_chain - Set EP's desc chain pointers
+ * @hsotg: The driver state
+ * @hs_ep: the ep descriptor chain is for
+ *
+ * Called to update EP0 structure's pointers depend on stage of
+ * control transfer.
+ */
+static int dwc2_gadget_set_ep0_desc_chain(struct dwc2_hsotg *hsotg,
+					  struct dwc2_hsotg_ep *hs_ep)
+{
+	switch (hsotg->ep0_state) {
+	case DWC2_EP0_SETUP:
+	case DWC2_EP0_STATUS_OUT:
+		hs_ep->desc_list = hsotg->setup_desc[0];
+		hs_ep->desc_list_dma = hsotg->setup_desc_dma[0];
+		break;
+	case DWC2_EP0_DATA_IN:
+	case DWC2_EP0_STATUS_IN:
+		hs_ep->desc_list = hsotg->ctrl_in_desc;
+		hs_ep->desc_list_dma = hsotg->ctrl_in_desc_dma;
+		break;
+	case DWC2_EP0_DATA_OUT:
+		hs_ep->desc_list = hsotg->ctrl_out_desc;
+		hs_ep->desc_list_dma = hsotg->ctrl_out_desc_dma;
+		break;
+	default:
+		dev_err(hsotg->dev, "invalid EP 0 state in queue %d\n",
+			hsotg->ep0_state);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 			      gfp_t gfp_flags)
 {
@@ -958,6 +1101,12 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	/* if we're using DMA, sync the buffers as necessary */
 	if (using_dma(hs)) {
 		ret = dwc2_hsotg_map_dma(hs, hs_ep, req);
+		if (ret)
+			return ret;
+	}
+	/* If using descriptor DMA configure EP0 descriptor chain pointers */
+	if (using_desc_dma(hs) && !hs_ep->index) {
+		ret = dwc2_gadget_set_ep0_desc_chain(hs, hs_ep);
 		if (ret)
 			return ret;
 	}
@@ -1529,14 +1678,21 @@ static void dwc2_hsotg_program_zlp(struct dwc2_hsotg *hsotg,
 
 	if (hs_ep->dir_in)
 		dev_dbg(hsotg->dev, "Sending zero-length packet on ep%d\n",
-									index);
+			index);
 	else
 		dev_dbg(hsotg->dev, "Receiving zero-length packet on ep%d\n",
-									index);
+			index);
+	if (using_desc_dma(hsotg)) {
+		/* Not specific buffer needed for ep0 ZLP */
+		dma_addr_t dma = hs_ep->desc_list_dma;
 
-	dwc2_writel(DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
-		    DXEPTSIZ_XFERSIZE(0), hsotg->regs +
-		    epsiz_reg);
+		dwc2_gadget_set_ep0_desc_chain(hsotg, hs_ep);
+		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, dma, 0);
+	} else {
+		dwc2_writel(DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
+			    DXEPTSIZ_XFERSIZE(0), hsotg->regs +
+			    epsiz_reg);
+	}
 
 	ctrl = dwc2_readl(hsotg->regs + epctl_reg);
 	ctrl |= DXEPCTL_CNAK;  /* clear NAK set by core */
