@@ -314,13 +314,6 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 	if (pm > 15) {
 		cs->hw_mode |= CSMODE_DIV16;
 		pm = DIV_ROUND_UP(espi->spibrg, hz * 16 * 4) - 1;
-
-		WARN_ONCE(pm > 15,
-			  "%s: Requested speed is too low: %u Hz. Will use %u Hz instead.\n",
-			  dev_name(&spi->dev), hz,
-			  espi->spibrg / (4 * 16 * (15 + 1)));
-		if (pm > 15)
-			pm = 15;
 	}
 
 	cs->hw_mode |= CSMODE_PM(pm);
@@ -459,9 +452,6 @@ static int fsl_espi_setup(struct spi_device *spi)
 	struct fsl_espi *espi;
 	u32 loop_mode;
 	struct fsl_espi_cs *cs = spi_get_ctldata(spi);
-
-	if (!spi->max_speed_hz)
-		return -EINVAL;
 
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
@@ -673,6 +663,9 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 		ret = -EINVAL;
 		goto err_probe;
 	}
+	/* determined by clock divider fields DIV16/PM in register SPMODEx */
+	master->min_speed_hz = DIV_ROUND_UP(espi->spibrg, 4 * 16 * 16);
+	master->max_speed_hz = DIV_ROUND_UP(espi->spibrg, 4);
 
 	init_completion(&espi->done);
 
