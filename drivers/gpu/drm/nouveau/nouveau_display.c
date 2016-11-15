@@ -380,14 +380,14 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
-	int head;
+	struct drm_crtc *crtc;
 
 	if (!suspend)
 		drm_crtc_force_disable_all(dev);
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
-	for (head = 0; head < dev->mode_config.num_crtc; head++)
-		drm_vblank_off(dev, head);
+	drm_for_each_crtc(crtc, dev)
+		drm_crtc_vblank_off(crtc);
 
 	/* disable flip completion events */
 	nvif_notify_put(&drm->flip);
@@ -723,7 +723,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_crtc *crtc;
-	int ret, head;
+	int ret;
 
 	if (dev->mode_config.funcs->atomic_commit) {
 		nouveau_display_init(dev);
@@ -776,10 +776,6 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		return;
 
 	drm_helper_resume_force_mode(dev);
-
-	/* Make sure that drm and hw vblank irqs get resumed if needed. */
-	for (head = 0; head < dev->mode_config.num_crtc; head++)
-		drm_vblank_on(dev, head);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
