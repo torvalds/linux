@@ -851,6 +851,7 @@ static int nic_reset_stat_counters(struct nicpf *nic,
 			nic_reg_write(nic, reg_addr, 0);
 		}
 	}
+
 	return 0;
 }
 
