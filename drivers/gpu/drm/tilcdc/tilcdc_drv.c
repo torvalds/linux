@@ -153,12 +153,10 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.atomic_commit = tilcdc_commit,
 };
 
-static int modeset_init(struct drm_device *dev)
+static void modeset_init(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_module *mod;
-
-	priv->crtc = tilcdc_crtc_create(dev);
 
 	list_for_each_entry(mod, &module_list, list) {
 		DBG("loading module: %s", mod->name);
@@ -170,8 +168,6 @@ static int modeset_init(struct drm_device *dev)
 	dev->mode_config.max_width = tilcdc_crtc_max_width(priv->crtc);
 	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
-
-	return 0;
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -370,11 +366,12 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		}
 	}
 
-	ret = modeset_init(ddev);
+	ret = tilcdc_crtc_create(ddev);
 	if (ret < 0) {
-		dev_err(dev, "failed to initialize mode setting\n");
+		dev_err(dev, "failed to create crtc\n");
 		goto init_failed;
 	}
+	modeset_init(ddev);
 
 	if (priv->is_componentized) {
 		ret = component_bind_all(dev, ddev);

@@ -957,7 +957,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	return IRQ_HANDLED;
 }
 
-struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
+int tilcdc_crtc_create(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_crtc *tilcdc_crtc;
@@ -967,7 +967,7 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 	tilcdc_crtc = devm_kzalloc(dev->dev, sizeof(*tilcdc_crtc), GFP_KERNEL);
 	if (!tilcdc_crtc) {
 		dev_err(dev->dev, "allocation failed\n");
-		return NULL;
+		return -ENOMEM;
 	}
 
 	if (priv->rev == 1) {
@@ -977,7 +977,7 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 					&tilcdc_crtc->palette_dma_handle,
 					GFP_KERNEL | __GFP_ZERO);
 		if (!tilcdc_crtc->palette_base)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 	}
 
 	crtc = &tilcdc_crtc->base;
@@ -1020,13 +1020,15 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 		if (!crtc->port) { /* This should never happen */
 			dev_err(dev->dev, "Port node not found in %s\n",
 				dev->dev->of_node->full_name);
+			ret = -EINVAL;
 			goto fail;
 		}
 	}
 
-	return crtc;
+	priv->crtc = crtc;
+	return 0;
 
 fail:
 	tilcdc_crtc_destroy(crtc);
-	return NULL;
+	return -ENOMEM;
 }
