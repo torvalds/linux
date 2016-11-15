@@ -447,6 +447,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.fourcc   = V4L2_PIX_FMT_HSV24, /* HSV 24bits */
+		.color_enc = TGP_COLOR_ENC_HSV,
 		.vdownsampling = { 1 },
 		.bit_depth = { 24 },
 		.planes   = 1,
@@ -454,6 +455,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.fourcc   = V4L2_PIX_FMT_HSV32, /* HSV 32bits */
+		.color_enc = TGP_COLOR_ENC_HSV,
 		.vdownsampling = { 1 },
 		.bit_depth = { 32 },
 		.planes   = 1,
