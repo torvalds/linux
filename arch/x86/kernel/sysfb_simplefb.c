@@ -67,6 +67,20 @@ __init int create_simplefb(const struct screen_info *si,
 	struct platform_device *pd;
 	struct resource res;
 	unsigned long len;
+	u64 base;
+
+	/*
+	 * If the 64BIT_BASE capability is set, ext_lfb_base will contain the
+	 * upper half of the base address. Assemble the address, then make sure
+	 * it is valid and we can actually access it.
+	 */
+	base = si->lfb_base;
+	if (si->capabilities & VIDEO_CAPABILITY_64BIT_BASE)
+		base |= (u64)si->ext_lfb_base << 32;
+	if (!base || (u64)(resource_size_t)base != base) {
+		printk(KERN_DEBUG "sysfb: inaccessible VRAM base\n");
+		return -EINVAL;
+	}
 
 	/* don't use lfb_size as it may contain the whole VMEM instead of only
 	 * the part that is occupied by the framebuffer */
@@ -81,8 +95,8 @@ __init int create_simplefb(const struct screen_info *si,
 	memset(&res, 0, sizeof(res));
 	res.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 	res.name = simplefb_resname;
-	res.start = si->lfb_base;
-	res.end = si->lfb_base + len - 1;
+	res.start = base;
+	res.end = res.start + len - 1;
 	if (res.end <= res.start)
 		return -EINVAL;
 
