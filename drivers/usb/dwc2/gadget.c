@@ -3175,7 +3175,8 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 		GUSBCFG_HNPCAP);
 
 	if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS &&
-	    hsotg->params.speed == DWC2_SPEED_PARAM_FULL) {
+	    (hsotg->params.speed == DWC2_SPEED_PARAM_FULL ||
+	     hsotg->params.speed == DWC2_SPEED_PARAM_LOW)) {
 		/* FS/LS Dedicated Transceiver Interface */
 		usbcfg |= GUSBCFG_PHYSEL;
 	} else {
@@ -3192,14 +3193,21 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 		__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
 
 	dcfg |= DCFG_EPMISCNT(1);
-	if (hsotg->params.speed == DWC2_SPEED_PARAM_FULL) {
+
+	switch (hsotg->params.speed) {
+	case DWC2_SPEED_PARAM_LOW:
+		dcfg |= DCFG_DEVSPD_LS;
+		break;
+	case DWC2_SPEED_PARAM_FULL:
 		if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS)
 			dcfg |= DCFG_DEVSPD_FS48;
 		else
 			dcfg |= DCFG_DEVSPD_FS;
-	} else {
+		break;
+	default:
 		dcfg |= DCFG_DEVSPD_HS;
 	}
+
 	dwc2_writel(dcfg,  hsotg->regs + DCFG);
 
 	/* Clear any pending OTG interrupts */
@@ -4388,14 +4396,21 @@ static void dwc2_hsotg_initep(struct dwc2_hsotg *hsotg,
 
 	hs_ep->parent = hsotg;
 	hs_ep->ep.name = hs_ep->name;
-	usb_ep_set_maxpacket_limit(&hs_ep->ep, epnum ? 1024 : EP0_MPS_LIMIT);
+
+	if (hsotg->params.speed == DWC2_SPEED_PARAM_LOW)
+		usb_ep_set_maxpacket_limit(&hs_ep->ep, 8);
+	else
+		usb_ep_set_maxpacket_limit(&hs_ep->ep,
+					   epnum ? 1024 : EP0_MPS_LIMIT);
 	hs_ep->ep.ops = &dwc2_hsotg_ep_ops;
 
 	if (epnum == 0) {
 		hs_ep->ep.caps.type_control = true;
 	} else {
-		hs_ep->ep.caps.type_iso = true;
-		hs_ep->ep.caps.type_bulk = true;
+		if (hsotg->params.speed != DWC2_SPEED_PARAM_LOW) {
+			hs_ep->ep.caps.type_iso = true;
+			hs_ep->ep.caps.type_bulk = true;
+		}
 		hs_ep->ep.caps.type_int = true;
 	}
 

@@ -467,6 +467,7 @@ struct dwc2_core_params {
 	int speed;
 #define DWC2_SPEED_PARAM_HIGH	0
 #define DWC2_SPEED_PARAM_FULL	1
+#define DWC2_SPEED_PARAM_LOW	2
 
 	int enable_dynamic_fifo;
 	int en_multiple_tx_fifo;

@@ -230,9 +230,10 @@ static int dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	u32 usbcfg;
 	int retval = 0;
 
-	if (hsotg->params.speed == DWC2_SPEED_PARAM_FULL &&
+	if ((hsotg->params.speed == DWC2_SPEED_PARAM_FULL ||
+	     hsotg->params.speed == DWC2_SPEED_PARAM_LOW) &&
 	    hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS) {
-		/* If FS mode with FS PHY */
+		/* If FS/LS mode with FS/LS PHY */
 		retval = dwc2_fs_phy_init(hsotg, select_phy);
 		if (retval)
 			return retval;
@@ -2277,7 +2278,8 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 
 	/* Initialize Host Configuration Register */
 	dwc2_init_fs_ls_pclk_sel(hsotg);
-	if (hsotg->params.speed == DWC2_SPEED_PARAM_FULL) {
+	if (hsotg->params.speed == DWC2_SPEED_PARAM_FULL ||
+	    hsotg->params.speed == DWC2_SPEED_PARAM_LOW) {
 		hcfg = dwc2_readl(hsotg->regs + HCFG);
 		hcfg |= HCFG_FSLSSUPP;
 		dwc2_writel(hcfg, hsotg->regs + HCFG);

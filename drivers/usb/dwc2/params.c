@@ -742,13 +742,17 @@ static void dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 {
 	int valid = 1;
 
-	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 2)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for speed parameter\n");
-			dev_err(hsotg->dev, "max_speed parameter must be 0 or 1\n");
+			dev_err(hsotg->dev, "max_speed parameter must be 0, 1, or 2\n");
 		}
 		valid = 0;
 	}
+
+	if (dwc2_is_hs_iot(hsotg) &&
+	    val == DWC2_SPEED_PARAM_LOW)
+		valid = 0;
 
 	if (val == DWC2_SPEED_PARAM_HIGH &&
 	    dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS)
