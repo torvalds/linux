@@ -266,8 +266,8 @@ static int rockchip_usb2phy_clk480m_prepare(struct clk_hw *hw)
 		if (ret)
 			return ret;
 
-		/* waitting for the clk become stable */
-		mdelay(1);
+		/* waiting for the clk become stable */
+		usleep_range(1200, 1300);
 	}
 
 	return 0;
