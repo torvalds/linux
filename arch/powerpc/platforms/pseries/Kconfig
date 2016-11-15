@@ -134,7 +134,7 @@ config IBMVIO
 	default y
 
 config IBMEBUS
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && !CPU_LITTLE_ENDIAN
 	bool "Support for GX bus based adapters"
 	help
 	  Bus device driver for GX bus based adapters.
