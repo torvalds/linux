@@ -183,6 +183,8 @@ static int tps65217_irq_init(struct tps65217 *tps, int irq)
 		return ret;
 	}
 
+	enable_irq_wake(irq);
+
 	return 0;
 }
 
