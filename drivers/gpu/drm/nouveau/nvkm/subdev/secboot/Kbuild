@@ -4,5 +4,6 @@ nvkm-y += nvkm/subdev/secboot/ls_ucode_msgqueue.o
 nvkm-y += nvkm/subdev/secboot/acr.o
 nvkm-y += nvkm/subdev/secboot/acr_r352.o
 nvkm-y += nvkm/subdev/secboot/acr_r361.o
+nvkm-y += nvkm/subdev/secboot/acr_r364.o
 nvkm-y += nvkm/subdev/secboot/gm200.o
 nvkm-y += nvkm/subdev/secboot/gm20b.o

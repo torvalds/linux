@@ -63,5 +63,6 @@ void *nvkm_acr_load_firmware(const struct nvkm_subdev *, const char *, size_t);
 
 struct nvkm_acr *acr_r352_new(unsigned long);
 struct nvkm_acr *acr_r361_new(unsigned long);
+struct nvkm_acr *acr_r364_new(unsigned long);
 
 #endif
