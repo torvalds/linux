@@ -580,6 +580,13 @@ config ARCH_SPARSEMEM_DEFAULT
 config SYS_SUPPORTS_HUGETLBFS
 	bool
 
+config ILLEGAL_POINTER_VALUE
+	hex
+	# This is roughly half way between the top of user space and the bottom
+	# of kernel space, which seems about as good as we can get.
+	default 0x5deadbeef0000000 if PPC64
+	default 0
+
 source "mm/Kconfig"
 
 config ARCH_MEMORY_PROBE
