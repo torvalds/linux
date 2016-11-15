@@ -350,7 +350,17 @@ static enum drm_mode_status
 intel_dp_mst_mode_valid(struct drm_connector *connector,
 			struct drm_display_mode *mode)
 {
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_dp *intel_dp = intel_connector->mst_port;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int bpp = 24; /* MST uses fixed bpp */
+	int max_rate, mode_rate, max_lanes, max_link_clock;
+
+	max_link_clock = intel_dp_max_link_rate(intel_dp);
+	max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
+
+	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
+	mode_rate = intel_dp_link_required(mode->clock, bpp);
 
 	/* TODO - validate mode against available PBN for link */
 	if (mode->clock < 10000)
@@ -359,7 +369,7 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return MODE_H_ILLEGAL;
 
-	if (mode->clock > max_dotclk)
+	if (mode_rate > max_rate || mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;

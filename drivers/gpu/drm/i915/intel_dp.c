@@ -161,14 +161,14 @@ static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 	return min(source_max, sink_max);
 }
 
-static int
+int
 intel_dp_link_required(int pixel_clock, int bpp)
 {
 	/* pixel_clock is in kHz, divide bpp by 8 for bit to Byte conversion */
 	return DIV_ROUND_UP(pixel_clock * bpp, 8);
 }
 
-static int
+int
 intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 {
 	/* max_link_clock is the link symbol clock (LS_Clk) in kHz and not the
