@@ -1298,7 +1298,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	if (IS_ERR(bgp->div_clk)) {
 		dev_err(&pdev->dev, "failed to request div_ts_ck clock ref\n");
 		ret = PTR_ERR(bgp->div_clk);
-		goto free_irqs;
+		goto put_fclock;
 	}
 
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
@@ -1430,8 +1430,9 @@ disable_clk:
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
 		clk_disable_unprepare(bgp->fclock);
 put_clks:
-	clk_put(bgp->fclock);
 	clk_put(bgp->div_clk);
+put_fclock:
+	clk_put(bgp->fclock);
 free_irqs:
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
 		free_irq(gpio_to_irq(bgp->tshut_gpio), NULL);
