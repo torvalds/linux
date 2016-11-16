@@ -4022,6 +4022,18 @@ F:	Documentation/gpu/
 F:	include/drm/
 F:	include/uapi/drm/
 
+DRM DRIVERS AND MISC GPU PATCHES
+M:	Daniel Vetter <daniel.vetter@intel.com>
+M:	Jani Nikula <jani.nikula@linux.intel.com>
+M:	Sean Paul <seanpaul@chromium.org>
+S:	Maintained
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	Documentation/gpu/
+F:	drivers/gpu/vga/
+F:	drivers/gpu/drm/*
+F:	include/drm/drm*
+F:	include/uapi/drm/drm*
+
 DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
 S:	Odd Fixes
