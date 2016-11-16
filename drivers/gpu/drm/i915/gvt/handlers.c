@@ -1279,14 +1279,12 @@ static int skl_misc_ctl_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case 0x4ddc:
 		vgpu_vreg(vgpu, offset) = 0x8000003c;
 		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl */
-		if (IS_SKL_REVID(dev_priv, SKL_REVID_C0, REVID_FOREVER))
-			I915_WRITE(reg, vgpu_vreg(vgpu, offset));
+		I915_WRITE(reg, vgpu_vreg(vgpu, offset));
 		break;
 	case 0x42080:
 		vgpu_vreg(vgpu, offset) = 0x8000;
 		/* WaCompressedResourceDisplayNewHashMode:skl */
-		if (IS_SKL_REVID(dev_priv, SKL_REVID_E0, REVID_FOREVER))
-			I915_WRITE(reg, vgpu_vreg(vgpu, offset));
+		I915_WRITE(reg, vgpu_vreg(vgpu, offset));
 		break;
 	default:
 		return -EINVAL;
