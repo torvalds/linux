@@ -133,9 +133,9 @@ static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))
 	ret->key = FlsAlloc((PFLS_CALLBACK_FUNCTION)destructor);
 	if (ret->key == TLS_OUT_OF_INDEXES) {
 		free(ret);
-		return -1;
+		return NULL;
 	}
-	return 0;
+	return ret;
 }
 
 static void tls_free(struct lkl_tls_key *key)
