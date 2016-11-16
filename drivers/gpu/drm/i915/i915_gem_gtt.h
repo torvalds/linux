@@ -495,7 +495,7 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
-int i915_ppgtt_init_hw(struct drm_device *dev);
+int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
 					struct drm_i915_file_private *fpriv,

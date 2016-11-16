@@ -3095,7 +3095,7 @@ void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
-void i915_gem_init_swizzling(struct drm_device *dev);
+void i915_gem_init_swizzling(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_engines(struct drm_device *dev);
 int __must_check i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
 					unsigned int flags);

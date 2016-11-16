@@ -2426,7 +2426,7 @@ static int intel_runtime_resume(struct device *kdev)
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
-	i915_gem_init_swizzling(dev);
+	i915_gem_init_swizzling(dev_priv);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 

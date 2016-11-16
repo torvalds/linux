@@ -4241,11 +4241,9 @@ void i915_gem_resume(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-void i915_gem_init_swizzling(struct drm_device *dev)
+void i915_gem_init_swizzling(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (INTEL_INFO(dev)->gen < 5 ||
+	if (INTEL_GEN(dev_priv) < 5 ||
 	    dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
 		return;
 
@@ -4316,14 +4314,14 @@ i915_gem_init_hw(struct drm_device *dev)
 			u32 temp = I915_READ(GEN7_MSG_CTL);
 			temp &= ~(WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK);
 			I915_WRITE(GEN7_MSG_CTL, temp);
-		} else if (INTEL_INFO(dev)->gen >= 7) {
+		} else if (INTEL_GEN(dev_priv) >= 7) {
 			u32 temp = I915_READ(HSW_NDE_RSTWRN_OPT);
 			temp &= ~RESET_PCH_HANDSHAKE_ENABLE;
 			I915_WRITE(HSW_NDE_RSTWRN_OPT, temp);
 		}
 	}
 
-	i915_gem_init_swizzling(dev);
+	i915_gem_init_swizzling(dev_priv);
 
 	/*
 	 * At least 830 can leave some of the unused rings
@@ -4335,7 +4333,7 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	BUG_ON(!dev_priv->kernel_context);
 
-	ret = i915_ppgtt_init_hw(dev);
+	ret = i915_ppgtt_init_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("PPGTT enable HW failed %d\n", ret);
 		goto out;

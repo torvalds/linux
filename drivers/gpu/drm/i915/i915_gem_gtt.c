@@ -1794,22 +1794,21 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
-static void gen8_ppgtt_enable(struct drm_device *dev)
+static void gen8_ppgtt_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	for_each_engine(engine, dev_priv, id) {
-		u32 four_level = USES_FULL_48BIT_PPGTT(dev) ? GEN8_GFX_PPGTT_48B : 0;
+		u32 four_level = USES_FULL_48BIT_PPGTT(dev_priv) ?
+				 GEN8_GFX_PPGTT_48B : 0;
 		I915_WRITE(RING_MODE_GEN7(engine),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE | four_level));
 	}
 }
 
-static void gen7_ppgtt_enable(struct drm_device *dev)
+static void gen7_ppgtt_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 	uint32_t ecochk, ecobits;
 	enum intel_engine_id id;
@@ -1833,9 +1832,8 @@ static void gen7_ppgtt_enable(struct drm_device *dev)
 	}
 }
 
-static void gen6_ppgtt_enable(struct drm_device *dev)
+static void gen6_ppgtt_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t ecochk, gab_ctl, ecobits;
 
 	ecobits = I915_READ(GAC_ECO_BITS);
@@ -2193,10 +2191,8 @@ static void i915_address_space_init(struct i915_address_space *vm,
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
 }
 
-static void gtt_write_workarounds(struct drm_device *dev)
+static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* This function is for gtt related workarounds. This function is
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
@@ -2229,11 +2225,9 @@ static int i915_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
 	return ret;
 }
 
-int i915_ppgtt_init_hw(struct drm_device *dev)
+int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	gtt_write_workarounds(dev);
+	gtt_write_workarounds(dev_priv);
 
 	/* In the case of execlists, PPGTT is enabled by the context descriptor
 	 * and the PDPs are contained within the context itself.  We don't
@@ -2241,17 +2235,17 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	if (i915.enable_execlists)
 		return 0;
 
-	if (!USES_PPGTT(dev))
+	if (!USES_PPGTT(dev_priv))
 		return 0;
 
 	if (IS_GEN6(dev_priv))
-		gen6_ppgtt_enable(dev);
+		gen6_ppgtt_enable(dev_priv);
 	else if (IS_GEN7(dev_priv))
-		gen7_ppgtt_enable(dev);
-	else if (INTEL_INFO(dev)->gen >= 8)
-		gen8_ppgtt_enable(dev);
+		gen7_ppgtt_enable(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 8)
+		gen8_ppgtt_enable(dev_priv);
 	else
-		MISSING_CASE(INTEL_INFO(dev)->gen);
+		MISSING_CASE(INTEL_GEN(dev_priv));
 
 	return 0;
 }
