@@ -425,7 +425,7 @@ retry_dn:
 			continue;
 		}
 
-		if ((start + 1) << PAGE_SHIFT > i_size_read(inode))
+		if (i_size_read(inode) <= (start << PAGE_SHIFT))
 			f2fs_i_size_write(inode, (start + 1) << PAGE_SHIFT);
 
 		/*
