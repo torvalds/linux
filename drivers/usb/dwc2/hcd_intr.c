@@ -915,6 +915,8 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 {
 	struct dwc2_hcd_iso_packet_desc *frame_desc;
 	u32 len;
+	u32 hctsiz;
+	u32 pid;
 
 	if (!qtd->urb)
 		return 0;
@@ -932,7 +934,10 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 
 	qtd->isoc_split_offset += len;
 
-	if (frame_desc->actual_length >= frame_desc->length) {
+	hctsiz = dwc2_readl(hsotg->regs + HCTSIZ(chnum));
+	pid = (hctsiz & TSIZ_SC_MC_PID_MASK) >> TSIZ_SC_MC_PID_SHIFT;
+
+	if (frame_desc->actual_length >= frame_desc->length || pid == 0) {
 		frame_desc->status = 0;
 		qtd->isoc_frame_index++;
 		qtd->complete_split = 0;
