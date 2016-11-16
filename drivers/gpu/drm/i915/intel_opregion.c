@@ -642,24 +642,6 @@ static struct notifier_block intel_opregion_notifier = {
  * (version 3)
  */
 
-static u32 get_did(struct intel_opregion *opregion, int i)
-{
-	u32 did;
-
-	if (i < ARRAY_SIZE(opregion->acpi->didl)) {
-		did = opregion->acpi->didl[i];
-	} else {
-		i -= ARRAY_SIZE(opregion->acpi->didl);
-
-		if (WARN_ON(i >= ARRAY_SIZE(opregion->acpi->did2)))
-			return 0;
-
-		did = opregion->acpi->did2[i];
-	}
-
-	return did;
-}
-
 static void set_did(struct intel_opregion *opregion, int i, u32 val)
 {
 	if (i < ARRAY_SIZE(opregion->acpi->didl)) {
@@ -762,19 +744,28 @@ static void intel_didl_outputs(struct drm_i915_private *dev_priv)
 static void intel_setup_cadls(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
+	struct intel_connector *connector;
 	int i = 0;
-	u32 disp_id;
 
-	/* Initialize the CADL field by duplicating the DIDL values.
-	 * Technically, this is not always correct as display outputs may exist,
-	 * but not active. This initialization is necessary for some Clevo
-	 * laptops that check this field before processing the brightness and
-	 * display switching hotkeys. Just like DIDL, CADL is NULL-terminated if
-	 * there are less than eight devices. */
-	do {
-		disp_id = get_did(opregion, i);
-		opregion->acpi->cadl[i] = disp_id;
-	} while (++i < 8 && disp_id != 0);
+	/*
+	 * Initialize the CADL field from the connector device ids. This is
+	 * essentially the same as copying from the DIDL. Technically, this is
+	 * not always correct as display outputs may exist, but not active. This
+	 * initialization is necessary for some Clevo laptops that check this
+	 * field before processing the brightness and display switching hotkeys.
+	 *
+	 * Note that internal panels should be at the front of the connector
+	 * list already, ensuring they're not left out.
+	 */
+	for_each_intel_connector(&dev_priv->drm, connector) {
+		if (i >= ARRAY_SIZE(opregion->acpi->cadl))
+			break;
+		opregion->acpi->cadl[i++] = connector->acpi_device_id;
+	}
+
+	/* If fewer than 8 active devices, the list must be null terminated */
+	if (i < ARRAY_SIZE(opregion->acpi->cadl))
+		opregion->acpi->cadl[i] = 0;
 }
 
 void intel_opregion_register(struct drm_i915_private *dev_priv)
