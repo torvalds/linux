@@ -118,7 +118,7 @@ struct nf_conn {
 	struct nf_ct_ext *ext;
 
 #if IS_ENABLED(CONFIG_NF_NAT)
-	struct rhash_head	nat_bysource;
+	struct rhlist_head nat_bysource;
 #endif
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
