@@ -2372,18 +2372,13 @@ struct drm_i915_cmd_table {
 	int count;
 };
 
-/* Note that the (struct drm_i915_private *) cast is just to shut up gcc. */
-#define __I915__(p) ({ \
-	struct drm_i915_private *__p; \
-	if (__builtin_types_compatible_p(typeof(*p), struct drm_i915_private)) \
-		__p = (struct drm_i915_private *)p; \
-	else if (__builtin_types_compatible_p(typeof(*p), struct drm_device)) \
-		__p = to_i915((struct drm_device *)p); \
-	else \
-		BUILD_BUG(); \
-	__p; \
-})
-#define INTEL_INFO(p)	(&__I915__(p)->info)
+static inline const struct intel_device_info *
+intel_info(const struct drm_i915_private *dev_priv)
+{
+	return &dev_priv->info;
+}
+
+#define INTEL_INFO(dev_priv)	intel_info((dev_priv))
 
 #define INTEL_GEN(dev_priv)	((dev_priv)->info.gen)
 #define INTEL_DEVID(dev_priv)	((dev_priv)->info.device_id)
