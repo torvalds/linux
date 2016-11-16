@@ -94,7 +94,8 @@ static inline bool lwtunnel_xmit_redirect(struct lwtunnel_state *lwtstate)
 static inline unsigned int lwtunnel_headroom(struct lwtunnel_state *lwtstate,
 					     unsigned int mtu)
 {
-	if (lwtunnel_xmit_redirect(lwtstate) && lwtstate->headroom < mtu)
+	if ((lwtunnel_xmit_redirect(lwtstate) ||
+	     lwtunnel_output_redirect(lwtstate)) && lwtstate->headroom < mtu)
 		return lwtstate->headroom;
 
 	return 0;
