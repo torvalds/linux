@@ -27,12 +27,12 @@
 #include <nvif/class.h>
 
 const struct nv50_disp_dmac_oclass
-gp104_disp_ovly_oclass = {
+gp102_disp_ovly_oclass = {
 	.base.oclass = GK104_DISP_OVERLAY_CONTROL_DMA,
 	.base.minver = 0,
 	.base.maxver = 0,
 	.ctor = nv50_disp_ovly_new,
-	.func = &gp104_disp_dmac_func,
+	.func = &gp102_disp_dmac_func,
 	.mthd = &gk104_disp_ovly_chan_mthd,
 	.chid = 5,
 };

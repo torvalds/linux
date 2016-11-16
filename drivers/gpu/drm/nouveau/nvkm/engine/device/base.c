@@ -2207,7 +2207,7 @@ nv132_chipset = {
 	.ce[1] = gp102_ce_new,
 	.ce[2] = gp102_ce_new,
 	.ce[3] = gp102_ce_new,
-	.disp = gp104_disp_new,
+	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 };
@@ -2236,7 +2236,7 @@ nv134_chipset = {
 	.ce[1] = gp102_ce_new,
 	.ce[2] = gp102_ce_new,
 	.ce[3] = gp102_ce_new,
-	.disp = gp104_disp_new,
+	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 };

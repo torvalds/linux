@@ -21,18 +21,38 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "dmacnv50.h"
 #include "rootnv50.h"
+#include "dmacnv50.h"
 
 #include <nvif/class.h>
 
-const struct nv50_disp_dmac_oclass
-gp104_disp_base_oclass = {
-	.base.oclass = GK110_DISP_BASE_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_base_new,
-	.func = &gp104_disp_dmac_func,
-	.mthd = &gf119_disp_base_chan_mthd,
-	.chid = 1,
+static const struct nv50_disp_root_func
+gp102_disp_root = {
+	.init = gf119_disp_root_init,
+	.fini = gf119_disp_root_fini,
+	.dmac = {
+		&gp102_disp_core_oclass,
+		&gp102_disp_base_oclass,
+		&gp102_disp_ovly_oclass,
+	},
+	.pioc = {
+		&gp102_disp_oimm_oclass,
+		&gp102_disp_curs_oclass,
+	},
+};
+
+static int
+gp102_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
+{
+	return nv50_disp_root_new_(&gp102_disp_root, disp, oclass,
+				   data, size, pobject);
+}
+
+const struct nvkm_disp_oclass
+gp102_disp_root_oclass = {
+	.base.oclass = GP102_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gp102_disp_root_new,
 };
