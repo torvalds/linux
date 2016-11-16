@@ -248,15 +248,14 @@ int mwifiex_main_process(struct mwifiex_adapter *adapter)
 	if (adapter->mwifiex_processing || adapter->main_locked) {
 		adapter->more_task_flag = true;
 		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
-		goto exit_main_proc;
+		return 0;
 	} else {
 		adapter->mwifiex_processing = true;
 		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 	}
 process_start:
 	do {
-		if ((adapter->hw_status == MWIFIEX_HW_STATUS_CLOSING) ||
-		    (adapter->hw_status == MWIFIEX_HW_STATUS_NOT_READY))
+		if (adapter->hw_status == MWIFIEX_HW_STATUS_NOT_READY)
 			break;
 
 		/* For non-USB interfaces, If we process interrupts first, it
@@ -464,9 +463,6 @@ process_start:
 	adapter->mwifiex_processing = false;
 	spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 
-exit_main_proc:
-	if (adapter->hw_status == MWIFIEX_HW_STATUS_CLOSING)
-		mwifiex_shutdown_drv(adapter);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mwifiex_main_process);
@@ -645,16 +641,14 @@ err_dnld_fw:
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
 
-	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
-		pr_debug("info: %s: shutdown mwifiex\n", __func__);
-		adapter->init_wait_q_woken = false;
-
-		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
-			wait_event_interruptible(adapter->init_wait_q,
-						 adapter->init_wait_q_woken);
-	}
 	adapter->surprise_removed = true;
 	mwifiex_terminate_workqueue(adapter);
+
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
+		pr_debug("info: %s: shutdown mwifiex\n", __func__);
+		mwifiex_shutdown_drv(adapter);
+	}
+
 	init_failed = true;
 done:
 	if (adapter->cal_data) {
@@ -1399,11 +1393,8 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 	}
 
 	mwifiex_dbg(adapter, CMD, "cmd: calling mwifiex_shutdown_drv...\n");
-	adapter->init_wait_q_woken = false;
 
-	if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
-		wait_event_interruptible(adapter->init_wait_q,
-					 adapter->init_wait_q_woken);
+	mwifiex_shutdown_drv(adapter);
 	if (adapter->if_ops.down_dev)
 		adapter->if_ops.down_dev(adapter);
 
@@ -1509,19 +1500,16 @@ err_init_fw:
 	mwifiex_dbg(adapter, ERROR, "info: %s: unregister device\n", __func__);
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
+
+err_kmalloc:
+	adapter->surprise_removed = true;
+	mwifiex_terminate_workqueue(adapter);
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
 		mwifiex_dbg(adapter, ERROR,
 			    "info: %s: shutdown mwifiex\n", __func__);
-		adapter->init_wait_q_woken = false;
-
-		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
-			wait_event_interruptible(adapter->init_wait_q,
-						 adapter->init_wait_q_woken);
+		mwifiex_shutdown_drv(adapter);
 	}
 
-err_kmalloc:
-	mwifiex_terminate_workqueue(adapter);
-	adapter->surprise_removed = true;
 	complete_all(adapter->fw_done);
 	mwifiex_dbg(adapter, INFO, "%s, error\n", __func__);
 
@@ -1681,17 +1669,13 @@ err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
-	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
-		pr_debug("info: %s: shutdown mwifiex\n", __func__);
-		adapter->init_wait_q_woken = false;
-
-		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
-			wait_event_interruptible(adapter->init_wait_q,
-						 adapter->init_wait_q_woken);
-	}
 err_registerdev:
 	adapter->surprise_removed = true;
 	mwifiex_terminate_workqueue(adapter);
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
+		pr_debug("info: %s: shutdown mwifiex\n", __func__);
+		mwifiex_shutdown_drv(adapter);
+	}
 err_kmalloc:
 	mwifiex_free_adapter(adapter);
 
@@ -1741,11 +1725,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 
 	mwifiex_dbg(adapter, CMD,
 		    "cmd: calling mwifiex_shutdown_drv...\n");
-	adapter->init_wait_q_woken = false;
 
-	if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
-		wait_event_interruptible(adapter->init_wait_q,
-					 adapter->init_wait_q_woken);
+	mwifiex_shutdown_drv(adapter);
 	mwifiex_dbg(adapter, CMD,
 		    "cmd: mwifiex_shutdown_drv done\n");
 	if (atomic_read(&adapter->rx_pending) ||

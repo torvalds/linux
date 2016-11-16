@@ -248,7 +248,6 @@ enum MWIFIEX_HARDWARE_STATUS {
 	MWIFIEX_HW_STATUS_INITIALIZING,
 	MWIFIEX_HW_STATUS_INIT_DONE,
 	MWIFIEX_HW_STATUS_RESET,
-	MWIFIEX_HW_STATUS_CLOSING,
 	MWIFIEX_HW_STATUS_NOT_READY
 };
 
@@ -1041,9 +1040,7 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw_complete(struct mwifiex_adapter *adapter);
 
-int mwifiex_shutdown_drv(struct mwifiex_adapter *adapter);
-
-int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
+void mwifiex_shutdown_drv(struct mwifiex_adapter *adapter);
 
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
