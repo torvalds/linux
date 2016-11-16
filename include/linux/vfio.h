@@ -126,6 +126,9 @@ extern struct vfio_info_cap_header *vfio_info_cap_add(
 		struct vfio_info_cap *caps, size_t size, u16 id, u16 version);
 extern void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset);
 
+extern int vfio_info_add_capability(struct vfio_info_cap *caps,
+				    int cap_type_id, void *cap_type);
+
 struct pci_dev;
 #ifdef CONFIG_EEH
 extern void vfio_spapr_pci_eeh_open(struct pci_dev *pdev);

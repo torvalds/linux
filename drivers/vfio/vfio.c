@@ -1797,8 +1797,66 @@ void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset)
 	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next - offset)
 		tmp->next += offset;
 }
-EXPORT_SYMBOL_GPL(vfio_info_cap_shift);
+EXPORT_SYMBOL(vfio_info_cap_shift);
 
+static int sparse_mmap_cap(struct vfio_info_cap *caps, void *cap_type)
+{
+	struct vfio_info_cap_header *header;
+	struct vfio_region_info_cap_sparse_mmap *sparse_cap, *sparse = cap_type;
+	size_t size;
+
+	size = sizeof(*sparse) + sparse->nr_areas *  sizeof(*sparse->areas);
+	header = vfio_info_cap_add(caps, size,
+				   VFIO_REGION_INFO_CAP_SPARSE_MMAP, 1);
+	if (IS_ERR(header))
+		return PTR_ERR(header);
+
+	sparse_cap = container_of(header,
+			struct vfio_region_info_cap_sparse_mmap, header);
+	sparse_cap->nr_areas = sparse->nr_areas;
+	memcpy(sparse_cap->areas, sparse->areas,
+	       sparse->nr_areas * sizeof(*sparse->areas));
+	return 0;
+}
+
+static int region_type_cap(struct vfio_info_cap *caps, void *cap_type)
+{
+	struct vfio_info_cap_header *header;
+	struct vfio_region_info_cap_type *type_cap, *cap = cap_type;
+
+	header = vfio_info_cap_add(caps, sizeof(*cap),
+				   VFIO_REGION_INFO_CAP_TYPE, 1);
+	if (IS_ERR(header))
+		return PTR_ERR(header);
+
+	type_cap = container_of(header, struct vfio_region_info_cap_type,
+				header);
+	type_cap->type = cap->type;
+	type_cap->subtype = cap->subtype;
+	return 0;
+}
+
+int vfio_info_add_capability(struct vfio_info_cap *caps, int cap_type_id,
+			     void *cap_type)
+{
+	int ret = -EINVAL;
+
+	if (!cap_type)
+		return 0;
+
+	switch (cap_type_id) {
+	case VFIO_REGION_INFO_CAP_SPARSE_MMAP:
+		ret = sparse_mmap_cap(caps, cap_type);
+		break;
+
+	case VFIO_REGION_INFO_CAP_TYPE:
+		ret = region_type_cap(caps, cap_type);
+		break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(vfio_info_add_capability);
 
 /*
  * Pin a set of guest PFNs and return their associated host PFNs for local
