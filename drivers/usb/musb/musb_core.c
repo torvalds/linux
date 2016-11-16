@@ -986,7 +986,7 @@ b_host:
 	}
 #endif
 
-	schedule_work(&musb->irq_work);
+	schedule_delayed_work(&musb->irq_work, 0);
 
 	return handled;
 }
@@ -1855,14 +1855,23 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (!musb->session && !musb->quirk_invalid_vbus) {
-			musb->quirk_invalid_vbus = true;
+		if (musb->quirk_retries--) {
 			musb_dbg(musb,
-				 "First invalid vbus, assume no session");
+				 "Poll devctl on invalid vbus, assume no session");
+			schedule_delayed_work(&musb->irq_work,
+					      msecs_to_jiffies(1000));
+
 			return;
 		}
-		break;
 	case MUSB_QUIRK_A_DISCONNECT_19:
+		if (musb->quirk_retries--) {
+			musb_dbg(musb,
+				 "Poll devctl on possible host mode disconnect");
+			schedule_delayed_work(&musb->irq_work,
+					      msecs_to_jiffies(1000));
+
+			return;
+		}
 		if (!musb->session)
 			break;
 		musb_dbg(musb, "Allow PM on possible host mode disconnect");
@@ -1886,9 +1895,9 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		if (error < 0)
 			dev_err(musb->controller, "Could not enable: %i\n",
 				error);
+		musb->quirk_retries = 3;
 	} else {
 		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
-		musb->quirk_invalid_vbus = false;
 		pm_runtime_mark_last_busy(musb->controller);
 		pm_runtime_put_autosuspend(musb->controller);
 	}
@@ -1899,7 +1908,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 /* Only used to provide driver mode change events */
 static void musb_irq_work(struct work_struct *data)
 {
-	struct musb *musb = container_of(data, struct musb, irq_work);
+	struct musb *musb = container_of(data, struct musb, irq_work.work);
 
 	musb_pm_runtime_check_session(musb);
 
@@ -2288,7 +2297,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb_generic_disable(musb);
 
 	/* Init IRQ workqueue before request_irq */
-	INIT_WORK(&musb->irq_work, musb_irq_work);
+	INIT_DELAYED_WORK(&musb->irq_work, musb_irq_work);
 	INIT_DELAYED_WORK(&musb->deassert_reset_work, musb_deassert_reset);
 	INIT_DELAYED_WORK(&musb->finish_resume_work, musb_host_finish_resume);
 
@@ -2385,7 +2394,7 @@ fail4:
 	musb_host_cleanup(musb);
 
 fail3:
-	cancel_work_sync(&musb->irq_work);
+	cancel_delayed_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
@@ -2452,7 +2461,7 @@ static int musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 
-	cancel_work_sync(&musb->irq_work);
+	cancel_delayed_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	pm_runtime_get_sync(musb->controller);

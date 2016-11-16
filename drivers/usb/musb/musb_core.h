@@ -310,7 +310,7 @@ struct musb {
 	struct musb_context_registers context;
 
 	irqreturn_t		(*isr)(int, void *);
-	struct work_struct	irq_work;
+	struct delayed_work	irq_work;
 	struct delayed_work	deassert_reset_work;
 	struct delayed_work	finish_resume_work;
 	struct delayed_work	gadget_work;
@@ -381,7 +381,7 @@ struct musb {
 
 	int			port_mode;	/* MUSB_PORT_MODE_* */
 	bool			session;
-	bool			quirk_invalid_vbus;
+	unsigned long		quirk_retries;
 	bool			is_host;
 
 	int			a_wait_bcon;	/* VBUS timeout in msecs */
