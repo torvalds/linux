@@ -170,6 +170,8 @@
 #define PCLK_PERI1		363
 #define PCLK_MIPI_DSI0		364
 #define PCLK_ISP		365
+#define PCLK_EFUSE_1024		366
+#define PCLK_EFUSE_256		367
 
 /* hclk gates */
 #define HCLK_I2S_8CH		448
