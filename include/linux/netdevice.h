@@ -316,7 +316,6 @@ struct napi_struct {
 	unsigned int		gro_count;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
-	spinlock_t		poll_lock;
 	int			poll_owner;
 #endif
 	struct net_device	*dev;
