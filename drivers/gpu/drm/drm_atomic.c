@@ -290,6 +290,23 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
+static void set_out_fence_for_crtc(struct drm_atomic_state *state,
+				   struct drm_crtc *crtc, s64 __user *fence_ptr)
+{
+	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = fence_ptr;
+}
+
+static s64 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
+					  struct drm_crtc *crtc)
+{
+	s64 __user *fence_ptr;
+
+	fence_ptr = state->crtcs[drm_crtc_index(crtc)].out_fence_ptr;
+	state->crtcs[drm_crtc_index(crtc)].out_fence_ptr = NULL;
+
+	return fence_ptr;
+}
+
 /**
  * drm_atomic_set_mode_for_crtc - set mode for CRTC
  * @state: the CRTC whose incoming state to update
@@ -494,6 +511,16 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 					&replaced);
 		state->color_mgmt_changed |= replaced;
 		return ret;
+	} else if (property == config->prop_out_fence_ptr) {
+		s64 __user *fence_ptr = u64_to_user_ptr(val);
+
+		if (!fence_ptr)
+			return 0;
+
+		if (put_user(-1, fence_ptr))
+			return -EFAULT;
+
+		set_out_fence_for_crtc(state->state, crtc, fence_ptr);
 	} else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	else
@@ -536,6 +563,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = (state->ctm) ? state->ctm->base.id : 0;
 	else if (property == config->gamma_lut_property)
 		*val = (state->gamma_lut) ? state->gamma_lut->base.id : 0;
+	else if (property == config->prop_out_fence_ptr)
+		*val = 0;
 	else if (crtc->funcs->atomic_get_property)
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
 	else
@@ -1664,11 +1693,9 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
  */
 
 static struct drm_pending_vblank_event *create_vblank_event(
-		struct drm_device *dev, struct drm_file *file_priv,
-		struct dma_fence *fence, uint64_t user_data)
+		struct drm_device *dev, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
-	int ret;
 
 	e = kzalloc(sizeof *e, GFP_KERNEL);
 	if (!e)
@@ -1677,17 +1704,6 @@ static struct drm_pending_vblank_event *create_vblank_event(
 	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = user_data;
-
-	if (file_priv) {
-		ret = drm_event_reserve_init(dev, file_priv, &e->base,
-					     &e->event.base);
-		if (ret) {
-			kfree(e);
-			return NULL;
-		}
-	}
-
-	e->base.fence = fence;
 
 	return e;
 }
@@ -1793,6 +1809,165 @@ void drm_atomic_clean_old_fb(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_atomic_clean_old_fb);
 
+static struct dma_fence *get_crtc_fence(struct drm_crtc *crtc)
+{
+	struct dma_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return NULL;
+
+	dma_fence_init(fence, &drm_crtc_fence_ops, &crtc->fence_lock,
+		       crtc->fence_context, ++crtc->fence_seqno);
+
+	return fence;
+}
+
+struct drm_out_fence_state {
+	s64 __user *out_fence_ptr;
+	struct sync_file *sync_file;
+	int fd;
+};
+
+static int setup_out_fence(struct drm_out_fence_state *fence_state,
+			   struct dma_fence *fence)
+{
+	fence_state->fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fence_state->fd < 0)
+		return fence_state->fd;
+
+	if (put_user(fence_state->fd, fence_state->out_fence_ptr))
+		return -EFAULT;
+
+	fence_state->sync_file = sync_file_create(fence);
+	if (!fence_state->sync_file)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int prepare_crtc_signaling(struct drm_device *dev,
+				  struct drm_atomic_state *state,
+				  struct drm_mode_atomic *arg,
+				  struct drm_file *file_priv,
+				  struct drm_out_fence_state **fence_state,
+				  unsigned int *num_fences)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, ret;
+
+	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
+		return 0;
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		u64 __user *fence_ptr;
+
+		fence_ptr = get_out_fence_for_crtc(crtc_state->state, crtc);
+
+		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT || fence_ptr) {
+			struct drm_pending_vblank_event *e;
+
+			e = create_vblank_event(dev, arg->user_data);
+			if (!e)
+				return -ENOMEM;
+
+			crtc_state->event = e;
+		}
+
+		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+			struct drm_pending_vblank_event *e = crtc_state->event;
+
+			if (!file_priv)
+				continue;
+
+			ret = drm_event_reserve_init(dev, file_priv, &e->base,
+						     &e->event.base);
+			if (ret) {
+				kfree(e);
+				crtc_state->event = NULL;
+				return ret;
+			}
+		}
+
+		if (fence_ptr) {
+			struct dma_fence *fence;
+			struct drm_out_fence_state *f;
+
+			f = krealloc(*fence_state, sizeof(**fence_state) *
+				     (*num_fences + 1), GFP_KERNEL);
+			if (!f)
+				return -ENOMEM;
+
+			memset(&f[*num_fences], 0, sizeof(*f));
+
+			f[*num_fences].out_fence_ptr = fence_ptr;
+			*fence_state = f;
+
+			fence = get_crtc_fence(crtc);
+			if (!fence)
+				return -ENOMEM;
+
+			ret = setup_out_fence(&f[(*num_fences)++], fence);
+			if (ret) {
+				dma_fence_put(fence);
+				return ret;
+			}
+
+			crtc_state->event->base.fence = fence;
+		}
+	}
+
+	return 0;
+}
+
+static void complete_crtc_signaling(struct drm_device *dev,
+				    struct drm_atomic_state *state,
+				    struct drm_out_fence_state *fence_state,
+				    unsigned int num_fences,
+				    bool install_fds)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i;
+
+	if (install_fds) {
+		for (i = 0; i < num_fences; i++)
+			fd_install(fence_state[i].fd,
+				   fence_state[i].sync_file->file);
+
+		kfree(fence_state);
+		return;
+	}
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		/*
+		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually
+		 * exclusive, if they weren't, this code should be
+		 * called on success for TEST_ONLY too.
+		 */
+		if (crtc_state->event)
+			drm_event_cancel_free(dev, &crtc_state->event->base);
+	}
+
+	if (!fence_state)
+		return;
+
+	for (i = 0; i < num_fences; i++) {
+		if (fence_state[i].sync_file)
+			fput(fence_state[i].sync_file->file);
+		if (fence_state[i].fd >= 0)
+			put_unused_fd(fence_state[i].fd);
+
+		/* If this fails log error to the user */
+		if (fence_state[i].out_fence_ptr &&
+		    put_user(-1, fence_state[i].out_fence_ptr))
+			DRM_DEBUG_ATOMIC("Couldn't clear out_fence_ptr\n");
+	}
+
+	kfree(fence_state);
+}
+
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
 {
@@ -1805,11 +1980,10 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_out_fence_state *fence_state = NULL;
 	unsigned plane_mask;
 	int ret = 0;
-	unsigned int i, j;
+	unsigned int i, j, num_fences = 0;
 
 	/* disallow for drivers not supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
@@ -1924,20 +2098,10 @@ retry:
 		drm_mode_object_unreference(obj);
 	}
 
-	if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			struct drm_pending_vblank_event *e;
-
-			e = create_vblank_event(dev, file_priv, NULL,
-						arg->user_data);
-			if (!e) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			crtc_state->event = e;
-		}
-	}
+	ret = prepare_crtc_signaling(dev, state, arg, file_priv, &fence_state,
+				     &num_fences);
+	if (ret)
+		goto out;
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
 		/*
@@ -1957,20 +2121,7 @@ retry:
 out:
 	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
-	if (ret && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		/*
-		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually exclusive,
-		 * if they weren't, this code should be called on success
-		 * for TEST_ONLY too.
-		 */
-
-		for_each_crtc_in_state(state, crtc, crtc_state, i) {
-			if (!crtc_state->event)
-				continue;
-
-			drm_event_cancel_free(dev, &crtc_state->event->base);
-		}
-	}
+	complete_crtc_signaling(dev, state, fence_state, num_fences, !ret);
 
 	if (ret == -EDEADLK) {
 		drm_atomic_state_clear(state);
