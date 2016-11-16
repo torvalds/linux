@@ -259,8 +259,8 @@ static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
  * the iommu can only map chunks of consecutive pfns anyway, so get the
  * first page and all consecutive pages with the same locking.
  */
-static long vfio_pin_pages(unsigned long vaddr, long npage,
-			   int prot, unsigned long *pfn_base)
+static long vfio_pin_pages_remote(unsigned long vaddr, long npage,
+				  int prot, unsigned long *pfn_base)
 {
 	unsigned long limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	bool lock_cap = capable(CAP_IPC_LOCK);
@@ -318,8 +318,8 @@ static long vfio_pin_pages(unsigned long vaddr, long npage,
 	return i;
 }
 
-static long vfio_unpin_pages(unsigned long pfn, long npage,
-			     int prot, bool do_accounting)
+static long vfio_unpin_pages_remote(unsigned long pfn, long npage,
+				    int prot, bool do_accounting)
 {
 	unsigned long unlocked = 0;
 	long i;
@@ -382,9 +382,9 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
 		if (WARN_ON(!unmapped))
 			break;
 
-		unlocked += vfio_unpin_pages(phys >> PAGE_SHIFT,
-					     unmapped >> PAGE_SHIFT,
-					     dma->prot, false);
+		unlocked += vfio_unpin_pages_remote(phys >> PAGE_SHIFT,
+						    unmapped >> PAGE_SHIFT,
+						    dma->prot, false);
 		iova += unmapped;
 
 		cond_resched();
@@ -613,8 +613,8 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 
 	while (size) {
 		/* Pin a contiguous chunk of memory */
-		npage = vfio_pin_pages(vaddr + dma->size,
-				       size >> PAGE_SHIFT, prot, &pfn);
+		npage = vfio_pin_pages_remote(vaddr + dma->size,
+					      size >> PAGE_SHIFT, prot, &pfn);
 		if (npage <= 0) {
 			WARN_ON(!npage);
 			ret = (int)npage;
@@ -624,7 +624,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		/* Map it! */
 		ret = vfio_iommu_map(iommu, iova + dma->size, pfn, npage, prot);
 		if (ret) {
-			vfio_unpin_pages(pfn, npage, prot, true);
+			vfio_unpin_pages_remote(pfn, npage, prot, true);
 			break;
 		}
 

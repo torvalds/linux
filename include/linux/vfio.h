@@ -75,7 +75,11 @@ struct vfio_iommu_driver_ops {
 					struct iommu_group *group);
 	void		(*detach_group)(void *iommu_data,
 					struct iommu_group *group);
-
+	int		(*pin_pages)(void *iommu_data, unsigned long *user_pfn,
+				     int npage, int prot,
+				     unsigned long *phys_pfn);
+	int		(*unpin_pages)(void *iommu_data,
+				       unsigned long *user_pfn, int npage);
 };
 
 extern int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
@@ -91,6 +95,13 @@ extern void vfio_group_put_external_user(struct vfio_group *group);
 extern int vfio_external_user_iommu_id(struct vfio_group *group);
 extern long vfio_external_check_extension(struct vfio_group *group,
 					  unsigned long arg);
+
+#define VFIO_PIN_PAGES_MAX_ENTRIES	(PAGE_SIZE/sizeof(unsigned long))
+
+extern int vfio_pin_pages(struct device *dev, unsigned long *user_pfn,
+			  int npage, int prot, unsigned long *phys_pfn);
+extern int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn,
+			    int npage);
 
 /*
  * Sub-module helpers
