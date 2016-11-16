@@ -200,7 +200,6 @@ struct s5p_mfc_pm {
 	struct clk	*clock;
 	struct clk	*clock_gate;
 	bool		use_clock_gating;
-	atomic_t	power;
 	struct device	*device;
 };
 
