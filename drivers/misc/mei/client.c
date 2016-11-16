@@ -571,7 +571,7 @@ void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	INIT_LIST_HEAD(&cl->rd_pending);
 	INIT_LIST_HEAD(&cl->link);
 	cl->writing_state = MEI_IDLE;
-	cl->state = MEI_FILE_INITIALIZING;
+	cl->state = MEI_FILE_UNINITIALIZED;
 	cl->dev = dev;
 }
 
@@ -672,7 +672,7 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 	list_del_init(&cl->link);
 
-	cl->state = MEI_FILE_INITIALIZING;
+	cl->state = MEI_FILE_UNINITIALIZED;
 
 	return 0;
 }
@@ -756,7 +756,7 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 	struct mei_device *dev = cl->dev;
 
 	if (cl->state == MEI_FILE_DISCONNECTED ||
-	    cl->state == MEI_FILE_INITIALIZING)
+	    cl->state <= MEI_FILE_INITIALIZING)
 		return;
 
 	cl->state = MEI_FILE_DISCONNECTED;

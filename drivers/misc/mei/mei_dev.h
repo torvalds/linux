@@ -55,7 +55,8 @@ extern const uuid_le mei_amthif_guid;
 
 /* File state */
 enum file_state {
-	MEI_FILE_INITIALIZING = 0,
+	MEI_FILE_UNINITIALIZED = 0,
+	MEI_FILE_INITIALIZING,
 	MEI_FILE_CONNECTING,
 	MEI_FILE_CONNECTED,
 	MEI_FILE_DISCONNECTING,
