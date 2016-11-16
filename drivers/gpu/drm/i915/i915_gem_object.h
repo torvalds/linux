@@ -103,6 +103,7 @@ struct drm_i915_gem_object {
 
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */
+	struct i915_gem_active frontbuffer_write;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;

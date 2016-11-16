@@ -886,8 +886,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 
 	for (i = 0; i < I915_NUM_ENGINES; i++)
 		err->rseqno[i] = __active_get_seqno(&vma->last_read[i]);
-	err->wseqno = __active_get_seqno(&vma->last_write);
-	err->engine = __active_get_engine_id(&vma->last_write);
+	err->wseqno = __active_get_seqno(&obj->frontbuffer_write);
+	err->engine = __active_get_engine_id(&obj->frontbuffer_write);
 
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;

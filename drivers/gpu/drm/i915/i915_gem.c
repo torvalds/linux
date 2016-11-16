@@ -3886,6 +3886,16 @@ out:
 	return err;
 }
 
+static void
+frontbuffer_retire(struct i915_gem_active *active,
+		   struct drm_i915_gem_request *request)
+{
+	struct drm_i915_gem_object *obj =
+		container_of(active, typeof(*obj), frontbuffer_write);
+
+	intel_fb_obj_flush(obj, true, ORIGIN_CS);
+}
+
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops)
 {
@@ -3903,6 +3913,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->resv = &obj->__builtin_resv;
 
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
+	init_request_active(&obj->frontbuffer_write, frontbuffer_retire);
 
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);

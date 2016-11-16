@@ -68,16 +68,6 @@ i915_vma_retire(struct i915_gem_active *active,
 	}
 }
 
-static void
-i915_ggtt_retire__write(struct i915_gem_active *active,
-			struct drm_i915_gem_request *request)
-{
-	struct i915_vma *vma =
-		container_of(active, struct i915_vma, last_write);
-
-	intel_fb_obj_flush(vma->obj, true, ORIGIN_CS);
-}
-
 static struct i915_vma *
 __i915_vma_create(struct drm_i915_gem_object *obj,
 		  struct i915_address_space *vm,
@@ -96,8 +86,6 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
-	init_request_active(&vma->last_write,
-			    i915_is_ggtt(vm) ? i915_ggtt_retire__write : NULL);
 	init_request_active(&vma->last_fence, NULL);
 	list_add(&vma->vm_link, &vm->unbound_list);
 	vma->vm = vm;

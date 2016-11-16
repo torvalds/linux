@@ -1276,9 +1276,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 
 	if (flags & EXEC_OBJECT_WRITE) {
-		i915_gem_active_set(&vma->last_write, req);
-
-		intel_fb_obj_invalidate(obj, ORIGIN_CS);
+		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
+			i915_gem_active_set(&obj->frontbuffer_write, req);
 
 		/* update for the implicit flush after a batch */
 		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
