@@ -120,8 +120,8 @@ typedef uint64_t gen8_ppgtt_pml4e_t;
 #define GEN8_LEGACY_PDPES		4
 #define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
-#define I915_PDPES_PER_PDP(dev) (USES_FULL_48BIT_PPGTT(dev) ?\
-				 GEN8_PML4ES_PER_PML4 : GEN8_LEGACY_PDPES)
+#define I915_PDPES_PER_PDP(dev_priv)	(USES_FULL_48BIT_PPGTT(dev_priv) ?\
+					GEN8_PML4ES_PER_PML4 : GEN8_LEGACY_PDPES)
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -512,8 +512,8 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 }
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
-void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
-void i915_gem_restore_gtt_mappings(struct drm_device *dev);
+void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv);
+void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv);
 
 int __must_check i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 					    struct sg_table *pages);

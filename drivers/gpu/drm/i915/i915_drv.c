@@ -1442,7 +1442,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_suspend_hw(dev_priv);
 
-	i915_gem_suspend_gtt_mappings(dev);
+	i915_gem_suspend_gtt_mappings(dev_priv);
 
 	i915_save_state(dev);
 

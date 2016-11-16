@@ -4230,7 +4230,7 @@ void i915_gem_resume(struct drm_device *dev)
 	WARN_ON(dev_priv->gt.awake);
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_restore_gtt_mappings(dev);
+	i915_gem_restore_gtt_mappings(dev_priv);
 
 	/* As we didn't flush the kernel context before suspend, we cannot
 	 * guarantee that the context image is complete. So let's just reset
