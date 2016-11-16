@@ -1014,6 +1014,23 @@ pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo,
 	return true;
 }
 
+static void
+pnfs_init_layoutreturn_args(struct nfs4_layoutreturn_args *args,
+		struct pnfs_layout_hdr *lo,
+		const nfs4_stateid *stateid,
+		enum pnfs_iomode iomode)
+{
+	struct inode *inode = lo->plh_inode;
+
+	args->layout_type = NFS_SERVER(inode)->pnfs_curr_ld->id;
+	args->inode = inode;
+	args->range.iomode = iomode;
+	args->range.offset = 0;
+	args->range.length = NFS4_MAX_UINT64;
+	args->layout = lo;
+	nfs4_stateid_copy(&args->stateid, stateid);
+}
+
 static int
 pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 		       enum pnfs_iomode iomode, bool sync)
@@ -1032,13 +1049,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 		goto out;
 	}
 
-	nfs4_stateid_copy(&lrp->args.stateid, stateid);
-	lrp->args.layout_type = NFS_SERVER(ino)->pnfs_curr_ld->id;
-	lrp->args.inode = ino;
-	lrp->args.range.iomode = iomode;
-	lrp->args.range.offset = 0;
-	lrp->args.range.length = NFS4_MAX_UINT64;
-	lrp->args.layout = lo;
+	pnfs_init_layoutreturn_args(&lrp->args, lo, stateid, iomode);
 	lrp->clp = NFS_SERVER(ino)->nfs_client;
 	lrp->cred = lo->plh_lc_cred;
 
