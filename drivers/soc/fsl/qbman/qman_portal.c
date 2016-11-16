@@ -238,9 +238,9 @@ static int qman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	const u32 *channel;
 	void __iomem *va;
-	int irq, len, cpu;
+	int irq, cpu, err;
+	u32 val;
 
 	pcfg = devm_kmalloc(dev, sizeof(*pcfg), GFP_KERNEL);
 	if (!pcfg)
@@ -264,13 +264,13 @@ static int qman_portal_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	channel = of_get_property(node, "cell-index", &len);
-	if (!channel || (len != 4)) {
+	err = of_property_read_u32(node, "cell-index", &val);
+	if (err) {
 		dev_err(dev, "Can't get %s property 'cell-index'\n",
 			node->full_name);
-		return -ENXIO;
+		return err;
 	}
-	pcfg->channel = *channel;
+	pcfg->channel = val;
 	pcfg->cpu = -1;
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
