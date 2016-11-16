@@ -1568,7 +1568,7 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	/* open Tx completion queue */
 	snprintf(name, sizeof(name), "tx-compl-%s", ndev->name);
 	netcp->tx_compl_q = knav_queue_open(name, netcp->tx_compl_qid, 0);
-	if (IS_ERR_OR_NULL(netcp->tx_compl_q)) {
+	if (IS_ERR(netcp->tx_compl_q)) {
 		ret = PTR_ERR(netcp->tx_compl_q);
 		goto fail;
 	}
@@ -1588,7 +1588,7 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	/* open Rx completion queue */
 	snprintf(name, sizeof(name), "rx-compl-%s", ndev->name);
 	netcp->rx_queue = knav_queue_open(name, netcp->rx_queue_id, 0);
-	if (IS_ERR_OR_NULL(netcp->rx_queue)) {
+	if (IS_ERR(netcp->rx_queue)) {
 		ret = PTR_ERR(netcp->rx_queue);
 		goto fail;
 	}
@@ -1610,7 +1610,7 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	     ++i) {
 		snprintf(name, sizeof(name), "rx-fdq-%s-%d", ndev->name, i);
 		netcp->rx_fdq[i] = knav_queue_open(name, KNAV_QUEUE_GP, 0);
-		if (IS_ERR_OR_NULL(netcp->rx_fdq[i])) {
+		if (IS_ERR(netcp->rx_fdq[i])) {
 			ret = PTR_ERR(netcp->rx_fdq[i]);
 			goto fail;
 		}
