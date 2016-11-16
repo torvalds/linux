@@ -704,9 +704,13 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct usbtv *usbtv = container_of(ctrl->handler, struct usbtv,
 								ctrl);
-	u8 data[3];
+	u8 *data;
 	u16 index, size;
 	int ret;
+
+	data = kmalloc(3, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	/*
 	 * Read in the current brightness/contrast registers. We need them
@@ -717,6 +721,8 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 			usb_sndctrlpipe(usbtv->udev, 0), USBTV_CONTROL_REG,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, USBTV_BASE + 0x0244, (void *)data, 3, 0);
+		if (ret < 0)
+			goto error;
 	}
 
 	switch (ctrl->id) {
@@ -752,6 +758,7 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 	default:
+		kfree(data);
 		return -EINVAL;
 	}
 
@@ -759,12 +766,13 @@ static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
 			USBTV_CONTROL_REG,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index, (void *)data, size, 0);
-	if (ret < 0) {
-		dev_warn(usbtv->dev, "Failed to submit a control request.\n");
-		return ret;
-	}
 
-	return 0;
+error:
+	if (ret < 0)
+		dev_warn(usbtv->dev, "Failed to submit a control request.\n");
+
+	kfree(data);
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops usbtv_ctrl_ops = {
