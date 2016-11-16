@@ -112,6 +112,22 @@ static const struct vou_layer_bits zx_gl_bits[GL_NUM] = {
 	},
 };
 
+static const struct vou_layer_bits zx_vl_bits[VL_NUM] = {
+	{
+		.enable = OSD_CTRL0_VL0_EN,
+		.chnsel = OSD_CTRL0_VL0_SEL,
+		.clksel = VOU_CLK_VL0_SEL,
+	}, {
+		.enable = OSD_CTRL0_VL1_EN,
+		.chnsel = OSD_CTRL0_VL1_SEL,
+		.clksel = VOU_CLK_VL1_SEL,
+	}, {
+		.enable = OSD_CTRL0_VL2_EN,
+		.chnsel = OSD_CTRL0_VL2_SEL,
+		.clksel = VOU_CLK_VL2_SEL,
+	},
+};
+
 struct zx_vou_hw {
 	struct device *dev;
 	void __iomem *osd;
@@ -460,6 +476,48 @@ void zx_vou_layer_disable(struct drm_plane *plane)
 	zx_writel_mask(vou->osd + OSD_CTRL0, bits->enable, 0);
 }
 
+static void zx_overlay_init(struct drm_device *drm, struct zx_vou_hw *vou)
+{
+	struct device *dev = vou->dev;
+	struct zx_plane *zplane;
+	int i;
+	int ret;
+
+	/*
+	 * VL0 has some quirks on scaling support which need special handling.
+	 * Let's leave it out for now.
+	 */
+	for (i = 1; i < VL_NUM; i++) {
+		zplane = devm_kzalloc(dev, sizeof(*zplane), GFP_KERNEL);
+		if (!zplane) {
+			DRM_DEV_ERROR(dev, "failed to allocate zplane %d\n", i);
+			return;
+		}
+
+		zplane->layer = vou->osd + OSD_VL_OFFSET(i);
+		zplane->hbsc = vou->osd + HBSC_VL_OFFSET(i);
+		zplane->rsz = vou->otfppu + RSZ_VL_OFFSET(i);
+		zplane->bits = &zx_vl_bits[i];
+
+		ret = zx_plane_init(drm, zplane, DRM_PLANE_TYPE_OVERLAY);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "failed to init overlay %d\n", i);
+			continue;
+		}
+	}
+}
+
+static inline void zx_osd_int_update(struct zx_crtc *zcrtc)
+{
+	struct drm_crtc *crtc = &zcrtc->crtc;
+	struct drm_plane *plane;
+
+	vou_chn_set_update(zcrtc);
+
+	drm_for_each_plane_mask(plane, crtc->dev, crtc->state->plane_mask)
+		zx_plane_set_update(plane);
+}
+
 static irqreturn_t vou_irq_handler(int irq, void *dev_id)
 {
 	struct zx_vou_hw *vou = dev_id;
@@ -479,15 +537,11 @@ static irqreturn_t vou_irq_handler(int irq, void *dev_id)
 	state = zx_readl(vou->osd + OSD_INT_STA);
 	zx_writel(vou->osd + OSD_INT_CLRSTA, state);
 
-	if (state & OSD_INT_MAIN_UPT) {
-		vou_chn_set_update(vou->main_crtc);
-		zx_plane_set_update(vou->main_crtc->primary);
-	}
+	if (state & OSD_INT_MAIN_UPT)
+		zx_osd_int_update(vou->main_crtc);
 
-	if (state & OSD_INT_AUX_UPT) {
-		vou_chn_set_update(vou->aux_crtc);
-		zx_plane_set_update(vou->aux_crtc->primary);
-	}
+	if (state & OSD_INT_AUX_UPT)
+		zx_osd_int_update(vou->aux_crtc);
 
 	if (state & OSD_INT_ERROR)
 		DRM_DEV_ERROR(vou->dev, "OSD ERROR: 0x%08x!\n", state);
@@ -656,6 +710,8 @@ static int zx_crtc_bind(struct device *dev, struct device *master, void *data)
 			      ret);
 		goto disable_ppu_clk;
 	}
+
+	zx_overlay_init(drm, vou);
 
 	return 0;
 

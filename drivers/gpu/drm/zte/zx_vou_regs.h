@@ -22,6 +22,15 @@
 #define AUX_HBSC_OFFSET			0x860
 #define AUX_RSZ_OFFSET			0x800
 
+#define OSD_VL0_OFFSET			0x040
+#define OSD_VL_OFFSET(i)		(OSD_VL0_OFFSET + 0x050 * (i))
+
+#define HBSC_VL0_OFFSET			0x760
+#define HBSC_VL_OFFSET(i)		(HBSC_VL0_OFFSET + 0x040 * (i))
+
+#define RSZ_VL1_U0			0xa00
+#define RSZ_VL_OFFSET(i)		(RSZ_VL1_U0 + 0x200 * (i))
+
 /* OSD (GPC_GLOBAL) registers */
 #define OSD_INT_STA			0x04
 #define OSD_INT_CLRSTA			0x08
@@ -42,6 +51,12 @@
 )
 #define OSD_INT_ENABLE (OSD_INT_ERROR | OSD_INT_AUX_UPT | OSD_INT_MAIN_UPT)
 #define OSD_CTRL0			0x10
+#define OSD_CTRL0_VL0_EN		BIT(13)
+#define OSD_CTRL0_VL0_SEL		BIT(12)
+#define OSD_CTRL0_VL1_EN		BIT(11)
+#define OSD_CTRL0_VL1_SEL		BIT(10)
+#define OSD_CTRL0_VL2_EN		BIT(9)
+#define OSD_CTRL0_VL2_SEL		BIT(8)
 #define OSD_CTRL0_GL0_EN		BIT(7)
 #define OSD_CTRL0_GL0_SEL		BIT(6)
 #define OSD_CTRL0_GL1_EN		BIT(5)
@@ -146,6 +161,9 @@
 #define VOU_INF_DATA_SEL		0x08
 #define VOU_SOFT_RST			0x14
 #define VOU_CLK_SEL			0x18
+#define VOU_CLK_VL2_SEL			BIT(8)
+#define VOU_CLK_VL1_SEL			BIT(7)
+#define VOU_CLK_VL0_SEL			BIT(6)
 #define VOU_CLK_GL1_SEL			BIT(5)
 #define VOU_CLK_GL0_SEL			BIT(4)
 #define VOU_CLK_REQEN			0x20
