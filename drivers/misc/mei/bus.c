@@ -187,9 +187,6 @@ ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
 
-	if (cl == NULL)
-		return -ENODEV;
-
 	return __mei_cl_send(cl, buf, length, MEI_CL_IO_TX_BLOCKING);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_send);
@@ -206,9 +203,6 @@ EXPORT_SYMBOL_GPL(mei_cldev_send);
 ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
-
-	if (cl == NULL)
-		return -ENODEV;
 
 	return __mei_cl_recv(cl, buf, length);
 }
@@ -403,7 +397,7 @@ EXPORT_SYMBOL_GPL(mei_cldev_ver);
  */
 bool mei_cldev_enabled(struct mei_cl_device *cldev)
 {
-	return cldev->cl && mei_cl_is_connected(cldev->cl);
+	return mei_cl_is_connected(cldev->cl);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_enabled);
 
@@ -423,14 +417,13 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 
 	cl = cldev->cl;
 
-	if (!cl) {
+	if (cl->state == MEI_FILE_UNINITIALIZED) {
 		mutex_lock(&bus->device_lock);
-		cl = mei_cl_alloc_linked(bus);
+		ret = mei_cl_link(cl);
 		mutex_unlock(&bus->device_lock);
-		if (IS_ERR(cl))
-			return PTR_ERR(cl);
+		if (ret)
+			return ret;
 		/* update pointers */
-		cldev->cl = cl;
 		cl->cldev = cldev;
 	}
 
@@ -471,7 +464,7 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	struct mei_cl *cl;
 	int err;
 
-	if (!cldev || !cldev->cl)
+	if (!cldev)
 		return -ENODEV;
 
 	cl = cldev->cl;
@@ -496,9 +489,6 @@ out:
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl, NULL);
 	mei_cl_unlink(cl);
-
-	kfree(cl);
-	cldev->cl = NULL;
 
 	mutex_unlock(&bus->device_lock);
 	return err;
@@ -754,6 +744,7 @@ static void mei_cl_bus_dev_release(struct device *dev)
 
 	mei_me_cl_put(cldev->me_cl);
 	mei_dev_bus_put(cldev->bus);
+	kfree(cldev->cl);
 	kfree(cldev);
 }
 
@@ -786,10 +777,17 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 						  struct mei_me_client *me_cl)
 {
 	struct mei_cl_device *cldev;
+	struct mei_cl *cl;
 
 	cldev = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
 	if (!cldev)
 		return NULL;
+
+	cl = mei_cl_allocate(bus);
+	if (!cl) {
+		kfree(cldev);
+		return NULL;
+	}
 
 	device_initialize(&cldev->dev);
 	cldev->dev.parent = bus->dev;
@@ -797,6 +795,7 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 	cldev->dev.type   = &mei_cl_device_type;
 	cldev->bus        = mei_dev_bus_get(bus);
 	cldev->me_cl      = mei_me_cl_get(me_cl);
+	cldev->cl         = cl;
 	mei_cl_bus_set_name(cldev);
 	cldev->is_added   = 0;
 	INIT_LIST_HEAD(&cldev->bus_list);
