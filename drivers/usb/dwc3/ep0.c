@@ -486,12 +486,13 @@ static int dwc3_ep0_handle_intf(struct dwc3 *dwc,
 
 	switch (wValue) {
 	case USB_INTRF_FUNC_SUSPEND:
-		if (wIndex & USB_INTRF_FUNC_SUSPEND_LP)
-			/* XXX enable Low power suspend */
-			;
-		if (wIndex & USB_INTRF_FUNC_SUSPEND_RW)
-			/* XXX enable remote wakeup */
-			;
+		/*
+		 * REVISIT: Ideally we would enable some low power mode here,
+		 * however it's unclear what we should be doing here.
+		 *
+		 * For now, we're not doing anything, just making sure we return
+		 * 0 so USB Command Verifier tests pass without any errors.
+		 */
 		break;
 	default:
 		ret = -EINVAL;
