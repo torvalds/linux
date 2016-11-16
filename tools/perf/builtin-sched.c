@@ -194,6 +194,11 @@ struct perf_sched {
 	bool force;
 	bool skip_merge;
 	struct perf_sched_map map;
+
+	/* options for timehist command */
+	bool		summary;
+	bool		summary_only;
+	u64		skipped_samples;
 };
 
 /* per thread run time data */
@@ -2010,12 +2015,15 @@ static struct thread *timehist_get_thread(struct perf_sample *sample,
 	return thread;
 }
 
-static bool timehist_skip_sample(struct thread *thread)
+static bool timehist_skip_sample(struct perf_sched *sched,
+				 struct thread *thread)
 {
 	bool rc = false;
 
-	if (thread__is_filtered(thread))
+	if (thread__is_filtered(thread)) {
 		rc = true;
+		sched->skipped_samples++;
+	}
 
 	return rc;
 }
@@ -2045,7 +2053,7 @@ static int timehist_sched_wakeup_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int timehist_sched_change_event(struct perf_tool *tool __maybe_unused,
+static int timehist_sched_change_event(struct perf_tool *tool,
 				       union perf_event *event,
 				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
@@ -2056,6 +2064,7 @@ static int timehist_sched_change_event(struct perf_tool *tool __maybe_unused,
 	struct thread_runtime *tr = NULL;
 	u64 tprev;
 	int rc = 0;
+	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event. skipping it\n",
@@ -2070,7 +2079,7 @@ static int timehist_sched_change_event(struct perf_tool *tool __maybe_unused,
 		goto out;
 	}
 
-	if (timehist_skip_sample(thread))
+	if (timehist_skip_sample(sched, thread))
 		goto out;
 
 	tr = thread__get_runtime(thread);
@@ -2082,7 +2091,8 @@ static int timehist_sched_change_event(struct perf_tool *tool __maybe_unused,
 	tprev = perf_evsel__get_time(evsel, sample->cpu);
 
 	timehist_update_runtime_stats(tr, sample->time, tprev);
-	timehist_print_sample(sample, thread);
+	if (!sched->summary_only)
+		timehist_print_sample(sample, thread);
 
 out:
 	if (tr) {
@@ -2121,6 +2131,131 @@ static int process_lost(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+
+static void print_thread_runtime(struct thread *t,
+				 struct thread_runtime *r)
+{
+	double mean = avg_stats(&r->run_stats);
+	float stddev;
+
+	printf("%*s   %5d  %9" PRIu64 " ",
+	       comm_width, timehist_get_commstr(t), t->ppid,
+	       (u64) r->run_stats.n);
+
+	print_sched_time(r->total_run_time, 8);
+	stddev = rel_stddev_stats(stddev_stats(&r->run_stats), mean);
+	print_sched_time(r->run_stats.min, 6);
+	printf(" ");
+	print_sched_time((u64) mean, 6);
+	printf(" ");
+	print_sched_time(r->run_stats.max, 6);
+	printf("  ");
+	printf("%5.2f", stddev);
+	printf("\n");
+}
+
+struct total_run_stats {
+	u64  sched_count;
+	u64  task_count;
+	u64  total_run_time;
+};
+
+static int __show_thread_runtime(struct thread *t, void *priv)
+{
+	struct total_run_stats *stats = priv;
+	struct thread_runtime *r;
+
+	if (thread__is_filtered(t))
+		return 0;
+
+	r = thread__priv(t);
+	if (r && r->run_stats.n) {
+		stats->task_count++;
+		stats->sched_count += r->run_stats.n;
+		stats->total_run_time += r->total_run_time;
+		print_thread_runtime(t, r);
+	}
+
+	return 0;
+}
+
+static int show_thread_runtime(struct thread *t, void *priv)
+{
+	if (t->dead)
+		return 0;
+
+	return __show_thread_runtime(t, priv);
+}
+
+static int show_deadthread_runtime(struct thread *t, void *priv)
+{
+	if (!t->dead)
+		return 0;
+
+	return __show_thread_runtime(t, priv);
+}
+
+static void timehist_print_summary(struct perf_sched *sched,
+				   struct perf_session *session)
+{
+	struct machine *m = &session->machines.host;
+	struct total_run_stats totals;
+	u64 task_count;
+	struct thread *t;
+	struct thread_runtime *r;
+	int i;
+
+	memset(&totals, 0, sizeof(totals));
+
+	if (comm_width < 30)
+		comm_width = 30;
+
+	printf("\nRuntime summary\n");
+	printf("%*s  parent   sched-in  ", comm_width, "comm");
+	printf("   run-time    min-run     avg-run     max-run  stddev\n");
+	printf("%*s            (count)  ", comm_width, "");
+	printf("     (msec)     (msec)      (msec)      (msec)       %%\n");
+	printf("%.105s\n", graph_dotted_line);
+
+	machine__for_each_thread(m, show_thread_runtime, &totals);
+	task_count = totals.task_count;
+	if (!task_count)
+		printf("<no still running tasks>\n");
+
+	printf("\nTerminated tasks:\n");
+	machine__for_each_thread(m, show_deadthread_runtime, &totals);
+	if (task_count == totals.task_count)
+		printf("<no terminated tasks>\n");
+
+	/* CPU idle stats not tracked when samples were skipped */
+	if (sched->skipped_samples)
+		return;
+
+	printf("\nIdle stats:\n");
+	for (i = 0; i <= idle_max_cpu; ++i) {
+		t = idle_threads[i];
+		if (!t)
+			continue;
+
+		r = thread__priv(t);
+		if (r && r->run_stats.n) {
+			totals.sched_count += r->run_stats.n;
+			printf("    CPU %2d idle for ", i);
+			print_sched_time(r->total_run_time, 6);
+			printf(" msec\n");
+		} else
+			printf("    CPU %2d idle entire time window\n", i);
+	}
+
+	printf("\n"
+	       "    Total number of unique tasks: %" PRIu64 "\n"
+	       "Total number of context switches: %" PRIu64 "\n"
+	       "           Total run time (msec): ",
+	       totals.task_count, totals.sched_count);
+
+	print_sched_time(totals.total_run_time, 2);
+	printf("\n");
+}
 
 typedef int (*sched_handler)(struct perf_tool *tool,
 			  union perf_event *event,
@@ -2163,6 +2298,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	};
 
 	struct perf_session *session;
+	struct perf_evlist *evlist;
 	int err = -1;
 
 	/*
@@ -2185,6 +2321,8 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	if (session == NULL)
 		return -ENOMEM;
 
+	evlist = session->evlist;
+
 	symbol__init(&session->header.env);
 
 	setup_pager();
@@ -2203,13 +2341,25 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	if (init_idle_threads(sched->max_cpu))
 		goto out;
 
-	timehist_header();
+	/* summary_only implies summary option, but don't overwrite summary if set */
+	if (sched->summary_only)
+		sched->summary = sched->summary_only;
+
+	if (!sched->summary_only)
+		timehist_header();
 
 	err = perf_session__process_events(session);
 	if (err) {
 		pr_err("Failed to process events, error %d", err);
 		goto out;
 	}
+
+	sched->nr_events      = evlist->stats.nr_events[0];
+	sched->nr_lost_events = evlist->stats.total_lost;
+	sched->nr_lost_chunks = evlist->stats.nr_events[PERF_RECORD_LOST];
+
+	if (sched->summary)
+		timehist_print_summary(sched, session);
 
 out:
 	free_idle_threads();
@@ -2569,6 +2719,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "file", "kallsyms pathname"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
+	OPT_BOOLEAN('s', "summary", &sched.summary_only,
+		    "Show only syscall summary with statistics"),
+	OPT_BOOLEAN('S', "with-summary", &sched.summary,
+		    "Show all syscalls and summary with statistics"),
 	OPT_PARENT(sched_options)
 	};
 
