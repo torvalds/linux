@@ -1018,7 +1018,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		/* write size / packets */
 		dwc2_writel(epsize, hsotg->regs + epsize_reg);
 
-		if (using_dma(hsotg) && !continuing) {
+		if (using_dma(hsotg) && !continuing && (length != 0)) {
 			/*
 			 * write DMA address to control register, buffer
 			 * already synced by dwc2_hsotg_ep_queue().
