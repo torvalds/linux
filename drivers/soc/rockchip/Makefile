@@ -4,6 +4,7 @@
 obj-$(CONFIG_ROCKCHIP_CPUINFO)	+= rockchip-cpuinfo.o
 obj-$(CONFIG_ROCKCHIP_DEVICEINFO)	+= rk_devinfo.o
 obj-$(CONFIG_ROCKCHIP_PM_TEST)	+= pm_test.o
+obj-$(CONFIG_ROCKCHIP_GRF) += grf.o
 obj-$(CONFIG_ROCKCHIP_PM_DOMAINS) += pm_domains.o
 obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_MMC_DW_ROCKCHIP)	+= sdmmc_vendor_storage.o

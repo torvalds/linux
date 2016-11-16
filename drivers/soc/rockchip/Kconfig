@@ -35,6 +35,15 @@ config ROCKCHIP_PM_TEST
 	  Say y here to enable pm_test support.
 	  Add /sys/pm_tests/ node, only for internal testing.
 
+config ROCKCHIP_GRF
+	bool
+	default y
+	help
+	  The General Register Files are a central component providing
+	  special additional settings registers for a lot of soc-components.
+	  In a lot of cases there also need to be default settings initialized
+	  to make some of them conform to expectations of the kernel.
+
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM
