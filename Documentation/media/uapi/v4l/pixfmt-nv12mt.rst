@@ -33,7 +33,7 @@ Layout of macroblocks in memory is presented in the following figure.
 
 .. _nv12mt:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt.*
+.. figure::  nv12mt.png
     :alt:    nv12mt.png
     :align:  center
 
@@ -50,7 +50,7 @@ interleaved. Height of the buffer is aligned to 32.
 
 .. _nv12mt_ex:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt_example.*
+.. figure::  nv12mt_example.png
     :alt:    nv12mt_example.png
     :align:  center
 

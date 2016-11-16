@@ -10,8 +10,35 @@ FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
-.PHONY: all
+IMAGES = \
+	typical_media_device.svg \
+	uapi/dvb/dvbstb.svg \
+	uapi/v4l/constraints.svg \
+	uapi/v4l/subdev-image-processing-full.svg \
+	uapi/v4l/subdev-image-processing-scaling-multi-source.svg \
+	uapi/v4l/subdev-image-processing-crop.svg \
+
+IMGTGT := $(patsubst %.png,%.pdf,$(patsubst %.svg,%.pdf,$(IMAGES)))
+IMGPDF := $(patsubst %,$(SRC_DIR)/%,$(IMGTGT))
+
+cmd = $(echo-cmd) $(cmd_$(1))
+
+quiet_cmd_genpdf = GENPDF  $2
+      cmd_genpdf = convert $2 $3
+
+%.pdf: %.svg
+	@$(call cmd,genpdf,$<,$@)
+
+.PHONY: all html epub xml latex
+
 all: $(BUILDDIR) ${TARGETS}
+html: all
+epub: all
+xml: all
+latex: $(IMGPDF) all
+
+clean:
+	-rm -f $(IMGTGT) 2>/dev/null
 
 $(BUILDDIR):
 	$(Q)mkdir -p $@
@@ -58,4 +85,4 @@ $(BUILDDIR)/lirc.h.rst: ${UAPI}/lirc.h ${PARSER} $(SRC_DIR)/lirc.h.rst.exception
 	@$($(quiet)gen_rst)
 
 cleandocs:
-	-rm ${TARGETS}
+	-rm -f ${TARGETS}

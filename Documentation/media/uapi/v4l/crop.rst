@@ -53,8 +53,8 @@ Cropping Structures
 
 .. _crop-scale:
 
-.. figure::  crop_files/crop.*
-    :alt:    crop.pdf / crop.gif
+.. figure::  crop.png
+    :alt:    crop.png
     :align:  center
 
     Image Cropping, Insertion and Scaling
