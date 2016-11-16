@@ -75,7 +75,7 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 
 	/* Fill out vectors at the beginning that don't need affinity */
 	for (curvec = 0; curvec < affd->pre_vectors; curvec++)
-		cpumask_copy(masks + curvec, cpu_possible_mask);
+		cpumask_copy(masks + curvec, irq_default_affinity);
 
 	/* Stabilize the cpumasks */
 	get_online_cpus();
@@ -130,7 +130,7 @@ done:
 
 	/* Fill out vectors at the end that don't need affinity */
 	for (; curvec < nvecs; curvec++)
-		cpumask_copy(masks + curvec, cpu_possible_mask);
+		cpumask_copy(masks + curvec, irq_default_affinity);
 out:
 	free_cpumask_var(nmsk);
 	return masks;
