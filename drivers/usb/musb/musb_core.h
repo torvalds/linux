@@ -303,6 +303,7 @@ struct musb_context_registers {
 struct musb {
 	/* device lock */
 	spinlock_t		lock;
+	spinlock_t		list_lock;	/* resume work list lock */
 
 	struct musb_io		io;
 	const struct musb_platform_ops *ops;
@@ -337,6 +338,7 @@ struct musb {
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
 	struct list_head	out_bulk;	/* of musb_qh */
+	struct list_head	pending_list;	/* pending work list */
 
 	struct timer_list	otg_timer;
 	struct notifier_block	nb;
@@ -386,6 +388,7 @@ struct musb {
 	unsigned long		idle_timeout;	/* Next timeout in jiffies */
 
 	unsigned		is_initialized:1;
+	unsigned		is_runtime_suspended:1;
 
 	/* active means connected and not suspended */
 	unsigned		is_active:1;
@@ -541,6 +544,10 @@ extern void musb_load_testpacket(struct musb *);
 extern irqreturn_t musb_interrupt(struct musb *);
 
 extern void musb_hnp_stop(struct musb *musb);
+
+int musb_queue_resume_work(struct musb *musb,
+			   int (*callback)(struct musb *musb, void *data),
+			   void *data);
 
 static inline void musb_platform_set_vbus(struct musb *musb, int is_on)
 {
