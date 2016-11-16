@@ -242,6 +242,7 @@ __run_test() { # testfile
 run_test() { # testfile
   local testname=`basename $1`
   local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
   testcase $1
   echo "execute: "$1 > $testlog
   SIG_RESULT=0
@@ -258,6 +259,7 @@ run_test() { # testfile
     [ $BE_QUIET -eq 0 ] && catlog $testlog
     TOTAL_RESULT=1
   fi
+  rm -rf $TMPDIR
 }
 
 # load in the helper functions
