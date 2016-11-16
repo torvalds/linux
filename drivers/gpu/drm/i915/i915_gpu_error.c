@@ -528,8 +528,7 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
-	struct drm_device *dev = error_priv->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(error_priv->dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
@@ -585,7 +584,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	err_printf(m, "EIR: 0x%08x\n", error->eir);
 	err_printf(m, "IER: 0x%08x\n", error->ier);
-	if (INTEL_INFO(dev)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		for (i = 0; i < 4; i++)
 			err_printf(m, "GTIER gt %d: 0x%08x\n", i,
 				   error->gtier[i]);
@@ -600,10 +599,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		err_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
 
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (INTEL_GEN(dev_priv) >= 6) {
 		err_printf(m, "ERROR: 0x%08x\n", error->error);
 
-		if (INTEL_INFO(dev)->gen >= 8)
+		if (INTEL_GEN(dev_priv) >= 8)
 			err_printf(m, "FAULT_TLB_DATA: 0x%08x 0x%08x\n",
 				   error->fault_data1, error->fault_data0);
 
@@ -708,7 +707,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		intel_overlay_print_error_state(m, error->overlay);
 
 	if (error->display)
-		intel_display_print_error_state(m, dev, error->display);
+		intel_display_print_error_state(m, dev_priv, error->display);
 
 out:
 	if (m->bytes == 0 && m->err)
@@ -1443,7 +1442,6 @@ static void i915_gem_capture_guc_log_buffer(struct drm_i915_private *dev_priv,
 static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 				   struct drm_i915_error_state *error)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	int i;
 
 	/* General organization
@@ -1464,7 +1462,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (IS_GEN7(dev_priv))
 		error->err_int = I915_READ(GEN7_ERR_INT);
 
-	if (INTEL_INFO(dev)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		error->fault_data0 = I915_READ(GEN8_FAULT_TLB_DATA0);
 		error->fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
 	}
@@ -1476,10 +1474,10 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	/* 2: Registers which belong to multiple generations */
-	if (INTEL_INFO(dev)->gen >= 7)
+	if (INTEL_GEN(dev_priv) >= 7)
 		error->forcewake = I915_READ_FW(FORCEWAKE_MT);
 
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (INTEL_GEN(dev_priv) >= 6) {
 		error->derrmr = I915_READ(DERRMR);
 		error->error = I915_READ(ERROR_GEN6);
 		error->done_reg = I915_READ(DONE_REG);
@@ -1495,7 +1493,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	if (HAS_HW_CONTEXTS(dev_priv))
 		error->ccid = I915_READ(CCID);
 
-	if (INTEL_INFO(dev)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		error->ier = I915_READ(GEN8_DE_MISC_IER);
 		for (i = 0; i < 4; i++)
 			error->gtier[i] = I915_READ(GEN8_GT_IER(i));
