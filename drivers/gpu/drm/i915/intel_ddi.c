@@ -1753,8 +1753,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 				   struct drm_connector_state *old_conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 	uint32_t val;
@@ -1787,7 +1786,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
-	else if (INTEL_INFO(dev)->gen < 9)
+	else if (INTEL_GEN(dev_priv) < 9)
 		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 
 	if (type == INTEL_OUTPUT_HDMI) {
@@ -1837,8 +1836,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 
@@ -1856,7 +1854,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 	} else if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-		if (port == PORT_A && INTEL_INFO(dev)->gen < 9)
+		if (port == PORT_A && INTEL_GEN(dev_priv) < 9)
 			intel_dp_stop_link_train(intel_dp);
 
 		intel_edp_backlight_on(intel_dp);

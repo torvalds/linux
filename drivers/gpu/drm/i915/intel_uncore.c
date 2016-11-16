@@ -1483,7 +1483,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
 		if (i915_mmio_reg_offset(entry->offset_ldw) == (reg->offset & -entry->size) &&
-		    (INTEL_INFO(dev)->gen_mask & entry->gen_bitmask))
+		    (INTEL_INFO(dev_priv)->gen_mask & entry->gen_bitmask))
 			break;
 	}
 

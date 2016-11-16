@@ -472,7 +472,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
 
-		if (INTEL_INFO(dev)->gen >= 9)
+		if (INTEL_GEN(dev_priv) >= 9)
 			intel_psr_activate(intel_dp);
 	} else {
 		vlv_psr_setup_vsc(intel_dp);
@@ -498,7 +498,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	 *     - On HSW/BDW we get a recoverable frozen screen until next
 	 *       exit-activate sequence.
 	 */
-	if (INTEL_INFO(dev)->gen < 9)
+	if (INTEL_GEN(dev_priv) < 9)
 		schedule_delayed_work(&dev_priv->psr.work,
 				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
 

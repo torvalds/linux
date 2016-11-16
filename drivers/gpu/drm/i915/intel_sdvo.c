@@ -1195,8 +1195,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 				  struct intel_crtc_state *crtc_state,
 				  struct drm_connector_state *conn_state)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
 	struct drm_display_mode *mode = &crtc_state->base.mode;
@@ -1269,13 +1268,13 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		return;
 
 	/* Set the SDVO control regs. */
-	if (INTEL_INFO(dev)->gen >= 4) {
+	if (INTEL_GEN(dev_priv) >= 4) {
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
 		if (!HAS_PCH_SPLIT(dev_priv) && crtc_state->limited_color_range)
 			sdvox |= HDMI_COLOR_RANGE_16_235;
-		if (INTEL_INFO(dev)->gen < 5)
+		if (INTEL_GEN(dev_priv) < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
 		sdvox = I915_READ(intel_sdvo->sdvo_reg);
@@ -1294,7 +1293,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
-	if (INTEL_INFO(dev)->gen >= 4) {
+	if (INTEL_GEN(dev_priv) >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
 		   IS_G33(dev_priv)) {
@@ -1305,7 +1304,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	}
 
 	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL &&
-	    INTEL_INFO(dev)->gen < 5)
+	    INTEL_GEN(dev_priv) < 5)
 		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
 }
