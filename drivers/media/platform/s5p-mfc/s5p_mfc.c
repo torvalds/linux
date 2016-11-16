@@ -963,11 +963,13 @@ static int s5p_mfc_release(struct file *file)
 			mfc_debug(2, "Last instance\n");
 			s5p_mfc_deinit_hw(dev);
 			del_timer_sync(&dev->watchdog_timer);
+			s5p_mfc_clock_off();
 			if (s5p_mfc_power_off() < 0)
 				mfc_err("Power off failed\n");
+		} else {
+			mfc_debug(2, "Shutting down clock\n");
+			s5p_mfc_clock_off();
 		}
-		mfc_debug(2, "Shutting down clock\n");
-		s5p_mfc_clock_off();
 	}
 	if (dev)
 		dev->ctx[ctx->num] = NULL;
