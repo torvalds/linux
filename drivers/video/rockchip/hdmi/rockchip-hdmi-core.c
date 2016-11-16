@@ -203,12 +203,16 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		video->vic = hdmi->vic & HDMI_VIC_MASK;
 		video->eotf = 0;
 		if (hdmi->eotf) {
-			if (hdmi->eotf & hdmi->edid.hdr.hdrinfo.eotf)
+			if (hdmi->eotf & hdmi->edid.hdr.hdrinfo.eotf) {
 				video->eotf = hdmi->eotf;
-			else
+			} else {
 				pr_err("sink eotf %x not support eotf %x\n",
 				       hdmi->edid.hdr.hdrinfo.eotf,
 				       hdmi->eotf);
+				if (hdmi->edid.hdr.hdrinfo.eotf &
+				    EOTF_TRADITIONAL_GMMA_SDR)
+					video->eotf = EOTF_TRADITIONAL_GMMA_SDR;
+			}
 		}
 		/* ST_2084 must be 10bit and bt2020 */
 		if (video->eotf & EOTF_ST_2084) {

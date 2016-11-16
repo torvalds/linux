@@ -1620,7 +1620,7 @@ static void hdmi_dev_config_hdr(struct hdmi_dev *hdmi_dev,
 		return;
 
 	hdmi_writel(hdmi_dev, FC_DRM_HB, 1);/*verion = 0x1*/
-	hdmi_writel(hdmi_dev, (FC_DRM_HB + 1), 27);/*length of following data*/
+	hdmi_writel(hdmi_dev, (FC_DRM_HB + 1), 26);/*length of following data*/
 	hdmi_writel(hdmi_dev, FC_DRM_PB, eotf / 2);
 	hdmi_writel(hdmi_dev, FC_DRM_PB + 1, 0);
 

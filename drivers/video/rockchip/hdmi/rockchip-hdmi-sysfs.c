@@ -258,12 +258,14 @@ static int hdmi_set_color(struct rk_display_device *device,
 	} else if (!strncmp(buf, "hdr", 3)) {
 		if (sscanf(buf, "hdr=%d", &value) == -1)
 			return -1;
-		pr_debug("current hdr eotf is %d input hdr eotf is %d\n",
-			 hdmi->eotf, value);
+		pr_info("current hdr eotf is %d input hdr eotf is %d\n",
+			hdmi->eotf, value);
 		if (hdmi->eotf != value &&
-		    (hdmi->eotf & hdmi->edid.hdr.hdrinfo.eotf ||
+		    (value & hdmi->edid.hdr.hdrinfo.eotf ||
 		     hdmi->eotf == 0))
 			hdmi->eotf = value;
+		else
+			return 0;
 	} else {
 		return -1;
 	}
