@@ -1393,6 +1393,7 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 
 static const struct ethtool_ops pxa168_ethtool_ops = {
 	.get_drvinfo	= pxa168_get_drvinfo,
+	.nway_reset	= phy_ethtool_nway_reset,
 	.get_link	= ethtool_op_get_link,
 	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_link_ksettings = pxa168_get_link_ksettings,
