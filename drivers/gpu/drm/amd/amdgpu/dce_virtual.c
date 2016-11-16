@@ -214,12 +214,12 @@ static void dce_virtual_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Make sure VBLANK interrupts are still enabled */
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
-		drm_vblank_on(dev, amdgpu_crtc->crtc_id);
+		drm_crtc_vblank_on(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_off(dev, amdgpu_crtc->crtc_id);
+		drm_crtc_vblank_off(crtc);
 		amdgpu_crtc->enabled = false;
 		break;
 	}

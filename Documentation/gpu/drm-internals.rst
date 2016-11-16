@@ -143,6 +143,9 @@ Device Instance and Driver Handling
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :export:
 
+.. kernel-doc:: include/drm/drm_drv.h
+   :internal:
+
 Driver Load
 -----------
 
@@ -363,7 +366,7 @@ Printer
 .. kernel-doc:: include/drm/drm_print.h
    :internal:
 
-.. kernel-doc:: include/drm/drm_print.h
+.. kernel-doc:: drivers/gpu/drm/drm_print.c
    :export:
 
 

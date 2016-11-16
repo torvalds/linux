@@ -137,6 +137,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
 		drm_object_attach_property(&plane->base, config->prop_fb_id, 0);
+		drm_object_attach_property(&plane->base, config->prop_in_fence_fd, -1);
 		drm_object_attach_property(&plane->base, config->prop_crtc_id, 0);
 		drm_object_attach_property(&plane->base, config->prop_crtc_x, 0);
 		drm_object_attach_property(&plane->base, config->prop_crtc_y, 0);
@@ -479,9 +480,10 @@ static int __setplane_internal(struct drm_plane *plane,
 	/* Check whether this plane supports the fb pixel format. */
 	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
 	if (ret) {
-		char *format_name = drm_get_format_name(fb->pixel_format);
-		DRM_DEBUG_KMS("Invalid pixel format %s\n", format_name);
-		kfree(format_name);
+		struct drm_format_name_buf format_name;
+		DRM_DEBUG_KMS("Invalid pixel format %s\n",
+		              drm_get_format_name(fb->pixel_format,
+		                                  &format_name));
 		goto out;
 	}
 

@@ -261,14 +261,6 @@ Plane Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_plane_helper.c
    :export:
 
-Tile group
-==========
-
-# FIXME: This should probably be moved into a property documentation section
-
-.. kernel-doc:: drivers/gpu/drm/drm_crtc.c
-   :doc: Tile group
-
 Auxiliary Modeset Helpers
 =========================
 
