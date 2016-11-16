@@ -3911,7 +3911,7 @@ F:	include/linux/dma-buf*
 F:	include/linux/reservation.h
 F:	include/linux/*fence.h
 F:	Documentation/dma-buf-sharing.txt
-T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 SYNC FILE FRAMEWORK
 M:	Sumit Semwal <sumit.semwal@linaro.org>
@@ -3924,7 +3924,7 @@ F:	drivers/dma-buf/sw_sync.c
 F:	include/linux/sync_file.h
 F:	include/uapi/linux/sync_file.h
 F:	Documentation/sync_file.txt
-T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vinod.koul@intel.com>
