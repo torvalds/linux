@@ -406,8 +406,9 @@ static int init_handler(void *h)
 		goto failed;
 	}
 	memset(&opts, 0, sizeof(opts));
-	opts.we_mask = QM_INITFQ_WE_FQCTRL | QM_INITFQ_WE_CONTEXTA;
-	opts.fqd.fq_ctrl = QM_FQCTRL_CTXASTASHING;
+	opts.we_mask = cpu_to_be16(QM_INITFQ_WE_FQCTRL |
+				   QM_INITFQ_WE_CONTEXTA);
+	opts.fqd.fq_ctrl = cpu_to_be16(QM_FQCTRL_CTXASTASHING);
 	qm_fqd_set_stashing(&opts.fqd, 0, STASH_DATA_CL, STASH_CTX_CL);
 	err = qman_init_fq(&handler->rx, QMAN_INITFQ_FLAG_SCHED |
 			   QMAN_INITFQ_FLAG_LOCAL, &opts);
