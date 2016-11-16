@@ -1435,7 +1435,7 @@ static int bcm_enet_nway_reset(struct net_device *dev)
 
 	priv = netdev_priv(dev);
 	if (priv->has_phy)
-		return phy_ethtool_nway_reset(dev),
+		return phy_ethtool_nway_reset(dev);
 
 	return -EOPNOTSUPP;
 }
