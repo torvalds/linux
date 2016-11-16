@@ -247,7 +247,7 @@ static bool calc_wb_limits(struct rq_wb *rwb)
 	return ret;
 }
 
-static bool inline stat_sample_valid(struct blk_rq_stat *stat)
+static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 {
 	/*
 	 * We need at least one read sample, and a minimum of
