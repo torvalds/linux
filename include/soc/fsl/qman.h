@@ -553,8 +553,8 @@ struct __qm_mc_cgr {
 	u8 cscn_en;	/* boolean, use QM_CGR_EN */
 	union {
 		struct {
-			u16 cscn_targ_upd_ctrl; /* use QM_CSCN_TARG_UDP_ */
-			u16 cscn_targ_dcp_low;	/* CSCN_TARG_DCP low-16bits */
+			u16 cscn_targ_upd_ctrl; /* use QM_CGR_TARG_UDP_* */
+			u16 cscn_targ_dcp_low;
 		};
 		u32 cscn_targ;	/* use QM_CGR_TARG_* */
 	};
