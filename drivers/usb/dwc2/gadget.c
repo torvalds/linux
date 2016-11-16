@@ -316,11 +316,6 @@ static void dwc2_hsotg_unmap_dma(struct dwc2_hsotg *hsotg,
 				struct dwc2_hsotg_req *hs_req)
 {
 	struct usb_request *req = &hs_req->req;
-
-	/* ignore this if we're not moving any data */
-	if (hs_req->req.length == 0)
-		return;
-
 	usb_gadget_unmap_request(&hsotg->gadget, req, hs_ep->dir_in);
 }
 
@@ -1101,12 +1096,7 @@ static int dwc2_hsotg_map_dma(struct dwc2_hsotg *hsotg,
 			     struct dwc2_hsotg_ep *hs_ep,
 			     struct usb_request *req)
 {
-	struct dwc2_hsotg_req *hs_req = our_req(req);
 	int ret;
-
-	/* if the length is zero, ignore the DMA data */
-	if (hs_req->req.length == 0)
-		return 0;
 
 	ret = usb_gadget_map_request(&hsotg->gadget, req, hs_ep->dir_in);
 	if (ret)
