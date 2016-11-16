@@ -1172,7 +1172,7 @@ static void record_request(struct drm_i915_gem_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
-	erq->ban_score = request->ctx->hang_stats.ban_score;
+	erq->ban_score = request->ctx->ban_score;
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->head = request->head;

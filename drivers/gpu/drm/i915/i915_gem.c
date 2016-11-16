@@ -2622,15 +2622,13 @@ err_unlock:
 
 static bool i915_context_is_banned(const struct i915_gem_context *ctx)
 {
-	const struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
-
-	if (hs->banned)
+	if (ctx->banned)
 		return true;
 
-	if (!hs->bannable)
+	if (!ctx->bannable)
 		return false;
 
-	if (hs->ban_score >= CONTEXT_SCORE_BAN_THRESHOLD) {
+	if (ctx->ban_score >= CONTEXT_SCORE_BAN_THRESHOLD) {
 		DRM_DEBUG("context hanging too often, banning!\n");
 		return true;
 	}
@@ -2640,20 +2638,19 @@ static bool i915_context_is_banned(const struct i915_gem_context *ctx)
 
 static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 {
-	struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
+	ctx->ban_score += CONTEXT_SCORE_GUILTY;
 
-	hs->ban_score += CONTEXT_SCORE_GUILTY;
-
-	hs->banned = i915_context_is_banned(ctx);
-	hs->batch_active++;
+	ctx->banned = i915_context_is_banned(ctx);
+	ctx->guilty_count++;
 
 	DRM_DEBUG_DRIVER("context %s marked guilty (score %d) banned? %s\n",
-			 ctx->name, hs->ban_score, yesno(hs->banned));
+			 ctx->name, ctx->ban_score,
+			 yesno(ctx->banned));
 
 	if (!ctx->file_priv)
 		return;
 
-	if (hs->banned) {
+	if (ctx->banned) {
 		ctx->file_priv->context_bans++;
 
 		DRM_DEBUG_DRIVER("client %s has has %d context banned\n",
@@ -2664,9 +2661,7 @@ static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 
 static void i915_gem_context_mark_innocent(struct i915_gem_context *ctx)
 {
-	struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
-
-	hs->batch_pending++;
+	ctx->active_count++;
 }
 
 struct drm_i915_gem_request *

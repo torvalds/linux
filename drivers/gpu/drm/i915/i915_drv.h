@@ -913,25 +913,6 @@ enum i915_cache_level {
 	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scanouts */
 };
 
-struct i915_ctx_hang_stats {
-	/* This context had batch pending when hang was declared */
-	unsigned batch_pending;
-
-	/* This context had batch active when hang was declared */
-	unsigned batch_active;
-
-	bool bannable:1;
-
-	/* This context is banned to submit more work */
-	bool banned:1;
-
-#define CONTEXT_SCORE_GUILTY		10
-#define CONTEXT_SCORE_BAN_THRESHOLD	40
-	/* Accumulated score of hangs caused by this context */
-	int ban_score;
-};
-
-/* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_HANDLE 0
 
 /**
@@ -961,8 +942,6 @@ struct i915_gem_context {
 	struct pid *pid;
 	const char *name;
 
-	struct i915_ctx_hang_stats hang_stats;
-
 	unsigned long flags;
 #define CONTEXT_NO_ZEROMAP		BIT(0)
 #define CONTEXT_NO_ERROR_CAPTURE	BIT(1)
@@ -991,6 +970,16 @@ struct i915_gem_context {
 
 	u8 remap_slice;
 	bool closed:1;
+	bool bannable:1;
+	bool banned:1;
+
+	unsigned int guilty_count; /* guilty of a hang */
+	unsigned int active_count; /* active during hang */
+
+#define CONTEXT_SCORE_GUILTY		10
+#define CONTEXT_SCORE_BAN_THRESHOLD	40
+	/* Accumulated score of hangs caused by this context */
+	int ban_score;
 };
 
 enum fb_op_origin {
