@@ -782,10 +782,9 @@ static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 				unsigned long action, void *data)
 {
 	struct fb_event *event = data;
-	int blank_mode = *((int *)event->data);
 
 	if (action == FB_EARLY_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_UNBLANK:
 			rockchip_clear_system_status(SYS_STATUS_SUSPEND);
 			break;
@@ -794,7 +793,7 @@ static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 		}
 	}
 	else if (action == FB_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_POWERDOWN:
 			rockchip_set_system_status(SYS_STATUS_SUSPEND);
 			break;

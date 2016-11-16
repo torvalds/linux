@@ -150,7 +150,7 @@ static int early_suspend_notifier_call(struct notifier_block *self,
 
 	mutex_lock(&switch_vdd_gpu_mutex);
 	if (action == FB_EARLY_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_UNBLANK:
 			early_suspend = 0;
 			if (pd_gpu_off) {
@@ -163,7 +163,7 @@ static int early_suspend_notifier_call(struct notifier_block *self,
 			break;
 		}
 	} else if (action == FB_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_POWERDOWN:
 			early_suspend = 1;
 			if (pd_gpu_off) {

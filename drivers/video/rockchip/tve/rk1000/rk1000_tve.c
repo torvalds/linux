@@ -256,12 +256,10 @@ static int rk1000_fb_event_notify(struct notifier_block *self,
 				  unsigned long action, void *data)
 {
 	struct fb_event *event;
-	int blank_mode;
 
 	event = data;
-	blank_mode = *((int *)event->data);
 	if (action == FB_EARLY_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_UNBLANK:
 		break;
 		default:
@@ -269,7 +267,7 @@ static int rk1000_fb_event_notify(struct notifier_block *self,
 		break;
 		}
 	} else if (action == FB_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_UNBLANK:
 			rk1000_early_resume(NULL);
 		break;

@@ -172,11 +172,10 @@ static int rockchip_dp_fb_event_notify(struct notifier_block *self,
 					   void *data)
 {
 	struct fb_event *event = data;
-	int blank_mode = *((int *)event->data);
 	struct dp_dev *dp_dev = container_of(self, struct dp_dev, fb_notif);
 
 	if (action == FB_EARLY_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_UNBLANK:
 			break;
 		default:
@@ -187,7 +186,7 @@ static int rockchip_dp_fb_event_notify(struct notifier_block *self,
 			break;
 		}
 	} else if (action == FB_EVENT_BLANK) {
-		switch (blank_mode) {
+		switch (*((int *)event->data)) {
 		case FB_BLANK_UNBLANK:
 			if (dp_dev->hdmi->sleep) {
 				dp_dev->early_suspended = false;
