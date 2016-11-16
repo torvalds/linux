@@ -60,14 +60,11 @@ struct task_struct;
 #ifndef CONFIG_EZNPS_MTM_EXT
 
 #define cpu_relax()		barrier()
-#define cpu_relax_yield()	cpu_relax()
 
 #else
 
 #define cpu_relax()     \
 	__asm__ __volatile__ (".word %0" : : "i"(CTOP_INST_SCHD_RW) : "memory")
-
-#define cpu_relax_yield()	cpu_relax()
 
 #endif
 

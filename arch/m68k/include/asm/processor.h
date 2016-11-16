@@ -156,6 +156,5 @@ unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk)	((struct pt_regs *) ((tsk)->thread.esp0))
 
 #define cpu_relax()	barrier()
-#define cpu_relax_yield() cpu_relax()
 
 #endif

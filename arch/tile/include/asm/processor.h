@@ -264,8 +264,6 @@ static inline void cpu_relax(void)
 	barrier();
 }
 
-#define cpu_relax_yield() cpu_relax()
-
 /* Info on this processor (see fs/proc/cpuinfo.c) */
 struct seq_operations;
 extern const struct seq_operations cpuinfo_op;

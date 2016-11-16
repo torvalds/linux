@@ -127,7 +127,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
 #define cpu_relax()    barrier()
-#define cpu_relax_yield() cpu_relax()
 
 #define HARD_RESET_NOW() ({		\
 	local_irq_disable();		\
