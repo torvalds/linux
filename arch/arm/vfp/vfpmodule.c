@@ -34,11 +34,11 @@
 /*
  * Our undef handlers (in entry.S)
  */
-void vfp_testing_entry(void);
-void vfp_support_entry(void);
-void vfp_null_entry(void);
+asmlinkage void vfp_testing_entry(void);
+asmlinkage void vfp_support_entry(void);
+asmlinkage void vfp_null_entry(void);
 
-void (*vfp_vector)(void) = vfp_null_entry;
+asmlinkage void (*vfp_vector)(void) = vfp_null_entry;
 
 /*
  * Dual-use variable.
