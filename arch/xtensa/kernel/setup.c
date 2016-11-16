@@ -31,10 +31,6 @@
 # include <linux/console.h>
 #endif
 
-#ifdef CONFIG_RTC
-# include <linux/timex.h>
-#endif
-
 #ifdef CONFIG_PROC_FS
 # include <linux/seq_file.h>
 #endif
@@ -55,16 +51,15 @@
 #include <platform/hardware.h>
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
-struct screen_info screen_info = { 0, 24, 0, 0, 0, 80, 0, 0, 0, 24, 1, 16};
+struct screen_info screen_info = {
+	.orig_x = 0,
+	.orig_y = 24,
+	.orig_video_cols = 80,
+	.orig_video_lines = 24,
+	.orig_video_isVGA = 1,
+	.orig_video_points = 16,
+};
 #endif
-
-#ifdef CONFIG_BLK_DEV_FD
-extern struct fd_ops no_fd_ops;
-struct fd_ops *fd_ops;
-#endif
-
-extern struct rtc_ops no_rtc_ops;
-struct rtc_ops *rtc_ops;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 extern unsigned long initrd_start;
@@ -77,7 +72,6 @@ extern int initrd_below_start_ok;
 void *dtb_start = __dtb_start;
 #endif
 
-unsigned char aux_device_present;
 extern unsigned long loops_per_jiffy;
 
 /* Command line specified as configuration option. */
