@@ -11,9 +11,9 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/vmalloc.h>
-
 #include <linux/kvm_host.h>
+#include <linux/vmalloc.h>
+#include <asm/mmu_context.h>
 
 #include "interrupt.h"
 
@@ -635,12 +635,64 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 
 static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	unsigned long asid_mask = cpu_asid_mask(&cpu_data[cpu]);
+
+	/* Allocate new kernel and user ASIDs if needed */
+
+	if ((vcpu->arch.guest_kernel_asid[cpu] ^ asid_cache(cpu)) &
+						asid_version_mask(cpu)) {
+		kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm, cpu, vcpu);
+		vcpu->arch.guest_kernel_asid[cpu] =
+		    vcpu->arch.guest_kernel_mm.context.asid[cpu];
+
+		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
+			  cpu_context(cpu, current->mm));
+		kvm_debug("[%d]: Allocated new ASID for Guest Kernel: %#x\n",
+			  cpu, vcpu->arch.guest_kernel_asid[cpu]);
+	}
+
+	if ((vcpu->arch.guest_user_asid[cpu] ^ asid_cache(cpu)) &
+						asid_version_mask(cpu)) {
+		kvm_get_new_mmu_context(&vcpu->arch.guest_user_mm, cpu, vcpu);
+		vcpu->arch.guest_user_asid[cpu] =
+		    vcpu->arch.guest_user_mm.context.asid[cpu];
+
+		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
+			  cpu_context(cpu, current->mm));
+		kvm_debug("[%d]: Allocated new ASID for Guest User: %#x\n", cpu,
+			  vcpu->arch.guest_user_asid[cpu]);
+	}
+
+	/*
+	 * Were we in guest context? If so then the pre-empted ASID is
+	 * no longer valid, we need to set it to what it should be based
+	 * on the mode of the Guest (Kernel/User)
+	 */
+	if (current->flags & PF_VCPU) {
+		if (KVM_GUEST_KERNEL_MODE(vcpu))
+			write_c0_entryhi(vcpu->arch.guest_kernel_asid[cpu] &
+					 asid_mask);
+		else
+			write_c0_entryhi(vcpu->arch.guest_user_asid[cpu] &
+					 asid_mask);
+		ehb();
+	}
+
 	return 0;
 }
 
 static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 {
 	kvm_lose_fpu(vcpu);
+
+	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
+	     asid_version_mask(cpu))) {
+		kvm_debug("%s: Dropping MMU Context:  %#lx\n", __func__,
+			  cpu_context(cpu, current->mm));
+		drop_mmu_context(current->mm, cpu);
+	}
+	write_c0_entryhi(cpu_asid(cpu, current->mm));
+	ehb();
 
 	return 0;
 }
