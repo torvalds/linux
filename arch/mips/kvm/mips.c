@@ -92,22 +92,8 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-static void kvm_mips_init_vm_percpu(void *arg)
-{
-	struct kvm *kvm = (struct kvm *)arg;
-
-	kvm_mips_callbacks->vm_init(kvm);
-
-}
-
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	if (atomic_inc_return(&kvm_mips_instance) == 1) {
-		kvm_debug("%s: 1st KVM instance, setup host TLB parameters\n",
-			  __func__);
-		on_each_cpu(kvm_mips_init_vm_percpu, kvm, 1);
-	}
-
 	return 0;
 }
 
@@ -150,8 +136,6 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_mips_free_vcpus(kvm);
-
-	atomic_dec(&kvm_mips_instance);
 }
 
 long kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl,

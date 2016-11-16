@@ -33,9 +33,6 @@
 #define KVM_GUEST_PC_TLB    0
 #define KVM_GUEST_SP_TLB    1
 
-atomic_t kvm_mips_instance;
-EXPORT_SYMBOL_GPL(kvm_mips_instance);
-
 static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
 	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;

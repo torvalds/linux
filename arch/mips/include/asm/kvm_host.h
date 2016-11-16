@@ -121,8 +121,6 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 	return IS_ERR_VALUE(addr);
 }
 
-extern atomic_t kvm_mips_instance;
-
 struct kvm_vm_stat {
 	ulong remote_tlb_flush;
 };
@@ -528,7 +526,6 @@ struct kvm_mips_callbacks {
 	int (*handle_msa_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_fpe)(struct kvm_vcpu *vcpu);
 	int (*handle_msa_disabled)(struct kvm_vcpu *vcpu);
-	int (*vm_init)(struct kvm *kvm);
 	int (*vcpu_init)(struct kvm_vcpu *vcpu);
 	void (*vcpu_uninit)(struct kvm_vcpu *vcpu);
 	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
