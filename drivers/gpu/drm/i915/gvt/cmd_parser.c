@@ -2537,7 +2537,8 @@ static int scan_workload(struct intel_vgpu_workload *workload)
 	s.rb_va = workload->shadow_ring_buffer_va;
 	s.workload = workload;
 
-	if (bypass_scan_mask & (1 << workload->ring_id))
+	if ((bypass_scan_mask & (1 << workload->ring_id)) ||
+		gma_head == gma_tail)
 		return 0;
 
 	ret = ip_gma_set(&s, gma_head);
