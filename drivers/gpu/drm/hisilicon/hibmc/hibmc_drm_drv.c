@@ -202,6 +202,7 @@ static int hibmc_unload(struct drm_device *dev)
 {
 	struct hibmc_drm_private *priv = dev->dev_private;
 
+	hibmc_fbdev_fini(priv);
 	hibmc_mm_fini(priv);
 	dev->dev_private = NULL;
 	return 0;
@@ -227,6 +228,12 @@ static int hibmc_load(struct drm_device *dev)
 	ret = hibmc_mm_init(priv);
 	if (ret)
 		goto err;
+
+	ret = hibmc_fbdev_init(priv);
+	if (ret) {
+		DRM_ERROR("failed to initialize fbdev: %d\n", ret);
+		goto err;
+	}
 
 	return 0;
 

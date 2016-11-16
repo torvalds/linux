@@ -20,8 +20,20 @@
 #define HIBMC_DRM_DRV_H
 
 #include <drm/drmP.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/ttm/ttm_bo_driver.h>
+
+struct hibmc_framebuffer {
+	struct drm_framebuffer fb;
+	struct drm_gem_object *obj;
+};
+
+struct hibmc_fbdev {
+	struct drm_fb_helper helper;
+	struct hibmc_framebuffer *fb;
+	int size;
+};
 
 struct hibmc_drm_private {
 	/* hw */
@@ -39,8 +51,12 @@ struct hibmc_drm_private {
 	struct ttm_bo_device bdev;
 	bool initialized;
 
+	/* fbdev */
+	struct hibmc_fbdev *fbdev;
 	bool mm_inited;
 };
+
+#define to_hibmc_framebuffer(x) container_of(x, struct hibmc_framebuffer, fb)
 
 struct hibmc_bo {
 	struct ttm_buffer_object bo;
@@ -66,8 +82,16 @@ void hibmc_set_power_mode(struct hibmc_drm_private *priv,
 void hibmc_set_current_gate(struct hibmc_drm_private *priv,
 			    unsigned int gate);
 
+int hibmc_fbdev_init(struct hibmc_drm_private *priv);
+void hibmc_fbdev_fini(struct hibmc_drm_private *priv);
+
 int hibmc_gem_create(struct drm_device *dev, u32 size, bool iskernel,
 		     struct drm_gem_object **obj);
+struct hibmc_framebuffer *
+hibmc_framebuffer_init(struct drm_device *dev,
+		       const struct drm_mode_fb_cmd2 *mode_cmd,
+		       struct drm_gem_object *obj);
+
 int hibmc_mm_init(struct hibmc_drm_private *hibmc);
 void hibmc_mm_fini(struct hibmc_drm_private *hibmc);
 int hibmc_bo_pin(struct hibmc_bo *bo, u32 pl_flag, u64 *gpu_addr);
