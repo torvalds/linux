@@ -294,6 +294,9 @@ struct intel_connector {
 	 */
 	struct intel_encoder *encoder;
 
+	/* ACPI device id for ACPI and driver cooperation */
+	u32 acpi_device_id;
+
 	/* Reads out the current hw, returning true if the connector is enabled
 	 * and active (i.e. dpms ON state). */
 	bool (*get_hw_state)(struct intel_connector *);
