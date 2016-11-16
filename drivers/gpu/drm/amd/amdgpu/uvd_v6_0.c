@@ -770,7 +770,7 @@ static int uvd_v6_0_wait_for_idle(void *handle)
 }
 
 #define AMDGPU_UVD_STATUS_BUSY_MASK    0xfd
-static int uvd_v6_0_check_soft_reset(void *handle)
+static bool uvd_v6_0_check_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset = 0;
@@ -782,19 +782,19 @@ static int uvd_v6_0_check_soft_reset(void *handle)
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_UVD, 1);
 
 	if (srbm_soft_reset) {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang = true;
 		adev->uvd.srbm_soft_reset = srbm_soft_reset;
+		return true;
 	} else {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang = false;
 		adev->uvd.srbm_soft_reset = 0;
+		return false;
 	}
-	return 0;
 }
+
 static int uvd_v6_0_pre_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang)
+	if (!adev->uvd.srbm_soft_reset)
 		return 0;
 
 	uvd_v6_0_stop(adev);
@@ -806,7 +806,7 @@ static int uvd_v6_0_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang)
+	if (!adev->uvd.srbm_soft_reset)
 		return 0;
 	srbm_soft_reset = adev->uvd.srbm_soft_reset;
 
@@ -836,7 +836,7 @@ static int uvd_v6_0_post_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_UVD].hang)
+	if (!adev->uvd.srbm_soft_reset)
 		return 0;
 
 	mdelay(5);

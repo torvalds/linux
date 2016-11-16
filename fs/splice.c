@@ -299,12 +299,7 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 {
 	struct iov_iter to;
 	struct kiocb kiocb;
-	loff_t isize;
 	int idx, ret;
-
-	isize = i_size_read(in->f_mapping->host);
-	if (unlikely(*ppos >= isize))
-		return 0;
 
 	iov_iter_pipe(&to, ITER_PIPE | READ, pipe, len);
 	idx = to.idx;

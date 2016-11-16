@@ -730,10 +730,6 @@ __SYSCALL(__NR_pkey_mprotect, sys_pkey_mprotect)
 __SYSCALL(__NR_pkey_alloc,    sys_pkey_alloc)
 #define __NR_pkey_free 290
 __SYSCALL(__NR_pkey_free,     sys_pkey_free)
-#define __NR_pkey_get 291
-//__SYSCALL(__NR_pkey_get,      sys_pkey_get)
-#define __NR_pkey_set 292
-//__SYSCALL(__NR_pkey_set,      sys_pkey_set)
 
 #undef __NR_syscalls
 #define __NR_syscalls 291

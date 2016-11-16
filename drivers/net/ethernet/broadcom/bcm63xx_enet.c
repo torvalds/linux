@@ -1126,7 +1126,8 @@ out_freeirq:
 	free_irq(dev->irq, dev);
 
 out_phy_disconnect:
-	phy_disconnect(phydev);
+	if (priv->has_phy)
+		phy_disconnect(phydev);
 
 	return ret;
 }

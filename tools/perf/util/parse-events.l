@@ -136,8 +136,8 @@ do {							\
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
-bpf_object	.*\.(o|bpf)
-bpf_source	.*\.c
+bpf_object	[^,{}]+\.(o|bpf)
+bpf_source	[^,{}]+\.c
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+

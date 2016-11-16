@@ -95,19 +95,35 @@ __start_interrupts:
 /* No virt vectors corresponding with 0x0..0x100 */
 EXC_VIRT_NONE(0x4000, 0x4100)
 
+
+#ifdef CONFIG_PPC_P7_NAP
+	/*
+	 * If running native on arch 2.06 or later, check if we are waking up
+	 * from nap/sleep/winkle, and branch to idle handler.
+	 */
+#define IDLETEST(n)							\
+	BEGIN_FTR_SECTION ;						\
+	mfspr	r10,SPRN_SRR1 ;						\
+	rlwinm.	r10,r10,47-31,30,31 ;					\
+	beq-	1f ;							\
+	cmpwi	cr3,r10,2 ;						\
+	BRANCH_TO_COMMON(r10, system_reset_idle_common) ;		\
+1:									\
+	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+#else
+#define IDLETEST NOTEST
+#endif
+
 EXC_REAL_BEGIN(system_reset, 0x100, 0x200)
 	SET_SCRATCH0(r13)
-#ifdef CONFIG_PPC_P7_NAP
-BEGIN_FTR_SECTION
-	/* Running native on arch 2.06 or later, check if we are
-	 * waking up from nap/sleep/winkle.
-	 */
-	mfspr	r13,SPRN_SRR1
-	rlwinm.	r13,r13,47-31,30,31
-	beq	9f
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
+				 IDLETEST, 0x100)
 
-	cmpwi	cr3,r13,2
-	GET_PACA(r13)
+EXC_REAL_END(system_reset, 0x100, 0x200)
+EXC_VIRT_NONE(0x4100, 0x4200)
+
+#ifdef CONFIG_PPC_P7_NAP
+EXC_COMMON_BEGIN(system_reset_idle_common)
 	bl	pnv_restore_hyp_resource
 
 	li	r0,PNV_THREAD_RUNNING
@@ -130,14 +146,8 @@ BEGIN_FTR_SECTION
 	blt	cr3,2f
 	b	pnv_wakeup_loss
 2:	b	pnv_wakeup_noloss
+#endif
 
-9:
-END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-#endif /* CONFIG_PPC_P7_NAP */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
-				 NOTEST, 0x100)
-EXC_REAL_END(system_reset, 0x100, 0x200)
-EXC_VIRT_NONE(0x4100, 0x4200)
 EXC_COMMON(system_reset_common, 0x100, system_reset_exception)
 
 #ifdef CONFIG_PPC_PSERIES
@@ -817,10 +827,8 @@ EXC_VIRT(trap_0b, 0x4b00, 0x4c00, 0xb00)
 TRAMP_KVM(PACA_EXGEN, 0xb00)
 EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 
-
-#define LOAD_SYSCALL_HANDLER(reg)				\
-	ld	reg,PACAKBASE(r13);				\
-	ori	reg,reg,(ABS_ADDR(system_call_common))@l;
+#define LOAD_SYSCALL_HANDLER(reg)					\
+	__LOAD_HANDLER(reg, system_call_common)
 
 /* Syscall routine is used twice, in reloc-off and reloc-on paths */
 #define SYSCALL_PSERIES_1 					\

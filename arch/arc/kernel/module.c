@@ -30,17 +30,9 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			      char *secstr, struct module *mod)
 {
 #ifdef CONFIG_ARC_DW2_UNWIND
-	int i;
-
 	mod->arch.unw_sec_idx = 0;
 	mod->arch.unw_info = NULL;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		if (strcmp(secstr+sechdrs[i].sh_name, ".eh_frame") == 0) {
-			mod->arch.unw_sec_idx = i;
-			break;
-		}
-	}
+	mod->arch.secstr = secstr;
 #endif
 	return 0;
 }
@@ -59,29 +51,33 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		       unsigned int relsec,	/* sec index for relo sec */
 		       struct module *module)
 {
-	int i, n;
+	int i, n, relo_type;
 	Elf32_Rela *rel_entry = (void *)sechdrs[relsec].sh_addr;
 	Elf32_Sym *sym_entry, *sym_sec;
-	Elf32_Addr relocation;
-	Elf32_Addr location;
-	Elf32_Addr sec_to_patch;
-	int relo_type;
+	Elf32_Addr relocation, location, tgt_addr;
+	unsigned int tgtsec;
 
-	sec_to_patch = sechdrs[sechdrs[relsec].sh_info].sh_addr;
+	/*
+	 * @relsec has relocations e.g. .rela.init.text
+	 * @tgtsec is section to patch e.g. .init.text
+	 */
+	tgtsec = sechdrs[relsec].sh_info;
+	tgt_addr = sechdrs[tgtsec].sh_addr;
 	sym_sec = (Elf32_Sym *) sechdrs[symindex].sh_addr;
 	n = sechdrs[relsec].sh_size / sizeof(*rel_entry);
 
-	pr_debug("\n========== Module Sym reloc ===========================\n");
-	pr_debug("Section to fixup %x\n", sec_to_patch);
+	pr_debug("\nSection to fixup %s @%x\n",
+		 module->arch.secstr + sechdrs[tgtsec].sh_name, tgt_addr);
 	pr_debug("=========================================================\n");
-	pr_debug("rela->r_off | rela->addend | sym->st_value | ADDR | VALUE\n");
+	pr_debug("r_off\tr_add\tst_value ADDRESS  VALUE\n");
 	pr_debug("=========================================================\n");
 
 	/* Loop thru entries in relocation section */
 	for (i = 0; i < n; i++) {
+		const char *s;
 
 		/* This is where to make the change */
-		location = sec_to_patch + rel_entry[i].r_offset;
+		location = tgt_addr + rel_entry[i].r_offset;
 
 		/* This is the symbol it is referring to.  Note that all
 		   undefined symbols have been resolved.  */
@@ -89,10 +85,15 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 
 		relocation = sym_entry->st_value + rel_entry[i].r_addend;
 
-		pr_debug("\t%x\t\t%x\t\t%x  %x %x [%s]\n",
-			rel_entry[i].r_offset, rel_entry[i].r_addend,
-			sym_entry->st_value, location, relocation,
-			strtab + sym_entry->st_name);
+		if (sym_entry->st_name == 0 && ELF_ST_TYPE (sym_entry->st_info) == STT_SECTION) {
+			s = module->arch.secstr + sechdrs[sym_entry->st_shndx].sh_name;
+		} else {
+			s = strtab + sym_entry->st_name;
+		}
+
+		pr_debug("   %x\t%x\t%x %x %x [%s]\n",
+			 rel_entry[i].r_offset, rel_entry[i].r_addend,
+			 sym_entry->st_value, location, relocation, s);
 
 		/* This assumes modules are built with -mlong-calls
 		 * so any branches/jumps are absolute 32 bit jmps
@@ -111,6 +112,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			goto relo_err;
 
 	}
+
+	if (strcmp(module->arch.secstr+sechdrs[tgtsec].sh_name, ".eh_frame") == 0)
+		module->arch.unw_sec_idx = tgtsec;
+
 	return 0;
 
 relo_err:

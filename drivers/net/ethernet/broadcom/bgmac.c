@@ -1449,7 +1449,7 @@ static int bgmac_phy_connect(struct bgmac *bgmac)
 	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
 			      PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phy_dev)) {
-		dev_err(bgmac->dev, "PHY connecton failed\n");
+		dev_err(bgmac->dev, "PHY connection failed\n");
 		return PTR_ERR(phy_dev);
 	}
 

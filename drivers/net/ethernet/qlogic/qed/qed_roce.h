@@ -95,26 +95,6 @@ struct qed_rdma_info {
 	enum protocol_type proto;
 };
 
-struct qed_rdma_resize_cq_in_params {
-	u16 icid;
-	u32 cq_size;
-	bool pbl_two_level;
-	u64 pbl_ptr;
-	u16 pbl_num_pages;
-	u8 pbl_page_size_log;
-};
-
-struct qed_rdma_resize_cq_out_params {
-	u32 prod;
-	u32 cons;
-};
-
-struct qed_rdma_resize_cnq_in_params {
-	u32 cnq_id;
-	u32 pbl_page_size_log;
-	u64 pbl_ptr;
-};
-
 struct qed_rdma_qp {
 	struct regpair qp_handle;
 	struct regpair qp_handle_async;
@@ -181,36 +161,55 @@ struct qed_rdma_qp {
 	dma_addr_t shared_queue_phys_addr;
 };
 
-int
-qed_rdma_add_user(void *rdma_cxt,
-		  struct qed_rdma_add_user_out_params *out_params);
-int qed_rdma_alloc_pd(void *rdma_cxt, u16 *pd);
-int qed_rdma_alloc_tid(void *rdma_cxt, u32 *tid);
-int qed_rdma_deregister_tid(void *rdma_cxt, u32 tid);
-void qed_rdma_free_tid(void *rdma_cxt, u32 tid);
-struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt);
-struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt);
-int
-qed_rdma_register_tid(void *rdma_cxt,
-		      struct qed_rdma_register_tid_in_params *params);
-void qed_rdma_remove_user(void *rdma_cxt, u16 dpi);
-int qed_rdma_start(void *p_hwfn, struct qed_rdma_start_in_params *params);
-int qed_rdma_stop(void *rdma_cxt);
-u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id);
-u32 qed_rdma_query_cau_timer_res(void *p_hwfn);
-void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 cnq_index, u16 prod);
-void qed_rdma_resc_free(struct qed_hwfn *p_hwfn);
+#if IS_ENABLED(CONFIG_QED_RDMA)
+void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 void qed_async_roce_event(struct qed_hwfn *p_hwfn,
 			  struct event_ring_entry *p_eqe);
-int qed_rdma_destroy_qp(void *rdma_cxt, struct qed_rdma_qp *qp);
-int qed_rdma_modify_qp(void *rdma_cxt, struct qed_rdma_qp *qp,
-		       struct qed_rdma_modify_qp_in_params *params);
-int qed_rdma_query_qp(void *rdma_cxt, struct qed_rdma_qp *qp,
-		      struct qed_rdma_query_qp_out_params *out_params);
-
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
-void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t first_frag_addr,
+				     bool b_last_fragment, bool b_last_packet);
+void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+				    u8 connection_handle,
+				    void *cookie,
+				    dma_addr_t first_frag_addr,
+				    bool b_last_fragment, bool b_last_packet);
+void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
+				     u8 connection_handle,
+				     void *cookie,
+				     dma_addr_t rx_buf_addr,
+				     u16 data_length,
+				     u8 data_length_error,
+				     u16 parse_flags,
+				     u16 vlan,
+				     u32 src_mac_addr_hi,
+				     u16 src_mac_addr_lo, bool b_last_packet);
 #else
-void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
+static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
+static inline void qed_async_roce_event(struct qed_hwfn *p_hwfn, struct event_ring_entry *p_eqe) {}
+static inline void qed_ll2b_complete_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+						   u8 connection_handle,
+						   void *cookie,
+						   dma_addr_t first_frag_addr,
+						   bool b_last_fragment,
+						   bool b_last_packet) {}
+static inline void qed_ll2b_release_tx_gsi_packet(struct qed_hwfn *p_hwfn,
+						  u8 connection_handle,
+						  void *cookie,
+						  dma_addr_t first_frag_addr,
+						  bool b_last_fragment,
+						  bool b_last_packet) {}
+static inline void qed_ll2b_complete_rx_gsi_packet(struct qed_hwfn *p_hwfn,
+						   u8 connection_handle,
+						   void *cookie,
+						   dma_addr_t rx_buf_addr,
+						   u16 data_length,
+						   u8 data_length_error,
+						   u16 parse_flags,
+						   u16 vlan,
+						   u32 src_mac_addr_hi,
+						   u16 src_mac_addr_lo,
+						   bool b_last_packet) {}
 #endif
 #endif

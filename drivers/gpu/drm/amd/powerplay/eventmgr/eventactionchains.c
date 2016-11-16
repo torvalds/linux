@@ -49,6 +49,7 @@ static const pem_event_action * const uninitialize_event[] = {
 	uninitialize_display_phy_access_tasks,
 	disable_gfx_voltage_island_power_gating_tasks,
 	disable_gfx_clock_gating_tasks,
+	uninitialize_thermal_controller_tasks,
 	set_boot_state_tasks,
 	adjust_power_state_tasks,
 	disable_dynamic_state_management_tasks,
