@@ -1395,7 +1395,7 @@ static void qm_mr_process_task(struct work_struct *work)
 				break;
 			case QM_MR_VERB_FQPN:
 				/* Parked */
-				fq = tag_to_fq(msg->fq.contextB);
+				fq = tag_to_fq(msg->fq.context_b);
 				fq_state_change(p, fq, msg, verb);
 				if (fq->cb.fqs)
 					fq->cb.fqs(p, fq, msg);
@@ -1494,7 +1494,7 @@ static inline unsigned int __poll_portal_fast(struct qman_portal *p,
 
 		if (dq->stat & QM_DQRR_STAT_UNSCHEDULED) {
 			/*
-			 * VDQCR: don't trust contextB as the FQ may have
+			 * VDQCR: don't trust context_b as the FQ may have
 			 * been configured for h/w consumption and we're
 			 * draining it post-retirement.
 			 */
@@ -1520,8 +1520,8 @@ static inline unsigned int __poll_portal_fast(struct qman_portal *p,
 			if (dq->stat & QM_DQRR_STAT_DQCR_EXPIRED)
 				clear_vdqcr(p, fq);
 		} else {
-			/* SDQCR: contextB points to the FQ */
-			fq = tag_to_fq(dq->contextB);
+			/* SDQCR: context_b points to the FQ */
+			fq = tag_to_fq(dq->context_b);
 			/* Now let the callback do its stuff */
 			res = fq->cb.dqrr(p, fq, dq);
 			/*
@@ -1757,7 +1757,7 @@ int qman_init_fq(struct qman_fq *fq, u32 flags, struct qm_mcc_initfq *opts)
 	qm_fqid_set(&mcc->fq, fq->fqid);
 	mcc->initfq.count = 0;
 	/*
-	 * If the FQ does *not* have the TO_DCPORTAL flag, contextB is set as a
+	 * If the FQ does *not* have the TO_DCPORTAL flag, context_b is set as a
 	 * demux pointer. Otherwise, the caller-provided value is allowed to
 	 * stand, don't overwrite it.
 	 */
@@ -1937,7 +1937,7 @@ int qman_retire_fq(struct qman_fq *fq, u32 *flags)
 			msg.verb = QM_MR_VERB_FQRNI;
 			msg.fq.fqs = mcr->alterfq.fqs;
 			qm_fqid_set(&msg.fq, fq->fqid);
-			msg.fq.contextB = fq_to_tag(fq);
+			msg.fq.context_b = fq_to_tag(fq);
 			fq->cb.fqs(p, fq, &msg);
 		}
 	} else if (res == QM_MCR_RESULT_PENDING) {

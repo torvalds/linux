@@ -248,7 +248,7 @@ struct qm_dqrr_entry {
 	u8 tok;
 	u8 __reserved2[3];
 	u32 fqid;	/* 24-bit */
-	u32 contextB;
+	u32 context_b;
 	struct qm_fd fd;
 	u8 __reserved4[32];
 } __packed;
@@ -290,7 +290,7 @@ union qm_mr_entry {
 		u8 fqs;		/* Frame Queue Status */
 		u8 __reserved1[6];
 		u32 fqid;	/* 24-bit */
-		u32 contextB;
+		u32 context_b;
 		u8 __reserved2[48];
 	} __packed fq;		/* FQRN/FQRNI/FQRL/FQPN */
 };
@@ -658,7 +658,7 @@ struct qman_cgr;
 /*
  * This enum, and the callback type that returns it, are used when handling
  * dequeued frames via DQRR. Note that for "null" callbacks registered with the
- * portal object (for handling dequeues that do not demux because contextB is
+ * portal object (for handling dequeues that do not demux because context_b is
  * NULL), the return value *MUST* be qman_cb_dqrr_consume.
  */
 enum qman_cb_dqrr_result {
@@ -863,11 +863,11 @@ void qman_p_static_dequeue_add(struct qman_portal *p, u32 pools);
  * qman_fq" for more info). NO_MODIFY is only intended for enqueuing to
  * pre-existing frame-queues that aren't to be otherwise interfered with, it
  * prevents all other modifications to the frame queue. The TO_DCPORTAL flag
- * causes the driver to honour any contextB modifications requested in the
+ * causes the driver to honour any context_b modifications requested in the
  * qm_init_fq() API, as this indicates the frame queue will be consumed by a
  * direct-connect portal (PME, CAAM, or Fman). When frame queues are consumed by
- * software portals, the contextB field is controlled by the driver and can't be
- * modified by the caller.
+ * software portals, the context_b field is controlled by the driver and can't
+ * be modified by the caller.
  */
 int qman_create_fq(u32 fqid, u32 flags, struct qman_fq *fq);
 
