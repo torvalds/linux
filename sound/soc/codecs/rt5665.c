@@ -4677,11 +4677,9 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (gpio_is_valid(rt5665->pdata.ldo1_en)) {
-		if (devm_gpio_request(&i2c->dev, rt5665->pdata.ldo1_en,
-			"rt5665"))
+		if (devm_gpio_request_one(&i2c->dev, rt5665->pdata.ldo1_en,
+					  GPIOF_OUT_INIT_HIGH, "rt5665"))
 			dev_err(&i2c->dev, "Fail gpio_request gpio_ldo\n");
-		else if (gpio_direction_output(rt5665->pdata.ldo1_en, 1))
-			dev_err(&i2c->dev, "Fail gpio_direction gpio_ldo\n");
 	}
 
 	/* Sleep for 300 ms miniumum */
