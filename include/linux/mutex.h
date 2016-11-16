@@ -211,7 +211,7 @@ enum mutex_trylock_recursive_enum {
  *  MUTEX_TRYLOCK_SUCCESS   - lock acquired,
  *  MUTEX_TRYLOCK_RECURSIVE - we already owned the lock.
  */
-static inline __deprecated __must_check enum mutex_trylock_recursive_enum
+static inline /* __deprecated */ __must_check enum mutex_trylock_recursive_enum
 mutex_trylock_recursive(struct mutex *lock)
 {
 	if (unlikely(__mutex_owner(lock) == current))
