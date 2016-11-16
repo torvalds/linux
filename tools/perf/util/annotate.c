@@ -35,6 +35,7 @@ struct arch {
 	const char	*name;
 	struct		{
 		char comment_char;
+		char skip_functions_char;
 	} objdump;
 };
 
@@ -43,6 +44,7 @@ static struct arch architectures[] = {
 		.name = "arm",
 		.objdump =  {
 			.comment_char = ';',
+			.skip_functions_char = '+',
 		},
 	},
 	{
@@ -78,7 +80,7 @@ int ins__scnprintf(struct ins *ins, char *bf, size_t size,
 	return ins__raw_scnprintf(ins, bf, size, ops);
 }
 
-static int call__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map)
+static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
 {
 	char *endptr, *tok, *name;
 
@@ -90,10 +92,9 @@ static int call__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 
 	name++;
 
-#ifdef __arm__
-	if (strchr(name, '+'))
+	if (arch->objdump.skip_functions_char &&
+	    strchr(name, arch->objdump.skip_functions_char))
 		return -1;
-#endif
 
 	tok = strchr(name, '>');
 	if (tok == NULL)
