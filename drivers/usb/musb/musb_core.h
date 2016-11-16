@@ -385,6 +385,8 @@ struct musb {
 	int			a_wait_bcon;	/* VBUS timeout in msecs */
 	unsigned long		idle_timeout;	/* Next timeout in jiffies */
 
+	unsigned		is_initialized:1;
+
 	/* active means connected and not suspended */
 	unsigned		is_active:1;
 

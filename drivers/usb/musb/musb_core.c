@@ -2291,6 +2291,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status)
 		goto fail5;
 
+	musb->is_initialized = 1;
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);
 
@@ -2629,7 +2630,6 @@ static int musb_runtime_suspend(struct device *dev)
 static int musb_runtime_resume(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
-	static int	first = 1;
 
 	/*
 	 * When pm_runtime_get_sync called for the first time in driver
@@ -2640,9 +2640,10 @@ static int musb_runtime_resume(struct device *dev)
 	 * Also context restore without save does not make
 	 * any sense
 	 */
-	if (!first)
-		musb_restore_context(musb);
-	first = 0;
+	if (!musb->is_initialized)
+		return 0;
+
+	musb_restore_context(musb);
 
 	if (musb->need_finish_resume) {
 		musb->need_finish_resume = 0;
