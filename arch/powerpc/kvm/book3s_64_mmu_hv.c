@@ -314,7 +314,7 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	struct kvmppc_slb *slbe;
 	unsigned long slb_v;
 	unsigned long pp, key;
-	unsigned long v, gr;
+	unsigned long v, orig_v, gr;
 	__be64 *hptep;
 	int index;
 	int virtmode = vcpu->arch.shregs.msr & (data ? MSR_DR : MSR_IR);
@@ -339,10 +339,12 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return -ENOENT;
 	}
 	hptep = (__be64 *)(kvm->arch.hpt_virt + (index << 4));
-	v = be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK;
+	v = orig_v = be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK;
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		v = hpte_new_to_old_v(v, be64_to_cpu(hptep[1]));
 	gr = kvm->arch.revmap[index].guest_rpte;
 
-	unlock_hpte(hptep, v);
+	unlock_hpte(hptep, orig_v);
 	preempt_enable();
 
 	gpte->eaddr = eaddr;
@@ -440,6 +442,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 {
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long hpte[3], r;
+	unsigned long hnow_v, hnow_r;
 	__be64 *hptep;
 	unsigned long mmu_seq, psize, pte_size;
 	unsigned long gpa_base, gfn_base;
@@ -488,6 +491,10 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	unlock_hpte(hptep, hpte[0]);
 	preempt_enable();
 
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		hpte[0] = hpte_new_to_old_v(hpte[0], hpte[1]);
+		hpte[1] = hpte_new_to_old_r(hpte[1]);
+	}
 	if (hpte[0] != vcpu->arch.pgfault_hpte[0] ||
 	    hpte[1] != vcpu->arch.pgfault_hpte[1])
 		return RESUME_GUEST;
@@ -599,9 +606,14 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	preempt_disable();
 	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
 		cpu_relax();
-	if ((be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK) != hpte[0] ||
-		be64_to_cpu(hptep[1]) != hpte[1] ||
-		rev->guest_rpte != hpte[2])
+	hnow_v = be64_to_cpu(hptep[0]);
+	hnow_r = be64_to_cpu(hptep[1]);
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		hnow_v = hpte_new_to_old_v(hnow_v, hnow_r);
+		hnow_r = hpte_new_to_old_r(hnow_r);
+	}
+	if ((hnow_v & ~HPTE_V_HVLOCK) != hpte[0] || hnow_r != hpte[1] ||
+	    rev->guest_rpte != hpte[2])
 		/* HPTE has been changed under us; let the guest retry */
 		goto out_unlock;
 	hpte[0] = (hpte[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
@@ -632,6 +644,10 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_add_revmap_chain(kvm, rev, rmap, index, 0);
 	}
 
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		r = hpte_old_to_new_r(hpte[0], r);
+		hpte[0] = hpte_old_to_new_v(hpte[0]);
+	}
 	hptep[1] = cpu_to_be64(r);
 	eieio();
 	__unlock_hpte(hptep, hpte[0]);
@@ -1183,7 +1199,7 @@ static long record_hpte(unsigned long flags, __be64 *hptp,
 			unsigned long *hpte, struct revmap_entry *revp,
 			int want_valid, int first_pass)
 {
-	unsigned long v, r;
+	unsigned long v, r, hr;
 	unsigned long rcbits_unset;
 	int ok = 1;
 	int valid, dirty;
@@ -1210,6 +1226,11 @@ static long record_hpte(unsigned long flags, __be64 *hptp,
 		while (!try_lock_hpte(hptp, HPTE_V_HVLOCK))
 			cpu_relax();
 		v = be64_to_cpu(hptp[0]);
+		hr = be64_to_cpu(hptp[1]);
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			v = hpte_new_to_old_v(v, hr);
+			hr = hpte_new_to_old_r(hr);
+		}
 
 		/* re-evaluate valid and dirty from synchronized HPTE value */
 		valid = !!(v & HPTE_V_VALID);
@@ -1217,8 +1238,8 @@ static long record_hpte(unsigned long flags, __be64 *hptp,
 
 		/* Harvest R and C into guest view if necessary */
 		rcbits_unset = ~revp->guest_rpte & (HPTE_R_R | HPTE_R_C);
-		if (valid && (rcbits_unset & be64_to_cpu(hptp[1]))) {
-			revp->guest_rpte |= (be64_to_cpu(hptp[1]) &
+		if (valid && (rcbits_unset & hr)) {
+			revp->guest_rpte |= (hr &
 				(HPTE_R_R | HPTE_R_C)) | HPTE_GR_MODIFIED;
 			dirty = 1;
 		}
