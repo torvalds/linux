@@ -317,11 +317,12 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 
 		while (val) {
 			u32 desc, len;
+			int error;
 
-			status = pm_runtime_get(cdd->ddev.dev);
-			if (status < 0)
+			error = pm_runtime_get(cdd->ddev.dev);
+			if (error < 0)
 				dev_err(cdd->ddev.dev, "%s pm runtime get: %i\n",
-					__func__, status);
+					__func__, error);
 
 			q_num = __fls(val);
 			val &= ~(1 << q_num);
@@ -367,6 +368,8 @@ static int cppi41_dma_alloc_chan_resources(struct dma_chan *chan)
 
 	error = pm_runtime_get_sync(cdd->ddev.dev);
 	if (error < 0) {
+		dev_err(cdd->ddev.dev, "%s pm runtime get: %i\n",
+			__func__, error);
 		pm_runtime_put_noidle(cdd->ddev.dev);
 
 		return error;
@@ -1072,8 +1075,8 @@ err_chans:
 	deinit_cppi41(dev, cdd);
 err_init_cppi:
 	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_put_sync(dev);
 err_get_sync:
+	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
