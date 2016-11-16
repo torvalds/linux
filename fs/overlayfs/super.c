@@ -603,7 +603,7 @@ static int ovl_own_xattr_get(const struct xattr_handler *handler,
 			     struct dentry *dentry, struct inode *inode,
 			     const char *name, void *buffer, size_t size)
 {
-	return -EPERM;
+	return -EOPNOTSUPP;
 }
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
@@ -611,7 +611,7 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
 			     const char *name, const void *value,
 			     size_t size, int flags)
 {
-	return -EPERM;
+	return -EOPNOTSUPP;
 }
 
 static int ovl_other_xattr_get(const struct xattr_handler *handler,
