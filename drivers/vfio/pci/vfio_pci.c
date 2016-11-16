@@ -558,10 +558,9 @@ static int vfio_pci_for_each_slot_or_bus(struct pci_dev *pdev,
 static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
 				struct vfio_info_cap *caps)
 {
-	struct vfio_info_cap_header *header;
 	struct vfio_region_info_cap_sparse_mmap *sparse;
 	size_t end, size;
-	int nr_areas = 2, i = 0;
+	int nr_areas = 2, i = 0, ret;
 
 	end = pci_resource_len(vdev->pdev, vdev->msix_bar);
 
@@ -572,13 +571,10 @@ static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
 
 	size = sizeof(*sparse) + (nr_areas * sizeof(*sparse->areas));
 
-	header = vfio_info_cap_add(caps, size,
-				   VFIO_REGION_INFO_CAP_SPARSE_MMAP, 1);
-	if (IS_ERR(header))
-		return PTR_ERR(header);
+	sparse = kzalloc(size, GFP_KERNEL);
+	if (!sparse)
+		return -ENOMEM;
 
-	sparse = container_of(header,
-			      struct vfio_region_info_cap_sparse_mmap, header);
 	sparse->nr_areas = nr_areas;
 
 	if (vdev->msix_offset & PAGE_MASK) {
@@ -594,26 +590,11 @@ static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
 		i++;
 	}
 
-	return 0;
-}
+	ret = vfio_info_add_capability(caps, VFIO_REGION_INFO_CAP_SPARSE_MMAP,
+				       sparse);
+	kfree(sparse);
 
-static int region_type_cap(struct vfio_pci_device *vdev,
-			   struct vfio_info_cap *caps,
-			   unsigned int type, unsigned int subtype)
-{
-	struct vfio_info_cap_header *header;
-	struct vfio_region_info_cap_type *cap;
-
-	header = vfio_info_cap_add(caps, sizeof(*cap),
-				   VFIO_REGION_INFO_CAP_TYPE, 1);
-	if (IS_ERR(header))
-		return PTR_ERR(header);
-
-	cap = container_of(header, struct vfio_region_info_cap_type, header);
-	cap->type = type;
-	cap->subtype = subtype;
-
-	return 0;
+	return ret;
 }
 
 int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
@@ -752,6 +733,9 @@ static long vfio_pci_ioctl(void *device_data,
 
 			break;
 		default:
+		{
+			struct vfio_region_info_cap_type cap_type;
+
 			if (info.index >=
 			    VFIO_PCI_NUM_REGIONS + vdev->num_regions)
 				return -EINVAL;
@@ -762,11 +746,16 @@ static long vfio_pci_ioctl(void *device_data,
 			info.size = vdev->region[i].size;
 			info.flags = vdev->region[i].flags;
 
-			ret = region_type_cap(vdev, &caps,
-					      vdev->region[i].type,
-					      vdev->region[i].subtype);
+			cap_type.type = vdev->region[i].type;
+			cap_type.subtype = vdev->region[i].subtype;
+
+			ret = vfio_info_add_capability(&caps,
+						      VFIO_REGION_INFO_CAP_TYPE,
+						      &cap_type);
 			if (ret)
 				return ret;
+
+		}
 		}
 
 		if (caps.size) {
