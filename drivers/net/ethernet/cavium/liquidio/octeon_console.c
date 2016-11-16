@@ -1,25 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /**
  * @file octeon_console.c
  */
@@ -76,9 +71,9 @@ MODULE_PARM_DESC(console_bitmask,
 #define OCTEON_CONSOLE_POLL_INTERVAL_MS  100    /* 10 times per second */
 
 /* First three members of cvmx_bootmem_desc are left in original
-** positions for backwards compatibility.
-** Assumes big endian target
-*/
+ * positions for backwards compatibility.
+ * Assumes big endian target
+ */
 struct cvmx_bootmem_desc {
 	/** spinlock to control access to list */
 	u32 lock;
@@ -142,46 +137,6 @@ struct octeon_pci_console_desc {
 	/* Implicit storage for console_addr_array */
 };
 
-/**
- * This macro returns the size of a member of a structure.
- * Logically it is the same as "sizeof(s::field)" in C++, but
- * C lacks the "::" operator.
- */
-#define SIZEOF_FIELD(s, field) sizeof(((s *)NULL)->field)
-
-/**
- * This macro returns a member of the cvmx_bootmem_desc
- * structure. These members can't be directly addressed as
- * they might be in memory not directly reachable. In the case
- * where bootmem is compiled with LINUX_HOST, the structure
- * itself might be located on a remote Octeon. The argument
- * "field" is the member name of the cvmx_bootmem_desc to read.
- * Regardless of the type of the field, the return type is always
- * a u64.
- */
-#define CVMX_BOOTMEM_DESC_GET_FIELD(oct, field)                              \
-	__cvmx_bootmem_desc_get(oct, oct->bootmem_desc_addr,                 \
-				offsetof(struct cvmx_bootmem_desc, field),   \
-				SIZEOF_FIELD(struct cvmx_bootmem_desc, field))
-
-#define __cvmx_bootmem_lock(flags)	(flags = flags)
-#define __cvmx_bootmem_unlock(flags)	(flags = flags)
-
-/**
- * This macro returns a member of the
- * cvmx_bootmem_named_block_desc structure. These members can't
- * be directly addressed as they might be in memory not directly
- * reachable. In the case where bootmem is compiled with
- * LINUX_HOST, the structure itself might be located on a remote
- * Octeon. The argument "field" is the member name of the
- * cvmx_bootmem_named_block_desc to read. Regardless of the type
- * of the field, the return type is always a u64. The "addr"
- * parameter is the physical address of the structure.
- */
-#define CVMX_BOOTMEM_NAMED_GET_FIELD(oct, addr, field)                   \
-	__cvmx_bootmem_desc_get(oct, addr,                               \
-		offsetof(struct cvmx_bootmem_named_block_desc, field),   \
-		SIZEOF_FIELD(struct cvmx_bootmem_named_block_desc, field))
 /**
  * \brief determines if a given console has debug enabled.
  * @param console console to check
@@ -263,10 +218,15 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 		oct->bootmem_desc_addr =
 			octeon_read_device_mem64(oct,
 						 BOOTLOADER_PCI_READ_DESC_ADDR);
-	major_version =
-		(u32)CVMX_BOOTMEM_DESC_GET_FIELD(oct, major_version);
-	minor_version =
-		(u32)CVMX_BOOTMEM_DESC_GET_FIELD(oct, minor_version);
+	major_version = (u32)__cvmx_bootmem_desc_get(
+			oct, oct->bootmem_desc_addr,
+			offsetof(struct cvmx_bootmem_desc, major_version),
+			FIELD_SIZEOF(struct cvmx_bootmem_desc, major_version));
+	minor_version = (u32)__cvmx_bootmem_desc_get(
+			oct, oct->bootmem_desc_addr,
+			offsetof(struct cvmx_bootmem_desc, minor_version),
+			FIELD_SIZEOF(struct cvmx_bootmem_desc, minor_version));
+
 	dev_dbg(&oct->pci_dev->dev, "%s: major_version=%d\n", __func__,
 		major_version);
 	if ((major_version > 3) ||
@@ -289,10 +249,20 @@ static const struct cvmx_bootmem_named_block_desc
 	u64 named_addr = cvmx_bootmem_phy_named_block_find(oct, name, flags);
 
 	if (named_addr) {
-		desc->base_addr = CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr,
-							       base_addr);
-		desc->size =
-			CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr, size);
+		desc->base_addr = __cvmx_bootmem_desc_get(
+				oct, named_addr,
+				offsetof(struct cvmx_bootmem_named_block_desc,
+					 base_addr),
+				FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					base_addr));
+		desc->size = __cvmx_bootmem_desc_get(oct, named_addr,
+				offsetof(struct cvmx_bootmem_named_block_desc,
+					 size),
+				FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					size));
+
 		strncpy(desc->name, name, sizeof(desc->name));
 		desc->name[sizeof(desc->name) - 1] = 0;
 		return &oct->bootmem_named_block_desc;
@@ -307,22 +277,41 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 {
 	u64 result = 0;
 
-	__cvmx_bootmem_lock(flags);
 	if (!__cvmx_bootmem_check_version(oct, 3)) {
 		u32 i;
-		u64 named_block_array_addr =
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct,
-						    named_block_array_addr);
-		u32 num_blocks = (u32)
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct, nb_num_blocks);
-		u32 name_length = (u32)
-			CVMX_BOOTMEM_DESC_GET_FIELD(oct, named_block_name_len);
+
+		u64 named_block_array_addr = __cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 named_block_array_addr),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     named_block_array_addr));
+		u32 num_blocks = (u32)__cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 nb_num_blocks),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     nb_num_blocks));
+
+		u32 name_length = (u32)__cvmx_bootmem_desc_get(
+					oct, oct->bootmem_desc_addr,
+					offsetof(struct cvmx_bootmem_desc,
+						 named_block_name_len),
+					FIELD_SIZEOF(struct cvmx_bootmem_desc,
+						     named_block_name_len));
+
 		u64 named_addr = named_block_array_addr;
 
 		for (i = 0; i < num_blocks; i++) {
-			u64 named_size =
-				CVMX_BOOTMEM_NAMED_GET_FIELD(oct, named_addr,
-							     size);
+			u64 named_size = __cvmx_bootmem_desc_get(
+					oct, named_addr,
+					 offsetof(
+					struct cvmx_bootmem_named_block_desc,
+					size),
+					 FIELD_SIZEOF(
+					struct cvmx_bootmem_named_block_desc,
+					size));
+
 			if (name && named_size) {
 				char *name_tmp =
 					kmalloc(name_length + 1, GFP_KERNEL);
@@ -347,7 +336,6 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 				sizeof(struct cvmx_bootmem_named_block_desc);
 		}
 	}
-	__cvmx_bootmem_unlock(flags);
 	return result;
 }
 

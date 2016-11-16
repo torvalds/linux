@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -31,9 +28,6 @@
 #include "octeon_network.h"
 #include "cn66xx_device.h"
 #include "cn23xx_pf_device.h"
-
-#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
-	(octeon_dev_ptr->instr_queue[iq_no]->stats.field += count)
 
 struct iq_post_status {
 	int status;
@@ -71,9 +65,9 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	int numa_node = cpu_to_node(iq_no % num_online_cpus());
 
 	if (OCTEON_CN6XXX(oct))
-		conf = &(CFG_GET_IQ_CFG(CHIP_FIELD(oct, cn6xxx, conf)));
+		conf = &(CFG_GET_IQ_CFG(CHIP_CONF(oct, cn6xxx)));
 	else if (OCTEON_CN23XX_PF(oct))
-		conf = &(CFG_GET_IQ_CFG(CHIP_FIELD(oct, cn23xx_pf, conf)));
+		conf = &(CFG_GET_IQ_CFG(CHIP_CONF(oct, cn23xx_pf)));
 	if (!conf) {
 		dev_err(&oct->pci_dev->dev, "Unsupported Chip %x\n",
 			oct->chip_id);
@@ -145,7 +139,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 
 	spin_lock_init(&iq->iq_flush_running_lock);
 
-	oct->io_qmask.iq |= (1ULL << iq_no);
+	oct->io_qmask.iq |= BIT_ULL(iq_no);
 
 	/* Set the 32B/64B mode for each input queue */
 	oct->io_qmask.iq64B |= ((conf->instr_type == 64) << iq_no);
@@ -157,6 +151,8 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 						     WQ_MEM_RECLAIM,
 						     0);
 	if (!oct->check_db_wq[iq_no].wq) {
+		vfree(iq->request_list);
+		iq->request_list = NULL;
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "check db wq create failed for iq %d\n",
 			iq_no);
@@ -183,10 +179,10 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 
 	if (OCTEON_CN6XXX(oct))
 		desc_size =
-		    CFG_GET_IQ_INSTR_TYPE(CHIP_FIELD(oct, cn6xxx, conf));
+		    CFG_GET_IQ_INSTR_TYPE(CHIP_CONF(oct, cn6xxx));
 	else if (OCTEON_CN23XX_PF(oct))
 		desc_size =
-		    CFG_GET_IQ_INSTR_TYPE(CHIP_FIELD(oct, cn23xx_pf, conf));
+		    CFG_GET_IQ_INSTR_TYPE(CHIP_CONF(oct, cn23xx_pf));
 
 	vfree(iq->request_list);
 
@@ -250,9 +246,8 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 	do {
 		instr_cnt = 0;
 
-		/*for (i = 0; i < oct->num_iqs; i++) {*/
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-			if (!(oct->io_qmask.iq & (1ULL << i)))
+			if (!(oct->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			pending =
 			    atomic_read(&oct->
@@ -319,7 +314,8 @@ __post_command2(struct octeon_instr_queue *iq, u8 *cmd)
 
 	/* "index" is returned, host_write_index is modified. */
 	st.index = iq->host_write_index;
-	INCR_INDEX_BY1(iq->host_write_index, iq->max_count);
+	iq->host_write_index = incr_index(iq->host_write_index, 1,
+					  iq->max_count);
 	iq->fill_cnt++;
 
 	/* Flush the command into memory. We need to be sure the data is in
@@ -434,7 +430,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 
  skip_this:
 		inst_count++;
-		INCR_INDEX_BY1(old, iq->max_count);
+		old = incr_index(old, 1, iq->max_count);
 
 		if ((napi_budget) && (inst_count >= napi_budget))
 			break;
@@ -577,8 +573,6 @@ octeon_send_command(struct octeon_device *oct, u32 iq_no,
 	/* This is only done here to expedite packets being flushed
 	 * for cases where there are no IQ completion interrupts.
 	 */
-	/*if (iq->do_auto_flush)*/
-	/*	octeon_flush_iq(oct, iq, 2, 0);*/
 
 	return st.status;
 }
@@ -749,8 +743,10 @@ int octeon_setup_sc_buffer_pool(struct octeon_device *oct)
 			lio_dma_alloc(oct,
 				      SOFT_COMMAND_BUFFER_SIZE,
 					  (dma_addr_t *)&dma_addr);
-		if (!sc)
+		if (!sc) {
+			octeon_free_sc_buffer_pool(oct);
 			return 1;
+		}
 
 		sc->dma_addr = dma_addr;
 		sc->size = SOFT_COMMAND_BUFFER_SIZE;

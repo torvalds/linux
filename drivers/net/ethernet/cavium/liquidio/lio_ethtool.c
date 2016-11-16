@@ -1,24 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
 #include <linux/pci.h>
@@ -74,7 +70,6 @@ enum {
 	INTERFACE_MODE_MIXED,
 };
 
-#define ARRAY_LENGTH(a) (sizeof(a) / sizeof((a)[0]))
 #define OCT_ETHTOOL_REGDUMP_LEN  4096
 #define OCT_ETHTOOL_REGDUMP_LEN_23XX  (4096 * 11)
 #define OCT_ETHTOOL_REGSVER  1
@@ -87,9 +82,9 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_bytes",
 	"rx_errors",	/*jabber_err+l2_err+frame_err */
 	"tx_errors",	/*fw_err_pko+fw_err_link+fw_err_drop */
-	"rx_dropped",   /*st->fromwire.total_rcvd - st->fromwire.fw_total_rcvd
-			*+st->fromwire.dmac_drop + st->fromwire.fw_err_drop
-			*/
+	"rx_dropped",   /*st->fromwire.total_rcvd - st->fromwire.fw_total_rcvd +
+			 *st->fromwire.dmac_drop + st->fromwire.fw_err_drop
+			 */
 	"tx_dropped",
 
 	"tx_total_sent",
@@ -259,14 +254,14 @@ lio_ethtool_get_channels(struct net_device *dev,
 	u32 max_rx = 0, max_tx = 0, tx_count = 0, rx_count = 0;
 
 	if (OCTEON_CN6XXX(oct)) {
-		struct octeon_config *conf6x = CHIP_FIELD(oct, cn6xxx, conf);
+		struct octeon_config *conf6x = CHIP_CONF(oct, cn6xxx);
 
 		max_rx = CFG_GET_OQ_MAX_Q(conf6x);
 		max_tx = CFG_GET_IQ_MAX_Q(conf6x);
 		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf6x, lio->ifidx);
 		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		struct octeon_config *conf23 = CHIP_FIELD(oct, cn23xx_pf, conf);
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
 
 		max_rx = CFG_GET_OQ_MAX_Q(conf23);
 		max_tx = CFG_GET_IQ_MAX_Q(conf23);
@@ -589,14 +584,14 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 	    rx_pending = 0;
 
 	if (OCTEON_CN6XXX(oct)) {
-		struct octeon_config *conf6x = CHIP_FIELD(oct, cn6xxx, conf);
+		struct octeon_config *conf6x = CHIP_CONF(oct, cn6xxx);
 
 		tx_max_pending = CN6XXX_MAX_IQ_DESCRIPTORS;
 		rx_max_pending = CN6XXX_MAX_OQ_DESCRIPTORS;
 		rx_pending = CFG_GET_NUM_RX_DESCS_NIC_IF(conf6x, lio->ifidx);
 		tx_pending = CFG_GET_NUM_TX_DESCS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		struct octeon_config *conf23 = CHIP_FIELD(oct, cn23xx_pf, conf);
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
 
 		tx_max_pending = CN23XX_MAX_IQ_DESCRIPTORS;
 		rx_max_pending = CN23XX_MAX_OQ_DESCRIPTORS;
@@ -757,9 +752,6 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	/*sum of oct->instr_queue[iq_no]->stats.tx_dropped */
 	data[i++] = CVM_CAST64(netstats->tx_dropped);
 
-	/*data[i++] = CVM_CAST64(stats->multicast); */
-	/*data[i++] = CVM_CAST64(stats->collisions); */
-
 	/* firmware tx stats */
 	/*per_core_stats[cvmx_get_core_num()].link_stats[mdata->from_ifidx].
 	 *fromhost.fw_total_sent
@@ -910,9 +902,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	/*lio->link_changes*/
 	data[i++] = CVM_CAST64(lio->link_changes);
 
-	/* TX  -- lio_update_stats(lio); */
 	for (j = 0; j < MAX_OCTEON_INSTR_QUEUES(oct_dev); j++) {
-		if (!(oct_dev->io_qmask.iq & (1ULL << j)))
+		if (!(oct_dev->io_qmask.iq & BIT_ULL(j)))
 			continue;
 		/*packets to network port*/
 		/*# of packets tx to network */
@@ -954,9 +945,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	}
 
 	/* RX */
-	/* for (j = 0; j < oct_dev->num_oqs; j++) { */
 	for (j = 0; j < MAX_OCTEON_OUTPUT_QUEUES(oct_dev); j++) {
-		if (!(oct_dev->io_qmask.oq & (1ULL << j)))
+		if (!(oct_dev->io_qmask.oq & BIT_ULL(j)))
 			continue;
 
 		/*packets send to TCP/IP network stack */
@@ -1030,7 +1020,7 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 		num_iq_stats = ARRAY_SIZE(oct_iq_stats_strings);
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct_dev); i++) {
-			if (!(oct_dev->io_qmask.iq & (1ULL << i)))
+			if (!(oct_dev->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			for (j = 0; j < num_iq_stats; j++) {
 				sprintf(data, "tx-%d-%s", i,
@@ -1040,9 +1030,8 @@ static void lio_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		}
 
 		num_oq_stats = ARRAY_SIZE(oct_droq_stats_strings);
-		/* for (i = 0; i < oct_dev->num_oqs; i++) { */
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct_dev); i++) {
-			if (!(oct_dev->io_qmask.oq & (1ULL << i)))
+			if (!(oct_dev->io_qmask.oq & BIT_ULL(i)))
 				continue;
 			for (j = 0; j < num_oq_stats; j++) {
 				sprintf(data, "rx-%d-%s", i,

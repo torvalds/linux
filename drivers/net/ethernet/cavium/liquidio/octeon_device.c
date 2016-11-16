@@ -1,24 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
@@ -520,11 +516,6 @@ static struct octeon_config default_cn23xx_conf = {
 	}
 };
 
-enum {
-	OCTEON_CONFIG_TYPE_DEFAULT = 0,
-	NUM_OCTEON_CONFS,
-};
-
 static struct octeon_config_ptr {
 	u32 conf_type;
 } oct_conf_info[MAX_OCTEON_DEVICES] = {
@@ -649,12 +640,12 @@ void octeon_free_device_mem(struct octeon_device *oct)
 	int i;
 
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (oct->io_qmask.oq & (1ULL << i))
+		if (oct->io_qmask.oq & BIT_ULL(i))
 			vfree(oct->droq[i]);
 	}
 
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-		if (oct->io_qmask.iq & (1ULL << i))
+		if (oct->io_qmask.iq & BIT_ULL(i))
 			vfree(oct->instr_queue[i]);
 	}
 
@@ -767,6 +758,7 @@ octeon_allocate_ioq_vector(struct octeon_device  *oct)
 		ioq_vector->oct_dev	= oct;
 		ioq_vector->iq_index	= i;
 		ioq_vector->droq_index	= i;
+		ioq_vector->mbox	= oct->mbox[i];
 
 		cpu_num = i % num_online_cpus();
 		cpumask_set_cpu(cpu_num, &ioq_vector->affinity_mask);
@@ -795,10 +787,9 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 	if (OCTEON_CN6XXX(oct))
 		num_descs =
-			CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn6xxx));
 	else if (OCTEON_CN23XX_PF(oct))
-		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_FIELD(oct, cn23xx_pf,
-								conf));
+		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn23xx_pf));
 
 	oct->num_iqs = 0;
 
@@ -821,6 +812,7 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 	if (octeon_init_instr_queue(oct, txpciq, num_descs)) {
 		/* prevent memory leak */
 		vfree(oct->instr_queue[0]);
+		oct->instr_queue[0] = NULL;
 		return 1;
 	}
 
@@ -837,14 +829,12 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 
 	if (OCTEON_CN6XXX(oct)) {
 		num_descs =
-			CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_NUM_DEF_RX_DESCS(CHIP_CONF(oct, cn6xxx));
 		desc_size =
-			CFG_GET_DEF_RX_BUF_SIZE(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn6xxx));
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_FIELD(oct, cn23xx_pf,
-								conf));
-		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_FIELD(oct, cn23xx_pf,
-							       conf));
+		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_CONF(oct, cn23xx_pf));
+		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_pf));
 	}
 	oct->num_oqs = 0;
 	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
@@ -853,8 +843,11 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	if (!oct->droq[0])
 		return 1;
 
-	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL))
+	if (octeon_init_droq(oct, oq_no, num_descs, desc_size, NULL)) {
+		vfree(oct->droq[oq_no]);
+		oct->droq[oq_no] = NULL;
 		return 1;
+	}
 	oct->num_oqs++;
 
 	return 0;
@@ -1070,10 +1063,10 @@ int octeon_core_drv_init(struct octeon_recv_info *recv_info, void *buf)
 
 	if (OCTEON_CN6XXX(oct))
 		num_nic_ports =
-			CFG_GET_NUM_NIC_PORTS(CHIP_FIELD(oct, cn6xxx, conf));
+			CFG_GET_NUM_NIC_PORTS(CHIP_CONF(oct, cn6xxx));
 	else if (OCTEON_CN23XX_PF(oct))
 		num_nic_ports =
-			CFG_GET_NUM_NIC_PORTS(CHIP_FIELD(oct, cn23xx_pf, conf));
+			CFG_GET_NUM_NIC_PORTS(CHIP_CONF(oct, cn23xx_pf));
 
 	if (atomic_read(&oct->status) >= OCT_DEV_RUNNING) {
 		dev_err(&oct->pci_dev->dev, "Received CORE OK when device state is 0x%x\n",
@@ -1143,7 +1136,7 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 
 {
 	if (oct && (q_no < MAX_OCTEON_INSTR_QUEUES(oct)) &&
-	    (oct->io_qmask.iq & (1ULL << q_no)))
+	    (oct->io_qmask.iq & BIT_ULL(q_no)))
 		return oct->instr_queue[q_no]->max_count;
 
 	return -1;
@@ -1152,7 +1145,7 @@ int octeon_get_tx_qsize(struct octeon_device *oct, u32 q_no)
 int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no)
 {
 	if (oct && (q_no < MAX_OCTEON_OUTPUT_QUEUES(oct)) &&
-	    (oct->io_qmask.oq & (1ULL << q_no)))
+	    (oct->io_qmask.oq & BIT_ULL(q_no)))
 		return oct->droq[q_no]->max_count;
 	return -1;
 }
@@ -1168,10 +1161,10 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 
 	if (OCTEON_CN6XXX(oct)) {
 		default_oct_conf =
-			(struct octeon_config *)(CHIP_FIELD(oct, cn6xxx, conf));
+			(struct octeon_config *)(CHIP_CONF(oct, cn6xxx));
 	} else if (OCTEON_CN23XX_PF(oct)) {
 		default_oct_conf = (struct octeon_config *)
-			(CHIP_FIELD(oct, cn23xx_pf, conf));
+			(CHIP_CONF(oct, cn23xx_pf));
 	}
 	return default_oct_conf;
 }

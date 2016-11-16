@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -13,13 +13,8 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
- **********************************************************************/
-
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*!  \file  octeon_droq.h
  *   \brief Implementation of Octeon Output queues. "Output" is with
  *   respect to the Octeon device on the NIC. From this driver's point of
@@ -81,7 +76,7 @@ struct octeon_skb_page_info {
  *  the Octeon device. Since the descriptor ring keeps physical (bus)
  *  addresses, this field is required for the driver to keep track of
  *  the virtual address pointers.
-*/
+ */
 struct octeon_recv_buffer {
 	/** Packet buffer, including metadata. */
 	void *buffer;
@@ -121,7 +116,6 @@ struct oct_droq_stats {
 	/** Num of Packets dropped due to receive path failures. */
 	u64 rx_dropped;
 
-	/** Num of vxlan packets received; */
 	u64 rx_vxlan;
 
 	/** Num of failures of recv_buffer_alloc() */
@@ -359,7 +353,7 @@ struct octeon_droq {
  * @param  q_no       - droq no. ranges from 0 - 3.
  * @param app_ctx     - pointer to application context
  * @return Success: 0    Failure: 1
-*/
+ */
 int octeon_init_droq(struct octeon_device *oct_dev,
 		     u32 q_no,
 		     u32 num_descs,
@@ -372,7 +366,7 @@ int octeon_init_droq(struct octeon_device *oct_dev,
  *  @param oct_dev - pointer to the octeon device structure
  *  @param q_no    - droq no. ranges from 0 - 3.
  *  @return:    Success: 0    Failure: 1
-*/
+ */
 int octeon_delete_droq(struct octeon_device *oct_dev, u32 q_no);
 
 /** Register a change in droq operations. The ops field has a pointer to a
