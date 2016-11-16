@@ -52,7 +52,6 @@ static int mwifiex_pcie_probe_of(struct device *dev)
 }
 
 static void mwifiex_pcie_work(struct work_struct *work);
-static DECLARE_WORK(pcie_work, mwifiex_pcie_work);
 
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
@@ -222,6 +221,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		card->pcie.mem_type_mapping_tbl = data->mem_type_mapping_tbl;
 		card->pcie.num_mem_types = data->num_mem_types;
 		card->pcie.can_ext_scan = data->can_ext_scan;
+		INIT_WORK(&card->work, mwifiex_pcie_work);
 	}
 
 	/* device tree node parsing and platform specific configuration*/
@@ -257,7 +257,7 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	cancel_work_sync(&pcie_work);
+	cancel_work_sync(&card->work);
 
 	if (user_rmmod && !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
@@ -2728,25 +2728,27 @@ static void mwifiex_pcie_device_dump_work(struct mwifiex_adapter *adapter)
 	mwifiex_upload_device_dump(adapter, drv_info, drv_info_size);
 }
 
-static unsigned long iface_work_flags;
-static struct mwifiex_adapter *save_adapter;
 static void mwifiex_pcie_work(struct work_struct *work)
 {
+	struct pcie_service_card *card =
+		container_of(work, struct pcie_service_card, work);
+
 	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP,
-			       &iface_work_flags))
-		mwifiex_pcie_device_dump_work(save_adapter);
+			       &card->work_flags))
+		mwifiex_pcie_device_dump_work(card->adapter);
 }
 
 /* This function dumps FW information */
 static void mwifiex_pcie_device_dump(struct mwifiex_adapter *adapter)
 {
-	save_adapter = adapter;
-	if (test_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags))
+	struct pcie_service_card *card = adapter->card;
+
+	if (test_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags))
 		return;
 
-	set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags);
+	set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
 
-	schedule_work(&pcie_work);
+	schedule_work(&card->work);
 }
 
 /*
@@ -3212,7 +3214,6 @@ static void mwifiex_pcie_cleanup_module(void)
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
-	cancel_work_sync(&pcie_work);
 	pci_unregister_driver(&mwifiex_pcie);
 }
 

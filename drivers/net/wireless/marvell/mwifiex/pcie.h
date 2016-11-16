@@ -386,6 +386,8 @@ struct pcie_service_card {
 #endif
 	struct mwifiex_msix_context msix_ctx[MWIFIEX_NUM_MSIX_VECTORS];
 	struct mwifiex_msix_context share_irq_ctx;
+	struct work_struct work;
+	unsigned long work_flags;
 };
 
 static inline int
