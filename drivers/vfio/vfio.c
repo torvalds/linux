@@ -1385,6 +1385,23 @@ static bool vfio_group_viable(struct vfio_group *group)
 					 group, vfio_dev_viable) == 0);
 }
 
+static int vfio_group_add_container_user(struct vfio_group *group)
+{
+	if (!atomic_inc_not_zero(&group->container_users))
+		return -EINVAL;
+
+	if (group->noiommu) {
+		atomic_dec(&group->container_users);
+		return -EPERM;
+	}
+	if (!group->container->iommu_driver || !vfio_group_viable(group)) {
+		atomic_dec(&group->container_users);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct file_operations vfio_device_fops;
 
 static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
@@ -1694,23 +1711,14 @@ static const struct file_operations vfio_device_fops = {
 struct vfio_group *vfio_group_get_external_user(struct file *filep)
 {
 	struct vfio_group *group = filep->private_data;
+	int ret;
 
 	if (filep->f_op != &vfio_group_fops)
 		return ERR_PTR(-EINVAL);
 
-	if (!atomic_inc_not_zero(&group->container_users))
-		return ERR_PTR(-EINVAL);
-
-	if (group->noiommu) {
-		atomic_dec(&group->container_users);
-		return ERR_PTR(-EPERM);
-	}
-
-	if (!group->container->iommu_driver ||
-			!vfio_group_viable(group)) {
-		atomic_dec(&group->container_users);
-		return ERR_PTR(-EINVAL);
-	}
+	ret = vfio_group_add_container_user(group);
+	if (ret)
+		return ERR_PTR(ret);
 
 	vfio_group_get(group);
 
