@@ -11,7 +11,7 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <mach/gpio.h>
-#include <mach/board.h> 
+#include <mach/board.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -26,7 +26,7 @@
 
 
 /*us5152 Slave Addr*/
-#define LIGHT_ADDR      0x72         
+#define LIGHT_ADDR      0x72
 
 /*Interrupt PIN for S3C6410*/
 #define IRQ_LIGHT_INT IRQ_EINT(6)
@@ -64,9 +64,9 @@
 #define CR0_ONESHOT_MASK    	(0x1 << CR0_ONESHOT_SHIFT)
 
 /*Operation Mode*/
-#define CR0_OPMODE_ALSANDPS	0x0 
-#define CR0_OPMODE_ALSONLY	0x1 
-#define CR0_OPMODE_IRONLY		0x2 
+#define CR0_OPMODE_ALSANDPS	0x0
+#define CR0_OPMODE_ALSONLY	0x1
+#define CR0_OPMODE_IRONLY		0x2
 
 #define CR0_OPMODE_SHIFT       	(4)
 #define CR0_OPMODE_MASK        	(0x3 << CR0_OPMODE_SHIFT)
@@ -104,8 +104,8 @@
 
 
 /*ALS fault queue depth for interrupt enent output*/
-#define CR1_ALS_FQ_1		0x0 
-#define CR1_ALS_FQ_4		0x1 
+#define CR1_ALS_FQ_1		0x0
+#define CR1_ALS_FQ_4		0x1
 #define CR1_ALS_FQ_8		0x2
 #define CR1_ALS_FQ_16		0x3
 #define CR1_ALS_FQ_24		0x4
@@ -117,8 +117,8 @@
 #define CR1_ALS_FQ_MASK        	(0x7 << CR1_ALS_FQ_SHIFT)
 
 /*resolution for ALS*/
-#define CR1_ALS_RES_12BIT	0x0 
-#define CR1_ALS_RES_14BIT	0x1 
+#define CR1_ALS_RES_12BIT	0x0
+#define CR1_ALS_RES_14BIT	0x1
 #define CR1_ALS_RES_16BIT	0x2
 #define CR1_ALS_RES_16BIT_2	0x3
 
@@ -126,8 +126,8 @@
 #define CR1_ALS_RES_MASK       	(0x3 << CR1_ALS_RES_SHIFT)
 
 /*sensing amplifier selection for ALS*/
-#define CR1_ALS_GAIN_X1		0x0 
-#define CR1_ALS_GAIN_X2		0x1 
+#define CR1_ALS_GAIN_X1		0x0
+#define CR1_ALS_GAIN_X2		0x1
 #define CR1_ALS_GAIN_X4		0x2
 #define CR1_ALS_GAIN_X8		0x3
 #define CR1_ALS_GAIN_X16	0x4
@@ -140,8 +140,8 @@
 
 
 /*PS fault queue depth for interrupt event output*/
-#define CR2_PS_FQ_1		0x0 
-#define CR2_PS_FQ_4		0x1 
+#define CR2_PS_FQ_1		0x0
+#define CR2_PS_FQ_4		0x1
 #define CR2_PS_FQ_8		0x2
 #define CR2_PS_FQ_15		0x3
 
@@ -150,16 +150,16 @@
 
 /*interrupt type setting */
 /*low active*/
-#define CR2_INT_LEVEL		0x0 
+#define CR2_INT_LEVEL		0x0
 /*low pulse*/
-#define CR2_INT_PULSE		0x1 
+#define CR2_INT_PULSE		0x1
 
 #define CR2_INT_SHIFT      	(5)
 #define CR2_INT_MASK       	(0x1 << CR2_INT_SHIFT)
 
 /*resolution for PS*/
-#define CR2_PS_RES_12		0x0 
-#define CR2_PS_RES_14		0x1 
+#define CR2_PS_RES_12		0x0
+#define CR2_PS_RES_14		0x1
 #define CR2_PS_RES_16		0x2
 #define CR2_PS_RES_16_2		0x3
 
@@ -167,8 +167,8 @@
 #define CR2_PS_RES_MASK       	(0x3 << CR2_PS_RES_SHIFT)
 
 /*sensing amplifier selection for PS*/
-#define CR2_PS_GAIN_1		0x0 
-#define CR2_PS_GAIN_2		0x1 
+#define CR2_PS_GAIN_1		0x0
+#define CR2_PS_GAIN_2		0x1
 #define CR2_PS_GAIN_4		0x2
 #define CR2_PS_GAIN_8		0x3
 #define CR2_PS_GAIN_16		0x4
@@ -180,8 +180,8 @@
 #define CR2_PS_GAIN_MASK       	(0x7 << CR2_PS_GAIN_SHIFT)
 
 /*wait-time slot selection*/
-#define CR3_WAIT_SEL_0		0x0 
-#define CR3_WAIT_SEL_4		0x1 
+#define CR3_WAIT_SEL_0		0x0
+#define CR3_WAIT_SEL_4		0x1
 #define CR3_WAIT_SEL_8		0x2
 #define CR3_WAIT_SEL_16		0x3
 
@@ -189,8 +189,8 @@
 #define CR3_WAIT_SEL_MASK       (0x3 << CR3_WAIT_SEL_SHIFT)
 
 /*IR-LED drive peak current setting*/
-#define CR3_LEDDR_12_5		0x0 
-#define CR3_LEDDR_25		0x1 
+#define CR3_LEDDR_12_5		0x0
+#define CR3_LEDDR_25		0x1
 #define CR3_LEDDR_50		0x2
 #define CR3_LEDDR_100		0x3
 
@@ -198,8 +198,8 @@
 #define CR3_LEDDR_MASK       	(0x3 << CR3_LEDDR_SHIFT)
 
 /*INT pin source selection*/
-#define CR3_INT_SEL_BATH	0x0 
-#define CR3_INT_SEL_ALS		0x1 
+#define CR3_INT_SEL_BATH	0x0
+#define CR3_INT_SEL_ALS		0x1
 #define CR3_INT_SEL_PS		0x2
 #define CR3_INT_SEL_PSAPP	0x3
 
@@ -213,8 +213,8 @@
 #define CR3_SOFTRST_MASK       	(0x1 << CR3_SOFTRST_SHIFT)
 
 /*modulation frequency of LED driver*/
-#define CR10_FREQ_DIV2		0x0 
-#define CR10_FREQ_DIV4		0x1 
+#define CR10_FREQ_DIV2		0x0
+#define CR10_FREQ_DIV4		0x1
 #define CR10_FREQ_DIV8		0x2
 #define CR10_FREQ_DIV16		0x3
 
@@ -234,15 +234,15 @@
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	//struct sensor_private_data *sensor =
-	   // (struct sensor_private_data *) i2c_get_clientdata(client);	
+	   // (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char value = 0;
 	int i = 0;
-	
+
 	for(i=0; i<3; i++)
 		{
 			if(!enable)
-			{		
+			{
 				value = sensor_read_reg(client, REGS_CR0);
 				value |= PWR_MODE_DOWN_MASK;	//ShutDown_EN=1
 				result = sensor_write_reg(client, REGS_CR0, value);
@@ -250,22 +250,22 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 					return result;
 			}
 			else
-			{			
+			{
 				value = sensor_read_reg(client, REGS_CR0);
 				value &= PWR_MODE_OPERATE_MASK ; //Operation_EN=0
 				result = sensor_write_reg(client, REGS_CR0, value);
 				if(result)
 					return result;
 			}
-			
+
 			if(!result)
 			break;
 		}
-	
+
 		if(i>1)
 		printk("%s:set %d times",__func__,i);
 
-	
+
 	//TODO:? function to be added here
 
 	return result;
@@ -274,33 +274,33 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char value = 0;
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
 
 	value = sensor_read_reg(client, REGS_CHIP_ID); //read chip ids
 	printk("us5152 chip id is %x!\n", value);
 
 	value = 0x01;//word accessing
-	
+
 	result = sensor_write_reg(client, REGS_CR0, value);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-		
+
 	return result;
 }
 
@@ -342,22 +342,22 @@ report:
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int value = 0;
 	char index = 0;
 	char buffer[2]= { 0 } ;
 	int ret=0;
-	
+
 	if(sensor->pdata->irq_enable)
 	{
 		if(sensor->ops->int_status_reg >= 0)
 		{
 			value = sensor_read_reg(client, sensor->ops->int_status_reg);
 		}
-		
+
 	}
-	
+
 	//value = sensor_read_reg(client, sensor->ops->read_reg);  //TODO:? to be changed
 	if(sensor->ops->read_len< 2) //12bit
 	{
@@ -375,11 +375,11 @@ static int sensor_report_value(struct i2c_client *client)
 	while(0);
 	value=buffer[1];
 	value =((value << 8) | buffer[0]) & 0xffff;
-	index = us5152_value_report(sensor->input_dev, value);  //now is 12bit 
-	
+	index = us5152_value_report(sensor->input_dev, value);  //now is 12bit
+
 	//printk("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,index);
 	DBG("%s:%s result=%d,index=%d buffer[1]=0x%x , buffer[0]=0x%x \n",__func__,sensor->ops->name, value,index,buffer[1],buffer[0]);
-	
+
 	return result;
 }
 
@@ -393,12 +393,12 @@ struct sensor_operate light_us5152_ops = {
 	.id_reg				= REGS_CHIP_ID,		//read device id from this register
 	.id_data 			= 0x26,			//device id
 	.precision			= 12,			//12 bits
-	.ctrl_reg 			= REGS_CR0,		//enable or disable 
+	.ctrl_reg 			= REGS_CR0,		//enable or disable
 	.int_status_reg 		= SENSOR_UNKNOW_DATA,	//intterupt status register
 	.range				= {0,10},		//range
 	.brightness                     = {10,4095},                          // brightness
-	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT ,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT ,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

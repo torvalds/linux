@@ -36,7 +36,7 @@
 
 
 #define CM3232_ADDR_COM 0
-#define CM3232_ADDR_DATA 50	
+#define CM3232_ADDR_DATA 50
 
 #define CM3232_DRV_NAME "cm3232"
 //command code
@@ -63,16 +63,16 @@
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	//int status = 0;
-	
-	//sensor->client->addr = sensor->ops->ctrl_reg;	
+
+	//sensor->client->addr = sensor->ops->ctrl_reg;
 	//sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
-	//printk("%s:  client addr = %#x\n\n", __func__, client->addr);	
-	//register setting according to chip datasheet		
+	//printk("%s:  client addr = %#x\n\n", __func__, client->addr);
+	//register setting according to chip datasheet
 	if (enable) {
-		sensor->ops->ctrl_data = ALS_RESET(1);	
+		sensor->ops->ctrl_data = ALS_RESET(1);
 		result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 		if(result) {
 			printk("%s:fail to active sensor\n",__func__);
@@ -81,7 +81,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	}
 
 	if(enable)
-	{	
+	{
 		sensor->ops->ctrl_data = ALS_IT(ALS_IT200MS) | HIGH_SENSITIVITY(1);
 	}
 	else
@@ -94,25 +94,25 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 		printk("%s:fail to active sensor\n",__func__);
-	
+
 	return result;
 
 }
 
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
 	return result;
 }
@@ -121,7 +121,7 @@ static int sensor_init(struct i2c_client *client)
 static int light_report_value(struct input_dev *input, int data)
 {
 	unsigned char index = 0;
-	
+
 	if(data <= 10){
 		index = 0;goto report;
 	}
@@ -150,7 +150,7 @@ static int light_report_value(struct input_dev *input, int data)
 report:
 	input_report_abs(input, ABS_MISC, index);
 	input_sync(input);
-	
+
 	return index;
 }
 
@@ -158,13 +158,13 @@ report:
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	//char msb = 0, lsb = 0;
 	char data[2] = {0};
 	unsigned short value = 0;
 	int index = 0;
-	
+
 	//sensor->client->addr = CM3232_ADDR_DATA;
 	data[0] = CM3232_ADDR_DATA;
 	sensor_rx_data(sensor->client, data, 2);
@@ -172,19 +172,19 @@ static int sensor_report_value(struct i2c_client *client)
 
 	DBG("%s:result=%d\n",__func__,value);
 	//printk("%s:result=%d\n",__func__,value);
-	index = light_report_value(sensor->input_dev, value);	
+	index = light_report_value(sensor->input_dev, value);
 	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,index);
 
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
-		
+
 		result= sensor_read_reg(client, sensor->ops->int_status_reg);
 		if(result)
 		{
 			printk("%s:fail to clear sensor int status,ret=0x%x\n",__func__,result);
 		}
 	}
-	
+
 	return result;
 }
 
@@ -198,12 +198,12 @@ struct sensor_operate light_cm3232_ops = {
 	.id_reg				= SENSOR_UNKNOW_DATA,	//read device id from this register
 	.id_data 			= SENSOR_UNKNOW_DATA,	//device id
 	.precision			= 8,			//8 bits
-	.ctrl_reg 			= CM3232_ADDR_COM,	//enable or disable 
+	.ctrl_reg 			= CM3232_ADDR_COM,	//enable or disable
 	.int_status_reg 		= SENSOR_UNKNOW_DATA,	//intterupt status register
 	.range				= {100,65535},		//range
 	.brightness         		= {10,255},             // brightness
-	.trig				= SENSOR_UNKNOW_DATA,		
-	.active				= sensor_active,	
+	.trig				= SENSOR_UNKNOW_DATA,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

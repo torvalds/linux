@@ -86,24 +86,24 @@
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int status = 0;
 
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
-	
-	//register setting according to chip datasheet		
+
+	//register setting according to chip datasheet
 	if(!enable)
-	{	
-		status = PS_SD_DISABLE;	
-		sensor->ops->ctrl_data |= status;	
+	{
+		status = PS_SD_DISABLE;
+		sensor->ops->ctrl_data |= status;
 	}
 	else
 	{
 		status = ~PS_SD_DISABLE;
 		sensor->ops->ctrl_data &= status;
 	}
-		
+
 	DBG("%s:reg=0x%x,reg_ctrl=0x%x,enable=%d\n",__func__,sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
@@ -118,18 +118,18 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
 
 	result = sensor_write_reg(client, SW_RESET, 0);
@@ -147,14 +147,14 @@ static int sensor_init(struct i2c_client *client)
 		sensor->ops->ctrl_data |= PS_INT_ENABLE;
 	else
 		sensor->ops->ctrl_data &= ~PS_INT_ENABLE;
-	
+
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-		
+
 	return result;
 }
 
@@ -163,21 +163,21 @@ static int sensor_init(struct i2c_client *client)
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int value = 0;
-	char buffer[1] = {0};	
-	
+	char buffer[1] = {0};
+
 	if(sensor->ops->read_len < 1)	//sensor->ops->read_len = 1
 	{
 		printk("%s:lenth is error,len=%d\n",__func__,sensor->ops->read_len);
 		return -1;
 	}
-	
+
 	memset(buffer, 0, 1);
 
 	buffer[0] = sensor->ops->read_reg;
-	result = sensor_rx_data(client, buffer, sensor->ops->read_len);	
+	result = sensor_rx_data(client, buffer, sensor->ops->read_len);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
@@ -186,18 +186,18 @@ static int sensor_report_value(struct i2c_client *client)
 
 
 	value = buffer[0];
-	
+
 	input_report_abs(sensor->input_dev, ABS_DISTANCE, (value>>2)?0:1);
 	input_sync(sensor->input_dev);
-	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,(value>>2)?0:1);		
-	
+	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,(value>>2)?0:1);
+
 	if(sensor->pdata->irq_enable)
 	{
 		if(sensor->ops->int_status_reg)
-		{	
+		{
 			value = sensor_read_reg(client, sensor->ops->int_status_reg);
 		}
-		
+
 		if(value & STA_PS_INT)
 		{
 			value &= ~STA_PS_INT;
@@ -209,7 +209,7 @@ static int sensor_report_value(struct i2c_client *client)
 			}
 		}
 	}
-				
+
 	return result;
 }
 
@@ -222,11 +222,11 @@ struct sensor_operate proximity_stk3171_ops = {
 	.id_reg				= SENSOR_UNKNOW_DATA,		//read device id from this register
 	.id_data 			= SENSOR_UNKNOW_DATA,		//device id
 	.precision			= 8,				//8 bits
-	.ctrl_reg 			= PS_CMD,			//enable or disable 
+	.ctrl_reg 			= PS_CMD,			//enable or disable
 	.int_status_reg 		= STA_TUS,			//intterupt status register
 	.range				= {0,1},			//range
-	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

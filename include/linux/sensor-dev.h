@@ -34,7 +34,7 @@ enum sensor_id {
 	ANGLE_ID_ALL,
 	ANGLE_ID_KXTIK,
 	ANGLE_ID_LIS3DH,
-	
+
 	ACCEL_ID_ALL,
 	ACCEL_ID_LIS331,
 	ACCEL_ID_LSM303DLX,
@@ -89,15 +89,15 @@ enum sensor_id {
 	LIGHT_ID_STK3171,
 	LIGHT_ID_ISL29023,
 	LIGHT_ID_AP321XX,
-	LIGHT_ID_PHOTORESISTOR,	
+	LIGHT_ID_PHOTORESISTOR,
 	LIGHT_ID_US5152,
 
 	PROXIMITY_ID_ALL,
 	PROXIMITY_ID_AL3006,
 	PROXIMITY_ID_STK3171,
 	PROXIMITY_ID_AP321XX,
-	
-	TEMPERATURE_ID_ALL,	
+
+	TEMPERATURE_ID_ALL,
 	TEMPERATURE_ID_MS5607,
 
 	PRESSURE_ID_ALL,
@@ -106,7 +106,7 @@ enum sensor_id {
 
 	HALL_ID_ALL,
 	HALL_ID_OCH165T,
-	
+
 	SENSOR_NUM_ID,
 };
 
@@ -118,12 +118,12 @@ struct sensor_axis {
 };
 
 struct sensor_flag {
-	atomic_t a_flag;	
-	atomic_t m_flag;	
-	atomic_t mv_flag;	
+	atomic_t a_flag;
+	atomic_t m_flag;
+	atomic_t mv_flag;
 	atomic_t open_flag;
 	atomic_t debug_flag;
-	long long delay;	
+	long long delay;
 	wait_queue_head_t open_wq;
 };
 
@@ -133,7 +133,7 @@ struct sensor_operate {
 	int type;
 	int	id_i2c;
 	int	range[2];
-	int 	brightness[2];//backlight min_brightness max_brightness 
+	int 	brightness[2];//backlight min_brightness max_brightness
 	int read_reg;
 	int read_len;
 	int id_reg;
@@ -144,8 +144,8 @@ struct sensor_operate {
 	int int_ctrl_reg;
 	int	int_status_reg;
 	int trig;	//intterupt trigger
-	int (*active)(struct i2c_client *client, int enable, int rate);	
-	int (*init)(struct i2c_client *client);	
+	int (*active)(struct i2c_client *client, int enable, int rate);
+	int (*init)(struct i2c_client *client);
 	int (*report)(struct i2c_client *client);
 	int (*suspend)(struct i2c_client *client);
 	int (*resume)(struct i2c_client *client);
@@ -157,16 +157,16 @@ struct sensor_operate {
 /* Platform data for the sensor */
 struct sensor_private_data {
 	int type;
-	struct i2c_client *client;	
+	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct work_struct work;
 	struct delayed_work delaywork;	/*report second event*/
 	struct sensor_axis axis;
 	char sensor_data[40];		//max support40 bytes data
 	atomic_t data_ready;
-	wait_queue_head_t data_ready_wq;		
+	wait_queue_head_t data_ready_wq;
 	struct mutex data_mutex;
-	struct mutex operation_mutex;	
+	struct mutex operation_mutex;
 	struct mutex sensor_mutex;
 	struct mutex i2c_mutex;
 	int status_cur;
@@ -175,7 +175,7 @@ struct sensor_private_data {
 	struct sensor_flag flags;
 	struct i2c_device_id *i2c_id;
 	struct sensor_platform_data *pdata;
-	struct sensor_operate *ops; 
+	struct sensor_operate *ops;
 	struct file_operations fops;
 	struct miscdevice miscdev;
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -190,7 +190,7 @@ struct sensor_platform_data {
 	int power_pin;
 	int reset_pin;
 	int standby_pin;
-	int irq_enable;         //if irq_enable=1 then use irq else use polling  
+	int irq_enable;         //if irq_enable=1 then use irq else use polling
 	int poll_delay_ms;      //polling
 	int x_min;              //filter
 	int y_min;
@@ -216,13 +216,13 @@ struct sensor_platform_data {
          int (*gsensor_platform_wakeup)(void);
          void (*exit_platform_hw)(void);
  };
- 
+
  struct akm8975_platform_data {
          short m_layout[4][3][3];
          char project_name[64];
          int gpio_DRDY;
  };
- 
+
  struct akm_platform_data {
         short m_layout[4][3][3];
         char project_name[64];
@@ -291,8 +291,8 @@ extern int sensor_unregister_slave(int type,struct i2c_client *client,
 #endif
 
 #define LIGHTSENSOR_IOCTL_MAGIC 'l'
-#define LIGHTSENSOR_IOCTL_GET_ENABLED		_IOR(LIGHTSENSOR_IOCTL_MAGIC, 1, int *) 
-#define LIGHTSENSOR_IOCTL_ENABLE		_IOW(LIGHTSENSOR_IOCTL_MAGIC, 2, int *) 
+#define LIGHTSENSOR_IOCTL_GET_ENABLED		_IOR(LIGHTSENSOR_IOCTL_MAGIC, 1, int *)
+#define LIGHTSENSOR_IOCTL_ENABLE		_IOW(LIGHTSENSOR_IOCTL_MAGIC, 2, int *)
 #define LIGHTSENSOR_IOCTL_DISABLE		_IOW(LIGHTSENSOR_IOCTL_MAGIC, 3, int *)
 
 #ifdef CONFIG_COMPAT

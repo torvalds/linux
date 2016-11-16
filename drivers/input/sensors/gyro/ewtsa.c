@@ -147,7 +147,7 @@
 static int i2c_read_byte(struct i2c_client *thisClient, unsigned char regAddr, char *pReadData)
 {
     int    ret = 0;
-	
+
     ret = i2c_master_send( thisClient, (char*)&regAddr, 1);
     if(ret < 0)
     {
@@ -167,22 +167,22 @@ static int i2c_write_byte(struct i2c_client *thisClient, unsigned char regAddr, 
 {
     char    write_data[2] = {0};
     int    ret=0;
-    
+
     write_data[0] = regAddr;
     write_data[1] = writeData;
-    
+
     ret = i2c_master_send(thisClient, write_data, 2);
-    if (ret < 0) 
+    if (ret < 0)
     {
         ret = i2c_master_send(thisClient, write_data, 2);
-        if (ret < 0) 
+        if (ret < 0)
 	 {
 	     printk("EWTSA send regAddr=0x%x error!\n", regAddr);
 	     return ret;
         }
         return 1;
     }
-    
+
     return 1;
 }
 
@@ -228,15 +228,15 @@ static int ewtsa_system_restart(struct i2c_client *client)
         return err;
     }
 
-    if (EWTSA_calib==  EWTSA_ON) {		
+    if (EWTSA_calib==  EWTSA_ON) {
 	printk("EWTSA_set_calibration() start \n");
 	err =  i2c_write_byte(client,( unsigned char)REG_SELF_O_C, ( unsigned char)SELF_O_C_ENABLE);
 	if (err < 0) {
 		return err;
 	}
-	mdelay(500); 
+	mdelay(500);
 	printk("EWTSA_set_calibration() end \n");
-     
+
     }
 
     return 0;
@@ -245,21 +245,21 @@ static int ewtsa_system_restart(struct i2c_client *client)
 static int ewtsa_disable(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
+
 	gpio_direction_output(sensor->pdata->standby_pin, GPIO_HIGH);
 
-	DBG("%s: end \n",__func__);	
+	DBG("%s: end \n",__func__);
 
-	return 0;	   
+	return 0;
 }
 
 static int ewtsa_enable(struct i2c_client *client)
 {
 	int err;
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
+
 	gpio_direction_output(sensor->pdata->standby_pin, GPIO_LOW);
 	err = i2c_write_byte(client, ( unsigned char)REG_PWR_MGM, ( unsigned char)SLEEP_CTRL_ACTIVATE);////0x44
 	if (err < 0){
@@ -274,33 +274,33 @@ static int ewtsa_enable(struct i2c_client *client)
 	if (err < 0) {
 		return err;
 	}
-	DBG("%s: end \n",__func__);	
+	DBG("%s: end \n",__func__);
 	return 0;
 }
 
 void gyro_dev_reset(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 
-	
+
     DBG("%s\n",__func__);
 	gpio_direction_output(sensor->pdata->standby_pin, GPIO_HIGH);
-	msleep(100); 
+	msleep(100);
 	gpio_direction_output(sensor->pdata->standby_pin, GPIO_LOW);
-	msleep(100); 
+	msleep(100);
 }
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	/*
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int status = 0;
 	*/
 	int result = 0;
 	if(enable)
-	{	
+	{
 		result=ewtsa_enable(client);
 	}
 	else
@@ -316,12 +316,12 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 }
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	int result = 0;	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
+	int result = 0;
 	/*
-	unsigned char buf[5];		
+	unsigned char buf[5];
 	unsigned char data = 0;
 	int i = 0;
 	char pReadData=0;
@@ -336,7 +336,7 @@ static int sensor_init(struct i2c_client *client)
 static int gyro_report_value(struct i2c_client *client, struct sensor_axis *axis)
 {
 	struct sensor_private_data *sensor =
-	    	(struct sensor_private_data *) i2c_get_clientdata(client);	
+	    	(struct sensor_private_data *) i2c_get_clientdata(client);
 
 	/* Report GYRO  information */
 	input_report_rel(sensor->input_dev, ABS_RX, axis->x);
@@ -351,18 +351,18 @@ static int gyro_report_value(struct i2c_client *client, struct sensor_axis *axis
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    	(struct sensor_private_data *) i2c_get_clientdata(client);	
+	    	(struct sensor_private_data *) i2c_get_clientdata(client);
 	struct sensor_platform_data *pdata = sensor->pdata;
 	int ret = 0;
 	int x = 0, y = 0, z = 0;
 	struct sensor_axis axis;
-	char buffer[6] = {0};	
+	char buffer[6] = {0};
 	int i = 0;
 	/* int value = 0; */
 
 	memset(buffer, 0, 6);
-#if 0	
-	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */	
+#if 0
+	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	do {
 		buffer[0] = sensor->ops->read_reg;
 		ret = sensor_rx_data(client, buffer, sensor->ops->read_len);
@@ -376,7 +376,7 @@ static int sensor_report_value(struct i2c_client *client)
 		i2c_read_byte(client, sensor->ops->read_reg + i,&buffer[i]);
 	}
 #endif
-        	
+
 	x = (short) (((buffer[0]) << 8) | buffer[1]);
 	y = (short) (((buffer[2]) << 8) | buffer[3]);
 	z = (short) (((buffer[4]) << 8) | buffer[5]);
@@ -385,27 +385,27 @@ static int sensor_report_value(struct i2c_client *client)
 	if(pdata && pdata->orientation)
 	{
 		axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
-		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;	
+		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;
 		axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
 	}
 	else
 	{
-		axis.x = x;	
+		axis.x = x;
 		axis.y = y;
-		axis.z = z;	
+		axis.z = z;
 	}
 
 	//filter gyro data
 	if((abs(axis.x) > pdata->x_min)||(abs(axis.y) > pdata->y_min)||(abs(axis.z) > pdata->z_min))
-	{	
-		gyro_report_value(client, &axis);	
+	{
+		gyro_report_value(client, &axis);
 
 		 /* »¥³âµØ»º´æÊý¾Ý. */
 		mutex_lock(&(sensor->data_mutex) );
 		sensor->axis = axis;
 		mutex_unlock(&(sensor->data_mutex) );
-	}	
-	
+	}
+
 	return ret;
 }
 
@@ -419,11 +419,11 @@ struct sensor_operate gyro_ewtsa_ops = {
 	.id_reg				= -1,		//read device id from this register
 	.id_data 			= -1,		//device id
 	.precision			= 8,				//8 bits
-	.ctrl_reg 			= REG_PWR_MGM,		//enable or disable 
+	.ctrl_reg 			= REG_PWR_MGM,		//enable or disable
 	.int_status_reg 		= REG_INT_STATUS,			//intterupt status register,if no exist then -1
 	.range				= {-32768,32768},		//range
-	.trig				= IRQF_TRIGGER_HIGH|IRQF_ONESHOT,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_HIGH|IRQF_ONESHOT,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

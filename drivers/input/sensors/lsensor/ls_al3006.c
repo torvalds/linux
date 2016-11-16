@@ -76,14 +76,14 @@ static int sensor_power_updown(struct i2c_client *client, int on)
 			if(result)
 				return result;
 		}
-		
+
 		if(!result)
 		break;
 	}
 
 	if(i>1)
 	printk("%s:set %d times",__func__,i);
-	
+
 	return result;
 }
 
@@ -92,18 +92,18 @@ static int sensor_power_updown(struct i2c_client *client, int on)
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char value = 0;
 
-	if(enable)	
+	if(enable)
 	sensor_power_updown(client, 1);
 
 	value = sensor_read_reg(client, sensor->ops->ctrl_reg);
-	
-	//register setting according to chip datasheet		
+
+	//register setting according to chip datasheet
 	if(enable)
-	{	
+	{
 		if( (value & 0x03) == ONLY_PROX_EN )
 		{
 			value &= ~0x03;
@@ -128,11 +128,11 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 			value &= ~0x03;
 			value |= ONLY_PROX_EN;
 		}
-	
+
 	}
-	
+
 	sensor->ops->ctrl_data = value;
-	
+
 	DBG("%s:reg=0x%x,reg_ctrl=0x%x,enable=%d\n",__func__,sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
@@ -144,21 +144,21 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char value = 0;
-	
+
 	sensor_power_updown(client, 0);
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
 
 	value = 0x41;//The ADC effective resolution = 9;  Low lux threshold level = 1;
@@ -171,14 +171,14 @@ static int sensor_init(struct i2c_client *client)
 	}
 
 	//value = 0x04;//0x01-0x0f; 17%->93.5% if value = 0x04,then Compensate Loss 52%
-	value = 0x02;//0x01-0x0f; 17%->93.5% if value = 0x02,then Compensate Loss 31%	
+	value = 0x02;//0x01-0x0f; 17%->93.5% if value = 0x02,then Compensate Loss 31%
 	result = sensor_write_reg(client, ALS_WINDOWS_REG, value);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-		
+
 	return result;
 }
 
@@ -222,25 +222,25 @@ report:
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char value = 0;
 	char index = 0;
-	
+
 	if(sensor->pdata->irq_enable)
 	{
 		if(sensor->ops->int_status_reg)
 		{
 			value = sensor_read_reg(client, sensor->ops->int_status_reg);
 		}
-		
+
 	}
 
 	value = sensor_read_reg(client, sensor->ops->read_reg);
 	index = light_report_value(sensor->input_dev, value&0x3f); // bit0-5  is ls data;
-	
+
 	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,index);
-	
+
 	return result;
 }
 
@@ -253,12 +253,12 @@ struct sensor_operate light_al3006_ops = {
 	.id_reg				= SENSOR_UNKNOW_DATA,	//read device id from this register
 	.id_data 			= SENSOR_UNKNOW_DATA,	//device id
 	.precision			= 8,			//8 bits
-	.ctrl_reg 			= CONFIG_REG,		//enable or disable 
+	.ctrl_reg 			= CONFIG_REG,		//enable or disable
 	.int_status_reg 		= INT_STATUS_REG,	//intterupt status register
 	.range				= {100,65535},		//range
 	.brightness                                        ={10,255},                          // brightness
-	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_SHARED,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

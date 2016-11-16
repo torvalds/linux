@@ -62,7 +62,7 @@
 #define VALUE_STAINT 				0xAA
 #define VALUE_AFEM_AFEN_Normal		0x8f// AFEN set 1 , ATM[2:0]=b'000(normal),EN_Z/Y/X/T=1
 #define VALUE_AFEM_Normal			0x0f// AFEN set 0 , ATM[2:0]=b'000(normal),EN_Z/Y/X/T=1
-#define VALUE_INTC					0x00// INTC[6:5]=b'00 
+#define VALUE_INTC					0x00// INTC[6:5]=b'00
 #define VALUE_INTC_Interrupt_En		0x20// INTC[6:5]=b'01 (Data ready interrupt enable, active high at INT0)
 #define VALUE_CKSEL_ODR_0_204		0x04// ODR[3:0]=b'0000 (0.78125Hz), CCK[3:0]=b'0100 (204.8kHZ)
 #define VALUE_CKSEL_ODR_1_204		0x14// ODR[3:0]=b'0001 (1.5625Hz), CCK[3:0]=b'0100 (204.8kHZ)
@@ -95,15 +95,15 @@
 #define DMARD10_REG_INTSRC1_S       0X4B
 #define MMAIO				0xA1
 
-// IOCTLs for DMARD10 library 
+// IOCTLs for DMARD10 library
 #define ECS_IOCTL_INIT                  _IO(MMAIO, 0x01)
 #define ECS_IOCTL_RESET      	        _IO(MMAIO, 0x04)
 #define ECS_IOCTL_CLOSE		        _IO(MMAIO, 0x02)
 #define ECS_IOCTL_START		        _IO(MMAIO, 0x03)
 #define ECS_IOCTL_GETDATA               _IOR(MMAIO, 0x08, char[RBUFF_SIZE+1])
 #define SENSOR_CALIBRATION   		_IOWR(MMAIO, 0x05 , int[SENSOR_DATA_SIZE])
-	 
-// IOCTLs for APPs 
+
+// IOCTLs for APPs
 #define ECS_IOCTL_APP_SET_RATE		_IOW(MMAIO, 0x10, char)
 
  //rate
@@ -124,11 +124,11 @@
 
 
 
-#define DMARD10_IIC_ADDR 	    0x18  
+#define DMARD10_IIC_ADDR 	    0x18
 #define DMARD10_REG_LEN         11
 
 
-#define DMARD10_FATOR	15 
+#define DMARD10_FATOR	15
 
 
 #define DMARD10_X_OUT 		0x41
@@ -141,13 +141,13 @@
 #define POWER_OR_RATE 1
 #define SW_RESET 1
 #define DMARD10_INTERRUPUT 1
-#define DMARD10_POWERDOWN 0 
-#define DMARD10_POWERON 1 
+#define DMARD10_POWERDOWN 0
+#define DMARD10_POWERON 1
 
 //g-senor layout configuration, choose one of the following configuration
 
 #define AVG_NUM 			16
-#define SENSOR_DATA_SIZE 		3 
+#define SENSOR_DATA_SIZE 		3
 #define DEFAULT_SENSITIVITY 		1024
 
 
@@ -168,7 +168,7 @@
 
 #define DMARD10_RANGE			4000000
 #define DMARD10_PRECISION       10
-#define DMARD10_BOUNDARY        (0x1 << (DMARD10_PRECISION  - 1)) 
+#define DMARD10_BOUNDARY        (0x1 << (DMARD10_PRECISION  - 1))
 #define DMARD10_GRAVITY_STEP    (DMARD10_RANGE / DMARD10_BOUNDARY)
 
 
@@ -182,16 +182,16 @@ struct sensor_axis_average {
 static struct sensor_axis_average axis_average;
 int gsensor_reset(struct i2c_client *client){
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
+
 	char buffer[7], buffer2[2];
 	/* 1. check D10 , VALUE_STADR = 0x55 , VALUE_STAINT = 0xAA */
 	buffer[0] = REG_STADR;
 	buffer2[0] = REG_STAINT;
-	
+
 	sensor_rx_data(client, buffer, 2);
 	sensor_rx_data(client, buffer2, 2);
-		
+
 	if( buffer[0] == VALUE_STADR || buffer2[0] == VALUE_STAINT){
 		DBG(KERN_INFO " REG_STADR_VALUE = %d , REG_STAINT_VALUE = %d\n", buffer[0], buffer2[0]);
 		DBG(KERN_INFO " %s DMT_DEVICE_NAME registered I2C driver!\n",__FUNCTION__);
@@ -218,9 +218,9 @@ int gsensor_reset(struct i2c_client *client){
 	sensor_tx_data(client, buffer, 2);
 	/* 5. AFEN = 1(AFE will powerdown after ADC) */
 	buffer[0] = REG_AFEM;
-	buffer[1] = VALUE_AFEM_AFEN_Normal;	
-	buffer[2] = VALUE_CKSEL_ODR_100_204;	
-	buffer[3] = VALUE_INTC;	
+	buffer[1] = VALUE_AFEM_AFEN_Normal;
+	buffer[2] = VALUE_CKSEL_ODR_100_204;
+	buffer[3] = VALUE_INTC;
 	buffer[4] = VALUE_TAPNS_Ave_2;
 	buffer[5] = 0x00;	// DLYC, no delay timing
 	buffer[6] = 0x07;	// INTD=1 (push-pull), INTA=1 (active high), AUTOT=1 (enable T)
@@ -231,12 +231,12 @@ int gsensor_reset(struct i2c_client *client){
 	buffer[2] = 0x00;		// set TC of X gain value
 	buffer[3] = 0x03;		// Temperature coefficient of X,Y,Z gain
 	sensor_tx_data(client, buffer, 4);
-	
+
 	buffer[0] = REG_ACTR;			// REG:0x00
 	buffer[1] = MODE_Standby;		// Standby
-	buffer[2] = MODE_WriteOTPBuf;	// WriteOTPBuf 
+	buffer[2] = MODE_WriteOTPBuf;	// WriteOTPBuf
 	buffer[3] = MODE_Standby;		// Standby
-	
+
 	/* 7. Activation mode */
 	buffer[0] = REG_ACTR;
 	buffer[1] = MODE_Active;
@@ -250,16 +250,16 @@ int gsensor_reset(struct i2c_client *client){
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int status = 0;
 		gsensor_reset(client);
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
-	//register setting according to chip datasheet		
+	//register setting according to chip datasheet
 	if(enable)
-	{	
+	{
 		status = DMARD10_ENABLE;	//dmard10
-		sensor->ops->ctrl_data |= status;	
+		sensor->ops->ctrl_data |= status;
 	}
 	else
 	{
@@ -271,24 +271,24 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 		printk("%s:fail to active sensor\n",__func__);
-	
+
 	return result;
 
 }
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
 
 	DBG("%s:DMARD10_REG_TILT=0x%x\n",__func__,sensor_read_reg(client, DMARD10_REG_TILT));
@@ -309,7 +309,7 @@ static int sensor_init(struct i2c_client *client)
 			return result;
 		}
 	}
-	
+
 	sensor->ops->ctrl_data = 1<<6;	//Interrupt output INT is push-pull
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
@@ -318,7 +318,7 @@ static int sensor_init(struct i2c_client *client)
 		return result;
 	}
 
-	
+
 	memset(&axis_average, 0, sizeof(struct sensor_axis_average));
 
 	return result;
@@ -328,16 +328,16 @@ static int sensor_init(struct i2c_client *client)
 static int sensor_convert_data(struct i2c_client *client, char high_byte, char low_byte)
 {
     s64 result;
-	
-	 
+
+
 		result = ((int)high_byte << 8)|((int)low_byte);
-	
+
 		if (result < DMARD10_BOUNDARY){
 			result = result* DMARD10_GRAVITY_STEP;
 		}else{
 			result = ~( ((~result & (0x7fff>>(16-DMARD10_PRECISION)) ) + 1)* DMARD10_GRAVITY_STEP) + 1;
 		}
-			
+
 		return result;
 
 }
@@ -345,7 +345,7 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *axis)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 
 	/* Report acceleration sensor information */
 	input_report_abs(sensor->input_dev, ABS_X, axis->x);
@@ -361,22 +361,22 @@ static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *a
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-		(struct sensor_private_data *) i2c_get_clientdata(client);	
+		(struct sensor_private_data *) i2c_get_clientdata(client);
 	struct sensor_platform_data *pdata = sensor->pdata;
 	int ret = 0;
 	int x,y,z;
 	struct sensor_axis axis;
-	char buffer[8] = {0};	
+	char buffer[8] = {0};
 	char value = 0;
-	
+
 	if(sensor->ops->read_len < 3)	//sensor->ops->read_len = 3
 	{
 		printk("%s:lenth is error,len=%d\n",__func__,sensor->ops->read_len);
 		return -1;
 	}
-	
+
 	memset(buffer, 0, 8);
-	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */	
+	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	do {
 		*buffer = sensor->ops->read_reg;
 		ret = sensor_rx_data(client, buffer, sensor->ops->read_len);
@@ -385,30 +385,30 @@ static int sensor_report_value(struct i2c_client *client)
 	} while (0);
 
 	//this gsensor need 6 bytes buffer
-	x = sensor_convert_data(sensor->client, buffer[3], buffer[2]);	//buffer[1]:high bit 
+	x = sensor_convert_data(sensor->client, buffer[3], buffer[2]);	//buffer[1]:high bit
 	y = sensor_convert_data(sensor->client, buffer[5], buffer[4]);
-	z = sensor_convert_data(sensor->client, buffer[7], buffer[6]);		
-		
+	z = sensor_convert_data(sensor->client, buffer[7], buffer[6]);
+
 	axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
-	axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z; 
+	axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;
 	axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
 
-	
+
 	axis_average.x_average += axis.x;
 	axis_average.y_average += axis.y;
 	axis_average.z_average += axis.z;
 	axis_average.count++;
-	
+
 	if(axis_average.count >= DMARD10_COUNT_AVERAGE)
 	{
-		axis.x = axis_average.x_average / axis_average.count;	
-		axis.y = axis_average.y_average / axis_average.count;	
+		axis.x = axis_average.x_average / axis_average.count;
+		axis.y = axis_average.y_average / axis_average.count;
 		axis.z = axis_average.z_average / axis_average.count;
-		
+
 		DBG( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
-		
+
 		memset(&axis_average, 0, sizeof(struct sensor_axis_average));
-		
+
 		//Report event only while value is changed to save some power
 		if((abs(sensor->axis.x - axis.x) > GSENSOR_MIN) || (abs(sensor->axis.y - axis.y) > GSENSOR_MIN) || (abs(sensor->axis.z - axis.z) > GSENSOR_MIN))
 		{
@@ -420,14 +420,14 @@ static int sensor_report_value(struct i2c_client *client)
 			mutex_unlock(&(sensor->data_mutex) );
 		}
 	}
-	
+
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
-		
+
 		value = sensor_read_reg(client, sensor->ops->int_status_reg);
 		DBG("%s:sensor int status :0x%x\n",__func__,value);
 	}
-	
+
 	return ret;
 }
 
@@ -441,11 +441,11 @@ struct sensor_operate gsensor_dmard10_ops = {
 	.id_reg				= SENSOR_UNKNOW_DATA,			//read device id from this register
 	.id_data 			= SENSOR_UNKNOW_DATA,			//device id
 	.precision			= DMARD10_PRECISION,			//12 bit
-	.ctrl_reg 			= DMARD10_REG_MODE,			//enable or disable 	
+	.ctrl_reg 			= DMARD10_REG_MODE,			//enable or disable
 	.int_status_reg 	= SENSOR_UNKNOW_DATA,			//intterupt status register
 	.range				= {-DMARD10_RANGE,DMARD10_RANGE},	//range
-	.trig				= IRQF_TRIGGER_LOW|IRQF_ONESHOT,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_LOW|IRQF_ONESHOT,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report 			= sensor_report_value,
 };
@@ -464,7 +464,7 @@ static int __init gsensor_dmard10_init(void)
 	struct sensor_operate *ops = gsensor_get_ops();
 	int result = 0;
 	int type = ops->type;
-	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);	
+	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
 	return result;
 }
 

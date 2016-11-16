@@ -40,17 +40,17 @@
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int status = 0;
-		
+
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 
-	//register setting according to chip datasheet		
+	//register setting according to chip datasheet
 	if(enable)
-	{	
-		status = L3G4200D_ENABLE;	//l3g20d	
-		sensor->ops->ctrl_data |= status;	
+	{
+		status = L3G4200D_ENABLE;	//l3g20d
+		sensor->ops->ctrl_data |= status;
 	}
 	else
 	{
@@ -68,28 +68,28 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 }
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	int result = 0;	
-	unsigned char buf[5];		
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
+	int result = 0;
+	unsigned char buf[5];
 	unsigned char data = 0;
 	int i = 0;
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
-	
+
 	buf[0] = 0x07;	//27
-	buf[1] = 0x00;	
-	buf[2] = 0x00;	
+	buf[1] = 0x00;
+	buf[2] = 0x00;
 	buf[3] = 0x20;	//0x00
-	buf[4] = 0x00;	
+	buf[4] = 0x00;
 	for(i=0; i<5; i++)
 	{
 		result = sensor_write_reg(client, sensor->ops->ctrl_reg+i, buf[i]);
@@ -99,19 +99,19 @@ static int sensor_init(struct i2c_client *client)
 			return result;
 		}
 	}
-	
+
 	result = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	if (result >= 0)
 		data = result & 0x000F;
 
-	sensor->ops->ctrl_data = data + ODR100_BW12_5;	
+	sensor->ops->ctrl_data = data + ODR100_BW12_5;
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	return result;
 }
 
@@ -119,7 +119,7 @@ static int sensor_init(struct i2c_client *client)
 static int gyro_report_value(struct i2c_client *client, struct sensor_axis *axis)
 {
 	struct sensor_private_data *sensor =
-	    	(struct sensor_private_data *) i2c_get_clientdata(client);	
+	    	(struct sensor_private_data *) i2c_get_clientdata(client);
 
 	/* Report GYRO  information */
 	input_report_rel(sensor->input_dev, ABS_RX, axis->x);
@@ -134,24 +134,24 @@ static int gyro_report_value(struct i2c_client *client, struct sensor_axis *axis
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    	(struct sensor_private_data *) i2c_get_clientdata(client);	
+	    	(struct sensor_private_data *) i2c_get_clientdata(client);
 	struct sensor_platform_data *pdata = sensor->pdata;
 	int ret = 0;
 	int x = 0, y = 0, z = 0;
 	struct sensor_axis axis;
-	char buffer[6] = {0};	
+	char buffer[6] = {0};
 	int i = 0;
 	int value = 0;
-	
+
 	if(sensor->ops->read_len < 6)	//sensor->ops->read_len = 6
 	{
 		printk("%s:lenth is error,len=%d\n",__func__,sensor->ops->read_len);
 		return -1;
 	}
-	
+
 	memset(buffer, 0, 6);
-#if 0	
-	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */	
+#if 0
+	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	do {
 		buffer[0] = sensor->ops->read_reg;
 		ret = sensor_rx_data(client, buffer, sensor->ops->read_len);
@@ -162,7 +162,7 @@ static int sensor_report_value(struct i2c_client *client)
 
 	for(i=0; i<6; i++)
 	{
-		//buffer[i] = sensor->ops->read_reg + i;	
+		//buffer[i] = sensor->ops->read_reg + i;
 		buffer[i] = sensor_read_reg(client, sensor->ops->read_reg + i);
 	}
 #endif
@@ -174,34 +174,34 @@ static int sensor_report_value(struct i2c_client *client)
 	if(pdata && pdata->orientation)
 	{
 		axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
-		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;	
+		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;
 		axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
 	}
 	else
 	{
-		axis.x = x;	
+		axis.x = x;
 		axis.y = y;
-		axis.z = z;	
+		axis.z = z;
 	}
 
 	//filter gyro data
 	if((abs(axis.x) > pdata->x_min)||(abs(axis.y) > pdata->y_min)||(abs(axis.z) > pdata->z_min))
-	{	
-		gyro_report_value(client, &axis);	
+	{
+		gyro_report_value(client, &axis);
 
 		 /* »¥³âµØ»º´æÊý¾Ý. */
 		mutex_lock(&(sensor->data_mutex) );
 		sensor->axis = axis;
 		mutex_unlock(&(sensor->data_mutex) );
-	}	
+	}
 
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
-		
+
 		value = sensor_read_reg(client, sensor->ops->int_status_reg);
 		DBG("%s:sensor int status :0x%x\n",__func__,value);
 	}
-	
+
 	return ret;
 }
 
@@ -215,11 +215,11 @@ static struct sensor_operate gyro_l3g20d_ops = {
 	.id_reg				= GYRO_WHO_AM_I,		//read device id from this register
 	.id_data 			= GYRO_DEVID_L3G20D,		//device id
 	.precision			= 8,				//8 bits
-	.ctrl_reg 			= GYRO_CTRL_REG1,		//enable or disable 
+	.ctrl_reg 			= GYRO_CTRL_REG1,		//enable or disable
 	.int_status_reg 		= GYRO_INT_SRC,			//intterupt status register,if no exist then -1
 	.range				= {-32768,32768},		//range
-	.trig				= IRQF_TRIGGER_LOW|IRQF_ONESHOT,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_LOW|IRQF_ONESHOT,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

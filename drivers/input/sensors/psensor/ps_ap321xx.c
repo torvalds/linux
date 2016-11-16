@@ -26,7 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <mach/gpio.h>
-#include <mach/board.h> 
+#include <mach/board.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -79,7 +79,7 @@ static int __ap321xx_write_reg(struct i2c_client *client,
 	tmp |= val << shift;
 
 	ret = i2c_smbus_write_byte_data(client, reg, tmp);
-	
+
 	return ret;
 }
 
@@ -99,7 +99,7 @@ static int ap321xx_set_range(struct i2c_client *client, int range)
 static int ap321xx_get_mode(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int ret;
 
 	ret = __ap321xx_read_reg(client, sensor->ops->ctrl_reg,
@@ -109,7 +109,7 @@ static int ap321xx_get_mode(struct i2c_client *client)
 static int ap321xx_set_mode(struct i2c_client *client, int mode)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int ret;
 
 	ret = __ap321xx_write_reg(client, sensor->ops->ctrl_reg,
@@ -119,9 +119,9 @@ static int ap321xx_set_mode(struct i2c_client *client, int mode)
 static int ap321xx_get_intstat(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int val;
-	
+
 	val = i2c_smbus_read_byte_data(client, sensor->ops->int_status_reg);
 	val &= AP3212B_INT_MASK;
 
@@ -145,12 +145,12 @@ static int ap321xx_product_detect(struct i2c_client *client)
 	int pid = i2c_smbus_read_byte_data(client, 0x04);
 	int rid = i2c_smbus_read_byte_data(client, 0x05);
 
-	if ( mid == 0x01 && pid == 0x01 && 
+	if ( mid == 0x01 && pid == 0x01 &&
 	    (rid == 0x03 || rid == 0x04) )
 	{
 		//printk("RevID [%d], ==> DA3212 v1.5~1.8 ...... AP3212B detected\n", rid);
 	}
-	else if ( (mid == 0x01 && pid == 0x02 && rid == 0x00) || 
+	else if ( (mid == 0x01 && pid == 0x02 && rid == 0x00) ||
 		      (mid == 0x02 && pid == 0x02 && rid == 0x01))
 	{
 		//printk("RevID [%d], ==> DA3212 v2.0 ...... AP3212C/AP3216C detected\n", rid);
@@ -176,20 +176,20 @@ static int ap321xx_init_client(struct i2c_client *client)
 static int ap321xx_psensor_enable(struct i2c_client *client)
 {
 	int ret = 0,mode;
-	
+
 	mode = ap321xx_get_mode(client);
 	if((mode & 0x02) == 0){
 		mode |= 0x02;
 		ret = ap321xx_set_mode(client,mode);
 	}
-	
+
 	return ret;
 }
 
 static int ap321xx_psensor_disable(struct i2c_client *client)
 {
 	int ret = 0,mode;
-	
+
 	mode = ap321xx_get_mode(client);
 	if(mode & 0x02){
 		mode &= ~0x02;
@@ -205,8 +205,8 @@ static int ap321xx_psensor_disable(struct i2c_client *client)
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	int result = 0;
-	
-	//register setting according to chip datasheet		
+
+	//register setting according to chip datasheet
 	if (enable){
 		result = ap321xx_psensor_enable(client);
 	}
@@ -222,9 +222,9 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 
 	result = ap321xx_product_detect(client);
@@ -238,27 +238,27 @@ static int sensor_init(struct i2c_client *client)
 	result = ap321xx_init_client(client);
 	if (result)
 		return result;
-	
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor->status_cur = SENSOR_OFF;
-		
+
 	return result;
 }
 
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	char value = 0;
 	u8 int_stat;
-	
+
 	int_stat = ap321xx_get_intstat(client);
 	// ALS int
 	if (int_stat & AP3212B_INT_PMASK)
@@ -267,7 +267,7 @@ static int sensor_report_value(struct i2c_client *client)
 		input_report_abs(sensor->input_dev, ABS_DISTANCE, value);
 		input_sync(sensor->input_dev);
 	}
-	
+
 	return result;
 }
 
@@ -280,12 +280,12 @@ struct sensor_operate proximity_ap321xx_ops = {
 	.id_reg				= SENSOR_UNKNOW_DATA,	//read device id from this register   //there are 3 regs, we fix them in code.
 	.id_data 			= SENSOR_UNKNOW_DATA,	//device id
 	.precision			= 8,			//8 bits
-	.ctrl_reg 			= AP3212B_MODE_COMMAND,		//enable or disable 
+	.ctrl_reg 			= AP3212B_MODE_COMMAND,		//enable or disable
 	.int_status_reg 		= AP3212B_INT_COMMAND,	//intterupt status register
 	.range				= {0,10},		//range
 	.brightness                                        ={10,255},                          // brightness
-	.trig				= IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_SHARED,		
-	.active				= sensor_active,	
+	.trig				= IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_SHARED,
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };

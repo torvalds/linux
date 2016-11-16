@@ -96,19 +96,19 @@ struct sensor_reg_data {
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int status = 0;
-		
+
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 
 	sensor->ops->ctrl_data |= ODR100;	//100HZ,if 0 then power down
-	
-	//register setting according to chip datasheet		
+
+	//register setting according to chip datasheet
 	if(!enable)
-	{	
-		status = LSM303D_ACC_DISABLE;	//lis3dh	
-		sensor->ops->ctrl_data |= status;	
+	{
+		status = LSM303D_ACC_DISABLE;	//lis3dh
+		sensor->ops->ctrl_data |= status;
 	}
 	else
 	{
@@ -120,20 +120,20 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 		printk("%s:fail to active sensor\n",__func__);
-	
+
 	return result;
 
 }
 
 
 static int sensor_init(struct i2c_client *client)
-{	
+{
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 	int i;
 
-	struct sensor_reg_data reg_data[] = 
+	struct sensor_reg_data reg_data[] =
 	{
 		{LSM303D_CTRL_REG0,0x00},
 		{LSM303D_CTRL_REG1,0x07},
@@ -144,22 +144,22 @@ static int sensor_init(struct i2c_client *client)
 		{LSM303D_CTRL_REG6,0x20},
 		{LSM303D_CTRL_REG7,0x00},
 		{LSM303D_FIFO_CTRL_REG,0x00},
-		{LSM303D_IG_CFG1,0xFF},		//6 direction position recognition	
-		{LSM303D_IG_THS1,0x7F},		//Interrupt 1 threshold	
+		{LSM303D_IG_CFG1,0xFF},		//6 direction position recognition
+		{LSM303D_IG_THS1,0x7F},		//Interrupt 1 threshold
 		{LSM303D_IG_DURATION1,0x7F},	//Duration value 0x00->ox7f
-			
+
 	/*
-		{LSM303D_CTRL_REG7,0x00},		
-		{LSM303D_CTRL_REG4,0x08},		//High resolution output mode: 1, Normal mode	
-		{LSM303D_CTRL_REG6,0x40},	
-		
-		{LSM303D_FIFO_CTRL_REG,0x00},	//	
-		{LSM303D_IG_CFG1,0xFF},			//6 direction position recognition	
-		{LSM303D_IG_THS1,0x7F},			//Interrupt 1 threshold	
+		{LSM303D_CTRL_REG7,0x00},
+		{LSM303D_CTRL_REG4,0x08},		//High resolution output mode: 1, Normal mode
+		{LSM303D_CTRL_REG6,0x40},
+
+		{LSM303D_FIFO_CTRL_REG,0x00},	//
+		{LSM303D_IG_CFG1,0xFF},			//6 direction position recognition
+		{LSM303D_IG_THS1,0x7F},			//Interrupt 1 threshold
 		{LSM303D_IG_DURATION1,0x7F},	//Duration value 0x00->ox7f
 		*/
-	};  
-	
+	};
+
 	result = sensor->ops->active(client,0,0);
 	if(result)
 	{
@@ -168,7 +168,7 @@ static int sensor_init(struct i2c_client *client)
 	}
 
 	sensor->status_cur = SENSOR_OFF;
-	
+
 	for(i=0;i<(sizeof(reg_data)/sizeof(struct sensor_reg_data));i++)
 	{
 		result = sensor_write_reg(client, reg_data[i].reg, reg_data[i].data);
@@ -179,11 +179,11 @@ static int sensor_init(struct i2c_client *client)
 		}
 	}
 
-	
+
 	if(sensor->pdata->irq_enable)
 	{
 
-		result = sensor_write_reg(client, LSM303D_CTRL_REG3, 0x20);	
+		result = sensor_write_reg(client, LSM303D_CTRL_REG3, 0x20);
 		if(result)
 		{
 			printk("%s:line=%d,error\n",__func__,__LINE__);
@@ -191,7 +191,7 @@ static int sensor_init(struct i2c_client *client)
 		}
 
 		i = sensor_read_reg(client,LSM303D_CTRL_REG5);
-		
+
 		result = sensor_write_reg(client, LSM303D_CTRL_REG5, (i|0x01));
 		if(result)
 		{
@@ -200,7 +200,7 @@ static int sensor_init(struct i2c_client *client)
 		}
 
 	}
-	
+
 	return result;
 }
 
@@ -209,15 +209,15 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 {
 	s64 result;
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	
-	switch (sensor->devid) {	
-		case LSM303D_DEVID:		
+	    (struct sensor_private_data *) i2c_get_clientdata(client);
+
+	switch (sensor->devid) {
+		case LSM303D_DEVID:
 			result = ((int)high_byte << 8) | (int)low_byte;
 			if (result < LSM303D_BOUNDARY)
        			result = result* LSM303D_GRAVITY_STEP;
     		else
-       			result = ~( ((~result & (0x7fff>>(16-LSM303D_PRECISION)) ) + 1) 
+       			result = ~( ((~result & (0x7fff>>(16-LSM303D_PRECISION)) ) + 1)
 			   			* LSM303D_GRAVITY_STEP) + 1;
 			break;
 
@@ -232,7 +232,7 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *axis)
 {
 	struct sensor_private_data *sensor =
-		(struct sensor_private_data *) i2c_get_clientdata(client);	
+		(struct sensor_private_data *) i2c_get_clientdata(client);
 
 	/* Report acceleration sensor information */
 	input_report_abs(sensor->input_dev, ABS_X, axis->x);
@@ -248,20 +248,20 @@ static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *a
 static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
-			(struct sensor_private_data *) i2c_get_clientdata(client);	
+			(struct sensor_private_data *) i2c_get_clientdata(client);
     	struct sensor_platform_data *pdata = sensor->pdata;
 	int ret = 0;
 	int x,y,z;
-	struct sensor_axis axis;	
-	char buffer[6] = {0};	
+	struct sensor_axis axis;
+	char buffer[6] = {0};
 	char value = 0;
-	
+
 	if(sensor->ops->read_len < 6)	//sensor->ops->read_len = 6
 	{
 		printk("%s:lenth is error,len=%d\n",__func__,sensor->ops->read_len);
 		return -1;
 	}
-	
+
 	memset(buffer, 0, 6);
 
 	value = sensor_read_reg(client, LSM303D_STATUS_REG);
@@ -270,9 +270,9 @@ static int sensor_report_value(struct i2c_client *client)
 		printk("%s:line=%d,value=0x%x,data is not ready\n",__func__,__LINE__,value);
 		return -1;
 	}
-		
-	
-	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */	
+
+
+	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	do {
 		*buffer = sensor->ops->read_reg;
 		ret = sensor_rx_data(client, buffer, sensor->ops->read_len);
@@ -281,12 +281,12 @@ static int sensor_report_value(struct i2c_client *client)
 	} while (0);
 
 	//this gsensor need 6 bytes buffer
-	x = sensor_convert_data(sensor->client, buffer[1], buffer[0]);	//buffer[1]:high bit 
+	x = sensor_convert_data(sensor->client, buffer[1], buffer[0]);	//buffer[1]:high bit
 	y = sensor_convert_data(sensor->client, buffer[3], buffer[2]);
-	z = sensor_convert_data(sensor->client, buffer[5], buffer[4]);		
+	z = sensor_convert_data(sensor->client, buffer[5], buffer[4]);
 
 	axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
-	axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;	
+	axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;
 	axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
 
 	DBG( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
@@ -305,11 +305,11 @@ static int sensor_report_value(struct i2c_client *client)
 
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
-		
+
 		value = sensor_read_reg(client, sensor->ops->int_status_reg);
 		DBG("%s:sensor int status :0x%x\n",__func__,value);
 	}
-	
+
 	return ret;
 }
 
@@ -322,11 +322,11 @@ struct sensor_operate gsensor_lsm303d_ops = {
 	.id_reg				= LSM303D_WHO_AM_I,		//read device id from this register
 	.id_data 			= LSM303D_DEVID,			//device id
 	.precision			= LSM303D_PRECISION,		//16 bits
-	.ctrl_reg 			= LSM303D_CTRL_REG1,		//enable or disable 
+	.ctrl_reg 			= LSM303D_CTRL_REG1,		//enable or disable
 	.int_status_reg 		= LSM303D_IG_SRC1,		//intterupt status register
 	.range				= {-LSM303D_RANGE,LSM303D_RANGE},	//range
-	.trig				= (IRQF_TRIGGER_LOW|IRQF_ONESHOT),		
-	.active				= sensor_active,	
+	.trig				= (IRQF_TRIGGER_LOW|IRQF_ONESHOT),
+	.active				= sensor_active,
 	.init				= sensor_init,
 	.report				= sensor_report_value,
 };
