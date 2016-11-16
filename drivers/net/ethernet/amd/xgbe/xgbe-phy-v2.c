@@ -1766,8 +1766,6 @@ static void xgbe_phy_sfi_mode(struct xgbe_prv_data *pdata)
 			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 1);
 		else if (phy_data->sfp_cable_len <= 3)
 			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 2);
-		else if (phy_data->sfp_cable_len <= 5)
-			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 3);
 		else
 			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 3);
 	}
@@ -2346,7 +2344,8 @@ static bool xgbe_phy_valid_speed(struct xgbe_prv_data *pdata, int speed)
 static int xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int ret, reg;
+	unsigned int reg;
+	int ret;
 
 	*an_restart = 0;
 

@@ -943,8 +943,8 @@ static void xgbe_an37_init(struct xgbe_prv_data *pdata)
 
 	/* Set up the Control register */
 	reg = XMDIO_READ(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL);
-	reg &= XGBE_AN_CL37_TX_CONFIG_MASK;
-	reg &= XGBE_AN_CL37_PCS_MODE_MASK;
+	reg &= ~XGBE_AN_CL37_TX_CONFIG_MASK;
+	reg &= ~XGBE_AN_CL37_PCS_MODE_MASK;
 
 	switch (pdata->an_mode) {
 	case XGBE_AN_MODE_CL37:
