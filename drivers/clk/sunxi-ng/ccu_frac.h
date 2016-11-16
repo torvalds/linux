@@ -18,7 +18,7 @@
 
 #include "ccu_common.h"
 
-struct _ccu_frac {
+struct ccu_frac_internal {
 	u32		enable;
 	u32		select;
 
@@ -33,21 +33,21 @@ struct _ccu_frac {
 	}
 
 bool ccu_frac_helper_is_enabled(struct ccu_common *common,
-				struct _ccu_frac *cf);
+				struct ccu_frac_internal *cf);
 void ccu_frac_helper_enable(struct ccu_common *common,
-			    struct _ccu_frac *cf);
+			    struct ccu_frac_internal *cf);
 void ccu_frac_helper_disable(struct ccu_common *common,
-			     struct _ccu_frac *cf);
+			     struct ccu_frac_internal *cf);
 
 bool ccu_frac_helper_has_rate(struct ccu_common *common,
-			      struct _ccu_frac *cf,
+			      struct ccu_frac_internal *cf,
 			      unsigned long rate);
 
 unsigned long ccu_frac_helper_read_rate(struct ccu_common *common,
-					struct _ccu_frac *cf);
+					struct ccu_frac_internal *cf);
 
 int ccu_frac_helper_set_rate(struct ccu_common *common,
-			     struct _ccu_frac *cf,
+			     struct ccu_frac_internal *cf,
 			     unsigned long rate);
 
 #endif /* _CCU_FRAC_H_ */
