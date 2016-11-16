@@ -1542,8 +1542,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
@@ -1578,7 +1577,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 				       adjusted_mode);
 
-		if (INTEL_INFO(dev)->gen >= 9) {
+		if (INTEL_GEN(dev_priv) >= 9) {
 			int ret;
 			ret = skl_update_scaler_crtc(pipe_config);
 			if (ret)
@@ -2977,13 +2976,12 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_
 uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
 	if (IS_BROXTON(dev_priv))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-	else if (INTEL_INFO(dev)->gen >= 9) {
+	else if (INTEL_GEN(dev_priv) >= 9) {
 		if (dev_priv->vbt.edp.low_vswing && port == PORT_A)
 			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -4871,15 +4869,13 @@ put_power:
 }
 
 /* check the VBT to see whether the eDP is on another port */
-bool intel_dp_is_edp(struct drm_device *dev, enum port port)
+bool intel_dp_is_edp(struct drm_i915_private *dev_priv, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/*
 	 * eDP not supported on g4x. so bail out early just
 	 * for a bit extra safety in case the VBT is bonkers.
 	 */
-	if (INTEL_INFO(dev)->gen < 5)
+	if (INTEL_GEN(dev_priv) < 5)
 		return false;
 
 	if (port == PORT_A)
@@ -5481,7 +5477,7 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
 	mutex_init(&dev_priv->drrs.mutex);
 
-	if (INTEL_INFO(dev)->gen <= 6) {
+	if (INTEL_GEN(dev_priv) <= 6) {
 		DRM_DEBUG_KMS("DRRS supported for Gen7 and above\n");
 		return NULL;
 	}
@@ -5655,7 +5651,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->pps_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
-	if (INTEL_INFO(dev)->gen >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
@@ -5664,7 +5660,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;
 
-	if (INTEL_INFO(dev)->gen >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
 	else
 		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
@@ -5676,7 +5672,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
 	intel_dp->attached_connector = intel_connector;
 
-	if (intel_dp_is_edp(dev, port))
+	if (intel_dp_is_edp(dev_priv, port))
 		type = DRM_MODE_CONNECTOR_eDP;
 	else
 		type = DRM_MODE_CONNECTOR_DisplayPort;
@@ -5814,7 +5810,7 @@ bool intel_dp_init(struct drm_device *dev,
 	} else {
 		intel_encoder->pre_enable = g4x_pre_enable_dp;
 		intel_encoder->enable = g4x_enable_dp;
-		if (INTEL_INFO(dev)->gen >= 5)
+		if (INTEL_GEN(dev_priv) >= 5)
 			intel_encoder->post_disable = ilk_post_disable_dp;
 	}
 

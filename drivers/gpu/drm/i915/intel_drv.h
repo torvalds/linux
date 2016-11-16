@@ -1393,7 +1393,7 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
 			     struct drm_connector_state *conn_state);
-bool intel_dp_is_edp(struct drm_device *dev, enum port port);
+bool intel_dp_is_edp(struct drm_i915_private *dev_priv, enum port port);
 enum irqreturn intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
 				  bool long_hpd);
 void intel_edp_backlight_on(struct intel_dp *intel_dp);
