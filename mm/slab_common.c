@@ -533,8 +533,8 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 
 	s = create_cache(cache_name, root_cache->object_size,
 			 root_cache->size, root_cache->align,
-			 root_cache->flags, root_cache->ctor,
-			 memcg, root_cache);
+			 root_cache->flags & CACHE_CREATE_MASK,
+			 root_cache->ctor, memcg, root_cache);
 	/*
 	 * If we could not create a memcg cache, do not complain, because
 	 * that's not critical at all as we can always proceed with the root

@@ -707,11 +707,11 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 			     fmvhdr->vol_type,
 			     be32_to_cpu(fmvhdr->last_eb_bytes));
 
-		if (!av)
-			goto fail_bad;
-		if (PTR_ERR(av) == -EINVAL) {
-			ubi_err(ubi, "volume (ID %i) already exists",
-				fmvhdr->vol_id);
+		if (IS_ERR(av)) {
+			if (PTR_ERR(av) == -EEXIST)
+				ubi_err(ubi, "volume (ID %i) already exists",
+					fmvhdr->vol_id);
+
 			goto fail_bad;
 		}
 

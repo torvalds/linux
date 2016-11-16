@@ -1028,8 +1028,7 @@ static struct nlattr *find_dump_kind(const struct nlmsghdr *n)
 
 	if (tb[1] == NULL)
 		return NULL;
-	if (nla_parse(tb2, TCA_ACT_MAX, nla_data(tb[1]),
-		      nla_len(tb[1]), NULL) < 0)
+	if (nla_parse_nested(tb2, TCA_ACT_MAX, tb[1], NULL) < 0)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND];
 

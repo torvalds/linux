@@ -880,7 +880,8 @@ static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* DAI */
-	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, DA7219_DAI_TDM_CTRL,
+			     DA7219_DAI_OE_SHIFT, DA7219_NO_INVERT),
 	SND_SOC_DAPM_AIF_IN("DAIIN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Output Muxes */

@@ -1,7 +1,7 @@
 #ifndef __ASM_ALTERNATIVE_H
 #define __ASM_ALTERNATIVE_H
 
-#include <asm/cpufeature.h>
+#include <asm/cpucaps.h>
 #include <asm/insn.h>
 
 #ifndef __ASSEMBLY__

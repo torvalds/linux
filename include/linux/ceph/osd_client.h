@@ -258,6 +258,8 @@ struct ceph_watch_item {
 	struct ceph_entity_addr addr;
 };
 
+#define CEPH_LINGER_ID_START	0xffff000000000000ULL
+
 struct ceph_osd_client {
 	struct ceph_client     *client;
 

@@ -433,8 +433,7 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 	struct page *page = data;
 	int ret;
 
-	ret = __block_write_begin_int(page, pos & ~PAGE_MASK, length,
-			NULL, iomap);
+	ret = __block_write_begin_int(page, pos, length, NULL, iomap);
 	if (ret)
 		return ret;
 
@@ -561,7 +560,7 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 	}
 
 	while (len > 0) {
-		ret = iomap_apply(inode, start, len, 0, ops, &ctx,
+		ret = iomap_apply(inode, start, len, IOMAP_REPORT, ops, &ctx,
 				iomap_fiemap_actor);
 		/* inode with no (attribute) mapping will give ENOENT */
 		if (ret == -ENOENT)
