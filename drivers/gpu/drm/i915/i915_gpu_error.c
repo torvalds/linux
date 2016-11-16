@@ -323,8 +323,12 @@ static const char *hangcheck_action_to_str(enum intel_engine_hangcheck_action a)
 		return "idle";
 	case HANGCHECK_WAIT:
 		return "wait";
-	case HANGCHECK_ACTIVE:
-		return "active";
+	case HANGCHECK_ACTIVE_SEQNO:
+		return "active seqno";
+	case HANGCHECK_ACTIVE_HEAD:
+		return "active head";
+	case HANGCHECK_ACTIVE_SUBUNITS:
+		return "active subunits";
 	case HANGCHECK_KICK:
 		return "kick";
 	case HANGCHECK_HUNG:

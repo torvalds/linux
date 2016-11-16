@@ -236,11 +236,11 @@ head_stuck(struct intel_engine_cs *engine, u64 acthd)
 		memset(&engine->hangcheck.instdone, 0,
 		       sizeof(engine->hangcheck.instdone));
 
-		return HANGCHECK_ACTIVE;
+		return HANGCHECK_ACTIVE_HEAD;
 	}
 
 	if (!subunits_stuck(engine))
-		return HANGCHECK_ACTIVE;
+		return HANGCHECK_ACTIVE_SUBUNITS;
 
 	return HANGCHECK_HUNG;
 }
@@ -291,6 +291,129 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	return HANGCHECK_HUNG;
 }
 
+static void hangcheck_load_sample(struct intel_engine_cs *engine,
+				  struct intel_engine_hangcheck *hc)
+{
+	/* We don't strictly need an irq-barrier here, as we are not
+	 * serving an interrupt request, be paranoid in case the
+	 * barrier has side-effects (such as preventing a broken
+	 * cacheline snoop) and so be sure that we can see the seqno
+	 * advance. If the seqno should stick, due to a stale
+	 * cacheline, we would erroneously declare the GPU hung.
+	 */
+	if (engine->irq_seqno_barrier)
+		engine->irq_seqno_barrier(engine);
+
+	hc->acthd = intel_engine_get_active_head(engine);
+	hc->seqno = intel_engine_get_seqno(engine);
+	hc->score = engine->hangcheck.score;
+}
+
+static void hangcheck_store_sample(struct intel_engine_cs *engine,
+				   const struct intel_engine_hangcheck *hc)
+{
+	engine->hangcheck.acthd = hc->acthd;
+	engine->hangcheck.seqno = hc->seqno;
+	engine->hangcheck.score = hc->score;
+	engine->hangcheck.action = hc->action;
+}
+
+static enum intel_engine_hangcheck_action
+hangcheck_get_action(struct intel_engine_cs *engine,
+		     const struct intel_engine_hangcheck *hc)
+{
+	if (engine->hangcheck.seqno != hc->seqno)
+		return HANGCHECK_ACTIVE_SEQNO;
+
+	if (i915_seqno_passed(hc->seqno, intel_engine_last_submit(engine)))
+		return HANGCHECK_IDLE;
+
+	return engine_stuck(engine, hc->acthd);
+}
+
+static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
+					struct intel_engine_hangcheck *hc)
+{
+	hc->action = hangcheck_get_action(engine, hc);
+
+	switch (hc->action) {
+	case HANGCHECK_IDLE:
+	case HANGCHECK_WAIT:
+		break;
+
+	case HANGCHECK_ACTIVE_HEAD:
+	case HANGCHECK_ACTIVE_SUBUNITS:
+		/* We always increment the hangcheck score
+		 * if the engine is busy and still processing
+		 * the same request, so that no single request
+		 * can run indefinitely (such as a chain of
+		 * batches). The only time we do not increment
+		 * the hangcheck score on this ring, if this
+		 * engine is in a legitimate wait for another
+		 * engine. In that case the waiting engine is a
+		 * victim and we want to be sure we catch the
+		 * right culprit. Then every time we do kick
+		 * the ring, add a small increment to the
+		 * score so that we can catch a batch that is
+		 * being repeatedly kicked and so responsible
+		 * for stalling the machine.
+		 */
+		hc->score += 1;
+		break;
+
+	case HANGCHECK_KICK:
+		hc->score += 5;
+		break;
+
+	case HANGCHECK_HUNG:
+		hc->score += 20;
+		break;
+
+	case HANGCHECK_ACTIVE_SEQNO:
+		/* Gradually reduce the count so that we catch DoS
+		 * attempts across multiple batches.
+		 */
+		if (hc->score > 0)
+			hc->score -= 15;
+		if (hc->score < 0)
+			hc->score = 0;
+
+		/* Clear head and subunit states on seqno movement */
+		hc->acthd = 0;
+
+		memset(&engine->hangcheck.instdone, 0,
+		       sizeof(engine->hangcheck.instdone));
+		break;
+
+	default:
+		MISSING_CASE(hc->action);
+	}
+}
+
+static void hangcheck_declare_hang(struct drm_i915_private *i915,
+				   unsigned int hung,
+				   unsigned int stuck)
+{
+	struct intel_engine_cs *engine;
+	char msg[80];
+	unsigned int tmp;
+	int len;
+
+	/* If some rings hung but others were still busy, only
+	 * blame the hanging rings in the synopsis.
+	 */
+	if (stuck != hung)
+		hung &= ~stuck;
+	len = scnprintf(msg, sizeof(msg),
+			"%s on ", stuck == hung ? "No progress" : "Hang");
+	for_each_engine_masked(engine, i915, hung, tmp)
+		len += scnprintf(msg + len, sizeof(msg) - len,
+				 "%s, ", engine->name);
+	msg[len-2] = '\0';
+
+	return i915_handle_error(i915, hung, msg);
+}
+
 /*
  * This is called when the chip hasn't reported back with completed
  * batchbuffers in a long time. We keep track per ring seqno progress and
@@ -308,10 +431,6 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	enum intel_engine_id id;
 	unsigned int hung = 0, stuck = 0;
 	int busy_count = 0;
-#define BUSY 1
-#define KICK 5
-#define HUNG 20
-#define ACTIVE_DECAY 15
 
 	if (!i915.enable_hangcheck)
 		return;
@@ -326,112 +445,26 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		bool busy = intel_engine_has_waiter(engine);
-		u64 acthd;
-		u32 seqno;
-		u32 submit;
+		struct intel_engine_hangcheck cur_state, *hc = &cur_state;
+		const bool busy = intel_engine_has_waiter(engine);
 
 		semaphore_clear_deadlocks(dev_priv);
 
-		/* We don't strictly need an irq-barrier here, as we are not
-		 * serving an interrupt request, be paranoid in case the
-		 * barrier has side-effects (such as preventing a broken
-		 * cacheline snoop) and so be sure that we can see the seqno
-		 * advance. If the seqno should stick, due to a stale
-		 * cacheline, we would erroneously declare the GPU hung.
-		 */
-		if (engine->irq_seqno_barrier)
-			engine->irq_seqno_barrier(engine);
+		hangcheck_load_sample(engine, hc);
+		hangcheck_accumulate_sample(engine, hc);
+		hangcheck_store_sample(engine, hc);
 
-		acthd = intel_engine_get_active_head(engine);
-		seqno = intel_engine_get_seqno(engine);
-		submit = intel_engine_last_submit(engine);
-
-		if (engine->hangcheck.seqno == seqno) {
-			if (i915_seqno_passed(seqno, submit)) {
-				engine->hangcheck.action = HANGCHECK_IDLE;
-			} else {
-				/* We always increment the hangcheck score
-				 * if the engine is busy and still processing
-				 * the same request, so that no single request
-				 * can run indefinitely (such as a chain of
-				 * batches). The only time we do not increment
-				 * the hangcheck score on this ring, if this
-				 * engine is in a legitimate wait for another
-				 * engine. In that case the waiting engine is a
-				 * victim and we want to be sure we catch the
-				 * right culprit. Then every time we do kick
-				 * the ring, add a small increment to the
-				 * score so that we can catch a batch that is
-				 * being repeatedly kicked and so responsible
-				 * for stalling the machine.
-				 */
-				engine->hangcheck.action =
-					engine_stuck(engine, acthd);
-
-				switch (engine->hangcheck.action) {
-				case HANGCHECK_IDLE:
-				case HANGCHECK_WAIT:
-					break;
-				case HANGCHECK_ACTIVE:
-					engine->hangcheck.score += BUSY;
-					break;
-				case HANGCHECK_KICK:
-					engine->hangcheck.score += KICK;
-					break;
-				case HANGCHECK_HUNG:
-					engine->hangcheck.score += HUNG;
-					break;
-				}
-			}
-
-			if (engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
-				hung |= intel_engine_flag(engine);
-				if (engine->hangcheck.action != HANGCHECK_HUNG)
-					stuck |= intel_engine_flag(engine);
-			}
-		} else {
-			engine->hangcheck.action = HANGCHECK_ACTIVE;
-
-			/* Gradually reduce the count so that we catch DoS
-			 * attempts across multiple batches.
-			 */
-			if (engine->hangcheck.score > 0)
-				engine->hangcheck.score -= ACTIVE_DECAY;
-			if (engine->hangcheck.score < 0)
-				engine->hangcheck.score = 0;
-
-			/* Clear head and subunit states on seqno movement */
-			acthd = 0;
-
-			memset(&engine->hangcheck.instdone, 0,
-			       sizeof(engine->hangcheck.instdone));
+		if (hc->score >= HANGCHECK_SCORE_RING_HUNG) {
+			hung |= intel_engine_flag(engine);
+			if (hc->action != HANGCHECK_HUNG)
+				stuck |= intel_engine_flag(engine);
 		}
 
-		engine->hangcheck.seqno = seqno;
-		engine->hangcheck.acthd = acthd;
 		busy_count += busy;
 	}
 
-	if (hung) {
-		char msg[80];
-		unsigned int tmp;
-		int len;
-
-		/* If some rings hung but others were still busy, only
-		 * blame the hanging rings in the synopsis.
-		 */
-		if (stuck != hung)
-			hung &= ~stuck;
-		len = scnprintf(msg, sizeof(msg),
-				"%s on ", stuck == hung ? "No progress" : "Hang");
-		for_each_engine_masked(engine, dev_priv, hung, tmp)
-			len += scnprintf(msg + len, sizeof(msg) - len,
-					 "%s, ", engine->name);
-		msg[len-2] = '\0';
-
-		return i915_handle_error(dev_priv, hung, msg);
-	}
+	if (hung)
+		hangcheck_declare_hang(dev_priv, hung, stuck);
 
 	/* Reset timer in case GPU hangs without another request being added */
 	if (busy_count)
