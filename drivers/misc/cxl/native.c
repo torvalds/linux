@@ -931,9 +931,18 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	struct cxl_afu *afu = data;
 	struct cxl_context *ctx;
 	struct cxl_irq_info irq_info;
-	int ph = cxl_p2n_read(afu, CXL_PSL_PEHandle_An) & 0xffff;
-	int ret;
+	u64 phreg = cxl_p2n_read(afu, CXL_PSL_PEHandle_An);
+	int ph, ret;
 
+	/* check if eeh kicked in while the interrupt was in flight */
+	if (unlikely(phreg == ~0ULL)) {
+		dev_warn(&afu->dev,
+			 "Ignoring slice interrupt(%d) due to fenced card",
+			 irq);
+		return IRQ_HANDLED;
+	}
+	/* Mask the pe-handle from register value */
+	ph = phreg & 0xffff;
 	if ((ret = native_get_irq_info(afu, &irq_info))) {
 		WARN(1, "Unable to get CXL IRQ Info: %i\n", ret);
 		return fail_psl_irq(afu, &irq_info);
