@@ -42,6 +42,7 @@
 
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3399.dtsi"
+#include "rk3399-opp.dtsi"
 
 / {
 	compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
@@ -318,38 +319,6 @@
 	center-supply = <&vdd_center>;
 	upthreshold = <60>;
 	downdifferential = <40>;
-};
-
-&dmc_opp_table {
-	opp00 {
-		opp-hz = /bits/ 64 <200000000>;
-		opp-microvolt = <900000>;
-	};
-	opp01 {
-		opp-hz = /bits/ 64 <300000000>;
-		opp-microvolt = <900000>;
-	};
-	opp02 {
-		opp-hz = /bits/ 64 <400000000>;
-		opp-microvolt = <900000>;
-	};
-	opp03 {
-		opp-hz = /bits/ 64 <528000000>;
-		opp-microvolt = <900000>;
-	};
-	opp04 {
-		opp-hz = /bits/ 64 <600000000>;
-		opp-microvolt = <900000>;
-	};
-	opp05 {
-		opp-hz = /bits/ 64 <666000000>;
-		opp-microvolt = <900000>;
-		opp-suspend;
-	};
-	opp06 {
-		opp-hz = /bits/ 64 <800000000>;
-		opp-microvolt = <900000>;
-	};
 };
 
 &sdhci {

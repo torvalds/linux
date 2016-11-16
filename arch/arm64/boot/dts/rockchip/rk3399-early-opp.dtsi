@@ -40,78 +40,88 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/*
+ * NOTE: this file exists for the sake of early (pre-ES2) silicon. ES2 silicon
+ * will have different power characteristics.
+ */
+
 / {
-	energy-costs {
-		RK3399_CPU_COST_0: rk3399-core-cost0 {
-			busy-cost-data = <
-				108    46	/*  408M */
-				159    67	/*  600M */
-				216    90	/*  816M */
-				267    120	/* 1008M */
-				318    153	/* 1200M */
-				375    198	/* 1416M */
-				401    222	/* 1512M */
-			>;
-			idle-cost-data = <
-				  6
-				  6
-				  0
-			>;
-		};
+	/delete-node/ opp-table0;
+	/delete-node/ opp-table1;
+	/delete-node/ opp-table2;
 
-		RK3399_CPU_COST_1: rk3399-core-cost1 {
-			busy-cost-data = <
-				210   129	/*  408MHz */
-				308   184	/*  600MHz */
-				419   246	/*  816MHz */
-				518   335	/* 1008MHz */
-				617   428	/* 1200MHz */
-				728   573	/* 1416MHz */
-				827   724	/* 1608MHz */
-				925   900	/* 1800MHz */
-				1024  1108	/* 1992MHz */
-			>;
-			idle-cost-data = <
-				  15
-				  15
-				   0
-			>;
-		};
+	cluster0_opp: opp-table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
 
-		RK3399_CLUSTER_COST_0: rk3399-cluster-cost0 {
-			busy-cost-data = <
-				108    46	/*  408M */
-				159    67	/*  600M */
-				216    90	/*  816M */
-				267    120	/* 1008M */
-				318    153	/* 1200M */
-				375    198	/* 1416M */
-				401    222	/* 1512M */
-			>;
-			idle-cost-data = <
-				56
-				56
-				56
-			>;
+		opp00 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <900000>;
+			clock-latency-ns = <40000>;
 		};
+		opp01 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <900000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <900000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <900000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <1050000>;
+		};
+	};
 
-		RK3399_CLUSTER_COST_1: rk3399-cluster-cost1 {
-			busy-cost-data = <
-				210   129	/*  408MHz */
-				308   184	/*  600MHz */
-				419   246	/*  816MHz */
-				518   335	/* 1008MHz */
-				617   428	/* 1200MHz */
-				728   573	/* 1416MHz */
-				827   724	/* 1608MHz */
-				925   900	/* 1800MHz */
-				1024  1108	/* 1992MHz */
-			>;
-			idle-cost-data = <
-				 65
-				 65
-				 65
-			>;
+	cluster1_opp: opp-table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <900000>;
+			clock-latency-ns = <40000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <900000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <900000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <950000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <100000>;
+		};
+	};
+
+	gpu_opp_table: opp-table2 {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <900000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <900000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <900000>;
 		};
 	};
 };

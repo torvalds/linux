@@ -41,6 +41,7 @@
  */
 
 #include "rk3399-evb.dtsi"
+#include "rk3399-early-opp.dtsi"
 
 / {
 	compatible = "rockchip,rk3399-evb-rev1", "rockchip,rk3399";

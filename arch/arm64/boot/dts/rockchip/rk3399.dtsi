@@ -119,8 +119,6 @@
 			dynamic-power-coefficient = <100>;
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			operating-points-v2 = <&cluster0_opp>;
-			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -130,8 +128,6 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			operating-points-v2 = <&cluster0_opp>;
-			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -141,8 +137,6 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			operating-points-v2 = <&cluster0_opp>;
-			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -152,8 +146,6 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			operating-points-v2 = <&cluster0_opp>;
-			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -165,8 +157,6 @@
 			dynamic-power-coefficient = <436>;
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			operating-points-v2 = <&cluster1_opp>;
-			sched-energy-costs = <&CPU_COST_A72 &CLUSTER_COST_A72>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -176,8 +166,6 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			operating-points-v2 = <&cluster1_opp>;
-			sched-energy-costs = <&CPU_COST_A72 &CLUSTER_COST_A72>;
 		};
 
 		idle-states {
@@ -200,76 +188,6 @@
 				exit-latency-us = <500>;
 				min-residency-us = <2000>;
 			};
-		};
-
-		/include/ "rk3399-sched-energy.dtsi"
-
-	};
-
-	cluster0_opp: opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp@408000000 {
-			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@600000000 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@816000000 {
-			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@1008000000 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <875000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@1200000000 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <925000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@1416000000 {
-			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <1025000>;
-			clock-latency-ns = <40000>;
-		};
-	};
-
-	cluster1_opp: opp_table1 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp@408000000 {
-			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@600000000 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@816000000 {
-			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <800000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@1008000000 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <850000>;
-			clock-latency-ns = <40000>;
-		};
-		opp@1200000000 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <925000>;
-			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -1324,17 +1242,7 @@
 		clocks = <&cru SCLK_DDRCLK>;
 		clock-names = "dmc_clk";
 		ddr_timing = <&ddr_timing>;
-		operating-points-v2 = <&dmc_opp_table>;
 		status = "disabled";
-	};
-
-	dmc_opp_table: dmc_opp_table {
-		compatible = "operating-points-v2";
-
-		opp00 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <900000>;
-		};
 	};
 
 	rga: rga@ff680000 {
@@ -1649,7 +1557,6 @@
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
 		#cooling-cells = <2>; /* min followed by max */
-		operating-points-v2 = <&gpu_opp_table>;
 		power-domains = <&power RK3399_PD_GPU>;
 		power-off-delay-ms = <200>;
 		status = "disabled";
@@ -1663,25 +1570,6 @@
 			ts = <32000 4700 (-80) 2>;
 			thermal-zone = "gpu-thermal";
 		};
-	};
-
-	gpu_opp_table: gpu_opp_table {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp@200000000 {
-			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <900000>;
-		};
-		opp@300000000 {
-			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <900000>;
-		};
-		opp@400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <900000>;
-		};
-
 	};
 
 	vopl: vop@ff8f0000 {
