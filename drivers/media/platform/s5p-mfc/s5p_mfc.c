@@ -1434,6 +1434,8 @@ static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.buf_size	= &buf_size_v5,
 	.buf_align	= &mfc_buf_align_v5,
 	.fw_name[0]	= "s5p-mfc.fw",
+	.clk_names	= {"mfc", "sclk_mfc"},
+	.num_clocks	= 2,
 	.use_clock_gating = true,
 };
 
@@ -1467,6 +1469,8 @@ static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	 * for init buffer command
 	 */
 	.fw_name[1]     = "s5p-mfc-v6-v2.fw",
+	.clk_names	= {"mfc"},
+	.num_clocks	= 1,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
@@ -1494,6 +1498,8 @@ static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.buf_size	= &buf_size_v7,
 	.buf_align	= &mfc_buf_align_v7,
 	.fw_name[0]     = "s5p-mfc-v7.fw",
+	.clk_names	= {"mfc", "sclk_mfc"},
+	.num_clocks	= 2,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
@@ -1521,6 +1527,8 @@ static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.buf_size	= &buf_size_v8,
 	.buf_align	= &mfc_buf_align_v8,
 	.fw_name[0]     = "s5p-mfc-v8.fw",
+	.clk_names	= {"mfc"},
+	.num_clocks	= 1,
 };
 
 static const struct of_device_id exynos_mfc_match[] = {
