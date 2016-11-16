@@ -3279,7 +3279,7 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 					 u64 end);
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 				 struct drm_mm_node *node);
-int i915_gem_init_stolen(struct drm_device *dev);
+int i915_gem_init_stolen(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_stolen(struct drm_device *dev);
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_device *dev, u32 size);

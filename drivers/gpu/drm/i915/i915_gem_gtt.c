@@ -3252,7 +3252,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
 	 */
-	ret = i915_gem_init_stolen(&dev_priv->drm);
+	ret = i915_gem_init_stolen(dev_priv);
 	if (ret)
 		goto out_gtt_cleanup;
 

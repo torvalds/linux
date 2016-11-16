@@ -89,9 +89,8 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
-static unsigned long i915_stolen_to_physical(struct drm_device *dev)
+static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct resource *r;
@@ -253,7 +252,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	 * kernel. So if the region is already marked as busy, something
 	 * is seriously wrong.
 	 */
-	r = devm_request_mem_region(dev->dev, base, ggtt->stolen_size,
+	r = devm_request_mem_region(dev_priv->drm.dev, base, ggtt->stolen_size,
 				    "Graphics Stolen Memory");
 	if (r == NULL) {
 		/*
@@ -264,7 +263,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		 * PCI bus, but have an off-by-one error. Hence retry the
 		 * reservation starting from 1 instead of 0.
 		 */
-		r = devm_request_mem_region(dev->dev, base + 1,
+		r = devm_request_mem_region(dev_priv->drm.dev, base + 1,
 					    ggtt->stolen_size - 1,
 					    "Graphics Stolen Memory");
 		/*
@@ -408,9 +407,8 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 		*size = stolen_top - *base;
 }
 
-int i915_gem_init_stolen(struct drm_device *dev)
+int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	unsigned long reserved_total, reserved_base = 0, reserved_size;
 	unsigned long stolen_top;
@@ -418,7 +416,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	mutex_init(&dev_priv->mm.stolen_lock);
 
 #ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped && INTEL_INFO(dev)->gen < 8) {
+	if (intel_iommu_gfx_mapped && INTEL_GEN(dev_priv) < 8) {
 		DRM_INFO("DMAR active, disabling use of stolen memory\n");
 		return 0;
 	}
@@ -427,7 +425,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	if (ggtt->stolen_size == 0)
 		return 0;
 
-	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev);
+	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev_priv);
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;
 
