@@ -66,6 +66,7 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int load = dbs_update(policy);
+	unsigned int freq_step;
 
 	/*
 	 * break out if we 'cannot' reduce the speed as the user might
@@ -82,6 +83,23 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 	if (requested_freq > policy->max || requested_freq < policy->min)
 		requested_freq = policy->cur;
 
+	freq_step = get_freq_step(cs_tuners, policy);
+
+	/*
+	 * Decrease requested_freq one freq_step for each idle period that
+	 * we didn't update the frequency.
+	 */
+	if (policy_dbs->idle_periods < UINT_MAX) {
+		unsigned int freq_steps = policy_dbs->idle_periods * freq_step;
+
+		if (requested_freq > freq_steps)
+			requested_freq -= freq_steps;
+		else
+			requested_freq = policy->min;
+
+		policy_dbs->idle_periods = UINT_MAX;
+	}
+
 	/* Check for frequency increase */
 	if (load > dbs_data->up_threshold) {
 		dbs_info->down_skip = 0;
@@ -90,7 +108,7 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 		if (requested_freq == policy->max)
 			goto out;
 
-		requested_freq += get_freq_step(cs_tuners, policy);
+		requested_freq += freq_step;
 		if (requested_freq > policy->max)
 			requested_freq = policy->max;
 
@@ -106,14 +124,12 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 
 	/* Check for frequency decrease */
 	if (load < cs_tuners->down_threshold) {
-		unsigned int freq_step;
 		/*
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
 		if (requested_freq == policy->min)
 			goto out;
 
-		freq_step = get_freq_step(cs_tuners, policy);
 		if (requested_freq > freq_step)
 			requested_freq -= freq_step;
 		else

@@ -97,6 +97,7 @@ struct policy_dbs_info {
 	struct list_head list;
 	/* Multiplier for increasing sample delay temporarily. */
 	unsigned int rate_mult;
+	unsigned int idle_periods;	/* For conservative */
 	/* Status indicators */
 	bool is_shared;		/* This object is used by multiple CPUs */
 	bool work_in_progress;	/* Work is being queued up or in progress */
