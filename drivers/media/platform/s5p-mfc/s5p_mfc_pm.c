@@ -91,16 +91,12 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 
 int s5p_mfc_clock_on(void)
 {
-	int ret = 0;
-
 	atomic_inc(&clk_ref);
 	mfc_debug(3, "+ %d\n", atomic_read(&clk_ref));
 
 	if (!pm->use_clock_gating)
 		return 0;
-	if (!IS_ERR_OR_NULL(pm->clock_gate))
-		ret = clk_enable(pm->clock_gate);
-	return ret;
+	return clk_enable(pm->clock_gate);
 }
 
 void s5p_mfc_clock_off(void)
@@ -110,8 +106,7 @@ void s5p_mfc_clock_off(void)
 
 	if (!pm->use_clock_gating)
 		return;
-	if (!IS_ERR_OR_NULL(pm->clock_gate))
-		clk_disable(pm->clock_gate);
+	clk_disable(pm->clock_gate);
 }
 
 int s5p_mfc_power_on(void)
@@ -122,14 +117,14 @@ int s5p_mfc_power_on(void)
 	if (ret)
 		return ret;
 
-	if (!pm->use_clock_gating && !IS_ERR_OR_NULL(pm->clock_gate))
+	if (!pm->use_clock_gating)
 		ret = clk_enable(pm->clock_gate);
 	return ret;
 }
 
 int s5p_mfc_power_off(void)
 {
-	if (!pm->use_clock_gating && !IS_ERR_OR_NULL(pm->clock_gate))
+	if (!pm->use_clock_gating)
 		clk_disable(pm->clock_gate);
 	return pm_runtime_put_sync(pm->device);
 }
