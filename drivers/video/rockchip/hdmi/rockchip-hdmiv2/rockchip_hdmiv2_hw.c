@@ -901,14 +901,22 @@ static int rockchip_hdmiv2_video_framecomposer(struct hdmi *hdmi_drv,
 	if ((tmdsclk > 594000000) ||
 	    (tmdsclk > 340000000 &&
 	     tmdsclk > hdmi_drv->edid.maxtmdsclock)) {
-		pr_warn("out of max tmds clock, limit to 8bit\n");
-		vpara->color_output_depth = 8;
-		if (vpara->color_input == HDMI_COLOR_YCBCR420)
-			tmdsclk = mode->pixclock / 2;
-		else if (vpara->format_3d != HDMI_3D_FRAME_PACKING)
-			tmdsclk = mode->pixclock;
-		else
+		if (vpara->format_3d == HDMI_3D_FRAME_PACKING) {
+			pr_err("3d frame packing mode out of max tmdsclk\n");
 			return -1;
+		} else if (vpara->color_output == HDMI_COLOR_YCBCR444 &&
+			   hdmi_drv->edid.ycbcr422) {
+			pr_warn("out of max tmdsclk, down to YCbCr422");
+			vpara->color_output = HDMI_COLOR_YCBCR422;
+			tmdsclk = mode->pixclock;
+		} else {
+			pr_warn("out of max tmds clock, limit to 8bit\n");
+			vpara->color_output_depth = 8;
+			if (vpara->color_input == HDMI_COLOR_YCBCR420)
+				tmdsclk = mode->pixclock / 2;
+			else
+				tmdsclk = mode->pixclock;
+		}
 	}
 
 	if ((tmdsclk > 340000000) ||
@@ -1346,7 +1354,7 @@ static int rockchip_hdmiv2_video_csc(struct hdmi_dev *hdmi_dev,
 		csc_scale = 0;
 	}
 
-	switch (vpara->color_output_depth) {
+	switch (vpara->color_output_depth && mode != CSC_BYPASS) {
 	case 10:
 		color_depth = COLOR_DEPTH_30BIT;
 		mode += 1;
@@ -1376,9 +1384,12 @@ static int rockchip_hdmiv2_video_csc(struct hdmi_dev *hdmi_dev,
 		     m_CSC_COLOR_DEPTH, v_CSC_COLOR_DEPTH(color_depth));
 
 	/* enable CSC */
-	hdmi_msk_reg(hdmi_dev, MC_FLOWCTRL,
-		     m_FEED_THROUGH_OFF, v_FEED_THROUGH_OFF(1));
-
+	if (mode == CSC_BYPASS)
+		hdmi_msk_reg(hdmi_dev, MC_FLOWCTRL,
+			     m_FEED_THROUGH_OFF, v_FEED_THROUGH_OFF(0));
+	else
+		hdmi_msk_reg(hdmi_dev, MC_FLOWCTRL,
+			     m_FEED_THROUGH_OFF, v_FEED_THROUGH_OFF(1));
 	return 0;
 }
 
