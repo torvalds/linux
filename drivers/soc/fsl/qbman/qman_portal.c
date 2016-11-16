@@ -30,6 +30,8 @@
 
 #include "qman_priv.h"
 
+struct qman_portal *qman_dma_portal;
+
 /* Enable portal interupts (as opposed to polling mode) */
 #define CONFIG_FSL_DPA_PIRQ_SLOW  1
 #define CONFIG_FSL_DPA_PIRQ_FAST  1
@@ -150,6 +152,10 @@ static struct qman_portal *init_pcfg(struct qm_portal_config *pcfg)
 		/* all assigned portals are initialized now */
 		qman_init_cgr_all();
 	}
+
+	if (!qman_dma_portal)
+		qman_dma_portal = p;
+
 	spin_unlock(&qman_lock);
 
 	dev_info(pcfg->dev, "Portal initialised, cpu %d\n", pcfg->cpu);
@@ -309,6 +315,11 @@ static int qman_portal_probe(struct platform_device *pdev)
 	cpumask_set_cpu(cpu, &portal_cpus);
 	spin_unlock(&qman_lock);
 	pcfg->cpu = cpu;
+
+	if (dma_set_mask(dev, DMA_BIT_MASK(40))) {
+		dev_err(dev, "dma_set_mask() failed\n");
+		goto err_portal_init;
+	}
 
 	if (!init_pcfg(pcfg)) {
 		dev_err(dev, "portal init failed\n");

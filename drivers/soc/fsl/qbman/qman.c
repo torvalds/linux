@@ -962,8 +962,6 @@ struct qman_portal {
 	u32 sdqcr;
 	/* probing time config params for cpu-affine portals */
 	const struct qm_portal_config *config;
-	/* needed for providing a non-NULL device to dma_map_***() */
-	struct platform_device *pdev;
 	/* 2-element array. cgrs[0] is mask, cgrs[1] is snapshot. */
 	struct qman_cgrs *cgrs;
 	/* linked-list of CSCN handlers. */
@@ -1133,7 +1131,6 @@ static int qman_create_portal(struct qman_portal *portal,
 			      const struct qman_cgrs *cgrs)
 {
 	struct qm_portal *p;
-	char buf[16];
 	int ret;
 	u32 isdr;
 
@@ -1196,15 +1193,6 @@ static int qman_create_portal(struct qman_portal *portal,
 	portal->sdqcr = QM_SDQCR_SOURCE_CHANNELS | QM_SDQCR_COUNT_UPTO3 |
 			QM_SDQCR_DEDICATED_PRECEDENCE | QM_SDQCR_TYPE_PRIO_QOS |
 			QM_SDQCR_TOKEN_SET(0xab) | QM_SDQCR_CHANNELS_DEDICATED;
-	sprintf(buf, "qportal-%d", c->channel);
-	portal->pdev = platform_device_alloc(buf, -1);
-	if (!portal->pdev)
-		goto fail_devalloc;
-	if (dma_set_mask(&portal->pdev->dev, DMA_BIT_MASK(40)))
-		goto fail_devadd;
-	ret = platform_device_add(portal->pdev);
-	if (ret)
-		goto fail_devadd;
 	isdr = 0xffffffff;
 	qm_out(p, QM_REG_ISDR, isdr);
 	portal->irq_sources = 0;
@@ -1256,10 +1244,6 @@ fail_eqcr_empty:
 fail_affinity:
 	free_irq(c->irq, portal);
 fail_irq:
-	platform_device_del(portal->pdev);
-fail_devadd:
-	platform_device_put(portal->pdev);
-fail_devalloc:
 	kfree(portal->cgrs);
 fail_cgrs:
 	qm_mc_finish(p);
@@ -1320,9 +1304,6 @@ static void qman_destroy_portal(struct qman_portal *qm)
 	qm_mr_finish(&qm->p);
 	qm_dqrr_finish(&qm->p);
 	qm_eqcr_finish(&qm->p);
-
-	platform_device_del(qm->pdev);
-	platform_device_put(qm->pdev);
 
 	qm->config = NULL;
 }
@@ -1817,8 +1798,16 @@ int qman_init_fq(struct qman_fq *fq, u32 flags, struct qm_mcc_initfq *opts)
 			memset(&mcc->initfq.fqd.context_a, 0,
 				sizeof(mcc->initfq.fqd.context_a));
 		} else {
-			phys_fq = dma_map_single(&p->pdev->dev, fq, sizeof(*fq),
-						 DMA_TO_DEVICE);
+			struct qman_portal *p = qman_dma_portal;
+
+			phys_fq = dma_map_single(p->config->dev, fq,
+						 sizeof(*fq), DMA_TO_DEVICE);
+			if (dma_mapping_error(p->config->dev, phys_fq)) {
+				dev_err(p->config->dev, "dma_mapping failed\n");
+				ret = -EIO;
+				goto out;
+			}
+
 			qm_fqd_stashing_set64(&mcc->initfq.fqd, phys_fq);
 		}
 	}

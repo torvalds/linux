@@ -367,5 +367,6 @@ int qman_alloc_fq_table(u32 num_fqids);
 #define QM_PIRQ_VISIBLE	(QM_PIRQ_SLOW | QM_PIRQ_DQRI)
 
 extern struct qman_portal *affine_portals[NR_CPUS];
+extern struct qman_portal *qman_dma_portal;
 const struct qm_portal_config *qman_get_qm_portal_config(
 						struct qman_portal *portal);
