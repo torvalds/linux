@@ -522,6 +522,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	if (qp->sq.queue) {
 		__rxe_do_task(&qp->comp.task);
 		__rxe_do_task(&qp->req.task);
+		rxe_queue_reset(qp->sq.queue);
 	}
 
 	/* cleanup attributes */
