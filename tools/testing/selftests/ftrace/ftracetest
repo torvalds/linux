@@ -14,6 +14,7 @@ echo " Options:"
 echo "		-h|--help  Show help message"
 echo "		-k|--keep  Keep passed test logs"
 echo "		-v|--verbose Show all stdout messages in testcases"
+echo "		-q|--quiet Do not show error log on stdout"
 echo "		-d|--debug Debug mode (trace all shell commands)"
 exit $1
 }
@@ -56,6 +57,10 @@ parse_opts() { # opts
     ;;
     --verbose|-v)
       VERBOSE=1
+      shift 1
+    ;;
+    --quiet|-q)
+      BE_QUIET=1
       shift 1
     ;;
     --debug|-d)
@@ -101,6 +106,7 @@ LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`/
 KEEP_LOG=0
 DEBUG=0
 VERBOSE=0
+BE_QUIET=0
 # Parse command-line options
 parse_opts $*
 
@@ -249,7 +255,7 @@ run_test() { # testfile
     # Remove test log if the test was done as it was expected.
     [ $KEEP_LOG -eq 0 ] && rm $testlog
   else
-    catlog $testlog
+    [ $BE_QUIET -eq 0 ] && catlog $testlog
     TOTAL_RESULT=1
   fi
 }
