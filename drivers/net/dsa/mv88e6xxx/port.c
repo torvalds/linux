@@ -213,7 +213,7 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 		reg &= ~PORT_PCS_CTRL_ALTSPEED;
 	if (force_bit) {
 		reg &= ~PORT_PCS_CTRL_FORCE_SPEED;
-		if (speed)
+		if (speed != SPEED_UNFORCED)
 			ctrl |= PORT_PCS_CTRL_FORCE_SPEED;
 	}
 	reg |= ctrl;
