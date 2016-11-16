@@ -9221,7 +9221,7 @@ skip_bad_vf_detection:
 	}
 
 	if (netif_running(netdev))
-		ixgbe_down(adapter);
+		ixgbe_close_suspend(adapter);
 
 	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
 		pci_disable_device(pdev);
@@ -9291,10 +9291,12 @@ static void ixgbe_io_resume(struct pci_dev *pdev)
 	}
 
 #endif
+	rtnl_lock();
 	if (netif_running(netdev))
-		ixgbe_up(adapter);
+		ixgbe_open(netdev);
 
 	netif_device_attach(netdev);
+	rtnl_unlock();
 }
 
 static const struct pci_error_handlers ixgbe_err_handler = {
