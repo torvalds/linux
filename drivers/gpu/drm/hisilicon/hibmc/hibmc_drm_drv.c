@@ -28,6 +28,7 @@ static const struct file_operations hibmc_fops = {
 	.release	= drm_release,
 	.unlocked_ioctl	= drm_ioctl,
 	.compat_ioctl	= drm_compat_ioctl,
+	.mmap		= hibmc_mmap,
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.llseek		= no_llseek,
@@ -43,6 +44,7 @@ static void hibmc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 }
 
 static struct drm_driver hibmc_driver = {
+	.driver_features	= DRIVER_GEM,
 	.fops			= &hibmc_fops,
 	.name			= "hibmc",
 	.date			= "20160828",
@@ -52,6 +54,10 @@ static struct drm_driver hibmc_driver = {
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= hibmc_enable_vblank,
 	.disable_vblank		= hibmc_disable_vblank,
+	.gem_free_object_unlocked = hibmc_gem_free_object,
+	.dumb_create            = hibmc_dumb_create,
+	.dumb_map_offset        = hibmc_dumb_mmap_offset,
+	.dumb_destroy           = drm_gem_dumb_destroy,
 };
 
 static int hibmc_pm_suspend(struct device *dev)
@@ -194,6 +200,10 @@ static int hibmc_hw_init(struct hibmc_drm_private *priv)
 
 static int hibmc_unload(struct drm_device *dev)
 {
+	struct hibmc_drm_private *priv = dev->dev_private;
+
+	hibmc_mm_fini(priv);
+	dev->dev_private = NULL;
 	return 0;
 }
 
@@ -211,6 +221,10 @@ static int hibmc_load(struct drm_device *dev)
 	priv->dev = dev;
 
 	ret = hibmc_hw_init(priv);
+	if (ret)
+		goto err;
+
+	ret = hibmc_mm_init(priv);
 	if (ret)
 		goto err;
 
