@@ -342,6 +342,10 @@ if major == 1 and minor > 3:
 latex_documents = [
     ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
      'The kernel development community', 'manual'),
+    ('core-api/index', 'core-api.tex', 'The kernel core API manual',
+     'The kernel development community', 'manual'),
+    ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
+     'The kernel development community', 'manual'),
     ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
      'The kernel development community', 'manual'),
     ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
@@ -349,6 +353,8 @@ latex_documents = [
     ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
      'The kernel development community', 'manual'),
     ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
+     'The kernel development community', 'manual'),
+    ('security/index', 'security.tex', 'The kernel security subsystem manual',
      'The kernel development community', 'manual'),
 ]
 
