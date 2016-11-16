@@ -99,6 +99,13 @@ OPTIONS for 'perf sched timehist'
 --kallsyms=<file>::
     kallsyms pathname
 
+-g::
+--no-call-graph::
+	Do not display call chains if present.
+
+--max-stack::
+	Maximum number of functions to display in backtrace, default 5.
+
 -s::
 --summary::
     Show only a summary of scheduling by thread with min, max, and average

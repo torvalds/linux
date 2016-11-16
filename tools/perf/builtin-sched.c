@@ -14,6 +14,7 @@
 #include "util/thread_map.h"
 #include "util/color.h"
 #include "util/stat.h"
+#include "util/callchain.h"
 
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
@@ -198,6 +199,8 @@ struct perf_sched {
 	/* options for timehist command */
 	bool		summary;
 	bool		summary_only;
+	bool		show_callchain;
+	unsigned int	max_stack;
 	bool		show_wakeups;
 	u64		skipped_samples;
 };
@@ -1810,6 +1813,7 @@ static void timehist_header(void)
 
 static void timehist_print_sample(struct perf_sched *sched,
 				  struct perf_sample *sample,
+				  struct addr_location *al,
 				  struct thread *thread)
 {
 	struct thread_runtime *tr = thread__priv(thread);
@@ -1827,6 +1831,18 @@ static void timehist_print_sample(struct perf_sched *sched,
 	if (sched->show_wakeups)
 		printf("  %-*s", comm_width, "");
 
+	if (thread->tid == 0)
+		goto out;
+
+	if (sched->show_callchain)
+		printf("  ");
+
+	sample__fprintf_sym(sample, al, 0,
+			    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
+			    EVSEL__PRINT_CALLCHAIN_ARROW,
+			    &callchain_cursor, stdout);
+
+out:
 	printf("\n");
 }
 
@@ -1878,9 +1894,14 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 	r->total_run_time += r->dt_run;
 }
 
-static bool is_idle_sample(struct perf_sample *sample,
-			   struct perf_evsel *evsel)
+static bool is_idle_sample(struct perf_sched *sched,
+			   struct perf_sample *sample,
+			   struct perf_evsel *evsel,
+			   struct machine *machine)
 {
+	struct thread *thread;
+	struct callchain_cursor *cursor = &callchain_cursor;
+
 	/* pid 0 == swapper == idle task */
 	if (sample->pid == 0)
 		return true;
@@ -1889,6 +1910,25 @@ static bool is_idle_sample(struct perf_sample *sample,
 		if (perf_evsel__intval(evsel, sample, "prev_pid") == 0)
 			return true;
 	}
+
+	/* want main thread for process - has maps */
+	thread = machine__findnew_thread(machine, sample->pid, sample->pid);
+	if (thread == NULL) {
+		pr_debug("Failed to get thread for pid %d.\n", sample->pid);
+		return false;
+	}
+
+	if (!symbol_conf.use_callchain || sample->callchain == NULL)
+		return false;
+
+	if (thread__resolve_callchain(thread, cursor, evsel, sample,
+				      NULL, NULL, sched->max_stack) != 0) {
+		if (verbose)
+			error("Failed to resolve callchain. Skipping\n");
+
+		return false;
+	}
+	callchain_cursor_commit(cursor);
 	return false;
 }
 
@@ -1999,13 +2039,14 @@ static struct thread_runtime *thread__get_runtime(struct thread *thread)
 	return tr;
 }
 
-static struct thread *timehist_get_thread(struct perf_sample *sample,
+static struct thread *timehist_get_thread(struct perf_sched *sched,
+					  struct perf_sample *sample,
 					  struct machine *machine,
 					  struct perf_evsel *evsel)
 {
 	struct thread *thread;
 
-	if (is_idle_sample(sample, evsel)) {
+	if (is_idle_sample(sched, sample, evsel, machine)) {
 		thread = get_idle_thread(sample->cpu);
 		if (thread == NULL)
 			pr_err("Failed to get idle thread for cpu %d.\n", sample->cpu);
@@ -2115,7 +2156,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 		goto out;
 	}
 
-	thread = timehist_get_thread(sample, machine, evsel);
+	thread = timehist_get_thread(sched, sample, machine, evsel);
 	if (thread == NULL) {
 		rc = -1;
 		goto out;
@@ -2134,7 +2175,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 
 	timehist_update_runtime_stats(tr, sample->time, tprev);
 	if (!sched->summary_only)
-		timehist_print_sample(sched, sample, thread);
+		timehist_print_sample(sched, sample, &al, thread);
 
 out:
 	if (tr) {
@@ -2327,6 +2368,30 @@ static int perf_timehist__process_sample(struct perf_tool *tool,
 	return err;
 }
 
+static int timehist_check_attr(struct perf_sched *sched,
+			       struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	struct evsel_runtime *er;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		er = perf_evsel__get_runtime(evsel);
+		if (er == NULL) {
+			pr_err("Failed to allocate memory for evsel runtime data\n");
+			return -1;
+		}
+
+		if (sched->show_callchain &&
+		    !(evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN)) {
+			pr_info("Samples do not have callchains.\n");
+			sched->show_callchain = 0;
+			symbol_conf.use_callchain = 0;
+		}
+	}
+
+	return 0;
+}
+
 static int perf_sched__timehist(struct perf_sched *sched)
 {
 	const struct perf_evsel_str_handler handlers[] = {
@@ -2359,6 +2424,8 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	sched->tool.ordered_events = true;
 	sched->tool.ordering_requires_timestamps = true;
 
+	symbol_conf.use_callchain = sched->show_callchain;
+
 	session = perf_session__new(&file, false, &sched->tool);
 	if (session == NULL)
 		return -ENOMEM;
@@ -2366,6 +2433,9 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	evlist = session->evlist;
 
 	symbol__init(&session->header.env);
+
+	if (timehist_check_attr(sched, evlist) != 0)
+		goto out;
 
 	setup_pager();
 
@@ -2714,6 +2784,8 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		.next_shortname1      = 'A',
 		.next_shortname2      = '0',
 		.skip_merge           = 0,
+		.show_callchain	      = 1,
+		.max_stack            = 5,
 	};
 	const struct option sched_options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -2759,6 +2831,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
+	OPT_BOOLEAN('g', "call-graph", &sched.show_callchain,
+		    "Display call chains if present (default on)"),
+	OPT_UINTEGER(0, "max-stack", &sched.max_stack,
+		   "Maximum number of functions to display backtrace."),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_BOOLEAN('s', "summary", &sched.summary_only,
