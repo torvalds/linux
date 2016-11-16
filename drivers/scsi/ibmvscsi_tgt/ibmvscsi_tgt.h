@@ -26,6 +26,7 @@
 #ifndef __H_IBMVSCSI_TGT
 #define __H_IBMVSCSI_TGT
 
+#include <linux/interrupt.h>
 #include "libsrp.h"
 
 #define SYS_ID_NAME_LEN		64
