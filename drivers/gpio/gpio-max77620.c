@@ -290,6 +290,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id max77620_gpio_devtype[] = {
 	{ .name = "max77620-gpio", },
+	{ .name = "max20024-gpio", },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, max77620_gpio_devtype);
