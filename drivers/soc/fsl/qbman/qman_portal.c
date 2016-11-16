@@ -31,6 +31,7 @@
 #include "qman_priv.h"
 
 struct qman_portal *qman_dma_portal;
+EXPORT_SYMBOL(qman_dma_portal);
 
 /* Enable portal interupts (as opposed to polling mode) */
 #define CONFIG_FSL_DPA_PIRQ_SLOW  1
