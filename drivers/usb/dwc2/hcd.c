@@ -649,6 +649,35 @@ static void dwc2_dump_channel_info(struct dwc2_hsotg *hsotg,
 #endif /* VERBOSE_DEBUG */
 }
 
+static int _dwc2_hcd_start(struct usb_hcd *hcd);
+
+static void dwc2_host_start(struct dwc2_hsotg *hsotg)
+{
+	struct usb_hcd *hcd = dwc2_hsotg_to_hcd(hsotg);
+
+	hcd->self.is_b_host = dwc2_hcd_is_b_host(hsotg);
+	_dwc2_hcd_start(hcd);
+}
+
+static void dwc2_host_disconnect(struct dwc2_hsotg *hsotg)
+{
+	struct usb_hcd *hcd = dwc2_hsotg_to_hcd(hsotg);
+
+	hcd->self.is_b_host = 0;
+}
+
+static void dwc2_host_hub_info(struct dwc2_hsotg *hsotg, void *context,
+			       int *hub_addr, int *hub_port)
+{
+	struct urb *urb = context;
+
+	if (urb->dev->tt)
+		*hub_addr = urb->dev->tt->hub->devnum;
+	else
+		*hub_addr = 0;
+	*hub_port = urb->dev->ttport;
+}
+
 /*
  * =========================================================================
  *  Low Level Host Channel Access Functions
@@ -4020,35 +4049,6 @@ static struct dwc2_hsotg *dwc2_hcd_to_hsotg(struct usb_hcd *hcd)
 
 	p = (struct wrapper_priv_data *) &hcd->hcd_priv;
 	return p->hsotg;
-}
-
-static int _dwc2_hcd_start(struct usb_hcd *hcd);
-
-void dwc2_host_start(struct dwc2_hsotg *hsotg)
-{
-	struct usb_hcd *hcd = dwc2_hsotg_to_hcd(hsotg);
-
-	hcd->self.is_b_host = dwc2_hcd_is_b_host(hsotg);
-	_dwc2_hcd_start(hcd);
-}
-
-void dwc2_host_disconnect(struct dwc2_hsotg *hsotg)
-{
-	struct usb_hcd *hcd = dwc2_hsotg_to_hcd(hsotg);
-
-	hcd->self.is_b_host = 0;
-}
-
-void dwc2_host_hub_info(struct dwc2_hsotg *hsotg, void *context, int *hub_addr,
-			int *hub_port)
-{
-	struct urb *urb = context;
-
-	if (urb->dev->tt)
-		*hub_addr = urb->dev->tt->hub->devnum;
-	else
-		*hub_addr = 0;
-	*hub_port = urb->dev->ttport;
 }
 
 /**

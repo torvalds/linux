@@ -793,11 +793,6 @@ extern void dwc2_hcd_dump_frrem(struct dwc2_hsotg *hsotg);
 #define URB_SEND_ZERO_PACKET	0x2
 
 /* Host driver callbacks */
-
-extern void dwc2_host_start(struct dwc2_hsotg *hsotg);
-extern void dwc2_host_disconnect(struct dwc2_hsotg *hsotg);
-extern void dwc2_host_hub_info(struct dwc2_hsotg *hsotg, void *context,
-			       int *hub_addr, int *hub_port);
 extern struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg,
 					     void *context, gfp_t mem_flags,
 					     int *ttport);
