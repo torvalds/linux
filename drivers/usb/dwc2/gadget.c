@@ -2527,6 +2527,13 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	/* Finish ZLP handling for IN EP0 transactions */
 	if (hs_ep->index == 0 && hsotg->ep0_state == DWC2_EP0_STATUS_IN) {
 		dev_dbg(hsotg->dev, "zlp packet sent\n");
+
+		/*
+		 * While send zlp for DWC2_EP0_STATUS_IN EP direction was
+		 * changed to IN. Change back to complete OUT transfer request
+		 */
+		hs_ep->dir_in = 0;
+
 		dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
 		if (hsotg->test_mode) {
 			int ret;
