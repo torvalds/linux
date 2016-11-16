@@ -714,7 +714,7 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 			delay = CHG_SECONDARY_DET_TIME;
 			rphy->chg_state = USB_CHG_STATE_PRIMARY_DONE;
 		} else {
-			if (tmout) {
+			if (rphy->dcd_retries == CHG_DCD_MAX_RETRIES) {
 				/* floating charger found */
 				rphy->chg_type = POWER_SUPPLY_TYPE_USB_DCP;
 				rphy->chg_state = USB_CHG_STATE_DETECTED;
