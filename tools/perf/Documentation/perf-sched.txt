@@ -112,6 +112,10 @@ OPTIONS for 'perf sched timehist'
 --symfs=<directory>::
     Look for files with symbols relative to this directory.
 
+-w::
+--wakeups::
+	Show wakeup events.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]

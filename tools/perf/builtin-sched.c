@@ -198,6 +198,7 @@ struct perf_sched {
 	/* options for timehist command */
 	bool		summary;
 	bool		summary_only;
+	bool		show_wakeups;
 	u64		skipped_samples;
 };
 
@@ -1807,7 +1808,8 @@ static void timehist_header(void)
 	printf("\n");
 }
 
-static void timehist_print_sample(struct perf_sample *sample,
+static void timehist_print_sample(struct perf_sched *sched,
+				  struct perf_sample *sample,
 				  struct thread *thread)
 {
 	struct thread_runtime *tr = thread__priv(thread);
@@ -1821,6 +1823,10 @@ static void timehist_print_sample(struct perf_sample *sample,
 	print_sched_time(tr->dt_wait, 6);
 	print_sched_time(tr->dt_delay, 6);
 	print_sched_time(tr->dt_run, 6);
+
+	if (sched->show_wakeups)
+		printf("  %-*s", comm_width, "");
+
 	printf("\n");
 }
 
@@ -2028,12 +2034,44 @@ static bool timehist_skip_sample(struct perf_sched *sched,
 	return rc;
 }
 
-static int timehist_sched_wakeup_event(struct perf_tool *tool __maybe_unused,
+static void timehist_print_wakeup_event(struct perf_sched *sched,
+					struct perf_sample *sample,
+					struct machine *machine,
+					struct thread *awakened)
+{
+	struct thread *thread;
+	char tstr[64];
+
+	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
+	if (thread == NULL)
+		return;
+
+	/* show wakeup unless both awakee and awaker are filtered */
+	if (timehist_skip_sample(sched, thread) &&
+	    timehist_skip_sample(sched, awakened)) {
+		return;
+	}
+
+	timestamp__scnprintf_usec(sample->time, tstr, sizeof(tstr));
+	printf("%15s [%04d] ", tstr, sample->cpu);
+
+	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
+
+	/* dt spacer */
+	printf("  %9s  %9s  %9s ", "", "", "");
+
+	printf("awakened: %s", timehist_get_commstr(awakened));
+
+	printf("\n");
+}
+
+static int timehist_sched_wakeup_event(struct perf_tool *tool,
 				       union perf_event *event __maybe_unused,
 				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
 				       struct machine *machine)
 {
+	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 	struct thread *thread;
 	struct thread_runtime *tr = NULL;
 	/* want pid of awakened task not pid in sample */
@@ -2050,6 +2088,10 @@ static int timehist_sched_wakeup_event(struct perf_tool *tool __maybe_unused,
 	if (tr->ready_to_run == 0)
 		tr->ready_to_run = sample->time;
 
+	/* show wakeups if requested */
+	if (sched->show_wakeups)
+		timehist_print_wakeup_event(sched, sample, machine, thread);
+
 	return 0;
 }
 
@@ -2059,12 +2101,12 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 				       struct perf_sample *sample,
 				       struct machine *machine)
 {
+	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 	struct addr_location al;
 	struct thread *thread;
 	struct thread_runtime *tr = NULL;
 	u64 tprev;
 	int rc = 0;
-	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("problem processing %d event. skipping it\n",
@@ -2092,7 +2134,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 
 	timehist_update_runtime_stats(tr, sample->time, tprev);
 	if (!sched->summary_only)
-		timehist_print_sample(sample, thread);
+		timehist_print_sample(sched, sample, thread);
 
 out:
 	if (tr) {
@@ -2723,6 +2765,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show only syscall summary with statistics"),
 	OPT_BOOLEAN('S', "with-summary", &sched.summary,
 		    "Show all syscalls and summary with statistics"),
+	OPT_BOOLEAN('w', "wakeups", &sched.show_wakeups, "Show wakeup events"),
 	OPT_PARENT(sched_options)
 	};
 
@@ -2814,6 +2857,13 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 			if (argc)
 				usage_with_options(timehist_usage, timehist_options);
 		}
+		if (sched.show_wakeups && sched.summary_only) {
+			pr_err(" Error: -s and -w are mutually exclusive.\n");
+			parse_options_usage(timehist_usage, timehist_options, "s", true);
+			parse_options_usage(NULL, timehist_options, "w", true);
+			return -EINVAL;
+		}
+
 		return perf_sched__timehist(&sched);
 	} else {
 		usage_with_options(sched_usage, sched_options);
