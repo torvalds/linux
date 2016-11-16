@@ -337,11 +337,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	fsl_dev->soc = id->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "could not get memory IO resource\n");
-		return -ENODEV;
-	}
-
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
