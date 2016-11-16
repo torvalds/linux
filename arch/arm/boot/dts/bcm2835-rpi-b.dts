@@ -30,7 +30,7 @@
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",
-			  "CAM_CLK",
+			  "CAM_GPIO1",
 			  "LAN_RUN",
 			  "SPI_CE1_N",
 			  "SPI_CE0_N",
@@ -53,7 +53,7 @@
 			  "GPIO24",
 			  "GPIO25",
 			  "NC", /* GPIO26 */
-			  "CAM_GPIO",
+			  "CAM_GPIO0",
 			  /* Binary number representing build/revision */
 			  "CONFIG0",
 			  "CONFIG1",

@@ -63,13 +63,13 @@
 			  "SCL0",
 			  "NC", /* GPIO30 */
 			  "NC", /* GPIO31 */
-			  "NC", /* GPIO32 */
+			  "CAM_GPIO1", /* GPIO32 */
 			  "NC", /* GPIO33 */
 			  "NC", /* GPIO34 */
 			  "PWR_LOW_N", /* GPIO35 */
 			  "NC", /* GPIO36 */
 			  "NC", /* GPIO37 */
-			  "NC", /* GPIO38 */
+			  "USB_LIMIT", /* GPIO38 */
 			  "NC", /* GPIO39 */
 			  "PWM0_OUT", /* GPIO40 */
 			  "CAM_GPIO0", /* GPIO41 */
