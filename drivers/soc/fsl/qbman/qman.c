@@ -2294,7 +2294,6 @@ int qman_create_cgr(struct qman_cgr *cgr, u32 flags,
 		    struct qm_mcc_initcgr *opts)
 {
 	struct qm_mcr_querycgr cgr_state;
-	struct qm_mcc_initcgr local_opts = {};
 	int ret;
 	struct qman_portal *p;
 
@@ -2316,11 +2315,12 @@ int qman_create_cgr(struct qman_cgr *cgr, u32 flags,
 	spin_lock(&p->cgr_lock);
 
 	if (opts) {
+		struct qm_mcc_initcgr local_opts = *opts;
+
 		ret = qman_query_cgr(cgr, &cgr_state);
 		if (ret)
 			goto out;
-		if (opts)
-			local_opts = *opts;
+
 		if ((qman_ip_rev & 0xFF00) >= QMAN_REV30)
 			local_opts.cgr.cscn_targ_upd_ctrl =
 				QM_CGR_TARG_UDP_CTRL_WRITE_BIT | PORTAL_IDX(p);
@@ -2331,7 +2331,7 @@ int qman_create_cgr(struct qman_cgr *cgr, u32 flags,
 		local_opts.we_mask |= QM_CGR_WE_CSCN_TARG;
 
 		/* send init if flags indicate so */
-		if (opts && (flags & QMAN_CGR_FLAG_USE_INIT))
+		if (flags & QMAN_CGR_FLAG_USE_INIT)
 			ret = qm_modify_cgr(cgr, QMAN_CGR_FLAG_USE_INIT,
 					    &local_opts);
 		else
