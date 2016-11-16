@@ -702,6 +702,7 @@ struct f2fs_sm_info {
  * f2fs monitors the number of several block types such as on-writeback,
  * dirty dentry blocks, dirty node blocks, and dirty meta blocks.
  */
+#define WB_DATA_TYPE(p)	(__is_cp_guaranteed(p) ? F2FS_WB_CP_DATA : F2FS_WB_DATA)
 enum count_type {
 	F2FS_DIRTY_DENTS,
 	F2FS_DIRTY_DATA,
@@ -709,6 +710,8 @@ enum count_type {
 	F2FS_DIRTY_META,
 	F2FS_INMEM_PAGES,
 	F2FS_DIRTY_IMETA,
+	F2FS_WB_CP_DATA,
+	F2FS_WB_DATA,
 	NR_COUNT_TYPE,
 };
 
@@ -888,7 +891,6 @@ struct f2fs_sb_info {
 	block_t discard_blks;			/* discard command candidats */
 	block_t last_valid_block_count;		/* for recovery */
 	u32 s_next_generation;			/* for NFS support */
-	atomic_t nr_wb_bios;			/* # of writeback bios */
 
 	/* # of pages, see count_type */
 	atomic_t nr_pages[NR_COUNT_TYPE];
@@ -1302,7 +1304,8 @@ static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
 	atomic_inc(&sbi->nr_pages[count_type]);
 
-	if (count_type == F2FS_DIRTY_DATA || count_type == F2FS_INMEM_PAGES)
+	if (count_type == F2FS_DIRTY_DATA || count_type == F2FS_INMEM_PAGES ||
+		count_type == F2FS_WB_CP_DATA || count_type == F2FS_WB_DATA)
 		return;
 
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
@@ -2261,7 +2264,7 @@ struct f2fs_stat_info {
 	unsigned int ndirty_dirs, ndirty_files, ndirty_all;
 	int nats, dirty_nats, sits, dirty_sits, free_nids, alloc_nids;
 	int total_count, utilization;
-	int bg_gc, wb_bios;
+	int bg_gc, nr_wb_cp_data, nr_wb_data;
 	int inline_xattr, inline_inode, inline_dir, orphans;
 	unsigned int valid_count, valid_node_count, valid_inode_count, discard_blks;
 	unsigned int bimodal, avg_vblocks;
