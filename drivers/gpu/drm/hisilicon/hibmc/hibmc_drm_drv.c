@@ -1,0 +1,308 @@
+/* Hisilicon Hibmc SoC drm driver
+ *
+ * Based on the bochs drm driver.
+ *
+ * Copyright (c) 2016 Huawei Limited.
+ *
+ * Author:
+ *	Rongrong Zou <zourongrong@huawei.com>
+ *	Rongrong Zou <zourongrong@gmail.com>
+ *	Jianhua Li <lijianhua@huawei.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ */
+
+#include <linux/console.h>
+#include <linux/module.h>
+
+#include "hibmc_drm_drv.h"
+#include "hibmc_drm_regs.h"
+
+static const struct file_operations hibmc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= drm_open,
+	.release	= drm_release,
+	.unlocked_ioctl	= drm_ioctl,
+	.compat_ioctl	= drm_compat_ioctl,
+	.poll		= drm_poll,
+	.read		= drm_read,
+	.llseek		= no_llseek,
+};
+
+static int hibmc_enable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	return 0;
+}
+
+static void hibmc_disable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+}
+
+static struct drm_driver hibmc_driver = {
+	.fops			= &hibmc_fops,
+	.name			= "hibmc",
+	.date			= "20160828",
+	.desc			= "hibmc drm driver",
+	.major			= 1,
+	.minor			= 0,
+	.get_vblank_counter	= drm_vblank_no_hw_counter,
+	.enable_vblank		= hibmc_enable_vblank,
+	.disable_vblank		= hibmc_disable_vblank,
+};
+
+static int hibmc_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int hibmc_pm_resume(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops hibmc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(hibmc_pm_suspend,
+				hibmc_pm_resume)
+};
+
+/*
+ * It can operate in one of three modes: 0, 1 or Sleep.
+ */
+void hibmc_set_power_mode(struct hibmc_drm_private *priv,
+			  unsigned int power_mode)
+{
+	unsigned int control_value = 0;
+	void __iomem   *mmio = priv->mmio;
+	unsigned int input = 1;
+
+	if (power_mode > HIBMC_PW_MODE_CTL_MODE_SLEEP)
+		return;
+
+	if (power_mode == HIBMC_PW_MODE_CTL_MODE_SLEEP)
+		input = 0;
+
+	control_value = readl(mmio + HIBMC_POWER_MODE_CTRL);
+	control_value &= ~(HIBMC_PW_MODE_CTL_MODE_MASK |
+			   HIBMC_PW_MODE_CTL_OSC_INPUT_MASK);
+	control_value |= HIBMC_FIELD(HIBMC_PW_MODE_CTL_MODE, power_mode);
+	control_value |= HIBMC_FIELD(HIBMC_PW_MODE_CTL_OSC_INPUT, input);
+	writel(control_value, mmio + HIBMC_POWER_MODE_CTRL);
+}
+
+void hibmc_set_current_gate(struct hibmc_drm_private *priv, unsigned int gate)
+{
+	unsigned int gate_reg;
+	unsigned int mode;
+	void __iomem   *mmio = priv->mmio;
+
+	/* Get current power mode. */
+	mode = (readl(mmio + HIBMC_POWER_MODE_CTRL) &
+		HIBMC_PW_MODE_CTL_MODE_MASK) >> HIBMC_PW_MODE_CTL_MODE_SHIFT;
+
+	switch (mode) {
+	case HIBMC_PW_MODE_CTL_MODE_MODE0:
+		gate_reg = HIBMC_MODE0_GATE;
+		break;
+
+	case HIBMC_PW_MODE_CTL_MODE_MODE1:
+		gate_reg = HIBMC_MODE1_GATE;
+		break;
+
+	default:
+		gate_reg = HIBMC_MODE0_GATE;
+		break;
+	}
+	writel(gate, mmio + gate_reg);
+}
+
+static void hibmc_hw_config(struct hibmc_drm_private *priv)
+{
+	unsigned int reg;
+
+	/* On hardware reset, power mode 0 is default. */
+	hibmc_set_power_mode(priv, HIBMC_PW_MODE_CTL_MODE_MODE0);
+
+	/* Enable display power gate & LOCALMEM power gate*/
+	reg = readl(priv->mmio + HIBMC_CURRENT_GATE);
+	reg &= ~HIBMC_CURR_GATE_DISPLAY_MASK;
+	reg &= ~HIBMC_CURR_GATE_LOCALMEM_MASK;
+	reg |= HIBMC_CURR_GATE_DISPLAY(1);
+	reg |= HIBMC_CURR_GATE_LOCALMEM(1);
+
+	hibmc_set_current_gate(priv, reg);
+
+	/*
+	 * Reset the memory controller. If the memory controller
+	 * is not reset in chip,the system might hang when sw accesses
+	 * the memory.The memory should be resetted after
+	 * changing the MXCLK.
+	 */
+	reg = readl(priv->mmio + HIBMC_MISC_CTRL);
+	reg &= ~HIBMC_MSCCTL_LOCALMEM_RESET_MASK;
+	reg |= HIBMC_MSCCTL_LOCALMEM_RESET(0);
+	writel(reg, priv->mmio + HIBMC_MISC_CTRL);
+
+	reg &= ~HIBMC_MSCCTL_LOCALMEM_RESET_MASK;
+	reg |= HIBMC_MSCCTL_LOCALMEM_RESET(1);
+
+	writel(reg, priv->mmio + HIBMC_MISC_CTRL);
+}
+
+static int hibmc_hw_map(struct hibmc_drm_private *priv)
+{
+	struct drm_device *dev = priv->dev;
+	struct pci_dev *pdev = dev->pdev;
+	resource_size_t addr, size, ioaddr, iosize;
+
+	ioaddr = pci_resource_start(pdev, 1);
+	iosize = pci_resource_len(pdev, 1);
+	priv->mmio = devm_ioremap_nocache(dev->dev, ioaddr, iosize);
+	if (!priv->mmio) {
+		DRM_ERROR("Cannot map mmio region\n");
+		return -ENOMEM;
+	}
+
+	addr = pci_resource_start(pdev, 0);
+	size = pci_resource_len(pdev, 0);
+	priv->fb_map = devm_ioremap(dev->dev, addr, size);
+	if (!priv->fb_map) {
+		DRM_ERROR("Cannot map framebuffer\n");
+		return -ENOMEM;
+	}
+	priv->fb_base = addr;
+	priv->fb_size = size;
+
+	return 0;
+}
+
+static int hibmc_hw_init(struct hibmc_drm_private *priv)
+{
+	int ret;
+
+	ret = hibmc_hw_map(priv);
+	if (ret)
+		return ret;
+
+	hibmc_hw_config(priv);
+
+	return 0;
+}
+
+static int hibmc_unload(struct drm_device *dev)
+{
+	return 0;
+}
+
+static int hibmc_load(struct drm_device *dev)
+{
+	struct hibmc_drm_private *priv;
+	int ret;
+
+	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		DRM_ERROR("no memory to allocate for hibmc_drm_private\n");
+		return -ENOMEM;
+	}
+	dev->dev_private = priv;
+	priv->dev = dev;
+
+	ret = hibmc_hw_init(priv);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	hibmc_unload(dev);
+	DRM_ERROR("failed to initialize drm driver: %d\n", ret);
+	return ret;
+}
+
+static int hibmc_pci_probe(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
+{
+	struct drm_device *dev;
+	int ret;
+
+	dev = drm_dev_alloc(&hibmc_driver, &pdev->dev);
+	if (!dev) {
+		DRM_ERROR("failed to allocate drm_device\n");
+		return -ENOMEM;
+	}
+
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		DRM_ERROR("failed to enable pci device: %d\n", ret);
+		goto err_free;
+	}
+
+	ret = hibmc_load(dev);
+	if (ret) {
+		DRM_ERROR("failed to load hibmc: %d\n", ret);
+		goto err_disable;
+	}
+
+	ret = drm_dev_register(dev, 0);
+	if (ret) {
+		DRM_ERROR("failed to register drv for userspace access: %d\n",
+			  ret);
+		goto err_unload;
+	}
+	return 0;
+
+err_unload:
+	hibmc_unload(dev);
+err_disable:
+	pci_disable_device(pdev);
+err_free:
+	drm_dev_unref(dev);
+
+	return ret;
+}
+
+static void hibmc_pci_remove(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	drm_dev_unregister(dev);
+	hibmc_unload(dev);
+	drm_dev_unref(dev);
+}
+
+static struct pci_device_id hibmc_pci_table[] = {
+	{0x19e5, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{0,}
+};
+
+static struct pci_driver hibmc_pci_driver = {
+	.name =		"hibmc-drm",
+	.id_table =	hibmc_pci_table,
+	.probe =	hibmc_pci_probe,
+	.remove =	hibmc_pci_remove,
+	.driver.pm =    &hibmc_pm_ops,
+};
+
+static int __init hibmc_init(void)
+{
+	return pci_register_driver(&hibmc_pci_driver);
+}
+
+static void __exit hibmc_exit(void)
+{
+	return pci_unregister_driver(&hibmc_pci_driver);
+}
+
+module_init(hibmc_init);
+module_exit(hibmc_exit);
+
+MODULE_DEVICE_TABLE(pci, hibmc_pci_table);
+MODULE_AUTHOR("RongrongZou <zourongrong@huawei.com>");
+MODULE_DESCRIPTION("DRM Driver for Hisilicon Hibmc");
+MODULE_LICENSE("GPL v2");
