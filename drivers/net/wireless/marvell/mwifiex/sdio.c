@@ -46,6 +46,9 @@
  */
 static u8 user_rmmod;
 
+static void mwifiex_sdio_work(struct work_struct *work);
+static DECLARE_WORK(sdio_work, mwifiex_sdio_work);
+
 static struct mwifiex_if_ops sdio_ops;
 static unsigned long iface_work_flags;
 
@@ -218,7 +221,7 @@ static int mwifiex_sdio_resume(struct device *dev)
  * This function removes the interface and frees up the card structure.
  */
 static void
-mwifiex_sdio_remove(struct sdio_func *func)
+__mwifiex_sdio_remove(struct sdio_func *func)
 {
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
@@ -245,6 +248,13 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	}
 
 	mwifiex_remove_card(adapter);
+}
+
+static void
+mwifiex_sdio_remove(struct sdio_func *func)
+{
+	cancel_work_sync(&sdio_work);
+	__mwifiex_sdio_remove(func);
 }
 
 /*
@@ -2222,7 +2232,7 @@ static void mwifiex_recreate_adapter(struct sdio_mmc_card *card)
 	 * discovered and initializes them from scratch.
 	 */
 
-	mwifiex_sdio_remove(func);
+	__mwifiex_sdio_remove(func);
 
 	/*
 	 * Normally, we would let the driver core take care of releasing these.
@@ -2569,7 +2579,6 @@ static void mwifiex_sdio_work(struct work_struct *work)
 		mwifiex_sdio_card_reset_work(save_adapter);
 }
 
-static DECLARE_WORK(sdio_work, mwifiex_sdio_work);
 /* This function resets the card */
 static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 {

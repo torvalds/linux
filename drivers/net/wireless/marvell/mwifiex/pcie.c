@@ -51,6 +51,9 @@ static int mwifiex_pcie_probe_of(struct device *dev)
 	return 0;
 }
 
+static void mwifiex_pcie_work(struct work_struct *work);
+static DECLARE_WORK(pcie_work, mwifiex_pcie_work);
+
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 		       size_t size, int flags)
@@ -253,6 +256,8 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	adapter = card->adapter;
 	if (!adapter || !adapter->priv_num)
 		return;
+
+	cancel_work_sync(&pcie_work);
 
 	if (user_rmmod && !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
@@ -2732,7 +2737,6 @@ static void mwifiex_pcie_work(struct work_struct *work)
 		mwifiex_pcie_device_dump_work(save_adapter);
 }
 
-static DECLARE_WORK(pcie_work, mwifiex_pcie_work);
 /* This function dumps FW information */
 static void mwifiex_pcie_device_dump(struct mwifiex_adapter *adapter)
 {
