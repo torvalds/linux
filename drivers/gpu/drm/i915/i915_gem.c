@@ -2622,33 +2622,45 @@ err_unlock:
 
 static bool i915_context_is_banned(const struct i915_gem_context *ctx)
 {
+	const struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
 	unsigned long elapsed;
 
-	if (ctx->hang_stats.banned)
+	if (hs->banned)
 		return true;
 
-	elapsed = get_seconds() - ctx->hang_stats.guilty_ts;
-	if (ctx->hang_stats.ban_period_seconds &&
-	    elapsed <= ctx->hang_stats.ban_period_seconds) {
+	if (!hs->ban_period_seconds)
+		return false;
+
+	elapsed = get_seconds() - hs->guilty_ts;
+	if (elapsed <= hs->ban_period_seconds) {
 		DRM_DEBUG("context hanging too fast, banning!\n");
+		return true;
+	}
+
+	if (hs->ban_score >= CONTEXT_SCORE_BAN_THRESHOLD) {
+		DRM_DEBUG("context hanging too often, banning!\n");
 		return true;
 	}
 
 	return false;
 }
 
-static void i915_set_reset_status(struct i915_gem_context *ctx,
-				  const bool guilty)
+static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 {
 	struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
 
-	if (guilty) {
-		hs->banned = i915_context_is_banned(ctx);
-		hs->batch_active++;
-		hs->guilty_ts = get_seconds();
-	} else {
-		hs->batch_pending++;
-	}
+	hs->ban_score += CONTEXT_SCORE_GUILTY;
+
+	hs->banned = i915_context_is_banned(ctx);
+	hs->batch_active++;
+	hs->guilty_ts = get_seconds();
+}
+
+static void i915_gem_context_mark_innocent(struct i915_gem_context *ctx)
+{
+	struct i915_ctx_hang_stats *hs = &ctx->hang_stats;
+
+	hs->batch_pending++;
 }
 
 struct drm_i915_gem_request *
@@ -2713,7 +2725,11 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 		ring_hung = false;
 	}
 
-	i915_set_reset_status(request->ctx, ring_hung);
+	if (ring_hung)
+		i915_gem_context_mark_guilty(request->ctx);
+	else
+		i915_gem_context_mark_innocent(request->ctx);
+
 	if (!ring_hung)
 		return;
 

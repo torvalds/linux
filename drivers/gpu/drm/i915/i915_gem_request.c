@@ -263,6 +263,10 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 					       request->engine);
 	}
 
+	/* Retirement decays the ban score as it is a sign of ctx progress */
+	if (request->ctx->hang_stats.ban_score > 0)
+		request->ctx->hang_stats.ban_score--;
+
 	i915_gem_context_put(request->ctx);
 
 	dma_fence_signal(&request->fence);
