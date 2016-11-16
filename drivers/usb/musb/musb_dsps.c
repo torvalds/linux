@@ -783,28 +783,13 @@ static int dsps_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 200);
-
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync FAILED");
-		goto err2;
-	}
-
 	ret = dsps_create_musb_pdev(glue, pdev);
 	if (ret)
-		goto err3;
-
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
+		goto err;
 
 	return 0;
 
-err3:
-	pm_runtime_put_sync(&pdev->dev);
-err2:
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
+err:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
@@ -815,9 +800,6 @@ static int dsps_remove(struct platform_device *pdev)
 
 	platform_device_unregister(glue->musb);
 
-	/* disable usbss clocks */
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
