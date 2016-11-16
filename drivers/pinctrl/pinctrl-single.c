@@ -1181,8 +1181,10 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 
 	pgnames[0] = np->name;
 	function = pcs_add_function(pcs, np, np->name, vals, found, pgnames, 1);
-	if (!function)
+	if (!function) {
+		res = -ENOMEM;
 		goto free_pins;
+	}
 
 	res = pcs_add_pingroup(pcs, np, np->name, pins, found);
 	if (res < 0)
@@ -1313,8 +1315,10 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 
 	pgnames[0] = np->name;
 	function = pcs_add_function(pcs, np, np->name, vals, found, pgnames, 1);
-	if (!function)
+	if (!function) {
+		res = -ENOMEM;
 		goto free_pins;
+	}
 
 	res = pcs_add_pingroup(pcs, np, np->name, pins, found);
 	if (res < 0)
