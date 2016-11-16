@@ -683,6 +683,7 @@ void rds_conn_path_connect_if_down(struct rds_conn_path *cp)
 	    !test_and_set_bit(RDS_RECONNECT_PENDING, &cp->cp_flags))
 		queue_delayed_work(rds_wq, &cp->cp_conn_w, 0);
 }
+EXPORT_SYMBOL_GPL(rds_conn_path_connect_if_down);
 
 void rds_conn_connect_if_down(struct rds_connection *conn)
 {
