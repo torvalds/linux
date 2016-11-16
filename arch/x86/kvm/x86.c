@@ -1724,18 +1724,23 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 
 static u64 __get_kvmclock_ns(struct kvm *kvm)
 {
-	struct kvm_vcpu *vcpu = kvm_get_vcpu(kvm, 0);
 	struct kvm_arch *ka = &kvm->arch;
-	s64 ns;
+	struct pvclock_vcpu_time_info hv_clock;
 
-	if (vcpu->arch.hv_clock.flags & PVCLOCK_TSC_STABLE_BIT) {
-		u64 tsc = kvm_read_l1_tsc(vcpu, rdtsc());
-		ns = __pvclock_read_cycles(&vcpu->arch.hv_clock, tsc);
-	} else {
-		ns = ktime_get_boot_ns() + ka->kvmclock_offset;
+	spin_lock(&ka->pvclock_gtod_sync_lock);
+	if (!ka->use_master_clock) {
+		spin_unlock(&ka->pvclock_gtod_sync_lock);
+		return ktime_get_boot_ns() + ka->kvmclock_offset;
 	}
 
-	return ns;
+	hv_clock.tsc_timestamp = ka->master_cycle_now;
+	hv_clock.system_time = ka->master_kernel_ns + ka->kvmclock_offset;
+	spin_unlock(&ka->pvclock_gtod_sync_lock);
+
+	kvm_get_time_scale(NSEC_PER_SEC, __this_cpu_read(cpu_tsc_khz) * 1000LL,
+			   &hv_clock.tsc_shift,
+			   &hv_clock.tsc_to_system_mul);
+	return __pvclock_read_cycles(&hv_clock, rdtsc());
 }
 
 u64 get_kvmclock_ns(struct kvm *kvm)
