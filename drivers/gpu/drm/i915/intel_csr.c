@@ -405,7 +405,7 @@ static void csr_load_work_fn(struct work_struct *work)
 
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
-		DRM_INFO("Finished loading %s (v%u.%u)\n",
+		DRM_INFO("Finished loading DMC firmware %s (v%u.%u)\n",
 			 dev_priv->csr.fw_path,
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
