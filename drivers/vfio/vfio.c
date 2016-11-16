@@ -480,6 +480,21 @@ static struct vfio_group *vfio_group_get_from_minor(int minor)
 	return group;
 }
 
+static struct vfio_group *vfio_group_get_from_dev(struct device *dev)
+{
+	struct iommu_group *iommu_group;
+	struct vfio_group *group;
+
+	iommu_group = iommu_group_get(dev);
+	if (!iommu_group)
+		return NULL;
+
+	group = vfio_group_get_from_iommu(iommu_group);
+	iommu_group_put(iommu_group);
+
+	return group;
+}
+
 /**
  * Device objects - create, release, get, put, search
  */
@@ -811,16 +826,10 @@ EXPORT_SYMBOL_GPL(vfio_add_group_dev);
  */
 struct vfio_device *vfio_device_get_from_dev(struct device *dev)
 {
-	struct iommu_group *iommu_group;
 	struct vfio_group *group;
 	struct vfio_device *device;
 
-	iommu_group = iommu_group_get(dev);
-	if (!iommu_group)
-		return NULL;
-
-	group = vfio_group_get_from_iommu(iommu_group);
-	iommu_group_put(iommu_group);
+	group = vfio_group_get_from_dev(dev);
 	if (!group)
 		return NULL;
 
