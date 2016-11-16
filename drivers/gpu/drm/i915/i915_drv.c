@@ -495,7 +495,7 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 {
 	struct drm_device *dev = cookie;
 
-	intel_modeset_vga_set_state(dev, state);
+	intel_modeset_vga_set_state(to_i915(dev), state);
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
