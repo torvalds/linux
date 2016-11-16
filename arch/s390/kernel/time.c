@@ -110,7 +110,7 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec64 *xt)
+static void tod_to_timeval(__u64 todval, struct timespec64 *xt)
 {
 	unsigned long long sec;
 
@@ -120,7 +120,6 @@ void tod_to_timeval(__u64 todval, struct timespec64 *xt)
 	todval -= (sec * 1000000) << 12;
 	xt->tv_nsec = ((todval * 1000) >> 12);
 }
-EXPORT_SYMBOL(tod_to_timeval);
 
 void clock_comparator_work(void)
 {
