@@ -193,9 +193,12 @@ static int nf_nat_bysource_cmp(struct rhashtable_compare_arg *arg,
 	const struct nf_nat_conn_key *key = arg->key;
 	const struct nf_conn *ct = obj;
 
-	return same_src(ct, key->tuple) &&
-	       net_eq(nf_ct_net(ct), key->net) &&
-	       nf_ct_zone_equal(ct, key->zone, IP_CT_DIR_ORIGINAL);
+	if (!same_src(ct, key->tuple) ||
+	    !net_eq(nf_ct_net(ct), key->net) ||
+	    !nf_ct_zone_equal(ct, key->zone, IP_CT_DIR_ORIGINAL))
+		return 1;
+
+	return 0;
 }
 
 static struct rhashtable_params nf_nat_bysource_params = {
