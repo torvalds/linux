@@ -346,7 +346,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	fsl_dev->irq = platform_get_irq(pdev, 0);
 	if (fsl_dev->irq < 0) {
 		dev_err(dev, "failed to get irq\n");
-		return -ENXIO;
+		return fsl_dev->irq;
 	}
 
 	fsl_dev->regmap = devm_regmap_init_mmio(dev, base,
