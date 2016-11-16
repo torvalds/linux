@@ -108,7 +108,9 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 	int print_oneline = print_opts & EVSEL__PRINT_ONELINE;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
 	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
+	int print_arrow = print_opts & EVSEL__PRINT_CALLCHAIN_ARROW;
 	char s = print_oneline ? ' ' : '\t';
+	bool first = true;
 
 	if (sample->callchain) {
 		struct addr_location node_al;
@@ -123,6 +125,9 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				break;
 
 			printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
+
+			if (print_arrow && !first)
+				printed += fprintf(fp, " <-");
 
 			if (print_ip)
 				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
@@ -158,6 +163,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				printed += fprintf(fp, "\n");
 
 			callchain_cursor_advance(cursor);
+			first = false;
 		}
 	}
 
