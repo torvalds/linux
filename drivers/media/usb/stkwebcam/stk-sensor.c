@@ -228,7 +228,7 @@
 static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 {
 	int i = 0;
-	int tmpval = 0;
+	u8 tmpval = 0;
 
 	if (stk_camera_write_reg(dev, STK_IIC_TX_INDEX, reg))
 		return 1;
@@ -253,7 +253,7 @@ static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 {
 	int i = 0;
-	int tmpval = 0;
+	u8 tmpval = 0;
 
 	if (stk_camera_write_reg(dev, STK_IIC_RX_INDEX, reg))
 		return 1;
@@ -274,7 +274,7 @@ static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 	if (stk_camera_read_reg(dev, STK_IIC_RX_VALUE, &tmpval))
 		return 1;
 
-	*val = (u8) tmpval;
+	*val = tmpval;
 	return 0;
 }
 
