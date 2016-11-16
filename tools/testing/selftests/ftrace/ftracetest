@@ -228,7 +228,7 @@ trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
 
 __run_test() { # testfile
   # setup PID and PPID, $$ is not updated.
-  (cd $TRACING_DIR; read PID _ < /proc/self/stat ; set -e; set -x; . $1)
+  (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x; initialize_ftrace; . $1)
   [ $? -ne 0 ] && kill -s $SIG_FAIL $SIG_PID
 }
 
