@@ -230,20 +230,36 @@ static int put_pfn(unsigned long pfn, int prot)
 	return 0;
 }
 
-static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
+static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
+			 int prot, unsigned long *pfn)
 {
 	struct page *page[1];
 	struct vm_area_struct *vma;
-	int ret = -EFAULT;
+	int ret;
 
-	if (get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE), page) == 1) {
+	if (mm == current->mm) {
+		ret = get_user_pages_fast(vaddr, 1, !!(prot & IOMMU_WRITE),
+					  page);
+	} else {
+		unsigned int flags = 0;
+
+		if (prot & IOMMU_WRITE)
+			flags |= FOLL_WRITE;
+
+		down_read(&mm->mmap_sem);
+		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
+					    NULL);
+		up_read(&mm->mmap_sem);
+	}
+
+	if (ret == 1) {
 		*pfn = page_to_pfn(page[0]);
 		return 0;
 	}
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&mm->mmap_sem);
 
-	vma = find_vma_intersection(current->mm, vaddr, vaddr + 1);
+	vma = find_vma_intersection(mm, vaddr, vaddr + 1);
 
 	if (vma && vma->vm_flags & VM_PFNMAP) {
 		*pfn = ((vaddr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
@@ -251,7 +267,7 @@ static int vaddr_get_pfn(unsigned long vaddr, int prot, unsigned long *pfn)
 			ret = 0;
 	}
 
-	up_read(&current->mm->mmap_sem);
+	up_read(&mm->mmap_sem);
 
 	return ret;
 }
@@ -272,7 +288,7 @@ static long vfio_pin_pages_remote(unsigned long vaddr, long npage,
 	if (!current->mm)
 		return -ENODEV;
 
-	ret = vaddr_get_pfn(vaddr, prot, pfn_base);
+	ret = vaddr_get_pfn(current->mm, vaddr, prot, pfn_base);
 	if (ret)
 		return ret;
 
@@ -295,7 +311,7 @@ static long vfio_pin_pages_remote(unsigned long vaddr, long npage,
 	for (i = 1, vaddr += PAGE_SIZE; i < npage; i++, vaddr += PAGE_SIZE) {
 		unsigned long pfn = 0;
 
-		ret = vaddr_get_pfn(vaddr, prot, &pfn);
+		ret = vaddr_get_pfn(current->mm, vaddr, prot, &pfn);
 		if (ret)
 			break;
 
