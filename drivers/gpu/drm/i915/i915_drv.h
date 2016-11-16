@@ -3174,9 +3174,9 @@ i915_gem_object_ggtt_offset(struct drm_i915_gem_object *o,
 int __must_check i915_vma_get_fence(struct i915_vma *vma);
 int __must_check i915_vma_put_fence(struct i915_vma *vma);
 
-void i915_gem_restore_fences(struct drm_device *dev);
+void i915_gem_restore_fences(struct drm_i915_private *dev_priv);
 
-void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
+void i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv);
 void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
 				       struct sg_table *pages);
 void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,

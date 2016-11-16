@@ -368,15 +368,14 @@ i915_vma_get_fence(struct i915_vma *vma)
 
 /**
  * i915_gem_restore_fences - restore fence state
- * @dev: DRM device
+ * @dev_priv: i915 device private
  *
  * Restore the hw fence state to match the software tracking again, to be called
  * after a gpu reset and on resume. Note that on runtime suspend we only cancel
  * the fences, to be reacquired by the user later.
  */
-void i915_gem_restore_fences(struct drm_device *dev)
+void i915_gem_restore_fences(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
@@ -451,15 +450,14 @@ void i915_gem_restore_fences(struct drm_device *dev)
 
 /**
  * i915_gem_detect_bit_6_swizzle - detect bit 6 swizzling pattern
- * @dev: DRM device
+ * @dev_priv: i915 device private
  *
  * Detects bit 6 swizzling of address lookup between IGD access and CPU
  * access through main memory.
  */
 void
-i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
+i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
@@ -473,7 +471,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (INTEL_INFO(dev)->gen >= 6) {
+	} else if (INTEL_GEN(dev_priv) >= 6) {
 		if (dev_priv->preserve_bios_swizzle) {
 			if (I915_READ(DISP_ARB_CTL) &
 			    DISP_TILE_SURFACE_SWIZZLING) {

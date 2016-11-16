@@ -114,7 +114,7 @@ int i915_restore_state(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	i915_gem_restore_fences(dev);
+	i915_gem_restore_fences(dev_priv);
 
 	if (IS_GEN4(dev_priv))
 		pci_write_config_word(pdev, GCDGMBUS,
