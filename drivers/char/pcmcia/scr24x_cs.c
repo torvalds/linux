@@ -27,6 +27,7 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/io.h>
 #include <linux/uaccess.h>
 
 #include <pcmcia/cistpl.h>
