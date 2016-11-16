@@ -157,7 +157,7 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
  */
 #define SUN50I_A64_PLL_MIPI_REG		0x040
 
-struct ccu_nkm pll_mipi_clk = {
+static struct ccu_nkm pll_mipi_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT(8, 4),
@@ -203,14 +203,14 @@ static SUNXI_CCU_NM_WITH_GATE_LOCK(pll_ddr1_clk, "pll-ddr1",
 				   CLK_SET_RATE_UNGATE);
 
 static const char * const cpux_parents[] = { "osc32k", "osc24M",
-					     "pll-cpux" , "pll-cpux" };
+					     "pll-cpux", "pll-cpux" };
 static SUNXI_CCU_MUX(cpux_clk, "cpux", cpux_parents,
 		     0x050, 16, 2, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
 
 static SUNXI_CCU_M(axi_clk, "axi", "cpux", 0x050, 0, 2, 0);
 
 static const char * const ahb1_parents[] = { "osc32k", "osc24M",
-					     "axi" , "pll-periph0" };
+					     "axi", "pll-periph0" };
 static struct ccu_div ahb1_clk = {
 	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
 
@@ -246,7 +246,7 @@ static SUNXI_CCU_DIV_TABLE(apb1_clk, "apb1", "ahb1",
 			   0x054, 8, 2, apb1_div_table, 0);
 
 static const char * const apb2_parents[] = { "osc32k", "osc24M",
-					     "pll-periph0-2x" ,
+					     "pll-periph0-2x",
 					     "pll-periph0-2x" };
 static SUNXI_CCU_MP_WITH_MUX(apb2_clk, "apb2", apb2_parents, 0x058,
 			     0, 5,	/* M */
@@ -254,7 +254,7 @@ static SUNXI_CCU_MP_WITH_MUX(apb2_clk, "apb2", apb2_parents, 0x058,
 			     24, 2,	/* mux */
 			     0);
 
-static const char * const ahb2_parents[] = { "ahb1" , "pll-periph0" };
+static const char * const ahb2_parents[] = { "ahb1", "pll-periph0" };
 static const struct ccu_mux_fixed_prediv ahb2_fixed_predivs[] = {
 	{ .index = 1, .div = 2 },
 };
@@ -504,7 +504,7 @@ static SUNXI_CCU_MUX_TABLE_WITH_GATE(tcon0_clk, "tcon0", tcon0_parents,
 
 static const char * const tcon1_parents[] = { "pll-video0", "pll-video1" };
 static const u8 tcon1_table[] = { 0, 2, };
-struct ccu_div tcon1_clk = {
+static struct ccu_div tcon1_clk = {
 	.enable		= BIT(31),
 	.div		= _SUNXI_CCU_DIV(0, 4),
 	.mux		= _SUNXI_CCU_MUX_TABLE(24, 2, tcon1_table),
