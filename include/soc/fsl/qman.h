@@ -411,7 +411,7 @@ static inline void qm_fqd_stashing_set64(struct qm_fqd *fqd, u64 addr)
 
 static inline void qm_fqd_context_a_set64(struct qm_fqd *fqd, u64 addr)
 {
-	fqd->context_a.hi = cpu_to_be16(upper_32_bits(addr));
+	fqd->context_a.hi = cpu_to_be32(upper_32_bits(addr));
 	fqd->context_a.lo = cpu_to_be32(lower_32_bits(addr));
 }
 
