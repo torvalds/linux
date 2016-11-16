@@ -20,7 +20,6 @@
 
 #define MFC_GATE_CLK_NAME	"mfc"
 #define MFC_SCLK_NAME		"sclk_mfc"
-#define MFC_SCLK_RATE		(200 * 1000000)
 
 #define CLK_DEBUG
 
@@ -57,7 +56,6 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 			mfc_info("Failed to get MFC special clock control\n");
 			pm->clock = NULL;
 		} else {
-			clk_set_rate(pm->clock, MFC_SCLK_RATE);
 			ret = clk_prepare_enable(pm->clock);
 			if (ret) {
 				mfc_err("Failed to enable MFC special clock\n");
