@@ -577,6 +577,7 @@ static void null_nvm_unregister(struct nullb *nullb)
 #else
 static int null_nvm_register(struct nullb *nullb)
 {
+	pr_err("null_blk: CONFIG_NVM needs to be enabled for LightNVM\n");
 	return -EINVAL;
 }
 static void null_nvm_unregister(struct nullb *nullb) {}
