@@ -3503,7 +3503,7 @@ __intel_display_resume(struct drm_device *dev,
 	int i, ret;
 
 	intel_modeset_setup_hw_state(dev);
-	i915_redisable_vga(dev);
+	i915_redisable_vga(to_i915(dev));
 
 	if (!state)
 		return 0;
@@ -16319,9 +16319,8 @@ static void intel_init_quirks(struct drm_device *dev)
 }
 
 /* Disable the VGA plane that we never use */
-static void i915_disable_vga(struct drm_device *dev)
+static void i915_disable_vga(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u8 sr1;
 	i915_reg_t vga_reg = i915_vgacntrl_reg(dev_priv);
@@ -16524,7 +16523,7 @@ int intel_modeset_init(struct drm_device *dev)
 		intel_update_max_cdclk(dev_priv);
 
 	/* Just disable it once at startup */
-	i915_disable_vga(dev);
+	i915_disable_vga(dev_priv);
 	intel_setup_outputs(dev);
 
 	drm_modeset_lock_all(dev);
@@ -16770,21 +16769,18 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	 * the crtc fixup. */
 }
 
-void i915_redisable_vga_power_on(struct drm_device *dev)
+void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t vga_reg = i915_vgacntrl_reg(dev_priv);
 
 	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
-		i915_disable_vga(dev);
+		i915_disable_vga(dev_priv);
 	}
 }
 
-void i915_redisable_vga(struct drm_device *dev)
+void i915_redisable_vga(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* This function can be called both from intel_modeset_setup_hw_state or
 	 * at a very early point in our resume sequence, where the power well
 	 * structures are not yet restored. Since this function is at a very
@@ -16795,7 +16791,7 @@ void i915_redisable_vga(struct drm_device *dev)
 	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_VGA))
 		return;
 
-	i915_redisable_vga_power_on(dev);
+	i915_redisable_vga_power_on(dev_priv);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
 }
