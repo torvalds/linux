@@ -149,12 +149,12 @@ struct drm_framebuffer {
 	 */
 	unsigned int offsets[4];
 	/**
-	 * @modifier: Data layout modifier, per buffer. This is used to describe
+	 * @modifier: Data layout modifier. This is used to describe
 	 * tiling, or also special layouts (like compression) of auxiliary
 	 * buffers. For userspace created object this is copied from
 	 * drm_mode_fb_cmd2.
 	 */
-	uint64_t modifier[4];
+	uint64_t modifier;
 	/**
 	 * @width: Logical width of the visible area of the framebuffer, in
 	 * pixels.

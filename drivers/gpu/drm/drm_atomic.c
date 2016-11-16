@@ -965,12 +965,12 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 
 		drm_printf(p, "\t\tformat=%s\n",
 		              drm_get_format_name(fb->pixel_format, &format_name));
+		drm_printf(p, "\t\t\tmodifier=0x%llx\n", fb->modifier);
 		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
 		drm_printf(p, "\t\tlayers:\n");
 		for (i = 0; i < n; i++) {
 			drm_printf(p, "\t\t\tpitch[%d]=%u\n", i, fb->pitches[i]);
 			drm_printf(p, "\t\t\toffset[%d]=%u\n", i, fb->offsets[i]);
-			drm_printf(p, "\t\t\tmodifier[%d]=0x%llx\n", i, fb->modifier[i]);
 		}
 	}
 	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));

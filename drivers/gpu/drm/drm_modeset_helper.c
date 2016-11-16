@@ -93,8 +93,8 @@ void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 	for (i = 0; i < 4; i++) {
 		fb->pitches[i] = mode_cmd->pitches[i];
 		fb->offsets[i] = mode_cmd->offsets[i];
-		fb->modifier[i] = mode_cmd->modifier[i];
 	}
+	fb->modifier = mode_cmd->modifier[0];
 	fb->pixel_format = mode_cmd->pixel_format;
 	fb->flags = mode_cmd->flags;
 }

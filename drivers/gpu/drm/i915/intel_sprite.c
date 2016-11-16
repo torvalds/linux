@@ -229,7 +229,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 		PLANE_CTL_PIPE_CSC_ENABLE;
 
 	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
-	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
+	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
 
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
@@ -424,7 +424,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	 */
 	sprctl |= SP_GAMMA_ENABLE;
 
-	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SP_TILED;
 
 	/* Sizes are 0 based */
@@ -460,7 +460,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
 	I915_WRITE(SPPOS(pipe, plane), (crtc_y << 16) | crtc_x);
 
-	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		I915_WRITE(SPTILEOFF(pipe, plane), (y << 16) | x);
 	else
 		I915_WRITE(SPLINOFF(pipe, plane), linear_offset);
@@ -543,7 +543,7 @@ ivb_update_plane(struct drm_plane *plane,
 	 */
 	sprctl |= SPRITE_GAMMA_ENABLE;
 
-	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SPRITE_TILED;
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -596,7 +596,7 @@ ivb_update_plane(struct drm_plane *plane,
 	 * register */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
-	else if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+	else if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
 	else
 		I915_WRITE(SPRLINOFF(pipe), linear_offset);
@@ -681,7 +681,7 @@ ilk_update_plane(struct drm_plane *plane,
 	 */
 	dvscntr |= DVS_GAMMA_ENABLE;
 
-	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		dvscntr |= DVS_TILED;
 
 	if (IS_GEN6(dev_priv))
@@ -723,7 +723,7 @@ ilk_update_plane(struct drm_plane *plane,
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
 	I915_WRITE(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
 
-	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
 		I915_WRITE(DVSTILEOFF(pipe), (y << 16) | x);
 	else
 		I915_WRITE(DVSLINOFF(pipe), linear_offset);
