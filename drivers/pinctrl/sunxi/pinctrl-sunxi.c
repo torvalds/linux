@@ -1125,10 +1125,13 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 static int sunxi_pinctrl_get_debounce_div(struct clk *clk, int freq, int *diff)
 {
 	unsigned long clock = clk_get_rate(clk);
-	unsigned int best_diff = ~0, best_div;
+	unsigned int best_diff, best_div;
 	int i;
 
-	for (i = 0; i < 8; i++) {
+	best_diff = abs(freq - clock);
+	best_div = 0;
+
+	for (i = 1; i < 8; i++) {
 		int cur_diff = abs(freq - (clock >> i));
 
 		if (cur_diff < best_diff) {
