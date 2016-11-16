@@ -598,6 +598,9 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	u64 tid;
 	int err;
 
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return 0;
+
 	/* Set the upper 32 bits of the transaction ID field to a random
 	 * number. This allows us to discard EMADs addressed to other
 	 * devices.
@@ -633,6 +636,9 @@ err_emad_trap_set:
 static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 {
 	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+
+	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
+		return;
 
 	mlxsw_core->emad.use_emad = false;
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
