@@ -201,6 +201,7 @@ struct perf_sched {
 	bool		summary_only;
 	bool		show_callchain;
 	unsigned int	max_stack;
+	bool		show_cpu_visual;
 	bool		show_wakeups;
 	u64		skipped_samples;
 };
@@ -1783,9 +1784,22 @@ static char *timehist_get_commstr(struct thread *thread)
 	return str;
 }
 
-static void timehist_header(void)
+static void timehist_header(struct perf_sched *sched)
 {
+	u32 ncpus = sched->max_cpu + 1;
+	u32 i, j;
+
 	printf("%15s %6s ", "time", "cpu");
+
+	if (sched->show_cpu_visual) {
+		printf(" ");
+		for (i = 0, j = 0; i < ncpus; ++i) {
+			printf("%x", j++);
+			if (j > 15)
+				j = 0;
+		}
+		printf(" ");
+	}
 
 	printf(" %-20s  %9s  %9s  %9s",
 		"task name", "wait time", "sch delay", "run time");
@@ -1797,12 +1811,18 @@ static void timehist_header(void)
 	 */
 	printf("%15s %-6s ", "", "");
 
+	if (sched->show_cpu_visual)
+		printf(" %*s ", ncpus, "");
+
 	printf(" %-20s  %9s  %9s  %9s\n", "[tid/pid]", "(msec)", "(msec)", "(msec)");
 
 	/*
 	 * separator
 	 */
 	printf("%.15s %.6s ", graph_dotted_line, graph_dotted_line);
+
+	if (sched->show_cpu_visual)
+		printf(" %.*s ", ncpus, graph_dotted_line);
 
 	printf(" %.20s  %.9s  %.9s  %.9s",
 		graph_dotted_line, graph_dotted_line, graph_dotted_line,
@@ -1817,10 +1837,27 @@ static void timehist_print_sample(struct perf_sched *sched,
 				  struct thread *thread)
 {
 	struct thread_runtime *tr = thread__priv(thread);
+	u32 max_cpus = sched->max_cpu + 1;
 	char tstr[64];
 
 	timestamp__scnprintf_usec(sample->time, tstr, sizeof(tstr));
 	printf("%15s [%04d] ", tstr, sample->cpu);
+
+	if (sched->show_cpu_visual) {
+		u32 i;
+		char c;
+
+		printf(" ");
+		for (i = 0; i < max_cpus; ++i) {
+			/* flag idle times with 'i'; others are sched events */
+			if (i == sample->cpu)
+				c = (thread->tid == 0) ? 'i' : 's';
+			else
+				c = ' ';
+			printf("%c", c);
+		}
+		printf(" ");
+	}
 
 	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
 
@@ -2095,6 +2132,8 @@ static void timehist_print_wakeup_event(struct perf_sched *sched,
 
 	timestamp__scnprintf_usec(sample->time, tstr, sizeof(tstr));
 	printf("%15s [%04d] ", tstr, sample->cpu);
+	if (sched->show_cpu_visual)
+		printf(" %*s ", sched->max_cpu + 1, "");
 
 	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
 
@@ -2458,7 +2497,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 		sched->summary = sched->summary_only;
 
 	if (!sched->summary_only)
-		timehist_header();
+		timehist_header(sched);
 
 	err = perf_session__process_events(session);
 	if (err) {
@@ -2842,6 +2881,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('S', "with-summary", &sched.summary,
 		    "Show all syscalls and summary with statistics"),
 	OPT_BOOLEAN('w', "wakeups", &sched.show_wakeups, "Show wakeup events"),
+	OPT_BOOLEAN('V', "cpu-visual", &sched.show_cpu_visual, "Add CPU visual"),
 	OPT_PARENT(sched_options)
 	};
 

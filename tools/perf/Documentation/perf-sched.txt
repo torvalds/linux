@@ -119,6 +119,11 @@ OPTIONS for 'perf sched timehist'
 --symfs=<directory>::
     Look for files with symbols relative to this directory.
 
+-V::
+--cpu-visual::
+	Show visual aid for sched switches by CPU: 'i' marks idle time,
+	's' are scheduler events.
+
 -w::
 --wakeups::
 	Show wakeup events.
