@@ -550,3 +550,9 @@ hibmc_user_framebuffer_create(struct drm_device *dev,
 	}
 	return &hibmc_fb->fb;
 }
+
+const struct drm_mode_config_funcs hibmc_mode_funcs = {
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+	.fb_create = hibmc_user_framebuffer_create,
+};

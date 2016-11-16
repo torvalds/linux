@@ -19,6 +19,9 @@
 #include <linux/console.h>
 #include <linux/module.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
 
@@ -44,7 +47,8 @@ static void hibmc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 }
 
 static struct drm_driver hibmc_driver = {
-	.driver_features	= DRIVER_GEM,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
+				  DRIVER_ATOMIC,
 	.fops			= &hibmc_fops,
 	.name			= "hibmc",
 	.date			= "20160828",
@@ -62,11 +66,31 @@ static struct drm_driver hibmc_driver = {
 
 static int hibmc_pm_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct hibmc_drm_private *priv = drm_dev->dev_private;
+
+	drm_kms_helper_poll_disable(drm_dev);
+	priv->suspend_state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(priv->suspend_state)) {
+		DRM_ERROR("drm_atomic_helper_suspend failed: %ld\n",
+			  PTR_ERR(priv->suspend_state));
+		drm_kms_helper_poll_enable(drm_dev);
+		return PTR_ERR(priv->suspend_state);
+	}
+
 	return 0;
 }
 
 static int hibmc_pm_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct hibmc_drm_private *priv = drm_dev->dev_private;
+
+	drm_atomic_helper_resume(drm_dev, priv->suspend_state);
+	drm_kms_helper_poll_enable(drm_dev);
+
 	return 0;
 }
 
@@ -74,6 +98,41 @@ static const struct dev_pm_ops hibmc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(hibmc_pm_suspend,
 				hibmc_pm_resume)
 };
+
+static int hibmc_kms_init(struct hibmc_drm_private *priv)
+{
+	int ret;
+
+	drm_mode_config_init(priv->dev);
+	priv->mode_config_initialized = true;
+
+	priv->dev->mode_config.min_width = 0;
+	priv->dev->mode_config.min_height = 0;
+	priv->dev->mode_config.max_width = 1920;
+	priv->dev->mode_config.max_height = 1440;
+
+	priv->dev->mode_config.fb_base = priv->fb_base;
+	priv->dev->mode_config.preferred_depth = 24;
+	priv->dev->mode_config.prefer_shadow = 0;
+
+	priv->dev->mode_config.funcs = (void *)&hibmc_mode_funcs;
+
+	ret = hibmc_de_init(priv);
+	if (ret) {
+		DRM_ERROR("failed to init de: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void hibmc_kms_fini(struct hibmc_drm_private *priv)
+{
+	if (priv->mode_config_initialized) {
+		drm_mode_config_cleanup(priv->dev);
+		priv->mode_config_initialized = false;
+	}
+}
 
 /*
  * It can operate in one of three modes: 0, 1 or Sleep.
@@ -203,6 +262,7 @@ static int hibmc_unload(struct drm_device *dev)
 	struct hibmc_drm_private *priv = dev->dev_private;
 
 	hibmc_fbdev_fini(priv);
+	hibmc_kms_fini(priv);
 	hibmc_mm_fini(priv);
 	dev->dev_private = NULL;
 	return 0;
@@ -228,6 +288,13 @@ static int hibmc_load(struct drm_device *dev)
 	ret = hibmc_mm_init(priv);
 	if (ret)
 		goto err;
+
+	ret = hibmc_kms_init(priv);
+	if (ret)
+		goto err;
+
+	/* reset all the states of crtc/plane/encoder/connector */
+	drm_mode_config_reset(dev);
 
 	ret = hibmc_fbdev_init(priv);
 	if (ret) {
