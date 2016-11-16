@@ -449,10 +449,12 @@ void tpm_bios_log_teardown(struct tpm_chip *chip)
 	 * This design ensures that open() either safely gets kref or fails.
 	 */
 	for (i = (TPM_NUM_EVENT_LOG_FILES - 1); i >= 0; i--) {
-		inode = d_inode(chip->bios_dir[i]);
-		inode_lock(inode);
-		inode->i_private = NULL;
-		inode_unlock(inode);
-		securityfs_remove(chip->bios_dir[i]);
+		if (chip->bios_dir[i]) {
+			inode = d_inode(chip->bios_dir[i]);
+			inode_lock(inode);
+			inode->i_private = NULL;
+			inode_unlock(inode);
+			securityfs_remove(chip->bios_dir[i]);
+		}
 	}
 }
