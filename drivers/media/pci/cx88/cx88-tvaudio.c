@@ -1,39 +1,34 @@
 /*
-
-    cx88x-audio.c - Conexant CX23880/23881 audio downstream driver driver
-
-     (c) 2001 Michael Eskin, Tom Zakrajsek [Windows version]
-     (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
-     (c) 2003 Gerd Knorr <kraxel@bytesex.org>
-
-    -----------------------------------------------------------------------
-
-    Lot of voodoo here.  Even the data sheet doesn't help to
-    understand what is going on here, the documentation for the audio
-    part of the cx2388x chip is *very* bad.
-
-    Some of this comes from party done linux driver sources I got from
-    [undocumented].
-
-    Some comes from the dscaler sources, one of the dscaler driver guy works
-    for Conexant ...
-
-    -----------------------------------------------------------------------
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * cx88x-audio.c - Conexant CX23880/23881 audio downstream driver driver
+ *
+ *  (c) 2001 Michael Eskin, Tom Zakrajsek [Windows version]
+ *  (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
+ *  (c) 2003 Gerd Knorr <kraxel@bytesex.org>
+ *
+ * -----------------------------------------------------------------------
+ *
+ * Lot of voodoo here.  Even the data sheet doesn't help to
+ * understand what is going on here, the documentation for the audio
+ * part of the cx2388x chip is *very* bad.
+ *
+ * Some of this comes from party done linux driver sources I got from
+ * [undocumented].
+ *
+ * Some comes from the dscaler sources, one of the dscaler driver guy works
+ * for Conexant ...
+ *
+ * -----------------------------------------------------------------------
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #include "cx88.h"
 
@@ -57,11 +52,11 @@ module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
 
 static unsigned int always_analog;
-module_param(always_analog,int,0644);
-MODULE_PARM_DESC(always_analog,"force analog audio out");
+module_param(always_analog, int, 0644);
+MODULE_PARM_DESC(always_analog, "force analog audio out");
 
 static unsigned int radio_deemphasis;
-module_param(radio_deemphasis,int,0644);
+module_param(radio_deemphasis, int, 0644);
 MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
 
 #define dprintk(fmt, arg...) do {				\
@@ -350,7 +345,7 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		{ /* end of list */ },
 	};
 
-	set_audio_start(core,SEL_NICAM);
+	set_audio_start(core, SEL_NICAM);
 	switch (core->tvaudio) {
 	case WW_L:
 		dprintk("%s SECAM-L NICAM (status: devel)\n", __func__);
@@ -770,7 +765,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		/* set nicam mode - otherwise
 		   AUD_NICAM_STATUS2 contains wrong values */
 		set_audio_standard_NICAM(core, EN_NICAM_AUTO_STEREO);
-		if (0 == cx88_detect_nicam(core)) {
+		if (cx88_detect_nicam(core) == 0) {
 			/* fall back to fm / am mono */
 			set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			core->audiomode_current = V4L2_TUNER_MODE_MONO;
@@ -869,11 +864,11 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 	}
 
 	/* If software stereo detection is not supported... */
-	if (UNSET == t->rxsubchans) {
+	if (t->rxsubchans == UNSET) {
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
 		/* If the hardware itself detected stereo, also return
 		   stereo as an available subchannel */
-		if (V4L2_TUNER_MODE_STEREO == t->audmode)
+		if (t->audmode == V4L2_TUNER_MODE_STEREO)
 			t->rxsubchans |= V4L2_TUNER_SUB_STEREO;
 	}
 	return;
@@ -887,7 +882,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 	if (manual) {
 		core->audiomode_manual = mode;
 	} else {
-		if (UNSET != core->audiomode_manual)
+		if (core->audiomode_manual != UNSET)
 			return;
 	}
 	core->audiomode_current = mode;
@@ -915,7 +910,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 	case WW_M:
 	case WW_I:
 	case WW_L:
-		if (1 == core->use_nicam) {
+		if (core->use_nicam == 1) {
 			switch (mode) {
 			case V4L2_TUNER_MODE_MONO:
 			case V4L2_TUNER_MODE_LANG1:
@@ -975,7 +970,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 		break;
 	}
 
-	if (UNSET != ctl) {
+	if (ctl != UNSET) {
 		dprintk("cx88_set_stereo: mask 0x%x, ctl 0x%x [status=0x%x,ctl=0x%x,vol=0x%x]\n",
 			mask, ctl, cx_read(AUD_STATUS),
 			cx_read(AUD_CTL), cx_sread(SHADOW_AUD_VOL_CTL));
@@ -1011,7 +1006,7 @@ int cx88_audio_thread(void *data)
 			memset(&t, 0, sizeof(t));
 			cx88_get_stereo(core, &t);
 
-			if (UNSET != core->audiomode_manual)
+			if (core->audiomode_manual != UNSET)
 				/* manually set, don't do anything. */
 				continue;
 

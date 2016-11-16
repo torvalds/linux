@@ -1,5 +1,4 @@
 /*
- *
  *  Support for a cx23416 mpeg encoder via cx2388x host port.
  *  "blackbird" reference design.
  *
@@ -20,10 +19,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx88.h"
@@ -46,8 +41,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
 static unsigned int debug;
-module_param(debug,int,0644);
-MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable debug messages [blackbird]");
 
 #define dprintk(level, fmt, arg...) do {				\
 	if (debug + 1 > level)						\
@@ -216,14 +211,14 @@ static void host_setup(struct cx88_core *core)
 static int wait_ready_gpio0_bit1(struct cx88_core *core, u32 state)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1);
-	u32 gpio0,need;
+	u32 gpio0, need;
 
 	need = state ? 2 : 0;
 	for (;;) {
 		gpio0 = cx_read(MO_GP0_IO) & 2;
 		if (need == gpio0)
 			return 0;
-		if (time_after(jiffies,timeout))
+		if (time_after(jiffies, timeout))
 			return -1;
 		udelay(1);
 	}
@@ -242,7 +237,7 @@ static int memory_write(struct cx88_core *core, u32 address, u32 value)
 	cx_read(P1_MDATA0);
 	cx_read(P1_MADDR0);
 
-	return wait_ready_gpio0_bit1(core,1);
+	return wait_ready_gpio0_bit1(core, 1);
 }
 
 static int memory_read(struct cx88_core *core, u32 address, u32 *value)
@@ -256,7 +251,7 @@ static int memory_read(struct cx88_core *core, u32 address, u32 *value)
 	cx_writeb(P1_MADDR0, (unsigned int)address);
 	cx_read(P1_MADDR0);
 
-	retval = wait_ready_gpio0_bit1(core,1);
+	retval = wait_ready_gpio0_bit1(core, 1);
 
 	cx_writeb(P1_MDATA3, 0);
 	val     = (unsigned char)cx_read(P1_MDATA3) << 24;
@@ -283,7 +278,7 @@ static int register_write(struct cx88_core *core, u32 address, u32 value)
 	cx_read(P1_RDATA0);
 	cx_read(P1_RADDR0);
 
-	return wait_ready_gpio0_bit1(core,1);
+	return wait_ready_gpio0_bit1(core, 1);
 }
 
 
@@ -297,7 +292,7 @@ static int register_read(struct cx88_core *core, u32 address, u32 *value)
 	cx_writeb(P1_RRDWR, 0);
 	cx_read(P1_RADDR0);
 
-	retval  = wait_ready_gpio0_bit1(core,1);
+	retval  = wait_ready_gpio0_bit1(core, 1);
 	val     = (unsigned char)cx_read(P1_RDATA0);
 	val    |= (unsigned char)cx_read(P1_RDATA1) << 8;
 	val    |= (unsigned char)cx_read(P1_RDATA2) << 16;
@@ -316,7 +311,7 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	u32 value, flag, retval;
 	int i;
 
-	dprintk(1,"%s: 0x%X\n", __func__, command);
+	dprintk(1, "%s: 0x%X\n", __func__, command);
 
 	/* this may not be 100% safe if we can't read any memory location
 	   without side effects */
@@ -354,7 +349,7 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 		memory_read(dev->core, dev->mailbox, &flag);
 		if (0 != (flag & 4))
 			break;
-		if (time_after(jiffies,timeout)) {
+		if (time_after(jiffies, timeout)) {
 			dprintk(0, "ERROR: API Mailbox timeout %x\n", command);
 			return -EIO;
 		}
@@ -368,7 +363,7 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	}
 
 	memory_read(dev->core, dev->mailbox + 2, &retval);
-	dprintk(1, "API result = %d\n",retval);
+	dprintk(1, "API result = %d\n", retval);
 
 	flag = 0;
 	memory_write(dev->core, dev->mailbox, flag);
@@ -400,8 +395,8 @@ static int blackbird_api_cmd(struct cx8802_dev *dev, u32 command,
 
 static int blackbird_find_mailbox(struct cx8802_dev *dev)
 {
-	u32 signature[4]={0x12345678, 0x34567812, 0x56781234, 0x78123456};
-	int signaturecnt=0;
+	u32 signature[4] = {0x12345678, 0x34567812, 0x56781234, 0x78123456};
+	int signaturecnt = 0;
 	u32 value;
 	int i;
 
@@ -411,7 +406,7 @@ static int blackbird_find_mailbox(struct cx8802_dev *dev)
 			signaturecnt++;
 		else
 			signaturecnt = 0;
-		if (4 == signaturecnt) {
+		if (signaturecnt == 4) {
 			dprintk(1, "Mailbox signature found\n");
 			return i+1;
 		}
@@ -459,14 +454,14 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 		return -EINVAL;
 	}
 
-	if (0 != memcmp(firmware->data, magic, 8)) {
+	if (memcmp(firmware->data, magic, 8) != 0) {
 		pr_err("Firmware magic mismatch, wrong file?\n");
 		release_firmware(firmware);
 		return -EINVAL;
 	}
 
 	/* transfer to the chip */
-	dprintk(1,"Loading firmware ...\n");
+	dprintk(1, "Loading firmware ...\n");
 	dataptr = (__le32 *)firmware->data;
 	for (i = 0; i < (firmware->size >> 2); i++) {
 		value = le32_to_cpu(*dataptr);
@@ -534,7 +529,7 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	int version;
 	int retval;
 
-	dprintk(1,"Initialize codec\n");
+	dprintk(1, "Initialize codec\n");
 	retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
 		/* ping was not successful, reset and upload firmware */
@@ -782,7 +777,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index != 0)
@@ -815,7 +810,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
-	unsigned maxw, maxh;
+	unsigned int maxw, maxh;
 	enum v4l2_field field;
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
@@ -871,14 +866,14 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_frequency (struct file *file, void *priv,
+static int vidioc_s_frequency(struct file *file, void *priv,
 				const struct v4l2_frequency *f)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 	bool streaming;
 
-	if (unlikely(UNSET == core->board.tuner_type))
+	if (unlikely(core->board.tuner_type == UNSET))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
@@ -886,7 +881,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	if (streaming)
 		blackbird_stop_codec(dev);
 
-	cx88_set_freq (core,f);
+	cx88_set_freq(core, f);
 	blackbird_initialize_codec(dev);
 	cx88_set_scale(core, core->width, core->height,
 			core->field);
@@ -895,7 +890,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_log_status (struct file *file, void *priv)
+static int vidioc_log_status(struct file *file, void *priv)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
@@ -907,21 +902,22 @@ static int vidioc_log_status (struct file *file, void *priv)
 	return 0;
 }
 
-static int vidioc_enum_input (struct file *file, void *priv,
+static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *i)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
-	return cx88_enum_input (core,i);
+
+	return cx88_enum_input(core, i);
 }
 
-static int vidioc_g_frequency (struct file *file, void *priv,
+static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	if (unlikely(UNSET == core->board.tuner_type))
+	if (unlikely(core->board.tuner_type == UNSET))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
@@ -932,7 +928,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
+static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
@@ -941,7 +937,7 @@ static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
+static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
@@ -952,20 +948,20 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 		return -EINVAL;
 
 	cx88_newstation(core);
-	cx88_video_mux(core,i);
+	cx88_video_mux(core, i);
 	return 0;
 }
 
-static int vidioc_g_tuner (struct file *file, void *priv,
+static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 	u32 reg;
 
-	if (unlikely(UNSET == core->board.tuner_type))
+	if (unlikely(core->board.tuner_type == UNSET))
 		return -EINVAL;
-	if (0 != t->index)
+	if (t->index != 0)
 		return -EINVAL;
 
 	strcpy(t->name, "Television");
@@ -973,21 +969,21 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 	t->rangehigh  = 0xffffffffUL;
 	call_all(core, tuner, g_tuner, t);
 
-	cx88_get_stereo(core ,t);
+	cx88_get_stereo(core, t);
 	reg = cx_read(MO_DEVICE_STATUS);
 	t->signal = (reg & (1<<5)) ? 0xffff : 0x0000;
 	return 0;
 }
 
-static int vidioc_s_tuner (struct file *file, void *priv,
+static int vidioc_s_tuner(struct file *file, void *priv,
 				const struct v4l2_tuner *t)
 {
 	struct cx8802_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	if (UNSET == core->board.tuner_type)
+	if (core->board.tuner_type == UNSET)
 		return -EINVAL;
-	if (0 != t->index)
+	if (t->index != 0)
 		return -EINVAL;
 
 	cx88_set_stereo(core, t->audmode, 1);
@@ -1011,8 +1007,8 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 	return cx88_set_tvnorm(core, id);
 }
 
-static const struct v4l2_file_operations mpeg_fops =
-{
+static const struct v4l2_file_operations mpeg_fops = {
+
 	.owner	       = THIS_MODULE,
 	.open	       = v4l2_fh_open,
 	.release       = vb2_fop_release,
@@ -1051,7 +1047,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 static struct video_device cx8802_mpeg_template = {
 	.name                 = "cx8802",
 	.fops                 = &mpeg_fops,
-	.ioctl_ops 	      = &mpeg_ioctl_ops,
+	.ioctl_ops	      = &mpeg_ioctl_ops,
 	.tvnorms              = CX88_NORMS,
 };
 
@@ -1136,8 +1132,8 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	struct vb2_queue *q;
 	int err;
 
-	dprintk( 1, "%s\n", __func__);
-	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
+	dprintk(1, "%s\n", __func__);
+	dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
 		core->boardnr,
 		core->name,
 		core->pci_bus,
@@ -1165,8 +1161,8 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 
 	/* initial device configuration: needed ? */
 //	init_controls(core);
-	cx88_set_tvnorm(core,core->tvnorm);
-	cx88_video_mux(core,0);
+	cx88_set_tvnorm(core, core->tvnorm);
+	cx88_video_mux(core, 0);
 	cx2341x_handler_set_50hz(&dev->cxhdl, core->height == 576);
 	cx2341x_handler_setup(&dev->cxhdl);
 

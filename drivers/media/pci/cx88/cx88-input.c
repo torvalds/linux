@@ -16,10 +16,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include "cx88.h"
@@ -58,7 +54,7 @@ struct cx88_IR {
 	u32 mask_keyup;
 };
 
-static unsigned ir_samplerate = 4;
+static unsigned int ir_samplerate = 4;
 module_param(ir_samplerate, uint, 0444);
 MODULE_PARM_DESC(ir_samplerate, "IR samplerate in kHz, 1 - 20, default 4");
 
@@ -67,10 +63,10 @@ module_param(ir_debug, int, 0644);	/* debug level [IR] */
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define ir_dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "%s IR: " fmt , ir->core->name , ##arg)
+	printk(KERN_DEBUG "%s IR: " fmt, ir->core->name, ##arg)
 
 #define dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "cx88 IR: " fmt , ##arg)
+	printk(KERN_DEBUG "cx88 IR: " fmt, ##arg)
 
 /* ---------------------------------------------------------------------- */
 
@@ -97,7 +93,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		auxgpio = cx_read(MO_GP1_IO);
 		/* Take out the parity part */
-		gpio=(gpio & 0x7fd) + (auxgpio & 0xef);
+		gpio = (gpio & 0x7fd) + (auxgpio & 0xef);
 		break;
 	case CX88_BOARD_WINFAST_DTV1000:
 	case CX88_BOARD_WINFAST_DTV1800H:
@@ -512,7 +508,7 @@ int cx88_ir_fini(struct cx88_core *core)
 	struct cx88_IR *ir = core->ir;
 
 	/* skip detach on non attached boards */
-	if (NULL == ir)
+	if (ir == NULL)
 		return 0;
 
 	cx88_ir_stop(core);
@@ -530,7 +526,7 @@ void cx88_ir_irq(struct cx88_core *core)
 {
 	struct cx88_IR *ir = core->ir;
 	u32 samples;
-	unsigned todo, bits;
+	unsigned int todo, bits;
 	struct ir_raw_event ev;
 
 	if (!ir || !ir->sampling)
@@ -602,7 +598,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 	const unsigned short *addr_list = default_addr_list;
 	const unsigned short *addrp;
 	/* Instantiate the IR receiver device, if present */
-	if (0 != core->i2c_rc)
+	if (core->i2c_rc != 0)
 		return;
 
 	memset(&info, 0, sizeof(struct i2c_board_info));

@@ -1,5 +1,4 @@
 /*
- *
  *  Stereo and SAP detection for cx88
  *
  *  Copyright (c) 2009 Marton Balint <cus@fazekas.hu>
@@ -13,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx88.h"
@@ -82,6 +77,7 @@ static s32 int_cos(u32 x)
 	u32 t2, t4, t6, t8;
 	s32 ret;
 	u16 period = x / INT_PI;
+
 	if (period % 2)
 		return -int_cos(x - INT_PI);
 	x = x % INT_PI;
@@ -111,6 +107,7 @@ static u32 int_goertzel(s16 x[], u32 N, u32 freq)
 
 	for (i = 0; i < N; i++) {
 		s32 s = x[i] + ((s64)coeff * s_prev / 32768) - s_prev2;
+
 		s_prev2 = s_prev;
 		s_prev = s;
 	}
@@ -129,6 +126,7 @@ static u32 int_goertzel(s16 x[], u32 N, u32 freq)
 static u32 freq_magnitude(s16 x[], u32 N, u32 freq)
 {
 	u32 sum = int_goertzel(x, N, freq);
+
 	return (u32)int_sqrt(sum);
 }
 
@@ -225,6 +223,7 @@ static s32 detect_btsc(struct cx88_core *core, s16 x[], u32 N)
 	s32 sap = freq_magnitude(x, N, FREQ_BTSC_SAP);
 	s32 dual_ref = freq_magnitude(x, N, FREQ_BTSC_DUAL_REF);
 	s32 dual = freq_magnitude(x, N, FREQ_BTSC_DUAL);
+
 	dprintk(1, "detect btsc: dual_ref=%d, dual=%d, sap_ref=%d, sap=%d\n",
 		dual_ref, dual, sap_ref, sap);
 	/* FIXME: Currently not supported */
@@ -307,7 +306,7 @@ s32 cx88_dsp_detect_stereo_sap(struct cx88_core *core)
 
 	kfree(samples);
 
-	if (UNSET != ret)
+	if (ret != UNSET)
 		dprintk(1, "stereo/sap detection result:%s%s%s\n",
 			   (ret & V4L2_TUNER_SUB_MONO) ? " mono" : "",
 			   (ret & V4L2_TUNER_SUB_STEREO) ? " stereo" : "",

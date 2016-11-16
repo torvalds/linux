@@ -8,8 +8,8 @@
 #include <linux/init.h>
 
 static unsigned int vbi_debug;
-module_param(vbi_debug,int,0644);
-MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
+module_param(vbi_debug, int, 0644);
+MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
 
 #define dprintk(level, fmt, arg...) do {			\
 	if (vbi_debug >= level)					\
@@ -19,7 +19,7 @@ MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
 
 /* ------------------------------------------------------------------ */
 
-int cx8800_vbi_fmt (struct file *file, void *priv,
+int cx8800_vbi_fmt(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
@@ -57,9 +57,9 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	cx88_sram_channel_setup(dev->core, &cx88_sram_channels[SRAM_CH24],
 				VBI_LINE_LENGTH, buf->risc.dma);
 
-	cx_write(MO_VBOS_CONTROL, ( (1 << 18) |  // comb filter delay fixup
+	cx_write(MO_VBOS_CONTROL, ((1 << 18) |  // comb filter delay fixup
 				    (1 << 15) |  // enable vbi capture
-				    (1 << 11) ));
+				    (1 << 11)));
 
 	/* reset counter */
 	cx_write(MO_VBI_GPCNTRL, GP_COUNT_CONTROL_RESET);
@@ -70,7 +70,7 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	cx_set(MO_VID_INTMSK, 0x0f0088);
 
 	/* enable capture */
-	cx_set(VID_CAPTURE_CONTROL,0x18);
+	cx_set(VID_CAPTURE_CONTROL, 0x18);
 
 	/* start dma */
 	cx_set(MO_DEV_CNTRL2, (1<<5));
@@ -87,7 +87,7 @@ void cx8800_stop_vbi_dma(struct cx8800_dev *dev)
 	cx_clear(MO_VID_DMACNTRL, 0x88);
 
 	/* disable capture */
-	cx_clear(VID_CAPTURE_CONTROL,0x18);
+	cx_clear(VID_CAPTURE_CONTROL, 0x18);
 
 	/* disable irqs */
 	cx_clear(MO_PCI_INTMSK, PCI_INT_VIDINT);
@@ -103,7 +103,7 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 		return 0;
 
 	buf = list_entry(q->active.next, struct cx88_buffer, list);
-	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
+	dprintk(2, "restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.vb2_buf.index);
 	cx8800_start_vbi_dma(dev, q, buf);
 	return 0;
@@ -179,7 +179,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	if (list_empty(&q->active)) {
 		list_add_tail(&buf->list, &q->active);
 		cx8800_start_vbi_dma(dev, q, buf);
-		dprintk(2,"[%p/%d] vbi_queue - first active\n",
+		dprintk(2, "[%p/%d] vbi_queue - first active\n",
 			buf, buf->vb.vb2_buf.index);
 
 	} else {
@@ -187,7 +187,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		prev = list_entry(q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &q->active);
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
-		dprintk(2,"[%p/%d] buffer_queue - append to active\n",
+		dprintk(2, "[%p/%d] buffer_queue - append to active\n",
 			buf, buf->vb.vb2_buf.index);
 	}
 }

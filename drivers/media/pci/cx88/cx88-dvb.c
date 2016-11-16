@@ -1,5 +1,4 @@
 /*
- *
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
  *
@@ -15,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx88.h"
@@ -70,7 +65,7 @@ MODULE_VERSION(CX88_VERSION);
 
 static unsigned int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,"enable debug messages [dvb]");
+MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
 
 static unsigned int dvb_buf_tscnt = 32;
 module_param(dvb_buf_tscnt, int, 0644);
@@ -173,9 +168,9 @@ static const struct vb2_ops dvb_qops = {
 
 /* ------------------------------------------------------------------ */
 
-static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
+static int cx88_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
 	struct cx8802_driver *drv = NULL;
 	int ret = 0;
 	int fe_id;
@@ -189,7 +184,7 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 	mutex_lock(&dev->core->lock);
 	drv = cx8802_get_driver(dev, CX88_MPEG_DVB);
 	if (drv) {
-		if (acquire){
+		if (acquire) {
 			dev->frontends.active_fe_id = fe_id;
 			ret = drv->request_acquire(drv);
 		} else {
@@ -226,13 +221,13 @@ static void cx88_dvb_gate_ctrl(struct cx88_core  *core, int open)
 
 /* ------------------------------------------------------------------ */
 
-static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
+static int dvico_fusionhdtv_demod_init(struct dvb_frontend *fe)
 {
-	static const u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
-	static const u8 reset []         = { RESET,      0x80 };
-	static const u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
-	static const u8 agc_cfg []       = { AGC_TARGET, 0x24, 0x20 };
-	static const u8 gpp_ctl_cfg []   = { GPP_CTL,    0x33 };
+	static const u8 clock_config[]  = { CLOCK_CTL,  0x38, 0x39 };
+	static const u8 reset[]         = { RESET,      0x80 };
+	static const u8 adc_ctl_1_cfg[] = { ADC_CTL_1,  0x40 };
+	static const u8 agc_cfg[]       = { AGC_TARGET, 0x24, 0x20 };
+	static const u8 gpp_ctl_cfg[]   = { GPP_CTL,    0x33 };
 	static const u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
@@ -248,11 +243,11 @@ static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
 
 static int dvico_dual_demod_init(struct dvb_frontend *fe)
 {
-	static const u8 clock_config []  = { CLOCK_CTL,  0x38, 0x38 };
-	static const u8 reset []         = { RESET,      0x80 };
-	static const u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
-	static const u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
-	static const u8 gpp_ctl_cfg []   = { GPP_CTL,    0x33 };
+	static const u8 clock_config[]  = { CLOCK_CTL,  0x38, 0x38 };
+	static const u8 reset[]         = { RESET,      0x80 };
+	static const u8 adc_ctl_1_cfg[] = { ADC_CTL_1,  0x40 };
+	static const u8 agc_cfg[]       = { AGC_TARGET, 0x28, 0x20 };
+	static const u8 gpp_ctl_cfg[]   = { GPP_CTL,    0x33 };
 	static const u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
@@ -267,12 +262,12 @@ static int dvico_dual_demod_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int dntv_live_dvbt_demod_init(struct dvb_frontend* fe)
+static int dntv_live_dvbt_demod_init(struct dvb_frontend *fe)
 {
-	static const u8 clock_config []  = { 0x89, 0x38, 0x39 };
-	static const u8 reset []         = { 0x50, 0x80 };
-	static const u8 adc_ctl_1_cfg [] = { 0x8E, 0x40 };
-	static const u8 agc_cfg []       = { 0x67, 0x10, 0x23, 0x00, 0xFF, 0xFF,
+	static const u8 clock_config[]  = { 0x89, 0x38, 0x39 };
+	static const u8 reset[]         = { 0x50, 0x80 };
+	static const u8 adc_ctl_1_cfg[] = { 0x8E, 0x40 };
+	static const u8 agc_cfg[]       = { 0x67, 0x10, 0x23, 0x00, 0xFF, 0xFF,
 				       0x00, 0xFF, 0x00, 0x40, 0x40 };
 	static const u8 dntv_extra[]     = { 0xB5, 0x7A };
 	static const u8 capt_range_cfg[] = { 0x75, 0x32 };
@@ -316,12 +311,12 @@ static struct mb86a16_config twinhan_vp1027 = {
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
-static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
+static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend *fe)
 {
-	static const u8 clock_config []  = { 0x89, 0x38, 0x38 };
-	static const u8 reset []         = { 0x50, 0x80 };
-	static const u8 adc_ctl_1_cfg [] = { 0x8E, 0x40 };
-	static const u8 agc_cfg []       = { 0x67, 0x10, 0x20, 0x00, 0xFF, 0xFF,
+	static const u8 clock_config[]  = { 0x89, 0x38, 0x38 };
+	static const u8 reset[]         = { 0x50, 0x80 };
+	static const u8 adc_ctl_1_cfg[] = { 0x8E, 0x40 };
+	static const u8 agc_cfg[]       = { 0x67, 0x10, 0x20, 0x00, 0xFF, 0xFF,
 				       0x00, 0xFF, 0x00, 0x40, 0x40 };
 	static const u8 dntv_extra[]     = { 0xB5, 0x7A };
 	static const u8 capt_range_cfg[] = { 0x75, 0x32 };
@@ -378,9 +373,10 @@ static const struct cx22702_config hauppauge_hvr_config = {
 	.output_mode   = CX22702_SERIAL_OUTPUT,
 };
 
-static int or51132_set_ts_param(struct dvb_frontend* fe, int is_punctured)
+static int or51132_set_ts_param(struct dvb_frontend *fe, int is_punctured)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
+
 	dev->ts_gen_cntrl = is_punctured ? 0x04 : 0x00;
 	return 0;
 }
@@ -390,9 +386,9 @@ static const struct or51132_config pchdtv_hd3000 = {
 	.set_ts_params = or51132_set_ts_param,
 };
 
-static int lgdt330x_pll_rf_set(struct dvb_frontend* fe, int index)
+static int lgdt330x_pll_rf_set(struct dvb_frontend *fe, int index)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
 	dprintk(1, "%s: index = %d\n", __func__, index);
@@ -403,9 +399,10 @@ static int lgdt330x_pll_rf_set(struct dvb_frontend* fe, int index)
 	return 0;
 }
 
-static int lgdt330x_set_ts_param(struct dvb_frontend* fe, int is_punctured)
+static int lgdt330x_set_ts_param(struct dvb_frontend *fe, int is_punctured)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
+
 	if (is_punctured)
 		dev->ts_gen_cntrl |= 0x04;
 	else
@@ -434,9 +431,10 @@ static const struct lgdt330x_config pchdtv_hd5500 = {
 	.set_ts_params = lgdt330x_set_ts_param,
 };
 
-static int nxt200x_set_ts_param(struct dvb_frontend* fe, int is_punctured)
+static int nxt200x_set_ts_param(struct dvb_frontend *fe, int is_punctured)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
+
 	dev->ts_gen_cntrl = is_punctured ? 0x04 : 0x00;
 	return 0;
 }
@@ -446,18 +444,19 @@ static const struct nxt200x_config ati_hdtvwonder = {
 	.set_ts_params = nxt200x_set_ts_param,
 };
 
-static int cx24123_set_ts_param(struct dvb_frontend* fe,
+static int cx24123_set_ts_param(struct dvb_frontend *fe,
 	int is_punctured)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
+
 	dev->ts_gen_cntrl = 0x02;
 	return 0;
 }
 
-static int kworld_dvbs_100_set_voltage(struct dvb_frontend* fe,
+static int kworld_dvbs_100_set_voltage(struct dvb_frontend *fe,
 				       enum fe_sec_voltage voltage)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
 	if (voltage == SEC_VOLTAGE_OFF)
@@ -473,11 +472,11 @@ static int kworld_dvbs_100_set_voltage(struct dvb_frontend* fe,
 static int geniatech_dvbs_set_voltage(struct dvb_frontend *fe,
 				      enum fe_sec_voltage voltage)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
 	if (voltage == SEC_VOLTAGE_OFF) {
-		dprintk(1,"LNB Voltage OFF\n");
+		dprintk(1, "LNB Voltage OFF\n");
 		cx_write(MO_GP0_IO, 0x0000efff);
 	}
 
@@ -489,7 +488,7 @@ static int geniatech_dvbs_set_voltage(struct dvb_frontend *fe,
 static int tevii_dvbs_set_voltage(struct dvb_frontend *fe,
 				  enum fe_sec_voltage voltage)
 {
-	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx8802_dev *dev = fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
 	cx_set(MO_GP0_IO, 0x6040);
@@ -688,6 +687,7 @@ static int cx24116_set_ts_param(struct dvb_frontend *fe,
 	int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
+
 	dev->ts_gen_cntrl = 0x2;
 
 	return 0;
@@ -697,6 +697,7 @@ static int stv0900_set_ts_param(struct dvb_frontend *fe,
 	int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
+
 	dev->ts_gen_cntrl = 0;
 
 	return 0;
@@ -734,6 +735,7 @@ static int ds3000_set_ts_param(struct dvb_frontend *fe,
 	int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
+
 	dev->ts_gen_cntrl = 4;
 
 	return 0;
@@ -1005,7 +1007,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	int mfe_shared = 0; /* bus not shared by default */
 	int res = -EINVAL;
 
-	if (0 != core->i2c_rc) {
+	if (core->i2c_rc != 0) {
 		pr_err("no i2c-bus available, cannot attach dvb drivers\n");
 		goto frontend_detach;
 	}
@@ -1423,7 +1425,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (attach_xc3028(0x61, dev) < 0)
 			goto frontend_detach;
 		break;
-	 case CX88_BOARD_KWORLD_ATSC_120:
+	case CX88_BOARD_KWORLD_ATSC_120:
 		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 					       &kworld_atsc_120_config,
 					       &core->i2c_adap);
@@ -1617,7 +1619,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	}
 
-	if ( (NULL == fe0->dvb.frontend) || (fe1 && NULL == fe1->dvb.frontend) ) {
+	if ((NULL == fe0->dvb.frontend) || (fe1 && NULL == fe1->dvb.frontend)) {
 		pr_err("frontend initialization failed\n");
 		goto frontend_detach;
 	}
@@ -1653,7 +1655,8 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	int err = 0;
-	dprintk( 1, "%s\n", __func__);
+
+	dprintk(1, "%s\n", __func__);
 
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -1717,7 +1720,8 @@ static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	int err = 0;
-	dprintk( 1, "%s\n", __func__);
+
+	dprintk(1, "%s\n", __func__);
 
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -1740,8 +1744,8 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	struct vb2_dvb_frontend *fe;
 	int i;
 
-	dprintk( 1, "%s\n", __func__);
-	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
+	dprintk(1, "%s\n", __func__);
+	dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
 		core->boardnr,
 		core->name,
 		core->pci_bus,
@@ -1753,7 +1757,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 
 	/* If vp3054 isn't enabled, a stub will just return 0 */
 	err = vp3054_i2c_probe(dev);
-	if (0 != err)
+	if (err != 0)
 		goto fail_core;
 
 	/* dvb stuff */
@@ -1811,7 +1815,7 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = drv->core->dvbdev;
 
-	dprintk( 1, "%s\n", __func__);
+	dprintk(1, "%s\n", __func__);
 
 	vb2_dvb_unregister_bus(&dev->frontends);
 

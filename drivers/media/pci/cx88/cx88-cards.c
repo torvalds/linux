@@ -1,5 +1,4 @@
 /*
- *
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
  *
@@ -14,10 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx88.h"
@@ -38,19 +33,19 @@ module_param_array(tuner, int, NULL, 0444);
 module_param_array(radio, int, NULL, 0444);
 module_param_array(card,  int, NULL, 0444);
 
-MODULE_PARM_DESC(tuner,"tuner type");
-MODULE_PARM_DESC(radio,"radio tuner type");
-MODULE_PARM_DESC(card,"card type");
+MODULE_PARM_DESC(tuner, "tuner type");
+MODULE_PARM_DESC(radio, "radio tuner type");
+MODULE_PARM_DESC(card, "card type");
 
 static unsigned int latency = UNSET;
-module_param(latency,int,0444);
-MODULE_PARM_DESC(latency,"pci latency timer");
+module_param(latency, int, 0444);
+MODULE_PARM_DESC(latency, "pci latency timer");
 
 static int disable_ir;
 module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir, "Disable IR support");
 
-#define dprintk(level,fmt, arg...)	do {				\
+#define dprintk(level, fmt, arg...)	do {				\
 	if (cx88_core_debug >= level)					\
 		printk(KERN_DEBUG pr_fmt("%s: core:" fmt),		\
 			__func__, ##arg);				\
@@ -2911,33 +2906,33 @@ static const struct {
 	int  fm;
 	const char *name;
 } gdi_tuner[] = {
-	[ 0x01 ] = { .id   = UNSET,
+	[0x01] = { .id   = UNSET,
 		     .name = "NTSC_M" },
-	[ 0x02 ] = { .id   = UNSET,
+	[0x02] = { .id   = UNSET,
 		     .name = "PAL_B" },
-	[ 0x03 ] = { .id   = UNSET,
+	[0x03] = { .id   = UNSET,
 		     .name = "PAL_I" },
-	[ 0x04 ] = { .id   = UNSET,
+	[0x04] = { .id   = UNSET,
 		     .name = "PAL_D" },
-	[ 0x05 ] = { .id   = UNSET,
+	[0x05] = { .id   = UNSET,
 		     .name = "SECAM" },
 
-	[ 0x10 ] = { .id   = UNSET,
+	[0x10] = { .id   = UNSET,
 		     .fm   = 1,
 		     .name = "TEMIC_4049" },
-	[ 0x11 ] = { .id   = TUNER_TEMIC_4136FY5,
+	[0x11] = { .id   = TUNER_TEMIC_4136FY5,
 		     .name = "TEMIC_4136" },
-	[ 0x12 ] = { .id   = UNSET,
+	[0x12] = { .id   = UNSET,
 		     .name = "TEMIC_4146" },
 
-	[ 0x20 ] = { .id   = TUNER_PHILIPS_FQ1216ME,
+	[0x20] = { .id   = TUNER_PHILIPS_FQ1216ME,
 		     .fm   = 1,
 		     .name = "PHILIPS_FQ1216_MK3" },
-	[ 0x21 ] = { .id   = UNSET, .fm = 1,
+	[0x21] = { .id   = UNSET, .fm = 1,
 		     .name = "PHILIPS_FQ1236_MK3" },
-	[ 0x22 ] = { .id   = UNSET,
+	[0x22] = { .id   = UNSET,
 		     .name = "PHILIPS_FI1236_MK3" },
-	[ 0x23 ] = { .id   = UNSET,
+	[0x23] = { .id   = UNSET,
 		     .name = "PHILIPS_FI1216_MK3" },
 };
 
@@ -2947,7 +2942,7 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 		? gdi_tuner[eeprom_data[0x0d]].name : NULL;
 
 	pr_info("GDI: tuner=%s\n", name ? name : "unknown");
-	if (NULL == name)
+	if (name == NULL)
 		return;
 	core->board.tuner_type = gdi_tuner[eeprom_data[0x0d]].id;
 	core->board.radio.type = gdi_tuner[eeprom_data[0x0d]].fm ?
@@ -3167,7 +3162,7 @@ static int cx88_xc4000_tuner_callback(struct cx88_core *core,
 }
 
 /* ----------------------------------------------------------------------- */
-/* Tuner callback function. Currently only needed for the Pinnacle 	   *
+/* Tuner callback function. Currently only needed for the Pinnacle	   *
  * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
  * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
 
@@ -3401,7 +3396,7 @@ static void cx88_card_setup(struct cx88_core *core)
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 
-	if (0 == core->i2c_rc) {
+	if (core->i2c_rc == 0) {
 		core->i2c_client.addr = 0xa0 >> 1;
 		tveeprom_read(&core->i2c_client, eeprom, sizeof(eeprom));
 	}
@@ -3409,17 +3404,17 @@ static void cx88_card_setup(struct cx88_core *core)
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_ROSLYN:
-		if (0 == core->i2c_rc)
+		if (core->i2c_rc == 0)
 			hauppauge_eeprom(core, eeprom+8);
 		break;
 	case CX88_BOARD_GDI:
-		if (0 == core->i2c_rc)
+		if (core->i2c_rc == 0)
 			gdi_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_LEADTEK_PVR2000:
 	case CX88_BOARD_WINFAST_DV2000:
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
-		if (0 == core->i2c_rc)
+		if (core->i2c_rc == 0)
 			leadtek_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
@@ -3432,7 +3427,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
 	case CX88_BOARD_HAUPPAUGE_IRONLY:
-		if (0 == core->i2c_rc)
+		if (core->i2c_rc == 0)
 			hauppauge_eeprom(core, eeprom);
 		break;
 	case CX88_BOARD_KWORLD_DVBS_100:
@@ -3478,21 +3473,21 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_write(MO_GP0_IO, 0x00080808);
 		break;
 	case CX88_BOARD_ATI_HDTVWONDER:
-		if (0 == core->i2c_rc) {
+		if (core->i2c_rc == 0) {
 			/* enable tuner */
 			int i;
-			static const u8 buffer [][2] = {
-				{0x10,0x12},
-				{0x13,0x04},
-				{0x16,0x00},
-				{0x14,0x04},
-				{0x17,0x00}
+			static const u8 buffer[][2] = {
+				{0x10, 0x12},
+				{0x13, 0x04},
+				{0x16, 0x00},
+				{0x14, 0x04},
+				{0x17, 0x00}
 			};
 			core->i2c_client.addr = 0x0a;
 
 			for (i = 0; i < ARRAY_SIZE(buffer); i++)
 				if (2 != i2c_master_send(&core->i2c_client,
-							buffer[i],2))
+							buffer[i], 2))
 					pr_warn("Unable to enable tuner(%i).\n",
 						i);
 		}
@@ -3616,7 +3611,7 @@ static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
 #endif
 
 	/* check insmod options */
-	if (UNSET != latency)
+	if (latency != UNSET)
 		lat = latency;
 
 	/* apply stuff */
@@ -3625,7 +3620,7 @@ static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
 		value |= ctrl;
 		pci_write_config_byte(pci, CX88X_DEVCTRL, value);
 	}
-	if (UNSET != lat) {
+	if (lat != UNSET) {
 		pr_info("setting pci latency timer to %d\n",
 			latency);
 		pci_write_config_byte(pci, PCI_LATENCY_TIMER, latency);
@@ -3635,8 +3630,8 @@ static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
 
 int cx88_get_resources(const struct cx88_core *core, struct pci_dev *pci)
 {
-	if (request_mem_region(pci_resource_start(pci,0),
-			       pci_resource_len(pci,0),
+	if (request_mem_region(pci_resource_start(pci, 0),
+			       pci_resource_len(pci, 0),
 			       core->name))
 		return 0;
 	pr_err("func %d: Can't get MMIO memory @ 0x%llx, subsystem: %04x:%04x\n",
@@ -3692,7 +3687,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		return NULL;
 	}
 
-	if (0 != cx88_get_resources(core, pci)) {
+	if (cx88_get_resources(core, pci) != 0) {
 		v4l2_ctrl_handler_free(&core->video_hdl);
 		v4l2_ctrl_handler_free(&core->audio_hdl);
 		v4l2_device_unregister(&core->v4l2_dev);
@@ -3724,7 +3719,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		if (pci->subsystem_vendor == cx88_subids[i].subvendor &&
 		    pci->subsystem_device == cx88_subids[i].subdevice)
 			core->boardnr = cx88_subids[i].card;
-	if (UNSET == core->boardnr) {
+	if (core->boardnr == UNSET) {
 		core->boardnr = CX88_BOARD_UNKNOWN;
 		cx88_card_list(core, pci);
 	}
@@ -3754,7 +3749,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	cx88_i2c_init(core, pci);
 
 	/* load tuner module, if needed */
-	if (UNSET != core->board.tuner_type) {
+	if (core->board.tuner_type != UNSET) {
 		/* Ignore 0x6b and 0x6f on cx88 boards.
 		 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
 		 * and an RTC at 0x6f which can get corrupted if probed. */

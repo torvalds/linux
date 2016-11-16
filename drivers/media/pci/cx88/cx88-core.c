@@ -1,5 +1,4 @@
 /*
- *
  * device driver for Conexant 2388x based TV cards
  * driver core
  *
@@ -19,10 +18,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx88.h"
@@ -54,12 +49,12 @@ module_param_named(core_debug, cx88_core_debug, int, 0644);
 MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
 static unsigned int nicam;
-module_param(nicam,int,0644);
-MODULE_PARM_DESC(nicam,"tv audio is nicam");
+module_param(nicam, int, 0644);
+MODULE_PARM_DESC(nicam, "tv audio is nicam");
 
 static unsigned int nocomb;
-module_param(nocomb,int,0644);
-MODULE_PARM_DESC(nocomb,"disable comb filter");
+module_param(nocomb, int, 0644);
+MODULE_PARM_DESC(nocomb, "disable comb filter");
 
 #define dprintk0(fmt, arg...)				\
 	printk(KERN_DEBUG pr_fmt("%s: core:" fmt),	\
@@ -79,13 +74,13 @@ static DEFINE_MUTEX(devlist);
 
 /* @lpi: lines per IRQ, or 0 to not generate irqs. Note: IRQ to be
 	 generated _after_ lpi lines are transferred. */
-static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
+static __le32 *cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 			    unsigned int offset, u32 sync_line,
 			    unsigned int bpl, unsigned int padding,
 			    unsigned int lines, unsigned int lpi, bool jump)
 {
 	struct scatterlist *sg;
-	unsigned int line,todo,sol;
+	unsigned int line, todo, sol;
 
 	if (jump) {
 		(*rp++) = cpu_to_le32(RISC_JUMP);
@@ -103,33 +98,33 @@ static __le32* cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 			offset -= sg_dma_len(sg);
 			sg = sg_next(sg);
 		}
-		if (lpi && line>0 && !(line % lpi))
+		if (lpi && line > 0 && !(line % lpi))
 			sol = RISC_SOL | RISC_IRQ1 | RISC_CNT_INC;
 		else
 			sol = RISC_SOL;
 		if (bpl <= sg_dma_len(sg)-offset) {
 			/* fits into current chunk */
-			*(rp++)=cpu_to_le32(RISC_WRITE|sol|RISC_EOL|bpl);
-			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-			offset+=bpl;
+			*(rp++) = cpu_to_le32(RISC_WRITE|sol|RISC_EOL|bpl);
+			*(rp++) = cpu_to_le32(sg_dma_address(sg)+offset);
+			offset += bpl;
 		} else {
 			/* scanline needs to be split */
 			todo = bpl;
-			*(rp++)=cpu_to_le32(RISC_WRITE|sol|
+			*(rp++) = cpu_to_le32(RISC_WRITE|sol|
 					    (sg_dma_len(sg)-offset));
-			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			*(rp++) = cpu_to_le32(sg_dma_address(sg)+offset);
 			todo -= (sg_dma_len(sg)-offset);
 			offset = 0;
 			sg = sg_next(sg);
 			while (todo > sg_dma_len(sg)) {
-				*(rp++)=cpu_to_le32(RISC_WRITE|
+				*(rp++) = cpu_to_le32(RISC_WRITE|
 						    sg_dma_len(sg));
-				*(rp++)=cpu_to_le32(sg_dma_address(sg));
+				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg = sg_next(sg);
 			}
-			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
-			*(rp++)=cpu_to_le32(sg_dma_address(sg));
+			*(rp++) = cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
+			*(rp++) = cpu_to_le32(sg_dma_address(sg));
 			offset += todo;
 		}
 		offset += padding;
@@ -143,13 +138,13 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 		     unsigned int top_offset, unsigned int bottom_offset,
 		     unsigned int bpl, unsigned int padding, unsigned int lines)
 {
-	u32 instructions,fields;
+	u32 instructions, fields;
 	__le32 *rp;
 
 	fields = 0;
-	if (UNSET != top_offset)
+	if (top_offset != UNSET)
 		fields++;
-	if (UNSET != bottom_offset)
+	if (bottom_offset != UNSET)
 		fields++;
 
 	/* estimate risc mem: worst case is one write per page border +
@@ -161,21 +156,21 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	risc->size = instructions * 8;
 	risc->dma = 0;
 	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
-	if (NULL == risc->cpu)
+	if (risc->cpu == NULL)
 		return -ENOMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	if (UNSET != top_offset)
+	if (top_offset != UNSET)
 		rp = cx88_risc_field(rp, sglist, top_offset, 0,
 				     bpl, padding, lines, 0, true);
-	if (UNSET != bottom_offset)
+	if (bottom_offset != UNSET)
 		rp = cx88_risc_field(rp, sglist, bottom_offset, 0x200,
 				     bpl, padding, lines, 0, top_offset == UNSET);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
+	WARN_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -195,7 +190,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	risc->size = instructions * 8;
 	risc->dma = 0;
 	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
-	if (NULL == risc->cpu)
+	if (risc->cpu == NULL)
 		return -ENOMEM;
 
 	/* write risc instructions */
@@ -204,7 +199,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
+	WARN_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -340,7 +335,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 			    const struct sram_channel *ch,
 			    unsigned int bpl, u32 risc)
 {
-	unsigned int i,lines;
+	unsigned int i, lines;
 	u32 cdt;
 
 	bpl   = (bpl + 7) & ~7; /* alignment */
@@ -348,7 +343,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 	lines = ch->fifo_size / bpl;
 	if (lines > 6)
 		lines = 6;
-	BUG_ON(lines < 2);
+	WARN_ON(lines < 2);
 
 	/* write CDT */
 	for (i = 0; i < lines; i++)
@@ -366,7 +361,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 	/* fill registers */
 	cx_write(ch->ptr1_reg, ch->fifo_start);
 	cx_write(ch->ptr2_reg, cdt);
-	cx_write(ch->cnt1_reg, (bpl >> 3) -1);
+	cx_write(ch->cnt1_reg, (bpl >> 3) - 1);
 	cx_write(ch->cnt2_reg, (lines*16) >> 3);
 
 	dprintk(2, "sram setup %s: bpl=%d lines=%d\n", ch->name, bpl, lines);
@@ -379,23 +374,23 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 static int cx88_risc_decode(u32 risc)
 {
 	static const char * const instr[16] = {
-		[ RISC_SYNC    >> 28 ] = "sync",
-		[ RISC_WRITE   >> 28 ] = "write",
-		[ RISC_WRITEC  >> 28 ] = "writec",
-		[ RISC_READ    >> 28 ] = "read",
-		[ RISC_READC   >> 28 ] = "readc",
-		[ RISC_JUMP    >> 28 ] = "jump",
-		[ RISC_SKIP    >> 28 ] = "skip",
-		[ RISC_WRITERM >> 28 ] = "writerm",
-		[ RISC_WRITECM >> 28 ] = "writecm",
-		[ RISC_WRITECR >> 28 ] = "writecr",
+		[RISC_SYNC    >> 28] = "sync",
+		[RISC_WRITE   >> 28] = "write",
+		[RISC_WRITEC  >> 28] = "writec",
+		[RISC_READ    >> 28] = "read",
+		[RISC_READC   >> 28] = "readc",
+		[RISC_JUMP    >> 28] = "jump",
+		[RISC_SKIP    >> 28] = "skip",
+		[RISC_WRITERM >> 28] = "writerm",
+		[RISC_WRITECM >> 28] = "writecm",
+		[RISC_WRITECR >> 28] = "writecr",
 	};
 	static int const incr[16] = {
-		[ RISC_WRITE   >> 28 ] = 2,
-		[ RISC_JUMP    >> 28 ] = 2,
-		[ RISC_WRITERM >> 28 ] = 3,
-		[ RISC_WRITECM >> 28 ] = 3,
-		[ RISC_WRITECR >> 28 ] = 4,
+		[RISC_WRITE   >> 28] = 2,
+		[RISC_JUMP    >> 28] = 2,
+		[RISC_WRITERM >> 28] = 3,
+		[RISC_WRITECM >> 28] = 3,
+		[RISC_WRITECR >> 28] = 4,
 	};
 	static const char * const bits[] = {
 		"12",   "13",   "14",   "resync",
@@ -432,7 +427,7 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 		"line / byte",
 	};
 	u32 risc;
-	unsigned int i,j,n;
+	unsigned int i, j, n;
 
 	dprintk0("%s - dma channel status dump\n",
 		ch->name);
@@ -645,7 +640,7 @@ static inline unsigned int norm_fsc8(v4l2_std_id norm)
 static inline unsigned int norm_htotal(v4l2_std_id norm)
 {
 
-	unsigned int fsc4=norm_fsc8(norm)/2;
+	unsigned int fsc4 = norm_fsc8(norm)/2;
 
 	/* returns 4*FSC / vtotal / frames per seconds */
 	return (norm & V4L2_STD_625_50) ?
@@ -711,7 +706,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	}
 	if (INPUT(core->input).type == CX88_VMUX_SVIDEO)
 		value |= (1 << 13) | (1 << 5);
-	if (V4L2_FIELD_INTERLACED == field)
+	if (field == V4L2_FIELD_INTERLACED)
 		value |= (1 << 3); // VINT (interlaced vertical scaling)
 	if (width < 385)
 		value |= (1 << 0); // 3-tap interpolation
@@ -742,7 +737,7 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 		prescale = 5;
 
 	pll = ofreq * 8 * prescale * (u64)(1 << 20);
-	do_div(pll,xtal);
+	do_div(pll, xtal);
 	reg = (pll & 0x3ffffff) | (pre[prescale] << 26);
 	if (((reg >> 20) & 0x3f) < 14) {
 		pr_err("pll out of range\n");
@@ -755,8 +750,8 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 	for (i = 0; i < 100; i++) {
 		reg = cx_read(MO_DEVICE_STATUS);
 		if (reg & (1<<2)) {
-			dprintk(1,"pll locked [pre=%d,ofreq=%d]\n",
-				prescale,ofreq);
+			dprintk(1, "pll locked [pre=%d,ofreq=%d]\n",
+				prescale, ofreq);
 			return 0;
 		}
 		dprintk(1, "pll not locked yet, waiting ...\n");
@@ -863,9 +858,9 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	u32 fsc8;
 	u32 adc_clock;
 	u32 vdec_clock;
-	u32 step_db,step_dr;
+	u32 step_db, step_dr;
 	u64 tmp64;
-	u32 bdelay,agcdelay,htotal;
+	u32 bdelay, agcdelay, htotal;
 	u32 cxiformat, cxoformat;
 
 	if (norm == core->tvnorm)
@@ -917,7 +912,7 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	dprintk(1, "set_tvnorm: \"%s\" fsc8=%d adc=%d vdec=%d db/dr=%d/%d\n",
 		v4l2_norm_to_name(core->tvnorm), fsc8, adc_clock, vdec_clock,
 		step_db, step_dr);
-	set_pll(core,2,vdec_clock);
+	set_pll(core, 2, vdec_clock);
 
 	dprintk(1, "set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
 		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
@@ -1013,7 +1008,7 @@ void cx88_vdev_init(struct cx88_core *core,
 		 core->name, type, core->board.name);
 }
 
-struct cx88_core* cx88_core_get(struct pci_dev *pci)
+struct cx88_core *cx88_core_get(struct pci_dev *pci)
 {
 	struct cx88_core *core;
 
@@ -1024,7 +1019,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 		if (PCI_SLOT(pci->devfn) != core->pci_slot)
 			continue;
 
-		if (0 != cx88_get_resources(core, pci)) {
+		if (cx88_get_resources(core, pci) != 0) {
 			mutex_unlock(&devlist);
 			return NULL;
 		}
@@ -1034,7 +1029,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	}
 
 	core = cx88_core_create(pci, cx88_devcount);
-	if (NULL != core) {
+	if (core != NULL) {
 		cx88_devcount++;
 		list_add_tail(&core->devlist, &cx88_devlist);
 	}
@@ -1045,15 +1040,15 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 
 void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 {
-	release_mem_region(pci_resource_start(pci,0),
-			   pci_resource_len(pci,0));
+	release_mem_region(pci_resource_start(pci, 0),
+			   pci_resource_len(pci, 0));
 
 	if (!atomic_dec_and_test(&core->refcount))
 		return;
 
 	mutex_lock(&devlist);
 	cx88_ir_fini(core);
-	if (0 == core->i2c_rc) {
+	if (core->i2c_rc == 0) {
 		if (core->i2c_rtc)
 			i2c_unregister_device(core->i2c_rtc);
 		i2c_del_adapter(&core->i2c_adap);

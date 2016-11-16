@@ -1,5 +1,4 @@
 /*
- *
  *  Support for audio capture
  *  PCI function #1 of the cx2388x.
  *
@@ -18,10 +17,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx88.h"
@@ -118,8 +113,8 @@ MODULE_VERSION(CX88_VERSION);
 
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},{{Conexant,23882},{{Conexant,23883}");
 static unsigned int debug;
-module_param(debug,int,0644);
-MODULE_PARM_DESC(debug,"enable debug messages");
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable debug messages");
 
 /****************************************************************************
 			Module specific funtions
@@ -132,7 +127,7 @@ MODULE_PARM_DESC(debug,"enable debug messages");
 static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 {
 	struct cx88_audio_buffer *buf = chip->buf;
-	struct cx88_core *core=chip->core;
+	struct cx88_core *core = chip->core;
 	const struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
 
 	/* Make sure RISC/FIFO are off before changing FIFO/RISC settings */
@@ -177,7 +172,8 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
  */
 static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 {
-	struct cx88_core *core=chip->core;
+	struct cx88_core *core = chip->core;
+
 	dprintk(1, "Stopping audio DMA\n");
 
 	/* stop dma */
@@ -261,7 +257,7 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 	for (loop = 0; loop < MAX_IRQ_LOOP; loop++) {
 		status = cx_read(MO_PCI_INTSTAT) &
 			(core->pci_irqmask | PCI_INT_AUDINT);
-		if (0 == status)
+		if (status == 0)
 			goto out;
 		dprintk(3, "cx8801_irq loop %d/%d, status %x\n",
 			loop, MAX_IRQ_LOOP, status);
@@ -274,7 +270,7 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 			cx8801_aud_irq(chip);
 	}
 
-	if (MAX_IRQ_LOOP == loop) {
+	if (loop == MAX_IRQ_LOOP) {
 		pr_err("IRQ loop detected, disabling interrupts\n");
 		cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
 	}
@@ -290,7 +286,7 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 	int i;
 
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
-	if (NULL == buf->vaddr) {
+	if (buf->vaddr == NULL) {
 		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
@@ -303,13 +299,13 @@ static int cx88_alsa_dma_init(struct cx88_audio_dev *chip, int nr_pages)
 	buf->nr_pages = nr_pages;
 
 	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
-	if (NULL == buf->sglist)
+	if (buf->sglist == NULL)
 		goto vzalloc_err;
 
 	sg_init_table(buf->sglist, buf->nr_pages);
 	for (i = 0; i < buf->nr_pages; i++) {
 		pg = vmalloc_to_page(buf->vaddr + i * PAGE_SIZE);
-		if (NULL == pg)
+		if (pg == NULL)
 			goto vmalloc_to_page_err;
 		sg_set_page(&buf->sglist[i], pg, PAGE_SIZE, 0);
 	}
@@ -331,7 +327,7 @@ static int cx88_alsa_dma_map(struct cx88_audio_dev *dev)
 	buf->sglen = dma_map_sg(&dev->pci->dev, buf->sglist,
 			buf->nr_pages, PCI_DMA_FROMDEVICE);
 
-	if (0 == buf->sglen) {
+	if (buf->sglen == 0) {
 		pr_warn("%s: cx88_alsa_map_sg failed\n", __func__);
 		return -ENOMEM;
 	}
@@ -366,7 +362,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 
 	BUG_ON(!chip->dma_size);
 
-	dprintk(2,"Freeing buffer\n");
+	dprintk(2, "Freeing buffer\n");
 	cx88_alsa_dma_unmap(chip);
 	cx88_alsa_dma_free(chip->buf);
 	if (risc->cpu)
@@ -431,6 +427,7 @@ static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 
 	if (cx88_sram_channels[SRAM_CH25].fifo_size != DEFAULT_FIFO_SIZE) {
 		unsigned int bpl = cx88_sram_channels[SRAM_CH25].fifo_size / 4;
+
 		bpl &= ~7; /* must be multiple of 8 */
 		runtime->hw.period_bytes_min = bpl;
 		runtime->hw.period_bytes_max = bpl;
@@ -438,7 +435,7 @@ static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 
 	return 0;
 _error:
-	dprintk(1,"Error opening PCM!\n");
+	dprintk(1, "Error opening PCM!\n");
 	return err;
 }
 
@@ -453,8 +450,8 @@ static int snd_cx88_close(struct snd_pcm_substream *substream)
 /*
  * hw_params callback
  */
-static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
-			      struct snd_pcm_hw_params * hw_params)
+static int snd_cx88_hw_params(struct snd_pcm_substream *substream,
+			      struct snd_pcm_hw_params *hw_params)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 
@@ -474,7 +471,7 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	BUG_ON(chip->num_periods & (chip->num_periods-1));
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (NULL == buf)
+	if (buf == NULL)
 		return -ENOMEM;
 
 	chip->buf = buf;
@@ -511,7 +508,7 @@ error:
 /*
  * hw free callback
  */
-static int snd_cx88_hw_free(struct snd_pcm_substream * substream)
+static int snd_cx88_hw_free(struct snd_pcm_substream *substream)
 {
 
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
@@ -545,13 +542,13 @@ static int snd_cx88_card_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		err=_cx88_start_audio_dma(chip);
+		err = _cx88_start_audio_dma(chip);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		err=_cx88_stop_audio_dma(chip);
+		err = _cx88_stop_audio_dma(chip);
 		break;
 	default:
-		err=-EINVAL;
+		err =  -EINVAL;
 		break;
 	}
 
@@ -584,6 +581,7 @@ static struct page *snd_cx88_page(struct snd_pcm_substream *substream,
 				unsigned long offset)
 {
 	void *pageptr = substream->runtime->dma_area + offset;
+
 	return vmalloc_to_page(pageptr);
 }
 
@@ -638,7 +636,7 @@ static int snd_cx88_volume_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *value)
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
-	struct cx88_core *core=chip->core;
+	struct cx88_core *core = chip->core;
 	int vol = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f),
 	    bal = cx_read(AUD_BAL_CTL);
 
@@ -675,7 +673,7 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *value)
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
-	struct cx88_core *core=chip->core;
+	struct cx88_core *core = chip->core;
 	int left, right, v, b;
 	int changed = 0;
 	u32 old;
@@ -814,8 +812,8 @@ static struct snd_kcontrol_new snd_cx88_alc_switch = {
  */
 
 static const struct pci_device_id cx88_audio_pci_tbl[] = {
-	{0x14f1,0x8801,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
-	{0x14f1,0x8811,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
+	{0x14f1, 0x8801, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{0x14f1, 0x8811, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0, }
 };
 MODULE_DEVICE_TABLE(pci, cx88_audio_pci_tbl);
@@ -830,7 +828,7 @@ static int snd_cx88_free(snd_cx88_card_t *chip)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 
-	cx88_core_put(chip->core,chip->pci);
+	cx88_core_put(chip->core, chip->pci);
 
 	pci_disable_device(chip->pci);
 	return 0;
@@ -839,7 +837,7 @@ static int snd_cx88_free(snd_cx88_card_t *chip)
 /*
  * Component Destructor
  */
-static void snd_cx88_dev_free(struct snd_card * card)
+static void snd_cx88_dev_free(struct snd_card *card)
 {
 	snd_cx88_card_t *chip = card->private_data;
 
@@ -872,14 +870,14 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 	chip = card->private_data;
 
 	core = cx88_core_get(pci);
-	if (NULL == core) {
+	if (core == NULL) {
 		err = -EINVAL;
 		return err;
 	}
 
-	err = pci_set_dma_mask(pci,DMA_BIT_MASK(32));
+	err = pci_set_dma_mask(pci, DMA_BIT_MASK(32));
 	if (err) {
-		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
+		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n", core->name);
 		cx88_core_put(core, pci);
 		return err;
 	}
@@ -908,7 +906,7 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 	dprintk(1, "ALSA %s/%i: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
 		core->name, devno,
 	       pci_name(pci), pci->revision, pci->irq,
-	       pci_lat, (unsigned long long)pci_resource_start(pci,0));
+	       pci_lat, (unsigned long long)pci_resource_start(pci, 0));
 
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
@@ -964,19 +962,20 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 	if (core->sd_wm8775)
 		snd_ctl_add(card, snd_ctl_new1(&snd_cx88_alc_switch, chip));
 
-	strcpy (card->driver, "CX88x");
+	strcpy(card->driver, "CX88x");
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
 	sprintf(card->longname, "%s at %#llx",
-		card->shortname,(unsigned long long)pci_resource_start(pci, 0));
-	strcpy (card->mixername, "CX88");
+		card->shortname,
+		(unsigned long long)pci_resource_start(pci, 0));
+	strcpy(card->mixername, "CX88");
 
-	dprintk (0, "%s/%i: ALSA support for cx2388x boards\n",
-	       card->driver,devno);
+	dprintk(0, "%s/%i: ALSA support for cx2388x boards\n",
+	       card->driver, devno);
 
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
-	pci_set_drvdata(pci,card);
+	pci_set_drvdata(pci, card);
 
 	devno++;
 	return 0;

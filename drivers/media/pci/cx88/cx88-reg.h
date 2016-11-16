@@ -576,7 +576,7 @@
 #define RISC_CNT_INC		 0x00010000
 #define RISC_CNT_RSVR		 0x00020000
 #define RISC_CNT_RESET		 0x00030000
-#define RISC_JMP_SRP         	 0x01
+#define RISC_JMP_SRP		 0x01
 
 
 /* ---------------------------------------------------------------------- */
@@ -821,16 +821,5 @@
 #define DEFAULT_CONTRAST_NTSC			0x39
 #define DEFAULT_SAT_U_NTSC			0x7F
 #define DEFAULT_SAT_V_NTSC			0x5A
-
-typedef enum
-{
-	SOURCE_TUNER = 0,
-	SOURCE_COMPOSITE,
-	SOURCE_SVIDEO,
-	SOURCE_OTHER1,
-	SOURCE_OTHER2,
-	SOURCE_COMPVIASVIDEO,
-	SOURCE_CCIR656
-} VIDEOSOURCETYPE;
 
 #endif /* _CX88_REG_H_ */

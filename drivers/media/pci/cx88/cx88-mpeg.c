@@ -42,8 +42,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
 static unsigned int debug;
-module_param(debug,int,0644);
-MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable debug messages [mpeg]");
 
 #define dprintk(level, fmt, arg...) do {				\
 	if (debug + 1 > level)						\
@@ -54,7 +54,7 @@ MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
 #if defined(CONFIG_MODULES) && defined(MODULE)
 static void request_module_async(struct work_struct *work)
 {
-	struct cx8802_dev *dev=container_of(work, struct cx8802_dev, request_module_wk);
+	struct cx8802_dev *dev = container_of(work, struct cx8802_dev, request_module_wk);
 
 	if (dev->core->board.mpeg & CX88_MPEG_DVB)
 		request_module("cx88-dvb");
@@ -103,8 +103,8 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 
 	dprintk(1, "core->active_type_id = 0x%08x\n", core->active_type_id);
 
-	if ( (core->active_type_id == CX88_MPEG_DVB) &&
-		(core->board.mpeg & CX88_MPEG_DVB) ) {
+	if ((core->active_type_id == CX88_MPEG_DVB) &&
+		(core->board.mpeg & CX88_MPEG_DVB)) {
 
 		dprintk(1, "cx8802_start_dma doing .dvb\n");
 		/* negedge driven & software reset */
@@ -148,8 +148,8 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 		}
 		cx_write(TS_GEN_CNTRL, dev->ts_gen_cntrl);
 		udelay(100);
-	} else if ( (core->active_type_id == CX88_MPEG_BLACKBIRD) &&
-		(core->board.mpeg & CX88_MPEG_BLACKBIRD) ) {
+	} else if ((core->active_type_id == CX88_MPEG_BLACKBIRD) &&
+		(core->board.mpeg & CX88_MPEG_BLACKBIRD)) {
 		dprintk(1, "cx8802_start_dma doing .blackbird\n");
 		cx_write(MO_PINMUX_IO, 0x88); /* enable MPEG parallel IO */
 
@@ -185,6 +185,7 @@ int cx8802_start_dma(struct cx8802_dev    *dev,
 static int cx8802_stop_dma(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
+
 	dprintk(1, "\n");
 
 	/* stop dma */
@@ -209,7 +210,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 		return 0;
 
 	buf = list_entry(q->active.next, struct cx88_buffer, list);
-	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
+	dprintk(2, "restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.vb2_buf.index);
 	cx8802_start_dma(dev, q, buf);
 	return 0;
@@ -254,7 +255,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 	if (list_empty(&cx88q->active)) {
 		dprintk(1, "queue is empty - first active\n");
 		list_add_tail(&buf->list, &cx88q->active);
-		dprintk(1,"[%p/%d] %s - first active\n",
+		dprintk(1, "[%p/%d] %s - first active\n",
 			buf, buf->vb.vb2_buf.index, __func__);
 
 	} else {
@@ -276,13 +277,13 @@ static void do_cancel_buffers(struct cx8802_dev *dev)
 	struct cx88_buffer *buf;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->slock,flags);
+	spin_lock_irqsave(&dev->slock, flags);
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, list);
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
-	spin_unlock_irqrestore(&dev->slock,flags);
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 void cx8802_cancel_buffers(struct cx8802_dev *dev)
@@ -292,7 +293,7 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev)
 	do_cancel_buffers(dev);
 }
 
-static const char * cx88_mpeg_irqs[32] = {
+static const char *cx88_mpeg_irqs[32] = {
 	"ts_risci1", NULL, NULL, NULL,
 	"ts_risci2", NULL, NULL, NULL,
 	"ts_oflow",  NULL, NULL, NULL,
@@ -356,7 +357,7 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 	for (loop = 0; loop < MAX_IRQ_LOOP; loop++) {
 		status = cx_read(MO_PCI_INTSTAT) &
 			(core->pci_irqmask | PCI_INT_TSINT);
-		if (0 == status)
+		if (status == 0)
 			goto out;
 		dprintk(1, "cx8802_irq\n");
 		dprintk(1, "    loop: %d/%d\n", loop, MAX_IRQ_LOOP);
@@ -365,14 +366,14 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 		cx_write(MO_PCI_INTSTAT, status);
 
 		if (status & core->pci_irqmask)
-			cx88_core_irq(core,status);
+			cx88_core_irq(core, status);
 		if (status & PCI_INT_TSINT)
 			cx8802_mpeg_irq(dev);
 	}
-	if (MAX_IRQ_LOOP == loop) {
+	if (loop == MAX_IRQ_LOOP) {
 		dprintk(0, "clearing mask\n");
 		pr_warn("irq loop -- clearing mask\n");
-		cx_write(MO_PCI_INTMSK,0);
+		cx_write(MO_PCI_INTMSK, 0);
 	}
 
  out:
@@ -388,7 +389,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 	if (pci_enable_device(dev->pci))
 		return -EIO;
 	pci_set_master(dev->pci);
-	err = pci_set_dma_mask(dev->pci,DMA_BIT_MASK(32));
+	err = pci_set_dma_mask(dev->pci, DMA_BIT_MASK(32));
 	if (err) {
 		pr_err("Oops: no 32bit PCI DMA ???\n");
 		return -EIO;
@@ -417,7 +418,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* everything worked */
-	pci_set_drvdata(dev->pci,dev);
+	pci_set_drvdata(dev->pci, dev);
 	return 0;
 }
 
@@ -451,7 +452,7 @@ static int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 	cx88_shutdown(dev->core);
 
 	pci_save_state(pci_dev);
-	if (0 != pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state))) {
+	if (pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state)) != 0) {
 		pci_disable_device(pci_dev);
 		dev->state.disabled = 1;
 	}
@@ -465,14 +466,14 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 	int err;
 
 	if (dev->state.disabled) {
-		err=pci_enable_device(pci_dev);
+		err = pci_enable_device(pci_dev);
 		if (err) {
 			pr_err("can't enable device\n");
 			return err;
 		}
 		dev->state.disabled = 0;
 	}
-	err=pci_set_power_state(pci_dev, PCI_D0);
+	err = pci_set_power_state(pci_dev, PCI_D0);
 	if (err) {
 		pr_err("can't enable device\n");
 		pci_disable_device(pci_dev);
@@ -489,14 +490,14 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 	spin_lock_irqsave(&dev->slock, flags);
 	if (!list_empty(&dev->mpegq.active)) {
 		pr_info("resume mpeg\n");
-		cx8802_restart_queue(dev,&dev->mpegq);
+		cx8802_restart_queue(dev, &dev->mpegq);
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;
 }
 
-struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype)
+struct cx8802_driver *cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype)
 {
 	struct cx8802_driver *d;
 
@@ -613,7 +614,7 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 			dev->core->boardnr);
 
 		/* Bring up a new struct for each driver instance */
-		driver = kzalloc(sizeof(*drv),GFP_KERNEL);
+		driver = kzalloc(sizeof(*drv), GFP_KERNEL);
 		if (driver == NULL) {
 			err = -ENOMEM;
 			goto out;
@@ -696,7 +697,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 
 	/* general setup */
 	core = cx88_core_get(pci_dev);
-	if (NULL == core)
+	if (core == NULL)
 		return -EINVAL;
 
 	pr_info("cx2388x 8802 Driver Manager\n");
@@ -706,8 +707,8 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 		goto fail_core;
 
 	err = -ENOMEM;
-	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
-	if (NULL == dev)
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL)
 		goto fail_core;
 	dev->pci = pci_dev;
 	dev->core = core;
@@ -721,7 +722,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 
 	INIT_LIST_HEAD(&dev->drvlist);
 	mutex_lock(&cx8802_mutex);
-	list_add_tail(&dev->devlist,&cx8802_devlist);
+	list_add_tail(&dev->devlist, &cx8802_devlist);
 	mutex_unlock(&cx8802_mutex);
 
 	/* now autoload cx88-dvb or cx88-blackbird */
@@ -732,7 +733,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	kfree(dev);
  fail_core:
 	core->dvbdev = NULL;
-	cx88_core_put(core,pci_dev);
+	cx88_core_put(core, pci_dev);
 	return err;
 }
 
@@ -772,7 +773,7 @@ static void cx8802_remove(struct pci_dev *pci_dev)
 
 	/* common */
 	cx8802_fini_common(dev);
-	cx88_core_put(dev->core,dev->pci);
+	cx88_core_put(dev->core, dev->pci);
 	kfree(dev);
 }
 
@@ -782,7 +783,7 @@ static const struct pci_device_id cx8802_pci_tbl[] = {
 		.device       = 0x8802,
 		.subvendor    = PCI_ANY_ID,
 		.subdevice    = PCI_ANY_ID,
-	},{
+	}, {
 		/* --- end of list --- */
 	}
 };

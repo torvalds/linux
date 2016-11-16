@@ -13,10 +13,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef CX88_H
@@ -58,7 +54,7 @@
 /* defines and enums                                           */
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM/LC */
-#define CX88_NORMS (V4L2_STD_ALL 		\
+#define CX88_NORMS (V4L2_STD_ALL		\
 		    & ~V4L2_STD_PAL_H		\
 		    & ~V4L2_STD_NTSC_M_KR	\
 		    & ~V4L2_STD_SECAM_LC)
@@ -366,12 +362,12 @@ struct cx88_core {
 	u32                        i2c_state, i2c_rc;
 
 	/* config info -- analog */
-	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_device	   v4l2_dev;
 	struct v4l2_ctrl_handler   video_hdl;
 	struct v4l2_ctrl	   *chroma_agc;
 	struct v4l2_ctrl_handler   audio_hdl;
 	struct v4l2_subdev	   *sd_wm8775;
-	struct i2c_client 	   *i2c_rtc;
+	struct i2c_client	   *i2c_rtc;
 	unsigned int               boardnr;
 	struct cx88_board	   board;
 
@@ -388,8 +384,8 @@ struct cx88_core {
 	/* state info */
 	struct task_struct         *kthread;
 	v4l2_std_id                tvnorm;
-	unsigned		   width, height;
-	unsigned		   field;
+	unsigned int width, height;
+	unsigned int field;
 	enum cx88_tvaudio          tvaudio;
 	u32                        audiomode_manual;
 	u32                        audiomode_current;
@@ -489,7 +485,7 @@ struct cx8800_dev {
 
 	/* pci i/o */
 	struct pci_dev             *pci;
-	unsigned char              pci_rev,pci_lat;
+	unsigned char              pci_rev, pci_lat;
 
 	const struct cx8800_fmt    *fmt;
 
@@ -552,7 +548,7 @@ struct cx8802_dev {
 
 	/* pci i/o */
 	struct pci_dev             *pci;
-	unsigned char              pci_rev,pci_lat;
+	unsigned char              pci_rev, pci_lat;
 
 	/* dma queues */
 	struct cx88_dmaqueue       mpegq;
@@ -594,23 +590,23 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 
 #define cx_read(reg)             readl(core->lmmio + ((reg)>>2))
-#define cx_write(reg,value)      writel((value), core->lmmio + ((reg)>>2))
-#define cx_writeb(reg,value)     writeb((value), core->bmmio + (reg))
+#define cx_write(reg, value)      writel((value), core->lmmio + ((reg)>>2))
+#define cx_writeb(reg, value)     writeb((value), core->bmmio + (reg))
 
-#define cx_andor(reg,mask,value) \
+#define cx_andor(reg, mask, value) \
   writel((readl(core->lmmio+((reg)>>2)) & ~(mask)) |\
   ((value) & (mask)), core->lmmio+((reg)>>2))
-#define cx_set(reg,bit)          cx_andor((reg),(bit),(bit))
-#define cx_clear(reg,bit)        cx_andor((reg),(bit),0)
+#define cx_set(reg, bit)          cx_andor((reg), (bit), (bit))
+#define cx_clear(reg, bit)        cx_andor((reg), (bit), 0)
 
 #define cx_wait(d) { if (need_resched()) schedule(); else udelay(d); }
 
 /* shadow registers */
 #define cx_sread(sreg)		    (core->shadow[sreg])
-#define cx_swrite(sreg,reg,value) \
+#define cx_swrite(sreg, reg, value) \
   (core->shadow[sreg] = value, \
    writel(core->shadow[sreg], core->lmmio + ((reg)>>2)))
-#define cx_sandor(sreg,reg,mask,value) \
+#define cx_sandor(sreg, reg, mask, value) \
   (core->shadow[sreg] = (core->shadow[sreg] & ~(mask)) | ((value) & (mask)), \
    writel(core->shadow[sreg], core->lmmio + ((reg)>>2)))
 
@@ -667,7 +663,7 @@ extern int cx88_stop_audio_dma(struct cx88_core *core);
 /* cx88-vbi.c                                                  */
 
 /* Can be used as g_vbi_fmt, try_vbi_fmt and s_vbi_fmt */
-int cx8800_vbi_fmt (struct file *file, void *priv,
+int cx8800_vbi_fmt(struct file *file, void *priv,
 					struct v4l2_format *f);
 
 /*
@@ -708,7 +704,8 @@ int cx8802_register_driver(struct cx8802_driver *drv);
 int cx8802_unregister_driver(struct cx8802_driver *drv);
 
 /* Caller must hold core->lock */
-struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
+struct cx8802_driver *cx8802_get_driver(struct cx8802_dev *dev,
+					enum cx88_board_type btype);
 
 /* ----------------------------------------------------------- */
 /* cx88-dsp.c                                                  */
