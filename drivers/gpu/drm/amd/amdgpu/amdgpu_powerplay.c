@@ -184,7 +184,7 @@ static int amdgpu_pp_hw_init(void *handle)
 		ret = adev->powerplay.ip_funcs->hw_init(
 					adev->powerplay.pp_handle);
 
-	if (amdgpu_dpm != 0)
+	if ((amdgpu_dpm != 0) && !amdgpu_sriov_vf(adev))
 		adev->pm.dpm_enabled = true;
 
 	return ret;

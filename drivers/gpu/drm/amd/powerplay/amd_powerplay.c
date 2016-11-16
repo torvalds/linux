@@ -911,7 +911,8 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 
 	amd_pp->pp_handle = handle;
 
-	if (amdgpu_dpm == 0)
+	if ((amdgpu_dpm == 0)
+		|| cgs_is_virtualization_enabled(pp_init->device))
 		return 0;
 
 	ret = hwmgr_init(pp_init, handle);
@@ -940,7 +941,8 @@ static int amd_pp_instance_fini(void *handle)
 	if (instance == NULL)
 		return -EINVAL;
 
-	if (amdgpu_dpm != 0) {
+	if ((amdgpu_dpm != 0)
+		&& !cgs_is_virtualization_enabled(instance->smu_mgr->device)) {
 		eventmgr_fini(instance->eventmgr);
 		hwmgr_fini(instance->hwmgr);
 	}
@@ -1004,7 +1006,8 @@ int amd_powerplay_reset(void *handle)
 
 	hw_init_power_state_table(instance->hwmgr);
 
-	if (amdgpu_dpm == 0)
+	if ((amdgpu_dpm == 0)
+		|| cgs_is_virtualization_enabled(instance->smu_mgr->device))
 		return 0;
 
 	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
