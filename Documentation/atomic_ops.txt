@@ -90,10 +90,10 @@ compiler optimizes the section accessing atomic_t variables.
 
 Properly aligned pointers, longs, ints, and chars (and unsigned
 equivalents) may be atomically loaded from and stored to in the same
-sense as described for atomic_read() and atomic_set().  The ACCESS_ONCE()
-macro should be used to prevent the compiler from using optimizations
-that might otherwise optimize accesses out of existence on the one hand,
-or that might create unsolicited accesses on the other.
+sense as described for atomic_read() and atomic_set().  The READ_ONCE()
+and WRITE_ONCE() macros should be used to prevent the compiler from using
+optimizations that might otherwise optimize accesses out of existence on
+the one hand, or that might create unsolicited accesses on the other.
 
 For example consider the following code:
 
@@ -112,7 +112,7 @@ the following:
 If you don't want the compiler to do this (and you probably don't), then
 you should use something like the following:
 
-	while (ACCESS_ONCE(a) < 0)
+	while (READ_ONCE(a) < 0)
 		do_something();
 
 Alternatively, you could place a barrier() call in the loop.
@@ -141,7 +141,7 @@ of registers: reloading from variable a could save a flush to the
 stack and later reload.  To prevent the compiler from attacking your
 code in this manner, write the following:
 
-	tmp_a = ACCESS_ONCE(a);
+	tmp_a = READ_ONCE(a);
 	do_something_with(tmp_a);
 	do_something_else_with(tmp_a);
 
@@ -166,14 +166,14 @@ that expected b to never have the value 42 if a was zero.  To prevent
 the compiler from doing this, write something like:
 
 	if (a)
-		ACCESS_ONCE(b) = 9;
+		WRITE_ONCE(b, 9);
 	else
-		ACCESS_ONCE(b) = 42;
+		WRITE_ONCE(b, 42);
 
 Don't even -think- about doing this without proper use of memory barriers,
 locks, or atomic operations if variable a can change at runtime!
 
-*** WARNING: ACCESS_ONCE() DOES NOT IMPLY A BARRIER! ***
+*** WARNING: READ_ONCE() OR WRITE_ONCE() DO NOT IMPLY A BARRIER! ***
 
 Now, we move onto the atomic operation interfaces typically implemented with
 the help of assembly code.
