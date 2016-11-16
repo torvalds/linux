@@ -10243,6 +10243,29 @@ static void bxt_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	bxt_set_cdclk(to_i915(dev), req_cdclk);
 }
 
+static int bdw_adjust_min_pipe_pixel_rate(struct intel_crtc_state *crtc_state,
+					  int pixel_rate)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+	if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
+		pixel_rate = DIV_ROUND_UP(pixel_rate * 100, 95);
+
+	/* BSpec says "Do not use DisplayPort with CDCLK less than
+	 * 432 MHz, audio enabled, port width x4, and link rate
+	 * HBR2 (5.4 GHz), or else there may be audio corruption or
+	 * screen corruption."
+	 */
+	if (intel_crtc_has_dp_encoder(crtc_state) &&
+	    crtc_state->has_audio &&
+	    crtc_state->port_clock >= 540000 &&
+	    crtc_state->lane_count == 4)
+		pixel_rate = max(432000, pixel_rate);
+
+	return pixel_rate;
+}
+
 /* compute the max rate for new configuration */
 static int ilk_max_pixel_rate(struct drm_atomic_state *state)
 {
@@ -10268,9 +10291,9 @@ static int ilk_max_pixel_rate(struct drm_atomic_state *state)
 
 		pixel_rate = ilk_pipe_pixel_rate(crtc_state);
 
-		/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-		if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
-			pixel_rate = DIV_ROUND_UP(pixel_rate * 100, 95);
+		if (IS_BROADWELL(dev_priv) || IS_GEN9(dev_priv))
+			pixel_rate = bdw_adjust_min_pipe_pixel_rate(crtc_state,
+								    pixel_rate);
 
 		intel_state->min_pixclk[i] = pixel_rate;
 	}
