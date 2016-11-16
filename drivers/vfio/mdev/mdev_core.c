@@ -354,7 +354,18 @@ int mdev_device_remove(struct device *dev, bool force_remove)
 
 static int __init mdev_init(void)
 {
-	return mdev_bus_register();
+	int ret;
+
+	ret = mdev_bus_register();
+
+	/*
+	 * Attempt to load known vfio_mdev.  This gives us a working environment
+	 * without the user needing to explicitly load vfio_mdev driver.
+	 */
+	if (!ret)
+		request_module_nowait("vfio_mdev");
+
+	return ret;
 }
 
 static void __exit mdev_exit(void)
