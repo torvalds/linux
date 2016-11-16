@@ -176,6 +176,15 @@ logical address types are already defined will return with error ``EBUSY``.
 	and will appear as keystrokes. This features needs to be enabled explicitly.
 	If CEC is used to enter e.g. passwords, then you may not want to enable this
 	to avoid trivial snooping of the keystrokes.
+    * .. _`CEC-LOG-ADDRS-FL-CDC-ONLY`:
+
+      - `CEC_LOG_ADDRS_FL_CDC_ONLY`
+      - 4
+      - If this flag is set, then the device is CDC-Only. CDC-Only CEC devices
+	are CEC devices that can only handle CDC messages.
+
+	All other messages are ignored.
+
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
