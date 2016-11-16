@@ -849,7 +849,7 @@ static int stmmac_init_phy(struct net_device *dev)
 
 		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 			 priv->plat->phy_addr);
-		netdev_dbg(priv->dev, "stmmac_init_phy: trying to attach to %s\n",
+		netdev_dbg(priv->dev, "%s: trying to attach to %s\n", __func__,
 			   phy_id_fmt);
 
 		phydev = phy_connect(dev, phy_id_fmt, &stmmac_adjust_link,
@@ -890,9 +890,8 @@ static int stmmac_init_phy(struct net_device *dev)
 	if (phydev->is_pseudo_fixed_link)
 		phydev->irq = PHY_POLL;
 
-	netdev_dbg(priv->dev,
-		   "stmmac_init_phy: attached to PHY (UID 0x%x) Link = %d\n",
-		   phydev->phy_id, phydev->link);
+	netdev_dbg(priv->dev, "%s: attached to PHY (UID 0x%x) Link = %d\n",
+		   __func__, phydev->phy_id, phydev->link);
 
 	return 0;
 }
