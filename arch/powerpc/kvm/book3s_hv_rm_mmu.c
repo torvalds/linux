@@ -653,6 +653,8 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 					      HPTE_V_ABSENT);
 			do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags),
 				  true);
+			/* Don't lose R/C bit updates done by hardware */
+			r |= be64_to_cpu(hpte[1]) & (HPTE_R_R | HPTE_R_C);
 			hpte[1] = cpu_to_be64(r);
 		}
 	}
