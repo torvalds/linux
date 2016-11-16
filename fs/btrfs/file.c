@@ -705,6 +705,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	u64 num_bytes = 0;
 	u64 extent_offset = 0;
 	u64 extent_end = 0;
+	u64 last_end = start;
 	int del_nr = 0;
 	int del_slot = 0;
 	int extent_type;
@@ -796,8 +797,10 @@ next_slot:
 		 * extent item in the call to setup_items_for_insert() later
 		 * in this function.
 		 */
-		if (extent_end == key.offset && extent_end >= search_start)
+		if (extent_end == key.offset && extent_end >= search_start) {
+			last_end = extent_end;
 			goto delete_extent_item;
+		}
 
 		if (extent_end <= search_start) {
 			path->slots[0]++;
@@ -859,6 +862,12 @@ next_slot:
 			}
 			key.offset = start;
 		}
+		/*
+		 * From here on out we will have actually dropped something, so
+		 * last_end can be updated.
+		 */
+		last_end = extent_end;
+
 		/*
 		 *  | ---- range to drop ----- |
 		 *      | -------- extent -------- |
@@ -1009,7 +1018,7 @@ delete_extent_item:
 	if (!replace_extent || !(*key_inserted))
 		btrfs_release_path(path);
 	if (drop_end)
-		*drop_end = found ? min(end, extent_end) : end;
+		*drop_end = found ? min(end, last_end) : end;
 	return ret;
 }
 
@@ -2524,7 +2533,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 		trans->block_rsv = &root->fs_info->trans_block_rsv;
 
-		if (cur_offset < ino_size) {
+		if (cur_offset < drop_end && cur_offset < ino_size) {
 			ret = fill_holes(trans, inode, path, cur_offset,
 					 drop_end);
 			if (ret) {
