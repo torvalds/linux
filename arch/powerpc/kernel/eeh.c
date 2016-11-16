@@ -372,7 +372,7 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Find the PHB PE */
 	phb_pe = eeh_phb_pe_get(pe->phb);
 	if (!phb_pe) {
-		pr_warn("%s Can't find PE for PHB#%d\n",
+		pr_warn("%s Can't find PE for PHB#%x\n",
 			__func__, pe->phb->global_number);
 		return -EEXIST;
 	}
@@ -664,7 +664,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	rc = eeh_ops->set_option(pe, function);
 	if (rc)
 		pr_warn("%s: Unexpected state change %d on "
-			"PHB#%d-PE#%x, err=%d\n",
+			"PHB#%x-PE#%x, err=%d\n",
 			__func__, function, pe->phb->global_number,
 			pe->addr, rc);
 
@@ -864,7 +864,7 @@ int eeh_reset_pe(struct eeh_pe *pe)
 		}
 
 		if (state < 0) {
-			pr_warn("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
+			pr_warn("%s: Unrecoverable slot failure on PHB#%x-PE#%x",
 				__func__, pe->phb->global_number, pe->addr);
 			ret = -ENOTRECOVERABLE;
 			goto out;

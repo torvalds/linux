@@ -263,7 +263,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 	/* Enable the bypass window */
 
 	top = roundup_pow_of_two(top);
-	dev_info(&npe->pdev->dev, "Enabling bypass for PE %d\n",
+	dev_info(&npe->pdev->dev, "Enabling bypass for PE %x\n",
 			npe->pe_number);
 	rc = opal_pci_map_pe_dma_window_real(phb->opal_id,
 			npe->pe_number, npe->pe_number,

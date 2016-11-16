@@ -732,7 +732,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	frozen_bus = eeh_pe_bus_get(pe);
 	if (!frozen_bus) {
-		pr_err("%s: Cannot find PCI bus for PHB#%d-PE#%x\n",
+		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
 		return;
 	}
@@ -876,7 +876,7 @@ excess_failures:
 	 * are due to poorly seated PCI cards. Only 10% or so are
 	 * due to actual, failed cards.
 	 */
-	pr_err("EEH: PHB#%d-PE#%x has failed %d times in the\n"
+	pr_err("EEH: PHB#%x-PE#%x has failed %d times in the\n"
 	       "last hour and has been permanently disabled.\n"
 	       "Please try reseating or replacing it.\n",
 		pe->phb->global_number, pe->addr,
@@ -884,7 +884,7 @@ excess_failures:
 	goto perm_error;
 
 hard_fail:
-	pr_err("EEH: Unable to recover from failure from PHB#%d-PE#%x.\n"
+	pr_err("EEH: Unable to recover from failure from PHB#%x-PE#%x.\n"
 	       "Please try reseating or replacing it\n",
 		pe->phb->global_number, pe->addr);
 
@@ -998,7 +998,7 @@ static void eeh_handle_special_event(void)
 				bus = eeh_pe_bus_get(phb_pe);
 				if (!bus) {
 					pr_err("%s: Cannot find PCI bus for "
-					       "PHB#%d-PE#%x\n",
+					       "PHB#%x-PE#%x\n",
 					       __func__,
 					       pe->phb->global_number,
 					       pe->addr);
