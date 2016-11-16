@@ -4898,26 +4898,36 @@ void __napi_schedule_irqoff(struct napi_struct *n)
 }
 EXPORT_SYMBOL(__napi_schedule_irqoff);
 
-void __napi_complete(struct napi_struct *n)
+bool __napi_complete(struct napi_struct *n)
 {
 	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
+
+	/* Some drivers call us directly, instead of calling
+	 * napi_complete_done().
+	 */
+	if (unlikely(test_bit(NAPI_STATE_IN_BUSY_POLL, &n->state)))
+		return false;
 
 	list_del_init(&n->poll_list);
 	smp_mb__before_atomic();
 	clear_bit(NAPI_STATE_SCHED, &n->state);
+	return true;
 }
 EXPORT_SYMBOL(__napi_complete);
 
-void napi_complete_done(struct napi_struct *n, int work_done)
+bool napi_complete_done(struct napi_struct *n, int work_done)
 {
 	unsigned long flags;
 
 	/*
-	 * don't let napi dequeue from the cpu poll list
-	 * just in case its running on a different cpu
+	 * 1) Don't let napi dequeue from the cpu poll list
+	 *    just in case its running on a different cpu.
+	 * 2) If we are busy polling, do nothing here, we have
+	 *    the guarantee we will be called later.
 	 */
-	if (unlikely(test_bit(NAPI_STATE_NPSVC, &n->state)))
-		return;
+	if (unlikely(n->state & (NAPIF_STATE_NPSVC |
+				 NAPIF_STATE_IN_BUSY_POLL)))
+		return false;
 
 	if (n->gro_list) {
 		unsigned long timeout = 0;
@@ -4939,6 +4949,7 @@ void napi_complete_done(struct napi_struct *n, int work_done)
 		__napi_complete(n);
 		local_irq_restore(flags);
 	}
+	return true;
 }
 EXPORT_SYMBOL(napi_complete_done);
 
@@ -4956,13 +4967,41 @@ static struct napi_struct *napi_by_id(unsigned int napi_id)
 }
 
 #if defined(CONFIG_NET_RX_BUSY_POLL)
+
 #define BUSY_POLL_BUDGET 8
+
+static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
+{
+	int rc;
+
+	clear_bit(NAPI_STATE_IN_BUSY_POLL, &napi->state);
+
+	local_bh_disable();
+
+	/* All we really want here is to re-enable device interrupts.
+	 * Ideally, a new ndo_busy_poll_stop() could avoid another round.
+	 */
+	rc = napi->poll(napi, BUSY_POLL_BUDGET);
+	netpoll_poll_unlock(have_poll_lock);
+	if (rc == BUSY_POLL_BUDGET)
+		__napi_schedule(napi);
+	local_bh_enable();
+	if (local_softirq_pending())
+		do_softirq();
+}
+
 bool sk_busy_loop(struct sock *sk, int nonblock)
 {
 	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
+	int (*napi_poll)(struct napi_struct *napi, int budget);
 	int (*busy_poll)(struct napi_struct *dev);
+	void *have_poll_lock = NULL;
 	struct napi_struct *napi;
-	int rc = false;
+	int rc;
+
+restart:
+	rc = false;
+	napi_poll = NULL;
 
 	rcu_read_lock();
 
@@ -4973,24 +5012,33 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 	/* Note: ndo_busy_poll method is optional in linux-4.5 */
 	busy_poll = napi->dev->netdev_ops->ndo_busy_poll;
 
-	do {
+	preempt_disable();
+	for (;;) {
 		rc = 0;
 		local_bh_disable();
 		if (busy_poll) {
 			rc = busy_poll(napi);
-		} else if (napi_schedule_prep(napi)) {
-			void *have = netpoll_poll_lock(napi);
-
-			if (test_bit(NAPI_STATE_SCHED, &napi->state)) {
-				rc = napi->poll(napi, BUSY_POLL_BUDGET);
-				trace_napi_poll(napi, rc, BUSY_POLL_BUDGET);
-				if (rc == BUSY_POLL_BUDGET) {
-					napi_complete_done(napi, rc);
-					napi_schedule(napi);
-				}
-			}
-			netpoll_poll_unlock(have);
+			goto count;
 		}
+		if (!napi_poll) {
+			unsigned long val = READ_ONCE(napi->state);
+
+			/* If multiple threads are competing for this napi,
+			 * we avoid dirtying napi->state as much as we can.
+			 */
+			if (val & (NAPIF_STATE_DISABLE | NAPIF_STATE_SCHED |
+				   NAPIF_STATE_IN_BUSY_POLL))
+				goto count;
+			if (cmpxchg(&napi->state, val,
+				    val | NAPIF_STATE_IN_BUSY_POLL |
+					  NAPIF_STATE_SCHED) != val)
+				goto count;
+			have_poll_lock = netpoll_poll_lock(napi);
+			napi_poll = napi->poll;
+		}
+		rc = napi_poll(napi, BUSY_POLL_BUDGET);
+		trace_napi_poll(napi, rc, BUSY_POLL_BUDGET);
+count:
 		if (rc > 0)
 			__NET_ADD_STATS(sock_net(sk),
 					LINUX_MIB_BUSYPOLLRXPACKETS, rc);
@@ -4999,10 +5047,26 @@ bool sk_busy_loop(struct sock *sk, int nonblock)
 		if (rc == LL_FLUSH_FAILED)
 			break; /* permanent failure */
 
-		cpu_relax();
-	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
-		 !need_resched() && !busy_loop_timeout(end_time));
+		if (nonblock || !skb_queue_empty(&sk->sk_receive_queue) ||
+		    busy_loop_timeout(end_time))
+			break;
 
+		if (unlikely(need_resched())) {
+			if (napi_poll)
+				busy_poll_stop(napi, have_poll_lock);
+			preempt_enable();
+			rcu_read_unlock();
+			cond_resched();
+			rc = !skb_queue_empty(&sk->sk_receive_queue);
+			if (rc || busy_loop_timeout(end_time))
+				return rc;
+			goto restart;
+		}
+		cpu_relax_lowlatency();
+	}
+	if (napi_poll)
+		busy_poll_stop(napi, have_poll_lock);
+	preempt_enable();
 	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
 	rcu_read_unlock();
