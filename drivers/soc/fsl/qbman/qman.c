@@ -2789,15 +2789,18 @@ static int qpool_cleanup(u32 qp)
 		struct qm_mcr_queryfq_np np;
 
 		err = qman_query_fq_np(&fq, &np);
-		if (err)
+		if (err == -ERANGE)
 			/* FQID range exceeded, found no problems */
 			return 0;
+		else if (WARN_ON(err))
+			return err;
+
 		if ((np.state & QM_MCR_NP_STATE_MASK) != QM_MCR_NP_STATE_OOS) {
 			struct qm_fqd fqd;
 
 			err = qman_query_fq(&fq, &fqd);
 			if (WARN_ON(err))
-				return 0;
+				return err;
 			if (qm_fqd_get_chan(&fqd) == qp) {
 				/* The channel is the FQ's target, clean it */
 				err = qman_shutdown_fq(fq.fqid);
@@ -2836,7 +2839,7 @@ static int cgr_cleanup(u32 cgrid)
 	 * error, looking for non-OOS FQDs whose CGR is the CGR being released
 	 */
 	struct qman_fq fq = {
-		.fqid = 1
+		.fqid = QM_FQID_RANGE_START
 	};
 	int err;
 
@@ -2844,15 +2847,18 @@ static int cgr_cleanup(u32 cgrid)
 		struct qm_mcr_queryfq_np np;
 
 		err = qman_query_fq_np(&fq, &np);
-		if (err)
+		if (err == -ERANGE)
 			/* FQID range exceeded, found no problems */
 			return 0;
+		else if (WARN_ON(err))
+			return err;
+
 		if ((np.state & QM_MCR_NP_STATE_MASK) != QM_MCR_NP_STATE_OOS) {
 			struct qm_fqd fqd;
 
 			err = qman_query_fq(&fq, &fqd);
 			if (WARN_ON(err))
-				return 0;
+				return err;
 			if ((fqd.fq_ctrl & QM_FQCTRL_CGE) &&
 			    fqd.cgid == cgrid) {
 				pr_err("CRGID 0x%x is being used by FQID 0x%x, CGR will be leaked\n",
