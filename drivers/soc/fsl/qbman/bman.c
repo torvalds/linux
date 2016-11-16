@@ -167,12 +167,12 @@ struct bm_portal {
 /* Cache-inhibited register access. */
 static inline u32 bm_in(struct bm_portal *p, u32 offset)
 {
-	return __raw_readl(p->addr.ci + offset);
+	return be32_to_cpu(__raw_readl(p->addr.ci + offset));
 }
 
 static inline void bm_out(struct bm_portal *p, u32 offset, u32 val)
 {
-	__raw_writel(val, p->addr.ci + offset);
+	__raw_writel(cpu_to_be32(val), p->addr.ci + offset);
 }
 
 /* Cache Enabled Portal Access */
@@ -188,7 +188,7 @@ static inline void bm_cl_touch_ro(struct bm_portal *p, u32 offset)
 
 static inline u32 bm_ce_in(struct bm_portal *p, u32 offset)
 {
-	return __raw_readl(p->addr.ce + offset);
+	return be32_to_cpu(__raw_readl(p->addr.ce + offset));
 }
 
 struct bman_portal {
