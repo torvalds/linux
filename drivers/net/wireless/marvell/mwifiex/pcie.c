@@ -2715,9 +2715,12 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 
 static void mwifiex_pcie_device_dump_work(struct mwifiex_adapter *adapter)
 {
-	mwifiex_drv_info_dump(adapter);
+	int drv_info_size;
+	void *drv_info;
+
+	drv_info_size = mwifiex_drv_info_dump(adapter, &drv_info);
 	mwifiex_pcie_fw_dump(adapter);
-	mwifiex_upload_device_dump(adapter);
+	mwifiex_upload_device_dump(adapter, drv_info, drv_info_size);
 }
 
 static unsigned long iface_work_flags;
