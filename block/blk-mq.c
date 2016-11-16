@@ -1497,6 +1497,13 @@ static blk_qc_t blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		struct request *last = NULL;
 
 		blk_mq_bio_to_request(rq, bio);
+
+		/*
+		 * @request_count may become stale because of schedule
+		 * out, so check the list again.
+		 */
+		if (list_empty(&plug->mq_list))
+			request_count = 0;
 		if (!request_count)
 			trace_block_plug(q);
 		else

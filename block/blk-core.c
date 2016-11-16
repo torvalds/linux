@@ -1753,8 +1753,11 @@ get_rq:
 		/*
 		 * If this is the first request added after a plug, fire
 		 * of a plug trace.
+		 *
+		 * @request_count may become stale because of schedule
+		 * out, so check plug list again.
 		 */
-		if (!request_count)
+		if (!request_count || list_empty(&plug->list))
 			trace_block_plug(q);
 		else {
 			struct request *last = list_entry_rq(plug->list.prev);
