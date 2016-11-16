@@ -1224,6 +1224,7 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_NO_ZEROMAP	0x2
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
 #define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
+#define I915_CONTEXT_PARAM_BANNABLE	0x5
 	__u64 value;
 };
 

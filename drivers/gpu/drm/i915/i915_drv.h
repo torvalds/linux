@@ -850,6 +850,7 @@ struct drm_i915_error_state {
 			long jiffies;
 			pid_t pid;
 			u32 context;
+			int ban_score;
 			u32 seqno;
 			u32 head;
 			u32 tail;
@@ -909,16 +910,10 @@ struct i915_ctx_hang_stats {
 	/* This context had batch active when hang was declared */
 	unsigned batch_active;
 
-	/* Time when this context was last blamed for a GPU reset */
-	unsigned long guilty_ts;
-
-	/* If the contexts causes a second GPU hang within this time,
-	 * it is permanently banned from submitting any more work.
-	 */
-	unsigned long ban_period_seconds;
+	bool bannable:1;
 
 	/* This context is banned to submit more work */
-	bool banned;
+	bool banned:1;
 
 #define CONTEXT_SCORE_GUILTY		10
 #define CONTEXT_SCORE_BAN_THRESHOLD	40
@@ -1459,8 +1454,6 @@ struct i915_gpu_error {
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
 #define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
-	/* Hang gpu twice in this window and your context gets banned */
-#define DRM_I915_CTX_BAN_PERIOD DIV_ROUND_UP(8*DRM_I915_HANGCHECK_PERIOD, 1000)
 
 	struct delayed_work hangcheck_work;
 

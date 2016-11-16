@@ -352,8 +352,8 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, seqno %8x:%08x, emitted %dms ago, head %08x, tail %08x\n",
-		   prefix, erq->pid,
+	err_printf(m, "%s pid %d, ban score %d, seqno %8x:%08x, emitted %dms ago, head %08x, tail %08x\n",
+		   prefix, erq->pid, erq->ban_score,
 		   erq->context, erq->seqno,
 		   jiffies_to_msecs(jiffies - erq->jiffies),
 		   erq->head, erq->tail);
@@ -1170,6 +1170,7 @@ static void record_request(struct drm_i915_gem_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
+	erq->ban_score = request->ctx->hang_stats.ban_score;
 	erq->seqno = request->global_seqno;
 	erq->jiffies = request->emitted_jiffies;
 	erq->head = request->head;
