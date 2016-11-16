@@ -554,7 +554,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EINVAL;
 			break;
 		}
-		rc = mutex_lock_interruptible(&instance->state->mutex);
+		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc != 0) {
 			vchiq_log_error(vchiq_arm_log_level,
 				"vchiq: connect: could not lock mutex for "

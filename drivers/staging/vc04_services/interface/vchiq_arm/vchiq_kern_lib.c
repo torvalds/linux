@@ -134,7 +134,7 @@ VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
 
-	if (mutex_lock_interruptible(&state->mutex) != 0)
+	if (mutex_lock_killable(&state->mutex) != 0)
 		return VCHIQ_RETRY;
 
 	/* Remove all services */
@@ -191,7 +191,7 @@ VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance)
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
 
-	if (mutex_lock_interruptible(&state->mutex) != 0) {
+	if (mutex_lock_killable(&state->mutex) != 0) {
 		vchiq_log_trace(vchiq_core_log_level,
 			"%s: call to mutex_lock failed", __func__);
 		status = VCHIQ_RETRY;

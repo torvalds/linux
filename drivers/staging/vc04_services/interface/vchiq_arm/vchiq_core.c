@@ -794,7 +794,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 	WARN_ON(!(stride <= VCHIQ_SLOT_SIZE));
 
 	if (!(flags & QMFLAGS_NO_MUTEX_LOCK) &&
-		(mutex_lock_interruptible(&state->slot_mutex) != 0))
+		(mutex_lock_killable(&state->slot_mutex) != 0))
 		return VCHIQ_RETRY;
 
 	if (type == VCHIQ_MSG_DATA) {
@@ -863,7 +863,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 				return VCHIQ_RETRY;
 			if (service->closing)
 				return VCHIQ_ERROR;
-			if (mutex_lock_interruptible(&state->slot_mutex) != 0)
+			if (mutex_lock_killable(&state->slot_mutex) != 0)
 				return VCHIQ_RETRY;
 			if (service->srvstate != VCHIQ_SRVSTATE_OPEN) {
 				/* The service has been closed */
@@ -1033,7 +1033,7 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 	local = state->local;
 
 	if ((VCHIQ_MSG_TYPE(msgid) != VCHIQ_MSG_RESUME) &&
-		(mutex_lock_interruptible(&state->sync_mutex) != 0))
+		(mutex_lock_killable(&state->sync_mutex) != 0))
 		return VCHIQ_RETRY;
 
 	remote_event_wait(state, &local->sync_release);
@@ -1365,7 +1365,7 @@ resolve_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue)
 		WARN_ON(!((int)(queue->local_insert - queue->process) > 0));
 		WARN_ON(!((int)(queue->remote_insert - queue->process) > 0));
 
-		rc = mutex_lock_interruptible(&state->bulk_transfer_mutex);
+		rc = mutex_lock_killable(&state->bulk_transfer_mutex);
 		if (rc != 0)
 			break;
 
@@ -1839,7 +1839,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 				int resolved = 0;
 
 				DEBUG_TRACE(PARSE_LINE);
-				if (mutex_lock_interruptible(
+				if (mutex_lock_killable(
 					&service->bulk_mutex) != 0) {
 					DEBUG_TRACE(PARSE_LINE);
 					goto bail_not_ready;
@@ -1903,7 +1903,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 					&service->bulk_rx : &service->bulk_tx;
 
 				DEBUG_TRACE(PARSE_LINE);
-				if (mutex_lock_interruptible(
+				if (mutex_lock_killable(
 					&service->bulk_mutex) != 0) {
 					DEBUG_TRACE(PARSE_LINE);
 					goto bail_not_ready;
@@ -2780,7 +2780,7 @@ do_abort_bulks(VCHIQ_SERVICE_T *service)
 	VCHIQ_STATUS_T status;
 
 	/* Abort any outstanding bulk transfers */
-	if (mutex_lock_interruptible(&service->bulk_mutex) != 0)
+	if (mutex_lock_killable(&service->bulk_mutex) != 0)
 		return 0;
 	abort_outstanding_bulks(service, &service->bulk_tx);
 	abort_outstanding_bulks(service, &service->bulk_rx);
@@ -3300,7 +3300,7 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 	queue = (dir == VCHIQ_BULK_TRANSMIT) ?
 		&service->bulk_tx : &service->bulk_rx;
 
-	if (mutex_lock_interruptible(&service->bulk_mutex) != 0) {
+	if (mutex_lock_killable(&service->bulk_mutex) != 0) {
 		status = VCHIQ_RETRY;
 		goto error_exit;
 	}
@@ -3314,7 +3314,7 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 				status = VCHIQ_RETRY;
 				goto error_exit;
 			}
-			if (mutex_lock_interruptible(&service->bulk_mutex)
+			if (mutex_lock_killable(&service->bulk_mutex)
 				!= 0) {
 				status = VCHIQ_RETRY;
 				goto error_exit;
@@ -3344,7 +3344,7 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 
 	/* The slot mutex must be held when the service is being closed, so
 	   claim it here to ensure that isn't happening */
-	if (mutex_lock_interruptible(&state->slot_mutex) != 0) {
+	if (mutex_lock_killable(&state->slot_mutex) != 0) {
 		status = VCHIQ_RETRY;
 		goto cancel_bulk_error_exit;
 	}
