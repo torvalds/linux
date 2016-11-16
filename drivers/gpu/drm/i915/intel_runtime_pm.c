@@ -1066,7 +1066,7 @@ static void vlv_display_power_well_init(struct drm_i915_private *dev_priv)
 	 *
 	 * CHV DPLL B/C have some issues if VGA mode is enabled.
 	 */
-	for_each_pipe(&dev_priv->drm, pipe) {
+	for_each_pipe(dev_priv, pipe) {
 		u32 val = I915_READ(DPLL(pipe));
 
 		val |= DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
