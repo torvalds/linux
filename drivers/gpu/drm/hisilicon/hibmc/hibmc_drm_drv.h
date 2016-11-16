@@ -86,6 +86,7 @@ void hibmc_set_current_gate(struct hibmc_drm_private *priv,
 			    unsigned int gate);
 
 int hibmc_de_init(struct hibmc_drm_private *priv);
+int hibmc_vdac_init(struct hibmc_drm_private *priv);
 int hibmc_fbdev_init(struct hibmc_drm_private *priv);
 void hibmc_fbdev_fini(struct hibmc_drm_private *priv);
 

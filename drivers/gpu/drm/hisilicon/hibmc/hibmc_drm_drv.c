@@ -123,6 +123,12 @@ static int hibmc_kms_init(struct hibmc_drm_private *priv)
 		return ret;
 	}
 
+	ret = hibmc_vdac_init(priv);
+	if (ret) {
+		DRM_ERROR("failed to init vdac: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 }
 
