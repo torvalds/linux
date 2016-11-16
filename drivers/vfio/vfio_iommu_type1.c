@@ -752,11 +752,24 @@ static void vfio_test_domain_fgsp(struct vfio_domain *domain)
 	__free_pages(pages, order);
 }
 
+static struct vfio_group *find_iommu_group(struct vfio_domain *domain,
+					   struct iommu_group *iommu_group)
+{
+	struct vfio_group *g;
+
+	list_for_each_entry(g, &domain->group_list, next) {
+		if (g->iommu_group == iommu_group)
+			return g;
+	}
+
+	return NULL;
+}
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
 	struct vfio_iommu *iommu = iommu_data;
-	struct vfio_group *group, *g;
+	struct vfio_group *group;
 	struct vfio_domain *domain, *d;
 	struct bus_type *bus = NULL;
 	int ret;
@@ -764,10 +777,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	mutex_lock(&iommu->lock);
 
 	list_for_each_entry(d, &iommu->domain_list, next) {
-		list_for_each_entry(g, &d->group_list, next) {
-			if (g->iommu_group != iommu_group)
-				continue;
-
+		if (find_iommu_group(d, iommu_group)) {
 			mutex_unlock(&iommu->lock);
 			return -EINVAL;
 		}
@@ -887,27 +897,26 @@ static void vfio_iommu_type1_detach_group(void *iommu_data,
 	mutex_lock(&iommu->lock);
 
 	list_for_each_entry(domain, &iommu->domain_list, next) {
-		list_for_each_entry(group, &domain->group_list, next) {
-			if (group->iommu_group != iommu_group)
-				continue;
+		group = find_iommu_group(domain, iommu_group);
+		if (!group)
+			continue;
 
-			iommu_detach_group(domain->domain, iommu_group);
-			list_del(&group->next);
-			kfree(group);
-			/*
-			 * Group ownership provides privilege, if the group
-			 * list is empty, the domain goes away.  If it's the
-			 * last domain, then all the mappings go away too.
-			 */
-			if (list_empty(&domain->group_list)) {
-				if (list_is_singular(&iommu->domain_list))
-					vfio_iommu_unmap_unpin_all(iommu);
-				iommu_domain_free(domain->domain);
-				list_del(&domain->next);
-				kfree(domain);
-			}
-			goto done;
+		iommu_detach_group(domain->domain, iommu_group);
+		list_del(&group->next);
+		kfree(group);
+		/*
+		 * Group ownership provides privilege, if the group
+		 * list is empty, the domain goes away.  If it's the
+		 * last domain, then all the mappings go away too.
+		 */
+		if (list_empty(&domain->group_list)) {
+			if (list_is_singular(&iommu->domain_list))
+				vfio_iommu_unmap_unpin_all(iommu);
+			iommu_domain_free(domain->domain);
+			list_del(&domain->next);
+			kfree(domain);
 		}
+		goto done;
 	}
 
 done:
