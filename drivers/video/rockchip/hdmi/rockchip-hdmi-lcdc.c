@@ -932,9 +932,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 	mode = (struct fb_videomode *)&hdmi_mode[i].mode;
 	if (hdmi->video.color_input == HDMI_COLOR_RGB_0_255) {
 		screen->color_mode = COLOR_RGB;
-	} else if (mode->xres >= 3840 &&
-		   mode->yres >= 2160 &&
-		   colorimetry > HDMI_COLORIMETRY_EXTEND_ADOBE_RGB) {
+	} else if (colorimetry > HDMI_COLORIMETRY_EXTEND_ADOBE_RGB) {
 		screen->color_mode = COLOR_YCBCR_BT2020;
 		if (hdmi->video.eotf == EOTF_ST_2084)
 			screen->data_space = 1;
