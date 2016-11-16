@@ -271,10 +271,13 @@ int pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				u32 seq);
 int pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
 		struct list_head *lseg_list);
-bool pnfs_roc(struct inode *ino);
-void pnfs_roc_release(struct inode *ino);
-void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
-void pnfs_roc_get_barrier(struct inode *ino, u32 *barrier);
+bool pnfs_roc(struct inode *ino,
+		struct nfs4_layoutreturn_args *args,
+		struct nfs4_layoutreturn_res *res,
+		const struct rpc_cred *cred);
+void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
+		struct nfs4_layoutreturn_res *res,
+		int ret);
 bool pnfs_wait_on_layoutreturn(struct inode *ino, struct rpc_task *task);
 void pnfs_set_layoutcommit(struct inode *, struct pnfs_layout_segment *, loff_t);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
@@ -666,23 +669,18 @@ pnfs_layoutcommit_outstanding(struct inode *inode)
 
 
 static inline bool
-pnfs_roc(struct inode *ino)
+pnfs_roc(struct inode *ino,
+		struct nfs4_layoutreturn_args *args,
+		struct nfs4_layoutreturn_res *res,
+		const struct rpc_cred *cred)
 {
 	return false;
 }
 
 static inline void
-pnfs_roc_release(struct inode *ino)
-{
-}
-
-static inline void
-pnfs_roc_set_barrier(struct inode *ino, u32 barrier)
-{
-}
-
-static inline void
-pnfs_roc_get_barrier(struct inode *ino, u32 *barrier)
+pnfs_roc_release(struct nfs4_layoutreturn_args *args,
+		struct nfs4_layoutreturn_res *res,
+		int ret)
 {
 }
 

@@ -3052,7 +3052,8 @@ static void nfs4_free_closedata(void *data)
 	struct super_block *sb = calldata->state->inode->i_sb;
 
 	if (calldata->lr.roc)
-		pnfs_roc_release(calldata->state->inode);
+		pnfs_roc_release(&calldata->lr.arg, &calldata->lr.res,
+				calldata->res.lr_ret);
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_state_owner(sp);
@@ -3103,9 +3104,6 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	switch (task->tk_status) {
 		case 0:
 			res_stateid = &calldata->res.stateid;
-			if (calldata->lr.roc)
-				pnfs_roc_set_barrier(state->inode,
-						     calldata->lr.roc_barrier);
 			renew_lease(server, calldata->timestamp);
 			break;
 		case -NFS4ERR_ADMIN_REVOKED:
@@ -3181,7 +3179,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		goto out_no_action;
 	}
 
-	if (!calldata->arg.lr_args && nfs4_wait_on_layoutreturn(inode, task)) {
+	if (!calldata->lr.roc && nfs4_wait_on_layoutreturn(inode, task)) {
 		nfs_release_seqid(calldata->arg.seqid);
 		goto out_wait;
 	}
@@ -3195,8 +3193,6 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		else
 			calldata->arg.bitmask = NULL;
 	}
-	if (calldata->lr.roc)
-		pnfs_roc_get_barrier(inode, &calldata->lr.roc_barrier);
 
 	calldata->arg.share_access =
 		nfs4_map_atomic_open_share(NFS_SERVER(inode),
@@ -3222,13 +3218,6 @@ static const struct rpc_call_ops nfs4_close_ops = {
 	.rpc_call_done = nfs4_close_done,
 	.rpc_release = nfs4_free_closedata,
 };
-
-static bool nfs4_roc(struct inode *inode)
-{
-	if (!nfs_have_layout(inode))
-		return false;
-	return pnfs_roc(inode);
-}
 
 /* 
  * It is possible for data to be read/written from a mem-mapped file 
@@ -3281,7 +3270,12 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
 	calldata->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
-	calldata->lr.roc = nfs4_roc(state->inode);
+	calldata->lr.roc = pnfs_roc(state->inode,
+			&calldata->lr.arg, &calldata->lr.res, msg.rpc_cred);
+	if (calldata->lr.roc) {
+		calldata->arg.lr_args = &calldata->lr.arg;
+		calldata->res.lr_res = &calldata->lr.res;
+	}
 	nfs_sb_active(calldata->inode->i_sb);
 
 	msg.rpc_argp = &calldata->arg;
@@ -5676,8 +5670,6 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		}
 	}
 	data->rpc_status = task->tk_status;
-	if (data->lr.roc && data->rpc_status == 0)
-		pnfs_roc_set_barrier(data->inode, data->lr.roc_barrier);
 }
 
 static void nfs4_delegreturn_release(void *calldata)
@@ -5687,7 +5679,8 @@ static void nfs4_delegreturn_release(void *calldata)
 
 	if (inode) {
 		if (data->lr.roc)
-			pnfs_roc_release(inode);
+			pnfs_roc_release(&data->lr.arg, &data->lr.res,
+					data->res.lr_ret);
 		nfs_iput_and_deactive(inode);
 	}
 	kfree(calldata);
@@ -5699,12 +5692,8 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 
 	d_data = (struct nfs4_delegreturndata *)data;
 
-	if (!d_data->args.lr_args &&
-	    nfs4_wait_on_layoutreturn(d_data->inode, task))
+	if (!d_data->lr.roc && nfs4_wait_on_layoutreturn(d_data->inode, task))
 		return;
-
-	if (d_data->lr.roc)
-		pnfs_roc_get_barrier(d_data->inode, &d_data->lr.roc_barrier);
 
 	nfs4_setup_sequence(d_data->res.server,
 			&d_data->args.seq_args,
@@ -5756,8 +5745,14 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	data->timestamp = jiffies;
 	data->rpc_status = 0;
 	data->inode = nfs_igrab_and_active(inode);
-	if (data->inode)
-		data->lr.roc = nfs4_roc(inode);
+	if (data->inode) {
+		data->lr.roc = pnfs_roc(inode, &data->lr.arg, &data->lr.res,
+				cred);
+		if (data->lr.roc) {
+			data->args.lr_args = &data->lr.arg;
+			data->res.lr_res = &data->lr.res;
+		}
+	}
 
 	task_setup_data.callback_data = data;
 	msg.rpc_argp = &data->args;
