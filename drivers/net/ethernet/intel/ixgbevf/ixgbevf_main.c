@@ -3228,6 +3228,21 @@ err_setup_reset:
 }
 
 /**
+ * ixgbevf_close_suspend - actions necessary to both suspend and close flows
+ * @adapter: the private adapter struct
+ *
+ * This function should contain the necessary work common to both suspending
+ * and closing of the device.
+ */
+static void ixgbevf_close_suspend(struct ixgbevf_adapter *adapter)
+{
+	ixgbevf_down(adapter);
+	ixgbevf_free_irq(adapter);
+	ixgbevf_free_all_tx_resources(adapter);
+	ixgbevf_free_all_rx_resources(adapter);
+}
+
+/**
  * ixgbevf_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -3242,14 +3257,8 @@ int ixgbevf_close(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
-	if (!netif_device_present(netdev))
-		return 0;
-
-	ixgbevf_down(adapter);
-	ixgbevf_free_irq(adapter);
-
-	ixgbevf_free_all_tx_resources(adapter);
-	ixgbevf_free_all_rx_resources(adapter);
+	if (netif_device_present(netdev))
+		ixgbevf_close_suspend(adapter);
 
 	return 0;
 }
@@ -3806,13 +3815,10 @@ static int ixgbevf_suspend(struct pci_dev *pdev, pm_message_t state)
 	rtnl_lock();
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev)) {
-		ixgbevf_down(adapter);
-		ixgbevf_free_irq(adapter);
-		ixgbevf_free_all_tx_resources(adapter);
-		ixgbevf_free_all_rx_resources(adapter);
-		ixgbevf_clear_interrupt_scheme(adapter);
-	}
+	if (netif_running(netdev))
+		ixgbevf_close_suspend(adapter);
+
+	ixgbevf_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
 
 #ifdef CONFIG_PM
@@ -4251,7 +4257,7 @@ static pci_ers_result_t ixgbevf_io_error_detected(struct pci_dev *pdev,
 	}
 
 	if (netif_running(netdev))
-		ixgbevf_down(adapter);
+		ixgbevf_close_suspend(adapter);
 
 	if (!test_and_set_bit(__IXGBEVF_DISABLED, &adapter->state))
 		pci_disable_device(pdev);
@@ -4299,12 +4305,13 @@ static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
 static void ixgbevf_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
+	rtnl_lock();
 	if (netif_running(netdev))
-		ixgbevf_up(adapter);
+		ixgbevf_open(netdev);
 
 	netif_device_attach(netdev);
+	rtnl_unlock();
 }
 
 /* PCI Error Recovery (ERS) */
