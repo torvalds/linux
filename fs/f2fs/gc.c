@@ -690,8 +690,6 @@ retry:
 			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
-
-		clear_cold_data(page);
 	}
 out:
 	f2fs_put_page(page, 1);

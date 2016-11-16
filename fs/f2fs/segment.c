@@ -288,7 +288,6 @@ static int __commit_inmem_pages(struct inode *inode,
 			/* record old blkaddr for revoking */
 			cur->old_addr = fio.old_blkaddr;
 
-			clear_cold_data(page);
 			submit_bio = true;
 		}
 		unlock_page(page);
