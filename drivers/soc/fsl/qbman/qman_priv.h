@@ -90,12 +90,6 @@ static inline u64 qm_mcr_querycgr_a_get64(const struct qm_mcr_querycgr *q)
 }
 
 /* "Query FQ Non-Programmable Fields" */
-struct qm_mcc_queryfq_np {
-	u8 _ncw_verb;
-	u8 __reserved1[3];
-	u32 fqid;	/* 24-bit */
-	u8 __reserved2[56];
-} __packed;
 
 struct qm_mcr_queryfq_np {
 	u8 verb;
