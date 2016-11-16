@@ -253,16 +253,9 @@
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-supply = <&reg_enet_3v3>;
 	phy-mode = "rgmii";
-	phy-handle = <&ethphy1>;
+	phy-reset-gpios = <&gpio4 26 0>;
+	fsl,magic-packet;
 	status = "okay";
-
-	mdio {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		ethphy1: ethernet-phy@1 {
-			reg = <3>;
-		};
-	};
 };
 
 &csi1 {
