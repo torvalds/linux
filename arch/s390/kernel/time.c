@@ -63,7 +63,7 @@ unsigned char ptff_function_mask[16];
 static unsigned long long lpar_offset;
 static unsigned long long initial_leap_seconds;
 static unsigned long long tod_steering_end;
-static unsigned long long tod_steering_delta;
+static long long tod_steering_delta;
 
 /*
  * Get time offsets with PTFF
@@ -223,8 +223,7 @@ static cycle_t read_tod_clock(struct clocksource *cs)
 		 * therefore steered in ~9h. The adjust will decrease
 		 * over time, until it finally reaches 0.
 		 */
-		now += ((s64) tod_steering_delta < 0) ?
-			(adj >> 15) : -(adj >> 15);
+		now += (tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
 	preempt_enable();
 	return now;
 }
@@ -412,7 +411,7 @@ static void clock_sync_global(unsigned long long delta)
 	adj = tod_steering_end - now;
 	if (unlikely((s64) adj >= 0))
 		/* Calculate how much of the old adjustment is left. */
-		tod_steering_delta = ((s64) tod_steering_delta < 0) ?
+		tod_steering_delta = (tod_steering_delta < 0) ?
 			-(adj >> 15) : (adj >> 15);
 	tod_steering_delta += delta;
 	if ((abs(tod_steering_delta) >> 48) != 0)
