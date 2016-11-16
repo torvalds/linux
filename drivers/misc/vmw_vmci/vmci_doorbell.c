@@ -431,6 +431,12 @@ int vmci_doorbell_create(struct vmci_handle *handle,
 	if (vmci_handle_is_invalid(*handle)) {
 		u32 context_id = vmci_get_context_id();
 
+		if (context_id == VMCI_INVALID_ID) {
+			pr_warn("Failed to get context ID\n");
+			result = VMCI_ERROR_NO_RESOURCES;
+			goto free_mem;
+		}
+
 		/* Let resource code allocate a free ID for us */
 		new_handle = vmci_make_handle(context_id, VMCI_INVALID_ID);
 	} else {
@@ -525,7 +531,7 @@ int vmci_doorbell_destroy(struct vmci_handle handle)
 
 	entry = container_of(resource, struct dbell_entry, resource);
 
-	if (vmci_guest_code_active()) {
+	if (!hlist_unhashed(&entry->node)) {
 		int result;
 
 		dbell_index_table_remove(entry);

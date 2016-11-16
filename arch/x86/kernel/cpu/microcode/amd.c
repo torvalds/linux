@@ -429,7 +429,7 @@ int __init save_microcode_in_initrd_amd(void)
 	 * We need the physical address of the container for both bitness since
 	 * boot_params.hdr.ramdisk_image is a physical address.
 	 */
-	cont    = __pa(container);
+	cont    = __pa_nodebug(container);
 	cont_va = container;
 #endif
 

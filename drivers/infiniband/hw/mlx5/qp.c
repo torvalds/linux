@@ -52,7 +52,6 @@ enum {
 
 enum {
 	MLX5_IB_SQ_STRIDE	= 6,
-	MLX5_IB_CACHE_LINE_SIZE	= 64,
 };
 
 static const u32 mlx5_ib_opcode[] = {

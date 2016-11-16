@@ -238,7 +238,7 @@ struct rtl8xxxu_rxdesc16 {
 	u32 pattern1match:1;
 	u32 pattern0match:1;
 #endif
-	__le32 tsfl;
+	u32 tsfl;
 #if 0
 	u32 bassn:12;
 	u32 bavld:1;
@@ -368,7 +368,7 @@ struct rtl8xxxu_rxdesc24 {
 	u32 ldcp:1;
 	u32 splcp:1;
 #endif
-	__le32 tsfl;
+	u32 tsfl;
 };
 
 struct rtl8xxxu_txdesc32 {

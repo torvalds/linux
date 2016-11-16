@@ -26,13 +26,16 @@ Required properties:
 	- "sys"
 	- "legacy"
 	- "client"
-- resets: Must contain five entries for each entry in reset-names.
+- resets: Must contain seven entries for each entry in reset-names.
 	   See ../reset/reset.txt for details.
 - reset-names: Must include the following names
 	- "core"
 	- "mgmt"
 	- "mgmt-sticky"
 	- "pipe"
+	- "pm"
+	- "aclk"
+	- "pclk"
 - pinctrl-names : The pin control state names
 - pinctrl-0: The "default" pinctrl state
 - #interrupt-cells: specifies the number of cells needed to encode an
@@ -86,8 +89,10 @@ pcie0: pcie@f8000000 {
 	reg = <0x0 0xf8000000 0x0 0x2000000>, <0x0 0xfd000000 0x0 0x1000000>;
 	reg-names = "axi-base", "apb-base";
 	resets = <&cru SRST_PCIE_CORE>, <&cru SRST_PCIE_MGMT>,
-		 <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE>;
-	reset-names = "core", "mgmt", "mgmt-sticky", "pipe";
+		 <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE> ,
+		 <&cru SRST_PCIE_PM>, <&cru SRST_P_PCIE>, <&cru SRST_A_PCIE>;
+	reset-names = "core", "mgmt", "mgmt-sticky", "pipe",
+		      "pm", "pclk", "aclk";
 	phys = <&pcie_phy>;
 	phy-names = "pcie-phy";
 	pinctrl-names = "default";

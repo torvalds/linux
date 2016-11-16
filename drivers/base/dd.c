@@ -324,7 +324,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
 	int local_trigger_count = atomic_read(&deferred_trigger_count);
-	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE);
+	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE) &&
+			   !drv->suppress_bind_attrs;
 
 	if (defer_all_probes) {
 		/*
@@ -383,7 +384,7 @@ re_probe:
 	if (test_remove) {
 		test_remove = false;
 
-		if (dev->bus && dev->bus->remove)
+		if (dev->bus->remove)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);

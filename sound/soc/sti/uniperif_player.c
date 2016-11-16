@@ -614,7 +614,11 @@ static int uni_player_ctl_iec958_put(struct snd_kcontrol *kcontrol,
 	iec958->status[3] = ucontrol->value.iec958.status[3];
 	mutex_unlock(&player->ctrl_lock);
 
-	uni_player_set_channel_status(player, NULL);
+	if (player->substream && player->substream->runtime)
+		uni_player_set_channel_status(player,
+					      player->substream->runtime);
+	else
+		uni_player_set_channel_status(player, NULL);
 
 	return 0;
 }

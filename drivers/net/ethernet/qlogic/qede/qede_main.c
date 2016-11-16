@@ -313,8 +313,8 @@ static int qede_free_tx_pkt(struct qede_dev *edev,
 		split_bd_len = BD_UNMAP_LEN(split);
 		bds_consumed++;
 	}
-	dma_unmap_page(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
-		       BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
+	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
+			 BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
 
 	/* Unmap the data of the skb frags */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++, bds_consumed++) {
@@ -359,8 +359,8 @@ static void qede_free_failed_tx_pkt(struct qede_dev *edev,
 		nbd--;
 	}
 
-	dma_unmap_page(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
-		       BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
+	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
+			 BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
 
 	/* Unmap the data of the skb frags */
 	for (i = 0; i < nbd; i++) {
@@ -943,8 +943,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
 	return 0;
 }
 
-static inline void qede_update_rx_prod(struct qede_dev *edev,
-				       struct qede_rx_queue *rxq)
+void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq)
 {
 	u16 bd_prod = qed_chain_get_prod_idx(&rxq->rx_bd_ring);
 	u16 cqe_prod = qed_chain_get_prod_idx(&rxq->rx_comp_ring);
@@ -2941,7 +2940,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 	txq->num_tx_buffers = edev->q_num_tx_buffers;
 
 	/* Allocate the parallel driver ring for Tx buffers */
-	size = sizeof(*txq->sw_tx_ring) * NUM_TX_BDS_MAX;
+	size = sizeof(*txq->sw_tx_ring) * TX_RING_SIZE;
 	txq->sw_tx_ring = kzalloc(size, GFP_KERNEL);
 	if (!txq->sw_tx_ring) {
 		DP_NOTICE(edev, "Tx buffers ring allocation failed\n");
@@ -2952,7 +2951,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_PBL,
 					    QED_CHAIN_CNT_TYPE_U16,
-					    NUM_TX_BDS_MAX,
+					    TX_RING_SIZE,
 					    sizeof(*p_virt), &txq->tx_pbl);
 	if (rc)
 		goto err;

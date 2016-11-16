@@ -1493,8 +1493,6 @@ static int ofdpa_port_ipv4_nh(struct ofdpa_port *ofdpa_port,
 	spin_lock_irqsave(&ofdpa->neigh_tbl_lock, lock_flags);
 
 	found = ofdpa_neigh_tbl_find(ofdpa, ip_addr);
-	if (found)
-		*index = found->index;
 
 	updating = found && adding;
 	removing = found && !adding;
@@ -1508,9 +1506,11 @@ static int ofdpa_port_ipv4_nh(struct ofdpa_port *ofdpa_port,
 		resolved = false;
 	} else if (removing) {
 		ofdpa_neigh_del(trans, found);
+		*index = found->index;
 	} else if (updating) {
 		ofdpa_neigh_update(found, trans, NULL, false);
 		resolved = !is_zero_ether_addr(found->eth_dst);
+		*index = found->index;
 	} else {
 		err = -ENOENT;
 	}
