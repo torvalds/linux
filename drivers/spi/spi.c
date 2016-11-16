@@ -479,6 +479,7 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	const int desc_len = vmalloced_buf ? PAGE_SIZE : master->max_dma_len;
 	const int sgs = DIV_ROUND_UP(len, desc_len);
 	struct page *vm_page;
+	struct scatterlist *sg;
 	void *sg_buf;
 	size_t min;
 	int i, ret;
@@ -487,6 +488,7 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	if (ret != 0)
 		return ret;
 
+	sg = &sgt->sgl[0];
 	for (i = 0; i < sgs; i++) {
 		min = min_t(size_t, len, desc_len);
 
@@ -496,16 +498,17 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 				sg_free_table(sgt);
 				return -ENOMEM;
 			}
-			sg_set_page(&sgt->sgl[i], vm_page,
+			sg_set_page(sg, vm_page,
 				    min, offset_in_page(buf));
 		} else {
 			sg_buf = buf;
-			sg_set_buf(&sgt->sgl[i], sg_buf, min);
+			sg_set_buf(sg, sg_buf, min);
 		}
 
 
 		buf += min;
 		len -= min;
+		sg = sg_next(sg);
 	}
 
 	ret = dma_map_sg(dev, sgt->sgl, sgt->nents, dir);
