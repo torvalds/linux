@@ -821,32 +821,6 @@ void media_device_unregister(struct media_device *mdev)
 }
 EXPORT_SYMBOL_GPL(media_device_unregister);
 
-static void media_device_release_devres(struct device *dev, void *res)
-{
-}
-
-struct media_device *media_device_get_devres(struct device *dev)
-{
-	struct media_device *mdev;
-
-	mdev = devres_find(dev, media_device_release_devres, NULL, NULL);
-	if (mdev)
-		return mdev;
-
-	mdev = devres_alloc(media_device_release_devres,
-				sizeof(struct media_device), GFP_KERNEL);
-	if (!mdev)
-		return NULL;
-	return devres_get(dev, mdev, NULL, NULL);
-}
-EXPORT_SYMBOL_GPL(media_device_get_devres);
-
-struct media_device *media_device_find_devres(struct device *dev)
-{
-	return devres_find(dev, media_device_release_devres, NULL, NULL);
-}
-EXPORT_SYMBOL_GPL(media_device_find_devres);
-
 #if IS_ENABLED(CONFIG_PCI)
 void media_device_pci_init(struct media_device *mdev,
 			   struct pci_dev *pci_dev,

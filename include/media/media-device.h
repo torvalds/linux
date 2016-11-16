@@ -375,30 +375,6 @@ int __must_check media_device_register_entity_notify(struct media_device *mdev,
 void media_device_unregister_entity_notify(struct media_device *mdev,
 					struct media_entity_notify *nptr);
 
-/**
- * media_device_get_devres() -	get media device as device resource
- *				creates if one doesn't exist
- *
- * @dev: pointer to struct &device.
- *
- * Sometimes, the media controller &media_device needs to be shared by more
- * than one driver. This function adds support for that, by dynamically
- * allocating the &media_device and allowing it to be obtained from the
- * struct &device associated with the common device where all sub-device
- * components belong. So, for example, on an USB device with multiple
- * interfaces, each interface may be handled by a separate per-interface
- * drivers. While each interface have its own &device, they all share a
- * common &device associated with the hole USB device.
- */
-struct media_device *media_device_get_devres(struct device *dev);
-
-/**
- * media_device_find_devres() - find media device as device resource
- *
- * @dev: pointer to struct &device.
- */
-struct media_device *media_device_find_devres(struct device *dev);
-
 /* Iterate over all entities. */
 #define media_device_for_each_entity(entity, mdev)			\
 	list_for_each_entry(entity, &(mdev)->entities, graph_obj.list)
@@ -475,14 +451,6 @@ static inline void media_device_unregister_entity_notify(
 					struct media_device *mdev,
 					struct media_entity_notify *nptr)
 {
-}
-static inline struct media_device *media_device_get_devres(struct device *dev)
-{
-	return NULL;
-}
-static inline struct media_device *media_device_find_devres(struct device *dev)
-{
-	return NULL;
 }
 
 static inline void media_device_pci_init(struct media_device *mdev,
