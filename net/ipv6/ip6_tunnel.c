@@ -1043,6 +1043,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	struct ipv6_tel_txoption opt;
 	struct dst_entry *dst = NULL, *ndst = NULL;
 	struct net_device *tdev;
+	bool use_cache = false;
 	int mtu;
 	unsigned int max_headroom = sizeof(struct ipv6hdr);
 	u8 proto;
@@ -1070,7 +1071,15 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 
 		memcpy(&fl6->daddr, addr6, sizeof(fl6->daddr));
 		neigh_release(neigh);
-	} else if (!fl6->flowi6_mark)
+	} else if (!(t->parms.flags &
+		     (IP6_TNL_F_USE_ORIG_TCLASS | IP6_TNL_F_USE_ORIG_FWMARK))) {
+		/* enable the cache only only if the routing decision does
+		 * not depend on the current inner header value
+		 */
+		use_cache = true;
+	}
+
+	if (use_cache)
 		dst = ip6_tnl_dst_get(t);
 
 	if (!ip6_tnl_xmit_ctl(t, &fl6->saddr, &fl6->daddr))
@@ -1134,7 +1143,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		skb = new_skb;
 	}
 
-	if (!fl6->flowi6_mark && ndst)
+	if (use_cache && ndst)
 		ip6_tnl_dst_set(t, ndst);
 	skb_dst_set(skb, dst);
 
