@@ -471,7 +471,7 @@ static inline void eqcr_commit_checks(struct qm_eqcr *eqcr)
 {
 	DPAA_ASSERT(eqcr->busy);
 	DPAA_ASSERT(eqcr->cursor->orp == (eqcr->cursor->orp & 0x00ffffff));
-	DPAA_ASSERT(eqcr->cursor->fqid == (eqcr->cursor->fqid & 0x00ffffff));
+	DPAA_ASSERT(!(eqcr->cursor->fqid & ~QM_FQID_MASK));
 	DPAA_ASSERT(eqcr->available >= 1);
 }
 
@@ -1387,7 +1387,7 @@ static void qm_mr_process_task(struct work_struct *work)
 			case QM_MR_VERB_FQRN:
 			case QM_MR_VERB_FQRL:
 				/* Lookup in the retirement table */
-				fq = fqid_to_fq(msg->fq.fqid);
+				fq = fqid_to_fq(qm_fqid_get(&msg->fq));
 				if (WARN_ON(!fq))
 					break;
 				fq_state_change(p, fq, msg, verb);
@@ -1755,7 +1755,7 @@ int qman_init_fq(struct qman_fq *fq, u32 flags, struct qm_mcc_initfq *opts)
 	mcc = qm_mc_start(&p->p);
 	if (opts)
 		mcc->initfq = *opts;
-	mcc->fq.fqid = fq->fqid;
+	qm_fqid_set(&mcc->fq, fq->fqid);
 	mcc->initfq.count = 0;
 	/*
 	 * If the FQ does *not* have the TO_DCPORTAL flag, contextB is set as a
@@ -1851,7 +1851,7 @@ int qman_schedule_fq(struct qman_fq *fq)
 		goto out;
 	}
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fq->fqid;
+	qm_fqid_set(&mcc->fq, fq->fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_SCHED);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		dev_err(p->config->dev, "ALTER_SCHED timeout\n");
@@ -1894,7 +1894,7 @@ int qman_retire_fq(struct qman_fq *fq, u32 *flags)
 		goto out;
 	}
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fq->fqid;
+	qm_fqid_set(&mcc->fq, fq->fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_RETIRE);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		dev_crit(p->config->dev, "ALTER_RETIRE timeout\n");
@@ -1937,7 +1937,7 @@ int qman_retire_fq(struct qman_fq *fq, u32 *flags)
 
 			msg.verb = QM_MR_VERB_FQRNI;
 			msg.fq.fqs = mcr->alterfq.fqs;
-			msg.fq.fqid = fq->fqid;
+			qm_fqid_set(&msg.fq, fq->fqid);
 			msg.fq.contextB = fq_to_tag(fq);
 			fq->cb.fqs(p, fq, &msg);
 		}
@@ -1973,7 +1973,7 @@ int qman_oos_fq(struct qman_fq *fq)
 		goto out;
 	}
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fq->fqid;
+	qm_fqid_set(&mcc->fq, fq->fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_OOS);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		ret = -ETIMEDOUT;
@@ -1999,7 +1999,7 @@ int qman_query_fq(struct qman_fq *fq, struct qm_fqd *fqd)
 	int ret = 0;
 
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fq->fqid;
+	qm_fqid_set(&mcc->fq, fq->fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_QUERYFQ);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		ret = -ETIMEDOUT;
@@ -2025,7 +2025,7 @@ static int qman_query_fq_np(struct qman_fq *fq,
 	int ret = 0;
 
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fq->fqid;
+	qm_fqid_set(&mcc->fq, fq->fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_QUERYFQ_NP);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		ret = -ETIMEDOUT;
@@ -2206,7 +2206,7 @@ int qman_enqueue(struct qman_fq *fq, const struct qm_fd *fd)
 	if (unlikely(!eq))
 		goto out;
 
-	eq->fqid = fq->fqid;
+	qm_fqid_set(eq, fq->fqid);
 	eq->tag = fq_to_tag(fq);
 	eq->fd = *fd;
 
@@ -2468,7 +2468,7 @@ static int _qm_dqrr_consume_and_match(struct qm_portal *p, u32 fqid, int s,
 	} while (wait && !dqrr);
 
 	while (dqrr) {
-		if (dqrr->fqid == fqid && (dqrr->stat & s))
+		if (qm_fqid_get(dqrr) == fqid && (dqrr->stat & s))
 			found = 1;
 		qm_dqrr_cdc_consume_1ptr(p, dqrr, 0);
 		qm_dqrr_pvb_update(p);
@@ -2504,7 +2504,7 @@ static int qman_shutdown_fq(u32 fqid)
 	dev = p->config->dev;
 	/* Determine the state of the FQID */
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fqid;
+	qm_fqid_set(&mcc->fq, fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_QUERYFQ_NP);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		dev_err(dev, "QUERYFQ_NP timeout\n");
@@ -2519,7 +2519,7 @@ static int qman_shutdown_fq(u32 fqid)
 
 	/* Query which channel the FQ is using */
 	mcc = qm_mc_start(&p->p);
-	mcc->fq.fqid = fqid;
+	qm_fqid_set(&mcc->fq, fqid);
 	qm_mc_commit(&p->p, QM_MCC_VERB_QUERYFQ);
 	if (!qm_mc_result_timeout(&p->p, &mcr)) {
 		dev_err(dev, "QUERYFQ timeout\n");
@@ -2539,7 +2539,7 @@ static int qman_shutdown_fq(u32 fqid)
 	case QM_MCR_NP_STATE_PARKED:
 		orl_empty = 0;
 		mcc = qm_mc_start(&p->p);
-		mcc->fq.fqid = fqid;
+		qm_fqid_set(&mcc->fq, fqid);
 		qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_RETIRE);
 		if (!qm_mc_result_timeout(&p->p, &mcr)) {
 			dev_err(dev, "QUERYFQ_NP timeout\n");
@@ -2634,7 +2634,7 @@ static int qman_shutdown_fq(u32 fqid)
 			cpu_relax();
 		}
 		mcc = qm_mc_start(&p->p);
-		mcc->fq.fqid = fqid;
+		qm_fqid_set(&mcc->fq, fqid);
 		qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_OOS);
 		if (!qm_mc_result_timeout(&p->p, &mcr)) {
 			ret = -ETIMEDOUT;
@@ -2654,7 +2654,7 @@ static int qman_shutdown_fq(u32 fqid)
 	case QM_MCR_NP_STATE_RETIRED:
 		/* Send OOS Command */
 		mcc = qm_mc_start(&p->p);
-		mcc->fq.fqid = fqid;
+		qm_fqid_set(&mcc->fq, fqid);
 		qm_mc_commit(&p->p, QM_MCC_VERB_ALTER_OOS);
 		if (!qm_mc_result_timeout(&p->p, &mcr)) {
 			ret = -ETIMEDOUT;

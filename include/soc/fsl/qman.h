@@ -262,6 +262,11 @@ struct qm_dqrr_entry {
 #define QM_DQRR_STAT_UNSCHEDULED	0x02	/* Unscheduled dequeue */
 #define QM_DQRR_STAT_DQCR_EXPIRED	0x01	/* VDQCR or PDQCR expired*/
 
+/* 'fqid' is a 24-bit field in every h/w descriptor */
+#define QM_FQID_MASK	GENMASK(23, 0)
+#define qm_fqid_set(p, v) ((p)->fqid = ((v) & QM_FQID_MASK))
+#define qm_fqid_get(p)    ((p)->fqid & QM_FQID_MASK)
+
 /* "ERN Message Response" */
 /* "FQ State Change Notification" */
 union qm_mr_entry {
