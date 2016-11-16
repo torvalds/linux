@@ -166,30 +166,6 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 	return 0;
 }
 
-static int dwc3_pci_dsm(struct dwc3_pci *dwc, int param)
-{
-	union acpi_object *obj;
-	union acpi_object tmp;
-	union acpi_object argv4 = ACPI_INIT_DSM_ARGV4(1, &tmp);
-
-	if (!dwc->has_dsm_for_pm)
-		return 0;
-
-	tmp.type = ACPI_TYPE_INTEGER;
-	tmp.integer.value = param;
-
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dwc->pci->dev), dwc->uuid,
-			1, PCI_INTEL_BXT_FUNC_PMU_PWR, &argv4);
-	if (!obj) {
-		dev_err(&dwc->pci->dev, "failed to evaluate _DSM\n");
-		return -EIO;
-	}
-
-	ACPI_FREE(obj);
-
-	return 0;
-}
-
 static int dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
 {
@@ -292,6 +268,32 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 	{  }	/* Terminating Entry */
 };
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
+
+#if defined(CONFIG_PM) || defined(CONFIG_PM_SLEEP)
+static int dwc3_pci_dsm(struct dwc3_pci *dwc, int param)
+{
+	union acpi_object *obj;
+	union acpi_object tmp;
+	union acpi_object argv4 = ACPI_INIT_DSM_ARGV4(1, &tmp);
+
+	if (!dwc->has_dsm_for_pm)
+		return 0;
+
+	tmp.type = ACPI_TYPE_INTEGER;
+	tmp.integer.value = param;
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dwc->pci->dev), dwc->uuid,
+			1, PCI_INTEL_BXT_FUNC_PMU_PWR, &argv4);
+	if (!obj) {
+		dev_err(&dwc->pci->dev, "failed to evaluate _DSM\n");
+		return -EIO;
+	}
+
+	ACPI_FREE(obj);
+
+	return 0;
+}
+#endif /* CONFIG_PM || CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM
 static int dwc3_pci_runtime_suspend(struct device *dev)
