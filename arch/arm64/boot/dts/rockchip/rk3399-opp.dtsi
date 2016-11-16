@@ -3,6 +3,8 @@
  * Copyright (c) 2016-2017 Fuzhou Rockchip Electronics Co., Ltd
  */
 
+#include "rk3399-sched-energy.dtsi"
+
 / {
 	cluster0_opp: opp-table0 {
 		compatible = "operating-points-v2";
@@ -16,23 +18,28 @@
 		opp01 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <800000>;
+			clock-latency-ns = <40000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <850000>;
+			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <925000>;
+			clock-latency-ns = <40000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1000000>;
+			clock-latency-ns = <40000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <1125000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -48,31 +55,38 @@
 		opp01 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <800000>;
+			clock-latency-ns = <40000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <825000>;
+			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <875000>;
+			clock-latency-ns = <40000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <950000>;
+			clock-latency-ns = <40000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <1025000>;
+			clock-latency-ns = <40000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <1100000>;
+			clock-latency-ns = <40000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <1200000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -104,30 +118,65 @@
 			opp-microvolt = <1100000>;
 		};
 	};
+
+	dmc_opp_table: opp-table3 {
+		compatible = "operating-points-v2";
+
+		opp00 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <825000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <850000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <850000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <594000000>;
+			opp-microvolt = <900000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <900000>;
+		};
+	};
 };
 
 &cpu_l0 {
 	operating-points-v2 = <&cluster0_opp>;
+	sched-energy-costs = <&RK3399_CPU_COST_0 &RK3399_CLUSTER_COST_0>;
 };
 
 &cpu_l1 {
 	operating-points-v2 = <&cluster0_opp>;
+	sched-energy-costs = <&RK3399_CPU_COST_0 &RK3399_CLUSTER_COST_0>;
 };
 
 &cpu_l2 {
 	operating-points-v2 = <&cluster0_opp>;
+	sched-energy-costs = <&RK3399_CPU_COST_0 &RK3399_CLUSTER_COST_0>;
 };
 
 &cpu_l3 {
 	operating-points-v2 = <&cluster0_opp>;
+	sched-energy-costs = <&RK3399_CPU_COST_0 &RK3399_CLUSTER_COST_0>;
 };
 
 &cpu_b0 {
 	operating-points-v2 = <&cluster1_opp>;
+	sched-energy-costs = <&RK3399_CPU_COST_1 &RK3399_CLUSTER_COST_1>;
 };
 
 &cpu_b1 {
 	operating-points-v2 = <&cluster1_opp>;
+	sched-energy-costs = <&RK3399_CPU_COST_1 &RK3399_CLUSTER_COST_1>;
+};
+
+&dmc {
+	operating-points-v2 = <&dmc_opp_table>;
 };
 
 &gpu {
