@@ -21,38 +21,17 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
+#include "channv50.h"
 #include "rootnv50.h"
-#include "dmacnv50.h"
 
 #include <nvif/class.h>
 
-static const struct nv50_disp_root_func
-gp104_disp_root = {
-	.init = gf119_disp_root_init,
-	.fini = gf119_disp_root_fini,
-	.dmac = {
-		&gp104_disp_core_oclass,
-		&gp104_disp_base_oclass,
-		&gp104_disp_ovly_oclass,
-	},
-	.pioc = {
-		&gp102_disp_oimm_oclass,
-		&gp102_disp_curs_oclass,
-	},
-};
-
-static int
-gp104_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
-{
-	return nv50_disp_root_new_(&gp104_disp_root, disp, oclass,
-				   data, size, pobject);
-}
-
-const struct nvkm_disp_oclass
-gp104_disp_root_oclass = {
-	.base.oclass = GP104_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = gp104_disp_root_new,
+const struct nv50_disp_pioc_oclass
+gp102_disp_oimm_oclass = {
+	.base.oclass = GK104_DISP_OVERLAY,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = nv50_disp_oimm_new,
+	.func = &gf119_disp_pioc_func,
+	.chid = { 9, 13 },
 };
