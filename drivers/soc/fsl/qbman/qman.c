@@ -1239,8 +1239,8 @@ static int qman_create_portal(struct qman_portal *portal,
 		/* special handling, drain just in case it's a few FQRNIs */
 		const union qm_mr_entry *e = qm_mr_current(p);
 
-		dev_err(c->dev, "MR dirty, VB 0x%x, rc 0x%x\n, addr 0x%x",
-			e->verb, e->ern.rc, e->ern.fd.addr_lo);
+		dev_err(c->dev, "MR dirty, VB 0x%x, rc 0x%x, addr 0x%llx\n",
+			e->verb, e->ern.rc, qm_fd_addr_get64(&e->ern.fd));
 		goto fail_dqrr_mr_empty;
 	}
 	/* Success */
