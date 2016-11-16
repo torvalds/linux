@@ -38,7 +38,7 @@ xml: all
 latex: $(IMGPDF) all
 
 clean:
-	-rm $(IMGTGT) 2>/dev/null
+	-rm -f $(IMGTGT) 2>/dev/null
 
 $(BUILDDIR):
 	$(Q)mkdir -p $@
@@ -85,4 +85,4 @@ $(BUILDDIR)/lirc.h.rst: ${UAPI}/lirc.h ${PARSER} $(SRC_DIR)/lirc.h.rst.exception
 	@$($(quiet)gen_rst)
 
 cleandocs:
-	-rm ${TARGETS}
+	-rm -f ${TARGETS}
