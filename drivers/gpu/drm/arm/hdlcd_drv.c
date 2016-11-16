@@ -335,14 +335,10 @@ static int hdlcd_drm_bind(struct device *dev)
 	if (ret)
 		goto err_free;
 
-	ret = drm_dev_register(drm, 0);
-	if (ret)
-		goto err_unload;
-
 	ret = component_bind_all(dev, drm);
 	if (ret) {
 		DRM_ERROR("Failed to bind all components\n");
-		goto err_unregister;
+		goto err_unload;
 	}
 
 	ret = pm_runtime_set_active(dev);
@@ -369,8 +365,17 @@ static int hdlcd_drm_bind(struct device *dev)
 		goto err_fbdev;
 	}
 
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto err_register;
+
 	return 0;
 
+err_register:
+	if (hdlcd->fbdev) {
+		drm_fbdev_cma_fini(hdlcd->fbdev);
+		hdlcd->fbdev = NULL;
+	}
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
@@ -379,8 +384,6 @@ err_vblank:
 	pm_runtime_disable(drm->dev);
 err_pm_active:
 	component_unbind_all(dev, drm);
-err_unregister:
-	drm_dev_unregister(drm);
 err_unload:
 	drm_irq_uninstall(drm);
 	of_reserved_mem_device_release(drm->dev);
@@ -396,6 +399,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
+	drm_dev_unregister(drm);
 	if (hdlcd->fbdev) {
 		drm_fbdev_cma_fini(hdlcd->fbdev);
 		hdlcd->fbdev = NULL;
@@ -409,7 +413,6 @@ static void hdlcd_drm_unbind(struct device *dev)
 	pm_runtime_disable(drm->dev);
 	of_reserved_mem_device_release(drm->dev);
 	drm_mode_config_cleanup(drm);
-	drm_dev_unregister(drm);
 	drm_dev_unref(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);

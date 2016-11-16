@@ -359,10 +359,6 @@ static int malidp_bind(struct device *dev)
 	if (ret < 0)
 		goto init_fail;
 
-	ret = drm_dev_register(drm, 0);
-	if (ret)
-		goto register_fail;
-
 	/* Set the CRTC's port so that the encoder component can find it */
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
@@ -401,8 +397,18 @@ static int malidp_bind(struct device *dev)
 	}
 
 	drm_kms_helper_poll_init(drm);
+
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto register_fail;
+
 	return 0;
 
+register_fail:
+	if (malidp->fbdev) {
+		drm_fbdev_cma_fini(malidp->fbdev);
+		malidp->fbdev = NULL;
+	}
 fbdev_fail:
 	drm_vblank_cleanup(drm);
 vblank_fail:
@@ -415,8 +421,6 @@ bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
 port_fail:
-	drm_dev_unregister(drm);
-register_fail:
 	malidp_fini(drm);
 init_fail:
 	drm->dev_private = NULL;
@@ -438,6 +442,7 @@ static void malidp_unbind(struct device *dev)
 	struct malidp_drm *malidp = drm->dev_private;
 	struct malidp_hw_device *hwdev = malidp->dev;
 
+	drm_dev_unregister(drm);
 	if (malidp->fbdev) {
 		drm_fbdev_cma_fini(malidp->fbdev);
 		malidp->fbdev = NULL;
@@ -449,7 +454,6 @@ static void malidp_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	drm_dev_unregister(drm);
 	malidp_fini(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
