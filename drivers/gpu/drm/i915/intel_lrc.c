@@ -499,7 +499,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * context (even though a different request) to
 			 * the second port.
 			 */
-			if (ctx_single_port_submission(cursor->ctx))
+			if (ctx_single_port_submission(last->ctx) ||
+			    ctx_single_port_submission(cursor->ctx))
 				break;
 
 			GEM_BUG_ON(last->ctx == cursor->ctx);
