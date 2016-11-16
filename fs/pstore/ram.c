@@ -734,11 +734,20 @@ static int ramoops_probe(struct platform_device *pdev)
 			goto fail_out;
 	}
 
-	/* Only a single ramoops area allowed at a time, so fail extra
+	/*
+	 * Only a single ramoops area allowed at a time, so fail extra
 	 * probes.
 	 */
-	if (cxt->max_dump_cnt)
+	if (cxt->max_dump_cnt) {
+		pr_err("already initialized\n");
 		goto fail_out;
+	}
+
+	/* Make sure we didn't get bogus platform data pointer. */
+	if (!pdata) {
+		pr_err("NULL platform data\n");
+		goto fail_out;
+	}
 
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size)) {
