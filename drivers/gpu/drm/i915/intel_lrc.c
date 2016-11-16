@@ -694,6 +694,7 @@ pt_lock_engine(struct i915_priotree *pt, struct intel_engine_cs *locked)
 
 static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 {
+	static DEFINE_MUTEX(lock);
 	struct intel_engine_cs *engine = NULL;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
@@ -702,8 +703,8 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	if (prio <= READ_ONCE(request->priotree.priority))
 		return;
 
-	/* Need BKL in order to use the temporary link inside i915_dependency */
-	lockdep_assert_held(&request->i915->drm.struct_mutex);
+	/* Need global lock to use the temporary link inside i915_dependency */
+	mutex_lock(&lock);
 
 	stack.signaler = &request->priotree;
 	list_add(&stack.dfs_link, &dfs);
@@ -769,6 +770,8 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 
 	if (engine)
 		spin_unlock_irq(&engine->timeline->lock);
+
+	mutex_unlock(&lock);
 
 	/* XXX Do we need to preempt to make room for us and our deps? */
 }
