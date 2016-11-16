@@ -279,8 +279,7 @@ union qm_mr_entry {
 		u8 dca;
 		u16 seqnum;
 		u8 rc;		/* Rej Code: 8-bit */
-		u8 orp_hi;	/* ORP: 24-bit */
-		u16 orp_lo;
+		u8 __reserved[3];
 		u32 fqid;	/* 24-bit */
 		u32 tag;
 		struct qm_fd fd;

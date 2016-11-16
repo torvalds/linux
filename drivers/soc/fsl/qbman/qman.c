@@ -141,7 +141,7 @@ struct qm_eqcr_entry {
 	u8 _ncw_verb; /* writes to this are non-coherent */
 	u8 dca;
 	u16 seqnum;
-	u32 orp;	/* 24-bit */
+	u8 __reserved[4];
 	u32 fqid;	/* 24-bit */
 	u32 tag;
 	struct qm_fd fd;
@@ -470,7 +470,6 @@ static inline struct qm_eqcr_entry *qm_eqcr_start_stash(struct qm_portal
 static inline void eqcr_commit_checks(struct qm_eqcr *eqcr)
 {
 	DPAA_ASSERT(eqcr->busy);
-	DPAA_ASSERT(eqcr->cursor->orp == (eqcr->cursor->orp & 0x00ffffff));
 	DPAA_ASSERT(!(eqcr->cursor->fqid & ~QM_FQID_MASK));
 	DPAA_ASSERT(eqcr->available >= 1);
 }
