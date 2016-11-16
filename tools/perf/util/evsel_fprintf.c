@@ -137,7 +137,8 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 
 				if (print_symoffset) {
 					printed += __symbol__fprintf_symname_offs(node->sym, &node_al,
-										  print_unknown_as_addr, fp);
+										  print_unknown_as_addr,
+										  true, fp);
 				} else {
 					printed += __symbol__fprintf_symname(node->sym, &node_al,
 									     print_unknown_as_addr, fp);
@@ -188,7 +189,8 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 			printed += fprintf(fp, " ");
 			if (print_symoffset) {
 				printed += __symbol__fprintf_symname_offs(al->sym, al,
-									  print_unknown_as_addr, fp);
+									  print_unknown_as_addr,
+									  true, fp);
 			} else {
 				printed += __symbol__fprintf_symname(al->sym, al,
 								     print_unknown_as_addr, fp);
