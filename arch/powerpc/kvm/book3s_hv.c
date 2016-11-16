@@ -54,6 +54,7 @@
 #include <asm/dbell.h>
 #include <asm/hmi.h>
 #include <asm/pnv-pci.h>
+#include <asm/mmu.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -3029,6 +3030,22 @@ static void kvmppc_mmu_destroy_hv(struct kvm_vcpu *vcpu)
 	return;
 }
 
+static void kvmppc_setup_partition_table(struct kvm *kvm)
+{
+	unsigned long dw0, dw1;
+
+	/* PS field - page size for VRMA */
+	dw0 = ((kvm->arch.vrma_slb_v & SLB_VSID_L) >> 1) |
+		((kvm->arch.vrma_slb_v & SLB_VSID_LP) << 1);
+	/* HTABSIZE and HTABORG fields */
+	dw0 |= kvm->arch.sdr1;
+
+	/* Second dword has GR=0; other fields are unused since UPRT=0 */
+	dw1 = 0;
+
+	mmu_partition_table_set_entry(kvm->arch.lpid, dw0, dw1);
+}
+
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
 	int err = 0;
@@ -3080,17 +3097,20 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	      psize == 0x1000000))
 		goto out_srcu;
 
-	/* Update VRMASD field in the LPCR */
 	senc = slb_pgsize_encoding(psize);
 	kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
 		(VRMA_VSID << SLB_VSID_SHIFT_1T);
-	/* the -4 is to account for senc values starting at 0x10 */
-	lpcr = senc << (LPCR_VRMASD_SH - 4);
-
 	/* Create HPTEs in the hash page table for the VRMA */
 	kvmppc_map_vrma(vcpu, memslot, porder);
 
-	kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
+	/* Update VRMASD field in the LPCR */
+	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/* the -4 is to account for senc values starting at 0x10 */
+		lpcr = senc << (LPCR_VRMASD_SH - 4);
+		kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
+	} else {
+		kvmppc_setup_partition_table(kvm);
+	}
 
 	/* Order updates to kvm->arch.lpcr etc. vs. hpte_setup_done */
 	smp_wmb();
@@ -3240,7 +3260,8 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	memcpy(kvm->arch.enabled_hcalls, default_enabled_hcalls,
 	       sizeof(kvm->arch.enabled_hcalls));
 
-	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
 
 	/* Init LPCR for virtual RMA mode */
 	kvm->arch.host_lpid = mfspr(SPRN_LPID);
@@ -3253,6 +3274,9 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	/* On POWER8 turn on online bit to enable PURR/SPURR */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		lpcr |= LPCR_ONL;
+	/* On POWER9, VPM0 bit is reserved (VPM0=1 behaviour is assumed) */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		lpcr &= ~LPCR_VPM0;
 	kvm->arch.lpcr = lpcr;
 
 	/*

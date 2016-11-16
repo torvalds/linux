@@ -581,12 +581,14 @@ kvmppc_hv_entry:
 	ld	r9,VCORE_KVM(r5)	/* pointer to struct kvm */
 	cmpwi	r6,0
 	bne	10f
-	ld	r6,KVM_SDR1(r9)
 	lwz	r7,KVM_LPID(r9)
+BEGIN_FTR_SECTION
+	ld	r6,KVM_SDR1(r9)
 	li	r0,LPID_RSVD		/* switch to reserved LPID */
 	mtspr	SPRN_LPID,r0
 	ptesync
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPID,r7
 	isync
 
@@ -1552,12 +1554,14 @@ kvmhv_switch_to_host:
 	beq	19f
 
 	/* Primary thread switches back to host partition */
-	ld	r6,KVM_HOST_SDR1(r4)
 	lwz	r7,KVM_HOST_LPID(r4)
+BEGIN_FTR_SECTION
+	ld	r6,KVM_HOST_SDR1(r4)
 	li	r8,LPID_RSVD		/* switch to reserved LPID */
 	mtspr	SPRN_LPID,r8
 	ptesync
-	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+	mtspr	SPRN_SDR1,r6		/* switch to host page table */
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPID,r7
 	isync
 
