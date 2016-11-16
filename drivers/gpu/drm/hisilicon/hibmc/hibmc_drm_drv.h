@@ -42,6 +42,7 @@ struct hibmc_drm_private {
 	void __iomem   *fb_map;
 	unsigned long  fb_base;
 	unsigned long  fb_size;
+	bool msi_enabled;
 
 	/* drm */
 	struct drm_device  *dev;
