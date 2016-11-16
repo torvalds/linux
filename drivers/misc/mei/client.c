@@ -673,6 +673,11 @@ int mei_cl_unlink(struct mei_cl *cl)
 	list_del_init(&cl->link);
 
 	cl->state = MEI_FILE_UNINITIALIZED;
+	cl->writing_state = MEI_IDLE;
+
+	WARN_ON(!list_empty(&cl->rd_completed) ||
+		!list_empty(&cl->rd_pending) ||
+		!list_empty(&cl->link));
 
 	return 0;
 }
