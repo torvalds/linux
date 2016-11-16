@@ -13,13 +13,6 @@ config SENSORS_ISL29028
 	 Proximity value via iio. The ISL29028 provides the concurrent sensing
 	 of ambient light and proximity.
 
-config TSL2583
-	tristate "TAOS TSL2580, TSL2581 and TSL2583 light-to-digital converters"
-	depends on I2C
-	help
-	 Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
-	 Access ALS data via iio, sysfs.
-
 config TSL2x7x
 	tristate "TAOS TSL/TMD2x71 and TSL/TMD2x72 Family of light and proximity sensors"
 	depends on I2C

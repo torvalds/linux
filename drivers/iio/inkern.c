@@ -716,6 +716,110 @@ int iio_read_channel_scale(struct iio_channel *chan, int *val, int *val2)
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_scale);
 
+static int iio_channel_read_avail(struct iio_channel *chan,
+				  const int **vals, int *type, int *length,
+				  enum iio_chan_info_enum info)
+{
+	if (!iio_channel_has_available(chan->channel, info))
+		return -EINVAL;
+
+	return chan->indio_dev->info->read_avail(chan->indio_dev, chan->channel,
+						 vals, type, length, info);
+}
+
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length)
+{
+	int ret;
+	int type;
+
+	mutex_lock(&chan->indio_dev->info_exist_lock);
+	if (!chan->indio_dev->info) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = iio_channel_read_avail(chan,
+				     vals, &type, length, IIO_CHAN_INFO_RAW);
+err_unlock:
+	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	if (ret >= 0 && type != IIO_VAL_INT) {
+		/* raw values are assumed to be IIO_VAL_INT */
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_avail_channel_raw);
+
+static int iio_channel_read_max(struct iio_channel *chan,
+				int *val, int *val2, int *type,
+				enum iio_chan_info_enum info)
+{
+	int unused;
+	const int *vals;
+	int length;
+	int ret;
+
+	if (!val2)
+		val2 = &unused;
+
+	ret = iio_channel_read_avail(chan, &vals, type, &length, info);
+	switch (ret) {
+	case IIO_AVAIL_RANGE:
+		switch (*type) {
+		case IIO_VAL_INT:
+			*val = vals[2];
+			break;
+		default:
+			*val = vals[4];
+			*val2 = vals[5];
+		}
+		return 0;
+
+	case IIO_AVAIL_LIST:
+		if (length <= 0)
+			return -EINVAL;
+		switch (*type) {
+		case IIO_VAL_INT:
+			*val = vals[--length];
+			while (length) {
+				if (vals[--length] > *val)
+					*val = vals[length];
+			}
+			break;
+		default:
+			/* FIXME: learn about max for other iio values */
+			return -EINVAL;
+		}
+		return 0;
+
+	default:
+		return ret;
+	}
+}
+
+int iio_read_max_channel_raw(struct iio_channel *chan, int *val)
+{
+	int ret;
+	int type;
+
+	mutex_lock(&chan->indio_dev->info_exist_lock);
+	if (!chan->indio_dev->info) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = iio_channel_read_max(chan, val, NULL, &type, IIO_CHAN_INFO_RAW);
+err_unlock:
+	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_max_channel_raw);
+
 int iio_get_channel_type(struct iio_channel *chan, enum iio_chan_type *type)
 {
 	int ret = 0;

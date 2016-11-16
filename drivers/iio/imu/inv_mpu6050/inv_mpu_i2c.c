@@ -126,7 +126,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	st = iio_priv(dev_get_drvdata(&client->dev));
 	st->muxc = i2c_mux_alloc(client->adapter, &client->dev,
-				 1, 0, I2C_MUX_LOCKED,
+				 1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
 				 inv_mpu6050_select_bypass,
 				 inv_mpu6050_deselect_bypass);
 	if (!st->muxc) {

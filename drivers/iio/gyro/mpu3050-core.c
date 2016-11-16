@@ -746,7 +746,6 @@ static const struct iio_info mpu3050_info = {
 	.read_raw = mpu3050_read_raw,
 	.write_raw = mpu3050_write_raw,
 	.attrs = &mpu3050_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 /**

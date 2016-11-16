@@ -1,8 +1,9 @@
 /*
  * Device driver for monitoring ambient light intensity (lux)
- * within the TAOS tsl258x family of devices (tsl2580, tsl2581).
+ * within the TAOS tsl258x family of devices (tsl2580, tsl2581, tsl2583).
  *
  * Copyright (c) 2011, TAOS Corporation.
+ * Copyright (c) 2016 Brian Masney <masneyb@onstation.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +14,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA	02110-1301, USA.
  */
 
 #include <linux/kernel.h>
@@ -31,96 +28,87 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-/* Triton register offsets */
-#define	TSL258X_REG_MAX		8
-
 /* Device Registers and Masks */
-#define TSL258X_CNTRL			0x00
-#define TSL258X_ALS_TIME		0X01
-#define TSL258X_INTERRUPT		0x02
-#define TSL258X_GAIN			0x07
-#define TSL258X_REVID			0x11
-#define TSL258X_CHIPID			0x12
-#define TSL258X_ALS_CHAN0LO		0x14
-#define TSL258X_ALS_CHAN0HI		0x15
-#define TSL258X_ALS_CHAN1LO		0x16
-#define TSL258X_ALS_CHAN1HI		0x17
-#define TSL258X_TMR_LO			0x18
-#define TSL258X_TMR_HI			0x19
+#define TSL2583_CNTRL			0x00
+#define TSL2583_ALS_TIME		0X01
+#define TSL2583_INTERRUPT		0x02
+#define TSL2583_GAIN			0x07
+#define TSL2583_REVID			0x11
+#define TSL2583_CHIPID			0x12
+#define TSL2583_ALS_CHAN0LO		0x14
+#define TSL2583_ALS_CHAN0HI		0x15
+#define TSL2583_ALS_CHAN1LO		0x16
+#define TSL2583_ALS_CHAN1HI		0x17
+#define TSL2583_TMR_LO			0x18
+#define TSL2583_TMR_HI			0x19
 
 /* tsl2583 cmd reg masks */
-#define TSL258X_CMD_REG			0x80
-#define TSL258X_CMD_SPL_FN		0x60
-#define TSL258X_CMD_ALS_INT_CLR	0X01
+#define TSL2583_CMD_REG			0x80
+#define TSL2583_CMD_SPL_FN		0x60
+#define TSL2583_CMD_ALS_INT_CLR		0x01
 
 /* tsl2583 cntrl reg masks */
-#define TSL258X_CNTL_ADC_ENBL	0x02
-#define TSL258X_CNTL_PWR_ON		0x01
+#define TSL2583_CNTL_ADC_ENBL		0x02
+#define TSL2583_CNTL_PWR_OFF		0x00
+#define TSL2583_CNTL_PWR_ON		0x01
 
 /* tsl2583 status reg masks */
-#define TSL258X_STA_ADC_VALID	0x01
-#define TSL258X_STA_ADC_INTR	0x10
+#define TSL2583_STA_ADC_VALID		0x01
+#define TSL2583_STA_ADC_INTR		0x10
 
 /* Lux calculation constants */
-#define	TSL258X_LUX_CALC_OVER_FLOW		65535
+#define TSL2583_LUX_CALC_OVER_FLOW	65535
+
+#define TSL2583_INTERRUPT_DISABLED	0x00
 
 #define TSL2583_CHIP_ID			0x90
 #define TSL2583_CHIP_ID_MASK		0xf0
 
-enum {
-	TSL258X_CHIP_UNKNOWN = 0,
-	TSL258X_CHIP_WORKING = 1,
-	TSL258X_CHIP_SUSPENDED = 2
-};
-
 /* Per-device data */
-struct taos_als_info {
+struct tsl2583_als_info {
 	u16 als_ch0;
 	u16 als_ch1;
 	u16 lux;
 };
 
-struct taos_settings {
-	int als_time;
-	int als_gain;
-	int als_gain_trim;
-	int als_cal_target;
-};
-
-struct tsl2583_chip {
-	struct mutex als_mutex;
-	struct i2c_client *client;
-	struct taos_als_info als_cur_info;
-	struct taos_settings taos_settings;
-	int als_time_scale;
-	int als_saturation;
-	int taos_chip_status;
-	u8 taos_config[8];
-};
-
-/*
- * Initial values for device - this values can/will be changed by driver.
- * and applications as needed.
- * These values are dynamic.
- */
-static const u8 taos_config[8] = {
-		0x00, 0xee, 0x00, 0x03, 0x00, 0xFF, 0xFF, 0x00
-}; /*	cntrl atime intC  Athl0 Athl1 Athh0 Athh1 gain */
-
-struct taos_lux {
+struct tsl2583_lux {
 	unsigned int ratio;
 	unsigned int ch0;
 	unsigned int ch1;
 };
 
-/* This structure is intentionally large to accommodate updates via sysfs. */
-/* Sized to 11 = max 10 segments + 1 termination segment */
-/* Assumption is one and only one type of glass used  */
-static struct taos_lux taos_device_lux[11] = {
+static const struct tsl2583_lux tsl2583_default_lux[] = {
 	{  9830,  8520, 15729 },
 	{ 12452, 10807, 23344 },
 	{ 14746,  6383, 11705 },
 	{ 17695,  4063,  6554 },
+	{     0,     0,     0 }  /* Termination segment */
+};
+
+#define TSL2583_MAX_LUX_TABLE_ENTRIES 11
+
+struct tsl2583_settings {
+	int als_time;
+	int als_gain;
+	int als_gain_trim;
+	int als_cal_target;
+
+	/*
+	 * This structure is intentionally large to accommodate updates via
+	 * sysfs. Sized to 11 = max 10 segments + 1 termination segment.
+	 * Assumption is that one and only one type of glass used.
+	 */
+	struct tsl2583_lux als_device_lux[TSL2583_MAX_LUX_TABLE_ENTRIES];
+};
+
+struct tsl2583_chip {
+	struct mutex als_mutex;
+	struct i2c_client *client;
+	struct tsl2583_als_info als_cur_info;
+	struct tsl2583_settings als_settings;
+	int als_time_scale;
+	int als_saturation;
+	bool suspended;
 };
 
 struct gainadj {
@@ -141,25 +129,29 @@ static const struct gainadj gainadj[] = {
  * Provides initial operational parameter defaults.
  * These defaults may be changed through the device's sysfs files.
  */
-static void taos_defaults(struct tsl2583_chip *chip)
+static void tsl2583_defaults(struct tsl2583_chip *chip)
 {
 	/*
 	 * The integration time must be a multiple of 50ms and within the
 	 * range [50, 600] ms.
 	 */
-	chip->taos_settings.als_time = 100;
+	chip->als_settings.als_time = 100;
 
 	/*
 	 * This is an index into the gainadj table. Assume clear glass as the
 	 * default.
 	 */
-	chip->taos_settings.als_gain = 0;
+	chip->als_settings.als_gain = 0;
 
 	/* Default gain trim to account for aperture effects */
-	chip->taos_settings.als_gain_trim = 1000;
+	chip->als_settings.als_gain_trim = 1000;
 
 	/* Known external ALS reading used for calibration */
-	chip->taos_settings.als_cal_target = 130;
+	chip->als_settings.als_cal_target = 130;
+
+	/* Default lux table. */
+	memcpy(chip->als_settings.als_device_lux, tsl2583_default_lux,
+	       sizeof(tsl2583_default_lux));
 }
 
 /*
@@ -169,70 +161,61 @@ static void taos_defaults(struct tsl2583_chip *chip)
  * Time scale factor array values are adjusted based on the integration time.
  * The raw values are multiplied by a scale factor, and device gain is obtained
  * using gain index. Limit checks are done next, then the ratio of a multiple
- * of ch1 value, to the ch0 value, is calculated. The array taos_device_lux[]
+ * of ch1 value, to the ch0 value, is calculated. The array als_device_lux[]
  * declared above is then scanned to find the first ratio value that is just
  * above the ratio we just calculated. The ch0 and ch1 multiplier constants in
  * the array are then used along with the time scale factor array values, to
  * calculate the lux.
  */
-static int taos_get_lux(struct iio_dev *indio_dev)
+static int tsl2583_get_lux(struct iio_dev *indio_dev)
 {
 	u16 ch0, ch1; /* separated ch0/ch1 data from device */
 	u32 lux; /* raw lux calculated from device data */
 	u64 lux64;
 	u32 ratio;
 	u8 buf[5];
-	struct taos_lux *p;
+	struct tsl2583_lux *p;
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int i, ret;
-	u32 ch0lux = 0;
-	u32 ch1lux = 0;
 
-	if (chip->taos_chip_status != TSL258X_CHIP_WORKING) {
-		/* device is not enabled */
-		dev_err(&chip->client->dev, "taos_get_lux device is not enabled\n");
-		ret = -EBUSY;
-		goto done;
-	}
-
-	ret = i2c_smbus_read_byte_data(chip->client, TSL258X_CMD_REG);
+	ret = i2c_smbus_read_byte_data(chip->client, TSL2583_CMD_REG);
 	if (ret < 0) {
-		dev_err(&chip->client->dev, "taos_get_lux failed to read CMD_REG\n");
+		dev_err(&chip->client->dev, "%s: failed to read CMD_REG register\n",
+			__func__);
 		goto done;
 	}
 
 	/* is data new & valid */
-	if (!(ret & TSL258X_STA_ADC_INTR)) {
-		dev_err(&chip->client->dev, "taos_get_lux data not valid\n");
+	if (!(ret & TSL2583_STA_ADC_INTR)) {
+		dev_err(&chip->client->dev, "%s: data not valid; returning last value\n",
+			__func__);
 		ret = chip->als_cur_info.lux; /* return LAST VALUE */
 		goto done;
 	}
 
 	for (i = 0; i < 4; i++) {
-		int reg = TSL258X_CMD_REG | (TSL258X_ALS_CHAN0LO + i);
+		int reg = TSL2583_CMD_REG | (TSL2583_ALS_CHAN0LO + i);
 
 		ret = i2c_smbus_read_byte_data(chip->client, reg);
 		if (ret < 0) {
-			dev_err(&chip->client->dev,
-				"taos_get_lux failed to read register %x\n",
-				reg);
+			dev_err(&chip->client->dev, "%s: failed to read register %x\n",
+				__func__, reg);
 			goto done;
 		}
 		buf[i] = ret;
 	}
 
 	/*
-	 * clear status, really interrupt status (interrupts are off), but
-	 * we use the bit anyway - don't forget 0x80 - this is a command
+	 * Clear the pending interrupt status bit on the chip to allow the next
+	 * integration cycle to start. This has to be done even though this
+	 * driver currently does not support interrupts.
 	 */
 	ret = i2c_smbus_write_byte(chip->client,
-				   (TSL258X_CMD_REG | TSL258X_CMD_SPL_FN |
-				    TSL258X_CMD_ALS_INT_CLR));
-
+				   (TSL2583_CMD_REG | TSL2583_CMD_SPL_FN |
+				    TSL2583_CMD_ALS_INT_CLR));
 	if (ret < 0) {
-		dev_err(&chip->client->dev,
-			"taos_i2c_write_command failed in taos_get_lux, err = %d\n",
-			ret);
+		dev_err(&chip->client->dev, "%s: failed to clear the interrupt bit\n",
+			__func__);
 		goto done; /* have no data, so return failure */
 	}
 
@@ -247,36 +230,46 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 		goto return_max;
 
 	if (!ch0) {
-		/* have no data, so return LAST VALUE */
+		/*
+		 * The sensor appears to be in total darkness so set the
+		 * calculated lux to 0 and return early to avoid a division by
+		 * zero below when calculating the ratio.
+		 */
 		ret = 0;
 		chip->als_cur_info.lux = 0;
 		goto done;
 	}
+
 	/* calculate ratio */
 	ratio = (ch1 << 15) / ch0;
+
 	/* convert to unscaled lux using the pointer to the table */
-	for (p = (struct taos_lux *)taos_device_lux;
+	for (p = (struct tsl2583_lux *)chip->als_settings.als_device_lux;
 	     p->ratio != 0 && p->ratio < ratio; p++)
 		;
 
 	if (p->ratio == 0) {
 		lux = 0;
 	} else {
-		ch0lux = ((ch0 * p->ch0) +
-			  (gainadj[chip->taos_settings.als_gain].ch0 >> 1))
-			 / gainadj[chip->taos_settings.als_gain].ch0;
-		ch1lux = ((ch1 * p->ch1) +
-			  (gainadj[chip->taos_settings.als_gain].ch1 >> 1))
-			 / gainadj[chip->taos_settings.als_gain].ch1;
-		lux = ch0lux - ch1lux;
-	}
+		u32 ch0lux, ch1lux;
 
-	/* note: lux is 31 bit max at this point */
-	if (ch1lux > ch0lux) {
-		dev_dbg(&chip->client->dev, "No Data - Return last value\n");
-		ret = 0;
-		chip->als_cur_info.lux = 0;
-		goto done;
+		ch0lux = ((ch0 * p->ch0) +
+			  (gainadj[chip->als_settings.als_gain].ch0 >> 1))
+			 / gainadj[chip->als_settings.als_gain].ch0;
+		ch1lux = ((ch1 * p->ch1) +
+			  (gainadj[chip->als_settings.als_gain].ch1 >> 1))
+			 / gainadj[chip->als_settings.als_gain].ch1;
+
+		/* note: lux is 31 bit max at this point */
+		if (ch1lux > ch0lux) {
+			dev_dbg(&chip->client->dev, "%s: No Data - Returning 0\n",
+				__func__);
+			ret = 0;
+			chip->als_cur_info.lux = 0;
+			goto done;
+		}
+
+		lux = ch0lux - ch1lux;
 	}
 
 	/* adjust for active time scale */
@@ -286,8 +279,9 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 		lux = (lux + (chip->als_time_scale >> 1)) /
 			chip->als_time_scale;
 
-	/* Adjust for active gain scale.
-	 * The taos_device_lux tables above have a factor of 8192 built in,
+	/*
+	 * Adjust for active gain scale.
+	 * The tsl2583_default_lux tables above have a factor of 8192 built in,
 	 * so we need to shift right.
 	 * User-specified gain provides a multiplier.
 	 * Apply user-specified gain before shifting right to retain precision.
@@ -295,13 +289,14 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 	 * Then go back to 32 bits before division to avoid using div_u64().
 	 */
 	lux64 = lux;
-	lux64 = lux64 * chip->taos_settings.als_gain_trim;
+	lux64 = lux64 * chip->als_settings.als_gain_trim;
 	lux64 >>= 13;
 	lux = lux64;
 	lux = (lux + 500) / 1000;
-	if (lux > TSL258X_LUX_CALC_OVER_FLOW) { /* check for overflow */
+
+	if (lux > TSL2583_LUX_CALC_OVER_FLOW) { /* check for overflow */
 return_max:
-		lux = TSL258X_LUX_CALC_OVER_FLOW;
+		lux = TSL2583_LUX_CALC_OVER_FLOW;
 	}
 
 	/* Update the structure with the latest VALID lux. */
@@ -317,7 +312,7 @@ done:
  * to derive actual lux).
  * Return updated gain_trim value.
  */
-static int taos_als_calibrate(struct iio_dev *indio_dev)
+static int tsl2583_als_calibrate(struct iio_dev *indio_dev)
 {
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	unsigned int gain_trim_val;
@@ -325,125 +320,149 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 	int lux_val;
 
 	ret = i2c_smbus_read_byte_data(chip->client,
-				       TSL258X_CMD_REG | TSL258X_CNTRL);
+				       TSL2583_CMD_REG | TSL2583_CNTRL);
 	if (ret < 0) {
 		dev_err(&chip->client->dev,
-			"%s failed to read from the CNTRL register\n",
+			"%s: failed to read from the CNTRL register\n",
 			__func__);
 		return ret;
 	}
 
-	if ((ret & (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON))
-			!= (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON)) {
+	if ((ret & (TSL2583_CNTL_ADC_ENBL | TSL2583_CNTL_PWR_ON))
+			!= (TSL2583_CNTL_ADC_ENBL | TSL2583_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
-			"taos_als_calibrate failed: device not powered on with ADC enabled\n");
+			"%s: Device is not powered on and/or ADC is not enabled\n",
+			__func__);
 		return -EINVAL;
-	} else if ((ret & TSL258X_STA_ADC_VALID) != TSL258X_STA_ADC_VALID) {
+	} else if ((ret & TSL2583_STA_ADC_VALID) != TSL2583_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
-			"taos_als_calibrate failed: STATUS - ADC not valid.\n");
+			"%s: The two ADC channels have not completed an integration cycle\n",
+			__func__);
 		return -ENODATA;
 	}
-	lux_val = taos_get_lux(indio_dev);
+
+	lux_val = tsl2583_get_lux(indio_dev);
 	if (lux_val < 0) {
-		dev_err(&chip->client->dev, "taos_als_calibrate failed to get lux\n");
+		dev_err(&chip->client->dev, "%s: failed to get lux\n",
+			__func__);
 		return lux_val;
 	}
-	gain_trim_val = (unsigned int)(((chip->taos_settings.als_cal_target)
-			* chip->taos_settings.als_gain_trim) / lux_val);
 
+	gain_trim_val = (unsigned int)(((chip->als_settings.als_cal_target)
+			* chip->als_settings.als_gain_trim) / lux_val);
 	if ((gain_trim_val < 250) || (gain_trim_val > 4000)) {
 		dev_err(&chip->client->dev,
-			"taos_als_calibrate failed: trim_val of %d is out of range\n",
-			gain_trim_val);
+			"%s: trim_val of %d is not within the range [250, 4000]\n",
+			__func__, gain_trim_val);
 		return -ENODATA;
 	}
-	chip->taos_settings.als_gain_trim = (int)gain_trim_val;
 
-	return (int)gain_trim_val;
+	chip->als_settings.als_gain_trim = (int)gain_trim_val;
+
+	return 0;
+}
+
+static int tsl2583_set_als_time(struct tsl2583_chip *chip)
+{
+	int als_count, als_time, ret;
+	u8 val;
+
+	/* determine als integration register */
+	als_count = (chip->als_settings.als_time * 100 + 135) / 270;
+	if (!als_count)
+		als_count = 1; /* ensure at least one cycle */
+
+	/* convert back to time (encompasses overrides) */
+	als_time = (als_count * 27 + 5) / 10;
+
+	val = 256 - als_count;
+	ret = i2c_smbus_write_byte_data(chip->client,
+					TSL2583_CMD_REG | TSL2583_ALS_TIME,
+					val);
+	if (ret < 0) {
+		dev_err(&chip->client->dev, "%s: failed to set the als time to %d\n",
+			__func__, val);
+		return ret;
+	}
+
+	/* set chip struct re scaling and saturation */
+	chip->als_saturation = als_count * 922; /* 90% of full scale */
+	chip->als_time_scale = (als_time + 25) / 50;
+
+	return ret;
+}
+
+static int tsl2583_set_als_gain(struct tsl2583_chip *chip)
+{
+	int ret;
+
+	/* Set the gain based on als_settings struct */
+	ret = i2c_smbus_write_byte_data(chip->client,
+					TSL2583_CMD_REG | TSL2583_GAIN,
+					chip->als_settings.als_gain);
+	if (ret < 0)
+		dev_err(&chip->client->dev,
+			"%s: failed to set the gain to %d\n", __func__,
+			chip->als_settings.als_gain);
+
+	return ret;
+}
+
+static int tsl2583_set_power_state(struct tsl2583_chip *chip, u8 state)
+{
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(chip->client,
+					TSL2583_CMD_REG | TSL2583_CNTRL, state);
+	if (ret < 0)
+		dev_err(&chip->client->dev,
+			"%s: failed to set the power state to %d\n", __func__,
+			state);
+
+	return ret;
 }
 
 /*
  * Turn the device on.
  * Configuration must be set before calling this function.
  */
-static int taos_chip_on(struct iio_dev *indio_dev)
+static int tsl2583_chip_init_and_power_on(struct iio_dev *indio_dev)
 {
-	int i;
-	int ret;
-	u8 *uP;
-	u8 utmp;
-	int als_count;
-	int als_time;
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-
-	/* and make sure we're not already on */
-	if (chip->taos_chip_status == TSL258X_CHIP_WORKING) {
-		/* if forcing a register update - turn off, then on */
-		dev_info(&chip->client->dev, "device is already enabled\n");
-		return -EINVAL;
-	}
-
-	/* determine als integration register */
-	als_count = (chip->taos_settings.als_time * 100 + 135) / 270;
-	if (!als_count)
-		als_count = 1; /* ensure at least one cycle */
-
-	/* convert back to time (encompasses overrides) */
-	als_time = (als_count * 27 + 5) / 10;
-	chip->taos_config[TSL258X_ALS_TIME] = 256 - als_count;
-
-	/* Set the gain based on taos_settings struct */
-	chip->taos_config[TSL258X_GAIN] = chip->taos_settings.als_gain;
-
-	/* set chip struct re scaling and saturation */
-	chip->als_saturation = als_count * 922; /* 90% of full scale */
-	chip->als_time_scale = (als_time + 25) / 50;
+	int ret;
 
 	/* Power on the device; ADC off. */
-	chip->taos_config[TSL258X_CNTRL] = TSL258X_CNTL_PWR_ON;
+	ret = tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_ON);
+	if (ret < 0)
+		return ret;
 
-	/*
-	 * Use the following shadow copy for our delay before enabling ADC.
-	 * Write all the registers.
-	 */
-	for (i = 0, uP = chip->taos_config; i < TSL258X_REG_MAX; i++) {
-		ret = i2c_smbus_write_byte_data(chip->client,
-						TSL258X_CMD_REG + i,
-						*uP++);
-		if (ret < 0) {
-			dev_err(&chip->client->dev,
-				"taos_chip_on failed on reg %d.\n", i);
-			return ret;
-		}
-	}
-
-	usleep_range(3000, 3500);
-	/*
-	 * NOW enable the ADC
-	 * initialize the desired mode of operation
-	 */
-	utmp = TSL258X_CNTL_PWR_ON | TSL258X_CNTL_ADC_ENBL;
 	ret = i2c_smbus_write_byte_data(chip->client,
-					TSL258X_CMD_REG | TSL258X_CNTRL,
-					utmp);
+					TSL2583_CMD_REG | TSL2583_INTERRUPT,
+					TSL2583_INTERRUPT_DISABLED);
 	if (ret < 0) {
-		dev_err(&chip->client->dev, "taos_chip_on failed on 2nd CTRL reg.\n");
+		dev_err(&chip->client->dev,
+			"%s: failed to disable interrupts\n", __func__);
 		return ret;
 	}
-	chip->taos_chip_status = TSL258X_CHIP_WORKING;
+
+	ret = tsl2583_set_als_time(chip);
+	if (ret < 0)
+		return ret;
+
+	ret = tsl2583_set_als_gain(chip);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(3000, 3500);
+
+	ret = tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_ON |
+					    TSL2583_CNTL_ADC_ENBL);
+	if (ret < 0)
+		return ret;
+
+	chip->suspended = false;
 
 	return ret;
-}
-
-static int taos_chip_off(struct iio_dev *indio_dev)
-{
-	struct tsl2583_chip *chip = iio_priv(indio_dev);
-
-	/* turn device off */
-	chip->taos_chip_status = TSL258X_CHIP_SUSPENDED;
-	return i2c_smbus_write_byte_data(chip->client,
-					TSL258X_CMD_REG | TSL258X_CNTRL,
-					0x00);
 }
 
 /* Sysfs Interface Functions */
@@ -457,7 +476,7 @@ static ssize_t in_illuminance_input_target_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&chip->als_mutex);
-	ret = sprintf(buf, "%d\n", chip->taos_settings.als_cal_target);
+	ret = sprintf(buf, "%d\n", chip->als_settings.als_cal_target);
 	mutex_unlock(&chip->als_mutex);
 
 	return ret;
@@ -475,7 +494,7 @@ static ssize_t in_illuminance_input_target_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&chip->als_mutex);
-	chip->taos_settings.als_cal_target = value;
+	chip->als_settings.als_cal_target = value;
 	mutex_unlock(&chip->als_mutex);
 
 	return len;
@@ -487,31 +506,44 @@ static ssize_t in_illuminance_calibrate_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int value;
+	int value, ret;
 
 	if (kstrtoint(buf, 0, &value) || value != 1)
 		return -EINVAL;
 
 	mutex_lock(&chip->als_mutex);
-	taos_als_calibrate(indio_dev);
+
+	if (chip->suspended) {
+		ret = -EBUSY;
+		goto done;
+	}
+
+	ret = tsl2583_als_calibrate(indio_dev);
+	if (ret < 0)
+		goto done;
+
+	ret = len;
+done:
 	mutex_unlock(&chip->als_mutex);
 
-	return len;
+	return ret;
 }
 
 static ssize_t in_illuminance_lux_table_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	int i;
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct tsl2583_chip *chip = iio_priv(indio_dev);
+	unsigned int i;
 	int offset = 0;
 
-	for (i = 0; i < ARRAY_SIZE(taos_device_lux); i++) {
+	for (i = 0; i < ARRAY_SIZE(chip->als_settings.als_device_lux); i++) {
 		offset += sprintf(buf + offset, "%u,%u,%u,",
-				  taos_device_lux[i].ratio,
-				  taos_device_lux[i].ch0,
-				  taos_device_lux[i].ch1);
-		if (taos_device_lux[i].ratio == 0) {
+				  chip->als_settings.als_device_lux[i].ratio,
+				  chip->als_settings.als_device_lux[i].ch0,
+				  chip->als_settings.als_device_lux[i].ch1);
+		if (chip->als_settings.als_device_lux[i].ratio == 0) {
 			/*
 			 * We just printed the first "0" entry.
 			 * Now get rid of the extra "," and break.
@@ -522,6 +554,7 @@ static ssize_t in_illuminance_lux_table_show(struct device *dev,
 	}
 
 	offset += sprintf(buf + offset, "\n");
+
 	return offset;
 }
 
@@ -531,31 +564,36 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int value[ARRAY_SIZE(taos_device_lux) * 3 + 1];
-	int n, ret = -EINVAL;
+	const unsigned int max_ints = TSL2583_MAX_LUX_TABLE_ENTRIES * 3;
+	int value[TSL2583_MAX_LUX_TABLE_ENTRIES * 3];
+	int ret = -EINVAL;
+	unsigned int n;
 
 	mutex_lock(&chip->als_mutex);
 
 	get_options(buf, ARRAY_SIZE(value), value);
 
-	/* We now have an array of ints starting at value[1], and
+	/*
+	 * We now have an array of ints starting at value[1], and
 	 * enumerated by value[0].
 	 * We expect each group of three ints is one table entry,
 	 * and the last table entry is all 0.
 	 */
 	n = value[0];
-	if ((n % 3) || n < 6 || n > ((ARRAY_SIZE(taos_device_lux) - 1) * 3)) {
-		dev_info(dev, "LUX TABLE INPUT ERROR 1 Value[0]=%d\n", n);
+	if ((n % 3) || n < 6 || n > max_ints) {
+		dev_err(dev,
+			"%s: The number of entries in the lux table must be a multiple of 3 and within the range [6, %d]\n",
+			__func__, max_ints);
 		goto done;
 	}
-	if ((value[(n - 2)] | value[(n - 1)] | value[n]) != 0) {
-		dev_info(dev, "LUX TABLE INPUT ERROR 2 Value[0]=%d\n", n);
+	if ((value[n - 2] | value[n - 1] | value[n]) != 0) {
+		dev_err(dev, "%s: The last 3 entries in the lux table must be zeros.\n",
+			__func__);
 		goto done;
 	}
 
-	/* Zero out the table */
-	memset(taos_device_lux, 0, sizeof(taos_device_lux));
-	memcpy(taos_device_lux, &value[1], (value[0] * 4));
+	memcpy(chip->als_settings.als_device_lux, &value[1],
+	       value[0] * sizeof(value[1]));
 
 	ret = len;
 
@@ -616,7 +654,7 @@ static int tsl2583_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&chip->als_mutex);
 
-	if (chip->taos_chip_status != TSL258X_CHIP_WORKING) {
+	if (chip->suspended) {
 		ret = -EBUSY;
 		goto read_done;
 	}
@@ -624,7 +662,7 @@ static int tsl2583_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (chan->type == IIO_LIGHT) {
-			ret = taos_get_lux(indio_dev);
+			ret = tsl2583_get_lux(indio_dev);
 			if (ret < 0)
 				goto read_done;
 
@@ -647,7 +685,7 @@ static int tsl2583_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_PROCESSED:
 		if (chan->type == IIO_LIGHT) {
-			ret = taos_get_lux(indio_dev);
+			ret = tsl2583_get_lux(indio_dev);
 			if (ret < 0)
 				goto read_done;
 
@@ -657,20 +695,20 @@ static int tsl2583_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		if (chan->type == IIO_LIGHT) {
-			*val = chip->taos_settings.als_gain_trim;
+			*val = chip->als_settings.als_gain_trim;
 			ret = IIO_VAL_INT;
 		}
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
-			*val = gainadj[chip->taos_settings.als_gain].mean;
+			*val = gainadj[chip->als_settings.als_gain].mean;
 			ret = IIO_VAL_INT;
 		}
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
 		if (chan->type == IIO_LIGHT) {
 			*val = 0;
-			*val2 = chip->taos_settings.als_time;
+			*val2 = chip->als_settings.als_time;
 			ret = IIO_VAL_INT_PLUS_MICRO;
 		}
 		break;
@@ -693,7 +731,7 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&chip->als_mutex);
 
-	if (chip->taos_chip_status != TSL258X_CHIP_WORKING) {
+	if (chip->suspended) {
 		ret = -EBUSY;
 		goto write_done;
 	}
@@ -701,18 +739,18 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		if (chan->type == IIO_LIGHT) {
-			chip->taos_settings.als_gain_trim = val;
+			chip->als_settings.als_gain_trim = val;
 			ret = 0;
 		}
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
-			int i;
+			unsigned int i;
 
 			for (i = 0; i < ARRAY_SIZE(gainadj); i++) {
 				if (gainadj[i].mean == val) {
-					chip->taos_settings.als_gain = i;
-					ret = 0;
+					chip->als_settings.als_gain = i;
+					ret = tsl2583_set_als_gain(chip);
 					break;
 				}
 			}
@@ -721,8 +759,8 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_INT_TIME:
 		if (chan->type == IIO_LIGHT && !val && val2 >= 50 &&
 		    val2 <= 650 && !(val2 % 50)) {
-			chip->taos_settings.als_time = val2;
-			ret = 0;
+			chip->als_settings.als_time = val2;
+			ret = tsl2583_set_als_time(chip);
 		}
 		break;
 	default:
@@ -742,12 +780,8 @@ static const struct iio_info tsl2583_info = {
 	.write_raw = tsl2583_write_raw,
 };
 
-/*
- * Client probe function - When a valid device is found, the driver's device
- * data structure is updated, and initialization completes successfully.
- */
-static int taos_probe(struct i2c_client *clientp,
-		      const struct i2c_device_id *idp)
+static int tsl2583_probe(struct i2c_client *clientp,
+			 const struct i2c_device_id *idp)
 {
 	int ret;
 	struct tsl2583_chip *chip;
@@ -755,41 +789,34 @@ static int taos_probe(struct i2c_client *clientp,
 
 	if (!i2c_check_functionality(clientp->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&clientp->dev, "taos_probe() - i2c smbus byte data func unsupported\n");
+		dev_err(&clientp->dev, "%s: i2c smbus byte data functionality is unsupported\n",
+			__func__);
 		return -EOPNOTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&clientp->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	chip = iio_priv(indio_dev);
 	chip->client = clientp;
 	i2c_set_clientdata(clientp, indio_dev);
 
 	mutex_init(&chip->als_mutex);
-	chip->taos_chip_status = TSL258X_CHIP_UNKNOWN;
-	memcpy(chip->taos_config, taos_config, sizeof(chip->taos_config));
+	chip->suspended = true;
 
 	ret = i2c_smbus_read_byte_data(clientp,
-				       TSL258X_CMD_REG | TSL258X_CHIPID);
+				       TSL2583_CMD_REG | TSL2583_CHIPID);
 	if (ret < 0) {
 		dev_err(&clientp->dev,
-			"%s failed to read the chip ID register\n", __func__);
+			"%s: failed to read the chip ID register\n", __func__);
 		return ret;
 	}
 
 	if ((ret & TSL2583_CHIP_ID_MASK) != TSL2583_CHIP_ID) {
-		dev_info(&clientp->dev, "%s received an unknown chip ID %x\n",
-			 __func__, ret);
+		dev_err(&clientp->dev, "%s: received an unknown chip ID %x\n",
+			__func__, ret);
 		return -EINVAL;
-	}
-
-	ret = i2c_smbus_write_byte(clientp, (TSL258X_CMD_REG | TSL258X_CNTRL));
-	if (ret < 0) {
-		dev_err(&clientp->dev,
-			"i2c_smbus_write_byte() to cmd reg failed in taos_probe(), err = %d\n",
-			ret);
-		return ret;
 	}
 
 	indio_dev->info = &tsl2583_info;
@@ -798,95 +825,89 @@ static int taos_probe(struct i2c_client *clientp,
 	indio_dev->dev.parent = &clientp->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = chip->client->name;
+
 	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 	if (ret) {
-		dev_err(&clientp->dev, "iio registration failed\n");
+		dev_err(&clientp->dev, "%s: iio registration failed\n",
+			__func__);
 		return ret;
 	}
 
 	/* Load up the V2 defaults (these are hard coded defaults for now) */
-	taos_defaults(chip);
+	tsl2583_defaults(chip);
 
 	/* Make sure the chip is on */
-	ret = taos_chip_on(indio_dev);
+	ret = tsl2583_chip_init_and_power_on(indio_dev);
 	if (ret < 0)
 		return ret;
 
 	dev_info(&clientp->dev, "Light sensor found.\n");
+
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int taos_suspend(struct device *dev)
+static int __maybe_unused tsl2583_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&chip->als_mutex);
 
-	if (chip->taos_chip_status == TSL258X_CHIP_WORKING) {
-		ret = taos_chip_off(indio_dev);
-		chip->taos_chip_status = TSL258X_CHIP_SUSPENDED;
-	}
+	ret = tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_OFF);
+	chip->suspended = true;
 
 	mutex_unlock(&chip->als_mutex);
+
 	return ret;
 }
 
-static int taos_resume(struct device *dev)
+static int __maybe_unused tsl2583_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&chip->als_mutex);
 
-	if (chip->taos_chip_status == TSL258X_CHIP_SUSPENDED)
-		ret = taos_chip_on(indio_dev);
+	ret = tsl2583_chip_init_and_power_on(indio_dev);
 
 	mutex_unlock(&chip->als_mutex);
+
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(taos_pm_ops, taos_suspend, taos_resume);
-#define TAOS_PM_OPS (&taos_pm_ops)
-#else
-#define TAOS_PM_OPS NULL
-#endif
+static SIMPLE_DEV_PM_OPS(tsl2583_pm_ops, tsl2583_suspend, tsl2583_resume);
 
-static struct i2c_device_id taos_idtable[] = {
+static struct i2c_device_id tsl2583_idtable[] = {
 	{ "tsl2580", 0 },
 	{ "tsl2581", 1 },
 	{ "tsl2583", 2 },
 	{}
 };
-MODULE_DEVICE_TABLE(i2c, taos_idtable);
+MODULE_DEVICE_TABLE(i2c, tsl2583_idtable);
 
-#ifdef CONFIG_OF
-static const struct of_device_id taos2583_of_match[] = {
+static const struct of_device_id tsl2583_of_match[] = {
 	{ .compatible = "amstaos,tsl2580", },
 	{ .compatible = "amstaos,tsl2581", },
 	{ .compatible = "amstaos,tsl2583", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, taos2583_of_match);
-#else
-#define taos2583_of_match NULL
-#endif
+MODULE_DEVICE_TABLE(of, tsl2583_of_match);
 
 /* Driver definition */
-static struct i2c_driver taos_driver = {
+static struct i2c_driver tsl2583_driver = {
 	.driver = {
 		.name = "tsl2583",
-		.pm = TAOS_PM_OPS,
-		.of_match_table = taos2583_of_match,
+		.pm = &tsl2583_pm_ops,
+		.of_match_table = tsl2583_of_match,
 	},
-	.id_table = taos_idtable,
-	.probe = taos_probe,
+	.id_table = tsl2583_idtable,
+	.probe = tsl2583_probe,
 };
-module_i2c_driver(taos_driver);
+module_i2c_driver(tsl2583_driver);
 
-MODULE_AUTHOR("J. August Brenner<jbrenner@taosinc.com>");
+MODULE_AUTHOR("J. August Brenner <jbrenner@taosinc.com>");
+MODULE_AUTHOR("Brian Masney <masneyb@onstation.org>");
 MODULE_DESCRIPTION("TAOS tsl2583 ambient light sensor driver");
 MODULE_LICENSE("GPL");
