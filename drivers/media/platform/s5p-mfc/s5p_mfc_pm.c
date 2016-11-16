@@ -39,23 +39,11 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 		goto err_g_ip_clk;
 	}
 
-	ret = clk_prepare(pm->clock_gate);
-	if (ret) {
-		mfc_err("Failed to prepare clock-gating control\n");
-		goto err_p_ip_clk;
-	}
-
 	if (dev->variant->version != MFC_VERSION_V6) {
 		pm->clock = clk_get(&dev->plat_dev->dev, MFC_SCLK_NAME);
 		if (IS_ERR(pm->clock)) {
 			mfc_info("Failed to get MFC special clock control\n");
 			pm->clock = NULL;
-		} else {
-			ret = clk_prepare_enable(pm->clock);
-			if (ret) {
-				mfc_err("Failed to enable MFC special clock\n");
-				goto err_s_clk;
-			}
 		}
 	}
 
@@ -65,10 +53,6 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 
 	return 0;
 
-err_s_clk:
-	clk_put(pm->clock);
-	pm->clock = NULL;
-err_p_ip_clk:
 	clk_put(pm->clock_gate);
 	pm->clock_gate = NULL;
 err_g_ip_clk:
@@ -79,11 +63,9 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 {
 	if (dev->variant->version != MFC_VERSION_V6 &&
 	    pm->clock) {
-		clk_disable_unprepare(pm->clock);
 		clk_put(pm->clock);
 		pm->clock = NULL;
 	}
-	clk_unprepare(pm->clock_gate);
 	clk_put(pm->clock_gate);
 	pm->clock_gate = NULL;
 	pm_runtime_disable(pm->device);
@@ -111,22 +93,44 @@ void s5p_mfc_clock_off(void)
 
 int s5p_mfc_power_on(void)
 {
-	int ret = 0;
+	int ret;
 
 	ret = pm_runtime_get_sync(pm->device);
 	if (ret)
 		return ret;
 
-	if (!pm->use_clock_gating)
-		ret = clk_enable(pm->clock_gate);
+	ret = clk_prepare_enable(pm->clock_gate);
+	if (ret)
+		goto err_pm;
+
+	if (pm->clock) {
+		ret = clk_prepare_enable(pm->clock);
+		if (ret)
+			goto err_gate;
+	}
+
+	if (pm->use_clock_gating)
+		clk_disable(pm->clock_gate);
+	return 0;
+
+err_gate:
+	clk_disable_unprepare(pm->clock_gate);
+err_pm:
+	pm_runtime_put_sync(pm->device);
 	return ret;
+
 }
 
 int s5p_mfc_power_off(void)
 {
-	if (!pm->use_clock_gating)
-		clk_disable(pm->clock_gate);
+	if (pm->clock)
+		clk_disable_unprepare(pm->clock);
+
+	if (pm->use_clock_gating)
+		clk_unprepare(pm->clock_gate);
+	else
+		clk_disable_unprepare(pm->clock_gate);
+
 	return pm_runtime_put_sync(pm->device);
 }
-
 
