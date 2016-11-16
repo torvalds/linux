@@ -259,8 +259,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	int nonblock, ret = 0;
 
 	if (!dev) {
-		dev_err(&dev->udev->dev,
-			"BUG: em28xx can't find device struct. Can't proceed with open\n");
+		pr_err("em28xx-audio: BUG: em28xx can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
