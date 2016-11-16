@@ -13,12 +13,14 @@
 #include "util/cloexec.h"
 #include "util/thread_map.h"
 #include "util/color.h"
+#include "util/stat.h"
 
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 
 #include "util/debug.h"
 
+#include <linux/log2.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 
@@ -193,6 +195,29 @@ struct perf_sched {
 	bool skip_merge;
 	struct perf_sched_map map;
 };
+
+/* per thread run time data */
+struct thread_runtime {
+	u64 last_time;      /* time of previous sched in/out event */
+	u64 dt_run;         /* run time */
+	u64 dt_wait;        /* time between CPU access (off cpu) */
+	u64 dt_delay;       /* time between wakeup and sched-in */
+	u64 ready_to_run;   /* time of wakeup */
+
+	struct stats run_stats;
+	u64 total_run_time;
+};
+
+/* per event run time data */
+struct evsel_runtime {
+	u64 *last_time; /* time this event was last seen per cpu */
+	u32 ncpu;       /* highest cpu slot allocated */
+};
+
+/* track idle times per cpu */
+static struct thread **idle_threads;
+static int idle_max_cpu;
+static char idle_comm[] = "<idle>";
 
 static u64 get_nsecs(void)
 {
@@ -1654,6 +1679,546 @@ out_delete:
 	return rc;
 }
 
+/*
+ * scheduling times are printed as msec.usec
+ */
+static inline void print_sched_time(unsigned long long nsecs, int width)
+{
+	unsigned long msecs;
+	unsigned long usecs;
+
+	msecs  = nsecs / NSEC_PER_MSEC;
+	nsecs -= msecs * NSEC_PER_MSEC;
+	usecs  = nsecs / NSEC_PER_USEC;
+	printf("%*lu.%03lu ", width, msecs, usecs);
+}
+
+/*
+ * returns runtime data for event, allocating memory for it the
+ * first time it is used.
+ */
+static struct evsel_runtime *perf_evsel__get_runtime(struct perf_evsel *evsel)
+{
+	struct evsel_runtime *r = evsel->priv;
+
+	if (r == NULL) {
+		r = zalloc(sizeof(struct evsel_runtime));
+		evsel->priv = r;
+	}
+
+	return r;
+}
+
+/*
+ * save last time event was seen per cpu
+ */
+static void perf_evsel__save_time(struct perf_evsel *evsel,
+				  u64 timestamp, u32 cpu)
+{
+	struct evsel_runtime *r = perf_evsel__get_runtime(evsel);
+
+	if (r == NULL)
+		return;
+
+	if ((cpu >= r->ncpu) || (r->last_time == NULL)) {
+		int i, n = __roundup_pow_of_two(cpu+1);
+		void *p = r->last_time;
+
+		p = realloc(r->last_time, n * sizeof(u64));
+		if (!p)
+			return;
+
+		r->last_time = p;
+		for (i = r->ncpu; i < n; ++i)
+			r->last_time[i] = (u64) 0;
+
+		r->ncpu = n;
+	}
+
+	r->last_time[cpu] = timestamp;
+}
+
+/* returns last time this event was seen on the given cpu */
+static u64 perf_evsel__get_time(struct perf_evsel *evsel, u32 cpu)
+{
+	struct evsel_runtime *r = perf_evsel__get_runtime(evsel);
+
+	if ((r == NULL) || (r->last_time == NULL) || (cpu >= r->ncpu))
+		return 0;
+
+	return r->last_time[cpu];
+}
+
+static int comm_width = 20;
+
+static char *timehist_get_commstr(struct thread *thread)
+{
+	static char str[32];
+	const char *comm = thread__comm_str(thread);
+	pid_t tid = thread->tid;
+	pid_t pid = thread->pid_;
+	int n;
+
+	if (pid == 0)
+		n = scnprintf(str, sizeof(str), "%s", comm);
+
+	else if (tid != pid)
+		n = scnprintf(str, sizeof(str), "%s[%d/%d]", comm, tid, pid);
+
+	else
+		n = scnprintf(str, sizeof(str), "%s[%d]", comm, tid);
+
+	if (n > comm_width)
+		comm_width = n;
+
+	return str;
+}
+
+static void timehist_header(void)
+{
+	printf("%15s %6s ", "time", "cpu");
+
+	printf(" %-20s  %9s  %9s  %9s",
+		"task name", "wait time", "sch delay", "run time");
+
+	printf("\n");
+
+	/*
+	 * units row
+	 */
+	printf("%15s %-6s ", "", "");
+
+	printf(" %-20s  %9s  %9s  %9s\n", "[tid/pid]", "(msec)", "(msec)", "(msec)");
+
+	/*
+	 * separator
+	 */
+	printf("%.15s %.6s ", graph_dotted_line, graph_dotted_line);
+
+	printf(" %.20s  %.9s  %.9s  %.9s",
+		graph_dotted_line, graph_dotted_line, graph_dotted_line,
+		graph_dotted_line);
+
+	printf("\n");
+}
+
+static void timehist_print_sample(struct perf_sample *sample,
+				  struct thread *thread)
+{
+	struct thread_runtime *tr = thread__priv(thread);
+	char tstr[64];
+
+	timestamp__scnprintf_usec(sample->time, tstr, sizeof(tstr));
+	printf("%15s [%04d] ", tstr, sample->cpu);
+
+	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
+
+	print_sched_time(tr->dt_wait, 6);
+	print_sched_time(tr->dt_delay, 6);
+	print_sched_time(tr->dt_run, 6);
+	printf("\n");
+}
+
+/*
+ * Explanation of delta-time stats:
+ *
+ *            t = time of current schedule out event
+ *        tprev = time of previous sched out event
+ *                also time of schedule-in event for current task
+ *    last_time = time of last sched change event for current task
+ *                (i.e, time process was last scheduled out)
+ * ready_to_run = time of wakeup for current task
+ *
+ * -----|------------|------------|------------|------
+ *    last         ready        tprev          t
+ *    time         to run
+ *
+ *      |-------- dt_wait --------|
+ *                   |- dt_delay -|-- dt_run --|
+ *
+ *   dt_run = run time of current task
+ *  dt_wait = time between last schedule out event for task and tprev
+ *            represents time spent off the cpu
+ * dt_delay = time between wakeup and schedule-in of task
+ */
+
+static void timehist_update_runtime_stats(struct thread_runtime *r,
+					 u64 t, u64 tprev)
+{
+	r->dt_delay   = 0;
+	r->dt_wait    = 0;
+	r->dt_run     = 0;
+	if (tprev) {
+		r->dt_run = t - tprev;
+		if (r->ready_to_run) {
+			if (r->ready_to_run > tprev)
+				pr_debug("time travel: wakeup time for task > previous sched_switch event\n");
+			else
+				r->dt_delay = tprev - r->ready_to_run;
+		}
+
+		if (r->last_time > tprev)
+			pr_debug("time travel: last sched out time for task > previous sched_switch event\n");
+		else if (r->last_time)
+			r->dt_wait = tprev - r->last_time;
+	}
+
+	update_stats(&r->run_stats, r->dt_run);
+	r->total_run_time += r->dt_run;
+}
+
+static bool is_idle_sample(struct perf_sample *sample,
+			   struct perf_evsel *evsel)
+{
+	/* pid 0 == swapper == idle task */
+	if (sample->pid == 0)
+		return true;
+
+	if (strcmp(perf_evsel__name(evsel), "sched:sched_switch") == 0) {
+		if (perf_evsel__intval(evsel, sample, "prev_pid") == 0)
+			return true;
+	}
+	return false;
+}
+
+/*
+ * Track idle stats per cpu by maintaining a local thread
+ * struct for the idle task on each cpu.
+ */
+static int init_idle_threads(int ncpu)
+{
+	int i;
+
+	idle_threads = zalloc(ncpu * sizeof(struct thread *));
+	if (!idle_threads)
+		return -ENOMEM;
+
+	idle_max_cpu = ncpu - 1;
+
+	/* allocate the actual thread struct if needed */
+	for (i = 0; i < ncpu; ++i) {
+		idle_threads[i] = thread__new(0, 0);
+		if (idle_threads[i] == NULL)
+			return -ENOMEM;
+
+		thread__set_comm(idle_threads[i], idle_comm, 0);
+	}
+
+	return 0;
+}
+
+static void free_idle_threads(void)
+{
+	int i;
+
+	if (idle_threads == NULL)
+		return;
+
+	for (i = 0; i <= idle_max_cpu; ++i) {
+		if ((idle_threads[i]))
+			thread__delete(idle_threads[i]);
+	}
+
+	free(idle_threads);
+}
+
+static struct thread *get_idle_thread(int cpu)
+{
+	/*
+	 * expand/allocate array of pointers to local thread
+	 * structs if needed
+	 */
+	if ((cpu >= idle_max_cpu) || (idle_threads == NULL)) {
+		int i, j = __roundup_pow_of_two(cpu+1);
+		void *p;
+
+		p = realloc(idle_threads, j * sizeof(struct thread *));
+		if (!p)
+			return NULL;
+
+		idle_threads = (struct thread **) p;
+		i = idle_max_cpu ? idle_max_cpu + 1 : 0;
+		for (; i < j; ++i)
+			idle_threads[i] = NULL;
+
+		idle_max_cpu = j;
+	}
+
+	/* allocate a new thread struct if needed */
+	if (idle_threads[cpu] == NULL) {
+		idle_threads[cpu] = thread__new(0, 0);
+
+		if (idle_threads[cpu]) {
+			idle_threads[cpu]->tid = 0;
+			thread__set_comm(idle_threads[cpu], idle_comm, 0);
+		}
+	}
+
+	return idle_threads[cpu];
+}
+
+/*
+ * handle runtime stats saved per thread
+ */
+static struct thread_runtime *thread__init_runtime(struct thread *thread)
+{
+	struct thread_runtime *r;
+
+	r = zalloc(sizeof(struct thread_runtime));
+	if (!r)
+		return NULL;
+
+	init_stats(&r->run_stats);
+	thread__set_priv(thread, r);
+
+	return r;
+}
+
+static struct thread_runtime *thread__get_runtime(struct thread *thread)
+{
+	struct thread_runtime *tr;
+
+	tr = thread__priv(thread);
+	if (tr == NULL) {
+		tr = thread__init_runtime(thread);
+		if (tr == NULL)
+			pr_debug("Failed to malloc memory for runtime data.\n");
+	}
+
+	return tr;
+}
+
+static struct thread *timehist_get_thread(struct perf_sample *sample,
+					  struct machine *machine,
+					  struct perf_evsel *evsel)
+{
+	struct thread *thread;
+
+	if (is_idle_sample(sample, evsel)) {
+		thread = get_idle_thread(sample->cpu);
+		if (thread == NULL)
+			pr_err("Failed to get idle thread for cpu %d.\n", sample->cpu);
+
+	} else {
+		thread = machine__findnew_thread(machine, sample->pid, sample->tid);
+		if (thread == NULL) {
+			pr_debug("Failed to get thread for tid %d. skipping sample.\n",
+				 sample->tid);
+		}
+	}
+
+	return thread;
+}
+
+static bool timehist_skip_sample(struct thread *thread)
+{
+	bool rc = false;
+
+	if (thread__is_filtered(thread))
+		rc = true;
+
+	return rc;
+}
+
+static int timehist_sched_wakeup_event(struct perf_tool *tool __maybe_unused,
+				       union perf_event *event __maybe_unused,
+				       struct perf_evsel *evsel,
+				       struct perf_sample *sample,
+				       struct machine *machine)
+{
+	struct thread *thread;
+	struct thread_runtime *tr = NULL;
+	/* want pid of awakened task not pid in sample */
+	const u32 pid = perf_evsel__intval(evsel, sample, "pid");
+
+	thread = machine__findnew_thread(machine, 0, pid);
+	if (thread == NULL)
+		return -1;
+
+	tr = thread__get_runtime(thread);
+	if (tr == NULL)
+		return -1;
+
+	if (tr->ready_to_run == 0)
+		tr->ready_to_run = sample->time;
+
+	return 0;
+}
+
+static int timehist_sched_change_event(struct perf_tool *tool __maybe_unused,
+				       union perf_event *event,
+				       struct perf_evsel *evsel,
+				       struct perf_sample *sample,
+				       struct machine *machine)
+{
+	struct addr_location al;
+	struct thread *thread;
+	struct thread_runtime *tr = NULL;
+	u64 tprev;
+	int rc = 0;
+
+	if (machine__resolve(machine, &al, sample) < 0) {
+		pr_err("problem processing %d event. skipping it\n",
+		       event->header.type);
+		rc = -1;
+		goto out;
+	}
+
+	thread = timehist_get_thread(sample, machine, evsel);
+	if (thread == NULL) {
+		rc = -1;
+		goto out;
+	}
+
+	if (timehist_skip_sample(thread))
+		goto out;
+
+	tr = thread__get_runtime(thread);
+	if (tr == NULL) {
+		rc = -1;
+		goto out;
+	}
+
+	tprev = perf_evsel__get_time(evsel, sample->cpu);
+
+	timehist_update_runtime_stats(tr, sample->time, tprev);
+	timehist_print_sample(sample, thread);
+
+out:
+	if (tr) {
+		/* time of this sched_switch event becomes last time task seen */
+		tr->last_time = sample->time;
+
+		/* sched out event for task so reset ready to run time */
+		tr->ready_to_run = 0;
+	}
+
+	perf_evsel__save_time(evsel, sample->time, sample->cpu);
+
+	return rc;
+}
+
+static int timehist_sched_switch_event(struct perf_tool *tool,
+			     union perf_event *event,
+			     struct perf_evsel *evsel,
+			     struct perf_sample *sample,
+			     struct machine *machine __maybe_unused)
+{
+	return timehist_sched_change_event(tool, event, evsel, sample, machine);
+}
+
+static int process_lost(struct perf_tool *tool __maybe_unused,
+			union perf_event *event,
+			struct perf_sample *sample,
+			struct machine *machine __maybe_unused)
+{
+	char tstr[64];
+
+	timestamp__scnprintf_usec(sample->time, tstr, sizeof(tstr));
+	printf("%15s ", tstr);
+	printf("lost %" PRIu64 " events on cpu %d\n", event->lost.lost, sample->cpu);
+
+	return 0;
+}
+
+
+typedef int (*sched_handler)(struct perf_tool *tool,
+			  union perf_event *event,
+			  struct perf_evsel *evsel,
+			  struct perf_sample *sample,
+			  struct machine *machine);
+
+static int perf_timehist__process_sample(struct perf_tool *tool,
+					 union perf_event *event,
+					 struct perf_sample *sample,
+					 struct perf_evsel *evsel,
+					 struct machine *machine)
+{
+	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
+	int err = 0;
+	int this_cpu = sample->cpu;
+
+	if (this_cpu > sched->max_cpu)
+		sched->max_cpu = this_cpu;
+
+	if (evsel->handler != NULL) {
+		sched_handler f = evsel->handler;
+
+		err = f(tool, event, evsel, sample, machine);
+	}
+
+	return err;
+}
+
+static int perf_sched__timehist(struct perf_sched *sched)
+{
+	const struct perf_evsel_str_handler handlers[] = {
+		{ "sched:sched_switch",       timehist_sched_switch_event, },
+		{ "sched:sched_wakeup",	      timehist_sched_wakeup_event, },
+		{ "sched:sched_wakeup_new",   timehist_sched_wakeup_event, },
+	};
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
+
+	struct perf_session *session;
+	int err = -1;
+
+	/*
+	 * event handlers for timehist option
+	 */
+	sched->tool.sample	 = perf_timehist__process_sample;
+	sched->tool.mmap	 = perf_event__process_mmap;
+	sched->tool.comm	 = perf_event__process_comm;
+	sched->tool.exit	 = perf_event__process_exit;
+	sched->tool.fork	 = perf_event__process_fork;
+	sched->tool.lost	 = process_lost;
+	sched->tool.attr	 = perf_event__process_attr;
+	sched->tool.tracing_data = perf_event__process_tracing_data;
+	sched->tool.build_id	 = perf_event__process_build_id;
+
+	sched->tool.ordered_events = true;
+	sched->tool.ordering_requires_timestamps = true;
+
+	session = perf_session__new(&file, false, &sched->tool);
+	if (session == NULL)
+		return -ENOMEM;
+
+	symbol__init(&session->header.env);
+
+	setup_pager();
+
+	/* setup per-evsel handlers */
+	if (perf_session__set_tracepoints_handlers(session, handlers))
+		goto out;
+
+	if (!perf_session__has_traces(session, "record -R"))
+		goto out;
+
+	/* pre-allocate struct for per-CPU idle stats */
+	sched->max_cpu = session->header.env.nr_cpus_online;
+	if (sched->max_cpu == 0)
+		sched->max_cpu = 4;
+	if (init_idle_threads(sched->max_cpu))
+		goto out;
+
+	timehist_header();
+
+	err = perf_session__process_events(session);
+	if (err) {
+		pr_err("Failed to process events, error %d", err);
+		goto out;
+	}
+
+out:
+	free_idle_threads();
+	perf_session__delete(session);
+
+	return err;
+}
+
+
 static void print_bad_events(struct perf_sched *sched)
 {
 	if (sched->nr_unordered_timestamps && sched->nr_timestamps) {
@@ -1970,8 +2535,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	const struct option latency_options[] = {
 	OPT_STRING('s', "sort", &sched.sort_order, "key[,key2...]",
 		   "sort by key(s): runtime, switch, avg, max"),
-	OPT_INCR('v', "verbose", &verbose,
-		    "be more verbose (show symbol address, etc)"),
 	OPT_INTEGER('C', "CPU", &sched.profile_cpu,
 		    "CPU to profile on"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
@@ -1983,8 +2546,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	const struct option replay_options[] = {
 	OPT_UINTEGER('r', "repeat", &sched.replay_repeat,
 		     "repeat the workload replay N times (-1: infinite)"),
-	OPT_INCR('v', "verbose", &verbose,
-		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
@@ -2001,6 +2562,16 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
                     "display given CPUs in map"),
 	OPT_PARENT(sched_options)
 	};
+	const struct option timehist_options[] = {
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
+		   "file", "kallsyms pathname"),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
+	OPT_PARENT(sched_options)
+	};
+
 	const char * const latency_usage[] = {
 		"perf sched latency [<options>]",
 		NULL
@@ -2013,8 +2584,13 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf sched map [<options>]",
 		NULL
 	};
+	const char * const timehist_usage[] = {
+		"perf sched timehist [<options>]",
+		NULL
+	};
 	const char *const sched_subcommands[] = { "record", "latency", "map",
-						  "replay", "script", NULL };
+						  "replay", "script",
+						  "timehist", NULL };
 	const char *sched_usage[] = {
 		NULL,
 		NULL
@@ -2077,6 +2653,14 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 				usage_with_options(replay_usage, replay_options);
 		}
 		return perf_sched__replay(&sched);
+	} else if (!strcmp(argv[0], "timehist")) {
+		if (argc) {
+			argc = parse_options(argc, argv, timehist_options,
+					     timehist_usage, 0);
+			if (argc)
+				usage_with_options(timehist_usage, timehist_options);
+		}
+		return perf_sched__timehist(&sched);
 	} else {
 		usage_with_options(sched_usage, sched_options);
 	}
