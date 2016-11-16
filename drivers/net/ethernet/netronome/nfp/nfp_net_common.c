@@ -2486,15 +2486,13 @@ nfp_net_ring_swap_enable(struct nfp_net *nn, unsigned int *num_vecs,
 	for (r = 0; r <	nn->max_r_vecs; r++)
 		nfp_net_vector_assign_rings(nn, &nn->r_vecs[r], r);
 
-	if (nn->netdev->real_num_rx_queues != nn->num_rx_rings) {
-		if (!netif_is_rxfh_configured(nn->netdev))
-			nfp_net_rss_init_itbl(nn);
+	if (!netif_is_rxfh_configured(nn->netdev))
+		nfp_net_rss_init_itbl(nn);
 
-		err = netif_set_real_num_rx_queues(nn->netdev,
-						   nn->num_rx_rings);
-		if (err)
-			return err;
-	}
+	err = netif_set_real_num_rx_queues(nn->netdev,
+					   nn->num_rx_rings);
+	if (err)
+		return err;
 
 	if (nn->netdev->real_num_tx_queues != nn->num_stack_tx_rings) {
 		err = netif_set_real_num_tx_queues(nn->netdev,
