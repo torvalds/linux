@@ -432,7 +432,7 @@ console:
 
 	if (cdls) {
 		if (libcfs_console_ratelimit &&
-		    cdls->cdls_next != 0 &&     /* not first time ever */
+		    cdls->cdls_next &&		/* not first time ever */
 		    !cfs_time_after(cfs_time_current(), cdls->cdls_next)) {
 			/* skipping a console message */
 			cdls->cdls_count++;
@@ -489,7 +489,7 @@ console:
 		put_cpu();
 	}
 
-	if (cdls && cdls->cdls_count != 0) {
+	if (cdls && cdls->cdls_count) {
 		string_buf = cfs_trace_get_console_buffer();
 
 		needed = snprintf(string_buf, CFS_TRACE_CONSOLE_BUFFER_SIZE,
@@ -847,12 +847,12 @@ int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob)
 	int	   rc;
 
 	rc = cfs_trace_allocate_string_buffer(&str, usr_str_nob + 1);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	rc = cfs_trace_copyin_string(str, usr_str_nob + 1,
 				     usr_str, usr_str_nob);
-	if (rc != 0)
+	if (rc)
 		goto out;
 
 	if (str[0] != '/') {
@@ -912,7 +912,7 @@ int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 	int   rc;
 
 	rc = cfs_trace_allocate_string_buffer(&str, usr_str_nob + 1);
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	rc = cfs_trace_copyin_string(str, usr_str_nob + 1,
@@ -1003,7 +1003,7 @@ static int tracefiled(void *arg)
 
 		filp = NULL;
 		cfs_tracefile_read_lock();
-		if (cfs_tracefile[0] != 0) {
+		if (cfs_tracefile[0]) {
 			filp = filp_open(cfs_tracefile,
 					 O_CREAT | O_RDWR | O_LARGEFILE,
 					 0600);
@@ -1141,7 +1141,7 @@ int cfs_tracefile_init(int max_pages)
 	int		    factor;
 
 	rc = cfs_tracefile_init_arch();
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	cfs_tcd_for_each(tcd, i, j) {

@@ -492,7 +492,7 @@ cfs_hash_bd_get(struct cfs_hash *hs, const void *key, struct cfs_hash_bd *bd)
 		cfs_hash_bd_from_key(hs, hs->hs_buckets,
 				     hs->hs_cur_bits, key, bd);
 	} else {
-		LASSERT(hs->hs_rehash_bits != 0);
+		LASSERT(hs->hs_rehash_bits);
 		cfs_hash_bd_from_key(hs, hs->hs_rehash_buckets,
 				     hs->hs_rehash_bits, key, bd);
 	}
@@ -629,7 +629,7 @@ cfs_hash_bd_lookup_intent(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	struct hlist_head *hhead = cfs_hash_bd_hhead(hs, bd);
 	struct hlist_node *ehnode;
 	struct hlist_node *match;
-	int intent_add = (intent & CFS_HS_LOOKUP_MASK_ADD) != 0;
+	int intent_add = intent & CFS_HS_LOOKUP_MASK_ADD;
 
 	/* with this function, we can avoid a lot of useless refcount ops,
 	 * which are expensive atomic operations most time.
@@ -643,13 +643,13 @@ cfs_hash_bd_lookup_intent(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 			continue;
 
 		/* match and ... */
-		if ((intent & CFS_HS_LOOKUP_MASK_DEL) != 0) {
+		if (intent & CFS_HS_LOOKUP_MASK_DEL) {
 			cfs_hash_bd_del_locked(hs, bd, ehnode);
 			return ehnode;
 		}
 
 		/* caller wants refcount? */
-		if ((intent & CFS_HS_LOOKUP_MASK_REF) != 0)
+		if (intent & CFS_HS_LOOKUP_MASK_REF)
 			cfs_hash_get(hs, ehnode);
 		return ehnode;
 	}
@@ -815,7 +815,7 @@ cfs_hash_dual_bd_get(struct cfs_hash *hs, const void *key,
 		return;
 	}
 
-	LASSERT(hs->hs_rehash_bits != 0);
+	LASSERT(hs->hs_rehash_bits);
 	cfs_hash_bd_from_key(hs, hs->hs_rehash_buckets,
 			     hs->hs_rehash_bits, key, &bds[1]);
 
@@ -976,7 +976,7 @@ static void cfs_hash_depth_wi_cancel(struct cfs_hash *hs)
 		return;
 
 	spin_lock(&hs->hs_dep_lock);
-	while (hs->hs_dep_bits != 0) {
+	while (hs->hs_dep_bits) {
 		spin_unlock(&hs->hs_dep_lock);
 		cond_resched();
 		spin_lock(&hs->hs_dep_lock);
@@ -1010,16 +1010,16 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 	LASSERT(ops->hs_get);
 	LASSERT(ops->hs_put_locked);
 
-	if ((flags & CFS_HASH_REHASH) != 0)
+	if (flags & CFS_HASH_REHASH)
 		flags |= CFS_HASH_COUNTER; /* must have counter */
 
 	LASSERT(cur_bits > 0);
 	LASSERT(cur_bits >= bkt_bits);
 	LASSERT(max_bits >= cur_bits && max_bits < 31);
 	LASSERT(ergo((flags & CFS_HASH_REHASH) == 0, cur_bits == max_bits));
-	LASSERT(ergo((flags & CFS_HASH_REHASH) != 0,
+	LASSERT(ergo(flags & CFS_HASH_REHASH,
 		     (flags & CFS_HASH_NO_LOCK) == 0));
-	LASSERT(ergo((flags & CFS_HASH_REHASH_KEY) != 0, ops->hs_keycpy));
+	LASSERT(ergo(flags & CFS_HASH_REHASH_KEY, ops->hs_keycpy));
 
 	len = (flags & CFS_HASH_BIGNAME) == 0 ?
 	      CFS_HASH_NAME_LEN : CFS_HASH_BIGNAME_LEN;
@@ -1948,7 +1948,7 @@ out:
 	/* can't refer to @hs anymore because it could be destroyed */
 	if (bkts)
 		cfs_hash_buckets_free(bkts, bsize, new_size, old_size);
-	if (rc != 0)
+	if (rc)
 		CDEBUG(D_INFO, "early quit of rehashing: %d\n", rc);
 	/* return 1 only if cfs_wi_exit is called */
 	return rc == -ESRCH;
@@ -2017,7 +2017,7 @@ cfs_hash_full_bkts(struct cfs_hash *hs)
 	if (!hs->hs_rehash_buckets)
 		return hs->hs_buckets;
 
-	LASSERT(hs->hs_rehash_bits != 0);
+	LASSERT(hs->hs_rehash_bits);
 	return hs->hs_rehash_bits > hs->hs_cur_bits ?
 	       hs->hs_rehash_buckets : hs->hs_buckets;
 }
@@ -2029,7 +2029,7 @@ cfs_hash_full_nbkt(struct cfs_hash *hs)
 	if (!hs->hs_rehash_buckets)
 		return CFS_HASH_NBKT(hs);
 
-	LASSERT(hs->hs_rehash_bits != 0);
+	LASSERT(hs->hs_rehash_bits);
 	return hs->hs_rehash_bits > hs->hs_cur_bits ?
 	       CFS_HASH_RH_NBKT(hs) : CFS_HASH_NBKT(hs);
 }

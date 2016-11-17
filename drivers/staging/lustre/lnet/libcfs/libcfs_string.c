@@ -391,7 +391,7 @@ cfs_expr_list_print(char *buffer, int count, struct cfs_expr_list *expr_list)
 		i += scnprintf(buffer + i, count - i, "[");
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
-		if (j++ != 0)
+		if (j++)
 			i += scnprintf(buffer + i, count - i, ",");
 		i += cfs_range_expr_print(buffer + i, count - i, expr,
 					  numexprs > 1);
@@ -533,7 +533,7 @@ cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 			}
 
 			rc = cfs_range_expr_parse(&tok, min, max, 1, &expr);
-			if (rc != 0)
+			if (rc)
 				break;
 
 			list_add_tail(&expr->re_link, &expr_list->el_exprs);
@@ -544,7 +544,7 @@ cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 			list_add_tail(&expr->re_link, &expr_list->el_exprs);
 	}
 
-	if (rc != 0)
+	if (rc)
 		cfs_expr_list_free(expr_list);
 	else
 		*elpp = expr_list;

@@ -208,7 +208,7 @@ static int cfs_wi_scheduler(void *arg)
 
 	/* CPT affinity scheduler? */
 	if (sched->ws_cptab)
-		if (cfs_cpt_bind(sched->ws_cptab, sched->ws_cpt) != 0)
+		if (cfs_cpt_bind(sched->ws_cptab, sched->ws_cpt))
 			CWARN("Failed to bind %s on CPT %d\n",
 			      sched->ws_name, sched->ws_cpt);
 
@@ -247,7 +247,7 @@ static int cfs_wi_scheduler(void *arg)
 			rc = (*wi->wi_action) (wi);
 
 			spin_lock(&sched->ws_lock);
-			if (rc != 0) /* WI should be dead, even be freed! */
+			if (rc) /* WI should be dead, even be freed! */
 				continue;
 
 			wi->wi_running = 0;
@@ -447,7 +447,7 @@ cfs_wi_shutdown(void)
 	list_for_each_entry(sched, &cfs_wi_data.wi_scheds, ws_list) {
 		spin_lock(&cfs_wi_data.wi_glock);
 
-		while (sched->ws_nthreads != 0) {
+		while (sched->ws_nthreads) {
 			spin_unlock(&cfs_wi_data.wi_glock);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(cfs_time_seconds(1) / 20);

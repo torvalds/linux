@@ -278,7 +278,7 @@ libcfs_debug_mask2str(char *str, int size, int mask, int is_subsys)
 				len++;
 			}
 
-			while (*token != 0) {
+			while (*token) {
 				if (len < size)
 					str[len] = *token;
 				token++;
@@ -315,7 +315,7 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 	t = sscanf(str, "%i%n", &m, &matched);
 	if (t >= 1 && matched == n) {
 		/* don't print warning for lctl set_param debug=0 or -1 */
-		if (m != 0 && m != -1)
+		if (m && m != -1)
 			CWARN("You are trying to use a numerical value for the mask - this will be deprecated in a future release.\n");
 		*mask = m;
 		return 0;

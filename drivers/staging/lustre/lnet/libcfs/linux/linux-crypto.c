@@ -93,12 +93,12 @@ static int cfs_crypto_hash_alloc(enum cfs_crypto_hash_alg hash_alg,
 
 	if (key)
 		err = crypto_ahash_setkey(tfm, key, key_len);
-	else if ((*type)->cht_key != 0)
+	else if ((*type)->cht_key)
 		err = crypto_ahash_setkey(tfm,
 					  (unsigned char *)&((*type)->cht_key),
 					  (*type)->cht_size);
 
-	if (err != 0) {
+	if (err) {
 		ahash_request_free(*req);
 		crypto_free_ahash(tfm);
 		return err;
@@ -156,7 +156,7 @@ int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 		return -EINVAL;
 
 	err = cfs_crypto_hash_alloc(hash_alg, &type, &req, key, key_len);
-	if (err != 0)
+	if (err)
 		return err;
 
 	if (!hash || *hash_len < type->cht_size) {

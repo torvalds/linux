@@ -224,21 +224,21 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 {
 	char *prefix = "Lustre", *ptype = NULL;
 
-	if ((mask & D_EMERG) != 0) {
+	if (mask & D_EMERG) {
 		prefix = dbghdr_to_err_string(hdr);
 		ptype = KERN_EMERG;
-	} else if ((mask & D_ERROR) != 0) {
+	} else if (mask & D_ERROR) {
 		prefix = dbghdr_to_err_string(hdr);
 		ptype = KERN_ERR;
-	} else if ((mask & D_WARNING) != 0) {
+	} else if (mask & D_WARNING) {
 		prefix = dbghdr_to_info_string(hdr);
 		ptype = KERN_WARNING;
-	} else if ((mask & (D_CONSOLE | libcfs_printk)) != 0) {
+	} else if (mask & (D_CONSOLE | libcfs_printk)) {
 		prefix = dbghdr_to_info_string(hdr);
 		ptype = KERN_INFO;
 	}
 
-	if ((mask & D_CONSOLE) != 0) {
+	if (mask & D_CONSOLE) {
 		printk("%s%s: %.*s", ptype, prefix, len, buf);
 	} else {
 		printk("%s%s: %d:%d:(%s:%d:%s()) %.*s", ptype, prefix,

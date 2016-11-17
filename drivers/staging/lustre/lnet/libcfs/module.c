@@ -547,7 +547,7 @@ static int libcfs_init(void)
 	}
 
 	rc = cfs_cpu_init();
-	if (rc != 0)
+	if (rc)
 		goto cleanup_debug;
 
 	rc = misc_register(&libcfs_dev);
@@ -566,7 +566,7 @@ static int libcfs_init(void)
 	rc = min(cfs_cpt_weight(cfs_cpt_table, CFS_CPT_ANY), 4);
 	rc = cfs_wi_sched_create("cfs_rh", cfs_cpt_table, CFS_CPT_ANY,
 				 rc, &cfs_sched_rehash);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Startup workitem scheduler: error: %d\n", rc);
 		goto cleanup_deregister;
 	}

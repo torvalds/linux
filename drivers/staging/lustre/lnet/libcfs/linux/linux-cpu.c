@@ -712,7 +712,7 @@ cfs_cpt_num_estimate(void)
 	 */
 	ncpt = min(2U, ncpt);
 #endif
-	while (ncpu % ncpt != 0)
+	while (ncpu % ncpt)
 		ncpt--; /* worst case is 1 */
 
 	return ncpt;
@@ -737,7 +737,7 @@ cfs_cpt_table_create(int ncpt)
 		      ncpt, rc);
 	}
 
-	if (num_online_cpus() % ncpt != 0) {
+	if (num_online_cpus() % ncpt) {
 		CERROR("CPU number %d is not multiple of cpu_npartition %d, please try different cpu_npartitions value or set pattern string by cpu_pattern=STRING\n",
 		       (int)num_online_cpus(), ncpt);
 		goto failed;
@@ -888,7 +888,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 		int			n;
 
 		if (!bracket) {
-			if (*str != 0) {
+			if (*str) {
 				CERROR("Invalid pattern %s\n", str);
 				goto failed;
 			}
@@ -911,7 +911,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 			goto failed;
 		}
 
-		if (cfs_cpt_weight(cptab, cpt) != 0) {
+		if (cfs_cpt_weight(cptab, cpt)) {
 			CERROR("Partition %d has already been set.\n", cpt);
 			goto failed;
 		}
@@ -930,14 +930,14 @@ cfs_cpt_table_create_pattern(char *pattern)
 		}
 
 		if (cfs_expr_list_parse(str, (bracket - str) + 1,
-					0, high, &el) != 0) {
+					0, high, &el)) {
 			CERROR("Can't parse number range: %s\n", str);
 			goto failed;
 		}
 
 		list_for_each_entry(range, &el->el_exprs, re_link) {
 			for (i = range->re_lo; i <= range->re_hi; i++) {
-				if ((i - range->re_lo) % range->re_stride != 0)
+				if ((i - range->re_lo) % range->re_stride)
 					continue;
 
 				rc = node ? cfs_cpt_set_node(cptab, cpt, i) :
@@ -1044,7 +1044,7 @@ cfs_cpu_init(void)
 	register_hotcpu_notifier(&cfs_cpu_notifier);
 #endif
 
-	if (*cpu_pattern != 0) {
+	if (*cpu_pattern) {
 		cfs_cpt_table = cfs_cpt_table_create_pattern(cpu_pattern);
 		if (!cfs_cpt_table) {
 			CERROR("Failed to create cptab from pattern %s\n",
