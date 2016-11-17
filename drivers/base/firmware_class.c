@@ -112,7 +112,7 @@ static inline long firmware_loading_timeout(void)
  */
 struct fw_state {
 	struct completion completion;
-	unsigned long status;
+	enum fw_status status;
 };
 
 static void fw_state_init(struct fw_state *fw_st)
@@ -123,7 +123,7 @@ static void fw_state_init(struct fw_state *fw_st)
 
 static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
 {
-	return test_bit(status, &fw_st->status);
+	return fw_st->status == status;
 }
 
 static long __fw_state_wait_common(struct fw_state *fw_st, long timeout)
@@ -132,7 +132,7 @@ static long __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 
 	ret = wait_for_completion_interruptible_timeout(&fw_st->completion,
 							timeout);
-	if (ret != 0 && test_bit(FW_STATUS_ABORTED, &fw_st->status))
+	if (ret != 0 && READ_ONCE(fw_st->status) == FW_STATUS_ABORTED)
 		return -ENOENT;
 
 	return ret;
@@ -141,12 +141,10 @@ static long __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 static void __fw_state_set(struct fw_state *fw_st,
 			   enum fw_status status)
 {
-	set_bit(status, &fw_st->status);
+	WRITE_ONCE(fw_st->status, status);
 
-	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED) {
-		clear_bit(FW_STATUS_LOADING, &fw_st->status);
+	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED)
 		complete_all(&fw_st->completion);
-	}
 }
 
 #define fw_state_start(fw_st)					\
