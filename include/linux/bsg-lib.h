@@ -70,5 +70,6 @@ int bsg_setup_queue(struct device *dev, struct request_queue *q, char *name,
 		    bsg_job_fn *job_fn, int dd_job_size);
 void bsg_request_fn(struct request_queue *q);
 void bsg_destroy_job(struct kref *kref);
+void bsg_softirq_done(struct request *rq);
 
 #endif
