@@ -483,9 +483,10 @@ extern void kvmppc_xics_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 				   unsigned long host_irq);
 extern void kvmppc_xics_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 				   unsigned long host_irq);
-extern long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu, u32 xirr,
-				 struct kvmppc_irq_map *irq_map,
-				 struct kvmppc_passthru_irqmap *pimap);
+extern long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu, __be32 xirr,
+					struct kvmppc_irq_map *irq_map,
+					struct kvmppc_passthru_irqmap *pimap,
+					bool *again);
 extern int h_ipi_redirect;
 #else
 static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(

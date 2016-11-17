@@ -55,6 +55,8 @@
 #include <asm/hmi.h>
 #include <asm/pnv-pci.h>
 #include <asm/mmu.h>
+#include <asm/opal.h>
+#include <asm/xics.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -63,6 +65,7 @@
 #include <linux/irqbypass.h>
 #include <linux/module.h>
 #include <linux/compiler.h>
+#include <linux/of.h>
 
 #include "book3s.h"
 
@@ -172,8 +175,12 @@ static bool kvmppc_ipi_thread(int cpu)
 	}
 
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
-	if (cpu >= 0 && cpu < nr_cpu_ids && paca[cpu].kvm_hstate.xics_phys) {
-		xics_wake_cpu(cpu);
+	if (cpu >= 0 && cpu < nr_cpu_ids) {
+		if (paca[cpu].kvm_hstate.xics_phys) {
+			xics_wake_cpu(cpu);
+			return true;
+		}
+		opal_int_set_mfrr(get_hard_smp_processor_id(cpu), IPI_PRIORITY);
 		return true;
 	}
 #endif
@@ -3733,6 +3740,23 @@ static int kvmppc_book3s_init_hv(void)
 	r = kvm_init_subcore_bitmap();
 	if (r)
 		return r;
+
+	/*
+	 * We need a way of accessing the XICS interrupt controller,
+	 * either directly, via paca[cpu].kvm_hstate.xics_phys, or
+	 * indirectly, via OPAL.
+	 */
+#ifdef CONFIG_SMP
+	if (!get_paca()->kvm_hstate.xics_phys) {
+		struct device_node *np;
+
+		np = of_find_compatible_node(NULL, NULL, "ibm,opal-intc");
+		if (!np) {
+			pr_err("KVM-HV: Cannot determine method for accessing XICS\n");
+			return -ENODEV;
+		}
+	}
+#endif
 
 	kvm_ops_hv.owner = THIS_MODULE;
 	kvmppc_hv_ops = &kvm_ops_hv;
