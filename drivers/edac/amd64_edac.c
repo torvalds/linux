@@ -715,15 +715,33 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
  */
 static unsigned long determine_edac_cap(struct amd64_pvt *pvt)
 {
-	u8 bit;
 	unsigned long edac_cap = EDAC_FLAG_NONE;
+	u8 bit;
 
-	bit = (pvt->fam > 0xf || pvt->ext_model >= K8_REV_F)
-		? 19
-		: 17;
+	if (pvt->umc) {
+		u8 i, umc_en_mask = 0, dimm_ecc_en_mask = 0;
 
-	if (pvt->dclr0 & BIT(bit))
-		edac_cap = EDAC_FLAG_SECDED;
+		for (i = 0; i < NUM_UMCS; i++) {
+			if (!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT))
+				continue;
+
+			umc_en_mask |= BIT(i);
+
+			/* UMC Configuration bit 12 (DimmEccEn) */
+			if (pvt->umc[i].umc_cfg & BIT(12))
+				dimm_ecc_en_mask |= BIT(i);
+		}
+
+		if (umc_en_mask == dimm_ecc_en_mask)
+			edac_cap = EDAC_FLAG_SECDED;
+	} else {
+		bit = (pvt->fam > 0xf || pvt->ext_model >= K8_REV_F)
+			? 19
+			: 17;
+
+		if (pvt->dclr0 & BIT(bit))
+			edac_cap = EDAC_FLAG_SECDED;
+	}
 
 	return edac_cap;
 }
