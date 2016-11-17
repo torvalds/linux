@@ -596,6 +596,8 @@ struct ptlrpc_cli_req {
 	union ptlrpc_async_args		 cr_async_args;
 	/** Opaq data for replay and commit callbacks. */
 	void				*cr_cb_data;
+	/** Link to the imp->imp_unreplied_list */
+	struct list_head		 cr_unreplied_list;
 	/**
 	 * Commit callback, called when request is committed and about to be
 	 * freed.
@@ -635,6 +637,7 @@ struct ptlrpc_cli_req {
 #define rq_interpret_reply	rq_cli.cr_reply_interp
 #define rq_async_args		rq_cli.cr_async_args
 #define rq_cb_data		rq_cli.cr_cb_data
+#define rq_unreplied_list	rq_cli.cr_unreplied_list
 #define rq_commit_cb		rq_cli.cr_commit_cb
 #define rq_replay_cb		rq_cli.cr_replay_cb
 

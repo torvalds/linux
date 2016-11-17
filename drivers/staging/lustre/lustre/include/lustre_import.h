@@ -185,6 +185,11 @@ struct obd_import {
 	struct list_head	       *imp_replay_cursor;
 	/** @} */
 
+	/** List of not replied requests */
+	struct list_head	imp_unreplied_list;
+	/** Known maximal replied XID */
+	__u64			imp_known_replied_xid;
+
 	/** obd device for this import */
 	struct obd_device	*imp_obd;
 

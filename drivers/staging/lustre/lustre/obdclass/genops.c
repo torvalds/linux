@@ -907,6 +907,8 @@ struct obd_import *class_new_import(struct obd_device *obd)
 	INIT_LIST_HEAD(&imp->imp_sending_list);
 	INIT_LIST_HEAD(&imp->imp_delayed_list);
 	INIT_LIST_HEAD(&imp->imp_committed_list);
+	INIT_LIST_HEAD(&imp->imp_unreplied_list);
+	imp->imp_known_replied_xid = 0;
 	imp->imp_replay_cursor = &imp->imp_committed_list;
 	spin_lock_init(&imp->imp_lock);
 	imp->imp_last_success_conn = 0;

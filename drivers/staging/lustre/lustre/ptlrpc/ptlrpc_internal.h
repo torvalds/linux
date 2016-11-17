@@ -71,6 +71,9 @@ int ptlrpc_expired_set(void *data);
 int ptlrpc_set_next_timeout(struct ptlrpc_request_set *);
 void ptlrpc_resend_req(struct ptlrpc_request *request);
 void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req);
+void ptlrpc_assign_next_xid_nolock(struct ptlrpc_request *req);
+__u64 ptlrpc_known_replied_xid(struct obd_import *imp);
+void ptlrpc_add_unreplied(struct ptlrpc_request *req);
 
 /* events.c */
 int ptlrpc_init_portals(void);
@@ -324,6 +327,7 @@ static inline void ptlrpc_cli_req_init(struct ptlrpc_request *req)
 
 	INIT_LIST_HEAD(&cr->cr_set_chain);
 	INIT_LIST_HEAD(&cr->cr_ctx_chain);
+	INIT_LIST_HEAD(&cr->cr_unreplied_list);
 	init_waitqueue_head(&cr->cr_reply_waitq);
 	init_waitqueue_head(&cr->cr_set_waitq);
 }
@@ -338,6 +342,26 @@ static inline void ptlrpc_srv_req_init(struct ptlrpc_request *req)
 	INIT_LIST_HEAD(&sr->sr_exp_list);
 	INIT_LIST_HEAD(&sr->sr_timed_list);
 	INIT_LIST_HEAD(&sr->sr_hist_list);
+}
+
+static inline bool ptlrpc_req_is_connect(struct ptlrpc_request *req)
+{
+	if (lustre_msg_get_opc(req->rq_reqmsg) == MDS_CONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == OST_CONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == MGS_CONNECT)
+		return true;
+	else
+		return false;
+}
+
+static inline bool ptlrpc_req_is_disconnect(struct ptlrpc_request *req)
+{
+	if (lustre_msg_get_opc(req->rq_reqmsg) == MDS_DISCONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == OST_DISCONNECT ||
+	    lustre_msg_get_opc(req->rq_reqmsg) == MGS_DISCONNECT)
+		return true;
+	else
+		return false;
 }
 
 #endif /* PTLRPC_INTERNAL_H */

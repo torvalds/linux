@@ -509,18 +509,37 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	lustre_msg_set_conn_cnt(request->rq_reqmsg, imp->imp_conn_cnt);
 	lustre_msghdr_set_flags(request->rq_reqmsg, imp->imp_msghdr_flags);
 
-	if (request->rq_nr_resend) {
+	/*
+	 * If it's the first time to resend the request for EINPROGRESS,
+	 * we need to allocate a new XID (see after_reply()), it's different
+	 * from the resend for reply timeout.
+	 */
+	if (request->rq_nr_resend && list_empty(&request->rq_unreplied_list)) {
+		__u64 min_xid = 0;
 		/*
 		 * resend for EINPROGRESS, allocate new xid to avoid reply
 		 * reconstruction
 		 */
-		request->rq_xid = ptlrpc_next_xid();
-		DEBUG_REQ(D_RPCTRACE, request, "Allocating new xid for resend on EINPROGRESS");
-	}
+		spin_lock(&imp->imp_lock);
+		ptlrpc_assign_next_xid_nolock(request);
+		request->rq_mbits = request->rq_xid;
+		min_xid = ptlrpc_known_replied_xid(imp);
+		spin_unlock(&imp->imp_lock);
 
-	if (request->rq_bulk) {
+		lustre_msg_set_last_xid(request->rq_reqmsg, min_xid);
+		DEBUG_REQ(D_RPCTRACE, request, "Allocating new xid for resend on EINPROGRESS");
+	} else if (request->rq_bulk) {
 		ptlrpc_set_bulk_mbits(request);
 		lustre_msg_set_mbits(request->rq_reqmsg, request->rq_mbits);
+	}
+
+	if (list_empty(&request->rq_unreplied_list) ||
+	    request->rq_xid <= imp->imp_known_replied_xid) {
+		DEBUG_REQ(D_ERROR, request,
+			  "xid: %llu, replied: %llu, list_empty:%d\n",
+			  request->rq_xid, imp->imp_known_replied_xid,
+			  list_empty(&request->rq_unreplied_list));
+		LBUG();
 	}
 
 	/**
