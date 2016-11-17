@@ -12773,14 +12773,18 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      crtc->num_scalers,
 			      pipe_config->scaler_state.scaler_users,
 		              pipe_config->scaler_state.scaler_id);
-	DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
-		      pipe_config->gmch_pfit.control,
-		      pipe_config->gmch_pfit.pgm_ratios,
-		      pipe_config->gmch_pfit.lvds_border_bits);
-	DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x, %s\n",
-		      pipe_config->pch_pfit.pos,
-		      pipe_config->pch_pfit.size,
-		      pipe_config->pch_pfit.enabled ? "enabled" : "disabled");
+
+	if (HAS_GMCH_DISPLAY(dev_priv))
+		DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
+			      pipe_config->gmch_pfit.control,
+			      pipe_config->gmch_pfit.pgm_ratios,
+			      pipe_config->gmch_pfit.lvds_border_bits);
+	else
+		DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x, %s\n",
+			      pipe_config->pch_pfit.pos,
+			      pipe_config->pch_pfit.size,
+		              pipe_config->pch_pfit.enabled ? "enabled" : "disabled");
+
 	DRM_DEBUG_KMS("ips: %i, double wide: %i\n",
 		      pipe_config->ips_enabled, pipe_config->double_wide);
 
