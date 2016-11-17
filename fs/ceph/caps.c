@@ -3656,6 +3656,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 			cap->cap_id = le64_to_cpu(h->cap_id);
 			cap->mseq = mseq;
 			cap->seq = seq;
+			cap->issue_seq = seq;
 			spin_lock(&session->s_cap_lock);
 			list_add_tail(&cap->session_caps,
 					&session->s_cap_releases);
