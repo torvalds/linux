@@ -911,10 +911,8 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * remote-endpoint isn't a component that we need to add
 		 */
 		if (of_device_is_compatible(np, "qcom,mdp4") &&
-		    ep.port == 0) {
-			of_node_put(ep_node);
+		    ep.port == 0)
 			continue;
-		}
 
 		/*
 		 * It's okay if some of the ports don't have a remote endpoint
@@ -922,15 +920,12 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * any external interface.
 		 */
 		intf = of_graph_get_remote_port_parent(ep_node);
-		if (!intf) {
-			of_node_put(ep_node);
+		if (!intf)
 			continue;
-		}
 
 		drm_of_component_match_add(master_dev, matchptr, compare_of,
 					   intf);
 		of_node_put(intf);
-		of_node_put(ep_node);
 	}
 
 	return 0;
