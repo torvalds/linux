@@ -1686,6 +1686,13 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
 			ARRAY_SIZE(drm_atomic_debugfs_list),
 			minor->debugfs_root, minor);
 }
+
+int drm_atomic_debugfs_cleanup(struct drm_minor *minor)
+{
+	return drm_debugfs_remove_files(drm_atomic_debugfs_list,
+					ARRAY_SIZE(drm_atomic_debugfs_list),
+					minor);
+}
 #endif
 
 /*

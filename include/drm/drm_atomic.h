@@ -372,6 +372,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 #ifdef CONFIG_DEBUG_FS
 struct drm_minor;
 int drm_atomic_debugfs_init(struct drm_minor *minor);
+int drm_atomic_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
