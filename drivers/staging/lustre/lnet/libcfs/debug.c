@@ -228,7 +228,8 @@ int libcfs_panic_in_progress;
 static const char *
 libcfs_debug_subsys2str(int subsys)
 {
-	static const char *libcfs_debug_subsystems[] = LIBCFS_DEBUG_SUBSYS_NAMES;
+	static const char * const libcfs_debug_subsystems[] =
+		LIBCFS_DEBUG_SUBSYS_NAMES;
 
 	if (subsys >= ARRAY_SIZE(libcfs_debug_subsystems))
 		return NULL;
@@ -240,7 +241,8 @@ libcfs_debug_subsys2str(int subsys)
 static const char *
 libcfs_debug_dbg2str(int debug)
 {
-	static const char *libcfs_debug_masks[] = LIBCFS_DEBUG_MASKS_NAMES;
+	static const char * const libcfs_debug_masks[] =
+		LIBCFS_DEBUG_MASKS_NAMES;
 
 	if (debug >= ARRAY_SIZE(libcfs_debug_masks))
 		return NULL;
