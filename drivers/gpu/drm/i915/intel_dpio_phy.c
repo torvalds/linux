@@ -328,14 +328,6 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 		return false;
 	}
 
-	if (phy_info->rcomp_phy == -1 &&
-	    !(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE)) {
-		DRM_DEBUG_DRIVER("DDI PHY %d powered, but GRC isn't done\n",
-				 phy);
-
-		return false;
-	}
-
 	if (!(I915_READ(BXT_PHY_CTL_FAMILY(phy)) & COMMON_RESET_DIS)) {
 		DRM_DEBUG_DRIVER("DDI PHY %d powered, but still in reset\n",
 				 phy);
@@ -441,6 +433,9 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 
 	if (phy_info->rcomp_phy != -1) {
 		uint32_t grc_code;
+
+		bxt_phy_wait_grc_done(dev_priv, phy_info->rcomp_phy);
+
 		/*
 		 * PHY0 isn't connected to an RCOMP resistor so copy over
 		 * the corresponding calibrated value from PHY1, and disable
@@ -464,10 +459,6 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val |= COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
-
-	if (phy_info->rcomp_phy == -1)
-		bxt_phy_wait_grc_done(dev_priv, phy);
-
 }
 
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
