@@ -382,12 +382,6 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
 		struct dma_fence *fence;
 
-		if (adev->mman.buffer_funcs_ring == NULL ||
-		   !adev->mman.buffer_funcs_ring->ready) {
-			r = -EBUSY;
-			goto fail_free;
-		}
-
 		r = amdgpu_bo_reserve(bo, false);
 		if (unlikely(r != 0))
 			goto fail_free;
@@ -397,7 +391,10 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 		if (unlikely(r != 0))
 			goto fail_unreserve;
 
-		amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
+		r = amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
+		if (unlikely(r))
+			goto fail_unreserve;
+
 		amdgpu_bo_fence(bo, fence, false);
 		amdgpu_bo_unreserve(bo);
 		dma_fence_put(bo->tbo.moving);
