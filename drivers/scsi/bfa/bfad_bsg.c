@@ -3180,7 +3180,8 @@ bfad_im_bsg_vendor_request(struct fc_bsg_job *job)
 	bsg_reply->reply_payload_rcv_len = job->reply_payload.payload_len;
 	bsg_reply->result = rc;
 
-	job->job_done(job);
+	fc_bsg_jobdone(job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return rc;
 error:
 	/* free the command buffer */
@@ -3556,7 +3557,8 @@ out:
 	bsg_reply->result = rc;
 
 	if (rc == BFA_STATUS_OK)
-		job->job_done(job);
+		fc_bsg_jobdone(job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 
 	return rc;
 }

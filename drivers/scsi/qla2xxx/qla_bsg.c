@@ -20,7 +20,8 @@ qla2x00_bsg_job_done(void *data, void *ptr, int res)
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 
 	bsg_reply->result = res;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	sp->free(vha, sp);
 }
 
@@ -242,7 +243,8 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct fc_bsg_job *bsg_job)
 	}
 exit_fcp_prio_cfg:
 	if (!ret)
-		bsg_job->job_done(bsg_job);
+		fc_bsg_jobdone(bsg_job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 	return ret;
 }
 
@@ -939,7 +941,8 @@ done_unmap_req_sg:
 	    bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 	if (!rval)
-		bsg_job->job_done(bsg_job);
+		fc_bsg_jobdone(bsg_job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -972,7 +975,8 @@ qla84xx_reset(struct fc_bsg_job *bsg_job)
 		ql_dbg(ql_dbg_user, vha, 0x7031,
 		    "Vendor request 84xx reset completed.\n");
 		bsg_reply->result = DID_OK;
-		bsg_job->job_done(bsg_job);
+		fc_bsg_jobdone(bsg_job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 	}
 
 	return rval;
@@ -1085,7 +1089,8 @@ done_unmap_sg:
 		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 
 	if (!rval)
-		bsg_job->job_done(bsg_job);
+		fc_bsg_jobdone(bsg_job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -1282,7 +1287,8 @@ exit_mgmt:
 	dma_pool_free(ha->s_dma_pool, mn, mn_dma);
 
 	if (!rval)
-		bsg_job->job_done(bsg_job);
+		fc_bsg_jobdone(bsg_job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -1368,7 +1374,8 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 		}
 
 		bsg_reply->result = DID_OK;
-		bsg_job->job_done(bsg_job);
+		fc_bsg_jobdone(bsg_job, bsg_reply->result,
+			       bsg_reply->reply_payload_rcv_len);
 	}
 
 	return rval;
@@ -1476,7 +1483,8 @@ qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
 	ha->optrom_buffer = NULL;
 	ha->optrom_state = QLA_SWAITING;
 	mutex_unlock(&ha->optrom_mutex);
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -1511,7 +1519,8 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 	ha->optrom_buffer = NULL;
 	ha->optrom_state = QLA_SWAITING;
 	mutex_unlock(&ha->optrom_mutex);
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -1561,7 +1570,8 @@ dealloc:
 done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	return 0;
 }
@@ -1610,7 +1620,8 @@ done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->reply_payload_rcv_len = sizeof(*sr);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	return 0;
 }
@@ -1655,7 +1666,8 @@ dealloc:
 done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	return 0;
 }
@@ -1699,7 +1711,8 @@ dealloc:
 done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	return 0;
 }
@@ -1747,7 +1760,8 @@ done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->reply_payload_rcv_len = sizeof(*i2c);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	return 0;
 }
@@ -1925,7 +1939,8 @@ done:
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = (DID_OK) << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	/* Always return success, vendor rsp carries correct status */
 	return 0;
 }
@@ -2090,7 +2105,8 @@ qla26xx_serdes_op(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return 0;
 }
 
@@ -2131,7 +2147,8 @@ qla8044_serdes_op(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return 0;
 }
 
@@ -2162,7 +2179,8 @@ qla27xx_get_flash_upd_cap(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return 0;
 }
 
@@ -2207,7 +2225,8 @@ qla27xx_set_flash_upd_cap(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return 0;
 }
 
@@ -2265,7 +2284,8 @@ done:
 
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return 0;
 }
 
@@ -2321,7 +2341,8 @@ qla2x00_get_priv_stats(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(*bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	dma_free_coherent(&ha->pdev->dev, sizeof(*stats),
 		stats, stats_dma);
@@ -2364,7 +2385,8 @@ qla2x00_do_dport_diagnostics(struct fc_bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(*bsg_reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job->job_done(bsg_job);
+	fc_bsg_jobdone(bsg_job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 
 	kfree(dd);
 

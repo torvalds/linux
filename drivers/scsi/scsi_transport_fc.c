@@ -3582,16 +3582,17 @@ fc_destroy_bsgjob(struct fc_bsg_job *job)
  * fc_bsg_jobdone - completion routine for bsg requests that the LLD has
  *                  completed
  * @job:	fc_bsg_job that is complete
+ * @result:	job reply result
+ * @reply_payload_rcv_len: length of payload received
  */
-static void
-fc_bsg_jobdone(struct fc_bsg_job *job)
+void fc_bsg_jobdone(struct fc_bsg_job *job, int result,
+		    unsigned int reply_payload_rcv_len)
 {
 	struct request *req = job->req;
 	struct request *rsp = req->next_rq;
-	struct fc_bsg_reply *bsg_reply = job->reply;
 	int err;
 
-	err = job->req->errors = bsg_reply->result;
+	err = job->req->errors = result;
 
 	if (err < 0)
 		/* we're only returning the result field in the reply */
@@ -3603,14 +3604,14 @@ fc_bsg_jobdone(struct fc_bsg_job *job)
 	req->resid_len = 0;
 
 	if (rsp) {
-		WARN_ON(bsg_reply->reply_payload_rcv_len > rsp->resid_len);
+		WARN_ON(reply_payload_rcv_len > rsp->resid_len);
 
 		/* set reply (bidi) residual */
-		rsp->resid_len -= min(bsg_reply->reply_payload_rcv_len,
-				      rsp->resid_len);
+		rsp->resid_len -= min(reply_payload_rcv_len, rsp->resid_len);
 	}
 	blk_complete_request(req);
 }
+EXPORT_SYMBOL_GPL(fc_bsg_jobdone);
 
 /**
  * fc_bsg_softirq_done - softirq done routine for destroying the bsg requests
@@ -3742,7 +3743,6 @@ fc_req_to_bsgjob(struct Scsi_Host *shost, struct fc_rport *rport,
 		if (ret)
 			goto failjob_rls_rqst_payload;
 	}
-	job->job_done = fc_bsg_jobdone;
 	if (rport)
 		job->dev = &rport->dev;
 	else
@@ -3846,7 +3846,8 @@ fail_host_msg:
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
 	job->reply_len = sizeof(uint32_t);
-	fc_bsg_jobdone(job);
+	fc_bsg_jobdone(job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return FC_DISPATCH_UNLOCKED;
 }
 
@@ -3923,7 +3924,8 @@ fail_rport_msg:
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
 	job->reply_len = sizeof(uint32_t);
-	fc_bsg_jobdone(job);
+	fc_bsg_jobdone(job, bsg_reply->result,
+		       bsg_reply->reply_payload_rcv_len);
 	return FC_DISPATCH_UNLOCKED;
 }
 
@@ -3983,7 +3985,8 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 			bsg_reply->reply_payload_rcv_len = 0;
 			bsg_reply->result = -ENOMSG;
 			job->reply_len = sizeof(uint32_t);
-			fc_bsg_jobdone(job);
+			fc_bsg_jobdone(job, bsg_reply->result,
+				       bsg_reply->reply_payload_rcv_len);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}
