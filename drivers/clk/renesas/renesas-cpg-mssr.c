@@ -502,6 +502,18 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 }
 
 static const struct of_device_id cpg_mssr_match[] = {
+#ifdef CONFIG_ARCH_R8A7743
+	{
+		.compatible = "renesas,r8a7743-cpg-mssr",
+		.data = &r8a7743_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_ARCH_R8A7745
+	{
+		.compatible = "renesas,r8a7745-cpg-mssr",
+		.data = &r8a7745_cpg_mssr_info,
+	},
+#endif
 #ifdef CONFIG_ARCH_R8A7795
 	{
 		.compatible = "renesas,r8a7795-cpg-mssr",
