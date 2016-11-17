@@ -184,14 +184,16 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
-	TP_PROTO(struct btrfs_root *root, struct extent_map *map),
+	TP_PROTO(struct btrfs_root *root, struct inode *inode,
+		 struct extent_map *map),
 
-	TP_ARGS(root, map),
+	TP_ARGS(root, inode, map),
 
 	TP_CONDITION(map),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  root_objectid	)
+		__field(	u64,  ino		)
 		__field(	u64,  start		)
 		__field(	u64,  len		)
 		__field(	u64,  orig_start	)
@@ -204,7 +206,8 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 
 	TP_fast_assign_btrfs(root->fs_info,
 		__entry->root_objectid	= root->root_key.objectid;
-		__entry->start 		= map->start;
+		__entry->ino		= btrfs_ino(inode);
+		__entry->start		= map->start;
 		__entry->len		= map->len;
 		__entry->orig_start	= map->orig_start;
 		__entry->block_start	= map->block_start;
@@ -214,11 +217,12 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__entry->compress_type	= map->compress_type;
 	),
 
-	TP_printk_btrfs("root = %llu(%s), start = %llu, len = %llu, "
+	TP_printk_btrfs("root = %llu(%s), ino = %llu start = %llu, len = %llu, "
 		  "orig_start = %llu, block_start = %llu(%s), "
 		  "block_len = %llu, flags = %s, refs = %u, "
 		  "compress_type = %u",
 		  show_root_type(__entry->root_objectid),
+		  (unsigned long long)__entry->ino,
 		  (unsigned long long)__entry->start,
 		  (unsigned long long)__entry->len,
 		  (unsigned long long)__entry->orig_start,
