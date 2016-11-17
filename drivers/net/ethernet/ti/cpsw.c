@@ -2641,13 +2641,12 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_runtime_disable_ret;
 	}
 	cpsw->version = readl(&cpsw->regs->id_ver);
-	pm_runtime_put_sync(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	cpsw->wr_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(cpsw->wr_regs)) {
 		ret = PTR_ERR(cpsw->wr_regs);
-		goto clean_runtime_disable_ret;
+		goto clean_pm_runtime_put_ret;
 	}
 
 	memset(&dma_params, 0, sizeof(dma_params));
@@ -2684,7 +2683,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	default:
 		dev_err(priv->dev, "unknown version 0x%08x\n", cpsw->version);
 		ret = -ENODEV;
-		goto clean_runtime_disable_ret;
+		goto clean_pm_runtime_put_ret;
 	}
 	for (i = 0; i < cpsw->data.slaves; i++) {
 		struct cpsw_slave *slave = &cpsw->slaves[i];
@@ -2713,7 +2712,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (!cpsw->dma) {
 		dev_err(priv->dev, "error initializing dma\n");
 		ret = -ENOMEM;
-		goto clean_runtime_disable_ret;
+		goto clean_pm_runtime_put_ret;
 	}
 
 	cpsw->txch[0] = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
@@ -2815,12 +2814,16 @@ static int cpsw_probe(struct platform_device *pdev)
 		}
 	}
 
+	pm_runtime_put(&pdev->dev);
+
 	return 0;
 
 clean_ale_ret:
 	cpsw_ale_destroy(cpsw->ale);
 clean_dma_ret:
 	cpdma_ctlr_destroy(cpsw->dma);
+clean_pm_runtime_put_ret:
+	pm_runtime_put_sync(&pdev->dev);
 clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
 clean_ndev_ret:
