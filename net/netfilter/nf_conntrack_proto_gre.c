@@ -53,7 +53,7 @@ static unsigned int gre_timeouts[GRE_CT_MAX] = {
 	[GRE_CT_REPLIED]	= 180*HZ,
 };
 
-static int proto_gre_net_id __read_mostly;
+static unsigned int proto_gre_net_id __read_mostly;
 struct netns_proto_gre {
 	struct nf_proto_net	nf;
 	rwlock_t		keymap_lock;

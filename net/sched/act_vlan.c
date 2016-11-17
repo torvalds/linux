@@ -21,7 +21,7 @@
 
 #define VLAN_TAB_MASK     15
 
-static int vlan_net_id;
+static unsigned int vlan_net_id;
 static struct tc_action_ops act_vlan_ops;
 
 static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,

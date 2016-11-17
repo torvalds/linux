@@ -58,7 +58,7 @@
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
 
-int ovs_net_id __read_mostly;
+unsigned int ovs_net_id __read_mostly;
 
 static struct genl_family dp_packet_genl_family;
 static struct genl_family dp_flow_genl_family;

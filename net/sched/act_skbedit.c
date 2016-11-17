@@ -29,7 +29,7 @@
 
 #define SKBEDIT_TAB_MASK     15
 
-static int skbedit_net_id;
+static unsigned int skbedit_net_id;
 static struct tc_action_ops act_skbedit_ops;
 
 static int tcf_skbedit(struct sk_buff *skb, const struct tc_action *a,

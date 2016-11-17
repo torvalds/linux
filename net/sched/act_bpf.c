@@ -33,7 +33,7 @@ struct tcf_bpf_cfg {
 	bool is_ebpf;
 };
 
-static int bpf_net_id;
+static unsigned int bpf_net_id;
 static struct tc_action_ops act_bpf_ops;
 
 static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,

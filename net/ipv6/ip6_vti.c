@@ -64,7 +64,7 @@ static int vti6_dev_init(struct net_device *dev);
 static void vti6_dev_setup(struct net_device *dev);
 static struct rtnl_link_ops vti6_link_ops __read_mostly;
 
-static int vti6_net_id __read_mostly;
+static unsigned int vti6_net_id __read_mostly;
 struct vti6_net {
 	/* the vti6 tunnel fallback device */
 	struct net_device *fb_tnl_dev;

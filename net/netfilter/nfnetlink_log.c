@@ -80,7 +80,7 @@ struct nfulnl_instance {
 
 #define INSTANCE_BUCKETS	16
 
-static int nfnl_log_net_id __read_mostly;
+static unsigned int nfnl_log_net_id __read_mostly;
 
 struct nfnl_log_net {
 	spinlock_t instances_lock;

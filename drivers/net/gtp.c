@@ -77,7 +77,7 @@ struct gtp_dev {
 	struct hlist_head	*addr_hash;
 };
 
-static int gtp_net_id __read_mostly;
+static unsigned int gtp_net_id __read_mostly;
 
 struct gtp_net {
 	struct list_head gtp_dev_list;

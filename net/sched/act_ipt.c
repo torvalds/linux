@@ -30,10 +30,10 @@
 
 #define IPT_TAB_MASK     15
 
-static int ipt_net_id;
+static unsigned int ipt_net_id;
 static struct tc_action_ops act_ipt_ops;
 
-static int xt_net_id;
+static unsigned int xt_net_id;
 static struct tc_action_ops act_xt_ops;
 
 static int ipt_init_target(struct xt_entry_target *t, char *table,

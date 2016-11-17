@@ -385,7 +385,7 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 };
 
 /* this module per-net specifics */
-static int dccp_net_id __read_mostly;
+static unsigned int dccp_net_id __read_mostly;
 struct dccp_net {
 	struct nf_proto_net pn;
 	int dccp_loose;

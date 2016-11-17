@@ -366,7 +366,7 @@ struct rds_transport rds_tcp_transport = {
 	.t_mp_capable		= 1,
 };
 
-static int rds_tcp_netid;
+static unsigned int rds_tcp_netid;
 
 /* per-network namespace private data for this module */
 struct rds_tcp_net {

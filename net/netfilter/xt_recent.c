@@ -95,7 +95,7 @@ struct recent_net {
 #endif
 };
 
-static int recent_net_id __read_mostly;
+static unsigned int recent_net_id __read_mostly;
 
 static inline struct recent_net *recent_pernet(struct net *net)
 {

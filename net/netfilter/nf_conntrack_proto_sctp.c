@@ -144,7 +144,7 @@ static const u8 sctp_conntracks[2][11][SCTP_CONNTRACK_MAX] = {
 	}
 };
 
-static int sctp_net_id	__read_mostly;
+static unsigned int sctp_net_id	__read_mostly;
 struct sctp_net {
 	struct nf_proto_net pn;
 	unsigned int timeouts[SCTP_CONNTRACK_MAX];

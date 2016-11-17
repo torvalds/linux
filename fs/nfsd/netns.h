@@ -124,5 +124,5 @@ struct nfsd_net {
 /* Simple check to find out if a given net was properly initialized */
 #define nfsd_netns_ready(nn) ((nn)->sessionid_hashtbl)
 
-extern int nfsd_net_id;
+extern unsigned int nfsd_net_id;
 #endif /* __NFSD_NETNS_H__ */

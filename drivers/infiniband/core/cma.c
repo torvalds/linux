@@ -116,7 +116,7 @@ static LIST_HEAD(dev_list);
 static LIST_HEAD(listen_any_list);
 static DEFINE_MUTEX(lock);
 static struct workqueue_struct *cma_wq;
-static int cma_pernet_id;
+static unsigned int cma_pernet_id;
 
 struct cma_pernet {
 	struct idr tcp_ps;

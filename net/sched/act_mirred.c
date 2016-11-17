@@ -70,7 +70,7 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 	[TCA_MIRRED_PARMS]	= { .len = sizeof(struct tc_mirred) },
 };
 
-static int mirred_net_id;
+static unsigned int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
 
 static bool dev_is_mac_header_xmit(const struct net_device *dev)

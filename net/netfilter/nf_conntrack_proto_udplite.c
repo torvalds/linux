@@ -35,7 +35,7 @@ static unsigned int udplite_timeouts[UDPLITE_CT_MAX] = {
 	[UDPLITE_CT_REPLIED]	= 180*HZ,
 };
 
-static int udplite_net_id __read_mostly;
+static unsigned int udplite_net_id __read_mostly;
 struct udplite_net {
 	struct nf_proto_net pn;
 	unsigned int timeouts[UDPLITE_CT_MAX];

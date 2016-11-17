@@ -55,7 +55,7 @@ struct tc_police_compat {
 
 /* Each policer is serialized by its individual spinlock */
 
-static int police_net_id;
+static unsigned int police_net_id;
 static struct tc_action_ops act_police_ops;
 
 static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,

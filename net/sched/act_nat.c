@@ -31,7 +31,7 @@
 
 #define NAT_TAB_MASK	15
 
-static int nat_net_id;
+static unsigned int nat_net_id;
 static struct tc_action_ops act_nat_ops;
 
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {

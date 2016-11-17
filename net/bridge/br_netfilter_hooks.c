@@ -46,7 +46,7 @@
 #include <linux/sysctl.h>
 #endif
 
-static int brnf_net_id __read_mostly;
+static unsigned int brnf_net_id __read_mostly;
 
 struct brnf_net {
 	bool enabled;

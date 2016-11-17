@@ -64,7 +64,7 @@ MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 #define IP6_GRE_HASH_SIZE_SHIFT  5
 #define IP6_GRE_HASH_SIZE (1 << IP6_GRE_HASH_SIZE_SHIFT)
 
-static int ip6gre_net_id __read_mostly;
+static unsigned int ip6gre_net_id __read_mostly;
 struct ip6gre_net {
 	struct ip6_tnl __rcu *tunnels[4][IP6_GRE_HASH_SIZE];
 

@@ -43,7 +43,7 @@ struct geneve_net {
 	struct list_head	sock_list;
 };
 
-static int geneve_net_id;
+static unsigned int geneve_net_id;
 
 union geneve_addr {
 	struct sockaddr_in sin;

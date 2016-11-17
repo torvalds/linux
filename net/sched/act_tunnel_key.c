@@ -22,7 +22,7 @@
 
 #define TUNNEL_KEY_TAB_MASK     15
 
-static int tunnel_key_net_id;
+static unsigned int tunnel_key_net_id;
 static struct tc_action_ops act_tunnel_key_ops;
 
 static int tunnel_key_act(struct sk_buff *skb, const struct tc_action *a,
