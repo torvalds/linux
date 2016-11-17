@@ -40,6 +40,8 @@ struct bsg_job {
 	struct device *dev;
 	struct request *req;
 
+	struct kref kref;
+
 	/* Transport/driver specific request/reply structs */
 	void *request;
 	void *reply;
