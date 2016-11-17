@@ -1210,6 +1210,19 @@ static int f1x_early_channel_count(struct amd64_pvt *pvt)
 	return channels;
 }
 
+static int f17_early_channel_count(struct amd64_pvt *pvt)
+{
+	int i, channels = 0;
+
+	/* SDP Control bit 31 (SdpInit) is clear for unused UMC channels */
+	for (i = 0; i < NUM_UMCS; i++)
+		channels += !!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT);
+
+	amd64_info("MCT channel count: %d\n", channels);
+
+	return channels;
+}
+
 static int ddr3_cs_size(unsigned i, bool dct_width)
 {
 	unsigned shift = 0;
@@ -1335,6 +1348,23 @@ static int f16_dbam_to_chip_select(struct amd64_pvt *pvt, u8 dct,
 		return -1;
 	else
 		return ddr3_cs_size(cs_mode, false);
+}
+
+static int f17_base_addr_to_cs_size(struct amd64_pvt *pvt, u8 umc,
+				    unsigned int cs_mode, int csrow_nr)
+{
+	u32 base_addr = pvt->csels[umc].csbases[csrow_nr];
+
+	/*  Each mask is used for every two base addresses. */
+	u32 addr_mask = pvt->csels[umc].csmasks[csrow_nr >> 1];
+
+	/*  Register [31:1] = Address [39:9]. Size is in kBs here. */
+	u32 size = ((addr_mask >> 1) - (base_addr >> 1) + 1) >> 1;
+
+	edac_dbg(1, "BaseAddr: 0x%x, AddrMask: 0x%x\n", base_addr, addr_mask);
+
+	/* Return size in MBs. */
+	return size >> 10;
 }
 
 static void read_dram_ctl_register(struct amd64_pvt *pvt)
@@ -1987,6 +2017,15 @@ static struct amd64_family_type family_types[] = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
 			.dbam_to_cs		= f16_dbam_to_chip_select,
+		}
+	},
+	[F17_CPUS] = {
+		.ctl_name = "F17h",
+		.f0_id = PCI_DEVICE_ID_AMD_17H_DF_F0,
+		.f6_id = PCI_DEVICE_ID_AMD_17H_DF_F6,
+		.ops = {
+			.early_channel_count	= f17_early_channel_count,
+			.dbam_to_cs		= f17_base_addr_to_cs_size,
 		}
 	},
 };
@@ -2788,6 +2827,11 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 		}
 		fam_type	= &family_types[F16_CPUS];
 		pvt->ops	= &family_types[F16_CPUS].ops;
+		break;
+
+	case 0x17:
+		fam_type	= &family_types[F17_CPUS];
+		pvt->ops	= &family_types[F17_CPUS].ops;
 		break;
 
 	default:
