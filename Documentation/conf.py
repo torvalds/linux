@@ -340,6 +340,8 @@ if major == 1 and minor > 3:
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
+    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
+     'The kernel development community', 'manual'),
     ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
      'The kernel development community', 'manual'),
     ('core-api/index', 'core-api.tex', 'The kernel core API manual',

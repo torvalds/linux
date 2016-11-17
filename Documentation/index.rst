@@ -38,7 +38,7 @@ merged much easier.
 
    process/index
    dev-tools/index
-   kernel-documentation
+   doc-guide/index
 
 Kernel API documentation
 ------------------------
