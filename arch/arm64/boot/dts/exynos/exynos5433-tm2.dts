@@ -158,6 +158,29 @@
 	};
 };
 
+&cmu_fsys {
+	assigned-clocks = <&cmu_top CLK_MOUT_SCLK_USBDRD30>,
+		<&cmu_top CLK_MOUT_SCLK_USBHOST30>,
+		<&cmu_fsys CLK_MOUT_SCLK_USBDRD30_USER>,
+		<&cmu_fsys CLK_MOUT_SCLK_USBHOST30_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_USER>,
+		<&cmu_top CLK_DIV_SCLK_USBDRD30>,
+		<&cmu_top CLK_DIV_SCLK_USBHOST30>;
+	assigned-clock-parents = <&cmu_top CLK_MOUT_BUS_PLL_USER>,
+		<&cmu_top CLK_MOUT_BUS_PLL_USER>,
+		<&cmu_top CLK_SCLK_USBDRD30_FSYS>,
+		<&cmu_top CLK_SCLK_USBHOST30_FSYS>,
+		<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_PHY>,
+		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_PHY>,
+		<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_PHY>,
+		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY>;
+	assigned-clock-rates = <0>, <0>, <0>, <0>, <0>, <0>, <0>, <0>,
+			       <66700000>, <66700000>;
+};
+
 &cpu0 {
 	cpu-supply = <&buck3_reg>;
 };
