@@ -29,8 +29,7 @@
 
 /* Efx legacy TCP segmentation acceleration.
  *
- * Why?  Because by doing it here in the driver we can go significantly
- * faster than the GSO.
+ * Utilises firmware support to go faster than GSO (but not as fast as TSOv2).
  *
  * Requires TX checksum offload support.
  */
@@ -47,15 +46,13 @@
  * @in_len: Remaining length in current SKB fragment
  * @unmap_len: Length of SKB fragment
  * @unmap_addr: DMA address of SKB fragment
- * @dma_flags: TX buffer flags for DMA mapping - %EFX_TX_BUF_MAP_SINGLE or 0
  * @protocol: Network protocol (after any VLAN header)
  * @ip_off: Offset of IP header
  * @tcp_off: Offset of TCP header
  * @header_len: Number of bytes of header
  * @ip_base_len: IPv4 tot_len or IPv6 payload_len, before TCP payload
- * @header_dma_addr: Header DMA address, when using option descriptors
- * @header_unmap_len: Header DMA mapped length, or 0 if not using option
- *	descriptors
+ * @header_dma_addr: Header DMA address
+ * @header_unmap_len: Header DMA mapped length
  *
  * The state used during segmentation.  It is put into this data structure
  * just to make it easy to pass into inline functions.
@@ -72,7 +69,6 @@ struct tso_state {
 	unsigned int in_len;
 	unsigned int unmap_len;
 	dma_addr_t unmap_addr;
-	unsigned short dma_flags;
 
 	__be16 protocol;
 	unsigned int ip_off;
@@ -172,63 +168,6 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 	return protocol;
 }
 
-static u8 *efx_tsoh_get_buffer(struct efx_tx_queue *tx_queue,
-			       struct efx_tx_buffer *buffer, unsigned int len)
-{
-	u8 *result;
-
-	EFX_BUG_ON_PARANOID(buffer->len);
-	EFX_BUG_ON_PARANOID(buffer->flags);
-	EFX_BUG_ON_PARANOID(buffer->unmap_len);
-
-	result = efx_tx_get_copy_buffer_limited(tx_queue, buffer, len);
-
-	if (result) {
-		buffer->flags = EFX_TX_BUF_CONT;
-	} else {
-		buffer->heap_buf = kmalloc(NET_IP_ALIGN + len, GFP_ATOMIC);
-		if (unlikely(!buffer->heap_buf))
-			return NULL;
-		tx_queue->tso_long_headers++;
-		result = (u8 *)buffer->heap_buf + NET_IP_ALIGN;
-		buffer->flags = EFX_TX_BUF_CONT | EFX_TX_BUF_HEAP;
-	}
-
-	buffer->len = len;
-
-	return result;
-}
-
-/*
- * Put a TSO header into the TX queue.
- *
- * This is special-cased because we know that it is small enough to fit in
- * a single fragment, and we know it doesn't cross a page boundary.  It
- * also allows us to not worry about end-of-packet etc.
- */
-static int efx_tso_put_header(struct efx_tx_queue *tx_queue,
-			      struct efx_tx_buffer *buffer, u8 *header)
-{
-	if (unlikely(buffer->flags & EFX_TX_BUF_HEAP)) {
-		buffer->dma_addr = dma_map_single(&tx_queue->efx->pci_dev->dev,
-						  header, buffer->len,
-						  DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(&tx_queue->efx->pci_dev->dev,
-					       buffer->dma_addr))) {
-			kfree(buffer->heap_buf);
-			buffer->len = 0;
-			buffer->flags = 0;
-			return -ENOMEM;
-		}
-		buffer->unmap_len = buffer->len;
-		buffer->dma_offset = 0;
-		buffer->flags |= EFX_TX_BUF_MAP_SINGLE;
-	}
-
-	++tx_queue->insert_count;
-	return 0;
-}
-
 
 /* Parse the SKB header and initialise state. */
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
@@ -237,11 +176,7 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 {
 	struct device *dma_dev = &efx->pci_dev->dev;
 	unsigned int header_len, in_len;
-	bool use_opt_desc = false;
 	dma_addr_t dma_addr;
-
-	if (tx_queue->tso_version == 1)
-		use_opt_desc = true;
 
 	st->ip_off = skb_network_header(skb) - skb->data;
 	st->tcp_off = skb_transport_header(skb) - skb->data;
@@ -264,30 +199,12 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 
 	st->out_len = skb->len - header_len;
 
-	if (!use_opt_desc) {
-		st->header_unmap_len = 0;
-
-		if (likely(in_len == 0)) {
-			st->dma_flags = 0;
-			st->unmap_len = 0;
-			return 0;
-		}
-
-		dma_addr = dma_map_single(dma_dev, skb->data + header_len,
-					  in_len, DMA_TO_DEVICE);
-		st->dma_flags = EFX_TX_BUF_MAP_SINGLE;
-		st->dma_addr = dma_addr;
-		st->unmap_addr = dma_addr;
-		st->unmap_len = in_len;
-	} else {
-		dma_addr = dma_map_single(dma_dev, skb->data,
-					  skb_headlen(skb), DMA_TO_DEVICE);
-		st->header_dma_addr = dma_addr;
-		st->header_unmap_len = skb_headlen(skb);
-		st->dma_flags = 0;
-		st->dma_addr = dma_addr + header_len;
-		st->unmap_len = 0;
-	}
+	dma_addr = dma_map_single(dma_dev, skb->data,
+				  skb_headlen(skb), DMA_TO_DEVICE);
+	st->header_dma_addr = dma_addr;
+	st->header_unmap_len = skb_headlen(skb);
+	st->dma_addr = dma_addr + header_len;
+	st->unmap_len = 0;
 
 	return unlikely(dma_mapping_error(dma_dev, dma_addr)) ? -ENOMEM : 0;
 }
@@ -298,7 +215,6 @@ static int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
 	st->unmap_addr = skb_frag_dma_map(&efx->pci_dev->dev, frag, 0,
 					  skb_frag_size(frag), DMA_TO_DEVICE);
 	if (likely(!dma_mapping_error(&efx->pci_dev->dev, st->unmap_addr))) {
-		st->dma_flags = 0;
 		st->unmap_len = skb_frag_size(frag);
 		st->in_len = skb_frag_size(frag);
 		st->dma_addr = st->unmap_addr;
@@ -352,7 +268,6 @@ static void tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
 		/* Transfer ownership of the DMA mapping */
 		buffer->unmap_len = st->unmap_len;
 		buffer->dma_offset = buffer->unmap_len - buffer->len;
-		buffer->flags |= st->dma_flags;
 		st->unmap_len = 0;
 	}
 
@@ -369,7 +284,7 @@ static void tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
  * @st:			TSO state
  *
  * Generate a new header and prepare for the new packet.  Return 0 on
- * success, or -%ENOMEM if failed to alloc header.
+ * success, or -%ENOMEM if failed to alloc header, or other negative error.
  */
 static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 				const struct sk_buff *skb,
@@ -378,7 +293,7 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 	struct efx_tx_buffer *buffer =
 		efx_tx_queue_get_insert_buffer(tx_queue);
 	bool is_last = st->out_len <= skb_shinfo(skb)->gso_size;
-	u8 tcp_flags_mask;
+	u8 tcp_flags_mask, tcp_flags;
 
 	if (!is_last) {
 		st->packet_space = skb_shinfo(skb)->gso_size;
@@ -388,82 +303,44 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
 		tcp_flags_mask = 0x00;
 	}
 
-	if (!st->header_unmap_len) {
-		/* Allocate and insert a DMA-mapped header buffer. */
-		struct tcphdr *tsoh_th;
-		unsigned int ip_length;
-		u8 *header;
-		int rc;
+	if (WARN_ON(!st->header_unmap_len))
+		return -EINVAL;
+	/* Send the original headers with a TSO option descriptor
+	 * in front
+	 */
+	tcp_flags = ((u8 *)tcp_hdr(skb))[TCP_FLAGS_OFFSET] & ~tcp_flags_mask;
 
-		header = efx_tsoh_get_buffer(tx_queue, buffer, st->header_len);
-		if (!header)
-			return -ENOMEM;
+	buffer->flags = EFX_TX_BUF_OPTION;
+	buffer->len = 0;
+	buffer->unmap_len = 0;
+	EFX_POPULATE_QWORD_5(buffer->option,
+			     ESF_DZ_TX_DESC_IS_OPT, 1,
+			     ESF_DZ_TX_OPTION_TYPE,
+			     ESE_DZ_TX_OPTION_DESC_TSO,
+			     ESF_DZ_TX_TSO_TCP_FLAGS, tcp_flags,
+			     ESF_DZ_TX_TSO_IP_ID, st->ipv4_id,
+			     ESF_DZ_TX_TSO_TCP_SEQNO, st->seqnum);
+	++tx_queue->insert_count;
 
-		tsoh_th = (struct tcphdr *)(header + st->tcp_off);
-
-		/* Copy and update the headers. */
-		memcpy(header, skb->data, st->header_len);
-
-		tsoh_th->seq = htonl(st->seqnum);
-		((u8 *)tsoh_th)[TCP_FLAGS_OFFSET] &= ~tcp_flags_mask;
-
-		ip_length = st->ip_base_len + st->packet_space;
-
-		if (st->protocol == htons(ETH_P_IP)) {
-			struct iphdr *tsoh_iph =
-				(struct iphdr *)(header + st->ip_off);
-
-			tsoh_iph->tot_len = htons(ip_length);
-			tsoh_iph->id = htons(st->ipv4_id);
-		} else {
-			struct ipv6hdr *tsoh_iph =
-				(struct ipv6hdr *)(header + st->ip_off);
-
-			tsoh_iph->payload_len = htons(ip_length);
-		}
-
-		rc = efx_tso_put_header(tx_queue, buffer, header);
-		if (unlikely(rc))
-			return rc;
+	/* We mapped the headers in tso_start().  Unmap them
+	 * when the last segment is completed.
+	 */
+	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
+	buffer->dma_addr = st->header_dma_addr;
+	buffer->len = st->header_len;
+	if (is_last) {
+		buffer->flags = EFX_TX_BUF_CONT | EFX_TX_BUF_MAP_SINGLE;
+		buffer->unmap_len = st->header_unmap_len;
+		buffer->dma_offset = 0;
+		/* Ensure we only unmap them once in case of a
+		 * later DMA mapping error and rollback
+		 */
+		st->header_unmap_len = 0;
 	} else {
-		/* Send the original headers with a TSO option descriptor
-		 * in front
-		 */
-		u8 tcp_flags = ((u8 *)tcp_hdr(skb))[TCP_FLAGS_OFFSET] &
-				~tcp_flags_mask;
-
-		buffer->flags = EFX_TX_BUF_OPTION;
-		buffer->len = 0;
+		buffer->flags = EFX_TX_BUF_CONT;
 		buffer->unmap_len = 0;
-		EFX_POPULATE_QWORD_5(buffer->option,
-				     ESF_DZ_TX_DESC_IS_OPT, 1,
-				     ESF_DZ_TX_OPTION_TYPE,
-				     ESE_DZ_TX_OPTION_DESC_TSO,
-				     ESF_DZ_TX_TSO_TCP_FLAGS, tcp_flags,
-				     ESF_DZ_TX_TSO_IP_ID, st->ipv4_id,
-				     ESF_DZ_TX_TSO_TCP_SEQNO, st->seqnum);
-		++tx_queue->insert_count;
-
-		/* We mapped the headers in tso_start().  Unmap them
-		 * when the last segment is completed.
-		 */
-		buffer = efx_tx_queue_get_insert_buffer(tx_queue);
-		buffer->dma_addr = st->header_dma_addr;
-		buffer->len = st->header_len;
-		if (is_last) {
-			buffer->flags = EFX_TX_BUF_CONT | EFX_TX_BUF_MAP_SINGLE;
-			buffer->unmap_len = st->header_unmap_len;
-			buffer->dma_offset = 0;
-			/* Ensure we only unmap them once in case of a
-			 * later DMA mapping error and rollback
-			 */
-			st->header_unmap_len = 0;
-		} else {
-			buffer->flags = EFX_TX_BUF_CONT;
-			buffer->unmap_len = 0;
-		}
-		++tx_queue->insert_count;
 	}
+	++tx_queue->insert_count;
 
 	st->seqnum += skb_shinfo(skb)->gso_size;
 
@@ -483,8 +360,8 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
  * Context: You must hold netif_tx_lock() to call this function.
  *
  * Add socket buffer @skb to @tx_queue, doing TSO or return != 0 if
- * @skb was not enqueued.  In all cases @skb is consumed.  Return
- * %NETDEV_TX_OK.
+ * @skb was not enqueued.  @skb is consumed unless return value is
+ * %EINVAL.
  */
 int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 			struct sk_buff *skb,
@@ -493,6 +370,9 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	struct efx_nic *efx = tx_queue->efx;
 	int frag_i, rc;
 	struct tso_state state;
+
+	if (tx_queue->tso_version != 1)
+		return -EINVAL;
 
 	prefetch(skb->data);
 
@@ -503,7 +383,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	rc = tso_start(&state, efx, tx_queue, skb);
 	if (rc)
-		goto mem_err;
+		goto fail;
 
 	if (likely(state.in_len == 0)) {
 		/* Grab the first payload fragment. */
@@ -512,14 +392,15 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 		rc = tso_get_fragment(&state, efx,
 				      skb_shinfo(skb)->frags + frag_i);
 		if (rc)
-			goto mem_err;
+			goto fail;
 	} else {
 		/* Payload starts in the header area. */
 		frag_i = -1;
 	}
 
-	if (tso_start_new_packet(tx_queue, skb, &state) < 0)
-		goto mem_err;
+	rc = tso_start_new_packet(tx_queue, skb, &state);
+	if (rc)
+		goto fail;
 
 	prefetch_ptr(tx_queue);
 
@@ -534,37 +415,38 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 			rc = tso_get_fragment(&state, efx,
 					      skb_shinfo(skb)->frags + frag_i);
 			if (rc)
-				goto mem_err;
+				goto fail;
 		}
 
 		/* Start at new packet? */
-		if (state.packet_space == 0 &&
-		    tso_start_new_packet(tx_queue, skb, &state) < 0)
-			goto mem_err;
+		if (state.packet_space == 0) {
+			rc = tso_start_new_packet(tx_queue, skb, &state);
+			if (rc)
+				goto fail;
+		}
 	}
 
 	*data_mapped = true;
 
 	return 0;
 
- mem_err:
-	netif_err(efx, tx_err, efx->net_dev,
-		  "Out of memory for TSO headers, or DMA mapping error\n");
+fail:
+	if (rc == -ENOMEM)
+		netif_err(efx, tx_err, efx->net_dev,
+			  "Out of memory for TSO headers, or DMA mapping error\n");
+	else
+		netif_err(efx, tx_err, efx->net_dev, "TSO failed, rc = %d\n", rc);
 
 	/* Free the DMA mapping we were in the process of writing out */
 	if (state.unmap_len) {
-		if (state.dma_flags & EFX_TX_BUF_MAP_SINGLE)
-			dma_unmap_single(&efx->pci_dev->dev, state.unmap_addr,
-					 state.unmap_len, DMA_TO_DEVICE);
-		else
-			dma_unmap_page(&efx->pci_dev->dev, state.unmap_addr,
-				       state.unmap_len, DMA_TO_DEVICE);
+		dma_unmap_page(&efx->pci_dev->dev, state.unmap_addr,
+			       state.unmap_len, DMA_TO_DEVICE);
 	}
 
-	/* Free the header DMA mapping, if using option descriptors */
+	/* Free the header DMA mapping */
 	if (state.header_unmap_len)
 		dma_unmap_single(&efx->pci_dev->dev, state.header_dma_addr,
 				 state.header_unmap_len, DMA_TO_DEVICE);
 
-	return -ENOMEM;
+	return rc;
 }

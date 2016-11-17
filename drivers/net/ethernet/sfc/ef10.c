@@ -2158,6 +2158,20 @@ static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
 	return 0;
 }
 
+static u32 efx_ef10_tso_versions(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u32 tso_versions = 0;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))
+		tso_versions |= BIT(1);
+	if (nic_data->datapath_caps2 &
+	    (1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN))
+		tso_versions |= BIT(2);
+	return tso_versions;
+}
+
 static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
@@ -5759,6 +5773,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 #endif
 	.get_mac_address = efx_ef10_get_mac_address_pf,
 	.set_mac_address = efx_ef10_set_mac_address,
+	.tso_versions = efx_ef10_tso_versions,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),

@@ -446,10 +446,38 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 	}
 }
 
-static int efx_tx_tso_sw(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
-			 bool *data_mapped)
+/*
+ * Fallback to software TSO.
+ *
+ * This is used if we are unable to send a GSO packet through hardware TSO.
+ * This should only ever happen due to per-queue restrictions - unsupported
+ * packets should first be filtered by the feature flags.
+ *
+ * Returns 0 on success, error code otherwise.
+ */
+static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
+			       struct sk_buff *skb)
 {
-	return efx_enqueue_skb_tso(tx_queue, skb, data_mapped);
+	struct sk_buff *segments, *next;
+
+	segments = skb_gso_segment(skb, 0);
+	if (IS_ERR(segments))
+		return PTR_ERR(segments);
+
+	dev_kfree_skb_any(skb);
+	skb = segments;
+
+	while (skb) {
+		next = skb->next;
+		skb->next = NULL;
+
+		if (next)
+			skb->xmit_more = true;
+		efx_enqueue_skb(tx_queue, skb);
+		skb = next;
+	}
+
+	return 0;
 }
 
 /*
@@ -473,6 +501,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	bool data_mapped = false;
 	unsigned int segments;
 	unsigned int skb_len;
+	int rc;
 
 	skb_len = skb->len;
 	segments = skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 0;
@@ -485,7 +514,14 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	 */
 	if (segments) {
 		EFX_BUG_ON_PARANOID(!tx_queue->handle_tso);
-		if (tx_queue->handle_tso(tx_queue, skb, &data_mapped))
+		rc = tx_queue->handle_tso(tx_queue, skb, &data_mapped);
+		if (rc == -EINVAL) {
+			rc = efx_tx_tso_fallback(tx_queue, skb);
+			tx_queue->tso_fallbacks++;
+			if (rc == 0)
+				return 0;
+		}
+		if (rc)
 			goto err;
 #ifdef EFX_USE_PIO
 	} else if (skb_len <= efx_piobuf_size && !skb->xmit_more &&
@@ -801,7 +837,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	/* Set up default function pointers. These may get replaced by
 	 * efx_nic_init_tx() based off NIC/queue capabilities.
 	 */
-	tx_queue->handle_tso = efx_tx_tso_sw;
+	tx_queue->handle_tso = efx_enqueue_skb_tso;
 
 	/* Some older hardware requires Tx writes larger than 32. */
 	tx_queue->tx_min_size = EFX_WORKAROUND_15592(efx) ? 33 : 0;

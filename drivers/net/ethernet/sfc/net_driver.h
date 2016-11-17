@@ -225,6 +225,7 @@ struct efx_tx_buffer {
  * @tso_long_headers: Number of packets with headers too long for standard
  *	blocks
  * @tso_packets: Number of packets via the TSO xmit path
+ * @tso_fallbacks: Number of times TSO fallback used
  * @pushes: Number of times the TX push feature has been used
  * @pio_packets: Number of times the TX PIO feature has been used
  * @xmit_more_available: Are any packets waiting to be pushed to the NIC
@@ -266,6 +267,7 @@ struct efx_tx_queue {
 	unsigned int tso_bursts;
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
+	unsigned int tso_fallbacks;
 	unsigned int pushes;
 	unsigned int pio_packets;
 	bool xmit_more_available;
@@ -1225,6 +1227,8 @@ struct efx_mtd_partition {
  *	and tx_type will already have been validated but this operation
  *	must validate and update rx_filter.
  * @set_mac_address: Set the MAC address of the device
+ * @tso_versions: Returns mask of firmware-assisted TSO versions supported.
+ *	If %NULL, then device does not support any TSO version.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1381,6 +1385,7 @@ struct efx_nic_type {
 	void (*vswitching_remove)(struct efx_nic *efx);
 	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
 	int (*set_mac_address)(struct efx_nic *efx);
+	u32 (*tso_versions)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
