@@ -32,6 +32,7 @@
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_netlink.h>
+#include <scsi/scsi_host.h>
 
 struct scsi_transport_template;
 
@@ -625,38 +626,6 @@ struct fc_host_attrs {
 #define fc_host_dev_loss_tmo(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->dev_loss_tmo)
 
-/* Values for fc_bsg_job->state_flags (bitflags) */
-#define FC_RQST_STATE_INPROGRESS	0
-#define FC_RQST_STATE_DONE		1
-
-struct fc_bsg_job {
-	struct Scsi_Host *shost;
-	struct fc_rport *rport;
-	struct device *dev;
-	struct request *req;
-	struct kref kref;
-
-	struct fc_bsg_request *request;
-	struct fc_bsg_reply *reply;
-	unsigned int request_len;
-	unsigned int reply_len;
-	/*
-	 * On entry : reply_len indicates the buffer size allocated for
-	 * the reply.
-	 *
-	 * Upon completion : the message handler must set reply_len
-	 *  to indicates the size of the reply to be returned to the
-	 *  caller.
-	 */
-
-	/* DMA payloads for the request/response */
-	struct bsg_buffer request_payload;
-	struct bsg_buffer reply_payload;
-
-	void *dd_data;			/* Used for driver-specific storage */
-};
-
-
 /* The functions by which the transport class and the driver communicate */
 struct fc_function_template {
 	void    (*get_rport_dev_loss_tmo)(struct fc_rport *);
@@ -693,8 +662,8 @@ struct fc_function_template {
 	int     (* it_nexus_response)(struct Scsi_Host *, u64, int);
 
 	/* bsg support */
-	int	(*bsg_request)(struct fc_bsg_job *);
-	int	(*bsg_timeout)(struct fc_bsg_job *);
+	int	(*bsg_request)(struct bsg_job *);
+	int	(*bsg_timeout)(struct bsg_job *);
 
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
@@ -817,16 +786,6 @@ fc_vport_set_state(struct fc_vport *vport, enum fc_vport_state new_state)
 	vport->vport_state = new_state;
 }
 
-static inline struct Scsi_Host *fc_bsg_to_shost(struct fc_bsg_job *job)
-{
-	return job->shost;
-}
-
-static inline struct fc_rport *fc_bsg_to_rport(struct fc_bsg_job *job)
-{
-	return job->rport;
-}
-
 struct scsi_transport_template *fc_attach_transport(
 			struct fc_function_template *);
 void fc_release_transport(struct scsi_transport_template *);
@@ -849,7 +808,21 @@ struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
 		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);
 int fc_block_scsi_eh(struct scsi_cmnd *cmnd);
-void fc_bsg_jobdone(struct fc_bsg_job *job, int result,
+void fc_bsg_jobdone(struct bsg_job *job, int result,
 		    unsigned int reply_payload_rcv_len);
+
+static inline struct Scsi_Host *fc_bsg_to_shost(struct bsg_job *job)
+{
+	if (scsi_is_host_device(job->dev))
+		return dev_to_shost(job->dev);
+	return rport_to_shost(dev_to_rport(job->dev));
+}
+
+static inline struct fc_rport *fc_bsg_to_rport(struct bsg_job *job)
+{
+	if (scsi_is_fc_rport(job->dev))
+		return dev_to_rport(job->dev);
+	return NULL;
+}
 
 #endif /* SCSI_TRANSPORT_FC_H */

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/random.h>
+#include <linux/bsg-lib.h>
 #include <scsi/fc/fc_els.h>
 #include <scsi/libfc.h>
 #include "zfcp_ext.h"
@@ -885,7 +886,7 @@ out_free:
 
 static void zfcp_fc_ct_els_job_handler(void *data)
 {
-	struct fc_bsg_job *job = data;
+	struct bsg_job *job = data;
 	struct zfcp_fsf_ct_els *zfcp_ct_els = job->dd_data;
 	struct fc_bsg_reply *jr = job->reply;
 
@@ -895,7 +896,7 @@ static void zfcp_fc_ct_els_job_handler(void *data)
 	fc_bsg_jobdone(job, jr->result, jr->reply_payload_rcv_len);
 }
 
-static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
+static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct bsg_job *job)
 {
 	u32 preamble_word1;
 	u8 gs_type;
@@ -928,7 +929,7 @@ static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
 
 static void zfcp_fc_ct_job_handler(void *data)
 {
-	struct fc_bsg_job *job = data;
+	struct bsg_job *job = data;
 	struct zfcp_fc_wka_port *wka_port;
 
 	wka_port = zfcp_fc_job_wka_port(job);
@@ -937,7 +938,7 @@ static void zfcp_fc_ct_job_handler(void *data)
 	zfcp_fc_ct_els_job_handler(data);
 }
 
-static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
+static int zfcp_fc_exec_els_job(struct bsg_job *job,
 				struct zfcp_adapter *adapter)
 {
 	struct zfcp_fsf_ct_els *els = job->dd_data;
@@ -960,7 +961,7 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 	return zfcp_fsf_send_els(adapter, d_id, els, job->req->timeout / HZ);
 }
 
-static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
+static int zfcp_fc_exec_ct_job(struct bsg_job *job,
 			       struct zfcp_adapter *adapter)
 {
 	int ret;
@@ -983,7 +984,7 @@ static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
 	return ret;
 }
 
-int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
+int zfcp_fc_exec_bsg_job(struct bsg_job *job)
 {
 	struct Scsi_Host *shost;
 	struct zfcp_adapter *adapter;
@@ -1013,7 +1014,7 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	}
 }
 
-int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *job)
+int zfcp_fc_timeout_bsg_job(struct bsg_job *job)
 {
 	/* hardware tracks timeout, reset bsg timeout to not interfere */
 	return -EAGAIN;

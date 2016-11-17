@@ -98,7 +98,7 @@ struct lpfc_bsg_menlo {
 #define TYPE_MENLO	4
 struct bsg_job_data {
 	uint32_t type;
-	struct fc_bsg_job *set_job; /* job waiting for this iocb to finish */
+	struct bsg_job *set_job; /* job waiting for this iocb to finish */
 	union {
 		struct lpfc_bsg_event *evt;
 		struct lpfc_bsg_iocb iocb;
@@ -298,7 +298,7 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 			struct lpfc_iocbq *rspiocbq)
 {
 	struct bsg_job_data *dd_data;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp, *cmp, *rmp;
@@ -382,7 +382,7 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
  * @job: fc_bsg_job to handle
  **/
 static int
-lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
+lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct lpfc_hba *phba = vport->phba;
@@ -575,7 +575,7 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 			struct lpfc_iocbq *rspiocbq)
 {
 	struct bsg_job_data *dd_data;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 	IOCB_t *rsp;
 	struct lpfc_nodelist *ndlp;
@@ -656,7 +656,7 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
  * @job: fc_bsg_job to handle
  **/
 static int
-lpfc_bsg_rport_els(struct fc_bsg_job *job)
+lpfc_bsg_rport_els(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct lpfc_hba *phba = vport->phba;
@@ -927,7 +927,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_dmabuf *bdeBuf2 = piocbq->context3;
 	struct lpfc_hbq_entry *hbqe;
 	struct lpfc_sli_ct_request *ct_req;
-	struct fc_bsg_job *job = NULL;
+	struct bsg_job *job = NULL;
 	struct fc_bsg_reply *bsg_reply;
 	struct bsg_job_data *dd_data = NULL;
 	unsigned long flags;
@@ -1200,7 +1200,7 @@ lpfc_bsg_ct_unsol_abort(struct lpfc_hba *phba, struct hbq_dmabuf *dmabuf)
  * @job: SET_EVENT fc_bsg_job
  **/
 static int
-lpfc_bsg_hba_set_event(struct fc_bsg_job *job)
+lpfc_bsg_hba_set_event(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct lpfc_hba *phba = vport->phba;
@@ -1285,7 +1285,7 @@ job_error:
  * @job: GET_EVENT fc_bsg_job
  **/
 static int
-lpfc_bsg_hba_get_event(struct fc_bsg_job *job)
+lpfc_bsg_hba_get_event(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct lpfc_hba *phba = vport->phba;
@@ -1397,7 +1397,7 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 			struct lpfc_iocbq *rspiocbq)
 {
 	struct bsg_job_data *dd_data;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp, *cmp;
@@ -1477,7 +1477,7 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
  * @num_entry: Number of enties in the bde.
  **/
 static int
-lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
+lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 		  struct lpfc_dmabuf *cmp, struct lpfc_dmabuf *bmp,
 		  int num_entry)
 {
@@ -1623,7 +1623,7 @@ no_dd_data:
  * @job: SEND_MGMT_RESP fc_bsg_job
  **/
 static int
-lpfc_bsg_send_mgmt_rsp(struct fc_bsg_job *job)
+lpfc_bsg_send_mgmt_rsp(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct lpfc_hba *phba = vport->phba;
@@ -1782,7 +1782,7 @@ lpfc_bsg_diag_mode_exit(struct lpfc_hba *phba)
  * All of this is done in-line.
  */
 static int
-lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
+lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -2040,7 +2040,7 @@ lpfc_sli4_diag_fcport_reg_setup(struct lpfc_hba *phba)
  * loopback mode in order to perform a diagnostic loopback test.
  */
 static int
-lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
+lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -2194,7 +2194,7 @@ job_error:
  * command from the user to proper driver action routines.
  */
 static int
-lpfc_bsg_diag_loopback_mode(struct fc_bsg_job *job)
+lpfc_bsg_diag_loopback_mode(struct bsg_job *job)
 {
 	struct Scsi_Host *shost;
 	struct lpfc_vport *vport;
@@ -2230,7 +2230,7 @@ lpfc_bsg_diag_loopback_mode(struct fc_bsg_job *job)
  * command from the user to proper driver action routines.
  */
 static int
-lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
+lpfc_sli4_bsg_diag_mode_end(struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -2309,7 +2309,7 @@ loopback_mode_end_exit:
  * applicaiton.
  */
 static int
-lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
+lpfc_sli4_bsg_link_diag_test(struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -3016,7 +3016,7 @@ err_post_rxbufs_exit:
  * of loopback mode.
  **/
 static int
-lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
+lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -3320,7 +3320,7 @@ loopback_test_exit:
  * @job: GET_DFC_REV fc_bsg_job
  **/
 static int
-lpfc_bsg_get_dfc_rev(struct fc_bsg_job *job)
+lpfc_bsg_get_dfc_rev(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -3375,7 +3375,7 @@ lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	struct bsg_job_data *dd_data;
 	struct fc_bsg_reply *bsg_reply;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	uint32_t size;
 	unsigned long flags;
 	uint8_t *pmb, *pmb_buf;
@@ -3551,11 +3551,11 @@ lpfc_bsg_mbox_ext_session_reset(struct lpfc_hba *phba)
  * This is routine handles BSG job for mailbox commands completions with
  * multiple external buffers.
  **/
-static struct fc_bsg_job *
+static struct bsg_job *
 lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	struct bsg_job_data *dd_data;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 	uint8_t *pmb, *pmb_buf;
 	unsigned long flags;
@@ -3646,7 +3646,7 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 static void
 lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 
 	job = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
@@ -3686,7 +3686,7 @@ lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 static void
 lpfc_bsg_issue_write_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 
 	job = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
@@ -3818,7 +3818,7 @@ lpfc_bsg_sli_cfg_dma_desc_setup(struct lpfc_hba *phba, enum nemb_type nemb_tp,
  * non-embedded external bufffers.
  **/
 static int
-lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct bsg_job *job,
 			      enum nemb_type nemb_tp,
 			      struct lpfc_dmabuf *dmabuf)
 {
@@ -4006,7 +4006,7 @@ job_error:
  * non-embedded external bufffers.
  **/
 static int
-lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct bsg_job *job,
 			       enum nemb_type nemb_tp,
 			       struct lpfc_dmabuf *dmabuf)
 {
@@ -4173,7 +4173,7 @@ job_error:
  * with embedded sussystem 0x1 and opcodes with external HBDs.
  **/
 static int
-lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct bsg_job *job,
 			     struct lpfc_dmabuf *dmabuf)
 {
 	struct lpfc_sli_config_mbox *sli_cfg_mbx;
@@ -4322,7 +4322,7 @@ lpfc_bsg_mbox_ext_abort(struct lpfc_hba *phba)
  * user space through BSG.
  **/
 static int
-lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
+lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct bsg_job *job)
 {
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	struct lpfc_sli_config_mbox *sli_cfg_mbx;
@@ -4392,7 +4392,7 @@ lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
  * from user space through BSG.
  **/
 static int
-lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct bsg_job *job,
 			struct lpfc_dmabuf *dmabuf)
 {
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -4515,7 +4515,7 @@ job_error:
  * command with multiple non-embedded external buffers.
  **/
 static int
-lpfc_bsg_handle_sli_cfg_ebuf(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_handle_sli_cfg_ebuf(struct lpfc_hba *phba, struct bsg_job *job,
 			     struct lpfc_dmabuf *dmabuf)
 {
 	int rc;
@@ -4560,7 +4560,7 @@ lpfc_bsg_handle_sli_cfg_ebuf(struct lpfc_hba *phba, struct fc_bsg_job *job,
  * (0x9B) mailbox commands and external buffers.
  **/
 static int
-lpfc_bsg_handle_sli_cfg_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_handle_sli_cfg_ext(struct lpfc_hba *phba, struct bsg_job *job,
 			    struct lpfc_dmabuf *dmabuf)
 {
 	struct fc_bsg_request *bsg_request = job->request;
@@ -4638,7 +4638,7 @@ sli_cfg_ext_error:
  * let our completion handler finish the command.
  **/
 static int
-lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
+lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct bsg_job *job,
 	struct lpfc_vport *vport)
 {
 	struct fc_bsg_request *bsg_request = job->request;
@@ -4931,7 +4931,7 @@ job_cont:
  * @job: MBOX fc_bsg_job for LPFC_BSG_VENDOR_MBOX.
  **/
 static int
-lpfc_bsg_mbox_cmd(struct fc_bsg_job *job)
+lpfc_bsg_mbox_cmd(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct fc_bsg_request *bsg_request = job->request;
@@ -5000,7 +5000,7 @@ lpfc_bsg_menlo_cmd_cmp(struct lpfc_hba *phba,
 			struct lpfc_iocbq *rspiocbq)
 {
 	struct bsg_job_data *dd_data;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	struct fc_bsg_reply *bsg_reply;
 	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp, *cmp, *rmp;
@@ -5091,7 +5091,7 @@ lpfc_bsg_menlo_cmd_cmp(struct lpfc_hba *phba,
  * supplied in the menlo request header xri field.
  **/
 static int
-lpfc_menlo_cmd(struct fc_bsg_job *job)
+lpfc_menlo_cmd(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct fc_bsg_request *bsg_request = job->request;
@@ -5255,7 +5255,7 @@ no_dd_data:
 }
 
 static int
-lpfc_forced_link_speed(struct fc_bsg_job *job)
+lpfc_forced_link_speed(struct bsg_job *job)
 {
 	struct Scsi_Host *shost = fc_bsg_to_shost(job);
 	struct lpfc_vport *vport = shost_priv(shost);
@@ -5303,7 +5303,7 @@ job_error:
  * @job: fc_bsg_job to handle
  **/
 static int
-lpfc_bsg_hst_vendor(struct fc_bsg_job *job)
+lpfc_bsg_hst_vendor(struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -5361,7 +5361,7 @@ lpfc_bsg_hst_vendor(struct fc_bsg_job *job)
  * @job: fc_bsg_job to handle
  **/
 int
-lpfc_bsg_request(struct fc_bsg_job *job)
+lpfc_bsg_request(struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
@@ -5398,7 +5398,7 @@ lpfc_bsg_request(struct fc_bsg_job *job)
  * the waiting function which will handle passing the error back to userspace
  **/
 int
-lpfc_bsg_timeout(struct fc_bsg_job *job)
+lpfc_bsg_timeout(struct bsg_job *job)
 {
 	struct lpfc_vport *vport = shost_priv(fc_bsg_to_shost(job));
 	struct lpfc_hba *phba = vport->phba;

@@ -9,6 +9,7 @@
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
+#include <linux/bsg-lib.h>
 
 /* BSG support for ELS/CT pass through */
 void
@@ -16,7 +17,7 @@ qla2x00_bsg_job_done(void *data, void *ptr, int res)
 {
 	srb_t *sp = (srb_t *)ptr;
 	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
-	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
+	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 
 	bsg_reply->result = res;
@@ -30,7 +31,7 @@ qla2x00_bsg_sp_free(void *data, void *ptr)
 {
 	srb_t *sp = (srb_t *)ptr;
 	struct scsi_qla_host *vha = sp->fcport->vha;
-	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
+	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 
 	struct qla_hw_data *ha = vha->hw;
@@ -120,7 +121,7 @@ qla24xx_fcp_prio_cfg_valid(scsi_qla_host_t *vha,
 }
 
 static int
-qla24xx_proc_fcp_prio_cfg_cmd(struct fc_bsg_job *bsg_job)
+qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 {
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
 	struct fc_bsg_request *bsg_request = bsg_job->request;
@@ -249,7 +250,7 @@ exit_fcp_prio_cfg:
 }
 
 static int
-qla2x00_process_els(struct fc_bsg_job *bsg_job)
+qla2x00_process_els(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_rport *rport;
@@ -428,7 +429,7 @@ qla24xx_calc_ct_iocbs(uint16_t dsds)
 }
 
 static int
-qla2x00_process_ct(struct fc_bsg_job *bsg_job)
+qla2x00_process_ct(struct bsg_job *bsg_job)
 {
 	srb_t *sp;
 	struct fc_bsg_request *bsg_request = bsg_job->request;
@@ -706,7 +707,7 @@ done_set_internal:
 }
 
 static int
-qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
+qla2x00_process_loopback(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
@@ -947,7 +948,7 @@ done_unmap_req_sg:
 }
 
 static int
-qla84xx_reset(struct fc_bsg_job *bsg_job)
+qla84xx_reset(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -983,7 +984,7 @@ qla84xx_reset(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla84xx_updatefw(struct fc_bsg_job *bsg_job)
+qla84xx_updatefw(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
@@ -1095,7 +1096,7 @@ done_unmap_sg:
 }
 
 static int
-qla84xx_mgmt_cmd(struct fc_bsg_job *bsg_job)
+qla84xx_mgmt_cmd(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
@@ -1293,7 +1294,7 @@ exit_mgmt:
 }
 
 static int
-qla24xx_iidma(struct fc_bsg_job *bsg_job)
+qla24xx_iidma(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
@@ -1382,7 +1383,7 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla2x00_optrom_setup(struct fc_bsg_job *bsg_job, scsi_qla_host_t *vha,
+qla2x00_optrom_setup(struct bsg_job *bsg_job, scsi_qla_host_t *vha,
 	uint8_t is_update)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
@@ -1452,7 +1453,7 @@ qla2x00_optrom_setup(struct fc_bsg_job *bsg_job, scsi_qla_host_t *vha,
 }
 
 static int
-qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
+qla2x00_read_optrom(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1489,7 +1490,7 @@ qla2x00_read_optrom(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
+qla2x00_update_optrom(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1525,7 +1526,7 @@ qla2x00_update_optrom(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla2x00_update_fru_versions(struct fc_bsg_job *bsg_job)
+qla2x00_update_fru_versions(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1577,7 +1578,7 @@ done:
 }
 
 static int
-qla2x00_read_fru_status(struct fc_bsg_job *bsg_job)
+qla2x00_read_fru_status(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1627,7 +1628,7 @@ done:
 }
 
 static int
-qla2x00_write_fru_status(struct fc_bsg_job *bsg_job)
+qla2x00_write_fru_status(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1673,7 +1674,7 @@ done:
 }
 
 static int
-qla2x00_write_i2c(struct fc_bsg_job *bsg_job)
+qla2x00_write_i2c(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1718,7 +1719,7 @@ done:
 }
 
 static int
-qla2x00_read_i2c(struct fc_bsg_job *bsg_job)
+qla2x00_read_i2c(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1767,7 +1768,7 @@ done:
 }
 
 static int
-qla24xx_process_bidir_cmd(struct fc_bsg_job *bsg_job)
+qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -1946,7 +1947,7 @@ done:
 }
 
 static int
-qlafx00_mgmt_cmd(struct fc_bsg_job *bsg_job)
+qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2069,7 +2070,7 @@ done:
 }
 
 static int
-qla26xx_serdes_op(struct fc_bsg_job *bsg_job)
+qla26xx_serdes_op(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2111,7 +2112,7 @@ qla26xx_serdes_op(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla8044_serdes_op(struct fc_bsg_job *bsg_job)
+qla8044_serdes_op(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2153,7 +2154,7 @@ qla8044_serdes_op(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla27xx_get_flash_upd_cap(struct fc_bsg_job *bsg_job)
+qla27xx_get_flash_upd_cap(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2185,7 +2186,7 @@ qla27xx_get_flash_upd_cap(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla27xx_set_flash_upd_cap(struct fc_bsg_job *bsg_job)
+qla27xx_set_flash_upd_cap(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2231,7 +2232,7 @@ qla27xx_set_flash_upd_cap(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla27xx_get_bbcr_data(struct fc_bsg_job *bsg_job)
+qla27xx_get_bbcr_data(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2290,7 +2291,7 @@ done:
 }
 
 static int
-qla2x00_get_priv_stats(struct fc_bsg_job *bsg_job)
+qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
@@ -2351,7 +2352,7 @@ qla2x00_get_priv_stats(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla2x00_do_dport_diagnostics(struct fc_bsg_job *bsg_job)
+qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2394,7 +2395,7 @@ qla2x00_do_dport_diagnostics(struct fc_bsg_job *bsg_job)
 }
 
 static int
-qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
+qla2x00_process_vendor_specific(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 
@@ -2472,7 +2473,7 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 }
 
 int
-qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
+qla24xx_bsg_request(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
@@ -2525,7 +2526,7 @@ qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
 }
 
 int
-qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
+qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));

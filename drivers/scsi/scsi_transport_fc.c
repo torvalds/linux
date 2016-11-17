@@ -3562,7 +3562,7 @@ fc_vport_sched_delete(struct work_struct *work)
 static void
 fc_destroy_bsgjob(struct kref *kref)
 {
-	struct fc_bsg_job *job = container_of(kref, struct fc_bsg_job, kref);
+	struct bsg_job *job = container_of(kref, struct bsg_job, kref);
 	struct request *rq = job->req;
 
 	blk_end_request_all(rq, rq->errors);
@@ -3581,7 +3581,7 @@ fc_destroy_bsgjob(struct kref *kref)
  * @result:	job reply result
  * @reply_payload_rcv_len: length of payload received
  */
-void fc_bsg_jobdone(struct fc_bsg_job *job, int result,
+void fc_bsg_jobdone(struct bsg_job *job, int result,
 		    unsigned int reply_payload_rcv_len)
 {
 	struct request *req = job->req;
@@ -3615,7 +3615,7 @@ EXPORT_SYMBOL_GPL(fc_bsg_jobdone);
  */
 static void fc_bsg_softirq_done(struct request *rq)
 {
-	struct fc_bsg_job *job = rq->special;
+	struct bsg_job *job = rq->special;
 
 	kref_put(&job->kref, fc_destroy_bsgjob);
 }
@@ -3627,7 +3627,7 @@ static void fc_bsg_softirq_done(struct request *rq)
 static enum blk_eh_timer_return
 fc_bsg_job_timeout(struct request *req)
 {
-	struct fc_bsg_job *job = (void *) req->special;
+	struct bsg_job *job = (void *) req->special;
 	struct Scsi_Host *shost = fc_bsg_to_shost(job);
 	struct fc_rport *rport = fc_bsg_to_rport(job);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
@@ -3686,12 +3686,12 @@ fc_req_to_bsgjob(struct Scsi_Host *shost, struct fc_rport *rport,
 {
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct request *rsp = req->next_rq;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	int ret;
 
 	BUG_ON(req->special);
 
-	job = kzalloc(sizeof(struct fc_bsg_job) + i->f->dd_bsg_size,
+	job = kzalloc(sizeof(struct bsg_job) + i->f->dd_bsg_size,
 			GFP_KERNEL);
 	if (!job)
 		return -ENOMEM;
@@ -3706,8 +3706,6 @@ fc_req_to_bsgjob(struct Scsi_Host *shost, struct fc_rport *rport,
 	 */
 
 	req->special = job;
-	job->shost = shost;
-	job->rport = rport;
 	job->req = req;
 	if (i->f->dd_bsg_size)
 		job->dd_data = (void *)&job[1];
@@ -3760,7 +3758,7 @@ enum fc_dispatch_result {
  */
 static enum fc_dispatch_result
 fc_bsg_host_dispatch(struct request_queue *q, struct Scsi_Host *shost,
-			 struct fc_bsg_job *job)
+			 struct bsg_job *job)
 {
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct fc_bsg_request *bsg_request = job->request;
@@ -3862,7 +3860,7 @@ fc_bsg_goose_queue(struct fc_rport *rport)
  */
 static enum fc_dispatch_result
 fc_bsg_rport_dispatch(struct request_queue *q, struct Scsi_Host *shost,
-			 struct fc_rport *rport, struct fc_bsg_job *job)
+			 struct fc_rport *rport, struct bsg_job *job)
 {
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct fc_bsg_request *bsg_request = job->request;
@@ -3925,7 +3923,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 		       struct fc_rport *rport, struct device *dev)
 {
 	struct request *req;
-	struct fc_bsg_job *job;
+	struct bsg_job *job;
 	enum fc_dispatch_result ret;
 	struct fc_bsg_reply *bsg_reply;
 
