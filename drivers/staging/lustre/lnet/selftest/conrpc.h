@@ -131,7 +131,8 @@ int  lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 				  lstcon_rpc_readent_func_t readent);
 void lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error);
 void lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans);
-void lstcon_rpc_trans_addreq(struct lstcon_rpc_trans *trans, struct lstcon_rpc *req);
+void lstcon_rpc_trans_addreq(struct lstcon_rpc_trans *trans,
+			     struct lstcon_rpc *req);
 int  lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout);
 int  lstcon_rpc_pinger_start(void);
 void lstcon_rpc_pinger_stop(void);

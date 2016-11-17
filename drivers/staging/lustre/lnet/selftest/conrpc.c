@@ -87,7 +87,8 @@ lstcon_rpc_done(struct srpc_client_rpc *rpc)
 
 static int
 lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned int feats,
-		int bulk_npg, int bulk_len, int embedded, struct lstcon_rpc *crpc)
+		int bulk_npg, int bulk_len, int embedded,
+		struct lstcon_rpc *crpc)
 {
 	crpc->crp_rpc = sfw_create_rpc(nd->nd_id, service,
 				       feats, bulk_npg, bulk_len,
@@ -292,8 +293,8 @@ lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error)
 
 		spin_lock(&rpc->crpc_lock);
 
-		if (!crpc->crp_posted ||	/* not posted */
-		    crpc->crp_stamp) {		/* rpc done or aborted already */
+		if (!crpc->crp_posted || /* not posted */
+		    crpc->crp_stamp) {	 /* rpc done or aborted already */
 			if (!crpc->crp_stamp) {
 				crpc->crp_stamp = cfs_time_current();
 				crpc->crp_status = -EINTR;
@@ -778,7 +779,8 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, struct srpc_test_reqst *req)
 }
 
 static int
-lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, struct srpc_test_reqst *req)
+lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param,
+		       struct srpc_test_reqst *req)
 {
 	struct test_bulk_req *brq = &req->tsr_u.bulk_v0;
 

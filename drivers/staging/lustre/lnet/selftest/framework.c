@@ -131,7 +131,8 @@ sfw_find_test_case(int id)
 }
 
 static int
-sfw_register_test(struct srpc_service *service, struct sfw_test_client_ops *cliops)
+sfw_register_test(struct srpc_service *service,
+		  struct sfw_test_client_ops *cliops)
 {
 	struct sfw_test_case *tsc;
 
@@ -469,7 +470,8 @@ sfw_make_session(struct srpc_mksn_reqst *request, struct srpc_mksn_reply *reply)
 }
 
 static int
-sfw_remove_session(struct srpc_rmsn_reqst *request, struct srpc_rmsn_reply *reply)
+sfw_remove_session(struct srpc_rmsn_reqst *request,
+		   struct srpc_rmsn_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 
@@ -501,7 +503,8 @@ sfw_remove_session(struct srpc_rmsn_reqst *request, struct srpc_rmsn_reply *repl
 }
 
 static int
-sfw_debug_session(struct srpc_debug_reqst *request, struct srpc_debug_reply *reply)
+sfw_debug_session(struct srpc_debug_reqst *request,
+		  struct srpc_debug_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 
@@ -1064,7 +1067,8 @@ sfw_stop_batch(struct sfw_batch *tsb, int force)
 }
 
 static int
-sfw_query_batch(struct sfw_batch *tsb, int testidx, struct srpc_batch_reply *reply)
+sfw_query_batch(struct sfw_batch *tsb, int testidx,
+		struct srpc_batch_reply *reply)
 {
 	struct sfw_test_instance *tsi;
 
@@ -1179,7 +1183,8 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 }
 
 static int
-sfw_control_batch(struct srpc_batch_reqst *request, struct srpc_batch_reply *reply)
+sfw_control_batch(struct srpc_batch_reqst *request,
+		  struct srpc_batch_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	int rc = 0;
