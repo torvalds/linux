@@ -5346,7 +5346,7 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
-	req.flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DOWN);
+	req.flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DWN);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
@@ -5408,6 +5408,12 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 		if (link_info->advertising != link_info->auto_link_speeds)
 			update_link = true;
 	}
+
+	/* The last close may have shutdown the link, so need to call
+	 * PHY_CFG to bring it back up.
+	 */
+	if (!netif_carrier_ok(bp->dev))
+		update_link = true;
 
 	if (!bnxt_eee_config_ok(bp))
 		update_eee = true;
