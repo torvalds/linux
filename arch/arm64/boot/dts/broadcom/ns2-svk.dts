@@ -157,6 +157,10 @@
 	status = "ok";
 };
 
+&sdio1 {
+	status = "ok";
+};
+
 &nand {
 	nandcs@0 {
 		compatible = "brcm,nandcs";
