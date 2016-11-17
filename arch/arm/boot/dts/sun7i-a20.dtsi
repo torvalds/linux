@@ -1179,6 +1179,7 @@
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc0_cd_pin_reference_design: mmc0_cd_pin@0 {
@@ -1200,6 +1201,7 @@
 				       "PI7", "PI8", "PI9";
 				function = "mmc3";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			ps20_pins_a: ps20@0 {

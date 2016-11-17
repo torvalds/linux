@@ -547,6 +547,7 @@
 						 "PF3", "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc1_pins_a: mmc1@0 {
@@ -554,6 +555,7 @@
 						 "PG4", "PG5";
 				function = "mmc1";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_pins_a: mmc2@0 {
@@ -571,6 +573,7 @@
 						 "PC24";
 				function = "mmc2";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc3_8bit_emmc_pins: mmc3@1 {
@@ -580,6 +583,7 @@
 						 "PC24";
 				function = "mmc3";
 				drive-strength = <40>;
+				bias-pull-up;
 			};
 
 			uart0_pins_a: uart0@0 {

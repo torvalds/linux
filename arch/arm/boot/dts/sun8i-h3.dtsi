@@ -348,6 +348,7 @@
 				       "PF4", "PF5";
 				function = "mmc0";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc0_cd_pin: mmc0_cd_pin@0 {
@@ -361,6 +362,7 @@
 				       "PG4", "PG5";
 				function = "mmc1";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_8bit_pins: mmc2_8bit {
@@ -370,6 +372,7 @@
 				       "PC15", "PC16";
 				function = "mmc2";
 				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			spi0_pins: spi0 {
