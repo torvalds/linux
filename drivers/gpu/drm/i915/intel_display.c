@@ -12751,9 +12751,10 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	if (intel_crtc_has_dp_encoder(pipe_config)) {
 		intel_dump_m_n_config(pipe_config, "dp m_n",
 				pipe_config->lane_count, &pipe_config->dp_m_n);
-		intel_dump_m_n_config(pipe_config, "dp m2_n2",
-				pipe_config->lane_count,
-				&pipe_config->dp_m2_n2);
+		if (pipe_config->has_drrs)
+			intel_dump_m_n_config(pipe_config, "dp m2_n2",
+					      pipe_config->lane_count,
+					      &pipe_config->dp_m2_n2);
 	}
 
 	DRM_DEBUG_KMS("audio: %i, infoframes: %i\n",
