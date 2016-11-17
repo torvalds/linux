@@ -197,7 +197,6 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	}
 	return 0;
 error:
-	vp_free_vectors(vdev);
 	return err;
 }
 
