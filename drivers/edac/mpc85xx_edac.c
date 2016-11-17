@@ -300,6 +300,22 @@ err:
 	return res;
 }
 
+static int mpc85xx_pci_err_remove(struct platform_device *op)
+{
+	struct edac_pci_ctl_info *pci = dev_get_drvdata(&op->dev);
+	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
+
+	edac_dbg(0, "\n");
+
+	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_ADDR, orig_pci_err_cap_dr);
+	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_EN, orig_pci_err_en);
+
+	edac_pci_del_device(&op->dev);
+	edac_pci_free_ctl_info(pci);
+
+	return 0;
+}
+
 static const struct platform_device_id mpc85xx_pci_err_match[] = {
 	{
 		.name = "mpc85xx-pci-edac"
@@ -309,6 +325,7 @@ static const struct platform_device_id mpc85xx_pci_err_match[] = {
 
 static struct platform_driver mpc85xx_pci_err_driver = {
 	.probe = mpc85xx_pci_err_probe,
+	.remove = mpc85xx_pci_err_remove,
 	.id_table = mpc85xx_pci_err_match,
 	.driver = {
 		.name = "mpc85xx_pci_err",
