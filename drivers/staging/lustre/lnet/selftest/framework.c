@@ -254,7 +254,7 @@ sfw_session_expired(void *data)
 
 static inline void
 sfw_init_session(struct sfw_session *sn, lst_sid_t sid,
-		 unsigned features, const char *name)
+		 unsigned int features, const char *name)
 {
 	struct stt_timer *timer = &sn->sn_timer;
 
@@ -897,7 +897,7 @@ sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 
 int
 sfw_create_test_rpc(struct sfw_test_unit *tsu, lnet_process_id_t peer,
-		    unsigned features, int nblk, int blklen,
+		    unsigned int features, int nblk, int blklen,
 		    struct srpc_client_rpc **rpcpp)
 {
 	struct srpc_client_rpc *rpc = NULL;
@@ -1225,7 +1225,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
 	struct srpc_msg *reply = &rpc->srpc_replymsg;
 	struct srpc_msg *request = &rpc->srpc_reqstbuf->buf_msg;
-	unsigned features = LST_FEATS_MASK;
+	unsigned int features = LST_FEATS_MASK;
 	int rc = 0;
 
 	LASSERT(!sfw_data.fw_active_srpc);
@@ -1375,7 +1375,7 @@ sfw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 
 struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
-	       unsigned features, int nbulkiov, int bulklen,
+	       unsigned int features, int nbulkiov, int bulklen,
 	       void (*done)(struct srpc_client_rpc *), void *priv)
 {
 	struct srpc_client_rpc *rpc = NULL;

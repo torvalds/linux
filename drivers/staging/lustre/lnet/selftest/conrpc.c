@@ -86,7 +86,7 @@ lstcon_rpc_done(struct srpc_client_rpc *rpc)
 }
 
 static int
-lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned feats,
+lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned int feats,
 		int bulk_npg, int bulk_len, int embedded, struct lstcon_rpc *crpc)
 {
 	crpc->crp_rpc = sfw_create_rpc(nd->nd_id, service,
@@ -111,7 +111,7 @@ lstcon_rpc_init(struct lstcon_node *nd, int service, unsigned feats,
 }
 
 static int
-lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned feats,
+lstcon_rpc_prep(struct lstcon_node *nd, int service, unsigned int feats,
 		int bulk_npg, int bulk_len, struct lstcon_rpc **crpcpp)
 {
 	struct lstcon_rpc *crpc = NULL;
@@ -589,7 +589,7 @@ lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans)
 
 int
 lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
-		   unsigned feats, struct lstcon_rpc **crpc)
+		   unsigned int feats, struct lstcon_rpc **crpc)
 {
 	struct srpc_mksn_reqst *msrq;
 	struct srpc_rmsn_reqst *rsrq;
@@ -627,7 +627,8 @@ lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
 }
 
 int
-lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
+lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned int feats,
+		   struct lstcon_rpc **crpc)
 {
 	struct srpc_debug_reqst *drq;
 	int rc;
@@ -645,7 +646,7 @@ lstcon_dbgrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **c
 }
 
 int
-lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
+lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 		   struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc)
 {
 	struct lstcon_batch *batch;
@@ -678,7 +679,8 @@ lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
 }
 
 int
-lstcon_statrpc_prep(struct lstcon_node *nd, unsigned feats, struct lstcon_rpc **crpc)
+lstcon_statrpc_prep(struct lstcon_node *nd, unsigned int feats,
+		    struct lstcon_rpc **crpc)
 {
 	struct srpc_stat_reqst *srq;
 	int rc;
@@ -803,7 +805,7 @@ lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, bool is_client,
 }
 
 int
-lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned feats,
+lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned int feats,
 		    struct lstcon_test *test, struct lstcon_rpc **crpc)
 {
 	struct lstcon_group *sgrp = test->tes_src_grp;
@@ -1086,7 +1088,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 	struct lstcon_ndlink *ndl;
 	struct lstcon_node *nd;
 	struct lstcon_rpc *rpc;
-	unsigned feats;
+	unsigned int feats;
 	int rc;
 
 	/* Creating session RPG for list of nodes */

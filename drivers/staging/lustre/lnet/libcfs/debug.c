@@ -57,7 +57,7 @@ static int libcfs_param_debug_mb_set(const char *val,
 				     const struct kernel_param *kp)
 {
 	int rc;
-	unsigned num;
+	unsigned int num;
 
 	rc = kstrtouint(val, 0, &num);
 	if (rc < 0)

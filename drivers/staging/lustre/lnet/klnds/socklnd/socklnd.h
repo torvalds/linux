@@ -216,8 +216,8 @@ struct ksock_nal_data {
 	time64_t                ksnd_connd_starting_stamp;/* time stamp of the
 							   * last starting connd
 							   */
-	unsigned                ksnd_connd_starting;    /* # starting connd */
-	unsigned                ksnd_connd_running;     /* # running connd */
+	unsigned int		ksnd_connd_starting;	/* # starting connd */
+	unsigned int		ksnd_connd_running;	/* # running connd */
 	spinlock_t              ksnd_connd_lock;        /* serialise */
 
 	struct list_head        ksnd_idle_noop_txs;     /* list head for freed

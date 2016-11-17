@@ -682,7 +682,7 @@ EXPORT_SYMBOL(cfs_hash_bd_peek_locked);
 
 static void
 cfs_hash_multi_bd_lock(struct cfs_hash *hs, struct cfs_hash_bd *bds,
-		       unsigned n, int excl)
+		       unsigned int n, int excl)
 {
 	struct cfs_hash_bucket *prev = NULL;
 	int i;
@@ -704,7 +704,7 @@ cfs_hash_multi_bd_lock(struct cfs_hash *hs, struct cfs_hash_bd *bds,
 
 static void
 cfs_hash_multi_bd_unlock(struct cfs_hash *hs, struct cfs_hash_bd *bds,
-			 unsigned n, int excl)
+			 unsigned int n, int excl)
 {
 	struct cfs_hash_bucket *prev = NULL;
 	int i;
@@ -719,10 +719,10 @@ cfs_hash_multi_bd_unlock(struct cfs_hash *hs, struct cfs_hash_bd *bds,
 
 static struct hlist_node *
 cfs_hash_multi_bd_lookup_locked(struct cfs_hash *hs, struct cfs_hash_bd *bds,
-				unsigned n, const void *key)
+				unsigned int n, const void *key)
 {
 	struct hlist_node *ehnode;
-	unsigned i;
+	unsigned int i;
 
 	cfs_hash_for_each_bd(bds, n, i) {
 		ehnode = cfs_hash_bd_lookup_intent(hs, &bds[i], key, NULL,
@@ -735,12 +735,12 @@ cfs_hash_multi_bd_lookup_locked(struct cfs_hash *hs, struct cfs_hash_bd *bds,
 
 static struct hlist_node *
 cfs_hash_multi_bd_findadd_locked(struct cfs_hash *hs, struct cfs_hash_bd *bds,
-				 unsigned n, const void *key,
+				 unsigned int n, const void *key,
 				 struct hlist_node *hnode, int noref)
 {
 	struct hlist_node *ehnode;
 	int intent;
-	unsigned i;
+	unsigned int i;
 
 	LASSERT(hnode);
 	intent = (!noref * CFS_HS_LOOKUP_MASK_REF) | CFS_HS_LOOKUP_IT_PEEK;
@@ -766,7 +766,7 @@ cfs_hash_multi_bd_findadd_locked(struct cfs_hash *hs, struct cfs_hash_bd *bds,
 
 static struct hlist_node *
 cfs_hash_multi_bd_finddel_locked(struct cfs_hash *hs, struct cfs_hash_bd *bds,
-				 unsigned n, const void *key,
+				 unsigned int n, const void *key,
 				 struct hlist_node *hnode)
 {
 	struct hlist_node *ehnode;
@@ -992,10 +992,10 @@ static inline void cfs_hash_depth_wi_cancel(struct cfs_hash *hs) {}
 #endif /* CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1 */
 
 struct cfs_hash *
-cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
-		unsigned bkt_bits, unsigned extra_bytes,
-		unsigned min_theta, unsigned max_theta,
-		struct cfs_hash_ops *ops, unsigned flags)
+cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
+		unsigned int bkt_bits, unsigned int extra_bytes,
+		unsigned int min_theta, unsigned int max_theta,
+		struct cfs_hash_ops *ops, unsigned int flags)
 {
 	struct cfs_hash *hs;
 	int len;
@@ -1664,7 +1664,7 @@ int
 cfs_hash_for_each_empty(struct cfs_hash *hs, cfs_hash_for_each_cb_t func,
 			void *data)
 {
-	unsigned i = 0;
+	unsigned int i = 0;
 
 	if (cfs_hash_with_no_lock(hs))
 		return -EOPNOTSUPP;
@@ -1684,7 +1684,7 @@ cfs_hash_for_each_empty(struct cfs_hash *hs, cfs_hash_for_each_cb_t func,
 EXPORT_SYMBOL(cfs_hash_for_each_empty);
 
 void
-cfs_hash_hlist_for_each(struct cfs_hash *hs, unsigned hindex,
+cfs_hash_hlist_for_each(struct cfs_hash *hs, unsigned int hindex,
 			cfs_hash_for_each_cb_t func, void *data)
 {
 	struct hlist_head *hhead;

@@ -397,7 +397,8 @@ lstcon_sesrpc_readent(int transop, struct srpc_msg *msg,
 static int
 lstcon_group_nodes_add(struct lstcon_group *grp,
 		       int count, lnet_process_id_t __user *ids_up,
-		       unsigned *featp, struct list_head __user *result_up)
+		       unsigned int *featp,
+		       struct list_head __user *result_up)
 {
 	struct lstcon_rpc_trans *trans;
 	struct lstcon_ndlink	*ndl;
@@ -542,7 +543,8 @@ lstcon_group_add(char *name)
 
 int
 lstcon_nodes_add(char *name, int count, lnet_process_id_t __user *ids_up,
-		 unsigned *featp, struct list_head __user *result_up)
+		 unsigned int *featp,
+		 struct list_head __user *result_up)
 {
 	struct lstcon_group *grp;
 	int rc;
@@ -1702,7 +1704,7 @@ lstcon_new_session_id(lst_sid_t *sid)
 }
 
 int
-lstcon_session_new(char *name, int key, unsigned feats,
+lstcon_session_new(char *name, int key, unsigned int feats,
 		   int timeout, int force, lst_sid_t __user *sid_up)
 {
 	int rc = 0;
@@ -1868,7 +1870,7 @@ lstcon_session_end(void)
 }
 
 int
-lstcon_session_feats_check(unsigned feats)
+lstcon_session_feats_check(unsigned int feats)
 {
 	int rc = 0;
 

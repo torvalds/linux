@@ -678,9 +678,9 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 static unsigned int
 cfs_cpt_num_estimate(void)
 {
-	unsigned nnode = num_online_nodes();
-	unsigned ncpu  = num_online_cpus();
-	unsigned ncpt;
+	unsigned int nnode = num_online_nodes();
+	unsigned int ncpu = num_online_cpus();
+	unsigned int ncpt;
 
 	if (ncpu <= CPT_WEIGHT_MIN) {
 		ncpt = 1;

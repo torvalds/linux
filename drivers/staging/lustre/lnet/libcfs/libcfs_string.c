@@ -222,8 +222,8 @@ EXPORT_SYMBOL(cfs_gettok);
  * \retval 0 otherwise
  */
 int
-cfs_str2num_check(char *str, int nob, unsigned *num,
-		  unsigned min, unsigned max)
+cfs_str2num_check(char *str, int nob, unsigned int *num,
+		  unsigned int min, unsigned int max)
 {
 	bool all_numbers = true;
 	char *endp, cache;
@@ -273,7 +273,7 @@ EXPORT_SYMBOL(cfs_str2num_check);
  * -ENOMEM will be returned.
  */
 static int
-cfs_range_expr_parse(struct cfs_lstr *src, unsigned min, unsigned max,
+cfs_range_expr_parse(struct cfs_lstr *src, unsigned int min, unsigned int max,
 		     int bracketed, struct cfs_range_expr **expr)
 {
 	struct cfs_range_expr	*re;
@@ -501,7 +501,7 @@ EXPORT_SYMBOL(cfs_expr_list_free);
  * \retval -errno otherwise
  */
 int
-cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
+cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 		    struct cfs_expr_list **elpp)
 {
 	struct cfs_expr_list	*expr_list;

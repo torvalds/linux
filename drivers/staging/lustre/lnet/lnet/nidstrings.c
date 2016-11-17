@@ -193,7 +193,7 @@ add_nidrange(const struct cfs_lstr *src,
 	struct netstrfns *nf;
 	struct nidrange *nr;
 	int endlen;
-	unsigned netnum;
+	unsigned int netnum;
 
 	if (src->ls_len >= LNET_NIDSTR_SIZE)
 		return NULL;

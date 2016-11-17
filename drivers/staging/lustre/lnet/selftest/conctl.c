@@ -315,7 +315,7 @@ lst_group_update_ioctl(lstio_group_update_args_t *args)
 static int
 lst_nodes_add_ioctl(lstio_group_nodes_args_t *args)
 {
-	unsigned feats;
+	unsigned int feats;
 	int rc;
 	char *name;
 

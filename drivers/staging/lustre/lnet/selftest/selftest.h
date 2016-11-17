@@ -410,10 +410,10 @@ struct sfw_test_case {
 
 struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
-	       unsigned features, int nbulkiov, int bulklen,
+	       unsigned int features, int nbulkiov, int bulklen,
 	       void (*done)(struct srpc_client_rpc *), void *priv);
 int sfw_create_test_rpc(struct sfw_test_unit *tsu,
-			lnet_process_id_t peer, unsigned features,
+			lnet_process_id_t peer, unsigned int features,
 			int nblk, int blklen, struct srpc_client_rpc **rpc);
 void sfw_abort_rpc(struct srpc_client_rpc *rpc);
 void sfw_post_rpc(struct srpc_client_rpc *rpc);
