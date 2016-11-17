@@ -1156,7 +1156,7 @@ EXPORT_SYMBOL(libcfs_nid2str_r);
 static struct netstrfns *
 libcfs_str2net_internal(const char *str, __u32 *net)
 {
-	struct netstrfns *uninitialized_var(nf);
+	struct netstrfns *nf = NULL;
 	int nob;
 	unsigned int netnum;
 	int i;
