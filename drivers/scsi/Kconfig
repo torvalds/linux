@@ -263,6 +263,7 @@ config SCSI_SPI_ATTRS
 config SCSI_FC_ATTRS
 	tristate "FiberChannel Transport Attributes"
 	depends on SCSI && NET
+	select BLK_DEV_BSGLIB
 	select SCSI_NETLINK
 	help
 	  If you wish to export transport-specific information about

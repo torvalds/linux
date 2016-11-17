@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/bsg-lib.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -3554,26 +3555,6 @@ fc_vport_sched_delete(struct work_struct *work)
  * BSG support
  */
 
-
-/**
- * fc_destroy_bsgjob - routine to teardown/delete a fc bsg job
- * @job:	fc_bsg_job that is to be torn down
- */
-static void
-fc_destroy_bsgjob(struct kref *kref)
-{
-	struct bsg_job *job = container_of(kref, struct bsg_job, kref);
-	struct request *rq = job->req;
-
-	blk_end_request_all(rq, rq->errors);
-
-	put_device(job->dev);	/* release reference for the request */
-
-	kfree(job->request_payload.sg_list);
-	kfree(job->reply_payload.sg_list);
-	kfree(job);
-}
-
 /**
  * fc_bsg_jobdone - completion routine for bsg requests that the LLD has
  *                  completed
@@ -3617,7 +3598,7 @@ static void fc_bsg_softirq_done(struct request *rq)
 {
 	struct bsg_job *job = rq->special;
 
-	kref_put(&job->kref, fc_destroy_bsgjob);
+	kref_put(&job->kref, bsg_destroy_job);
 }
 
 /**
@@ -3642,7 +3623,7 @@ fc_bsg_job_timeout(struct request *req)
 		/* call LLDD to abort the i/o as it has timed out */
 		err = i->f->bsg_timeout(job);
 		if (err == -EAGAIN) {
-			kref_put(&job->kref, fc_destroy_bsgjob);
+			kref_put(&job->kref, bsg_destroy_job);
 			return BLK_EH_RESET_TIMER;
 		} else if (err)
 			printk(KERN_ERR "ERROR: FC BSG request timeout - LLD "
