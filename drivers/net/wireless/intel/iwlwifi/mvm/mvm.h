@@ -1222,13 +1222,15 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 {
 	/*
 	 * TODO:
-	 * The issue of how to determine CDB support is still not well defined.
-	 * It may be that it will be for all next HW devices and it may be per
-	 * FW compilation and it may also differ between different devices.
-	 * For now take a ride on the new TX API and get back to it when
-	 * it is well defined.
+	 * The issue of how to determine CDB APIs and usage is still not fully
+	 * defined.
+	 * There is a compilation for CDB and non-CDB FW, but there may
+	 * be also runtime check.
+	 * For now there is a TLV for checking compilation mode, but a
+	 * runtime check will also have to be here - once defined.
 	 */
-	return iwl_mvm_has_new_tx_api(mvm);
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)

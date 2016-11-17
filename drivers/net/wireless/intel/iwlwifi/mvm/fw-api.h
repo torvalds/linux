@@ -673,10 +673,8 @@ struct iwl_error_resp {
 
 
 /* Common PHY, MAC and Bindings definitions */
-
 #define MAX_MACS_IN_BINDING	(3)
 #define MAX_BINDINGS		(4)
-#define AUX_BINDING_INDEX	(3)
 
 /* Used to extract ID and color from the context dword */
 #define FW_CTXT_ID_POS	  (0)
@@ -960,6 +958,7 @@ struct iwl_time_event_notif {
  * @action: action to perform, one of FW_CTXT_ACTION_*
  * @macs: array of MAC id and colors which belong to the binding
  * @phy: PHY id and color which belongs to the binding
+ * @lmac_id: the lmac id the binding belongs to
  */
 struct iwl_binding_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */
@@ -968,7 +967,13 @@ struct iwl_binding_cmd {
 	/* BINDING_DATA_API_S_VER_1 */
 	__le32 macs[MAX_MACS_IN_BINDING];
 	__le32 phy;
-} __packed; /* BINDING_CMD_API_S_VER_1 */
+	/* BINDING_CMD_API_S_VER_1 */
+	__le32 lmac_id;
+} __packed; /* BINDING_CMD_API_S_VER_2 */
+
+#define IWL_BINDING_CMD_SIZE_V1	offsetof(struct iwl_binding_cmd, lmac_id)
+#define IWL_LMAC_24G_INDEX		0
+#define IWL_LMAC_5G_INDEX		1
 
 /* The maximal number of fragments in the FW's schedule session */
 #define IWL_MVM_MAX_QUOTA 128
@@ -990,6 +995,9 @@ struct iwl_time_quota_data {
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
+ * Note: on non-CDB the fourth one is the auxilary mac and is
+ *	essentially zero.
+ *	On CDB the fourth one is a regular binding.
  */
 struct iwl_time_quota_cmd {
 	struct iwl_time_quota_data quotas[MAX_BINDINGS];
