@@ -152,7 +152,7 @@ int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 	int			err;
 	const struct cfs_crypto_hash_type	*type;
 
-	if (!buf || buf_len == 0 || !hash_len)
+	if (!buf || !buf_len || !hash_len)
 		return -EINVAL;
 
 	err = cfs_crypto_hash_alloc(hash_alg, &type, &req, key, key_len);
@@ -440,6 +440,6 @@ int cfs_crypto_register(void)
  */
 void cfs_crypto_unregister(void)
 {
-	if (adler32 == 0)
+	if (!adler32)
 		cfs_crypto_adler32_unregister();
 }

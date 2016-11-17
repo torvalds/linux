@@ -79,7 +79,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 		for (i = 0; i < 32; i++) {
 			debugstr = bit2str(i);
 			if (debugstr && strlen(debugstr) == len &&
-			    strncasecmp(str, debugstr, len) == 0) {
+			    !strncasecmp(str, debugstr, len)) {
 				if (op == '-')
 					newmask &= ~(1 << i);
 				else
@@ -89,7 +89,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 			}
 		}
 		if (!found && len == 3 &&
-		    (strncasecmp(str, "ALL", len) == 0)) {
+		    !strncasecmp(str, "ALL", len)) {
 			if (op == '-')
 				newmask = minmask;
 			else
@@ -182,7 +182,7 @@ cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res)
 		next->ls_len--;
 	}
 
-	if (next->ls_len == 0) /* whitespaces only */
+	if (!next->ls_len) /* whitespaces only */
 		return 0;
 
 	if (*next->ls_str == delim) {
@@ -417,7 +417,7 @@ cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list)
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		if (value >= expr->re_lo && value <= expr->re_hi &&
-		    ((value - expr->re_lo) % expr->re_stride) == 0)
+		    !((value - expr->re_lo) % expr->re_stride))
 			return 1;
 	}
 
@@ -442,12 +442,12 @@ cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		for (i = expr->re_lo; i <= expr->re_hi; i++) {
-			if (((i - expr->re_lo) % expr->re_stride) == 0)
+			if (!((i - expr->re_lo) % expr->re_stride))
 				count++;
 		}
 	}
 
-	if (count == 0) /* empty expression list */
+	if (!count) /* empty expression list */
 		return 0;
 
 	if (count > max) {
@@ -463,7 +463,7 @@ cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
 	count = 0;
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		for (i = expr->re_lo; i <= expr->re_hi; i++) {
-			if (((i - expr->re_lo) % expr->re_stride) == 0)
+			if (!((i - expr->re_lo) % expr->re_stride))
 				val[count++] = i;
 		}
 	}
@@ -540,7 +540,7 @@ cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 		}
 	} else {
 		rc = cfs_range_expr_parse(&src, min, max, 0, &expr);
-		if (rc == 0)
+		if (!rc)
 			list_add_tail(&expr->re_link, &expr_list->el_exprs);
 	}
 

@@ -236,7 +236,7 @@ static void cfs_tcd_shrink(struct cfs_trace_cpu_data *tcd)
 	INIT_LIST_HEAD(&pc.pc_pages);
 
 	list_for_each_entry_safe(tage, tmp, &tcd->tcd_pages, linkage) {
-		if (pgcount-- == 0)
+		if (!pgcount--)
 			break;
 
 		list_move_tail(&tage->linkage, &pc.pc_pages);
@@ -320,7 +320,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	if (!tcd)		/* arch may not log in IRQ context */
 		goto console;
 
-	if (tcd->tcd_cur_pages == 0)
+	if (!tcd->tcd_cur_pages)
 		header.ph_flags |= PH_FLAG_FIRST_RECORD;
 
 	if (tcd->tcd_shutting_down) {
@@ -423,7 +423,7 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	__LASSERT(tage->used <= PAGE_SIZE);
 
 console:
-	if ((mask & libcfs_printk) == 0) {
+	if (!(mask & libcfs_printk)) {
 		/* no console output requested */
 		if (tcd)
 			cfs_trace_put_tcd(tcd);
@@ -871,13 +871,13 @@ int cfs_trace_daemon_command(char *str)
 
 	cfs_tracefile_write_lock();
 
-	if (strcmp(str, "stop") == 0) {
+	if (!strcmp(str, "stop")) {
 		cfs_tracefile_write_unlock();
 		cfs_trace_stop_thread();
 		cfs_tracefile_write_lock();
 		memset(cfs_tracefile, 0, sizeof(cfs_tracefile));
 
-	} else if (strncmp(str, "size=", 5) == 0) {
+	} else if (!strncmp(str, "size=", 5)) {
 		unsigned long tmp;
 
 		rc = kstrtoul(str + 5, 10, &tmp);
@@ -917,7 +917,7 @@ int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 
 	rc = cfs_trace_copyin_string(str, usr_str_nob + 1,
 				     usr_str, usr_str_nob);
-	if (rc == 0)
+	if (!rc)
 		rc = cfs_trace_daemon_command(str);
 
 	kfree(str);
@@ -1072,7 +1072,7 @@ static int tracefiled(void *arg)
 		__LASSERT(list_empty(&pc.pc_pages));
 end_loop:
 		if (atomic_read(&tctl->tctl_shutdown)) {
-			if (last_loop == 0) {
+			if (!last_loop) {
 				last_loop = 1;
 				continue;
 			} else {

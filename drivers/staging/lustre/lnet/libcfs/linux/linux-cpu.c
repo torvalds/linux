@@ -375,7 +375,7 @@ cfs_cpt_set_cpumask(struct cfs_cpt_table *cptab, int cpt, cpumask_t *mask)
 {
 	int	i;
 
-	if (cpumask_weight(mask) == 0 ||
+	if (!cpumask_weight(mask) ||
 	    cpumask_any_and(mask, cpu_online_mask) >= nr_cpu_ids) {
 		CDEBUG(D_INFO, "No online CPU is found in the CPU mask for CPU partition %d\n",
 		       cpt);
@@ -516,7 +516,7 @@ cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt)
 	rotor %= weight;
 
 	for_each_node_mask(node, *mask) {
-		if (rotor-- == 0)
+		if (!rotor--)
 			return node;
 	}
 
@@ -584,7 +584,7 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 
 		rc = set_cpus_allowed_ptr(current, cpumask);
 		set_mems_allowed(*nodemask);
-		if (rc == 0)
+		if (!rc)
 			schedule(); /* switch to allowed CPU */
 
 		return rc;
@@ -658,7 +658,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 					goto out;
 				}
 
-				if (--number == 0)
+				if (!--number)
 					goto out;
 			}
 			cpu = cpumask_first(socket);
@@ -750,7 +750,7 @@ cfs_cpt_table_create(int ncpt)
 	}
 
 	num = num_online_cpus() / ncpt;
-	if (num == 0) {
+	if (!num) {
 		CERROR("CPU changed while setting CPU partition\n");
 		goto failed;
 	}
@@ -848,7 +848,7 @@ cfs_cpt_table_create_pattern(char *pattern)
 		}
 	}
 
-	if (ncpt == 0 ||
+	if (!ncpt ||
 	    (node && ncpt > num_online_nodes()) ||
 	    (!node && ncpt > num_online_cpus())) {
 		CERROR("Invalid pattern %s, or too many partitions %d\n",

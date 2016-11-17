@@ -259,13 +259,13 @@ libcfs_debug_mask2str(char *str, int size, int mask, int is_subsys)
 	const char   *token;
 	int	   i;
 
-	if (mask == 0) {			/* "0" */
+	if (!mask) {			/* "0" */
 		if (size > 0)
 			str[0] = '0';
 		len = 1;
 	} else {				/* space-separated tokens */
 		for (i = 0; i < 32; i++) {
-			if ((mask & (1 << i)) == 0)
+			if (!(mask & (1 << i)))
 				continue;
 
 			token = fn(i);
@@ -416,9 +416,9 @@ int libcfs_debug_init(unsigned long bufsize)
 		max = max / num_possible_cpus();
 		max <<= (20 - PAGE_SHIFT);
 	}
-	rc = cfs_tracefile_init(max);
 
-	if (rc == 0) {
+	rc = cfs_tracefile_init(max);
+	if (!rc) {
 		libcfs_register_panic_notifier();
 		libcfs_debug_mb = cfs_trace_get_debug_mb();
 	}

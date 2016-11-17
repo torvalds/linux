@@ -114,7 +114,7 @@ cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index)
 	/* exclusive lock request */
 	for (i = 0; i < ncpt; i++) {
 		spin_lock(pcl->pcl_locks[i]);
-		if (i == 0) {
+		if (!i) {
 			LASSERT(!pcl->pcl_locked);
 			/* nobody should take private lock after this
 			 * so I wouldn't starve for too long time
@@ -141,7 +141,7 @@ cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index)
 	}
 
 	for (i = ncpt - 1; i >= 0; i--) {
-		if (i == 0) {
+		if (!i) {
 			LASSERT(pcl->pcl_locked);
 			pcl->pcl_locked = 0;
 		}

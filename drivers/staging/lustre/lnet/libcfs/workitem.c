@@ -325,7 +325,7 @@ cfs_wi_sched_destroy(struct cfs_wi_sched *sched)
 	list_del(&sched->ws_list);
 
 	spin_unlock(&cfs_wi_data.wi_glock);
-	LASSERT(sched->ws_nscheduled == 0);
+	LASSERT(!sched->ws_nscheduled);
 
 	LIBCFS_FREE(sched, sizeof(*sched));
 }
