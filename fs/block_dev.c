@@ -270,11 +270,161 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	return ret;
 }
 
+struct blkdev_dio {
+	union {
+		struct kiocb		*iocb;
+		struct task_struct	*waiter;
+	};
+	size_t			size;
+	atomic_t		ref;
+	bool			multi_bio : 1;
+	bool			should_dirty : 1;
+	bool			is_sync : 1;
+	struct bio		bio;
+};
+
+static struct bio_set *blkdev_dio_pool __read_mostly;
+
+static void blkdev_bio_end_io(struct bio *bio)
+{
+	struct blkdev_dio *dio = bio->bi_private;
+	bool should_dirty = dio->should_dirty;
+
+	if (dio->multi_bio && !atomic_dec_and_test(&dio->ref)) {
+		if (bio->bi_error && !dio->bio.bi_error)
+			dio->bio.bi_error = bio->bi_error;
+	} else {
+		if (!dio->is_sync) {
+			struct kiocb *iocb = dio->iocb;
+			ssize_t ret = dio->bio.bi_error;
+
+			if (likely(!ret)) {
+				ret = dio->size;
+				iocb->ki_pos += ret;
+			}
+
+			dio->iocb->ki_complete(iocb, ret, 0);
+			bio_put(&dio->bio);
+		} else {
+			struct task_struct *waiter = dio->waiter;
+
+			WRITE_ONCE(dio->waiter, NULL);
+			wake_up_process(waiter);
+		}
+	}
+
+	if (should_dirty) {
+		bio_check_pages_dirty(bio);
+	} else {
+		struct bio_vec *bvec;
+		int i;
+
+		bio_for_each_segment_all(bvec, bio, i)
+			put_page(bvec->bv_page);
+		bio_put(bio);
+	}
+}
+
 static ssize_t
-blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+__blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = bdev_file_inode(file);
+	struct block_device *bdev = I_BDEV(inode);
+	unsigned blkbits = blksize_bits(bdev_logical_block_size(bdev));
+	struct blkdev_dio *dio;
+	struct bio *bio;
+	bool is_read = (iov_iter_rw(iter) == READ);
+	loff_t pos = iocb->ki_pos;
+	blk_qc_t qc = BLK_QC_T_NONE;
+	int ret;
+
+	if ((pos | iov_iter_alignment(iter)) & ((1 << blkbits) - 1))
+		return -EINVAL;
+
+	bio = bio_alloc_bioset(GFP_KERNEL, nr_pages, blkdev_dio_pool);
+	bio_get(bio); /* extra ref for the completion handler */
+
+	dio = container_of(bio, struct blkdev_dio, bio);
+	dio->is_sync = is_sync_kiocb(iocb);
+	if (dio->is_sync)
+		dio->waiter = current;
+	else
+		dio->iocb = iocb;
+
+	dio->size = 0;
+	dio->multi_bio = false;
+	dio->should_dirty = is_read && (iter->type == ITER_IOVEC);
+
+	for (;;) {
+		bio->bi_bdev = bdev;
+		bio->bi_iter.bi_sector = pos >> blkbits;
+		bio->bi_private = dio;
+		bio->bi_end_io = blkdev_bio_end_io;
+
+		ret = bio_iov_iter_get_pages(bio, iter);
+		if (unlikely(ret)) {
+			bio->bi_error = ret;
+			bio_endio(bio);
+			break;
+		}
+
+		if (is_read) {
+			bio->bi_opf = REQ_OP_READ;
+			if (dio->should_dirty)
+				bio_set_pages_dirty(bio);
+		} else {
+			bio->bi_opf = dio_bio_write_op(iocb);
+			task_io_account_write(bio->bi_iter.bi_size);
+		}
+
+		dio->size += bio->bi_iter.bi_size;
+		pos += bio->bi_iter.bi_size;
+
+		nr_pages = iov_iter_npages(iter, BIO_MAX_PAGES);
+		if (!nr_pages) {
+			qc = submit_bio(bio);
+			break;
+		}
+
+		if (!dio->multi_bio) {
+			dio->multi_bio = true;
+			atomic_set(&dio->ref, 2);
+		} else {
+			atomic_inc(&dio->ref);
+		}
+
+		submit_bio(bio);
+		bio = bio_alloc(GFP_KERNEL, nr_pages);
+	}
+
+	if (!dio->is_sync)
+		return -EIOCBQUEUED;
+
+	for (;;) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (!READ_ONCE(dio->waiter))
+			break;
+
+		if (!(iocb->ki_flags & IOCB_HIPRI) ||
+		    !blk_mq_poll(bdev_get_queue(bdev), qc))
+			io_schedule();
+	}
+	__set_current_state(TASK_RUNNING);
+
+	ret = dio->bio.bi_error;
+	if (likely(!ret)) {
+		ret = dio->size;
+		iocb->ki_pos += ret;
+	}
+
+	bio_put(&dio->bio);
+	return ret;
+}
+
+static ssize_t
+blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+{
 	int nr_pages;
 
 	nr_pages = iov_iter_npages(iter, BIO_MAX_PAGES + 1);
@@ -282,10 +432,18 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		return 0;
 	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_PAGES)
 		return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
-	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter,
-				    blkdev_get_block, NULL, NULL,
-				    DIO_SKIP_DIO_COUNT);
+
+	return __blkdev_direct_IO(iocb, iter, min(nr_pages, BIO_MAX_PAGES));
 }
+
+static __init int blkdev_init(void)
+{
+	blkdev_dio_pool = bioset_create(4, offsetof(struct blkdev_dio, bio));
+	if (!blkdev_dio_pool)
+		return -ENOMEM;
+	return 0;
+}
+module_init(blkdev_init);
 
 int __sync_blockdev(struct block_device *bdev, int wait)
 {
