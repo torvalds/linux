@@ -96,13 +96,12 @@ EXPORT_SYMBOL_GPL(bsg_job_done);
  * bsg_softirq_done - softirq done routine for destroying the bsg requests
  * @rq: BSG request that holds the job to be destroyed
  */
-void bsg_softirq_done(struct request *rq)
+static void bsg_softirq_done(struct request *rq)
 {
 	struct bsg_job *job = rq->special;
 
 	bsg_job_put(job);
 }
-EXPORT_SYMBOL_GPL(bsg_softirq_done);
 
 static int bsg_map_buffer(struct bsg_buffer *buf, struct request *req)
 {
