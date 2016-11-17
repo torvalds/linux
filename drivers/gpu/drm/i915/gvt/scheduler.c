@@ -160,8 +160,6 @@ static int shadow_context_status_change(struct notifier_block *nb,
 
 static int dispatch_workload(struct intel_vgpu_workload *workload)
 {
-	struct intel_vgpu *vgpu = workload->vgpu;
-	struct intel_gvt *gvt = vgpu->gvt;
 	int ring_id = workload->ring_id;
 	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
@@ -174,6 +172,8 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	shadow_ctx->desc_template = workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
+
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
 		gvt_err("fail to allocate gem request\n");
@@ -185,40 +185,35 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	workload->req = i915_gem_request_get(rq);
 
-	mutex_lock(&gvt->lock);
-
 	ret = intel_gvt_scan_and_shadow_workload(workload);
 	if (ret)
-		goto err;
+		goto out;
 
 	ret = intel_gvt_scan_and_shadow_wa_ctx(&workload->wa_ctx);
 	if (ret)
-		goto err;
+		goto out;
 
 	ret = populate_shadow_context(workload);
 	if (ret)
-		goto err;
+		goto out;
 
 	if (workload->prepare) {
 		ret = workload->prepare(workload);
 		if (ret)
-			goto err;
+			goto out;
 	}
-
-	mutex_unlock(&gvt->lock);
 
 	gvt_dbg_sched("ring id %d submit workload to i915 %p\n",
 			ring_id, workload->req);
 
-	i915_add_request_no_flush(rq);
+	ret = 0;
 	workload->dispatched = true;
-	return 0;
-err:
-	workload->status = ret;
-
-	mutex_unlock(&gvt->lock);
+out:
+	if (ret)
+		workload->status = ret;
 
 	i915_add_request_no_flush(rq);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return ret;
 }
 
@@ -438,9 +433,9 @@ static int workload_thread(void *priv)
 			intel_uncore_forcewake_get(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
-		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
+		mutex_lock(&gvt->lock);
 		ret = dispatch_workload(workload);
-		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
+		mutex_unlock(&gvt->lock);
 
 		if (ret) {
 			gvt_err("fail to dispatch workload, skip\n");
@@ -463,9 +458,7 @@ complete:
 		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
 				workload, workload->status);
 
-		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 		complete_current_workload(gvt, ring_id);
-		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
 
 		i915_gem_request_put(fetch_and_zero(&workload->req));
 

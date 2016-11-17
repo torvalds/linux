@@ -46,9 +46,13 @@ int setup_vgpu_mmio(struct intel_vgpu *vgpu)
 	struct intel_gvt *gvt = vgpu->gvt;
 	const struct intel_gvt_device_info *info = &gvt->device_info;
 
-	vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
-	if (!vgpu->mmio.vreg)
-		return -ENOMEM;
+	if (vgpu->mmio.vreg)
+		memset(vgpu->mmio.vreg, 0, info->mmio_size * 2);
+	else {
+		vgpu->mmio.vreg = vzalloc(info->mmio_size * 2);
+		if (!vgpu->mmio.vreg)
+			return -ENOMEM;
+	}
 
 	vgpu->mmio.sreg = vgpu->mmio.vreg + info->mmio_size;
 
@@ -95,6 +99,7 @@ static void setup_vgpu_cfg_space(struct intel_vgpu *vgpu,
 	 */
 	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_1, 0, 4);
 	memset(vgpu_cfg_space(vgpu) + PCI_BASE_ADDRESS_3, 0, 4);
+	memset(vgpu_cfg_space(vgpu) + INTEL_GVT_PCI_OPREGION, 0, 4);
 
 	for (i = 0; i < INTEL_GVT_MAX_BAR_NUM; i++) {
 		vgpu->cfg_space.bar[i].size = pci_resource_len(
