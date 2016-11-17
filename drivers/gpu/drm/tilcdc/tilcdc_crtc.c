@@ -125,6 +125,7 @@ static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
+	int ret;
 
 	dma_fb_base = tilcdc_read(dev, LCDC_DMA_FB_BASE_ADDR_0_REG);
 	dma_fb_ceiling = tilcdc_read(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG);
@@ -152,7 +153,10 @@ static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
 	tilcdc_clear_irqstatus(dev, 0xffffffff);
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
 
-	wait_for_completion(&tilcdc_crtc->palette_loaded);
+	ret = wait_for_completion_timeout(&tilcdc_crtc->palette_loaded,
+					  msecs_to_jiffies(50));
+	if (ret == 0)
+		dev_err(dev->dev, "%s: Palette loading timeout", __func__);
 
 	/* Disable LCDC DMA and DMA Palette Loaded Interrupt. */
 	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
