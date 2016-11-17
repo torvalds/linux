@@ -83,6 +83,7 @@ enum {
 	MLX5_CMD_OP_SET_HCA_CAP                   = 0x109,
 	MLX5_CMD_OP_QUERY_ISSI                    = 0x10a,
 	MLX5_CMD_OP_SET_ISSI                      = 0x10b,
+	MLX5_CMD_OP_SET_DRIVER_VERSION            = 0x10d,
 	MLX5_CMD_OP_CREATE_MKEY                   = 0x200,
 	MLX5_CMD_OP_QUERY_MKEY                    = 0x201,
 	MLX5_CMD_OP_DESTROY_MKEY                  = 0x202,
@@ -909,7 +910,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_pg_sz[0x8];
 
 	u8         bf[0x1];
-	u8         reserved_at_261[0x1];
+	u8         driver_version[0x1];
 	u8         pad_tx_eth_packet[0x1];
 	u8         reserved_at_263[0x8];
 	u8         log_bf_reg_size[0x5];
@@ -4003,6 +4004,25 @@ struct mlx5_ifc_query_issi_in_bits {
 	u8         op_mod[0x10];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_set_driver_version_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+	u8         reserved_1[0x40];
+};
+
+struct mlx5_ifc_set_driver_version_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_2[0x40];
+	u8         driver_version[64][0x8];
 };
 
 struct mlx5_ifc_query_hca_vport_pkey_out_bits {
