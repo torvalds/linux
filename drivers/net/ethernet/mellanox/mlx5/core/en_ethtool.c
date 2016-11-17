@@ -173,7 +173,10 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS +
 		       MLX5E_NUM_RQ_STATS(priv) +
 		       MLX5E_NUM_SQ_STATS(priv) +
-		       MLX5E_NUM_PFC_COUNTERS(priv);
+		       MLX5E_NUM_PFC_COUNTERS(priv) +
+		       ARRAY_SIZE(mlx5e_pme_status_desc) +
+		       ARRAY_SIZE(mlx5e_pme_error_desc);
+
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
 	/* fallthrough */
@@ -237,6 +240,13 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 		}
 	}
 
+	/* port module event counters */
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_status_desc[i].format);
+
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_error_desc[i].format);
+
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;
 
@@ -279,6 +289,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_priv *mlx5_priv;
 	int i, j, tc, prio, idx = 0;
 	unsigned long pfc_combined;
 
@@ -334,6 +345,16 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 							  pport_per_prio_pfc_stats_desc, i);
 		}
 	}
+
+	/* port module event counters */
+	mlx5_priv =  &priv->mdev->priv;
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
+						   mlx5e_pme_status_desc, i);
+
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
+						   mlx5e_pme_error_desc, i);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;
