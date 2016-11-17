@@ -38,7 +38,7 @@
  * Some userspace presumes that the first connected connector is the main
  * display, where it's supposed to display e.g. the login screen. For
  * laptops, this should be the main panel. Use this function to sort all
- * (eDP/LVDS) panels to the front of the connector list, instead of
+ * (eDP/LVDS/DSI) panels to the front of the connector list, instead of
  * painstakingly trying to initialize them in the right order.
  */
 void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
@@ -51,7 +51,8 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 	list_for_each_entry_safe(connector, tmp,
 				 &dev->mode_config.connector_list, head) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		    connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_DSI)
 			list_move_tail(&connector->head, &panel_list);
 	}
 
