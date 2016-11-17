@@ -1,6 +1,28 @@
-================
+===========================
+Including uAPI header files
+===========================
+
+Sometimes, it is useful to include header files and C example codes in
+order to describe the userspace API and to generate cross-references
+between the code and the documentation. Adding cross-references for
+userspace API files has an additional vantage: Sphinx will generate warnings
+if a symbol is not found at the documentation. That helps to keep the
+uAPI documentation in sync with the Kernel changes.
+The :ref:`parse_headers.pl <parse_headers>` provide a way to generate such
+cross-references. It has to be called via Makefile, while building the
+documentation. Please see ``Documentation/media/Makefile`` for an example
+about how to use it inside the Kernel tree.
+
+.. _parse_headers:
+
 parse_headers.pl
-================
+^^^^^^^^^^^^^^^^
+
+.. NOTE: the man pages below were generated using pod2rst tool:
+.. http://search.cpan.org/~dowens/Pod-POM-View-Restructured-0.02/bin/pod2rst
+.. If you need to change anything below this point, please do the changes
+.. at parse-headers.pl directly, re-run the script and paste the output of
+.. the script here.
 
 ****
 NAME
