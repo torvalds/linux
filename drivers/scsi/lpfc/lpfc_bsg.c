@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/list.h>
+#include <linux/bsg-lib.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -211,7 +212,7 @@ lpfc_alloc_bsg_buffers(struct lpfc_hba *phba, unsigned int size,
 
 static unsigned int
 lpfc_bsg_copy_data(struct lpfc_dmabuf *dma_buffers,
-		   struct fc_bsg_buffer *bsg_buffers,
+		   struct bsg_buffer *bsg_buffers,
 		   unsigned int bytes_to_transfer, int to_buffers)
 {
 

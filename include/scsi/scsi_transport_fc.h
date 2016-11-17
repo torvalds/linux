@@ -28,6 +28,7 @@
 #define SCSI_TRANSPORT_FC_H
 
 #include <linux/sched.h>
+#include <linux/bsg-lib.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_netlink.h>
@@ -624,13 +625,6 @@ struct fc_host_attrs {
 #define fc_host_dev_loss_tmo(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->dev_loss_tmo)
 
-
-struct fc_bsg_buffer {
-	unsigned int payload_len;
-	int sg_cnt;
-	struct scatterlist *sg_list;
-};
-
 /* Values for fc_bsg_job->state_flags (bitflags) */
 #define FC_RQST_STATE_INPROGRESS	0
 #define FC_RQST_STATE_DONE		1
@@ -659,8 +653,8 @@ struct fc_bsg_job {
 	 */
 
 	/* DMA payloads for the request/response */
-	struct fc_bsg_buffer request_payload;
-	struct fc_bsg_buffer reply_payload;
+	struct bsg_buffer request_payload;
+	struct bsg_buffer reply_payload;
 
 	void *dd_data;			/* Used for driver-specific storage */
 };

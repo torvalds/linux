@@ -3671,7 +3671,7 @@ fc_bsg_job_timeout(struct request *req)
 }
 
 static int
-fc_bsg_map_buffer(struct fc_bsg_buffer *buf, struct request *req)
+fc_bsg_map_buffer(struct bsg_buffer *buf, struct request *req)
 {
 	size_t sz = (sizeof(struct scatterlist) * req->nr_phys_segments);
 
