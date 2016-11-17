@@ -1048,6 +1048,7 @@ config SND_SOC_WM8998
 
 config SND_SOC_WM9081
 	tristate
+	depends on I2C
 
 config SND_SOC_WM9090
 	tristate
