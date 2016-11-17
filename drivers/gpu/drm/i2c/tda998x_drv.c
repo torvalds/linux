@@ -1475,7 +1475,11 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	u32 video;
 	int rev_lo, rev_hi, ret;
 
-	mutex_init(&priv->audio_mutex); /* Protect access from audio thread */
+	mutex_init(&priv->mutex);	/* protect the page access */
+	mutex_init(&priv->audio_mutex); /* protect access from audio thread */
+	init_waitqueue_head(&priv->edid_delay_waitq);
+	timer_setup(&priv->edid_delay_timer, tda998x_edid_delay_done, 0);
+	INIT_WORK(&priv->detect_work, tda998x_detect_work);
 
 	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
 	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
@@ -1488,11 +1492,6 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	priv->cec = i2c_new_dummy(client->adapter, priv->cec_addr);
 	if (!priv->cec)
 		return -ENODEV;
-
-	mutex_init(&priv->mutex);	/* protect the page access */
-	init_waitqueue_head(&priv->edid_delay_waitq);
-	timer_setup(&priv->edid_delay_timer, tda998x_edid_delay_done, 0);
-	INIT_WORK(&priv->detect_work, tda998x_detect_work);
 
 	/* wake up the device: */
 	cec_write(priv, REG_CEC_ENAMODS,
