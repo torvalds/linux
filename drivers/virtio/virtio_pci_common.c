@@ -102,39 +102,6 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	return vp_vring_interrupt(irq, opaque);
 }
 
-static void vp_free_vectors(struct virtio_device *vdev)
-{
-	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	int i;
-
-	if (vp_dev->intx_enabled) {
-		free_irq(vp_dev->pci_dev->irq, vp_dev);
-		vp_dev->intx_enabled = 0;
-	}
-
-	for (i = 0; i < vp_dev->msix_used_vectors; ++i)
-		free_irq(pci_irq_vector(vp_dev->pci_dev, i), vp_dev);
-
-	for (i = 0; i < vp_dev->msix_vectors; i++)
-		if (vp_dev->msix_affinity_masks[i])
-			free_cpumask_var(vp_dev->msix_affinity_masks[i]);
-
-	if (vp_dev->msix_enabled) {
-		/* Disable the vector used for configuration */
-		vp_dev->config_vector(vp_dev, VIRTIO_MSI_NO_VECTOR);
-
-		pci_free_irq_vectors(vp_dev->pci_dev);
-		vp_dev->msix_enabled = 0;
-	}
-
-	vp_dev->msix_vectors = 0;
-	vp_dev->msix_used_vectors = 0;
-	kfree(vp_dev->msix_names);
-	vp_dev->msix_names = NULL;
-	kfree(vp_dev->msix_affinity_masks);
-	vp_dev->msix_affinity_masks = NULL;
-}
-
 static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 				   bool per_vq_vectors)
 {
@@ -266,6 +233,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq, *n;
+	int i;
 
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list) {
 		if (vp_dev->per_vq_vectors) {
@@ -279,7 +247,32 @@ void vp_del_vqs(struct virtio_device *vdev)
 	}
 	vp_dev->per_vq_vectors = false;
 
-	vp_free_vectors(vdev);
+	if (vp_dev->intx_enabled) {
+		free_irq(vp_dev->pci_dev->irq, vp_dev);
+		vp_dev->intx_enabled = 0;
+	}
+
+	for (i = 0; i < vp_dev->msix_used_vectors; ++i)
+		free_irq(pci_irq_vector(vp_dev->pci_dev, i), vp_dev);
+
+	for (i = 0; i < vp_dev->msix_vectors; i++)
+		if (vp_dev->msix_affinity_masks[i])
+			free_cpumask_var(vp_dev->msix_affinity_masks[i]);
+
+	if (vp_dev->msix_enabled) {
+		/* Disable the vector used for configuration */
+		vp_dev->config_vector(vp_dev, VIRTIO_MSI_NO_VECTOR);
+
+		pci_free_irq_vectors(vp_dev->pci_dev);
+		vp_dev->msix_enabled = 0;
+	}
+
+	vp_dev->msix_vectors = 0;
+	vp_dev->msix_used_vectors = 0;
+	kfree(vp_dev->msix_names);
+	vp_dev->msix_names = NULL;
+	kfree(vp_dev->msix_affinity_masks);
+	vp_dev->msix_affinity_masks = NULL;
 	kfree(vp_dev->vqs);
 	vp_dev->vqs = NULL;
 }
