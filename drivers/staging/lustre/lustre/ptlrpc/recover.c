@@ -161,8 +161,10 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	 * unreplied list.
 	 */
 	if (req && imp->imp_resend_replay &&
-	    list_empty(&req->rq_unreplied_list))
+	    list_empty(&req->rq_unreplied_list)) {
 		ptlrpc_add_unreplied(req);
+		imp->imp_known_replied_xid = ptlrpc_known_replied_xid(imp);
+	}
 
 	imp->imp_resend_replay = 0;
 	spin_unlock(&imp->imp_lock);
