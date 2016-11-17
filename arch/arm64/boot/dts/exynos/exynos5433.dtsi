@@ -374,6 +374,8 @@
 			compatible = "samsung,exynos5433-cmu-aud";
 			reg = <0x114c0000 0x1000>;
 			#clock-cells = <1>;
+			clock-names = "oscclk", "fout_aud_pll";
+			clocks = <&xxti>, <&cmu_top CLK_FOUT_AUD_PLL>;
 		};
 
 		cmu_bus0: clock-controller@13600000 {
