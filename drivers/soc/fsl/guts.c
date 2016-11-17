@@ -132,7 +132,7 @@ EXPORT_SYMBOL(fsl_guts_get_svr);
 
 static int fsl_guts_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *root, *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	const struct fsl_soc_die_attr *soc_die;
@@ -152,7 +152,10 @@ static int fsl_guts_probe(struct platform_device *pdev)
 		return PTR_ERR(guts->regs);
 
 	/* Register soc device */
-	machine = of_flat_dt_get_machine_name();
+	root = of_find_node_by_path("/");
+	if (of_property_read_string(root, "model", &machine))
+		of_property_read_string_index(root, "compatible", 0, &machine);
+	of_node_put(root);
 	if (machine)
 		soc_dev_attr.machine = devm_kstrdup(dev, machine, GFP_KERNEL);
 
