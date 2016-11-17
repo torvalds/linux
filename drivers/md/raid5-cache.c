@@ -60,6 +60,8 @@ enum r5c_journal_mode {
 	R5C_JOURNAL_MODE_WRITE_BACK = 1,
 };
 
+static char *r5c_journal_mode_str[] = {"write-through",
+				       "write-back"};
 /*
  * raid5 cache state machine
  *
@@ -1616,6 +1618,69 @@ static void r5l_write_super(struct r5l_log *log, sector_t cp)
 	log->rdev->journal_tail = cp;
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 }
+
+static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
+{
+	struct r5conf *conf = mddev->private;
+	int ret;
+
+	if (!conf->log)
+		return 0;
+
+	switch (conf->log->r5c_journal_mode) {
+	case R5C_JOURNAL_MODE_WRITE_THROUGH:
+		ret = snprintf(
+			page, PAGE_SIZE, "[%s] %s\n",
+			r5c_journal_mode_str[R5C_JOURNAL_MODE_WRITE_THROUGH],
+			r5c_journal_mode_str[R5C_JOURNAL_MODE_WRITE_BACK]);
+		break;
+	case R5C_JOURNAL_MODE_WRITE_BACK:
+		ret = snprintf(
+			page, PAGE_SIZE, "%s [%s]\n",
+			r5c_journal_mode_str[R5C_JOURNAL_MODE_WRITE_THROUGH],
+			r5c_journal_mode_str[R5C_JOURNAL_MODE_WRITE_BACK]);
+		break;
+	default:
+		ret = 0;
+	}
+	return ret;
+}
+
+static ssize_t r5c_journal_mode_store(struct mddev *mddev,
+				      const char *page, size_t length)
+{
+	struct r5conf *conf = mddev->private;
+	struct r5l_log *log = conf->log;
+	int val = -1, i;
+	int len = length;
+
+	if (!log)
+		return -ENODEV;
+
+	if (len && page[len - 1] == '\n')
+		len -= 1;
+	for (i = 0; i < ARRAY_SIZE(r5c_journal_mode_str); i++)
+		if (strlen(r5c_journal_mode_str[i]) == len &&
+		    strncmp(page, r5c_journal_mode_str[i], len) == 0) {
+			val = i;
+			break;
+		}
+	if (val < R5C_JOURNAL_MODE_WRITE_THROUGH ||
+	    val > R5C_JOURNAL_MODE_WRITE_BACK)
+		return -EINVAL;
+
+	mddev_suspend(mddev);
+	conf->log->r5c_journal_mode = val;
+	mddev_resume(mddev);
+
+	pr_debug("md/raid:%s: setting r5c cache mode to %d: %s\n",
+		 mdname(mddev), val, r5c_journal_mode_str[val]);
+	return length;
+}
+
+struct md_sysfs_entry
+r5c_journal_mode = __ATTR(journal_mode, 0644,
+			  r5c_journal_mode_show, r5c_journal_mode_store);
 
 /*
  * Try handle write operation in caching phase. This function should only
