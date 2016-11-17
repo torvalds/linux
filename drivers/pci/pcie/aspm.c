@@ -351,12 +351,26 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 		return;
 	}
 
-	/* Configure common clock before checking latencies */
-	pcie_aspm_configure_common_clock(link);
-
 	/* Get upstream/downstream components' register state */
 	pcie_get_aspm_reg(parent, &upreg);
 	child = list_entry(linkbus->devices.next, struct pci_dev, bus_list);
+	pcie_get_aspm_reg(child, &dwreg);
+
+	/*
+	 * If ASPM not supported, don't mess with the clocks and link,
+	 * bail out now.
+	 */
+	if (!(upreg.support & dwreg.support))
+		return;
+
+	/* Configure common clock before checking latencies */
+	pcie_aspm_configure_common_clock(link);
+
+	/*
+	 * Re-read upstream/downstream components' register state
+	 * after clock configuration
+	 */
+	pcie_get_aspm_reg(parent, &upreg);
 	pcie_get_aspm_reg(child, &dwreg);
 
 	/*
