@@ -3571,13 +3571,13 @@ fc_bsg_job_timeout(struct request *req)
 	if (rport && rport->port_state == FC_PORTSTATE_BLOCKED)
 		return BLK_EH_RESET_TIMER;
 
-	inflight = kref_get_unless_zero(&job->kref);
+	inflight = bsg_job_get(job);
 
 	if (inflight && i->f->bsg_timeout) {
 		/* call LLDD to abort the i/o as it has timed out */
 		err = i->f->bsg_timeout(job);
 		if (err == -EAGAIN) {
-			kref_put(&job->kref, bsg_destroy_job);
+			bsg_job_put(job);
 			return BLK_EH_RESET_TIMER;
 		} else if (err)
 			printk(KERN_ERR "ERROR: FC BSG request timeout - LLD "
