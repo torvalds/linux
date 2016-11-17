@@ -425,13 +425,18 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 {
 	long i;
 
+	/*
+	 * We use the POWER9 5-operand versions of tlbie and tlbiel here.
+	 * Since we are using RIC=0 PRS=0 R=0, and P7/P8 tlbiel ignores
+	 * the RS field, this is backwards-compatible with P7 and P8.
+	 */
 	if (global) {
 		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
 			cpu_relax();
 		if (need_sync)
 			asm volatile("ptesync" : : : "memory");
 		for (i = 0; i < npages; ++i)
-			asm volatile(PPC_TLBIE(%1,%0) : :
+			asm volatile(PPC_TLBIE_5(%0,%1,0,0,0) : :
 				     "r" (rbvalues[i]), "r" (kvm->arch.lpid));
 		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 		kvm->arch.tlbie_lock = 0;
@@ -439,7 +444,8 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 		if (need_sync)
 			asm volatile("ptesync" : : : "memory");
 		for (i = 0; i < npages; ++i)
-			asm volatile("tlbiel %0" : : "r" (rbvalues[i]));
+			asm volatile(PPC_TLBIEL(%0,%1,0,0,0) : :
+				     "r" (rbvalues[i]), "r" (0));
 		asm volatile("ptesync" : : : "memory");
 	}
 }

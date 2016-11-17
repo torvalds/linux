@@ -244,6 +244,7 @@ struct kvm_arch_memory_slot {
 struct kvm_arch {
 	unsigned int lpid;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	unsigned int tlb_sets;
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
 	atomic64_t mmio_update;

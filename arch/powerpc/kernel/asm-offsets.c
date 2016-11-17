@@ -487,6 +487,7 @@ int main(void)
 
 	/* book3s */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	DEFINE(KVM_TLB_SETS, offsetof(struct kvm, arch.tlb_sets));
 	DEFINE(KVM_SDR1, offsetof(struct kvm, arch.sdr1));
 	DEFINE(KVM_HOST_LPID, offsetof(struct kvm, arch.host_lpid));
 	DEFINE(KVM_HOST_LPCR, offsetof(struct kvm, arch.host_lpcr));

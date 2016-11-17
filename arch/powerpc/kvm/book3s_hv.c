@@ -3265,8 +3265,11 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 * Since we don't flush the TLB when tearing down a VM,
 	 * and this lpid might have previously been used,
 	 * make sure we flush on each core before running the new VM.
+	 * On POWER9, the tlbie in mmu_partition_table_set_entry()
+	 * does this flush for us.
 	 */
-	cpumask_setall(&kvm->arch.need_tlb_flush);
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		cpumask_setall(&kvm->arch.need_tlb_flush);
 
 	/* Start out with the default set of hcalls enabled */
 	memcpy(kvm->arch.enabled_hcalls, default_enabled_hcalls,
@@ -3290,6 +3293,17 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		lpcr &= ~LPCR_VPM0;
 	kvm->arch.lpcr = lpcr;
+
+	/*
+	 * Work out how many sets the TLB has, for the use of
+	 * the TLB invalidation loop in book3s_hv_rmhandlers.S.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		kvm->arch.tlb_sets = POWER9_TLB_SETS_HASH;	/* 256 */
+	else if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		kvm->arch.tlb_sets = POWER8_TLB_SETS;		/* 512 */
+	else
+		kvm->arch.tlb_sets = POWER7_TLB_SETS;		/* 128 */
 
 	/*
 	 * Track that we now have a HV mode VM active. This blocks secondary
@@ -3733,3 +3747,4 @@ module_exit(kvmppc_book3s_exit_hv);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(KVM_MINOR);
 MODULE_ALIAS("devname:kvm");
+
