@@ -970,16 +970,28 @@ static int r5l_recovery_flush_one_stripe(struct r5l_log *log,
 			continue;
 
 		/* in case device is broken */
+		rcu_read_lock();
 		rdev = rcu_dereference(conf->disks[disk_index].rdev);
-		if (rdev)
+		if (rdev) {
+			atomic_inc(&rdev->nr_pending);
+			rcu_read_unlock();
 			sync_page_io(rdev, stripe_sect, PAGE_SIZE,
 				     sh->dev[disk_index].page, REQ_OP_WRITE, 0,
 				     false);
+			rdev_dec_pending(rdev, rdev->mddev);
+			rcu_read_lock();
+		}
 		rrdev = rcu_dereference(conf->disks[disk_index].replacement);
-		if (rrdev)
+		if (rrdev) {
+			atomic_inc(&rrdev->nr_pending);
+			rcu_read_unlock();
 			sync_page_io(rrdev, stripe_sect, PAGE_SIZE,
 				     sh->dev[disk_index].page, REQ_OP_WRITE, 0,
 				     false);
+			rdev_dec_pending(rrdev, rrdev->mddev);
+			rcu_read_lock();
+		}
+		rcu_read_unlock();
 	}
 	raid5_release_stripe(sh);
 	return 0;
