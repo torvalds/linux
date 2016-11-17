@@ -231,11 +231,11 @@ static int XGIfb_GetXG21DefaultLVDSModeIdx(struct xgifb_video_info *xgifb_info)
 {
 	int i = 0;
 
-	while ((XGIbios_mode[i].mode_no != 0)
-	       && (XGIbios_mode[i].xres <= xgifb_info->lvds_data.LVDSHDE)) {
-		if ((XGIbios_mode[i].xres == xgifb_info->lvds_data.LVDSHDE)
-		    && (XGIbios_mode[i].yres == xgifb_info->lvds_data.LVDSVDE)
-		    && (XGIbios_mode[i].bpp == 8)) {
+	while ((XGIbios_mode[i].mode_no != 0) &&
+	       (XGIbios_mode[i].xres <= xgifb_info->lvds_data.LVDSHDE)) {
+		if ((XGIbios_mode[i].xres == xgifb_info->lvds_data.LVDSHDE) &&
+		    (XGIbios_mode[i].yres == xgifb_info->lvds_data.LVDSVDE) &&
+		    (XGIbios_mode[i].bpp == 8)) {
 			return i;
 		}
 		i++;
@@ -384,9 +384,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 					return -1;
 				break;
 			case 640:
-				if ((XGIbios_mode[myindex].yres != 400)
-						&& (XGIbios_mode[myindex].yres
-								!= 480))
+				if ((XGIbios_mode[myindex].yres != 400) &&
+				    (XGIbios_mode[myindex].yres	!= 480))
 					return -1;
 				break;
 			case 800:
@@ -1344,9 +1343,8 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 	if (var->vmode & FB_VMODE_YWRAP) {
 		if (var->yoffset >= info->var.yres_virtual || var->xoffset)
 			return -EINVAL;
-	} else if (var->xoffset + info->var.xres > info->var.xres_virtual
-				|| var->yoffset + info->var.yres
-						> info->var.yres_virtual) {
+	} else if (var->xoffset + info->var.xres > info->var.xres_virtual ||
+		   var->yoffset + info->var.yres > info->var.yres_virtual) {
 		return -EINVAL;
 	}
 	err = XGIfb_pan_var(var, info);
