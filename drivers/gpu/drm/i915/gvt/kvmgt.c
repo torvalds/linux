@@ -43,20 +43,16 @@
 #include "i915_drv.h"
 #include "gvt.h"
 
-#if IS_ENABLED(CONFIG_VFIO_MDEV)
-#include <linux/mdev.h>
-#else
-static inline long vfio_pin_pages(struct device *dev, unsigned long *user_pfn,
+static inline long kvmgt_pin_pages(struct device *dev, unsigned long *user_pfn,
 			long npage, int prot, unsigned long *phys_pfn)
 {
 	return 0;
 }
-static inline long vfio_unpin_pages(struct device *dev, unsigned long *pfn,
+static inline long kvmgt_unpin_pages(struct device *dev, unsigned long *pfn,
 			long npage)
 {
 	return 0;
 }
-#endif
 
 static const struct intel_gvt_ops *intel_gvt_ops;
 
@@ -183,7 +179,7 @@ static void gvt_cache_remove(struct intel_vgpu *vgpu, gfn_t gfn)
 	}
 
 	pfn = this->pfn;
-	WARN_ON((vfio_unpin_pages(dev, &pfn, 1) != 1));
+	WARN_ON((kvmgt_unpin_pages(dev, &pfn, 1) != 1));
 	__gvt_cache_remove_entry(vgpu, this);
 	mutex_unlock(&vgpu->vdev.cache_lock);
 }
@@ -206,7 +202,7 @@ static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 		dma = rb_entry(node, struct gvt_dma, node);
 		pfn = dma->pfn;
 
-		vfio_unpin_pages(dev, &pfn, 1);
+		kvmgt_unpin_pages(dev, &pfn, 1);
 		__gvt_cache_remove_entry(vgpu, dma);
 	}
 	mutex_unlock(&vgpu->vdev.cache_lock);
@@ -512,8 +508,8 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	if (pfn != 0)
 		return pfn;
 
-	rc = vfio_pin_pages(info->vgpu->vdev.mdev, &gfn, 1,
-				IOMMU_READ | IOMMU_WRITE, &pfn);
+	rc = kvmgt_pin_pages(info->vgpu->vdev.mdev, &gfn, 1,
+			     IOMMU_READ | IOMMU_WRITE, &pfn);
 	if (rc != 1) {
 		gvt_err("vfio_pin_pages failed for gfn: 0x%lx\n", gfn);
 		return 0;
