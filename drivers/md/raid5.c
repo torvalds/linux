@@ -7100,7 +7100,8 @@ static int raid5_run(struct mddev *mddev)
 
 		pr_debug("md/raid:%s: using device %s as journal\n",
 			 mdname(mddev), bdevname(journal_dev->bdev, b));
-		r5l_init_log(conf, journal_dev);
+		if (r5l_init_log(conf, journal_dev))
+			goto abort;
 	}
 
 	return 0;
