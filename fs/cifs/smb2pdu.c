@@ -79,8 +79,13 @@ static const int smb2_req_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 
 static int encryption_required(const struct cifs_tcon *tcon)
 {
+	if (!tcon)
+		return 0;
 	if ((tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
 	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
+		return 1;
+	if (tcon->seal &&
+	    (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
 		return 1;
 	return 0;
 }
@@ -835,8 +840,6 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	ses->Suid = rsp->hdr.sync_hdr.SessionId;
 
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
-	if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
-		cifs_dbg(VFS, "SMB3 encryption not supported yet\n");
 
 	rc = SMB2_sess_establish_session(sess_data);
 out_put_spnego_key:
@@ -933,8 +936,6 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 
 	ses->Suid = rsp->hdr.sync_hdr.SessionId;
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
-	if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
-		cifs_dbg(VFS, "SMB3 encryption not supported yet\n");
 
 out:
 	kfree(ntlmssp_blob);
@@ -993,8 +994,6 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 
 	ses->Suid = rsp->hdr.sync_hdr.SessionId;
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
-	if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
-		cifs_dbg(VFS, "SMB3 encryption not supported yet\n");
 
 	rc = SMB2_sess_establish_session(sess_data);
 out:
@@ -1145,12 +1144,6 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	if (tcon && tcon->bad_network_name)
 		return -ENOENT;
 
-	if ((tcon && tcon->seal) &&
-	    ((ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION) == 0)) {
-		cifs_dbg(VFS, "encryption requested but no server support");
-		return -EOPNOTSUPP;
-	}
-
 	unc_path = kmalloc(MAX_SHARENAME_LENGTH * 2, GFP_KERNEL);
 	if (unc_path == NULL)
 		return -ENOMEM;
@@ -1168,15 +1161,16 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 		return rc;
 	}
 
-	if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
-		flags |= CIFS_TRANSFORM_REQ;
-
 	if (tcon == NULL) {
+		if ((ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA))
+			flags |= CIFS_TRANSFORM_REQ;
+
 		/* since no tcon, smb2_init can not do this, so do here */
 		req->hdr.sync_hdr.SessionId = ses->Suid;
 		/* if (ses->server->sec_mode & SECMODE_SIGN_REQUIRED)
 			req->hdr.Flags |= SMB2_FLAGS_SIGNED; */
-	}
+	} else if (encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
 
 	iov[0].iov_base = (char *)req;
 	/* 4 for rfc1002 length field and 1 for pad */
@@ -1233,9 +1227,12 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
 	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
 		cifs_dbg(VFS, "DFS capability contradicts DFS flag\n");
+
+	if (tcon->seal &&
+	    !(tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION))
+		cifs_dbg(VFS, "Encryption is requested but not supported\n");
+
 	init_copy_chunk_defaults(tcon);
-	if (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA)
-		cifs_dbg(VFS, "Encrypted shares not supported");
 	if (tcon->ses->server->ops->validate_negotiate)
 		rc = tcon->ses->server->ops->validate_negotiate(xid, tcon);
 tcon_exit:
