@@ -28,6 +28,7 @@
 #include <asm/fncpy.h>
 #include <asm/mach/map.h>
 #include <asm/proc-fns.h>
+#include <asm/psci.h>
 #include <asm/suspend.h>
 #include <asm/tlb.h>
 
@@ -729,6 +730,14 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 
 static int imx6q_suspend_finish(unsigned long val)
 {
+#ifdef CONFIG_ARM_PSCI
+	const struct psci_power_state ps = {
+		.type = PSCI_POWER_STATE_TYPE_POWER_DOWN,
+		.affinity_level = 1,
+	};
+
+	return psci_ops.cpu_suspend(ps, __pa(cpu_resume));
+#else
 	if (!imx6_suspend_in_ocram_fn) {
 		cpu_do_idle();
 	} else {
@@ -741,6 +750,8 @@ static int imx6q_suspend_finish(unsigned long val)
 	}
 
 	return 0;
+#endif
+
 }
 
 static void imx6_console_save(unsigned int *regs)
@@ -1231,6 +1242,11 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 
 void __init imx6q_pm_init(void)
 {
+#ifdef CONFIG_ARM_PSCI
+	if (!psci_ops.cpu_suspend)
+		return;
+#endif
+
 	if (imx_mmdc_get_ddr_type() == IMX_DDR_TYPE_LPDDR2)
 		imx6_pm_common_init(&imx6q_lpddr2_pm_data);
 	else

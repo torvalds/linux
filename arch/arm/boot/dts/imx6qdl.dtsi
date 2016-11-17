@@ -80,6 +80,11 @@
 		};
 	};
 
+	psci {
+		compatible	= "arm,psci-0.2";
+		method		= "smc";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
