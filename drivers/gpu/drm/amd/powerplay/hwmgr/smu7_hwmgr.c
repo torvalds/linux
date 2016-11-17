@@ -1469,8 +1469,6 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 						table_info->vddgfx_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_ClockStretcher)) {
-					if (table_info == NULL)
-						return -EINVAL;
 					sclk_table = table_info->vdd_dep_on_sclk;
 
 					for (j = 1; j < sclk_table->count; j++) {
