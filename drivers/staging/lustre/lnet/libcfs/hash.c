@@ -1035,10 +1035,10 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 	cfs_hash_lock_setup(hs);
 	cfs_hash_hlist_setup(hs);
 
-	hs->hs_cur_bits = (__u8)cur_bits;
-	hs->hs_min_bits = (__u8)cur_bits;
-	hs->hs_max_bits = (__u8)max_bits;
-	hs->hs_bkt_bits = (__u8)bkt_bits;
+	hs->hs_cur_bits = (u8)cur_bits;
+	hs->hs_min_bits = (u8)cur_bits;
+	hs->hs_max_bits = (u8)max_bits;
+	hs->hs_bkt_bits = (u8)bkt_bits;
 
 	hs->hs_ops = ops;
 	hs->hs_extra_bytes = extra_bytes;
@@ -1405,14 +1405,14 @@ cfs_hash_for_each_exit(struct cfs_hash *hs)
  *    . if @removal_safe is true, use can remove current item by
  *      cfs_hash_bd_del_locked
  */
-static __u64
+static u64
 cfs_hash_for_each_tight(struct cfs_hash *hs, cfs_hash_for_each_cb_t func,
 			void *data, int remove_safe)
 {
 	struct hlist_node *hnode;
 	struct hlist_node *pos;
 	struct cfs_hash_bd bd;
-	__u64 count = 0;
+	u64 count = 0;
 	int excl = !!remove_safe;
 	int loop = 0;
 	int i;
@@ -1525,7 +1525,7 @@ cfs_hash_is_empty(struct cfs_hash *hs)
 }
 EXPORT_SYMBOL(cfs_hash_is_empty);
 
-__u64
+u64
 cfs_hash_size_get(struct cfs_hash *hs)
 {
 	return cfs_hash_with_counter(hs) ?
@@ -1556,7 +1556,7 @@ cfs_hash_for_each_relax(struct cfs_hash *hs, cfs_hash_for_each_cb_t func,
 	struct hlist_node *hnode;
 	struct hlist_node *tmp;
 	struct cfs_hash_bd bd;
-	__u32 version;
+	u32 version;
 	int count = 0;
 	int stop_on_change;
 	int end = -1;

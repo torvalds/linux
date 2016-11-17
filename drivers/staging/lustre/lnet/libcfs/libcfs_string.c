@@ -411,7 +411,7 @@ EXPORT_SYMBOL(cfs_expr_list_print);
  * \retval 0 otherwise
  */
 int
-cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list)
+cfs_expr_list_match(u32 value, struct cfs_expr_list *expr_list)
 {
 	struct cfs_range_expr *expr;
 
@@ -433,10 +433,10 @@ EXPORT_SYMBOL(cfs_expr_list_match);
  * \retval < 0 for failure
  */
 int
-cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
+cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, u32 **valpp)
 {
 	struct cfs_range_expr *expr;
-	__u32 *val;
+	u32 *val;
 	int count = 0;
 	int i;
 
