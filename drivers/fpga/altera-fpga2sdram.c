@@ -123,7 +123,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 	}
 
 	sysmgr = syscon_regmap_lookup_by_compatible("altr,sys-mgr");
-	if (IS_ERR(priv->sdrctl)) {
+	if (IS_ERR(sysmgr)) {
 		dev_err(dev, "regmap for altr,sys-mgr lookup failed.\n");
 		return PTR_ERR(sysmgr);
 	}
