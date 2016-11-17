@@ -1000,7 +1000,6 @@ static const struct of_device_id wm8580_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wm8580_of_match);
 
-#if IS_ENABLED(CONFIG_I2C)
 static int wm8580_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1066,30 +1065,8 @@ static struct i2c_driver wm8580_i2c_driver = {
 	.remove =   wm8580_i2c_remove,
 	.id_table = wm8580_i2c_id,
 };
-#endif
 
-static int __init wm8580_modinit(void)
-{
-	int ret = 0;
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&wm8580_i2c_driver);
-	if (ret != 0) {
-		pr_err("Failed to register WM8580 I2C driver: %d\n", ret);
-	}
-#endif
-
-	return ret;
-}
-module_init(wm8580_modinit);
-
-static void __exit wm8580_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8580_i2c_driver);
-#endif
-}
-module_exit(wm8580_exit);
+module_i2c_driver(wm8580_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8580 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
