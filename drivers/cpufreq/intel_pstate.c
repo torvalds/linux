@@ -1909,9 +1909,20 @@ static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 
 	return false;
 }
+
+static void intel_pstate_request_control_from_smm(void)
+{
+	/*
+	 * It may be unsafe to request P-states control from SMM if _PPC support
+	 * has not been enabled.
+	 */
+	if (acpi_ppc)
+		acpi_processor_pstate_control();
+}
 #else /* CONFIG_ACPI not enabled */
 static inline bool intel_pstate_platform_pwr_mgmt_exists(void) { return false; }
 static inline bool intel_pstate_has_acpi_ppc(void) { return false; }
+static inline void intel_pstate_request_control_from_smm(void) {}
 #endif /* CONFIG_ACPI */
 
 static const struct x86_cpu_id hwp_support_ids[] __initconst = {
@@ -1962,6 +1973,8 @@ hwp_cpu_matched:
 
 	if (!hwp_active && hwp_only)
 		goto out;
+
+	intel_pstate_request_control_from_smm();
 
 	rc = cpufreq_register_driver(&intel_pstate_driver);
 	if (rc)
