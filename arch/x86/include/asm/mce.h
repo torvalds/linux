@@ -252,8 +252,10 @@ static inline void cmci_recheck(void) {}
 
 #ifdef CONFIG_X86_MCE_AMD
 void mce_amd_feature_init(struct cpuinfo_x86 *c);
+int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
 #else
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
+static inline int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr) { return -EINVAL; };
 #endif
 
 int mce_available(struct cpuinfo_x86 *c);
