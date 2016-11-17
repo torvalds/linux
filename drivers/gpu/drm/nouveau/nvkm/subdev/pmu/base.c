@@ -85,7 +85,8 @@ nvkm_pmu_reset(struct nvkm_pmu *pmu)
 	);
 
 	/* Reset. */
-	pmu->func->reset(pmu);
+	if (pmu->func->reset)
+		pmu->func->reset(pmu);
 
 	/* Wait for IMEM/DMEM scrubbing to be complete. */
 	nvkm_msec(device, 2000,
