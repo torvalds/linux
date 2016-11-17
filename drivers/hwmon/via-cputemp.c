@@ -319,22 +319,8 @@ static int __init via_cputemp_init(void)
 		goto exit;
 
 	cpu_notifier_register_begin();
-	for_each_online_cpu(i) {
-		struct cpuinfo_x86 *c = &cpu_data(i);
-
-		if (c->x86 != 6)
-			continue;
-
-		if (c->x86_model < 0x0a)
-			continue;
-
-		if (c->x86_model > 0x0f) {
-			pr_warn("Unknown CPU model 0x%x\n", c->x86_model);
-			continue;
-		}
-
+	for_each_online_cpu(i)
 		via_cputemp_device_add(i);
-	}
 
 #ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
