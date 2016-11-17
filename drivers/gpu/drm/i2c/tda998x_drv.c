@@ -1489,9 +1489,6 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	priv->cec_addr = 0x34 + (client->addr & 0x03);
 	priv->current_page = 0xff;
 	priv->hdmi = client;
-	priv->cec = i2c_new_dummy(client->adapter, priv->cec_addr);
-	if (!priv->cec)
-		return -ENODEV;
 
 	/* wake up the device: */
 	cec_write(priv, REG_CEC_ENAMODS,
@@ -1578,6 +1575,12 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 		cec_write(priv, REG_CEC_RXSHPDINTENA, CEC_RXSHPDLEV_HPD);
 	}
 
+	priv->cec = i2c_new_dummy(client->adapter, priv->cec_addr);
+	if (!priv->cec) {
+		ret = -ENODEV;
+		goto fail;
+	}
+
 	/* enable EDID read irq: */
 	reg_set(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
 
@@ -1594,14 +1597,14 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	ret = tda998x_get_audio_ports(priv, np);
 	if (ret)
-		goto err_audio;
+		goto fail;
 
 	if (priv->audio_port[0].format != AFMT_UNUSED)
 		tda998x_audio_codec_init(priv, &client->dev);
 
 	return 0;
 
-err_audio:
+fail:
 	if (client->irq)
 		free_irq(client->irq, priv);
 err_irq:
