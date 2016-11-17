@@ -248,6 +248,16 @@
 /* MSRs */
 #define MSR_MCGCTL_NBE			BIT(4)
 
+/* UMC CH register offsets */
+#define UMCCH_SDP_CTRL			0x104
+#define UMCCH_UMC_CAP_HI		0xDF4
+
+/* UMC CH bitfields */
+#define UMC_ECC_ENABLED			BIT(30)
+#define UMC_SDP_INIT			BIT(31)
+
+#define NUM_UMCS			2
+
 enum amd_families {
 	K8_CPUS = 0,
 	F10_CPUS,
@@ -353,6 +363,12 @@ struct err_info {
 	u32 page;
 	u32 offset;
 };
+
+static inline u32 get_umc_base(u8 channel)
+{
+	/* ch0: 0x50000, ch1: 0x150000 */
+	return 0x50000 + (!!channel << 20);
+}
 
 static inline u64 get_dram_base(struct amd64_pvt *pvt, u8 i)
 {

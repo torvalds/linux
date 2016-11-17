@@ -2664,20 +2664,50 @@ static const char *ecc_msg =
 
 static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 {
-	u32 value;
-	u8 ecc_en = 0;
 	bool nb_mce_en = false;
+	u8 ecc_en = 0, i;
+	u32 value;
 
-	amd64_read_pci_cfg(F3, NBCFG, &value);
+	if (boot_cpu_data.x86 >= 0x17) {
+		u8 umc_en_mask = 0, ecc_en_mask = 0;
 
-	ecc_en = !!(value & NBCFG_ECC_ENABLE);
+		for (i = 0; i < NUM_UMCS; i++) {
+			u32 base = get_umc_base(i);
+
+			/* Only check enabled UMCs. */
+			if (amd_smn_read(nid, base + UMCCH_SDP_CTRL, &value))
+				continue;
+
+			if (!(value & UMC_SDP_INIT))
+				continue;
+
+			umc_en_mask |= BIT(i);
+
+			if (amd_smn_read(nid, base + UMCCH_UMC_CAP_HI, &value))
+				continue;
+
+			if (value & UMC_ECC_ENABLED)
+				ecc_en_mask |= BIT(i);
+		}
+
+		/* Check whether at least one UMC is enabled: */
+		if (umc_en_mask)
+			ecc_en = umc_en_mask == ecc_en_mask;
+
+		/* Assume UMC MCA banks are enabled. */
+		nb_mce_en = true;
+	} else {
+		amd64_read_pci_cfg(F3, NBCFG, &value);
+
+		ecc_en = !!(value & NBCFG_ECC_ENABLE);
+
+		nb_mce_en = nb_mce_bank_enabled_on_node(nid);
+		if (!nb_mce_en)
+			amd64_notice("NB MCE bank disabled, set MSR 0x%08x[4] on node %d to enable.\n",
+				     MSR_IA32_MCG_CTL, nid);
+	}
+
 	amd64_info("DRAM ECC %s.\n", (ecc_en ? "enabled" : "disabled"));
-
-	nb_mce_en = nb_mce_bank_enabled_on_node(nid);
-	if (!nb_mce_en)
-		amd64_notice("NB MCE bank disabled, set MSR "
-			     "0x%08x[4] on node %d to enable.\n",
-			     MSR_IA32_MCG_CTL, nid);
 
 	if (!ecc_en || !nb_mce_en) {
 		amd64_notice("%s", ecc_msg);
