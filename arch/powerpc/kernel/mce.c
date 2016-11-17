@@ -72,7 +72,6 @@ void save_mce_event(struct pt_regs *regs, long handled,
 		    struct mce_error_info *mce_err,
 		    uint64_t nip, uint64_t addr)
 {
-	uint64_t srr1;
 	int index = __this_cpu_inc_return(mce_nest_count) - 1;
 	struct machine_check_event *mce = this_cpu_ptr(&mce_event[index]);
 
@@ -98,8 +97,6 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	else
 		mce->disposition = MCE_DISPOSITION_NOT_RECOVERED;
 	mce->severity = MCE_SEV_ERROR_SYNC;
-
-	srr1 = regs->msr;
 
 	/*
 	 * Populate the mce error_type and type-specific error_type.
