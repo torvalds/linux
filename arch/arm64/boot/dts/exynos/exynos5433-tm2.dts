@@ -905,6 +905,11 @@
 	};
 };
 
+&pmu_system_controller {
+	assigned-clocks = <&pmu_system_controller 0>;
+	assigned-clock-parents = <&xxti>;
+};
+
 &serial_1 {
 	status = "okay";
 };
