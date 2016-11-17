@@ -192,10 +192,11 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_DDR3:		DDR3 RAM
  * @MEM_RDDR3:		Registered DDR3 RAM
  *			This is a variant of the DDR3 memories.
- * @MEM_LRDDR3		Load-Reduced DDR3 memory.
+ * @MEM_LRDDR3:		Load-Reduced DDR3 memory.
  * @MEM_DDR4:		Unbuffered DDR4 RAM
  * @MEM_RDDR4:		Registered DDR4 RAM
  *			This is a variant of the DDR4 memories.
+ * @MEM_LRDDR4:		Load-Reduced DDR4 memory.
  */
 enum mem_type {
 	MEM_EMPTY = 0,
@@ -218,6 +219,7 @@ enum mem_type {
 	MEM_LRDDR3,
 	MEM_DDR4,
 	MEM_RDDR4,
+	MEM_LRDDR4,
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -239,6 +241,7 @@ enum mem_type {
 #define MEM_FLAG_RDDR3          BIT(MEM_RDDR3)
 #define MEM_FLAG_DDR4           BIT(MEM_DDR4)
 #define MEM_FLAG_RDDR4          BIT(MEM_RDDR4)
+#define MEM_FLAG_LRDDR4         BIT(MEM_LRDDR4)
 
 /**
  * enum edac-type - Error Detection and Correction capabilities and mode
