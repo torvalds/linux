@@ -2865,21 +2865,21 @@ MptDisplayIocCapabilities(MPT_ADAPTER *ioc)
 
 	printk(KERN_INFO "%s: ", ioc->name);
 	if (ioc->prod_name)
-		printk("%s: ", ioc->prod_name);
-	printk("Capabilities={");
+		pr_cont("%s: ", ioc->prod_name);
+	pr_cont("Capabilities={");
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
-		printk("Initiator");
+		pr_cont("Initiator");
 		i++;
 	}
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
-		printk("%sTarget", i ? "," : "");
+		pr_cont("%sTarget", i ? "," : "");
 		i++;
 	}
 
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_LAN) {
-		printk("%sLAN", i ? "," : "");
+		pr_cont("%sLAN", i ? "," : "");
 		i++;
 	}
 
@@ -2888,12 +2888,12 @@ MptDisplayIocCapabilities(MPT_ADAPTER *ioc)
 	 *  This would probably evoke more questions than it's worth
 	 */
 	if (ioc->pfacts[0].ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
-		printk("%sLogBusAddr", i ? "," : "");
+		pr_cont("%sLogBusAddr", i ? "," : "");
 		i++;
 	}
 #endif
 
-	printk("}\n");
+	pr_cont("}\n");
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
