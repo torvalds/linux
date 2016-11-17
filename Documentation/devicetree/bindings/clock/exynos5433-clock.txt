@@ -79,7 +79,7 @@ Required Properties:
 	Input clocks for fsys clock controller:
 		- oscclk
 		- sclk_ufs_mphy
-		- div_aclk_fsys_200
+		- aclk_fsys_200
 		- sclk_pcie_100_fsys
 		- sclk_ufsunipro_fsys
 		- sclk_mmc2_fsys
@@ -235,7 +235,7 @@ Example 2: Examples of clock controller nodes are listed below.
 
 		clock-names = "oscclk",
 			"sclk_ufs_mphy",
-			"div_aclk_fsys_200",
+			"aclk_fsys_200",
 			"sclk_pcie_100_fsys",
 			"sclk_ufsunipro_fsys",
 			"sclk_mmc2_fsys",
@@ -245,7 +245,7 @@ Example 2: Examples of clock controller nodes are listed below.
 			"sclk_usbdrd30_fsys";
 		clocks = <&xxti>,
 		       <&cmu_cpif CLK_SCLK_UFS_MPHY>,
-		       <&cmu_top CLK_DIV_ACLK_FSYS_200>,
+		       <&cmu_top CLK_ACLK_FSYS_200>,
 		       <&cmu_top CLK_SCLK_PCIE_100_FSYS>,
 		       <&cmu_top CLK_SCLK_UFSUNIPRO_FSYS>,
 		       <&cmu_top CLK_SCLK_MMC2_FSYS>,
