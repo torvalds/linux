@@ -387,20 +387,24 @@ static void nmi_cpu_shutdown(void *dummy)
 	nmi_cpu_restore_registers(msrs);
 }
 
-static void nmi_cpu_up(void *dummy)
+static void nmi_cpu_up(void)
 {
+	local_irq_disable();
 	if (nmi_enabled)
-		nmi_cpu_setup(dummy);
+		nmi_cpu_setup(NULL);
 	if (ctr_running)
-		nmi_cpu_start(dummy);
+		nmi_cpu_start(NULL);
+	local_irq_enable();
 }
 
-static void nmi_cpu_down(void *dummy)
+static void nmi_cpu_down(void)
 {
+	local_irq_disable();
 	if (ctr_running)
-		nmi_cpu_stop(dummy);
+		nmi_cpu_stop(NULL);
 	if (nmi_enabled)
-		nmi_cpu_shutdown(dummy);
+		nmi_cpu_shutdown(NULL);
+	local_irq_enable();
 }
 
 static int nmi_create_files(struct dentry *root)
@@ -436,15 +440,13 @@ static int nmi_create_files(struct dentry *root)
 static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
 				 void *data)
 {
-	int cpu = (unsigned long)data;
-
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
-		smp_call_function_single(cpu, nmi_cpu_up, NULL, 0);
+		nmi_cpu_up();
 		break;
 	case CPU_DOWN_PREPARE:
-		smp_call_function_single(cpu, nmi_cpu_down, NULL, 1);
+		nmi_cpu_down();
 		break;
 	}
 	return NOTIFY_DONE;
