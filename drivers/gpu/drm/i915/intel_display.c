@@ -12767,10 +12767,12 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("port clock: %d, pipe src size: %dx%d\n",
 		      pipe_config->port_clock,
 		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
-	DRM_DEBUG_KMS("num_scalers: %d, scaler_users: 0x%x, scaler_id: %d\n",
-		      crtc->num_scalers,
-		      pipe_config->scaler_state.scaler_users,
-		      pipe_config->scaler_state.scaler_id);
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		DRM_DEBUG_KMS("num_scalers: %d, scaler_users: 0x%x, scaler_id: %d\n",
+			      crtc->num_scalers,
+			      pipe_config->scaler_state.scaler_users,
+		              pipe_config->scaler_state.scaler_id);
 	DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
 		      pipe_config->gmch_pfit.control,
 		      pipe_config->gmch_pfit.pgm_ratios,
@@ -12831,20 +12833,20 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			continue;
 		}
 
-		DRM_DEBUG_KMS("[PLANE:%d:%s] enabled",
-			      plane->base.id, plane->name);
-		DRM_DEBUG_KMS("\tFB:%d, fb = %ux%u format = %s",
+		DRM_DEBUG_KMS("[PLANE:%d:%s] FB:%d, fb = %ux%u format = %s\n",
+			      plane->base.id, plane->name,
 			      fb->base.id, fb->width, fb->height,
 			      drm_get_format_name(fb->pixel_format, &format_name));
-		DRM_DEBUG_KMS("\tscaler:%d src %dx%d+%d+%d dst %dx%d+%d+%d\n",
-			      state->scaler_id,
-			      state->base.src.x1 >> 16,
-			      state->base.src.y1 >> 16,
-			      drm_rect_width(&state->base.src) >> 16,
-			      drm_rect_height(&state->base.src) >> 16,
-			      state->base.dst.x1, state->base.dst.y1,
-			      drm_rect_width(&state->base.dst),
-			      drm_rect_height(&state->base.dst));
+		if (INTEL_GEN(dev_priv) >= 9)
+			DRM_DEBUG_KMS("\tscaler:%d src %dx%d+%d+%d dst %dx%d+%d+%d\n",
+				      state->scaler_id,
+				      state->base.src.x1 >> 16,
+				      state->base.src.y1 >> 16,
+				      drm_rect_width(&state->base.src) >> 16,
+				      drm_rect_height(&state->base.src) >> 16,
+				      state->base.dst.x1, state->base.dst.y1,
+				      drm_rect_width(&state->base.dst),
+				      drm_rect_height(&state->base.dst));
 	}
 }
 
