@@ -122,11 +122,6 @@ static void fw_state_init(struct fw_state *fw_st)
 	fw_st->status = FW_STATUS_UNKNOWN;
 }
 
-static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
-{
-	return fw_st->status == status;
-}
-
 static inline bool __fw_state_is_done(enum fw_status status)
 {
 	return status == FW_STATUS_DONE || status == FW_STATUS_ABORTED;
@@ -158,8 +153,6 @@ static void __fw_state_set(struct fw_state *fw_st,
 	__fw_state_set(fw_st, FW_STATUS_LOADING)
 #define fw_state_done(fw_st)					\
 	__fw_state_set(fw_st, FW_STATUS_DONE)
-#define fw_state_is_done(fw_st)					\
-	__fw_state_check(fw_st, FW_STATUS_DONE)
 #define fw_state_wait(fw_st)					\
 	__fw_state_wait_common(fw_st, MAX_SCHEDULE_TIMEOUT)
 
@@ -169,8 +162,15 @@ static void __fw_state_set(struct fw_state *fw_st,
 
 #else /* CONFIG_FW_LOADER_USER_HELPER */
 
+static int __fw_state_check(struct fw_state *fw_st, enum fw_status status)
+{
+	return fw_st->status == status;
+}
+
 #define fw_state_aborted(fw_st)					\
 	__fw_state_set(fw_st, FW_STATUS_ABORTED)
+#define fw_state_is_done(fw_st)					\
+	__fw_state_check(fw_st, FW_STATUS_DONE)
 #define fw_state_is_loading(fw_st)				\
 	__fw_state_check(fw_st, FW_STATUS_LOADING)
 #define fw_state_is_aborted(fw_st)				\
