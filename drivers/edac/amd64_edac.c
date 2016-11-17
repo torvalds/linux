@@ -2165,6 +2165,8 @@ static void __log_ecc_error(struct mem_ctl_info *mci, struct err_info *err,
 		err_type = HW_EVENT_ERR_CORRECTED;
 	else if (ecc_type == 1)
 		err_type = HW_EVENT_ERR_UNCORRECTED;
+	else if (ecc_type == 3)
+		err_type = HW_EVENT_ERR_DEFERRED;
 	else {
 		WARN(1, "Something is rotten in the state of Denmark.\n");
 		return;
