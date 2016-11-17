@@ -565,15 +565,6 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 	pcm->dma_capture = &s3c_pcm_stereo_in[pdev->id];
 	pcm->dma_playback = &s3c_pcm_stereo_out[pdev->id];
 
-	pm_runtime_enable(&pdev->dev);
-
-	ret = devm_snd_soc_register_component(&pdev->dev, &s3c_pcm_component,
-					 &s3c_pcm_dai[pdev->id], 1);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
-		goto err5;
-	}
-
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
 						 NULL, NULL);
 	if (ret) {
@@ -581,8 +572,18 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 		goto err5;
 	}
 
-	return 0;
+	pm_runtime_enable(&pdev->dev);
 
+	ret = devm_snd_soc_register_component(&pdev->dev, &s3c_pcm_component,
+					 &s3c_pcm_dai[pdev->id], 1);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
+		goto err6;
+	}
+
+	return 0;
+err6:
+	pm_runtime_disable(&pdev->dev);
 err5:
 	clk_disable_unprepare(pcm->pclk);
 err4:
