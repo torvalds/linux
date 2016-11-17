@@ -561,7 +561,7 @@ static u8 XGIfb_search_refresh_rate(struct xgifb_video_info *xgifb_info,
 						!= 1)) {
 					pr_debug("Adjusting rate from %d down to %d\n",
 						 rate,
-						 XGIfb_vrate[i-1].refresh);
+						 XGIfb_vrate[i - 1].refresh);
 					xgifb_info->rate_idx =
 						XGIfb_vrate[i - 1].idx;
 					xgifb_info->refresh_rate =
@@ -1696,7 +1696,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_XGI_20:
 		xgifb_reg_or(XGICR, Index_CR_GPIO_Reg3, GPIOG_EN);
 		CR48 = xgifb_reg_get(XGICR, Index_CR_GPIO_Reg1);
-		if (CR48&GPIOG_READ)
+		if (CR48 & GPIOG_READ)
 			xgifb_info->chip = XG21;
 		else
 			xgifb_info->chip = XG20;
@@ -1782,9 +1782,9 @@ static int xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->hasVB = HASVB_NONE;
 	} else if (xgifb_info->chip == XG21) {
 		CR38 = xgifb_reg_get(XGICR, 0x38);
-		if ((CR38&0xE0) == 0xC0)
+		if ((CR38 & 0xE0) == 0xC0)
 			xgifb_info->display2 = XGIFB_DISP_LCD;
-		else if ((CR38&0xE0) == 0x60)
+		else if ((CR38 & 0xE0) == 0x60)
 			xgifb_info->hasVB = HASVB_CHRONTEL;
 		else
 			xgifb_info->hasVB = HASVB_NONE;
