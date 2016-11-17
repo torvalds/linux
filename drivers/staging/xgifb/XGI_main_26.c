@@ -105,7 +105,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	cr_data = XGI_CRT1Table[index].CR[3];
 
 	/* Horizontal retrace (=sync) start */
-	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
+	HRS = (cr_data & 0xff) | ((unsigned short)(sr_data & 0xC0) << 2);
 	F = HRS - HDE - 3;
 
 	sr_data = XGI_CRT1Table[index].CR[6];
@@ -115,8 +115,8 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	cr_data2 = XGI_CRT1Table[index].CR[4];
 
 	/* Horizontal blank end */
-	HBE = (cr_data & 0x1f) | ((unsigned short) (cr_data2 & 0x80) >> 2)
-			| ((unsigned short) (sr_data & 0x03) << 6);
+	HBE = (cr_data & 0x1f) | ((unsigned short)(cr_data2 & 0x80) >> 2)
+			| ((unsigned short)(sr_data & 0x03) << 6);
 
 	/* Horizontal retrace (=sync) end */
 	HRE = (cr_data2 & 0x1f) | ((sr_data & 0x04) << 3);
@@ -142,15 +142,15 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	cr_data = XGI_CRT1Table[index].CR[10];
 
 	/* Vertical retrace (=sync) start */
-	VRS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x04) << 6)
-			| ((unsigned short) (cr_data2 & 0x80) << 2)
-			| ((unsigned short) (sr_data & 0x08) << 7);
+	VRS = (cr_data & 0xff) | ((unsigned short)(cr_data2 & 0x04) << 6)
+			| ((unsigned short)(cr_data2 & 0x80) << 2)
+			| ((unsigned short)(sr_data & 0x08) << 7);
 	F = VRS + 1 - VDE;
 
 	cr_data = XGI_CRT1Table[index].CR[13];
 
 	/* Vertical blank end */
-	VBE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x10) << 4);
+	VBE = (cr_data & 0xff) | ((unsigned short)(sr_data & 0x10) << 4);
 	temp = VBE - ((VDE - 1) & 511);
 	B = (temp > 0) ? temp : (temp + 512);
 
@@ -945,7 +945,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	if (var->pixclock) {
 		drate = 1000000000 / var->pixclock;
 		hrate = (drate * 1000) / htotal;
-		xgifb_info->refresh_rate = (unsigned int) (hrate * 2
+		xgifb_info->refresh_rate = (unsigned int)(hrate * 2
 				/ vtotal);
 	} else {
 		xgifb_info->refresh_rate = 60;
@@ -1150,7 +1150,7 @@ static int XGIfb_setcolreg(unsigned int regno, unsigned int red,
 		}
 		break;
 	case 16:
-		((u32 *) (info->pseudo_palette))[regno] = ((red & 0xf800))
+		((u32 *)(info->pseudo_palette))[regno] = ((red & 0xf800))
 				| ((green & 0xfc00) >> 5) | ((blue & 0xf800)
 				>> 11);
 		break;
@@ -1158,7 +1158,7 @@ static int XGIfb_setcolreg(unsigned int regno, unsigned int red,
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
-		((u32 *) (info->pseudo_palette))[regno] = (red << 16) | (green
+		((u32 *)(info->pseudo_palette))[regno] = (red << 16) | (green
 				<< 8) | (blue);
 		break;
 	}
@@ -1250,7 +1250,7 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		drate = 1000000000 / var->pixclock;
 		hrate = (drate * 1000) / htotal;
 		xgifb_info->refresh_rate =
-			(unsigned int) (hrate * 2 / vtotal);
+			(unsigned int)(hrate * 2 / vtotal);
 		pr_debug(
 			"%s: pixclock = %d ,htotal=%d, vtotal=%d\n"
 			"%s: drate=%d, hrate=%d, refresh_rate=%d\n",
@@ -1670,7 +1670,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
 	xgifb_info->vga_base = pci_resource_start(pdev, 2) + 0x30;
 	dev_info(&pdev->dev, "Relocate IO address: %Lx [%08lx]\n",
-		 (u64) pci_resource_start(pdev, 2),
+		 (u64)pci_resource_start(pdev, 2),
 		 xgifb_info->vga_base);
 
 	if (pci_enable_device(pdev)) {
@@ -1763,13 +1763,13 @@ static int xgifb_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev,
 		 "Framebuffer at 0x%Lx, mapped to 0x%p, size %dk\n",
-		 (u64) xgifb_info->video_base,
+		 (u64)xgifb_info->video_base,
 		 xgifb_info->video_vbase,
 		 xgifb_info->video_size / 1024);
 
 	dev_info(&pdev->dev,
 		 "MMIO at 0x%Lx, mapped to 0x%p, size %ldk\n",
-		 (u64) xgifb_info->mmio_base, xgifb_info->mmio_vbase,
+		 (u64)xgifb_info->mmio_base, xgifb_info->mmio_vbase,
 		 xgifb_info->mmio_size / 1024);
 
 	pci_set_drvdata(pdev, xgifb_info);
@@ -1964,7 +1964,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 
 	XGIfb_bpp_to_var(xgifb_info, &fb_info->var);
 
-	fb_info->var.pixclock = (u32) (1000000000 /
+	fb_info->var.pixclock = (u32)(1000000000 /
 			XGIfb_mode_rate_to_dclock(&xgifb_info->dev_info,
 				hw_info,
 				XGIbios_mode[xgifb_info->mode_idx].mode_no));
