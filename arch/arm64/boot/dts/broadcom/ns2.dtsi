@@ -133,6 +133,9 @@
 
 		status = "disabled";
 
+		phys = <&pci_phy0>;
+		phy-names = "pcie-phy";
+
 		msi-parent = <&msi0>;
 		msi0: msi@20020000 {
 			compatible = "brcm,iproc-msi";
@@ -170,6 +173,9 @@
 		brcm,pcie-ob-window-size = <256>;
 
 		status = "disabled";
+
+		phys = <&pci_phy1>;
+		phy-names = "pcie-phy";
 
 		msi-parent = <&msi4>;
 		msi4: msi@50020000 {
