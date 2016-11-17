@@ -634,9 +634,7 @@ struct fc_bsg_job {
 	struct fc_rport *rport;
 	struct device *dev;
 	struct request *req;
-	spinlock_t job_lock;
-	unsigned int state_flags;
-	unsigned int ref_cnt;
+	struct kref kref;
 
 	struct fc_bsg_request *request;
 	struct fc_bsg_reply *reply;

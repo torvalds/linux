@@ -3560,16 +3560,12 @@ fc_vport_sched_delete(struct work_struct *work)
  * @job:	fc_bsg_job that is to be torn down
  */
 static void
-fc_destroy_bsgjob(struct fc_bsg_job *job)
+fc_destroy_bsgjob(struct kref *kref)
 {
-	unsigned long flags;
+	struct fc_bsg_job *job = container_of(kref, struct fc_bsg_job, kref);
+	struct request *rq = job->req;
 
-	spin_lock_irqsave(&job->job_lock, flags);
-	if (job->ref_cnt) {
-		spin_unlock_irqrestore(&job->job_lock, flags);
-		return;
-	}
-	spin_unlock_irqrestore(&job->job_lock, flags);
+	blk_end_request_all(rq, rq->errors);
 
 	put_device(job->dev);	/* release reference for the request */
 
@@ -3620,15 +3616,8 @@ EXPORT_SYMBOL_GPL(fc_bsg_jobdone);
 static void fc_bsg_softirq_done(struct request *rq)
 {
 	struct fc_bsg_job *job = rq->special;
-	unsigned long flags;
 
-	spin_lock_irqsave(&job->job_lock, flags);
-	job->state_flags |= FC_RQST_STATE_DONE;
-	job->ref_cnt--;
-	spin_unlock_irqrestore(&job->job_lock, flags);
-
-	blk_end_request_all(rq, rq->errors);
-	fc_destroy_bsgjob(job);
+	kref_put(&job->kref, fc_destroy_bsgjob);
 }
 
 /**
@@ -3642,24 +3631,18 @@ fc_bsg_job_timeout(struct request *req)
 	struct Scsi_Host *shost = fc_bsg_to_shost(job);
 	struct fc_rport *rport = fc_bsg_to_rport(job);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
-	unsigned long flags;
-	int err = 0, done = 0;
+	int err = 0, inflight = 0;
 
 	if (rport && rport->port_state == FC_PORTSTATE_BLOCKED)
 		return BLK_EH_RESET_TIMER;
 
-	spin_lock_irqsave(&job->job_lock, flags);
-	if (job->state_flags & FC_RQST_STATE_DONE)
-		done = 1;
-	else
-		job->ref_cnt++;
-	spin_unlock_irqrestore(&job->job_lock, flags);
+	inflight = kref_get_unless_zero(&job->kref);
 
-	if (!done && i->f->bsg_timeout) {
+	if (inflight && i->f->bsg_timeout) {
 		/* call LLDD to abort the i/o as it has timed out */
 		err = i->f->bsg_timeout(job);
 		if (err == -EAGAIN) {
-			job->ref_cnt--;
+			kref_put(&job->kref, fc_destroy_bsgjob);
 			return BLK_EH_RESET_TIMER;
 		} else if (err)
 			printk(KERN_ERR "ERROR: FC BSG request timeout - LLD "
@@ -3667,7 +3650,7 @@ fc_bsg_job_timeout(struct request *req)
 	}
 
 	/* the blk_end_sync_io() doesn't check the error */
-	if (done)
+	if (!inflight)
 		return BLK_EH_NOT_HANDLED;
 	else
 		return BLK_EH_HANDLED;
@@ -3728,7 +3711,6 @@ fc_req_to_bsgjob(struct Scsi_Host *shost, struct fc_rport *rport,
 	job->req = req;
 	if (i->f->dd_bsg_size)
 		job->dd_data = (void *)&job[1];
-	spin_lock_init(&job->job_lock);
 	job->request = (struct fc_bsg_request *)req->cmd;
 	job->request_len = req->cmd_len;
 	job->reply = req->sense;
@@ -3750,7 +3732,7 @@ fc_req_to_bsgjob(struct Scsi_Host *shost, struct fc_rport *rport,
 		job->dev = &shost->shost_gendev;
 	get_device(job->dev);		/* take a reference for the request */
 
-	job->ref_cnt = 1;
+	kref_init(&job->kref);
 
 	return 0;
 
