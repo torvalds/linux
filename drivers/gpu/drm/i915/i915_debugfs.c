@@ -1762,8 +1762,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 	intel_runtime_pm_put(dev_priv);
 
-	seq_printf(m, "self-refresh: %s\n",
-		   sr_enabled ? "enabled" : "disabled");
+	seq_printf(m, "self-refresh: %s\n", enableddisabled(sr_enabled));
 
 	return 0;
 }

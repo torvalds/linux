@@ -12783,7 +12783,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x, %s\n",
 			      pipe_config->pch_pfit.pos,
 			      pipe_config->pch_pfit.size,
-		              pipe_config->pch_pfit.enabled ? "enabled" : "disabled");
+		              enableddisabled(pipe_config->pch_pfit.enabled));
 
 	DRM_DEBUG_KMS("ips: %i, double wide: %i\n",
 		      pipe_config->ips_enabled, pipe_config->double_wide);
@@ -16837,7 +16837,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("[CRTC:%d:%s] hw state readout: %s\n",
 			      crtc->base.base.id, crtc->base.name,
-			      crtc->active ? "enabled" : "disabled");
+			      enableddisabled(crtc->active));
 	}
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
@@ -16870,9 +16870,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		}
 
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe %c\n",
-			      encoder->base.base.id,
-			      encoder->base.name,
-			      encoder->base.crtc ? "enabled" : "disabled",
+			      encoder->base.base.id, encoder->base.name,
+			      enableddisabled(encoder->base.crtc),
 			      pipe_name(pipe));
 	}
 
@@ -16901,9 +16900,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			connector->base.encoder = NULL;
 		}
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] hw state readout: %s\n",
-			      connector->base.base.id,
-			      connector->base.name,
-			      connector->base.encoder ? "enabled" : "disabled");
+			      connector->base.base.id, connector->base.name,
+			      enableddisabled(connector->base.encoder));
 	}
 
 	for_each_intel_crtc(dev, crtc) {

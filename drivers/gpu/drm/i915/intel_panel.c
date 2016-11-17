@@ -1722,7 +1722,7 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 
 	DRM_DEBUG_KMS("Connector %s backlight initialized, %s, brightness %u/%u\n",
 		      connector->name,
-		      panel->backlight.enabled ? "enabled" : "disabled",
+		      enableddisabled(panel->backlight.enabled),
 		      panel->backlight.level, panel->backlight.max);
 
 	return 0;

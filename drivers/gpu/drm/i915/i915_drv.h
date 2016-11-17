@@ -129,6 +129,11 @@ static inline const char *onoff(bool v)
 	return v ? "on" : "off";
 }
 
+static inline const char *enableddisabled(bool v)
+{
+	return v ? "enabled" : "disabled";
+}
+
 enum pipe {
 	INVALID_PIPE = -1,
 	PIPE_A = 0,
