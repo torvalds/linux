@@ -4554,6 +4554,11 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 
 	WARN_ON(!llist_empty(&dev_priv->mm.free_list));
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	i915_gem_timeline_fini(&dev_priv->gt.global_timeline);
+	WARN_ON(!list_empty(&dev_priv->gt.timelines));
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
 	kmem_cache_destroy(dev_priv->dependencies);
 	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->vmas);
