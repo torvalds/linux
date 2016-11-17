@@ -1501,10 +1501,15 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	/* read version: */
 	rev_lo = reg_read(priv, REG_VERSION_LSB);
+	if (rev_lo < 0) {
+		dev_err(&client->dev, "failed to read version: %d\n", rev_lo);
+		return rev_lo;
+	}
+
 	rev_hi = reg_read(priv, REG_VERSION_MSB);
-	if (rev_lo < 0 || rev_hi < 0) {
-		ret = rev_lo < 0 ? rev_lo : rev_hi;
-		goto fail;
+	if (rev_hi < 0) {
+		dev_err(&client->dev, "failed to read version: %d\n", rev_hi);
+		return rev_hi;
 	}
 
 	priv->rev = rev_lo | rev_hi << 8;
@@ -1528,7 +1533,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	default:
 		dev_err(&client->dev, "found unsupported device: %04x\n",
 			priv->rev);
-		goto fail;
+		return -ENXIO;
 	}
 
 	/* after reset, enable DDC: */
@@ -1566,7 +1571,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 			dev_err(&client->dev,
 				"failed to request IRQ#%u: %d\n",
 				client->irq, ret);
-			goto fail;
+			goto err_irq;
 		}
 
 		/* enable HPD irq */
@@ -1589,19 +1594,19 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	ret = tda998x_get_audio_ports(priv, np);
 	if (ret)
-		goto fail;
+		goto err_audio;
 
 	if (priv->audio_port[0].format != AFMT_UNUSED)
 		tda998x_audio_codec_init(priv, &client->dev);
 
 	return 0;
-fail:
-	/* if encoder_init fails, the encoder slave is never registered,
-	 * so cleanup here:
-	 */
-	if (priv->cec)
-		i2c_unregister_device(priv->cec);
-	return -ENXIO;
+
+err_audio:
+	if (client->irq)
+		free_irq(client->irq, priv);
+err_irq:
+	i2c_unregister_device(priv->cec);
+	return ret;
 }
 
 static void tda998x_encoder_prepare(struct drm_encoder *encoder)
