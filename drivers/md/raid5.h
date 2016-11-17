@@ -264,7 +264,7 @@ struct stripe_head_state {
 	int syncing, expanding, expanded, replacing;
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
-	int injournal;
+	int injournal, just_cached;
 	int failed_num[2];
 	int p_failed, q_failed;
 	int dec_preread_active;
@@ -367,6 +367,12 @@ enum {
 				 */
 	STRIPE_R5C_CACHING,	/* the stripe is in caching phase
 				 * see more detail in the raid5-cache.c
+				 */
+	STRIPE_R5C_PARTIAL_STRIPE,	/* in r5c cache (to-be/being handled or
+					 * in conf->r5c_partial_stripe_list)
+					 */
+	STRIPE_R5C_FULL_STRIPE,	/* in r5c cache (to-be/being handled or
+				 * in conf->r5c_full_stripe_list)
 				 */
 };
 
@@ -618,6 +624,12 @@ struct r5conf {
 	 */
 	atomic_t		active_stripes;
 	struct list_head	inactive_list[NR_STRIPE_HASH_LOCKS];
+
+	atomic_t		r5c_cached_full_stripes;
+	struct list_head	r5c_full_stripe_list;
+	atomic_t		r5c_cached_partial_stripes;
+	struct list_head	r5c_partial_stripe_list;
+
 	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_quiescent;
@@ -739,4 +751,9 @@ r5c_try_caching_write(struct r5conf *conf, struct stripe_head *sh,
 extern void
 r5c_finish_stripe_write_out(struct r5conf *conf, struct stripe_head *sh,
 			    struct stripe_head_state *s);
+extern void r5c_release_extra_page(struct stripe_head *sh);
+extern void r5c_handle_cached_data_endio(struct r5conf *conf,
+	struct stripe_head *sh, int disks, struct bio_list *return_bi);
+extern int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh,
+			  struct stripe_head_state *s);
 #endif
