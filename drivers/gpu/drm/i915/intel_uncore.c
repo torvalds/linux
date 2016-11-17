@@ -647,6 +647,8 @@ intel_fw_table_check(struct drm_i915_private *dev_priv)
 	num_ranges = dev_priv->uncore.fw_domains_table_entries;
 
 	for (i = 0, prev = -1; i < num_ranges; i++, ranges++) {
+		WARN_ON_ONCE(IS_GEN9(dev_priv) &&
+			     (prev + 1) != (s32)ranges->start);
 		WARN_ON_ONCE(prev >= (s32)ranges->start);
 		prev = ranges->start;
 		WARN_ON_ONCE(prev >= (s32)ranges->end);
