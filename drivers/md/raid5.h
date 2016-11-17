@@ -226,6 +226,8 @@ struct stripe_head {
 
 	struct r5l_io_unit	*log_io;
 	struct list_head	log_list;
+	sector_t		log_start; /* first meta block on the journal */
+	struct list_head	r5c; /* for r5c_cache->stripe_in_journal */
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -537,6 +539,27 @@ struct r5worker_group {
 	int stripes_cnt;
 };
 
+enum r5_cache_state {
+	R5_INACTIVE_BLOCKED,	/* release of inactive stripes blocked,
+				 * waiting for 25% to be free
+				 */
+	R5_ALLOC_MORE,		/* It might help to allocate another
+				 * stripe.
+				 */
+	R5_DID_ALLOC,		/* A stripe was allocated, don't allocate
+				 * more until at least one has been
+				 * released.  This avoids flooding
+				 * the cache.
+				 */
+	R5C_LOG_TIGHT,		/* log device space tight, need to
+				 * prioritize stripes at last_checkpoint
+				 */
+	R5C_LOG_CRITICAL,	/* log device is running out of space,
+				 * only process stripes that are already
+				 * occupying the log
+				 */
+};
+
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	/* only protect corresponding hash list and inactive_list */
@@ -636,17 +659,6 @@ struct r5conf {
 	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
 	unsigned long		cache_state;
-#define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,
-					 * waiting for 25% to be free
-					 */
-#define R5_ALLOC_MORE		2	/* It might help to allocate another
-					 * stripe.
-					 */
-#define R5_DID_ALLOC		4	/* A stripe was allocated, don't allocate
-					 * more until at least one has been
-					 * released.  This avoids flooding
-					 * the cache.
-					 */
 	struct shrinker		shrinker;
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
@@ -752,8 +764,13 @@ extern void
 r5c_finish_stripe_write_out(struct r5conf *conf, struct stripe_head *sh,
 			    struct stripe_head_state *s);
 extern void r5c_release_extra_page(struct stripe_head *sh);
+extern void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
 extern void r5c_handle_cached_data_endio(struct r5conf *conf,
 	struct stripe_head *sh, int disks, struct bio_list *return_bi);
 extern int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh,
 			  struct stripe_head_state *s);
+extern void r5c_make_stripe_write_out(struct stripe_head *sh);
+extern void r5c_flush_cache(struct r5conf *conf, int num);
+extern void r5c_check_stripe_cache_usage(struct r5conf *conf);
+extern void r5c_check_cached_full_stripe(struct r5conf *conf);
 #endif
