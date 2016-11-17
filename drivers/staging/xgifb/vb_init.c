@@ -1039,8 +1039,9 @@ static void XGINew_SetModeScratch(struct vb_device_info *pVBInfo)
 	}
 
 	tempcl |= SetSimuScanMode;
-	if ((!(temp & ActiveCRT1)) && ((temp & ActiveLCD) || (temp & ActiveTV)
-			|| (temp & ActiveCRT2)))
+	if ((!(temp & ActiveCRT1)) && ((temp & ActiveLCD) ||
+				       (temp & ActiveTV) ||
+				       (temp & ActiveCRT2)))
 		tempcl ^= (SetSimuScanMode | SwitchCRT2);
 	if ((temp & ActiveLCD) && (temp & ActiveTV))
 		tempcl ^= (SetSimuScanMode | SwitchCRT2);
