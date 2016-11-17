@@ -2155,7 +2155,7 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *mci, u16 syndrome)
 	return map_err_sym_to_channel(err_sym, pvt->ecc_sym_sz);
 }
 
-static void __log_bus_error(struct mem_ctl_info *mci, struct err_info *err,
+static void __log_ecc_error(struct mem_ctl_info *mci, struct err_info *err,
 			    u8 ecc_type)
 {
 	enum hw_event_mc_err_type err_type;
@@ -2227,7 +2227,7 @@ static inline void decode_bus_error(int node_id, struct mce *m)
 
 	pvt->ops->map_sysaddr_to_csrow(mci, sys_addr, &err);
 
-	__log_bus_error(mci, &err, ecc_type);
+	__log_ecc_error(mci, &err, ecc_type);
 }
 
 /*
