@@ -1064,7 +1064,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			break;
 		}
 	}
-	XGIfb_bpp_to_var(xgifb_info, var); /*update ARGB info*/
+	XGIfb_bpp_to_var(xgifb_info, var); /* update ARGB info */
 
 	dumpVGAReg(xgifb_info);
 	return 0;
@@ -1688,7 +1688,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 	reg1 = xgifb_reg_get(XGISR, IND_SIS_PASSWORD);
 
-	if (reg1 != 0xa1) { /*I/O error */
+	if (reg1 != 0xa1) { /* I/O error */
 		dev_err(&pdev->dev, "I/O error\n");
 		ret = -EIO;
 		goto error_disable;
@@ -1727,7 +1727,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->video_size = video_size_max;
 	}
 
-	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
+	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE */
 	xgifb_reg_or(XGISR,
 		     IND_SIS_PCI_ADDRESS_SET,
 		     (SIS_PCI_ADDR_ENABLE | SIS_MEM_MAP_IO_ENABLE));
@@ -2028,9 +2028,7 @@ error:
 	return ret;
 }
 
-/*****************************************************/
-/*                PCI DEVICE HANDLING                */
-/*****************************************************/
+/* -------------------- PCI DEVICE HANDLING -------------------- */
 
 static void xgifb_remove(struct pci_dev *pdev)
 {
@@ -2054,9 +2052,7 @@ static struct pci_driver xgifb_driver = {
 	.remove = xgifb_remove
 };
 
-/*****************************************************/
-/*                      MODULE                       */
-/*****************************************************/
+/* -------------------- MODULE -------------------- */
 
 module_param(mode, charp, 0000);
 MODULE_PARM_DESC(mode,
