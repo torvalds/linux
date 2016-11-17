@@ -21,38 +21,15 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "rootnv50.h"
-#include "dmacnv50.h"
+#include "priv.h"
 
-#include <nvif/class.h>
-
-static const struct nv50_disp_root_func
-gp104_disp_root = {
-	.init = gf119_disp_root_init,
-	.fini = gf119_disp_root_fini,
-	.dmac = {
-		&gp104_disp_core_oclass,
-		&gp104_disp_base_oclass,
-		&gp104_disp_ovly_oclass,
-	},
-	.pioc = {
-		&gk104_disp_oimm_oclass,
-		&gk104_disp_curs_oclass,
-	},
+static const struct nvkm_pmu_func
+gp100_pmu = {
+	.reset = gt215_pmu_reset,
 };
 
-static int
-gp104_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
+int
+gp100_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	return nv50_disp_root_new_(&gp104_disp_root, disp, oclass,
-				   data, size, pobject);
+	return nvkm_pmu_new_(&gp100_pmu, device, index, ppmu);
 }
-
-const struct nvkm_disp_oclass
-gp104_disp_root_oclass = {
-	.base.oclass = GP104_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = gp104_disp_root_new,
-};

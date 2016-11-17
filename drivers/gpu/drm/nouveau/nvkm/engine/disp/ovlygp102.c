@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat Inc.
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * Authors: Ben Skeggs
  */
 #include "dmacnv50.h"
 #include "rootnv50.h"
@@ -27,12 +27,12 @@
 #include <nvif/class.h>
 
 const struct nv50_disp_dmac_oclass
-gp104_disp_base_oclass = {
-	.base.oclass = GK110_DISP_BASE_CHANNEL_DMA,
+gp102_disp_ovly_oclass = {
+	.base.oclass = GK104_DISP_OVERLAY_CONTROL_DMA,
 	.base.minver = 0,
 	.base.maxver = 0,
-	.ctor = nv50_disp_base_new,
-	.func = &gp104_disp_dmac_func,
-	.mthd = &gf119_disp_base_chan_mthd,
-	.chid = 1,
+	.ctor = nv50_disp_ovly_new,
+	.func = &gp102_disp_dmac_func,
+	.mthd = &gk104_disp_ovly_chan_mthd,
+	.chid = 5,
 };

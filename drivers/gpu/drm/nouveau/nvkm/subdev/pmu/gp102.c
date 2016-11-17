@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,17 +21,23 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "channv50.h"
-#include "rootnv50.h"
+#include "priv.h"
 
-#include <nvif/class.h>
+static void
+gp102_pmu_reset(struct nvkm_pmu *pmu)
+{
+	struct nvkm_device *device = pmu->subdev.device;
+	nvkm_mask(device, 0x10a3c0, 0x00000001, 0x00000001);
+	nvkm_mask(device, 0x10a3c0, 0x00000001, 0x00000000);
+}
 
-const struct nv50_disp_pioc_oclass
-gt215_disp_curs_oclass = {
-	.base.oclass = GT214_DISP_CURSOR,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_curs_new,
-	.func = &nv50_disp_pioc_func,
-	.chid = { 7, 7 },
+static const struct nvkm_pmu_func
+gp102_pmu = {
+	.reset = gp102_pmu_reset,
 };
+
+int
+gp102_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+{
+	return nvkm_pmu_new_(&gp102_pmu, device, index, ppmu);
+}

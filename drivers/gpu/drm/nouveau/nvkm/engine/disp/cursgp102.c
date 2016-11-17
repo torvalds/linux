@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,11 +27,11 @@
 #include <nvif/class.h>
 
 const struct nv50_disp_pioc_oclass
-gt215_disp_curs_oclass = {
-	.base.oclass = GT214_DISP_CURSOR,
+gp102_disp_curs_oclass = {
+	.base.oclass = GK104_DISP_CURSOR,
 	.base.minver = 0,
 	.base.maxver = 0,
 	.ctor = nv50_disp_curs_new,
-	.func = &nv50_disp_pioc_func,
-	.chid = { 7, 7 },
+	.func = &gf119_disp_pioc_func,
+	.chid = { 13, 17 },
 };
