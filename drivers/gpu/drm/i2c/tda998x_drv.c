@@ -1405,6 +1405,8 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	int rev_lo, rev_hi, ret;
 	unsigned short cec_addr;
 
+	mutex_init(&priv->audio_mutex); /* Protect access from audio thread */
+
 	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
 	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
 	priv->vip_cntrl_2 = VIP_CNTRL_2_SWAP_E(4) | VIP_CNTRL_2_SWAP_F(5);
@@ -1518,8 +1520,6 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 		priv->vip_cntrl_1 = video >> 8;
 		priv->vip_cntrl_2 = video;
 	}
-
-	mutex_init(&priv->audio_mutex); /* Protect access from audio thread */
 
 	ret = tda998x_get_audio_ports(priv, np);
 	if (ret)
