@@ -289,7 +289,7 @@ cfs_hash_hd_hhead_size(struct cfs_hash *hs)
 static struct hlist_head *
 cfs_hash_hd_hhead(struct cfs_hash *hs, struct cfs_hash_bd *bd)
 {
-	struct cfs_hash_head_dep   *head;
+	struct cfs_hash_head_dep *head;
 
 	head = (struct cfs_hash_head_dep *)&bd->bd_bucket->hsb_head[0];
 	return &head[bd->bd_offset].hd_head;
@@ -512,9 +512,9 @@ cfs_hash_bd_dep_record(struct cfs_hash *hs, struct cfs_hash_bd *bd, int dep_cur)
 		return;
 
 	spin_lock(&hs->hs_dep_lock);
-	hs->hs_dep_max  = dep_cur;
-	hs->hs_dep_bkt  = bd->bd_bucket->hsb_index;
-	hs->hs_dep_off  = bd->bd_offset;
+	hs->hs_dep_max = dep_cur;
+	hs->hs_dep_bkt = bd->bd_bucket->hsb_index;
+	hs->hs_dep_off = bd->bd_offset;
 	hs->hs_dep_bits = hs->hs_cur_bits;
 	spin_unlock(&hs->hs_dep_lock);
 
@@ -908,9 +908,9 @@ cfs_hash_buckets_realloc(struct cfs_hash *hs, struct cfs_hash_bucket **old_bkts,
 			return NULL;
 		}
 
-		new_bkts[i]->hsb_index   = i;
-		new_bkts[i]->hsb_version = 1;  /* shouldn't be zero */
-		new_bkts[i]->hsb_depmax  = -1; /* unknown */
+		new_bkts[i]->hsb_index = i;
+		new_bkts[i]->hsb_version = 1;	/* shouldn't be zero */
+		new_bkts[i]->hsb_depmax = -1;	/* unknown */
 		bd.bd_bucket = new_bkts[i];
 		cfs_hash_bd_for_each_hlist(hs, &bd, hhead)
 			INIT_HLIST_HEAD(hhead);
@@ -950,9 +950,9 @@ static int cfs_hash_dep_print(struct cfs_workitem *wi)
 	int bits;
 
 	spin_lock(&hs->hs_dep_lock);
-	dep  = hs->hs_dep_max;
-	bkt  = hs->hs_dep_bkt;
-	off  = hs->hs_dep_off;
+	dep = hs->hs_dep_max;
+	bkt = hs->hs_dep_bkt;
+	off = hs->hs_dep_off;
 	bits = hs->hs_dep_bits;
 	spin_unlock(&hs->hs_dep_lock);
 
@@ -1040,7 +1040,7 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 	hs->hs_max_bits = (__u8)max_bits;
 	hs->hs_bkt_bits = (__u8)bkt_bits;
 
-	hs->hs_ops	   = ops;
+	hs->hs_ops = ops;
 	hs->hs_extra_bytes = extra_bytes;
 	hs->hs_rehash_bits = 0;
 	cfs_wi_init(&hs->hs_rehash_wi, hs, cfs_hash_rehash_worker);
@@ -1292,7 +1292,7 @@ cfs_hash_del(struct cfs_hash *hs, const void *key, struct hlist_node *hnode)
 	}
 
 	if (hnode) {
-		obj  = cfs_hash_object(hs, hnode);
+		obj = cfs_hash_object(hs, hnode);
 		bits = cfs_hash_rehash_bits(hs);
 	}
 

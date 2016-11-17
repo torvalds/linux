@@ -90,7 +90,7 @@ cfs_node_to_cpumask(int node, cpumask_t *mask)
 void
 cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
-	int	i;
+	int i;
 
 	if (cptab->ctb_cpu2cpt) {
 		LIBCFS_FREE(cptab->ctb_cpu2cpt,
@@ -128,7 +128,7 @@ struct cfs_cpt_table *
 cfs_cpt_table_alloc(unsigned int ncpt)
 {
 	struct cfs_cpt_table *cptab;
-	int	i;
+	int i;
 
 	LIBCFS_ALLOC(cptab, sizeof(*cptab));
 	if (!cptab)
@@ -179,10 +179,10 @@ EXPORT_SYMBOL(cfs_cpt_table_alloc);
 int
 cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
 {
-	char	*tmp = buf;
-	int	rc = 0;
-	int	i;
-	int	j;
+	char *tmp = buf;
+	int rc = 0;
+	int i;
+	int j;
 
 	for (i = 0; i < cptab->ctb_nparts; i++) {
 		if (len > 0) {
@@ -273,7 +273,7 @@ EXPORT_SYMBOL(cfs_cpt_nodemask);
 int
 cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)
 {
-	int	node;
+	int node;
 
 	LASSERT(cpt >= 0 && cpt < cptab->ctb_nparts);
 
@@ -313,8 +313,8 @@ EXPORT_SYMBOL(cfs_cpt_set_cpu);
 void
 cfs_cpt_unset_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)
 {
-	int	node;
-	int	i;
+	int node;
+	int i;
 
 	LASSERT(cpt == CFS_CPT_ANY || (cpt >= 0 && cpt < cptab->ctb_nparts));
 
@@ -373,7 +373,7 @@ EXPORT_SYMBOL(cfs_cpt_unset_cpu);
 int
 cfs_cpt_set_cpumask(struct cfs_cpt_table *cptab, int cpt, cpumask_t *mask)
 {
-	int	i;
+	int i;
 
 	if (!cpumask_weight(mask) ||
 	    cpumask_any_and(mask, cpu_online_mask) >= nr_cpu_ids) {
@@ -394,7 +394,7 @@ EXPORT_SYMBOL(cfs_cpt_set_cpumask);
 void
 cfs_cpt_unset_cpumask(struct cfs_cpt_table *cptab, int cpt, cpumask_t *mask)
 {
-	int	i;
+	int i;
 
 	for_each_cpu(i, mask)
 		cfs_cpt_unset_cpu(cptab, cpt, i);
@@ -404,8 +404,8 @@ EXPORT_SYMBOL(cfs_cpt_unset_cpumask);
 int
 cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 {
-	cpumask_t	*mask;
-	int		rc;
+	cpumask_t *mask;
+	int rc;
 
 	if (node < 0 || node >= MAX_NUMNODES) {
 		CDEBUG(D_INFO,
@@ -451,7 +451,7 @@ EXPORT_SYMBOL(cfs_cpt_unset_node);
 int
 cfs_cpt_set_nodemask(struct cfs_cpt_table *cptab, int cpt, nodemask_t *mask)
 {
-	int	i;
+	int i;
 
 	for_each_node_mask(i, *mask) {
 		if (!cfs_cpt_set_node(cptab, cpt, i))
@@ -465,7 +465,7 @@ EXPORT_SYMBOL(cfs_cpt_set_nodemask);
 void
 cfs_cpt_unset_nodemask(struct cfs_cpt_table *cptab, int cpt, nodemask_t *mask)
 {
-	int	i;
+	int i;
 
 	for_each_node_mask(i, *mask)
 		cfs_cpt_unset_node(cptab, cpt, i);
@@ -475,8 +475,8 @@ EXPORT_SYMBOL(cfs_cpt_unset_nodemask);
 void
 cfs_cpt_clear(struct cfs_cpt_table *cptab, int cpt)
 {
-	int	last;
-	int	i;
+	int last;
+	int i;
 
 	if (cpt == CFS_CPT_ANY) {
 		last = cptab->ctb_nparts - 1;
@@ -495,10 +495,10 @@ EXPORT_SYMBOL(cfs_cpt_clear);
 int
 cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt)
 {
-	nodemask_t	*mask;
-	int		weight;
-	int		rotor;
-	int		node;
+	nodemask_t *mask;
+	int weight;
+	int rotor;
+	int node;
 
 	/* convert CPU partition ID to HW node id */
 
@@ -528,8 +528,8 @@ EXPORT_SYMBOL(cfs_cpt_spread_node);
 int
 cfs_cpt_current(struct cfs_cpt_table *cptab, int remap)
 {
-	int	cpu = smp_processor_id();
-	int	cpt = cptab->ctb_cpu2cpt[cpu];
+	int cpu = smp_processor_id();
+	int cpt = cptab->ctb_cpu2cpt[cpu];
 
 	if (cpt < 0) {
 		if (!remap)
@@ -557,10 +557,10 @@ EXPORT_SYMBOL(cfs_cpt_of_cpu);
 int
 cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 {
-	cpumask_t	*cpumask;
-	nodemask_t	*nodemask;
-	int		rc;
-	int		i;
+	cpumask_t *cpumask;
+	nodemask_t *nodemask;
+	int rc;
+	int i;
 
 	LASSERT(cpt == CFS_CPT_ANY || (cpt >= 0 && cpt < cptab->ctb_nparts));
 
@@ -603,10 +603,10 @@ static int
 cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		     cpumask_t *node, int number)
 {
-	cpumask_t	*socket = NULL;
-	cpumask_t	*core = NULL;
-	int		rc = 0;
-	int		cpu;
+	cpumask_t *socket = NULL;
+	cpumask_t *core = NULL;
+	int rc = 0;
+	int cpu;
 
 	LASSERT(number > 0);
 
@@ -640,7 +640,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		LASSERT(!cpumask_empty(socket));
 
 		while (!cpumask_empty(socket)) {
-			int     i;
+			int i;
 
 			/* get cpumask for hts in the same core */
 			cpumask_copy(core, topology_sibling_cpumask(cpu));
@@ -665,7 +665,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 		}
 	}
 
- out:
+out:
 	if (socket)
 		LIBCFS_FREE(socket, cpumask_size());
 	if (core)
@@ -705,7 +705,7 @@ cfs_cpt_num_estimate(void)
 
 	ncpt = nnode;
 
- out:
+out:
 #if (BITS_PER_LONG == 32)
 	/* config many CPU partitions on 32-bit system could consume
 	 * too much memory
@@ -722,11 +722,11 @@ static struct cfs_cpt_table *
 cfs_cpt_table_create(int ncpt)
 {
 	struct cfs_cpt_table *cptab = NULL;
-	cpumask_t	*mask = NULL;
-	int		cpt = 0;
-	int		num;
-	int		rc;
-	int		i;
+	cpumask_t *mask = NULL;
+	int cpt = 0;
+	int num;
+	int rc;
+	int i;
 
 	rc = cfs_cpt_num_estimate();
 	if (ncpt <= 0)
@@ -766,7 +766,7 @@ cfs_cpt_table_create(int ncpt)
 
 		while (!cpumask_empty(mask)) {
 			struct cfs_cpu_partition *part;
-			int    n;
+			int n;
 
 			/*
 			 * Each emulated NUMA node has all allowed CPUs in
@@ -819,14 +819,14 @@ cfs_cpt_table_create(int ncpt)
 static struct cfs_cpt_table *
 cfs_cpt_table_create_pattern(char *pattern)
 {
-	struct cfs_cpt_table	*cptab;
+	struct cfs_cpt_table *cptab;
 	char *str;
-	int			node	= 0;
-	int			high;
+	int node = 0;
+	int high;
 	int ncpt = 0;
 	int cpt;
 	int rc;
-	int			c;
+	int c;
 	int i;
 
 	str = cfs_trimwhite(pattern);
@@ -882,10 +882,10 @@ cfs_cpt_table_create_pattern(char *pattern)
 	high = node ? MAX_NUMNODES - 1 : nr_cpu_ids - 1;
 
 	for (str = cfs_trimwhite(pattern), c = 0;; c++) {
-		struct cfs_range_expr	*range;
-		struct cfs_expr_list	*el;
-		char			*bracket = strchr(str, '[');
-		int			n;
+		struct cfs_range_expr *range;
+		struct cfs_expr_list *el;
+		char *bracket = strchr(str, '[');
+		int n;
 
 		if (!bracket) {
 			if (*str) {
@@ -970,8 +970,8 @@ cfs_cpt_table_create_pattern(char *pattern)
 static int
 cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 {
-	unsigned int  cpu = (unsigned long)hcpu;
-	bool	     warn;
+	unsigned int cpu = (unsigned long)hcpu;
+	bool warn;
 
 	switch (action) {
 	case CPU_DEAD:

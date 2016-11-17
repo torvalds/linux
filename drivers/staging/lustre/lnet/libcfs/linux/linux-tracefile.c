@@ -49,8 +49,8 @@ static DECLARE_RWSEM(cfs_tracefile_sem);
 
 int cfs_tracefile_init_arch(void)
 {
-	int    i;
-	int    j;
+	int i;
+	int j;
 	struct cfs_trace_cpu_data *tcd;
 
 	/* initialize trace_data */
@@ -91,8 +91,8 @@ out:
 
 void cfs_tracefile_fini_arch(void)
 {
-	int    i;
-	int    j;
+	int i;
+	int j;
 
 	for (i = 0; i < num_possible_cpus(); i++)
 		for (j = 0; j < 3; j++) {

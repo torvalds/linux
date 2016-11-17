@@ -255,9 +255,9 @@ libcfs_debug_mask2str(char *str, int size, int mask, int is_subsys)
 {
 	const char *(*fn)(int bit) = is_subsys ? libcfs_debug_subsys2str :
 						 libcfs_debug_dbg2str;
-	int	   len = 0;
-	const char   *token;
-	int	   i;
+	int len = 0;
+	const char *token;
+	int i;
 
 	if (!mask) {			/* "0" */
 		if (size > 0)
@@ -301,10 +301,10 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
 {
 	const char *(*fn)(int bit) = is_subsys ? libcfs_debug_subsys2str :
 						 libcfs_debug_dbg2str;
-	int	 m = 0;
-	int	 matched;
-	int	 n;
-	int	 t;
+	int m = 0;
+	int matched;
+	int n;
+	int t;
 
 	/* Allow a number for backwards compatibility */
 
@@ -389,8 +389,8 @@ EXPORT_SYMBOL(libcfs_debug_dumplog);
 
 int libcfs_debug_init(unsigned long bufsize)
 {
-	int    rc = 0;
 	unsigned int max = libcfs_debug_mb;
+	int rc = 0;
 
 	init_waitqueue_head(&debug_ctlwq);
 

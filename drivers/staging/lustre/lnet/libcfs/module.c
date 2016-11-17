@@ -183,12 +183,12 @@ EXPORT_SYMBOL(lprocfs_call_handler);
 static int __proc_dobitmasks(void *data, int write,
 			     loff_t pos, void __user *buffer, int nob)
 {
-	const int     tmpstrlen = 512;
-	char	 *tmpstr;
-	int	   rc;
+	const int tmpstrlen = 512;
+	char *tmpstr;
+	int rc;
 	unsigned int *mask = data;
-	int	   is_subsys = (mask == &libcfs_subsystem_debug) ? 1 : 0;
-	int	   is_printk = (mask == &libcfs_printk) ? 1 : 0;
+	int is_subsys = (mask == &libcfs_subsystem_debug) ? 1 : 0;
+	int is_printk = (mask == &libcfs_printk) ? 1 : 0;
 
 	rc = cfs_trace_allocate_string_buffer(&tmpstr, tmpstrlen);
 	if (rc < 0)
@@ -293,8 +293,8 @@ static int __proc_cpt_table(void *data, int write,
 			    loff_t pos, void __user *buffer, int nob)
 {
 	char *buf = NULL;
-	int   len = 4096;
-	int   rc  = 0;
+	int len = 4096;
+	int rc  = 0;
 
 	if (write)
 		return -EPERM;

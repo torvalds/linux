@@ -68,7 +68,7 @@ char lnet_debug_log_upcall[1024] = "/usr/lib/lustre/lnet_debug_log_upcall";
 void libcfs_run_debug_log_upcall(char *file)
 {
 	char *argv[3];
-	int   rc;
+	int rc;
 	char *envp[] = {
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
@@ -93,8 +93,8 @@ void libcfs_run_debug_log_upcall(char *file)
 
 void libcfs_run_upcall(char **argv)
 {
-	int   rc;
-	int   argc;
+	int rc;
+	int argc;
 	char *envp[] = {
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",

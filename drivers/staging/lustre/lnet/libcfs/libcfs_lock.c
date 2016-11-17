@@ -52,9 +52,9 @@ struct cfs_percpt_lock *
 cfs_percpt_lock_create(struct cfs_cpt_table *cptab,
 		       struct lock_class_key *keys)
 {
-	struct cfs_percpt_lock	*pcl;
-	spinlock_t		*lock;
-	int			i;
+	struct cfs_percpt_lock *pcl;
+	spinlock_t *lock;
+	int i;
 
 	/* NB: cptab can be NULL, pcl will be for HW CPUs on that case */
 	LIBCFS_ALLOC(pcl, sizeof(*pcl));
@@ -94,8 +94,8 @@ void
 cfs_percpt_lock(struct cfs_percpt_lock *pcl, int index)
 	__acquires(pcl->pcl_locks)
 {
-	int	ncpt = cfs_cpt_number(pcl->pcl_cptab);
-	int	i;
+	int ncpt = cfs_cpt_number(pcl->pcl_cptab);
+	int i;
 
 	LASSERT(index >= CFS_PERCPT_LOCK_EX && index < ncpt);
 
@@ -130,8 +130,8 @@ void
 cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index)
 	__releases(pcl->pcl_locks)
 {
-	int	ncpt = cfs_cpt_number(pcl->pcl_cptab);
-	int	i;
+	int ncpt = cfs_cpt_number(pcl->pcl_cptab);
+	int i;
 
 	index = ncpt == 1 ? 0 : index;
 

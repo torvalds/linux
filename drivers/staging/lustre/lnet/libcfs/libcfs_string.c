@@ -112,7 +112,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 char *cfs_firststr(char *str, size_t size)
 {
 	size_t i = 0;
-	char  *end;
+	char *end;
 
 	/* trim leading spaces */
 	while (i < size && *str && isspace(*str)) {
@@ -276,8 +276,8 @@ static int
 cfs_range_expr_parse(struct cfs_lstr *src, unsigned int min, unsigned int max,
 		     int bracketed, struct cfs_range_expr **expr)
 {
-	struct cfs_range_expr	*re;
-	struct cfs_lstr		tok;
+	struct cfs_range_expr *re;
+	struct cfs_lstr tok;
 
 	LIBCFS_ALLOC(re, sizeof(*re));
 	if (!re)
@@ -413,7 +413,7 @@ EXPORT_SYMBOL(cfs_expr_list_print);
 int
 cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list)
 {
-	struct cfs_range_expr	*expr;
+	struct cfs_range_expr *expr;
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		if (value >= expr->re_lo && value <= expr->re_hi &&
@@ -435,10 +435,10 @@ EXPORT_SYMBOL(cfs_expr_list_match);
 int
 cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, __u32 **valpp)
 {
-	struct cfs_range_expr	*expr;
-	__u32			*val;
-	int			count = 0;
-	int			i;
+	struct cfs_range_expr *expr;
+	__u32 *val;
+	int count = 0;
+	int i;
 
 	list_for_each_entry(expr, &expr_list->el_exprs, re_link) {
 		for (i = expr->re_lo; i <= expr->re_hi; i++) {
@@ -504,10 +504,10 @@ int
 cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 		    struct cfs_expr_list **elpp)
 {
-	struct cfs_expr_list	*expr_list;
-	struct cfs_range_expr	*expr;
-	struct cfs_lstr		src;
-	int			rc;
+	struct cfs_expr_list *expr_list;
+	struct cfs_range_expr *expr;
+	struct cfs_lstr	src;
+	int rc;
 
 	LIBCFS_ALLOC(expr_list, sizeof(*expr_list));
 	if (!expr_list)

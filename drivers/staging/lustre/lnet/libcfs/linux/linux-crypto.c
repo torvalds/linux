@@ -64,7 +64,7 @@ static int cfs_crypto_hash_alloc(enum cfs_crypto_hash_alg hash_alg,
 				 unsigned int key_len)
 {
 	struct crypto_ahash *tfm;
-	int     err = 0;
+	int err = 0;
 
 	*type = cfs_crypto_hash_type(hash_alg);
 
@@ -147,10 +147,10 @@ int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 			   unsigned char *key, unsigned int key_len,
 			   unsigned char *hash, unsigned int *hash_len)
 {
-	struct scatterlist	sl;
+	struct scatterlist sl;
 	struct ahash_request *req;
-	int			err;
-	const struct cfs_crypto_hash_type	*type;
+	int err;
+	const struct cfs_crypto_hash_type *type;
 
 	if (!buf || !buf_len || !hash_len)
 		return -EINVAL;
@@ -198,8 +198,8 @@ cfs_crypto_hash_init(enum cfs_crypto_hash_alg hash_alg,
 		     unsigned char *key, unsigned int key_len)
 {
 	struct ahash_request *req;
-	int		     err;
-	const struct cfs_crypto_hash_type       *type;
+	int err;
+	const struct cfs_crypto_hash_type *type;
 
 	err = cfs_crypto_hash_alloc(hash_alg, &type, &req, key, key_len);
 
@@ -273,7 +273,7 @@ EXPORT_SYMBOL(cfs_crypto_hash_update);
 int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *hdesc,
 			  unsigned char *hash, unsigned int *hash_len)
 {
-	int     err;
+	int err;
 	struct ahash_request *req = (void *)hdesc;
 	int size = crypto_ahash_digestsize(crypto_ahash_reqtfm(req));
 
@@ -312,8 +312,8 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 {
 	int buf_len = max(PAGE_SIZE, 1048576UL);
 	void *buf;
-	unsigned long		   start, end;
-	int			     bcount, err = 0;
+	unsigned long start, end;
+	int bcount, err = 0;
 	struct page *page;
 	unsigned char hash[CFS_CRYPTO_HASH_DIGESTSIZE_MAX];
 	unsigned int hash_len = sizeof(hash);
@@ -358,7 +358,7 @@ out_err:
 		CDEBUG(D_INFO, "Crypto hash algorithm %s test error: rc = %d\n",
 		       cfs_crypto_hash_name(hash_alg), err);
 	} else {
-		unsigned long   tmp;
+		unsigned long tmp;
 
 		tmp = ((bcount * buf_len / jiffies_to_msecs(end - start)) *
 		       1000) / (1024 * 1024);
