@@ -250,12 +250,23 @@
 /* MSRs */
 #define MSR_MCGCTL_NBE			BIT(4)
 
+/* F17h */
+
+/* F0: */
+#define DF_DHAR				0x104
+
 /* UMC CH register offsets */
+#define UMCCH_BASE_ADDR			0x0
+#define UMCCH_ADDR_MASK			0x20
+#define UMCCH_DIMM_CFG			0x80
 #define UMCCH_SDP_CTRL			0x104
+#define UMCCH_ECC_CTRL			0x14C
 #define UMCCH_UMC_CAP_HI		0xDF4
 
 /* UMC CH bitfields */
+#define UMC_ECC_CHIPKILL_CAP		BIT(31)
 #define UMC_ECC_ENABLED			BIT(30)
+
 #define UMC_SDP_INIT			BIT(31)
 
 #define NUM_UMCS			2
@@ -302,7 +313,9 @@ struct chip_select {
 };
 
 struct amd64_umc {
+	u32 dimm_cfg;		/* DIMM Configuration reg */
 	u32 sdp_ctrl;		/* SDP Control reg */
+	u32 ecc_ctrl;		/* DRAM ECC Control reg */
 };
 
 struct amd64_pvt {
