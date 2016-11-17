@@ -2443,6 +2443,41 @@ no_phy_slave:
 
 static void cpsw_remove_dt(struct platform_device *pdev)
 {
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
+	struct cpsw_platform_data *data = &cpsw->data;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *slave_node;
+	int i = 0;
+
+	for_each_available_child_of_node(node, slave_node) {
+		struct cpsw_slave_data *slave_data = &data->slave_data[i];
+
+		if (strcmp(slave_node->name, "slave"))
+			continue;
+
+		if (of_phy_is_fixed_link(slave_node)) {
+			struct phy_device *phydev;
+
+			phydev = of_phy_find_device(slave_node);
+			if (phydev) {
+				fixed_phy_unregister(phydev);
+				/* Put references taken by
+				 * of_phy_find_device() and
+				 * of_phy_register_fixed_link().
+				 */
+				phy_device_free(phydev);
+				phy_device_free(phydev);
+			}
+		}
+
+		of_node_put(slave_data->phy_node);
+
+		i++;
+		if (i == data->slaves)
+			break;
+	}
+
 	of_platform_depopulate(&pdev->dev);
 }
 
