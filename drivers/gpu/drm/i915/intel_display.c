@@ -12736,9 +12736,8 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	struct intel_plane_state *state;
 	struct drm_framebuffer *fb;
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s]%s config %p for pipe %c\n",
-		      crtc->base.base.id, crtc->base.name,
-		      context, pipe_config, pipe_name(crtc->pipe));
+	DRM_DEBUG_KMS("[CRTC:%d:%s]%s\n",
+		      crtc->base.base.id, crtc->base.name, context);
 
 	DRM_DEBUG_KMS("cpu_transcoder: %s\n", transcoder_name(pipe_config->cpu_transcoder));
 	DRM_DEBUG_KMS("pipe bpp: %i, dithering: %i\n",
