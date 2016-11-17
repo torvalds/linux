@@ -3179,7 +3179,7 @@ bfad_im_bsg_vendor_request(struct bsg_job *job)
 	bsg_reply->reply_payload_rcv_len = job->reply_payload.payload_len;
 	bsg_reply->result = rc;
 
-	fc_bsg_jobdone(job, bsg_reply->result,
+	bsg_job_done(job, bsg_reply->result,
 		       bsg_reply->reply_payload_rcv_len);
 	return rc;
 error:
@@ -3555,7 +3555,7 @@ out:
 	bsg_reply->result = rc;
 
 	if (rc == BFA_STATUS_OK)
-		fc_bsg_jobdone(job, bsg_reply->result,
+		bsg_job_done(job, bsg_reply->result,
 			       bsg_reply->reply_payload_rcv_len);
 
 	return rc;

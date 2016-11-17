@@ -808,8 +808,6 @@ struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
 		struct fc_vport_identifiers *);
 int fc_vport_terminate(struct fc_vport *vport);
 int fc_block_scsi_eh(struct scsi_cmnd *cmnd);
-void fc_bsg_jobdone(struct bsg_job *job, int result,
-		    unsigned int reply_payload_rcv_len);
 
 static inline struct Scsi_Host *fc_bsg_to_shost(struct bsg_job *job)
 {
