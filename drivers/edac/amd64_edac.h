@@ -309,7 +309,7 @@ struct amd64_pvt {
 	struct low_ops *ops;
 
 	/* pci_device handles which we utilize */
-	struct pci_dev *F1, *F2, *F3;
+	struct pci_dev *F0, *F1, *F2, *F3, *F6;
 
 	u16 mc_node_id;		/* MC index of this MC node */
 	u8 fam;			/* CPU family */

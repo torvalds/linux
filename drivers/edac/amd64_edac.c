@@ -2274,30 +2274,55 @@ static inline void decode_bus_error(int node_id, struct mce *m)
 /*
  * Use pvt->F3 which contains the F3 CPU PCI device to get the related
  * F1 (AddrMap) and F2 (Dct) devices. Return negative value on error.
+ * Reserve F0 and F6 on systems with a UMC.
  */
-static int reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 f1_id, u16 f2_id)
+static int
+reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 {
+	if (pvt->umc) {
+		pvt->F0 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
+		if (!pvt->F0) {
+		amd64_err("error F0 device not found: vendor %x device 0x%x (broken BIOS?)\n",
+			  PCI_VENDOR_ID_AMD, pci_id1);
+			return -ENODEV;
+		}
+
+		pvt->F6 = pci_get_related_function(pvt->F3->vendor, pci_id2, pvt->F3);
+		if (!pvt->F6) {
+			pci_dev_put(pvt->F0);
+			pvt->F0 = NULL;
+
+		amd64_err("error F6 device not found: vendor %x device 0x%x (broken BIOS?)\n",
+			  PCI_VENDOR_ID_AMD, pci_id2);
+
+			return -ENODEV;
+		}
+		edac_dbg(1, "F0: %s\n", pci_name(pvt->F0));
+		edac_dbg(1, "F3: %s\n", pci_name(pvt->F3));
+		edac_dbg(1, "F6: %s\n", pci_name(pvt->F6));
+
+		return 0;
+	}
+
 	/* Reserve the ADDRESS MAP Device */
-	pvt->F1 = pci_get_related_function(pvt->F3->vendor, f1_id, pvt->F3);
+	pvt->F1 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 	if (!pvt->F1) {
-		amd64_err("error address map device not found: "
-			  "vendor %x device 0x%x (broken BIOS?)\n",
-			  PCI_VENDOR_ID_AMD, f1_id);
+	amd64_err("error address map device not found: vendor %x device 0x%x (broken BIOS?)\n",
+		  PCI_VENDOR_ID_AMD, pci_id1);
 		return -ENODEV;
 	}
 
 	/* Reserve the DCT Device */
-	pvt->F2 = pci_get_related_function(pvt->F3->vendor, f2_id, pvt->F3);
+	pvt->F2 = pci_get_related_function(pvt->F3->vendor, pci_id2, pvt->F3);
 	if (!pvt->F2) {
 		pci_dev_put(pvt->F1);
 		pvt->F1 = NULL;
 
-		amd64_err("error F2 device not found: "
-			  "vendor %x device 0x%x (broken BIOS?)\n",
-			  PCI_VENDOR_ID_AMD, f2_id);
-
-		return -ENODEV;
+	amd64_err("error F2 device not found: vendor %x device 0x%x (broken BIOS?)\n",
+		  PCI_VENDOR_ID_AMD, pci_id2);
+			return -ENODEV;
 	}
+
 	edac_dbg(1, "F1: %s\n", pci_name(pvt->F1));
 	edac_dbg(1, "F2: %s\n", pci_name(pvt->F2));
 	edac_dbg(1, "F3: %s\n", pci_name(pvt->F3));
@@ -2307,8 +2332,13 @@ static int reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 f1_id, u16 f2_id)
 
 static void free_mc_sibling_devs(struct amd64_pvt *pvt)
 {
-	pci_dev_put(pvt->F1);
-	pci_dev_put(pvt->F2);
+	if (pvt->umc) {
+		pci_dev_put(pvt->F0);
+		pci_dev_put(pvt->F6);
+	} else {
+		pci_dev_put(pvt->F1);
+		pci_dev_put(pvt->F2);
+	}
 }
 
 /*
@@ -2864,6 +2894,7 @@ static int init_one_instance(unsigned int nid)
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
 	struct amd64_pvt *pvt = NULL;
+	u16 pci_id1, pci_id2;
 	int err = 0, ret;
 
 	ret = -ENOMEM;
@@ -2879,10 +2910,23 @@ static int init_one_instance(unsigned int nid)
 	if (!fam_type)
 		goto err_free;
 
-	ret = -ENODEV;
-	err = reserve_mc_sibling_devs(pvt, fam_type->f1_id, fam_type->f2_id);
+	if (pvt->fam >= 0x17) {
+		pvt->umc = kcalloc(NUM_UMCS, sizeof(struct amd64_umc), GFP_KERNEL);
+		if (!pvt->umc) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
+		pci_id1 = fam_type->f0_id;
+		pci_id2 = fam_type->f6_id;
+	} else {
+		pci_id1 = fam_type->f1_id;
+		pci_id2 = fam_type->f2_id;
+	}
+
+	err = reserve_mc_sibling_devs(pvt, pci_id1, pci_id2);
 	if (err)
-		goto err_free;
+		goto err_post_init;
 
 	read_mc_regs(pvt);
 
@@ -2941,6 +2985,10 @@ err_add_mc:
 
 err_siblings:
 	free_mc_sibling_devs(pvt);
+
+err_post_init:
+	if (pvt->fam >= 0x17)
+		kfree(pvt->umc);
 
 err_free:
 	kfree(pvt);
@@ -3044,7 +3092,10 @@ static void setup_pci_device(void)
 		return;
 
 	pvt = mci->pvt_info;
-	pci_ctl = edac_pci_create_generic_ctl(&pvt->F2->dev, EDAC_MOD_STR);
+	if (pvt->umc)
+		pci_ctl = edac_pci_create_generic_ctl(&pvt->F0->dev, EDAC_MOD_STR);
+	else
+		pci_ctl = edac_pci_create_generic_ctl(&pvt->F2->dev, EDAC_MOD_STR);
 	if (!pci_ctl) {
 		pr_warn("%s(): Unable to create PCI control\n", __func__);
 		pr_warn("%s(): PCI error report via EDAC not set\n", __func__);
