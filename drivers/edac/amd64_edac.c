@@ -164,8 +164,23 @@ static inline int amd64_read_dct_pci_cfg(struct amd64_pvt *pvt, u8 dct,
  * other archs, we might not have access to the caches directly.
  */
 
+static inline void __f17h_set_scrubval(struct amd64_pvt *pvt, u32 scrubval)
+{
+	/*
+	 * Fam17h supports scrub values between 0x5 and 0x14. Also, the values
+	 * are shifted down by 0x5, so scrubval 0x5 is written to the register
+	 * as 0x0, scrubval 0x6 as 0x1, etc.
+	 */
+	if (scrubval >= 0x5 && scrubval <= 0x14) {
+		scrubval -= 0x5;
+		pci_write_bits32(pvt->F6, F17H_SCR_LIMIT_ADDR, scrubval, 0xF);
+		pci_write_bits32(pvt->F6, F17H_SCR_BASE_ADDR, 1, 0x1);
+	} else {
+		pci_write_bits32(pvt->F6, F17H_SCR_BASE_ADDR, 0, 0x1);
+	}
+}
 /*
- * scan the scrub rate mapping table for a close or matching bandwidth value to
+ * Scan the scrub rate mapping table for a close or matching bandwidth value to
  * issue. If requested is too big, then use last maximum value found.
  */
 static int __set_scrub_rate(struct amd64_pvt *pvt, u32 new_bw, u32 min_rate)
@@ -196,7 +211,9 @@ static int __set_scrub_rate(struct amd64_pvt *pvt, u32 new_bw, u32 min_rate)
 
 	scrubval = scrubrates[i].scrubval;
 
-	if (pvt->fam == 0x15 && pvt->model == 0x60) {
+	if (pvt->fam == 0x17) {
+		__f17h_set_scrubval(pvt, scrubval);
+	} else if (pvt->fam == 0x15 && pvt->model == 0x60) {
 		f15h_select_dct(pvt, 0);
 		pci_write_bits32(pvt->F2, F15H_M60H_SCRCTRL, scrubval, 0x001F);
 		f15h_select_dct(pvt, 1);
@@ -233,18 +250,34 @@ static int set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 static int get_scrub_rate(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u32 scrubval = 0;
 	int i, retval = -EINVAL;
+	u32 scrubval = 0;
 
-	if (pvt->fam == 0x15) {
+	switch (pvt->fam) {
+	case 0x15:
 		/* Erratum #505 */
 		if (pvt->model < 0x10)
 			f15h_select_dct(pvt, 0);
 
 		if (pvt->model == 0x60)
 			amd64_read_pci_cfg(pvt->F2, F15H_M60H_SCRCTRL, &scrubval);
-	} else
+		break;
+
+	case 0x17:
+		amd64_read_pci_cfg(pvt->F6, F17H_SCR_BASE_ADDR, &scrubval);
+		if (scrubval & BIT(0)) {
+			amd64_read_pci_cfg(pvt->F6, F17H_SCR_LIMIT_ADDR, &scrubval);
+			scrubval &= 0xF;
+			scrubval += 0x5;
+		} else {
+			scrubval = 0;
+		}
+		break;
+
+	default:
 		amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
+		break;
+	}
 
 	scrubval = scrubval & 0x001F;
 

@@ -204,6 +204,8 @@
 #define DCT_SEL_HI			0x114
 
 #define F15H_M60H_SCRCTRL		0x1C8
+#define F17H_SCR_BASE_ADDR		0x48
+#define F17H_SCR_LIMIT_ADDR		0x4C
 
 /*
  * Function 3 - Misc Control
