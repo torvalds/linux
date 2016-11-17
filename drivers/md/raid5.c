@@ -70,19 +70,6 @@ module_param(devices_handle_discard_safely, bool, 0644);
 MODULE_PARM_DESC(devices_handle_discard_safely,
 		 "Set to Y if all devices in each array reliably return zeroes on reads from discarded regions");
 static struct workqueue_struct *raid5_wq;
-/*
- * Stripe cache
- */
-
-#define NR_STRIPES		256
-#define STRIPE_SIZE		PAGE_SIZE
-#define STRIPE_SHIFT		(PAGE_SHIFT - 9)
-#define STRIPE_SECTORS		(STRIPE_SIZE>>9)
-#define	IO_THRESHOLD		1
-#define BYPASS_THRESHOLD	1
-#define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
-#define HASH_MASK		(NR_HASH - 1)
-#define MAX_STRIPE_BATCH	8
 
 static inline struct hlist_head *stripe_hash(struct r5conf *conf, sector_t sect)
 {
@@ -124,64 +111,6 @@ static inline void unlock_all_device_hash_locks_irq(struct r5conf *conf)
 	for (i = NR_STRIPE_HASH_LOCKS; i; i--)
 		spin_unlock(conf->hash_locks + i - 1);
 	local_irq_enable();
-}
-
-/* bio's attached to a stripe+device for I/O are linked together in bi_sector
- * order without overlap.  There may be several bio's per stripe+device, and
- * a bio could span several devices.
- * When walking this list for a particular stripe+device, we must never proceed
- * beyond a bio that extends past this device, as the next bio might no longer
- * be valid.
- * This function is used to determine the 'next' bio in the list, given the sector
- * of the current stripe+device
- */
-static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
-{
-	int sectors = bio_sectors(bio);
-	if (bio->bi_iter.bi_sector + sectors < sector + STRIPE_SECTORS)
-		return bio->bi_next;
-	else
-		return NULL;
-}
-
-/*
- * We maintain a biased count of active stripes in the bottom 16 bits of
- * bi_phys_segments, and a count of processed stripes in the upper 16 bits
- */
-static inline int raid5_bi_processed_stripes(struct bio *bio)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-	return (atomic_read(segments) >> 16) & 0xffff;
-}
-
-static inline int raid5_dec_bi_active_stripes(struct bio *bio)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-	return atomic_sub_return(1, segments) & 0xffff;
-}
-
-static inline void raid5_inc_bi_active_stripes(struct bio *bio)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-	atomic_inc(segments);
-}
-
-static inline void raid5_set_bi_processed_stripes(struct bio *bio,
-	unsigned int cnt)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-	int old, new;
-
-	do {
-		old = atomic_read(segments);
-		new = (old & 0xffff) | (cnt << 16);
-	} while (atomic_cmpxchg(segments, old, new) != old);
-}
-
-static inline void raid5_set_bi_stripes(struct bio *bio, unsigned int cnt)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-	atomic_set(segments, cnt);
 }
 
 /* Find first data disk in a raid6 stripe */
