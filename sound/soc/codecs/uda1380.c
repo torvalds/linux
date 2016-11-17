@@ -775,7 +775,6 @@ static struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_I2C)
 static int uda1380_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
@@ -815,27 +814,8 @@ static struct i2c_driver uda1380_i2c_driver = {
 	.remove =   uda1380_i2c_remove,
 	.id_table = uda1380_i2c_id,
 };
-#endif
 
-static int __init uda1380_modinit(void)
-{
-	int ret = 0;
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&uda1380_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register UDA1380 I2C driver: %d\n", ret);
-#endif
-	return ret;
-}
-module_init(uda1380_modinit);
-
-static void __exit uda1380_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&uda1380_i2c_driver);
-#endif
-}
-module_exit(uda1380_exit);
+module_i2c_driver(uda1380_i2c_driver);
 
 MODULE_AUTHOR("Giorgio Padrin");
 MODULE_DESCRIPTION("Audio support for codec Philips UDA1380");
