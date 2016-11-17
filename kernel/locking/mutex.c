@@ -840,7 +840,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 {
 	struct task_struct *next = NULL;
 	unsigned long owner, flags;
-	WAKE_Q(wake_q);
+	DEFINE_WAKE_Q(wake_q);
 
 	mutex_release(&lock->dep_map, 1, ip);
 
