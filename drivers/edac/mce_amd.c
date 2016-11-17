@@ -8,7 +8,7 @@ static struct amd_decoder_ops *fam_ops;
 static u8 xec_mask	 = 0xf;
 
 static bool report_gart_errors;
-static void (*nb_bus_decoder)(int node_id, struct mce *m);
+static void (*decode_dram_ecc)(int node_id, struct mce *m);
 
 void amd_report_gart_errors(bool v)
 {
@@ -18,16 +18,16 @@ EXPORT_SYMBOL_GPL(amd_report_gart_errors);
 
 void amd_register_ecc_decoder(void (*f)(int, struct mce *))
 {
-	nb_bus_decoder = f;
+	decode_dram_ecc = f;
 }
 EXPORT_SYMBOL_GPL(amd_register_ecc_decoder);
 
 void amd_unregister_ecc_decoder(void (*f)(int, struct mce *))
 {
-	if (nb_bus_decoder) {
-		WARN_ON(nb_bus_decoder != f);
+	if (decode_dram_ecc) {
+		WARN_ON(decode_dram_ecc != f);
 
-		nb_bus_decoder = NULL;
+		decode_dram_ecc = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(amd_unregister_ecc_decoder);
@@ -763,8 +763,8 @@ static void decode_mc4_mce(struct mce *m)
 
 			pr_cont("%s.\n", mc4_mce_desc[xec]);
 
-			if (nb_bus_decoder)
-				nb_bus_decoder(node_id, m);
+			if (decode_dram_ecc)
+				decode_dram_ecc(node_id, m);
 			return;
 		}
 		break;
@@ -877,6 +877,13 @@ static void decode_smca_errors(struct mce *m)
 		pr_emerg(HW_ERR "%s Error: ", ip_name);
 		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}
+
+	/*
+	 * amd_get_nb_id() returns the last level cache id.
+	 * The last level cache on Fam17h is 1 level below the node.
+	 */
+	if (bank_type == SMCA_UMC && xec == 0 && decode_dram_ecc)
+		decode_dram_ecc(amd_get_nb_id(m->extcpu) >> 1, m);
 }
 
 static inline void amd_decode_err_code(u16 ec)
