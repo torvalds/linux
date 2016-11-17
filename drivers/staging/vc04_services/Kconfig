@@ -1,5 +1,6 @@
 config BCM2835_VCHIQ
 	tristate "Videocore VCHIQ"
+	depends on HAS_DMA
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
 	default y
 	help
