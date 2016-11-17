@@ -2198,6 +2198,7 @@ static void
 qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
 	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
+	struct fc_bsg_request *bsg_request = bsg_job->request;
 
         els_iocb->entry_type = ELS_IOCB_TYPE;
         els_iocb->entry_count = 1;
@@ -2212,8 +2213,8 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 
 	els_iocb->opcode =
 	    sp->type == SRB_ELS_CMD_RPT ?
-	    bsg_job->request->rqst_data.r_els.els_code :
-	    bsg_job->request->rqst_data.h_els.command_code;
+	    bsg_request->rqst_data.r_els.els_code :
+	    bsg_request->rqst_data.h_els.command_code;
         els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
         els_iocb->port_id[1] = sp->fcport->d_id.b.area;
         els_iocb->port_id[2] = sp->fcport->d_id.b.domain;

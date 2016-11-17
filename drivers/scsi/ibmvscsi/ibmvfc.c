@@ -1827,28 +1827,30 @@ static int ibmvfc_bsg_request(struct fc_bsg_job *job)
 	struct ibmvfc_event *evt;
 	union ibmvfc_iu rsp_iu;
 	unsigned long flags, port_id = -1;
-	unsigned int code = job->request->msgcode;
+	struct fc_bsg_request *bsg_request = job->request;
+	struct fc_bsg_reply *bsg_reply = job->reply;
+	unsigned int code = bsg_request->msgcode;
 	int rc = 0, req_seg, rsp_seg, issue_login = 0;
 	u32 fc_flags, rsp_len;
 
 	ENTER;
-	job->reply->reply_payload_rcv_len = 0;
+	bsg_reply->reply_payload_rcv_len = 0;
 	if (rport)
 		port_id = rport->port_id;
 
 	switch (code) {
 	case FC_BSG_HST_ELS_NOLOGIN:
-		port_id = (job->request->rqst_data.h_els.port_id[0] << 16) |
-			(job->request->rqst_data.h_els.port_id[1] << 8) |
-			job->request->rqst_data.h_els.port_id[2];
+		port_id = (bsg_request->rqst_data.h_els.port_id[0] << 16) |
+			(bsg_request->rqst_data.h_els.port_id[1] << 8) |
+			bsg_request->rqst_data.h_els.port_id[2];
 	case FC_BSG_RPT_ELS:
 		fc_flags = IBMVFC_FC_ELS;
 		break;
 	case FC_BSG_HST_CT:
 		issue_login = 1;
-		port_id = (job->request->rqst_data.h_ct.port_id[0] << 16) |
-			(job->request->rqst_data.h_ct.port_id[1] << 8) |
-			job->request->rqst_data.h_ct.port_id[2];
+		port_id = (bsg_request->rqst_data.h_ct.port_id[0] << 16) |
+			(bsg_request->rqst_data.h_ct.port_id[1] << 8) |
+			bsg_request->rqst_data.h_ct.port_id[2];
 	case FC_BSG_RPT_CT:
 		fc_flags = IBMVFC_FC_CT_IU;
 		break;
@@ -1937,12 +1939,12 @@ static int ibmvfc_bsg_request(struct fc_bsg_job *job)
 	if (rsp_iu.passthru.common.status)
 		rc = -EIO;
 	else
-		job->reply->reply_payload_rcv_len = rsp_len;
+		bsg_reply->reply_payload_rcv_len = rsp_len;
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	ibmvfc_free_event(evt);
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
-	job->reply->result = rc;
+	bsg_reply->result = rc;
 	job->job_done(job);
 	rc = 0;
 out:
