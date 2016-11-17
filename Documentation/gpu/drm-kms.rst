@@ -260,6 +260,12 @@ Property Types and Blob Property Support
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
 
+Standard Connector Properties
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: standard connector properties
+
 Plane Composition Properties
 ----------------------------
 
