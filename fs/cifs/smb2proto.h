@@ -58,6 +58,8 @@ extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
 					  __u64 ses_id);
+extern int smb3_handle_read_data(struct TCP_Server_Info *server,
+				 struct mid_q_entry *mid);
 
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);

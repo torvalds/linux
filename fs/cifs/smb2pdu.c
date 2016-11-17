@@ -2281,7 +2281,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	case MID_RESPONSE_RECEIVED:
 		credits_received = le16_to_cpu(shdr->CreditRequest);
 		/* result already set, check signature */
-		if (server->sign) {
+		if (server->sign && !mid->decrypted) {
 			int rc;
 
 			rc = smb2_verify_signature(&rqst, server);
@@ -2384,7 +2384,7 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(io_parms.tcon->ses->server, &rqst,
 			     cifs_readv_receive, smb2_readv_callback,
-			     NULL, rdata, flags);
+			     smb3_handle_read_data, rdata, flags);
 	if (rc) {
 		kref_put(&rdata->refcount, cifs_readdata_release);
 		cifs_stats_fail_inc(io_parms.tcon, SMB2_READ_HE);
