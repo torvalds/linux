@@ -371,36 +371,36 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 
 	amdgpu_fill_placement_to_bo(bo, placement);
 	/* Kernel allocation are uninterruptible */
+
+	if (!resv) {
+		bool locked;
+
+		reservation_object_init(&bo->tbo.ttm_resv);
+		locked = ww_mutex_trylock(&bo->tbo.ttm_resv.lock);
+		WARN_ON(!locked);
+	}
 	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, !kernel, NULL,
-			acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
-	if (unlikely(r != 0)) {
+			acc_size, sg, resv ? resv : &bo->tbo.ttm_resv,
+			&amdgpu_ttm_bo_destroy);
+	if (unlikely(r != 0))
 		return r;
-	}
 
 	if (flags & AMDGPU_GEM_CREATE_VRAM_CLEARED &&
 	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
 		struct dma_fence *fence;
-
-		r = amdgpu_bo_reserve(bo, false);
-		if (unlikely(r != 0))
-			goto fail_free;
-
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-		if (unlikely(r != 0))
-			goto fail_unreserve;
 
 		r = amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
 		if (unlikely(r))
 			goto fail_unreserve;
 
 		amdgpu_bo_fence(bo, fence, false);
-		amdgpu_bo_unreserve(bo);
 		dma_fence_put(bo->tbo.moving);
 		bo->tbo.moving = dma_fence_get(fence);
 		dma_fence_put(fence);
 	}
+	if (!resv)
+		ww_mutex_unlock(&bo->tbo.resv->lock);
 	*bo_ptr = bo;
 
 	trace_amdgpu_bo_create(bo);
@@ -408,8 +408,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	return 0;
 
 fail_unreserve:
-	amdgpu_bo_unreserve(bo);
-fail_free:
+	ww_mutex_unlock(&bo->tbo.resv->lock);
 	amdgpu_bo_unref(&bo);
 	return r;
 }
