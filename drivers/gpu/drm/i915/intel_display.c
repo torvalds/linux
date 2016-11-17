@@ -12715,6 +12715,16 @@ static void intel_dump_crtc_timings(const struct drm_display_mode *mode)
 		mode->crtc_vsync_end, mode->crtc_vtotal, mode->type, mode->flags);
 }
 
+static inline void
+intel_dump_m_n_config(struct intel_crtc_state *pipe_config, char *id,
+		      struct intel_link_m_n *m_n)
+{
+	DRM_DEBUG_KMS("dp: lanes: %i; %s: gmch_m: %u, gmch_n: %u, link_m: %u, link_n: %u, tu: %u\n",
+		      pipe_config->lane_count, id,
+		      m_n->gmch_m, m_n->gmch_n,
+		      m_n->link_m, m_n->link_n, m_n->tu);
+}
+
 static void intel_dump_pipe_config(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config,
 				   const char *context)
@@ -12739,21 +12749,13 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->fdi_m_n.gmch_m, pipe_config->fdi_m_n.gmch_n,
 		      pipe_config->fdi_m_n.link_m, pipe_config->fdi_m_n.link_n,
 		      pipe_config->fdi_m_n.tu);
-	DRM_DEBUG_KMS("dp: %i, lanes: %i, gmch_m: %u, gmch_n: %u, link_m: %u, link_n: %u, tu: %u\n",
-		      intel_crtc_has_dp_encoder(pipe_config),
-		      pipe_config->lane_count,
-		      pipe_config->dp_m_n.gmch_m, pipe_config->dp_m_n.gmch_n,
-		      pipe_config->dp_m_n.link_m, pipe_config->dp_m_n.link_n,
-		      pipe_config->dp_m_n.tu);
 
-	DRM_DEBUG_KMS("dp: %i, lanes: %i, gmch_m2: %u, gmch_n2: %u, link_m2: %u, link_n2: %u, tu2: %u\n",
-		      intel_crtc_has_dp_encoder(pipe_config),
-		      pipe_config->lane_count,
-		      pipe_config->dp_m2_n2.gmch_m,
-		      pipe_config->dp_m2_n2.gmch_n,
-		      pipe_config->dp_m2_n2.link_m,
-		      pipe_config->dp_m2_n2.link_n,
-		      pipe_config->dp_m2_n2.tu);
+	if (intel_crtc_has_dp_encoder(pipe_config)) {
+		intel_dump_m_n_config(pipe_config, "m_n",
+				      &pipe_config->dp_m_n);
+		intel_dump_m_n_config(pipe_config, "m2_n2",
+				      &pipe_config->dp_m2_n2);
+	}
 
 	DRM_DEBUG_KMS("audio: %i, infoframes: %i\n",
 		      pipe_config->has_audio,
