@@ -176,6 +176,16 @@ static struct inode *bdev_file_inode(struct file *file)
 	return file->f_mapping->host;
 }
 
+static unsigned int dio_bio_write_op(struct kiocb *iocb)
+{
+	unsigned int op = REQ_OP_WRITE | REQ_SYNC | REQ_IDLE;
+
+	/* avoid the need for a I/O completion work item */
+	if (iocb->ki_flags & IOCB_DSYNC)
+		op |= REQ_FUA;
+	return op;
+}
+
 #define DIO_INLINE_BIO_VECS 4
 
 static void blkdev_bio_end_io_simple(struct bio *bio)
@@ -226,11 +236,11 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 	ret = bio.bi_iter.bi_size;
 
 	if (iov_iter_rw(iter) == READ) {
-		bio_set_op_attrs(&bio, REQ_OP_READ, 0);
+		bio.bi_opf = REQ_OP_READ;
 		if (iter_is_iovec(iter))
 			should_dirty = true;
 	} else {
-		bio_set_op_attrs(&bio, REQ_OP_WRITE, REQ_SYNC | REQ_IDLE);
+		bio.bi_opf = dio_bio_write_op(iocb);
 		task_io_account_write(ret);
 	}
 
