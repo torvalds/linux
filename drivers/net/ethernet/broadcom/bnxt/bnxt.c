@@ -3425,13 +3425,7 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_RSS_CFG, -1, -1);
 	if (set_rss) {
-		vnic->hash_type = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
-				  VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
-				  VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
-				  VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
-
-		req.hash_type = cpu_to_le32(vnic->hash_type);
-
+		req.hash_type = cpu_to_le32(bp->rss_hash_cfg);
 		if (vnic->flags & BNXT_VNIC_RSS_FLAG) {
 			if (BNXT_CHIP_TYPE_NITRO_A0(bp))
 				max_rings = bp->rx_nr_rings - 1;
@@ -6939,6 +6933,19 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bp->vf.max_irqs = max_irqs;
 #endif
 	bnxt_set_dflt_rings(bp);
+
+	/* Default RSS hash cfg. */
+	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
+	if (!BNXT_CHIP_NUM_57X0X(bp->chip_num) &&
+	    !BNXT_CHIP_TYPE_NITRO_A0(bp) &&
+	    bp->hwrm_spec_code >= 0x10501) {
+		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
+		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
+				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
+	}
 
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;

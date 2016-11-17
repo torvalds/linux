@@ -700,7 +700,6 @@ struct bnxt_vnic_info {
 	u8		*uc_list;
 
 	u16		*fw_grp_ids;
-	u16		hash_type;
 	dma_addr_t	rss_table_dma_addr;
 	__le16		*rss_table;
 	dma_addr_t	rss_hash_key_dma_addr;
@@ -952,6 +951,7 @@ struct bnxt {
 	#define BNXT_FLAG_RFS		0x100
 	#define BNXT_FLAG_SHARED_RINGS	0x200
 	#define BNXT_FLAG_PORT_STATS	0x400
+	#define BNXT_FLAG_UDP_RSS_CAP	0x800
 	#define BNXT_FLAG_EEE_CAP	0x1000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
@@ -1007,6 +1007,7 @@ struct bnxt {
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
 	int			nr_vnics;
+	u32			rss_hash_cfg;
 
 	u8			max_tc;
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
