@@ -208,7 +208,7 @@ struct mlx5_cmd_first {
 
 struct mlx5_cmd_msg {
 	struct list_head		list;
-	struct cache_ent	       *cache;
+	struct cmd_msg_cache	       *parent;
 	u32				len;
 	struct mlx5_cmd_first		first;
 	struct mlx5_cmd_mailbox	       *next;
@@ -228,17 +228,17 @@ struct mlx5_cmd_debug {
 	u16			outlen;
 };
 
-struct cache_ent {
+struct cmd_msg_cache {
 	/* protect block chain allocations
 	 */
 	spinlock_t		lock;
 	struct list_head	head;
+	unsigned int		max_inbox_size;
+	unsigned int		num_ent;
 };
 
-struct cmd_msg_cache {
-	struct cache_ent	large;
-	struct cache_ent	med;
-
+enum {
+	MLX5_NUM_COMMAND_CACHES = 5,
 };
 
 struct mlx5_cmd_stats {
@@ -281,7 +281,7 @@ struct mlx5_cmd {
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
 	struct pci_pool *pool;
 	struct mlx5_cmd_debug dbg;
-	struct cmd_msg_cache cache;
+	struct cmd_msg_cache cache[MLX5_NUM_COMMAND_CACHES];
 	int checksum_disabled;
 	struct mlx5_cmd_stats stats[MLX5_CMD_OP_MAX];
 };
