@@ -441,7 +441,6 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 {
 	int write_disks = 0;
 	int data_pages, parity_pages;
-	int meta_size;
 	int reserve;
 	int i;
 	int ret = 0;
@@ -472,15 +471,6 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 	}
 	parity_pages = 1 + !!(sh->qd_idx >= 0);
 	data_pages = write_disks - parity_pages;
-
-	meta_size =
-		((sizeof(struct r5l_payload_data_parity) + sizeof(__le32))
-		 * data_pages) +
-		sizeof(struct r5l_payload_data_parity) +
-		sizeof(__le32) * parity_pages;
-	/* Doesn't work with very big raid array */
-	if (meta_size + sizeof(struct r5l_meta_block) > PAGE_SIZE)
-		return -EINVAL;
 
 	set_bit(STRIPE_LOG_TRAPPED, &sh->state);
 	/*
@@ -1197,6 +1187,22 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 
 	if (PAGE_SIZE != 4096)
 		return -EINVAL;
+
+	/*
+	 * The PAGE_SIZE must be big enough to hold 1 r5l_meta_block and
+	 * raid_disks r5l_payload_data_parity.
+	 *
+	 * Write journal and cache does not work for very big array
+	 * (raid_disks > 203)
+	 */
+	if (sizeof(struct r5l_meta_block) +
+	    ((sizeof(struct r5l_payload_data_parity) + sizeof(__le32)) *
+	     conf->raid_disks) > PAGE_SIZE) {
+		pr_err("md/raid:%s: write journal/cache doesn't work for array with %d disks\n",
+		       mdname(conf->mddev), conf->raid_disks);
+		return -EINVAL;
+	}
+
 	log = kzalloc(sizeof(*log), GFP_KERNEL);
 	if (!log)
 		return -ENOMEM;
