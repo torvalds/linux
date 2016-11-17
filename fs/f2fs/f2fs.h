@@ -1763,8 +1763,17 @@ static inline void f2fs_i_size_write(struct inode *inode, loff_t i_size)
 		set_inode_flag(inode, FI_AUTO_RECOVER);
 }
 
-static inline bool f2fs_skip_inode_update(struct inode *inode)
+static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 {
+	if (dsync) {
+		struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+		bool ret;
+
+		spin_lock(&sbi->inode_lock[DIRTY_META]);
+		ret = list_empty(&F2FS_I(inode)->gdirty_list);
+		spin_unlock(&sbi->inode_lock[DIRTY_META]);
+		return ret;
+	}
 	if (!is_inode_flag_set(inode, FI_AUTO_RECOVER))
 		return false;
 	return F2FS_I(inode)->last_disk_size == i_size_read(inode);
