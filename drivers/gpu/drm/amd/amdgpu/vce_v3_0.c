@@ -134,7 +134,7 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 	   accessible but the firmware will throttle the clocks on the
 	   fly as necessary.
 	*/
-	if (gated) {
+	if (!gated) {
 		data = RREG32(mmVCE_CLOCK_GATING_B);
 		data |= 0x1ff;
 		data &= ~0xef0000;
