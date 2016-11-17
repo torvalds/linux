@@ -268,6 +268,8 @@ u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
 #define MLXSW_CORE_RES_GET(res, short_res_id)			\
 	mlxsw_core_res_get(res, MLXSW_RES_ID_##short_res_id)
 
+#define MLXSW_BUS_F_TXRX	BIT(0)
+
 struct mlxsw_bus {
 	const char *kind;
 	int (*init)(void *bus_priv, struct mlxsw_core *mlxsw_core,
@@ -283,6 +285,7 @@ struct mlxsw_bus {
 			char *in_mbox, size_t in_mbox_size,
 			char *out_mbox, size_t out_mbox_size,
 			u8 *p_status);
+	u8 features;
 };
 
 struct mlxsw_bus_info {
