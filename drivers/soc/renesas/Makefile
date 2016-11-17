@@ -1,3 +1,8 @@
+obj-$(CONFIG_ARCH_RCAR_GEN1)	+= rcar-rst.o
+obj-$(CONFIG_ARCH_RCAR_GEN2)	+= rcar-rst.o
+obj-$(CONFIG_ARCH_R8A7795)	+= rcar-rst.o
+obj-$(CONFIG_ARCH_R8A7796)	+= rcar-rst.o
+
 obj-$(CONFIG_ARCH_R8A7779)	+= rcar-sysc.o r8a7779-sysc.o
 obj-$(CONFIG_ARCH_R8A7790)	+= rcar-sysc.o r8a7790-sysc.o
 obj-$(CONFIG_ARCH_R8A7791)	+= rcar-sysc.o r8a7791-sysc.o
