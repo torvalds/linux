@@ -1471,82 +1471,18 @@ static void lan78xx_set_msglevel(struct net_device *net, u32 level)
 	dev->msg_enable = level;
 }
 
-static int lan78xx_get_mdix_status(struct net_device *net)
-{
-	struct phy_device *phydev = net->phydev;
-	int buf;
-
-	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_1);
-	buf = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
-	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_0);
-
-	return buf;
-}
-
-static void lan78xx_set_mdix_status(struct net_device *net, __u8 mdix_ctrl)
-{
-	struct lan78xx_net *dev = netdev_priv(net);
-	struct phy_device *phydev = net->phydev;
-	int buf;
-
-	if (mdix_ctrl == ETH_TP_MDI) {
-		phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
-			  LAN88XX_EXT_PAGE_SPACE_1);
-		buf = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
-		buf &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
-		phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
-			  buf | LAN88XX_EXT_MODE_CTRL_MDI_);
-		phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
-			  LAN88XX_EXT_PAGE_SPACE_0);
-	} else if (mdix_ctrl == ETH_TP_MDI_X) {
-		phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
-			  LAN88XX_EXT_PAGE_SPACE_1);
-		buf = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
-		buf &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
-		phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
-			  buf | LAN88XX_EXT_MODE_CTRL_MDI_X_);
-		phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
-			  LAN88XX_EXT_PAGE_SPACE_0);
-	} else if (mdix_ctrl == ETH_TP_MDI_AUTO) {
-		phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
-			  LAN88XX_EXT_PAGE_SPACE_1);
-		buf = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
-		buf &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
-		phy_write(phydev, LAN88XX_EXT_MODE_CTRL,
-			  buf | LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_);
-		phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS,
-			  LAN88XX_EXT_PAGE_SPACE_0);
-	}
-	dev->mdix_ctrl = mdix_ctrl;
-}
-
 static int lan78xx_get_link_ksettings(struct net_device *net,
 				      struct ethtool_link_ksettings *cmd)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
 	int ret;
-	int buf;
 
 	ret = usb_autopm_get_interface(dev->intf);
 	if (ret < 0)
 		return ret;
 
 	ret = phy_ethtool_ksettings_get(phydev, cmd);
-
-	buf = lan78xx_get_mdix_status(net);
-
-	buf &= LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
-	if (buf == LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_) {
-		cmd->base.eth_tp_mdix = ETH_TP_MDI_AUTO;
-		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_AUTO;
-	} else if (buf == LAN88XX_EXT_MODE_CTRL_MDI_) {
-		cmd->base.eth_tp_mdix = ETH_TP_MDI;
-		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI;
-	} else if (buf == LAN88XX_EXT_MODE_CTRL_MDI_X_) {
-		cmd->base.eth_tp_mdix = ETH_TP_MDI_X;
-		cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_X;
-	}
 
 	usb_autopm_put_interface(dev->intf);
 
@@ -1564,9 +1500,6 @@ static int lan78xx_set_link_ksettings(struct net_device *net,
 	ret = usb_autopm_get_interface(dev->intf);
 	if (ret < 0)
 		return ret;
-
-	if (dev->mdix_ctrl != cmd->base.eth_tp_mdix_ctrl)
-		lan78xx_set_mdix_status(net, cmd->base.eth_tp_mdix_ctrl);
 
 	/* change speed & duplex */
 	ret = phy_ethtool_ksettings_set(phydev, cmd);
@@ -2019,6 +1952,9 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 		phydev->irq = 0;
 	netdev_dbg(dev->net, "phydev->irq = %d\n", phydev->irq);
 
+	/* set to AUTOMDIX */
+	phydev->mdix = ETH_TP_MDI_AUTO;
+
 	ret = phy_connect_direct(dev->net, phydev,
 				 lan78xx_link_status_change,
 				 PHY_INTERFACE_MODE_GMII);
@@ -2027,9 +1963,6 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 			   dev->mdiobus->id);
 		return -EIO;
 	}
-
-	/* set to AUTOMDIX */
-	lan78xx_set_mdix_status(dev->net, ETH_TP_MDI_AUTO);
 
 	/* MAC doesn't support 1000T Half */
 	phydev->supported &= ~SUPPORTED_1000baseT_Half;
