@@ -1361,53 +1361,49 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 	kfree(priv->eq_table.uar_map);
 }
 
-/* A test that verifies that we can accept interrupts on all
- * the irq vectors of the device.
+/* A test that verifies that we can accept interrupts
+ * on the vector allocated for asynchronous events
+ */
+int mlx4_test_async(struct mlx4_dev *dev)
+{
+	return mlx4_NOP(dev);
+}
+EXPORT_SYMBOL(mlx4_test_async);
+
+/* A test that verifies that we can accept interrupts
+ * on the given irq vector of the tested port.
  * Interrupts are checked using the NOP command.
  */
-int mlx4_test_interrupts(struct mlx4_dev *dev)
+int mlx4_test_interrupt(struct mlx4_dev *dev, int vector)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	int i;
 	int err;
 
-	err = mlx4_NOP(dev);
-	/* When not in MSI_X, there is only one irq to check */
-	if (!(dev->flags & MLX4_FLAG_MSI_X) || mlx4_is_slave(dev))
-		return err;
+	/* Temporary use polling for command completions */
+	mlx4_cmd_use_polling(dev);
 
-	/* A loop over all completion vectors, for each vector we will check
-	 * whether it works by mapping command completions to that vector
-	 * and performing a NOP command
-	 */
-	for(i = 0; !err && (i < dev->caps.num_comp_vectors); ++i) {
-		/* Make sure request_irq was called */
-		if (!priv->eq_table.eq[i].have_irq)
-			continue;
-
-		/* Temporary use polling for command completions */
-		mlx4_cmd_use_polling(dev);
-
-		/* Map the new eq to handle all asynchronous events */
-		err = mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
-				  priv->eq_table.eq[i].eqn);
-		if (err) {
-			mlx4_warn(dev, "Failed mapping eq for interrupt test\n");
-			mlx4_cmd_use_events(dev);
-			break;
-		}
-
-		/* Go back to using events */
-		mlx4_cmd_use_events(dev);
-		err = mlx4_NOP(dev);
+	/* Map the new eq to handle all asynchronous events */
+	err = mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
+			  priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].eqn);
+	if (err) {
+		mlx4_warn(dev, "Failed mapping eq for interrupt test\n");
+		goto out;
 	}
 
+	/* Go back to using events */
+	mlx4_cmd_use_events(dev);
+	err = mlx4_NOP(dev);
+
 	/* Return to default */
+	mlx4_cmd_use_polling(dev);
+out:
 	mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
 		    priv->eq_table.eq[MLX4_EQ_ASYNC].eqn);
+	mlx4_cmd_use_events(dev);
+
 	return err;
 }
-EXPORT_SYMBOL(mlx4_test_interrupts);
+EXPORT_SYMBOL(mlx4_test_interrupt);
 
 bool mlx4_is_eq_vector_valid(struct mlx4_dev *dev, u8 port, int vector)
 {

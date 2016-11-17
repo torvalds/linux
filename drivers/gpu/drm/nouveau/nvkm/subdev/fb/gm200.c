@@ -44,7 +44,7 @@ gm200_fb_init_page(struct nvkm_fb *fb)
 	}
 }
 
-static void
+void
 gm200_fb_init(struct nvkm_fb *base)
 {
 	struct gf100_fb *fb = gf100_fb(base);

@@ -669,6 +669,7 @@ static const struct of_device_id nps_enet_dt_ids[] = {
 	{ .compatible = "ezchip,nps-mgt-enet" },
 	{ /* Sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, nps_enet_dt_ids);
 
 static struct platform_driver nps_enet_driver = {
 	.probe = nps_enet_probe,

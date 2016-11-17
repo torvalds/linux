@@ -22,8 +22,9 @@ nouveau_framebuffer(struct drm_framebuffer *fb)
 	return container_of(fb, struct nouveau_framebuffer, base);
 }
 
-int nouveau_framebuffer_init(struct drm_device *, struct nouveau_framebuffer *,
-			     const struct drm_mode_fb_cmd2 *, struct nouveau_bo *);
+int nouveau_framebuffer_new(struct drm_device *,
+			    const struct drm_mode_fb_cmd2 *,
+			    struct nouveau_bo *, struct nouveau_framebuffer **);
 
 struct nouveau_page_flip_state {
 	struct list_head head;
@@ -39,9 +40,6 @@ struct nouveau_display {
 	int  (*init)(struct drm_device *);
 	void (*fini)(struct drm_device *);
 
-	int  (*fb_ctor)(struct drm_framebuffer *);
-	void (*fb_dtor)(struct drm_framebuffer *);
-
 	struct nvif_object disp;
 
 	struct drm_property *dithering_mode;
@@ -52,6 +50,8 @@ struct nouveau_display {
 	/* not really hue and saturation: */
 	struct drm_property *vibrant_hue_property;
 	struct drm_property *color_vibrance_property;
+
+	struct drm_atomic_state *suspend;
 };
 
 static inline struct nouveau_display *
@@ -63,7 +63,7 @@ nouveau_display(struct drm_device *dev)
 int  nouveau_display_create(struct drm_device *dev);
 void nouveau_display_destroy(struct drm_device *dev);
 int  nouveau_display_init(struct drm_device *dev);
-void nouveau_display_fini(struct drm_device *dev);
+void nouveau_display_fini(struct drm_device *dev, bool suspend);
 int  nouveau_display_suspend(struct drm_device *dev, bool runtime);
 void nouveau_display_resume(struct drm_device *dev, bool runtime);
 int  nouveau_display_vblank_enable(struct drm_device *, unsigned int);
@@ -103,4 +103,7 @@ nouveau_backlight_exit(struct drm_device *dev) {
 }
 #endif
 
+struct drm_framebuffer *
+nouveau_user_framebuffer_create(struct drm_device *, struct drm_file *,
+				const struct drm_mode_fb_cmd2 *);
 #endif

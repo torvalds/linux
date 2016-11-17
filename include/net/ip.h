@@ -38,7 +38,7 @@ struct sock;
 struct inet_skb_parm {
 	int			iif;
 	struct ip_options	opt;		/* Compiled IP options		*/
-	unsigned char		flags;
+	u16			flags;
 
 #define IPSKB_FORWARDED		BIT(0)
 #define IPSKB_XFRM_TUNNEL_SIZE	BIT(1)
@@ -48,9 +48,15 @@ struct inet_skb_parm {
 #define IPSKB_DOREDIRECT	BIT(5)
 #define IPSKB_FRAG_PMTU		BIT(6)
 #define IPSKB_FRAG_SEGS		BIT(7)
+#define IPSKB_L3SLAVE		BIT(8)
 
 	u16			frag_max_size;
 };
+
+static inline bool ipv4_l3mdev_skb(u16 flags)
+{
+	return !!(flags & IPSKB_L3SLAVE);
+}
 
 static inline unsigned int ip_hdrlen(const struct sk_buff *skb)
 {
@@ -572,7 +578,7 @@ int ip_options_rcv_srr(struct sk_buff *skb);
  */
 
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb);
-void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb, int offset);
+void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb, int tlen, int offset);
 int ip_cmsg_send(struct sock *sk, struct msghdr *msg,
 		 struct ipcm_cookie *ipc, bool allow_ipv6);
 int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
@@ -594,7 +600,7 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 
 static inline void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 {
-	ip_cmsg_recv_offset(msg, skb, 0);
+	ip_cmsg_recv_offset(msg, skb, 0, 0);
 }
 
 bool icmp_global_allow(void);

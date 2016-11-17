@@ -47,7 +47,15 @@ extern "C" {
 #define DRM_MODE_TYPE_DRIVER	(1<<6)
 
 /* Video mode flags */
-/* bit compatible with the xorg definitions. */
+/* bit compatible with the xrandr RR_ definitions (bits 0-13)
+ *
+ * ABI warning: Existing userspace really expects
+ * the mode flags to match the xrandr definitions. Any
+ * changes that don't match the xrandr definitions will
+ * likely need a new client cap or some other mechanism
+ * to avoid breaking existing userspace. This includes
+ * allocating new flags in the previously unused bits!
+ */
 #define DRM_MODE_FLAG_PHSYNC			(1<<0)
 #define DRM_MODE_FLAG_NHSYNC			(1<<1)
 #define DRM_MODE_FLAG_PVSYNC			(1<<2)
@@ -81,8 +89,6 @@ extern "C" {
 #define DRM_MODE_PICTURE_ASPECT_NONE		0
 #define DRM_MODE_PICTURE_ASPECT_4_3		1
 #define DRM_MODE_PICTURE_ASPECT_16_9		2
-#define DRM_MODE_PICTURE_ASPECT_64_27		3
-#define DRM_MODE_PICTURE_ASPECT_256_135		4
 
 /* Aspect ratio flag bitmask (4 bits 22:19) */
 #define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
@@ -92,10 +98,6 @@ extern "C" {
 			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
 #define  DRM_MODE_FLAG_PIC_AR_16_9 \
 			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
-#define  DRM_MODE_FLAG_PIC_AR_64_27 \
-			(DRM_MODE_PICTURE_ASPECT_64_27<<19)
-#define  DRM_MODE_FLAG_PIC_AR_256_135 \
-			(DRM_MODE_PICTURE_ASPECT_256_135<<19)
 
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */

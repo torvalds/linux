@@ -26,7 +26,7 @@ struct panel_drv_data {
 	struct gpio_desc *ls_oe_gpio;
 	struct gpio_desc *hpd_gpio;
 
-	struct omap_video_timings timings;
+	struct videomode vm;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -80,7 +80,7 @@ static int tpd_enable(struct omap_dss_device *dssdev)
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
-	in->ops.hdmi->set_timings(in, &ddata->timings);
+	in->ops.hdmi->set_timings(in, &ddata->vm);
 
 	r = in->ops.hdmi->enable(in);
 	if (r)
@@ -105,33 +105,33 @@ static void tpd_disable(struct omap_dss_device *dssdev)
 }
 
 static void tpd_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			    struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->timings = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.hdmi->set_timings(in, timings);
+	in->ops.hdmi->set_timings(in, vm);
 }
 
 static void tpd_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			    struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->timings;
+	*vm = ddata->vm;
 }
 
 static int tpd_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			     struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 	int r;
 
-	r = in->ops.hdmi->check_timings(in, timings);
+	r = in->ops.hdmi->check_timings(in, vm);
 
 	return r;
 }

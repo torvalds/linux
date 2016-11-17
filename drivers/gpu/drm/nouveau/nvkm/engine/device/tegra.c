@@ -102,7 +102,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 
 	if (iommu_present(&platform_bus_type)) {
 		tdev->iommu.domain = iommu_domain_alloc(&platform_bus_type);
-		if (IS_ERR(tdev->iommu.domain))
+		if (!tdev->iommu.domain)
 			goto error;
 
 		/*

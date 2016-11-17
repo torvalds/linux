@@ -50,6 +50,7 @@ extern "C" {
 #define DRM_AMDGPU_WAIT_CS		0x09
 #define DRM_AMDGPU_GEM_OP		0x10
 #define DRM_AMDGPU_GEM_USERPTR		0x11
+#define DRM_AMDGPU_WAIT_FENCES		0x12
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -63,6 +64,7 @@ extern "C" {
 #define DRM_IOCTL_AMDGPU_WAIT_CS	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_CS, union drm_amdgpu_wait_cs)
 #define DRM_IOCTL_AMDGPU_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_OP, struct drm_amdgpu_gem_op)
 #define DRM_IOCTL_AMDGPU_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_USERPTR, struct drm_amdgpu_gem_userptr)
+#define DRM_IOCTL_AMDGPU_WAIT_FENCES	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_WAIT_FENCES, union drm_amdgpu_wait_fences)
 
 #define AMDGPU_GEM_DOMAIN_CPU		0x1
 #define AMDGPU_GEM_DOMAIN_GTT		0x2
@@ -305,6 +307,32 @@ struct drm_amdgpu_wait_cs_out {
 union drm_amdgpu_wait_cs {
 	struct drm_amdgpu_wait_cs_in in;
 	struct drm_amdgpu_wait_cs_out out;
+};
+
+struct drm_amdgpu_fence {
+	__u32 ctx_id;
+	__u32 ip_type;
+	__u32 ip_instance;
+	__u32 ring;
+	__u64 seq_no;
+};
+
+struct drm_amdgpu_wait_fences_in {
+	/** This points to uint64_t * which points to fences */
+	__u64 fences;
+	__u32 fence_count;
+	__u32 wait_all;
+	__u64 timeout_ns;
+};
+
+struct drm_amdgpu_wait_fences_out {
+	__u32 status;
+	__u32 first_signaled;
+};
+
+union drm_amdgpu_wait_fences {
+	struct drm_amdgpu_wait_fences_in in;
+	struct drm_amdgpu_wait_fences_out out;
 };
 
 #define AMDGPU_GEM_OP_GET_GEM_CREATE_INFO	0

@@ -263,6 +263,26 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 	return 0;
 }
 
+int exynos_atomic_check(struct drm_device *dev,
+			struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
@@ -346,9 +366,7 @@ static const struct file_operations exynos_drm_driver_fops = {
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.release	= drm_release,
 };
 

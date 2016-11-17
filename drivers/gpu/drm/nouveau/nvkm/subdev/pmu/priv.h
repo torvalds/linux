@@ -8,8 +8,6 @@ int nvkm_pmu_new_(const struct nvkm_pmu_func *, struct nvkm_device *,
 		  int index, struct nvkm_pmu **);
 
 struct nvkm_pmu_func {
-	void (*reset)(struct nvkm_pmu *);
-
 	struct {
 		u32 *data;
 		u32  size;

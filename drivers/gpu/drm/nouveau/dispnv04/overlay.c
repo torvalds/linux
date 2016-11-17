@@ -33,7 +33,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_display.h"
 #include "nvreg.h"
-
+#include "disp.h"
 
 struct nouveau_plane {
 	struct drm_plane base;

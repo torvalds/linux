@@ -123,21 +123,23 @@ static int maxim_thermocouple_read(struct maxim_thermocouple_data *data,
 {
 	unsigned int storage_bytes = data->chip->read_size;
 	unsigned int shift = chan->scan_type.shift + (chan->address * 8);
-	unsigned int buf;
+	__be16 buf16;
+	__be32 buf32;
 	int ret;
-
-	ret = spi_read(data->spi, (void *) &buf, storage_bytes);
-	if (ret)
-		return ret;
 
 	switch (storage_bytes) {
 	case 2:
-		*val = be16_to_cpu(buf);
+		ret = spi_read(data->spi, (void *)&buf16, storage_bytes);
+		*val = be16_to_cpu(buf16);
 		break;
 	case 4:
-		*val = be32_to_cpu(buf);
+		ret = spi_read(data->spi, (void *)&buf32, storage_bytes);
+		*val = be32_to_cpu(buf32);
 		break;
 	}
+
+	if (ret)
+		return ret;
 
 	/* check to be sure this is a valid reading */
 	if (*val & data->chip->status_bit)

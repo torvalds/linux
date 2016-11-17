@@ -53,9 +53,7 @@ static const struct file_operations sun4i_drv_fops = {
 	.open		= drm_open,
 	.release	= drm_release,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl	= drm_compat_ioctl,
-#endif
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.llseek		= no_llseek,
@@ -202,12 +200,15 @@ static const struct component_master_ops sun4i_drv_master_ops = {
 static bool sun4i_drv_node_is_frontend(struct device_node *node)
 {
 	return of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
+		of_device_is_compatible(node, "allwinner,sun6i-a31-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend");
 }
 
 static bool sun4i_drv_node_is_tcon(struct device_node *node)
 {
 	return of_device_is_compatible(node, "allwinner,sun5i-a13-tcon") ||
+		of_device_is_compatible(node, "allwinner,sun6i-a31-tcon") ||
+		of_device_is_compatible(node, "allwinner,sun6i-a31s-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun8i-a33-tcon");
 }
 
@@ -323,6 +324,8 @@ static int sun4i_drv_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-engine" },
+	{ .compatible = "allwinner,sun6i-a31-display-engine" },
+	{ .compatible = "allwinner,sun6i-a31s-display-engine" },
 	{ .compatible = "allwinner,sun8i-a33-display-engine" },
 	{ }
 };

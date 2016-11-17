@@ -586,5 +586,5 @@ static const struct dma_fence_ops nouveau_fence_ops_uevent = {
 	.enable_signaling = nouveau_fence_enable_signaling,
 	.signaled = nouveau_fence_is_signaled,
 	.wait = dma_fence_default_wait,
-	.release = NULL
+	.release = nouveau_fence_release
 };

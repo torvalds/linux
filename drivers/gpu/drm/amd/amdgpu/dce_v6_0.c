@@ -1456,6 +1456,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
+	struct drm_format_name_buf format_name;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1559,7 +1560,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
-			  drm_get_format_name(target_fb->pixel_format));
+		          drm_get_format_name(target_fb->pixel_format, &format_name));
 		return -EINVAL;
 	}
 
@@ -2039,13 +2040,13 @@ static void dce_v6_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
-		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
+		drm_crtc_vblank_on(crtc);
 		dce_v6_0_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_pre_modeset(dev, amdgpu_crtc->crtc_id);
+		drm_crtc_vblank_off(crtc);
 		if (amdgpu_crtc->enabled)
 			amdgpu_atombios_crtc_blank(crtc, ATOM_ENABLE);
 		amdgpu_atombios_crtc_enable(crtc, ATOM_DISABLE);
@@ -2403,10 +2404,6 @@ static int dce_v6_0_hw_fini(void *handle)
 
 static int dce_v6_0_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	amdgpu_atombios_scratch_regs_save(adev);
-
 	return dce_v6_0_hw_fini(handle);
 }
 
@@ -2416,8 +2413,6 @@ static int dce_v6_0_resume(void *handle)
 	int ret;
 
 	ret = dce_v6_0_hw_init(handle);
-
-	amdgpu_atombios_scratch_regs_restore(adev);
 
 	/* turn on the BL */
 	if (adev->mode_info.bl_encoder) {

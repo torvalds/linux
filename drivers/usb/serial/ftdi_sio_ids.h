@@ -626,8 +626,9 @@
 /*
  * Infineon Technologies
  */
-#define INFINEON_VID		0x058b
-#define INFINEON_TRIBOARD_PID	0x0028 /* DAS JTAG TriBoard TC1798 V1.0 */
+#define INFINEON_VID		        0x058b
+#define INFINEON_TRIBOARD_TC1798_PID	0x0028 /* DAS JTAG TriBoard TC1798 V1.0 */
+#define INFINEON_TRIBOARD_TC2X7_PID	0x0043 /* DAS JTAG TriBoard TC2X7 V1.0 */
 
 /*
  * Acton Research Corp.

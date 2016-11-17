@@ -143,6 +143,9 @@ Device Instance and Driver Handling
 .. kernel-doc:: drivers/gpu/drm/drm_drv.c
    :export:
 
+.. kernel-doc:: include/drm/drm_drv.h
+   :internal:
+
 Driver Load
 -----------
 
@@ -349,6 +352,23 @@ how the ioctl is allowed to be called.
 
 .. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
    :export:
+
+
+Misc Utilities
+==============
+
+Printer
+-------
+
+.. kernel-doc:: include/drm/drm_print.h
+   :doc: print
+
+.. kernel-doc:: include/drm/drm_print.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_print.c
+   :export:
+
 
 Legacy Support Code
 ===================

@@ -75,7 +75,7 @@ struct dispc_features {
 	unsigned long max_lcd_pclk;
 	unsigned long max_tv_pclk;
 	int (*calc_scaling) (unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -1679,7 +1679,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 {
 	int scale_x = out_width != orig_width;
 	int scale_y = out_height != orig_height;
-	bool chroma_upscale = plane != OMAP_DSS_WB ? true : false;
+	bool chroma_upscale = plane != OMAP_DSS_WB;
 
 	if (!dss_has_feature(FEAT_HANDLE_UV_SEPARATE))
 		return;
@@ -2179,7 +2179,7 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
  * undocumented horizontal position and timing related limitations.
  */
 static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *t, u16 pos_x,
+		const struct videomode *vm, u16 pos_x,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool five_taps)
 {
@@ -2189,14 +2189,16 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 	u64 val, blank;
 	int i;
 
-	nonactive = t->x_res + t->hfp + t->hsw + t->hbp - out_width;
+	nonactive = vm->hactive + vm->hfront_porch + vm->hsync_len +
+		    vm->hback_porch - out_width;
 
 	i = 0;
 	if (out_height < height)
 		i++;
 	if (out_width < width)
 		i++;
-	blank = div_u64((u64)(t->hbp + t->hsw + t->hfp) * lclk, pclk);
+	blank = div_u64((u64)(vm->hback_porch + vm->hsync_len + vm->hfront_porch) *
+			lclk, pclk);
 	DSSDBG("blanking period + ppl = %llu (limit = %u)\n", blank, limits[i]);
 	if (blank <= limits[i])
 		return -EINVAL;
@@ -2231,7 +2233,7 @@ static int check_horiz_timing_omap3(unsigned long pclk, unsigned long lclk,
 }
 
 static unsigned long calc_core_clk_five_taps(unsigned long pclk,
-		const struct omap_video_timings *mgr_timings, u16 width,
+		const struct videomode *vm, u16 width,
 		u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode)
 {
@@ -2242,7 +2244,7 @@ static unsigned long calc_core_clk_five_taps(unsigned long pclk,
 		return (unsigned long) pclk;
 
 	if (height > out_height) {
-		unsigned int ppl = mgr_timings->x_res;
+		unsigned int ppl = vm->hactive;
 
 		tmp = (u64)pclk * height * out_width;
 		do_div(tmp, 2 * out_height * ppl);
@@ -2324,7 +2326,7 @@ static unsigned long calc_core_clk_44xx(unsigned long pclk, u16 width,
 }
 
 static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2370,7 +2372,7 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 }
 
 static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2392,7 +2394,7 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 				*five_taps = false;
 again:
 		if (*five_taps)
-			*core_clk = calc_core_clk_five_taps(pclk, mgr_timings,
+			*core_clk = calc_core_clk_five_taps(pclk, vm,
 						in_width, in_height, out_width,
 						out_height, color_mode);
 		else
@@ -2400,7 +2402,7 @@ again:
 					in_height, out_width, out_height,
 					mem_to_mem);
 
-		error = check_horiz_timing_omap3(pclk, lclk, mgr_timings,
+		error = check_horiz_timing_omap3(pclk, lclk, vm,
 				pos_x, in_width, in_height, out_width,
 				out_height, *five_taps);
 		if (error && *five_taps) {
@@ -2435,7 +2437,7 @@ again:
 		return -EINVAL;
 	}
 
-	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, in_width,
+	if (check_horiz_timing_omap3(pclk, lclk, vm, pos_x, in_width,
 				in_height, out_width, out_height, *five_taps)) {
 			DSSERR("horizontal timing too tight\n");
 			return -EINVAL;
@@ -2455,7 +2457,7 @@ again:
 }
 
 static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, int *decim_x, int *decim_y,
@@ -2501,7 +2503,7 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 
 static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		enum omap_overlay_caps caps,
-		const struct omap_video_timings *mgr_timings,
+		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
 		int *x_predecim, int *y_predecim, u16 pos_x,
@@ -2515,7 +2517,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	if (width == out_width && height == out_height)
 		return 0;
 
-	if (!mem_to_mem && (pclk == 0 || mgr_timings->pixelclock == 0)) {
+	if (!mem_to_mem && (pclk == 0 || vm->pixelclock == 0)) {
 		DSSERR("cannot calculate scaling settings: pclk is zero\n");
 		return -EINVAL;
 	}
@@ -2551,7 +2553,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	if (decim_y > *y_predecim || out_height > height * 8)
 		return -EINVAL;
 
-	ret = dispc.feat->calc_scaling(pclk, lclk, mgr_timings, width, height,
+	ret = dispc.feat->calc_scaling(pclk, lclk, vm, width, height,
 		out_width, out_height, color_mode, five_taps,
 		x_predecim, y_predecim, &decim_x, &decim_y, pos_x, &core_clk,
 		mem_to_mem);
@@ -2591,7 +2593,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 		u16 out_width, u16 out_height, enum omap_color_mode color_mode,
 		u8 rotation, bool mirror, u8 zorder, u8 pre_mult_alpha,
 		u8 global_alpha, enum omap_dss_rotation_type rotation_type,
-		bool replication, const struct omap_video_timings *mgr_timings,
+		bool replication, const struct videomode *vm,
 		bool mem_to_mem)
 {
 	bool five_taps = true;
@@ -2605,7 +2607,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	u16 in_height = height;
 	u16 in_width = width;
 	int x_predecim = 1, y_predecim = 1;
-	bool ilace = mgr_timings->interlace;
+	bool ilace = !!(vm->flags & DISPLAY_FLAGS_INTERLACED);
 	unsigned long pclk = dispc_plane_pclk_rate(plane);
 	unsigned long lclk = dispc_plane_lclk_rate(plane);
 
@@ -2647,7 +2649,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	if (!dss_feat_color_mode_supported(plane, color_mode))
 		return -EINVAL;
 
-	r = dispc_ovl_calc_scaling(pclk, lclk, caps, mgr_timings, in_width,
+	r = dispc_ovl_calc_scaling(pclk, lclk, caps, vm, in_width,
 			in_height, out_width, out_height, color_mode,
 			&five_taps, &x_predecim, &y_predecim, pos_x,
 			rotation_type, mem_to_mem);
@@ -2784,7 +2786,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 }
 
 int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
-		bool replication, const struct omap_video_timings *mgr_timings,
+		bool replication, const struct videomode *vm,
 		bool mem_to_mem)
 {
 	int r;
@@ -2803,14 +2805,14 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		oi->screen_width, oi->pos_x, oi->pos_y, oi->width, oi->height,
 		oi->out_width, oi->out_height, oi->color_mode, oi->rotation,
 		oi->mirror, oi->zorder, oi->pre_mult_alpha, oi->global_alpha,
-		oi->rotation_type, replication, mgr_timings, mem_to_mem);
+		oi->rotation_type, replication, vm, mem_to_mem);
 
 	return r;
 }
 EXPORT_SYMBOL(dispc_ovl_setup);
 
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		bool mem_to_mem, const struct omap_video_timings *mgr_timings)
+		bool mem_to_mem, const struct videomode *vm)
 {
 	int r;
 	u32 l;
@@ -2819,8 +2821,8 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	const u8 zorder = 0, global_alpha = 0;
 	const bool replication = false;
 	bool truncation;
-	int in_width = mgr_timings->x_res;
-	int in_height = mgr_timings->y_res;
+	int in_width = vm->hactive;
+	int in_height = vm->vactive;
 	enum omap_overlay_caps caps =
 		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
 
@@ -2833,7 +2835,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		wi->buf_width, pos_x, pos_y, in_width, in_height, wi->width,
 		wi->height, wi->color_mode, wi->rotation, wi->mirror, zorder,
 		wi->pre_mult_alpha, global_alpha, wi->rotation_type,
-		replication, mgr_timings, mem_to_mem);
+		replication, vm, mem_to_mem);
 
 	switch (wi->color_mode) {
 	case OMAP_DSS_COLOR_RGB16:
@@ -2867,8 +2869,8 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	} else {
 		int wbdelay;
 
-		wbdelay = min(mgr_timings->vfp + mgr_timings->vsw +
-			mgr_timings->vbp, 255);
+		wbdelay = min(vm->vfront_porch +
+			      vm->vsync_len + vm->vback_porch, (u32)255);
 
 		/* WBDELAYCOUNT */
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES2(plane), wbdelay, 7, 0);
@@ -3093,10 +3095,10 @@ static bool _dispc_mgr_size_ok(u16 width, u16 height)
 		height <= dispc.feat->mgr_height_max;
 }
 
-static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
+static bool _dispc_lcd_timings_ok(int hsync_len, int hfp, int hbp,
 		int vsw, int vfp, int vbp)
 {
-	if (hsw < 1 || hsw > dispc.feat->sw_max ||
+	if (hsync_len < 1 || hsync_len > dispc.feat->sw_max ||
 			hfp < 1 || hfp > dispc.feat->hp_max ||
 			hbp < 1 || hbp > dispc.feat->hp_max ||
 			vsw < 1 || vsw > dispc.feat->sw_max ||
@@ -3110,113 +3112,77 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 		unsigned long pclk)
 {
 	if (dss_mgr_is_lcd(channel))
-		return pclk <= dispc.feat->max_lcd_pclk ? true : false;
+		return pclk <= dispc.feat->max_lcd_pclk;
 	else
-		return pclk <= dispc.feat->max_tv_pclk ? true : false;
+		return pclk <= dispc.feat->max_tv_pclk;
 }
 
-bool dispc_mgr_timings_ok(enum omap_channel channel,
-		const struct omap_video_timings *timings)
+bool dispc_mgr_timings_ok(enum omap_channel channel, const struct videomode *vm)
 {
-	if (!_dispc_mgr_size_ok(timings->x_res, timings->y_res))
+	if (!_dispc_mgr_size_ok(vm->hactive, vm->vactive))
 		return false;
 
-	if (!_dispc_mgr_pclk_ok(channel, timings->pixelclock))
+	if (!_dispc_mgr_pclk_ok(channel, vm->pixelclock))
 		return false;
 
 	if (dss_mgr_is_lcd(channel)) {
 		/* TODO: OMAP4+ supports interlace for LCD outputs */
-		if (timings->interlace)
+		if (vm->flags & DISPLAY_FLAGS_INTERLACED)
 			return false;
 
-		if (!_dispc_lcd_timings_ok(timings->hsw, timings->hfp,
-				timings->hbp, timings->vsw, timings->vfp,
-				timings->vbp))
+		if (!_dispc_lcd_timings_ok(vm->hsync_len,
+				vm->hfront_porch, vm->hback_porch,
+				vm->vsync_len, vm->vfront_porch,
+				vm->vback_porch))
 			return false;
 	}
 
 	return true;
 }
 
-static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
-		int hfp, int hbp, int vsw, int vfp, int vbp,
-		enum omap_dss_signal_level vsync_level,
-		enum omap_dss_signal_level hsync_level,
-		enum omap_dss_signal_edge data_pclk_edge,
-		enum omap_dss_signal_level de_level,
-		enum omap_dss_signal_edge sync_pclk_edge)
-
+static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
+				       const struct videomode *vm)
 {
 	u32 timing_h, timing_v, l;
 	bool onoff, rf, ipc, vs, hs, de;
 
-	timing_h = FLD_VAL(hsw-1, dispc.feat->sw_start, 0) |
-			FLD_VAL(hfp-1, dispc.feat->fp_start, 8) |
-			FLD_VAL(hbp-1, dispc.feat->bp_start, 20);
-	timing_v = FLD_VAL(vsw-1, dispc.feat->sw_start, 0) |
-			FLD_VAL(vfp, dispc.feat->fp_start, 8) |
-			FLD_VAL(vbp, dispc.feat->bp_start, 20);
+	timing_h = FLD_VAL(vm->hsync_len - 1, dispc.feat->sw_start, 0) |
+		   FLD_VAL(vm->hfront_porch - 1, dispc.feat->fp_start, 8) |
+		   FLD_VAL(vm->hback_porch - 1, dispc.feat->bp_start, 20);
+	timing_v = FLD_VAL(vm->vsync_len - 1, dispc.feat->sw_start, 0) |
+		   FLD_VAL(vm->vfront_porch, dispc.feat->fp_start, 8) |
+		   FLD_VAL(vm->vback_porch, dispc.feat->bp_start, 20);
 
 	dispc_write_reg(DISPC_TIMING_H(channel), timing_h);
 	dispc_write_reg(DISPC_TIMING_V(channel), timing_v);
 
-	switch (vsync_level) {
-	case OMAPDSS_SIG_ACTIVE_LOW:
-		vs = true;
-		break;
-	case OMAPDSS_SIG_ACTIVE_HIGH:
+	if (vm->flags & DISPLAY_FLAGS_VSYNC_HIGH)
 		vs = false;
-		break;
-	default:
-		BUG();
-	}
+	else
+		vs = true;
 
-	switch (hsync_level) {
-	case OMAPDSS_SIG_ACTIVE_LOW:
-		hs = true;
-		break;
-	case OMAPDSS_SIG_ACTIVE_HIGH:
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		hs = false;
-		break;
-	default:
-		BUG();
-	}
+	else
+		hs = true;
 
-	switch (de_level) {
-	case OMAPDSS_SIG_ACTIVE_LOW:
-		de = true;
-		break;
-	case OMAPDSS_SIG_ACTIVE_HIGH:
+	if (vm->flags & DISPLAY_FLAGS_DE_HIGH)
 		de = false;
-		break;
-	default:
-		BUG();
-	}
+	else
+		de = true;
 
-	switch (data_pclk_edge) {
-	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
+	if (vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
 		ipc = false;
-		break;
-	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
+	else
 		ipc = true;
-		break;
-	default:
-		BUG();
-	}
 
 	/* always use the 'rf' setting */
 	onoff = true;
 
-	switch (sync_pclk_edge) {
-	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
-		rf = false;
-		break;
-	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
+	if (vm->flags & DISPLAY_FLAGS_SYNC_POSEDGE)
 		rf = true;
-		break;
-	default:
-		BUG();
-	}
+	else
+		rf = false;
 
 	l = FLD_VAL(onoff, 17, 17) |
 		FLD_VAL(rf, 16, 16) |
@@ -3253,13 +3219,13 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 /* change name to mode? */
 void dispc_mgr_set_timings(enum omap_channel channel,
-		const struct omap_video_timings *timings)
+			   const struct videomode *vm)
 {
 	unsigned xtot, ytot;
 	unsigned long ht, vt;
-	struct omap_video_timings t = *timings;
+	struct videomode t = *vm;
 
-	DSSDBG("channel %d xres %u yres %u\n", channel, t.x_res, t.y_res);
+	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.vactive);
 
 	if (!dispc_mgr_timings_ok(channel, &t)) {
 		BUG();
@@ -3267,34 +3233,37 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	}
 
 	if (dss_mgr_is_lcd(channel)) {
-		_dispc_mgr_set_lcd_timings(channel, t.hsw, t.hfp, t.hbp, t.vsw,
-				t.vfp, t.vbp, t.vsync_level, t.hsync_level,
-				t.data_pclk_edge, t.de_level, t.sync_pclk_edge);
+		_dispc_mgr_set_lcd_timings(channel, &t);
 
-		xtot = t.x_res + t.hfp + t.hsw + t.hbp;
-		ytot = t.y_res + t.vfp + t.vsw + t.vbp;
+		xtot = t.hactive + t.hfront_porch + t.hsync_len + t.hback_porch;
+		ytot = t.vactive + t.vfront_porch + t.vsync_len + t.vback_porch;
 
-		ht = timings->pixelclock / xtot;
-		vt = timings->pixelclock / xtot / ytot;
+		ht = vm->pixelclock / xtot;
+		vt = vm->pixelclock / xtot / ytot;
 
-		DSSDBG("pck %u\n", timings->pixelclock);
-		DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
-			t.hsw, t.hfp, t.hbp, t.vsw, t.vfp, t.vbp);
+		DSSDBG("pck %lu\n", vm->pixelclock);
+		DSSDBG("hsync_len %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
+			t.hsync_len, t.hfront_porch, t.hback_porch,
+			t.vsync_len, t.vfront_porch, t.vback_porch);
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
-			t.vsync_level, t.hsync_level, t.data_pclk_edge,
-			t.de_level, t.sync_pclk_edge);
+			!!(t.flags & DISPLAY_FLAGS_VSYNC_HIGH),
+			!!(t.flags & DISPLAY_FLAGS_HSYNC_HIGH),
+			!!(t.flags & DISPLAY_FLAGS_PIXDATA_POSEDGE),
+			!!(t.flags & DISPLAY_FLAGS_DE_HIGH),
+			!!(t.flags & DISPLAY_FLAGS_SYNC_POSEDGE));
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
-		if (t.interlace)
-			t.y_res /= 2;
+		if (t.flags & DISPLAY_FLAGS_INTERLACED)
+			t.vactive /= 2;
 
 		if (dispc.feat->supports_double_pixel)
-			REG_FLD_MOD(DISPC_CONTROL, t.double_pixel ? 1 : 0,
-				19, 17);
+			REG_FLD_MOD(DISPC_CONTROL,
+				    !!(t.flags & DISPLAY_FLAGS_DOUBLECLK),
+				    19, 17);
 	}
 
-	dispc_mgr_set_size(channel, t.x_res, t.y_res);
+	dispc_mgr_set_size(channel, t.hactive, t.vactive);
 }
 EXPORT_SYMBOL(dispc_mgr_set_timings);
 
@@ -4214,23 +4183,20 @@ EXPORT_SYMBOL(dispc_free_irq);
  */
 
 static const struct dispc_errata_i734_data {
-	struct omap_video_timings timings;
+	struct videomode vm;
 	struct omap_overlay_info ovli;
 	struct omap_overlay_manager_info mgri;
 	struct dss_lcd_mgr_config lcd_conf;
 } i734 = {
-	.timings = {
-		.x_res = 8, .y_res = 1,
+	.vm = {
+		.hactive = 8, .vactive = 1,
 		.pixelclock = 16000000,
-		.hsw = 8, .hfp = 4, .hbp = 4,
-		.vsw = 1, .vfp = 1, .vbp = 1,
-		.vsync_level = OMAPDSS_SIG_ACTIVE_LOW,
-		.hsync_level = OMAPDSS_SIG_ACTIVE_LOW,
-		.interlace = false,
-		.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
-		.de_level = OMAPDSS_SIG_ACTIVE_HIGH,
-		.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE,
-		.double_pixel = false,
+		.hsync_len = 8, .hfront_porch = 4, .hback_porch = 4,
+		.vsync_len = 1, .vfront_porch = 1, .vback_porch = 1,
+
+		.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+			 DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
+			 DISPLAY_FLAGS_PIXDATA_POSEDGE,
 	},
 	.ovli = {
 		.screen_width = 1,
@@ -4320,7 +4286,7 @@ static void dispc_errata_i734_wa(void)
 
 	/* Setup and enable GFX plane */
 	dispc_ovl_set_channel_out(OMAP_DSS_GFX, OMAP_DSS_CHANNEL_LCD);
-	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, false, &i734.timings, false);
+	dispc_ovl_setup(OMAP_DSS_GFX, &ovli, false, &i734.vm, false);
 	dispc_ovl_enable(OMAP_DSS_GFX, true);
 
 	/* Set up and enable display manager for LCD1 */
@@ -4328,7 +4294,7 @@ static void dispc_errata_i734_wa(void)
 	dispc_calc_clock_rates(dss_get_dispc_clk_rate(),
 			       &lcd_conf.clock_info);
 	dispc_mgr_set_lcd_config(OMAP_DSS_CHANNEL_LCD, &lcd_conf);
-	dispc_mgr_set_timings(OMAP_DSS_CHANNEL_LCD, &i734.timings);
+	dispc_mgr_set_timings(OMAP_DSS_CHANNEL_LCD, &i734.vm);
 
 	dispc_clear_irqstatus(framedone_irq);
 

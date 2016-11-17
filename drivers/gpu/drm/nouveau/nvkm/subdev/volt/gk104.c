@@ -35,7 +35,7 @@ struct gk104_volt {
 	struct nvbios_volt bios;
 };
 
-int
+static int
 gk104_volt_get(struct nvkm_volt *base)
 {
 	struct nvbios_volt *bios = &gk104_volt(base)->bios;
@@ -48,7 +48,7 @@ gk104_volt_get(struct nvkm_volt *base)
 	return bios->base + bios->pwm_range * duty / div;
 }
 
-int
+static int
 gk104_volt_set(struct nvkm_volt *base, u32 uv)
 {
 	struct nvbios_volt *bios = &gk104_volt(base)->bios;

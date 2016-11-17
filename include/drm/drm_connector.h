@@ -37,6 +37,7 @@ struct drm_crtc;
 struct drm_encoder;
 struct drm_property;
 struct drm_property_blob;
+struct drm_printer;
 struct edid;
 
 enum drm_connector_force {
@@ -481,6 +482,18 @@ struct drm_connector_funcs {
 				   const struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses struct &drm_connector_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_connector_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_connector_state *state);
 };
 
 /* mode specified on the command line */
@@ -760,6 +773,30 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
+
+/**
+ * struct drm_tile_group - Tile group metadata
+ * @refcount: reference count
+ * @dev: DRM device
+ * @id: tile group id exposed to userspace
+ * @group_data: Sink-private data identifying this group
+ *
+ * @group_data corresponds to displayid vend/prod/serial for external screens
+ * with an EDID.
+ */
+struct drm_tile_group {
+	struct kref refcount;
+	struct drm_device *dev;
+	int id;
+	u8 group_data[8];
+};
+
+struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+						  char topology[8]);
+struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8]);
+void drm_mode_put_tile_group(struct drm_device *dev,
+			     struct drm_tile_group *tg);
 
 /**
  * drm_for_each_connector - iterate over all connectors

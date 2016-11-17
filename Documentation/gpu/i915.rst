@@ -258,19 +258,19 @@ Global GTT views
 GTT Fences and Swizzling
 ------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
    :internal:
 
 Global GTT Fence Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
    :doc: fence register handling
 
 Hardware Tiling and Swizzling Details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence.c
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
    :doc: tiling swizzling details
 
 Object Tiling IOCTLs

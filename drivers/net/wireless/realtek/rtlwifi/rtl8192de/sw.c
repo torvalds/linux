@@ -92,6 +92,7 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 	u8 tid;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	char *fw_name = "rtlwifi/rtl8192defw.bin";
 
 	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
@@ -181,10 +182,10 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 
 	rtlpriv->max_fw_size = 0x8000;
 	pr_info("Driver for Realtek RTL8192DE WLAN interface\n");
-	pr_info("Loading firmware file %s\n", rtlpriv->cfg->fw_name);
+	pr_info("Loading firmware file %s\n", fw_name);
 
 	/* request fw */
-	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
+	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
@@ -266,7 +267,6 @@ static const struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8192de",
-	.fw_name = "rtlwifi/rtl8192defw.bin",
 	.ops = &rtl8192de_hal_ops,
 	.mod_params = &rtl92de_mod_params,
 

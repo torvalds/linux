@@ -111,7 +111,7 @@ void uart_write_wakeup(struct uart_port *port)
 	 * closed.  No cookie for you.
 	 */
 	BUG_ON(!state);
-	tty_wakeup(state->port.tty);
+	tty_port_tty_wakeup(&state->port);
 }
 
 static void uart_stop(struct tty_struct *tty)
@@ -632,7 +632,7 @@ static void uart_flush_buffer(struct tty_struct *tty)
 	if (port->ops->flush_buffer)
 		port->ops->flush_buffer(port);
 	uart_port_unlock(port, flags);
-	tty_wakeup(tty);
+	tty_port_tty_wakeup(&state->port);
 }
 
 /*
@@ -2746,8 +2746,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	uport->cons = drv->cons;
 	uport->minor = drv->tty_driver->minor_start + uport->line;
 
-	port->console = uart_console(uport);
-
 	/*
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
@@ -2760,6 +2758,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
 	uart_configure_port(drv, state, uport);
+
+	port->console = uart_console(uport);
 
 	num_groups = 2;
 	if (uport->attr_group)

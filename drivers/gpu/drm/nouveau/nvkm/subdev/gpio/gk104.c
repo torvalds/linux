@@ -37,7 +37,7 @@ gk104_gpio_intr_stat(struct nvkm_gpio *gpio, u32 *hi, u32 *lo)
 	nvkm_wr32(device, 0x00dc80, intr1);
 }
 
-void
+static void
 gk104_gpio_intr_mask(struct nvkm_gpio *gpio, u32 type, u32 mask, u32 data)
 {
 	struct nvkm_device *device = gpio->subdev.device;

@@ -489,10 +489,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		/* return all clocks in KHz */
 		dev_info.gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
 		if (adev->pm.dpm_enabled) {
-			dev_info.max_engine_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
-			dev_info.max_memory_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk * 10;
+			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
+			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
 		} else {
 			dev_info.max_engine_clock = adev->pm.default_sclk * 10;
 			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
@@ -825,6 +823,7 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_CS, amdgpu_cs_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_INFO, amdgpu_info_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_WAIT_CS, amdgpu_cs_wait_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(AMDGPU_WAIT_FENCES, amdgpu_cs_wait_fences_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_METADATA, amdgpu_gem_metadata_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_VA, amdgpu_gem_va_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_OP, amdgpu_gem_op_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),

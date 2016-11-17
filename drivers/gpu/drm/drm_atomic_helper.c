@@ -595,10 +595,6 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	struct drm_plane_state *plane_state;
 	int i, ret = 0;
 
-	ret = drm_atomic_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
-
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
 
@@ -3076,6 +3072,8 @@ void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
 
 	if (state->fb)
 		drm_framebuffer_reference(state->fb);
+
+	state->fence = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_duplicate_state);
 
@@ -3114,6 +3112,9 @@ void __drm_atomic_helper_plane_destroy_state(struct drm_plane_state *state)
 {
 	if (state->fb)
 		drm_framebuffer_unreference(state->fb);
+
+	if (state->fence)
+		dma_fence_put(state->fence);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_destroy_state);
 

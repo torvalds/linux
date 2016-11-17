@@ -24,6 +24,7 @@ nvkm-y += nvkm/subdev/fb/gk104.o
 nvkm-y += nvkm/subdev/fb/gk20a.o
 nvkm-y += nvkm/subdev/fb/gm107.o
 nvkm-y += nvkm/subdev/fb/gm200.o
+nvkm-y += nvkm/subdev/fb/gm20b.o
 nvkm-y += nvkm/subdev/fb/gp100.o
 nvkm-y += nvkm/subdev/fb/gp104.o
 

@@ -79,17 +79,13 @@ uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
 EXPORT_SYMBOL(drm_mode_legacy_fb_format);
 
 /**
- * drm_get_format_name - return a string for drm fourcc format
+ * drm_get_format_name - fill a string with a drm fourcc format's name
  * @format: format to compute name of
- *
- * Note that the buffer returned by this function is owned by the caller
- * and will need to be freed using kfree().
+ * @buf: caller-supplied buffer
  */
-char *drm_get_format_name(uint32_t format)
+const char *drm_get_format_name(uint32_t format, struct drm_format_name_buf *buf)
 {
-	char *buf = kmalloc(32, GFP_KERNEL);
-
-	snprintf(buf, 32,
+	snprintf(buf->str, sizeof(buf->str),
 		 "%c%c%c%c %s-endian (0x%08x)",
 		 printable_char(format & 0xff),
 		 printable_char((format >> 8) & 0xff),
@@ -98,7 +94,7 @@ char *drm_get_format_name(uint32_t format)
 		 format & DRM_FORMAT_BIG_ENDIAN ? "big" : "little",
 		 format);
 
-	return buf;
+	return buf->str;
 }
 EXPORT_SYMBOL(drm_get_format_name);
 

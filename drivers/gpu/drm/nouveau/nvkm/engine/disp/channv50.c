@@ -153,7 +153,7 @@ nv50_disp_chan_uevent = {
 	.fini = nv50_disp_chan_uevent_fini,
 };
 
-int
+static int
 nv50_disp_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
@@ -163,7 +163,7 @@ nv50_disp_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
 	return 0;
 }
 
-int
+static int
 nv50_disp_chan_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
@@ -173,7 +173,7 @@ nv50_disp_chan_wr32(struct nvkm_object *object, u64 addr, u32 data)
 	return 0;
 }
 
-int
+static int
 nv50_disp_chan_ntfy(struct nvkm_object *object, u32 type,
 		    struct nvkm_event **pevent)
 {
@@ -189,7 +189,7 @@ nv50_disp_chan_ntfy(struct nvkm_object *object, u32 type,
 	return -EINVAL;
 }
 
-int
+static int
 nv50_disp_chan_map(struct nvkm_object *object, u64 *addr, u32 *size)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);

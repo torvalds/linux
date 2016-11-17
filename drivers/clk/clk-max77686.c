@@ -216,6 +216,7 @@ static int max77686_clk_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	drv_data->num_clks = num_clks;
 	drv_data->max_clk_data = devm_kcalloc(dev, num_clks,
 					      sizeof(*drv_data->max_clk_data),
 					      GFP_KERNEL);

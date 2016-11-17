@@ -114,6 +114,18 @@ static inline u32 mdp5_read(struct mdp5_kms *mdp5_kms, u32 reg)
 	return msm_readl(mdp5_kms->mmio + reg);
 }
 
+static inline const char *stage2name(enum mdp_mixer_stage_id stage)
+{
+	static const char *names[] = {
+#define NAME(n) [n] = #n
+		NAME(STAGE_UNUSED), NAME(STAGE_BASE),
+		NAME(STAGE0), NAME(STAGE1), NAME(STAGE2),
+		NAME(STAGE3), NAME(STAGE4), NAME(STAGE6),
+#undef NAME
+	};
+	return names[stage];
+}
+
 static inline const char *pipe2name(enum mdp5_pipe pipe)
 {
 	static const char *names[] = {

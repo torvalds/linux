@@ -1775,5 +1775,6 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
 		dma_fence_put(adev->vm_manager.ids[i].first);
 		amdgpu_sync_free(&adev->vm_manager.ids[i].active);
 		dma_fence_put(id->flushed_updates);
+		dma_fence_put(id->last_flush);
 	}
 }

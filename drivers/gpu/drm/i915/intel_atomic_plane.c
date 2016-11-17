@@ -142,7 +142,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
 
 	if (state->fb && drm_rotation_90_or_270(state->rotation)) {
-		char *format_name;
+		struct drm_format_name_buf format_name;
 
 		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
@@ -158,9 +158,9 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		switch (state->fb->pixel_format) {
 		case DRM_FORMAT_C8:
 		case DRM_FORMAT_RGB565:
-			format_name = drm_get_format_name(state->fb->pixel_format);
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n", format_name);
-			kfree(format_name);
+			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
+			              drm_get_format_name(state->fb->pixel_format,
+			                                  &format_name));
 			return -EINVAL;
 
 		default:

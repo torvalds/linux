@@ -1733,6 +1733,13 @@ int mlx4_en_start_port(struct net_device *dev)
 		udp_tunnel_get_rx_info(dev);
 
 	priv->port_up = true;
+
+	/* Process all completions if exist to prevent
+	 * the queues freezing if they are full
+	 */
+	for (i = 0; i < priv->rx_ring_num; i++)
+		napi_schedule(&priv->rx_cq[i]->napi);
+
 	netif_tx_start_all_queues(dev);
 	netif_device_attach(dev);
 
@@ -1910,8 +1917,9 @@ static void mlx4_en_clear_stats(struct net_device *dev)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int i;
 
-	if (mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 1))
-		en_dbg(HW, priv, "Failed dumping statistics\n");
+	if (!mlx4_is_slave(mdev->dev))
+		if (mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 1))
+			en_dbg(HW, priv, "Failed dumping statistics\n");
 
 	memset(&priv->pstats, 0, sizeof(priv->pstats));
 	memset(&priv->pkstats, 0, sizeof(priv->pkstats));
@@ -2194,6 +2202,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	if (!shutdown)
 		free_netdev(dev);
+	dev->ethtool_ops = NULL;
 }
 
 static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
