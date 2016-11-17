@@ -28,6 +28,19 @@
 		status = "okay";
 	};
 
+	battery: max8903@0 {
+		compatible = "fsl,max8903-charger";
+		pinctrl-names = "default";
+		dok_input = <&gpio4 13 1>;
+		uok_input = <&gpio4 13 1>;
+		chg_input = <&gpio4 15 1>;
+		flt_input = <&gpio4 14 1>;
+		fsl,dcm_always_high;
+		fsl,dc_valid;
+		fsl,adc_disable;
+		status = "okay";
+	};
+
 	pxp_v4l2_out {
 		compatible = "fsl,imx6sl-pxp-v4l2";
 		status = "okay";
@@ -371,6 +384,10 @@
 				MX6SLL_PAD_KEY_COL6__GPIO4_IO04 0x17059 /*SD3 RESET */
 				MX6SLL_PAD_KEY_COL5__GPIO4_IO02 0x17059
 				MX6SLL_PAD_GPIO4_IO24__GPIO4_IO24 0x17059 /* HP DETECT */
+				/* CHG_FLT, CHG_UOK/DOK, CHG_STATUS */
+				MX6SLL_PAD_ECSPI2_MISO__GPIO4_IO14 0x17000
+				MX6SLL_PAD_ECSPI2_MOSI__GPIO4_IO13 0x17000
+				MX6SLL_PAD_ECSPI2_SS0__GPIO4_IO15  0x17000
 			>;
 		};
 
