@@ -602,7 +602,7 @@ void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
 			dev_warn(adev->dev, "limiting GTT\n");
 			mc->gtt_size = size_bf;
 		}
-		mc->gtt_start = (mc->vram_start & ~mc->gtt_base_align) - mc->gtt_size;
+		mc->gtt_start = 0;
 	} else {
 		if (mc->gtt_size > size_af) {
 			dev_warn(adev->dev, "limiting GTT\n");
