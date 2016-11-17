@@ -513,11 +513,10 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 			     u32 offset, u32 size)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct sg_table *st;
 	struct scatterlist *sg;
 
-	GEM_BUG_ON(offset > ggtt->stolen_size - size);
+	GEM_BUG_ON(offset > dev_priv->ggtt.stolen_size - size);
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
@@ -554,7 +553,7 @@ i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
 					     struct sg_table *pages)
 {
-	/* Should only be called during free */
+	/* Should only be called from i915_gem_object_release_stolen() */
 	sg_free_table(pages);
 	kfree(pages);
 }
@@ -563,15 +562,16 @@ static void
 i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct drm_mm_node *stolen = fetch_and_zero(&obj->stolen);
+
+	GEM_BUG_ON(!stolen);
 
 	__i915_gem_object_unpin_pages(obj);
 
-	if (obj->stolen) {
-		i915_gem_stolen_remove_node(dev_priv, obj->stolen);
-		kfree(obj->stolen);
-		obj->stolen = NULL;
-	}
+	i915_gem_stolen_remove_node(dev_priv, stolen);
+	kfree(stolen);
 }
+
 static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
 	.get_pages = i915_gem_object_get_pages_stolen,
 	.put_pages = i915_gem_object_put_pages_stolen,
