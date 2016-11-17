@@ -9,7 +9,7 @@
 /*
  * NOTE: This DTS file is written for plugging in Murata Wi-Fi/BT EVK into Slot
  * SD1 and using Murata i.MX InterConnect Ver 2.0 Adapter. Bluetooth UART &
- * control signals are connected via ribbon cable (J1701 connector).
+ * control signals are connected via ribbon cable (J4 connector).
  */
 
 #include "imx6sll-evk.dts"
@@ -34,7 +34,7 @@
 };
 
 &iomuxc {
-	imx6ul-evk-murata-v2 {
+	imx6sll-evk-murata-v2 {
 		pinctrl_wifi: wifigrp {
 			fsl,pins = <
 				MX6SLL_PAD_KEY_COL0__GPIO3_IO24 0x17059 /* WL_REG_ON */
