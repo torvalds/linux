@@ -588,7 +588,7 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_dev_save_state, NULL);
 
 	/* Issue reset */
-	ret = eeh_reset_pe(pe);
+	ret = eeh_pe_reset_full(pe);
 	if (ret) {
 		eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 		return ret;
@@ -659,7 +659,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * config accesses. So we prefer to block them. However, controlled
 	 * PCI config accesses initiated from EEH itself are allowed.
 	 */
-	rc = eeh_reset_pe(pe);
+	rc = eeh_pe_reset_full(pe);
 	if (rc)
 		return rc;
 
