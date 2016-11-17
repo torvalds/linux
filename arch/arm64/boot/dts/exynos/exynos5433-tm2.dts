@@ -158,6 +158,11 @@
 	};
 };
 
+&cmu_aud {
+	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>;
+	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
+};
+
 &cmu_fsys {
 	assigned-clocks = <&cmu_top CLK_MOUT_SCLK_USBDRD30>,
 		<&cmu_top CLK_MOUT_SCLK_USBHOST30>,
@@ -911,12 +916,6 @@
 };
 
 &serial_1 {
-	status = "okay";
-};
-
-&serial_3 {
-	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>;
-	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
 	status = "okay";
 };
 
