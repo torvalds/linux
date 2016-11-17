@@ -206,12 +206,18 @@ static inline void rm_writeb(unsigned long paddr, u8 val)
 void kvmhv_rm_send_ipi(int cpu)
 {
 	unsigned long xics_phys;
+	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 
-	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
+	/* On POWER9 we can use msgsnd for any destination cpu. */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		msg |= get_hard_smp_processor_id(cpu);
+		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+		return;
+	}
+	/* On POWER8 for IPIs to threads in the same core, use msgsnd. */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
 	    cpu_first_thread_sibling(cpu) ==
 	    cpu_first_thread_sibling(raw_smp_processor_id())) {
-		unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 		msg |= cpu_thread_in_core(cpu);
 		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
 		return;

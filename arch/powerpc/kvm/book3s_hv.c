@@ -147,12 +147,21 @@ static inline struct kvm_vcpu *next_runnable_thread(struct kvmppc_vcore *vc,
 
 static bool kvmppc_ipi_thread(int cpu)
 {
+	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+
+	/* On POWER9 we can use msgsnd to IPI any cpu */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		msg |= get_hard_smp_processor_id(cpu);
+		smp_mb();
+		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+		return true;
+	}
+
 	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
 		preempt_disable();
 		if (cpu_first_thread_sibling(cpu) ==
 		    cpu_first_thread_sibling(smp_processor_id())) {
-			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 			msg |= cpu_thread_in_core(cpu);
 			smp_mb();
 			__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
