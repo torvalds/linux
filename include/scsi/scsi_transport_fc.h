@@ -819,6 +819,11 @@ fc_vport_set_state(struct fc_vport *vport, enum fc_vport_state new_state)
 	vport->vport_state = new_state;
 }
 
+static inline struct Scsi_Host *fc_bsg_to_shost(struct fc_bsg_job *job)
+{
+	return job->shost;
+}
+
 struct scsi_transport_template *fc_attach_transport(
 			struct fc_function_template *);
 void fc_release_transport(struct scsi_transport_template *);

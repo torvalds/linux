@@ -901,11 +901,13 @@ static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
 	u8 gs_type;
 	struct zfcp_adapter *adapter;
 	struct fc_bsg_request *bsg_request = job->request;
+	struct Scsi_Host *shost;
 
 	preamble_word1 = bsg_request->rqst_data.r_ct.preamble_word1;
 	gs_type = (preamble_word1 & 0xff000000) >> 24;
 
-	adapter = (struct zfcp_adapter *) job->shost->hostdata[0];
+	shost = fc_bsg_to_shost(job);
+	adapter = (struct zfcp_adapter *) shost->hostdata[0];
 
 	switch (gs_type) {
 	case FC_FST_ALIAS:
@@ -987,7 +989,7 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	struct zfcp_fsf_ct_els *ct_els = job->dd_data;
 	struct fc_bsg_request *bsg_request = job->request;
 
-	shost = job->rport ? rport_to_shost(job->rport) : job->shost;
+	shost = job->rport ? rport_to_shost(job->rport) : fc_bsg_to_shost(job);
 	adapter = (struct zfcp_adapter *)shost->hostdata[0];
 
 	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_OPEN))

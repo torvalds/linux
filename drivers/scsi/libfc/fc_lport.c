@@ -2088,7 +2088,7 @@ int fc_lport_bsg_request(struct fc_bsg_job *job)
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	struct request *rsp = job->req->next_rq;
-	struct Scsi_Host *shost = job->shost;
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
 	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;

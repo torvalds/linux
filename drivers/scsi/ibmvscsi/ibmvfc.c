@@ -1708,7 +1708,7 @@ static void ibmvfc_bsg_timeout_done(struct ibmvfc_event *evt)
  **/
 static int ibmvfc_bsg_timeout(struct fc_bsg_job *job)
 {
-	struct ibmvfc_host *vhost = shost_priv(job->shost);
+	struct ibmvfc_host *vhost = shost_priv(fc_bsg_to_shost(job));
 	unsigned long port_id = (unsigned long)job->dd_data;
 	struct ibmvfc_event *evt;
 	struct ibmvfc_tmf *tmf;
@@ -1821,7 +1821,7 @@ unlock_out:
  **/
 static int ibmvfc_bsg_request(struct fc_bsg_job *job)
 {
-	struct ibmvfc_host *vhost = shost_priv(job->shost);
+	struct ibmvfc_host *vhost = shost_priv(fc_bsg_to_shost(job));
 	struct fc_rport *rport = job->rport;
 	struct ibmvfc_passthru_mad *mad;
 	struct ibmvfc_event *evt;
