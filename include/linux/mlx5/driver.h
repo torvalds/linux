@@ -498,6 +498,31 @@ struct mlx5_rl_table {
 	struct mlx5_rl_entry   *rl_entry;
 };
 
+enum port_module_event_status_type {
+	MLX5_MODULE_STATUS_PLUGGED   = 0x1,
+	MLX5_MODULE_STATUS_UNPLUGGED = 0x2,
+	MLX5_MODULE_STATUS_ERROR     = 0x3,
+	MLX5_MODULE_STATUS_NUM       = 0x3,
+};
+
+enum  port_module_event_error_type {
+	MLX5_MODULE_EVENT_ERROR_POWER_BUDGET_EXCEEDED,
+	MLX5_MODULE_EVENT_ERROR_LONG_RANGE_FOR_NON_MLNX_CABLE_MODULE,
+	MLX5_MODULE_EVENT_ERROR_BUS_STUCK,
+	MLX5_MODULE_EVENT_ERROR_NO_EEPROM_RETRY_TIMEOUT,
+	MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST,
+	MLX5_MODULE_EVENT_ERROR_UNKNOWN_IDENTIFIER,
+	MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE,
+	MLX5_MODULE_EVENT_ERROR_BAD_CABLE,
+	MLX5_MODULE_EVENT_ERROR_UNKNOWN,
+	MLX5_MODULE_EVENT_ERROR_NUM,
+};
+
+struct mlx5_port_module_event_stats {
+	u64 status_counters[MLX5_MODULE_STATUS_NUM];
+	u64 error_counters[MLX5_MODULE_EVENT_ERROR_NUM];
+};
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
@@ -559,6 +584,8 @@ struct mlx5_priv {
 	unsigned long		pci_dev_data;
 	struct mlx5_fc_stats		fc_stats;
 	struct mlx5_rl_table            rl_table;
+
+	struct mlx5_port_module_event_stats  pme_stats;
 };
 
 enum mlx5_device_state {
