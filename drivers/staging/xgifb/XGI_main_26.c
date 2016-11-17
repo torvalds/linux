@@ -1465,7 +1465,6 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 	       reg,
 	       xgifb_info->video_size, ChannelNum);
 	return 0;
-
 }
 
 static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
@@ -1976,7 +1975,6 @@ static int xgifb_probe(struct pci_dev *pdev,
 			fb_info->var.yres >>= 1;
 			fb_info->var.yres_virtual >>= 1;
 		}
-
 	}
 
 	fb_info->flags = FBINFO_FLAG_DEFAULT;
