@@ -314,6 +314,14 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 				fwnode_handle_put(child);
 				return error;
 			}
+
+			error = gpiod_direction_input(bdata->gpiod);
+			if (error) {
+				dev_err(dev, "Failed to configure GPIO %d as input: %d\n",
+					desc_to_gpio(bdata->gpiod), error);
+				fwnode_handle_put(child);
+				return error;
+			}
 		} else if (gpio_is_valid(button->gpio)) {
 			/*
 			 * Legacy GPIO number so request the GPIO here and
