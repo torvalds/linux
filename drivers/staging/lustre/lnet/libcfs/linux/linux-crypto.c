@@ -177,7 +177,7 @@ int cfs_crypto_hash_digest(enum cfs_crypto_hash_alg hash_alg,
 EXPORT_SYMBOL(cfs_crypto_hash_digest);
 
 /**
- * Allocate and initialize desriptor for hash algorithm.
+ * Allocate and initialize descriptor for hash algorithm.
  *
  * This should be used to initialize a hash descriptor for multiple calls
  * to a single hash function when computing the hash across multiple
