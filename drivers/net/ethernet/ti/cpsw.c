@@ -2375,8 +2375,11 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 * to the PHY is the Ethernet MAC DT node.
 			 */
 			ret = of_phy_register_fixed_link(slave_node);
-			if (ret)
+			if (ret) {
+				if (ret != -EPROBE_DEFER)
+					dev_err(&pdev->dev, "failed to register fixed-link phy: %d\n", ret);
 				return ret;
+			}
 			slave_data->phy_node = of_node_get(slave_node);
 		} else if (parp) {
 			u32 phyid;
@@ -2637,11 +2640,10 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_runtime_disable_ret;
 	}
 
-	if (cpsw_probe_dt(&cpsw->data, pdev)) {
-		dev_err(&pdev->dev, "cpsw: platform data missing\n");
-		ret = -ENODEV;
+	ret = cpsw_probe_dt(&cpsw->data, pdev);
+	if (ret)
 		goto clean_dt_ret;
-	}
+
 	data = &cpsw->data;
 	cpsw->rx_ch_num = 1;
 	cpsw->tx_ch_num = 1;
