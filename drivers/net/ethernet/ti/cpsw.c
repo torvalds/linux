@@ -2086,6 +2086,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			}
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 				 PHY_ID_FMT, mdio->name, phyid);
+			put_device(&mdio->dev);
 		} else {
 			dev_err(&pdev->dev, "No slave[%d] phy_id or fixed-link property\n", i);
 			goto no_phy_slave;
