@@ -273,7 +273,7 @@ static int cfs_wi_scheduler(void *arg)
 
 		spin_unlock(&sched->ws_lock);
 		rc = wait_event_interruptible_exclusive(sched->ws_waitq,
-						!cfs_wi_sched_cansleep(sched));
+							!cfs_wi_sched_cansleep(sched));
 		spin_lock(&sched->ws_lock);
 	}
 
