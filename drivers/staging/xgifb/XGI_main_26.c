@@ -729,7 +729,6 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 
 	if (xgifb_info->display2 == XGIFB_DISP_TV &&
 	    xgifb_info->hasVB == HASVB_301) {
-
 		reg = xgifb_reg_get(XGIPART4, 0x01);
 
 		if (reg < 0xB0) { /* Set filter for XGI301 */
@@ -762,16 +761,13 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 				     0x01);
 
 			if (xgifb_info->TV_type == TVMODE_NTSC) {
-
 				xgifb_reg_and(XGIPART2, 0x3a, 0x1f);
 
 				if (xgifb_info->TV_plug == TVPLUG_SVIDEO) {
-
 					xgifb_reg_and(XGIPART2, 0x30, 0xdf);
 
 				} else if (xgifb_info->TV_plug
 						== TVPLUG_COMPOSITE) {
-
 					xgifb_reg_or(XGIPART2, 0x30, 0x20);
 
 					switch (xgifb_info->video_width) {
@@ -821,16 +817,13 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 				}
 
 			} else if (xgifb_info->TV_type == TVMODE_PAL) {
-
 				xgifb_reg_and(XGIPART2, 0x3A, 0x1F);
 
 				if (xgifb_info->TV_plug == TVPLUG_SVIDEO) {
-
 					xgifb_reg_and(XGIPART2, 0x30, 0xDF);
 
 				} else if (xgifb_info->TV_plug
 						== TVPLUG_COMPOSITE) {
-
 					xgifb_reg_or(XGIPART2, 0x30, 0x20);
 
 					switch (xgifb_info->video_width) {
@@ -991,7 +984,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	}
 
 	if (isactive) {
-
 		XGIfb_pre_setmode(xgifb_info);
 		if (XGISetModeNew(xgifb_info, hw_info,
 				  XGIbios_mode[xgifb_info->mode_idx].mode_no)
@@ -1274,7 +1266,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 	if (!found_mode) {
-
 		pr_err("%dx%dx%d is no valid mode\n",
 			var->xres, var->yres, var->bits_per_pixel);
 		search_idx = 0;
@@ -1399,7 +1390,6 @@ static struct fb_ops XGIfb_ops = {
 
 static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 {
-
 	u8 ChannelNum, tmp;
 	u8 reg = 0;
 
@@ -1595,7 +1585,6 @@ static int __init XGIfb_setup(char *options)
 	pr_info("Options: %s\n", options);
 
 	while ((this_opt = strsep(&options, ",")) != NULL) {
-
 		if (!*this_opt)
 			continue;
 
@@ -1977,7 +1966,6 @@ static int xgifb_probe(struct pci_dev *pdev,
 		&fb_info->var.vsync_len,
 		&fb_info->var.sync,
 		&fb_info->var.vmode)) {
-
 		if ((fb_info->var.vmode & FB_VMODE_MASK) ==
 		    FB_VMODE_INTERLACED) {
 			fb_info->var.yres <<= 1;
