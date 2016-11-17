@@ -73,7 +73,7 @@ cfs_percpt_lock_create(struct cfs_cpt_table *cptab,
 
 	cfs_percpt_for_each(lock, i, pcl->pcl_locks) {
 		spin_lock_init(lock);
-		if (keys != NULL)
+		if (keys)
 			lockdep_set_class(lock, &keys[i]);
 	}
 
