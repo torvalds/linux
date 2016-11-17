@@ -11,6 +11,58 @@
 		reg = <0x0 0x03100000 0x0 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 55>;
+		clock-names = "serial";
+		resets = <&bpmp 47>;
+		reset-names = "serial";
+		status = "disabled";
+	};
+
+	uartb: serial@3110000 {
+		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x03110000 0x0 0x40>;
+		reg-shift = <2>;
+		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 56>;
+		clock-names = "serial";
+		resets = <&bpmp 48>;
+		reset-names = "serial";
+		status = "disabled";
+	};
+
+	uartd: serial@3130000 {
+		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x03130000 0x0 0x40>;
+		reg-shift = <2>;
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 77>;
+		clock-names = "serial";
+		resets = <&bpmp 50>;
+		reset-names = "serial";
+		status = "disabled";
+	};
+
+	uarte: serial@3140000 {
+		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x03140000 0x0 0x40>;
+		reg-shift = <2>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 194>;
+		clock-names = "serial";
+		resets = <&bpmp 132>;
+		reset-names = "serial";
+		status = "disabled";
+	};
+
+	uartf: serial@3150000 {
+		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x03150000 0x0 0x40>;
+		reg-shift = <2>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 195>;
+		clock-names = "serial";
+		resets = <&bpmp 111>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
@@ -31,6 +83,30 @@
 		interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "doorbell";
 		#mbox-cells = <2>;
+		status = "disabled";
+	};
+
+	uartc: serial@c280000 {
+		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x0c280000 0x0 0x40>;
+		reg-shift = <2>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 215>;
+		clock-names = "serial";
+		resets = <&bpmp 49>;
+		reset-names = "serial";
+		status = "disabled";
+	};
+
+	uartg: serial@c290000 {
+		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
+		reg = <0x0 0x0c290000 0x0 0x40>;
+		reg-shift = <2>;
+		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp 216>;
+		clock-names = "serial";
+		resets = <&bpmp 112>;
+		reset-names = "serial";
 		status = "disabled";
 	};
 
