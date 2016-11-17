@@ -264,6 +264,7 @@ struct stripe_head_state {
 	int syncing, expanding, expanded, replacing;
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
+	int injournal;
 	int failed_num[2];
 	int p_failed, q_failed;
 	int dec_preread_active;
@@ -313,6 +314,11 @@ enum r5dev_flags {
 			 */
 	R5_Discard,	/* Discard the stripe */
 	R5_SkipCopy,	/* Don't copy data from bio to stripe cache */
+	R5_InJournal,	/* data being written is in the journal device.
+			 * if R5_InJournal is set for parity pd_idx, all the
+			 * data and parity being written are in the journal
+			 * device
+			 */
 };
 
 /*
@@ -345,7 +351,23 @@ enum {
 	STRIPE_BITMAP_PENDING,	/* Being added to bitmap, don't add
 				 * to batch yet.
 				 */
-	STRIPE_LOG_TRAPPED, /* trapped into log */
+	STRIPE_LOG_TRAPPED,	/* trapped into log (see raid5-cache.c)
+				 * this bit is used in two scenarios:
+				 *
+				 * 1. write-out phase
+				 *  set in first entry of r5l_write_stripe
+				 *  clear in second entry of r5l_write_stripe
+				 *  used to bypass logic in handle_stripe
+				 *
+				 * 2. caching phase
+				 *  set in r5c_try_caching_write()
+				 *  clear when journal write is done
+				 *  used to initiate r5c_cache_data()
+				 *  also used to bypass logic in handle_stripe
+				 */
+	STRIPE_R5C_CACHING,	/* the stripe is in caching phase
+				 * see more detail in the raid5-cache.c
+				 */
 };
 
 #define STRIPE_EXPAND_SYNC_FLAGS \
@@ -710,4 +732,11 @@ extern void r5l_stripe_write_finished(struct stripe_head *sh);
 extern int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio);
 extern void r5l_quiesce(struct r5l_log *log, int state);
 extern bool r5l_log_disk_error(struct r5conf *conf);
+extern bool r5c_is_writeback(struct r5l_log *log);
+extern int
+r5c_try_caching_write(struct r5conf *conf, struct stripe_head *sh,
+		      struct stripe_head_state *s, int disks);
+extern void
+r5c_finish_stripe_write_out(struct r5conf *conf, struct stripe_head *sh,
+			    struct stripe_head_state *s);
 #endif

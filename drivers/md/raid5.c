@@ -4107,6 +4107,9 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			if (rdev && !test_bit(Faulty, &rdev->flags))
 				do_recovery = 1;
 		}
+
+		if (test_bit(R5_InJournal, &dev->flags))
+			s->injournal++;
 	}
 	if (test_bit(STRIPE_SYNCING, &sh->state)) {
 		/* If there is a failed device being replaced,
@@ -4386,14 +4389,47 @@ static void handle_stripe(struct stripe_head *sh)
 	    || s.expanding)
 		handle_stripe_fill(sh, &s, disks);
 
-	/* Now to consider new write requests and what else, if anything
-	 * should be read.  We do not handle new writes when:
+	/*
+	 * When the stripe finishes full journal write cycle (write to journal
+	 * and raid disk), this is the clean up procedure so it is ready for
+	 * next operation.
+	 */
+	r5c_finish_stripe_write_out(conf, sh, &s);
+
+	/*
+	 * Now to consider new write requests, cache write back and what else,
+	 * if anything should be read.  We do not handle new writes when:
 	 * 1/ A 'write' operation (copy+xor) is already in flight.
 	 * 2/ A 'check' operation is in flight, as it may clobber the parity
 	 *    block.
+	 * 3/ A r5c cache log write is in flight.
 	 */
-	if (s.to_write && !sh->reconstruct_state && !sh->check_state)
-		handle_stripe_dirtying(conf, sh, &s, disks);
+
+	if (!sh->reconstruct_state && !sh->check_state && !sh->log_io) {
+		if (!r5c_is_writeback(conf->log)) {
+			if (s.to_write)
+				handle_stripe_dirtying(conf, sh, &s, disks);
+		} else { /* write back cache */
+			int ret = 0;
+
+			/* First, try handle writes in caching phase */
+			if (s.to_write)
+				ret = r5c_try_caching_write(conf, sh, &s,
+							    disks);
+			/*
+			 * If caching phase failed: ret == -EAGAIN
+			 *    OR
+			 * stripe under reclaim: !caching && injournal
+			 *
+			 * fall back to handle_stripe_dirtying()
+			 */
+			if (ret == -EAGAIN ||
+			    /* stripe under reclaim: !caching && injournal */
+			    (!test_bit(STRIPE_R5C_CACHING, &sh->state) &&
+			     s.injournal > 0))
+				handle_stripe_dirtying(conf, sh, &s, disks);
+		}
+	}
 
 	/* maybe we need to check and possibly fix the parity for this stripe
 	 * Any reads will already have been scheduled, so we just see if enough
@@ -5110,6 +5146,7 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	 * data on failed drives.
 	 */
 	if (rw == READ && mddev->degraded == 0 &&
+	    !r5c_is_writeback(conf->log) &&
 	    mddev->reshape_position == MaxSector) {
 		bi = chunk_aligned_read(mddev, bi);
 		if (!bi)
