@@ -440,6 +440,9 @@ struct smb_version_operations {
 				 struct smb_rqst *);
 	/* free transform request */
 	void (*free_transform_rq)(struct smb_rqst *);
+	int (*is_transform_hdr)(void *buf);
+	int (*receive_transform)(struct TCP_Server_Info *,
+				 struct mid_q_entry **);
 };
 
 struct smb_version_values {
