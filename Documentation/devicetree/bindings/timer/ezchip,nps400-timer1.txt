@@ -2,14 +2,14 @@ NPS Network Processor
 
 Required properties:
 
-- compatible :	should be "ezchip,nps400-timer"
+- compatible :	should be "ezchip,nps400-timer1"
 
-Clocks required for compatible = "ezchip,nps400-timer":
+Clocks required for compatible = "ezchip,nps400-timer1":
 - clocks : Must contain a single entry describing the clock input
 
 Example:
 
 timer {
-	compatible = "ezchip,nps400-timer";
+	compatible = "ezchip,nps400-timer1";
 	clocks = <&sysclk>;
 };
