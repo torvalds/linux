@@ -92,14 +92,16 @@ struct lstcon_batch {
 	int		 bat_ntest;	  /* # of test */
 	int		 bat_state;	  /* state of the batch */
 	int		 bat_arg;	  /* parameter for run|stop, timeout
-					   * for run, force for stop */
+					   * for run, force for stop
+					   */
 	char		 bat_name[LST_NAME_SIZE];/* name of batch */
 
 	struct list_head bat_test_list;   /* list head of tests (struct lstcon_test)
 					   */
 	struct list_head bat_trans_list;  /* list head of transaction */
 	struct list_head bat_cli_list;	  /* list head of client nodes
-					   * (struct lstcon_node) */
+					   * (struct lstcon_node)
+					   */
 	struct list_head *bat_cli_hash;   /* hash table of client nodes */
 	struct list_head bat_srv_list;	  /* list head of server nodes */
 	struct list_head *bat_srv_hash;   /* hash table of server nodes */
@@ -147,7 +149,8 @@ struct lstcon_session {
 	unsigned int	    ses_features;     /* tests features of the session
 					       */
 	unsigned int	    ses_feats_updated:1; /* features are synced with
-						  * remote test nodes */
+						  * remote test nodes
+						  */
 	unsigned int	    ses_force:1;      /* force creating */
 	unsigned int	    ses_shutdown:1;   /* session is shutting down */
 	unsigned int	    ses_expired:1;    /* console is timedout */

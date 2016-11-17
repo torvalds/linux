@@ -55,7 +55,8 @@
 static struct st_timer_data {
 	spinlock_t	  stt_lock;
 	unsigned long	  stt_prev_slot; /* start time of the slot processed
-					  * previously */
+					  * previously
+					  */
 	struct list_head  stt_hash[STTIMER_NSLOTS];
 	int		  stt_shuttingdown;
 	wait_queue_head_t stt_waitq;

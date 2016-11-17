@@ -1716,7 +1716,7 @@ EXPORT_SYMBOL(cfs_hash_hlist_for_each);
  * the passed callback @func and pass to it as an argument each hash
  * item and the private @data. During the callback the bucket lock
  * is held so the callback must never sleep.
-   */
+ */
 void
 cfs_hash_for_each_key(struct cfs_hash *hs, const void *key,
 		      cfs_hash_for_each_cb_t func, void *data)
