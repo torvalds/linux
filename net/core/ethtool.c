@@ -122,6 +122,7 @@ tunable_strings[__ETHTOOL_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
 static const char
 phy_tunable_strings[__ETHTOOL_PHY_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_ID_UNSPEC]     = "Unspec",
+	[ETHTOOL_PHY_DOWNSHIFT]	= "phy-downshift",
 };
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
@@ -2435,6 +2436,11 @@ static int ethtool_set_per_queue(struct net_device *dev, void __user *useraddr)
 static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)
 {
 	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		if (tuna->len != sizeof(u8) ||
+		    tuna->type_id != ETHTOOL_TUNABLE_U8)
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
