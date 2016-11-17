@@ -87,7 +87,7 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 		goto done;
 	dev->irq_enabled = true;
 
-	fsl_dcu_fbdev_init(dev);
+	fsl_dev->fbdev = drm_fbdev_cma_init(dev, 24, 1, 1);
 
 	return 0;
 done:
