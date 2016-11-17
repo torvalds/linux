@@ -164,6 +164,7 @@ enum xgbe_conn_type {
 	XGBE_CONN_TYPE_NONE = 0,
 	XGBE_CONN_TYPE_SFP,
 	XGBE_CONN_TYPE_MDIO,
+	XGBE_CONN_TYPE_RSVD1,
 	XGBE_CONN_TYPE_BACKPLANE,
 	XGBE_CONN_TYPE_MAX,
 };
@@ -2831,6 +2832,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	if (xgbe_phy_conn_type_mismatch(pdata)) {
 		dev_err(pdata->dev, "phy mode/connection mismatch (%#x/%#x)\n",
 			phy_data->port_mode, phy_data->conn_type);
+		return -EINVAL;
 	}
 
 	/* Validate the mode requested */
