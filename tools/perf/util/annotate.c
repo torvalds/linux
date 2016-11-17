@@ -28,20 +28,36 @@ const char 	*disassembler_style;
 const char	*objdump_path;
 static regex_t	 file_lineno;
 
-static struct ins *ins__find(const char *name);
+static struct ins *ins__find(struct arch *arch, const char *name);
 static int disasm_line__parse(char *line, char **namep, char **rawp);
 
 struct arch {
 	const char	*name;
+	struct ins	*instructions;
+	size_t		nr_instructions;
+	bool		sorted_instructions;
 	struct		{
 		char comment_char;
 		char skip_functions_char;
 	} objdump;
 };
 
+static struct ins_ops call_ops;
+static struct ins_ops dec_ops;
+static struct ins_ops jump_ops;
+static struct ins_ops mov_ops;
+static struct ins_ops nop_ops;
+static struct ins_ops lock_ops;
+static struct ins_ops ret_ops;
+
+#include "arch/arm/annotate/instructions.c"
+#include "arch/x86/annotate/instructions.c"
+
 static struct arch architectures[] = {
 	{
 		.name = "arm",
+		.instructions = arm__instructions,
+		.nr_instructions = ARRAY_SIZE(arm__instructions),
 		.objdump =  {
 			.comment_char = ';',
 			.skip_functions_char = '+',
@@ -49,6 +65,8 @@ static struct arch architectures[] = {
 	},
 	{
 		.name = "x86",
+		.instructions = x86__instructions,
+		.nr_instructions = ARRAY_SIZE(x86__instructions),
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -209,7 +227,7 @@ static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *
 	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
 		goto out_free_ops;
 
-	ops->locked.ins = ins__find(name);
+	ops->locked.ins = ins__find(arch, name);
 	free(name);
 
 	if (ops->locked.ins == NULL)
@@ -385,99 +403,6 @@ bool ins__is_ret(const struct ins *ins)
 	return ins->ops == &ret_ops;
 }
 
-static struct ins instructions[] = {
-	{ .name = "add",   .ops  = &mov_ops, },
-	{ .name = "addl",  .ops  = &mov_ops, },
-	{ .name = "addq",  .ops  = &mov_ops, },
-	{ .name = "addw",  .ops  = &mov_ops, },
-	{ .name = "and",   .ops  = &mov_ops, },
-#ifdef __arm__
-	{ .name = "b",     .ops  = &jump_ops, }, // might also be a call
-	{ .name = "bcc",   .ops  = &jump_ops, },
-	{ .name = "bcs",   .ops  = &jump_ops, },
-	{ .name = "beq",   .ops  = &jump_ops, },
-	{ .name = "bge",   .ops  = &jump_ops, },
-	{ .name = "bgt",   .ops  = &jump_ops, },
-	{ .name = "bhi",   .ops  = &jump_ops, },
-	{ .name = "bl",    .ops  = &call_ops, },
-	{ .name = "bls",   .ops  = &jump_ops, },
-	{ .name = "blt",   .ops  = &jump_ops, },
-	{ .name = "blx",   .ops  = &call_ops, },
-	{ .name = "bne",   .ops  = &jump_ops, },
-#endif
-	{ .name = "bts",   .ops  = &mov_ops, },
-	{ .name = "call",  .ops  = &call_ops, },
-	{ .name = "callq", .ops  = &call_ops, },
-	{ .name = "cmp",   .ops  = &mov_ops, },
-	{ .name = "cmpb",  .ops  = &mov_ops, },
-	{ .name = "cmpl",  .ops  = &mov_ops, },
-	{ .name = "cmpq",  .ops  = &mov_ops, },
-	{ .name = "cmpw",  .ops  = &mov_ops, },
-	{ .name = "cmpxch", .ops  = &mov_ops, },
-	{ .name = "dec",   .ops  = &dec_ops, },
-	{ .name = "decl",  .ops  = &dec_ops, },
-	{ .name = "imul",  .ops  = &mov_ops, },
-	{ .name = "inc",   .ops  = &dec_ops, },
-	{ .name = "incl",  .ops  = &dec_ops, },
-	{ .name = "ja",	   .ops  = &jump_ops, },
-	{ .name = "jae",   .ops  = &jump_ops, },
-	{ .name = "jb",	   .ops  = &jump_ops, },
-	{ .name = "jbe",   .ops  = &jump_ops, },
-	{ .name = "jc",	   .ops  = &jump_ops, },
-	{ .name = "jcxz",  .ops  = &jump_ops, },
-	{ .name = "je",	   .ops  = &jump_ops, },
-	{ .name = "jecxz", .ops  = &jump_ops, },
-	{ .name = "jg",	   .ops  = &jump_ops, },
-	{ .name = "jge",   .ops  = &jump_ops, },
-	{ .name = "jl",    .ops  = &jump_ops, },
-	{ .name = "jle",   .ops  = &jump_ops, },
-	{ .name = "jmp",   .ops  = &jump_ops, },
-	{ .name = "jmpq",  .ops  = &jump_ops, },
-	{ .name = "jna",   .ops  = &jump_ops, },
-	{ .name = "jnae",  .ops  = &jump_ops, },
-	{ .name = "jnb",   .ops  = &jump_ops, },
-	{ .name = "jnbe",  .ops  = &jump_ops, },
-	{ .name = "jnc",   .ops  = &jump_ops, },
-	{ .name = "jne",   .ops  = &jump_ops, },
-	{ .name = "jng",   .ops  = &jump_ops, },
-	{ .name = "jnge",  .ops  = &jump_ops, },
-	{ .name = "jnl",   .ops  = &jump_ops, },
-	{ .name = "jnle",  .ops  = &jump_ops, },
-	{ .name = "jno",   .ops  = &jump_ops, },
-	{ .name = "jnp",   .ops  = &jump_ops, },
-	{ .name = "jns",   .ops  = &jump_ops, },
-	{ .name = "jnz",   .ops  = &jump_ops, },
-	{ .name = "jo",	   .ops  = &jump_ops, },
-	{ .name = "jp",	   .ops  = &jump_ops, },
-	{ .name = "jpe",   .ops  = &jump_ops, },
-	{ .name = "jpo",   .ops  = &jump_ops, },
-	{ .name = "jrcxz", .ops  = &jump_ops, },
-	{ .name = "js",	   .ops  = &jump_ops, },
-	{ .name = "jz",	   .ops  = &jump_ops, },
-	{ .name = "lea",   .ops  = &mov_ops, },
-	{ .name = "lock",  .ops  = &lock_ops, },
-	{ .name = "mov",   .ops  = &mov_ops, },
-	{ .name = "movb",  .ops  = &mov_ops, },
-	{ .name = "movdqa",.ops  = &mov_ops, },
-	{ .name = "movl",  .ops  = &mov_ops, },
-	{ .name = "movq",  .ops  = &mov_ops, },
-	{ .name = "movslq", .ops  = &mov_ops, },
-	{ .name = "movzbl", .ops  = &mov_ops, },
-	{ .name = "movzwl", .ops  = &mov_ops, },
-	{ .name = "nop",   .ops  = &nop_ops, },
-	{ .name = "nopl",  .ops  = &nop_ops, },
-	{ .name = "nopw",  .ops  = &nop_ops, },
-	{ .name = "or",    .ops  = &mov_ops, },
-	{ .name = "orl",   .ops  = &mov_ops, },
-	{ .name = "test",  .ops  = &mov_ops, },
-	{ .name = "testb", .ops  = &mov_ops, },
-	{ .name = "testl", .ops  = &mov_ops, },
-	{ .name = "xadd",  .ops  = &mov_ops, },
-	{ .name = "xbeginl", .ops  = &jump_ops, },
-	{ .name = "xbeginq", .ops  = &jump_ops, },
-	{ .name = "retq",  .ops  = &ret_ops, },
-};
-
 static int ins__key_cmp(const void *name, const void *insp)
 {
 	const struct ins *ins = insp;
@@ -493,24 +418,23 @@ static int ins__cmp(const void *a, const void *b)
 	return strcmp(ia->name, ib->name);
 }
 
-static void ins__sort(void)
+static void ins__sort(struct arch *arch)
 {
-	const int nmemb = ARRAY_SIZE(instructions);
+	const int nmemb = arch->nr_instructions;
 
-	qsort(instructions, nmemb, sizeof(struct ins), ins__cmp);
+	qsort(arch->instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-static struct ins *ins__find(const char *name)
+static struct ins *ins__find(struct arch *arch, const char *name)
 {
-	const int nmemb = ARRAY_SIZE(instructions);
-	static bool sorted;
+	const int nmemb = arch->nr_instructions;
 
-	if (!sorted) {
-		ins__sort();
-		sorted = true;
+	if (!arch->sorted_instructions) {
+		ins__sort(arch);
+		arch->sorted_instructions = true;
 	}
 
-	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	return bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
 }
 
 static int arch__key_cmp(const void *name, const void *archp)
@@ -767,7 +691,7 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 
 static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map *map)
 {
-	dl->ins = ins__find(dl->name);
+	dl->ins = ins__find(arch, dl->name);
 
 	if (dl->ins == NULL)
 		return;
