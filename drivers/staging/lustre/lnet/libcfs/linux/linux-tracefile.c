@@ -85,7 +85,7 @@ int cfs_tracefile_init_arch(void)
 
 out:
 	cfs_tracefile_fini_arch();
-	printk(KERN_ERR "lnet: Not enough memory\n");
+	pr_err("lnet: Not enough memory\n");
 	return -ENOMEM;
 }
 
@@ -239,11 +239,11 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 	}
 
 	if (mask & D_CONSOLE) {
-		printk("%s%s: %.*s", ptype, prefix, len, buf);
+		pr_info("%s%s: %.*s", ptype, prefix, len, buf);
 	} else {
-		printk("%s%s: %d:%d:(%s:%d:%s()) %.*s", ptype, prefix,
-		       hdr->ph_pid, hdr->ph_extern_pid, file, hdr->ph_line_num,
-		       fn, len, buf);
+		pr_info("%s%s: %d:%d:(%s:%d:%s()) %.*s", ptype, prefix,
+			hdr->ph_pid, hdr->ph_extern_pid, file,
+			hdr->ph_line_num, fn, len, buf);
 	}
 }
 
