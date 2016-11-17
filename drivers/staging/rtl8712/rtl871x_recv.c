@@ -405,7 +405,7 @@ static sint ap2sta_data_frame(struct _adapter *adapter,
 		}
 
 		/* filter packets that SA is myself or multicast or broadcast */
-	       if (!memcmp(myhwaddr, pattrib->src, ETH_ALEN))
+		if (!memcmp(myhwaddr, pattrib->src, ETH_ALEN))
 			return _FAIL;
 
 		/* da should be for me */
