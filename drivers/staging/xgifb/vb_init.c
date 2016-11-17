@@ -199,7 +199,8 @@ static void XGINew_DDRII_Bootup_XG27(
 }
 
 static void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned long P3c4, struct vb_device_info *pVBInfo)
+				 unsigned long P3c4,
+				 struct vb_device_info *pVBInfo)
 {
 	unsigned long P3d4 = P3c4 + 0x10;
 
@@ -387,7 +388,7 @@ static void XGINew_DDR2_DefaultRegister(
 }
 
 static void XGI_SetDRAM_Helper(unsigned long P3d4, u8 seed, u8 temp2, u8 reg,
-	u8 shift_factor, u8 mask1, u8 mask2)
+			       u8 shift_factor, u8 mask1, u8 mask2)
 {
 	u8 j;
 
@@ -460,15 +461,15 @@ static void XGINew_SetDRAMDefaultRegister340(
 
 	for (j = 0; j <= 6; j++) /* CR90 - CR96 */
 		xgifb_reg_set(P3d4, (0x90 + j),
-				pVBInfo->CR40[14 + j][pVBInfo->ram_type]);
+			      pVBInfo->CR40[14 + j][pVBInfo->ram_type]);
 
 	for (j = 0; j <= 2; j++) /* CRC3 - CRC5 */
 		xgifb_reg_set(P3d4, (0xC3 + j),
-				pVBInfo->CR40[21 + j][pVBInfo->ram_type]);
+			      pVBInfo->CR40[21 + j][pVBInfo->ram_type]);
 
 	for (j = 0; j < 2; j++) /* CR8A - CR8B */
 		xgifb_reg_set(P3d4, (0x8A + j),
-				pVBInfo->CR40[1 + j][pVBInfo->ram_type]);
+			      pVBInfo->CR40[1 + j][pVBInfo->ram_type]);
 
 	if (HwDeviceExtension->jChipType == XG42)
 		xgifb_reg_set(P3d4, 0x8C, 0x87);
@@ -539,7 +540,8 @@ static unsigned short XGINew_SetDRAMSize20Reg(
 }
 
 static int XGINew_ReadWriteRest(unsigned short StopAddr,
-		unsigned short StartAddr, struct vb_device_info *pVBInfo)
+				unsigned short StartAddr,
+				struct vb_device_info *pVBInfo)
 {
 	int i;
 	unsigned long Position = 0;
@@ -583,7 +585,7 @@ static unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
 }
 
 static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+				struct vb_device_info *pVBInfo)
 {
 	unsigned char data;
 
@@ -785,7 +787,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+			       struct vb_device_info *pVBInfo)
 {
 	u8 i, size;
 	unsigned short memsize, start_addr;
@@ -827,8 +829,8 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static void XGINew_SetDRAMSize_340(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+				   struct xgi_hw_device_info *HwDeviceExtension,
+				   struct vb_device_info *pVBInfo)
 {
 	unsigned short data;
 
@@ -1086,7 +1088,7 @@ static unsigned short XGINew_SenseLCD(struct xgi_hw_device_info
 }
 
 static void XGINew_GetXG21Sense(struct pci_dev *pdev,
-		struct vb_device_info *pVBInfo)
+				struct vb_device_info *pVBInfo)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	unsigned char Temp;
