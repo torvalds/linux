@@ -58,6 +58,7 @@ needed).
    gpu/index
    80211/index
    security/index
+   sound/index
 
 Korean translations
 -------------------
