@@ -168,7 +168,6 @@ static inline int cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
  */
 static inline void cfs_race(__u32 id)
 {
-
 	if (CFS_FAIL_PRECHECK(id)) {
 		if (unlikely(__cfs_fail_check_set(id, 0, CFS_FAIL_LOC_NOSET))) {
 			int rc;
