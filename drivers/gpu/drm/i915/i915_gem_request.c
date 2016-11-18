@@ -200,6 +200,8 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	struct i915_gem_active *active, *next;
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
+	GEM_BUG_ON(!i915_sw_fence_done(&request->submit));
+	GEM_BUG_ON(!i915_sw_fence_done(&request->execute));
 	GEM_BUG_ON(!i915_gem_request_completed(request));
 	GEM_BUG_ON(!request->i915->gt.active_requests);
 
