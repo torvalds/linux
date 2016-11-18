@@ -1681,13 +1681,11 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 				return tempal;
 			}
 
-			if (pVBInfo->TVInfo & TVSetYPbPr750p) {
+			if (pVBInfo->TVInfo & TVSetYPbPr750p)
 				return XGI_YPbPr750pVCLK;
-			}
 
-			if (pVBInfo->TVInfo & TVSetYPbPr525p) {
+			if (pVBInfo->TVInfo & TVSetYPbPr525p)
 				return YPbPr525pVCLK;
-			}
 
 			tempal = NTSC1024VCLK;
 
