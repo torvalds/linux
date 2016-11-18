@@ -172,6 +172,16 @@ struct intel_th_driver {
 #define to_intel_th_driver_or_null(_d)		\
 	((_d) ? to_intel_th_driver(_d) : NULL)
 
+/*
+ * Subdevice tree structure is as follows:
+ * + struct intel_th device (pci; dev_{get,set}_drvdata()
+ *   + struct intel_th_device INTEL_TH_SWITCH (GTH)
+ *     + struct intel_th_device INTEL_TH_OUTPUT (MSU, PTI)
+ *   + struct intel_th_device INTEL_TH_SOURCE (STH)
+ *
+ * In other words, INTEL_TH_OUTPUT devices are children of INTEL_TH_SWITCH;
+ * INTEL_TH_SWITCH and INTEL_TH_SOURCE are children of the intel_th device.
+ */
 static inline struct intel_th_device *
 to_intel_th_parent(struct intel_th_device *thdev)
 {
@@ -183,24 +193,12 @@ to_intel_th_parent(struct intel_th_device *thdev)
 	return to_intel_th_device(parent);
 }
 
-static inline struct intel_th_device *
-to_intel_th_hub(struct intel_th_device *thdev)
-{
-	/*
-	 * subdevice tree is flat: if this one is not a switch, its
-	 * parent must be
-	 */
-	if (thdev->type == INTEL_TH_SWITCH)
-		return thdev;
-
-	return to_intel_th_parent(thdev);
-}
-
 static inline struct intel_th *to_intel_th(struct intel_th_device *thdev)
 {
-	thdev = to_intel_th_hub(thdev);
+	if (thdev->type == INTEL_TH_OUTPUT)
+		thdev = to_intel_th_parent(thdev);
 
-	if (WARN_ON_ONCE(!thdev || thdev->type != INTEL_TH_SWITCH))
+	if (WARN_ON_ONCE(!thdev || thdev->type == INTEL_TH_OUTPUT))
 		return NULL;
 
 	return dev_get_drvdata(thdev->dev.parent);
@@ -253,6 +251,17 @@ struct intel_th {
 	struct dentry		*dbg;
 #endif
 };
+
+static inline struct intel_th_device *
+to_intel_th_hub(struct intel_th_device *thdev)
+{
+	if (thdev->type == INTEL_TH_SWITCH)
+		return thdev;
+	else if (thdev->type == INTEL_TH_OUTPUT)
+		return to_intel_th_parent(thdev);
+
+	return to_intel_th(thdev)->hub;
+}
 
 /*
  * Register windows

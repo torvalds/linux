@@ -311,10 +311,10 @@ intel_th_device_alloc(struct intel_th *th, unsigned int type, const char *name,
 	struct device *parent;
 	struct intel_th_device *thdev;
 
-	if (type == INTEL_TH_SWITCH)
-		parent = th->dev;
-	else
+	if (type == INTEL_TH_OUTPUT)
 		parent = &th->hub->dev;
+	else
+		parent = th->dev;
 
 	thdev = kzalloc(sizeof(*thdev) + strlen(name) + 1, GFP_KERNEL);
 	if (!thdev)
