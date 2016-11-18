@@ -137,7 +137,7 @@ struct neo_uart_struct {
 #define UART_17158_EFR_IXON	0x2	/* Receiver compares Xon1/Xoff1 */
 #define UART_17158_EFR_IXOFF	0x8	/* Transmit Xon1/Xoff1 */
 #define UART_17158_EFR_RTSDTR	0x40	/* Auto RTS/DTR Flow Control Enable */
-#define UART_17158_EFR_CTSDSR	0x80	/* Auto CTS/DSR Flow COntrol Enable */
+#define UART_17158_EFR_CTSDSR	0x80	/* Auto CTS/DSR Flow Control Enable */
 
 #define UART_17158_XOFF_DETECT	0x1	/* Indicates whether chip saw an
 					 * incoming XOFF char
