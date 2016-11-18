@@ -758,7 +758,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	}
 
 	/* no error */
-	if (likely(!dev->cmd_err)) {
+	if (likely(!dev->cmd_err && !dev->status)) {
 		ret = num;
 		goto done;
 	}
@@ -768,6 +768,11 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 		ret = i2c_dw_handle_tx_abort(dev);
 		goto done;
 	}
+
+	if (dev->status)
+		dev_err(dev->dev,
+			"transfer terminated early - interrupt latency too high?\n");
+
 	ret = -EIO;
 
 done:
