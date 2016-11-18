@@ -26,18 +26,18 @@
 #include <subdev/bios/extdev.h>
 #include <subdev/bios/iccsense.h>
 
-static u16
+static u32
 nvbios_iccsense_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt,
 		      u8 *len)
 {
 	struct bit_entry bit_P;
-	u16 iccsense;
+	u32 iccsense;
 
 	if (bit_entry(bios, 'P', &bit_P) || bit_P.version != 2 ||
 	    bit_P.length < 0x2c)
 		return 0;
 
-	iccsense = nvbios_rd16(bios, bit_P.offset + 0x28);
+	iccsense = nvbios_rd32(bios, bit_P.offset + 0x28);
 	if (!iccsense)
 		return 0;
 
@@ -61,7 +61,7 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 {
 	struct nvkm_subdev *subdev = &bios->subdev;
 	u8 ver, hdr, cnt, len, i;
-	u16 table, entry;
+	u32 table, entry;
 
 	table = nvbios_iccsense_table(bios, &ver, &hdr, &cnt, &len);
 	if (!table || !cnt)
