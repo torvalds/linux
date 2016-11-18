@@ -171,6 +171,12 @@ enum flag_bits {
 	ExternalBbl,            /* External metadata provides bad
 				 * block management for a disk
 				 */
+	FailFast,		/* Minimal retries should be attempted on
+				 * this device, so use REQ_FAILFAST_DEV.
+				 * Also don't try to repair failed reads.
+				 * It is expects that no bad block log
+				 * is present.
+				 */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
