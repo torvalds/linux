@@ -1766,6 +1766,7 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 		init_completion(&drbg->ctr_completion);
 
 		outlen -= cryptlen;
+		outbuf += cryptlen;
 	}
 
 	return 0;
