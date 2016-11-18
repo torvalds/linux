@@ -493,6 +493,22 @@ void vpdma_update_dma_addr(struct vpdma_data *vpdma,
 }
 EXPORT_SYMBOL(vpdma_update_dma_addr);
 
+void vpdma_set_max_size(struct vpdma_data *vpdma, int reg_addr,
+			u32 width, u32 height)
+{
+	if (reg_addr != VPDMA_MAX_SIZE1 && reg_addr != VPDMA_MAX_SIZE2 &&
+	    reg_addr != VPDMA_MAX_SIZE3)
+		reg_addr = VPDMA_MAX_SIZE1;
+
+	write_field_reg(vpdma, reg_addr, width - 1,
+			VPDMA_MAX_SIZE_WIDTH_MASK, VPDMA_MAX_SIZE_WIDTH_SHFT);
+
+	write_field_reg(vpdma, reg_addr, height - 1,
+			VPDMA_MAX_SIZE_HEIGHT_MASK, VPDMA_MAX_SIZE_HEIGHT_SHFT);
+
+}
+EXPORT_SYMBOL(vpdma_set_max_size);
+
 static void dump_cfd(struct vpdma_cfd *cfd)
 {
 	int class;
@@ -667,23 +683,25 @@ static void dump_dtd(struct vpdma_dtd *dtd)
  * @c_rect: compose params of output image
  * @fmt: vpdma data format of the buffer
  * dma_addr: dma address as seen by VPDMA
+ * max_width: enum for maximum width of data transfer
+ * max_height: enum for maximum height of data transfer
  * chan: VPDMA channel
  * flags: VPDMA flags to configure some descriptor fileds
  */
 void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		enum vpdma_channel chan, u32 flags)
+		int max_w, int max_h, enum vpdma_channel chan, u32 flags)
 {
 	vpdma_rawchan_add_out_dtd(list, width, c_rect, fmt, dma_addr,
-				  chan_info[chan].num, flags);
+				  max_w, max_h, chan_info[chan].num, flags);
 }
 EXPORT_SYMBOL(vpdma_add_out_dtd);
 
 void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		int raw_vpdma_chan, u32 flags)
+		int max_w, int max_h, int raw_vpdma_chan, u32 flags)
 {
 	int priority = 0;
 	int field = 0;
@@ -722,8 +740,7 @@ void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 	dtd->pkt_ctl = dtd_pkt_ctl(!!(flags & VPDMA_DATA_MODE_TILED),
 				DTD_DIR_OUT, channel, priority, next_chan);
 	dtd->desc_write_addr = dtd_desc_write_addr(0, 0, 0, 0);
-	dtd->max_width_height = dtd_max_width_height(MAX_OUT_WIDTH_1920,
-					MAX_OUT_HEIGHT_1080);
+	dtd->max_width_height = dtd_max_width_height(max_w, max_h);
 	dtd->client_attr0 = 0;
 	dtd->client_attr1 = 0;
 

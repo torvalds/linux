@@ -117,6 +117,30 @@ enum vpdma_frame_start_event {
 	VPDMA_FSEVENT_CHANNEL_ACTIVE,
 };
 
+/* max width configurations */
+enum vpdma_max_width {
+	MAX_OUT_WIDTH_UNLIMITED = 0,
+	MAX_OUT_WIDTH_REG1,
+	MAX_OUT_WIDTH_REG2,
+	MAX_OUT_WIDTH_REG3,
+	MAX_OUT_WIDTH_352,
+	MAX_OUT_WIDTH_768,
+	MAX_OUT_WIDTH_1280,
+	MAX_OUT_WIDTH_1920,
+};
+
+/* max height configurations */
+enum vpdma_max_height {
+	MAX_OUT_HEIGHT_UNLIMITED = 0,
+	MAX_OUT_HEIGHT_REG1,
+	MAX_OUT_HEIGHT_REG2,
+	MAX_OUT_HEIGHT_REG3,
+	MAX_OUT_HEIGHT_288,
+	MAX_OUT_HEIGHT_576,
+	MAX_OUT_HEIGHT_720,
+	MAX_OUT_HEIGHT_1080,
+};
+
 /*
  * VPDMA channel numbers
  */
@@ -198,11 +222,12 @@ void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
 void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		enum vpdma_channel chan, u32 flags);
+		int max_w, int max_h, enum vpdma_channel chan, u32 flags);
 void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
-		int raw_vpdma_chan, u32 flags);
+		int max_w, int max_h, int raw_vpdma_chan, u32 flags);
+
 void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
@@ -221,6 +246,9 @@ void vpdma_set_line_mode(struct vpdma_data *vpdma, int line_mode,
 		enum vpdma_channel chan);
 void vpdma_set_frame_start_event(struct vpdma_data *vpdma,
 		enum vpdma_frame_start_event fs_event, enum vpdma_channel chan);
+void vpdma_set_max_size(struct vpdma_data *vpdma, int reg_addr,
+			u32 width, u32 height);
+
 void vpdma_set_bg_color(struct vpdma_data *vpdma,
 			struct vpdma_data_format *fmt, u32 color);
 void vpdma_dump_regs(struct vpdma_data *vpdma);
