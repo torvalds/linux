@@ -1130,20 +1130,13 @@ static int vpdma_load_firmware(struct vpdma_data *vpdma)
 	return 0;
 }
 
-struct vpdma_data *vpdma_create(struct platform_device *pdev,
+int vpdma_create(struct platform_device *pdev, struct vpdma_data *vpdma,
 		void (*cb)(struct platform_device *pdev))
 {
 	struct resource *res;
-	struct vpdma_data *vpdma;
 	int r;
 
 	dev_dbg(&pdev->dev, "vpdma_create\n");
-
-	vpdma = devm_kzalloc(&pdev->dev, sizeof(*vpdma), GFP_KERNEL);
-	if (!vpdma) {
-		dev_err(&pdev->dev, "couldn't alloc vpdma_dev\n");
-		return ERR_PTR(-ENOMEM);
-	}
 
 	vpdma->pdev = pdev;
 	vpdma->cb = cb;
@@ -1152,22 +1145,22 @@ struct vpdma_data *vpdma_create(struct platform_device *pdev,
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpdma");
 	if (res == NULL) {
 		dev_err(&pdev->dev, "missing platform resources data\n");
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
 	vpdma->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!vpdma->base) {
 		dev_err(&pdev->dev, "failed to ioremap\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	r = vpdma_load_firmware(vpdma);
 	if (r) {
 		pr_err("failed to load firmware %s\n", VPDMA_FIRMWARE);
-		return ERR_PTR(r);
+		return r;
 	}
 
-	return vpdma;
+	return 0;
 }
 EXPORT_SYMBOL(vpdma_create);
 
