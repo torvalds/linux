@@ -1046,6 +1046,7 @@ static void add_out_dtd(struct vpe_ctx *ctx, int port)
 	if (port == VPE_PORT_MV_OUT) {
 		vpdma_fmt = &vpdma_misc_fmts[VPDMA_DATA_FMT_MV];
 		dma_addr = ctx->mv_buf_dma[mv_buf_selector];
+		q_data = &ctx->q_data[Q_DATA_SRC];
 	} else {
 		/* to incorporate interleaved formats */
 		int plane = fmt->coplanar ? p_data->vb_part : 0;
