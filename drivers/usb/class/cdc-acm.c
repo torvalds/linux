@@ -133,8 +133,8 @@ static int acm_ctrl_msg(struct acm *acm, int request, int value,
 		buf, len, 5000);
 
 	dev_dbg(&acm->control->dev,
-			"%s - rq 0x%02x, val %#x, len %#x, result %d\n",
-			__func__, request, value, len, retval);
+		"%s - rq 0x%02x, val %#x, len %#x, result %d\n",
+		__func__, request, value, len, retval);
 
 	usb_autopm_put_interface(acm->control);
 
@@ -291,13 +291,13 @@ static void acm_ctrl_irq(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dev_dbg(&acm->control->dev,
-				"%s - urb shutting down with status: %d\n",
-				__func__, status);
+			"%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
 		dev_dbg(&acm->control->dev,
-				"%s - nonzero urb status received: %d\n",
-				__func__, status);
+			"%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
@@ -306,16 +306,16 @@ static void acm_ctrl_irq(struct urb *urb)
 	data = (unsigned char *)(dr + 1);
 	switch (dr->bNotificationType) {
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
-		dev_dbg(&acm->control->dev, "%s - network connection: %d\n",
-							__func__, dr->wValue);
+		dev_dbg(&acm->control->dev,
+			"%s - network connection: %d\n", __func__, dr->wValue);
 		break;
 
 	case USB_CDC_NOTIFY_SERIAL_STATE:
 		newctrl = get_unaligned_le16(data);
 
 		if (!acm->clocal && (acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
-			dev_dbg(&acm->control->dev, "%s - calling hangup\n",
-					__func__);
+			dev_dbg(&acm->control->dev,
+				"%s - calling hangup\n", __func__);
 			tty_port_tty_hangup(&acm->port, false);
 		}
 
@@ -357,8 +357,8 @@ static void acm_ctrl_irq(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval && retval != -EPERM)
-		dev_err(&acm->control->dev, "%s - usb_submit_urb failed: %d\n",
-							__func__, retval);
+		dev_err(&acm->control->dev,
+			"%s - usb_submit_urb failed: %d\n", __func__, retval);
 }
 
 static int acm_submit_read_urb(struct acm *acm, int index, gfp_t mem_flags)
@@ -372,8 +372,8 @@ static int acm_submit_read_urb(struct acm *acm, int index, gfp_t mem_flags)
 	if (res) {
 		if (res != -EPERM) {
 			dev_err(&acm->data->dev,
-					"urb %d failed submission with %d\n",
-					index, res);
+				"urb %d failed submission with %d\n",
+				index, res);
 		}
 		set_bit(index, &acm->read_urbs_free);
 		return res;
@@ -416,8 +416,7 @@ static void acm_read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 
 	dev_vdbg(&acm->data->dev, "got urb %d, len %d, status %d\n",
-					rb->index, urb->actual_length,
-					status);
+		rb->index, urb->actual_length, status);
 
 	if (!acm->dev) {
 		set_bit(rb->index, &acm->read_urbs_free);
@@ -837,8 +836,8 @@ static int acm_tty_break_ctl(struct tty_struct *tty, int state)
 
 	retval = acm_send_break(acm, state ? 0xffff : 0);
 	if (retval < 0)
-		dev_dbg(&acm->control->dev, "%s - send break failed\n",
-								__func__);
+		dev_dbg(&acm->control->dev,
+			"%s - send break failed\n", __func__);
 	return retval;
 }
 
