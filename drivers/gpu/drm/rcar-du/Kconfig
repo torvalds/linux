@@ -20,6 +20,7 @@ config DRM_RCAR_HDMI
 config DRM_RCAR_LVDS
 	bool "R-Car DU LVDS Encoder Support"
 	depends on DRM_RCAR_DU
+	select DRM_PANEL
 	help
 	  Enable support for the R-Car Display Unit embedded LVDS encoders.
 
