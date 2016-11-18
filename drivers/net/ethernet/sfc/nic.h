@@ -681,6 +681,8 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue);
 void efx_farch_tx_fini(struct efx_tx_queue *tx_queue);
 void efx_farch_tx_remove(struct efx_tx_queue *tx_queue);
 void efx_farch_tx_write(struct efx_tx_queue *tx_queue);
+unsigned int efx_farch_tx_limit_len(struct efx_tx_queue *tx_queue,
+				    dma_addr_t dma_addr, unsigned int len);
 int efx_farch_rx_probe(struct efx_rx_queue *rx_queue);
 void efx_farch_rx_init(struct efx_rx_queue *rx_queue);
 void efx_farch_rx_fini(struct efx_rx_queue *rx_queue);

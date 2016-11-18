@@ -2086,6 +2086,92 @@ static inline void efx_ef10_push_tx_desc(struct efx_tx_queue *tx_queue,
 			ER_DZ_TX_DESC_UPD, tx_queue->queue);
 }
 
+/* Add Firmware-Assisted TSO v2 option descriptors to a queue.
+ */
+static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
+				struct sk_buff *skb,
+				bool *data_mapped)
+{
+	struct efx_tx_buffer *buffer;
+	struct tcphdr *tcp;
+	struct iphdr *ip;
+
+	u16 ipv4_id;
+	u32 seqnum;
+	u32 mss;
+
+	EFX_BUG_ON_PARANOID(tx_queue->tso_version != 2);
+
+	mss = skb_shinfo(skb)->gso_size;
+
+	if (unlikely(mss < 4)) {
+		WARN_ONCE(1, "MSS of %u is too small for TSO v2\n", mss);
+		return -EINVAL;
+	}
+
+	ip = ip_hdr(skb);
+	if (ip->version == 4) {
+		/* Modify IPv4 header if needed. */
+		ip->tot_len = 0;
+		ip->check = 0;
+		ipv4_id = ip->id;
+	} else {
+		/* Modify IPv6 header if needed. */
+		struct ipv6hdr *ipv6 = ipv6_hdr(skb);
+
+		ipv6->payload_len = 0;
+		ipv4_id = 0;
+	}
+
+	tcp = tcp_hdr(skb);
+	seqnum = ntohl(tcp->seq);
+
+	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
+
+	buffer->flags = EFX_TX_BUF_OPTION;
+	buffer->len = 0;
+	buffer->unmap_len = 0;
+	EFX_POPULATE_QWORD_5(buffer->option,
+			ESF_DZ_TX_DESC_IS_OPT, 1,
+			ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_TSO,
+			ESF_DZ_TX_TSO_OPTION_TYPE,
+			ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A,
+			ESF_DZ_TX_TSO_IP_ID, ipv4_id,
+			ESF_DZ_TX_TSO_TCP_SEQNO, seqnum
+			);
+	++tx_queue->insert_count;
+
+	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
+
+	buffer->flags = EFX_TX_BUF_OPTION;
+	buffer->len = 0;
+	buffer->unmap_len = 0;
+	EFX_POPULATE_QWORD_4(buffer->option,
+			ESF_DZ_TX_DESC_IS_OPT, 1,
+			ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_TSO,
+			ESF_DZ_TX_TSO_OPTION_TYPE,
+			ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B,
+			ESF_DZ_TX_TSO_TCP_MSS, mss
+			);
+	++tx_queue->insert_count;
+
+	return 0;
+}
+
+static u32 efx_ef10_tso_versions(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	u32 tso_versions = 0;
+
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))
+		tso_versions |= BIT(1);
+	if (nic_data->datapath_caps2 &
+	    (1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN))
+		tso_versions |= BIT(2);
+	return tso_versions;
+}
+
 static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
@@ -2095,6 +2181,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	bool tso_v2 = false;
 	size_t inlen;
 	dma_addr_t dma_addr;
 	efx_qword_t *txd;
@@ -2102,13 +2189,21 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	int i;
 	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
+	/* TSOv2 is a limited resource that can only be configured on a limited
+	 * number of queues. TSO without checksum offload is not really a thing,
+	 * so we only enable it for those queues.
+	 */
+	if (csum_offload && (nic_data->datapath_caps2 &
+			(1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN))) {
+		tso_v2 = true;
+		netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
+				channel->channel);
+	}
+
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_LABEL, tx_queue->queue);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_INSTANCE, tx_queue->queue);
-	MCDI_POPULATE_DWORD_2(inbuf, INIT_TXQ_IN_FLAGS,
-			      INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
-			      INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
 
@@ -2124,10 +2219,30 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 
 	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
-			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
+	do {
+		MCDI_POPULATE_DWORD_3(inbuf, INIT_TXQ_IN_FLAGS,
+				/* This flag was removed from mcdi_pcol.h for
+				 * the non-_EXT version of INIT_TXQ.  However,
+				 * firmware still honours it.
+				 */
+				INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, tso_v2,
+				INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
+				INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload);
+
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
+					NULL, 0, NULL);
+		if (rc == -ENOSPC && tso_v2) {
+			/* Retry without TSOv2 if we're short on contexts. */
+			tso_v2 = false;
+			netif_warn(efx, probe, efx->net_dev,
+				   "TSOv2 context not available to segment in hardware. TCP performance may be reduced.\n");
+		} else if (rc) {
+			efx_mcdi_display_error(efx, MC_CMD_INIT_TXQ,
+					       MC_CMD_INIT_TXQ_EXT_IN_LEN,
+					       NULL, 0, rc);
+			goto fail;
+		}
+	} while (rc);
 
 	/* A previous user of this TX queue might have set us up the
 	 * bomb by writing a descriptor to the TX push collector but
@@ -2146,8 +2261,11 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload);
 	tx_queue->write_count = 1;
 
-	if (nic_data->datapath_caps &
-	    (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
+	if (tso_v2) {
+		tx_queue->handle_tso = efx_ef10_tx_tso_desc;
+		tx_queue->tso_version = 2;
+	} else if (nic_data->datapath_caps &
+			(1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
 		tx_queue->tso_version = 1;
 	}
 
@@ -2200,6 +2318,25 @@ static inline void efx_ef10_notify_tx_desc(struct efx_tx_queue *tx_queue)
 	EFX_POPULATE_DWORD_1(reg, ERF_DZ_TX_DESC_WPTR_DWORD, write_ptr);
 	efx_writed_page(tx_queue->efx, &reg,
 			ER_DZ_TX_DESC_UPD_DWORD, tx_queue->queue);
+}
+
+#define EFX_EF10_MAX_TX_DESCRIPTOR_LEN 0x3fff
+
+static unsigned int efx_ef10_tx_limit_len(struct efx_tx_queue *tx_queue,
+					  dma_addr_t dma_addr, unsigned int len)
+{
+	if (len > EFX_EF10_MAX_TX_DESCRIPTOR_LEN) {
+		/* If we need to break across multiple descriptors we should
+		 * stop at a page boundary. This assumes the length limit is
+		 * greater than the page size.
+		 */
+		dma_addr_t end = dma_addr + EFX_EF10_MAX_TX_DESCRIPTOR_LEN;
+
+		BUILD_BUG_ON(EFX_EF10_MAX_TX_DESCRIPTOR_LEN < EFX_PAGE_SIZE);
+		len = (end & (~(EFX_PAGE_SIZE - 1))) - dma_addr;
+	}
+
+	return len;
 }
 
 static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
@@ -5469,6 +5606,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.tx_init = efx_ef10_tx_init,
 	.tx_remove = efx_ef10_tx_remove,
 	.tx_write = efx_ef10_tx_write,
+	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_vf_rx_push_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
@@ -5575,6 +5713,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_init = efx_ef10_tx_init,
 	.tx_remove = efx_ef10_tx_remove,
 	.tx_write = efx_ef10_tx_write,
+	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_pf_rx_push_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
@@ -5634,6 +5773,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 #endif
 	.get_mac_address = efx_ef10_get_mac_address_pf,
 	.set_mac_address = efx_ef10_set_mac_address,
+	.tso_versions = efx_ef10_tso_versions,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),

@@ -356,6 +356,21 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 	}
 }
 
+unsigned int efx_farch_tx_limit_len(struct efx_tx_queue *tx_queue,
+				    dma_addr_t dma_addr, unsigned int len)
+{
+	/* Don't cross 4K boundaries with descriptors. */
+	unsigned int limit = (~dma_addr & (EFX_PAGE_SIZE - 1)) + 1;
+
+	len = min(limit, len);
+
+	if (EFX_WORKAROUND_5391(tx_queue->efx) && (dma_addr & 0xf))
+		len = min_t(unsigned int, len, 512 - (dma_addr & 0xf));
+
+	return len;
+}
+
+
 /* Allocate hardware resources for a TX queue */
 int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 {
