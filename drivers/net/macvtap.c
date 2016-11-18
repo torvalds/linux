@@ -821,9 +821,8 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		if (iov_iter_count(iter) < vnet_hdr_len)
 			return -EINVAL;
 
-		ret = virtio_net_hdr_from_skb(skb, &vnet_hdr,
-					      macvtap_is_little_endian(q));
-		if (ret)
+		if (virtio_net_hdr_from_skb(skb, &vnet_hdr,
+					    macvtap_is_little_endian(q)))
 			BUG();
 
 		if (copy_to_iter(&vnet_hdr, sizeof(vnet_hdr), iter) !=
