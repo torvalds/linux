@@ -52,6 +52,7 @@ struct gdsc {
 	const u8			flags;
 #define VOTABLE		BIT(0)
 #define CLAMP_IO	BIT(1)
+#define HW_CTRL		BIT(2)
 	struct reset_controller_dev	*rcdev;
 	unsigned int			*resets;
 	unsigned int			reset_count;
