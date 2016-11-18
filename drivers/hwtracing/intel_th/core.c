@@ -156,21 +156,6 @@ static struct device_type intel_th_source_device_type = {
 	.release	= intel_th_device_release,
 };
 
-static struct intel_th *to_intel_th(struct intel_th_device *thdev)
-{
-	/*
-	 * subdevice tree is flat: if this one is not a switch, its
-	 * parent must be
-	 */
-	if (thdev->type != INTEL_TH_SWITCH)
-		thdev = to_intel_th_hub(thdev);
-
-	if (WARN_ON_ONCE(!thdev || thdev->type != INTEL_TH_SWITCH))
-		return NULL;
-
-	return dev_get_drvdata(thdev->dev.parent);
-}
-
 static char *intel_th_output_devnode(struct device *dev, umode_t *mode,
 				     kuid_t *uid, kgid_t *gid)
 {

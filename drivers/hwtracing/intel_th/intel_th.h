@@ -173,7 +173,7 @@ struct intel_th_driver {
 	((_d) ? to_intel_th_driver(_d) : NULL)
 
 static inline struct intel_th_device *
-to_intel_th_hub(struct intel_th_device *thdev)
+to_intel_th_parent(struct intel_th_device *thdev)
 {
 	struct device *parent = thdev->dev.parent;
 
@@ -181,6 +181,29 @@ to_intel_th_hub(struct intel_th_device *thdev)
 		return NULL;
 
 	return to_intel_th_device(parent);
+}
+
+static inline struct intel_th_device *
+to_intel_th_hub(struct intel_th_device *thdev)
+{
+	/*
+	 * subdevice tree is flat: if this one is not a switch, its
+	 * parent must be
+	 */
+	if (thdev->type == INTEL_TH_SWITCH)
+		return thdev;
+
+	return to_intel_th_parent(thdev);
+}
+
+static inline struct intel_th *to_intel_th(struct intel_th_device *thdev)
+{
+	thdev = to_intel_th_hub(thdev);
+
+	if (WARN_ON_ONCE(!thdev || thdev->type != INTEL_TH_SWITCH))
+		return NULL;
+
+	return dev_get_drvdata(thdev->dev.parent);
 }
 
 struct intel_th *
