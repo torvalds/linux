@@ -334,7 +334,8 @@ static ssize_t ports_txcount_show(struct device *p,
 }
 static DEVICE_ATTR_RO(ports_txcount);
 
-/* this function creates the sys files that will export each signal status
+/*
+ * this function creates the sys files that will export each signal status
  * to sysfs each value will be put in a separate filename
  */
 void dgnc_create_ports_sysfiles(struct dgnc_board *bd)
