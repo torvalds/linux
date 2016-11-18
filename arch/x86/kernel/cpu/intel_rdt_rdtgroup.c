@@ -278,7 +278,7 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 				continue;
 			cpumask_andnot(&r->cpu_mask, &r->cpu_mask, tmpmask);
 		}
-		rdt_update_percpu_closid(tmpmask, rdtgroup_default.closid);
+		rdt_update_percpu_closid(tmpmask, rdtgrp->closid);
 	}
 
 	/* Done pushing/pulling - update this group with new mask */
