@@ -477,9 +477,8 @@ retry:
 	crtc_offset_cntl = 0;
 
 	pitch_pixels = target_fb->pitches[0] / (target_fb->bits_per_pixel / 8);
-	crtc_pitch  = (((pitch_pixels * target_fb->bits_per_pixel) +
-			((target_fb->bits_per_pixel * 8) - 1)) /
-		       (target_fb->bits_per_pixel * 8));
+	crtc_pitch = DIV_ROUND_UP(pitch_pixels * target_fb->bits_per_pixel,
+				  target_fb->bits_per_pixel * 8);
 	crtc_pitch |= crtc_pitch << 16;
 
 	crtc_offset_cntl |= RADEON_CRTC_GUI_TRIG_OFFSET_LEFT_EN;
