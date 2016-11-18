@@ -132,6 +132,14 @@ config MSM_MMCC_8974
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_GCC_8994
+	tristate "MSM8994 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8994 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
+
 config MSM_GCC_8996
 	tristate "MSM8996 Global Clock Controller"
 	select QCOM_GDSC
