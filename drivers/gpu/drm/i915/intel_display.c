@@ -15679,6 +15679,8 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
+	if (obj->pin_display && obj->cache_dirty)
+		i915_gem_clflush_object(obj, true);
 	intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
 	mutex_unlock(&dev->struct_mutex);
 
