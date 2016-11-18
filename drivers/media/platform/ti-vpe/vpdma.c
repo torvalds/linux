@@ -437,10 +437,9 @@ EXPORT_SYMBOL(vpdma_list_busy);
 /*
  * submit a list of DMA descriptors to the VPE VPDMA, do not wait for completion
  */
-int vpdma_submit_descs(struct vpdma_data *vpdma, struct vpdma_desc_list *list)
+int vpdma_submit_descs(struct vpdma_data *vpdma,
+			struct vpdma_desc_list *list, int list_num)
 {
-	/* we always use the first list */
-	int list_num = 0;
 	int list_size;
 
 	if (vpdma_list_busy(vpdma, list_num))
@@ -459,6 +458,40 @@ int vpdma_submit_descs(struct vpdma_data *vpdma, struct vpdma_desc_list *list)
 	return 0;
 }
 EXPORT_SYMBOL(vpdma_submit_descs);
+
+static void dump_dtd(struct vpdma_dtd *dtd);
+
+void vpdma_update_dma_addr(struct vpdma_data *vpdma,
+	struct vpdma_desc_list *list, dma_addr_t dma_addr,
+	void *write_dtd, int drop, int idx)
+{
+	struct vpdma_dtd *dtd = list->buf.addr;
+	dma_addr_t write_desc_addr;
+	int offset;
+
+	dtd += idx;
+	vpdma_unmap_desc_buf(vpdma, &list->buf);
+
+	dtd->start_addr = dma_addr;
+
+	/* Calculate write address from the offset of write_dtd from start
+	 * of the list->buf
+	 */
+	offset = (void *)write_dtd - list->buf.addr;
+	write_desc_addr = list->buf.dma_addr + offset;
+
+	if (drop)
+		dtd->desc_write_addr = dtd_desc_write_addr(write_desc_addr,
+							   1, 1, 0);
+	else
+		dtd->desc_write_addr = dtd_desc_write_addr(write_desc_addr,
+							   1, 0, 0);
+
+	vpdma_map_desc_buf(vpdma, &list->buf);
+
+	dump_dtd(dtd);
+}
+EXPORT_SYMBOL(vpdma_update_dma_addr);
 
 static void dump_cfd(struct vpdma_cfd *cfd)
 {
@@ -642,6 +675,16 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, u32 flags)
 {
+	vpdma_rawchan_add_out_dtd(list, width, c_rect, fmt, dma_addr,
+				  chan_info[chan].num, flags);
+}
+EXPORT_SYMBOL(vpdma_add_out_dtd);
+
+void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
+		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
+		int raw_vpdma_chan, u32 flags)
+{
 	int priority = 0;
 	int field = 0;
 	int notify = 1;
@@ -651,7 +694,7 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 	int stride;
 	struct vpdma_dtd *dtd;
 
-	channel = next_chan = chan_info[chan].num;
+	channel = next_chan = raw_vpdma_chan;
 
 	if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV &&
 			fmt->data_type == DATA_TYPE_C420) {
@@ -688,7 +731,7 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 
 	dump_dtd(dtd);
 }
-EXPORT_SYMBOL(vpdma_add_out_dtd);
+EXPORT_SYMBOL(vpdma_rawchan_add_out_dtd);
 
 /*
  * append an inbound data transfer descriptor to the given descriptor list,
@@ -765,25 +808,62 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 EXPORT_SYMBOL(vpdma_add_in_dtd);
 
 /* set or clear the mask for list complete interrupt */
-void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int list_num,
-		bool enable)
+void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int irq_num,
+		int list_num, bool enable)
 {
+	u32 reg_addr = VPDMA_INT_LIST0_MASK + VPDMA_INTX_OFFSET * irq_num;
 	u32 val;
 
-	val = read_reg(vpdma, VPDMA_INT_LIST0_MASK);
+	val = read_reg(vpdma, reg_addr);
 	if (enable)
 		val |= (1 << (list_num * 2));
 	else
 		val &= ~(1 << (list_num * 2));
-	write_reg(vpdma, VPDMA_INT_LIST0_MASK, val);
+	write_reg(vpdma, reg_addr, val);
 }
 EXPORT_SYMBOL(vpdma_enable_list_complete_irq);
 
-/* clear previosuly occured list intterupts in the LIST_STAT register */
-void vpdma_clear_list_stat(struct vpdma_data *vpdma)
+/* set or clear the mask for list complete interrupt */
+void vpdma_enable_list_notify_irq(struct vpdma_data *vpdma, int irq_num,
+		int list_num, bool enable)
 {
-	write_reg(vpdma, VPDMA_INT_LIST0_STAT,
-		read_reg(vpdma, VPDMA_INT_LIST0_STAT));
+	u32 reg_addr = VPDMA_INT_LIST0_MASK + VPDMA_INTX_OFFSET * irq_num;
+	u32 val;
+
+	val = read_reg(vpdma, reg_addr);
+	if (enable)
+		val |= (1 << ((list_num * 2) + 1));
+	else
+		val &= ~(1 << ((list_num * 2) + 1));
+	write_reg(vpdma, reg_addr, val);
+}
+EXPORT_SYMBOL(vpdma_enable_list_notify_irq);
+
+/* get the LIST_STAT register */
+unsigned int vpdma_get_list_stat(struct vpdma_data *vpdma, int irq_num)
+{
+	u32 reg_addr = VPDMA_INT_LIST0_STAT + VPDMA_INTX_OFFSET * irq_num;
+
+	return read_reg(vpdma, reg_addr);
+}
+EXPORT_SYMBOL(vpdma_get_list_stat);
+
+/* get the LIST_MASK register */
+unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num)
+{
+	u32 reg_addr = VPDMA_INT_LIST0_MASK + VPDMA_INTX_OFFSET * irq_num;
+
+	return read_reg(vpdma, reg_addr);
+}
+EXPORT_SYMBOL(vpdma_get_list_mask);
+
+/* clear previosuly occured list intterupts in the LIST_STAT register */
+void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num)
+{
+	u32 reg_addr = VPDMA_INT_LIST0_STAT + VPDMA_INTX_OFFSET * irq_num;
+
+	write_reg(vpdma, reg_addr,
+		read_reg(vpdma, reg_addr));
 }
 EXPORT_SYMBOL(vpdma_clear_list_stat);
 

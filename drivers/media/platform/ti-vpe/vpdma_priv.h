@@ -39,9 +39,11 @@
 #define VPDMA_INT_LIST0_STAT		0x88
 #define VPDMA_INT_LIST0_MASK		0x8c
 
+#define VPDMA_INTX_OFFSET		0x50
+
 #define VPDMA_PERFMON(i)		(0x200 + i * 4)
 
-/* VPE specific client registers */
+/* VIP/VPE client registers */
 #define VPDMA_DEI_CHROMA1_CSTAT		0x0300
 #define VPDMA_DEI_LUMA1_CSTAT		0x0304
 #define VPDMA_DEI_LUMA2_CSTAT		0x0308
@@ -50,6 +52,8 @@
 #define VPDMA_DEI_CHROMA3_CSTAT		0x0314
 #define VPDMA_DEI_MV_IN_CSTAT		0x0330
 #define VPDMA_DEI_MV_OUT_CSTAT		0x033c
+#define VPDMA_VIP_LO_Y_CSTAT		0x0388
+#define VPDMA_VIP_LO_UV_CSTAT		0x038c
 #define VPDMA_VIP_UP_Y_CSTAT		0x0390
 #define VPDMA_VIP_UP_UV_CSTAT		0x0394
 #define VPDMA_VPI_CTL_CSTAT		0x03d0
@@ -103,7 +107,7 @@
 
 #define DATA_TYPE_MV				0x3
 
-/* VPDMA channel numbers(only VPE channels for now) */
+/* VPDMA channel numbers, some are common between VIP/VPE and appear twice */
 #define	VPE_CHAN_NUM_LUMA1_IN		0
 #define	VPE_CHAN_NUM_CHROMA1_IN		1
 #define	VPE_CHAN_NUM_LUMA2_IN		2
@@ -112,10 +116,15 @@
 #define	VPE_CHAN_NUM_CHROMA3_IN		5
 #define	VPE_CHAN_NUM_MV_IN		12
 #define	VPE_CHAN_NUM_MV_OUT		15
+#define VIP1_CHAN_NUM_MULT_PORT_A_SRC0	38
+#define VIP1_CHAN_NUM_MULT_ANC_A_SRC0	70
 #define	VPE_CHAN_NUM_LUMA_OUT		102
 #define	VPE_CHAN_NUM_CHROMA_OUT		103
+#define VIP1_CHAN_NUM_PORT_A_LUMA	102
+#define VIP1_CHAN_NUM_PORT_A_CHROMA	103
 #define	VPE_CHAN_NUM_RGB_OUT		106
-
+#define VIP1_CHAN_NUM_PORT_A_RGB	106
+#define VIP1_CHAN_NUM_PORT_B_RGB	107
 /*
  * a VPDMA address data block payload for a configuration descriptor needs to
  * have each sub block length as a multiple of 16 bytes. Therefore, the overall

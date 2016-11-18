@@ -134,6 +134,11 @@ enum vpdma_channel {
 	VPE_CHAN_RGB_OUT,
 };
 
+#define VIP_CHAN_VIP2_OFFSET		70
+#define VIP_CHAN_MULT_PORTB_OFFSET	16
+#define VIP_CHAN_YUV_PORTB_OFFSET	2
+#define VIP_CHAN_RGB_PORTB_OFFSET	1
+
 /* flags for VPDMA data descriptors */
 #define VPDMA_DATA_ODD_LINE_SKIP	(1 << 0)
 #define VPDMA_DATA_EVEN_LINE_SKIP	(1 << 1)
@@ -177,8 +182,12 @@ void vpdma_unmap_desc_buf(struct vpdma_data *vpdma, struct vpdma_buf *buf);
 int vpdma_create_desc_list(struct vpdma_desc_list *list, size_t size, int type);
 void vpdma_reset_desc_list(struct vpdma_desc_list *list);
 void vpdma_free_desc_list(struct vpdma_desc_list *list);
-int vpdma_submit_descs(struct vpdma_data *vpdma, struct vpdma_desc_list *list);
-
+int vpdma_submit_descs(struct vpdma_data *vpdma, struct vpdma_desc_list *list,
+		       int list_num);
+bool vpdma_list_busy(struct vpdma_data *vpdma, int list_num);
+void vpdma_update_dma_addr(struct vpdma_data *vpdma,
+	struct vpdma_desc_list *list, dma_addr_t dma_addr,
+	void *write_dtd, int drop, int idx);
 /* helpers for creating vpdma descriptors */
 void vpdma_add_cfd_block(struct vpdma_desc_list *list, int client,
 		struct vpdma_buf *blk, u32 dest_offset);
@@ -190,6 +199,10 @@ void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, u32 flags);
+void vpdma_rawchan_add_out_dtd(struct vpdma_desc_list *list, int width,
+		const struct v4l2_rect *c_rect,
+		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
+		int raw_vpdma_chan, u32 flags);
 void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
@@ -197,9 +210,11 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 		int frame_height, int start_h, int start_v);
 
 /* vpdma list interrupt management */
-void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int list_num,
-		bool enable);
-void vpdma_clear_list_stat(struct vpdma_data *vpdma);
+void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int irq_num,
+		int list_num, bool enable);
+void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num);
+unsigned int vpdma_get_list_stat(struct vpdma_data *vpdma, int irq_num);
+unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num);
 
 /* vpdma client configuration */
 void vpdma_set_line_mode(struct vpdma_data *vpdma, int line_mode,
