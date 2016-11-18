@@ -151,6 +151,9 @@ static int mid_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Make sure the watchdog is not running */
+	wdt_stop(wdt_dev);
+
 	ret = watchdog_register_device(wdt_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "error registering watchdog device\n");
