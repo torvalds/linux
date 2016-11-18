@@ -3061,7 +3061,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempbx = pVBInfo->VGAVT;
 	push1 = tempbx;
 	tempcx = 0x121;
-	tempbx = pVBInfo->VGAVDE; /* 0x0E Virtical Display End */
+	tempbx = pVBInfo->VGAVDE; /* 0x0E Vertical Display End */
 
 	if (tempbx == 357)
 		tempbx = 350;
@@ -3113,7 +3113,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (tempbx & 0x0400)
 		tempcx |= 0x0600;
 
-	/* 0x11 Vertival Blank End */
+	/* 0x11 Vertical Blank End */
 	xgifb_reg_set(pVBInfo->Part1Port, 0x11, 0x00);
 
 	tempax = push1;
