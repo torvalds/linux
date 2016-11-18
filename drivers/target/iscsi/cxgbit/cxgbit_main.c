@@ -653,6 +653,7 @@ static struct iscsit_transport cxgbit_transport = {
 static struct cxgb4_uld_info cxgbit_uld_info = {
 	.name		= DRV_NAME,
 	.nrxq		= MAX_ULD_QSETS,
+	.ntxq		= MAX_ULD_QSETS,
 	.rxq_size	= 1024,
 	.lro		= true,
 	.add		= cxgbit_uld_add,

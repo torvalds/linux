@@ -592,16 +592,18 @@ badkey_err:
 
 static int cxgb4_is_crypto_q_full(struct net_device *dev, unsigned int idx)
 {
-	int ret = 0;
-	struct sge_ofld_txq *q;
 	struct adapter *adap = netdev2adap(dev);
+	struct sge_uld_txq_info *txq_info =
+		adap->sge.uld_txq_info[CXGB4_TX_CRYPTO];
+	struct sge_uld_txq *txq;
+	int ret = 0;
 
 	local_bh_disable();
-	q = &adap->sge.ofldtxq[idx];
-	spin_lock(&q->sendq.lock);
-	if (q->full)
+	txq = &txq_info->uldtxq[idx];
+	spin_lock(&txq->sendq.lock);
+	if (txq->full)
 		ret = -1;
-	spin_unlock(&q->sendq.lock);
+	spin_unlock(&txq->sendq.lock);
 	local_bh_enable();
 	return ret;
 }
@@ -674,11 +676,11 @@ static int chcr_device_init(struct chcr_context *ctx)
 		}
 		u_ctx = ULD_CTX(ctx);
 		rxq_perchan = u_ctx->lldi.nrxq / u_ctx->lldi.nchan;
-		ctx->dev->tx_channel_id = 0;
 		rxq_idx = ctx->dev->tx_channel_id * rxq_perchan;
 		rxq_idx += id % rxq_perchan;
 		spin_lock(&ctx->dev->lock_chcr_dev);
 		ctx->tx_channel_id = rxq_idx;
+		ctx->dev->tx_channel_id = !ctx->dev->tx_channel_id;
 		spin_unlock(&ctx->dev->lock_chcr_dev);
 	}
 out:

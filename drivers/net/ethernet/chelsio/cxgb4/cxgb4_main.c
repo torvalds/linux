@@ -530,15 +530,15 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 
 		txq = q->adap->sge.egr_map[qid - q->adap->sge.egr_start];
 		txq->restarts++;
-		if ((u8 *)txq < (u8 *)q->adap->sge.ofldtxq) {
+		if (txq->q_type == CXGB4_TXQ_ETH) {
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
 			netif_tx_wake_queue(eq->txq);
 		} else {
-			struct sge_ofld_txq *oq;
+			struct sge_uld_txq *oq;
 
-			oq = container_of(txq, struct sge_ofld_txq, q);
+			oq = container_of(txq, struct sge_uld_txq, q);
 			tasklet_schedule(&oq->qresume_tsk);
 		}
 	} else if (opcode == CPL_FW6_MSG || opcode == CPL_FW4_MSG) {
@@ -883,15 +883,6 @@ static int setup_sge_queues(struct adapter *adap)
 			if (err)
 				goto freeout;
 		}
-	}
-
-	j = s->ofldqsets / adap->params.nports; /* iscsi queues per channel */
-	for_each_ofldtxq(s, i) {
-		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i],
-					    adap->port[i / j],
-					    s->fw_evtq.cntxt_id);
-		if (err)
-			goto freeout;
 	}
 
 	for_each_port(adap, i) {
@@ -1922,8 +1913,18 @@ static void disable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		disable_txq_db(&adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				disable_txq_db(&txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		disable_txq_db(&adap->sge.ctrlq[i].q);
 }
@@ -1934,8 +1935,18 @@ static void enable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				enable_txq_db(adap, &txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
 }
@@ -2006,8 +2017,17 @@ static void recover_all_queues(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		sync_txq_pidx(adap, &adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				sync_txq_pidx(adap, &txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
 }
@@ -3991,7 +4011,7 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int i, n10g = 0, qidx = 0;
+	int i = 0, n10g = 0, qidx = 0;
 #ifndef CONFIG_CHELSIO_T4_DCB
 	int q10g = 0;
 #endif
@@ -4006,8 +4026,7 @@ static void cfg_queues(struct adapter *adap)
 		adap->params.crypto = 0;
 	}
 
-	for_each_port(adap, i)
-		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
+	n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
@@ -4074,9 +4093,6 @@ static void cfg_queues(struct adapter *adap)
 
 	for (i = 0; i < ARRAY_SIZE(s->ctrlq); i++)
 		s->ctrlq[i].q.size = 512;
-
-	for (i = 0; i < ARRAY_SIZE(s->ofldtxq); i++)
-		s->ofldtxq[i].q.size = 1024;
 
 	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
 	init_rspq(adap, &s->intrq, 0, 1, 512, 64);
