@@ -73,7 +73,7 @@ static inline bool CFS_FAIL_PRECHECK(__u32 id)
 {
 	return cfs_fail_loc != 0 &&
 	       ((cfs_fail_loc & CFS_FAIL_MASK_LOC) == (id & CFS_FAIL_MASK_LOC) ||
-	        (cfs_fail_loc & id & CFS_FAULT));
+		(cfs_fail_loc & id & CFS_FAULT));
 }
 
 static inline int cfs_fail_check_set(__u32 id, __u32 value,
