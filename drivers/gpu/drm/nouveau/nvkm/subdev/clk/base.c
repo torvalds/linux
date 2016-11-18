@@ -229,7 +229,7 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 	struct nvkm_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
 	u8  ver, hdr;
-	u16 data;
+	u32 data;
 
 	data = nvbios_cstepXp(bios, idx, &ver, &hdr, &cstepX);
 	if (!data)
@@ -408,7 +408,7 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 	struct nvbios_cstepE cstepE;
 	struct nvbios_perfE perfE;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u32 data;
 
 	data = nvbios_perfEp(bios, idx, &ver, &hdr, &cnt, &len, &perfE);
 	if (!data)
