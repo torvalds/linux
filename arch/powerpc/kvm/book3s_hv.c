@@ -1230,6 +1230,12 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_WORT:
 		*val = get_reg_val(id, vcpu->arch.wort);
 		break;
+	case KVM_REG_PPC_TIDR:
+		*val = get_reg_val(id, vcpu->arch.tid);
+		break;
+	case KVM_REG_PPC_PSSCR:
+		*val = get_reg_val(id, vcpu->arch.psscr);
+		break;
 	case KVM_REG_PPC_VPA_ADDR:
 		spin_lock(&vcpu->arch.vpa_update_lock);
 		*val = get_reg_val(id, vcpu->arch.vpa.next_gpa);
@@ -1430,6 +1436,12 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		break;
 	case KVM_REG_PPC_WORT:
 		vcpu->arch.wort = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_TIDR:
+		vcpu->arch.tid = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_PSSCR:
+		vcpu->arch.psscr = set_reg_val(id, *val) & PSSCR_GUEST_VIS;
 		break;
 	case KVM_REG_PPC_VPA_ADDR:
 		addr = set_reg_val(id, *val);

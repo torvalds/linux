@@ -523,6 +523,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
  *                                                                            *
  *****************************************************************************/
 
+/* Stack frame offsets */
+#define STACK_SLOT_TID		(112-16)
+#define STACK_SLOT_PSSCR	(112-24)
+
 .global kvmppc_hv_entry
 kvmppc_hv_entry:
 
@@ -700,6 +704,14 @@ kvmppc_got_guest:
 	mtspr	SPRN_PURR,r7
 	mtspr	SPRN_SPURR,r8
 
+	/* Save host values of some registers */
+BEGIN_FTR_SECTION
+	mfspr	r5, SPRN_TIDR
+	mfspr	r6, SPRN_PSSCR
+	std	r5, STACK_SLOT_TID(r1)
+	std	r6, STACK_SLOT_PSSCR(r1)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
 BEGIN_FTR_SECTION
 	/* Set partition DABR */
 	/* Do this before re-enabling PMU to avoid P7 DABR corruption bug */
@@ -824,6 +836,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_PID, r7
 	mtspr	SPRN_WORT, r8
 BEGIN_FTR_SECTION
+	/* POWER8-only registers */
 	ld	r5, VCPU_TCSCR(r4)
 	ld	r6, VCPU_ACOP(r4)
 	ld	r7, VCPU_CSIGR(r4)
@@ -832,7 +845,14 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_ACOP, r6
 	mtspr	SPRN_CSIGR, r7
 	mtspr	SPRN_TACR, r8
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+FTR_SECTION_ELSE
+	/* POWER9-only registers */
+	ld	r5, VCPU_TID(r4)
+	ld	r6, VCPU_PSSCR(r4)
+	oris	r6, r6, PSSCR_EC@h	/* This makes stop trap to HV */
+	mtspr	SPRN_TIDR, r5
+	mtspr	SPRN_PSSCR, r6
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 8:
 
 	/*
@@ -1362,7 +1382,14 @@ BEGIN_FTR_SECTION
 	std	r6, VCPU_ACOP(r9)
 	std	r7, VCPU_CSIGR(r9)
 	std	r8, VCPU_TACR(r9)
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+FTR_SECTION_ELSE
+	mfspr	r5, SPRN_TIDR
+	mfspr	r6, SPRN_PSSCR
+	std	r5, VCPU_TID(r9)
+	rldicl	r6, r6, 4, 50		/* r6 &= PSSCR_GUEST_VIS */
+	rotldi	r6, r6, 60
+	std	r6, VCPU_PSSCR(r9)
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	/*
 	 * Restore various registers to 0, where non-zero values
 	 * set by the guest could disrupt the host.
@@ -1530,6 +1557,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	slbmte	r5,r5
 	slbia
 	ptesync
+
+	/* Restore host values of some registers */
+BEGIN_FTR_SECTION
+	ld	r5, STACK_SLOT_TID(r1)
+	ld	r6, STACK_SLOT_PSSCR(r1)
+	mtspr	SPRN_TIDR, r5
+	mtspr	SPRN_PSSCR, r6
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	/*
 	 * POWER7/POWER8 guest -> host partition switch code.

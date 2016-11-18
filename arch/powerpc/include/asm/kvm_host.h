@@ -517,6 +517,8 @@ struct kvm_vcpu_arch {
 	ulong tcscr;
 	ulong acop;
 	ulong wort;
+	ulong tid;
+	ulong psscr;
 	ulong shadow_srr1;
 #endif
 	u32 vrsave; /* also USPRG0 */
