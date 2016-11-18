@@ -281,7 +281,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (old_fb && (state->src_w != old_state->src_w ||
 			      state->src_h != old_state->src_h ||
-			      fb->format->format != old_fb->format->format))
+			      fb->format != old_fb->format))
 		crtc_state->mode_changed = true;
 
 	eba = drm_plane_state_to_eba(state);
@@ -315,7 +315,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if (vbo & 0x7 || vbo > 0xfffff8)
 			return -EINVAL;
 
-		if (old_fb && (fb->format->format == old_fb->format->format)) {
+		if (old_fb && (fb->format == old_fb->format)) {
 			old_vbo = drm_plane_state_to_vbo(old_state);
 			if (vbo != old_vbo)
 				crtc_state->mode_changed = true;
@@ -332,7 +332,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if (ubo & 0x7 || ubo > 0xfffff8)
 			return -EINVAL;
 
-		if (old_fb && (fb->format->format == old_fb->format->format)) {
+		if (old_fb && (fb->format == old_fb->format)) {
 			old_ubo = drm_plane_state_to_ubo(old_state);
 			if (ubo != old_ubo)
 				crtc_state->mode_changed = true;

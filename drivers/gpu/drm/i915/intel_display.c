@@ -12147,7 +12147,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		return -EBUSY;
 
 	/* Can't change pixel format via MI display flips. */
-	if (fb->format->format != crtc->primary->fb->format->format)
+	if (fb->format != crtc->primary->fb->format)
 		return -EINVAL;
 
 	/*

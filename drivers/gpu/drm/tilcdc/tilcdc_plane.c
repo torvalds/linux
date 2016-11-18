@@ -77,7 +77,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	if (state->fb && old_state->fb &&
-	    state->fb->format->format != old_state->fb->format->format) {
+	    state->fb->format != old_state->fb->format) {
 		dev_dbg(plane->dev->dev,
 			"%s(): pixel format change requires mode_change\n",
 			__func__);

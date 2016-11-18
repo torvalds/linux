@@ -588,8 +588,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		if (set->crtc->primary->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
 			mode_changed = true;
-		} else if (set->fb->format->format !=
-			   set->crtc->primary->fb->format->format) {
+		} else if (set->fb->format != set->crtc->primary->fb->format) {
 			mode_changed = true;
 		} else
 			fb_changed = true;
