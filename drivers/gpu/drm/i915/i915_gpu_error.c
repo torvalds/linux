@@ -538,10 +538,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
 		    error->engine[i].pid != -1) {
-			err_printf(m, "Active process (on ring %s): %s [%d]\n",
+			err_printf(m, "Active process (on ring %s): %s [%d], context bans %d\n",
 				   engine_str(i),
 				   error->engine[i].comm,
-				   error->engine[i].pid);
+				   error->engine[i].pid,
+				   error->engine[i].context_bans);
 		}
 	}
 	err_printf(m, "Reset count: %u\n", error->reset_count);
@@ -632,9 +633,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if (obj) {
 			err_puts(m, dev_priv->engine[i]->name);
 			if (ee->pid != -1)
-				err_printf(m, " (submitted by %s [%d])",
+				err_printf(m, " (submitted by %s [%d], bans %d)",
 					   ee->comm,
-					   ee->pid);
+					   ee->pid,
+					   ee->context_bans);
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));

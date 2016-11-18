@@ -1003,6 +1003,11 @@ static bool contexts_enabled(struct drm_device *dev)
 	return i915.enable_execlists || to_i915(dev)->hw_context_size;
 }
 
+static bool client_is_banned(struct drm_i915_file_private *file_priv)
+{
+	return file_priv->context_bans > I915_MAX_CLIENT_CONTEXT_BANS;
+}
+
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file)
 {
@@ -1016,6 +1021,14 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 
 	if (args->pad != 0)
 		return -EINVAL;
+
+	if (client_is_banned(file_priv)) {
+		DRM_DEBUG("client %s[%d] banned from creating ctx\n",
+			  current->comm,
+			  pid_nr(get_task_pid(current, PIDTYPE_PID)));
+
+		return -EIO;
+	}
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)

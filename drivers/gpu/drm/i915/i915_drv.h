@@ -416,6 +416,15 @@ struct drm_i915_file_private {
 	} rps;
 
 	unsigned int bsd_engine;
+
+/* Client can have a maximum of 3 contexts banned before
+ * it is denied of creating new contexts. As one context
+ * ban needs 4 consecutive hangs, and more if there is
+ * progress in between, this is a last resort stop gap measure
+ * to limit the badly behaving clients access to gpu.
+ */
+#define I915_MAX_CLIENT_CONTEXT_BANS 3
+	int context_bans;
 };
 
 /* Used by dp and fdi links */
@@ -872,6 +881,7 @@ struct drm_i915_error_state {
 
 		pid_t pid;
 		char comm[TASK_COMM_LEN];
+		int context_bans;
 	} engine[I915_NUM_ENGINES];
 
 	struct drm_i915_error_buffer {
