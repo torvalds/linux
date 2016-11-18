@@ -234,34 +234,9 @@ static inline void play_dead(void)
 }
 #endif
 
-#ifdef CONFIG_X86_64
-void enter_idle(void)
-{
-}
-
-static void __exit_idle(void)
-{
-}
-
-/* Called from interrupts to signify idle end */
-void exit_idle(void)
-{
-	/* idle loop has pid 0 */
-	if (current->pid)
-		return;
-	__exit_idle();
-}
-#endif
-
 void arch_cpu_idle_enter(void)
 {
 	local_touch_nmi();
-	enter_idle();
-}
-
-void arch_cpu_idle_exit(void)
-{
-	__exit_idle();
 }
 
 void arch_cpu_idle_dead(void)

@@ -639,7 +639,6 @@ extern void irq_exit(void);
 static inline void entering_irq(void)
 {
 	irq_enter();
-	exit_idle();
 }
 
 static inline void entering_ack_irq(void)
