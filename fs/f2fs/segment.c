@@ -16,7 +16,6 @@
 #include <linux/kthread.h>
 #include <linux/swap.h>
 #include <linux/timer.h>
-#include <linux/timer.h>
 
 #include "f2fs.h"
 #include "segment.h"
