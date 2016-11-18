@@ -1340,7 +1340,7 @@ struct rtl8xxxu_fileops {
 	void (*fill_txdesc) (struct ieee80211_hdr *hdr,
 			     struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
 			     u16 rate_flag, bool sgi, bool short_preamble,
-			     bool ampdu_enable);
+			     bool ampdu_enable, u32 rts_rate);
 	int writeN_block_size;
 	int rx_agg_buf_size;
 	char tx_desc_size;
@@ -1437,11 +1437,11 @@ bool rtl8xxxu_gen2_simularity_compare(struct rtl8xxxu_priv *priv,
 void rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
 			     struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
 			     u16 rate_flag, bool sgi, bool short_preamble,
-			     bool ampdu_enable);
+			     bool ampdu_enable, u32 rts_rate);
 void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hdr *hdr,
 			     struct rtl8xxxu_txdesc32 *tx_desc32, u32 rate,
 			     u16 rate_flag, bool sgi, bool short_preamble,
-			     bool ampdu_enable);
+			     bool ampdu_enable, u32 rts_rate);
 
 extern struct rtl8xxxu_fileops rtl8192cu_fops;
 extern struct rtl8xxxu_fileops rtl8192eu_fops;
