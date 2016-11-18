@@ -244,7 +244,8 @@ int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
 /* vpdma list interrupt management */
 void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int irq_num,
 		int list_num, bool enable);
-void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num);
+void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num,
+			   int list_num);
 unsigned int vpdma_get_list_stat(struct vpdma_data *vpdma, int irq_num);
 unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num);
 

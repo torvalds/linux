@@ -953,12 +953,12 @@ unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num)
 EXPORT_SYMBOL(vpdma_get_list_mask);
 
 /* clear previosuly occured list intterupts in the LIST_STAT register */
-void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num)
+void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num,
+			   int list_num)
 {
 	u32 reg_addr = VPDMA_INT_LIST0_STAT + VPDMA_INTX_OFFSET * irq_num;
 
-	write_reg(vpdma, reg_addr,
-		read_reg(vpdma, reg_addr));
+	write_reg(vpdma, reg_addr, 3 << (list_num * 2));
 }
 EXPORT_SYMBOL(vpdma_clear_list_stat);
 
