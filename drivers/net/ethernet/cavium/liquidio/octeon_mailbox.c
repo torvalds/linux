@@ -301,7 +301,7 @@ int octeon_mbox_process_message(struct octeon_mbox *mbox)
 		       sizeof(struct octeon_mbox_cmd));
 		if (!mbox_cmd.msg.s.resp_needed) {
 			mbox->state &= ~OCTEON_MBOX_STATE_REQUEST_RECEIVED;
-			if (!(mbox->state &&
+			if (!(mbox->state &
 			      OCTEON_MBOX_STATE_RESPONSE_PENDING))
 				mbox->state = OCTEON_MBOX_STATE_IDLE;
 			writeq(OCTEON_PFVFSIG, mbox->mbox_read_reg);
