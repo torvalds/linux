@@ -21,6 +21,7 @@
 #define	_MWIFIEX_SDIO_H
 
 
+#include <linux/completion.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
@@ -238,6 +239,7 @@ struct sdio_mmc_card {
 	struct sdio_func *func;
 	struct mwifiex_adapter *adapter;
 
+	struct completion fw_done;
 	const char *firmware;
 	const struct mwifiex_sdio_card_reg *reg;
 	u8 max_ports;

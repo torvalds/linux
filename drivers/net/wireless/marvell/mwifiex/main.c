@@ -521,9 +521,9 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
-	struct semaphore *sem = adapter->card_sem;
 	bool init_failed = false;
 	struct wireless_dev *wdev;
+	struct completion *fw_done = adapter->fw_done;
 
 	if (!firmware) {
 		mwifiex_dbg(adapter, ERROR,
@@ -670,7 +670,8 @@ done:
 	}
 	if (init_failed)
 		mwifiex_free_adapter(adapter);
-	up(sem);
+	/* Tell all current and future waiters we're finished */
+	complete_all(fw_done);
 	return;
 }
 
@@ -1365,7 +1366,7 @@ static void mwifiex_main_work_queue(struct work_struct *work)
  * code is extracted from mwifiex_remove_card()
  */
 static int
-mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
+mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
 	int i;
@@ -1373,8 +1374,9 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	if (!adapter)
 		goto exit_return;
 
-	if (down_interruptible(sem))
-		goto exit_sem_err;
+	wait_for_completion(adapter->fw_done);
+	/* Caller should ensure we aren't suspending while this happens */
+	reinit_completion(adapter->fw_done);
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	mwifiex_deauthenticate(priv, NULL);
@@ -1431,8 +1433,6 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		rtnl_unlock();
 	}
 
-	up(sem);
-exit_sem_err:
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 exit_return:
 	return 0;
@@ -1442,21 +1442,18 @@ exit_return:
  * code is extracted from mwifiex_add_card()
  */
 static int
-mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct semaphore *sem,
+mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct completion *fw_done,
 		  struct mwifiex_if_ops *if_ops, u8 iface_type)
 {
 	char fw_name[32];
 	struct pcie_service_card *card = adapter->card;
-
-	if (down_interruptible(sem))
-		goto exit_sem_err;
 
 	mwifiex_init_lock_list(adapter);
 	if (adapter->if_ops.up_dev)
 		adapter->if_ops.up_dev(adapter);
 
 	adapter->iface_type = iface_type;
-	adapter->card_sem = sem;
+	adapter->fw_done = fw_done;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -1507,7 +1504,8 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct semaphore *sem,
 	}
 	strcpy(adapter->fw_name, fw_name);
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
-	up(sem);
+
+	complete_all(adapter->fw_done);
 	return 0;
 
 err_init_fw:
@@ -1527,8 +1525,7 @@ err_init_fw:
 err_kmalloc:
 	mwifiex_terminate_workqueue(adapter);
 	adapter->surprise_removed = true;
-	up(sem);
-exit_sem_err:
+	complete_all(adapter->fw_done);
 	mwifiex_dbg(adapter, INFO, "%s, error\n", __func__);
 
 	return -1;
@@ -1543,12 +1540,12 @@ void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare)
 	struct mwifiex_if_ops if_ops;
 
 	if (!prepare) {
-		mwifiex_reinit_sw(adapter, adapter->card_sem, &if_ops,
+		mwifiex_reinit_sw(adapter, adapter->fw_done, &if_ops,
 				  adapter->iface_type);
 	} else {
 		memcpy(&if_ops, &adapter->if_ops,
 		       sizeof(struct mwifiex_if_ops));
-		mwifiex_shutdown_sw(adapter, adapter->card_sem);
+		mwifiex_shutdown_sw(adapter);
 	}
 }
 EXPORT_SYMBOL_GPL(mwifiex_do_flr);
@@ -1618,14 +1615,11 @@ err_exit:
  *      - Add logical interfaces
  */
 int
-mwifiex_add_card(void *card, struct semaphore *sem,
+mwifiex_add_card(void *card, struct completion *fw_done,
 		 struct mwifiex_if_ops *if_ops, u8 iface_type,
 		 struct device *dev)
 {
 	struct mwifiex_adapter *adapter;
-
-	if (down_interruptible(sem))
-		goto exit_sem_err;
 
 	if (mwifiex_register(card, if_ops, (void **)&adapter)) {
 		pr_err("%s: software init failed\n", __func__);
@@ -1636,7 +1630,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	mwifiex_probe_of(adapter);
 
 	adapter->iface_type = iface_type;
-	adapter->card_sem = sem;
+	adapter->fw_done = fw_done;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -1705,9 +1699,7 @@ err_kmalloc:
 	mwifiex_free_adapter(adapter);
 
 err_init_sw:
-	up(sem);
 
-exit_sem_err:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(mwifiex_add_card);
@@ -1723,13 +1715,10 @@ EXPORT_SYMBOL_GPL(mwifiex_add_card);
  *      - Unregister the device
  *      - Free the adapter structure
  */
-int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
+int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv = NULL;
 	int i;
-
-	if (down_trylock(sem))
-		goto exit_sem_err;
 
 	if (!adapter)
 		goto exit_remove;
@@ -1800,8 +1789,6 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	mwifiex_free_adapter(adapter);
 
 exit_remove:
-	up(sem);
-exit_sem_err:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);
