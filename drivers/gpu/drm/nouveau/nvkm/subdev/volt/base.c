@@ -189,7 +189,7 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 	struct nvbios_volt_entry ivid;
 	struct nvbios_volt info;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u32 data;
 	int i;
 
 	data = nvbios_volt_parse(bios, &ver, &hdr, &cnt, &len, &info);
