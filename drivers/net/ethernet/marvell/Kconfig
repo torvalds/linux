@@ -5,7 +5,7 @@
 config NET_VENDOR_MARVELL
 	bool "Marvell devices"
 	default y
-	depends on PCI || CPU_PXA168 || MV64X60 || PPC32 || PLAT_ORION || INET
+	depends on PCI || CPU_PXA168 || MV64X60 || PPC32 || PLAT_ORION || INET || COMPILE_TEST
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -18,7 +18,8 @@ if NET_VENDOR_MARVELL
 
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
-	depends on (MV64X60 || PPC32 || PLAT_ORION) && INET
+	depends on (MV64X60 || PPC32 || PLAT_ORION || COMPILE_TEST) && INET
+	depends on HAS_DMA
 	select PHYLIB
 	select MVMDIO
 	---help---
@@ -55,7 +56,8 @@ config MVNETA_BM_ENABLE
 
 config MVNETA
 	tristate "Marvell Armada 370/38x/XP network interface support"
-	depends on PLAT_ORION
+	depends on PLAT_ORION || COMPILE_TEST
+	depends on HAS_DMA
 	select MVMDIO
 	select FIXED_PHY
 	---help---
@@ -77,7 +79,8 @@ config MVNETA_BM
 
 config MVPP2
 	tristate "Marvell Armada 375 network interface support"
-	depends on MACH_ARMADA_375
+	depends on MACH_ARMADA_375 || COMPILE_TEST
+	depends on HAS_DMA
 	select MVMDIO
 	---help---
 	  This driver supports the network interface units in the

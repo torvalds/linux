@@ -72,7 +72,7 @@ struct gianfar_ptp_registers {
 /* Bit definitions for the TMR_CTRL register */
 #define ALM1P                 (1<<31) /* Alarm1 output polarity */
 #define ALM2P                 (1<<30) /* Alarm2 output polarity */
-#define FS                    (1<<28) /* FIPER start indication */
+#define FIPERST               (1<<28) /* FIPER start indication */
 #define PP1L                  (1<<27) /* Fiper1 pulse loopback mode enabled. */
 #define PP2L                  (1<<26) /* Fiper2 pulse loopback mode enabled. */
 #define TCLK_PERIOD_SHIFT     (16) /* 1588 timer reference clock period. */
@@ -502,7 +502,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 	gfar_write(&etsects->regs->tmr_fiper1, etsects->tmr_fiper1);
 	gfar_write(&etsects->regs->tmr_fiper2, etsects->tmr_fiper2);
 	set_alarm(etsects);
-	gfar_write(&etsects->regs->tmr_ctrl,   tmr_ctrl|FS|RTPE|TE|FRD);
+	gfar_write(&etsects->regs->tmr_ctrl,   tmr_ctrl|FIPERST|RTPE|TE|FRD);
 
 	spin_unlock_irqrestore(&etsects->lock, flags);
 
