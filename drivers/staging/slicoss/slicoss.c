@@ -784,9 +784,9 @@ static void slic_timer_load_check(ulong cardaddr)
 	if ((adapter) && (adapter->state == ADAPT_UP) &&
 	    (card->state == CARD_UP) && (slic_global.dynamic_intagg)) {
 		if (adapter->devid == SLIC_1GB_DEVICE_ID) {
-			if (adapter->linkspeed == LINK_1000MB)
+			if (adapter->linkspeed == LINK_1000MB) {
 				level = 100;
-			else {
+			} else {
 				if (load > SLIC_LOAD_5)
 					level = SLIC_INTAGG_5;
 				else if (load > SLIC_LOAD_4)
