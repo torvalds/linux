@@ -221,7 +221,8 @@ void vpdma_set_line_mode(struct vpdma_data *vpdma, int line_mode,
 		enum vpdma_channel chan);
 void vpdma_set_frame_start_event(struct vpdma_data *vpdma,
 		enum vpdma_frame_start_event fs_event, enum vpdma_channel chan);
-
+void vpdma_set_bg_color(struct vpdma_data *vpdma,
+			struct vpdma_data_format *fmt, u32 color);
 void vpdma_dump_regs(struct vpdma_data *vpdma);
 
 /* initialize vpdma, passed with VPE's platform device pointer */

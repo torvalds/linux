@@ -867,6 +867,16 @@ void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num)
 }
 EXPORT_SYMBOL(vpdma_clear_list_stat);
 
+void vpdma_set_bg_color(struct vpdma_data *vpdma,
+		struct vpdma_data_format *fmt, u32 color)
+{
+	if (fmt->type == VPDMA_DATA_FMT_TYPE_RGB)
+		write_reg(vpdma, VPDMA_BG_RGB, color);
+	else if (fmt->type == VPDMA_DATA_FMT_TYPE_YUV)
+		write_reg(vpdma, VPDMA_BG_YUV, color);
+}
+EXPORT_SYMBOL(vpdma_set_bg_color);
+
 /*
  * configures the output mode of the line buffer for the given client, the
  * line buffer content can either be mirrored(each line repeated twice) or
