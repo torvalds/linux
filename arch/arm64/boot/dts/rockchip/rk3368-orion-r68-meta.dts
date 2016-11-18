@@ -152,8 +152,6 @@
 		gpio = <&gpio3 11 GPIO_ACTIVE_LOW>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		regulator-boot-on;
 		vin-supply = <&vcc_io>;
 	};
 
@@ -201,7 +199,6 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
-	keep-power-in-suspend;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	mmc-hs200-1_2v;
 	mmc-hs200-1_8v;
@@ -350,7 +347,6 @@
 	clock-freq-min-max = <400000 50000000>;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
-	keep-power-in-suspend;
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;

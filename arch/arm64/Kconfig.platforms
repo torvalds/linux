@@ -190,6 +190,7 @@ config ARCH_THUNDER
 
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoC Family"
+	select ARCH_HAS_RESET_CONTROLLER
 	select PINCTRL
 	help
 	  This enables support for Socionext UniPhier SoC family.
