@@ -19,7 +19,7 @@
 
 / {
 	model = "Aries/DENX MCV EVK";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	compatible = "denx,mcvevk", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	aliases {
 		ethernet0 = &gmac0;

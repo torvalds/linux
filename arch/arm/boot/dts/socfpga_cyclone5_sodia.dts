@@ -21,7 +21,7 @@
 
 / {
 	model = "Altera SOCFPGA Cyclone V SoC Macnica Sodia board";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	compatible = "macnica,sodia", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
 		bootargs = "earlyprintk";
