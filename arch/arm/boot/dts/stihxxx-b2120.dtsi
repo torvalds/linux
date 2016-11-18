@@ -155,7 +155,7 @@
 
 		sound {
 			compatible = "simple-audio-card";
-			simple-audio-card,name = "sti audio card";
+			simple-audio-card,name = "STI-B2120";
 			status = "okay";
 
 			simple-audio-card,dai-link@0 {
