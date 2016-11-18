@@ -61,7 +61,7 @@
 sigset_t cfs_block_allsigs(void);
 sigset_t cfs_block_sigs(unsigned long sigs);
 sigset_t cfs_block_sigsinv(unsigned long sigs);
-void cfs_restore_sigs(sigset_t);
+void cfs_restore_sigs(sigset_t sigset);
 void cfs_clear_sigpending(void);
 
 /*
@@ -71,7 +71,7 @@ void cfs_clear_sigpending(void);
 /* returns a random 32-bit integer */
 unsigned int cfs_rand(void);
 /* seed the generator */
-void cfs_srand(unsigned int, unsigned int);
+void cfs_srand(unsigned int seed1, unsigned int seed2);
 void cfs_get_random_bytes(void *buf, int size);
 
 #include "libcfs_debug.h"

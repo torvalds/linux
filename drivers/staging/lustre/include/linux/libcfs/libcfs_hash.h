@@ -708,25 +708,26 @@ typedef int (*cfs_hash_for_each_cb_t)(struct cfs_hash *hs,
 void *
 cfs_hash_lookup(struct cfs_hash *hs, const void *key);
 void
-cfs_hash_for_each(struct cfs_hash *hs, cfs_hash_for_each_cb_t, void *data);
+cfs_hash_for_each(struct cfs_hash *hs, cfs_hash_for_each_cb_t cb, void *data);
 void
-cfs_hash_for_each_safe(struct cfs_hash *hs, cfs_hash_for_each_cb_t, void *data);
+cfs_hash_for_each_safe(struct cfs_hash *hs, cfs_hash_for_each_cb_t cb,
+		       void *data);
 int
-cfs_hash_for_each_nolock(struct cfs_hash *hs, cfs_hash_for_each_cb_t,
+cfs_hash_for_each_nolock(struct cfs_hash *hs, cfs_hash_for_each_cb_t cb,
 			 void *data, int start);
 int
-cfs_hash_for_each_empty(struct cfs_hash *hs, cfs_hash_for_each_cb_t,
+cfs_hash_for_each_empty(struct cfs_hash *hs, cfs_hash_for_each_cb_t cb,
 			void *data);
 void
 cfs_hash_for_each_key(struct cfs_hash *hs, const void *key,
-		      cfs_hash_for_each_cb_t, void *data);
+		      cfs_hash_for_each_cb_t cb, void *data);
 typedef int (*cfs_hash_cond_opt_cb_t)(void *obj, void *data);
 void
-cfs_hash_cond_del(struct cfs_hash *hs, cfs_hash_cond_opt_cb_t, void *data);
+cfs_hash_cond_del(struct cfs_hash *hs, cfs_hash_cond_opt_cb_t cb, void *data);
 
 void
 cfs_hash_hlist_for_each(struct cfs_hash *hs, unsigned int hindex,
-			cfs_hash_for_each_cb_t, void *data);
+			cfs_hash_for_each_cb_t cb, void *data);
 int  cfs_hash_is_empty(struct cfs_hash *hs);
 __u64 cfs_hash_size_get(struct cfs_hash *hs);
 
