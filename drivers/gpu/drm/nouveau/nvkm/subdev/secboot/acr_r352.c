@@ -503,12 +503,36 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 
 		img = acr->func->ls_ucode_img_load(acr, falcon_id);
 		if (IS_ERR(img)) {
+			if (acr->base.optional_falcons & BIT(falcon_id)) {
+				managed_falcons &= ~BIT(falcon_id);
+				nvkm_info(subdev, "skipping %s falcon...\n",
+					  nvkm_secboot_falcon_name[falcon_id]);
+				continue;
+			}
 			ret = PTR_ERR(img);
 			goto cleanup;
 		}
 
 		list_add_tail(&img->node, &imgs);
 		managed_count++;
+	}
+
+	/* Commit the actual list of falcons we will manage from now on */
+	acr->base.managed_falcons = managed_falcons;
+
+	/*
+	 * If the boot falcon has a firmare, let it manage the bootstrap of other
+	 * falcons.
+	 */
+	if (acr->func->ls_func[acr->base.boot_falcon] &&
+	    (managed_falcons & BIT(acr->base.boot_falcon))) {
+		for_each_set_bit(falcon_id, &managed_falcons,
+				 NVKM_SECBOOT_FALCON_END) {
+			if (falcon_id == acr->base.boot_falcon)
+				continue;
+
+			acr->lazy_bootstrap |= BIT(falcon_id);
+		}
 	}
 
 	/*
@@ -948,20 +972,25 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	struct acr_r352 *acr = acr_r352(_acr);
 	struct nvkm_pmu *pmu = sb->subdev.device->pmu;
 	const char *fname = nvkm_secboot_falcon_name[falcon];
+	bool wpr_already_set = sb->wpr_set;
 	int ret;
 
-	/* Not self-managed? Redo secure boot entirely */
-	if (!nvkm_secboot_is_managed(sb, _acr->boot_falcon))
-		return acr_r352_reset_nopmu(acr, sb, falcon);
-
-	/*
-	 * Otherwise ensure secure boot is done, and command the PMU to reset
-	 * the desired falcon.
-	 */
+	/* Make sure secure boot is performed */
 	ret = acr_r352_bootstrap(acr, sb);
 	if (ret)
 		return ret;
 
+	/* No PMU interface? */
+	if (!nvkm_secboot_is_managed(sb, _acr->boot_falcon)) {
+		/* Redo secure boot entirely if it was already done */
+		if (wpr_already_set)
+			return acr_r352_reset_nopmu(acr, sb, falcon);
+		/* Else return the result of the initial invokation */
+		else
+			return ret;
+	}
+
+	/* Otherwise just ask the PMU to reset the falcon */
 	nvkm_debug(&sb->subdev, "resetting %s falcon\n", fname);
 	ret = nvkm_msgqueue_acr_boot_falcon(pmu->queue, falcon);
 	if (ret) {
@@ -1135,23 +1164,6 @@ acr_r352_new_(const struct acr_r352_func *func,
 	acr->base.managed_falcons = managed_falcons;
 	acr->base.func = &acr_r352_base_func;
 	acr->func = func;
-
-	/*
-	 * If we have a PMU firmware, let it manage the bootstrap of other
-	 * falcons.
-	 */
-	if (func->ls_func[NVKM_SECBOOT_FALCON_PMU] &&
-	    (managed_falcons & BIT(NVKM_SECBOOT_FALCON_PMU))) {
-		int i;
-
-		for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++) {
-			if (i == NVKM_SECBOOT_FALCON_PMU)
-				continue;
-
-			if (func->ls_func[i])
-				acr->lazy_bootstrap |= BIT(i);
-		}
-	}
 
 	return &acr->base;
 }
