@@ -67,16 +67,16 @@ static int rcar_du_hdmienc_atomic_check(struct drm_encoder *encoder,
 
 
 static void rcar_du_hdmienc_mode_set(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
-				     struct drm_display_mode *adjusted_mode)
+				     struct drm_crtc_state *crtc_state,
+				     struct drm_connector_state *conn_state)
 {
 	struct rcar_du_hdmienc *hdmienc = to_rcar_hdmienc(encoder);
 
-	rcar_du_crtc_route_output(encoder->crtc, hdmienc->renc->output);
+	rcar_du_crtc_route_output(crtc_state->crtc, hdmienc->renc->output);
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.mode_set = rcar_du_hdmienc_mode_set,
+	.atomic_mode_set = rcar_du_hdmienc_mode_set,
 	.disable = rcar_du_hdmienc_disable,
 	.enable = rcar_du_hdmienc_enable,
 	.atomic_check = rcar_du_hdmienc_atomic_check,
