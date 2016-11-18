@@ -95,8 +95,6 @@ static const struct board_id dgnc_ids[] = {
 	{	NULL,					0,	0	}
 };
 
-
-
 /* Remap PCI memory. */
 
 static int dgnc_do_remap(struct dgnc_board *brd)
@@ -626,5 +624,3 @@ static int __init dgnc_init_module(void)
 
 module_init(dgnc_init_module);
 module_exit(dgnc_cleanup_module);
-
-
