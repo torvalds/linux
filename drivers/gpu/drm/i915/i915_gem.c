@@ -229,7 +229,8 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 	if (obj->mm.madv == I915_MADV_DONTNEED)
 		obj->mm.dirty = false;
 
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0)
+	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
+	    !cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
 		drm_clflush_sg(pages);
 
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
