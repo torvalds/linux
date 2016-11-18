@@ -27,6 +27,7 @@
 #include <linux/uio_driver.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+#include <linux/highmem.h>
 #include <net/genetlink.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
