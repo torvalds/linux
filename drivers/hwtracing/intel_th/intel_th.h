@@ -96,6 +96,16 @@ intel_th_device_get_resource(struct intel_th_device *thdev, unsigned int type,
 	return NULL;
 }
 
+/*
+ * GTH, output ports configuration
+ */
+enum {
+	GTH_NONE = 0,
+	GTH_MSU,	/* memory/usb */
+	GTH_CTP,	/* Common Trace Port */
+	GTH_PTI = 4,	/* MIPI-PTI */
+};
+
 /**
  * intel_th_output_assigned() - if an output device is assigned to a switch port
  * @thdev:	the output device
@@ -106,7 +116,8 @@ static inline bool
 intel_th_output_assigned(struct intel_th_device *thdev)
 {
 	return thdev->type == INTEL_TH_OUTPUT &&
-		thdev->output.port >= 0;
+		(thdev->output.port >= 0 ||
+		 thdev->output.type == GTH_NONE);
 }
 
 /**
@@ -247,16 +258,6 @@ enum {
 	/* DCI Handler (DCIH) == some window as MSU */
 	REG_DCIH_OFFSET		= REG_MSU_OFFSET,
 	REG_DCIH_LENGTH		= REG_MSU_LENGTH,
-};
-
-/*
- * GTH, output ports configuration
- */
-enum {
-	GTH_NONE = 0,
-	GTH_MSU,	/* memory/usb */
-	GTH_CTP,	/* Common Trace Port */
-	GTH_PTI = 4,	/* MIPI-PTI */
 };
 
 /*
