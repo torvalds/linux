@@ -39,6 +39,9 @@ struct arch {
 	size_t		nr_instructions_allocated;
 	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
 	bool		sorted_instructions;
+	bool		initialized;
+	void		*priv;
+	int		(*init)(struct arch *arch);
 	struct		{
 		char comment_char;
 		char skip_functions_char;
@@ -1355,6 +1358,14 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 	arch = arch__find(arch_name);
 	if (arch == NULL)
 		return -ENOTSUP;
+
+	if (arch->init) {
+		err = arch->init(arch);
+		if (err) {
+			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
+			return err;
+		}
+	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
