@@ -325,7 +325,7 @@ static void adv7511_set_link_config(struct adv7511 *adv7511,
 	adv7511->rgb = config->input_colorspace == HDMI_COLORSPACE_RGB;
 }
 
-static void adv7511_power_on(struct adv7511 *adv7511)
+static void __adv7511_power_on(struct adv7511 *adv7511)
 {
 	adv7511->current_edid_segment = -1;
 
@@ -359,24 +359,30 @@ static void adv7511_power_on(struct adv7511 *adv7511)
 	 * Most of the registers are reset during power down or when HPD is low.
 	 */
 	regcache_sync(adv7511->regmap);
+}
 
+static void adv7511_power_on(struct adv7511 *adv7511)
+{
+	__adv7511_power_on(adv7511);
 	if (adv7511->type == ADV7533)
 		adv7533_dsi_power_on(adv7511);
-
 	adv7511->powered = true;
 }
 
-static void adv7511_power_off(struct adv7511 *adv7511)
+static void __adv7511_power_off(struct adv7511 *adv7511)
 {
 	/* TODO: setup additional power down modes */
 	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 			   ADV7511_POWER_POWER_DOWN,
 			   ADV7511_POWER_POWER_DOWN);
 	regcache_mark_dirty(adv7511->regmap);
+}
 
+static void adv7511_power_off(struct adv7511 *adv7511)
+{
+	__adv7511_power_off(adv7511);
 	if (adv7511->type == ADV7533)
 		adv7533_dsi_power_off(adv7511);
-
 	adv7511->powered = false;
 }
 
