@@ -1,5 +1,5 @@
 /*
- * platform_wdt.c: Watchdog platform library file
+ * Intel Merrifield watchdog platform device library file
  *
  * (C) Copyright 2014 Intel Corporation
  * Author: David Cohen <david.a.cohen@linux.intel.com>
