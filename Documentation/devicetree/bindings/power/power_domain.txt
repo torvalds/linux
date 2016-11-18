@@ -40,6 +40,12 @@ Optional properties:
   domain's idle states. In the absence of this property, the domain would be
   considered as capable of being powered-on or powered-off.
 
+- operating-points-v2 : Phandles to the OPP tables of power domains provided by
+  a power domain provider. If the provider provides a single power domain only
+  or all the power domains provided by the provider have identical OPP tables,
+  then this shall contain a single phandle. Refer to ../opp/opp.txt for more
+  information.
+
 Example:
 
 	power: power-controller@12340000 {

@@ -45,6 +45,11 @@ Devices supporting OPPs must set their "operating-points-v2" property with
 phandle to a OPP table in their DT node. The OPP core will use this phandle to
 find the operating points for the device.
 
+This can contain more than one phandle for power domain providers that provide
+multiple power domains. That is, one phandle for each power domain. If only one
+phandle is available, then the same OPP table will be used for all power domains
+provided by the power domain provider.
+
 If required, this can be extended for SoC vendor specific bindings. Such bindings
 should be documented as Documentation/devicetree/bindings/power/<vendor>-opp.txt
 and should have a compatible description like: "operating-points-v2-<vendor>".
