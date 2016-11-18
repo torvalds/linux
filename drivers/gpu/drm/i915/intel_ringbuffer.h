@@ -65,16 +65,37 @@ struct intel_hw_status_page {
 	 GEN8_SEMAPHORE_OFFSET(from, (__ring)->id))
 
 enum intel_engine_hangcheck_action {
-	HANGCHECK_IDLE = 0,
-	HANGCHECK_WAIT,
-	HANGCHECK_ACTIVE_SEQNO,
-	HANGCHECK_ACTIVE_HEAD,
-	HANGCHECK_ACTIVE_SUBUNITS,
-	HANGCHECK_KICK,
-	HANGCHECK_HUNG,
+	ENGINE_IDLE = 0,
+	ENGINE_WAIT,
+	ENGINE_ACTIVE_SEQNO,
+	ENGINE_ACTIVE_HEAD,
+	ENGINE_ACTIVE_SUBUNITS,
+	ENGINE_WAIT_KICK,
+	ENGINE_DEAD,
 };
 
-#define HANGCHECK_SCORE_RING_HUNG 31
+static inline const char *
+hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
+{
+	switch (a) {
+	case ENGINE_IDLE:
+		return "idle";
+	case ENGINE_WAIT:
+		return "wait";
+	case ENGINE_ACTIVE_SEQNO:
+		return "active seqno";
+	case ENGINE_ACTIVE_HEAD:
+		return "active head";
+	case ENGINE_ACTIVE_SUBUNITS:
+		return "active subunits";
+	case ENGINE_WAIT_KICK:
+		return "wait kick";
+	case ENGINE_DEAD:
+		return "dead";
+	}
+
+	return "unknown";
+}
 
 #define I915_MAX_SLICES	3
 #define I915_MAX_SUBSLICES 3
@@ -106,10 +127,11 @@ struct intel_instdone {
 struct intel_engine_hangcheck {
 	u64 acthd;
 	u32 seqno;
-	int score;
 	enum intel_engine_hangcheck_action action;
+	unsigned long action_timestamp;
 	int deadlock;
 	struct intel_instdone instdone;
+	bool stalled;
 };
 
 struct intel_ring {

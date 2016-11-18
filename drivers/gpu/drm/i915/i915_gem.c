@@ -2705,9 +2705,13 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (!request)
 		return;
 
-	ring_hung = engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
-	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine))
+	ring_hung = engine->hangcheck.stalled;
+	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
+		DRM_DEBUG_DRIVER("%s pardoned, was guilty? %s\n",
+				 engine->name,
+				 yesno(ring_hung));
 		ring_hung = false;
+	}
 
 	i915_set_reset_status(request->ctx, ring_hung);
 	if (!ring_hung)

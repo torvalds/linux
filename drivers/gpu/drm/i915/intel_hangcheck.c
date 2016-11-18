@@ -236,13 +236,13 @@ head_stuck(struct intel_engine_cs *engine, u64 acthd)
 		memset(&engine->hangcheck.instdone, 0,
 		       sizeof(engine->hangcheck.instdone));
 
-		return HANGCHECK_ACTIVE_HEAD;
+		return ENGINE_ACTIVE_HEAD;
 	}
 
 	if (!subunits_stuck(engine))
-		return HANGCHECK_ACTIVE_SUBUNITS;
+		return ENGINE_ACTIVE_SUBUNITS;
 
-	return HANGCHECK_HUNG;
+	return ENGINE_DEAD;
 }
 
 static enum intel_engine_hangcheck_action
@@ -253,11 +253,11 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	u32 tmp;
 
 	ha = head_stuck(engine, acthd);
-	if (ha != HANGCHECK_HUNG)
+	if (ha != ENGINE_DEAD)
 		return ha;
 
 	if (IS_GEN2(dev_priv))
-		return HANGCHECK_HUNG;
+		return ENGINE_DEAD;
 
 	/* Is the chip hanging on a WAIT_FOR_EVENT?
 	 * If so we can simply poke the RB_WAIT bit
@@ -270,25 +270,25 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 				  "Kicking stuck wait on %s",
 				  engine->name);
 		I915_WRITE_CTL(engine, tmp);
-		return HANGCHECK_KICK;
+		return ENGINE_WAIT_KICK;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 6 && tmp & RING_WAIT_SEMAPHORE) {
 		switch (semaphore_passed(engine)) {
 		default:
-			return HANGCHECK_HUNG;
+			return ENGINE_DEAD;
 		case 1:
 			i915_handle_error(dev_priv, 0,
 					  "Kicking stuck semaphore on %s",
 					  engine->name);
 			I915_WRITE_CTL(engine, tmp);
-			return HANGCHECK_KICK;
+			return ENGINE_WAIT_KICK;
 		case 0:
-			return HANGCHECK_WAIT;
+			return ENGINE_WAIT;
 		}
 	}
 
-	return HANGCHECK_HUNG;
+	return ENGINE_DEAD;
 }
 
 static void hangcheck_load_sample(struct intel_engine_cs *engine,
@@ -306,7 +306,6 @@ static void hangcheck_load_sample(struct intel_engine_cs *engine,
 
 	hc->acthd = intel_engine_get_active_head(engine);
 	hc->seqno = intel_engine_get_seqno(engine);
-	hc->score = engine->hangcheck.score;
 }
 
 static void hangcheck_store_sample(struct intel_engine_cs *engine,
@@ -314,8 +313,8 @@ static void hangcheck_store_sample(struct intel_engine_cs *engine,
 {
 	engine->hangcheck.acthd = hc->acthd;
 	engine->hangcheck.seqno = hc->seqno;
-	engine->hangcheck.score = hc->score;
 	engine->hangcheck.action = hc->action;
+	engine->hangcheck.stalled = hc->stalled;
 }
 
 static enum intel_engine_hangcheck_action
@@ -323,10 +322,10 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 		     const struct intel_engine_hangcheck *hc)
 {
 	if (engine->hangcheck.seqno != hc->seqno)
-		return HANGCHECK_ACTIVE_SEQNO;
+		return ENGINE_ACTIVE_SEQNO;
 
 	if (i915_seqno_passed(hc->seqno, intel_engine_last_submit(engine)))
-		return HANGCHECK_IDLE;
+		return ENGINE_IDLE;
 
 	return engine_stuck(engine, hc->acthd);
 }
@@ -334,60 +333,57 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 					struct intel_engine_hangcheck *hc)
 {
+	unsigned long timeout = I915_ENGINE_DEAD_TIMEOUT;
+
 	hc->action = hangcheck_get_action(engine, hc);
 
+	/* We always increment the progress
+	 * if the engine is busy and still processing
+	 * the same request, so that no single request
+	 * can run indefinitely (such as a chain of
+	 * batches). The only time we do not increment
+	 * the hangcheck score on this ring, if this
+	 * engine is in a legitimate wait for another
+	 * engine. In that case the waiting engine is a
+	 * victim and we want to be sure we catch the
+	 * right culprit. Then every time we do kick
+	 * the ring, make it as a progress as the seqno
+	 * advancement might ensure and if not, it
+	 * will catch the hanging engine.
+	 */
+
 	switch (hc->action) {
-	case HANGCHECK_IDLE:
-	case HANGCHECK_WAIT:
-		break;
-
-	case HANGCHECK_ACTIVE_HEAD:
-	case HANGCHECK_ACTIVE_SUBUNITS:
-		/* We always increment the hangcheck score
-		 * if the engine is busy and still processing
-		 * the same request, so that no single request
-		 * can run indefinitely (such as a chain of
-		 * batches). The only time we do not increment
-		 * the hangcheck score on this ring, if this
-		 * engine is in a legitimate wait for another
-		 * engine. In that case the waiting engine is a
-		 * victim and we want to be sure we catch the
-		 * right culprit. Then every time we do kick
-		 * the ring, add a small increment to the
-		 * score so that we can catch a batch that is
-		 * being repeatedly kicked and so responsible
-		 * for stalling the machine.
-		 */
-		hc->score += 1;
-		break;
-
-	case HANGCHECK_KICK:
-		hc->score += 5;
-		break;
-
-	case HANGCHECK_HUNG:
-		hc->score += 20;
-		break;
-
-	case HANGCHECK_ACTIVE_SEQNO:
-		/* Gradually reduce the count so that we catch DoS
-		 * attempts across multiple batches.
-		 */
-		if (hc->score > 0)
-			hc->score -= 15;
-		if (hc->score < 0)
-			hc->score = 0;
-
+	case ENGINE_IDLE:
+	case ENGINE_ACTIVE_SEQNO:
 		/* Clear head and subunit states on seqno movement */
 		hc->acthd = 0;
 
 		memset(&engine->hangcheck.instdone, 0,
 		       sizeof(engine->hangcheck.instdone));
+
+		/* Intentional fall through */
+	case ENGINE_WAIT_KICK:
+	case ENGINE_WAIT:
+		engine->hangcheck.action_timestamp = jiffies;
+		break;
+
+	case ENGINE_ACTIVE_HEAD:
+	case ENGINE_ACTIVE_SUBUNITS:
+		/* Seqno stuck with still active engine gets leeway,
+		 * in hopes that it is just a long shader.
+		 */
+		timeout = I915_SEQNO_DEAD_TIMEOUT;
+		break;
+
+	case ENGINE_DEAD:
 		break;
 
 	default:
 		MISSING_CASE(hc->action);
 	}
+
+	hc->stalled = time_after(jiffies,
+				 engine->hangcheck.action_timestamp + timeout);
 }
 
 static void hangcheck_declare_hang(struct drm_i915_private *i915,
@@ -454,9 +450,9 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		hangcheck_accumulate_sample(engine, hc);
 		hangcheck_store_sample(engine, hc);
 
-		if (hc->score >= HANGCHECK_SCORE_RING_HUNG) {
+		if (engine->hangcheck.stalled) {
 			hung |= intel_engine_flag(engine);
-			if (hc->action != HANGCHECK_HUNG)
+			if (hc->action != ENGINE_DEAD)
 				stuck |= intel_engine_flag(engine);
 		}
 
