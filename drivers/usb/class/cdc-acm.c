@@ -1076,19 +1076,17 @@ static void acm_write_buffers_free(struct acm *acm)
 {
 	int i;
 	struct acm_wb *wb;
-	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++)
-		usb_free_coherent(usb_dev, acm->writesize, wb->buf, wb->dmah);
+		usb_free_coherent(acm->dev, acm->writesize, wb->buf, wb->dmah);
 }
 
 static void acm_read_buffers_free(struct acm *acm)
 {
-	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
 	int i;
 
 	for (i = 0; i < acm->rx_buflimit; i++)
-		usb_free_coherent(usb_dev, acm->readsize,
+		usb_free_coherent(acm->dev, acm->readsize,
 			  acm->read_buffers[i].base, acm->read_buffers[i].dma);
 }
 
@@ -1524,7 +1522,6 @@ static void stop_data_traffic(struct acm *acm)
 static void acm_disconnect(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
-	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct tty_struct *tty;
 	int i;
 
@@ -1562,7 +1559,7 @@ static void acm_disconnect(struct usb_interface *intf)
 	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_free_urb(acm->read_urbs[i]);
 	acm_write_buffers_free(acm);
-	usb_free_coherent(usb_dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
+	usb_free_coherent(acm->dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
 	acm_read_buffers_free(acm);
 
 	if (!acm->combined_interfaces)
