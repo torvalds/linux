@@ -28,6 +28,8 @@ void sc_dump_regs(struct sc_data *sc)
 #define DUMPREG(r) dev_dbg(dev, "%-35s %08x\n", #r, \
 	ioread32(sc->base + CFG_##r))
 
+	dev_dbg(dev, "SC Registers @ %pa:\n", &sc->res->start);
+
 	DUMPREG(SC0);
 	DUMPREG(SC1);
 	DUMPREG(SC2);
