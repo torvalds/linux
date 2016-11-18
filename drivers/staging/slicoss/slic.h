@@ -380,7 +380,7 @@ struct slic_shmemory {
 	dma_addr_t isr_phaddr;
 	dma_addr_t lnkstatus_phaddr;
 	dma_addr_t stats_phaddr;
-	struct slic_shmem_data __iomem *shmem_data;
+	struct slic_shmem_data *shmem_data;
 };
 
 struct slic_upr {
