@@ -547,7 +547,7 @@
 
 		adsp_smp2p_out: master-kernel {
 			qcom,entry-name = "master-kernel";
-			#qcom,state-cells = <1>;
+			#qcom,smem-state-cells = <1>;
 		};
 
 		adsp_smp2p_in: slave-kernel {
