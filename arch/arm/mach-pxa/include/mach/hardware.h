@@ -303,8 +303,6 @@
  */
 extern unsigned int get_memclk_frequency_10khz(void);
 
-/* return the clock tick rate of the OS timer */
-extern unsigned long get_clock_tick_rate(void);
 #endif
 
 #endif  /* _ASM_ARCH_HARDWARE_H */
