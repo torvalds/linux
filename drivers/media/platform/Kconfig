@@ -365,6 +365,7 @@ config VIDEO_TI_VPE
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_TI_VPDMA
+	select VIDEO_TI_SC
 	default n
 	---help---
 	  Support for the TI VPE(Video Processing Engine) block
@@ -381,6 +382,9 @@ endif # V4L_MEM2MEM_DRIVERS
 # TI VIDEO PORT Helper Modules
 # These will be selected by VPE and VIP
 config VIDEO_TI_VPDMA
+	tristate
+
+config VIDEO_TI_SC
 	tristate
 
 menuconfig V4L_TEST_DRIVERS

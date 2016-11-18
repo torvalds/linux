@@ -2453,7 +2453,7 @@ static int vpe_probe(struct platform_device *pdev)
 
 	vpe_top_vpdma_reset(dev);
 
-	dev->sc = sc_create(pdev);
+	dev->sc = sc_create(pdev, "sc");
 	if (IS_ERR(dev->sc)) {
 		ret = PTR_ERR(dev->sc);
 		goto runtime_put;

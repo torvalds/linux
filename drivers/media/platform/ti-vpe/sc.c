@@ -14,6 +14,7 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -52,6 +53,7 @@ void sc_dump_regs(struct sc_data *sc)
 
 #undef DUMPREG
 }
+EXPORT_SYMBOL(sc_dump_regs);
 
 /*
  * set the horizontal scaler coefficients according to the ratio of output to
@@ -100,6 +102,7 @@ void sc_set_hs_coeffs(struct sc_data *sc, void *addr, unsigned int src_w,
 
 	sc->load_coeff_h = true;
 }
+EXPORT_SYMBOL(sc_set_hs_coeffs);
 
 /*
  * set the vertical scaler coefficients according to the ratio of output to
@@ -140,6 +143,7 @@ void sc_set_vs_coeffs(struct sc_data *sc, void *addr, unsigned int src_h,
 
 	sc->load_coeff_v = true;
 }
+EXPORT_SYMBOL(sc_set_vs_coeffs);
 
 void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 		u32 *sc_reg17, unsigned int src_w, unsigned int src_h,
@@ -267,8 +271,9 @@ void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 
 	*sc_reg24 = (src_w << CFG_ORG_W_SHIFT) | (src_h << CFG_ORG_H_SHIFT);
 }
+EXPORT_SYMBOL(sc_config_scaler);
 
-struct sc_data *sc_create(struct platform_device *pdev)
+struct sc_data *sc_create(struct platform_device *pdev, const char *res_name)
 {
 	struct sc_data *sc;
 
@@ -282,9 +287,10 @@ struct sc_data *sc_create(struct platform_device *pdev)
 
 	sc->pdev = pdev;
 
-	sc->res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sc");
+	sc->res = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
 	if (!sc->res) {
-		dev_err(&pdev->dev, "missing platform resources data\n");
+		dev_err(&pdev->dev, "missing '%s' platform resources data\n",
+			res_name);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -296,3 +302,8 @@ struct sc_data *sc_create(struct platform_device *pdev)
 
 	return sc;
 }
+EXPORT_SYMBOL(sc_create);
+
+MODULE_DESCRIPTION("TI VIP/VPE Scaler");
+MODULE_AUTHOR("Texas Instruments Inc.");
+MODULE_LICENSE("GPL v2");
