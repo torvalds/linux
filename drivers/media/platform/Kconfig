@@ -366,6 +366,7 @@ config VIDEO_TI_VPE
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_TI_VPDMA
 	select VIDEO_TI_SC
+	select VIDEO_TI_CSC
 	default n
 	---help---
 	  Support for the TI VPE(Video Processing Engine) block
@@ -385,6 +386,9 @@ config VIDEO_TI_VPDMA
 	tristate
 
 config VIDEO_TI_SC
+	tristate
+
+config VIDEO_TI_CSC
 	tristate
 
 menuconfig V4L_TEST_DRIVERS

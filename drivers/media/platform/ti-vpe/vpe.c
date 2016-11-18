@@ -2496,7 +2496,7 @@ static int vpe_probe(struct platform_device *pdev)
 		goto runtime_put;
 	}
 
-	dev->csc = csc_create(pdev);
+	dev->csc = csc_create(pdev, "csc");
 	if (IS_ERR(dev->csc)) {
 		ret = PTR_ERR(dev->csc);
 		goto runtime_put;
