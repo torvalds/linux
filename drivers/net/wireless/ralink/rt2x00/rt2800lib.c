@@ -7472,7 +7472,6 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all hw fields.
 	 */
-	ieee80211_hw_set(rt2x00dev->hw, SUPPORTS_HT_CCK_RATES);
 	ieee80211_hw_set(rt2x00dev->hw, REPORTS_TX_ACK_STATUS);
 	ieee80211_hw_set(rt2x00dev->hw, AMPDU_AGGREGATION);
 	ieee80211_hw_set(rt2x00dev->hw, PS_NULLFUNC_STACK);
