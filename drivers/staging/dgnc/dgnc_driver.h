@@ -251,7 +251,7 @@ struct un_t {
 #define CH_TX_FIFO_EMPTY 0x0400		/* TX Fifo is completely empty */
 #define CH_TX_FIFO_LWM  0x0800		/* TX Fifo is below Low Water */
 #define CH_BREAK_SENDING 0x1000		/* Break is being sent */
-#define CH_LOOPBACK 0x2000		/* Channel is in lookback mode */
+#define CH_LOOPBACK	0x2000		/* Channel is in lookback mode */
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
 #define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped */
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped */
@@ -267,7 +267,7 @@ struct un_t {
 /* Channel information structure. */
 struct channel_t {
 	int magic;			/* Channel Magic Number	*/
-	struct dgnc_board	*ch_bd;	/* Board structure pointer */
+	struct dgnc_board *ch_bd;	/* Board structure pointer */
 	struct digi_t	ch_digi;	/* Transparent Print structure  */
 	struct un_t	ch_tun;		/* Terminal unit info */
 	struct un_t	ch_pun;		/* Printer unit info */
@@ -297,8 +297,8 @@ struct channel_t {
 
 	uint		ch_wopen;	/* Waiting for open process cnt */
 
-	unsigned char		ch_mostat;	/* FEP output modem status */
-	unsigned char		ch_mistat;	/* FEP input modem status */
+	unsigned char	ch_mostat;	/* FEP output modem status */
+	unsigned char	ch_mistat;	/* FEP input modem status */
 
 	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the
 							 * "mapped" UART struct
@@ -324,10 +324,10 @@ struct channel_t {
 	ulong		ch_rxcount;	/* total of data received so far */
 	ulong		ch_txcount;	/* total of data transmitted so far */
 
-	unsigned char		ch_r_tlevel;	/* Receive Trigger level */
-	unsigned char		ch_t_tlevel;	/* Transmit Trigger level */
+	unsigned char	ch_r_tlevel;	/* Receive Trigger level */
+	unsigned char	ch_t_tlevel;	/* Transmit Trigger level */
 
-	unsigned char		ch_r_watermark;	/* Receive Watermark */
+	unsigned char	ch_r_watermark;	/* Receive Watermark */
 
 	ulong		ch_stop_sending_break;	/* Time we should STOP
 						 * sending a break
@@ -358,8 +358,8 @@ extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
 extern uint		dgnc_num_boards;	/* Total number of boards */
-extern struct dgnc_board	*dgnc_board[MAXBOARDS];	/* Array of board
-							 * structs
-							 */
+extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of board
+						 * structs
+						 */
 
 #endif
