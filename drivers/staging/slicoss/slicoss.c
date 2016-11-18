@@ -540,7 +540,7 @@ static void slic_adapter_set_hwaddr(struct adapter *adapter)
 
 	if ((adapter->card) && (card->config_set)) {
 		memcpy(adapter->macaddr,
-		       card->config.MacInfo[adapter->functionnumber].macaddrA,
+		       card->config.mac_info[adapter->functionnumber].macaddr_a,
 		       sizeof(struct slic_config_mac));
 		if (is_zero_ether_addr(adapter->currmacaddr))
 			memcpy(adapter->currmacaddr, adapter->macaddr,
@@ -1876,8 +1876,8 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 		if (hdr->frame_status_b14 & VRHSTATB_IPHERR)
 			adapter->if_events.ip_hlen++;
 	} else {
-		if (hdr->frame_statusGB & VGBSTAT_XPERR) {
-			u32 xerr = hdr->frame_statusGB >> VGBSTAT_XERRSHFT;
+		if (hdr->frame_status_gb & VGBSTAT_XPERR) {
+			u32 xerr = hdr->frame_status_gb >> VGBSTAT_XERRSHFT;
 
 			if (xerr == VGBSTAT_XCSERR)
 				adapter->if_events.tp_csum++;
@@ -1886,10 +1886,10 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 			if (xerr == VGBSTAT_XHLEN)
 				adapter->if_events.tp_hlen++;
 		}
-		if (hdr->frame_statusGB & VGBSTAT_NETERR) {
+		if (hdr->frame_status_gb & VGBSTAT_NETERR) {
 			u32 nerr =
 			    (hdr->
-			     frame_statusGB >> VGBSTAT_NERRSHFT) &
+			     frame_status_gb >> VGBSTAT_NERRSHFT) &
 			    VGBSTAT_NERRMSK;
 			if (nerr == VGBSTAT_NCSERR)
 				adapter->if_events.ip_csum++;
@@ -1898,8 +1898,8 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 			if (nerr == VGBSTAT_NHLEN)
 				adapter->if_events.ip_hlen++;
 		}
-		if (hdr->frame_statusGB & VGBSTAT_LNKERR) {
-			u32 lerr = hdr->frame_statusGB & VGBSTAT_LERRMSK;
+		if (hdr->frame_status_gb & VGBSTAT_LNKERR) {
+			u32 lerr = hdr->frame_status_gb & VGBSTAT_LERRMSK;
 
 			if (lerr == VGBSTAT_LDEARLY)
 				adapter->if_events.rcvearly++;
@@ -2682,13 +2682,13 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		case SLIC_2GB_DEVICE_ID:
 			/* extract EEPROM data and pointers to EEPROM data */
 			pOeeprom = (struct oslic_eeprom *)peeprom;
-			eecodesize = pOeeprom->EecodeSize;
-			dramsize = pOeeprom->DramSize;
-			pmac = pOeeprom->MacInfo;
-			fruformat = pOeeprom->FruFormat;
-			patkfru = &pOeeprom->AtkFru;
-			oemfruformat = pOeeprom->OemFruFormat;
-			poemfru = &pOeeprom->OemFru;
+			eecodesize = pOeeprom->eecode_size;
+			dramsize = pOeeprom->dram_size;
+			pmac = pOeeprom->mac_info;
+			fruformat = pOeeprom->fru_format;
+			patkfru = &pOeeprom->atk_fru;
+			oemfruformat = pOeeprom->oem_fru_format;
+			poemfru = &pOeeprom->oem_fru;
 			macaddrs = 2;
 			/*
 			 * Minor kludge for Oasis card
@@ -2699,17 +2699,17 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			break;
 		default:
 			/* extract EEPROM data and pointers to EEPROM data */
-			eecodesize = peeprom->EecodeSize;
-			dramsize = peeprom->DramSize;
-			pmac = peeprom->u2.mac.MacInfo;
-			fruformat = peeprom->FruFormat;
-			patkfru = &peeprom->AtkFru;
-			oemfruformat = peeprom->OemFruFormat;
-			poemfru = &peeprom->OemFru;
+			eecodesize = peeprom->eecode_size;
+			dramsize = peeprom->dram_size;
+			pmac = peeprom->u2.mac.mac_info;
+			fruformat = peeprom->fru_format;
+			patkfru = &peeprom->atk_fru;
+			oemfruformat = peeprom->oem_fru_format;
+			poemfru = &peeprom->oem_fru;
 			break;
 		}
 
-		card->config.EepromValid = false;
+		card->config.eeprom_valid = false;
 
 		/*  see if the EEPROM is valid by checking it's checksum */
 		if ((eecodesize <= MAX_EECODE_SIZE) &&
@@ -2726,26 +2726,26 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 			 *  we wouldn't need this
 			 */
 			if (ee_chksum == calc_chksum)
-				card->config.EepromValid = true;
+				card->config.eeprom_valid = true;
 		}
 		/*  copy in the DRAM size */
-		card->config.DramSize = dramsize;
+		card->config.dram_size = dramsize;
 
 		/*  copy in the MAC address(es) */
 		for (i = 0; i < macaddrs; i++) {
-			memcpy(&card->config.MacInfo[i],
+			memcpy(&card->config.mac_info[i],
 			       &pmac[i], sizeof(struct slic_config_mac));
 		}
 
 		/*  copy the Alacritech FRU information */
-		card->config.FruFormat = fruformat;
-		memcpy(&card->config.AtkFru, patkfru, sizeof(struct atk_fru));
+		card->config.fru_format = fruformat;
+		memcpy(&card->config.atk_fru, patkfru, sizeof(struct atk_fru));
 
 		pci_free_consistent(adapter->pcidev,
 				    sizeof(struct slic_eeprom),
 				    peeprom, phys_config);
 
-		if (!card->config.EepromValid) {
+		if (!card->config.eeprom_valid) {
 			slic_write64(adapter, SLIC_REG_ISP, 0, 0);
 			slic_flush_write(adapter);
 			dev_err(&adapter->pcidev->dev, "EEPROM invalid.\n");

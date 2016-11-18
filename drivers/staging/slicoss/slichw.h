@@ -245,18 +245,18 @@ struct slic_hddr_wds {
 		} hdrs_14port;
 		struct {
 			u32 frame_status;
-			u16 ByteCnt;
-			u16 TpChksum;
-			u16 CtxHash;
-			u16 MacHash;
-			u32 BufLnk;
+			u16 byte_cnt;
+			u16 tp_chksum;
+			u16 ctx_hash;
+			u16 mac_hash;
+			u32 buf_lnk;
 		} hdrs_gbit;
 	} u0;
 };
 
 #define frame_status14		u0.hdrs_14port.frame_status
 #define frame_status_b14	u0.hdrs_14port.frame_status_b
-#define frame_statusGB		u0.hdrs_gbit.frame_status
+#define frame_status_gb		u0.hdrs_gbit.frame_status
 
 struct slic_host64sg {
 	u32 paddrl;
@@ -460,7 +460,7 @@ struct slic_pnp_capabilities {
 };
 
 struct slic_config_mac {
-	u8 macaddrA[6];
+	u8 macaddr_a[6];
 };
 
 #define ATK_FRU_FORMAT		0x00
@@ -520,56 +520,56 @@ union oemfru {
  * SLIC EEPROM structure for Mojave
  */
 struct slic_eeprom {
-	u16 Id;			/* 00 EEPROM/FLASH Magic code 'A5A5'*/
-	u16 EecodeSize;		/* 01 Size of EEPROM Codes (bytes * 4)*/
-	u16 FlashSize;		/* 02 Flash size */
-	u16 EepromSize;		/* 03 EEPROM Size */
-	u16 VendorId;		/* 04 Vendor ID */
-	u16 DeviceId;		/* 05 Device ID */
-	u8 RevisionId;		/* 06 Revision ID */
-	u8 ClassCode[3];	/* 07 Class Code */
-	u8 DbgIntPin;		/* 08 Debug Interrupt pin */
-	u8 NetIntPin0;		/*    Network Interrupt Pin */
-	u8 MinGrant;		/* 09 Minimum grant */
-	u8 MaxLat;		/*    Maximum Latency */
-	u16 PciStatus;		/* 10 PCI Status */
-	u16 SubSysVId;		/* 11 Subsystem Vendor Id */
-	u16 SubSysId;		/* 12 Subsystem ID */
-	u16 DbgDevId;		/* 13 Debug Device Id */
-	u16 DramRomFn;		/* 14 Dram/Rom function */
-	u16 DSize2Pci;		/* 15 DRAM size to PCI (bytes * 64K) */
-	u16 RSize2Pci;		/* 16 ROM extension size to PCI (bytes * 4k) */
-	u8 NetIntPin1;		/* 17 Network Interface Pin 1
+	u16 id;			/* 00 EEPROM/FLASH Magic code 'A5A5'*/
+	u16 eecode_size;	/* 01 Size of EEPROM Codes (bytes * 4)*/
+	u16 flash_size;		/* 02 Flash size */
+	u16 eeprom_size;	/* 03 EEPROM Size */
+	u16 vendor_id;		/* 04 Vendor ID */
+	u16 device_id;		/* 05 Device ID */
+	u8 revision_id;		/* 06 Revision ID */
+	u8 class_code[3];	/* 07 Class Code */
+	u8 dbg_int_pin;		/* 08 Debug Interrupt pin */
+	u8 net_int_pin0;	/*    Network Interrupt Pin */
+	u8 min_grant;		/* 09 Minimum grant */
+	u8 max_lat;		/*    Maximum Latency */
+	u16 pci_status;		/* 10 PCI Status */
+	u16 sub_sys_vid;	/* 11 Subsystem Vendor Id */
+	u16 sub_sys_id;		/* 12 Subsystem ID */
+	u16 dbg_dev_id;		/* 13 Debug Device Id */
+	u16 dram_rom_fn;	/* 14 Dram/Rom function */
+	u16 dsize2pci;		/* 15 DRAM size to PCI (bytes * 64K) */
+	u16 rsize2pci;		/* 16 ROM extension size to PCI (bytes * 4k) */
+	u8 net_int_pin1;	/* 17 Network Interface Pin 1
 				 *  (simba/leone only)
 				 */
-	u8 NetIntPin2;		/* Network Interface Pin 2 (simba/leone only)*/
+	u8 net_int_pin2;	/* Network Interface Pin 2 (simba/leone only)*/
 	union {
-		u8 NetIntPin3;	/* 18 Network Interface Pin 3 (simba only) */
-		u8 FreeTime;	/* FreeTime setting (leone/mojave only) */
+		u8 net_int_pin3;/* 18 Network Interface Pin 3 (simba only) */
+		u8 free_time;	/* FreeTime setting (leone/mojave only) */
 	} u1;
-	u8 TBIctl;		/* 10-bit interface control (Mojave only) */
-	u16 DramSize;		/* 19 DRAM size (bytes * 64k) */
+	u8 tbi_ctl;		/* 10-bit interface control (Mojave only) */
+	u16 dram_size;		/* 19 DRAM size (bytes * 64k) */
 	union {
 		struct {
 			/* Mac Interface Specific portions */
-			struct slic_config_mac	MacInfo[SLIC_NBR_MACS];
+			struct slic_config_mac	mac_info[SLIC_NBR_MACS];
 		} mac;				/* MAC access for all boards */
 		struct {
 			/* use above struct for MAC access */
 			struct slic_config_mac	pad[SLIC_NBR_MACS - 1];
-			u16 DeviceId2;	/* Device ID for 2nd PCI function */
-			u8 IntPin2;	/* Interrupt pin for 2nd PCI function */
-			u8 ClassCode2[3]; /* Class Code for 2nd PCI function */
+			u16 device_id2;	/* Device ID for 2nd PCI function */
+			u8 int_pin2;	/* Interrupt pin for 2nd PCI function */
+			u8 class_code2[3]; /* Class Code for 2nd PCI function */
 		} mojave;	/* 2nd function access for gigabit board */
 	} u2;
-	u16 CfgByte6;		/* Config Byte 6 */
-	u16 PMECapab;		/* Power Mgment capabilities */
-	u16 NwClkCtrls;		/* NetworkClockControls */
-	u8 FruFormat;		/* Alacritech FRU format type */
-	struct atk_fru  AtkFru;	/* Alacritech FRU information */
-	u8 OemFruFormat;	/* optional OEM FRU format type */
-	union oemfru OemFru;	/* optional OEM FRU information */
-	u8	Pad[4];		/* Pad to 128 bytes - includes 2 cksum bytes
+	u16 cfg_byte6;		/* Config Byte 6 */
+	u16 pme_capab;		/* Power Mgment capabilities */
+	u16 nw_clk_ctrls;	/* NetworkClockControls */
+	u8 fru_format;		/* Alacritech FRU format type */
+	struct atk_fru atk_fru;	/* Alacritech FRU information */
+	u8 oem_fru_format;	/* optional OEM FRU format type */
+	union oemfru oem_fru;	/* optional OEM FRU information */
+	u8 pad[4];		/* Pad to 128 bytes - includes 2 cksum bytes
 				 * (if OEM FRU info exists) and two unusable
 				 * bytes at the end
 				 */
@@ -577,46 +577,46 @@ struct slic_eeprom {
 
 /* SLIC EEPROM structure for Oasis */
 struct oslic_eeprom {
-	u16 Id;			/* 00 EEPROM/FLASH Magic code 'A5A5' */
-	u16 EecodeSize;		/* 01 Size of EEPROM Codes (bytes * 4)*/
-	u16 FlashConfig0;	/* 02 Flash Config for SPI device 0 */
-	u16 FlashConfig1;	/* 03 Flash Config for SPI device 1 */
-	u16 VendorId;		/* 04 Vendor ID */
-	u16 DeviceId;		/* 05 Device ID (function 0) */
-	u8 RevisionId;		/* 06 Revision ID */
-	u8 ClassCode[3];	/* 07 Class Code for PCI function 0 */
-	u8 IntPin1;		/* 08 Interrupt pin for PCI function 1*/
-	u8 ClassCode2[3];	/* 09 Class Code for PCI function 1 */
-	u8 IntPin2;		/* 10 Interrupt pin for PCI function 2*/
-	u8 IntPin0;		/*    Interrupt pin for PCI function 0*/
-	u8 MinGrant;		/* 11 Minimum grant */
-	u8 MaxLat;		/*    Maximum Latency */
-	u16 SubSysVId;		/* 12 Subsystem Vendor Id */
-	u16 SubSysId;		/* 13 Subsystem ID */
-	u16 FlashSize;		/* 14 Flash size (bytes / 4K) */
-	u16 DSize2Pci;		/* 15 DRAM size to PCI (bytes / 64K) */
-	u16 RSize2Pci;		/* 16 Flash (ROM extension) size to PCI
+	u16 id;			/* 00 EEPROM/FLASH Magic code 'A5A5' */
+	u16 eecode_size;	/* 01 Size of EEPROM Codes (bytes * 4)*/
+	u16 flash_config0;	/* 02 Flash Config for SPI device 0 */
+	u16 flash_config1;	/* 03 Flash Config for SPI device 1 */
+	u16 vendor_id;		/* 04 Vendor ID */
+	u16 device_id;		/* 05 Device ID (function 0) */
+	u8 revision_id;		/* 06 Revision ID */
+	u8 class_code[3];	/* 07 Class Code for PCI function 0 */
+	u8 int_pin1;		/* 08 Interrupt pin for PCI function 1*/
+	u8 class_code2[3];	/* 09 Class Code for PCI function 1 */
+	u8 int_pin2;		/* 10 Interrupt pin for PCI function 2*/
+	u8 int_pin0;		/*    Interrupt pin for PCI function 0*/
+	u8 min_grant;		/* 11 Minimum grant */
+	u8 max_lat;		/*    Maximum Latency */
+	u16 sub_sys_vid;	/* 12 Subsystem Vendor Id */
+	u16 sub_sys_id;		/* 13 Subsystem ID */
+	u16 flash_size;		/* 14 Flash size (bytes / 4K) */
+	u16 dsize2pci;		/* 15 DRAM size to PCI (bytes / 64K) */
+	u16 rsize2pci;		/* 16 Flash (ROM extension) size to PCI
 				 *	(bytes / 4K)
 				 */
-	u16 DeviceId1;		/* 17 Device Id (function 1) */
-	u16 DeviceId2;		/* 18 Device Id (function 2) */
-	u16 CfgByte6;		/* 19 Device Status Config Bytes 6-7 */
-	u16 PMECapab;		/* 20 Power Mgment capabilities */
-	u8 MSICapab;		/* 21 MSI capabilities */
-	u8 ClockDivider;	/*    Clock divider */
-	u16 PciStatusLow;	/* 22 PCI Status bits 15:0 */
-	u16 PciStatusHigh;	/* 23 PCI Status bits 31:16 */
-	u16 DramConfigLow;	/* 24 DRAM Configuration bits 15:0 */
-	u16 DramConfigHigh;	/* 25 DRAM Configuration bits 31:16 */
-	u16 DramSize;		/* 26 DRAM size (bytes / 64K) */
-	u16 GpioTbiCtl;		/* 27 GPIO/TBI controls for functions 1/0 */
-	u16 EepromSize;		/* 28 EEPROM Size */
-	struct slic_config_mac MacInfo[2];	/* 29 MAC addresses (2 ports) */
-	u8 FruFormat;		/* 35 Alacritech FRU format type */
-	struct atk_fru	AtkFru;	/* Alacritech FRU information */
-	u8 OemFruFormat;	/* optional OEM FRU format type */
-	union oemfru OemFru;	/* optional OEM FRU information */
-	u8 Pad[4];		/* Pad to 128 bytes - includes 2 checksum bytes
+	u16 device_id1;		/* 17 Device Id (function 1) */
+	u16 device_id2;		/* 18 Device Id (function 2) */
+	u16 cfg_byte6;		/* 19 Device Status Config Bytes 6-7 */
+	u16 pme_capab;		/* 20 Power Mgment capabilities */
+	u8 msi_capab;		/* 21 MSI capabilities */
+	u8 clock_divider;	/*    Clock divider */
+	u16 pci_status_low;	/* 22 PCI Status bits 15:0 */
+	u16 pci_status_high;	/* 23 PCI Status bits 31:16 */
+	u16 dram_config_low;	/* 24 DRAM Configuration bits 15:0 */
+	u16 dram_config_high;	/* 25 DRAM Configuration bits 31:16 */
+	u16 dram_size;		/* 26 DRAM size (bytes / 64K) */
+	u16 gpio_tbi_ctl;	/* 27 GPIO/TBI controls for functions 1/0 */
+	u16 eeprom_size;	/* 28 EEPROM Size */
+	struct slic_config_mac mac_info[2];	/* 29 MAC addresses (2 ports) */
+	u8 fru_format;		/* 35 Alacritech FRU format type */
+	struct atk_fru atk_fru;	/* Alacritech FRU information */
+	u8 oem_fru_format;	/* optional OEM FRU format type */
+	union oemfru oem_fru;	/* optional OEM FRU information */
+	u8 pad[4];		/* Pad to 128 bytes - includes 2 checksum bytes
 				 * (if OEM FRU info exists) and two unusable
 				 * bytes at the end
 				 */
@@ -633,18 +633,18 @@ struct oslic_eeprom {
  * SlicGetConfigData()
  */
 struct slic_config {
-	bool EepromValid;	/* Valid EEPROM flag (checksum good?) */
-	u16 DramSize;		/* DRAM size (bytes / 64K) */
-	struct slic_config_mac MacInfo[SLIC_NBR_MACS]; /* MAC addresses */
-	u8 FruFormat;		/* Alacritech FRU format type */
-	struct atk_fru	AtkFru;	/* Alacritech FRU information */
-	u8 OemFruFormat;	/* optional OEM FRU format type */
+	bool eeprom_valid;	/* Valid EEPROM flag (checksum good?) */
+	u16 dram_size;		/* DRAM size (bytes / 64K) */
+	struct slic_config_mac mac_info[SLIC_NBR_MACS]; /* MAC addresses */
+	u8 fru_format;		/* Alacritech FRU format type */
+	struct atk_fru atk_fru;	/* Alacritech FRU information */
+	u8 oem_fru_format;	/* optional OEM FRU format type */
 	union {
 		struct vendor1_fru vendor1_fru;
 		struct vendor2_fru vendor2_fru;
 		struct vendor3_fru vendor3_fru;
 		struct vendor4_fru vendor4_fru;
-	} OemFru;
+	} oem_fru;
 };
 
 #pragma pack()
