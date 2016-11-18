@@ -158,6 +158,17 @@ static inline int acm_set_control(struct acm *acm, int control)
 #define acm_send_break(acm, ms) \
 	acm_ctrl_msg(acm, USB_CDC_REQ_SEND_BREAK, ms, NULL, 0)
 
+static void acm_kill_urbs(struct acm *acm)
+{
+	int i;
+
+	usb_kill_urb(acm->ctrlurb);
+	for (i = 0; i < ACM_NW; i++)
+		usb_kill_urb(acm->wb[i].urb);
+	for (i = 0; i < acm->rx_buflimit; i++)
+		usb_kill_urb(acm->read_urbs[i]);
+}
+
 /*
  * Write buffer management.
  * All of these assume proper locks taken by the caller.
@@ -607,7 +618,6 @@ static void acm_port_shutdown(struct tty_port *port)
 	struct acm *acm = container_of(port, struct acm, port);
 	struct urb *urb;
 	struct acm_wb *wb;
-	int i;
 
 	/*
 	 * Need to grab write_lock to prevent race with resume, but no need to
@@ -629,11 +639,7 @@ static void acm_port_shutdown(struct tty_port *port)
 		usb_autopm_put_interface_async(acm->control);
 	}
 
-	usb_kill_urb(acm->ctrlurb);
-	for (i = 0; i < ACM_NW; i++)
-		usb_kill_urb(acm->wb[i].urb);
-	for (i = 0; i < acm->rx_buflimit; i++)
-		usb_kill_urb(acm->read_urbs[i]);
+	acm_kill_urbs(acm);
 }
 
 static void acm_tty_cleanup(struct tty_struct *tty)
@@ -1506,24 +1512,10 @@ alloc_fail:
 	return rv;
 }
 
-static void stop_data_traffic(struct acm *acm)
-{
-	int i;
-
-	usb_kill_urb(acm->ctrlurb);
-	for (i = 0; i < ACM_NW; i++)
-		usb_kill_urb(acm->wb[i].urb);
-	for (i = 0; i < acm->rx_buflimit; i++)
-		usb_kill_urb(acm->read_urbs[i]);
-
-	cancel_work_sync(&acm->work);
-}
-
 static void acm_disconnect(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
 	struct tty_struct *tty;
-	int i;
 
 	/* sibling interface is already cleaning up */
 	if (!acm)
@@ -1549,15 +1541,11 @@ static void acm_disconnect(struct usb_interface *intf)
 		tty_kref_put(tty);
 	}
 
-	stop_data_traffic(acm);
+	acm_kill_urbs(acm);
+	cancel_work_sync(&acm->work);
 
 	tty_unregister_device(acm_tty_driver, acm->minor);
 
-	usb_free_urb(acm->ctrlurb);
-	for (i = 0; i < ACM_NW; i++)
-		usb_free_urb(acm->wb[i].urb);
-	for (i = 0; i < acm->rx_buflimit; i++)
-		usb_free_urb(acm->read_urbs[i]);
 	acm_write_buffers_free(acm);
 	usb_free_coherent(acm->dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
 	acm_read_buffers_free(acm);
@@ -1588,7 +1576,8 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 	if (cnt)
 		return 0;
 
-	stop_data_traffic(acm);
+	acm_kill_urbs(acm);
+	cancel_work_sync(&acm->work);
 
 	return 0;
 }
