@@ -1781,12 +1781,13 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
-	int cpp = pstate->base.fb ?
-		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
+	int cpp;
 
 	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
+
+	cpp = drm_format_plane_cpp(pstate->base.fb->pixel_format, 0);
 
 	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 
@@ -1809,12 +1810,13 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
-	int cpp = pstate->base.fb ?
-		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
+	int cpp;
 
 	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
+
+	cpp = drm_format_plane_cpp(pstate->base.fb->pixel_format, 0);
 
 	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
@@ -1853,11 +1855,12 @@ static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t pri_val)
 {
-	int cpp = pstate->base.fb ?
-		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
+	int cpp;
 
 	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
+
+	cpp = drm_format_plane_cpp(pstate->base.fb->pixel_format, 0);
 
 	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->base.dst), cpp);
 }
@@ -3229,13 +3232,17 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     int y)
 {
 	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
-	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t down_scale_amount, data_rate;
 	uint32_t width = 0, height = 0;
-	unsigned format = fb ? fb->pixel_format : DRM_FORMAT_XRGB8888;
+	struct drm_framebuffer *fb;
+	u32 format;
 
 	if (!intel_pstate->base.visible)
 		return 0;
+
+	fb = pstate->fb;
+	format = fb->pixel_format;
+
 	if (pstate->plane->type == DRM_PLANE_TYPE_CURSOR)
 		return 0;
 	if (y && format != DRM_FORMAT_NV12)
