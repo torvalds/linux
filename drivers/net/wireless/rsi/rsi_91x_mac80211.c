@@ -1075,6 +1075,82 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
+/**
+ * rsi_mac80211_set_antenna() - This function is used to configure
+ *				tx and rx antennas.
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @tx_ant: Bitmap for tx antenna
+ * @rx_ant: Bitmap for rx antenna
+ *
+ * Return: 0 on success, Negative error code on failure.
+ */
+static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
+				    u32 tx_ant, u32 rx_ant)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+	u8 antenna = 0;
+
+	if (tx_ant > 1 || rx_ant > 1) {
+		rsi_dbg(ERR_ZONE,
+			"Invalid antenna selection (tx: %d, rx:%d)\n",
+			tx_ant, rx_ant);
+		rsi_dbg(ERR_ZONE,
+			"Use 0 for int_ant, 1 for ext_ant\n");
+		return -EINVAL; 
+	}
+
+	rsi_dbg(INFO_ZONE, "%s: Antenna map Tx %x Rx %d\n",
+			__func__, tx_ant, rx_ant);
+
+	mutex_lock(&common->mutex);
+
+	antenna = tx_ant ? ANTENNA_SEL_UFL : ANTENNA_SEL_INT;
+	if (common->ant_in_use != antenna)
+		if (rsi_set_antenna(common, antenna))
+			goto fail_set_antenna;
+
+	rsi_dbg(INFO_ZONE, "(%s) Antenna path configured successfully\n",
+		tx_ant ? "UFL" : "INT");
+
+	common->ant_in_use = antenna;
+	
+	mutex_unlock(&common->mutex);
+	
+	return 0;
+
+fail_set_antenna:
+	rsi_dbg(ERR_ZONE, "%s: Failed.\n", __func__);
+	mutex_unlock(&common->mutex);
+	return -EINVAL;
+}
+
+/**
+ * rsi_mac80211_get_antenna() - This function is used to configure 
+ * 				tx and rx antennas.
+ *
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @tx_ant: Bitmap for tx antenna
+ * @rx_ant: Bitmap for rx antenna
+ * 
+ * Return: 0 on success, -1 on failure.
+ */
+static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
+				    u32 *tx_ant, u32 *rx_ant)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	mutex_lock(&common->mutex);
+
+	*tx_ant = (common->ant_in_use == ANTENNA_SEL_UFL) ? 1 : 0;
+	*rx_ant = 0;
+
+	mutex_unlock(&common->mutex);
+	
+	return 0;	
+}
+
 static struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
 	.start = rsi_mac80211_start,
@@ -1091,6 +1167,8 @@ static struct ieee80211_ops mac80211_ops = {
 	.ampdu_action = rsi_mac80211_ampdu_action,
 	.sta_add = rsi_mac80211_sta_add,
 	.sta_remove = rsi_mac80211_sta_remove,
+	.set_antenna = rsi_mac80211_set_antenna,
+	.get_antenna = rsi_mac80211_get_antenna,
 };
 
 /**

@@ -1315,6 +1315,39 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 }
 
 /**
+ * rsi_set_antenna() - This fuction send antenna configuration request
+ *		       to device
+ *
+ * @common: Pointer to the driver private structure.
+ * @antenna: bitmap for tx antenna selection
+ *
+ * Return: 0 on Success, negative error code on failure
+ */
+int rsi_set_antenna(struct rsi_common *common, u8 antenna)
+{
+	struct rsi_mac_frame *cmd_frame;
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	cmd_frame = (struct rsi_mac_frame *)skb->data;
+
+	cmd_frame->desc_word[1] = cpu_to_le16(ANT_SEL_FRAME);
+	cmd_frame->desc_word[3] = cpu_to_le16(antenna & 0x00ff);
+	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+
+	skb_put(skb, FRAME_DESC_SZ);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+/**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.

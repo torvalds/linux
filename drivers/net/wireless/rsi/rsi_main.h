@@ -206,6 +206,7 @@ struct rsi_common {
 	bool hw_data_qs_blocked;
 	
 	int tx_power;
+	u8 ant_in_use;
 };
 
 struct rsi_hw {
