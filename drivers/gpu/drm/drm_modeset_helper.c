@@ -72,21 +72,10 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 				    struct drm_framebuffer *fb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	const struct drm_format_info *info;
 	int i;
 
-	info = drm_format_info(mode_cmd->pixel_format);
-	if (!info || !info->depth) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("non-RGB pixel format %s\n",
-		              drm_get_format_name(mode_cmd->pixel_format,
-		                                  &format_name));
-	} else {
-	}
-
 	fb->dev = dev;
-	fb->format = info;
+	fb->format = drm_format_info(mode_cmd->pixel_format);
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {
