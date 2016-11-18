@@ -537,6 +537,7 @@
 			reg = <0x803000 0x188>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			#gpio-range-cells = <3>;
 			ranges;
 
@@ -558,6 +559,7 @@
 			reg = <0x803800 0x2dc>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			ranges;
 
 			pinctrl-single,register-width = <32>;
