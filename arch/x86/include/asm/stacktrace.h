@@ -30,8 +30,7 @@ bool in_task_stack(unsigned long *stack, struct task_struct *task,
 int get_stack_info(unsigned long *stack, struct task_struct *task,
 		   struct stack_info *info, unsigned long *visit_mask);
 
-void stack_type_str(enum stack_type type, const char **begin,
-		    const char **end);
+const char *stack_type_name(enum stack_type type);
 
 static inline bool on_stack(struct stack_info *info, void *addr, size_t len)
 {

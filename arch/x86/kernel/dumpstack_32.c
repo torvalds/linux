@@ -16,18 +16,15 @@
 
 #include <asm/stacktrace.h>
 
-void stack_type_str(enum stack_type type, const char **begin, const char **end)
+const char *stack_type_name(enum stack_type type)
 {
-	switch (type) {
-	case STACK_TYPE_IRQ:
-	case STACK_TYPE_SOFTIRQ:
-		*begin = "IRQ";
-		*end   = "EOI";
-		break;
-	default:
-		*begin = NULL;
-		*end   = NULL;
-	}
+	if (type == STACK_TYPE_IRQ)
+		return "IRQ";
+
+	if (type == STACK_TYPE_SOFTIRQ)
+		return "SOFTIRQ";
+
+	return NULL;
 }
 
 static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)

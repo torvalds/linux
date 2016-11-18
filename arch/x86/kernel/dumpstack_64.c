@@ -28,23 +28,17 @@ static unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
 	[DEBUG_STACK - 1]			= DEBUG_STKSZ
 };
 
-void stack_type_str(enum stack_type type, const char **begin, const char **end)
+const char *stack_type_name(enum stack_type type)
 {
 	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
 
-	switch (type) {
-	case STACK_TYPE_IRQ:
-		*begin = "IRQ";
-		*end   = "EOI";
-		break;
-	case STACK_TYPE_EXCEPTION ... STACK_TYPE_EXCEPTION_LAST:
-		*begin = exception_stack_names[type - STACK_TYPE_EXCEPTION];
-		*end   = "EOE";
-		break;
-	default:
-		*begin = NULL;
-		*end   = NULL;
-	}
+	if (type == STACK_TYPE_IRQ)
+		return "IRQ";
+
+	if (type >= STACK_TYPE_EXCEPTION && type <= STACK_TYPE_EXCEPTION_LAST)
+		return exception_stack_names[type - STACK_TYPE_EXCEPTION];
+
+	return NULL;
 }
 
 static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
