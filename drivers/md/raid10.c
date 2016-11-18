@@ -25,6 +25,7 @@
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
 #include <linux/kthread.h>
+#include <trace/events/block.h>
 #include "md.h"
 #include "raid10.h"
 #include "raid0.h"
@@ -1165,6 +1166,10 @@ read_again:
 		bio_set_op_attrs(read_bio, op, do_sync);
 		read_bio->bi_private = r10_bio;
 
+		if (mddev->gendisk)
+			trace_block_bio_remap(bdev_get_queue(read_bio->bi_bdev),
+					      read_bio, disk_devt(mddev->gendisk),
+					      r10_bio->sector);
 		if (max_sectors < r10_bio->sectors) {
 			/* Could not read all from this device, so we will
 			 * need another r10_bio.
@@ -1367,10 +1372,17 @@ retry_write:
 			mbio->bi_iter.bi_sector	= (r10_bio->devs[i].addr+
 					   choose_data_offset(r10_bio,
 							      rdev));
-			mbio->bi_bdev = (void*)rdev;
+			mbio->bi_bdev = rdev->bdev;
 			mbio->bi_end_io	= raid10_end_write_request;
 			bio_set_op_attrs(mbio, op, do_sync | do_fua);
 			mbio->bi_private = r10_bio;
+
+			if (conf->mddev->gendisk)
+				trace_block_bio_remap(bdev_get_queue(mbio->bi_bdev),
+						      mbio, disk_devt(conf->mddev->gendisk),
+						      r10_bio->sector);
+			/* flush_pending_writes() needs access to the rdev so...*/
+			mbio->bi_bdev = (void*)rdev;
 
 			atomic_inc(&r10_bio->remaining);
 
@@ -1409,10 +1421,17 @@ retry_write:
 			mbio->bi_iter.bi_sector	= (r10_bio->devs[i].addr +
 					   choose_data_offset(
 						   r10_bio, rdev));
-			mbio->bi_bdev = (void*)rdev;
+			mbio->bi_bdev = rdev->bdev;
 			mbio->bi_end_io	= raid10_end_write_request;
 			bio_set_op_attrs(mbio, op, do_sync | do_fua);
 			mbio->bi_private = r10_bio;
+
+			if (conf->mddev->gendisk)
+				trace_block_bio_remap(bdev_get_queue(mbio->bi_bdev),
+						      mbio, disk_devt(conf->mddev->gendisk),
+						      r10_bio->sector);
+			/* flush_pending_writes() needs access to the rdev so...*/
+			mbio->bi_bdev = (void*)rdev;
 
 			atomic_inc(&r10_bio->remaining);
 			spin_lock_irqsave(&conf->device_lock, flags);
@@ -2496,6 +2515,8 @@ static void handle_read_error(struct mddev *mddev, struct r10bio *r10_bio)
 	char b[BDEVNAME_SIZE];
 	unsigned long do_sync;
 	int max_sectors;
+	dev_t bio_dev;
+	sector_t bio_last_sector;
 
 	/* we got a read error. Maybe the drive is bad.  Maybe just
 	 * the block and we can fix it.
@@ -2507,6 +2528,8 @@ static void handle_read_error(struct mddev *mddev, struct r10bio *r10_bio)
 	 */
 	bio = r10_bio->devs[slot].bio;
 	bdevname(bio->bi_bdev, b);
+	bio_dev = bio->bi_bdev->bd_dev;
+	bio_last_sector = r10_bio->devs[slot].addr + rdev->data_offset + r10_bio->sectors;
 	bio_put(bio);
 	r10_bio->devs[slot].bio = NULL;
 
@@ -2546,6 +2569,10 @@ read_more:
 	bio_set_op_attrs(bio, REQ_OP_READ, do_sync);
 	bio->bi_private = r10_bio;
 	bio->bi_end_io = raid10_end_read_request;
+	trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+			      bio, bio_dev,
+			      bio_last_sector - r10_bio->sectors);
+
 	if (max_sectors < r10_bio->sectors) {
 		/* Drat - have to split this up more */
 		struct bio *mbio = r10_bio->master_bio;

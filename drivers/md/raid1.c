@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
+#include <trace/events/block.h>
 #include "md.h"
 #include "raid1.h"
 #include "bitmap.h"
@@ -1162,6 +1163,11 @@ read_again:
 		bio_set_op_attrs(read_bio, op, do_sync);
 		read_bio->bi_private = r1_bio;
 
+		if (mddev->gendisk)
+			trace_block_bio_remap(bdev_get_queue(read_bio->bi_bdev),
+					      read_bio, disk_devt(mddev->gendisk),
+					      r1_bio->sector);
+
 		if (max_sectors < r1_bio->sectors) {
 			/* could not read all from this device, so we will
 			 * need another r1_bio.
@@ -1367,12 +1373,19 @@ read_again:
 
 		mbio->bi_iter.bi_sector	= (r1_bio->sector +
 				   conf->mirrors[i].rdev->data_offset);
-		mbio->bi_bdev = (void*)conf->mirrors[i].rdev;
+		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
 		bio_set_op_attrs(mbio, op, do_flush_fua | do_sync);
 		mbio->bi_private = r1_bio;
 
 		atomic_inc(&r1_bio->remaining);
+
+		if (mddev->gendisk)
+			trace_block_bio_remap(bdev_get_queue(mbio->bi_bdev),
+					      mbio, disk_devt(mddev->gendisk),
+					      r1_bio->sector);
+		/* flush_pending_writes() needs access to the rdev so...*/
+		mbio->bi_bdev = (void*)conf->mirrors[i].rdev;
 
 		cb = blk_check_plugged(raid1_unplug, mddev, sizeof(*plug));
 		if (cb)
@@ -2290,6 +2303,8 @@ static void handle_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 	struct bio *bio;
 	char b[BDEVNAME_SIZE];
 	struct md_rdev *rdev;
+	dev_t bio_dev;
+	sector_t bio_sector;
 
 	clear_bit(R1BIO_ReadError, &r1_bio->state);
 	/* we got a read error. Maybe the drive is bad.  Maybe just
@@ -2303,6 +2318,8 @@ static void handle_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 
 	bio = r1_bio->bios[r1_bio->read_disk];
 	bdevname(bio->bi_bdev, b);
+	bio_dev = bio->bi_bdev->bd_dev;
+	bio_sector = conf->mirrors[r1_bio->read_disk].rdev->data_offset + r1_bio->sector;
 	bio_put(bio);
 	r1_bio->bios[r1_bio->read_disk] = NULL;
 
@@ -2353,6 +2370,8 @@ read_more:
 			else
 				mbio->bi_phys_segments++;
 			spin_unlock_irq(&conf->device_lock);
+			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+					      bio, bio_dev, bio_sector);
 			generic_make_request(bio);
 			bio = NULL;
 
@@ -2367,8 +2386,11 @@ read_more:
 				sectors_handled;
 
 			goto read_more;
-		} else
+		} else {
+			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
+					      bio, bio_dev, bio_sector);
 			generic_make_request(bio);
+		}
 	}
 }
 

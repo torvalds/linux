@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <trace/events/block.h>
 #include "md.h"
 #include "raid0.h"
 #include "raid5.h"
@@ -463,7 +464,8 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 	}
 
 	do {
-		sector_t sector = bio->bi_iter.bi_sector;
+		sector_t bio_sector = bio->bi_iter.bi_sector;
+		sector_t sector = bio_sector;
 		unsigned chunk_sects = mddev->chunk_sectors;
 
 		unsigned sectors = chunk_sects -
@@ -472,7 +474,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 			 : sector_div(sector, chunk_sects));
 
 		/* Restore due to sector_div */
-		sector = bio->bi_iter.bi_sector;
+		sector = bio_sector;
 
 		if (sectors < bio_sectors(bio)) {
 			split = bio_split(bio, sectors, GFP_NOIO, fs_bio_set);
@@ -491,8 +493,13 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
 			/* Just ignore it */
 			bio_endio(split);
-		} else
+		} else {
+			if (mddev->gendisk)
+				trace_block_bio_remap(bdev_get_queue(split->bi_bdev),
+						      split, disk_devt(mddev->gendisk),
+						      bio_sector);
 			generic_make_request(split);
+		}
 	} while (split != bio);
 }
 
