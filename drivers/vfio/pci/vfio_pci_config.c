@@ -152,7 +152,7 @@ static int vfio_user_config_read(struct pci_dev *pdev, int offset,
 
 	*val = cpu_to_le32(tmp_val);
 
-	return pcibios_err_to_errno(ret);
+	return ret;
 }
 
 static int vfio_user_config_write(struct pci_dev *pdev, int offset,
@@ -173,7 +173,7 @@ static int vfio_user_config_write(struct pci_dev *pdev, int offset,
 		break;
 	}
 
-	return pcibios_err_to_errno(ret);
+	return ret;
 }
 
 static int vfio_default_config_read(struct vfio_pci_device *vdev, int pos,
@@ -257,7 +257,7 @@ static int vfio_direct_config_read(struct vfio_pci_device *vdev, int pos,
 
 	ret = vfio_user_config_read(vdev->pdev, pos, val, count);
 	if (ret)
-		return pcibios_err_to_errno(ret);
+		return ret;
 
 	if (pos >= PCI_CFG_SPACE_SIZE) { /* Extended cap header mangling */
 		if (offset < 4)
@@ -295,7 +295,7 @@ static int vfio_raw_config_read(struct vfio_pci_device *vdev, int pos,
 
 	ret = vfio_user_config_read(vdev->pdev, pos, val, count);
 	if (ret)
-		return pcibios_err_to_errno(ret);
+		return ret;
 
 	return count;
 }
@@ -1089,7 +1089,7 @@ static int vfio_msi_config_write(struct vfio_pci_device *vdev, int pos,
 						 start + PCI_MSI_FLAGS,
 						 flags);
 		if (ret)
-			return pcibios_err_to_errno(ret);
+			return ret;
 	}
 
 	return count;
