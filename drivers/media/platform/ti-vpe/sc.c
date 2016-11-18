@@ -84,9 +84,6 @@ void sc_set_hs_coeffs(struct sc_data *sc, void *addr, unsigned int src_w,
 		}
 	}
 
-	if (idx == sc->hs_index)
-		return;
-
 	cp = scaler_hs_coeffs[idx];
 
 	for (i = 0; i < SC_NUM_PHASES * 2; i++) {
@@ -100,8 +97,6 @@ void sc_set_hs_coeffs(struct sc_data *sc, void *addr, unsigned int src_w,
 		 */
 		coeff_h += SC_NUM_TAPS_MEM_ALIGN - SC_H_NUM_TAPS;
 	}
-
-	sc->hs_index = idx;
 
 	sc->load_coeff_h = true;
 }
@@ -130,9 +125,6 @@ void sc_set_vs_coeffs(struct sc_data *sc, void *addr, unsigned int src_h,
 		idx = VS_LT_9_16_SCALE + sixteenths - 8;
 	}
 
-	if (idx == sc->vs_index)
-		return;
-
 	cp = scaler_vs_coeffs[idx];
 
 	for (i = 0; i < SC_NUM_PHASES * 2; i++) {
@@ -146,7 +138,6 @@ void sc_set_vs_coeffs(struct sc_data *sc, void *addr, unsigned int src_h,
 		coeff_v += SC_NUM_TAPS_MEM_ALIGN - SC_V_NUM_TAPS;
 	}
 
-	sc->vs_index = idx;
 	sc->load_coeff_v = true;
 }
 

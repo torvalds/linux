@@ -189,9 +189,6 @@ struct sc_data {
 	bool			load_coeff_h;	/* have new h SC coeffs */
 	bool			load_coeff_v;	/* have new v SC coeffs */
 
-	unsigned int		hs_index;	/* h SC coeffs selector */
-	unsigned int		vs_index;	/* v SC coeffs selector */
-
 	struct platform_device *pdev;
 };
 
