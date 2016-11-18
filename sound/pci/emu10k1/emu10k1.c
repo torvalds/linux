@@ -194,6 +194,9 @@ static int snd_card_emu10k1_probe(struct pci_dev *pci,
 	if ((err = snd_card_register(card)) < 0)
 		goto error;
 
+	if (emu->card_capabilities->emu_model)
+		schedule_delayed_work(&emu->emu1010.firmware_work, 0);
+
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
@@ -218,6 +221,8 @@ static int snd_emu10k1_suspend(struct device *dev)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
 	emu->suspend = 1;
+
+	cancel_delayed_work_sync(&emu->emu1010.firmware_work);
 
 	snd_pcm_suspend_all(emu->pcm);
 	snd_pcm_suspend_all(emu->pcm_mic);
@@ -252,6 +257,10 @@ static int snd_emu10k1_resume(struct device *dev)
 	emu->suspend = 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+
+	if (emu->card_capabilities->emu_model)
+		schedule_delayed_work(&emu->emu1010.firmware_work, 0);
+
 	return 0;
 }
 
