@@ -2945,6 +2945,7 @@ static struct gdsc venus_core0_gdsc = {
 		.name = "venus_core0",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = HW_CTRL,
 };
 
 static struct gdsc venus_core1_gdsc = {
@@ -2955,6 +2956,7 @@ static struct gdsc venus_core1_gdsc = {
 		.name = "venus_core1",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = HW_CTRL,
 };
 
 static struct gdsc camss_gdsc = {
