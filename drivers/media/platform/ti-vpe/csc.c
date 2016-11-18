@@ -97,6 +97,8 @@ void csc_dump_regs(struct csc_data *csc)
 #define DUMPREG(r) dev_dbg(dev, "%-35s %08x\n", #r, \
 	ioread32(csc->base + CSC_##r))
 
+	dev_dbg(dev, "CSC Registers @ %pa:\n", &csc->res->start);
+
 	DUMPREG(CSC00);
 	DUMPREG(CSC01);
 	DUMPREG(CSC02);
