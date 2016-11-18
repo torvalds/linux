@@ -211,7 +211,7 @@ int cfs_cpu_ht_nsiblings(int cpu);
  */
 void *cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size);
 /*
- * destory per-cpu-partition variable
+ * destroy per-cpu-partition variable
  */
 void cfs_percpt_free(void *vars);
 int cfs_percpt_number(void *vars);
