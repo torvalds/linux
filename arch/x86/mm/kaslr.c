@@ -104,10 +104,10 @@ void __init kernel_randomize_memory(void)
 	 * consistent with the vaddr_start/vaddr_end variables.
 	 */
 	BUILD_BUG_ON(vaddr_start >= vaddr_end);
-	BUILD_BUG_ON(config_enabled(CONFIG_X86_ESPFIX64) &&
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_X86_ESPFIX64) &&
 		     vaddr_end >= EFI_VA_START);
-	BUILD_BUG_ON((config_enabled(CONFIG_X86_ESPFIX64) ||
-		      config_enabled(CONFIG_EFI)) &&
+	BUILD_BUG_ON((IS_ENABLED(CONFIG_X86_ESPFIX64) ||
+		      IS_ENABLED(CONFIG_EFI)) &&
 		     vaddr_end >= __START_KERNEL_map);
 	BUILD_BUG_ON(vaddr_end > __START_KERNEL_map);
 

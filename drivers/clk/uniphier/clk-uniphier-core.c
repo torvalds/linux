@@ -79,7 +79,7 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 	hw_data->num = clk_num;
 
 	/* avoid returning NULL for unused idx */
-	for (; clk_num >= 0; clk_num--)
+	while (--clk_num >= 0)
 		hw_data->hws[clk_num] = ERR_PTR(-EINVAL);
 
 	for (p = data; p->name; p++) {
@@ -111,6 +111,10 @@ static int uniphier_clk_remove(struct platform_device *pdev)
 static const struct of_device_id uniphier_clk_match[] = {
 	/* System clock */
 	{
+		.compatible = "socionext,uniphier-sld3-clock",
+		.data = uniphier_sld3_sys_clk_data,
+	},
+	{
 		.compatible = "socionext,uniphier-ld4-clock",
 		.data = uniphier_ld4_sys_clk_data,
 	},
@@ -138,7 +142,7 @@ static const struct of_device_id uniphier_clk_match[] = {
 		.compatible = "socionext,uniphier-ld20-clock",
 		.data = uniphier_ld20_sys_clk_data,
 	},
-	/* Media I/O clock */
+	/* Media I/O clock, SD clock */
 	{
 		.compatible = "socionext,uniphier-sld3-mio-clock",
 		.data = uniphier_sld3_mio_clk_data,
@@ -156,20 +160,20 @@ static const struct of_device_id uniphier_clk_match[] = {
 		.data = uniphier_sld3_mio_clk_data,
 	},
 	{
-		.compatible = "socionext,uniphier-pro5-mio-clock",
-		.data = uniphier_pro5_mio_clk_data,
+		.compatible = "socionext,uniphier-pro5-sd-clock",
+		.data = uniphier_pro5_sd_clk_data,
 	},
 	{
-		.compatible = "socionext,uniphier-pxs2-mio-clock",
-		.data = uniphier_pro5_mio_clk_data,
+		.compatible = "socionext,uniphier-pxs2-sd-clock",
+		.data = uniphier_pro5_sd_clk_data,
 	},
 	{
 		.compatible = "socionext,uniphier-ld11-mio-clock",
 		.data = uniphier_sld3_mio_clk_data,
 	},
 	{
-		.compatible = "socionext,uniphier-ld20-mio-clock",
-		.data = uniphier_pro5_mio_clk_data,
+		.compatible = "socionext,uniphier-ld20-sd-clock",
+		.data = uniphier_pro5_sd_clk_data,
 	},
 	/* Peripheral clock */
 	{

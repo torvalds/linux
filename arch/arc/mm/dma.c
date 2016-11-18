@@ -45,7 +45,7 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	 *   -For coherent data, Read/Write to buffers terminate early in cache
 	 *   (vs. always going to memory - thus are faster)
 	 */
-	if ((is_isa_arcv2() && ioc_exists) ||
+	if ((is_isa_arcv2() && ioc_enable) ||
 	    (attrs & DMA_ATTR_NON_CONSISTENT))
 		need_coh = 0;
 
@@ -97,7 +97,7 @@ static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 	int is_non_coh = 1;
 
 	is_non_coh = (attrs & DMA_ATTR_NON_CONSISTENT) ||
-			(is_isa_arcv2() && ioc_exists);
+			(is_isa_arcv2() && ioc_enable);
 
 	if (PageHighMem(page) || !is_non_coh)
 		iounmap((void __force __iomem *)vaddr);

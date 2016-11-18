@@ -333,6 +333,13 @@ struct linehandle_state {
 	u32 numdescs;
 };
 
+#define GPIOHANDLE_REQUEST_VALID_FLAGS \
+	(GPIOHANDLE_REQUEST_INPUT | \
+	GPIOHANDLE_REQUEST_OUTPUT | \
+	GPIOHANDLE_REQUEST_ACTIVE_LOW | \
+	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
+	GPIOHANDLE_REQUEST_OPEN_SOURCE)
+
 static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -343,6 +350,8 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 
 	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
 		int val;
+
+		memset(&ghd, 0, sizeof(ghd));
 
 		/* TODO: check if descriptors are really input */
 		for (i = 0; i < lh->numdescs; i++) {
@@ -444,6 +453,17 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		u32 lflags = handlereq.flags;
 		struct gpio_desc *desc;
 
+		if (offset >= gdev->ngpio) {
+			ret = -EINVAL;
+			goto out_free_descs;
+		}
+
+		/* Return an error if a unknown flag is set */
+		if (lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) {
+			ret = -EINVAL;
+			goto out_free_descs;
+		}
+
 		desc = &gdev->descs[offset];
 		ret = gpiod_request(desc, lh->label);
 		if (ret)
@@ -536,6 +556,10 @@ struct lineevent_state {
 	struct mutex read_lock;
 };
 
+#define GPIOEVENT_REQUEST_VALID_FLAGS \
+	(GPIOEVENT_REQUEST_RISING_EDGE | \
+	GPIOEVENT_REQUEST_FALLING_EDGE)
+
 static unsigned int lineevent_poll(struct file *filep,
 				   struct poll_table_struct *wait)
 {
@@ -622,6 +646,8 @@ static long lineevent_ioctl(struct file *filep, unsigned int cmd,
 	 */
 	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
 		int val;
+
+		memset(&ghd, 0, sizeof(ghd));
 
 		val = gpiod_get_value_cansleep(le->desc);
 		if (val < 0)
@@ -726,6 +752,18 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	lflags = eventreq.handleflags;
 	eflags = eventreq.eventflags;
 
+	if (offset >= gdev->ngpio) {
+		ret = -EINVAL;
+		goto out_free_label;
+	}
+
+	/* Return an error if a unknown flag is set */
+	if ((lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) ||
+	    (eflags & ~GPIOEVENT_REQUEST_VALID_FLAGS)) {
+		ret = -EINVAL;
+		goto out_free_label;
+	}
+
 	/* This is just wrong: we don't look for events on output lines */
 	if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
 		ret = -EINVAL;
@@ -823,6 +861,8 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
 		struct gpiochip_info chipinfo;
 
+		memset(&chipinfo, 0, sizeof(chipinfo));
+
 		strncpy(chipinfo.name, dev_name(&gdev->dev),
 			sizeof(chipinfo.name));
 		chipinfo.name[sizeof(chipinfo.name)-1] = '\0';
@@ -839,7 +879,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
 			return -EFAULT;
-		if (lineinfo.line_offset > gdev->ngpio)
+		if (lineinfo.line_offset >= gdev->ngpio)
 			return -EINVAL;
 
 		desc = &gdev->descs[lineinfo.line_offset];
