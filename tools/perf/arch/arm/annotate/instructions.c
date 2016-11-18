@@ -1,90 +1,59 @@
-static struct ins arm__instructions[] = {
-	{ .name = "add",	.ops = &mov_ops,  },
-	{ .name = "addl",	.ops = &mov_ops,  },
-	{ .name = "addq",	.ops = &mov_ops,  },
-	{ .name = "addw",	.ops = &mov_ops,  },
-	{ .name = "and",	.ops = &mov_ops,  },
-	{ .name = "b",		.ops = &jump_ops, }, // might also be a call
-	{ .name = "bcc",	.ops = &jump_ops, },
-	{ .name = "bcs",	.ops = &jump_ops, },
-	{ .name = "beq",	.ops = &jump_ops, },
-	{ .name = "bge",	.ops = &jump_ops, },
-	{ .name = "bgt",	.ops = &jump_ops, },
-	{ .name = "bhi",	.ops = &jump_ops, },
-	{ .name = "bl",		.ops = &call_ops, },
-	{ .name = "bls",	.ops = &jump_ops, },
-	{ .name = "blt",	.ops = &jump_ops, },
-	{ .name = "blx",	.ops = &call_ops, },
-	{ .name = "bne",	.ops = &jump_ops, },
-	{ .name = "bts",	.ops = &mov_ops,  },
-	{ .name = "call",	.ops = &call_ops, },
-	{ .name = "callq",	.ops = &call_ops, },
-	{ .name = "cmp",	.ops = &mov_ops,  },
-	{ .name = "cmpb",	.ops = &mov_ops,  },
-	{ .name = "cmpl",	.ops = &mov_ops,  },
-	{ .name = "cmpq",	.ops = &mov_ops,  },
-	{ .name = "cmpw",	.ops = &mov_ops,  },
-	{ .name = "cmpxch",	.ops = &mov_ops,  },
-	{ .name = "dec",	.ops = &dec_ops,  },
-	{ .name = "decl",	.ops = &dec_ops,  },
-	{ .name = "imul",	.ops = &mov_ops,  },
-	{ .name = "inc",	.ops = &dec_ops,  },
-	{ .name = "incl",	.ops = &dec_ops,  },
-	{ .name = "ja",		.ops = &jump_ops, },
-	{ .name = "jae",	.ops = &jump_ops, },
-	{ .name = "jb",		.ops = &jump_ops, },
-	{ .name = "jbe",	.ops = &jump_ops, },
-	{ .name = "jc",		.ops = &jump_ops, },
-	{ .name = "jcxz",	.ops = &jump_ops, },
-	{ .name = "je",		.ops = &jump_ops, },
-	{ .name = "jecxz",	.ops = &jump_ops, },
-	{ .name = "jg",		.ops = &jump_ops, },
-	{ .name = "jge",	.ops = &jump_ops, },
-	{ .name = "jl",		.ops = &jump_ops, },
-	{ .name = "jle",	.ops = &jump_ops, },
-	{ .name = "jmp",	.ops = &jump_ops, },
-	{ .name = "jmpq",	.ops = &jump_ops, },
-	{ .name = "jna",	.ops = &jump_ops, },
-	{ .name = "jnae",	.ops = &jump_ops, },
-	{ .name = "jnb",	.ops = &jump_ops, },
-	{ .name = "jnbe",	.ops = &jump_ops, },
-	{ .name = "jnc",	.ops = &jump_ops, },
-	{ .name = "jne",	.ops = &jump_ops, },
-	{ .name = "jng",	.ops = &jump_ops, },
-	{ .name = "jnge",	.ops = &jump_ops, },
-	{ .name = "jnl",	.ops = &jump_ops, },
-	{ .name = "jnle",	.ops = &jump_ops, },
-	{ .name = "jno",	.ops = &jump_ops, },
-	{ .name = "jnp",	.ops = &jump_ops, },
-	{ .name = "jns",	.ops = &jump_ops, },
-	{ .name = "jnz",	.ops = &jump_ops, },
-	{ .name = "jo",		.ops = &jump_ops, },
-	{ .name = "jp",		.ops = &jump_ops, },
-	{ .name = "jpe",	.ops = &jump_ops, },
-	{ .name = "jpo",	.ops = &jump_ops, },
-	{ .name = "jrcxz",	.ops = &jump_ops, },
-	{ .name = "js",		.ops = &jump_ops, },
-	{ .name = "jz",		.ops = &jump_ops, },
-	{ .name = "lea",	.ops = &mov_ops,  },
-	{ .name = "lock",	.ops = &lock_ops, },
-	{ .name = "mov",	.ops = &mov_ops,  },
-	{ .name = "movb",	.ops = &mov_ops,  },
-	{ .name = "movdqa",	.ops = &mov_ops,  },
-	{ .name = "movl",	.ops = &mov_ops,  },
-	{ .name = "movq",	.ops = &mov_ops,  },
-	{ .name = "movslq",	.ops = &mov_ops,  },
-	{ .name = "movzbl",	.ops = &mov_ops,  },
-	{ .name = "movzwl",	.ops = &mov_ops,  },
-	{ .name = "nop",	.ops = &nop_ops,  },
-	{ .name = "nopl",	.ops = &nop_ops,  },
-	{ .name = "nopw",	.ops = &nop_ops,  },
-	{ .name = "or",		.ops = &mov_ops,  },
-	{ .name = "orl",	.ops = &mov_ops,  },
-	{ .name = "test",	.ops = &mov_ops,  },
-	{ .name = "testb",	.ops = &mov_ops,  },
-	{ .name = "testl",	.ops = &mov_ops,  },
-	{ .name = "xadd",	.ops = &mov_ops,  },
-	{ .name = "xbeginl",	.ops = &jump_ops, },
-	{ .name = "xbeginq",	.ops = &jump_ops, },
-	{ .name = "retq",	.ops = &ret_ops,  },
+#include <sys/types.h>
+#include <regex.h>
+
+struct arm_annotate {
+	regex_t call_insn,
+		jump_insn;
 };
+
+static struct ins_ops *arm__associate_instruction_ops(struct arch *arch, const char *name)
+{
+	struct arm_annotate *arm = arch->priv;
+	struct ins_ops *ops;
+	regmatch_t match[2];
+
+	if (!regexec(&arm->call_insn, name, 2, match, 0))
+		ops = &call_ops;
+	else if (!regexec(&arm->jump_insn, name, 2, match, 0))
+		ops = &jump_ops;
+	else
+		return NULL;
+
+	arch__associate_ins_ops(arch, name, ops);
+	return ops;
+}
+
+static int arm__annotate_init(struct arch *arch)
+{
+	struct arm_annotate *arm;
+	int err;
+
+	if (arch->initialized)
+		return 0;
+
+	arm = zalloc(sizeof(*arm));
+	if (!arm)
+		return -1;
+
+#define ARM_CONDS "(cc|cs|eq|ge|gt|hi|le|ls|lt|mi|ne|pl|vc|vs)"
+	err = regcomp(&arm->call_insn, "^blx?" ARM_CONDS "?$", REG_EXTENDED);
+	if (err)
+		goto out_free_arm;
+	err = regcomp(&arm->jump_insn, "^bx?" ARM_CONDS "?$", REG_EXTENDED);
+	if (err)
+		goto out_free_call;
+#undef ARM_CONDS
+
+	arch->initialized = true;
+	arch->priv	  = arm;
+	arch->associate_instruction_ops   = arm__associate_instruction_ops;
+	arch->objdump.comment_char	  = ';';
+	arch->objdump.skip_functions_char = '+';
+	return 0;
+
+out_free_call:
+	regfree(&arm->call_insn);
+out_free_arm:
+	free(arm);
+	return -1;
+}
