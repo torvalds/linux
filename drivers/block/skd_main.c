@@ -36,7 +36,6 @@
 #include <linux/scatterlist.h>
 #include <linux/version.h>
 #include <linux/err.h>
-#include <linux/scatterlist.h>
 #include <linux/aer.h>
 #include <linux/ctype.h>
 #include <linux/wait.h>
