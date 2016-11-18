@@ -217,7 +217,6 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	if (ret < 0)
 		goto err_component_unbind;
 
-	drm->vblank_disable_allowed = true;
 	drm_kms_helper_poll_init(drm);
 	drm_mode_config_reset(drm);
 
