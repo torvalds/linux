@@ -548,10 +548,13 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
-		if (hv_enabled)
-			r = threads_per_subcore;
-		else
-			r = 0;
+		r = 0;
+		if (hv_enabled) {
+			if (cpu_has_feature(CPU_FTR_ARCH_300))
+				r = 1;
+			else
+				r = threads_per_subcore;
+		}
 		break;
 	case KVM_CAP_PPC_RMA:
 		r = 0;
