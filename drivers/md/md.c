@@ -64,6 +64,7 @@
 #include <linux/raid/md_p.h>
 #include <linux/raid/md_u.h>
 #include <linux/slab.h>
+#include <trace/events/block.h>
 #include "md.h"
 #include "bitmap.h"
 #include "md-cluster.h"
@@ -2403,6 +2404,8 @@ repeat:
 	pr_debug("md: updating %s RAID superblock on device (in sync %d)\n",
 		 mdname(mddev), mddev->in_sync);
 
+	if (mddev->queue)
+		blk_add_trace_msg(mddev->queue, "md md_update_sb");
 	bitmap_update_sb(mddev->bitmap);
 	rdev_for_each(rdev, mddev) {
 		char b[BDEVNAME_SIZE];
