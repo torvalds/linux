@@ -7461,7 +7461,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	char *default_power1;
 	char *default_power2;
 	char *default_power3;
-	unsigned int i;
+	unsigned int i, tx_chains, rx_chains;
 	u32 reg;
 
 	/*
@@ -7586,21 +7586,24 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40;
 
-	if (rt2x00dev->default_ant.tx_chain_num >= 2)
+	tx_chains = rt2x00dev->default_ant.tx_chain_num;
+	rx_chains = rt2x00dev->default_ant.rx_chain_num;
+
+	if (tx_chains >= 2)
 		spec->ht.cap |= IEEE80211_HT_CAP_TX_STBC;
 
-	spec->ht.cap |= rt2x00dev->default_ant.rx_chain_num <<
-			IEEE80211_HT_CAP_RX_STBC_SHIFT;
+	spec->ht.cap |= rx_chains << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
 	spec->ht.ampdu_factor = 3;
 	spec->ht.ampdu_density = 4;
-	spec->ht.mcs.tx_params =
-	    IEEE80211_HT_MCS_TX_DEFINED |
-	    IEEE80211_HT_MCS_TX_RX_DIFF |
-	    ((rt2x00dev->default_ant.tx_chain_num - 1) <<
-	     IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
+	spec->ht.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
+	if (tx_chains != rx_chains) {
+		spec->ht.mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
+		spec->ht.mcs.tx_params |=
+		    (tx_chains - 1) << IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
+	}
 
-	switch (rt2x00dev->default_ant.rx_chain_num) {
+	switch (rx_chains) {
 	case 3:
 		spec->ht.mcs.rx_mask[2] = 0xff;
 	case 2:
