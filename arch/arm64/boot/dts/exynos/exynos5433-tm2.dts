@@ -196,6 +196,17 @@
 				 <&cmu_top CLK_ACLK_GSCL_333>;
 };
 
+&cmu_mscl {
+	assigned-clocks = <&cmu_mscl CLK_MOUT_ACLK_MSCL_400_USER>,
+			  <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
+			  <&cmu_mscl CLK_MOUT_SCLK_JPEG>,
+			  <&cmu_top CLK_MOUT_SCLK_JPEG_A>;
+	assigned-clock-parents = <&cmu_top CLK_ACLK_MSCL_400>,
+				 <&cmu_top CLK_SCLK_JPEG_MSCL>,
+				 <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
+				 <&cmu_top CLK_MOUT_BUS_PLL_USER>;
+};
+
 &cpu0 {
 	cpu-supply = <&buck3_reg>;
 };
