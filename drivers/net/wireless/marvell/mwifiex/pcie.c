@@ -3015,31 +3015,28 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = card->dev;
 	int i;
 
-	if (card) {
-		pdev = card->dev;
-		if (card->msix_enable) {
-			for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
-				synchronize_irq(card->msix_entries[i].vector);
+	if (card->msix_enable) {
+		for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
+			synchronize_irq(card->msix_entries[i].vector);
 
-			for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
-				free_irq(card->msix_entries[i].vector,
-					 &card->msix_ctx[i]);
+		for (i = 0; i < MWIFIEX_NUM_MSIX_VECTORS; i++)
+			free_irq(card->msix_entries[i].vector,
+				 &card->msix_ctx[i]);
 
-			card->msix_enable = 0;
-			pci_disable_msix(pdev);
-	       } else {
-			mwifiex_dbg(adapter, INFO,
-				    "%s(): calling free_irq()\n", __func__);
-		       free_irq(card->dev->irq, &card->share_irq_ctx);
+		card->msix_enable = 0;
+		pci_disable_msix(pdev);
+	} else {
+		mwifiex_dbg(adapter, INFO,
+			    "%s(): calling free_irq()\n", __func__);
+	       free_irq(card->dev->irq, &card->share_irq_ctx);
 
-			if (card->msi_enable)
-				pci_disable_msi(pdev);
-	       }
-		card->adapter = NULL;
+		if (card->msi_enable)
+			pci_disable_msi(pdev);
 	}
+	card->adapter = NULL;
 }
 
 /* This function initializes the PCI-E host memory space, WCB rings, etc.
@@ -3122,18 +3119,14 @@ static void mwifiex_pcie_down_dev(struct mwifiex_adapter *adapter)
 	adapter->seq_num = 0;
 	adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 
-	if (card) {
-		if (reg->sleep_cookie)
-			mwifiex_pcie_delete_sleep_cookie_buf(adapter);
+	if (reg->sleep_cookie)
+		mwifiex_pcie_delete_sleep_cookie_buf(adapter);
 
-		mwifiex_pcie_delete_cmdrsp_buf(adapter);
-		mwifiex_pcie_delete_evtbd_ring(adapter);
-		mwifiex_pcie_delete_rxbd_ring(adapter);
-		mwifiex_pcie_delete_txbd_ring(adapter);
-		card->cmdrsp_buf = NULL;
-	}
-
-	return;
+	mwifiex_pcie_delete_cmdrsp_buf(adapter);
+	mwifiex_pcie_delete_evtbd_ring(adapter);
+	mwifiex_pcie_delete_rxbd_ring(adapter);
+	mwifiex_pcie_delete_txbd_ring(adapter);
+	card->cmdrsp_buf = NULL;
 }
 
 static struct mwifiex_if_ops pcie_ops = {
