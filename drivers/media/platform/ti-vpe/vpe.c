@@ -660,14 +660,13 @@ static void set_us_coefficients(struct vpe_ctx *ctx)
 /*
  * Set the upsampler config mode and the VPDMA line mode in the shadow MMRs.
  */
-static void set_cfg_and_line_modes(struct vpe_ctx *ctx)
+static void set_cfg_modes(struct vpe_ctx *ctx)
 {
 	struct vpe_fmt *fmt = ctx->q_data[Q_DATA_SRC].fmt;
 	struct vpe_mmr_adb *mmr_adb = ctx->mmr_adb.addr;
 	u32 *us1_reg0 = &mmr_adb->us1_regs[0];
 	u32 *us2_reg0 = &mmr_adb->us2_regs[0];
 	u32 *us3_reg0 = &mmr_adb->us3_regs[0];
-	int line_mode = 1;
 	int cfg_mode = 1;
 
 	/*
@@ -675,14 +674,23 @@ static void set_cfg_and_line_modes(struct vpe_ctx *ctx)
 	 * Cfg Mode 1: YUV422 source, disable upsampler, DEI is de-interlacing.
 	 */
 
-	if (fmt->fourcc == V4L2_PIX_FMT_NV12) {
+	if (fmt->fourcc == V4L2_PIX_FMT_NV12)
 		cfg_mode = 0;
-		line_mode = 0;		/* double lines to line buffer */
-	}
 
 	write_field(us1_reg0, cfg_mode, VPE_US_MODE_MASK, VPE_US_MODE_SHIFT);
 	write_field(us2_reg0, cfg_mode, VPE_US_MODE_MASK, VPE_US_MODE_SHIFT);
 	write_field(us3_reg0, cfg_mode, VPE_US_MODE_MASK, VPE_US_MODE_SHIFT);
+
+	ctx->load_mmrs = true;
+}
+
+static void set_line_modes(struct vpe_ctx *ctx)
+{
+	struct vpe_fmt *fmt = ctx->q_data[Q_DATA_SRC].fmt;
+	int line_mode = 1;
+
+	if (fmt->fourcc == V4L2_PIX_FMT_NV12)
+		line_mode = 0;		/* double lines to line buffer */
 
 	/* regs for now */
 	vpdma_set_line_mode(ctx->dev->vpdma, line_mode, VPE_CHAN_CHROMA1_IN);
@@ -708,8 +716,6 @@ static void set_cfg_and_line_modes(struct vpe_ctx *ctx)
 	/* frame start for MV in client */
 	vpdma_set_frame_start_event(ctx->dev->vpdma, VPDMA_FSEVENT_CHANNEL_ACTIVE,
 		VPE_CHAN_MV_IN);
-
-	ctx->load_mmrs = true;
 }
 
 /*
@@ -868,7 +874,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 	if (ret)
 		return ret;
 
-	set_cfg_and_line_modes(ctx);
+	set_cfg_modes(ctx);
 	set_dei_regs(ctx);
 
 	csc_set_coeff(ctx->dev->csc, &mmr_adb->csc_regs[0],
@@ -1184,6 +1190,9 @@ static void device_run(void *priv)
 	if (ctx->dev->loaded_mmrs != ctx->mmr_adb.dma_addr || ctx->load_mmrs) {
 		vpdma_map_desc_buf(ctx->dev->vpdma, &ctx->mmr_adb);
 		vpdma_add_cfd_adb(&ctx->desc_list, CFD_MMR_CLIENT, &ctx->mmr_adb);
+
+		set_line_modes(ctx);
+
 		ctx->dev->loaded_mmrs = ctx->mmr_adb.dma_addr;
 		ctx->load_mmrs = false;
 	}
