@@ -137,8 +137,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
 	if (state->rotation != DRM_ROTATE_0 &&
-	    (state->fb->pixel_format == DRM_FORMAT_RGB888 ||
-	     state->fb->pixel_format == DRM_FORMAT_BGR888))
+	    (fb->pixel_format == DRM_FORMAT_RGB888 ||
+	     fb->pixel_format == DRM_FORMAT_BGR888))
 		return -EINVAL;
 
 	ms->rotmem_size = 0;
@@ -147,7 +147,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 		val = mp->hwdev->rotmem_required(mp->hwdev, state->crtc_h,
 						 state->crtc_w,
-						 state->fb->pixel_format);
+						 fb->pixel_format);
 		if (val < 0)
 			return val;
 
