@@ -159,11 +159,5 @@ struct of_drconf_cell {
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */
 
-/*
- * The architecture vector has an array of PVR mask/value pairs,
- * followed by # option vectors - 1, followed by the option vectors.
- */
-extern unsigned char ibm_architecture_vec[];
-
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */
