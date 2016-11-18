@@ -501,17 +501,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	cmpwi	r0, 0
 	beq	57f
 	li	r3, (LPCR_PECEDH | LPCR_PECE0) >> 4
-	mfspr	r4, SPRN_LPCR
-	rlwimi	r4, r3, 4, (LPCR_PECEDP | LPCR_PECEDH | LPCR_PECE0 | LPCR_PECE1)
-	mtspr	SPRN_LPCR, r4
-	isync
-	std	r0, HSTATE_SCRATCH0(r13)
-	ptesync
-	ld	r0, HSTATE_SCRATCH0(r13)
-1:	cmpd	r0, r0
-	bne	1b
-	nap
-	b	.
+	mfspr	r5, SPRN_LPCR
+	rlwimi	r5, r3, 4, (LPCR_PECEDP | LPCR_PECEDH | LPCR_PECE0 | LPCR_PECE1)
+	b	kvm_nap_sequence
 
 57:	li	r0, 0
 	stbx	r0, r3, r4
@@ -2256,6 +2248,21 @@ BEGIN_FTR_SECTION
 	ori	r5, r5, LPCR_PECEDH
 	rlwimi	r5, r3, 0, LPCR_PECEDP
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
+kvm_nap_sequence:		/* desired LPCR value in r5 */
+BEGIN_FTR_SECTION
+	/*
+	 * PSSCR bits:	exit criterion = 1 (wakeup based on LPCR at sreset)
+	 *		enable state loss = 1 (allow SMT mode switch)
+	 *		requested level = 0 (just stop dispatching)
+	 */
+	lis	r3, (PSSCR_EC | PSSCR_ESL)@h
+	mtspr	SPRN_PSSCR, r3
+	/* Set LPCR_PECE_HVEE bit to enable wakeup by HV interrupts */
+	li	r4, LPCR_PECE_HVEE@higher
+	sldi	r4, r4, 32
+	or	r5, r5, r4
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPCR,r5
 	isync
 	li	r0, 0
@@ -2264,7 +2271,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	ld	r0, HSTATE_SCRATCH0(r13)
 1:	cmpd	r0, r0
 	bne	1b
+BEGIN_FTR_SECTION
 	nap
+FTR_SECTION_ELSE
+	PPC_STOP
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	b	.
 
 33:	mr	r4, r3
