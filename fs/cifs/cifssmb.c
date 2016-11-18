@@ -1399,8 +1399,8 @@ openRetry:
  * Discard any remaining data in the current SMB. To do this, we borrow the
  * current bigbuf.
  */
-static int
-discard_remaining_data(struct TCP_Server_Info *server)
+int
+cifs_discard_remaining_data(struct TCP_Server_Info *server)
 {
 	unsigned int rfclen = get_rfc1002_length(server->smallbuf);
 	int remaining = rfclen + 4 - server->total_read;
@@ -1426,7 +1426,7 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	int length;
 	struct cifs_readdata *rdata = mid->callback_data;
 
-	length = discard_remaining_data(server);
+	length = cifs_discard_remaining_data(server);
 	dequeue_mid(mid, rdata->result);
 	return length;
 }
@@ -1459,7 +1459,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	if (server->ops->is_status_pending &&
 	    server->ops->is_status_pending(buf, server, 0)) {
-		discard_remaining_data(server);
+		cifs_discard_remaining_data(server);
 		return -1;
 	}
 

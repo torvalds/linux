@@ -1844,12 +1844,72 @@ decrypt_raw_data(struct TCP_Server_Info *server, char *buf,
 }
 
 static int
+read_data_into_pages(struct TCP_Server_Info *server, struct page **pages,
+		     unsigned int npages, unsigned int len)
+{
+	int i;
+	int length;
+
+	for (i = 0; i < npages; i++) {
+		struct page *page = pages[i];
+		size_t n;
+
+		n = len;
+		if (len >= PAGE_SIZE) {
+			/* enough data to fill the page */
+			n = PAGE_SIZE;
+			len -= n;
+		} else {
+			zero_user(page, len, PAGE_SIZE - len);
+			len = 0;
+		}
+		length = cifs_read_page_from_socket(server, page, n);
+		if (length < 0)
+			return length;
+		server->total_read += length;
+	}
+
+	return 0;
+}
+
+static int
+init_read_bvec(struct page **pages, unsigned int npages, unsigned int data_size,
+	       unsigned int cur_off, struct bio_vec **page_vec)
+{
+	struct bio_vec *bvec;
+	int i;
+
+	bvec = kcalloc(npages, sizeof(struct bio_vec), GFP_KERNEL);
+	if (!bvec)
+		return -ENOMEM;
+
+	for (i = 0; i < npages; i++) {
+		bvec[i].bv_page = pages[i];
+		bvec[i].bv_offset = (i == 0) ? cur_off : 0;
+		bvec[i].bv_len = min_t(unsigned int, PAGE_SIZE, data_size);
+		data_size -= bvec[i].bv_len;
+	}
+
+	if (data_size != 0) {
+		cifs_dbg(VFS, "%s: something went wrong\n", __func__);
+		kfree(bvec);
+		return -EIO;
+	}
+
+	*page_vec = bvec;
+	return 0;
+}
+
+static int
 handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		 char *buf, unsigned int buf_len, struct page **pages,
 		 unsigned int npages, unsigned int page_data_size)
 {
 	unsigned int data_offset;
 	unsigned int data_len;
+	unsigned int cur_off;
+	unsigned int cur_page_idx;
+	unsigned int pad_len;
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
 	struct bio_vec *bvec = NULL;
@@ -1895,9 +1955,37 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		return 0;
 	}
 
+	pad_len = data_offset - server->vals->read_rsp_size;
+
 	if (buf_len <= data_offset) {
 		/* read response payload is in pages */
-		/* BB add code to init iter with pages */
+		cur_page_idx = pad_len / PAGE_SIZE;
+		cur_off = pad_len % PAGE_SIZE;
+
+		if (cur_page_idx != 0) {
+			/* data offset is beyond the 1st page of response */
+			cifs_dbg(FYI, "%s: data offset (%u) beyond 1st page of response\n",
+				 __func__, data_offset);
+			rdata->result = -EIO;
+			dequeue_mid(mid, rdata->result);
+			return 0;
+		}
+
+		if (data_len > page_data_size - pad_len) {
+			/* data_len is corrupt -- discard frame */
+			rdata->result = -EIO;
+			dequeue_mid(mid, rdata->result);
+			return 0;
+		}
+
+		rdata->result = init_read_bvec(pages, npages, page_data_size,
+					       cur_off, &bvec);
+		if (rdata->result != 0) {
+			dequeue_mid(mid, rdata->result);
+			return 0;
+		}
+
+		iov_iter_bvec(&iter, WRITE | ITER_BVEC, bvec, npages, data_len);
 	} else if (buf_len >= data_offset + data_len) {
 		/* read response payload is in buf */
 		WARN_ONCE(npages > 0, "read data can be either in buf or in pages");
@@ -1929,6 +2017,79 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 
 	dequeue_mid(mid, false);
 	return length;
+}
+
+static int
+receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
+{
+	char *buf = server->smallbuf;
+	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
+	unsigned int npages;
+	struct page **pages;
+	unsigned int len;
+	unsigned int buflen = get_rfc1002_length(buf) + 4;
+	int rc;
+	int i = 0;
+
+	len = min_t(unsigned int, buflen, server->vals->read_rsp_size - 4 +
+		sizeof(struct smb2_transform_hdr)) - HEADER_SIZE(server) + 1;
+
+	rc = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1, len);
+	if (rc < 0)
+		return rc;
+	server->total_read += rc;
+
+	len = le32_to_cpu(tr_hdr->OriginalMessageSize) + 4 -
+						server->vals->read_rsp_size;
+	npages = DIV_ROUND_UP(len, PAGE_SIZE);
+
+	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		rc = -ENOMEM;
+		goto discard_data;
+	}
+
+	for (; i < npages; i++) {
+		pages[i] = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
+		if (!pages[i]) {
+			rc = -ENOMEM;
+			goto discard_data;
+		}
+	}
+
+	/* read read data into pages */
+	rc = read_data_into_pages(server, pages, npages, len);
+	if (rc)
+		goto free_pages;
+
+	rc = cifs_discard_remaining_data(server);
+	if (rc)
+		goto free_pages;
+
+	rc = decrypt_raw_data(server, buf, server->vals->read_rsp_size - 4,
+			      pages, npages, len);
+	if (rc)
+		goto free_pages;
+
+	*mid = smb2_find_mid(server, buf);
+	if (*mid == NULL)
+		cifs_dbg(FYI, "mid not found\n");
+	else {
+		cifs_dbg(FYI, "mid found\n");
+		(*mid)->decrypted = true;
+		rc = handle_read_data(server, *mid, buf,
+				      server->vals->read_rsp_size,
+				      pages, npages, len);
+	}
+
+free_pages:
+	for (i = i - 1; i >= 0; i--)
+		put_page(pages[i]);
+	kfree(pages);
+	return rc;
+discard_data:
+	cifs_discard_remaining_data(server);
+	goto free_pages;
 }
 
 static int
@@ -2000,14 +2161,8 @@ smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 		return -ECONNABORTED;
 	}
 
-	if (pdu_length + 4 > CIFSMaxBufSize + MAX_HEADER_SIZE(server)) {
-		cifs_dbg(VFS, "Decoding responses of big size (%u) is not supported\n",
-			 pdu_length);
-		/* BB add code to allocate and fill highmem pages here */
-		cifs_reconnect(server);
-		wake_up(&server->response_q);
-		return -ECONNABORTED;
-	}
+	if (pdu_length + 4 > CIFSMaxBufSize + MAX_HEADER_SIZE(server))
+		return receive_encrypted_read(server, mid);
 
 	return receive_encrypted_standard(server, mid);
 }
