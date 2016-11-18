@@ -2396,7 +2396,7 @@ static int fdp1_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int fdp1_pm_runtime_suspend(struct device *dev)
+static int __maybe_unused fdp1_pm_runtime_suspend(struct device *dev)
 {
 	struct fdp1_dev *fdp1 = dev_get_drvdata(dev);
 
@@ -2405,7 +2405,7 @@ static int fdp1_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int fdp1_pm_runtime_resume(struct device *dev)
+static int __maybe_unused fdp1_pm_runtime_resume(struct device *dev)
 {
 	struct fdp1_dev *fdp1 = dev_get_drvdata(dev);
 
