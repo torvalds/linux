@@ -386,13 +386,13 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 	index += 4;
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-		if (rcvucodelen != OasisRcvUCodeLen) {
+		if (rcvucodelen != oasis_rcv_ucode_len) {
 			release_firmware(fw);
 			return -EINVAL;
 		}
 		break;
 	case SLIC_1GB_DEVICE_ID:
-		if (rcvucodelen != GBRcvUCodeLen) {
+		if (rcvucodelen != gb_rcv_ucode_len) {
 			release_firmware(fw);
 			return -EINVAL;
 		}
@@ -1837,7 +1837,7 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 		if (hdr->frame_status14 & VRHSTAT_802OE)
 			adapter->if_events.oflow802++;
 		if (hdr->frame_status14 & VRHSTAT_TPOFLO)
-			adapter->if_events.Tprtoflow++;
+			adapter->if_events.tprtoflow++;
 		if (hdr->frame_status_b14 & VRHSTATB_802UE)
 			adapter->if_events.uflow802++;
 		if (hdr->frame_status_b14 & VRHSTATB_RCVE) {
@@ -1845,45 +1845,45 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 			netdev->stats.rx_fifo_errors++;
 		}
 		if (hdr->frame_status_b14 & VRHSTATB_BUFF) {
-			adapter->if_events.Bufov++;
+			adapter->if_events.bufov++;
 			netdev->stats.rx_over_errors++;
 		}
 		if (hdr->frame_status_b14 & VRHSTATB_CARRE) {
-			adapter->if_events.Carre++;
+			adapter->if_events.carre++;
 			netdev->stats.tx_carrier_errors++;
 		}
 		if (hdr->frame_status_b14 & VRHSTATB_LONGE)
-			adapter->if_events.Longe++;
+			adapter->if_events.longe++;
 		if (hdr->frame_status_b14 & VRHSTATB_PREA)
-			adapter->if_events.Invp++;
+			adapter->if_events.invp++;
 		if (hdr->frame_status_b14 & VRHSTATB_CRC) {
-			adapter->if_events.Crc++;
+			adapter->if_events.crc++;
 			netdev->stats.rx_crc_errors++;
 		}
 		if (hdr->frame_status_b14 & VRHSTATB_DRBL)
-			adapter->if_events.Drbl++;
+			adapter->if_events.drbl++;
 		if (hdr->frame_status_b14 & VRHSTATB_CODE)
-			adapter->if_events.Code++;
+			adapter->if_events.code++;
 		if (hdr->frame_status_b14 & VRHSTATB_TPCSUM)
-			adapter->if_events.TpCsum++;
+			adapter->if_events.tp_csum++;
 		if (hdr->frame_status_b14 & VRHSTATB_TPHLEN)
-			adapter->if_events.TpHlen++;
+			adapter->if_events.tp_hlen++;
 		if (hdr->frame_status_b14 & VRHSTATB_IPCSUM)
-			adapter->if_events.IpCsum++;
+			adapter->if_events.ip_csum++;
 		if (hdr->frame_status_b14 & VRHSTATB_IPLERR)
-			adapter->if_events.IpLen++;
+			adapter->if_events.ip_len++;
 		if (hdr->frame_status_b14 & VRHSTATB_IPHERR)
-			adapter->if_events.IpHlen++;
+			adapter->if_events.ip_hlen++;
 	} else {
 		if (hdr->frame_statusGB & VGBSTAT_XPERR) {
 			u32 xerr = hdr->frame_statusGB >> VGBSTAT_XERRSHFT;
 
 			if (xerr == VGBSTAT_XCSERR)
-				adapter->if_events.TpCsum++;
+				adapter->if_events.tp_csum++;
 			if (xerr == VGBSTAT_XUFLOW)
-				adapter->if_events.Tprtoflow++;
+				adapter->if_events.tprtoflow++;
 			if (xerr == VGBSTAT_XHLEN)
-				adapter->if_events.TpHlen++;
+				adapter->if_events.tp_hlen++;
 		}
 		if (hdr->frame_statusGB & VGBSTAT_NETERR) {
 			u32 nerr =
@@ -1891,11 +1891,11 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 			     frame_statusGB >> VGBSTAT_NERRSHFT) &
 			    VGBSTAT_NERRMSK;
 			if (nerr == VGBSTAT_NCSERR)
-				adapter->if_events.IpCsum++;
+				adapter->if_events.ip_csum++;
 			if (nerr == VGBSTAT_NUFLOW)
-				adapter->if_events.IpLen++;
+				adapter->if_events.ip_len++;
 			if (nerr == VGBSTAT_NHLEN)
-				adapter->if_events.IpHlen++;
+				adapter->if_events.ip_hlen++;
 		}
 		if (hdr->frame_statusGB & VGBSTAT_LNKERR) {
 			u32 lerr = hdr->frame_statusGB & VGBSTAT_LERRMSK;
@@ -1903,13 +1903,13 @@ static void slic_rcv_handle_error(struct adapter *adapter,
 			if (lerr == VGBSTAT_LDEARLY)
 				adapter->if_events.rcvearly++;
 			if (lerr == VGBSTAT_LBOFLO)
-				adapter->if_events.Bufov++;
+				adapter->if_events.bufov++;
 			if (lerr == VGBSTAT_LCODERR)
-				adapter->if_events.Code++;
+				adapter->if_events.code++;
 			if (lerr == VGBSTAT_LDBLNBL)
-				adapter->if_events.Drbl++;
+				adapter->if_events.drbl++;
 			if (lerr == VGBSTAT_LCRCERR)
-				adapter->if_events.Crc++;
+				adapter->if_events.crc++;
 			if (lerr == VGBSTAT_LOFLO)
 				adapter->if_events.oflow802++;
 			if (lerr == VGBSTAT_LUFLO)
