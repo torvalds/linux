@@ -1584,8 +1584,4 @@ static struct platform_driver stm32f429_pinctrl_driver = {
 	},
 };
 
-static int __init stm32f429_pinctrl_init(void)
-{
-	return platform_driver_register(&stm32f429_pinctrl_driver);
-}
-device_initcall(stm32f429_pinctrl_init);
+builtin_platform_driver(stm32f429_pinctrl_driver);
