@@ -23,6 +23,9 @@
 	compatible = "samsung,tm2", "samsung,exynos5433";
 
 	aliases {
+		gsc0 = &gsc_0;
+		gsc1 = &gsc_1;
+		gsc2 = &gsc_2;
 		pinctrl0 = &pinctrl_alive;
 		pinctrl1 = &pinctrl_aud;
 		pinctrl2 = &pinctrl_cpif;
@@ -184,6 +187,13 @@
 		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY>;
 	assigned-clock-rates = <0>, <0>, <0>, <0>, <0>, <0>, <0>, <0>,
 			       <66700000>, <66700000>;
+};
+
+&cmu_gscl {
+	assigned-clocks = <&cmu_gscl CLK_MOUT_ACLK_GSCL_111_USER>,
+			  <&cmu_gscl CLK_MOUT_ACLK_GSCL_333_USER>;
+	assigned-clock-parents = <&cmu_top CLK_ACLK_GSCL_111>,
+				 <&cmu_top CLK_ACLK_GSCL_333>;
 };
 
 &cpu0 {

@@ -805,6 +805,45 @@
 			reg = <0x145f0000 0x1038>;
 		};
 
+		gsc_0: video-scaler@13C00000 {
+			compatible = "samsung,exynos5433-gsc";
+			reg = <0x13c00000 0x1000>;
+			interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk", "aclk_xiu",
+				      "aclk_gsclbend";
+			clocks = <&cmu_gscl CLK_PCLK_GSCL0>,
+				 <&cmu_gscl CLK_ACLK_GSCL0>,
+				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
+				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
+			iommus = <&sysmmu_gscl0>;
+		};
+
+		gsc_1: video-scaler@13C10000 {
+			compatible = "samsung,exynos5433-gsc";
+			reg = <0x13c10000 0x1000>;
+			interrupts = <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk", "aclk_xiu",
+				      "aclk_gsclbend";
+			clocks = <&cmu_gscl CLK_PCLK_GSCL1>,
+				 <&cmu_gscl CLK_ACLK_GSCL1>,
+				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
+				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
+			iommus = <&sysmmu_gscl1>;
+		};
+
+		gsc_2: video-scaler@13C20000 {
+			compatible = "samsung,exynos5433-gsc";
+			reg = <0x13c20000 0x1000>;
+			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk", "aclk_xiu",
+				      "aclk_gsclbend";
+			clocks = <&cmu_gscl CLK_PCLK_GSCL2>,
+				 <&cmu_gscl CLK_ACLK_GSCL2>,
+				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
+				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
+			iommus = <&sysmmu_gscl2>;
+		};
+
 		sysmmu_decon0x: sysmmu@0x13a00000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x13a00000 0x1000>;
@@ -822,6 +861,36 @@
 			clock-names = "pclk", "aclk";
 			clocks = <&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 				<&cmu_disp CLK_ACLK_SMMU_DECON1X>;
+			#iommu-cells = <0>;
+		};
+
+		sysmmu_gscl0: sysmmu@0x13C80000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x13C80000 0x1000>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL0>,
+				 <&cmu_gscl CLK_PCLK_SMMU_GSCL0>;
+			#iommu-cells = <0>;
+		};
+
+		sysmmu_gscl1: sysmmu@0x13C90000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x13C90000 0x1000>;
+			interrupts = <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL1>,
+				 <&cmu_gscl CLK_PCLK_SMMU_GSCL1>;
+			#iommu-cells = <0>;
+		};
+
+		sysmmu_gscl2: sysmmu@0x13CA0000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x13CA0000 0x1000>;
+			interrupts = <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "aclk", "pclk";
+			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL2>,
+				 <&cmu_gscl CLK_PCLK_SMMU_GSCL2>;
 			#iommu-cells = <0>;
 		};
 
