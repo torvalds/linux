@@ -8717,6 +8717,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
+	fb->format = drm_format_info(fourcc);
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		if (plane_config->tiling)
@@ -9748,6 +9749,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 				      val & PLANE_CTL_ALPHA_MASK);
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
+	fb->format = drm_format_info(fourcc);
 
 	tiling = val & PLANE_CTL_TILED_MASK;
 	switch (tiling) {
@@ -9863,6 +9865,7 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
+	fb->format = drm_format_info(fourcc);
 
 	base = I915_READ(DSPSURF(pipe)) & 0xfffff000;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
