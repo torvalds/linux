@@ -191,6 +191,29 @@ const struct vpdma_data_format vpdma_rgb_fmts[] = {
 };
 EXPORT_SYMBOL(vpdma_rgb_fmts);
 
+/*
+ * To handle RAW format we are re-using the CBY422
+ * vpdma data type so that we use the vpdma to re-order
+ * the incoming bytes, as the parser assumes that the
+ * first byte presented on the bus is the MSB of a 2
+ * bytes value.
+ * RAW8 handles from 1 to 8 bits
+ * RAW16 handles from 9 to 16 bits
+ */
+const struct vpdma_data_format vpdma_raw_fmts[] = {
+	[VPDMA_DATA_FMT_RAW8] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_CBY422,
+		.depth		= 8,
+	},
+	[VPDMA_DATA_FMT_RAW16] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_CBY422,
+		.depth		= 16,
+	},
+};
+EXPORT_SYMBOL(vpdma_raw_fmts);
+
 const struct vpdma_data_format vpdma_misc_fmts[] = {
 	[VPDMA_DATA_FMT_MV] = {
 		.type		= VPDMA_DATA_FMT_TYPE_MISC,

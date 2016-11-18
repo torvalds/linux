@@ -104,12 +104,18 @@ enum vpdma_rgb_formats {
 	VPDMA_DATA_FMT_BGRA32,
 };
 
+enum vpdma_raw_formats {
+	VPDMA_DATA_FMT_RAW8 = 0,
+	VPDMA_DATA_FMT_RAW16,
+};
+
 enum vpdma_misc_formats {
 	VPDMA_DATA_FMT_MV = 0,
 };
 
 extern const struct vpdma_data_format vpdma_yuv_fmts[];
 extern const struct vpdma_data_format vpdma_rgb_fmts[];
+extern const struct vpdma_data_format vpdma_raw_fmts[];
 extern const struct vpdma_data_format vpdma_misc_fmts[];
 
 enum vpdma_frame_start_event {
