@@ -173,6 +173,12 @@
 /* number of taps expected by the scaler in it's coefficient memory */
 #define SC_NUM_TAPS_MEM_ALIGN		8
 
+/* Maximum frame width the scaler can handle (in pixels) */
+#define SC_MAX_PIXEL_WIDTH		2047
+
+/* Maximum frame height the scaler can handle (in lines) */
+#define SC_MAX_PIXEL_HEIGHT		2047
+
 /*
  * coefficient memory size in bytes:
  * num phases x num sets(luma and chroma) x num taps(aligned) x coeff size

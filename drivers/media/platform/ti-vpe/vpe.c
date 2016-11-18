@@ -2025,9 +2025,92 @@ static void vpe_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
+static int check_srcdst_sizes(struct vpe_ctx *ctx)
+{
+	struct vpe_q_data *s_q_data =  &ctx->q_data[Q_DATA_SRC];
+	struct vpe_q_data *d_q_data =  &ctx->q_data[Q_DATA_DST];
+	unsigned int src_w = s_q_data->c_rect.width;
+	unsigned int src_h = s_q_data->c_rect.height;
+	unsigned int dst_w = d_q_data->c_rect.width;
+	unsigned int dst_h = d_q_data->c_rect.height;
+
+	if (src_w == dst_w && src_h == dst_h)
+		return 0;
+
+	if (src_h <= SC_MAX_PIXEL_HEIGHT &&
+	    src_w <= SC_MAX_PIXEL_WIDTH &&
+	    dst_h <= SC_MAX_PIXEL_HEIGHT &&
+	    dst_w <= SC_MAX_PIXEL_WIDTH)
+		return 0;
+
+	return -1;
+}
+
+static void vpe_return_all_buffers(struct vpe_ctx *ctx,  struct vb2_queue *q,
+				   enum vb2_buffer_state state)
+{
+	struct vb2_v4l2_buffer *vb;
+	unsigned long flags;
+
+	for (;;) {
+		if (V4L2_TYPE_IS_OUTPUT(q->type))
+			vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+		else
+			vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+		if (!vb)
+			break;
+		spin_lock_irqsave(&ctx->dev->lock, flags);
+		v4l2_m2m_buf_done(vb, state);
+		spin_unlock_irqrestore(&ctx->dev->lock, flags);
+	}
+
+	/*
+	 * Cleanup the in-transit vb2 buffers that have been
+	 * removed from their respective queue already but for
+	 * which procecessing has not been completed yet.
+	 */
+	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
+		spin_lock_irqsave(&ctx->dev->lock, flags);
+
+		if (ctx->src_vbs[2])
+			v4l2_m2m_buf_done(ctx->src_vbs[2], state);
+
+		if (ctx->src_vbs[1] && (ctx->src_vbs[1] != ctx->src_vbs[2]))
+			v4l2_m2m_buf_done(ctx->src_vbs[1], state);
+
+		if (ctx->src_vbs[0] &&
+		    (ctx->src_vbs[0] != ctx->src_vbs[1]) &&
+		    (ctx->src_vbs[0] != ctx->src_vbs[2]))
+			v4l2_m2m_buf_done(ctx->src_vbs[0], state);
+
+		ctx->src_vbs[2] = NULL;
+		ctx->src_vbs[1] = NULL;
+		ctx->src_vbs[0] = NULL;
+
+		spin_unlock_irqrestore(&ctx->dev->lock, flags);
+	} else {
+		if (ctx->dst_vb) {
+			spin_lock_irqsave(&ctx->dev->lock, flags);
+
+			v4l2_m2m_buf_done(ctx->dst_vb, state);
+			ctx->dst_vb = NULL;
+			spin_unlock_irqrestore(&ctx->dev->lock, flags);
+		}
+	}
+}
+
 static int vpe_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct vpe_ctx *ctx = vb2_get_drv_priv(q);
+
+	/* Check any of the size exceed maximum scaling sizes */
+	if (check_srcdst_sizes(ctx)) {
+		vpe_err(ctx->dev,
+			"Conversion setup failed, check source and destination parameters\n"
+			);
+		vpe_return_all_buffers(ctx, q, VB2_BUF_STATE_QUEUED);
+		return -EINVAL;
+	}
 
 	if (ctx->deinterlacing)
 		config_edi_input_mode(ctx, 0x0);
@@ -2041,57 +2124,11 @@ static int vpe_start_streaming(struct vb2_queue *q, unsigned int count)
 static void vpe_stop_streaming(struct vb2_queue *q)
 {
 	struct vpe_ctx *ctx = vb2_get_drv_priv(q);
-	struct vb2_v4l2_buffer *vb;
-	unsigned long flags;
 
 	vpe_dump_regs(ctx->dev);
 	vpdma_dump_regs(ctx->dev->vpdma);
 
-	for (;;) {
-		if (V4L2_TYPE_IS_OUTPUT(q->type))
-			vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
-		else
-			vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-		if (!vb)
-			break;
-		spin_lock_irqsave(&ctx->dev->lock, flags);
-		v4l2_m2m_buf_done(vb, VB2_BUF_STATE_ERROR);
-		spin_unlock_irqrestore(&ctx->dev->lock, flags);
-	}
-
-	/*
-	 * Cleanup the in-transit vb2 buffers that have been
-	 * removed from their respective queue already but for
-	 * which procecessing has not been completed yet.
-	 */
-	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
-		spin_lock_irqsave(&ctx->dev->lock, flags);
-
-		if (ctx->src_vbs[2])
-			v4l2_m2m_buf_done(ctx->src_vbs[2], VB2_BUF_STATE_ERROR);
-
-		if (ctx->src_vbs[1] && (ctx->src_vbs[1] != ctx->src_vbs[2]))
-			v4l2_m2m_buf_done(ctx->src_vbs[1], VB2_BUF_STATE_ERROR);
-
-		if (ctx->src_vbs[0] &&
-		    (ctx->src_vbs[0] != ctx->src_vbs[1]) &&
-		    (ctx->src_vbs[0] != ctx->src_vbs[2]))
-			v4l2_m2m_buf_done(ctx->src_vbs[0], VB2_BUF_STATE_ERROR);
-
-		ctx->src_vbs[2] = NULL;
-		ctx->src_vbs[1] = NULL;
-		ctx->src_vbs[0] = NULL;
-
-		spin_unlock_irqrestore(&ctx->dev->lock, flags);
-	} else {
-		if (ctx->dst_vb) {
-			spin_lock_irqsave(&ctx->dev->lock, flags);
-
-			v4l2_m2m_buf_done(ctx->dst_vb, VB2_BUF_STATE_ERROR);
-			ctx->dst_vb = NULL;
-			spin_unlock_irqrestore(&ctx->dev->lock, flags);
-		}
-	}
+	vpe_return_all_buffers(ctx, q, VB2_BUF_STATE_ERROR);
 }
 
 static const struct vb2_ops vpe_qops = {
