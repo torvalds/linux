@@ -1736,9 +1736,7 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
 		    !IS_ALIGNED(blk_rq_sectors(next), 8))
 			break;
 
-		if (req_op(next) == REQ_OP_DISCARD ||
-		    req_op(next) == REQ_OP_SECURE_ERASE ||
-		    req_op(next) == REQ_OP_FLUSH)
+		if (mmc_req_is_special(next))
 			break;
 
 		if (rq_data_dir(cur) != rq_data_dir(next))
