@@ -429,27 +429,41 @@ static void acm_read_bulk_callback(struct urb *urb)
 	dev_vdbg(&acm->data->dev, "got urb %d, len %d, status %d\n",
 		rb->index, urb->actual_length, status);
 
+	set_bit(rb->index, &acm->read_urbs_free);
+
 	if (!acm->dev) {
-		set_bit(rb->index, &acm->read_urbs_free);
 		dev_dbg(&acm->data->dev, "%s - disconnected\n", __func__);
 		return;
 	}
 
-	if (status) {
-		set_bit(rb->index, &acm->read_urbs_free);
-		if ((status != -ENOENT) || (urb->actual_length == 0))
-			return;
+	switch (status) {
+	case 0:
+		usb_mark_last_busy(acm->dev);
+		acm_process_read_urb(acm, urb);
+		break;
+	case -EPIPE:
+		set_bit(EVENT_RX_STALL, &acm->flags);
+		schedule_work(&acm->work);
+		return;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+		dev_dbg(&acm->data->dev,
+			"%s - urb shutting down with status: %d\n",
+			__func__, status);
+		return;
+	default:
+		dev_dbg(&acm->data->dev,
+			"%s - nonzero urb status received: %d\n",
+			__func__, status);
+		break;
 	}
 
-	usb_mark_last_busy(acm->dev);
-
-	acm_process_read_urb(acm, urb);
 	/*
 	 * Unthrottle may run on another CPU which needs to see events
 	 * in the same order. Submission has an implict barrier
 	 */
 	smp_mb__before_atomic();
-	set_bit(rb->index, &acm->read_urbs_free);
 
 	/* throttle device if requested by tty */
 	spin_lock_irqsave(&acm->read_lock, flags);
@@ -479,14 +493,30 @@ static void acm_write_bulk(struct urb *urb)
 	spin_lock_irqsave(&acm->write_lock, flags);
 	acm_write_done(acm, wb);
 	spin_unlock_irqrestore(&acm->write_lock, flags);
+	set_bit(EVENT_TTY_WAKEUP, &acm->flags);
 	schedule_work(&acm->work);
 }
 
 static void acm_softint(struct work_struct *work)
 {
+	int i;
 	struct acm *acm = container_of(work, struct acm, work);
 
-	tty_port_tty_wakeup(&acm->port);
+	if (test_bit(EVENT_RX_STALL, &acm->flags)) {
+		if (!(usb_autopm_get_interface(acm->data))) {
+			for (i = 0; i < acm->rx_buflimit; i++)
+				usb_kill_urb(acm->read_urbs[i]);
+			usb_clear_halt(acm->dev, acm->in);
+			acm_submit_read_urbs(acm, GFP_KERNEL);
+			usb_autopm_put_interface(acm->data);
+		}
+		clear_bit(EVENT_RX_STALL, &acm->flags);
+	}
+
+	if (test_bit(EVENT_TTY_WAKEUP, &acm->flags)) {
+		tty_port_tty_wakeup(&acm->port);
+		clear_bit(EVENT_TTY_WAKEUP, &acm->flags);
+	}
 }
 
 /*
@@ -1631,6 +1661,15 @@ static int acm_reset_resume(struct usb_interface *intf)
 
 #endif /* CONFIG_PM */
 
+static int acm_pre_reset(struct usb_interface *intf)
+{
+	struct acm *acm = usb_get_intfdata(intf);
+
+	clear_bit(EVENT_RX_STALL, &acm->flags);
+
+	return 0;
+}
+
 #define NOKIA_PCSUITE_ACM_INFO(x) \
 		USB_DEVICE_AND_INTERFACE_INFO(0x0421, x, \
 		USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM, \
@@ -1872,6 +1911,7 @@ static struct usb_driver acm_driver = {
 	.resume =	acm_resume,
 	.reset_resume =	acm_reset_resume,
 #endif
+	.pre_reset =	acm_pre_reset,
 	.id_table =	acm_ids,
 #ifdef CONFIG_PM
 	.supports_autosuspend = 1,

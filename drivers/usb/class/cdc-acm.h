@@ -103,6 +103,9 @@ struct acm {
 	spinlock_t write_lock;
 	struct mutex mutex;
 	bool disconnected;
+	unsigned long flags;
+#		define EVENT_TTY_WAKEUP	0
+#		define EVENT_RX_STALL	1
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */
