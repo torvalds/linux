@@ -380,7 +380,7 @@ static void intel_th_device_free(struct intel_th_device *thdev)
 /*
  * Intel(R) Trace Hub subdevices
  */
-static struct intel_th_subdevice {
+static const struct intel_th_subdevice {
 	const char		*name;
 	struct resource		res[3];
 	unsigned		nres;
