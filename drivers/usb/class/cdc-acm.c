@@ -1337,8 +1337,7 @@ made_compressed_probe:
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
 	mutex_init(&acm->mutex);
-	acm->is_int_ep = usb_endpoint_xfer_int(epread);
-	if (acm->is_int_ep) {
+	if (usb_endpoint_xfer_int(epread)) {
 		acm->bInterval = epread->bInterval;
 		acm->in = usb_rcvintpipe(usb_dev, epread->bEndpointAddress);
 	} else {
@@ -1382,7 +1381,7 @@ made_compressed_probe:
 
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_dma = rb->dma;
-		if (acm->is_int_ep)
+		if (usb_endpoint_xfer_int(epread))
 			usb_fill_int_urb(urb, acm->dev, acm->in, rb->base,
 					 acm->readsize,
 					 acm_read_bulk_callback, rb,
