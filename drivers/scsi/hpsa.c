@@ -5487,7 +5487,7 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	dev = cmd->device->hostdata;
 	if (!dev) {
-		cmd->result = NOT_READY << 16; /* host byte */
+		cmd->result = DID_NO_CONNECT << 16;
 		cmd->scsi_done(cmd);
 		return 0;
 	}
