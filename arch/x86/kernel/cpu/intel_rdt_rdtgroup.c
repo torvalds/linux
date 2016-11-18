@@ -194,12 +194,13 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 /*
  * This is safe against intel_rdt_sched_in() called from __switch_to()
  * because __switch_to() is executed with interrupts disabled. A local call
- * from rdt_update_percpu_closid() is proteced against __switch_to() because
+ * from rdt_update_closid() is proteced against __switch_to() because
  * preemption is disabled.
  */
-static void rdt_update_cpu_closid(void *v)
+static void rdt_update_cpu_closid(void *closid)
 {
-	this_cpu_write(cpu_closid, *(int *)v);
+	if (closid)
+		this_cpu_write(cpu_closid, *(int *)closid);
 	/*
 	 * We cannot unconditionally write the MSR because the current
 	 * executing task might have its own closid selected. Just reuse
@@ -208,14 +209,23 @@ static void rdt_update_cpu_closid(void *v)
 	intel_rdt_sched_in();
 }
 
-/* Update the per cpu closid and eventually the PGR_ASSOC MSR */
-static void rdt_update_percpu_closid(const struct cpumask *cpu_mask, int closid)
+/*
+ * Update the PGR_ASSOC MSR on all cpus in @cpu_mask,
+ *
+ * Per task closids must have been set up before calling this function.
+ *
+ * The per cpu closids are updated with the smp function call, when @closid
+ * is not NULL. If @closid is NULL then all affected percpu closids must
+ * have been set up before calling this function.
+ */
+static void
+rdt_update_closid(const struct cpumask *cpu_mask, int *closid)
 {
 	int cpu = get_cpu();
 
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		rdt_update_cpu_closid(&closid);
-	smp_call_function_many(cpu_mask, rdt_update_cpu_closid, &closid, 1);
+		rdt_update_cpu_closid(closid);
+	smp_call_function_many(cpu_mask, rdt_update_cpu_closid, closid, 1);
 	put_cpu();
 }
 
@@ -264,7 +274,7 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		/* Give any dropped cpus to rdtgroup_default */
 		cpumask_or(&rdtgroup_default.cpu_mask,
 			   &rdtgroup_default.cpu_mask, tmpmask);
-		rdt_update_percpu_closid(tmpmask, rdtgroup_default.closid);
+		rdt_update_closid(tmpmask, &rdtgroup_default.closid);
 	}
 
 	/*
@@ -278,7 +288,7 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 				continue;
 			cpumask_andnot(&r->cpu_mask, &r->cpu_mask, tmpmask);
 		}
-		rdt_update_percpu_closid(tmpmask, rdtgrp->closid);
+		rdt_update_closid(tmpmask, &rdtgrp->closid);
 	}
 
 	/* Done pushing/pulling - update this group with new mask */
@@ -807,18 +817,49 @@ static int reset_all_cbms(struct rdt_resource *r)
 }
 
 /*
+ * Move tasks from one to the other group. If @from is NULL, then all tasks
+ * in the systems are moved unconditionally (used for teardown).
+ *
+ * If @mask is not NULL the cpus on which moved tasks are running are set
+ * in that mask so the update smp function call is restricted to affected
+ * cpus.
+ */
+static void rdt_move_group_tasks(struct rdtgroup *from, struct rdtgroup *to,
+				 struct cpumask *mask)
+{
+	struct task_struct *p, *t;
+
+	read_lock(&tasklist_lock);
+	for_each_process_thread(p, t) {
+		if (!from || t->closid == from->closid) {
+			t->closid = to->closid;
+#ifdef CONFIG_SMP
+			/*
+			 * This is safe on x86 w/o barriers as the ordering
+			 * of writing to task_cpu() and t->on_cpu is
+			 * reverse to the reading here. The detection is
+			 * inaccurate as tasks might move or schedule
+			 * before the smp function call takes place. In
+			 * such a case the function call is pointless, but
+			 * there is no other side effect.
+			 */
+			if (mask && t->on_cpu)
+				cpumask_set_cpu(task_cpu(t), mask);
+#endif
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
+/*
  * Forcibly remove all of subdirectories under root.
  */
 static void rmdir_all_sub(void)
 {
 	struct rdtgroup *rdtgrp, *tmp;
-	struct task_struct *p, *t;
 
-	/* move all tasks to default resource group */
-	read_lock(&tasklist_lock);
-	for_each_process_thread(p, t)
-		t->closid = 0;
-	read_unlock(&tasklist_lock);
+	/* Move all tasks to the default resource group */
+	rdt_move_group_tasks(NULL, &rdtgroup_default, NULL);
 
 	list_for_each_entry_safe(rdtgrp, tmp, &rdt_all_groups, rdtgroup_list) {
 		/* Remove each rdtgroup other than root */
@@ -833,13 +874,15 @@ static void rmdir_all_sub(void)
 		cpumask_or(&rdtgroup_default.cpu_mask,
 			   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
 
-		rdt_update_percpu_closid(&rdtgrp->cpu_mask,
-					 rdtgroup_default.closid);
-
 		kernfs_remove(rdtgrp->kn);
 		list_del(&rdtgrp->rdtgroup_list);
 		kfree(rdtgrp);
 	}
+	/* Notify online CPUs to update per cpu storage and PQR_ASSOC MSR */
+	get_online_cpus();
+	rdt_update_closid(cpu_online_mask, &rdtgroup_default.closid);
+	put_online_cpus();
+
 	kernfs_remove(kn_info);
 }
 
@@ -944,27 +987,35 @@ out_unlock:
 
 static int rdtgroup_rmdir(struct kernfs_node *kn)
 {
-	struct task_struct *p, *t;
+	int ret, cpu, closid = rdtgroup_default.closid;
 	struct rdtgroup *rdtgrp;
+	cpumask_var_t tmpmask;
+
+	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
+		return -ENOMEM;
 
 	rdtgrp = rdtgroup_kn_lock_live(kn);
 	if (!rdtgrp) {
-		rdtgroup_kn_unlock(kn);
-		return -EPERM;
+		ret = -EPERM;
+		goto out;
 	}
 
 	/* Give any tasks back to the default group */
-	read_lock(&tasklist_lock);
-	for_each_process_thread(p, t) {
-		if (t->closid == rdtgrp->closid)
-			t->closid = 0;
-	}
-	read_unlock(&tasklist_lock);
+	rdt_move_group_tasks(rdtgrp, &rdtgroup_default, tmpmask);
 
 	/* Give any CPUs back to the default group */
 	cpumask_or(&rdtgroup_default.cpu_mask,
 		   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
-	rdt_update_percpu_closid(&rdtgrp->cpu_mask, rdtgroup_default.closid);
+
+	/* Update per cpu closid of the moved CPUs first */
+	for_each_cpu(cpu, &rdtgrp->cpu_mask)
+		per_cpu(cpu_closid, cpu) = closid;
+	/*
+	 * Update the MSR on moved CPUs and CPUs which have moved
+	 * task running on them.
+	 */
+	cpumask_or(tmpmask, tmpmask, &rdtgrp->cpu_mask);
+	rdt_update_closid(tmpmask, NULL);
 
 	rdtgrp->flags = RDT_DELETED;
 	closid_free(rdtgrp->closid);
@@ -976,9 +1027,11 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 	 */
 	kernfs_get(kn);
 	kernfs_remove(rdtgrp->kn);
-
+	ret = 0;
+out:
 	rdtgroup_kn_unlock(kn);
-	return 0;
+	free_cpumask_var(tmpmask);
+	return ret;
 }
 
 static struct kernfs_syscall_ops rdtgroup_kf_syscall_ops = {
