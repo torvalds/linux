@@ -1191,9 +1191,9 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 			}
 			pdev = pci_get_domain_bus_and_slot(domain, bus, devfn);
 			if (!pdev) {
-				pr_err("invalid PCI address %04x:%02x:%02x.%x\n",
-					domain, bus, PCI_SLOT(devfn),
-					PCI_FUNC(devfn));
+				pr_debug("invalid PCI address %04x:%02x:%02x.%x\n",
+					 domain, bus, PCI_SLOT(devfn),
+					 PCI_FUNC(devfn));
 				ret_val = -ENODEV;
 				goto done;
 			}
@@ -1207,7 +1207,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 		pr_debug("vgadev %p\n", vgadev);
 		if (vgadev == NULL) {
 			if (pdev) {
-				vgaarb_err(&pdev->dev, "not a VGA device\n");
+				vgaarb_dbg(&pdev->dev, "not a VGA device\n");
 				pci_dev_put(pdev);
 			}
 
@@ -1227,7 +1227,7 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 			}
 		}
 		if (i == MAX_USER_CARDS) {
-			vgaarb_err(&pdev->dev, "maximum user cards (%d) number reached, ignoring this one!\n",
+			vgaarb_dbg(&pdev->dev, "maximum user cards (%d) number reached, ignoring this one!\n",
 				MAX_USER_CARDS);
 			pci_dev_put(pdev);
 			/* XXX: which value to return? */
