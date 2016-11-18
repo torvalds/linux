@@ -151,6 +151,14 @@
 
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		assigned-clocks = <&cru PLL_CPLL>, <&cru PLL_GPLL>,
+				  <&cru ACLK_CPU>, <&cru HCLK_CPU>,
+				  <&cru PCLK_CPU>, <&cru ACLK_PERI>,
+				  <&cru HCLK_PERI>, <&cru PCLK_PERI>;
+		assigned-clock-rates = <400000000>, <594000000>,
+				       <300000000>, <150000000>,
+				       <75000000>, <300000000>,
+				       <150000000>, <75000000>;
 	};
 
 	timer@2000e000 {
@@ -162,7 +170,7 @@
 	};
 
 	efuse: efuse@20010000 {
-		compatible = "rockchip,rockchip-efuse";
+		compatible = "rockchip,rk3066a-efuse";
 		reg = <0x20010000 0x4000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -628,6 +636,8 @@
 };
 
 &mmc0 {
+	clock-frequency = <50000000>;
+	max-frequency = <50000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4>;
 };

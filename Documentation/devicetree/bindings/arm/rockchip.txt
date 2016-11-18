@@ -25,6 +25,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "radxa,rock2-square", "rockchip,rk3288";
 
+- Rikomagic MK808 v1 board:
+    Required root node properties:
+      - compatible = "rikomagic,mk808", "rockchip,rk3066a";
+
 - Firefly Firefly-RK3288 board:
     Required root node properties:
       - compatible = "firefly,firefly-rk3288", "rockchip,rk3288";
