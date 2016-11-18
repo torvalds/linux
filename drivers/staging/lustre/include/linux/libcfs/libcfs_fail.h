@@ -55,11 +55,11 @@ enum {
 
 #define CFS_FAILED_BIT       30
 /* CFS_FAILED is 0x40000000 */
-#define CFS_FAILED	  (1 << CFS_FAILED_BIT)
+#define CFS_FAILED		BIT(CFS_FAILED_BIT)
 
 #define CFS_FAIL_ONCE_BIT    31
 /* CFS_FAIL_ONCE is 0x80000000 */
-#define CFS_FAIL_ONCE       (1 << CFS_FAIL_ONCE_BIT)
+#define CFS_FAIL_ONCE		BIT(CFS_FAIL_ONCE_BIT)
 
 /* The following flags aren't made to be combined */
 #define CFS_FAIL_SKIP	0x20000000 /* skip N times then fail */

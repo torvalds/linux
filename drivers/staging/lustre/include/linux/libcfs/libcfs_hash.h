@@ -125,36 +125,36 @@ enum cfs_hash_tag {
 	 *  . Some functions will be disabled with this flag, i.e:
 	 *    cfs_hash_for_each_empty, cfs_hash_rehash
 	 */
-	CFS_HASH_NO_LOCK	= 1 << 0,
+	CFS_HASH_NO_LOCK	= BIT(0),
 	/** no bucket lock, use one spinlock to protect the whole hash */
-	CFS_HASH_NO_BKTLOCK	= 1 << 1,
+	CFS_HASH_NO_BKTLOCK	= BIT(1),
 	/** rwlock to protect bucket */
-	CFS_HASH_RW_BKTLOCK	= 1 << 2,
+	CFS_HASH_RW_BKTLOCK	= BIT(2),
 	/** spinlock to protect bucket */
-	CFS_HASH_SPIN_BKTLOCK	= 1 << 3,
+	CFS_HASH_SPIN_BKTLOCK	= BIT(3),
 	/** always add new item to tail */
-	CFS_HASH_ADD_TAIL	= 1 << 4,
+	CFS_HASH_ADD_TAIL	= BIT(4),
 	/** hash-table doesn't have refcount on item */
-	CFS_HASH_NO_ITEMREF	= 1 << 5,
+	CFS_HASH_NO_ITEMREF	= BIT(5),
 	/** big name for param-tree */
-	CFS_HASH_BIGNAME	= 1 << 6,
+	CFS_HASH_BIGNAME	= BIT(6),
 	/** track global count */
-	CFS_HASH_COUNTER	= 1 << 7,
+	CFS_HASH_COUNTER	= BIT(7),
 	/** rehash item by new key */
-	CFS_HASH_REHASH_KEY	= 1 << 8,
+	CFS_HASH_REHASH_KEY	= BIT(8),
 	/** Enable dynamic hash resizing */
-	CFS_HASH_REHASH		= 1 << 9,
+	CFS_HASH_REHASH		= BIT(9),
 	/** can shrink hash-size */
-	CFS_HASH_SHRINK		= 1 << 10,
+	CFS_HASH_SHRINK		= BIT(10),
 	/** assert hash is empty on exit */
-	CFS_HASH_ASSERT_EMPTY	= 1 << 11,
+	CFS_HASH_ASSERT_EMPTY	= BIT(11),
 	/** record hlist depth */
-	CFS_HASH_DEPTH		= 1 << 12,
+	CFS_HASH_DEPTH		= BIT(12),
 	/**
 	 * rehash is always scheduled in a different thread, so current
 	 * change on hash table is non-blocking
 	 */
-	CFS_HASH_NBLK_CHANGE	= 1 << 13,
+	CFS_HASH_NBLK_CHANGE	= BIT(13),
 	/**
 	 * NB, we typed hs_flags as  __u16, please change it
 	 * if you need to extend >=16 flags
@@ -323,20 +323,20 @@ struct cfs_hash_ops {
 
 /** total number of buckets in @hs */
 #define CFS_HASH_NBKT(hs)	\
-	(1U << ((hs)->hs_cur_bits - (hs)->hs_bkt_bits))
+	BIT((hs)->hs_cur_bits - (hs)->hs_bkt_bits)
 
 /** total number of buckets in @hs while rehashing */
 #define CFS_HASH_RH_NBKT(hs)	\
-	(1U << ((hs)->hs_rehash_bits - (hs)->hs_bkt_bits))
+	BIT((hs)->hs_rehash_bits - (hs)->hs_bkt_bits)
 
 /** number of hlist for in bucket */
-#define CFS_HASH_BKT_NHLIST(hs) (1U << (hs)->hs_bkt_bits)
+#define CFS_HASH_BKT_NHLIST(hs)	BIT((hs)->hs_bkt_bits)
 
 /** total number of hlist in @hs */
-#define CFS_HASH_NHLIST(hs)     (1U << (hs)->hs_cur_bits)
+#define CFS_HASH_NHLIST(hs)	BIT((hs)->hs_cur_bits)
 
 /** total number of hlist in @hs while rehashing */
-#define CFS_HASH_RH_NHLIST(hs)  (1U << (hs)->hs_rehash_bits)
+#define CFS_HASH_RH_NHLIST(hs)	BIT((hs)->hs_rehash_bits)
 
 static inline int
 cfs_hash_with_no_lock(struct cfs_hash *hs)
@@ -775,8 +775,8 @@ cfs_hash_bucket_validate(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 #endif /* CFS_HASH_DEBUG_LEVEL */
 
 #define CFS_HASH_THETA_BITS	10
-#define CFS_HASH_MIN_THETA	(1U << (CFS_HASH_THETA_BITS - 1))
-#define CFS_HASH_MAX_THETA	(1U << (CFS_HASH_THETA_BITS + 1))
+#define CFS_HASH_MIN_THETA	BIT(CFS_HASH_THETA_BITS - 1)
+#define CFS_HASH_MAX_THETA	BIT(CFS_HASH_THETA_BITS + 1)
 
 /* Return integer component of theta */
 static inline int __cfs_hash_theta_int(int theta)
