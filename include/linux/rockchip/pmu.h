@@ -134,6 +134,7 @@ struct rockchip_pmu_operations {
 	int (*set_idle_request)(enum pmu_idle_req req, bool idle);
 };
 
+int rockchip_pmu_idle_request(struct device *dev, bool idle);
 extern struct rockchip_pmu_operations rockchip_pmu_ops;
 
 #endif
