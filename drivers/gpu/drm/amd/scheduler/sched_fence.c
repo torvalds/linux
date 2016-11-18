@@ -103,7 +103,7 @@ static void amd_sched_fence_free(struct rcu_head *rcu)
 }
 
 /**
- * amd_sched_fence_release - callback that fence can be freed
+ * amd_sched_fence_release_scheduled - callback that fence can be freed
  *
  * @fence: fence
  *
@@ -118,7 +118,7 @@ static void amd_sched_fence_release_scheduled(struct fence *f)
 }
 
 /**
- * amd_sched_fence_release_scheduled - drop extra reference
+ * amd_sched_fence_release_finished - drop extra reference
  *
  * @f: fence
  *

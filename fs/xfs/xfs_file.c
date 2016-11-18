@@ -249,6 +249,7 @@ xfs_file_dio_aio_read(
 	struct xfs_inode	*ip = XFS_I(inode);
 	loff_t			isize = i_size_read(inode);
 	size_t			count = iov_iter_count(to);
+	loff_t			end = iocb->ki_pos + count - 1;
 	struct iov_iter		data;
 	struct xfs_buftarg	*target;
 	ssize_t			ret = 0;
@@ -272,49 +273,21 @@ xfs_file_dio_aio_read(
 
 	file_accessed(iocb->ki_filp);
 
-	/*
-	 * Locking is a bit tricky here. If we take an exclusive lock for direct
-	 * IO, we effectively serialise all new concurrent read IO to this file
-	 * and block it behind IO that is currently in progress because IO in
-	 * progress holds the IO lock shared. We only need to hold the lock
-	 * exclusive to blow away the page cache, so only take lock exclusively
-	 * if the page cache needs invalidation. This allows the normal direct
-	 * IO case of no page cache pages to proceeed concurrently without
-	 * serialisation.
-	 */
 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
 	if (mapping->nrpages) {
-		xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
-		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
+		ret = filemap_write_and_wait_range(mapping, iocb->ki_pos, end);
+		if (ret)
+			goto out_unlock;
 
 		/*
-		 * The generic dio code only flushes the range of the particular
-		 * I/O. Because we take an exclusive lock here, this whole
-		 * sequence is considerably more expensive for us. This has a
-		 * noticeable performance impact for any file with cached pages,
-		 * even when outside of the range of the particular I/O.
-		 *
-		 * Hence, amortize the cost of the lock against a full file
-		 * flush and reduce the chances of repeated iolock cycles going
-		 * forward.
+		 * Invalidate whole pages. This can return an error if we fail
+		 * to invalidate a page, but this should never happen on XFS.
+		 * Warn if it does fail.
 		 */
-		if (mapping->nrpages) {
-			ret = filemap_write_and_wait(mapping);
-			if (ret) {
-				xfs_rw_iunlock(ip, XFS_IOLOCK_EXCL);
-				return ret;
-			}
-
-			/*
-			 * Invalidate whole pages. This can return an error if
-			 * we fail to invalidate a page, but this should never
-			 * happen on XFS. Warn if it does fail.
-			 */
-			ret = invalidate_inode_pages2(mapping);
-			WARN_ON_ONCE(ret);
-			ret = 0;
-		}
-		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
+		ret = invalidate_inode_pages2_range(mapping,
+				iocb->ki_pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
+		WARN_ON_ONCE(ret);
+		ret = 0;
 	}
 
 	data = *to;
@@ -324,8 +297,9 @@ xfs_file_dio_aio_read(
 		iocb->ki_pos += ret;
 		iov_iter_advance(to, ret);
 	}
-	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 
+out_unlock:
+	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 	return ret;
 }
 
@@ -570,34 +544,22 @@ xfs_file_dio_aio_write(
 	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
 		return -EINVAL;
 
-	/* "unaligned" here means not aligned to a filesystem block */
+	/*
+	 * Don't take the exclusive iolock here unless the I/O is unaligned to
+	 * the file system block size.  We don't need to consider the EOF
+	 * extension case here because xfs_file_aio_write_checks() will relock
+	 * the inode as necessary for EOF zeroing cases and fill out the new
+	 * inode size as appropriate.
+	 */
 	if ((iocb->ki_pos & mp->m_blockmask) ||
-	    ((iocb->ki_pos + count) & mp->m_blockmask))
+	    ((iocb->ki_pos + count) & mp->m_blockmask)) {
 		unaligned_io = 1;
-
-	/*
-	 * We don't need to take an exclusive lock unless there page cache needs
-	 * to be invalidated or unaligned IO is being executed. We don't need to
-	 * consider the EOF extension case here because
-	 * xfs_file_aio_write_checks() will relock the inode as necessary for
-	 * EOF zeroing cases and fill out the new inode size as appropriate.
-	 */
-	if (unaligned_io || mapping->nrpages)
 		iolock = XFS_IOLOCK_EXCL;
-	else
+	} else {
 		iolock = XFS_IOLOCK_SHARED;
-	xfs_rw_ilock(ip, iolock);
-
-	/*
-	 * Recheck if there are cached pages that need invalidate after we got
-	 * the iolock to protect against other threads adding new pages while
-	 * we were waiting for the iolock.
-	 */
-	if (mapping->nrpages && iolock == XFS_IOLOCK_SHARED) {
-		xfs_rw_iunlock(ip, iolock);
-		iolock = XFS_IOLOCK_EXCL;
-		xfs_rw_ilock(ip, iolock);
 	}
+
+	xfs_rw_ilock(ip, iolock);
 
 	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
@@ -605,26 +567,26 @@ xfs_file_dio_aio_write(
 	count = iov_iter_count(from);
 	end = iocb->ki_pos + count - 1;
 
-	/*
-	 * See xfs_file_dio_aio_read() for why we do a full-file flush here.
-	 */
 	if (mapping->nrpages) {
-		ret = filemap_write_and_wait(VFS_I(ip)->i_mapping);
+		ret = filemap_write_and_wait_range(mapping, iocb->ki_pos, end);
 		if (ret)
 			goto out;
+
 		/*
 		 * Invalidate whole pages. This can return an error if we fail
 		 * to invalidate a page, but this should never happen on XFS.
 		 * Warn if it does fail.
 		 */
-		ret = invalidate_inode_pages2(VFS_I(ip)->i_mapping);
+		ret = invalidate_inode_pages2_range(mapping,
+				iocb->ki_pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
 		WARN_ON_ONCE(ret);
 		ret = 0;
 	}
 
 	/*
 	 * If we are doing unaligned IO, wait for all other IO to drain,
-	 * otherwise demote the lock if we had to flush cached pages
+	 * otherwise demote the lock if we had to take the exclusive lock
+	 * for other reasons in xfs_file_aio_write_checks.
 	 */
 	if (unaligned_io)
 		inode_dio_wait(inode);
@@ -947,134 +909,6 @@ out_unlock:
 	return error;
 }
 
-/*
- * Flush all file writes out to disk.
- */
-static int
-xfs_file_wait_for_io(
-	struct inode	*inode,
-	loff_t		offset,
-	size_t		len)
-{
-	loff_t		rounding;
-	loff_t		ioffset;
-	loff_t		iendoffset;
-	loff_t		bs;
-	int		ret;
-
-	bs = inode->i_sb->s_blocksize;
-	inode_dio_wait(inode);
-
-	rounding = max_t(xfs_off_t, bs, PAGE_SIZE);
-	ioffset = round_down(offset, rounding);
-	iendoffset = round_up(offset + len, rounding) - 1;
-	ret = filemap_write_and_wait_range(inode->i_mapping, ioffset,
-					   iendoffset);
-	return ret;
-}
-
-/* Hook up to the VFS reflink function */
-STATIC int
-xfs_file_share_range(
-	struct file	*file_in,
-	loff_t		pos_in,
-	struct file	*file_out,
-	loff_t		pos_out,
-	u64		len,
-	bool		is_dedupe)
-{
-	struct inode	*inode_in;
-	struct inode	*inode_out;
-	ssize_t		ret;
-	loff_t		bs;
-	loff_t		isize;
-	int		same_inode;
-	loff_t		blen;
-	unsigned int	flags = 0;
-
-	inode_in = file_inode(file_in);
-	inode_out = file_inode(file_out);
-	bs = inode_out->i_sb->s_blocksize;
-
-	/* Don't touch certain kinds of inodes */
-	if (IS_IMMUTABLE(inode_out))
-		return -EPERM;
-	if (IS_SWAPFILE(inode_in) ||
-	    IS_SWAPFILE(inode_out))
-		return -ETXTBSY;
-
-	/* Reflink only works within this filesystem. */
-	if (inode_in->i_sb != inode_out->i_sb)
-		return -EXDEV;
-	same_inode = (inode_in->i_ino == inode_out->i_ino);
-
-	/* Don't reflink dirs, pipes, sockets... */
-	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
-		return -EISDIR;
-	if (S_ISFIFO(inode_in->i_mode) || S_ISFIFO(inode_out->i_mode))
-		return -EINVAL;
-	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
-		return -EINVAL;
-
-	/* Don't share DAX file data for now. */
-	if (IS_DAX(inode_in) || IS_DAX(inode_out))
-		return -EINVAL;
-
-	/* Are we going all the way to the end? */
-	isize = i_size_read(inode_in);
-	if (isize == 0)
-		return 0;
-	if (len == 0)
-		len = isize - pos_in;
-
-	/* Ensure offsets don't wrap and the input is inside i_size */
-	if (pos_in + len < pos_in || pos_out + len < pos_out ||
-	    pos_in + len > isize)
-		return -EINVAL;
-
-	/* Don't allow dedupe past EOF in the dest file */
-	if (is_dedupe) {
-		loff_t	disize;
-
-		disize = i_size_read(inode_out);
-		if (pos_out >= disize || pos_out + len > disize)
-			return -EINVAL;
-	}
-
-	/* If we're linking to EOF, continue to the block boundary. */
-	if (pos_in + len == isize)
-		blen = ALIGN(isize, bs) - pos_in;
-	else
-		blen = len;
-
-	/* Only reflink if we're aligned to block boundaries */
-	if (!IS_ALIGNED(pos_in, bs) || !IS_ALIGNED(pos_in + blen, bs) ||
-	    !IS_ALIGNED(pos_out, bs) || !IS_ALIGNED(pos_out + blen, bs))
-		return -EINVAL;
-
-	/* Don't allow overlapped reflink within the same file */
-	if (same_inode && pos_out + blen > pos_in && pos_out < pos_in + blen)
-		return -EINVAL;
-
-	/* Wait for the completion of any pending IOs on srcfile */
-	ret = xfs_file_wait_for_io(inode_in, pos_in, len);
-	if (ret)
-		goto out;
-	ret = xfs_file_wait_for_io(inode_out, pos_out, len);
-	if (ret)
-		goto out;
-
-	if (is_dedupe)
-		flags |= XFS_REFLINK_DEDUPE;
-	ret = xfs_reflink_remap_range(XFS_I(inode_in), pos_in, XFS_I(inode_out),
-			pos_out, len, flags);
-	if (ret < 0)
-		goto out;
-
-out:
-	return ret;
-}
-
 STATIC ssize_t
 xfs_file_copy_range(
 	struct file	*file_in,
@@ -1086,7 +920,7 @@ xfs_file_copy_range(
 {
 	int		error;
 
-	error = xfs_file_share_range(file_in, pos_in, file_out, pos_out,
+	error = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
 				     len, false);
 	if (error)
 		return error;
@@ -1101,7 +935,7 @@ xfs_file_clone_range(
 	loff_t		pos_out,
 	u64		len)
 {
-	return xfs_file_share_range(file_in, pos_in, file_out, pos_out,
+	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
 				     len, false);
 }
 
@@ -1124,7 +958,7 @@ xfs_file_dedupe_range(
 	if (len > XFS_MAX_DEDUPE_LEN)
 		len = XFS_MAX_DEDUPE_LEN;
 
-	error = xfs_file_share_range(src_file, loff, dst_file, dst_loff,
+	error = xfs_reflink_remap_range(src_file, loff, dst_file, dst_loff,
 				     len, true);
 	if (error)
 		return error;

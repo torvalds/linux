@@ -61,18 +61,12 @@
 #include "acl.h"
 
 #ifdef EXT4_XATTR_DEBUG
-# define ea_idebug(inode, f...) do { \
-		printk(KERN_DEBUG "inode %s:%lu: ", \
-			inode->i_sb->s_id, inode->i_ino); \
-		printk(f); \
-		printk("\n"); \
-	} while (0)
-# define ea_bdebug(bh, f...) do { \
-		printk(KERN_DEBUG "block %pg:%lu: ",		   \
-		       bh->b_bdev, (unsigned long) bh->b_blocknr); \
-		printk(f); \
-		printk("\n"); \
-	} while (0)
+# define ea_idebug(inode, fmt, ...)					\
+	printk(KERN_DEBUG "inode %s:%lu: " fmt "\n",			\
+	       inode->i_sb->s_id, inode->i_ino, ##__VA_ARGS__)
+# define ea_bdebug(bh, fmt, ...)					\
+	printk(KERN_DEBUG "block %pg:%lu: " fmt "\n",			\
+	       bh->b_bdev, (unsigned long)bh->b_blocknr, ##__VA_ARGS__)
 #else
 # define ea_idebug(inode, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 # define ea_bdebug(bh, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
@@ -241,7 +235,7 @@ __xattr_check_inode(struct inode *inode, struct ext4_xattr_ibody_header *header,
 	int error = -EFSCORRUPTED;
 
 	if (((void *) header >= end) ||
-	    (header->h_magic != le32_to_cpu(EXT4_XATTR_MAGIC)))
+	    (header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)))
 		goto errout;
 	error = ext4_xattr_check_names(entry, end, entry);
 errout:

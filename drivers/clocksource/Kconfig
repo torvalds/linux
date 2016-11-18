@@ -417,6 +417,16 @@ config SYS_SUPPORTS_SH_TMU
 config SYS_SUPPORTS_EM_STI
         bool
 
+config CLKSRC_JCORE_PIT
+	bool "J-Core PIT timer driver" if COMPILE_TEST
+	depends on OF
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
+	help
+	  This enables build of clocksource and clockevent driver for
+	  the integrated PIT in the J-Core synthesizable, open source SoC.
+
 config SH_TIMER_CMT
 	bool "Renesas CMT timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS

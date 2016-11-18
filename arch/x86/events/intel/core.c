@@ -3607,10 +3607,14 @@ __init int intel_pmu_init(void)
 
 	/*
 	 * Quirk: v2 perfmon does not report fixed-purpose events, so
-	 * assume at least 3 events:
+	 * assume at least 3 events, when not running in a hypervisor:
 	 */
-	if (version > 1)
-		x86_pmu.num_counters_fixed = max((int)edx.split.num_counters_fixed, 3);
+	if (version > 1) {
+		int assume = 3 * !boot_cpu_has(X86_FEATURE_HYPERVISOR);
+
+		x86_pmu.num_counters_fixed =
+			max((int)edx.split.num_counters_fixed, assume);
+	}
 
 	if (boot_cpu_has(X86_FEATURE_PDCM)) {
 		u64 capabilities;
@@ -3898,6 +3902,7 @@ __init int intel_pmu_init(void)
 		break;
 
 	case INTEL_FAM6_XEON_PHI_KNL:
+	case INTEL_FAM6_XEON_PHI_KNM:
 		memcpy(hw_cache_event_ids,
 		       slm_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs,
@@ -3912,7 +3917,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
 
-		pr_cont("Knights Landing events, ");
+		pr_cont("Knights Landing/Mill events, ");
 		break;
 
 	case INTEL_FAM6_SKYLAKE_MOBILE:

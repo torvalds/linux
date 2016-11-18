@@ -601,7 +601,8 @@ int hist_browser__run(struct hist_browser *browser, const char *help)
 			u64 nr_entries;
 			hbt->timer(hbt->arg);
 
-			if (hist_browser__has_filter(browser))
+			if (hist_browser__has_filter(browser) ||
+			    symbol_conf.report_hierarchy)
 				hist_browser__update_nr_entries(browser);
 
 			nr_entries = hist_browser__nr_entries(browser);

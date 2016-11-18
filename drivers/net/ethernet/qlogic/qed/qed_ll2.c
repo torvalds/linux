@@ -38,6 +38,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_roce.h"
 
 #define QED_LL2_RX_REGISTERED(ll2)	((ll2)->rx_queue.b_cb_registred)
 #define QED_LL2_TX_REGISTERED(ll2)	((ll2)->tx_queue.b_cb_registred)
@@ -140,11 +141,11 @@ static void qed_ll2_kill_buffers(struct qed_dev *cdev)
 		qed_ll2_dealloc_buffer(cdev, buffer);
 }
 
-void qed_ll2b_complete_rx_packet(struct qed_hwfn *p_hwfn,
-				 u8 connection_handle,
-				 struct qed_ll2_rx_packet *p_pkt,
-				 struct core_rx_fast_path_cqe *p_cqe,
-				 bool b_last_packet)
+static void qed_ll2b_complete_rx_packet(struct qed_hwfn *p_hwfn,
+					u8 connection_handle,
+					struct qed_ll2_rx_packet *p_pkt,
+					struct core_rx_fast_path_cqe *p_cqe,
+					bool b_last_packet)
 {
 	u16 packet_length = le16_to_cpu(p_cqe->packet_length);
 	struct qed_ll2_buffer *buffer = p_pkt->cookie;
@@ -515,7 +516,7 @@ static int qed_ll2_rxq_completion(struct qed_hwfn *p_hwfn, void *cookie)
 	return rc;
 }
 
-void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
+static void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 {
 	struct qed_ll2_info *p_ll2_conn = NULL;
 	struct qed_ll2_rx_packet *p_pkt = NULL;
@@ -537,8 +538,7 @@ void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 		if (!p_pkt)
 			break;
 
-		list_del(&p_pkt->list_entry);
-		list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
+		list_move_tail(&p_pkt->list_entry, &p_rx->free_descq);
 
 		rx_buf_addr = p_pkt->rx_buf_addr;
 		cookie = p_pkt->cookie;
@@ -992,9 +992,8 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 		p_posting_packet = list_first_entry(&p_rx->posting_descq,
 						    struct qed_ll2_rx_packet,
 						    list_entry);
-		list_del(&p_posting_packet->list_entry);
-		list_add_tail(&p_posting_packet->list_entry,
-			      &p_rx->active_descq);
+		list_move_tail(&p_posting_packet->list_entry,
+			       &p_rx->active_descq);
 		b_notify_fw = true;
 	}
 
@@ -1123,9 +1122,6 @@ static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(start_bd->addr, first_frag);
 	start_bd->nbytes = cpu_to_le16(first_frag_len);
 
-	SET_FIELD(start_bd->bd_flags.as_bitfield, CORE_TX_BD_FLAGS_ROCE_FLAV,
-		  type);
-
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_TX_QUEUED | QED_MSG_LL2),
 		   "LL2 [q 0x%02x cid 0x%08x type 0x%08x] Tx Producer at [0x%04x] - set with a %04x bytes %02x BDs buffer at %08x:%08x\n",
@@ -1188,8 +1184,7 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 		if (!p_pkt)
 			break;
 
-		list_del(&p_pkt->list_entry);
-		list_add_tail(&p_pkt->list_entry, &p_tx->active_descq);
+		list_move_tail(&p_pkt->list_entry, &p_tx->active_descq);
 	}
 
 	SET_FIELD(db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
