@@ -1,6 +1,6 @@
 #ifndef __NVBIOS_PERF_H__
 #define __NVBIOS_PERF_H__
-u16 nvbios_perf_table(struct nvkm_bios *, u8 *ver, u8 *hdr,
+u32 nvbios_perf_table(struct nvkm_bios *, u8 *ver, u8 *hdr,
 		      u8 *cnt, u8 *len, u8 *snr, u8 *ssz);
 
 struct nvbios_perfE {
@@ -17,9 +17,9 @@ struct nvbios_perfE {
 	u8  pcie_width;
 };
 
-u16 nvbios_perf_entry(struct nvkm_bios *, int idx,
+u32 nvbios_perf_entry(struct nvkm_bios *, int idx,
 		      u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
-u16 nvbios_perfEp(struct nvkm_bios *, int idx,
+u32 nvbios_perfEp(struct nvkm_bios *, int idx,
 		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_perfE *);
 
 struct nvbios_perfS {

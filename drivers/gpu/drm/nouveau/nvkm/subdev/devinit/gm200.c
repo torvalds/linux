@@ -130,6 +130,7 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 
 	/* upload first chunk of init data */
 	if (post) {
+		// devinit tables
 		u32 pmu = pmu_args(init, args + 0x08, 0x08);
 		u32 img = nvbios_rd16(bios, bit_I.offset + 0x14);
 		u32 len = nvbios_rd16(bios, bit_I.offset + 0x16);
@@ -138,6 +139,7 @@ gm200_devinit_post(struct nvkm_devinit *base, bool post)
 
 	/* upload second chunk of init data */
 	if (post) {
+		// devinit boot scripts
 		u32 pmu = pmu_args(init, args + 0x08, 0x10);
 		u32 img = nvbios_rd16(bios, bit_I.offset + 0x18);
 		u32 len = nvbios_rd16(bios, bit_I.offset + 0x1a);
