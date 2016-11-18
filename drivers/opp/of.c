@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/of_device.h>
+#include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 
@@ -329,6 +330,8 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	if (!of_property_read_u32(np, "clock-latency-ns", &val))
 		new_opp->clock_latency_ns = val;
 
+	new_opp->pstate = of_genpd_opp_to_performance_state(dev, np);
+
 	ret = opp_parse_supplies(new_opp, dev, opp_table);
 	if (ret)
 		goto free_opp;
@@ -379,7 +382,8 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 {
 	struct device_node *np;
 	struct opp_table *opp_table;
-	int ret = 0, count = 0;
+	int ret = 0, count = 0, pstate_count = 0;
+	struct dev_pm_opp *opp;
 
 	opp_table = _managed_opp(opp_np);
 	if (opp_table) {
@@ -412,6 +416,20 @@ static int _of_add_opp_table_v2(struct device *dev, struct device_node *opp_np)
 		ret = -ENOENT;
 		goto put_opp_table;
 	}
+
+	list_for_each_entry(opp, &opp_table->opp_list, node)
+		pstate_count += !!opp->pstate;
+
+	/* Either all or none of the nodes shall have performance state set */
+	if (pstate_count && pstate_count != count) {
+		dev_err(dev, "Not all nodes have performance state set (%d: %d)\n",
+			count, pstate_count);
+		ret = -ENOENT;
+		goto put_opp_table;
+	}
+
+	if (pstate_count)
+		opp_table->genpd_performance_state = true;
 
 	opp_table->np = opp_np;
 	if (of_property_read_bool(opp_np, "opp-shared"))
