@@ -398,13 +398,14 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 * map array
 	 */
 	*map = krealloc(*map, i * sizeof(struct pinctrl_map), GFP_KERNEL);
-	if (!map)
+	if (!*map)
 		return -ENOMEM;
 
 	return 0;
 
 err_free_map:
-	kfree(map);
+	kfree(*map);
+	*map = NULL;
 	return ret;
 }
 
