@@ -98,4 +98,4 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 	return 0;
 }
 
-#endif /* _LINUX_VIRTIO_BYTEORDER */
+#endif /* _LINUX_VIRTIO_NET_H */
