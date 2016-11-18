@@ -631,7 +631,7 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
-	if (WARN_ON_ONCE(fb->dev != dev))
+	if (WARN_ON_ONCE(fb->dev != dev || !fb->format))
 		return -EINVAL;
 
 	INIT_LIST_HEAD(&fb->filp_head);
