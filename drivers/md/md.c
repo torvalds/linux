@@ -727,7 +727,13 @@ static void super_written(struct bio *bio)
 	if (bio->bi_error) {
 		pr_err("md: super_written gets error=%d\n", bio->bi_error);
 		md_error(mddev, rdev);
-	}
+		if (!test_bit(Faulty, &rdev->flags)
+		    && (bio->bi_opf & MD_FAILFAST)) {
+			set_bit(MD_NEED_REWRITE, &mddev->flags);
+			set_bit(LastDev, &rdev->flags);
+		}
+	} else
+		clear_bit(LastDev, &rdev->flags);
 
 	if (atomic_dec_and_test(&mddev->pending_writes))
 		wake_up(&mddev->sb_wait);
@@ -744,7 +750,13 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 	 * if zero is reached.
 	 * If an error occurred, call md_error
 	 */
-	struct bio *bio = bio_alloc_mddev(GFP_NOIO, 1, mddev);
+	struct bio *bio;
+	int ff = 0;
+
+	if (test_bit(Faulty, &rdev->flags))
+		return;
+
+	bio = bio_alloc_mddev(GFP_NOIO, 1, mddev);
 
 	atomic_inc(&rdev->nr_pending);
 
@@ -753,16 +765,24 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 	bio_add_page(bio, page, size, 0);
 	bio->bi_private = rdev;
 	bio->bi_end_io = super_written;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH_FUA);
+
+	if (test_bit(MD_FAILFAST_SUPPORTED, &mddev->flags) &&
+	    test_bit(FailFast, &rdev->flags) &&
+	    !test_bit(LastDev, &rdev->flags))
+		ff = MD_FAILFAST;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH_FUA | ff);
 
 	atomic_inc(&mddev->pending_writes);
 	submit_bio(bio);
 }
 
-void md_super_wait(struct mddev *mddev)
+int md_super_wait(struct mddev *mddev)
 {
 	/* wait for all superblock writes that were scheduled to complete */
 	wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
+	if (test_and_clear_bit(MD_NEED_REWRITE, &mddev->flags))
+		return -EAGAIN;
+	return 0;
 }
 
 int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
@@ -1334,9 +1354,10 @@ super_90_rdev_size_change(struct md_rdev *rdev, sector_t num_sectors)
 	if (IS_ENABLED(CONFIG_LBDAF) && (u64)num_sectors >= (2ULL << 32) &&
 	    rdev->mddev->level >= 1)
 		num_sectors = (sector_t)(2ULL << 32) - 2;
-	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
+	do {
+		md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
-	md_super_wait(rdev->mddev);
+	} while (md_super_wait(rdev->mddev) < 0);
 	return num_sectors;
 }
 
@@ -1877,9 +1898,10 @@ super_1_rdev_size_change(struct md_rdev *rdev, sector_t num_sectors)
 	sb->data_size = cpu_to_le64(num_sectors);
 	sb->super_offset = rdev->sb_start;
 	sb->sb_csum = calc_sb_1_csum(sb);
-	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
-		       rdev->sb_page);
-	md_super_wait(rdev->mddev);
+	do {
+		md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
+			       rdev->sb_page);
+	} while (md_super_wait(rdev->mddev) < 0);
 	return num_sectors;
 
 }
@@ -2416,6 +2438,7 @@ repeat:
 
 	if (mddev->queue)
 		blk_add_trace_msg(mddev->queue, "md md_update_sb");
+rewrite:
 	bitmap_update_sb(mddev->bitmap);
 	rdev_for_each(rdev, mddev) {
 		char b[BDEVNAME_SIZE];
@@ -2447,7 +2470,8 @@ repeat:
 			/* only need to write one superblock... */
 			break;
 	}
-	md_super_wait(mddev);
+	if (md_super_wait(mddev) < 0)
+		goto rewrite;
 	/* if there was a failure, MD_CHANGE_DEVS was set, and we re-write super */
 
 	if (mddev_is_clustered(mddev) && ret == 0)

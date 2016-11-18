@@ -30,6 +30,16 @@
 #define MaxSector (~(sector_t)0)
 
 /*
+ * These flags should really be called "NO_RETRY" rather than
+ * "FAILFAST" because they don't make any promise about time lapse,
+ * only about the number of retries, which will be zero.
+ * REQ_FAILFAST_DRIVER is not included because
+ * Commit: 4a27446f3e39 ("[SCSI] modify scsi to handle new fail fast flags.")
+ * seems to suggest that the errors it avoids retrying should usually
+ * be retried.
+ */
+#define	MD_FAILFAST	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT)
+/*
  * MD's 'extended' device
  */
 struct md_rdev {
@@ -177,6 +187,10 @@ enum flag_bits {
 				 * It is expects that no bad block log
 				 * is present.
 				 */
+	LastDev,		/* Seems to be the last working dev as
+				 * it didn't fail, so don't use FailFast
+				 * any more for metadata
+				 */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
@@ -213,6 +227,11 @@ enum mddev_flags {
 	MD_CLUSTER_RESYNC_LOCKED, /* cluster raid only, which means node
 				   * already took resync lock, need to
 				   * release the lock */
+	MD_FAILFAST_SUPPORTED,	/* Using MD_FAILFAST on metadata writes is
+				 * supported as calls to md_error() will
+				 * never cause the array to become failed.
+				 */
+	MD_NEED_REWRITE,	/* metadata write needs to be repeated */
 };
 #define MD_UPDATE_SB_FLAGS (BIT(MD_CHANGE_DEVS) | \
 			    BIT(MD_CHANGE_CLEAN) | \
@@ -628,7 +647,7 @@ extern int mddev_congested(struct mddev *mddev, int bits);
 extern void md_flush_request(struct mddev *mddev, struct bio *bio);
 extern void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 			   sector_t sector, int size, struct page *page);
-extern void md_super_wait(struct mddev *mddev);
+extern int md_super_wait(struct mddev *mddev);
 extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 			struct page *page, int op, int op_flags,
 			bool metadata_op);

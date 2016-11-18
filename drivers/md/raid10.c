@@ -3729,6 +3729,7 @@ static int raid10_run(struct mddev *mddev)
 	size = raid10_size(mddev, 0, 0);
 	md_set_array_sectors(mddev, size);
 	mddev->resync_max_sectors = size;
+	set_bit(MD_FAILFAST_SUPPORTED, &mddev->flags);
 
 	if (mddev->queue) {
 		int stripe = conf->geo.raid_disks *

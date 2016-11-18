@@ -209,11 +209,13 @@ static struct md_rdev *next_active_rdev(struct md_rdev *rdev, struct mddev *mdde
 
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
-	struct md_rdev *rdev = NULL;
+	struct md_rdev *rdev;
 	struct block_device *bdev;
 	struct mddev *mddev = bitmap->mddev;
 	struct bitmap_storage *store = &bitmap->storage;
 
+restart:
+	rdev = NULL;
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 		int size = PAGE_SIZE;
 		loff_t offset = mddev->bitmap_info.offset;
@@ -269,8 +271,8 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 			       page);
 	}
 
-	if (wait)
-		md_super_wait(mddev);
+	if (wait && md_super_wait(mddev) < 0)
+		goto restart;
 	return 0;
 
  bad_alignment:
@@ -428,6 +430,13 @@ static void bitmap_wait_writes(struct bitmap *bitmap)
 		wait_event(bitmap->write_wait,
 			   atomic_read(&bitmap->pending_writes)==0);
 	else
+		/* Note that we ignore the return value.  The writes
+		 * might have failed, but that would just mean that
+		 * some bits which should be cleared haven't been,
+		 * which is safe.  The relevant bitmap blocks will
+		 * probably get written again, but there is no great
+		 * loss if they aren't.
+		 */
 		md_super_wait(bitmap->mddev);
 }
 
