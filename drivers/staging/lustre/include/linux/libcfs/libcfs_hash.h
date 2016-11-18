@@ -297,8 +297,8 @@ struct cfs_hash_hlist_ops {
 
 struct cfs_hash_ops {
 	/** return hashed value from @key */
-	unsigned (*hs_hash)(struct cfs_hash *hs, const void *key,
-			    unsigned mask);
+	unsigned int (*hs_hash)(struct cfs_hash *hs, const void *key,
+				unsigned int mask);
 	/** return key address of @hnode */
 	void *   (*hs_key)(struct hlist_node *hnode);
 	/** copy key from @hnode to @key */
@@ -461,7 +461,7 @@ cfs_hash_bkt_size(struct cfs_hash *hs)
 }
 
 static inline unsigned
-cfs_hash_id(struct cfs_hash *hs, const void *key, unsigned mask)
+cfs_hash_id(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
 	return hs->hs_ops->hs_hash(hs, key, mask);
 }
@@ -570,7 +570,7 @@ cfs_hash_bd_index_get(struct cfs_hash *hs, struct cfs_hash_bd *bd)
 }
 
 static inline void
-cfs_hash_bd_index_set(struct cfs_hash *hs, unsigned index,
+cfs_hash_bd_index_set(struct cfs_hash *hs, unsigned int index,
 		      struct cfs_hash_bd *bd)
 {
 	bd->bd_bucket = hs->hs_buckets[index >> hs->hs_bkt_bits];
@@ -677,10 +677,10 @@ cfs_hash_dual_bd_finddel_locked(struct cfs_hash *hs, struct cfs_hash_bd *bds,
 
 /* Hash init/cleanup functions */
 struct cfs_hash *
-cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
-		unsigned bkt_bits, unsigned extra_bytes,
-		unsigned min_theta, unsigned max_theta,
-		struct cfs_hash_ops *ops, unsigned flags);
+cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
+		unsigned int bkt_bits, unsigned int extra_bytes,
+		unsigned int min_theta, unsigned int max_theta,
+		struct cfs_hash_ops *ops, unsigned int flags);
 
 struct cfs_hash *cfs_hash_getref(struct cfs_hash *hs);
 void cfs_hash_putref(struct cfs_hash *hs);
@@ -725,7 +725,7 @@ void
 cfs_hash_cond_del(struct cfs_hash *hs, cfs_hash_cond_opt_cb_t, void *data);
 
 void
-cfs_hash_hlist_for_each(struct cfs_hash *hs, unsigned hindex,
+cfs_hash_hlist_for_each(struct cfs_hash *hs, unsigned int hindex,
 			cfs_hash_for_each_cb_t, void *data);
 int  cfs_hash_is_empty(struct cfs_hash *hs);
 __u64 cfs_hash_size_get(struct cfs_hash *hs);
@@ -813,9 +813,9 @@ void cfs_hash_debug_str(struct cfs_hash *hs, struct seq_file *m);
  * Generic djb2 hash algorithm for character arrays.
  */
 static inline unsigned
-cfs_hash_djb2_hash(const void *key, size_t size, unsigned mask)
+cfs_hash_djb2_hash(const void *key, size_t size, unsigned int mask)
 {
-	unsigned i, hash = 5381;
+	unsigned int i, hash = 5381;
 
 	LASSERT(key != NULL);
 
@@ -829,7 +829,7 @@ cfs_hash_djb2_hash(const void *key, size_t size, unsigned mask)
  * Generic u32 hash algorithm.
  */
 static inline unsigned
-cfs_hash_u32_hash(const __u32 key, unsigned mask)
+cfs_hash_u32_hash(const __u32 key, unsigned int mask)
 {
 	return ((key * CFS_GOLDEN_RATIO_PRIME_32) & mask);
 }
@@ -838,9 +838,9 @@ cfs_hash_u32_hash(const __u32 key, unsigned mask)
  * Generic u64 hash algorithm.
  */
 static inline unsigned
-cfs_hash_u64_hash(const __u64 key, unsigned mask)
+cfs_hash_u64_hash(const __u64 key, unsigned int mask)
 {
-	return ((unsigned)(key * CFS_GOLDEN_RATIO_PRIME_64) & mask);
+	return ((unsigned int)(key * CFS_GOLDEN_RATIO_PRIME_64) & mask);
 }
 
 /** iterate over all buckets in @bds (array of struct cfs_hash_bd) */

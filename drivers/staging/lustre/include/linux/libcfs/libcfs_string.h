@@ -74,8 +74,8 @@ struct cfs_expr_list {
 
 char *cfs_trimwhite(char *str);
 int cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res);
-int cfs_str2num_check(char *str, int nob, unsigned *num,
-		      unsigned min, unsigned max);
+int cfs_str2num_check(char *str, int nob, unsigned int *num,
+		      unsigned int min, unsigned int max);
 int cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list);
 int cfs_expr_list_print(char *buffer, int count,
 			struct cfs_expr_list *expr_list);
@@ -93,7 +93,7 @@ cfs_expr_list_values_free(__u32 *values, int num)
 }
 
 void cfs_expr_list_free(struct cfs_expr_list *expr_list);
-int cfs_expr_list_parse(char *str, int len, unsigned min, unsigned max,
+int cfs_expr_list_parse(char *str, int len, unsigned int min, unsigned int max,
 			struct cfs_expr_list **elpp);
 void cfs_expr_list_free_list(struct list_head *list);
 
