@@ -385,6 +385,56 @@ void vpdma_unmap_desc_buf(struct vpdma_data *vpdma, struct vpdma_buf *buf)
 EXPORT_SYMBOL(vpdma_unmap_desc_buf);
 
 /*
+ * Cleanup all pending descriptors of a list
+ * First, stop the current list being processed.
+ * If the VPDMA was busy, this step makes vpdma to accept post lists.
+ * To cleanup the internal FSM, post abort list descriptor for all the
+ * channels from @channels array of size @size.
+ */
+int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
+		int *channels, int size)
+{
+	struct vpdma_desc_list abort_list;
+	int i, ret, timeout = 500;
+
+	write_reg(vpdma, VPDMA_LIST_ATTR,
+			(list_num << VPDMA_LIST_NUM_SHFT) |
+			(1 << VPDMA_LIST_STOP_SHFT));
+
+	if (size <= 0 || !channels)
+		return 0;
+
+	ret = vpdma_create_desc_list(&abort_list,
+		size * sizeof(struct vpdma_dtd), VPDMA_LIST_TYPE_NORMAL);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < size; i++)
+		vpdma_add_abort_channel_ctd(&abort_list, channels[i]);
+
+	ret = vpdma_map_desc_buf(vpdma, &abort_list.buf);
+	if (ret)
+		return ret;
+	ret = vpdma_submit_descs(vpdma, &abort_list, list_num);
+	if (ret)
+		return ret;
+
+	while (vpdma_list_busy(vpdma, list_num) && timeout--)
+		;
+
+	if (timeout == 0) {
+		dev_err(&vpdma->pdev->dev, "Timed out cleaning up VPDMA list\n");
+		return -EBUSY;
+	}
+
+	vpdma_unmap_desc_buf(vpdma, &abort_list.buf);
+	vpdma_free_desc_buf(&abort_list.buf);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpdma_list_cleanup);
+
+/*
  * create a descriptor list, the user of this list will append configuration,
  * control and data descriptors to this list, this list will be submitted to
  * VPDMA. VPDMA's list parser will go through each descriptor and perform the
@@ -628,6 +678,31 @@ void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
 	dump_ctd(ctd);
 }
 EXPORT_SYMBOL(vpdma_add_sync_on_channel_ctd);
+
+/*
+ * append an 'abort_channel' type control descriptor to the given descriptor
+ * list, this descriptor aborts any DMA transaction happening using the
+ * specified channel
+ */
+void vpdma_add_abort_channel_ctd(struct vpdma_desc_list *list,
+		int chan_num)
+{
+	struct vpdma_ctd *ctd;
+
+	ctd = list->next;
+	WARN_ON((void *)(ctd + 1) > (list->buf.addr + list->buf.size));
+
+	ctd->w0 = 0;
+	ctd->w1 = 0;
+	ctd->w2 = 0;
+	ctd->type_source_ctl = ctd_type_source_ctl(chan_num,
+				CTD_TYPE_ABORT_CHANNEL);
+
+	list->next = ctd + 1;
+
+	dump_ctd(ctd);
+}
+EXPORT_SYMBOL(vpdma_add_abort_channel_ctd);
 
 static void dump_dtd(struct vpdma_dtd *dtd)
 {

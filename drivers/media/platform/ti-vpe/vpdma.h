@@ -163,6 +163,8 @@ enum vpdma_channel {
 #define VIP_CHAN_YUV_PORTB_OFFSET	2
 #define VIP_CHAN_RGB_PORTB_OFFSET	1
 
+#define VPDMA_MAX_CHANNELS		256
+
 /* flags for VPDMA data descriptors */
 #define VPDMA_DATA_ODD_LINE_SKIP	(1 << 0)
 #define VPDMA_DATA_EVEN_LINE_SKIP	(1 << 1)
@@ -219,6 +221,8 @@ void vpdma_add_cfd_adb(struct vpdma_desc_list *list, int client,
 		struct vpdma_buf *adb);
 void vpdma_add_sync_on_channel_ctd(struct vpdma_desc_list *list,
 		enum vpdma_channel chan);
+void vpdma_add_abort_channel_ctd(struct vpdma_desc_list *list,
+		int chan_num);
 void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		const struct v4l2_rect *c_rect,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
@@ -233,6 +237,8 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 		const struct vpdma_data_format *fmt, dma_addr_t dma_addr,
 		enum vpdma_channel chan, int field, u32 flags, int frame_width,
 		int frame_height, int start_h, int start_v);
+int vpdma_list_cleanup(struct vpdma_data *vpdma, int list_num,
+		int *channels, int size);
 
 /* vpdma list interrupt management */
 void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int irq_num,
