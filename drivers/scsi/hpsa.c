@@ -867,6 +867,16 @@ static ssize_t path_info_show(struct device *dev,
 	return output_len;
 }
 
+static ssize_t host_show_ctlr_num(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ctlr_info *h;
+	struct Scsi_Host *shost = class_to_shost(dev);
+
+	h = shost_to_hba(shost);
+	return snprintf(buf, 20, "%d\n", h->ctlr);
+}
+
 static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
 static DEVICE_ATTR(lunid, S_IRUGO, lunid_show, NULL);
 static DEVICE_ATTR(unique_id, S_IRUGO, unique_id_show, NULL);
@@ -890,6 +900,8 @@ static DEVICE_ATTR(resettable, S_IRUGO,
 	host_show_resettable, NULL);
 static DEVICE_ATTR(lockup_detected, S_IRUGO,
 	host_show_lockup_detected, NULL);
+static DEVICE_ATTR(ctlr_num, S_IRUGO,
+	host_show_ctlr_num, NULL);
 
 static struct device_attribute *hpsa_sdev_attrs[] = {
 	&dev_attr_raid_level,
@@ -910,6 +922,7 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	&dev_attr_hp_ssd_smart_path_status,
 	&dev_attr_raid_offload_debug,
 	&dev_attr_lockup_detected,
+	&dev_attr_ctlr_num,
 	NULL,
 };
 
