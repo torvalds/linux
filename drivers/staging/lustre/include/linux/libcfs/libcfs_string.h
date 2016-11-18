@@ -84,9 +84,11 @@ int cfs_expr_list_values(struct cfs_expr_list *expr_list,
 static inline void
 cfs_expr_list_values_free(__u32 *values, int num)
 {
-	/* This array is allocated by LIBCFS_ALLOC(), so it shouldn't be freed
+	/*
+	 * This array is allocated by LIBCFS_ALLOC(), so it shouldn't be freed
 	 * by OBD_FREE() if it's called by module other than libcfs & LNet,
-	 * otherwise we will see fake memory leak */
+	 * otherwise we will see fake memory leak
+	 */
 	LIBCFS_FREE(values, num * sizeof(values[0]));
 }
 

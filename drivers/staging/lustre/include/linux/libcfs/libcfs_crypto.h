@@ -29,10 +29,12 @@
 #define _LIBCFS_CRYPTO_H
 
 struct cfs_crypto_hash_type {
-	char		*cht_name;      /**< hash algorithm name, equal to
-					 * format name for crypto api */
-	unsigned int    cht_key;	/**< init key by default (valid for
-					 * 4 bytes context like crc32, adler */
+	char		*cht_name;      /*< hash algorithm name, equal to
+					 * format name for crypto api
+					 */
+	unsigned int    cht_key;	/*< init key by default (valid for
+					 * 4 bytes context like crc32, adler
+					 */
 	unsigned int    cht_size;       /**< hash digest size */
 };
 

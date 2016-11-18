@@ -103,22 +103,28 @@ static inline int cfs_fail_check_set(__u32 id, __u32 value,
 #define CFS_FAIL_CHECK_QUIET(id) \
 	cfs_fail_check_set(id, 0, CFS_FAIL_LOC_NOSET, 1)
 
-/* If id hit cfs_fail_loc and cfs_fail_val == (-1 or value) return 1,
- * otherwise return 0 */
+/*
+ * If id hit cfs_fail_loc and cfs_fail_val == (-1 or value) return 1,
+ * otherwise return 0
+ */
 #define CFS_FAIL_CHECK_VALUE(id, value) \
 	cfs_fail_check_set(id, value, CFS_FAIL_LOC_VALUE, 0)
 #define CFS_FAIL_CHECK_VALUE_QUIET(id, value) \
 	cfs_fail_check_set(id, value, CFS_FAIL_LOC_VALUE, 1)
 
-/* If id hit cfs_fail_loc, cfs_fail_loc |= value and return 1,
- * otherwise return 0 */
+/*
+ * If id hit cfs_fail_loc, cfs_fail_loc |= value and return 1,
+ * otherwise return 0
+ */
 #define CFS_FAIL_CHECK_ORSET(id, value) \
 	cfs_fail_check_set(id, value, CFS_FAIL_LOC_ORSET, 0)
 #define CFS_FAIL_CHECK_ORSET_QUIET(id, value) \
 	cfs_fail_check_set(id, value, CFS_FAIL_LOC_ORSET, 1)
 
-/* If id hit cfs_fail_loc, cfs_fail_loc = value and return 1,
- * otherwise return 0 */
+/*
+ * If id hit cfs_fail_loc, cfs_fail_loc = value and return 1,
+ * otherwise return 0
+ */
 #define CFS_FAIL_CHECK_RESET(id, value) \
 	cfs_fail_check_set(id, value, CFS_FAIL_LOC_RESET, 0)
 #define CFS_FAIL_CHECK_RESET_QUIET(id, value) \
@@ -138,8 +144,10 @@ static inline int cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 #define CFS_FAIL_TIMEOUT_MS(id, ms) \
 	cfs_fail_timeout_set(id, 0, ms, CFS_FAIL_LOC_NOSET)
 
-/* If id hit cfs_fail_loc, cfs_fail_loc |= value and
- * sleep seconds or milliseconds */
+/*
+ * If id hit cfs_fail_loc, cfs_fail_loc |= value and
+ * sleep seconds or milliseconds
+ */
 #define CFS_FAIL_TIMEOUT_ORSET(id, value, secs) \
 	cfs_fail_timeout_set(id, value, secs * 1000, CFS_FAIL_LOC_ORSET)
 
@@ -152,10 +160,12 @@ static inline int cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 #define CFS_FAULT_CHECK(id)			\
 	CFS_FAIL_CHECK(CFS_FAULT | (id))
 
-/* The idea here is to synchronise two threads to force a race. The
+/*
+ * The idea here is to synchronise two threads to force a race. The
  * first thread that calls this with a matching fail_loc is put to
  * sleep. The next thread that calls with the same fail_loc wakes up
- * the first and continues. */
+ * the first and continues.
+ */
 static inline void cfs_race(__u32 id)
 {
 

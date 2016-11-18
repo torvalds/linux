@@ -280,7 +280,7 @@ do {							    \
 #define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
 
 /** Compile-time assertion.
-
+ *
  * Check an invariant described by a constant expression at compile time by
  * forcing a compiler error if it does not hold.  \a cond must be a constant
  * expression as defined by the ISO C Standard:
@@ -306,7 +306,8 @@ do {							    \
 /* --------------------------------------------------------------------
  * Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect.
- * -------------------------------------------------------------------- */
+ * --------------------------------------------------------------------
+ */
 
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
