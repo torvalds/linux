@@ -273,11 +273,13 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		if (ret == 0) {
 			DPRINT("%s: error: (requested pages == 0) (wanted %d)\n",
 					__FUNCTION__, requested_pages);
+			mutex_unlock(&pipe->lock);
 			return ret;
 		}
 		if (ret < 0) {
 			DPRINT("%s: (requested pages < 0) %d \n",
 				 	__FUNCTION__, requested_pages);
+			mutex_unlock(&pipe->lock);
 			return ret;
 		}
 
@@ -384,10 +386,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		}
 
 		/* Try to re-acquire the lock */
-		if (mutex_lock_interruptible(&pipe->lock)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
+		if (mutex_lock_interruptible(&pipe->lock))
+			return -ERESTARTSYS;
 	}
 	mutex_unlock(&pipe->lock);
 
