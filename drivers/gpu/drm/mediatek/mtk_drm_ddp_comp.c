@@ -123,7 +123,7 @@ static void mtk_od_config(struct mtk_ddp_comp *comp, unsigned int w,
 			  unsigned int bpc)
 {
 	writel(w << 16 | h, comp->regs + DISP_OD_SIZE);
-	writel(OD_RELAYMODE, comp->regs + OD_CFG);
+	writel(OD_RELAYMODE, comp->regs + OD_RELAYMODE);
 	mtk_dither_set(comp, bpc, DISP_OD_CFG);
 }
 
