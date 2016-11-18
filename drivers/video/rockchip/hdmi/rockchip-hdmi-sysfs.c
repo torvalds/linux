@@ -262,7 +262,7 @@ static int hdmi_set_color(struct rk_display_device *device,
 			hdmi->eotf, value);
 		if (hdmi->eotf != value &&
 		    (value & hdmi->edid.hdr.hdrinfo.eotf ||
-		     hdmi->eotf == 0))
+		     value == 0))
 			hdmi->eotf = value;
 		else
 			return 0;
