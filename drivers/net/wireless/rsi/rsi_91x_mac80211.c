@@ -390,7 +390,7 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 
 	status = rsi_band_check(common);
 	if (!status)
-		status = rsi_set_channel(adapter->priv, channel);
+		status = rsi_set_channel(adapter->priv, curchan);
 
 	if (bss->assoc) {
 		if (common->hw_data_qs_blocked &&
@@ -1151,6 +1151,32 @@ static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
 	return 0;	
 }
 
+static void rsi_reg_notify(struct wiphy *wiphy,
+			   struct regulatory_request *request)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct rsi_hw * adapter = hw->priv; 
+	int i;
+
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
+	
+	for (i = 0; i < sband->n_channels; i++) {
+		ch = &sband->channels[i];
+		if (ch->flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
+		if (ch->flags & IEEE80211_CHAN_RADAR)
+			ch->flags |= IEEE80211_CHAN_NO_IR;
+	}
+	
+	rsi_dbg(INFO_ZONE,
+		"country = %s dfs_region = %d\n",
+		request->alpha2, request->dfs_region);
+	adapter->dfs_region = request->dfs_region;
+}
+
 static struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
 	.start = rsi_mac80211_start,
@@ -1232,6 +1258,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 		&adapter->sbands[NL80211_BAND_2GHZ];
 	wiphy->bands[NL80211_BAND_5GHZ] =
 		&adapter->sbands[NL80211_BAND_5GHZ];
+
+	wiphy->reg_notifier = rsi_reg_notify;
 
 	status = ieee80211_register_hw(hw);
 	if (status)

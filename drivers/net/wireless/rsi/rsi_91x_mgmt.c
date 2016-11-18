@@ -913,7 +913,8 @@ int rsi_band_check(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-int rsi_set_channel(struct rsi_common *common, u16 channel)
+int rsi_set_channel(struct rsi_common *common,
+		    struct ieee80211_channel *channel)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_mac_frame *mgmt_frame;
@@ -928,24 +929,39 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 		return -ENOMEM;
 	}
 
+	if (!channel) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
 	memset(skb->data, 0, FRAME_DESC_SZ);
 	mgmt_frame = (struct rsi_mac_frame *)skb->data;
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(SCAN_REQUEST);
-	mgmt_frame->desc_word[4] = cpu_to_le16(channel);
+	mgmt_frame->desc_word[4] = cpu_to_le16(channel->hw_value);
+
+	mgmt_frame->desc_word[4] |=
+		cpu_to_le16(((char)(channel->max_antenna_gain)) << 8);
+	mgmt_frame->desc_word[5] =
+		cpu_to_le16((char)(channel->max_antenna_gain));
 
 	mgmt_frame->desc_word[7] = cpu_to_le16(PUT_BBP_RESET |
 					       BBP_REG_WRITE |
 					       (RSI_RF_TYPE << 4));
 
-	mgmt_frame->desc_word[5] = cpu_to_le16(0x01);
-	mgmt_frame->desc_word[6] = cpu_to_le16(0x12);
+	if (!(channel->flags & IEEE80211_CHAN_NO_IR) &&
+	       !(channel->flags & IEEE80211_CHAN_RADAR)) {
+		if (common->tx_power < channel->max_power)
+			mgmt_frame->desc_word[6] = cpu_to_le16(common->tx_power);
+		else
+			mgmt_frame->desc_word[6] = cpu_to_le16(channel->max_power);
+	}
+	mgmt_frame->desc_word[7] = cpu_to_le16(common->priv->dfs_region);
 
 	if (common->channel_width == BW_40MHZ)
 		mgmt_frame->desc_word[5] |= cpu_to_le16(0x1 << 8);
 
-	common->channel = channel;
+	common->channel = channel->hw_value;
 
 	skb_put(skb, FRAME_DESC_SZ);
 
