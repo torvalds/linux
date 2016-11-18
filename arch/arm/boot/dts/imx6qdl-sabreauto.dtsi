@@ -283,7 +283,7 @@
 		VD-supply = <&reg_audio>;
 		VLS-supply = <&reg_audio>;
 		VLC-supply = <&reg_audio>;
-        };
+	};
 
 };
 
@@ -613,8 +613,6 @@
 &weim {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_weim_nor &pinctrl_weim_cs0>;
-	#address-cells = <2>;
-	#size-cells = <1>;
 	ranges = <0 0 0x08000000 0x08000000>;
 	status = "disabled"; /* pin conflict with SPI NOR */
 

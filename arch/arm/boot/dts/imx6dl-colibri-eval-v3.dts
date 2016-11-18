@@ -43,27 +43,35 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "imx6q.dtsi"
-#include "imx6qdl-apalis.dtsi"
+#include "imx6dl.dtsi"
+#include "imx6qdl-colibri.dtsi"
 
 / {
-	model = "Toradex Apalis iMX6Q/D Module on Ixora Carrier Board";
-	compatible = "toradex,apalis_imx6q-ixora", "toradex,apalis_imx6q",
-		     "fsl,imx6q";
+	model = "Toradex Colibri iMX6DL/S on Colibri Evaluation Board V3";
+	compatible = "toradex,colibri_imx6dl-eval-v3", "toradex,colibri_imx6dl",
+		     "fsl,imx6dl";
 
 	aliases {
-		i2c0 = &i2cddc;
-		i2c1 = &i2c1;
-		i2c2 = &i2c2;
-		i2c3 = &i2c3;
+		i2c0 = &i2c2;
+		i2c1 = &i2c3;
 	};
 
 	aliases {
 		rtc0 = &rtc_i2c;
 		rtc1 = &snvs_rtc;
+	};
+
+	clocks {
+		/* Fixed crystal dedicated to mcp251x */
+		clk16m: clk@1 {
+			compatible = "fixed-clock";
+			reg = <1>;
+			#clock-cells = <0>;
+			clock-frequency = <16000000>;
+			clock-output-names = "clk16m";
+		};
 	};
 
 	gpio-keys {
@@ -73,7 +81,7 @@
 
 		wakeup {
 			label = "Wake-Up";
-			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>; /* SODIMM 45 */
 			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
 			wakeup-source;
@@ -84,7 +92,7 @@
 		compatible = "fsl,imx-parallel-display";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interface-pix-fmt = "rgb24";
+		interface-pix-fmt = "bgr666";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu1_lcdif>;
 		status = "okay";
@@ -93,7 +101,7 @@
 			reg = <0>;
 
 			lcd_display_in: endpoint {
-				remote-endpoint = <&ipu1_di1_disp1>;
+				remote-endpoint = <&ipu1_di0_disp0>;
 			};
 		};
 
@@ -120,33 +128,6 @@
 			};
 		};
 	};
-
-	leds {
-		compatible = "gpio-leds";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_leds_ixora>;
-
-		led4-green {
-			label = "LED_4_GREEN";
-			gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
-		};
-
-		led4-red {
-			label = "LED_4_RED";
-			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
-		};
-
-		led5-green {
-			label = "LED_5_GREEN";
-			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
-		};
-
-		led5-red {
-			label = "LED_5_RED";
-			gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
-		};
-	};
 };
 
 &backlight {
@@ -155,31 +136,30 @@
 	status = "okay";
 };
 
-&can1 {
+/* Colibri SSP */
+&ecspi4 {
 	status = "okay";
-};
 
-&can2 {
-	status = "okay";
+	mcp251x0: mcp251x@1 {
+		compatible = "microchip,mcp2515";
+		reg = <0>;
+		clocks = <&clk16m>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <27 0x2>;
+		spi-max-frequency = <10000000>;
+		status = "okay";
+	};
 };
 
 &hdmi {
-	ddc-i2c-bus = <&i2cddc>;
 	status = "okay";
 };
 
-&i2cddc {
+/*
+ * Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 (e.g. RTC on carrier board)
+ */
+&i2c3 {
 	status = "okay";
-};
-
-/* GEN1_I2C: I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
-&i2c1 {
-	status = "okay";
-
-	eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
-	};
 
 	/* M41T0M6 real time clock on carrier board */
 	rtc_i2c: rtc@68 {
@@ -188,19 +168,8 @@
 	};
 };
 
-&ipu1_di1_disp1 {
+&ipu1_di0_disp0 {
 	remote-endpoint = <&lcd_display_in>;
-};
-
-&ldb {
-	status = "okay";
-};
-
-&pcie {
-	/* active-high meaning opposite of regular PERST# active-low polarity */
-	reset-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
-	reset-gpio-active-high;
-	status = "okay";
 };
 
 &pwm1 {
@@ -219,23 +188,7 @@
 	status = "okay";
 };
 
-&reg_usb_otg_vbus {
-	status = "okay";
-};
-
 &reg_usb_host_vbus {
-	status = "okay";
-};
-
-&sata {
-	status = "okay";
-};
-
-&sound_spdif {
-	status = "okay";
-};
-
-&spdif {
 	status = "okay";
 };
 
@@ -247,11 +200,7 @@
 	status = "okay";
 };
 
-&uart4 {
-	status = "okay";
-};
-
-&uart5 {
+&uart3 {
 	status = "okay";
 };
 
@@ -261,36 +210,44 @@
 };
 
 &usbotg {
-	vbus-supply = <&reg_usb_otg_vbus>;
 	status = "okay";
 };
 
-/* SD1 */
-&usdhc2 {
+/* Colibri MMC */
+&usdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd_cd>;
-	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&pinctrl_mmc_cd>;
+	cd-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>; /* MMCD */
 	status = "okay";
 };
 
-&iomuxc {
-	/*
-	 * Mux the Apalis GPIOs
-	 * GPIO5, 6 used by optional fusion_F0710A kernel module
-	 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
-		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4
-		     &pinctrl_apalis_gpio5 &pinctrl_apalis_gpio6
-		     &pinctrl_apalis_gpio7 &pinctrl_apalis_gpio8
-		    >;
+&weim {
+	status = "okay";
 
-	pinctrl_leds_ixora: ledsixoragrp {
-		fsl,pins = <
-			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17 0x1b0b0
-			MX6QDL_PAD_SD1_DAT3__GPIO1_IO21 0x1b0b0
-			MX6QDL_PAD_NANDF_D1__GPIO2_IO01 0x1b0b0
-			MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x1b0b0
-		>;
+	/* weim memory map: 32MB on CS0, 32MB on CS1, 32MB on CS2 */
+	ranges = <0 0 0x08000000 0x02000000
+		  1 0 0x0a000000 0x02000000
+		  2 0 0x0c000000 0x02000000>;
+
+	/* SRAM on Colibri nEXT_CS0 */
+	sram@0,0 {
+		compatible = "cypress,cy7c1019dv33-10zsxi, mtd-ram";
+		reg = <0 0 0x00010000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00010081 0x00000000 0x04000000
+				      0x00000000 0x04000040 0x00000000>;
+	};
+
+	/* SRAM on Colibri nEXT_CS1 */
+	sram@1,0 {
+		compatible = "cypress,cy7c1019dv33-10zsxi, mtd-ram";
+		reg = <1 0 0x00010000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		bank-width = <2>;
+		fsl,weim-cs-timing = <0x00010081 0x00000000 0x04000000
+				      0x00000000 0x04000040 0x00000000>;
 	};
 };

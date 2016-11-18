@@ -68,7 +68,41 @@
 			label = "Power Button";
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
+		};
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c1mux>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mux-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		i2c-parent = <&i2c1>;
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			eeprom@50 {
+				compatible = "at24,24c02";
+				reg = <0x50>;
+				pagesize = <16>;
+			};
+
+			em3027: rtc@56 {
+				compatible = "emmicro,em3027";
+				reg = <0x56>;
+			};
+		};
+
+		i2c_dvi_ddc: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 };
@@ -82,17 +116,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
-
-	eeprom@50 {
-		compatible = "at24,24c02";
-		reg = <0x50>;
-		pagesize = <16>;
-	};
-
-	em3027: rtc@56 {
-		compatible = "emmicro,em3027";
-		reg = <0x56>;
-	};
 };
 
 &i2c2 {
@@ -112,6 +135,12 @@
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D21__I2C1_SCL 0x4001b8b1
 			MX6QDL_PAD_EIM_D28__I2C1_SDA 0x4001b8b1
+		>;
+	};
+
+	pinctrl_i2c1mux: i2c1muxgrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_2__GPIO1_IO02 0x1b0b0
 		>;
 	};
 

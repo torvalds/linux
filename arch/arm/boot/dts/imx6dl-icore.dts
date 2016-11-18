@@ -1,6 +1,6 @@
 /*
- * Copyright 2015 Timesys Corporation.
- * Copyright 2015 General Electric Company
+ * Copyright (C) 2016 Amarula Solutions B.V.
+ * Copyright (C) 2016 Engicam S.r.l.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,65 +42,18 @@
 
 /dts-v1/;
 
-#include "imx6q-bx50v3.dtsi"
+#include "imx6dl.dtsi"
+#include "imx6qdl-icore.dtsi"
 
 / {
-	model = "General Electric B650v3";
-	compatible = "ge,imx6q-b650v3", "advantech,imx6q-ba16", "fsl,imx6q";
-
-	chosen {
-		stdout-path = &uart3;
-	};
-
-	panel-lvds0 {
-		compatible = "innolux,g121x1-l03";
-		backlight = <&backlight_lvds>;
-		power-supply = <&reg_lvds>;
-
-		port {
-			panel_in_lvds0: endpoint {
-				remote-endpoint = <&lvds0_out>;
-			};
-		};
-	};
+	model = "Engicam i.CoreM6 DualLite/Solo Starter Kit";
+	compatible = "engicam,imx6-icore", "fsl,imx6dl";
 };
 
-&clks {
-	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
-			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
-	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
-				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
-};
-
-&ldb {
+&can1 {
 	status = "okay";
-
-	lvds0: lvds-channel@0 {
-		fsl,data-mapping = "spwg";
-		fsl,data-width = <24>;
-		status = "okay";
-
-		port@4 {
-			reg = <4>;
-
-			lvds0_out: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
-	};
 };
 
-&pca9539 {
-	P05 {
-		gpio-hog;
-		gpios = <5 0>;
-		output-low;
-		line-name = "PCA9539-P05";
-	};
-};
-
-&usbphy1 {
-	fsl,tx-cal-45-dn-ohms = <55>;
-	fsl,tx-cal-45-dp-ohms = <55>;
-	fsl,tx-d-cal = <100>;
+&can2 {
+	status = "okay";
 };

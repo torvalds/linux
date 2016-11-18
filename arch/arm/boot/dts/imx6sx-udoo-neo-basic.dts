@@ -1,17 +1,17 @@
 /*
- * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright (c) 2016 Andreas Färber
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
  * whole.
  *
- *  a) This file is free software; you can redistribute it and/or
+ *  a) This library is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU General Public License as
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This file is distributed in the hope that it will be useful,
+ *     This library is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
@@ -40,57 +40,30 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "imx6q.dtsi"
+/dts-v1/;
+
+#include "imx6sx-udoo-neo.dtsi"
 
 / {
-	soc {
-		ocram2: sram@00940000 {
-			compatible = "mmio-sram";
-			reg = <0x00940000 0x20000>;
-			clocks = <&clks IMX6QDL_CLK_OCRAM>;
-		};
+	model = "UDOO Neo Basic";
+	compatible = "udoo,neobasic", "fsl,imx6sx";
 
-		ocram3: sram@00960000 {
-			compatible = "mmio-sram";
-			reg = <0x00960000 0x20000>;
-			clocks = <&clks IMX6QDL_CLK_OCRAM>;
-		};
+	memory {
+		reg = <0x80000000 0x20000000>;
+	};
+};
 
-		ipu1: ipu@02400000 {
-			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
-			clocks = <&clks IMX6QDL_CLK_IPU1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0>, <&clks IMX6QDL_CLK_IPU1_DI1>,
-				 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
-				 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>,
-				 <&clks IMX6QDL_CLK_PRG0_APB>;
-			clock-names = "bus",
-				      "di0", "di1",
-				      "di0_sel", "di1_sel",
-				      "ldb_di0", "ldb_di1", "prg";
-		};
+&fec1 {
+	phy-handle = <&ethphy1>;
+	status = "okay";
 
-		ipu2: ipu@02800000 {
-			compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
-			clocks = <&clks IMX6QDL_CLK_IPU2>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0>, <&clks IMX6QDL_CLK_IPU2_DI1>,
-				 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
-				 <&clks IMX6QDL_CLK_LDB_DI0_PODF>, <&clks IMX6QDL_CLK_LDB_DI1_PODF>,
-				 <&clks IMX6QDL_CLK_PRG1_APB>;
-			clock-names = "bus",
-				      "di0", "di1",
-				      "di0_sel", "di1_sel",
-				      "ldb_di0", "ldb_di1", "prg";
-		};
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		pcie: pcie@0x01000000 {
-			compatible = "fsl,imx6qp-pcie", "snps,dw-pcie";
-		};
-
-		aips-bus@02100000 {
-			mmdc0: mmdc@021b0000 { /* MMDC0 */
-				compatible = "fsl,imx6qp-mmdc", "fsl,imx6q-mmdc";
-				reg = <0x021b0000 0x4000>;
-			};
+		ethphy1: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
 		};
 	};
 };

@@ -1,6 +1,7 @@
 /*
- * Copyright 2015 Timesys Corporation.
- * Copyright 2015 General Electric Company
+ * Copyright 2016 Grinn
+ *
+ * Author: Marcin Niestroj <m.niestroj@grinn-global.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,67 +41,42 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-
-#include "imx6q-bx50v3.dtsi"
+#include "imx6ul.dtsi"
 
 / {
-	model = "General Electric B650v3";
-	compatible = "ge,imx6q-b650v3", "advantech,imx6q-ba16", "fsl,imx6q";
+	model = "Grinn i.MX6UL liteSOM";
+	compatible = "grinn,imx6ul-litesom", "fsl,imx6ul";
 
-	chosen {
-		stdout-path = &uart3;
-	};
-
-	panel-lvds0 {
-		compatible = "innolux,g121x1-l03";
-		backlight = <&backlight_lvds>;
-		power-supply = <&reg_lvds>;
-
-		port {
-			panel_in_lvds0: endpoint {
-				remote-endpoint = <&lvds0_out>;
-			};
-		};
+	memory {
+		reg = <0x80000000 0x20000000>;
 	};
 };
 
-&clks {
-	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
-			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
-	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
-				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
+&iomuxc {
+	pinctrl_usdhc2: usdhc2grp {
+		fsl,pins = <
+			MX6UL_PAD_NAND_RE_B__USDHC2_CLK	    0x10069
+			MX6UL_PAD_NAND_WE_B__USDHC2_CMD	    0x17059
+			MX6UL_PAD_NAND_DATA00__USDHC2_DATA0 0x17059
+			MX6UL_PAD_NAND_DATA01__USDHC2_DATA1 0x17059
+			MX6UL_PAD_NAND_DATA02__USDHC2_DATA2 0x17059
+			MX6UL_PAD_NAND_DATA03__USDHC2_DATA3 0x17059
+			MX6UL_PAD_NAND_DATA04__USDHC2_DATA4 0x17059
+			MX6UL_PAD_NAND_DATA05__USDHC2_DATA5 0x17059
+			MX6UL_PAD_NAND_DATA06__USDHC2_DATA6 0x17059
+			MX6UL_PAD_NAND_DATA07__USDHC2_DATA7 0x17059
+			MX6UL_PAD_NAND_ALE__USDHC2_RESET_B  0x17059
+		>;
+	};
 };
 
-&ldb {
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	no-1-8-v;
+	non-removable;
+	keep-power-in-suspend;
+	wakeup-source;
+	bus-width = <8>;
 	status = "okay";
-
-	lvds0: lvds-channel@0 {
-		fsl,data-mapping = "spwg";
-		fsl,data-width = <24>;
-		status = "okay";
-
-		port@4 {
-			reg = <4>;
-
-			lvds0_out: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
-	};
-};
-
-&pca9539 {
-	P05 {
-		gpio-hog;
-		gpios = <5 0>;
-		output-low;
-		line-name = "PCA9539-P05";
-	};
-};
-
-&usbphy1 {
-	fsl,tx-cal-45-dn-ohms = <55>;
-	fsl,tx-cal-45-dp-ohms = <55>;
-	fsl,tx-d-cal = <100>;
 };
