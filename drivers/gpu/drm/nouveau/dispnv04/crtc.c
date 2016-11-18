@@ -460,6 +460,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 	struct nv04_crtc_reg *savep = &nv04_display(dev)->saved_reg.crtc_reg[nv_crtc->index];
+	const struct drm_framebuffer *fb = crtc->primary->fb;
 	struct drm_encoder *encoder;
 	bool lvds_output = false, tmds_output = false, tv_output = false,
 		off_chip_digital = false;
@@ -569,7 +570,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 		regp->CRTC[NV_CIO_CRE_86] = 0x1;
 	}
 
-	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (crtc->primary->fb->depth + 1) / 8;
+	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (fb->depth + 1) / 8;
 	/* Enable slaved mode (called MODE_TV in nv4ref.h) */
 	if (lvds_output || tmds_output || tv_output)
 		regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (1 << 7);
@@ -583,7 +584,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	regp->ramdac_gen_ctrl = NV_PRAMDAC_GENERAL_CONTROL_BPC_8BITS |
 				NV_PRAMDAC_GENERAL_CONTROL_VGA_STATE_SEL |
 				NV_PRAMDAC_GENERAL_CONTROL_PIXMIX_ON;
-	if (crtc->primary->fb->depth == 16)
+	if (fb->depth == 16)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
 	if (drm->device.info.chipset >= 0x11)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_PIPE_LONG;
