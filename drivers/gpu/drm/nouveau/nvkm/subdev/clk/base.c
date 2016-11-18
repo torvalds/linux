@@ -44,13 +44,13 @@ nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 	struct nvkm_bios *bios = clk->subdev.device->bios;
 	struct nvbios_boostE boostE;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u32 data;
 
 	data = nvbios_boostEm(bios, pstate, &ver, &hdr, &cnt, &len, &boostE);
 	if (data) {
 		struct nvbios_boostS boostS;
 		u8  idx = 0, sver, shdr;
-		u16 subd;
+		u32 subd;
 
 		input = max(boostE.min, input);
 		input = min(boostE.max, input);
