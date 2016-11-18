@@ -106,6 +106,7 @@ config QCOM_Q6V5_PIL
 config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
+	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
 	depends on QCOM_SMEM
 	depends on REMOTEPROC
 	select QCOM_MDT_LOADER
