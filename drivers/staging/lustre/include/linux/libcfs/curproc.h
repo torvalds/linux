@@ -53,7 +53,7 @@
 #define current_pid()		(current->pid)
 #define current_comm()		(current->comm)
 
-typedef __u32 cfs_cap_t;
+typedef u32 cfs_cap_t;
 
 #define CFS_CAP_CHOWN		   0
 #define CFS_CAP_DAC_OVERRIDE	    1

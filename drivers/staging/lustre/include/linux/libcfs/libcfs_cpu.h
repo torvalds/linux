@@ -92,7 +92,7 @@ struct cfs_cpt_table {
 	/* node mask */
 	nodemask_t		ctb_nodemask;
 	/* version */
-	__u64			ctb_version;
+	u64			ctb_version;
 };
 
 static inline cpumask_t *

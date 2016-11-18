@@ -62,9 +62,9 @@ struct cfs_range_expr {
 	 * Link to cfs_expr_list::el_exprs.
 	 */
 	struct list_head	re_link;
-	__u32		re_lo;
-	__u32		re_hi;
-	__u32		re_stride;
+	u32		re_lo;
+	u32		re_hi;
+	u32		re_stride;
 };
 
 struct cfs_expr_list {
@@ -76,13 +76,13 @@ char *cfs_trimwhite(char *str);
 int cfs_gettok(struct cfs_lstr *next, char delim, struct cfs_lstr *res);
 int cfs_str2num_check(char *str, int nob, unsigned int *num,
 		      unsigned int min, unsigned int max);
-int cfs_expr_list_match(__u32 value, struct cfs_expr_list *expr_list);
+int cfs_expr_list_match(u32 value, struct cfs_expr_list *expr_list);
 int cfs_expr_list_print(char *buffer, int count,
 			struct cfs_expr_list *expr_list);
 int cfs_expr_list_values(struct cfs_expr_list *expr_list,
-			 int max, __u32 **values);
+			 int max, u32 **values);
 static inline void
-cfs_expr_list_values_free(__u32 *values, int num)
+cfs_expr_list_values_free(u32 *values, int num)
 {
 	/*
 	 * This array is allocated by LIBCFS_ALLOC(), so it shouldn't be freed
