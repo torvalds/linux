@@ -902,6 +902,50 @@ void vpdma_add_in_dtd(struct vpdma_desc_list *list, int width,
 }
 EXPORT_SYMBOL(vpdma_add_in_dtd);
 
+int vpdma_hwlist_alloc(struct vpdma_data *vpdma, void *priv)
+{
+	int i, list_num = -1;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vpdma->lock, flags);
+	for (i = 0; i < VPDMA_MAX_NUM_LIST &&
+	    vpdma->hwlist_used[i] == true; i++)
+		;
+
+	if (i < VPDMA_MAX_NUM_LIST) {
+		list_num = i;
+		vpdma->hwlist_used[i] = true;
+		vpdma->hwlist_priv[i] = priv;
+	}
+	spin_unlock_irqrestore(&vpdma->lock, flags);
+
+	return list_num;
+}
+EXPORT_SYMBOL(vpdma_hwlist_alloc);
+
+void *vpdma_hwlist_get_priv(struct vpdma_data *vpdma, int list_num)
+{
+	if (!vpdma || list_num >= VPDMA_MAX_NUM_LIST)
+		return NULL;
+
+	return vpdma->hwlist_priv[list_num];
+}
+EXPORT_SYMBOL(vpdma_hwlist_get_priv);
+
+void *vpdma_hwlist_release(struct vpdma_data *vpdma, int list_num)
+{
+	void *priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vpdma->lock, flags);
+	vpdma->hwlist_used[list_num] = false;
+	priv = vpdma->hwlist_priv;
+	spin_unlock_irqrestore(&vpdma->lock, flags);
+
+	return priv;
+}
+EXPORT_SYMBOL(vpdma_hwlist_release);
+
 /* set or clear the mask for list complete interrupt */
 void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int irq_num,
 		int list_num, bool enable)

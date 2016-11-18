@@ -13,6 +13,7 @@
 #ifndef __TI_VPDMA_H_
 #define __TI_VPDMA_H_
 
+#define VPDMA_MAX_NUM_LIST		8
 /*
  * A vpdma_buf tracks the size, DMA address and mapping status of each
  * driver DMA area.
@@ -36,6 +37,8 @@ struct vpdma_data {
 	struct platform_device	*pdev;
 
 	spinlock_t		lock;
+	bool			hwlist_used[VPDMA_MAX_NUM_LIST];
+	void			*hwlist_priv[VPDMA_MAX_NUM_LIST];
 	/* callback to VPE driver when the firmware is loaded */
 	void (*cb)(struct platform_device *pdev);
 };
@@ -215,6 +218,12 @@ bool vpdma_list_busy(struct vpdma_data *vpdma, int list_num);
 void vpdma_update_dma_addr(struct vpdma_data *vpdma,
 	struct vpdma_desc_list *list, dma_addr_t dma_addr,
 	void *write_dtd, int drop, int idx);
+
+/* VPDMA hardware list funcs */
+int vpdma_hwlist_alloc(struct vpdma_data *vpdma, void *priv);
+void *vpdma_hwlist_get_priv(struct vpdma_data *vpdma, int list_num);
+void *vpdma_hwlist_release(struct vpdma_data *vpdma, int list_num);
+
 /* helpers for creating vpdma descriptors */
 void vpdma_add_cfd_block(struct vpdma_desc_list *list, int client,
 		struct vpdma_buf *blk, u32 dest_offset);
