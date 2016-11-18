@@ -2447,6 +2447,7 @@ static const struct of_device_id vpe_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, vpe_of_match);
 #endif
 
 static struct platform_driver vpe_pdrv = {
