@@ -364,6 +364,7 @@ config VIDEO_TI_VPE
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
+	select VIDEO_TI_VPDMA
 	default n
 	---help---
 	  Support for the TI VPE(Video Processing Engine) block
@@ -376,6 +377,11 @@ config VIDEO_TI_VPE_DEBUG
 	  Enable debug messages on VPE driver.
 
 endif # V4L_MEM2MEM_DRIVERS
+
+# TI VIDEO PORT Helper Modules
+# These will be selected by VPE and VIP
+config VIDEO_TI_VPDMA
+	tristate
 
 menuconfig V4L_TEST_DRIVERS
 	bool "Media test drivers"
