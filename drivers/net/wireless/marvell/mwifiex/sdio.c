@@ -244,9 +244,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
 	if (user_rmmod && !adapter->mfg_mode) {
-		if (adapter->is_suspended)
-			mwifiex_sdio_resume(adapter->dev);
-
 		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);

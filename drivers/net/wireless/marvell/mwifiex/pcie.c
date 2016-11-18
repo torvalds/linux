@@ -251,11 +251,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 		return;
 
 	if (user_rmmod && !adapter->mfg_mode) {
-#ifdef CONFIG_PM_SLEEP
-		if (adapter->is_suspended)
-			mwifiex_pcie_resume(&pdev->dev);
-#endif
-
 		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
