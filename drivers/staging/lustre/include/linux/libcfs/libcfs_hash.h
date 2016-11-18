@@ -818,7 +818,7 @@ cfs_hash_djb2_hash(const void *key, size_t size, unsigned int mask)
 {
 	unsigned int i, hash = 5381;
 
-	LASSERT(key != NULL);
+	LASSERT(key);
 
 	for (i = 0; i < size; i++)
 		hash = hash * 33 + ((char *)key)[i];
