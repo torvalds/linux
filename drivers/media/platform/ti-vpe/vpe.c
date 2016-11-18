@@ -869,6 +869,7 @@ static int set_srcdst_params(struct vpe_ctx *ctx)
 	}
 
 	free_vbs(ctx);
+	ctx->src_vbs[2] = ctx->src_vbs[1] = ctx->src_vbs[0] = NULL;
 
 	ret = realloc_mv_buffers(ctx, mv_buf_size);
 	if (ret)
@@ -1989,6 +1990,9 @@ static int vpe_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	if (ctx->deinterlacing)
 		config_edi_input_mode(ctx, 0x0);
+
+	if (ctx->sequence != 0)
+		set_srcdst_params(ctx);
 
 	return 0;
 }
