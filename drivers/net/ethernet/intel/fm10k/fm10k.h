@@ -261,7 +261,6 @@ struct fm10k_intfc {
 #define FM10K_FLAG_RSS_FIELD_IPV4_UDP		(u32)(BIT(1))
 #define FM10K_FLAG_RSS_FIELD_IPV6_UDP		(u32)(BIT(2))
 #define FM10K_FLAG_SWPRI_CONFIG			(u32)(BIT(3))
-#define FM10K_FLAG_DEBUG_STATS			(u32)(BIT(4))
 	int xcast_mode;
 
 	/* Tx fast path data */
