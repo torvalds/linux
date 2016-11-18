@@ -302,6 +302,22 @@ static struct vpe_fmt vpe_formats[] = {
 		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_ABGR32],
 				  },
 	},
+	{
+		.name		= "RGB565",
+		.fourcc		= V4L2_PIX_FMT_RGB565,
+		.types		= VPE_FMT_TYPE_CAPTURE,
+		.coplanar	= 0,
+		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_RGB565],
+				  },
+	},
+	{
+		.name		= "RGB5551",
+		.fourcc		= V4L2_PIX_FMT_RGB555,
+		.types		= VPE_FMT_TYPE_CAPTURE,
+		.coplanar	= 0,
+		.vpdma_fmt	= { &vpdma_rgb_fmts[VPDMA_DATA_FMT_RGBA16_5551],
+				  },
+	},
 };
 
 /*
@@ -738,9 +754,11 @@ static void set_dst_registers(struct vpe_ctx *ctx)
 	struct vpe_fmt *fmt = ctx->q_data[Q_DATA_DST].fmt;
 	u32 val = 0;
 
-	if (clrspc == V4L2_COLORSPACE_SRGB)
+	if (clrspc == V4L2_COLORSPACE_SRGB) {
 		val |= VPE_RGB_OUT_SELECT;
-	else if (fmt->fourcc == V4L2_PIX_FMT_NV16)
+		vpdma_set_bg_color(ctx->dev->vpdma,
+			(struct vpdma_data_format *)fmt->vpdma_fmt[0], 0xff);
+	} else if (fmt->fourcc == V4L2_PIX_FMT_NV16)
 		val |= VPE_COLOR_SEPARATE_422;
 
 	/*
