@@ -122,6 +122,10 @@ struct drm_framebuffer {
 	 */
 	struct drm_mode_object base;
 	/**
+	 * @format: framebuffer format information
+	 */
+	const struct drm_format_info *format;
+	/**
 	 * @funcs: framebuffer vfunc table
 	 */
 	const struct drm_framebuffer_funcs *funcs;

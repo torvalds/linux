@@ -91,6 +91,7 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 	}
 
 	fb->dev = dev;
+	fb->format = info;
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {
