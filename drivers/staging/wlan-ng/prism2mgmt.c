@@ -84,10 +84,10 @@
 #include "prism2mgmt.h"
 
 /* Converts 802.11 format rate specifications to prism2 */
-#define p80211rate_to_p2bit(n)	((((n)&~BIT(7)) == 2) ? BIT(0) :  \
-				 (((n)&~BIT(7)) == 4) ? BIT(1) : \
-				 (((n)&~BIT(7)) == 11) ? BIT(2) : \
-				 (((n)&~BIT(7)) == 22) ? BIT(3) : 0)
+#define p80211rate_to_p2bit(n)	((((n) & ~BIT(7)) == 2) ? BIT(0) :  \
+				 (((n) & ~BIT(7)) == 4) ? BIT(1) : \
+				 (((n) & ~BIT(7)) == 11) ? BIT(2) : \
+				 (((n) & ~BIT(7)) == 22) ? BIT(3) : 0)
 
 /*----------------------------------------------------------------
  * prism2mgmt_scan
@@ -427,8 +427,8 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 #define REQBASICRATE(N) \
 	do { \
 		if ((count >= N) && DOT11_RATE5_ISBASIC_GET( \
-			item->supprates[(N)-1])) { \
-			req->basicrate ## N .data = item->supprates[(N)-1]; \
+			item->supprates[(N) - 1])) { \
+			req->basicrate ## N .data = item->supprates[(N) - 1]; \
 			req->basicrate ## N .status = \
 				P80211ENUM_msgitem_status_data_ok; \
 		} \
@@ -446,7 +446,7 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 #define REQSUPPRATE(N) \
 	do { \
 		if (count >= N) { \
-			req->supprate ## N .data = item->supprates[(N)-1]; \
+			req->supprate ## N .data = item->supprates[(N) - 1]; \
 			req->supprate ## N .status = \
 				P80211ENUM_msgitem_status_data_ok; \
 		} \
