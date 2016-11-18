@@ -26,7 +26,7 @@ available subsections can be seen below.
    hsi
    miscellaneous
    vme
-
+   80211/index
 
 .. only::  subproject and html
 
