@@ -204,6 +204,8 @@ struct rsi_common {
 	struct cqm_info cqm_info;
 
 	bool hw_data_qs_blocked;
+	
+	int tx_power;
 };
 
 struct rsi_hw {

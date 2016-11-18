@@ -200,7 +200,8 @@ enum cmd_frame_type {
 	BG_SCAN_PARAMS,
 	BG_SCAN_PROBE_REQ,
 	CW_MODE_REQ,
-	PER_CMD_PKT
+	PER_CMD_PKT,
+	RADIO_PARAMS_UPDATE = 0x29
 };
 
 struct rsi_mac_frame {
@@ -324,4 +325,5 @@ int rsi_send_mgmt_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_band_check(struct rsi_common *common);
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word);
+int rsi_send_radio_params_update(struct rsi_common *common);
 #endif
