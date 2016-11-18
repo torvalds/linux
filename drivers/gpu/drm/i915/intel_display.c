@@ -2496,7 +2496,6 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 	struct intel_rotation_info *rot_info = &intel_fb->rot_info;
 	u32 gtt_offset_rotated = 0;
 	unsigned int max_size = 0;
-	uint32_t format = fb->pixel_format;
 	int i, num_planes = fb->format->num_planes;
 	unsigned int tile_size = intel_tile_size(dev_priv);
 
@@ -2507,8 +2506,8 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		int x, y;
 
 		cpp = fb->format->cpp[i];
-		width = drm_format_plane_width(fb->width, format, i);
-		height = drm_format_plane_height(fb->height, format, i);
+		width = drm_framebuffer_plane_width(fb->width, fb, i);
+		height = drm_framebuffer_plane_height(fb->height, fb, i);
 
 		intel_fb_offset_to_xy(&x, &y, fb, i);
 
