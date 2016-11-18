@@ -629,15 +629,15 @@ static void slic_mac_config(struct adapter *adapter)
 static void slic_config_set(struct adapter *adapter, bool linkchange)
 {
 	u32 value;
-	u32 RcrReset;
+	u32 rcr_reset;
 
 	if (linkchange) {
 		/* Setup MAC */
 		slic_mac_config(adapter);
-		RcrReset = GRCR_RESET;
+		rcr_reset = GRCR_RESET;
 	} else {
 		slic_mac_address_config(adapter);
-		RcrReset = 0;
+		rcr_reset = 0;
 	}
 
 	if (adapter->linkduplex == LINK_FULLD) {
@@ -649,7 +649,7 @@ static void slic_config_set(struct adapter *adapter, bool linkchange)
 		slic_write32(adapter, SLIC_REG_WXCFG, value);
 
 		/* Setup rcvcfg last */
-		value = (RcrReset |	/* Reset, if linkchange */
+		value = (rcr_reset |	/* Reset, if linkchange */
 			 GRCR_CTLEN |	/* Enable CTL frames    */
 			 GRCR_ADDRAEN |	/* Address A enable     */
 			 GRCR_RCVBAD |	/* Rcv bad frames       */
@@ -662,7 +662,7 @@ static void slic_config_set(struct adapter *adapter, bool linkchange)
 		slic_write32(adapter, SLIC_REG_WXCFG, value);
 
 		/* Setup rcvcfg last */
-		value = (RcrReset |	/* Reset, if linkchange */
+		value = (rcr_reset |	/* Reset, if linkchange */
 			 GRCR_ADDRAEN |	/* Address A enable     */
 			 GRCR_RCVBAD |	/* Rcv bad frames       */
 			 (GRCR_HASHSIZE << GRCR_HASHSIZE_SHIFT));
@@ -2585,7 +2585,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	struct slic_shmemory *sm = &adapter->shmem;
 	struct slic_shmem_data *sm_data = sm->shmem_data;
 	struct slic_eeprom *peeprom;
-	struct oslic_eeprom *pOeeprom;
+	struct oslic_eeprom *poeeprom;
 	dma_addr_t phys_config;
 	u32 phys_configh;
 	u32 phys_configl;
@@ -2681,14 +2681,14 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 		/* Oasis card */
 		case SLIC_2GB_DEVICE_ID:
 			/* extract EEPROM data and pointers to EEPROM data */
-			pOeeprom = (struct oslic_eeprom *)peeprom;
-			eecodesize = pOeeprom->eecode_size;
-			dramsize = pOeeprom->dram_size;
-			pmac = pOeeprom->mac_info;
-			fruformat = pOeeprom->fru_format;
-			patkfru = &pOeeprom->atk_fru;
-			oemfruformat = pOeeprom->oem_fru_format;
-			poemfru = &pOeeprom->oem_fru;
+			poeeprom = (struct oslic_eeprom *)peeprom;
+			eecodesize = poeeprom->eecode_size;
+			dramsize = poeeprom->dram_size;
+			pmac = poeeprom->mac_info;
+			fruformat = poeeprom->fru_format;
+			patkfru = &poeeprom->atk_fru;
+			oemfruformat = poeeprom->oem_fru_format;
+			poemfru = &poeeprom->oem_fru;
 			macaddrs = 2;
 			/*
 			 * Minor kludge for Oasis card
