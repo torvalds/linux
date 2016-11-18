@@ -334,12 +334,12 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
 
 static void tegra_hsp_remove_doorbells(struct tegra_hsp *hsp)
 {
-	struct tegra_hsp_doorbell *db;
+	struct tegra_hsp_doorbell *db, *tmp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hsp->lock, flags);
 
-	list_for_each_entry(db, &hsp->doorbells, list)
+	list_for_each_entry_safe(db, tmp, &hsp->doorbells, list)
 		__tegra_hsp_doorbell_destroy(db);
 
 	spin_unlock_irqrestore(&hsp->lock, flags);
