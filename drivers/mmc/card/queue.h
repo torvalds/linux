@@ -76,9 +76,6 @@ extern unsigned int mmc_queue_map_sg(struct mmc_queue *,
 extern void mmc_queue_bounce_pre(struct mmc_queue_req *);
 extern void mmc_queue_bounce_post(struct mmc_queue_req *);
 
-extern int mmc_packed_init(struct mmc_queue *, struct mmc_card *);
-extern void mmc_packed_clean(struct mmc_queue *);
-
 extern int mmc_access_rpmb(struct mmc_queue *);
 
 #endif
