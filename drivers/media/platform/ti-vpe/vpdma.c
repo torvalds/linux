@@ -367,7 +367,7 @@ int vpdma_map_desc_buf(struct vpdma_data *vpdma, struct vpdma_buf *buf)
 
 	WARN_ON(buf->mapped);
 	buf->dma_addr = dma_map_single(dev, buf->addr, buf->size,
-				DMA_TO_DEVICE);
+				DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, buf->dma_addr)) {
 		dev_err(dev, "failed to map buffer\n");
 		return -EINVAL;
@@ -388,7 +388,8 @@ void vpdma_unmap_desc_buf(struct vpdma_data *vpdma, struct vpdma_buf *buf)
 	struct device *dev = &vpdma->pdev->dev;
 
 	if (buf->mapped)
-		dma_unmap_single(dev, buf->dma_addr, buf->size, DMA_TO_DEVICE);
+		dma_unmap_single(dev, buf->dma_addr, buf->size,
+				DMA_BIDIRECTIONAL);
 
 	buf->mapped = false;
 }
