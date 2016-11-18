@@ -31,9 +31,8 @@ MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International Neo and Classic PCI based product line");
 MODULE_SUPPORTED_DEVICE("dgnc");
 
-/*
- * File operations permitted on Control/Management major.
- */
+/* File operations permitted on Control/Management major. */
+
 static const struct file_operations dgnc_board_fops = {
 	.owner		=	THIS_MODULE,
 	.unlocked_ioctl =	dgnc_mgmt_ioctl,
@@ -41,9 +40,8 @@ static const struct file_operations dgnc_board_fops = {
 	.release	=	dgnc_mgmt_close
 };
 
-/*
- * Globals
- */
+/* Globals */
+
 uint			dgnc_num_boards;
 struct dgnc_board		*dgnc_board[MAXBOARDS];
 DEFINE_SPINLOCK(dgnc_global_lock);
@@ -51,14 +49,12 @@ DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
 uint			dgnc_major;
 int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
 
-/*
- * Static vars.
- */
+/* Static vars. */
+
 static struct class *dgnc_class;
 
-/*
- * Poller stuff
- */
+/* Poller stuff */
+
 static ulong		dgnc_poll_time; /* Time of next poll */
 static uint		dgnc_poll_stop; /* Used to tell poller to stop */
 static struct timer_list dgnc_poll_timer;
@@ -101,9 +97,8 @@ static const struct board_id dgnc_ids[] = {
 
 
 
-/*
- * Remap PCI memory.
- */
+/* Remap PCI memory. */
+
 static int dgnc_do_remap(struct dgnc_board *brd)
 {
 	int rc = 0;
@@ -321,7 +316,6 @@ static void dgnc_free_irq(struct dgnc_board *brd)
 }
 
 /*
- *
  * Function:
  *
  *    dgnc_poll_handler
@@ -343,7 +337,6 @@ static void dgnc_free_irq(struct dgnc_board *brd)
  *    As each timer expires, it determines (a) whether the "transmit"
  *    waiter needs to be woken up, and (b) whether the poller needs to
  *    be rescheduled.
- *
  */
 
 static void dgnc_poll_handler(ulong dummy)
@@ -371,9 +364,8 @@ static void dgnc_poll_handler(ulong dummy)
 		spin_unlock_irqrestore(&brd->bd_lock, flags);
 	}
 
-	/*
-	 * Schedule ourself back at the nominal wakeup interval.
-	 */
+	/* Schedule ourself back at the nominal wakeup interval. */
+
 	spin_lock_irqsave(&dgnc_poll_lock, flags);
 	dgnc_poll_time += dgnc_jiffies_from_ms(dgnc_poll_tick);
 
@@ -406,9 +398,7 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(brd))
 		return PTR_ERR(brd);
 
-	/*
-	 * Do tty device initialization.
-	 */
+	/* Do tty device initialization. */
 
 	rc = dgnc_tty_register(brd);
 	if (rc < 0) {
@@ -454,9 +444,8 @@ static struct pci_driver dgnc_driver = {
 	.id_table       = dgnc_pci_tbl,
 };
 
-/*
- * Start of driver.
- */
+/* Start of driver. */
+
 static int dgnc_start(void)
 {
 	int rc = 0;
@@ -566,11 +555,7 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 	kfree(brd);
 }
 
-/************************************************************************
- *
- * Driver load/unload functions
- *
- ************************************************************************/
+/* Driver load/unload functions */
 
 static void cleanup(bool sysfiles)
 {
@@ -619,17 +604,15 @@ static int __init dgnc_init_module(void)
 {
 	int rc;
 
-	/*
-	 * Initialize global stuff
-	 */
+	/* Initialize global stuff */
+
 	rc = dgnc_start();
 
 	if (rc < 0)
 		return rc;
 
-	/*
-	 * Find and configure all the cards
-	 */
+	/* Find and configure all the cards */
+
 	rc = pci_register_driver(&dgnc_driver);
 	if (rc) {
 		pr_warn("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
