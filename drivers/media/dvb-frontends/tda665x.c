@@ -197,11 +197,19 @@ static int tda665x_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
+static void tda665x_release(struct dvb_frontend *fe)
+{
+	struct tda665x_state *state = fe->tuner_priv;
+
+	fe->tuner_priv = NULL;
+	kfree(state);
+}
+
 static const struct dvb_tuner_ops tda665x_ops = {
 	.get_status	= tda665x_get_status,
 	.set_params	= tda665x_set_params,
 	.get_frequency	= tda665x_get_frequency,
-	.release	= dvb_tuner_simple_release,
+	.release	= tda665x_release
 };
 
 struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,

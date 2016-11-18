@@ -377,6 +377,12 @@ static int qt1010_init(struct dvb_frontend *fe)
 	return qt1010_set_params(fe);
 }
 
+static void qt1010_release(struct dvb_frontend *fe)
+{
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+}
+
 static int qt1010_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct qt1010_priv *priv = fe->tuner_priv;
@@ -398,7 +404,7 @@ static const struct dvb_tuner_ops qt1010_tuner_ops = {
 		.frequency_step = QT1010_STEP,
 	},
 
-	.release       = dvb_tuner_simple_release,
+	.release       = qt1010_release,
 	.init          = qt1010_init,
 	/* TODO: implement sleep */
 

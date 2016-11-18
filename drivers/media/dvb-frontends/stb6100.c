@@ -61,6 +61,8 @@ struct stb6100_lkup {
 	u8   reg;
 };
 
+static void stb6100_release(struct dvb_frontend *fe);
+
 static const struct stb6100_lkup lkup[] = {
 	{       0,  950000, 0x0a },
 	{  950000, 1000000, 0x0a },
@@ -534,7 +536,7 @@ static const struct dvb_tuner_ops stb6100_ops = {
 	.set_params	= stb6100_set_params,
 	.get_frequency  = stb6100_get_frequency,
 	.get_bandwidth  = stb6100_get_bandwidth,
-	.release	= dvb_tuner_simple_release
+	.release	= stb6100_release
 };
 
 struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
@@ -556,6 +558,14 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 
 	printk("%s: Attaching STB6100 \n", __func__);
 	return fe;
+}
+
+static void stb6100_release(struct dvb_frontend *fe)
+{
+	struct stb6100_state *state = fe->tuner_priv;
+
+	fe->tuner_priv = NULL;
+	kfree(state);
 }
 
 EXPORT_SYMBOL(stb6100_attach);

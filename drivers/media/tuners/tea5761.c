@@ -284,6 +284,12 @@ int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	return 0;
 }
 
+static void tea5761_release(struct dvb_frontend *fe)
+{
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+}
+
 static int tea5761_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tea5761_priv *priv = fe->tuner_priv;
@@ -297,7 +303,7 @@ static const struct dvb_tuner_ops tea5761_tuner_ops = {
 	},
 	.set_analog_params = set_radio_freq,
 	.sleep		   = set_radio_sleep,
-	.release           = dvb_tuner_simple_release,
+	.release           = tea5761_release,
 	.get_frequency     = tea5761_get_frequency,
 	.get_status        = tea5761_get_status,
 	.get_rf_strength   = tea5761_get_rf_strength,

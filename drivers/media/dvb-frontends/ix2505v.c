@@ -94,6 +94,15 @@ static int ix2505v_write(struct ix2505v_state *state, u8 buf[], u8 count)
 	return 0;
 }
 
+static void ix2505v_release(struct dvb_frontend *fe)
+{
+	struct ix2505v_state *state = fe->tuner_priv;
+
+	fe->tuner_priv = NULL;
+	kfree(state);
+
+}
+
 /**
  *  Data write format of the Sharp IX2505V B0017
  *
@@ -254,7 +263,7 @@ static const struct dvb_tuner_ops ix2505v_tuner_ops = {
 		.frequency_min = 950000,
 		.frequency_max = 2175000
 	},
-	.release = dvb_tuner_simple_release,
+	.release = ix2505v_release,
 	.set_params = ix2505v_set_params,
 	.get_frequency = ix2505v_get_frequency,
 };

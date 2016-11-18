@@ -42,6 +42,12 @@ struct tua6100_priv {
 	u32 frequency;
 };
 
+static void tua6100_release(struct dvb_frontend *fe)
+{
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+}
+
 static int tua6100_sleep(struct dvb_frontend *fe)
 {
 	struct tua6100_priv *priv = fe->tuner_priv;
@@ -157,7 +163,7 @@ static const struct dvb_tuner_ops tua6100_tuner_ops = {
 		.frequency_max = 2150000,
 		.frequency_step = 1000,
 	},
-	.release = dvb_tuner_simple_release,
+	.release = tua6100_release,
 	.sleep = tua6100_sleep,
 	.set_params = tua6100_set_params,
 	.get_frequency = tua6100_get_frequency,

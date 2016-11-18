@@ -606,6 +606,12 @@ static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 	return (div * desc->entries[i].stepsize) - desc->iffreq;
 }
 
+static void dvb_pll_release(struct dvb_frontend *fe)
+{
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+}
+
 static int dvb_pll_sleep(struct dvb_frontend *fe)
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
@@ -738,7 +744,7 @@ static int dvb_pll_init(struct dvb_frontend *fe)
 }
 
 static const struct dvb_tuner_ops dvb_pll_tuner_ops = {
-	.release = dvb_tuner_simple_release,
+	.release = dvb_pll_release,
 	.sleep = dvb_pll_sleep,
 	.init = dvb_pll_init,
 	.set_params = dvb_pll_set_params,

@@ -80,6 +80,14 @@ static int mc44s803_readreg(struct mc44s803_priv *priv, u8 reg, u32 *val)
 	return 0;
 }
 
+static void mc44s803_release(struct dvb_frontend *fe)
+{
+	struct mc44s803_priv *priv = fe->tuner_priv;
+
+	fe->tuner_priv = NULL;
+	kfree(priv);
+}
+
 static int mc44s803_init(struct dvb_frontend *fe)
 {
 	struct mc44s803_priv *priv = fe->tuner_priv;
@@ -302,7 +310,7 @@ static const struct dvb_tuner_ops mc44s803_tuner_ops = {
 		.frequency_step =     100000,
 	},
 
-	.release       = dvb_tuner_simple_release,
+	.release       = mc44s803_release,
 	.init          = mc44s803_init,
 	.set_params    = mc44s803_set_params,
 	.get_frequency = mc44s803_get_frequency,

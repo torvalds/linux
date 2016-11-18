@@ -722,6 +722,12 @@ static int dib0070_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
+static void dib0070_release(struct dvb_frontend *fe)
+{
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+}
+
 static const struct dvb_tuner_ops dib0070_ops = {
 	.info = {
 		.name           = "DiBcom DiB0070",
@@ -729,7 +735,7 @@ static const struct dvb_tuner_ops dib0070_ops = {
 		.frequency_max  = 860000000,
 		.frequency_step =      1000,
 	},
-	.release       = dvb_tuner_simple_release,
+	.release       = dib0070_release,
 
 	.init          = dib0070_wakeup,
 	.sleep         = dib0070_sleep,
