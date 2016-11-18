@@ -628,7 +628,6 @@ struct pmcraid_interrupts {
 /* ISR parameters LLD allocates (one for each MSI-X if enabled) vectors */
 struct pmcraid_isr_param {
 	struct pmcraid_instance *drv_inst;
-	u16 vector;			/* allocated msi-x vector */
 	u8 hrrq_id;			/* hrrq entry index */
 };
 
