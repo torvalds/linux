@@ -4759,12 +4759,27 @@ static void rtl8xxxu_dump_action(struct device *dev,
  * This format is used on 8188cu/8192cu/8723au
  */
 void
-rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
-			struct rtl8xxxu_txdesc32 *tx_desc, u32 rate,
-			u16 rate_flag, bool sgi, bool short_preamble,
-			bool ampdu_enable, u32 rts_rate)
+rtl8xxxu_fill_txdesc_v1(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
+			struct ieee80211_tx_info *tx_info,
+			struct rtl8xxxu_txdesc32 *tx_desc, bool sgi,
+			bool short_preamble, bool ampdu_enable, u32 rts_rate)
 {
+	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
+	struct rtl8xxxu_priv *priv = hw->priv;
+	struct device *dev = &priv->udev->dev;
+	u32 rate;
+	u16 rate_flags = tx_info->control.rates[0].flags;
 	u16 seq_number;
+
+	if (rate_flags & IEEE80211_TX_RC_MCS &&
+	    !ieee80211_is_mgmt(hdr->frame_control))
+		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
+	else
+		rate = tx_rate->hw_value;
+
+	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_TX)
+		dev_info(dev, "%s: TX rate: %d, pkt size %d\n",
+			 __func__, rate, cpu_to_le16(tx_desc->pkt_size));
 
 	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
@@ -4800,10 +4815,10 @@ rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
 	 * rts_rate is zero if RTS/CTS or CTS to SELF are not enabled
 	 */
 	tx_desc->txdw4 |= cpu_to_le32(rts_rate << TXDESC32_RTS_RATE_SHIFT);
-	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
+	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
-	} else if (rate_flag & IEEE80211_TX_RC_USE_CTS_PROTECT) {
+	} else if (rate_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_CTS_SELF_ENABLE);
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
 	}
@@ -4814,15 +4829,30 @@ rtl8xxxu_fill_txdesc_v1(struct ieee80211_hdr *hdr,
  * This format is used on 8192eu/8723bu
  */
 void
-rtl8xxxu_fill_txdesc_v2(struct ieee80211_hdr *hdr,
-			struct rtl8xxxu_txdesc32 *tx_desc32, u32 rate,
-			u16 rate_flag, bool sgi, bool short_preamble,
-			bool ampdu_enable, u32 rts_rate)
+rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
+			struct ieee80211_tx_info *tx_info,
+			struct rtl8xxxu_txdesc32 *tx_desc32, bool sgi,
+			bool short_preamble, bool ampdu_enable, u32 rts_rate)
 {
+	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
+	struct rtl8xxxu_priv *priv = hw->priv;
+	struct device *dev = &priv->udev->dev;
 	struct rtl8xxxu_txdesc40 *tx_desc40;
+	u32 rate;
+	u16 rate_flags = tx_info->control.rates[0].flags;
 	u16 seq_number;
 
 	tx_desc40 = (struct rtl8xxxu_txdesc40 *)tx_desc32;
+
+	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_TX)
+		dev_info(dev, "%s: TX rate: %d, pkt size %d\n",
+			 __func__, rate, cpu_to_le16(tx_desc40->pkt_size));
+
+	if (rate_flags & IEEE80211_TX_RC_MCS &&
+	    !ieee80211_is_mgmt(hdr->frame_control))
+		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
+	else
+		rate = tx_rate->hw_value;
 
 	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
@@ -4854,10 +4884,10 @@ rtl8xxxu_fill_txdesc_v2(struct ieee80211_hdr *hdr,
 	/*
 	 * rts_rate is zero if RTS/CTS or CTS to SELF are not enabled
 	 */
-	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
+	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
 		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_HW_RTS_ENABLE);
-	} else if (rate_flag & IEEE80211_TX_RC_USE_CTS_PROTECT) {
+	} else if (rate_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		/*
 		 * For some reason the vendor driver doesn't set
 		 * TXDESC40_HW_RTS_ENABLE for CTS to SELF
@@ -4872,14 +4902,13 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct rtl8xxxu_txdesc32 *tx_desc;
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct device *dev = &priv->udev->dev;
-	u32 queue, rate, rts_rate;
+	u32 queue, rts_rate;
 	u16 pktlen = skb->len;
 	u16 seq_number;
 	u16 rate_flag = tx_info->control.rates[0].flags;
@@ -4905,10 +4934,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		dev_warn(dev, "%s: Unable to allocate tx urb\n", __func__);
 		goto error;
 	}
-
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_TX)
-		dev_info(dev, "%s: TX rate: %d (%d), pkt size %d\n",
-			 __func__, tx_rate->bitrate, tx_rate->hw_value, pktlen);
 
 	if (ieee80211_is_action(hdr->frame_control))
 		rtl8xxxu_dump_action(dev, hdr);
@@ -4963,12 +4988,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (rate_flag & IEEE80211_TX_RC_MCS &&
-	    !ieee80211_is_mgmt(hdr->frame_control))
-		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
-	else
-		rate = tx_rate->hw_value;
-
 	if (rate_flag & IEEE80211_TX_RC_SHORT_GI ||
 	    (ieee80211_is_data_qos(hdr->frame_control) &&
 	     sta && sta->ht_cap.cap &
@@ -4988,8 +5007,8 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 
 	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
-	priv->fops->fill_txdesc(hdr, tx_desc, rate, rate_flag, sgi,
-				short_preamble, ampdu_enable, rts_rate);
+	priv->fops->fill_txdesc(hw, hdr, tx_info, tx_desc, sgi, short_preamble,
+				ampdu_enable, rts_rate);
 
 	rtl8xxxu_calc_tx_desc_csum(tx_desc);
 
