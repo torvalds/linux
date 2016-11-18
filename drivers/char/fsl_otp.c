@@ -99,6 +99,17 @@ static const char *imx6sl_otp_desc[][8] = {
 	BANK8(GP_HI0, GP_HI1, GP_HI2, GP_HI3, GP_HI4, GP_HI5, GP_HI6, GP_HI7),
 };
 
+static const char *imx6sll_otp_desc[][8] = {
+	BANK8(LOCK, CFG0, CFG1, CFG2, CFG3, CFG4, CFG5, CFG6),
+	BANK8(MEM0, MEM1, MEM2, MEM3, MEM4, ANA0, ANA1, USB),
+	BANK8(OTPMK0, OTPMK1, OTPMK2, OTPMK3, OTPMK4, OTPMK5, OTPMK6, OTPMK7),
+	BANK8(SRK0, SRK1, SRK2, SRK3, SRK4, SRK5, SRK6, SRK7),
+	BANK8(SJC_RESP0, SJC_RESP1, MAC0, MAC1, MAC2, CRC0, GP1, GP2),
+	BANK8(SW_GP0, SW_GP1, SW_GP2, SW_GP3, SW_GP4, MISC_CONF, FIELD_RETURN, SRK_REVOKE),
+	BANK8(ROM_PATCH0, ROM_PATCH1, ROM_PATCH2, ROM_PATCH3, ROM_PATCH4, ROM_PATCH5, ROM_PATCH6, ROM_PATCH7),
+	BANK8(GP30, GP31, GP32, GP33, GP40, GP41, GP42, GP43),
+};
+
 static const char *imx6ul_otp_desc[][8] = {
 	BANK8(LOCK, CFG0, CFG1, CFG2, CFG3, CFG4, CFG5, CFG6),
 	BANK8(MEM0, MEM1, MEM2, MEM3, MEM4, ANA0, ANA1, ANA2),
@@ -160,6 +171,7 @@ enum fsl_otp_devtype {
 	FSL_OTP_MX6DL,
 	FSL_OTP_MX6SX,
 	FSL_OTP_MX6SL,
+	FSL_OTP_MX6SLL,
 	FSL_OTP_MX6UL,
 	FSL_OTP_MX6ULL,
 	FSL_OTP_MX7D,
@@ -194,9 +206,12 @@ static struct fsl_otp_devtype_data *fsl_otp;
  * account for this hole in address space.
  *
  * Similar hole exists between bank 14 and bank 15 of size 0x80
- * on iMX6QP, iMX6DQ, iMX6SDL and iMX6SX.
+ * on iMX6QP, iMX6DQ, iMX6SDL, i.MX6SLL and iMX6SX.
  * Note: iMX6SL has only 0-7 banks and there is no hole.
  * Note: iMX6UL doesn't have this one.
+ *
+ * To i.MX6SLL, there are 9 banks. bank 7 and bank8 only contain 4 words
+ * each. Other banks contains 8 words.
  */
 static u32 fsl_otp_bank_physical(struct fsl_otp_devtype_data *d, int bank)
 {
@@ -205,7 +220,9 @@ static u32 fsl_otp_bank_physical(struct fsl_otp_devtype_data *d, int bank)
 	if ((bank == 0) || (d->devtype == FSL_OTP_MX6SL) ||
 	    (d->devtype == FSL_OTP_MX7D))
 		phy_bank = bank;
-	else if ((d->devtype == FSL_OTP_MX6UL) || (d->devtype == FSL_OTP_MX6ULL)) {
+	else if ((d->devtype == FSL_OTP_MX6UL) ||
+		 (d->devtype == FSL_OTP_MX6ULL) ||
+		 (d->devtype == FSL_OTP_MX6SLL)) {
 		if (bank >= 6)
 			phy_bank = fsl_otp_bank_physical(d, 5) + bank - 3;
 		else
@@ -289,6 +306,14 @@ static struct fsl_otp_devtype_data imx6q_data = {
 static struct fsl_otp_devtype_data imx6sl_data = {
 	.devtype = FSL_OTP_MX6SL,
 	.bank_desc = (const char **)imx6sl_otp_desc,
+	.fuse_nums = 8 * 8,
+	.set_otp_timing = imx6_set_otp_timing,
+};
+
+static struct fsl_otp_devtype_data imx6sll_data = {
+	.devtype = FSL_OTP_MX6SLL,
+	.bank_desc = (const char **)imx6sll_otp_desc,
+	/* Bank 7 and Bank 8 are 4 words each */
 	.fuse_nums = 8 * 8,
 	.set_otp_timing = imx6_set_otp_timing,
 };
@@ -477,6 +502,7 @@ out:
 static const struct of_device_id fsl_otp_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-ocotp", .data = (void *)&imx6q_data, },
 	{ .compatible = "fsl,imx6sl-ocotp", .data = (void *)&imx6sl_data, },
+	{ .compatible = "fsl,imx6sll-ocotp", .data = (void *)&imx6sll_data, },
 	{ .compatible = "fsl,imx6ul-ocotp", .data = (void *)&imx6ul_data, },
 	{ .compatible = "fsl,imx6ull-ocotp", .data = (void *)&imx6ull_data, },
 	{ .compatible = "fsl,imx7d-ocotp", .data = (void *)&imx7d_data, },
