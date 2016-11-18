@@ -171,9 +171,13 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 		return NUM_SW_COUNTERS +
 		       MLX5E_NUM_Q_CNTRS(priv) +
 		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS +
+		       NUM_PCIE_COUNTERS +
 		       MLX5E_NUM_RQ_STATS(priv) +
 		       MLX5E_NUM_SQ_STATS(priv) +
-		       MLX5E_NUM_PFC_COUNTERS(priv);
+		       MLX5E_NUM_PFC_COUNTERS(priv) +
+		       ARRAY_SIZE(mlx5e_pme_status_desc) +
+		       ARRAY_SIZE(mlx5e_pme_error_desc);
+
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
 	/* fallthrough */
@@ -213,6 +217,14 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
 		       pport_2819_stats_desc[i].format);
 
+	for (i = 0; i < NUM_PCIE_PERF_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pcie_perf_stats_desc[i].format);
+
+	for (i = 0; i < NUM_PCIE_TAS_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pcie_tas_stats_desc[i].format);
+
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
@@ -236,6 +248,13 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 				pport_per_prio_pfc_stats_desc[i].format, "global");
 		}
 	}
+
+	/* port module event counters */
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_status_desc[i].format);
+
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_error_desc[i].format);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;
@@ -279,6 +298,7 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_priv *mlx5_priv;
 	int i, j, tc, prio, idx = 0;
 	unsigned long pfc_combined;
 
@@ -314,6 +334,14 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.RFC_2819_counters,
 						  pport_2819_stats_desc, i);
 
+	for (i = 0; i < NUM_PCIE_PERF_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
+						  pcie_perf_stats_desc, i);
+
+	for (i = 0; i < NUM_PCIE_TAS_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_tas_counters,
+						  pcie_tas_stats_desc, i);
+
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
 			data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
@@ -334,6 +362,16 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 							  pport_per_prio_pfc_stats_desc, i);
 		}
 	}
+
+	/* port module event counters */
+	mlx5_priv =  &priv->mdev->priv;
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
+						   mlx5e_pme_status_desc, i);
+
+	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
+						   mlx5e_pme_error_desc, i);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;

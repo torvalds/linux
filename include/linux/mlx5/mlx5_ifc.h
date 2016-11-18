@@ -83,6 +83,7 @@ enum {
 	MLX5_CMD_OP_SET_HCA_CAP                   = 0x109,
 	MLX5_CMD_OP_QUERY_ISSI                    = 0x10a,
 	MLX5_CMD_OP_SET_ISSI                      = 0x10b,
+	MLX5_CMD_OP_SET_DRIVER_VERSION            = 0x10d,
 	MLX5_CMD_OP_CREATE_MKEY                   = 0x200,
 	MLX5_CMD_OP_QUERY_MKEY                    = 0x201,
 	MLX5_CMD_OP_DESTROY_MKEY                  = 0x202,
@@ -824,7 +825,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   early_vf_enable[0x1];
 	u8         reserved_at_1a9[0x2];
 	u8         local_ca_ack_delay[0x5];
-	u8         reserved_at_1af[0x2];
+	u8         port_module_event[0x1];
+	u8         reserved_at_1b0[0x1];
 	u8         ports_check[0x1];
 	u8         reserved_at_1b2[0x1];
 	u8         disable_link_up[0x1];
@@ -908,7 +910,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_pg_sz[0x8];
 
 	u8         bf[0x1];
-	u8         reserved_at_261[0x1];
+	u8         driver_version[0x1];
 	u8         pad_tx_eth_packet[0x1];
 	u8         reserved_at_263[0x8];
 	u8         log_bf_reg_size[0x5];
@@ -1753,6 +1755,80 @@ struct mlx5_ifc_eth_802_3_cntrs_grp_data_layout_bits {
 	u8         a_pause_mac_ctrl_frames_transmitted_low[0x20];
 
 	u8         reserved_at_4c0[0x300];
+};
+
+struct mlx5_ifc_pcie_perf_cntrs_grp_data_layout_bits {
+	u8         life_time_counter_high[0x20];
+
+	u8         life_time_counter_low[0x20];
+
+	u8         rx_errors[0x20];
+
+	u8         tx_errors[0x20];
+
+	u8         l0_to_recovery_eieos[0x20];
+
+	u8         l0_to_recovery_ts[0x20];
+
+	u8         l0_to_recovery_framing[0x20];
+
+	u8         l0_to_recovery_retrain[0x20];
+
+	u8         crc_error_dllp[0x20];
+
+	u8         crc_error_tlp[0x20];
+
+	u8         reserved_at_140[0x680];
+};
+
+struct mlx5_ifc_pcie_tas_cntrs_grp_data_layout_bits {
+	u8         life_time_counter_high[0x20];
+
+	u8         life_time_counter_low[0x20];
+
+	u8         time_to_boot_image_start[0x20];
+
+	u8         time_to_link_image[0x20];
+
+	u8         calibration_time[0x20];
+
+	u8         time_to_first_perst[0x20];
+
+	u8         time_to_detect_state[0x20];
+
+	u8         time_to_l0[0x20];
+
+	u8         time_to_crs_en[0x20];
+
+	u8         time_to_plastic_image_start[0x20];
+
+	u8         time_to_iron_image_start[0x20];
+
+	u8         perst_handler[0x20];
+
+	u8         times_in_l1[0x20];
+
+	u8         times_in_l23[0x20];
+
+	u8         dl_down[0x20];
+
+	u8         config_cycle1usec[0x20];
+
+	u8         config_cycle2to7usec[0x20];
+
+	u8         config_cycle_8to15usec[0x20];
+
+	u8         config_cycle_16_to_63usec[0x20];
+
+	u8         config_cycle_64usec[0x20];
+
+	u8         correctable_err_msg_sent[0x20];
+
+	u8         non_fatal_err_msg_sent[0x20];
+
+	u8         fatal_err_msg_sent[0x20];
+
+	u8         reserved_at_2e0[0x4e0];
 };
 
 struct mlx5_ifc_cmd_inter_comp_event_bits {
@@ -2919,6 +2995,12 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	u8         reserved_at_0[0x7c0];
 };
 
+union mlx5_ifc_pcie_cntrs_grp_data_layout_auto_bits {
+	struct mlx5_ifc_pcie_perf_cntrs_grp_data_layout_bits pcie_perf_cntrs_grp_data_layout;
+	struct mlx5_ifc_pcie_tas_cntrs_grp_data_layout_bits pcie_tas_cntrs_grp_data_layout;
+	u8         reserved_at_0[0x7c0];
+};
+
 union mlx5_ifc_event_auto_bits {
 	struct mlx5_ifc_comp_event_bits comp_event;
 	struct mlx5_ifc_dct_events_bits dct_events;
@@ -4002,6 +4084,25 @@ struct mlx5_ifc_query_issi_in_bits {
 	u8         op_mod[0x10];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_set_driver_version_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+	u8         reserved_1[0x40];
+};
+
+struct mlx5_ifc_set_driver_version_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_2[0x40];
+	u8         driver_version[64][0x8];
 };
 
 struct mlx5_ifc_query_hca_vport_pkey_out_bits {
@@ -7219,6 +7320,18 @@ struct mlx5_ifc_ppcnt_reg_bits {
 	union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits counter_set;
 };
 
+struct mlx5_ifc_mpcnt_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         pcie_index[0x8];
+	u8         reserved_at_10[0xa];
+	u8         grp[0x6];
+
+	u8         clr[0x1];
+	u8         reserved_at_21[0x1f];
+
+	union mlx5_ifc_pcie_cntrs_grp_data_layout_auto_bits counter_set;
+};
+
 struct mlx5_ifc_ppad_reg_bits {
 	u8         reserved_at_0[0x3];
 	u8         single_mac[0x1];
@@ -7824,6 +7937,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_pmtu_reg_bits pmtu_reg;
 	struct mlx5_ifc_ppad_reg_bits ppad_reg;
 	struct mlx5_ifc_ppcnt_reg_bits ppcnt_reg;
+	struct mlx5_ifc_mpcnt_reg_bits mpcnt_reg;
 	struct mlx5_ifc_pplm_reg_bits pplm_reg;
 	struct mlx5_ifc_pplr_reg_bits pplr_reg;
 	struct mlx5_ifc_ppsc_reg_bits ppsc_reg;
