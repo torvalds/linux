@@ -191,7 +191,7 @@ static void slic_timer_ping(ulong dev)
  *
  */
 static void slic_link_config(struct adapter *adapter,
-		      u32 linkspeed, u32 linkduplex)
+			     u32 linkspeed, u32 linkduplex)
 {
 	u32 speed;
 	u32 duplex;
@@ -706,7 +706,7 @@ static void slic_config_clear(struct adapter *adapter)
 }
 
 static bool slic_mac_filter(struct adapter *adapter,
-			struct ether_header *ether_frame)
+			    struct ether_header *ether_frame)
 {
 	struct net_device *netdev = adapter->netdev;
 	u32 opts = adapter->macopts;
@@ -829,10 +829,10 @@ static void slic_timer_load_check(ulong cardaddr)
 }
 
 static int slic_upr_queue_request(struct adapter *adapter,
-			   u32 upr_request,
-			   u32 upr_data,
-			   u32 upr_data_h,
-			   u32 upr_buffer, u32 upr_buffer_h)
+				  u32 upr_request,
+				  u32 upr_data,
+				  u32 upr_data_h,
+				  u32 upr_buffer, u32 upr_buffer_h)
 {
 	struct slic_upr *upr;
 	struct slic_upr *uprqueue;
@@ -898,19 +898,19 @@ static void slic_upr_start(struct adapter *adapter)
 }
 
 static int slic_upr_request(struct adapter *adapter,
-		     u32 upr_request,
-		     u32 upr_data,
-		     u32 upr_data_h,
-		     u32 upr_buffer, u32 upr_buffer_h)
+			    u32 upr_request,
+			    u32 upr_data,
+			    u32 upr_data_h,
+			    u32 upr_buffer, u32 upr_buffer_h)
 {
 	unsigned long flags;
 	int rc;
 
 	spin_lock_irqsave(&adapter->upr_lock, flags);
 	rc = slic_upr_queue_request(adapter,
-					upr_request,
-					upr_data,
-					upr_data_h, upr_buffer, upr_buffer_h);
+				    upr_request,
+				    upr_data,
+				    upr_data_h, upr_buffer, upr_buffer_h);
 	if (rc)
 		goto err_unlock_irq;
 
@@ -1420,7 +1420,7 @@ retry:
 }
 
 static void slic_cmdq_putdone_irq(struct adapter *adapter,
-				struct slic_hostcmd *cmd)
+				  struct slic_hostcmd *cmd)
 {
 	struct slic_cmdqueue *cmdq = &adapter->cmdq_done;
 
@@ -1469,17 +1469,17 @@ retry_rcvqfill:
 					__func__);
 				dev_err(dev, "skb[%p] PROBLEM\n", skb);
 				dev_err(dev, "         skbdata[%p]\n",
-						skb->data);
+					skb->data);
 				dev_err(dev, "         skblen[%x]\n", skb->len);
 				dev_err(dev, "         paddr[%p]\n", paddr);
 				dev_err(dev, "         paddrl[%x]\n", paddrl);
 				dev_err(dev, "         paddrh[%x]\n", paddrh);
 				dev_err(dev, "         rcvq->head[%p]\n",
-						rcvq->head);
+					rcvq->head);
 				dev_err(dev, "         rcvq->tail[%p]\n",
-						rcvq->tail);
+					rcvq->tail);
 				dev_err(dev, "         rcvq->count[%x]\n",
-						rcvq->count);
+					rcvq->count);
 				dev_err(dev, "SKIP THIS SKB!!!!!!!!\n");
 				goto retry_rcvqfill;
 			}
@@ -1489,17 +1489,17 @@ retry_rcvqfill:
 					__func__);
 				dev_err(dev, "skb[%p] PROBLEM\n", skb);
 				dev_err(dev, "         skbdata[%p]\n",
-						skb->data);
+					skb->data);
 				dev_err(dev, "         skblen[%x]\n", skb->len);
 				dev_err(dev, "         paddr[%p]\n", paddr);
 				dev_err(dev, "         paddrl[%x]\n", paddrl);
 				dev_err(dev, "         paddrh[%x]\n", paddrh);
 				dev_err(dev, "         rcvq->head[%p]\n",
-						rcvq->head);
+					rcvq->head);
 				dev_err(dev, "         rcvq->tail[%p]\n",
-						rcvq->tail);
+					rcvq->tail);
 				dev_err(dev, "         rcvq->count[%x]\n",
-						rcvq->count);
+					rcvq->count);
 				dev_err(dev, "GIVE TO CARD ANYWAY\n");
 			}
 #endif
@@ -1764,7 +1764,8 @@ static void slic_mcast_set_list(struct net_device *dev)
 #define  XMIT_FAIL_HOSTCMD_FAIL             3
 
 static void slic_xmit_build_request(struct adapter *adapter,
-			     struct slic_hostcmd *hcmd, struct sk_buff *skb)
+				    struct slic_hostcmd *hcmd,
+				    struct sk_buff *skb)
 {
 	struct slic_host64_cmd *ihcmd;
 	ulong phys_addr;
@@ -1775,7 +1776,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 	ihcmd->command = IHCMD_XMT_REQ;
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
-			PCI_DMA_TODEVICE);
+				   PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(adapter->pcidev, phys_addr)) {
 		kfree_skb(skb);
 		dev_err(&adapter->pcidev->dev, "DMA mapping error\n");
@@ -1794,8 +1795,8 @@ static void slic_xmit_build_request(struct adapter *adapter,
 }
 
 static void slic_xmit_fail(struct adapter *adapter,
-		    struct sk_buff *skb,
-		    void *cmd, u32 skbtype, u32 status)
+			   struct sk_buff *skb,
+			   void *cmd, u32 skbtype, u32 status)
 {
 	if (adapter->xmitq_full)
 		netif_stop_queue(adapter->netdev);
@@ -1828,7 +1829,7 @@ static void slic_xmit_fail(struct adapter *adapter,
 }
 
 static void slic_rcv_handle_error(struct adapter *adapter,
-					struct slic_rcvbuf *rcvbuf)
+				  struct slic_rcvbuf *rcvbuf)
 {
 	struct slic_hddr_wds *hdr = (struct slic_hddr_wds *)rcvbuf->data;
 	struct net_device *netdev = adapter->netdev;
@@ -2003,7 +2004,7 @@ static void slic_xmit_complete(struct adapter *adapter)
 }
 
 static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
-			struct net_device *dev)
+				   struct net_device *dev)
 {
 	if (isr & ~ISR_IO) {
 		if (isr & ISR_ERR) {
@@ -2030,12 +2031,10 @@ static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
 				}
 			} else if (isr & ISR_XDROP) {
 				dev_err(&dev->dev,
-						"isr & ISR_ERR [%x] ISR_XDROP\n",
-						isr);
+					"isr & ISR_ERR [%x] ISR_XDROP\n", isr);
 			} else {
 				dev_err(&dev->dev,
-						"isr & ISR_ERR [%x]\n",
-						isr);
+					"isr & ISR_ERR [%x]\n", isr);
 			}
 		}
 
@@ -2740,8 +2739,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 
 		/*  copy the Alacritech FRU information */
 		card->config.FruFormat = fruformat;
-		memcpy(&card->config.AtkFru, patkfru,
-						sizeof(struct atk_fru));
+		memcpy(&card->config.AtkFru, patkfru, sizeof(struct atk_fru));
 
 		pci_free_consistent(adapter->pcidev,
 				    sizeof(struct slic_eeprom),
@@ -2968,7 +2966,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 }
 
 static int slic_entry_probe(struct pci_dev *pcidev,
-			       const struct pci_device_id *pci_tbl_entry)
+			    const struct pci_device_id *pci_tbl_entry)
 {
 	static int cards_found;
 	static int did_version;
