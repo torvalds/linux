@@ -475,6 +475,8 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 
 	fm10k_rx_checksum(rx_ring, rx_desc, skb);
 
+	FM10K_CB(skb)->tstamp = rx_desc->q.timestamp;
+
 	FM10K_CB(skb)->fi.w.vlan = rx_desc->w.vlan;
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
