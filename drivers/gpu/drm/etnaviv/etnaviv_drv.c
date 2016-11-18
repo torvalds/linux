@@ -505,6 +505,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.gem_prime_import_sg_table = etnaviv_gem_prime_import_sg_table,
 	.gem_prime_vmap     = etnaviv_gem_prime_vmap,
 	.gem_prime_vunmap   = etnaviv_gem_prime_vunmap,
+	.gem_prime_mmap     = etnaviv_gem_prime_mmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = etnaviv_debugfs_init,
 	.debugfs_cleanup    = etnaviv_debugfs_cleanup,
