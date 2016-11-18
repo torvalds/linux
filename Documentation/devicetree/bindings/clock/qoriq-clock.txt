@@ -32,6 +32,9 @@ Required properties:
 	* "fsl,b4420-clockgen"
 	* "fsl,b4860-clockgen"
 	* "fsl,ls1021a-clockgen"
+	* "fsl,ls1043a-clockgen"
+	* "fsl,ls1046a-clockgen"
+	* "fsl,ls2080a-clockgen"
 	Chassis-version clock strings include:
 	* "fsl,qoriq-clockgen-1.0": for chassis 1.0 clocks
 	* "fsl,qoriq-clockgen-2.0": for chassis 2.0 clocks

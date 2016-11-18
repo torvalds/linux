@@ -44,6 +44,8 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <dt-bindings/thermal/thermal.h>
+
 / {
 	compatible = "fsl,ls2080a";
 	interrupt-parent = <&gic>;
@@ -62,15 +64,16 @@
 		 */
 
 		/* We have 4 clusters having 2 Cortex-A57 cores each */
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x0>;
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&cluster0_l2>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x1>;
@@ -78,15 +81,16 @@
 			next-level-cache = <&cluster0_l2>;
 		};
 
-		cpu@100 {
+		cpu2: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x100>;
 			clocks = <&clockgen 1 1>;
 			next-level-cache = <&cluster1_l2>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@101 {
+		cpu3: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x101>;
@@ -94,15 +98,16 @@
 			next-level-cache = <&cluster1_l2>;
 		};
 
-		cpu@200 {
+		cpu4: cpu@200 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x200>;
 			clocks = <&clockgen 1 2>;
 			next-level-cache = <&cluster2_l2>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@201 {
+		cpu5: cpu@201 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x201>;
@@ -110,15 +115,16 @@
 			next-level-cache = <&cluster2_l2>;
 		};
 
-		cpu@300 {
+		cpu6: cpu@300 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x300>;
 			clocks = <&clockgen 1 3>;
 			next-level-cache = <&cluster3_l2>;
+			#cooling-cells = <2>;
 		};
 
-		cpu@301 {
+		cpu7: cpu@301 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
 			reg = <0x301>;
@@ -214,6 +220,100 @@
 			reg = <0 0x1300000 0 0xa0000>;
 			#clock-cells = <2>;
 			clocks = <&sysclk>;
+		};
+
+		tmu: tmu@1f80000 {
+			compatible = "fsl,qoriq-tmu";
+			reg = <0x0 0x1f80000 0x0 0x10000>;
+			interrupts = <0 23 0x4>;
+			fsl,tmu-range = <0xb0000 0x9002a 0x6004c 0x30062>;
+			fsl,tmu-calibration = <0x00000000 0x00000026
+					       0x00000001 0x0000002d
+					       0x00000002 0x00000032
+					       0x00000003 0x00000039
+					       0x00000004 0x0000003f
+					       0x00000005 0x00000046
+					       0x00000006 0x0000004d
+					       0x00000007 0x00000054
+					       0x00000008 0x0000005a
+					       0x00000009 0x00000061
+					       0x0000000a 0x0000006a
+					       0x0000000b 0x00000071
+
+					       0x00010000 0x00000025
+					       0x00010001 0x0000002c
+					       0x00010002 0x00000035
+					       0x00010003 0x0000003d
+					       0x00010004 0x00000045
+					       0x00010005 0x0000004e
+					       0x00010006 0x00000057
+					       0x00010007 0x00000061
+					       0x00010008 0x0000006b
+					       0x00010009 0x00000076
+
+					       0x00020000 0x00000029
+					       0x00020001 0x00000033
+					       0x00020002 0x0000003d
+					       0x00020003 0x00000049
+					       0x00020004 0x00000056
+					       0x00020005 0x00000061
+					       0x00020006 0x0000006d
+
+					       0x00030000 0x00000021
+					       0x00030001 0x0000002a
+					       0x00030002 0x0000003c
+					       0x00030003 0x0000004e>;
+			little-endian;
+			#thermal-sensor-cells = <1>;
+		};
+
+		thermal-zones {
+			cpu_thermal: cpu-thermal {
+				polling-delay-passive = <1000>;
+				polling-delay = <5000>;
+
+				thermal-sensors = <&tmu 4>;
+
+				trips {
+					cpu_alert: cpu-alert {
+						temperature = <75000>;
+						hysteresis = <2000>;
+						type = "passive";
+					};
+					cpu_crit: cpu-crit {
+						temperature = <85000>;
+						hysteresis = <2000>;
+						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					map0 {
+						trip = <&cpu_alert>;
+						cooling-device =
+							<&cpu0 THERMAL_NO_LIMIT
+							THERMAL_NO_LIMIT>;
+					};
+					map1 {
+						trip = <&cpu_alert>;
+						cooling-device =
+							<&cpu2 THERMAL_NO_LIMIT
+							THERMAL_NO_LIMIT>;
+					};
+					map2 {
+						trip = <&cpu_alert>;
+						cooling-device =
+							<&cpu4 THERMAL_NO_LIMIT
+							THERMAL_NO_LIMIT>;
+					};
+					map3 {
+						trip = <&cpu_alert>;
+						cooling-device =
+							<&cpu6 THERMAL_NO_LIMIT
+							THERMAL_NO_LIMIT>;
+					};
+				};
+			};
 		};
 
 		serial0: serial@21c0500 {

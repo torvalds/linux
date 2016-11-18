@@ -1,9 +1,9 @@
 /*
- * Device Tree Include file for Freescale Layerscape-1043A family SoC.
+ * Device Tree Include file for Freescale Layerscape-1046A family SoC.
  *
- * Copyright 2014-2015, Freescale Semiconductor
+ * Copyright 2016, Freescale Semiconductor, Inc.
  *
- * Mingkai Hu <Mingkai.hu@freescale.com>
+ * Mingkai Hu <mingkai.hu@nxp.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -45,17 +45,14 @@
  */
 
 /dts-v1/;
-#include "fsl-ls1043a.dtsi"
+
+#include "fsl-ls1046a.dtsi"
 
 / {
-	model = "LS1043A QDS Board";
-	compatible = "fsl,ls1043a-qds", "fsl,ls1043a";
+	model = "LS1046A RDB Board";
+	compatible = "fsl,ls1046a-rdb", "fsl,ls1046a";
 
 	aliases {
-		gpio0 = &gpio1;
-		gpio1 = &gpio2;
-		gpio2 = &gpio3;
-		gpio3 = &gpio4;
 		serial0 = &duart0;
 		serial1 = &duart1;
 		serial2 = &duart2;
@@ -75,109 +72,79 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+
+	ina220@40 {
+		compatible = "ti,ina220";
+		reg = <0x40>;
+		shunt-resistor = <1000>;
+	};
+
+	temp-sensor@4c {
+		compatible = "adi,adt7461";
+		reg = <0x4c>;
+	};
+
+	eeprom@56 {
+		compatible = "atmel,24c512";
+		reg = <0x52>;
+	};
+
+	eeprom@57 {
+		compatible = "atmel,24c512";
+		reg = <0x53>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	rtc@51 {
+		compatible = "nxp,pcf2129";
+		reg = <0x51>;
+	};
+};
+
 &ifc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	/* NOR, NAND Flashes and FPGA on board */
-	ranges = <0x0 0x0 0x0 0x60000000 0x08000000
-		  0x1 0x0 0x0 0x7e800000 0x00010000
+	/* NAND Flashe and CPLD on board */
+	ranges = <0x0 0x0 0x0 0x7e800000 0x00010000
 		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
 	status = "okay";
 
-	nor@0,0 {
-		compatible = "cfi-flash";
-		reg = <0x0 0x0 0x8000000>;
-		bank-width = <2>;
-		device-width = <1>;
-	};
-
-	nand@1,0 {
+	nand@0,0 {
 		compatible = "fsl,ifc-nand";
-		reg = <0x1 0x0 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0 0x0 0x10000>;
 	};
 
-	fpga: board-control@2,0 {
-		compatible = "fsl,ls1043aqds-fpga", "fsl,fpga-qixis";
+	cpld: board-control@2,0 {
+		compatible = "fsl,ls1046ardb-cpld";
 		reg = <0x2 0x0 0x0000100>;
 	};
 };
 
-&i2c0 {
-	status = "okay";
-
-	pca9547@77 {
-		compatible = "nxp,pca9547";
-		reg = <0x77>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x0>;
-
-			rtc@68 {
-				compatible = "dallas,ds3232";
-				reg = <0x68>;
-				/* IRQ10_B */
-				interrupts = <0 150 0x4>;
-			};
-		};
-
-		i2c@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x2>;
-
-			ina220@40 {
-				compatible = "ti,ina220";
-				reg = <0x40>;
-				shunt-resistor = <1000>;
-			};
-
-			ina220@41 {
-				compatible = "ti,ina220";
-				reg = <0x41>;
-				shunt-resistor = <1000>;
-			};
-		};
-
-		i2c@3 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x3>;
-
-			eeprom@56 {
-				compatible = "atmel,24c512";
-				reg = <0x56>;
-			};
-
-			eeprom@57 {
-				compatible = "atmel,24c512";
-				reg = <0x57>;
-			};
-
-			temp-sensor@4c {
-				compatible = "adi,adt7461a";
-				reg = <0x4c>;
-			};
-		};
-	};
-};
-
-&lpuart0 {
-	status = "okay";
-};
-
 &qspi {
+	num-cs = <2>;
 	bus-num = <0>;
 	status = "okay";
 
-	qflash0: s25fl128s@0 {
+	qflash0: s25fs512s@0 {
 		compatible = "spansion,m25p80";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
 		reg = <0>;
+	};
+
+	qflash1: s25fs512s@1 {
+		compatible = "spansion,m25p80";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <20000000>;
+		reg = <1>;
 	};
 };
