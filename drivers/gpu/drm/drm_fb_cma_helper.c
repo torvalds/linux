@@ -304,15 +304,12 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_prepare_fb);
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
-	const struct drm_format_info *info;
 	int i;
 
 	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
 			(char *)&fb->pixel_format);
 
-	info = drm_format_info(fb->pixel_format);
-
-	for (i = 0; i < info->num_planes; i++) {
+	for (i = 0; i < fb->fomat->num_planes; i++) {
 		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
 				i, fb->offsets[i], fb->pitches[i]);
 		drm_gem_cma_describe(fb_cma->obj[i], m);
