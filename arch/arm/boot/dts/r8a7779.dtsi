@@ -9,8 +9,6 @@
  * kind, whether express or implied.
  */
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/clock/r8a7779-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -19,6 +17,8 @@
 / {
 	compatible = "renesas,r8a7779";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	cpus {
 		#address-cells = <1>;
@@ -420,7 +420,7 @@
 
 	du: display@fff80000 {
 		compatible = "renesas,du-r8a7779";
-		reg = <0 0xfff80000 0 0x40000>;
+		reg = <0xfff80000 0x40000>;
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks R8A7779_CLK_DU>;
 		power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;
