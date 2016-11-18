@@ -73,7 +73,7 @@ static void XGI_SetSeqRegs(struct vb_device_info *pVBInfo)
 		/* Get SR1,2,3,4 from file */
 		/* SR1 is with screen off 0x20 */
 		SRdata = XGI330_StandTable.SR[i];
-		xgifb_reg_set(pVBInfo->P3c4, i+1, SRdata); /* Set SR 1 2 3 4 */
+		xgifb_reg_set(pVBInfo->P3c4, i + 1, SRdata); /* Set SR 1 2 3 4 */
 	}
 }
 
