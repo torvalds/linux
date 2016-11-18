@@ -658,6 +658,8 @@ static bool update_scaling_factors(struct intel_overlay *overlay,
 static void update_colorkey(struct intel_overlay *overlay,
 			    struct overlay_registers __iomem *regs)
 {
+	const struct drm_framebuffer *fb =
+		overlay->crtc->base.primary->fb;
 	u32 key = overlay->color_key;
 	u32 flags;
 
@@ -665,24 +667,20 @@ static void update_colorkey(struct intel_overlay *overlay,
 	if (overlay->color_key_enabled)
 		flags |= DST_KEY_ENABLE;
 
-	switch (overlay->crtc->base.primary->fb->bits_per_pixel) {
-	case 8:
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		key = 0;
 		flags |= CLK_RGB8I_MASK;
 		break;
-
-	case 16:
-		if (overlay->crtc->base.primary->fb->depth == 15) {
-			key = RGB15_TO_COLORKEY(key);
-			flags |= CLK_RGB15_MASK;
-		} else {
-			key = RGB16_TO_COLORKEY(key);
-			flags |= CLK_RGB16_MASK;
-		}
+	case DRM_FORMAT_XRGB1555:
+		key = RGB15_TO_COLORKEY(key);
+		flags |= CLK_RGB15_MASK;
 		break;
-
-	case 24:
-	case 32:
+	case DRM_FORMAT_RGB565:
+		key = RGB16_TO_COLORKEY(key);
+		flags |= CLK_RGB16_MASK;
+		break;
+	default:
 		flags |= CLK_RGB24_MASK;
 		break;
 	}
