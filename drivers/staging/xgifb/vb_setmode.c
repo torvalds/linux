@@ -4993,8 +4993,8 @@ reg_and_or:
 				tempah |= 0x40;
 		}
 
-		if ((pVBInfo->LCDResInfo == Panel_1280x1024)
-				|| (pVBInfo->LCDResInfo == Panel_1280x1024x75))
+		if ((pVBInfo->LCDResInfo == Panel_1280x1024) ||
+		    (pVBInfo->LCDResInfo == Panel_1280x1024x75))
 			tempah |= 0x80;
 
 		if (pVBInfo->LCDResInfo == Panel_1280x960)
