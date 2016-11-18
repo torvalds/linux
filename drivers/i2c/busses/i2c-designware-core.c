@@ -611,7 +611,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			if (msgs[dev->msg_write_idx].flags & I2C_M_RD) {
 
 				/* avoid rx buffer overrun */
-				if (rx_limit - dev->rx_outstanding <= 0)
+				if (dev->rx_outstanding >= dev->rx_fifo_depth)
 					break;
 
 				dw_writel(dev, cmd | 0x100, DW_IC_DATA_CMD);
