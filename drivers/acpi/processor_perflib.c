@@ -157,7 +157,7 @@ static void acpi_processor_ppc_ost(acpi_handle handle, int status)
 				  status, NULL);
 }
 
-int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
+void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 {
 	int ret;
 
@@ -168,7 +168,7 @@ int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 		 */
 		if (event_flag)
 			acpi_processor_ppc_ost(pr->handle, 1);
-		return 0;
+		return;
 	}
 
 	ret = acpi_processor_get_platform_limit(pr);
@@ -182,10 +182,8 @@ int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 		else
 			acpi_processor_ppc_ost(pr->handle, 0);
 	}
-	if (ret < 0)
-		return (ret);
-	else
-		return cpufreq_update_policy(pr->id);
+	if (ret >= 0)
+		cpufreq_update_policy(pr->id);
 }
 
 int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
