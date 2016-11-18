@@ -235,7 +235,7 @@
 			     "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe310000 0x0 0x4000>;
 		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH 0>;
-		clock-freq-min-max = <400000 150000000>;
+		max-frequency = <150000000>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
@@ -248,7 +248,7 @@
 			     "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe320000 0x0 0x4000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH 0>;
-		clock-freq-min-max = <400000 150000000>;
+		max-frequency = <150000000>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
@@ -1023,6 +1023,9 @@
 		clock-names = "pclk_efuse";
 
 		/* Data cells */
+		cpu_id: cpu-id@7 {
+			reg = <0x07 0x10>;
+		};
 		cpub_leakage: cpu-leakage@17 {
 			reg = <0x17 0x1>;
 		};
@@ -1148,6 +1151,7 @@
 		clock-names = "tcpdcore", "tcpdphy-ref";
 		assigned-clocks = <&cru SCLK_UPHY0_TCPDCORE>;
 		assigned-clock-rates = <50000000>;
+		power-domains = <&power RK3399_PD_TCPD0>;
 		resets = <&cru SRST_UPHY0>,
 			 <&cru SRST_UPHY0_PIPE_L00>,
 			 <&cru SRST_P_UPHY0_TCPHY>;
@@ -1176,6 +1180,7 @@
 		clock-names = "tcpdcore", "tcpdphy-ref";
 		assigned-clocks = <&cru SCLK_UPHY1_TCPDCORE>;
 		assigned-clock-rates = <50000000>;
+		power-domains = <&power RK3399_PD_TCPD1>;
 		resets = <&cru SRST_UPHY1>,
 			 <&cru SRST_UPHY1_PIPE_L00>,
 			 <&cru SRST_P_UPHY1_TCPHY>;
