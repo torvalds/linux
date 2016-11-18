@@ -15,6 +15,7 @@
 #include <asm/sstep.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/cpu_has_feature.h>
 #include <asm/cputable.h>
 
 extern char system_call_common[];
