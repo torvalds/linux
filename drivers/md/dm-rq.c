@@ -23,11 +23,7 @@ static unsigned dm_mq_queue_depth = DM_MQ_QUEUE_DEPTH;
 #define RESERVED_REQUEST_BASED_IOS	256
 static unsigned reserved_rq_based_ios = RESERVED_REQUEST_BASED_IOS;
 
-#ifdef CONFIG_DM_MQ_DEFAULT
-static bool use_blk_mq = true;
-#else
-static bool use_blk_mq = false;
-#endif
+static bool use_blk_mq = IS_ENABLED(CONFIG_DM_MQ_DEFAULT);
 
 bool dm_use_blk_mq_default(void)
 {
