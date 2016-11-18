@@ -503,11 +503,6 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_tx_data_port *port;
 	int i, j;
 
-	if (!card) {
-		dev_err(&intf->dev, "%s: card is NULL\n", __func__);
-		return 0;
-	}
-
 	/* Might still be loading firmware */
 	wait_for_completion(&card->fw_done);
 
@@ -574,8 +569,9 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	struct mwifiex_adapter *adapter;
 	int i;
 
-	if (!card || !card->adapter) {
-		pr_err("%s: card or card->adapter is NULL\n", __func__);
+	if (!card->adapter) {
+		dev_err(&intf->dev, "%s: card->adapter is NULL\n",
+			__func__);
 		return 0;
 	}
 	adapter = card->adapter;
@@ -616,11 +612,6 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 {
 	struct usb_card_rec *card = usb_get_intfdata(intf);
 	struct mwifiex_adapter *adapter;
-
-	if (!card) {
-		dev_err(&intf->dev, "%s: card is NULL\n", __func__);
-		return;
-	}
 
 	wait_for_completion(&card->fw_done);
 
