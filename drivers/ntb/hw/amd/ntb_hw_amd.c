@@ -199,6 +199,11 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	if (!ndev->peer_sta)
 		return NTB_LNK_STA_ACTIVE(ndev->cntl_sta);
 
+	if (ndev->peer_sta & AMD_LINK_UP_EVENT) {
+		ndev->peer_sta = 0;
+		return 1;
+	}
+
 	/* If peer_sta is reset or D0 event, the ISR has
 	 * started a timer to check link status of hardware.
 	 * So here just clear status bit. And if peer_sta is
@@ -207,7 +212,7 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	 */
 	if (ndev->peer_sta & AMD_PEER_RESET_EVENT)
 		ndev->peer_sta &= ~AMD_PEER_RESET_EVENT;
-	else if (ndev->peer_sta & AMD_PEER_D0_EVENT)
+	else if (ndev->peer_sta & (AMD_PEER_D0_EVENT | AMD_LINK_DOWN_EVENT))
 		ndev->peer_sta = 0;
 
 	return 0;
@@ -491,6 +496,8 @@ static void amd_handle_event(struct amd_ntb_dev *ndev, int vec)
 		break;
 	case AMD_PEER_D3_EVENT:
 	case AMD_PEER_PMETO_EVENT:
+	case AMD_LINK_UP_EVENT:
+	case AMD_LINK_DOWN_EVENT:
 		amd_ack_smu(ndev, status);
 
 		/* link down */
