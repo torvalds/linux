@@ -90,6 +90,7 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 		fb->bits_per_pixel = info->cpp[0] * 8;
 	}
 
+	fb->dev = dev;
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {
