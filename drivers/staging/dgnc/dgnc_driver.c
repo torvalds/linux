@@ -579,7 +579,6 @@ static void cleanup(bool sysfiles)
 		dgnc_cleanup_tty(dgnc_board[i]);
 		dgnc_cleanup_board(dgnc_board[i]);
 	}
-
 }
 
 /*
