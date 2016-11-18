@@ -218,7 +218,7 @@ static int config_ep(struct fusb300_ep *ep,
 	   (info.type == USB_ENDPOINT_XFER_ISOC)) {
 		info.interval = desc->bInterval;
 		if (info.type == USB_ENDPOINT_XFER_ISOC)
-			info.bw_num = ((desc->wMaxPacketSize & 0x1800) >> 11);
+			info.bw_num = usb_endpoint_maxp_mult(desc);
 	}
 
 	ep_fifo_setting(fusb300, info);

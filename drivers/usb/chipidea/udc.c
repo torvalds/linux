@@ -821,7 +821,7 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 	}
 
 	if (usb_endpoint_xfer_isoc(hwep->ep.desc) &&
-	    hwreq->req.length > (1 + hwep->ep.mult) * hwep->ep.maxpacket) {
+	    hwreq->req.length > hwep->ep.mult * hwep->ep.maxpacket) {
 		dev_err(hwep->ci->dev, "request length too big for isochronous\n");
 		return -EMSGSIZE;
 	}
@@ -1253,8 +1253,8 @@ static int ep_enable(struct usb_ep *ep,
 	hwep->num  = usb_endpoint_num(desc);
 	hwep->type = usb_endpoint_type(desc);
 
-	hwep->ep.maxpacket = usb_endpoint_maxp(desc) & 0x07ff;
-	hwep->ep.mult = QH_ISO_MULT(usb_endpoint_maxp(desc));
+	hwep->ep.maxpacket = usb_endpoint_maxp(desc);
+	hwep->ep.mult = usb_endpoint_maxp_mult(desc);
 
 	if (hwep->type == USB_ENDPOINT_XFER_CONTROL)
 		cap |= QH_IOS;

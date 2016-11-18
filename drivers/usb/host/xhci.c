@@ -3213,7 +3213,7 @@ int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 
 	for (i = 0; i < num_eps; i++) {
 		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
-		max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&eps[i]->desc));
+		max_packet = usb_endpoint_maxp(&eps[i]->desc);
 		vdev->eps[ep_index].stream_info = xhci_alloc_stream_info(xhci,
 				num_stream_ctxs,
 				num_streams,

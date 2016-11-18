@@ -1915,7 +1915,7 @@ static struct urb *iso_alloc_urb(
 	if (bytes < 0 || !desc)
 		return NULL;
 	maxp = 0x7ff & usb_endpoint_maxp(desc);
-	maxp *= 1 + (0x3 & (usb_endpoint_maxp(desc) >> 11));
+	maxp *= usb_endpoint_maxp_mult(desc);
 	packets = DIV_ROUND_UP(bytes, maxp);
 
 	urb = usb_alloc_urb(packets, GFP_KERNEL);
@@ -2001,8 +2001,8 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 			"iso period %d %sframes, wMaxPacket %d, transactions: %d\n",
 			1 << (desc->bInterval - 1),
 			(udev->speed == USB_SPEED_HIGH) ? "micro" : "",
-			usb_endpoint_maxp(desc) & 0x7ff,
-			1 + (0x3 & (usb_endpoint_maxp(desc) >> 11)));
+			usb_endpoint_maxp(desc),
+			usb_endpoint_maxp_mult(desc));
 
 		dev_info(&dev->intf->dev,
 			"total %lu msec (%lu packets)\n",

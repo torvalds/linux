@@ -2991,7 +2991,7 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 	if (xhci->quirks & XHCI_MTK_HOST)
 		trb_buff_len = 0;
 
-	maxp = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+	maxp = usb_endpoint_maxp(&urb->ep->desc);
 	total_packet_count = DIV_ROUND_UP(td_total_len, maxp);
 
 	/* Queueing functions don't count the current TRB into transferred */
@@ -3007,7 +3007,7 @@ static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
 	unsigned int max_pkt;
 	u32 new_buff_len;
 
-	max_pkt = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+	max_pkt = usb_endpoint_maxp(&urb->ep->desc);
 	unalign = (enqd_len + *trb_buff_len) % max_pkt;
 
 	/* we got lucky, last normal TRB data on segment is packet aligned */
@@ -3521,7 +3521,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		addr = start_addr + urb->iso_frame_desc[i].offset;
 		td_len = urb->iso_frame_desc[i].length;
 		td_remain_len = td_len;
-		max_pkt = GET_MAX_PACKET(usb_endpoint_maxp(&urb->ep->desc));
+		max_pkt = usb_endpoint_maxp(&urb->ep->desc);
 		total_pkt_count = DIV_ROUND_UP(td_len, max_pkt);
 
 		/* A zero-length transfer still involves at least one packet. */
