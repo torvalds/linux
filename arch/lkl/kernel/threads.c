@@ -3,6 +3,7 @@
 #include <linux/sched.h>
 #include <asm/host_ops.h>
 #include <asm/cpu.h>
+#include <asm/sched.h>
 
 static volatile int threads_counter;
 
@@ -140,15 +141,7 @@ void switch_to_host_task(struct task_struct *task)
 	task_thread_info(task)->tid = lkl_ops->thread_self();
 
 	wake_up_process(task);
-	if (test_thread_flag(TIF_HOST_THREAD)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!thread_set_sched_jmp())
-			schedule();
-	} else {
-		if (!thread_set_sched_jmp())
-			lkl_idle_tail_schedule();
-	}
-
+	thread_sched_jb();
 	lkl_ops->sem_down(task_thread_info(task)->sched_sem);
 	schedule_tail(abs_prev);
 }
