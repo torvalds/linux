@@ -614,8 +614,8 @@ static void slic_mac_config(struct adapter *adapter)
 		value |= GMCR_GBIT;
 
 	/* enable fullduplex */
-	if ((adapter->linkduplex == LINK_FULLD)
-	    || (adapter->macopts & MAC_LOOPBACK)) {
+	if ((adapter->linkduplex == LINK_FULLD) ||
+	    (adapter->macopts & MAC_LOOPBACK)) {
 		value |= GMCR_FULLD;
 	}
 
