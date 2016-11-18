@@ -692,6 +692,52 @@ static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	return 0;
 }
 
+static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
+				       struct kvm_vcpu *vcpu)
+{
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int i, cpu = smp_processor_id();
+	unsigned int gasid;
+
+	/*
+	 * Lazy host ASID regeneration for guest user mode.
+	 * If the guest ASID has changed since the last guest usermode
+	 * execution, regenerate the host ASID so as to invalidate stale TLB
+	 * entries.
+	 */
+	if (!KVM_GUEST_KERNEL_MODE(vcpu)) {
+		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
+		if (gasid != vcpu->arch.last_user_gasid) {
+			kvm_get_new_mmu_context(user_mm, cpu, vcpu);
+			for_each_possible_cpu(i)
+				if (i != cpu)
+					cpu_context(i, user_mm) = 0;
+			vcpu->arch.last_user_gasid = gasid;
+		}
+	}
+}
+
+static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
+{
+	int r;
+
+	/* Check if we have any exceptions/interrupts pending */
+	kvm_mips_deliver_interrupts(vcpu,
+				    kvm_read_c0_guest_cause(vcpu->arch.cop0));
+
+	kvm_trap_emul_vcpu_reenter(run, vcpu);
+
+	/* Disable hardware page table walking while in guest */
+	htw_stop();
+
+	r = vcpu->arch.vcpu_run(run, vcpu);
+
+	htw_start();
+
+	return r;
+}
+
 static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	/* exit handlers */
 	.handle_cop_unusable = kvm_trap_emul_handle_cop_unusable,
@@ -724,6 +770,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.set_one_reg = kvm_trap_emul_set_one_reg,
 	.vcpu_load = kvm_trap_emul_vcpu_load,
 	.vcpu_put = kvm_trap_emul_vcpu_put,
+	.vcpu_run = kvm_trap_emul_vcpu_run,
+	.vcpu_reenter = kvm_trap_emul_vcpu_reenter,
 };
 
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks)
