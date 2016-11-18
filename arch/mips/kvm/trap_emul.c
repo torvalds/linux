@@ -680,14 +680,17 @@ static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 {
 	kvm_lose_fpu(vcpu);
 
-	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
-	     asid_version_mask(cpu))) {
-		kvm_debug("%s: Dropping MMU Context:  %#lx\n", __func__,
-			  cpu_context(cpu, current->mm));
-		drop_mmu_context(current->mm, cpu);
+	if (current->flags & PF_VCPU) {
+		/* Restore normal Linux process memory map */
+		if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
+		     asid_version_mask(cpu))) {
+			kvm_debug("%s: Dropping MMU Context:  %#lx\n", __func__,
+				  cpu_context(cpu, current->mm));
+			get_new_mmu_context(current->mm, cpu);
+		}
+		write_c0_entryhi(cpu_asid(cpu, current->mm));
+		ehb();
 	}
-	write_c0_entryhi(cpu_asid(cpu, current->mm));
-	ehb();
 
 	return 0;
 }
@@ -720,6 +723,7 @@ static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 
 static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
+	int cpu;
 	int r;
 
 	/* Check if we have any exceptions/interrupts pending */
@@ -732,6 +736,15 @@ static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	htw_stop();
 
 	r = vcpu->arch.vcpu_run(run, vcpu);
+
+	/* We may have migrated while handling guest exits */
+	cpu = smp_processor_id();
+
+	/* Restore normal Linux process memory map */
+	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
+	     asid_version_mask(cpu)))
+		get_new_mmu_context(current->mm, cpu);
+	write_c0_entryhi(cpu_asid(cpu, current->mm));
 
 	htw_start();
 
