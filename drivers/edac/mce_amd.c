@@ -964,10 +964,13 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
 		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
 
-	if (c->x86 >= 0x15)
-		pr_cont("|%s|%s",
-			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
-			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
+	if (c->x86 >= 0x15) {
+		pr_cont("|%s", (m->status & MCI_STATUS_DEFERRED ? "Deferred" : "-"));
+
+		/* F15h, bank4, bit 43 is part of McaStatSubCache. */
+		if (c->x86 != 0x15 || m->bank != 4)
+			pr_cont("|%s", (m->status & MCI_STATUS_POISON ? "Poison" : "-"));
+	}
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
 		u32 low, high;
