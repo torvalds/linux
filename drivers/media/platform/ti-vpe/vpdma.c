@@ -59,9 +59,9 @@ const struct vpdma_data_format vpdma_yuv_fmts[] = {
 		.data_type	= DATA_TYPE_C420,
 		.depth		= 4,
 	},
-	[VPDMA_DATA_FMT_YC422] = {
+	[VPDMA_DATA_FMT_YCR422] = {
 		.type		= VPDMA_DATA_FMT_TYPE_YUV,
-		.data_type	= DATA_TYPE_YC422,
+		.data_type	= DATA_TYPE_YCR422,
 		.depth		= 16,
 	},
 	[VPDMA_DATA_FMT_YC444] = {
@@ -69,9 +69,19 @@ const struct vpdma_data_format vpdma_yuv_fmts[] = {
 		.data_type	= DATA_TYPE_YC444,
 		.depth		= 24,
 	},
-	[VPDMA_DATA_FMT_CY422] = {
+	[VPDMA_DATA_FMT_CRY422] = {
 		.type		= VPDMA_DATA_FMT_TYPE_YUV,
-		.data_type	= DATA_TYPE_CY422,
+		.data_type	= DATA_TYPE_CRY422,
+		.depth		= 16,
+	},
+	[VPDMA_DATA_FMT_CBY422] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_CBY422,
+		.depth		= 16,
+	},
+	[VPDMA_DATA_FMT_YCB422] = {
+		.type		= VPDMA_DATA_FMT_TYPE_YUV,
+		.data_type	= DATA_TYPE_YCB422,
 		.depth		= 16,
 	},
 };

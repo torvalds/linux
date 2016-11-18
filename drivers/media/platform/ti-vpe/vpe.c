@@ -237,7 +237,7 @@ struct vpe_fmt {
 
 static struct vpe_fmt vpe_formats[] = {
 	{
-		.name		= "YUV 422 co-planar",
+		.name		= "NV16 YUV 422 co-planar",
 		.fourcc		= V4L2_PIX_FMT_NV16,
 		.types		= VPE_FMT_TYPE_CAPTURE | VPE_FMT_TYPE_OUTPUT,
 		.coplanar	= 1,
@@ -246,7 +246,7 @@ static struct vpe_fmt vpe_formats[] = {
 				  },
 	},
 	{
-		.name		= "YUV 420 co-planar",
+		.name		= "NV12 YUV 420 co-planar",
 		.fourcc		= V4L2_PIX_FMT_NV12,
 		.types		= VPE_FMT_TYPE_CAPTURE | VPE_FMT_TYPE_OUTPUT,
 		.coplanar	= 1,
@@ -259,7 +259,7 @@ static struct vpe_fmt vpe_formats[] = {
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.types		= VPE_FMT_TYPE_CAPTURE | VPE_FMT_TYPE_OUTPUT,
 		.coplanar	= 0,
-		.vpdma_fmt	= { &vpdma_yuv_fmts[VPDMA_DATA_FMT_YC422],
+		.vpdma_fmt	= { &vpdma_yuv_fmts[VPDMA_DATA_FMT_YCB422],
 				  },
 	},
 	{
@@ -267,7 +267,7 @@ static struct vpe_fmt vpe_formats[] = {
 		.fourcc		= V4L2_PIX_FMT_UYVY,
 		.types		= VPE_FMT_TYPE_CAPTURE | VPE_FMT_TYPE_OUTPUT,
 		.coplanar	= 0,
-		.vpdma_fmt	= { &vpdma_yuv_fmts[VPDMA_DATA_FMT_CY422],
+		.vpdma_fmt	= { &vpdma_yuv_fmts[VPDMA_DATA_FMT_CBY422],
 				  },
 	},
 	{
