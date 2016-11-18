@@ -342,34 +342,34 @@ static inline int
 cfs_hash_with_no_lock(struct cfs_hash *hs)
 {
 	/* caller will serialize all operations for this hash-table */
-	return (hs->hs_flags & CFS_HASH_NO_LOCK) != 0;
+	return hs->hs_flags & CFS_HASH_NO_LOCK;
 }
 
 static inline int
 cfs_hash_with_no_bktlock(struct cfs_hash *hs)
 {
 	/* no bucket lock, one single lock to protect the hash-table */
-	return (hs->hs_flags & CFS_HASH_NO_BKTLOCK) != 0;
+	return hs->hs_flags & CFS_HASH_NO_BKTLOCK;
 }
 
 static inline int
 cfs_hash_with_rw_bktlock(struct cfs_hash *hs)
 {
 	/* rwlock to protect hash bucket */
-	return (hs->hs_flags & CFS_HASH_RW_BKTLOCK) != 0;
+	return hs->hs_flags & CFS_HASH_RW_BKTLOCK;
 }
 
 static inline int
 cfs_hash_with_spin_bktlock(struct cfs_hash *hs)
 {
 	/* spinlock to protect hash bucket */
-	return (hs->hs_flags & CFS_HASH_SPIN_BKTLOCK) != 0;
+	return hs->hs_flags & CFS_HASH_SPIN_BKTLOCK;
 }
 
 static inline int
 cfs_hash_with_add_tail(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_ADD_TAIL) != 0;
+	return hs->hs_flags & CFS_HASH_ADD_TAIL;
 }
 
 static inline int
@@ -380,55 +380,55 @@ cfs_hash_with_no_itemref(struct cfs_hash *hs)
 	 * item can't be removed from hash unless it's
 	 * ZERO refcount
 	 */
-	return (hs->hs_flags & CFS_HASH_NO_ITEMREF) != 0;
+	return hs->hs_flags & CFS_HASH_NO_ITEMREF;
 }
 
 static inline int
 cfs_hash_with_bigname(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_BIGNAME) != 0;
+	return hs->hs_flags & CFS_HASH_BIGNAME;
 }
 
 static inline int
 cfs_hash_with_counter(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_COUNTER) != 0;
+	return hs->hs_flags & CFS_HASH_COUNTER;
 }
 
 static inline int
 cfs_hash_with_rehash(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_REHASH) != 0;
+	return hs->hs_flags & CFS_HASH_REHASH;
 }
 
 static inline int
 cfs_hash_with_rehash_key(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_REHASH_KEY) != 0;
+	return hs->hs_flags & CFS_HASH_REHASH_KEY;
 }
 
 static inline int
 cfs_hash_with_shrink(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_SHRINK) != 0;
+	return hs->hs_flags & CFS_HASH_SHRINK;
 }
 
 static inline int
 cfs_hash_with_assert_empty(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_ASSERT_EMPTY) != 0;
+	return hs->hs_flags & CFS_HASH_ASSERT_EMPTY;
 }
 
 static inline int
 cfs_hash_with_depth(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_DEPTH) != 0;
+	return hs->hs_flags & CFS_HASH_DEPTH;
 }
 
 static inline int
 cfs_hash_with_nblk_change(struct cfs_hash *hs)
 {
-	return (hs->hs_flags & CFS_HASH_NBLK_CHANGE) != 0;
+	return hs->hs_flags & CFS_HASH_NBLK_CHANGE;
 }
 
 static inline int
@@ -442,14 +442,14 @@ static inline int
 cfs_hash_is_rehashing(struct cfs_hash *hs)
 {
 	/* rehash is launched */
-	return hs->hs_rehash_bits != 0;
+	return !!hs->hs_rehash_bits;
 }
 
 static inline int
 cfs_hash_is_iterating(struct cfs_hash *hs)
 {
 	/* someone is calling cfs_hash_for_each_* */
-	return hs->hs_iterating || hs->hs_iterators != 0;
+	return hs->hs_iterating || hs->hs_iterators;
 }
 
 static inline int

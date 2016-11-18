@@ -137,7 +137,7 @@ static inline unsigned char cfs_crypto_hash_alg(const char *algname)
 	enum cfs_crypto_hash_alg hash_alg;
 
 	for (hash_alg = 0; hash_alg < CFS_HASH_ALG_MAX; hash_alg++)
-		if (strcmp(hash_types[hash_alg].cht_name, algname) == 0)
+		if (!strcmp(hash_types[hash_alg].cht_name, algname))
 			return hash_alg;
 
 	return CFS_HASH_ALG_UNKNOWN;

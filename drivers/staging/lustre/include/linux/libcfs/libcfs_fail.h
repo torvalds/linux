@@ -71,7 +71,7 @@ enum {
 
 static inline bool CFS_FAIL_PRECHECK(__u32 id)
 {
-	return cfs_fail_loc != 0 &&
+	return cfs_fail_loc &&
 	       ((cfs_fail_loc & CFS_FAIL_MASK_LOC) == (id & CFS_FAIL_MASK_LOC) ||
 		(cfs_fail_loc & id & CFS_FAULT));
 }
@@ -175,7 +175,7 @@ static inline void cfs_race(__u32 id)
 			cfs_race_state = 0;
 			CERROR("cfs_race id %x sleeping\n", id);
 			rc = wait_event_interruptible(cfs_race_waitq,
-						      cfs_race_state != 0);
+						      !!cfs_race_state);
 			CERROR("cfs_fail_race id %x awake, rc=%d\n", id, rc);
 		} else {
 			CERROR("cfs_fail_race id %x waking\n", id);
