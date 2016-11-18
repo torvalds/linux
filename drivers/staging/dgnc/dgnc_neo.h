@@ -18,14 +18,13 @@
 
 #include "dgnc_driver.h"
 
-/************************************************************************
- * Per channel/port NEO UART structure					*
- ************************************************************************
- *		Base Structure Entries Usage Meanings to Host		*
- *									*
- *	W = read write		R = read only				*
- *			U = Unused.					*
- ************************************************************************/
+/*
+ *	Per channel/port NEO UART structure
+ *	Base Structure Entries Usage Meanings to Host
+ *
+ *	W = read write		R = read only
+ *			U = Unused.
+ */
 
 struct neo_uart_struct {
 	u8 txrx;	/* WR  RHR/THR - Holding Reg */
@@ -48,9 +47,9 @@ struct neo_uart_struct {
 	u8 xonchar2;	/* WR  XON 2 - XOn Character 2 Reg */
 
 	u8 reserved1[0x2ff - 0x200]; /* U   Reserved by Exar */
-	u8 txrxburst[64];	/* RW  64 bytes of RX/TX FIFO Data */
+	u8 txrxburst[64];	     /* RW  64 bytes of RX/TX FIFO Data */
 	u8 reserved2[0x37f - 0x340]; /* U   Reserved by Exar */
-	u8 rxburst_with_errors[64];	/* R  64 bytes of RX FIFO Data + LSR */
+	u8 rxburst_with_errors[64];  /* R  64 bytes of RX FIFO Data + LSR */
 };
 
 /* Where to read the extended interrupt register (32bits instead of 8bits) */
@@ -152,9 +151,8 @@ struct neo_uart_struct {
 #define UART_17158_IER_RTSDTR	0x40	/* Output Interrupt Enable */
 #define UART_17158_IER_CTSDSR	0x80	/* Input Interrupt Enable */
 
-/*
- * Our Global Variables
- */
+/* Our Global Variables */
+
 extern struct board_ops dgnc_neo_ops;
 
 #endif
