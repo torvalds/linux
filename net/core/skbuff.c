@@ -354,7 +354,7 @@ EXPORT_SYMBOL(build_skb);
 
 struct napi_alloc_cache {
 	struct page_frag_cache page;
-	size_t skb_count;
+	unsigned int skb_count;
 	void *skb_cache[NAPI_SKB_CACHE_SIZE];
 };
 
