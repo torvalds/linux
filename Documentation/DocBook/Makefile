@@ -12,7 +12,7 @@ DOCBOOKS := z8530book.xml  \
 	    kernel-api.xml filesystems.xml lsm.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    80211.xml debugobjects.xml sh.xml regulator.xml \
+	    80211.xml sh.xml regulator.xml \
 	    tracepoint.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
 
