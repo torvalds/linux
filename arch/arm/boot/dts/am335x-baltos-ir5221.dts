@@ -114,7 +114,7 @@
 
 &usb1 {
 	status = "okay";
-	dr_mode = "otg";
+	dr_mode = "host";
 };
 
 &cpsw_emac0 {
