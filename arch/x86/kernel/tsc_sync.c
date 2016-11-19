@@ -166,9 +166,9 @@ static int random_warps;
  * TSC-warp measurement loop running on both CPUs.  This is not called
  * if there is no TSC.
  */
-static void check_tsc_warp(unsigned int timeout)
+static cycles_t check_tsc_warp(unsigned int timeout)
 {
-	cycles_t start, now, prev, end;
+	cycles_t start, now, prev, end, cur_max_warp = 0;
 	int i, cur_warps = 0;
 
 	start = rdtsc_ordered();
@@ -209,6 +209,7 @@ static void check_tsc_warp(unsigned int timeout)
 		if (unlikely(prev > now)) {
 			arch_spin_lock(&sync_lock);
 			max_warp = max(max_warp, prev - now);
+			cur_max_warp = max_warp;
 			/*
 			 * Check whether this bounces back and forth. Only
 			 * one CPU should observe time going backwards.
@@ -223,6 +224,7 @@ static void check_tsc_warp(unsigned int timeout)
 	WARN(!(now-start),
 		"Warning: zero tsc calibration delta: %Ld [max: %Ld]\n",
 			now-start, end-start);
+	return cur_max_warp;
 }
 
 /*
