@@ -138,7 +138,7 @@ struct digi_getcounter {
 #define DIGI_REALPORT_GETEVENTS (('e' << 8) | 111)
 
 #define EV_OPU 0x0001 /* !<Output paused by client */
-#define EV_OPS 0x0002 /* !<Output paused by reqular sw flowctrl */
+#define EV_OPS 0x0002 /* !<Output paused by regular sw flowctrl */
 #define EV_IPU 0x0010 /* !<Input paused unconditionally by user */
 #define EV_IPS 0x0020 /* !<Input paused by high/low water marks */
 #define EV_TXB 0x0040 /* !<Transmit break pending */
