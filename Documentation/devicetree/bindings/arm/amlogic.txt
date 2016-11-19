@@ -17,6 +17,14 @@ Boards with the Amlogic Meson GXBaby SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,meson-gxbb";
 
+Boards with the Amlogic Meson GXL S905X SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s905x", "amlogic,meson-gxl";
+
+Boards with the Amlogic Meson GXL S905D SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,s905d", "amlogic,meson-gxl";
+
 Board compatible values:
   - "geniatech,atv1200" (Meson6)
   - "minix,neo-x8" (Meson8)
@@ -28,3 +36,6 @@ Board compatible values:
   - "hardkernel,odroid-c2" (Meson gxbb)
   - "amlogic,p200" (Meson gxbb)
   - "amlogic,p201" (Meson gxbb)
+  - "amlogic,p212" (Meson gxl s905x)
+  - "amlogic,p230" (Meson gxl s905d)
+  - "amlogic,p231" (Meson gxl s905d)

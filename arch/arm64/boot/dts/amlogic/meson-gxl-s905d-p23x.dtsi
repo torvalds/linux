@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2016 Andreas Färber
- * Copyright (c) 2016 BayLibre, Inc.
- * Author: Kevin Hilman <khilman@kernel.org>
+ * Copyright (c) 2016 Endless Computers, Inc.
+ * Author: Carlo Caione <carlo@endlessm.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,7 +41,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "meson-gxbb.dtsi"
+#include "meson-gxl-s905d.dtsi"
 
 / {
 	aliases {
@@ -55,35 +54,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
-	};
-
-	usb_pwr: regulator-usb-pwrs {
-		compatible = "regulator-fixed";
-
-		regulator-name = "USB_PWR";
-
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-
-		/* signal name in schematic: USB_PWR_EN */
-		gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
-	vddio_card: gpio-regulator {
-		compatible = "regulator-gpio";
-
-		regulator-name = "VDDIO_CARD";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
-		gpios-states = <1>;
-
-		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
-		states = <1800000 0
-			  3300000 1>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	vddio_boot: regulator-vddio_boot {
@@ -134,33 +105,10 @@
 	pinctrl-names = "default";
 };
 
-&ethmac {
-	status = "okay";
-	pinctrl-0 = <&eth_rgmii_pins>;
-	pinctrl-names = "default";
-};
-
 &ir {
 	status = "okay";
 	pinctrl-0 = <&remote_input_ao_pins>;
 	pinctrl-names = "default";
-};
-
-&usb0_phy {
-	status = "okay";
-	phy-supply = <&usb_pwr>;
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
 };
 
 /* Wireless SDIO Module */
@@ -204,7 +152,7 @@
 	cd-inverted;
 
 	vmmc-supply = <&vddao_3v3>;
-	vqmmc-supply = <&vddio_card>;
+	vqmmc-supply = <&vddio_boot>;
 };
 
 /* eMMC */
@@ -233,4 +181,8 @@
 	pinctrl-names = "default";
 	clocks = <&clkc CLKID_FCLK_DIV4>;
 	clock-names = "clkin0";
+};
+
+&ethmac {
+	status = "okay";
 };

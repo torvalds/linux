@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2016 Andreas Färber
  * Copyright (c) 2016 BayLibre, Inc.
- * Author: Kevin Hilman <khilman@kernel.org>
+ * Author: Neil Armstrong <narmstrong@kernel.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,9 +42,16 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/dts-v1/;
+
 #include "meson-gxbb.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
+	compatible = "nexbox,a95x", "amlogic,meson-gxbb";
+	model = "NEXBOX A95X";
+	
 	aliases {
 		serial0 = &uart_AO;
 	};
@@ -58,17 +65,27 @@
 		reg = <0x0 0x0 0x0 0x40000000>;
 	};
 
-	usb_pwr: regulator-usb-pwrs {
-		compatible = "regulator-fixed";
+	leds {
+		compatible = "gpio-leds";
+		blue {
+			label = "a95x:system-status";
+			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
 
-		regulator-name = "USB_PWR";
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
 
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-
-		/* signal name in schematic: USB_PWR_EN */
-		gpio = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		button@0 {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	vddio_card: gpio-regulator {
@@ -127,7 +144,6 @@
 	};
 };
 
-/* This UART is brought out to the DB9 connector */
 &uart_AO {
 	status = "okay";
 	pinctrl-0 = <&uart_ao_a_pins>;
@@ -136,31 +152,15 @@
 
 &ethmac {
 	status = "okay";
-	pinctrl-0 = <&eth_rgmii_pins>;
+	pinctrl-0 = <&eth_rmii_pins>;
 	pinctrl-names = "default";
+	phy-mode = "rmii";
 };
 
 &ir {
 	status = "okay";
 	pinctrl-0 = <&remote_input_ao_pins>;
 	pinctrl-names = "default";
-};
-
-&usb0_phy {
-	status = "okay";
-	phy-supply = <&usb_pwr>;
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb0 {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
 };
 
 /* Wireless SDIO Module */
@@ -182,11 +182,6 @@
 
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&vddio_boot>;
-
-	brcmf: bcrmf@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-	};
 };
 
 /* SD card */
