@@ -254,13 +254,10 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 {
 	u32 diff;
 
-	/* Tell compiler to fetch tx_prod and tx_cons from memory. */
-	barrier();
-
 	/* The ring uses 256 indices for 255 entries, one of them
 	 * needs to be skipped.
 	 */
-	diff = txr->tx_prod - txr->tx_cons;
+	diff = READ_ONCE(txr->tx_prod) - READ_ONCE(txr->tx_cons);
 	if (unlikely(diff >= BNX2_TX_DESC_CNT)) {
 		diff &= 0xffff;
 		if (diff == BNX2_TX_DESC_CNT)
@@ -2839,10 +2836,8 @@ bnx2_get_hw_tx_cons(struct bnx2_napi *bnapi)
 {
 	u16 cons;
 
-	/* Tell compiler that status block fields can change. */
-	barrier();
-	cons = *bnapi->hw_tx_cons_ptr;
-	barrier();
+	cons = READ_ONCE(*bnapi->hw_tx_cons_ptr);
+
 	if (unlikely((cons & BNX2_MAX_TX_DESC_CNT) == BNX2_MAX_TX_DESC_CNT))
 		cons++;
 	return cons;
@@ -3141,10 +3136,8 @@ bnx2_get_hw_rx_cons(struct bnx2_napi *bnapi)
 {
 	u16 cons;
 
-	/* Tell compiler that status block fields can change. */
-	barrier();
-	cons = *bnapi->hw_rx_cons_ptr;
-	barrier();
+	cons = READ_ONCE(*bnapi->hw_rx_cons_ptr);
+
 	if (unlikely((cons & BNX2_MAX_RX_DESC_CNT) == BNX2_MAX_RX_DESC_CNT))
 		cons++;
 	return cons;
