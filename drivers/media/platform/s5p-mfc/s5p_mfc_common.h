@@ -292,7 +292,9 @@ struct s5p_mfc_priv_buf {
  * @warn_start:		hardware error code from which warnings start
  * @mfc_ops:		ops structure holding HW operation function pointers
  * @mfc_cmds:		cmd structure holding HW commands function pointers
+ * @mfc_regs:		structure holding MFC registers
  * @fw_ver:		loaded firmware sub-version
+ * risc_on:		flag indicates RISC is on or off
  *
  */
 struct s5p_mfc_dev {

@@ -19,6 +19,22 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+/*
+ * Storage for debug-macro.S's state.
+ *
+ * This must be in .data not .bss so that it gets initialized each time the
+ * kernel is loaded. The data is declared here rather than debug-macro.S so
+ * that multiple inclusions of debug-macro.S point at the same data.
+ */
+u32 brcmstb_uart_config[3] = {
+	/* Debug UART initialization required */
+	1,
+	/* Debug UART physical address */
+	0,
+	/* Debug UART virtual address */
+	0,
+};
+
 static void __init brcmstb_init_irq(void)
 {
 	irqchip_init();

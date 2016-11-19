@@ -625,9 +625,9 @@ static void rxrpc_input_ping_response(struct rxrpc_call *call,
 	rxrpc_serial_t ping_serial;
 	ktime_t ping_time;
 
-	ping_time = call->ackr_ping_time;
+	ping_time = call->ping_time;
 	smp_rmb();
-	ping_serial = call->ackr_ping;
+	ping_serial = call->ping_serial;
 
 	if (!test_bit(RXRPC_CALL_PINGING, &call->flags) ||
 	    before(orig_serial, ping_serial))
@@ -847,7 +847,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 
 	if (call->rxtx_annotations[call->tx_top & RXRPC_RXTX_BUFF_MASK] &
 	    RXRPC_TX_ANNO_LAST &&
-	    summary.nr_acks == call->tx_top - hard_ack)
+	    summary.nr_acks == call->tx_top - hard_ack &&
+	    rxrpc_is_client_call(call))
 		rxrpc_propose_ACK(call, RXRPC_ACK_PING, skew, sp->hdr.serial,
 				  false, true,
 				  rxrpc_propose_ack_ping_for_lost_reply);
@@ -935,6 +936,33 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 	}
 
 	_leave("");
+}
+
+/*
+ * Handle a new call on a channel implicitly completing the preceding call on
+ * that channel.
+ *
+ * TODO: If callNumber > call_id + 1, renegotiate security.
+ */
+static void rxrpc_input_implicit_end_call(struct rxrpc_connection *conn,
+					  struct rxrpc_call *call)
+{
+	switch (call->state) {
+	case RXRPC_CALL_SERVER_AWAIT_ACK:
+		rxrpc_call_completed(call);
+		break;
+	case RXRPC_CALL_COMPLETE:
+		break;
+	default:
+		if (rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, ESHUTDOWN)) {
+			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
+			rxrpc_queue_call(call);
+		}
+		break;
+	}
+
+	__rxrpc_disconnect_call(conn, call);
+	rxrpc_notify_socket(call);
 }
 
 /*
@@ -1145,6 +1173,16 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		}
 
 		call = rcu_dereference(chan->call);
+
+		if (sp->hdr.callNumber > chan->call_id) {
+			if (!(sp->hdr.flags & RXRPC_CLIENT_INITIATED)) {
+				rcu_read_unlock();
+				goto reject_packet;
+			}
+			if (call)
+				rxrpc_input_implicit_end_call(conn, call);
+			call = NULL;
+		}
 	} else {
 		skew = 0;
 		call = NULL;

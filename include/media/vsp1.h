@@ -26,7 +26,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 struct vsp1_du_atomic_config {
 	u32 pixelformat;
 	unsigned int pitch;
-	dma_addr_t mem[2];
+	dma_addr_t mem[3];
 	struct v4l2_rect src;
 	struct v4l2_rect dst;
 	unsigned int alpha;

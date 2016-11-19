@@ -26,13 +26,14 @@ TCON
 The TCON acts as a timing controller for RGB, LVDS and TV interfaces.
 
 Required properties:
- - compatible: value should be "allwinner,sun5i-a13-tcon".
+ - compatible: value must be either:
+   * allwinner,sun5i-a13-tcon
+   * allwinner,sun8i-a33-tcon
  - reg: base address and size of memory-mapped region
  - interrupts: interrupt associated to this IP
  - clocks: phandles to the clocks feeding the TCON. Three are needed:
    - 'ahb': the interface clocks
    - 'tcon-ch0': The clock driving the TCON channel 0
-   - 'tcon-ch1': The clock driving the TCON channel 1
  - resets: phandles to the reset controllers driving the encoder
    - "lcd": the reset line for the TCON channel 0
 
@@ -49,6 +50,33 @@ Required properties:
   second the block connected to the TCON channel 1 (usually the TV
   encoder)
 
+On the A13, there is one more clock required:
+   - 'tcon-ch1': The clock driving the TCON channel 1
+
+DRC
+---
+
+The DRC (Dynamic Range Controller), found in the latest Allwinner SoCs
+(A31, A23, A33), allows to dynamically adjust pixel
+brightness/contrast based on histogram measurements for LCD content
+adaptive backlight control.
+
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun8i-a33-drc
+  - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the DRC
+    * ahb: the DRC interface clock
+    * mod: the DRC module clock
+    * ram: the DRC DRAM clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset line driving the DRC
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the outputs
 
 Display Engine Backend
 ----------------------
@@ -59,6 +87,7 @@ system.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun5i-a13-display-backend
+    * allwinner,sun8i-a33-display-backend
   - reg: base address and size of the memory-mapped region.
   - clocks: phandles to the clocks feeding the frontend and backend
     * ahb: the backend interface clock
@@ -71,6 +100,14 @@ Required properties:
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the output
 
+On the A33, some additional properties are required:
+  - reg needs to have an additional region corresponding to the SAT
+  - reg-names need to be set, with "be" and "sat"
+  - clocks and clock-names need to have a phandle to the SAT bus
+    clocks, whose name will be "sat"
+  - resets and reset-names need to have a phandle to the SAT bus
+    resets, whose name will be "sat"
+
 Display Engine Frontend
 -----------------------
 
@@ -80,6 +117,7 @@ deinterlacing and color space conversion.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun5i-a13-display-frontend
+    * allwinner,sun8i-a33-display-frontend
   - reg: base address and size of the memory-mapped region.
   - interrupts: interrupt associated to this IP
   - clocks: phandles to the clocks feeding the frontend and backend
@@ -104,6 +142,7 @@ extra node.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun5i-a13-display-engine
+    * allwinner,sun8i-a33-display-engine
 
   - allwinner,pipelines: list of phandle to the display engine
     frontends available.

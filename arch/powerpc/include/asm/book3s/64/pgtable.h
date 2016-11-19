@@ -6,6 +6,8 @@
  */
 #define _PAGE_BIT_SWAP_TYPE	0
 
+#define _PAGE_RO		0
+
 #define _PAGE_EXEC		0x00001 /* execute permission */
 #define _PAGE_WRITE		0x00002 /* write access allowed */
 #define _PAGE_READ		0x00004	/* read access allowed */
@@ -565,10 +567,11 @@ static inline bool check_pte_access(unsigned long access, unsigned long ptev)
  * Generic functions with hash/radix callbacks
  */
 
-static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
+static inline void __ptep_set_access_flags(struct mm_struct *mm,
+					   pte_t *ptep, pte_t entry)
 {
 	if (radix_enabled())
-		return radix__ptep_set_access_flags(ptep, entry);
+		return radix__ptep_set_access_flags(mm, ptep, entry);
 	return hash__ptep_set_access_flags(ptep, entry);
 }
 

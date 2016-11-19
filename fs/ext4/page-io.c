@@ -88,7 +88,7 @@ static void ext4_finish_bio(struct bio *bio)
 
 		if (bio->bi_error) {
 			SetPageError(page);
-			set_bit(AS_EIO, &page->mapping->flags);
+			mapping_set_error(page->mapping, -EIO);
 		}
 		bh = head = page_buffers(page);
 		/*
@@ -405,13 +405,11 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 {
 	struct page *data_page = NULL;
 	struct inode *inode = page->mapping->host;
-	unsigned block_start, blocksize;
+	unsigned block_start;
 	struct buffer_head *bh, *head;
 	int ret = 0;
 	int nr_submitted = 0;
 	int nr_to_submit = 0;
-
-	blocksize = 1 << inode->i_blkbits;
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));

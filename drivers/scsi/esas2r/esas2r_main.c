@@ -194,7 +194,7 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 	int length = min(sizeof(struct atto_ioctl), count);
 
 	if (!a->local_atto_ioctl) {
-		a->local_atto_ioctl = kzalloc(sizeof(struct atto_ioctl),
+		a->local_atto_ioctl = kmalloc(sizeof(struct atto_ioctl),
 					      GFP_KERNEL);
 		if (a->local_atto_ioctl == NULL) {
 			esas2r_log(ESAS2R_LOG_WARN,

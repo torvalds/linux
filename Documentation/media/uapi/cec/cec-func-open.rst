@@ -19,7 +19,8 @@ Synopsis
     #include <fcntl.h>
 
 
-.. cpp:function:: int open( const char *device_name, int flags )
+.. c:function:: int open( const char *device_name, int flags )
+   :name: cec-open
 
 
 Arguments
@@ -45,7 +46,9 @@ Arguments
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 To open a cec device applications call :c:func:`open()` with the

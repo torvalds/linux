@@ -269,8 +269,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 			 * filemap_fdatawait_range(), set it again so
 			 * that user process can get -EIO from fsync().
 			 */
-			set_bit(AS_EIO,
-				&jinode->i_vfs_inode->i_mapping->flags);
+			mapping_set_error(jinode->i_vfs_inode->i_mapping, -EIO);
 
 			if (!ret)
 				ret = err;

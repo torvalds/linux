@@ -42,6 +42,35 @@ static const struct cifs_sid sid_authusers = {
 /* group users */
 static const struct cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 
+/* S-1-22-1 Unmapped Unix users */
+static const struct cifs_sid sid_unix_users = {1, 1, {0, 0, 0, 0, 0, 22},
+		{cpu_to_le32(1), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
+/* S-1-22-2 Unmapped Unix groups */
+static const struct cifs_sid sid_unix_groups = { 1, 1, {0, 0, 0, 0, 0, 22},
+		{cpu_to_le32(2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
+/*
+ * See http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
+ */
+
+/* S-1-5-88 MS NFS and Apple style UID/GID/mode */
+
+/* S-1-5-88-1 Unix uid */
+static const struct cifs_sid sid_unix_NFS_users = { 1, 2, {0, 0, 0, 0, 0, 5},
+	{cpu_to_le32(88),
+	 cpu_to_le32(1), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
+/* S-1-5-88-2 Unix gid */
+static const struct cifs_sid sid_unix_NFS_groups = { 1, 2, {0, 0, 0, 0, 0, 5},
+	{cpu_to_le32(88),
+	 cpu_to_le32(2), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
+/* S-1-5-88-3 Unix mode */
+static const struct cifs_sid sid_unix_NFS_mode = { 1, 2, {0, 0, 0, 0, 0, 5},
+	{cpu_to_le32(88),
+	 cpu_to_le32(3), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} };
+
 static const struct cred *root_cred;
 
 static int
@@ -183,6 +212,62 @@ compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
 	return 0; /* sids compare/match */
 }
 
+static bool
+is_well_known_sid(const struct cifs_sid *psid, uint32_t *puid, bool is_group)
+{
+	int i;
+	int num_subauth;
+	const struct cifs_sid *pwell_known_sid;
+
+	if (!psid || (puid == NULL))
+		return false;
+
+	num_subauth = psid->num_subauth;
+
+	/* check if Mac (or Windows NFS) vs. Samba format for Unix owner SID */
+	if (num_subauth == 2) {
+		if (is_group)
+			pwell_known_sid = &sid_unix_groups;
+		else
+			pwell_known_sid = &sid_unix_users;
+	} else if (num_subauth == 3) {
+		if (is_group)
+			pwell_known_sid = &sid_unix_NFS_groups;
+		else
+			pwell_known_sid = &sid_unix_NFS_users;
+	} else
+		return false;
+
+	/* compare the revision */
+	if (psid->revision != pwell_known_sid->revision)
+		return false;
+
+	/* compare all of the six auth values */
+	for (i = 0; i < NUM_AUTHS; ++i) {
+		if (psid->authority[i] != pwell_known_sid->authority[i]) {
+			cifs_dbg(FYI, "auth %d did not match\n", i);
+			return false;
+		}
+	}
+
+	if (num_subauth == 2) {
+		if (psid->sub_auth[0] != pwell_known_sid->sub_auth[0])
+			return false;
+
+		*puid = le32_to_cpu(psid->sub_auth[1]);
+	} else /* 3 subauths, ie Windows/Mac style */ {
+		*puid = le32_to_cpu(psid->sub_auth[0]);
+		if ((psid->sub_auth[0] != pwell_known_sid->sub_auth[0]) ||
+		    (psid->sub_auth[1] != pwell_known_sid->sub_auth[1]))
+			return false;
+
+		*puid = le32_to_cpu(psid->sub_auth[2]);
+	}
+
+	cifs_dbg(FYI, "Unix UID %d returned from SID\n", *puid);
+	return true; /* well known sid found, uid returned */
+}
+
 static void
 cifs_copy_sid(struct cifs_sid *dst, const struct cifs_sid *src)
 {
@@ -276,6 +361,43 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 		return -EIO;
 	}
 
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL) {
+		uint32_t unix_id;
+		bool is_group;
+
+		if (sidtype != SIDOWNER)
+			is_group = true;
+		else
+			is_group = false;
+
+		if (is_well_known_sid(psid, &unix_id, is_group) == false)
+			goto try_upcall_to_get_id;
+
+		if (is_group) {
+			kgid_t gid;
+			gid_t id;
+
+			id = (gid_t)unix_id;
+			gid = make_kgid(&init_user_ns, id);
+			if (gid_valid(gid)) {
+				fgid = gid;
+				goto got_valid_id;
+			}
+		} else {
+			kuid_t uid;
+			uid_t id;
+
+			id = (uid_t)unix_id;
+			uid = make_kuid(&init_user_ns, id);
+			if (uid_valid(uid)) {
+				fuid = uid;
+				goto got_valid_id;
+			}
+		}
+		/* If unable to find uid/gid easily from SID try via upcall */
+	}
+
+try_upcall_to_get_id:
 	sidstr = sid_to_key_str(psid, sidtype);
 	if (!sidstr)
 		return -ENOMEM;
@@ -329,6 +451,7 @@ out_revert_creds:
 	 * Note that we return 0 here unconditionally. If the mapping
 	 * fails then we just fall back to using the mnt_uid/mnt_gid.
 	 */
+got_valid_id:
 	if (sidtype == SIDOWNER)
 		fattr->cf_uid = fuid;
 	else

@@ -6,7 +6,7 @@
  * (C) Copyright 1995 1996 Linus Torvalds
  * (C) Copyright 2001, 2002 Ralf Baechle
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/addrspace.h>
 #include <asm/byteorder.h>
 #include <linux/sched.h>

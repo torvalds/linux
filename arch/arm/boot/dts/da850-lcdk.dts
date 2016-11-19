@@ -1,0 +1,221 @@
+/*
+ * Copyright (c) 2016 BayLibre, Inc.
+ *
+ * Licensed under GPLv2.
+ */
+/dts-v1/;
+#include "da850.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "DA850/AM1808/OMAP-L138 LCDK";
+	compatible = "ti,da850-lcdk", "ti,da850";
+
+	aliases {
+		serial2 = &serial2;
+	};
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0xc0000000 0x08000000>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "DA850/OMAP-L138 LCDK";
+		simple-audio-card,widgets =
+			"Line", "Line In",
+			"Line", "Line Out";
+		simple-audio-card,routing =
+			"LINE1L", "Line In",
+			"LINE1R", "Line In",
+			"Line Out", "LLOUT",
+			"Line Out", "RLOUT";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&link0_codec>;
+		simple-audio-card,frame-master = <&link0_codec>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp0>;
+			system-clock-frequency = <24576000>;
+		};
+
+		link0_codec: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3106>;
+			system-clock-frequency = <24576000>;
+		};
+	};
+};
+
+&pmx_core {
+	status = "okay";
+
+	mcasp0_pins: pinmux_mcasp0_pins {
+		pinctrl-single,bits = <
+			/* AHCLKX AFSX ACLKX */
+			0x00 0x00101010 0x00f0f0f0
+			/* ARX13 ARX14 */
+			0x04 0x00000110 0x00000ff0
+		>;
+	};
+
+	nand_pins: nand_pins {
+		pinctrl-single,bits = <
+			/* EMA_WAIT[0], EMA_OE, EMA_WE, EMA_CS[3] */
+			0x1c 0x10110010  0xf0ff00f0
+			/*
+			 * EMA_D[0], EMA_D[1], EMA_D[2],
+			 * EMA_D[3], EMA_D[4], EMA_D[5],
+			 * EMA_D[6], EMA_D[7]
+			 */
+			0x24 0x11111111  0xffffffff
+			/*
+			 * EMA_D[8],  EMA_D[9],  EMA_D[10],
+			 * EMA_D[11], EMA_D[12], EMA_D[13],
+			 * EMA_D[14], EMA_D[15]
+			 */
+			0x20 0x11111111  0xffffffff
+			/* EMA_A[1], EMA_A[2] */
+			0x30 0x01100000  0x0ff00000
+		>;
+	};
+};
+
+&serial2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&serial2_rxtx_pins>;
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
+&rtc0 {
+	status = "okay";
+};
+
+&gpio {
+	status = "okay";
+};
+
+&mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio_pins>;
+	bus_freq = <2200000>;
+	status = "okay";
+};
+
+&eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mii_pins>;
+	status = "okay";
+};
+
+&mmc0 {
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	cd-gpios = <&gpio 64 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	tlv320aic3106: tlv320aic3106@18 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3106";
+		reg = <0x18>;
+		status = "okay";
+	};
+};
+
+&mcasp0 {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcasp0_pins>;
+	status = "okay";
+
+	op-mode = <0>;   /* DAVINCI_MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	serial-dir = <   /* 0: INACTIVE, 1: TX, 2: RX */
+		0 0 0 0
+		0 0 0 0
+		0 0 0 0
+		0 1 2 0
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
+};
+
+&aemif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_pins>;
+	status = "okay";
+	cs3 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		clock-ranges;
+		ranges;
+
+		ti,cs-chipselect = <3>;
+
+		nand@2000000,0 {
+			compatible = "ti,davinci-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0 0x02000000 0x02000000
+			       1 0x00000000 0x00008000>;
+
+			ti,davinci-chipselect = <1>;
+			ti,davinci-mask-ale = <0>;
+			ti,davinci-mask-cle = <0>;
+			ti,davinci-mask-chipsel = <0>;
+
+			ti,davinci-nand-buswidth = <16>;
+			ti,davinci-ecc-mode = "hw";
+			ti,davinci-ecc-bits = <4>;
+			ti,davinci-nand-use-bbt;
+
+			/*
+			 * The OMAP-L132/L138 Bootloader doc SPRAB41E reads:
+			 * "To boot from NAND Flash, the AIS should be written
+			 * to NAND block 1 (NAND block 0 is not used by default)".
+			 * The same doc mentions that for ROM "Silicon Revision 2.1",
+			 * "Updated NAND boot mode to offer boot from block 0 or block 1".
+			 * However the limitaion is left here by default for compatibility
+			 * with older silicon and because it needs new boot pin settings
+			 * not possible in stock LCDK.
+			 */
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				partition@0 {
+					label = "u-boot env";
+					reg = <0 0x020000>;
+				};
+				partition@0x020000 {
+					/* The LCDK defaults to booting from this partition */
+					label = "u-boot";
+					reg = <0x020000 0x080000>;
+				};
+				partition@0x0a0000 {
+					label = "free space";
+					reg = <0x0a0000 0>;
+				};
+			};
+		};
+	};
+};

@@ -205,7 +205,7 @@ done:
  * @fence: the shared fence to add
  *
  * Add a fence to a shared slot, obj->lock must be held, and
- * reservation_object_reserve_shared_fence has been called.
+ * reservation_object_reserve_shared() has been called.
  */
 void reservation_object_add_shared_fence(struct reservation_object *obj,
 					 struct fence *fence)

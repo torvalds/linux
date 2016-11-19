@@ -14,8 +14,57 @@ menuconfig RESET_CONTROLLER
 
 if RESET_CONTROLLER
 
+config RESET_ATH79
+	bool "AR71xx Reset Driver" if COMPILE_TEST
+	default ATH79
+	help
+	  This enables the ATH79 reset controller driver that supports the
+	  AR71xx SoC reset controller.
+
+config RESET_BERLIN
+	bool "Berlin Reset Driver" if COMPILE_TEST
+	default ARCH_BERLIN
+	help
+	  This enables the reset controller driver for Marvell Berlin SoCs.
+
+config RESET_LPC18XX
+	bool "LPC18xx/43xx Reset Driver" if COMPILE_TEST
+	default ARCH_LPC18XX
+	help
+	  This enables the reset controller driver for NXP LPC18xx/43xx SoCs.
+
+config RESET_MESON
+	bool "Meson Reset Driver" if COMPILE_TEST
+	default ARCH_MESON
+	help
+	  This enables the reset driver for Amlogic Meson SoCs.
+
 config RESET_OXNAS
 	bool
+
+config RESET_PISTACHIO
+	bool "Pistachio Reset Driver" if COMPILE_TEST
+	default MACH_PISTACHIO
+	help
+	  This enables the reset driver for ImgTec Pistachio SoCs.
+
+config RESET_SOCFPGA
+	bool "SoCFPGA Reset Driver" if COMPILE_TEST
+	default ARCH_SOCFPGA
+	help
+	  This enables the reset controller driver for Altera SoCFPGAs.
+
+config RESET_STM32
+	bool "STM32 Reset Driver" if COMPILE_TEST
+	default ARCH_STM32
+	help
+	  This enables the RCC reset controller driver for STM32 MCUs.
+
+config RESET_SUNXI
+	bool "Allwinner SoCs Reset Driver" if COMPILE_TEST && !ARCH_SUNXI
+	default ARCH_SUNXI
+	help
+	  This enables the reset driver for Allwinner SoCs.
 
 config TI_SYSCON_RESET
 	tristate "TI SYSCON Reset Driver"
@@ -26,6 +75,22 @@ config TI_SYSCON_RESET
 	  memory-mapped reset registers as part of a syscon device node. If
 	  you wish to use the reset framework for such memory-mapped devices,
 	  say Y here. Otherwise, say N.
+
+config RESET_UNIPHIER
+	tristate "Reset controller driver for UniPhier SoCs"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && MFD_SYSCON
+	default ARCH_UNIPHIER
+	help
+	  Support for reset controllers on UniPhier SoCs.
+	  Say Y if you want to control reset signals provided by System Control
+	  block, Media I/O block, Peripheral Block.
+
+config RESET_ZYNQ
+	bool "ZYNQ Reset Driver" if COMPILE_TEST
+	default ARCH_ZYNQ
+	help
+	  This enables the reset controller driver for Xilinx Zynq SoCs.
 
 source "drivers/reset/sti/Kconfig"
 source "drivers/reset/hisilicon/Kconfig"

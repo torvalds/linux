@@ -105,7 +105,7 @@ struct slimpro_i2c_dev {
 	struct mbox_chan *mbox_chan;
 	struct mbox_client mbox_client;
 	struct completion rd_complete;
-	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX];
+	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX + 1]; /* dma_buffer[0] is used for length */
 	u32 *resp_msg;
 };
 
@@ -418,7 +418,6 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adapter, ctx);
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
-		dev_err(&pdev->dev, "Adapter registeration failed\n");
 		mbox_free_channel(ctx->mbox_chan);
 		return rc;
 	}

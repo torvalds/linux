@@ -76,35 +76,27 @@ static int soc_camera_platform_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int soc_camera_platform_g_crop(struct v4l2_subdev *sd,
-				      struct v4l2_crop *a)
+static int soc_camera_platform_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 
-	a->c.left	= 0;
-	a->c.top	= 0;
-	a->c.width	= p->format.width;
-	a->c.height	= p->format.height;
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int soc_camera_platform_cropcap(struct v4l2_subdev *sd,
-				       struct v4l2_cropcap *a)
-{
-	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
-
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= p->format.width;
-	a->bounds.height		= p->format.height;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = p->format.width;
+		sel->r.height = p->format.height;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int soc_camera_platform_g_mbus_config(struct v4l2_subdev *sd,
@@ -120,13 +112,12 @@ static int soc_camera_platform_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops platform_subdev_video_ops = {
 	.s_stream	= soc_camera_platform_s_stream,
-	.cropcap	= soc_camera_platform_cropcap,
-	.g_crop		= soc_camera_platform_g_crop,
 	.g_mbus_config	= soc_camera_platform_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops platform_subdev_pad_ops = {
 	.enum_mbus_code = soc_camera_platform_enum_mbus_code,
+	.get_selection	= soc_camera_platform_get_selection,
 	.get_fmt	= soc_camera_platform_fill_fmt,
 	.set_fmt	= soc_camera_platform_fill_fmt,
 };

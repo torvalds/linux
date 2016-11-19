@@ -10,7 +10,6 @@
  * for more details.
  */
 
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -449,17 +448,6 @@ static int pcie_pme_resume(struct pcie_device *srv)
 	return 0;
 }
 
-/**
- * pcie_pme_remove - Prepare PCIe PME service device for removal.
- * @srv - PCIe service device to remove.
- */
-static void pcie_pme_remove(struct pcie_device *srv)
-{
-	pcie_pme_suspend(srv);
-	free_irq(srv->irq, srv);
-	kfree(get_service_data(srv));
-}
-
 static struct pcie_port_service_driver pcie_pme_driver = {
 	.name		= "pcie_pme",
 	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
@@ -468,7 +456,6 @@ static struct pcie_port_service_driver pcie_pme_driver = {
 	.probe		= pcie_pme_probe,
 	.suspend	= pcie_pme_suspend,
 	.resume		= pcie_pme_resume,
-	.remove		= pcie_pme_remove,
 };
 
 /**
@@ -478,5 +465,4 @@ static int __init pcie_pme_service_init(void)
 {
 	return pcie_port_service_register(&pcie_pme_driver);
 }
-
-module_init(pcie_pme_service_init);
+device_initcall(pcie_pme_service_init);

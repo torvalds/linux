@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
+#include <linux/slab.h>
 
 #define BERLIN_PWM_EN			0x0
 #define  BERLIN_PWM_ENABLE		BIT(0)
@@ -26,6 +27,13 @@
 #define BERLIN_PWM_DUTY			0x8
 #define BERLIN_PWM_TCNT			0xc
 #define  BERLIN_PWM_MAX_TCNT		65535
+
+struct berlin_pwm_channel {
+	u32 enable;
+	u32 ctrl;
+	u32 duty;
+	u32 tcnt;
+};
 
 struct berlin_pwm_chip {
 	struct pwm_chip chip;
@@ -53,6 +61,25 @@ static inline void berlin_pwm_writel(struct berlin_pwm_chip *chip,
 				     unsigned long offset)
 {
 	writel_relaxed(value, chip->base + channel * 0x10 + offset);
+}
+
+static int berlin_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
+{
+	struct berlin_pwm_channel *channel;
+
+	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	if (!channel)
+		return -ENOMEM;
+
+	return pwm_set_chip_data(pwm, channel);
+}
+
+static void berlin_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
+{
+	struct berlin_pwm_channel *channel = pwm_get_chip_data(pwm);
+
+	pwm_set_chip_data(pwm, NULL);
+	kfree(channel);
 }
 
 static int berlin_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm_dev,
@@ -137,6 +164,8 @@ static void berlin_pwm_disable(struct pwm_chip *chip,
 }
 
 static const struct pwm_ops berlin_pwm_ops = {
+	.request = berlin_pwm_request,
+	.free = berlin_pwm_free,
 	.config = berlin_pwm_config,
 	.set_polarity = berlin_pwm_set_polarity,
 	.enable = berlin_pwm_enable,
@@ -204,12 +233,67 @@ static int berlin_pwm_remove(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int berlin_pwm_suspend(struct device *dev)
+{
+	struct berlin_pwm_chip *pwm = dev_get_drvdata(dev);
+	unsigned int i;
+
+	for (i = 0; i < pwm->chip.npwm; i++) {
+		struct berlin_pwm_channel *channel;
+
+		channel = pwm_get_chip_data(&pwm->chip.pwms[i]);
+		if (!channel)
+			continue;
+
+		channel->enable = berlin_pwm_readl(pwm, i, BERLIN_PWM_ENABLE);
+		channel->ctrl = berlin_pwm_readl(pwm, i, BERLIN_PWM_CONTROL);
+		channel->duty = berlin_pwm_readl(pwm, i, BERLIN_PWM_DUTY);
+		channel->tcnt = berlin_pwm_readl(pwm, i, BERLIN_PWM_TCNT);
+	}
+
+	clk_disable_unprepare(pwm->clk);
+
+	return 0;
+}
+
+static int berlin_pwm_resume(struct device *dev)
+{
+	struct berlin_pwm_chip *pwm = dev_get_drvdata(dev);
+	unsigned int i;
+	int ret;
+
+	ret = clk_prepare_enable(pwm->clk);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < pwm->chip.npwm; i++) {
+		struct berlin_pwm_channel *channel;
+
+		channel = pwm_get_chip_data(&pwm->chip.pwms[i]);
+		if (!channel)
+			continue;
+
+		berlin_pwm_writel(pwm, i, channel->ctrl, BERLIN_PWM_CONTROL);
+		berlin_pwm_writel(pwm, i, channel->duty, BERLIN_PWM_DUTY);
+		berlin_pwm_writel(pwm, i, channel->tcnt, BERLIN_PWM_TCNT);
+		berlin_pwm_writel(pwm, i, channel->enable, BERLIN_PWM_ENABLE);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(berlin_pwm_pm_ops, berlin_pwm_suspend,
+			 berlin_pwm_resume);
+
 static struct platform_driver berlin_pwm_driver = {
 	.probe = berlin_pwm_probe,
 	.remove = berlin_pwm_remove,
 	.driver = {
 		.name = "berlin-pwm",
 		.of_match_table = berlin_pwm_match,
+		.pm = &berlin_pwm_pm_ops,
 	},
 };
 module_platform_driver(berlin_pwm_driver);

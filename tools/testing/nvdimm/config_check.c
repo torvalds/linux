@@ -1,4 +1,3 @@
-#include <linux/kconfig.h>
 #include <linux/bug.h>
 
 void check(void)

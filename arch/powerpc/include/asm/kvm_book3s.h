@@ -69,6 +69,43 @@ struct hpte_cache {
 	int pagesize;
 };
 
+/*
+ * Struct for a virtual core.
+ * Note: entry_exit_map combines a bitmap of threads that have entered
+ * in the bottom 8 bits and a bitmap of threads that have exited in the
+ * next 8 bits.  This is so that we can atomically set the entry bit
+ * iff the exit map is 0 without taking a lock.
+ */
+struct kvmppc_vcore {
+	int n_runnable;
+	int num_threads;
+	int entry_exit_map;
+	int napping_threads;
+	int first_vcpuid;
+	u16 pcpu;
+	u16 last_cpu;
+	u8 vcore_state;
+	u8 in_guest;
+	struct kvmppc_vcore *master_vcore;
+	struct kvm_vcpu *runnable_threads[MAX_SMT_THREADS];
+	struct list_head preempt_list;
+	spinlock_t lock;
+	struct swait_queue_head wq;
+	spinlock_t stoltb_lock;	/* protects stolen_tb and preempt_tb */
+	u64 stolen_tb;
+	u64 preempt_tb;
+	struct kvm_vcpu *runner;
+	struct kvm *kvm;
+	u64 tb_offset;		/* guest timebase - host timebase */
+	ulong lpcr;
+	u32 arch_compat;
+	ulong pcr;
+	ulong dpdes;		/* doorbell state (POWER8) */
+	ulong vtb;		/* virtual timebase */
+	ulong conferring_threads;
+	unsigned int halt_poll_ns;
+};
+
 struct kvmppc_vcpu_book3s {
 	struct kvmppc_sid_map sid_map[SID_MAP_NUM];
 	struct {
@@ -83,6 +120,7 @@ struct kvmppc_vcpu_book3s {
 	u64 sdr1;
 	u64 hior;
 	u64 msr_mask;
+	u64 vtb;
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32 vsid_pool[VSID_POOL_SIZE];
 	u32 vsid_next;
@@ -191,6 +229,7 @@ extern void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
 				 struct kvm_vcpu *vcpu);
 extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 				   struct kvmppc_book3s_shadow_vcpu *svcpu);
+extern int kvm_irq_bypass;
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {

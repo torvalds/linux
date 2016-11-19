@@ -1,0 +1,38 @@
+ARM Virtual Interrupt Translation Service (ITS)
+===============================================
+
+Device types supported:
+  KVM_DEV_TYPE_ARM_VGIC_ITS    ARM Interrupt Translation Service Controller
+
+The ITS allows MSI(-X) interrupts to be injected into guests. This extension is
+optional.  Creating a virtual ITS controller also requires a host GICv3 (see
+arm-vgic-v3.txt), but does not depend on having physical ITS controllers.
+
+There can be multiple ITS controllers per guest, each of them has to have
+a separate, non-overlapping MMIO region.
+
+
+Groups:
+  KVM_DEV_ARM_VGIC_GRP_ADDR
+  Attributes:
+    KVM_VGIC_ITS_ADDR_TYPE (rw, 64-bit)
+      Base address in the guest physical address space of the GICv3 ITS
+      control register frame.
+      This address needs to be 64K aligned and the region covers 128K.
+  Errors:
+    -E2BIG:  Address outside of addressable IPA range
+    -EINVAL: Incorrectly aligned address
+    -EEXIST: Address already configured
+    -EFAULT: Invalid user pointer for attr->addr.
+    -ENODEV: Incorrect attribute or the ITS is not supported.
+
+
+  KVM_DEV_ARM_VGIC_GRP_CTRL
+  Attributes:
+    KVM_DEV_ARM_VGIC_CTRL_INIT
+      request the initialization of the ITS, no additional parameter in
+      kvm_device_attr.addr.
+  Errors:
+    -ENXIO:  ITS not properly configured as required prior to setting
+             this attribute
+    -ENOMEM: Memory shortage when allocating ITS internal data

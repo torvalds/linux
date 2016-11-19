@@ -87,10 +87,10 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 {
 	int i;
 
+	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+
 	if (!vmacache_valid(mm))
 		return NULL;
-
-	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
 
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];
@@ -115,10 +115,10 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
 {
 	int i;
 
+	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+
 	if (!vmacache_valid(mm))
 		return NULL;
-
-	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
 
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];

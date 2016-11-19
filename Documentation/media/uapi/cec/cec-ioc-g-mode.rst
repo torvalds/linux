@@ -13,24 +13,27 @@ CEC_G_MODE, CEC_S_MODE - Get or set exclusive use of the CEC adapter
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *argp )
+.. c:function:: int ioctl( int fd, CEC_G_MODE, __u32 *argp )
+   :name: CEC_G_MODE
+
+.. c:function:: int ioctl( int fd, CEC_S_MODE, __u32 *argp )
+   :name: CEC_S_MODE
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_G_MODE, CEC_S_MODE
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to CEC mode.
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 By default any filehandle can use :ref:`CEC_TRANSMIT`, but in order to prevent
@@ -71,6 +74,7 @@ always call :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
 
 Available initiator modes are:
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-mode-initiator_e:
 
@@ -114,6 +118,7 @@ Available initiator modes are:
 
 Available follower modes are:
 
+.. tabularcolumns:: |p{6.6cm}|p{0.9cm}|p{10.0cm}|
 
 .. _cec-mode-follower_e:
 
@@ -206,6 +211,7 @@ Available follower modes are:
 
 Core message processing details:
 
+.. tabularcolumns:: |p{6.6cm}|p{10.9cm}|
 
 .. _cec-core-processing:
 

@@ -109,6 +109,8 @@ int fscrypt_process_policy(struct file *filp,
 	if (ret)
 		return ret;
 
+	inode_lock(inode);
+
 	if (!inode_has_encryption_context(inode)) {
 		if (!S_ISDIR(inode->i_mode))
 			ret = -EINVAL;
@@ -126,6 +128,8 @@ int fscrypt_process_policy(struct file *filp,
 		       __func__);
 		ret = -EINVAL;
 	}
+
+	inode_unlock(inode);
 
 	mnt_drop_write_file(filp);
 	return ret;

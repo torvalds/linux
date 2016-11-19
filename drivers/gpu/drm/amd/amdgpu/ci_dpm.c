@@ -4075,7 +4075,7 @@ static int ci_enable_uvd_dpm(struct amdgpu_device *adev, bool enable)
 							  pi->dpm_level_enable_mask.mclk_dpm_enable_mask);
 		}
 	} else {
-		if (pi->last_mclk_dpm_enable_mask & 0x1) {
+		if (pi->uvd_enabled) {
 			pi->uvd_enabled = false;
 			pi->dpm_level_enable_mask.mclk_dpm_enable_mask |= 1;
 			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
@@ -5396,7 +5396,7 @@ static void ci_dpm_disable(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
 		       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
 
-	ci_dpm_powergate_uvd(adev, false);
+	ci_dpm_powergate_uvd(adev, true);
 
 	if (!amdgpu_ci_is_smc_running(adev))
 		return;
@@ -5874,7 +5874,10 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	pi->pcie_dpm_key_disabled = 0;
 	pi->thermal_sclk_dpm_enabled = 0;
 
-	pi->caps_sclk_ds = true;
+	if (amdgpu_sclk_deep_sleep_en)
+		pi->caps_sclk_ds = true;
+	else
+		pi->caps_sclk_ds = false;
 
 	pi->mclk_strobe_mode_threshold = 40000;
 	pi->mclk_stutter_mode_threshold = 40000;
@@ -6033,7 +6036,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 
 	pi->caps_dynamic_ac_timing = true;
 
-	pi->uvd_power_gated = false;
+	pi->uvd_power_gated = true;
 
 	/* make sure dc limits are valid */
 	if ((adev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
@@ -6176,8 +6179,6 @@ static int ci_dpm_late_init(void *handle)
 	if (ret)
 		return ret;
 
-	ci_dpm_powergate_uvd(adev, true);
-
 	return 0;
 }
 
@@ -6234,6 +6235,8 @@ dpm_failed:
 static int ci_dpm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	flush_work(&adev->pm.dpm.thermal.work);
 
 	mutex_lock(&adev->pm.mutex);
 	amdgpu_pm_sysfs_fini(adev);

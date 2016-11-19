@@ -16,6 +16,8 @@
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
 #define BULK_SIZE 512
 
+#define NR_USB_REQUEST_CHANNEL 0x12
+
 #define MAX_TRANSFER (PAGE_SIZE*16 - BULK_SIZE)
 #define WRITES_IN_FLIGHT (4)
 #define MAX_VENDOR_DESCRIPTOR_SIZE 256
@@ -88,6 +90,32 @@ unrecognized:
 success:
 	kfree(buf);
 	return true;
+}
+
+/*
+ * Need to ensure a channel is selected before submitting URBs
+ */
+static int udl_select_std_channel(struct udl_device *udl)
+{
+	int ret;
+	static const u8 set_def_chn[] = {0x57, 0xCD, 0xDC, 0xA7,
+					 0x1C, 0x88, 0x5E, 0x15,
+					 0x60, 0xFE, 0xC6, 0x97,
+					 0x16, 0x3D, 0x47, 0xF2};
+	void *sendbuf;
+
+	sendbuf = kmemdup(set_def_chn, sizeof(set_def_chn), GFP_KERNEL);
+	if (!sendbuf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udl->udev,
+			      usb_sndctrlpipe(udl->udev, 0),
+			      NR_USB_REQUEST_CHANNEL,
+			      (USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
+			      sendbuf, sizeof(set_def_chn),
+			      USB_CTRL_SET_TIMEOUT);
+	kfree(sendbuf);
+	return ret < 0 ? ret : 0;
 }
 
 static void udl_release_urb_work(struct work_struct *work)
@@ -300,6 +328,9 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;
 	}
+
+	if (udl_select_std_channel(udl))
+		DRM_ERROR("Selecting channel failed\n");
 
 	if (!udl_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		DRM_ERROR("udl_alloc_urb_list failed\n");

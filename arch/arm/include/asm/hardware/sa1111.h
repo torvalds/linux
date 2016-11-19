@@ -420,7 +420,7 @@ struct sa1111_dev {
 	u64		dma_mask;
 };
 
-#define SA1111_DEV(_d)	container_of((_d), struct sa1111_dev, dev)
+#define to_sa1111_device(x)	container_of(x, struct sa1111_dev, dev)
 
 #define sa1111_get_drvdata(d)	dev_get_drvdata(&(d)->dev)
 #define sa1111_set_drvdata(d,p)	dev_set_drvdata(&(d)->dev, p)
@@ -445,6 +445,8 @@ struct sa1111_driver {
  */
 int sa1111_enable_device(struct sa1111_dev *);
 void sa1111_disable_device(struct sa1111_dev *);
+
+int sa1111_get_irq(struct sa1111_dev *, unsigned num);
 
 unsigned int sa1111_pll_clock(struct sa1111_dev *);
 

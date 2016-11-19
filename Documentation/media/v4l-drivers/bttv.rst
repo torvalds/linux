@@ -586,6 +586,7 @@ Cards
 -----
 
 .. note::
+
    For a more updated list, please check
    https://linuxtv.org/wiki/index.php/Hardware_Device_Information
 

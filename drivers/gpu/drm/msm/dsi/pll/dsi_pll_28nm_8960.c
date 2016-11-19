@@ -412,6 +412,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 	struct clk_init_data vco_init = {
 		.parent_names = (const char *[]){ "pxo" },
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 		.ops = &clk_ops_dsi_pll_28nm_vco,
 	};
 	struct device *dev = &pll_28nm->pdev->dev;

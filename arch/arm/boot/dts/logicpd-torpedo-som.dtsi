@@ -13,6 +13,11 @@
 		};
 	};
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		user0 {

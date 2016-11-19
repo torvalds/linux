@@ -43,6 +43,8 @@ const char *ceph_session_op_name(int op)
 	case CEPH_SESSION_RECALL_STATE: return "recall_state";
 	case CEPH_SESSION_FLUSHMSG: return "flushmsg";
 	case CEPH_SESSION_FLUSHMSG_ACK: return "flushmsg_ack";
+	case CEPH_SESSION_FORCE_RO: return "force_ro";
+	case CEPH_SESSION_REJECT: return "reject";
 	}
 	return "???";
 }

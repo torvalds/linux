@@ -349,9 +349,7 @@ static void dma_do_tasklet(unsigned long data)
 {
 	struct mmp_tdma_chan *tdmac = (struct mmp_tdma_chan *)data;
 
-	if (tdmac->desc.callback)
-		tdmac->desc.callback(tdmac->desc.callback_param);
-
+	dmaengine_desc_get_callback_invoke(&tdmac->desc, NULL);
 }
 
 static void mmp_tdma_free_descriptor(struct mmp_tdma_chan *tdmac)
@@ -433,7 +431,7 @@ static struct dma_async_tx_descriptor *mmp_tdma_prep_dma_cyclic(
 
 	if (period_len > TDMA_MAX_XFER_BYTES) {
 		dev_err(tdmac->dev,
-				"maximum period size exceeded: %d > %d\n",
+				"maximum period size exceeded: %zu > %d\n",
 				period_len, TDMA_MAX_XFER_BYTES);
 		goto err_out;
 	}

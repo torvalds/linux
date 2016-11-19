@@ -47,9 +47,24 @@
 / {
 	model = "Allwinner GA10H Quad Core Tablet (v1.1)";
 	compatible = "allwinner,ga10h-v1.1", "allwinner,sun8i-a33";
+
+	aliases {
+		/* Make u-boot set mac-address for rtl8703as (no eeprom) */
+		ethernet0 = &rtl8703as;
+	};
 };
 
 &ehci0 {
+	status = "okay";
+};
+
+&touchscreen {
+	reg = <0x40>;
+	compatible = "silead,gsl3675";
+	firmware-name = "gsl3675-ga10h.fw";
+	touchscreen-size-x = <1630>;
+	touchscreen-size-y = <990>;
+	touchscreen-inverted-y;
 	status = "okay";
 };
 
@@ -59,6 +74,19 @@
 		linux,code = <KEY_BACK>;
 		channel = <0>;
 		voltage = <600000>;
+	};
+};
+
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>;
+	vmmc-supply = <&reg_dldo1>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	rtl8703as: sdio_wifi@1 {
+		reg = <1>;
 	};
 };
 

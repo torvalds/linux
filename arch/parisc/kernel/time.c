@@ -226,12 +226,6 @@ void __init start_cpu_itimer(void)
 	unsigned int cpu = smp_processor_id();
 	unsigned long next_tick = mfctl(16) + clocktick;
 
-#if defined(CONFIG_HAVE_UNSTABLE_SCHED_CLOCK) && defined(CONFIG_64BIT)
-	/* With multiple 64bit CPUs online, the cr16's are not syncronized. */
-	if (cpu != 0)
-		clear_sched_clock_stable();
-#endif
-
 	mtctl(next_tick, 16);		/* kick off Interval Timer (CR16) */
 
 	per_cpu(cpu_data, cpu).it_value = next_tick;

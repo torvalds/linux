@@ -105,16 +105,13 @@ struct soc_camera_host_ops {
 	int (*get_formats)(struct soc_camera_device *, unsigned int,
 			   struct soc_camera_format_xlate *);
 	void (*put_formats)(struct soc_camera_device *);
-	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
-	int (*get_crop)(struct soc_camera_device *, struct v4l2_crop *);
-	int (*set_crop)(struct soc_camera_device *, const struct v4l2_crop *);
 	int (*get_selection)(struct soc_camera_device *, struct v4l2_selection *);
 	int (*set_selection)(struct soc_camera_device *, struct v4l2_selection *);
 	/*
-	 * The difference to .set_crop() is, that .set_livecrop is not allowed
+	 * The difference to .set_selection() is, that .set_liveselection is not allowed
 	 * to change the output sizes
 	 */
-	int (*set_livecrop)(struct soc_camera_device *, const struct v4l2_crop *);
+	int (*set_liveselection)(struct soc_camera_device *, struct v4l2_selection *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,

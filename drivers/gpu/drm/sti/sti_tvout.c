@@ -18,6 +18,7 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "sti_crtc.h"
+#include "sti_drv.h"
 #include "sti_vtg.h"
 
 /* glue registers */
@@ -209,13 +210,11 @@ static void tvout_vip_set_rnd(struct sti_tvout *tvout, int reg, u32 rnd)
  * @tvout: tvout structure
  * @reg: register to set
  * @main_path: main or auxiliary path
- * @sel_input_logic_inverted: need to invert the logic
  * @sel_input: selected_input (main/aux + conv)
  */
 static void tvout_vip_set_sel_input(struct sti_tvout *tvout,
 				    int reg,
 				    bool main_path,
-				    bool sel_input_logic_inverted,
 				    enum sti_tvout_video_out_type video_out)
 {
 	u32 sel_input;
@@ -236,8 +235,7 @@ static void tvout_vip_set_sel_input(struct sti_tvout *tvout,
 	}
 
 	/* on stih407 chip the sel_input bypass mode logic is inverted */
-	if (sel_input_logic_inverted)
-		sel_input = sel_input ^ TVO_VIP_SEL_INPUT_BYPASS_MASK;
+	sel_input = sel_input ^ TVO_VIP_SEL_INPUT_BYPASS_MASK;
 
 	val &= ~TVO_VIP_SEL_INPUT_MASK;
 	val |= sel_input;
@@ -295,8 +293,6 @@ static void tvout_preformatter_set_matrix(struct sti_tvout *tvout,
  */
 static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 {
-	struct device_node *node = tvout->dev->of_node;
-	bool sel_input_logic_inverted = false;
 	u32 tvo_in_vid_format;
 	int val, tmp;
 
@@ -334,16 +330,11 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 	/* Set round mode (rounded to 8-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_DVO, TVO_VIP_RND_8BIT_ROUNDED);
 
-	if (of_device_is_compatible(node, "st,stih407-tvout")) {
-		/* Set input video format */
-		tvout_vip_set_in_vid_fmt(tvout, tvo_in_vid_format,
-					 TVO_IN_FMT_SIGNED);
-		sel_input_logic_inverted = true;
-	}
+	/* Set input video format */
+	tvout_vip_set_in_vid_fmt(tvout, tvo_in_vid_format, TVO_IN_FMT_SIGNED);
 
 	/* Input selection */
 	tvout_vip_set_sel_input(tvout, TVO_VIP_DVO, main_path,
-				sel_input_logic_inverted,
 				STI_TVOUT_VIDEO_OUT_RGB);
 }
 
@@ -356,8 +347,6 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
  */
 static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 {
-	struct device_node *node = tvout->dev->of_node;
-	bool sel_input_logic_inverted = false;
 	u32 tvo_in_vid_format;
 
 	dev_dbg(tvout->dev, "%s\n", __func__);
@@ -390,16 +379,12 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 	/* set round mode (rounded to 8-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_HDMI, TVO_VIP_RND_8BIT_ROUNDED);
 
-	if (of_device_is_compatible(node, "st,stih407-tvout")) {
-		/* set input video format */
-		tvout_vip_set_in_vid_fmt(tvout, tvo_in_vid_format,
-					TVO_IN_FMT_SIGNED);
-		sel_input_logic_inverted = true;
-	}
+	/* set input video format */
+	tvout_vip_set_in_vid_fmt(tvout, tvo_in_vid_format, TVO_IN_FMT_SIGNED);
 
 	/* input selection */
 	tvout_vip_set_sel_input(tvout, TVO_VIP_HDMI, main_path,
-			sel_input_logic_inverted, STI_TVOUT_VIDEO_OUT_RGB);
+				STI_TVOUT_VIDEO_OUT_RGB);
 }
 
 /**
@@ -411,8 +396,6 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
  */
 static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 {
-	struct device_node *node = tvout->dev->of_node;
-	bool sel_input_logic_inverted = false;
 	u32 tvo_in_vid_format;
 	int val;
 
@@ -448,16 +431,11 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 	/* set round mode (rounded to 10-bit per component) */
 	tvout_vip_set_rnd(tvout, TVO_VIP_HDF, TVO_VIP_RND_10BIT_ROUNDED);
 
-	if (of_device_is_compatible(node, "st,stih407-tvout")) {
-		/* set input video format */
-		tvout_vip_set_in_vid_fmt(tvout,
-			tvo_in_vid_format, TVO_IN_FMT_SIGNED);
-		sel_input_logic_inverted = true;
-	}
+	/* Set input video format */
+	tvout_vip_set_in_vid_fmt(tvout, tvo_in_vid_format, TVO_IN_FMT_SIGNED);
 
 	/* Input selection */
 	tvout_vip_set_sel_input(tvout, TVO_VIP_HDF, main_path,
-				sel_input_logic_inverted,
 				STI_TVOUT_VIDEO_OUT_YUV);
 
 	/* power up HD DAC */
@@ -905,7 +883,6 @@ static int sti_tvout_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tvout_of_match[] = {
-	{ .compatible = "st,stih416-tvout", },
 	{ .compatible = "st,stih407-tvout", },
 	{ /* end node */ }
 };

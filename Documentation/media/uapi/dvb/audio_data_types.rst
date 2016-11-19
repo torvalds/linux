@@ -9,11 +9,7 @@ Audio Data Types
 This section describes the structures, data types and defines used when
 talking to the audio device.
 
-
-.. _audio-stream-source-t:
-
-audio_stream_source_t
-=====================
+.. c:type:: audio_stream_source
 
 The audio stream source is set through the AUDIO_SELECT_SOURCE call
 and can take the following values, depending on whether we are replaying
@@ -33,10 +29,7 @@ AUDIO_SOURCE_MEMORY is selected the stream comes from the application
 through the ``write()`` system call.
 
 
-.. _audio-play-state-t:
-
-audio_play_state_t
-==================
+.. c:type:: audio_play_state
 
 The following values can be returned by the AUDIO_GET_STATUS call
 representing the state of audio playback.
@@ -51,10 +44,7 @@ representing the state of audio playback.
     } audio_play_state_t;
 
 
-.. _audio-channel-select-t:
-
-audio_channel_select_t
-======================
+.. c:type:: audio_channel_select
 
 The audio channel selected via AUDIO_CHANNEL_SELECT is determined by
 the following values.
@@ -71,10 +61,7 @@ the following values.
     } audio_channel_select_t;
 
 
-.. _audio-status:
-
-struct audio_status
-===================
+.. c:type:: audio_status
 
 The AUDIO_GET_STATUS call returns the following structure informing
 about various states of the playback operation.
@@ -93,10 +80,7 @@ about various states of the playback operation.
     } audio_status_t;
 
 
-.. _audio-mixer:
-
-struct audio_mixer
-==================
+.. c:type:: audio_mixer
 
 The following structure is used by the AUDIO_SET_MIXER call to set the
 audio volume.
@@ -131,11 +115,7 @@ following bits set according to the hardwares capabilities.
      #define AUDIO_CAP_SDDS 128
      #define AUDIO_CAP_AC3  256
 
-
-.. _audio-karaoke:
-
-struct audio_karaoke
-====================
+.. c:type:: audio_karaoke
 
 The ioctl AUDIO_SET_KARAOKE uses the following format:
 
@@ -155,10 +135,7 @@ into the left channel and Vocal2 into the right channel at 100% each. Ff
 Melody is non-zero, the melody channel gets mixed into left and right.
 
 
-.. _audio-attributes-t:
-
-audio attributes
-================
+.. c:type:: audio_attributes
 
 The following attributes can be set by a call to AUDIO_SET_ATTRIBUTES:
 

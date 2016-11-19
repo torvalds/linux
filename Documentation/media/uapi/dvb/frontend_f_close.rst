@@ -20,14 +20,14 @@ Synopsis
     #include <unistd.h>
 
 
-.. cpp:function:: int close( int fd )
-
+.. c:function:: int close( int fd )
+    :name: dvb-fe-close
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
 
 
 Description

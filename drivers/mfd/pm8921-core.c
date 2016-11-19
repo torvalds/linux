@@ -309,6 +309,7 @@ static const struct regmap_config ssbi_regmap_config = {
 };
 
 static const struct of_device_id pm8921_id_table[] = {
+	{ .compatible = "qcom,pm8018", },
 	{ .compatible = "qcom,pm8058", },
 	{ .compatible = "qcom,pm8921", },
 	{ }

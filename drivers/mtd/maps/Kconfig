@@ -78,7 +78,7 @@ config MTD_PHYSMAP_OF_VERSATILE
 	bool "Support ARM Versatile physmap OF"
 	depends on MTD_PHYSMAP_OF
 	depends on MFD_SYSCON
-	default y if (ARCH_INTEGRATOR || ARCH_VERSATILE || REALVIEW_DT)
+	default y if (ARCH_INTEGRATOR || ARCH_VERSATILE || ARCH_REALVIEW)
 	help
 	  This provides some extra DT physmap parsing for the ARM Versatile
 	  platforms, basically to add a VPP (write protection) callback so

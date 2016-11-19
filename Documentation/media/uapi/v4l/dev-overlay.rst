@@ -19,7 +19,9 @@ video into a window.
 Video overlay devices are accessed through the same character special
 files as :ref:`video capture <capture>` devices.
 
-.. note:: The default function of a ``/dev/video`` device is video
+.. note::
+
+   The default function of a ``/dev/video`` device is video
    capturing. The overlay function is only available after calling
    the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
@@ -41,7 +43,7 @@ Querying Capabilities
 
 Devices supporting the video overlay interface set the
 ``V4L2_CAP_VIDEO_OVERLAY`` flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. The overlay I/O
 method specified below must be supported. Tuners and audio inputs are
 optional.
@@ -117,17 +119,17 @@ at minimum requires to reset the parameters to defaults. An example is
 given in :ref:`crop`.
 
 The overlay window is described by a struct
-:ref:`v4l2_window <v4l2-window>`. It defines the size of the image,
+:c:type:`v4l2_window`. It defines the size of the image,
 its position over the graphics surface and the clipping to be applied.
 To get the current parameters applications set the ``type`` field of a
-struct :ref:`v4l2_format <v4l2-format>` to
+struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY`` and call the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
-:ref:`struct v4l2_window <v4l2-window>` substructure named ``win``. It is not
+struct :c:type:`v4l2_window` substructure named ``win``. It is not
 possible to retrieve a previously programmed clipping list or bitmap.
 
 To program the overlay window applications set the ``type`` field of a
-struct :ref:`v4l2_format <v4l2-format>` to
+struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OVERLAY``, initialize the ``win`` substructure and
 call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. The driver
 adjusts the parameters against hardware limits and returns the actual
@@ -137,7 +139,7 @@ about driver capabilities without actually changing driver state. Unlike
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` this also works after the overlay has been enabled.
 
 The scaling factor of the overlaid image is implied by the width and
-height given in struct :ref:`v4l2_window <v4l2-window>` and the size
+height given in struct :c:type:`v4l2_window` and the size
 of the cropping rectangle. For more information see :ref:`crop`.
 
 When simultaneous capturing and overlay is supported and the hardware
@@ -147,7 +149,7 @@ takes precedence. The attempt to capture or overlay as well
 code or return accordingly modified parameters.
 
 
-.. _v4l2-window:
+.. c:type:: v4l2_window
 
 struct v4l2_window
 ------------------
@@ -173,7 +175,7 @@ struct v4l2_window
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>` applications set this field
     to the desired pixel value for the chroma key. The format is the
     same as the pixel format of the framebuffer (struct
-    :ref:`v4l2_framebuffer <v4l2-framebuffer>` ``fmt.pixelformat``
+    :c:type:`v4l2_framebuffer` ``fmt.pixelformat``
     field), with bytes in host order. E. g. for
     :ref:`V4L2_PIX_FMT_BGR24 <V4L2-PIX-FMT-BGR32>` the value should
     be 0xRRGGBB on a little endian, 0xBBGGRR on a big endian host.
@@ -236,13 +238,15 @@ exceeded are undefined. [#f3]_
     :ref:`VIDIOC_S_FBUF <VIDIOC_G_FBUF>`,
     :ref:`framebuffer-flags`).
 
-    .. note:: This field was added in Linux 2.6.23, extending the
-       structure. However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
-       ioctls, which take a pointer to a :ref:`v4l2_format <v4l2-format>`
-       parent structure with padding bytes at the end, are not affected.
+.. note::
+
+   This field was added in Linux 2.6.23, extending the
+   structure. However the :ref:`VIDIOC_[G|S|TRY]_FMT <VIDIOC_G_FMT>`
+   ioctls, which take a pointer to a :c:type:`v4l2_format`
+   parent structure with padding bytes at the end, are not affected.
 
 
-.. _v4l2-clip:
+.. c:type:: v4l2_clip
 
 struct v4l2_clip [#f4]_
 -----------------------
@@ -258,7 +262,7 @@ struct v4l2_clip [#f4]_
     linked list of clipping rectangles.
 
 
-.. _v4l2-rect:
+.. c:type:: v4l2_rect
 
 struct v4l2_rect
 ----------------

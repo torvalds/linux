@@ -600,3 +600,9 @@ size_t ttm_round_pot(size_t size)
 	return 0;
 }
 EXPORT_SYMBOL(ttm_round_pot);
+
+uint64_t ttm_get_kernel_zone_memory_size(struct ttm_mem_global *glob)
+{
+	return glob->zone_kernel->max_mem;
+}
+EXPORT_SYMBOL(ttm_get_kernel_zone_memory_size);

@@ -828,7 +828,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 
 	dest_dma = dma_map_page(dev, dest, 0, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dest_dma))
-		goto dma_unmap;
+		goto free_resources;
 
 	for (i = 0; i < IOAT_NUM_SRC_TEST; i++)
 		dma_srcs[i] = DMA_ERROR_CODE;

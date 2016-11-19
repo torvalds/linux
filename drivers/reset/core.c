@@ -138,7 +138,8 @@ EXPORT_SYMBOL_GPL(devm_reset_controller_register);
  */
 int reset_control_reset(struct reset_control *rstc)
 {
-	if (WARN_ON(rstc->shared))
+	if (WARN_ON(IS_ERR_OR_NULL(rstc)) ||
+	    WARN_ON(rstc->shared))
 		return -EINVAL;
 
 	if (rstc->rcdev->ops->reset)
@@ -161,6 +162,9 @@ EXPORT_SYMBOL_GPL(reset_control_reset);
  */
 int reset_control_assert(struct reset_control *rstc)
 {
+	if (WARN_ON(IS_ERR_OR_NULL(rstc)))
+		return -EINVAL;
+
 	if (!rstc->rcdev->ops->assert)
 		return -ENOTSUPP;
 
@@ -184,6 +188,9 @@ EXPORT_SYMBOL_GPL(reset_control_assert);
  */
 int reset_control_deassert(struct reset_control *rstc)
 {
+	if (WARN_ON(IS_ERR_OR_NULL(rstc)))
+		return -EINVAL;
+
 	if (!rstc->rcdev->ops->deassert)
 		return -ENOTSUPP;
 
@@ -204,6 +211,9 @@ EXPORT_SYMBOL_GPL(reset_control_deassert);
  */
 int reset_control_status(struct reset_control *rstc)
 {
+	if (WARN_ON(IS_ERR_OR_NULL(rstc)))
+		return -EINVAL;
+
 	if (rstc->rcdev->ops->status)
 		return rstc->rcdev->ops->status(rstc->rcdev, rstc->id);
 

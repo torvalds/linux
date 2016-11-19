@@ -15,7 +15,8 @@ VIDIOC_QUERYSTD - Sense the video standard received by the current input
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERYSTD, v4l2_std_id *argp )
+    :name: VIDIOC_QUERYSTD
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QUERYSTD
 
 ``argp``
 
@@ -43,7 +41,9 @@ will return V4L2_STD_UNKNOWN. When detection is not possible or fails,
 the set must contain all standards supported by the current video input
 or output.
 
-.. note:: Drivers shall *not* switch the video standard
+.. note::
+
+   Drivers shall *not* switch the video standard
    automatically if a new video standard is detected. Instead, drivers
    should send the ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support
    this) and expect that userspace will take action by calling

@@ -117,7 +117,7 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	struct crypto_skcipher *ctr = ctx->ctr;
 	struct {
 		be128 hash;
-		u8 iv[8];
+		u8 iv[16];
 
 		struct crypto_gcm_setkey_result result;
 

@@ -11,11 +11,12 @@ Name
 
 dvb video close()
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int close(int fd)
+.. c:function:: int close(int fd)
 
 
 Arguments

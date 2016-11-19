@@ -13,7 +13,8 @@ static void (*old_vmaster_hook)(void *, int);
 static bool is_thinkpad(struct hda_codec *codec)
 {
 	return (codec->core.subsystem_id >> 16 == 0x17aa) &&
-	       (acpi_dev_found("LEN0068") || acpi_dev_found("IBM0068"));
+	       (acpi_dev_found("LEN0068") || acpi_dev_found("LEN0268") ||
+		acpi_dev_found("IBM0068"));
 }
 
 static void update_tpacpi_mute_led(void *private_data, int enabled)
@@ -62,7 +63,7 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 			removefunc = false;
 		}
 		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
-			if (spec->num_adc_nids > 1)
+			if (spec->num_adc_nids > 1 && !spec->dyn_adc_switch)
 				codec_dbg(codec,
 					  "Skipping micmute LED control due to several ADCs");
 			else {

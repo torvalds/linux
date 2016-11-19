@@ -466,7 +466,7 @@ static int mxl111sf_tuner_release(struct dvb_frontend *fe)
 
 /* ------------------------------------------------------------------------- */
 
-static struct dvb_tuner_ops mxl111sf_tuner_tuner_ops = {
+static const struct dvb_tuner_ops mxl111sf_tuner_tuner_ops = {
 	.info = {
 		.name = "MaxLinear MxL111SF",
 #if 0

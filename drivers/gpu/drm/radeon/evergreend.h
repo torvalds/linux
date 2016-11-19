@@ -1523,6 +1523,7 @@
 #define UVD_UDEC_ADDR_CONFIG				0xef4c
 #define UVD_UDEC_DB_ADDR_CONFIG				0xef50
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xef54
+#define UVD_NO_OP					0xeffc
 #define UVD_RBC_RB_RPTR					0xf690
 #define UVD_RBC_RB_WPTR					0xf694
 #define UVD_STATUS					0xf6bc

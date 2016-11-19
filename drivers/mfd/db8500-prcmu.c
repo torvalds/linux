@@ -938,25 +938,6 @@ int db8500_prcmu_get_ddr_opp(void)
 	return readb(PRCM_DDR_SUBSYS_APE_MINBW);
 }
 
-/**
- * db8500_set_ddr_opp - set the appropriate DDR OPP
- * @opp: The new DDR operating point to which transition is to be made
- * Returns: 0 on success, non-zero on failure
- *
- * This function sets the operating point of the DDR.
- */
-static bool enable_set_ddr_opp;
-int db8500_prcmu_set_ddr_opp(u8 opp)
-{
-	if (opp < DDR_100_OPP || opp > DDR_25_OPP)
-		return -EINVAL;
-	/* Changing the DDR OPP can hang the hardware pre-v21 */
-	if (enable_set_ddr_opp)
-		writeb(opp, PRCM_DDR_SUBSYS_APE_MINBW);
-
-	return 0;
-}
-
 /* Divide the frequency of certain clocks by 2 for APE_50_PARTLY_25_OPP. */
 static void request_even_slower_clocks(bool enable)
 {

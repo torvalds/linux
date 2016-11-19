@@ -180,14 +180,14 @@ source "drivers/media/firewire/Kconfig"
 # Common driver options
 source "drivers/media/common/Kconfig"
 
-comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
+comment "Media ancillary drivers (tuners, sensors, i2c, spi, frontends)"
 
 #
-# Ancillary drivers (tuners, i2c, frontends)
+# Ancillary drivers (tuners, i2c, spi, frontends)
 #
 
 config MEDIA_SUBDRV_AUTOSELECT
-	bool "Autoselect ancillary drivers (tuners, sensors, i2c, frontends)"
+	bool "Autoselect ancillary drivers (tuners, sensors, i2c, spi, frontends)"
 	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || MEDIA_CAMERA_SUPPORT || MEDIA_SDR_SUPPORT
 	depends on HAS_IOMEM
 	select I2C
@@ -216,6 +216,7 @@ config MEDIA_ATTACH
 	default MODULES
 
 source "drivers/media/i2c/Kconfig"
+source "drivers/media/spi/Kconfig"
 source "drivers/media/tuners/Kconfig"
 source "drivers/media/dvb-frontends/Kconfig"
 

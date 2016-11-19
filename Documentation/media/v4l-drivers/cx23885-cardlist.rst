@@ -60,3 +60,4 @@ cx23885 cards list
 	 54 -> ViewCast 260e                                       [1576:0260]
 	 55 -> ViewCast 460e                                       [1576:0460]
 	 56 -> Hauppauge WinTV-QuadHD-DVB                          [0070:6a28,0070:6b28]
+	 57 -> Hauppauge WinTV-QuadHD-ATSC                         [0070:6a18,0070:6b18]

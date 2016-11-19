@@ -2069,6 +2069,7 @@
 #define UVD_UDEC_ADDR_CONFIG		0xef4c
 #define UVD_UDEC_DB_ADDR_CONFIG		0xef50
 #define UVD_UDEC_DBW_ADDR_CONFIG	0xef54
+#define UVD_NO_OP			0xeffc
 
 #define UVD_LMI_EXT40_ADDR		0xf498
 #define UVD_GP_SCRATCH4			0xf4e0

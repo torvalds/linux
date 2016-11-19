@@ -126,7 +126,7 @@ found_it:
 
 	ret = remap_vmalloc_range(vma, ip->obj, 0);
 	if (ret) {
-		pr_err("rxe: err %d from remap_vmalloc_range\n", ret);
+		pr_err("err %d from remap_vmalloc_range\n", ret);
 		goto done;
 	}
 

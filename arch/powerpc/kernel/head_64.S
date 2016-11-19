@@ -28,6 +28,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/ppc_asm.h>
+#include <asm/head-64.h>
 #include <asm/asm-offsets.h>
 #include <asm/bug.h>
 #include <asm/cputable.h>
@@ -42,6 +43,7 @@
 #include <asm/hw_irq.h>
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
+#include <asm/export.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -65,9 +67,14 @@
  *   2. The kernel is entered at __start
  */
 
-	.text
-	.globl  _stext
-_stext:
+OPEN_FIXED_SECTION(first_256B, 0x0, 0x100)
+USE_FIXED_SECTION(first_256B)
+	/*
+	 * Offsets are relative from the start of fixed section, and
+	 * first_256B starts at 0. Offsets are a bit easier to use here
+	 * than the fixed section entry macros.
+	 */
+	. = 0x0
 _GLOBAL(__start)
 	/* NOP this out unconditionally */
 BEGIN_FTR_SECTION
@@ -104,6 +111,7 @@ __secondary_hold_acknowledge:
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
+DEFINE_FIXED_SYMBOL(__run_at_load)
 	.long	0x72756e30	/* "run0" -- relocate to 0 by default */
 #endif
 
@@ -133,7 +141,7 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,__secondary_hold_acknowledge-_stext(0)
+	std	r24,(ABS_ADDR(__secondary_hold_acknowledge))(0)
 	sync
 
 	li	r26,0
@@ -141,7 +149,7 @@ __secondary_hold:
 	tovirt(r26,r26)
 #endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,__secondary_hold_spinloop-_stext(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop))(r26)
 	cmpdi	0,r12,0
 	beq	100b
 
@@ -166,12 +174,13 @@ __secondary_hold:
 #else
 	BUG_OPCODE
 #endif
+CLOSE_FIXED_SECTION(first_256B)
 
 /* This value is used to mark exception frames on the stack. */
 	.section ".toc","aw"
 exception_marker:
 	.tc	ID_72656773_68657265[TC],0x7265677368657265
-	.text
+	.previous
 
 /*
  * On server, we include the exception vectors code here as it
@@ -180,7 +189,11 @@ exception_marker:
  */
 #ifdef CONFIG_PPC_BOOK3S
 #include "exceptions-64s.S"
+#else
+OPEN_TEXT_SECTION(0x100)
 #endif
+
+USE_TEXT_SECTION()
 
 #ifdef CONFIG_PPC_BOOK3E
 /*
@@ -558,7 +571,7 @@ __after_prom_start:
 #if defined(CONFIG_PPC_BOOK3E)
 	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
 #endif
-	lwz	r7,__run_at_load-_stext(r26)
+	lwz	r7,(FIXED_SYMBOL_ABS_ADDR(__run_at_load))(r26)
 #if defined(CONFIG_PPC_BOOK3E)
 	tophys(r26,r26)
 #endif
@@ -601,7 +614,7 @@ __after_prom_start:
 #if defined(CONFIG_PPC_BOOK3E)
 	tovirt(r26,r26)		/* on booke, we already run at PAGE_OFFSET */
 #endif
-	lwz	r7,__run_at_load-_stext(r26)
+	lwz	r7,(FIXED_SYMBOL_ABS_ADDR(__run_at_load))(r26)
 	cmplwi	cr0,r7,1
 	bne	3f
 
@@ -611,28 +624,35 @@ __after_prom_start:
 	sub	r5,r5,r11
 #else
 	/* just copy interrupts */
-	LOAD_REG_IMMEDIATE(r5, __end_interrupts - _stext)
+	LOAD_REG_IMMEDIATE(r5, FIXED_SYMBOL_ABS_ADDR(__end_interrupts))
 #endif
 	b	5f
 3:
 #endif
-	lis	r5,(copy_to_here - _stext)@ha
-	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
+	/* # bytes of memory to copy */
+	lis	r5,(ABS_ADDR(copy_to_here))@ha
+	addi	r5,r5,(ABS_ADDR(copy_to_here))@l
 
 	bl	copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
 					/* executed here.		 */
-	addis	r8,r3,(4f - _stext)@ha	/* Jump to the copy of this code */
-	addi	r12,r8,(4f - _stext)@l	/* that we just made */
+	/* Jump to the copy of this code that we just made */
+	addis	r8,r3,(ABS_ADDR(4f))@ha
+	addi	r12,r8,(ABS_ADDR(4f))@l
 	mtctr	r12
 	bctr
 
 .balign 8
-p_end:	.llong	_end - _stext
+p_end: .llong _end - copy_to_here
 
-4:	/* Now copy the rest of the kernel up to _end */
-	addis	r5,r26,(p_end - _stext)@ha
-	ld	r5,(p_end - _stext)@l(r5)	/* get _end */
+4:
+	/*
+	 * Now copy the rest of the kernel up to _end, add
+	 * _end - copy_to_here to the copy limit and run again.
+	 */
+	addis   r8,r26,(ABS_ADDR(p_end))@ha
+	ld      r8,(ABS_ADDR(p_end))@l(r8)
+	add	r5,r5,r8
 5:	bl	copy_and_flush		/* copy the rest */
 
 9:	b	start_here_multiplatform
@@ -983,3 +1003,4 @@ swapper_pg_dir:
 	.globl	empty_zero_page
 empty_zero_page:
 	.space	PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)

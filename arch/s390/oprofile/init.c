@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <asm/processor.h>
 
-static int __s390_backtrace(void *data, unsigned long address)
+static int __s390_backtrace(void *data, unsigned long address, int reliable)
 {
 	unsigned int *depth = data;
 

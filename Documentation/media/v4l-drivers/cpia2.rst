@@ -55,6 +55,9 @@ may be done automatically by your distribution.
 Driver options
 ~~~~~~~~~~~~~~
 
+.. tabularcolumns:: |p{13ex}|L|
+
+
 ==============  ========================================================
 Option		Description
 ==============  ========================================================

@@ -13,6 +13,7 @@
 
 #include <drm/drmP.h>
 
+#include "sti_drv.h"
 #include "sti_vtg.h"
 
 #define VTG_MODE_MASTER         0
@@ -72,7 +73,7 @@
 #define AWG_DELAY_ED        (-8)
 #define AWG_DELAY_SD        (-7)
 
-LIST_HEAD(vtg_lookup);
+static LIST_HEAD(vtg_lookup);
 
 /*
  * STI VTG register offset structure

@@ -58,16 +58,12 @@ TRACE_DEFINE_ENUM(CP_DISCARD);
 #define F2FS_BIO_FLAG_MASK(t)	(t & (REQ_RAHEAD | WRITE_FLUSH_FUA))
 #define F2FS_BIO_EXTRA_MASK(t)	(t & (REQ_META | REQ_PRIO))
 
-#define show_bio_type(op, op_flags) show_bio_op(op),			\
-			show_bio_op_flags(op_flags), show_bio_extra(op_flags)
-
-#define show_bio_op(op)							\
-	__print_symbolic(op,						\
-		{ READ, 		"READ" },			\
-		{ WRITE,		"WRITE" })
+#define show_bio_type(op_flags)	show_bio_op_flags(op_flags), 		\
+						show_bio_extra(op_flags)
 
 #define show_bio_op_flags(flags)					\
 	__print_symbolic(F2FS_BIO_FLAG_MASK(flags),			\
+		{ 0,			"WRITE" },			\
 		{ REQ_RAHEAD, 		"READAHEAD" },			\
 		{ READ_SYNC, 		"READ_SYNC" },			\
 		{ WRITE_SYNC, 		"WRITE_SYNC" },			\
@@ -754,12 +750,12 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"oldaddr = 0x%llx, newaddr = 0x%llx rw = %s%si%s, type = %s",
+		"oldaddr = 0x%llx, newaddr = 0x%llx, rw = %s%s, type = %s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->old_blkaddr,
 		(unsigned long long)__entry->new_blkaddr,
-		show_bio_type(__entry->op, __entry->op_flags),
+		show_bio_type(__entry->op_flags),
 		show_block_type(__entry->type))
 );
 
@@ -806,9 +802,9 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 		__entry->size		= bio->bi_iter.bi_size;
 	),
 
-	TP_printk("dev = (%d,%d), %s%s%s, %s, sector = %lld, size = %u",
+	TP_printk("dev = (%d,%d), rw = %s%s, %s, sector = %lld, size = %u",
 		show_dev(__entry),
-		show_bio_type(__entry->op, __entry->op_flags),
+		show_bio_type(__entry->op_flags),
 		show_block_type(__entry->type),
 		(unsigned long long)__entry->sector,
 		__entry->size)

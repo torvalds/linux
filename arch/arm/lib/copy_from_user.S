@@ -13,6 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
+#include <asm/export.h>
 
 /*
  * Prototype:
@@ -94,16 +95,14 @@ ENTRY(arm_copy_from_user)
 #include "copy_template.S"
 
 ENDPROC(arm_copy_from_user)
+EXPORT_SYMBOL(arm_copy_from_user)
 
 	.pushsection .fixup,"ax"
 	.align 0
 	copy_abort_preamble
-	ldmfd	sp!, {r1, r2}
-	sub	r3, r0, r1
-	rsb	r1, r3, r2
-	str	r1, [sp]
-	bl	__memzero
-	ldr	r0, [sp], #4
+	ldmfd	sp!, {r1, r2, r3}
+	sub	r0, r0, r1
+	rsb	r0, r0, r2
 	copy_abort_end
 	.popsection
 

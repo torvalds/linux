@@ -7,6 +7,8 @@
  * publishhed by the Free Software Foundation.
  */
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 
 	memory{
@@ -33,9 +35,8 @@
 		leds {
 			compatible	= "gpio-leds";
 			fp_led {
-				#gpio-cells = <1>;
 				label	= "Front Panel LED";
-				gpios	= <&pio105 7>;
+				gpios	= <&pio105 7 GPIO_ACTIVE_HIGH>;
 				linux,default-trigger	= "heartbeat";
 			};
 		};

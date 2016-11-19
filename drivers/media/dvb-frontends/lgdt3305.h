@@ -22,7 +22,6 @@
 #ifndef _LGDT3305_H_
 #define _LGDT3305_H_
 
-#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 

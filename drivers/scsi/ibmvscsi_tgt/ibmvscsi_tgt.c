@@ -1606,8 +1606,6 @@ static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 
 	if (!(vscsi->flags & RESPONSE_Q_DOWN)) {
 		list_for_each_entry_safe(cmd, nxt, &vscsi->waiting_rsp, list) {
-			pr_debug("send_messages cmd %p\n", cmd);
-
 			iue = cmd->iue;
 
 			crq->valid = VALID_CMD_RESP_EL;
@@ -1934,6 +1932,8 @@ static int ibmvscsis_drop_nexus(struct ibmvscsis_tport *tport)
 	/*
 	 * Release the SCSI I_T Nexus to the emulated ibmvscsis Target Port
 	 */
+	target_wait_for_sess_cmds(se_sess);
+	transport_deregister_session_configfs(se_sess);
 	transport_deregister_session(se_sess);
 	tport->ibmv_nexus = NULL;
 	kfree(nexus);
@@ -1978,7 +1978,7 @@ static long ibmvscsis_srp_login(struct scsi_info *vscsi,
 		reason = SRP_LOGIN_REJ_MULTI_CHANNEL_UNSUPPORTED;
 	else if (fmt->buffers & (~SUPPORTED_FORMATS))
 		reason = SRP_LOGIN_REJ_UNSUPPORTED_DESCRIPTOR_FMT;
-	else if ((fmt->buffers | SUPPORTED_FORMATS) == 0)
+	else if ((fmt->buffers & SUPPORTED_FORMATS) == 0)
 		reason = SRP_LOGIN_REJ_UNSUPPORTED_DESCRIPTOR_FMT;
 
 	if (vscsi->state == SRP_PROCESSING)
@@ -2553,10 +2553,6 @@ static void ibmvscsis_parse_cmd(struct scsi_info *vscsi,
 	spin_unlock_bh(&vscsi->intr_lock);
 
 	srp->lun.scsi_lun[0] &= 0x3f;
-
-	pr_debug("calling submit_cmd, se_cmd %p, lun 0x%llx, cdb 0x%x, attr:%d\n",
-		 &cmd->se_cmd, scsilun_to_int(&srp->lun), (int)srp->cdb[0],
-		 attr);
 
 	rc = target_submit_cmd(&cmd->se_cmd, nexus->se_sess, srp->cdb,
 			       cmd->sense_buf, scsilun_to_int(&srp->lun),
@@ -3142,8 +3138,6 @@ static int ibmvscsis_rdma(struct ibmvscsis_cmd *cmd, struct scatterlist *sg,
 	long tx_len;
 	long rc = 0;
 
-	pr_debug("rdma: dir %d, bytes 0x%x\n", dir, bytes);
-
 	if (bytes == 0)
 		return 0;
 
@@ -3192,12 +3186,6 @@ static int ibmvscsis_rdma(struct ibmvscsis_cmd *cmd, struct scatterlist *sg,
 					 vscsi->dds.window[LOCAL].liobn,
 					 server_ioba);
 		} else {
-			/* write to client */
-			struct srp_cmd *srp = (struct srp_cmd *)iue->sbuf->buf;
-
-			if (!READ_CMD(srp->cdb))
-				print_hex_dump_bytes(" data:", DUMP_PREFIX_NONE,
-						     sg_virt(sgp), buf_len);
 			/* The h_copy_rdma will cause phyp, running in another
 			 * partition, to read memory, so we need to make sure
 			 * the data has been written out, hence these syncs.
@@ -3322,12 +3310,9 @@ cmd_work:
 				rc = ibmvscsis_trans_event(vscsi, crq);
 			} else if (vscsi->flags & TRANS_EVENT) {
 				/*
-				 * if a tranport event has occurred leave
+				 * if a transport event has occurred leave
 				 * everything but transport events on the queue
-				 */
-				pr_debug("handle_crq, ignoring\n");
-
-				/*
+				 *
 				 * need to decrement the queue index so we can
 				 * look at the elment again
 				 */
@@ -3461,6 +3446,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	vscsi->map_ioba = dma_map_single(&vdev->dev, vscsi->map_buf, PAGE_SIZE,
 					 DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(&vdev->dev, vscsi->map_ioba)) {
+		rc = -ENOMEM;
 		dev_err(&vscsi->dev, "probe: error mapping command buffer\n");
 		goto free_buf;
 	}
@@ -3693,12 +3679,9 @@ static void ibmvscsis_release_cmd(struct se_cmd *se_cmd)
 						 se_cmd);
 	struct scsi_info *vscsi = cmd->adapter;
 
-	pr_debug("release_cmd %p, flags %d\n", se_cmd, cmd->flags);
-
 	spin_lock_bh(&vscsi->intr_lock);
 	/* Remove from active_q */
-	list_del(&cmd->list);
-	list_add_tail(&cmd->list, &vscsi->waiting_rsp);
+	list_move_tail(&cmd->list, &vscsi->waiting_rsp);
 	ibmvscsis_send_messages(vscsi);
 	spin_unlock_bh(&vscsi->intr_lock);
 }
@@ -3714,9 +3697,6 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 						 se_cmd);
 	struct iu_entry *iue = cmd->iue;
 	int rc;
-
-	pr_debug("write_pending, se_cmd %p, length 0x%x\n",
-		 se_cmd, se_cmd->data_length);
 
 	rc = srp_transfer_data(cmd, &vio_iu(iue)->srp.cmd, ibmvscsis_rdma,
 			       1, 1);
@@ -3755,9 +3735,6 @@ static int ibmvscsis_queue_data_in(struct se_cmd *se_cmd)
 	char *sd;
 	uint len = 0;
 	int rc;
-
-	pr_debug("queue_data_in, se_cmd %p, length 0x%x\n",
-		 se_cmd, se_cmd->data_length);
 
 	rc = srp_transfer_data(cmd, &vio_iu(iue)->srp.cmd, ibmvscsis_rdma, 1,
 			       1);

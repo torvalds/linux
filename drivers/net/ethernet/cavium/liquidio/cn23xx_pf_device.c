@@ -693,7 +693,7 @@ static int cn23xx_enable_io_queues(struct octeon_device *oct)
 				while ((reg_val & CN23XX_PKT_INPUT_CTL_RST) &&
 				       !(reg_val &
 					 CN23XX_PKT_INPUT_CTL_QUIET) &&
-				       loop--) {
+				       --loop) {
 					reg_val = octeon_read_csr64(
 					    oct,
 					    CN23XX_SLI_IQ_PKT_CONTROL64(q_no));

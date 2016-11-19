@@ -30,7 +30,7 @@
 		};
 	};
 
-	ocp {
+	ocp@68000000 {
 		uart4: serial@49042000 {
 			compatible = "ti,omap3-uart";
 			reg = <0x49042000 0x400>;

@@ -26,7 +26,6 @@
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/console.h>
 

@@ -1,6 +1,5 @@
 obj-y := cpu.o system.o irq-common.o
 
-obj-$(CONFIG_SOC_IMX1) += mm-imx1.o
 obj-$(CONFIG_SOC_IMX21) += mm-imx21.o
 
 obj-$(CONFIG_SOC_IMX25) += cpu-imx25.o mach-imx25.o pm-imx25.o
@@ -28,17 +27,12 @@ obj-$(CONFIG_SOC_IMX5) += cpuidle-imx5.o
 obj-$(CONFIG_SOC_IMX6Q) += cpuidle-imx6q.o
 obj-$(CONFIG_SOC_IMX6SL) += cpuidle-imx6sl.o
 obj-$(CONFIG_SOC_IMX6SX) += cpuidle-imx6sx.o
+obj-$(CONFIG_SOC_IMX6UL) += cpuidle-imx6sx.o
 endif
 
 ifdef CONFIG_SND_IMX_SOC
 obj-y += ssi-fiq.o
-obj-y += ssi-fiq-ksym.o
 endif
-
-# i.MX1 based machines
-obj-$(CONFIG_MACH_SCB9328) += mach-scb9328.o
-obj-$(CONFIG_MACH_APF9328) += mach-apf9328.o
-obj-$(CONFIG_MACH_IMX1_DT) += imx1-dt.o
 
 # i.MX21 based machines
 obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
@@ -93,6 +87,7 @@ obj-$(CONFIG_SOC_IMX53) += suspend-imx53.o
 endif
 obj-$(CONFIG_SOC_IMX6) += pm-imx6.o
 
+obj-$(CONFIG_SOC_IMX1) += mach-imx1.o
 obj-$(CONFIG_SOC_IMX50) += mach-imx50.o
 obj-$(CONFIG_SOC_IMX51) += mach-imx51.o
 obj-$(CONFIG_SOC_IMX53) += mach-imx53.o

@@ -1529,8 +1529,8 @@ static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 		.data = { &cmd, },
 		.len = { sizeof(cmd) },
 	};
-	size_t delta, len;
-	ssize_t ret;
+	size_t delta;
+	ssize_t ret, len;
 
 	hcmd.id = iwl_cmd_id(*ppos >> 24 ? UMAC_RD_WR : LMAC_RD_WR,
 			     DEBUG_GROUP, 0);
@@ -1748,9 +1748,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	 * Create a symlink with mac80211. It will be removed when mac80211
 	 * exists (before the opmode exists which removes the target.)
 	 */
-	snprintf(buf, 100, "../../%s/%s",
-		 dbgfs_dir->d_parent->d_parent->d_name.name,
-		 dbgfs_dir->d_parent->d_name.name);
+	snprintf(buf, 100, "../../%pd2", dbgfs_dir->d_parent);
 	if (!debugfs_create_symlink("iwlwifi", mvm->hw->wiphy->debugfsdir, buf))
 		goto err;
 

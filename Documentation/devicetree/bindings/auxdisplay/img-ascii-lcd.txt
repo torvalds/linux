@@ -1,0 +1,17 @@
+Binding for ASCII LCD displays on Imagination Technologies boards
+
+Required properties:
+- compatible : should be one of:
+    "img,boston-lcd"
+    "mti,malta-lcd"
+    "mti,sead3-lcd"
+
+Required properties for "img,boston-lcd":
+- reg : memory region locating the device registers
+
+Required properties for "mti,malta-lcd" or "mti,sead3-lcd":
+- regmap: phandle of the system controller containing the LCD registers
+- offset: offset in bytes to the LCD registers within the system controller
+
+The layout of the registers & properties of the display are determined
+from the compatible string, making this binding somewhat trivial.

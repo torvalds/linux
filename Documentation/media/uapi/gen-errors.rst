@@ -9,6 +9,8 @@ Generic Error Codes
 
 .. _gen-errors:
 
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
+
 .. flat-table:: Generic error codes
     :header-rows:  0
     :stub-columns: 0

@@ -166,6 +166,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 			if (!req)
 				break;
 
+			ctx = crypto_tfm_ctx(req->tfm);
 			mv_cesa_complete_req(ctx, req, 0);
 		}
 	}

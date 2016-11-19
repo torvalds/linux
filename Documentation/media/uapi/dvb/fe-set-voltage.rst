@@ -15,7 +15,8 @@ FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, enum fe_sec_voltage *voltage )
+.. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage *voltage )
+    :name: FE_SET_VOLTAGE
 
 
 Arguments
@@ -24,14 +25,11 @@ Arguments
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
-``request``
-    FE_SET_VOLTAGE
-
 ``voltage``
-    pointer to enum :ref:`fe_sec_voltage <fe-sec-voltage>`
+    pointer to enum :c:type:`fe_sec_voltage`
 
     Valid values are described at enum
-    :ref:`fe_sec_voltage <fe-sec-voltage>`.
+    :c:type:`fe_sec_voltage`.
 
 
 Description

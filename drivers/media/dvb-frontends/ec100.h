@@ -22,7 +22,6 @@
 #ifndef EC100_H
 #define EC100_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct ec100_config {

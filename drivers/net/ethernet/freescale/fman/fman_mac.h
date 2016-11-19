@@ -191,10 +191,6 @@ struct fman_mac_params {
 	u16 max_speed;
 	/* A handle to the FM object this port related to */
 	void *fm;
-	/* MDIO exceptions interrupt source - not valid for all
-	 * MACs; MUST be set to 0 for MACs that don't have
-	 * mdio-irq, or for polling
-	 */
 	void *dev_id; /* device cookie used by the exception cbs */
 	fman_mac_exception_cb *event_cb;    /* MDIO Events Callback Routine */
 	fman_mac_exception_cb *exception_cb;/* Exception Callback Routine */

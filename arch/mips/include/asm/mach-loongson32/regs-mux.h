@@ -18,6 +18,7 @@
 #define LS1X_MUX_CTRL0			LS1X_MUX_REG(0x0)
 #define LS1X_MUX_CTRL1			LS1X_MUX_REG(0x4)
 
+#if defined(CONFIG_LOONGSON1_LS1B)
 /* MUX CTRL0 Register Bits */
 #define UART0_USE_PWM23			BIT(28)
 #define UART0_USE_PWM01			BIT(27)
@@ -63,5 +64,65 @@
 #define GMAC0_USE_TXCLK			BIT(2)
 #define GMAC1_USE_PWM23			BIT(1)
 #define GMAC0_USE_PWM01			BIT(0)
+
+#elif defined(CONFIG_LOONGSON1_LS1C)
+
+/* SHUT_CTRL Register Bits */
+#define UART_SPLIT			GENMASK(31, 30)
+#define OUTPUT_CLK			GENMASK(29, 26)
+#define ADC_SHUT			BIT(25)
+#define SDIO_SHUT			BIT(24)
+#define DMA2_SHUT			BIT(23)
+#define DMA1_SHUT			BIT(22)
+#define DMA0_SHUT			BIT(21)
+#define SPI1_SHUT			BIT(20)
+#define SPI0_SHUT			BIT(19)
+#define I2C2_SHUT			BIT(18)
+#define I2C1_SHUT			BIT(17)
+#define I2C0_SHUT			BIT(16)
+#define AC97_SHUT			BIT(15)
+#define I2S_SHUT			BIT(14)
+#define UART3_SHUT			BIT(13)
+#define UART2_SHUT			BIT(12)
+#define UART1_SHUT			BIT(11)
+#define UART0_SHUT			BIT(10)
+#define CAN1_SHUT			BIT(9)
+#define CAN0_SHUT			BIT(8)
+#define ECC_SHUT			BIT(7)
+#define GMAC_SHUT			BIT(6)
+#define USBHOST_SHUT			BIT(5)
+#define USBOTG_SHUT			BIT(4)
+#define SDRAM_SHUT			BIT(3)
+#define SRAM_SHUT			BIT(2)
+#define CAM_SHUT			BIT(1)
+#define LCD_SHUT			BIT(0)
+
+#define UART_SPLIT_SHIFT                        30
+#define OUTPUT_CLK_SHIFT                        26
+
+/* MISC_CTRL Register Bits */
+#define USBHOST_RSTN			BIT(31)
+#define PHY_INTF_SELI			GENMASK(30, 28)
+#define AC97_EN				BIT(25)
+#define SDIO_DMA_EN			GENMASK(24, 23)
+#define ADC_DMA_EN			BIT(22)
+#define SDIO_USE_SPI1			BIT(17)
+#define SDIO_USE_SPI0			BIT(16)
+#define SRAM_CTRL			GENMASK(15, 0)
+
+#define PHY_INTF_SELI_SHIFT                     28
+#define SDIO_DMA_EN_SHIFT                       23
+#define SRAM_CTRL_SHIFT				0
+
+#define LS1X_CBUS_REG(n, x) \
+		((void __iomem *)KSEG1ADDR(LS1X_CBUS_BASE + (n * 0x04) + (x)))
+
+#define LS1X_CBUS_FIRST(n)		LS1X_CBUS_REG(n, 0x00)
+#define LS1X_CBUS_SECOND(n)		LS1X_CBUS_REG(n, 0x10)
+#define LS1X_CBUS_THIRD(n)		LS1X_CBUS_REG(n, 0x20)
+#define LS1X_CBUS_FOURTHT(n)		LS1X_CBUS_REG(n, 0x30)
+#define LS1X_CBUS_FIFTHT(n)		LS1X_CBUS_REG(n, 0x40)
+
+#endif
 
 #endif /* __ASM_MACH_LOONGSON32_REGS_MUX_H */

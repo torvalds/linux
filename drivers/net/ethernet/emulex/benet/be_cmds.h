@@ -1720,7 +1720,11 @@ struct mgmt_hba_attribs {
 	u32 rsvd2[55];
 	u8 rsvd3[3];
 	u8 phy_port;
-	u32 rsvd4[13];
+	u32 rsvd4[15];
+	u8 rsvd5[2];
+	u8 pci_funcnum;
+	u8 rsvd6;
+	u32 rsvd7[6];
 } __packed;
 
 struct mgmt_controller_attrib {

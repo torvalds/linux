@@ -55,10 +55,15 @@ void qcom_smd_driver_unregister(struct qcom_smd_driver *drv);
 struct qcom_smd_channel *qcom_smd_open_channel(struct qcom_smd_channel *channel,
 					       const char *name,
 					       qcom_smd_cb_t cb);
+void qcom_smd_close_channel(struct qcom_smd_channel *channel);
 void *qcom_smd_get_drvdata(struct qcom_smd_channel *channel);
 void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data);
 int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len);
 
+
+struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
+					     struct device_node *node);
+int qcom_smd_unregister_edge(struct qcom_smd_edge *edge);
 
 #else
 
@@ -83,14 +88,20 @@ qcom_smd_open_channel(struct qcom_smd_channel *channel,
 	return NULL;
 }
 
-void *qcom_smd_get_drvdata(struct qcom_smd_channel *channel)
+static inline void qcom_smd_close_channel(struct qcom_smd_channel *channel)
+{
+	/* This shouldn't be possible */
+	WARN_ON(1);
+}
+
+static inline void *qcom_smd_get_drvdata(struct qcom_smd_channel *channel)
 {
 	/* This shouldn't be possible */
 	WARN_ON(1);
 	return NULL;
 }
 
-void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data)
+static inline void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data)
 {
 	/* This shouldn't be possible */
 	WARN_ON(1);
@@ -98,6 +109,20 @@ void qcom_smd_set_drvdata(struct qcom_smd_channel *channel, void *data)
 
 static inline int qcom_smd_send(struct qcom_smd_channel *channel,
 				const void *data, int len)
+{
+	/* This shouldn't be possible */
+	WARN_ON(1);
+	return -ENXIO;
+}
+
+static inline struct qcom_smd_edge *
+qcom_smd_register_edge(struct device *parent,
+		       struct device_node *node)
+{
+	return ERR_PTR(-ENXIO);
+}
+
+static inline int qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
 {
 	/* This shouldn't be possible */
 	WARN_ON(1);

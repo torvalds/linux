@@ -90,3 +90,9 @@ if_changed = $(if $(strip $(any-prereq) $(arg-check)),             \
 # - per object C flags
 # - BUILD_STR macro to allow '-D"$(variable)"' constructs
 c_flags = -Wp,-MD,$(depfile),-MT,$@ $(CFLAGS) -D"BUILD_STR(s)=\#s" $(CFLAGS_$(basetarget).o) $(CFLAGS_$(obj))
+cxx_flags = -Wp,-MD,$(depfile),-MT,$@ $(CXXFLAGS) -D"BUILD_STR(s)=\#s" $(CXXFLAGS_$(basetarget).o) $(CXXFLAGS_$(obj))
+
+###
+## HOSTCC C flags
+
+host_c_flags = -Wp,-MD,$(depfile),-MT,$@ $(CHOSTFLAGS) -D"BUILD_STR(s)=\#s" $(CHOSTFLAGS_$(basetarget).o) $(CHOSTFLAGS_$(obj))

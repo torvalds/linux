@@ -5,7 +5,7 @@ site: http://royale.zerezo.com/zr364xx/
 
 mail: royale@zerezo.com
 
-.. note:
+.. note::
 
    This documentation is outdated
 

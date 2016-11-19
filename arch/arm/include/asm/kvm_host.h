@@ -39,7 +39,12 @@
 
 #include <kvm/arm_vgic.h>
 
+
+#ifdef CONFIG_ARM_GIC_V3
+#define KVM_MAX_VCPUS VGIC_V3_MAX_CPUS
+#else
 #define KVM_MAX_VCPUS VGIC_V2_MAX_CPUS
+#endif
 
 #define KVM_REQ_VCPU_EXIT	8
 
@@ -51,6 +56,9 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu);
 struct kvm_arch {
 	/* VTTBR value associated with below pgd and vmid */
 	u64    vttbr;
+
+	/* The last vcpu id that ran on each physical CPU */
+	int __percpu *last_vcpu_ran;
 
 	/* Timer */
 	struct arch_timer_kvm	timer;
@@ -183,15 +191,15 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_vm_stat {
-	u32 remote_tlb_flush;
+	ulong remote_tlb_flush;
 };
 
 struct kvm_vcpu_stat {
-	u32 halt_successful_poll;
-	u32 halt_attempted_poll;
-	u32 halt_poll_invalid;
-	u32 halt_wakeup;
-	u32 hvc_exit_stat;
+	u64 halt_successful_poll;
+	u64 halt_attempted_poll;
+	u64 halt_poll_invalid;
+	u64 halt_wakeup;
+	u64 hvc_exit_stat;
 	u64 wfe_exit_stat;
 	u64 wfi_exit_stat;
 	u64 mmio_exit_user;

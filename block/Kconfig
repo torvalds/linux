@@ -4,6 +4,7 @@
 menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
+       select SBITMAP
        help
 	 Provide block layer support for the kernel.
 
@@ -122,6 +123,11 @@ endif # BLOCK
 config BLOCK_COMPAT
 	bool
 	depends on BLOCK && COMPAT
+	default y
+
+config BLK_MQ_PCI
+	bool
+	depends on BLOCK && PCI
 	default y
 
 source block/Kconfig.iosched

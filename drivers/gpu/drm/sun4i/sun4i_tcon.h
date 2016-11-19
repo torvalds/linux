@@ -143,6 +143,7 @@
 #define SUN4I_TCON_MAX_CHANNELS		2
 
 struct sun4i_tcon {
+	struct device			*dev;
 	struct drm_device		*drm;
 	struct regmap			*regs;
 
@@ -163,7 +164,12 @@ struct sun4i_tcon {
 	bool				has_mux;
 
 	struct drm_panel		*panel;
+
+	bool				has_channel_1;
 };
+
+struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
+struct drm_panel *sun4i_tcon_find_panel(struct device_node *node);
 
 /* Global Control */
 void sun4i_tcon_disable(struct sun4i_tcon *tcon);

@@ -175,9 +175,8 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 
 static int ceph_releasepage(struct page *page, gfp_t g)
 {
-	dout("%p releasepage %p idx %lu\n", page->mapping->host,
-	     page, page->index);
-	WARN_ON(PageDirty(page));
+	dout("%p releasepage %p idx %lu (%sdirty)\n", page->mapping->host,
+	     page, page->index, PageDirty(page) ? "" : "not ");
 
 	/* Can we release the page from the cache? */
 	if (!ceph_release_fscache_page(page, g))
@@ -298,14 +297,6 @@ unlock:
 	kfree(osd_data->pages);
 }
 
-static void ceph_unlock_page_vector(struct page **pages, int num_pages)
-{
-	int i;
-
-	for (i = 0; i < num_pages; i++)
-		unlock_page(pages[i]);
-}
-
 /*
  * start an async read(ahead) operation.  return nr_pages we submitted
  * a read for on success, or negative error code.
@@ -370,6 +361,10 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 			dout("start_read %p add_to_page_cache failed %p\n",
 			     inode, page);
 			nr_pages = i;
+			if (nr_pages > 0) {
+				len = nr_pages << PAGE_SHIFT;
+				break;
+			}
 			goto out_pages;
 		}
 		pages[i] = page;
@@ -386,8 +381,11 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	return nr_pages;
 
 out_pages:
-	ceph_unlock_page_vector(pages, nr_pages);
-	ceph_release_page_vector(pages, nr_pages);
+	for (i = 0; i < nr_pages; ++i) {
+		ceph_fscache_readpage_cancel(inode, pages[i]);
+		unlock_page(pages[i]);
+	}
+	ceph_put_page_vector(pages, nr_pages, false);
 out:
 	ceph_osdc_put_request(req);
 	return ret;

@@ -15,7 +15,11 @@ VIDIOC_QUERY_DV_TIMINGS - VIDIOC_SUBDEV_QUERY_DV_TIMINGS - Sense the DV preset r
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_dv_timings *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_QUERY_DV_TIMINGS, struct v4l2_dv_timings *argp )
+    :name: VIDIOC_QUERY_DV_TIMINGS
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_QUERY_DV_TIMINGS, struct v4l2_dv_timings *argp )
+    :name: VIDIOC_SUBDEV_QUERY_DV_TIMINGS
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_QUERY_DV_TIMINGS, VIDIOC_SUBDEV_QUERY_DV_TIMINGS
 
 ``argp``
 
@@ -36,10 +37,12 @@ Description
 The hardware may be able to detect the current DV timings automatically,
 similar to sensing the video standard. To do so, applications call
 :ref:`VIDIOC_QUERY_DV_TIMINGS` with a pointer to a struct
-:ref:`v4l2_dv_timings <v4l2-dv-timings>`. Once the hardware detects
+:c:type:`v4l2_dv_timings`. Once the hardware detects
 the timings, it will fill in the timings structure.
 
-.. note:: Drivers shall *not* switch timings automatically if new
+.. note::
+
+   Drivers shall *not* switch timings automatically if new
    timings are detected. Instead, drivers should send the
    ``V4L2_EVENT_SOURCE_CHANGE`` event (if they support this) and expect
    that userspace will take action by calling :ref:`VIDIOC_QUERY_DV_TIMINGS`.

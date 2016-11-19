@@ -230,20 +230,20 @@ static int advk_pcie_link_up(struct advk_pcie *pcie)
 
 static int advk_pcie_wait_for_link(struct advk_pcie *pcie)
 {
+	struct device *dev = &pcie->pdev->dev;
 	int retries;
 
 	/* check if the link is up or not */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (advk_pcie_link_up(pcie)) {
-			dev_info(&pcie->pdev->dev, "link up\n");
+			dev_info(dev, "link up\n");
 			return 0;
 		}
 
 		usleep_range(LINK_WAIT_USLEEP_MIN, LINK_WAIT_USLEEP_MAX);
 	}
 
-	dev_err(&pcie->pdev->dev, "link never came up\n");
-
+	dev_err(dev, "link never came up\n");
 	return -ETIMEDOUT;
 }
 
@@ -376,6 +376,7 @@ static void advk_pcie_setup_hw(struct advk_pcie *pcie)
 
 static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
 {
+	struct device *dev = &pcie->pdev->dev;
 	u32 reg;
 	unsigned int status;
 	char *strcomp_status, *str_posted;
@@ -407,12 +408,13 @@ static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
 	else
 		str_posted = "Posted";
 
-	dev_err(&pcie->pdev->dev, "%s PIO Response Status: %s, %#x @ %#x\n",
+	dev_err(dev, "%s PIO Response Status: %s, %#x @ %#x\n",
 		str_posted, strcomp_status, reg, advk_readl(pcie, PIO_ADDR_LS));
 }
 
 static int advk_pcie_wait_pio(struct advk_pcie *pcie)
 {
+	struct device *dev = &pcie->pdev->dev;
 	unsigned long timeout;
 
 	timeout = jiffies + msecs_to_jiffies(PIO_TIMEOUT_MS);
@@ -426,7 +428,7 @@ static int advk_pcie_wait_pio(struct advk_pcie *pcie)
 			return 0;
 	}
 
-	dev_err(&pcie->pdev->dev, "config read/write timed out\n");
+	dev_err(dev, "config read/write timed out\n");
 	return -ETIMEDOUT;
 }
 
@@ -560,10 +562,11 @@ static int advk_pcie_alloc_msi(struct advk_pcie *pcie)
 
 static void advk_pcie_free_msi(struct advk_pcie *pcie, int hwirq)
 {
+	struct device *dev = &pcie->pdev->dev;
+
 	mutex_lock(&pcie->msi_used_lock);
 	if (!test_bit(hwirq, pcie->msi_irq_in_use))
-		dev_err(&pcie->pdev->dev, "trying to free unused MSI#%d\n",
-			hwirq);
+		dev_err(dev, "trying to free unused MSI#%d\n", hwirq);
 	else
 		clear_bit(hwirq, pcie->msi_irq_in_use);
 	mutex_unlock(&pcie->msi_used_lock);
@@ -848,7 +851,7 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 	int err, res_valid = 0;
 	struct device *dev = &pcie->pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct resource_entry *win;
+	struct resource_entry *win, *tmp;
 	resource_size_t iobase;
 
 	INIT_LIST_HEAD(&pcie->resources);
@@ -862,7 +865,7 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 	if (err)
 		goto out_release_res;
 
-	resource_list_for_each_entry(win, &pcie->resources) {
+	resource_list_for_each_entry_safe(win, tmp, &pcie->resources) {
 		struct resource *res = win->res;
 
 		switch (resource_type(res)) {
@@ -874,9 +877,11 @@ static int advk_pcie_parse_request_of_pci_ranges(struct advk_pcie *pcie)
 					     lower_32_bits(res->start),
 					     OB_PCIE_IO);
 			err = pci_remap_iospace(res, iobase);
-			if (err)
+			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
+				resource_list_destroy_entry(win);
+			}
 			break;
 		case IORESOURCE_MEM:
 			advk_pcie_set_ob_win(pcie, 0,
@@ -908,6 +913,7 @@ out_release_res:
 
 static int advk_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct advk_pcie *pcie;
 	struct resource *res;
 	struct pci_bus *bus, *child;
@@ -915,33 +921,29 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	struct device_node *msi_node;
 	int ret, irq;
 
-	pcie = devm_kzalloc(&pdev->dev, sizeof(struct advk_pcie),
-			    GFP_KERNEL);
+	pcie = devm_kzalloc(dev, sizeof(struct advk_pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
 	pcie->pdev = pdev;
-	platform_set_drvdata(pdev, pcie);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pcie->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pcie->base)) {
-		dev_err(&pdev->dev, "Failed to map registers\n");
+	pcie->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
-	}
 
 	irq = platform_get_irq(pdev, 0);
-	ret = devm_request_irq(&pdev->dev, irq, advk_pcie_irq_handler,
+	ret = devm_request_irq(dev, irq, advk_pcie_irq_handler,
 			       IRQF_SHARED | IRQF_NO_THREAD, "advk-pcie",
 			       pcie);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register interrupt\n");
+		dev_err(dev, "Failed to register interrupt\n");
 		return ret;
 	}
 
 	ret = advk_pcie_parse_request_of_pci_ranges(pcie);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to parse resources\n");
+		dev_err(dev, "Failed to parse resources\n");
 		return ret;
 	}
 
@@ -949,24 +951,24 @@ static int advk_pcie_probe(struct platform_device *pdev)
 
 	ret = advk_pcie_init_irq_domain(pcie);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize irq\n");
+		dev_err(dev, "Failed to initialize irq\n");
 		return ret;
 	}
 
 	ret = advk_pcie_init_msi_irq_domain(pcie);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize irq\n");
+		dev_err(dev, "Failed to initialize irq\n");
 		advk_pcie_remove_irq_domain(pcie);
 		return ret;
 	}
 
-	msi_node = of_parse_phandle(pdev->dev.of_node, "msi-parent", 0);
+	msi_node = of_parse_phandle(dev->of_node, "msi-parent", 0);
 	if (msi_node)
 		msi = of_pci_find_msi_chip_by_node(msi_node);
 	else
 		msi = NULL;
 
-	bus = pci_scan_root_bus_msi(&pdev->dev, 0, &advk_pcie_ops,
+	bus = pci_scan_root_bus_msi(dev, 0, &advk_pcie_ops,
 				    pcie, &pcie->resources, &pcie->msi);
 	if (!bus) {
 		advk_pcie_remove_msi_irq_domain(pcie);
@@ -980,7 +982,6 @@ static int advk_pcie_probe(struct platform_device *pdev)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(bus);
-
 	return 0;
 }
 

@@ -53,6 +53,7 @@ struct vsp1_uds;
 
 struct vsp1_device_info {
 	u32 version;
+	const char *model;
 	unsigned int gen;
 	unsigned int features;
 	unsigned int rpf_count;
@@ -65,6 +66,7 @@ struct vsp1_device_info {
 struct vsp1_device {
 	struct device *dev;
 	const struct vsp1_device_info *info;
+	u32 version;
 
 	void __iomem *mmio;
 	struct rcar_fcp_device *fcp;

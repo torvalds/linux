@@ -20,8 +20,6 @@
 
 #include "main.h"
 
-#include <linux/kconfig.h>
-
 struct net_device;
 
 #define BATADV_DEBUGFS_SUBDIR "batman_adv"

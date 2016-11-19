@@ -381,7 +381,7 @@ void __aa_fs_profile_migrate_dents(struct aa_profile *old,
 	for (i = 0; i < AAFS_PROF_SIZEOF; i++) {
 		new->dents[i] = old->dents[i];
 		if (new->dents[i])
-			new->dents[i]->d_inode->i_mtime = CURRENT_TIME;
+			new->dents[i]->d_inode->i_mtime = current_time(new->dents[i]->d_inode);
 		old->dents[i] = NULL;
 	}
 }

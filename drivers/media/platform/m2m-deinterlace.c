@@ -852,7 +852,7 @@ static void deinterlace_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
 }
 
-static struct vb2_ops deinterlace_qops = {
+static const struct vb2_ops deinterlace_qops = {
 	.queue_setup	 = deinterlace_queue_setup,
 	.buf_prepare	 = deinterlace_buf_prepare,
 	.buf_queue	 = deinterlace_buf_queue,
@@ -1016,7 +1016,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!dma_has_cap(DMA_INTERLEAVE, pcdev->dma_chan->device->cap_mask)) {
-		v4l2_err(&pcdev->v4l2_dev, "DMA does not support INTERLEAVE\n");
+		dev_err(&pdev->dev, "DMA does not support INTERLEAVE\n");
 		goto rel_dma;
 	}
 

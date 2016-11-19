@@ -1314,8 +1314,6 @@ DEFINE_OCFS2_FILE_OPS(ocfs2_file_aio_write);
 
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_write);
 
-DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_read);
-
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_aio_read);
 
 DEFINE_OCFS2_ULL_ULL_ULL_EVENT(ocfs2_truncate_file);

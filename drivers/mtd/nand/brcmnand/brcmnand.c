@@ -1336,7 +1336,7 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		u32 *flash_cache = (u32 *)ctrl->flash_cache;
 		int i;
 
-		brcmnand_soc_data_bus_prepare(ctrl->soc);
+		brcmnand_soc_data_bus_prepare(ctrl->soc, true);
 
 		/*
 		 * Must cache the FLASH_CACHE now, since changes in
@@ -1349,7 +1349,7 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			 */
 			flash_cache[i] = be32_to_cpu(brcmnand_read_fc(ctrl, i));
 
-		brcmnand_soc_data_bus_unprepare(ctrl->soc);
+		brcmnand_soc_data_bus_unprepare(ctrl->soc, true);
 
 		/* Cleanup from HW quirk: restore SECTOR_SIZE_1K */
 		if (host->hwcfg.sector_size_1k)
@@ -1565,12 +1565,12 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 		brcmnand_waitfunc(mtd, chip);
 
 		if (likely(buf)) {
-			brcmnand_soc_data_bus_prepare(ctrl->soc);
+			brcmnand_soc_data_bus_prepare(ctrl->soc, false);
 
 			for (j = 0; j < FC_WORDS; j++, buf++)
 				*buf = brcmnand_read_fc(ctrl, j);
 
-			brcmnand_soc_data_bus_unprepare(ctrl->soc);
+			brcmnand_soc_data_bus_unprepare(ctrl->soc, false);
 		}
 
 		if (oob)
@@ -1815,12 +1815,12 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 		(void)brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS);
 
 		if (buf) {
-			brcmnand_soc_data_bus_prepare(ctrl->soc);
+			brcmnand_soc_data_bus_prepare(ctrl->soc, false);
 
 			for (j = 0; j < FC_WORDS; j++, buf++)
 				brcmnand_write_fc(ctrl, j, *buf);
 
-			brcmnand_soc_data_bus_unprepare(ctrl->soc);
+			brcmnand_soc_data_bus_unprepare(ctrl->soc, false);
 		} else if (oob) {
 			for (j = 0; j < FC_WORDS; j++)
 				brcmnand_write_fc(ctrl, j, 0xffffffff);
@@ -2370,8 +2370,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 
 	init_completion(&ctrl->done);
 	init_completion(&ctrl->dma_done);
-	spin_lock_init(&ctrl->controller.lock);
-	init_waitqueue_head(&ctrl->controller.wq);
+	nand_hw_control_init(&ctrl->controller);
 	INIT_LIST_HEAD(&ctrl->host_list);
 
 	/* NAND register range */

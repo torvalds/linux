@@ -73,6 +73,9 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 		     "%s: name %s, buffer_size %zd\n",
 		     __func__, name, size);
 
+	if (S_ISLNK(inode->i_mode))
+		return -EOPNOTSUPP;
+
 	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN) {
 		gossip_err("Invalid key length (%d)\n",
 			   (int)strlen(name));

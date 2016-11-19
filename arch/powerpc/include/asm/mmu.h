@@ -204,6 +204,10 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
  * make it match the size our of bolted TLB area
  */
 extern u64 ppc64_rma_size;
+
+/* Cleanup function used by kexec */
+extern void mmu_cleanup_all(void);
+extern void radix__mmu_cleanup_all(void);
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;
@@ -271,6 +275,7 @@ static inline bool early_radix_enabled(void)
 #define MMU_PAGE_16G	13
 #define MMU_PAGE_64G	14
 
+/* N.B. we need to change the type of hpte_page_sizes if this gets to be > 16 */
 #define MMU_PAGE_COUNT	15
 
 #ifdef CONFIG_PPC_BOOK3S_64

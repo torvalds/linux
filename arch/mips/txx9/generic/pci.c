@@ -29,12 +29,8 @@ static int __init
 early_read_config_word(struct pci_controller *hose,
 		       int top_bus, int bus, int devfn, int offset, u16 *value)
 {
-	struct pci_dev fake_dev;
 	struct pci_bus fake_bus;
 
-	fake_dev.bus = &fake_bus;
-	fake_dev.sysdata = hose;
-	fake_dev.devfn = devfn;
 	fake_bus.number = bus;
 	fake_bus.sysdata = hose;
 	fake_bus.ops = hose->pci_ops;
@@ -45,7 +41,7 @@ early_read_config_word(struct pci_controller *hose,
 	else
 		fake_bus.parent = NULL;
 
-	return pci_read_config_word(&fake_dev, offset, value);
+	return pci_bus_read_config_word(&fake_bus, devfn, offset, value);
 }
 
 int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,

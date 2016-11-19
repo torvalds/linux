@@ -16,7 +16,9 @@ this interface, which borrows structures and ioctls of the
 The OSD function is accessible through the same character special file
 as the :ref:`Video Output <capture>` function.
 
-.. note:: The default function of such a ``/dev/video`` device is video
+.. note::
+
+   The default function of such a ``/dev/video`` device is video
    capturing or output. The OSD function is only available after calling
    the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 
@@ -26,7 +28,7 @@ Querying Capabilities
 
 Devices supporting the *Video Output Overlay* interface set the
 ``V4L2_CAP_VIDEO_OUTPUT_OVERLAY`` flag in the ``capabilities`` field of
-struct :ref:`v4l2_capability <v4l2-capability>` returned by the
+struct :c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl.
 
 
@@ -39,11 +41,11 @@ accessible as a framebuffer device (``/dev/fbN``). Given a V4L2 device,
 applications can find the corresponding framebuffer device by calling
 the :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>` ioctl. It returns, amongst
 other information, the physical address of the framebuffer in the
-``base`` field of struct :ref:`v4l2_framebuffer <v4l2-framebuffer>`.
+``base`` field of struct :c:type:`v4l2_framebuffer`.
 The framebuffer device ioctl ``FBIOGET_FSCREENINFO`` returns the same
 address in the ``smem_start`` field of struct
-:c:type:`struct fb_fix_screeninfo`. The ``FBIOGET_FSCREENINFO``
-ioctl and struct :c:type:`struct fb_fix_screeninfo` are defined in
+struct :c:type:`fb_fix_screeninfo`. The ``FBIOGET_FSCREENINFO``
+ioctl and struct :c:type:`fb_fix_screeninfo` are defined in
 the ``linux/fb.h`` header file.
 
 The width and height of the framebuffer depends on the current video
@@ -112,18 +114,18 @@ sizes and positions of these rectangles. Further drivers may support any
 (or none) of the clipping/blending methods defined for the
 :ref:`Video Overlay <overlay>` interface.
 
-A struct :ref:`v4l2_window <v4l2-window>` defines the size of the
+A struct :c:type:`v4l2_window` defines the size of the
 source rectangle, its position in the framebuffer and the
 clipping/blending method to be used for the overlay. To get the current
 parameters applications set the ``type`` field of a struct
-:ref:`v4l2_format <v4l2-format>` to
+:c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY`` and call the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl. The driver fills the
-:ref:`struct v4l2_window <v4l2-window>` substructure named ``win``. It is not
+struct :c:type:`v4l2_window` substructure named ``win``. It is not
 possible to retrieve a previously programmed clipping list or bitmap.
 
 To program the source rectangle applications set the ``type`` field of a
-struct :ref:`v4l2_format <v4l2-format>` to
+struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY``, initialize the ``win``
 substructure and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl.
 The driver adjusts the parameters against hardware limits and returns
@@ -132,10 +134,10 @@ the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctl can be used to learn
 about driver capabilities without actually changing driver state. Unlike
 :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` this also works after the overlay has been enabled.
 
-A struct :ref:`v4l2_crop <v4l2-crop>` defines the size and position
+A struct :c:type:`v4l2_crop` defines the size and position
 of the target rectangle. The scaling factor of the overlay is implied by
-the width and height given in struct :ref:`v4l2_window <v4l2-window>`
-and struct :ref:`v4l2_crop <v4l2-crop>`. The cropping API applies to
+the width and height given in struct :c:type:`v4l2_window`
+and struct :c:type:`v4l2_crop`. The cropping API applies to
 *Video Output* and *Video Output Overlay* devices in the same way as to
 *Video Capture* and *Video Overlay* devices, merely reversing the
 direction of the data flow. For more information see :ref:`crop`.

@@ -95,7 +95,7 @@ static int zlib_compress_pages(struct list_head *ws,
 	*total_in = 0;
 
 	if (Z_OK != zlib_deflateInit(&workspace->strm, 3)) {
-		printk(KERN_WARNING "BTRFS: deflateInit failed\n");
+		pr_warn("BTRFS: deflateInit failed\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -123,7 +123,7 @@ static int zlib_compress_pages(struct list_head *ws,
 	while (workspace->strm.total_in < len) {
 		ret = zlib_deflate(&workspace->strm, Z_SYNC_FLUSH);
 		if (ret != Z_OK) {
-			printk(KERN_DEBUG "BTRFS: deflate in loop returned %d\n",
+			pr_debug("BTRFS: deflate in loop returned %d\n",
 			       ret);
 			zlib_deflateEnd(&workspace->strm);
 			ret = -EIO;
@@ -249,7 +249,7 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 	}
 
 	if (Z_OK != zlib_inflateInit2(&workspace->strm, wbits)) {
-		printk(KERN_WARNING "BTRFS: inflateInit failed\n");
+		pr_warn("BTRFS: inflateInit failed\n");
 		return -EIO;
 	}
 	while (workspace->strm.total_in < srclen) {
@@ -339,7 +339,7 @@ static int zlib_decompress(struct list_head *ws, unsigned char *data_in,
 	}
 
 	if (Z_OK != zlib_inflateInit2(&workspace->strm, wbits)) {
-		printk(KERN_WARNING "BTRFS: inflateInit failed\n");
+		pr_warn("BTRFS: inflateInit failed\n");
 		return -EIO;
 	}
 

@@ -263,7 +263,6 @@ enum lp873x_regulator_id {
 struct lp873x {
 	struct device *dev;
 	u8 rev;
-	struct mutex lock;	/* lock guarding the data structure */
 	struct regmap *regmap;
 };
 #endif /* __LINUX_MFD_LP873X_H */

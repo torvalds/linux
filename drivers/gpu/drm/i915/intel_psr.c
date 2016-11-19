@@ -645,9 +645,8 @@ unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
-static void intel_psr_exit(struct drm_device *dev)
+static void intel_psr_exit(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_dp *intel_dp = dev_priv->psr.enabled;
 	struct drm_crtc *crtc = dp_to_dig_port(intel_dp)->base.base.crtc;
 	enum pipe pipe = to_intel_crtc(crtc)->pipe;
@@ -656,7 +655,7 @@ static void intel_psr_exit(struct drm_device *dev)
 	if (!dev_priv->psr.active)
 		return;
 
-	if (HAS_DDI(dev)) {
+	if (HAS_DDI(dev_priv)) {
 		val = I915_READ(EDP_PSR_CTL);
 
 		WARN_ON(!(val & EDP_PSR_ENABLE));
@@ -691,7 +690,7 @@ static void intel_psr_exit(struct drm_device *dev)
 
 /**
  * intel_psr_single_frame_update - Single Frame Update
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * Some platforms support a single frame update feature that is used to
@@ -699,10 +698,9 @@ static void intel_psr_exit(struct drm_device *dev)
  * So far it is only implemented for Valleyview and Cherryview because
  * hardware requires this to be done before a page flip.
  */
-void intel_psr_single_frame_update(struct drm_device *dev,
+void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 	u32 val;
@@ -711,7 +709,7 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 	 * Single frame update is already supported on BDW+ but it requires
 	 * many W/A and it isn't really needed.
 	 */
-	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev))
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -737,7 +735,7 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 
 /**
  * intel_psr_invalidate - Invalidade PSR
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * Since the hardware frontbuffer tracking has gaps we need to integrate
@@ -747,10 +745,9 @@ void intel_psr_single_frame_update(struct drm_device *dev,
  *
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits."
  */
-void intel_psr_invalidate(struct drm_device *dev,
+void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned frontbuffer_bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
@@ -767,14 +764,14 @@ void intel_psr_invalidate(struct drm_device *dev,
 	dev_priv->psr.busy_frontbuffer_bits |= frontbuffer_bits;
 
 	if (frontbuffer_bits)
-		intel_psr_exit(dev);
+		intel_psr_exit(dev_priv);
 
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
 /**
  * intel_psr_flush - Flush PSR
- * @dev: DRM device
+ * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  * @origin: which operation caused the flush
  *
@@ -785,10 +782,9 @@ void intel_psr_invalidate(struct drm_device *dev,
  *
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits.
  */
-void intel_psr_flush(struct drm_device *dev,
+void intel_psr_flush(struct drm_i915_private *dev_priv,
 		     unsigned frontbuffer_bits, enum fb_op_origin origin)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
@@ -806,7 +802,7 @@ void intel_psr_flush(struct drm_device *dev,
 
 	/* By definition flush = invalidate + flush */
 	if (frontbuffer_bits)
-		intel_psr_exit(dev);
+		intel_psr_exit(dev_priv);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		if (!work_busy(&dev_priv->psr.work.work))

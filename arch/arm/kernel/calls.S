@@ -403,6 +403,9 @@
 		CALL(sys_copy_file_range)
 		CALL(sys_preadv2)
 		CALL(sys_pwritev2)
+		CALL(sys_pkey_mprotect)
+/* 395 */	CALL(sys_pkey_alloc)
+		CALL(sys_pkey_free)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

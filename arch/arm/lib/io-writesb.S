@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 		.macro	outword, rd
 #ifndef __ARMEB__
@@ -92,3 +93,4 @@ ENTRY(__raw_writesb)
 
 		ldmfd	sp!, {r4, r5, pc}
 ENDPROC(__raw_writesb)
+EXPORT_SYMBOL(__raw_writesb)

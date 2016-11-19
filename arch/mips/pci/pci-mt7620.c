@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
@@ -407,13 +406,11 @@ static const struct of_device_id mt7620_pci_ids[] = {
 	{ .compatible = "mediatek,mt7620-pci" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mt7620_pci_ids);
 
 static struct platform_driver mt7620_pci_driver = {
 	.probe = mt7620_pci_probe,
 	.driver = {
 		.name = "mt7620-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(mt7620_pci_ids),
 	},
 };

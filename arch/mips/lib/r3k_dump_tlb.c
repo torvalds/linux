@@ -53,15 +53,15 @@ static void dump_tlb(int first, int last)
 			 */
 			printk("Index: %2d ", i);
 
-			printk("va=%08lx asid=%08lx"
-			       "  [pa=%06lx n=%d d=%d v=%d g=%d]",
-			       entryhi & PAGE_MASK,
-			       entryhi & asid_mask,
-			       entrylo0 & PAGE_MASK,
-			       (entrylo0 & R3K_ENTRYLO_N) ? 1 : 0,
-			       (entrylo0 & R3K_ENTRYLO_D) ? 1 : 0,
-			       (entrylo0 & R3K_ENTRYLO_V) ? 1 : 0,
-			       (entrylo0 & R3K_ENTRYLO_G) ? 1 : 0);
+			pr_cont("va=%08lx asid=%08lx"
+				"  [pa=%06lx n=%d d=%d v=%d g=%d]",
+				entryhi & PAGE_MASK,
+				entryhi & asid_mask,
+				entrylo0 & PAGE_MASK,
+				(entrylo0 & R3K_ENTRYLO_N) ? 1 : 0,
+				(entrylo0 & R3K_ENTRYLO_D) ? 1 : 0,
+				(entrylo0 & R3K_ENTRYLO_V) ? 1 : 0,
+				(entrylo0 & R3K_ENTRYLO_G) ? 1 : 0);
 		}
 	}
 	printk("\n");

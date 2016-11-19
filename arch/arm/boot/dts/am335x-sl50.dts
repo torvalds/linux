@@ -19,6 +19,11 @@
 		};
 	};
 
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>; /* 512 MB */
+	};
+
 	chosen {
 		stdout-path = &uart0;
 	};
@@ -28,25 +33,25 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins>;
 
-		led@0 {
+		led0 {
 			label = "sl50:green:usr0";
 			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "sl50:red:usr1";
 			gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "sl50:green:usr2";
 			gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "sl50:red:usr3";
 			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 			default-state = "off";
@@ -103,7 +108,7 @@
 		reset-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
 	};
 
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;

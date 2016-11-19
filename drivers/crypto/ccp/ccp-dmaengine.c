@@ -299,11 +299,9 @@ static struct ccp_dma_desc *ccp_alloc_dma_desc(struct ccp_dma_chan *chan,
 {
 	struct ccp_dma_desc *desc;
 
-	desc = kmem_cache_alloc(chan->ccp->dma_desc_cache, GFP_NOWAIT);
+	desc = kmem_cache_zalloc(chan->ccp->dma_desc_cache, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
-
-	memset(desc, 0, sizeof(*desc));
 
 	dma_async_tx_descriptor_init(&desc->tx_desc, &chan->dma_chan);
 	desc->tx_desc.flags = flags;
@@ -650,8 +648,11 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 	dma_desc_cache_name = devm_kasprintf(ccp->dev, GFP_KERNEL,
 					     "%s-dmaengine-desc-cache",
 					     ccp->name);
-	if (!dma_cmd_cache_name)
-		return -ENOMEM;
+	if (!dma_desc_cache_name) {
+		ret = -ENOMEM;
+		goto err_cache;
+	}
+
 	ccp->dma_desc_cache = kmem_cache_create(dma_desc_cache_name,
 						sizeof(struct ccp_dma_desc),
 						sizeof(void *),

@@ -288,10 +288,8 @@ static int smbus_sch_probe(struct platform_device *dev)
 		"SMBus SCH adapter at %04x", sch_smba);
 
 	retval = i2c_add_adapter(&sch_adapter);
-	if (retval) {
-		dev_err(&dev->dev, "Couldn't register adapter!\n");
+	if (retval)
 		sch_smba = 0;
-	}
 
 	return retval;
 }

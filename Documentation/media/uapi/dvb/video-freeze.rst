@@ -11,11 +11,13 @@ Name
 
 VIDEO_FREEZE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_FREEZE)
+.. c:function:: int ioctl(fd, VIDEO_FREEZE)
+    :name: VIDEO_FREEZE
 
 
 Arguments

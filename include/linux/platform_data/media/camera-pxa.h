@@ -37,6 +37,8 @@
 struct pxacamera_platform_data {
 	unsigned long flags;
 	unsigned long mclk_10khz;
+	int sensor_i2c_adapter_id;
+	int sensor_i2c_address;
 };
 
 extern void pxa_set_camera_info(struct pxacamera_platform_data *);

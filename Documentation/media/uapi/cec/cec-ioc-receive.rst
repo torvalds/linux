@@ -16,28 +16,32 @@ CEC_RECEIVE, CEC_TRANSMIT - Receive or transmit a CEC message
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_msg *argp )
+.. c:function:: int ioctl( int fd, CEC_RECEIVE, struct cec_msg *argp )
+    :name: CEC_RECEIVE
+
+.. c:function:: int ioctl( int fd, CEC_TRANSMIT, struct cec_msg *argp )
+    :name: CEC_TRANSMIT
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_RECEIVE, CEC_TRANSMIT
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to struct cec_msg.
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 To receive a CEC message the application has to fill in the
-``timeout`` field of :c:type:`struct cec_msg` and pass it to :ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
+``timeout`` field of struct :c:type:`cec_msg` and pass it to
+:ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
 If the file descriptor is in non-blocking mode and there are no received
 messages pending, then it will return -1 and set errno to the ``EAGAIN``
 error code. If the file descriptor is in blocking mode and ``timeout``
@@ -51,9 +55,9 @@ A received message can be:
 2. the result of an earlier non-blocking transmit (the ``sequence`` field will
    be non-zero).
 
-To send a CEC message the application has to fill in the
-:c:type:`struct cec_msg` and pass it to
-:ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
+To send a CEC message the application has to fill in the struct
+:c:type:` cec_msg` and pass it to :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`.
+The :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is only available if
 ``CEC_CAP_TRANSMIT`` is set. If there is no more room in the transmit
 queue, then it will return -1 and set errno to the ``EBUSY`` error code.
 The transmit queue has enough room for 18 messages (about 1 second worth
@@ -71,7 +75,11 @@ checked against the received messages to find the corresponding transmit
 result.
 
 
-.. _cec-msg:
+.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{13.0cm}|
+
+.. c:type:: cec_msg
+
+.. cssclass:: longtable
 
 .. flat-table:: struct cec_msg
     :header-rows:  0
@@ -87,7 +95,7 @@ result.
 
        -  Timestamp in ns of when the last byte of the message was transmitted.
 	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	  the same clock from userspace use :c:func:`clock_gettime(2)`.
+	  the same clock from userspace use :c:func:`clock_gettime`.
 
     -  .. row 2
 
@@ -97,7 +105,7 @@ result.
 
        -  Timestamp in ns of when the last byte of the message was received.
 	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	  the same clock from userspace use :c:func:`clock_gettime(2)`.
+	  the same clock from userspace use :c:func:`clock_gettime`.
 
     -  .. row 3
 
@@ -247,6 +255,7 @@ result.
 	  valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
 
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-tx-status:
 
@@ -315,6 +324,7 @@ result.
 	  be set to explain which failures were seen.
 
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-rx-status:
 

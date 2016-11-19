@@ -29,7 +29,7 @@
 		bootargs = "console=ttySAC2,115200n8 root=/dev/mmcblk1p5 rw rootwait ignore_loglevel earlyprintk";
 	};
 
-	memory {
+	memory@30000000 {
 		device_type = "memory";
 		reg = <0x30000000 0x05000000
 			0x40000000 0x18000000>;
@@ -387,7 +387,7 @@
 &pinctrl0 {
 	t_flash_detect: t-flash-detect {
 		samsung,pins = "gph3-4";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 };

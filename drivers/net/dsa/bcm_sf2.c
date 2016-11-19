@@ -1133,6 +1133,20 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
+{
+	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+
+	/* For a kernel about to be kexec'd we want to keep the GPHY on for a
+	 * successful MDIO bus scan to occur. If we did turn off the GPHY
+	 * before (e.g: port_disable), this will also power it back on.
+	 *
+	 * Do not rely on kexec_in_progress, just power the PHY on.
+	 */
+	if (priv->hw_params.num_gphy == 1)
+		bcm_sf2_gphy_enable_set(priv->dev->ds, true);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int bcm_sf2_suspend(struct device *dev)
 {
@@ -1158,10 +1172,12 @@ static const struct of_device_id bcm_sf2_of_match[] = {
 	{ .compatible = "brcm,bcm7445-switch-v4.0" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,
 	.remove	= bcm_sf2_sw_remove,
+	.shutdown = bcm_sf2_sw_shutdown,
 	.driver = {
 		.name = "brcm-sf2",
 		.of_match_table = bcm_sf2_of_match,

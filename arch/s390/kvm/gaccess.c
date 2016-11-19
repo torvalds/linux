@@ -495,6 +495,18 @@ static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
 	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
 
 	switch (code) {
+	case PGM_PROTECTION:
+		switch (prot) {
+		case PROT_TYPE_ALC:
+			tec->b60 = 1;
+			/* FALL THROUGH */
+		case PROT_TYPE_DAT:
+			tec->b61 = 1;
+			break;
+		default: /* LA and KEYC set b61 to 0, other params undefined */
+			return code;
+		}
+		/* FALL THROUGH */
 	case PGM_ASCE_TYPE:
 	case PGM_PAGE_TRANSLATION:
 	case PGM_REGION_FIRST_TRANS:
@@ -504,8 +516,7 @@ static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
 		/*
 		 * op_access_id only applies to MOVE_PAGE -> set bit 61
 		 * exc_access_id has to be set to 0 for some instructions. Both
-		 * cases have to be handled by the caller. We can always store
-		 * exc_access_id, as it is undefined for non-ar cases.
+		 * cases have to be handled by the caller.
 		 */
 		tec->addr = gva >> PAGE_SHIFT;
 		tec->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
@@ -516,24 +527,12 @@ static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
 	case PGM_ASTE_VALIDITY:
 	case PGM_ASTE_SEQUENCE:
 	case PGM_EXTENDED_AUTHORITY:
+		/*
+		 * We can always store exc_access_id, as it is
+		 * undefined for non-ar cases. It is undefined for
+		 * most DAT protection exceptions.
+		 */
 		pgm->exc_access_id = ar;
-		break;
-	case PGM_PROTECTION:
-		switch (prot) {
-		case PROT_TYPE_ALC:
-			tec->b60 = 1;
-			/* FALL THROUGH */
-		case PROT_TYPE_DAT:
-			tec->b61 = 1;
-			tec->addr = gva >> PAGE_SHIFT;
-			tec->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
-			tec->as = psw_bits(vcpu->arch.sie_block->gpsw).as;
-			/* exc_access_id is undefined for most cases */
-			pgm->exc_access_id = ar;
-			break;
-		default: /* LA and KEYC set b61 to 0, other params undefined */
-			break;
-		}
 		break;
 	}
 	return code;

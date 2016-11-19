@@ -25,6 +25,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
 #include "dvb_frontend.h"
 #include "dvb_math.h"
@@ -40,7 +41,9 @@
  */
 
 struct si2165_state {
-	struct i2c_adapter *i2c;
+	struct i2c_client *client;
+
+	struct regmap *regmap;
 
 	struct dvb_frontend fe;
 
@@ -108,61 +111,27 @@ static int si2165_write(struct si2165_state *state, const u16 reg,
 		       const u8 *src, const int count)
 {
 	int ret;
-	struct i2c_msg msg;
-	u8 buf[2 + 4]; /* write a maximum of 4 bytes of data */
-
-	if (count + 2 > sizeof(buf)) {
-		dev_warn(&state->i2c->dev,
-			  "%s: i2c wr reg=%04x: count=%d is too big!\n",
-			  KBUILD_MODNAME, reg, count);
-		return -EINVAL;
-	}
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xff;
-	memcpy(buf + 2, src, count);
-
-	msg.addr = state->config.i2c_addr;
-	msg.flags = 0;
-	msg.buf = buf;
-	msg.len = count + 2;
 
 	if (debug & DEBUG_I2C_WRITE)
 		deb_i2c_write("reg: 0x%04x, data: %*ph\n", reg, count, src);
 
-	ret = i2c_transfer(state->i2c, &msg, 1);
+	ret = regmap_bulk_write(state->regmap, reg, src, count);
 
-	if (ret != 1) {
-		dev_err(&state->i2c->dev, "%s: ret == %d\n", __func__, ret);
-		if (ret < 0)
-			return ret;
-		else
-			return -EREMOTEIO;
-	}
+	if (ret)
+		dev_err(&state->client->dev, "%s: ret == %d\n", __func__, ret);
 
-	return 0;
+	return ret;
 }
 
 static int si2165_read(struct si2165_state *state,
 		       const u16 reg, u8 *val, const int count)
 {
-	int ret;
-	u8 reg_buf[] = { reg >> 8, reg & 0xff };
-	struct i2c_msg msg[] = {
-		{ .addr = state->config.i2c_addr,
-		  .flags = 0, .buf = reg_buf, .len = 2 },
-		{ .addr = state->config.i2c_addr,
-		  .flags = I2C_M_RD, .buf = val, .len = count },
-	};
+	int ret = regmap_bulk_read(state->regmap, reg, val, count);
 
-	ret = i2c_transfer(state->i2c, msg, 2);
-
-	if (ret != 2) {
-		dev_err(&state->i2c->dev, "%s: error (addr %02x reg %04x error (ret == %i)\n",
+	if (ret) {
+		dev_err(&state->client->dev, "%s: error (addr %02x reg %04x error (ret == %i)\n",
 			__func__, state->config.i2c_addr, reg, ret);
-		if (ret < 0)
-			return ret;
-		else
-			return -EREMOTEIO;
+		return ret;
 	}
 
 	if (debug & DEBUG_I2C_READ)
@@ -174,9 +143,9 @@ static int si2165_read(struct si2165_state *state,
 static int si2165_readreg8(struct si2165_state *state,
 		       const u16 reg, u8 *val)
 {
-	int ret;
-
-	ret = si2165_read(state, reg, val, 1);
+	unsigned int val_tmp;
+	int ret = regmap_read(state->regmap, reg, &val_tmp);
+	*val = (u8)val_tmp;
 	deb_readreg("R(0x%04x)=0x%02x\n", reg, *val);
 	return ret;
 }
@@ -194,7 +163,7 @@ static int si2165_readreg16(struct si2165_state *state,
 
 static int si2165_writereg8(struct si2165_state *state, const u16 reg, u8 val)
 {
-	return si2165_write(state, reg, &val, 1);
+	return regmap_write(state->regmap, reg, val);
 }
 
 static int si2165_writereg16(struct si2165_state *state, const u16 reg, u16 val)
@@ -345,7 +314,7 @@ static int si2165_wait_init_done(struct si2165_state *state)
 			return 0;
 		usleep_range(1000, 50000);
 	}
-	dev_err(&state->i2c->dev, "%s: init_done was not set\n",
+	dev_err(&state->client->dev, "%s: init_done was not set\n",
 		KBUILD_MODNAME);
 	return ret;
 }
@@ -374,14 +343,14 @@ static int si2165_upload_firmware_block(struct si2165_state *state,
 		wordcount = data[offset];
 		if (wordcount < 1 || data[offset+1] ||
 		    data[offset+2] || data[offset+3]) {
-			dev_warn(&state->i2c->dev,
+			dev_warn(&state->client->dev,
 				 "%s: bad fw data[0..3] = %*ph\n",
 				KBUILD_MODNAME, 4, data);
 			return -EINVAL;
 		}
 
 		if (offset + 8 + wordcount * 4 > len) {
-			dev_warn(&state->i2c->dev,
+			dev_warn(&state->client->dev,
 				 "%s: len is too small for block len=%d, wordcount=%d\n",
 				KBUILD_MODNAME, len, wordcount);
 			return -EINVAL;
@@ -444,15 +413,15 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		fw_file = SI2165_FIRMWARE_REV_D;
 		break;
 	default:
-		dev_info(&state->i2c->dev, "%s: no firmware file for revision=%d\n",
+		dev_info(&state->client->dev, "%s: no firmware file for revision=%d\n",
 			KBUILD_MODNAME, state->chip_revcode);
 		return 0;
 	}
 
 	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_file, state->i2c->dev.parent);
+	ret = request_firmware(&fw, fw_file, &state->client->dev);
 	if (ret) {
-		dev_warn(&state->i2c->dev, "%s: firmware file '%s' not found\n",
+		dev_warn(&state->client->dev, "%s: firmware file '%s' not found\n",
 				KBUILD_MODNAME, fw_file);
 		goto error;
 	}
@@ -460,11 +429,11 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	data = fw->data;
 	len = fw->size;
 
-	dev_info(&state->i2c->dev, "%s: downloading firmware from file '%s' size=%d\n",
+	dev_info(&state->client->dev, "%s: downloading firmware from file '%s' size=%d\n",
 			KBUILD_MODNAME, fw_file, len);
 
 	if (len % 4 != 0) {
-		dev_warn(&state->i2c->dev, "%s: firmware size is not multiple of 4\n",
+		dev_warn(&state->client->dev, "%s: firmware size is not multiple of 4\n",
 				KBUILD_MODNAME);
 		ret = -EINVAL;
 		goto error;
@@ -472,14 +441,14 @@ static int si2165_upload_firmware(struct si2165_state *state)
 
 	/* check header (8 bytes) */
 	if (len < 8) {
-		dev_warn(&state->i2c->dev, "%s: firmware header is missing\n",
+		dev_warn(&state->client->dev, "%s: firmware header is missing\n",
 				KBUILD_MODNAME);
 		ret = -EINVAL;
 		goto error;
 	}
 
 	if (data[0] != 1 || data[1] != 0) {
-		dev_warn(&state->i2c->dev, "%s: firmware file version is wrong\n",
+		dev_warn(&state->client->dev, "%s: firmware file version is wrong\n",
 				KBUILD_MODNAME);
 		ret = -EINVAL;
 		goto error;
@@ -517,7 +486,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	/* start right after the header */
 	offset = 8;
 
-	dev_info(&state->i2c->dev, "%s: si2165_upload_firmware extracted patch_version=0x%02x, block_count=0x%02x, crc_expected=0x%04x\n",
+	dev_info(&state->client->dev, "%s: si2165_upload_firmware extracted patch_version=0x%02x, block_count=0x%02x, crc_expected=0x%04x\n",
 		KBUILD_MODNAME, patch_version, block_count, crc_expected);
 
 	ret = si2165_upload_firmware_block(state, data, len, &offset, 1);
@@ -536,7 +505,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	ret = si2165_upload_firmware_block(state, data, len,
 					   &offset, block_count);
 	if (ret < 0) {
-		dev_err(&state->i2c->dev,
+		dev_err(&state->client->dev,
 			"%s: firmware could not be uploaded\n",
 			KBUILD_MODNAME);
 		goto error;
@@ -548,7 +517,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		goto error;
 
 	if (val16 != crc_expected) {
-		dev_err(&state->i2c->dev,
+		dev_err(&state->client->dev,
 			"%s: firmware crc mismatch %04x != %04x\n",
 			KBUILD_MODNAME, val16, crc_expected);
 		ret = -EINVAL;
@@ -560,7 +529,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 		goto error;
 
 	if (len != offset) {
-		dev_err(&state->i2c->dev,
+		dev_err(&state->client->dev,
 			"%s: firmware len mismatch %04x != %04x\n",
 			KBUILD_MODNAME, len, offset);
 		ret = -EINVAL;
@@ -577,7 +546,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	if (ret < 0)
 		goto error;
 
-	dev_info(&state->i2c->dev, "%s: fw load finished\n", KBUILD_MODNAME);
+	dev_info(&state->client->dev, "%s: fw load finished\n", KBUILD_MODNAME);
 
 	ret = 0;
 	state->firmware_loaded = true;
@@ -611,7 +580,7 @@ static int si2165_init(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto error;
 	if (val != state->config.chip_mode) {
-		dev_err(&state->i2c->dev, "%s: could not set chip_mode\n",
+		dev_err(&state->client->dev, "%s: could not set chip_mode\n",
 			KBUILD_MODNAME);
 		return -EINVAL;
 	}
@@ -751,6 +720,9 @@ static int si2165_set_oversamp(struct si2165_state *state, u32 dvb_rate)
 	u64 oversamp;
 	u32 reg_value;
 
+	if (!dvb_rate)
+		return -EINVAL;
+
 	oversamp = si2165_get_fe_clk(state);
 	oversamp <<= 23;
 	do_div(oversamp, dvb_rate);
@@ -769,11 +741,14 @@ static int si2165_set_if_freq_shift(struct si2165_state *state)
 	u32 IF = 0;
 
 	if (!fe->ops.tuner_ops.get_if_frequency) {
-		dev_err(&state->i2c->dev,
+		dev_err(&state->client->dev,
 			"%s: Error: get_if_frequency() not defined at tuner. Can't work without it!\n",
 			KBUILD_MODNAME);
 		return -EINVAL;
 	}
+
+	if (!fe_clk)
+		return -EINVAL;
 
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	if_freq_shift = IF;
@@ -1003,14 +978,6 @@ static int si2165_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static void si2165_release(struct dvb_frontend *fe)
-{
-	struct si2165_state *state = fe->demodulator_priv;
-
-	dprintk("%s: called\n", __func__);
-	kfree(state);
-}
-
 static struct dvb_frontend_ops si2165_ops = {
 	.info = {
 		.name = "Silicon Labs ",
@@ -1046,67 +1013,83 @@ static struct dvb_frontend_ops si2165_ops = {
 
 	.set_frontend      = si2165_set_frontend,
 	.read_status       = si2165_read_status,
-
-	.release = si2165_release,
 };
 
-struct dvb_frontend *si2165_attach(const struct si2165_config *config,
-				   struct i2c_adapter *i2c)
+static int si2165_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
 {
 	struct si2165_state *state = NULL;
+	struct si2165_platform_data *pdata = client->dev.platform_data;
 	int n;
-	int io_ret;
+	int ret = 0;
 	u8 val;
 	char rev_char;
 	const char *chip_name;
-
-	if (config == NULL || i2c == NULL)
-		goto error;
+	static const struct regmap_config regmap_config = {
+		.reg_bits = 16,
+		.val_bits = 8,
+		.max_register = 0x08ff,
+	};
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct si2165_state), GFP_KERNEL);
-	if (state == NULL)
+	if (state == NULL) {
+		ret = -ENOMEM;
 		goto error;
+	}
+
+	/* create regmap */
+	state->regmap = devm_regmap_init_i2c(client, &regmap_config);
+	if (IS_ERR(state->regmap)) {
+		ret = PTR_ERR(state->regmap);
+		goto error;
+	}
 
 	/* setup the state */
-	state->i2c = i2c;
-	state->config = *config;
+	state->client = client;
+	state->config.i2c_addr = client->addr;
+	state->config.chip_mode = pdata->chip_mode;
+	state->config.ref_freq_Hz = pdata->ref_freq_Hz;
+	state->config.inversion = pdata->inversion;
 
 	if (state->config.ref_freq_Hz < 4000000
 	    || state->config.ref_freq_Hz > 27000000) {
-		dev_err(&state->i2c->dev, "%s: ref_freq of %d Hz not supported by this driver\n",
+		dev_err(&state->client->dev, "%s: ref_freq of %d Hz not supported by this driver\n",
 			 KBUILD_MODNAME, state->config.ref_freq_Hz);
+		ret = -EINVAL;
 		goto error;
 	}
 
 	/* create dvb_frontend */
 	memcpy(&state->fe.ops, &si2165_ops,
 		sizeof(struct dvb_frontend_ops));
+	state->fe.ops.release = NULL;
 	state->fe.demodulator_priv = state;
+	i2c_set_clientdata(client, state);
 
 	/* powerup */
-	io_ret = si2165_writereg8(state, 0x0000, state->config.chip_mode);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_writereg8(state, 0x0000, state->config.chip_mode);
+	if (ret < 0)
+		goto nodev_error;
 
-	io_ret = si2165_readreg8(state, 0x0000, &val);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_readreg8(state, 0x0000, &val);
+	if (ret < 0)
+		goto nodev_error;
 	if (val != state->config.chip_mode)
-		goto error;
+		goto nodev_error;
 
-	io_ret = si2165_readreg8(state, 0x0023, &state->chip_revcode);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_readreg8(state, 0x0023, &state->chip_revcode);
+	if (ret < 0)
+		goto nodev_error;
 
-	io_ret = si2165_readreg8(state, 0x0118, &state->chip_type);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_readreg8(state, 0x0118, &state->chip_type);
+	if (ret < 0)
+		goto nodev_error;
 
 	/* powerdown */
-	io_ret = si2165_writereg8(state, 0x0000, SI2165_MODE_OFF);
-	if (io_ret < 0)
-		goto error;
+	ret = si2165_writereg8(state, 0x0000, SI2165_MODE_OFF);
+	if (ret < 0)
+		goto nodev_error;
 
 	if (state->chip_revcode < 26)
 		rev_char = 'A' + state->chip_revcode;
@@ -1124,12 +1107,12 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 		state->has_dvbc = true;
 		break;
 	default:
-		dev_err(&state->i2c->dev, "%s: Unsupported Silicon Labs chip (type %d, rev %d)\n",
+		dev_err(&state->client->dev, "%s: Unsupported Silicon Labs chip (type %d, rev %d)\n",
 			KBUILD_MODNAME, state->chip_type, state->chip_revcode);
-		goto error;
+		goto nodev_error;
 	}
 
-	dev_info(&state->i2c->dev,
+	dev_info(&state->client->dev,
 		"%s: Detected Silicon Labs %s-%c (type %d, rev %d)\n",
 		KBUILD_MODNAME, chip_name, rev_char, state->chip_type,
 		state->chip_revcode);
@@ -1149,13 +1132,46 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 			sizeof(state->fe.ops.info.name));
 	}
 
-	return &state->fe;
+	/* return fe pointer */
+	*pdata->fe = &state->fe;
 
+	return 0;
+
+nodev_error:
+	ret = -ENODEV;
 error:
 	kfree(state);
-	return NULL;
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
 }
-EXPORT_SYMBOL(si2165_attach);
+
+static int si2165_remove(struct i2c_client *client)
+{
+	struct si2165_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	kfree(state);
+	return 0;
+}
+
+static const struct i2c_device_id si2165_id_table[] = {
+	{"si2165", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, si2165_id_table);
+
+static struct i2c_driver si2165_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "si2165",
+	},
+	.probe		= si2165_probe,
+	.remove		= si2165_remove,
+	.id_table	= si2165_id_table,
+};
+
+module_i2c_driver(si2165_driver);
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");

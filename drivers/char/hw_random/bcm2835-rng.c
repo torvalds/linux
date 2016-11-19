@@ -92,9 +92,10 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 	bcm2835_rng_ops.priv = (unsigned long)rng_base;
 
 	rng_id = of_match_node(bcm2835_rng_of_match, np);
-	if (!rng_id)
+	if (!rng_id) {
+		iounmap(rng_base);
 		return -EINVAL;
-
+	}
 	/* Check for rng init function, execute it */
 	rng_setup = rng_id->data;
 	if (rng_setup)

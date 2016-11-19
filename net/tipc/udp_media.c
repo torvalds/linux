@@ -407,6 +407,7 @@ static int __tipc_nl_add_udp_addr(struct sk_buff *skb,
 	if (ntohs(addr->proto) == ETH_P_IP) {
 		struct sockaddr_in ip4;
 
+		memset(&ip4, 0, sizeof(ip4));
 		ip4.sin_family = AF_INET;
 		ip4.sin_port = addr->port;
 		ip4.sin_addr.s_addr = addr->ipv4.s_addr;
@@ -417,6 +418,7 @@ static int __tipc_nl_add_udp_addr(struct sk_buff *skb,
 	} else if (ntohs(addr->proto) == ETH_P_IPV6) {
 		struct sockaddr_in6 ip6;
 
+		memset(&ip6, 0, sizeof(ip6));
 		ip6.sin6_family = AF_INET6;
 		ip6.sin6_port  = addr->port;
 		memcpy(&ip6.sin6_addr, &addr->ipv6, sizeof(struct in6_addr));

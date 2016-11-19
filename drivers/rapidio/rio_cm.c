@@ -1841,24 +1841,19 @@ static int cm_chan_msg_send(void __user *arg)
 {
 	struct rio_cm_msg msg;
 	void *buf;
-	int ret = 0;
+	int ret;
 
 	if (copy_from_user(&msg, arg, sizeof(msg)))
 		return -EFAULT;
 	if (msg.size > RIO_MAX_MSG_SIZE)
 		return -EINVAL;
 
-	buf = kmalloc(msg.size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, (void __user *)(uintptr_t)msg.msg, msg.size)) {
-		ret = -EFAULT;
-		goto out;
-	}
+	buf = memdup_user((void __user *)(uintptr_t)msg.msg, msg.size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	ret = riocm_ch_send(msg.ch_num, buf, msg.size);
-out:
+
 	kfree(buf);
 	return ret;
 }

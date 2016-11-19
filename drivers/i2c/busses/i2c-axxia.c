@@ -545,7 +545,11 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(idev->i2c_clk);
+	ret = clk_prepare_enable(idev->i2c_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		return ret;
+	}
 
 	i2c_set_adapdata(&idev->adapter, idev);
 	strlcpy(idev->adapter.name, pdev->name, sizeof(idev->adapter.name));
@@ -560,7 +564,7 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&idev->adapter);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add adapter\n");
+		clk_disable_unprepare(idev->i2c_clk);
 		return ret;
 	}
 

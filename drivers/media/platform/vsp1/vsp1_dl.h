@@ -41,5 +41,6 @@ void vsp1_dl_fragment_free(struct vsp1_dl_body *dlb);
 void vsp1_dl_fragment_write(struct vsp1_dl_body *dlb, u32 reg, u32 data);
 int vsp1_dl_list_add_fragment(struct vsp1_dl_list *dl,
 			      struct vsp1_dl_body *dlb);
+int vsp1_dl_list_add_chain(struct vsp1_dl_list *head, struct vsp1_dl_list *dl);
 
 #endif /* __VSP1_DL_H__ */

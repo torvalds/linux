@@ -384,15 +384,14 @@ void perf_evlist__toggle_enable(struct perf_evlist *evlist)
 static int perf_evlist__enable_event_cpu(struct perf_evlist *evlist,
 					 struct perf_evsel *evsel, int cpu)
 {
-	int thread, err;
+	int thread;
 	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (thread = 0; thread < nr_threads; thread++) {
-		err = ioctl(FD(evsel, cpu, thread),
-			    PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -403,14 +402,14 @@ static int perf_evlist__enable_event_thread(struct perf_evlist *evlist,
 					    struct perf_evsel *evsel,
 					    int thread)
 {
-	int cpu, err;
+	int cpu;
 	int nr_cpus = cpu_map__nr(evlist->cpus);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -1606,10 +1605,9 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int ncpus = cpu_map__nr(evlist->cpus);
 	int nthreads = thread_map__nr(evlist->threads);
-	int n;
 
 	evlist__for_each_entry_reverse(evlist, evsel) {
-		n = evsel->cpus ? evsel->cpus->nr : ncpus;
+		int n = evsel->cpus ? evsel->cpus->nr : ncpus;
 		perf_evsel__close(evsel, n, nthreads);
 	}
 }

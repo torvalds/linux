@@ -1090,11 +1090,15 @@ static void jbd2_stats_proc_exit(journal_t *journal)
  * very few fields yet: that has to wait until we have created the
  * journal structures from from scratch, or loaded them from disk. */
 
-static journal_t * journal_init_common (void)
+static journal_t *journal_init_common(struct block_device *bdev,
+			struct block_device *fs_dev,
+			unsigned long long start, int len, int blocksize)
 {
 	static struct lock_class_key jbd2_trans_commit_key;
 	journal_t *journal;
 	int err;
+	struct buffer_head *bh;
+	int n;
 
 	journal = kzalloc(sizeof(*journal), GFP_KERNEL);
 	if (!journal)
@@ -1131,6 +1135,32 @@ static journal_t * journal_init_common (void)
 	lockdep_init_map(&journal->j_trans_commit_map, "jbd2_handle",
 			 &jbd2_trans_commit_key, 0);
 
+	/* journal descriptor can store up to n blocks -bzzz */
+	journal->j_blocksize = blocksize;
+	journal->j_dev = bdev;
+	journal->j_fs_dev = fs_dev;
+	journal->j_blk_offset = start;
+	journal->j_maxlen = len;
+	n = journal->j_blocksize / sizeof(journal_block_tag_t);
+	journal->j_wbufsize = n;
+	journal->j_wbuf = kmalloc_array(n, sizeof(struct buffer_head *),
+					GFP_KERNEL);
+	if (!journal->j_wbuf) {
+		kfree(journal);
+		return NULL;
+	}
+
+	bh = getblk_unmovable(journal->j_dev, start, journal->j_blocksize);
+	if (!bh) {
+		pr_err("%s: Cannot get buffer for journal superblock\n",
+			__func__);
+		kfree(journal->j_wbuf);
+		kfree(journal);
+		return NULL;
+	}
+	journal->j_sb_buffer = bh;
+	journal->j_superblock = (journal_superblock_t *)bh->b_data;
+
 	return journal;
 }
 
@@ -1157,51 +1187,21 @@ static journal_t * journal_init_common (void)
  *  range of blocks on an arbitrary block device.
  *
  */
-journal_t * jbd2_journal_init_dev(struct block_device *bdev,
+journal_t *jbd2_journal_init_dev(struct block_device *bdev,
 			struct block_device *fs_dev,
 			unsigned long long start, int len, int blocksize)
 {
-	journal_t *journal = journal_init_common();
-	struct buffer_head *bh;
-	int n;
+	journal_t *journal;
 
+	journal = journal_init_common(bdev, fs_dev, start, len, blocksize);
 	if (!journal)
 		return NULL;
 
-	/* journal descriptor can store up to n blocks -bzzz */
-	journal->j_blocksize = blocksize;
-	journal->j_dev = bdev;
-	journal->j_fs_dev = fs_dev;
-	journal->j_blk_offset = start;
-	journal->j_maxlen = len;
 	bdevname(journal->j_dev, journal->j_devname);
 	strreplace(journal->j_devname, '/', '!');
 	jbd2_stats_proc_init(journal);
-	n = journal->j_blocksize / sizeof(journal_block_tag_t);
-	journal->j_wbufsize = n;
-	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
-	if (!journal->j_wbuf) {
-		printk(KERN_ERR "%s: Can't allocate bhs for commit thread\n",
-			__func__);
-		goto out_err;
-	}
-
-	bh = __getblk(journal->j_dev, start, journal->j_blocksize);
-	if (!bh) {
-		printk(KERN_ERR
-		       "%s: Cannot get buffer for journal superblock\n",
-		       __func__);
-		goto out_err;
-	}
-	journal->j_sb_buffer = bh;
-	journal->j_superblock = (journal_superblock_t *)bh->b_data;
 
 	return journal;
-out_err:
-	kfree(journal->j_wbuf);
-	jbd2_stats_proc_exit(journal);
-	kfree(journal);
-	return NULL;
 }
 
 /**
@@ -1212,67 +1212,36 @@ out_err:
  * the journal.  The inode must exist already, must support bmap() and
  * must have all data blocks preallocated.
  */
-journal_t * jbd2_journal_init_inode (struct inode *inode)
+journal_t *jbd2_journal_init_inode(struct inode *inode)
 {
-	struct buffer_head *bh;
-	journal_t *journal = journal_init_common();
+	journal_t *journal;
 	char *p;
-	int err;
-	int n;
 	unsigned long long blocknr;
 
+	blocknr = bmap(inode, 0);
+	if (!blocknr) {
+		pr_err("%s: Cannot locate journal superblock\n",
+			__func__);
+		return NULL;
+	}
+
+	jbd_debug(1, "JBD2: inode %s/%ld, size %lld, bits %d, blksize %ld\n",
+		  inode->i_sb->s_id, inode->i_ino, (long long) inode->i_size,
+		  inode->i_sb->s_blocksize_bits, inode->i_sb->s_blocksize);
+
+	journal = journal_init_common(inode->i_sb->s_bdev, inode->i_sb->s_bdev,
+			blocknr, inode->i_size >> inode->i_sb->s_blocksize_bits,
+			inode->i_sb->s_blocksize);
 	if (!journal)
 		return NULL;
 
-	journal->j_dev = journal->j_fs_dev = inode->i_sb->s_bdev;
 	journal->j_inode = inode;
 	bdevname(journal->j_dev, journal->j_devname);
 	p = strreplace(journal->j_devname, '/', '!');
 	sprintf(p, "-%lu", journal->j_inode->i_ino);
-	jbd_debug(1,
-		  "journal %p: inode %s/%ld, size %Ld, bits %d, blksize %ld\n",
-		  journal, inode->i_sb->s_id, inode->i_ino,
-		  (long long) inode->i_size,
-		  inode->i_sb->s_blocksize_bits, inode->i_sb->s_blocksize);
-
-	journal->j_maxlen = inode->i_size >> inode->i_sb->s_blocksize_bits;
-	journal->j_blocksize = inode->i_sb->s_blocksize;
 	jbd2_stats_proc_init(journal);
 
-	/* journal descriptor can store up to n blocks -bzzz */
-	n = journal->j_blocksize / sizeof(journal_block_tag_t);
-	journal->j_wbufsize = n;
-	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
-	if (!journal->j_wbuf) {
-		printk(KERN_ERR "%s: Can't allocate bhs for commit thread\n",
-			__func__);
-		goto out_err;
-	}
-
-	err = jbd2_journal_bmap(journal, 0, &blocknr);
-	/* If that failed, give up */
-	if (err) {
-		printk(KERN_ERR "%s: Cannot locate journal superblock\n",
-		       __func__);
-		goto out_err;
-	}
-
-	bh = getblk_unmovable(journal->j_dev, blocknr, journal->j_blocksize);
-	if (!bh) {
-		printk(KERN_ERR
-		       "%s: Cannot get buffer for journal superblock\n",
-		       __func__);
-		goto out_err;
-	}
-	journal->j_sb_buffer = bh;
-	journal->j_superblock = (journal_superblock_t *)bh->b_data;
-
 	return journal;
-out_err:
-	kfree(journal->j_wbuf);
-	jbd2_stats_proc_exit(journal);
-	kfree(journal);
-	return NULL;
 }
 
 /*

@@ -38,18 +38,18 @@ static void gpio_halt_wfn(struct work_struct *work)
 }
 static DECLARE_WORK(gpio_halt_wq, gpio_halt_wfn);
 
-static void gpio_halt_cb(void)
+static void __noreturn gpio_halt_cb(void)
 {
 	enum of_gpio_flags flags;
 	int trigger, gpio;
 
 	if (!halt_node)
-		return;
+		panic("No reset GPIO information was provided in DT\n");
 
 	gpio = of_get_gpio_flags(halt_node, 0, &flags);
 
 	if (!gpio_is_valid(gpio))
-		return;
+		panic("Provided GPIO is invalid\n");
 
 	trigger = (flags == OF_GPIO_ACTIVE_LOW);
 
@@ -57,6 +57,8 @@ static void gpio_halt_cb(void)
 
 	/* Probably wont return */
 	gpio_set_value(gpio, trigger);
+
+	panic("Halt failed\n");
 }
 
 /* This IRQ means someone pressed the power button and it is waiting for us

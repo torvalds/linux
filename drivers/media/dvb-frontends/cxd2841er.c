@@ -206,6 +206,9 @@ static const struct cxd2841er_cnr_data s2_cn_data[] = {
 		(u32)(((iffreq)/48.0)*16777216.0 + 0.5) : \
 		(u32)(((iffreq)/41.0)*16777216.0 + 0.5))
 
+static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv);
+static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv);
+
 static void cxd2841er_i2c_debug(struct cxd2841er_priv *priv,
 				u8 addr, u8 reg, u8 write,
 				const u8 *data, u32 len)
@@ -1401,6 +1404,41 @@ static int cxd2841er_read_ber_c(struct cxd2841er_priv *priv,
 	return 0;
 }
 
+static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
+		u32 *bit_error, u32 *bit_count)
+{
+	u8 data[3];
+	u8 pktnum[2];
+
+	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	if (priv->state != STATE_ACTIVE_TC) {
+		dev_dbg(&priv->i2c->dev, "%s(): invalid state %d\n",
+				__func__, priv->state);
+		return -EINVAL;
+	}
+
+	cxd2841er_freeze_regs(priv);
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x60);
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x5B, pktnum, sizeof(pktnum));
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x16, data, sizeof(data));
+
+	if (!pktnum[0] && !pktnum[1]) {
+		dev_dbg(&priv->i2c->dev,
+				"%s(): no valid BER data\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
+		return -EINVAL;
+	}
+
+	*bit_error = ((u32)(data[0] & 0x7F) << 16) |
+		((u32)data[1] << 8) | data[2];
+	*bit_count = ((((u32)pktnum[0] << 8) | pktnum[1]) * 204 * 8);
+	dev_dbg(&priv->i2c->dev, "%s(): bit_error=%u bit_count=%u\n",
+			__func__, *bit_error, *bit_count);
+
+	cxd2841er_unfreeze_regs(priv);
+	return 0;
+}
+
 static int cxd2841er_mon_read_ber_s(struct cxd2841er_priv *priv,
 				    u32 *bit_error, u32 *bit_count)
 {
@@ -1570,6 +1608,25 @@ static int cxd2841er_read_ber_t(struct cxd2841er_priv *priv,
 	return 0;
 }
 
+static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv)
+{
+	/*
+	 * Freeze registers: ensure multiple separate register reads
+	 * are from the same snapshot
+	 */
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x01, 0x01);
+	return 0;
+}
+
+static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv)
+{
+	/*
+	 * un-freeze registers
+	 */
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x01, 0x00);
+	return 0;
+}
+
 static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 		u8 delsys, u32 *snr)
 {
@@ -1578,6 +1635,7 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 	int min_index, max_index, index;
 	static const struct cxd2841er_cnr_data *cn_data;
 
+	cxd2841er_freeze_regs(priv);
 	/* Set SLV-T Bank : 0xA1 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0xa1);
 	/*
@@ -1629,9 +1687,11 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 	} else {
 		dev_dbg(&priv->i2c->dev,
 			"%s(): no data available\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
 		return -EINVAL;
 	}
 done:
+	cxd2841er_unfreeze_regs(priv);
 	*snr = res;
 	return 0;
 }
@@ -1655,12 +1715,7 @@ static int cxd2841er_read_snr_c(struct cxd2841er_priv *priv, u32 *snr)
 		return -EINVAL;
 	}
 
-	/*
-	 * Freeze registers: ensure multiple separate register reads
-	 * are from the same snapshot
-	 */
-	cxd2841er_write_reg(priv, I2C_SLVT, 0x01, 0x01);
-
+	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x40);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x19, data, 1);
 	qam = (enum sony_dvbc_constellation_t) (data[0] & 0x07);
@@ -1670,6 +1725,7 @@ static int cxd2841er_read_snr_c(struct cxd2841er_priv *priv, u32 *snr)
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 				"%s(): reg value out of range\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 
@@ -1690,9 +1746,11 @@ static int cxd2841er_read_snr_c(struct cxd2841er_priv *priv, u32 *snr)
 		*snr = -88 * (int32_t)sony_log(reg) + 86999;
 		break;
 	default:
+		cxd2841er_unfreeze_regs(priv);
 		return -EINVAL;
 	}
 
+	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -1707,17 +1765,21 @@ static int cxd2841er_read_snr_t(struct cxd2841er_priv *priv, u32 *snr)
 			"%s(): invalid state %d\n", __func__, priv->state);
 		return -EINVAL;
 	}
+
+	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x28, data, sizeof(data));
 	reg = ((u32)data[0] << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 			"%s(): reg value out of range\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 	if (reg > 4996)
 		reg = 4996;
 	*snr = 10000 * ((intlog10(reg) - intlog10(5350 - reg)) >> 24) + 28500;
+	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -1732,18 +1794,22 @@ static int cxd2841er_read_snr_t2(struct cxd2841er_priv *priv, u32 *snr)
 			"%s(): invalid state %d\n", __func__, priv->state);
 		return -EINVAL;
 	}
+
+	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x20);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x28, data, sizeof(data));
 	reg = ((u32)data[0] << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 			"%s(): reg value out of range\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 	if (reg > 10876)
 		reg = 10876;
 	*snr = 10000 * ((intlog10(reg) -
 		intlog10(12600 - reg)) >> 24) + 32000;
+	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -1760,21 +1826,18 @@ static int cxd2841er_read_snr_i(struct cxd2841er_priv *priv, u32 *snr)
 		return -EINVAL;
 	}
 
-	/* Freeze all registers */
-	cxd2841er_write_reg(priv, I2C_SLVT, 0x01, 0x01);
-
-
+	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x60);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x28, data, sizeof(data));
 	reg = ((u32)data[0] << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 				"%s(): reg value out of range\n", __func__);
+		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
-	if (reg > 4996)
-		reg = 4996;
-	*snr = 100 * intlog10(reg) - 9031;
+	*snr = 10000 * (intlog10(reg) >> 24) - 9031;
+	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -1851,6 +1914,9 @@ static void cxd2841er_read_ber(struct dvb_frontend *fe)
 	case SYS_DVBC_ANNEX_B:
 	case SYS_DVBC_ANNEX_C:
 		ret = cxd2841er_read_ber_c(priv, &bit_error, &bit_count);
+		break;
+	case SYS_ISDBT:
+		ret = cxd2841er_read_ber_i(priv, &bit_error, &bit_count);
 		break;
 	case SYS_DVBS:
 		ret = cxd2841er_mon_read_ber_s(priv, &bit_error, &bit_count);
@@ -1965,6 +2031,9 @@ static void cxd2841er_read_snr(struct dvb_frontend *fe)
 		return;
 	}
 
+	dev_dbg(&priv->i2c->dev, "%s(): snr=%d\n",
+			__func__, (int32_t)tmp);
+
 	if (!ret) {
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		p->cnr.stat[0].svalue = tmp;
@@ -1977,7 +2046,7 @@ static void cxd2841er_read_ucblocks(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
-	u32 ucblocks;
+	u32 ucblocks = 0;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	switch (p->delivery_system) {
@@ -1999,7 +2068,7 @@ static void cxd2841er_read_ucblocks(struct dvb_frontend *fe)
 		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		return;
 	}
-	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	dev_dbg(&priv->i2c->dev, "%s() ucblocks=%u\n", __func__, ucblocks);
 
 	p->block_error.stat[0].scale = FE_SCALE_COUNTER;
 	p->block_error.stat[0].uvalue = ucblocks;
@@ -2694,6 +2763,14 @@ static int cxd2841er_sleep_tc_to_active_c_band(struct cxd2841er_priv *priv,
 	u8 b10_b6[3];
 	u32 iffreq;
 
+	if (bandwidth != 6000000 &&
+			bandwidth != 7000000 &&
+			bandwidth != 8000000) {
+		dev_info(&priv->i2c->dev, "%s(): unsupported bandwidth %d. Forcing 8Mhz!\n",
+				__func__, bandwidth);
+		bandwidth = 8000000;
+	}
+
 	dev_dbg(&priv->i2c->dev, "%s() bw=%d\n", __func__, bandwidth);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 	switch (bandwidth) {
@@ -3076,6 +3153,7 @@ static int cxd2841er_sleep_tc_to_active_c(struct cxd2841er_priv *priv,
 	/* Enable demod clock */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x2c, 0x01);
 	/* Disable RF level monitor */
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x59, 0x00);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x2f, 0x00);
 	/* Enable ADC clock */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x30, 0x00);

@@ -387,12 +387,16 @@
 		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&comp_int>;
+		vdd-supply = <&vcc_io>;
+		vid-supply = <&vcc_io>;
 	};
 
-	l3g4200d: l3g4200d@68 {
+	l3g4200d: l3g4200d@69 {
 		compatible = "st,l3g4200d-gyro";
 		st,drdy-int-pin = <2>;
-		reg = <0x6b>;
+		reg = <0x69>;
+		vdd-supply = <&vcc_io>;
+		vddio-supply = <&vcc_io>;
 	};
 
 	mma8452: mma8452@1d {
@@ -523,5 +527,9 @@
 };
 
 &usbphy {
+	status = "okay";
+};
+
+&usb_otg {
 	status = "okay";
 };

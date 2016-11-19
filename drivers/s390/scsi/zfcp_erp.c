@@ -3,7 +3,7 @@
  *
  * Error Recovery Procedures (ERP).
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2015
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -1217,8 +1217,14 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
-		if (result == ZFCP_ERP_SUCCEEDED)
-			zfcp_scsi_schedule_rport_register(port);
+		/* This switch case might also happen after a forced reopen
+		 * was successfully done and thus overwritten with a new
+		 * non-forced reopen at `ersfs_2'. In this case, we must not
+		 * do the clean-up of the non-forced version.
+		 */
+		if (act->step != ZFCP_ERP_STEP_UNINITIALIZED)
+			if (result == ZFCP_ERP_SUCCEEDED)
+				zfcp_scsi_schedule_rport_register(port);
 		/* fall through */
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		put_device(&port->dev);

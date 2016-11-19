@@ -1,13 +1,12 @@
 #ifndef __ASM_ALTERNATIVE_H
 #define __ASM_ALTERNATIVE_H
 
-#include <asm/cpufeature.h>
+#include <asm/cpucaps.h>
 #include <asm/insn.h>
 
 #ifndef __ASSEMBLY__
 
 #include <linux/init.h>
-#include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>

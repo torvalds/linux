@@ -27,7 +27,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -47,10 +46,10 @@ static bool pciehp_force;
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
 #define DRIVER_DESC	"PCI Express Hot Plug Controller Driver"
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
-
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param(pciehp_debug, bool, 0644);
 module_param(pciehp_poll_mode, bool, 0644);
 module_param(pciehp_poll_time, int, 0644);
@@ -114,6 +113,9 @@ static int init_slot(struct controller *ctrl)
 	if (ATTN_LED(ctrl)) {
 		ops->get_attention_status = get_attention_status;
 		ops->set_attention_status = set_attention_status;
+	} else if (ctrl->pcie->port->hotplug_user_indicators) {
+		ops->get_attention_status = pciehp_get_raw_indicator_status;
+		ops->set_attention_status = pciehp_set_raw_indicator_status;
 	}
 
 	/* register this slot with the hotplug pci core */
@@ -337,13 +339,4 @@ static int __init pcied_init(void)
 
 	return retval;
 }
-
-static void __exit pcied_cleanup(void)
-{
-	dbg("unload_pciehpd()\n");
-	pcie_port_service_unregister(&hpdriver_portdrv);
-	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
-}
-
-module_init(pcied_init);
-module_exit(pcied_cleanup);
+device_initcall(pcied_init);

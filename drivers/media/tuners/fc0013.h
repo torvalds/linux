@@ -22,7 +22,6 @@
 #ifndef _FC0013_H_
 #define _FC0013_H_
 
-#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 #include "fc001x-common.h"
 

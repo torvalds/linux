@@ -15,40 +15,55 @@ CA_GET_MSG
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_MSG, ca_msg_t *)
+.. c:function:: int ioctl(fd, CA_GET_MSG, struct ca_msg *msg)
+    :name: CA_GET_MSG
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+
+``msg``
+  Pointer to struct :c:type:`ca_msg`.
+
+
+.. c:type:: struct ca_msg
+
+.. flat-table:: struct ca_msg
+    :header-rows:  1
     :stub-columns: 0
 
+    -
+      - type
+      - name
+      - description
+    -
+       - unsigned int
+       - index
+       -
 
-    -  .. row 1
+    -
+       - unsigned int
+       - type
+       -
 
-       -  int fd
+    -
+       - unsigned int
+       - length
+       -
 
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals CA_GET_MSG for this command.
-
-    -  .. row 3
-
-       -  ca_msg_t \*
-
-       -  Undocumented.
+    -
+       - unsigned char
+       - msg[256]
+       -
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

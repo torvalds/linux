@@ -246,7 +246,7 @@ static int strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				} else {
 					strp->rx_interrupted = 1;
 				}
-				strp_parser_err(strp, err, desc);
+				strp_parser_err(strp, len, desc);
 				break;
 			} else if (len > strp->sk->sk_rcvbuf) {
 				/* Message length exceeds maximum allowed */

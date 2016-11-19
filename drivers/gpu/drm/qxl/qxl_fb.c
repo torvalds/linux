@@ -24,7 +24,6 @@
  *     David Airlie
  */
 #include <linux/module.h>
-#include <linux/fb.h>
 
 #include "drmP.h"
 #include "drm/drm.h"

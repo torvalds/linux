@@ -15,24 +15,6 @@
 #include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 
-static int tegra_aconnect_add_clock(struct device *dev, char *name)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = clk_get(dev, name);
-	if (IS_ERR(clk)) {
-		dev_err(dev, "%s clock not found\n", name);
-		return PTR_ERR(clk);
-	}
-
-	ret = pm_clk_add_clk(dev, clk);
-	if (ret)
-		clk_put(clk);
-
-	return ret;
-}
-
 static int tegra_aconnect_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -44,11 +26,11 @@ static int tegra_aconnect_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = tegra_aconnect_add_clock(&pdev->dev, "ape");
+	ret = of_pm_clk_add_clk(&pdev->dev, "ape");
 	if (ret)
 		goto clk_destroy;
 
-	ret = tegra_aconnect_add_clock(&pdev->dev, "apb2ape");
+	ret = of_pm_clk_add_clk(&pdev->dev, "apb2ape");
 	if (ret)
 		goto clk_destroy;
 

@@ -169,7 +169,7 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 	int ret = 0;
 
 	/* POSIX UID/GID verification for setting inode attributes */
-	ret = inode_change_ok(inode, ia);
+	ret = setattr_prepare(dentry, ia);
 	if (ret)
 		return ret;
 

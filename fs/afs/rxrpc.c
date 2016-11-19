@@ -418,7 +418,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 						     &call->abort_code);
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
 				return;
-			if (ret == 1) {
+			if (ret == 1 || ret < 0) {
 				call->state = AFS_CALL_COMPLETE;
 				goto done;
 			}
@@ -676,10 +676,11 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 	ASSERTCMP(call->offset, <, 4);
 
 	/* the operation ID forms the first four bytes of the request data */
-	ret = afs_extract_data(call, &call->operation_ID, 4, true);
+	ret = afs_extract_data(call, &call->tmp, 4, true);
 	if (ret < 0)
 		return ret;
 
+	call->operation_ID = ntohl(call->tmp);
 	call->state = AFS_CALL_AWAIT_REQUEST;
 	call->offset = 0;
 

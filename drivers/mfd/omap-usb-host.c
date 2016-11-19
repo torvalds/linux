@@ -162,7 +162,7 @@ static const char * const port_modes[] = {
  * provided port mode string as per the port_modes table.
  * If no match is found it returns -ENODEV
  */
-static const int omap_usbhs_get_dt_port_mode(const char *mode)
+static int omap_usbhs_get_dt_port_mode(const char *mode)
 {
 	int i;
 

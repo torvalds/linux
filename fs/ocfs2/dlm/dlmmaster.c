@@ -3188,6 +3188,9 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 				    migrate->new_master,
 				    migrate->master);
 
+	if (ret < 0)
+		kmem_cache_free(dlm_mle_cache, mle);
+
 	spin_unlock(&dlm->master_lock);
 unlock:
 	spin_unlock(&dlm->spinlock);

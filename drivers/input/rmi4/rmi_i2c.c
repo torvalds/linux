@@ -221,6 +221,21 @@ static const struct of_device_id rmi_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, rmi_i2c_of_match);
 #endif
 
+static void rmi_i2c_regulator_bulk_disable(void *data)
+{
+	struct rmi_i2c_xport *rmi_i2c = data;
+
+	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
+			       rmi_i2c->supplies);
+}
+
+static void rmi_i2c_unregister_transport(void *data)
+{
+	struct rmi_i2c_xport *rmi_i2c = data;
+
+	rmi_unregister_transport_device(&rmi_i2c->xport);
+}
+
 static int rmi_i2c_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -264,6 +279,12 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	if (retval < 0)
 		return retval;
 
+	retval = devm_add_action_or_reset(&client->dev,
+					  rmi_i2c_regulator_bulk_disable,
+					  rmi_i2c);
+	if (retval)
+		return retval;
+
 	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
 			     &rmi_i2c->startup_delay);
 
@@ -294,6 +315,11 @@ static int rmi_i2c_probe(struct i2c_client *client,
 			client->addr);
 		return retval;
 	}
+	retval = devm_add_action_or_reset(&client->dev,
+					  rmi_i2c_unregister_transport,
+					  rmi_i2c);
+	if (retval)
+		return retval;
 
 	retval = rmi_i2c_init_irq(client);
 	if (retval < 0)
@@ -301,17 +327,6 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "registered rmi i2c driver at %#04x.\n",
 			client->addr);
-	return 0;
-}
-
-static int rmi_i2c_remove(struct i2c_client *client)
-{
-	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
-
-	rmi_unregister_transport_device(&rmi_i2c->xport);
-	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
-			       rmi_i2c->supplies);
-
 	return 0;
 }
 
@@ -431,7 +446,6 @@ static struct i2c_driver rmi_i2c_driver = {
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_i2c_probe,
-	.remove		= rmi_i2c_remove,
 };
 
 module_i2c_driver(rmi_i2c_driver);

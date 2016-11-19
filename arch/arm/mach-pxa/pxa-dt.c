@@ -18,6 +18,32 @@
 
 #include "generic.h"
 
+#ifdef CONFIG_PXA25x
+static const char * const pxa25x_dt_board_compat[] __initconst = {
+	"marvell,pxa250",
+	NULL,
+};
+
+DT_MACHINE_START(PXA25X_DT, "Marvell PXA25x (Device Tree Support)")
+	.map_io		= pxa25x_map_io,
+	.restart	= pxa_restart,
+	.dt_compat	= pxa25x_dt_board_compat,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_PXA27x
+static const char * const pxa27x_dt_board_compat[] __initconst = {
+	"marvell,pxa270",
+	NULL,
+};
+
+DT_MACHINE_START(PXA27X_DT, "Marvell PXA27x (Device Tree Support)")
+	.map_io		= pxa27x_map_io,
+	.restart	= pxa_restart,
+	.dt_compat	= pxa27x_dt_board_compat,
+MACHINE_END
+#endif
+
 #ifdef CONFIG_PXA3xx
 static const char *const pxa3xx_dt_board_compat[] __initconst = {
 	"marvell,pxa300",
@@ -28,24 +54,7 @@ static const char *const pxa3xx_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(PXA_DT, "Marvell PXA3xx (Device Tree Support)")
 	.map_io		= pxa3xx_map_io,
-	.init_irq	= pxa3xx_dt_init_irq,
-	.handle_irq	= pxa3xx_handle_irq,
 	.restart	= pxa_restart,
 	.dt_compat	= pxa3xx_dt_board_compat,
-MACHINE_END
-#endif
-
-#ifdef CONFIG_PXA27x
-static const char * const pxa27x_dt_board_compat[] __initconst = {
-	"marvell,pxa270",
-	NULL,
-};
-
-DT_MACHINE_START(PXA27X_DT, "Marvell PXA2xx (Device Tree Support)")
-	.map_io		= pxa27x_map_io,
-	.init_irq	= pxa27x_dt_init_irq,
-	.handle_irq	= pxa27x_handle_irq,
-	.restart	= pxa_restart,
-	.dt_compat	= pxa27x_dt_board_compat,
 MACHINE_END
 #endif

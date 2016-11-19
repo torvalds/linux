@@ -33,6 +33,37 @@ can also be entered as
 Double-quotes can be used to protect spaces in values, e.g.:
 	param="spaces in here"
 
+cpu lists:
+----------
+
+Some kernel parameters take a list of CPUs as a value, e.g.  isolcpus,
+nohz_full, irqaffinity, rcu_nocbs.  The format of this list is:
+
+	<cpu number>,...,<cpu number>
+
+or
+
+	<cpu number>-<cpu number>
+	(must be a positive range in ascending order)
+
+or a mixture
+
+<cpu number>,...,<cpu number>-<cpu number>
+
+Note that for the special case of a range one can split the range into equal
+sized groups and for each group use some amount from the beginning of that
+group:
+
+	<cpu number>-cpu number>:<used size>/<group size>
+
+For example one can add to the command line following parameter:
+
+	isolcpus=1,2,10-20,100-2000:2/25
+
+where the final item represents CPUs 100,101,125,126,150,151,...
+
+
+
 This document may not be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
 module. Loadable modules, after being loaded into the running kernel, also
@@ -459,6 +490,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			for AMD IOMMU. With this option enabled, AMD IOMMU
 			driver will print ACPI tables for AMD IOMMU during
 			IOMMU initialization.
+
+	amd_iommu_intr=	[HW,X86-64]
+			Specifies one of the following AMD IOMMU interrupt
+			remapping modes:
+			legacy     - Use legacy interrupt remapping mode.
+			vapic      - Use virtual APIC mode, which allows IOMMU
+			             to inject interrupts directly into guest.
+			             This mode requires kvm-amd.avic=1.
+			             (Default when IOMMU HW support is present.)
 
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
@@ -1471,7 +1511,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
-	i8042.reset	[HW] Reset the controller during init and cleanup
+	i8042.reset	[HW] Reset the controller during init, cleanup and
+			     suspend-to-ram transitions, only during s2r
+			     transitions, or never reset
+			Format: { 1 | Y | y | 0 | N | n }
+			1, Y, y: always reset controller
+			0, N, n: don't ever reset controller
+			Default: only on s2r transitions on x86; most other
+			architectures force reset to be always executed
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 	i8042.kbdreset  [HW] Reset device connected to KBD port
 
@@ -1657,6 +1704,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	initrd=		[BOOT] Specify the location of the initial ramdisk
 
+	init_pkru=	[x86] Specify the default memory protection keys rights
+			register contents for all processes.  0x55555554 by
+			default (disallow access to all but pkey 0).  Can
+			override in debugfs after boot.
+
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
 
@@ -1775,13 +1827,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	irqaffinity=	[SMP] Set the default irq affinity mask
-			Format:
-			<cpu number>,...,<cpu number>
-			or
-			<cpu number>-<cpu number>
-			(must be a positive range in ascending order)
-			or a mixture
-			<cpu number>,...,<cpu number>-<cpu number>
+			The argument is a cpu list, as described above.
 
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
@@ -1798,13 +1844,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
 	isolcpus=	[KNL,SMP] Isolate CPUs from the general scheduler.
-			Format:
-			<cpu number>,...,<cpu number>
-			or
-			<cpu number>-<cpu number>
-			(must be a positive range in ascending order)
-			or a mixture
-			<cpu number>,...,<cpu number>-<cpu number>
+			The argument is a cpu list, as described above.
 
 			This option can be used to specify one or more CPUs
 			to isolate from the general SMP balancing and scheduling
@@ -2437,6 +2477,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nfsrootdebug	[NFS] enable nfsroot debugging messages.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
+	nfs.callback_nr_threads=
+			[NFSv4] set the total number of threads that the
+			NFS client will assign to service NFSv4 callback
+			requests.
+
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
@@ -2459,6 +2504,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			number for the readdir() and stat() syscalls instead
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
+
+	nfs.max_session_cb_slots=
+			[NFSv4.1] Sets the maximum number of session
+			slots the client will assign to the callback
+			channel. This determines the maximum number of
+			callbacks the client will process in parallel for
+			a particular server.
 
 	nfs.max_session_slots=
 			[NFSv4.1] Sets the maximum number of session slots
@@ -2666,6 +2718,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Default: on
 
 	nohz_full=	[KNL,BOOT]
+			The argument is a cpu list, as described above.
 			In kernels built with CONFIG_NO_HZ_FULL=y, set
 			the specified list of CPUs whose tick will be stopped
 			whenever possible. The boot CPU will be forced outside
@@ -3271,6 +3324,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/blockdev/ramdisk.txt.
 
 	rcu_nocbs=	[KNL]
+			The argument is a cpu list, as described above.
+
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
 			Invocation of these CPUs' RCU callbacks will

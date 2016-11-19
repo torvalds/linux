@@ -15,40 +15,106 @@ CA_GET_SLOT_INFO
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_SLOT_INFO, ca_slot_info_t *)
+.. c:function:: int ioctl(fd, CA_GET_SLOT_INFO, struct ca_slot_info *info)
+    :name: CA_GET_SLOT_INFO
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <cec-open>`.
+
+``info``
+  Pointer to struct c:type:`ca_slot_info`.
+
+.. _ca_slot_info_type:
+
+.. flat-table:: ca_slot_info types
+    :header-rows:  1
     :stub-columns: 0
 
+    -
+      - type
+      - name
+      - description
+    -
+       - CA_CI
+       - 1
+       - CI high level interface
 
-    -  .. row 1
+    -
+       - CA_CI_LINK
+       - 2
+       - CI link layer level interface
 
-       -  int fd
+    -
+       - CA_CI_PHYS
+       - 4
+       - CI physical layer level interface
 
-       -  File descriptor returned by a previous call to open().
+    -
+       - CA_DESCR
+       - 8
+       - built-in descrambler
 
-    -  .. row 2
+    -
+       - CA_SC
+       - 128
+       - simple smart card interface
 
-       -  int request
+.. _ca_slot_info_flag:
 
-       -  Equals CA_GET_SLOT_INFO for this command.
+.. flat-table:: ca_slot_info flags
+    :header-rows:  1
+    :stub-columns: 0
 
-    -  .. row 3
+    -
+      - type
+      - name
+      - description
 
-       -  ca_slot_info_t \*
+    -
+       - CA_CI_MODULE_PRESENT
+       - 1
+       - module (or card) inserted
 
-       -  Undocumented.
+    -
+       - CA_CI_MODULE_READY
+       - 2
+       -
+
+.. c:type:: ca_slot_info
+
+.. flat-table:: struct ca_slot_info
+    :header-rows:  1
+    :stub-columns: 0
+
+    -
+      - type
+      - name
+      - description
+
+    -
+       - int
+       - num
+       - slot number
+
+    -
+       - int
+       - type
+       - CA interface this slot supports, as defined at :ref:`ca_slot_info_type`.
+
+    -
+       - unsigned int
+       - flags
+       - flags as defined at :ref:`ca_slot_info_flag`.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

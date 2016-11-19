@@ -604,8 +604,8 @@ line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 	}
 
 	data_copy = memdup_user(data, count);
-	if (IS_ERR(ERR_PTR))
-		return -ENOMEM;
+	if (IS_ERR(data_copy))
+		return PTR_ERR(data_copy);
 
 	rv = line6_send_raw_message(line6, data_copy, count);
 

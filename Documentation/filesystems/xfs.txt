@@ -348,3 +348,126 @@ Removed Sysctls
   ----				-------
   fs.xfs.xfsbufd_centisec	v4.0
   fs.xfs.age_buffer_centisecs	v4.0
+
+
+Error handling
+==============
+
+XFS can act differently according to the type of error found during its
+operation. The implementation introduces the following concepts to the error
+handler:
+
+ -failure speed:
+	Defines how fast XFS should propagate an error upwards when a specific
+	error is found during the filesystem operation. It can propagate
+	immediately, after a defined number of retries, after a set time period,
+	or simply retry forever.
+
+ -error classes:
+	Specifies the subsystem the error configuration will apply to, such as
+	metadata IO or memory allocation. Different subsystems will have
+	different error handlers for which behaviour can be configured.
+
+ -error handlers:
+	Defines the behavior for a specific error.
+
+The filesystem behavior during an error can be set via sysfs files. Each
+error handler works independently - the first condition met by an error handler
+for a specific class will cause the error to be propagated rather than reset and
+retried.
+
+The action taken by the filesystem when the error is propagated is context
+dependent - it may cause a shut down in the case of an unrecoverable error,
+it may be reported back to userspace, or it may even be ignored because
+there's nothing useful we can with the error or anyone we can report it to (e.g.
+during unmount).
+
+The configuration files are organized into the following hierarchy for each
+mounted filesystem:
+
+  /sys/fs/xfs/<dev>/error/<class>/<error>/
+
+Where:
+  <dev>
+	The short device name of the mounted filesystem. This is the same device
+	name that shows up in XFS kernel error messages as "XFS(<dev>): ..."
+
+  <class>
+	The subsystem the error configuration belongs to. As of 4.9, the defined
+	classes are:
+
+		- "metadata": applies metadata buffer write IO
+
+  <error>
+	The individual error handler configurations.
+
+
+Each filesystem has "global" error configuration options defined in their top
+level directory:
+
+  /sys/fs/xfs/<dev>/error/
+
+  fail_at_unmount		(Min:  0  Default:  1  Max: 1)
+	Defines the filesystem error behavior at unmount time.
+
+	If set to a value of 1, XFS will override all other error configurations
+	during unmount and replace them with "immediate fail" characteristics.
+	i.e. no retries, no retry timeout. This will always allow unmount to
+	succeed when there are persistent errors present.
+
+	If set to 0, the configured retry behaviour will continue until all
+	retries and/or timeouts have been exhausted. This will delay unmount
+	completion when there are persistent errors, and it may prevent the
+	filesystem from ever unmounting fully in the case of "retry forever"
+	handler configurations.
+
+	Note: there is no guarantee that fail_at_unmount can be set whilst an
+	unmount is in progress. It is possible that the sysfs entries are
+	removed by the unmounting filesystem before a "retry forever" error
+	handler configuration causes unmount to hang, and hence the filesystem
+	must be configured appropriately before unmount begins to prevent
+	unmount hangs.
+
+Each filesystem has specific error class handlers that define the error
+propagation behaviour for specific errors. There is also a "default" error
+handler defined, which defines the behaviour for all errors that don't have
+specific handlers defined. Where multiple retry constraints are configuredi for
+a single error, the first retry configuration that expires will cause the error
+to be propagated. The handler configurations are found in the directory:
+
+  /sys/fs/xfs/<dev>/error/<class>/<error>/
+
+  max_retries			(Min: -1  Default: Varies  Max: INTMAX)
+	Defines the allowed number of retries of a specific error before
+	the filesystem will propagate the error. The retry count for a given
+	error context (e.g. a specific metadata buffer) is reset every time
+	there is a successful completion of the operation.
+
+	Setting the value to "-1" will cause XFS to retry forever for this
+	specific error.
+
+	Setting the value to "0" will cause XFS to fail immediately when the
+	specific error is reported.
+
+	Setting the value to "N" (where 0 < N < Max) will make XFS retry the
+	operation "N" times before propagating the error.
+
+  retry_timeout_seconds		(Min:  -1  Default:  Varies  Max: 1 day)
+	Define the amount of time (in seconds) that the filesystem is
+	allowed to retry its operations when the specific error is
+	found.
+
+	Setting the value to "-1" will allow XFS to retry forever for this
+	specific error.
+
+	Setting the value to "0" will cause XFS to fail immediately when the
+	specific error is reported.
+
+	Setting the value to "N" (where 0 < N < Max) will allow XFS to retry the
+	operation for up to "N" seconds before propagating the error.
+
+Note: The default behaviour for a specific error handler is dependent on both
+the class and error context. For example, the default values for
+"metadata/ENODEV" are "0" rather than "-1" so that this error handler defaults
+to "fail immediately" behaviour. This is done because ENODEV is a fatal,
+unrecoverable error no matter how many times the metadata IO is retried.

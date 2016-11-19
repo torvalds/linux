@@ -352,7 +352,10 @@ struct nvm_dev {
 
 	/* Backend device */
 	struct request_queue *q;
+	struct device dev;
+	struct device *parent_dev;
 	char name[DISK_NAME_LEN];
+	void *private_data;
 
 	struct mutex mlock;
 	spinlock_t lock;
@@ -524,9 +527,9 @@ extern struct nvm_block *nvm_get_blk(struct nvm_dev *, struct nvm_lun *,
 								unsigned long);
 extern void nvm_put_blk(struct nvm_dev *, struct nvm_block *);
 
-extern int nvm_register(struct request_queue *, char *,
-						struct nvm_dev_ops *);
-extern void nvm_unregister(char *);
+extern struct nvm_dev *nvm_alloc_dev(int);
+extern int nvm_register(struct nvm_dev *);
+extern void nvm_unregister(struct nvm_dev *);
 
 void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type);
 
@@ -575,11 +578,14 @@ extern int nvm_dev_factory(struct nvm_dev *, int flags);
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;
 
-static inline int nvm_register(struct request_queue *q, char *disk_name,
-							struct nvm_dev_ops *ops)
+static inline struct nvm_dev *nvm_alloc_dev(int node)
+{
+	return ERR_PTR(-EINVAL);
+}
+static inline int nvm_register(struct nvm_dev *dev)
 {
 	return -EINVAL;
 }
-static inline void nvm_unregister(char *disk_name) {}
+static inline void nvm_unregister(struct nvm_dev *dev) {}
 #endif /* CONFIG_NVM */
 #endif /* LIGHTNVM.H */

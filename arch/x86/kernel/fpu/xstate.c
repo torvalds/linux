@@ -5,6 +5,7 @@
  */
 #include <linux/compat.h>
 #include <linux/cpu.h>
+#include <linux/mman.h>
 #include <linux/pkeys.h>
 
 #include <asm/fpu/api.h>
@@ -73,6 +74,8 @@ void fpu__xstate_clear_all_cpu_caps(void)
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
 	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
 	setup_clear_cpu_cap(X86_FEATURE_PKU);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512_4VNNIW);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512_4FMAPS);
 }
 
 /*
@@ -866,9 +869,10 @@ const void *get_xsave_field_ptr(int xsave_state)
 	return get_xsave_addr(&fpu->state.xsave, xsave_state);
 }
 
+#ifdef CONFIG_ARCH_HAS_PKEYS
+
 #define NR_VALID_PKRU_BITS (CONFIG_NR_PROTECTION_KEYS * 2)
 #define PKRU_VALID_MASK (NR_VALID_PKRU_BITS - 1)
-
 /*
  * This will go out and modify PKRU register to set the access
  * rights for @pkey to @init_val.
@@ -914,6 +918,7 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 
 	return 0;
 }
+#endif /* ! CONFIG_ARCH_HAS_PKEYS */
 
 /*
  * This is similar to user_regset_copyout(), but will not add offset to

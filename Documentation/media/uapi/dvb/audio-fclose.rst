@@ -11,11 +11,13 @@ Name
 
 DVB audio close()
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. cpp:function:: int  close(int fd)
+.. c:function:: int close(int fd)
+    :name: dvb-audio-close
 
 
 Arguments

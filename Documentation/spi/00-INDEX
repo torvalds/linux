@@ -1,7 +1,5 @@
 00-INDEX
 	- this file.
-Makefile
-	- Makefile for the example sourcefiles.
 butterfly
 	- AVR Butterfly SPI driver overview and pin configuration.
 ep93xx_spi

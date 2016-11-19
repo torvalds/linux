@@ -11,11 +11,13 @@ Name
 
 DVB audio open()
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. cpp:function:: int  open(const char *deviceName, int flags)
+.. c:function:: int open(const char *deviceName, int flags)
+    :name: dvb-audio-open
 
 
 Arguments
@@ -79,6 +81,8 @@ AUDIO_GET_STATUS. All other call will return with an error code.
 
 Return Value
 ------------
+
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
 .. flat-table::
     :header-rows:  0

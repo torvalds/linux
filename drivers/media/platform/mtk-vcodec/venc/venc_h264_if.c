@@ -664,16 +664,16 @@ static int h264_enc_deinit(unsigned long handle)
 	return ret;
 }
 
-static struct venc_common_if venc_h264_if = {
+static const struct venc_common_if venc_h264_if = {
 	h264_enc_init,
 	h264_enc_encode,
 	h264_enc_set_param,
 	h264_enc_deinit,
 };
 
-struct venc_common_if *get_h264_enc_comm_if(void);
+const struct venc_common_if *get_h264_enc_comm_if(void);
 
-struct venc_common_if *get_h264_enc_comm_if(void)
+const struct venc_common_if *get_h264_enc_comm_if(void)
 {
 	return &venc_h264_if;
 }

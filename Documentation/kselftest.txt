@@ -1,8 +1,9 @@
 Linux Kernel Selftests
 
 The kernel contains a set of "self tests" under the tools/testing/selftests/
-directory. These are intended to be small unit tests to exercise individual
-code paths in the kernel.
+directory. These are intended to be small tests to exercise individual code
+paths in the kernel. Tests are intended to be run after building, installing
+and booting a kernel.
 
 On some systems, hot-plug tests could hang forever waiting for cpu and
 memory to be ready to be offlined. A special hot-plug target is created

@@ -37,12 +37,14 @@
  *  or there's button activities.
  * SS4_PACKET_ID_TWO: There's two or more fingers on touchpad
  * SS4_PACKET_ID_MULTI: There's three or more fingers on touchpad
+ * SS4_PACKET_ID_STICK: A stick pointer packet
 */
 enum SS4_PACKET_ID {
 	SS4_PACKET_ID_IDLE = 0,
 	SS4_PACKET_ID_ONE,
 	SS4_PACKET_ID_TWO,
 	SS4_PACKET_ID_MULTI,
+	SS4_PACKET_ID_STICK,
 };
 
 #define SS4_COUNT_PER_ELECTRODE		256

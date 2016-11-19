@@ -20,7 +20,7 @@ struct led_classdev;
 struct v4l2_flash;
 enum led_brightness;
 
-/*
+/**
  * struct v4l2_flash_ctrl_data - flash control initialization data, filled
  *				basing on the features declared by the LED flash
  *				class driver in the v4l2_flash_config
@@ -33,14 +33,21 @@ struct v4l2_flash_ctrl_data {
 	u32 cid;
 };
 
+/**
+ * struct v4l2_flash_ops - V4L2 flash operations
+ *
+ * @external_strobe_set: Setup strobing the flash by hardware pin state
+ *	assertion.
+ * @intensity_to_led_brightness: Convert intensity to brightness in a device
+ *	specific manner
+ * @led_brightness_to_intensity: convert brightness to intensity in a device
+ *	specific manner.
+ */
 struct v4l2_flash_ops {
-	/* setup strobing the flash by hardware pin state assertion */
 	int (*external_strobe_set)(struct v4l2_flash *v4l2_flash,
 					bool enable);
-	/* convert intensity to brightness in a device specific manner */
 	enum led_brightness (*intensity_to_led_brightness)
 		(struct v4l2_flash *v4l2_flash, s32 intensity);
-	/* convert brightness to intensity in a device specific manner */
 	s32 (*led_brightness_to_intensity)
 		(struct v4l2_flash *v4l2_flash, enum led_brightness);
 };

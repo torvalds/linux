@@ -6,7 +6,7 @@ Description:
 
 Being used for adding and removing rbd block devices.
 
-Usage: <mon ip addr> <options> <pool name> <rbd image name> [snap name]
+Usage: <mon ip addr> <options> <pool name> <rbd image name> [<snap name>]
 
  $ echo "192.168.0.1 name=admin rbd foo" > /sys/bus/rbd/add
 
@@ -14,9 +14,13 @@ The snapshot name can be "-" or omitted to map the image read/write. A <dev-id>
 will be assigned for any registered block device. If snapshot is used, it will
 be mapped read-only.
 
-Removal of a device:
+Usage: <dev-id> [force]
 
-  $ echo <dev-id> > /sys/bus/rbd/remove
+ $ echo 2 > /sys/bus/rbd/remove
+
+Optional "force" argument which when passed will wait for running requests and
+then unmap the image. Requests sent to the driver after initiating the removal
+will be failed.  (August 2016, since 4.9.)
 
 What:		/sys/bus/rbd/add_single_major
 Date:		December 2013
@@ -43,9 +47,24 @@ Description:	Available only if rbd module is inserted with single_major
 Entries under /sys/bus/rbd/devices/<dev-id>/
 --------------------------------------------
 
+client_addr
+
+	The ceph unique client entity_addr_t (address + nonce).
+	The format is <address>:<port>/<nonce>: '1.2.3.4:1234/5678' or
+	'[1:2:3:4:5:6:7:8]:1234/5678'.  (August 2016, since 4.9.)
+
 client_id
 
 	The ceph unique client id that was assigned for this specific session.
+
+cluster_fsid
+
+	The ceph cluster UUID.  (August 2016, since 4.9.)
+
+config_info
+
+	The string written into /sys/bus/rbd/add{,_single_major}.  (August
+	2016, since 4.9.)
 
 features
 
@@ -91,6 +110,10 @@ refresh
 current_snap
 
 	The current snapshot for which the device is mapped.
+
+snap_id
+
+	The current snapshot's id.  (August 2016, since 4.9.)
 
 parent
 

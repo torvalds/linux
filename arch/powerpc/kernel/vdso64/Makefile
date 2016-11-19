@@ -31,15 +31,9 @@ $(obj)/%.so: OBJCOPYFLAGS := -S
 $(obj)/%.so: $(obj)/%.so.dbg FORCE
 	$(call if_changed,objcopy)
 
-# assembly rules for the .S files
-$(obj-vdso64): %.o: %.S FORCE
-	$(call if_changed_dep,vdso64as)
-
 # actual build commands
 quiet_cmd_vdso64ld = VDSO64L $@
       cmd_vdso64ld = $(CC) $(c_flags) -o $@ -Wl,-T$(filter %.lds,$^) $(filter %.o,$^)
-quiet_cmd_vdso64as = VDSO64A $@
-      cmd_vdso64as = $(CC) $(a_flags) -c -o $@ $<
 
 # install commands for the unstripped file
 quiet_cmd_vdso_install = INSTALL $@

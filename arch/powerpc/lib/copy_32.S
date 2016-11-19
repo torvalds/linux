@@ -12,6 +12,7 @@
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 #define COPY_16_BYTES		\
 	lwz	r7,4(r4);	\
@@ -92,6 +93,7 @@ _GLOBAL(memset)
 	subf	r6,r0,r6
 	cmplwi	0,r4,0
 	bne	2f	/* Use normal procedure if r4 is not zero */
+EXPORT_SYMBOL(memset)
 _GLOBAL(memset_nocache_branch)
 	b	2f	/* Skip optimised bloc until cache is enabled */
 
@@ -216,6 +218,8 @@ _GLOBAL(memcpy)
 	stbu	r0,1(r6)
 	bdnz	40b
 65:	blr
+EXPORT_SYMBOL(memcpy)
+EXPORT_SYMBOL(memmove)
 
 generic_memcpy:
 	srwi.	r7,r5,3
@@ -507,3 +511,4 @@ _GLOBAL(__copy_tofrom_user)
 	.long	112b,120b
 	.long	114b,120b
 	.text
+EXPORT_SYMBOL(__copy_tofrom_user)

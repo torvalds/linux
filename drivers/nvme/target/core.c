@@ -838,9 +838,13 @@ static void nvmet_fatal_error_handler(struct work_struct *work)
 
 void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl)
 {
-	ctrl->csts |= NVME_CSTS_CFS;
-	INIT_WORK(&ctrl->fatal_err_work, nvmet_fatal_error_handler);
-	schedule_work(&ctrl->fatal_err_work);
+	mutex_lock(&ctrl->lock);
+	if (!(ctrl->csts & NVME_CSTS_CFS)) {
+		ctrl->csts |= NVME_CSTS_CFS;
+		INIT_WORK(&ctrl->fatal_err_work, nvmet_fatal_error_handler);
+		schedule_work(&ctrl->fatal_err_work);
+	}
+	mutex_unlock(&ctrl->lock);
 }
 EXPORT_SYMBOL_GPL(nvmet_ctrl_fatal_error);
 
@@ -882,7 +886,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	if (!subsys)
 		return NULL;
 
-	subsys->ver = (1 << 16) | (2 << 8) | 1; /* NVMe 1.2.1 */
+	subsys->ver = NVME_VS(1, 2, 1); /* NVMe 1.2.1 */
 
 	switch (type) {
 	case NVME_NQN_NVME:

@@ -10,7 +10,7 @@
 #include <asm/param.h>	/* HZ */
 
 #define MAX_UDELAY_MS	2
-#define UDELAY_MULT	UL(2047 * HZ + 483648 * HZ / 1000000)
+#define UDELAY_MULT	UL(2147 * HZ + 483648 * HZ / 1000000)
 #define UDELAY_SHIFT	31
 
 #ifndef __ASSEMBLY__

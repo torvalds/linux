@@ -21,7 +21,6 @@
 #ifndef __DVB_HELENE_H__
 #define __DVB_HELENE_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
 

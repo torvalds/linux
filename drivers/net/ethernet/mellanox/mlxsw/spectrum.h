@@ -115,7 +115,7 @@ struct mlxsw_sp_rif {
 struct mlxsw_sp_mid {
 	struct list_head list;
 	unsigned char addr[ETH_ALEN];
-	u16 vid;
+	u16 fid;
 	u16 mid;
 	unsigned int ref_count;
 };

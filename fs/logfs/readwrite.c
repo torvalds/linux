@@ -1546,7 +1546,7 @@ static int __logfs_write_buf(struct inode *inode, struct page *page, long flags)
 	int err;
 
 	flags |= WF_WRITE | WF_DELETE;
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+	inode->i_ctime = inode->i_mtime = current_time(inode);
 
 	logfs_unpack_index(index, &bix, &level);
 	if (logfs_block(page) && logfs_block(page)->reserved_bytes)
@@ -1578,7 +1578,7 @@ static int __logfs_delete(struct inode *inode, struct page *page)
 	long flags = WF_DELETE;
 	int err;
 
-	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+	inode->i_ctime = inode->i_mtime = current_time(inode);
 
 	if (page->index < I0_BLOCKS)
 		return logfs_write_direct(inode, page, flags);

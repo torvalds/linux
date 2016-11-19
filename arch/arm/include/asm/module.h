@@ -23,10 +23,8 @@ struct mod_arch_specific {
 	struct unwind_table *unwind[ARM_SEC_MAX];
 #endif
 #ifdef CONFIG_ARM_MODULE_PLTS
-	struct elf32_shdr   *core_plt;
-	struct elf32_shdr   *init_plt;
-	int		    core_plt_count;
-	int		    init_plt_count;
+	struct elf32_shdr   *plt;
+	int		    plt_count;
 #endif
 };
 

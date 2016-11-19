@@ -40,7 +40,7 @@
 #define SCREEN_END		0xdfc00000
 #define SCREEN_BASE		0xdf800000
 
-#define UNCACHEABLE_ADDR	0xdf010000
+#define UNCACHEABLE_ADDR	(FLUSH_BASE + 0x10000)
 
 /*
  * IO Addresses

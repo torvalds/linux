@@ -104,11 +104,12 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	int ret;
 	int num_pages;
 
-	if (WARN_ON(dev == NULL))
-		return NULL;
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
+
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->vaddr = NULL;
 	buf->dma_dir = dma_dir;
@@ -166,7 +167,7 @@ fail_pages_alloc:
 	kfree(buf->pages);
 fail_pages_array_alloc:
 	kfree(buf);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void vb2_dma_sg_put(void *buf_priv)
@@ -224,9 +225,12 @@ static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
 	struct sg_table *sgt;
 	struct frame_vector *vec;
 
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
+
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->vaddr = NULL;
 	buf->dev = dev;
@@ -266,7 +270,7 @@ userptr_fail_sgtable:
 	vb2_destroy_framevec(vec);
 userptr_fail_pfnvec:
 	kfree(buf);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 /*
@@ -605,6 +609,9 @@ static void *vb2_dma_sg_attach_dmabuf(struct device *dev, struct dma_buf *dbuf,
 {
 	struct vb2_dma_sg_buf *buf;
 	struct dma_buf_attachment *dba;
+
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
 
 	if (dbuf->size < size)
 		return ERR_PTR(-EFAULT);

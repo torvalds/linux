@@ -2467,7 +2467,7 @@ int kiblnd_dev_failover(struct kib_dev *dev)
 	hdev->ibh_cmid  = cmid;
 	hdev->ibh_ibdev = cmid->device;
 
-	pd = ib_alloc_pd(cmid->device);
+	pd = ib_alloc_pd(cmid->device, 0);
 	if (IS_ERR(pd)) {
 		rc = PTR_ERR(pd);
 		CERROR("Can't allocate PD: %d\n", rc);

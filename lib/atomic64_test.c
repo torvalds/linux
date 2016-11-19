@@ -213,7 +213,6 @@ static __init void test_atomic64(void)
 	r += one;
 	BUG_ON(v.counter != r);
 
-#ifdef CONFIG_ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	INIT(onestwos);
 	BUG_ON(atomic64_dec_if_positive(&v) != (onestwos - 1));
 	r -= one;
@@ -226,9 +225,6 @@ static __init void test_atomic64(void)
 	INIT(-one);
 	BUG_ON(atomic64_dec_if_positive(&v) != (-one - one));
 	BUG_ON(v.counter != r);
-#else
-#warning Please implement atomic64_dec_if_positive for your architecture and select the above Kconfig symbol
-#endif
 
 	INIT(onestwos);
 	BUG_ON(!atomic64_inc_not_zero(&v));

@@ -228,7 +228,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	if ((action & IMA_APPRAISE_SUBMASK) ||
 		    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0)
 		/* read 'security.ima' */
-		xattr_len = ima_read_xattr(file->f_path.dentry, &xattr_value);
+		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
 
 	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
 
