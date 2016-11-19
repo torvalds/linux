@@ -67,7 +67,7 @@ int spk_serial_synth_probe(struct spk_synth *synth)
 		return -ENODEV;
 	}
 	pr_info("%s: ttyS%i, Driver Version %s\n",
-			synth->long_name, synth->ser, synth->version);
+		synth->long_name, synth->ser, synth->version);
 	synth->alive = 1;
 	return 0;
 }
