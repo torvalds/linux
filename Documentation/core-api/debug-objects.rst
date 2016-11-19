@@ -64,14 +64,8 @@ tracking objects and the state of the internal tracking objects pool.
 Debug functions
 ===============
 
-Debug object function reference
--------------------------------
-
 .. kernel-doc:: lib/debugobjects.c
-   :export:
-
-debug_object_init
--------------------
+   :functions: debug_object_init
 
 This function is called whenever the initialization function of a real
 object is called.
@@ -93,8 +87,8 @@ number of warnings including a full stack trace is printk'ed. The
 calling code must use debug_object_init_on_stack() and remove the
 object before leaving the function which allocated it. See next section.
 
-debug_object_init_on_stack
-------------------------------
+.. kernel-doc:: lib/debugobjects.c
+   :functions: debug_object_init_on_stack
 
 This function is called whenever the initialization function of a real
 object which resides on the stack is called.
@@ -117,8 +111,8 @@ An object which is on the stack must be removed from the tracker by
 calling debug_object_free() before the function which allocates the
 object returns. Otherwise we keep track of stale objects.
 
-debug_object_activate
------------------------
+.. kernel-doc:: lib/debugobjects.c
+   :functions: debug_object_activate
 
 This function is called whenever the activation function of a real
 object is called.
@@ -141,8 +135,9 @@ object.
 When the activation is legitimate, then the state of the associated
 tracker object is set to ODEBUG_STATE_ACTIVE.
 
-debug_object_deactivate
--------------------------
+
+.. kernel-doc:: lib/debugobjects.c
+   :functions: debug_object_deactivate
 
 This function is called whenever the deactivation function of a real
 object is called.
@@ -154,8 +149,8 @@ or destroyed objects.
 When the deactivation is legitimate, then the state of the associated
 tracker object is set to ODEBUG_STATE_INACTIVE.
 
-debug_object_destroy
-----------------------
+.. kernel-doc:: lib/debugobjects.c
+   :functions: debug_object_destroy
 
 This function is called to mark an object destroyed. This is useful to
 prevent the usage of invalid objects, which are still available in
@@ -173,8 +168,8 @@ deactivate an active object in order to prevent damage to the subsystem.
 When the destruction is legitimate, then the state of the associated
 tracker object is set to ODEBUG_STATE_DESTROYED.
 
-debug_object_free
--------------------
+.. kernel-doc:: lib/debugobjects.c
+   :functions: debug_object_free
 
 This function is called before an object is freed.
 
@@ -189,8 +184,9 @@ prevent damage to the subsystem.
 Note that debug_object_free removes the object from the tracker. Later
 usage of the object is detected by the other debug checks.
 
-debug_object_assert_init
----------------------------
+
+.. kernel-doc:: lib/debugobjects.c
+   :functions: debug_object_assert_init
 
 This function is called to assert that an object has been initialized.
 
