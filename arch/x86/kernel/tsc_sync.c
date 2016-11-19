@@ -267,11 +267,6 @@ void check_tsc_sync_source(int cpu)
 	}
 
 	/*
-	 * Reset it - in case this is a second bootup:
-	 */
-	atomic_set(&stop_count, 0);
-
-	/*
 	 * Wait for the target to start or to skip the test:
 	 */
 	while (atomic_read(&start_count) != cpus - 1) {
@@ -360,6 +355,11 @@ void check_tsc_sync_target(void)
 	 */
 	while (atomic_read(&stop_count) != cpus)
 		cpu_relax();
+
+	/*
+	 * Reset it for the next sync test:
+	 */
+	atomic_set(&stop_count, 0);
 }
 
 #endif /* CONFIG_SMP */
