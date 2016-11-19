@@ -19,7 +19,8 @@ Interfaces for kernel debugging
 .. toctree::
    :maxdepth: 1
 
-   debug-objects	      
+   debug-objects
+   tracepoint
 
 .. only::  subproject
 
