@@ -895,6 +895,7 @@ static const struct acpi_device_id hidma_acpi_ids[] = {
 	{"QCOM8062"},
 	{},
 };
+MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
 #endif
 
 static const struct of_device_id hidma_match[] = {
