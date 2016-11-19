@@ -8,7 +8,7 @@
 #include <linux/delay.h>	/* for loops_per_sec */
 #include <linux/kmod.h>
 #include <linux/jiffies.h>
-#include <linux/uaccess.h> /* for copy_from_user */
+#include <linux/uaccess.h>	/* for copy_from_user */
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/kthread.h>
@@ -73,7 +73,8 @@ int spk_serial_synth_probe(struct spk_synth *synth)
 }
 EXPORT_SYMBOL_GPL(spk_serial_synth_probe);
 
-/* Main loop of the progression thread: keep eating from the buffer
+/*
+ * Main loop of the progression thread: keep eating from the buffer
  * and push to the serial port, waiting as needed
  *
  * For devices that have a "full" notification mechanism, the driver can
