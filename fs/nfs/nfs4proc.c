@@ -5744,14 +5744,16 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	nfs_fattr_init(data->res.fattr);
 	data->timestamp = jiffies;
 	data->rpc_status = 0;
+	data->lr.roc = pnfs_roc(inode, &data->lr.arg, &data->lr.res, cred);
 	data->inode = nfs_igrab_and_active(inode);
 	if (data->inode) {
-		data->lr.roc = pnfs_roc(inode, &data->lr.arg, &data->lr.res,
-				cred);
 		if (data->lr.roc) {
 			data->args.lr_args = &data->lr.arg;
 			data->res.lr_res = &data->lr.res;
 		}
+	} else if (data->lr.roc) {
+		pnfs_roc_release(&data->lr.arg, &data->lr.res, 0);
+		data->lr.roc = false;
 	}
 
 	task_setup_data.callback_data = data;
