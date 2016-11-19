@@ -149,6 +149,7 @@ bool tsc_store_and_check_tsc_adjust(void)
 static atomic_t start_count;
 static atomic_t stop_count;
 static atomic_t skip_test;
+static atomic_t test_runs;
 
 /*
  * We use a raw spinlock in this exceptional case, because
@@ -269,6 +270,16 @@ void check_tsc_sync_source(int cpu)
 	}
 
 	/*
+	 * Set the maximum number of test runs to
+	 *  1 if the CPU does not provide the TSC_ADJUST MSR
+	 *  3 if the MSR is available, so the target can try to adjust
+	 */
+	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		atomic_set(&test_runs, 1);
+	else
+		atomic_set(&test_runs, 3);
+retry:
+	/*
 	 * Wait for the target to start or to skip the test:
 	 */
 	while (atomic_read(&start_count) != cpus - 1) {
@@ -289,7 +300,21 @@ void check_tsc_sync_source(int cpu)
 	while (atomic_read(&stop_count) != cpus-1)
 		cpu_relax();
 
-	if (nr_warps) {
+	/*
+	 * If the test was successful set the number of runs to zero and
+	 * stop. If not, decrement the number of runs an check if we can
+	 * retry. In case of random warps no retry is attempted.
+	 */
+	if (!nr_warps) {
+		atomic_set(&test_runs, 0);
+
+		pr_debug("TSC synchronization [CPU#%d -> CPU#%d]: passed\n",
+			smp_processor_id(), cpu);
+
+	} else if (atomic_dec_and_test(&test_runs) || random_warps) {
+		/* Force it to 0 if random warps brought us here */
+		atomic_set(&test_runs, 0);
+
 		pr_warning("TSC synchronization [CPU#%d -> CPU#%d]:\n",
 			smp_processor_id(), cpu);
 		pr_warning("Measured %Ld cycles TSC warp between CPUs, "
@@ -297,9 +322,6 @@ void check_tsc_sync_source(int cpu)
 		if (random_warps)
 			pr_warning("TSC warped randomly between CPUs\n");
 		mark_tsc_unstable("check_tsc_sync_source failed");
-	} else {
-		pr_debug("TSC synchronization [CPU#%d -> CPU#%d]: passed\n",
-			smp_processor_id(), cpu);
 	}
 
 	/*
@@ -315,6 +337,12 @@ void check_tsc_sync_source(int cpu)
 	 * Let the target continue with the bootup:
 	 */
 	atomic_inc(&stop_count);
+
+	/*
+	 * Retry, if there is a chance to do so.
+	 */
+	if (atomic_read(&test_runs) > 0)
+		goto retry;
 }
 
 /*
@@ -322,6 +350,9 @@ void check_tsc_sync_source(int cpu)
  */
 void check_tsc_sync_target(void)
 {
+	struct tsc_adjust *cur = this_cpu_ptr(&tsc_adjust);
+	unsigned int cpu = smp_processor_id();
+	cycles_t cur_max_warp, gbl_max_warp;
 	int cpus = 2;
 
 	/* Also aborts if there is no TSC. */
@@ -337,6 +368,7 @@ void check_tsc_sync_target(void)
 		return;
 	}
 
+retry:
 	/*
 	 * Register this CPU's participation and wait for the
 	 * source CPU to start the measurement:
@@ -345,7 +377,12 @@ void check_tsc_sync_target(void)
 	while (atomic_read(&start_count) != cpus)
 		cpu_relax();
 
-	check_tsc_warp(loop_timeout(smp_processor_id()));
+	cur_max_warp = check_tsc_warp(loop_timeout(cpu));
+
+	/*
+	 * Store the maximum observed warp value for a potential retry:
+	 */
+	gbl_max_warp = max_warp;
 
 	/*
 	 * Ok, we are done:
@@ -362,6 +399,42 @@ void check_tsc_sync_target(void)
 	 * Reset it for the next sync test:
 	 */
 	atomic_set(&stop_count, 0);
+
+	/*
+	 * Check the number of remaining test runs. If not zero, the test
+	 * failed and a retry with adjusted TSC is possible. If zero the
+	 * test was either successful or failed terminally.
+	 */
+	if (!atomic_read(&test_runs))
+		return;
+
+	/*
+	 * If the warp value of this CPU is 0, then the other CPU
+	 * observed time going backwards so this TSC was ahead and
+	 * needs to move backwards.
+	 */
+	if (!cur_max_warp)
+		cur_max_warp = -gbl_max_warp;
+
+	/*
+	 * Add the result to the previous adjustment value.
+	 *
+	 * The adjustement value is slightly off by the overhead of the
+	 * sync mechanism (observed values are ~200 TSC cycles), but this
+	 * really depends on CPU, node distance and frequency. So
+	 * compensating for this is hard to get right. Experiments show
+	 * that the warp is not longer detectable when the observed warp
+	 * value is used. In the worst case the adjustment needs to go
+	 * through a 3rd run for fine tuning.
+	 */
+	cur->adjusted += cur_max_warp;
+
+	pr_warn("TSC ADJUST compensate: CPU%u observed %lld warp. Adjust: %lld\n",
+		cpu, cur_max_warp, cur->adjusted);
+
+	wrmsrl(MSR_IA32_TSC_ADJUST, cur->adjusted);
+	goto retry;
+
 }
 
 #endif /* CONFIG_SMP */
