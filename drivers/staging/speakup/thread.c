@@ -47,7 +47,8 @@ int speakup_thread(void *data)
 		if (our_sound.active)
 			kd_mksound(our_sound.freq, our_sound.jiffies);
 		if (synth && synth->catch_up && synth->alive) {
-			/* It is up to the callee to take the lock, so that it
+			/*
+			 * It is up to the callee to take the lock, so that it
 			 * can sleep whenever it likes
 			 */
 			synth->catch_up(synth);
