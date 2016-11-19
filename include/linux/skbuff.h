@@ -1799,11 +1799,11 @@ static inline unsigned int skb_headlen(const struct sk_buff *skb)
 	return skb->len - skb->data_len;
 }
 
-static inline int skb_pagelen(const struct sk_buff *skb)
+static inline unsigned int skb_pagelen(const struct sk_buff *skb)
 {
-	int i, len = 0;
+	unsigned int i, len = 0;
 
-	for (i = (int)skb_shinfo(skb)->nr_frags - 1; i >= 0; i--)
+	for (i = skb_shinfo(skb)->nr_frags - 1; (int)i >= 0; i--)
 		len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
 	return len + skb_headlen(skb);
 }

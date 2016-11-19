@@ -581,7 +581,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	 */
 	if (skb_has_frag_list(skb)) {
 		struct sk_buff *frag, *frag2;
-		int first_len = skb_pagelen(skb);
+		unsigned int first_len = skb_pagelen(skb);
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
