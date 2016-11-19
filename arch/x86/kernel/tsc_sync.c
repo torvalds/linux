@@ -22,11 +22,41 @@
 #include <asm/tsc.h>
 
 struct tsc_adjust {
-	s64	bootval;
-	s64	adjusted;
+	s64		bootval;
+	s64		adjusted;
+	unsigned long	nextcheck;
+	bool		warned;
 };
 
 static DEFINE_PER_CPU(struct tsc_adjust, tsc_adjust);
+
+void tsc_verify_tsc_adjust(void)
+{
+	struct tsc_adjust *adj = this_cpu_ptr(&tsc_adjust);
+	s64 curval;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		return;
+
+	/* Rate limit the MSR check */
+	if (time_before(jiffies, adj->nextcheck))
+		return;
+
+	adj->nextcheck = jiffies + HZ;
+
+	rdmsrl(MSR_IA32_TSC_ADJUST, curval);
+	if (adj->adjusted == curval)
+		return;
+
+	/* Restore the original value */
+	wrmsrl(MSR_IA32_TSC_ADJUST, adj->adjusted);
+
+	if (!adj->warned) {
+		pr_warn(FW_BUG "TSC ADJUST differs: CPU%u %lld --> %lld. Restoring\n",
+			smp_processor_id(), adj->adjusted, curval);
+		adj->warned = true;
+	}
+}
 
 #ifndef CONFIG_SMP
 void __init tsc_store_and_check_tsc_adjust(void)
@@ -40,6 +70,7 @@ void __init tsc_store_and_check_tsc_adjust(void)
 	rdmsrl(MSR_IA32_TSC_ADJUST, bootval);
 	cur->bootval = bootval;
 	cur->adjusted = bootval;
+	cur->nextcheck = jiffies + HZ;
 	pr_info("TSC ADJUST: Boot CPU0: %lld\n", bootval);
 }
 
@@ -59,6 +90,8 @@ void tsc_store_and_check_tsc_adjust(void)
 
 	rdmsrl(MSR_IA32_TSC_ADJUST, bootval);
 	cur->bootval = bootval;
+	cur->nextcheck = jiffies + HZ;
+	cur->warned = false;
 
 	/*
 	 * Check whether this CPU is the first in a package to come up. In
