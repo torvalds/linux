@@ -7,6 +7,7 @@
 #include <asm/cpu.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
+#include <asm/sched.h>
 #include <asm/syscalls.h>
 
 
@@ -137,14 +138,7 @@ void lkl_cpu_put(void)
 		if (in_interrupt())
 			lkl_bug("%s: in interrupt\n", __func__);
 		lkl_ops->mutex_unlock(cpu.lock);
-		if (test_thread_flag(TIF_HOST_THREAD)) {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			if (!thread_set_sched_jmp())
-				schedule();
-		} else {
-			if (!thread_set_sched_jmp())
-				lkl_idle_tail_schedule();
-		}
+		thread_sched_jb();
 		return;
 	}
 
@@ -242,10 +236,8 @@ void arch_cpu_idle_prepare(void)
 	 * We hijack the idle loop here so that we can let the idle thread
 	 * jump back to the beginning.
 	 */
-	while (1) {
-		if (!lkl_ops->jmp_buf_set(&cpu.idle_jb))
-			cpu_idle_loop();
-	}
+	while (1)
+		lkl_ops->jmp_buf_set(&cpu.idle_jb, cpu_idle_loop);
 }
 
 void lkl_cpu_wakeup_idle(void)

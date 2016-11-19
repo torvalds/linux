@@ -63,21 +63,6 @@ void threads_cnt_dec(void);
 #define TIF_HOST_THREAD			9
 #define TIF_IDLE			10
 
-static inline void set_ti_thread_flag(struct thread_info *ti, int flag);
-
-static inline int thread_set_sched_jmp(void)
-{
-	set_ti_thread_flag(current_thread_info(), TIF_SCHED_JB);
-	return lkl_ops->jmp_buf_set(&current_thread_info()->sched_jb);
-}
-
-static inline void thread_set_sched_exit(void)
-{
-	set_ti_thread_flag(current_thread_info(), TIF_SCHED_EXIT);
-}
-
-void switch_to_host_task(struct task_struct *);
-
 #define __HAVE_THREAD_FUNCTIONS
 
 #define task_thread_info(task)	((struct thread_info *)(task)->stack)
