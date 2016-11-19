@@ -1483,6 +1483,7 @@ static const struct drm_display_mode sharp_lq123p1jx31_mode = {
 static const struct panel_desc sharp_lq123p1jx31 = {
 	.modes = &sharp_lq123p1jx31_mode,
 	.num_modes = 1,
+	.bpc = 8,
 	.size = {
 		.width = 259,
 		.height = 173,
