@@ -119,11 +119,27 @@ struct batadv_hard_iface_bat_v {
 };
 
 /**
+ * enum batadv_hard_iface_wifi_flags - Flags describing the wifi configuration
+ *  of a batadv_hard_iface
+ * @BATADV_HARDIF_WIFI_WEXT_DIRECT: it is a wext wifi device
+ * @BATADV_HARDIF_WIFI_CFG80211_DIRECT: it is a cfg80211 wifi device
+ * @BATADV_HARDIF_WIFI_WEXT_INDIRECT: link device is a wext wifi device
+ * @BATADV_HARDIF_WIFI_CFG80211_INDIRECT: link device is a cfg80211 wifi device
+ */
+enum batadv_hard_iface_wifi_flags {
+	BATADV_HARDIF_WIFI_WEXT_DIRECT = BIT(0),
+	BATADV_HARDIF_WIFI_CFG80211_DIRECT = BIT(1),
+	BATADV_HARDIF_WIFI_WEXT_INDIRECT = BIT(2),
+	BATADV_HARDIF_WIFI_CFG80211_INDIRECT = BIT(3),
+};
+
+/**
  * struct batadv_hard_iface - network device known to batman-adv
  * @list: list node for batadv_hardif_list
  * @if_num: identificator of the interface
  * @if_status: status of the interface for batman-adv
  * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
+ * @wifi_flags: flags whether this is (directly or indirectly) a wifi interface
  * @net_dev: pointer to the net_device
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
@@ -142,6 +158,7 @@ struct batadv_hard_iface {
 	s16 if_num;
 	char if_status;
 	u8 num_bcasts;
+	u32 wifi_flags;
 	struct net_device *net_dev;
 	struct kobject *hardif_obj;
 	struct kref refcount;
@@ -1368,6 +1385,7 @@ struct batadv_skb_cb {
 /**
  * struct batadv_forw_packet - structure for bcast packets to be sent/forwarded
  * @list: list node for batadv_priv::forw_{bat,bcast}_list
+ * @cleanup_list: list node for purging functions
  * @send_time: execution time for delayed_work (packet sending)
  * @own: bool for locally generated packets (local OGMs are re-scheduled after
  *  sending)
@@ -1384,6 +1402,7 @@ struct batadv_skb_cb {
  */
 struct batadv_forw_packet {
 	struct hlist_node list;
+	struct hlist_node cleanup_list;
 	unsigned long send_time;
 	u8 own;
 	struct sk_buff *skb;

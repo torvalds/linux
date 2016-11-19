@@ -75,6 +75,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
 	struct ethtool_link_ksettings link_settings;
+	struct net_device *real_netdev;
 	struct station_info sinfo;
 	u32 throughput;
 	int ret;
@@ -89,23 +90,27 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 	/* if this is a wireless device, then ask its throughput through
 	 * cfg80211 API
 	 */
-	if (batadv_is_wifi_netdev(hard_iface->net_dev)) {
-		if (hard_iface->net_dev->ieee80211_ptr) {
-			ret = cfg80211_get_station(hard_iface->net_dev,
-						   neigh->addr, &sinfo);
-			if (ret == -ENOENT) {
-				/* Node is not associated anymore! It would be
-				 * possible to delete this neighbor. For now set
-				 * the throughput metric to 0.
-				 */
-				return 0;
-			}
-			if (!ret)
-				return sinfo.expected_throughput / 100;
-		}
+	if (batadv_is_wifi_hardif(hard_iface)) {
+		if (!batadv_is_cfg80211_hardif(hard_iface))
+			/* unsupported WiFi driver version */
+			goto default_throughput;
 
-		/* unsupported WiFi driver version */
-		goto default_throughput;
+		real_netdev = batadv_get_real_netdev(hard_iface->net_dev);
+		if (!real_netdev)
+			goto default_throughput;
+
+		ret = cfg80211_get_station(real_netdev, neigh->addr, &sinfo);
+
+		dev_put(real_netdev);
+		if (ret == -ENOENT) {
+			/* Node is not associated anymore! It would be
+			 * possible to delete this neighbor. For now set
+			 * the throughput metric to 0.
+			 */
+			return 0;
+		}
+		if (!ret)
+			return sinfo.expected_throughput / 100;
 	}
 
 	/* if not a wifi interface, check if this device provides data via
@@ -187,7 +192,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 	int elp_skb_len;
 
 	/* this probing routine is for Wifi neighbours only */
-	if (!batadv_is_wifi_netdev(hard_iface->net_dev))
+	if (!batadv_is_wifi_hardif(hard_iface))
 		return true;
 
 	/* probe the neighbor only if no unicast packets have been sent
@@ -352,7 +357,7 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	/* warn the user (again) if there is no throughput data is available */
 	hard_iface->bat_v.flags &= ~BATADV_WARNING_DEFAULT;
 
-	if (batadv_is_wifi_netdev(hard_iface->net_dev))
+	if (batadv_is_wifi_hardif(hard_iface))
 		hard_iface->bat_v.flags &= ~BATADV_FULL_DUPLEX;
 
 	INIT_DELAYED_WORK(&hard_iface->bat_v.elp_wq,

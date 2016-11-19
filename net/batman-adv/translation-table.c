@@ -646,6 +646,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	struct net *net = dev_net(soft_iface);
 	struct batadv_softif_vlan *vlan;
 	struct net_device *in_dev = NULL;
+	struct batadv_hard_iface *in_hardif = NULL;
 	struct hlist_head *head;
 	struct batadv_tt_orig_list_entry *orig_entry;
 	int hash_added, table_size, packet_size_max;
@@ -656,6 +657,9 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 
 	if (ifindex != BATADV_NULL_IFINDEX)
 		in_dev = dev_get_by_index(net, ifindex);
+
+	if (in_dev)
+		in_hardif = batadv_hardif_get_by_netdev(in_dev);
 
 	tt_local = batadv_tt_local_hash_find(bat_priv, addr, vid);
 
@@ -730,7 +734,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const u8 *addr,
 	 */
 	tt_local->common.flags = BATADV_TT_CLIENT_NEW;
 	tt_local->common.vid = vid;
-	if (batadv_is_wifi_netdev(in_dev))
+	if (batadv_is_wifi_hardif(in_hardif))
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	kref_init(&tt_local->common.refcount);
 	tt_local->last_seen = jiffies;
@@ -790,7 +794,7 @@ check_roaming:
 	 */
 	remote_flags = tt_local->common.flags & BATADV_TT_REMOTE_MASK;
 
-	if (batadv_is_wifi_netdev(in_dev))
+	if (batadv_is_wifi_hardif(in_hardif))
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	else
 		tt_local->common.flags &= ~BATADV_TT_CLIENT_WIFI;
@@ -814,6 +818,8 @@ check_roaming:
 
 	ret = true;
 out:
+	if (in_hardif)
+		batadv_hardif_put(in_hardif);
 	if (in_dev)
 		dev_put(in_dev);
 	if (tt_local)
