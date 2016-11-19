@@ -376,6 +376,7 @@ enum {
 	STRIPE_R5C_FULL_STRIPE,	/* in r5c cache (to-be/being handled or
 				 * in conf->r5c_full_stripe_list)
 				 */
+	STRIPE_R5C_PREFLUSH,	/* need to flush journal device */
 };
 
 #define STRIPE_EXPAND_SYNC_FLAGS \
