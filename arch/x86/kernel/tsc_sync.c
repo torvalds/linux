@@ -37,6 +37,7 @@ static arch_spinlock_t sync_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 static cycles_t last_tsc;
 static cycles_t max_warp;
 static int nr_warps;
+static int random_warps;
 
 /*
  * TSC-warp measurement loop running on both CPUs.  This is not called
@@ -45,7 +46,7 @@ static int nr_warps;
 static void check_tsc_warp(unsigned int timeout)
 {
 	cycles_t start, now, prev, end;
-	int i;
+	int i, cur_warps = 0;
 
 	start = rdtsc_ordered();
 	/*
@@ -85,7 +86,14 @@ static void check_tsc_warp(unsigned int timeout)
 		if (unlikely(prev > now)) {
 			arch_spin_lock(&sync_lock);
 			max_warp = max(max_warp, prev - now);
+			/*
+			 * Check whether this bounces back and forth. Only
+			 * one CPU should observe time going backwards.
+			 */
+			if (cur_warps != nr_warps)
+				random_warps++;
 			nr_warps++;
+			cur_warps = nr_warps;
 			arch_spin_unlock(&sync_lock);
 		}
 	}
@@ -160,6 +168,8 @@ void check_tsc_sync_source(int cpu)
 			smp_processor_id(), cpu);
 		pr_warning("Measured %Ld cycles TSC warp between CPUs, "
 			   "turning off TSC clock.\n", max_warp);
+		if (random_warps)
+			pr_warning("TSC warped randomly between CPUs\n");
 		mark_tsc_unstable("check_tsc_sync_source failed");
 	} else {
 		pr_debug("TSC synchronization [CPU#%d -> CPU#%d]: passed\n",
@@ -170,6 +180,7 @@ void check_tsc_sync_source(int cpu)
 	 * Reset it - just in case we boot another CPU later:
 	 */
 	atomic_set(&start_count, 0);
+	random_warps = 0;
 	nr_warps = 0;
 	max_warp = 0;
 	last_tsc = 0;
