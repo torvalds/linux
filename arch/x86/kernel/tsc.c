@@ -1379,6 +1379,8 @@ void __init tsc_init(void)
 
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
+	else
+		tsc_store_and_check_tsc_adjust();
 
 	check_system_tsc_reliable();
 

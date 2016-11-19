@@ -14,11 +14,94 @@
  * ( The serial nature of the boot logic and the CPU hotplug lock
  *   protects against more than 2 CPUs entering this code. )
  */
+#include <linux/topology.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/nmi.h>
 #include <asm/tsc.h>
+
+struct tsc_adjust {
+	s64	bootval;
+	s64	adjusted;
+};
+
+static DEFINE_PER_CPU(struct tsc_adjust, tsc_adjust);
+
+#ifndef CONFIG_SMP
+void __init tsc_store_and_check_tsc_adjust(void)
+{
+	struct tsc_adjust *ref, *cur = this_cpu_ptr(&tsc_adjust);
+	s64 bootval;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		return;
+
+	rdmsrl(MSR_IA32_TSC_ADJUST, bootval);
+	cur->bootval = bootval;
+	cur->adjusted = bootval;
+	pr_info("TSC ADJUST: Boot CPU0: %lld\n", bootval);
+}
+
+#else /* !CONFIG_SMP */
+
+/*
+ * Store and check the TSC ADJUST MSR if available
+ */
+void tsc_store_and_check_tsc_adjust(void)
+{
+	struct tsc_adjust *ref, *cur = this_cpu_ptr(&tsc_adjust);
+	unsigned int refcpu, cpu = smp_processor_id();
+	s64 bootval;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+		return;
+
+	rdmsrl(MSR_IA32_TSC_ADJUST, bootval);
+	cur->bootval = bootval;
+
+	/*
+	 * Check whether this CPU is the first in a package to come up. In
+	 * this case do not check the boot value against another package
+	 * because the package might have been physically hotplugged, where
+	 * TSC_ADJUST is expected to be different.
+	 */
+	refcpu = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+
+	if (refcpu >= nr_cpu_ids) {
+		/*
+		 * First online CPU in a package stores the boot value in
+		 * the adjustment value. This value might change later via
+		 * the sync mechanism. If that fails we still can yell
+		 * about boot values not being consistent.
+		 */
+		cur->adjusted = bootval;
+		pr_info_once("TSC ADJUST: Boot CPU%u: %lld\n", cpu,  bootval);
+		return;
+	}
+
+	ref = per_cpu_ptr(&tsc_adjust, refcpu);
+	/*
+	 * Compare the boot value and complain if it differs in the
+	 * package.
+	 */
+	if (bootval != ref->bootval) {
+		pr_warn("TSC ADJUST differs: Reference CPU%u: %lld CPU%u: %lld\n",
+			refcpu, ref->bootval, cpu, bootval);
+	}
+	/*
+	 * The TSC_ADJUST values in a package must be the same. If the boot
+	 * value on this newly upcoming CPU differs from the adjustment
+	 * value of the already online CPU in this package, set it to that
+	 * adjusted value.
+	 */
+	if (bootval != ref->adjusted) {
+		pr_warn("TSC ADJUST synchronize: Reference CPU%u: %lld CPU%u: %lld\n",
+			refcpu, ref->adjusted, cpu, bootval);
+		cur->adjusted = ref->adjusted;
+		wrmsrl(MSR_IA32_TSC_ADJUST, ref->adjusted);
+	}
+}
 
 /*
  * Entry/exit counters that make sure that both CPUs
@@ -202,6 +285,9 @@ void check_tsc_sync_target(void)
 	if (unsynchronized_tsc() || tsc_clocksource_reliable)
 		return;
 
+	/* Store and check the TSC ADJUST MSR */
+	tsc_store_and_check_tsc_adjust();
+
 	/*
 	 * Register this CPU's participation and wait for the
 	 * source CPU to start the measurement:
@@ -223,3 +309,5 @@ void check_tsc_sync_target(void)
 	while (atomic_read(&stop_count) != cpus)
 		cpu_relax();
 }
+
+#endif /* CONFIG_SMP */
