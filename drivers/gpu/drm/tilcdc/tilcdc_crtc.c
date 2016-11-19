@@ -237,7 +237,9 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	tilcdc_crtc_enable_irqs(dev);
 
 	tilcdc_clear(dev, LCDC_DMA_CTRL_REG, LCDC_DUAL_FRAME_BUFFER_ENABLE);
-	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_PALETTE_LOAD_MODE(DATA_ONLY));
+	tilcdc_write_mask(dev, LCDC_RASTER_CTRL_REG,
+			  LCDC_PALETTE_LOAD_MODE(DATA_ONLY),
+			  LCDC_PALETTE_LOAD_MODE_MASK);
 	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
 
 	drm_crtc_vblank_on(crtc);
