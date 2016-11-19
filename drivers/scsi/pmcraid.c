@@ -3792,11 +3792,11 @@ static long pmcraid_ioctl_passthrough(
 						      direction);
 		if (rc) {
 			pmcraid_err("couldn't build passthrough ioadls\n");
-			goto out_free_buffer;
+			goto out_free_cmd;
 		}
 	} else if (request_size < 0) {
 		rc = -EINVAL;
-		goto out_free_buffer;
+		goto out_free_cmd;
 	}
 
 	/* If data is being written into the device, copy the data from user
@@ -3913,6 +3913,8 @@ out_handle_response:
 
 out_free_sglist:
 	pmcraid_release_passthrough_ioadls(cmd, request_size, direction);
+
+out_free_cmd:
 	pmcraid_return_cmd(cmd);
 
 out_free_buffer:
@@ -6023,8 +6025,10 @@ static int __init pmcraid_init(void)
 
 	error = pmcraid_netlink_init();
 
-	if (error)
+	if (error) {
+		class_destroy(pmcraid_class);
 		goto out_unreg_chrdev;
+	}
 
 	error = pci_register_driver(&pmcraid_driver);
 
