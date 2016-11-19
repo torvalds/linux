@@ -303,11 +303,11 @@ void spk_get_index_count(int *linecount, int *sentcount)
 		sentence_count = ind % 10;
 
 		if ((ind / 10) <= synth->indexing.currindex)
-			index_count = synth->indexing.currindex-(ind/10);
+			index_count = synth->indexing.currindex - (ind / 10);
 		else
 			index_count = synth->indexing.currindex
-				-synth->indexing.lowindex
-				+ synth->indexing.highindex-(ind/10)+1;
+				- synth->indexing.lowindex
+				+ synth->indexing.highindex - (ind / 10) + 1;
 
 	}
 	*sentcount = sentence_count;
@@ -476,10 +476,10 @@ void synth_remove(struct spk_synth *in_synth)
 			break;
 	}
 	for ( ; synths[i] != NULL; i++) /* compress table */
-		synths[i] = synths[i+1];
+		synths[i] = synths[i + 1];
 	module_status = 0;
 	mutex_unlock(&spk_mutex);
 }
 EXPORT_SYMBOL_GPL(synth_remove);
 
-short spk_punc_masks[] = { 0, SOME, MOST, PUNC, PUNC|B_SYM };
+short spk_punc_masks[] = { 0, SOME, MOST, PUNC, PUNC | B_SYM };
