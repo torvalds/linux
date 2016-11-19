@@ -308,7 +308,6 @@ void spk_get_index_count(int *linecount, int *sentcount)
 			index_count = synth->indexing.currindex
 				- synth->indexing.lowindex
 				+ synth->indexing.highindex - (ind / 10) + 1;
-
 	}
 	*sentcount = sentence_count;
 	*linecount = index_count;
