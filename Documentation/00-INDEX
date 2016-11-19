@@ -258,7 +258,7 @@ kdump/
 	- directory with mini HowTo on getting the crash dump code to work.
 process/kernel-docs.rst
 	- listing of various WWW + books that document kernel internals.
-kernel-documentation.rst
+doc-guide/
 	- how to write and format reStructuredText kernel documentation
 admin-guide/kernel-parameters.rst
 	- summary listing of command line / boot prompt args for the kernel.

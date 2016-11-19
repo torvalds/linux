@@ -1,22 +1,22 @@
 #!/usr/bin/perl
 use strict;
 use Text::Tabs;
+use Getopt::Long;
+use Pod::Usage;
 
-my $debug = 0;
+my $debug;
+my $help;
+my $man;
 
-while ($ARGV[0] =~ m/^-(.*)/) {
-	my $cmd = shift @ARGV;
-	if ($cmd eq "--debug") {
-		require Data::Dumper;
-		$debug = 1;
-		next;
-	}
-	die "argument $cmd unknown";
-}
+GetOptions(
+	"debug" => \$debug,
+	'help|?' => \$help,
+	man => \$man
+) or pod2usage(2);
 
-if (scalar @ARGV < 2 || scalar @ARGV > 3) {
-	die "Usage:\n\t$0 <file in> <file out> [<exceptions file>]\n";
-}
+pod2usage(1) if $help;
+pod2usage(-exitstatus => 0, -verbose => 2) if $man;
+pod2usage(2) if (scalar @ARGV < 2 || scalar @ARGV > 3);
 
 my ($file_in, $file_out, $file_exceptions) = @ARGV;
 
@@ -27,6 +27,8 @@ my %typedefs;
 my %enums;
 my %enum_symbols;
 my %structs;
+
+require Data::Dumper if ($debug);
 
 #
 # read the file and get identifiers
@@ -330,3 +332,168 @@ print OUT "=" x length($title);
 print OUT "\n\n.. parsed-literal::\n\n";
 print OUT $data;
 close OUT;
+
+__END__
+
+=head1 NAME
+
+parse_headers.pl - parse a C file, in order to identify functions, structs,
+enums and defines and create cross-references to a Sphinx book.
+
+=head1 SYNOPSIS
+
+B<parse_headers.pl> [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
+
+Where <options> can be: --debug, --help or --man.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--debug>
+
+Put the script in verbose mode, useful for debugging.
+
+=item B<--help>
+
+Prints a brief help message and exits.
+
+=item B<--man>
+
+Prints the manual page and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+Convert a C header or source file (C_FILE), into a ReStructured Text
+included via ..parsed-literal block with cross-references for the
+documentation files that describe the API. It accepts an optional
+EXCEPTIONS_FILE with describes what elements will be either ignored or
+be pointed to a non-default reference.
+
+The output is written at the (OUT_FILE).
+
+It is capable of identifying defines, functions, structs, typedefs,
+enums and enum symbols and create cross-references for all of them.
+It is also capable of distinguish #define used for specifying a Linux
+ioctl.
+
+The EXCEPTIONS_FILE contain two types of statements: B<ignore> or B<replace>.
+
+The syntax for the ignore tag is:
+
+=over 8
+
+ignore B<type> B<name>
+
+=back
+
+The B<ignore> means that it won't generate cross references for a
+B<name> symbol of type B<type>.
+
+The syntax for the replace tag is:
+
+=over 8
+
+replace B<type> B<name> B<new_value>
+
+=back
+
+The B<replace> means that it will generate cross references for a
+B<name> symbol of type B<type>, but, instead of using the default
+replacement rule, it will use B<new_value>.
+
+For both statements, B<type> can be either one of the following:
+
+=over 8
+
+=item B<ioctl>
+
+The ignore or replace statement will apply to ioctl definitions like:
+
+#define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
+
+=item B<define>
+
+The ignore or replace statement will apply to any other #define found
+at C_FILE.
+
+=item B<typedef>
+
+The ignore or replace statement will apply to typedef statements at C_FILE.
+
+=item B<struct>
+
+The ignore or replace statement will apply to the name of struct statements
+at C_FILE.
+
+=item B<enum>
+
+The ignore or replace statement will apply to the name of enum statements
+at C_FILE.
+
+=item B<symbol>
+
+The ignore or replace statement will apply to the name of enum statements
+at C_FILE.
+
+
+For replace statements, B<new_value> will automatically use :c:type:
+references for B<typedef>, B<enum> and B<struct> types. It will use :ref:
+for B<ioctl>, B<define> and B<symbol> types. The type of reference can
+also be explicitly defined at the replace statement.
+
+=back
+
+=head1 EXAMPLES
+
+ignore define _VIDEODEV2_H
+
+=over 8
+
+
+Ignore a #define _VIDEODEV2_H at the C_FILE.
+
+=back
+
+ignore symbol PRIVATE
+
+=over 8
+
+On a struct like:
+
+enum foo { BAR1, BAR2, PRIVATE };
+
+It won't generate cross-references for B<PRIVATE>.
+
+=back
+
+replace symbol BAR1 :c:type:`foo`
+replace symbol BAR2 :c:type:`foo`
+
+=over 8
+
+On a struct like:
+
+enum foo { BAR1, BAR2, PRIVATE };
+
+It will make the BAR1 and BAR2 enum symbols to cross reference the foo
+symbol at the C domain.
+
+=back
+
+=head1 BUGS
+
+Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
+
+License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
+
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+=cut
