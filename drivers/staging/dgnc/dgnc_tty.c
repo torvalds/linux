@@ -2057,7 +2057,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty,
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-	/* Handle transistions to and from RTS Toggle. */
+	/* Handle transitions to and from RTS Toggle. */
 
 	if (!(ch->ch_digi.digi_flags & DIGI_RTS_TOGGLE) &&
 	    (new_digi.digi_flags & DIGI_RTS_TOGGLE))
@@ -2066,7 +2066,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty,
 	    !(new_digi.digi_flags & DIGI_RTS_TOGGLE))
 		ch->ch_mostat |= (UART_MCR_RTS);
 
-	/* Handle transistions to and from DTR Toggle. */
+	/* Handle transitions to and from DTR Toggle. */
 
 	if (!(ch->ch_digi.digi_flags & DIGI_DTR_TOGGLE) &&
 	    (new_digi.digi_flags & DIGI_DTR_TOGGLE))
@@ -2654,7 +2654,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	 * This ioctl allows insertion of a character into the front
 	 * of any pending data to be transmitted.
 	 *
-	 * This ioctl is to satify the "Send Character Immediate"
+	 * This ioctl is to satisfy the "Send Character Immediate"
 	 * call that the RealPort protocol spec requires.
 	 */
 	case DIGI_REALPORT_SENDIMMEDIATE:
@@ -2674,7 +2674,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	/*
 	 * This ioctl returns all the current counts for the port.
 	 *
-	 * This ioctl is to satify the "Line Error Counters"
+	 * This ioctl is to satisfy the "Line Error Counters"
 	 * call that the RealPort protocol spec requires.
 	 */
 	case DIGI_REALPORT_GETCOUNTERS:
@@ -2700,7 +2700,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	/*
 	 * This ioctl returns all current events.
 	 *
-	 * This ioctl is to satify the "Event Reporting"
+	 * This ioctl is to satisfy the "Event Reporting"
 	 * call that the RealPort protocol spec requires.
 	 */
 	case DIGI_REALPORT_GETEVENTS:
