@@ -226,17 +226,25 @@ static void __init configure_exceptions(void)
 		if (firmware_has_feature(FW_FEATURE_OPAL))
 			opal_configure_cores();
 
-		/* Enable AIL if supported, and we are in hypervisor mode */
-		if (early_cpu_has_feature(CPU_FTR_HVMODE) &&
-		    early_cpu_has_feature(CPU_FTR_ARCH_207S)) {
-			unsigned long lpcr = mfspr(SPRN_LPCR);
-			mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
-		}
+		/* AIL on native is done in cpu_ready_for_interrupts() */
 	}
 }
 
 static void cpu_ready_for_interrupts(void)
 {
+	/*
+	 * Enable AIL if supported, and we are in hypervisor mode. This
+	 * is called once for every processor.
+	 *
+	 * If we are not in hypervisor mode the job is done once for
+	 * the whole partition in configure_exceptions().
+	 */
+	if (early_cpu_has_feature(CPU_FTR_HVMODE) &&
+	    early_cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		unsigned long lpcr = mfspr(SPRN_LPCR);
+		mtspr(SPRN_LPCR, lpcr | LPCR_AIL_3);
+	}
+
 	/* Set IR and DR in PACA MSR */
 	get_paca()->kernel_msr = MSR_KERNEL;
 }
