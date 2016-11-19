@@ -538,15 +538,14 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq = find_device_devfreq(dev);
 	mutex_unlock(&devfreq_list_lock);
 	if (!IS_ERR(devfreq)) {
-		dev_err(dev, "%s: Unable to create devfreq for the device. It already has one.\n", __func__);
+		dev_err(dev, "%s: Unable to create devfreq for the device.\n",
+			__func__);
 		err = -EINVAL;
 		goto err_out;
 	}
 
 	devfreq = kzalloc(sizeof(struct devfreq), GFP_KERNEL);
 	if (!devfreq) {
-		dev_err(dev, "%s: Unable to create devfreq for the device\n",
-			__func__);
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -576,11 +575,13 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_out;
 	}
 
-	devfreq->trans_table =	devm_kzalloc(&devfreq->dev, sizeof(unsigned int) *
+	devfreq->trans_table =	devm_kzalloc(&devfreq->dev,
+						sizeof(unsigned int) *
 						devfreq->profile->max_state *
 						devfreq->profile->max_state,
 						GFP_KERNEL);
-	devfreq->time_in_state = devm_kzalloc(&devfreq->dev, sizeof(unsigned long) *
+	devfreq->time_in_state = devm_kzalloc(&devfreq->dev,
+						sizeof(unsigned long) *
 						devfreq->profile->max_state,
 						GFP_KERNEL);
 	devfreq->last_stat_updated = jiffies;
@@ -995,7 +996,7 @@ static ssize_t cur_freq_show(struct device *dev, struct device_attribute *attr,
 
 	if (devfreq->profile->get_cur_freq &&
 		!devfreq->profile->get_cur_freq(devfreq->dev.parent, &freq))
-			return sprintf(buf, "%lu\n", freq);
+		return sprintf(buf, "%lu\n", freq);
 
 	return sprintf(buf, "%lu\n", devfreq->previous_freq);
 }
