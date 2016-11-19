@@ -27,7 +27,7 @@ int speakup_thread(void *data)
 			our_sound = spk_unprocessed_sound;
 			spk_unprocessed_sound.active = 0;
 			prepare_to_wait(&speakup_event, &wait,
-				TASK_INTERRUPTIBLE);
+					TASK_INTERRUPTIBLE);
 			should_break = kthread_should_stop() ||
 				our_sound.active ||
 				(synth && synth->catch_up && synth->alive &&
