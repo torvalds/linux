@@ -3705,6 +3705,9 @@ static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 
 	if (MLX5_CAP_GEN(mdev, vport_group_manager))
 		mlx5_eswitch_unregister_vport_rep(esw, 0);
+
+	if (priv->xdp_prog)
+		bpf_prog_put(priv->xdp_prog);
 }
 
 static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
