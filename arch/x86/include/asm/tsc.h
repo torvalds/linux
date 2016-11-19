@@ -49,10 +49,10 @@ extern void check_tsc_sync_source(int cpu);
 extern void check_tsc_sync_target(void);
 
 #ifdef CONFIG_X86_TSC
-extern void tsc_store_and_check_tsc_adjust(void);
+extern bool tsc_store_and_check_tsc_adjust(void);
 extern void tsc_verify_tsc_adjust(void);
 #else
-static inline void tsc_store_and_check_tsc_adjust(void) { }
+static inline bool tsc_store_and_check_tsc_adjust(void) { }
 static inline void tsc_verify_tsc_adjust(void) { }
 #endif
 
