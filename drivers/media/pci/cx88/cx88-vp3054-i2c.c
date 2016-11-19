@@ -22,8 +22,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 MODULE_DESCRIPTION("driver for cx2388x VP3054 design");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -108,7 +107,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 		return 0;
 
 	vp3054_i2c = kzalloc(sizeof(*vp3054_i2c), GFP_KERNEL);
-	if (vp3054_i2c == NULL)
+	if (!vp3054_i2c)
 		return -ENOMEM;
 	dev->vp3054 = vp3054_i2c;
 
@@ -135,18 +134,17 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 
 	return rc;
 }
+EXPORT_SYMBOL(vp3054_i2c_probe);
 
 void vp3054_i2c_remove(struct cx8802_dev *dev)
 {
 	struct vp3054_i2c_state *vp3054_i2c = dev->vp3054;
 
-	if (vp3054_i2c == NULL ||
+	if (!vp3054_i2c ||
 	    dev->core->boardnr != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
 		return;
 
 	i2c_del_adapter(&vp3054_i2c->adap);
 	kfree(vp3054_i2c);
 }
-
-EXPORT_SYMBOL(vp3054_i2c_probe);
 EXPORT_SYMBOL(vp3054_i2c_remove);

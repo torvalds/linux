@@ -82,8 +82,8 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 /* ------------------------------------------------------------------ */
 
 static int queue_setup(struct vb2_queue *q,
-			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], struct device *alloc_devs[])
+		       unsigned int *num_buffers, unsigned int *num_planes,
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx8802_dev *dev = q->drv_priv;
 
@@ -445,7 +445,7 @@ static const struct nxt200x_config ati_hdtvwonder = {
 };
 
 static int cx24123_set_ts_param(struct dvb_frontend *fe,
-	int is_punctured)
+				int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
 
@@ -684,7 +684,7 @@ static int attach_xc4000(struct cx8802_dev *dev, struct xc4000_config *cfg)
 }
 
 static int cx24116_set_ts_param(struct dvb_frontend *fe,
-	int is_punctured)
+				int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
 
@@ -694,7 +694,7 @@ static int cx24116_set_ts_param(struct dvb_frontend *fe,
 }
 
 static int stv0900_set_ts_param(struct dvb_frontend *fe,
-	int is_punctured)
+				int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
 
@@ -711,10 +711,10 @@ static int cx24116_reset_device(struct dvb_frontend *fe)
 	/* Reset the part */
 	/* Put the cx24116 into reset */
 	cx_write(MO_SRST_IO, 0);
-	msleep(10);
+	usleep_range(10000, 20000);
 	/* Take the cx24116 out of reset */
 	cx_write(MO_SRST_IO, 1);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	return 0;
 }
@@ -732,7 +732,7 @@ static const struct cx24116_config tevii_s460_config = {
 };
 
 static int ds3000_set_ts_param(struct dvb_frontend *fe,
-	int is_punctured)
+			       int is_punctured)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
 
@@ -812,8 +812,6 @@ static int cx8802_alloc_frontends(struct cx8802_dev *dev)
 	return 0;
 }
 
-
-
 static const u8 samsung_smt_7020_inittab[] = {
 	     0x01, 0x15,
 	     0x02, 0x00,
@@ -865,7 +863,6 @@ static const u8 samsung_smt_7020_inittab[] = {
 	     0xff, 0xff,
 };
 
-
 static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -898,7 +895,7 @@ static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe)
 }
 
 static int samsung_smt_7020_set_tone(struct dvb_frontend *fe,
-	enum fe_sec_tone_mode tone)
+				     enum fe_sec_tone_mode tone)
 {
 	struct cx8802_dev *dev = fe->dvb->priv;
 	struct cx88_core *core = dev->core;
@@ -953,7 +950,7 @@ static int samsung_smt_7020_set_voltage(struct dvb_frontend *fe,
 }
 
 static int samsung_smt_7020_stv0299_set_symbol_rate(struct dvb_frontend *fe,
-	u32 srate, u32 ratio)
+						    u32 srate, u32 ratio)
 {
 	u8 aclk = 0;
 	u8 bclk = 0;
@@ -986,7 +983,6 @@ static int samsung_smt_7020_stv0299_set_symbol_rate(struct dvb_frontend *fe,
 
 	return 0;
 }
-
 
 static const struct stv0299_config samsung_stv0299_config = {
 	.demod_address = 0x68,
@@ -1029,7 +1025,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(cx22702_attach,
 					       &connexant_refboard_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x61, &core->i2c_adap,
 					DVB_PLL_THOMSON_DTT759X))
@@ -1043,7 +1039,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(cx22702_attach,
 					       &connexant_refboard_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x60, &core->i2c_adap,
 					DVB_PLL_THOMSON_DTT7579))
@@ -1057,10 +1053,10 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(cx22702_attach,
 					       &hauppauge_hvr_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
-				   &core->i2c_adap, 0x61,
-				   TUNER_PHILIPS_FMD1216ME_MK3))
+					&core->i2c_adap, 0x61,
+					TUNER_PHILIPS_FMD1216ME_MK3))
 				goto frontend_detach;
 		}
 		break;
@@ -1068,10 +1064,10 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(cx22702_attach,
 					       &hauppauge_hvr_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
-				   &core->i2c_adap, 0x61,
-				   TUNER_PHILIPS_FMD1216MEX_MK3))
+					&core->i2c_adap, 0x61,
+					TUNER_PHILIPS_FMD1216MEX_MK3))
 				goto frontend_detach;
 		}
 		break;
@@ -1081,8 +1077,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->frontends.gate = 2;
 		/* DVB-S init */
 		fe0->dvb.frontend = dvb_attach(cx24123_attach,
-					&hauppauge_novas_config,
-					&dev->core->i2c_adap);
+					       &hauppauge_novas_config,
+					       &dev->core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach,
 					fe0->dvb.frontend,
@@ -1096,8 +1092,8 @@ static int dvb_register(struct cx8802_dev *dev)
 			goto frontend_detach;
 		/* DVB-T init */
 		fe1->dvb.frontend = dvb_attach(cx22702_attach,
-					&hauppauge_hvr_config,
-					&dev->core->i2c_adap);
+					       &hauppauge_hvr_config,
+					       &dev->core->i2c_adap);
 		if (fe1->dvb.frontend) {
 			fe1->dvb.frontend->id = 1;
 			if (!dvb_attach(simple_tuner_attach,
@@ -1111,7 +1107,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(mt352_attach,
 					       &dvico_fusionhdtv,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x60, NULL, DVB_PLL_THOMSON_DTT7579))
 				goto frontend_detach;
@@ -1121,19 +1117,21 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_plus_v1_1,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x60, NULL, DVB_PLL_THOMSON_DTT7579))
 				goto frontend_detach;
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
-		/* The tin box says DEE1601, but it seems to be DTT7579
-		 * compatible, with a slightly different MT352 AGC gain. */
+		/*
+		 * The tin box says DEE1601, but it seems to be DTT7579
+		 * compatible, with a slightly different MT352 AGC gain.
+		 */
 		fe0->dvb.frontend = dvb_attach(mt352_attach,
 					       &dvico_fusionhdtv_dual,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x61, NULL, DVB_PLL_THOMSON_DTT7579))
 				goto frontend_detach;
@@ -1143,7 +1141,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_plus_v1_1,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x61, NULL, DVB_PLL_THOMSON_DTT7579))
 				goto frontend_detach;
@@ -1153,7 +1151,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(mt352_attach,
 					       &dvico_fusionhdtv,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x61, NULL, DVB_PLL_LG_Z201))
 				goto frontend_detach;
@@ -1165,7 +1163,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(mt352_attach,
 					       &dntv_live_dvbt_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend,
 					0x61, NULL, DVB_PLL_UNKNOWN_1))
 				goto frontend_detach;
@@ -1174,9 +1172,10 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
 #if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
 		/* MT352 is on a secondary I2C bus made from some GPIO lines */
-		fe0->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
+		fe0->dvb.frontend = dvb_attach(mt352_attach,
+					       &dntv_live_dvbt_pro_config,
 					       &dev->vp3054->adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_PHILIPS_FMD1216ME_MK3))
@@ -1190,10 +1189,10 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_hybrid,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
-				   &core->i2c_adap, 0x61,
-				   TUNER_THOMSON_FE6600))
+					&core->i2c_adap, 0x61,
+					TUNER_THOMSON_FE6600))
 				goto frontend_detach;
 		}
 		break;
@@ -1201,7 +1200,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
 					       &dvico_fusionhdtv_xc3028,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend == NULL)
+		if (!fe0->dvb.frontend)
 			fe0->dvb.frontend = dvb_attach(mt352_attach,
 						&dvico_fusionhdtv_mt352_xc3028,
 						&core->i2c_adap);
@@ -1218,7 +1217,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_PCHDTV_HD3000:
 		fe0->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_THOMSON_DTT761X))
@@ -1239,7 +1238,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_MICROTUNE_4042FI5))
@@ -1257,7 +1256,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_3_gold,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_THOMSON_DTT761X))
@@ -1275,13 +1274,13 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &fusionhdtv_5_gold,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_LG_TDVS_H06XF))
 				goto frontend_detach;
 			if (!dvb_attach(tda9887_attach, fe0->dvb.frontend,
-				   &core->i2c_adap, 0x43))
+					&core->i2c_adap, 0x43))
 				goto frontend_detach;
 		}
 		break;
@@ -1296,13 +1295,13 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &pchdtv_hd5500,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_LG_TDVS_H06XF))
 				goto frontend_detach;
 			if (!dvb_attach(tda9887_attach, fe0->dvb.frontend,
-				   &core->i2c_adap, 0x43))
+					&core->i2c_adap, 0x43))
 				goto frontend_detach;
 		}
 		break;
@@ -1310,7 +1309,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(nxt200x_attach,
 					       &ati_hdtvwonder,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 					&core->i2c_adap, 0x61,
 					TUNER_PHILIPS_TUV1236D))
@@ -1331,8 +1330,8 @@ static int dvb_register(struct cx8802_dev *dev)
 				override_tone = false;
 
 			if (!dvb_attach(isl6421_attach, fe0->dvb.frontend,
-					&core->i2c_adap, 0x08, ISL6421_DCL, 0x00,
-					override_tone))
+					&core->i2c_adap, 0x08, ISL6421_DCL,
+					0x00, override_tone))
 				goto frontend_detach;
 		}
 		break;
@@ -1358,7 +1357,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
 					       &pinnacle_pctv_hd_800i_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(xc5000_attach, fe0->dvb.frontend,
 					&core->i2c_adap,
 					&pinnacle_pctv_hd_800i_tuner_config))
@@ -1367,9 +1366,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		fe0->dvb.frontend = dvb_attach(s5h1409_attach,
-						&dvico_hdtv5_pci_nano_config,
-						&core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+					       &dvico_hdtv5_pci_nano_config,
+					       &core->i2c_adap);
+		if (fe0->dvb.frontend) {
 			struct dvb_frontend *fe;
 			struct xc2028_config cfg = {
 				.i2c_adap  = &core->i2c_adap,
@@ -1383,7 +1382,7 @@ static int dvb_register(struct cx8802_dev *dev)
 
 			fe = dvb_attach(xc2028_attach,
 					fe0->dvb.frontend, &cfg);
-			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+			if (fe && fe->ops.tuner_ops.set_config)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
@@ -1436,7 +1435,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(s5h1411_attach,
 					       &dvico_fusionhdtv7_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(xc5000_attach, fe0->dvb.frontend,
 					&core->i2c_adap,
 					&dvico_fusionhdtv7_tuner_config))
@@ -1449,8 +1448,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->frontends.gate = 2;
 		/* DVB-S/S2 Init */
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
-					&hauppauge_hvr4000_config,
-					&dev->core->i2c_adap);
+					       &hauppauge_hvr4000_config,
+					       &dev->core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach,
 					fe0->dvb.frontend,
@@ -1464,8 +1463,8 @@ static int dvb_register(struct cx8802_dev *dev)
 			goto frontend_detach;
 		/* DVB-T Init */
 		fe1->dvb.frontend = dvb_attach(cx22702_attach,
-					&hauppauge_hvr_config,
-					&dev->core->i2c_adap);
+					       &hauppauge_hvr_config,
+					       &dev->core->i2c_adap);
 		if (fe1->dvb.frontend) {
 			fe1->dvb.frontend->id = 1;
 			if (!dvb_attach(simple_tuner_attach,
@@ -1477,8 +1476,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
-					&hauppauge_hvr4000_config,
-					&dev->core->i2c_adap);
+					       &hauppauge_hvr4000_config,
+					       &dev->core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach,
 					fe0->dvb.frontend,
@@ -1493,7 +1492,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(stv0299_attach,
 						&tevii_tuner_sharp_config,
 						&core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(dvb_pll_attach, fe0->dvb.frontend, 0x60,
 					&core->i2c_adap, DVB_PLL_OPERA1))
 				goto frontend_detach;
@@ -1504,8 +1503,9 @@ static int dvb_register(struct cx8802_dev *dev)
 			fe0->dvb.frontend = dvb_attach(stv0288_attach,
 							    &tevii_tuner_earda_config,
 							    &core->i2c_adap);
-			if (fe0->dvb.frontend != NULL) {
-				if (!dvb_attach(stb6000_attach, fe0->dvb.frontend, 0x61,
+			if (fe0->dvb.frontend) {
+				if (!dvb_attach(stb6000_attach,
+						fe0->dvb.frontend, 0x61,
 						&core->i2c_adap))
 					goto frontend_detach;
 				core->prev_set_voltage = fe0->dvb.frontend->ops.set_voltage;
@@ -1517,16 +1517,16 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
 					       &tevii_s460_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL)
+		if (fe0->dvb.frontend)
 			fe0->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
 		break;
 	case CX88_BOARD_TEVII_S464:
 		fe0->dvb.frontend = dvb_attach(ds3000_attach,
 						&tevii_ds3000_config,
 						&core->i2c_adap);
-		if (fe0->dvb.frontend != NULL) {
+		if (fe0->dvb.frontend) {
 			dvb_attach(ts2020_attach, fe0->dvb.frontend,
-				&tevii_ts2020_config, &core->i2c_adap);
+				   &tevii_ts2020_config, &core->i2c_adap);
 			fe0->dvb.frontend->ops.set_voltage =
 							tevii_dvbs_set_voltage;
 		}
@@ -1538,7 +1538,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
 					       &hauppauge_hvr4000_config,
 					       &core->i2c_adap);
-		if (fe0->dvb.frontend != NULL)
+		if (fe0->dvb.frontend)
 			fe0->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII:
@@ -1555,9 +1555,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		struct dvb_tuner_ops *tuner_ops = NULL;
 
 		fe0->dvb.frontend = dvb_attach(stv0900_attach,
-						&prof_7301_stv0900_config,
-						&core->i2c_adap, 0);
-		if (fe0->dvb.frontend != NULL) {
+					       &prof_7301_stv0900_config,
+					       &core->i2c_adap, 0);
+		if (fe0->dvb.frontend) {
 			if (!dvb_attach(stb6100_attach, fe0->dvb.frontend,
 					&prof_7301_stb6100_config,
 					&core->i2c_adap))
@@ -1587,8 +1587,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(200);
 
 		fe0->dvb.frontend = dvb_attach(stv0299_attach,
-					&samsung_stv0299_config,
-					&dev->core->i2c_adap);
+					       &samsung_stv0299_config,
+					       &dev->core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			fe0->dvb.frontend->ops.tuner_ops.set_params =
 				samsung_smt_7020_tuner_set_params;
@@ -1604,8 +1604,8 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		dev->ts_gen_cntrl = 0x00;
 		fe0->dvb.frontend = dvb_attach(mb86a16_attach,
-						&twinhan_vp1027,
-						&core->i2c_adap);
+					       &twinhan_vp1027,
+					       &core->i2c_adap);
 		if (fe0->dvb.frontend) {
 			core->prev_set_voltage =
 					fe0->dvb.frontend->ops.set_voltage;
@@ -1772,7 +1772,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		struct vb2_queue *q;
 
 		fe = vb2_dvb_get_frontend(&core->dvbdev->frontends, i);
-		if (fe == NULL) {
+		if (!fe) {
 			pr_err("%s() failed to get frontend(%d)\n",
 			       __func__, i);
 			err = -ENODEV;

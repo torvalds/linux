@@ -20,7 +20,7 @@ MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
 /* ------------------------------------------------------------------ */
 
 int cx8800_vbi_fmt(struct file *file, void *priv,
-					struct v4l2_format *f)
+		   struct v4l2_format *f)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
 
@@ -48,8 +48,8 @@ int cx8800_vbi_fmt(struct file *file, void *priv,
 }
 
 static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
-			 struct cx88_dmaqueue *q,
-			 struct cx88_buffer   *buf)
+				struct cx88_dmaqueue *q,
+				struct cx88_buffer   *buf)
 {
 	struct cx88_core *core = dev->core;
 
@@ -57,9 +57,9 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	cx88_sram_channel_setup(dev->core, &cx88_sram_channels[SRAM_CH24],
 				VBI_LINE_LENGTH, buf->risc.dma);
 
-	cx_write(MO_VBOS_CONTROL, ((1 << 18) |  // comb filter delay fixup
-				    (1 << 15) |  // enable vbi capture
-				    (1 << 11)));
+	cx_write(MO_VBOS_CONTROL, (1 << 18) |  /* comb filter delay fixup */
+				  (1 << 15) |  /* enable vbi capture */
+				  (1 << 11));
 
 	/* reset counter */
 	cx_write(MO_VBI_GPCNTRL, GP_COUNT_CONTROL_RESET);
@@ -73,7 +73,7 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	cx_set(VID_CAPTURE_CONTROL, 0x18);
 
 	/* start dma */
-	cx_set(MO_DEV_CNTRL2, (1<<5));
+	cx_set(MO_DEV_CNTRL2, (1 << 5));
 	cx_set(MO_VID_DMACNTRL, 0x88);
 
 	return 0;
@@ -112,8 +112,8 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 /* ------------------------------------------------------------------ */
 
 static int queue_setup(struct vb2_queue *q,
-			   unsigned int *num_buffers, unsigned int *num_planes,
-			   unsigned int sizes[], struct device *alloc_devs[])
+		       unsigned int *num_buffers, unsigned int *num_planes,
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cx8800_dev *dev = q->drv_priv;
 
@@ -124,7 +124,6 @@ static int queue_setup(struct vb2_queue *q,
 		sizes[0] = VBI_LINE_PAL_COUNT * VBI_LINE_LENGTH * 2;
 	return 0;
 }
-
 
 static int buffer_prepare(struct vb2_buffer *vb)
 {

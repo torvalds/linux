@@ -57,7 +57,8 @@ MODULE_PARM_DESC(always_analog, "force analog audio out");
 
 static unsigned int radio_deemphasis;
 module_param(radio_deemphasis, int, 0644);
-MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
+MODULE_PARM_DESC(radio_deemphasis,
+		 "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
 
 #define dprintk(fmt, arg...) do {				\
 	if (audio_debug)						\
@@ -141,7 +142,10 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 	if (core->board.mpeg & CX88_MPEG_BLACKBIRD) {
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
-		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */
+		/*
+		 * 'pass-thru mode': this enables the i2s
+		 * output to the mpeg encoder
+		 */
 		cx_set(AUD_CTL, EN_I2SOUT_ENABLE);
 		cx_write(AUD_I2SOUTPUTCNTL, 1);
 		cx_write(AUD_I2SCNTL, 0);
@@ -634,7 +638,6 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 	case WW_M:
 		dprintk("%s Warning: wrong value\n", __func__);
 		return;
-		break;
 	}
 
 	mode |= EN_FMRADIO_EN_RDS | EN_DMTRX_SUMDIFF;
@@ -691,13 +694,15 @@ static void set_audio_standard_FM(struct cx88_core *core,
 		{ /* end of list */ },
 	};
 
-	/* It is enough to leave default values? */
-	/* No, it's not!  The deemphasis registers are reset to the 75us
+	/*
+	 * It is enough to leave default values?
+	 *
+	 * No, it's not!  The deemphasis registers are reset to the 75us
 	 * values by default.  Analyzing the spectrum of the decoded audio
 	 * reveals that "no deemphasis" is the same as 75 us, while the 50 us
-	 * setting results in less deemphasis.  */
+	 * setting results in less deemphasis.
+	 */
 	static const struct rlist fm_no_deemph[] = {
-
 		{AUD_POLYPH80SCALEFAC, 0x0003},
 		{ /* end of list */ },
 	};
@@ -741,7 +746,7 @@ static int cx88_detect_nicam(struct cx88_core *core)
 		}
 
 		/* wait a little bit for next reading status */
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	dprintk("nicam is not detected.\n");
@@ -762,8 +767,10 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		/* prepare all dsp registers */
 		set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 
-		/* set nicam mode - otherwise
-		   AUD_NICAM_STATUS2 contains wrong values */
+		/*
+		 * set nicam mode - otherwise
+		 * AUD_NICAM_STATUS2 contains wrong values
+		 */
 		set_audio_standard_NICAM(core, EN_NICAM_AUTO_STEREO);
 		if (cx88_detect_nicam(core) == 0) {
 			/* fall back to fm / am mono */
@@ -797,19 +804,22 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		pr_info("unknown tv audio mode [%d]\n", core->tvaudio);
 		break;
 	}
-	return;
 }
+EXPORT_SYMBOL(cx88_set_tvaudio);
 
 void cx88_newstation(struct cx88_core *core)
 {
 	core->audiomode_manual = UNSET;
 	core->last_change = jiffies;
 }
+EXPORT_SYMBOL(cx88_newstation);
 
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 {
-	static const char * const m[] = { "stereo", "dual mono", "mono", "sap" };
-	static const char * const p[] = { "no pilot", "pilot c1", "pilot c2", "?" };
+	static const char * const m[] = { "stereo", "dual mono",
+					  "mono",   "sap" };
+	static const char * const p[] = { "no pilot", "pilot c1",
+					  "pilot c2", "?" };
 	u32 reg, mode, pilot;
 
 	reg = cx_read(AUD_STATUS);
@@ -866,13 +876,16 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 	/* If software stereo detection is not supported... */
 	if (t->rxsubchans == UNSET) {
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
-		/* If the hardware itself detected stereo, also return
-		   stereo as an available subchannel */
+		/*
+		 * If the hardware itself detected stereo, also return
+		 * stereo as an available subchannel
+		 */
 		if (t->audmode == V4L2_TUNER_MODE_STEREO)
 			t->rxsubchans |= V4L2_TUNER_SUB_STEREO;
 	}
-	return;
 }
+EXPORT_SYMBOL(cx88_get_stereo);
+
 
 void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 {
@@ -928,7 +941,8 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 				break;
 			}
 		} else {
-			if ((core->tvaudio == WW_I) || (core->tvaudio == WW_L)) {
+			if ((core->tvaudio == WW_I) ||
+			    (core->tvaudio == WW_L)) {
 				/* fall back to fm / am mono */
 				set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
 			} else {
@@ -976,8 +990,8 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 			cx_read(AUD_CTL), cx_sread(SHADOW_AUD_VOL_CTL));
 		cx_andor(AUD_CTL, mask, ctl);
 	}
-	return;
 }
+EXPORT_SYMBOL(cx88_set_stereo);
 
 int cx88_audio_thread(void *data)
 {
@@ -1027,8 +1041,10 @@ int cx88_audio_thread(void *data)
 		case WW_FM:
 		case WW_I2SADC:
 hw_autodetect:
-			/* stereo autodetection is supported by hardware so
-			   we don't need to do it manually. Do nothing. */
+			/*
+			 * stereo autodetection is supported by hardware so
+			 * we don't need to do it manually. Do nothing.
+			 */
 			break;
 		}
 	}
@@ -1036,11 +1052,4 @@ hw_autodetect:
 	dprintk("cx88: tvaudio thread exiting\n");
 	return 0;
 }
-
-/* ----------------------------------------------------------- */
-
-EXPORT_SYMBOL(cx88_set_tvaudio);
-EXPORT_SYMBOL(cx88_newstation);
-EXPORT_SYMBOL(cx88_set_stereo);
-EXPORT_SYMBOL(cx88_get_stereo);
 EXPORT_SYMBOL(cx88_audio_thread);

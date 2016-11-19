@@ -72,12 +72,14 @@ static DEFINE_MUTEX(devlist);
 
 #define NO_SYNC_LINE (-1U)
 
-/* @lpi: lines per IRQ, or 0 to not generate irqs. Note: IRQ to be
-	 generated _after_ lpi lines are transferred. */
+/*
+ * @lpi: lines per IRQ, or 0 to not generate irqs. Note: IRQ to be
+ * generated _after_ lpi lines are transferred.
+ */
 static __le32 *cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
-			    unsigned int offset, u32 sync_line,
-			    unsigned int bpl, unsigned int padding,
-			    unsigned int lines, unsigned int lpi, bool jump)
+			       unsigned int offset, u32 sync_line,
+			       unsigned int bpl, unsigned int padding,
+			       unsigned int lines, unsigned int lpi, bool jump)
 {
 	struct scatterlist *sg;
 	unsigned int line, todo, sol;
@@ -102,28 +104,29 @@ static __le32 *cx88_risc_field(__le32 *rp, struct scatterlist *sglist,
 			sol = RISC_SOL | RISC_IRQ1 | RISC_CNT_INC;
 		else
 			sol = RISC_SOL;
-		if (bpl <= sg_dma_len(sg)-offset) {
+		if (bpl <= sg_dma_len(sg) - offset) {
 			/* fits into current chunk */
-			*(rp++) = cpu_to_le32(RISC_WRITE|sol|RISC_EOL|bpl);
-			*(rp++) = cpu_to_le32(sg_dma_address(sg)+offset);
+			*(rp++) = cpu_to_le32(RISC_WRITE | sol |
+					      RISC_EOL | bpl);
+			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			offset += bpl;
 		} else {
 			/* scanline needs to be split */
 			todo = bpl;
-			*(rp++) = cpu_to_le32(RISC_WRITE|sol|
-					    (sg_dma_len(sg)-offset));
-			*(rp++) = cpu_to_le32(sg_dma_address(sg)+offset);
-			todo -= (sg_dma_len(sg)-offset);
+			*(rp++) = cpu_to_le32(RISC_WRITE | sol |
+					      (sg_dma_len(sg) - offset));
+			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
+			todo -= (sg_dma_len(sg) - offset);
 			offset = 0;
 			sg = sg_next(sg);
 			while (todo > sg_dma_len(sg)) {
-				*(rp++) = cpu_to_le32(RISC_WRITE|
-						    sg_dma_len(sg));
+				*(rp++) = cpu_to_le32(RISC_WRITE |
+						      sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg = sg_next(sg);
 			}
-			*(rp++) = cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
+			*(rp++) = cpu_to_le32(RISC_WRITE | RISC_EOL | todo);
 			*(rp++) = cpu_to_le32(sg_dma_address(sg));
 			offset += todo;
 		}
@@ -147,16 +150,19 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	if (bottom_offset != UNSET)
 		fields++;
 
-	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords).  Padding
-	   can cause next bpl to start close to a page border.  First DMA
-	   region may be smaller than PAGE_SIZE */
-	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
+	/*
+	 * estimate risc mem: worst case is one write per page border +
+	 * one write per scan line + syncs + jump (all 2 dwords).  Padding
+	 * can cause next bpl to start close to a page border.  First DMA
+	 * region may be smaller than PAGE_SIZE
+	 */
+	instructions  = fields * (1 + ((bpl + padding) * lines) /
+				  PAGE_SIZE + lines);
 	instructions += 4;
 	risc->size = instructions * 8;
 	risc->dma = 0;
 	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
-	if (risc->cpu == NULL)
+	if (!risc->cpu)
 		return -ENOMEM;
 
 	/* write risc instructions */
@@ -166,13 +172,15 @@ int cx88_risc_buffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 				     bpl, padding, lines, 0, true);
 	if (bottom_offset != UNSET)
 		rp = cx88_risc_field(rp, sglist, bottom_offset, 0x200,
-				     bpl, padding, lines, 0, top_offset == UNSET);
+				     bpl, padding, lines, 0,
+				     top_offset == UNSET);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
 	WARN_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
+EXPORT_SYMBOL(cx88_risc_buffer);
 
 int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 			 struct scatterlist *sglist, unsigned int bpl,
@@ -181,32 +189,38 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct cx88_riscmem *risc,
 	u32 instructions;
 	__le32 *rp;
 
-	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords).  Here
-	   there is no padding and no sync.  First DMA region may be smaller
-	   than PAGE_SIZE */
+	/*
+	 * estimate risc mem: worst case is one write per page border +
+	 * one write per scan line + syncs + jump (all 2 dwords).  Here
+	 * there is no padding and no sync.  First DMA region may be smaller
+	 * than PAGE_SIZE
+	 */
 	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
 	instructions += 3;
 	risc->size = instructions * 8;
 	risc->dma = 0;
 	risc->cpu = pci_zalloc_consistent(pci, risc->size, &risc->dma);
-	if (risc->cpu == NULL)
+	if (!risc->cpu)
 		return -ENOMEM;
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0, lines, lpi, !lpi);
+	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0,
+			     lines, lpi, !lpi);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
 	WARN_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
+EXPORT_SYMBOL(cx88_risc_databuffer);
 
-/* ------------------------------------------------------------------ */
-/* our SRAM memory layout                                             */
+/*
+ * our SRAM memory layout
+ */
 
-/* we are going to put all thr risc programs into host memory, so we
+/*
+ * we are going to put all thr risc programs into host memory, so we
  * can use the whole SDRAM for the DMA fifos.  To simplify things, we
  * use a static memory layout.  That surely will waste memory in case
  * we don't use all DMA channels at the same time (which will be the
@@ -330,6 +344,7 @@ const struct sram_channel cx88_sram_channels[] = {
 		.cnt2_reg   = MO_DMA27_CNT2,
 	},
 };
+EXPORT_SYMBOL(cx88_sram_channels);
 
 int cx88_sram_channel_setup(struct cx88_core *core,
 			    const struct sram_channel *ch,
@@ -347,12 +362,12 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 
 	/* write CDT */
 	for (i = 0; i < lines; i++)
-		cx_write(cdt + 16*i, ch->fifo_start + bpl*i);
+		cx_write(cdt + 16 * i, ch->fifo_start + bpl * i);
 
 	/* write CMDS */
 	cx_write(ch->cmds_start +  0, risc);
 	cx_write(ch->cmds_start +  4, cdt);
-	cx_write(ch->cmds_start +  8, (lines*16) >> 3);
+	cx_write(ch->cmds_start +  8, (lines * 16) >> 3);
 	cx_write(ch->cmds_start + 12, ch->ctrl_start);
 	cx_write(ch->cmds_start + 16, 64 >> 2);
 	for (i = 20; i < 64; i += 4)
@@ -362,11 +377,12 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 	cx_write(ch->ptr1_reg, ch->fifo_start);
 	cx_write(ch->ptr2_reg, cdt);
 	cx_write(ch->cnt1_reg, (bpl >> 3) - 1);
-	cx_write(ch->cnt2_reg, (lines*16) >> 3);
+	cx_write(ch->cnt2_reg, (lines * 16) >> 3);
 
 	dprintk(2, "sram setup %s: bpl=%d lines=%d\n", ch->name, bpl, lines);
 	return 0;
 }
+EXPORT_SYMBOL(cx88_sram_channel_setup);
 
 /* ------------------------------------------------------------------ */
 /* debug helper code                                                  */
@@ -401,14 +417,13 @@ static int cx88_risc_decode(u32 risc)
 	int i;
 
 	dprintk0("0x%08x [ %s", risc,
-	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
-	for (i = ARRAY_SIZE(bits)-1; i >= 0; i--)
+		 instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
+	for (i = ARRAY_SIZE(bits) - 1; i >= 0; i--)
 		if (risc & (1 << (i + 12)))
 			pr_cont(" %s", bits[i]);
 	pr_cont(" count=%d ]\n", risc & 0xfff);
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
-
 
 void cx88_sram_channel_dump(struct cx88_core *core,
 			    const struct sram_channel *ch)
@@ -429,14 +444,12 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 	u32 risc;
 	unsigned int i, j, n;
 
-	dprintk0("%s - dma channel status dump\n",
-		ch->name);
+	dprintk0("%s - dma channel status dump\n", ch->name);
 	for (i = 0; i < ARRAY_SIZE(name); i++)
 		dprintk0("   cmds: %-12s: 0x%08x\n",
-			name[i],
-			cx_read(ch->cmds_start + 4*i));
+			 name[i], cx_read(ch->cmds_start + 4 * i));
 	for (n = 1, i = 0; i < 4; i++) {
-		risc = cx_read(ch->cmds_start + 4 * (i+11));
+		risc = cx_read(ch->cmds_start + 4 * (i + 11));
 		pr_cont("  risc%d: ", i);
 		if (--n)
 			pr_cont("0x%08x [ arg #%d ]\n", risc, n);
@@ -448,21 +461,22 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 		dprintk0("  iq %x: ", i);
 		n = cx88_risc_decode(risc);
 		for (j = 1; j < n; j++) {
-			risc = cx_read(ch->ctrl_start + 4 * (i+j));
+			risc = cx_read(ch->ctrl_start + 4 * (i + j));
 			pr_cont("  iq %x: 0x%08x [ arg #%d ]\n",
 				i + j, risc, j);
 		}
 	}
 
 	dprintk0("fifo: 0x%08x -> 0x%x\n",
-	       ch->fifo_start, ch->fifo_start+ch->fifo_size);
+		 ch->fifo_start, ch->fifo_start + ch->fifo_size);
 	dprintk0("ctrl: 0x%08x -> 0x%x\n",
-	       ch->ctrl_start, ch->ctrl_start + 6 * 16);
+		 ch->ctrl_start, ch->ctrl_start + 6 * 16);
 	dprintk0("  ptr1_reg: 0x%08x\n", cx_read(ch->ptr1_reg));
 	dprintk0("  ptr2_reg: 0x%08x\n", cx_read(ch->ptr2_reg));
 	dprintk0("  cnt1_reg: 0x%08x\n", cx_read(ch->cnt1_reg));
 	dprintk0("  cnt2_reg: 0x%08x\n", cx_read(ch->cnt2_reg));
 }
+EXPORT_SYMBOL(cx88_sram_channel_dump);
 
 static const char *cx88_pci_irqs[32] = {
 	"vid", "aud", "ts", "vip", "hst", "5", "6", "tm1",
@@ -490,6 +504,7 @@ void cx88_print_irqbits(const char *tag, const char *strings[],
 	}
 	pr_cont("\n");
 }
+EXPORT_SYMBOL(cx88_print_irqbits);
 
 /* ------------------------------------------------------------------ */
 
@@ -507,6 +522,7 @@ int cx88_core_irq(struct cx88_core *core, u32 status)
 				   status, core->pci_irqmask);
 	return handled;
 }
+EXPORT_SYMBOL(cx88_core_irq);
 
 void cx88_wakeup(struct cx88_core *core,
 		 struct cx88_dmaqueue *q, u32 count)
@@ -521,6 +537,7 @@ void cx88_wakeup(struct cx88_core *core,
 	list_del(&buf->list);
 	vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
+EXPORT_SYMBOL(cx88_wakeup);
 
 void cx88_shutdown(struct cx88_core *core)
 {
@@ -545,6 +562,7 @@ void cx88_shutdown(struct cx88_core *core)
 	/* stop capturing */
 	cx_write(VID_CAPTURE_CONTROL, 0);
 }
+EXPORT_SYMBOL(cx88_shutdown);
 
 int cx88_reset(struct cx88_core *core)
 {
@@ -560,13 +578,15 @@ int cx88_reset(struct cx88_core *core)
 	msleep(100);
 
 	/* init sram */
-	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH21], 720*4, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH21],
+				720 * 4, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH22], 128, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH23], 128, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH24], 128, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], 128, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], 128, 0);
-	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28], 188*4, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
+				188 * 4, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH27], 128, 0);
 
 	/* misc init ... */
@@ -594,11 +614,12 @@ int cx88_reset(struct cx88_core *core)
 
 	/* Reset on-board parts */
 	cx_write(MO_SRST_IO, 0);
-	msleep(10);
+	usleep_range(10000, 20000);
 	cx_write(MO_SRST_IO, 1);
 
 	return 0;
 }
+EXPORT_SYMBOL(cx88_reset);
 
 /* ------------------------------------------------------------------ */
 
@@ -628,10 +649,11 @@ static inline unsigned int norm_fsc8(v4l2_std_id norm)
 	if (norm & V4L2_STD_NTSC) // All NTSC/M and variants
 		return 28636360;      // 3.57954545 MHz +/- 10 Hz
 
-	/* SECAM have also different sub carrier for chroma,
-	   but step_db and step_dr, at cx88_set_tvnorm already handles that.
-
-	   The same FSC applies to PAL/BGDKIH, PAL/60, NTSC/4.43 and PAL/N
+	/*
+	 * SECAM have also different sub carrier for chroma,
+	 * but step_db and step_dr, at cx88_set_tvnorm already handles that.
+	 *
+	 * The same FSC applies to PAL/BGDKIH, PAL/60, NTSC/4.43 and PAL/N
 	 */
 
 	return 35468950;      // 4.43361875 MHz +/- 5 Hz
@@ -639,13 +661,12 @@ static inline unsigned int norm_fsc8(v4l2_std_id norm)
 
 static inline unsigned int norm_htotal(v4l2_std_id norm)
 {
-
-	unsigned int fsc4 = norm_fsc8(norm)/2;
+	unsigned int fsc4 = norm_fsc8(norm) / 2;
 
 	/* returns 4*FSC / vtotal / frames per seconds */
 	return (norm & V4L2_STD_625_50) ?
-				((fsc4+312)/625+12)/25 :
-				((fsc4+262)/525*1001+15000)/30000;
+				((fsc4 + 312) / 625 + 12) / 25 :
+				((fsc4 + 262) / 525 * 1001 + 15000) / 30000;
 }
 
 static inline unsigned int norm_vbipack(v4l2_std_id norm)
@@ -653,8 +674,8 @@ static inline unsigned int norm_vbipack(v4l2_std_id norm)
 	return (norm & V4L2_STD_625_50) ? 511 : 400;
 }
 
-int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int height,
-		   enum v4l2_field field)
+int cx88_set_scale(struct cx88_core *core, unsigned int width,
+		   unsigned int height, enum v4l2_field field)
 {
 	unsigned int swidth  = norm_swidth(core->tvnorm);
 	unsigned int sheight = norm_maxh(core->tvnorm);
@@ -721,6 +742,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 
 	return 0;
 }
+EXPORT_SYMBOL(cx88_set_scale);
 
 static const u32 xtal = 28636363;
 
@@ -749,13 +771,13 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 	cx_write(MO_PLL_REG, reg);
 	for (i = 0; i < 100; i++) {
 		reg = cx_read(MO_DEVICE_STATUS);
-		if (reg & (1<<2)) {
+		if (reg & (1 << 2)) {
 			dprintk(1, "pll locked [pre=%d,ofreq=%d]\n",
 				prescale, ofreq);
 			return 0;
 		}
 		dprintk(1, "pll not locked yet, waiting ...\n");
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 	dprintk(1, "pll NOT locked [pre=%d,ofreq=%d]\n", prescale, ofreq);
 	return -1;
@@ -764,9 +786,9 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 int cx88_start_audio_dma(struct cx88_core *core)
 {
 	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
-	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
+	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size / 4;
 
-	int rds_bpl = cx88_sram_channels[SRAM_CH27].fifo_size/AUD_RDS_LINES;
+	int rds_bpl = cx88_sram_channels[SRAM_CH27].fifo_size / AUD_RDS_LINES;
 
 	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
 	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
@@ -803,8 +825,8 @@ static int set_tvaudio(struct cx88_core *core)
 {
 	v4l2_std_id norm = core->tvnorm;
 
-	if (CX88_VMUX_TELEVISION != INPUT(core->input).type &&
-	    CX88_VMUX_CABLE != INPUT(core->input).type)
+	if (INPUT(core->input).type != CX88_VMUX_TELEVISION &&
+	    INPUT(core->input).type != CX88_VMUX_CABLE)
 		return 0;
 
 	if (V4L2_STD_PAL_BG & norm) {
@@ -819,7 +841,8 @@ static int set_tvaudio(struct cx88_core *core)
 	} else if (V4L2_STD_SECAM_L & norm) {
 		core->tvaudio = WW_L;
 
-	} else if ((V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H) & norm) {
+	} else if ((V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H) &
+		   norm) {
 		core->tvaudio = WW_BG;
 
 	} else if (V4L2_STD_SECAM_DK & norm) {
@@ -844,14 +867,12 @@ static int set_tvaudio(struct cx88_core *core)
 	/* cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO); */
 
 /*
-   This should be needed only on cx88-alsa. It seems that some cx88 chips have
-   bugs and does require DMA enabled for it to work.
+ * This should be needed only on cx88-alsa. It seems that some cx88 chips have
+ * bugs and does require DMA enabled for it to work.
  */
 	cx88_start_audio_dma(core);
 	return 0;
 }
-
-
 
 int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 {
@@ -916,8 +937,10 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 	dprintk(1, "set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
 		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
-	/* Chroma AGC must be disabled if SECAM is used, we enable it
-	   by default on PAL and NTSC */
+	/*
+	 * Chroma AGC must be disabled if SECAM is used, we enable it
+	 * by default on PAL and NTSC
+	 */
 	cx_andor(MO_INPUT_FORMAT, 0x40f,
 		 norm & V4L2_STD_SECAM ? cxiformat : cxiformat | 0x400);
 
@@ -952,7 +975,8 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	agcdelay = vdec_clock * 68 / 20000000 + 15;
 	dprintk(1,
 		"set_tvnorm: MO_AGC_BURST     0x%08x [old=0x%08x,bdelay=%d,agcdelay=%d]\n",
-		(bdelay << 8) | agcdelay, cx_read(MO_AGC_BURST), bdelay, agcdelay);
+		(bdelay << 8) | agcdelay, cx_read(MO_AGC_BURST),
+		bdelay, agcdelay);
 	cx_write(MO_AGC_BURST, (bdelay << 8) | agcdelay);
 
 	// htotal
@@ -966,7 +990,7 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 	// vbi stuff, set vbi offset to 10 (for 20 Clk*2 pixels), this makes
 	// the effective vbi offset ~244 samples, the same as the Bt8x8
-	cx_write(MO_VBI_PACKET, (10<<11) | norm_vbipack(norm));
+	cx_write(MO_VBI_PACKET, (10 << 11) | norm_vbipack(norm));
 
 	// this is needed as well to set all tvnorm parameter
 	cx88_set_scale(core, 320, 240, V4L2_FIELD_INTERLACED);
@@ -977,12 +1001,16 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	// tell i2c chips
 	call_all(core, video, s_std, norm);
 
-	/* The chroma_agc control should be inaccessible if the video format is SECAM */
+	/*
+	 * The chroma_agc control should be inaccessible
+	 * if the video format is SECAM
+	 */
 	v4l2_ctrl_grab(core->chroma_agc, cxiformat == VideoFormatSECAM);
 
 	// done
 	return 0;
 }
+EXPORT_SYMBOL(cx88_set_tvnorm);
 
 /* ------------------------------------------------------------------ */
 
@@ -1007,6 +1035,7 @@ void cx88_vdev_init(struct cx88_core *core,
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
 }
+EXPORT_SYMBOL(cx88_vdev_init);
 
 struct cx88_core *cx88_core_get(struct pci_dev *pci)
 {
@@ -1029,7 +1058,7 @@ struct cx88_core *cx88_core_get(struct pci_dev *pci)
 	}
 
 	core = cx88_core_create(pci, cx88_devcount);
-	if (core != NULL) {
+	if (core) {
 		cx88_devcount++;
 		list_add_tail(&core->devlist, &cx88_devlist);
 	}
@@ -1037,6 +1066,7 @@ struct cx88_core *cx88_core_get(struct pci_dev *pci)
 	mutex_unlock(&devlist);
 	return core;
 }
+EXPORT_SYMBOL(cx88_core_get);
 
 void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 {
@@ -1062,29 +1092,4 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	v4l2_device_unregister(&core->v4l2_dev);
 	kfree(core);
 }
-
-/* ------------------------------------------------------------------ */
-
-EXPORT_SYMBOL(cx88_print_irqbits);
-
-EXPORT_SYMBOL(cx88_core_irq);
-EXPORT_SYMBOL(cx88_wakeup);
-EXPORT_SYMBOL(cx88_reset);
-EXPORT_SYMBOL(cx88_shutdown);
-
-EXPORT_SYMBOL(cx88_risc_buffer);
-EXPORT_SYMBOL(cx88_risc_databuffer);
-
-EXPORT_SYMBOL(cx88_sram_channels);
-EXPORT_SYMBOL(cx88_sram_channel_setup);
-EXPORT_SYMBOL(cx88_sram_channel_dump);
-
-EXPORT_SYMBOL(cx88_set_tvnorm);
-EXPORT_SYMBOL(cx88_set_scale);
-
-EXPORT_SYMBOL(cx88_vdev_init);
-EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
-
-EXPORT_SYMBOL(cx88_ir_start);
-EXPORT_SYMBOL(cx88_ir_stop);

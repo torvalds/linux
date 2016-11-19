@@ -24,10 +24,9 @@
 
 #include "cx88.h"
 
-#include <linux/module.h>
 #include <linux/init.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/module.h>
 
 #include <media/v4l2-common.h>
 
@@ -41,7 +40,8 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
 static unsigned int i2c_udelay = 5;
 module_param(i2c_udelay, int, 0644);
-MODULE_PARM_DESC(i2c_udelay, "i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
+MODULE_PARM_DESC(i2c_udelay,
+		 "i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
 
 #define dprintk(level, fmt, arg...) do {				\
 	if (i2c_debug >= level)						\
@@ -139,7 +139,6 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 	core->i2c_algo = cx8800_i2c_algo_template;
 
-
 	core->i2c_adap.dev.parent = &pci->dev;
 	strlcpy(core->i2c_adap.name, core->name, sizeof(core->i2c_adap.name));
 	core->i2c_adap.owner = THIS_MODULE;
@@ -166,14 +165,14 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 		dprintk(1, "i2c register ok\n");
 		switch (core->boardnr) {
-			case CX88_BOARD_HAUPPAUGE_HVR1300:
-			case CX88_BOARD_HAUPPAUGE_HVR3000:
-			case CX88_BOARD_HAUPPAUGE_HVR4000:
-				pr_info("i2c init: enabling analog demod on HVR1300/3000/4000 tuner\n");
-				i2c_transfer(core->i2c_client.adapter, &tuner_msg, 1);
-				break;
-			default:
-				break;
+		case CX88_BOARD_HAUPPAUGE_HVR1300:
+		case CX88_BOARD_HAUPPAUGE_HVR3000:
+		case CX88_BOARD_HAUPPAUGE_HVR4000:
+			pr_info("i2c init: enabling analog demod on HVR1300/3000/4000 tuner\n");
+			i2c_transfer(core->i2c_client.adapter, &tuner_msg, 1);
+			break;
+		default:
+			break;
 		}
 		if (i2c_scan)
 			do_i2c_scan(core->name, &core->i2c_client);

@@ -62,11 +62,15 @@ static int ir_debug;
 module_param(ir_debug, int, 0644);	/* debug level [IR] */
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
-#define ir_dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "%s IR: " fmt, ir->core->name, ##arg)
+#define ir_dprintk(fmt, arg...)	do {					\
+	if (ir_debug)							\
+		printk(KERN_DEBUG "%s IR: " fmt, ir->core->name, ##arg);\
+} while (0)
 
-#define dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "cx88 IR: " fmt, ##arg)
+#define dprintk(fmt, arg...) do {					\
+	if (ir_debug)							\
+		printk(KERN_DEBUG "cx88 IR: " fmt, ##arg);		\
+} while (0)
 
 /* ---------------------------------------------------------------------- */
 
@@ -79,16 +83,17 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	gpio = cx_read(ir->gpio_addr);
 	switch (core->boardnr) {
 	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
-		/* This board apparently uses a combination of 2 GPIO
-		   to represent the keys. Additionally, the second GPIO
-		   can be used for parity.
-
-		   Example:
-
-		   for key "5"
-			gpio = 0x758, auxgpio = 0xe5 or 0xf5
-		   for key "Power"
-			gpio = 0x758, auxgpio = 0xed or 0xfd
+		/*
+		 * This board apparently uses a combination of 2 GPIO
+		 * to represent the keys. Additionally, the second GPIO
+		 * can be used for parity.
+		 *
+		 * Example:
+		 *
+		 * for key "5"
+		 *	gpio = 0x758, auxgpio = 0xe5 or 0xf5
+		 * for key "Power"
+		 *	gpio = 0x758, auxgpio = 0xed or 0xfd
 		 */
 
 		auxgpio = cx_read(MO_GP1_IO);
@@ -142,7 +147,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		if (0 == (gpio & ir->mask_keyup))
 			rc_keydown_notimeout(ir->dev, RC_TYPE_NECX, scancode,
-									0);
+					     0);
 		else
 			rc_keyup(ir->dev);
 
@@ -231,12 +236,14 @@ int cx88_ir_start(struct cx88_core *core)
 
 	return 0;
 }
+EXPORT_SYMBOL(cx88_ir_start);
 
 void cx88_ir_stop(struct cx88_core *core)
 {
 	if (core->ir->users)
 		__cx88_ir_stop(core);
 }
+EXPORT_SYMBOL(cx88_ir_stop);
 
 static int cx88_ir_open(struct rc_dev *rc)
 {
@@ -508,7 +515,7 @@ int cx88_ir_fini(struct cx88_core *core)
 	struct cx88_IR *ir = core->ir;
 
 	/* skip detach on non attached boards */
-	if (ir == NULL)
+	if (!ir)
 		return 0;
 
 	cx88_ir_stop(core);
@@ -576,7 +583,7 @@ static int get_key_pvr2000(struct IR_i2c *ir, enum rc_type *protocol,
 	}
 
 	dprintk("IR Key/Flags: (0x%02x/0x%02x)\n",
-		   code & 0xff, flags & 0xff);
+		code & 0xff, flags & 0xff);
 
 	*protocol = RC_TYPE_UNKNOWN;
 	*scancode = code & 0xff;
@@ -636,8 +643,8 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 			info.platform_data = &core->init_data;
 		}
 		if (i2c_smbus_xfer(&core->i2c_adap, *addrp, 0,
-					I2C_SMBUS_READ, 0,
-					I2C_SMBUS_QUICK, NULL) >= 0) {
+				   I2C_SMBUS_READ, 0,
+				   I2C_SMBUS_QUICK, NULL) >= 0) {
 			info.addr = *addrp;
 			i2c_new_device(&core->i2c_adap, &info);
 			break;
