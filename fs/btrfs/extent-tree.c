@@ -4322,6 +4322,13 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
  */
 void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	/* Make sure the range is aligned to sectorsize */
+	len = round_up(start + len, root->sectorsize) -
+	      round_down(start, root->sectorsize);
+	start = round_down(start, root->sectorsize);
+
 	btrfs_free_reserved_data_space_noquota(inode, start, len);
 	btrfs_qgroup_free_data(inode, start, len);
 }
