@@ -2580,7 +2580,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 					wake_up_interruptible(&ch->ch_tun.un_flags_wait);
 				}
 
-				if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
+				if (ch->ch_pun.un_flags & (UN_LOW | UN_EMPTY)) {
 					ch->ch_pun.un_flags &=
 						~(UN_LOW | UN_EMPTY);
 					wake_up_interruptible(&ch->ch_pun.un_flags_wait);
