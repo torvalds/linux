@@ -56,12 +56,18 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 
 	log = &chip->log;
 
+	/* Unfortuntely ACPI does not associate the event log with a specific
+	 * TPM, like PPI. Thus all ACPI TPMs will read the same log.
+	 */
+	if (!chip->acpi_dev_handle)
+		return -ENODEV;
+
 	/* Find TCPA entry in RSDT (ACPI_LOGICAL_ADDRESSING) */
 	status = acpi_get_table(ACPI_SIG_TCPA, 1,
 				(struct acpi_table_header **)&buff);
 
 	if (ACPI_FAILURE(status))
-		return -EIO;
+		return -ENODEV;
 
 	switch(buff->platform_class) {
 	case BIOS_SERVER:

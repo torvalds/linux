@@ -29,23 +29,22 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	struct tpm_bios_log *log;
 
 	log = &chip->log;
-	if (chip->dev.parent->of_node)
+	if (chip->dev.parent && chip->dev.parent->of_node)
 		np = chip->dev.parent->of_node;
 	else
 		return -ENODEV;
 
 	sizep = of_get_property(np, "linux,sml-size", NULL);
-	if (sizep == NULL)
+	basep = of_get_property(np, "linux,sml-base", NULL);
+	if (sizep == NULL && basep == NULL)
+		return -ENODEV;
+	if (sizep == NULL || basep == NULL)
 		return -EIO;
 
 	if (*sizep == 0) {
 		dev_warn(&chip->dev, "%s: Event log area empty\n", __func__);
 		return -EIO;
 	}
-
-	basep = of_get_property(np, "linux,sml-base", NULL);
-	if (basep == NULL)
-		return -EIO;
 
 	log->bios_event_log = kmalloc(*sizep, GFP_KERNEL);
 	if (!log->bios_event_log)

@@ -368,14 +368,21 @@ static int tpm_read_log(struct tpm_chip *chip)
 	}
 
 	rc = tpm_read_log_acpi(chip);
-	if ((rc == 0) || (rc == -ENOMEM))
+	if (rc != -ENODEV)
 		return rc;
 
-	rc = tpm_read_log_of(chip);
-
-	return rc;
+	return tpm_read_log_of(chip);
 }
 
+/*
+ * tpm_bios_log_setup() - Read the event log from the firmware
+ * @chip: TPM chip to use.
+ *
+ * If an event log is found then the securityfs files are setup to
+ * export it to userspace, otherwise nothing is done.
+ *
+ * Returns -ENODEV if the firmware has no event log.
+ */
 int tpm_bios_log_setup(struct tpm_chip *chip)
 {
 	const char *name = dev_name(&chip->dev);
@@ -386,15 +393,8 @@ int tpm_bios_log_setup(struct tpm_chip *chip)
 		return 0;
 
 	rc = tpm_read_log(chip);
-	/*
-	 * read_log failure means event log is not supported except for ENOMEM.
-	 */
-	if (rc < 0) {
-		if (rc == -ENOMEM)
-			return -ENODEV;
-		else
-			return rc;
-	}
+	if (rc)
+		return rc;
 
 	cnt = 0;
 	chip->bios_dir[cnt] = securityfs_create_dir(name, NULL);
