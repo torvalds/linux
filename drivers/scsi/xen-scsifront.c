@@ -627,6 +627,7 @@ static int scsifront_action_handler(struct scsi_cmnd *sc, uint8_t act)
 
 	if (scsifront_enter(info)) {
 		spin_unlock_irq(host->host_lock);
+		kfree(shadow);
 		return FAILED;
 	}
 
