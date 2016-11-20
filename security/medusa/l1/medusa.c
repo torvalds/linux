@@ -1301,8 +1301,8 @@ static struct security_hook_list medusa_l1_hooks[] = {
 		LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
 #endif
 
-	LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
-	LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
+	// LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
+	// LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
 	LSM_HOOK_INIT(inode_init_security, medusa_l1_inode_init_security),
 	LSM_HOOK_INIT(inode_create, medusa_l1_inode_create),
 	LSM_HOOK_INIT(inode_link, medusa_l1_inode_link),
@@ -1346,8 +1346,8 @@ static struct security_hook_list medusa_l1_hooks[] = {
 
 	LSM_HOOK_INIT(task_create, medusa_l1_task_create),
 	LSM_HOOK_INIT(task_free, medusa_l1_task_free),
-	LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
-	LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+	// LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
+	// LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
 	LSM_HOOK_INIT(cred_prepare, medusa_l1_cred_prepare),
 	LSM_HOOK_INIT(cred_transfer, medusa_l1_cred_transfer),
 	LSM_HOOK_INIT(kernel_act_as, medusa_l1_kernel_act_as),
@@ -1485,6 +1485,13 @@ static struct security_hook_list medusa_l1_hooks[] = {
 #endif
 };
 
+struct security_hook_list medusa_l1_hooks_special[] = {
+	LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
+	LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
+	LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
+	LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+};
+
 void __init medusa_init(void);
 
 static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
@@ -1503,6 +1510,13 @@ static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
         }
 }
 
+// Number and order of hooks has to be the same
+void security_replace_hooks(struct security_hook_list *old_hooks, struct security_hook_list *new_hooks, int count)
+{
+    int i;
+    for (i = 0; i < count; i++)
+        list_replace_rcu(&old_hooks[i].list, &new_hooks[i].list);
+}
 
 static int __init medusa_l1_init(void)
 {
@@ -1516,6 +1530,8 @@ static int __init medusa_l1_init(void)
 	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks));
 	printk("medusa: l1 registered with the kernel\n");
     
+    security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
+
     extern bool l1_initialized;
     extern struct cred_list l0_cred_list;
     extern struct inode_list l0_inode_list;

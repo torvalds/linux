@@ -28,7 +28,7 @@ int medusa_l0_inode_alloc_security(struct inode *inode)
     if(l1_initialized) { 
         printk("medusa: special case when l1 has been initialized (l0_inode_alloc_security)\n");
         mutex_unlock(&l0_mutex);
-        list_del_rcu(&medusa_l0_hooks[0].list);
+        //list_del_rcu(&medusa_l0_hooks[0].list);
         return medusa_l1_inode_alloc_security(inode);
     }
     else {
@@ -46,7 +46,7 @@ static void medusa_l0_inode_free_security(struct inode *inode)
     mutex_lock(&l0_mutex);
     if(l1_initialized) {
         printk("medusa: special case when l1 has been initialized (l0_inode_free_security)\n");
-        list_del_rcu(&medusa_l0_hooks[1].list);
+        // list_del_rcu(&medusa_l0_hooks[1].list);
         medusa_l1_inode_free_security(inode);
         mutex_unlock(&l0_mutex);
     }
@@ -69,7 +69,7 @@ static int medusa_l0_cred_alloc_blank(struct cred *cred, gfp_t gfp)
     mutex_lock(&l0_mutex);
     if(l1_initialized) {
         printk("medusa: special case when l1 has been initialized (l0_cred_alloc_blank)\n");
-        list_del_rcu(&medusa_l0_hooks[2].list);
+        // list_del_rcu(&medusa_l0_hooks[2].list);
         mutex_unlock(&l0_mutex);
         return medusa_l1_cred_alloc_blank(cred, gfp);
     }
@@ -88,7 +88,7 @@ static void medusa_l0_cred_free(struct cred *cred)
 {
     mutex_lock(&l0_mutex);
     if(l1_initialized) {
-        list_del_rcu(&medusa_l0_hooks[3].list);
+        // list_del_rcu(&medusa_l0_hooks[3].list);
         medusa_l1_cred_free(cred);
         mutex_unlock(&l0_mutex);
     }
