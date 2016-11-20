@@ -431,8 +431,8 @@ static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 {
-	int err, irq;
-	u16 reg;
+	int err, irq, virq;
+	u16 reg, mask;
 
 	chip->g1_irq.nirqs = chip->info->g1_irqs;
 	chip->g1_irq.domain = irq_domain_add_simple(
@@ -447,32 +447,41 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->g1_irq.chip = mv88e6xxx_g1_irq_chip;
 	chip->g1_irq.masked = ~0;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &mask);
 	if (err)
-		goto out;
+		goto out_mapping;
 
-	reg &= ~GENMASK(chip->g1_irq.nirqs, 0);
+	mask &= ~GENMASK(chip->g1_irq.nirqs, 0);
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, reg);
+	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
 	if (err)
-		goto out;
+		goto out_disable;
 
 	/* Reading the interrupt status clears (most of) them */
 	err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &reg);
 	if (err)
-		goto out;
+		goto out_disable;
 
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
 				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
 				   dev_name(chip->dev), chip);
 	if (err)
-		goto out;
+		goto out_disable;
 
 	return 0;
 
-out:
-	mv88e6xxx_g1_irq_free(chip);
+out_disable:
+	mask |= GENMASK(chip->g1_irq.nirqs, 0);
+	mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+
+out_mapping:
+	for (irq = 0; irq < 16; irq++) {
+		virq = irq_find_mapping(chip->g1_irq.domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(chip->g1_irq.domain);
 
 	return err;
 }
