@@ -507,6 +507,9 @@ void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
 {
 	int irq, virq;
 
+	free_irq(chip->device_irq, chip);
+	irq_dispose_mapping(chip->device_irq);
+
 	for (irq = 0; irq < 16; irq++) {
 		virq = irq_find_mapping(chip->g2_irq.domain, irq);
 		irq_dispose_mapping(virq);
@@ -517,8 +520,7 @@ void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
 
 int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 {
-	int device_irq;
-	int err, irq;
+	int err, irq, virq;
 
 	if (!chip->dev->of_node)
 		return -EINVAL;
@@ -534,22 +536,28 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->g2_irq.chip = mv88e6xxx_g2_irq_chip;
 	chip->g2_irq.masked = ~0;
 
-	device_irq = irq_find_mapping(chip->g1_irq.domain,
-				      GLOBAL_STATUS_IRQ_DEVICE);
-	if (device_irq < 0) {
-		err = device_irq;
+	chip->device_irq = irq_find_mapping(chip->g1_irq.domain,
+					    GLOBAL_STATUS_IRQ_DEVICE);
+	if (chip->device_irq < 0) {
+		err = chip->device_irq;
 		goto out;
 	}
 
-	err = devm_request_threaded_irq(chip->dev, device_irq, NULL,
-					mv88e6xxx_g2_irq_thread_fn,
-					IRQF_ONESHOT, "mv88e6xxx-g1", chip);
+	err = request_threaded_irq(chip->device_irq, NULL,
+				   mv88e6xxx_g2_irq_thread_fn,
+				   IRQF_ONESHOT, "mv88e6xxx-g1", chip);
 	if (err)
 		goto out;
 
 	return 0;
+
 out:
-	mv88e6xxx_g2_irq_free(chip);
+	for (irq = 0; irq < 16; irq++) {
+		virq = irq_find_mapping(chip->g2_irq.domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(chip->g2_irq.domain);
 
 	return err;
 }
