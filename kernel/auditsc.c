@@ -446,6 +446,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 	const struct cred *cred;
 	int i, need_sid = 1;
 	u32 sid;
+	unsigned int sessionid;
 
 	cred = rcu_dereference_check(tsk->cred, tsk == current || task_creation);
 
@@ -507,6 +508,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_FSGID:
 			result = audit_gid_comparator(cred->fsgid, f->op, f->gid);
+			break;
+		case AUDIT_SESSIONID:
+			sessionid = audit_get_sessionid(current);
+			result = audit_comparator(sessionid, f->op, f->val);
 			break;
 		case AUDIT_PERS:
 			result = audit_comparator(tsk->personality, f->op, f->val);
