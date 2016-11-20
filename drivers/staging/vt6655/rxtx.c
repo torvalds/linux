@@ -1082,8 +1082,8 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	}
 
 	/*
-	* Use for AUTO FALL BACK
-	*/
+	 * Use for AUTO FALL BACK
+	 */
 	if (fifo_ctl & FIFOCTL_AUTO_FB_0)
 		byFBOption = AUTO_FB_0;
 	else if (fifo_ctl & FIFOCTL_AUTO_FB_1)

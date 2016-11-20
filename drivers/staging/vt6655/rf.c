@@ -233,7 +233,8 @@ static const unsigned long dwAL7230ChannelTable0[CB_MAX_CHANNEL] = {
 	0x0FF53000 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel = 196, Tf = 4980MHz (22) */
 
 	/* 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
-	 * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56) */
+	 * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56)
+	 */
 
 	0x0FF54000 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   7, Tf = 5035MHz (23) */
 	0x0FF54000 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   8, Tf = 5040MHz (24) */
@@ -299,7 +300,8 @@ static const unsigned long dwAL7230ChannelTable1[CB_MAX_CHANNEL] = {
 	0x00000100 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel = 196, Tf = 4980MHz (22) */
 
 	/* 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
-	 * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56) */
+	 * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56)
+	 */
 	0x1D555100 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   7, Tf = 5035MHz (23) */
 	0x00000100 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   8, Tf = 5040MHz (24) */
 	0x02AAA100 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   9, Tf = 5045MHz (25) */
@@ -363,7 +365,8 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
 	0x67D78400 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel = 196, Tf = 4980MHz (22) */
 
 	/* 5G => Ch 7, 8, 9, 11, 12, 16, 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64,
-	 * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56) */
+	 * 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165  (Value 23 ~ 56)
+	 */
 	0x77D78400 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   7, Tf = 5035MHz (23) */
 	0x67D78400 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   8, Tf = 5040MHz (24) */
 	0x77D78400 + (BY_AL7230_REG_LEN << 3) + IFREGCTL_REGW, /* channel =   9, Tf = 5045MHz (25) */
