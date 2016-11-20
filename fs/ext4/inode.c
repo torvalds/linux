@@ -3359,7 +3359,6 @@ retry:
 			return PTR_ERR(handle);
 
 		ret = ext4_map_blocks(handle, inode, &map,
-				      EXT4_GET_BLOCKS_PRE_IO |
 				      EXT4_GET_BLOCKS_CREATE_ZERO);
 		if (ret < 0) {
 			ext4_journal_stop(handle);
@@ -3367,22 +3366,6 @@ retry:
 			    ext4_should_retry_alloc(inode->i_sb, &retries))
 				goto retry;
 			return ret;
-		}
-		/* For DAX writes we need to zero out unwritten extents */
-		if (map.m_flags & EXT4_MAP_UNWRITTEN) {
-			/*
-			 * We are protected by i_mmap_sem or i_rwsem so we know
-			 * block cannot go away from under us even though we
-			 * dropped i_data_sem. Convert extent to written and
-			 * write zeros there.
-			 */
-			ret = ext4_map_blocks(handle, inode, &map,
-					      EXT4_GET_BLOCKS_CONVERT |
-					      EXT4_GET_BLOCKS_CREATE_ZERO);
-			if (ret < 0) {
-				ext4_journal_stop(handle);
-				return ret;
-			}
 		}
 
 		/*
