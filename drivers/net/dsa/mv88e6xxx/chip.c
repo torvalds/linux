@@ -413,6 +413,13 @@ static const struct irq_domain_ops mv88e6xxx_g1_irq_domain_ops = {
 static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 {
 	int irq, virq;
+	u16 mask;
+
+	mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &mask);
+	mask |= GENMASK(chip->g1_irq.nirqs, 0);
+	mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+
+	free_irq(chip->irq, chip);
 
 	for (irq = 0; irq < 16; irq++) {
 		virq = irq_find_mapping(chip->g1_irq.domain, irq);
