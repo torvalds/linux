@@ -96,10 +96,6 @@ static inline struct hlist_head *mp_hash(struct dentry *dentry)
 	return &mountpoint_hashtable[tmp & mp_hash_mask];
 }
 
-/*
- * allocation is serialized by namespace_sem, but we need the spinlock to
- * serialize with freeing.
- */
 static int mnt_alloc_id(struct mount *mnt)
 {
 	int res;
