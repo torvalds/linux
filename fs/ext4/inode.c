@@ -3369,12 +3369,16 @@ retry:
 		}
 
 		/*
-		 * If we added blocks beyond i_size we need to make sure they
+		 * If we added blocks beyond i_size, we need to make sure they
 		 * will get truncated if we crash before updating i_size in
-		 * ext4_iomap_end().
+		 * ext4_iomap_end(). For faults we don't need to do that (and
+		 * even cannot because for orphan list operations inode_lock is
+		 * required) - if we happen to instantiate block beyond i_size,
+		 * it is because we race with truncate which has already added
+		 * the inode to the orphan list.
 		 */
-		if (first_block + map.m_len >
-		    (inode->i_size + (1 << blkbits) - 1) >> blkbits) {
+		if (!(flags & IOMAP_FAULT) && first_block + map.m_len >
+		    (i_size_read(inode) + (1 << blkbits) - 1) >> blkbits) {
 			int err;
 
 			err = ext4_orphan_add(handle, inode);
@@ -3420,7 +3424,7 @@ static int ext4_iomap_end(struct inode *inode, loff_t offset, loff_t length,
 	int blkbits = inode->i_blkbits;
 	bool truncate = false;
 
-	if (!(flags & IOMAP_WRITE))
+	if (!(flags & IOMAP_WRITE) || (flags & IOMAP_FAULT))
 		return 0;
 
 	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
