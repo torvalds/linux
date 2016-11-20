@@ -412,6 +412,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,msm8996-adsp-pil" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, adsp_of_match);
 
 static struct platform_driver adsp_driver = {
 	.probe = adsp_probe,
