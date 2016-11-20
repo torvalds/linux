@@ -1197,12 +1197,12 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (IS_ERR(host->generic_phy)) {
 		err = PTR_ERR(host->generic_phy);
 		dev_err(dev, "%s: PHY get failed %d\n", __func__, err);
-		goto out;
+		goto out_variant_clear;
 	}
 
 	err = ufs_qcom_bus_register(host);
 	if (err)
-		goto out_host_free;
+		goto out_variant_clear;
 
 	ufs_qcom_get_controller_revision(hba, &host->hw_ver.major,
 		&host->hw_ver.minor, &host->hw_ver.step);
@@ -1267,7 +1267,7 @@ out_disable_phy:
 	phy_power_off(host->generic_phy);
 out_unregister_bus:
 	phy_exit(host->generic_phy);
-out_host_free:
+out_variant_clear:
 	ufshcd_set_variant(hba, NULL);
 out:
 	return err;
