@@ -171,7 +171,7 @@ config GPIO_DWAPB
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
-	depends on ARM && OF_GPIO
+	depends on (ARCH_EMEV2 || COMPILE_TEST) && OF_GPIO
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
