@@ -730,9 +730,9 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			return false;
 
 		/*
-		* 0x080F1B00 for 3 wire control TxGain(D10)
-		* and 0x31 as TX Gain value
-		*/
+		 * 0x080F1B00 for 3 wire control TxGain(D10)
+		 * and 0x31 as TX Gain value
+		 */
 		power_setting = 0x080c0b00 | (power << 12);
 
 		ret &= vnt_rf_write_embedded(priv, power_setting);
