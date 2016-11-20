@@ -330,7 +330,7 @@ err_clk_put:
 	for (i = 0; i < ST_SLIM_MAX_CLK && slim_rproc->clks[i]; i++)
 		clk_put(slim_rproc->clks[i]);
 err:
-	rproc_put(rproc);
+	rproc_free(rproc);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(st_slim_rproc_alloc);
@@ -355,7 +355,7 @@ void st_slim_rproc_put(struct st_slim_rproc *slim_rproc)
 		clk_put(slim_rproc->clks[clk]);
 
 	rproc_del(slim_rproc->rproc);
-	rproc_put(slim_rproc->rproc);
+	rproc_free(slim_rproc->rproc);
 }
 EXPORT_SYMBOL(st_slim_rproc_put);
 

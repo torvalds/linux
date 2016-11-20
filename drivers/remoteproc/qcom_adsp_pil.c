@@ -391,7 +391,7 @@ static int adsp_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return ret;
 }
@@ -402,7 +402,7 @@ static int adsp_remove(struct platform_device *pdev)
 
 	qcom_smem_state_put(adsp->state);
 	rproc_del(adsp->rproc);
-	rproc_put(adsp->rproc);
+	rproc_free(adsp->rproc);
 
 	return 0;
 }
