@@ -961,20 +961,26 @@ static void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo)
 }
 
 void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
+		const nfs4_stateid *arg_stateid,
 		const struct pnfs_layout_range *range,
-		u32 seq,
 		const nfs4_stateid *stateid)
 {
 	struct inode *inode = lo->plh_inode;
 	LIST_HEAD(freeme);
 
 	spin_lock(&inode->i_lock);
+	if (!pnfs_layout_is_valid(lo) || !arg_stateid ||
+	    !nfs4_stateid_match_other(&lo->plh_stateid, arg_stateid))
+		goto out_unlock;
 	if (stateid) {
+		u32 seq = be32_to_cpu(arg_stateid->seqid);
+
 		pnfs_mark_matching_lsegs_invalid(lo, &freeme, range, seq);
 		pnfs_free_returned_lsegs(lo, &freeme, range, seq);
 		pnfs_set_layout_stateid(lo, stateid, true);
 	} else
 		pnfs_mark_layout_stateid_invalid(lo, &freeme);
+out_unlock:
 	pnfs_clear_layoutreturn_waitbit(lo);
 	spin_unlock(&inode->i_lock);
 	pnfs_free_lseg_list(&freeme);

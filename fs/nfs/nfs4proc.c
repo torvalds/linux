@@ -8574,8 +8574,7 @@ static void nfs4_layoutreturn_release(void *calldata)
 	struct pnfs_layout_hdr *lo = lrp->args.layout;
 
 	dprintk("--> %s\n", __func__);
-	pnfs_layoutreturn_free_lsegs(lo, &lrp->args.range,
-			be32_to_cpu(lrp->args.stateid.seqid),
+	pnfs_layoutreturn_free_lsegs(lo, &lrp->args.stateid, &lrp->args.range,
 			lrp->res.lrs_present ? &lrp->res.stateid : NULL);
 	nfs4_sequence_free_slot(&lrp->res.seq_res);
 	pnfs_put_layout_hdr(lrp->args.layout);
