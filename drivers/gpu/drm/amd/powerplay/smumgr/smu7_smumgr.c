@@ -366,7 +366,7 @@ static int smu7_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 				&info);
 
 	if (!result) {
-		entry->version = info.version;
+		entry->version = info.fw_version;
 		entry->id = (uint16_t)fw_type;
 		entry->image_addr_high = smu_upper_32_bits(info.mc_addr);
 		entry->image_addr_low = smu_lower_32_bits(info.mc_addr);
