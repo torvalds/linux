@@ -3329,18 +3329,79 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	struct ext4_map_blocks map;
 	int ret;
 
-	if (flags & IOMAP_WRITE)
-		return -EIO;
-
 	if (WARN_ON_ONCE(ext4_has_inline_data(inode)))
 		return -ERANGE;
 
 	map.m_lblk = first_block;
 	map.m_len = last_block - first_block + 1;
 
-	ret = ext4_map_blocks(NULL, inode, &map, 0);
-	if (ret < 0)
-		return ret;
+	if (!(flags & IOMAP_WRITE)) {
+		ret = ext4_map_blocks(NULL, inode, &map, 0);
+	} else {
+		int dio_credits;
+		handle_t *handle;
+		int retries = 0;
+
+		/* Trim mapping request to maximum we can map at once for DIO */
+		if (map.m_len > DIO_MAX_BLOCKS)
+			map.m_len = DIO_MAX_BLOCKS;
+		dio_credits = ext4_chunk_trans_blocks(inode, map.m_len);
+retry:
+		/*
+		 * Either we allocate blocks and then we don't get unwritten
+		 * extent so we have reserved enough credits, or the blocks
+		 * are already allocated and unwritten and in that case
+		 * extent conversion fits in the credits as well.
+		 */
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
+					    dio_credits);
+		if (IS_ERR(handle))
+			return PTR_ERR(handle);
+
+		ret = ext4_map_blocks(handle, inode, &map,
+				      EXT4_GET_BLOCKS_PRE_IO |
+				      EXT4_GET_BLOCKS_CREATE_ZERO);
+		if (ret < 0) {
+			ext4_journal_stop(handle);
+			if (ret == -ENOSPC &&
+			    ext4_should_retry_alloc(inode->i_sb, &retries))
+				goto retry;
+			return ret;
+		}
+		/* For DAX writes we need to zero out unwritten extents */
+		if (map.m_flags & EXT4_MAP_UNWRITTEN) {
+			/*
+			 * We are protected by i_mmap_sem or i_rwsem so we know
+			 * block cannot go away from under us even though we
+			 * dropped i_data_sem. Convert extent to written and
+			 * write zeros there.
+			 */
+			ret = ext4_map_blocks(handle, inode, &map,
+					      EXT4_GET_BLOCKS_CONVERT |
+					      EXT4_GET_BLOCKS_CREATE_ZERO);
+			if (ret < 0) {
+				ext4_journal_stop(handle);
+				return ret;
+			}
+		}
+
+		/*
+		 * If we added blocks beyond i_size we need to make sure they
+		 * will get truncated if we crash before updating i_size in
+		 * ext4_iomap_end().
+		 */
+		if (first_block + map.m_len >
+		    (inode->i_size + (1 << blkbits) - 1) >> blkbits) {
+			int err;
+
+			err = ext4_orphan_add(handle, inode);
+			if (err < 0) {
+				ext4_journal_stop(handle);
+				return err;
+			}
+		}
+		ext4_journal_stop(handle);
+	}
 
 	iomap->flags = 0;
 	iomap->bdev = inode->i_sb->s_bdev;
@@ -3368,8 +3429,61 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	return 0;
 }
 
+static int ext4_iomap_end(struct inode *inode, loff_t offset, loff_t length,
+			  ssize_t written, unsigned flags, struct iomap *iomap)
+{
+	int ret = 0;
+	handle_t *handle;
+	int blkbits = inode->i_blkbits;
+	bool truncate = false;
+
+	if (!(flags & IOMAP_WRITE))
+		return 0;
+
+	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto orphan_del;
+	}
+	if (ext4_update_inode_size(inode, offset + written))
+		ext4_mark_inode_dirty(handle, inode);
+	/*
+	 * We may need to truncate allocated but not written blocks beyond EOF.
+	 */
+	if (iomap->offset + iomap->length > 
+	    ALIGN(inode->i_size, 1 << blkbits)) {
+		ext4_lblk_t written_blk, end_blk;
+
+		written_blk = (offset + written) >> blkbits;
+		end_blk = (offset + length) >> blkbits;
+		if (written_blk < end_blk && ext4_can_truncate(inode))
+			truncate = true;
+	}
+	/*
+	 * Remove inode from orphan list if we were extending a inode and
+	 * everything went fine.
+	 */
+	if (!truncate && inode->i_nlink &&
+	    !list_empty(&EXT4_I(inode)->i_orphan))
+		ext4_orphan_del(handle, inode);
+	ext4_journal_stop(handle);
+	if (truncate) {
+		ext4_truncate_failed_write(inode);
+orphan_del:
+		/*
+		 * If truncate failed early the inode might still be on the
+		 * orphan list; we need to make sure the inode is removed from
+		 * the orphan list in that case.
+		 */
+		if (inode->i_nlink)
+			ext4_orphan_del(NULL, inode);
+	}
+	return ret;
+}
+
 struct iomap_ops ext4_iomap_ops = {
 	.iomap_begin		= ext4_iomap_begin,
+	.iomap_end		= ext4_iomap_end,
 };
 
 #else

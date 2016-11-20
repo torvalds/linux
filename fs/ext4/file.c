@@ -169,6 +169,41 @@ static ssize_t ext4_write_checks(struct kiocb *iocb, struct iov_iter *from)
 	return iov_iter_count(from);
 }
 
+#ifdef CONFIG_FS_DAX
+static ssize_t
+ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+	ssize_t ret;
+	bool overwrite = false;
+
+	inode_lock(inode);
+	ret = ext4_write_checks(iocb, from);
+	if (ret <= 0)
+		goto out;
+	ret = file_remove_privs(iocb->ki_filp);
+	if (ret)
+		goto out;
+	ret = file_update_time(iocb->ki_filp);
+	if (ret)
+		goto out;
+
+	if (ext4_overwrite_io(inode, iocb->ki_pos, iov_iter_count(from))) {
+		overwrite = true;
+		downgrade_write(&inode->i_rwsem);
+	}
+	ret = dax_iomap_rw(iocb, from, &ext4_iomap_ops);
+out:
+	if (!overwrite)
+		inode_unlock(inode);
+	else
+		inode_unlock_shared(inode);
+	if (ret > 0)
+		ret = generic_write_sync(iocb, ret);
+	return ret;
+}
+#endif
+
 static ssize_t
 ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
@@ -177,6 +212,11 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	int unaligned_aio = 0;
 	int overwrite = 0;
 	ssize_t ret;
+
+#ifdef CONFIG_FS_DAX
+	if (IS_DAX(inode))
+		return ext4_dax_write_iter(iocb, from);
+#endif
 
 	inode_lock(inode);
 	ret = ext4_write_checks(iocb, from);
