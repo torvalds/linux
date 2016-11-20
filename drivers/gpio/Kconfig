@@ -524,6 +524,7 @@ config GPIO_ZYNQ
 
 config GPIO_ZX
 	bool "ZTE ZX GPIO support"
+	depends on ARCH_ZX || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the GPIO device on ZTE ZX SoCs.
