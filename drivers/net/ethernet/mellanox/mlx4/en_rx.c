@@ -688,18 +688,23 @@ out_loopback:
 	dev_kfree_skb_any(skb);
 }
 
-static void mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
-				     struct mlx4_en_rx_ring *ring)
+static bool mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
+				      struct mlx4_en_rx_ring *ring)
 {
-	int index = ring->prod & ring->size_mask;
+	u32 missing = ring->actual_size - (ring->prod - ring->cons);
 
-	while ((u32) (ring->prod - ring->cons) < ring->actual_size) {
-		if (mlx4_en_prepare_rx_desc(priv, ring, index,
+	/* Try to batch allocations, but not too much. */
+	if (missing < 8)
+		return false;
+	do {
+		if (mlx4_en_prepare_rx_desc(priv, ring,
+					    ring->prod & ring->size_mask,
 					    GFP_ATOMIC | __GFP_COLD))
 			break;
 		ring->prod++;
-		index = ring->prod & ring->size_mask;
-	}
+	} while (--missing);
+
+	return true;
 }
 
 /* When hardware doesn't strip the vlan, we need to calculate the checksum
@@ -1081,15 +1086,20 @@ consumed:
 
 out:
 	rcu_read_unlock();
-	if (doorbell_pending)
-		mlx4_en_xmit_doorbell(priv->tx_ring[TX_XDP][cq->ring]);
 
+	if (polled) {
+		if (doorbell_pending)
+			mlx4_en_xmit_doorbell(priv->tx_ring[TX_XDP][cq->ring]);
+
+		mlx4_cq_set_ci(&cq->mcq);
+		wmb(); /* ensure HW sees CQ consumer before we post new buffers */
+		ring->cons = cq->mcq.cons_index;
+	}
 	AVG_PERF_COUNTER(priv->pstats.rx_coal_avg, polled);
-	mlx4_cq_set_ci(&cq->mcq);
-	wmb(); /* ensure HW sees CQ consumer before we post new buffers */
-	ring->cons = cq->mcq.cons_index;
-	mlx4_en_refill_rx_buffers(priv, ring);
-	mlx4_en_update_rx_prod_db(ring);
+
+	if (mlx4_en_refill_rx_buffers(priv, ring))
+		mlx4_en_update_rx_prod_db(ring);
+
 	return polled;
 }
 
@@ -1131,10 +1141,13 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 			return budget;
 
 		/* Current cpu is not according to smp_irq_affinity -
-		 * probably affinity changed. need to stop this NAPI
-		 * poll, and restart it on the right CPU
+		 * probably affinity changed. Need to stop this NAPI
+		 * poll, and restart it on the right CPU.
+		 * Try to avoid returning a too small value (like 0),
+		 * to not fool net_rx_action() and its netdev_budget
 		 */
-		done = 0;
+		if (done)
+			done--;
 	}
 	/* Done for now */
 	if (napi_complete_done(napi, done))
