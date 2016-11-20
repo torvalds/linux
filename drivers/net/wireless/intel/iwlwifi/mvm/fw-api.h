@@ -713,7 +713,6 @@ struct iwl_error_resp {
 #define MAX_MACS_IN_BINDING	(3)
 #define MAX_BINDINGS		(4)
 #define AUX_BINDING_INDEX	(3)
-#define MAX_PHYS		(4)
 
 /* Used to extract ID and color from the context dword */
 #define FW_CTXT_ID_POS	  (0)

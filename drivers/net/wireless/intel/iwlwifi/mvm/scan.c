@@ -197,7 +197,7 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 	int *global_cnt = data;
 
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
-	    mvmvif->phy_ctxt->id < MAX_PHYS)
+	    mvmvif->phy_ctxt->id < NUM_PHY_CTX)
 		*global_cnt += 1;
 }
 

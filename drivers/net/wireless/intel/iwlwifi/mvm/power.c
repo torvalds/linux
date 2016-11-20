@@ -599,9 +599,8 @@ static void iwl_mvm_power_ps_disabled_iterator(void *_data, u8* mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *disable_ps = _data;
 
-	if (mvmvif->phy_ctxt)
-		if (mvmvif->phy_ctxt->id < MAX_PHYS)
-			*disable_ps |= mvmvif->ps_disabled;
+	if (mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+		*disable_ps |= mvmvif->ps_disabled;
 }
 
 static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
@@ -609,6 +608,7 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_power_vifs *power_iterator = _data;
+	bool active = mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX;
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_DEVICE:
@@ -619,34 +619,30 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->ap_vif);
 		power_iterator->ap_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->ap_active = true;
+		if (active)
+			power_iterator->ap_active = true;
 		break;
 
 	case NL80211_IFTYPE_MONITOR:
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->monitor_vif);
 		power_iterator->monitor_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->monitor_active = true;
+		if (active)
+			power_iterator->monitor_active = true;
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->p2p_vif);
 		power_iterator->p2p_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->p2p_active = true;
+		if (active)
+			power_iterator->p2p_active = true;
 		break;
 
 	case NL80211_IFTYPE_STATION:
 		power_iterator->bss_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->bss_active = true;
+		if (active)
+			power_iterator->bss_active = true;
 		break;
 
 	default:
