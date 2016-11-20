@@ -298,8 +298,7 @@ enum hwmon_pwm_attributes {
  *			Channel number
  *		The function returns the file permissions.
  *		If the return value is 0, no attribute will be created.
- * @read:       Read callback. Optional. If not provided, attributes
- *		will not be readable.
+ * @read:	Read callback. Mandatory if readable attributes are present.
  *		Parameters are:
  *		@dev:	Pointer to hardware monitoring device
  *		@type:	Sensor type
@@ -308,8 +307,7 @@ enum hwmon_pwm_attributes {
  *			Channel number
  *		@val:	Pointer to returned value
  *		The function returns 0 on success or a negative error number.
- * @write:	Write callback. Optional. If not provided, attributes
- *		will not be writable.
+ * @write:	Write callback. Mandatory if writeable attributes are present.
  *		Parameters are:
  *		@dev:	Pointer to hardware monitoring device
  *		@type:	Sensor type
