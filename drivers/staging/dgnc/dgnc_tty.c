@@ -599,7 +599,6 @@ void dgnc_carrier(struct channel_t *ch)
 		 * When carrier rises, wake any threads waiting
 		 * for carrier in the open routine.
 		 */
-
 		if (waitqueue_active(&ch->ch_flags_wait))
 			wake_up_interruptible(&ch->ch_flags_wait);
 	}
@@ -611,7 +610,6 @@ void dgnc_carrier(struct channel_t *ch)
 		 * When carrier rises, wake any threads waiting
 		 * for carrier in the open routine.
 		 */
-
 		if (waitqueue_active(&ch->ch_flags_wait))
 			wake_up_interruptible(&ch->ch_flags_wait);
 	}
