@@ -3897,10 +3897,11 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 out_mdio:
 	mv88e6xxx_mdio_unregister(chip);
 out_g2_irq:
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT) && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
 out_g1_irq:
-	mv88e6xxx_g1_irq_free(chip);
+	if (chip->irq > 0)
+		mv88e6xxx_g1_irq_free(chip);
 out:
 	return err;
 }
@@ -3914,9 +3915,11 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	mv88e6xxx_unregister_switch(chip);
 	mv88e6xxx_mdio_unregister(chip);
 
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
-		mv88e6xxx_g2_irq_free(chip);
-	mv88e6xxx_g1_irq_free(chip);
+	if (chip->irq > 0) {
+		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
+			mv88e6xxx_g2_irq_free(chip);
+		mv88e6xxx_g1_irq_free(chip);
+	}
 }
 
 static const struct of_device_id mv88e6xxx_of_match[] = {
