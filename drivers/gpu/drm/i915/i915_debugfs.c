@@ -3080,7 +3080,7 @@ static void intel_scaler_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 			   pipe_config->scaler_state.scaler_users,
 			   pipe_config->scaler_state.scaler_id);
 
-		for (i = 0; i < SKL_NUM_SCALERS; i++) {
+		for (i = 0; i < num_scalers; i++) {
 			struct intel_scaler *sc =
 					&pipe_config->scaler_state.scalers[i];
 
