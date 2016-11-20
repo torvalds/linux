@@ -247,8 +247,6 @@ MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 static void dwc2_get_device_property(struct dwc2_hsotg *hsotg,
 				     char *property, u8 size, u64 *value)
 {
-	u8 val8;
-	u16 val16;
 	u32 val32;
 
 	switch (size) {
@@ -256,17 +254,7 @@ static void dwc2_get_device_property(struct dwc2_hsotg *hsotg,
 		*value = device_property_read_bool(hsotg->dev, property);
 		break;
 	case 1:
-		if (device_property_read_u8(hsotg->dev, property, &val8))
-			return;
-
-		*value = val8;
-		break;
 	case 2:
-		if (device_property_read_u16(hsotg->dev, property, &val16))
-			return;
-
-		*value = val16;
-		break;
 	case 4:
 		if (device_property_read_u32(hsotg->dev, property, &val32))
 			return;
