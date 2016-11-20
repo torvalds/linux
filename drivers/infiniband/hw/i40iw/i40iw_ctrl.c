@@ -2747,7 +2747,9 @@ static enum i40iw_status_code i40iw_sc_alloc_stag(
 	u64 *wqe;
 	struct i40iw_sc_cqp *cqp;
 	u64 header;
+	enum i40iw_page_size page_size;
 
+	page_size = (info->page_size == 0x200000) ? I40IW_PAGE_SIZE_2M : I40IW_PAGE_SIZE_4K;
 	cqp = dev->cqp;
 	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
 	if (!wqe)
@@ -2767,7 +2769,7 @@ static enum i40iw_status_code i40iw_sc_alloc_stag(
 		 LS_64(1, I40IW_CQPSQ_STAG_MR) |
 		 LS_64(info->access_rights, I40IW_CQPSQ_STAG_ARIGHTS) |
 		 LS_64(info->chunk_size, I40IW_CQPSQ_STAG_LPBLSIZE) |
-		 LS_64(info->page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
+		 LS_64(page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
 		 LS_64(info->remote_access, I40IW_CQPSQ_STAG_REMACCENABLED) |
 		 LS_64(info->use_hmc_fcn_index, I40IW_CQPSQ_STAG_USEHMCFNIDX) |
 		 LS_64(info->use_pf_rid, I40IW_CQPSQ_STAG_USEPFRID) |
@@ -2803,7 +2805,9 @@ static enum i40iw_status_code i40iw_sc_mr_reg_non_shared(
 	u32 pble_obj_cnt;
 	bool remote_access;
 	u8 addr_type;
+	enum i40iw_page_size page_size;
 
+	page_size = (info->page_size == 0x200000) ? I40IW_PAGE_SIZE_2M : I40IW_PAGE_SIZE_4K;
 	if (info->access_rights & (I40IW_ACCESS_FLAGS_REMOTEREAD_ONLY |
 				   I40IW_ACCESS_FLAGS_REMOTEWRITE_ONLY))
 		remote_access = true;
@@ -2846,7 +2850,7 @@ static enum i40iw_status_code i40iw_sc_mr_reg_non_shared(
 	header = LS_64(I40IW_CQP_OP_REG_MR, I40IW_CQPSQ_OPCODE) |
 		 LS_64(1, I40IW_CQPSQ_STAG_MR) |
 		 LS_64(info->chunk_size, I40IW_CQPSQ_STAG_LPBLSIZE) |
-		 LS_64(info->page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
+		 LS_64(page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
 		 LS_64(info->access_rights, I40IW_CQPSQ_STAG_ARIGHTS) |
 		 LS_64(remote_access, I40IW_CQPSQ_STAG_REMACCENABLED) |
 		 LS_64(addr_type, I40IW_CQPSQ_STAG_VABASEDTO) |
@@ -3061,7 +3065,9 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(
 	u64 temp, header;
 	u64 *wqe;
 	u32 wqe_idx;
+	enum i40iw_page_size page_size;
 
+	page_size = (info->page_size == 0x200000) ? I40IW_PAGE_SIZE_2M : I40IW_PAGE_SIZE_4K;
 	wqe = i40iw_qp_get_next_send_wqe(&qp->qp_uk, &wqe_idx, I40IW_QP_WQE_MIN_SIZE,
 					 0, info->wr_id);
 	if (!wqe)
@@ -3088,7 +3094,7 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(
 		 LS_64(info->stag_idx, I40IWQPSQ_STAGINDEX) |
 		 LS_64(I40IWQP_OP_FAST_REGISTER, I40IWQPSQ_OPCODE) |
 		 LS_64(info->chunk_size, I40IWQPSQ_LPBLSIZE) |
-		 LS_64(info->page_size, I40IWQPSQ_HPAGESIZE) |
+		 LS_64(page_size, I40IWQPSQ_HPAGESIZE) |
 		 LS_64(info->access_rights, I40IWQPSQ_STAGRIGHTS) |
 		 LS_64(info->addr_type, I40IWQPSQ_VABASEDTO) |
 		 LS_64(info->read_fence, I40IWQPSQ_READFENCE) |

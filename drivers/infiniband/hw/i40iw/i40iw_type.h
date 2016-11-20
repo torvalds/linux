@@ -74,6 +74,11 @@ struct i40iw_priv_qp_ops;
 struct i40iw_priv_cq_ops;
 struct i40iw_hmc_ops;
 
+enum i40iw_page_size {
+	I40IW_PAGE_SIZE_4K,
+	I40IW_PAGE_SIZE_2M
+};
+
 enum i40iw_resource_indicator_type {
 	I40IW_RSRC_INDICATOR_TYPE_ADAPTER = 0,
 	I40IW_RSRC_INDICATOR_TYPE_CQ,
