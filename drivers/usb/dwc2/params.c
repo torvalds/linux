@@ -1094,7 +1094,7 @@ static void dwc2_set_gadget_dma(struct dwc2_hsotg *hsotg)
 	/* DMA Descriptor */
 	dwc2_set_param_bool(hsotg, &p->g_dma_desc, false,
 			    "gadget-dma-desc",
-			    p->g_dma, false,
+			    !!hw->dma_desc_enable, false,
 			    !!hw->dma_desc_enable);
 }
 
