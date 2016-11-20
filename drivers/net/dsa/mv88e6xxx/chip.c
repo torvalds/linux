@@ -3916,8 +3916,11 @@ out_g2_irq:
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT) && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
 out_g1_irq:
-	if (chip->irq > 0)
+	if (chip->irq > 0) {
+		mutex_lock(&chip->reg_lock);
 		mv88e6xxx_g1_irq_free(chip);
+		mutex_unlock(&chip->reg_lock);
+	}
 out:
 	return err;
 }
