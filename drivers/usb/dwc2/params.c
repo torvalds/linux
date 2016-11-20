@@ -1132,6 +1132,12 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 				    false, "host-dma",
 				    true, false,
 				    dma_capable);
+		dwc2_set_param_host_rx_fifo_size(hsotg,
+				params->host_rx_fifo_size);
+		dwc2_set_param_host_nperio_tx_fifo_size(hsotg,
+				params->host_nperio_tx_fifo_size);
+		dwc2_set_param_host_perio_tx_fifo_size(hsotg,
+				params->host_perio_tx_fifo_size);
 	}
 	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
 	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
@@ -1140,12 +1146,6 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 			params->host_support_fs_ls_low_power);
 	dwc2_set_param_enable_dynamic_fifo(hsotg,
 			params->enable_dynamic_fifo);
-	dwc2_set_param_host_rx_fifo_size(hsotg,
-			params->host_rx_fifo_size);
-	dwc2_set_param_host_nperio_tx_fifo_size(hsotg,
-			params->host_nperio_tx_fifo_size);
-	dwc2_set_param_host_perio_tx_fifo_size(hsotg,
-			params->host_perio_tx_fifo_size);
 	dwc2_set_param_max_transfer_size(hsotg,
 			params->max_transfer_size);
 	dwc2_set_param_max_packet_count(hsotg,
