@@ -1088,7 +1088,7 @@ static void dwc2_set_gadget_dma(struct dwc2_hsotg *hsotg)
 	/* Buffer DMA */
 	dwc2_set_param_bool(hsotg, &p->g_dma,
 			    false, "gadget-dma",
-			    true, false,
+			    dma_capable, false,
 			    dma_capable);
 
 	/* DMA Descriptor */
@@ -1118,7 +1118,7 @@ static void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 
 		dwc2_set_param_bool(hsotg, &p->host_dma,
 				    false, "host-dma",
-				    true, false,
+				    dma_capable, false,
 				    dma_capable);
 		dwc2_set_param_host_rx_fifo_size(hsotg,
 				params->host_rx_fifo_size);
