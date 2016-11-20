@@ -50,7 +50,7 @@ config SND_SOC_SAMSUNG_JIVE_WM8750
 
 config SND_SOC_SAMSUNG_SMDK_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK"
-	depends on MACH_SMDK6410
+	depends on MACH_SMDK6410 || COMPILE_TEST
 	depends on I2C
 	select SND_SOC_WM8580
 	select SND_SAMSUNG_I2S
@@ -110,7 +110,8 @@ config SND_SOC_SAMSUNG_RX1950_UDA1380
 
 config SND_SOC_SMARTQ
 	tristate "SoC I2S Audio support for SmartQ board"
-	depends on MACH_SMARTQ && I2C
+	depends on MACH_SMARTQ || COMPILE_TEST
+	depends on I2C
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8750
 
