@@ -3859,8 +3859,10 @@ static int ext4_block_zero_page_range(handle_t *handle,
 	if (length > max || length < 0)
 		length = max;
 
-	if (IS_DAX(inode))
-		return dax_zero_page_range(inode, from, length, ext4_get_block);
+	if (IS_DAX(inode)) {
+		return iomap_zero_range(inode, from, length, NULL,
+					&ext4_iomap_ops);
+	}
 	return __ext4_block_zero_page_range(handle, mapping, from, length);
 }
 
