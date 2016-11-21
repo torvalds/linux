@@ -2523,6 +2523,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	OPT_STRING('d', "display", &display, NULL, "lcl,rmt"),
 	OPT_STRING('c', "coalesce", &coalesce, "coalesce fields",
 		   "coalesce fields: pid,tid,iaddr,dso"),
+	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_END()
 	};
 	int err = 0;
@@ -2538,7 +2539,8 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 
-	file.path = input_name;
+	file.path  = input_name;
+	file.force = symbol_conf.force;
 
 	err = setup_display(display);
 	if (err)

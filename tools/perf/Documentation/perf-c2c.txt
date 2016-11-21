@@ -100,6 +100,10 @@ REPORT OPTIONS
 --show-all::
 	Show all captured HITM lines, with no regard to HITM % 0.0005 limit.
 
+-f::
+--force::
+	Don't do ownership validation.
+
 C2C RECORD
 ----------
 The perf c2c record command setup options related to HITM cacheline analysis
