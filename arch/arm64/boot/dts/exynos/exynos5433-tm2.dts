@@ -45,6 +45,8 @@
 		spi2 = &spi_2;
 		spi3 = &spi_3;
 		spi4 = &spi_4;
+		mshc0 = &mshc_0;
+		mshc2 = &mshc_2;
 	};
 
 	chosen {
@@ -713,6 +715,23 @@
 	bus-width = <8>;
 	assigned-clocks = <&cmu_top CLK_SCLK_MMC0_FSYS>;
 	assigned-clock-rates = <800000000>;
+};
+
+&mshc_2 {
+	status = "okay";
+	num-slots = <1>;
+	cap-sd-highspeed;
+	disable-wp;
+	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
+	cd-inverted;
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	fifo-depth = <0x80>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
+	bus-width = <4>;
 };
 
 &pinctrl_alive {
