@@ -1,5 +1,6 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/mailbox/tegra186-hsp.h>
 
 / {
 	compatible = "nvidia,tegra186";
@@ -369,7 +370,8 @@
 
 	bpmp: bpmp {
 		compatible = "nvidia,tegra186-bpmp";
-		mboxes = <&hsp_top0 0 19>;
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
+				    TEGRA_HSP_DB_MASTER_BPMP>;
 		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
