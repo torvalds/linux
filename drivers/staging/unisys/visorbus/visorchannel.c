@@ -237,8 +237,9 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 	if (error)
 		return error;
 
+	/* No signals to remove; have caller try again. */
 	if (sig_hdr.head == sig_hdr.tail)
-		return -EIO;	/* no signals to remove */
+		return -EAGAIN;
 
 	sig_hdr.tail = (sig_hdr.tail + 1) % sig_hdr.max_slots;
 
