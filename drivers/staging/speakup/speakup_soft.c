@@ -162,8 +162,8 @@ static char *get_initstring(void)
 	cp = buf;
 	var = synth_soft.vars;
 	while (var->var_id != MAXVARS) {
-		if (var->var_id != CAPS_START && var->var_id != CAPS_STOP
-			&& var->var_id != DIRECT)
+		if (var->var_id != CAPS_START && var->var_id != CAPS_STOP &&
+		    var->var_id != DIRECT)
 			cp = cp + sprintf(cp, var->u.n.synth_fmt,
 					  var->u.n.value);
 		var++;
