@@ -6,6 +6,7 @@ TARGETS += exec
 TARGETS += firmware
 TARGETS += ftrace
 TARGETS += futex
+TARGETS += gpio
 TARGETS += ipc
 TARGETS += kcmp
 TARGETS += lib
