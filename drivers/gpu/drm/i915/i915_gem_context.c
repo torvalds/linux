@@ -1027,7 +1027,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(ctx);
 
 	args->ctx_id = ctx->user_handle;
-	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
+	DRM_DEBUG("HW context %d created\n", args->ctx_id);
 
 	return 0;
 }
@@ -1060,7 +1060,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	context_close(ctx);
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG_DRIVER("HW context %d destroyed\n", args->ctx_id);
+	DRM_DEBUG("HW context %d destroyed\n", args->ctx_id);
 	return 0;
 }
 
