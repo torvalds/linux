@@ -1194,6 +1194,9 @@ static void wm_adsp_signal_event_controls(struct wm_adsp *dsp,
 		if (ctl->type != WMFW_CTL_TYPE_HOSTEVENT)
 			continue;
 
+		if (!ctl->enabled)
+			continue;
+
 		ret = wm_coeff_write_acked_control(ctl, event);
 		if (ret)
 			adsp_warn(dsp,
