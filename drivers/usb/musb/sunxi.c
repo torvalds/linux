@@ -186,16 +186,6 @@ static irqreturn_t sunxi_musb_interrupt(int irq, void *__hci)
 	if (musb->int_usb)
 		writeb(musb->int_usb, musb->mregs + SUNXI_MUSB_INTRUSB);
 
-	/*
-	 * sunxi musb often signals babble on low / full speed device
-	 * disconnect, without ever raising MUSB_INTR_DISCONNECT, since
-	 * normally babble never happens treat it as disconnect.
-	 */
-	if ((musb->int_usb & MUSB_INTR_BABBLE) && is_host_active(musb)) {
-		musb->int_usb &= ~MUSB_INTR_BABBLE;
-		musb->int_usb |= MUSB_INTR_DISCONNECT;
-	}
-
 	if ((musb->int_usb & MUSB_INTR_RESET) && !is_host_active(musb)) {
 		/* ep0 FADDR must be 0 when (re)entering peripheral mode */
 		musb_ep_select(musb->mregs, 0);
