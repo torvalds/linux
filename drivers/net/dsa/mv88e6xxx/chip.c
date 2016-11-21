@@ -413,19 +413,26 @@ static const struct irq_domain_ops mv88e6xxx_g1_irq_domain_ops = {
 static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 {
 	int irq, virq;
+	u16 mask;
+
+	mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &mask);
+	mask |= GENMASK(chip->g1_irq.nirqs, 0);
+	mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+
+	free_irq(chip->irq, chip);
 
 	for (irq = 0; irq < 16; irq++) {
-		virq = irq_find_mapping(chip->g2_irq.domain, irq);
+		virq = irq_find_mapping(chip->g1_irq.domain, irq);
 		irq_dispose_mapping(virq);
 	}
 
-	irq_domain_remove(chip->g2_irq.domain);
+	irq_domain_remove(chip->g1_irq.domain);
 }
 
 static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 {
-	int err, irq;
-	u16 reg;
+	int err, irq, virq;
+	u16 reg, mask;
 
 	chip->g1_irq.nirqs = chip->info->g1_irqs;
 	chip->g1_irq.domain = irq_domain_add_simple(
@@ -440,32 +447,41 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->g1_irq.chip = mv88e6xxx_g1_irq_chip;
 	chip->g1_irq.masked = ~0;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &mask);
 	if (err)
-		goto out;
+		goto out_mapping;
 
-	reg &= ~GENMASK(chip->g1_irq.nirqs, 0);
+	mask &= ~GENMASK(chip->g1_irq.nirqs, 0);
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, reg);
+	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
 	if (err)
-		goto out;
+		goto out_disable;
 
 	/* Reading the interrupt status clears (most of) them */
 	err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &reg);
 	if (err)
-		goto out;
+		goto out_disable;
 
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
 				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
 				   dev_name(chip->dev), chip);
 	if (err)
-		goto out;
+		goto out_disable;
 
 	return 0;
 
-out:
-	mv88e6xxx_g1_irq_free(chip);
+out_disable:
+	mask |= GENMASK(chip->g1_irq.nirqs, 0);
+	mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, mask);
+
+out_mapping:
+	for (irq = 0; irq < 16; irq++) {
+		virq = irq_find_mapping(chip->g1_irq.domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(chip->g1_irq.domain);
 
 	return err;
 }
@@ -3897,10 +3913,14 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 out_mdio:
 	mv88e6xxx_mdio_unregister(chip);
 out_g2_irq:
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT) && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
 out_g1_irq:
-	mv88e6xxx_g1_irq_free(chip);
+	if (chip->irq > 0) {
+		mutex_lock(&chip->reg_lock);
+		mv88e6xxx_g1_irq_free(chip);
+		mutex_unlock(&chip->reg_lock);
+	}
 out:
 	return err;
 }
@@ -3914,9 +3934,11 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	mv88e6xxx_unregister_switch(chip);
 	mv88e6xxx_mdio_unregister(chip);
 
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
-		mv88e6xxx_g2_irq_free(chip);
-	mv88e6xxx_g1_irq_free(chip);
+	if (chip->irq > 0) {
+		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
+			mv88e6xxx_g2_irq_free(chip);
+		mv88e6xxx_g1_irq_free(chip);
+	}
 }
 
 static const struct of_device_id mv88e6xxx_of_match[] = {
