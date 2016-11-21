@@ -999,6 +999,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,tx-ipgap-linecheck-dis-quirk");
 	dwc->xhci_slow_suspend_quirk = device_property_read_bool(dev,
 				"snps,xhci-slow-suspend-quirk");
+	dwc->usb3_warm_reset_on_resume_quirk = device_property_read_bool(dev,
+				"snps,usb3-warm-reset-on-resume-quirk");
 
 	dwc->tx_de_emphasis_quirk = device_property_read_bool(dev,
 				"snps,tx_de_emphasis_quirk");
