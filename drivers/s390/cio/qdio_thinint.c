@@ -161,11 +161,11 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 			}
 
 			/* avoid dsci clear here, done after processing */
-			q->u.in.queue_start_poll(q->irq_ptr->cdev, q->nr,
-						 q->irq_ptr->int_parm);
+			q->u.in.queue_start_poll(irq->cdev, q->nr,
+						 irq->int_parm);
 		} else {
-			if (!shared_ind(q->irq_ptr))
-				xchg(q->irq_ptr->dsci, 0);
+			if (!shared_ind(irq))
+				xchg(irq->dsci, 0);
 
 			/*
 			 * Call inbound processing but not directly
