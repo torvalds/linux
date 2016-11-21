@@ -271,14 +271,14 @@ static void thermal_throttle_remove_dev(struct device *dev)
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static int thermal_throttle_prepare(unsigned int cpu)
+static int thermal_throttle_online(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 
 	return thermal_throttle_add_dev(dev, cpu);
 }
 
-static int thermal_throttle_dead(unsigned int cpu)
+static int thermal_throttle_offline(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 
@@ -288,12 +288,15 @@ static int thermal_throttle_dead(unsigned int cpu)
 
 static __init int thermal_throttle_init_device(void)
 {
+	int ret;
+
 	if (!atomic_read(&therm_throt_en))
 		return 0;
 
-	return cpuhp_setup_state(CPUHP_X86_THERM_PREPARE, "x86/therm:prepare",
-				 thermal_throttle_prepare,
-				 thermal_throttle_dead);
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/therm:online",
+				thermal_throttle_online,
+				thermal_throttle_offline);
+	return ret < 0 ? ret : 0;
 }
 device_initcall(thermal_throttle_init_device);
 
