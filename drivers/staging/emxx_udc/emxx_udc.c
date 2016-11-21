@@ -3284,8 +3284,8 @@ static int nbu2ss_drv_remove(struct platform_device *pdev)
 	for (i = 0; i < NUM_ENDPOINTS; i++) {
 		ep = &udc->ep[i];
 		if (ep->virt_buf)
-			dma_free_coherent(NULL, PAGE_SIZE,
-				(void *)ep->virt_buf, ep->phys_buf);
+			dma_free_coherent(NULL, PAGE_SIZE, (void *)ep->virt_buf,
+					  ep->phys_buf);
 	}
 
 	/* Interrupt Handler - Release */
