@@ -77,10 +77,28 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 	return 0;
 }
 
+static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
+{
+	uint8_t rev;
+
+	if (drm_dp_dpcd_readb(&lspcon_to_intel_dp(lspcon)->aux, DP_DPCD_REV,
+			      &rev) != 1) {
+		DRM_DEBUG_KMS("Native AUX CH down\n");
+		return false;
+	}
+
+	DRM_DEBUG_KMS("Native AUX CH up, DPCD version: %d.%d\n",
+		      rev >> 4, rev & 0xf);
+
+	return true;
+}
+
 static bool lspcon_probe(struct intel_lspcon *lspcon)
 {
 	enum drm_dp_dual_mode_type adaptor_type;
 	struct i2c_adapter *adapter = &lspcon_to_intel_dp(lspcon)->aux.ddc;
+
+	lspcon_wake_native_aux_ch(lspcon);
 
 	/* Lets probe the adaptor and check its type */
 	adaptor_type = drm_dp_dual_mode_detect(adapter);
@@ -132,7 +150,8 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 
 void lspcon_resume(struct intel_lspcon *lspcon)
 {
-	lspcon_resume_in_pcon_wa(lspcon);
+	if (lspcon_wake_native_aux_ch(lspcon))
+		lspcon_resume_in_pcon_wa(lspcon);
 
 	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON, true))
 		DRM_ERROR("LSPCON resume failed\n");
