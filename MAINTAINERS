@@ -4116,7 +4116,8 @@ M:	Dave Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	virtualization@lists.linux-foundation.org
 T:	git git://git.kraxel.org/linux drm-qemu
-S:	Odd Fixes
+S:	Obsolete
+W:	https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/
 F:	drivers/gpu/drm/cirrus/
 
 RADEON and AMDGPU DRM DRIVERS
