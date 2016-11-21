@@ -123,22 +123,29 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		x->ipv4_pkt_rcvd++;
 	if (rdes1 & RDES1_IPV6_HEADER)
 		x->ipv6_pkt_rcvd++;
-	if (message_type == RDES_EXT_SYNC)
-		x->rx_msg_type_sync++;
+
+	if (message_type == RDES_EXT_NO_PTP)
+		x->no_ptp_rx_msg_type_ext++;
+	else if (message_type == RDES_EXT_SYNC)
+		x->ptp_rx_msg_type_sync++;
 	else if (message_type == RDES_EXT_FOLLOW_UP)
-		x->rx_msg_type_follow_up++;
+		x->ptp_rx_msg_type_follow_up++;
 	else if (message_type == RDES_EXT_DELAY_REQ)
-		x->rx_msg_type_delay_req++;
+		x->ptp_rx_msg_type_delay_req++;
 	else if (message_type == RDES_EXT_DELAY_RESP)
-		x->rx_msg_type_delay_resp++;
+		x->ptp_rx_msg_type_delay_resp++;
 	else if (message_type == RDES_EXT_PDELAY_REQ)
-		x->rx_msg_type_pdelay_req++;
+		x->ptp_rx_msg_type_pdelay_req++;
 	else if (message_type == RDES_EXT_PDELAY_RESP)
-		x->rx_msg_type_pdelay_resp++;
+		x->ptp_rx_msg_type_pdelay_resp++;
 	else if (message_type == RDES_EXT_PDELAY_FOLLOW_UP)
-		x->rx_msg_type_pdelay_follow_up++;
-	else
-		x->rx_msg_type_ext_no_ptp++;
+		x->ptp_rx_msg_type_pdelay_follow_up++;
+	else if (message_type == RDES_PTP_ANNOUNCE)
+		x->ptp_rx_msg_type_announce++;
+	else if (message_type == RDES_PTP_MANAGEMENT)
+		x->ptp_rx_msg_type_management++;
+	else if (message_type == RDES_PTP_PKT_RESERVED_TYPE)
+		x->ptp_rx_msg_pkt_reserved_type++;
 
 	if (rdes1 & RDES1_PTP_PACKET_TYPE)
 		x->ptp_frame_type++;
@@ -204,14 +211,18 @@ static void dwmac4_rd_enable_tx_timestamp(struct dma_desc *p)
 
 static int dwmac4_wrback_get_tx_timestamp_status(struct dma_desc *p)
 {
-	return (p->des3 & TDES3_TIMESTAMP_STATUS)
-		>> TDES3_TIMESTAMP_STATUS_SHIFT;
+	/* Context type from W/B descriptor must be zero */
+	if (p->des3 & TDES3_CONTEXT_TYPE)
+		return -EINVAL;
+
+	/* Tx Timestamp Status is 1 so des0 and des1'll have valid values */
+	if (p->des3 & TDES3_TIMESTAMP_STATUS)
+		return 0;
+
+	return 1;
 }
 
-/*  NOTE: For RX CTX bit has to be checked before
- *  HAVE a specific function for TX and another one for RX
- */
-static u64 dwmac4_wrback_get_timestamp(void *desc, u32 ats)
+static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
 	u64 ns;
@@ -223,12 +234,54 @@ static u64 dwmac4_wrback_get_timestamp(void *desc, u32 ats)
 	return ns;
 }
 
-static int dwmac4_context_get_rx_timestamp_status(void *desc, u32 ats)
+static int dwmac4_rx_check_timestamp(void *desc)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
+	u32 own, ctxt;
+	int ret = 1;
 
-	return (p->des1 & RDES1_TIMESTAMP_AVAILABLE)
-		>> RDES1_TIMESTAMP_AVAILABLE_SHIFT;
+	own = p->des3 & RDES3_OWN;
+	ctxt = ((p->des3 & RDES3_CONTEXT_DESCRIPTOR)
+		>> RDES3_CONTEXT_DESCRIPTOR_SHIFT);
+
+	if (likely(!own && ctxt)) {
+		if ((p->des0 == 0xffffffff) && (p->des1 == 0xffffffff))
+			/* Corrupted value */
+			ret = -EINVAL;
+		else
+			/* A valid Timestamp is ready to be read */
+			ret = 0;
+	}
+
+	/* Timestamp not ready */
+	return ret;
+}
+
+static int dwmac4_wrback_get_rx_timestamp_status(void *desc, u32 ats)
+{
+	struct dma_desc *p = (struct dma_desc *)desc;
+	int ret = -EINVAL;
+
+	/* Get the status from normal w/b descriptor */
+	if (likely(p->des3 & TDES3_RS1V)) {
+		if (likely(p->des1 & RDES1_TIMESTAMP_AVAILABLE)) {
+			int i = 0;
+
+			/* Check if timestamp is OK from context descriptor */
+			do {
+				ret = dwmac4_rx_check_timestamp(desc);
+				if (ret < 0)
+					goto exit;
+				i++;
+
+			} while ((ret == 1) || (i < 10));
+
+			if (i == 10)
+				ret = -EBUSY;
+		}
+	}
+exit:
+	return ret;
 }
 
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
@@ -373,8 +426,8 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.get_rx_frame_len = dwmac4_wrback_get_rx_frame_len,
 	.enable_tx_timestamp = dwmac4_rd_enable_tx_timestamp,
 	.get_tx_timestamp_status = dwmac4_wrback_get_tx_timestamp_status,
-	.get_timestamp = dwmac4_wrback_get_timestamp,
-	.get_rx_timestamp_status = dwmac4_context_get_rx_timestamp_status,
+	.get_rx_timestamp_status = dwmac4_wrback_get_rx_timestamp_status,
+	.get_timestamp = dwmac4_get_timestamp,
 	.set_tx_ic = dwmac4_rd_set_tx_ic,
 	.prepare_tx_desc = dwmac4_rd_prepare_tx_desc,
 	.prepare_tso_tx_desc = dwmac4_rd_prepare_tso_tx_desc,

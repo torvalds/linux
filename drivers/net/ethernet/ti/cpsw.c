@@ -2375,8 +2375,11 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 * to the PHY is the Ethernet MAC DT node.
 			 */
 			ret = of_phy_register_fixed_link(slave_node);
-			if (ret)
+			if (ret) {
+				if (ret != -EPROBE_DEFER)
+					dev_err(&pdev->dev, "failed to register fixed-link phy: %d\n", ret);
 				return ret;
+			}
 			slave_data->phy_node = of_node_get(slave_node);
 		} else if (parp) {
 			u32 phyid;
@@ -2397,6 +2400,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			}
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 				 PHY_ID_FMT, mdio->name, phyid);
+			put_device(&mdio->dev);
 		} else {
 			dev_err(&pdev->dev,
 				"No slave[%d] phy_id, phy-handle, or fixed-link property\n",
@@ -2438,6 +2442,46 @@ no_phy_slave:
 	}
 
 	return 0;
+}
+
+static void cpsw_remove_dt(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
+	struct cpsw_platform_data *data = &cpsw->data;
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *slave_node;
+	int i = 0;
+
+	for_each_available_child_of_node(node, slave_node) {
+		struct cpsw_slave_data *slave_data = &data->slave_data[i];
+
+		if (strcmp(slave_node->name, "slave"))
+			continue;
+
+		if (of_phy_is_fixed_link(slave_node)) {
+			struct phy_device *phydev;
+
+			phydev = of_phy_find_device(slave_node);
+			if (phydev) {
+				fixed_phy_unregister(phydev);
+				/* Put references taken by
+				 * of_phy_find_device() and
+				 * of_phy_register_fixed_link().
+				 */
+				phy_device_free(phydev);
+				phy_device_free(phydev);
+			}
+		}
+
+		of_node_put(slave_data->phy_node);
+
+		i++;
+		if (i == data->slaves)
+			break;
+	}
+
+	of_platform_depopulate(&pdev->dev);
 }
 
 static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
@@ -2547,6 +2591,9 @@ static int cpsw_probe(struct platform_device *pdev)
 	int irq;
 
 	cpsw = devm_kzalloc(&pdev->dev, sizeof(struct cpsw_common), GFP_KERNEL);
+	if (!cpsw)
+		return -ENOMEM;
+
 	cpsw->dev = &pdev->dev;
 
 	ndev = alloc_etherdev_mq(sizeof(struct cpsw_priv), CPSW_MAX_QUEUES);
@@ -2584,11 +2631,19 @@ static int cpsw_probe(struct platform_device *pdev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
 
-	if (cpsw_probe_dt(&cpsw->data, pdev)) {
-		dev_err(&pdev->dev, "cpsw: platform data missing\n");
-		ret = -ENODEV;
+	/* Need to enable clocks with runtime PM api to access module
+	 * registers
+	 */
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(&pdev->dev);
 		goto clean_runtime_disable_ret;
 	}
+
+	ret = cpsw_probe_dt(&cpsw->data, pdev);
+	if (ret)
+		goto clean_dt_ret;
+
 	data = &cpsw->data;
 	cpsw->rx_ch_num = 1;
 	cpsw->tx_ch_num = 1;
@@ -2608,7 +2663,7 @@ static int cpsw_probe(struct platform_device *pdev)
 				    GFP_KERNEL);
 	if (!cpsw->slaves) {
 		ret = -ENOMEM;
-		goto clean_runtime_disable_ret;
+		goto clean_dt_ret;
 	}
 	for (i = 0; i < data->slaves; i++)
 		cpsw->slaves[i].slave_num = i;
@@ -2620,7 +2675,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (IS_ERR(clk)) {
 		dev_err(priv->dev, "fck is not found\n");
 		ret = -ENODEV;
-		goto clean_runtime_disable_ret;
+		goto clean_dt_ret;
 	}
 	cpsw->bus_freq_mhz = clk_get_rate(clk) / 1000000;
 
@@ -2628,26 +2683,17 @@ static int cpsw_probe(struct platform_device *pdev)
 	ss_regs = devm_ioremap_resource(&pdev->dev, ss_res);
 	if (IS_ERR(ss_regs)) {
 		ret = PTR_ERR(ss_regs);
-		goto clean_runtime_disable_ret;
+		goto clean_dt_ret;
 	}
 	cpsw->regs = ss_regs;
 
-	/* Need to enable clocks with runtime PM api to access module
-	 * registers
-	 */
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
-		goto clean_runtime_disable_ret;
-	}
 	cpsw->version = readl(&cpsw->regs->id_ver);
-	pm_runtime_put_sync(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	cpsw->wr_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(cpsw->wr_regs)) {
 		ret = PTR_ERR(cpsw->wr_regs);
-		goto clean_runtime_disable_ret;
+		goto clean_dt_ret;
 	}
 
 	memset(&dma_params, 0, sizeof(dma_params));
@@ -2684,7 +2730,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	default:
 		dev_err(priv->dev, "unknown version 0x%08x\n", cpsw->version);
 		ret = -ENODEV;
-		goto clean_runtime_disable_ret;
+		goto clean_dt_ret;
 	}
 	for (i = 0; i < cpsw->data.slaves; i++) {
 		struct cpsw_slave *slave = &cpsw->slaves[i];
@@ -2713,7 +2759,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (!cpsw->dma) {
 		dev_err(priv->dev, "error initializing dma\n");
 		ret = -ENOMEM;
-		goto clean_runtime_disable_ret;
+		goto clean_dt_ret;
 	}
 
 	cpsw->txch[0] = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
@@ -2811,16 +2857,23 @@ static int cpsw_probe(struct platform_device *pdev)
 		ret = cpsw_probe_dual_emac(priv);
 		if (ret) {
 			cpsw_err(priv, probe, "error probe slave 2 emac interface\n");
-			goto clean_ale_ret;
+			goto clean_unregister_netdev_ret;
 		}
 	}
 
+	pm_runtime_put(&pdev->dev);
+
 	return 0;
 
+clean_unregister_netdev_ret:
+	unregister_netdev(ndev);
 clean_ale_ret:
 	cpsw_ale_destroy(cpsw->ale);
 clean_dma_ret:
 	cpdma_ctlr_destroy(cpsw->dma);
+clean_dt_ret:
+	cpsw_remove_dt(pdev);
+	pm_runtime_put_sync(&pdev->dev);
 clean_runtime_disable_ret:
 	pm_runtime_disable(&pdev->dev);
 clean_ndev_ret:
@@ -2846,7 +2899,7 @@ static int cpsw_remove(struct platform_device *pdev)
 
 	cpsw_ale_destroy(cpsw->ale);
 	cpdma_ctlr_destroy(cpsw->dma);
-	of_platform_depopulate(&pdev->dev);
+	cpsw_remove_dt(pdev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (cpsw->data.dual_emac)
