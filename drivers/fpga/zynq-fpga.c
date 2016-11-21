@@ -118,7 +118,6 @@
 #define FPGA_RST_NONE_MASK		0x0
 
 struct zynq_fpga_priv {
-	struct device *dev;
 	int irq;
 	struct clk *clk;
 
@@ -218,7 +217,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 					     INIT_POLL_DELAY,
 					     INIT_POLL_TIMEOUT);
 		if (err) {
-			dev_err(priv->dev, "Timeout waiting for PCFG_INIT\n");
+			dev_err(&mgr->dev, "Timeout waiting for PCFG_INIT\n");
 			goto out_err;
 		}
 
@@ -232,7 +231,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 					     INIT_POLL_DELAY,
 					     INIT_POLL_TIMEOUT);
 		if (err) {
-			dev_err(priv->dev, "Timeout waiting for !PCFG_INIT\n");
+			dev_err(&mgr->dev, "Timeout waiting for !PCFG_INIT\n");
 			goto out_err;
 		}
 
@@ -246,7 +245,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 					     INIT_POLL_DELAY,
 					     INIT_POLL_TIMEOUT);
 		if (err) {
-			dev_err(priv->dev, "Timeout waiting for PCFG_INIT\n");
+			dev_err(&mgr->dev, "Timeout waiting for PCFG_INIT\n");
 			goto out_err;
 		}
 	}
@@ -263,7 +262,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 	/* check that we have room in the command queue */
 	status = zynq_fpga_read(priv, STATUS_OFFSET);
 	if (status & STATUS_DMA_Q_F) {
-		dev_err(priv->dev, "DMA command queue full\n");
+		dev_err(&mgr->dev, "DMA command queue full\n");
 		err = -EBUSY;
 		goto out_err;
 	}
@@ -296,7 +295,8 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	in_count = count;
 	priv = mgr->priv;
 
-	kbuf = dma_alloc_coherent(priv->dev, count, &dma_addr, GFP_KERNEL);
+	kbuf =
+	    dma_alloc_coherent(mgr->dev.parent, count, &dma_addr, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
 
@@ -332,15 +332,14 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	zynq_fpga_write(priv, INT_STS_OFFSET, intr_status);
 
 	if (!((intr_status & IXR_D_P_DONE_MASK) == IXR_D_P_DONE_MASK)) {
-		dev_err(priv->dev, "Error configuring FPGA\n");
+		dev_err(&mgr->dev, "Error configuring FPGA\n");
 		err = -EFAULT;
 	}
 
 	clk_disable(priv->clk);
 
 out_free:
-	dma_free_coherent(priv->dev, in_count, kbuf, dma_addr);
-
+	dma_free_coherent(mgr->dev.parent, count, kbuf, dma_addr);
 	return err;
 }
 
@@ -417,8 +416,6 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	priv->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->io_base = devm_ioremap_resource(dev, res);
