@@ -1344,19 +1344,9 @@ clock_set:
 }
 EXPORT_SYMBOL_GPL(sdhci_calc_clk);
 
-void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+void sdhci_enable_clk(struct sdhci_host *host, u16 clk)
 {
-	u16 clk;
 	unsigned long timeout;
-
-	host->mmc->actual_clock = 0;
-
-	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
-
-	if (clock == 0)
-		return;
-
-	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
 
 	clk |= SDHCI_CLOCK_INT_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
@@ -1377,6 +1367,22 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	clk |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+}
+EXPORT_SYMBOL_GPL(sdhci_enable_clk);
+
+void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	u16 clk;
+
+	host->mmc->actual_clock = 0;
+
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
+	if (clock == 0)
+		return;
+
+	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
+	sdhci_enable_clk(host, clk);
 }
 EXPORT_SYMBOL_GPL(sdhci_set_clock);
 
