@@ -511,16 +511,18 @@ controlvm_respond_chipset_init(struct controlvm_message_header *msg_hdr,
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
 
-static void
+static int
 chipset_init(struct controlvm_message *inmsg)
 {
 	static int chipset_inited;
 	enum ultra_chipset_feature features = 0;
 	int rc = CONTROLVM_RESP_SUCCESS;
+	int res = 0;
 
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (chipset_inited) {
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
+		res = -EIO;
 		goto out_respond;
 	}
 	chipset_inited = 1;
@@ -541,7 +543,9 @@ chipset_init(struct controlvm_message *inmsg)
 
 out_respond:
 	if (inmsg->hdr.flags.response_expected)
-		controlvm_respond_chipset_init(&inmsg->hdr, rc, features);
+		res = controlvm_respond_chipset_init(&inmsg->hdr, rc, features);
+
+	return res;
 }
 
 static void
