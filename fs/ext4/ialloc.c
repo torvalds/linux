@@ -1115,8 +1115,7 @@ got:
 	}
 
 	if (encrypt) {
-		/* give pointer to avoid set_context with journal ops. */
-		err = fscrypt_inherit_context(dir, inode, &encrypt, true);
+		err = fscrypt_inherit_context(dir, inode, handle, true);
 		if (err)
 			goto fail_free_drop;
 	}
