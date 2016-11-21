@@ -59,3 +59,19 @@ int mv88e6320_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 
 	return mv88e6xxx_g1_stats_snapshot(chip, port);
 }
+
+int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
+{
+	int err;
+
+	port = (port + 1) << 5;
+
+	/* Snapshot the hardware statistics counters for this port. */
+	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
+				 GLOBAL_STATS_OP_CAPTURE_PORT | port);
+	if (err)
+		return err;
+
+	/* Wait for the snapshotting to complete. */
+	return mv88e6xxx_g1_stats_wait(chip);
+}

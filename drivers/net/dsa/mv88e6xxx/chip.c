@@ -3283,6 +3283,7 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6190x_ops = {
@@ -3294,6 +3295,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390x_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6191_ops = {
@@ -3305,6 +3307,7 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6240_ops = {
@@ -3330,6 +3333,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3405,6 +3409,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6390x_ops = {
@@ -3416,6 +3421,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390x_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6391_ops = {
@@ -3427,6 +3433,7 @@ static const struct mv88e6xxx_ops mv88e6391_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
+	.stats_snapshot = mv88e6390_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
