@@ -125,13 +125,10 @@ union recv_frame *r8712_alloc_recvframe(struct __queue *pfree_recv_queue)
 }
 
 /*
-caller : defrag; recvframe_chk_defrag in recv_thread  (passive)
-pframequeue: defrag_queue : will be accessed in recv_thread  (passive)
-
-using spin_lock to protect
-
-*/
-
+ * caller : defrag; recvframe_chk_defrag in recv_thread  (passive)
+ * pframequeue: defrag_queue : will be accessed in recv_thread  (passive)
+ * using spin_lock to protect
+ */
 void r8712_free_recvframe_queue(struct  __queue *pframequeue,
 				struct  __queue *pfree_recv_queue)
 {
