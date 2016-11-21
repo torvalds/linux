@@ -1575,9 +1575,8 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 	u8	ep_adrs;
 	int	result = -EINVAL;
 
-	if ((udc->ctrl.wValue != 0x0000) || (direction != USB_DIR_IN)) {
+	if ((udc->ctrl.wValue != 0x0000) || (direction != USB_DIR_IN))
 		return result;
-	}
 
 	length = min_t(u16, udc->ctrl.wLength, sizeof(status_data));
 
