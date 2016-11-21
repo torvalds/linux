@@ -45,6 +45,7 @@
 #include <asm/msr.h>
 
 static struct class *cpuid_class;
+static enum cpuhp_state cpuhp_cpuid_state;
 
 struct cpuid_regs {
 	u32 eax, ebx, ecx, edx;
@@ -152,11 +153,12 @@ static int __init cpuid_init(void)
 	}
 	cpuid_class->devnode = cpuid_devnode;
 
-	err = cpuhp_setup_state(CPUHP_X86_CPUID_PREPARE, "x86/cpuid:prepare",
+	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/cpuid:online",
 				cpuid_device_create, cpuid_device_destroy);
-	if (err)
+	if (err < 0)
 		goto out_class;
 
+	cpuhp_cpuid_state = err;
 	return 0;
 
 out_class:
@@ -165,15 +167,14 @@ out_chrdev:
 	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
 	return err;
 }
+module_init(cpuid_init);
 
 static void __exit cpuid_exit(void)
 {
-	cpuhp_remove_state(CPUHP_X86_CPUID_PREPARE);
+	cpuhp_remove_state(cpuhp_cpuid_state);
 	class_destroy(cpuid_class);
 	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
 }
-
-module_init(cpuid_init);
 module_exit(cpuid_exit);
 
 MODULE_AUTHOR("H. Peter Anvin <hpa@zytor.com>");
