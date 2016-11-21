@@ -71,13 +71,6 @@ struct dw_pci_controller {
 				DW_IC_CON_SLAVE_DISABLE |	\
 				DW_IC_CON_RESTART_EN)
 
-#define DW_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
-					I2C_FUNC_SMBUS_BYTE |		\
-					I2C_FUNC_SMBUS_BYTE_DATA |	\
-					I2C_FUNC_SMBUS_WORD_DATA |	\
-					I2C_FUNC_SMBUS_BLOCK_DATA |	\
-					I2C_FUNC_SMBUS_I2C_BLOCK)
-
 /* Merrifield HCNT/LCNT/SDA hold time */
 static struct dw_scl_sda_cfg mrfld_config = {
 	.ss_hcnt = 0x2f8,
@@ -250,7 +243,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev->functionality = controller->functionality |
-				DW_DEFAULT_FUNCTIONALITY;
+				DW_IC_DEFAULT_FUNCTIONALITY;
 
 	dev->master_cfg = controller->bus_cfg;
 	if (controller->scl_sda_cfg) {
