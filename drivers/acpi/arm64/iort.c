@@ -548,6 +548,68 @@ static bool __init arm_smmu_v3_is_coherent(struct acpi_iort_node *node)
 	return smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE;
 }
 
+static int __init arm_smmu_count_resources(struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu *smmu;
+
+	/* Retrieve SMMU specific data */
+	smmu = (struct acpi_iort_smmu *)node->node_data;
+
+	/*
+	 * Only consider the global fault interrupt and ignore the
+	 * configuration access interrupt.
+	 *
+	 * MMIO address and global fault interrupt resources are always
+	 * present so add them to the context interrupt count as a static
+	 * value.
+	 */
+	return smmu->context_interrupt_count + 2;
+}
+
+static void __init arm_smmu_init_resources(struct resource *res,
+					   struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu *smmu;
+	int i, hw_irq, trigger, num_res = 0;
+	u64 *ctx_irq, *glb_irq;
+
+	/* Retrieve SMMU specific data */
+	smmu = (struct acpi_iort_smmu *)node->node_data;
+
+	res[num_res].start = smmu->base_address;
+	res[num_res].end = smmu->base_address + smmu->span - 1;
+	res[num_res].flags = IORESOURCE_MEM;
+	num_res++;
+
+	glb_irq = ACPI_ADD_PTR(u64, node, smmu->global_interrupt_offset);
+	/* Global IRQs */
+	hw_irq = IORT_IRQ_MASK(glb_irq[0]);
+	trigger = IORT_IRQ_TRIGGER_MASK(glb_irq[0]);
+
+	acpi_iort_register_irq(hw_irq, "arm-smmu-global", trigger,
+				     &res[num_res++]);
+
+	/* Context IRQs */
+	ctx_irq = ACPI_ADD_PTR(u64, node, smmu->context_interrupt_offset);
+	for (i = 0; i < smmu->context_interrupt_count; i++) {
+		hw_irq = IORT_IRQ_MASK(ctx_irq[i]);
+		trigger = IORT_IRQ_TRIGGER_MASK(ctx_irq[i]);
+
+		acpi_iort_register_irq(hw_irq, "arm-smmu-context", trigger,
+				       &res[num_res++]);
+	}
+}
+
+static bool __init arm_smmu_is_coherent(struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu *smmu;
+
+	/* Retrieve SMMU specific data */
+	smmu = (struct acpi_iort_smmu *)node->node_data;
+
+	return smmu->flags & ACPI_IORT_SMMU_COHERENT_WALK;
+}
+
 struct iort_iommu_config {
 	const char *name;
 	int (*iommu_init)(struct acpi_iort_node *node);
@@ -564,12 +626,21 @@ static const struct iort_iommu_config iort_arm_smmu_v3_cfg __initconst = {
 	.iommu_init_resources = arm_smmu_v3_init_resources
 };
 
+static const struct iort_iommu_config iort_arm_smmu_cfg __initconst = {
+	.name = "arm-smmu",
+	.iommu_is_coherent = arm_smmu_is_coherent,
+	.iommu_count_resources = arm_smmu_count_resources,
+	.iommu_init_resources = arm_smmu_init_resources
+};
+
 static __init
 const struct iort_iommu_config *iort_get_iommu_cfg(struct acpi_iort_node *node)
 {
 	switch (node->type) {
 	case ACPI_IORT_NODE_SMMU_V3:
 		return &iort_arm_smmu_v3_cfg;
+	case ACPI_IORT_NODE_SMMU:
+		return &iort_arm_smmu_cfg;
 	default:
 		return NULL;
 	}

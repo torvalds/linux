@@ -28,6 +28,8 @@
 
 #define pr_fmt(fmt) "arm-smmu: " fmt
 
+#include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
@@ -1911,6 +1913,64 @@ static const struct of_device_id arm_smmu_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
 
+#ifdef CONFIG_ACPI
+static int acpi_smmu_get_data(u32 model, struct arm_smmu_device *smmu)
+{
+	int ret = 0;
+
+	switch (model) {
+	case ACPI_IORT_SMMU_V1:
+	case ACPI_IORT_SMMU_CORELINK_MMU400:
+		smmu->version = ARM_SMMU_V1;
+		smmu->model = GENERIC_SMMU;
+		break;
+	case ACPI_IORT_SMMU_V2:
+		smmu->version = ARM_SMMU_V2;
+		smmu->model = GENERIC_SMMU;
+		break;
+	case ACPI_IORT_SMMU_CORELINK_MMU500:
+		smmu->version = ARM_SMMU_V2;
+		smmu->model = ARM_MMU500;
+		break;
+	default:
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
+				      struct arm_smmu_device *smmu)
+{
+	struct device *dev = smmu->dev;
+	struct acpi_iort_node *node =
+		*(struct acpi_iort_node **)dev_get_platdata(dev);
+	struct acpi_iort_smmu *iort_smmu;
+	int ret;
+
+	/* Retrieve SMMU1/2 specific data */
+	iort_smmu = (struct acpi_iort_smmu *)node->node_data;
+
+	ret = acpi_smmu_get_data(iort_smmu->model, smmu);
+	if (ret < 0)
+		return ret;
+
+	/* Ignore the configuration access interrupt */
+	smmu->num_global_irqs = 1;
+
+	if (iort_smmu->flags & ACPI_IORT_SMMU_COHERENT_WALK)
+		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
+
+	return 0;
+}
+#else
+static inline int arm_smmu_device_acpi_probe(struct platform_device *pdev,
+					     struct arm_smmu_device *smmu)
+{
+	return -ENODEV;
+}
+#endif
+
 static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 				    struct arm_smmu_device *smmu)
 {
@@ -1962,7 +2022,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 	smmu->dev = dev;
 
-	err = arm_smmu_device_dt_probe(pdev, smmu);
+	if (dev->of_node)
+		err = arm_smmu_device_dt_probe(pdev, smmu);
+	else
+		err = arm_smmu_device_acpi_probe(pdev, smmu);
+
 	if (err)
 		return err;
 
@@ -2109,6 +2173,17 @@ IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400", arm_smmu_of_init);
 IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401", arm_smmu_of_init);
 IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500", arm_smmu_of_init);
 IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2", arm_smmu_of_init);
+
+#ifdef CONFIG_ACPI
+static int __init arm_smmu_acpi_init(struct acpi_table_header *table)
+{
+	if (iort_node_match(ACPI_IORT_NODE_SMMU))
+		return arm_smmu_init();
+
+	return 0;
+}
+IORT_ACPI_DECLARE(arm_smmu, ACPI_SIG_IORT, arm_smmu_acpi_init);
+#endif
 
 MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");

@@ -23,6 +23,9 @@
 #include <linux/fwnode.h>
 #include <linux/irqdomain.h>
 
+#define IORT_IRQ_MASK(irq)		(irq & 0xffffffffULL)
+#define IORT_IRQ_TRIGGER_MASK(irq)	((irq >> 32) & 0xffffffffULL)
+
 int iort_register_domain_token(int trans_id, struct fwnode_handle *fw_node);
 void iort_deregister_domain_token(int trans_id);
 struct fwnode_handle *iort_find_domain_token(int trans_id);
