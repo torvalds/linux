@@ -40,6 +40,8 @@
 #define LOW_AUDIO_CLK		50000000
 #define HIGH_AUDIO_CLK		100000000
 
+#define LOW_POWER_RUN_VOLTAGE	950000
+
 #define MMDC_MDMISC_DDR_TYPE_DDR3	0
 #define MMDC_MDMISC_DDR_TYPE_LPDDR2	1
 
@@ -63,6 +65,7 @@ static int high_bus_count, med_bus_count, audio_bus_count, low_bus_count;
 static unsigned int ddr_low_rate;
 static int cur_bus_freq_mode;
 static u32 org_arm_rate;
+static int origin_arm_volt, origin_soc_volt;
 
 extern unsigned long iram_tlb_phys_addr;
 extern int unsigned long iram_tlb_base_addr;
@@ -165,8 +168,15 @@ static struct clk *origin_step_parent;
  */
 static void imx6ull_lower_cpu_rate(bool enter)
 {
-	if (enter)
+	int ret;
+
+	if (enter) {
 		org_arm_rate = clk_get_rate(arm_clk);
+		if (cpu_is_imx6sll()) {
+			origin_arm_volt = regulator_get_voltage(arm_reg);
+			origin_soc_volt = regulator_get_voltage(soc_reg);
+		}
+	}
 
 	imx_clk_set_parent(pll1_bypass_clk, pll1_bypass_src_clk);
 	imx_clk_set_parent(pll1_sw_clk, pll1_sys_clk);
@@ -176,7 +186,23 @@ static void imx6ull_lower_cpu_rate(bool enter)
 		imx_clk_set_parent(step_clk, osc_clk);
 		imx_clk_set_parent(pll1_sw_clk, step_clk);
 		imx_clk_set_rate(arm_clk, LPAPM_CLK);
+		if (cpu_is_imx6sll() && uart_from_osc) {
+			ret = regulator_set_voltage_tol(arm_reg, LOW_POWER_RUN_VOLTAGE, 0);
+			if (ret)
+				pr_err("set arm reg voltage failed\n");
+			ret = regulator_set_voltage_tol(soc_reg, LOW_POWER_RUN_VOLTAGE, 0);
+			if (ret)
+				pr_err("set soc reg voltage failed\n");
+		}
 	} else {
+		if (cpu_is_imx6sll() && uart_from_osc) {
+			ret = regulator_set_voltage_tol(soc_reg, origin_soc_volt, 0);
+			if (ret)
+				pr_err("set soc reg voltage failed\n");
+			ret = regulator_set_voltage_tol(arm_reg, origin_arm_volt, 0);
+			if (ret)
+				pr_err("set arm reg voltage failed\n");
+		}
 		imx_clk_set_parent(step_clk, origin_step_parent);
 		imx_clk_set_parent(pll1_sw_clk, step_clk);
 		imx_clk_set_rate(arm_clk, org_arm_rate);
