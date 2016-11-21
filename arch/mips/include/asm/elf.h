@@ -224,6 +224,9 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
  */
 #define ELF_CLASS	ELFCLASS32
 
+#define ELF_CORE_COPY_REGS(dest, regs) \
+	mips_dump_regs32((u32 *)&(dest), (regs));
+
 #endif /* CONFIG_32BIT */
 
 #ifdef CONFIG_64BIT
@@ -236,6 +239,9 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS64
+
+#define ELF_CORE_COPY_REGS(dest, regs) \
+	mips_dump_regs64((u64 *)&(dest), (regs));
 
 #endif /* CONFIG_64BIT */
 
