@@ -17,6 +17,8 @@
  */
 
 #include <stdarg.h>
+#include <linux/cpu.h>
+#include <linux/cpu_pm.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -39,7 +41,7 @@
 #include <linux/delay.h>
 #include <linux/soc/rockchip/rk_fiq_debugger.h>
 
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 #include <linux/rockchip/rockchip_sip.h>
 #endif
 
@@ -63,9 +65,9 @@ struct rk_fiq_debugger {
 };
 
 static int rk_fiq_debugger_id;
-static int serial_id;
+static int serial_hwirq;
 
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 static bool tf_fiq_sup;
 #endif
 
@@ -272,55 +274,156 @@ static void fiq_enable(struct platform_device *pdev, unsigned int irq, bool on)
 		disable_irq(irq);
 }
 
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 static struct pt_regs fiq_pt_regs;
 
 static void rk_fiq_debugger_switch_cpu(struct platform_device *pdev,
 				       unsigned int cpu)
 {
-	psci_fiq_debugger_switch_cpu(cpu);
+	sip_fiq_debugger_switch_cpu(cpu);
 }
 
 static void rk_fiq_debugger_enable_debug(struct platform_device *pdev, bool val)
 {
-	psci_fiq_debugger_enable_debug(val);
+	sip_fiq_debugger_enable_debug(val);
 }
 
-static void fiq_debugger_uart_irq_tf(void *reg_base, u64 sp_el1)
+static void fiq_debugger_uart_irq_tf(struct pt_regs _pt_regs, u64 cpu)
 {
-	memcpy(&fiq_pt_regs, reg_base, 8*31);
+	fiq_pt_regs = _pt_regs;
 
-	memcpy(&fiq_pt_regs.pstate, reg_base + 0x110, 8);
-	if (fiq_pt_regs.pstate & 0x10)
-		memcpy(&fiq_pt_regs.sp, reg_base + 0xf8, 8);
-	else
-		fiq_pt_regs.sp = sp_el1;
-
-	memcpy(&fiq_pt_regs.pc, reg_base + 0x118, 8);
-
-	fiq_debugger_fiq(&fiq_pt_regs);
+	fiq_debugger_fiq(&fiq_pt_regs, cpu);
 }
 
-static int fiq_debugger_uart_dev_resume(struct platform_device *pdev)
+static int rk_fiq_debugger_uart_dev_resume(struct platform_device *pdev)
 {
 	struct rk_fiq_debugger *t;
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
-	psci_fiq_debugger_uart_irq_tf_init(serial_id, fiq_debugger_uart_irq_tf);
+	sip_fiq_debugger_uart_irq_tf_init(serial_hwirq,
+					  fiq_debugger_uart_irq_tf);
 	return 0;
+}
+
+static int fiq_debugger_cpu_resume_fiq(struct notifier_block *nb,
+				       unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_PM_EXIT:
+		if ((sip_fiq_debugger_is_enabled()) &&
+		    (sip_fiq_debugger_get_target_cpu() == smp_processor_id()))
+			sip_fiq_debugger_enable_fiq(true, smp_processor_id());
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static int fiq_debugger_cpu_migrate_fiq(struct notifier_block *nb,
+					unsigned long action, void *hcpu)
+{
+	int target_cpu, cpu = (long)hcpu;
+
+	switch (action) {
+	case CPU_DEAD:
+		if ((sip_fiq_debugger_is_enabled()) &&
+		    (sip_fiq_debugger_get_target_cpu() == cpu)) {
+			target_cpu = cpumask_first(cpu_online_mask);
+			sip_fiq_debugger_switch_cpu(target_cpu);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block fiq_debugger_pm_notifier = {
+	.notifier_call = fiq_debugger_cpu_resume_fiq,
+	.priority = 100,
+};
+
+static struct notifier_block fiq_debugger_cpu_notifier = {
+	.notifier_call = fiq_debugger_cpu_migrate_fiq,
+	.priority = 100,
+};
+
+static int rk_fiq_debugger_register_cpu_pm_notify(void)
+{
+	int err;
+
+	err = register_cpu_notifier(&fiq_debugger_cpu_notifier);
+	if (err) {
+		pr_err("fiq debugger register cpu notifier failed!\n");
+		return err;
+	}
+
+	err = cpu_pm_register_notifier(&fiq_debugger_pm_notifier);
+	if (err) {
+		pr_err("fiq debugger register pm notifier failed!\n");
+		return err;
+	}
+
+	return 0;
+}
+
+static int fiq_debugger_bind_sip_smc(struct rk_fiq_debugger *t,
+				     phys_addr_t phy_base,
+				     int hwirq,
+				     int signal_irq,
+				     unsigned int baudrate)
+{
+	int err;
+
+	err = sip_fiq_debugger_request_share_memory();
+	if (err) {
+		pr_err("fiq debugger request share memory failed: %d\n", err);
+		goto exit;
+	}
+
+	err = rk_fiq_debugger_register_cpu_pm_notify();
+	if (err) {
+		pr_err("fiq debugger register cpu pm notify failed: %d\n", err);
+		goto exit;
+	}
+
+	err = sip_fiq_debugger_uart_irq_tf_init(hwirq,
+				fiq_debugger_uart_irq_tf);
+	if (err) {
+		pr_err("fiq debugger bind fiq to trustzone failed: %d\n", err);
+		goto exit;
+	}
+
+	t->pdata.uart_dev_resume = rk_fiq_debugger_uart_dev_resume;
+	t->pdata.switch_cpu = rk_fiq_debugger_switch_cpu;
+	t->pdata.enable_debug = rk_fiq_debugger_enable_debug;
+	sip_fiq_debugger_set_print_port(phy_base, baudrate);
+
+	pr_info("fiq debugger fiq mode enabled\n");
+
+	return 0;
+
+exit:
+	t->pdata.switch_cpu = NULL;
+	t->pdata.enable_debug = NULL;
+
+	return err;
 }
 #endif
 
-void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
+void rk_serial_debug_init(void __iomem *base, phys_addr_t phy_base,
+			  int irq, int signal_irq,
 			  int wakeup_irq, unsigned int baudrate)
 {
 	struct rk_fiq_debugger *t = NULL;
 	struct platform_device *pdev = NULL;
 	struct resource *res = NULL;
 	int res_count = 0;
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
-	/* tf means trust firmware*/
-	int tf_ver = 0;
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
+	int ret = 0;
 #endif
 
 	if (!base) {
@@ -359,24 +462,14 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
 		goto out3;
 	};
 
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
-	tf_ver = rockchip_psci_smc_get_tf_ver();
-
-	if (tf_ver >= 0x00010005)
-		tf_fiq_sup = true;
-	else
-		tf_fiq_sup = false;
-
-	if (tf_fiq_sup && (signal_irq > 0)) {
-		t->pdata.switch_cpu = rk_fiq_debugger_switch_cpu;
-		t->pdata.enable_debug = rk_fiq_debugger_enable_debug;
-		t->pdata.uart_dev_resume = fiq_debugger_uart_dev_resume;
-		psci_fiq_debugger_set_print_port(serial_id, 0);
-		psci_fiq_debugger_uart_irq_tf_init(serial_id,
-						   fiq_debugger_uart_irq_tf);
-	} else {
-		t->pdata.switch_cpu = NULL;
-		t->pdata.enable_debug = NULL;
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
+	if ((signal_irq > 0) && (serial_hwirq > 0)) {
+		ret = fiq_debugger_bind_sip_smc(t, phy_base, serial_hwirq,
+						signal_irq, baudrate);
+		if (ret)
+			tf_fiq_sup = false;
+		else
+			tf_fiq_sup = true;
 	}
 #endif
 
@@ -389,7 +482,7 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
 			res[0].name = "fiq";
 		else
 			res[0].name = "uart_irq";
-#elif defined(CONFIG_FIQ_DEBUGGER_EL3_TO_EL1)
+#elif defined(CONFIG_FIQ_DEBUGGER_TRUST_ZONE)
 		if (tf_fiq_sup && (signal_irq > 0))
 			res[0].name = "fiq";
 		else
@@ -451,10 +544,14 @@ static int __init rk_fiq_debugger_init(void) {
 	void __iomem *base;
 	struct device_node *np;
 	unsigned int id, ok = 0;
-	unsigned int irq, signal_irq = 0, wake_irq = 0;
+	int irq, signal_irq = 0, wake_irq = 0;
 	unsigned int baudrate = 0, irq_mode = 0;
+	phys_addr_t phy_base = 0;
+	int serial_id;
 	struct clk *clk;
 	struct clk *pclk;
+	struct of_phandle_args oirq;
+	struct resource res;
 
 	np = of_find_matching_node(NULL, ids);
 
@@ -477,7 +574,7 @@ static int __init rk_fiq_debugger_init(void) {
 	if (irq_mode == 1)
 		signal_irq = -1;
 	else if (of_property_read_u32(np, "rockchip,signal-irq", &signal_irq))
-			signal_irq = -1;
+		signal_irq = -1;
 
 	if (of_property_read_u32(np, "rockchip,wake-irq", &wake_irq))
 		wake_irq = -1;
@@ -507,6 +604,14 @@ static int __init rk_fiq_debugger_init(void) {
 	if (!ok)
 		return -EINVAL;
 
+	/* parse serial hw irq */
+	if (!of_irq_parse_one(np, 0, &oirq))
+		serial_hwirq = oirq.args[1] + 32;
+
+	/* parse serial phy base address */
+	if (!of_address_to_resource(np, 0, &res))
+		phy_base = res.start;
+
 	pclk = of_clk_get_by_name(np, "apb_pclk");
 	clk = of_clk_get_by_name(np, "baudclk");
 	if (unlikely(IS_ERR(clk)) || unlikely(IS_ERR(pclk))) {
@@ -523,8 +628,8 @@ static int __init rk_fiq_debugger_init(void) {
 
 	base = of_iomap(np, 0);
 	if (base)
-		rk_serial_debug_init(base, irq, signal_irq, wake_irq, baudrate);
-
+		rk_serial_debug_init(base, phy_base,
+				     irq, signal_irq, wake_irq, baudrate);
 	return 0;
 }
 #ifdef CONFIG_FIQ_GLUE
