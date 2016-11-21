@@ -1,6 +1,6 @@
 /*
  * originally written by: Kirk Reiser <kirk@braille.uwo.ca>
-* this version considerably modified by David Borowski, david575@rogers.com
+ * this version considerably modified by David Borowski, david575@rogers.com
  *
  * Copyright (C) 1998-99  Kirk Reiser.
  * Copyright (C) 2003 David Borowski.
@@ -40,9 +40,8 @@ static struct var_t vars[] = {
 	V_LAST_VAR
 };
 
-/*
- * These attributes will appear in /sys/accessibility/speakup/spkout.
- */
+/* These attributes will appear in /sys/accessibility/speakup/spkout. */
+
 static struct kobj_attribute caps_start_attribute =
 	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
