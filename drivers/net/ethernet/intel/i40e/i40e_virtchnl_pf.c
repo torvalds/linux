@@ -2921,6 +2921,9 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	case I40E_LINK_SPEED_40GB:
 		speed = 40000;
 		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = 25000;
+		break;
 	case I40E_LINK_SPEED_20GB:
 		speed = 20000;
 		break;
