@@ -459,15 +459,20 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 						    const struct in6_addr *grp,
 						    u8 *igmp_type)
 {
-	struct sk_buff *skb;
+	struct mld2_query *mld2q;
+	unsigned long interval;
 	struct ipv6hdr *ip6h;
 	struct mld_msg *mldq;
+	size_t mld_hdr_size;
+	struct sk_buff *skb;
 	struct ethhdr *eth;
 	u8 *hopopt;
-	unsigned long interval;
 
+	mld_hdr_size = sizeof(*mldq);
+	if (br->multicast_mld_version == 2)
+		mld_hdr_size = sizeof(*mld2q);
 	skb = netdev_alloc_skb_ip_align(br->dev, sizeof(*eth) + sizeof(*ip6h) +
-						 8 + sizeof(*mldq));
+						 8 + mld_hdr_size);
 	if (!skb)
 		goto out;
 
@@ -486,7 +491,7 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	ip6h = ipv6_hdr(skb);
 
 	*(__force __be32 *)ip6h = htonl(0x60000000);
-	ip6h->payload_len = htons(8 + sizeof(*mldq));
+	ip6h->payload_len = htons(8 + mld_hdr_size);
 	ip6h->nexthdr = IPPROTO_HOPOPTS;
 	ip6h->hop_limit = 1;
 	ipv6_addr_set(&ip6h->daddr, htonl(0xff020000), 0, 0, htonl(1));
@@ -514,26 +519,47 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 
 	/* ICMPv6 */
 	skb_set_transport_header(skb, skb->len);
-	mldq = (struct mld_msg *) icmp6_hdr(skb);
-
 	interval = ipv6_addr_any(grp) ?
 			br->multicast_query_response_interval :
 			br->multicast_last_member_interval;
-
 	*igmp_type = ICMPV6_MGM_QUERY;
-	mldq->mld_type = ICMPV6_MGM_QUERY;
-	mldq->mld_code = 0;
-	mldq->mld_cksum = 0;
-	mldq->mld_maxdelay = htons((u16)jiffies_to_msecs(interval));
-	mldq->mld_reserved = 0;
-	mldq->mld_mca = *grp;
-
-	/* checksum */
-	mldq->mld_cksum = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
-					  sizeof(*mldq), IPPROTO_ICMPV6,
-					  csum_partial(mldq,
-						       sizeof(*mldq), 0));
-	skb_put(skb, sizeof(*mldq));
+	switch (br->multicast_mld_version) {
+	case 1:
+		mldq = (struct mld_msg *)icmp6_hdr(skb);
+		mldq->mld_type = ICMPV6_MGM_QUERY;
+		mldq->mld_code = 0;
+		mldq->mld_cksum = 0;
+		mldq->mld_maxdelay = htons((u16)jiffies_to_msecs(interval));
+		mldq->mld_reserved = 0;
+		mldq->mld_mca = *grp;
+		mldq->mld_cksum = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+						  sizeof(*mldq), IPPROTO_ICMPV6,
+						  csum_partial(mldq,
+							       sizeof(*mldq),
+							       0));
+		break;
+	case 2:
+		mld2q = (struct mld2_query *)icmp6_hdr(skb);
+		mld2q->mld2q_mrc = ntohs((u16)jiffies_to_msecs(interval));
+		mld2q->mld2q_type = ICMPV6_MGM_QUERY;
+		mld2q->mld2q_code = 0;
+		mld2q->mld2q_cksum = 0;
+		mld2q->mld2q_resv1 = 0;
+		mld2q->mld2q_resv2 = 0;
+		mld2q->mld2q_suppress = 0;
+		mld2q->mld2q_qrv = 2;
+		mld2q->mld2q_nsrcs = 0;
+		mld2q->mld2q_qqic = br->multicast_query_interval / HZ;
+		mld2q->mld2q_mca = *grp;
+		mld2q->mld2q_cksum = csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+						     sizeof(*mld2q),
+						     IPPROTO_ICMPV6,
+						     csum_partial(mld2q,
+								  sizeof(*mld2q),
+								  0));
+		break;
+	}
+	skb_put(skb, mld_hdr_size);
 
 	__skb_pull(skb, sizeof(*eth));
 
@@ -1842,7 +1868,6 @@ void br_multicast_init(struct net_bridge *br)
 	br->hash_elasticity = 4;
 	br->hash_max = 512;
 
-	br->multicast_igmp_version = 2;
 	br->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
 	br->multicast_querier = 0;
 	br->multicast_query_use_ifaddr = 0;
@@ -1858,7 +1883,9 @@ void br_multicast_init(struct net_bridge *br)
 
 	br->ip4_other_query.delay_time = 0;
 	br->ip4_querier.port = NULL;
+	br->multicast_igmp_version = 2;
 #if IS_ENABLED(CONFIG_IPV6)
+	br->multicast_mld_version = 1;
 	br->ip6_other_query.delay_time = 0;
 	br->ip6_querier.port = NULL;
 #endif
@@ -2176,6 +2203,26 @@ int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val)
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+int br_multicast_set_mld_version(struct net_bridge *br, unsigned long val)
+{
+	/* Currently we support version 1 and 2 */
+	switch (val) {
+	case 1:
+	case 2:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&br->multicast_lock);
+	br->multicast_mld_version = val;
+	spin_unlock_bh(&br->multicast_lock);
+
+	return 0;
+}
+#endif
 
 /**
  * br_multicast_list_adjacent - Returns snooped multicast addresses
