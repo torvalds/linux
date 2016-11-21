@@ -676,18 +676,18 @@ device_changestate_responder(enum controlvm_id cmd_id,
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
 
-static void
+static int
 device_responder(enum controlvm_id cmd_id,
 		 struct controlvm_message_header *pending_msg_hdr,
 		 int response)
 {
 	if (!pending_msg_hdr)
-		return;		/* no controlvm response needed */
+		return -EIO;
 
 	if (pending_msg_hdr->id != (u32)cmd_id)
-		return;
+		return -EINVAL;
 
-	controlvm_respond(pending_msg_hdr, response);
+	return controlvm_respond(pending_msg_hdr, response);
 }
 
 static int
