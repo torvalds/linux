@@ -20,8 +20,8 @@
  */
 
 #include <linux/unistd.h>
-#include <linux/miscdevice.h> /* for misc_register, and SYNTH_MINOR */
-#include <linux/poll.h> /* for poll_wait() */
+#include <linux/miscdevice.h>	/* for misc_register, and SYNTH_MINOR */
+#include <linux/poll.h>		/* for poll_wait() */
 #include <linux/sched.h> /* schedule(), signal_pending(), TASK_INTERRUPTIBLE */
 
 #include "spk_priv.h"
@@ -55,9 +55,8 @@ static struct var_t vars[] = {
 	V_LAST_VAR
 };
 
-/*
- * These attributes will appear in /sys/accessibility/speakup/soft.
- */
+/* These attributes will appear in /sys/accessibility/speakup/soft. */
+
 static struct kobj_attribute caps_start_attribute =
 	__ATTR(caps_start, S_IWUSR | S_IRUGO, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
