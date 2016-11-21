@@ -3262,6 +3262,36 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.port_set_speed = mv88e6185_port_set_speed,
 };
 
+static const struct mv88e6xxx_ops mv88e6190_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390_port_set_speed,
+};
+
+static const struct mv88e6xxx_ops mv88e6190x_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390x_port_set_speed,
+};
+
+static const struct mv88e6xxx_ops mv88e6191_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390_port_set_speed,
+};
+
 static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
 	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
@@ -3272,6 +3302,16 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
+};
+
+static const struct mv88e6xxx_ops mv88e6290_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390_port_set_speed,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3326,6 +3366,36 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
+};
+
+static const struct mv88e6xxx_ops mv88e6390_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390_port_set_speed,
+};
+
+static const struct mv88e6xxx_ops mv88e6390x_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390x_port_set_speed,
+};
+
+static const struct mv88e6xxx_ops mv88e6391_ops = {
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
+	.port_set_speed = mv88e6390_port_set_speed,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
@@ -3483,6 +3553,47 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.ops = &mv88e6185_ops,
 	},
 
+	[MV88E6190] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6190,
+		.family = MV88E6XXX_FAMILY_6390,
+		.name = "Marvell 88E6190",
+		.num_databases = 4096,
+		.num_ports = 11,	/* 10 + Z80 */
+		.port_base_addr = 0x0,
+		.global1_addr = 0x1b,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
+		.ops = &mv88e6190_ops,
+	},
+
+	[MV88E6190X] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6190X,
+		.family = MV88E6XXX_FAMILY_6390,
+		.name = "Marvell 88E6190X",
+		.num_databases = 4096,
+		.num_ports = 11,	/* 10 + Z80 */
+		.port_base_addr = 0x0,
+		.global1_addr = 0x1b,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
+		.ops = &mv88e6190x_ops,
+	},
+
+	[MV88E6191] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6191,
+		.family = MV88E6XXX_FAMILY_6390,
+		.name = "Marvell 88E6191",
+		.num_databases = 4096,
+		.num_ports = 11,	/* 10 + Z80 */
+		.port_base_addr = 0x0,
+		.global1_addr = 0x1b,
+		.age_time_coeff = 15000,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
+		.ops = &mv88e6391_ops,
+	},
+
 	[MV88E6240] = {
 		.prod_num = PORT_SWITCH_ID_PROD_NUM_6240,
 		.family = MV88E6XXX_FAMILY_6352,
@@ -3495,6 +3606,20 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g1_irqs = 9,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6240_ops,
+	},
+
+	[MV88E6290] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6290,
+		.family = MV88E6XXX_FAMILY_6390,
+		.name = "Marvell 88E6290",
+		.num_databases = 4096,
+		.num_ports = 11,	/* 10 + Z80 */
+		.port_base_addr = 0x0,
+		.global1_addr = 0x1b,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
+		.ops = &mv88e6290_ops,
 	},
 
 	[MV88E6320] = {
@@ -3565,6 +3690,32 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g1_irqs = 9,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6352_ops,
+	},
+	[MV88E6390] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6390,
+		.family = MV88E6XXX_FAMILY_6390,
+		.name = "Marvell 88E6390",
+		.num_databases = 4096,
+		.num_ports = 11,	/* 10 + Z80 */
+		.port_base_addr = 0x0,
+		.global1_addr = 0x1b,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
+		.ops = &mv88e6390_ops,
+	},
+	[MV88E6390X] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6390X,
+		.family = MV88E6XXX_FAMILY_6390,
+		.name = "Marvell 88E6390X",
+		.num_databases = 4096,
+		.num_ports = 11,	/* 10 + Z80 */
+		.port_base_addr = 0x0,
+		.global1_addr = 0x1b,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
+		.ops = &mv88e6390x_ops,
 	},
 };
 
@@ -3948,6 +4099,10 @@ static const struct of_device_id mv88e6xxx_of_match[] = {
 	{
 		.compatible = "marvell,mv88e6085",
 		.data = &mv88e6xxx_table[MV88E6085],
+	},
+	{
+		.compatible = "marvell,mv88e6190",
+		.data = &mv88e6xxx_table[MV88E6190],
 	},
 	{ /* sentinel */ },
 };
