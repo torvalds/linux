@@ -1,7 +1,7 @@
 /*
- * lirc_serial.c
+ * serial_ir.c
  *
- * lirc_serial - Device driver that records pulse- and pause-lengths
+ * serial_ir - Device driver that records pulse- and pause-lengths
  *	       (space-lengths) between DDCD event on a serial port.
  *
  * Copyright (C) 1996,97 Ralph Metzler <rjkm@thp.uni-koeln.de>
