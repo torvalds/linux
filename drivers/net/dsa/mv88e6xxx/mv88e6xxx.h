@@ -801,6 +801,11 @@ struct mv88e6xxx_ops {
 	 * be read back a leisure but still with a consistent view.
 	 */
 	int (*stats_snapshot)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Set the histogram mode for statistics, when the control registers
+	 * are separated out of the STATS_OP register.
+	 */
+	int (*stats_set_histogram)(struct mv88e6xxx_chip *chip);
 };
 
 enum stat_type {

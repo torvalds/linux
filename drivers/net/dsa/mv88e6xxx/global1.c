@@ -33,6 +33,26 @@ int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 	return mv88e6xxx_wait(chip, chip->info->global1_addr, reg, mask);
 }
 
+/* Offset 0x1c: Global Control 2 */
+
+int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL_2, &val);
+	if (err)
+		return err;
+
+	val |= GLOBAL_CONTROL_2_HIST_RX_TX;
+
+	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL_2, val);
+
+	return err;
+}
+
+/* Offset 0x1d: Statistics Operation 2 */
+
 static int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_g1_wait(chip, GLOBAL_STATS_OP, GLOBAL_STATS_OP_BUSY);

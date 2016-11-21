@@ -1009,6 +1009,14 @@ static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 	mutex_unlock(&chip->reg_lock);
 }
 
+static int mv88e6xxx_stats_set_histogram(struct mv88e6xxx_chip *chip)
+{
+	if (chip->info->ops->stats_set_histogram)
+		return chip->info->ops->stats_set_histogram(chip);
+
+	return 0;
+}
+
 static int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
 {
 	return 32 * sizeof(u16);
@@ -2797,6 +2805,11 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	/* Initialize the statistics unit */
+	err = mv88e6xxx_stats_set_histogram(chip);
+	if (err)
+		return err;
+
 	/* Clear the statistics counters for all ports */
 	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
 				 GLOBAL_STATS_OP_FLUSH_ALL);
@@ -3284,6 +3297,7 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_ops mv88e6190x_ops = {
@@ -3296,6 +3310,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390x_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_ops mv88e6191_ops = {
@@ -3308,6 +3323,7 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_ops mv88e6240_ops = {
@@ -3334,6 +3350,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3410,6 +3427,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_ops mv88e6390x_ops = {
@@ -3422,6 +3440,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390x_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_ops mv88e6391_ops = {
@@ -3434,6 +3453,7 @@ static const struct mv88e6xxx_ops mv88e6391_ops = {
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
 	.port_set_speed = mv88e6390_port_set_speed,
 	.stats_snapshot = mv88e6390_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6390_g1_stats_set_histogram,
 };
 
 static const struct mv88e6xxx_info mv88e6xxx_table[] = {
