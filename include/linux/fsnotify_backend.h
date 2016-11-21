@@ -245,7 +245,7 @@ struct fsnotify_mark {
 /* called from the vfs helpers */
 
 /* main fsnotify call to send events */
-extern int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+extern int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 		    const unsigned char *name, u32 cookie);
 extern int __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
@@ -357,7 +357,7 @@ extern void fsnotify_init_event(struct fsnotify_event *event,
 
 #else
 
-static inline int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+static inline int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 			   const unsigned char *name, u32 cookie)
 {
 	return 0;
