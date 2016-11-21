@@ -476,7 +476,10 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 		if (intel_dsi->ports == (BIT(PORT_A) | BIT(PORT_C))) {
 			temp |= (intel_dsi->dual_link - 1)
 						<< DUAL_LINK_MODE_SHIFT;
-			temp |= intel_crtc->pipe ?
+			if (IS_BROXTON(dev_priv))
+				temp |= LANE_CONFIGURATION_DUAL_LINK_A;
+			else
+				temp |= intel_crtc->pipe ?
 					LANE_CONFIGURATION_DUAL_LINK_B :
 					LANE_CONFIGURATION_DUAL_LINK_A;
 		}
