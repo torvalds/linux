@@ -400,8 +400,7 @@ static void macvlan_forward_source(struct sk_buff *skb,
 
 	hlist_for_each_entry_rcu(entry, h, hlist) {
 		if (ether_addr_equal_64bits(entry->addr, addr))
-			if (entry->vlan->dev->flags & IFF_UP)
-				macvlan_forward_source_one(skb, entry->vlan);
+			macvlan_forward_source_one(skb, entry->vlan);
 	}
 }
 
