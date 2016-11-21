@@ -53,6 +53,7 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	sama5d34ek.dtb \
 	sama5d35ek.dtb \
 	sama5d36ek.dtb \
+	sama5d36ek_cmp.dtb \
 	at91-sama5d4_ma5d4evk.dtb \
 	at91-sama5d4_xplained.dtb \
 	at91-sama5d4ek.dtb \
