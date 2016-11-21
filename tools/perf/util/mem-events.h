@@ -59,6 +59,7 @@ struct c2c_stats {
 	u32	ld_llchit;           /* count of loads that hit LLC */
 	u32	lcl_hitm;            /* count of loads with local HITM  */
 	u32	rmt_hitm;            /* count of loads with remote HITM */
+	u32	tot_hitm;            /* count of loads with local and remote HITM */
 	u32	rmt_hit;             /* count of loads with remote hit clean; */
 	u32	lcl_dram;            /* count of loads miss to local DRAM */
 	u32	rmt_dram;            /* count of loads miss to remote DRAM */
