@@ -103,6 +103,17 @@ static void tunnel_id_to_vni(__be64 tun_id, __u8 *vni)
 #endif
 }
 
+static bool eq_tun_id_and_vni(u8 *tun_id, u8 *vni)
+{
+#ifdef __BIG_ENDIAN
+	return (vni[0] == tun_id[2]) &&
+	       (vni[1] == tun_id[1]) &&
+	       (vni[2] == tun_id[0]);
+#else
+	return !memcmp(vni, &tun_id[5], 3);
+#endif
+}
+
 static sa_family_t geneve_get_sk_family(struct geneve_sock *gs)
 {
 	return gs->sock->sk->sk_family;
@@ -111,7 +122,6 @@ static sa_family_t geneve_get_sk_family(struct geneve_sock *gs)
 static struct geneve_dev *geneve_lookup(struct geneve_sock *gs,
 					__be32 addr, u8 vni[])
 {
-	__be64 id = vni_to_tunnel_id(vni);
 	struct hlist_head *vni_list_head;
 	struct geneve_dev *geneve;
 	__u32 hash;
@@ -120,7 +130,7 @@ static struct geneve_dev *geneve_lookup(struct geneve_sock *gs,
 	hash = geneve_net_vni_hash(vni);
 	vni_list_head = &gs->vni_list[hash];
 	hlist_for_each_entry_rcu(geneve, vni_list_head, hlist) {
-		if (!memcmp(&id, &geneve->info.key.tun_id, sizeof(id)) &&
+		if (eq_tun_id_and_vni((u8 *)&geneve->info.key.tun_id, vni) &&
 		    addr == geneve->info.key.u.ipv4.dst)
 			return geneve;
 	}
@@ -131,7 +141,6 @@ static struct geneve_dev *geneve_lookup(struct geneve_sock *gs,
 static struct geneve_dev *geneve6_lookup(struct geneve_sock *gs,
 					 struct in6_addr addr6, u8 vni[])
 {
-	__be64 id = vni_to_tunnel_id(vni);
 	struct hlist_head *vni_list_head;
 	struct geneve_dev *geneve;
 	__u32 hash;
@@ -140,7 +149,7 @@ static struct geneve_dev *geneve6_lookup(struct geneve_sock *gs,
 	hash = geneve_net_vni_hash(vni);
 	vni_list_head = &gs->vni_list[hash];
 	hlist_for_each_entry_rcu(geneve, vni_list_head, hlist) {
-		if (!memcmp(&id, &geneve->info.key.tun_id, sizeof(id)) &&
+		if (eq_tun_id_and_vni((u8 *)&geneve->info.key.tun_id, vni) &&
 		    ipv6_addr_equal(&addr6, &geneve->info.key.u.ipv6.dst))
 			return geneve;
 	}
