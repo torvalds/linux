@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/stm.h>
 
-static ssize_t
+static ssize_t notrace
 dummy_stm_packet(struct stm_data *stm_data, unsigned int master,
 		 unsigned int channel, unsigned int packet, unsigned int flags,
 		 unsigned int size, const unsigned char *payload)
