@@ -167,7 +167,7 @@ struct spk_synth {
 	int (*probe)(struct spk_synth *synth);
 	void (*release)(void);
 	const char *(*synth_immediate)(struct spk_synth *synth,
-					const char *buff);
+				       const char *buff);
 	void (*catch_up)(struct spk_synth *synth);
 	void (*flush)(struct spk_synth *synth);
 	int (*is_alive)(struct spk_synth *synth);
