@@ -101,6 +101,11 @@ static const char *display_str[DISPLAY_MAX] = {
 	[DISPLAY_TOT] = "Total",
 };
 
+static const struct option c2c_options[] = {
+	OPT_INCR('v', "verbose", &verbose, "be more verbose (show counter open errors, etc)"),
+	OPT_END()
+};
+
 static struct perf_c2c c2c;
 
 static void *c2c_he_zalloc(size_t size)
@@ -2520,11 +2525,9 @@ static int perf_c2c__report(int argc, const char **argv)
 	const char *display = NULL;
 	const char *coalesce = NULL;
 	bool no_source = false;
-	const struct option c2c_options[] = {
+	const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show counter open errors, etc)"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "the input file to process"),
 	OPT_INCR('N', "node-info", &c2c.node_info,
@@ -2548,14 +2551,15 @@ static int perf_c2c__report(int argc, const char **argv)
 	OPT_STRING('c', "coalesce", &coalesce, "coalesce fields",
 		   "coalesce fields: pid,tid,iaddr,dso"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
+	OPT_PARENT(c2c_options),
 	OPT_END()
 	};
 	int err = 0;
 
-	argc = parse_options(argc, argv, c2c_options, report_c2c_usage,
+	argc = parse_options(argc, argv, options, report_c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc)
-		usage_with_options(report_c2c_usage, c2c_options);
+		usage_with_options(report_c2c_usage, options);
 
 	if (c2c.stats_only)
 		c2c.use_stdio = true;
@@ -2683,11 +2687,10 @@ static int perf_c2c__record(int argc, const char **argv)
 	OPT_CALLBACK('e', "event", &event_set, "event",
 		     "event selector. Use 'perf mem record -e list' to list available events",
 		     parse_record_events),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('u', "all-user", &all_user, "collect only user level data"),
 	OPT_BOOLEAN('k', "all-kernel", &all_kernel, "collect only kernel level data"),
 	OPT_UINTEGER('l', "ldlat", &perf_mem_events__loads_ldlat, "setup mem-loads latency"),
+	OPT_PARENT(c2c_options),
 	OPT_END()
 	};
 
@@ -2759,11 +2762,6 @@ static int perf_c2c__record(int argc, const char **argv)
 
 int cmd_c2c(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const struct option c2c_options[] = {
-	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
-	OPT_END()
-	};
-
 	argc = parse_options(argc, argv, c2c_options, c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
