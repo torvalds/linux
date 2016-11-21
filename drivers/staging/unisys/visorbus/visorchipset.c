@@ -652,7 +652,7 @@ bus_responder(enum controlvm_id cmd_id,
 	return controlvm_respond(pending_msg_hdr, response);
 }
 
-static void
+static int
 device_changestate_responder(enum controlvm_id cmd_id,
 			     struct visor_device *p, int response,
 			     struct spar_segment_state response_state)
@@ -662,9 +662,9 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	u32 dev_no = p->chipset_dev_no;
 
 	if (!p->pending_msg_hdr)
-		return;		/* no controlvm response needed */
+		return -EIO;
 	if (p->pending_msg_hdr->id != cmd_id)
-		return;
+		return -EINVAL;
 
 	controlvm_init_response(&outmsg, p->pending_msg_hdr, response);
 
@@ -672,9 +672,8 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	outmsg.cmd.device_change_state.dev_no = dev_no;
 	outmsg.cmd.device_change_state.state = response_state;
 
-	if (visorchannel_signalinsert(controlvm_channel,
-				      CONTROLVM_QUEUE_REQUEST, &outmsg))
-		return;
+	return visorchannel_signalinsert(controlvm_channel,
+					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
 
 static void
