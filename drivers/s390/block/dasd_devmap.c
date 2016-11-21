@@ -26,6 +26,7 @@
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_devmap:"
 #define DASD_BUS_ID_SIZE 20
+#define DASD_MAX_PARAMS 256
 
 #include "dasd_int.h"
 
@@ -76,7 +77,7 @@ EXPORT_SYMBOL_GPL(dasd_nofcx);
  * it is named 'dasd' to directly be filled by insmod with the comma separated
  * strings when running as a module.
  */
-static char *dasd[256];
+static char *dasd[DASD_MAX_PARAMS];
 module_param_array(dasd, charp, NULL, S_IRUGO);
 
 /*
@@ -104,18 +105,19 @@ dasd_hash_busid(const char *bus_id)
 }
 
 #ifndef MODULE
-/*
- * The parameter parsing functions for builtin-drivers are called
- * before kmalloc works. Store the pointers to the parameters strings
- * into dasd[] for later processing.
- */
-static int __init
-dasd_call_setup(char *str)
+static int __init dasd_call_setup(char *opt)
 {
-	static int count = 0;
+	static int i;
+	char *tmp;
 
-	if (count < 256)
-		dasd[count++] = str;
+	while (i < DASD_MAX_PARAMS) {
+		tmp = strsep(&opt, ",");
+		if (!tmp)
+			break;
+
+		dasd[i++] = tmp;
+	}
+
 	return 1;
 }
 
@@ -364,10 +366,8 @@ dasd_parse_next_element( char *parsestring ) {
 /*
  * Parse parameters stored in dasd[]
  * The 'dasd=...' parameter allows to specify a comma separated list of
- * keywords and device ranges. When the dasd driver is build into the kernel,
- * the complete list will be stored as one element of the dasd[] array.
- * When the dasd driver is build as a module, then the list is broken into
- * it's elements and each dasd[] entry contains one element.
+ * keywords and device ranges. The parameters in that list will be stored as
+ * separate elementes in dasd[].
  */
 int
 dasd_parse(void)
@@ -376,7 +376,7 @@ dasd_parse(void)
 	char *parsestring;
 
 	rc = 0;
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < DASD_MAX_PARAMS; i++) {
 		if (dasd[i] == NULL)
 			break;
 		parsestring = dasd[i];
