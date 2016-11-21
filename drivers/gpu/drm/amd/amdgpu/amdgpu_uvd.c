@@ -712,8 +712,10 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 	int r;
 
 	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
-	if (mapping == NULL)
+	if (mapping == NULL) {
+		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
 		return -EINVAL;
+	}
 
 	start = amdgpu_bo_gpu_offset(bo);
 
@@ -897,10 +899,13 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	ctx.buf_sizes = buf_sizes;
 	ctx.ib_idx = ib_idx;
 
-	/* first round, make sure the buffers are actually in the UVD segment */
-	r = amdgpu_uvd_cs_packets(&ctx, amdgpu_uvd_cs_pass1);
-	if (r)
-		return r;
+	/* first round only required on chips without UVD 64 bit address support */
+	if (!parser->adev->uvd.address_64_bit) {
+		/* first round, make sure the buffers are actually in the UVD segment */
+		r = amdgpu_uvd_cs_packets(&ctx, amdgpu_uvd_cs_pass1);
+		if (r)
+			return r;
+	}
 
 	/* second round, patch buffer addresses into the command stream */
 	r = amdgpu_uvd_cs_packets(&ctx, amdgpu_uvd_cs_pass2);
