@@ -5517,6 +5517,10 @@ static void __md_stop_writes(struct mddev *mddev)
 
 	del_timer_sync(&mddev->safemode_timer);
 
+	if (mddev->pers && mddev->pers->quiesce) {
+		mddev->pers->quiesce(mddev, 1);
+		mddev->pers->quiesce(mddev, 0);
+	}
 	bitmap_flush(mddev);
 
 	if (mddev->ro == 0 &&
