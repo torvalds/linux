@@ -4956,6 +4956,7 @@ K:	fmc_d.*register
 FPGA MANAGER FRAMEWORK
 M:	Alan Tull <atull@opensource.altera.com>
 R:	Moritz Fischer <moritz.fischer@ettus.com>
+L:	linux-fpga@vger.kernel.org
 S:	Maintained
 F:	drivers/fpga/
 F:	include/linux/fpga/fpga-mgr.h
