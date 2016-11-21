@@ -1847,8 +1847,10 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	/* Allocate memory for ccdc configuration */
 	ccdc_cfg = kmalloc(sizeof(*ccdc_cfg), GFP_KERNEL);
-	if (!ccdc_cfg)
+	if (!ccdc_cfg) {
+		ret = -ENOMEM;
 		goto probe_free_dev_mem;
+	}
 
 	mutex_lock(&ccdc_lock);
 
