@@ -4106,11 +4106,16 @@ F:	drivers/gpu/drm/bridge/
 
 DRM DRIVER FOR BOCHS VIRTUAL GPU
 M:	Gerd Hoffmann <kraxel@redhat.com>
-S:	Odd Fixes
+L:	virtualization@lists.linux-foundation.org
+T:	git git://git.kraxel.org/linux drm-qemu
+S:	Maintained
 F:	drivers/gpu/drm/bochs/
 
 DRM DRIVER FOR QEMU'S CIRRUS DEVICE
 M:	Dave Airlie <airlied@redhat.com>
+M:	Gerd Hoffmann <kraxel@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+T:	git git://git.kraxel.org/linux drm-qemu
 S:	Odd Fixes
 F:	drivers/gpu/drm/cirrus/
 
@@ -4304,7 +4309,10 @@ F:	Documentation/devicetree/bindings/display/renesas,du.txt
 
 DRM DRIVER FOR QXL VIRTUAL GPU
 M:	Dave Airlie <airlied@redhat.com>
-S:	Odd Fixes
+M:	Gerd Hoffmann <kraxel@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+T:	git git://git.kraxel.org/linux drm-qemu
+S:	Maintained
 F:	drivers/gpu/drm/qxl/
 F:	include/uapi/drm/qxl_drm.h
 
@@ -13085,6 +13093,7 @@ M:	David Airlie <airlied@linux.ie>
 M:	Gerd Hoffmann <kraxel@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 L:	virtualization@lists.linux-foundation.org
+T:	git git://git.kraxel.org/linux drm-qemu
 S:	Maintained
 F:	drivers/gpu/drm/virtio/
 F:	include/uapi/linux/virtio_gpu.h
