@@ -104,6 +104,10 @@ REPORT OPTIONS
 --force::
 	Don't do ownership validation.
 
+-d::
+--display::
+	Siwtch to HITM type (rmt, lcl) to display and sort on. Total HITMs as default.
+
 C2C RECORD
 ----------
 The perf c2c record command setup options related to HITM cacheline analysis
