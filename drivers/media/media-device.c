@@ -597,19 +597,19 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 
 	if (mdev->entity_internal_idx_max
 	    >= mdev->pm_count_walk.ent_enum.idx_max) {
-		struct media_entity_graph new = { .top = 0 };
+		struct media_graph new = { .top = 0 };
 
 		/*
 		 * Initialise the new graph walk before cleaning up
 		 * the old one in order not to spoil the graph walk
 		 * object of the media device if graph walk init fails.
 		 */
-		ret = media_entity_graph_walk_init(&new, mdev);
+		ret = media_graph_walk_init(&new, mdev);
 		if (ret) {
 			mutex_unlock(&mdev->graph_mutex);
 			return ret;
 		}
-		media_entity_graph_walk_cleanup(&mdev->pm_count_walk);
+		media_graph_walk_cleanup(&mdev->pm_count_walk);
 		mdev->pm_count_walk = new;
 	}
 	mutex_unlock(&mdev->graph_mutex);
@@ -691,7 +691,7 @@ void media_device_cleanup(struct media_device *mdev)
 {
 	ida_destroy(&mdev->entity_internal_idx);
 	mdev->entity_internal_idx_max = 0;
-	media_entity_graph_walk_cleanup(&mdev->pm_count_walk);
+	media_graph_walk_cleanup(&mdev->pm_count_walk);
 	mutex_destroy(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_device_cleanup);

@@ -254,7 +254,7 @@ media_entity_other(struct media_entity *entity, struct media_link *link)
 }
 
 /* push an entity to traversal stack */
-static void stack_push(struct media_entity_graph *graph,
+static void stack_push(struct media_graph *graph,
 		       struct media_entity *entity)
 {
 	if (graph->top == MEDIA_ENTITY_ENUM_MAX_DEPTH - 1) {
@@ -266,7 +266,7 @@ static void stack_push(struct media_entity_graph *graph,
 	graph->stack[graph->top].entity = entity;
 }
 
-static struct media_entity *stack_pop(struct media_entity_graph *graph)
+static struct media_entity *stack_pop(struct media_graph *graph)
 {
 	struct media_entity *entity;
 
@@ -285,35 +285,35 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 #define MEDIA_ENTITY_MAX_PADS		512
 
 /**
- * media_entity_graph_walk_init - Allocate resources for graph walk
+ * media_graph_walk_init - Allocate resources for graph walk
  * @graph: Media graph structure that will be used to walk the graph
  * @mdev: Media device
  *
  * Reserve resources for graph walk in media device's current
  * state. The memory must be released using
- * media_entity_graph_walk_free().
+ * media_graph_walk_free().
  *
  * Returns error on failure, zero on success.
  */
-__must_check int media_entity_graph_walk_init(
-	struct media_entity_graph *graph, struct media_device *mdev)
+__must_check int media_graph_walk_init(
+	struct media_graph *graph, struct media_device *mdev)
 {
 	return media_entity_enum_init(&graph->ent_enum, mdev);
 }
-EXPORT_SYMBOL_GPL(media_entity_graph_walk_init);
+EXPORT_SYMBOL_GPL(media_graph_walk_init);
 
 /**
- * media_entity_graph_walk_cleanup - Release resources related to graph walking
+ * media_graph_walk_cleanup - Release resources related to graph walking
  * @graph: Media graph structure that was used to walk the graph
  */
-void media_entity_graph_walk_cleanup(struct media_entity_graph *graph)
+void media_graph_walk_cleanup(struct media_graph *graph)
 {
 	media_entity_enum_cleanup(&graph->ent_enum);
 }
-EXPORT_SYMBOL_GPL(media_entity_graph_walk_cleanup);
+EXPORT_SYMBOL_GPL(media_graph_walk_cleanup);
 
-void media_entity_graph_walk_start(struct media_entity_graph *graph,
-				   struct media_entity *entity)
+void media_graph_walk_start(struct media_graph *graph,
+			    struct media_entity *entity)
 {
 	media_entity_enum_zero(&graph->ent_enum);
 	media_entity_enum_set(&graph->ent_enum, entity);
@@ -322,10 +322,9 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 	graph->stack[graph->top].entity = NULL;
 	stack_push(graph, entity);
 }
-EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
+EXPORT_SYMBOL_GPL(media_graph_walk_start);
 
-struct media_entity *
-media_entity_graph_walk_next(struct media_entity_graph *graph)
+struct media_entity *media_graph_walk_next(struct media_graph *graph)
 {
 	if (stack_top(graph) == NULL)
 		return NULL;
@@ -364,30 +363,30 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 
 	return stack_pop(graph);
 }
-EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
+EXPORT_SYMBOL_GPL(media_graph_walk_next);
 
 /* -----------------------------------------------------------------------------
  * Pipeline management
  */
 
-__must_check int __media_entity_pipeline_start(struct media_entity *entity,
-					       struct media_pipeline *pipe)
+__must_check int __media_pipeline_start(struct media_entity *entity,
+					struct media_pipeline *pipe)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
-	struct media_entity_graph *graph = &pipe->graph;
+	struct media_graph *graph = &pipe->graph;
 	struct media_entity *entity_err = entity;
 	struct media_link *link;
 	int ret;
 
 	if (!pipe->streaming_count++) {
-		ret = media_entity_graph_walk_init(&pipe->graph, mdev);
+		ret = media_graph_walk_init(&pipe->graph, mdev);
 		if (ret)
 			goto error_graph_walk_start;
 	}
 
-	media_entity_graph_walk_start(&pipe->graph, entity);
+	media_graph_walk_start(&pipe->graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(graph))) {
+	while ((entity = media_graph_walk_next(graph))) {
 		DECLARE_BITMAP(active, MEDIA_ENTITY_MAX_PADS);
 		DECLARE_BITMAP(has_no_links, MEDIA_ENTITY_MAX_PADS);
 
@@ -466,9 +465,9 @@ error:
 	 * Link validation on graph failed. We revert what we did and
 	 * return the error.
 	 */
-	media_entity_graph_walk_start(graph, entity_err);
+	media_graph_walk_start(graph, entity_err);
 
-	while ((entity_err = media_entity_graph_walk_next(graph))) {
+	while ((entity_err = media_graph_walk_next(graph))) {
 		/* Sanity check for negative stream_count */
 		if (!WARN_ON_ONCE(entity_err->stream_count <= 0)) {
 			entity_err->stream_count--;
@@ -486,35 +485,35 @@ error:
 
 error_graph_walk_start:
 	if (!--pipe->streaming_count)
-		media_entity_graph_walk_cleanup(graph);
+		media_graph_walk_cleanup(graph);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__media_entity_pipeline_start);
+EXPORT_SYMBOL_GPL(__media_pipeline_start);
 
-__must_check int media_entity_pipeline_start(struct media_entity *entity,
-					     struct media_pipeline *pipe)
+__must_check int media_pipeline_start(struct media_entity *entity,
+				      struct media_pipeline *pipe)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
-	ret = __media_entity_pipeline_start(entity, pipe);
+	ret = __media_pipeline_start(entity, pipe);
 	mutex_unlock(&mdev->graph_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(media_entity_pipeline_start);
+EXPORT_SYMBOL_GPL(media_pipeline_start);
 
-void __media_entity_pipeline_stop(struct media_entity *entity)
+void __media_pipeline_stop(struct media_entity *entity)
 {
-	struct media_entity_graph *graph = &entity->pipe->graph;
+	struct media_graph *graph = &entity->pipe->graph;
 	struct media_pipeline *pipe = entity->pipe;
 
 
 	WARN_ON(!pipe->streaming_count);
-	media_entity_graph_walk_start(graph, entity);
+	media_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(graph))) {
+	while ((entity = media_graph_walk_next(graph))) {
 		/* Sanity check for negative stream_count */
 		if (!WARN_ON_ONCE(entity->stream_count <= 0)) {
 			entity->stream_count--;
@@ -524,20 +523,20 @@ void __media_entity_pipeline_stop(struct media_entity *entity)
 	}
 
 	if (!--pipe->streaming_count)
-		media_entity_graph_walk_cleanup(graph);
+		media_graph_walk_cleanup(graph);
 
 }
-EXPORT_SYMBOL_GPL(__media_entity_pipeline_stop);
+EXPORT_SYMBOL_GPL(__media_pipeline_stop);
 
-void media_entity_pipeline_stop(struct media_entity *entity)
+void media_pipeline_stop(struct media_entity *entity)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 
 	mutex_lock(&mdev->graph_mutex);
-	__media_entity_pipeline_stop(entity);
+	__media_pipeline_stop(entity);
 	mutex_unlock(&mdev->graph_mutex);
 }
-EXPORT_SYMBOL_GPL(media_entity_pipeline_stop);
+EXPORT_SYMBOL_GPL(media_pipeline_stop);
 
 /* -----------------------------------------------------------------------------
  * Module use count

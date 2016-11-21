@@ -393,7 +393,7 @@ static int au0828_enable_source(struct media_entity *entity,
 		goto end;
 	}
 
-	ret = __media_entity_pipeline_start(entity, pipe);
+	ret = __media_pipeline_start(entity, pipe);
 	if (ret) {
 		pr_err("Start Pipeline: %s->%s Error %d\n",
 			source->name, entity->name, ret);
@@ -447,7 +447,7 @@ static void au0828_disable_source(struct media_entity *entity)
 		*/
 		if (dev->active_link_owner != entity)
 			goto end;
-		__media_entity_pipeline_stop(entity);
+		__media_pipeline_stop(entity);
 		ret = __media_entity_setup_link(dev->active_link, 0);
 		if (ret)
 			pr_err("Deactivate link Error %d\n", ret);

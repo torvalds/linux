@@ -856,13 +856,13 @@ static int s3c_camif_streamon(struct file *file, void *priv,
 	if (s3c_vp_active(vp))
 		return 0;
 
-	ret = media_entity_pipeline_start(sensor, camif->m_pipeline);
+	ret = media_pipeline_start(sensor, camif->m_pipeline);
 	if (ret < 0)
 		return ret;
 
 	ret = camif_pipeline_validate(camif);
 	if (ret < 0) {
-		media_entity_pipeline_stop(sensor);
+		media_pipeline_stop(sensor);
 		return ret;
 	}
 
@@ -886,7 +886,7 @@ static int s3c_camif_streamoff(struct file *file, void *priv,
 
 	ret = vb2_streamoff(&vp->vb_queue, type);
 	if (ret == 0)
-		media_entity_pipeline_stop(&camif->sensor.sd->entity);
+		media_pipeline_stop(&camif->sensor.sd->entity);
 	return ret;
 }
 
