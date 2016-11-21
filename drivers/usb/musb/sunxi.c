@@ -380,6 +380,20 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 mode)
 	return 0;
 }
 
+static int sunxi_musb_recover(struct musb *musb)
+{
+	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
+
+	/*
+	 * Schedule a phy_set_mode with the current glue->phy_mode value,
+	 * this will force end the current session.
+	 */
+	set_bit(SUNXI_MUSB_FL_PHY_MODE_PEND, &glue->flags);
+	schedule_work(&glue->work);
+
+	return 0;
+}
+
 /*
  * sunxi musb register layout
  * 0x00 - 0x17	fifo regs, 1 long per fifo
@@ -608,6 +622,7 @@ static const struct musb_platform_ops sunxi_musb_ops = {
 	.dma_init	= sunxi_musb_dma_controller_create,
 	.dma_exit	= sunxi_musb_dma_controller_destroy,
 	.set_mode	= sunxi_musb_set_mode,
+	.recover	= sunxi_musb_recover,
 	.set_vbus	= sunxi_musb_set_vbus,
 	.pre_root_reset_end = sunxi_musb_pre_root_reset_end,
 	.post_root_reset_end = sunxi_musb_post_root_reset_end,
