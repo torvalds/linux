@@ -498,7 +498,7 @@ controlvm_init_response(struct controlvm_message *msg,
 	}
 }
 
-static void
+static int
 controlvm_respond_chipset_init(struct controlvm_message_header *msg_hdr,
 			       int response,
 			       enum ultra_chipset_feature features)
@@ -507,10 +507,8 @@ controlvm_respond_chipset_init(struct controlvm_message_header *msg_hdr,
 
 	controlvm_init_response(&outmsg, msg_hdr, response);
 	outmsg.cmd.init_chipset.features = features;
-	if (visorchannel_signalinsert(controlvm_channel,
-				      CONTROLVM_QUEUE_REQUEST, &outmsg)) {
-		return;
-	}
+	return visorchannel_signalinsert(controlvm_channel,
+					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
 
 static void
