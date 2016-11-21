@@ -381,7 +381,7 @@ static int check_error(struct lkl_sockaddr_nl *nladdr, struct lkl_nlmsghdr *n,
 			return 0;
 
 		lkl_printf("RTNETLINK answers: %s\n",
-			strerror(-err->error));
+			lkl_strerror(-err->error));
 		return err->error;
 	}
 	lkl_printf("Unexpected reply!!!\n");
