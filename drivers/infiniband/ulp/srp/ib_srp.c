@@ -1274,8 +1274,12 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 	struct ib_pool_fmr *fmr;
 	u64 io_addr = 0;
 
-	if (state->fmr.next >= state->fmr.end)
+	if (state->fmr.next >= state->fmr.end) {
+		shost_printk(KERN_ERR, ch->target->scsi_host,
+			     PFX "Out of MRs (mr_per_cmd = %d)\n",
+			     ch->target->mr_per_cmd);
 		return -ENOMEM;
+	}
 
 	WARN_ON_ONCE(!dev->use_fmr);
 
@@ -1331,8 +1335,12 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	u32 rkey;
 	int n, err;
 
-	if (state->fr.next >= state->fr.end)
+	if (state->fr.next >= state->fr.end) {
+		shost_printk(KERN_ERR, ch->target->scsi_host,
+			     PFX "Out of MRs (mr_per_cmd = %d)\n",
+			     ch->target->mr_per_cmd);
 		return -ENOMEM;
+	}
 
 	WARN_ON_ONCE(!dev->use_fast_reg);
 
