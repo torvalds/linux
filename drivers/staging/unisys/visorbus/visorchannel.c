@@ -128,19 +128,19 @@ EXPORT_SYMBOL_GPL(visorchannel_get_uuid);
 
 int
 visorchannel_read(struct visorchannel *channel, ulong offset,
-		  void *local, ulong nbytes)
+		  void *dest, ulong nbytes)
 {
 	if (offset + nbytes > channel->nbytes)
 		return -EIO;
 
-	memcpy(local, channel->mapped + offset, nbytes);
+	memcpy(dest, channel->mapped + offset, nbytes);
 
 	return 0;
 }
 
 int
 visorchannel_write(struct visorchannel *channel, ulong offset,
-		   void *local, ulong nbytes)
+		   void *dest, ulong nbytes)
 {
 	size_t chdr_size = sizeof(struct channel_header);
 	size_t copy_size;
@@ -151,10 +151,10 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 	if (offset < chdr_size) {
 		copy_size = min(chdr_size - offset, nbytes);
 		memcpy(((char *)(&channel->chan_hdr)) + offset,
-		       local, copy_size);
+		       dest, copy_size);
 	}
 
-	memcpy(channel->mapped + offset, local, nbytes);
+	memcpy(channel->mapped + offset, dest, nbytes);
 
 	return 0;
 }
