@@ -369,6 +369,12 @@ static int da8xx_musb_init(struct musb *musb)
 
 	musb->mregs += DA8XX_MENTOR_CORE_OFFSET;
 
+	ret = clk_prepare_enable(glue->clk);
+	if (ret) {
+		dev_err(glue->dev, "failed to enable clock\n");
+		return ret;
+	}
+
 	/* Returns zero if e.g. not clocked */
 	rev = musb_readl(reg_base, DA8XX_USB_REVISION_REG);
 	if (!rev)
@@ -377,12 +383,6 @@ static int da8xx_musb_init(struct musb *musb)
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		ret = -EPROBE_DEFER;
-		goto fail;
-	}
-
-	ret = clk_prepare_enable(glue->clk);
-	if (ret) {
-		dev_err(glue->dev, "failed to enable clock\n");
 		goto fail;
 	}
 
@@ -395,7 +395,7 @@ static int da8xx_musb_init(struct musb *musb)
 	ret = phy_init(glue->phy);
 	if (ret) {
 		dev_err(glue->dev, "Failed to init phy.\n");
-		goto err_phy_init;
+		goto fail;
 	}
 
 	ret = phy_power_on(glue->phy);
@@ -415,9 +415,8 @@ static int da8xx_musb_init(struct musb *musb)
 
 err_phy_power_on:
 	phy_exit(glue->phy);
-err_phy_init:
-	clk_disable_unprepare(glue->clk);
 fail:
+	clk_disable_unprepare(glue->clk);
 	return ret;
 }
 
