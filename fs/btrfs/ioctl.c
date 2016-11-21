@@ -836,7 +836,7 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
  * sys_mkdirat and vfs_mkdir, but we only do a single component lookup
  * inside this filesystem so it's quite a bit simpler.
  */
-static noinline int btrfs_mksubvol(struct path *parent,
+static noinline int btrfs_mksubvol(const struct path *parent,
 				   char *name, int namelen,
 				   struct btrfs_root *snap_src,
 				   u64 *async_transid, bool readonly,
