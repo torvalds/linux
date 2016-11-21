@@ -384,9 +384,12 @@ config BLK_DEV_RAM_DAX
 	  allocated from highmem (only a problem for highmem systems).
 
 config CDROM_PKTCDVD
-	tristate "Packet writing on CD/DVD media"
+	tristate "Packet writing on CD/DVD media (DEPRECATED)"
 	depends on !UML
 	help
+	  Note: This driver is deprecated and will be removed from the
+	  kernel in the near future!
+
 	  If you have a CDROM/DVD drive that supports packet writing, say
 	  Y to include support. It should work with any MMC/Mt Fuji
 	  compliant ATAPI or SCSI drive, which is just about any newer
