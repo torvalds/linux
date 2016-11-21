@@ -28,6 +28,8 @@
 
 #define IORT_TYPE_MASK(type)	(1 << (type))
 #define IORT_MSI_TYPE		(1 << ACPI_IORT_NODE_ITS_GROUP)
+#define IORT_IOMMU_TYPE		((1 << ACPI_IORT_NODE_SMMU) |	\
+				(1 << ACPI_IORT_NODE_SMMU_V3))
 
 struct iort_its_msi_chip {
 	struct list_head	list;
@@ -499,6 +501,102 @@ struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id)
 		return NULL;
 
 	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
+}
+
+static int __get_pci_rid(struct pci_dev *pdev, u16 alias, void *data)
+{
+	u32 *rid = data;
+
+	*rid = alias;
+	return 0;
+}
+
+static int arm_smmu_iort_xlate(struct device *dev, u32 streamid,
+			       struct fwnode_handle *fwnode,
+			       const struct iommu_ops *ops)
+{
+	int ret = iommu_fwspec_init(dev, fwnode, ops);
+
+	if (!ret)
+		ret = iommu_fwspec_add_ids(dev, &streamid, 1);
+
+	return ret;
+}
+
+static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
+					struct acpi_iort_node *node,
+					u32 streamid)
+{
+	const struct iommu_ops *ops = NULL;
+	int ret = -ENODEV;
+	struct fwnode_handle *iort_fwnode;
+
+	if (node) {
+		iort_fwnode = iort_get_fwnode(node);
+		if (!iort_fwnode)
+			return NULL;
+
+		ops = iommu_get_instance(iort_fwnode);
+		if (!ops)
+			return NULL;
+
+		ret = arm_smmu_iort_xlate(dev, streamid, iort_fwnode, ops);
+	}
+
+	return ret ? NULL : ops;
+}
+
+/**
+ * iort_iommu_configure - Set-up IOMMU configuration for a device.
+ *
+ * @dev: device to configure
+ *
+ * Returns: iommu_ops pointer on configuration success
+ *          NULL on configuration failure
+ */
+const struct iommu_ops *iort_iommu_configure(struct device *dev)
+{
+	struct acpi_iort_node *node, *parent;
+	const struct iommu_ops *ops = NULL;
+	u32 streamid = 0;
+
+	if (dev_is_pci(dev)) {
+		struct pci_bus *bus = to_pci_dev(dev)->bus;
+		u32 rid;
+
+		pci_for_each_dma_alias(to_pci_dev(dev), __get_pci_rid,
+				       &rid);
+
+		node = iort_scan_node(ACPI_IORT_NODE_PCI_ROOT_COMPLEX,
+				      iort_match_node_callback, &bus->dev);
+		if (!node)
+			return NULL;
+
+		parent = iort_node_map_rid(node, rid, &streamid,
+					   IORT_IOMMU_TYPE);
+
+		ops = iort_iommu_xlate(dev, parent, streamid);
+
+	} else {
+		int i = 0;
+
+		node = iort_scan_node(ACPI_IORT_NODE_NAMED_COMPONENT,
+				      iort_match_node_callback, dev);
+		if (!node)
+			return NULL;
+
+		parent = iort_node_get_id(node, &streamid,
+					  IORT_IOMMU_TYPE, i++);
+
+		while (parent) {
+			ops = iort_iommu_xlate(dev, parent, streamid);
+
+			parent = iort_node_get_id(node, &streamid,
+						  IORT_IOMMU_TYPE, i++);
+		}
+	}
+
+	return ops;
 }
 
 static void __init acpi_iort_register_irq(int hwirq, const char *name,
