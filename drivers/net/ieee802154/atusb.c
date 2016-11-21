@@ -567,7 +567,7 @@ atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 	return 0;
 }
 
-static struct ieee802154_ops atusb_ops = {
+static const struct ieee802154_ops atusb_ops = {
 	.owner			= THIS_MODULE,
 	.xmit_async		= atusb_xmit,
 	.ed			= atusb_ed,
