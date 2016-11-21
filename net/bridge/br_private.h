@@ -333,6 +333,8 @@ struct net_bridge
 	u32				multicast_last_member_count;
 	u32				multicast_startup_query_count;
 
+	u8				multicast_igmp_version;
+
 	unsigned long			multicast_last_member_interval;
 	unsigned long			multicast_membership_interval;
 	unsigned long			multicast_querier_interval;
@@ -353,6 +355,7 @@ struct net_bridge
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
 	struct bridge_mcast_querier	ip6_querier;
+	u8				multicast_mld_version;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
@@ -582,6 +585,10 @@ int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val);
 int br_multicast_toggle(struct net_bridge *br, unsigned long val);
 int br_multicast_set_querier(struct net_bridge *br, unsigned long val);
 int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
+int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val);
+#if IS_ENABLED(CONFIG_IPV6)
+int br_multicast_set_mld_version(struct net_bridge *br, unsigned long val);
+#endif
 struct net_bridge_mdb_entry *
 br_mdb_ip_get(struct net_bridge_mdb_htable *mdb, struct br_ip *dst);
 struct net_bridge_mdb_entry *
