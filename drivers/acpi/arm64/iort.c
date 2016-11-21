@@ -459,6 +459,95 @@ struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id)
 	return irq_find_matching_fwnode(handle, DOMAIN_BUS_PCI_MSI);
 }
 
+static void __init acpi_iort_register_irq(int hwirq, const char *name,
+					  int trigger,
+					  struct resource *res)
+{
+	int irq = acpi_register_gsi(NULL, hwirq, trigger,
+				    ACPI_ACTIVE_HIGH);
+
+	if (irq <= 0) {
+		pr_err("could not register gsi hwirq %d name [%s]\n", hwirq,
+								      name);
+		return;
+	}
+
+	res->start = irq;
+	res->end = irq;
+	res->flags = IORESOURCE_IRQ;
+	res->name = name;
+}
+
+static int __init arm_smmu_v3_count_resources(struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu_v3 *smmu;
+	/* Always present mem resource */
+	int num_res = 1;
+
+	/* Retrieve SMMUv3 specific data */
+	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+
+	if (smmu->event_gsiv)
+		num_res++;
+
+	if (smmu->pri_gsiv)
+		num_res++;
+
+	if (smmu->gerr_gsiv)
+		num_res++;
+
+	if (smmu->sync_gsiv)
+		num_res++;
+
+	return num_res;
+}
+
+static void __init arm_smmu_v3_init_resources(struct resource *res,
+					      struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu_v3 *smmu;
+	int num_res = 0;
+
+	/* Retrieve SMMUv3 specific data */
+	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+
+	res[num_res].start = smmu->base_address;
+	res[num_res].end = smmu->base_address + SZ_128K - 1;
+	res[num_res].flags = IORESOURCE_MEM;
+
+	num_res++;
+
+	if (smmu->event_gsiv)
+		acpi_iort_register_irq(smmu->event_gsiv, "eventq",
+				       ACPI_EDGE_SENSITIVE,
+				       &res[num_res++]);
+
+	if (smmu->pri_gsiv)
+		acpi_iort_register_irq(smmu->pri_gsiv, "priq",
+				       ACPI_EDGE_SENSITIVE,
+				       &res[num_res++]);
+
+	if (smmu->gerr_gsiv)
+		acpi_iort_register_irq(smmu->gerr_gsiv, "gerror",
+				       ACPI_EDGE_SENSITIVE,
+				       &res[num_res++]);
+
+	if (smmu->sync_gsiv)
+		acpi_iort_register_irq(smmu->sync_gsiv, "cmdq-sync",
+				       ACPI_EDGE_SENSITIVE,
+				       &res[num_res++]);
+}
+
+static bool __init arm_smmu_v3_is_coherent(struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu_v3 *smmu;
+
+	/* Retrieve SMMUv3 specific data */
+	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+
+	return smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE;
+}
+
 struct iort_iommu_config {
 	const char *name;
 	int (*iommu_init)(struct acpi_iort_node *node);
@@ -468,10 +557,22 @@ struct iort_iommu_config {
 				     struct acpi_iort_node *node);
 };
 
+static const struct iort_iommu_config iort_arm_smmu_v3_cfg __initconst = {
+	.name = "arm-smmu-v3",
+	.iommu_is_coherent = arm_smmu_v3_is_coherent,
+	.iommu_count_resources = arm_smmu_v3_count_resources,
+	.iommu_init_resources = arm_smmu_v3_init_resources
+};
+
 static __init
 const struct iort_iommu_config *iort_get_iommu_cfg(struct acpi_iort_node *node)
 {
-	return NULL;
+	switch (node->type) {
+	case ACPI_IORT_NODE_SMMU_V3:
+		return &iort_arm_smmu_v3_cfg;
+	default:
+		return NULL;
+	}
 }
 
 /**
