@@ -1780,7 +1780,7 @@ struct vfio_info_cap_header *vfio_info_cap_add(struct vfio_info_cap *caps,
 	header->version = version;
 
 	/* Add to the end of the capability chain */
-	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next)
+	for (tmp = buf; tmp->next; tmp = buf + tmp->next)
 		; /* nothing */
 
 	tmp->next = caps->size;
@@ -1793,8 +1793,9 @@ EXPORT_SYMBOL_GPL(vfio_info_cap_add);
 void vfio_info_cap_shift(struct vfio_info_cap *caps, size_t offset)
 {
 	struct vfio_info_cap_header *tmp;
+	void *buf = (void *)caps->buf;
 
-	for (tmp = caps->buf; tmp->next; tmp = (void *)tmp + tmp->next - offset)
+	for (tmp = buf; tmp->next; tmp = buf + tmp->next - offset)
 		tmp->next += offset;
 }
 EXPORT_SYMBOL(vfio_info_cap_shift);
