@@ -227,6 +227,21 @@ static struct acpi_iort_node *iort_scan_node(enum acpi_iort_node_type type,
 	return NULL;
 }
 
+static acpi_status
+iort_match_type_callback(struct acpi_iort_node *node, void *context)
+{
+	return AE_OK;
+}
+
+bool iort_node_match(u8 type)
+{
+	struct acpi_iort_node *node;
+
+	node = iort_scan_node(type, iort_match_type_callback, NULL);
+
+	return node != NULL;
+}
+
 static acpi_status iort_match_node_callback(struct acpi_iort_node *node,
 					    void *context)
 {
