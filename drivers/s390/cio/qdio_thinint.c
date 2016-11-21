@@ -178,8 +178,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 
 /**
  * tiqdio_thinint_handler - thin interrupt handler for qdio
- * @alsi: pointer to adapter local summary indicator
- * @data: NULL
+ * @airq: pointer to adapter interrupt descriptor
  */
 static void tiqdio_thinint_handler(struct airq_struct *airq)
 {
