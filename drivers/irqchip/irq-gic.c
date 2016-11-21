@@ -227,6 +227,15 @@ static void gic_unmask_irq(struct irq_data *d)
 	gic_poke_irq(d, GIC_DIST_ENABLE_SET);
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static int gic_retrigger(struct irq_data *d)
+{
+	gic_poke_irq(d, GIC_DIST_PENDING_SET);
+	/* the genirq layer expects 0 if we can't retrigger in hardware */
+	return 0;
+}
+#endif
+
 static void gic_eoi_irq(struct irq_data *d)
 {
 	writel_relaxed(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
@@ -420,6 +429,9 @@ static const struct irq_chip gic_chip = {
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoi_irq,
 	.irq_set_type		= gic_set_type,
+#ifdef CONFIG_ARCH_ROCKCHIP
+	.irq_retrigger          = gic_retrigger,
+#endif
 	.irq_get_irqchip_state	= gic_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gic_irq_set_irqchip_state,
 	.flags			= IRQCHIP_SET_TYPE_MASKED |
@@ -1081,6 +1093,9 @@ static void gic_init_chip(struct gic_chip_data *gic, struct device *dev,
 		gic->chip.irq_mask = gic_eoimode1_mask_irq;
 		gic->chip.irq_eoi = gic_eoimode1_eoi_irq;
 		gic->chip.irq_set_vcpu_affinity = gic_irq_set_vcpu_affinity;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		gic->chip.irq_retrigger = gic_retrigger;
+#endif
 	}
 
 #ifdef CONFIG_SMP
