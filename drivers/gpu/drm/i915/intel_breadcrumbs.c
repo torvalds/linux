@@ -623,6 +623,12 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
+	/* The engines should be idle and all requests accounted for! */
+	WARN_ON(READ_ONCE(b->first_wait));
+	WARN_ON(!RB_EMPTY_ROOT(&b->waiters));
+	WARN_ON(READ_ONCE(b->first_signal));
+	WARN_ON(!RB_EMPTY_ROOT(&b->signals));
+
 	if (!IS_ERR_OR_NULL(b->signaler))
 		kthread_stop(b->signaler);
 
