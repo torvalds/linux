@@ -361,8 +361,15 @@ void __init acpi_iort_init(void)
 	acpi_status status;
 
 	status = acpi_get_table(ACPI_SIG_IORT, 0, &iort_table);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		const char *msg = acpi_format_exception(status);
-		pr_err("Failed to get table, %s\n", msg);
+	if (ACPI_FAILURE(status)) {
+		if (status != AE_NOT_FOUND) {
+			const char *msg = acpi_format_exception(status);
+
+			pr_err("Failed to get table, %s\n", msg);
+		}
+
+		return;
 	}
+
+	acpi_probe_device_table(iort);
 }
