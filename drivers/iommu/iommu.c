@@ -1615,6 +1615,46 @@ out:
 	return ret;
 }
 
+struct iommu_instance {
+	struct list_head list;
+	struct fwnode_handle *fwnode;
+	const struct iommu_ops *ops;
+};
+static LIST_HEAD(iommu_instance_list);
+static DEFINE_SPINLOCK(iommu_instance_lock);
+
+void iommu_register_instance(struct fwnode_handle *fwnode,
+			     const struct iommu_ops *ops)
+{
+	struct iommu_instance *iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
+
+	if (WARN_ON(!iommu))
+		return;
+
+	of_node_get(to_of_node(fwnode));
+	INIT_LIST_HEAD(&iommu->list);
+	iommu->fwnode = fwnode;
+	iommu->ops = ops;
+	spin_lock(&iommu_instance_lock);
+	list_add_tail(&iommu->list, &iommu_instance_list);
+	spin_unlock(&iommu_instance_lock);
+}
+
+const struct iommu_ops *iommu_get_instance(struct fwnode_handle *fwnode)
+{
+	struct iommu_instance *instance;
+	const struct iommu_ops *ops = NULL;
+
+	spin_lock(&iommu_instance_lock);
+	list_for_each_entry(instance, &iommu_instance_list, list)
+		if (instance->fwnode == fwnode) {
+			ops = instance->ops;
+			break;
+		}
+	spin_unlock(&iommu_instance_lock);
+	return ops;
+}
+
 int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 		      const struct iommu_ops *ops)
 {
