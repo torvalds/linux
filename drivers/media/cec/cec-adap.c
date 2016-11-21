@@ -869,6 +869,21 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
 		return;
 
+	/*
+	 * Some CEC adapters will receive the messages that they transmitted.
+	 * This test filters out those messages by checking if we are the
+	 * initiator, and just returning in that case.
+	 *
+	 * Note that this won't work if this is an Unregistered device.
+	 *
+	 * It is bad practice if the hardware receives the message that it
+	 * transmitted and luckily most CEC adapters behave correctly in this
+	 * respect.
+	 */
+	if (msg_init != CEC_LOG_ADDR_UNREGISTERED &&
+	    cec_has_log_addr(adap, msg_init))
+		return;
+
 	msg->rx_ts = ktime_get_ns();
 	msg->rx_status = CEC_RX_STATUS_OK;
 	msg->sequence = msg->reply = msg->timeout = 0;
