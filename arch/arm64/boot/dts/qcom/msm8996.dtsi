@@ -228,14 +228,14 @@
 	};
 
 	clocks {
-		xo_board {
+		xo_board: xo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
 			clock-output-names = "xo_board";
 		};
 
-		sleep_clk {
+		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32764>;
@@ -405,9 +405,10 @@
 			 interrupts = <0 125 0>, <0 221 0>;
 			 interrupt-names = "hc_irq", "pwr_irq";
 
-			 clock-names = "iface", "core";
+			 clock-names = "iface", "core", "xo";
 			 clocks = <&gcc GCC_SDCC2_AHB_CLK>,
-			 <&gcc GCC_SDCC2_APPS_CLK>;
+			 <&gcc GCC_SDCC2_APPS_CLK>,
+			 <&xo_board>;
 			 bus-width = <4>;
 		 };
 
