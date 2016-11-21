@@ -1760,7 +1760,7 @@ void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
  * @call_panic: optional pointer to int that will be updated if secid fails
  */
 void audit_log_name(struct audit_context *context, struct audit_names *n,
-		    struct path *path, int record_num, int *call_panic)
+		    const struct path *path, int record_num, int *call_panic)
 {
 	struct audit_buffer *ab;
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PATH);
@@ -1948,7 +1948,7 @@ EXPORT_SYMBOL(audit_log_task_info);
  * @operation: specific link operation
  * @link: the path that triggered the restriction
  */
-void audit_log_link_denied(const char *operation, struct path *link)
+void audit_log_link_denied(const char *operation, const struct path *link)
 {
 	struct audit_buffer *ab;
 	struct audit_names *name;
