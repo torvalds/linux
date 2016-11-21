@@ -26,6 +26,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#define IORT_TYPE_MASK(type)	(1 << (type))
+#define IORT_MSI_TYPE		(1 << ACPI_IORT_NODE_ITS_GROUP)
+
 struct iort_its_msi_chip {
 	struct list_head	list;
 	struct fwnode_handle	*fw_node;
@@ -317,7 +320,7 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 
 static struct acpi_iort_node *iort_node_map_rid(struct acpi_iort_node *node,
 						u32 rid_in, u32 *rid_out,
-						u8 type)
+						u8 type_mask)
 {
 	u32 rid = rid_in;
 
@@ -326,7 +329,7 @@ static struct acpi_iort_node *iort_node_map_rid(struct acpi_iort_node *node,
 		struct acpi_iort_id_mapping *map;
 		int i;
 
-		if (node->type == type) {
+		if (IORT_TYPE_MASK(node->type) & type_mask) {
 			if (rid_out)
 				*rid_out = rid;
 			return node;
@@ -399,7 +402,7 @@ u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 	if (!node)
 		return req_id;
 
-	iort_node_map_rid(node, req_id, &dev_id, ACPI_IORT_NODE_ITS_GROUP);
+	iort_node_map_rid(node, req_id, &dev_id, IORT_MSI_TYPE);
 	return dev_id;
 }
 
@@ -421,7 +424,7 @@ static int iort_dev_find_its_id(struct device *dev, u32 req_id,
 	if (!node)
 		return -ENXIO;
 
-	node = iort_node_map_rid(node, req_id, NULL, ACPI_IORT_NODE_ITS_GROUP);
+	node = iort_node_map_rid(node, req_id, NULL, IORT_MSI_TYPE);
 	if (!node)
 		return -ENXIO;
 
