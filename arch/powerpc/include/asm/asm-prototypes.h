@@ -13,8 +13,6 @@
  */
 
 #include <linux/threads.h>
-#include <linux/kprobes.h>
-
 #include <uapi/asm/ucontext.h>
 
 /* SMP */
