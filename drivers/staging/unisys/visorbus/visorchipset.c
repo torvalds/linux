@@ -561,7 +561,7 @@ controlvm_respond(struct controlvm_message_header *msg_hdr, int response)
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
 
-static void controlvm_respond_physdev_changestate(
+static int controlvm_respond_physdev_changestate(
 		struct controlvm_message_header *msg_hdr, int response,
 		struct spar_segment_state state)
 {
@@ -570,10 +570,8 @@ static void controlvm_respond_physdev_changestate(
 	controlvm_init_response(&outmsg, msg_hdr, response);
 	outmsg.cmd.device_change_state.state = state;
 	outmsg.cmd.device_change_state.flags.phys_device = 1;
-	if (visorchannel_signalinsert(controlvm_channel,
-				      CONTROLVM_QUEUE_REQUEST, &outmsg)) {
-		return;
-	}
+	return visorchannel_signalinsert(controlvm_channel,
+					 CONTROLVM_QUEUE_REQUEST, &outmsg);
 }
 
 enum crash_obj_type {
