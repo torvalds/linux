@@ -785,14 +785,11 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	struct geneve_sock *gs4 = rcu_dereference(geneve->sock4);
 	const struct ip_tunnel_key *key = &info->key;
 	struct rtable *rt;
-	int err = -EINVAL;
 	struct flowi4 fl4;
 	__u8 tos, ttl;
 	__be16 sport;
 	__be16 df;
-
-	if (!gs4)
-		return err;
+	int err;
 
 	rt = geneve_get_v4_rt(skb, dev, &fl4, info);
 	if (IS_ERR(rt))
@@ -828,13 +825,10 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	struct geneve_sock *gs6 = rcu_dereference(geneve->sock6);
 	const struct ip_tunnel_key *key = &info->key;
 	struct dst_entry *dst = NULL;
-	int err = -EINVAL;
 	struct flowi6 fl6;
 	__u8 prio, ttl;
 	__be16 sport;
-
-	if (!gs6)
-		return err;
+	int err;
 
 	dst = geneve_get_v6_dst(skb, dev, &fl6, info);
 	if (IS_ERR(dst))
