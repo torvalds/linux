@@ -40,7 +40,7 @@
 #include <linux/soc/rockchip/rk_fiq_debugger.h>
 
 #ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
-#include "linux/rockchip/psci.h"
+#include <linux/rockchip/rockchip_sip.h>
 #endif
 
 #define UART_USR	0x1f	/* In: UART Status Register */
@@ -61,6 +61,13 @@ struct rk_fiq_debugger {
 	struct task_struct *console_task;
 #endif
 };
+
+static int rk_fiq_debugger_id;
+static int serial_id;
+
+#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
+static bool tf_fiq_sup;
+#endif
 
 static inline void rk_fiq_write(struct rk_fiq_debugger *t,
 	unsigned int val, unsigned int off)
@@ -299,12 +306,10 @@ static int fiq_debugger_uart_dev_resume(struct platform_device *pdev)
 	struct rk_fiq_debugger *t;
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
-	psci_fiq_debugger_uart_irq_tf_init(t->irq, fiq_debugger_uart_irq_tf);
+	psci_fiq_debugger_uart_irq_tf_init(serial_id, fiq_debugger_uart_irq_tf);
 	return 0;
 }
 #endif
-
-static int rk_fiq_debugger_id;
 
 void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
 			  int wakeup_irq, unsigned int baudrate)
@@ -316,7 +321,6 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
 #ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
 	/* tf means trust firmware*/
 	int tf_ver = 0;
-	bool tf_fiq_sup = false;
 #endif
 
 	if (!base) {
@@ -340,7 +344,7 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
 	t->pdata.uart_flush = debug_flush;
 #endif
 	t->pdata.fiq_enable = fiq_enable;
-	t->pdata.force_irq = NULL;  //force_irq;
+	t->pdata.force_irq = NULL;
 	t->debug_port_base = base;
 
 	res = kzalloc(sizeof(struct resource) * 3, GFP_KERNEL);
@@ -367,7 +371,8 @@ void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq,
 		t->pdata.switch_cpu = rk_fiq_debugger_switch_cpu;
 		t->pdata.enable_debug = rk_fiq_debugger_enable_debug;
 		t->pdata.uart_dev_resume = fiq_debugger_uart_dev_resume;
-		psci_fiq_debugger_uart_irq_tf_init(irq,
+		psci_fiq_debugger_set_print_port(serial_id, 0);
+		psci_fiq_debugger_uart_irq_tf_init(serial_id,
 						   fiq_debugger_uart_irq_tf);
 	} else {
 		t->pdata.switch_cpu = NULL;
@@ -445,7 +450,7 @@ static int __init rk_fiq_debugger_init(void) {
 
 	void __iomem *base;
 	struct device_node *np;
-	unsigned int id, serial_id, ok = 0;
+	unsigned int id, ok = 0;
 	unsigned int irq, signal_irq = 0, wake_irq = 0;
 	unsigned int baudrate = 0, irq_mode = 0;
 	struct clk *clk;
@@ -479,6 +484,12 @@ static int __init rk_fiq_debugger_init(void) {
 
 	if (of_property_read_u32(np, "rockchip,baudrate", &baudrate))
 		baudrate = -1;
+
+	if (signal_irq > 0) {
+		signal_irq = irq_of_parse_and_map(np, 0);
+		if (!signal_irq)
+			return -EINVAL;
+	}
 
 	np = NULL;
 
