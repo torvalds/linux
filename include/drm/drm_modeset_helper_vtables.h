@@ -999,10 +999,14 @@ struct drm_mode_config_helper_funcs {
 	 * to implement blocking and nonblocking commits easily. It is not used
 	 * by the atomic helpers
 	 *
-	 * This hook should first commit the given atomic state to the hardware.
-	 * But drivers can add more waiting calls at the start of their
-	 * implementation, e.g. to wait for driver-internal request for implicit
-	 * syncing, before starting to commit the update to the hardware.
+	 * This function is called when the new atomic state has already been
+	 * swapped into the various state pointers. The passed in state
+	 * therefore contains copies of the old/previous state. This hook should
+	 * commit the new state into hardware. Note that the helpers have
+	 * already waited for preceeding atomic commits and fences, but drivers
+	 * can add more waiting calls at the start of their implementation, e.g.
+	 * to wait for driver-internal request for implicit syncing, before
+	 * starting to commit the update to the hardware.
 	 *
 	 * After the atomic update is committed to the hardware this hook needs
 	 * to call drm_atomic_helper_commit_hw_done(). Then wait for the upate
