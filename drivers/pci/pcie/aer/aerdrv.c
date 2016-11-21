@@ -30,13 +30,6 @@
 #include "aerdrv.h"
 #include "../../pci.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.0"
-#define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
-#define DRIVER_DESC "Root Port Advanced Error Reporting Driver"
-
 static int aer_probe(struct pcie_device *dev);
 static void aer_remove(struct pcie_device *dev);
 static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
