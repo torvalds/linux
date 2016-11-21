@@ -9687,7 +9687,7 @@ skip_sriov:
 
 #ifdef CONFIG_IXGBE_DCB
 	if (adapter->flags & IXGBE_FLAG_DCB_CAPABLE)
-		netdev->dcbnl_ops = &dcbnl_ops;
+		netdev->dcbnl_ops = &ixgbe_dcbnl_ops;
 #endif
 
 #ifdef IXGBE_FCOE
