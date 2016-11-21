@@ -87,7 +87,7 @@ out:
 }
 
 static int lspcon_change_mode(struct intel_lspcon *lspcon,
-	enum drm_lspcon_mode mode, bool force)
+			      enum drm_lspcon_mode mode)
 {
 	int err;
 	enum drm_lspcon_mode current_mode;
@@ -202,7 +202,7 @@ void lspcon_resume(struct intel_lspcon *lspcon)
 	if (lspcon_wait_mode(lspcon, expected_mode) == DRM_LSPCON_MODE_PCON)
 		return;
 
-	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON, true))
+	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON))
 		DRM_ERROR("LSPCON resume failed\n");
 	else
 		DRM_DEBUG_KMS("LSPCON resume success\n");
@@ -239,8 +239,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 	* 2.0 sinks.
 	*/
 	if (lspcon->active && lspcon->mode != DRM_LSPCON_MODE_PCON) {
-		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON,
-			true) < 0) {
+		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON) < 0) {
 			DRM_ERROR("LSPCON mode change to PCON failed\n");
 			return false;
 		}
