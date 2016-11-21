@@ -215,12 +215,20 @@ struct mcast_address {
 #define MAC_LOOPBACK     0x00000010
 #define MAC_ALLMCAST     0x00000020
 
-#define SLIC_DUPLEX(x)    ((x == LINK_FULLD) ? "FDX" : "HDX")
-#define SLIC_SPEED(x)     ((x == LINK_100MB) ? "100Mb" : ((x == LINK_1000MB) ?\
-				"1000Mb" : " 10Mb"))
-#define SLIC_LINKSTATE(x) ((x == LINK_DOWN) ? "Down" : "Up  ")
-#define SLIC_ADAPTER_STATE(x) ((x == ADAPT_UP) ? "UP" : "Down")
-#define SLIC_CARD_STATE(x)    ((x == CARD_UP) ? "UP" : "Down")
+static inline const char *slic_linkstate(unsigned char x)
+{
+	return ((x == LINK_DOWN) ? "Down" : "Up  ");
+}
+
+static inline const char *slic_adapter_state(unsigned char x)
+{
+	return ((x == ADAPT_UP) ? "UP" : "Down");
+}
+
+static inline const char *slic_card_state(uint x)
+{
+	return ((x == CARD_UP) ? "UP" : "Down");
+}
 
 struct slic_iface_stats {
 	/*

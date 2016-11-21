@@ -1806,10 +1806,10 @@ static void slic_xmit_fail(struct adapter *adapter,
 			dev_err(&adapter->netdev->dev,
 				"reject xmit skb[%p: %x] linkstate[%s] adapter[%s:%d] card[%s:%d]\n",
 				skb, skb->pkt_type,
-				SLIC_LINKSTATE(adapter->linkstate),
-				SLIC_ADAPTER_STATE(adapter->state),
+				slic_linkstate(adapter->linkstate),
+				slic_adapter_state(adapter->state),
 				adapter->state,
-				SLIC_CARD_STATE(adapter->card->state),
+				slic_card_state(adapter->card->state),
 				adapter->card->state);
 			break;
 		case XMIT_FAIL_ZERO_LENGTH:
