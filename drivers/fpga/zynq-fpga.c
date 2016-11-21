@@ -437,13 +437,6 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 		return priv->irq;
 	}
 
-	err = devm_request_irq(dev, priv->irq, zynq_fpga_isr, 0,
-			       dev_name(dev), priv);
-	if (err) {
-		dev_err(dev, "unable to request IRQ\n");
-		return err;
-	}
-
 	priv->clk = devm_clk_get(dev, "ref_clk");
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "input clock not found\n");
@@ -458,6 +451,16 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 
 	/* unlock the device */
 	zynq_fpga_write(priv, UNLOCK_OFFSET, UNLOCK_MASK);
+
+	zynq_fpga_write(priv, INT_MASK_OFFSET, 0xFFFFFFFF);
+	zynq_fpga_write(priv, INT_STS_OFFSET, IXR_ALL_MASK);
+	err = devm_request_irq(dev, priv->irq, zynq_fpga_isr, 0, dev_name(dev),
+			       priv);
+	if (err) {
+		dev_err(dev, "unable to request IRQ\n");
+		clk_disable_unprepare(priv->clk);
+		return err;
+	}
 
 	clk_disable(priv->clk);
 
