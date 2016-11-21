@@ -2535,13 +2535,6 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (c2c.stats_only)
 		c2c.use_stdio = true;
 
-	if (c2c.use_stdio)
-		use_browser = 0;
-	else
-		use_browser = 1;
-
-	setup_browser(false);
-
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 
@@ -2568,6 +2561,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_debug("No memory for session\n");
 		goto out;
 	}
+
 	err = setup_nodes(session);
 	if (err) {
 		pr_err("Failed setup nodes\n");
@@ -2586,6 +2580,13 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_debug("No pipe support at the moment.\n");
 		goto out_session;
 	}
+
+	if (c2c.use_stdio)
+		use_browser = 0;
+	else
+		use_browser = 1;
+
+	setup_browser(false);
 
 	err = perf_session__process_events(session);
 	if (err) {
