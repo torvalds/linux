@@ -184,6 +184,11 @@ static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 	d_instantiate(dentry, inode);
 }
 
+static bool ovl_type_merge(struct dentry *dentry)
+{
+	return OVL_TYPE_MERGE(ovl_path_type(dentry));
+}
+
 static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 			    struct kstat *stat, const char *link,
 			    struct dentry *hardlink)
@@ -205,6 +210,11 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	err = ovl_create_real(udir, newdentry, stat, link, hardlink, false);
 	if (err)
 		goto out_dput;
+
+	if (ovl_type_merge(dentry->d_parent)) {
+		/* Setting opaque here is just an optimization, allow to fail */
+		ovl_set_opaque(dentry, newdentry);
+	}
 
 	ovl_instantiate(dentry, inode, newdentry, !!hardlink);
 	newdentry = NULL;
@@ -1006,7 +1016,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (is_dir) {
 		if (ovl_type_merge_or_lower(old))
 			err = ovl_set_redirect(old, samedir);
-		else if (!old_opaque && ovl_lower_positive(new))
+		else if (!old_opaque && ovl_type_merge(new->d_parent))
 			err = ovl_set_opaque(old, olddentry);
 		if (err)
 			goto out_dput;
@@ -1014,7 +1024,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (!overwrite && new_is_dir) {
 		if (ovl_type_merge_or_lower(new))
 			err = ovl_set_redirect(new, samedir);
-		else if (!new_opaque && ovl_lower_positive(old))
+		else if (!new_opaque && ovl_type_merge(old->d_parent))
 			err = ovl_set_opaque(new, newdentry);
 		if (err)
 			goto out_dput;
