@@ -1030,6 +1030,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		if (IS_MNT_SLAVE(old))
 			list_add(&mnt->mnt_slave, &old->mnt_slave);
 		mnt->mnt_master = old->mnt_master;
+	} else {
+		CLEAR_MNT_SHARED(mnt);
 	}
 	if (flag & CL_MAKE_SHARED)
 		set_mnt_shared(mnt);
