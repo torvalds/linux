@@ -356,17 +356,17 @@ $(addprefix $(obj)/, $(initrd-y)): $(obj)/ramdisk.image.gz
 # Don't put the ramdisk on the pattern rule; when its missing make will try
 # the pattern rule with less dependencies that also matches (even with the
 # hard dependency listed).
-$(obj)/zImage.initrd.%: vmlinux $(wrapperbits)
+$(obj)/zImage.initrd.%: vmlinux $(wrapperbits) FORCE
 	$(call if_changed,wrap,$*,,,$(obj)/ramdisk.image.gz)
 
-$(addprefix $(obj)/, $(sort $(filter zImage.%, $(image-y)))): vmlinux $(wrapperbits)
+$(addprefix $(obj)/, $(sort $(filter zImage.%, $(image-y)))): vmlinux $(wrapperbits) FORCE
 	$(call if_changed,wrap,$(subst $(obj)/zImage.,,$@))
 
 # dtbImage% - a dtbImage is a zImage with an embedded device tree blob
-$(obj)/dtbImage.initrd.%: vmlinux $(wrapperbits) $(obj)/%.dtb
+$(obj)/dtbImage.initrd.%: vmlinux $(wrapperbits) $(obj)/%.dtb FORCE
 	$(call if_changed,wrap,$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
 
-$(obj)/dtbImage.%: vmlinux $(wrapperbits) $(obj)/%.dtb
+$(obj)/dtbImage.%: vmlinux $(wrapperbits) $(obj)/%.dtb FORCE
 	$(call if_changed,wrap,$*,,$(obj)/$*.dtb)
 
 # This cannot be in the root of $(src) as the zImage rule always adds a $(obj)
@@ -374,31 +374,31 @@ $(obj)/dtbImage.%: vmlinux $(wrapperbits) $(obj)/%.dtb
 $(obj)/vmlinux.strip: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
 
-$(obj)/uImage: vmlinux $(wrapperbits)
+$(obj)/uImage: vmlinux $(wrapperbits) FORCE
 	$(call if_changed,wrap,uboot)
 
-$(obj)/uImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/uImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,uboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
 
-$(obj)/uImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/uImage.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,uboot-$*,,$(obj)/$*.dtb)
 
-$(obj)/cuImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/cuImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,cuboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
 
-$(obj)/cuImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/cuImage.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,cuboot-$*,,$(obj)/$*.dtb)
 
-$(obj)/simpleImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/simpleImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,simpleboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
 
-$(obj)/simpleImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/simpleImage.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,simpleboot-$*,,$(obj)/$*.dtb)
 
-$(obj)/treeImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/treeImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,treeboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
 
-$(obj)/treeImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+$(obj)/treeImage.%: vmlinux $(obj)/%.dtb $(wrapperbits) FORCE
 	$(call if_changed,wrap,treeboot-$*,,$(obj)/$*.dtb)
 
 # Rule to build device tree blobs
