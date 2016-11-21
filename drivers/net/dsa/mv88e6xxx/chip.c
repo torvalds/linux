@@ -780,60 +780,12 @@ static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 		netdev_err(ds->ports[port].netdev, "failed to configure MAC\n");
 }
 
-static int _mv88e6xxx_stats_wait(struct mv88e6xxx_chip *chip)
-{
-	u16 val;
-	int i, err;
-
-	for (i = 0; i < 10; i++) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_OP, &val);
-		if (err)
-			return err;
-
-		if ((val & GLOBAL_STATS_OP_BUSY) == 0)
-			return 0;
-	}
-
-	return -ETIMEDOUT;
-}
-
 static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 {
 	if (!chip->info->ops->stats_snapshot)
 		return -EOPNOTSUPP;
 
 	return chip->info->ops->stats_snapshot(chip, port);
-}
-
-static void _mv88e6xxx_stats_read(struct mv88e6xxx_chip *chip,
-				  int stat, u32 *val)
-{
-	u32 value;
-	u16 reg;
-	int err;
-
-	*val = 0;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
-				 GLOBAL_STATS_OP_READ_CAPTURED | stat);
-	if (err)
-		return;
-
-	err = _mv88e6xxx_stats_wait(chip);
-	if (err)
-		return;
-
-	err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_COUNTER_32, &reg);
-	if (err)
-		return;
-
-	value = reg << 16;
-
-	err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_COUNTER_01, &reg);
-	if (err)
-		return;
-
-	*val = value | reg;
 }
 
 static struct mv88e6xxx_hw_stat mv88e6xxx_hw_stats[] = {
@@ -928,9 +880,9 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 		/* fall through */
 	case STATS_TYPE_BANK0:
 		reg |= s->reg | histogram;
-		_mv88e6xxx_stats_read(chip, reg, &low);
+		mv88e6xxx_g1_stats_read(chip, reg, &low);
 		if (s->sizeof_stat == 8)
-			_mv88e6xxx_stats_read(chip, reg + 1, &high);
+			mv88e6xxx_g1_stats_read(chip, reg + 1, &high);
 	}
 	value = (((u64)high) << 16) | low;
 	return value;
@@ -2888,7 +2840,7 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 		return err;
 
 	/* Wait for the flush to complete. */
-	err = _mv88e6xxx_stats_wait(chip);
+	err = mv88e6xxx_g1_stats_wait(chip);
 	if (err)
 		return err;
 

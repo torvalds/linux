@@ -53,7 +53,7 @@ int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 
 /* Offset 0x1d: Statistics Operation 2 */
 
-static int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
+int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_g1_wait(chip, GLOBAL_STATS_OP, GLOBAL_STATS_OP_BUSY);
 }
@@ -94,4 +94,34 @@ int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 
 	/* Wait for the snapshotting to complete. */
 	return mv88e6xxx_g1_stats_wait(chip);
+}
+
+void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val)
+{
+	u32 value;
+	u16 reg;
+	int err;
+
+	*val = 0;
+
+	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
+				 GLOBAL_STATS_OP_READ_CAPTURED | stat);
+	if (err)
+		return;
+
+	err = mv88e6xxx_g1_stats_wait(chip);
+	if (err)
+		return;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_COUNTER_32, &reg);
+	if (err)
+		return;
+
+	value = reg << 16;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_COUNTER_01, &reg);
+	if (err)
+		return;
+
+	*val = value | reg;
 }
