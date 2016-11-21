@@ -214,7 +214,7 @@ static int hash_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	ahash_request_set_crypt(&ctx->req, NULL, ctx->result, 0);
 
-	if (!result) {
+	if (!result && !ctx->more) {
 		err = af_alg_wait_for_completion(
 				crypto_ahash_init(&ctx->req),
 				&ctx->completion);
