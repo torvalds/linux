@@ -3299,7 +3299,9 @@ static ssize_t srp_create_target(struct device *dev,
 	 */
 	scsi_host_get(target->scsi_host);
 
-	mutex_lock(&host->add_target_mutex);
+	ret = mutex_lock_interruptible(&host->add_target_mutex);
+	if (ret < 0)
+		goto put;
 
 	ret = srp_parse_options(buf, target);
 	if (ret)
@@ -3455,6 +3457,7 @@ connected:
 out:
 	mutex_unlock(&host->add_target_mutex);
 
+put:
 	scsi_host_put(target->scsi_host);
 	if (ret < 0)
 		scsi_host_put(target->scsi_host);
