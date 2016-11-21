@@ -806,19 +806,21 @@ struct mv88e6xxx_ops {
 	 * are separated out of the STATS_OP register.
 	 */
 	int (*stats_set_histogram)(struct mv88e6xxx_chip *chip);
+
+	/* Return the number of strings describing statistics */
+	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
+	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
 };
 
-enum stat_type {
-	BANK0,
-	BANK1,
-	PORT,
-};
+#define STATS_TYPE_PORT		BIT(0)
+#define STATS_TYPE_BANK0	BIT(1)
+#define STATS_TYPE_BANK1	BIT(2)
 
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int reg;
-	enum stat_type type;
+	int type;
 };
 
 static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
