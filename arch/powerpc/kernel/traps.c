@@ -64,6 +64,7 @@
 #include <asm/asm-prototypes.h>
 #include <asm/hmi.h>
 #include <sysdev/fsl_pci.h>
+#include <asm/kprobes.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -826,6 +827,9 @@ void single_step_exception(struct pt_regs *regs)
 
 	clear_single_step(regs);
 
+	if (kprobe_post_handler(regs))
+		return;
+
 	if (notify_die(DIE_SSTEP, "single_step", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
 		goto bail;
@@ -1177,6 +1181,9 @@ void program_check_exception(struct pt_regs *regs)
 		/* Debugger is first in line to stop recursive faults in
 		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
 		if (debugger_bpt(regs))
+			goto bail;
+
+		if (kprobe_handler(regs))
 			goto bail;
 
 		/* trap exception */
@@ -1747,6 +1754,9 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 			return;
 		}
 
+		if (kprobe_post_handler(regs))
+			return;
+
 		if (notify_die(DIE_SSTEP, "block_step", regs, 5,
 			       5, SIGTRAP) == NOTIFY_STOP) {
 			return;
@@ -1760,6 +1770,9 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 		mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_IC);
 		/* Clear the instruction completion event */
 		mtspr(SPRN_DBSR, DBSR_IC);
+
+		if (kprobe_post_handler(regs))
+			return;
 
 		if (notify_die(DIE_SSTEP, "single_step", regs, 5,
 			       5, SIGTRAP) == NOTIFY_STOP) {
