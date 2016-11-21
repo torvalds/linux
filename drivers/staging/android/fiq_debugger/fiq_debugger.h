@@ -64,6 +64,10 @@ struct fiq_debugger_pdata {
 	void (*console_write)(struct platform_device *pdev, const char *s,
 			      unsigned int count);
 #endif
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
+	void (*switch_cpu)(struct platform_device *pdev, u32 cpu);
+	void (*enable_debug)(struct platform_device *pdev, bool val);
+#endif
 };
 
 #endif

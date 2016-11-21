@@ -42,6 +42,13 @@ config FIQ_DEBUGGER_CONSOLE_DEFAULT_ENABLE
 	  If enabled, this puts the fiq debugger into console mode by default.
 	  Otherwise, the fiq debugger will start out in debug mode.
 
+config FIQ_DEBUGGER_TRUST_ZONE
+	bool "Uart FIQ is captured by trust zone, then passed to non-secure world"
+	depends on FIQ_DEBUGGER
+	default n
+	help
+	  It is for ARM v7/V8 arch.
+
 config FIQ_DEBUGGER_UART_OVERLAY
 	bool "Install uart DT overlay"
 	depends on FIQ_DEBUGGER
