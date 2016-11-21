@@ -216,6 +216,15 @@ static void gic_unmask_irq(struct irq_data *d)
 	gic_poke_irq(d, GICD_ISENABLER);
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static int gic_retrigger(struct irq_data *d)
+{
+	gic_poke_irq(d, GICD_ISPENDR);
+	/* the genirq layer expects 0 if we can't retrigger in hardware */
+	return 0;
+}
+#endif
+
 static int gic_irq_set_irqchip_state(struct irq_data *d,
 				     enum irqchip_irq_state which, bool val)
 {
@@ -697,6 +706,9 @@ static struct irq_chip gic_chip = {
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoi_irq,
 	.irq_set_type		= gic_set_type,
+#ifdef CONFIG_ARCH_ROCKCHIP
+	.irq_retrigger		= gic_retrigger,
+#endif
 	.irq_set_affinity	= gic_set_affinity,
 	.irq_get_irqchip_state	= gic_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gic_irq_set_irqchip_state,
@@ -708,6 +720,9 @@ static struct irq_chip gic_eoimode1_chip = {
 	.irq_mask		= gic_eoimode1_mask_irq,
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoimode1_eoi_irq,
+#ifdef CONFIG_ARCH_ROCKCHIP
+	.irq_retrigger		= gic_retrigger,
+#endif
 	.irq_set_type		= gic_set_type,
 	.irq_set_affinity	= gic_set_affinity,
 	.irq_get_irqchip_state	= gic_irq_get_irqchip_state,
