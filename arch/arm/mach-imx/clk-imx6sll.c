@@ -371,6 +371,11 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 
 	imx_clk_set_rate(clks[IMX6SLL_CLK_AHB], 132000000);
 
+	/* Configure EPDC clocks */
+	imx_clk_set_rate(clks[IMX6SLL_CLK_PLL3_PFD2], 320000000);
+	clk_set_parent(clks[IMX6SLL_CLK_EPDC_PRE_SEL],
+		clks[IMX6SLL_CLK_PLL3_PFD2]);
+
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
 }
