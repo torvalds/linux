@@ -171,7 +171,7 @@ static void tilcdc_crtc_enable_irqs(struct drm_device *dev)
 
 	if (priv->rev == 1) {
 		tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
-			LCDC_V1_SYNC_LOST_INT_ENA |
+			LCDC_V1_SYNC_LOST_INT_ENA | LCDC_V1_FRAME_DONE_INT_ENA |
 			LCDC_V1_UNDERFLOW_INT_ENA);
 		tilcdc_set(dev, LCDC_DMA_CTRL_REG,
 			LCDC_V1_END_OF_FRAME_INT_ENA);
@@ -190,7 +190,7 @@ static void tilcdc_crtc_disable_irqs(struct drm_device *dev)
 	/* disable irqs that we might have enabled: */
 	if (priv->rev == 1) {
 		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
-			LCDC_V1_SYNC_LOST_INT_ENA |
+			LCDC_V1_SYNC_LOST_INT_ENA | LCDC_V1_FRAME_DONE_INT_ENA |
 			LCDC_V1_UNDERFLOW_INT_ENA | LCDC_V1_PL_INT_ENA);
 		tilcdc_clear(dev, LCDC_DMA_CTRL_REG,
 			LCDC_V1_END_OF_FRAME_INT_ENA);
@@ -935,13 +935,17 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		}
 	}
 
+	if (stat & LCDC_FRAME_DONE) {
+		tilcdc_crtc->frame_done = true;
+		wake_up(&tilcdc_crtc->frame_done_wq);
+		/* rev 1 lcdc appears to hang if irq is not disbaled here */
+		if (priv->rev == 1)
+			tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
+				     LCDC_V1_FRAME_DONE_INT_ENA);
+	}
+
 	/* For revision 2 only */
 	if (priv->rev == 2) {
-		if (stat & LCDC_FRAME_DONE) {
-			tilcdc_crtc->frame_done = true;
-			wake_up(&tilcdc_crtc->frame_done_wq);
-		}
-
 		/* Indicate to LCDC that the interrupt service routine has
 		 * completed, see 13.3.6.1.6 in AM335x TRM.
 		 */
