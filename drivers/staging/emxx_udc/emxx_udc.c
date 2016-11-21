@@ -262,7 +262,7 @@ static int _nbu2ss_ep_init(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 	}
 
 	_nbu2ss_bitset(&udc->p_regs->EP_REGS[num].EP_CONTROL, data);
-	_nbu2ss_endpoint_toggle_reset(udc, (ep->epnum|ep->direct));
+	_nbu2ss_endpoint_toggle_reset(udc, (ep->epnum | ep->direct));
 
 	if (ep->direct == USB_DIR_OUT) {
 		/*---------------------------------------------------------*/
