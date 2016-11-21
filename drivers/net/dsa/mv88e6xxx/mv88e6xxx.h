@@ -794,6 +794,11 @@ struct mv88e6xxx_ops {
 	 * Use SPEED_UNFORCED for normal detection, SPEED_MAX for max value.
 	 */
 	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
+
+	/* Snapshot the statistics for a port. The statistics can then
+	 * be read back a leisure but still with a consistent view.
+	 */
+	int (*stats_snapshot)(struct mv88e6xxx_chip *chip, int port);
 };
 
 enum stat_type {

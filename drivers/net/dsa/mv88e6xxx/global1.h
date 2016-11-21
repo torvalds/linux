@@ -19,5 +19,7 @@
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val);
 int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val);
 int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask);
+int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
+int mv88e6320_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 
 #endif /* _MV88E6XXX_GLOBAL1_H */

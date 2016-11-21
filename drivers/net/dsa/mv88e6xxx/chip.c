@@ -797,22 +797,12 @@ static int _mv88e6xxx_stats_wait(struct mv88e6xxx_chip *chip)
 	return -ETIMEDOUT;
 }
 
-static int _mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
+static int mv88e6xxx_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 {
-	int err;
+	if (!chip->info->ops->stats_snapshot)
+		return -EOPNOTSUPP;
 
-	if (mv88e6xxx_6320_family(chip) || mv88e6xxx_6352_family(chip))
-		port = (port + 1) << 5;
-
-	/* Snapshot the hardware statistics counters for this port. */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
-				 GLOBAL_STATS_OP_CAPTURE_PORT |
-				 GLOBAL_STATS_OP_HIST_RX_TX | port);
-	if (err)
-		return err;
-
-	/* Wait for the snapshotting to complete. */
-	return _mv88e6xxx_stats_wait(chip);
+	return chip->info->ops->stats_snapshot(chip, port);
 }
 
 static void _mv88e6xxx_stats_read(struct mv88e6xxx_chip *chip,
@@ -1003,7 +993,7 @@ static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
 
 	mutex_lock(&chip->reg_lock);
 
-	ret = _mv88e6xxx_stats_snapshot(chip, port);
+	ret = mv88e6xxx_stats_snapshot(chip, port);
 	if (ret < 0) {
 		mutex_unlock(&chip->reg_lock);
 		return;
@@ -3162,6 +3152,7 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6095_ops = {
@@ -3171,6 +3162,7 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6123_ops = {
@@ -3180,6 +3172,7 @@ static const struct mv88e6xxx_ops mv88e6123_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6131_ops = {
@@ -3189,6 +3182,7 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6161_ops = {
@@ -3198,6 +3192,7 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {
@@ -3207,6 +3202,7 @@ static const struct mv88e6xxx_ops mv88e6165_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6171_ops = {
@@ -3217,6 +3213,7 @@ static const struct mv88e6xxx_ops mv88e6171_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6172_ops = {
@@ -3229,6 +3226,7 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6175_ops = {
@@ -3239,6 +3237,7 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6176_ops = {
@@ -3251,6 +3250,7 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6185_ops = {
@@ -3260,6 +3260,7 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6xxx_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6190_ops = {
@@ -3302,6 +3303,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6290_ops = {
@@ -3323,6 +3325,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
@@ -3334,6 +3337,7 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6350_ops = {
@@ -3344,6 +3348,7 @@ static const struct mv88e6xxx_ops mv88e6350_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6351_ops = {
@@ -3354,6 +3359,7 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6185_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {
@@ -3366,6 +3372,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
 };
 
 static const struct mv88e6xxx_ops mv88e6390_ops = {
