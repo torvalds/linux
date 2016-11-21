@@ -310,7 +310,6 @@ static const struct file_operations softsynth_fops = {
 	.release = softsynth_close,
 };
 
-
 static int softsynth_probe(struct spk_synth *synth)
 {
 
