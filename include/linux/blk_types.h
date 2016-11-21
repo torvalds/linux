@@ -207,8 +207,11 @@ enum req_flag_bits {
 	((req)->cmd_flags & REQ_OP_MASK)
 
 /* obsolete, don't use in new code */
-#define bio_set_op_attrs(bio, op, op_flags) \
-	((bio)->bi_opf |= (op | op_flags))
+static inline void bio_set_op_attrs(struct bio *bio, unsigned op,
+		unsigned op_flags)
+{
+	bio->bi_opf = op | op_flags;
+}
 
 static inline bool op_is_write(unsigned int op)
 {
