@@ -3257,13 +3257,6 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 	}
 }
 
-static inline bool ext4_aligned_io(struct inode *inode, loff_t off, loff_t len)
-{
-	int blksize = 1 << inode->i_blkbits;
-
-	return IS_ALIGNED(off, blksize) && IS_ALIGNED(len, blksize);
-}
-
 extern struct iomap_ops ext4_iomap_ops;
 
 #endif	/* __KERNEL__ */
