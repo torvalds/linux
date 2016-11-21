@@ -3527,6 +3527,7 @@ free_host:
 static void srp_add_one(struct ib_device *device)
 {
 	struct srp_device *srp_dev;
+	struct ib_device_attr *attr = &device->attrs;
 	struct srp_host *host;
 	int mr_page_shift, p;
 	u64 max_pages_per_mr;
@@ -3541,25 +3542,25 @@ static void srp_add_one(struct ib_device *device)
 	 * minimum of 4096 bytes. We're unlikely to build large sglists
 	 * out of smaller entries.
 	 */
-	mr_page_shift		= max(12, ffs(device->attrs.page_size_cap) - 1);
+	mr_page_shift		= max(12, ffs(attr->page_size_cap) - 1);
 	srp_dev->mr_page_size	= 1 << mr_page_shift;
 	srp_dev->mr_page_mask	= ~((u64) srp_dev->mr_page_size - 1);
-	max_pages_per_mr	= device->attrs.max_mr_size;
+	max_pages_per_mr	= attr->max_mr_size;
 	do_div(max_pages_per_mr, srp_dev->mr_page_size);
 	pr_debug("%s: %llu / %u = %llu <> %u\n", __func__,
-		 device->attrs.max_mr_size, srp_dev->mr_page_size,
+		 attr->max_mr_size, srp_dev->mr_page_size,
 		 max_pages_per_mr, SRP_MAX_PAGES_PER_MR);
 	srp_dev->max_pages_per_mr = min_t(u64, SRP_MAX_PAGES_PER_MR,
 					  max_pages_per_mr);
 
 	srp_dev->has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
 			    device->map_phys_fmr && device->unmap_fmr);
-	srp_dev->has_fr = (device->attrs.device_cap_flags &
+	srp_dev->has_fr = (attr->device_cap_flags &
 			   IB_DEVICE_MEM_MGT_EXTENSIONS);
 	if (!never_register && !srp_dev->has_fmr && !srp_dev->has_fr) {
 		dev_warn(&device->dev, "neither FMR nor FR is supported\n");
 	} else if (!never_register &&
-		   device->attrs.max_mr_size >= 2 * srp_dev->mr_page_size) {
+		   attr->max_mr_size >= 2 * srp_dev->mr_page_size) {
 		srp_dev->use_fast_reg = (srp_dev->has_fr &&
 					 (!srp_dev->has_fmr || prefer_fr));
 		srp_dev->use_fmr = !srp_dev->use_fast_reg && srp_dev->has_fmr;
@@ -3572,13 +3573,13 @@ static void srp_add_one(struct ib_device *device)
 	if (srp_dev->use_fast_reg) {
 		srp_dev->max_pages_per_mr =
 			min_t(u32, srp_dev->max_pages_per_mr,
-			      device->attrs.max_fast_reg_page_list_len);
+			      attr->max_fast_reg_page_list_len);
 	}
 	srp_dev->mr_max_size	= srp_dev->mr_page_size *
 				   srp_dev->max_pages_per_mr;
 	pr_debug("%s: mr_page_shift = %d, device->max_mr_size = %#llx, device->max_fast_reg_page_list_len = %u, max_pages_per_mr = %d, mr_max_size = %#x\n",
-		 device->name, mr_page_shift, device->attrs.max_mr_size,
-		 device->attrs.max_fast_reg_page_list_len,
+		 device->name, mr_page_shift, attr->max_mr_size,
+		 attr->max_fast_reg_page_list_len,
 		 srp_dev->max_pages_per_mr, srp_dev->mr_max_size);
 
 	INIT_LIST_HEAD(&srp_dev->dev_list);
