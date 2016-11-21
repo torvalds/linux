@@ -204,7 +204,7 @@ static int autofs_dev_ioctl_protosubver(struct file *fp,
 /* Find the topmost mount satisfying test() */
 static int find_autofs_mount(const char *pathname,
 			     struct path *res,
-			     int test(struct path *path, void *data),
+			     int test(const struct path *path, void *data),
 			     void *data)
 {
 	struct path path;
@@ -230,12 +230,12 @@ static int find_autofs_mount(const char *pathname,
 	return err;
 }
 
-static int test_by_dev(struct path *path, void *p)
+static int test_by_dev(const struct path *path, void *p)
 {
 	return path->dentry->d_sb->s_dev == *(dev_t *)p;
 }
 
-static int test_by_type(struct path *path, void *p)
+static int test_by_type(const struct path *path, void *p)
 {
 	struct autofs_info *ino = autofs4_dentry_ino(path->dentry);
 
