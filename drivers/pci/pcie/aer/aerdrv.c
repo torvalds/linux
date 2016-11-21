@@ -290,12 +290,12 @@ static int aer_probe(struct pcie_device *dev)
 {
 	int status;
 	struct aer_rpc *rpc;
-	struct device *device = &dev->device;
+	struct device *device = &dev->port->dev;
 
 	/* Alloc rpc data structure */
 	rpc = aer_alloc_rpc(dev);
 	if (!rpc) {
-		dev_printk(KERN_DEBUG, device, "alloc rpc failed\n");
+		dev_printk(KERN_DEBUG, device, "alloc AER rpc failed\n");
 		aer_remove(dev);
 		return -ENOMEM;
 	}
@@ -303,7 +303,8 @@ static int aer_probe(struct pcie_device *dev)
 	/* Request IRQ ISR */
 	status = request_irq(dev->irq, aer_irq, IRQF_SHARED, "aerdrv", dev);
 	if (status) {
-		dev_printk(KERN_DEBUG, device, "request IRQ failed\n");
+		dev_printk(KERN_DEBUG, device, "request AER IRQ %d failed\n",
+			   dev->irq);
 		aer_remove(dev);
 		return status;
 	}
