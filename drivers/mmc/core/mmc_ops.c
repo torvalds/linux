@@ -496,12 +496,16 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 			busy = host->ops->card_busy(host);
 		} else {
 			err = mmc_send_status(card, &status);
-			if (retry_crc_err && err == -EILSEQ)
+			if (retry_crc_err && err == -EILSEQ) {
 				busy = true;
-			else if (err)
+			} else if (err) {
 				return err;
-			else
+			} else {
+				err = mmc_switch_status_error(host, status);
+				if (err)
+					return err;
 				busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
+			}
 		}
 
 		/* Timeout if the device still remains busy. */
@@ -515,7 +519,7 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	if (host->ops->card_busy && send_status)
 		return mmc_switch_status(card);
 
-	return mmc_switch_status_error(host, status);
+	return 0;
 }
 
 /**
