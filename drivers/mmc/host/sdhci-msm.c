@@ -610,6 +610,7 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	struct mmc_ios curr_ios = host->mmc->ios;
 	int rc;
 
 	if (!clock) {
@@ -618,16 +619,28 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	spin_unlock_irq(&host->lock);
+	/*
+	 * The SDHC requires internal clock frequency to be double the
+	 * actual clock that will be set for DDR mode. The controller
+	 * uses the faster clock(100/400MHz) for some of its parts and
+	 * send the actual required clock (50/200MHz) to the card.
+	 */
+	if (curr_ios.timing == MMC_TIMING_UHS_DDR50 ||
+	    curr_ios.timing == MMC_TIMING_MMC_DDR52 ||
+	    curr_ios.timing == MMC_TIMING_MMC_HS400)
+		clock *= 2;
 
 	rc = clk_set_rate(msm_host->clk, clock);
 	if (rc) {
-		pr_err("%s: Failed to set clock at rate %u\n",
-		       mmc_hostname(host->mmc), clock);
+		pr_err("%s: Failed to set clock at rate %u at timing %d\n",
+		       mmc_hostname(host->mmc), clock,
+		       curr_ios.timing);
 		goto out_lock;
 	}
 	msm_host->clk_rate = clock;
-	pr_debug("%s: Setting clock at rate %lu\n",
-		 mmc_hostname(host->mmc), clk_get_rate(msm_host->clk));
+	pr_debug("%s: Setting clock at rate %lu at timing %d\n",
+		 mmc_hostname(host->mmc), clk_get_rate(msm_host->clk),
+		 curr_ios.timing);
 
 out_lock:
 	spin_lock_irq(&host->lock);
