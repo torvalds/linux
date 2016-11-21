@@ -276,8 +276,7 @@ static ssize_t softsynth_write(struct file *fp, const char __user *buf,
 	return count;
 }
 
-static unsigned int softsynth_poll(struct file *fp,
-		struct poll_table_struct *wait)
+static unsigned int softsynth_poll(struct file *fp, struct poll_table_struct *wait)
 {
 	unsigned long flags;
 	int ret = 0;
