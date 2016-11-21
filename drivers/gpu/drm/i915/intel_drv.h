@@ -1089,6 +1089,12 @@ dp_to_dig_port(struct intel_dp *intel_dp)
 	return container_of(intel_dp, struct intel_digital_port, dp);
 }
 
+static inline struct intel_lspcon *
+dp_to_lspcon(struct intel_dp *intel_dp)
+{
+	return &dp_to_dig_port(intel_dp)->lspcon;
+}
+
 static inline struct intel_digital_port *
 hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 {
