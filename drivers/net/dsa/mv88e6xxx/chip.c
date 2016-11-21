@@ -787,6 +787,9 @@ static int _mv88e6xxx_stats_wait(struct mv88e6xxx_chip *chip)
 
 	for (i = 0; i < 10; i++) {
 		err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_OP, &val);
+		if (err)
+			return err;
+
 		if ((val & GLOBAL_STATS_OP_BUSY) == 0)
 			return 0;
 	}
