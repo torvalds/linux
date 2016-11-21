@@ -312,7 +312,6 @@ static const struct file_operations softsynth_fops = {
 
 static int softsynth_probe(struct spk_synth *synth)
 {
-
 	if (misc_registered != 0)
 		return 0;
 	memset(&synth_device, 0, sizeof(synth_device));
