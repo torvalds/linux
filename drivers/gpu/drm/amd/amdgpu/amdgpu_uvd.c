@@ -360,6 +360,18 @@ static void amdgpu_uvd_force_into_uvd_segment(struct amdgpu_bo *abo)
 	}
 }
 
+static u64 amdgpu_uvd_get_addr_from_ctx(struct amdgpu_uvd_cs_ctx *ctx)
+{
+	uint32_t lo, hi;
+	uint64_t addr;
+
+	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
+	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
+	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
+
+	return addr;
+}
+
 /**
  * amdgpu_uvd_cs_pass1 - first parsing round
  *
@@ -372,13 +384,9 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
-	uint32_t cmd, lo, hi;
-	uint64_t addr;
+	uint32_t cmd;
+	uint64_t addr = amdgpu_uvd_get_addr_from_ctx(ctx);
 	int r = 0;
-
-	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
-	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
-	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
 
 	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
 	if (mapping == NULL) {
@@ -698,14 +706,10 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
-	uint32_t cmd, lo, hi;
+	uint32_t cmd;
 	uint64_t start, end;
-	uint64_t addr;
+	uint64_t addr = amdgpu_uvd_get_addr_from_ctx(ctx);
 	int r;
-
-	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
-	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
-	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
 
 	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
 	if (mapping == NULL)
