@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/key.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/mempool.h>
@@ -29,6 +30,7 @@
 #include <crypto/md5.h>
 #include <crypto/algapi.h>
 #include <crypto/skcipher.h>
+#include <keys/user-type.h>
 
 #include <linux/device-mapper.h>
 
@@ -140,6 +142,7 @@ struct crypt_config {
 
 	char *cipher;
 	char *cipher_string;
+	char *key_string;
 
 	const struct crypt_iv_operations *iv_gen_ops;
 	union {
@@ -1484,21 +1487,133 @@ static int crypt_setkey(struct crypt_config *cc)
 	return err;
 }
 
+#ifdef CONFIG_KEYS
+
+static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string)
+{
+	char *new_key_string, *key_desc;
+	int ret;
+	struct key *key;
+	const struct user_key_payload *ukp;
+
+	/* look for next ':' separating key_type from key_description */
+	key_desc = strpbrk(key_string, ":");
+	if (!key_desc || key_desc == key_string || !strlen(key_desc + 1))
+		return -EINVAL;
+
+	if (strncmp(key_string, "logon:", key_desc - key_string + 1) &&
+	    strncmp(key_string, "user:", key_desc - key_string + 1))
+		return -EINVAL;
+
+	new_key_string = kstrdup(key_string, GFP_KERNEL);
+	if (!new_key_string)
+		return -ENOMEM;
+
+	key = request_key(key_string[0] == 'l' ? &key_type_logon : &key_type_user,
+			  key_desc + 1, NULL);
+	if (IS_ERR(key)) {
+		kzfree(new_key_string);
+		return PTR_ERR(key);
+	}
+
+	rcu_read_lock();
+
+	ukp = user_key_payload(key);
+	if (!ukp) {
+		rcu_read_unlock();
+		key_put(key);
+		kzfree(new_key_string);
+		return -EKEYREVOKED;
+	}
+
+	if (cc->key_size != ukp->datalen) {
+		rcu_read_unlock();
+		key_put(key);
+		kzfree(new_key_string);
+		return -EINVAL;
+	}
+
+	memcpy(cc->key, ukp->data, cc->key_size);
+
+	rcu_read_unlock();
+	key_put(key);
+
+	/* clear the flag since following operations may invalidate previously valid key */
+	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+
+	ret = crypt_setkey(cc);
+
+	/* wipe the kernel key payload copy in each case */
+	memset(cc->key, 0, cc->key_size * sizeof(u8));
+
+	if (!ret) {
+		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+		kzfree(cc->key_string);
+		cc->key_string = new_key_string;
+	} else
+		kzfree(new_key_string);
+
+	return ret;
+}
+
+static int get_key_size(char **key_string)
+{
+	char *colon, dummy;
+	int ret;
+
+	if (*key_string[0] != ':')
+		return strlen(*key_string) >> 1;
+
+	/* look for next ':' in key string */
+	colon = strpbrk(*key_string + 1, ":");
+	if (!colon)
+		return -EINVAL;
+
+	if (sscanf(*key_string + 1, "%u%c", &ret, &dummy) != 2 || dummy != ':')
+		return -EINVAL;
+
+	*key_string = colon;
+
+	/* remaining key string should be :<logon|user>:<key_desc> */
+
+	return ret;
+}
+
+#else
+
+static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string)
+{
+	return -EINVAL;
+}
+
+static int get_key_size(char **key_string)
+{
+	return (*key_string[0] == ':') ? -EINVAL : strlen(*key_string) >> 1;
+}
+
+#endif
+
 static int crypt_set_key(struct crypt_config *cc, char *key)
 {
 	int r = -EINVAL;
 	int key_string_len = strlen(key);
 
-	/* The key size may not be changed. */
-	if (cc->key_size != (key_string_len >> 1))
-		goto out;
-
 	/* Hyphen (which gives a key_size of zero) means there is no key. */
 	if (!cc->key_size && strcmp(key, "-"))
 		goto out;
 
+	/* ':' means the key is in kernel keyring, short-circuit normal key processing */
+	if (key[0] == ':') {
+		r = crypt_set_keyring_key(cc, key + 1);
+		goto out;
+	}
+
 	/* clear the flag since following operations may invalidate previously valid key */
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+
+	/* wipe references to any kernel keyring key */
+	kzfree(cc->key_string);
+	cc->key_string = NULL;
 
 	if (cc->key_size && crypt_decode_key(cc->key, key, cc->key_size) < 0)
 		goto out;
@@ -1518,6 +1633,8 @@ static int crypt_wipe_key(struct crypt_config *cc)
 {
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 	memset(&cc->key, 0, cc->key_size * sizeof(u8));
+	kzfree(cc->key_string);
+	cc->key_string = NULL;
 
 	return crypt_setkey(cc);
 }
@@ -1555,6 +1672,7 @@ static void crypt_dtr(struct dm_target *ti)
 
 	kzfree(cc->cipher);
 	kzfree(cc->cipher_string);
+	kzfree(cc->key_string);
 
 	/* Must zero key material before freeing */
 	kzfree(cc);
@@ -1723,12 +1841,13 @@ bad_mem:
 
 /*
  * Construct an encryption mapping:
- * <cipher> <key> <iv_offset> <dev_path> <start>
+ * <cipher> [<key>|:<key_size>:<user|logon>:<key_description>] <iv_offset> <dev_path> <start>
  */
 static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
-	unsigned int key_size, opt_params;
+	int key_size;
+	unsigned int opt_params;
 	unsigned long long tmpll;
 	int ret;
 	size_t iv_size_padding;
@@ -1745,7 +1864,11 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	key_size = strlen(argv[1]) >> 1;
+	key_size = get_key_size(&argv[1]);
+	if (key_size < 0) {
+		ti->error = "Cannot parse key size";
+		return -EINVAL;
+	}
 
 	cc = kzalloc(sizeof(*cc) + key_size * sizeof(u8), GFP_KERNEL);
 	if (!cc) {
@@ -1952,10 +2075,13 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		DMEMIT("%s ", cc->cipher_string);
 
-		if (cc->key_size > 0)
-			for (i = 0; i < cc->key_size; i++)
-				DMEMIT("%02x", cc->key[i]);
-		else
+		if (cc->key_size > 0) {
+			if (cc->key_string)
+				DMEMIT(":%u:%s", cc->key_size, cc->key_string);
+			else
+				for (i = 0; i < cc->key_size; i++)
+					DMEMIT("%02x", cc->key[i]);
+		} else
 			DMEMIT("-");
 
 		DMEMIT(" %llu %s %llu", (unsigned long long)cc->iv_offset,
@@ -2011,7 +2137,7 @@ static void crypt_resume(struct dm_target *ti)
 static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 {
 	struct crypt_config *cc = ti->private;
-	int ret = -EINVAL;
+	int key_size, ret = -EINVAL;
 
 	if (argc < 2)
 		goto error;
@@ -2022,6 +2148,13 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 			return -EINVAL;
 		}
 		if (argc == 3 && !strcasecmp(argv[1], "set")) {
+			/* The key size may not be changed. */
+			key_size = get_key_size(&argv[2]);
+			if (key_size < 0 || cc->key_size != key_size) {
+				memset(argv[2], '0', strlen(argv[2]));
+				return -EINVAL;
+			}
+
 			ret = crypt_set_key(cc, argv[2]);
 			if (ret)
 				return ret;
@@ -2065,7 +2198,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 14, 1},
+	.version = {1, 15, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
