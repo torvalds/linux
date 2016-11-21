@@ -1343,8 +1343,8 @@ static int SecIsInPMKIDList(struct _adapter *Adapter, u8 *bssid)
 		   (!memcmp(psecuritypriv->PMKIDList[i].Bssid,
 			    bssid, ETH_ALEN)))
 			break;
-		else
-			i++;
+		i++;
+
 	} while (i < NUM_PMKID_CACHE);
 
 	if (i == NUM_PMKID_CACHE) {
