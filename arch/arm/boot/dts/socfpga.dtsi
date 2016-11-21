@@ -687,6 +687,11 @@
 			prefetch-data = <1>;
 			prefetch-instr = <1>;
 			arm,shared-override;
+			arm,double-linefill = <1>;
+			arm,double-linefill-incr = <0>;
+			arm,double-linefill-wrap = <1>;
+			arm,prefetch-drop = <0>;
+			arm,prefetch-offset = <7>;
 		};
 
 		mmc: dwmmc0@ff704000 {
