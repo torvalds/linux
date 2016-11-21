@@ -153,7 +153,6 @@ static void _nbu2ss_ep0_complete(struct usb_ep *_ep, struct usb_request *_req)
 	udc = (struct nbu2ss_udc *)_req->context;
 	p_ctrl = &udc->ctrl;
 	if ((p_ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
-
 		if (p_ctrl->bRequest == USB_REQ_SET_FEATURE) {
 			/*-------------------------------------------------*/
 			/* SET_FEATURE */
@@ -753,7 +752,6 @@ static int _nbu2ss_ep0_out_transfer(
 	/* Receive data confirmation */
 	iRecvLength = _nbu2ss_readl(&udc->p_regs->EP0_LENGTH) & EP0_LDATA;
 	if (iRecvLength != 0) {
-
 		fRcvZero = 0;
 
 		iRemainSize = req->req.length - req->req.actual;
@@ -930,7 +928,6 @@ static int _nbu2ss_epn_out_pio(
 
 	if ((req->req.actual == req->req.length)
 			|| ((req->req.actual % ep->ep.maxpacket) != 0)) {
-
 		result = 0;
 	}
 
@@ -1001,7 +998,6 @@ static int _nbu2ss_epn_out_transfer(
 	} else {
 		if ((req->req.actual == req->req.length)
 			|| ((req->req.actual % ep->ep.maxpacket) != 0)) {
-
 			result = 0;
 		}
 	}
@@ -1557,7 +1553,6 @@ static void _nbu2ss_epn_set_stall(
 		for (limit_cnt = 0
 			; limit_cnt < IN_DATA_EMPTY_COUNT
 			; limit_cnt++) {
-
 			regdata = _nbu2ss_readl(
 				&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
@@ -1584,7 +1579,6 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 
 	if ((udc->ctrl.wValue != 0x0000)
 		|| (direction != USB_DIR_IN)) {
-
 		return result;
 	}
 
@@ -1982,7 +1976,6 @@ static inline void _nbu2ss_epn_in_int(
 
 	} else {
 		if (req->zero && ((req->req.actual % ep->ep.maxpacket) == 0)) {
-
 			status =
 			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
@@ -2330,7 +2323,6 @@ static inline void _nbu2ss_check_vbus(struct nbu2ss_udc *udc)
 	/* VBUS ON Check*/
 	reg_dt = gpio_get_value(VBUS_VALUE);
 	if (reg_dt == 0) {
-
 		udc->linux_suspended = 0;
 
 		_nbu2ss_reset_controller(udc);
@@ -2502,7 +2494,6 @@ static irqreturn_t _nbu2ss_udc_irq(int irq, void *_udc)
 			int_bit = status >> 8;
 
 			for (epnum = 0; epnum < NUM_ENDPOINTS; epnum++) {
-
 				if (0x01 & int_bit)
 					_nbu2ss_ep_int(udc, epnum);
 
@@ -2548,7 +2539,6 @@ static int nbu2ss_ep_enable(
 	ep_type = usb_endpoint_type(desc);
 	if ((ep_type == USB_ENDPOINT_XFER_CONTROL)
 		|| (ep_type == USB_ENDPOINT_XFER_ISOC)) {
-
 		pr_err(" *** %s, bat bmAttributes\n", __func__);
 		return -EINVAL;
 	}
@@ -2559,7 +2549,6 @@ static int nbu2ss_ep_enable(
 
 	if ((!udc->driver)
 		|| (udc->gadget.speed == USB_SPEED_UNKNOWN)) {
-
 		dev_err(ep->udc->dev, " *** %s, udc !!\n", __func__);
 		return -ESHUTDOWN;
 	}
@@ -2677,7 +2666,6 @@ static int nbu2ss_ep_queue(
 	if (unlikely
 	    (!_req->complete || !_req->buf
 	     || !list_empty(&req->queue))) {
-
 		if (!_req->complete)
 			pr_err("udc: %s --- !_req->complete\n", __func__);
 
@@ -2736,7 +2724,6 @@ static int nbu2ss_ep_queue(
 	list_add_tail(&req->queue, &ep->queue);
 
 	if (bflag && !ep->stalled) {
-
 		result = _nbu2ss_start_transfer(udc, ep, req, FALSE);
 		if (result < 0) {
 			dev_err(udc->dev, " *** %s, result = %d\n", __func__,
