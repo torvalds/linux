@@ -1190,7 +1190,8 @@ bool pnfs_roc(struct inode *ino)
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
-	if (!lo || test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
+	if (!lo || !pnfs_layout_is_valid(lo) ||
+	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
 		goto out_noroc;
 
 	/* no roc if we hold a delegation */
