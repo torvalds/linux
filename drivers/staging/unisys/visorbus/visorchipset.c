@@ -820,14 +820,14 @@ err_respond:
 	return err;
 }
 
-static void
+static int
 bus_configure(struct controlvm_message *inmsg,
 	      struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no;
 	struct visor_device *bus_info;
-	int rc = CONTROLVM_RESP_SUCCESS;
+	int err = 0;
 
 	bus_no = cmd->configure_bus.bus_no;
 	POSTCODE_LINUX_3(BUS_CONFIGURE_ENTRY_PC, bus_no,
@@ -837,28 +837,41 @@ bus_configure(struct controlvm_message *inmsg,
 	if (!bus_info) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
-		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		err = -EINVAL;
+		goto err_respond;
 	} else if (bus_info->state.created == 0) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
-		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
+		err = -EINVAL;
+		goto err_respond;
 	} else if (bus_info->pending_msg_hdr) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
-		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
-	} else {
-		visorchannel_set_clientpartition
-			(bus_info->visorchannel,
-			 cmd->configure_bus.guest_handle);
-		bus_info->partition_uuid = parser_id_get(parser_ctx);
-		parser_param_start(parser_ctx, PARSERSTRING_NAME);
-		bus_info->name = parser_string_get(parser_ctx);
-
-		POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, bus_no,
-				 POSTCODE_SEVERITY_INFO);
+		err = -EIO;
+		goto err_respond;
 	}
+
+	err = visorchannel_set_clientpartition
+		(bus_info->visorchannel,
+		 cmd->configure_bus.guest_handle);
+	if (err)
+		goto err_respond;
+
+	bus_info->partition_uuid = parser_id_get(parser_ctx);
+	parser_param_start(parser_ctx, PARSERSTRING_NAME);
+	bus_info->name = parser_string_get(parser_ctx);
+
+	POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, bus_no,
+			 POSTCODE_SEVERITY_INFO);
+
 	if (inmsg->hdr.flags.response_expected == 1)
-		bus_responder(inmsg->hdr.id, &inmsg->hdr, rc);
+		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+	return 0;
+
+err_respond:
+	if (inmsg->hdr.flags.response_expected == 1)
+		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+	return err;
 }
 
 static void
