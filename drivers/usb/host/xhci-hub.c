@@ -1420,6 +1420,23 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			xhci_dbg(xhci, "reset stuck port %d\n", port_index);
 			continue;
 		}
+
+		/*
+		 * Workaround for missing CCS and CSC on resume if controller
+		 * is powered down in S3 with device plugged in.
+		 */
+		if ((xhci->quirks & XHCI_WARM_RESET_ON_RESUME) &&
+		    (hcd->speed >= HCD_USB3) &&
+		    !(temp & (PORT_CSC | PORT_CONNECT))) {
+			/* clear wakeup/change bits, and do a warm port reset */
+			temp &= ~(PORT_RWC_BITS | PORT_CEC | PORT_WAKE_BITS);
+			temp |= PORT_WR;
+			writel(temp, port_array[port_index]);
+			/* flush write */
+			readl(port_array[port_index]);
+			continue;
+		}
+
 		if (DEV_SUPERSPEED_ANY(temp))
 			temp &= ~(PORT_RWC_BITS | PORT_CEC | PORT_WAKE_BITS);
 		else

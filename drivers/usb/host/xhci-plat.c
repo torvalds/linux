@@ -54,6 +54,9 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 	 */
 	if (pdata && pdata->xhci_slow_suspend)
 		xhci->quirks |= XHCI_SLOW_SUSPEND;
+
+	if (pdata && pdata->usb3_warm_reset_on_resume)
+		xhci->quirks |= XHCI_WARM_RESET_ON_RESUME;
 }
 
 /* called during probe() after chip reset completes */

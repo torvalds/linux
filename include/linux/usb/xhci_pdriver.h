@@ -23,12 +23,14 @@
  *			after the Run/Stop (R/S) bit is cleared to '0'.
  * @usb3_disable_autosuspend: determines if this xhci platform supports
  *			USB3 autosuspend capability
+ * @usb3_warm_reset_on_resume:	determines if it need warm reset on resume.
  *
  */
 struct usb_xhci_pdata {
 	unsigned	usb3_lpm_capable:1;
 	unsigned	xhci_slow_suspend:1;
 	unsigned	usb3_disable_autosuspend:1;
+	unsigned	usb3_warm_reset_on_resume:1;
 };
 
 #endif /* __USB_CORE_XHCI_PDRIVER_H */
