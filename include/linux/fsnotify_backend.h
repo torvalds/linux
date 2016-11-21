@@ -96,7 +96,7 @@ struct fsnotify_ops {
 			    struct inode *inode,
 			    struct fsnotify_mark *inode_mark,
 			    struct fsnotify_mark *vfsmount_mark,
-			    u32 mask, void *data, int data_type,
+			    u32 mask, const void *data, int data_type,
 			    const unsigned char *file_name, u32 cookie);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark *mark, struct fsnotify_group *group);
