@@ -7187,10 +7187,12 @@ static int md_thread(void *arg)
 		wait_event_interruptible_timeout
 			(thread->wqueue,
 			 test_bit(THREAD_WAKEUP, &thread->flags)
-			 || kthread_should_stop(),
+			 || kthread_should_stop() || kthread_should_park(),
 			 thread->timeout);
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);
+		if (kthread_should_park())
+			kthread_parkme();
 		if (!kthread_should_stop())
 			thread->run(thread);
 	}

@@ -19,6 +19,7 @@
 #include <linux/raid/md_p.h>
 #include <linux/crc32c.h>
 #include <linux/random.h>
+#include <linux/kthread.h>
 #include "md.h"
 #include "raid5.h"
 #include "bitmap.h"
@@ -1437,23 +1438,14 @@ void r5l_quiesce(struct r5l_log *log, int state)
 	struct mddev *mddev;
 	if (!log || state == 2)
 		return;
-	if (state == 0) {
-		/*
-		 * This is a special case for hotadd. In suspend, the array has
-		 * no journal. In resume, journal is initialized as well as the
-		 * reclaim thread.
-		 */
-		if (log->reclaim_thread)
-			return;
-		log->reclaim_thread = md_register_thread(r5l_reclaim_thread,
-					log->rdev->mddev, "reclaim");
-		log->reclaim_thread->timeout = R5C_RECLAIM_WAKEUP_INTERVAL;
-	} else if (state == 1) {
+	if (state == 0)
+		kthread_unpark(log->reclaim_thread->tsk);
+	else if (state == 1) {
 		/* make sure r5l_write_super_and_discard_space exits */
 		mddev = log->rdev->mddev;
 		wake_up(&mddev->sb_wait);
+		kthread_park(log->reclaim_thread->tsk);
 		r5l_wake_reclaim(log, MaxSector);
-		md_unregister_thread(&log->reclaim_thread);
 		r5l_do_reclaim(log);
 	}
 }
