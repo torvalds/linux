@@ -440,6 +440,23 @@ static ssize_t hash_max_store(struct device *d, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(hash_max);
 
+static ssize_t multicast_igmp_version_show(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+
+	return sprintf(buf, "%u\n", br->multicast_igmp_version);
+}
+
+static ssize_t multicast_igmp_version_store(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_multicast_set_igmp_version);
+}
+static DEVICE_ATTR_RW(multicast_igmp_version);
+
 static ssize_t multicast_last_member_count_show(struct device *d,
 						struct device_attribute *attr,
 						char *buf)
@@ -809,6 +826,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_multicast_query_response_interval.attr,
 	&dev_attr_multicast_startup_query_interval.attr,
 	&dev_attr_multicast_stats_enabled.attr,
+	&dev_attr_multicast_igmp_version.attr,
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	&dev_attr_nf_call_iptables.attr,

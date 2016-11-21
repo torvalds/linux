@@ -365,13 +365,18 @@ static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
 						    __be32 group,
 						    u8 *igmp_type)
 {
+	struct igmpv3_query *ihv3;
+	size_t igmp_hdr_size;
 	struct sk_buff *skb;
 	struct igmphdr *ih;
 	struct ethhdr *eth;
 	struct iphdr *iph;
 
+	igmp_hdr_size = sizeof(*ih);
+	if (br->multicast_igmp_version == 3)
+		igmp_hdr_size = sizeof(*ihv3);
 	skb = netdev_alloc_skb_ip_align(br->dev, sizeof(*eth) + sizeof(*iph) +
-						 sizeof(*ih) + 4);
+						 igmp_hdr_size + 4);
 	if (!skb)
 		goto out;
 
@@ -396,7 +401,7 @@ static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
 	iph->version = 4;
 	iph->ihl = 6;
 	iph->tos = 0xc0;
-	iph->tot_len = htons(sizeof(*iph) + sizeof(*ih) + 4);
+	iph->tot_len = htons(sizeof(*iph) + igmp_hdr_size + 4);
 	iph->id = 0;
 	iph->frag_off = htons(IP_DF);
 	iph->ttl = 1;
@@ -412,17 +417,37 @@ static struct sk_buff *br_ip4_multicast_alloc_query(struct net_bridge *br,
 	skb_put(skb, 24);
 
 	skb_set_transport_header(skb, skb->len);
-	ih = igmp_hdr(skb);
 	*igmp_type = IGMP_HOST_MEMBERSHIP_QUERY;
-	ih->type = IGMP_HOST_MEMBERSHIP_QUERY;
-	ih->code = (group ? br->multicast_last_member_interval :
-			    br->multicast_query_response_interval) /
-		   (HZ / IGMP_TIMER_SCALE);
-	ih->group = group;
-	ih->csum = 0;
-	ih->csum = ip_compute_csum((void *)ih, sizeof(struct igmphdr));
-	skb_put(skb, sizeof(*ih));
 
+	switch (br->multicast_igmp_version) {
+	case 2:
+		ih = igmp_hdr(skb);
+		ih->type = IGMP_HOST_MEMBERSHIP_QUERY;
+		ih->code = (group ? br->multicast_last_member_interval :
+				    br->multicast_query_response_interval) /
+			   (HZ / IGMP_TIMER_SCALE);
+		ih->group = group;
+		ih->csum = 0;
+		ih->csum = ip_compute_csum((void *)ih, sizeof(*ih));
+		break;
+	case 3:
+		ihv3 = igmpv3_query_hdr(skb);
+		ihv3->type = IGMP_HOST_MEMBERSHIP_QUERY;
+		ihv3->code = (group ? br->multicast_last_member_interval :
+				      br->multicast_query_response_interval) /
+			     (HZ / IGMP_TIMER_SCALE);
+		ihv3->group = group;
+		ihv3->qqic = br->multicast_query_interval / HZ;
+		ihv3->nsrcs = 0;
+		ihv3->resv = 0;
+		ihv3->suppress = 0;
+		ihv3->qrv = 2;
+		ihv3->csum = 0;
+		ihv3->csum = ip_compute_csum((void *)ihv3, sizeof(*ihv3));
+		break;
+	}
+
+	skb_put(skb, igmp_hdr_size);
 	__skb_pull(skb, sizeof(*eth));
 
 out:
@@ -608,7 +633,8 @@ err:
 }
 
 struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
-	struct net_bridge_port *port, struct br_ip *group)
+						    struct net_bridge_port *p,
+						    struct br_ip *group)
 {
 	struct net_bridge_mdb_htable *mdb;
 	struct net_bridge_mdb_entry *mp;
@@ -624,7 +650,7 @@ struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
 	}
 
 	hash = br_ip_hash(mdb, group);
-	mp = br_multicast_get_group(br, port, group, hash);
+	mp = br_multicast_get_group(br, p, group, hash);
 	switch (PTR_ERR(mp)) {
 	case 0:
 		break;
@@ -681,9 +707,9 @@ static int br_multicast_add_group(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct br_ip *group)
 {
-	struct net_bridge_mdb_entry *mp;
-	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
+	struct net_bridge_port_group *p;
+	struct net_bridge_mdb_entry *mp;
 	unsigned long now = jiffies;
 	int err;
 
@@ -861,9 +887,9 @@ static void br_multicast_send_query(struct net_bridge *br,
 				    struct net_bridge_port *port,
 				    struct bridge_mcast_own_query *own_query)
 {
-	unsigned long time;
-	struct br_ip br_group;
 	struct bridge_mcast_other_query *other_query = NULL;
+	struct br_ip br_group;
+	unsigned long time;
 
 	if (!netif_running(br->dev) || br->multicast_disabled ||
 	    !br->multicast_querier)
@@ -1816,6 +1842,7 @@ void br_multicast_init(struct net_bridge *br)
 	br->hash_elasticity = 4;
 	br->hash_max = 512;
 
+	br->multicast_igmp_version = 2;
 	br->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
 	br->multicast_querier = 0;
 	br->multicast_query_use_ifaddr = 0;
@@ -2130,6 +2157,24 @@ unlock:
 	spin_unlock_bh(&br->multicast_lock);
 
 	return err;
+}
+
+int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val)
+{
+	/* Currently we support only version 2 and 3 */
+	switch (val) {
+	case 2:
+	case 3:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock_bh(&br->multicast_lock);
+	br->multicast_igmp_version = val;
+	spin_unlock_bh(&br->multicast_lock);
+
+	return 0;
 }
 
 /**
