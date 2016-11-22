@@ -167,6 +167,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 {
 	u8 rev = PHY_BRCM_7XXX_REV(phydev->dev_flags);
 	u8 patch = PHY_BRCM_7XXX_PATCH(phydev->dev_flags);
+	u8 count;
 	int ret = 0;
 
 	pr_info_once("%s: %s PHY revision: 0x%02x, patch: %d\n",
@@ -199,7 +200,12 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = bcm_phy_set_eee(phydev, true);
+	ret = bcm_phy_downshift_get(phydev, &count);
+	if (ret)
+		return ret;
+
+	/* Only enable EEE if Wirespeed/downshift is disabled */
+	ret = bcm_phy_set_eee(phydev, count == DOWNSHIFT_DEV_DISABLE);
 	if (ret)
 		return ret;
 
@@ -303,6 +309,47 @@ static int bcm7xxx_suspend(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm7xxx_28nm_get_tunable(struct phy_device *phydev,
+				    struct ethtool_tunable *tuna,
+				    void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return bcm_phy_downshift_get(phydev, (u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
+				    struct ethtool_tunable *tuna,
+				    const void *data)
+{
+	u8 count = *(u8 *)data;
+	int ret;
+
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		ret = bcm_phy_downshift_set(phydev, count);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (ret)
+		return ret;
+
+	/* Disable EEE advertisment since this prevents the PHY
+	 * from successfully linking up, trigger auto-negotiation restart
+	 * to let the MAC decide what to do.
+	 */
+	ret = bcm_phy_set_eee(phydev, count == DOWNSHIFT_DEV_DISABLE);
+	if (ret)
+		return ret;
+
+	return genphy_restart_aneg(phydev);
+}
+
 #define BCM7XXX_28NM_GPHY(_oui, _name)					\
 {									\
 	.phy_id		= (_oui),					\
@@ -315,6 +362,8 @@ static int bcm7xxx_suspend(struct phy_device *phydev)
 	.config_aneg	= genphy_config_aneg,				\
 	.read_status	= genphy_read_status,				\
 	.resume		= bcm7xxx_28nm_resume,				\
+	.get_tunable	= bcm7xxx_28nm_get_tunable,			\
+	.set_tunable	= bcm7xxx_28nm_set_tunable,			\
 }
 
 #define BCM7XXX_40NM_EPHY(_oui, _name)					\
