@@ -2647,16 +2647,12 @@ static void i915_gem_context_mark_guilty(struct i915_gem_context *ctx)
 			 ctx->name, ctx->ban_score,
 			 yesno(ctx->banned));
 
-	if (!ctx->file_priv)
+	if (!ctx->banned || IS_ERR_OR_NULL(ctx->file_priv))
 		return;
 
-	if (ctx->banned) {
-		ctx->file_priv->context_bans++;
-
-		DRM_DEBUG_DRIVER("client %s has has %d context banned\n",
-				 ctx->name,
-				 ctx->file_priv->context_bans);
-	}
+	ctx->file_priv->context_bans++;
+	DRM_DEBUG_DRIVER("client %s has had %d context banned\n",
+			 ctx->name, ctx->file_priv->context_bans);
 }
 
 static void i915_gem_context_mark_innocent(struct i915_gem_context *ctx)
