@@ -38,6 +38,7 @@
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
+#include <linux/stop_machine.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
@@ -2787,6 +2788,12 @@ static void nop_submit_request(struct drm_i915_gem_request *request)
 
 static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 {
+	/* We need to be sure that no thread is running the old callback as
+	 * we install the nop handler (otherwise we would submit a request
+	 * to hardware that will never complete). In order to prevent this
+	 * race, we wait until the machine is idle before making the swap
+	 * (using stop_machine()).
+	 */
 	engine->submit_request = nop_submit_request;
 
 	/* Mark all pending requests as complete so that any concurrent
@@ -2817,20 +2824,29 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 	}
 }
 
-void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
+static int __i915_gem_set_wedged_BKL(void *data)
 {
+	struct drm_i915_private *i915 = data;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	for_each_engine(engine, i915, id)
+		i915_gem_cleanup_engine(engine);
+
+	return 0;
+}
+
+void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
+{
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
 
-	i915_gem_context_lost(dev_priv);
-	for_each_engine(engine, dev_priv, id)
-		i915_gem_cleanup_engine(engine);
-	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
+	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
 
+	i915_gem_context_lost(dev_priv);
 	i915_gem_retire_requests(dev_priv);
+
+	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
 
 static void
