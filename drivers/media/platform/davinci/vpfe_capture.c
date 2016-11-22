@@ -1966,6 +1966,7 @@ static int vpfe_probe(struct platform_device *pdev)
 			v4l2_info(&vpfe_dev->v4l2_dev,
 				  "v4l2 sub device %s register fails\n",
 				  sdinfo->name);
+			ret = -ENXIO;
 			goto probe_sd_out;
 		}
 	}
