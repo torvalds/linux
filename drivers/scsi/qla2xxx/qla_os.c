@@ -707,6 +707,11 @@ qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	srb_t *sp;
 	int rval;
 
+	if (unlikely(test_bit(UNLOADING, &base_vha->dpc_flags))) {
+		cmd->result = DID_NO_CONNECT << 16;
+		goto qc24_fail_command;
+	}
+
 	if (ha->flags.eeh_busy) {
 		if (ha->flags.pci_channel_io_perm_failure) {
 			ql_dbg(ql_dbg_aer, vha, 0x9010,
@@ -1451,6 +1456,15 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
+				/* Get a reference to the sp and drop the lock.
+				 * The reference ensures this sp->done() call
+				 * - and not the call in qla2xxx_eh_abort() -
+				 * ends the SCSI command (with result 'res').
+				 */
+				sp_get(sp);
+				spin_unlock_irqrestore(&ha->hardware_lock, flags);
+				qla2xxx_eh_abort(GET_CMD_SP(sp));
+				spin_lock_irqsave(&ha->hardware_lock, flags);
 				req->outstanding_cmds[cnt] = NULL;
 				sp->done(vha, sp, res);
 			}
@@ -2341,6 +2355,8 @@ qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
+	if (test_bit(UNLOADING, &vha->dpc_flags))
+		return 1;
 	if (!vha->host)
 		return 1;
 	if (time > vha->hw->loop_reset_delay * HZ)

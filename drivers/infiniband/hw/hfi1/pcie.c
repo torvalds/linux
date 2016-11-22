@@ -157,8 +157,7 @@ void hfi1_pcie_cleanup(struct pci_dev *pdev)
  * fields required to re-initialize after a chip reset, or for
  * various other purposes
  */
-int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev,
-		     const struct pci_device_id *ent)
+int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 {
 	unsigned long len;
 	resource_size_t addr;
