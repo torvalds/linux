@@ -1583,8 +1583,8 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 	if (policy->max == policy->min) {
 		limits->min_policy_pct = limits->max_policy_pct;
 	} else {
-		limits->min_policy_pct = (policy->min * 100) /
-						policy->cpuinfo.max_freq;
+		limits->min_policy_pct = DIV_ROUND_UP(policy->min * 100,
+						      policy->cpuinfo.max_freq);
 		limits->min_policy_pct = clamp_t(int, limits->min_policy_pct,
 						 0, 100);
 	}
@@ -1605,6 +1605,7 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 	limits->min_perf = div_fp(limits->min_perf_pct, 100);
 	limits->max_perf = div_fp(limits->max_perf_pct, 100);
 	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
+	limits->min_perf = round_up(limits->min_perf, FRAC_BITS);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
