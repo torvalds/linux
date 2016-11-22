@@ -58,9 +58,9 @@ struct rockchip_cpu_avs {
 #define notifier_to_avs(_n) container_of(_n, struct rockchip_cpu_avs, \
 	cpufreq_notify)
 
-static void rockchip_adjust_opp_table(struct device *cpu_dev,
-				      struct cpufreq_frequency_table *table,
-				      struct cluster_info *cluster)
+static void rockchip_leakage_adjust_table(struct device *cpu_dev,
+					  struct cpufreq_frequency_table *table,
+					  struct cluster_info *cluster)
 {
 	struct cpufreq_frequency_table *pos;
 	struct dev_pm_opp *opp;
@@ -102,7 +102,9 @@ static int rockchip_cpu_avs_notifier(struct notifier_block *nb,
 	struct cpufreq_policy *policy = data;
 	struct cluster_info *cluster;
 	struct device *cpu_dev;
+	unsigned long cur_freq;
 	int i, id, cpu = policy->cpu;
+	int ret;
 
 	if (event != CPUFREQ_START)
 		goto out;
@@ -113,27 +115,36 @@ static int rockchip_cpu_avs_notifier(struct notifier_block *nb,
 		goto out;
 	}
 
-	for (i = 0; i < avs->num_clusters; i++) {
-		if (avs->cluster[i].id == id)
-			break;
-	}
-	if (i == avs->num_clusters)
-		goto out;
-	else
-		cluster = &avs->cluster[i];
-
-	if (!policy->freq_table) {
-		pr_err("cpu%d freq table not found\n", cpu);
-		goto out;
-	}
-
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
 		pr_err("cpu%d failed to get device\n", cpu);
 		goto out;
 	}
 
-	rockchip_adjust_opp_table(cpu_dev, policy->freq_table, cluster);
+	if (avs->num_clusters == 0)
+		goto next;
+
+	for (i = 0; i < avs->num_clusters; i++) {
+		if (avs->cluster[i].id == id)
+			break;
+	}
+	if (i == avs->num_clusters)
+		goto next;
+	else
+		cluster = &avs->cluster[i];
+
+	if (!policy->freq_table) {
+		pr_err("cpu%d freq table not found\n", cpu);
+		goto next;
+	}
+
+	rockchip_leakage_adjust_table(cpu_dev, policy->freq_table, cluster);
+
+next:
+	ret = dev_pm_opp_check_initial_rate(cpu_dev, &cur_freq);
+	if (!ret)
+		policy->cur = cur_freq / 1000;
+
 out:
 
 	return NOTIFY_OK;
@@ -244,54 +255,48 @@ static int rockchip_of_parse_cpu_avs(struct device_node *np,
 	ret = of_property_read_u32(np, "cluster-id", &cluster->id);
 	if (ret < 0) {
 		pr_err("prop cluster-id missing\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	if (cluster->id >= MAX_CLUSTERS) {
 		pr_err("prop cluster-id invalid\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = of_property_read_u32(np, "min-freq", &cluster->min_freq);
 	if (ret < 0) {
 		pr_err("prop min_freq missing\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = of_property_read_u32(np, "min-volt", &cluster->min_volt);
 	if (ret < 0) {
 		pr_err("prop min_volt missing\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = rockchip_get_leakage_volt_table(np, &cluster->table);
 	if (ret) {
 		pr_err("prop leakage-adjust-volt invalid\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = rockchip_get_leakage(np, &cluster->leakage);
 	if (ret) {
 		pr_err("get leakage invalid\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = rockchip_get_offset_volt(cluster->leakage, cluster->table,
 				       &cluster->offset_volt);
 	if (ret) {
 		pr_err("get offset volt err\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	pr_info("cluster%d leakage=%d adjust_volt=%d\n", cluster->id,
 		cluster->leakage, cluster->offset_volt);
 
-out:
-	return ret;
+	return 0;
 }
 
 static int rockchip_cpu_avs_probe(struct platform_device *pdev)
@@ -301,59 +306,53 @@ static int rockchip_cpu_avs_probe(struct platform_device *pdev)
 	struct rockchip_cpu_avs *avs;
 	int ret, num_clusters = 0, i = 0;
 
+	avs = devm_kzalloc(dev, sizeof(*avs), GFP_KERNEL);
+	if (!avs)
+		return -ENOMEM;
+
 	np = of_find_node_by_name(NULL, "cpu-avs");
 	if (!np) {
-		pr_info("unable to find cpu-avs\n");
-		return 0;
+		pr_info("unable to find cpu-avs node\n");
+		goto out;
 	}
 
 	if (!of_device_is_available(np)) {
-		pr_info("cpu-avs disabled\n");
-		ret = 0;
-		goto err;
+		pr_info("cpu-avs node disabled\n");
+		goto next;
 	}
 
 	for_each_available_child_of_node(np, node)
 		num_clusters++;
 
 	if (!num_clusters) {
-		pr_info("cpu-avs child disabled\n");
-		ret = 0;
-		goto err;
-	}
-
-	avs = devm_kzalloc(dev, sizeof(*avs), GFP_KERNEL);
-	if (!avs) {
-		ret = -ENOMEM;
-		goto err;
+		pr_info("cpu-avs child node disabled\n");
+		goto next;
 	}
 
 	avs->cluster = devm_kzalloc(dev, sizeof(*avs->cluster) * num_clusters,
 				    GFP_KERNEL);
-	if (!avs->cluster) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!avs->cluster)
+		goto next;
 
 	avs->num_clusters = num_clusters;
 
 	for_each_available_child_of_node(np, node) {
 		ret = rockchip_of_parse_cpu_avs(node, &avs->cluster[i++]);
-		if (ret)
-			goto err;
+		if (ret) {
+			devm_kfree(dev, avs->cluster);
+			avs->num_clusters = 0;
+			break;
+		}
 	}
 
+next:
 	of_node_put(np);
 
+out:
 	avs->cpufreq_notify.notifier_call = rockchip_cpu_avs_notifier;
 
 	return cpufreq_register_notifier(&avs->cpufreq_notify,
 		CPUFREQ_POLICY_NOTIFIER);
-
-err:
-	of_node_put(np);
-
-	return ret;
 }
 
 static struct platform_driver rockchip_cpu_avs_platdrv = {
