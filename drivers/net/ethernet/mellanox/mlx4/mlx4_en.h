@@ -281,46 +281,50 @@ struct mlx4_en_tx_ring {
 	u32			last_nr_txbb;
 	u32			cons;
 	unsigned long		wake_queue;
+	struct netdev_queue	*tx_queue;
+	u32			(*free_tx_desc)(struct mlx4_en_priv *priv,
+						struct mlx4_en_tx_ring *ring,
+						int index, u8 owner,
+						u64 timestamp, int napi_mode);
+	struct mlx4_en_rx_ring	*recycle_ring;
 
 	/* cache line used and dirtied in mlx4_en_xmit() */
 	u32			prod ____cacheline_aligned_in_smp;
+	unsigned int		tx_dropped;
 	unsigned long		bytes;
 	unsigned long		packets;
 	unsigned long		tx_csum;
 	unsigned long		tso_packets;
 	unsigned long		xmit_more;
-	unsigned int		tx_dropped;
 	struct mlx4_bf		bf;
-	unsigned long		queue_stopped;
 
 	/* Following part should be mostly read */
-	cpumask_t		affinity_mask;
-	struct mlx4_qp		qp;
-	struct mlx4_hwq_resources wqres;
-	u32			size; /* number of TXBBs */
-	u32			size_mask;
-	u16			stride;
-	u32			full_size;
-	u16			cqn;	/* index of port CQ associated with this ring */
-	u32			buf_size;
 	__be32			doorbell_qpn;
 	__be32			mr_key;
+	u32			size; /* number of TXBBs */
+	u32			size_mask;
+	u32			full_size;
+	u32			buf_size;
 	void			*buf;
 	struct mlx4_en_tx_info	*tx_info;
-	struct mlx4_en_rx_ring	*recycle_ring;
-	u32			(*free_tx_desc)(struct mlx4_en_priv *priv,
-						struct mlx4_en_tx_ring *ring,
-						int index, u8 owner,
-						u64 timestamp, int napi_mode);
-	u8			*bounce_buf;
-	struct mlx4_qp_context	context;
 	int			qpn;
-	enum mlx4_qp_state	qp_state;
 	u8			queue_index;
 	bool			bf_enabled;
 	bool			bf_alloced;
-	struct netdev_queue	*tx_queue;
-	int			hwtstamp_tx_type;
+	u8			hwtstamp_tx_type;
+	u8			*bounce_buf;
+
+	/* Not used in fast path
+	 * Only queue_stopped might be used if BQL is not properly working.
+	 */
+	unsigned long		queue_stopped;
+	struct mlx4_hwq_resources sp_wqres;
+	struct mlx4_qp		sp_qp;
+	struct mlx4_qp_context	sp_context;
+	cpumask_t		sp_affinity_mask;
+	enum mlx4_qp_state	sp_qp_state;
+	u16			sp_stride;
+	u16			sp_cqn;	/* index of port CQ associated with this ring */
 } ____cacheline_aligned_in_smp;
 
 struct mlx4_en_rx_desc {

@@ -1305,7 +1305,7 @@ static void mlx4_en_tx_timeout(struct net_device *dev)
 		if (!netif_tx_queue_stopped(netdev_get_tx_queue(dev, i)))
 			continue;
 		en_warn(priv, "TX timeout on queue: %d, QP: 0x%x, CQ: 0x%x, Cons: 0x%x, Prod: 0x%x\n",
-			i, tx_ring->qpn, tx_ring->cqn,
+			i, tx_ring->qpn, tx_ring->sp_cqn,
 			tx_ring->cons, tx_ring->prod);
 	}
 
