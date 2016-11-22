@@ -10,6 +10,7 @@ dtb-$(CONFIG_ARCH_MESON) += meson-gxl-s905d-p230.dtb
 dtb-$(CONFIG_ARCH_MESON) += meson-gxl-s905d-p231.dtb
 dtb-$(CONFIG_ARCH_MESON) += meson-gxm-s912-q200.dtb
 dtb-$(CONFIG_ARCH_MESON) += meson-gxm-s912-q201.dtb
+dtb-$(CONFIG_ARCH_MESON) += meson-gxm-nexbox-a1.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
