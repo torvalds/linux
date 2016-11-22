@@ -673,6 +673,7 @@
 	wp-gpios = <>;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
+	pm-ignore-notify;
 	vmmc-supply = <>;
 	status = "okay";
 };
