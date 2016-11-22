@@ -196,6 +196,8 @@ struct fsl_dspi {
 	struct fsl_dspi_dma	*dma;
 };
 
+static u32 dspi_data_to_pushr(struct fsl_dspi *dspi, int tx_word);
+
 static inline int is_double_byte_mode(struct fsl_dspi *dspi)
 {
 	unsigned int val;
@@ -242,23 +244,14 @@ static int dspi_next_xfer_dma_submit(struct fsl_dspi *dspi)
 	int time_left;
 	int tx_word;
 	int i;
-	u16 val;
 
 	tx_word = is_double_byte_mode(dspi);
 
-	for (i = 0; i < dma->curr_xfer_len - 1; i++) {
-		val = tx_word ? *(u16 *) dspi->tx : *(u8 *) dspi->tx;
-		dspi->dma->tx_dma_buf[i] =
-			SPI_PUSHR_TXDATA(val) | SPI_PUSHR_PCS(dspi->cs) |
-			SPI_PUSHR_CTAS(0) | SPI_PUSHR_CONT;
-		dspi->tx += tx_word + 1;
+	for (i = 0; i < dma->curr_xfer_len; i++) {
+		dspi->dma->tx_dma_buf[i] = dspi_data_to_pushr(dspi, tx_word);
+		if ((dspi->cs_change) && (!dspi->len))
+			dspi->dma->tx_dma_buf[i] &= ~SPI_PUSHR_CONT;
 	}
-
-	val = tx_word ? *(u16 *) dspi->tx : *(u8 *) dspi->tx;
-	dspi->dma->tx_dma_buf[i] = SPI_PUSHR_TXDATA(val) |
-					SPI_PUSHR_PCS(dspi->cs) |
-					SPI_PUSHR_CTAS(0);
-	dspi->tx += tx_word + 1;
 
 	dma->tx_desc = dmaengine_prep_slave_single(dma->chan_tx,
 					dma->tx_dma_phys,
@@ -351,7 +344,6 @@ static int dspi_dma_xfer(struct fsl_dspi *dspi)
 			curr_remaining_bytes -= dma->curr_xfer_len * word;
 			if (curr_remaining_bytes < 0)
 				curr_remaining_bytes = 0;
-			dspi->len = curr_remaining_bytes;
 		}
 	}
 
