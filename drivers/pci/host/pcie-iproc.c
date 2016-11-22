@@ -1020,7 +1020,7 @@ static int iproc_pcie_paxb_v2_msi_steer(struct iproc_pcie *pcie, u64 msi_addr)
 
 	memset(&range, 0, sizeof(range));
 	range.size = SZ_32K;
-	range.pci_addr = range.cpu_addr = ALIGN(msi_addr, range.size);
+	range.pci_addr = range.cpu_addr = msi_addr & ~(range.size - 1);
 
 	ret = iproc_pcie_setup_ib(pcie, &range, IPROC_PCIE_IB_MAP_IO);
 	return ret;
