@@ -1822,6 +1822,8 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
+	i915_queue_hangcheck(dev_priv);
+
 wakeup:
 	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
 	return;
