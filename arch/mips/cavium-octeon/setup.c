@@ -965,6 +965,13 @@ void __init fw_init_cmdline(void)
 	}
 }
 
+void __init *plat_get_fdt(void)
+{
+	octeon_bootinfo =
+		cvmx_phys_to_ptr(octeon_boot_desc_ptr->cvmx_desc_vaddr);
+	return phys_to_virt(octeon_bootinfo->fdt_addr);
+}
+
 void __init plat_mem_setup(void)
 {
 	uint64_t mem_alloc_size;
