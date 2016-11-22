@@ -36,8 +36,9 @@ export srctree
 
 # Target build configuration
 
-export CFLAGS += -Iinclude -Wall -g -O2 -Wextra -Wno-unused-parameter \
-	  -Wno-missing-field-initializers -fno-strict-aliasing
+export CFLAGS += -I$(OUTPUT)/include -Iinclude -Wall -g -O2 -Wextra \
+	 -Wno-unused-parameter \
+	 -Wno-missing-field-initializers -fno-strict-aliasing
 
 OUTPUT_FORMAT = $(shell $(LD) -r -print-output-format)
 
@@ -77,40 +78,47 @@ else
   $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
-ALL_PROGRAMS := lklfuse$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF) fs2tar$(EXESUF)
-ALL_LIBRARIES := liblkl.a liblkl$(SOSUF) liblkl-hijack$(SOSUF)
+ifneq ($(OUTPUT),)
+OUTPUT := $(OUTPUT)/tools/lkl/
+else
+OUTPUT := $(CURDIR)/
+endif
+export OUTPUT
 
-static: liblkl.a
-shared: liblkl$(SOSUF)
-hijack: liblkl-hijack$(SOSUF)
+ALL_PROGRAMS := $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)cpfromfs$(EXESUF) $(OUTPUT)fs2tar$(EXESUF)
+ALL_LIBRARIES := $(OUTPUT)liblkl.a $(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF)
 
-liblkl$(SOSUF): lib/lkl-in.o lib/lkl.o
-liblkl$(SOSUF): LDFLAGS += -shared
+static: $(OUTPUT)liblkl.a
+shared: $(OUTPUT)liblkl$(SOSUF)
+hijack: $(OUTPUT)liblkl-hijack$(SOSUF)
 
-liblkl-hijack$(SOSUF): lib/hijack/hijack-in.o liblkl.a
-liblkl-hijack$(SOSUF): LDFLAGS += -shared -nodefaultlibs
-liblkl-hijack$(SOSUF): LDLIBS += -ldl
+$(OUTPUT)liblkl$(SOSUF): $(OUTPUT)lib/lkl-in.o $(OUTPUT)lib/lkl.o
+$(OUTPUT)liblkl$(SOSUF): LDFLAGS += -shared
 
-lklfuse$(EXESUF): lklfuse-in.o liblkl.a
-lklfuse$(EXESUF): LDLIBS += -lfuse
+$(OUTPUT)liblkl-hijack$(SOSUF): $(OUTPUT)lib/hijack/hijack-in.o $(OUTPUT)liblkl.a
+$(OUTPUT)liblkl-hijack$(SOSUF): LDFLAGS += -shared -nodefaultlibs
+$(OUTPUT)liblkl-hijack$(SOSUF): LDLIBS += -ldl
 
-fs2tar$(EXESUF): fs2tar-in.o liblkl.a
-fs2tar$(EXESUF): LDLIBS += -larchive
+$(OUTPUT)lklfuse$(EXESUF): $(OUTPUT)lklfuse-in.o $(OUTPUT)liblkl.a
+$(OUTPUT)lklfuse$(EXESUF): LDLIBS += -lfuse
+
+$(OUTPUT)fs2tar$(EXESUF): $(OUTPUT)fs2tar-in.o $(OUTPUT)liblkl.a
+$(OUTPUT)fs2tar$(EXESUF): LDLIBS += -larchive
 ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
-  fs2tar$(EXESUF): LDLIBS += -largp
+  $(OUTPUT)fs2tar$(EXESUF): LDLIBS += -largp
 endif
 
-cptofs$(EXESUF): cptofs-in.o liblkl.a
+$(OUTPUT)cptofs$(EXESUF): $(OUTPUT)cptofs-in.o $(OUTPUT)liblkl.a
 ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
-  cptofs$(EXESUF): LDLIBS += -largp
+  $(OUTPUT)cptofs$(EXESUF): LDLIBS += -largp
 endif
 
 
 TEST_TARGETS        := test valgrind gdb
 
-tests/boot: tests/boot-in.o liblkl.a
-tests/net-test: tests/net-test-in.o liblkl.a
-$(TEST_TARGETS): tests/boot tests/net-test
+$(OUTPUT)tests/boot: $(OUTPUT)tests/boot-in.o $(OUTPUT)liblkl.a
+$(OUTPUT)tests/net-test: $(OUTPUT)tests/net-test-in.o $(OUTPUT)liblkl.a
+$(TEST_TARGETS): $(OUTPUT)tests/boot $(OUTPUT)tests/net-test
 
 # because of libdl, liblkl-hijack will not compile on windows
 # fortunately, the test target will handle a missing libhijack.so correctly
@@ -118,42 +126,42 @@ ifeq (,$(filter $(OUTPUT_FORMAT),pe-i386 elf32-littlearm))
   test: liblkl-hijack$(SOSUF)
 endif
 
-
-%-in.o: lib/lkl.o FORCE
+$(OUTPUT)%-in.o: $(OUTPUT)lib/lkl.o FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(patsubst %/,%,$(dir $*)) obj=$(notdir $*)
 
-lib/lkl.o:
+$(OUTPUT)lib/lkl.o:
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) defconfig
-	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(CURDIR)
+	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(OUTPUT)
 
-liblkl.a: lib/lkl-in.o lib/lkl.o
+$(OUTPUT)liblkl.a: $(OUTPUT)lib/lkl-in.o $(OUTPUT)lib/lkl.o
 	$(QUIET_AR)$(AR) -rc $@ $^
 
-liblkl$(SOSUF) liblkl-hijack$(SOSUF) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) tests/boot tests/net-test:
+$(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF) $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)fs2tar$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)tests/boot $(OUTPUT)tests/net-test:
 	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-cpfromfs$(EXESUF): cptofs$(EXESUF)
+$(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
 	$(Q)if ! [ -e $@ ]; then ln -s $< $@; fi
 
 # because of argp and fuse, none of the binaries will compile on windows
 # because of libdl, liblkl-hijack will not compile on windows
 # arm-android neither for the moment
 ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
-  all: $(filter-out liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
+  all: $(filter-out $(OUTPUT)liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
 else ifneq (,$(filter $(OUTPUT_DEF),__ANDROID__))
-  all: $(filter-out liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
+  all: $(filter-out $(OUTPUT)liblkl-hijack$(SOSUF), $(ALL_LIBRARIES))
 else ifneq (,$(filter $(OUTPUT_FORMAT),elf32-littlearm))
-  all: $(filter-out liblkl-hijack$(SOSUF), $(ALL_LIBRARIES)) $(ALL_PROGRAMS)
+  all: $(filter-out $(OUTPUT)liblkl-hijack$(SOSUF), $(ALL_LIBRARIES)) $(ALL_PROGRAMS)
 else
   all: $(ALL_PROGRAMS) $(ALL_LIBRARIES)
 endif
 
 clean:
-	$(call QUIET_CLEAN, objects)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
-	$(call QUIET_CLEAN, headers)$(RM) -r include/lkl/
-	$(call QUIET_CLEAN, "host libraries")$(RM) liblkl.a liblkl$(SOSUF)
-	$(call QUIET_CLEAN, "hijack library")$(RM) liblkl-hijack$(SOSUF)
-	$(call QUIET_CLEAN, programs)$(RM) lklfuse$(EXESUF) fs2tar$(EXESUF) cptofs$(EXESUF) cpfromfs$(EXESUF)
+	$(call QUIET_CLEAN, objects)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd'\
+	 -delete -o -name '\.*.d' -delete
+	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/
+	$(call QUIET_CLEAN, "host libraries")$(RM) $(OUTPUT)/liblkl.a liblkl$(SOSUF)
+	$(call QUIET_CLEAN, "hijack library")$(RM) $(OUTPUT)/liblkl-hijack$(SOSUF)
+	$(call QUIET_CLEAN, programs)$(RM) $(ALL_PROGRAMS)
 	$(call QUIET_CLEAN, tests)$(RM) tests/boot tests/net-test
 
 $(TEST_TARGETS):
@@ -164,7 +172,7 @@ headers_install:
 	$(call QUIET_INSTALL, headers) \
 	    install -d $(DESTDIR)$(PREFIX)/include ; \
 	    install -m 644 include/lkl.h include/lkl_host.h $(DESTDIR)$(PREFIX)/include ; \
-	    cp -r include/lkl $(DESTDIR)$(PREFIX)/include
+	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
 
 libraries_install: $(ALL_LIBRARIES)
 	$(call QUIET_INSTALL, libraries) \
@@ -182,3 +190,4 @@ install: headers_install libraries_install programs_install
 FORCE: ;
 .PHONY: all clean $(TEST_TARGETS) FORCE
 .PHONY: headers_install libraries_install programs_install install
+.NOTPARALLEL : lib/lkl.o
