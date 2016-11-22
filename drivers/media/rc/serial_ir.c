@@ -407,7 +407,7 @@ static int hardware_init_port(void)
 
 	/*
 	 * This is a simple port existence test, borrowed from the autoconfig
-	 * function in drivers/serial/8250.c
+	 * function in drivers/tty/serial/8250/8250_port.c
 	 */
 	scratch = sinp(UART_IER);
 	soutp(UART_IER, 0);
