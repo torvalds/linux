@@ -1760,11 +1760,16 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	host->mmc->slotno = slotno;
 	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
 
-	if (slot->cd_idx >= 0 &&
-	    mmc_gpiod_request_cd(host->mmc, slot->cd_con_id, slot->cd_idx,
-				 slot->cd_override_level, 0, NULL)) {
-		dev_warn(&pdev->dev, "failed to setup card detect gpio\n");
-		slot->cd_idx = -1;
+	if (slot->cd_idx >= 0) {
+		ret = mmc_gpiod_request_cd(host->mmc, slot->cd_con_id, slot->cd_idx,
+					   slot->cd_override_level, 0, NULL);
+		if (ret == -EPROBE_DEFER)
+			goto remove;
+
+		if (ret) {
+			dev_warn(&pdev->dev, "failed to setup card detect gpio\n");
+			slot->cd_idx = -1;
+		}
 	}
 
 	ret = sdhci_add_host(host);
