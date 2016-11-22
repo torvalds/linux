@@ -1164,24 +1164,20 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
 
-/* read once for all raw primitive data for all packages, domains */
-static void rapl_update_domain_data(void)
+/* Read once for all raw primitive data for domains */
+static void rapl_update_domain_data(struct rapl_package *rp)
 {
 	int dmn, prim;
 	u64 val;
-	struct rapl_package *rp;
 
-	list_for_each_entry(rp, &rapl_packages, plist) {
-		for (dmn = 0; dmn < rp->nr_domains; dmn++) {
-			pr_debug("update package %d domain %s data\n", rp->id,
-				rp->domains[dmn].name);
-			/* exclude non-raw primitives */
-			for (prim = 0; prim < NR_RAW_PRIMITIVES; prim++)
-				if (!rapl_read_data_raw(&rp->domains[dmn], prim,
-								rpi[prim].unit,
-								&val))
-					rp->domains[dmn].rdd.primitives[prim] =
-									val;
+	for (dmn = 0; dmn < rp->nr_domains; dmn++) {
+		pr_debug("update package %d domain %s data\n", rp->id,
+			 rp->domains[dmn].name);
+		/* exclude non-raw primitives */
+		for (prim = 0; prim < NR_RAW_PRIMITIVES; prim++) {
+			if (!rapl_read_data_raw(&rp->domains[dmn], prim,
+						rpi[prim].unit, &val))
+				rp->domains[dmn].rdd.primitives[prim] =	val;
 		}
 	}
 
@@ -1234,10 +1230,12 @@ static int rapl_unregister_powercap(void)
 static int rapl_package_register_powercap(struct rapl_package *rp)
 {
 	struct rapl_domain *rd;
-	int ret = 0;
 	char dev_name[17]; /* max domain name = 7 + 1 + 8 for int + 1 for null*/
 	struct powercap_zone *power_zone = NULL;
-	int nr_pl;
+	int nr_pl, ret;;
+
+	/* Update the domain data of the new package */
+	rapl_update_domain_data(rp);
 
 	/* first we register package domain as the parent zone*/
 	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
@@ -1257,8 +1255,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 			if (IS_ERR(power_zone)) {
 				pr_debug("failed to register package, %d\n",
 					rp->id);
-				ret = PTR_ERR(power_zone);
-				goto exit_package;
+				return PTR_ERR(power_zone);
 			}
 			/* track parent zone in per package/socket data */
 			rp->power_zone = power_zone;
@@ -1268,8 +1265,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 	}
 	if (!power_zone) {
 		pr_err("no package domain found, unknown topology!\n");
-		ret = -ENODEV;
-		goto exit_package;
+		return -ENODEV;
 	}
 	/* now register domains as children of the socket/package*/
 	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
@@ -1290,9 +1286,8 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 			goto err_cleanup;
 		}
 	}
+	return 0;
 
-exit_package:
-	return ret;
 err_cleanup:
 	/* clean up previously initialized domains within the package if we
 	 * failed after the first domain setup.
@@ -1357,8 +1352,7 @@ static int rapl_register_powercap(void)
 		pr_debug("failed to register powercap control_type.\n");
 		return PTR_ERR(control_type);
 	}
-	/* read the initial data */
-	rapl_update_domain_data();
+
 	list_for_each_entry(rp, &rapl_packages, plist)
 		if (rapl_package_register_powercap(rp))
 			goto err_cleanup_package;
