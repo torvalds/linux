@@ -353,13 +353,11 @@ static int atmel_securam_wait(void)
 					10000, 500000);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id sram_dt_ids[] = {
 	{ .compatible = "mmio-sram" },
 	{ .compatible = "atmel,sama5d2-securam", .data = atmel_securam_wait },
 	{}
 };
-#endif
 
 static int sram_probe(struct platform_device *pdev)
 {
@@ -443,7 +441,7 @@ static int sram_remove(struct platform_device *pdev)
 static struct platform_driver sram_driver = {
 	.driver = {
 		.name = "sram",
-		.of_match_table = of_match_ptr(sram_dt_ids),
+		.of_match_table = sram_dt_ids,
 	},
 	.probe = sram_probe,
 	.remove = sram_remove,
