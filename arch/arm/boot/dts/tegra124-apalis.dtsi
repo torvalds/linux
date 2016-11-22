@@ -1153,11 +1153,11 @@
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
 
-			/* GPIO_PI6 aka TEMP_ALERT_L */
+			/* GPIO_PI6 aka TMP451 ALERT#/THERM2# */
 			pi6 {
 				nvidia,pins = "pi6";
 				nvidia,function = "rsvd1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
