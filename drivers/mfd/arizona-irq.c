@@ -26,6 +26,9 @@
 
 #include "arizona.h"
 
+#define ARIZONA_AOD_IRQ_INDEX 0
+#define ARIZONA_MAIN_IRQ_INDEX 1
+
 static int arizona_map_irq(struct arizona *arizona, int irq)
 {
 	int ret;
@@ -319,7 +322,8 @@ int arizona_irq_init(struct arizona *arizona)
 
 	if (aod) {
 		ret = regmap_add_irq_chip(arizona->regmap,
-					  irq_create_mapping(arizona->virq, 0),
+					  irq_create_mapping(arizona->virq,
+							ARIZONA_AOD_IRQ_INDEX),
 					  IRQF_ONESHOT, 0, aod,
 					  &arizona->aod_irq_chip);
 		if (ret != 0) {
@@ -330,7 +334,8 @@ int arizona_irq_init(struct arizona *arizona)
 	}
 
 	ret = regmap_add_irq_chip(arizona->regmap,
-				  irq_create_mapping(arizona->virq, 1),
+				  irq_create_mapping(arizona->virq,
+						     ARIZONA_MAIN_IRQ_INDEX),
 				  IRQF_ONESHOT, 0, irq,
 				  &arizona->irq_chip);
 	if (ret != 0) {
@@ -396,10 +401,12 @@ err_ctrlif:
 err_boot_done:
 	free_irq(arizona->irq, arizona);
 err_main_irq:
-	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 1),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq,
+					     ARIZONA_MAIN_IRQ_INDEX),
 			    arizona->irq_chip);
 err_aod:
-	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 0),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq,
+					     ARIZONA_AOD_IRQ_INDEX),
 			    arizona->aod_irq_chip);
 err:
 	return ret;
@@ -411,9 +418,11 @@ int arizona_irq_exit(struct arizona *arizona)
 		arizona_free_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_BOOT_DONE, arizona);
 
-	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 1),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq,
+					     ARIZONA_MAIN_IRQ_INDEX),
 			    arizona->irq_chip);
-	regmap_del_irq_chip(irq_find_mapping(arizona->virq, 0),
+	regmap_del_irq_chip(irq_find_mapping(arizona->virq,
+					     ARIZONA_AOD_IRQ_INDEX),
 			    arizona->aod_irq_chip);
 	free_irq(arizona->irq, arizona);
 
