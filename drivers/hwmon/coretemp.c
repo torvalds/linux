@@ -662,12 +662,12 @@ static int coretemp_cpu_online(unsigned int cpu)
 	 * without thermal sensors will be filtered out.
 	 */
 	if (!cpu_has(c, X86_FEATURE_DTHERM))
-		return 0;
+		return -ENODEV;
 
 	if (!pdev) {
 		/* Check the microcode version of the CPU */
 		if (chk_ucode_version(cpu))
-			return 0;
+			return -EINVAL;
 
 		/*
 		 * Alright, we have DTS support.
@@ -677,7 +677,7 @@ static int coretemp_cpu_online(unsigned int cpu)
 		 */
 		err = coretemp_device_add(cpu);
 		if (err)
-			return 0;
+			return err;
 
 		pdev = coretemp_get_pdev(cpu);
 		/*
@@ -782,28 +782,14 @@ static int __init coretemp_init(void)
 	if (err)
 		return err;
 
-	get_online_cpus();
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "hwmon/coretemp:online",
 				coretemp_cpu_online, coretemp_cpu_offline);
 	if (err < 0)
-		goto exit_driver_unreg;
+		goto outdrv;
 	coretemp_hp_online = err;
-
-#ifndef CONFIG_HOTPLUG_CPU
-	if (list_empty(&pdev_list)) {
-		err = -ENODEV;
-		goto exit_hp_unreg;
-	}
-#endif
-	put_online_cpus();
 	return 0;
 
-#ifndef CONFIG_HOTPLUG_CPU
-exit_hp_unreg:
-	cpuhp_remove_state(coretemp_hp_online);
-	put_online_cpus();
-#endif
-exit_driver_unreg:
+outdrv:
 	platform_driver_unregister(&coretemp_driver);
 	return err;
 }
