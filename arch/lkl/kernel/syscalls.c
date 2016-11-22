@@ -75,18 +75,23 @@ static int new_host_task(struct task_struct **task)
 
 	return 0;
 }
+static void exit_task(void)
+{
+	do_exit(0);
+}
 
 static void del_host_task(void *arg)
 {
 	struct task_struct *task = (struct task_struct *)arg;
+	struct thread_info *ti = task_thread_info(task);
 
 	if (lkl_cpu_get() < 0)
 		return;
 
 	switch_to_host_task(task);
 	host_task_id--;
-	thread_set_sched_exit();
-	do_exit(0);
+	set_ti_thread_flag(ti, TIF_SCHED_JB);
+	lkl_ops->jmp_buf_set(&ti->sched_jb, exit_task);
 }
 
 static struct lkl_tls_key *task_key;

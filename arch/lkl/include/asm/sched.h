@@ -17,11 +17,6 @@ static inline void thread_sched_jb(void)
 	}
 }
 
-static inline void thread_set_sched_exit(void)
-{
-	set_ti_thread_flag(current_thread_info(), TIF_SCHED_EXIT);
-}
-
 void switch_to_host_task(struct task_struct *);
 
 #endif /*  _ASM_LKL_SCHED_H */
