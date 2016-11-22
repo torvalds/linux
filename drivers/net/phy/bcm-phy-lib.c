@@ -195,7 +195,7 @@ int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_enable_apd);
 
-int bcm_phy_enable_eee(struct phy_device *phydev)
+int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 {
 	int val;
 
@@ -205,7 +205,10 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+	if (enable)
+		val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+	else
+		val &= ~(LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X);
 
 	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
 			       MDIO_MMD_AN, (u32)val);
@@ -216,14 +219,17 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	if (enable)
+		val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	else
+		val &= ~(MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
 
 	phy_write_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
 			       MDIO_MMD_AN, (u32)val);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bcm_phy_enable_eee);
+EXPORT_SYMBOL_GPL(bcm_phy_set_eee);
 
 int bcm_phy_downshift_get(struct phy_device *phydev, u8 *count)
 {

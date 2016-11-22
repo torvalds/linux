@@ -104,7 +104,7 @@ static int bcm_cygnus_config_init(struct phy_device *phydev)
 		return rc;
 
 	/* Advertise EEE */
-	rc = bcm_phy_enable_eee(phydev);
+	rc = bcm_phy_set_eee(phydev, true);
 	if (rc)
 		return rc;
 

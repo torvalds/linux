@@ -199,7 +199,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = bcm_phy_enable_eee(phydev);
+	ret = bcm_phy_set_eee(phydev, true);
 	if (ret)
 		return ret;
 
