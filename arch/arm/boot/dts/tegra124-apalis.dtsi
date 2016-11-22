@@ -257,7 +257,7 @@
 			};
 			dp_hpd_pff0 {
 				nvidia,pins = "dp_hpd_pff0";
-				nvidia,function = "rsvd2";
+				nvidia,function = "dp";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
