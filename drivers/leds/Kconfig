@@ -645,7 +645,7 @@ config LEDS_VERSATILE
 
 config LEDS_PM8058
 	tristate "LED Support for the Qualcomm PM8058 PMIC"
-	depends on MFD_PM8921_CORE
+	depends on MFD_PM8XXX
 	depends on LEDS_CLASS
 	help
 	  Choose this option if you want to use the LED drivers in

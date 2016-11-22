@@ -53,7 +53,7 @@
 #define REG_HWREV		0x002  /* PMIC4 revision */
 #define REG_HWREV_2		0x0E8  /* PMIC4 revision 2 */
 
-#define PM8921_NR_IRQS		256
+#define PM8XXX_NR_IRQS		256
 
 struct pm_irq_chip {
 	struct regmap		*regmap;
@@ -308,22 +308,22 @@ static const struct regmap_config ssbi_regmap_config = {
 	.reg_write = ssbi_reg_write
 };
 
-static const struct of_device_id pm8921_id_table[] = {
+static const struct of_device_id pm8xxx_id_table[] = {
 	{ .compatible = "qcom,pm8018", },
 	{ .compatible = "qcom,pm8058", },
 	{ .compatible = "qcom,pm8921", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, pm8921_id_table);
+MODULE_DEVICE_TABLE(of, pm8xxx_id_table);
 
-static int pm8921_probe(struct platform_device *pdev)
+static int pm8xxx_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
 	int irq, rc;
 	unsigned int val;
 	u32 rev;
 	struct pm_irq_chip *chip;
-	unsigned int nirqs = PM8921_NR_IRQS;
+	unsigned int nirqs = PM8XXX_NR_IRQS;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -384,46 +384,46 @@ static int pm8921_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int pm8921_remove_child(struct device *dev, void *unused)
+static int pm8xxx_remove_child(struct device *dev, void *unused)
 {
 	platform_device_unregister(to_platform_device(dev));
 	return 0;
 }
 
-static int pm8921_remove(struct platform_device *pdev)
+static int pm8xxx_remove(struct platform_device *pdev)
 {
 	int irq = platform_get_irq(pdev, 0);
 	struct pm_irq_chip *chip = platform_get_drvdata(pdev);
 
-	device_for_each_child(&pdev->dev, NULL, pm8921_remove_child);
+	device_for_each_child(&pdev->dev, NULL, pm8xxx_remove_child);
 	irq_set_chained_handler_and_data(irq, NULL, NULL);
 	irq_domain_remove(chip->irqdomain);
 
 	return 0;
 }
 
-static struct platform_driver pm8921_driver = {
-	.probe		= pm8921_probe,
-	.remove		= pm8921_remove,
+static struct platform_driver pm8xxx_driver = {
+	.probe		= pm8xxx_probe,
+	.remove		= pm8xxx_remove,
 	.driver		= {
-		.name	= "pm8921-core",
-		.of_match_table = pm8921_id_table,
+		.name	= "pm8xxx-core",
+		.of_match_table = pm8xxx_id_table,
 	},
 };
 
-static int __init pm8921_init(void)
+static int __init pm8xxx_init(void)
 {
-	return platform_driver_register(&pm8921_driver);
+	return platform_driver_register(&pm8xxx_driver);
 }
-subsys_initcall(pm8921_init);
+subsys_initcall(pm8xxx_init);
 
-static void __exit pm8921_exit(void)
+static void __exit pm8xxx_exit(void)
 {
-	platform_driver_unregister(&pm8921_driver);
+	platform_driver_unregister(&pm8xxx_driver);
 }
-module_exit(pm8921_exit);
+module_exit(pm8xxx_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("PMIC 8921 core driver");
+MODULE_DESCRIPTION("PMIC 8xxx core driver");
 MODULE_VERSION("1.0");
-MODULE_ALIAS("platform:pm8921-core");
+MODULE_ALIAS("platform:pm8xxx-core");
