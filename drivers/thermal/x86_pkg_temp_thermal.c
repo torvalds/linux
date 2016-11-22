@@ -281,7 +281,7 @@ static struct thermal_zone_device_ops tzone_ops = {
 	.set_trip_temp = sys_set_trip_temp,
 };
 
-static bool pkg_temp_thermal_platform_thermal_rate_control(void)
+static bool pkg_thermal_rate_control(void)
 {
 	return true;
 }
@@ -355,7 +355,7 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 	}
 }
 
-static int pkg_temp_thermal_platform_thermal_notify(__u64 msr_val)
+static int pkg_thermal_notify(__u64 msr_val)
 {
 	unsigned long flags;
 	int cpu = smp_processor_id();
@@ -579,10 +579,6 @@ static int __init pkg_temp_thermal_init(void)
 		return -ENODEV;
 
 	spin_lock_init(&pkg_work_lock);
-	platform_thermal_package_notify =
-			pkg_temp_thermal_platform_thermal_notify;
-	platform_thermal_package_rate_control =
-			pkg_temp_thermal_platform_thermal_rate_control;
 
 	cpu_notifier_register_begin();
 	for_each_online_cpu(i)
@@ -590,6 +586,9 @@ static int __init pkg_temp_thermal_init(void)
 			goto err_ret;
 	__register_hotcpu_notifier(&pkg_temp_thermal_notifier);
 	cpu_notifier_register_done();
+
+	platform_thermal_package_notify = pkg_thermal_notify;
+	platform_thermal_package_rate_control = pkg_thermal_rate_control;
 
 	pkg_temp_debugfs_init(); /* Don't care if fails */
 
@@ -600,9 +599,6 @@ err_ret:
 		put_core_offline(i);
 	cpu_notifier_register_done();
 	kfree(pkg_work_scheduled);
-	platform_thermal_package_notify = NULL;
-	platform_thermal_package_rate_control = NULL;
-
 	return -ENODEV;
 }
 
@@ -610,6 +606,9 @@ static void __exit pkg_temp_thermal_exit(void)
 {
 	struct phy_dev_entry *phdev, *n;
 	int i;
+
+	platform_thermal_package_notify = NULL;
+	platform_thermal_package_rate_control = NULL;
 
 	cpu_notifier_register_begin();
 	__unregister_hotcpu_notifier(&pkg_temp_thermal_notifier);
@@ -625,8 +624,6 @@ static void __exit pkg_temp_thermal_exit(void)
 		kfree(phdev);
 	}
 	mutex_unlock(&phy_dev_list_mutex);
-	platform_thermal_package_notify = NULL;
-	platform_thermal_package_rate_control = NULL;
 	for_each_online_cpu(i)
 		cancel_delayed_work_sync(
 			&per_cpu(pkg_temp_thermal_threshold_work, i));
