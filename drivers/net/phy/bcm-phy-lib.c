@@ -225,6 +225,92 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_enable_eee);
 
+int bcm_phy_downshift_get(struct phy_device *phydev, u8 *count)
+{
+	int val;
+
+	val = bcm54xx_auxctl_read(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
+	if (val < 0)
+		return val;
+
+	/* Check if wirespeed is enabled or not */
+	if (!(val & MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN)) {
+		*count = DOWNSHIFT_DEV_DISABLE;
+		return 0;
+	}
+
+	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_SCR2);
+	if (val < 0)
+		return val;
+
+	/* Downgrade after one link attempt */
+	if (val & BCM54XX_SHD_SCR2_WSPD_RTRY_DIS) {
+		*count = 1;
+	} else {
+		/* Downgrade after configured retry count */
+		val >>= BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT;
+		val &= BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK;
+		*count = val + BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_downshift_get);
+
+int bcm_phy_downshift_set(struct phy_device *phydev, u8 count)
+{
+	int val = 0, ret = 0;
+
+	/* Range check the number given */
+	if (count - BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET >
+	    BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK &&
+	    count != DOWNSHIFT_DEV_DEFAULT_COUNT) {
+		return -ERANGE;
+	}
+
+	val = bcm54xx_auxctl_read(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
+	if (val < 0)
+		return val;
+
+	/* Se the write enable bit */
+	val |= MII_BCM54XX_AUXCTL_MISC_WREN;
+
+	if (count == DOWNSHIFT_DEV_DISABLE) {
+		val &= ~MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN;
+		return bcm54xx_auxctl_write(phydev,
+					    MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
+					    val);
+	} else {
+		val |= MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN;
+		ret = bcm54xx_auxctl_write(phydev,
+					   MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
+					   val);
+		if (ret < 0)
+			return ret;
+	}
+
+	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_SCR2);
+	val &= ~(BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK <<
+		 BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT |
+		 BCM54XX_SHD_SCR2_WSPD_RTRY_DIS);
+
+	switch (count) {
+	case 1:
+		val |= BCM54XX_SHD_SCR2_WSPD_RTRY_DIS;
+		break;
+	case DOWNSHIFT_DEV_DEFAULT_COUNT:
+		val |= 1 << BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT;
+		break;
+	default:
+		val |= (count - BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET) <<
+			BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT;
+		break;
+	}
+
+	return bcm_phy_write_shadow(phydev, BCM54XX_SHD_SCR2, val);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_downshift_set);
+
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Broadcom Corporation");
