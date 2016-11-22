@@ -204,6 +204,9 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	}
 	if (ufs->config.default_permissions)
 		seq_puts(m, ",default_permissions");
+	if (ufs->config.redirect_dir != ovl_redirect_dir_def)
+		seq_printf(m, ",redirect_dir=%s",
+			   ufs->config.redirect_dir ? "on" : "off");
 	return 0;
 }
 
