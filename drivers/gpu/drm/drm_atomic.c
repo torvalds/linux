@@ -1816,6 +1816,58 @@ void drm_atomic_clean_old_fb(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_atomic_clean_old_fb);
 
+/**
+ * DOC: explicit fencing properties
+ *
+ * Explicit fencing allows userspace to control the buffer synchronization
+ * between devices. A Fence or a group of fences are transfered to/from
+ * userspace using Sync File fds and there are two DRM properties for that.
+ * IN_FENCE_FD on each DRM Plane to send fences to the kernel and
+ * OUT_FENCE_PTR on each DRM CRTC to receive fences from the kernel.
+ *
+ * As a contrast, with implicit fencing the kernel keeps track of any
+ * ongoing rendering, and automatically ensures that the atomic update waits
+ * for any pending rendering to complete. For shared buffers represented with
+ * a struct &dma_buf this is tracked in &reservation_object structures.
+ * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
+ * whereas explicit fencing is what Android wants.
+ *
+ * "IN_FENCE_FD”:
+ *	Use this property to pass a fence that DRM should wait on before
+ *	proceeding with the Atomic Commit request and show the framebuffer for
+ *	the plane on the screen. The fence can be either a normal fence or a
+ *	merged one, the sync_file framework will handle both cases and use a
+ *	fence_array if a merged fence is received. Passing -1 here means no
+ *	fences to wait on.
+ *
+ *	If the Atomic Commit request has the DRM_MODE_ATOMIC_TEST_ONLY flag
+ *	it will only check if the Sync File is a valid one.
+ *
+ *	On the driver side the fence is stored on the @fence parameter of
+ *	struct &drm_plane_state. Drivers which also support implicit fencing
+ *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
+ *	to make sure there's consistent behaviour between drivers in precedence
+ *	of implicit vs. explicit fencing.
+ *
+ * "OUT_FENCE_PTR”:
+ *	Use this property to pass a file descriptor pointer to DRM. Once the
+ *	Atomic Commit request call returns OUT_FENCE_PTR will be filled with
+ *	the file descriptor number of a Sync File. This Sync File contains the
+ *	CRTC fence that will be signaled when all framebuffers present on the
+ *	Atomic Commit * request for that given CRTC are scanned out on the
+ *	screen.
+ *
+ *	The Atomic Commit request fails if a invalid pointer is passed. If the
+ *	Atomic Commit request fails for any other reason the out fence fd
+ *	returned will be -1. On a Atomic Commit with the
+ *	DRM_MODE_ATOMIC_TEST_ONLY flag the out fence will also be set to -1.
+ *
+ *	Note that out-fences don't have a special interface to drivers and are
+ *	internally represented by a struct &drm_pending_vblank_event in struct
+ *	&drm_crtc_state, which is also used by the nonblocking atomic commit
+ *	helpers and for the DRM event handling for existing userspace.
+ */
+
 static struct dma_fence *get_crtc_fence(struct drm_crtc *crtc)
 {
 	struct dma_fence *fence;
