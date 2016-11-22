@@ -147,7 +147,7 @@ long arch_ptrace(struct task_struct *child, long request,
 				/* The trampoline page is globally mapped, no page table to traverse.*/
 				tmp = *(unsigned long*)addr;
 			} else {
-				copied = access_process_vm(child, addr, &tmp, sizeof(tmp), FOLL_FORCE);
+				copied = ptrace_access_vm(child, addr, &tmp, sizeof(tmp), FOLL_FORCE);
 
 				if (copied != sizeof(tmp))
 					break;
