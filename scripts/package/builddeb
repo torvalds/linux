@@ -143,12 +143,7 @@ else
 	cp System.map "$tmpdir/boot/System.map-$version"
 	cp $KCONFIG_CONFIG "$tmpdir/boot/config-$version"
 fi
-# Not all arches include the boot path in KBUILD_IMAGE
-if [ -e $KBUILD_IMAGE ]; then
-	cp $KBUILD_IMAGE "$tmpdir/$installed_image_path"
-else
-	cp arch/$ARCH/boot/$KBUILD_IMAGE "$tmpdir/$installed_image_path"
-fi
+cp "$($MAKE -s image_name)" "$tmpdir/$installed_image_path"
 
 if grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG ; then
 	# Only some architectures with OF support have this target
