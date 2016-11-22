@@ -3378,7 +3378,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = plane_state->base.fb;
-	int pipe = intel_crtc->pipe;
+	enum plane_id plane_id = to_intel_plane(plane)->id;
+	enum pipe pipe = to_intel_plane(plane)->pipe;
 	u32 plane_ctl;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
@@ -3413,30 +3414,30 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	intel_crtc->adjusted_x = src_x;
 	intel_crtc->adjusted_y = src_y;
 
-	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
-	I915_WRITE(PLANE_OFFSET(pipe, 0), (src_y << 16) | src_x);
-	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
-	I915_WRITE(PLANE_SIZE(pipe, 0), (src_h << 16) | src_w);
+	I915_WRITE(PLANE_CTL(pipe, plane_id), plane_ctl);
+	I915_WRITE(PLANE_OFFSET(pipe, plane_id), (src_y << 16) | src_x);
+	I915_WRITE(PLANE_STRIDE(pipe, plane_id), stride);
+	I915_WRITE(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
 
 	if (scaler_id >= 0) {
 		uint32_t ps_ctrl = 0;
 
 		WARN_ON(!dst_w || !dst_h);
-		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(0) |
+		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(plane_id) |
 			crtc_state->scaler_state.scalers[scaler_id].mode;
 		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
 		I915_WRITE(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
 		I915_WRITE(SKL_PS_WIN_POS(pipe, scaler_id), (dst_x << 16) | dst_y);
 		I915_WRITE(SKL_PS_WIN_SZ(pipe, scaler_id), (dst_w << 16) | dst_h);
-		I915_WRITE(PLANE_POS(pipe, 0), 0);
+		I915_WRITE(PLANE_POS(pipe, plane_id), 0);
 	} else {
-		I915_WRITE(PLANE_POS(pipe, 0), (dst_y << 16) | dst_x);
+		I915_WRITE(PLANE_POS(pipe, plane_id), (dst_y << 16) | dst_x);
 	}
 
-	I915_WRITE(PLANE_SURF(pipe, 0),
+	I915_WRITE(PLANE_SURF(pipe, plane_id),
 		   intel_fb_gtt_offset(fb, rotation) + surf_addr);
 
-	POSTING_READ(PLANE_SURF(pipe, 0));
+	POSTING_READ(PLANE_SURF(pipe, plane_id));
 }
 
 static void skylake_disable_primary_plane(struct drm_plane *primary,
@@ -3444,12 +3445,12 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	enum plane_id plane_id = to_intel_plane(primary)->id;
+	enum pipe pipe = to_intel_plane(primary)->pipe;
 
-	I915_WRITE(PLANE_CTL(pipe, 0), 0);
-	I915_WRITE(PLANE_SURF(pipe, 0), 0);
-	POSTING_READ(PLANE_SURF(pipe, 0));
+	I915_WRITE(PLANE_CTL(pipe, plane_id), 0);
+	I915_WRITE(PLANE_SURF(pipe, plane_id), 0);
+	POSTING_READ(PLANE_SURF(pipe, plane_id));
 }
 
 /* Assume fb object is pinned & idle & fenced and just update base pointers */
