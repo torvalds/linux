@@ -2843,20 +2843,32 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 		return -ENOMEM;
 	}
 
+	entry = trace_create_file("enable", 0644, d_events,
+				  tr, &ftrace_tr_enable_fops);
+	if (!entry) {
+		pr_warn("Could not create tracefs 'enable' entry\n");
+		return -ENOMEM;
+	}
+
+	/* There are not as crucial, just warn if they are not created */
+
 	entry = tracefs_create_file("set_event_pid", 0644, parent,
 				    tr, &ftrace_set_event_pid_fops);
+	if (!entry)
+		pr_warn("Could not create tracefs 'set_event_pid' entry\n");
 
 	/* ring buffer internal formats */
-	trace_create_file("header_page", 0444, d_events,
-			  ring_buffer_print_page_header,
-			  &ftrace_show_header_fops);
+	entry = trace_create_file("header_page", 0444, d_events,
+				  ring_buffer_print_page_header,
+				  &ftrace_show_header_fops);
+	if (!entry)
+		pr_warn("Could not create tracefs 'header_page' entry\n");
 
-	trace_create_file("header_event", 0444, d_events,
-			  ring_buffer_print_entry_header,
-			  &ftrace_show_header_fops);
-
-	trace_create_file("enable", 0644, d_events,
-			  tr, &ftrace_tr_enable_fops);
+	entry = trace_create_file("header_event", 0444, d_events,
+				  ring_buffer_print_entry_header,
+				  &ftrace_show_header_fops);
+	if (!entry)
+		pr_warn("Could not create tracefs 'header_event' entry\n");
 
 	tr->event_dir = d_events;
 
