@@ -657,6 +657,14 @@ static int esw_offloads_start(struct mlx5_eswitch *esw)
 		if (err1)
 			esw_warn(esw->dev, "Failed setting eswitch back to legacy, err %d\n", err);
 	}
+	if (esw->offloads.inline_mode == MLX5_INLINE_MODE_NONE) {
+		if (mlx5_eswitch_inline_mode_get(esw,
+						 num_vfs,
+						 &esw->offloads.inline_mode)) {
+			esw->offloads.inline_mode = MLX5_INLINE_MODE_L2;
+			esw_warn(esw->dev, "Inline mode is different between vports\n");
+		}
+	}
 	return err;
 }
 
@@ -771,6 +779,50 @@ static int esw_mode_to_devlink(u16 mlx5_mode, u16 *mode)
 	return 0;
 }
 
+static int esw_inline_mode_from_devlink(u8 mode, u8 *mlx5_mode)
+{
+	switch (mode) {
+	case DEVLINK_ESWITCH_INLINE_MODE_NONE:
+		*mlx5_mode = MLX5_INLINE_MODE_NONE;
+		break;
+	case DEVLINK_ESWITCH_INLINE_MODE_LINK:
+		*mlx5_mode = MLX5_INLINE_MODE_L2;
+		break;
+	case DEVLINK_ESWITCH_INLINE_MODE_NETWORK:
+		*mlx5_mode = MLX5_INLINE_MODE_IP;
+		break;
+	case DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT:
+		*mlx5_mode = MLX5_INLINE_MODE_TCP_UDP;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int esw_inline_mode_to_devlink(u8 mlx5_mode, u8 *mode)
+{
+	switch (mlx5_mode) {
+	case MLX5_INLINE_MODE_NONE:
+		*mode = DEVLINK_ESWITCH_INLINE_MODE_NONE;
+		break;
+	case MLX5_INLINE_MODE_L2:
+		*mode = DEVLINK_ESWITCH_INLINE_MODE_LINK;
+		break;
+	case MLX5_INLINE_MODE_IP:
+		*mode = DEVLINK_ESWITCH_INLINE_MODE_NETWORK;
+		break;
+	case MLX5_INLINE_MODE_TCP_UDP:
+		*mode = DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
 {
 	struct mlx5_core_dev *dev;
@@ -813,6 +865,95 @@ int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 		return -EOPNOTSUPP;
 
 	return esw_mode_to_devlink(dev->priv.eswitch->mode, mode);
+}
+
+int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	int num_vports = esw->enabled_vports;
+	int err;
+	int vport;
+	u8 mlx5_mode;
+
+	if (!MLX5_CAP_GEN(dev, vport_group_manager))
+		return -EOPNOTSUPP;
+
+	if (esw->mode == SRIOV_NONE)
+		return -EOPNOTSUPP;
+
+	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
+	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
+		return -EOPNOTSUPP;
+
+	err = esw_inline_mode_from_devlink(mode, &mlx5_mode);
+	if (err)
+		goto out;
+
+	for (vport = 1; vport < num_vports; vport++) {
+		err = mlx5_modify_nic_vport_min_inline(dev, vport, mlx5_mode);
+		if (err) {
+			esw_warn(dev, "Failed to set min inline on vport %d\n",
+				 vport);
+			goto revert_inline_mode;
+		}
+	}
+
+	esw->offloads.inline_mode = mlx5_mode;
+	return 0;
+
+revert_inline_mode:
+	while (--vport > 0)
+		mlx5_modify_nic_vport_min_inline(dev,
+						 vport,
+						 esw->offloads.inline_mode);
+out:
+	return err;
+}
+
+int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+
+	if (!MLX5_CAP_GEN(dev, vport_group_manager))
+		return -EOPNOTSUPP;
+
+	if (esw->mode == SRIOV_NONE)
+		return -EOPNOTSUPP;
+
+	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
+	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
+		return -EOPNOTSUPP;
+
+	return esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
+}
+
+int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, int nvfs, u8 *mode)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+	int vport;
+	u8 prev_mlx5_mode, mlx5_mode = MLX5_INLINE_MODE_L2;
+
+	if (!MLX5_CAP_GEN(dev, vport_group_manager))
+		return -EOPNOTSUPP;
+
+	if (esw->mode == SRIOV_NONE)
+		return -EOPNOTSUPP;
+
+	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
+	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
+		return -EOPNOTSUPP;
+
+	for (vport = 1; vport <= nvfs; vport++) {
+		mlx5_query_nic_vport_min_inline(dev, vport, &mlx5_mode);
+		if (vport > 1 && prev_mlx5_mode != mlx5_mode)
+			return -EINVAL;
+		prev_mlx5_mode = mlx5_mode;
+	}
+
+	*mode = mlx5_mode;
+	return 0;
 }
 
 void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
