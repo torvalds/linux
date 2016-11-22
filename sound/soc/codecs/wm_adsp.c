@@ -2575,8 +2575,13 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 		mutex_lock(&dsp->pwr_lock);
 
-		if (wm_adsp_fw[dsp->fw].num_caps != 0)
+		if (wm_adsp_fw[dsp->fw].num_caps != 0) {
 			ret = wm_adsp_buffer_init(dsp);
+			if (ret < 0) {
+				mutex_unlock(&dsp->pwr_lock);
+				goto err;
+			}
+		}
 
 		mutex_unlock(&dsp->pwr_lock);
 
