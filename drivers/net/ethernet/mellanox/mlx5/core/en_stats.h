@@ -407,6 +407,7 @@ struct mlx5e_stats {
 	struct mlx5e_vport_stats vport;
 	struct mlx5e_pport_stats pport;
 	struct mlx5e_pcie_stats pcie;
+	struct rtnl_link_stats64 vf_vport;
 };
 
 static const struct counter_desc mlx5e_pme_status_desc[] = {

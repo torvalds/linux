@@ -470,16 +470,6 @@ static void mlx5e_rq_free_mpwqe_info(struct mlx5e_rq *rq)
 	kfree(rq->mpwqe.info);
 }
 
-static bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv)
-{
-	struct mlx5_eswitch_rep *rep = (struct mlx5_eswitch_rep *)priv->ppriv;
-
-	if (rep && rep->vport != FDB_UPLINK_VPORT)
-		return true;
-
-	return false;
-}
-
 static int mlx5e_create_rq(struct mlx5e_channel *c,
 			   struct mlx5e_rq_param *param,
 			   struct mlx5e_rq *rq)
@@ -2664,7 +2654,7 @@ mqprio:
 	return mlx5e_setup_tc(dev, tc->tc);
 }
 
-struct rtnl_link_stats64 *
+static struct rtnl_link_stats64 *
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -2672,13 +2662,20 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	struct mlx5e_vport_stats *vstats = &priv->stats.vport;
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
 
-	stats->rx_packets = sstats->rx_packets;
-	stats->rx_bytes   = sstats->rx_bytes;
-	stats->tx_packets = sstats->tx_packets;
-	stats->tx_bytes   = sstats->tx_bytes;
+	if (mlx5e_is_uplink_rep(priv)) {
+		stats->rx_packets = PPORT_802_3_GET(pstats, a_frames_received_ok);
+		stats->rx_bytes   = PPORT_802_3_GET(pstats, a_octets_received_ok);
+		stats->tx_packets = PPORT_802_3_GET(pstats, a_frames_transmitted_ok);
+		stats->tx_bytes   = PPORT_802_3_GET(pstats, a_octets_transmitted_ok);
+	} else {
+		stats->rx_packets = sstats->rx_packets;
+		stats->rx_bytes   = sstats->rx_bytes;
+		stats->tx_packets = sstats->tx_packets;
+		stats->tx_bytes   = sstats->tx_bytes;
+		stats->tx_dropped = sstats->tx_queue_dropped;
+	}
 
 	stats->rx_dropped = priv->stats.qcnt.rx_out_of_buffer;
-	stats->tx_dropped = sstats->tx_queue_dropped;
 
 	stats->rx_length_errors =
 		PPORT_802_3_GET(pstats, a_in_range_length_errors) +
@@ -3290,6 +3287,8 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller     = mlx5e_netpoll,
 #endif
+	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
+	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
 };
 
 static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)

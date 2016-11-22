@@ -874,6 +874,7 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr);
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+void mlx5e_update_hw_rep_counters(struct mlx5e_priv *priv);
 
 int mlx5e_create_direct_rqts(struct mlx5e_priv *priv);
 void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt);
@@ -890,12 +891,16 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv);
 int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
-struct rtnl_link_stats64 *
-mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
 void mlx5e_add_vxlan_port(struct net_device *netdev,
 			  struct udp_tunnel_info *ti);
 void mlx5e_del_vxlan_port(struct net_device *netdev,
 			  struct udp_tunnel_info *ti);
 
+int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
+			    void *sp);
+bool mlx5e_has_offload_stats(const struct net_device *dev, int attr_id);
+
+bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
+bool mlx5e_is_vf_vport_rep(struct mlx5e_priv *priv);
 #endif /* __MLX5_EN_H__ */
