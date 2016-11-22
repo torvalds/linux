@@ -5192,15 +5192,41 @@ struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type
 }
 
 /**
- * pevent_data_pid - parse the PID from raw data
+ * pevent_data_pid - parse the PID from record
  * @pevent: a handle to the pevent
  * @rec: the record to parse
  *
- * This returns the PID from a raw data.
+ * This returns the PID from a record.
  */
 int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec)
 {
 	return parse_common_pid(pevent, rec->data);
+}
+
+/**
+ * pevent_data_prempt_count - parse the preempt count from the record
+ * @pevent: a handle to the pevent
+ * @rec: the record to parse
+ *
+ * This returns the preempt count from a record.
+ */
+int pevent_data_prempt_count(struct pevent *pevent, struct pevent_record *rec)
+{
+	return parse_common_pc(pevent, rec->data);
+}
+
+/**
+ * pevent_data_flags - parse the latency flags from the record
+ * @pevent: a handle to the pevent
+ * @rec: the record to parse
+ *
+ * This returns the latency flags from a record.
+ *
+ *  Use trace_flag_type enum for the flags (see event-parse.h).
+ */
+int pevent_data_flags(struct pevent *pevent, struct pevent_record *rec)
+{
+	return parse_common_flags(pevent, rec->data);
 }
 
 /**
