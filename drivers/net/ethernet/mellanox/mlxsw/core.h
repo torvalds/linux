@@ -321,4 +321,28 @@ static inline int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 
 #endif
 
+struct mlxsw_thermal;
+
+#ifdef CONFIG_MLXSW_CORE_THERMAL
+
+int mlxsw_thermal_init(struct mlxsw_core *mlxsw_core,
+		       const struct mlxsw_bus_info *mlxsw_bus_info,
+		       struct mlxsw_thermal **p_thermal);
+void mlxsw_thermal_fini(struct mlxsw_thermal *thermal);
+
+#else
+
+static inline int mlxsw_thermal_init(struct mlxsw_core *mlxsw_core,
+				     const struct mlxsw_bus_info *mlxsw_bus_info,
+				     struct mlxsw_thermal **p_thermal)
+{
+	return 0;
+}
+
+static inline void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
+{
+}
+
+#endif
+
 #endif
