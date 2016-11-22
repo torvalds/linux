@@ -1327,7 +1327,7 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 		}
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_sprite(dev_priv, pipe, sprite) {
-			u32 val = I915_READ(SPCNTR(pipe, sprite));
+			u32 val = I915_READ(SPCNTR(pipe, PLANE_SPRITE0 + sprite));
 			I915_STATE_WARN(val & SP_ENABLE,
 			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 			     sprite_name(pipe, sprite), pipe_name(pipe));
