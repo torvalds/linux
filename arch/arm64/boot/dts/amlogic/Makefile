@@ -8,6 +8,8 @@ dtb-$(CONFIG_ARCH_MESON) += meson-gxbb-vega-s95-telos.dtb
 dtb-$(CONFIG_ARCH_MESON) += meson-gxl-s905x-p212.dtb
 dtb-$(CONFIG_ARCH_MESON) += meson-gxl-s905d-p230.dtb
 dtb-$(CONFIG_ARCH_MESON) += meson-gxl-s905d-p231.dtb
+dtb-$(CONFIG_ARCH_MESON) += meson-gxm-s912-q200.dtb
+dtb-$(CONFIG_ARCH_MESON) += meson-gxm-s912-q201.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)

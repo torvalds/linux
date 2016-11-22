@@ -43,16 +43,35 @@
 
 /dts-v1/;
 
-#include "meson-gxl-s905d.dtsi"
+#include "meson-gxm.dtsi"
 #include "meson-gx-p23x-q20x.dtsi"
 
 / {
-	compatible = "amlogic,p231", "amlogic,s905d", "amlogic,meson-gxl";
-	model = "Amlogic Meson GXL (S905D) P231 Development Board";
+	compatible = "amlogic,q200", "amlogic,s912", "amlogic,meson-gxm";
+	model = "Amlogic Meson GXM (S912) Q200 Development Board";
 };
 
-/* P231 has only internal PHY port */
+/* Q200 has exclusive choice between internal or external PHY */
 &ethmac {
-	phy-mode = "rmii";
-	phy-handle = <&internal_phy>;
+	pinctrl-0 = <&eth_pins>;
+	pinctrl-names = "default";
+
+	/* Select external PHY by default */
+	phy-handle = <&external_phy>;
+
+	/* External PHY reset is shared with internal PHY Led signals */
+	snps,reset-gpio = <&gpio GPIOZ_14 0>;
+	snps,reset-delays-us = <0 10000 1000000>;
+	snps,reset-active-low;
+
+	/* External PHY is in RGMII */
+	phy-mode = "rgmii";
+};
+
+&external_mdio {
+	external_phy: ethernet-phy@0 {
+		compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+		max-speed = <1000>;
+	};
 };

@@ -43,7 +43,8 @@
 
 /dts-v1/;
 
-#include "meson-gxl-s905d-p23x.dtsi"
+#include "meson-gxl-s905d.dtsi"
+#include "meson-gx-p23x-q20x.dtsi"
 
 / {
 	compatible = "amlogic,p230", "amlogic,s905d", "amlogic,meson-gxl";
