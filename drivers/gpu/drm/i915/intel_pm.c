@@ -370,12 +370,15 @@ static const int pessimal_latency_ns = 5000;
 #define VLV_FIFO_START(dsparb, dsparb2, lo_shift, hi_shift) \
 	((((dsparb) >> (lo_shift)) & 0xff) | ((((dsparb2) >> (hi_shift)) & 0x1) << 8))
 
-static int vlv_get_fifo_size(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, int plane)
+static int vlv_get_fifo_size(struct intel_plane *plane)
 {
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	int sprite0_start, sprite1_start, size;
 
-	switch (pipe) {
+	if (plane->id == PLANE_CURSOR)
+		return 63;
+
+	switch (plane->pipe) {
 		uint32_t dsparb, dsparb2, dsparb3;
 	case PIPE_A:
 		dsparb = I915_READ(DSPARB);
@@ -399,24 +402,21 @@ static int vlv_get_fifo_size(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	switch (plane) {
-	case 0:
+	switch (plane->id) {
+	case PLANE_PRIMARY:
 		size = sprite0_start;
 		break;
-	case 1:
+	case PLANE_SPRITE0:
 		size = sprite1_start - sprite0_start;
 		break;
-	case 2:
+	case PLANE_SPRITE1:
 		size = 512 - 1 - sprite1_start;
 		break;
 	default:
 		return 0;
 	}
 
-	DRM_DEBUG_KMS("Pipe %c %s %c FIFO size: %d\n",
-		      pipe_name(pipe), plane == 0 ? "primary" : "sprite",
-		      plane == 0 ? plane_name(pipe) : sprite_name(pipe, plane - 1),
-		      size);
+	DRM_DEBUG_KMS("%s FIFO size: %d\n", plane->base.name, size);
 
 	return size;
 }
@@ -1053,6 +1053,12 @@ static void vlv_compute_fifo(struct intel_crtc *crtc)
 	WARN_ON(fifo_left != 0);
 }
 
+/* FIXME kill me */
+static inline int vlv_sprite_id(enum plane_id plane_id)
+{
+	return plane_id - PLANE_SPRITE0;
+}
+
 static void vlv_invert_wms(struct intel_crtc *crtc)
 {
 	struct vlv_wm_state *wm_state = &crtc->wm_state;
@@ -1079,7 +1085,7 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 					wm_state->wm[level].primary;
 				break;
 			case DRM_PLANE_TYPE_OVERLAY:
-				sprite = plane->plane;
+				sprite = vlv_sprite_id(plane->id);
 				wm_state->wm[level].sprite[sprite] = plane->wm.fifo_size -
 					wm_state->wm[level].sprite[sprite];
 				break;
@@ -1144,7 +1150,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 				wm_state->wm[level].primary = wm;
 				break;
 			case DRM_PLANE_TYPE_OVERLAY:
-				sprite = plane->plane;
+				sprite = vlv_sprite_id(plane->id);
 				wm_state->wm[level].sprite[sprite] = wm;
 				break;
 			}
@@ -1170,7 +1176,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 					    wm_state->wm[level].primary);
 			break;
 		case DRM_PLANE_TYPE_OVERLAY:
-			sprite = plane->plane;
+			sprite = vlv_sprite_id(plane->id);
 			for (level = 0; level < wm_state->num_levels; level++)
 				wm_state->sr[level].plane =
 					min(wm_state->sr[level].plane,
@@ -1199,17 +1205,23 @@ static void vlv_pipe_set_fifo_size(struct intel_crtc *crtc)
 	int sprite0_start = 0, sprite1_start = 0, fifo_size = 0;
 
 	for_each_intel_plane_on_crtc(dev, crtc, plane) {
-		if (plane->base.type == DRM_PLANE_TYPE_CURSOR) {
-			WARN_ON(plane->wm.fifo_size != 63);
-			continue;
-		}
-
-		if (plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+		switch (plane->id) {
+		case PLANE_PRIMARY:
 			sprite0_start = plane->wm.fifo_size;
-		else if (plane->plane == 0)
+			break;
+		case PLANE_SPRITE0:
 			sprite1_start = sprite0_start + plane->wm.fifo_size;
-		else
+			break;
+		case PLANE_SPRITE1:
 			fifo_size = sprite1_start + plane->wm.fifo_size;
+			break;
+		case PLANE_CURSOR:
+			WARN_ON(plane->wm.fifo_size != 63);
+			break;
+		default:
+			MISSING_CASE(plane->id);
+			break;
+		}
 	}
 
 	WARN_ON(fifo_size != 512 - 1);
@@ -4510,21 +4522,8 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 
 	vlv_read_wm_values(dev_priv, wm);
 
-	for_each_intel_plane(dev, plane) {
-		switch (plane->base.type) {
-			int sprite;
-		case DRM_PLANE_TYPE_CURSOR:
-			plane->wm.fifo_size = 63;
-			break;
-		case DRM_PLANE_TYPE_PRIMARY:
-			plane->wm.fifo_size = vlv_get_fifo_size(dev_priv, plane->pipe, 0);
-			break;
-		case DRM_PLANE_TYPE_OVERLAY:
-			sprite = plane->plane;
-			plane->wm.fifo_size = vlv_get_fifo_size(dev_priv, plane->pipe, sprite + 1);
-			break;
-		}
-	}
+	for_each_intel_plane(dev, plane)
+		plane->wm.fifo_size = vlv_get_fifo_size(plane);
 
 	wm->cxsr = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 	wm->level = VLV_WM_LEVEL_PM2;
