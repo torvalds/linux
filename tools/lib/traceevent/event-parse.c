@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <linux/string.h>
+#include <linux/time64.h>
 
 #include <netinet/in.h>
 #include "event-parse.h"
@@ -5424,8 +5425,8 @@ void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
 	use_usec_format = is_timestamp_in_us(pevent->trace_clock,
 							use_trace_clock);
 	if (use_usec_format) {
-		secs = record->ts / NSECS_PER_SEC;
-		nsecs = record->ts - secs * NSECS_PER_SEC;
+		secs = record->ts / NSEC_PER_SEC;
+		nsecs = record->ts - secs * NSEC_PER_SEC;
 	}
 
 	if (pevent->latency_format) {
@@ -5437,10 +5438,10 @@ void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
 			usecs = nsecs;
 			p = 9;
 		} else {
-			usecs = (nsecs + 500) / NSECS_PER_USEC;
+			usecs = (nsecs + 500) / NSEC_PER_USEC;
 			/* To avoid usecs larger than 1 sec */
-			if (usecs >= 1000000) {
-				usecs -= 1000000;
+			if (usecs >= USEC_PER_SEC) {
+				usecs -= USEC_PER_SEC;
 				secs++;
 			}
 			p = 6;
