@@ -942,14 +942,13 @@ config CRYPTO_AES_X86_64
 config CRYPTO_AES_NI_INTEL
 	tristate "AES cipher algorithms (AES-NI)"
 	depends on X86
+	select CRYPTO_AEAD
 	select CRYPTO_AES_X86_64 if 64BIT
 	select CRYPTO_AES_586 if !64BIT
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER
 	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_GLUE_HELPER_X86 if 64BIT
-	select CRYPTO_LRW
-	select CRYPTO_XTS
+	select CRYPTO_SIMD
 	help
 	  Use Intel AES-NI instructions for AES algorithm.
 
