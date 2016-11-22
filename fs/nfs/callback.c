@@ -261,7 +261,7 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv,
 	}
 
 	ret = -EPROTONOSUPPORT;
-	if (minorversion == 0)
+	if (!IS_ENABLED(CONFIG_NFS_V4_1) || minorversion == 0)
 		ret = nfs4_callback_up_net(serv, net);
 	else if (xprt->ops->bc_up)
 		ret = xprt->ops->bc_up(serv, net);
