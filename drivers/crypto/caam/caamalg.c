@@ -224,7 +224,7 @@ struct caam_ctx {
 };
 
 static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
-				  int keys_fit_inline, bool is_rfc3686)
+				  bool is_rfc3686)
 {
 	u32 *key_jump_cmd;
 	unsigned int enckeylen = ctx->cdata.keylen;
@@ -244,18 +244,20 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 	if (is_rfc3686)
 		enckeylen -= CTR_RFC3686_NONCE_SIZE;
 
-	if (keys_fit_inline) {
+	if (ctx->adata.key_inline)
 		append_key_as_imm(desc, (void *)ctx->adata.key,
 				  ctx->adata.keylen_pad, ctx->adata.keylen,
 				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
-		append_key_as_imm(desc, (void *)ctx->cdata.key, enckeylen,
-				  enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
-	} else {
+	else
 		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
+
+	if (ctx->cdata.key_inline)
+		append_key_as_imm(desc, (void *)ctx->cdata.key, enckeylen,
+				  enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
+	else
 		append_key(desc, ctx->cdata.key, enckeylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
-	}
 
 	/* Load Counter into CONTEXT1 reg */
 	if (is_rfc3686) {
@@ -282,13 +284,14 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	struct device *jrdev = ctx->jrdev;
 	u32 *key_jump_cmd, *jump_cmd, *read_move_cmd, *write_move_cmd;
 	u32 *desc;
+	int rem_bytes = CAAM_DESC_BYTES_MAX - AEAD_DESC_JOB_IO_LEN -
+			ctx->adata.keylen_pad;
 
 	/*
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_AEAD_NULL_ENC_LEN + AEAD_DESC_JOB_IO_LEN +
-	    ctx->adata.keylen_pad <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_AEAD_NULL_ENC_LEN) {
 		ctx->adata.key_inline = true;
 		ctx->adata.key = (uintptr_t)ctx->key;
 	} else {
@@ -368,8 +371,7 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_AEAD_NULL_DEC_LEN + DESC_JOB_IO_LEN +
-	    ctx->adata.keylen_pad <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_AEAD_NULL_DEC_LEN) {
 		ctx->adata.key_inline = true;
 		ctx->adata.key = (uintptr_t)ctx->key;
 	} else {
@@ -463,10 +465,11 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	unsigned int ivsize = crypto_aead_ivsize(aead);
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	bool keys_fit_inline;
 	u32 geniv, moveiv;
 	u32 ctx1_iv_off = 0;
 	u32 *desc;
+	u32 inl_mask;
+	unsigned int data_len[2];
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
 			       OP_ALG_AAI_CTR_MOD128);
 	const bool is_rfc3686 = alg->caam.rfc3686;
@@ -493,6 +496,9 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	if (is_rfc3686)
 		ctx1_iv_off = 16 + CTR_RFC3686_NONCE_SIZE;
 
+	data_len[0] = ctx->adata.keylen_pad;
+	data_len[1] = ctx->cdata.keylen;
+
 	if (alg->caam.geniv)
 		goto skip_enc;
 
@@ -500,24 +506,30 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_AEAD_ENC_LEN + AUTHENC_DESC_JOB_IO_LEN +
-	    ctx->adata.keylen_pad + ctx->cdata.keylen +
-	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
-	    CAAM_DESC_BYTES_MAX) {
-		keys_fit_inline = true;
+	if (desc_inline_query(DESC_AEAD_ENC_LEN +
+			      (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0),
+			      AUTHENC_DESC_JOB_IO_LEN, data_len, &inl_mask,
+			      ARRAY_SIZE(data_len)) < 0)
+		return -EINVAL;
+
+	if (inl_mask & 1)
 		ctx->adata.key = (uintptr_t)ctx->key;
-		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
-	} else {
-		keys_fit_inline = false;
+	else
 		ctx->adata.key = ctx->key_dma;
+
+	if (inl_mask & 2)
+		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+	else
 		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
-	}
+
+	ctx->adata.key_inline = !!(inl_mask & 1);
+	ctx->cdata.key_inline = !!(inl_mask & 2);
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
 
 	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, ctx, keys_fit_inline, is_rfc3686);
+	init_sh_desc_key_aead(desc, ctx, is_rfc3686);
 
 	/* Class 2 operation */
 	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
@@ -572,24 +584,30 @@ skip_enc:
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_AEAD_DEC_LEN + AUTHENC_DESC_JOB_IO_LEN +
-	    ctx->adata.keylen_pad + ctx->cdata.keylen +
-	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
-	    CAAM_DESC_BYTES_MAX) {
-		keys_fit_inline = true;
+	if (desc_inline_query(DESC_AEAD_DEC_LEN +
+			      (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0),
+			      AUTHENC_DESC_JOB_IO_LEN, data_len, &inl_mask,
+			      ARRAY_SIZE(data_len)) < 0)
+		return -EINVAL;
+
+	if (inl_mask & 1)
 		ctx->adata.key = (uintptr_t)ctx->key;
-		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
-	} else {
-		keys_fit_inline = false;
+	else
 		ctx->adata.key = ctx->key_dma;
+
+	if (inl_mask & 2)
+		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+	else
 		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
-	}
+
+	ctx->adata.key_inline = !!(inl_mask & 1);
+	ctx->cdata.key_inline = !!(inl_mask & 2);
 
 	/* aead_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 
 	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, ctx, keys_fit_inline, is_rfc3686);
+	init_sh_desc_key_aead(desc, ctx, is_rfc3686);
 
 	/* Class 2 operation */
 	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
@@ -660,24 +678,30 @@ skip_enc:
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_AEAD_GIVENC_LEN + AUTHENC_DESC_JOB_IO_LEN +
-	    ctx->adata.keylen_pad + ctx->cdata.keylen +
-	    (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0) <=
-	    CAAM_DESC_BYTES_MAX) {
-		keys_fit_inline = true;
+	if (desc_inline_query(DESC_AEAD_GIVENC_LEN +
+			      (is_rfc3686 ? DESC_AEAD_CTR_RFC3686_LEN : 0),
+			      AUTHENC_DESC_JOB_IO_LEN, data_len, &inl_mask,
+			      ARRAY_SIZE(data_len)) < 0)
+		return -EINVAL;
+
+	if (inl_mask & 1)
 		ctx->adata.key = (uintptr_t)ctx->key;
-		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
-	} else {
-		keys_fit_inline = false;
+	else
 		ctx->adata.key = ctx->key_dma;
+
+	if (inl_mask & 2)
+		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+	else
 		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
-	}
+
+	ctx->adata.key_inline = !!(inl_mask & 1);
+	ctx->cdata.key_inline = !!(inl_mask & 2);
 
 	/* aead_givencrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
 
 	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, ctx, keys_fit_inline, is_rfc3686);
+	init_sh_desc_key_aead(desc, ctx, is_rfc3686);
 
 	if (is_rfc3686)
 		goto copy_iv;
@@ -787,6 +811,8 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	u32 *key_jump_cmd, *zero_payload_jump_cmd,
 	    *zero_assoc_jump_cmd1, *zero_assoc_jump_cmd2;
 	u32 *desc;
+	int rem_bytes = CAAM_DESC_BYTES_MAX - GCM_DESC_JOB_IO_LEN -
+			ctx->cdata.keylen;
 
 	if (!ctx->cdata.keylen || !ctx->authsize)
 		return 0;
@@ -796,8 +822,7 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptor
 	 * must fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_GCM_ENC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_GCM_ENC_LEN) {
 		ctx->cdata.key_inline = true;
 		ctx->cdata.key = (uintptr_t)ctx->key;
 	} else {
@@ -895,8 +920,7 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_GCM_DEC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_GCM_DEC_LEN) {
 		ctx->cdata.key_inline = true;
 		ctx->cdata.key = (uintptr_t)ctx->key;
 	} else {
@@ -996,6 +1020,8 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	struct device *jrdev = ctx->jrdev;
 	u32 *key_jump_cmd;
 	u32 *desc;
+	int rem_bytes = CAAM_DESC_BYTES_MAX - GCM_DESC_JOB_IO_LEN -
+			ctx->cdata.keylen;
 
 	if (!ctx->cdata.keylen || !ctx->authsize)
 		return 0;
@@ -1005,8 +1031,7 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptor
 	 * must fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_RFC4106_ENC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_RFC4106_ENC_LEN) {
 		ctx->cdata.key_inline = true;
 		ctx->cdata.key = (uintptr_t)ctx->key;
 	} else {
@@ -1084,8 +1109,7 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_RFC4106_DEC_LEN + DESC_JOB_IO_LEN +
-	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_RFC4106_DEC_LEN) {
 		ctx->cdata.key_inline = true;
 		ctx->cdata.key = (uintptr_t)ctx->key;
 	} else {
@@ -1180,6 +1204,8 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	u32 *key_jump_cmd;
 	u32 *read_move_cmd, *write_move_cmd;
 	u32 *desc;
+	int rem_bytes = CAAM_DESC_BYTES_MAX - GCM_DESC_JOB_IO_LEN -
+			ctx->cdata.keylen;
 
 	if (!ctx->cdata.keylen || !ctx->authsize)
 		return 0;
@@ -1189,8 +1215,7 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptor
 	 * must fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_RFC4543_ENC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_RFC4543_ENC_LEN) {
 		ctx->cdata.key_inline = true;
 		ctx->cdata.key = (uintptr_t)ctx->key;
 	} else {
@@ -1267,8 +1292,7 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
-	if (DESC_RFC4543_DEC_LEN + GCM_DESC_JOB_IO_LEN +
-	    ctx->cdata.keylen <= CAAM_DESC_BYTES_MAX) {
+	if (rem_bytes >= DESC_RFC4543_DEC_LEN) {
 		ctx->cdata.key_inline = true;
 		ctx->cdata.key = (uintptr_t)ctx->key;
 	} else {

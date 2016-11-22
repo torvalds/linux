@@ -449,3 +449,42 @@ struct alginfo {
 	u64 key;
 	bool key_inline;
 };
+
+/**
+ * desc_inline_query() - Provide indications on which data items can be inlined
+ *                       and which shall be referenced in a shared descriptor.
+ * @sd_base_len: Shared descriptor base length - bytes consumed by the commands,
+ *               excluding the data items to be inlined (or corresponding
+ *               pointer if an item is not inlined). Each cnstr_* function that
+ *               generates descriptors should have a define mentioning
+ *               corresponding length.
+ * @jd_len: Maximum length of the job descriptor(s) that will be used
+ *          together with the shared descriptor.
+ * @data_len: Array of lengths of the data items trying to be inlined
+ * @inl_mask: 32bit mask with bit x = 1 if data item x can be inlined, 0
+ *            otherwise.
+ * @count: Number of data items (size of @data_len array); must be <= 32
+ *
+ * Return: 0 if data can be inlined / referenced, negative value if not. If 0,
+ *         check @inl_mask for details.
+ */
+static inline int desc_inline_query(unsigned int sd_base_len,
+				    unsigned int jd_len, unsigned int *data_len,
+				    u32 *inl_mask, unsigned int count)
+{
+	int rem_bytes = (int)(CAAM_DESC_BYTES_MAX - sd_base_len - jd_len);
+	unsigned int i;
+
+	*inl_mask = 0;
+	for (i = 0; (i < count) && (rem_bytes > 0); i++) {
+		if (rem_bytes - (int)(data_len[i] +
+			(count - i - 1) * CAAM_PTR_SZ) >= 0) {
+			rem_bytes -= data_len[i];
+			*inl_mask |= (1 << i);
+		} else {
+			rem_bytes -= CAAM_PTR_SZ;
+		}
+	}
+
+	return (rem_bytes >= 0) ? 0 : -1;
+}
