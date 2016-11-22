@@ -1853,9 +1853,9 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load sector size with index 40 bytes (0x28) */
-	append_cmd(desc, CMD_LOAD | IMMEDIATE | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_1_CCB | (0x28 << LDST_OFFSET_SHIFT) | 8);
-	append_data(desc, (void *)&sector_size, 8);
+	append_load_as_imm(desc, (void *)&sector_size, 8, LDST_CLASS_1_CCB |
+			   LDST_SRCDST_BYTE_CONTEXT |
+			   (0x28 << LDST_OFFSET_SHIFT));
 
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -1864,8 +1864,8 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	 * Upper 8B of IV - will be used as sector index
 	 * Lower 8B of IV - will be discarded
 	 */
-	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_1_CCB | (0x20 << LDST_OFFSET_SHIFT) | 8);
+	append_seq_load(desc, 8, LDST_SRCDST_BYTE_CONTEXT | LDST_CLASS_1_CCB |
+			(0x20 << LDST_OFFSET_SHIFT));
 	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
 
 	/* Load operation */
@@ -1900,9 +1900,9 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load sector size with index 40 bytes (0x28) */
-	append_cmd(desc, CMD_LOAD | IMMEDIATE | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_1_CCB | (0x28 << LDST_OFFSET_SHIFT) | 8);
-	append_data(desc, (void *)&sector_size, 8);
+	append_load_as_imm(desc, (void *)&sector_size, 8, LDST_CLASS_1_CCB |
+			   LDST_SRCDST_BYTE_CONTEXT |
+			   (0x28 << LDST_OFFSET_SHIFT));
 
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -1911,8 +1911,8 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	 * Upper 8B of IV - will be used as sector index
 	 * Lower 8B of IV - will be discarded
 	 */
-	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_1_CCB | (0x20 << LDST_OFFSET_SHIFT) | 8);
+	append_seq_load(desc, 8, LDST_SRCDST_BYTE_CONTEXT | LDST_CLASS_1_CCB |
+			(0x20 << LDST_OFFSET_SHIFT));
 	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
 
 	/* Load operation */

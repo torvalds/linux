@@ -272,8 +272,8 @@ static inline void ahash_ctx_data_to_out(u32 *desc, u32 op, u32 state,
 	init_sh_desc_key_ahash(desc, ctx);
 
 	/* Import context from software */
-	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_2_CCB | ctx->ctx_len);
+	append_seq_load(desc, ctx->ctx_len, LDST_CLASS_2_CCB |
+			LDST_SRCDST_BYTE_CONTEXT);
 
 	/* Class 2 operation */
 	append_operation(desc, op | state | OP_ALG_ENCRYPT);
@@ -316,8 +316,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
 	/* Import context from software */
-	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_2_CCB | ctx->ctx_len);
+	append_seq_load(desc, ctx->ctx_len, LDST_CLASS_2_CCB |
+			LDST_SRCDST_BYTE_CONTEXT);
 
 	/* Class 2 operation */
 	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_UPDATE |
