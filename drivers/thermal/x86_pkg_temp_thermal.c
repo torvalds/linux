@@ -334,7 +334,6 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 	pkg_work_scheduled[phy_id] = 0;
 	spin_unlock_irqrestore(&pkg_work_lock, flags);
 
-	enable_pkg_thres_interrupt();
 	rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr_val);
 	if (msr_val & THERM_LOG_THRESHOLD0) {
 		wrmsrl(MSR_IA32_PACKAGE_THERM_STATUS,
@@ -346,6 +345,9 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 				msr_val & ~THERM_LOG_THRESHOLD1);
 		notify = true;
 	}
+
+	enable_pkg_thres_interrupt();
+
 	if (notify) {
 		pr_debug("thermal_zone_device_update\n");
 		thermal_zone_device_update(phdev->tzone,
@@ -505,6 +507,13 @@ static int pkg_temp_thermal_device_remove(unsigned int cpu)
 		list_for_each_entry_safe(phdev, n, &phy_dev_list, list) {
 			if (phdev->phys_proc_id == phys_proc_id) {
 				thermal_zone_device_unregister(phdev->tzone);
+				/*
+				 * Restore original MSR value for package
+				 * thermal interrupt.
+				 */
+				wrmsr_on_cpu(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
+					     phdev->start_pkg_therm_low,
+					     phdev->start_pkg_therm_high);
 				list_del(&phdev->list);
 				kfree(phdev);
 				break;
