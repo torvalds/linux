@@ -430,3 +430,22 @@ do { \
 	APPEND_MATH_IMM_u64(LSHIFT, desc, dest, src0, src1, data)
 #define append_math_rshift_imm_u64(desc, dest, src0, src1, data) \
 	APPEND_MATH_IMM_u64(RSHIFT, desc, dest, src0, src1, data)
+
+/**
+ * struct alginfo - Container for algorithm details
+ * @algtype: algorithm selector; for valid values, see documentation of the
+ *           functions where it is used.
+ * @keylen: length of the provided algorithm key, in bytes
+ * @keylen_pad: padded length of the provided algorithm key, in bytes
+ * @key: address where algorithm key resides; virtual address if key_inline
+ *       is true, dma (bus) address if key_inline is false.
+ * @key_inline: true - key can be inlined in the descriptor; false - key is
+ *              referenced by the descriptor
+ */
+struct alginfo {
+	u32 algtype;
+	unsigned int keylen;
+	unsigned int keylen_pad;
+	u64 key;
+	bool key_inline;
+};

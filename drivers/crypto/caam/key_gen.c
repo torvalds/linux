@@ -41,8 +41,8 @@ Split key generation-----------------------------------------------
 [06] 0x64260028    fifostr: class2 mdsplit-jdk len=40
 			@0xffe04000
 */
-int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
-		  int split_key_pad_len, const u8 *key_in, u32 keylen,
+int gen_split_key(struct device *jrdev, u8 *key_out,
+		  struct alginfo * const adata, const u8 *key_in, u32 keylen,
 		  u32 alg_op)
 {
 	u32 *desc;
@@ -63,7 +63,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 		goto out_free;
 	}
 
-	dma_addr_out = dma_map_single(jrdev, key_out, split_key_pad_len,
+	dma_addr_out = dma_map_single(jrdev, key_out, adata->keylen_pad,
 				      DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dma_addr_out)) {
 		dev_err(jrdev, "unable to map key output memory\n");
@@ -87,7 +87,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 	 * FIFO_STORE with the explicit split-key content store
 	 * (0x26 output type)
 	 */
-	append_fifo_store(desc, dma_addr_out, split_key_len,
+	append_fifo_store(desc, dma_addr_out, adata->keylen,
 			  LDST_CLASS_2_CCB | FIFOST_TYPE_SPLIT_KEK);
 
 #ifdef DEBUG
@@ -108,11 +108,11 @@ int gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, key_out,
-			       split_key_pad_len, 1);
+			       adata->keylen_pad, 1);
 #endif
 	}
 
-	dma_unmap_single(jrdev, dma_addr_out, split_key_pad_len,
+	dma_unmap_single(jrdev, dma_addr_out, adata->keylen_pad,
 			 DMA_FROM_DEVICE);
 out_unmap_in:
 	dma_unmap_single(jrdev, dma_addr_in, keylen, DMA_TO_DEVICE);

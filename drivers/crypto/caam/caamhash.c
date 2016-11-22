@@ -108,13 +108,11 @@ struct caam_hash_ctx {
 	dma_addr_t sh_desc_fin_dma;
 	dma_addr_t sh_desc_digest_dma;
 	struct device *jrdev;
-	u32 alg_type;
 	u32 alg_op;
 	u8 key[CAAM_MAX_HASH_KEY_SIZE];
 	dma_addr_t key_dma;
 	int ctx_len;
-	unsigned int split_key_len;
-	unsigned int split_key_pad_len;
+	struct alginfo adata;
 };
 
 /* ahash state */
@@ -223,9 +221,9 @@ static inline int ctx_map_to_sec4_sg(u32 *desc, struct device *jrdev,
 /* Common shared descriptor commands */
 static inline void append_key_ahash(u32 *desc, struct caam_hash_ctx *ctx)
 {
-	append_key_as_imm(desc, ctx->key, ctx->split_key_pad_len,
-			  ctx->split_key_len, CLASS_2 |
-			  KEY_DEST_MDHA_SPLIT | KEY_ENC);
+	append_key_as_imm(desc, ctx->key, ctx->adata.keylen_pad,
+			  ctx->adata.keylen, CLASS_2 | KEY_DEST_MDHA_SPLIT |
+			  KEY_ENC);
 }
 
 /* Append key if it has been set */
@@ -235,7 +233,7 @@ static inline void init_sh_desc_key_ahash(u32 *desc, struct caam_hash_ctx *ctx)
 
 	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
-	if (ctx->split_key_len) {
+	if (ctx->adata.keylen) {
 		/* Skip if already shared */
 		key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					   JUMP_COND_SHRD);
@@ -310,7 +308,7 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	u32 have_key = 0;
 	u32 *desc;
 
-	if (ctx->split_key_len)
+	if (ctx->adata.keylen)
 		have_key = OP_ALG_AAI_HMAC_PRECOMP;
 
 	/* ahash_update shared descriptor */
@@ -323,7 +321,7 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 		   LDST_CLASS_2_CCB | ctx->ctx_len);
 
 	/* Class 2 operation */
-	append_operation(desc, ctx->alg_type | OP_ALG_AS_UPDATE |
+	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_UPDATE |
 			 OP_ALG_ENCRYPT);
 
 	/* Load data and write to result or context */
@@ -344,7 +342,7 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_update_first shared descriptor */
 	desc = ctx->sh_desc_update_first;
 
-	ahash_data_to_out(desc, have_key | ctx->alg_type, OP_ALG_AS_INIT,
+	ahash_data_to_out(desc, have_key | ctx->adata.algtype, OP_ALG_AS_INIT,
 			  ctx->ctx_len, ctx);
 
 	ctx->sh_desc_update_first_dma = dma_map_single(jrdev, desc,
@@ -363,7 +361,7 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_final shared descriptor */
 	desc = ctx->sh_desc_fin;
 
-	ahash_ctx_data_to_out(desc, have_key | ctx->alg_type,
+	ahash_ctx_data_to_out(desc, have_key | ctx->adata.algtype,
 			      OP_ALG_AS_FINALIZE, digestsize, ctx);
 
 	ctx->sh_desc_fin_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
@@ -381,8 +379,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	/* ahash_digest shared descriptor */
 	desc = ctx->sh_desc_digest;
 
-	ahash_data_to_out(desc, have_key | ctx->alg_type, OP_ALG_AS_INITFINAL,
-			  digestsize, ctx);
+	ahash_data_to_out(desc, have_key | ctx->adata.algtype,
+			  OP_ALG_AS_INITFINAL, digestsize, ctx);
 
 	ctx->sh_desc_digest_dma = dma_map_single(jrdev, desc,
 						 desc_bytes(desc),
@@ -404,9 +402,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 static int gen_split_hash_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 			      u32 keylen)
 {
-	return gen_split_key(ctx->jrdev, ctx->key, ctx->split_key_len,
-			       ctx->split_key_pad_len, key_in, keylen,
-			       ctx->alg_op);
+	return gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key_in, keylen,
+			     ctx->alg_op);
 }
 
 /* Digest hash size if it is too large */
@@ -444,7 +441,7 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 	}
 
 	/* Job descriptor to perform unkeyed hash on key_in */
-	append_operation(desc, ctx->alg_type | OP_ALG_ENCRYPT |
+	append_operation(desc, ctx->adata.algtype | OP_ALG_ENCRYPT |
 			 OP_ALG_AS_INITFINAL);
 	append_seq_in_ptr(desc, src_dma, *keylen, 0);
 	append_seq_fifo_load(desc, *keylen, FIFOLD_CLASS_CLASS2 |
@@ -515,13 +512,13 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	}
 
 	/* Pick class 2 key length from algorithm submask */
-	ctx->split_key_len = mdpadlen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
-				      OP_ALG_ALGSEL_SHIFT] * 2;
-	ctx->split_key_pad_len = ALIGN(ctx->split_key_len, 16);
+	ctx->adata.keylen = mdpadlen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
+				     OP_ALG_ALGSEL_SHIFT] * 2;
+	ctx->adata.keylen_pad = ALIGN(ctx->adata.keylen, 16);
 
 #ifdef DEBUG
 	printk(KERN_ERR "split_key_len %d split_key_pad_len %d\n",
-	       ctx->split_key_len, ctx->split_key_pad_len);
+	       ctx->adata.keylen, ctx->adata.keylen_pad);
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
@@ -530,7 +527,7 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	if (ret)
 		goto bad_free_key;
 
-	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->split_key_pad_len,
+	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->adata.keylen_pad,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
@@ -540,14 +537,15 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
-		       ctx->split_key_pad_len, 1);
+		       ctx->adata.keylen_pad, 1);
 #endif
 
 	ret = ahash_set_sh_desc(ahash);
 	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_dma, ctx->split_key_pad_len,
+		dma_unmap_single(jrdev, ctx->key_dma, ctx->adata.keylen_pad,
 				 DMA_TO_DEVICE);
 	}
+
  error_free_key:
 	kfree(hashed_key);
 	return ret;
@@ -1832,7 +1830,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 		return PTR_ERR(ctx->jrdev);
 	}
 	/* copy descriptor header template value */
-	ctx->alg_type = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
+	ctx->adata.algtype = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
 	ctx->alg_op = OP_TYPE_CLASS2_ALG | caam_hash->alg_op;
 
 	ctx->ctx_len = runninglen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
