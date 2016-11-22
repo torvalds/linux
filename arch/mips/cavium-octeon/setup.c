@@ -949,6 +949,22 @@ static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
 }
 #endif /* CONFIG_CRASH_DUMP */
 
+void __init fw_init_cmdline(void)
+{
+	int i;
+
+	octeon_boot_desc_ptr = (struct octeon_boot_descriptor *)fw_arg3;
+	for (i = 0; i < octeon_boot_desc_ptr->argc; i++) {
+		const char *arg =
+			cvmx_phys_to_ptr(octeon_boot_desc_ptr->argv[i]);
+		if (strlen(arcs_cmdline) + strlen(arg) + 1 <
+			   sizeof(arcs_cmdline) - 1) {
+			strcat(arcs_cmdline, " ");
+			strcat(arcs_cmdline, arg);
+		}
+	}
+}
+
 void __init plat_mem_setup(void)
 {
 	uint64_t mem_alloc_size;
