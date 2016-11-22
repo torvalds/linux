@@ -91,11 +91,17 @@
 #define PORT_SWITCH_ID_PROD_NUM_6175	0x175
 #define PORT_SWITCH_ID_PROD_NUM_6176	0x176
 #define PORT_SWITCH_ID_PROD_NUM_6185	0x1a7
+#define PORT_SWITCH_ID_PROD_NUM_6190	0x190
+#define PORT_SWITCH_ID_PROD_NUM_6190X	0x0a0
+#define PORT_SWITCH_ID_PROD_NUM_6191	0x191
 #define PORT_SWITCH_ID_PROD_NUM_6240	0x240
+#define PORT_SWITCH_ID_PROD_NUM_6290	0x290
 #define PORT_SWITCH_ID_PROD_NUM_6321	0x310
 #define PORT_SWITCH_ID_PROD_NUM_6352	0x352
 #define PORT_SWITCH_ID_PROD_NUM_6350	0x371
 #define PORT_SWITCH_ID_PROD_NUM_6351	0x375
+#define PORT_SWITCH_ID_PROD_NUM_6390	0x390
+#define PORT_SWITCH_ID_PROD_NUM_6390X	0x0a1
 #define PORT_CONTROL		0x04
 #define PORT_CONTROL_USE_CORE_TAG	BIT(15)
 #define PORT_CONTROL_DROP_ON_LOCK	BIT(14)
@@ -277,7 +283,9 @@
 #define GLOBAL_CONTROL_2	0x1c
 #define GLOBAL_CONTROL_2_NO_CASCADE		0xe000
 #define GLOBAL_CONTROL_2_MULTIPLE_CASCADE	0xf000
-
+#define GLOBAL_CONTROL_2_HIST_RX	       (0x1 << 6)
+#define GLOBAL_CONTROL_2_HIST_TX	       (0x2 << 6)
+#define GLOBAL_CONTROL_2_HIST_RX_TX	       (0x3 << 6)
 #define GLOBAL_STATS_OP		0x1d
 #define GLOBAL_STATS_OP_BUSY	BIT(15)
 #define GLOBAL_STATS_OP_NOP		(0 << 12)
@@ -288,7 +296,8 @@
 #define GLOBAL_STATS_OP_HIST_RX		((1 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_TX		((2 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_RX_TX	((3 << 10) | GLOBAL_STATS_OP_BUSY)
-#define GLOBAL_STATS_OP_BANK_1	BIT(9)
+#define GLOBAL_STATS_OP_BANK_1_BIT_9	BIT(9)
+#define GLOBAL_STATS_OP_BANK_1_BIT_10	BIT(10)
 #define GLOBAL_STATS_COUNTER_32	0x1e
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
@@ -378,12 +387,18 @@ enum mv88e6xxx_model {
 	MV88E6175,
 	MV88E6176,
 	MV88E6185,
+	MV88E6190,
+	MV88E6190X,
+	MV88E6191,
 	MV88E6240,
+	MV88E6290,
 	MV88E6320,
 	MV88E6321,
 	MV88E6350,
 	MV88E6351,
 	MV88E6352,
+	MV88E6390,
+	MV88E6390X,
 };
 
 enum mv88e6xxx_family {
@@ -396,6 +411,7 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
 	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
+	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
 };
 
 enum mv88e6xxx_cap {
@@ -615,6 +631,18 @@ enum mv88e6xxx_cap {
 
 struct mv88e6xxx_ops;
 
+#define MV88E6XXX_FLAGS_FAMILY_6390	\
+	(MV88E6XXX_FLAG_EEE |		\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_TEMP |		\
+	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
+	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
+	 MV88E6XXX_FLAGS_PVT)
+
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
 	u16 prod_num;
@@ -769,19 +797,33 @@ struct mv88e6xxx_ops {
 	 * Use SPEED_UNFORCED for normal detection, SPEED_MAX for max value.
 	 */
 	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
+
+	/* Snapshot the statistics for a port. The statistics can then
+	 * be read back a leisure but still with a consistent view.
+	 */
+	int (*stats_snapshot)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Set the histogram mode for statistics, when the control registers
+	 * are separated out of the STATS_OP register.
+	 */
+	int (*stats_set_histogram)(struct mv88e6xxx_chip *chip);
+
+	/* Return the number of strings describing statistics */
+	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
+	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
+	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
+				uint64_t *data);
 };
 
-enum stat_type {
-	BANK0,
-	BANK1,
-	PORT,
-};
+#define STATS_TYPE_PORT		BIT(0)
+#define STATS_TYPE_BANK0	BIT(1)
+#define STATS_TYPE_BANK1	BIT(2)
 
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int reg;
-	enum stat_type type;
+	int type;
 };
 
 static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
