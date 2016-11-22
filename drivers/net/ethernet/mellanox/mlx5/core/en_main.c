@@ -957,7 +957,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
 	sq->max_inline  = param->max_inline;
 	sq->min_inline_mode =
-		MLX5_CAP_ETH(mdev, wqe_inline_mode) == MLX5E_INLINE_MODE_VPORT_CONTEXT ?
+		MLX5_CAP_ETH(mdev, wqe_inline_mode) == MLX5_CAP_INLINE_MODE_VPORT_CONTEXT ?
 		param->min_inline_mode : 0;
 
 	err = mlx5e_alloc_sq_db(sq, cpu_to_node(c->cpu));
@@ -3417,14 +3417,13 @@ static void mlx5e_query_min_inline(struct mlx5_core_dev *mdev,
 				   u8 *min_inline_mode)
 {
 	switch (MLX5_CAP_ETH(mdev, wqe_inline_mode)) {
-	case MLX5E_INLINE_MODE_L2:
+	case MLX5_CAP_INLINE_MODE_L2:
 		*min_inline_mode = MLX5_INLINE_MODE_L2;
 		break;
-	case MLX5E_INLINE_MODE_VPORT_CONTEXT:
-		mlx5_query_nic_vport_min_inline(mdev,
-						min_inline_mode);
+	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
+		mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode);
 		break;
-	case MLX5_INLINE_MODE_NOT_REQUIRED:
+	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
 		*min_inline_mode = MLX5_INLINE_MODE_NONE;
 		break;
 	}

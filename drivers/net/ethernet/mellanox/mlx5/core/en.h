@@ -150,12 +150,6 @@ static inline int mlx5_max_log_rq_size(int wq_type)
 	}
 }
 
-enum {
-	MLX5E_INLINE_MODE_L2,
-	MLX5E_INLINE_MODE_VPORT_CONTEXT,
-	MLX5_INLINE_MODE_NOT_REQUIRED,
-};
-
 struct mlx5e_tx_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
 	struct mlx5_wqe_eth_seg  eth;
