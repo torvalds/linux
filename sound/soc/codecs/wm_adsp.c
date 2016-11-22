@@ -1132,7 +1132,7 @@ static int wmfw_add_ctl(struct wm_adsp *dsp, struct wm_coeff_ctl *ctl)
 		break;
 	}
 
-	ret = snd_soc_add_card_controls(dsp->card, kcontrol, 1);
+	ret = snd_soc_add_codec_controls(dsp->codec, kcontrol, 1);
 	if (ret < 0)
 		goto err_kcontrol;
 
@@ -2301,7 +2301,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 	int ret;
 	unsigned int val;
 
-	dsp->card = codec->component.card;
+	dsp->codec = codec;
 
 	mutex_lock(&dsp->pwr_lock);
 
@@ -2512,8 +2512,6 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	struct wm_adsp *dsp = &dsps[w->shift];
 	struct wm_coeff_ctl *ctl;
 
-	dsp->card = codec->component.card;
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		wm_adsp2_set_dspclk(dsp, freq);
@@ -2631,6 +2629,8 @@ EXPORT_SYMBOL_GPL(wm_adsp2_event);
 
 int wm_adsp2_codec_probe(struct wm_adsp *dsp, struct snd_soc_codec *codec)
 {
+	dsp->codec = codec;
+
 	wm_adsp2_init_debugfs(dsp, codec);
 
 	return snd_soc_add_codec_controls(codec,
