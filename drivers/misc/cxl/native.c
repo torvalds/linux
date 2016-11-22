@@ -54,7 +54,7 @@ static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 				     AFU_Cntl | command);
 		cpu_relax();
 		AFU_Cntl = cxl_p2n_read(afu, CXL_AFU_Cntl_An);
-	};
+	}
 
 	if (AFU_Cntl & CXL_AFU_Cntl_An_RA) {
 		/*
@@ -167,7 +167,7 @@ int cxl_psl_purge(struct cxl_afu *afu)
 			cpu_relax();
 		}
 		PSL_CNTL = cxl_p1n_read(afu, CXL_PSL_SCNTL_An);
-	};
+	}
 	end = local_clock();
 	pr_devel("PSL purged in %lld ns\n", end - start);
 

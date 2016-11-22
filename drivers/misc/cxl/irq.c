@@ -104,7 +104,7 @@ irqreturn_t cxl_irq(int irq, struct cxl_context *ctx, struct cxl_irq_info *irq_i
 		} else {
 			spin_lock(&ctx->lock);
 			ctx->afu_err = irq_info->afu_err;
-			ctx->pending_afu_err = 1;
+			ctx->pending_afu_err = true;
 			spin_unlock(&ctx->lock);
 
 			wake_up_all(&ctx->wq);
