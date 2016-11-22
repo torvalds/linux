@@ -187,9 +187,9 @@ static ssize_t  cec_state_show(struct device *dev,
 }
 
 static struct device_attribute cec_attrs[] = {
-	__ATTR(logic, S_IRUGO | S_IWUSR, cec_logic_show, cec_logic_store),
-	__ATTR(phy, S_IRUGO | S_IWUSR, cec_phy_show, cec_phy_store),
-	__ATTR(enable, S_IRUGO | S_IWUSR, cec_enable_show, cec_enable_store),
+	__ATTR(logic, 0644, cec_logic_show, cec_logic_store),
+	__ATTR(phy, 0644, cec_phy_show, cec_phy_store),
+	__ATTR(enable, 0644, cec_enable_show, cec_enable_store),
 	__ATTR(stat, S_IRUGO, cec_state_show, NULL),
 };
 

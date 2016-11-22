@@ -32,7 +32,7 @@ static int hdmi_get_status(struct rk_display_device *device)
 {
 	struct hdmi *hdmi = device->priv_data;
 
-	if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+	if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 		return 1;
 	else
 		return 0;
@@ -65,7 +65,7 @@ static int hdmi_set_mode(struct rk_display_device *device,
 
 	if (vic && hdmi->vic != vic) {
 		hdmi->vic = vic;
-		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+		if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 			hdmi_submit_work(hdmi, HDMI_SET_VIDEO, 0, 0);
 	}
 	return 0;
@@ -121,7 +121,7 @@ static int hdmi_set_3dmode(struct rk_display_device *device, int mode)
 
 	if (hdmi->mode_3d != mode) {
 		hdmi->mode_3d = mode;
-		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+		if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 			hdmi_submit_work(hdmi, HDMI_SET_3D, 0, 0);
 	}
 	return 0;
@@ -267,9 +267,10 @@ static int hdmi_set_color(struct rk_display_device *device,
 		else
 			return 0;
 	} else {
+		pr_err("%s unknown event\n", __func__);
 		return -1;
 	}
-	if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+	if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 		hdmi_submit_work(hdmi, HDMI_SET_COLOR, 0, 0);
 	return 0;
 }
@@ -534,7 +535,7 @@ static int hdmi_show_sink_info(struct hdmi *hdmi, char *buf, int len)
 static int hdmi_get_debug(struct rk_display_device *device, char *buf)
 {
 	struct hdmi *hdmi = device->priv_data;
-	char *buff;
+	u8 *buff;
 	int i, j, len = 0;
 
 	if (!hdmi)

@@ -299,13 +299,13 @@ static int rockchip_hdmiv2_clk_disable(struct hdmi_dev *hdmi_dev)
 	}
 
 	if ((hdmi_dev->clk_on & HDMI_PCLK_ON) &&
-	    (hdmi_dev->pclk)) {
+	    hdmi_dev->pclk) {
 		clk_disable_unprepare(hdmi_dev->pclk);
 		hdmi_dev->clk_on &= ~HDMI_PCLK_ON;
 	}
 
 	if ((hdmi_dev->clk_on & HDMI_HDCPCLK_ON) &&
-	    (hdmi_dev->hdcp_clk)) {
+	    hdmi_dev->hdcp_clk) {
 		clk_disable_unprepare(hdmi_dev->hdcp_clk);
 		hdmi_dev->clk_on &= ~HDMI_HDCPCLK_ON;
 	}
@@ -488,7 +488,7 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 
 	match = of_match_node(rk_hdmi_dt_ids, np);
 	if (!match)
-		return PTR_ERR(match);
+		return -EINVAL;
 
 	if (!strcmp(match->compatible, "rockchip,rk3288-hdmi")) {
 		hdmi_dev->soctype = HDMI_SOC_RK3288;
@@ -798,11 +798,11 @@ static void rockchip_hdmiv2_shutdown(struct platform_device *pdev)
 		unregister_early_suspend(&hdmi_dev->early_suspend);
 		#endif
 		hdmi = hdmi_dev->hdmi;
-		if (hdmi->hotplug == HDMI_HPD_ACTIVED &&
+		if (hdmi->hotplug == HDMI_HPD_ACTIVATED &&
 		    hdmi->ops->setmute)
 			hdmi->ops->setmute(hdmi, HDMI_VIDEO_MUTE);
+		pm_runtime_disable(hdmi_dev->dev);
 	}
-	pm_runtime_disable(hdmi_dev->dev);
 }
 
 static struct platform_driver rockchip_hdmiv2_driver = {

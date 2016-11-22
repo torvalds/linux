@@ -19,7 +19,7 @@ static int rockchip_hdmiv2_cec_readframe(struct hdmi *hdmi,
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 	int i, count;
-	char *data = (char *)frame;
+	u8 *data = (u8 *)frame;
 
 	if (((hdmi_dev->clk_on & HDMI_PCLK_ON) == 0) || !frame)
 		return -1;

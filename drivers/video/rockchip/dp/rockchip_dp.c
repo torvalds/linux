@@ -91,7 +91,7 @@ static int rockchip_dp_detect_hotplug(struct hdmi *hdmi_drv)
 	struct dp_dev *dp_dev = hdmi_drv->property->priv;
 
 	if (cdn_dp_connector_detect(dp_dev->dp))
-		return HDMI_HPD_ACTIVED;
+		return HDMI_HPD_ACTIVATED;
 	return HDMI_HPD_REMOVED;
 }
 

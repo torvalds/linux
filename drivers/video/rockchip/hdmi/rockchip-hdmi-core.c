@@ -362,7 +362,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 		hdmi->ops->remove(hdmi);
 	if (hdmi->property->feature & SUPPORT_CEC)
 		rockchip_hdmi_cec_set_pa(0);
-	if (hdmi->hotplug == HDMI_HPD_ACTIVED) {
+	if (hdmi->hotplug == HDMI_HPD_ACTIVATED) {
 		screen.type = SCREEN_HDMI;
 		rk_fb_switch_screen(&screen, 0, hdmi->lcdc->id);
 	}
@@ -416,7 +416,7 @@ static void hdmi_work_queue(struct work_struct *work)
 			if (!hdmi->sleep) {
 				if (hdmi->ops->enable)
 					hdmi->ops->enable(hdmi);
-				if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+				if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 					hdmi_wq_insert(hdmi);
 			}
 		}
@@ -430,7 +430,7 @@ static void hdmi_work_queue(struct work_struct *work)
 		break;
 	case HDMI_DISABLE_CTL:
 		if (hdmi->enable) {
-			if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+			if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 				hdmi_wq_set_output(hdmi,
 						   HDMI_VIDEO_MUTE |
 						   HDMI_AUDIO_MUTE);
@@ -444,7 +444,7 @@ static void hdmi_work_queue(struct work_struct *work)
 		break;
 	case HDMI_SUSPEND_CTL:
 		if (!hdmi->sleep) {
-			if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+			if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 				hdmi_wq_set_output(hdmi,
 						   HDMI_VIDEO_MUTE |
 						   HDMI_AUDIO_MUTE);
@@ -461,10 +461,10 @@ static void hdmi_work_queue(struct work_struct *work)
 		HDMIDBG(2, "hdmi_work_queue() - hpd is %d hotplug is %d\n",
 			hpd, hdmi->hotplug);
 		if (hpd != hdmi->hotplug) {
-			if (hpd == HDMI_HPD_ACTIVED) {
+			if (hpd == HDMI_HPD_ACTIVATED) {
 				hdmi->hotplug = hpd;
 				hdmi_wq_insert(hdmi);
-			} else if (hdmi->hotplug == HDMI_HPD_ACTIVED) {
+			} else if (hdmi->hotplug == HDMI_HPD_ACTIVATED) {
 				hdmi_wq_remove(hdmi);
 			}
 			hdmi->hotplug = hpd;
@@ -494,7 +494,7 @@ static void hdmi_work_queue(struct work_struct *work)
 	case HDMI_MUTE_AUDIO:
 	case HDMI_UNMUTE_AUDIO:
 		if (hdmi->mute & HDMI_AUDIO_MUTE ||
-		    hdmi->hotplug != HDMI_HPD_ACTIVED)
+		    hdmi->hotplug != HDMI_HPD_ACTIVATED)
 			break;
 		if (event == HDMI_MUTE_AUDIO)
 			hdmi_wq_set_output(hdmi, hdmi->mute |
@@ -533,11 +533,11 @@ static void hdmi_work_queue(struct work_struct *work)
 		hdmi_wq_set_output(hdmi, hdmi->mute);
 		break;
 	case HDMI_ENABLE_HDCP:
-		if (hdmi->hotplug == HDMI_HPD_ACTIVED && hdmi->ops->hdcp_cb)
+		if (hdmi->hotplug == HDMI_HPD_ACTIVATED && hdmi->ops->hdcp_cb)
 			hdmi->ops->hdcp_cb(hdmi);
 		break;
 	case HDMI_HDCP_AUTH_2ND:
-		if (hdmi->hotplug == HDMI_HPD_ACTIVED &&
+		if (hdmi->hotplug == HDMI_HPD_ACTIVATED &&
 		    hdmi->ops->hdcp_auth2nd)
 			hdmi->ops->hdcp_auth2nd(hdmi);
 		break;
@@ -674,10 +674,9 @@ void rockchip_hdmi_unregister(struct hdmi *hdmi)
 			kfree(hdmi->edid.specs->modedb);
 			kfree(hdmi->edid.specs);
 		}
-		kfree(hdmi);
-
 		ref_info[hdmi->id].ref = 0;
 		ref_info[hdmi->id].hdmi = NULL;
+		kfree(hdmi);
 
 		hdmi = NULL;
 	}
@@ -704,7 +703,7 @@ int hdmi_config_audio(struct hdmi_audio	*audio)
 			continue;
 		hdmi = ref_info[i].hdmi;
 		memcpy(&hdmi->audio, audio, sizeof(struct hdmi_audio));
-		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+		if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
 			hdmi_submit_work(hdmi, HDMI_SET_AUDIO, 0, 0);
 	}
 	return 0;

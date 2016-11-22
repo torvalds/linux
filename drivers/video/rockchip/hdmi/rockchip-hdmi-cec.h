@@ -136,10 +136,10 @@ enum {
 #define MAX_CMD_SIZE 16
 
 struct cec_framedata {
-	char srcdestaddr; /* Source in upper nybble, dest in lower nybble */
-	char opcode;
-	char args[MAX_CMD_SIZE];
-	char argcount;
+	u8 srcdestaddr; /* Source in upper nybble, dest in lower nybble */
+	u8 opcode;
+	u8 args[MAX_CMD_SIZE];
+	u8 argcount;
 	char returnval;
 };
 

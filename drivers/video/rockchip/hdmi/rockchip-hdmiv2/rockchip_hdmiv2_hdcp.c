@@ -69,21 +69,21 @@ static void sha_reset(struct sha_t *sha)
 				     ((word) >> (32 - (bits))))
 void sha_processblock(struct sha_t *sha)
 {
-	const unsigned K[] = {
+	const unsigned int K[] = {
 	/* constants defined in SHA-1 */
 	0x5A827999, 0x6ED9EBA1, 0x8F1BBCDC, 0xCA62C1D6 };
-	unsigned W[80]; /* word sequence */
-	unsigned A, B, C, D, E; /* word buffers */
-	unsigned temp = 0;
+	unsigned int W[80]; /* word sequence */
+	unsigned int A, B, C, D, E; /* word buffers */
+	unsigned int temp = 0;
 	int t = 0;
 
 	/* Initialize the first 16 words in the array W */
 	for (t = 0; t < 80; t++) {
 		if (t < 16) {
-			W[t] = ((unsigned)sha->mblock[t * 4 + 0]) << 24;
-			W[t] |= ((unsigned)sha->mblock[t * 4 + 1]) << 16;
-			W[t] |= ((unsigned)sha->mblock[t * 4 + 2]) << 8;
-			W[t] |= ((unsigned)sha->mblock[t * 4 + 3]) << 0;
+			W[t] = ((unsigned int)sha->mblock[t * 4 + 0]) << 24;
+			W[t] |= ((unsigned int)sha->mblock[t * 4 + 1]) << 16;
+			W[t] |= ((unsigned int)sha->mblock[t * 4 + 2]) << 8;
+			W[t] |= ((unsigned int)sha->mblock[t * 4 + 3]) << 0;
 		} else {
 			A = W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16];
 			W[t] = shacircularshift(1, A);
@@ -567,8 +567,8 @@ static ssize_t hdcp_enable_write(struct device *device,
 
 	return count;
 }
-static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
-		   hdcp_enable_read, hdcp_enable_write);
+
+static DEVICE_ATTR(enable, 0644, hdcp_enable_read, hdcp_enable_write);
 
 static ssize_t hdcp_trytimes_read(struct device *device,
 				  struct device_attribute *attr, char *buf)
@@ -598,8 +598,8 @@ static ssize_t hdcp_trytimes_wrtie(struct device *device,
 
 	return count;
 }
-static DEVICE_ATTR(trytimes, S_IRUGO | S_IWUSR,
-		   hdcp_trytimes_read, hdcp_trytimes_wrtie);
+
+static DEVICE_ATTR(trytimes, 0644, hdcp_trytimes_read, hdcp_trytimes_wrtie);
 
 static int hdcp_init(struct hdmi *hdmi)
 {
@@ -657,8 +657,6 @@ error3:
 error2:
 	misc_deregister(&mdev);
 error1:
-	kfree(hdcp->keys);
-	kfree(hdcp->invalidkeys);
 	kfree(hdcp);
 error0:
 	return ret;
@@ -667,9 +665,10 @@ error0:
 void rockchip_hdmiv2_hdcp_init(struct hdmi *hdmi)
 {
 	pr_info("%s", __func__);
-	if (!hdcp)
+
+	if (!hdcp) {
 		hdcp_init(hdmi);
-	else {
+	} else {
 		if (hdcp->keys)
 			hdcp_load_key(hdmi, hdcp->keys);
 		else

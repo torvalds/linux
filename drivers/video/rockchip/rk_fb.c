@@ -3066,7 +3066,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	mutex_lock(&dev_drv->switch_screen);
 #if defined(CONFIG_RK_HDMI)
 	if ((rk_fb->disp_mode == ONE_DUAL) &&
-	    (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)) {
+	    (hdmi_get_hotplug() == HDMI_HPD_ACTIVATED)) {
 		pr_info("hdmi is connect , not blank lcdc\n");
 	} else
 #endif

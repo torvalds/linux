@@ -96,7 +96,7 @@ int rockchip_hdmiv1_detect_hotplug(struct hdmi *hdmi_drv)
 	hdmi_readl(hdmi_dev, HDMI_STATUS, &value);
 	value &= m_HOTPLUG;
 	if (value == m_HOTPLUG)
-		return HDMI_HPD_ACTIVED;
+		return HDMI_HPD_ACTIVATED;
 	else if (value)
 		return HDMI_HPD_INSERT;
 	else
@@ -427,7 +427,7 @@ static int rockchip_hdmiv1_config_vsi(struct hdmi *hdmi,
 				      unsigned char format)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
-	char info[SIZE_VSI_INFOFRAME];
+	u8 info[SIZE_VSI_INFOFRAME];
 	int i;
 
 	HDMIDBG(2, "[%s] vic_3d %d format %d.\n", __func__, vic_3d, format);
@@ -497,7 +497,7 @@ static void rockchip_hdmiv1_config_avi(struct hdmi *hdmi_drv,
 {
 	int i;
 	int avi_color_mode;
-	char info[SIZE_AVI_INFOFRAME];
+	u8 info[SIZE_AVI_INFOFRAME];
 	struct hdmi_dev *hdmi_dev = hdmi_drv->property->priv;
 
 	memset(info, 0, SIZE_AVI_INFOFRAME);
@@ -526,7 +526,7 @@ static void rockchip_hdmiv1_config_avi(struct hdmi *hdmi_drv,
 	if ((vic == HDMI_720X480I_60HZ_4_3) ||
 	    (vic == HDMI_720X576I_50HZ_4_3) ||
 	    (vic == HDMI_720X480I_60HZ_16_9) ||
-	    (vic == HDMI_720X480I_60HZ_16_9))
+	    (vic == HDMI_720X576I_50HZ_16_9))
 		info[8] = 1;
 	else
 		info[8] = 0;
@@ -711,7 +711,7 @@ static int rockchip_hdmiv1_config_video(struct hdmi *hdmi_drv,
 static void rockchip_hdmiv1_config_aai(struct hdmi *hdmi_drv)
 {
 	int i;
-	char info[SIZE_AUDIO_INFOFRAME];
+	u8 info[SIZE_AUDIO_INFOFRAME];
 	struct hdmi_dev *hdmi_dev = hdmi_drv->property->priv;
 
 	memset(info, 0, SIZE_AUDIO_INFOFRAME);
@@ -847,7 +847,7 @@ int rockchip_hdmiv1_control_output(struct hdmi *hdmi_drv, int enable)
 			hdmi_writel(hdmi_dev, 0xce, 0x01);
 		}
 
-		if (mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
+		if (mutestatus == (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
 			hdmi_msk_reg(hdmi_dev, AV_MUTE,
 				     m_AUDIO_MUTE |
 				     m_AUDIO_PD |

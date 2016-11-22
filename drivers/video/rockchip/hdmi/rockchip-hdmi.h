@@ -14,6 +14,7 @@
 #define HDMI_VIDEO_DMT					BIT(9)
 #define HDMI_VIDEO_YUV420				BIT(10)
 #define HDMI_VIDEO_DISCRETE_VR				BIT(11)
+
 #define HDMI_VIC_MASK					(0xFF)
 #define HDMI_TYPE_MASK					(0xFF << 8)
 #define HDMI_MAX_ID					4
@@ -237,7 +238,7 @@ enum hdmi_hotpulg_status {
 	HDMI_HPD_INSERT,	/* HDMI is connected, but HDP is low
 				 * or TMDS link is not pull up to 3.3V.
 				 */
-	HDMI_HPD_ACTIVED	/* HDMI is connected, all singnal
+	HDMI_HPD_ACTIVATED	/* HDMI is connected, all singnal
 				 * is normal
 				 */
 };
@@ -384,7 +385,7 @@ struct hdmi_edid {
 	unsigned int  audio_num;	/*Device supported audio type number*/
 
 	unsigned int status;		/*EDID read status, success or failed*/
-	char *raw[HDMI_MAX_EDID_BLOCK]; /*Raw EDID Data*/
+	u8 *raw[HDMI_MAX_EDID_BLOCK];	/*Raw EDID Data*/
 	union {
 		u8	data[5];
 		struct hdmi_hdr hdrinfo;
@@ -570,7 +571,6 @@ struct hdmi {
 #define HDMI_AUDIO_DEFAULT_CHANNEL		2
 #define HDMI_AUDIO_DEFAULT_RATE			HDMI_AUDIO_FS_44100
 #define HDMI_AUDIO_DEFAULT_WORDLENGTH	HDMI_AUDIO_WORD_LENGTH_16bit
-
 
 extern int hdmi_dbg_level;
 #define HDMIDBG(x, format, ...) do {			\

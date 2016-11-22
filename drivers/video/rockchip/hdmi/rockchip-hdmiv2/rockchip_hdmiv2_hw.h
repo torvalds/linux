@@ -385,7 +385,7 @@ enum {
 };
 
 #define m_OUTPUT_SEL		(0x03 << 0)
-#define v_OUTPUT_SEL(n)		((n & 0x03) << 0)
+#define v_OUTPUT_SEL(n)		(((n) & 0x03) << 0)
 
 #define VP_MASK				0x0807
 #define m_OINTFULL_REPET	BIT(7)
@@ -645,7 +645,8 @@ enum {
 #define m_AUDIO_SAMPLE_RATE		(0x0f << 0)
 #define v_AUDIO_SAMPLE_RATE(n)	(((n) & 0x0f) << 0)
 #define m_AUDIO_ORI_SAMPLE_RATE		(0x0f << 4)
-#define v_AUDIO_ORI_SAMPLE_RATE(n)	(((~n) & 0x0f) << 4)
+#define v_AUDIO_ORI_SAMPLE_RATE(n)	(((~(n)) & 0x0f) << 4)
+
 #define m_AUDIO_WORD_LENGTH		(0x0f << 0)
 #define v_AUDIO_WORD_LENGTH(n)	(((n) & 0x0f) << 0)
 
@@ -1700,7 +1701,7 @@ struct ext_pll_config_tab {
 	u8	pclk_divider_d;
 	u8	vco_div_5;
 	u8	ppll_nd;
-	u8	ppll_nf;
+	u16	ppll_nf;
 	u8	ppll_no;
 };
 

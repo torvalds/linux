@@ -221,7 +221,7 @@ static int rockchip_hdmiv1_parse_dt(struct hdmi_dev *hdmi_dev)
 
 	match = of_match_node(rockchip_hdmiv1_dt_ids, np);
 	if (!match)
-		return PTR_ERR(match);
+		return -EINVAL;
 
 	if (!strcmp(match->compatible, "rockchip,rk3036-hdmi")) {
 		hdmi_dev->soctype = HDMI_SOC_RK3036;
@@ -271,7 +271,7 @@ static int rockchip_hdmiv1_probe(struct platform_device *pdev)
 				sizeof(struct hdmi_dev),
 				GFP_KERNEL);
 	if (!hdmi_dev) {
-		dev_err(hdmi_dev->dev, ">>rk_hdmi kmalloc fail!");
+		dev_err(&pdev->dev, ">>rk_hdmi kmalloc fail!");
 		return -ENOMEM;
 	}
 	hdmi_dev->dev = &pdev->dev;
@@ -404,7 +404,7 @@ static void rockchip_hdmiv1_shutdown(struct platform_device *pdev)
 		if (hdmi_dev->irq)
 			disable_irq(hdmi_dev->irq);
 		mutex_unlock(&hdmi_drv->lock);
-		if (hdmi_drv->hotplug == HDMI_HPD_ACTIVED)
+		if (hdmi_drv->hotplug == HDMI_HPD_ACTIVATED)
 			hdmi_drv->ops->setmute(hdmi_drv,
 					       HDMI_VIDEO_MUTE |
 					       HDMI_AUDIO_MUTE);
