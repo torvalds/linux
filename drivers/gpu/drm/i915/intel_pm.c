@@ -3851,10 +3851,10 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 	I915_WRITE(reg, val);
 }
 
-void skl_write_plane_wm(struct intel_crtc *intel_crtc,
-			const struct skl_plane_wm *wm,
-			const struct skl_ddb_allocation *ddb,
-			int plane)
+static void skl_write_plane_wm(struct intel_crtc *intel_crtc,
+			       const struct skl_plane_wm *wm,
+			       const struct skl_ddb_allocation *ddb,
+			       int plane)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_device *dev = crtc->dev;
@@ -3875,9 +3875,9 @@ void skl_write_plane_wm(struct intel_crtc *intel_crtc,
 			    &ddb->y_plane[pipe][plane]);
 }
 
-void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
-			 const struct skl_plane_wm *wm,
-			 const struct skl_ddb_allocation *ddb)
+static void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
+				const struct skl_plane_wm *wm,
+				const struct skl_ddb_allocation *ddb)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_device *dev = crtc->dev;
