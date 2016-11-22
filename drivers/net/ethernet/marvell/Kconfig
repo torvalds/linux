@@ -58,6 +58,7 @@ config MVNETA
 	tristate "Marvell Armada 370/38x/XP network interface support"
 	depends on PLAT_ORION || COMPILE_TEST
 	depends on HAS_DMA
+	depends on !64BIT
 	select MVMDIO
 	select FIXED_PHY
 	---help---
@@ -81,6 +82,7 @@ config MVPP2
 	tristate "Marvell Armada 375 network interface support"
 	depends on MACH_ARMADA_375 || COMPILE_TEST
 	depends on HAS_DMA
+	depends on !64BIT
 	select MVMDIO
 	---help---
 	  This driver supports the network interface units in the
