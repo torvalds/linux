@@ -84,6 +84,7 @@ struct fpga_image_info {
 
 /**
  * struct fpga_manager_ops - ops for low level fpga manager drivers
+ * @initial_header_size: Maximum number of bytes that should be passed into write_init
  * @state: returns an enum value of the FPGA's state
  * @write_init: prepare the FPGA to receive confuration data
  * @write: write count bytes of configuration data to the FPGA
@@ -95,6 +96,7 @@ struct fpga_image_info {
  * called, so leaving them out is fine.
  */
 struct fpga_manager_ops {
+	size_t initial_header_size;
 	enum fpga_mgr_states (*state)(struct fpga_manager *mgr);
 	int (*write_init)(struct fpga_manager *mgr,
 			  struct fpga_image_info *info,

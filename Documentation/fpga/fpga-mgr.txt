@@ -169,7 +169,10 @@ The programming sequence is:
  2. .write (may be called once or multiple times)
  3. .write_complete
 
-The .write_init function will prepare the FPGA to receive the image data.
+The .write_init function will prepare the FPGA to receive the image data.  The
+buffer passed into .write_init will be atmost .initial_header_size bytes long,
+if the whole bitstream is not immediately available then the core code will
+buffer up at least this much before starting.
 
 The .write function writes a buffer to the FPGA. The buffer may be contain the
 whole FPGA image or may be a smaller chunk of an FPGA image.  In the latter
