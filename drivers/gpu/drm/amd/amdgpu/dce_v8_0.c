@@ -3576,7 +3576,6 @@ static void dce_v8_0_encoder_add(struct amdgpu_device *adev,
 }
 
 static const struct amdgpu_display_funcs dce_v8_0_display_funcs = {
-	.set_vga_render_state = &dce_v8_0_set_vga_render_state,
 	.bandwidth_update = &dce_v8_0_bandwidth_update,
 	.vblank_get_counter = &dce_v8_0_vblank_get_counter,
 	.vblank_wait = &dce_v8_0_vblank_wait,

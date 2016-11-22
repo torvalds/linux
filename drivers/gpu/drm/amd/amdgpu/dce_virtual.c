@@ -145,12 +145,6 @@ static void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
 	return;
 }
 
-static void dce_virtual_set_vga_render_state(struct amdgpu_device *adev,
-				    bool render)
-{
-	return;
-}
-
 /**
  * dce_virtual_bandwidth_update - program display watermarks
  *
@@ -677,7 +671,6 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 }
 
 static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
-	.set_vga_render_state = &dce_virtual_set_vga_render_state,
 	.bandwidth_update = &dce_virtual_bandwidth_update,
 	.vblank_get_counter = &dce_virtual_vblank_get_counter,
 	.vblank_wait = &dce_virtual_vblank_wait,

@@ -264,8 +264,6 @@ struct amdgpu_mode_mc_save {
 };
 
 struct amdgpu_display_funcs {
-	/* vga render */
-	void (*set_vga_render_state)(struct amdgpu_device *adev, bool render);
 	/* display watermarks */
 	void (*bandwidth_update)(struct amdgpu_device *adev);
 	/* get frame count */
