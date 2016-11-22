@@ -623,7 +623,7 @@ static void do_bio_hook(struct search *s, struct bio *orig_bio)
 {
 	struct bio *bio = &s->bio.bio;
 
-	bio_init(bio);
+	bio_init(bio, NULL, 0);
 	__bio_clone_fast(bio, orig_bio);
 	bio->bi_end_io		= request_endio;
 	bio->bi_private		= &s->cl;

@@ -222,9 +222,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 			return -ENOMEM;
 	}
 
-	bio_init(&bio);
-	bio.bi_max_vecs = nr_pages;
-	bio.bi_io_vec = vecs;
+	bio_init(&bio, vecs, nr_pages);
 	bio.bi_bdev = bdev;
 	bio.bi_iter.bi_sector = pos >> 9;
 	bio.bi_private = current;

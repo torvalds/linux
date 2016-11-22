@@ -37,9 +37,7 @@ static void nvmet_inline_bio_init(struct nvmet_req *req)
 {
 	struct bio *bio = &req->inline_bio;
 
-	bio_init(bio);
-	bio->bi_max_vecs = NVMET_MAX_INLINE_BIOVEC;
-	bio->bi_io_vec = req->inline_bvec;
+	bio_init(bio, req->inline_bvec, NVMET_MAX_INLINE_BIOVEC);
 }
 
 static void nvmet_execute_rw(struct nvmet_req *req)

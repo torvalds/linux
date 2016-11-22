@@ -2004,13 +2004,8 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 		for (i = 0; i < disks; i++) {
 			struct r5dev *dev = &sh->dev[i];
 
-			bio_init(&dev->req);
-			dev->req.bi_io_vec = &dev->vec;
-			dev->req.bi_max_vecs = 1;
-
-			bio_init(&dev->rreq);
-			dev->rreq.bi_io_vec = &dev->rvec;
-			dev->rreq.bi_max_vecs = 1;
+			bio_init(&dev->req, &dev->vec, 1);
+			bio_init(&dev->rreq, &dev->rvec, 1);
 		}
 	}
 	return sh;

@@ -420,7 +420,8 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
 extern int submit_bio_wait(struct bio *bio);
 extern void bio_advance(struct bio *, unsigned);
 
-extern void bio_init(struct bio *);
+extern void bio_init(struct bio *bio, struct bio_vec *table,
+		     unsigned short max_vecs);
 extern void bio_reset(struct bio *);
 void bio_chain(struct bio *, struct bio *);
 

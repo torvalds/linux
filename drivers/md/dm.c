@@ -1525,7 +1525,7 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->bdev)
 		goto bad;
 
-	bio_init(&md->flush_bio);
+	bio_init(&md->flush_bio, NULL, 0);
 	md->flush_bio.bi_bdev = md->bdev;
 	md->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
