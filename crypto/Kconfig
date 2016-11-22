@@ -253,7 +253,7 @@ config CRYPTO_SIMD
 config CRYPTO_GLUE_HELPER_X86
 	tristate
 	depends on X86
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 
 config CRYPTO_ENGINE
 	tristate
