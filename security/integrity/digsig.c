@@ -51,7 +51,7 @@ static bool init_keyring __initdata;
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 			    const char *digest, int digestlen)
 {
-	if (id >= INTEGRITY_KEYRING_MAX)
+	if (id >= INTEGRITY_KEYRING_MAX || siglen < 2)
 		return -EINVAL;
 
 	if (!keyring[id]) {
