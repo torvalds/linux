@@ -962,6 +962,7 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	case BOOK3S_INTERRUPT_EXTERNAL:
 	case BOOK3S_INTERRUPT_H_DOORBELL:
+	case BOOK3S_INTERRUPT_H_VIRT:
 		vcpu->stat.ext_intr_exits++;
 		r = RESUME_GUEST;
 		break;
@@ -3305,9 +3306,15 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	/* On POWER8 turn on online bit to enable PURR/SPURR */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		lpcr |= LPCR_ONL;
-	/* On POWER9, VPM0 bit is reserved (VPM0=1 behaviour is assumed) */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	/*
+	 * On POWER9, VPM0 bit is reserved (VPM0=1 behaviour is assumed)
+	 * Set HVICE bit to enable hypervisor virtualization interrupts.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		lpcr &= ~LPCR_VPM0;
+		lpcr |= LPCR_HVICE;
+	}
+
 	kvm->arch.lpcr = lpcr;
 
 	/*
