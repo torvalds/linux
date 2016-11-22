@@ -2587,8 +2587,6 @@ static struct platform_driver ab8500_codec_platform_driver = {
 	},
 	.probe		= ab8500_codec_driver_probe,
 	.remove		= ab8500_codec_driver_remove,
-	.suspend	= NULL,
-	.resume		= NULL,
 };
 module_platform_driver(ab8500_codec_platform_driver);
 
