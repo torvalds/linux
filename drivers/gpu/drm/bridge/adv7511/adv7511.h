@@ -317,6 +317,8 @@ struct adv7511 {
 	bool edid_read;
 
 	wait_queue_head_t wq;
+	struct work_struct hpd_work;
+
 	struct drm_bridge bridge;
 	struct drm_connector connector;
 
