@@ -75,7 +75,18 @@
 #define SND_AUDIOCODEC_G723_1                ((__u32) 0x0000000C)
 #define SND_AUDIOCODEC_G729                  ((__u32) 0x0000000D)
 #define SND_AUDIOCODEC_BESPOKE               ((__u32) 0x0000000E)
-#define SND_AUDIOCODEC_MAX                   SND_AUDIOCODEC_BESPOKE
+#define SND_AUDIOCODEC_DTS_PASS_THROUGH      ((__u32) 0x0000000F)
+#define SND_AUDIOCODEC_DTS_LBR               ((__u32) 0x00000010)
+#define SND_AUDIOCODEC_DTS_TRANSCODE_LOOPBACK ((__u32) 0x00000011)
+#define SND_AUDIOCODEC_PASS_THROUGH          ((__u32) 0x00000012)
+#define SND_AUDIOCODEC_MP2                   ((__u32) 0x00000013)
+#define SND_AUDIOCODEC_DTS_LBR_PASS_THROUGH  ((__u32) 0x00000014)
+#define SND_AUDIOCODEC_AC3                   ((__u32) 0x00000015)
+#define SND_AUDIOCODEC_AC3_PASS_THROUGH      ((__u32) 0x00000016)
+#define SND_AUDIOCODEC_WMA_PRO               ((__u32) 0x00000017)
+#define SND_AUDIOCODEC_DTS                   ((__u32) 0x00000018)
+#define SND_AUDIOCODEC_EAC3                  ((__u32) 0x00000019)
+#define SND_AUDIOCODEC_MAX                   SND_AUDIOCODEC_EAC3
 
 /*
  * Profile and modes are listed with bit masks. This allows for a
