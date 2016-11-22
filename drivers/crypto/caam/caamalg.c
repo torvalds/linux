@@ -2,6 +2,7 @@
  * caam - Freescale FSL CAAM support for crypto API
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2016 NXP
  *
  * Based on talitos crypto API driver.
  *
@@ -53,6 +54,7 @@
 #include "error.h"
 #include "sg_sw_sec4.h"
 #include "key_gen.h"
+#include "caamalg_desc.h"
 
 /*
  * crypto alg
@@ -68,37 +70,6 @@
 					 CAAM_CMD_SZ * 4)
 #define AUTHENC_DESC_JOB_IO_LEN		(AEAD_DESC_JOB_IO_LEN + \
 					 CAAM_CMD_SZ * 5)
-
-/* length of descriptors text */
-#define DESC_AEAD_BASE			(4 * CAAM_CMD_SZ)
-#define DESC_AEAD_ENC_LEN		(DESC_AEAD_BASE + 11 * CAAM_CMD_SZ)
-#define DESC_AEAD_DEC_LEN		(DESC_AEAD_BASE + 15 * CAAM_CMD_SZ)
-#define DESC_AEAD_GIVENC_LEN		(DESC_AEAD_ENC_LEN + 7 * CAAM_CMD_SZ)
-
-/* Note: Nonce is counted in enckeylen */
-#define DESC_AEAD_CTR_RFC3686_LEN	(4 * CAAM_CMD_SZ)
-
-#define DESC_AEAD_NULL_BASE		(3 * CAAM_CMD_SZ)
-#define DESC_AEAD_NULL_ENC_LEN		(DESC_AEAD_NULL_BASE + 11 * CAAM_CMD_SZ)
-#define DESC_AEAD_NULL_DEC_LEN		(DESC_AEAD_NULL_BASE + 13 * CAAM_CMD_SZ)
-
-#define DESC_GCM_BASE			(3 * CAAM_CMD_SZ)
-#define DESC_GCM_ENC_LEN		(DESC_GCM_BASE + 16 * CAAM_CMD_SZ)
-#define DESC_GCM_DEC_LEN		(DESC_GCM_BASE + 12 * CAAM_CMD_SZ)
-
-#define DESC_RFC4106_BASE		(3 * CAAM_CMD_SZ)
-#define DESC_RFC4106_ENC_LEN		(DESC_RFC4106_BASE + 13 * CAAM_CMD_SZ)
-#define DESC_RFC4106_DEC_LEN		(DESC_RFC4106_BASE + 13 * CAAM_CMD_SZ)
-
-#define DESC_RFC4543_BASE		(3 * CAAM_CMD_SZ)
-#define DESC_RFC4543_ENC_LEN		(DESC_RFC4543_BASE + 11 * CAAM_CMD_SZ)
-#define DESC_RFC4543_DEC_LEN		(DESC_RFC4543_BASE + 12 * CAAM_CMD_SZ)
-
-#define DESC_ABLKCIPHER_BASE		(3 * CAAM_CMD_SZ)
-#define DESC_ABLKCIPHER_ENC_LEN		(DESC_ABLKCIPHER_BASE + \
-					 20 * CAAM_CMD_SZ)
-#define DESC_ABLKCIPHER_DEC_LEN		(DESC_ABLKCIPHER_BASE + \
-					 15 * CAAM_CMD_SZ)
 
 #define DESC_MAX_USED_BYTES		(CAAM_DESC_BYTES_MAX - DESC_JOB_IO_LEN)
 #define DESC_MAX_USED_LEN		(DESC_MAX_USED_BYTES / CAAM_CMD_SZ)
@@ -159,52 +130,6 @@ struct caam_aead_alg {
 	bool registered;
 };
 
-/* Set DK bit in class 1 operation if shared */
-static inline void append_dec_op1(u32 *desc, u32 type)
-{
-	u32 *jump_cmd, *uncond_jump_cmd;
-
-	/* DK bit is valid only for AES */
-	if ((type & OP_ALG_ALGSEL_MASK) != OP_ALG_ALGSEL_AES) {
-		append_operation(desc, type | OP_ALG_AS_INITFINAL |
-				 OP_ALG_DECRYPT);
-		return;
-	}
-
-	jump_cmd = append_jump(desc, JUMP_TEST_ALL | JUMP_COND_SHRD);
-	append_operation(desc, type | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT);
-	uncond_jump_cmd = append_jump(desc, JUMP_TEST_ALL);
-	set_jump_tgt_here(desc, jump_cmd);
-	append_operation(desc, type | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT | OP_ALG_AAI_DK);
-	set_jump_tgt_here(desc, uncond_jump_cmd);
-}
-
-/*
- * For aead functions, read payload and write payload,
- * both of which are specified in req->src and req->dst
- */
-static inline void aead_append_src_dst(u32 *desc, u32 msg_type)
-{
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_BOTH |
-			     KEY_VLF | msg_type | FIFOLD_TYPE_LASTBOTH);
-}
-
-/*
- * For ablkcipher encrypt and decrypt, read from req->src and
- * write to req->dst
- */
-static inline void ablkcipher_append_src_dst(u32 *desc)
-{
-	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 |
-			     KEY_VLF | FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);
-}
-
 /*
  * per-session context
  */
@@ -223,66 +148,10 @@ struct caam_ctx {
 	unsigned int authsize;
 };
 
-static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
-				  bool is_rfc3686)
-{
-	u32 *key_jump_cmd;
-	unsigned int enckeylen = ctx->cdata.keylen;
-
-	/* Note: Context registers are saved. */
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	/*
-	 * RFC3686 specific:
-	 *	| ctx->key = {AUTH_KEY, ENC_KEY, NONCE}
-	 *	| enckeylen = encryption key size + nonce size
-	 */
-	if (is_rfc3686)
-		enckeylen -= CTR_RFC3686_NONCE_SIZE;
-
-	if (ctx->adata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->adata.key,
-				  ctx->adata.keylen_pad, ctx->adata.keylen,
-				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	else
-		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
-			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
-
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key, enckeylen,
-				  enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, enckeylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-
-	/* Load Counter into CONTEXT1 reg */
-	if (is_rfc3686) {
-		u32 *nonce;
-
-		nonce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
-			       enckeylen);
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
-				   LDST_CLASS_IND_CCB |
-				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
-		append_move(desc,
-			    MOVE_SRC_OUTFIFO |
-			    MOVE_DEST_CLASS1CTX |
-			    (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
-	}
-
-	set_jump_tgt_here(desc, key_jump_cmd);
-}
-
 static int aead_null_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	u32 *key_jump_cmd, *jump_cmd, *read_move_cmd, *write_move_cmd;
 	u32 *desc;
 	int rem_bytes = CAAM_DESC_BYTES_MAX - AEAD_DESC_JOB_IO_LEN -
 			ctx->adata.keylen_pad;
@@ -301,58 +170,7 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-	if (ctx->adata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->adata.key,
-				  ctx->adata.keylen_pad, ctx->adata.keylen,
-				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	else
-		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
-			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* assoclen + cryptlen = seqinlen */
-	append_math_sub(desc, REG3, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* Prepare to read and write cryptlen + assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
-	 * thus need to do some magic, i.e. self-patch the descriptor
-	 * buffer.
-	 */
-	read_move_cmd = append_move(desc, MOVE_SRC_DESCBUF |
-				    MOVE_DEST_MATH3 |
-				    (0x6 << MOVE_LEN_SHIFT));
-	write_move_cmd = append_move(desc, MOVE_SRC_MATH3 |
-				     MOVE_DEST_DESCBUF |
-				     MOVE_WAITCOMP |
-				     (0x8 << MOVE_LEN_SHIFT));
-
-	/* Class 2 operation */
-	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Read and write cryptlen bytes */
-	aead_append_src_dst(desc, FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
-
-	set_move_tgt_here(desc, read_move_cmd);
-	set_move_tgt_here(desc, write_move_cmd);
-	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
-	append_move(desc, MOVE_SRC_INFIFO_CL | MOVE_DEST_OUTFIFO |
-		    MOVE_AUX_LS);
-
-	/* Write ICV */
-	append_seq_store(desc, ctx->authsize, LDST_CLASS_2_CCB |
-			 LDST_SRCDST_BYTE_CONTEXT);
-
+	cnstr_shdsc_aead_null_encap(desc, &ctx->adata, ctx->authsize);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -360,12 +178,6 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "aead null enc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -379,68 +191,9 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 		ctx->adata.key = ctx->key_dma;
 	}
 
-	desc = ctx->sh_desc_dec;
-
 	/* aead_decrypt shared descriptor */
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-	if (ctx->adata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->adata.key,
-				  ctx->adata.keylen_pad, ctx->adata.keylen,
-				  CLASS_2 | KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	else
-		append_key(desc, ctx->adata.key, ctx->adata.keylen, CLASS_2 |
-			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Class 2 operation */
-	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
-
-	/* assoclen + cryptlen = seqoutlen */
-	append_math_sub(desc, REG2, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* Prepare to read and write cryptlen + assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG2, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG2, CAAM_CMD_SZ);
-
-	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
-	 * thus need to do some magic, i.e. self-patch the descriptor
-	 * buffer.
-	 */
-	read_move_cmd = append_move(desc, MOVE_SRC_DESCBUF |
-				    MOVE_DEST_MATH2 |
-				    (0x6 << MOVE_LEN_SHIFT));
-	write_move_cmd = append_move(desc, MOVE_SRC_MATH2 |
-				     MOVE_DEST_DESCBUF |
-				     MOVE_WAITCOMP |
-				     (0x8 << MOVE_LEN_SHIFT));
-
-	/* Read and write cryptlen bytes */
-	aead_append_src_dst(desc, FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
-
-	/*
-	 * Insert a NOP here, since we need at least 4 instructions between
-	 * code patching the descriptor buffer and the location being patched.
-	 */
-	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
-	set_jump_tgt_here(desc, jump_cmd);
-
-	set_move_tgt_here(desc, read_move_cmd);
-	set_move_tgt_here(desc, write_move_cmd);
-	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
-	append_move(desc, MOVE_SRC_INFIFO_CL | MOVE_DEST_OUTFIFO |
-		    MOVE_AUX_LS);
-	append_cmd(desc, CMD_LOAD | ENABLE_AUTO_INFO_FIFO);
-
-	/* Load ICV */
-	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS2 |
-			     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
-
+	desc = ctx->sh_desc_dec;
+	cnstr_shdsc_aead_null_decap(desc, &ctx->adata, ctx->authsize);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -448,12 +201,6 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "aead null dec shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	return 0;
 }
@@ -465,9 +212,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	unsigned int ivsize = crypto_aead_ivsize(aead);
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	u32 geniv, moveiv;
 	u32 ctx1_iv_off = 0;
-	u32 *desc;
+	u32 *desc, *nonce = NULL;
 	u32 inl_mask;
 	unsigned int data_len[2];
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
@@ -493,8 +239,11 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * RFC3686 specific:
 	 *	CONTEXT1[255:128] = {NONCE, IV, COUNTER}
 	 */
-	if (is_rfc3686)
+	if (is_rfc3686) {
 		ctx1_iv_off = 16 + CTR_RFC3686_NONCE_SIZE;
+		nonce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
+				ctx->cdata.keylen - CTR_RFC3686_NONCE_SIZE);
+	}
 
 	data_len[0] = ctx->adata.keylen_pad;
 	data_len[1] = ctx->cdata.keylen;
@@ -527,45 +276,8 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-
-	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, ctx, is_rfc3686);
-
-	/* Class 2 operation */
-	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Read and write assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* read assoc before reading payload */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS2 | FIFOLD_TYPE_MSG |
-				      FIFOLDST_VLF);
-
-	/* Load Counter into CONTEXT1 reg */
-	if (is_rfc3686)
-		append_load_imm_be32(desc, 1, LDST_IMM | LDST_CLASS_1_CCB |
-				     LDST_SRCDST_BYTE_CONTEXT |
-				     ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
-				      LDST_OFFSET_SHIFT));
-
-	/* Class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Read and write cryptlen bytes */
-	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-	aead_append_src_dst(desc, FIFOLD_TYPE_MSG1OUT2);
-
-	/* Write ICV */
-	append_seq_store(desc, ctx->authsize, LDST_CLASS_2_CCB |
-			 LDST_SRCDST_BYTE_CONTEXT);
-
+	cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata, ctx->authsize,
+			       is_rfc3686, nonce, ctx1_iv_off);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -573,11 +285,6 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead enc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 skip_enc:
 	/*
@@ -605,59 +312,9 @@ skip_enc:
 
 	/* aead_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
-
-	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, ctx, is_rfc3686);
-
-	/* Class 2 operation */
-	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
-
-	/* Read and write assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	if (alg->caam.geniv)
-		append_math_add_imm_u32(desc, VARSEQOUTLEN, REG3, IMM, ivsize);
-	else
-		append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* read assoc before reading payload */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS2 | FIFOLD_TYPE_MSG |
-			     KEY_VLF);
-
-	if (alg->caam.geniv) {
-		append_seq_load(desc, ivsize, LDST_CLASS_1_CCB |
-				LDST_SRCDST_BYTE_CONTEXT |
-				(ctx1_iv_off << LDST_OFFSET_SHIFT));
-		append_move(desc, MOVE_SRC_CLASS1CTX | MOVE_DEST_CLASS2INFIFO |
-			    (ctx1_iv_off << MOVE_OFFSET_SHIFT) | ivsize);
-	}
-
-	/* Load Counter into CONTEXT1 reg */
-	if (is_rfc3686)
-		append_load_imm_be32(desc, 1, LDST_IMM | LDST_CLASS_1_CCB |
-				     LDST_SRCDST_BYTE_CONTEXT |
-				     ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
-				      LDST_OFFSET_SHIFT));
-
-	/* Choose operation */
-	if (ctr_mode)
-		append_operation(desc, ctx->cdata.algtype |
-				 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT);
-	else
-		append_dec_op1(desc, ctx->cdata.algtype);
-
-	/* Read and write cryptlen bytes */
-	append_math_add(desc, VARSEQINLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-	aead_append_src_dst(desc, FIFOLD_TYPE_MSG);
-
-	/* Load ICV */
-	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS2 |
-			     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
-
+	cnstr_shdsc_aead_decap(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, alg->caam.geniv, is_rfc3686,
+			       nonce, ctx1_iv_off);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -665,11 +322,6 @@ skip_enc:
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead dec shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	if (!alg->caam.geniv)
 		goto skip_givenc;
@@ -699,83 +351,9 @@ skip_enc:
 
 	/* aead_givencrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-
-	/* Note: Context registers are saved. */
-	init_sh_desc_key_aead(desc, ctx, is_rfc3686);
-
-	if (is_rfc3686)
-		goto copy_iv;
-
-	/* Generate IV */
-	geniv = NFIFOENTRY_STYPE_PAD | NFIFOENTRY_DEST_DECO |
-		NFIFOENTRY_DTYPE_MSG | NFIFOENTRY_LC1 |
-		NFIFOENTRY_PTYPE_RND | (ivsize << NFIFOENTRY_DLEN_SHIFT);
-	append_load_imm_u32(desc, geniv, LDST_CLASS_IND_CCB |
-			    LDST_SRCDST_WORD_INFO_FIFO | LDST_IMM);
-	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
-	append_move(desc, MOVE_WAITCOMP |
-		    MOVE_SRC_INFIFO | MOVE_DEST_CLASS1CTX |
-		    (ctx1_iv_off << MOVE_OFFSET_SHIFT) |
-		    (ivsize << MOVE_LEN_SHIFT));
-	append_cmd(desc, CMD_LOAD | ENABLE_AUTO_INFO_FIFO);
-
-copy_iv:
-	/* Copy IV to class 1 context */
-	append_move(desc, MOVE_SRC_CLASS1CTX | MOVE_DEST_OUTFIFO |
-		    (ctx1_iv_off << MOVE_OFFSET_SHIFT) |
-		    (ivsize << MOVE_LEN_SHIFT));
-
-	/* Return to encryption */
-	append_operation(desc, ctx->adata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Read and write assoclen bytes */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* read assoc before reading payload */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS2 | FIFOLD_TYPE_MSG |
-			     KEY_VLF);
-
-	/* Copy iv from outfifo to class 2 fifo */
-	moveiv = NFIFOENTRY_STYPE_OFIFO | NFIFOENTRY_DEST_CLASS2 |
-		 NFIFOENTRY_DTYPE_MSG | (ivsize << NFIFOENTRY_DLEN_SHIFT);
-	append_load_imm_u32(desc, moveiv, LDST_CLASS_IND_CCB |
-			    LDST_SRCDST_WORD_INFO_FIFO | LDST_IMM);
-	append_load_imm_u32(desc, ivsize, LDST_CLASS_2_CCB |
-			    LDST_SRCDST_WORD_DATASZ_REG | LDST_IMM);
-
-	/* Load Counter into CONTEXT1 reg */
-	if (is_rfc3686)
-		append_load_imm_be32(desc, 1, LDST_IMM | LDST_CLASS_1_CCB |
-				     LDST_SRCDST_BYTE_CONTEXT |
-				     ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
-				      LDST_OFFSET_SHIFT));
-
-	/* Class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Will write ivsize + cryptlen */
-	append_math_add(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* Not need to reload iv */
-	append_seq_fifo_load(desc, ivsize,
-			     FIFOLD_CLASS_SKIP);
-
-	/* Will read cryptlen */
-	append_math_add(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_BOTH | KEY_VLF |
-			     FIFOLD_TYPE_MSG1OUT2 | FIFOLD_TYPE_LASTBOTH);
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);
-
-	/* Write ICV */
-	append_seq_store(desc, ctx->authsize, LDST_CLASS_2_CCB |
-			 LDST_SRCDST_BYTE_CONTEXT);
-
+	cnstr_shdsc_aead_givencap(desc, &ctx->cdata, &ctx->adata, ivsize,
+				  ctx->authsize, is_rfc3686, nonce,
+				  ctx1_iv_off);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -783,11 +361,6 @@ copy_iv:
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "aead givenc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 skip_givenc:
 	return 0;
@@ -808,8 +381,6 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	u32 *key_jump_cmd, *zero_payload_jump_cmd,
-	    *zero_assoc_jump_cmd1, *zero_assoc_jump_cmd2;
 	u32 *desc;
 	int rem_bytes = CAAM_DESC_BYTES_MAX - GCM_DESC_JOB_IO_LEN -
 			ctx->cdata.keylen;
@@ -831,78 +402,7 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	}
 
 	desc = ctx->sh_desc_enc;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* skip key loading if they are loaded due to sharing */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD | JUMP_COND_SELF);
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key,
-				  ctx->cdata.keylen, ctx->cdata.keylen,
-				  CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* if assoclen + cryptlen is ZERO, skip to ICV write */
-	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-	zero_assoc_jump_cmd2 = append_jump(desc, JUMP_TEST_ALL |
-						 JUMP_COND_MATH_Z);
-
-	/* if assoclen is ZERO, skip reading the assoc data */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	zero_assoc_jump_cmd1 = append_jump(desc, JUMP_TEST_ALL |
-						 JUMP_COND_MATH_Z);
-
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* cryptlen = seqinlen - assoclen */
-	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG3, CAAM_CMD_SZ);
-
-	/* if cryptlen is ZERO jump to zero-payload commands */
-	zero_payload_jump_cmd = append_jump(desc, JUMP_TEST_ALL |
-					    JUMP_COND_MATH_Z);
-
-	/* read assoc data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
-	set_jump_tgt_here(desc, zero_assoc_jump_cmd1);
-
-	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* write encrypted data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
-
-	/* read payload data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
-
-	/* jump the zero-payload commands */
-	append_jump(desc, JUMP_TEST_ALL | 2);
-
-	/* zero-payload commands */
-	set_jump_tgt_here(desc, zero_payload_jump_cmd);
-
-	/* read assoc data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_LAST1);
-
-	/* There is no input data */
-	set_jump_tgt_here(desc, zero_assoc_jump_cmd2);
-
-	/* write ICV */
-	append_seq_store(desc, ctx->authsize, LDST_CLASS_1_CCB |
-			 LDST_SRCDST_BYTE_CONTEXT);
-
+	cnstr_shdsc_gcm_encap(desc, &ctx->cdata, ctx->authsize);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -910,11 +410,6 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "gcm enc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -929,65 +424,7 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	}
 
 	desc = ctx->sh_desc_dec;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* skip key loading if they are loaded due to sharing */
-	key_jump_cmd = append_jump(desc, JUMP_JSL |
-				   JUMP_TEST_ALL | JUMP_COND_SHRD |
-				   JUMP_COND_SELF);
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key,
-				  ctx->cdata.keylen, ctx->cdata.keylen,
-				  CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
-
-	/* if assoclen is ZERO, skip reading the assoc data */
-	append_math_add(desc, VARSEQINLEN, ZERO, REG3, CAAM_CMD_SZ);
-	zero_assoc_jump_cmd1 = append_jump(desc, JUMP_TEST_ALL |
-						 JUMP_COND_MATH_Z);
-
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* read assoc data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
-
-	set_jump_tgt_here(desc, zero_assoc_jump_cmd1);
-
-	/* cryptlen = seqoutlen - assoclen */
-	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* jump to zero-payload command if cryptlen is zero */
-	zero_payload_jump_cmd = append_jump(desc, JUMP_TEST_ALL |
-					    JUMP_COND_MATH_Z);
-
-	append_math_sub(desc, VARSEQOUTLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* store encrypted data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
-
-	/* read payload data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
-
-	/* zero-payload command */
-	set_jump_tgt_here(desc, zero_payload_jump_cmd);
-
-	/* read ICV */
-	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS1 |
-			     FIFOLD_TYPE_ICV | FIFOLD_TYPE_LAST1);
-
+	cnstr_shdsc_gcm_decap(desc, &ctx->cdata, ctx->authsize);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -995,11 +432,6 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "gcm dec shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	return 0;
 }
@@ -1018,7 +450,6 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	u32 *key_jump_cmd;
 	u32 *desc;
 	int rem_bytes = CAAM_DESC_BYTES_MAX - GCM_DESC_JOB_IO_LEN -
 			ctx->cdata.keylen;
@@ -1040,58 +471,7 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	}
 
 	desc = ctx->sh_desc_enc;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip key loading if it is loaded due to sharing */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key,
-				  ctx->cdata.keylen, ctx->cdata.keylen,
-				  CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Read assoc data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
-
-	/* Skip IV */
-	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
-
-	/* Will read cryptlen bytes */
-	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* Workaround for erratum A-005473 (simultaneous SEQ FIFO skips) */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLD_TYPE_MSG);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* cryptlen = seqoutlen - assoclen */
-	append_math_sub(desc, VARSEQOUTLEN, VARSEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* Write encrypted data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
-
-	/* Read payload data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1);
-
-	/* Write ICV */
-	append_seq_store(desc, ctx->authsize, LDST_CLASS_1_CCB |
-			 LDST_SRCDST_BYTE_CONTEXT);
-
+	cnstr_shdsc_rfc4106_encap(desc, &ctx->cdata, ctx->authsize);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -1099,11 +479,6 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rfc4106 enc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -1118,58 +493,7 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	}
 
 	desc = ctx->sh_desc_dec;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip key loading if it is loaded due to sharing */
-	key_jump_cmd = append_jump(desc, JUMP_JSL |
-				   JUMP_TEST_ALL | JUMP_COND_SHRD);
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key,
-				  ctx->cdata.keylen, ctx->cdata.keylen,
-				  CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
-
-	append_math_sub_imm_u32(desc, VARSEQINLEN, REG3, IMM, 8);
-	append_math_add(desc, VARSEQOUTLEN, ZERO, REG3, CAAM_CMD_SZ);
-
-	/* Read assoc data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_FLUSH1);
-
-	/* Skip IV */
-	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
-
-	/* Will read cryptlen bytes */
-	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG3, CAAM_CMD_SZ);
-
-	/* Workaround for erratum A-005473 (simultaneous SEQ FIFO skips) */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLD_TYPE_MSG);
-
-	/* Skip assoc data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_SKIP | FIFOLDST_VLF);
-
-	/* Will write cryptlen bytes */
-	append_math_sub(desc, VARSEQOUTLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* Store payload data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
-
-	/* Read encrypted data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_CLASS1 | FIFOLDST_VLF |
-			     FIFOLD_TYPE_MSG | FIFOLD_TYPE_FLUSH1);
-
-	/* Read ICV */
-	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS1 |
-			     FIFOLD_TYPE_ICV | FIFOLD_TYPE_LAST1);
-
+	cnstr_shdsc_rfc4106_decap(desc, &ctx->cdata, ctx->authsize);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -1177,11 +501,6 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rfc4106 dec shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	return 0;
 }
@@ -1201,8 +520,6 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 {
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
-	u32 *key_jump_cmd;
-	u32 *read_move_cmd, *write_move_cmd;
 	u32 *desc;
 	int rem_bytes = CAAM_DESC_BYTES_MAX - GCM_DESC_JOB_IO_LEN -
 			ctx->cdata.keylen;
@@ -1224,57 +541,7 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	}
 
 	desc = ctx->sh_desc_enc;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip key loading if it is loaded due to sharing */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key,
-				  ctx->cdata.keylen, ctx->cdata.keylen,
-				  CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* assoclen + cryptlen = seqinlen */
-	append_math_sub(desc, REG3, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
-	 * thus need to do some magic, i.e. self-patch the descriptor
-	 * buffer.
-	 */
-	read_move_cmd = append_move(desc, MOVE_SRC_DESCBUF | MOVE_DEST_MATH3 |
-				    (0x6 << MOVE_LEN_SHIFT));
-	write_move_cmd = append_move(desc, MOVE_SRC_MATH3 | MOVE_DEST_DESCBUF |
-				     (0x8 << MOVE_LEN_SHIFT));
-
-	/* Will read assoclen + cryptlen bytes */
-	append_math_sub(desc, VARSEQINLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* Will write assoclen + cryptlen bytes */
-	append_math_sub(desc, VARSEQOUTLEN, SEQINLEN, REG0, CAAM_CMD_SZ);
-
-	/* Read and write assoclen + cryptlen bytes */
-	aead_append_src_dst(desc, FIFOLD_TYPE_AAD);
-
-	set_move_tgt_here(desc, read_move_cmd);
-	set_move_tgt_here(desc, write_move_cmd);
-	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
-	/* Move payload data to OFIFO */
-	append_move(desc, MOVE_SRC_INFIFO_CL | MOVE_DEST_OUTFIFO);
-
-	/* Write ICV */
-	append_seq_store(desc, ctx->authsize, LDST_CLASS_1_CCB |
-			 LDST_SRCDST_BYTE_CONTEXT);
-
+	cnstr_shdsc_rfc4543_encap(desc, &ctx->cdata, ctx->authsize);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -1282,11 +549,6 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rfc4543 enc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	/*
 	 * Job Descriptor and Shared Descriptors
@@ -1301,62 +563,7 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	}
 
 	desc = ctx->sh_desc_dec;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
-
-	/* Skip key loading if it is loaded due to sharing */
-	key_jump_cmd = append_jump(desc, JUMP_JSL |
-				   JUMP_TEST_ALL | JUMP_COND_SHRD);
-	if (ctx->cdata.key_inline)
-		append_key_as_imm(desc, (void *)ctx->cdata.key,
-				  ctx->cdata.keylen, ctx->cdata.keylen,
-				  CLASS_1 | KEY_DEST_CLASS_REG);
-	else
-		append_key(desc, ctx->cdata.key, ctx->cdata.keylen, CLASS_1 |
-			   KEY_DEST_CLASS_REG);
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Class 1 operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_DECRYPT | OP_ALG_ICV_ON);
-
-	/* assoclen + cryptlen = seqoutlen */
-	append_math_sub(desc, REG3, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/*
-	 * MOVE_LEN opcode is not available in all SEC HW revisions,
-	 * thus need to do some magic, i.e. self-patch the descriptor
-	 * buffer.
-	 */
-	read_move_cmd = append_move(desc, MOVE_SRC_DESCBUF | MOVE_DEST_MATH3 |
-				    (0x6 << MOVE_LEN_SHIFT));
-	write_move_cmd = append_move(desc, MOVE_SRC_MATH3 | MOVE_DEST_DESCBUF |
-				     (0x8 << MOVE_LEN_SHIFT));
-
-	/* Will read assoclen + cryptlen bytes */
-	append_math_sub(desc, VARSEQINLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* Will write assoclen + cryptlen bytes */
-	append_math_sub(desc, VARSEQOUTLEN, SEQOUTLEN, REG0, CAAM_CMD_SZ);
-
-	/* Store payload data */
-	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | FIFOLDST_VLF);
-
-	/* In-snoop assoclen + cryptlen data */
-	append_seq_fifo_load(desc, 0, FIFOLD_CLASS_BOTH | FIFOLDST_VLF |
-			     FIFOLD_TYPE_AAD | FIFOLD_TYPE_LAST2FLUSH1);
-
-	set_move_tgt_here(desc, read_move_cmd);
-	set_move_tgt_here(desc, write_move_cmd);
-	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
-	/* Move payload data to OFIFO */
-	append_move(desc, MOVE_SRC_INFIFO_CL | MOVE_DEST_OUTFIFO);
-	append_cmd(desc, CMD_LOAD | ENABLE_AUTO_INFO_FIFO);
-
-	/* Read ICV */
-	append_seq_fifo_load(desc, ctx->authsize, FIFOLD_CLASS_CLASS1 |
-			     FIFOLD_TYPE_ICV | FIFOLD_TYPE_LAST1);
-
+	cnstr_shdsc_rfc4543_decap(desc, &ctx->cdata, ctx->authsize);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -1364,11 +571,6 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rfc4543 dec shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
 	return 0;
 }
@@ -1569,21 +771,18 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			     const u8 *key, unsigned int keylen)
 {
 	struct caam_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
-	struct ablkcipher_tfm *crt = &ablkcipher->base.crt_ablkcipher;
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(ablkcipher);
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 	struct device *jrdev = ctx->jrdev;
-	int ret = 0;
-	u32 *key_jump_cmd;
+	unsigned int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
 	u32 *desc;
-	u8 *nonce;
-	u32 geniv;
 	u32 ctx1_iv_off = 0;
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
 			       OP_ALG_AAI_CTR_MOD128);
 	const bool is_rfc3686 = (ctr_mode &&
 				 (strstr(alg_name, "rfc3686") != NULL));
 
+	memcpy(ctx->key, key, keylen);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
@@ -1606,7 +805,6 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		keylen -= CTR_RFC3686_NONCE_SIZE;
 	}
 
-	memcpy(ctx->key, key, keylen);
 	ctx->key_dma = dma_map_single(jrdev, ctx->key, keylen,
 				      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->key_dma)) {
@@ -1619,48 +817,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
-			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
-
-	/* Load nonce into CONTEXT1 reg */
-	if (is_rfc3686) {
-		nonce = (u8 *)key + keylen;
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
-				   LDST_CLASS_IND_CCB |
-				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
-		append_move(desc, MOVE_WAITCOMP |
-			    MOVE_SRC_OUTFIFO |
-			    MOVE_DEST_CLASS1CTX |
-			    (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
-	}
-
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Load iv */
-	append_seq_load(desc, crt->ivsize, LDST_SRCDST_BYTE_CONTEXT |
-			LDST_CLASS_1_CCB | (ctx1_iv_off << LDST_OFFSET_SHIFT));
-
-	/* Load counter into CONTEXT1 reg */
-	if (is_rfc3686)
-		append_load_imm_be32(desc, 1, LDST_IMM | LDST_CLASS_1_CCB |
-				     LDST_SRCDST_BYTE_CONTEXT |
-				     ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
-				      LDST_OFFSET_SHIFT));
-
-	/* Load operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
-
+	cnstr_shdsc_ablkcipher_encap(desc, &ctx->cdata, ivsize, is_rfc3686,
+				     ctx1_iv_off);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -1668,60 +826,11 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "ablkcipher enc shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
+
 	/* ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
-			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
-
-	/* Load nonce into CONTEXT1 reg */
-	if (is_rfc3686) {
-		nonce = (u8 *)key + keylen;
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
-				   LDST_CLASS_IND_CCB |
-				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
-		append_move(desc, MOVE_WAITCOMP |
-			    MOVE_SRC_OUTFIFO |
-			    MOVE_DEST_CLASS1CTX |
-			    (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
-	}
-
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* load IV */
-	append_seq_load(desc, crt->ivsize, LDST_SRCDST_BYTE_CONTEXT |
-			LDST_CLASS_1_CCB | (ctx1_iv_off << LDST_OFFSET_SHIFT));
-
-	/* Load counter into CONTEXT1 reg */
-	if (is_rfc3686)
-		append_load_imm_be32(desc, 1, LDST_IMM | LDST_CLASS_1_CCB |
-				     LDST_SRCDST_BYTE_CONTEXT |
-				     ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
-				      LDST_OFFSET_SHIFT));
-
-	/* Choose operation */
-	if (ctr_mode)
-		append_operation(desc, ctx->cdata.algtype |
-				 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT);
-	else
-		append_dec_op1(desc, ctx->cdata.algtype);
-
-	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
-
+	cnstr_shdsc_ablkcipher_decap(desc, &ctx->cdata, ivsize, is_rfc3686,
+				     ctx1_iv_off);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc,
 					      desc_bytes(desc),
 					      DMA_TO_DEVICE);
@@ -1730,75 +839,10 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		return -ENOMEM;
 	}
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "ablkcipher dec shdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 	/* ablkcipher_givencrypt shared descriptor */
 	desc = ctx->sh_desc_givenc;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
-			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
-
-	/* Load Nonce into CONTEXT1 reg */
-	if (is_rfc3686) {
-		nonce = (u8 *)key + keylen;
-		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
-				   LDST_CLASS_IND_CCB |
-				   LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
-		append_move(desc, MOVE_WAITCOMP |
-			    MOVE_SRC_OUTFIFO |
-			    MOVE_DEST_CLASS1CTX |
-			    (16 << MOVE_OFFSET_SHIFT) |
-			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
-	}
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/* Generate IV */
-	geniv = NFIFOENTRY_STYPE_PAD | NFIFOENTRY_DEST_DECO |
-		NFIFOENTRY_DTYPE_MSG | NFIFOENTRY_LC1 |
-		NFIFOENTRY_PTYPE_RND | (crt->ivsize << NFIFOENTRY_DLEN_SHIFT);
-	append_load_imm_u32(desc, geniv, LDST_CLASS_IND_CCB |
-			    LDST_SRCDST_WORD_INFO_FIFO | LDST_IMM);
-	append_cmd(desc, CMD_LOAD | DISABLE_AUTO_INFO_FIFO);
-	append_move(desc, MOVE_WAITCOMP |
-		    MOVE_SRC_INFIFO |
-		    MOVE_DEST_CLASS1CTX |
-		    (crt->ivsize << MOVE_LEN_SHIFT) |
-		    (ctx1_iv_off << MOVE_OFFSET_SHIFT));
-	append_cmd(desc, CMD_LOAD | ENABLE_AUTO_INFO_FIFO);
-
-	/* Copy generated IV to memory */
-	append_seq_store(desc, crt->ivsize,
-			 LDST_SRCDST_BYTE_CONTEXT | LDST_CLASS_1_CCB |
-			 (ctx1_iv_off << LDST_OFFSET_SHIFT));
-
-	/* Load Counter into CONTEXT1 reg */
-	if (is_rfc3686)
-		append_load_imm_be32(desc, 1, LDST_IMM | LDST_CLASS_1_CCB |
-				     LDST_SRCDST_BYTE_CONTEXT |
-				     ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
-				      LDST_OFFSET_SHIFT));
-
-	if (ctx1_iv_off)
-		append_jump(desc, JUMP_JSL | JUMP_TEST_ALL | JUMP_COND_NCP |
-			    (1 << JUMP_OFFSET_SHIFT));
-
-	/* Load operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
-
+	cnstr_shdsc_ablkcipher_givencap(desc, &ctx->cdata, ivsize, is_rfc3686,
+					ctx1_iv_off);
 	ctx->sh_desc_givenc_dma = dma_map_single(jrdev, desc,
 						 desc_bytes(desc),
 						 DMA_TO_DEVICE);
@@ -1806,14 +850,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "ablkcipher givenc shdesc@" __stringify(__LINE__) ": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
-		       desc_bytes(desc), 1);
-#endif
 
-	return ret;
+	return 0;
 }
 
 static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
@@ -1821,8 +859,7 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 {
 	struct caam_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
 	struct device *jrdev = ctx->jrdev;
-	u32 *key_jump_cmd, *desc;
-	__be64 sector_size = cpu_to_be64(512);
+	u32 *desc;
 
 	if (keylen != 2 * AES_MIN_KEY_SIZE  && keylen != 2 * AES_MAX_KEY_SIZE) {
 		crypto_ablkcipher_set_flags(ablkcipher,
@@ -1843,84 +880,17 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* xts_ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	/* Load class1 keys only */
-	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
-			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
-
-	/* Load sector size with index 40 bytes (0x28) */
-	append_load_as_imm(desc, (void *)&sector_size, 8, LDST_CLASS_1_CCB |
-			   LDST_SRCDST_BYTE_CONTEXT |
-			   (0x28 << LDST_OFFSET_SHIFT));
-
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/*
-	 * create sequence for loading the sector index
-	 * Upper 8B of IV - will be used as sector index
-	 * Lower 8B of IV - will be discarded
-	 */
-	append_seq_load(desc, 8, LDST_SRCDST_BYTE_CONTEXT | LDST_CLASS_1_CCB |
-			(0x20 << LDST_OFFSET_SHIFT));
-	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
-
-	/* Load operation */
-	append_operation(desc, ctx->cdata.algtype | OP_ALG_AS_INITFINAL |
-			 OP_ALG_ENCRYPT);
-
-	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
-
+	cnstr_shdsc_xts_ablkcipher_encap(desc, &ctx->cdata);
 	ctx->sh_desc_enc_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
 					      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->sh_desc_enc_dma)) {
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "xts ablkcipher enc shdesc@" __stringify(__LINE__) ": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
 
 	/* xts_ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
-
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)ctx->cdata.key, ctx->cdata.keylen,
-			  ctx->cdata.keylen, CLASS_1 | KEY_DEST_CLASS_REG);
-
-	/* Load sector size with index 40 bytes (0x28) */
-	append_load_as_imm(desc, (void *)&sector_size, 8, LDST_CLASS_1_CCB |
-			   LDST_SRCDST_BYTE_CONTEXT |
-			   (0x28 << LDST_OFFSET_SHIFT));
-
-	set_jump_tgt_here(desc, key_jump_cmd);
-
-	/*
-	 * create sequence for loading the sector index
-	 * Upper 8B of IV - will be used as sector index
-	 * Lower 8B of IV - will be discarded
-	 */
-	append_seq_load(desc, 8, LDST_SRCDST_BYTE_CONTEXT | LDST_CLASS_1_CCB |
-			(0x20 << LDST_OFFSET_SHIFT));
-	append_seq_fifo_load(desc, 8, FIFOLD_CLASS_SKIP);
-
-	/* Load operation */
-	append_dec_op1(desc, ctx->cdata.algtype);
-
-	/* Perform operation */
-	ablkcipher_append_src_dst(desc);
-
+	cnstr_shdsc_xts_ablkcipher_decap(desc, &ctx->cdata);
 	ctx->sh_desc_dec_dma = dma_map_single(jrdev, desc, desc_bytes(desc),
 					      DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, ctx->sh_desc_dec_dma)) {
@@ -1929,11 +899,6 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR,
-		       "xts ablkcipher dec shdesc@" __stringify(__LINE__) ": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
 
 	return 0;
 }

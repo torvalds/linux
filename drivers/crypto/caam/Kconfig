@@ -134,3 +134,6 @@ config CRYPTO_DEV_FSL_CAAM_DEBUG
 	help
 	  Selecting this will enable printing of various debug
 	  information in the CAAM driver.
+
+config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
+	def_bool CRYPTO_DEV_FSL_CAAM_CRYPTO_API
