@@ -465,6 +465,8 @@ struct class_attribute {
 	struct class_attribute class_attr_##_name = __ATTR_RW(_name)
 #define CLASS_ATTR_RO(_name) \
 	struct class_attribute class_attr_##_name = __ATTR_RO(_name)
+#define CLASS_ATTR_WO(_name) \
+	struct class_attribute class_attr_##_name = __ATTR_WO(_name)
 
 extern int __must_check class_create_file_ns(struct class *class,
 					     const struct class_attribute *attr,
