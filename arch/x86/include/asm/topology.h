@@ -146,4 +146,5 @@ struct pci_bus;
 int x86_pci_root_bus_node(int bus);
 void x86_pci_root_bus_resources(int bus, struct list_head *resources);
 
+extern bool x86_topology_update;
 #endif /* _ASM_X86_TOPOLOGY_H */
