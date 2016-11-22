@@ -42,8 +42,7 @@ Split key generation-----------------------------------------------
 			@0xffe04000
 */
 int gen_split_key(struct device *jrdev, u8 *key_out,
-		  struct alginfo * const adata, const u8 *key_in, u32 keylen,
-		  u32 alg_op)
+		  struct alginfo * const adata, const u8 *key_in, u32 keylen)
 {
 	u32 *desc;
 	struct split_key_result result;
@@ -74,7 +73,9 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	append_key(desc, dma_addr_in, keylen, CLASS_2 | KEY_DEST_CLASS_REG);
 
 	/* Sets MDHA up into an HMAC-INIT */
-	append_operation(desc, alg_op | OP_ALG_DECRYPT | OP_ALG_AS_INIT);
+	append_operation(desc, (adata->algtype & OP_ALG_ALGSEL_MASK) |
+			 OP_ALG_AAI_HMAC | OP_TYPE_CLASS2_ALG | OP_ALG_DECRYPT |
+			 OP_ALG_AS_INIT);
 
 	/*
 	 * do a FIFO_LOAD of zero, this will trigger the internal key expansion

@@ -108,7 +108,6 @@ struct caam_hash_ctx {
 	dma_addr_t sh_desc_fin_dma;
 	dma_addr_t sh_desc_digest_dma;
 	struct device *jrdev;
-	u32 alg_op;
 	u8 key[CAAM_MAX_HASH_KEY_SIZE];
 	dma_addr_t key_dma;
 	int ctx_len;
@@ -402,8 +401,7 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 static int gen_split_hash_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 			      u32 keylen)
 {
-	return gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key_in, keylen,
-			     ctx->alg_op);
+	return gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key_in, keylen);
 }
 
 /* Digest hash size if it is too large */
@@ -512,7 +510,8 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	}
 
 	/* Pick class 2 key length from algorithm submask */
-	ctx->adata.keylen = mdpadlen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
+	ctx->adata.keylen = mdpadlen[(ctx->adata.algtype &
+				      OP_ALG_ALGSEL_SUBMASK) >>
 				     OP_ALG_ALGSEL_SHIFT] * 2;
 	ctx->adata.keylen_pad = ALIGN(ctx->adata.keylen, 16);
 
@@ -1654,7 +1653,6 @@ struct caam_hash_template {
 	unsigned int blocksize;
 	struct ahash_alg template_ahash;
 	u32 alg_type;
-	u32 alg_op;
 };
 
 /* ahash descriptors */
@@ -1680,7 +1678,6 @@ static struct caam_hash_template driver_hash[] = {
 			},
 		},
 		.alg_type = OP_ALG_ALGSEL_SHA1,
-		.alg_op = OP_ALG_ALGSEL_SHA1 | OP_ALG_AAI_HMAC,
 	}, {
 		.name = "sha224",
 		.driver_name = "sha224-caam",
@@ -1702,7 +1699,6 @@ static struct caam_hash_template driver_hash[] = {
 			},
 		},
 		.alg_type = OP_ALG_ALGSEL_SHA224,
-		.alg_op = OP_ALG_ALGSEL_SHA224 | OP_ALG_AAI_HMAC,
 	}, {
 		.name = "sha256",
 		.driver_name = "sha256-caam",
@@ -1724,7 +1720,6 @@ static struct caam_hash_template driver_hash[] = {
 			},
 		},
 		.alg_type = OP_ALG_ALGSEL_SHA256,
-		.alg_op = OP_ALG_ALGSEL_SHA256 | OP_ALG_AAI_HMAC,
 	}, {
 		.name = "sha384",
 		.driver_name = "sha384-caam",
@@ -1746,7 +1741,6 @@ static struct caam_hash_template driver_hash[] = {
 			},
 		},
 		.alg_type = OP_ALG_ALGSEL_SHA384,
-		.alg_op = OP_ALG_ALGSEL_SHA384 | OP_ALG_AAI_HMAC,
 	}, {
 		.name = "sha512",
 		.driver_name = "sha512-caam",
@@ -1768,7 +1762,6 @@ static struct caam_hash_template driver_hash[] = {
 			},
 		},
 		.alg_type = OP_ALG_ALGSEL_SHA512,
-		.alg_op = OP_ALG_ALGSEL_SHA512 | OP_ALG_AAI_HMAC,
 	}, {
 		.name = "md5",
 		.driver_name = "md5-caam",
@@ -1790,14 +1783,12 @@ static struct caam_hash_template driver_hash[] = {
 			},
 		},
 		.alg_type = OP_ALG_ALGSEL_MD5,
-		.alg_op = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC,
 	},
 };
 
 struct caam_hash_alg {
 	struct list_head entry;
 	int alg_type;
-	int alg_op;
 	struct ahash_alg ahash_alg;
 };
 
@@ -1831,9 +1822,9 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 	}
 	/* copy descriptor header template value */
 	ctx->adata.algtype = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
-	ctx->alg_op = OP_TYPE_CLASS2_ALG | caam_hash->alg_op;
 
-	ctx->ctx_len = runninglen[(ctx->alg_op & OP_ALG_ALGSEL_SUBMASK) >>
+	ctx->ctx_len = runninglen[(ctx->adata.algtype &
+				   OP_ALG_ALGSEL_SUBMASK) >>
 				  OP_ALG_ALGSEL_SHIFT];
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
@@ -1923,7 +1914,6 @@ caam_hash_alloc(struct caam_hash_template *template,
 	alg->cra_type = &crypto_ahash_type;
 
 	t_alg->alg_type = template->alg_type;
-	t_alg->alg_op = template->alg_op;
 
 	return t_alg;
 }
