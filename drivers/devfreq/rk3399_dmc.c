@@ -436,7 +436,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
 
-	data->devfreq = devfreq_add_device(dev,
+	data->devfreq = devm_devfreq_add_device(dev,
 					   &rk3399_devfreq_dmc_profile,
 					   "simple_ondemand",
 					   &data->ondemand_data);
@@ -454,6 +454,7 @@ static const struct of_device_id rk3399dmc_devfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3399-dmc" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
 
 static struct platform_driver rk3399_dmcfreq_driver = {
 	.probe	= rk3399_dmcfreq_probe,
