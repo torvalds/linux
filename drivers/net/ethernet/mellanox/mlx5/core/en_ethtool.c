@@ -552,7 +552,7 @@ static void mlx5e_get_channels(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	ch->max_combined   = mlx5e_get_max_num_channels(priv->mdev);
+	ch->max_combined   = priv->profile->max_nch(priv->mdev);
 	ch->combined_count = priv->params.num_channels;
 }
 
@@ -560,7 +560,7 @@ static int mlx5e_set_channels(struct net_device *dev,
 			      struct ethtool_channels *ch)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	int ncv = mlx5e_get_max_num_channels(priv->mdev);
+	int ncv = priv->profile->max_nch(priv->mdev);
 	unsigned int count = ch->combined_count;
 	bool arfs_enabled;
 	bool was_opened;
