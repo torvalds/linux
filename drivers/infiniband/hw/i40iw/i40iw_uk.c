@@ -175,12 +175,10 @@ u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp,
 		if (!*wqe_idx)
 			qp->swqe_polarity = !qp->swqe_polarity;
 	}
-
-	for (i = 0; i < wqe_size / I40IW_QP_WQE_MIN_SIZE; i++) {
-		I40IW_RING_MOVE_HEAD(qp->sq_ring, ret_code);
-		if (ret_code)
-			return NULL;
-	}
+	I40IW_RING_MOVE_HEAD_BY_COUNT(qp->sq_ring,
+				      wqe_size / I40IW_QP_WQE_MIN_SIZE, ret_code);
+	if (ret_code)
+		return NULL;
 
 	wqe = qp->sq_base[*wqe_idx].elem;
 
