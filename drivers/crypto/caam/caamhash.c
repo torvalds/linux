@@ -398,12 +398,6 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	return 0;
 }
 
-static int gen_split_hash_key(struct caam_hash_ctx *ctx, const u8 *key_in,
-			      u32 keylen)
-{
-	return gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key_in, keylen);
-}
-
 /* Digest hash size if it is too large */
 static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 			   u32 *keylen, u8 *key_out, u32 digestsize)
@@ -483,8 +477,6 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 static int ahash_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
-	/* Sizes for MDHA pads (*not* keys): MD5, SHA1, 224, 256, 384, 512 */
-	static const u8 mdpadlen[] = { 16, 20, 32, 32, 64, 64 };
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct device *jrdev = ctx->jrdev;
 	int blocksize = crypto_tfm_alg_blocksize(&ahash->base);
@@ -509,20 +501,8 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 		key = hashed_key;
 	}
 
-	/* Pick class 2 key length from algorithm submask */
-	ctx->adata.keylen = mdpadlen[(ctx->adata.algtype &
-				      OP_ALG_ALGSEL_SUBMASK) >>
-				     OP_ALG_ALGSEL_SHIFT] * 2;
-	ctx->adata.keylen_pad = ALIGN(ctx->adata.keylen, 16);
-
-#ifdef DEBUG
-	printk(KERN_ERR "split_key_len %d split_key_pad_len %d\n",
-	       ctx->adata.keylen, ctx->adata.keylen_pad);
-	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
-#endif
-
-	ret = gen_split_hash_key(ctx, key, keylen);
+	ret = gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key, keylen,
+			    CAAM_MAX_HASH_KEY_SIZE);
 	if (ret)
 		goto bad_free_key;
 

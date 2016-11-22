@@ -586,18 +586,9 @@ static int rfc4543_setauthsize(struct crypto_aead *authenc,
 	return 0;
 }
 
-static u32 gen_split_aead_key(struct caam_ctx *ctx, const u8 *key_in,
-			      u32 authkeylen)
-{
-	return gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key_in,
-			     authkeylen);
-}
-
 static int aead_setkey(struct crypto_aead *aead,
 			       const u8 *key, unsigned int keylen)
 {
-	/* Sizes for MDHA pads (*not* keys): MD5, SHA1, 224, 256, 384, 512 */
-	static const u8 mdpadlen[] = { 16, 20, 32, 32, 64, 64 };
 	struct caam_ctx *ctx = crypto_aead_ctx(aead);
 	struct device *jrdev = ctx->jrdev;
 	struct crypto_authenc_keys keys;
@@ -606,26 +597,17 @@ static int aead_setkey(struct crypto_aead *aead,
 	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-	/* Pick class 2 key length from algorithm submask */
-	ctx->adata.keylen = mdpadlen[(ctx->adata.algtype &
-				      OP_ALG_ALGSEL_SUBMASK) >>
-				     OP_ALG_ALGSEL_SHIFT] * 2;
-	ctx->adata.keylen_pad = ALIGN(ctx->adata.keylen, 16);
-
-	if (ctx->adata.keylen_pad + keys.enckeylen > CAAM_MAX_KEY_SIZE)
-		goto badkey;
-
 #ifdef DEBUG
 	printk(KERN_ERR "keylen %d enckeylen %d authkeylen %d\n",
 	       keys.authkeylen + keys.enckeylen, keys.enckeylen,
 	       keys.authkeylen);
-	printk(KERN_ERR "split_key_len %d split_key_pad_len %d\n",
-	       ctx->adata.keylen, ctx->adata.keylen_pad);
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
 
-	ret = gen_split_aead_key(ctx, keys.authkey, keys.authkeylen);
+	ret = gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, keys.authkey,
+			    keys.authkeylen, CAAM_MAX_KEY_SIZE -
+			    keys.enckeylen);
 	if (ret) {
 		goto badkey;
 	}
