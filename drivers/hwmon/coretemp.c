@@ -533,21 +533,14 @@ exit_free:
 	return err;
 }
 
-static void coretemp_add_core(unsigned int cpu, int pkg_flag)
+static void
+coretemp_add_core(struct platform_device *pdev, unsigned int cpu, int pkg_flag)
 {
-	struct platform_device *pdev = coretemp_get_pdev(cpu);
-	int err;
-
-	if (!pdev)
-		return;
-
-	err = create_core_data(pdev, cpu, pkg_flag);
-	if (err)
+	if (create_core_data(pdev, cpu, pkg_flag))
 		dev_err(&pdev->dev, "Adding Core %u failed\n", cpu);
 }
 
-static void coretemp_remove_core(struct platform_data *pdata,
-				 int indx)
+static void coretemp_remove_core(struct platform_data *pdata, int indx)
 {
 	struct temp_data *tdata = pdata->core_data[indx];
 
@@ -692,7 +685,7 @@ static void get_core_online(unsigned int cpu)
 		 * If so, add interfaces for pkgtemp.
 		 */
 		if (cpu_has(c, X86_FEATURE_PTS))
-			coretemp_add_core(cpu, 1);
+			coretemp_add_core(pdev, cpu, 1);
 	}
 
 	pdata = platform_get_drvdata(pdev);
@@ -701,7 +694,7 @@ static void get_core_online(unsigned int cpu)
 	 * interface for this CPU core.
 	 */
 	if (!cpumask_intersects(&pdata->cpumask, topology_sibling_cpumask(cpu)))
-		coretemp_add_core(cpu, 0);
+		coretemp_add_core(pdev, cpu, 0);
 
 	cpumask_set_cpu(cpu, &pdata->cpumask);
 }
