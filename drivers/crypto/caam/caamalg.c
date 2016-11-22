@@ -228,11 +228,18 @@ struct caam_ctx {
 	unsigned int authsize;
 };
 
-static void append_key_aead(u32 *desc, struct caam_ctx *ctx,
-			    int keys_fit_inline, bool is_rfc3686)
+static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
+				  int keys_fit_inline, bool is_rfc3686)
 {
-	u32 *nonce;
+	u32 *key_jump_cmd;
 	unsigned int enckeylen = ctx->enckeylen;
+
+	/* Note: Context registers are saved. */
+	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
+
+	/* Skip if already shared */
+	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
+				   JUMP_COND_SHRD);
 
 	/*
 	 * RFC3686 specific:
@@ -258,6 +265,8 @@ static void append_key_aead(u32 *desc, struct caam_ctx *ctx,
 
 	/* Load Counter into CONTEXT1 reg */
 	if (is_rfc3686) {
+		u32 *nonce;
+
 		nonce = (u32 *)((void *)ctx->key + ctx->split_key_pad_len +
 			       enckeylen);
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
@@ -269,21 +278,6 @@ static void append_key_aead(u32 *desc, struct caam_ctx *ctx,
 			    (16 << MOVE_OFFSET_SHIFT) |
 			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
 	}
-}
-
-static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
-				  int keys_fit_inline, bool is_rfc3686)
-{
-	u32 *key_jump_cmd;
-
-	/* Note: Context registers are saved. */
-	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
-
-	/* Skip if already shared */
-	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD);
-
-	append_key_aead(desc, ctx, keys_fit_inline, is_rfc3686);
 
 	set_jump_tgt_here(desc, key_jump_cmd);
 }
