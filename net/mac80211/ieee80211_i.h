@@ -297,6 +297,7 @@ struct ieee80211_if_ap {
 			 driver_smps_mode; /* smps mode request */
 
 	struct work_struct request_smps_work;
+	bool multicast_to_unicast;
 };
 
 struct ieee80211_if_wds {
