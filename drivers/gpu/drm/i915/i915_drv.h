@@ -180,21 +180,35 @@ static inline bool transcoder_is_dsi(enum transcoder transcoder)
 }
 
 /*
- * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
- * number of planes per CRTC.  Not all platforms really have this many planes,
- * which means some arrays of size I915_MAX_PLANES may have unused entries
- * between the topmost sprite plane and the cursor plane.
+ * Global legacy plane identifier. Valid only for primary/sprite
+ * planes on pre-g4x, and only for primary planes on g4x+.
  */
 enum plane {
-	PLANE_A = 0,
+	PLANE_A,
 	PLANE_B,
 	PLANE_C,
-	PLANE_CURSOR,
-	I915_MAX_PLANES,
 };
 #define plane_name(p) ((p) + 'A')
 
 #define sprite_name(p, s) ((p) * INTEL_INFO(dev_priv)->num_sprites[(p)] + (s) + 'A')
+
+/*
+ * Per-pipe plane identifier.
+ * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
+ * number of planes per CRTC.  Not all platforms really have this many planes,
+ * which means some arrays of size I915_MAX_PLANES may have unused entries
+ * between the topmost sprite plane and the cursor plane.
+ *
+ * This is expected to be passed to various register macros
+ * (eg. PLANE_CTL(), PS_PLANE_SEL(), etc.) so adjust with care.
+ */
+enum plane_id {
+	PLANE_PRIMARY,
+	PLANE_SPRITE0,
+	PLANE_SPRITE1,
+	PLANE_CURSOR,
+	I915_MAX_PLANES,
+};
 
 enum port {
 	PORT_NONE = -1,

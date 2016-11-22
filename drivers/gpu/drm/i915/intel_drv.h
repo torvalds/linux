@@ -766,7 +766,8 @@ struct intel_plane_wm_parameters {
 
 struct intel_plane {
 	struct drm_plane base;
-	int plane;
+	u8 plane;
+	enum plane_id id;
 	enum pipe pipe;
 	bool can_scale;
 	int max_downscale;

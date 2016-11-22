@@ -14988,6 +14988,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		primary->plane = (enum plane) !pipe;
 	else
 		primary->plane = (enum plane) pipe;
+	primary->id = PLANE_PRIMARY;
 	primary->frontbuffer_bit = INTEL_FRONTBUFFER_PRIMARY(pipe);
 	primary->check_plane = intel_check_primary_plane;
 
@@ -15187,6 +15188,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	cursor->max_downscale = 1;
 	cursor->pipe = pipe;
 	cursor->plane = pipe;
+	cursor->id = PLANE_CURSOR;
 	cursor->frontbuffer_bit = INTEL_FRONTBUFFER_CURSOR(pipe);
 	cursor->check_plane = intel_check_cursor_plane;
 	cursor->update_plane = intel_update_cursor_plane;
