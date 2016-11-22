@@ -1403,9 +1403,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		vop_dsp_hold_valid_irq_disable(vop);
 	}
 
-	val = 0x8;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
+	val = BIT(DCLK_INVERT);
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
+		   0 : BIT(HSYNC_POSITIVE);
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
+		   0 : BIT(VSYNC_POSITIVE);
 	VOP_CTRL_SET(vop, pin_pol, val);
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1423,6 +1425,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	case DRM_MODE_CONNECTOR_DSI:
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		VOP_CTRL_SET(vop, mipi_pin_pol, val);
+		break;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+		val &= ~BIT(DCLK_INVERT);
+		VOP_CTRL_SET(vop, dp_pin_pol, val);
+		VOP_CTRL_SET(vop, dp_en, 1);
 		break;
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n", s->output_type);
