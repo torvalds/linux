@@ -1592,6 +1592,36 @@ void xt_proto_fini(struct net *net, u_int8_t af)
 }
 EXPORT_SYMBOL_GPL(xt_proto_fini);
 
+/**
+ * xt_percpu_counter_alloc - allocate x_tables rule counter
+ *
+ * @counter: pointer to counter struct inside the ip(6)/arpt_entry struct
+ *
+ * On SMP, the packet counter [ ip(6)t_entry->counters.pcnt ] will then
+ * contain the address of the real (percpu) counter.
+ *
+ * Rule evaluation needs to use xt_get_this_cpu_counter() helper
+ * to fetch the real percpu counter.
+ *
+ * returns false on error.
+ */
+bool xt_percpu_counter_alloc(struct xt_counters *counter)
+{
+	void __percpu *res;
+
+	if (nr_cpu_ids <= 1)
+		return true;
+
+	res = __alloc_percpu(sizeof(struct xt_counters),
+			     sizeof(struct xt_counters));
+	if (!res)
+		return false;
+
+	counter->pcnt = (__force unsigned long)res;
+	return true;
+}
+EXPORT_SYMBOL_GPL(xt_percpu_counter_alloc);
+
 void xt_percpu_counter_free(struct xt_counters *counters)
 {
 	unsigned long pcnt = counters->pcnt;
