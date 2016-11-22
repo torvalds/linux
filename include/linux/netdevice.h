@@ -925,7 +925,7 @@ struct netdev_xdp {
  *	3. Update dev->stats asynchronously and atomically, and define
  *	   neither operation.
  *
- * bool (*ndo_has_offload_stats)(int attr_id)
+ * bool (*ndo_has_offload_stats)(const struct net_device *dev, int attr_id)
  *	Return true if this device supports offload stats of this attr_id.
  *
  * int (*ndo_get_offload_stats)(int attr_id, const struct net_device *dev,
@@ -1165,7 +1165,7 @@ struct net_device_ops {
 
 	struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev,
 						     struct rtnl_link_stats64 *storage);
-	bool			(*ndo_has_offload_stats)(int attr_id);
+	bool			(*ndo_has_offload_stats)(const struct net_device *dev, int attr_id);
 	int			(*ndo_get_offload_stats)(int attr_id,
 							 const struct net_device *dev,
 							 void *attr_data);
