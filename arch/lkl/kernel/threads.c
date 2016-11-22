@@ -118,8 +118,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
 		lkl_ops->jmp_buf_longjmp(&_prev_jb, 1);
-	} else if (test_bit(TIF_SCHED_EXIT, &_prev_flags)) {
-		lkl_ops->thread_exit();
 	} else {
 		lkl_ops->sem_down(_prev->sched_sem);
 	}
