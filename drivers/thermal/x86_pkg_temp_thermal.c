@@ -384,18 +384,6 @@ static int pkg_temp_thermal_platform_thermal_notify(__u64 msr_val)
 	return 0;
 }
 
-static int find_siblings_cpu(int cpu)
-{
-	int i;
-	int id = topology_physical_package_id(cpu);
-
-	for_each_online_cpu(i)
-		if (i != cpu && topology_physical_package_id(i) == id)
-			return i;
-
-	return 0;
-}
-
 static int pkg_temp_thermal_device_add(unsigned int cpu)
 {
 	int err;
@@ -488,9 +476,10 @@ static int pkg_temp_thermal_device_remove(unsigned int cpu)
 	mutex_lock(&phy_dev_list_mutex);
 	/* If we are loosing the first cpu for this package, we need change */
 	if (phdev->first_cpu == cpu) {
-		phdev->first_cpu = find_siblings_cpu(cpu);
-		pr_debug("thermal_device_remove: first cpu switched %d\n",
-					phdev->first_cpu);
+		int target = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+
+		phdev->first_cpu = target;
+		pr_debug("CPU %d down. New first_cpu%d\n", cpu, target);
 	}
 	/*
 	* It is possible that no siblings left as this was the last cpu
