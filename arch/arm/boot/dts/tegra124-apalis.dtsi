@@ -44,7 +44,7 @@
 
 /*
  * Toradex Apalis TK1 Module Device Tree
- * Compatible for Revisions 2GB: V1.0A
+ * Compatible for Revisions 2GB: V1.0A, V1.0B, V1.1A
  */
 / {
 	model = "Toradex Apalis TK1";
