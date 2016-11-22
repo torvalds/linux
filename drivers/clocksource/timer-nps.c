@@ -53,9 +53,10 @@ static int __init nps_get_timer_clk(struct device_node *node,
 	int ret;
 
 	*clk = of_clk_get(node, 0);
-	if (IS_ERR(*clk)) {
+	ret = PTR_ERR_OR_ZERO(*clk);
+	if (ret) {
 		pr_err("timer missing clk");
-		return PTR_ERR(*clk);
+		return ret;
 	}
 
 	ret = clk_prepare_enable(*clk);
