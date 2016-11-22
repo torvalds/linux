@@ -108,7 +108,6 @@
 			regulator-name = "usb_otg2_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 
