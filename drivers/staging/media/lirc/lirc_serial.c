@@ -352,8 +352,8 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			dev_err(&serial_ir.pdev->dev, "Trapped in interrupt");
 			break;
 		}
-		if ((status & hardware[type].signal_pin_change)
-		    && sense != -1) {
+		if ((status & hardware[type].signal_pin_change) &&
+		    sense != -1) {
 			/* get current time */
 			kt = ktime_get();
 
@@ -377,7 +377,7 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 			delkt = ktime_sub(kt, serial_ir.lastkt);
 			if (ktime_compare(delkt, ktime_set(15, 0)) > 0) {
 				data = IR_MAX_DURATION; /* really long time */
-				if (!(dcd^sense)) {
+				if (!(dcd ^ sense)) {
 					/* sanity check */
 					dev_err(&serial_ir.pdev->dev,
 						"dcd unexpected: %d %d %lldns %lldns\n",
@@ -389,8 +389,9 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 					 */
 					sense = sense ? 0 : 1;
 				}
-			} else
+			} else {
 				data = ktime_to_ns(delkt);
+			}
 			frbwrite(data, !(dcd ^ sense));
 			serial_ir.lastkt = kt;
 			last_dcd = dcd;
@@ -399,7 +400,6 @@ static irqreturn_t serial_ir_irq_handler(int i, void *blah)
 	} while (!(sinp(UART_IIR) & UART_IIR_NO_INT)); /* still pending ? */
 	return IRQ_HANDLED;
 }
-
 
 static int hardware_init_port(void)
 {
@@ -432,7 +432,7 @@ static int hardware_init_port(void)
 
 	/* First of all, disable all interrupts */
 	soutp(UART_IER, sinp(UART_IER) &
-	      (~(UART_IER_MSI|UART_IER_RLSI|UART_IER_THRI|UART_IER_RDI)));
+	      (~(UART_IER_MSI | UART_IER_RLSI | UART_IER_THRI | UART_IER_RDI)));
 
 	/* Clear registers. */
 	sinp(UART_LSR);
@@ -487,12 +487,11 @@ static int serial_ir_probe(struct platform_device *dev)
 	}
 
 	/* Reserve io region. */
-	if (((iommap)
-	     && (devm_request_mem_region(&dev->dev, iommap, 8 << ioshift,
-					 KBUILD_MODNAME) == NULL))
-	   || ((!iommap)
-	       && (devm_request_region(&dev->dev, io, 8,
-				       KBUILD_MODNAME) == NULL))) {
+	if ((iommap &&
+	     (devm_request_mem_region(&dev->dev, iommap, 8 << ioshift,
+				      KBUILD_MODNAME) == NULL)) ||
+	     (!iommap && (devm_request_region(&dev->dev, io, 8,
+			  KBUILD_MODNAME) == NULL))) {
 		dev_err(&dev->dev, "port %04x already in use\n", io);
 		dev_warn(&dev->dev, "use 'setserial /dev/ttySX uart none'\n");
 		dev_warn(&dev->dev,
@@ -549,7 +548,7 @@ static int serial_ir_open(struct rc_dev *rcdev)
 	/* Set DLAB 0. */
 	soutp(UART_LCR, sinp(UART_LCR) & (~UART_LCR_DLAB));
 
-	soutp(UART_IER, sinp(UART_IER)|UART_IER_MSI);
+	soutp(UART_IER, sinp(UART_IER) | UART_IER_MSI);
 
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
 
@@ -567,7 +566,7 @@ static void serial_ir_close(struct rc_dev *rcdev)
 
 	/* First of all, disable all interrupts */
 	soutp(UART_IER, sinp(UART_IER) &
-	      (~(UART_IER_MSI|UART_IER_RLSI|UART_IER_THRI|UART_IER_RDI)));
+	      (~(UART_IER_MSI | UART_IER_RLSI | UART_IER_THRI | UART_IER_RDI)));
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
 }
 
@@ -587,7 +586,7 @@ static int serial_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 
 	edge = ktime_get();
 	for (i = 0; i < count; i++) {
-		if (i%2)
+		if (i % 2)
 			hardware[type].send_space();
 		else
 			hardware[type].send_pulse(txbuf[i], edge);
@@ -598,9 +597,9 @@ static int serial_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 			spin_unlock_irqrestore(&hardware[type].lock, flags);
 			usleep_range(delta - 25, delta + 25);
 			spin_lock_irqsave(&hardware[type].lock, flags);
-		}
-		else if (delta > 0)
+		} else if (delta > 0) {
 			udelay(delta);
+		}
 	}
 	off();
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
@@ -630,7 +629,7 @@ static int serial_ir_suspend(struct platform_device *dev,
 
 	/* Disable all interrupts */
 	soutp(UART_IER, sinp(UART_IER) &
-	      (~(UART_IER_MSI|UART_IER_RLSI|UART_IER_THRI|UART_IER_RDI)));
+	      (~(UART_IER_MSI | UART_IER_RLSI | UART_IER_THRI | UART_IER_RDI)));
 
 	/* Clear registers. */
 	sinp(UART_LSR);
@@ -653,7 +652,7 @@ static int serial_ir_resume(struct platform_device *dev)
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	/* Enable Interrupt */
 	serial_ir.lastkt = ktime_get();
-	soutp(UART_IER, sinp(UART_IER)|UART_IER_MSI);
+	soutp(UART_IER, sinp(UART_IER) | UART_IER_MSI);
 	off();
 
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
