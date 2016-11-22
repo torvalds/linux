@@ -45,4 +45,5 @@ Board compatible values:
   - "amlogic,p231" (Meson gxl s905d)
   - "amlogic,q200" (Meson gxm s912)
   - "amlogic,q201" (Meson gxm s912)
+  - "nexbox,a95x" (Meson gxbb or Meson gxl s905x)
   - "nexbox,a1" (Meson gxm s912)
