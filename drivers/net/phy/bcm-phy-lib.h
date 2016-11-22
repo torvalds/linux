@@ -19,6 +19,9 @@
 int bcm_phy_write_exp(struct phy_device *phydev, u16 reg, u16 val);
 int bcm_phy_read_exp(struct phy_device *phydev, u16 reg);
 
+int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val);
+int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum);
+
 int bcm_phy_write_misc(struct phy_device *phydev,
 		       u16 reg, u16 chl, u16 value);
 int bcm_phy_read_misc(struct phy_device *phydev,
