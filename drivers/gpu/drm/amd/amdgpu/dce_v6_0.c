@@ -379,13 +379,6 @@ static u32 dce_v6_0_hpd_get_gpio_reg(struct amdgpu_device *adev)
 	return mmDC_GPIO_HPD_A;
 }
 
-static bool dce_v6_0_is_display_hung(struct amdgpu_device *adev)
-{
-	DRM_INFO("xxxx: dce_v6_0_is_display_hung ----no imp!!!!!\n");
-
-	return true;
-}
-
 static u32 evergreen_get_vblank_counter(struct amdgpu_device* adev, int crtc)
 {
 	if (crtc >= adev->mode_info.num_crtc)
@@ -3036,7 +3029,6 @@ static const struct amdgpu_display_funcs dce_v6_0_display_funcs = {
 	.bandwidth_update = &dce_v6_0_bandwidth_update,
 	.vblank_get_counter = &dce_v6_0_vblank_get_counter,
 	.vblank_wait = &dce_v6_0_vblank_wait,
-	.is_display_hung = &dce_v6_0_is_display_hung,
 	.backlight_set_level = &amdgpu_atombios_encoder_set_backlight_level,
 	.backlight_get_level = &amdgpu_atombios_encoder_get_backlight_level,
 	.hpd_sense = &dce_v6_0_hpd_sense,

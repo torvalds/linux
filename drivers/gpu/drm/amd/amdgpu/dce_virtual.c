@@ -95,11 +95,6 @@ static u32 dce_virtual_hpd_get_gpio_reg(struct amdgpu_device *adev)
 	return 0;
 }
 
-static bool dce_virtual_is_display_hung(struct amdgpu_device *adev)
-{
-	return false;
-}
-
 static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 			      struct amdgpu_mode_mc_save *save)
 {
@@ -691,7 +686,6 @@ static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 	.bandwidth_update = &dce_virtual_bandwidth_update,
 	.vblank_get_counter = &dce_virtual_vblank_get_counter,
 	.vblank_wait = &dce_virtual_vblank_wait,
-	.is_display_hung = &dce_virtual_is_display_hung,
 	.backlight_set_level = NULL,
 	.backlight_get_level = NULL,
 	.hpd_sense = &dce_virtual_hpd_sense,
