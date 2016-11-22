@@ -1615,20 +1615,32 @@ static int __vpe_try_fmt(struct vpe_ctx *ctx, struct v4l2_format *f,
 	 */
 	depth_bytes = depth >> 3;
 
-	if (depth_bytes == 3)
+	if (depth_bytes == 3) {
 		/*
 		 * if bpp is 3(as in some RGB formats), the pixel width doesn't
 		 * really help in ensuring line stride is 16 byte aligned
 		 */
 		w_align = 4;
-	else
+	} else {
 		/*
 		 * for the remainder bpp(4, 2 and 1), the pixel width alignment
 		 * can ensure a line stride alignment of 16 bytes. For example,
 		 * if bpp is 2, then the line stride can be 16 byte aligned if
 		 * the width is 8 byte aligned
 		 */
-		w_align = order_base_2(VPDMA_DESC_ALIGN / depth_bytes);
+
+		/*
+		 * HACK: using order_base_2() here causes lots of asm output
+		 * errors with smatch, on i386:
+		 * ./arch/x86/include/asm/bitops.h:457:22:
+		 *		 warning: asm output is not an lvalue
+		 * Perhaps some gcc optimization is doing the wrong thing
+		 * there.
+		 * Let's get rid of them by doing the calculus on two steps
+		 */
+		w_align = roundup_pow_of_two(VPDMA_DESC_ALIGN / depth_bytes);
+		w_align = ilog2(w_align);
+	}
 
 	v4l_bound_align_image(&pix->width, MIN_W, MAX_W, w_align,
 			      &pix->height, MIN_H, MAX_H, H_ALIGN,
