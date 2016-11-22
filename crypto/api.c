@@ -211,8 +211,8 @@ struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 	if (!name)
 		return ERR_PTR(-ENOENT);
 
+	type &= ~(CRYPTO_ALG_LARVAL | CRYPTO_ALG_DEAD);
 	mask &= ~(CRYPTO_ALG_LARVAL | CRYPTO_ALG_DEAD);
-	type &= mask;
 
 	alg = crypto_alg_lookup(name, type, mask);
 	if (!alg) {
