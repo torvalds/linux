@@ -372,14 +372,15 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 
 	bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
 
-	memcpy(reg_val, chip->reg_output, NBANK(chip));
 	mutex_lock(&chip->i2c_lock);
+	memcpy(reg_val, chip->reg_output, NBANK(chip));
 	for (bank = 0; bank < NBANK(chip); bank++) {
 		bank_mask = mask[bank / sizeof(*mask)] >>
 			   ((bank % sizeof(*mask)) * 8);
 		if (bank_mask) {
 			bank_val = bits[bank / sizeof(*bits)] >>
 				  ((bank % sizeof(*bits)) * 8);
+			bank_val &= bank_mask;
 			reg_val[bank] = (reg_val[bank] & ~bank_mask) | bank_val;
 		}
 	}
@@ -607,7 +608,6 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 
 	if (client->irq && irq_base != -1
 			&& (chip->driver_data & PCA_INT)) {
-
 		ret = pca953x_read_regs(chip,
 					chip->regs->input, chip->irq_stat);
 		if (ret)

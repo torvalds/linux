@@ -460,5 +460,6 @@
 
 #define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
 				       ((IH & 0x7) << 21))
+#define PPC_INVALIDATE_ERAT	PPC_SLBIA(7)
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */
