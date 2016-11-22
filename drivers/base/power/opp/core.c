@@ -706,6 +706,111 @@ restore_voltage:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_rate);
 
+/**
+ * dev_pm_opp_check_initial_rate() - Configure new OPP based on initial rate
+ * @dev:	 device for which we do this operation
+ *
+ * This configures the power-supplies and clock source to the levels specified
+ * by the OPP corresponding to the system initial rate.
+ *
+ * Locking: This function takes rcu_read_lock().
+ */
+int dev_pm_opp_check_initial_rate(struct device *dev, unsigned long *cur_freq)
+{
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
+	struct regulator *reg;
+	struct clk *clk;
+	unsigned long target_freq, old_freq;
+	unsigned long u_volt, u_volt_min, u_volt_max;
+	int old_volt;
+	int ret;
+
+	rcu_read_lock();
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
+		rcu_read_unlock();
+		return PTR_ERR(opp_table);
+	}
+
+	clk = opp_table->clk;
+	reg = opp_table->regulator;
+
+	old_freq = clk_get_rate(clk);
+	*cur_freq = old_freq;
+	target_freq = old_freq;
+
+	opp = dev_pm_opp_find_freq_ceil(dev, &target_freq);
+	if (IS_ERR(opp)) {
+		opp = dev_pm_opp_find_freq_floor(dev, &target_freq);
+		if (IS_ERR(opp)) {
+			dev_err(dev, "failed to find OPP for freq %lu\n",
+				target_freq);
+			rcu_read_unlock();
+			return PTR_ERR(opp);
+		}
+	}
+
+	u_volt = opp->u_volt;
+	u_volt_min = opp->u_volt_min;
+	u_volt_max = opp->u_volt_max;
+
+	rcu_read_unlock();
+
+	target_freq = clk_round_rate(clk, target_freq);
+	old_volt = regulator_get_voltage(reg);
+
+	dev_dbg(dev, "%lu Hz %d uV --> %lu Hz %lu uV\n", old_freq, old_volt,
+		target_freq, u_volt);
+
+	if (old_freq == target_freq && old_volt == u_volt)
+		return 0;
+
+	if (old_freq == target_freq && old_volt != u_volt) {
+		ret = _set_opp_voltage(dev, reg, u_volt, u_volt_min,
+				       u_volt_max);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu\n", u_volt);
+			return ret;
+		}
+		return 0;
+	}
+
+	/* Scaling up? Scale voltage before frequency */
+	if (target_freq > old_freq) {
+		ret = _set_opp_voltage(dev, reg, u_volt, u_volt_min,
+				       u_volt_max);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu\n", u_volt);
+			return ret;
+		}
+	}
+
+	/* Change frequency */
+	ret = clk_set_rate(clk, target_freq);
+	if (ret) {
+		dev_err(dev, "failed to set clock rate %lu\n", target_freq);
+		return ret;
+	}
+
+	*cur_freq = clk_get_rate(clk);
+
+	/* Scaling down? Scale voltage after frequency */
+	if (target_freq < old_freq) {
+		ret = _set_opp_voltage(dev, reg, u_volt, u_volt_min,
+				       u_volt_max);
+		if (ret) {
+			dev_err(dev, "failed to set volt %lu\n", u_volt);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_check_initial_rate);
+
 /* OPP-dev Helpers */
 static void _kfree_opp_dev_rcu(struct rcu_head *head)
 {
