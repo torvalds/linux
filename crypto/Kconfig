@@ -447,7 +447,7 @@ config CRYPTO_CRC32C_INTEL
 	  gain performance compared with software implementation.
 	  Module will be crc32c-intel.
 
-config CRYPT_CRC32C_VPMSUM
+config CRYPTO_CRC32C_VPMSUM
 	tristate "CRC32c CRC algorithm (powerpc64)"
 	depends on PPC64 && ALTIVEC
 	select CRYPTO_HASH
