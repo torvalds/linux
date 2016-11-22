@@ -56,6 +56,7 @@
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
+#include <asm/sections.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -244,6 +245,7 @@ Commands:\n\
   f	flush cache\n\
   la	lookup symbol+offset of specified address\n\
   ls	lookup address of specified symbol\n\
+  lp s [#]	lookup address of percpu symbol s for current cpu, or cpu #\n\
   m	examine/change memory\n\
   mm	move a block of memory\n\
   ms	set a block of memory\n\
@@ -3352,7 +3354,8 @@ static void
 symbol_lookup(void)
 {
 	int type = inchar();
-	unsigned long addr;
+	unsigned long addr, cpu;
+	void __percpu *ptr = NULL;
 	static char tmp[64];
 
 	switch (type) {
@@ -3373,6 +3376,34 @@ symbol_lookup(void)
 				printf("Symbol '%s' not found.\n", tmp);
 			sync();
 		}
+		catch_memory_errors = 0;
+		termch = 0;
+		break;
+	case 'p':
+		getstring(tmp, 64);
+		if (setjmp(bus_error_jmp) == 0) {
+			catch_memory_errors = 1;
+			sync();
+			ptr = (void __percpu *)kallsyms_lookup_name(tmp);
+			sync();
+		}
+
+		if (ptr &&
+		    ptr >= (void __percpu *)__per_cpu_start &&
+		    ptr < (void __percpu *)__per_cpu_end)
+		{
+			if (scanhex(&cpu) && cpu < num_possible_cpus()) {
+				addr = (unsigned long)per_cpu_ptr(ptr, cpu);
+			} else {
+				cpu = raw_smp_processor_id();
+				addr = (unsigned long)this_cpu_ptr(ptr);
+			}
+
+			printf("%s for cpu 0x%lx: %lx\n", tmp, cpu, addr);
+		} else {
+			printf("Percpu symbol '%s' not found.\n", tmp);
+		}
+
 		catch_memory_errors = 0;
 		termch = 0;
 		break;
