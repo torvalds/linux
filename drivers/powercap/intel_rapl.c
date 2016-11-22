@@ -1563,9 +1563,8 @@ static void rapl_remove_package(struct rapl_package *rp)
 /* called from CPU hotplug notifier, hotplug lock held */
 static int rapl_add_package(int cpu)
 {
-	int ret = 0;
-	int phy_package_id;
 	struct rapl_package *rp;
+	int ret, phy_package_id;
 
 	phy_package_id = topology_physical_package_id(cpu);
 	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
@@ -1583,10 +1582,11 @@ static int rapl_add_package(int cpu)
 		ret = -ENODEV;
 		goto err_free_package;
 	}
-	if (!rapl_package_register_powercap(rp)) {
+	ret = rapl_package_register_powercap(rp);
+	if (!ret) {
 		INIT_LIST_HEAD(&rp->plist);
 		list_add(&rp->plist, &rapl_packages);
-		return ret;
+		return 0;
 	}
 
 err_free_package:
