@@ -1407,7 +1407,6 @@ static int __init vga_arb_device_init(void)
 	int rc;
 	struct pci_dev *pdev;
 	struct vga_device *vgadev;
-	struct device *dev;
 
 	rc = misc_register(&vga_arb_device);
 	if (rc < 0)
@@ -1424,6 +1423,7 @@ static int __init vga_arb_device_init(void)
 		vga_arbiter_add_pci_device(pdev);
 
 	list_for_each_entry(vgadev, &vga_list, list) {
+		struct device *dev = &vgadev->pdev->dev;
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
 		/*
 		 * Override vga_arbiter_add_pci_device()'s I/O based detection
@@ -1438,7 +1438,6 @@ static int __init vga_arb_device_init(void)
 		int i;
 
 		limit = screen_info.lfb_base + screen_info.lfb_size;
-		dev = &vgadev->pdev->dev;
 
 		/* Does firmware framebuffer belong to us? */
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
