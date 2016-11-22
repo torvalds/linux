@@ -479,10 +479,8 @@ err_ret:
 
 static int pkg_temp_thermal_device_remove(unsigned int cpu)
 {
-	struct phy_dev_entry *n;
+	struct phy_dev_entry *phdev = pkg_temp_thermal_get_phy_entry(cpu);
 	u16 phys_proc_id = topology_physical_package_id(cpu);
-	struct phy_dev_entry *phdev =
-			pkg_temp_thermal_get_phy_entry(cpu);
 
 	if (!phdev)
 		return -ENODEV;
@@ -503,22 +501,19 @@ static int pkg_temp_thermal_device_remove(unsigned int cpu)
 	--phdev->ref_cnt;
 	pr_debug("thermal_device_remove: pkg: %d cpu %d ref_cnt %d\n",
 					phys_proc_id, cpu, phdev->ref_cnt);
-	if (!phdev->ref_cnt)
-		list_for_each_entry_safe(phdev, n, &phy_dev_list, list) {
-			if (phdev->phys_proc_id == phys_proc_id) {
-				thermal_zone_device_unregister(phdev->tzone);
-				/*
-				 * Restore original MSR value for package
-				 * thermal interrupt.
-				 */
-				wrmsr_on_cpu(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
-					     phdev->start_pkg_therm_low,
-					     phdev->start_pkg_therm_high);
-				list_del(&phdev->list);
-				kfree(phdev);
-				break;
-			}
-		}
+
+	if (!phdev->ref_cnt) {
+		thermal_zone_device_unregister(phdev->tzone);
+		/*
+		 * Restore original MSR value for package thermal
+		 * interrupt.
+		 */
+		wrmsr_on_cpu(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT,
+			     phdev->start_pkg_therm_low,
+			     phdev->start_pkg_therm_high);
+		list_del(&phdev->list);
+		kfree(phdev);
+	}
 	mutex_unlock(&phy_dev_list_mutex);
 
 	return 0;
