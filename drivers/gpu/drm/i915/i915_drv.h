@@ -210,6 +210,10 @@ enum plane_id {
 	I915_MAX_PLANES,
 };
 
+#define for_each_plane_id_on_crtc(__crtc, __p) \
+	for ((__p) = PLANE_PRIMARY; (__p) < I915_MAX_PLANES; (__p)++) \
+		for_each_if ((__crtc)->plane_ids_mask & BIT(__p))
+
 enum port {
 	PORT_NONE = -1,
 	PORT_A = 0,

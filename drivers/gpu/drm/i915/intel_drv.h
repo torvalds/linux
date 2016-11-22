@@ -691,8 +691,9 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
-	unsigned long enabled_power_domains;
 	bool lowfreq_avail;
+	u8 plane_ids_mask;
+	unsigned long enabled_power_domains;
 	struct intel_overlay *overlay;
 	struct intel_flip_work *flip_work;
 
