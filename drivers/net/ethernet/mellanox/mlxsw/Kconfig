@@ -19,6 +19,15 @@ config MLXSW_CORE_HWMON
 	---help---
 	  Say Y here if you want to expose HWMON interface on mlxsw devices.
 
+config MLXSW_CORE_THERMAL
+	bool "Thermal zone support for Mellanox Technologies Switch ASICs"
+	depends on MLXSW_CORE && THERMAL
+	depends on !(MLXSW_CORE=y && THERMAL=m)
+	default y
+	---help---
+	 Say Y here if you want to automatically control fans speed according
+	 ambient temperature reported by ASIC.
+
 config MLXSW_PCI
 	tristate "PCI bus implementation for Mellanox Technologies Switch ASICs"
 	depends on PCI && HAS_DMA && HAS_IOMEM && MLXSW_CORE
