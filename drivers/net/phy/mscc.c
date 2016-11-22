@@ -115,10 +115,9 @@ static int vsc85xx_downshift_get(struct phy_device *phydev, u8 *count)
 	int rc;
 	u16 reg_val;
 
-	mutex_lock(&phydev->lock);
 	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED);
 	if (rc != 0)
-		goto out_unlock;
+		goto out;
 
 	reg_val = phy_read(phydev, MSCC_PHY_ACTIPHY_CNTL);
 	reg_val &= DOWNSHIFT_CNTL_MASK;
@@ -128,9 +127,7 @@ static int vsc85xx_downshift_get(struct phy_device *phydev, u8 *count)
 		*count = ((reg_val & ~DOWNSHIFT_EN) >> DOWNSHIFT_CNTL_POS) + 2;
 	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
 
-out_unlock:
-	mutex_unlock(&phydev->lock);
-
+out:
 	return rc;
 }
 
@@ -150,23 +147,20 @@ static int vsc85xx_downshift_set(struct phy_device *phydev, u8 count)
 		count = (((count - 2) << DOWNSHIFT_CNTL_POS) | DOWNSHIFT_EN);
 	}
 
-	mutex_lock(&phydev->lock);
 	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED);
 	if (rc != 0)
-		goto out_unlock;
+		goto out;
 
 	reg_val = phy_read(phydev, MSCC_PHY_ACTIPHY_CNTL);
 	reg_val &= ~(DOWNSHIFT_CNTL_MASK);
 	reg_val |= count;
 	rc = phy_write(phydev, MSCC_PHY_ACTIPHY_CNTL, reg_val);
 	if (rc != 0)
-		goto out_unlock;
+		goto out;
 
 	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
 
-out_unlock:
-	mutex_unlock(&phydev->lock);
-
+out:
 	return rc;
 }
 
