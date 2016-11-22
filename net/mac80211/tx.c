@@ -1500,7 +1500,6 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 				struct sta_info *sta,
 				struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct fq *fq = &local->fq;
 	struct ieee80211_vif *vif;
 	struct txq_info *txqi;
@@ -1524,8 +1523,6 @@ static bool ieee80211_queue_skb(struct ieee80211_local *local,
 
 	if (!txqi)
 		return false;
-
-	info->control.vif = vif;
 
 	spin_lock_bh(&fq->lock);
 	ieee80211_txq_enqueue(local, txqi, skb);
@@ -3238,7 +3235,6 @@ static void ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
-		*ieee80211_get_qos_ctl(hdr) = tid;
 		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, tid);
 	} else {
 		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
@@ -3363,6 +3359,11 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		      (tid_tx ? IEEE80211_TX_CTL_AMPDU : 0);
 	info->control.flags = IEEE80211_TX_CTRL_FAST_XMIT;
 
+	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
+		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+		*ieee80211_get_qos_ctl(hdr) = tid;
+	}
+
 	__skb_queue_head_init(&tx.skbs);
 
 	tx.flags = IEEE80211_TX_UNICAST;
@@ -3450,6 +3451,11 @@ begin:
 		ieee80211_free_txskb(&local->hw, skb);
 		goto begin;
 	}
+
+	if (test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags))
+		info->flags |= IEEE80211_TX_CTL_AMPDU;
+	else
+		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
 	if (info->control.flags & IEEE80211_TX_CTRL_FAST_XMIT) {
 		struct sta_info *sta = container_of(txq->sta, struct sta_info,

@@ -840,18 +840,20 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 	if (dev->dev.parent && dev_is_pci(dev->dev.parent) &&
 	    (ext_filter_mask & RTEXT_FILTER_VF)) {
 		int num_vfs = dev_num_vf(dev->dev.parent);
-		size_t size = nla_total_size(sizeof(struct nlattr));
-		size += nla_total_size(num_vfs * sizeof(struct nlattr));
+		size_t size = nla_total_size(0);
 		size += num_vfs *
-			(nla_total_size(sizeof(struct ifla_vf_mac)) +
-			 nla_total_size(MAX_VLAN_LIST_LEN *
-					sizeof(struct nlattr)) +
+			(nla_total_size(0) +
+			 nla_total_size(sizeof(struct ifla_vf_mac)) +
+			 nla_total_size(sizeof(struct ifla_vf_vlan)) +
+			 nla_total_size(0) + /* nest IFLA_VF_VLAN_LIST */
 			 nla_total_size(MAX_VLAN_LIST_LEN *
 					sizeof(struct ifla_vf_vlan_info)) +
 			 nla_total_size(sizeof(struct ifla_vf_spoofchk)) +
+			 nla_total_size(sizeof(struct ifla_vf_tx_rate)) +
 			 nla_total_size(sizeof(struct ifla_vf_rate)) +
 			 nla_total_size(sizeof(struct ifla_vf_link_state)) +
 			 nla_total_size(sizeof(struct ifla_vf_rss_query_en)) +
+			 nla_total_size(0) + /* nest IFLA_VF_STATS */
 			 /* IFLA_VF_STATS_RX_PACKETS */
 			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_TX_PACKETS */
@@ -899,7 +901,8 @@ static size_t rtnl_port_size(const struct net_device *dev,
 
 static size_t rtnl_xdp_size(const struct net_device *dev)
 {
-	size_t xdp_size = nla_total_size(1);	/* XDP_ATTACHED */
+	size_t xdp_size = nla_total_size(0) +	/* nest IFLA_XDP */
+			  nla_total_size(1);	/* XDP_ATTACHED */
 
 	if (!dev->netdev_ops->ndo_xdp)
 		return 0;
@@ -1606,7 +1609,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 		head = &net->dev_index_head[h];
 		hlist_for_each_entry(dev, head, index_hlist) {
 			if (link_dump_filtered(dev, master_idx, kind_ops))
-				continue;
+				goto cont;
 			if (idx < s_idx)
 				goto cont;
 			err = rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
@@ -2849,7 +2852,10 @@ nla_put_failure:
 
 static inline size_t rtnl_fdb_nlmsg_size(void)
 {
-	return NLMSG_ALIGN(sizeof(struct ndmsg)) + nla_total_size(ETH_ALEN);
+	return NLMSG_ALIGN(sizeof(struct ndmsg)) +
+	       nla_total_size(ETH_ALEN) +	/* NDA_LLADDR */
+	       nla_total_size(sizeof(u16)) +	/* NDA_VLAN */
+	       0;
 }
 
 static void rtnl_fdb_notify(struct net_device *dev, u8 *addr, u16 vid, int type,

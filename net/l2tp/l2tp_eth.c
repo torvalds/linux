@@ -97,7 +97,7 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int len = skb->len;
 	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
 
-	if (likely(ret == NET_XMIT_SUCCESS)) {
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		atomic_long_add(len, &priv->tx_bytes);
 		atomic_long_inc(&priv->tx_packets);
 	} else {
