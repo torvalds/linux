@@ -79,8 +79,8 @@ void cdn_dp_clock_reset(struct cdn_dp_device *dp)
 	      SOURCE_CRYPTO_SYS_CLK_EN;
 	writel(val, dp->regs + SOURCE_CRYPTO_CAR);
 
-	val = ~(MAILBOX_INT_MASK_BIT | PIF_INT_MASK_BIT) & ALL_INT_MASK;
-	writel(val, dp->regs + APB_INT_MASK);
+	/* enable Mailbox and PIF interrupt */
+	writel(0, dp->regs + APB_INT_MASK);
 }
 
 static int cdn_dp_mailbox_read(struct cdn_dp_device *dp)

@@ -422,7 +422,7 @@
 #define SPDIF_JITTER_THRSH(x)			(((x) & 0xff) << 3)
 #define SPDIF_JITTER_AVG_WIN(x)			((x) & 0x7)
 
-/* Refernce cycles when using lane clock as refernce */
+/* Reference cycles when using lane clock as reference */
 #define LANE_REF_CYC				0xf000
 
 enum voltage_swing_level {

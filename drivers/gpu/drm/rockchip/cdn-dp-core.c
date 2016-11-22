@@ -43,8 +43,6 @@
 #define GRF_SOC_CON9		0x6224
 #define DP_SEL_VOP_LIT		BIT(12)
 #define GRF_SOC_CON26		0x6268
-#define UPHY_SEL_BIT		3
-#define UPHY_SEL_MASK		BIT(19)
 #define DPTX_HPD_SEL		(3 << 12)
 #define DPTX_HPD_DEL		(2 << 12)
 #define DPTX_HPD_SEL_MASK	(3 << 28)
@@ -122,7 +120,7 @@ static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 	reset_control_deassert(dp->apb_rst);
 
 	rate = clk_get_rate(dp->core_clk);
-	if (rate < 0) {
+	if (!rate) {
 		DRM_DEV_ERROR(dp->dev, "get clk rate failed: %d\n", rate);
 		goto err_set_rate;
 	}
@@ -217,7 +215,7 @@ static void cdn_dp_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs cdn_dp_atomic_connector_funcs = {
+static const struct drm_connector_funcs cdn_dp_atomic_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = cdn_dp_connector_detect,
 	.destroy = cdn_dp_connector_destroy,
@@ -392,11 +390,6 @@ static int cdn_dp_enable_phy(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 {
 	union extcon_property_value property;
 	int ret;
-
-	ret = cdn_dp_grf_write(dp, GRF_SOC_CON26,
-			       (port->id << UPHY_SEL_BIT) | UPHY_SEL_MASK);
-	if (ret)
-		return ret;
 
 	if (!port->phy_enabled) {
 		ret = phy_power_on(port->phy);
@@ -702,14 +695,14 @@ static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static struct drm_encoder_helper_funcs cdn_dp_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs cdn_dp_encoder_helper_funcs = {
 	.mode_set = cdn_dp_encoder_mode_set,
 	.enable = cdn_dp_encoder_enable,
 	.disable = cdn_dp_encoder_disable,
 	.atomic_check = cdn_dp_encoder_atomic_check,
 };
 
-static struct drm_encoder_funcs cdn_dp_encoder_funcs = {
+static const struct drm_encoder_funcs cdn_dp_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
