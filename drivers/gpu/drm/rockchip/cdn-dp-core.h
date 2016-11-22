@@ -82,6 +82,7 @@ struct cdn_dp_device {
 	struct mutex lock;
 	bool connected;
 	bool active;
+	bool suspended;
 
 	const struct firmware *fw;	/* cdn dp firmware */
 	unsigned int fw_version;	/* cdn fw version */
