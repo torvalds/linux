@@ -996,22 +996,6 @@ void vpdma_enable_list_complete_irq(struct vpdma_data *vpdma, int irq_num,
 }
 EXPORT_SYMBOL(vpdma_enable_list_complete_irq);
 
-/* set or clear the mask for list complete interrupt */
-void vpdma_enable_list_notify_irq(struct vpdma_data *vpdma, int irq_num,
-		int list_num, bool enable)
-{
-	u32 reg_addr = VPDMA_INT_LIST0_MASK + VPDMA_INTX_OFFSET * irq_num;
-	u32 val;
-
-	val = read_reg(vpdma, reg_addr);
-	if (enable)
-		val |= (1 << ((list_num * 2) + 1));
-	else
-		val &= ~(1 << ((list_num * 2) + 1));
-	write_reg(vpdma, reg_addr, val);
-}
-EXPORT_SYMBOL(vpdma_enable_list_notify_irq);
-
 /* get the LIST_STAT register */
 unsigned int vpdma_get_list_stat(struct vpdma_data *vpdma, int irq_num)
 {
