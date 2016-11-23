@@ -86,7 +86,7 @@ int nft_fib_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if ((priv->flags & (NFTA_FIB_F_SADDR | NFTA_FIB_F_DADDR)) == 0)
 		return -EINVAL;
 
-	priv->result = htonl(nla_get_be32(tb[NFTA_FIB_RESULT]));
+	priv->result = ntohl(nla_get_be32(tb[NFTA_FIB_RESULT]));
 	priv->dreg = nft_parse_register(tb[NFTA_FIB_DREG]);
 
 	switch (priv->result) {

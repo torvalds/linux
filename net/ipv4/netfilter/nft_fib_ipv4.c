@@ -198,7 +198,7 @@ nft_fib4_select_ops(const struct nft_ctx *ctx,
 	if (!tb[NFTA_FIB_RESULT])
 		return ERR_PTR(-EINVAL);
 
-	result = htonl(nla_get_be32(tb[NFTA_FIB_RESULT]));
+	result = ntohl(nla_get_be32(tb[NFTA_FIB_RESULT]));
 
 	switch (result) {
 	case NFT_FIB_RESULT_OIF:
