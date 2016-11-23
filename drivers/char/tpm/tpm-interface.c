@@ -328,8 +328,17 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 }
 EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
 
-/*
- * Internal kernel interface to transmit TPM commands
+/**
+ * tmp_transmit - Internal kernel interface to transmit TPM commands.
+ *
+ * @chip: TPM chip to use
+ * @buf: TPM command buffer
+ * @bufsiz: length of the TPM command buffer
+ * @flags: tpm transmit flags - bitmap
+ *
+ * Return:
+ *     0 when the operation is successful.
+ *     A negative number for system errors (errno).
  */
 ssize_t tpm_transmit(struct tpm_chip *chip, const u8 *buf, size_t bufsiz,
 		     unsigned int flags)
@@ -409,9 +418,21 @@ out:
 	return rc;
 }
 
-#define TPM_DIGEST_SIZE 20
-#define TPM_RET_CODE_IDX 6
-
+/**
+ * tmp_transmit_cmd - send a tpm command to the device
+ *    The function extracts tpm out header return code
+ *
+ * @chip: TPM chip to use
+ * @cmd: TPM command buffer
+ * @len: length of the TPM command
+ * @flags: tpm transmit flags - bitmap
+ * @desc: command description used in the error message
+ *
+ * Return:
+ *     0 when the operation is successful.
+ *     A negative number for system errors (errno).
+ *     A positive number for a TPM error.
+ */
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *cmd,
 			 int len, unsigned int flags, const char *desc)
 {
@@ -434,6 +455,8 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, const void *cmd,
 	return err;
 }
 
+#define TPM_DIGEST_SIZE 20
+#define TPM_RET_CODE_IDX 6
 #define TPM_INTERNAL_RESULT_SIZE 200
 #define TPM_ORD_GET_CAP cpu_to_be32(101)
 #define TPM_ORD_GET_RANDOM cpu_to_be32(70)
