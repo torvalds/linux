@@ -1844,7 +1844,10 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out_forget;
 	}
 
-	if (nfs4_stateid_match_other(&lo->plh_stateid, &res->stateid)) {
+	if (!pnfs_layout_is_valid(lo)) {
+		/* We have a completely new layout */
+		pnfs_set_layout_stateid(lo, &res->stateid, true);
+	} else if (nfs4_stateid_match_other(&lo->plh_stateid, &res->stateid)) {
 		/* existing state ID, make sure the sequence number matches. */
 		if (pnfs_layout_stateid_blocked(lo, &res->stateid)) {
 			dprintk("%s forget reply due to sequence\n", __func__);
@@ -1854,12 +1857,10 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	} else {
 		/*
 		 * We got an entirely new state ID.  Mark all segments for the
-		 * inode invalid, and don't bother validating the stateid
-		 * sequence number.
+		 * inode invalid, and retry the layoutget
 		 */
 		pnfs_mark_layout_stateid_invalid(lo, &free_me);
-
-		pnfs_set_layout_stateid(lo, &res->stateid, true);
+		goto out_forget;
 	}
 
 	pnfs_get_lseg(lseg);
