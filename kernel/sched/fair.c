@@ -37,7 +37,6 @@
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
- * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * NOTE: this latency value is not the same as the concept of
  * 'timeslice length' - timeslices in CFS are of variable length
@@ -46,31 +45,35 @@
  *
  * (to see the precise effective timeslice length of your workload,
  *  run vmstat and monitor the context-switches (cs) field)
+ *
+ * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
  */
-unsigned int sysctl_sched_latency = 6000000ULL;
-unsigned int normalized_sysctl_sched_latency = 6000000ULL;
+unsigned int sysctl_sched_latency			= 6000000ULL;
+unsigned int normalized_sysctl_sched_latency		= 6000000ULL;
 
 /*
  * The initial- and re-scaling of tunables is configurable
- * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
  *
  * Options are:
- * SCHED_TUNABLESCALING_NONE - unscaled, always *1
- * SCHED_TUNABLESCALING_LOG - scaled logarithmical, *1+ilog(ncpus)
- * SCHED_TUNABLESCALING_LINEAR - scaled linear, *ncpus
+ *
+ *   SCHED_TUNABLESCALING_NONE - unscaled, always *1
+ *   SCHED_TUNABLESCALING_LOG - scaled logarithmical, *1+ilog(ncpus)
+ *   SCHED_TUNABLESCALING_LINEAR - scaled linear, *ncpus
+ *
+ * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
  */
-enum sched_tunable_scaling sysctl_sched_tunable_scaling
-	= SCHED_TUNABLESCALING_LOG;
+enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
 
 /*
  * Minimal preemption granularity for CPU-bound tasks:
+ *
  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
-unsigned int sysctl_sched_min_granularity = 750000ULL;
-unsigned int normalized_sysctl_sched_min_granularity = 750000ULL;
+unsigned int sysctl_sched_min_granularity		= 750000ULL;
+unsigned int normalized_sysctl_sched_min_granularity	= 750000ULL;
 
 /*
- * is kept at sysctl_sched_latency / sysctl_sched_min_granularity
+ * This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity
  */
 static unsigned int sched_nr_latency = 8;
 
@@ -82,16 +85,17 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
 
 /*
  * SCHED_OTHER wake-up granularity.
- * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
+ *
+ * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
-unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
-unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
+unsigned int sysctl_sched_wakeup_granularity		= 1000000UL;
+unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
 
-const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
+const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
 
 #ifdef CONFIG_CFS_BANDWIDTH
 /*
@@ -102,16 +106,18 @@ const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
  * to consumption or the quota being specified to be smaller than the slice)
  * we will always only issue the remaining available time.
  *
- * default: 5 msec, units: microseconds
-  */
-unsigned int sysctl_sched_cfs_bandwidth_slice = 5000UL;
+ * (default: 5 msec, units: microseconds)
+ */
+unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
 #endif
 
 /*
  * The margin used when comparing utilization with CPU capacity:
  * util * margin < capacity * 1024
+ *
+ * (default: ~20%)
  */
-unsigned int capacity_margin = 1280; /* ~20% */
+unsigned int capacity_margin				= 1280;
 
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
@@ -7174,8 +7180,8 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
  * cpumask covering 1 cpu of the first group and 3 cpus of the second group.
  * Something like:
  *
- * 	{ 0 1 2 3 } { 4 5 6 7 }
- * 	        *     * * *
+ *	{ 0 1 2 3 } { 4 5 6 7 }
+ *	        *     * * *
  *
  * If we were to balance group-wise we'd place two tasks in the first group and
  * two tasks in the second group. Clearly this is undesired as it will overload
