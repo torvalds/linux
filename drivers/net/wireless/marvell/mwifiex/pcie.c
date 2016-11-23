@@ -2051,7 +2051,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 		}
 
 		/* Wait for the command done interrupt */
-		do {
+		for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
 			if (mwifiex_read_reg(adapter, PCIE_CPU_INT_STATUS,
 					     &ireg_intr)) {
 				mwifiex_dbg(adapter, ERROR,
@@ -2063,8 +2063,18 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 				ret = -1;
 				goto done;
 			}
-		} while ((ireg_intr & CPU_INTR_DOOR_BELL) ==
-			 CPU_INTR_DOOR_BELL);
+			if (!(ireg_intr & CPU_INTR_DOOR_BELL))
+				break;
+			usleep_range(10, 20);
+		}
+		if (ireg_intr & CPU_INTR_DOOR_BELL) {
+			mwifiex_dbg(adapter, ERROR, "%s: Card failed to ACK download\n",
+				    __func__);
+			mwifiex_unmap_pci_memory(adapter, skb,
+						 PCI_DMA_TODEVICE);
+			ret = -1;
+			goto done;
+		}
 
 		mwifiex_unmap_pci_memory(adapter, skb, PCI_DMA_TODEVICE);
 
