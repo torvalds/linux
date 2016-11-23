@@ -168,6 +168,8 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		unsigned int width = mode_cmd->width / (i ? hsub : 1);
 		unsigned int height = mode_cmd->height / (i ? vsub : 1);
 		unsigned int min_size;
+		unsigned int bpp =
+			drm_format_plane_bpp(mode_cmd->pixel_format, i);
 
 		obj = drm_gem_object_lookup(dev, file_priv,
 					    mode_cmd->handles[i]);
@@ -178,9 +180,7 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 
 		min_size = (height - 1) * mode_cmd->pitches[i] +
-			mode_cmd->offsets[i] +
-			width * drm_format_plane_cpp(mode_cmd->pixel_format, i);
-
+			mode_cmd->offsets[i] + roundup(width * bpp, 8) / 8;
 		if (obj->size < min_size) {
 			drm_gem_object_unreference_unlocked(obj);
 			ret = -EINVAL;

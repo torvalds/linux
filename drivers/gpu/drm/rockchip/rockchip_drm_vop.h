@@ -212,6 +212,7 @@ struct vop_win_phy {
 	struct vop_reg gate;
 	struct vop_reg enable;
 	struct vop_reg format;
+	struct vop_reg fmt_10;
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;
 	struct vop_reg rb_swap;

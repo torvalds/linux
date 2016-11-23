@@ -328,10 +328,13 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	case DRM_FORMAT_BGR565:
 		return VOP_FMT_RGB565;
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV12_10:
 		return VOP_FMT_YUV420SP;
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV16_10:
 		return VOP_FMT_YUV422SP;
 	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV24_10:
 		return VOP_FMT_YUV444SP;
 	default:
 		DRM_ERROR("unsupport format[%08x]\n", format);
@@ -343,8 +346,23 @@ static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV12_10:
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV16_10:
 	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV24_10:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_yuv_10bit(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV24_10:
 		return true;
 	default:
 		return false;
@@ -863,7 +881,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (is_yuv_support(fb->pixel_format) && ((src->x1 >> 16) % 2))
 		return -EINVAL;
 
-	offset = (src->x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
+	offset = (src->x1 >> 16) * drm_format_plane_bpp(fb->pixel_format, 0) / 8;
 	if (state->rotation & BIT(DRM_REFLECT_Y))
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
 	else
@@ -874,9 +892,9 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (is_yuv_support(fb->pixel_format)) {
 		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
 		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
-		int bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+		int bpp = drm_format_plane_bpp(fb->pixel_format, 1);
 
-		offset = (src->x1 >> 16) * bpp / hsub;
+		offset = (src->x1 >> 16) * bpp / hsub / 8;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
 		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
@@ -970,6 +988,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, uv_vir, fb->pitches[1] >> 2);
 		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->uv_mst);
 	}
+	VOP_WIN_SET(vop, win, fmt_10, is_yuv_10bit(fb->pixel_format));
 
 	scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
 			    drm_rect_width(dest), drm_rect_height(dest),
