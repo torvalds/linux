@@ -2107,6 +2107,10 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct inode *toputinode[MAXQUOTAS];
 
+	/* s_umount should be held in exclusive mode */
+	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
+		up_read(&sb->s_umount);
+
 	/* Cannot turn off usage accounting without turning off limits, or
 	 * suspend quotas and simultaneously turn quotas off. */
 	if ((flags & DQUOT_USAGE_ENABLED && !(flags & DQUOT_LIMITS_ENABLED))
@@ -2371,6 +2375,10 @@ int dquot_resume(struct super_block *sb, int type)
 	int ret = 0, cnt;
 	unsigned int flags;
 
+	/* s_umount should be held in exclusive mode */
+	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
+		up_read(&sb->s_umount);
+
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
 			continue;
@@ -2430,6 +2438,9 @@ int dquot_enable(struct inode *inode, int type, int format_id,
 
 	/* Just unsuspend quotas? */
 	BUG_ON(flags & DQUOT_SUSPENDED);
+	/* s_umount should be held in exclusive mode */
+	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
+		up_read(&sb->s_umount);
 
 	if (!flags)
 		return 0;
