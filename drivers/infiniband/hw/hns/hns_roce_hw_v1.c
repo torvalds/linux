@@ -32,6 +32,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
+#include <linux/etherdevice.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
@@ -72,6 +73,8 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	int nreq = 0;
 	u32 ind = 0;
 	int ret = 0;
+	u8 *smac;
+	int loopback;
 
 	if (unlikely(ibqp->qp_type != IB_QPT_GSI &&
 		ibqp->qp_type != IB_QPT_RC)) {
@@ -129,6 +132,14 @@ int hns_roce_v1_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				       UD_SEND_WQE_U32_8_DMAC_5_M,
 				       UD_SEND_WQE_U32_8_DMAC_5_S,
 				       ah->av.mac[5]);
+
+			smac = (u8 *)hr_dev->dev_addr[qp->port];
+			loopback = ether_addr_equal_unaligned(ah->av.mac,
+							      smac) ? 1 : 0;
+			roce_set_bit(ud_sq_wqe->u32_8,
+				     UD_SEND_WQE_U32_8_LOOPBACK_INDICATOR_S,
+				     loopback);
+
 			roce_set_field(ud_sq_wqe->u32_8,
 				       UD_SEND_WQE_U32_8_OPERATION_TYPE_M,
 				       UD_SEND_WQE_U32_8_OPERATION_TYPE_S,

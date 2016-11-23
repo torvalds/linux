@@ -440,6 +440,8 @@ struct hns_roce_ud_send_wqe {
 #define UD_SEND_WQE_U32_8_DMAC_5_M   \
 	(((1UL << 8) - 1) << UD_SEND_WQE_U32_8_DMAC_5_S)
 
+#define UD_SEND_WQE_U32_8_LOOPBACK_INDICATOR_S 22
+
 #define UD_SEND_WQE_U32_8_OPERATION_TYPE_S 16
 #define UD_SEND_WQE_U32_8_OPERATION_TYPE_M   \
 	(((1UL << 4) - 1) << UD_SEND_WQE_U32_8_OPERATION_TYPE_S)
