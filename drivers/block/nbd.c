@@ -745,7 +745,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 	case NBD_DO_IT: {
 		struct recv_thread_args *args;
 		int num_connections = nbd->num_connections;
-		int error, i;
+		int error = 0, i;
 
 		if (nbd->task_recv)
 			return -EBUSY;
@@ -754,14 +754,17 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		if (num_connections > 1 &&
 		    !(nbd->flags & NBD_FLAG_CAN_MULTI_CONN)) {
 			dev_err(disk_to_dev(nbd->disk), "server does not support multiple connections per device.\n");
+			error = -EINVAL;
 			goto out_err;
 		}
 
 		set_bit(NBD_RUNNING, &nbd->runtime_flags);
 		blk_mq_update_nr_hw_queues(&nbd->tag_set, nbd->num_connections);
 		args = kcalloc(num_connections, sizeof(*args), GFP_KERNEL);
-		if (!args)
+		if (!args) {
+			error = -ENOMEM;
 			goto out_err;
+		}
 		nbd->task_recv = current;
 		mutex_unlock(&nbd->config_lock);
 
