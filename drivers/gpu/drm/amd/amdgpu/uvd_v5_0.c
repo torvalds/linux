@@ -640,7 +640,7 @@ static void uvd_v5_0_enable_clock_gating(struct amdgpu_device *adev, bool enable
 		     UVD_SUVD_CGC_GATE__SDB_MASK;
 
 	if (enable) {
-		data3 |= (UVD_CGC_GATE__SYS_MASK       |
+		data3 |= (UVD_CGC_GATE__SYS_MASK     |
 			UVD_CGC_GATE__UDEC_MASK      |
 			UVD_CGC_GATE__MPEG2_MASK     |
 			UVD_CGC_GATE__RBC_MASK       |
@@ -656,9 +656,11 @@ static void uvd_v5_0_enable_clock_gating(struct amdgpu_device *adev, bool enable
 			UVD_CGC_GATE__UDEC_DB_MASK   |
 			UVD_CGC_GATE__UDEC_MP_MASK   |
 			UVD_CGC_GATE__WCB_MASK       |
-			UVD_CGC_GATE__VCPU_MASK      |
 			UVD_CGC_GATE__JPEG_MASK      |
 			UVD_CGC_GATE__SCPU_MASK);
+		/* only in pg enabled, we can gate clock to vcpu*/
+		if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
+			data3 |= UVD_CGC_GATE__VCPU_MASK;
 		data3 &= ~UVD_CGC_GATE__REGS_MASK;
 		data1 |= suvd_flags;
 	} else {

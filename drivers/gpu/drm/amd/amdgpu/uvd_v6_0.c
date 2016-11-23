@@ -879,10 +879,13 @@ static void uvd_v6_0_enable_clock_gating(struct amdgpu_device *adev, bool enable
 			UVD_CGC_GATE__UDEC_DB_MASK   |
 			UVD_CGC_GATE__UDEC_MP_MASK   |
 			UVD_CGC_GATE__WCB_MASK       |
-			UVD_CGC_GATE__VCPU_MASK      |
 			UVD_CGC_GATE__JPEG_MASK      |
 			UVD_CGC_GATE__SCPU_MASK      |
 			UVD_CGC_GATE__JPEG2_MASK);
+		/* only in pg enabled, we can gate clock to vcpu*/
+		if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
+			data3 |= UVD_CGC_GATE__VCPU_MASK;
+
 		data3 &= ~UVD_CGC_GATE__REGS_MASK;
 	} else {
 		data3 = 0;
