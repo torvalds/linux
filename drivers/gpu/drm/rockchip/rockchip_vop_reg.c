@@ -485,6 +485,7 @@ static const struct vop_win_data rk3399_vop_win_data[] = {
 
 static const struct vop_data rk3399_vop_big = {
 	.version = VOP_VERSION(3, 5),
+	.csc_table = &rk3399_csc_table,
 	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_AFBDC,
 	.intr = &rk3366_vop_intr,
 	.ctrl = &rk3288_ctrl_data,
