@@ -444,6 +444,13 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		return RESPST_EXECUTE;
 	}
 
+	/* A zero-byte op is not required to set an addr or rkey. */
+	if ((pkt->mask & (RXE_READ_MASK | RXE_WRITE_OR_SEND)) &&
+	    (pkt->mask & RXE_RETH_MASK) &&
+	    reth_len(pkt) == 0) {
+		return RESPST_EXECUTE;
+	}
+
 	va	= qp->resp.va;
 	rkey	= qp->resp.rkey;
 	resid	= qp->resp.resid;
@@ -680,9 +687,14 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 		res->read.va_org	= qp->resp.va;
 
 		res->first_psn		= req_pkt->psn;
-		res->last_psn		= req_pkt->psn +
-					  (reth_len(req_pkt) + mtu - 1) /
-					  mtu - 1;
+
+		if (reth_len(req_pkt)) {
+			res->last_psn	= (req_pkt->psn +
+					   (reth_len(req_pkt) + mtu - 1) /
+					   mtu - 1) & BTH_PSN_MASK;
+		} else {
+			res->last_psn	= res->first_psn;
+		}
 		res->cur_psn		= req_pkt->psn;
 
 		res->read.resid		= qp->resp.resid;
