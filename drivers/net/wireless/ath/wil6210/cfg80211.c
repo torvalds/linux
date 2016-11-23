@@ -702,6 +702,26 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 	return rc;
 }
 
+static int wil_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	int rc;
+
+	/* these parameters are explicitly not supported */
+	if (changed & (WIPHY_PARAM_RETRY_LONG |
+		       WIPHY_PARAM_FRAG_THRESHOLD |
+		       WIPHY_PARAM_RTS_THRESHOLD))
+		return -ENOTSUPP;
+
+	if (changed & WIPHY_PARAM_RETRY_SHORT) {
+		rc = wmi_set_mgmt_retry(wil, wiphy->retry_short);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
 			 u64 *cookie)
@@ -1489,6 +1509,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.abort_scan = wil_cfg80211_abort_scan,
 	.connect = wil_cfg80211_connect,
 	.disconnect = wil_cfg80211_disconnect,
+	.set_wiphy_params = wil_cfg80211_set_wiphy_params,
 	.change_virtual_intf = wil_cfg80211_change_iface,
 	.get_station = wil_cfg80211_get_station,
 	.dump_station = wil_cfg80211_dump_station,

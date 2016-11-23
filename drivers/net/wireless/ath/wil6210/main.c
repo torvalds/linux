@@ -693,6 +693,19 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	return 0;
 }
 
+static void wil_collect_fw_info(struct wil6210_priv *wil)
+{
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+	u8 retry_short;
+	int rc;
+
+	rc = wmi_get_mgmt_retry(wil, &retry_short);
+	if (!rc) {
+		wiphy->retry_short = retry_short;
+		wil_dbg_misc(wil, "FW retry_short: %d\n", retry_short);
+	}
+}
+
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 {
 	le32_to_cpus(&r->base);
@@ -965,6 +978,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 				__func__, rc);
 			return rc;
 		}
+
+		wil_collect_fw_info(wil);
 
 		if (wil->platform_ops.notify) {
 			rc = wil->platform_ops.notify(wil->platform_handle,

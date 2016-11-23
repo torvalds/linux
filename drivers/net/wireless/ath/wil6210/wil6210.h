@@ -821,6 +821,8 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
 		      u16 status, bool amsdu, u16 agg_wsize, u16 timeout);
 int wmi_ps_dev_profile_cfg(struct wil6210_priv *wil,
 			   enum wmi_ps_profile_type ps_profile);
+int wmi_set_mgmt_retry(struct wil6210_priv *wil, u8 retry_short);
+int wmi_get_mgmt_retry(struct wil6210_priv *wil, u8 *retry_short);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
