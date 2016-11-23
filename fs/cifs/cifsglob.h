@@ -208,7 +208,7 @@ struct cifsInodeInfo;
 struct cifs_open_parms;
 
 struct smb_version_operations {
-	int (*send_cancel)(struct TCP_Server_Info *, void *,
+	int (*send_cancel)(struct TCP_Server_Info *, struct smb_rqst *,
 			   struct mid_q_entry *);
 	bool (*compare_fids)(struct cifsFileInfo *, struct cifsFileInfo *);
 	/* setup request: allocate mid, sign message */
