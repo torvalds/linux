@@ -1145,6 +1145,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 					     pkt, skb_copy);
 			if (rc) {
 				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
+				rxe_drop_ref(qp);
 				kfree_skb(skb_copy);
 				rc = RESPST_CLEANUP;
 				goto out;
