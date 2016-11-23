@@ -112,7 +112,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 
 	for (it_chain = chain; (tp = rtnl_dereference(*it_chain)) != NULL;
 	     it_chain = &tp->next)
-		tfilter_notify(net, oskb, n, tp, 0, event, false);
+		tfilter_notify(net, oskb, n, tp, n->nlmsg_flags, event, false);
 }
 
 /* Select new prio value from the range, managed by kernel. */
@@ -430,7 +430,8 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq, 0, event) <= 0) {
+	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
+			  n->nlmsg_flags, event) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}

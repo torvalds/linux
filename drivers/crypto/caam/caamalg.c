@@ -137,7 +137,7 @@ static void dbg_dump_sg(const char *level, const char *prefix_str,
 		}
 
 		buf = it_page + it->offset;
-		len = min(tlen, it->length);
+		len = min_t(size_t, tlen, it->length);
 		print_hex_dump(level, prefix_str, prefix_type, rowsize,
 			       groupsize, buf, len, ascii);
 		tlen -= len;
@@ -4581,6 +4581,15 @@ static int __init caam_algapi_init(void)
 
 		/* Skip AES algorithms if not supported by device */
 		if (!aes_inst && (alg_sel == OP_ALG_ALGSEL_AES))
+				continue;
+
+		/*
+		 * Check support for AES modes not available
+		 * on LP devices.
+		 */
+		if ((cha_vid & CHA_ID_LS_AES_MASK) == CHA_ID_LS_AES_LP)
+			if ((alg->class1_alg_type & OP_ALG_AAI_MASK) ==
+			     OP_ALG_AAI_XTS)
 				continue;
 
 		t_alg = caam_alg_alloc(alg);

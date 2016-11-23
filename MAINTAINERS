@@ -7084,6 +7084,7 @@ F:	drivers/scsi/53c700*
 LED SUBSYSTEM
 M:	Richard Purdie <rpurdie@rpsys.net>
 M:	Jacek Anaszewski <j.anaszewski@samsung.com>
+M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds.git
 S:	Maintained
@@ -7925,6 +7926,10 @@ F:	mm/
 MEMORY TECHNOLOGY DEVICES (MTD)
 M:	David Woodhouse <dwmw2@infradead.org>
 M:	Brian Norris <computersforpeace@gmail.com>
+M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Marek Vasut <marek.vasut@gmail.com>
+M:	Richard Weinberger <richard@nod.at>
+M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
@@ -8053,6 +8058,7 @@ F:	drivers/infiniband/hw/mlx4/
 F:	include/linux/mlx4/
 
 MELLANOX MLX5 core VPI driver
+M:	Saeed Mahameed <saeedm@mellanox.com>
 M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	netdev@vger.kernel.org
@@ -9331,7 +9337,7 @@ PCI DRIVER FOR INTEL VOLUME MANAGEMENT DEVICE (VMD)
 M:	Keith Busch <keith.busch@intel.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
-F:	arch/x86/pci/vmd.c
+F:	drivers/pci/host/vmd.c
 
 PCIE DRIVER FOR ST SPEAR13XX
 M:	Pratyush Anand <pratyush.anand@gmail.com>
@@ -11404,6 +11410,17 @@ W:	http://www.st.com/spear
 S:	Maintained
 F:	drivers/clk/spear/
 
+SPI NOR SUBSYSTEM
+M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-mtd@lists.infradead.org
+W:	http://www.linux-mtd.infradead.org/
+Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
+T:	git git://github.com/spi-nor/linux.git
+S:	Maintained
+F:	drivers/mtd/spi-nor/
+F:	include/linux/mtd/spi-nor.h
+
 SPI SUBSYSTEM
 M:	Mark Brown <broonie@kernel.org>
 L:	linux-spi@vger.kernel.org
@@ -12783,6 +12800,7 @@ F:	include/uapi/linux/virtio_console.h
 
 VIRTIO CORE, NET AND BLOCK DRIVERS
 M:	"Michael S. Tsirkin" <mst@redhat.com>
+M:	Jason Wang <jasowang@redhat.com>
 L:	virtualization@lists.linux-foundation.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/virtio/
@@ -12813,6 +12831,7 @@ F:	include/uapi/linux/virtio_gpu.h
 
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
+M:	Jason Wang <jasowang@redhat.com>
 L:	kvm@vger.kernel.org
 L:	virtualization@lists.linux-foundation.org
 L:	netdev@vger.kernel.org

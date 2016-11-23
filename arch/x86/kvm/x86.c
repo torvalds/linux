@@ -210,7 +210,18 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 	struct kvm_shared_msrs *locals
 		= container_of(urn, struct kvm_shared_msrs, urn);
 	struct kvm_shared_msr_values *values;
+	unsigned long flags;
 
+	/*
+	 * Disabling irqs at this point since the following code could be
+	 * interrupted and executed through kvm_arch_hardware_disable()
+	 */
+	local_irq_save(flags);
+	if (locals->registered) {
+		locals->registered = false;
+		user_return_notifier_unregister(urn);
+	}
+	local_irq_restore(flags);
 	for (slot = 0; slot < shared_msrs_global.nr; ++slot) {
 		values = &locals->values[slot];
 		if (values->host != values->curr) {
@@ -218,8 +229,6 @@ static void kvm_on_user_return(struct user_return_notifier *urn)
 			values->curr = values->host;
 		}
 	}
-	locals->registered = false;
-	user_return_notifier_unregister(urn);
 }
 
 static void shared_msr_update(unsigned slot, u32 msr)
@@ -1409,7 +1418,7 @@ static u64 kvm_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
 
 u64 kvm_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 {
-	return kvm_x86_ops->read_l1_tsc(vcpu, kvm_scale_tsc(vcpu, host_tsc));
+	return vcpu->arch.tsc_offset + kvm_scale_tsc(vcpu, host_tsc);
 }
 EXPORT_SYMBOL_GPL(kvm_read_l1_tsc);
 
@@ -1547,7 +1556,7 @@ EXPORT_SYMBOL_GPL(kvm_write_tsc);
 static inline void adjust_tsc_offset_guest(struct kvm_vcpu *vcpu,
 					   s64 adjustment)
 {
-	kvm_x86_ops->adjust_tsc_offset_guest(vcpu, adjustment);
+	kvm_vcpu_write_tsc_offset(vcpu, vcpu->arch.tsc_offset + adjustment);
 }
 
 static inline void adjust_tsc_offset_host(struct kvm_vcpu *vcpu, s64 adjustment)
@@ -1555,7 +1564,7 @@ static inline void adjust_tsc_offset_host(struct kvm_vcpu *vcpu, s64 adjustment)
 	if (vcpu->arch.tsc_scaling_ratio != kvm_default_tsc_scaling_ratio)
 		WARN_ON(adjustment < 0);
 	adjustment = kvm_scale_tsc(vcpu, (u64) adjustment);
-	kvm_x86_ops->adjust_tsc_offset_guest(vcpu, adjustment);
+	adjust_tsc_offset_guest(vcpu, adjustment);
 }
 
 #ifdef CONFIG_X86_64
@@ -1724,18 +1733,23 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 
 static u64 __get_kvmclock_ns(struct kvm *kvm)
 {
-	struct kvm_vcpu *vcpu = kvm_get_vcpu(kvm, 0);
 	struct kvm_arch *ka = &kvm->arch;
-	s64 ns;
+	struct pvclock_vcpu_time_info hv_clock;
 
-	if (vcpu->arch.hv_clock.flags & PVCLOCK_TSC_STABLE_BIT) {
-		u64 tsc = kvm_read_l1_tsc(vcpu, rdtsc());
-		ns = __pvclock_read_cycles(&vcpu->arch.hv_clock, tsc);
-	} else {
-		ns = ktime_get_boot_ns() + ka->kvmclock_offset;
+	spin_lock(&ka->pvclock_gtod_sync_lock);
+	if (!ka->use_master_clock) {
+		spin_unlock(&ka->pvclock_gtod_sync_lock);
+		return ktime_get_boot_ns() + ka->kvmclock_offset;
 	}
 
-	return ns;
+	hv_clock.tsc_timestamp = ka->master_cycle_now;
+	hv_clock.system_time = ka->master_kernel_ns + ka->kvmclock_offset;
+	spin_unlock(&ka->pvclock_gtod_sync_lock);
+
+	kvm_get_time_scale(NSEC_PER_SEC, __this_cpu_read(cpu_tsc_khz) * 1000LL,
+			   &hv_clock.tsc_shift,
+			   &hv_clock.tsc_to_system_mul);
+	return __pvclock_read_cycles(&hv_clock, rdtsc());
 }
 
 u64 get_kvmclock_ns(struct kvm *kvm)
@@ -2262,7 +2276,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* Drop writes to this legacy MSR -- see rdmsr
 		 * counterpart for further detail.
 		 */
-		vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data %llx\n", msr, data);
+		vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data 0x%llx\n", msr, data);
 		break;
 	case MSR_AMD64_OSVW_ID_LENGTH:
 		if (!guest_cpuid_has_osvw(vcpu))
@@ -2280,11 +2294,11 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (kvm_pmu_is_valid_msr(vcpu, msr))
 			return kvm_pmu_set_msr(vcpu, msr_info);
 		if (!ignore_msrs) {
-			vcpu_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
+			vcpu_unimpl(vcpu, "unhandled wrmsr: 0x%x data 0x%llx\n",
 				    msr, data);
 			return 1;
 		} else {
-			vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data %llx\n",
+			vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data 0x%llx\n",
 				    msr, data);
 			break;
 		}
@@ -2596,7 +2610,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PIT_STATE2:
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
 	case KVM_CAP_XEN_HVM:
-	case KVM_CAP_ADJUST_CLOCK:
 	case KVM_CAP_VCPU_EVENTS:
 	case KVM_CAP_HYPERV:
 	case KVM_CAP_HYPERV_VAPIC:
@@ -2622,6 +2635,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PCI_2_3:
 #endif
 		r = 1;
+		break;
+	case KVM_CAP_ADJUST_CLOCK:
+		r = KVM_CLOCK_TSC_STABLE;
 		break;
 	case KVM_CAP_X86_SMM:
 		/* SMBASE is usually relocated above 1M on modern chipsets,
@@ -3415,6 +3431,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	};
 	case KVM_SET_VAPIC_ADDR: {
 		struct kvm_vapic_addr va;
+		int idx;
 
 		r = -EINVAL;
 		if (!lapic_in_kernel(vcpu))
@@ -3422,7 +3439,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&va, argp, sizeof va))
 			goto out;
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvm_lapic_set_vapic_addr(vcpu, va.vapic_addr);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	}
 	case KVM_X86_SETUP_MCE: {
@@ -4103,9 +4122,11 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
 
-		now_ns = get_kvmclock_ns(kvm);
+		local_irq_disable();
+		now_ns = __get_kvmclock_ns(kvm);
 		user_ns.clock = now_ns;
-		user_ns.flags = 0;
+		user_ns.flags = kvm->arch.use_master_clock ? KVM_CLOCK_TSC_STABLE : 0;
+		local_irq_enable();
 		memset(&user_ns.pad, 0, sizeof(user_ns.pad));
 
 		r = -EFAULT;
@@ -7393,10 +7414,12 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	void *wbinvd_dirty_mask = vcpu->arch.wbinvd_dirty_mask;
+
 	kvmclock_reset(vcpu);
 
-	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
 	kvm_x86_ops->vcpu_free(vcpu);
+	free_cpumask_var(wbinvd_dirty_mask);
 }
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,

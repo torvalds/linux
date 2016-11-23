@@ -273,6 +273,18 @@ retry:
 		 * no more work for us to do.
 		 */
 		spin_unlock(&irq->irq_lock);
+
+		/*
+		 * We have to kick the VCPU here, because we could be
+		 * queueing an edge-triggered interrupt for which we
+		 * get no EOI maintenance interrupt. In that case,
+		 * while the IRQ is already on the VCPU's AP list, the
+		 * VCPU could have EOI'ed the original interrupt and
+		 * won't see this one until it exits for some other
+		 * reason.
+		 */
+		if (vcpu)
+			kvm_vcpu_kick(vcpu);
 		return false;
 	}
 

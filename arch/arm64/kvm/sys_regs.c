@@ -597,8 +597,14 @@ static bool access_pmu_evcntr(struct kvm_vcpu *vcpu,
 
 			idx = ARMV8_PMU_CYCLE_IDX;
 		} else {
-			BUG();
+			return false;
 		}
+	} else if (r->CRn == 0 && r->CRm == 9) {
+		/* PMCCNTR */
+		if (pmu_access_event_counter_el0_disabled(vcpu))
+			return false;
+
+		idx = ARMV8_PMU_CYCLE_IDX;
 	} else if (r->CRn == 14 && (r->CRm & 12) == 8) {
 		/* PMEVCNTRn_EL0 */
 		if (pmu_access_event_counter_el0_disabled(vcpu))
@@ -606,7 +612,7 @@ static bool access_pmu_evcntr(struct kvm_vcpu *vcpu,
 
 		idx = ((r->CRm & 3) << 3) | (r->Op2 & 7);
 	} else {
-		BUG();
+		return false;
 	}
 
 	if (!pmu_counter_idx_valid(vcpu, idx))

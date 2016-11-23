@@ -1188,7 +1188,8 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 		tx_ring->dst_ring_num = xgene_enet_dst_ring_num(cp_ring);
 	}
 
-	pdata->ring_ops->coalesce(pdata->tx_ring[0]);
+	if (pdata->ring_ops->coalesce)
+		pdata->ring_ops->coalesce(pdata->tx_ring[0]);
 	pdata->tx_qcnt_hi = pdata->tx_ring[0]->slots - 128;
 
 	return 0;

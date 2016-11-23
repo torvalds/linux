@@ -770,3 +770,15 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr)
 	kfree(mhp);
 	return 0;
 }
+
+void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey)
+{
+	struct c4iw_mr *mhp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rhp->lock, flags);
+	mhp = get_mhp(rhp, rkey >> 8);
+	if (mhp)
+		mhp->attr.state = 0;
+	spin_unlock_irqrestore(&rhp->lock, flags);
+}
