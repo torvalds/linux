@@ -575,7 +575,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 
 		devid = new_encode_dev(dev);
 
-		err = have_submounts(path.dentry);
+		err = path_has_submounts(&path);
 
 		if (follow_down_one(&path))
 			magic = path.dentry->d_sb->s_magic;
