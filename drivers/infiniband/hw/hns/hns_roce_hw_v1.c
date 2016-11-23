@@ -2244,24 +2244,14 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			     QP_CONTEXT_QPC_BYTE_32_SIGNALING_TYPE_S,
 			     hr_qp->sq_signal_bits);
 
-		for (port = 0; port < hr_dev->caps.num_ports; port++) {
-			smac = (u8 *)hr_dev->dev_addr[port];
-			dev_dbg(dev, "smac: %2x: %2x: %2x: %2x: %2x: %2x\n",
-				smac[0], smac[1], smac[2], smac[3], smac[4],
-				smac[5]);
-			if ((dmac[0] == smac[0]) && (dmac[1] == smac[1]) &&
-			    (dmac[2] == smac[2]) && (dmac[3] == smac[3]) &&
-			    (dmac[4] == smac[4]) && (dmac[5] == smac[5])) {
-				roce_set_bit(context->qpc_bytes_32,
-				    QP_CONTEXT_QPC_BYTE_32_LOOPBACK_INDICATOR_S,
-				    1);
-				break;
-			}
-		}
-
-		if (hr_dev->loop_idc == 0x1)
+		port = (attr_mask & IB_QP_PORT) ? (attr->port_num - 1) :
+			hr_qp->port;
+		smac = (u8 *)hr_dev->dev_addr[port];
+		/* when dmac equals smac or loop_idc is 1, it should loopback */
+		if (ether_addr_equal_unaligned(dmac, smac) ||
+		    hr_dev->loop_idc == 0x1)
 			roce_set_bit(context->qpc_bytes_32,
-				QP_CONTEXT_QPC_BYTE_32_LOOPBACK_INDICATOR_S, 1);
+			      QP_CONTEXT_QPC_BYTE_32_LOOPBACK_INDICATOR_S, 1);
 
 		roce_set_bit(context->qpc_bytes_32,
 			     QP_CONTEXT_QPC_BYTE_32_GLOBAL_HEADER_S,
