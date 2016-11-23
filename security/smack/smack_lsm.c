@@ -2354,6 +2354,20 @@ static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
  */
 static void smack_sk_free_security(struct sock *sk)
 {
+#ifdef SMACK_IPV6_PORT_LABELING
+	struct smk_port_label *spp;
+
+	if (sk->sk_family == PF_INET6) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
+			if (spp->smk_sock != sk)
+				continue;
+			spp->smk_can_reuse = 1;
+			break;
+		}
+		rcu_read_unlock();
+	}
+#endif
 	kfree(sk->sk_security);
 }
 
@@ -2637,10 +2651,15 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
 		if (spp->smk_port != port || spp->smk_sock_type != sock->type)
 			continue;
+		if (spp->smk_can_reuse != 1) {
+			rcu_read_unlock();
+			return;
+		}
 		spp->smk_port = port;
 		spp->smk_sock = sk;
 		spp->smk_in = ssp->smk_in;
 		spp->smk_out = ssp->smk_out;
+		spp->smk_can_reuse = 0;
 		rcu_read_unlock();
 		return;
 	}
@@ -2657,6 +2676,7 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	spp->smk_in = ssp->smk_in;
 	spp->smk_out = ssp->smk_out;
 	spp->smk_sock_type = sock->type;
+	spp->smk_can_reuse = 0;
 
 	mutex_lock(&smack_ipv6_lock);
 	list_add_rcu(&spp->list, &smk_ipv6_port_list);

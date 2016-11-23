@@ -174,6 +174,7 @@ struct smk_port_label {
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
 	short			smk_sock_type;	/* Socket type */
+	short			smk_can_reuse;
 };
 #endif /* SMACK_IPV6_PORT_LABELING */
 
