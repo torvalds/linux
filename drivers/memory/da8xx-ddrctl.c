@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_fdt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
@@ -117,8 +116,7 @@ static int da8xx_ddrctl_probe(struct platform_device *pdev)
 
 	setting = da8xx_ddrctl_get_board_settings();
 	if (!setting) {
-		dev_err(dev, "no settings for board '%s'\n",
-			of_flat_dt_get_machine_name());
+		dev_err(dev, "no settings defined for this board\n");
 		return -EINVAL;
 	}
 
