@@ -304,6 +304,7 @@ static const struct of_device_id ath79_spi_of_match[] = {
 	{ .compatible = "qca,ar7100-spi", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, ath79_spi_of_match);
 
 static struct platform_driver ath79_spi_driver = {
 	.probe		= ath79_spi_probe,
