@@ -532,7 +532,7 @@ setup_sge_txq_uld(struct adapter *adap, unsigned int uld_type,
 	txq_info->uldtxq = kcalloc(txq_info->ntxq, sizeof(struct sge_uld_txq),
 				   GFP_KERNEL);
 	if (!txq_info->uldtxq) {
-		kfree(txq_info->uldtxq);
+		kfree(txq_info);
 		return -ENOMEM;
 	}
 
