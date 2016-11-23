@@ -317,6 +317,10 @@ int load_bpf_file(char *path)
 				    &shdr_prog, &data_prog))
 				continue;
 
+			if (shdr_prog.sh_type != SHT_PROGBITS ||
+			    !(shdr_prog.sh_flags & SHF_EXECINSTR))
+				continue;
+
 			insns = (struct bpf_insn *) data_prog->d_buf;
 
 			processed_sec[shdr.sh_info] = true;
