@@ -245,7 +245,7 @@ unsigned ring_buffer_event_length(struct ring_buffer_event *event)
 EXPORT_SYMBOL_GPL(ring_buffer_event_length);
 
 /* inline for ring buffer fast paths */
-static void *
+static __always_inline void *
 rb_event_data(struct ring_buffer_event *event)
 {
 	if (event->type_len == RINGBUF_TYPE_TIME_EXTEND)
