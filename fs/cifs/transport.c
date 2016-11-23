@@ -245,8 +245,12 @@ smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 		return -EIO;
 	}
 
+	if (n_vec < 2)
+		return -EIO;
+
 	cifs_dbg(FYI, "Sending smb: smb_len=%u\n", smb_buf_length);
 	dump_smb(iov[0].iov_base, iov[0].iov_len);
+	dump_smb(iov[1].iov_base, iov[1].iov_len);
 
 	/* cork the socket */
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
@@ -321,12 +325,14 @@ int
 smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 	 unsigned int smb_buf_length)
 {
-	struct kvec iov;
+	struct kvec iov[2];
 
-	iov.iov_base = smb_buffer;
-	iov.iov_len = smb_buf_length + 4;
+	iov[0].iov_base = smb_buffer;
+	iov[0].iov_len = 4;
+	iov[1].iov_base = (char *)smb_buffer + 4;
+	iov[1].iov_len = smb_buf_length;
 
-	return smb_sendv(server, &iov, 1);
+	return smb_sendv(server, iov, 2);
 }
 
 static int
@@ -454,6 +460,10 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	struct smb_hdr *hdr = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
+	if (rqst->rq_iov[0].iov_len != 4 ||
+	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
+		return ERR_PTR(-EIO);
+
 	/* enable signing if server requires it */
 	if (server->sign)
 		hdr->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
@@ -477,8 +487,8 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
  */
 int
 cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
-		mid_receive_t *receive, mid_callback_t *callback,
-		void *cbdata, const int flags)
+		mid_receive_t *receive, mid_callback_t *callback, void *cbdata,
+		const int flags)
 {
 	int rc, timeout, optype;
 	struct mid_q_entry *mid;
@@ -613,13 +623,15 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 
 	/* convert the length into a more usable form */
 	if (server->sign) {
-		struct kvec iov;
+		struct kvec iov[2];
 		int rc = 0;
-		struct smb_rqst rqst = { .rq_iov = &iov,
-					 .rq_nvec = 1 };
+		struct smb_rqst rqst = { .rq_iov = iov,
+					 .rq_nvec = 2 };
 
-		iov.iov_base = mid->resp_buf;
-		iov.iov_len = len;
+		iov[0].iov_base = mid->resp_buf;
+		iov[0].iov_len = 4;
+		iov[1].iov_base = (char *)mid->resp_buf + 4;
+		iov[1].iov_len = len - 4;
 		/* FIXME: add code to kill session */
 		rc = cifs_verify_signature(&rqst, server,
 					   mid->sequence_number);
@@ -639,6 +651,10 @@ cifs_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 	struct smb_hdr *hdr = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
+	if (rqst->rq_iov[0].iov_len != 4 ||
+	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
+		return ERR_PTR(-EIO);
+
 	rc = allocate_mid(ses, hdr, &mid);
 	if (rc)
 		return ERR_PTR(rc);
@@ -650,18 +666,16 @@ cifs_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 	return mid;
 }
 
-int
-SendReceive2(const unsigned int xid, struct cifs_ses *ses,
-	     struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
-	     const int flags, struct kvec *resp_iov)
+static int
+cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
+	       struct smb_rqst *rqst, int *resp_buf_type, const int flags,
+	       struct kvec *resp_iov)
 {
 	int rc = 0;
 	int timeout, optype;
 	struct mid_q_entry *midQ;
-	char *buf = iov[0].iov_base;
 	unsigned int credits = 1;
-	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = n_vec };
+	char *buf;
 
 	timeout = flags & CIFS_TIMEOUT_MASK;
 	optype = flags & CIFS_OP_MASK;
@@ -694,7 +708,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	mutex_lock(&ses->server->srv_mutex);
 
-	midQ = ses->server->ops->setup_request(ses, &rqst);
+	midQ = ses->server->ops->setup_request(ses, rqst);
 	if (IS_ERR(midQ)) {
 		mutex_unlock(&ses->server->srv_mutex);
 		/* Update # of requests on wire to server */
@@ -704,7 +718,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	midQ->mid_state = MID_REQUEST_SUBMITTED;
 	cifs_in_send_inc(ses->server);
-	rc = smb_sendv(ses->server, iov, n_vec);
+	rc = smb_send_rqst(ses->server, rqst);
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
 
@@ -720,7 +734,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
-		send_cancel(ses->server, &rqst, midQ);
+		send_cancel(ses->server, rqst, midQ);
 		spin_lock(&GlobalMid_Lock);
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 			midQ->callback = DeleteMidQEntry;
@@ -763,6 +777,36 @@ out:
 	cifs_delete_mid(midQ);
 	add_credits(ses->server, credits, optype);
 
+	return rc;
+}
+
+int
+SendReceive2(const unsigned int xid, struct cifs_ses *ses,
+	     struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
+	     const int flags, struct kvec *resp_iov)
+{
+	struct smb_rqst rqst;
+	struct kvec *new_iov;
+	int rc;
+
+	new_iov = kmalloc(sizeof(struct kvec) * (n_vec + 1), GFP_KERNEL);
+	if (!new_iov)
+		return -ENOMEM;
+
+	/* 1st iov is a RFC1001 length followed by the rest of the packet */
+	memcpy(new_iov + 1, iov, (sizeof(struct kvec) * n_vec));
+
+	new_iov[0].iov_base = new_iov[1].iov_base;
+	new_iov[0].iov_len = 4;
+	new_iov[1].iov_base += 4;
+	new_iov[1].iov_len -= 4;
+
+	memset(&rqst, 0, sizeof(struct smb_rqst));
+	rqst.rq_iov = new_iov;
+	rqst.rq_nvec = n_vec + 1;
+
+	rc = cifs_send_recv(xid, ses, &rqst, resp_buf_type, flags, resp_iov);
+	kfree(new_iov);
 	return rc;
 }
 

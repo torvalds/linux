@@ -708,9 +708,9 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 {
 	ECHO_REQ *smb;
 	int rc = 0;
-	struct kvec iov;
-	struct smb_rqst rqst = { .rq_iov = &iov,
-				 .rq_nvec = 1 };
+	struct kvec iov[2];
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = 2 };
 
 	cifs_dbg(FYI, "In echo request\n");
 
@@ -725,8 +725,11 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	put_bcc(1, &smb->hdr);
 	smb->Data[0] = 'a';
 	inc_rfc1001_len(smb, 3);
-	iov.iov_base = smb;
-	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
+
+	iov[0].iov_len = 4;
+	iov[0].iov_base = smb;
+	iov[1].iov_len = get_rfc1002_length(smb);
+	iov[1].iov_base = (char *)smb + 4;
 
 	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback,
 			     server, CIFS_ASYNC_OP | CIFS_ECHO_OP);
@@ -1509,10 +1512,12 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* set up first iov for signature check */
-	rdata->iov.iov_base = buf;
-	rdata->iov.iov_len = server->total_read;
-	cifs_dbg(FYI, "0: iov_base=%p iov_len=%zu\n",
-		 rdata->iov.iov_base, rdata->iov.iov_len);
+	rdata->iov[0].iov_base = buf;
+	rdata->iov[0].iov_len = 4;
+	rdata->iov[1].iov_base = buf + 4;
+	rdata->iov[1].iov_len = server->total_read - 4;
+	cifs_dbg(FYI, "0: iov_base=%p iov_len=%u\n",
+		 rdata->iov[0].iov_base, server->total_read);
 
 	/* how much data is in the response? */
 	data_len = server->ops->read_data_length(buf);
@@ -1545,8 +1550,8 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
-				 .rq_nvec = 1,
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = 2,
 				 .rq_pages = rdata->pages,
 				 .rq_npages = rdata->nr_pages,
 				 .rq_pagesz = rdata->pagesz,
@@ -1601,8 +1606,8 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	READ_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
-	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
-				 .rq_nvec = 1 };
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = 2 };
 
 	cifs_dbg(FYI, "%s: offset=%llu bytes=%u\n",
 		 __func__, rdata->offset, rdata->bytes);
@@ -1642,8 +1647,10 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	}
 
 	/* 4 for RFC1001 length + 1 for BCC */
-	rdata->iov.iov_base = smb;
-	rdata->iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
+	rdata->iov[0].iov_base = smb;
+	rdata->iov[0].iov_len = 4;
+	rdata->iov[1].iov_base = (char *)smb + 4;
+	rdata->iov[1].iov_len = get_rfc1002_length(smb);
 
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, &rqst, cifs_readv_receive,
@@ -2096,7 +2103,7 @@ cifs_async_writev(struct cifs_writedata *wdata,
 	WRITE_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct kvec iov;
+	struct kvec iov[2];
 	struct smb_rqst rqst = { };
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
@@ -2129,11 +2136,13 @@ cifs_async_writev(struct cifs_writedata *wdata,
 	    cpu_to_le16(offsetof(struct smb_com_write_req, Data) - 4);
 
 	/* 4 for RFC1001 length + 1 for BCC */
-	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4 + 1;
-	iov.iov_base = smb;
+	iov[0].iov_len = 4;
+	iov[0].iov_base = smb;
+	iov[1].iov_len = get_rfc1002_length(smb) + 1;
+	iov[1].iov_base = (char *)smb + 4;
 
-	rqst.rq_iov = &iov;
-	rqst.rq_nvec = 1;
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = 2;
 	rqst.rq_pages = wdata->pages;
 	rqst.rq_npages = wdata->nr_pages;
 	rqst.rq_pagesz = wdata->pagesz;
@@ -2154,7 +2163,7 @@ cifs_async_writev(struct cifs_writedata *wdata,
 				(struct smb_com_writex_req *)smb;
 		inc_rfc1001_len(&smbw->hdr, wdata->bytes + 5);
 		put_bcc(wdata->bytes + 5, &smbw->hdr);
-		iov.iov_len += 4; /* pad bigger by four bytes */
+		iov[1].iov_len += 4; /* pad bigger by four bytes */
 	}
 
 	kref_get(&wdata->refcount);

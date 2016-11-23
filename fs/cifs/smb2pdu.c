@@ -2047,9 +2047,9 @@ SMB2_echo(struct TCP_Server_Info *server)
 {
 	struct smb2_echo_req *req;
 	int rc = 0;
-	struct kvec iov;
-	struct smb_rqst rqst = { .rq_iov = &iov,
-				 .rq_nvec = 1 };
+	struct kvec iov[2];
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = 2 };
 
 	cifs_dbg(FYI, "In echo request\n");
 
@@ -2065,9 +2065,11 @@ SMB2_echo(struct TCP_Server_Info *server)
 
 	req->hdr.sync_hdr.CreditRequest = cpu_to_le16(1);
 
-	iov.iov_base = (char *)req;
 	/* 4 for rfc1002 length field */
-	iov.iov_len = get_rfc1002_length(req) + 4;
+	iov[0].iov_len = 4;
+	iov[0].iov_base = (char *)req;
+	iov[1].iov_len = get_rfc1002_length(req);
+	iov[1].iov_base = (char *)req + 4;
 
 	rc = cifs_call_async(server, &rqst, NULL, smb2_echo_callback, server,
 			     CIFS_ECHO_OP);
@@ -2123,8 +2125,9 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
  * have the end_of_chain boolean set to true.
  */
 static int
-smb2_new_read_req(struct kvec *iov, struct cifs_io_parms *io_parms,
-		  unsigned int remaining_bytes, int request_type)
+smb2_new_read_req(void **buf, unsigned int *total_len,
+		  struct cifs_io_parms *io_parms, unsigned int remaining_bytes,
+		  int request_type)
 {
 	int rc = -EACCES;
 	struct smb2_read_req *req = NULL;
@@ -2172,9 +2175,9 @@ smb2_new_read_req(struct kvec *iov, struct cifs_io_parms *io_parms,
 	else
 		req->RemainingBytes = 0;
 
-	iov[0].iov_base = (char *)req;
+	*buf = req;
 	/* 4 for rfc1002 length field */
-	iov[0].iov_len = get_rfc1002_length(req) + 4;
+	*total_len = get_rfc1002_length(req) + 4;
 	return rc;
 }
 
@@ -2184,10 +2187,11 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	struct cifs_readdata *rdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct smb2_sync_hdr *shdr = get_sync_hdr(rdata->iov.iov_base);
+	struct smb2_sync_hdr *shdr =
+				(struct smb2_sync_hdr *)rdata->iov[1].iov_base;
 	unsigned int credits_received = 1;
-	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
-				 .rq_nvec = 1,
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = 2,
 				 .rq_pages = rdata->pages,
 				 .rq_npages = rdata->nr_pages,
 				 .rq_pagesz = rdata->pagesz,
@@ -2238,7 +2242,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	add_credits(server, credits_received, 0);
 }
 
-/* smb2_async_readv - send an async write, and set up mid to handle result */
+/* smb2_async_readv - send an async read, and set up mid to handle result */
 int
 smb2_async_readv(struct cifs_readdata *rdata)
 {
@@ -2246,9 +2250,10 @@ smb2_async_readv(struct cifs_readdata *rdata)
 	char *buf;
 	struct smb2_sync_hdr *shdr;
 	struct cifs_io_parms io_parms;
-	struct smb_rqst rqst = { .rq_iov = &rdata->iov,
-				 .rq_nvec = 1 };
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = 2 };
 	struct TCP_Server_Info *server;
+	unsigned int total_len;
 
 	cifs_dbg(FYI, "%s: offset=%llu bytes=%u\n",
 		 __func__, rdata->offset, rdata->bytes);
@@ -2262,7 +2267,7 @@ smb2_async_readv(struct cifs_readdata *rdata)
 
 	server = io_parms.tcon->ses->server;
 
-	rc = smb2_new_read_req(&rdata->iov, &io_parms, 0, 0);
+	rc = smb2_new_read_req((void **) &buf, &total_len, &io_parms, 0, 0);
 	if (rc) {
 		if (rc == -EAGAIN && rdata->credits) {
 			/* credits was reset by reconnect */
@@ -2275,10 +2280,12 @@ smb2_async_readv(struct cifs_readdata *rdata)
 		return rc;
 	}
 
-	buf = rdata->iov.iov_base;
 	shdr = get_sync_hdr(buf);
 	/* 4 for rfc1002 length field */
-	rdata->iov.iov_len = get_rfc1002_length(rdata->iov.iov_base) + 4;
+	rdata->iov[0].iov_len = 4;
+	rdata->iov[0].iov_base = buf;
+	rdata->iov[1].iov_len = total_len - 4;
+	rdata->iov[1].iov_base = buf + 4;
 
 	if (rdata->credits) {
 		shdr->CreditCharge = cpu_to_le16(DIV_ROUND_UP(rdata->bytes,
@@ -2314,11 +2321,16 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	struct smb2_sync_hdr *shdr;
 	struct kvec iov[1];
 	struct kvec rsp_iov;
+	unsigned int total_len;
+	char *req;
 
 	*nbytes = 0;
-	rc = smb2_new_read_req(iov, io_parms, 0, 0);
+	rc = smb2_new_read_req((void **)&req, &total_len, io_parms, 0, 0);
 	if (rc)
 		return rc;
+
+	iov[0].iov_base = buf;
+	iov[0].iov_len = total_len;
 
 	rc = SendReceive2(xid, io_parms->tcon->ses, iov, 1,
 			  &resp_buftype, CIFS_LOG_ERROR, &rsp_iov);
@@ -2424,8 +2436,8 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	struct smb2_sync_hdr *shdr;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct kvec iov;
-	struct smb_rqst rqst;
+	struct kvec iov[2];
+	struct smb_rqst rqst = { };
 
 	rc = small_smb2_init(SMB2_WRITE, tcon, (void **) &req);
 	if (rc) {
@@ -2455,11 +2467,13 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	req->RemainingBytes = 0;
 
 	/* 4 for rfc1002 length field and 1 for Buffer */
-	iov.iov_len = get_rfc1002_length(req) + 4 - 1;
-	iov.iov_base = req;
+	iov[0].iov_len = 4;
+	iov[0].iov_base = req;
+	iov[1].iov_len = get_rfc1002_length(req) - 1;
+	iov[1].iov_base = (char *)req + 4;
 
-	rqst.rq_iov = &iov;
-	rqst.rq_nvec = 1;
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = 2;
 	rqst.rq_pages = wdata->pages;
 	rqst.rq_npages = wdata->nr_pages;
 	rqst.rq_pagesz = wdata->pagesz;
