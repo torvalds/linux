@@ -15,16 +15,13 @@ virtual org
 virtual report
 
 @r1@
-expression dev;
-expression irq;
-expression thread_fn;
-expression flags;
+expression dev, irq, thread_fn;
 position p;
 @@
 (
 request_threaded_irq@p(irq, NULL, thread_fn,
 (
-flags | IRQF_ONESHOT
+IRQF_ONESHOT | ...
 |
 IRQF_ONESHOT
 )
@@ -32,19 +29,32 @@ IRQF_ONESHOT
 |
 devm_request_threaded_irq@p(dev, irq, NULL, thread_fn,
 (
-flags | IRQF_ONESHOT
+IRQF_ONESHOT | ...
 |
 IRQF_ONESHOT
 )
 , ...)
 )
 
-@depends on patch@
-expression dev;
-expression irq;
-expression thread_fn;
-expression flags;
+@r2@
+expression dev, irq, thread_fn, flags, e;
 position p != r1.p;
+@@
+(
+flags = IRQF_ONESHOT | ...
+|
+flags |= IRQF_ONESHOT | ...
+)
+... when != flags = e
+(
+request_threaded_irq@p(irq, NULL, thread_fn, flags, ...);
+|
+devm_request_threaded_irq@p(dev, irq, NULL, thread_fn, flags, ...);
+)
+
+@depends on patch@
+expression dev, irq, thread_fn, flags;
+position p != {r1.p,r2.p};
 @@
 (
 request_threaded_irq@p(irq, NULL, thread_fn,
@@ -69,13 +79,13 @@ devm_request_threaded_irq@p(dev, irq, NULL, thread_fn,
 )
 
 @depends on context@
-position p != r1.p;
+position p != {r1.p,r2.p};
 @@
 *request_threaded_irq@p(...)
 
 @match depends on report || org@
 expression irq;
-position p != r1.p;
+position p != {r1.p,r2.p};
 @@
 request_threaded_irq@p(irq, NULL, ...)
 
