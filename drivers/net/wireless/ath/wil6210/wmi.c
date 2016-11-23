@@ -548,7 +548,6 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
 		if (rc) {
-			netif_tx_stop_all_queues(ndev);
 			netif_carrier_off(ndev);
 			wil_err(wil,
 				"%s: cfg80211_connect_result with failure\n",
@@ -588,7 +587,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	wil->sta[evt->cid].status = wil_sta_connected;
 	set_bit(wil_status_fwconnected, wil->status);
-	netif_tx_wake_all_queues(ndev);
+	wil_update_net_queues_bh(wil, NULL, false);
 
 out:
 	if (rc)

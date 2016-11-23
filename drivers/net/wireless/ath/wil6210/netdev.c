@@ -214,7 +214,7 @@ int wil_if_add(struct wil6210_priv *wil)
 	netif_tx_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
 			  WIL6210_NAPI_BUDGET);
 
-	netif_tx_stop_all_queues(ndev);
+	wil_update_net_queues_bh(wil, NULL, true);
 
 	rc = register_netdev(ndev);
 	if (rc < 0) {

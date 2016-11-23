@@ -213,7 +213,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 
-static bool wil_ap_is_connected(struct wil6210_priv *wil)
+static bool wil_is_connected(struct wil6210_priv *wil)
 {
 	int i;
 
@@ -267,7 +267,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		wil_bcast_fini(wil);
-		netif_tx_stop_all_queues(ndev);
+		wil_update_net_queues_bh(wil, NULL, true);
 		netif_carrier_off(ndev);
 
 		if (test_bit(wil_status_fwconnected, wil->status)) {
@@ -283,8 +283,12 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		if (!wil_ap_is_connected(wil))
+		if (!wil_is_connected(wil)) {
+			wil_update_net_queues_bh(wil, NULL, true);
 			clear_bit(wil_status_fwconnected, wil->status);
+		} else {
+			wil_update_net_queues_bh(wil, NULL, false);
+		}
 		break;
 	default:
 		break;
@@ -516,6 +520,8 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	INIT_LIST_HEAD(&wil->probe_client_pending);
 	spin_lock_init(&wil->wmi_ev_lock);
+	spin_lock_init(&wil->net_queue_lock);
+	wil->net_queue_stopped = 1;
 	init_waitqueue_head(&wil->wq);
 
 	wil->wmi_wq = create_singlethread_workqueue(WIL_NAME "_wmi");

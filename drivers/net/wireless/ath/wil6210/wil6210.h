@@ -624,6 +624,8 @@ struct wil6210_priv {
 	 * - consumed in thread by wmi_event_worker
 	 */
 	spinlock_t wmi_ev_lock;
+	spinlock_t net_queue_lock; /* guarding stop/wake netif queue */
+	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
 	/* keep alive */
@@ -886,6 +888,10 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size);
 int wil_bcast_init(struct wil6210_priv *wil);
 void wil_bcast_fini(struct wil6210_priv *wil);
 
+void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
+			   bool should_stop);
+void wil_update_net_queues_bh(struct wil6210_priv *wil, struct vring *vring,
+			      bool check_stop);
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_priv *wil, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
