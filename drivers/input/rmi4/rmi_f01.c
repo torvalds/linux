@@ -63,6 +63,8 @@ struct f01_basic_properties {
 #define RMI_F01_STATUS_CODE(status)		((status) & 0x0f)
 /* The device has lost its configuration for some reason. */
 #define RMI_F01_STATUS_UNCONFIGURED(status)	(!!((status) & 0x80))
+/* The device is in bootloader mode */
+#define RMI_F01_STATUS_BOOTLOADER(status)	((status) & 0x40)
 
 /* Control register bits */
 
@@ -593,6 +595,10 @@ static int rmi_f01_attention(struct rmi_function *fn,
 			"Failed to read device status: %d.\n", error);
 		return error;
 	}
+
+	if (RMI_F01_STATUS_BOOTLOADER(device_status))
+		dev_warn(&fn->dev,
+			 "Device in bootloader mode, please update firmware\n");
 
 	if (RMI_F01_STATUS_UNCONFIGURED(device_status)) {
 		dev_warn(&fn->dev, "Device reset detected.\n");
