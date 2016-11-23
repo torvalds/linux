@@ -48,12 +48,6 @@ struct twlreg_info {
 	/* State REMAP default configuration */
 	u8			remap;
 
-	/* chip constraints on regulator behavior */
-	u16			min_mV;
-	u16			max_mV;
-
-	u8			flags;
-
 	/* used by regulator core */
 	struct regulator_desc	desc;
 
@@ -497,7 +491,6 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 static const struct twlreg_info TWLFIXED_INFO_##label = { \
 	.base = offset, \
 	.id = num, \
-	.min_mV = mVolts, \
 	.remap = remap_conf, \
 	.desc = { \
 		.name = #label, \
