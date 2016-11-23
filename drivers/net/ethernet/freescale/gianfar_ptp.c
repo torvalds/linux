@@ -280,21 +280,26 @@ static irqreturn_t isr(int irq, void *priv)
  * PTP clock operations
  */
 
-static int ptp_gianfar_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int ptp_gianfar_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
-	u64 adj;
-	u32 diff, tmr_add;
+	u64 adj, diff;
+	u32 tmr_add;
 	int neg_adj = 0;
 	struct etsects *etsects = container_of(ptp, struct etsects, caps);
 
-	if (ppb < 0) {
+	if (scaled_ppm < 0) {
 		neg_adj = 1;
-		ppb = -ppb;
+		scaled_ppm = -scaled_ppm;
 	}
 	tmr_add = etsects->tmr_add;
 	adj = tmr_add;
-	adj *= ppb;
-	diff = div_u64(adj, 1000000000ULL);
+
+	/* calculate diff as adj*(scaled_ppm/65536)/1000000
+	 * and round() to the nearest integer
+	 */
+	adj *= scaled_ppm;
+	diff = div_u64(adj, 8000000);
+	diff = (diff >> 13) + ((diff >> 12) & 1);
 
 	tmr_add = neg_adj ? tmr_add - diff : tmr_add + diff;
 
@@ -415,7 +420,7 @@ static struct ptp_clock_info ptp_gianfar_caps = {
 	.n_per_out	= 0,
 	.n_pins		= 0,
 	.pps		= 1,
-	.adjfreq	= ptp_gianfar_adjfreq,
+	.adjfine	= ptp_gianfar_adjfine,
 	.adjtime	= ptp_gianfar_adjtime,
 	.gettime64	= ptp_gianfar_gettime,
 	.settime64	= ptp_gianfar_settime,
