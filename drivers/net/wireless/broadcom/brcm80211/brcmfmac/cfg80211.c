@@ -32,6 +32,7 @@
 #include "fwil_types.h"
 #include "p2p.h"
 #include "btcoex.h"
+#include "pno.h"
 #include "cfg80211.h"
 #include "feature.h"
 #include "fwil.h"
@@ -41,16 +42,6 @@
 #include "common.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
-#define BRCMF_PNO_VERSION		2
-#define BRCMF_PNO_TIME			30
-#define BRCMF_PNO_REPEAT		4
-#define BRCMF_PNO_FREQ_EXPO_MAX		3
-#define BRCMF_PNO_MAX_PFN_COUNT		16
-#define BRCMF_PNO_ENABLE_ADAPTSCAN_BIT	6
-#define BRCMF_PNO_HIDDEN_BIT		2
-#define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
-#define BRCMF_PNO_SCAN_COMPLETE		1
-#define BRCMF_PNO_SCAN_INCOMPLETE	0
 
 #define WPA_OUI				"\x00\x50\xF2"	/* WPA OUI */
 #define WPA_OUI_TYPE			1
@@ -3323,76 +3314,6 @@ out_err:
 	return err;
 }
 
-static int brcmf_dev_pno_clean(struct net_device *ndev)
-{
-	int ret;
-
-	/* Disable pfn */
-	ret = brcmf_fil_iovar_int_set(netdev_priv(ndev), "pfn", 0);
-	if (ret == 0) {
-		/* clear pfn */
-		ret = brcmf_fil_iovar_data_set(netdev_priv(ndev), "pfnclear",
-					       NULL, 0);
-	}
-	if (ret < 0)
-		brcmf_err("failed code %d\n", ret);
-
-	return ret;
-}
-
-static int brcmf_dev_pno_config(struct brcmf_if *ifp,
-				struct cfg80211_sched_scan_request *request)
-{
-	struct brcmf_pno_param_le pfn_param;
-	struct brcmf_pno_macaddr_le pfn_mac;
-	s32 err;
-	u8 *mac_mask;
-	int i;
-
-	memset(&pfn_param, 0, sizeof(pfn_param));
-	pfn_param.version = cpu_to_le32(BRCMF_PNO_VERSION);
-
-	/* set extra pno params */
-	pfn_param.flags = cpu_to_le16(1 << BRCMF_PNO_ENABLE_ADAPTSCAN_BIT);
-	pfn_param.repeat = BRCMF_PNO_REPEAT;
-	pfn_param.exp = BRCMF_PNO_FREQ_EXPO_MAX;
-
-	/* set up pno scan fr */
-	pfn_param.scan_freq = cpu_to_le32(BRCMF_PNO_TIME);
-
-	err = brcmf_fil_iovar_data_set(ifp, "pfn_set", &pfn_param,
-				       sizeof(pfn_param));
-	if (err) {
-		brcmf_err("pfn_set failed, err=%d\n", err);
-		return err;
-	}
-
-	/* Find out if mac randomization should be turned on */
-	if (!(request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR))
-		return 0;
-
-	pfn_mac.version = BRCMF_PFN_MACADDR_CFG_VER;
-	pfn_mac.flags = BRCMF_PFN_MAC_OUI_ONLY | BRCMF_PFN_SET_MAC_UNASSOC;
-
-	memcpy(pfn_mac.mac, request->mac_addr, ETH_ALEN);
-	mac_mask = request->mac_addr_mask;
-	for (i = 0; i < ETH_ALEN; i++) {
-		pfn_mac.mac[i] &= mac_mask[i];
-		pfn_mac.mac[i] |= get_random_int() & ~(mac_mask[i]);
-	}
-	/* Clear multi bit */
-	pfn_mac.mac[0] &= 0xFE;
-	/* Set locally administered */
-	pfn_mac.mac[0] |= 0x02;
-
-	err = brcmf_fil_iovar_data_set(ifp, "pfn_macaddr", &pfn_mac,
-				       sizeof(pfn_mac));
-	if (err)
-		brcmf_err("pfn_macaddr failed, err=%d\n", err);
-
-	return err;
-}
-
 static int
 brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 				struct net_device *ndev,
@@ -3436,15 +3357,16 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	if (request->n_match_sets > 0) {
 		/* clean up everything */
-		ret = brcmf_dev_pno_clean(ndev);
+		ret = brcmf_pno_clean(ifp);
 		if  (ret < 0) {
 			brcmf_err("failed error=%d\n", ret);
 			return ret;
 		}
 
 		/* configure pno */
-		if (brcmf_dev_pno_config(ifp, request))
-			return -EINVAL;
+		ret = brcmf_pno_config(ifp, request);
+		if (ret < 0)
+			return ret;
 
 		/* configure each match set */
 		for (i = 0; i < request->n_match_sets; i++) {
@@ -3486,11 +3408,12 @@ static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 					  struct net_device *ndev)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_if *ifp = netdev_priv(ndev);
 
 	brcmf_dbg(SCAN, "enter\n");
-	brcmf_dev_pno_clean(ndev);
+	brcmf_pno_clean(ifp);
 	if (cfg->sched_escan)
-		brcmf_notify_escan_complete(cfg, netdev_priv(ndev), true, true);
+		brcmf_notify_escan_complete(cfg, ifp, true, true);
 	return 0;
 }
 
