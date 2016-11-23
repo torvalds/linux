@@ -4090,6 +4090,8 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (crtc->state->event) {
 			unsigned long flags;
+			/* Get correct count/ts if racing with vblank irq */
+			drm_accurate_vblank_count(crtc);
 			spin_lock_irqsave(&crtc->dev->event_lock, flags);
 			drm_crtc_send_vblank_event(crtc, crtc->state->event);
 			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
