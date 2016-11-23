@@ -3351,10 +3351,7 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
 	brcmf_dbg(SCAN, "Enter n_match_sets:%d n_ssids:%d\n",
 		  req->n_match_sets, req->n_ssids);
-	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
-		brcmf_err("Scanning already: status (%lu)\n", cfg->scan_status);
-		return -EAGAIN;
-	}
+
 	if (test_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status)) {
 		brcmf_err("Scanning suppressed: status (%lu)\n",
 			  cfg->scan_status);
