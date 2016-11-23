@@ -309,4 +309,20 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 
 endif ## SND_SOC_INTEL_SKYLAKE
 
+if SND_SOC_INTEL_SKYLAKE
+
+config SND_SOC_INTEL_CNL_RT274_MACH
+	tristate "Cannonlake with RT274 I2S mode"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_RT274
+	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
+        help
+	   This adds support for ASoC machine driver for Cannonlake platform
+	   with RT274 I2S audio codec.
+	   Say Y or m if you have such a device. This is a recommended option.
+	   If unsure select "N".
+
+endif ## SND_SOC_INTEL_SKYLAKE
+
 endif ## SND_SOC_INTEL_MACH
