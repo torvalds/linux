@@ -823,8 +823,9 @@ struct smb2_flush_rsp {
 #define SMB2_CHANNEL_RDMA_V1		0x00000001 /* SMB3 or later */
 #define SMB2_CHANNEL_RDMA_V1_INVALIDATE 0x00000001 /* SMB3.02 or later */
 
-struct smb2_read_req {
-	struct smb2_hdr hdr;
+/* SMB2 read request without RFC1001 length at the beginning */
+struct smb2_read_plain_req {
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 49 */
 	__u8   Padding; /* offset from start of SMB2 header to place read */
 	__u8   Flags; /* MBZ unless SMB3.02 or later */

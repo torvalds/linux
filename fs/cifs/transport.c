@@ -666,7 +666,7 @@ cifs_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 	return mid;
 }
 
-static int
+int
 cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	       struct smb_rqst *rqst, int *resp_buf_type, const int flags,
 	       struct kvec *resp_iov)
