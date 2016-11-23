@@ -3233,6 +3233,12 @@ static int format_check(const struct drm_mode_fb_cmd2 *r)
 	case DRM_FORMAT_NV61:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV42:
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV21_10:
+	case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV61_10:
+	case DRM_FORMAT_NV24_10:
+	case DRM_FORMAT_NV42_10:
 	case DRM_FORMAT_YUV410:
 	case DRM_FORMAT_YVU410:
 	case DRM_FORMAT_YUV411:
@@ -3279,20 +3285,20 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 	for (i = 0; i < num_planes; i++) {
 		unsigned int width = r->width / (i != 0 ? hsub : 1);
 		unsigned int height = r->height / (i != 0 ? vsub : 1);
-		unsigned int cpp = drm_format_plane_cpp(r->pixel_format, i);
+		unsigned int bpp = drm_format_plane_bpp(r->pixel_format, i);
 
 		if (!r->handles[i]) {
 			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
-		if ((uint64_t) width * cpp > UINT_MAX)
+		if ((uint64_t) width * bpp / 8 > UINT_MAX)
 			return -ERANGE;
 
 		if ((uint64_t) height * r->pitches[i] + r->offsets[i] > UINT_MAX)
 			return -ERANGE;
 
-		if (r->pitches[i] < width * cpp) {
+		if (r->pitches[i] < roundup(width * bpp, 8) / 8) {
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
@@ -5716,6 +5722,12 @@ int drm_format_num_planes(uint32_t format)
 	case DRM_FORMAT_NV61:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV42:
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV21_10:
+	case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV61_10:
+	case DRM_FORMAT_NV24_10:
+	case DRM_FORMAT_NV42_10:
 		return 2;
 	default:
 		return 1;
@@ -5724,14 +5736,14 @@ int drm_format_num_planes(uint32_t format)
 EXPORT_SYMBOL(drm_format_num_planes);
 
 /**
- * drm_format_plane_cpp - determine the bytes per pixel value
+ * drm_format_plane_bpp - get the bpp for format
  * @format: pixel format (DRM_FORMAT_*)
  * @plane: plane index
  *
  * Returns:
- * The bytes per pixel value for the specified plane.
+ * The bpp for the specified plane.
  */
-int drm_format_plane_cpp(uint32_t format, int plane)
+int drm_format_plane_bpp(uint32_t format, int plane)
 {
 	unsigned int depth;
 	int bpp;
@@ -5744,14 +5756,21 @@ int drm_format_plane_cpp(uint32_t format, int plane)
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
-		return 2;
+		return 16;
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV21_10:
+	case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV61_10:
+	case DRM_FORMAT_NV24_10:
+	case DRM_FORMAT_NV42_10:
+		return plane ? 20 : 10;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV42:
-		return plane ? 2 : 1;
+		return plane ? 16 : 8;
 	case DRM_FORMAT_YUV410:
 	case DRM_FORMAT_YVU410:
 	case DRM_FORMAT_YUV411:
@@ -5762,11 +5781,25 @@ int drm_format_plane_cpp(uint32_t format, int plane)
 	case DRM_FORMAT_YVU422:
 	case DRM_FORMAT_YUV444:
 	case DRM_FORMAT_YVU444:
-		return 1;
+		return 8;
 	default:
 		drm_fb_get_bpp_depth(format, &depth, &bpp);
-		return bpp >> 3;
+		return bpp;
 	}
+}
+EXPORT_SYMBOL(drm_format_plane_bpp);
+
+/**
+ * drm_format_plane_cpp - determine the bytes per pixel value
+ * @format: pixel format (DRM_FORMAT_*)
+ * @plane: plane index
+ *
+ * Returns:
+ * The bytes per pixel value for the specified plane.
+ */
+int drm_format_plane_cpp(uint32_t format, int plane)
+{
+	return drm_format_plane_bpp(format, plane) >> 3;
 }
 EXPORT_SYMBOL(drm_format_plane_cpp);
 
@@ -5794,6 +5827,10 @@ int drm_format_horz_chroma_subsampling(uint32_t format)
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV21_10:
+	case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV61_10:
 	case DRM_FORMAT_YUV422:
 	case DRM_FORMAT_YVU422:
 	case DRM_FORMAT_YUV420:
@@ -5822,7 +5859,9 @@ int drm_format_vert_chroma_subsampling(uint32_t format)
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV12_10:
 	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV21_10:
 		return 2;
 	default:
 		return 1;
