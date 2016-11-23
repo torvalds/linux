@@ -754,7 +754,6 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = "";	/* unknown device */
 	}
 
-	guc_fw->guc_dev = dev;
 	guc_fw->guc_fw_path = fw_path;
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_NONE;
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_NONE;

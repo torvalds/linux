@@ -103,7 +103,6 @@ enum intel_guc_fw_status {
  * of fetching, caching, and loading the firmware image into the GuC.
  */
 struct intel_guc_fw {
-	struct drm_device *		guc_dev;
 	const char *			guc_fw_path;
 	size_t				guc_fw_size;
 	struct drm_i915_gem_object *	guc_fw_obj;
