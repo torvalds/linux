@@ -527,16 +527,14 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 int skl_dsp_set_dma_control(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
 {
 	struct skl_dma_control *dma_ctrl;
-	struct skl_i2s_config_blob config_blob;
 	struct skl_ipc_large_config_msg msg = {0};
 	int err = 0;
 
 
 	/*
-	 * if blob size is same as capablity size, then no dma control
-	 * present so return
+	 * if blob size zero, then return
 	 */
-	if (mconfig->formats_config.caps_size == sizeof(config_blob))
+	if (mconfig->formats_config.caps_size == 0)
 		return 0;
 
 	msg.large_param_id = DMA_CONTROL_ID;
@@ -550,7 +548,7 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
 	dma_ctrl->node_id = skl_get_node_id(ctx, mconfig);
 
 	/* size in dwords */
-	dma_ctrl->config_length = sizeof(config_blob) / 4;
+	dma_ctrl->config_length = mconfig->formats_config.caps_size / 4;
 
 	memcpy(dma_ctrl->config_data, mconfig->formats_config.caps,
 				mconfig->formats_config.caps_size);
@@ -558,7 +556,6 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
 	err = skl_ipc_set_large_config(&ctx->ipc, &msg, (u32 *)dma_ctrl);
 
 	kfree(dma_ctrl);
-
 	return err;
 }
 
