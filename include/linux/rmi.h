@@ -354,6 +354,9 @@ struct rmi_driver_data {
 	u8 pdt_props;
 	u8 bsr;
 
+	u8 num_rx_electrodes;
+	u8 num_tx_electrodes;
+
 	bool enabled;
 
 	void *data;

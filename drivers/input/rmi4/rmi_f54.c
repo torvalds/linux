@@ -217,8 +217,10 @@ unlock:
 
 static size_t rmi_f54_get_report_size(struct f54_data *f54)
 {
-	u8 rx = f54->num_rx_electrodes ? : f54->num_rx_electrodes;
-	u8 tx = f54->num_tx_electrodes ? : f54->num_tx_electrodes;
+	struct rmi_device *rmi_dev = f54->fn->rmi_dev;
+	struct rmi_driver_data *drv_data = dev_get_drvdata(&rmi_dev->dev);
+	u8 rx = drv_data->num_rx_electrodes ? : f54->num_rx_electrodes;
+	u8 tx = drv_data->num_tx_electrodes ? : f54->num_tx_electrodes;
 	size_t size;
 
 	switch (rmi_f54_get_reptype(f54, f54->input)) {
@@ -402,6 +404,10 @@ static int rmi_f54_vidioc_enum_input(struct file *file, void *priv,
 
 static int rmi_f54_set_input(struct f54_data *f54, unsigned int i)
 {
+	struct rmi_device *rmi_dev = f54->fn->rmi_dev;
+	struct rmi_driver_data *drv_data = dev_get_drvdata(&rmi_dev->dev);
+	u8 rx = drv_data->num_rx_electrodes ? : f54->num_rx_electrodes;
+	u8 tx = drv_data->num_tx_electrodes ? : f54->num_tx_electrodes;
 	struct v4l2_pix_format *f = &f54->format;
 	enum rmi_f54_report_type reptype;
 	int ret;
@@ -416,8 +422,8 @@ static int rmi_f54_set_input(struct f54_data *f54, unsigned int i)
 
 	f54->input = i;
 
-	f->width = f54->num_rx_electrodes;
-	f->height = f54->num_tx_electrodes;
+	f->width = rx;
+	f->height = tx;
 	f->field = V4L2_FIELD_NONE;
 	f->colorspace = V4L2_COLORSPACE_RAW;
 	f->bytesperline = f->width * sizeof(u16);
