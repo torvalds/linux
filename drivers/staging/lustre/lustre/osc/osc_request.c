@@ -1953,7 +1953,7 @@ struct ptlrpc_request_set *PTLRPCD_SET = (void *)1;
  * release locks just after they are obtained.
  */
 int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
-		     __u64 *flags, ldlm_policy_data_t *policy,
+		     __u64 *flags, union ldlm_policy_data *policy,
 		     struct ost_lvb *lvb, int kms_valid,
 		     osc_enqueue_upcall_f upcall, void *cookie,
 		     struct ldlm_enqueue_info *einfo,
@@ -2104,7 +2104,7 @@ no_match:
 }
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
-		   __u32 type, ldlm_policy_data_t *policy, __u32 mode,
+		   __u32 type, union ldlm_policy_data *policy, __u32 mode,
 		   __u64 *flags, void *data, struct lustre_handle *lockh,
 		   int unref)
 {

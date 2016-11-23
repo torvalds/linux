@@ -553,15 +553,15 @@ struct ldlm_flock {
 	__u32 pid;
 };
 
-typedef union {
+union ldlm_policy_data {
 	struct ldlm_extent l_extent;
 	struct ldlm_flock l_flock;
 	struct ldlm_inodebits l_inodebits;
-} ldlm_policy_data_t;
+};
 
 void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
 				  const ldlm_wire_policy_data_t *wpolicy,
-				  ldlm_policy_data_t *lpolicy);
+				  union ldlm_policy_data *lpolicy);
 
 enum lvb_type {
 	LVB_T_NONE	= 0,
@@ -690,7 +690,7 @@ struct ldlm_lock {
 	 * Representation of private data specific for a lock type.
 	 * Examples are: extent range for extent lock or bitmask for ibits locks
 	 */
-	ldlm_policy_data_t	l_policy_data;
+	union ldlm_policy_data	l_policy_data;
 
 	/**
 	 * Lock state flags. Protected by lr_lock.
@@ -1175,7 +1175,7 @@ void ldlm_lock_allow_match(struct ldlm_lock *lock);
 void ldlm_lock_allow_match_locked(struct ldlm_lock *lock);
 enum ldlm_mode ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 			       const struct ldlm_res_id *,
-			       enum ldlm_type type, ldlm_policy_data_t *,
+			       enum ldlm_type type, union ldlm_policy_data *,
 			       enum ldlm_mode mode, struct lustre_handle *,
 			       int unref);
 enum ldlm_mode ldlm_revalidate_lock_handle(const struct lustre_handle *lockh,
@@ -1239,7 +1239,7 @@ int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data);
 int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 		     struct ldlm_enqueue_info *einfo,
 		     const struct ldlm_res_id *res_id,
-		     ldlm_policy_data_t const *policy, __u64 *flags,
+		     union ldlm_policy_data const *policy, __u64 *flags,
 		     void *lvb, __u32 lvb_len, enum lvb_type lvb_type,
 		     struct lustre_handle *lockh, int async);
 int ldlm_prep_enqueue_req(struct obd_export *exp,
@@ -1263,13 +1263,13 @@ int ldlm_cli_cancel_unused(struct ldlm_namespace *, const struct ldlm_res_id *,
 			   enum ldlm_cancel_flags flags, void *opaque);
 int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    const struct ldlm_res_id *res_id,
-				    ldlm_policy_data_t *policy,
+				    union ldlm_policy_data *policy,
 				    enum ldlm_mode mode,
 				    enum ldlm_cancel_flags flags,
 				    void *opaque);
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
-			       ldlm_policy_data_t *policy,
+			       union ldlm_policy_data *policy,
 			       enum ldlm_mode mode, __u64 lock_flags,
 			       enum ldlm_cancel_flags cancel_flags,
 			       void *opaque);

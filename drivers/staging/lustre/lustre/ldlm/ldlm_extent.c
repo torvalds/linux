@@ -241,7 +241,7 @@ void ldlm_extent_unlink_lock(struct ldlm_lock *lock)
 }
 
 void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				      ldlm_policy_data_t *lpolicy)
+				      union ldlm_policy_data *lpolicy)
 {
 	memset(lpolicy, 0, sizeof(*lpolicy));
 	lpolicy->l_extent.start = wpolicy->l_extent.start;
@@ -249,7 +249,7 @@ void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
 	lpolicy->l_extent.gid = wpolicy->l_extent.gid;
 }
 
-void ldlm_extent_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
+void ldlm_extent_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				      ldlm_wire_policy_data_t *wpolicy)
 {
 	memset(wpolicy, 0, sizeof(*wpolicy));

@@ -81,7 +81,7 @@ static ldlm_policy_local_to_wire_t ldlm_policy_local_to_wire[] = {
  * Converts lock policy from local format to on the wire lock_desc format
  */
 static void ldlm_convert_policy_to_wire(enum ldlm_type type,
-					const ldlm_policy_data_t *lpolicy,
+					const union ldlm_policy_data *lpolicy,
 					ldlm_wire_policy_data_t *wpolicy)
 {
 	ldlm_policy_local_to_wire_t convert;
@@ -96,7 +96,7 @@ static void ldlm_convert_policy_to_wire(enum ldlm_type type,
  */
 void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
 				  const ldlm_wire_policy_data_t *wpolicy,
-				  ldlm_policy_data_t *lpolicy)
+				  union ldlm_policy_data *lpolicy)
 {
 	ldlm_policy_wire_to_local_t convert;
 
@@ -1049,7 +1049,7 @@ struct lock_match_data {
 	struct ldlm_lock	*lmd_old;
 	struct ldlm_lock	*lmd_lock;
 	enum ldlm_mode		*lmd_mode;
-	ldlm_policy_data_t	*lmd_policy;
+	union ldlm_policy_data	*lmd_policy;
 	__u64			 lmd_flags;
 	int			 lmd_unref;
 };
@@ -1063,7 +1063,7 @@ struct lock_match_data {
  */
 static int lock_matches(struct ldlm_lock *lock, struct lock_match_data *data)
 {
-	ldlm_policy_data_t *lpol = &lock->l_policy_data;
+	union ldlm_policy_data *lpol = &lock->l_policy_data;
 	enum ldlm_mode match;
 
 	if (lock == data->lmd_old)
@@ -1280,7 +1280,7 @@ EXPORT_SYMBOL(ldlm_lock_allow_match);
 enum ldlm_mode ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 			       const struct ldlm_res_id *res_id,
 			       enum ldlm_type type,
-			       ldlm_policy_data_t *policy,
+			       union ldlm_policy_data *policy,
 			       enum ldlm_mode mode,
 			       struct lustre_handle *lockh, int unref)
 {

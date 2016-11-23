@@ -66,7 +66,7 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 			    __u64 bits)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
-	ldlm_policy_data_t policy = {};
+	union ldlm_policy_data policy = {};
 	struct ldlm_res_id res_id;
 	struct ldlm_resource *res;
 	int count;

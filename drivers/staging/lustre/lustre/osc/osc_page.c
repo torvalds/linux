@@ -109,7 +109,8 @@ int osc_page_cache_add(const struct lu_env *env,
 	return result;
 }
 
-void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
+void osc_index2policy(union ldlm_policy_data *policy,
+		      const struct cl_object *obj,
 		      pgoff_t start, pgoff_t end)
 {
 	memset(policy, 0, sizeof(*policy));

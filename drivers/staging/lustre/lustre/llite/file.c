@@ -265,7 +265,9 @@ static int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 	int lockmode;
 	__u64 flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
 	struct lustre_handle lockh;
-	ldlm_policy_data_t policy = {.l_inodebits = {MDS_INODELOCK_OPEN} };
+	union ldlm_policy_data policy = {
+		.l_inodebits = { MDS_INODELOCK_OPEN }
+	};
 	int rc = 0;
 
 	/* clear group lock, if present */
@@ -2427,7 +2429,7 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	};
 	struct md_op_data *op_data;
 	struct lustre_handle lockh = {0};
-	ldlm_policy_data_t flock = { {0} };
+	union ldlm_policy_data flock = { { 0 } };
 	int fl_type = file_lock->fl_type;
 	__u64 flags = 0;
 	int rc;
@@ -2676,7 +2678,7 @@ int ll_have_md_lock(struct inode *inode, __u64 *bits,
 		    enum ldlm_mode l_req_mode)
 {
 	struct lustre_handle lockh;
-	ldlm_policy_data_t policy;
+	union ldlm_policy_data policy;
 	enum ldlm_mode mode = (l_req_mode == LCK_MINMODE) ?
 			      (LCK_CR | LCK_CW | LCK_PR | LCK_PW) : l_req_mode;
 	struct lu_fid *fid;
@@ -2717,7 +2719,7 @@ enum ldlm_mode ll_take_md_lock(struct inode *inode, __u64 bits,
 			       struct lustre_handle *lockh, __u64 flags,
 			       enum ldlm_mode mode)
 {
-	ldlm_policy_data_t policy = { .l_inodebits = {bits} };
+	union ldlm_policy_data policy = { .l_inodebits = { bits } };
 	struct lu_fid *fid;
 
 	fid = &ll_i2info(inode)->lli_fid;

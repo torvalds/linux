@@ -1720,7 +1720,7 @@ static int lmv_create(struct obd_export *exp, struct md_op_data *op_data,
 
 static int
 lmv_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
-	    const ldlm_policy_data_t *policy,
+	    const union ldlm_policy_data *policy,
 	    struct lookup_intent *it, struct md_op_data *op_data,
 	    struct lustre_handle *lockh, __u64 extra_lock_flags)
 {
@@ -1816,7 +1816,7 @@ static int lmv_early_cancel(struct obd_export *exp, struct lmv_tgt_desc *tgt,
 	struct lu_fid	  *fid = md_op_data_fid(op_data, flag);
 	struct obd_device      *obd = exp->exp_obd;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
-	ldlm_policy_data_t      policy = { {0} };
+	union ldlm_policy_data policy = { { 0 } };
 	int		     rc = 0;
 
 	if (!fid_is_sane(fid))
@@ -2890,8 +2890,9 @@ void lmv_free_memmd(struct lmv_stripe_md *lsm)
 EXPORT_SYMBOL(lmv_free_memmd);
 
 static int lmv_cancel_unused(struct obd_export *exp, const struct lu_fid *fid,
-			     ldlm_policy_data_t *policy, enum ldlm_mode mode,
-			     enum ldlm_cancel_flags flags, void *opaque)
+			     union ldlm_policy_data *policy,
+			     enum ldlm_mode mode, enum ldlm_cancel_flags flags,
+			     void *opaque)
 {
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
@@ -2933,7 +2934,7 @@ static int lmv_set_lock_data(struct obd_export *exp,
 static enum ldlm_mode lmv_lock_match(struct obd_export *exp, __u64 flags,
 				     const struct lu_fid *fid,
 				     enum ldlm_type type,
-				     ldlm_policy_data_t *policy,
+				     union ldlm_policy_data *policy,
 				     enum ldlm_mode mode,
 				     struct lustre_handle *lockh)
 {

@@ -370,7 +370,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 	struct mm_struct       *mm = current->mm;
 	struct vm_area_struct  *vma;
 	struct cl_lock_descr   *descr = &cti->vti_descr;
-	ldlm_policy_data_t      policy;
+	union ldlm_policy_data policy;
 	unsigned long	   addr;
 	ssize_t		 count;
 	int		 result = 0;

@@ -95,7 +95,7 @@ struct osc_session {
 #define OTI_PVEC_SIZE 256
 struct osc_thread_info {
 	struct ldlm_res_id      oti_resname;
-	ldlm_policy_data_t      oti_policy;
+	union ldlm_policy_data	oti_policy;
 	struct cl_lock_descr    oti_descr;
 	struct cl_attr	  oti_attr;
 	struct lustre_handle    oti_handle;
@@ -394,7 +394,8 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_page *page, pgoff_t ind);
 
-void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
+void osc_index2policy(union ldlm_policy_data *policy,
+		      const struct cl_object *obj,
 		      pgoff_t start, pgoff_t end);
 int osc_lvb_print(const struct lu_env *env, void *cookie,
 		  lu_printer_t p, const struct ost_lvb *lvb);

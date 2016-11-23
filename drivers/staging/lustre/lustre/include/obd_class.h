@@ -1208,7 +1208,7 @@ static inline int md_create(struct obd_export *exp, struct md_op_data *op_data,
 
 static inline int md_enqueue(struct obd_export *exp,
 			     struct ldlm_enqueue_info *einfo,
-			     const ldlm_policy_data_t *policy,
+			     const union ldlm_policy_data *policy,
 			     struct lookup_intent *it,
 			     struct md_op_data *op_data,
 			     struct lustre_handle *lockh,
@@ -1407,7 +1407,7 @@ static inline int md_set_lock_data(struct obd_export *exp,
 
 static inline int md_cancel_unused(struct obd_export *exp,
 				   const struct lu_fid *fid,
-				   ldlm_policy_data_t *policy,
+				   union ldlm_policy_data *policy,
 				   enum ldlm_mode mode,
 				   enum ldlm_cancel_flags flags,
 				   void *opaque)
@@ -1425,7 +1425,7 @@ static inline int md_cancel_unused(struct obd_export *exp,
 static inline enum ldlm_mode md_lock_match(struct obd_export *exp, __u64 flags,
 					   const struct lu_fid *fid,
 					   enum ldlm_type type,
-					   ldlm_policy_data_t *policy,
+					   union ldlm_policy_data *policy,
 					   enum ldlm_mode mode,
 					   struct lustre_handle *lockh)
 {

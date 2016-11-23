@@ -131,7 +131,8 @@ int mdc_set_lock_data(struct obd_export *exp, const struct lustre_handle *lockh,
 
 enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
 			      const struct lu_fid *fid, enum ldlm_type type,
-			      ldlm_policy_data_t *policy, enum ldlm_mode mode,
+			      union ldlm_policy_data *policy,
+			      enum ldlm_mode mode,
 			      struct lustre_handle *lockh)
 {
 	struct ldlm_res_id res_id;
@@ -147,7 +148,7 @@ enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
 
 int mdc_cancel_unused(struct obd_export *exp,
 		      const struct lu_fid *fid,
-		      ldlm_policy_data_t *policy,
+		      union ldlm_policy_data *policy,
 		      enum ldlm_mode mode,
 		      enum ldlm_cancel_flags flags,
 		      void *opaque)
@@ -686,20 +687,20 @@ static int mdc_finish_enqueue(struct obd_export *exp,
  * we don't know in advance the file type.
  */
 int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
-		const ldlm_policy_data_t *policy,
+		const union ldlm_policy_data *policy,
 		struct lookup_intent *it, struct md_op_data *op_data,
 		struct lustre_handle *lockh, u64 extra_lock_flags)
 {
-	static const ldlm_policy_data_t lookup_policy = {
+	static const union ldlm_policy_data lookup_policy = {
 		.l_inodebits = { MDS_INODELOCK_LOOKUP }
 	};
-	static const ldlm_policy_data_t update_policy = {
+	static const union ldlm_policy_data update_policy = {
 		.l_inodebits = { MDS_INODELOCK_UPDATE }
 	};
-	static const ldlm_policy_data_t layout_policy = {
+	static const union ldlm_policy_data layout_policy = {
 		.l_inodebits = { MDS_INODELOCK_LAYOUT }
 	};
-	static const ldlm_policy_data_t getxattr_policy = {
+	static const union ldlm_policy_data getxattr_policy = {
 		.l_inodebits = { MDS_INODELOCK_XATTR }
 	};
 	struct obd_device *obddev = class_exp2obd(exp);
@@ -925,7 +926,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	 */
 	lock = ldlm_handle2lock(lockh);
 	if (lock) {
-		ldlm_policy_data_t policy = lock->l_policy_data;
+		union ldlm_policy_data policy = lock->l_policy_data;
 
 		LDLM_DEBUG(lock, "matching against this");
 
@@ -961,7 +962,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	 */
 	struct ldlm_res_id res_id;
 	struct lustre_handle lockh;
-	ldlm_policy_data_t policy;
+	union ldlm_policy_data policy;
 	enum ldlm_mode mode;
 
 	if (it->it_lock_handle) {
@@ -1163,10 +1164,9 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	 *     for statahead currently. Consider CMD in future, such two bits
 	 *     maybe managed by different MDS, should be adjusted then.
 	 */
-	ldlm_policy_data_t       policy = {
-					.l_inodebits = { MDS_INODELOCK_LOOKUP |
-							 MDS_INODELOCK_UPDATE }
-				 };
+	union ldlm_policy_data policy = {
+		.l_inodebits = { MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE }
+	};
 	int		      rc = 0;
 	__u64		    flags = LDLM_FL_HAS_INTENT;
 

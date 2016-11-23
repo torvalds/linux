@@ -682,7 +682,7 @@ static struct ptlrpc_request *ldlm_enqueue_pack(struct obd_export *exp,
 int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 		     struct ldlm_enqueue_info *einfo,
 		     const struct ldlm_res_id *res_id,
-		     ldlm_policy_data_t const *policy, __u64 *flags,
+		     union ldlm_policy_data const *policy, __u64 *flags,
 		     void *lvb, __u32 lvb_len, enum lvb_type lvb_type,
 		     struct lustre_handle *lockh, int async)
 {
@@ -1528,7 +1528,7 @@ int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
  */
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
-			       ldlm_policy_data_t *policy,
+			       union ldlm_policy_data *policy,
 			       enum ldlm_mode mode, __u64 lock_flags,
 			       enum ldlm_cancel_flags cancel_flags,
 			       void *opaque)
@@ -1645,7 +1645,7 @@ EXPORT_SYMBOL(ldlm_cli_cancel_list);
  */
 int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    const struct ldlm_res_id *res_id,
-				    ldlm_policy_data_t *policy,
+				    union ldlm_policy_data *policy,
 				    enum ldlm_mode mode,
 				    enum ldlm_cancel_flags flags,
 				    void *opaque)

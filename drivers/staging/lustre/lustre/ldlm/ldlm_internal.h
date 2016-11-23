@@ -312,24 +312,24 @@ static inline int is_granted_or_cancelled(struct ldlm_lock *lock)
 }
 
 typedef void (*ldlm_policy_wire_to_local_t)(const ldlm_wire_policy_data_t *,
-					    ldlm_policy_data_t *);
+					    union ldlm_policy_data *);
 
-typedef void (*ldlm_policy_local_to_wire_t)(const ldlm_policy_data_t *,
+typedef void (*ldlm_policy_local_to_wire_t)(const union ldlm_policy_data *,
 					    ldlm_wire_policy_data_t *);
 
 void ldlm_plain_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy);
-void ldlm_plain_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
+				     union ldlm_policy_data *lpolicy);
+void ldlm_plain_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				     ldlm_wire_policy_data_t *wpolicy);
 void ldlm_ibits_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy);
-void ldlm_ibits_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
+				     union ldlm_policy_data *lpolicy);
+void ldlm_ibits_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				     ldlm_wire_policy_data_t *wpolicy);
 void ldlm_extent_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				      ldlm_policy_data_t *lpolicy);
-void ldlm_extent_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
+				      union ldlm_policy_data *lpolicy);
+void ldlm_extent_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				      ldlm_wire_policy_data_t *wpolicy);
 void ldlm_flock_policy_wire_to_local(const ldlm_wire_policy_data_t *wpolicy,
-				     ldlm_policy_data_t *lpolicy);
-void ldlm_flock_policy_local_to_wire(const ldlm_policy_data_t *lpolicy,
+				     union ldlm_policy_data *lpolicy);
+void ldlm_flock_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				     ldlm_wire_policy_data_t *wpolicy);
