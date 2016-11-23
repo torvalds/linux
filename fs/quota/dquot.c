@@ -572,7 +572,8 @@ int dquot_scan_active(struct super_block *sb,
 	struct dquot *dquot, *old_dquot = NULL;
 	int ret = 0;
 
-	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
+	WARN_ON_ONCE(!rwsem_is_locked(&sb->s_umount));
+
 	spin_lock(&dq_list_lock);
 	list_for_each_entry(dquot, &inuse_list, dq_inuse) {
 		if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
@@ -603,7 +604,6 @@ int dquot_scan_active(struct super_block *sb,
 	spin_unlock(&dq_list_lock);
 out:
 	dqput(old_dquot);
-	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(dquot_scan_active);
