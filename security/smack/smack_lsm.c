@@ -1006,15 +1006,39 @@ static int smack_inode_alloc_security(struct inode *inode)
 }
 
 /**
- * smack_inode_free_security - free an inode blob
+ * smack_inode_free_rcu - Free inode_smack blob from cache
+ * @head: the rcu_head for getting inode_smack pointer
+ *
+ *  Call back function called from call_rcu() to free
+ *  the i_security blob pointer in inode
+ */
+static void smack_inode_free_rcu(struct rcu_head *head)
+{
+	struct inode_smack *issp;
+
+	issp = container_of(head, struct inode_smack, smk_rcu);
+	kmem_cache_free(smack_inode_cache, issp);
+}
+
+/**
+ * smack_inode_free_security - free an inode blob using call_rcu()
  * @inode: the inode with a blob
  *
- * Clears the blob pointer in inode
+ * Clears the blob pointer in inode using RCU
  */
 static void smack_inode_free_security(struct inode *inode)
 {
-	kmem_cache_free(smack_inode_cache, inode->i_security);
-	inode->i_security = NULL;
+	struct inode_smack *issp = inode->i_security;
+
+	/*
+	 * The inode may still be referenced in a path walk and
+	 * a call to smack_inode_permission() can be made
+	 * after smack_inode_free_security() is called.
+	 * To avoid race condition free the i_security via RCU
+	 * and leave the current inode->i_security pointer intact.
+	 * The inode will be freed after the RCU grace period too.
+	 */
+	call_rcu(&issp->smk_rcu, smack_inode_free_rcu);
 }
 
 /**

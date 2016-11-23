@@ -114,6 +114,7 @@ struct inode_smack {
 	struct smack_known	*smk_mmap;	/* label of the mmap domain */
 	struct mutex		smk_lock;	/* initialization lock */
 	int			smk_flags;	/* smack inode flags */
+	struct rcu_head         smk_rcu;	/* for freeing inode_smack */
 };
 
 struct task_smack {
