@@ -166,8 +166,8 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	kfree(ctx);
 }
 
-struct drm_i915_gem_object *
-i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
+static struct drm_i915_gem_object *
+alloc_context_obj(struct drm_device *dev, u64 size)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -286,8 +286,7 @@ __create_hw_context(struct drm_device *dev,
 		struct drm_i915_gem_object *obj;
 		struct i915_vma *vma;
 
-		obj = i915_gem_alloc_context_obj(dev,
-						 dev_priv->hw_context_size);
+		obj = alloc_context_obj(dev, dev_priv->hw_context_size);
 		if (IS_ERR(obj)) {
 			ret = PTR_ERR(obj);
 			goto err_out;

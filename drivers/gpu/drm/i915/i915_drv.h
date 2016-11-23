@@ -3342,8 +3342,6 @@ struct i915_vma *
 i915_gem_context_pin_legacy(struct i915_gem_context *ctx,
 			    unsigned int flags);
 void i915_gem_context_free(struct kref *ctx_ref);
-struct drm_i915_gem_object *
-i915_gem_alloc_context_obj(struct drm_device *dev, size_t size);
 struct i915_gem_context *
 i915_gem_context_create_gvt(struct drm_device *dev);
 
