@@ -337,6 +337,7 @@ struct ath10k_sta {
 	u32 nss;
 	u32 smps;
 	u16 peer_id;
+	struct rate_info txrate;
 
 	struct work_struct update_wk;
 
@@ -692,6 +693,21 @@ struct ath10k_fw_components {
 	struct ath10k_fw_file fw_file;
 };
 
+struct ath10k_per_peer_tx_stats {
+	u32	succ_bytes;
+	u32	retry_bytes;
+	u32	failed_bytes;
+	u8	ratecode;
+	u8	flags;
+	u16	peer_id;
+	u16	succ_pkts;
+	u16	retry_pkts;
+	u16	failed_pkts;
+	u16	duration;
+	u32	reserved1;
+	u32	reserved2;
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -905,6 +921,7 @@ struct ath10k {
 
 	struct ath10k_thermal thermal;
 	struct ath10k_wow wow;
+	struct ath10k_per_peer_tx_stats peer_tx_stats;
 
 	/* NAPI */
 	struct net_device napi_dev;

@@ -4603,8 +4603,16 @@ enum wmi_rate_preamble {
 
 #define ATH10K_HW_NSS(rate)		(1 + (((rate) >> 4) & 0x3))
 #define ATH10K_HW_PREAMBLE(rate)	(((rate) >> 6) & 0x3)
-#define ATH10K_HW_RATECODE(rate, nss, preamble)	\
+#define ATH10K_HW_MCS_RATE(rate)	((rate) & 0xf)
+#define ATH10K_HW_LEGACY_RATE(rate)	((rate) & 0x3f)
+#define ATH10K_HW_BW(flags)		(((flags) >> 3) & 0x3)
+#define ATH10K_HW_GI(flags)		(((flags) >> 5) & 0x1)
+#define ATH10K_HW_RATECODE(rate, nss, preamble) \
 	(((preamble) << 6) | ((nss) << 4) | (rate))
+
+#define VHT_MCS_NUM     10
+#define VHT_BW_NUM      4
+#define VHT_NSS_NUM     4
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
