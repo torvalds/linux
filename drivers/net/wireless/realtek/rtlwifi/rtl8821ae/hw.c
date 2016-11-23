@@ -2115,7 +2115,7 @@ static enum version_8821ae _rtl8821ae_read_chip_version(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-			 "Chip Version ID: Unknow (0x%X)\n", version);
+			 "Chip Version ID: Unknown (0x%X)\n", version);
 		break;
 	}
 
