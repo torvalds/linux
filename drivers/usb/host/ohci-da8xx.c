@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_data/usb-davinci.h>
+#include <linux/regulator/consumer.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <asm/unaligned.h>
@@ -36,8 +37,12 @@ static int (*orig_ohci_hub_control)(struct usb_hcd  *hcd, u16 typeReq,
 static int (*orig_ohci_hub_status_data)(struct usb_hcd *hcd, char *buf);
 
 struct da8xx_ohci_hcd {
+	struct usb_hcd *hcd;
 	struct clk *usb11_clk;
 	struct phy *usb11_phy;
+	struct regulator *vbus_reg;
+	struct notifier_block nb;
+	unsigned int reg_enabled;
 };
 
 #define to_da8xx_ohci(hcd) (struct da8xx_ohci_hcd *)(hcd_to_ohci(hcd)->priv)
@@ -83,43 +88,86 @@ static void ohci_da8xx_disable(struct usb_hcd *hcd)
 
 static int ohci_da8xx_set_power(struct usb_hcd *hcd, int on)
 {
+	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
 	struct device *dev		= hcd->self.controller;
 	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
+	int ret;
 
 	if (hub && hub->set_power)
 		return hub->set_power(1, on);
+
+	if (!da8xx_ohci->vbus_reg)
+		return 0;
+
+	if (on && !da8xx_ohci->reg_enabled) {
+		ret = regulator_enable(da8xx_ohci->vbus_reg);
+		if (ret) {
+			dev_err(dev, "Failed to enable regulator: %d\n", ret);
+			return ret;
+		}
+		da8xx_ohci->reg_enabled = 1;
+
+	} else if (!on && da8xx_ohci->reg_enabled) {
+		ret = regulator_disable(da8xx_ohci->vbus_reg);
+		if (ret) {
+			dev_err(dev, "Failed  to disable regulator: %d\n", ret);
+			return ret;
+		}
+		da8xx_ohci->reg_enabled = 0;
+	}
 
 	return 0;
 }
 
 static int ohci_da8xx_get_power(struct usb_hcd *hcd)
 {
+	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
 	struct device *dev		= hcd->self.controller;
 	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 
 	if (hub && hub->get_power)
 		return hub->get_power(1);
 
+	if (da8xx_ohci->vbus_reg)
+		return regulator_is_enabled(da8xx_ohci->vbus_reg);
+
 	return 1;
 }
 
 static int ohci_da8xx_get_oci(struct usb_hcd *hcd)
 {
+	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
 	struct device *dev		= hcd->self.controller;
 	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
+	unsigned int flags;
+	int ret;
 
 	if (hub && hub->get_oci)
 		return hub->get_oci(1);
+
+	if (!da8xx_ohci->vbus_reg)
+		return 0;
+
+	ret = regulator_get_error_flags(da8xx_ohci->vbus_reg, &flags);
+	if (ret)
+		return ret;
+
+	if (flags & REGULATOR_ERROR_OVER_CURRENT)
+		return 1;
 
 	return 0;
 }
 
 static int ohci_da8xx_has_set_power(struct usb_hcd *hcd)
 {
+	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
 	struct device *dev		= hcd->self.controller;
 	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 
 	if (hub && hub->set_power)
+		return 1;
+
+	if (da8xx_ohci->vbus_reg)
 		return 1;
 
 	return 0;
@@ -127,10 +175,14 @@ static int ohci_da8xx_has_set_power(struct usb_hcd *hcd)
 
 static int ohci_da8xx_has_oci(struct usb_hcd *hcd)
 {
+	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
 	struct device *dev		= hcd->self.controller;
 	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
 
 	if (hub && hub->get_oci)
+		return 1;
+
+	if (da8xx_ohci->vbus_reg)
 		return 1;
 
 	return 0;
@@ -160,15 +212,39 @@ static void ohci_da8xx_ocic_handler(struct da8xx_ohci_root_hub *hub,
 		hub->set_power(port, 0);
 }
 
-static int ohci_da8xx_register_notify(struct usb_hcd *hcd)
+static int ohci_da8xx_regulator_event(struct notifier_block *nb,
+				unsigned long event, void *data)
 {
-	struct device *dev		= hcd->self.controller;
-	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
+	struct da8xx_ohci_hcd *da8xx_ohci =
+				container_of(nb, struct da8xx_ohci_hcd, nb);
 
-	if (hub && hub->ocic_notify)
-		return hub->ocic_notify(ohci_da8xx_ocic_handler);
+	if (event & REGULATOR_EVENT_OVER_CURRENT) {
+		ocic_mask |= 1 << 1;
+		ohci_da8xx_set_power(da8xx_ohci->hcd, 0);
+	}
 
 	return 0;
+}
+
+static int ohci_da8xx_register_notify(struct usb_hcd *hcd)
+{
+	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
+	struct device *dev		= hcd->self.controller;
+	struct da8xx_ohci_root_hub *hub	= dev_get_platdata(dev);
+	int ret = 0;
+
+	if (hub && hub->ocic_notify) {
+		ret = hub->ocic_notify(ohci_da8xx_ocic_handler);
+	} else if (da8xx_ohci->vbus_reg) {
+		da8xx_ohci->nb.notifier_call = ohci_da8xx_regulator_event;
+		ret = devm_regulator_register_notifier(da8xx_ohci->vbus_reg,
+						&da8xx_ohci->nb);
+	}
+
+	if (ret)
+		dev_err(dev, "Failed to register notifier: %d\n", ret);
+
+	return ret;
 }
 
 static void ohci_da8xx_unregister_notify(struct usb_hcd *hcd)
@@ -331,6 +407,7 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	da8xx_ohci = to_da8xx_ohci(hcd);
+	da8xx_ohci->hcd = hcd;
 
 	da8xx_ohci->usb11_clk = devm_clk_get(&pdev->dev, "usb11");
 	if (IS_ERR(da8xx_ohci->usb11_clk)) {
@@ -346,6 +423,19 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 		if (error != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "Failed to get phy.\n");
 		goto err;
+	}
+
+	da8xx_ohci->vbus_reg = devm_regulator_get_optional(&pdev->dev, "vbus");
+	if (IS_ERR(da8xx_ohci->vbus_reg)) {
+		error = PTR_ERR(da8xx_ohci->vbus_reg);
+		if (error == -ENODEV) {
+			da8xx_ohci->vbus_reg = NULL;
+		} else if (error == -EPROBE_DEFER) {
+			goto err;
+		} else {
+			dev_err(&pdev->dev, "Failed to get regulator\n");
+			goto err;
+		}
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
