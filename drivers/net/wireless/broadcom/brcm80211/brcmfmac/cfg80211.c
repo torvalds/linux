@@ -757,12 +757,12 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 	brcmf_scan_config_mpc(ifp, 1);
 
 	/*
-	 * e-scan can be initiated by scheduled scan
+	 * e-scan can be initiated internally
 	 * which takes precedence.
 	 */
-	if (cfg->sched_escan) {
+	if (cfg->internal_escan) {
 		brcmf_dbg(SCAN, "scheduled scan completed\n");
-		cfg->sched_escan = false;
+		cfg->internal_escan = false;
 		if (!aborted)
 			cfg80211_sched_scan_results(cfg_to_wiphy(cfg));
 	} else if (scan_request) {
@@ -3013,7 +3013,7 @@ void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg)
 	struct escan_info *escan = &cfg->escan_info;
 
 	set_bit(BRCMF_SCAN_STATUS_ABORT, &cfg->scan_status);
-	if (cfg->scan_request) {
+	if (cfg->internal_escan || cfg->scan_request) {
 		escan->escan_state = WL_ESCAN_STATE_IDLE;
 		brcmf_notify_escan_complete(cfg, escan->ifp, true, true);
 	}
@@ -3036,7 +3036,7 @@ static void brcmf_escan_timeout(unsigned long data)
 	struct brcmf_cfg80211_info *cfg =
 			(struct brcmf_cfg80211_info *)data;
 
-	if (cfg->scan_request) {
+	if (cfg->internal_escan || cfg->scan_request) {
 		brcmf_err("timer expired\n");
 		schedule_work(&cfg->escan_timeout_work);
 	}
@@ -3119,7 +3119,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 		if (brcmf_p2p_scan_finding_common_channel(cfg, bss_info_le))
 			goto exit;
 
-		if (!cfg->scan_request) {
+		if (!cfg->internal_escan && !cfg->scan_request) {
 			brcmf_dbg(SCAN, "result without cfg80211 request\n");
 			goto exit;
 		}
@@ -3165,7 +3165,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 		cfg->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
 		if (brcmf_p2p_scan_finding_common_channel(cfg, NULL))
 			goto exit;
-		if (cfg->scan_request) {
+		if (cfg->internal_escan || cfg->scan_request) {
 			brcmf_inform_bss(cfg);
 			aborted = status != BRCMF_E_STATUS_SUCCESS;
 			brcmf_notify_escan_complete(cfg, ifp, aborted, false);
@@ -3190,6 +3190,73 @@ static void brcmf_init_escan(struct brcmf_cfg80211_info *cfg)
 		  brcmf_cfg80211_escan_timeout_worker);
 }
 
+static struct cfg80211_scan_request *
+brcmf_alloc_internal_escan_request(struct wiphy *wiphy, u32 n_netinfo) {
+	struct cfg80211_scan_request *req;
+	size_t req_size;
+
+	req_size = sizeof(*req) +
+		   n_netinfo * sizeof(req->channels[0]) +
+		   n_netinfo * sizeof(*req->ssids);
+
+	req = kzalloc(req_size, GFP_KERNEL);
+	if (req) {
+		req->wiphy = wiphy;
+		req->ssids = (void *)(&req->channels[0]) +
+			     n_netinfo * sizeof(req->channels[0]);
+	}
+	return req;
+}
+
+static int brcmf_internal_escan_add_info(struct cfg80211_scan_request *req,
+					 u8 *ssid, u8 ssid_len, u8 channel)
+{
+	struct ieee80211_channel *chan;
+	enum nl80211_band band;
+	int freq;
+
+	if (channel <= CH_MAX_2G_CHANNEL)
+		band = NL80211_BAND_2GHZ;
+	else
+		band = NL80211_BAND_5GHZ;
+
+	freq = ieee80211_channel_to_frequency(channel, band);
+	if (!freq)
+		return -EINVAL;
+
+	chan = ieee80211_get_channel(req->wiphy, freq);
+	if (!chan)
+		return -EINVAL;
+
+	req->channels[req->n_channels++] = chan;
+	memcpy(req->ssids[req->n_ssids].ssid, ssid, ssid_len);
+	req->ssids[req->n_ssids++].ssid_len = ssid_len;
+
+	return 0;
+}
+
+static int brcmf_start_internal_escan(struct brcmf_if *ifp,
+				      struct cfg80211_scan_request *request)
+{
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	int err;
+
+	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
+		/* Abort any on-going scan */
+		brcmf_abort_scanning(cfg);
+	}
+
+	set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
+	cfg->escan_info.run = brcmf_run_escan;
+	err = brcmf_do_escan(ifp, request);
+	if (err) {
+		clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
+		return err;
+	}
+	cfg->internal_escan = true;
+	return 0;
+}
+
 /* PFN result doesn't have all the info which are required by the supplicant
  * (For e.g IEs) Do a target Escan so that sched scan results are reported
  * via wl_inform_single_bss in the required format. Escan does require the
@@ -3203,12 +3270,8 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	struct brcmf_pno_net_info_le *netinfo, *netinfo_start;
 	struct cfg80211_scan_request *request = NULL;
-	struct cfg80211_ssid *ssid = NULL;
-	struct ieee80211_channel *channel = NULL;
 	struct wiphy *wiphy = cfg_to_wiphy(cfg);
-	int err = 0;
-	int channel_req = 0;
-	int band = 0;
+	int i, err = 0;
 	struct brcmf_pno_scanresults_le *pfn_result;
 	u32 result_count;
 	u32 status;
@@ -3234,83 +3297,47 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	 */
 	WARN_ON(status != BRCMF_PNO_SCAN_COMPLETE);
 	brcmf_dbg(SCAN, "PFN NET FOUND event. count: %d\n", result_count);
-	if (result_count > 0) {
-		int i;
-
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		ssid = kcalloc(result_count, sizeof(*ssid), GFP_KERNEL);
-		channel = kcalloc(result_count, sizeof(*channel), GFP_KERNEL);
-		if (!request || !ssid || !channel) {
-			err = -ENOMEM;
-			goto out_err;
-		}
-
-		request->wiphy = wiphy;
-		data += sizeof(struct brcmf_pno_scanresults_le);
-		netinfo_start = (struct brcmf_pno_net_info_le *)data;
-
-		for (i = 0; i < result_count; i++) {
-			netinfo = &netinfo_start[i];
-			if (!netinfo) {
-				brcmf_err("Invalid netinfo ptr. index: %d\n",
-					  i);
-				err = -EINVAL;
-				goto out_err;
-			}
-
-			brcmf_dbg(SCAN, "SSID:%s Channel:%d\n",
-				  netinfo->SSID, netinfo->channel);
-			memcpy(ssid[i].ssid, netinfo->SSID, netinfo->SSID_len);
-			ssid[i].ssid_len = netinfo->SSID_len;
-			request->n_ssids++;
-
-			channel_req = netinfo->channel;
-			if (channel_req <= CH_MAX_2G_CHANNEL)
-				band = NL80211_BAND_2GHZ;
-			else
-				band = NL80211_BAND_5GHZ;
-			channel[i].center_freq =
-				ieee80211_channel_to_frequency(channel_req,
-							       band);
-			channel[i].band = band;
-			channel[i].flags |= IEEE80211_CHAN_NO_HT40;
-			request->channels[i] = &channel[i];
-			request->n_channels++;
-		}
-
-		/* assign parsed ssid array */
-		if (request->n_ssids)
-			request->ssids = &ssid[0];
-
-		if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
-			/* Abort any on-going scan */
-			brcmf_abort_scanning(cfg);
-		}
-
-		set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
-		cfg->escan_info.run = brcmf_run_escan;
-		err = brcmf_do_escan(ifp, request);
-		if (err) {
-			clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
-			goto out_err;
-		}
-		cfg->sched_escan = true;
-		cfg->scan_request = request;
-	} else {
+	if (!result_count) {
 		brcmf_err("FALSE PNO Event. (pfn_count == 0)\n");
 		goto out_err;
 	}
+	request = brcmf_alloc_internal_escan_request(wiphy,
+						     result_count);
+	if (!request) {
+		err = -ENOMEM;
+		goto out_err;
+	}
 
-	kfree(ssid);
-	kfree(channel);
-	kfree(request);
-	return 0;
+	data += sizeof(struct brcmf_pno_scanresults_le);
+	netinfo_start = (struct brcmf_pno_net_info_le *)data;
+
+	for (i = 0; i < result_count; i++) {
+		netinfo = &netinfo_start[i];
+		if (!netinfo) {
+			brcmf_err("Invalid netinfo ptr. index: %d\n",
+				  i);
+			err = -EINVAL;
+			goto out_err;
+		}
+
+		brcmf_dbg(SCAN, "SSID:%.32s Channel:%d\n",
+			  netinfo->SSID, netinfo->channel);
+		err = brcmf_internal_escan_add_info(request,
+						    netinfo->SSID,
+						    netinfo->SSID_len,
+						    netinfo->channel);
+		if (err)
+			goto out_err;
+	}
+
+	err = brcmf_start_internal_escan(ifp, request);
+	if (!err)
+		goto free_req;
 
 out_err:
-	kfree(ssid);
-	kfree(channel);
-	kfree(request);
 	cfg80211_sched_scan_stopped(wiphy);
+free_req:
+	kfree(request);
 	return err;
 }
 
@@ -3405,7 +3432,7 @@ static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 
 	brcmf_dbg(SCAN, "enter\n");
 	brcmf_pno_clean(ifp);
-	if (cfg->sched_escan)
+	if (cfg->internal_escan)
 		brcmf_notify_escan_complete(cfg, ifp, true, true);
 	return 0;
 }
