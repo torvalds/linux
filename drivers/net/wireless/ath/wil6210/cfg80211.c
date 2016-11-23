@@ -1424,6 +1424,34 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 	mutex_unlock(&wil->mutex);
 }
 
+static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       bool enabled, int timeout)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	enum wmi_ps_profile_type ps_profile;
+	int rc;
+
+	if (!test_bit(WMI_FW_CAPABILITY_PS_CONFIG, wil->fw_capabilities)) {
+		wil_err(wil, "set_power_mgmt not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	wil_dbg_misc(wil, "enabled=%d, timeout=%d\n",
+		     enabled, timeout);
+
+	if (enabled)
+		ps_profile = WMI_PS_PROFILE_TYPE_DEFAULT;
+	else
+		ps_profile = WMI_PS_PROFILE_TYPE_PS_DISABLED;
+
+	rc  = wmi_ps_dev_profile_cfg(wil, ps_profile);
+	if (rc)
+		wil_err(wil, "wmi_ps_dev_profile_cfg failed (%d)\n", rc);
+
+	return rc;
+}
+
 static struct cfg80211_ops wil_cfg80211_ops = {
 	.add_virtual_intf = wil_cfg80211_add_iface,
 	.del_virtual_intf = wil_cfg80211_del_iface,
@@ -1450,6 +1478,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	/* P2P device */
 	.start_p2p_device = wil_cfg80211_start_p2p_device,
 	.stop_p2p_device = wil_cfg80211_stop_p2p_device,
+	.set_power_mgmt = wil_cfg80211_set_power_mgmt,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)
@@ -1466,7 +1495,8 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 				 BIT(NL80211_IFTYPE_MONITOR);
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
+			WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	dev_dbg(wiphy_dev(wiphy), "%s : flags = 0x%08x\n",
 		__func__, wiphy->flags);
 	wiphy->probe_resp_offload =
