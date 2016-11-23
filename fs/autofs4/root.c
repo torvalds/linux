@@ -286,22 +286,24 @@ static int autofs4_mount_wait(struct dentry *dentry, bool rcu_walk)
 	return status;
 }
 
-static int do_expire_wait(struct dentry *dentry, bool rcu_walk)
+static int do_expire_wait(const struct path *path, bool rcu_walk)
 {
+	struct dentry *dentry = path->dentry;
 	struct dentry *expiring;
 
 	expiring = autofs4_lookup_expiring(dentry, rcu_walk);
 	if (IS_ERR(expiring))
 		return PTR_ERR(expiring);
 	if (!expiring)
-		return autofs4_expire_wait(dentry, rcu_walk);
+		return autofs4_expire_wait(path, rcu_walk);
 	else {
+		struct path this = { .mnt = path->mnt, .dentry = expiring };
 		/*
 		 * If we are racing with expire the request might not
 		 * be quite complete, but the directory has been removed
 		 * so it must have been successful, just wait for it.
 		 */
-		autofs4_expire_wait(expiring, 0);
+		autofs4_expire_wait(&this, 0);
 		autofs4_del_expiring(expiring);
 		dput(expiring);
 	}
@@ -354,7 +356,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	 * and the directory was removed, so just go ahead and try
 	 * the mount.
 	 */
-	status = do_expire_wait(dentry, 0);
+	status = do_expire_wait(path, 0);
 	if (status && status != -EAGAIN)
 		return NULL;
 
@@ -438,7 +440,7 @@ static int autofs4_d_manage(const struct path *path, bool rcu_walk)
 	}
 
 	/* Wait for pending expires */
-	if (do_expire_wait(dentry, rcu_walk) == -ECHILD)
+	if (do_expire_wait(path, rcu_walk) == -ECHILD)
 		return -ECHILD;
 
 	/*

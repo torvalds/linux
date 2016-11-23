@@ -495,8 +495,9 @@ found:
 	return expired;
 }
 
-int autofs4_expire_wait(struct dentry *dentry, int rcu_walk)
+int autofs4_expire_wait(const struct path *path, int rcu_walk)
 {
+	struct dentry *dentry = path->dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
