@@ -18,9 +18,10 @@
 
 #include "core.h"
 #include "debug.h"
-#include "pno.h"
 #include "fwil.h"
 #include "fwil_types.h"
+#include "cfg80211.h"
+#include "pno.h"
 
 #define BRCMF_PNO_VERSION		2
 #define BRCMF_PNO_REPEAT		4
@@ -33,6 +34,15 @@
 #define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
 #define BRCMF_PNO_HIDDEN_BIT		2
 #define BRCMF_PNO_SCHED_SCAN_PERIOD	30
+
+static int brcmf_pno_channel_config(struct brcmf_if *ifp,
+				    struct brcmf_pno_config_le *cfg)
+{
+	cfg->reporttype = 0;
+	cfg->flags = 0;
+
+	return brcmf_fil_iovar_data_set(ifp, "pfn_cfg", cfg, sizeof(*cfg));
+}
 
 static int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
 			    u32 mscan, u32 bestn)
@@ -167,7 +177,10 @@ int brcmf_pno_clean(struct brcmf_if *ifp)
 int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 			       struct cfg80211_sched_scan_request *req)
 {
+	struct brcmu_d11inf *d11inf;
+	struct brcmf_pno_config_le pno_cfg;
 	struct cfg80211_ssid *ssid;
+	u16 chan;
 	int i, ret;
 
 	/* clean up everything */
@@ -188,6 +201,17 @@ int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 					   req->mac_addr_mask);
 		if (ret < 0)
 			return ret;
+	}
+
+	/* configure channels to use */
+	d11inf = &ifp->drvr->config->d11inf;
+	for (i = 0; i < req->n_channels; i++) {
+		chan = req->channels[i]->hw_value;
+		pno_cfg.channel_list[i] = cpu_to_le16(chan);
+	}
+	if (req->n_channels) {
+		pno_cfg.channel_num = cpu_to_le32(req->n_channels);
+		brcmf_pno_channel_config(ifp, &pno_cfg);
 	}
 
 	/* configure each match set */
