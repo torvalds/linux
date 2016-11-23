@@ -105,7 +105,7 @@ static const char * const obd_connect_names[] = {
 	"subtree",
 	"lock_ahead",
 	"bulk_mbits",
-	"unknown",
+	"compact_obdo",
 	NULL
 };
 
