@@ -12,7 +12,7 @@ Required properties:
   family-specific and/or generic versions.
 
 - reg: physical base address and size of the R-Car CAN FD register map.
-- interrupts: interrupt specifier for the Global & Channel interrupts
+- interrupts: interrupt specifiers for the Channel & Global interrupts
 - clocks: phandles and clock specifiers for 3 clock inputs.
 - clock-names: 3 clock input name strings: "fck", "canfd", "can_clk".
 - pinctrl-0: pin control group to be used for this controller.
