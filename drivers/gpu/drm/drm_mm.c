@@ -306,6 +306,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	u64 end = node->start + node->size;
 	struct drm_mm_node *hole;
 	u64 hole_start, hole_end;
+	u64 adj_start, adj_end;
 
 	if (WARN_ON(node->size == 0))
 		return -EINVAL;
@@ -327,9 +328,13 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	if (!hole->hole_follows)
 		return -ENOSPC;
 
-	hole_start = __drm_mm_hole_node_start(hole);
-	hole_end = __drm_mm_hole_node_end(hole);
-	if (hole_start > node->start || hole_end < end)
+	adj_start = hole_start = __drm_mm_hole_node_start(hole);
+	adj_end = hole_end = __drm_mm_hole_node_end(hole);
+
+	if (mm->color_adjust)
+		mm->color_adjust(hole, node->color, &adj_start, &adj_end);
+
+	if (adj_start > node->start || adj_end < end)
 		return -ENOSPC;
 
 	node->mm = mm;
