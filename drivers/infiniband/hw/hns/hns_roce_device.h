@@ -201,9 +201,9 @@ struct hns_roce_bitmap {
 /* Order = 0: bitmap is biggest, order = max bitmap is least (only a bit) */
 /* Every bit repesent to a partner free/used status in bitmap */
 /*
-* Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
-* Bit = 1 represent to idle and available; bit = 0: not available
-*/
+ * Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
+ * Bit = 1 represent to idle and available; bit = 0: not available
+ */
 struct hns_roce_buddy {
 	/* Members point to every order level bitmap */
 	unsigned long **bits;
@@ -365,25 +365,25 @@ struct hns_roce_cmdq {
 	struct mutex		hcr_mutex;
 	struct semaphore	poll_sem;
 	/*
-	* Event mode: cmd register mutex protection,
-	* ensure to not exceed max_cmds and user use limit region
-	*/
+	 * Event mode: cmd register mutex protection,
+	 * ensure to not exceed max_cmds and user use limit region
+	 */
 	struct semaphore	event_sem;
 	int			max_cmds;
 	spinlock_t		context_lock;
 	int			free_head;
 	struct hns_roce_cmd_context *context;
 	/*
-	* Result of get integer part
-	* which max_comds compute according a power of 2
-	*/
+	 * Result of get integer part
+	 * which max_comds compute according a power of 2
+	 */
 	u16			token_mask;
 	/*
-	* Process whether use event mode, init default non-zero
-	* After the event queue of cmd event ready,
-	* can switch into event mode
-	* close device, switch into poll mode(non event mode)
-	*/
+	 * Process whether use event mode, init default non-zero
+	 * After the event queue of cmd event ready,
+	 * can switch into event mode
+	 * close device, switch into poll mode(non event mode)
+	 */
 	u8			use_events;
 	u8			toggle;
 };

@@ -1352,9 +1352,9 @@ static void __hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 	}
 
 	/*
-	* Now backwards through the CQ, removing CQ entries
-	* that match our QP by overwriting them with next entries.
-	*/
+	 * Now backwards through the CQ, removing CQ entries
+	 * that match our QP by overwriting them with next entries.
+	 */
 	while ((int) --prod_index - (int) hr_cq->cons_index >= 0) {
 		cqe = get_cqe(hr_cq, prod_index & hr_cq->ib_cq.cqe);
 		if ((roce_get_field(cqe->cqe_byte_16, CQE_BYTE_16_LOCAL_QPN_M,
@@ -1376,9 +1376,9 @@ static void __hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 	if (nfreed) {
 		hr_cq->cons_index += nfreed;
 		/*
-		* Make sure update of buffer contents is done before
-		* updating consumer index.
-		*/
+		 * Make sure update of buffer contents is done before
+		 * updating consumer index.
+		 */
 		wmb();
 
 		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index);
@@ -1473,7 +1473,7 @@ void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 	roce_set_bit(cq_context->cqc_byte_32,
 		     CQ_CQNTEXT_CQC_BYTE_32_TYPE_OF_COMPLETION_NOTIFICATION_S,
 		     0);
-	/*The initial value of cq's ci is 0 */
+	/* The initial value of cq's ci is 0 */
 	roce_set_field(cq_context->cqc_byte_32,
 		       CQ_CONTEXT_CQC_BYTE_32_CQ_CONS_IDX_M,
 		       CQ_CONTEXT_CQC_BYTE_32_CQ_CONS_IDX_S, 0);
@@ -1490,9 +1490,9 @@ int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	notification_flag = (flags & IB_CQ_SOLICITED_MASK) ==
 			    IB_CQ_SOLICITED ? CQ_DB_REQ_NOT : CQ_DB_REQ_NOT_SOL;
 	/*
-	* flags = 0; Notification Flag = 1, next
-	* flags = 1; Notification Flag = 0, solocited
-	*/
+	 * flags = 0; Notification Flag = 1, next
+	 * flags = 1; Notification Flag = 0, solocited
+	 */
 	doorbell[0] = hr_cq->cons_index & ((hr_cq->cq_depth << 1) - 1);
 	roce_set_bit(doorbell[1], ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_HW_SYNS_S, 1);
 	roce_set_field(doorbell[1], ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_CMD_M,
@@ -1647,10 +1647,10 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 		wq = &(*cur_qp)->sq;
 		if ((*cur_qp)->sq_signal_bits) {
 			/*
-			* If sg_signal_bit is 1,
-			* firstly tail pointer updated to wqe
-			* which current cqe correspond to
-			*/
+			 * If sg_signal_bit is 1,
+			 * firstly tail pointer updated to wqe
+			 * which current cqe correspond to
+			 */
 			wqe_ctr = (u16)roce_get_field(cqe->cqe_byte_4,
 						      CQE_BYTE_4_WQE_INDEX_M,
 						      CQE_BYTE_4_WQE_INDEX_S);
@@ -2072,11 +2072,11 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	}
 
 	/*
-	*Reset to init
-	*	Mandatory param:
-	*	IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT | IB_QP_ACCESS_FLAGS
-	*	Optional param: NA
-	*/
+	 * Reset to init
+	 *	Mandatory param:
+	 *	IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_PORT | IB_QP_ACCESS_FLAGS
+	 *	Optional param: NA
+	 */
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
 		roce_set_field(context->qpc_bytes_4,
 			       QP_CONTEXT_QPC_BYTES_4_TRANSPORT_SERVICE_TYPE_M,
@@ -2584,9 +2584,9 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	}
 
 	/*
-	* Use rst2init to instead of init2init with drv,
-	* need to hw to flash RQ HEAD by DB again
-	*/
+	 * Use rst2init to instead of init2init with drv,
+	 * need to hw to flash RQ HEAD by DB again
+	 */
 	if (cur_state == IB_QPS_INIT && new_state == IB_QPS_INIT) {
 		/* Memory barrier */
 		wmb();
@@ -2921,9 +2921,9 @@ static void hns_roce_v1_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	if (hr_qp->ibqp.qp_type == IB_QPT_RC) {
 		if (hr_qp->state != IB_QPS_RESET) {
 			/*
-			* Set qp to ERR,
-			* waiting for hw complete processing all dbs
-			*/
+			 * Set qp to ERR,
+			 * waiting for hw complete processing all dbs
+			 */
 			if (hns_roce_v1_qp_modify(hr_dev, NULL,
 					to_hns_roce_state(
 						(enum ib_qp_state)hr_qp->state),
@@ -2936,9 +2936,9 @@ static void hns_roce_v1_destroy_qp_common(struct hns_roce_dev *hr_dev,
 			sdbisusepr_val = roce_read(hr_dev,
 					 ROCEE_SDB_ISSUE_PTR_REG);
 			/*
-			* Query db process status,
-			* until hw process completely
-			*/
+			 * Query db process status,
+			 * until hw process completely
+			 */
 			end = msecs_to_jiffies(
 			      HNS_ROCE_QP_DESTROY_TIMEOUT_MSECS) + jiffies;
 			do {

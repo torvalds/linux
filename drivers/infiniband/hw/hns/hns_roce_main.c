@@ -148,8 +148,8 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 		break;
 	case NETDEV_DOWN:
 		/*
-		* In v1 engine, only support all ports closed together.
-		*/
+		 * In v1 engine, only support all ports closed together.
+		 */
 		break;
 	default:
 		dev_dbg(dev, "NETDEV event = 0x%x!\n", (u32)(event));
@@ -773,10 +773,10 @@ err_unmap_mtt:
 }
 
 /**
-* hns_roce_setup_hca - setup host channel adapter
-* @hr_dev: pointer to hns roce device
-* Return : int
-*/
+ * hns_roce_setup_hca - setup host channel adapter
+ * @hr_dev: pointer to hns roce device
+ * Return : int
+ */
 static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 {
 	int ret;
@@ -841,11 +841,11 @@ err_uar_table_free:
 }
 
 /**
-* hns_roce_probe - RoCE driver entrance
-* @pdev: pointer to platform device
-* Return : int
-*
-*/
+ * hns_roce_probe - RoCE driver entrance
+ * @pdev: pointer to platform device
+ * Return : int
+ *
+ */
 static int hns_roce_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -958,9 +958,9 @@ error_failed_get_cfg:
 }
 
 /**
-* hns_roce_remove - remove RoCE device
-* @pdev: pointer to platform device
-*/
+ * hns_roce_remove - remove RoCE device
+ * @pdev: pointer to platform device
+ */
 static int hns_roce_remove(struct platform_device *pdev)
 {
 	struct hns_roce_dev *hr_dev = platform_get_drvdata(pdev);
