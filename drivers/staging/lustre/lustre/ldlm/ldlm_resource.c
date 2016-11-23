@@ -226,7 +226,7 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 
 			/* Try to cancel all @ns_nr_unused locks. */
 			canceled = ldlm_cancel_lru(ns, unused, 0,
-						   LDLM_CANCEL_PASSED);
+						   LDLM_LRU_FLAG_PASSED);
 			if (canceled < unused) {
 				CDEBUG(D_DLMTRACE,
 				       "not all requested locks are canceled, requested: %d, canceled: %d\n",
@@ -237,7 +237,7 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 		} else {
 			tmp = ns->ns_max_unused;
 			ns->ns_max_unused = 0;
-			ldlm_cancel_lru(ns, 0, 0, LDLM_CANCEL_PASSED);
+			ldlm_cancel_lru(ns, 0, 0, LDLM_LRU_FLAG_PASSED);
 			ns->ns_max_unused = tmp;
 		}
 		return count;
@@ -262,7 +262,7 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 		       "changing namespace %s unused locks from %u to %u\n",
 		       ldlm_ns_name(ns), ns->ns_nr_unused,
 		       (unsigned int)tmp);
-		ldlm_cancel_lru(ns, tmp, LCF_ASYNC, LDLM_CANCEL_PASSED);
+		ldlm_cancel_lru(ns, tmp, LCF_ASYNC, LDLM_LRU_FLAG_PASSED);
 
 		if (!lru_resize) {
 			CDEBUG(D_DLMTRACE,
@@ -276,7 +276,7 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 		       ldlm_ns_name(ns), ns->ns_max_unused,
 		       (unsigned int)tmp);
 		ns->ns_max_unused = (unsigned int)tmp;
-		ldlm_cancel_lru(ns, 0, LCF_ASYNC, LDLM_CANCEL_PASSED);
+		ldlm_cancel_lru(ns, 0, LCF_ASYNC, LDLM_LRU_FLAG_PASSED);
 
 		/* Make sure that LRU resize was originally supported before
 		 * turning it on here.

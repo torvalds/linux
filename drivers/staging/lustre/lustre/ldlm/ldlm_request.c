@@ -593,7 +593,7 @@ int ldlm_prep_elc_req(struct obd_export *exp, struct ptlrpc_request *req,
 		avail = ldlm_capsule_handles_avail(pill, RCL_CLIENT, canceloff);
 
 		flags = ns_connect_lru_resize(ns) ?
-			LDLM_CANCEL_LRUR_NO_WAIT : LDLM_CANCEL_AGED;
+			LDLM_LRU_FLAG_LRUR_NO_WAIT : LDLM_LRU_FLAG_AGED;
 		to_free = !ns_connect_lru_resize(ns) &&
 			  opc == LDLM_ENQUEUE ? 1 : 0;
 
@@ -1057,7 +1057,7 @@ int ldlm_cli_cancel(const struct lustre_handle *lockh,
 
 		ns = ldlm_lock_to_ns(lock);
 		flags = ns_connect_lru_resize(ns) ?
-			LDLM_CANCEL_LRUR : LDLM_CANCEL_AGED;
+			LDLM_LRU_FLAG_LRUR : LDLM_LRU_FLAG_AGED;
 		count += ldlm_cancel_lru_local(ns, &cancels, 0, avail - 1,
 					       LCF_BL_AST, flags);
 	}
@@ -1284,21 +1284,21 @@ typedef enum ldlm_policy_res (*ldlm_cancel_lru_policy_t)(
 static ldlm_cancel_lru_policy_t
 ldlm_cancel_lru_policy(struct ldlm_namespace *ns, int flags)
 {
-	if (flags & LDLM_CANCEL_NO_WAIT)
+	if (flags & LDLM_LRU_FLAG_NO_WAIT)
 		return ldlm_cancel_no_wait_policy;
 
 	if (ns_connect_lru_resize(ns)) {
-		if (flags & LDLM_CANCEL_SHRINK)
+		if (flags & LDLM_LRU_FLAG_SHRINK)
 			/* We kill passed number of old locks. */
 			return ldlm_cancel_passed_policy;
-		else if (flags & LDLM_CANCEL_LRUR)
+		else if (flags & LDLM_LRU_FLAG_LRUR)
 			return ldlm_cancel_lrur_policy;
-		else if (flags & LDLM_CANCEL_PASSED)
+		else if (flags & LDLM_LRU_FLAG_PASSED)
 			return ldlm_cancel_passed_policy;
-		else if (flags & LDLM_CANCEL_LRUR_NO_WAIT)
+		else if (flags & LDLM_LRU_FLAG_LRUR_NO_WAIT)
 			return ldlm_cancel_lrur_no_wait_policy;
 	} else {
-		if (flags & LDLM_CANCEL_AGED)
+		if (flags & LDLM_LRU_FLAG_AGED)
 			return ldlm_cancel_aged_policy;
 	}
 
@@ -1322,21 +1322,21 @@ ldlm_cancel_lru_policy(struct ldlm_namespace *ns, int flags)
  *
  * Calling policies for enabled LRU resize:
  * ----------------------------------------
- * flags & LDLM_CANCEL_LRUR - use LRU resize policy (SLV from server) to
- *			    cancel not more than \a count locks;
+ * flags & LDLM_LRU_FLAG_LRUR	- use LRU resize policy (SLV from server) to
+ *				  cancel not more than \a count locks;
  *
- * flags & LDLM_CANCEL_PASSED - cancel \a count number of old locks (located at
- *			      the beginning of LRU list);
+ * flags & LDLM_LRU_FLAG_PASSED - cancel \a count number of old locks (located at
+ *				  the beginning of LRU list);
  *
- * flags & LDLM_CANCEL_SHRINK - cancel not more than \a count locks according to
- *			      memory pressure policy function;
+ * flags & LDLM_LRU_FLAG_SHRINK - cancel not more than \a count locks according to
+ *				  memory pressure policy function;
  *
- * flags & LDLM_CANCEL_AGED - cancel \a count locks according to "aged policy".
+ * flags & LDLM_LRU_FLAG_AGED   - cancel \a count locks according to "aged policy".
  *
- * flags & LDLM_CANCEL_NO_WAIT - cancel as many unused locks as possible
- *			       (typically before replaying locks) w/o
- *			       sending any RPCs or waiting for any
- *			       outstanding RPC to complete.
+ * flags & LDLM_LRU_FLAG_NO_WAIT - cancel as many unused locks as possible
+ *				   (typically before replaying locks) w/o
+ *				   sending any RPCs or waiting for any
+ *				   outstanding RPC to complete.
  */
 static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 				 struct list_head *cancels, int count, int max,
@@ -1345,7 +1345,7 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 	ldlm_cancel_lru_policy_t pf;
 	struct ldlm_lock *lock, *next;
 	int added = 0, unused, remained;
-	int no_wait = flags & (LDLM_CANCEL_NO_WAIT | LDLM_CANCEL_LRUR_NO_WAIT);
+	int no_wait = flags & (LDLM_LRU_FLAG_NO_WAIT | LDLM_LRU_FLAG_LRUR_NO_WAIT);
 
 	spin_lock(&ns->ns_lock);
 	unused = ns->ns_nr_unused;
@@ -2000,11 +2000,11 @@ static void ldlm_cancel_unused_locks_for_replay(struct ldlm_namespace *ns)
 	       ldlm_ns_name(ns), ns->ns_nr_unused);
 
 	/* We don't need to care whether or not LRU resize is enabled
-	 * because the LDLM_CANCEL_NO_WAIT policy doesn't use the
+	 * because the LDLM_LRU_FLAG_NO_WAIT policy doesn't use the
 	 * count parameter
 	 */
 	canceled = ldlm_cancel_lru_local(ns, &cancels, ns->ns_nr_unused, 0,
-					 LCF_LOCAL, LDLM_CANCEL_NO_WAIT);
+					 LCF_LOCAL, LDLM_LRU_FLAG_NO_WAIT);
 
 	CDEBUG(D_DLMTRACE, "Canceled %d unused locks from namespace %s\n",
 	       canceled, ldlm_ns_name(ns));

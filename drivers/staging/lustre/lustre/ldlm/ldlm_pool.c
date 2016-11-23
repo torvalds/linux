@@ -293,7 +293,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	 * take into account pl->pl_recalc_time here.
 	 */
 	ret = ldlm_cancel_lru(container_of(pl, struct ldlm_namespace, ns_pool),
-			      0, LCF_ASYNC, LDLM_CANCEL_LRUR);
+			      0, LCF_ASYNC, LDLM_LRU_FLAG_LRUR);
 
 out:
 	spin_lock(&pl->pl_lock);
@@ -339,7 +339,7 @@ static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
 	if (nr == 0)
 		return (unused / 100) * sysctl_vfs_cache_pressure;
 	else
-		return ldlm_cancel_lru(ns, nr, LCF_ASYNC, LDLM_CANCEL_SHRINK);
+		return ldlm_cancel_lru(ns, nr, LCF_ASYNC, LDLM_LRU_FLAG_SHRINK);
 }
 
 static const struct ldlm_pool_ops ldlm_cli_pool_ops = {
