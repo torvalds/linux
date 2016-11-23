@@ -459,6 +459,8 @@ static int send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		return -EAGAIN;
 	}
 
+	if (pkt->qp)
+		atomic_inc(&pkt->qp->skb_out);
 	kfree_skb(skb);
 
 	return 0;
