@@ -672,6 +672,9 @@ static void __init request_crashkernel(struct resource *res)
 {
 	int ret;
 
+	if (crashk_res.start == crashk_res.end)
+		return;
+
 	ret = request_resource(res, &crashk_res);
 	if (!ret)
 		pr_info("Reserving %ldMB of memory at %ldMB for crashkernel\n",
