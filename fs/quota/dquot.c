@@ -617,7 +617,8 @@ int dquot_writeback_dquots(struct super_block *sb, int type)
 	int cnt;
 	int err, ret = 0;
 
-	mutex_lock(&dqopt->dqonoff_mutex);
+	WARN_ON_ONCE(!rwsem_is_locked(&sb->s_umount));
+
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
 			continue;
@@ -653,7 +654,6 @@ int dquot_writeback_dquots(struct super_block *sb, int type)
 		    && info_dirty(&dqopt->info[cnt]))
 			sb->dq_op->write_info(sb, cnt);
 	dqstats_inc(DQST_SYNCS);
-	mutex_unlock(&dqopt->dqonoff_mutex);
 
 	return ret;
 }
@@ -683,7 +683,6 @@ int dquot_quota_sync(struct super_block *sb, int type)
 	 * Now when everything is written we can discard the pagecache so
 	 * that userspace sees the changes.
 	 */
-	mutex_lock(&dqopt->dqonoff_mutex);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
 			continue;
@@ -693,7 +692,6 @@ int dquot_quota_sync(struct super_block *sb, int type)
 		truncate_inode_pages(&dqopt->files[cnt]->i_data, 0);
 		inode_unlock(dqopt->files[cnt]);
 	}
-	mutex_unlock(&dqopt->dqonoff_mutex);
 
 	return 0;
 }
@@ -2050,21 +2048,13 @@ int dquot_get_next_id(struct super_block *sb, struct kqid *qid)
 	struct quota_info *dqopt = sb_dqopt(sb);
 	int err;
 
-	mutex_lock(&dqopt->dqonoff_mutex);
-	if (!sb_has_quota_active(sb, qid->type)) {
-		err = -ESRCH;
-		goto out;
-	}
-	if (!dqopt->ops[qid->type]->get_next_id) {
-		err = -ENOSYS;
-		goto out;
-	}
+	if (!sb_has_quota_active(sb, qid->type))
+		return -ESRCH;
+	if (!dqopt->ops[qid->type]->get_next_id)
+		return -ENOSYS;
 	mutex_lock(&dqopt->dqio_mutex);
 	err = dqopt->ops[qid->type]->get_next_id(sb, qid);
 	mutex_unlock(&dqopt->dqio_mutex);
-out:
-	mutex_unlock(&dqopt->dqonoff_mutex);
-
 	return err;
 }
 EXPORT_SYMBOL(dquot_get_next_id);
@@ -2762,7 +2752,6 @@ int dquot_get_state(struct super_block *sb, struct qc_state *state)
 	struct quota_info *dqopt = sb_dqopt(sb);
 	int type;
   
-	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
 	memset(state, 0, sizeof(*state));
 	for (type = 0; type < MAXQUOTAS; type++) {
 		if (!sb_has_quota_active(sb, type))
@@ -2784,7 +2773,6 @@ int dquot_get_state(struct super_block *sb, struct qc_state *state)
 		tstate->nextents = 1;	/* We don't know... */
 		spin_unlock(&dq_data_lock);
 	}
-	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(dquot_get_state);
@@ -2798,18 +2786,13 @@ int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii)
 	if ((ii->i_fieldmask & QC_WARNS_MASK) ||
 	    (ii->i_fieldmask & QC_RT_SPC_TIMER))
 		return -EINVAL;
-	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
-	if (!sb_has_quota_active(sb, type)) {
-		err = -ESRCH;
-		goto out;
-	}
+	if (!sb_has_quota_active(sb, type))
+		return -ESRCH;
 	mi = sb_dqopt(sb)->info + type;
 	if (ii->i_fieldmask & QC_FLAGS) {
 		if ((ii->i_flags & QCI_ROOT_SQUASH &&
-		     mi->dqi_format->qf_fmt_id != QFMT_VFS_OLD)) {
-			err = -EINVAL;
-			goto out;
-		}
+		     mi->dqi_format->qf_fmt_id != QFMT_VFS_OLD))
+			return -EINVAL;
 	}
 	spin_lock(&dq_data_lock);
 	if (ii->i_fieldmask & QC_SPC_TIMER)
@@ -2826,8 +2809,6 @@ int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii)
 	mark_info_dirty(sb, type);
 	/* Force write to disk */
 	sb->dq_op->write_info(sb, type);
-out:
-	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	return err;
 }
 EXPORT_SYMBOL(dquot_set_dqinfo);
