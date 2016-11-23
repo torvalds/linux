@@ -698,7 +698,10 @@ TRACE_EVENT(rcu_batch_end,
 /*
  * Tracepoint for rcutorture readers.  The first argument is the name
  * of the RCU flavor from rcutorture's viewpoint and the second argument
- * is the callback address.
+ * is the callback address.  The third argument is the start time in
+ * seconds, and the last two arguments are the grace period numbers
+ * at the beginning and end of the read, respectively.  Note that the
+ * callback address can be NULL.
  */
 TRACE_EVENT(rcu_torture_read,
 

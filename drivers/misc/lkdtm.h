@@ -21,6 +21,8 @@ void lkdtm_SPINLOCKUP(void);
 void lkdtm_HUNG_TASK(void);
 void lkdtm_ATOMIC_UNDERFLOW(void);
 void lkdtm_ATOMIC_OVERFLOW(void);
+void lkdtm_CORRUPT_LIST_ADD(void);
+void lkdtm_CORRUPT_LIST_DEL(void);
 
 /* lkdtm_heap.c */
 void lkdtm_OVERWRITE_ALLOCATION(void);
