@@ -289,7 +289,7 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 	}
 
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
-			     key_to_hw_index(mr->key));
+			     key_to_hw_index(mr->key), BITMAP_NO_RR);
 }
 
 static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
