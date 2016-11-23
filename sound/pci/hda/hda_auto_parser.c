@@ -901,7 +901,7 @@ static bool pin_config_match(struct hda_codec *codec,
 		for (; t_pins->nid; t_pins++) {
 			if (t_pins->nid == nid) {
 				found = 1;
-				if (t_pins->val == cfg)
+				if ((t_pins->val & 0xfffffff0) == (cfg & 0xfffffff0))
 					break;
 				else if ((cfg & 0xf0000000) == 0x40000000 && (t_pins->val & 0xf0000000) == 0x40000000)
 					break;
