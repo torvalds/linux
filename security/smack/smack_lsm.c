@@ -52,6 +52,7 @@
 #define SMK_SENDING	2
 
 #ifdef SMACK_IPV6_PORT_LABELING
+DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
 #endif
 static struct kmem_cache *smack_inode_cache;
@@ -2603,17 +2604,20 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 		 * on the bound socket. Take the changes to the port
 		 * as well.
 		 */
-		list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
 			if (sk != spp->smk_sock)
 				continue;
 			spp->smk_in = ssp->smk_in;
 			spp->smk_out = ssp->smk_out;
+			rcu_read_unlock();
 			return;
 		}
 		/*
 		 * A NULL address is only used for updating existing
 		 * bound entries. If there isn't one, it's OK.
 		 */
+		rcu_read_unlock();
 		return;
 	}
 
@@ -2629,16 +2633,18 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	 * Look for an existing port list entry.
 	 * This is an indication that a port is getting reused.
 	 */
-	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
 		if (spp->smk_port != port)
 			continue;
 		spp->smk_port = port;
 		spp->smk_sock = sk;
 		spp->smk_in = ssp->smk_in;
 		spp->smk_out = ssp->smk_out;
+		rcu_read_unlock();
 		return;
 	}
-
+	rcu_read_unlock();
 	/*
 	 * A new port entry is required.
 	 */
@@ -2651,7 +2657,9 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	spp->smk_in = ssp->smk_in;
 	spp->smk_out = ssp->smk_out;
 
-	list_add(&spp->list, &smk_ipv6_port_list);
+	mutex_lock(&smack_ipv6_lock);
+	list_add_rcu(&spp->list, &smk_ipv6_port_list);
+	mutex_unlock(&smack_ipv6_lock);
 	return;
 }
 
@@ -2702,7 +2710,8 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 		return 0;
 
 	port = ntohs(address->sin6_port);
-	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
 		if (spp->smk_port != port)
 			continue;
 		object = spp->smk_in;
@@ -2710,6 +2719,7 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 			ssp->smk_packet = spp->smk_out;
 		break;
 	}
+	rcu_read_unlock();
 
 	return smk_ipv6_check(skp, object, address, act);
 }
