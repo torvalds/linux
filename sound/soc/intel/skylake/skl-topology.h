@@ -113,23 +113,6 @@ struct skl_cpr_gtw_cfg {
 	u32 config_data[1];
 } __packed;
 
-struct skl_i2s_config_blob {
-	u32 gateway_attrib;
-	u32 tdm_ts_group[8];
-	u32 ssc0;
-	u32 ssc1;
-	u32 sscto;
-	u32 sspsp;
-	u32 sstsa;
-	u32 ssrsa;
-	u32 ssc2;
-	u32 sspsp2;
-	u32 ssc3;
-	u32 ssioc;
-	u32 mdivc;
-	u32 mdivr;
-} __packed;
-
 struct skl_dma_control {
 	u32 node_id;
 	u32 config_length;
