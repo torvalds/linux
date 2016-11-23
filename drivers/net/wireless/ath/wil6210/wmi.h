@@ -51,8 +51,10 @@ enum wmi_mid {
  * the host
  */
 enum wmi_fw_capability {
-	WMI_FW_CAPABILITY_FTM		= 0,
-	WMI_FW_CAPABILITY_PS_CONFIG	= 1,
+	WMI_FW_CAPABILITY_FTM			= 0,
+	WMI_FW_CAPABILITY_PS_CONFIG		= 1,
+	WMI_FW_CAPABILITY_RF_SECTORS		= 2,
+	WMI_FW_CAPABILITY_MGMT_RETRY_LIMIT	= 3,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -182,11 +184,18 @@ enum wmi_command_id {
 	WMI_RS_CFG_CMDID			= 0x921,
 	WMI_GET_DETAILED_RS_RES_CMDID		= 0x922,
 	WMI_AOA_MEAS_CMDID			= 0x923,
+	WMI_SET_MGMT_RETRY_LIMIT_CMDID		= 0x930,
+	WMI_GET_MGMT_RETRY_LIMIT_CMDID		= 0x931,
 	WMI_TOF_SESSION_START_CMDID		= 0x991,
 	WMI_TOF_GET_CAPABILITIES_CMDID		= 0x992,
 	WMI_TOF_SET_LCR_CMDID			= 0x993,
 	WMI_TOF_SET_LCI_CMDID			= 0x994,
 	WMI_TOF_CHANNEL_INFO_CMDID		= 0x995,
+	WMI_GET_RF_SECTOR_PARAMS_CMDID		= 0x9A0,
+	WMI_SET_RF_SECTOR_PARAMS_CMDID		= 0x9A1,
+	WMI_GET_SELECTED_RF_SECTOR_INDEX_CMDID	= 0x9A2,
+	WMI_SET_SELECTED_RF_SECTOR_INDEX_CMDID	= 0x9A3,
+	WMI_SET_RF_SECTOR_ON_CMDID		= 0x9A4,
 	WMI_SET_MAC_ADDRESS_CMDID		= 0xF003,
 	WMI_ABORT_SCAN_CMDID			= 0xF007,
 	WMI_SET_PROMISCUOUS_MODE_CMDID		= 0xF041,
@@ -879,6 +888,14 @@ struct wmi_aoa_meas_cmd {
 	__le32 meas_rf_mask;
 } __packed;
 
+/* WMI_SET_MGMT_RETRY_LIMIT_CMDID */
+struct wmi_set_mgmt_retry_limit_cmd {
+	/* MAC retransmit limit for mgmt frames */
+	u8 mgmt_retry_limit;
+	/* alignment to 32b */
+	u8 reserved[3];
+} __packed;
+
 enum wmi_tof_burst_duration {
 	WMI_TOF_BURST_DURATION_250_USEC		= 2,
 	WMI_TOF_BURST_DURATION_500_USEC		= 3,
@@ -1035,12 +1052,19 @@ enum wmi_event_id {
 	WMI_RS_CFG_DONE_EVENTID				= 0x1921,
 	WMI_GET_DETAILED_RS_RES_EVENTID			= 0x1922,
 	WMI_AOA_MEAS_EVENTID				= 0x1923,
+	WMI_SET_MGMT_RETRY_LIMIT_EVENTID		= 0x1930,
+	WMI_GET_MGMT_RETRY_LIMIT_EVENTID		= 0x1931,
 	WMI_TOF_SESSION_END_EVENTID			= 0x1991,
 	WMI_TOF_GET_CAPABILITIES_EVENTID		= 0x1992,
 	WMI_TOF_SET_LCR_EVENTID				= 0x1993,
 	WMI_TOF_SET_LCI_EVENTID				= 0x1994,
 	WMI_TOF_FTM_PER_DEST_RES_EVENTID		= 0x1995,
 	WMI_TOF_CHANNEL_INFO_EVENTID			= 0x1996,
+	WMI_GET_RF_SECTOR_PARAMS_DONE_EVENTID		= 0x19A0,
+	WMI_SET_RF_SECTOR_PARAMS_DONE_EVENTID		= 0x19A1,
+	WMI_GET_SELECTED_RF_SECTOR_INDEX_DONE_EVENTID	= 0x19A2,
+	WMI_SET_SELECTED_RF_SECTOR_INDEX_DONE_EVENTID	= 0x19A3,
+	WMI_SET_RF_SECTOR_ON_DONE_EVENTID		= 0x19A4,
 	WMI_SET_CHANNEL_EVENTID				= 0x9000,
 	WMI_ASSOC_REQ_EVENTID				= 0x9001,
 	WMI_EAPOL_RX_EVENTID				= 0x9002,
@@ -2070,6 +2094,22 @@ struct wmi_aoa_meas_event {
 	u8 meas_data[WMI_AOA_MAX_DATA_SIZE];
 } __packed;
 
+/* WMI_SET_MGMT_RETRY_LIMIT_EVENTID */
+struct wmi_set_mgmt_retry_limit_event {
+	/* enum wmi_fw_status */
+	u8 status;
+	/* alignment to 32b */
+	u8 reserved[3];
+} __packed;
+
+/* WMI_GET_MGMT_RETRY_LIMIT_EVENTID */
+struct wmi_get_mgmt_retry_limit_event {
+	/* MAC retransmit limit for mgmt frames */
+	u8 mgmt_retry_limit;
+	/* alignment to 32b */
+	u8 reserved[3];
+} __packed;
+
 /* WMI_TOF_GET_CAPABILITIES_EVENTID */
 struct wmi_tof_get_capabilities_event {
 	u8 ftm_capability;
@@ -2182,6 +2222,170 @@ struct wmi_tof_channel_info_event {
 	u8 len;
 	/* data report payload */
 	u8 report[0];
+} __packed;
+
+/* Result status codes for WMI commands */
+enum wmi_rf_sector_status {
+	WMI_RF_SECTOR_STATUS_SUCCESS			= 0x00,
+	WMI_RF_SECTOR_STATUS_BAD_PARAMETERS_ERROR	= 0x01,
+	WMI_RF_SECTOR_STATUS_BUSY_ERROR			= 0x02,
+	WMI_RF_SECTOR_STATUS_NOT_SUPPORTED_ERROR	= 0x03,
+};
+
+/* Types of the RF sector (TX,RX) */
+enum wmi_rf_sector_type {
+	WMI_RF_SECTOR_TYPE_RX	= 0x00,
+	WMI_RF_SECTOR_TYPE_TX	= 0x01,
+};
+
+/* Content of RF Sector (six 32-bits registers) */
+struct wmi_rf_sector_info {
+	/* Phase values for RF Chains[15-0] (2bits per RF chain) */
+	__le32 psh_hi;
+	/* Phase values for RF Chains[31-16] (2bits per RF chain) */
+	__le32 psh_lo;
+	/* ETYPE Bit0 for all RF chains[31-0] - bit0 of Edge amplifier gain
+	 * index
+	 */
+	__le32 etype0;
+	/* ETYPE Bit1 for all RF chains[31-0] - bit1 of Edge amplifier gain
+	 * index
+	 */
+	__le32 etype1;
+	/* ETYPE Bit2 for all RF chains[31-0] - bit2 of Edge amplifier gain
+	 * index
+	 */
+	__le32 etype2;
+	/* D-Type values (3bits each) for 8 Distribution amplifiers + X16
+	 * switch bits
+	 */
+	__le32 dtype_swch_off;
+} __packed;
+
+#define WMI_INVALID_RF_SECTOR_INDEX	(0xFFFF)
+#define WMI_MAX_RF_MODULES_NUM		(8)
+
+/* WMI_GET_RF_SECTOR_PARAMS_CMD */
+struct wmi_get_rf_sector_params_cmd {
+	/* Sector number to be retrieved */
+	__le16 sector_idx;
+	/* enum wmi_rf_sector_type - type of requested RF sector */
+	u8 sector_type;
+	/* bitmask vector specifying destination RF modules */
+	u8 rf_modules_vec;
+} __packed;
+
+/* \WMI_GET_RF_SECTOR_PARAMS_DONE_EVENT */
+struct wmi_get_rf_sector_params_done_event {
+	/* result status of WMI_GET_RF_SECTOR_PARAMS_CMD (enum
+	 * wmi_rf_sector_status)
+	 */
+	u8 status;
+	/* align next field to U64 boundary */
+	u8 reserved[7];
+	/* TSF timestamp when RF sectors where retrieved */
+	__le64 tsf;
+	/* Content of RF sector retrieved from each RF module */
+	struct wmi_rf_sector_info sectors_info[WMI_MAX_RF_MODULES_NUM];
+} __packed;
+
+/* WMI_SET_RF_SECTOR_PARAMS_CMD */
+struct wmi_set_rf_sector_params_cmd {
+	/* Sector number to be retrieved */
+	__le16 sector_idx;
+	/* enum wmi_rf_sector_type - type of requested RF sector */
+	u8 sector_type;
+	/* bitmask vector specifying destination RF modules */
+	u8 rf_modules_vec;
+	/* Content of RF sector to be written to each RF module */
+	struct wmi_rf_sector_info sectors_info[WMI_MAX_RF_MODULES_NUM];
+} __packed;
+
+/* \WMI_SET_RF_SECTOR_PARAMS_DONE_EVENT */
+struct wmi_set_rf_sector_params_done_event {
+	/* result status of WMI_SET_RF_SECTOR_PARAMS_CMD (enum
+	 * wmi_rf_sector_status)
+	 */
+	u8 status;
+} __packed;
+
+/* WMI_GET_SELECTED_RF_SECTOR_INDEX_CMD - Get RF sector index selected by
+ * TXSS/BRP for communication with specified CID
+ */
+struct wmi_get_selected_rf_sector_index_cmd {
+	/* Connection/Station ID in [0:7] range */
+	u8 cid;
+	/* type of requested RF sector (enum wmi_rf_sector_type) */
+	u8 sector_type;
+	/* align to U32 boundary */
+	u8 reserved[2];
+} __packed;
+
+/* \WMI_GET_SELECTED_RF_SECTOR_INDEX_DONE_EVENT - Returns retrieved RF sector
+ * index selected by TXSS/BRP for communication with specified CID
+ */
+struct wmi_get_selected_rf_sector_index_done_event {
+	/* Retrieved sector index selected in TXSS (for TX sector request) or
+	 * BRP (for RX sector request)
+	 */
+	__le16 sector_idx;
+	/* result status of WMI_GET_SELECTED_RF_SECTOR_INDEX_CMD (enum
+	 * wmi_rf_sector_status)
+	 */
+	u8 status;
+	/* align next field to U64 boundary */
+	u8 reserved[5];
+	/* TSF timestamp when result was retrieved */
+	__le64 tsf;
+} __packed;
+
+/* WMI_SET_SELECTED_RF_SECTOR_INDEX_CMD - Force RF sector index for
+ * communication with specified CID. Assumes that TXSS/BRP is disabled by
+ * other command
+ */
+struct wmi_set_selected_rf_sector_index_cmd {
+	/* Connection/Station ID in [0:7] range */
+	u8 cid;
+	/* type of requested RF sector (enum wmi_rf_sector_type) */
+	u8 sector_type;
+	/* Forced sector index */
+	__le16 sector_idx;
+} __packed;
+
+/* \WMI_SET_SELECTED_RF_SECTOR_INDEX_DONE_EVENT - Success/Fail status for
+ * WMI_SET_SELECTED_RF_SECTOR_INDEX_CMD
+ */
+struct wmi_set_selected_rf_sector_index_done_event {
+	/* result status of WMI_SET_SELECTED_RF_SECTOR_INDEX_CMD (enum
+	 * wmi_rf_sector_status)
+	 */
+	u8 status;
+	/* align to U32 boundary */
+	u8 reserved[3];
+} __packed;
+
+/* WMI_SET_RF_SECTOR_ON_CMD - Activates specified sector for specified rf
+ * modules
+ */
+struct wmi_set_rf_sector_on_cmd {
+	/* Sector index to be activated */
+	__le16 sector_idx;
+	/* type of requested RF sector (enum wmi_rf_sector_type) */
+	u8 sector_type;
+	/* bitmask vector specifying destination RF modules */
+	u8 rf_modules_vec;
+} __packed;
+
+/* \WMI_SET_RF_SECTOR_ON_DONE_EVENT - Success/Fail status for
+ * WMI_SET_RF_SECTOR_ON_CMD
+ */
+struct wmi_set_rf_sector_on_done_event {
+	/* result status of WMI_SET_RF_SECTOR_ON_CMD (enum
+	 * wmi_rf_sector_status)
+	 */
+	u8 status;
+	/* align to U32 boundary */
+	u8 reserved[3];
 } __packed;
 
 #endif /* __WILOCITY_WMI_H__ */
