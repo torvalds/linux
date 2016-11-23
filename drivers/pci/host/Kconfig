@@ -175,7 +175,7 @@ config PCI_HISI
 
 config PCIE_ROCKCHIP
 	bool "Rockchip PCIe controller"
-	depends on ARCH_ROCKCHIP
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on OF
 	select PCI_MSI_IRQ_DOMAIN
 	select MFD_SYSCON
