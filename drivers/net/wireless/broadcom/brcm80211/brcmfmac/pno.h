@@ -16,8 +16,10 @@
 #ifndef _BRCMF_PNO_H
 #define _BRCMF_PNO_H
 
-#define BRCMF_PNO_SCAN_COMPLETE		1
-#define BRCMF_PNO_MAX_PFN_COUNT		16
+#define BRCMF_PNO_SCAN_COMPLETE			1
+#define BRCMF_PNO_MAX_PFN_COUNT			16
+#define BRCMF_PNO_SCHED_SCAN_MIN_PERIOD	10
+#define BRCMF_PNO_SCHED_SCAN_MAX_PERIOD	508
 
 /**
  * brcmf_pno_clean - disable and clear pno in firmware.

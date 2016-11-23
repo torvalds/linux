@@ -63,6 +63,10 @@ static int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
 	pfn_param.exp = BRCMF_PNO_FREQ_EXPO_MAX;
 
 	/* set up pno scan fr */
+	if (scan_freq < BRCMF_PNO_SCHED_SCAN_MIN_PERIOD) {
+		brcmf_dbg(SCAN, "scan period too small, using minimum\n");
+		scan_freq = BRCMF_PNO_SCHED_SCAN_MIN_PERIOD;
+	}
 	pfn_param.scan_freq = cpu_to_le32(scan_freq);
 
 	if (mscan) {
@@ -191,7 +195,7 @@ int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 	}
 
 	/* configure pno */
-	ret = brcmf_pno_config(ifp, BRCMF_PNO_SCHED_SCAN_PERIOD, 0, 0);
+	ret = brcmf_pno_config(ifp, req->scan_plans[0].interval, 0, 0);
 	if (ret < 0)
 		return ret;
 
