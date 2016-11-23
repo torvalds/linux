@@ -2857,9 +2857,7 @@ static int hns_roce_v1_q_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	qp_attr->pkey_index = roce_get_field(context->qpc_bytes_12,
 			      QP_CONTEXT_QPC_BYTES_12_P_KEY_INDEX_M,
 			      QP_CONTEXT_QPC_BYTES_12_P_KEY_INDEX_S);
-	qp_attr->port_num = (u8)roce_get_field(context->qpc_bytes_156,
-			     QP_CONTEXT_QPC_BYTES_156_PORT_NUM_M,
-			     QP_CONTEXT_QPC_BYTES_156_PORT_NUM_S) + 1;
+	qp_attr->port_num = hr_qp->port + 1;
 	qp_attr->sq_draining = 0;
 	qp_attr->max_rd_atomic = roce_get_field(context->qpc_bytes_156,
 				 QP_CONTEXT_QPC_BYTES_156_INITIATOR_DEPTH_M,
