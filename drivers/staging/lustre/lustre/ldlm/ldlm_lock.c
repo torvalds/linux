@@ -643,7 +643,7 @@ static void ldlm_add_ast_work_item(struct ldlm_lock *lock,
  * r/w reference type is determined by \a mode
  * Calls ldlm_lock_addref_internal.
  */
-void ldlm_lock_addref(const struct lustre_handle *lockh, __u32 mode)
+void ldlm_lock_addref(const struct lustre_handle *lockh, enum ldlm_mode mode)
 {
 	struct ldlm_lock *lock;
 
@@ -661,7 +661,8 @@ EXPORT_SYMBOL(ldlm_lock_addref);
  * Removes lock from LRU if it is there.
  * Assumes the LDLM lock is already locked.
  */
-void ldlm_lock_addref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
+void ldlm_lock_addref_internal_nolock(struct ldlm_lock *lock,
+				      enum ldlm_mode mode)
 {
 	ldlm_lock_remove_from_lru(lock);
 	if (mode & (LCK_NL | LCK_CR | LCK_PR)) {
@@ -685,7 +686,7 @@ void ldlm_lock_addref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
  *
  * \retval -EAGAIN lock is being canceled.
  */
-int ldlm_lock_addref_try(const struct lustre_handle *lockh, __u32 mode)
+int ldlm_lock_addref_try(const struct lustre_handle *lockh, enum ldlm_mode mode)
 {
 	struct ldlm_lock *lock;
 	int	       result;
@@ -711,7 +712,7 @@ EXPORT_SYMBOL(ldlm_lock_addref_try);
  * Locks LDLM lock and calls ldlm_lock_addref_internal_nolock to do the work.
  * Only called for local locks.
  */
-void ldlm_lock_addref_internal(struct ldlm_lock *lock, __u32 mode)
+void ldlm_lock_addref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
 {
 	lock_res_and_lock(lock);
 	ldlm_lock_addref_internal_nolock(lock, mode);
@@ -725,7 +726,8 @@ void ldlm_lock_addref_internal(struct ldlm_lock *lock, __u32 mode)
  * Does NOT add lock to LRU if no r/w references left to accommodate flock locks
  * that cannot be placed in LRU.
  */
-void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
+void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock,
+				      enum ldlm_mode mode)
 {
 	LDLM_DEBUG(lock, "ldlm_lock_decref(%s)", ldlm_lockname[mode]);
 	if (mode & (LCK_NL | LCK_CR | LCK_PR)) {
@@ -751,7 +753,7 @@ void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
  * on the namespace.
  * For blocked LDLM locks if r/w count drops to zero, blocking_ast is called.
  */
-void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
+void ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode)
 {
 	struct ldlm_namespace *ns;
 
@@ -822,7 +824,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 /**
  * Decrease reader/writer refcount for LDLM lock with handle \a lockh
  */
-void ldlm_lock_decref(const struct lustre_handle *lockh, __u32 mode)
+void ldlm_lock_decref(const struct lustre_handle *lockh, enum ldlm_mode mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
 
@@ -837,7 +839,8 @@ EXPORT_SYMBOL(ldlm_lock_decref);
  * \a lockh and mark it for subsequent cancellation once r/w refcount
  * drops to zero instead of putting into LRU.
  */
-void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh, __u32 mode)
+void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh,
+				 enum ldlm_mode mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
 

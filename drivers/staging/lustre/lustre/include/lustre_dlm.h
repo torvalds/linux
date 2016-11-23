@@ -965,8 +965,8 @@ struct ldlm_ast_work {
  * Common ldlm_enqueue parameters
  */
 struct ldlm_enqueue_info {
-	__u32 ei_type;   /** Type of the lock being enqueued. */
-	__u32 ei_mode;   /** Mode of the lock being enqueued. */
+	enum ldlm_type	ei_type;  /** Type of the lock being enqueued. */
+	enum ldlm_mode	ei_mode;  /** Mode of the lock being enqueued. */
 	void *ei_cb_bl;  /** blocking lock callback */
 	void *ei_cb_cp;  /** lock completion callback */
 	void *ei_cb_gl;  /** lock glimpse callback */
@@ -1166,10 +1166,12 @@ do {					    \
 struct ldlm_lock *ldlm_lock_get(struct ldlm_lock *lock);
 void ldlm_lock_put(struct ldlm_lock *lock);
 void ldlm_lock2desc(struct ldlm_lock *lock, struct ldlm_lock_desc *desc);
-void ldlm_lock_addref(const struct lustre_handle *lockh, __u32 mode);
-int  ldlm_lock_addref_try(const struct lustre_handle *lockh, __u32 mode);
-void ldlm_lock_decref(const struct lustre_handle *lockh, __u32 mode);
-void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh, __u32 mode);
+void ldlm_lock_addref(const struct lustre_handle *lockh, enum ldlm_mode mode);
+int  ldlm_lock_addref_try(const struct lustre_handle *lockh,
+			  enum ldlm_mode mode);
+void ldlm_lock_decref(const struct lustre_handle *lockh, enum ldlm_mode mode);
+void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh,
+				 enum ldlm_mode mode);
 void ldlm_lock_fail_match_locked(struct ldlm_lock *lock);
 void ldlm_lock_allow_match(struct ldlm_lock *lock);
 void ldlm_lock_allow_match_locked(struct ldlm_lock *lock);
