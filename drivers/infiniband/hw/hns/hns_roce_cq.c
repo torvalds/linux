@@ -349,6 +349,15 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 		goto err_mtt;
 	}
 
+	/*
+	 * For the QP created by kernel space, tptr value should be initialized
+	 * to zero; For the QP created by user space, it will cause synchronous
+	 * problems if tptr is set to zero here, so we initialze it in user
+	 * space.
+	 */
+	if (!context)
+		*hr_cq->tptr_addr = 0;
+
 	/* Get created cq handler and carry out event */
 	hr_cq->comp = hns_roce_ib_cq_comp;
 	hr_cq->event = hns_roce_ib_cq_event;

@@ -37,6 +37,8 @@
 
 #define DRV_NAME "hns_roce"
 
+#define HNS_ROCE_HW_VER1	('h' << 24 | 'i' << 16 | '0' << 8 | '6')
+
 #define MAC_ADDR_OCTET_NUM			6
 #define HNS_ROCE_MAX_MSG_LEN			0x80000000
 
@@ -296,7 +298,7 @@ struct hns_roce_cq {
 	u32				cq_depth;
 	u32				cons_index;
 	void __iomem			*cq_db_l;
-	void __iomem			*tptr_addr;
+	u16				*tptr_addr;
 	unsigned long			cqn;
 	u32				vector;
 	atomic_t			refcount;
@@ -553,6 +555,8 @@ struct hns_roce_dev {
 
 	int			cmd_mod;
 	int			loop_idc;
+	dma_addr_t		tptr_dma_addr; /*only for hw v1*/
+	u32			tptr_size; /*only for hw v1*/
 	struct hns_roce_hw	*hw;
 };
 

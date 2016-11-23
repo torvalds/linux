@@ -104,6 +104,10 @@
 
 #define HNS_ROCE_BT_RSV_BUF_SIZE			(1 << 17)
 
+#define HNS_ROCE_V1_TPTR_ENTRY_SIZE			2
+#define HNS_ROCE_V1_TPTR_BUF_SIZE	\
+	(HNS_ROCE_V1_TPTR_ENTRY_SIZE * HNS_ROCE_V1_MAX_CQ_NUM)
+
 #define HNS_ROCE_ODB_POLL_MODE				0
 
 #define HNS_ROCE_SDB_NORMAL_MODE			0
@@ -983,10 +987,15 @@ struct hns_roce_bt_table {
 	struct hns_roce_buf_list cqc_buf;
 };
 
+struct hns_roce_tptr_table {
+	struct hns_roce_buf_list tptr_buf;
+};
+
 struct hns_roce_v1_priv {
 	struct hns_roce_db_table  db_table;
 	struct hns_roce_raq_table raq_table;
 	struct hns_roce_bt_table  bt_table;
+	struct hns_roce_tptr_table tptr_table;
 };
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);

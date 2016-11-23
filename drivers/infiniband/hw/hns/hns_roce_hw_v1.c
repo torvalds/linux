@@ -849,6 +849,45 @@ static void hns_roce_bt_free(struct hns_roce_dev *hr_dev)
 		priv->bt_table.qpc_buf.buf, priv->bt_table.qpc_buf.map);
 }
 
+static int hns_roce_tptr_init(struct hns_roce_dev *hr_dev)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	struct hns_roce_buf_list *tptr_buf;
+	struct hns_roce_v1_priv *priv;
+
+	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	tptr_buf = &priv->tptr_table.tptr_buf;
+
+	/*
+	 * This buffer will be used for CQ's tptr(tail pointer), also
+	 * named ci(customer index). Every CQ will use 2 bytes to save
+	 * cqe ci in hip06. Hardware will read this area to get new ci
+	 * when the queue is almost full.
+	 */
+	tptr_buf->buf = dma_alloc_coherent(dev, HNS_ROCE_V1_TPTR_BUF_SIZE,
+					   &tptr_buf->map, GFP_KERNEL);
+	if (!tptr_buf->buf)
+		return -ENOMEM;
+
+	hr_dev->tptr_dma_addr = tptr_buf->map;
+	hr_dev->tptr_size = HNS_ROCE_V1_TPTR_BUF_SIZE;
+
+	return 0;
+}
+
+static void hns_roce_tptr_free(struct hns_roce_dev *hr_dev)
+{
+	struct device *dev = &hr_dev->pdev->dev;
+	struct hns_roce_buf_list *tptr_buf;
+	struct hns_roce_v1_priv *priv;
+
+	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	tptr_buf = &priv->tptr_table.tptr_buf;
+
+	dma_free_coherent(dev, HNS_ROCE_V1_TPTR_BUF_SIZE,
+			  tptr_buf->buf, tptr_buf->map);
+}
+
 /**
  * hns_roce_v1_reset - reset RoCE
  * @hr_dev: RoCE device struct pointer
@@ -906,12 +945,11 @@ void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	hr_dev->vendor_id = le32_to_cpu(roce_read(hr_dev, ROCEE_VENDOR_ID_REG));
 	hr_dev->vendor_part_id = le32_to_cpu(roce_read(hr_dev,
 					     ROCEE_VENDOR_PART_ID_REG));
-	hr_dev->hw_rev = le32_to_cpu(roce_read(hr_dev, ROCEE_HW_VERSION_REG));
-
 	hr_dev->sys_image_guid = le32_to_cpu(roce_read(hr_dev,
 					     ROCEE_SYS_IMAGE_GUID_L_REG)) |
 				((u64)le32_to_cpu(roce_read(hr_dev,
 					    ROCEE_SYS_IMAGE_GUID_H_REG)) << 32);
+	hr_dev->hw_rev		= HNS_ROCE_HW_VER1;
 
 	caps->num_qps		= HNS_ROCE_V1_MAX_QP_NUM;
 	caps->max_wqes		= HNS_ROCE_V1_MAX_WQE_NUM;
@@ -1009,7 +1047,16 @@ int hns_roce_v1_init(struct hns_roce_dev *hr_dev)
 		goto error_failed_bt_init;
 	}
 
+	ret = hns_roce_tptr_init(hr_dev);
+	if (ret) {
+		dev_err(dev, "tptr init failed!\n");
+		goto error_failed_tptr_init;
+	}
+
 	return 0;
+
+error_failed_tptr_init:
+	hns_roce_bt_free(hr_dev);
 
 error_failed_bt_init:
 	hns_roce_port_enable(hr_dev, HNS_ROCE_PORT_DOWN);
@@ -1022,6 +1069,7 @@ error_failed_raq_init:
 
 void hns_roce_v1_exit(struct hns_roce_dev *hr_dev)
 {
+	hns_roce_tptr_free(hr_dev);
 	hns_roce_bt_free(hr_dev);
 	hns_roce_port_enable(hr_dev, HNS_ROCE_PORT_DOWN);
 	hns_roce_raq_free(hr_dev);
@@ -1339,14 +1387,21 @@ void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 			   dma_addr_t dma_handle, int nent, u32 vector)
 {
 	struct hns_roce_cq_context *cq_context = NULL;
-	void __iomem *tptr_addr;
+	struct hns_roce_buf_list *tptr_buf;
+	struct hns_roce_v1_priv *priv;
+	dma_addr_t tptr_dma_addr;
+	int offset;
+
+	priv = (struct hns_roce_v1_priv *)hr_dev->hw->priv;
+	tptr_buf = &priv->tptr_table.tptr_buf;
 
 	cq_context = mb_buf;
 	memset(cq_context, 0, sizeof(*cq_context));
 
-	tptr_addr = 0;
-	hr_dev->priv_addr = tptr_addr;
-	hr_cq->tptr_addr = tptr_addr;
+	/* Get the tptr for this CQ. */
+	offset = hr_cq->cqn * HNS_ROCE_V1_TPTR_ENTRY_SIZE;
+	tptr_dma_addr = tptr_buf->map + offset;
+	hr_cq->tptr_addr = (u16 *)(tptr_buf->buf + offset);
 
 	/* Register cq_context members */
 	roce_set_field(cq_context->cqc_byte_4,
@@ -1390,10 +1445,10 @@ void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 	roce_set_field(cq_context->cqc_byte_20,
 		       CQ_CONTEXT_CQC_BYTE_20_CQE_TPTR_ADDR_H_M,
 		       CQ_CONTEXT_CQC_BYTE_20_CQE_TPTR_ADDR_H_S,
-		       (u64)tptr_addr >> 44);
+		       tptr_dma_addr >> 44);
 	cq_context->cqc_byte_20 = cpu_to_le32(cq_context->cqc_byte_20);
 
-	cq_context->cqe_tptr_addr_l = (u32)((u64)tptr_addr >> 12);
+	cq_context->cqe_tptr_addr_l = (u32)(tptr_dma_addr >> 12);
 
 	roce_set_field(cq_context->cqc_byte_32,
 		       CQ_CONTEXT_CQC_BYTE_32_CUR_CQE_BA1_H_M,
@@ -1659,8 +1714,14 @@ int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 			break;
 	}
 
-	if (npolled)
+	if (npolled) {
+		*hr_cq->tptr_addr = hr_cq->cons_index &
+			((hr_cq->cq_depth << 1) - 1);
+
+		/* Memroy barrier */
+		wmb();
 		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index);
+	}
 
 	spin_unlock_irqrestore(&hr_cq->lock, flags);
 
