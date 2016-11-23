@@ -420,10 +420,11 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
 	    (qp->req.state == QP_STATE_ERROR)) {
 		make_send_cqe(qp, wqe, &cqe);
+		advance_consumer(qp->sq.queue);
 		rxe_cq_post(qp->scq, &cqe, 0);
+	} else {
+		advance_consumer(qp->sq.queue);
 	}
-
-	advance_consumer(qp->sq.queue);
 
 	/*
 	 * we completed something so let req run again
