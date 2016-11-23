@@ -701,6 +701,9 @@
 &mshc_0 {
 	status = "okay";
 	num-slots = <1>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	cap-mmc-highspeed;
 	non-removable;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
