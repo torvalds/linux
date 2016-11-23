@@ -186,6 +186,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &i2c3 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <450>;
