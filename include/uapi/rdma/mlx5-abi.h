@@ -249,6 +249,12 @@ struct mlx5_ib_create_wq {
 	__u32   reserved;
 };
 
+struct mlx5_ib_create_ah_resp {
+	__u32	response_length;
+	__u8	dmac[ETH_ALEN];
+	__u8	reserved[6];
+};
+
 struct mlx5_ib_create_wq_resp {
 	__u32	response_length;
 	__u32	reserved;
