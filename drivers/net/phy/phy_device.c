@@ -914,15 +914,15 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 */
 	err = phy_init_hw(phydev);
 	if (err)
-		phy_detach(phydev);
-	else
-		phy_resume(phydev);
+		goto error;
 
+	phy_resume(phydev);
 	phy_led_triggers_register(phydev);
 
 	return err;
 
 error:
+	phy_detach(phydev);
 	put_device(d);
 	module_put(bus->owner);
 	return err;

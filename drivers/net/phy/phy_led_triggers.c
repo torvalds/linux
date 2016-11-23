@@ -130,7 +130,5 @@ void phy_led_triggers_unregister(struct phy_device *phy)
 
 	for (i = 0; i < phy->phy_num_led_triggers; i++)
 		phy_led_trigger_unregister(&phy->phy_led_triggers[i]);
-
-	devm_kfree(&phy->mdio.dev, phy->phy_led_triggers);
 }
 EXPORT_SYMBOL_GPL(phy_led_triggers_unregister);
