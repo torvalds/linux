@@ -17,8 +17,6 @@
 #define _BRCMF_PNO_H
 
 #define BRCMF_PNO_SCAN_COMPLETE		1
-#define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
-#define BRCMF_PNO_HIDDEN_BIT		2
 #define BRCMF_PNO_MAX_PFN_COUNT		16
 
 /**
@@ -36,5 +34,15 @@ int brcmf_pno_clean(struct brcmf_if *ifp);
  */
 int brcmf_pno_config(struct brcmf_if *ifp,
 		     struct cfg80211_sched_scan_request *request);
+
+/**
+ * brcmf_pno_add_ssid - add ssid for pno in firmware.
+ *
+ * @ifp: interface object used.
+ * @ssid: ssid information.
+ * @active: indicate this ssid needs to be actively probed.
+ */
+int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
+		       bool active);
 
 #endif /* _BRCMF_PNO_H */

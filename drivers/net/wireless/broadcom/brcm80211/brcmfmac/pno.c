@@ -28,6 +28,8 @@
 #define BRCMF_PNO_FREQ_EXPO_MAX		3
 #define BRCMF_PNO_ENABLE_ADAPTSCAN_BIT	6
 #define BRCMF_PNO_SCAN_INCOMPLETE	0
+#define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
+#define BRCMF_PNO_HIDDEN_BIT		2
 
 int brcmf_pno_clean(struct brcmf_if *ifp)
 {
@@ -96,5 +98,21 @@ int brcmf_pno_config(struct brcmf_if *ifp,
 		brcmf_err("pfn_macaddr failed, err=%d\n", err);
 
 	return err;
+}
+
+int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
+		       bool active)
+{
+	struct brcmf_pno_net_param_le pfn;
+
+	pfn.auth = cpu_to_le32(WLAN_AUTH_OPEN);
+	pfn.wpa_auth = cpu_to_le32(BRCMF_PNO_WPA_AUTH_ANY);
+	pfn.wsec = cpu_to_le32(0);
+	pfn.infra = cpu_to_le32(1);
+	if (active)
+		pfn.flags = cpu_to_le32(1 << BRCMF_PNO_HIDDEN_BIT);
+	pfn.ssid.SSID_len = cpu_to_le32(ssid->ssid_len);
+	memcpy(pfn.ssid.SSID, ssid->ssid, ssid->ssid_len);
+	return brcmf_fil_iovar_data_set(ifp, "pfn_add", &pfn, sizeof(pfn));
 }
 
