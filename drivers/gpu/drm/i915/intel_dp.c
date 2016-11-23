@@ -5770,11 +5770,10 @@ fail:
 	return false;
 }
 
-bool intel_dp_init(struct drm_device *dev,
+bool intel_dp_init(struct drm_i915_private *dev_priv,
 		   i915_reg_t output_reg,
 		   enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
@@ -5791,8 +5790,9 @@ bool intel_dp_init(struct drm_device *dev,
 	intel_encoder = &intel_dig_port->base;
 	encoder = &intel_encoder->base;
 
-	if (drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
-			     DRM_MODE_ENCODER_TMDS, "DP %c", port_name(port)))
+	if (drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
+			     &intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS,
+			     "DP %c", port_name(port)))
 		goto err_encoder_init;
 
 	intel_encoder->compute_config = intel_dp_compute_config;

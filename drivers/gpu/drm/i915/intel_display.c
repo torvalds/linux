@@ -8897,9 +8897,8 @@ out:
 	return ret;
 }
 
-static void ironlake_init_pch_refclk(struct drm_device *dev)
+static void ironlake_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
 	int i;
 	u32 val, final;
@@ -8911,7 +8910,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	bool using_ssc_source = false;
 
 	/* We need to take the global config into account */
-	for_each_intel_encoder(dev, encoder) {
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			has_panel = true;
@@ -9167,10 +9166,9 @@ static void lpt_program_fdi_mphy(struct drm_i915_private *dev_priv)
  * - Sequence to enable CLKOUT_DP without spread
  * - Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O
  */
-static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
-				 bool with_fdi)
+static void lpt_enable_clkout_dp(struct drm_i915_private *dev_priv,
+				 bool with_spread, bool with_fdi)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t reg, tmp;
 
 	if (WARN(with_fdi && !with_spread, "FDI requires downspread\n"))
@@ -9208,9 +9206,8 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 }
 
 /* Sequence to disable CLKOUT_DP */
-static void lpt_disable_clkout_dp(struct drm_device *dev)
+static void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t reg, tmp;
 
 	mutex_lock(&dev_priv->sb_lock);
@@ -9295,12 +9292,12 @@ static void lpt_bend_clkout_dp(struct drm_i915_private *dev_priv, int steps)
 
 #undef BEND_IDX
 
-static void lpt_init_pch_refclk(struct drm_device *dev)
+static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
 	bool has_vga = false;
 
-	for_each_intel_encoder(dev, encoder) {
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_ANALOG:
 			has_vga = true;
@@ -9311,24 +9308,22 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	}
 
 	if (has_vga) {
-		lpt_bend_clkout_dp(to_i915(dev), 0);
-		lpt_enable_clkout_dp(dev, true, true);
+		lpt_bend_clkout_dp(dev_priv, 0);
+		lpt_enable_clkout_dp(dev_priv, true, true);
 	} else {
-		lpt_disable_clkout_dp(dev);
+		lpt_disable_clkout_dp(dev_priv);
 	}
 }
 
 /*
  * Initialize reference clocks when the driver loads
  */
-void intel_init_pch_refclk(struct drm_device *dev)
+void intel_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
-		ironlake_init_pch_refclk(dev);
+		ironlake_init_pch_refclk(dev_priv);
 	else if (HAS_PCH_LPT(dev_priv))
-		lpt_init_pch_refclk(dev);
+		lpt_init_pch_refclk(dev_priv);
 }
 
 static void ironlake_set_pipeconf(struct drm_crtc *crtc)
@@ -10175,7 +10170,6 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
  */
 void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	uint32_t val;
 
 	DRM_DEBUG_KMS("Enabling package C8+\n");
@@ -10186,19 +10180,18 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
 	}
 
-	lpt_disable_clkout_dp(dev);
+	lpt_disable_clkout_dp(dev_priv);
 	hsw_disable_lcpll(dev_priv, true, true);
 }
 
 void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	uint32_t val;
 
 	DRM_DEBUG_KMS("Disabling package C8+\n");
 
 	hsw_restore_lcpll(dev_priv);
-	lpt_init_pch_refclk(dev);
+	lpt_init_pch_refclk(dev_priv);
 
 	if (HAS_PCH_LPT_LP(dev_priv)) {
 		val = I915_READ(SOUTH_DSPCLK_GATE_D);
@@ -15494,9 +15487,8 @@ static void intel_pps_init(struct drm_i915_private *dev_priv)
 	intel_pps_unlock_regs_wa(dev_priv);
 }
 
-static void intel_setup_outputs(struct drm_device *dev)
+static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
@@ -15507,10 +15499,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 	 * prevent the registeration of both eDP and LVDS and the incorrect
 	 * sharing of the PPS.
 	 */
-	intel_lvds_init(dev);
+	intel_lvds_init(dev_priv);
 
 	if (intel_crt_present(dev_priv))
-		intel_crt_init(dev);
+		intel_crt_init(dev_priv);
 
 	if (IS_BROXTON(dev_priv)) {
 		/*
@@ -15518,11 +15510,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 * DDI_BUF_CTL_A or SFUSE_STRAP registers, find another way to
 		 * detect the ports.
 		 */
-		intel_ddi_init(dev, PORT_A);
-		intel_ddi_init(dev, PORT_B);
-		intel_ddi_init(dev, PORT_C);
+		intel_ddi_init(dev_priv, PORT_A);
+		intel_ddi_init(dev_priv, PORT_B);
+		intel_ddi_init(dev_priv, PORT_C);
 
-		intel_dsi_init(dev);
+		intel_dsi_init(dev_priv);
 	} else if (HAS_DDI(dev_priv)) {
 		int found;
 
@@ -15534,18 +15526,18 @@ static void intel_setup_outputs(struct drm_device *dev)
 		found = I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_INIT_DISPLAY_DETECTED;
 		/* WaIgnoreDDIAStrap: skl */
 		if (found || IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-			intel_ddi_init(dev, PORT_A);
+			intel_ddi_init(dev_priv, PORT_A);
 
 		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
 		 * register */
 		found = I915_READ(SFUSE_STRAP);
 
 		if (found & SFUSE_STRAP_DDIB_DETECTED)
-			intel_ddi_init(dev, PORT_B);
+			intel_ddi_init(dev_priv, PORT_B);
 		if (found & SFUSE_STRAP_DDIC_DETECTED)
-			intel_ddi_init(dev, PORT_C);
+			intel_ddi_init(dev_priv, PORT_C);
 		if (found & SFUSE_STRAP_DDID_DETECTED)
-			intel_ddi_init(dev, PORT_D);
+			intel_ddi_init(dev_priv, PORT_D);
 		/*
 		 * On SKL we don't have a way to detect DDI-E so we rely on VBT.
 		 */
@@ -15553,35 +15545,35 @@ static void intel_setup_outputs(struct drm_device *dev)
 		    (dev_priv->vbt.ddi_port_info[PORT_E].supports_dp ||
 		     dev_priv->vbt.ddi_port_info[PORT_E].supports_dvi ||
 		     dev_priv->vbt.ddi_port_info[PORT_E].supports_hdmi))
-			intel_ddi_init(dev, PORT_E);
+			intel_ddi_init(dev_priv, PORT_E);
 
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		int found;
 		dpd_is_edp = intel_dp_is_edp(dev_priv, PORT_D);
 
 		if (has_edp_a(dev_priv))
-			intel_dp_init(dev, DP_A, PORT_A);
+			intel_dp_init(dev_priv, DP_A, PORT_A);
 
 		if (I915_READ(PCH_HDMIB) & SDVO_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
-			found = intel_sdvo_init(dev, PCH_SDVOB, PORT_B);
+			found = intel_sdvo_init(dev_priv, PCH_SDVOB, PORT_B);
 			if (!found)
-				intel_hdmi_init(dev, PCH_HDMIB, PORT_B);
+				intel_hdmi_init(dev_priv, PCH_HDMIB, PORT_B);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
-				intel_dp_init(dev, PCH_DP_B, PORT_B);
+				intel_dp_init(dev_priv, PCH_DP_B, PORT_B);
 		}
 
 		if (I915_READ(PCH_HDMIC) & SDVO_DETECTED)
-			intel_hdmi_init(dev, PCH_HDMIC, PORT_C);
+			intel_hdmi_init(dev_priv, PCH_HDMIC, PORT_C);
 
 		if (!dpd_is_edp && I915_READ(PCH_HDMID) & SDVO_DETECTED)
-			intel_hdmi_init(dev, PCH_HDMID, PORT_D);
+			intel_hdmi_init(dev_priv, PCH_HDMID, PORT_D);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
-			intel_dp_init(dev, PCH_DP_C, PORT_C);
+			intel_dp_init(dev_priv, PCH_DP_C, PORT_C);
 
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
-			intel_dp_init(dev, PCH_DP_D, PORT_D);
+			intel_dp_init(dev_priv, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		bool has_edp, has_port;
 
@@ -15603,16 +15595,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 		has_edp = intel_dp_is_edp(dev_priv, PORT_B);
 		has_port = intel_bios_is_port_present(dev_priv, PORT_B);
 		if (I915_READ(VLV_DP_B) & DP_DETECTED || has_port)
-			has_edp &= intel_dp_init(dev, VLV_DP_B, PORT_B);
+			has_edp &= intel_dp_init(dev_priv, VLV_DP_B, PORT_B);
 		if ((I915_READ(VLV_HDMIB) & SDVO_DETECTED || has_port) && !has_edp)
-			intel_hdmi_init(dev, VLV_HDMIB, PORT_B);
+			intel_hdmi_init(dev_priv, VLV_HDMIB, PORT_B);
 
 		has_edp = intel_dp_is_edp(dev_priv, PORT_C);
 		has_port = intel_bios_is_port_present(dev_priv, PORT_C);
 		if (I915_READ(VLV_DP_C) & DP_DETECTED || has_port)
-			has_edp &= intel_dp_init(dev, VLV_DP_C, PORT_C);
+			has_edp &= intel_dp_init(dev_priv, VLV_DP_C, PORT_C);
 		if ((I915_READ(VLV_HDMIC) & SDVO_DETECTED || has_port) && !has_edp)
-			intel_hdmi_init(dev, VLV_HDMIC, PORT_C);
+			intel_hdmi_init(dev_priv, VLV_HDMIC, PORT_C);
 
 		if (IS_CHERRYVIEW(dev_priv)) {
 			/*
@@ -15621,63 +15613,63 @@ static void intel_setup_outputs(struct drm_device *dev)
 			 */
 			has_port = intel_bios_is_port_present(dev_priv, PORT_D);
 			if (I915_READ(CHV_DP_D) & DP_DETECTED || has_port)
-				intel_dp_init(dev, CHV_DP_D, PORT_D);
+				intel_dp_init(dev_priv, CHV_DP_D, PORT_D);
 			if (I915_READ(CHV_HDMID) & SDVO_DETECTED || has_port)
-				intel_hdmi_init(dev, CHV_HDMID, PORT_D);
+				intel_hdmi_init(dev_priv, CHV_HDMID, PORT_D);
 		}
 
-		intel_dsi_init(dev);
+		intel_dsi_init(dev_priv);
 	} else if (!IS_GEN2(dev_priv) && !IS_PINEVIEW(dev_priv)) {
 		bool found = false;
 
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
-			found = intel_sdvo_init(dev, GEN3_SDVOB, PORT_B);
+			found = intel_sdvo_init(dev_priv, GEN3_SDVOB, PORT_B);
 			if (!found && IS_G4X(dev_priv)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
-				intel_hdmi_init(dev, GEN4_HDMIB, PORT_B);
+				intel_hdmi_init(dev_priv, GEN4_HDMIB, PORT_B);
 			}
 
 			if (!found && IS_G4X(dev_priv))
-				intel_dp_init(dev, DP_B, PORT_B);
+				intel_dp_init(dev_priv, DP_B, PORT_B);
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
 
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOC\n");
-			found = intel_sdvo_init(dev, GEN3_SDVOC, PORT_C);
+			found = intel_sdvo_init(dev_priv, GEN3_SDVOC, PORT_C);
 		}
 
 		if (!found && (I915_READ(GEN3_SDVOC) & SDVO_DETECTED)) {
 
 			if (IS_G4X(dev_priv)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
-				intel_hdmi_init(dev, GEN4_HDMIC, PORT_C);
+				intel_hdmi_init(dev_priv, GEN4_HDMIC, PORT_C);
 			}
 			if (IS_G4X(dev_priv))
-				intel_dp_init(dev, DP_C, PORT_C);
+				intel_dp_init(dev_priv, DP_C, PORT_C);
 		}
 
 		if (IS_G4X(dev_priv) && (I915_READ(DP_D) & DP_DETECTED))
-			intel_dp_init(dev, DP_D, PORT_D);
+			intel_dp_init(dev_priv, DP_D, PORT_D);
 	} else if (IS_GEN2(dev_priv))
-		intel_dvo_init(dev);
+		intel_dvo_init(dev_priv);
 
 	if (SUPPORTS_TV(dev_priv))
-		intel_tv_init(dev);
+		intel_tv_init(dev_priv);
 
-	intel_psr_init(dev);
+	intel_psr_init(dev_priv);
 
-	for_each_intel_encoder(dev, encoder) {
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		encoder->base.possible_crtcs = encoder->crtc_mask;
 		encoder->base.possible_clones =
 			intel_encoder_clones(encoder);
 	}
 
-	intel_init_pch_refclk(dev);
+	intel_init_pch_refclk(dev_priv);
 
-	drm_helper_move_panel_connectors_to_head(dev);
+	drm_helper_move_panel_connectors_to_head(&dev_priv->drm);
 }
 
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -16532,7 +16524,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	/* Just disable it once at startup */
 	i915_disable_vga(dev_priv);
-	intel_setup_outputs(dev);
+	intel_setup_outputs(dev_priv);
 
 	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev);

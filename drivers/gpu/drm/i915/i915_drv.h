@@ -3570,7 +3570,7 @@ extern void intel_display_resume(struct drm_device *dev);
 extern void i915_redisable_vga(struct drm_i915_private *dev_priv);
 extern void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
 extern bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val);
-extern void intel_init_pch_refclk(struct drm_device *dev);
+extern void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 extern void intel_set_rps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);

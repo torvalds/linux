@@ -1434,15 +1434,15 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 	}
 }
 
-void intel_dsi_init(struct drm_device *dev)
+void intel_dsi_init(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_display_mode *scan, *fixed_mode = NULL;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port;
 	unsigned int i;
 

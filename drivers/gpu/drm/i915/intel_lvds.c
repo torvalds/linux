@@ -971,9 +971,9 @@ static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
  */
-void intel_lvds_init(struct drm_device *dev)
+void intel_lvds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_encoder *intel_encoder;
 	struct intel_lvds_connector *lvds_connector;

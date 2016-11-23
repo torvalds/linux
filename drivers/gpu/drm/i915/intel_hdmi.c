@@ -1933,10 +1933,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	}
 }
 
-void intel_hdmi_init(struct drm_device *dev,
+void intel_hdmi_init(struct drm_i915_private *dev_priv,
 		     i915_reg_t hdmi_reg, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
@@ -1953,8 +1952,9 @@ void intel_hdmi_init(struct drm_device *dev,
 
 	intel_encoder = &intel_dig_port->base;
 
-	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS, "HDMI %c", port_name(port));
+	drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
+			 &intel_hdmi_enc_funcs, DRM_MODE_ENCODER_TMDS,
+			 "HDMI %c", port_name(port));
 
 	intel_encoder->compute_config = intel_hdmi_compute_config;
 	if (HAS_PCH_SPLIT(dev_priv)) {

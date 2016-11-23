@@ -818,10 +818,8 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
  * This function is  called only once at driver load to initialize basic
  * PSR stuff.
  */
-void intel_psr_init(struct drm_device *dev)
+void intel_psr_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
 

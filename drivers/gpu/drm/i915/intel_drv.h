@@ -1151,7 +1151,7 @@ void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
 
 /* intel_crt.c */
-void intel_crt_init(struct drm_device *dev);
+void intel_crt_init(struct drm_i915_private *dev_priv);
 void intel_crt_reset(struct drm_encoder *encoder);
 
 /* intel_ddi.c */
@@ -1162,7 +1162,7 @@ void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
 				struct drm_connector_state *old_conn_state);
 void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder);
 void hsw_fdi_link_train(struct drm_crtc *crtc);
-void intel_ddi_init(struct drm_device *dev, enum port port);
+void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port);
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe);
 void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc);
@@ -1387,7 +1387,8 @@ void intel_csr_ucode_suspend(struct drm_i915_private *);
 void intel_csr_ucode_resume(struct drm_i915_private *);
 
 /* intel_dp.c */
-bool intel_dp_init(struct drm_device *dev, i915_reg_t output_reg, enum port port);
+bool intel_dp_init(struct drm_i915_private *dev_priv, i915_reg_t output_reg,
+		   enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
@@ -1462,13 +1463,13 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
 void intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port);
 /* intel_dsi.c */
-void intel_dsi_init(struct drm_device *dev);
+void intel_dsi_init(struct drm_i915_private *dev_priv);
 
 /* intel_dsi_dcs_backlight.c */
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 
 /* intel_dvo.c */
-void intel_dvo_init(struct drm_device *dev);
+void intel_dvo_init(struct drm_i915_private *dev_priv);
 /* intel_hotplug.c */
 void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
 
@@ -1532,7 +1533,8 @@ void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
 void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv);
 
 /* intel_hdmi.c */
-void intel_hdmi_init(struct drm_device *dev, i915_reg_t hdmi_reg, enum port port);
+void intel_hdmi_init(struct drm_i915_private *dev_priv, i915_reg_t hdmi_reg,
+		     enum port port);
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			       struct intel_connector *intel_connector);
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
@@ -1543,7 +1545,7 @@ void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
 
 
 /* intel_lvds.c */
-void intel_lvds_init(struct drm_device *dev);
+void intel_lvds_init(struct drm_i915_private *dev_priv);
 struct intel_encoder *intel_get_lvds_encoder(struct drm_device *dev);
 bool intel_is_dual_link_lvds(struct drm_device *dev);
 
@@ -1616,7 +1618,7 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 void intel_psr_flush(struct drm_i915_private *dev_priv,
 		     unsigned frontbuffer_bits,
 		     enum fb_op_origin origin);
-void intel_psr_init(struct drm_device *dev);
+void intel_psr_init(struct drm_i915_private *dev_priv);
 void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 				   unsigned frontbuffer_bits);
 
@@ -1761,7 +1763,7 @@ static inline int intel_enable_rc6(void)
 }
 
 /* intel_sdvo.c */
-bool intel_sdvo_init(struct drm_device *dev,
+bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 		     i915_reg_t reg, enum port port);
 
 
@@ -1776,7 +1778,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc);
 void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work);
 
 /* intel_tv.c */
-void intel_tv_init(struct drm_device *dev);
+void intel_tv_init(struct drm_i915_private *dev_priv);
 
 /* intel_atomic.c */
 int intel_connector_atomic_get_property(struct drm_connector *connector,
