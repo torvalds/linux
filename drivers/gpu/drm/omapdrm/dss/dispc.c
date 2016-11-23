@@ -3229,6 +3229,16 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel,
 	}
 }
 
+static int vm_flag_to_int(enum display_flags flags, enum display_flags high,
+	enum display_flags low)
+{
+	if (flags & high)
+		return 1;
+	if (flags & low)
+		return -1;
+	return 0;
+}
+
 /* change name to mode? */
 static void dispc_mgr_set_timings(enum omap_channel channel,
 			   const struct videomode *vm)
@@ -3258,11 +3268,11 @@ static void dispc_mgr_set_timings(enum omap_channel channel,
 			t.hsync_len, t.hfront_porch, t.hback_porch,
 			t.vsync_len, t.vfront_porch, t.vback_porch);
 		DSSDBG("vsync_level %d hsync_level %d data_pclk_edge %d de_level %d sync_pclk_edge %d\n",
-			!!(t.flags & DISPLAY_FLAGS_VSYNC_HIGH),
-			!!(t.flags & DISPLAY_FLAGS_HSYNC_HIGH),
-			!!(t.flags & DISPLAY_FLAGS_PIXDATA_POSEDGE),
-			!!(t.flags & DISPLAY_FLAGS_DE_HIGH),
-			!!(t.flags & DISPLAY_FLAGS_SYNC_POSEDGE));
+			vm_flag_to_int(t.flags, DISPLAY_FLAGS_VSYNC_HIGH, DISPLAY_FLAGS_VSYNC_LOW),
+			vm_flag_to_int(t.flags, DISPLAY_FLAGS_HSYNC_HIGH, DISPLAY_FLAGS_HSYNC_LOW),
+			vm_flag_to_int(t.flags, DISPLAY_FLAGS_PIXDATA_POSEDGE, DISPLAY_FLAGS_PIXDATA_NEGEDGE),
+			vm_flag_to_int(t.flags, DISPLAY_FLAGS_DE_HIGH, DISPLAY_FLAGS_DE_LOW),
+			vm_flag_to_int(t.flags, DISPLAY_FLAGS_SYNC_POSEDGE, DISPLAY_FLAGS_SYNC_NEGEDGE));
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
 	} else {
