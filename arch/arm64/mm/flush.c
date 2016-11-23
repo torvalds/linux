@@ -25,13 +25,6 @@
 #include <asm/cachetype.h>
 #include <asm/tlbflush.h>
 
-void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-		       unsigned long end)
-{
-	if (vma->vm_flags & VM_EXEC)
-		__flush_icache_all();
-}
-
 void sync_icache_aliases(void *kaddr, unsigned long len)
 {
 	unsigned long addr = (unsigned long)kaddr;

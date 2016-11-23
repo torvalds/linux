@@ -65,7 +65,6 @@
  *		- kaddr  - page address
  *		- size   - region size
  */
-extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
 extern void flush_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(void *addr, size_t len);
 extern void __clean_dcache_area_poc(void *addr, size_t len);
@@ -79,6 +78,11 @@ static inline void flush_cache_mm(struct mm_struct *mm)
 
 static inline void flush_cache_page(struct vm_area_struct *vma,
 				    unsigned long user_addr, unsigned long pfn)
+{
+}
+
+static inline void flush_cache_range(struct vm_area_struct *vma,
+				     unsigned long start, unsigned long end)
 {
 }
 
