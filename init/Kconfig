@@ -1154,6 +1154,18 @@ config CGROUP_PERF
 
 	  Say N if unsure.
 
+config CGROUP_BPF
+	bool "Support for eBPF programs attached to cgroups"
+	depends on BPF_SYSCALL && SOCK_CGROUP_DATA
+	help
+	  Allow attaching eBPF programs to a cgroup using the bpf(2)
+	  syscall command BPF_PROG_ATTACH.
+
+	  In which context these programs are accessed depends on the type
+	  of attachment. For instance, programs that are attached using
+	  BPF_CGROUP_INET_INGRESS will be executed on the ingress path of
+	  inet sockets.
+
 config CGROUP_DEBUG
 	bool "Example controller"
 	default n
