@@ -326,6 +326,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_PEER_FLOW_CONTROL] = "peer-flow-ctrl",
 	[ATH10K_FW_FEATURE_BTCOEX_PARAM] = "btcoex-param",
 	[ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR] = "skip-null-func-war",
+	[ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST] = "allows-mesh-bcast",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,

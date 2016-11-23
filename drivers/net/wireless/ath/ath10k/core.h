@@ -562,6 +562,13 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
 
+	/* Firmware allow other BSS mesh broadcast/multicast frames without
+	 * creating monitor interface. Appropriate rxfilters are programmed for
+	 * mesh vdev by firmware itself. This feature flags will be used for
+	 * not creating monitor vdev while configuring mesh node.
+	 */
+	ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST = 16,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
