@@ -429,8 +429,6 @@ struct hns_roce_ib_iboe {
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
 	struct notifier_block	nb;
 	struct notifier_block	nb_inet;
-	/* 16 GID is shared by 6 port in v1 engine. */
-	union ib_gid		gid_table[HNS_ROCE_MAX_GID_NUM];
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
