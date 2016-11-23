@@ -1394,10 +1394,8 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 		return;
 
 	for (ring = 0; ring < priv->rx_ring_num; ring++) {
-		spin_lock_bh(&priv->stats_lock);
-		rx_packets = priv->rx_ring[ring]->packets;
-		rx_bytes = priv->rx_ring[ring]->bytes;
-		spin_unlock_bh(&priv->stats_lock);
+		rx_packets = READ_ONCE(priv->rx_ring[ring]->packets);
+		rx_bytes = READ_ONCE(priv->rx_ring[ring]->bytes);
 
 		rx_pkt_diff = ((unsigned long) (rx_packets -
 				priv->last_moder_packets[ring]));
