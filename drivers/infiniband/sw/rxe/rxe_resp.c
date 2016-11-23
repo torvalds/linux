@@ -742,7 +742,8 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	} else {
 		qp->resp.res = NULL;
 		qp->resp.opcode = -1;
-		qp->resp.psn = res->cur_psn;
+		if (psn_compare(res->cur_psn, qp->resp.psn) >= 0)
+			qp->resp.psn = res->cur_psn;
 		state = RESPST_CLEANUP;
 	}
 
