@@ -1306,6 +1306,45 @@ int have_submounts(struct dentry *parent)
 }
 EXPORT_SYMBOL(have_submounts);
 
+struct check_mount {
+	struct vfsmount *mnt;
+	unsigned int mounted;
+};
+
+static enum d_walk_ret path_check_mount(void *data, struct dentry *dentry)
+{
+	struct check_mount *info = data;
+	struct path path = { .mnt = info->mnt, .dentry = dentry };
+
+	if (likely(!d_mountpoint(dentry)))
+		return D_WALK_CONTINUE;
+	if (__path_is_mountpoint(&path)) {
+		info->mounted = 1;
+		return D_WALK_QUIT;
+	}
+	return D_WALK_CONTINUE;
+}
+
+/**
+ * path_has_submounts - check for mounts over a dentry in the
+ *                      current namespace.
+ * @parent: path to check.
+ *
+ * Return true if the parent or its subdirectories contain
+ * a mount point in the current namespace.
+ */
+int path_has_submounts(const struct path *parent)
+{
+	struct check_mount data = { .mnt = parent->mnt, .mounted = 0 };
+
+	read_seqlock_excl(&mount_lock);
+	d_walk(parent->dentry, &data, path_check_mount, NULL);
+	read_sequnlock_excl(&mount_lock);
+
+	return data.mounted;
+}
+EXPORT_SYMBOL(path_has_submounts);
+
 /*
  * Called by mount code to set a mountpoint and check if the mountpoint is
  * reachable (e.g. NFS can unhash a directory dentry and then the complete
