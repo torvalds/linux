@@ -612,7 +612,7 @@ static struct ldlm_ns_hash_def ldlm_ns_hash_defs[] = {
 
 /** Register \a ns in the list of namespaces */
 static void ldlm_namespace_register(struct ldlm_namespace *ns,
-				    ldlm_side_t client)
+				    enum ldlm_side client)
 {
 	mutex_lock(ldlm_namespace_lock(client));
 	LASSERT(list_empty(&ns->ns_list_chain));
@@ -625,7 +625,7 @@ static void ldlm_namespace_register(struct ldlm_namespace *ns,
  * Create and initialize new empty namespace.
  */
 struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
-					  ldlm_side_t client,
+					  enum ldlm_side client,
 					  enum ldlm_appetite apt,
 					  enum ldlm_ns_type ns_type)
 {
@@ -954,7 +954,7 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 
 /** Unregister \a ns from the list of namespaces. */
 static void ldlm_namespace_unregister(struct ldlm_namespace *ns,
-				      ldlm_side_t client)
+				      enum ldlm_side client)
 {
 	mutex_lock(ldlm_namespace_lock(client));
 	LASSERT(!list_empty(&ns->ns_list_chain));
@@ -1018,7 +1018,7 @@ void ldlm_namespace_put(struct ldlm_namespace *ns)
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
 void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *ns,
-					  ldlm_side_t client)
+					  enum ldlm_side client)
 {
 	LASSERT(!list_empty(&ns->ns_list_chain));
 	LASSERT(mutex_is_locked(ldlm_namespace_lock(client)));
@@ -1027,7 +1027,7 @@ void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *ns,
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
 void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *ns,
-					    ldlm_side_t client)
+					    enum ldlm_side client)
 {
 	LASSERT(!list_empty(&ns->ns_list_chain));
 	LASSERT(mutex_is_locked(ldlm_namespace_lock(client)));
@@ -1035,7 +1035,7 @@ void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *ns,
 }
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
-struct ldlm_namespace *ldlm_namespace_first_locked(ldlm_side_t client)
+struct ldlm_namespace *ldlm_namespace_first_locked(enum ldlm_side client)
 {
 	LASSERT(mutex_is_locked(ldlm_namespace_lock(client)));
 	LASSERT(!list_empty(ldlm_namespace_list(client)));
@@ -1305,7 +1305,7 @@ void ldlm_res2desc(struct ldlm_resource *res, struct ldlm_resource_desc *desc)
  * Print information about all locks in all namespaces on this node to debug
  * log.
  */
-void ldlm_dump_all_namespaces(ldlm_side_t client, int level)
+void ldlm_dump_all_namespaces(enum ldlm_side client, int level)
 {
 	struct list_head *tmp;
 

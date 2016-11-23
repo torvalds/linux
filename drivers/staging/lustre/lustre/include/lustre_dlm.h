@@ -86,10 +86,10 @@ enum ldlm_error {
  * decisions about lack of conflicts or do any autonomous lock granting without
  * first speaking to a server.
  */
-typedef enum {
+enum ldlm_side {
 	LDLM_NAMESPACE_SERVER = 1 << 0,
 	LDLM_NAMESPACE_CLIENT = 1 << 1
-} ldlm_side_t;
+};
 
 /**
  * The blocking callback is overloaded to perform two functions.  These flags
@@ -359,7 +359,7 @@ struct ldlm_namespace {
 	struct obd_device	*ns_obd;
 
 	/** Flag indicating if namespace is on client instead of server */
-	ldlm_side_t		ns_client;
+	enum ldlm_side		ns_client;
 
 	/** Resource hash table for namespace. */
 	struct cfs_hash		*ns_rs_hash;
@@ -1187,7 +1187,7 @@ void ldlm_unlink_lock_skiplist(struct ldlm_lock *req);
 /* resource.c */
 struct ldlm_namespace *
 ldlm_namespace_new(struct obd_device *obd, char *name,
-		   ldlm_side_t client, enum ldlm_appetite apt,
+		   enum ldlm_side client, enum ldlm_appetite apt,
 		   enum ldlm_ns_type ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
@@ -1206,7 +1206,7 @@ void ldlm_resource_add_lock(struct ldlm_resource *res,
 			    struct ldlm_lock *lock);
 void ldlm_resource_unlink_lock(struct ldlm_lock *lock);
 void ldlm_res2desc(struct ldlm_resource *res, struct ldlm_resource_desc *desc);
-void ldlm_dump_all_namespaces(ldlm_side_t client, int level);
+void ldlm_dump_all_namespaces(enum ldlm_side client, int level);
 void ldlm_namespace_dump(int level, struct ldlm_namespace *);
 void ldlm_resource_dump(int level, struct ldlm_resource *);
 int ldlm_lock_change_resource(struct ldlm_namespace *, struct ldlm_lock *,
@@ -1331,7 +1331,7 @@ int ldlm_pools_init(void);
 void ldlm_pools_fini(void);
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
-		   int idx, ldlm_side_t client);
+		   int idx, enum ldlm_side client);
 void ldlm_pool_fini(struct ldlm_pool *pl);
 void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock);
 void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock);

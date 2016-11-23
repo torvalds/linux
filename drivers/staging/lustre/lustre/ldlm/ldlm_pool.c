@@ -651,7 +651,7 @@ static void ldlm_pool_debugfs_fini(struct ldlm_pool *pl)
 }
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
-		   int idx, ldlm_side_t client)
+		   int idx, enum ldlm_side client)
 {
 	int rc;
 
@@ -788,7 +788,7 @@ static struct completion ldlm_pools_comp;
  * count locks from all namespaces (if possible). Returns number of
  * cached locks.
  */
-static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
+static unsigned long ldlm_pools_count(enum ldlm_side client, gfp_t gfp_mask)
 {
 	unsigned long total = 0;
 	int nr_ns;
@@ -837,7 +837,8 @@ static unsigned long ldlm_pools_count(ldlm_side_t client, gfp_t gfp_mask)
 	return total;
 }
 
-static unsigned long ldlm_pools_scan(ldlm_side_t client, int nr, gfp_t gfp_mask)
+static unsigned long ldlm_pools_scan(enum ldlm_side client, int nr,
+				     gfp_t gfp_mask)
 {
 	unsigned long freed = 0;
 	int tmp, nr_ns;
@@ -895,7 +896,7 @@ static unsigned long ldlm_pools_cli_scan(struct shrinker *s,
 			       sc->gfp_mask);
 }
 
-static int ldlm_pools_recalc(ldlm_side_t client)
+static int ldlm_pools_recalc(enum ldlm_side client)
 {
 	struct ldlm_namespace *ns;
 	struct ldlm_namespace *ns_old = NULL;

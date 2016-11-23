@@ -39,13 +39,13 @@ extern struct list_head ldlm_srv_namespace_list;
 extern struct mutex ldlm_cli_namespace_lock;
 extern struct list_head ldlm_cli_active_namespace_list;
 
-static inline int ldlm_namespace_nr_read(ldlm_side_t client)
+static inline int ldlm_namespace_nr_read(enum ldlm_side client)
 {
 	return client == LDLM_NAMESPACE_SERVER ?
 		ldlm_srv_namespace_nr : ldlm_cli_namespace_nr;
 }
 
-static inline void ldlm_namespace_nr_inc(ldlm_side_t client)
+static inline void ldlm_namespace_nr_inc(enum ldlm_side client)
 {
 	if (client == LDLM_NAMESPACE_SERVER)
 		ldlm_srv_namespace_nr++;
@@ -53,7 +53,7 @@ static inline void ldlm_namespace_nr_inc(ldlm_side_t client)
 		ldlm_cli_namespace_nr++;
 }
 
-static inline void ldlm_namespace_nr_dec(ldlm_side_t client)
+static inline void ldlm_namespace_nr_dec(enum ldlm_side client)
 {
 	if (client == LDLM_NAMESPACE_SERVER)
 		ldlm_srv_namespace_nr--;
@@ -61,13 +61,13 @@ static inline void ldlm_namespace_nr_dec(ldlm_side_t client)
 		ldlm_cli_namespace_nr--;
 }
 
-static inline struct list_head *ldlm_namespace_list(ldlm_side_t client)
+static inline struct list_head *ldlm_namespace_list(enum ldlm_side client)
 {
 	return client == LDLM_NAMESPACE_SERVER ?
 		&ldlm_srv_namespace_list : &ldlm_cli_active_namespace_list;
 }
 
-static inline struct mutex *ldlm_namespace_lock(ldlm_side_t client)
+static inline struct mutex *ldlm_namespace_lock(enum ldlm_side client)
 {
 	return client == LDLM_NAMESPACE_SERVER ?
 		&ldlm_srv_namespace_lock : &ldlm_cli_namespace_lock;
@@ -79,10 +79,11 @@ static inline int ldlm_ns_empty(struct ldlm_namespace *ns)
 	return atomic_read(&ns->ns_bref) == 0;
 }
 
-void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *, ldlm_side_t);
+void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *,
+					  enum ldlm_side);
 void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *,
-					    ldlm_side_t);
-struct ldlm_namespace *ldlm_namespace_first_locked(ldlm_side_t);
+					    enum ldlm_side);
+struct ldlm_namespace *ldlm_namespace_first_locked(enum ldlm_side);
 
 /* ldlm_request.c */
 /* Cancel lru flag, it indicates we cancel aged locks. */
