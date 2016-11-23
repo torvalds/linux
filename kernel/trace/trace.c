@@ -739,6 +739,31 @@ static inline void ftrace_trace_stack(struct trace_array *tr,
 
 #endif
 
+static __always_inline void
+trace_event_setup(struct ring_buffer_event *event,
+		  int type, unsigned long flags, int pc)
+{
+	struct trace_entry *ent = ring_buffer_event_data(event);
+
+	tracing_generic_entry_update(ent, flags, pc);
+	ent->type = type;
+}
+
+static __always_inline struct ring_buffer_event *
+__trace_buffer_lock_reserve(struct ring_buffer *buffer,
+			  int type,
+			  unsigned long len,
+			  unsigned long flags, int pc)
+{
+	struct ring_buffer_event *event;
+
+	event = ring_buffer_lock_reserve(buffer, len);
+	if (event != NULL)
+		trace_event_setup(event, type, flags, pc);
+
+	return event;
+}
+
 static void tracer_tracing_on(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
@@ -795,8 +820,8 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 
 	local_save_flags(irq_flags);
 	buffer = global_trace.trace_buffer.buffer;
-	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc, 
-					  irq_flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, alloc, 
+					    irq_flags, pc);
 	if (!event)
 		return 0;
 
@@ -843,8 +868,8 @@ int __trace_bputs(unsigned long ip, const char *str)
 
 	local_save_flags(irq_flags);
 	buffer = global_trace.trace_buffer.buffer;
-	event = trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
-					  irq_flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_BPUTS, size,
+					    irq_flags, pc);
 	if (!event)
 		return 0;
 
@@ -1913,29 +1938,13 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 }
 EXPORT_SYMBOL_GPL(tracing_generic_entry_update);
 
-static __always_inline void
-trace_event_setup(struct ring_buffer_event *event,
-		  int type, unsigned long flags, int pc)
-{
-	struct trace_entry *ent = ring_buffer_event_data(event);
-
-	tracing_generic_entry_update(ent, flags, pc);
-	ent->type = type;
-}
-
 struct ring_buffer_event *
 trace_buffer_lock_reserve(struct ring_buffer *buffer,
 			  int type,
 			  unsigned long len,
 			  unsigned long flags, int pc)
 {
-	struct ring_buffer_event *event;
-
-	event = ring_buffer_lock_reserve(buffer, len);
-	if (event != NULL)
-		trace_event_setup(event, type, flags, pc);
-
-	return event;
+	return __trace_buffer_lock_reserve(buffer, type, len, flags, pc);
 }
 
 DEFINE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
@@ -2090,8 +2099,8 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 		this_cpu_dec(trace_buffered_event_cnt);
 	}
 
-	entry = trace_buffer_lock_reserve(*current_rb,
-					 type, len, flags, pc);
+	entry = __trace_buffer_lock_reserve(*current_rb,
+					    type, len, flags, pc);
 	/*
 	 * If tracing is off, but we have triggers enabled
 	 * we still need to look at the event data. Use the temp_buffer
@@ -2100,8 +2109,8 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 	 */
 	if (!entry && trace_file->flags & EVENT_FILE_FL_TRIGGER_COND) {
 		*current_rb = temp_buffer;
-		entry = trace_buffer_lock_reserve(*current_rb,
-						  type, len, flags, pc);
+		entry = __trace_buffer_lock_reserve(*current_rb,
+						    type, len, flags, pc);
 	}
 	return entry;
 }
@@ -2262,8 +2271,8 @@ trace_function(struct trace_array *tr,
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
 
-	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
-					  flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
+					    flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
@@ -2342,8 +2351,8 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 
 	size *= sizeof(unsigned long);
 
-	event = trace_buffer_lock_reserve(buffer, TRACE_STACK,
-					  sizeof(*entry) + size, flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_STACK,
+					    sizeof(*entry) + size, flags, pc);
 	if (!event)
 		goto out;
 	entry = ring_buffer_event_data(event);
@@ -2444,8 +2453,8 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 
 	__this_cpu_inc(user_stack_count);
 
-	event = trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,
-					  sizeof(*entry), flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,
+					    sizeof(*entry), flags, pc);
 	if (!event)
 		goto out_drop_count;
 	entry	= ring_buffer_event_data(event);
@@ -2615,8 +2624,8 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	local_save_flags(flags);
 	size = sizeof(*entry) + sizeof(u32) * len;
 	buffer = tr->trace_buffer.buffer;
-	event = trace_buffer_lock_reserve(buffer, TRACE_BPRINT, size,
-					  flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_BPRINT, size,
+					    flags, pc);
 	if (!event)
 		goto out;
 	entry = ring_buffer_event_data(event);
@@ -2671,8 +2680,8 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 
 	local_save_flags(flags);
 	size = sizeof(*entry) + len + 1;
-	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
-					  flags, pc);
+	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
+					    flags, pc);
 	if (!event)
 		goto out;
 	entry = ring_buffer_event_data(event);
@@ -5732,8 +5741,8 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt + 2; /* possible \n added */
 	buffer = tr->trace_buffer.buffer;
-	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
-					  irq_flags, preempt_count());
+	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
+					    irq_flags, preempt_count());
 	if (!event) {
 		/* Ring buffer disabled, return as if not open for write */
 		written = -EBADF;
@@ -5810,8 +5819,8 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt;
 	buffer = tr->trace_buffer.buffer;
-	event = trace_buffer_lock_reserve(buffer, TRACE_RAW_DATA, size,
-					  irq_flags, preempt_count());
+	event = __trace_buffer_lock_reserve(buffer, TRACE_RAW_DATA, size,
+					    irq_flags, preempt_count());
 	if (!event) {
 		/* Ring buffer disabled, return as if not open for write */
 		written = -EBADF;
