@@ -1497,6 +1497,11 @@ static void virtnet_free_queues(struct virtnet_info *vi)
 		netif_napi_del(&vi->rq[i].napi);
 	}
 
+	/* We called napi_hash_del() before netif_napi_del(),
+	 * we need to respect an RCU grace period before freeing vi->rq
+	 */
+	synchronize_net();
+
 	kfree(vi->rq);
 	kfree(vi->sq);
 }

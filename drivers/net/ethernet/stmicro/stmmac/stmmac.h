@@ -129,6 +129,7 @@ struct stmmac_priv {
 	int irq_wake;
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
+	void __iomem *ptpaddr;
 	u32 rx_tail_addr;
 	u32 tx_tail_addr;
 	u32 mss;
