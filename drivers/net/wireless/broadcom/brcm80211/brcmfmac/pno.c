@@ -23,10 +23,12 @@
 #include "fwil_types.h"
 
 #define BRCMF_PNO_VERSION		2
-#define BRCMF_PNO_TIME			30
 #define BRCMF_PNO_REPEAT		4
 #define BRCMF_PNO_FREQ_EXPO_MAX		3
+#define BRCMF_PNO_IMMEDIATE_SCAN_BIT	3
+#define BRCMF_PNO_ENABLE_BD_SCAN_BIT	5
 #define BRCMF_PNO_ENABLE_ADAPTSCAN_BIT	6
+#define BRCMF_PNO_REPORT_SEPARATELY_BIT	11
 #define BRCMF_PNO_SCAN_INCOMPLETE	0
 #define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
 #define BRCMF_PNO_HIDDEN_BIT		2
@@ -47,42 +49,68 @@ int brcmf_pno_clean(struct brcmf_if *ifp)
 	return ret;
 }
 
-int brcmf_pno_config(struct brcmf_if *ifp,
-		     struct cfg80211_sched_scan_request *request)
+int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
+		     u32 mscan, u32 bestn)
 {
 	struct brcmf_pno_param_le pfn_param;
-	struct brcmf_pno_macaddr_le pfn_mac;
+	u16 flags;
+	u32 pfnmem;
 	s32 err;
-	u8 *mac_mask;
-	int i;
 
 	memset(&pfn_param, 0, sizeof(pfn_param));
 	pfn_param.version = cpu_to_le32(BRCMF_PNO_VERSION);
 
 	/* set extra pno params */
-	pfn_param.flags = cpu_to_le16(1 << BRCMF_PNO_ENABLE_ADAPTSCAN_BIT);
+	flags = BIT(BRCMF_PNO_IMMEDIATE_SCAN_BIT) |
+		BIT(BRCMF_PNO_REPORT_SEPARATELY_BIT) |
+		BIT(BRCMF_PNO_ENABLE_ADAPTSCAN_BIT);
 	pfn_param.repeat = BRCMF_PNO_REPEAT;
 	pfn_param.exp = BRCMF_PNO_FREQ_EXPO_MAX;
 
 	/* set up pno scan fr */
-	pfn_param.scan_freq = cpu_to_le32(BRCMF_PNO_TIME);
+	pfn_param.scan_freq = cpu_to_le32(scan_freq);
 
-	err = brcmf_fil_iovar_data_set(ifp, "pfn_set", &pfn_param,
-				       sizeof(pfn_param));
-	if (err) {
-		brcmf_err("pfn_set failed, err=%d\n", err);
-		return err;
+	if (mscan) {
+		pfnmem = bestn;
+
+		/* set bestn in firmware */
+		err = brcmf_fil_iovar_int_set(ifp, "pfnmem", pfnmem);
+		if (err < 0) {
+			brcmf_err("failed to set pfnmem\n");
+			goto exit;
+		}
+		/* get max mscan which the firmware supports */
+		err = brcmf_fil_iovar_int_get(ifp, "pfnmem", &pfnmem);
+		if (err < 0) {
+			brcmf_err("failed to get pfnmem\n");
+			goto exit;
+		}
+		mscan = min_t(u32, mscan, pfnmem);
+		pfn_param.mscan = mscan;
+		pfn_param.bestn = bestn;
+		flags |= BIT(BRCMF_PNO_ENABLE_BD_SCAN_BIT);
+		brcmf_dbg(INFO, "mscan=%d, bestn=%d\n", mscan, bestn);
 	}
 
-	/* Find out if mac randomization should be turned on */
-	if (!(request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR))
-		return 0;
+	pfn_param.flags = cpu_to_le16(flags);
+	err = brcmf_fil_iovar_data_set(ifp, "pfn_set", &pfn_param,
+				       sizeof(pfn_param));
+	if (err)
+		brcmf_err("pfn_set failed, err=%d\n", err);
+
+exit:
+	return err;
+}
+
+int brcmf_pno_set_random(struct brcmf_if *ifp, u8 *mac_addr, u8 *mac_mask)
+{
+	struct brcmf_pno_macaddr_le pfn_mac;
+	int err, i;
 
 	pfn_mac.version = BRCMF_PFN_MACADDR_CFG_VER;
 	pfn_mac.flags = BRCMF_PFN_MAC_OUI_ONLY | BRCMF_PFN_SET_MAC_UNASSOC;
 
-	memcpy(pfn_mac.mac, request->mac_addr, ETH_ALEN);
-	mac_mask = request->mac_addr_mask;
+	memcpy(pfn_mac.mac, mac_addr, ETH_ALEN);
 	for (i = 0; i < ETH_ALEN; i++) {
 		pfn_mac.mac[i] &= mac_mask[i];
 		pfn_mac.mac[i] |= get_random_int() & ~(mac_mask[i]);

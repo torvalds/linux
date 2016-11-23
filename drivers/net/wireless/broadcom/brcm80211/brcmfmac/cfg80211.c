@@ -42,6 +42,7 @@
 #include "common.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
+#define BRCMF_SCHED_SCAN_PERIOD		30
 
 #define WPA_OUI				"\x00\x50\xF2"	/* WPA OUI */
 #define WPA_OUI_TYPE			1
@@ -3396,9 +3397,17 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	}
 
 	/* configure pno */
-	ret = brcmf_pno_config(ifp, req);
+	ret = brcmf_pno_config(ifp, BRCMF_SCHED_SCAN_PERIOD, 0, 0);
 	if (ret < 0)
 		return ret;
+
+	/* configure random mac */
+	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		ret = brcmf_pno_set_random(ifp, req->mac_addr,
+					   req->mac_addr_mask);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* configure each match set */
 	for (i = 0; i < req->n_match_sets; i++) {

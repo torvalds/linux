@@ -30,10 +30,21 @@ int brcmf_pno_clean(struct brcmf_if *ifp);
  * brcmf_pno_config - configure pno parameters.
  *
  * @ifp: interface object used.
- * @request: scheduled scan parameters.
+ * @scan_freq: scan frequency period in seconds.
+ * @mscan: maximum number of scans stored in firmware.
+ * @bestn: maximum number of APs per scan stored in firmware.
  */
-int brcmf_pno_config(struct brcmf_if *ifp,
-		     struct cfg80211_sched_scan_request *request);
+int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
+		     u32 mscan, u32 bestn);
+
+/**
+ * brcmf_pno_set_random - setup randomisation mac address for pno.
+ *
+ * @ifp: interface object used.
+ * @mac_addr: MAC address used with randomisation.
+ * @mac_mask: MAC address mask used for randomisation.
+ */
+int brcmf_pno_set_random(struct brcmf_if *ifp, u8 *mac_addr, u8 *mac_mask);
 
 /**
  * brcmf_pno_add_ssid - add ssid for pno in firmware.
