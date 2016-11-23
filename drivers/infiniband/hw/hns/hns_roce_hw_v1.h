@@ -480,12 +480,16 @@ struct hns_roce_sqp_context {
 	u32 qp1c_bytes_12;
 	u32 qp1c_bytes_16;
 	u32 qp1c_bytes_20;
-	u32 qp1c_bytes_28;
 	u32 cur_rq_wqe_ba_l;
+	u32 qp1c_bytes_28;
 	u32 qp1c_bytes_32;
 	u32 cur_sq_wqe_ba_l;
 	u32 qp1c_bytes_40;
 };
+
+#define QP1C_BYTES_4_QP_STATE_S 0
+#define QP1C_BYTES_4_QP_STATE_M   \
+	(((1UL << 3) - 1) << QP1C_BYTES_4_QP_STATE_S)
 
 #define QP1C_BYTES_4_SQ_WQE_SHIFT_S 8
 #define QP1C_BYTES_4_SQ_WQE_SHIFT_M   \
