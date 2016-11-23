@@ -496,9 +496,15 @@ static const struct rtc_class_ops twl_rtc_ops = {
 static int twl_rtc_probe(struct platform_device *pdev)
 {
 	struct twl_rtc *twl_rtc;
+	struct device_node *np = pdev->dev.of_node;
 	int ret = -EINVAL;
 	int irq = platform_get_irq(pdev, 0);
 	u8 rd_reg;
+
+	if (!np) {
+		dev_err(&pdev->dev, "no DT info\n");
+		return -EINVAL;
+	}
 
 	if (irq <= 0)
 		return ret;
@@ -632,15 +638,11 @@ static int twl_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(twl_rtc_pm_ops, twl_rtc_suspend, twl_rtc_resume);
 
-#ifdef CONFIG_OF
 static const struct of_device_id twl_rtc_of_match[] = {
 	{.compatible = "ti,twl4030-rtc", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
-#endif
-
-MODULE_ALIAS("platform:twl_rtc");
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
@@ -649,7 +651,7 @@ static struct platform_driver twl4030rtc_driver = {
 	.driver		= {
 		.name		= "twl_rtc",
 		.pm		= &twl_rtc_pm_ops,
-		.of_match_table = of_match_ptr(twl_rtc_of_match),
+		.of_match_table = twl_rtc_of_match,
 	},
 };
 
