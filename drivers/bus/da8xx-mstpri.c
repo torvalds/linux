@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/regmap.h>
-#include <linux/of_fdt.h>
 
 /*
  * REVISIT: Linux doesn't have a good framework for the kind of performance
@@ -226,8 +225,7 @@ static int da8xx_mstpri_probe(struct platform_device *pdev)
 
 	prio_list = da8xx_mstpri_get_board_prio();
 	if (!prio_list) {
-		dev_err(dev, "no master priotities defined for board '%s'\n",
-			of_flat_dt_get_machine_name());
+		dev_err(dev, "no master priorities defined for this board\n");
 		return -EINVAL;
 	}
 
