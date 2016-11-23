@@ -469,6 +469,34 @@ out:
 	return rc;
 }
 
+static void wil_cfg80211_abort_scan(struct wiphy *wiphy,
+				    struct wireless_dev *wdev)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_misc(wil, "wdev=0x%p iftype=%d\n", wdev, wdev->iftype);
+
+	mutex_lock(&wil->mutex);
+	mutex_lock(&wil->p2p_wdev_mutex);
+
+	if (!wil->scan_request)
+		goto out;
+
+	if (wdev != wil->scan_request->wdev) {
+		wil_dbg_misc(wil, "abort scan was called on the wrong iface\n");
+		goto out;
+	}
+
+	if (wil->radio_wdev == wil->p2p_wdev)
+		wil_p2p_stop_radio_operations(wil);
+	else
+		wil_abort_scan(wil, true);
+
+out:
+	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->mutex);
+}
+
 static void wil_print_crypto(struct wil6210_priv *wil,
 			     struct cfg80211_crypto_settings *c)
 {
@@ -1419,8 +1447,10 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "%s: entered\n", __func__);
 	mutex_lock(&wil->mutex);
+	mutex_lock(&wil->p2p_wdev_mutex);
 	wil_p2p_stop_radio_operations(wil);
 	p2p->p2p_dev_started = 0;
+	mutex_unlock(&wil->p2p_wdev_mutex);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -1456,6 +1486,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.add_virtual_intf = wil_cfg80211_add_iface,
 	.del_virtual_intf = wil_cfg80211_del_iface,
 	.scan = wil_cfg80211_scan,
+	.abort_scan = wil_cfg80211_abort_scan,
 	.connect = wil_cfg80211_connect,
 	.disconnect = wil_cfg80211_disconnect,
 	.change_virtual_intf = wil_cfg80211_change_iface,

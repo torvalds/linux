@@ -272,8 +272,7 @@ void wil_p2p_stop_radio_operations(struct wil6210_priv *wil)
 	};
 
 	lockdep_assert_held(&wil->mutex);
-
-	mutex_lock(&wil->p2p_wdev_mutex);
+	lockdep_assert_held(&wil->p2p_wdev_mutex);
 
 	if (wil->radio_wdev != wil->p2p_wdev)
 		goto out;
@@ -281,10 +280,8 @@ void wil_p2p_stop_radio_operations(struct wil6210_priv *wil)
 	if (!p2p->discovery_started) {
 		/* Regular scan on the p2p device */
 		if (wil->scan_request &&
-		    wil->scan_request->wdev == wil->p2p_wdev) {
-			cfg80211_scan_done(wil->scan_request, &info);
-			wil->scan_request = NULL;
-		}
+		    wil->scan_request->wdev == wil->p2p_wdev)
+			wil_abort_scan(wil, true);
 		goto out;
 	}
 
@@ -307,5 +304,4 @@ void wil_p2p_stop_radio_operations(struct wil6210_priv *wil)
 
 out:
 	wil->radio_wdev = wil->wdev;
-	mutex_unlock(&wil->p2p_wdev_mutex);
 }

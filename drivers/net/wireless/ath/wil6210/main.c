@@ -24,6 +24,7 @@
 #include "boot_loader.h"
 
 #define WAIT_FOR_HALP_VOTE_MS 100
+#define WAIT_FOR_SCAN_ABORT_MS 1000
 
 bool debug_fw; /* = false; */
 module_param(debug_fw, bool, S_IRUGO);
@@ -808,6 +809,34 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 	return 0;
 }
 
+void wil_abort_scan(struct wil6210_priv *wil, bool sync)
+{
+	int rc;
+	struct cfg80211_scan_info info = {
+		.aborted = true,
+	};
+
+	lockdep_assert_held(&wil->p2p_wdev_mutex);
+
+	if (!wil->scan_request)
+		return;
+
+	wil_dbg_misc(wil, "Abort scan_request 0x%p\n", wil->scan_request);
+	del_timer_sync(&wil->scan_timer);
+	mutex_unlock(&wil->p2p_wdev_mutex);
+	rc = wmi_abort_scan(wil);
+	if (!rc && sync)
+		wait_event_interruptible_timeout(wil->wq, !wil->scan_request,
+						 msecs_to_jiffies(
+						 WAIT_FOR_SCAN_ABORT_MS));
+
+	mutex_lock(&wil->p2p_wdev_mutex);
+	if (wil->scan_request) {
+		cfg80211_scan_done(wil->scan_request, &info);
+		wil->scan_request = NULL;
+	}
+}
+
 /*
  * We reset all the structures, and we reset the UMAC.
  * After calling this routine, you're expected to reload
@@ -860,17 +889,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	mutex_unlock(&wil->wmi_mutex);
 
 	mutex_lock(&wil->p2p_wdev_mutex);
-	if (wil->scan_request) {
-		struct cfg80211_scan_info info = {
-			.aborted = true,
-		};
-
-		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
-			     wil->scan_request);
-		del_timer_sync(&wil->scan_timer);
-		cfg80211_scan_done(wil->scan_request, &info);
-		wil->scan_request = NULL;
-	}
+	wil_abort_scan(wil, false);
 	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_mask_irq(wil);
@@ -1063,20 +1082,9 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 	wil_enable_irq(wil);
 
-	wil_p2p_stop_radio_operations(wil);
-
 	mutex_lock(&wil->p2p_wdev_mutex);
-	if (wil->scan_request) {
-		struct cfg80211_scan_info info = {
-			.aborted = true,
-		};
-
-		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
-			     wil->scan_request);
-		del_timer_sync(&wil->scan_timer);
-		cfg80211_scan_done(wil->scan_request, &info);
-		wil->scan_request = NULL;
-	}
+	wil_p2p_stop_radio_operations(wil);
+	wil_abort_scan(wil, false);
 	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_reset(wil, false);
