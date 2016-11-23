@@ -308,10 +308,26 @@ void drm_mm_takedown(struct drm_mm *mm);
 bool drm_mm_clean(struct drm_mm *mm);
 
 struct drm_mm_node *
-drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last);
+__drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last);
 
-struct drm_mm_node *
-drm_mm_interval_next(struct drm_mm_node *node, u64 start, u64 last);
+/**
+ * drm_mm_for_each_node_in_range - iterator to walk over a range of
+ * allocated nodes
+ * @node: drm_mm_node structure to assign to in each iteration step
+ * @mm: drm_mm allocator to walk
+ * @start: starting offset, the first node will overlap this
+ * @end: ending offset, the last node will start before this (but may overlap)
+ *
+ * This iterator walks over all nodes in the range allocator that lie
+ * between @start and @end. It is implemented similarly to list_for_each(),
+ * but using the internal interval tree to accelerate the search for the
+ * starting node, and so not safe against removal of elements. It assumes
+ * that @end is within (or is the upper limit of) the drm_mm allocator.
+ */
+#define drm_mm_for_each_node_in_range(node, mm, start, end)		\
+	for (node = __drm_mm_interval_first((mm), (start), (end)-1);	\
+	     node && node->start < (end);				\
+	     node = list_next_entry(node, node_list))			\
 
 void drm_mm_init_scan(struct drm_mm *mm,
 		      u64 size,

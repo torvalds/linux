@@ -174,19 +174,12 @@ INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
 		     START, LAST, static inline, drm_mm_interval_tree)
 
 struct drm_mm_node *
-drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last)
+__drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last)
 {
 	return drm_mm_interval_tree_iter_first(&mm->interval_tree,
 					       start, last);
 }
-EXPORT_SYMBOL(drm_mm_interval_first);
-
-struct drm_mm_node *
-drm_mm_interval_next(struct drm_mm_node *node, u64 start, u64 last)
-{
-	return drm_mm_interval_tree_iter_next(node, start, last);
-}
-EXPORT_SYMBOL(drm_mm_interval_next);
+EXPORT_SYMBOL(__drm_mm_interval_first);
 
 static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 					  struct drm_mm_node *node)
