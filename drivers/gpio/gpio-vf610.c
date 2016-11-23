@@ -283,8 +283,4 @@ static struct platform_driver vf610_gpio_driver = {
 	.probe		= vf610_gpio_probe,
 };
 
-static int __init gpio_vf610_init(void)
-{
-	return platform_driver_register(&vf610_gpio_driver);
-}
-device_initcall(gpio_vf610_init);
+builtin_platform_driver(vf610_gpio_driver);
