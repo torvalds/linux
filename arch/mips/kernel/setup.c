@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/dma-contiguous.h>
 #include <linux/decompress/generic.h>
+#include <linux/of_fdt.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -831,6 +832,9 @@ static void __init arch_mem_init(char **cmdline_p)
 		pr_info("User-defined physical RAM map:\n");
 		print_memory_map();
 	}
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	bootmem_init();
 #ifdef CONFIG_PROC_VMCORE
