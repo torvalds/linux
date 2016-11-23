@@ -589,7 +589,7 @@ static int sun8i_codec_analog_cmpnt_probe(struct snd_soc_component *cmpnt)
 	}
 
 	if (quirks->has_hmic) {
-		sun8i_codec_add_hmic(cmpnt);
+		ret = sun8i_codec_add_hmic(cmpnt);
 		if (ret)
 			return ret;
 	}
