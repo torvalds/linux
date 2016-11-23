@@ -106,6 +106,7 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 
 #include "arch/arm/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
+#include "arch/powerpc/annotate/instructions.c"
 
 static struct arch architectures[] = {
 	{
@@ -119,6 +120,10 @@ static struct arch architectures[] = {
 		.objdump =  {
 			.comment_char = '#',
 		},
+	},
+	{
+		.name = "powerpc",
+		.init = powerpc__annotate_init,
 	},
 };
 
