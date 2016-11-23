@@ -395,6 +395,15 @@ static void sx150x_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 }
 
+static void sx150x_gpio_set_multiple(struct gpio_chip *chip,
+				     unsigned long *mask,
+				     unsigned long *bits)
+{
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(chip);
+
+	regmap_write_bits(pctl->regmap, pctl->data->reg_data, *mask, *bits);
+}
+
 static int sx150x_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned int offset)
 {
@@ -1075,6 +1084,14 @@ static int sx150x_probe(struct i2c_client *client,
 	pctl->gpio.of_node = dev->of_node;
 #endif
 	pctl->gpio.can_sleep = true;
+	/*
+	 * Setting multiple pins is not safe when all pins are not
+	 * handled by the same regmap register. The oscio pin (present
+	 * on the SX150X_789 chips) lives in its own register, so
+	 * would require locking that is not in place at this time.
+	 */
+	if (pctl->data->model != SX150X_789)
+		pctl->gpio.set_multiple = sx150x_gpio_set_multiple;
 
 	ret = devm_gpiochip_add_data(dev, &pctl->gpio, pctl);
 	if (ret)
