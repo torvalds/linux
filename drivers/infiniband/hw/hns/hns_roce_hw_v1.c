@@ -1871,12 +1871,12 @@ static int hns_roce_v1_qp_modify(struct hns_roce_dev *hr_dev,
 	if (op[cur_state][new_state] == HNS_ROCE_CMD_2RST_QP)
 		return hns_roce_cmd_mbox(hr_dev, 0, 0, hr_qp->qpn, 2,
 					 HNS_ROCE_CMD_2RST_QP,
-					 HNS_ROCE_CMD_TIME_CLASS_A);
+					 HNS_ROCE_CMD_TIMEOUT_MSECS);
 
 	if (op[cur_state][new_state] == HNS_ROCE_CMD_2ERR_QP)
 		return hns_roce_cmd_mbox(hr_dev, 0, 0, hr_qp->qpn, 2,
 					 HNS_ROCE_CMD_2ERR_QP,
-					 HNS_ROCE_CMD_TIME_CLASS_A);
+					 HNS_ROCE_CMD_TIMEOUT_MSECS);
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mailbox))
@@ -1886,7 +1886,7 @@ static int hns_roce_v1_qp_modify(struct hns_roce_dev *hr_dev,
 
 	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_qp->qpn, 0,
 				op[cur_state][new_state],
-				HNS_ROCE_CMD_TIME_CLASS_C);
+				HNS_ROCE_CMD_TIMEOUT_MSECS);
 
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	return ret;
@@ -2681,7 +2681,7 @@ static int hns_roce_v1_query_qpc(struct hns_roce_dev *hr_dev,
 
 	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, hr_qp->qpn, 0,
 				HNS_ROCE_CMD_QUERY_QP,
-				HNS_ROCE_CMD_TIME_CLASS_A);
+				HNS_ROCE_CMD_TIMEOUT_MSECS);
 	if (!ret)
 		memcpy(hr_context, mailbox->buf, sizeof(*hr_context));
 	else

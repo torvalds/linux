@@ -77,7 +77,7 @@ static int hns_roce_sw2hw_cq(struct hns_roce_dev *dev,
 			     unsigned long cq_num)
 {
 	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, cq_num, 0,
-			    HNS_ROCE_CMD_SW2HW_CQ, HNS_ROCE_CMD_TIME_CLASS_A);
+			    HNS_ROCE_CMD_SW2HW_CQ, HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
 static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
@@ -176,7 +176,7 @@ static int hns_roce_hw2sw_cq(struct hns_roce_dev *dev,
 {
 	return hns_roce_cmd_mbox(dev, 0, mailbox ? mailbox->dma : 0, cq_num,
 				 mailbox ? 0 : 1, HNS_ROCE_CMD_HW2SW_CQ,
-				 HNS_ROCE_CMD_TIME_CLASS_A);
+				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
 static void hns_roce_free_cq(struct hns_roce_dev *hr_dev,
