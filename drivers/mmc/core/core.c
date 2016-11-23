@@ -611,18 +611,15 @@ EXPORT_SYMBOL(mmc_is_req_done);
  *	mmc_pre_req - Prepare for a new request
  *	@host: MMC host to prepare command
  *	@mrq: MMC request to prepare for
- *	@is_first_req: true if there is no previous started request
- *                     that may run in parellel to this call, otherwise false
  *
  *	mmc_pre_req() is called in prior to mmc_start_req() to let
  *	host prepare for the new request. Preparation of a request may be
  *	performed while another request is running on the host.
  */
-static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
-		 bool is_first_req)
+static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	if (host->ops->pre_req)
-		host->ops->pre_req(host, mrq, is_first_req);
+		host->ops->pre_req(host, mrq);
 }
 
 /**
@@ -667,7 +664,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 
 	/* Prepare a new request */
 	if (areq)
-		mmc_pre_req(host, areq->mrq, !host->areq);
+		mmc_pre_req(host, areq->mrq);
 
 	if (host->areq) {
 		status = mmc_wait_for_data_req_done(host, host->areq->mrq, areq);
@@ -696,7 +693,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 
 			/* prepare the request again */
 			if (areq)
-				mmc_pre_req(host, areq->mrq, !host->areq);
+				mmc_pre_req(host, areq->mrq);
 		}
 	}
 

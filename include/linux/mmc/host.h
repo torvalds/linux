@@ -93,8 +93,7 @@ struct mmc_host_ops {
 	 */
 	void	(*post_req)(struct mmc_host *host, struct mmc_request *req,
 			    int err);
-	void	(*pre_req)(struct mmc_host *host, struct mmc_request *req,
-			   bool is_first_req);
+	void	(*pre_req)(struct mmc_host *host, struct mmc_request *req);
 	void	(*request)(struct mmc_host *host, struct mmc_request *req);
 
 	/*
