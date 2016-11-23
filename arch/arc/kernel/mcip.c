@@ -15,10 +15,11 @@
 #include <asm/mcip.h>
 #include <asm/setup.h>
 
-static char smp_cpuinfo_buf[128];
-static int idu_detected;
-
 static DEFINE_RAW_SPINLOCK(mcip_lock);
+
+#ifdef CONFIG_SMP
+
+static char smp_cpuinfo_buf[128];
 
 static void mcip_setup_per_cpu(int cpu)
 {
@@ -86,21 +87,7 @@ static void mcip_ipi_clear(int irq)
 
 static void mcip_probe_n_setup(void)
 {
-	struct mcip_bcr {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad3:8,
-			     idu:1, llm:1, num_cores:6,
-			     iocoh:1,  gfrc:1, dbg:1, pad2:1,
-			     msg:1, sem:1, ipi:1, pad:1,
-			     ver:8;
-#else
-		unsigned int ver:8,
-			     pad:1, ipi:1, sem:1, msg:1,
-			     pad2:1, dbg:1, gfrc:1, iocoh:1,
-			     num_cores:6, llm:1, idu:1,
-			     pad3:8;
-#endif
-	} mp;
+	struct mcip_bcr mp;
 
 	READ_BCR(ARC_REG_MCIP_BCR, mp);
 
@@ -114,7 +101,6 @@ static void mcip_probe_n_setup(void)
 		IS_AVAIL1(mp.gfrc, "GFRC"));
 
 	cpuinfo_arc700[0].extn.gfrc = mp.gfrc;
-	idu_detected = mp.idu;
 
 	if (mp.dbg) {
 		__mcip_cmd_data(CMD_DEBUG_SET_SELECT, 0, 0xf);
@@ -129,6 +115,8 @@ struct plat_smp_ops plat_smp_ops = {
 	.ipi_send	= mcip_ipi_send,
 	.ipi_clear	= mcip_ipi_clear,
 };
+
+#endif
 
 /***************************************************************************
  * ARCv2 Interrupt Distribution Unit (IDU)
@@ -295,8 +283,11 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 	/* Read IDU BCR to confirm nr_irqs */
 	int nr_irqs = of_irq_count(intc);
 	int i, irq;
+	struct mcip_bcr mp;
 
-	if (!idu_detected)
+	READ_BCR(ARC_REG_MCIP_BCR, mp);
+
+	if (!mp.idu)
 		panic("IDU not detected, but DeviceTree using it");
 
 	pr_info("MCIP: IDU referenced from Devicetree %d irqs\n", nr_irqs);

@@ -3550,8 +3550,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	WARN_ON(obj->pin_display > i915_vma_pin_count(vma));
-
 	i915_gem_object_flush_cpu_write_domain(obj);
 
 	old_write_domain = obj->base.write_domain;
@@ -3588,7 +3586,6 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 
 	i915_vma_unpin(vma);
-	WARN_ON(vma->obj->pin_display > i915_vma_pin_count(vma));
 }
 
 /**
@@ -3745,7 +3742,12 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	mappable = (vma->node.start + fence_size <=
 		    dev_priv->ggtt.mappable_end);
 
-	if (mappable && fenceable)
+	/*
+	 * Explicitly disable for rotated VMA since the display does not
+	 * need the fence and the VMA is not accessible to other users.
+	 */
+	if (mappable && fenceable &&
+	    vma->ggtt_view.type != I915_GGTT_VIEW_ROTATED)
 		vma->flags |= I915_VMA_CAN_FENCE;
 	else
 		vma->flags &= ~I915_VMA_CAN_FENCE;

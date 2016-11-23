@@ -93,6 +93,10 @@
 	ld	reg,PACAKBASE(r13);	/* get high part of &label */	\
 	ori	reg,reg,(FIXED_SYMBOL_ABS_ADDR(label))@l;
 
+#define __LOAD_HANDLER(reg, label)					\
+	ld	reg,PACAKBASE(r13);					\
+	ori	reg,reg,(ABS_ADDR(label))@l;
+
 /* Exception register prefixes */
 #define EXC_HV	H
 #define EXC_STD
@@ -206,6 +210,18 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define kvmppc_interrupt kvmppc_interrupt_hv
 #else
 #define kvmppc_interrupt kvmppc_interrupt_pr
+#endif
+
+#ifdef CONFIG_RELOCATABLE
+#define BRANCH_TO_COMMON(reg, label)					\
+	__LOAD_HANDLER(reg, label);					\
+	mtctr	reg;							\
+	bctr
+
+#else
+#define BRANCH_TO_COMMON(reg, label)					\
+	b	label
+
 #endif
 
 #define __KVM_HANDLER_PROLOG(area, n)					\

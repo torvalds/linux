@@ -1021,13 +1021,17 @@ void emac_mac_down(struct emac_adapter *adpt)
 	napi_disable(&adpt->rx_q.napi);
 
 	phy_stop(adpt->phydev);
-	phy_disconnect(adpt->phydev);
 
-	/* disable mac irq */
+	/* Interrupts must be disabled before the PHY is disconnected, to
+	 * avoid a race condition where adjust_link is null when we get
+	 * an interrupt.
+	 */
 	writel(DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(0, adpt->base + EMAC_INT_MASK);
 	synchronize_irq(adpt->irq.irq);
 	free_irq(adpt->irq.irq, &adpt->irq);
+
+	phy_disconnect(adpt->phydev);
 
 	emac_mac_reset(adpt);
 

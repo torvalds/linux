@@ -1471,7 +1471,7 @@ static int rocker_world_check_init(struct rocker_port *rocker_port)
 	if (rocker->wops) {
 		if (rocker->wops->mode != mode) {
 			dev_err(&rocker->pdev->dev, "hardware has ports in different worlds, which is not supported\n");
-			return err;
+			return -EINVAL;
 		}
 		return 0;
 	}

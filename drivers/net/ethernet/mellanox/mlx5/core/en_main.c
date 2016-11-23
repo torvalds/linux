@@ -1971,9 +1971,7 @@ static void mlx5e_build_tir_ctx_lro(void *tirc, struct mlx5e_priv *priv)
 	MLX5_SET(tirc, tirc, lro_max_ip_payload_size,
 		 (priv->params.lro_wqe_sz -
 		  ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
-	MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
-		 MLX5_CAP_ETH(priv->mdev,
-			      lro_timer_supported_periods[2]));
+	MLX5_SET(tirc, tirc, lro_timeout_period_usecs, priv->params.lro_timeout);
 }
 
 void mlx5e_build_tir_ctx_hash(void *tirc, struct mlx5e_priv *priv)
@@ -3401,6 +3399,18 @@ static void mlx5e_query_min_inline(struct mlx5_core_dev *mdev,
 	}
 }
 
+u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
+{
+	int i;
+
+	/* The supported periods are organized in ascending order */
+	for (i = 0; i < MLX5E_LRO_TIMEOUT_ARR_SIZE - 1; i++)
+		if (MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]) >= wanted_timeout)
+			break;
+
+	return MLX5_CAP_ETH(mdev, lro_timer_supported_periods[i]);
+}
+
 static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 					struct net_device *netdev,
 					const struct mlx5e_profile *profile,
@@ -3418,6 +3428,9 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->params.num_channels          = profile->max_nch(mdev);
 	priv->profile                      = profile;
 	priv->ppriv                        = ppriv;
+
+	priv->params.lro_timeout =
+		mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
 
 	priv->params.log_sq_size = MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 
@@ -4035,7 +4048,6 @@ void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv)
 	const struct mlx5e_profile *profile = priv->profile;
 	struct net_device *netdev = priv->netdev;
 
-	unregister_netdev(netdev);
 	destroy_workqueue(priv->wq);
 	if (profile->cleanup)
 		profile->cleanup(priv);
@@ -4052,6 +4064,7 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 	for (vport = 1; vport < total_vfs; vport++)
 		mlx5_eswitch_unregister_vport_rep(esw, vport);
 
+	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(mdev, priv);
 }

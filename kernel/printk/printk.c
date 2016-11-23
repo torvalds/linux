@@ -1769,6 +1769,10 @@ static size_t log_output(int facility, int level, enum log_flags lflags, const c
 		cont_flush();
 	}
 
+	/* Skip empty continuation lines that couldn't be added - they just flush */
+	if (!text_len && (lflags & LOG_CONT))
+		return 0;
+
 	/* If it doesn't end in a newline, try to buffer the current line */
 	if (!(lflags & LOG_NEWLINE)) {
 		if (cont_add(facility, level, lflags, text, text_len))

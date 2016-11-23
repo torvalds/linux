@@ -158,8 +158,8 @@ config PIC32_EVIC
 	select IRQ_DOMAIN
 
 config JCORE_AIC
-	bool "J-Core integrated AIC"
-	depends on OF && (SUPERH || COMPILE_TEST)
+	bool "J-Core integrated AIC" if COMPILE_TEST
+	depends on OF
 	select IRQ_DOMAIN
 	help
 	  Support for the J-Core integrated AIC.
