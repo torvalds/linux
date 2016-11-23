@@ -229,6 +229,32 @@ void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 	idr_remove(&htt->pending_tx, msdu_id);
 }
 
+static void ath10k_htt_tx_free_cont_txbuf(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	size_t size;
+
+	if (!htt->txbuf.vaddr)
+		return;
+
+	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
+	dma_free_coherent(ar->dev, size, htt->txbuf.vaddr, htt->txbuf.paddr);
+}
+
+static int ath10k_htt_tx_alloc_cont_txbuf(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	size_t size;
+
+	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
+	htt->txbuf.vaddr = dma_alloc_coherent(ar->dev, size, &htt->txbuf.paddr,
+					      GFP_KERNEL);
+	if (!htt->txbuf.vaddr)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static void ath10k_htt_tx_free_cont_frag_desc(struct ath10k_htt *htt)
 {
 	size_t size;
@@ -256,10 +282,8 @@ static int ath10k_htt_tx_alloc_cont_frag_desc(struct ath10k_htt *htt)
 	htt->frag_desc.vaddr = dma_alloc_coherent(ar->dev, size,
 						  &htt->frag_desc.paddr,
 						  GFP_KERNEL);
-	if (!htt->frag_desc.vaddr) {
-		ath10k_err(ar, "failed to alloc fragment desc memory\n");
+	if (!htt->frag_desc.vaddr)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -310,10 +334,26 @@ static int ath10k_htt_tx_alloc_txq(struct ath10k_htt *htt)
 	return 0;
 }
 
+static void ath10k_htt_tx_free_txdone_fifo(struct ath10k_htt *htt)
+{
+	WARN_ON(!kfifo_is_empty(&htt->txdone_fifo));
+	kfifo_free(&htt->txdone_fifo);
+}
+
+static int ath10k_htt_tx_alloc_txdone_fifo(struct ath10k_htt *htt)
+{
+	int ret;
+	size_t size;
+
+	size = roundup_pow_of_two(htt->max_num_pending_tx);
+	ret = kfifo_alloc(&htt->txdone_fifo, size, GFP_KERNEL);
+	return ret;
+}
+
 int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
-	int ret, size;
+	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
 		   htt->max_num_pending_tx);
@@ -321,13 +361,9 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 	spin_lock_init(&htt->tx_lock);
 	idr_init(&htt->pending_tx);
 
-	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
-	htt->txbuf.vaddr = dma_alloc_coherent(ar->dev, size,
-						  &htt->txbuf.paddr,
-						  GFP_KERNEL);
-	if (!htt->txbuf.vaddr) {
-		ath10k_err(ar, "failed to alloc tx buffer\n");
-		ret = -ENOMEM;
+	ret = ath10k_htt_tx_alloc_cont_txbuf(htt);
+	if (ret) {
+		ath10k_err(ar, "failed to alloc cont tx buffer: %d\n", ret);
 		goto free_idr_pending_tx;
 	}
 
@@ -343,8 +379,7 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 		goto free_frag_desc;
 	}
 
-	size = roundup_pow_of_two(htt->max_num_pending_tx);
-	ret = kfifo_alloc(&htt->txdone_fifo, size, GFP_KERNEL);
+	ret = ath10k_htt_tx_alloc_txdone_fifo(htt);
 	if (ret) {
 		ath10k_err(ar, "failed to alloc txdone fifo: %d\n", ret);
 		goto free_txq;
@@ -359,10 +394,7 @@ free_frag_desc:
 	ath10k_htt_tx_free_cont_frag_desc(htt);
 
 free_txbuf:
-	size = htt->max_num_pending_tx *
-			  sizeof(struct ath10k_htt_txbuf);
-	dma_free_coherent(htt->ar->dev, size, htt->txbuf.vaddr,
-			  htt->txbuf.paddr);
+	ath10k_htt_tx_free_cont_txbuf(htt);
 
 free_idr_pending_tx:
 	idr_destroy(&htt->pending_tx);
@@ -388,22 +420,13 @@ static int ath10k_htt_tx_clean_up_pending(int msdu_id, void *skb, void *ctx)
 
 void ath10k_htt_tx_free(struct ath10k_htt *htt)
 {
-	int size;
-
 	idr_for_each(&htt->pending_tx, ath10k_htt_tx_clean_up_pending, htt->ar);
 	idr_destroy(&htt->pending_tx);
 
-	if (htt->txbuf.vaddr) {
-		size = htt->max_num_pending_tx *
-				  sizeof(struct ath10k_htt_txbuf);
-		dma_free_coherent(htt->ar->dev, size, htt->txbuf.vaddr,
-				  htt->txbuf.paddr);
-	}
-
+	ath10k_htt_tx_free_cont_txbuf(htt);
 	ath10k_htt_tx_free_txq(htt);
 	ath10k_htt_tx_free_cont_frag_desc(htt);
-	WARN_ON(!kfifo_is_empty(&htt->txdone_fifo));
-	kfifo_free(&htt->txdone_fifo);
+	ath10k_htt_tx_free_txdone_fifo(htt);
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
