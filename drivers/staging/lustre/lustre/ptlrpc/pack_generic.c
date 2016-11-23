@@ -2012,7 +2012,7 @@ static void lustre_swab_ldlm_res_id(struct ldlm_res_id *id)
 		__swab64s(&id->name[i]);
 }
 
-static void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
+static void lustre_swab_ldlm_policy_data(union ldlm_wire_policy_data *d)
 {
 	/* the lock data is a union and the first two fields are always an
 	 * extent so it's ok to process an LDLM_EXTENT and LDLM_FLOCK lock

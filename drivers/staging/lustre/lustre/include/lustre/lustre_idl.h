@@ -2623,11 +2623,11 @@ struct ldlm_flock_wire {
  * on the resource type.
  */
 
-typedef union {
+union ldlm_wire_policy_data {
 	struct ldlm_extent l_extent;
 	struct ldlm_flock_wire l_flock;
 	struct ldlm_inodebits l_inodebits;
-} ldlm_wire_policy_data_t;
+};
 
 union ldlm_gl_desc {
 	struct ldlm_gl_lquota_desc	lquota_desc;
@@ -2669,7 +2669,7 @@ struct ldlm_lock_desc {
 	struct ldlm_resource_desc l_resource;
 	enum ldlm_mode l_req_mode;
 	enum ldlm_mode l_granted_mode;
-	ldlm_wire_policy_data_t l_policy_data;
+	union ldlm_wire_policy_data l_policy_data;
 };
 
 #define LDLM_LOCKREQ_HANDLES 2

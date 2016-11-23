@@ -82,7 +82,7 @@ static ldlm_policy_local_to_wire_t ldlm_policy_local_to_wire[] = {
  */
 static void ldlm_convert_policy_to_wire(enum ldlm_type type,
 					const union ldlm_policy_data *lpolicy,
-					ldlm_wire_policy_data_t *wpolicy)
+					union ldlm_wire_policy_data *wpolicy)
 {
 	ldlm_policy_local_to_wire_t convert;
 
@@ -95,7 +95,7 @@ static void ldlm_convert_policy_to_wire(enum ldlm_type type,
  * Converts lock policy from on the wire lock_desc format to local format
  */
 void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
-				  const ldlm_wire_policy_data_t *wpolicy,
+				  const union ldlm_wire_policy_data *wpolicy,
 				  union ldlm_policy_data *lpolicy)
 {
 	ldlm_policy_wire_to_local_t convert;

@@ -560,7 +560,7 @@ union ldlm_policy_data {
 };
 
 void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
-				  const ldlm_wire_policy_data_t *wpolicy,
+				  const union ldlm_wire_policy_data *wpolicy,
 				  union ldlm_policy_data *lpolicy);
 
 enum lvb_type {
