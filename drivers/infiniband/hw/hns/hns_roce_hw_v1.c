@@ -2571,7 +2571,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	/* Every status migrate must change state */
 	roce_set_field(context->qpc_bytes_144,
 		       QP_CONTEXT_QPC_BYTES_144_QP_STATE_M,
-		       QP_CONTEXT_QPC_BYTES_144_QP_STATE_S, attr->qp_state);
+		       QP_CONTEXT_QPC_BYTES_144_QP_STATE_S, new_state);
 
 	/* SW pass context to HW */
 	ret = hns_roce_v1_qp_modify(hr_dev, &hr_qp->mtt,
