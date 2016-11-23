@@ -1080,9 +1080,9 @@ exit:
 }
 
 static s32
-brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
-	       struct brcmf_if *ifp, struct cfg80211_scan_request *request)
+brcmf_do_escan(struct brcmf_if *ifp, struct cfg80211_scan_request *request)
 {
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	s32 err;
 	u32 passive_scan;
 	struct brcmf_scan_results *results;
@@ -1090,7 +1090,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 
 	brcmf_dbg(SCAN, "Enter\n");
 	escan->ifp = ifp;
-	escan->wiphy = wiphy;
+	escan->wiphy = cfg->wiphy;
 	escan->escan_state = WL_ESCAN_STATE_SCANNING;
 	passive_scan = cfg->active_scan ? 0 : 1;
 	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PASSIVE_SCAN,
@@ -1170,7 +1170,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 		if (err)
 			goto scan_out;
 
-		err = brcmf_do_escan(cfg, wiphy, vif->ifp, request);
+		err = brcmf_do_escan(vif->ifp, request);
 		if (err)
 			goto scan_out;
 	} else {
@@ -3289,7 +3289,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 
 		set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 		cfg->escan_info.run = brcmf_run_escan;
-		err = brcmf_do_escan(cfg, wiphy, ifp, request);
+		err = brcmf_do_escan(ifp, request);
 		if (err) {
 			clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 			goto out_err;
