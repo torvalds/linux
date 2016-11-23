@@ -348,8 +348,6 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	struct smack_rule *orp;
 	int rc = 0;
 
-	INIT_LIST_HEAD(nhead);
-
 	list_for_each_entry_rcu(orp, ohead, list) {
 		nrp = kzalloc(sizeof(struct smack_rule), gfp);
 		if (nrp == NULL) {
@@ -375,8 +373,6 @@ static int smk_copy_relabel(struct list_head *nhead, struct list_head *ohead,
 {
 	struct smack_known_list_elem *nklep;
 	struct smack_known_list_elem *oklep;
-
-	INIT_LIST_HEAD(nhead);
 
 	list_for_each_entry(oklep, ohead, list) {
 		nklep = kzalloc(sizeof(struct smack_known_list_elem), gfp);
