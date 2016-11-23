@@ -69,6 +69,7 @@ bool __read_mostly tracing_selftest_disabled;
 /* Pipe tracepoints to printk */
 struct trace_iterator *tracepoint_print_iter;
 int tracepoint_printk;
+static DEFINE_STATIC_KEY_FALSE(tracepoint_printk_key);
 
 /* For tracers that don't implement custom flags */
 static struct tracer_opt dummy_tracer_opt[] = {
@@ -2115,6 +2116,81 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 	return entry;
 }
 EXPORT_SYMBOL_GPL(trace_event_buffer_lock_reserve);
+
+static DEFINE_SPINLOCK(tracepoint_iter_lock);
+static DEFINE_MUTEX(tracepoint_printk_mutex);
+
+static void output_printk(struct trace_event_buffer *fbuffer)
+{
+	struct trace_event_call *event_call;
+	struct trace_event *event;
+	unsigned long flags;
+	struct trace_iterator *iter = tracepoint_print_iter;
+
+	/* We should never get here if iter is NULL */
+	if (WARN_ON_ONCE(!iter))
+		return;
+
+	event_call = fbuffer->trace_file->event_call;
+	if (!event_call || !event_call->event.funcs ||
+	    !event_call->event.funcs->trace)
+		return;
+
+	event = &fbuffer->trace_file->event_call->event;
+
+	spin_lock_irqsave(&tracepoint_iter_lock, flags);
+	trace_seq_init(&iter->seq);
+	iter->ent = fbuffer->entry;
+	event_call->event.funcs->trace(iter, 0, event);
+	trace_seq_putc(&iter->seq, 0);
+	printk("%s", iter->seq.buffer);
+
+	spin_unlock_irqrestore(&tracepoint_iter_lock, flags);
+}
+
+int tracepoint_printk_sysctl(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp,
+			     loff_t *ppos)
+{
+	int save_tracepoint_printk;
+	int ret;
+
+	mutex_lock(&tracepoint_printk_mutex);
+	save_tracepoint_printk = tracepoint_printk;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	/*
+	 * This will force exiting early, as tracepoint_printk
+	 * is always zero when tracepoint_printk_iter is not allocated
+	 */
+	if (!tracepoint_print_iter)
+		tracepoint_printk = 0;
+
+	if (save_tracepoint_printk == tracepoint_printk)
+		goto out;
+
+	if (tracepoint_printk)
+		static_key_enable(&tracepoint_printk_key.key);
+	else
+		static_key_disable(&tracepoint_printk_key.key);
+
+ out:
+	mutex_unlock(&tracepoint_printk_mutex);
+
+	return ret;
+}
+
+void trace_event_buffer_commit(struct trace_event_buffer *fbuffer)
+{
+	if (static_key_false(&tracepoint_printk_key.key))
+		output_printk(fbuffer);
+
+	event_trigger_unlock_commit(fbuffer->trace_file, fbuffer->buffer,
+				    fbuffer->event, fbuffer->entry,
+				    fbuffer->flags, fbuffer->pc);
+}
+EXPORT_SYMBOL_GPL(trace_event_buffer_commit);
 
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct ring_buffer *buffer,
@@ -7977,6 +8053,8 @@ void __init trace_init(void)
 			kmalloc(sizeof(*tracepoint_print_iter), GFP_KERNEL);
 		if (WARN_ON(!tracepoint_print_iter))
 			tracepoint_printk = 0;
+		else
+			static_key_enable(&tracepoint_printk_key.key);
 	}
 	tracer_alloc_buffers();
 	trace_event_init();
