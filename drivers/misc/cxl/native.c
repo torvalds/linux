@@ -10,7 +10,6 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
