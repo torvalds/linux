@@ -4501,7 +4501,7 @@ static void make_mmu_pages_available(struct kvm_vcpu *vcpu)
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 }
 
-int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,
+int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 		       void *insn, int insn_len)
 {
 	int r, emulation_type = EMULTYPE_RETRY;
@@ -4520,11 +4520,27 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,
 			return r;
 	}
 
-	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code, false);
+	r = vcpu->arch.mmu.page_fault(vcpu, cr2, lower_32_bits(error_code),
+				      false);
 	if (r < 0)
 		return r;
 	if (!r)
 		return 1;
+
+	/*
+	 * Before emulating the instruction, check if the error code
+	 * was due to a RO violation while translating the guest page.
+	 * This can occur when using nested virtualization with nested
+	 * paging in both guests. If true, we simply unprotect the page
+	 * and resume the guest.
+	 *
+	 * Note: AMD only (since it supports the PFERR_GUEST_PAGE_MASK used
+	 *       in PFERR_NEXT_GUEST_PAGE)
+	 */
+	if (error_code == PFERR_NESTED_GUEST_PAGE) {
+		kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(cr2));
+		return 1;
+	}
 
 	if (mmio_info_in_cache(vcpu, cr2, direct))
 		emulation_type = 0;
