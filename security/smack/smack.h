@@ -173,6 +173,7 @@ struct smk_port_label {
 	unsigned short		smk_port;	/* the port number */
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
+	short			smk_sock_type;	/* Socket type */
 };
 #endif /* SMACK_IPV6_PORT_LABELING */
 
