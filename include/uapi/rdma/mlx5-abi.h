@@ -82,6 +82,7 @@ enum mlx5_ib_alloc_ucontext_resp_mask {
 
 enum mlx5_user_cmds_supp_uhw {
 	MLX5_USER_CMDS_SUPP_UHW_QUERY_DEVICE = 1 << 0,
+	MLX5_USER_CMDS_SUPP_UHW_CREATE_AH    = 1 << 1,
 };
 
 struct mlx5_ib_alloc_ucontext_resp {
