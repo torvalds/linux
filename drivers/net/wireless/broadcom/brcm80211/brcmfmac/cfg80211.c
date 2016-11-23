@@ -42,7 +42,6 @@
 #include "common.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
-#define BRCMF_SCHED_SCAN_PERIOD		30
 
 #define WPA_OUI				"\x00\x50\xF2"	/* WPA OUI */
 #define WPA_OUI_TYPE			1
@@ -3342,24 +3341,6 @@ free_req:
 	return err;
 }
 
-static bool brcmf_is_ssid_active(struct cfg80211_ssid *ssid,
-				 struct cfg80211_sched_scan_request *req)
-{
-	int i;
-
-	if (!ssid || !req->ssids || !req->n_ssids)
-		return false;
-
-	for (i = 0; i < req->n_ssids; i++) {
-		if (ssid->ssid_len == req->ssids[i].ssid_len) {
-			if (!strncmp(ssid->ssid, req->ssids[i].ssid,
-				     ssid->ssid_len))
-				return true;
-		}
-	}
-	return false;
-}
-
 static int
 brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 				struct net_device *ndev,
@@ -3367,9 +3348,6 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
-	struct cfg80211_ssid *ssid;
-	int i;
-	int ret = 0;
 
 	brcmf_dbg(SCAN, "Enter n_match_sets:%d n_ssids:%d\n",
 		  req->n_match_sets, req->n_ssids);
@@ -3389,48 +3367,7 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	/* clean up everything */
-	ret = brcmf_pno_clean(ifp);
-	if  (ret < 0) {
-		brcmf_err("failed error=%d\n", ret);
-		return ret;
-	}
-
-	/* configure pno */
-	ret = brcmf_pno_config(ifp, BRCMF_SCHED_SCAN_PERIOD, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	/* configure random mac */
-	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		ret = brcmf_pno_set_random(ifp, req->mac_addr,
-					   req->mac_addr_mask);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* configure each match set */
-	for (i = 0; i < req->n_match_sets; i++) {
-
-		ssid = &req->match_sets[i].ssid;
-
-		if (!ssid->ssid_len) {
-			brcmf_err("skip broadcast ssid\n");
-			continue;
-		}
-
-		ret = brcmf_pno_add_ssid(ifp, ssid,
-					 brcmf_is_ssid_active(ssid, req));
-		if (ret < 0)
-			brcmf_dbg(SCAN, ">>> PNO filter %s for ssid (%s)\n",
-				  ret == 0 ? "set" : "failed", ssid->ssid);
-	}
-	/* Enable the PNO */
-	ret = brcmf_fil_iovar_int_set(ifp, "pfn", 1);
-	if (ret < 0)
-		brcmf_err("PNO enable failed!! ret=%d\n", ret);
-
-	return ret;
+	return brcmf_pno_start_sched_scan(ifp, req);
 }
 
 static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,

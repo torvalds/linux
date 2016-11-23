@@ -32,25 +32,10 @@
 #define BRCMF_PNO_SCAN_INCOMPLETE	0
 #define BRCMF_PNO_WPA_AUTH_ANY		0xFFFFFFFF
 #define BRCMF_PNO_HIDDEN_BIT		2
+#define BRCMF_PNO_SCHED_SCAN_PERIOD	30
 
-int brcmf_pno_clean(struct brcmf_if *ifp)
-{
-	int ret;
-
-	/* Disable pfn */
-	ret = brcmf_fil_iovar_int_set(ifp, "pfn", 0);
-	if (ret == 0) {
-		/* clear pfn */
-		ret = brcmf_fil_iovar_data_set(ifp, "pfnclear", NULL, 0);
-	}
-	if (ret < 0)
-		brcmf_err("failed code %d\n", ret);
-
-	return ret;
-}
-
-int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
-		     u32 mscan, u32 bestn)
+static int brcmf_pno_config(struct brcmf_if *ifp, u32 scan_freq,
+			    u32 mscan, u32 bestn)
 {
 	struct brcmf_pno_param_le pfn_param;
 	u16 flags;
@@ -102,7 +87,8 @@ exit:
 	return err;
 }
 
-int brcmf_pno_set_random(struct brcmf_if *ifp, u8 *mac_addr, u8 *mac_mask)
+static int brcmf_pno_set_random(struct brcmf_if *ifp, u8 *mac_addr,
+				u8 *mac_mask)
 {
 	struct brcmf_pno_macaddr_le pfn_mac;
 	int err, i;
@@ -128,8 +114,8 @@ int brcmf_pno_set_random(struct brcmf_if *ifp, u8 *mac_addr, u8 *mac_mask)
 	return err;
 }
 
-int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
-		       bool active)
+static int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
+			      bool active)
 {
 	struct brcmf_pno_net_param_le pfn;
 
@@ -142,5 +128,87 @@ int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
 	pfn.ssid.SSID_len = cpu_to_le32(ssid->ssid_len);
 	memcpy(pfn.ssid.SSID, ssid->ssid, ssid->ssid_len);
 	return brcmf_fil_iovar_data_set(ifp, "pfn_add", &pfn, sizeof(pfn));
+}
+
+static bool brcmf_is_ssid_active(struct cfg80211_ssid *ssid,
+				 struct cfg80211_sched_scan_request *req)
+{
+	int i;
+
+	if (!ssid || !req->ssids || !req->n_ssids)
+		return false;
+
+	for (i = 0; i < req->n_ssids; i++) {
+		if (ssid->ssid_len == req->ssids[i].ssid_len) {
+			if (!strncmp(ssid->ssid, req->ssids[i].ssid,
+				     ssid->ssid_len))
+				return true;
+		}
+	}
+	return false;
+}
+
+int brcmf_pno_clean(struct brcmf_if *ifp)
+{
+	int ret;
+
+	/* Disable pfn */
+	ret = brcmf_fil_iovar_int_set(ifp, "pfn", 0);
+	if (ret == 0) {
+		/* clear pfn */
+		ret = brcmf_fil_iovar_data_set(ifp, "pfnclear", NULL, 0);
+	}
+	if (ret < 0)
+		brcmf_err("failed code %d\n", ret);
+
+	return ret;
+}
+
+int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
+			       struct cfg80211_sched_scan_request *req)
+{
+	struct cfg80211_ssid *ssid;
+	int i, ret;
+
+	/* clean up everything */
+	ret = brcmf_pno_clean(ifp);
+	if  (ret < 0) {
+		brcmf_err("failed error=%d\n", ret);
+		return ret;
+	}
+
+	/* configure pno */
+	ret = brcmf_pno_config(ifp, BRCMF_PNO_SCHED_SCAN_PERIOD, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	/* configure random mac */
+	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		ret = brcmf_pno_set_random(ifp, req->mac_addr,
+					   req->mac_addr_mask);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* configure each match set */
+	for (i = 0; i < req->n_match_sets; i++) {
+		ssid = &req->match_sets[i].ssid;
+		if (!ssid->ssid_len) {
+			brcmf_err("skip broadcast ssid\n");
+			continue;
+		}
+
+		ret = brcmf_pno_add_ssid(ifp, ssid,
+					 brcmf_is_ssid_active(ssid, req));
+		if (ret < 0)
+			brcmf_dbg(SCAN, ">>> PNO filter %s for ssid (%s)\n",
+				  ret == 0 ? "set" : "failed", ssid->ssid);
+	}
+	/* Enable the PNO */
+	ret = brcmf_fil_iovar_int_set(ifp, "pfn", 1);
+	if (ret < 0)
+		brcmf_err("PNO enable failed!! ret=%d\n", ret);
+
+	return ret;
 }
 
