@@ -1137,7 +1137,7 @@ pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct pin_cookie coo
 		pull_dl_task(rq);
 		lockdep_repin_lock(&rq->lock, cookie);
 		/*
-		 * pull_rt_task() can drop (and re-acquire) rq->lock; this
+		 * pull_dl_task() can drop (and re-acquire) rq->lock; this
 		 * means a stop task can slip in, in which case we need to
 		 * re-start task selection.
 		 */
