@@ -65,9 +65,9 @@ static bool drm_property_type_valid(struct drm_property *property)
  * @num_values: number of pre-defined values
  *
  * This creates a new generic drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * Returns:
  * A pointer to the newly created property on success, NULL on failure.
@@ -125,9 +125,9 @@ EXPORT_SYMBOL(drm_property_create);
  * @num_values: number of pre-defined values
  *
  * This creates a new generic drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * Userspace is only allowed to set one of the predefined values for enumeration
  * properties.
@@ -173,9 +173,9 @@ EXPORT_SYMBOL(drm_property_create_enum);
  * @supported_bits: bitmask of all supported enumeration values
  *
  * This creates a new bitmask drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * Compared to plain enumeration properties userspace is allowed to set any
  * or'ed together combination of the predefined property bitflag values
@@ -245,9 +245,9 @@ static struct drm_property *property_create_range(struct drm_device *dev,
  * @max: maximum value of the property
  *
  * This creates a new generic drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * Userspace is allowed to set any unsigned integer value in the (min, max)
  * range inclusive.
@@ -273,9 +273,9 @@ EXPORT_SYMBOL(drm_property_create_range);
  * @max: maximum value of the property
  *
  * This creates a new generic drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * Userspace is allowed to set any signed integer value in the (min, max)
  * range inclusive.
@@ -300,9 +300,9 @@ EXPORT_SYMBOL(drm_property_create_signed_range);
  * @type: object type from DRM_MODE_OBJECT_* defines
  *
  * This creates a new generic drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * Userspace is only allowed to set this to any property value of the given
  * @type. Only useful for atomic properties, which is enforced.
@@ -338,9 +338,9 @@ EXPORT_SYMBOL(drm_property_create_object);
  * @name: name of the property
  *
  * This creates a new generic drm property which can then be attached to a drm
- * object with drm_object_attach_property. The returned property object must be
- * freed with drm_property_destroy(), which is done automatically when calling
- * drm_mode_config_cleanup().
+ * object with drm_object_attach_property(). The returned property object must
+ * be freed with drm_property_destroy(), which is done automatically when
+ * calling drm_mode_config_cleanup().
  *
  * This is implemented as a ranged property with only {0, 1} as valid values.
  *
