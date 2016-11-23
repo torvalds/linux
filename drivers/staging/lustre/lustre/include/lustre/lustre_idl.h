@@ -1189,6 +1189,7 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 						       *  RPCs in parallel
 						       */
 #define OBD_CONNECT_DIR_STRIPE	 0x400000000000000ULL/* striped DNE dir */
+#define OBD_CONNECT_SUBTREE	 0x800000000000000ULL /* fileset mount */
 /** bulk matchbits is sent within ptlrpc_body */
 #define OBD_CONNECT_BULK_MBITS	 0x2000000000000000ULL
 
