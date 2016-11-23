@@ -1951,7 +1951,8 @@ struct ib_device {
 					       struct ib_udata *udata);
 	int                        (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,
-						struct ib_ah_attr *ah_attr);
+						struct ib_ah_attr *ah_attr,
+						struct ib_udata *udata);
 	int                        (*modify_ah)(struct ib_ah *ah,
 						struct ib_ah_attr *ah_attr);
 	int                        (*query_ah)(struct ib_ah *ah,

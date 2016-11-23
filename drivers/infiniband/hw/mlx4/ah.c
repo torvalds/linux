@@ -126,7 +126,9 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	return &ah->ibah;
 }
 
-struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
+struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+				struct ib_udata *udata)
+
 {
 	struct mlx4_ib_ah *ah;
 	struct ib_ah *ret;

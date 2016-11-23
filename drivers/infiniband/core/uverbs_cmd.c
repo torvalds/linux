@@ -2877,12 +2877,17 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	struct ib_ah			*ah;
 	struct ib_ah_attr		attr;
 	int ret;
+	struct ib_udata                   udata;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
+
+	INIT_UDATA(&udata, buf + sizeof(cmd),
+		   (unsigned long)cmd.response + sizeof(resp),
+		   in_len - sizeof(cmd), out_len - sizeof(resp));
 
 	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
@@ -2910,12 +2915,16 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	memset(&attr.dmac, 0, sizeof(attr.dmac));
 	memcpy(attr.grh.dgid.raw, cmd.attr.grh.dgid, 16);
 
-	ah = ib_create_ah(pd, &attr);
+	ah = pd->device->create_ah(pd, &attr, &udata);
+
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;
 	}
 
+	ah->device  = pd->device;
+	ah->pd      = pd;
+	atomic_inc(&pd->usecnt);
 	ah->uobject  = uobj;
 	uobj->object = ah;
 
