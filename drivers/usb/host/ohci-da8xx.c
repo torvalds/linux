@@ -394,6 +394,13 @@ check_port:
 }
 
 /*-------------------------------------------------------------------------*/
+#ifdef CONFIG_OF
+static const struct of_device_id da8xx_ohci_ids[] = {
+	{ .compatible = "ti,da830-ohci" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da8xx_ohci_ids);
+#endif
 
 static int ohci_da8xx_probe(struct platform_device *pdev)
 {
@@ -546,6 +553,7 @@ static struct platform_driver ohci_hcd_da8xx_driver = {
 #endif
 	.driver		= {
 		.name	= DRV_NAME,
+		.of_match_table = of_match_ptr(da8xx_ohci_ids),
 	},
 };
 
