@@ -974,8 +974,8 @@ static void i915_oa_stream_disable(struct i915_perf_stream *stream)
 
 static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
 {
-	return 1000000000ULL * (2ULL << exponent) /
-		dev_priv->perf.oa.timestamp_frequency;
+	return div_u64(1000000000ULL * (2ULL << exponent),
+		       dev_priv->perf.oa.timestamp_frequency);
 }
 
 static const struct i915_perf_stream_ops i915_oa_stream_ops = {
@@ -1051,16 +1051,17 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	dev_priv->perf.oa.periodic = props->oa_periodic;
 	if (dev_priv->perf.oa.periodic) {
-		u64 period_ns = oa_exponent_to_ns(dev_priv,
-						  props->oa_period_exponent);
+		u32 tail;
 
 		dev_priv->perf.oa.period_exponent = props->oa_period_exponent;
 
 		/* See comment for OA_TAIL_MARGIN_NSEC for details
 		 * about this tail_margin...
 		 */
-		dev_priv->perf.oa.tail_margin =
-			((OA_TAIL_MARGIN_NSEC / period_ns) + 1) * format_size;
+		tail = div64_u64(OA_TAIL_MARGIN_NSEC,
+				 oa_exponent_to_ns(dev_priv,
+						   props->oa_period_exponent));
+		dev_priv->perf.oa.tail_margin = (tail + 1) * format_size;
 	}
 
 	if (stream->ctx) {
