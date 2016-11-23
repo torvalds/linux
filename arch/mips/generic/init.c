@@ -88,6 +88,19 @@ void __init *plat_get_fdt(void)
 	return (void *)fdt;
 }
 
+void __init plat_fdt_relocated(void *new_location)
+{
+	/*
+	 * reset fdt as the cached value would point to the location
+	 * before relocations happened and update the location argument
+	 * if it was passed using UHI
+	 */
+	fdt = NULL;
+
+	if (fw_arg0 == -2)
+		fw_arg1 = (unsigned long)new_location;
+}
+
 void __init plat_mem_setup(void)
 {
 	if (mach && mach->fixup_fdt)
