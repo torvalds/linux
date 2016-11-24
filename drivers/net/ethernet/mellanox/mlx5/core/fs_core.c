@@ -1307,8 +1307,7 @@ static bool counter_is_valid(struct mlx5_fc *counter, u32 action)
 		return false;
 
 	return (action & (MLX5_FLOW_CONTEXT_ACTION_DROP |
-			  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST)) &&
-		(action & MLX5_FLOW_CONTEXT_ACTION_COUNT);
+			  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST));
 }
 
 static bool dest_is_valid(struct mlx5_flow_destination *dest,
