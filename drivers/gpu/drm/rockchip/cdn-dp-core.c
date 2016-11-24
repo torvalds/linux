@@ -23,6 +23,7 @@
 #include <linux/component.h>
 #include <linux/extcon.h>
 #include <linux/firmware.h>
+#include <linux/hdmi-notifier.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
@@ -653,6 +654,8 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 	}
 out:
 	mutex_unlock(&dp->lock);
+	if (!ret)
+		hdmi_event_connect(dp->dev);
 }
 
 static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
@@ -669,6 +672,7 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 		}
 	}
 	mutex_unlock(&dp->lock);
+	hdmi_event_disconnect(dp->dev);
 
 	/*
 	 * In the following 2 cases, we need to run the event_work to re-enable
