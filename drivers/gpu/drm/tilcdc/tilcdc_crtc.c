@@ -215,6 +215,251 @@ static void reset(struct drm_crtc *crtc)
 	tilcdc_clear(dev, LCDC_CLK_RESET_REG, LCDC_CLK_MAIN_RESET);
 }
 
+/*
+ * Calculate the percentage difference between the requested pixel clock rate
+ * and the effective rate resulting from calculating the clock divider value.
+ */
+static unsigned int tilcdc_pclk_diff(unsigned long rate,
+				     unsigned long real_rate)
+{
+	int r = rate / 100, rr = real_rate / 100;
+
+	return (unsigned int)(abs(((rr - r) * 100) / r));
+}
+
+static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	unsigned long clk_rate, real_rate, req_rate;
+	unsigned int clkdiv;
+	int ret;
+
+	clkdiv = 2; /* first try using a standard divider of 2 */
+
+	/* mode.clock is in KHz, set_rate wants parameter in Hz */
+	req_rate = crtc->mode.clock * 1000;
+
+	ret = clk_set_rate(priv->clk, req_rate * clkdiv);
+	clk_rate = clk_get_rate(priv->clk);
+	if (ret < 0) {
+		/*
+		 * If we fail to set the clock rate (some architectures don't
+		 * use the common clock framework yet and may not implement
+		 * all the clk API calls for every clock), try the next best
+		 * thing: adjusting the clock divider, unless clk_get_rate()
+		 * failed as well.
+		 */
+		if (!clk_rate) {
+			/* Nothing more we can do. Just bail out. */
+			dev_err(dev->dev,
+				"failed to set the pixel clock - unable to read current lcdc clock rate\n");
+			return;
+		}
+
+		clkdiv = DIV_ROUND_CLOSEST(clk_rate, req_rate);
+
+		/*
+		 * Emit a warning if the real clock rate resulting from the
+		 * calculated divider differs much from the requested rate.
+		 *
+		 * 5% is an arbitrary value - LCDs are usually quite tolerant
+		 * about pixel clock rates.
+		 */
+		real_rate = clkdiv * req_rate;
+
+		if (tilcdc_pclk_diff(clk_rate, real_rate) > 5) {
+			dev_warn(dev->dev,
+				 "effective pixel clock rate (%luHz) differs from the calculated rate (%luHz)\n",
+				 clk_rate, real_rate);
+		}
+	}
+
+	tilcdc_crtc->lcd_fck_rate = clk_rate;
+
+	DBG("lcd_clk=%u, mode clock=%d, div=%u",
+	    tilcdc_crtc->lcd_fck_rate, crtc->mode.clock, clkdiv);
+
+	/* Configure the LCD clock divisor. */
+	tilcdc_write(dev, LCDC_CTRL_REG, LCDC_CLK_DIVISOR(clkdiv) |
+		     LCDC_RASTER_MODE);
+
+	if (priv->rev == 2)
+		tilcdc_set(dev, LCDC_CLK_ENABLE_REG,
+				LCDC_V2_DMA_CLK_EN | LCDC_V2_LIDD_CLK_EN |
+				LCDC_V2_CORE_CLK_EN);
+}
+
+static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
+{
+	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
+	const struct tilcdc_panel_info *info = tilcdc_crtc->info;
+	uint32_t reg, hbp, hfp, hsw, vbp, vfp, vsw;
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_framebuffer *fb = crtc->primary->state->fb;
+
+	if (WARN_ON(!info))
+		return;
+
+	if (WARN_ON(!fb))
+		return;
+
+	/* Configure the Burst Size and fifo threshold of DMA: */
+	reg = tilcdc_read(dev, LCDC_DMA_CTRL_REG) & ~0x00000770;
+	switch (info->dma_burst_sz) {
+	case 1:
+		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_1);
+		break;
+	case 2:
+		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_2);
+		break;
+	case 4:
+		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_4);
+		break;
+	case 8:
+		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_8);
+		break;
+	case 16:
+		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_16);
+		break;
+	default:
+		dev_err(dev->dev, "invalid burst size\n");
+		return;
+	}
+	reg |= (info->fifo_th << 8);
+	tilcdc_write(dev, LCDC_DMA_CTRL_REG, reg);
+
+	/* Configure timings: */
+	hbp = mode->htotal - mode->hsync_end;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hsw = mode->hsync_end - mode->hsync_start;
+	vbp = mode->vtotal - mode->vsync_end;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vsw = mode->vsync_end - mode->vsync_start;
+
+	DBG("%dx%d, hbp=%u, hfp=%u, hsw=%u, vbp=%u, vfp=%u, vsw=%u",
+	    mode->hdisplay, mode->vdisplay, hbp, hfp, hsw, vbp, vfp, vsw);
+
+	/* Set AC Bias Period and Number of Transitions per Interrupt: */
+	reg = tilcdc_read(dev, LCDC_RASTER_TIMING_2_REG) & ~0x000fff00;
+	reg |= LCDC_AC_BIAS_FREQUENCY(info->ac_bias) |
+		LCDC_AC_BIAS_TRANSITIONS_PER_INT(info->ac_bias_intrpt);
+
+	/*
+	 * subtract one from hfp, hbp, hsw because the hardware uses
+	 * a value of 0 as 1
+	 */
+	if (priv->rev == 2) {
+		/* clear bits we're going to set */
+		reg &= ~0x78000033;
+		reg |= ((hfp-1) & 0x300) >> 8;
+		reg |= ((hbp-1) & 0x300) >> 4;
+		reg |= ((hsw-1) & 0x3c0) << 21;
+	}
+	tilcdc_write(dev, LCDC_RASTER_TIMING_2_REG, reg);
+
+	reg = (((mode->hdisplay >> 4) - 1) << 4) |
+		(((hbp-1) & 0xff) << 24) |
+		(((hfp-1) & 0xff) << 16) |
+		(((hsw-1) & 0x3f) << 10);
+	if (priv->rev == 2)
+		reg |= (((mode->hdisplay >> 4) - 1) & 0x40) >> 3;
+	tilcdc_write(dev, LCDC_RASTER_TIMING_0_REG, reg);
+
+	reg = ((mode->vdisplay - 1) & 0x3ff) |
+		((vbp & 0xff) << 24) |
+		((vfp & 0xff) << 16) |
+		(((vsw-1) & 0x3f) << 10);
+	tilcdc_write(dev, LCDC_RASTER_TIMING_1_REG, reg);
+
+	/*
+	 * be sure to set Bit 10 for the V2 LCDC controller,
+	 * otherwise limited to 1024 pixels width, stopping
+	 * 1920x1080 being supported.
+	 */
+	if (priv->rev == 2) {
+		if ((mode->vdisplay - 1) & 0x400) {
+			tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG,
+				LCDC_LPP_B10);
+		} else {
+			tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG,
+				LCDC_LPP_B10);
+		}
+	}
+
+	/* Configure display type: */
+	reg = tilcdc_read(dev, LCDC_RASTER_CTRL_REG) &
+		~(LCDC_TFT_MODE | LCDC_MONO_8BIT_MODE | LCDC_MONOCHROME_MODE |
+		  LCDC_V2_TFT_24BPP_MODE | LCDC_V2_TFT_24BPP_UNPACK |
+		  0x000ff000 /* Palette Loading Delay bits */);
+	reg |= LCDC_TFT_MODE; /* no monochrome/passive support */
+	if (info->tft_alt_mode)
+		reg |= LCDC_TFT_ALT_ENABLE;
+	if (priv->rev == 2) {
+		switch (fb->pixel_format) {
+		case DRM_FORMAT_BGR565:
+		case DRM_FORMAT_RGB565:
+			break;
+		case DRM_FORMAT_XBGR8888:
+		case DRM_FORMAT_XRGB8888:
+			reg |= LCDC_V2_TFT_24BPP_UNPACK;
+			/* fallthrough */
+		case DRM_FORMAT_BGR888:
+		case DRM_FORMAT_RGB888:
+			reg |= LCDC_V2_TFT_24BPP_MODE;
+			break;
+		default:
+			dev_err(dev->dev, "invalid pixel format\n");
+			return;
+		}
+	}
+	reg |= info->fdd < 12;
+	tilcdc_write(dev, LCDC_RASTER_CTRL_REG, reg);
+
+	if (info->invert_pxl_clk)
+		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_PIXEL_CLOCK);
+	else
+		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_PIXEL_CLOCK);
+
+	if (info->sync_ctrl)
+		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_CTRL);
+	else
+		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_CTRL);
+
+	if (info->sync_edge)
+		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_EDGE);
+	else
+		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_EDGE);
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
+	else
+		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_VSYNC);
+	else
+		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_VSYNC);
+
+	if (info->raster_order)
+		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ORDER);
+	else
+		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ORDER);
+
+	tilcdc_crtc_set_clk(crtc);
+
+	tilcdc_crtc_load_palette(crtc);
+
+	set_scanout(crtc, fb);
+
+	drm_framebuffer_reference(fb);
+
+	crtc->hwmode = crtc->state->adjusted_mode;
+}
+
 static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -230,6 +475,8 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	pm_runtime_get_sync(dev->dev);
 
 	reset(crtc);
+
+	tilcdc_crtc_set_mode(crtc);
 
 	tilcdc_crtc_enable_irqs(dev);
 
@@ -250,6 +497,7 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
+	int ret;
 
 	mutex_lock(&tilcdc_crtc->enable_lock);
 	if (shutdown)
@@ -262,17 +510,15 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
 
 	/*
-	 * if necessary wait for framedone irq which will still come
-	 * before putting things to sleep..
+	 * Wait for framedone irq which will still come before putting
+	 * things to sleep..
 	 */
-	if (priv->rev == 2) {
-		int ret = wait_event_timeout(tilcdc_crtc->frame_done_wq,
-					     tilcdc_crtc->frame_done,
-					     msecs_to_jiffies(500));
-		if (ret == 0)
-			dev_err(dev->dev, "%s: timeout waiting for framedone\n",
-				__func__);
-	}
+	ret = wait_event_timeout(tilcdc_crtc->frame_done_wq,
+				 tilcdc_crtc->frame_done,
+				 msecs_to_jiffies(500));
+	if (ret == 0)
+		dev_err(dev->dev, "%s: timeout waiting for framedone\n",
+			__func__);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -423,253 +669,6 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-/*
- * Calculate the percentage difference between the requested pixel clock rate
- * and the effective rate resulting from calculating the clock divider value.
- */
-static unsigned int tilcdc_pclk_diff(unsigned long rate,
-				     unsigned long real_rate)
-{
-	int r = rate / 100, rr = real_rate / 100;
-
-	return (unsigned int)(abs(((rr - r) * 100) / r));
-}
-
-static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
-	unsigned long clk_rate, real_rate, req_rate;
-	unsigned int clkdiv;
-	int ret;
-
-	clkdiv = 2; /* first try using a standard divider of 2 */
-
-	/* mode.clock is in KHz, set_rate wants parameter in Hz */
-	req_rate = crtc->mode.clock * 1000;
-
-	ret = clk_set_rate(priv->clk, req_rate * clkdiv);
-	clk_rate = clk_get_rate(priv->clk);
-	if (ret < 0) {
-		/*
-		 * If we fail to set the clock rate (some architectures don't
-		 * use the common clock framework yet and may not implement
-		 * all the clk API calls for every clock), try the next best
-		 * thing: adjusting the clock divider, unless clk_get_rate()
-		 * failed as well.
-		 */
-		if (!clk_rate) {
-			/* Nothing more we can do. Just bail out. */
-			dev_err(dev->dev,
-				"failed to set the pixel clock - unable to read current lcdc clock rate\n");
-			return;
-		}
-
-		clkdiv = DIV_ROUND_CLOSEST(clk_rate, req_rate);
-
-		/*
-		 * Emit a warning if the real clock rate resulting from the
-		 * calculated divider differs much from the requested rate.
-		 *
-		 * 5% is an arbitrary value - LCDs are usually quite tolerant
-		 * about pixel clock rates.
-		 */
-		real_rate = clkdiv * req_rate;
-
-		if (tilcdc_pclk_diff(clk_rate, real_rate) > 5) {
-			dev_warn(dev->dev,
-				 "effective pixel clock rate (%luHz) differs from the calculated rate (%luHz)\n",
-				 clk_rate, real_rate);
-		}
-	}
-
-	tilcdc_crtc->lcd_fck_rate = clk_rate;
-
-	DBG("lcd_clk=%u, mode clock=%d, div=%u",
-	    tilcdc_crtc->lcd_fck_rate, crtc->mode.clock, clkdiv);
-
-	/* Configure the LCD clock divisor. */
-	tilcdc_write(dev, LCDC_CTRL_REG, LCDC_CLK_DIVISOR(clkdiv) |
-		     LCDC_RASTER_MODE);
-
-	if (priv->rev == 2)
-		tilcdc_set(dev, LCDC_CLK_ENABLE_REG,
-				LCDC_V2_DMA_CLK_EN | LCDC_V2_LIDD_CLK_EN |
-				LCDC_V2_CORE_CLK_EN);
-}
-
-static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
-{
-	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	const struct tilcdc_panel_info *info = tilcdc_crtc->info;
-	uint32_t reg, hbp, hfp, hsw, vbp, vfp, vsw;
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
-	struct drm_framebuffer *fb = crtc->primary->state->fb;
-
-	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
-
-	if (WARN_ON(!info))
-		return;
-
-	if (WARN_ON(!fb))
-		return;
-
-	/* Configure the Burst Size and fifo threshold of DMA: */
-	reg = tilcdc_read(dev, LCDC_DMA_CTRL_REG) & ~0x00000770;
-	switch (info->dma_burst_sz) {
-	case 1:
-		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_1);
-		break;
-	case 2:
-		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_2);
-		break;
-	case 4:
-		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_4);
-		break;
-	case 8:
-		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_8);
-		break;
-	case 16:
-		reg |= LCDC_DMA_BURST_SIZE(LCDC_DMA_BURST_16);
-		break;
-	default:
-		dev_err(dev->dev, "invalid burst size\n");
-		return;
-	}
-	reg |= (info->fifo_th << 8);
-	tilcdc_write(dev, LCDC_DMA_CTRL_REG, reg);
-
-	/* Configure timings: */
-	hbp = mode->htotal - mode->hsync_end;
-	hfp = mode->hsync_start - mode->hdisplay;
-	hsw = mode->hsync_end - mode->hsync_start;
-	vbp = mode->vtotal - mode->vsync_end;
-	vfp = mode->vsync_start - mode->vdisplay;
-	vsw = mode->vsync_end - mode->vsync_start;
-
-	DBG("%dx%d, hbp=%u, hfp=%u, hsw=%u, vbp=%u, vfp=%u, vsw=%u",
-	    mode->hdisplay, mode->vdisplay, hbp, hfp, hsw, vbp, vfp, vsw);
-
-	/* Set AC Bias Period and Number of Transitions per Interrupt: */
-	reg = tilcdc_read(dev, LCDC_RASTER_TIMING_2_REG) & ~0x000fff00;
-	reg |= LCDC_AC_BIAS_FREQUENCY(info->ac_bias) |
-		LCDC_AC_BIAS_TRANSITIONS_PER_INT(info->ac_bias_intrpt);
-
-	/*
-	 * subtract one from hfp, hbp, hsw because the hardware uses
-	 * a value of 0 as 1
-	 */
-	if (priv->rev == 2) {
-		/* clear bits we're going to set */
-		reg &= ~0x78000033;
-		reg |= ((hfp-1) & 0x300) >> 8;
-		reg |= ((hbp-1) & 0x300) >> 4;
-		reg |= ((hsw-1) & 0x3c0) << 21;
-	}
-	tilcdc_write(dev, LCDC_RASTER_TIMING_2_REG, reg);
-
-	reg = (((mode->hdisplay >> 4) - 1) << 4) |
-		(((hbp-1) & 0xff) << 24) |
-		(((hfp-1) & 0xff) << 16) |
-		(((hsw-1) & 0x3f) << 10);
-	if (priv->rev == 2)
-		reg |= (((mode->hdisplay >> 4) - 1) & 0x40) >> 3;
-	tilcdc_write(dev, LCDC_RASTER_TIMING_0_REG, reg);
-
-	reg = ((mode->vdisplay - 1) & 0x3ff) |
-		((vbp & 0xff) << 24) |
-		((vfp & 0xff) << 16) |
-		(((vsw-1) & 0x3f) << 10);
-	tilcdc_write(dev, LCDC_RASTER_TIMING_1_REG, reg);
-
-	/*
-	 * be sure to set Bit 10 for the V2 LCDC controller,
-	 * otherwise limited to 1024 pixels width, stopping
-	 * 1920x1080 being supported.
-	 */
-	if (priv->rev == 2) {
-		if ((mode->vdisplay - 1) & 0x400) {
-			tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG,
-				LCDC_LPP_B10);
-		} else {
-			tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG,
-				LCDC_LPP_B10);
-		}
-	}
-
-	/* Configure display type: */
-	reg = tilcdc_read(dev, LCDC_RASTER_CTRL_REG) &
-		~(LCDC_TFT_MODE | LCDC_MONO_8BIT_MODE | LCDC_MONOCHROME_MODE |
-		  LCDC_V2_TFT_24BPP_MODE | LCDC_V2_TFT_24BPP_UNPACK |
-		  0x000ff000 /* Palette Loading Delay bits */);
-	reg |= LCDC_TFT_MODE; /* no monochrome/passive support */
-	if (info->tft_alt_mode)
-		reg |= LCDC_TFT_ALT_ENABLE;
-	if (priv->rev == 2) {
-		switch (fb->pixel_format) {
-		case DRM_FORMAT_BGR565:
-		case DRM_FORMAT_RGB565:
-			break;
-		case DRM_FORMAT_XBGR8888:
-		case DRM_FORMAT_XRGB8888:
-			reg |= LCDC_V2_TFT_24BPP_UNPACK;
-			/* fallthrough */
-		case DRM_FORMAT_BGR888:
-		case DRM_FORMAT_RGB888:
-			reg |= LCDC_V2_TFT_24BPP_MODE;
-			break;
-		default:
-			dev_err(dev->dev, "invalid pixel format\n");
-			return;
-		}
-	}
-	reg |= info->fdd < 12;
-	tilcdc_write(dev, LCDC_RASTER_CTRL_REG, reg);
-
-	if (info->invert_pxl_clk)
-		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_PIXEL_CLOCK);
-	else
-		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_PIXEL_CLOCK);
-
-	if (info->sync_ctrl)
-		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_CTRL);
-	else
-		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_CTRL);
-
-	if (info->sync_edge)
-		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_EDGE);
-	else
-		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_EDGE);
-
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
-	else
-		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
-
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_VSYNC);
-	else
-		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_VSYNC);
-
-	if (info->raster_order)
-		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ORDER);
-	else
-		tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ORDER);
-
-	drm_framebuffer_reference(fb);
-
-	tilcdc_crtc_set_clk(crtc);
-
-	tilcdc_crtc_load_palette(crtc);
-
-	set_scanout(crtc, fb);
-
-	crtc->hwmode = crtc->state->adjusted_mode;
-}
-
 static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
@@ -710,7 +709,6 @@ static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 		.enable		= tilcdc_crtc_enable,
 		.disable	= tilcdc_crtc_disable,
 		.atomic_check	= tilcdc_crtc_atomic_check,
-		.mode_set_nofb	= tilcdc_crtc_mode_set_nofb,
 };
 
 int tilcdc_crtc_max_width(struct drm_crtc *crtc)
