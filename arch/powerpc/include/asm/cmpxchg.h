@@ -14,7 +14,7 @@
 #endif
 
 #define XCHG_GEN(type, sfx, cl)				\
-static inline u32 __xchg_##type##sfx(void *p, u32 val)		\
+static inline u32 __xchg_##type##sfx(volatile void *p, u32 val)	\
 {								\
 	unsigned int prev, prev_mask, tmp, bitoff, off;		\
 								\
@@ -40,7 +40,7 @@ static inline u32 __xchg_##type##sfx(void *p, u32 val)		\
 
 #define CMPXCHG_GEN(type, sfx, br, br2, cl)			\
 static inline							\
-u32 __cmpxchg_##type##sfx(void *p, u32 old, u32 new)		\
+u32 __cmpxchg_##type##sfx(volatile void *p, u32 old, u32 new)	\
 {								\
 	unsigned int prev, prev_mask, tmp, bitoff, off;		\
 								\
@@ -399,7 +399,7 @@ __cmpxchg_u64_acquire(u64 *p, unsigned long old, unsigned long new)
 #endif
 
 static __always_inline unsigned long
-__cmpxchg(void *ptr, unsigned long old, unsigned long new,
+__cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 	  unsigned int size)
 {
 	switch (size) {
