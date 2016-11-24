@@ -777,7 +777,7 @@ xfs_map_cow(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_bmbt_irec	imap;
-	bool			is_cow = false, need_alloc = false;
+	bool			is_cow = false;
 	int			error;
 
 	/*
@@ -795,7 +795,7 @@ xfs_map_cow(
 	 * Else we need to check if there is a COW mapping at this offset.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	is_cow = xfs_reflink_find_cow_mapping(ip, offset, &imap, &need_alloc);
+	is_cow = xfs_reflink_find_cow_mapping(ip, offset, &imap);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	if (!is_cow)
@@ -805,7 +805,7 @@ xfs_map_cow(
 	 * And if the COW mapping has a delayed extent here we need to
 	 * allocate real space for it now.
 	 */
-	if (need_alloc) {
+	if (isnullstartblock(imap.br_startblock)) {
 		error = xfs_iomap_write_allocate(ip, XFS_COW_FORK, offset,
 				&imap);
 		if (error)
@@ -1312,7 +1312,6 @@ __xfs_get_blocks(
 	ssize_t			size;
 	int			new = 0;
 	bool			is_cow = false;
-	bool			need_alloc = false;
 
 	BUG_ON(create && !direct);
 
@@ -1338,9 +1337,11 @@ __xfs_get_blocks(
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
-	if (create && direct && xfs_is_reflink_inode(ip))
-		is_cow = xfs_reflink_find_cow_mapping(ip, offset, &imap,
-					&need_alloc);
+	if (create && direct && xfs_is_reflink_inode(ip)) {
+		is_cow = xfs_reflink_find_cow_mapping(ip, offset, &imap);
+		ASSERT(!is_cow || !isnullstartblock(imap.br_startblock));
+	}
+
 	if (!is_cow) {
 		error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb,
 					&imap, &nimaps, XFS_BMAPI_ENTIRE);
@@ -1357,7 +1358,6 @@ __xfs_get_blocks(
 			xfs_reflink_trim_irec_to_next_cow(ip, offset_fsb,
 					&imap);
 	}
-	ASSERT(!need_alloc);
 	if (error)
 		goto out_unlock;
 
