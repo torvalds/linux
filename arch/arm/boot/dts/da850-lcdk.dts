@@ -228,3 +228,11 @@
 		};
 	};
 };
+
+&prictrl {
+	status = "okay";
+};
+
+&memctrl {
+	status = "okay";
+};
