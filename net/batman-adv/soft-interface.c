@@ -258,7 +258,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	ethhdr = eth_hdr(skb);
 
 	/* Register the client MAC in the transtable */
-	if (!is_multicast_ether_addr(ethhdr->h_source)) {
+	if (!is_multicast_ether_addr(ethhdr->h_source) &&
+	    !batadv_bla_is_loopdetect_mac(ethhdr->h_source)) {
 		client_added = batadv_tt_local_add(soft_iface, ethhdr->h_source,
 						   vid, skb->skb_iif,
 						   skb->mark);
