@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/extcon.h>
 #include <linux/freezer.h>
+#include <linux/iopoll.h>
 #include <linux/reset.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -37,10 +38,12 @@
 #include "../host/xhci.h"
 
 #define DWC3_ROCKCHIP_AUTOSUSPEND_DELAY  500 /* ms */
+#define PERIPHERAL_DISCONNECT_TIMEOUT 1000000 /* us */
 
 struct dwc3_rockchip {
 	int			num_clocks;
 	bool			connected;
+	bool			skip_suspend;
 	bool			suspended;
 	struct device		*dev;
 	struct clk		**clks;
@@ -87,6 +90,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	struct xhci_hcd		*xhci;
 	unsigned long		flags;
 	int			ret;
+	int			val;
 	u32			reg, count;
 
 	mutex_lock(&rockchip->lock);
@@ -115,12 +119,16 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 * the dwc3 core code could at least in theory access chip
 		 * registers while the reset is asserted, with unknown impact.
 		 */
-		reset_control_assert(rockchip->otg_rst);
-		usleep_range(1000, 1200);
-		reset_control_deassert(rockchip->otg_rst);
+		if (!rockchip->skip_suspend) {
+			reset_control_assert(rockchip->otg_rst);
+			usleep_range(1000, 1200);
+			reset_control_deassert(rockchip->otg_rst);
 
-		pm_runtime_get_sync(rockchip->dev);
-		pm_runtime_get_sync(dwc->dev);
+			pm_runtime_get_sync(rockchip->dev);
+			pm_runtime_get_sync(dwc->dev);
+		} else {
+			rockchip->skip_suspend = false;
+		}
 
 		spin_lock_irqsave(&dwc->lock, flags);
 		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
@@ -131,6 +139,12 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
 		if (rockchip->connected)
 			goto out;
+
+		if (rockchip->skip_suspend) {
+			pm_runtime_put(dwc->dev);
+			pm_runtime_put(rockchip->dev);
+			rockchip->skip_suspend = false;
+		}
 
 		/*
 		 * If dr_mode is device only, never to
@@ -269,8 +283,23 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 			phy_power_off(dwc->usb3_generic_phy);
 		}
 
-		pm_runtime_put_sync(rockchip->dev);
-		pm_runtime_put_sync_suspend(dwc->dev);
+		if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_DEVICE) {
+			ret = readx_poll_timeout(atomic_read,
+						 &dwc->dev->power.usage_count,
+						 val,
+						 val < 2 && !dwc->connected,
+						 1000,
+						 PERIPHERAL_DISCONNECT_TIMEOUT);
+			if (ret < 0) {
+				rockchip->skip_suspend = true;
+				dev_warn(rockchip->dev, "Peripheral disconnect timeout\n");
+			}
+		}
+
+		if (!rockchip->skip_suspend) {
+			pm_runtime_put_sync_suspend(dwc->dev);
+			pm_runtime_put_sync_suspend(rockchip->dev);
+		}
 
 		rockchip->connected = false;
 		dev_info(rockchip->dev, "USB unconnected\n");
