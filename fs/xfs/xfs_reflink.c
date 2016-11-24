@@ -492,18 +492,15 @@ xfs_reflink_cancel_cow_blocks(
 	xfs_fileoff_t			end_fsb)
 {
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	struct xfs_bmbt_irec		got, prev, del;
+	struct xfs_bmbt_irec		got, del;
 	xfs_extnum_t			idx;
 	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
-	int				error = 0, eof = 0;
+	int				error = 0;
 
 	if (!xfs_is_reflink_inode(ip))
 		return 0;
-
-	xfs_bmap_search_extents(ip, offset_fsb, XFS_COW_FORK, &eof, &idx,
-			&got, &prev);
-	if (eof)
+	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
 		return 0;
 
 	while (got.br_startoff < end_fsb) {
@@ -546,9 +543,8 @@ xfs_reflink_cancel_cow_blocks(
 			xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
 		}
 
-		if (++idx >= xfs_iext_count(ifp))
+		if (!xfs_iext_get_extent(ifp, ++idx, &got))
 			break;
-		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
 
 	/* clear tag if cow fork is emptied */
