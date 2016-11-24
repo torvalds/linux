@@ -14,6 +14,8 @@ config MIPS
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_CBPF_JIT if !CPU_MICROMIPS
@@ -3072,6 +3074,20 @@ config TC
 config MMU
 	bool
 	default y
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 12 if 64BIT
+	default 8
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 18 if 64BIT
+	default 15
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+       default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+       default 15
 
 config I8253
 	bool
