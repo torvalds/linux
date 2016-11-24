@@ -148,71 +148,6 @@ static const struct pinctrl_pin_desc sx150x_16_pins[] = {
 	PINCTRL_PIN(16, "oscio"),
 };
 
-static const struct sx150x_device_data sx1508q_device_data = {
-	.model = SX150X_789,
-	.reg_pullup	= 0x03,
-	.reg_pulldn	= 0x04,
-	.reg_dir	= 0x07,
-	.reg_data	= 0x08,
-	.reg_irq_mask	= 0x09,
-	.reg_irq_src	= 0x0c,
-	.reg_sense	= 0x0a,
-	.pri.x789 = {
-		.reg_drain	= 0x05,
-		.reg_polarity	= 0x06,
-		.reg_clock	= 0x0f,
-		.reg_misc	= 0x10,
-		.reg_reset	= 0x7d,
-	},
-	.ngpios = 8,
-	.pins = sx150x_8_pins,
-	.npins = ARRAY_SIZE(sx150x_8_pins),
-};
-
-static const struct sx150x_device_data sx1509q_device_data = {
-	.model = SX150X_789,
-	.reg_pullup	= 0x06,
-	.reg_pulldn	= 0x08,
-	.reg_dir	= 0x0e,
-	.reg_data	= 0x10,
-	.reg_irq_mask	= 0x12,
-	.reg_irq_src	= 0x18,
-	.reg_sense	= 0x14,
-	.pri.x789 = {
-		.reg_drain	= 0x0a,
-		.reg_polarity	= 0x0c,
-		.reg_clock	= 0x1e,
-		.reg_misc	= 0x1f,
-		.reg_reset	= 0x7d,
-	},
-	.ngpios	= 16,
-	.pins = sx150x_16_pins,
-	.npins = ARRAY_SIZE(sx150x_16_pins),
-};
-
-static const struct sx150x_device_data sx1506q_device_data = {
-	.model = SX150X_456,
-	.reg_pullup	= 0x04,
-	.reg_pulldn	= 0x06,
-	.reg_dir	= 0x02,
-	.reg_data	= 0x00,
-	.reg_irq_mask	= 0x08,
-	.reg_irq_src	= 0x0e,
-	.reg_sense	= 0x0a,
-	.pri.x456 = {
-		.reg_pld_mode	= 0x20,
-		.reg_pld_table0	= 0x22,
-		.reg_pld_table1	= 0x24,
-		.reg_pld_table2	= 0x26,
-		.reg_pld_table3	= 0x28,
-		.reg_pld_table4	= 0x2a,
-		.reg_advance	= 0xad,
-	},
-	.ngpios	= 16,
-	.pins = sx150x_16_pins,
-	.npins = 16, /* oscio not available */
-};
-
 static const struct sx150x_device_data sx1502q_device_data = {
 	.model = SX150X_123,
 	.reg_pullup	= 0x02,
@@ -257,6 +192,71 @@ static const struct sx150x_device_data sx1503q_device_data = {
 	.ngpios	= 16,
 	.pins = sx150x_16_pins,
 	.npins  = 16, /* oscio not available */
+};
+
+static const struct sx150x_device_data sx1506q_device_data = {
+	.model = SX150X_456,
+	.reg_pullup	= 0x04,
+	.reg_pulldn	= 0x06,
+	.reg_dir	= 0x02,
+	.reg_data	= 0x00,
+	.reg_irq_mask	= 0x08,
+	.reg_irq_src	= 0x0e,
+	.reg_sense	= 0x0a,
+	.pri.x456 = {
+		.reg_pld_mode	= 0x20,
+		.reg_pld_table0	= 0x22,
+		.reg_pld_table1	= 0x24,
+		.reg_pld_table2	= 0x26,
+		.reg_pld_table3	= 0x28,
+		.reg_pld_table4	= 0x2a,
+		.reg_advance	= 0xad,
+	},
+	.ngpios	= 16,
+	.pins = sx150x_16_pins,
+	.npins = 16, /* oscio not available */
+};
+
+static const struct sx150x_device_data sx1508q_device_data = {
+	.model = SX150X_789,
+	.reg_pullup	= 0x03,
+	.reg_pulldn	= 0x04,
+	.reg_dir	= 0x07,
+	.reg_data	= 0x08,
+	.reg_irq_mask	= 0x09,
+	.reg_irq_src	= 0x0c,
+	.reg_sense	= 0x0a,
+	.pri.x789 = {
+		.reg_drain	= 0x05,
+		.reg_polarity	= 0x06,
+		.reg_clock	= 0x0f,
+		.reg_misc	= 0x10,
+		.reg_reset	= 0x7d,
+	},
+	.ngpios = 8,
+	.pins = sx150x_8_pins,
+	.npins = ARRAY_SIZE(sx150x_8_pins),
+};
+
+static const struct sx150x_device_data sx1509q_device_data = {
+	.model = SX150X_789,
+	.reg_pullup	= 0x06,
+	.reg_pulldn	= 0x08,
+	.reg_dir	= 0x0e,
+	.reg_data	= 0x10,
+	.reg_irq_mask	= 0x12,
+	.reg_irq_src	= 0x18,
+	.reg_sense	= 0x14,
+	.pri.x789 = {
+		.reg_drain	= 0x0a,
+		.reg_polarity	= 0x0c,
+		.reg_clock	= 0x1e,
+		.reg_misc	= 0x1f,
+		.reg_reset	= 0x7d,
+	},
+	.ngpios	= 16,
+	.pins = sx150x_16_pins,
+	.npins = ARRAY_SIZE(sx150x_16_pins),
 };
 
 static int sx150x_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -758,20 +758,20 @@ static const struct pinconf_ops sx150x_pinconf_ops = {
 };
 
 static const struct i2c_device_id sx150x_id[] = {
-	{"sx1508q", (kernel_ulong_t) &sx1508q_device_data },
-	{"sx1509q", (kernel_ulong_t) &sx1509q_device_data },
-	{"sx1506q", (kernel_ulong_t) &sx1506q_device_data },
 	{"sx1502q", (kernel_ulong_t) &sx1502q_device_data },
 	{"sx1503q", (kernel_ulong_t) &sx1503q_device_data },
+	{"sx1506q", (kernel_ulong_t) &sx1506q_device_data },
+	{"sx1508q", (kernel_ulong_t) &sx1508q_device_data },
+	{"sx1509q", (kernel_ulong_t) &sx1509q_device_data },
 	{}
 };
 
 static const struct of_device_id sx150x_of_match[] = {
-	{ .compatible = "semtech,sx1508q", .data = &sx1508q_device_data },
-	{ .compatible = "semtech,sx1509q", .data = &sx1509q_device_data },
-	{ .compatible = "semtech,sx1506q", .data = &sx1506q_device_data },
 	{ .compatible = "semtech,sx1502q", .data = &sx1502q_device_data },
 	{ .compatible = "semtech,sx1503q", .data = &sx1503q_device_data },
+	{ .compatible = "semtech,sx1506q", .data = &sx1506q_device_data },
+	{ .compatible = "semtech,sx1508q", .data = &sx1508q_device_data },
+	{ .compatible = "semtech,sx1509q", .data = &sx1509q_device_data },
 	{},
 };
 
