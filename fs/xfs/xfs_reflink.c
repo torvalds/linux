@@ -451,43 +451,34 @@ xfs_reflink_find_cow_mapping(
 /*
  * Trim an extent to end at the next CoW reservation past offset_fsb.
  */
-int
+void
 xfs_reflink_trim_irec_to_next_cow(
 	struct xfs_inode		*ip,
 	xfs_fileoff_t			offset_fsb,
 	struct xfs_bmbt_irec		*imap)
 {
-	struct xfs_bmbt_irec		irec;
-	struct xfs_ifork		*ifp;
-	struct xfs_bmbt_rec_host	*gotp;
+	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_bmbt_irec		got;
 	xfs_extnum_t			idx;
 
 	if (!xfs_is_reflink_inode(ip))
-		return 0;
+		return;
 
 	/* Find the extent in the CoW fork. */
-	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	gotp = xfs_iext_bno_to_ext(ifp, offset_fsb, &idx);
-	if (!gotp)
-		return 0;
-	xfs_bmbt_get_all(gotp, &irec);
+	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
+		return;
 
 	/* This is the extent before; try sliding up one. */
-	if (irec.br_startoff < offset_fsb) {
-		idx++;
-		if (idx >= xfs_iext_count(ifp))
-			return 0;
-		gotp = xfs_iext_get_ext(ifp, idx);
-		xfs_bmbt_get_all(gotp, &irec);
+	if (got.br_startoff < offset_fsb) {
+		if (!xfs_iext_get_extent(ifp, idx + 1, &got))
+			return;
 	}
 
-	if (irec.br_startoff >= imap->br_startoff + imap->br_blockcount)
-		return 0;
+	if (got.br_startoff >= imap->br_startoff + imap->br_blockcount)
+		return;
 
-	imap->br_blockcount = irec.br_startoff - imap->br_startoff;
+	imap->br_blockcount = got.br_startoff - imap->br_startoff;
 	trace_xfs_reflink_trim_irec(ip, imap);
-
-	return 0;
 }
 
 /*

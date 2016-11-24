@@ -32,7 +32,7 @@ extern int xfs_reflink_allocate_cow_range(struct xfs_inode *ip,
 		xfs_off_t offset, xfs_off_t count);
 extern bool xfs_reflink_find_cow_mapping(struct xfs_inode *ip, xfs_off_t offset,
 		struct xfs_bmbt_irec *imap);
-extern int xfs_reflink_trim_irec_to_next_cow(struct xfs_inode *ip,
+extern void xfs_reflink_trim_irec_to_next_cow(struct xfs_inode *ip,
 		xfs_fileoff_t offset_fsb, struct xfs_bmbt_irec *imap);
 
 extern int xfs_reflink_cancel_cow_blocks(struct xfs_inode *ip,
