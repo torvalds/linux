@@ -41,8 +41,8 @@
 #include <linux/debugfs.h>
 #include <asm/debug.h>
 
-#include "zcrypt_debug.h"
 #include "zcrypt_api.h"
+#include "zcrypt_debug.h"
 
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_msgtype50.h"
@@ -71,10 +71,9 @@ EXPORT_SYMBOL(zcrypt_rescan_req);
 
 static LIST_HEAD(zcrypt_ops_list);
 
-static struct dentry *debugfs_root;
-debug_info_t *zcrypt_dbf_common;
-debug_info_t *zcrypt_dbf_devices;
-debug_info_t *zcrypt_dbf_cards;
+/* Zcrypt related debug feature stuff. */
+static struct dentry *zcrypt_dbf_root;
+debug_info_t *zcrypt_dbf_info;
 
 /**
  * Process a rescan of the transport layer.
@@ -87,8 +86,8 @@ static inline int zcrypt_process_rescan(void)
 		atomic_set(&zcrypt_rescan_req, 0);
 		atomic_inc(&zcrypt_rescan_count);
 		ap_bus_force_rescan();
-		ZCRYPT_DBF_COMMON(DBF_INFO, "rescan%07d",
-				  atomic_inc_return(&zcrypt_rescan_count));
+		ZCRYPT_DBF(DBF_INFO, "rescan count=%07d",
+			   atomic_inc_return(&zcrypt_rescan_count));
 		return 1;
 	}
 	return 0;
@@ -1363,28 +1362,19 @@ void zcrypt_rng_device_remove(void)
 
 int __init zcrypt_debug_init(void)
 {
-	debugfs_root = debugfs_create_dir("zcrypt", NULL);
-
-	zcrypt_dbf_common = debug_register("zcrypt_common", 1, 1, 16);
-	debug_register_view(zcrypt_dbf_common, &debug_hex_ascii_view);
-	debug_set_level(zcrypt_dbf_common, DBF_ERR);
-
-	zcrypt_dbf_devices = debug_register("zcrypt_devices", 1, 1, 16);
-	debug_register_view(zcrypt_dbf_devices, &debug_hex_ascii_view);
-	debug_set_level(zcrypt_dbf_devices, DBF_ERR);
-
-	zcrypt_dbf_cards = debug_register("zcrypt_cards", 1, 1, 16);
-	debug_register_view(zcrypt_dbf_cards, &debug_hex_ascii_view);
-	debug_set_level(zcrypt_dbf_cards, DBF_ERR);
+	zcrypt_dbf_root = debugfs_create_dir("zcrypt", NULL);
+	zcrypt_dbf_info = debug_register("zcrypt", 1, 1,
+					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
+	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
+	debug_set_level(zcrypt_dbf_info, DBF_ERR);
 
 	return 0;
 }
 
 void zcrypt_debug_exit(void)
 {
-	debugfs_remove(debugfs_root);
-	debug_unregister(zcrypt_dbf_common);
-	debug_unregister(zcrypt_dbf_devices);
+	debugfs_remove(zcrypt_dbf_root);
+	debug_unregister(zcrypt_dbf_info);
 }
 
 /**
@@ -1434,9 +1424,9 @@ void __exit zcrypt_api_exit(void)
 {
 	remove_proc_entry("driver/z90crypt", NULL);
 	misc_deregister(&zcrypt_misc_device);
-	zcrypt_debug_exit();
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
+	zcrypt_debug_exit();
 }
 
 module_init(zcrypt_api_init);

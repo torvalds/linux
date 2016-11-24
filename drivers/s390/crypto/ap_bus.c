@@ -47,9 +47,11 @@
 #include <asm/facility.h>
 #include <linux/crypto.h>
 #include <linux/mod_devicetable.h>
+#include <linux/debugfs.h>
 
 #include "ap_bus.h"
 #include "ap_asm.h"
+#include "ap_debug.h"
 
 /*
  * Module description.
@@ -80,6 +82,12 @@ LIST_HEAD(ap_card_list);
 
 static struct ap_config_info *ap_configuration;
 static bool initialised;
+
+/*
+ * AP bus related debug feature things.
+ */
+static struct dentry *ap_dbf_root;
+debug_info_t *ap_dbf_info;
 
 /*
  * Workqueue timer for bus rescan.
@@ -568,6 +576,8 @@ static int ap_dev_resume(struct device *dev)
 
 static void ap_bus_suspend(void)
 {
+	AP_DBF(DBF_DEBUG, "ap_bus_suspend running\n");
+
 	ap_suspend_flag = 1;
 	/*
 	 * Disable scanning for devices, thus we do not want to scan
@@ -602,6 +612,8 @@ static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 static void ap_bus_resume(void)
 {
 	int rc;
+
+	AP_DBF(DBF_DEBUG, "ap_bus_resume running\n");
 
 	/* remove all queue devices */
 	bus_for_each_dev(&ap_bus_type, NULL, NULL,
@@ -742,6 +754,9 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	spin_lock_bh(&ap_domain_lock);
 	ap_domain_index = domain;
 	spin_unlock_bh(&ap_domain_lock);
+
+	AP_DBF(DBF_DEBUG, "store new default domain=%d\n", domain);
+
 	return count;
 }
 
@@ -964,6 +979,8 @@ static void ap_scan_bus(struct work_struct *unused)
 	unsigned int functions = 0;
 	int rc, id, dom, borked, domains;
 
+	AP_DBF(DBF_DEBUG, "ap_scan_bus running\n");
+
 	ap_query_configuration();
 	if (ap_select_domain() != 0)
 		goto out;
@@ -1129,6 +1146,23 @@ static struct reset_call ap_reset_call = {
 	.fn = ap_reset_all,
 };
 
+int __init ap_debug_init(void)
+{
+	ap_dbf_root = debugfs_create_dir("ap", NULL);
+	ap_dbf_info = debug_register("ap", 1, 1,
+				     DBF_MAX_SPRINTF_ARGS * sizeof(long));
+	debug_register_view(ap_dbf_info, &debug_sprintf_view);
+	debug_set_level(ap_dbf_info, DBF_ERR);
+
+	return 0;
+}
+
+void ap_debug_exit(void)
+{
+	debugfs_remove(ap_dbf_root);
+	debug_unregister(ap_dbf_info);
+}
+
 /**
  * ap_module_init(): The module initialization code.
  *
@@ -1138,6 +1172,10 @@ int __init ap_module_init(void)
 {
 	int max_domain_id;
 	int rc, i;
+
+	rc = ap_debug_init();
+	if (rc)
+		return rc;
 
 	if (ap_instructions_available() != 0) {
 		pr_warn("The hardware system does not support AP instructions\n");
@@ -1266,6 +1304,8 @@ void ap_module_exit(void)
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
+
+	ap_debug_exit();
 }
 
 module_init(ap_module_init);

@@ -367,11 +367,11 @@ static int convert_type80(struct zcrypt_queue *zq,
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zq, "dev%02x%04xo%drc%d",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       zq->online, t80h->code);
-
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x code=0x%02x => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   t80h->code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	if (zq->zcard->user_space_type == ZCRYPT_CEX2A)
@@ -390,7 +390,9 @@ static int convert_response(struct zcrypt_queue *zq,
 			    unsigned int outputdatalength)
 {
 	/* Response type byte is the second byte in the response. */
-	switch (((unsigned char *) reply->message)[1]) {
+	unsigned char rtype = ((unsigned char *) reply->message)[1];
+
+	switch (rtype) {
 	case TYPE82_RSP_CODE:
 	case TYPE88_RSP_CODE:
 		return convert_error(zq, reply);
@@ -402,10 +404,11 @@ static int convert_response(struct zcrypt_queue *zq,
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),
 		       AP_QID_QUEUE(zq->queue->qid));
-		ZCRYPT_DBF_DEV(DBF_ERR, zq, "dev%02x%04xo%dfail",
-			       AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid),
-			       zq->online);
+		ZCRYPT_DBF(DBF_ERR,
+			   "device=%02x.%04x rtype=0x%02x => online=0 rc=EAGAIN\n",
+			   AP_QID_CARD(zq->queue->qid),
+			   AP_QID_QUEUE(zq->queue->qid),
+			   (unsigned int) rtype);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }

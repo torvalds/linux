@@ -79,7 +79,9 @@ static ssize_t zcrypt_card_online_store(struct device *dev,
 
 	zc->online = online;
 	id = zc->card->id;
-	ZCRYPT_DBF_DEV(DBF_INFO, zc, "card%02xo%dman", id, online);
+
+	ZCRYPT_DBF(DBF_INFO, "card=%02x online=%d\n", id, online);
+
 	spin_lock(&zcrypt_list_lock);
 	list_for_each_entry(zq, &zc->zqueues, list)
 		zcrypt_queue_force_online(zq, online);
@@ -109,7 +111,6 @@ struct zcrypt_card *zcrypt_card_alloc(void)
 		return NULL;
 	INIT_LIST_HEAD(&zc->list);
 	INIT_LIST_HEAD(&zc->zqueues);
-	zc->dbf_area = zcrypt_dbf_cards;
 	kref_init(&zc->refcount);
 	return zc;
 }
@@ -160,6 +161,9 @@ int zcrypt_card_register(struct zcrypt_card *zc)
 	spin_unlock(&zcrypt_list_lock);
 
 	zc->online = 1;
+
+	ZCRYPT_DBF(DBF_INFO, "card=%02x register online=1\n", zc->card->id);
+
 	return rc;
 }
 EXPORT_SYMBOL(zcrypt_card_register);
@@ -172,6 +176,8 @@ EXPORT_SYMBOL(zcrypt_card_register);
  */
 void zcrypt_card_unregister(struct zcrypt_card *zc)
 {
+	ZCRYPT_DBF(DBF_INFO, "card=%02x unregister\n", zc->card->id);
+
 	spin_lock(&zcrypt_list_lock);
 	list_del_init(&zc->list);
 	spin_unlock(&zcrypt_list_lock);

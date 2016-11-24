@@ -132,8 +132,6 @@ struct zcrypt_card {
 	atomic_t load;			/* Utilization of the crypto device */
 
 	int request_count;		/* # current requests. */
-
-	debug_info_t *dbf_area;		/* debugging */
 };
 
 struct zcrypt_queue {
@@ -149,8 +147,6 @@ struct zcrypt_queue {
 	int request_count;		/* # current requests. */
 
 	struct ap_message reply;	/* Per-device reply structure. */
-
-	debug_info_t *dbf_area;		/* debugging */
 };
 
 /* transport layer rescanning */
@@ -159,10 +155,6 @@ extern atomic_t zcrypt_rescan_req;
 extern spinlock_t zcrypt_list_lock;
 extern int zcrypt_device_count;
 extern struct list_head zcrypt_card_list;
-
-extern debug_info_t *zcrypt_dbf_common;
-extern debug_info_t *zcrypt_dbf_devices;
-extern debug_info_t *zcrypt_dbf_cards;
 
 #define for_each_zcrypt_card(_zc) \
 	list_for_each_entry(_zc, &zcrypt_card_list, list)
