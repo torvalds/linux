@@ -362,6 +362,8 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 		return retval;
 	}
 
+	gpiochip_set_nested_irqchip(&cg->chip, &crystalcove_irqchip, irq);
+
 	return 0;
 }
 

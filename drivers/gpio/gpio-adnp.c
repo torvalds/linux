@@ -479,6 +479,8 @@ static int adnp_irq_setup(struct adnp *adnp)
 		return err;
 	}
 
+	gpiochip_set_nested_irqchip(chip, &adnp_irq_chip, adnp->client->irq);
+
 	return 0;
 }
 
