@@ -293,7 +293,7 @@ xfs_reflink_reserve_cow(
 
 retry:
 	error = xfs_bmapi_reserve_delalloc(ip, XFS_COW_FORK, imap->br_startoff,
-			end_fsb - imap->br_startoff, &got, &prev, &idx, eof);
+			end_fsb - imap->br_startoff, &got, &idx, eof);
 	switch (error) {
 	case 0:
 		break;
