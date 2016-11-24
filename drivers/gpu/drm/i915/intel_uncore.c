@@ -421,8 +421,7 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 				   GT_FIFO_CTL_RC6_POLICY_STALL);
 	}
 
-	/* Enable Decoupled MMIO only on BXT C stepping onwards */
-	if (!IS_BXT_REVID(dev_priv, BXT_REVID_C0, REVID_FOREVER))
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST))
 		info->has_decoupled_mmio = false;
 
 	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
