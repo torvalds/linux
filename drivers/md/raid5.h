@@ -276,6 +276,7 @@ struct stripe_head_state {
 	struct md_rdev *blocked_rdev;
 	int handle_bad_blocks;
 	int log_failed;
+	int waiting_extra_page;
 };
 
 /* Flags for struct r5dev.flags */
@@ -439,6 +440,7 @@ enum {
 
 struct disk_info {
 	struct md_rdev	*rdev, *replacement;
+	struct page	*extra_page; /* extra page to use in prexor */
 };
 
 /*
@@ -558,6 +560,9 @@ enum r5_cache_state {
 	R5C_LOG_CRITICAL,	/* log device is running out of space,
 				 * only process stripes that are already
 				 * occupying the log
+				 */
+	R5C_EXTRA_PAGE_IN_USE,	/* a stripe is using disk_info.extra_page
+				 * for prexor
 				 */
 };
 
@@ -765,6 +770,7 @@ extern void
 r5c_finish_stripe_write_out(struct r5conf *conf, struct stripe_head *sh,
 			    struct stripe_head_state *s);
 extern void r5c_release_extra_page(struct stripe_head *sh);
+extern void r5c_use_extra_page(struct stripe_head *sh);
 extern void r5l_wake_reclaim(struct r5l_log *log, sector_t space);
 extern void r5c_handle_cached_data_endio(struct r5conf *conf,
 	struct stripe_head *sh, int disks, struct bio_list *return_bi);
