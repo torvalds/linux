@@ -176,7 +176,7 @@ static int fsl_lpspi_txfifo_empty(struct fsl_lpspi_data *fsl_lpspi)
 			dev_dbg(fsl_lpspi->dev, "txfifo empty timeout\n");
 			return -ETIMEDOUT;
 		}
-		schedule();
+		cond_resched();
 
 	} while (txcnt);
 
