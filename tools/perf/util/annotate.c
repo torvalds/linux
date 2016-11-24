@@ -28,8 +28,8 @@ const char 	*disassembler_style;
 const char	*objdump_path;
 static regex_t	 file_lineno;
 
-static struct ins *ins__find(struct arch *arch, const char *name);
-static int disasm_line__parse(char *line, char **namep, char **rawp);
+static struct ins_ops *ins__find(struct arch *arch, const char *name);
+static int disasm_line__parse(char *line, const char **namep, char **rawp);
 
 struct arch {
 	const char	*name;
@@ -218,26 +218,20 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 
 static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
 {
-	char *name;
-
 	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
 	if (ops->locked.ops == NULL)
 		return 0;
 
-	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
+	if (disasm_line__parse(ops->raw, &ops->locked.ins.name, &ops->locked.ops->raw) < 0)
 		goto out_free_ops;
 
-	ops->locked.ins = ins__find(arch, name);
-	free(name);
+	ops->locked.ins.ops = ins__find(arch, ops->locked.ins.name);
 
-	if (ops->locked.ins == NULL)
+	if (ops->locked.ins.ops == NULL)
 		goto out_free_ops;
 
-	if (!ops->locked.ins->ops)
-		return 0;
-
-	if (ops->locked.ins->ops->parse &&
-	    ops->locked.ins->ops->parse(arch, ops->locked.ops, map) < 0)
+	if (ops->locked.ins.ops->parse &&
+	    ops->locked.ins.ops->parse(arch, ops->locked.ops, map) < 0)
 		goto out_free_ops;
 
 	return 0;
@@ -252,19 +246,19 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 {
 	int printed;
 
-	if (ops->locked.ins == NULL)
+	if (ops->locked.ins.ops == NULL)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
 	printed = scnprintf(bf, size, "%-6.6s ", ins->name);
-	return printed + ins__scnprintf(ops->locked.ins, bf + printed,
+	return printed + ins__scnprintf(&ops->locked.ins, bf + printed,
 					size - printed, ops->locked.ops);
 }
 
 static void lock__delete(struct ins_operands *ops)
 {
-	struct ins *ins = ops->locked.ins;
+	struct ins *ins = &ops->locked.ins;
 
-	if (ins && ins->ops->free)
+	if (ins->ops && ins->ops->free)
 		ins->ops->free(ops->locked.ops);
 	else
 		ins__delete(ops->locked.ops);
@@ -425,8 +419,9 @@ static void ins__sort(struct arch *arch)
 	qsort(arch->instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-static struct ins *ins__find(struct arch *arch, const char *name)
+static struct ins_ops *ins__find(struct arch *arch, const char *name)
 {
+	struct ins *ins;
 	const int nmemb = arch->nr_instructions;
 
 	if (!arch->sorted_instructions) {
@@ -434,7 +429,8 @@ static struct ins *ins__find(struct arch *arch, const char *name)
 		arch->sorted_instructions = true;
 	}
 
-	return bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	ins = bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	return ins ? ins->ops : NULL;
 }
 
 static int arch__key_cmp(const void *name, const void *archp)
@@ -691,19 +687,16 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 ip)
 
 static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map *map)
 {
-	dl->ins = ins__find(arch, dl->name);
+	dl->ins.ops = ins__find(arch, dl->ins.name);
 
-	if (dl->ins == NULL)
+	if (!dl->ins.ops)
 		return;
 
-	if (!dl->ins->ops)
-		return;
-
-	if (dl->ins->ops->parse && dl->ins->ops->parse(arch, &dl->ops, map) < 0)
-		dl->ins = NULL;
+	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, map) < 0)
+		dl->ins.ops = NULL;
 }
 
-static int disasm_line__parse(char *line, char **namep, char **rawp)
+static int disasm_line__parse(char *line, const char **namep, char **rawp)
 {
 	char *name = line, tmp;
 
@@ -736,7 +729,8 @@ static int disasm_line__parse(char *line, char **namep, char **rawp)
 	return 0;
 
 out_free_name:
-	zfree(namep);
+	free((void *)namep);
+	*namep = NULL;
 	return -1;
 }
 
@@ -755,7 +749,7 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line,
 			goto out_delete;
 
 		if (offset != -1) {
-			if (disasm_line__parse(dl->line, &dl->name, &dl->ops.raw) < 0)
+			if (disasm_line__parse(dl->line, &dl->ins.name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
 			disasm_line__init_ins(dl, arch, map);
@@ -774,20 +768,21 @@ out_delete:
 void disasm_line__free(struct disasm_line *dl)
 {
 	zfree(&dl->line);
-	zfree(&dl->name);
-	if (dl->ins && dl->ins->ops->free)
-		dl->ins->ops->free(&dl->ops);
+	if (dl->ins.ops && dl->ins.ops->free)
+		dl->ins.ops->free(&dl->ops);
 	else
 		ins__delete(&dl->ops);
+	free((void *)dl->ins.name);
+	dl->ins.name = NULL;
 	free(dl);
 }
 
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw)
 {
-	if (raw || !dl->ins)
-		return scnprintf(bf, size, "%-6.6s %s", dl->name, dl->ops.raw);
+	if (raw || !dl->ins.ops)
+		return scnprintf(bf, size, "%-6.6s %s", dl->ins.name, dl->ops.raw);
 
-	return ins__scnprintf(dl->ins, bf, size, &dl->ops);
+	return ins__scnprintf(&dl->ins, bf, size, &dl->ops);
 }
 
 static void disasm__add(struct list_head *head, struct disasm_line *line)
@@ -1143,7 +1138,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 					map__rip_2objdump(map, sym->start);
 
 	/* kcore has no symbols, so add the call target name */
-	if (dl->ins && ins__is_call(dl->ins) && !dl->ops.target.name) {
+	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.name) {
 		struct addr_map_symbol target = {
 			.map = map,
 			.addr = dl->ops.target.addr,
@@ -1173,8 +1168,8 @@ static void delete_last_nop(struct symbol *sym)
 	while (!list_empty(list)) {
 		dl = list_entry(list->prev, struct disasm_line, node);
 
-		if (dl->ins && dl->ins->ops) {
-			if (dl->ins->ops != &nop_ops)
+		if (dl->ins.ops) {
+			if (dl->ins.ops != &nop_ops)
 				return;
 		} else {
 			if (!strstr(dl->line, " nop ") &&
@@ -1767,7 +1762,7 @@ static size_t disasm_line__fprintf(struct disasm_line *dl, FILE *fp)
 	if (dl->offset == -1)
 		return fprintf(fp, "%s\n", dl->line);
 
-	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->name);
+	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->ins.name);
 
 	if (dl->ops.raw[0] != '\0') {
 		printed += fprintf(fp, "%.*s %s\n", 6 - (int)printed, " ",
