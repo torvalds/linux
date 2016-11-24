@@ -809,8 +809,10 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 		goto out_free_domain;
 
 	group = iommu_group_get(&pdev->dev);
-	if (!group)
+	if (!group) {
+		ret = -EINVAL;
 		goto out_free_domain;
+	}
 
 	ret = iommu_attach_group(dev_state->domain, group);
 	if (ret != 0)
