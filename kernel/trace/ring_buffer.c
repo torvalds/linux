@@ -1829,48 +1829,48 @@ void ring_buffer_change_overwrite(struct ring_buffer *buffer, int val)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_change_overwrite);
 
-static inline void *
+static __always_inline void *
 __rb_data_page_index(struct buffer_data_page *bpage, unsigned index)
 {
 	return bpage->data + index;
 }
 
-static inline void *__rb_page_index(struct buffer_page *bpage, unsigned index)
+static __always_inline void *__rb_page_index(struct buffer_page *bpage, unsigned index)
 {
 	return bpage->page->data + index;
 }
 
-static inline struct ring_buffer_event *
+static __always_inline struct ring_buffer_event *
 rb_reader_event(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	return __rb_page_index(cpu_buffer->reader_page,
 			       cpu_buffer->reader_page->read);
 }
 
-static inline struct ring_buffer_event *
+static __always_inline struct ring_buffer_event *
 rb_iter_head_event(struct ring_buffer_iter *iter)
 {
 	return __rb_page_index(iter->head_page, iter->head);
 }
 
-static inline unsigned rb_page_commit(struct buffer_page *bpage)
+static __always_inline unsigned rb_page_commit(struct buffer_page *bpage)
 {
 	return local_read(&bpage->page->commit);
 }
 
 /* Size is determined by what has been committed */
-static inline unsigned rb_page_size(struct buffer_page *bpage)
+static __always_inline unsigned rb_page_size(struct buffer_page *bpage)
 {
 	return rb_page_commit(bpage);
 }
 
-static inline unsigned
+static __always_inline unsigned
 rb_commit_index(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	return rb_page_commit(cpu_buffer->commit_page);
 }
 
-static inline unsigned
+static __always_inline unsigned
 rb_event_index(struct ring_buffer_event *event)
 {
 	unsigned long addr = (unsigned long)event;
