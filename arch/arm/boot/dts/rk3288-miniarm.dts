@@ -466,7 +466,11 @@
 	status = "okay";
 };
 
-&vpu {
+&hevc_service {
+	status = "okay";
+};
+
+&vpu_service {
 	status = "okay";
 };
 
