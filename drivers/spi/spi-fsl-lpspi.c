@@ -215,7 +215,7 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
 
 	temp |= fsl_lpspi->config.bpw - 1;
 	temp |= fsl_lpspi->config.prescale << 27;
-	temp |= (fsl_lpspi->config.mode & 0x11) << 30;
+	temp |= (fsl_lpspi->config.mode & 0x3) << 30;
 	temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
 
 	/*
