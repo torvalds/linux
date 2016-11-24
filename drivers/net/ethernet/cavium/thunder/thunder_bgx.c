@@ -212,6 +212,47 @@ void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 }
 EXPORT_SYMBOL(bgx_lmac_rx_tx_enable);
 
+void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause)
+{
+	struct pfc *pfc = (struct pfc *)pause;
+	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct lmac *lmac;
+	u64 cfg;
+
+	if (!bgx)
+		return;
+	lmac = &bgx->lmac[lmacid];
+	if (lmac->is_sgmii)
+		return;
+
+	cfg = bgx_reg_read(bgx, lmacid, BGX_SMUX_CBFC_CTL);
+	pfc->fc_rx = cfg & RX_EN;
+	pfc->fc_tx = cfg & TX_EN;
+	pfc->autoneg = 0;
+}
+EXPORT_SYMBOL(bgx_lmac_get_pfc);
+
+void bgx_lmac_set_pfc(int node, int bgx_idx, int lmacid, void *pause)
+{
+	struct pfc *pfc = (struct pfc *)pause;
+	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct lmac *lmac;
+	u64 cfg;
+
+	if (!bgx)
+		return;
+	lmac = &bgx->lmac[lmacid];
+	if (lmac->is_sgmii)
+		return;
+
+	cfg = bgx_reg_read(bgx, lmacid, BGX_SMUX_CBFC_CTL);
+	cfg &= ~(RX_EN | TX_EN);
+	cfg |= (pfc->fc_rx ? RX_EN : 0x00);
+	cfg |= (pfc->fc_tx ? TX_EN : 0x00);
+	bgx_reg_write(bgx, lmacid, BGX_SMUX_CBFC_CTL, cfg);
+}
+EXPORT_SYMBOL(bgx_lmac_set_pfc);
+
 static void bgx_sgmii_change_link_state(struct lmac *lmac)
 {
 	struct bgx *bgx = lmac->bgx;
@@ -524,6 +565,18 @@ static int bgx_lmac_xaui_init(struct bgx *bgx, struct lmac *lmac)
 	cfg &= ~SMU_TX_CTL_UNI_EN;
 	cfg |= SMU_TX_CTL_DIC_EN;
 	bgx_reg_write(bgx, lmacid, BGX_SMUX_TX_CTL, cfg);
+
+	/* Enable receive and transmission of pause frames */
+	bgx_reg_write(bgx, lmacid, BGX_SMUX_CBFC_CTL, ((0xffffULL << 32) |
+		      BCK_EN | DRP_EN | TX_EN | RX_EN));
+	/* Configure pause time and interval */
+	bgx_reg_write(bgx, lmacid,
+		      BGX_SMUX_TX_PAUSE_PKT_TIME, DEFAULT_PAUSE_TIME);
+	cfg = bgx_reg_read(bgx, lmacid, BGX_SMUX_TX_PAUSE_PKT_INTERVAL);
+	cfg &= ~0xFFFFull;
+	bgx_reg_write(bgx, lmacid, BGX_SMUX_TX_PAUSE_PKT_INTERVAL,
+		      cfg | (DEFAULT_PAUSE_TIME - 0x1000));
+	bgx_reg_write(bgx, lmacid, BGX_SMUX_TX_PAUSE_ZERO, 0x01);
 
 	/* take lmac_count into account */
 	bgx_reg_modify(bgx, lmacid, BGX_SMUX_TX_THRESH, (0x100 - 1));

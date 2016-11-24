@@ -149,6 +149,12 @@ struct nicvf_rss_info {
 	u64 key[RSS_HASH_KEY_SIZE];
 } ____cacheline_aligned_in_smp;
 
+struct nicvf_pfc {
+	u8    autoneg;
+	u8    fc_rx;
+	u8    fc_tx;
+};
+
 enum rx_stats_reg_offset {
 	RX_OCTS = 0x0,
 	RX_UCAST = 0x1,
@@ -298,6 +304,7 @@ struct nicvf {
 	bool			tns_mode;
 	bool			loopback_supported;
 	struct nicvf_rss_info	rss_info;
+	struct nicvf_pfc	pfc;
 	struct tasklet_struct	qs_err_task;
 	struct work_struct	reset_task;
 
@@ -358,6 +365,7 @@ struct nicvf {
 #define	NIC_MBOX_MSG_SNICVF_PTR		0x15	/* Send sqet nicvf ptr to PVF */
 #define	NIC_MBOX_MSG_LOOPBACK		0x16	/* Set interface in loopback */
 #define	NIC_MBOX_MSG_RESET_STAT_COUNTER 0x17	/* Reset statistics counters */
+#define	NIC_MBOX_MSG_PFC		0x18	/* Pause frame control */
 #define	NIC_MBOX_MSG_CFG_DONE		0xF0	/* VF configuration done */
 #define	NIC_MBOX_MSG_SHUTDOWN		0xF1	/* VF is being shutdown */
 
@@ -500,6 +508,14 @@ struct reset_stat_cfg {
 	u16   sq_stat_mask;
 };
 
+struct pfc {
+	u8    msg;
+	u8    get; /* Get or set PFC settings */
+	u8    autoneg;
+	u8    fc_rx;
+	u8    fc_tx;
+};
+
 /* 128 bit shared memory between PF and each VF */
 union nic_mbx {
 	struct { u8 msg; }	msg;
@@ -518,6 +534,7 @@ union nic_mbx {
 	struct nicvf_ptr	nicvf;
 	struct set_loopback	lbk;
 	struct reset_stat_cfg	reset_stat;
+	struct pfc		pfc;
 };
 
 #define NIC_NODE_ID_MASK	0x03

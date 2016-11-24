@@ -720,6 +720,55 @@ static int nicvf_set_channels(struct net_device *dev,
 	return err;
 }
 
+static void nicvf_get_pauseparam(struct net_device *dev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct nicvf *nic = netdev_priv(dev);
+	union nic_mbx mbx = {};
+
+	/* Supported only for 10G/40G interfaces */
+	if ((nic->mac_type == BGX_MODE_SGMII) ||
+	    (nic->mac_type == BGX_MODE_QSGMII) ||
+	    (nic->mac_type == BGX_MODE_RGMII))
+		return;
+
+	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+	mbx.pfc.get = 1;
+	if (!nicvf_send_msg_to_pf(nic, &mbx)) {
+		pause->autoneg = nic->pfc.autoneg;
+		pause->rx_pause = nic->pfc.fc_rx;
+		pause->tx_pause = nic->pfc.fc_tx;
+	}
+}
+
+static int nicvf_set_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *pause)
+{
+	struct nicvf *nic = netdev_priv(dev);
+	union nic_mbx mbx = {};
+
+	/* Supported only for 10G/40G interfaces */
+	if ((nic->mac_type == BGX_MODE_SGMII) ||
+	    (nic->mac_type == BGX_MODE_QSGMII) ||
+	    (nic->mac_type == BGX_MODE_RGMII))
+		return -EOPNOTSUPP;
+
+	if (pause->autoneg)
+		return -EOPNOTSUPP;
+
+	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+	mbx.pfc.get = 0;
+	mbx.pfc.fc_rx = pause->rx_pause;
+	mbx.pfc.fc_tx = pause->tx_pause;
+	if (nicvf_send_msg_to_pf(nic, &mbx))
+		return -EAGAIN;
+
+	nic->pfc.fc_rx = pause->rx_pause;
+	nic->pfc.fc_tx = pause->tx_pause;
+
+	return 0;
+}
+
 static const struct ethtool_ops nicvf_ethtool_ops = {
 	.get_settings		= nicvf_get_settings,
 	.get_link		= nicvf_get_link,
@@ -741,6 +790,8 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.set_rxfh		= nicvf_set_rxfh,
 	.get_channels		= nicvf_get_channels,
 	.set_channels		= nicvf_set_channels,
+	.get_pauseparam         = nicvf_get_pauseparam,
+	.set_pauseparam         = nicvf_set_pauseparam,
 	.get_ts_info		= ethtool_op_get_ts_info,
 };
 

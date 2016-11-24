@@ -898,6 +898,30 @@ static void nic_enable_vf(struct nicpf *nic, int vf, bool enable)
 	bgx_lmac_rx_tx_enable(nic->node, bgx, lmac, enable);
 }
 
+static void nic_pause_frame(struct nicpf *nic, int vf, struct pfc *cfg)
+{
+	int bgx, lmac;
+	struct pfc pfc;
+	union nic_mbx mbx = {};
+
+	if (vf >= nic->num_vf_en)
+		return;
+	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+
+	if (cfg->get) {
+		bgx_lmac_get_pfc(nic->node, bgx, lmac, &pfc);
+		mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+		mbx.pfc.autoneg = pfc.autoneg;
+		mbx.pfc.fc_rx = pfc.fc_rx;
+		mbx.pfc.fc_tx = pfc.fc_tx;
+		nic_send_msg_to_vf(nic, vf, &mbx);
+	} else {
+		bgx_lmac_set_pfc(nic->node, bgx, lmac, cfg);
+		nic_mbx_send_ack(nic, vf);
+	}
+}
+
 /* Interrupt handler to handle mailbox messages from VFs */
 static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 {
@@ -1037,6 +1061,9 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	case NIC_MBOX_MSG_RESET_STAT_COUNTER:
 		ret = nic_reset_stat_counters(nic, vf, &mbx.reset_stat);
 		break;
+	case NIC_MBOX_MSG_PFC:
+		nic_pause_frame(nic, vf, &mbx.pfc);
+		goto unlock;
 	default:
 		dev_err(&nic->pdev->dev,
 			"Invalid msg from VF%d, msg 0x%x\n", vf, mbx.msg.msg);

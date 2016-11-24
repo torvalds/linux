@@ -256,6 +256,12 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->pnicvf = (struct nicvf *)mbx.nicvf.nicvf;
 		nic->pf_acked = true;
 		break;
+	case NIC_MBOX_MSG_PFC:
+		nic->pfc.autoneg = mbx.pfc.autoneg;
+		nic->pfc.fc_rx = mbx.pfc.fc_rx;
+		nic->pfc.fc_tx = mbx.pfc.fc_tx;
+		nic->pf_acked = true;
+		break;
 	default:
 		netdev_err(nic->netdev,
 			   "Invalid message from PF, msg 0x%x\n", mbx.msg.msg);
