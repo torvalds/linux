@@ -243,10 +243,11 @@ xfs_reflink_reserve_cow(
 	struct xfs_bmbt_irec	*imap,
 	bool			*shared)
 {
-	struct xfs_bmbt_irec	got, prev;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_bmbt_irec	got;
 	xfs_fileoff_t		end_fsb, orig_end_fsb;
-	int			eof = 0, error = 0;
-	bool			trimmed;
+	int			error = 0;
+	bool			eof = false, trimmed;
 	xfs_extnum_t		idx;
 	xfs_extlen_t		align;
 
@@ -258,8 +259,9 @@ xfs_reflink_reserve_cow(
 	 * extent list is generally faster than going out to the shared extent
 	 * tree.
 	 */
-	xfs_bmap_search_extents(ip, imap->br_startoff, XFS_COW_FORK, &eof, &idx,
-			&got, &prev);
+
+	if (!xfs_iext_lookup_extent(ip, ifp, imap->br_startoff, &idx, &got))
+		eof = true;
 	if (!eof && got.br_startoff <= imap->br_startoff) {
 		trace_xfs_reflink_cow_found(ip, imap);
 		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
@@ -293,7 +295,7 @@ xfs_reflink_reserve_cow(
 
 retry:
 	error = xfs_bmapi_reserve_delalloc(ip, XFS_COW_FORK, imap->br_startoff,
-			end_fsb - imap->br_startoff, &got, &prev, &idx, eof);
+			end_fsb - imap->br_startoff, &got, &idx, eof);
 	switch (error) {
 	case 0:
 		break;
@@ -418,87 +420,65 @@ xfs_reflink_allocate_cow_range(
 }
 
 /*
- * Find the CoW reservation (and whether or not it needs block allocation)
- * for a given byte offset of a file.
+ * Find the CoW reservation for a given byte offset of a file.
  */
 bool
 xfs_reflink_find_cow_mapping(
 	struct xfs_inode		*ip,
 	xfs_off_t			offset,
-	struct xfs_bmbt_irec		*imap,
-	bool				*need_alloc)
+	struct xfs_bmbt_irec		*imap)
 {
-	struct xfs_bmbt_irec		irec;
-	struct xfs_ifork		*ifp;
-	struct xfs_bmbt_rec_host	*gotp;
-	xfs_fileoff_t			bno;
+	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	xfs_fileoff_t			offset_fsb;
+	struct xfs_bmbt_irec		got;
 	xfs_extnum_t			idx;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
 	ASSERT(xfs_is_reflink_inode(ip));
 
-	/* Find the extent in the CoW fork. */
-	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	bno = XFS_B_TO_FSBT(ip->i_mount, offset);
-	gotp = xfs_iext_bno_to_ext(ifp, bno, &idx);
-	if (!gotp)
+	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
 		return false;
-
-	xfs_bmbt_get_all(gotp, &irec);
-	if (bno >= irec.br_startoff + irec.br_blockcount ||
-	    bno < irec.br_startoff)
+	if (got.br_startoff > offset_fsb)
 		return false;
 
 	trace_xfs_reflink_find_cow_mapping(ip, offset, 1, XFS_IO_OVERWRITE,
-			&irec);
-
-	/* If it's still delalloc, we must allocate later. */
-	*imap = irec;
-	*need_alloc = !!(isnullstartblock(irec.br_startblock));
-
+			&got);
+	*imap = got;
 	return true;
 }
 
 /*
  * Trim an extent to end at the next CoW reservation past offset_fsb.
  */
-int
+void
 xfs_reflink_trim_irec_to_next_cow(
 	struct xfs_inode		*ip,
 	xfs_fileoff_t			offset_fsb,
 	struct xfs_bmbt_irec		*imap)
 {
-	struct xfs_bmbt_irec		irec;
-	struct xfs_ifork		*ifp;
-	struct xfs_bmbt_rec_host	*gotp;
+	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_bmbt_irec		got;
 	xfs_extnum_t			idx;
 
 	if (!xfs_is_reflink_inode(ip))
-		return 0;
+		return;
 
 	/* Find the extent in the CoW fork. */
-	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	gotp = xfs_iext_bno_to_ext(ifp, offset_fsb, &idx);
-	if (!gotp)
-		return 0;
-	xfs_bmbt_get_all(gotp, &irec);
+	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
+		return;
 
 	/* This is the extent before; try sliding up one. */
-	if (irec.br_startoff < offset_fsb) {
-		idx++;
-		if (idx >= xfs_iext_count(ifp))
-			return 0;
-		gotp = xfs_iext_get_ext(ifp, idx);
-		xfs_bmbt_get_all(gotp, &irec);
+	if (got.br_startoff < offset_fsb) {
+		if (!xfs_iext_get_extent(ifp, idx + 1, &got))
+			return;
 	}
 
-	if (irec.br_startoff >= imap->br_startoff + imap->br_blockcount)
-		return 0;
+	if (got.br_startoff >= imap->br_startoff + imap->br_blockcount)
+		return;
 
-	imap->br_blockcount = irec.br_startoff - imap->br_startoff;
+	imap->br_blockcount = got.br_startoff - imap->br_startoff;
 	trace_xfs_reflink_trim_irec(ip, imap);
-
-	return 0;
 }
 
 /*
@@ -512,18 +492,15 @@ xfs_reflink_cancel_cow_blocks(
 	xfs_fileoff_t			end_fsb)
 {
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	struct xfs_bmbt_irec		got, prev, del;
+	struct xfs_bmbt_irec		got, del;
 	xfs_extnum_t			idx;
 	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
-	int				error = 0, eof = 0;
+	int				error = 0;
 
 	if (!xfs_is_reflink_inode(ip))
 		return 0;
-
-	xfs_bmap_search_extents(ip, offset_fsb, XFS_COW_FORK, &eof, &idx,
-			&got, &prev);
-	if (eof)
+	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &idx, &got))
 		return 0;
 
 	while (got.br_startoff < end_fsb) {
@@ -566,9 +543,8 @@ xfs_reflink_cancel_cow_blocks(
 			xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
 		}
 
-		if (++idx >= xfs_iext_count(ifp))
+		if (!xfs_iext_get_extent(ifp, ++idx, &got))
 			break;
-		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
 
 	/* clear tag if cow fork is emptied */
@@ -638,13 +614,13 @@ xfs_reflink_end_cow(
 	xfs_off_t			count)
 {
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	struct xfs_bmbt_irec		got, prev, del;
+	struct xfs_bmbt_irec		got, del;
 	struct xfs_trans		*tp;
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
 	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
-	int				error, eof = 0;
+	int				error;
 	unsigned int			resblks;
 	xfs_filblks_t			rlen;
 	xfs_extnum_t			idx;
@@ -668,13 +644,11 @@ xfs_reflink_end_cow(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_bmap_search_extents(ip, end_fsb - 1, XFS_COW_FORK, &eof, &idx,
-			&got, &prev);
-
 	/* If there is a hole at end_fsb - 1 go to the previous extent */
-	if (eof || got.br_startoff > end_fsb) {
+	if (!xfs_iext_lookup_extent(ip, ifp, end_fsb - 1, &idx, &got) ||
+	    got.br_startoff > end_fsb) {
 		ASSERT(idx > 0);
-		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, --idx), &got);
+		xfs_iext_get_extent(ifp, --idx, &got);
 	}
 
 	/* Walk backwards until we're out of the I/O range... */
@@ -722,11 +696,9 @@ xfs_reflink_end_cow(
 		error = xfs_defer_finish(&tp, &dfops, ip);
 		if (error)
 			goto out_defer;
-
 next_extent:
-		if (idx < 0)
+		if (!xfs_iext_get_extent(ifp, idx, &got))
 			break;
-		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
 
 	error = xfs_trans_commit(tp);
