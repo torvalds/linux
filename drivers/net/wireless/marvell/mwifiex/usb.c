@@ -379,7 +379,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *epd;
 	int ret, i;
 	struct usb_card_rec *card;
-	u16 id_vendor, id_product, bcd_device, bcd_usb;
+	u16 id_vendor, id_product, bcd_device;
 
 	card = devm_kzalloc(&intf->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
@@ -390,7 +390,6 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	id_vendor = le16_to_cpu(udev->descriptor.idVendor);
 	id_product = le16_to_cpu(udev->descriptor.idProduct);
 	bcd_device = le16_to_cpu(udev->descriptor.bcdDevice);
-	bcd_usb = le16_to_cpu(udev->descriptor.bcdUSB);
 	pr_debug("info: VID/PID = %X/%X, Boot2 version = %X\n",
 		 id_vendor, id_product, bcd_device);
 
