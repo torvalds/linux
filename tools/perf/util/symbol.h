@@ -282,7 +282,8 @@ int symbol__annotation_init(void);
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,
-				      bool unknown_as_addr, FILE *fp);
+				      bool unknown_as_addr,
+				      bool print_offsets, FILE *fp);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
 size_t __symbol__fprintf_symname(const struct symbol *sym,

@@ -130,7 +130,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__disassemble(sym, map, 0);
+	err = symbol__disassemble(sym, map, NULL, 0);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;

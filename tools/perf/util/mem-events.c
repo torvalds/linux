@@ -280,6 +280,12 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	u64 lock   = data_src->mem_lock;
 	int err = 0;
 
+#define HITM_INC(__f)		\
+do {				\
+	stats->__f++;		\
+	stats->tot_hitm++;	\
+} while (0)
+
 #define P(a, b) PERF_MEM_##a##_##b
 
 	stats->nr_entries++;
@@ -303,7 +309,7 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 			if (lvl & P(LVL, L2 )) stats->ld_l2hit++;
 			if (lvl & P(LVL, L3 )) {
 				if (snoop & P(SNOOP, HITM))
-					stats->lcl_hitm++;
+					HITM_INC(lcl_hitm);
 				else
 					stats->ld_llchit++;
 			}
@@ -331,7 +337,7 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 			if (snoop & P(SNOOP, HIT))
 				stats->rmt_hit++;
 			else if (snoop & P(SNOOP, HITM))
-				stats->rmt_hitm++;
+				HITM_INC(rmt_hitm);
 		}
 
 		if ((lvl & P(LVL, MISS)))
@@ -364,6 +370,7 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	}
 
 #undef P
+#undef HITM_INC
 	return err;
 }
 
@@ -390,6 +397,7 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->ld_llchit	+= add->ld_llchit;
 	stats->lcl_hitm		+= add->lcl_hitm;
 	stats->rmt_hitm		+= add->rmt_hitm;
+	stats->tot_hitm		+= add->tot_hitm;
 	stats->rmt_hit		+= add->rmt_hit;
 	stats->lcl_dram		+= add->lcl_dram;
 	stats->rmt_dram		+= add->rmt_dram;

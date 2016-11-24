@@ -391,6 +391,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 #define EVSEL__PRINT_ONELINE		(1<<4)
 #define EVSEL__PRINT_SRCLINE		(1<<5)
 #define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
+#define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
 
 struct callchain_cursor;
 

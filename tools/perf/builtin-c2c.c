@@ -91,6 +91,19 @@ struct perf_c2c {
 enum {
 	DISPLAY_LCL,
 	DISPLAY_RMT,
+	DISPLAY_TOT,
+	DISPLAY_MAX,
+};
+
+static const char *display_str[DISPLAY_MAX] = {
+	[DISPLAY_LCL] = "Local",
+	[DISPLAY_RMT] = "Remote",
+	[DISPLAY_TOT] = "Total",
+};
+
+static const struct option c2c_options[] = {
+	OPT_INCR('v', "verbose", &verbose, "be more verbose (show counter open errors, etc)"),
+	OPT_END()
 };
 
 static struct perf_c2c c2c;
@@ -745,6 +758,10 @@ static double percent_hitm(struct c2c_hist_entry *c2c_he)
 	case DISPLAY_LCL:
 		st  = stats->lcl_hitm;
 		tot = total->lcl_hitm;
+		break;
+	case DISPLAY_TOT:
+		st  = stats->tot_hitm;
+		tot = total->tot_hitm;
 	default:
 		break;
 	}
@@ -1044,6 +1061,9 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 				break;
 			case DISPLAY_LCL:
 				DISPLAY_HITM(lcl_hitm);
+				break;
+			case DISPLAY_TOT:
+				DISPLAY_HITM(tot_hitm);
 			default:
 				break;
 			}
@@ -1351,6 +1371,7 @@ static struct c2c_dimension dim_tot_loads = {
 static struct c2c_header percent_hitm_header[] = {
 	[DISPLAY_LCL] = HEADER_BOTH("Lcl", "Hitm"),
 	[DISPLAY_RMT] = HEADER_BOTH("Rmt", "Hitm"),
+	[DISPLAY_TOT] = HEADER_BOTH("Tot", "Hitm"),
 };
 
 static struct c2c_dimension dim_percent_hitm = {
@@ -1794,6 +1815,9 @@ static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 		break;
 	case DISPLAY_RMT:
 		FILTER_HITM(rmt_hitm);
+		break;
+	case DISPLAY_TOT:
+		FILTER_HITM(tot_hitm);
 	default:
 		break;
 	};
@@ -1809,8 +1833,9 @@ static inline int valid_hitm_or_store(struct hist_entry *he)
 	bool has_hitm;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
-	has_hitm = c2c.display == DISPLAY_LCL ?
-		   c2c_he->stats.lcl_hitm : c2c_he->stats.rmt_hitm;
+	has_hitm = c2c.display == DISPLAY_TOT ? c2c_he->stats.tot_hitm :
+		   c2c.display == DISPLAY_LCL ? c2c_he->stats.lcl_hitm :
+						c2c_he->stats.rmt_hitm;
 	return has_hitm || c2c_he->stats.store;
 }
 
@@ -2095,7 +2120,7 @@ static void print_c2c_info(FILE *out, struct perf_session *session)
 		first = false;
 	}
 	fprintf(out, "  Cachelines sort on                : %s HITMs\n",
-		c2c.display == DISPLAY_LCL ? "Local" : "Remote");
+		display_str[c2c.display]);
 	fprintf(out, "  Cacheline data grouping           : %s\n", c2c.cl_sort);
 }
 
@@ -2250,7 +2275,7 @@ static int perf_c2c_browser__title(struct hist_browser *browser,
 		  "Shared Data Cache Line Table     "
 		  "(%lu entries, sorted on %s HITMs)",
 		  browser->nr_non_filtered_entries,
-		  c2c.display == DISPLAY_LCL ? "local" : "remote");
+		  display_str[c2c.display]);
 	return 0;
 }
 
@@ -2387,9 +2412,11 @@ static int setup_callchain(struct perf_evlist *evlist)
 
 static int setup_display(const char *str)
 {
-	const char *display = str ?: "rmt";
+	const char *display = str ?: "tot";
 
-	if (!strcmp(display, "rmt"))
+	if (!strcmp(display, "tot"))
+		c2c.display = DISPLAY_TOT;
+	else if (!strcmp(display, "rmt"))
 		c2c.display = DISPLAY_RMT;
 	else if (!strcmp(display, "lcl"))
 		c2c.display = DISPLAY_LCL;
@@ -2474,6 +2501,8 @@ static int setup_coalesce(const char *coalesce, bool no_source)
 		return -1;
 
 	if (asprintf(&c2c.cl_resort, "offset,%s",
+		     c2c.display == DISPLAY_TOT ?
+		     "tot_hitm" :
 		     c2c.display == DISPLAY_RMT ?
 		     "rmt_hitm,lcl_hitm" :
 		     "lcl_hitm,rmt_hitm") < 0)
@@ -2496,11 +2525,9 @@ static int perf_c2c__report(int argc, const char **argv)
 	const char *display = NULL;
 	const char *coalesce = NULL;
 	bool no_source = false;
-	const struct option c2c_options[] = {
+	const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show counter open errors, etc)"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "the input file to process"),
 	OPT_INCR('N', "node-info", &c2c.node_info,
@@ -2520,32 +2547,28 @@ static int perf_c2c__report(int argc, const char **argv)
 			     "print_type,threshold[,print_limit],order,sort_key[,branch],value",
 			     callchain_help, &parse_callchain_opt,
 			     callchain_default_opt),
-	OPT_STRING('d', "display", &display, NULL, "lcl,rmt"),
+	OPT_STRING('d', "display", &display, "Switch HITM output type", "lcl,rmt"),
 	OPT_STRING('c', "coalesce", &coalesce, "coalesce fields",
 		   "coalesce fields: pid,tid,iaddr,dso"),
+	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
+	OPT_PARENT(c2c_options),
 	OPT_END()
 	};
 	int err = 0;
 
-	argc = parse_options(argc, argv, c2c_options, report_c2c_usage,
+	argc = parse_options(argc, argv, options, report_c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc)
-		usage_with_options(report_c2c_usage, c2c_options);
+		usage_with_options(report_c2c_usage, options);
 
 	if (c2c.stats_only)
 		c2c.use_stdio = true;
 
-	if (c2c.use_stdio)
-		use_browser = 0;
-	else
-		use_browser = 1;
-
-	setup_browser(false);
-
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 
-	file.path = input_name;
+	file.path  = input_name;
+	file.force = symbol_conf.force;
 
 	err = setup_display(display);
 	if (err)
@@ -2568,6 +2591,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_debug("No memory for session\n");
 		goto out;
 	}
+
 	err = setup_nodes(session);
 	if (err) {
 		pr_err("Failed setup nodes\n");
@@ -2587,6 +2611,13 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out_session;
 	}
 
+	if (c2c.use_stdio)
+		use_browser = 0;
+	else
+		use_browser = 1;
+
+	setup_browser(false);
+
 	err = perf_session__process_events(session);
 	if (err) {
 		pr_err("failed to process sample\n");
@@ -2605,6 +2636,7 @@ static int perf_c2c__report(int argc, const char **argv)
 			"tot_loads,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
 			"ld_lclhit,ld_rmthit",
+			c2c.display == DISPLAY_TOT ? "tot_hitm" :
 			c2c.display == DISPLAY_LCL ? "lcl_hitm" : "rmt_hitm"
 			);
 
@@ -2655,11 +2687,10 @@ static int perf_c2c__record(int argc, const char **argv)
 	OPT_CALLBACK('e', "event", &event_set, "event",
 		     "event selector. Use 'perf mem record -e list' to list available events",
 		     parse_record_events),
-	OPT_INCR('v', "verbose", &verbose,
-		 "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('u', "all-user", &all_user, "collect only user level data"),
 	OPT_BOOLEAN('k', "all-kernel", &all_kernel, "collect only kernel level data"),
 	OPT_UINTEGER('l', "ldlat", &perf_mem_events__loads_ldlat, "setup mem-loads latency"),
+	OPT_PARENT(c2c_options),
 	OPT_END()
 	};
 
@@ -2731,11 +2762,6 @@ static int perf_c2c__record(int argc, const char **argv)
 
 int cmd_c2c(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const struct option c2c_options[] = {
-	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
-	OPT_END()
-	};
-
 	argc = parse_options(argc, argv, c2c_options, c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
