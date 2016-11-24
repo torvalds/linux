@@ -1746,7 +1746,6 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_tdls_oper *tdls_oper = &cmd->params.tdls_oper;
 	struct mwifiex_ds_tdls_oper *oper = data_buf;
-	struct mwifiex_sta_node *sta_ptr;
 	struct host_cmd_tlv_rates *tlv_rates;
 	struct mwifiex_ie_types_htcap *ht_capab;
 	struct mwifiex_ie_types_qos_info *wmm_qos_info;
@@ -1764,7 +1763,6 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 	tdls_oper->reason = 0;
 	memcpy(tdls_oper->peer_mac, oper->peer_mac, ETH_ALEN);
-	sta_ptr = mwifiex_get_sta_entry(priv, oper->peer_mac);
 
 	pos = (u8 *)tdls_oper + sizeof(struct host_cmd_ds_tdls_oper);
 
