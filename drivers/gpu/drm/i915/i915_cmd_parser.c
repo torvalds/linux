@@ -1131,27 +1131,6 @@ unpin_src:
 	return dst;
 }
 
-/**
- * intel_engine_needs_cmd_parser() - should a given engine use software
- *                                   command parsing?
- * @engine: the engine in question
- *
- * Only certain platforms require software batch buffer command parsing, and
- * only when enabled via module parameter.
- *
- * Return: true if the engine requires software command parsing
- */
-bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine)
-{
-	if (!engine->needs_cmd_parser)
-		return false;
-
-	if (!USES_PPGTT(engine->i915))
-		return false;
-
-	return (i915.enable_cmd_parser == 1);
-}
-
 static bool check_cmd(const struct intel_engine_cs *engine,
 		      const struct drm_i915_cmd_descriptor *desc,
 		      const u32 *cmd, u32 length,
@@ -1375,7 +1354,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 
 	/* If the command parser is not enabled, report 0 - unsupported */
 	for_each_engine(engine, dev_priv, id) {
-		if (intel_engine_needs_cmd_parser(engine)) {
+		if (engine->needs_cmd_parser) {
 			active = true;
 			break;
 		}

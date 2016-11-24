@@ -1713,7 +1713,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	params->args_batch_start_offset = args->batch_start_offset;
-	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
+	if (engine->needs_cmd_parser && args->batch_len) {
 		struct i915_vma *vma;
 
 		vma = i915_gem_execbuffer_parse(engine, &shadow_exec_entry,
