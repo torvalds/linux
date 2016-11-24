@@ -531,38 +531,26 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	/*
+	 * If DQA is supported - queues were already disabled, since in
+	 * DQA-mode the queues are a property of the STA and not of the
+	 * vif, and at this point the STA was already deleted
+	 */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return;
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		if (!iwl_mvm_is_dqa_supported(mvm))
-			iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-					    IWL_MVM_OFFCHANNEL_QUEUE,
-					    IWL_MAX_TID_COUNT, 0);
-		else
-			iwl_mvm_disable_txq(mvm,
-					    IWL_MVM_DQA_P2P_DEVICE_QUEUE,
-					    vif->hw_queue[0], IWL_MAX_TID_COUNT,
-					    0);
+		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
+				    IWL_MVM_OFFCHANNEL_QUEUE,
+				    IWL_MAX_TID_COUNT, 0);
 
 		break;
 	case NL80211_IFTYPE_AP:
 		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
 				    IWL_MAX_TID_COUNT, 0);
-
-		if (iwl_mvm_is_dqa_supported(mvm))
-			iwl_mvm_disable_txq(mvm,
-					    IWL_MVM_DQA_AP_PROBE_RESP_QUEUE,
-					    vif->hw_queue[0], IWL_MAX_TID_COUNT,
-					    0);
 		/* fall through */
 	default:
-		/*
-		 * If DQA is supported - queues were already disabled, since in
-		 * DQA-mode the queues are a property of the STA and not of the
-		 * vif, and at this point the STA was already deleted
-		 */
-		if (iwl_mvm_is_dqa_supported(mvm))
-			break;
-
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac],
 					    vif->hw_queue[ac],
