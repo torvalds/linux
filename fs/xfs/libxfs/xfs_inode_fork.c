@@ -2003,3 +2003,49 @@ xfs_ifork_init_cow(
 	ip->i_cformat = XFS_DINODE_FMT_EXTENTS;
 	ip->i_cnextents = 0;
 }
+
+/*
+ * Lookup the extent covering bno.
+ *
+ * If there is an extent covering bno return the extent index, and store the
+ * expanded extent structure in *gotp, and the extent index in *idx.
+ * If there is no extent covering bno, but there is an extent after it (e.g.
+ * it lies in a hole) return that extent in *gotp and its index in *idx
+ * instead.
+ * If bno is beyond the last extent return false, and return the index after
+ * the last valid index in *idxp.
+ */
+bool
+xfs_iext_lookup_extent(
+	struct xfs_inode	*ip,
+	struct xfs_ifork	*ifp,
+	xfs_fileoff_t		bno,
+	xfs_extnum_t		*idxp,
+	struct xfs_bmbt_irec	*gotp)
+{
+	struct xfs_bmbt_rec_host *ep;
+
+	XFS_STATS_INC(ip->i_mount, xs_look_exlist);
+
+	ep = xfs_iext_bno_to_ext(ifp, bno, idxp);
+	if (!ep)
+		return false;
+	xfs_bmbt_get_all(ep, gotp);
+	return true;
+}
+
+/*
+ * Return true if there is an extent at index idx, and return the expanded
+ * extent structure at idx in that case.  Else return false.
+ */
+bool
+xfs_iext_get_extent(
+	struct xfs_ifork	*ifp,
+	xfs_extnum_t		idx,
+	struct xfs_bmbt_irec	*gotp)
+{
+	if (idx < 0 || idx >= xfs_iext_count(ifp))
+		return false;
+	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), gotp);
+	return true;
+}
