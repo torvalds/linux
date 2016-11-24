@@ -45,19 +45,20 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 					 unsigned long align_shift)
 {
 	unsigned long align = 1UL << align_shift;
-	u64 start, end;
+	u64 first_slot, last_slot, region_end;
 
 	if (md->type != EFI_CONVENTIONAL_MEMORY)
 		return 0;
 
-	start = round_up(md->phys_addr, align);
-	end = round_down(md->phys_addr + md->num_pages * EFI_PAGE_SIZE - size,
-			 align);
+	region_end = min((u64)ULONG_MAX, md->phys_addr + md->num_pages*EFI_PAGE_SIZE - 1);
 
-	if (start > end)
+	first_slot = round_up(md->phys_addr, align);
+	last_slot = round_down(region_end - size + 1, align);
+
+	if (first_slot > last_slot)
 		return 0;
 
-	return (end - start + 1) >> align_shift;
+	return ((unsigned long)(last_slot - first_slot) >> align_shift) + 1;
 }
 
 /*
