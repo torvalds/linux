@@ -686,7 +686,7 @@ void mei_host_client_init(struct mei_device *dev)
 
 	pm_runtime_mark_last_busy(dev->dev);
 	dev_dbg(dev->dev, "rpm: autosuspend\n");
-	pm_runtime_autosuspend(dev->dev);
+	pm_request_autosuspend(dev->dev);
 }
 
 /**
