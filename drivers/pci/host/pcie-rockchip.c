@@ -471,26 +471,6 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		return err;
 	}
 
-	udelay(10);
-
-	err = reset_control_deassert(rockchip->pm_rst);
-	if (err) {
-		dev_err(dev, "deassert pm_rst err %d\n", err);
-		return err;
-	}
-
-	err = reset_control_deassert(rockchip->aclk_rst);
-	if (err) {
-		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
-		return err;
-	}
-
-	err = reset_control_deassert(rockchip->pclk_rst);
-	if (err) {
-		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
-		return err;
-	}
-
 	err = phy_init(rockchip->phy);
 	if (err < 0) {
 		dev_err(dev, "fail to init phy, err %d\n", err);
@@ -518,6 +498,26 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	err = reset_control_assert(rockchip->pipe_rst);
 	if (err) {
 		dev_err(dev, "assert pipe_rst err %d\n", err);
+		return err;
+	}
+
+	udelay(10);
+
+	err = reset_control_deassert(rockchip->pm_rst);
+	if (err) {
+		dev_err(dev, "deassert pm_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(rockchip->aclk_rst);
+	if (err) {
+		dev_err(dev, "deassert aclk_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(rockchip->pclk_rst);
+	if (err) {
+		dev_err(dev, "deassert pclk_rst err %d\n", err);
 		return err;
 	}
 
