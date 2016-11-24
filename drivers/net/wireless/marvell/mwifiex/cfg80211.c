@@ -3990,13 +3990,11 @@ static int mwifiex_tm_cmd(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	struct mwifiex_ds_misc_cmd *hostcmd;
 	struct nlattr *tb[MWIFIEX_TM_ATTR_MAX + 1];
-	struct mwifiex_adapter *adapter;
 	struct sk_buff *skb;
 	int err;
 
 	if (!priv)
 		return -EINVAL;
-	adapter = priv->adapter;
 
 	err = nla_parse(tb, MWIFIEX_TM_ATTR_MAX, data, len,
 			mwifiex_tm_policy);
