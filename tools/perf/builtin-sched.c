@@ -1876,7 +1876,8 @@ static void timehist_print_sample(struct perf_sched *sched,
 
 	sample__fprintf_sym(sample, al, 0,
 			    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
-			    EVSEL__PRINT_CALLCHAIN_ARROW,
+			    EVSEL__PRINT_CALLCHAIN_ARROW |
+			    EVSEL__PRINT_SKIP_IGNORED,
 			    &callchain_cursor, stdout);
 
 out:
