@@ -1960,7 +1960,7 @@ static bool is_idle_sample(struct perf_sched *sched,
 		return false;
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
-				      NULL, NULL, sched->max_stack) != 0) {
+				      NULL, NULL, sched->max_stack + 2) != 0) {
 		if (verbose)
 			error("Failed to resolve callchain. Skipping\n");
 
