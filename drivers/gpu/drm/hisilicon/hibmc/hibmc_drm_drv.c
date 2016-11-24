@@ -377,9 +377,9 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	int ret;
 
 	dev = drm_dev_alloc(&hibmc_driver, &pdev->dev);
-	if (!dev) {
+	if (IS_ERR(dev)) {
 		DRM_ERROR("failed to allocate drm_device\n");
-		return -ENOMEM;
+		return PTR_ERR(dev);
 	}
 
 	dev->pdev = pdev;
