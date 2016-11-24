@@ -549,10 +549,10 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			if (work->flip_queued_req) {
 				struct intel_engine_cs *engine = work->flip_queued_req->engine;
 
-				seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
+				seq_printf(m, "Flip queued on %s at seqno %x, last submitted seqno %x [current breadcrumb %x], completed? %d\n",
 					   engine->name,
 					   work->flip_queued_req->global_seqno,
-					   atomic_read(&dev_priv->gt.global_timeline.seqno),
+					   intel_engine_last_submit(engine),
 					   intel_engine_get_seqno(engine),
 					   i915_gem_request_completed(work->flip_queued_req));
 			} else
