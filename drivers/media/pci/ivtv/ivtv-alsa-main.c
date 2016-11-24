@@ -17,23 +17,14 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/spinlock.h>
-
-#include <media/v4l2-device.h>
-
-#include <sound/core.h>
-#include <sound/initval.h>
-
 #include "ivtv-driver.h"
 #include "ivtv-version.h"
 #include "ivtv-alsa.h"
 #include "ivtv-alsa-mixer.h"
 #include "ivtv-alsa-pcm.h"
+
+#include <sound/core.h>
+#include <sound/initval.h>
 
 int ivtv_alsa_debug;
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;

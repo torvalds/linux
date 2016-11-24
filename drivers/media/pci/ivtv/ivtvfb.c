@@ -38,24 +38,19 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fb.h>
-#include <linux/ivtvfb.h>
-#include <linux/slab.h>
-
-#ifdef CONFIG_X86_64
-#include <asm/pat.h>
-#endif
-
 #include "ivtv-driver.h"
 #include "ivtv-cards.h"
 #include "ivtv-i2c.h"
 #include "ivtv-udma.h"
 #include "ivtv-mailbox.h"
 #include "ivtv-firmware.h"
+
+#include <linux/fb.h>
+#include <linux/ivtvfb.h>
+
+#ifdef CONFIG_X86_64
+#include <asm/pat.h>
+#endif
 
 /* card parameters */
 static int ivtvfb_card_id = -1;
