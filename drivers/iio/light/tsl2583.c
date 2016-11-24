@@ -565,7 +565,7 @@ static ssize_t in_illuminance_lux_table_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	const unsigned int max_ints = TSL2583_MAX_LUX_TABLE_ENTRIES * 3;
-	int value[TSL2583_MAX_LUX_TABLE_ENTRIES * 3];
+	int value[TSL2583_MAX_LUX_TABLE_ENTRIES * 3 + 1];
 	int ret = -EINVAL;
 	unsigned int n;
 
