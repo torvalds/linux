@@ -212,7 +212,7 @@ armada_gem_alloc_private_object(struct drm_device *dev, size_t size)
 	return obj;
 }
 
-struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
+static struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 	size_t size)
 {
 	struct armada_gem_object *obj;
@@ -419,7 +419,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 }
 
 /* Prime support */
-struct sg_table *
+static struct sg_table *
 armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 	enum dma_data_direction dir)
 {
@@ -594,11 +594,7 @@ int armada_gem_map_import(struct armada_gem_object *dobj)
 	int ret;
 
 	dobj->sgt = dma_buf_map_attachment(dobj->obj.import_attach,
-					  DMA_TO_DEVICE);
-	if (!dobj->sgt) {
-		DRM_ERROR("dma_buf_map_attachment() returned NULL\n");
-		return -EINVAL;
-	}
+					   DMA_TO_DEVICE);
 	if (IS_ERR(dobj->sgt)) {
 		ret = PTR_ERR(dobj->sgt);
 		dobj->sgt = NULL;
