@@ -45,6 +45,7 @@ struct nft_payload_set {
 	enum nft_registers	sreg:8;
 	u8			csum_type;
 	u8			csum_offset;
+	u8			csum_flags;
 };
 
 extern const struct nft_expr_ops nft_payload_fast_ops;
