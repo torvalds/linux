@@ -86,7 +86,7 @@ lstcon_node_find(lnet_process_id_t id, struct lstcon_node **ndpp, int create)
 	if (!create)
 		return -ENOENT;
 
-	LIBCFS_ALLOC(*ndpp, sizeof(*ndpp) + sizeof(*ndl));
+	LIBCFS_ALLOC(*ndpp, sizeof(**ndpp) + sizeof(*ndl));
 	if (!*ndpp)
 		return -ENOMEM;
 
