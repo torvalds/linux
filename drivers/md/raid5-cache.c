@@ -1029,7 +1029,7 @@ static sector_t r5c_calculate_new_cp(struct r5conf *conf)
 	spin_lock_irqsave(&log->stripe_in_journal_lock, flags);
 	if (list_empty(&conf->log->stripe_in_journal_list)) {
 		/* all stripes flushed */
-		spin_unlock(&log->stripe_in_journal_lock);
+		spin_unlock_irqrestore(&log->stripe_in_journal_lock, flags);
 		return log->next_checkpoint;
 	}
 	sh = list_first_entry(&conf->log->stripe_in_journal_list,
