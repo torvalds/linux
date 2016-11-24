@@ -158,7 +158,7 @@ static ssize_t scr24x_read(struct file *filp, char __user *buf, size_t count,
 		ret = -EIO;
 		goto out;
 	}
-	read_chunk(dev, CCID_HEADER_SIZE, len);
+	ret = read_chunk(dev, CCID_HEADER_SIZE, len);
 	if (ret < 0)
 		goto out;
 
