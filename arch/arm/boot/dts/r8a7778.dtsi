@@ -369,7 +369,7 @@
 	};
 
 	mmcif: mmc@ffe4e000 {
-		compatible = "renesas,sh-mmcif";
+		compatible = "renesas,mmcif-r8a7778", "renesas,sh-mmcif";
 		reg = <0xffe4e000 0x100>;
 		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7778_CLK_MMC>;
