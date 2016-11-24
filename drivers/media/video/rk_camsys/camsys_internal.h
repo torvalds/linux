@@ -140,9 +140,10 @@
 		1) modify for rk3399.
 *v0.0x21.5:
 		1) modify for mipiphy hsfreqrange.
-
+*v0.0x21.6:
+		1) support drm iommu.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 5)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 6)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
@@ -161,6 +162,7 @@
 #define CAMSYS_NAMELEN_MIN(a)                   \
 	((strlen(a) > (CAMSYS_NAME_LEN-1))?(CAMSYS_NAME_LEN-1):strlen(a))
 #define CAMSYS_IRQPOOL_NUM                      128
+#define CAMSYS_DMA_BUF_MAX_NUM                  32
 
 extern unsigned int camsys_debug;
 
@@ -271,6 +273,14 @@ typedef struct camsys_exdevs_s {
 	struct list_head      active;
 } camsys_exdevs_t;
 
+typedef struct camsys_dma_buf_s {
+	struct dma_buf *dma_buf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	dma_addr_t dma_addr;
+	int fd;
+} camsys_dma_buf_t;
+
 typedef struct camsys_dev_s {
 	unsigned int          dev_id;
 	camsys_irq_t          irq;
@@ -293,6 +303,10 @@ typedef struct camsys_dev_s {
 	unsigned long         rk_grf_base;
 	unsigned long         rk_cru_base;
 	unsigned long         rk_isp_base;
+
+	struct iommu_domain *domain;
+	camsys_dma_buf_t dma_buf[CAMSYS_DMA_BUF_MAX_NUM];
+	int dma_buf_cnt;
 
 	int (*clkin_cb)(void *ptr, unsigned int on);
 	int (*clkout_cb)(void *ptr, unsigned int on, unsigned int clk);

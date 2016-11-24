@@ -8,6 +8,11 @@
 #include <linux/file.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/dma-iommu.h>
+#include <drm/rockchip_drm.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-buf.h>
+
 extern int rockchip_set_system_status(unsigned long status);
 extern int rockchip_clear_system_status(unsigned long status);
 
@@ -18,7 +23,7 @@ static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev, void *ptr)
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*state;
 	int retval = 0;
-	char state_str[20] = {0};
+	char state_str[64] = {0};
 	camsys_dev_t *camsys_dev = (camsys_dev_t *)ptr;
 	struct device *dev = &(extdev->pdev->dev);
 	camsys_soc_priv_t *soc;
@@ -151,7 +156,7 @@ static int camsys_mrv_flash_trigger_cb(void *ptr, int mode, unsigned int on)
 	int flash_trigger_io;
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*state;
-	char state_str[20] = {0};
+	char state_str[63] = {0};
 	int retval = 0;
 	enum of_gpio_flags flags;
 	camsys_extdev_t *extdev = NULL;
@@ -339,6 +344,112 @@ static int camsys_mrv_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 iommu_end:
 	return ret;
 }
+
+static int camsys_drm_dma_attach_device(camsys_dev_t *camsys_dev)
+{
+	struct iommu_domain *domain = camsys_dev->domain;
+	struct device *dev = &camsys_dev->pdev->dev;
+	int ret;
+
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+	ret = iommu_attach_device(domain, dev);
+	if (ret) {
+		dev_err(dev, "Failed to attach iommu device\n");
+		return ret;
+	}
+
+	if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
+		dev_err(dev, "Failed to set dma_ops\n");
+		iommu_detach_device(domain, dev);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+static void camsys_drm_dma_detach_device(camsys_dev_t *camsys_dev)
+{
+	struct iommu_domain *domain = camsys_dev->domain;
+	struct device *dev = &camsys_dev->pdev->dev;
+
+	iommu_detach_device(domain, dev);
+}
+
+static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
+{
+	struct device *dev = NULL;
+	camsys_iommu_t *iommu = NULL;
+	struct dma_buf *dma_buf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	dma_addr_t dma_addr;
+	int index = 0;
+	int ret = 0;
+	camsys_dev_t *camsys_dev = (camsys_dev_t *)ptr;
+
+	dev = &camsys_dev->pdev->dev;
+	iommu = (camsys_iommu_t *)(devctl->rev);
+	index = camsys_dev->dma_buf_cnt;
+	if (devctl->on) {
+		if (index == 0) {
+			ret = camsys_drm_dma_attach_device(camsys_dev);
+			if (ret)
+				return ret;
+		}
+		dma_buf = dma_buf_get(iommu->map_fd);
+		if (IS_ERR(dma_buf))
+			return PTR_ERR(dma_buf);
+		attach = dma_buf_attach(dma_buf, dev);
+		if (IS_ERR(attach)) {
+			dma_buf_put(dma_buf);
+			return PTR_ERR(attach);
+		}
+		sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+		if (IS_ERR(sgt)) {
+			dma_buf_detach(dma_buf, attach);
+			dma_buf_put(dma_buf);
+			return PTR_ERR(sgt);
+		}
+		dma_addr = sg_dma_address(sgt->sgl);
+		camsys_dev->dma_buf[index].dma_addr = dma_addr;
+		camsys_dev->dma_buf[index].attach	= attach;
+		camsys_dev->dma_buf[index].dma_buf = dma_buf;
+		camsys_dev->dma_buf[index].sgt = sgt;
+		camsys_dev->dma_buf[index].fd = iommu->map_fd;
+		iommu->linear_addr = dma_addr;
+		iommu->len = sg_dma_len(sgt->sgl);
+		camsys_dev->dma_buf_cnt++;
+	} else {
+		if ((camsys_dev->dma_buf_cnt == 0) || (index < 0) ||
+				(index >= CAMSYS_DMA_BUF_MAX_NUM))
+			return -EINVAL;
+		for (index = 0; index < camsys_dev->dma_buf_cnt; index++) {
+			if (camsys_dev->dma_buf[index].fd == iommu->map_fd)
+				break;
+		}
+		if (index == camsys_dev->dma_buf_cnt) {
+			camsys_warn("can't find map fd %d", iommu->map_fd);
+			return 0;
+		}
+		attach = camsys_dev->dma_buf[index].attach;
+		dma_buf = camsys_dev->dma_buf[index].dma_buf;
+		sgt = camsys_dev->dma_buf[index].sgt;
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+		dma_buf_detach(dma_buf, attach);
+		dma_buf_put(dma_buf);
+		if (camsys_dev->dma_buf_cnt == 1)
+			camsys_drm_dma_detach_device(camsys_dev);
+
+		camsys_dev->dma_buf_cnt--;
+	}
+
+	return ret;
+}
+
 static int camsys_mrv_reset_cb(void *ptr, unsigned int on)
 {
 	camsys_dev_t *camsys_dev = (camsys_dev_t *)ptr;
@@ -742,6 +853,11 @@ static int camsys_mrv_remove_cb(struct platform_device *pdev)
 		mrv_clk = NULL;
 	}
 
+	camsys_drm_dma_detach_device(camsys_dev);
+	iommu_group_remove_device(&camsys_dev->pdev->dev);
+	iommu_put_dma_cookie(camsys_dev->domain);
+	iommu_domain_free(camsys_dev->domain);
+
 	return 0;
 }
 int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
@@ -749,6 +865,9 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	int err = 0;
 	camsys_mrv_clk_t *mrv_clk = NULL;
 	struct resource register_res;
+	struct iommu_domain *domain;
+	struct iommu_group *group;
+	struct device_node *np;
 
 	err = of_address_to_resource(pdev->dev.of_node, 0, &register_res);
 	if (err < 0) {
@@ -922,13 +1041,45 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	mrv_clk->in_on = false;
 	mrv_clk->out_on = 0;
 
+	np = of_find_node_by_name(NULL, "isp0_mmu");
+	if (!np) {
+		/* iommu domain */
+		domain = iommu_domain_alloc(&platform_bus_type);
+		if (!domain)
+			goto clk_failed;
+
+		err = iommu_get_dma_cookie(domain);
+		if (err)
+			goto err_free_domain;
+
+		group = iommu_group_get(&pdev->dev);
+		if (!group) {
+			group = iommu_group_alloc();
+			if (IS_ERR(group)) {
+				dev_err(&pdev->dev, "Failed to allocate IOMMU group\n");
+				goto err_put_cookie;
+			}
+
+			err = iommu_group_add_device(group, &pdev->dev);
+			iommu_group_put(group);
+			if (err) {
+				dev_err(&pdev->dev, "failed to add device to IOMMU group\n");
+				goto err_put_cookie;
+			}
+		}
+		camsys_dev->domain = domain;
+		camsys_dev->dma_buf_cnt = 0;
+		camsys_dev->iommu_cb = camsys_mrv_drm_iommu_cb;
+	} else {
+		camsys_dev->iommu_cb = camsys_mrv_iommu_cb;
+	}
+
 	camsys_dev->clk = (void *)mrv_clk;
 	camsys_dev->clkin_cb = camsys_mrv_clkin_cb;
 	camsys_dev->clkout_cb = camsys_mrv_clkout_cb;
 	camsys_dev->reset_cb = camsys_mrv_reset_cb;
 	camsys_dev->iomux = camsys_mrv_iomux_cb;
 	camsys_dev->flash_trigger_cb = camsys_mrv_flash_trigger_cb;
-	camsys_dev->iommu_cb = camsys_mrv_iommu_cb;
 
 	camsys_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
 	camsys_dev->miscdev.name = miscdev_name;
@@ -955,7 +1106,10 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 misc_register_failed:
 	if (!IS_ERR_OR_NULL(camsys_dev->miscdev.this_device))
 		misc_deregister(&camsys_dev->miscdev);
-
+err_put_cookie:
+	iommu_put_dma_cookie(domain);
+err_free_domain:
+	iommu_domain_free(domain);
 clk_failed:
 	if (mrv_clk != NULL) {
 		if (!IS_ERR_OR_NULL(mrv_clk->pd_isp))
