@@ -1,0 +1,10 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6dqscm-1gb-qwks-rev3-fix-ldo.dts"
+#include "imx6dqscm-qwks-rev3-btwifi.dtsi"

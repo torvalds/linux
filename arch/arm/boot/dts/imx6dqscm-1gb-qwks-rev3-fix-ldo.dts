@@ -1,0 +1,147 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6dqscm-1gb-qwks-rev2-fix-ldo.dts"
+
+/ {
+	regulators {
+		reg_usb_otg_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "usb_otg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio4 15 0>;
+			enable-active-high;
+		};
+	};
+
+	v4l2_cap_1 {
+		compatible = "fsl,imx6q-v4l2-capture";
+		ipu_id = <0>;
+		csi_id = <1>;
+		mclk_source = <0>;
+		status = "okay";
+	};
+};
+
+&i2c2 {
+	ov564x_mipi: ov564x_mipi@3c {
+		compatible = "ovti,ov564x_mipi";
+		reg = <0x3c>;
+		clocks = <&clks 201>;
+		clock-names = "csi_mclk";
+		DOVDD-supply = <&sw4_reg>;
+		AVDD-supply = <&vgen3_reg>;
+		DVDD-supply = <&vgen2_reg>;
+		pwn-gpios = <&gpio1 19 1>;
+		rst-gpios = <&gpio1 20 0>;
+		csi_id = <1>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_cam>;
+	};
+
+	pmic: pfuze100@08 {
+		regulators {
+			vgen5_reg: vgen5 {
+				regulator-max-microvolt = <2500000>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	egalax_ts@04 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3_egalax_int>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <14 0>;
+		wakeup-gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mipi_csi {
+	status = "okay";
+	ipu_id = <0>;
+	csi_id = <1>;
+	v_channel = <0>;
+	lanes = <2>;
+};
+
+&usdhc3 {
+	cd-gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio5 12 0>;
+	fsl,magic-packet;
+	assigned-clocks = <&clks IMX6QDL_CLK_ENET_REF >;
+	assigned-clock-rates = <50000000>;
+	status = "okay";
+};
+
+&iomuxc {
+	imx6dqscm-cam {
+		pinctrl_cam: camgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_0__CCM_CLKO1	0x130b0
+				MX6QDL_PAD_SD1_CLK__GPIO1_IO20	0x13069
+				MX6QDL_PAD_SD1_DAT2__GPIO1_IO19	0x13069
+			>;
+		};
+	};
+
+	imx6qdl-sabresd {
+		pinctrl_usdhc3: usdhc3grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_CMD__SD3_CMD	0x17059
+				MX6QDL_PAD_SD3_CLK__SD3_CLK	0x10059
+				MX6QDL_PAD_SD3_DAT0__SD3_DATA0	0x17059
+				MX6QDL_PAD_SD3_DAT1__SD3_DATA1	0x17059
+				MX6QDL_PAD_SD3_DAT2__SD3_DATA2	0x17059
+				MX6QDL_PAD_SD3_DAT3__SD3_DATA3	0x17059
+				MX6QDL_PAD_SD3_DAT4__GPIO7_IO01	0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D28__I2C1_SDA  0x4001b8b1
+				MX6QDL_PAD_EIM_D21__I2C1_SCL  0x4001b8b1
+			>;
+		};
+
+		pinctrl_usbotg: usbotggrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_1__USB_OTG_ID		0x17059
+				MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x17059
+			>;
+		};
+		pinctrl_enet: enetgrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_16__ENET_REF_CLK 0x4001b0a8
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO  0x1b0b0
+				MX6QDL_PAD_ENET_MDC__ENET_MDC    0x1b0b0
+				MX6QDL_PAD_ENET_TXD0__ENET_TX_DATA0 0x1b0b0
+				MX6QDL_PAD_ENET_TXD1__ENET_TX_DATA1 0x1b0b0
+				MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN   0x1b0b0
+				MX6QDL_PAD_ENET_RX_ER__ENET_RX_ER   0x1b0b0
+				MX6QDL_PAD_ENET_RXD0__ENET_RX_DATA0 0x1b0b0
+				MX6QDL_PAD_ENET_RXD1__ENET_RX_DATA1 0x1b0b0
+				MX6QDL_PAD_ENET_CRS_DV__ENET_RX_EN  0x1b0b0
+			>;
+		};
+	};
+};
