@@ -970,11 +970,25 @@ static void bgx_set_lmac_config(struct bgx *bgx, u8 idx)
 		lmac_set_training(bgx, lmac, lmac->lmacid);
 		lmac_set_lane2sds(bgx, lmac);
 
-		/* Set LMAC type of other lmac on same DLM i.e LMAC 1/3 */
 		olmac = &bgx->lmac[idx + 1];
-		olmac->lmac_type = lmac->lmac_type;
+		/*  Check if other LMAC on the same DLM is already configured by
+		 *  firmware, if so use the same config or else set as same, as
+		 *  that of LMAC 0/2.
+		 *  This check is needed as on 80xx only one lane of each of the
+		 *  DLM of BGX0 is used, so have to rely on firmware for
+		 *  distingushing 80xx from 81xx.
+		 */
+		cmr_cfg = bgx_reg_read(bgx, idx + 1, BGX_CMRX_CFG);
+		lmac_type = (u8)((cmr_cfg >> 8) & 0x07);
+		lane_to_sds = (u8)(cmr_cfg & 0xFF);
+		if ((lmac_type == 0) && (lane_to_sds == 0xE4)) {
+			olmac->lmac_type = lmac->lmac_type;
+			lmac_set_lane2sds(bgx, olmac);
+		} else {
+			olmac->lmac_type = lmac_type;
+			olmac->lane_to_sds = lane_to_sds;
+		}
 		lmac_set_training(bgx, olmac, olmac->lmacid);
-		lmac_set_lane2sds(bgx, olmac);
 	}
 }
 
