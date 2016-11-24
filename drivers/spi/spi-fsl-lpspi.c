@@ -148,16 +148,14 @@ static void fsl_lpspi_intctrl(struct fsl_lpspi_data *fsl_lpspi,
 	writel(enable, fsl_lpspi->base + IMX7ULP_IER);
 }
 
-static int fsl_lpspi_prepare_message(struct spi_master *master,
-				     struct spi_message *msg)
+static int lpspi_prepare_xfer_hardware(struct spi_master *master)
 {
 	struct fsl_lpspi_data *fsl_lpspi = spi_master_get_devdata(master);
 
 	return clk_prepare_enable(fsl_lpspi->clk);
 }
 
-static int
-fsl_lpspi_unprepare_message(struct spi_master *master, struct spi_message *msg)
+static int lpspi_unprepare_xfer_hardware(struct spi_master *master)
 {
 	struct fsl_lpspi_data *fsl_lpspi = spi_master_get_devdata(master);
 
@@ -438,8 +436,8 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	fsl_lpspi->dev = &pdev->dev;
 
 	master->transfer_one_message = fsl_lpspi_transfer_one_msg;
-	master->prepare_message = fsl_lpspi_prepare_message;
-	master->unprepare_message = fsl_lpspi_unprepare_message;
+	master->prepare_transfer_hardware = lpspi_prepare_xfer_hardware;
+	master->unprepare_transfer_hardware = lpspi_unprepare_xfer_hardware;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
 	master->dev.of_node = pdev->dev.of_node;
