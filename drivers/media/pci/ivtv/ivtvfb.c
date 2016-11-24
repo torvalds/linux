@@ -1270,7 +1270,7 @@ static int __init ivtvfb_init(void)
 
 
 	if (ivtvfb_card_id < -1 || ivtvfb_card_id >= IVTV_MAX_CARDS) {
-		printk(KERN_ERR "ivtvfb:  ivtvfb_card_id parameter is out of range (valid range: -1 - %d)\n",
+		pr_err("ivtvfb_card_id parameter is out of range (valid range: -1 - %d)\n",
 		     IVTV_MAX_CARDS - 1);
 		return -EINVAL;
 	}
@@ -1279,7 +1279,7 @@ static int __init ivtvfb_init(void)
 	err = driver_for_each_device(drv, NULL, &registered, ivtvfb_callback_init);
 	(void)err;	/* suppress compiler warning */
 	if (!registered) {
-		printk(KERN_ERR "ivtvfb:  no cards found\n");
+		pr_err("no cards found\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -1290,7 +1290,7 @@ static void ivtvfb_cleanup(void)
 	struct device_driver *drv;
 	int err;
 
-	printk(KERN_INFO "ivtvfb:  Unloading framebuffer module\n");
+	pr_info("Unloading framebuffer module\n");
 
 	drv = driver_find("ivtv", &pci_bus_type);
 	err = driver_for_each_device(drv, NULL, NULL, ivtvfb_callback_cleanup);
