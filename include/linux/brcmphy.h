@@ -114,6 +114,7 @@
 #define MII_BCM54XX_AUXCTL_SHDWSEL_MISC	0x0007
 #define MII_BCM54XX_AUXCTL_SHDWSEL_READ_SHIFT	12
 #define MII_BCM54XX_AUXCTL_SHDWSEL_MISC_RGMII_SKEW_EN	(1 << 8)
+#define MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN	(1 << 4)
 
 #define MII_BCM54XX_AUXCTL_SHDWSEL_MASK	0x0007
 
@@ -130,6 +131,7 @@
 #define BCM_LED_SRC_INTR	0x6
 #define BCM_LED_SRC_QUALITY	0x7
 #define BCM_LED_SRC_RCVLED	0x8
+#define BCM_LED_SRC_WIRESPEED	0x9
 #define BCM_LED_SRC_MULTICOLOR1	0xa
 #define BCM_LED_SRC_OPENSHORT	0xb
 #define BCM_LED_SRC_OFF		0xe	/* Tied high */
@@ -141,6 +143,14 @@
  * Shadow values go into bits [14:10] of register 0x1c to select a shadow
  * register to access.
  */
+
+/* 00100: Reserved control register 2 */
+#define BCM54XX_SHD_SCR2		0x04
+#define  BCM54XX_SHD_SCR2_WSPD_RTRY_DIS	0x100
+#define  BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT	2
+#define  BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET	2
+#define  BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK	0x7
+
 /* 00101: Spare Control Register 3 */
 #define BCM54XX_SHD_SCR3		0x05
 #define  BCM54XX_SHD_SCR3_DEF_CLK125	0x0001

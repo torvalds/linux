@@ -30,21 +30,6 @@ MODULE_DESCRIPTION("Broadcom PHY driver");
 MODULE_AUTHOR("Maciej W. Rozycki");
 MODULE_LICENSE("GPL");
 
-static int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum)
-{
-	/* The register must be written to both the Shadow Register Select and
-	 * the Shadow Read Register Selector
-	 */
-	phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum |
-		  regnum << MII_BCM54XX_AUXCTL_SHDWSEL_READ_SHIFT);
-	return phy_read(phydev, MII_BCM54XX_AUX_CTL);
-}
-
-static int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val)
-{
-	return phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum | val);
-}
-
 static int bcm54810_config(struct phy_device *phydev)
 {
 	int rc, val;

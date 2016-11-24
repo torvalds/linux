@@ -50,6 +50,23 @@ int bcm_phy_read_exp(struct phy_device *phydev, u16 reg)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_read_exp);
 
+int bcm54xx_auxctl_read(struct phy_device *phydev, u16 regnum)
+{
+	/* The register must be written to both the Shadow Register Select and
+	 * the Shadow Read Register Selector
+	 */
+	phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum |
+		  regnum << MII_BCM54XX_AUXCTL_SHDWSEL_READ_SHIFT);
+	return phy_read(phydev, MII_BCM54XX_AUX_CTL);
+}
+EXPORT_SYMBOL_GPL(bcm54xx_auxctl_read);
+
+int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val)
+{
+	return phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum | val);
+}
+EXPORT_SYMBOL(bcm54xx_auxctl_write);
+
 int bcm_phy_write_misc(struct phy_device *phydev,
 		       u16 reg, u16 chl, u16 val)
 {
@@ -178,7 +195,7 @@ int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_enable_apd);
 
-int bcm_phy_enable_eee(struct phy_device *phydev)
+int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 {
 	int val;
 
@@ -188,7 +205,10 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+	if (enable)
+		val |= LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X;
+	else
+		val &= ~(LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X);
 
 	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
 			       MDIO_MMD_AN, (u32)val);
@@ -199,14 +219,103 @@ int bcm_phy_enable_eee(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	if (enable)
+		val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+	else
+		val &= ~(MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
 
 	phy_write_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
 			       MDIO_MMD_AN, (u32)val);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bcm_phy_enable_eee);
+EXPORT_SYMBOL_GPL(bcm_phy_set_eee);
+
+int bcm_phy_downshift_get(struct phy_device *phydev, u8 *count)
+{
+	int val;
+
+	val = bcm54xx_auxctl_read(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
+	if (val < 0)
+		return val;
+
+	/* Check if wirespeed is enabled or not */
+	if (!(val & MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN)) {
+		*count = DOWNSHIFT_DEV_DISABLE;
+		return 0;
+	}
+
+	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_SCR2);
+	if (val < 0)
+		return val;
+
+	/* Downgrade after one link attempt */
+	if (val & BCM54XX_SHD_SCR2_WSPD_RTRY_DIS) {
+		*count = 1;
+	} else {
+		/* Downgrade after configured retry count */
+		val >>= BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT;
+		val &= BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK;
+		*count = val + BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_downshift_get);
+
+int bcm_phy_downshift_set(struct phy_device *phydev, u8 count)
+{
+	int val = 0, ret = 0;
+
+	/* Range check the number given */
+	if (count - BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET >
+	    BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK &&
+	    count != DOWNSHIFT_DEV_DEFAULT_COUNT) {
+		return -ERANGE;
+	}
+
+	val = bcm54xx_auxctl_read(phydev, MII_BCM54XX_AUXCTL_SHDWSEL_MISC);
+	if (val < 0)
+		return val;
+
+	/* Se the write enable bit */
+	val |= MII_BCM54XX_AUXCTL_MISC_WREN;
+
+	if (count == DOWNSHIFT_DEV_DISABLE) {
+		val &= ~MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN;
+		return bcm54xx_auxctl_write(phydev,
+					    MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
+					    val);
+	} else {
+		val |= MII_BCM54XX_AUXCTL_SHDWSEL_MISC_WIRESPEED_EN;
+		ret = bcm54xx_auxctl_write(phydev,
+					   MII_BCM54XX_AUXCTL_SHDWSEL_MISC,
+					   val);
+		if (ret < 0)
+			return ret;
+	}
+
+	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_SCR2);
+	val &= ~(BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_MASK <<
+		 BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT |
+		 BCM54XX_SHD_SCR2_WSPD_RTRY_DIS);
+
+	switch (count) {
+	case 1:
+		val |= BCM54XX_SHD_SCR2_WSPD_RTRY_DIS;
+		break;
+	case DOWNSHIFT_DEV_DEFAULT_COUNT:
+		val |= 1 << BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT;
+		break;
+	default:
+		val |= (count - BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_OFFSET) <<
+			BCM54XX_SHD_SCR2_WSPD_RTRY_LMT_SHIFT;
+		break;
+	}
+
+	return bcm_phy_write_shadow(phydev, BCM54XX_SHD_SCR2, val);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_downshift_set);
 
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");
