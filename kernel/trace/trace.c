@@ -794,6 +794,22 @@ void tracing_on(void)
 }
 EXPORT_SYMBOL_GPL(tracing_on);
 
+
+static __always_inline void
+__buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
+{
+	__this_cpu_write(trace_cmdline_save, true);
+
+	/* If this is the temp buffer, we need to commit fully */
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Length is in event->array[0] */
+		ring_buffer_write(buffer, event->array[0], &event->array[1]);
+		/* Release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+	} else
+		ring_buffer_unlock_commit(buffer, event);
+}
+
 /**
  * __trace_puts - write a constant string into the trace buffer.
  * @ip:	   The address of the caller
@@ -2059,21 +2075,6 @@ void trace_buffered_event_disable(void)
 	preempt_enable();
 }
 
-void
-__buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
-{
-	__this_cpu_write(trace_cmdline_save, true);
-
-	/* If this is the temp buffer, we need to commit fully */
-	if (this_cpu_read(trace_buffered_event) == event) {
-		/* Length is in event->array[0] */
-		ring_buffer_write(buffer, event->array[0], &event->array[1]);
-		/* Release the temp buffer */
-		this_cpu_dec(trace_buffered_event_cnt);
-	} else
-		ring_buffer_unlock_commit(buffer, event);
-}
-
 static struct ring_buffer *temp_buffer;
 
 struct ring_buffer_event *
@@ -2212,6 +2213,16 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 	 */
 	ftrace_trace_stack(tr, buffer, flags, regs ? 0 : 4, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
+}
+
+/*
+ * Similar to trace_buffer_unlock_commit_regs() but do not dump stack.
+ */
+void
+trace_buffer_unlock_commit_nostack(struct ring_buffer *buffer,
+				   struct ring_buffer_event *event)
+{
+	__buffer_unlock_commit(buffer, event);
 }
 
 static void
