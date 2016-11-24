@@ -112,20 +112,20 @@ startup_64:
 	movq	%rdi, %rax
 	shrq	$PGDIR_SHIFT, %rax
 
-	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
+	leaq	(PAGE_SIZE + _KERNPG_TABLE)(%rbx), %rdx
 	movq	%rdx, 0(%rbx,%rax,8)
 	movq	%rdx, 8(%rbx,%rax,8)
 
-	addq	$4096, %rdx
+	addq	$PAGE_SIZE, %rdx
 	movq	%rdi, %rax
 	shrq	$PUD_SHIFT, %rax
 	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
+	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
 	incl	%eax
 	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
+	movq	%rdx, PAGE_SIZE(%rbx,%rax,8)
 
-	addq	$8192, %rbx
+	addq	$PAGE_SIZE * 2, %rbx
 	movq	%rdi, %rax
 	shrq	$PMD_SHIFT, %rdi
 	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
