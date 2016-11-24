@@ -4215,6 +4215,17 @@ static void ufshcd_update_uic_error(struct ufs_hba *hba)
 {
 	u32 reg;
 
+	/* PHY layer lane error */
+	reg = ufshcd_readl(hba, REG_UIC_ERROR_CODE_PHY_ADAPTER_LAYER);
+	/* Ignore LINERESET indication, as this is not an error */
+	if ((reg & UIC_PHY_ADAPTER_LAYER_ERROR) &&
+			(reg & UIC_PHY_ADAPTER_LAYER_LANE_ERR_MASK))
+		/*
+		 * To know whether this error is fatal or not, DB timeout
+		 * must be checked but this error is handled separately.
+		 */
+		dev_dbg(hba->dev, "%s: UIC Lane error reported\n", __func__);
+
 	/* PA_INIT_ERROR is fatal and needs UIC reset */
 	reg = ufshcd_readl(hba, REG_UIC_ERROR_CODE_DATA_LINK_LAYER);
 	if (reg & UIC_DATA_LINK_LAYER_ERROR_PA_INIT)
