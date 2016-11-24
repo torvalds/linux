@@ -1135,7 +1135,6 @@ static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
 {
 	u32 total_pkt_len, pkt_len;
 	struct sk_buff *skb_deaggr;
-	u32 pkt_type;
 	u16 blk_size;
 	u8 blk_num;
 	u8 *data;
@@ -1156,8 +1155,6 @@ static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
 			break;
 		}
 		pkt_len = le16_to_cpu(*(__le16 *)(data + SDIO_HEADER_OFFSET));
-		pkt_type = le16_to_cpu(*(__le16 *)(data + SDIO_HEADER_OFFSET +
-					 2));
 		if ((pkt_len + SDIO_HEADER_OFFSET) > blk_size) {
 			mwifiex_dbg(adapter, ERROR,
 				    "%s: error in pkt_len,\t"
