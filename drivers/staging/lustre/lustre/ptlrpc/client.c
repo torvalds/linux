@@ -128,12 +128,12 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned int nfrags,
 		GET_KIOV(desc) = kcalloc(nfrags, sizeof(*GET_KIOV(desc)),
 					 GFP_NOFS);
 		if (!GET_KIOV(desc))
-			goto out;
+			goto free_desc;
 	} else {
 		GET_KVEC(desc) = kcalloc(nfrags, sizeof(*GET_KVEC(desc)),
 					 GFP_NOFS);
 		if (!GET_KVEC(desc))
-			goto out;
+			goto free_desc;
 	}
 
 	spin_lock_init(&desc->bd_lock);
@@ -154,7 +154,8 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned int nfrags,
 		LNetInvalidateHandle(&desc->bd_mds[i]);
 
 	return desc;
-out:
+free_desc:
+	kfree(desc);
 	return NULL;
 }
 
