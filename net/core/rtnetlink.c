@@ -3671,7 +3671,7 @@ static int rtnl_get_offload_stats(struct sk_buff *skb, struct net_device *dev,
 		if (!size)
 			continue;
 
-		if (!dev->netdev_ops->ndo_has_offload_stats(attr_id))
+		if (!dev->netdev_ops->ndo_has_offload_stats(dev, attr_id))
 			continue;
 
 		attr = nla_reserve_64bit(skb, attr_id, size,
@@ -3712,7 +3712,7 @@ static int rtnl_get_offload_stats_size(const struct net_device *dev)
 
 	for (attr_id = IFLA_OFFLOAD_XSTATS_FIRST;
 	     attr_id <= IFLA_OFFLOAD_XSTATS_MAX; attr_id++) {
-		if (!dev->netdev_ops->ndo_has_offload_stats(attr_id))
+		if (!dev->netdev_ops->ndo_has_offload_stats(dev, attr_id))
 			continue;
 		size = rtnl_get_offload_stats_attr_size(attr_id);
 		nla_size += nla_total_size_64bit(size);

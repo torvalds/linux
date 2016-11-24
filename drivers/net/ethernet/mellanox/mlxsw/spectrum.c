@@ -857,7 +857,7 @@ mlxsw_sp_port_get_sw_stats64(const struct net_device *dev,
 	return 0;
 }
 
-static bool mlxsw_sp_port_has_offload_stats(int attr_id)
+static bool mlxsw_sp_port_has_offload_stats(const struct net_device *dev, int attr_id)
 {
 	switch (attr_id) {
 	case IFLA_OFFLOAD_XSTATS_CPU_HIT:
