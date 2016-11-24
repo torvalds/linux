@@ -1741,7 +1741,7 @@ out:
 static struct iwl_wowlan_status *
 iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	u32 base = mvm->error_event_table;
+	u32 base = mvm->error_event_table[0];
 	struct error_table_start {
 		/* cf. struct iwl_error_event_table */
 		u32 valid;

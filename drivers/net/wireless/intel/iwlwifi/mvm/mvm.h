@@ -741,7 +741,7 @@ struct iwl_mvm {
 	bool ucode_loaded;
 	bool hw_registered;
 	bool calibrating;
-	u32 error_event_table;
+	u32 error_event_table[2];
 	u32 log_event_table;
 	u32 umac_error_event_table;
 	bool support_umac_log;

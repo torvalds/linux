@@ -598,60 +598,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct mvm_alive_resp_ver1 {
-	__le16 status;
-	__le16 flags;
-	u8 ucode_minor;
-	u8 ucode_major;
-	__le16 id;
-	u8 api_minor;
-	u8 api_major;
-	u8 ver_subtype;
-	u8 ver_type;
-	u8 mac;
-	u8 opt;
-	__le16 reserved2;
-	__le32 timestamp;
-	__le32 error_event_table_ptr;	/* SRAM address for error log */
-	__le32 log_event_table_ptr;	/* SRAM address for event log */
-	__le32 cpu_register_ptr;
-	__le32 dbgm_config_ptr;
-	__le32 alive_counter_ptr;
-	__le32 scd_base_ptr;		/* SRAM address for SCD */
-} __packed; /* ALIVE_RES_API_S_VER_1 */
-
-struct mvm_alive_resp_ver2 {
-	__le16 status;
-	__le16 flags;
-	u8 ucode_minor;
-	u8 ucode_major;
-	__le16 id;
-	u8 api_minor;
-	u8 api_major;
-	u8 ver_subtype;
-	u8 ver_type;
-	u8 mac;
-	u8 opt;
-	__le16 reserved2;
-	__le32 timestamp;
-	__le32 error_event_table_ptr;	/* SRAM address for error log */
-	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
-	__le32 cpu_register_ptr;
-	__le32 dbgm_config_ptr;
-	__le32 alive_counter_ptr;
-	__le32 scd_base_ptr;		/* SRAM address for SCD */
-	__le32 st_fwrd_addr;		/* pointer to Store and forward */
-	__le32 st_fwrd_size;
-	u8 umac_minor;			/* UMAC version: minor */
-	u8 umac_major;			/* UMAC version: major */
-	__le16 umac_id;			/* UMAC version: id */
-	__le32 error_info_addr;		/* SRAM address for UMAC error log */
-	__le32 dbg_print_buff_addr;
-} __packed; /* ALIVE_RES_API_S_VER_2 */
-
-struct mvm_alive_resp {
-	__le16 status;
-	__le16 flags;
+struct iwl_lmac_alive {
 	__le32 ucode_minor;
 	__le32 ucode_major;
 	u8 ver_subtype;
@@ -667,11 +614,28 @@ struct mvm_alive_resp {
 	__le32 scd_base_ptr;		/* SRAM address for SCD */
 	__le32 st_fwrd_addr;		/* pointer to Store and forward */
 	__le32 st_fwrd_size;
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
+
+struct iwl_umac_alive {
 	__le32 umac_minor;		/* UMAC version: minor */
 	__le32 umac_major;		/* UMAC version: major */
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
+} __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
+
+struct mvm_alive_resp_v3 {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data;
+	struct iwl_umac_alive umac_data;
 } __packed; /* ALIVE_RES_API_S_VER_3 */
+
+struct mvm_alive_resp {
+	__le16 status;
+	__le16 flags;
+	struct iwl_lmac_alive lmac_data[2];
+	struct iwl_umac_alive umac_data;
+} __packed; /* ALIVE_RES_API_S_VER_4 */
 
 /* Error response/notification */
 enum {

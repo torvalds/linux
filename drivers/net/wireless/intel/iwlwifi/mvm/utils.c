@@ -497,13 +497,11 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | isr status reg\n", table.nic_isr_pref);
 }
 
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
-	u32 base;
 
-	base = mvm->error_event_table;
 	if (mvm->cur_ucode == IWL_UCODE_INIT) {
 		if (!base)
 			base = mvm->fw->init_errlog_ptr;
@@ -574,6 +572,14 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
 	IWL_ERR(mvm, "0x%08X | timestamp\n", table.u_timestamp);
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
+}
+
+void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+{
+	iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[0]);
+
+	if (mvm->error_event_table[1])
+		iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[1]);
 
 	if (mvm->support_umac_log)
 		iwl_mvm_dump_umac_error_log(mvm);

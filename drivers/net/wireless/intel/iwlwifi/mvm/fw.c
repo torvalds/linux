@@ -444,80 +444,52 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_mvm *mvm =
 		container_of(notif_wait, struct iwl_mvm, notif_wait);
 	struct iwl_mvm_alive_data *alive_data = data;
-	struct mvm_alive_resp_ver1 *palive1;
-	struct mvm_alive_resp_ver2 *palive2;
+	struct mvm_alive_resp_v3 *palive3;
 	struct mvm_alive_resp *palive;
+	struct iwl_umac_alive *umac;
+	struct iwl_lmac_alive *lmac1;
+	struct iwl_lmac_alive *lmac2 = NULL;
+	u16 status;
 
-	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive1)) {
-		palive1 = (void *)pkt->data;
-
-		mvm->support_umac_log = false;
-		mvm->error_event_table =
-			le32_to_cpu(palive1->error_event_table_ptr);
-		mvm->log_event_table =
-			le32_to_cpu(palive1->log_event_table_ptr);
-		alive_data->scd_base_addr = le32_to_cpu(palive1->scd_base_ptr);
-
-		alive_data->valid = le16_to_cpu(palive1->status) ==
-				    IWL_ALIVE_STATUS_OK;
-		IWL_DEBUG_FW(mvm,
-			     "Alive VER1 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16_to_cpu(palive1->status), palive1->ver_type,
-			     palive1->ver_subtype, palive1->flags);
-	} else if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive2)) {
-		palive2 = (void *)pkt->data;
-
-		mvm->error_event_table =
-			le32_to_cpu(palive2->error_event_table_ptr);
-		mvm->log_event_table =
-			le32_to_cpu(palive2->log_event_table_ptr);
-		alive_data->scd_base_addr = le32_to_cpu(palive2->scd_base_ptr);
-		mvm->umac_error_event_table =
-			le32_to_cpu(palive2->error_info_addr);
-		mvm->sf_space.addr = le32_to_cpu(palive2->st_fwrd_addr);
-		mvm->sf_space.size = le32_to_cpu(palive2->st_fwrd_size);
-
-		alive_data->valid = le16_to_cpu(palive2->status) ==
-				    IWL_ALIVE_STATUS_OK;
-		if (mvm->umac_error_event_table)
-			mvm->support_umac_log = true;
-
-		IWL_DEBUG_FW(mvm,
-			     "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16_to_cpu(palive2->status), palive2->ver_type,
-			     palive2->ver_subtype, palive2->flags);
-
-		IWL_DEBUG_FW(mvm,
-			     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
-			     palive2->umac_major, palive2->umac_minor);
-	} else if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+	if (iwl_rx_packet_payload_len(pkt) == sizeof(*palive)) {
 		palive = (void *)pkt->data;
-
-		mvm->error_event_table =
-			le32_to_cpu(palive->error_event_table_ptr);
-		mvm->log_event_table =
-			le32_to_cpu(palive->log_event_table_ptr);
-		alive_data->scd_base_addr = le32_to_cpu(palive->scd_base_ptr);
-		mvm->umac_error_event_table =
-			le32_to_cpu(palive->error_info_addr);
-		mvm->sf_space.addr = le32_to_cpu(palive->st_fwrd_addr);
-		mvm->sf_space.size = le32_to_cpu(palive->st_fwrd_size);
-
-		alive_data->valid = le16_to_cpu(palive->status) ==
-				    IWL_ALIVE_STATUS_OK;
-		if (mvm->umac_error_event_table)
-			mvm->support_umac_log = true;
-
-		IWL_DEBUG_FW(mvm,
-			     "Alive VER3 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16_to_cpu(palive->status), palive->ver_type,
-			     palive->ver_subtype, palive->flags);
-
-		IWL_DEBUG_FW(mvm,
-			     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
-			     le32_to_cpu(palive->umac_major),
-			     le32_to_cpu(palive->umac_minor));
+		umac = &palive->umac_data;
+		lmac1 = &palive->lmac_data[0];
+		lmac2 = &palive->lmac_data[1];
+		status = le16_to_cpu(palive->status);
+	} else {
+		palive3 = (void *)pkt->data;
+		umac = &palive3->umac_data;
+		lmac1 = &palive3->lmac_data;
+		status = le16_to_cpu(palive3->status);
 	}
+
+	mvm->error_event_table[0] = le32_to_cpu(lmac1->error_event_table_ptr);
+	if (lmac2)
+		mvm->error_event_table[1] =
+			le32_to_cpu(lmac2->error_event_table_ptr);
+	mvm->log_event_table = le32_to_cpu(lmac1->log_event_table_ptr);
+	mvm->sf_space.addr = le32_to_cpu(lmac1->st_fwrd_addr);
+	mvm->sf_space.size = le32_to_cpu(lmac1->st_fwrd_size);
+
+	mvm->umac_error_event_table = le32_to_cpu(umac->error_info_addr);
+
+	alive_data->scd_base_addr = le32_to_cpu(lmac1->scd_base_ptr);
+	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
+	if (mvm->umac_error_event_table)
+		mvm->support_umac_log = true;
+
+	IWL_DEBUG_FW(mvm,
+		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
+		     status, lmac1->ver_type, lmac1->ver_subtype);
+
+	if (lmac2)
+		IWL_DEBUG_FW(mvm, "Alive ucode CDB\n");
+
+	IWL_DEBUG_FW(mvm,
+		     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+		     le32_to_cpu(umac->umac_major),
+		     le32_to_cpu(umac->umac_minor));
 
 	return true;
 }
