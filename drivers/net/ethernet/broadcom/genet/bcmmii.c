@@ -542,8 +542,10 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	/* Make sure we initialize MoCA PHYs with a link down */
 	if (phy_mode == PHY_INTERFACE_MODE_MOCA) {
 		phydev = of_phy_find_device(dn);
-		if (phydev)
+		if (phydev) {
 			phydev->link = 0;
+			put_device(&phydev->mdio.dev);
+		}
 	}
 
 	return 0;
