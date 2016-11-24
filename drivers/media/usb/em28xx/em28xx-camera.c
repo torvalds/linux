@@ -23,7 +23,6 @@
 
 #include <linux/i2c.h>
 #include <linux/usb.h>
-#include <media/soc_camera.h>
 #include <media/i2c/mt9v011.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
@@ -41,13 +40,6 @@ static unsigned short omnivision_sensor_addrs[] = {
 	0x42 >> 1,   /* OV7725, OV7670/60/48 */
 	0x60 >> 1,   /* OV2640, OV9650/53/55 */
 	I2C_CLIENT_END
-};
-
-static struct soc_camera_link camlink = {
-	.bus_id = 0,
-	.flags = 0,
-	.module_name = "em28xx",
-	.unbalanced_power = true,
 };
 
 /* FIXME: Should be replaced by a proper mt9m111 driver */
@@ -419,7 +411,6 @@ int em28xx_init_camera(struct em28xx *dev)
 			.type = "ov2640",
 			.flags = I2C_CLIENT_SCCB,
 			.addr = client->addr,
-			.platform_data = &camlink,
 		};
 		struct v4l2_subdev_format format = {
 			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
