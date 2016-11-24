@@ -528,8 +528,7 @@ static int ohci_da8xx_resume(struct platform_device *dev)
 	if (ret)
 		return ret;
 
-	dev->dev.power.power_state = PMSG_ON;
-	usb_hcd_resume_root_hub(hcd);
+	ohci_resume(hcd, false);
 
 	return 0;
 }
