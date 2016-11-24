@@ -1196,7 +1196,6 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		 * Check if the image pair could be established
 		 */
 		if (rdata->spp_type != FC_TYPE_FCP ||
-		    resp_code != FC_SPP_RESP_ACK ||
 		    !(pp->spp.spp_flags & FC_SPP_EST_IMG_PAIR)) {
 			/*
 			 * Nope; we can't use this port as a target.
