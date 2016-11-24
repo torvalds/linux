@@ -614,13 +614,13 @@ xfs_reflink_end_cow(
 	xfs_off_t			count)
 {
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
-	struct xfs_bmbt_irec		got, prev, del;
+	struct xfs_bmbt_irec		got, del;
 	struct xfs_trans		*tp;
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
 	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
-	int				error, eof = 0;
+	int				error;
 	unsigned int			resblks;
 	xfs_filblks_t			rlen;
 	xfs_extnum_t			idx;
@@ -644,13 +644,11 @@ xfs_reflink_end_cow(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_bmap_search_extents(ip, end_fsb - 1, XFS_COW_FORK, &eof, &idx,
-			&got, &prev);
-
 	/* If there is a hole at end_fsb - 1 go to the previous extent */
-	if (eof || got.br_startoff > end_fsb) {
+	if (!xfs_iext_lookup_extent(ip, ifp, end_fsb - 1, &idx, &got) ||
+	    got.br_startoff > end_fsb) {
 		ASSERT(idx > 0);
-		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, --idx), &got);
+		xfs_iext_get_extent(ifp, --idx, &got);
 	}
 
 	/* Walk backwards until we're out of the I/O range... */
@@ -698,11 +696,9 @@ xfs_reflink_end_cow(
 		error = xfs_defer_finish(&tp, &dfops, ip);
 		if (error)
 			goto out_defer;
-
 next_extent:
-		if (idx < 0)
+		if (!xfs_iext_get_extent(ifp, idx, &got))
 			break;
-		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
 
 	error = xfs_trans_commit(tp);
