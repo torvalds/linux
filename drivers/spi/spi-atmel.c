@@ -268,10 +268,6 @@
 struct atmel_spi_dma {
 	struct dma_chan			*chan_rx;
 	struct dma_chan			*chan_tx;
-	struct dma_async_tx_descriptor	*data_desc_rx;
-	struct dma_async_tx_descriptor	*data_desc_tx;
-
-	struct at_dma_slave	dma_slave;
 };
 
 struct atmel_spi_caps {
