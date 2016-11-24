@@ -330,11 +330,11 @@ static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	GEM_BUG_ON(i915->gt.active_requests > 1);
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
-	if (!i915_seqno_passed(seqno, atomic_read(&timeline->next_seqno))) {
+	if (!i915_seqno_passed(seqno, atomic_read(&timeline->seqno))) {
 		while (intel_breadcrumbs_busy(i915))
 			cond_resched(); /* spin until threads are complete */
 	}
-	atomic_set(&timeline->next_seqno, seqno);
+	atomic_set(&timeline->seqno, seqno);
 
 	/* Finally reset hw state */
 	for_each_engine(engine, i915, id)
@@ -369,11 +369,11 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 static int reserve_global_seqno(struct drm_i915_private *i915)
 {
 	u32 active_requests = ++i915->gt.active_requests;
-	u32 next_seqno = atomic_read(&i915->gt.global_timeline.next_seqno);
+	u32 seqno = atomic_read(&i915->gt.global_timeline.seqno);
 	int ret;
 
 	/* Reservation is fine until we need to wrap around */
-	if (likely(next_seqno + active_requests > next_seqno))
+	if (likely(seqno + active_requests > seqno))
 		return 0;
 
 	ret = i915_gem_init_global_seqno(i915, 0);
@@ -387,13 +387,13 @@ static int reserve_global_seqno(struct drm_i915_private *i915)
 
 static u32 __timeline_get_seqno(struct i915_gem_timeline *tl)
 {
-	/* next_seqno only incremented under a mutex */
-	return ++tl->next_seqno.counter;
+	/* seqno only incremented under a mutex */
+	return ++tl->seqno.counter;
 }
 
 static u32 timeline_get_seqno(struct i915_gem_timeline *tl)
 {
-	return atomic_inc_return(&tl->next_seqno);
+	return atomic_inc_return(&tl->seqno);
 }
 
 void __i915_gem_request_submit(struct drm_i915_gem_request *request)
