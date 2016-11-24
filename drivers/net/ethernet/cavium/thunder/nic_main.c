@@ -809,6 +809,15 @@ static int nic_config_loopback(struct nicpf *nic, struct set_loopback *lbk)
 
 	bgx_lmac_internal_loopback(nic->node, bgx_idx, lmac_idx, lbk->enable);
 
+	/* Enable moving average calculation.
+	 * Keep the LVL/AVG delay to HW enforced minimum so that, not too many
+	 * packets sneek in between average calculations.
+	 */
+	nic_reg_write(nic, NIC_PF_CQ_AVG_CFG,
+		      (BIT_ULL(20) | 0x2ull << 14 | 0x1));
+	nic_reg_write(nic, NIC_PF_RRM_AVG_CFG,
+		      (BIT_ULL(20) | 0x3ull << 14 | 0x1));
+
 	return 0;
 }
 

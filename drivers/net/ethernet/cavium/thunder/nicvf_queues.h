@@ -85,12 +85,26 @@
 
 #define MAX_CQES_FOR_TX		((SND_QUEUE_LEN / MIN_SQ_DESC_PER_PKT_XMIT) * \
 				 MAX_CQE_PER_PKT_XMIT)
-/* Calculate number of CQEs to reserve for all SQEs.
- * Its 1/256th level of CQ size.
- * '+ 1' to account for pipelining
+
+/* RED and Backpressure levels of CQ for pkt reception
+ * For CQ, level is a measure of emptiness i.e 0x0 means full
+ * eg: For CQ of size 4K, and for pass/drop levels of 128/96
+ * HW accepts pkt if unused CQE >= 2048
+ * RED accepts pkt if unused CQE < 2048 & >= 1536
+ * DROPs pkts if unused CQE < 1536
  */
-#define RQ_CQ_DROP		((256 / (CMP_QUEUE_LEN / \
-				 (CMP_QUEUE_LEN - MAX_CQES_FOR_TX))) + 1)
+#define RQ_PASS_CQ_LVL		128ULL
+#define RQ_DROP_CQ_LVL		96ULL
+
+/* RED and Backpressure levels of RBDR for pkt reception
+ * For RBDR, level is a measure of fullness i.e 0x0 means empty
+ * eg: For RBDR of size 8K, and for pass/drop levels of 4/0
+ * HW accepts pkt if unused RBs >= 256
+ * RED accepts pkt if unused RBs < 256 & >= 0
+ * DROPs pkts if unused RBs < 0
+ */
+#define RQ_PASS_RBDR_LVL	8ULL
+#define RQ_DROP_RBDR_LVL	0ULL
 
 /* Descriptor size in bytes */
 #define SND_QUEUE_DESC_SIZE	16

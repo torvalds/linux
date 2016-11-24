@@ -544,14 +544,18 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_BP_CFG;
-	mbx.rq.cfg = (1ULL << 63) | (1ULL << 62) | (qs->vnic_id << 0);
+	mbx.rq.cfg = BIT_ULL(63) | BIT_ULL(62) |
+		     (RQ_PASS_RBDR_LVL << 16) | (RQ_PASS_CQ_LVL << 8) |
+		     (qs->vnic_id << 0);
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	/* RQ drop config
 	 * Enable CQ drop to reserve sufficient CQEs for all tx packets
 	 */
 	mbx.rq.msg = NIC_MBOX_MSG_RQ_DROP_CFG;
-	mbx.rq.cfg = (1ULL << 62) | (RQ_CQ_DROP << 8);
+	mbx.rq.cfg = BIT_ULL(63) | BIT_ULL(62) |
+		     (RQ_PASS_RBDR_LVL << 40) | (RQ_DROP_RBDR_LVL << 32) |
+		     (RQ_PASS_CQ_LVL << 16) | (RQ_DROP_CQ_LVL << 8);
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	if (!nic->sqs_mode && (qidx == 0)) {
@@ -650,6 +654,7 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	sq_cfg.ldwb = 0;
 	sq_cfg.qsize = SND_QSIZE;
 	sq_cfg.tstmp_bgx_intf = 0;
+	sq_cfg.cq_limit = 0;
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_CFG, qidx, *(u64 *)&sq_cfg);
 
 	/* Set threshold value for interrupt generation */
