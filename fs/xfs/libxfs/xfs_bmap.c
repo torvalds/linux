@@ -4561,7 +4561,7 @@ xfs_bmapi_write(
 	struct xfs_ifork	*ifp;
 	struct xfs_bmalloca	bma = { NULL };	/* args for xfs_bmap_alloc */
 	xfs_fileoff_t		end;		/* end of mapped file region */
-	int			eof;		/* after the end of extents */
+	bool			eof = false;	/* after the end of extents */
 	int			error;		/* error return */
 	int			n;		/* current extent index */
 	xfs_fileoff_t		obno;		/* old block number (offset) */
@@ -4639,12 +4639,14 @@ xfs_bmapi_write(
 			goto error0;
 	}
 
-	xfs_bmap_search_extents(ip, bno, whichfork, &eof, &bma.idx, &bma.got,
-				&bma.prev);
 	n = 0;
 	end = bno + len;
 	obno = bno;
 
+	if (!xfs_iext_lookup_extent(ip, ifp, bno, &bma.idx, &bma.got))
+		eof = true;
+	if (!xfs_iext_get_extent(ifp, bma.idx - 1, &bma.prev))
+		bma.prev.br_startoff = NULLFILEOFF;
 	bma.tp = tp;
 	bma.ip = ip;
 	bma.total = total;
@@ -4731,11 +4733,8 @@ xfs_bmapi_write(
 
 		/* Else go on to the next record. */
 		bma.prev = bma.got;
-		if (++bma.idx < xfs_iext_count(ifp)) {
-			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, bma.idx),
-					 &bma.got);
-		} else
-			eof = 1;
+		if (!xfs_iext_get_extent(ifp, ++bma.idx, &bma.got))
+			eof = true;
 	}
 	*nmap = n;
 
