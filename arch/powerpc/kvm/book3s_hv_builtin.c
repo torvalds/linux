@@ -28,6 +28,7 @@
 #include <asm/io.h>
 #include <asm/asm-prototypes.h>
 #include <asm/opal.h>
+#include <asm/smp.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
 
@@ -364,7 +365,7 @@ static int kvmppc_check_passthru(u32 xisr, __be32 xirr, bool *again)
 }
 
 #else
-static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr)
+static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr, bool *again)
 {
 	return 1;
 }
