@@ -66,7 +66,6 @@
 
 #include <linux/seq_file.h>
 #include <linux/list.h>
-#include <linux/vmalloc.h>
 #include "debug.h"
 #include "ath5k.h"
 #include "reg.h"
