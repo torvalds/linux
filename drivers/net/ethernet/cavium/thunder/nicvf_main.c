@@ -221,6 +221,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->link_up = mbx.link_status.link_up;
 		nic->duplex = mbx.link_status.duplex;
 		nic->speed = mbx.link_status.speed;
+		nic->mac_type = mbx.link_status.mac_type;
 		if (nic->link_up) {
 			netdev_info(nic->netdev, "%s: Link is Up %d Mbps %s\n",
 				    nic->netdev->name, nic->speed,

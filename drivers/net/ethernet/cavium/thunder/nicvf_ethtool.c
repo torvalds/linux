@@ -130,12 +130,42 @@ static int nicvf_get_settings(struct net_device *netdev,
 		return 0;
 	}
 
-	if (nic->speed <= 1000) {
-		cmd->port = PORT_MII;
+	switch (nic->speed) {
+	case SPEED_1000:
+		cmd->port = PORT_MII | PORT_TP;
 		cmd->autoneg = AUTONEG_ENABLE;
-	} else {
+		cmd->supported |= SUPPORTED_MII | SUPPORTED_TP;
+		cmd->supported |= SUPPORTED_1000baseT_Full |
+				  SUPPORTED_1000baseT_Half |
+				  SUPPORTED_100baseT_Full  |
+				  SUPPORTED_100baseT_Half  |
+				  SUPPORTED_10baseT_Full   |
+				  SUPPORTED_10baseT_Half;
+		cmd->supported |= SUPPORTED_Autoneg;
+		cmd->advertising |= ADVERTISED_1000baseT_Full |
+				    ADVERTISED_1000baseT_Half |
+				    ADVERTISED_100baseT_Full  |
+				    ADVERTISED_100baseT_Half  |
+				    ADVERTISED_10baseT_Full   |
+				    ADVERTISED_10baseT_Half;
+		break;
+	case SPEED_10000:
+		if (nic->mac_type == BGX_MODE_RXAUI) {
+			cmd->port = PORT_TP;
+			cmd->supported |= SUPPORTED_TP;
+		} else {
+			cmd->port = PORT_FIBRE;
+			cmd->supported |= SUPPORTED_FIBRE;
+		}
+		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->supported |= SUPPORTED_10000baseT_Full;
+		break;
+	case SPEED_40000:
 		cmd->port = PORT_FIBRE;
 		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->supported |= SUPPORTED_FIBRE;
+		cmd->supported |= SUPPORTED_40000baseCR4_Full;
+		break;
 	}
 	cmd->duplex = nic->duplex;
 	ethtool_cmd_speed_set(cmd, nic->speed);

@@ -1258,6 +1258,7 @@ static void nic_poll_for_link(struct work_struct *work)
 			mbx.link_status.link_up = link.link_up;
 			mbx.link_status.duplex = link.duplex;
 			mbx.link_status.speed = link.speed;
+			mbx.link_status.mac_type = link.mac_type;
 			nic_send_msg_to_vf(nic, vf, &mbx);
 		}
 	}

@@ -161,6 +161,7 @@ void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
 		return;
 
 	lmac = &bgx->lmac[lmacid];
+	link->mac_type = lmac->lmac_type;
 	link->link_up = lmac->link_up;
 	link->duplex = lmac->last_duplex;
 	link->speed = lmac->last_speed;

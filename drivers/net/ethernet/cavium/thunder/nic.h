@@ -292,6 +292,7 @@ struct nicvf {
 	u8			node;
 	u8			cpi_alg;
 	bool			link_up;
+	u8			mac_type;
 	u8			duplex;
 	u32			speed;
 	bool			tns_mode;
@@ -446,6 +447,7 @@ struct bgx_stats_msg {
 /* Physical interface link status */
 struct bgx_link_status {
 	u8    msg;
+	u8    mac_type;
 	u8    link_up;
 	u8    duplex;
 	u32   speed;
