@@ -286,7 +286,7 @@ asm(
 
 #define write_sysreg_s(v, r) do {					\
 	u64 __val = (u64)v;						\
-	asm volatile("msr_s " __stringify(r) ", %0" : : "rZ" (__val));	\
+	asm volatile("msr_s " __stringify(r) ", %x0" : : "rZ" (__val));	\
 } while (0)
 
 static inline void config_sctlr_el1(u32 clear, u32 set)

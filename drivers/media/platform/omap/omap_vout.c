@@ -214,7 +214,7 @@ static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
 	if (!vec)
 		return -ENOMEM;
 
-	ret = get_vaddr_frames(virtp, 1, true, false, vec);
+	ret = get_vaddr_frames(virtp, 1, FOLL_WRITE, vec);
 	if (ret != 1) {
 		frame_vector_destroy(vec);
 		return -EINVAL;

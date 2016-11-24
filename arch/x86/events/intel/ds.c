@@ -1108,20 +1108,20 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	}
 
 	/*
-	 * We use the interrupt regs as a base because the PEBS record
-	 * does not contain a full regs set, specifically it seems to
-	 * lack segment descriptors, which get used by things like
-	 * user_mode().
+	 * We use the interrupt regs as a base because the PEBS record does not
+	 * contain a full regs set, specifically it seems to lack segment
+	 * descriptors, which get used by things like user_mode().
 	 *
-	 * In the simple case fix up only the IP and BP,SP regs, for
-	 * PERF_SAMPLE_IP and PERF_SAMPLE_CALLCHAIN to function properly.
-	 * A possible PERF_SAMPLE_REGS will have to transfer all regs.
+	 * In the simple case fix up only the IP for PERF_SAMPLE_IP.
+	 *
+	 * We must however always use BP,SP from iregs for the unwinder to stay
+	 * sane; the record BP,SP can point into thin air when the record is
+	 * from a previous PMI context or an (I)RET happend between the record
+	 * and PMI.
 	 */
 	*regs = *iregs;
 	regs->flags = pebs->flags;
 	set_linear_ip(regs, pebs->ip);
-	regs->bp = pebs->bp;
-	regs->sp = pebs->sp;
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
 		regs->ax = pebs->ax;
@@ -1130,10 +1130,21 @@ static void setup_pebs_sample_data(struct perf_event *event,
 		regs->dx = pebs->dx;
 		regs->si = pebs->si;
 		regs->di = pebs->di;
-		regs->bp = pebs->bp;
-		regs->sp = pebs->sp;
 
-		regs->flags = pebs->flags;
+		/*
+		 * Per the above; only set BP,SP if we don't need callchains.
+		 *
+		 * XXX: does this make sense?
+		 */
+		if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+			regs->bp = pebs->bp;
+			regs->sp = pebs->sp;
+		}
+
+		/*
+		 * Preserve PERF_EFLAGS_VM from set_linear_ip().
+		 */
+		regs->flags = pebs->flags | (regs->flags & PERF_EFLAGS_VM);
 #ifndef CONFIG_X86_32
 		regs->r8 = pebs->r8;
 		regs->r9 = pebs->r9;

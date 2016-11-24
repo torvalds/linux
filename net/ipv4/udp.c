@@ -1322,7 +1322,7 @@ try_again:
 		*addr_len = sizeof(*sin);
 	}
 	if (inet->cmsg_flags)
-		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr) + off);
+		ip_cmsg_recv_offset(msg, skb, sizeof(struct udphdr), off);
 
 	err = copied;
 	if (flags & MSG_TRUNC)
@@ -1345,7 +1345,7 @@ csum_copy_err:
 	goto try_again;
 }
 
-int udp_disconnect(struct sock *sk, int flags)
+int __udp_disconnect(struct sock *sk, int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	/*
@@ -1365,6 +1365,15 @@ int udp_disconnect(struct sock *sk, int flags)
 		inet->inet_sport = 0;
 	}
 	sk_dst_reset(sk);
+	return 0;
+}
+EXPORT_SYMBOL(__udp_disconnect);
+
+int udp_disconnect(struct sock *sk, int flags)
+{
+	lock_sock(sk);
+	__udp_disconnect(sk, flags);
+	release_sock(sk);
 	return 0;
 }
 EXPORT_SYMBOL(udp_disconnect);
@@ -1643,10 +1652,10 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 
 	if (use_hash2) {
 		hash2_any = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum) &
-			    udp_table.mask;
-		hash2 = udp4_portaddr_hash(net, daddr, hnum) & udp_table.mask;
+			    udptable->mask;
+		hash2 = udp4_portaddr_hash(net, daddr, hnum) & udptable->mask;
 start_lookup:
-		hslot = &udp_table.hash2[hash2];
+		hslot = &udptable->hash2[hash2];
 		offset = offsetof(typeof(*sk), __sk_common.skc_portaddr_node);
 	}
 
@@ -2193,7 +2202,7 @@ int udp_abort(struct sock *sk, int err)
 
 	sk->sk_err = err;
 	sk->sk_error_report(sk);
-	udp_disconnect(sk, 0);
+	__udp_disconnect(sk, 0);
 
 	release_sock(sk);
 

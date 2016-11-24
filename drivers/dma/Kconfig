@@ -306,6 +306,7 @@ config MMP_TDMA
 	depends on ARCH_MMP || COMPILE_TEST
 	select DMA_ENGINE
 	select MMP_SRAM if ARCH_MMP
+	select GENERIC_ALLOCATOR
 	help
 	  Support the MMP Two-Channel DMA engine.
 	  This engine used for MMP Audio DMA and pxa910 SQU.

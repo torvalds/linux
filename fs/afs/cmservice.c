@@ -91,11 +91,9 @@ static const struct afs_call_type afs_SRXCBTellMeAboutYourself = {
  */
 bool afs_cm_incoming_call(struct afs_call *call)
 {
-	u32 operation_id = ntohl(call->operation_ID);
+	_enter("{CB.OP %u}", call->operation_ID);
 
-	_enter("{CB.OP %u}", operation_id);
-
-	switch (operation_id) {
+	switch (call->operation_ID) {
 	case CBCallBack:
 		call->type = &afs_SRXCBCallBack;
 		return true;

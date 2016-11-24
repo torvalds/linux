@@ -1042,8 +1042,11 @@ static int apm_get_power_status(u_short *status, u_short *bat, u_short *life)
 
 	if (apm_info.get_power_status_broken)
 		return APM_32_UNSUPPORTED;
-	if (apm_bios_call(&call))
+	if (apm_bios_call(&call)) {
+		if (!call.err)
+			return APM_NO_ERROR;
 		return call.err;
+	}
 	*status = call.ebx;
 	*bat = call.ecx;
 	if (apm_info.get_power_status_swabinminutes) {

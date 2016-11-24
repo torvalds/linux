@@ -207,7 +207,8 @@ static int ni_tio_clock_period_ps(const struct ni_gpct *counter,
 		 * clock period is specified by user with prescaling
 		 * already taken into account.
 		 */
-		return counter->clock_period_ps;
+		*period_ps = counter->clock_period_ps;
+		return 0;
 	}
 
 	switch (generic_clock_source & NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK) {

@@ -376,7 +376,7 @@ static void virtblk_config_changed(struct virtio_device *vdev)
 
 static int init_vq(struct virtio_blk *vblk)
 {
-	int err = 0;
+	int err;
 	int i;
 	vq_callback_t **callbacks;
 	const char **names;
@@ -390,13 +390,13 @@ static int init_vq(struct virtio_blk *vblk)
 	if (err)
 		num_vqs = 1;
 
-	vblk->vqs = kmalloc(sizeof(*vblk->vqs) * num_vqs, GFP_KERNEL);
+	vblk->vqs = kmalloc_array(num_vqs, sizeof(*vblk->vqs), GFP_KERNEL);
 	if (!vblk->vqs)
 		return -ENOMEM;
 
-	names = kmalloc(sizeof(*names) * num_vqs, GFP_KERNEL);
-	callbacks = kmalloc(sizeof(*callbacks) * num_vqs, GFP_KERNEL);
-	vqs = kmalloc(sizeof(*vqs) * num_vqs, GFP_KERNEL);
+	names = kmalloc_array(num_vqs, sizeof(*names), GFP_KERNEL);
+	callbacks = kmalloc_array(num_vqs, sizeof(*callbacks), GFP_KERNEL);
+	vqs = kmalloc_array(num_vqs, sizeof(*vqs), GFP_KERNEL);
 	if (!names || !callbacks || !vqs) {
 		err = -ENOMEM;
 		goto out;

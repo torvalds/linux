@@ -269,8 +269,6 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	int addr_type;
 	int err;
 
-	if (!sock_flag(sk, SOCK_ZAPPED))
-		return -EINVAL;
 	if (addr->l2tp_family != AF_INET6)
 		return -EINVAL;
 	if (addr_len < sizeof(*addr))
@@ -296,6 +294,9 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	lock_sock(sk);
 
 	err = -EINVAL;
+	if (!sock_flag(sk, SOCK_ZAPPED))
+		goto out_unlock;
+
 	if (sk->sk_state != TCP_CLOSE)
 		goto out_unlock;
 
@@ -410,7 +411,7 @@ static int l2tp_ip6_disconnect(struct sock *sk, int flags)
 	if (sock_flag(sk, SOCK_ZAPPED))
 		return 0;
 
-	return udp_disconnect(sk, flags);
+	return __udp_disconnect(sk, flags);
 }
 
 static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,

@@ -15,6 +15,7 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/lockdep.h>
@@ -116,22 +117,22 @@ struct reg_sequence {
 #define regmap_read_poll_timeout(map, addr, val, cond, sleep_us, timeout_us) \
 ({ \
 	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
-	int ret; \
+	int pollret; \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
-		ret = regmap_read((map), (addr), &(val)); \
-		if (ret) \
+		pollret = regmap_read((map), (addr), &(val)); \
+		if (pollret) \
 			break; \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
-			ret = regmap_read((map), (addr), &(val)); \
+			pollret = regmap_read((map), (addr), &(val)); \
 			break; \
 		} \
 		if (sleep_us) \
 			usleep_range((sleep_us >> 2) + 1, sleep_us); \
 	} \
-	ret ?: ((cond) ? 0 : -ETIMEDOUT); \
+	pollret ?: ((cond) ? 0 : -ETIMEDOUT); \
 })
 
 #ifdef CONFIG_REGMAP

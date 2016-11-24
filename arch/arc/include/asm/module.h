@@ -18,6 +18,7 @@
 struct mod_arch_specific {
 	void *unw_info;
 	int unw_sec_idx;
+	const char *secstr;
 };
 #endif
 

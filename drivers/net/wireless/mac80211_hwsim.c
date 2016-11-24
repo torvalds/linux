@@ -826,7 +826,7 @@ static void mac80211_hwsim_set_tsf(struct ieee80211_hw *hw,
 		data->bcn_delta = do_div(delta, bcn_int);
 	} else {
 		data->tsf_offset -= delta;
-		data->bcn_delta = -do_div(delta, bcn_int);
+		data->bcn_delta = -(s64)do_div(delta, bcn_int);
 	}
 }
 

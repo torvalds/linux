@@ -1605,12 +1605,13 @@ static int eq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 			r->com.from_state = r->com.state;
 			r->com.to_state = state;
 			r->com.state = RES_EQ_BUSY;
-			if (eq)
-				*eq = r;
 		}
 	}
 
 	spin_unlock_irq(mlx4_tlock(dev));
+
+	if (!err && eq)
+		*eq = r;
 
 	return err;
 }

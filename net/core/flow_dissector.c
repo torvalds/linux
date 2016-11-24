@@ -122,7 +122,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_keyid *key_keyid;
 	bool skip_vlan = false;
 	u8 ip_proto = 0;
-	bool ret = false;
+	bool ret;
 
 	if (!data) {
 		data = skb->data;
@@ -246,15 +246,13 @@ ipv6:
 	case htons(ETH_P_8021AD):
 	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
+		struct vlan_hdr _vlan;
+		bool vlan_tag_present = skb && skb_vlan_tag_present(skb);
 
-		if (skb_vlan_tag_present(skb))
+		if (vlan_tag_present)
 			proto = skb->protocol;
 
-		if (!skb_vlan_tag_present(skb) ||
-		    proto == cpu_to_be16(ETH_P_8021Q) ||
-		    proto == cpu_to_be16(ETH_P_8021AD)) {
-			struct vlan_hdr _vlan;
-
+		if (!vlan_tag_present || eth_type_vlan(skb->protocol)) {
 			vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan),
 						    data, hlen, &_vlan);
 			if (!vlan)
@@ -272,7 +270,7 @@ ipv6:
 							     FLOW_DISSECTOR_KEY_VLAN,
 							     target_container);
 
-			if (skb_vlan_tag_present(skb)) {
+			if (vlan_tag_present) {
 				key_vlan->vlan_id = skb_vlan_tag_get_id(skb);
 				key_vlan->vlan_priority =
 					(skb_vlan_tag_get_prio(skb) >> VLAN_PRIO_SHIFT);
@@ -551,12 +549,17 @@ ip_proto_again:
 out_good:
 	ret = true;
 
-out_bad:
+	key_control->thoff = (u16)nhoff;
+out:
 	key_basic->n_proto = proto;
 	key_basic->ip_proto = ip_proto;
-	key_control->thoff = (u16)nhoff;
 
 	return ret;
+
+out_bad:
+	ret = false;
+	key_control->thoff = min_t(u16, nhoff, skb ? skb->len : hlen);
+	goto out;
 }
 EXPORT_SYMBOL(__skb_flow_dissect);
 

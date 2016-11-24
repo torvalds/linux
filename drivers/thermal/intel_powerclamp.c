@@ -669,20 +669,17 @@ static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 	.set_cur_state = powerclamp_set_cur_state,
 };
 
-static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
+static const struct x86_cpu_id __initconst intel_powerclamp_ids[] = {
 	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_MWAIT },
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_ARAT },
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_NONSTOP_TSC },
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_CONSTANT_TSC},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
 
 static int __init powerclamp_probe(void)
 {
+
 	if (!x86_match_cpu(intel_powerclamp_ids)) {
-		pr_err("Intel powerclamp does not run on family %d model %d\n",
-				boot_cpu_data.x86, boot_cpu_data.x86_model);
+		pr_err("CPU does not support MWAIT");
 		return -ENODEV;
 	}
 

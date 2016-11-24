@@ -1190,7 +1190,7 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 	if (!scrq)
 		return NULL;
 
-	scrq->msgs = (union sub_crq *)__get_free_pages(GFP_KERNEL, 2);
+	scrq->msgs = (union sub_crq *)__get_free_pages(GFP_ATOMIC, 2);
 	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
 	if (!scrq->msgs) {
 		dev_warn(dev, "Couldn't allocate crq queue messages page\n");
@@ -1461,14 +1461,16 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 	return rc;
 
 req_rx_irq_failed:
-	for (j = 0; j < i; j++)
+	for (j = 0; j < i; j++) {
 		free_irq(adapter->rx_scrq[j]->irq, adapter->rx_scrq[j]);
 		irq_dispose_mapping(adapter->rx_scrq[j]->irq);
+	}
 	i = adapter->req_tx_queues;
 req_tx_irq_failed:
-	for (j = 0; j < i; j++)
+	for (j = 0; j < i; j++) {
 		free_irq(adapter->tx_scrq[j]->irq, adapter->tx_scrq[j]);
 		irq_dispose_mapping(adapter->rx_scrq[j]->irq);
+	}
 	release_sub_crqs_no_irqs(adapter);
 	return rc;
 }
@@ -1503,9 +1505,8 @@ static void init_sub_crqs(struct ibmvnic_adapter *adapter, int retry)
 		    adapter->max_rx_add_entries_per_subcrq > entries_page ?
 		    entries_page : adapter->max_rx_add_entries_per_subcrq;
 
-		/* Choosing the maximum number of queues supported by firmware*/
-		adapter->req_tx_queues = adapter->max_tx_queues;
-		adapter->req_rx_queues = adapter->max_rx_queues;
+		adapter->req_tx_queues = adapter->opt_tx_comp_sub_queues;
+		adapter->req_rx_queues = adapter->opt_rx_comp_queues;
 		adapter->req_rx_add_queues = adapter->max_rx_add_queues;
 
 		adapter->req_mtu = adapter->max_mtu;
@@ -3232,6 +3233,27 @@ static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->inflight_lock, flags);
 }
 
+static void ibmvnic_xport_event(struct work_struct *work)
+{
+	struct ibmvnic_adapter *adapter = container_of(work,
+						       struct ibmvnic_adapter,
+						       ibmvnic_xport);
+	struct device *dev = &adapter->vdev->dev;
+	long rc;
+
+	ibmvnic_free_inflight(adapter);
+	release_sub_crqs(adapter);
+	if (adapter->migrated) {
+		rc = ibmvnic_reenable_crq_queue(adapter);
+		if (rc)
+			dev_err(dev, "Error after enable rc=%ld\n", rc);
+		adapter->migrated = false;
+		rc = ibmvnic_send_crq_init(adapter);
+		if (rc)
+			dev_err(dev, "Error sending init rc=%ld\n", rc);
+	}
+}
+
 static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			       struct ibmvnic_adapter *adapter)
 {
@@ -3267,15 +3289,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		if (gen_crq->cmd == IBMVNIC_PARTITION_MIGRATED) {
 			dev_info(dev, "Re-enabling adapter\n");
 			adapter->migrated = true;
-			ibmvnic_free_inflight(adapter);
-			release_sub_crqs(adapter);
-			rc = ibmvnic_reenable_crq_queue(adapter);
-			if (rc)
-				dev_err(dev, "Error after enable rc=%ld\n", rc);
-			adapter->migrated = false;
-			rc = ibmvnic_send_crq_init(adapter);
-			if (rc)
-				dev_err(dev, "Error sending init rc=%ld\n", rc);
+			schedule_work(&adapter->ibmvnic_xport);
 		} else if (gen_crq->cmd == IBMVNIC_DEVICE_FAILOVER) {
 			dev_info(dev, "Backing device failover detected\n");
 			netif_carrier_off(netdev);
@@ -3284,8 +3298,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			/* The adapter lost the connection */
 			dev_err(dev, "Virtual Adapter failed (rc=%d)\n",
 				gen_crq->cmd);
-			ibmvnic_free_inflight(adapter);
-			release_sub_crqs(adapter);
+			schedule_work(&adapter->ibmvnic_xport);
 		}
 		return;
 	case IBMVNIC_CRQ_CMD_RSP:
@@ -3654,6 +3667,7 @@ static void handle_crq_init_rsp(struct work_struct *work)
 		goto task_failed;
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
+	netdev->mtu = adapter->req_mtu;
 
 	if (adapter->failover) {
 		adapter->failover = false;
@@ -3691,7 +3705,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	struct net_device *netdev;
 	unsigned char *mac_addr_p;
 	struct dentry *ent;
-	char buf[16]; /* debugfs name buf */
+	char buf[17]; /* debugfs name buf */
 	int rc;
 
 	dev_dbg(&dev->dev, "entering ibmvnic_probe for UA 0x%x\n",
@@ -3725,6 +3739,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
 	INIT_WORK(&adapter->vnic_crq_init, handle_crq_init_rsp);
+	INIT_WORK(&adapter->ibmvnic_xport, ibmvnic_xport_event);
 
 	spin_lock_init(&adapter->stats_lock);
 
@@ -3792,6 +3807,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
+	netdev->mtu = adapter->req_mtu;
 
 	rc = register_netdev(netdev);
 	if (rc) {
@@ -3827,6 +3843,9 @@ static int ibmvnic_remove(struct vio_dev *dev)
 
 	if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
 		debugfs_remove_recursive(adapter->debugfs_dir);
+
+	dma_unmap_single(&dev->dev, adapter->stats_token,
+			 sizeof(struct ibmvnic_statistics), DMA_FROM_DEVICE);
 
 	if (adapter->ras_comps)
 		dma_free_coherent(&dev->dev,

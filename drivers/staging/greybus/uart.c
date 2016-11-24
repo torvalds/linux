@@ -888,7 +888,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
-			dev_err(&connection->bundle->dev,
+			dev_err(&gbphy_dev->dev,
 				"no more free minor numbers\n");
 			retval = -ENODEV;
 		} else {

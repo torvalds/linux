@@ -577,12 +577,13 @@ static inline unsigned dx_node_limit(struct inode *dir)
 static void dx_show_index(char * label, struct dx_entry *entries)
 {
 	int i, n = dx_get_count (entries);
-	printk(KERN_DEBUG "%s index ", label);
+	printk(KERN_DEBUG "%s index", label);
 	for (i = 0; i < n; i++) {
-		printk("%x->%lu ", i ? dx_get_hash(entries + i) :
-				0, (unsigned long)dx_get_block(entries + i));
+		printk(KERN_CONT " %x->%lu",
+		       i ? dx_get_hash(entries + i) : 0,
+		       (unsigned long)dx_get_block(entries + i));
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 struct stats
@@ -679,7 +680,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 		}
 		de = ext4_next_entry(de, size);
 	}
-	printk("(%i)\n", names);
+	printk(KERN_CONT "(%i)\n", names);
 	return (struct stats) { names, space, 1 };
 }
 
@@ -798,7 +799,7 @@ dx_probe(struct ext4_filename *fname, struct inode *dir,
 		q = entries + count - 1;
 		while (p <= q) {
 			m = p + (q - p) / 2;
-			dxtrace(printk("."));
+			dxtrace(printk(KERN_CONT "."));
 			if (dx_get_hash(m) > hash)
 				q = m - 1;
 			else
@@ -810,7 +811,7 @@ dx_probe(struct ext4_filename *fname, struct inode *dir,
 			at = entries;
 			while (n--)
 			{
-				dxtrace(printk(","));
+				dxtrace(printk(KERN_CONT ","));
 				if (dx_get_hash(++at) > hash)
 				{
 					at--;
@@ -821,7 +822,8 @@ dx_probe(struct ext4_filename *fname, struct inode *dir,
 		}
 
 		at = p - 1;
-		dxtrace(printk(" %x->%u\n", at == entries ? 0 : dx_get_hash(at),
+		dxtrace(printk(KERN_CONT " %x->%u\n",
+			       at == entries ? 0 : dx_get_hash(at),
 			       dx_get_block(at)));
 		frame->entries = entries;
 		frame->at = at;

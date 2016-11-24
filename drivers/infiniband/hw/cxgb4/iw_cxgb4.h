@@ -999,6 +999,6 @@ extern int db_coalescing_threshold;
 extern int use_dsgl;
 void c4iw_drain_rq(struct ib_qp *qp);
 void c4iw_drain_sq(struct ib_qp *qp);
-
+void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey);
 
 #endif

@@ -1087,7 +1087,7 @@ static int r5l_recovery_log(struct r5l_log *log)
 	 * 1's seq + 10 and let superblock points to meta2. The same recovery will
 	 * not think meta 3 is a valid meta, because its seq doesn't match
 	 */
-	if (ctx.seq > log->last_cp_seq + 1) {
+	if (ctx.seq > log->last_cp_seq) {
 		int ret;
 
 		ret = r5l_log_write_empty_meta_block(log, ctx.pos, ctx.seq + 10);
@@ -1096,6 +1096,8 @@ static int r5l_recovery_log(struct r5l_log *log)
 		log->seq = ctx.seq + 11;
 		log->log_start = r5l_ring_add(log, ctx.pos, BLOCK_SECTORS);
 		r5l_write_super(log, ctx.pos);
+		log->last_checkpoint = ctx.pos;
+		log->next_checkpoint = ctx.pos;
 	} else {
 		log->log_start = ctx.pos;
 		log->seq = ctx.seq;
@@ -1154,6 +1156,7 @@ create:
 	if (create_super) {
 		log->last_cp_seq = prandom_u32();
 		cp = 0;
+		r5l_log_write_empty_meta_block(log, cp, log->last_cp_seq);
 		/*
 		 * Make sure super points to correct address. Log might have
 		 * data very soon. If super hasn't correct log tail address,
@@ -1168,6 +1171,7 @@ create:
 	if (log->max_free_space > RECLAIM_MAX_FREE_SPACE)
 		log->max_free_space = RECLAIM_MAX_FREE_SPACE;
 	log->last_checkpoint = cp;
+	log->next_checkpoint = cp;
 
 	__free_page(page);
 

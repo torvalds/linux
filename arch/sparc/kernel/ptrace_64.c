@@ -127,7 +127,8 @@ static int get_from_target(struct task_struct *target, unsigned long uaddr,
 		if (copy_from_user(kbuf, (void __user *) uaddr, len))
 			return -EFAULT;
 	} else {
-		int len2 = access_process_vm(target, uaddr, kbuf, len, 0);
+		int len2 = access_process_vm(target, uaddr, kbuf, len,
+				FOLL_FORCE);
 		if (len2 != len)
 			return -EFAULT;
 	}
@@ -141,7 +142,8 @@ static int set_to_target(struct task_struct *target, unsigned long uaddr,
 		if (copy_to_user((void __user *) uaddr, kbuf, len))
 			return -EFAULT;
 	} else {
-		int len2 = access_process_vm(target, uaddr, kbuf, len, 1);
+		int len2 = access_process_vm(target, uaddr, kbuf, len,
+				FOLL_FORCE | FOLL_WRITE);
 		if (len2 != len)
 			return -EFAULT;
 	}
@@ -505,7 +507,8 @@ static int genregs32_get(struct task_struct *target,
 				if (access_process_vm(target,
 						      (unsigned long)
 						      &reg_window[pos],
-						      k, sizeof(*k), 0)
+						      k, sizeof(*k),
+						      FOLL_FORCE)
 				    != sizeof(*k))
 					return -EFAULT;
 				k++;
@@ -531,12 +534,14 @@ static int genregs32_get(struct task_struct *target,
 				if (access_process_vm(target,
 						      (unsigned long)
 						      &reg_window[pos],
-						      &reg, sizeof(reg), 0)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE)
 				    != sizeof(reg))
 					return -EFAULT;
 				if (access_process_vm(target,
 						      (unsigned long) u,
-						      &reg, sizeof(reg), 1)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE | FOLL_WRITE)
 				    != sizeof(reg))
 					return -EFAULT;
 				pos++;
@@ -615,7 +620,8 @@ static int genregs32_set(struct task_struct *target,
 						      (unsigned long)
 						      &reg_window[pos],
 						      (void *) k,
-						      sizeof(*k), 1)
+						      sizeof(*k),
+						      FOLL_FORCE | FOLL_WRITE)
 				    != sizeof(*k))
 					return -EFAULT;
 				k++;
@@ -642,13 +648,15 @@ static int genregs32_set(struct task_struct *target,
 				if (access_process_vm(target,
 						      (unsigned long)
 						      u,
-						      &reg, sizeof(reg), 0)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE)
 				    != sizeof(reg))
 					return -EFAULT;
 				if (access_process_vm(target,
 						      (unsigned long)
 						      &reg_window[pos],
-						      &reg, sizeof(reg), 1)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE | FOLL_WRITE)
 				    != sizeof(reg))
 					return -EFAULT;
 				pos++;
