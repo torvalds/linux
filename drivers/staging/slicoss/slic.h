@@ -548,14 +548,6 @@ static inline void slic_flush_write(struct adapter *adapter)
 	ioread32(adapter->regs + SLIC_REG_HOSTID);
 }
 
-#define UPDATE_STATS(largestat, newstat, oldstat)                        \
-{                                                                        \
-	if ((newstat) < (oldstat))                                       \
-		(largestat) += ((newstat) + (0xFFFFFFFF - oldstat + 1)); \
-	else                                                             \
-		(largestat) += ((newstat) - (oldstat));                  \
-}
-
 #define UPDATE_STATS_GB(largestat, newstat, oldstat)                     \
 {                                                                        \
 	(largestat) += ((newstat) - (oldstat));                          \
