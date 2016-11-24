@@ -484,21 +484,20 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 				if (stmpe_gpio->norequest_mask & BIT(i))
 					clear_bit(i, stmpe_gpio->chip.irq_valid_mask);
 		}
-		ret =  gpiochip_irqchip_add(&stmpe_gpio->chip,
-					    &stmpe_gpio_irq_chip,
-					    0,
-					    handle_simple_irq,
-					    IRQ_TYPE_NONE);
+		ret =  gpiochip_irqchip_add_nested(&stmpe_gpio->chip,
+						   &stmpe_gpio_irq_chip,
+						   0,
+						   handle_simple_irq,
+						   IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"could not connect irqchip to gpiochip\n");
 			goto out_disable;
 		}
 
-		gpiochip_set_chained_irqchip(&stmpe_gpio->chip,
-					     &stmpe_gpio_irq_chip,
-					     irq,
-					     NULL);
+		gpiochip_set_nested_irqchip(&stmpe_gpio->chip,
+					    &stmpe_gpio_irq_chip,
+					    irq);
 	}
 
 	platform_set_drvdata(pdev, stmpe_gpio);

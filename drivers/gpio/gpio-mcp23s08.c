@@ -473,21 +473,20 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 		return err;
 	}
 
-	err =  gpiochip_irqchip_add(chip,
-				    &mcp23s08_irq_chip,
-				    0,
-				    handle_simple_irq,
-				    IRQ_TYPE_NONE);
+	err =  gpiochip_irqchip_add_nested(chip,
+					   &mcp23s08_irq_chip,
+					   0,
+					   handle_simple_irq,
+					   IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(chip->parent,
 			"could not connect irqchip to gpiochip: %d\n", err);
 		return err;
 	}
 
-	gpiochip_set_chained_irqchip(chip,
-				     &mcp23s08_irq_chip,
-				     mcp->irq,
-				     NULL);
+	gpiochip_set_nested_irqchip(chip,
+				    &mcp23s08_irq_chip,
+				    mcp->irq);
 
 	return 0;
 }
