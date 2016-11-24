@@ -548,11 +548,6 @@ static inline void slic_flush_write(struct adapter *adapter)
 	ioread32(adapter->regs + SLIC_REG_HOSTID);
 }
 
-#define UPDATE_STATS_GB(largestat, newstat, oldstat)                     \
-{                                                                        \
-	(largestat) += ((newstat) - (oldstat));                          \
-}
-
 #if BITS_PER_LONG == 64
 #define   SLIC_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & \
 	0x00000000FFFFFFFF)
