@@ -29,12 +29,15 @@ const char	*objdump_path;
 static regex_t	 file_lineno;
 
 static struct ins_ops *ins__find(struct arch *arch, const char *name);
+static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
 
 struct arch {
 	const char	*name;
 	struct ins	*instructions;
 	size_t		nr_instructions;
+	size_t		nr_instructions_allocated;
+	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
 	bool		sorted_instructions;
 	struct		{
 		char comment_char;
@@ -49,6 +52,54 @@ static struct ins_ops mov_ops;
 static struct ins_ops nop_ops;
 static struct ins_ops lock_ops;
 static struct ins_ops ret_ops;
+
+static int arch__grow_instructions(struct arch *arch)
+{
+	struct ins *new_instructions;
+	size_t new_nr_allocated;
+
+	if (arch->nr_instructions_allocated == 0 && arch->instructions)
+		goto grow_from_non_allocated_table;
+
+	new_nr_allocated = arch->nr_instructions_allocated + 128;
+	new_instructions = realloc(arch->instructions, new_nr_allocated * sizeof(struct ins));
+	if (new_instructions == NULL)
+		return -1;
+
+out_update_instructions:
+	arch->instructions = new_instructions;
+	arch->nr_instructions_allocated = new_nr_allocated;
+	return 0;
+
+grow_from_non_allocated_table:
+	new_nr_allocated = arch->nr_instructions + 128;
+	new_instructions = calloc(new_nr_allocated, sizeof(struct ins));
+	if (new_instructions == NULL)
+		return -1;
+
+	memcpy(new_instructions, arch->instructions, arch->nr_instructions);
+	goto out_update_instructions;
+}
+
+static __maybe_unused int arch__associate_ins_ops(struct arch* arch, const char *name, struct ins_ops *ops)
+{
+	struct ins *ins;
+
+	if (arch->nr_instructions == arch->nr_instructions_allocated &&
+	    arch__grow_instructions(arch))
+		return -1;
+
+	ins = &arch->instructions[arch->nr_instructions];
+	ins->name = strdup(name);
+	if (!ins->name)
+		return -1;
+
+	ins->ops  = ops;
+	arch->nr_instructions++;
+
+	ins__sort(arch);
+	return 0;
+}
 
 #include "arch/arm/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
@@ -419,7 +470,7 @@ static void ins__sort(struct arch *arch)
 	qsort(arch->instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-static struct ins_ops *ins__find(struct arch *arch, const char *name)
+static struct ins_ops *__ins__find(struct arch *arch, const char *name)
 {
 	struct ins *ins;
 	const int nmemb = arch->nr_instructions;
@@ -431,6 +482,16 @@ static struct ins_ops *ins__find(struct arch *arch, const char *name)
 
 	ins = bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
 	return ins ? ins->ops : NULL;
+}
+
+static struct ins_ops *ins__find(struct arch *arch, const char *name)
+{
+	struct ins_ops *ops = __ins__find(arch, name);
+
+	if (!ops && arch->associate_instruction_ops)
+		ops = arch->associate_instruction_ops(arch, name);
+
+	return ops;
 }
 
 static int arch__key_cmp(const void *name, const void *archp)
