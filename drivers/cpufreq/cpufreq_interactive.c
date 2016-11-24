@@ -1171,6 +1171,9 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 	now = ktime_to_us(ktime_get());
 	for_each_online_cpu(i) {
 		pcpu = &per_cpu(cpuinfo, i);
+		if (!pcpu->policy)
+			continue;
+
 		if (have_governor_per_policy())
 			tunables = pcpu->policy->governor_data;
 		else
