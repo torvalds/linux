@@ -1449,6 +1449,7 @@ static int __init mtty_dev_init(void)
 
 	if (IS_ERR(mtty_dev.vd_class)) {
 		pr_err("Error: failed to register mtty_dev class\n");
+		ret = PTR_ERR(mtty_dev.vd_class);
 		goto failed1;
 	}
 
@@ -1460,7 +1461,8 @@ static int __init mtty_dev_init(void)
 	if (ret)
 		goto failed2;
 
-	if (mdev_register_device(&mtty_dev.dev, &mdev_fops) != 0)
+	ret = mdev_register_device(&mtty_dev.dev, &mdev_fops);
+	if (ret)
 		goto failed3;
 
 	mutex_init(&mdev_list_lock);
