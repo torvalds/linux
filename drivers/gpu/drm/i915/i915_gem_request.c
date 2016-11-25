@@ -62,6 +62,15 @@ static void i915_fence_release(struct dma_fence *fence)
 {
 	struct drm_i915_gem_request *req = to_request(fence);
 
+	/* The request is put onto a RCU freelist (i.e. the address
+	 * is immediately reused), mark the fences as being freed now.
+	 * Otherwise the debugobjects for the fences are only marked as
+	 * freed when the slab cache itself is freed, and so we would get
+	 * caught trying to reuse dead objects.
+	 */
+	i915_sw_fence_fini(&req->submit);
+	i915_sw_fence_fini(&req->execute);
+
 	kmem_cache_free(req->i915->requests, req);
 }
 
