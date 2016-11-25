@@ -11,6 +11,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -103,8 +104,10 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+	struct drm_crtc_state *crtc_state;
 	struct drm_framebuffer *fb;
-	int i;
+	struct drm_rect clip = { 0 };
+	int i, ret;
 	u32 src_w, src_h;
 
 	if (!state->crtc || !state->fb)
@@ -141,6 +144,16 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	    (fb->format->format == DRM_FORMAT_RGB888 ||
 	     fb->format->format == DRM_FORMAT_BGR888))
 		return -EINVAL;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	ret = drm_plane_helper_check_state(state, &clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   true, true);
+	if (ret)
+		return ret;
 
 	ms->rotmem_size = 0;
 	if (state->rotation & MALIDP_ROTATED_MASK) {
