@@ -115,6 +115,18 @@ struct mlxsw_listener {
 		.is_event = false,					\
 	}
 
+#define MLXSW_EVENTL(_func, _trap_id)				\
+	{							\
+		.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
+		.u.event_listener =				\
+		{						\
+			.func = _func,				\
+			.trap_id = MLXSW_TRAP_ID_##_trap_id,	\
+		},						\
+		.action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,	\
+		.is_event = true,				\
+	}
+
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv);
