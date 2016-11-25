@@ -322,11 +322,6 @@ struct tegra_pcie_bus {
 	unsigned int nr;
 };
 
-static inline struct tegra_pcie *sys_to_pcie(struct pci_sys_data *sys)
-{
-	return sys->private_data;
-}
-
 static inline void afi_writel(struct tegra_pcie *pcie, u32 value,
 			      unsigned long offset)
 {
@@ -430,7 +425,8 @@ free:
 
 static int tegra_pcie_add_bus(struct pci_bus *bus)
 {
-	struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
+	struct pci_host_bridge *host = pci_find_host_bridge(bus);
+	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
 	struct tegra_pcie_bus *b;
 
 	b = tegra_pcie_bus_alloc(pcie, bus->number);
@@ -444,7 +440,8 @@ static int tegra_pcie_add_bus(struct pci_bus *bus)
 
 static void tegra_pcie_remove_bus(struct pci_bus *child)
 {
-	struct tegra_pcie *pcie = sys_to_pcie(child->sysdata);
+	struct pci_host_bridge *host = pci_find_host_bridge(child);
+	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
 	struct tegra_pcie_bus *bus, *tmp;
 
 	list_for_each_entry_safe(bus, tmp, &pcie->buses, list) {
@@ -461,7 +458,8 @@ static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 					unsigned int devfn,
 					int where)
 {
-	struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
+	struct pci_host_bridge *host = pci_find_host_bridge(bus);
+	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
 	struct device *dev = pcie->dev;
 	void __iomem *addr = NULL;
 
@@ -610,39 +608,31 @@ static void tegra_pcie_relax_enable(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, tegra_pcie_relax_enable);
 
-static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
+static int tegra_pcie_request_resources(struct tegra_pcie *pcie)
 {
-	struct tegra_pcie *pcie = sys_to_pcie(sys);
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
+	struct list_head *windows = &host->windows;
 	struct device *dev = pcie->dev;
 	int err;
 
-	sys->mem_offset = pcie->offset.mem;
-	sys->io_offset = pcie->offset.io;
+	pci_add_resource_offset(windows, &pcie->pio, pcie->offset.io);
+	pci_add_resource_offset(windows, &pcie->mem, pcie->offset.mem);
+	pci_add_resource_offset(windows, &pcie->prefetch, pcie->offset.mem);
+	pci_add_resource(windows, &pcie->busn);
 
-	err = devm_request_resource(dev, &iomem_resource, &pcie->io);
+	err = devm_request_pci_bus_resources(dev, windows);
 	if (err < 0)
 		return err;
 
-	err = pci_remap_iospace(&pcie->pio, pcie->io.start);
-	if (!err)
-		pci_add_resource_offset(&sys->resources, &pcie->pio,
-					sys->io_offset);
+	pci_remap_iospace(&pcie->pio, pcie->io.start);
 
-	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
-	pci_add_resource_offset(&sys->resources, &pcie->prefetch,
-				sys->mem_offset);
-	pci_add_resource(&sys->resources, &pcie->busn);
-
-	err = devm_request_pci_bus_resources(dev, &sys->resources);
-	if (err < 0)
-		return err;
-
-	return 1;
+	return 0;
 }
 
 static int tegra_pcie_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
-	struct tegra_pcie *pcie = sys_to_pcie(pdev->bus->sysdata);
+	struct pci_host_bridge *host = pci_find_host_bridge(pdev->bus);
+	struct tegra_pcie *pcie = pci_host_bridge_priv(host);
 	int irq;
 
 	tegra_cpuidle_pcie_irqs_in_use();
@@ -1499,10 +1489,11 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 {
-	struct device *dev = pcie->dev;
-	struct platform_device *pdev = to_platform_device(dev);
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
+	struct platform_device *pdev = to_platform_device(pcie->dev);
 	const struct tegra_pcie_soc *soc = pcie->soc;
 	struct tegra_msi *msi = &pcie->msi;
+	struct device *dev = pcie->dev;
 	unsigned long base;
 	int err;
 	u32 reg;
@@ -1558,6 +1549,8 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 	reg = afi_readl(pcie, AFI_INTR_MASK);
 	reg |= AFI_INTR_MASK_MSI_MASK;
 	afi_writel(pcie, reg, AFI_INTR_MASK);
+
+	host->msi = &msi->chip;
 
 	return 0;
 
@@ -2021,11 +2014,10 @@ retry:
 	return false;
 }
 
-static int tegra_pcie_enable(struct tegra_pcie *pcie)
+static void tegra_pcie_enable_ports(struct tegra_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct tegra_pcie_port *port, *tmp;
-	struct hw_pci hw;
 
 	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
 		dev_info(dev, "probing port %u, using %u lanes\n",
@@ -2041,21 +2033,6 @@ static int tegra_pcie_enable(struct tegra_pcie *pcie)
 		tegra_pcie_port_disable(port);
 		tegra_pcie_port_free(port);
 	}
-
-	memset(&hw, 0, sizeof(hw));
-
-#ifdef CONFIG_PCI_MSI
-	hw.msi_ctrl = &pcie->msi.chip;
-#endif
-
-	hw.nr_controllers = 1;
-	hw.private_data = (void **)&pcie;
-	hw.setup = tegra_pcie_setup;
-	hw.map_irq = tegra_pcie_map_irq;
-	hw.ops = &tegra_pcie_ops;
-
-	pci_common_init_dev(dev, &hw);
-	return 0;
 }
 
 static const struct tegra_pcie_soc tegra20_pcie = {
@@ -2217,12 +2194,16 @@ remove:
 static int tegra_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct pci_host_bridge *host;
 	struct tegra_pcie *pcie;
+	struct pci_bus *child;
 	int err;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
+	host = pci_alloc_host_bridge(sizeof(*pcie));
+	if (!host)
 		return -ENOMEM;
+
+	pcie = pci_host_bridge_priv(host);
 
 	pcie->soc = of_device_get_match_data(dev);
 	INIT_LIST_HEAD(&pcie->buses);
@@ -2243,6 +2224,10 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	if (err)
 		goto put_resources;
 
+	err = tegra_pcie_request_resources(pcie);
+	if (err)
+		goto put_resources;
+
 	/* setup the AFI address translations */
 	tegra_pcie_setup_translations(pcie);
 
@@ -2254,11 +2239,29 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = tegra_pcie_enable(pcie);
+	tegra_pcie_enable_ports(pcie);
+
+	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
+	host->busnr = pcie->busn.start;
+	host->dev.parent = &pdev->dev;
+	host->ops = &tegra_pcie_ops;
+
+	err = pci_register_host_bridge(host);
 	if (err < 0) {
-		dev_err(dev, "failed to enable PCIe ports: %d\n", err);
+		dev_err(dev, "failed to register host: %d\n", err);
 		goto disable_msi;
 	}
+
+	pci_scan_child_bus(host->bus);
+
+	pci_fixup_irqs(pci_common_swizzle, tegra_pcie_map_irq);
+	pci_bus_size_bridges(host->bus);
+	pci_bus_assign_resources(host->bus);
+
+	list_for_each_entry(child, &host->bus->children, node)
+		pcie_bus_configure_settings(child);
+
+	pci_bus_add_devices(host->bus);
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_pcie_debugfs_init(pcie);
