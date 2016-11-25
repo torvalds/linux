@@ -4646,3 +4646,4 @@ MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
 MODULE_DESCRIPTION("Incoming and outgoing message routing for an IPMI"
 		   " interface.");
 MODULE_VERSION(IPMI_DRIVER_VERSION);
+MODULE_SOFTDEP("post: ipmi_devintf");
