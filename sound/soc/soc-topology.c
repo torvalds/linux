@@ -489,7 +489,7 @@ static void remove_widget(struct snd_soc_component *comp,
 	 * Dynamic Widgets either have 1..N enum kcontrols or mixers.
 	 * The enum may either have an array of values or strings.
 	 */
-	if (dobj->widget.kcontrol_enum) {
+	if (dobj->widget.kcontrol_type == SND_SOC_TPLG_TYPE_ENUM) {
 		/* enumerated widget mixer */
 		for (i = 0; i < w->num_kcontrols; i++) {
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
@@ -506,16 +506,21 @@ static void remove_widget(struct snd_soc_component *comp,
 		}
 		kfree(w->kcontrol_news);
 	} else {
-		/* non enumerated widget mixer */
+		/* volume mixer or bytes controls */
 		for (i = 0; i < w->num_kcontrols; i++) {
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
-			struct soc_mixer_control *sm =
-			(struct soc_mixer_control *) kcontrol->private_value;
 
-			kfree(w->kcontrols[i]->tlv.p);
+			if (dobj->widget.kcontrol_type
+			    == SND_SOC_TPLG_TYPE_MIXER)
+				kfree(kcontrol->tlv.p);
 
-			snd_ctl_remove(card, w->kcontrols[i]);
-			kfree(sm);
+			snd_ctl_remove(card, kcontrol);
+
+			/* Private value is used as struct soc_mixer_control
+			 * for volume mixers or soc_bytes_ext for bytes
+			 * controls.
+			 */
+			kfree((void *)kcontrol->private_value);
 		}
 		kfree(w->kcontrol_news);
 	}
@@ -1439,6 +1444,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	struct snd_soc_dapm_widget template, *widget;
 	struct snd_soc_tplg_ctl_hdr *control_hdr;
 	struct snd_soc_card *card = tplg->comp->card;
+	unsigned int kcontrol_type;
 	int ret = 0;
 
 	if (strnlen(w->name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
@@ -1494,6 +1500,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
 	case SND_SOC_TPLG_CTL_RANGE:
 	case SND_SOC_TPLG_DAPM_CTL_VOLSW:
+		kcontrol_type = SND_SOC_TPLG_TYPE_MIXER;  /* volume mixer */
 		template.num_kcontrols = w->num_kcontrols;
 		template.kcontrol_news =
 			soc_tplg_dapm_widget_dmixer_create(tplg,
@@ -1508,7 +1515,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
-		template.dobj.widget.kcontrol_enum = 1;
+		kcontrol_type = SND_SOC_TPLG_TYPE_ENUM;	/* enumerated mixer */
 		template.num_kcontrols = w->num_kcontrols;
 		template.kcontrol_news =
 			soc_tplg_dapm_widget_denum_create(tplg,
@@ -1519,6 +1526,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 		}
 		break;
 	case SND_SOC_TPLG_CTL_BYTES:
+		kcontrol_type = SND_SOC_TPLG_TYPE_BYTES; /* bytes control */
 		template.num_kcontrols = w->num_kcontrols;
 		template.kcontrol_news =
 			soc_tplg_dapm_widget_dbytes_create(tplg,
@@ -1555,6 +1563,7 @@ widget:
 	}
 
 	widget->dobj.type = SND_SOC_DOBJ_WIDGET;
+	widget->dobj.widget.kcontrol_type = kcontrol_type;
 	widget->dobj.ops = tplg->ops;
 	widget->dobj.index = tplg->index;
 	kfree(template.sname);
