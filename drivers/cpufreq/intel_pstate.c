@@ -479,11 +479,11 @@ static void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 }
 
 #else
-static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
+static inline void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 {
 }
 
-static inline int intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
+static inline void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 {
 }
 #endif
