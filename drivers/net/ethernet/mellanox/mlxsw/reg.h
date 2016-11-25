@@ -3057,6 +3057,8 @@ enum {
  */
 MLXSW_ITEM32(reg, htgt, pide, 0x04, 15, 1);
 
+#define MLXSW_REG_HTGT_INVALID_POLICER 0xff
+
 /* reg_htgt_pid
  * Policer ID for the trap group.
  * Access: RW
@@ -3082,6 +3084,8 @@ MLXSW_ITEM32(reg, htgt, mirror_action, 0x08, 8, 2);
  */
 MLXSW_ITEM32(reg, htgt, mirroring_agent, 0x08, 0, 3);
 
+#define MLXSW_REG_HTGT_DEFAULT_PRIORITY 0
+
 /* reg_htgt_priority
  * Trap group priority.
  * In case a packet matches multiple classification rules, the packet will
@@ -3095,52 +3099,47 @@ MLXSW_ITEM32(reg, htgt, mirroring_agent, 0x08, 0, 3);
  */
 MLXSW_ITEM32(reg, htgt, priority, 0x0C, 0, 4);
 
+#define MLXSW_REG_HTGT_DEFAULT_TC 7
+
 /* reg_htgt_local_path_cpu_tclass
  * CPU ingress traffic class for the trap group.
  * Access: RW
  */
 MLXSW_ITEM32(reg, htgt, local_path_cpu_tclass, 0x10, 16, 6);
 
-#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD	0x15
-#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX	0x14
-#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL	0x13
-
+enum mlxsw_reg_htgt_local_path_rdq {
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_CTRL = 0x13,
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_RX = 0x14,
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_EMAD = 0x15,
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SIB_EMAD = 0x15,
+};
 /* reg_htgt_local_path_rdq
  * Receive descriptor queue (RDQ) to use for the trap group.
  * Access: RW
  */
 MLXSW_ITEM32(reg, htgt, local_path_rdq, 0x10, 0, 6);
 
-static inline void mlxsw_reg_htgt_pack(char *payload,
-				       enum mlxsw_reg_htgt_trap_group group)
+static inline void mlxsw_reg_htgt_pack(char *payload, u8 group, u8 policer_id,
+				       u8 priority, u8 tc)
 {
-	u8 swid, rdq;
-
 	MLXSW_REG_ZERO(htgt, payload);
-	switch (group) {
-	case MLXSW_REG_HTGT_TRAP_GROUP_EMAD:
-		swid = MLXSW_PORT_SWID_ALL_SWIDS;
-		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD;
-		break;
-	case MLXSW_REG_HTGT_TRAP_GROUP_RX:
-		swid = 0;
-		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX;
-		break;
-	case MLXSW_REG_HTGT_TRAP_GROUP_CTRL:
-		swid = 0;
-		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL;
-		break;
+
+	if (policer_id == MLXSW_REG_HTGT_INVALID_POLICER) {
+		mlxsw_reg_htgt_pide_set(payload,
+					MLXSW_REG_HTGT_POLICER_DISABLE);
+	} else {
+		mlxsw_reg_htgt_pide_set(payload,
+					MLXSW_REG_HTGT_POLICER_ENABLE);
+		mlxsw_reg_htgt_pid_set(payload, policer_id);
 	}
-	mlxsw_reg_htgt_swid_set(payload, swid);
+
 	mlxsw_reg_htgt_type_set(payload, MLXSW_REG_HTGT_PATH_TYPE_LOCAL);
 	mlxsw_reg_htgt_trap_group_set(payload, group);
-	mlxsw_reg_htgt_pide_set(payload, MLXSW_REG_HTGT_POLICER_DISABLE);
-	mlxsw_reg_htgt_pid_set(payload, 0);
 	mlxsw_reg_htgt_mirror_action_set(payload, MLXSW_REG_HTGT_TRAP_TO_CPU);
 	mlxsw_reg_htgt_mirroring_agent_set(payload, 0);
-	mlxsw_reg_htgt_priority_set(payload, 0);
-	mlxsw_reg_htgt_local_path_cpu_tclass_set(payload, 7);
-	mlxsw_reg_htgt_local_path_rdq_set(payload, rdq);
+	mlxsw_reg_htgt_priority_set(payload, priority);
+	mlxsw_reg_htgt_local_path_cpu_tclass_set(payload, tc);
+	mlxsw_reg_htgt_local_path_rdq_set(payload, group);
 }
 
 /* HPKT - Host Packet Trap
