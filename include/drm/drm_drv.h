@@ -291,6 +291,8 @@ struct drm_driver {
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/**
+	 * @gem_create_object: constructor for gem objects
+	 *
 	 * Hook for allocating the GEM object struct, for use by core
 	 * helpers.
 	 */
