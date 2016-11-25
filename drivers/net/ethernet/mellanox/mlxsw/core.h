@@ -98,10 +98,12 @@ struct mlxsw_listener {
 	} u;
 	enum mlxsw_reg_hpkt_action action;
 	enum mlxsw_reg_hpkt_action unreg_action;
+	u8 trap_group;
+	bool is_ctrl; /* should go via control buffer or not */
 	bool is_event;
 };
 
-#define MLXSW_RXL(_func, _trap_id, _action, _unreg_action)		\
+#define MLXSW_RXL(_func, _trap_id, _action, _is_ctrl, _unreg_action)	\
 	{								\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
 		.u.rx_listener =					\
@@ -112,6 +114,8 @@ struct mlxsw_listener {
 		},							\
 		.action = MLXSW_REG_HPKT_ACTION_##_action,		\
 		.unreg_action = MLXSW_REG_HPKT_ACTION_##_unreg_action,	\
+		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_RX,		\
+		.is_ctrl = _is_ctrl,					\
 		.is_event = false,					\
 	}
 
@@ -124,6 +128,8 @@ struct mlxsw_listener {
 			.trap_id = MLXSW_TRAP_ID_##_trap_id,	\
 		},						\
 		.action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,	\
+		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_EMAD,	\
+		.is_ctrl = false,				\
 		.is_event = true,				\
 	}
 

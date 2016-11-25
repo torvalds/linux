@@ -3214,6 +3214,7 @@ enum {
 
 /* reg_hpkt_ctrl
  * Configure dedicated buffer resources for control packets.
+ * Ignored by SwitchX-2.
  * 0 - Keep factory defaults.
  * 1 - Do not use control buffer for this trap ID.
  * 2 - Use control buffer for this trap ID.
@@ -3221,25 +3222,18 @@ enum {
  */
 MLXSW_ITEM32(reg, hpkt, ctrl, 0x04, 16, 2);
 
-static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
+static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id,
+				       enum mlxsw_reg_htgt_trap_group trap_group,
+				       bool is_ctrl)
 {
-	enum mlxsw_reg_htgt_trap_group trap_group;
-
 	MLXSW_REG_ZERO(hpkt, payload);
 	mlxsw_reg_hpkt_ack_set(payload, MLXSW_REG_HPKT_ACK_NOT_REQUIRED);
 	mlxsw_reg_hpkt_action_set(payload, action);
-	switch (trap_id) {
-	case MLXSW_TRAP_ID_ETHEMAD:
-	case MLXSW_TRAP_ID_PUDE:
-		trap_group = MLXSW_REG_HTGT_TRAP_GROUP_EMAD;
-		break;
-	default:
-		trap_group = MLXSW_REG_HTGT_TRAP_GROUP_RX;
-		break;
-	}
 	mlxsw_reg_hpkt_trap_group_set(payload, trap_group);
 	mlxsw_reg_hpkt_trap_id_set(payload, trap_id);
-	mlxsw_reg_hpkt_ctrl_set(payload, MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT);
+	mlxsw_reg_hpkt_ctrl_set(payload, is_ctrl ?
+				MLXSW_REG_HPKT_CTRL_PACKET_USE_BUFFER :
+				MLXSW_REG_HPKT_CTRL_PACKET_NO_BUFFER);
 }
 
 /* RGCR - Router General Configuration Register

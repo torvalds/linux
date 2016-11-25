@@ -2730,37 +2730,37 @@ static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u8 local_port,
 	return mlxsw_sp_rx_listener_no_mark_func(skb, local_port, priv);
 }
 
-#define MLXSW_SP_RXL_NO_MARK(_trap_id, _action)				\
-	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
-		  DISCARD)
+#define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _is_ctrl)		\
+	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action, \
+		  _is_ctrl, DISCARD)
 
-#define MLXSW_SP_RXL_MARK(_trap_id, _action)				\
+#define MLXSW_SP_RXL_MARK(_trap_id, _action, _is_ctrl)			\
 	MLXSW_RXL(mlxsw_sp_rx_listener_mark_func, _trap_id, _action,	\
-		  DISCARD)
+		  _is_ctrl, DISCARD)
 
 static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* Events */
 	MLXSW_EVENTL(mlxsw_sp_pude_event_func, PUDE),
 	/* L2 traps */
-	MLXSW_SP_RXL_NO_MARK(STP, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(LACP, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(LLDP, TRAP_TO_CPU),
-	MLXSW_SP_RXL_MARK(DHCP, MIRROR_TO_CPU),
-	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU),
-	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU),
-	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU),
+	MLXSW_SP_RXL_NO_MARK(STP, TRAP_TO_CPU, true),
+	MLXSW_SP_RXL_NO_MARK(LACP, TRAP_TO_CPU, true),
+	MLXSW_SP_RXL_NO_MARK(LLDP, TRAP_TO_CPU, true),
+	MLXSW_SP_RXL_MARK(DHCP, MIRROR_TO_CPU, false),
+	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU, false),
+	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU, false),
 	/* L3 traps */
-	MLXSW_SP_RXL_NO_MARK(MTUERROR, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(TTLERROR, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(LBERROR, TRAP_TO_CPU),
-	MLXSW_SP_RXL_MARK(OSPF, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(IP2ME, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU),
-	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU),
+	MLXSW_SP_RXL_NO_MARK(MTUERROR, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(TTLERROR, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(LBERROR, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_MARK(OSPF, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(IP2ME, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU, false),
 };
 
 static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)

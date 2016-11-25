@@ -590,7 +590,8 @@ static int mlxsw_emad_traps_set(struct mlxsw_core *mlxsw_core)
 		return err;
 
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-			    MLXSW_TRAP_ID_ETHEMAD);
+			    MLXSW_TRAP_ID_ETHEMAD,
+			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD, false);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 }
 
@@ -643,7 +644,8 @@ static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 
 	mlxsw_core->emad.use_emad = false;
 	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
-			    MLXSW_TRAP_ID_ETHEMAD);
+			    MLXSW_TRAP_ID_ETHEMAD,
+			    MLXSW_REG_HTGT_TRAP_GROUP_EMAD, false);
 	mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 
 	mlxsw_core_rx_listener_unregister(mlxsw_core,
@@ -1430,8 +1432,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 	if (err)
 		return err;
 
-	mlxsw_reg_hpkt_pack(hpkt_pl, listener->action, listener->trap_id);
-	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+	mlxsw_reg_hpkt_pack(hpkt_pl, listener->action, listener->trap_id,
+			    listener->trap_group, listener->is_ctrl);
+	err = mlxsw_reg_write(mlxsw_core,  MLXSW_REG(hpkt), hpkt_pl);
 	if (err)
 		goto err_trap_set;
 
@@ -1451,7 +1454,8 @@ void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 
 	if (!listener->is_event) {
 		mlxsw_reg_hpkt_pack(hpkt_pl, listener->unreg_action,
-				    listener->trap_id);
+				    listener->trap_id, listener->trap_group,
+				    listener->is_ctrl);
 		mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
 	}
 
