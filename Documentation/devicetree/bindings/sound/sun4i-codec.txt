@@ -5,6 +5,7 @@ Required properties:
 		- "allwinner,sun4i-a10-codec"
 		- "allwinner,sun6i-a31-codec"
 		- "allwinner,sun7i-a20-codec"
+		- "allwinner,sun8i-a23-codec"
 - reg: must contain the registers location and length
 - interrupts: must contain the codec interrupt
 - dmas: DMA channels for tx and rx dma. See the DMA client binding,
@@ -21,6 +22,7 @@ Optional properties:
 
 Required properties for the following compatibles:
 		- "allwinner,sun6i-a31-codec"
+		- "allwinner,sun8i-a23-codec"
 - resets: phandle to the reset control for this device
 - allwinner,audio-routing: A list of the connections between audio components.
 			   Each entry is a pair of strings, the first being the
@@ -31,10 +33,10 @@ Required properties for the following compatibles:
 			   "HP"
 			   "HPCOM"
 			   "LINEIN"
-			   "LINEOUT"
+			   "LINEOUT"	(not on sun8i-a23)
 			   "MIC1"
 			   "MIC2"
-			   "MIC3"
+			   "MIC3"	(sun6i-a31 only)
 
 			   Microphone biases from the SoC:
 			   "HBIAS"
@@ -47,6 +49,11 @@ Required properties for the following compatibles:
 			   "Line Out"
 			   "Mic"
 			   "Speaker"
+
+Required properties for the following compatibles:
+		- "allwinner,sun8i-a23-codec"
+- allwinner,codec-analog-controls: A phandle to the codec analog controls
+				   block in the PRCM.
 
 Example:
 codec: codec@01c22c00 {
