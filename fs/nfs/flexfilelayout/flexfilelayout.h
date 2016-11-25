@@ -81,11 +81,14 @@ struct nfs4_ff_layout_mirror {
 	struct rpc_cred	__rcu		*rw_cred;
 	atomic_t			ref;
 	spinlock_t			lock;
+	unsigned long			flags;
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
 	u32				report_interval;
 };
+
+#define NFS4_FF_MIRROR_STAT_AVAIL	(0)
 
 struct nfs4_ff_layout_segment {
 	struct pnfs_layout_segment	generic_hdr;
