@@ -599,6 +599,11 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	return req;
 
 err_ctx:
+	/* Make sure we didn't add ourselves to external state before freeing */
+	GEM_BUG_ON(!list_empty(&req->active_list));
+	GEM_BUG_ON(!list_empty(&req->priotree.signalers_list));
+	GEM_BUG_ON(!list_empty(&req->priotree.waiters_list));
+
 	i915_gem_context_put(ctx);
 	kmem_cache_free(dev_priv->requests, req);
 err_unreserve:
