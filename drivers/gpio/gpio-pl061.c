@@ -55,6 +55,7 @@ struct pl061_gpio {
 
 	void __iomem		*base;
 	struct gpio_chip	gc;
+	int			parent_irq;
 
 #ifdef CONFIG_PM
 	struct pl061_context_save_regs csave_regs;
@@ -276,8 +277,9 @@ static void pl061_irq_ack(struct irq_data *d)
 static int pl061_irq_set_wake(struct irq_data *d, unsigned int state)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct pl061_gpio *chip = gpiochip_get_data(gc);
 
-	return irq_set_irq_wake(gc->irq_parent, state);
+	return irq_set_irq_wake(chip->parent_irq, state);
 }
 
 static struct irq_chip pl061_irqchip = {
@@ -345,6 +347,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(&adev->dev, "invalid IRQ\n");
 		return -ENODEV;
 	}
+	chip->parent_irq = irq;
 
 	ret = gpiochip_irqchip_add(&chip->gc, &pl061_irqchip,
 				   irq_base, handle_bad_irq,
