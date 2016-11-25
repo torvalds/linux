@@ -242,6 +242,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	return ret;
 
 iommu_map_fail:
+	local_irq_restore(flags);
 	iommu_tbl_range_free(tbl, *dma_addrp, npages, IOMMU_ERROR_CODE);
 
 range_alloc_fail:
@@ -414,6 +415,7 @@ bad:
 	return DMA_ERROR_CODE;
 
 iommu_map_fail:
+	local_irq_restore(flags);
 	iommu_tbl_range_free(tbl, bus_addr, npages, IOMMU_ERROR_CODE);
 	return DMA_ERROR_CODE;
 }
