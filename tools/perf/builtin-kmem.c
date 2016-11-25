@@ -49,6 +49,7 @@ struct alloc_stat {
 	u64	ptr;
 	u64	bytes_req;
 	u64	bytes_alloc;
+	u64	last_alloc;
 	u32	hit;
 	u32	pingpong;
 
@@ -62,7 +63,7 @@ static struct rb_root root_alloc_sorted;
 static struct rb_root root_caller_stat;
 static struct rb_root root_caller_sorted;
 
-static unsigned long total_requested, total_allocated;
+static unsigned long total_requested, total_allocated, total_freed;
 static unsigned long nr_allocs, nr_cross_allocs;
 
 static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
@@ -105,6 +106,8 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 	}
 	data->call_site = call_site;
 	data->alloc_cpu = cpu;
+	data->last_alloc = bytes_alloc;
+
 	return 0;
 }
 
@@ -222,6 +225,8 @@ static int perf_evsel__process_free_event(struct perf_evsel *evsel,
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
 	if (!s_alloc)
 		return 0;
+
+	total_freed += s_alloc->last_alloc;
 
 	if ((short)sample->cpu != s_alloc->alloc_cpu) {
 		s_alloc->pingpong++;
@@ -1128,6 +1133,11 @@ static void print_slab_summary(void)
 	printf("\n========================\n");
 	printf("Total bytes requested: %'lu\n", total_requested);
 	printf("Total bytes allocated: %'lu\n", total_allocated);
+	printf("Total bytes freed:     %'lu\n", total_freed);
+	if (total_allocated > total_freed) {
+		printf("Net total bytes allocated: %'lu\n",
+		total_allocated - total_freed);
+	}
 	printf("Total bytes wasted on internal fragmentation: %'lu\n",
 	       total_allocated - total_requested);
 	printf("Internal fragmentation: %f%%\n",
