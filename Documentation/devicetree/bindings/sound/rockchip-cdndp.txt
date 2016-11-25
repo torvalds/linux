@@ -1,0 +1,15 @@
+ROCKCHIP with DP via I2S
+
+Required properties:
+- compatible: "rockchip,cdndp-sound"
+- rockchip,cpu: The phandle of the Rockchip I2S controller controller that's
+  connected to the codec
+- rockchip,codec: The phandle of the the DP encoder node
+
+Example:
+
+sound {
+	compatible = "rockchip,cdndp-sound";
+	rockchip,cpu = <&i2s2>;
+	rockchip,codec = <&cdn_dp>;
+};
