@@ -562,7 +562,6 @@ next:
  *
  * bio->bi_iter.bi_sector points to the compressed extent on disk
  * bio->bi_io_vec points to all of the inode pages
- * bio->bi_vcnt is a count of pages
  *
  * After the compressed pages are read, we copy the bytes into the
  * bio we were passed and then call the bio end_io calls
@@ -574,7 +573,6 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	struct extent_map_tree *em_tree;
 	struct compressed_bio *cb;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	unsigned long uncompressed_len = bio->bi_vcnt * PAGE_SIZE;
 	unsigned long compressed_len;
 	unsigned long nr_pages;
 	unsigned long pg_index;
@@ -619,7 +617,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	free_extent_map(em);
 	em = NULL;
 
-	cb->len = uncompressed_len;
+	cb->len = bio->bi_iter.bi_size;
 	cb->compressed_len = compressed_len;
 	cb->compress_type = extent_compress_type(bio_flags);
 	cb->orig_bio = bio;
@@ -647,8 +645,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	add_ra_bio_pages(inode, em_start + em_len, cb);
 
 	/* include any pages we added in add_ra-bio_pages */
-	uncompressed_len = bio->bi_vcnt * PAGE_SIZE;
-	cb->len = uncompressed_len;
+	cb->len = bio->bi_iter.bi_size;
 
 	comp_bio = compressed_bio_alloc(bdev, cur_disk_byte, GFP_NOFS);
 	if (!comp_bio)
