@@ -25,6 +25,11 @@
 #include "i915_drv.h"
 #include "intel_uc.h"
 
+void intel_uc_init_early(struct drm_i915_private *dev_priv)
+{
+	mutex_init(&dev_priv->guc.send_mutex);
+}
+
 /*
  * Read GuC command/status register (SOFT_SCRATCH_0)
  * Return true if it contains a response rather than a command
