@@ -519,6 +519,8 @@ static int vpfe_open(struct file *file)
 	if (!vpfe_dev->initialized) {
 		if (vpfe_initialize_device(vpfe_dev)) {
 			mutex_unlock(&vpfe_dev->lock);
+			v4l2_fh_exit(&fh->fh);
+			kfree(fh);
 			return -ENODEV;
 		}
 	}
