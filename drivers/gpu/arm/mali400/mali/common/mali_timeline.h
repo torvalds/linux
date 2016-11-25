@@ -191,6 +191,10 @@ struct mali_timeline_tracker {
 	_mali_osk_list_t               sync_fence_cancel_list; /**< List node used to cancel sync fence waiters. */
 #endif /* defined(CONFIG_SYNC) */
 
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+	struct mali_timeline_waiter   *waiter_dma_fence; /**< A direct pointer to timeline waiter representing dma fence. */
+#endif
+
 	struct mali_timeline_system   *system;       /**< Timeline system. */
 	struct mali_timeline          *timeline;     /**< Timeline, or NULL if not on a timeline. */
 	enum mali_timeline_tracker_type type;        /**< Type of tracker. */
@@ -531,5 +535,14 @@ void mali_timeline_debug_direct_print_timeline(struct mali_timeline *timeline);
 void mali_timeline_debug_print_system(struct mali_timeline_system *system, _mali_osk_print_ctx *print_ctx);
 
 #endif /* defined(MALI_TIMELINE_DEBUG_FUNCTIONS) */
+
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+/**
+ * The timeline dma fence callback when dma fence signal.
+ *
+ * @param pp_job_ptr The pointer to pp job that link to the signaled dma fence.
+ */
+void mali_timeline_dma_fence_callback(void *pp_job_ptr);
+#endif
 
 #endif /* __MALI_TIMELINE_H__ */

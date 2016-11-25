@@ -491,10 +491,10 @@
 		int (*secure_mode_init)(void);
 		/* Function that deinit the mali gpu secure mode */
 		void (*secure_mode_deinit)(void);
-		/* Function that enable the mali gpu secure mode */
-		int (*secure_mode_enable)(void);
-		/* Function that disable the mali gpu secure mode */
-		int (*secure_mode_disable)(void);
+		/* Function that reset GPU and enable gpu secure mode */
+		int (*gpu_reset_and_secure_mode_enable)(void);
+		/* Function that Reset GPU and disable gpu secure mode */
+		int (*gpu_reset_and_secure_mode_disable)(void);
 		/* ipa related interface customer need register */
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
 		struct devfreq_cooling_power *gpu_cooling_ops;

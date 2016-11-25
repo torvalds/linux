@@ -67,6 +67,17 @@ u32 mali_session_get_count(void)
 	return mali_session_count;
 }
 
+mali_bool mali_session_pp_job_is_empty(void *data)
+{
+	struct mali_session_data *session = (struct mali_session_data *)data;
+	MALI_DEBUG_ASSERT_POINTER(session);
+
+	if ( 0 == _mali_osk_atomic_read(&session->number_of_pp_jobs)) {
+		return MALI_TRUE;
+	}
+	return MALI_FALSE;
+}
+
 wait_queue_head_t *mali_session_get_wait_queue(void)
 {
 	return &pending_queue;

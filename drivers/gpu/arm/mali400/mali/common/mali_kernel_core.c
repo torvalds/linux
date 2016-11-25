@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -42,6 +42,10 @@
 #include "mali_control_timer.h"
 #include "mali_dvfs_policy.h"
 #include <linux/sched.h>
+#include <linux/atomic.h>
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+#include <linux/fence.h>
+#endif
 
 #define MALI_SHARED_MEMORY_DEFAULT_SIZE 0xffffffff
 
@@ -1124,6 +1128,12 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 		goto err;
 	}
 
+	/*create a wait queue for this session */
+	session->wait_queue = _mali_osk_wait_queue_init();
+	if (NULL == session->wait_queue) {
+		goto err_wait_queue;
+	}
+
 	session->page_directory = mali_mmu_pagedir_alloc();
 	if (NULL == session->page_directory) {
 		goto err_mmu;
@@ -1149,6 +1159,17 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 		goto err_soft;
 	}
 
+	/* Initialize the dma fence context.*/
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+	session->fence_context = fence_context_alloc(1);
+	_mali_osk_atomic_init(&session->fence_seqno, 0);
+#else
+	MALI_PRINT_ERROR(("The kernel version not support dma fence!\n"));
+	goto err_time_line;
+#endif
+#endif
+
 	/* Create timeline system. */
 	session->timeline_system = mali_timeline_system_create(session);
 	if (NULL == session->timeline_system) {
@@ -1158,6 +1179,8 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 #if defined(CONFIG_MALI_DVFS)
 	_mali_osk_atomic_init(&session->number_of_window_jobs, 0);
 #endif
+
+	_mali_osk_atomic_init(&session->number_of_pp_jobs, 0);
 
 	session->use_high_priority_job_queue = MALI_FALSE;
 
@@ -1191,6 +1214,8 @@ err_soft:
 err_session:
 	mali_mmu_pagedir_free(session->page_directory);
 err_mmu:
+	_mali_osk_wait_queue_term(session->wait_queue);
+err_wait_queue:
 	_mali_osk_notification_queue_term(session->ioctl_queue);
 err:
 	_mali_osk_free(session);
@@ -1263,14 +1288,8 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 	mali_soft_job_system_destroy(session->soft_job_system);
 	session->soft_job_system = NULL;
 
-	MALI_DEBUG_CODE({
-		/* Check that the pp_job_fb_lookup_list array is empty. */
-		u32 i;
-		for (i = 0; i < MALI_PP_JOB_FB_LOOKUP_LIST_SIZE; ++i)
-		{
-			MALI_DEBUG_ASSERT(_mali_osk_list_empty(&session->pp_job_fb_lookup_list[i]));
-		}
-	});
+	/*Wait for the session job lists become empty.*/
+	_mali_osk_wait_queue_wait_event(session->wait_queue, mali_session_pp_job_is_empty, (void *) session);
 
 	/* Free remaining memory allocated to this session */
 	mali_memory_session_end(session);
@@ -1286,6 +1305,7 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 	/* Free session data structures */
 	mali_mmu_pagedir_unmap(session->page_directory, MALI_DLBU_VIRT_ADDR, _MALI_OSK_MALI_PAGE_SIZE);
 	mali_mmu_pagedir_free(session->page_directory);
+	_mali_osk_wait_queue_term(session->wait_queue);
 	_mali_osk_notification_queue_term(session->ioctl_queue);
 	_mali_osk_free(session);
 

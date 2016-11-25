@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -29,6 +29,8 @@ struct mali_soft_system;
 struct mali_session_data {
 	_mali_osk_notification_queue_t *ioctl_queue;
 
+	_mali_osk_wait_queue_t *wait_queue; /**The wait queue to wait for the number of pp job become 0.*/
+
 	_mali_osk_mutex_t *memory_lock; /**< Lock protecting the vm manipulation */
 	_mali_osk_mutex_t *cow_lock; /** < Lock protecting the cow memory free manipulation */
 #if 0
@@ -42,9 +44,9 @@ struct mali_session_data {
 #if defined(CONFIG_MALI_DVFS)
 	_mali_osk_atomic_t number_of_window_jobs; /**< Record the window jobs completed on this session in a period */
 #endif
+	_mali_osk_atomic_t number_of_pp_jobs; /** < Record the pp jobs on this session */
 
 	_mali_osk_list_t pp_job_fb_lookup_list[MALI_PP_JOB_FB_LOOKUP_LIST_SIZE]; /**< List of PP job lists per frame builder id.  Used to link jobs from same frame builder. */
-
 	struct mali_soft_job_system *soft_job_system; /**< Soft job system for this session. */
 	struct mali_timeline_system *timeline_system; /**< Timeline system for this session. */
 
@@ -57,6 +59,11 @@ struct mali_session_data {
 	size_t max_mali_mem_allocated_size; /**< The past max mali memory allocated size, which include mali os memory and mali dedicated memory. */
 	/* Added for new memroy system */
 	struct mali_allocation_manager allocation_mgr;
+
+#if defined(CONFIG_MALI_DMA_BUF_FENCE)
+	u32 fence_context;      /** <  The execution dma fence context this fence is run on. */
+	_mali_osk_atomic_t fence_seqno; /** < Alinear increasing sequence number for this dma fence context. */
+#endif
 };
 
 _mali_osk_errcode_t mali_session_initialize(void);
@@ -80,6 +87,7 @@ MALI_STATIC_INLINE void mali_session_unlock(void)
 void mali_session_add(struct mali_session_data *session);
 void mali_session_remove(struct mali_session_data *session);
 u32 mali_session_get_count(void);
+mali_bool mali_session_pp_job_is_empty(void *data);
 wait_queue_head_t *mali_session_get_wait_queue(void);
 
 #define MALI_SESSION_FOREACH(session, tmp, link) \

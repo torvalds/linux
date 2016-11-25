@@ -77,7 +77,7 @@ int ump_allocate_wrapper(u32 __user *argument, struct ump_session_data   *sessio
 
 #ifdef CONFIG_DMA_SHARED_BUFFER
 static ump_dd_handle get_ump_handle_from_dmabuf(struct ump_session_data *session_data,
-					struct dma_buf *dmabuf)
+		struct dma_buf *dmabuf)
 {
 	ump_session_memory_list_element *session_mem, *tmp;
 	struct dma_buf_attachment *attach;
@@ -88,14 +88,14 @@ static ump_dd_handle get_ump_handle_from_dmabuf(struct ump_session_data *session
 	_mali_osk_mutex_wait(session_data->lock);
 
 	_MALI_OSK_LIST_FOREACHENTRY(session_mem, tmp,
-				&session_data->list_head_session_memory_list,
-				ump_session_memory_list_element, list) {
+				    &session_data->list_head_session_memory_list,
+				    ump_session_memory_list_element, list) {
 		if (session_mem->mem->import_attach) {
 			attach = session_mem->mem->import_attach;
 			if (attach->dmabuf == dmabuf) {
 				_mali_osk_mutex_signal(session_data->lock);
 				ump_handle = (ump_dd_handle)session_mem->mem;
-				ump_random_mapping_get(device.secure_id_map, ump_dd_secure_id_get(ump_handle));	
+				ump_random_mapping_get(device.secure_id_map, ump_dd_secure_id_get(ump_handle));
 				return ump_handle;
 			}
 		}
@@ -107,7 +107,7 @@ static ump_dd_handle get_ump_handle_from_dmabuf(struct ump_session_data *session
 }
 
 int ump_dmabuf_import_wrapper(u32 __user *argument,
-				struct ump_session_data  *session_data)
+			      struct ump_session_data  *session_data)
 {
 	ump_session_memory_list_element *session = NULL;
 	_ump_uk_dmabuf_s ump_dmabuf;
@@ -117,7 +117,7 @@ int ump_dmabuf_import_wrapper(u32 __user *argument,
 	struct dma_buf *dma_buf;
 	struct sg_table *sgt = NULL;
 	struct scatterlist *sgl;
-	unsigned int i = 0; 
+	unsigned int i = 0;
 	int ret = 0;
 
 	/* Sanity check input parameters */
@@ -127,7 +127,7 @@ int ump_dmabuf_import_wrapper(u32 __user *argument,
 	}
 
 	if (copy_from_user(&ump_dmabuf, argument,
-				sizeof(_ump_uk_dmabuf_s))) {
+			   sizeof(_ump_uk_dmabuf_s))) {
 		MSG_ERR(("copy_from_user() failed.\n"));
 		return -EFAULT;
 	}
@@ -146,7 +146,7 @@ int ump_dmabuf_import_wrapper(u32 __user *argument,
 		dma_buf_put(dma_buf);
 		goto found;
 	}
-	
+
 	attach = dma_buf_attach(dma_buf, ump_global_mdev);
 	if (IS_ERR(attach)) {
 		ret = PTR_ERR(attach);
@@ -162,8 +162,8 @@ int ump_dmabuf_import_wrapper(u32 __user *argument,
 	blocks = (ump_dd_physical_block *)_mali_osk_malloc(sizeof(ump_dd_physical_block) * sgt->nents);
 	if (!blocks) {
 		DBG_MSG(1, ("Failed to allocate blocks.\n"));
-                ret = -EFAULT;
-                goto err_dma_buf_unmap;
+		ret = -EFAULT;
+		goto err_dma_buf_unmap;
 	}
 	for_each_sg(sgt->sgl, sgl, sgt->nents, i) {
 		blocks[i].addr = sg_phys(sgl);
@@ -194,7 +194,7 @@ int ump_dmabuf_import_wrapper(u32 __user *argument,
 
 	_mali_osk_mutex_wait(session_data->lock);
 	_mali_osk_list_add(&(session->list),
-			&(session_data->list_head_session_memory_list));
+			   &(session_data->list_head_session_memory_list));
 	_mali_osk_mutex_signal(session_data->lock);
 
 	_mali_osk_free(blocks);
@@ -205,7 +205,7 @@ found:
 	ump_dmabuf.size = ump_dd_size_get(ump_handle);
 
 	if (copy_to_user(argument, &ump_dmabuf,
-				sizeof(_ump_uk_dmabuf_s))) {
+			 sizeof(_ump_uk_dmabuf_s))) {
 		MSG_ERR(("copy_to_user() failed.\n"));
 		ret =  -EFAULT;
 		goto err_release_ump_handle;

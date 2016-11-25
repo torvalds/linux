@@ -190,10 +190,10 @@ void ump_random_mapping_put(ump_dd_mem *mem)
 		if (mem->import_attach) {
 			struct dma_buf_attachment *attach = mem->import_attach;
 			struct dma_buf *dma_buf;
-                        
+
 			if (mem->sgt)
 				dma_buf_unmap_attachment(attach, mem->sgt,
-							DMA_BIDIRECTIONAL);
+							 DMA_BIDIRECTIONAL);
 
 			dma_buf = attach->dmabuf;
 			dma_buf_detach(attach->dmabuf, attach);

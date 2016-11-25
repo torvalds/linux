@@ -298,7 +298,12 @@ s32 mali_sync_fence_fd_alloc(struct sync_fence *sync_fence)
 {
 	s32 fd = -1;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 	fd = get_unused_fd();
+#else
+	fd = get_unused_fd_flags(0);
+#endif
+
 	if (fd < 0) {
 		sync_fence_put(sync_fence);
 		return -1;

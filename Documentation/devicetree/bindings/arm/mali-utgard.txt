@@ -1,0 +1,68 @@
+/*
+ * Copyright (C) 2014, 2016 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+* ARM Mali-300/400/450 GPU
+
+Required properties:
+- compatible:
+	At least one of these: "arm,mali-300", "arm,mali-400", "arm,mali-450"
+	Always: "arm,mali-utgard"
+	Mali-450 can also include "arm,mali-400" as it is compatible.
+	- "arm,mali-400", "arm,mali-utgard" for any Mali-400 GPU.
+	- "arm,mali-450", "arm,mali-400", "arm,mali-utgard" for any Mali-450 GPU.
+- reg:
+	Physical base address and length of the GPU's registers.
+- interrupts:
+	- List of all Mali interrupts.
+	- This list must match the number of and the order of entries in
+		interrupt-names.
+- interrupt-names:
+	- IRQPP<X> - Name for PP interrupts.
+	- IRQPPMMU<X> -  Name for interrupts from the PP MMU.
+	- IRQPP - Name for the PP broadcast interrupt (Mali-450 only).
+	- IRQGP - Name for the GP interrupt.
+	- IRQGPMMU - Name for the interrupt from the GP MMU.
+	- IRQPMU - Name for the PMU interrupt (If pmu is implemented in HW, it must be contained).
+
+Optional properties:
+- pmu_domain_config:
+	- If the Mali internal PMU is present and the PMU IRQ is specified in
+		interrupt/interrupt-names ("IRQPMU").This contains the mapping of
+		Mali HW units to the PMU power domain.
+	-Mali Dynamic power domain configuration in sequence from 0-11, like:
+		<GP PP0 PP1 PP2 PP3  PP4 PP5 PP6 PP7 L2$0 L2$1 L2$2>.
+- pmu-switch-delay:
+	- Only needed if the power gates are connected to the PMU in a high fanout
+		network. This value is the number of Mali clock cycles it takes to
+		enable the power gates and turn on the power mesh. This value will
+		have no effect if a daisy chain implementation is used.
+
+Platform related properties:
+- clocks: Phandle to clock for Mali utgard device.
+- clock-names: the corresponding names of clock in clocks property.
+- regulator: Phandle to regulator which is power supplier of mali device.
+
+Example for a Mali400_MP1_PMU device:
+
+/ {
+	...
+
+	gpu@12300000 {
+		compatible = "arm,mali-400", "arm,mali-utgard";
+		reg = <0x12300000 0x30000>;
+		interrupts = <0 55 4>, <0 56 4>, <0 57 4>, <0 58 4>, <0 59 4>;
+		interrupt-names = "IRQGP", "IRQGPMMU", "IRQPP0", "IRQPPMMU0", "IRQPMU";
+
+		pmu_domain_config = <0x1 0x4 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x2 0x0 0x0>;
+		pmu_switch_delay = <0xff>;
+		clocks = <clock 122>, <clock 123>;
+		clock-names = "mali_parent", "mali";
+		vdd_g3d-supply = <regulator_Phandle>;
+	};
+}

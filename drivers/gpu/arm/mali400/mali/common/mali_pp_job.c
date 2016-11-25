@@ -45,9 +45,10 @@ struct mali_pp_job *mali_pp_job_create(struct mali_session_data *session,
 
 	job = _mali_osk_calloc(1, sizeof(struct mali_pp_job));
 	if (NULL != job) {
-
+		
 		_mali_osk_list_init(&job->list);
 		_mali_osk_list_init(&job->session_fb_lookup_list);
+		_mali_osk_atomic_inc(&session->number_of_pp_jobs);
 
 		if (0 != _mali_osk_copy_from_user(&job->uargs, uargs, sizeof(_mali_uk_pp_start_job_s))) {
 			goto fail;
@@ -142,9 +143,14 @@ fail:
 
 void mali_pp_job_delete(struct mali_pp_job *job)
 {
+	struct mali_session_data *session;
+
 	MALI_DEBUG_ASSERT_POINTER(job);
 	MALI_DEBUG_ASSERT(_mali_osk_list_empty(&job->list));
 	MALI_DEBUG_ASSERT(_mali_osk_list_empty(&job->session_fb_lookup_list));
+
+	session = mali_pp_job_get_session(job);
+	MALI_DEBUG_ASSERT_POINTER(session);
 
 	if (NULL != job->memory_cookies) {
 #if defined(CONFIG_DMA_SHARED_BUFFER) && !defined(CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH)
@@ -169,8 +175,10 @@ void mali_pp_job_delete(struct mali_pp_job *job)
 
 	_mali_osk_atomic_term(&job->sub_jobs_completed);
 	_mali_osk_atomic_term(&job->sub_job_errors);
-
+	_mali_osk_atomic_dec(&session->number_of_pp_jobs);
 	_mali_osk_free(job);
+
+	_mali_osk_wait_queue_wake_up(session->wait_queue);
 }
 
 void mali_pp_job_list_add(struct mali_pp_job *job, _mali_osk_list_t *list)

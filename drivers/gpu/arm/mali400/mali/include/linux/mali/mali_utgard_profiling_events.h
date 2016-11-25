@@ -18,7 +18,6 @@
  * If you do not wish to do so, delete this exception statement from your version.
  */
 
-
 #ifndef _MALI_UTGARD_PROFILING_EVENTS_H_
 #define _MALI_UTGARD_PROFILING_EVENTS_H_
 

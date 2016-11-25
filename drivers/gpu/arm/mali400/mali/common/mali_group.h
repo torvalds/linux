@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -285,9 +285,9 @@ MALI_STATIC_INLINE struct mali_pp_core *mali_group_get_pp_core(struct mali_group
 
 /** @brief Start GP job
  */
-void mali_group_start_gp_job(struct mali_group *group, struct mali_gp_job *job);
+void mali_group_start_gp_job(struct mali_group *group, struct mali_gp_job *job, mali_bool gpu_secure_mode_pre_enabled);
 
-void mali_group_start_pp_job(struct mali_group *group, struct mali_pp_job *job, u32 sub_job);
+void mali_group_start_pp_job(struct mali_group *group, struct mali_pp_job *job, u32 sub_job, mali_bool gpu_secure_mode_pre_enabled);
 
 /** @brief Start virtual group Job on a virtual group
 */

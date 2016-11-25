@@ -48,13 +48,13 @@ static void mali_write_phys(u32 phys_addr, u32 value);
 #define SECURE_MODE_CONTROL_HANDLER     0x6F02006C
 void *secure_mode_mapped_addr = NULL;
 /**
- * Enable/Disable Mali secure mode.
+ * Reset GPU and enable/disable Mali secure mode.
  * @Return value:
  * 0: success
  * non-0: failure.
  */
 
-static int mali_secure_mode_enable_juno(void)
+static int mali_gpu_reset_and_secure_mode_enable_juno(void)
 {
 	u32 phys_offset    = SECURE_MODE_CONTROL_HANDLER & 0x00001FFF;
 	MALI_DEBUG_ASSERT(NULL != secure_mode_mapped_addr);
@@ -62,17 +62,17 @@ static int mali_secure_mode_enable_juno(void)
 	iowrite32(1, ((u8 *)secure_mode_mapped_addr) + phys_offset);
 
 	if (1 == (u32)ioread32(((u8 *)secure_mode_mapped_addr) + phys_offset)) {
-		MALI_DEBUG_PRINT(3, ("Mali enables secured mode successfully! \n"));
+		MALI_DEBUG_PRINT(3, ("Mali reset GPU and enable secured mode successfully! \n"));
 		return 0;
 	}
 
-	MALI_PRINT_ERROR(("Failed to enable Mali secured mode !!! \n"));
+	MALI_PRINT_ERROR(("Failed to reset GPU and enable Mali secured mode !!! \n"));
 
 	return -1;
 
 }
 
-static int mali_secure_mode_disable_juno(void)
+static int mali_gpu_reset_and_secure_mode_disable_juno(void)
 {
 	u32 phys_offset    = SECURE_MODE_CONTROL_HANDLER & 0x00001FFF;
 	MALI_DEBUG_ASSERT(NULL != secure_mode_mapped_addr);
@@ -80,11 +80,11 @@ static int mali_secure_mode_disable_juno(void)
 	iowrite32(0, ((u8 *)secure_mode_mapped_addr) + phys_offset);
 
 	if (0 == (u32)ioread32(((u8 *)secure_mode_mapped_addr) + phys_offset)) {
-		MALI_DEBUG_PRINT(3, ("Mali disable secured mode successfully! \n"));
+		MALI_DEBUG_PRINT(3, ("Mali reset GPU and disable secured mode successfully! \n"));
 		return 0;
 	}
 
-	MALI_PRINT_ERROR(("Failed to disable mali secured mode !!! \n"));
+	MALI_PRINT_ERROR(("Failed to reset GPU and disable mali secured mode !!! \n"));
 	return -1;
 }
 
@@ -98,7 +98,7 @@ static int mali_secure_mode_init_juno(void)
 
 	secure_mode_mapped_addr = ioremap_nocache(phys_addr_page, map_size);
 	if (NULL != secure_mode_mapped_addr) {
-		return mali_secure_mode_disable_juno();
+		return mali_gpu_reset_and_secure_mode_disable_juno();
 	}
 	MALI_DEBUG_PRINT(2, ("Failed to ioremap for Mali secured mode! \n"));
 	return -1;
@@ -107,7 +107,7 @@ static int mali_secure_mode_init_juno(void)
 static void mali_secure_mode_deinit_juno(void)
 {
 	if (NULL != secure_mode_mapped_addr) {
-		mali_secure_mode_disable_juno();
+		mali_gpu_reset_and_secure_mode_disable_juno();
 		iounmap(secure_mode_mapped_addr);
 		secure_mode_mapped_addr = NULL;
 	}
@@ -279,13 +279,13 @@ static struct mali_gpu_device_data mali_gpu_data = {
 #if defined(CONFIG_ARCH_VEXPRESS) && defined(CONFIG_ARM64)
 	.secure_mode_init = mali_secure_mode_init_juno,
 	.secure_mode_deinit = mali_secure_mode_deinit_juno,
-	.secure_mode_enable = mali_secure_mode_enable_juno,
-	.secure_mode_disable = mali_secure_mode_disable_juno,
+	.gpu_reset_and_secure_mode_enable = mali_gpu_reset_and_secure_mode_enable_juno,
+	.gpu_reset_and_secure_mode_disable = mali_gpu_reset_and_secure_mode_disable_juno,
 #else
 	.secure_mode_init = NULL,
 	.secure_mode_deinit = NULL,
-	.secure_mode_enable = NULL,
-	.secure_mode_disable = NULL,
+	.gpu_reset_and_secure_mode_enable = NULL,
+	.gpu_reset_and_secure_mode_disable = NULL,
 #endif
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
 	.gpu_cooling_ops = &arm_cooling_ops,
@@ -317,7 +317,11 @@ int mali_platform_device_register(void)
 #if defined(CONFIG_ARCH_VEXPRESS)
 
 #if defined(CONFIG_ARM64)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+	mali_gpu_device.dev.archdata.dma_ops = &dummy_dma_ops;
+#else
 	mali_gpu_device.dev.archdata.dma_ops = dma_ops;
+#endif
 	if ((mali_read_phys(0x6F000000) & 0x00600450) == 0x00600450) {
 		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
 		num_pp_cores = 6;
