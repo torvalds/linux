@@ -71,6 +71,24 @@
 			sound-dai = <&hdmi>;
 		};
 	};
+
+	sound {
+		compatible = "rockchip,rk3399-gru-sound";
+		rockchip,cpu = <&i2s2>;
+		rockchip,codec = <&cdn_dp>;
+	};
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&fusb0>, <&fusb1>;
+
+	ports {
+		/* Don't use vopl for dp, save it for edp */
+		dp_in: port {
+			/delete-node/ endpoint@1;
+		};
+	};
 };
 
 &mipi_dsi {
@@ -105,7 +123,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2s2 {
@@ -123,6 +141,11 @@
 
 &vopl {
 	status = "okay";
+
+	/* Don't use vopl for dp, save it for edp */
+	vopl_out: port {
+		/delete-node/ endpoint@3;
+	};
 };
 
 &vopl_mmu {
