@@ -725,6 +725,7 @@ schedtune_init_cgroups(void)
 	for_each_possible_cpu(cpu) {
 		bg = &per_cpu(cpu_boost_groups, cpu);
 		memset(bg, 0, sizeof(struct boost_groups));
+		raw_spin_lock_init(&bg->lock);
 	}
 
 	pr_info("schedtune: configured to support %d boost groups\n",
