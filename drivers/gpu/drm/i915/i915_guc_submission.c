@@ -21,7 +21,6 @@
  * IN THE SOFTWARE.
  *
  */
-#include <linux/firmware.h>
 #include <linux/circ_buf.h>
 #include <linux/debugfs.h>
 #include <linux/relay.h>
