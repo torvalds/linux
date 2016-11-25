@@ -81,9 +81,9 @@ struct compressed_bio {
 	u32 sums;
 };
 
-static int btrfs_decompress_biovec(int type, struct page **pages_in,
-				   u64 disk_start, struct bio_vec *bvec,
-				   int vcnt, size_t srclen);
+static int btrfs_decompress_bio(int type, struct page **pages_in,
+				   u64 disk_start, struct bio *orig_bio,
+				   size_t srclen);
 
 static inline int compressed_bio_size(struct btrfs_root *root,
 				      unsigned long disk_size)
@@ -175,11 +175,10 @@ static void end_compressed_bio_read(struct bio *bio)
 	/* ok, we're the last bio for this extent, lets start
 	 * the decompression.
 	 */
-	ret = btrfs_decompress_biovec(cb->compress_type,
+	ret = btrfs_decompress_bio(cb->compress_type,
 				      cb->compressed_pages,
 				      cb->start,
-				      cb->orig_bio->bi_io_vec,
-				      cb->orig_bio->bi_vcnt,
+				      cb->orig_bio,
 				      cb->compressed_len);
 csum_failed:
 	if (ret)
@@ -959,9 +958,7 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
  *
  * disk_start is the starting logical offset of this array in the file
  *
- * bvec is a bio_vec of pages from the file that we want to decompress into
- *
- * vcnt is the count of pages in the biovec
+ * orig_bio contains the pages from the file that we want to decompress into
  *
  * srclen is the number of bytes in pages_in
  *
@@ -970,18 +967,18 @@ int btrfs_compress_pages(int type, struct address_space *mapping,
  * be contiguous.  They all correspond to the range of bytes covered by
  * the compressed extent.
  */
-static int btrfs_decompress_biovec(int type, struct page **pages_in,
-				   u64 disk_start, struct bio_vec *bvec,
-				   int vcnt, size_t srclen)
+static int btrfs_decompress_bio(int type, struct page **pages_in,
+				   u64 disk_start, struct bio *orig_bio,
+				   size_t srclen)
 {
 	struct list_head *workspace;
 	int ret;
 
 	workspace = find_workspace(type);
 
-	ret = btrfs_compress_op[type-1]->decompress_biovec(workspace, pages_in,
-							 disk_start,
-							 bvec, vcnt, srclen);
+	ret = btrfs_compress_op[type-1]->decompress_bio(workspace, pages_in,
+							 disk_start, orig_bio,
+							 srclen);
 	free_workspace(type, workspace);
 	return ret;
 }
@@ -1021,9 +1018,7 @@ void btrfs_exit_compress(void)
  */
 int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
-			      struct bio_vec *bvec, int vcnt,
-			      unsigned long *pg_index,
-			      unsigned long *pg_offset)
+			      struct bio *bio)
 {
 	unsigned long buf_offset;
 	unsigned long current_buf_start;
@@ -1031,13 +1026,13 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 	unsigned long working_bytes = total_out - buf_start;
 	unsigned long bytes;
 	char *kaddr;
-	struct page *page_out = bvec[*pg_index].bv_page;
+	struct bio_vec bvec = bio_iter_iovec(bio, bio->bi_iter);
 
 	/*
 	 * start byte is the first byte of the page we're currently
 	 * copying into relative to the start of the compressed data.
 	 */
-	start_byte = page_offset(page_out) - disk_start;
+	start_byte = page_offset(bvec.bv_page) - disk_start;
 
 	/* we haven't yet hit data corresponding to this page */
 	if (total_out <= start_byte)
@@ -1057,80 +1052,46 @@ int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
 
 	/* copy bytes from the working buffer into the pages */
 	while (working_bytes > 0) {
-		bytes = min(PAGE_SIZE - *pg_offset,
-			    PAGE_SIZE - buf_offset);
+		bytes = min_t(unsigned long, bvec.bv_len,
+				PAGE_SIZE - buf_offset);
 		bytes = min(bytes, working_bytes);
-		kaddr = kmap_atomic(page_out);
-		memcpy(kaddr + *pg_offset, buf + buf_offset, bytes);
-		kunmap_atomic(kaddr);
-		flush_dcache_page(page_out);
 
-		*pg_offset += bytes;
+		kaddr = kmap_atomic(bvec.bv_page);
+		memcpy(kaddr + bvec.bv_offset, buf + buf_offset, bytes);
+		kunmap_atomic(kaddr);
+		flush_dcache_page(bvec.bv_page);
+
 		buf_offset += bytes;
 		working_bytes -= bytes;
 		current_buf_start += bytes;
 
 		/* check if we need to pick another page */
-		if (*pg_offset == PAGE_SIZE) {
-			(*pg_index)++;
-			if (*pg_index >= vcnt)
-				return 0;
+		bio_advance(bio, bytes);
+		if (!bio->bi_iter.bi_size)
+			return 0;
+		bvec = bio_iter_iovec(bio, bio->bi_iter);
 
-			page_out = bvec[*pg_index].bv_page;
-			*pg_offset = 0;
-			start_byte = page_offset(page_out) - disk_start;
+		start_byte = page_offset(bvec.bv_page) - disk_start;
 
-			/*
-			 * make sure our new page is covered by this
-			 * working buffer
-			 */
-			if (total_out <= start_byte)
-				return 1;
+		/*
+		 * make sure our new page is covered by this
+		 * working buffer
+		 */
+		if (total_out <= start_byte)
+			return 1;
 
-			/*
-			 * the next page in the biovec might not be adjacent
-			 * to the last page, but it might still be found
-			 * inside this working buffer. bump our offset pointer
-			 */
-			if (total_out > start_byte &&
-			    current_buf_start < start_byte) {
-				buf_offset = start_byte - buf_start;
-				working_bytes = total_out - start_byte;
-				current_buf_start = buf_start + buf_offset;
-			}
+		/*
+		 * the next page in the biovec might not be adjacent
+		 * to the last page, but it might still be found
+		 * inside this working buffer. bump our offset pointer
+		 */
+		if (total_out > start_byte &&
+		    current_buf_start < start_byte) {
+			buf_offset = start_byte - buf_start;
+			working_bytes = total_out - start_byte;
+			current_buf_start = buf_start + buf_offset;
 		}
 	}
 
 	return 1;
-}
-
-/*
- * When uncompressing data, we need to make sure and zero any parts of
- * the biovec that were not filled in by the decompression code.  pg_index
- * and pg_offset indicate the last page and the last offset of that page
- * that have been filled in.  This will zero everything remaining in the
- * biovec.
- */
-void btrfs_clear_biovec_end(struct bio_vec *bvec, int vcnt,
-				   unsigned long pg_index,
-				   unsigned long pg_offset)
-{
-	while (pg_index < vcnt) {
-		struct page *page = bvec[pg_index].bv_page;
-		unsigned long off = bvec[pg_index].bv_offset;
-		unsigned long len = bvec[pg_index].bv_len;
-
-		if (pg_offset < off)
-			pg_offset = off;
-		if (pg_offset < off + len) {
-			unsigned long bytes = off + len - pg_offset;
-			char *kaddr;
-
-			kaddr = kmap_atomic(page);
-			memset(kaddr + pg_offset, 0, bytes);
-			kunmap_atomic(kaddr);
-		}
-		pg_index++;
-		pg_offset = 0;
-	}
 }
