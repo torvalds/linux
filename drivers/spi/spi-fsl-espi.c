@@ -98,6 +98,7 @@ struct fsl_espi {
 	const void *tx;
 	void *rx;
 
+	bool swab;
 	unsigned int rx_len;
 	unsigned int tx_len;
 	unsigned int rxskip;
@@ -140,14 +141,14 @@ static void fsl_espi_memcpy_swab(void *to, const void *from,
 				 struct spi_message *m,
 				 struct spi_transfer *t)
 {
+	struct fsl_espi *espi = spi_master_get_devdata(m->spi->master);
 	unsigned int len = t->len;
 
-	if (!(m->spi->mode & SPI_LSB_FIRST) || t->bits_per_word <= 8) {
+	if (!espi->swab) {
 		memcpy(to, from, len);
 		return;
 	}
 
-	/* In case of LSB-first and bits_per_word > 8 byte-swap all words */
 	while (len)
 		if (len >= 4) {
 			*(u32 *)to = swahb32p(from);
@@ -383,6 +384,9 @@ static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
 	struct fsl_espi *espi = spi_master_get_devdata(m->spi->master);
 	struct spi_device *spi = m->spi;
 	int ret;
+
+	/* In case of LSB-first and bits_per_word > 8 byte-swap all words */
+	espi->swab = spi->mode & SPI_LSB_FIRST && trans->bits_per_word > 8;
 
 	espi->rxskip = fsl_espi_check_rxskip_mode(m);
 	if (trans->rx_nbits == SPI_NBITS_DUAL && !espi->rxskip) {
