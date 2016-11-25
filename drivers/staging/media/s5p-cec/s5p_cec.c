@@ -203,12 +203,11 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec,
 		CEC_NAME,
 		CEC_CAP_PHYS_ADDR | CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC,
-		1, &pdev->dev);
+		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
-	ret = cec_register_adapter(cec->adap);
+	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret) {
 		cec_delete_adapter(cec->adap);
 		return ret;

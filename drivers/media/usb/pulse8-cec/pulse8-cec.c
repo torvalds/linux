@@ -659,7 +659,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 
 	pulse8->serio = serio;
 	pulse8->adap = cec_allocate_adapter(&pulse8_cec_adap_ops, pulse8,
-		"HDMI CEC", caps, 1, &serio->dev);
+		"HDMI CEC", caps, 1);
 	err = PTR_ERR_OR_ZERO(pulse8->adap);
 	if (err < 0)
 		goto free_device;
@@ -679,7 +679,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto close_serio;
 
-	err = cec_register_adapter(pulse8->adap);
+	err = cec_register_adapter(pulse8->adap, &serio->dev);
 	if (err < 0)
 		goto close_serio;
 

@@ -37,9 +37,8 @@ The struct cec_adapter represents the CEC adapter hardware. It is created by
 calling cec_allocate_adapter() and deleted by calling cec_delete_adapter():
 
 .. c:function::
-   struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
-	       void *priv, const char *name, u32 caps, u8 available_las,
-	       struct device *parent);
+   struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops, void *priv,
+   const char *name, u32 caps, u8 available_las);
 
 .. c:function::
    void cec_delete_adapter(struct cec_adapter *adap);
@@ -66,20 +65,19 @@ available_las:
 	the number of simultaneous logical addresses that this
 	adapter can handle. Must be 1 <= available_las <= CEC_MAX_LOG_ADDRS.
 
-parent:
-	the parent device.
-
 
 To register the /dev/cecX device node and the remote control device (if
 CEC_CAP_RC is set) you call:
 
 .. c:function::
-	int cec_register_adapter(struct cec_adapter \*adap);
+	int cec_register_adapter(struct cec_adapter *adap, struct device *parent);
+
+where parent is the parent device.
 
 To unregister the devices call:
 
 .. c:function::
-	void cec_unregister_adapter(struct cec_adapter \*adap);
+	void cec_unregister_adapter(struct cec_adapter *adap);
 
 Note: if cec_register_adapter() fails, then call cec_delete_adapter() to
 clean up. But if cec_register_adapter() succeeded, then only call

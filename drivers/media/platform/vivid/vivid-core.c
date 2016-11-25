@@ -1167,12 +1167,12 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		if (in_type_counter[HDMI]) {
 			struct cec_adapter *adap;
 
-			adap = vivid_cec_alloc_adap(dev, 0, &pdev->dev, false);
+			adap = vivid_cec_alloc_adap(dev, 0, false);
 			ret = PTR_ERR_OR_ZERO(adap);
 			if (ret < 0)
 				goto unreg_dev;
 			dev->cec_rx_adap = adap;
-			ret = cec_register_adapter(adap);
+			ret = cec_register_adapter(adap, &pdev->dev);
 			if (ret < 0) {
 				cec_delete_adapter(adap);
 				dev->cec_rx_adap = NULL;
@@ -1222,13 +1222,12 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			if (dev->output_type[i] != HDMI)
 				continue;
 			dev->cec_output2bus_map[i] = bus_cnt;
-			adap = vivid_cec_alloc_adap(dev, bus_cnt,
-						     &pdev->dev, true);
+			adap = vivid_cec_alloc_adap(dev, bus_cnt, true);
 			ret = PTR_ERR_OR_ZERO(adap);
 			if (ret < 0)
 				goto unreg_dev;
 			dev->cec_tx_adap[bus_cnt] = adap;
-			ret = cec_register_adapter(adap);
+			ret = cec_register_adapter(adap, &pdev->dev);
 			if (ret < 0) {
 				cec_delete_adapter(adap);
 				dev->cec_tx_adap[bus_cnt] = NULL;
