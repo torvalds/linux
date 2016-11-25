@@ -41,6 +41,9 @@
 #include <linux/debugfs.h>
 #include <asm/debug.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/zcrypt.h>
+
 #include "zcrypt_api.h"
 #include "zcrypt_debug.h"
 
@@ -54,6 +57,12 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Cryptographic Coprocessor interface, " \
 		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
+
+/*
+ * zcrypt tracepoint functions
+ */
+EXPORT_TRACEPOINT_SYMBOL(s390_zcrypt_req);
+EXPORT_TRACEPOINT_SYMBOL(s390_zcrypt_rep);
 
 static int zcrypt_hwrng_seed = 1;
 module_param_named(hwrng_seed, zcrypt_hwrng_seed, int, S_IRUSR|S_IRGRP);
@@ -224,10 +233,15 @@ static long zcrypt_rsa_modexpo(struct ica_rsa_modexpo *mex)
 	struct zcrypt_queue *zq, *pref_zq;
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
-	int rc;
+	int qid = 0, rc = -ENODEV;
 
-	if (mex->outputdatalength < mex->inputdatalength)
-		return -EINVAL;
+	trace_s390_zcrypt_req(mex, TP_ICARSAMODEXPO);
+
+	if (mex->outputdatalength < mex->inputdatalength) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	/*
 	 * As long as outputdatalength is big enough, we can set the
 	 * outputdatalength equal to the inputdatalength, since that is the
@@ -237,7 +251,7 @@ static long zcrypt_rsa_modexpo(struct ica_rsa_modexpo *mex)
 
 	rc = get_rsa_modex_fc(mex, &func_code);
 	if (rc)
-		return rc;
+		goto out;
 
 	pref_zc = NULL;
 	pref_zq = NULL;
@@ -269,15 +283,21 @@ static long zcrypt_rsa_modexpo(struct ica_rsa_modexpo *mex)
 	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
 
-	if (!pref_zq)
-		return -ENODEV;
+	if (!pref_zq) {
+		rc = -ENODEV;
+		goto out;
+	}
 
+	qid = pref_zq->queue->qid;
 	rc = pref_zq->ops->rsa_modexpo(pref_zq, mex);
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
 
+out:
+	trace_s390_zcrypt_rep(mex, func_code, rc,
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
 
@@ -287,10 +307,15 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 	struct zcrypt_queue *zq, *pref_zq;
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
-	int rc;
+	int qid = 0, rc = -ENODEV;
 
-	if (crt->outputdatalength < crt->inputdatalength)
-		return -EINVAL;
+	trace_s390_zcrypt_req(crt, TP_ICARSACRT);
+
+	if (crt->outputdatalength < crt->inputdatalength) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	/*
 	 * As long as outputdatalength is big enough, we can set the
 	 * outputdatalength equal to the inputdatalength, since that is the
@@ -300,7 +325,7 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 
 	rc = get_rsa_crt_fc(crt, &func_code);
 	if (rc)
-		return rc;
+		goto out;
 
 	pref_zc = NULL;
 	pref_zq = NULL;
@@ -332,15 +357,21 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
 
-	if (!pref_zq)
-		return -ENODEV;
+	if (!pref_zq) {
+		rc = -ENODEV;
+		goto out;
+	}
 
+	qid = pref_zq->queue->qid;
 	rc = pref_zq->ops->rsa_modexpo_crt(pref_zq, crt);
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
 
+out:
+	trace_s390_zcrypt_rep(crt, func_code, rc,
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
 
@@ -352,11 +383,13 @@ static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
 	unsigned short *domain;
-	int rc;
+	int qid = 0, rc = -ENODEV;
+
+	trace_s390_zcrypt_req(xcRB, TB_ZSECSENDCPRB);
 
 	rc = get_cprb_fc(xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
-		return rc;
+		goto out;
 
 	pref_zc = NULL;
 	pref_zq = NULL;
@@ -391,18 +424,25 @@ static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 	pref_zq = zcrypt_pick_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
 
-	if (!pref_zq)
-		return -ENODEV;
+	if (!pref_zq) {
+		rc = -ENODEV;
+		goto out;
+	}
 
 	/* in case of auto select, provide the correct domain */
+	qid = pref_zq->queue->qid;
 	if (*domain == (unsigned short) AUTOSELECT)
-		*domain = AP_QID_QUEUE(pref_zq->queue->qid);
+		*domain = AP_QID_QUEUE(qid);
 
 	rc = pref_zq->ops->send_cprb(pref_zq, xcRB, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
+
+out:
+	trace_s390_zcrypt_rep(xcRB, func_code, rc,
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
 
@@ -439,7 +479,9 @@ static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 	unsigned int weight, pref_weight;
 	unsigned int func_code;
 	struct ap_message ap_msg;
-	int rc;
+	int qid = 0, rc = -ENODEV;
+
+	trace_s390_zcrypt_req(xcrb, TP_ZSENDEP11CPRB);
 
 	target_num = (unsigned short) xcrb->targets_num;
 
@@ -449,13 +491,17 @@ static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 		struct ep11_target_dev __user *uptr;
 
 		targets = kcalloc(target_num, sizeof(*targets), GFP_KERNEL);
-		if (!targets)
-			return -ENOMEM;
+		if (!targets) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
 		uptr = (struct ep11_target_dev __force __user *) xcrb->targets;
 		if (copy_from_user(targets, uptr,
-				   target_num * sizeof(*targets)))
-			return -EFAULT;
+				   target_num * sizeof(*targets))) {
+			rc = -EFAULT;
+			goto out;
+		}
 	}
 
 	rc = get_ep11cprb_fc(xcrb, &ap_msg, &func_code);
@@ -501,6 +547,7 @@ static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 		goto out_free;
 	}
 
+	qid = pref_zq->queue->qid;
 	rc = pref_zq->ops->send_ep11_cprb(pref_zq, xcrb, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
@@ -509,6 +556,9 @@ static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 
 out_free:
 	kfree(targets);
+out:
+	trace_s390_zcrypt_rep(xcrb, func_code, rc,
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
 
@@ -520,11 +570,13 @@ static long zcrypt_rng(char *buffer)
 	unsigned int func_code;
 	struct ap_message ap_msg;
 	unsigned int domain;
-	int rc;
+	int qid = 0, rc = -ENODEV;
+
+	trace_s390_zcrypt_req(buffer, TP_HWRNGCPRB);
 
 	rc = get_rng_fc(&ap_msg, &func_code, &domain);
 	if (rc)
-		return rc;
+		goto out;
 
 	pref_zc = NULL;
 	pref_zq = NULL;
@@ -555,11 +607,16 @@ static long zcrypt_rng(char *buffer)
 	if (!pref_zq)
 		return -ENODEV;
 
+	qid = pref_zq->queue->qid;
 	rc = pref_zq->ops->rng(pref_zq, buffer, &ap_msg);
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, weight);
 	spin_unlock(&zcrypt_list_lock);
+
+out:
+	trace_s390_zcrypt_rep(buffer, func_code, rc,
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
 	return rc;
 }
 
