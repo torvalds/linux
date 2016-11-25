@@ -2250,6 +2250,11 @@ ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	args->num_dev = ff_layout_mirror_prepare_stats(args,
 			&ff_layout->generic_hdr, dev_count);
 	spin_unlock(&args->inode->i_lock);
+	if (!args->num_dev) {
+		kfree(args->devinfo);
+		args->devinfo = NULL;
+		return -ENOENT;
+	}
 
 	return 0;
 }
