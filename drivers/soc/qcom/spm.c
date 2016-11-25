@@ -116,7 +116,7 @@ static const struct spm_reg_data spm_reg_8064_cpu = {
 
 static DEFINE_PER_CPU(struct spm_driver_data *, cpu_spm_drv);
 
-typedef int (*idle_fn)(int);
+typedef int (*idle_fn)(void);
 static DEFINE_PER_CPU(idle_fn*, qcom_idle_ops);
 
 static inline void spm_register_write(struct spm_driver_data *drv,
@@ -179,10 +179,10 @@ static int qcom_pm_collapse(unsigned long int unused)
 	return -1;
 }
 
-static int qcom_cpu_spc(int cpu)
+static int qcom_cpu_spc(void)
 {
 	int ret;
-	struct spm_driver_data *drv = per_cpu(cpu_spm_drv, cpu);
+	struct spm_driver_data *drv = __this_cpu_read(cpu_spm_drv);
 
 	spm_set_low_power_mode(drv, PM_SLEEP_MODE_SPC);
 	ret = cpu_suspend(0, qcom_pm_collapse);
@@ -197,9 +197,9 @@ static int qcom_cpu_spc(int cpu)
 	return ret;
 }
 
-static int qcom_idle_enter(int cpu, unsigned long index)
+static int qcom_idle_enter(unsigned long index)
 {
-	return per_cpu(qcom_idle_ops, cpu)[index](cpu);
+	return __this_cpu_read(qcom_idle_ops)[index]();
 }
 
 static const struct of_device_id qcom_idle_state_match[] __initconst = {
