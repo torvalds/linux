@@ -23,7 +23,6 @@
 #include <linux/gpio.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
-#include <linux/amba/pl061.h>
 #include <linux/slab.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm.h>
@@ -38,6 +37,19 @@
 #define GPIOIC  0x41C
 
 #define PL061_GPIO_NR	8
+
+struct pl061_platform_data {
+	/* number of the first GPIO */
+	unsigned	gpio_base;
+
+	/* number of the first IRQ.
+	 * If the IRQ functionality in not desired this must be set to 0.
+	 */
+	unsigned	irq_base;
+
+	u8		directions;	/* startup directions, 1: out, 0: in */
+	u8		values;		/* startup values */
+};
 
 #ifdef CONFIG_PM
 struct pl061_context_save_regs {
