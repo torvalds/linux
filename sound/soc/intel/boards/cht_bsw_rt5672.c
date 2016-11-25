@@ -25,12 +25,14 @@
 #include <sound/jack.h>
 #include "../../codecs/rt5670.h"
 #include "../atom/sst-atom-controls.h"
+#include "../common/sst-acpi.h"
 
 /* The platform clock #3 outputs 19.2Mhz clock to codec as I2S MCLK */
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"rt5670-aif1"
 
 static struct snd_soc_jack cht_bsw_headset;
+static char cht_bsw_codec_name[16];
 
 /* Headset jack detection DAPM pins */
 static struct snd_soc_jack_pin cht_bsw_headset_pins[] = {
@@ -295,7 +297,7 @@ static int cht_suspend_pre(struct snd_soc_card *card)
 	struct snd_soc_codec *codec;
 
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+		if (!strcmp(codec->component.name, cht_bsw_codec_name)) {
 			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
 			rt5670_jack_suspend(codec);
 			break;
@@ -309,7 +311,7 @@ static int cht_resume_post(struct snd_soc_card *card)
 	struct snd_soc_codec *codec;
 
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+		if (!strcmp(codec->component.name, cht_bsw_codec_name)) {
 			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
 			rt5670_jack_resume(codec);
 			break;
@@ -335,9 +337,33 @@ static struct snd_soc_card snd_soc_card_cht = {
 	.resume_post = cht_resume_post,
 };
 
+#define RT5672_I2C_DEFAULT	"i2c-10EC5670:00"
+
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
+	struct sst_acpi_mach *mach = pdev->dev.platform_data;
+	const char *i2c_name;
+	int i;
+
+	strcpy(cht_bsw_codec_name, RT5672_I2C_DEFAULT);
+
+	/* fixup codec name based on HID */
+	if (mach) {
+		i2c_name = sst_acpi_find_name_from_hid(mach->id);
+		if (i2c_name) {
+			snprintf(cht_bsw_codec_name, sizeof(cht_bsw_codec_name),
+				 "i2c-%s", i2c_name);
+			for (i = 0; i < ARRAY_SIZE(cht_dailink); i++) {
+				if (!strcmp(cht_dailink[i].codec_name,
+					    RT5672_I2C_DEFAULT)) {
+					cht_dailink[i].codec_name =
+						cht_bsw_codec_name;
+					break;
+				}
+			}
+		}
+	}
 
 	/* register the soc card */
 	snd_soc_card_cht.dev = &pdev->dev;
