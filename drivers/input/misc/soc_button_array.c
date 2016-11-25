@@ -17,6 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 
 /*
@@ -92,7 +93,7 @@ soc_button_device_create(struct platform_device *pdev,
 			continue;
 
 		gpio = soc_button_lookup_gpio(&pdev->dev, info->acpi_index);
-		if (gpio < 0)
+		if (!gpio_is_valid(gpio))
 			continue;
 
 		gpio_keys[n_buttons].type = info->event_type;
