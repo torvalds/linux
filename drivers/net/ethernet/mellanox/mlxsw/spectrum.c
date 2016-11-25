@@ -2761,6 +2761,7 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_NO_MARK(IP2ME, TRAP_TO_CPU, false),
 	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU, false),
 	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_MARK(BGP_IPV4, TRAP_TO_CPU, false),
 };
 
 static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
