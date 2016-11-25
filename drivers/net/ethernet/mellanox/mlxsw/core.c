@@ -1392,6 +1392,73 @@ void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_event_listener_unregister);
 
+static int mlxsw_core_listener_register(struct mlxsw_core *mlxsw_core,
+					const struct mlxsw_listener *listener,
+					void *priv)
+{
+	if (listener->is_event)
+		return mlxsw_core_event_listener_register(mlxsw_core,
+						&listener->u.event_listener,
+						priv);
+	else
+		return mlxsw_core_rx_listener_register(mlxsw_core,
+						&listener->u.rx_listener,
+						priv);
+}
+
+static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
+				      const struct mlxsw_listener *listener,
+				      void *priv)
+{
+	if (listener->is_event)
+		mlxsw_core_event_listener_unregister(mlxsw_core,
+						     &listener->u.event_listener,
+						     priv);
+	else
+		mlxsw_core_rx_listener_unregister(mlxsw_core,
+						  &listener->u.rx_listener,
+						  priv);
+}
+
+int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_listener *listener, void *priv)
+{
+	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+	int err;
+
+	err = mlxsw_core_listener_register(mlxsw_core, listener, priv);
+	if (err)
+		return err;
+
+	mlxsw_reg_hpkt_pack(hpkt_pl, listener->action, listener->trap_id);
+	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+	if (err)
+		goto err_trap_set;
+
+	return 0;
+
+err_trap_set:
+	mlxsw_core_listener_unregister(mlxsw_core, listener, priv);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_core_trap_register);
+
+void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
+				const struct mlxsw_listener *listener,
+				void *priv)
+{
+	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+
+	if (!listener->is_event) {
+		mlxsw_reg_hpkt_pack(hpkt_pl, listener->unreg_action,
+				    listener->trap_id);
+		mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+	}
+
+	mlxsw_core_listener_unregister(mlxsw_core, listener, priv);
+}
+EXPORT_SYMBOL(mlxsw_core_trap_unregister);
+
 static u64 mlxsw_core_tid_get(struct mlxsw_core *mlxsw_core)
 {
 	return atomic64_inc_return(&mlxsw_core->emad.tid);
