@@ -88,7 +88,7 @@ static long cec_adap_g_caps(struct cec_adapter *adap,
 {
 	struct cec_caps caps = {};
 
-	strlcpy(caps.driver, adap->devnode.parent->driver->name,
+	strlcpy(caps.driver, adap->devnode.dev.parent->driver->name,
 		sizeof(caps.driver));
 	strlcpy(caps.name, adap->name, sizeof(caps.name));
 	caps.available_log_addrs = adap->available_log_addrs;
