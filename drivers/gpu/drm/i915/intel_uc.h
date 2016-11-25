@@ -142,7 +142,7 @@ struct intel_guc {
 	struct intel_guc_fw guc_fw;
 	struct intel_guc_log log;
 
-	/* GuC2Host interrupt related state */
+	/* intel_guc_recv interrupt related state */
 	bool interrupts_enabled;
 
 	struct i915_vma *ads_vma;
@@ -164,8 +164,8 @@ struct intel_guc {
 	uint64_t submissions[I915_NUM_ENGINES];
 	uint32_t last_seqno[I915_NUM_ENGINES];
 
-	/* To serialize the Host2GuC actions */
-	struct mutex action_lock;
+	/* To serialize the intel_guc_send actions */
+	struct mutex send_mutex;
 };
 
 /* intel_guc_loader.c */

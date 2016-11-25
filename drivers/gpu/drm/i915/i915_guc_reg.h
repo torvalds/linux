@@ -100,8 +100,8 @@
 				 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA	| \
 				 GUC_ENABLE_MIA_CLOCK_GATING)
 
-#define HOST2GUC_INTERRUPT		_MMIO(0xc4c8)
-#define   HOST2GUC_TRIGGER		  (1<<0)
+#define GUC_SEND_INTERRUPT		_MMIO(0xc4c8)
+#define   GUC_SEND_TRIGGER		  (1<<0)
 
 #define GEN8_DRBREGL(x)			_MMIO(0x1000 + (x) * 8)
 #define   GEN8_DRB_VALID		  (1<<0)

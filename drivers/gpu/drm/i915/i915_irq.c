@@ -1683,8 +1683,8 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 		u32 msg, flush;
 
 		msg = I915_READ(SOFT_SCRATCH(15));
-		flush = msg & (GUC2HOST_MSG_CRASH_DUMP_POSTED |
-			       GUC2HOST_MSG_FLUSH_LOG_BUFFER);
+		flush = msg & (INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED |
+			       INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER);
 		if (flush) {
 			/* Clear the message bits that are handled */
 			I915_WRITE(SOFT_SCRATCH(15), msg & ~flush);
