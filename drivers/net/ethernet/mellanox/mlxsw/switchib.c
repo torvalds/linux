@@ -447,6 +447,14 @@ static void mlxsw_sib_traps_fini(struct mlxsw_sib *mlxsw_sib)
 	}
 }
 
+static int mlxsw_sib_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
+{
+	char htgt_pl[MLXSW_REG_HTGT_LEN];
+
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_EMAD);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+}
+
 static int mlxsw_sib_init(struct mlxsw_core *mlxsw_core,
 			  const struct mlxsw_bus_info *mlxsw_bus_info)
 {
@@ -504,6 +512,7 @@ static struct mlxsw_driver mlxsw_sib_driver = {
 	.priv_size		= sizeof(struct mlxsw_sib),
 	.init			= mlxsw_sib_init,
 	.fini			= mlxsw_sib_fini,
+	.basic_trap_groups_set	= mlxsw_sib_basic_trap_groups_set,
 	.txhdr_construct	= mlxsw_sib_tx_v1_hdr_construct,
 	.txhdr_len		= MLXSW_TXHDR_LEN,
 	.profile		= &mlxsw_sib_config_profile,
@@ -514,6 +523,7 @@ static struct mlxsw_driver mlxsw_sib2_driver = {
 	.priv_size		= sizeof(struct mlxsw_sib),
 	.init			= mlxsw_sib_init,
 	.fini			= mlxsw_sib_fini,
+	.basic_trap_groups_set	= mlxsw_sib_basic_trap_groups_set,
 	.txhdr_construct	= mlxsw_sib_tx_v1_hdr_construct,
 	.txhdr_len		= MLXSW_TXHDR_LEN,
 	.profile		= &mlxsw_sib_config_profile,
