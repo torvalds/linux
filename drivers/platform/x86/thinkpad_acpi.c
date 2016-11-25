@@ -7771,7 +7771,7 @@ static struct ibm_struct volume_driver_data = {
 
 #define alsa_card NULL
 
-static void inline volume_alsa_notify_change(void)
+static inline void volume_alsa_notify_change(void)
 {
 }
 
