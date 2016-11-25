@@ -101,6 +101,20 @@ struct mlxsw_listener {
 	bool is_event;
 };
 
+#define MLXSW_RXL(_func, _trap_id, _action, _unreg_action)		\
+	{								\
+		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
+		.u.rx_listener =					\
+		{							\
+			.func = _func,					\
+			.local_port = MLXSW_PORT_DONT_CARE,		\
+			.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
+		},							\
+		.action = MLXSW_REG_HPKT_ACTION_##_action,		\
+		.unreg_action = MLXSW_REG_HPKT_ACTION_##_unreg_action,	\
+		.is_event = false,					\
+	}
+
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 				    const struct mlxsw_rx_listener *rxl,
 				    void *priv);
