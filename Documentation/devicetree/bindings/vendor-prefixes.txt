@@ -197,6 +197,7 @@ nuvoton	Nuvoton Technology Corporation
 nvidia	NVIDIA
 nxp	NXP Semiconductors
 okaya	Okaya Electric America, Inc.
+oki	Oki Electric Industry Co., Ltd.
 olimex	OLIMEX Ltd.
 onion	Onion Corporation
 onnn	ON Semiconductor Corp.
