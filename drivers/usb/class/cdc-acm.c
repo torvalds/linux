@@ -877,8 +877,6 @@ static int wait_serial_change(struct acm *acm, unsigned long arg)
 	DECLARE_WAITQUEUE(wait, current);
 	struct async_icount old, new;
 
-	if (arg & (TIOCM_DSR | TIOCM_RI | TIOCM_CD ))
-		return -EINVAL;
 	do {
 		spin_lock_irq(&acm->read_lock);
 		old = acm->oldcount;
