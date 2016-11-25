@@ -103,7 +103,8 @@ struct mlxsw_listener {
 	bool is_event;
 };
 
-#define MLXSW_RXL(_func, _trap_id, _action, _is_ctrl, _unreg_action)	\
+#define MLXSW_RXL(_func, _trap_id, _action, _is_ctrl, _trap_group,	\
+		  _unreg_action)					\
 	{								\
 		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
 		.u.rx_listener =					\
@@ -114,23 +115,23 @@ struct mlxsw_listener {
 		},							\
 		.action = MLXSW_REG_HPKT_ACTION_##_action,		\
 		.unreg_action = MLXSW_REG_HPKT_ACTION_##_unreg_action,	\
-		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_RX,		\
+		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
 		.is_ctrl = _is_ctrl,					\
 		.is_event = false,					\
 	}
 
-#define MLXSW_EVENTL(_func, _trap_id)				\
-	{							\
-		.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
-		.u.event_listener =				\
-		{						\
-			.func = _func,				\
-			.trap_id = MLXSW_TRAP_ID_##_trap_id,	\
-		},						\
-		.action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,	\
-		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_EMAD,	\
-		.is_ctrl = false,				\
-		.is_event = true,				\
+#define MLXSW_EVENTL(_func, _trap_id, _trap_group)			\
+	{								\
+		.trap_id = MLXSW_TRAP_ID_##_trap_id,			\
+		.u.event_listener =					\
+		{							\
+			.func = _func,					\
+			.trap_id = MLXSW_TRAP_ID_##_trap_id,		\
+		},							\
+		.action = MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,		\
+		.trap_group = MLXSW_REG_HTGT_TRAP_GROUP_##_trap_group,	\
+		.is_ctrl = false,					\
+		.is_event = true,					\
 	}
 
 int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,

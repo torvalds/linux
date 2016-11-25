@@ -1450,10 +1450,10 @@ err_port_module_info_get:
 
 #define MLXSW_SX_RXL(_trap_id)						\
 	MLXSW_RXL(mlxsw_sx_rx_listener_func, _trap_id, TRAP_TO_CPU,	\
-		  false, FORWARD)
+		  false, RX, FORWARD)
 
 static const struct mlxsw_listener mlxsw_sx_listener[] = {
-	MLXSW_EVENTL(mlxsw_sx_pude_event_func, PUDE),
+	MLXSW_EVENTL(mlxsw_sx_pude_event_func, PUDE, EMAD),
 	MLXSW_SX_RXL(FDB_MC),
 	MLXSW_SX_RXL(STP),
 	MLXSW_SX_RXL(LACP),

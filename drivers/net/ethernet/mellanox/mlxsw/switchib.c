@@ -409,7 +409,7 @@ static void mlxsw_sib_pude_event_func(const struct mlxsw_reg_info *reg,
 }
 
 static const struct mlxsw_listener mlxsw_sib_listener[] = {
-	MLXSW_EVENTL(mlxsw_sib_pude_event_func, PUDE),
+	MLXSW_EVENTL(mlxsw_sib_pude_event_func, PUDE, EMAD),
 };
 
 static int mlxsw_sib_taps_init(struct mlxsw_sib *mlxsw_sib)

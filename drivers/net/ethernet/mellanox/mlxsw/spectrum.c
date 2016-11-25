@@ -2731,16 +2731,16 @@ static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u8 local_port,
 }
 
 #define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _is_ctrl)		\
-	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action, \
-		  _is_ctrl, DISCARD)
+	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
+		  _is_ctrl, RX, DISCARD)
 
 #define MLXSW_SP_RXL_MARK(_trap_id, _action, _is_ctrl)			\
 	MLXSW_RXL(mlxsw_sp_rx_listener_mark_func, _trap_id, _action,	\
-		  _is_ctrl, DISCARD)
+		  _is_ctrl, RX, DISCARD)
 
 static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* Events */
-	MLXSW_EVENTL(mlxsw_sp_pude_event_func, PUDE),
+	MLXSW_EVENTL(mlxsw_sp_pude_event_func, PUDE, EMAD),
 	/* L2 traps */
 	MLXSW_SP_RXL_NO_MARK(STP, TRAP_TO_CPU, true),
 	MLXSW_SP_RXL_NO_MARK(LACP, TRAP_TO_CPU, true),
