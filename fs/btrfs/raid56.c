@@ -1144,10 +1144,10 @@ static void validate_rbio_for_rmw(struct btrfs_raid_bio *rbio)
 static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 {
 	struct bio *bio;
+	struct bio_vec *bvec;
 	u64 start;
 	unsigned long stripe_offset;
 	unsigned long page_index;
-	struct page *p;
 	int i;
 
 	spin_lock_irq(&rbio->bio_list_lock);
@@ -1156,10 +1156,8 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 		stripe_offset = start - rbio->bbio->raid_map[0];
 		page_index = stripe_offset >> PAGE_SHIFT;
 
-		for (i = 0; i < bio->bi_vcnt; i++) {
-			p = bio->bi_io_vec[i].bv_page;
-			rbio->bio_pages[page_index + i] = p;
-		}
+		bio_for_each_segment_all(bvec, bio, i)
+			rbio->bio_pages[page_index + i] = bvec->bv_page;
 	}
 	spin_unlock_irq(&rbio->bio_list_lock);
 }
@@ -1433,13 +1431,11 @@ static int fail_bio_stripe(struct btrfs_raid_bio *rbio,
  */
 static void set_bio_pages_uptodate(struct bio *bio)
 {
+	struct bio_vec *bvec;
 	int i;
-	struct page *p;
 
-	for (i = 0; i < bio->bi_vcnt; i++) {
-		p = bio->bi_io_vec[i].bv_page;
-		SetPageUptodate(p);
-	}
+	bio_for_each_segment_all(bvec, bio, i)
+		SetPageUptodate(bvec->bv_page);
 }
 
 /*
