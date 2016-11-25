@@ -132,14 +132,16 @@ struct symbol_conf {
 			*pid_list_str,
 			*tid_list_str,
 			*sym_list_str,
-			*col_width_list_str;
+			*col_width_list_str,
+			*bt_stop_list_str;
        struct strlist	*dso_list,
 			*comm_list,
 			*sym_list,
 			*dso_from_list,
 			*dso_to_list,
 			*sym_from_list,
-			*sym_to_list;
+			*sym_to_list,
+			*bt_stop_list;
 	struct intlist	*pid_list,
 			*tid_list;
 	const char	*symfs;

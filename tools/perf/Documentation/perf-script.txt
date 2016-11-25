@@ -212,6 +212,9 @@ OPTIONS
 --hide-call-graph::
         When printing symbols do not display call chain.
 
+--stop-bt::
+        Stop display of callgraph at these symbols
+
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
 	be provided as a comma-separated list with no space: 0,1. Ranges of
