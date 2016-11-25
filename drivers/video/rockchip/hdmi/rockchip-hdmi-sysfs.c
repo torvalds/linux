@@ -237,10 +237,15 @@ static int hdmi_set_color(struct rk_display_device *device,
 	if (!strncmp(buf, "mode", 4)) {
 		if (sscanf(buf, "mode=%d", &value) == -1)
 			return -1;
-		pr_debug("current mode is %d input mode is %d\n",
+		pr_debug("current mode is %d input mode is %x\n",
 			 hdmi->colormode, value);
-		if (hdmi->colormode != value)
-			hdmi->colormode = value;
+		if (hdmi->colormode != (value & 0xff))
+			hdmi->colormode = value & 0xff;
+		if (hdmi->colordepth != ((value >> 8) & 0xff)) {
+			pr_debug("current depth is %d input mode is %d\n",
+				 hdmi->colordepth, ((value >> 8) & 0xff));
+			hdmi->colordepth = ((value >> 8) & 0xff);
+		}
 	} else if (!strncmp(buf, "depth", 5)) {
 		if (sscanf(buf, "depth=%d", &value) == -1)
 			return -1;

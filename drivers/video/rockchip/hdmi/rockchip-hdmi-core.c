@@ -174,8 +174,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 		}
 		if ((hdmi->property->feature & SUPPORT_DEEP_10BIT) &&
 		    (deepcolor & HDMI_DEEP_COLOR_30BITS) &&
-		    (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
-		     hdmi->colordepth == 10))
+		     hdmi->colordepth == 10)
 			video->color_output_depth = 10;
 	}
 	pr_info("hdmi output corlor mode is %d\n", video->color_output);
