@@ -68,7 +68,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		/*
                  * 8 GB of plug-in RAM modules by default.The amount
@@ -127,27 +127,6 @@
 			};
 		};
 
-		pcie-controller {
-			status = "okay";
-
-			/*
-			 * The 3 slots are physically present as
-			 * standard PCIe slots on the board.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-			pcie@9,0 {
-				/* Port 2, Lane 0 */
-				status = "okay";
-			};
-			pcie@10,0 {
-				/* Port 3, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
@@ -173,24 +152,6 @@
 			sata@a0000 {
 				nr-ports = <2>;
 				status = "okay";
-			};
-
-			mdio {
-				phy0: ethernet-phy@0 {
-					reg = <16>;
-				};
-
-				phy1: ethernet-phy@1 {
-					reg = <17>;
-				};
-
-				phy2: ethernet-phy@2 {
-					reg = <18>;
-				};
-
-				phy3: ethernet-phy@3 {
-					reg = <19>;
-				};
 			};
 
 			ethernet@70000 {
@@ -248,6 +209,45 @@
 		bm-bppi {
 			status = "okay";
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/*
+	 * The 3 slots are physically present as
+	 * standard PCIe slots on the board.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+	pcie@9,0 {
+		/* Port 2, Lane 0 */
+		status = "okay";
+	};
+	pcie@10,0 {
+		/* Port 3, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 {
+		reg = <16>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <17>;
+	};
+
+	phy2: ethernet-phy@2 {
+		reg = <18>;
+	};
+
+	phy3: ethernet-phy@3 {
+		reg = <19>;
 	};
 };
 
