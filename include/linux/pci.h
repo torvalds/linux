@@ -449,6 +449,8 @@ static inline struct pci_host_bridge *pci_host_bridge_from_priv(void *priv)
 	return container_of(priv, struct pci_host_bridge, private);
 }
 
+struct pci_host_bridge *pci_alloc_host_bridge(size_t priv);
+int pci_register_host_bridge(struct pci_host_bridge *bridge);
 struct pci_host_bridge *pci_find_host_bridge(struct pci_bus *bus);
 
 void pci_set_host_bridge_release(struct pci_host_bridge *bridge,
