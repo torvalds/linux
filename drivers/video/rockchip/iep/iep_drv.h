@@ -5,12 +5,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 
-#if defined(CONFIG_RK_IOMMU) && defined(CONFIG_ION_ROCKCHIP)
-#define CONFIG_IEP_IOMMU
-#endif
-
-#ifdef CONFIG_IEP_IOMMU
-#include <linux/rockchip_ion.h>
+#if defined(CONFIG_RK_IOMMU)
 #include <linux/rockchip-iovmm.h>
 #include <linux/dma-buf.h>
 #endif
@@ -28,11 +23,6 @@
 #define IEP_CMD_REG_BASE    0x8
 #define IEP_ADD_REG_BASE    0x20
 #define IEP_RAW_REG_BASE    0x16
-
-#if defined(CONFIG_IEP_MMU)
-#define IEP_MMU_REG_BASE    0x200
-#define IEP_MMU_REG_LEN     0xA
-#endif
 
 struct iep_parameter_req {
 	struct iep_img src;
@@ -118,12 +108,6 @@ typedef struct iep_session {
 	pid_t               pid;
 	atomic_t            task_running;
 	atomic_t            num_done;
-
-#if defined(CONFIG_IEP_MMU)
-	uint32_t *dte_table;
-	struct list_head    pte_list;
-	struct task_struct *tsk;
-#endif
 } iep_session;
 
 typedef struct iep_service_info {
@@ -142,10 +126,10 @@ typedef struct iep_service_info {
 
 	struct mutex	    mutex;  // mutex
 
-#ifdef CONFIG_IEP_IOMMU
-	struct ion_client *ion_client;
-#endif
+	struct iep_iommu_info *iommu_info;
+
 	struct device *iommu_dev;
+	u32 alloc_type;
 } iep_service_info;
 
 struct iep_reg {
@@ -162,21 +146,17 @@ struct iep_reg {
 	int                 vir_height;
 	int                 layer;
 	unsigned int        format;
-#if defined(CONFIG_IEP_IOMMU)
 	struct list_head    mem_region_list;
-#endif
 };
 
-#if defined(CONFIG_IEP_IOMMU)
 struct iep_mem_region {
 	struct list_head srv_lnk;
 	struct list_head reg_lnk;
 	struct list_head session_lnk;
 	unsigned long iova;              /* virtual address for iommu */
 	unsigned long len;
-	struct ion_handle *hdl;
+	int hdl;
 };
-#endif
 
 #endif
 

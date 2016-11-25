@@ -16,33 +16,6 @@ struct iep_status {
 	uint32_t voi_sts     : 1;
 };
 
-#if defined(CONFIG_IEP_MMU)
-struct iep_mmu_status {
-	uint32_t paging_enabled         : 1;
-	uint32_t page_fault_active      : 1;
-	uint32_t stall_active           : 1;
-	uint32_t idle                   : 1;
-	uint32_t replay_buffer_empty    : 1;
-	uint32_t page_fault_is_write    : 1;
-	uint32_t page_fault_bus_id      : 5;
-};
-
-struct iep_mmu_int_status {
-	uint32_t page_fault     : 1;
-	uint32_t read_bus_error : 1;
-};
-
-enum iep_mmu_cmd {
-	MMU_ENABLE_PAGING,
-	MMU_DISABLE_PAGING,
-	MMU_ENABLE_STALL,
-	MMU_DISABLE_STALL,
-	MMU_ZAP_CACHE,
-	MMU_PAGE_FAULT_DONE,
-	MMU_FORCE_RESET
-};
-#endif
-
 #define      rIEP_CONFIG0      		         (IEP_BASE+IEP_CONFIG0)
 #define      rIEP_CONFIG1      		         (IEP_BASE+IEP_CONFIG1)
 
@@ -128,20 +101,6 @@ enum iep_mmu_cmd {
 #define      RAW_rIEP_ENH_RGB_CNFG           (IEP_BASE+RAW_IEP_ENH_RGB_CNFG)
 
 #define      rIEP_CG_TAB_ADDR                 (IEP_BASE+0x0100)
-
-#if defined(CONFIG_IEP_MMU)
-#define      rIEP_MMU_BASE                    0x0800
-#define      rIEP_MMU_DTE_ADDR                (IEP_MMU_BASE+0x00)
-#define      rIEP_MMU_STATUS                  (IEP_MMU_BASE+0x04)
-#define      rIEP_MMU_CMD                     (IEP_MMU_BASE+0x08)
-#define      rIEP_MMU_PAGE_FAULT_ADDR         (IEP_MMU_BASE+0x0c)
-#define      rIEP_MMU_ZAP_ONE_LINE            (IEP_MMU_BASE+0x10)
-#define      rIEP_MMU_INT_RAWSTAT             (IEP_MMU_BASE+0x14)
-#define      rIEP_MMU_INT_CLEAR               (IEP_MMU_BASE+0x18)
-#define      rIEP_MMU_INT_MASK                (IEP_MMU_BASE+0x1c)
-#define      rIEP_MMU_INT_STATUS              (IEP_MMU_BASE+0x20)
-#define      rIEP_MMU_AUTO_GATING             (IEP_MMU_BASE+0x24)
-#endif
 
 /*-----------------------------------------------------------------
 //reg bit operation definition
@@ -278,35 +237,6 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_MTN_TAB7_2_Z(x)      (((x)&0x7f ) <<  16 )
 #define     IEP_REGB_DIL_MTN_TAB7_3_Z(x)      (((x)&0x7f ) <<  24 )
 
-#if defined(CONFIG_IEP_MMU)
-/*mmu*/
-#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_Z(x)              (((x)&0x01) << 0)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_ACTIVE_Z(x)          (((x)&0x01) << 1)
-#define     IEP_REGB_MMU_STATUS_STALL_ACTIVE_Z(x)               (((x)&0x01) << 2)
-#define     IEP_REGB_MMU_STATUS_IDLE_Z(x)                       (((x)&0x01) << 3)
-#define     IEP_REGB_MMU_STATUS_REPLAY_BUFFER_EMPTY_Z(x)        (((x)&0x01) << 4)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_IS_WRITE_Z(x)        (((x)&0x01) << 5)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_BUS_ID_Z(x)          (((x)&0x1F) << 6)
-
-#define     IEP_REGB_MMU_CMD_Z(x)                               (((x)&0x07) << 0)
-
-#define     IEP_REGB_MMU_ZAP_ONE_LINE_Z(x)                      (((x)&0x01) << 0)
-
-#define     IEP_REGB_MMU_INT_RAWSTAT_PAGE_FAULT_Z(x)            (((x)&0x01) << 0)
-#define     IEP_REGB_MMU_INT_RAWSTAT_READ_BUS_ERROR_Z(x)        (((x)&0x01) << 1)
-
-#define     IEP_REGB_MMU_INT_CLEAR_PAGE_FAULT_CLEAR_Z(x)        (((x)&0x01) << 0)
-#define     IEP_REGB_MMU_INT_CLEAR_READ_BUS_ERROR_CLEAR_Z(x)    (((x)&0x01) << 1)
-
-#define     IEP_REGB_MMU_INT_MASK_PAGE_FAULT_INT_EN_Z(x)        (((x)&0x01) << 0)
-#define     IEP_REGB_MMU_INT_MASK_READ_BUS_ERROR_INT_EN_Z(x)    (((x)&0x01) << 1)
-
-#define     IEP_REGB_MMU_INT_STATUS_PAGE_FAULT_Z(x)             (((x)&0x01) << 0)
-#define     IEP_REGB_MMU_INT_STATUS_READ_BUS_ERROR_Z(x)         (((x)&0x01) << 1)
-
-#define     IEP_REGB_MMU_AUTO_GATING_Z(x)                       (((x)&0x01) << 0)
-#endif
-
 /*iep_config0*/
 #define     IEP_REGB_V_REVERSE_DISP_Y      (0x1  << 31 )
 #define     IEP_REGB_H_REVERSE_DISP_Y      (0x1  << 30 )
@@ -438,44 +368,6 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_MTN_TAB7_1_Y      (0x7f  <<  8  )
 #define     IEP_REGB_DIL_MTN_TAB7_2_Y      (0x7f  <<  16 )
 #define     IEP_REGB_DIL_MTN_TAB7_3_Y      (0x7f  <<  24 )
-
-#if defined(CONFIG_IEP_MMU)
-/*mmu*/
-#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_Y              (0x01 << 0)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_ACTIVE_Y          (0x01 << 1)
-#define     IEP_REGB_MMU_STATUS_STALL_ACTIVE_Y               (0x01 << 2)
-#define     IEP_REGB_MMU_STATUS_IDLE_Y                       (0x01 << 3)
-#define     IEP_REGB_MMU_STATUS_REPLAY_BUFFER_EMPTY_Y        (0x01 << 4)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_IS_WRITE_Y        (0x01 << 5)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_BUS_ID_Y          (0x1F << 6)
-
-#define     IEP_REGB_MMU_CMD_Y                               (0x07 << 0)
-
-#define     IEP_REGB_MMU_ZAP_ONE_LINE_Y                      (0x01 << 0)
-
-#define     IEP_REGB_MMU_INT_RAWSTAT_PAGE_FAULT_Y            (0x01 << 0)
-#define     IEP_REGB_MMU_INT_RAWSTAT_READ_BUS_ERROR_Y        (0x01 << 1)
-
-#define     IEP_REGB_MMU_INT_CLEAR_PAGE_FAULT_CLEAR_Y        (0x01 << 0)
-#define     IEP_REGB_MMU_INT_CLEAR_READ_BUS_ERROR_CLEAR_Y    (0x01 << 1)
-
-#define     IEP_REGB_MMU_INT_MASK_PAGE_FAULT_INT_EN_Y        (0x01 << 0)
-#define     IEP_REGB_MMU_INT_MASK_READ_BUS_ERROR_INT_EN_Y    (0x01 << 1)
-
-#define     IEP_REGB_MMU_INT_STATUS_PAGE_FAULT_Y             (0x01 << 0)
-#define     IEP_REGB_MMU_INT_STATUS_READ_BUS_ERROR_Y         (0x01 << 1)
-
-#define     IEP_REGB_MMU_AUTO_GATING_Y                       (0x01 << 0)
-
-/*offset*/
-#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_F              (0)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_ACTIVE_F          (1)
-#define     IEP_REGB_MMU_STATUS_STALL_ACTIVE_F               (2)
-#define     IEP_REGB_MMU_STATUS_IDLE_F                       (3)
-#define     IEP_REGB_MMU_STATUS_REPLAY_BUFFER_EMPTY_F        (4)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_IS_WRITE_F        (5)
-#define     IEP_REGB_MMU_STATUS_PAGE_FAULT_BUS_ID_F          (6)
-#endif
 
 /*-----------------------------------------------------------------
 MaskRegBits32(addr, y, z),Register configure
@@ -610,42 +502,6 @@ MaskRegBits32(addr, y, z),Register configure
 
 #define     IEP_REGB_STATUS(base)               ReadReg32(base, rIEP_STATUS)
 
-#if defined(CONFIG_IEP_MMU)
-/*mmu*/
-#define     IEP_REGB_MMU_DTE_ADDR(base, x)                          WriteReg32(base, rIEP_MMU_DTE_ADDR, x)
-#define     IEP_REGB_MMU_STATUS(base)                               ReadReg32(base, rIEP_MMU_STATUS)
-
-#define     IEP_REGB_MMU_CMD(base, x)                               MaskRegBits32(base, rIEP_MMU_CMD, IEP_REGB_MMU_CMD_Y, IEP_REGB_MMU_CMD_Z(x))
-
-#define     IEP_REGB_MMU_PAGE_FAULT_ADDR(base)                      ReadReg32(base, rIEP_MMU_PAGE_FAULT_ADDR)
-
-#define     IEP_REGB_MMU_ZAP_ONE_LINE(base, x)                      MaskRegBits32(base, rIEP_MMU_ZAP_ONE_LINE, \
-                                                                    IEP_REGB_MMU_ZAP_ONE_LINE_Y, \
-                                                                    IEP_REGB_MMU_ZAP_ONE_LINE_Z(x))
-
-#define     IEP_REGB_MMU_INT_RAWSTAT(base)                          ReadReg32(base, rIEP_MMU_INT_RAWSTAT)
-
-#define     IEP_REGB_MMU_INT_CLEAR_PAGE_FAULT_CLEAR(base, x)        MaskRegBits32(base, rIEP_MMU_INT_CLEAR, \
-                                                                    IEP_REGB_MMU_INT_CLEAR_PAGE_FAULT_CLEAR_Y, \
-                                                                    IEP_REGB_MMU_INT_CLEAR_PAGE_FAULT_CLEAR_Z(x))
-#define     IEP_REGB_MMU_INT_CLEAR_READ_BUS_ERROR_CLEAR(base, x)    MaskRegBits32(base, rIEP_MMU_INT_CLEAR, \
-                                                                    IEP_REGB_MMU_INT_CLEAR_READ_BUS_ERROR_CLEAR_Y, \
-                                                                    IEP_REGB_MMU_INT_CLEAR_READ_BUS_ERROR_CLEAR_Z(x))
-
-#define     IEP_REGB_MMU_INT_MASK_PAGE_FAULT_INT_EN(base, x)        MaskRegBits32(base, rIEP_MMU_INT_MASK, \
-                                                                    IEP_REGB_MMU_INT_MASK_PAGE_FAULT_INT_EN_Y, \
-                                                                    IEP_REGB_MMU_INT_MASK_PAGE_FAULT_INT_EN_Z(x))
-#define     IEP_REGB_MMU_INT_MASK_READ_BUS_ERROR_INT_EN(base, x)    MaskRegBits32(base, rIEP_MMU_INT_MASK, \
-                                                                    IEP_REGB_MMU_INT_MASK_READ_BUS_ERROR_INT_EN_Y, \
-                                                                    IEP_REGB_MMU_INT_MASK_PAGE_FAULT_INT_EN_Z(x))
-
-#define     IEP_REGB_MMU_INT_STATUS(base)                           ReadReg32(base, rIEP_MMU_INT_STATUS)
-
-#define     IEP_REGB_MMU_AUTO_GATING(base, x)                       MaskRegBits32(base, rIEP_MMU_AUTO_GATING, \
-                                                                    IEP_REGB_MMU_AUTO_GATING_Y, \
-                                                                    IEP_REGB_MMU_AUTO_GATING_Z(x))
-#endif
-
 void iep_config_lcdc_path(struct IEP_MSG *iep_msg);
 
 /* system control, directly operating the device registers.*/
@@ -657,15 +513,6 @@ int iep_probe_int(void *base);
 void iep_config_frame_end_int_clr(void *base);
 void iep_config_frame_end_int_en(void *base);
 struct iep_status iep_get_status(void *base);
-#if defined(CONFIG_IEP_MMU)
-struct iep_mmu_int_status iep_probe_mmu_int_status(void *base);
-void iep_config_mmu_page_fault_int_en(void *base, bool en);
-void iep_config_mmu_page_fault_int_clr(void *base);
-void iep_config_mmu_read_bus_error_int_clr(void *base);
-uint32_t iep_probe_mmu_page_fault_addr(void *base);
-void iep_config_mmu_cmd(void *base, enum iep_mmu_cmd cmd);
-void iep_config_mmu_dte_addr(void *base, uint32_t addr);
-#endif
 int iep_get_deinterlace_mode(void *base);
 void iep_set_deinterlace_mode(int mode, void *base);
 void iep_switch_input_address(void *base);

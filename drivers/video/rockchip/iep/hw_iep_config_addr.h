@@ -90,20 +90,6 @@
 #define      RAW_IEP_ENH_YUV_CNFG_2        0x0078
 #define      RAW_IEP_ENH_RGB_CNFG          0x007C
 
-#if defined(CONFIG_IEP_MMU)
-#define      IEP_MMU_BASE                  0x0800
-#define      IEP_MMU_DTE_ADDR              (IEP_MMU_BASE+0x00)
-#define      IEP_MMU_STATUS                (IEP_MMU_BASE+0x04)
-#define      IEP_MMU_CMD                   (IEP_MMU_BASE+0x08)
-#define      IEP_MMU_PAGE_FAULT_ADDR       (IEP_MMU_BASE+0x0c)
-#define      IEP_MMU_ZAP_ONE_LINE          (IEP_MMU_BASE+0x10)
-#define      IEP_MMU_INT_RAWSTAT           (IEP_MMU_BASE+0x14)
-#define      IEP_MMU_INT_CLEAR             (IEP_MMU_BASE+0x18)
-#define      IEP_MMU_INT_MASK              (IEP_MMU_BASE+0x1c)
-#define      IEP_MMU_INT_STATUS            (IEP_MMU_BASE+0x20)
-#define      IEP_MMU_AUTO_GATING           (IEP_MMU_BASE+0x24)
-#endif
-
 #define ReadReg32(base, raddr)	        (__raw_readl(base + raddr))
 #define WriteReg32(base, waddr, value)	(__raw_writel(value, base + waddr))
 #define ConfRegBits32(base, raddr, waddr, position, value)           WriteReg32(base, waddr, (ReadReg32(base, waddr)&~(position))|(value))

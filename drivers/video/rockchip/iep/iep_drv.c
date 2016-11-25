@@ -35,10 +35,8 @@
 #include <linux/rockchip/cru.h>
 #include <asm/cacheflush.h>
 #include "iep_drv.h"
-#if defined(CONFIG_IEP_MMU)
-#include "iep_mmu.h"
-#endif
 #include "hw_iep_reg.h"
+#include "iep_iommu_ops.h"
 
 #define IEP_MAJOR		255
 #define IEP_CLK_ENABLE
@@ -88,18 +86,20 @@ iep_service_info iep_service;
 
 static void iep_reg_deinit(struct iep_reg *reg)
 {
-#if defined(CONFIG_IEP_IOMMU)
 	struct iep_mem_region *mem_region = NULL, *n;
 	/* release memory region attach to this registers table.*/
 	if (iep_service.iommu_dev) {
-		list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
-			/*ion_unmap_iommu(iep_service.iommu_dev, iep_service.ion_client, mem_region->hdl);*/
-			ion_free(iep_service.ion_client, mem_region->hdl);
+		list_for_each_entry_safe(mem_region, n, &reg->mem_region_list,
+					 reg_lnk) {
+			iep_iommu_unmap_iommu(iep_service.iommu_info,
+					      reg->session, mem_region->hdl);
+			iep_iommu_free(iep_service.iommu_info,
+				       reg->session, mem_region->hdl);
 			list_del_init(&mem_region->reg_lnk);
 			kfree(mem_region);
 		}
 	}
-#endif
+
 	list_del_init(&reg->session_link);
 	list_del_init(&reg->status_link);
 	kfree(reg);
@@ -132,7 +132,8 @@ static void iep_del_running_list(void)
 
 	while (!list_empty(&iep_service.running)) {
 		BUG_ON(cnt != 0);
-		reg = list_entry(iep_service.running.next, struct iep_reg, status_link);
+		reg = list_entry(iep_service.running.next,
+				 struct iep_reg, status_link);
 
 		atomic_dec(&reg->session->task_running);
 		atomic_dec(&iep_service.total_running);
@@ -234,11 +235,7 @@ static void iep_power_on(void)
 
 	wake_lock(&iep_drvdata1->wake_lock);
 
-#if defined(CONFIG_IEP_IOMMU)
-	if (iep_service.iommu_dev) {
-		rockchip_iovmm_activate(iep_service.iommu_dev);
-	}
-#endif
+	iep_iommu_attach(iep_service.iommu_info);
 
 	iep_service.enable = true;
 }
@@ -261,11 +258,9 @@ static void iep_power_off(void)
 		iep_dump();
 	}
 
-#if defined(CONFIG_IEP_IOMMU)
 	if (iep_service.iommu_dev) {
-		rockchip_iovmm_deactivate(iep_service.iommu_dev);
+		iep_iommu_detach(iep_service.iommu_info);
 	}
-#endif
 
 #ifdef IEP_CLK_ENABLE
 	clk_disable_unprepare(iep_drvdata1->aclk_iep);
@@ -281,9 +276,11 @@ static void iep_power_off(void)
 
 static void iep_power_off_work(struct work_struct *work)
 {
-	if (mutex_trylock(&iep_service.lock) && !iep_drvdata1->dpi_mode) {
-		IEP_INFO("iep dpi mode inactivity\n");
-		iep_power_off();
+	if (mutex_trylock(&iep_service.lock)) {
+		if (!iep_drvdata1->dpi_mode) {
+			IEP_INFO("iep dpi mode inactivity\n");
+			iep_power_off();
+		}
 		mutex_unlock(&iep_service.lock);
 	} else {
 		/* Come back later if the device is busy... */
@@ -435,12 +432,6 @@ static void iep_reg_copy_to_hw(struct iep_reg *reg)
 	for (i = 0; i < IEP_ADD_REG_LEN; i++)
 		pbase[IEP_ADD_REG_BASE + i] = reg->reg[IEP_ADD_REG_BASE + i];
 
-#if defined(CONFIG_IEP_MMU)
-	/* mmu registers */
-	for (i = 0; i < IEP_MMU_REG_LEN; i++)
-		pbase[IEP_MMU_REG_BASE + i] = reg->reg[IEP_MMU_REG_BASE + i];
-#endif
-
 	/* dmac_flush_range(&pbase[0], &pbase[IEP_REG_LEN]); */
 	/* outer_flush_range(virt_to_phys(&pbase[0]),virt_to_phys(&pbase[IEP_REG_LEN])); */
 
@@ -551,33 +542,6 @@ static irqreturn_t iep_isr(int irq, void *dev_id)
 		atomic_dec(&iep_drvdata1->iep_int);
 	}
 
-#if defined(CONFIG_IEP_MMU)
-	if (atomic_read(&iep_drvdata1->mmu_page_fault) > 0) {
-
-		if (!list_empty(&iep_service.running)) {
-			uint32_t va = iep_probe_mmu_page_fault_addr(iep_drvdata1->iep_base);
-			struct iep_reg *reg = list_entry(iep_service.running.next, struct iep_reg, status_link);
-			if (0 > rk_mmu_generate_pte_from_va(reg->session, va)) {
-				IEP_ERR("Generate PTE from Virtual Address 0x%08x failed\n", va);
-			} else {
-				iep_config_mmu_cmd(iep_drvdata1->iep_base, MMU_ZAP_CACHE);
-				iep_config_mmu_cmd(iep_drvdata1->iep_base, MMU_PAGE_FAULT_DONE);
-			}
-		} else {
-			IEP_ERR("Page Fault occur when IEP IDLE\n");
-		}
-
-		atomic_dec(&iep_drvdata1->mmu_page_fault);
-	}
-
-	if (atomic_read(&iep_drvdata1->mmu_bus_error) > 0) {
-		/* reset iep mmu module */
-		IEP_ERR("Bus Error!!!\n");
-		iep_config_mmu_cmd(iep_drvdata1->iep_base, MMU_FORCE_RESET);
-		atomic_dec(&iep_drvdata1->mmu_bus_error);
-	}
-#endif
-
 	return IRQ_HANDLED;
 }
 
@@ -585,21 +549,6 @@ static irqreturn_t iep_irq(int irq,  void *dev_id)
 {
 	/*clear INT */
 	void *pbase = (void *)iep_drvdata1->iep_base;
-
-#if defined(CONFIG_IEP_MMU)
-	struct iep_mmu_int_status mmu_int_status;
-
-	mmu_int_status = iep_probe_mmu_int_status(pbase);
-	if (mmu_int_status.page_fault) {
-		iep_config_mmu_page_fault_int_clr(pbase);
-		atomic_inc(&iep_drvdata1->mmu_page_fault);
-	}
-
-	if (mmu_int_status.read_bus_error) {
-		iep_config_mmu_read_bus_error_int_clr(pbase);
-		atomic_inc(&iep_drvdata1->mmu_bus_error);
-	}
-#endif
 
 	if (iep_probe_int(pbase)) {
 		iep_config_frame_end_int_clr(pbase);
@@ -650,11 +599,6 @@ static int iep_open(struct inode *inode, struct file *filp)
 	atomic_set(&session->task_running, 0);
 	atomic_set(&session->num_done, 0);
 
-#if defined(CONFIG_IEP_MMU)
-	rk_mmu_init_dte_table(session);
-	INIT_LIST_HEAD(&session->pte_list);
-#endif
-
 	filp->private_data = (void *)session;
 
 	return nonseekable_open(inode, filp);
@@ -679,9 +623,11 @@ static int iep_release(struct inode *inode, struct file *filp)
 	}
 
 	wake_up(&session->wait);
+	iep_power_on();
 	mutex_lock(&iep_service.lock);
 	list_del(&session->list_session);
 	iep_service_session_clear(session);
+	iep_iommu_clear(iep_service.iommu_info, session);
 	kfree(session);
 	mutex_unlock(&iep_service.lock);
 
@@ -761,9 +707,7 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 
 			if (ret == 0) {
 				if (atomic_read(&iep_service.waitcnt) < 10) {
-#if defined(CONFIG_IEP_IOMMU)
 					iep_power_on();
-#endif
 					iep_config(session, msg);
 					atomic_inc(&iep_service.waitcnt);
 				} else {
@@ -796,9 +740,8 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 		{
 			int iommu_enable = 0;
 
-#if defined(CONFIG_IEP_IOMMU)
 			iommu_enable = iep_service.iommu_dev ? 1 : 0;
-#endif
+
 			if (copy_to_user((void __user *)arg, &iommu_enable,
 				sizeof(int))) {
 				IEP_ERR("error: copy_to_user failed\n");
@@ -855,9 +798,7 @@ static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
 
 			if (ret == 0) {
 				if (atomic_read(&iep_service.waitcnt) < 10) {
-#if defined(CONFIG_IEP_IOMMU)
 					iep_power_on();
-#endif
 					iep_config(session, msg);
 					atomic_inc(&iep_service.waitcnt);
 				} else {
@@ -889,9 +830,8 @@ static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
 		{
 			int iommu_enable = 0;
 
-#if defined(CONFIG_IEP_IOMMU)
 			iommu_enable = iep_service.iommu_dev ? 1 : 0;
-#endif
+
 			if (copy_to_user((void __user *)arg, &iommu_enable,
 				sizeof(int))) {
 				IEP_ERR("error: copy_to_user failed\n");
@@ -933,7 +873,6 @@ static struct miscdevice iep_dev = {
 	.fops  = &iep_fops,
 };
 
-#ifdef CONFIG_IEP_IOMMU
 static struct device* rockchip_get_sysmmu_device_by_compatible(
 	const char *compt)
 {
@@ -997,11 +936,7 @@ static int iep_sysmmu_fault_handler(struct device *dev,
 
 	return 0;
 }
-#endif
 
-#if defined(CONFIG_IEP_IOMMU)
-extern struct ion_client* rockchip_ion_client_create(const char *name);
-#endif
 static int iep_drv_probe(struct platform_device *pdev)
 {
 	struct iep_drvdata *data;
@@ -1009,11 +944,11 @@ static int iep_drv_probe(struct platform_device *pdev)
 	struct resource *res = NULL;
 	u32 version;
 	struct device_node *np = pdev->dev.of_node;
-#if defined(CONFIG_IEP_IOMMU)
+	struct platform_device *sub_dev = NULL;
+	struct device_node *sub_np = NULL;
 	u32 iommu_en = 0;
 	struct device *mmu_dev = NULL;
 	of_property_read_u32(np, "iommu_enabled", &iommu_en);
-#endif
 
 	data = (struct iep_drvdata *)devm_kzalloc(&pdev->dev,
 		sizeof(struct iep_drvdata), GFP_KERNEL);
@@ -1144,33 +1079,32 @@ static int iep_drv_probe(struct platform_device *pdev)
 	pm_runtime_enable(data->dev);
 #endif
 
-#if defined(CONFIG_IEP_IOMMU)
 	iep_service.iommu_dev = NULL;
-	if (iommu_en) {
-		iep_power_on();
-		iep_service.ion_client = rockchip_ion_client_create("iep");
-		if (IS_ERR(iep_service.ion_client)) {
-			IEP_ERR("failed to create ion client for vcodec");
-			return PTR_ERR(iep_service.ion_client);
-		} else {
-			IEP_INFO("iep ion client create success!\n");
-		}
+	sub_np = of_parse_phandle(np, "iommus", 0);
+	if (sub_np) {
+		sub_dev = of_find_device_by_node(sub_np);
+		iep_service.iommu_dev = &sub_dev->dev;
+	}
 
+	if (!iep_service.iommu_dev) {
 		mmu_dev = rockchip_get_sysmmu_device_by_compatible(
 			IEP_IOMMU_COMPATIBLE_NAME);
 
 		if (mmu_dev) {
 			platform_set_sysmmu(mmu_dev, &pdev->dev);
-			rockchip_iovmm_activate(&pdev->dev);
 		}
 
 		rockchip_iovmm_set_fault_handler(&pdev->dev,
-			iep_sysmmu_fault_handler);
+						 iep_sysmmu_fault_handler);
 
-		iep_service.iommu_dev = &pdev->dev;
-		iep_power_off();
+		iep_service.iommu_dev = mmu_dev;
 	}
-#endif
+	of_property_read_u32(np, "allocator", (u32 *)&iep_service.alloc_type);
+	iep_power_on();
+	iep_service.iommu_info = iep_iommu_info_create(data->dev,
+						       iep_service.iommu_dev,
+						       iep_service.alloc_type);
+	iep_power_off();
 
 	IEP_INFO("IEP Driver loaded succesfully\n");
 
@@ -1197,6 +1131,9 @@ static int iep_drv_remove(struct platform_device *pdev)
 {
 	struct iep_drvdata *data = platform_get_drvdata(pdev);
 	struct resource *res;
+
+	iep_iommu_info_destroy(iep_service.iommu_info);
+	iep_service.iommu_info = NULL;
 
 	wake_lock_destroy(&data->wake_lock);
 
