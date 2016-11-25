@@ -41,6 +41,7 @@ config DRM_DW_HDMI_AHB_AUDIO
 
 config DRM_DW_HDMI_I2S_AUDIO
 	tristate "Synopsis Designware I2S Audio interface"
+	depends on SND_SOC
 	depends on DRM_DW_HDMI
 	select SND_SOC_HDMI_CODEC
 	help
