@@ -567,6 +567,14 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	case HID_UP_BUTTON:
 		code = BTN_MOUSE + ((usage->hid - 1) & HID_USAGE);
+		/*
+		 * MS PTP spec says that external buttons left and right have
+		 * usages 2 and 3.
+		 */
+		if (cls->name == MT_CLS_WIN_8 &&
+		    field->application == HID_DG_TOUCHPAD &&
+		    (usage->hid & HID_USAGE) > 1)
+			code--;
 		hid_map_usage(hi, usage, bit, max, EV_KEY, code);
 		input_set_capability(hi->input, EV_KEY, code);
 		return 1;
