@@ -447,13 +447,12 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		       struct bio *bio, u64 file_start, int contig)
 {
 	struct btrfs_ordered_sum *sums;
-	struct btrfs_ordered_extent *ordered;
+	struct btrfs_ordered_extent *ordered = NULL;
 	char *data;
-	struct bio_vec *bvec = bio->bi_io_vec;
-	int bio_index = 0;
+	struct bio_vec *bvec;
 	int index;
 	int nr_sectors;
-	int i;
+	int i, j;
 	unsigned long total_bytes = 0;
 	unsigned long this_sum_bytes = 0;
 	u64 offset;
@@ -470,16 +469,19 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 	if (contig)
 		offset = file_start;
 	else
-		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+		offset = 0; /* shut up gcc */
 
-	ordered = btrfs_lookup_ordered_extent(inode, offset);
-	BUG_ON(!ordered); /* Logic error */
 	sums->bytenr = (u64)bio->bi_iter.bi_sector << 9;
 	index = 0;
 
-	while (bio_index < bio->bi_vcnt) {
+	bio_for_each_segment_all(bvec, bio, j) {
 		if (!contig)
 			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+
+		if (!ordered) {
+			ordered = btrfs_lookup_ordered_extent(inode, offset);
+			BUG_ON(!ordered); /* Logic error */
+		}
 
 		data = kmap_atomic(bvec->bv_page);
 
@@ -529,9 +531,6 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		}
 
 		kunmap_atomic(data);
-
-		bio_index++;
-		bvec++;
 	}
 	this_sum_bytes = 0;
 	btrfs_add_ordered_sum(inode, ordered, sums);
