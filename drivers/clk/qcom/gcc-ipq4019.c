@@ -1520,6 +1520,43 @@ static struct clk_fepll gcc_fepllwcss5g_clk = {
 	.pll_vco = &gcc_fepll_vco,
 };
 
+static const struct freq_tbl ftbl_gcc_pcnoc_ahb_clk[] = {
+	F(48000000,  P_XO,	 1, 0, 0),
+	F(100000000, P_FEPLL200, 2, 0, 0),
+	{ }
+};
+
+static struct clk_rcg2 gcc_pcnoc_ahb_clk_src = {
+	.cmd_rcgr = 0x21024,
+	.hid_width = 5,
+	.parent_map = gcc_xo_200_500_map,
+	.freq_tbl = ftbl_gcc_pcnoc_ahb_clk,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gcc_pcnoc_ahb_clk_src",
+		.parent_names = gcc_xo_200_500,
+		.num_parents = 3,
+		.ops = &clk_rcg2_ops,
+	},
+};
+
+static struct clk_branch pcnoc_clk_src = {
+	.halt_reg = 0x21030,
+	.clkr = {
+		.enable_reg = 0x21030,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "pcnoc_clk_src",
+			.parent_names = (const char *[]){
+				"gcc_pcnoc_ahb_clk_src",
+			},
+			.num_parents = 1,
+			.ops = &clk_branch2_ops,
+			.flags = CLK_SET_RATE_PARENT |
+				CLK_IS_CRITICAL,
+		},
+	},
+};
+
 static struct clk_regmap *gcc_ipq4019_clocks[] = {
 	[AUDIO_CLK_SRC] = &audio_clk_src.clkr,
 	[BLSP1_QUP1_I2C_APPS_CLK_SRC] = &blsp1_qup1_i2c_apps_clk_src.clkr,
@@ -1588,6 +1625,8 @@ static struct clk_regmap *gcc_ipq4019_clocks[] = {
 	[GCC_FEPLL_WCSS2G_CLK] = &gcc_fepllwcss2g_clk.cdiv.clkr,
 	[GCC_FEPLL_WCSS5G_CLK] = &gcc_fepllwcss5g_clk.cdiv.clkr,
 	[GCC_APSS_CPU_PLLDIV_CLK] = &gcc_apss_cpu_plldiv_clk.cdiv.clkr,
+	[GCC_PCNOC_AHB_CLK_SRC] = &gcc_pcnoc_ahb_clk_src.clkr,
+	[GCC_PCNOC_AHB_CLK] = &pcnoc_clk_src.clkr,
 };
 
 static const struct qcom_reset_map gcc_ipq4019_resets[] = {
