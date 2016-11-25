@@ -2767,20 +2767,82 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_NO_MARK(BGP_IPV4, TRAP_TO_CPU, BGP_IPV4, false),
 };
 
+static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
+{
+	char qpcr_pl[MLXSW_REG_QPCR_LEN];
+	enum mlxsw_reg_qpcr_ir_units ir_units;
+	int max_cpu_policers;
+	bool is_bytes;
+	u8 burst_size;
+	u32 rate;
+	int i, err;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_CPU_POLICERS))
+		return -EIO;
+
+	max_cpu_policers = MLXSW_CORE_RES_GET(mlxsw_core, MAX_CPU_POLICERS);
+
+	ir_units = MLXSW_REG_QPCR_IR_UNITS_M;
+	for (i = 0; i < max_cpu_policers; i++) {
+		is_bytes = false;
+		switch (i) {
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_STP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
+			rate = 128;
+			burst_size = 7;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IGMP:
+			rate = 16 * 1024;
+			burst_size = 10;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP_IPV4:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP_MISS:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE:
+			rate = 1024;
+			burst_size = 7;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
+			is_bytes = true;
+			rate = 4 * 1024;
+			burst_size = 4;
+			break;
+		default:
+			continue;
+		}
+
+		mlxsw_reg_qpcr_pack(qpcr_pl, i, ir_units, is_bytes, rate,
+				    burst_size);
+		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(qpcr), qpcr_pl);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 {
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
 	enum mlxsw_reg_htgt_trap_group i;
+	int max_cpu_policers;
 	int max_trap_groups;
 	u8 priority, tc;
+	u16 policer_id;
 	int err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_TRAP_GROUPS))
 		return -EIO;
 
 	max_trap_groups = MLXSW_CORE_RES_GET(mlxsw_core, MAX_TRAP_GROUPS);
+	max_cpu_policers = MLXSW_CORE_RES_GET(mlxsw_core, MAX_CPU_POLICERS);
 
 	for (i = 0; i < max_trap_groups; i++) {
+		policer_id = i;
 		switch (i) {
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_STP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP:
@@ -2812,13 +2874,17 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT:
 			priority = MLXSW_REG_HTGT_DEFAULT_PRIORITY;
 			tc = MLXSW_REG_HTGT_DEFAULT_TC;
+			policer_id = MLXSW_REG_HTGT_INVALID_POLICER;
 			break;
 		default:
 			continue;
 		}
 
-		mlxsw_reg_htgt_pack(htgt_pl, i, MLXSW_REG_HTGT_INVALID_POLICER,
-				    priority, tc);
+		if (max_cpu_policers <= policer_id &&
+		    policer_id != MLXSW_REG_HTGT_INVALID_POLICER)
+			return -EIO;
+
+		mlxsw_reg_htgt_pack(htgt_pl, i, policer_id, priority, tc);
 		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 		if (err)
 			return err;
@@ -2831,6 +2897,10 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
 	int i;
 	int err;
+
+	err = mlxsw_sp_cpu_policers_set(mlxsw_sp->core);
+	if (err)
+		return err;
 
 	err = mlxsw_sp_trap_groups_set(mlxsw_sp->core);
 	if (err)
