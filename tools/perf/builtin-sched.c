@@ -1876,7 +1876,8 @@ static void timehist_print_sample(struct perf_sched *sched,
 
 	sample__fprintf_sym(sample, al, 0,
 			    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
-			    EVSEL__PRINT_CALLCHAIN_ARROW,
+			    EVSEL__PRINT_CALLCHAIN_ARROW |
+			    EVSEL__PRINT_SKIP_IGNORED,
 			    &callchain_cursor, stdout);
 
 out:
@@ -1959,13 +1960,34 @@ static bool is_idle_sample(struct perf_sched *sched,
 		return false;
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
-				      NULL, NULL, sched->max_stack) != 0) {
+				      NULL, NULL, sched->max_stack + 2) != 0) {
 		if (verbose)
 			error("Failed to resolve callchain. Skipping\n");
 
 		return false;
 	}
+
 	callchain_cursor_commit(cursor);
+
+	while (true) {
+		struct callchain_cursor_node *node;
+		struct symbol *sym;
+
+		node = callchain_cursor_current(cursor);
+		if (node == NULL)
+			break;
+
+		sym = node->sym;
+		if (sym && sym->name) {
+			if (!strcmp(sym->name, "schedule") ||
+			    !strcmp(sym->name, "__schedule") ||
+			    !strcmp(sym->name, "preempt_schedule"))
+				sym->ignore = 1;
+		}
+
+		callchain_cursor_advance(cursor);
+	}
+
 	return false;
 }
 
