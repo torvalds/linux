@@ -281,6 +281,8 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	struct drm_i915_gem_request *tmp;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
+	GEM_BUG_ON(!i915_gem_request_completed(req));
+
 	if (list_empty(&req->link))
 		return;
 
