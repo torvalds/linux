@@ -478,11 +478,10 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	BUG_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
-	atu = iommu->atu;
-
 	if (nelems == 0 || !iommu)
 		return 0;
-	
+	atu = iommu->atu;
+
 	prot = HV_PCI_MAP_ATTR_READ;
 	if (direction != DMA_TO_DEVICE)
 		prot |= HV_PCI_MAP_ATTR_WRITE;
