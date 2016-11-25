@@ -367,6 +367,8 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 
 	spin_lock_bh(&priv->stats_lock);
 
+	mlx4_en_fold_software_stats(dev);
+
 	for (i = 0; i < NUM_MAIN_STATS; i++, bitmap_iterator_inc(&it))
 		if (bitmap_iterator_test(&it))
 			data[index++] = ((unsigned long *)&dev->stats)[i];
