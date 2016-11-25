@@ -21,8 +21,8 @@
  * IN THE SOFTWARE.
  *
  */
-#ifndef _INTEL_GUC_H_
-#define _INTEL_GUC_H_
+#ifndef _INTEL_UC_H_
+#define _INTEL_UC_H_
 
 #include "intel_guc_fwif.h"
 #include "i915_guc_reg.h"

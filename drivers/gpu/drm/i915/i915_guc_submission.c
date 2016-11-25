@@ -26,7 +26,7 @@
 #include <linux/debugfs.h>
 #include <linux/relay.h>
 #include "i915_drv.h"
-#include "intel_guc.h"
+#include "intel_uc.h"
 
 /**
  * DOC: GuC-based command submission

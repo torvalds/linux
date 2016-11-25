@@ -55,7 +55,7 @@
 
 #include "intel_bios.h"
 #include "intel_dpll_mgr.h"
-#include "intel_guc.h"
+#include "intel_uc.h"
 #include "intel_lrc.h"
 #include "intel_ringbuffer.h"
 
