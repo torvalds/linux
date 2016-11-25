@@ -2730,46 +2730,50 @@ static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u8 local_port,
 	return mlxsw_sp_rx_listener_no_mark_func(skb, local_port, priv);
 }
 
-#define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _is_ctrl)		\
+#define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
 	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
-		  _is_ctrl, RX, DISCARD)
+		  _is_ctrl, SP_##_trap_group, DISCARD)
 
-#define MLXSW_SP_RXL_MARK(_trap_id, _action, _is_ctrl)			\
+#define MLXSW_SP_RXL_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
 	MLXSW_RXL(mlxsw_sp_rx_listener_mark_func, _trap_id, _action,	\
-		  _is_ctrl, RX, DISCARD)
+		_is_ctrl, SP_##_trap_group, DISCARD)
+
+#define MLXSW_SP_EVENTL(_func, _trap_id)		\
+	MLXSW_EVENTL(_func, _trap_id, SP_EVENT)
 
 static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* Events */
-	MLXSW_EVENTL(mlxsw_sp_pude_event_func, PUDE, EMAD),
+	MLXSW_SP_EVENTL(mlxsw_sp_pude_event_func, PUDE),
 	/* L2 traps */
-	MLXSW_SP_RXL_NO_MARK(STP, TRAP_TO_CPU, true),
-	MLXSW_SP_RXL_NO_MARK(LACP, TRAP_TO_CPU, true),
-	MLXSW_SP_RXL_NO_MARK(LLDP, TRAP_TO_CPU, true),
-	MLXSW_SP_RXL_MARK(DHCP, MIRROR_TO_CPU, false),
-	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU, false),
-	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(STP, TRAP_TO_CPU, STP, true),
+	MLXSW_SP_RXL_NO_MARK(LACP, TRAP_TO_CPU, LACP, true),
+	MLXSW_SP_RXL_NO_MARK(LLDP, TRAP_TO_CPU, LLDP, true),
+	MLXSW_SP_RXL_MARK(DHCP, MIRROR_TO_CPU, DHCP, false),
+	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU, IGMP, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU, IGMP, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, TRAP_TO_CPU, IGMP, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, TRAP_TO_CPU, IGMP, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU, IGMP, false),
+	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU, ARP, false),
+	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU, ARP, false),
 	/* L3 traps */
-	MLXSW_SP_RXL_NO_MARK(MTUERROR, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(TTLERROR, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(LBERROR, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_MARK(OSPF, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(IP2ME, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU, false),
-	MLXSW_SP_RXL_MARK(BGP_IPV4, TRAP_TO_CPU, false),
+	MLXSW_SP_RXL_NO_MARK(MTUERROR, TRAP_TO_CPU, ROUTER_EXP, false),
+	MLXSW_SP_RXL_NO_MARK(TTLERROR, TRAP_TO_CPU, ROUTER_EXP, false),
+	MLXSW_SP_RXL_NO_MARK(LBERROR, TRAP_TO_CPU, ROUTER_EXP, false),
+	MLXSW_SP_RXL_MARK(OSPF, TRAP_TO_CPU, OSPF, false),
+	MLXSW_SP_RXL_NO_MARK(IP2ME, TRAP_TO_CPU, IP2ME, false),
+	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU, REMOTE_ROUTE, false),
+	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU, ARP_MISS, false),
+	MLXSW_SP_RXL_NO_MARK(BGP_IPV4, TRAP_TO_CPU, BGP_IPV4, false),
 };
 
 static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 {
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
+	enum mlxsw_reg_htgt_trap_group i;
 	int max_trap_groups;
 	u8 priority, tc;
-	int i, err;
+	int err;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_TRAP_GROUPS))
 		return -EIO;
@@ -2778,15 +2782,41 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 
 	for (i = 0; i < max_trap_groups; i++) {
 		switch (i) {
-		case MLXSW_REG_HTGT_TRAP_GROUP_EMAD:
-		case MLXSW_REG_HTGT_TRAP_GROUP_RX:
-		case MLXSW_REG_HTGT_TRAP_GROUP_CTRL:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_STP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
+			priority = 5;
+			tc = 5;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP_IPV4:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP:
+			priority = 4;
+			tc = 4;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IGMP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
+			priority = 3;
+			tc = 3;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP:
+			priority = 2;
+			tc = 2;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP_MISS:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE:
+			priority = 1;
+			tc = 1;
+			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT:
 			priority = MLXSW_REG_HTGT_DEFAULT_PRIORITY;
 			tc = MLXSW_REG_HTGT_DEFAULT_TC;
 			break;
 		default:
 			continue;
 		}
+
 		mlxsw_reg_htgt_pack(htgt_pl, i, MLXSW_REG_HTGT_INVALID_POLICER,
 				    priority, tc);
 		err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
