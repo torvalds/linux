@@ -1703,7 +1703,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	if (irq_rc && irq_rc->start) {
 		byt_gpio_irq_init_hw(vg);
 		ret = gpiochip_irqchip_add(gc, &byt_irqchip, 0,
-					   handle_simple_irq, IRQ_TYPE_NONE);
+					   handle_bad_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&vg->pdev->dev, "failed to add irqchip\n");
 			goto fail;
