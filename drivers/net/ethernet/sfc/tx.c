@@ -84,8 +84,6 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
 			   "TX queue %d transmission id %x complete\n",
 			   tx_queue->queue, tx_queue->read_count);
-	} else if (buffer->flags & EFX_TX_BUF_HEAP) {
-		kfree(buffer->heap_buf);
 	}
 
 	buffer->len = 0;
