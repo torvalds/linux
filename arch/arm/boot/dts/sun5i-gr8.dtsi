@@ -792,7 +792,7 @@
 			};
 
 			i2s0_mclk_pins_a: i2s0-mclk@0 {
-				allwinner,pins = "PB6", "PB7", "PB8", "PB9";
+				allwinner,pins = "PB5";
 				allwinner,function = "i2s0";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -854,6 +854,13 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
+			pwm1_pins: pwm1 {
+				allwinner,pins = "PG13";
+				allwinner,function = "pwm1";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			spdif_tx_pins_a: spdif@0 {
 				allwinner,pins = "PB10";
 				allwinner,function = "spdif";
@@ -871,6 +878,34 @@
 			uart1_cts_rts_pins_a: uart1-cts-rts@0 {
 				allwinner,pins = "PG5", "PG6";
 				allwinner,function = "uart1";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			uart2_pins_a: uart2@1 {
+				allwinner,pins = "PD2", "PD3";
+				allwinner,function = "uart2";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			uart2_cts_rts_pins_a: uart2-cts-rts@0 {
+				allwinner,pins = "PD4", "PD5";
+				allwinner,function = "uart2";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			uart3_pins_a: uart3@1 {
+				allwinner,pins = "PG9", "PG10";
+				allwinner,function = "uart3";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			uart3_cts_rts_pins_a: uart3-cts-rts@0 {
+				allwinner,pins = "PG11", "PG12";
+				allwinner,function = "uart3";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
@@ -975,6 +1010,16 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 18>;
+			status = "disabled";
+		};
+
+		uart3: serial@01c28c00 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28c00 0x400>;
+			interrupts = <4>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb1_gates 19>;
 			status = "disabled";
 		};
 

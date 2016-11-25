@@ -1,5 +1,6 @@
 /*
- * Copyright 2013 Maxime Ripard
+ * Copyright 2016 Free Electrons
+ * Copyright 2016 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
@@ -43,19 +44,21 @@
  */
 
 /dts-v1/;
-#include "sun5i-a10s.dtsi"
+#include "sun5i-gr8.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	model = "Olimex A10s-Olinuxino Micro";
-	compatible = "olimex,a10s-olinuxino-micro", "allwinner,sun5i-a10s";
+	model = "NextThing C.H.I.P. Pro";
+	compatible = "nextthing,chip-pro", "nextthing,gr8";
 
 	aliases {
-		serial0 = &uart0;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		serial0 = &uart1;
 		serial1 = &uart2;
 		serial2 = &uart3;
 	};
@@ -66,29 +69,27 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxino>;
 
-		green {
-			label = "a10s-olinuxino-micro:green:usr";
-			gpios = <&pio 4 3 GPIO_ACTIVE_HIGH>;
+		status {
+			label = "chip-pro:white:status";
+			gpios = <&axp_gpio 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
+
+	mmc0_pwrseq: mmc0_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_reg_on_pin_chip_pro>;
+		reset-gpios = <&pio 1 10 GPIO_ACTIVE_LOW>; /* PB10 */
+	};
+};
+
+&codec {
+	status = "okay";
 };
 
 &ehci0 {
-	status = "okay";
-};
-
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
-	phy = <&phy1>;
-	status = "okay";
-};
-
-&emac_sram {
 	status = "okay";
 };
 
@@ -97,99 +98,55 @@
 	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
-	axp152: pmic@30 {
-		reg = <0x30>;
+	axp209: pmic@34 {
+		reg = <0x34>;
+
+		/*
+		* The interrupt is routed through the "External Fast
+		* Interrupt Request" pin (ball G13 of the module)
+		* directly to the main interrupt controller, without
+		* any other controller interfering.
+		*/
 		interrupts = <0>;
 	};
 };
 
-#include "axp152.dtsi"
+#include "axp209.dtsi"
 
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-
-	at24@50 {
-		compatible = "atmel,24c16";
-		pagesize = <16>;
-		reg = <0x50>;
-		read-only;
-	};
+	status = "disabled";
 };
 
-&i2c2 {
+&i2s0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	status = "okay";
-};
-
-&lradc {
-	vref-supply = <&reg_vcc3v0>;
-	status = "okay";
-
-	button@191 {
-		label = "Volume Up";
-		linux,code = <KEY_VOLUMEUP>;
-		channel = <0>;
-		voltage = <191274>;
-	};
-
-	button@392 {
-		label = "Volume Down";
-		linux,code = <KEY_VOLUMEDOWN>;
-		channel = <0>;
-		voltage = <392644>;
-	};
-
-	button@601 {
-		label = "Menu";
-		linux,code = <KEY_MENU>;
-		channel = <0>;
-		voltage = <601151>;
-	};
-
-	button@795 {
-		label = "Enter";
-		linux,code = <KEY_ENTER>;
-		channel = <0>;
-		voltage = <795090>;
-	};
-
-	button@987 {
-		label = "Home";
-		linux,code = <KEY_HOMEPAGE>;
-		channel = <0>;
-		voltage = <987387>;
-	};
-};
-
-&mdio {
-	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
+	pinctrl-0 = <&i2s0_mclk_pins_a>, <&i2s0_data_pins_a>;
+	status = "disabled";
 };
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino_micro>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&mmc0_pwrseq>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
-	cd-inverted;
+	non-removable;
 	status = "okay";
 };
 
-&mmc1 {
+&nfc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>, <&mmc1_cd_pin_olinuxino_micro>;
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
-	cd-inverted;
+	pinctrl-0 = <&nand_pins_a &nand_cs0_pins_a &nand_rb0_pins_a>;
 	status = "okay";
+
+	nand@0 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		reg = <0>;
+		allwinner,rb = <0>;
+		nand-ecc-mode = "hw";
+	};
 };
 
 &ohci0 {
@@ -201,92 +158,109 @@
 };
 
 &pio {
-	mmc0_cd_pin_olinuxino_micro: mmc0_cd_pin@0 {
-		allwinner,pins = "PG1";
+	usb0_id_pin_chip_pro: usb0-id-pin@0 {
+		allwinner,pins = "PG2";
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	mmc1_cd_pin_olinuxino_micro: mmc1_cd_pin@0 {
-		allwinner,pins = "PG13";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	led_pins_olinuxino: led_pins@0 {
-		allwinner,pins = "PE3";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	usb1_vbus_pin_olinuxino_m: usb1_vbus_pin@0 {
+	wifi_reg_on_pin_chip_pro: wifi-reg-on-pin@0 {
 		allwinner,pins = "PB10";
 		allwinner,function = "gpio_out";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PG12";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
 };
 
-&reg_usb0_vbus {
-	gpio = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
-	status = "okay";
-};
-
-&reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_olinuxino_m>;
-	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&spi2 {
+&pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_b>,
-		    <&spi2_cs0_pins_b>;
-	status = "okay";
+	pinctrl-0 = <&pwm0_pins_a>, <&pwm1_pins>;
+	status = "disabled";
 };
 
-&uart0 {
+&reg_dcdc2 {
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-cpu";
+	regulator-always-on;
+};
+
+&reg_dcdc3 {
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1300000>;
+	regulator-name = "vdd-sys";
+	regulator-always-on;
+};
+
+&reg_ldo1 {
+	regulator-name = "vdd-rtc";
+};
+
+&reg_ldo2 {
+	regulator-min-microvolt = <2700000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "avcc";
+	regulator-always-on;
+};
+
+/*
+ * Both LDO3 and LDO4 are used in parallel to power up the
+ * WiFi/BT chip.
+ */
+&reg_ldo3 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi-1";
+	regulator-always-on;
+};
+
+&reg_ldo4 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi-2";
+	regulator-always-on;
+};
+
+&uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart1_pins_a>, <&uart1_cts_rts_pins_a>;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins_a>;
-	status = "okay";
+	pinctrl-0 = <&uart2_pins_a>, <&uart2_cts_rts_pins_a>;
+	status = "disabled";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_a>;
+	pinctrl-0 = <&uart3_pins_a>, <&uart3_cts_rts_pins_a>;
 	status = "okay";
 };
 
 &usb_otg {
+	/*
+	 * The CHIP Pro doesn't have a controllable VBUS, nor does it
+	 * have any 5v rail on the board itself.
+	 *
+	 * If one wants to use it as a true OTG port, it should be
+	 * done in the baseboard, and its DT / overlay will add it.
+	 */
 	dr_mode = "otg";
 	status = "okay";
 };
 
-&usb0_vbus_pin_a {
-	allwinner,pins = "PG11";
+&usb_power_supply {
+	status = "okay";
 };
 
 &usbphy {
 	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
-	usb0_vbus-supply = <&reg_usb0_vbus>;
-	usb1_vbus-supply = <&reg_usb1_vbus>;
+	pinctrl-0 = <&usb0_id_pin_chip_pro>;
+	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
+	usb0_vbus_power-supply = <&usb_power_supply>;
+	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";
 };
