@@ -140,8 +140,6 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	platform_set_drvdata(pdev, arizona_gpio);
-
 	return ret;
 
 err:
