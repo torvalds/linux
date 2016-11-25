@@ -1221,9 +1221,9 @@ static int sx150x_probe(struct i2c_client *client,
 		 * plus it will be instantly noticeable if it is ever
 		 * called (should not happen)
 		 */
-		ret = gpiochip_irqchip_add(&pctl->gpio,
-					   &pctl->irq_chip, 0,
-					   handle_bad_irq, IRQ_TYPE_NONE);
+		ret = gpiochip_irqchip_add_nested(&pctl->gpio,
+					&pctl->irq_chip, 0,
+					handle_bad_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(dev, "could not connect irqchip to gpiochip\n");
 			return ret;
@@ -1236,6 +1236,10 @@ static int sx150x_probe(struct i2c_client *client,
 						pctl->irq_chip.name, pctl);
 		if (ret < 0)
 			return ret;
+
+		gpiochip_set_nested_irqchip(&pctl->gpio,
+					    &pctl->irq_chip,
+					    client->irq);
 	}
 
 	/* Pinctrl_desc */
