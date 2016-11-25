@@ -123,10 +123,11 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 
 	.macro	LAST_BREAK scratch
 	srag	\scratch,%r10,23
-	jz	.+10
 #ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
+	jz	.+10
 	stg	%r10,__TASK_thread+__THREAD_last_break(%r12)
 #else
+	jz	.+14
 	lghi	\scratch,__TASK_thread
 	stg	%r10,__THREAD_last_break(\scratch,%r12)
 #endif
