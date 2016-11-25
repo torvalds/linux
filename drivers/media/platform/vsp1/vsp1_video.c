@@ -1050,6 +1050,7 @@ static int vsp1_video_open(struct file *file)
 	ret = vsp1_device_get(video->vsp1);
 	if (ret < 0) {
 		v4l2_fh_del(vfh);
+		v4l2_fh_exit(vfh);
 		kfree(vfh);
 	}
 
