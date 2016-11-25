@@ -445,6 +445,13 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	return 0;
 }
 
+static u64 bio_end_offset(struct bio *bio)
+{
+	struct bio_vec *last = &bio->bi_io_vec[bio->bi_vcnt - 1];
+
+	return page_offset(last->bv_page) + last->bv_len + last->bv_offset;
+}
+
 static noinline int add_ra_bio_pages(struct inode *inode,
 				     u64 compressed_end,
 				     struct compressed_bio *cb)
@@ -463,8 +470,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	u64 end;
 	int misses = 0;
 
-	page = cb->orig_bio->bi_io_vec[cb->orig_bio->bi_vcnt - 1].bv_page;
-	last_offset = (page_offset(page) + PAGE_SIZE);
+	last_offset = bio_end_offset(cb->orig_bio);
 	em_tree = &BTRFS_I(inode)->extent_tree;
 	tree = &BTRFS_I(inode)->io_tree;
 
