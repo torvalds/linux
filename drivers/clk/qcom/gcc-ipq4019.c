@@ -568,10 +568,20 @@ static struct clk_rcg2  sdcc1_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_apps_clk[] = {
-	F(48000000, P_XO,	   1, 0, 0),
+	F(48000000,  P_XO,         1, 0, 0),
 	F(200000000, P_FEPLL200,   1, 0, 0),
+	F(384000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(413000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(448000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(488000000, P_DDRPLLAPSS, 1, 0, 0),
 	F(500000000, P_FEPLL500,   1, 0, 0),
-	F(626000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(512000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(537000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(565000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(597000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(632000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(672000000, P_DDRPLLAPSS, 1, 0, 0),
+	F(716000000, P_DDRPLLAPSS, 1, 0, 0),
 	{ }
 };
 
