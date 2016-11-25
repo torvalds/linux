@@ -3296,7 +3296,13 @@ int dw_mci_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(host->ciu_clk);
 	if (ret)
-		return ret;
+		goto err;
+
+	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_ALL_RESET_FLAGS)) {
+		clk_disable_unprepare(host->ciu_clk);
+		ret = -ENODEV;
+		goto err;
+	}
 
 	if (host->use_dma && host->dma_ops->init)
 		host->dma_ops->init(host);
@@ -3330,6 +3336,14 @@ int dw_mci_runtime_resume(struct device *dev)
 
 	/* Now that slots are all setup, we can enable card detect */
 	dw_mci_enable_cd(host);
+
+	return 0;
+
+err:
+	if (host->cur_slot &&
+	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
+	     !mmc_card_is_removable(host->cur_slot->mmc)))
+		clk_disable_unprepare(host->biu_clk);
 
 	return ret;
 }
