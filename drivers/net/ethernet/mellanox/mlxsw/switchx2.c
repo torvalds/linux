@@ -1494,84 +1494,29 @@ err_port_module_info_get:
 	return err;
 }
 
-static const struct mlxsw_rx_listener mlxsw_sx_rx_listener[] = {
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_FDB_MC,
-	},
-	/* Traps for specific L2 packet types, not trapped as FDB MC */
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_STP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_LACP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_EAPOL,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_LLDP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_MMRP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_MVRP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_RPVST,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_DHCP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_QUERY,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V1_REPORT,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V2_REPORT,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V2_LEAVE,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V3_REPORT,
-	},
+#define MLXSW_SX_RXL(_trap_id) \
+	MLXSW_RXL(mlxsw_sx_rx_listener_func, _trap_id, TRAP_TO_CPU, FORWARD)
+
+static const struct mlxsw_listener mlxsw_sx_rx_listener[] = {
+	MLXSW_SX_RXL(FDB_MC),
+	MLXSW_SX_RXL(STP),
+	MLXSW_SX_RXL(LACP),
+	MLXSW_SX_RXL(EAPOL),
+	MLXSW_SX_RXL(LLDP),
+	MLXSW_SX_RXL(MMRP),
+	MLXSW_SX_RXL(MVRP),
+	MLXSW_SX_RXL(RPVST),
+	MLXSW_SX_RXL(DHCP),
+	MLXSW_SX_RXL(IGMP_QUERY),
+	MLXSW_SX_RXL(IGMP_V1_REPORT),
+	MLXSW_SX_RXL(IGMP_V2_REPORT),
+	MLXSW_SX_RXL(IGMP_V2_LEAVE),
+	MLXSW_SX_RXL(IGMP_V3_REPORT),
 };
 
 static int mlxsw_sx_traps_init(struct mlxsw_sx *mlxsw_sx)
 {
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int i;
 	int err;
 
@@ -1586,50 +1531,32 @@ static int mlxsw_sx_traps_init(struct mlxsw_sx *mlxsw_sx)
 		return err;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_rx_listener); i++) {
-		err = mlxsw_core_rx_listener_register(mlxsw_sx->core,
-						      &mlxsw_sx_rx_listener[i],
-						      mlxsw_sx);
+		err = mlxsw_core_trap_register(mlxsw_sx->core,
+					       &mlxsw_sx_rx_listener[i],
+					       mlxsw_sx);
 		if (err)
 			goto err_rx_listener_register;
 
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-				    mlxsw_sx_rx_listener[i].trap_id);
-		err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-		if (err)
-			goto err_rx_trap_set;
 	}
 	return 0;
 
-err_rx_trap_set:
-	mlxsw_core_rx_listener_unregister(mlxsw_sx->core,
-					  &mlxsw_sx_rx_listener[i],
-					  mlxsw_sx);
 err_rx_listener_register:
 	for (i--; i >= 0; i--) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-				    mlxsw_sx_rx_listener[i].trap_id);
-		mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-
-		mlxsw_core_rx_listener_unregister(mlxsw_sx->core,
-						  &mlxsw_sx_rx_listener[i],
-						  mlxsw_sx);
+		mlxsw_core_trap_unregister(mlxsw_sx->core,
+					   &mlxsw_sx_rx_listener[i],
+					   mlxsw_sx);
 	}
 	return err;
 }
 
 static void mlxsw_sx_traps_fini(struct mlxsw_sx *mlxsw_sx)
 {
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_rx_listener); i++) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-				    mlxsw_sx_rx_listener[i].trap_id);
-		mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-
-		mlxsw_core_rx_listener_unregister(mlxsw_sx->core,
-						  &mlxsw_sx_rx_listener[i],
-						  mlxsw_sx);
+		mlxsw_core_trap_unregister(mlxsw_sx->core,
+					   &mlxsw_sx_rx_listener[i],
+					   mlxsw_sx);
 	}
 }
 
