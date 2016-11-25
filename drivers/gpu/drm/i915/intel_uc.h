@@ -168,6 +168,14 @@ struct intel_guc {
 	struct mutex send_mutex;
 };
 
+/* intel_uc.c */
+bool intel_guc_recv(struct drm_i915_private *dev_priv, u32 *status);
+int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
+int intel_guc_sample_forcewake(struct intel_guc *guc);
+int intel_guc_log_flush_complete(struct intel_guc *guc);
+int intel_guc_log_flush(struct intel_guc *guc);
+int intel_guc_log_control(struct intel_guc *guc, u32 control_val);
+
 /* intel_guc_loader.c */
 extern void intel_guc_init(struct drm_device *dev);
 extern int intel_guc_setup(struct drm_device *dev);

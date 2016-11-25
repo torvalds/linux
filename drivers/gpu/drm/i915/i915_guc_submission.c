@@ -49,7 +49,7 @@
  * Firmware writes a success/fail code back to the action register after
  * processes the request. The kernel driver polls waiting for this update and
  * then proceeds.
- * See guc_send()
+ * See intel_guc_send()
  *
  * Doorbells:
  * Doorbells are interrupts to uKernel. A doorbell is a single cache line (QW)
@@ -66,140 +66,29 @@
  */
 
 /*
- * Read GuC command/status register (SOFT_SCRATCH_0)
- * Return true if it contains a response rather than a command
- */
-static inline bool guc_recv(struct drm_i915_private *dev_priv, u32 *status)
-{
-	u32 val = I915_READ(SOFT_SCRATCH(0));
-	*status = val;
-	return INTEL_GUC_RECV_IS_RESPONSE(val);
-}
-
-static int guc_send(struct intel_guc *guc, u32 *data, u32 len)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 status;
-	int i;
-	int ret;
-
-	if (WARN_ON(len < 1 || len > 15))
-		return -EINVAL;
-
-	mutex_lock(&guc->send_mutex);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-
-	dev_priv->guc.action_count += 1;
-	dev_priv->guc.action_cmd = data[0];
-
-	for (i = 0; i < len; i++)
-		I915_WRITE(SOFT_SCRATCH(i), data[i]);
-
-	POSTING_READ(SOFT_SCRATCH(i - 1));
-
-	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
-
-	/*
-	 * Fast commands should complete in less than 10us, so sample quickly
-	 * up to that length of time, then switch to a slower sleep-wait loop.
-	 * No INTEL_GUC_ACTION command should ever take longer than 10ms.
-	 */
-	ret = wait_for_us(guc_recv(dev_priv, &status), 10);
-	if (ret)
-		ret = wait_for(guc_recv(dev_priv, &status), 10);
-	if (status != INTEL_GUC_STATUS_SUCCESS) {
-		/*
-		 * Either the GuC explicitly returned an error (which
-		 * we convert to -EIO here) or no response at all was
-		 * received within the timeout limit (-ETIMEDOUT)
-		 */
-		if (ret != -ETIMEDOUT)
-			ret = -EIO;
-
-		DRM_WARN("Action 0x%X failed; ret=%d status=0x%08X response=0x%08X\n",
-			 data[0], ret, status, I915_READ(SOFT_SCRATCH(15)));
-
-		dev_priv->guc.action_fail += 1;
-		dev_priv->guc.action_err = ret;
-	}
-	dev_priv->guc.action_status = status;
-
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	mutex_unlock(&guc->send_mutex);
-
-	return ret;
-}
-
-/*
  * Tell the GuC to allocate or deallocate a specific doorbell
  */
 
 static int guc_allocate_doorbell(struct intel_guc *guc,
 				 struct i915_guc_client *client)
 {
-	u32 data[2];
+	u32 action[] = {
+		INTEL_GUC_ACTION_ALLOCATE_DOORBELL,
+		client->ctx_index
+	};
 
-	data[0] = INTEL_GUC_ACTION_ALLOCATE_DOORBELL;
-	data[1] = client->ctx_index;
-
-	return guc_send(guc, data, 2);
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
 static int guc_release_doorbell(struct intel_guc *guc,
 				struct i915_guc_client *client)
 {
-	u32 data[2];
+	u32 action[] = {
+		INTEL_GUC_ACTION_DEALLOCATE_DOORBELL,
+		client->ctx_index
+	};
 
-	data[0] = INTEL_GUC_ACTION_DEALLOCATE_DOORBELL;
-	data[1] = client->ctx_index;
-
-	return guc_send(guc, data, 2);
-}
-
-static int guc_sample_forcewake(struct intel_guc *guc,
-				struct i915_guc_client *client)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 data[2];
-
-	data[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
-	/* WaRsDisableCoarsePowerGating:skl,bxt */
-	if (!intel_enable_rc6() || NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
-		data[1] = 0;
-	else
-		/* bit 0 and 1 are for Render and Media domain separately */
-		data[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
-
-	return guc_send(guc, data, ARRAY_SIZE(data));
-}
-
-static int guc_logbuffer_flush_complete(struct intel_guc *guc)
-{
-	u32 data[1];
-
-	data[0] = INTEL_GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE;
-
-	return guc_send(guc, data, 1);
-}
-
-static int guc_force_logbuffer_flush(struct intel_guc *guc)
-{
-	u32 data[2];
-
-	data[0] = INTEL_GUC_ACTION_FORCE_LOG_BUFFER_FLUSH;
-	data[1] = 0;
-
-	return guc_send(guc, data, 2);
-}
-
-static int guc_logging_control(struct intel_guc *guc, u32 control_val)
-{
-	u32 data[2];
-
-	data[0] = INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING;
-	data[1] = control_val;
-
-	return guc_send(guc, data, 2);
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
 /*
@@ -297,7 +186,7 @@ select_doorbell_register(struct intel_guc *guc, uint32_t priority)
  * Select, assign and relase doorbell cachelines
  *
  * These functions track which doorbell cachelines are in use.
- * The data they manipulate is protected by the guc_send lock.
+ * The data they manipulate is protected by the intel_guc_send lock.
  */
 
 static uint32_t select_doorbell_cacheline(struct intel_guc *guc)
@@ -1525,7 +1414,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	}
 
 	guc->execbuf_client = client;
-	guc_sample_forcewake(guc, client);
+	intel_guc_sample_forcewake(guc);
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
@@ -1595,7 +1484,7 @@ int intel_guc_suspend(struct drm_device *dev)
 	/* first page is shared data with GuC */
 	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
 
-	return guc_send(guc, data, ARRAY_SIZE(data));
+	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
 
 
@@ -1623,7 +1512,7 @@ int intel_guc_resume(struct drm_device *dev)
 	/* first page is shared data with GuC */
 	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
 
-	return guc_send(guc, data, ARRAY_SIZE(data));
+	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
 
 void i915_guc_capture_logs(struct drm_i915_private *dev_priv)
@@ -1634,7 +1523,7 @@ void i915_guc_capture_logs(struct drm_i915_private *dev_priv)
 	 * time, so get/put should be really quick.
 	 */
 	intel_runtime_pm_get(dev_priv);
-	guc_logbuffer_flush_complete(&dev_priv->guc);
+	intel_guc_log_flush_complete(&dev_priv->guc);
 	intel_runtime_pm_put(dev_priv);
 }
 
@@ -1652,7 +1541,7 @@ void i915_guc_flush_logs(struct drm_i915_private *dev_priv)
 	flush_work(&dev_priv->guc.log.flush_work);
 
 	/* Ask GuC to update the log buffer state */
-	guc_force_logbuffer_flush(&dev_priv->guc);
+	intel_guc_log_flush(&dev_priv->guc);
 
 	/* GuC would have updated log buffer by now, so capture it */
 	i915_guc_capture_logs(dev_priv);
@@ -1693,7 +1582,7 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 	if (!log_param.logging_enabled && (i915.guc_log_level < 0))
 		return 0;
 
-	ret = guc_logging_control(&dev_priv->guc, log_param.value);
+	ret = intel_guc_log_control(&dev_priv->guc, log_param.value);
 	if (ret < 0) {
 		DRM_DEBUG_DRIVER("guc_logging_control action failed %d\n", ret);
 		return ret;
