@@ -494,11 +494,6 @@ static inline int mmc_host_uhs(struct mmc_host *host)
 		 MMC_CAP_UHS_DDR50);
 }
 
-static inline int mmc_host_packed_wr(struct mmc_host *host)
-{
-	return host->caps2 & MMC_CAP2_PACKED_WR;
-}
-
 static inline int mmc_card_hs(struct mmc_card *card)
 {
 	return card->host->ios.timing == MMC_TIMING_SD_HS ||

@@ -22,23 +22,6 @@ struct mmc_blk_request {
 	int			retune_retry_done;
 };
 
-enum mmc_packed_type {
-	MMC_PACKED_NONE = 0,
-	MMC_PACKED_WRITE,
-};
-
-#define mmc_packed_cmd(type)	((type) != MMC_PACKED_NONE)
-#define mmc_packed_wr(type)	((type) == MMC_PACKED_WRITE)
-
-struct mmc_packed {
-	struct list_head	list;
-	__le32			cmd_hdr[1024];
-	unsigned int		blocks;
-	u8			nr_entries;
-	u8			retries;
-	s16			idx_failure;
-};
-
 struct mmc_queue_req {
 	struct request		*req;
 	struct mmc_blk_request	brq;
@@ -47,8 +30,6 @@ struct mmc_queue_req {
 	struct scatterlist	*bounce_sg;
 	unsigned int		bounce_sg_len;
 	struct mmc_async_req	mmc_active;
-	enum mmc_packed_type	cmd_type;
-	struct mmc_packed	*packed;
 };
 
 struct mmc_queue {
