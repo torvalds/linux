@@ -1887,9 +1887,9 @@ r5c_recovery_analyze_meta_block(struct r5l_log *log,
 		}
 
 		if (payload->header.type == R5LOG_PAYLOAD_DATA) {
-			if (!test_bit(STRIPE_R5C_CACHING, &sh->state)) {
+			if (!test_bit(STRIPE_R5C_CACHING, &sh->state) &&
+			    test_bit(R5_Wantwrite, &sh->dev[sh->pd_idx].flags)) {
 				r5l_recovery_replay_one_stripe(conf, sh, ctx);
-				r5l_recovery_reset_stripe(sh);
 				sh->log_start = ctx->pos;
 				list_move_tail(&sh->lru, cached_stripe_list);
 			}
