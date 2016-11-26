@@ -88,6 +88,10 @@ include ../scripts/utilities.mak
 # and bypass the feature detection
 #
 # Define NO_JVMTI if you do not want jvmti agent built
+#
+# Define LIBCLANGLLVM if you DO want builtin clang and llvm support.
+# When selected, pass LLVM_CONFIG=/path/to/llvm-config to `make' if
+# llvm-config is not in $PATH.
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -143,6 +147,7 @@ endef
 $(call allow-override,CC,$(CROSS_COMPILE)gcc)
 $(call allow-override,AR,$(CROSS_COMPILE)ar)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
+$(call allow-override,CXX,$(CROSS_COMPILE)g++)
 
 LD += $(EXTRA_LDFLAGS)
 
@@ -151,6 +156,7 @@ HOSTLD  ?= ld
 HOSTAR  ?= ar
 
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
+LLVM_CONFIG ?= llvm-config
 
 RM      = rm -f
 LN      = ln -f
@@ -338,6 +344,21 @@ endif
 
 LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
 
+ifeq ($(USE_CLANG), 1)
+  CLANGLIBS_LIST = AST Basic CodeGen Driver Frontend Lex Tooling Edit Sema Analysis Parse Serialization
+  LIBCLANG = $(foreach l,$(CLANGLIBS_LIST),$(wildcard $(shell $(LLVM_CONFIG) --libdir)/libclang$(l).a))
+  LIBS += -Wl,--start-group $(LIBCLANG) -Wl,--end-group
+endif
+
+ifeq ($(USE_LLVM), 1)
+  LIBLLVM = $(shell $(LLVM_CONFIG) --libs all) $(shell $(LLVM_CONFIG) --system-libs)
+  LIBS += -L$(shell $(LLVM_CONFIG) --libdir) $(LIBLLVM)
+endif
+
+ifeq ($(USE_CXX), 1)
+  LIBS += -lstdc++
+endif
+
 export INSTALL SHELL_PATH
 
 ### Build rules
@@ -356,7 +377,7 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 
 PERF_IN := $(OUTPUT)perf-in.o
 
-export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
+export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
 export HOSTCC HOSTLD HOSTAR
 include $(srctree)/tools/build/Makefile.include
 
