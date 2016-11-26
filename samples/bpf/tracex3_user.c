@@ -11,8 +11,10 @@
 #include <stdbool.h>
 #include <string.h>
 #include <linux/bpf.h>
+
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "bpf_util.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
@@ -20,7 +22,7 @@
 
 static void clear_stats(int fd)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	__u64 values[nr_cpus];
 	__u32 key;
 
@@ -77,7 +79,7 @@ static void print_banner(void)
 
 static void print_hist(int fd)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	__u64 total_events = 0;
 	long values[nr_cpus];
 	__u64 max_cnt = 0;
