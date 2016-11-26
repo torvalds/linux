@@ -96,7 +96,7 @@ fitmanyloop:					/* Loop if LOOP >= 2 */
 
 fitmanymiddle:					/* Loop if LOOP >= 2 */
 	addib,COND(>)		-1, %r31, fitmanymiddle	/* Adjusted inner loop decr */
-	pitlbe		0(%sr1, %r28)
+	pitlbe		%r0(%sr1, %r28)
 	pitlbe,m	%arg1(%sr1, %r28)	/* Last pitlbe and addr adjust */
 	addib,COND(>)		-1, %r29, fitmanymiddle	/* Middle loop decr */
 	copy		%arg3, %r31		/* Re-init inner loop count */
@@ -139,7 +139,7 @@ fdtmanyloop:					/* Loop if LOOP >= 2 */
 
 fdtmanymiddle:					/* Loop if LOOP >= 2 */
 	addib,COND(>)		-1, %r31, fdtmanymiddle	/* Adjusted inner loop decr */
-	pdtlbe		0(%sr1, %r28)
+	pdtlbe		%r0(%sr1, %r28)
 	pdtlbe,m	%arg1(%sr1, %r28)	/* Last pdtlbe and addr adjust */
 	addib,COND(>)		-1, %r29, fdtmanymiddle	/* Middle loop decr */
 	copy		%arg3, %r31		/* Re-init inner loop count */
@@ -626,12 +626,12 @@ ENTRY_CFI(copy_user_page_asm)
 	/* Purge any old translations */
 
 #ifdef CONFIG_PA20
-	pdtlb,l		0(%r28)
-	pdtlb,l		0(%r29)
+	pdtlb,l		%r0(%r28)
+	pdtlb,l		%r0(%r29)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		0(%r28)
-	pdtlb		0(%r29)
+	pdtlb		%r0(%r28)
+	pdtlb		%r0(%r29)
 	tlb_unlock	%r20,%r21,%r22
 #endif
 
@@ -774,10 +774,10 @@ ENTRY_CFI(clear_user_page_asm)
 	/* Purge any old translation */
 
 #ifdef CONFIG_PA20
-	pdtlb,l		0(%r28)
+	pdtlb,l		%r0(%r28)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		0(%r28)
+	pdtlb		%r0(%r28)
 	tlb_unlock	%r20,%r21,%r22
 #endif
 
@@ -858,10 +858,10 @@ ENTRY_CFI(flush_dcache_page_asm)
 	/* Purge any old translation */
 
 #ifdef CONFIG_PA20
-	pdtlb,l		0(%r28)
+	pdtlb,l		%r0(%r28)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		0(%r28)
+	pdtlb		%r0(%r28)
 	tlb_unlock	%r20,%r21,%r22
 #endif
 
@@ -898,10 +898,10 @@ ENTRY_CFI(flush_dcache_page_asm)
 	sync
 
 #ifdef CONFIG_PA20
-	pdtlb,l		0(%r25)
+	pdtlb,l		%r0(%r25)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		0(%r25)
+	pdtlb		%r0(%r25)
 	tlb_unlock	%r20,%r21,%r22
 #endif
 
@@ -931,13 +931,18 @@ ENTRY_CFI(flush_icache_page_asm)
 	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
-	/* Purge any old translation */
+	/* Purge any old translation.  Note that the FIC instruction
+	 * may use either the instruction or data TLB.  Given that we
+	 * have a flat address space, it's not clear which TLB will be
+	 * used.  So, we purge both entries.  */
 
 #ifdef CONFIG_PA20
+	pdtlb,l		%r0(%r28)
 	pitlb,l         %r0(%sr4,%r28)
 #else
 	tlb_lock        %r20,%r21,%r22
-	pitlb           (%sr4,%r28)
+	pdtlb		%r0(%r28)
+	pitlb           %r0(%sr4,%r28)
 	tlb_unlock      %r20,%r21,%r22
 #endif
 
@@ -976,10 +981,12 @@ ENTRY_CFI(flush_icache_page_asm)
 	sync
 
 #ifdef CONFIG_PA20
+	pdtlb,l		%r0(%r28)
 	pitlb,l         %r0(%sr4,%r25)
 #else
 	tlb_lock        %r20,%r21,%r22
-	pitlb           (%sr4,%r25)
+	pdtlb		%r0(%r28)
+	pitlb           %r0(%sr4,%r25)
 	tlb_unlock      %r20,%r21,%r22
 #endif
 
