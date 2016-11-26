@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/err.h>
+#include <sys/types.h>  // for size_t
 
 enum libbpf_errno {
 	__LIBBPF_ERRNO__START = 4000,
@@ -199,6 +200,13 @@ struct bpf_map_def {
 struct bpf_map;
 struct bpf_map *
 bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
+
+/*
+ * Get bpf_map through the offset of corresponding struct bpf_map_def
+ * in the bpf object file.
+ */
+struct bpf_map *
+bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
 
 struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
