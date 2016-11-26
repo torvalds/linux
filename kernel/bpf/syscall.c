@@ -138,18 +138,31 @@ static int bpf_map_release(struct inode *inode, struct file *filp)
 static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_map *map = filp->private_data;
+	const struct bpf_array *array;
+	u32 owner_prog_type = 0;
+
+	if (map->map_type == BPF_MAP_TYPE_PROG_ARRAY) {
+		array = container_of(map, struct bpf_array, map);
+		owner_prog_type = array->owner_prog_type;
+	}
 
 	seq_printf(m,
 		   "map_type:\t%u\n"
 		   "key_size:\t%u\n"
 		   "value_size:\t%u\n"
 		   "max_entries:\t%u\n"
-		   "map_flags:\t%#x\n",
+		   "map_flags:\t%#x\n"
+		   "memlock:\t%llu\n",
 		   map->map_type,
 		   map->key_size,
 		   map->value_size,
 		   map->max_entries,
-		   map->map_flags);
+		   map->map_flags,
+		   map->pages * 1ULL << PAGE_SHIFT);
+
+	if (owner_prog_type)
+		seq_printf(m, "owner_prog_type:\t%u\n",
+			   owner_prog_type);
 }
 #endif
 
