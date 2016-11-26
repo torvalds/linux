@@ -971,8 +971,7 @@ static int cpu_hotplug_notify(struct notifier_block *n,
 	case CPU_ONLINE:
 
 		if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
-			smp_call_function_single(hotcpu, __setup_broadcast_timer,
-						 (void *)true, 1);
+			__setup_broadcast_timer((void *)true);
 
 		/*
 		 * Some systems can hotplug a cpu at runtime after
