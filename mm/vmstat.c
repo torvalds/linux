@@ -1722,24 +1722,19 @@ static void __init init_cpu_node_state(void)
 {
 	int cpu;
 
-	get_online_cpus();
 	for_each_online_cpu(cpu)
 		node_set_state(cpu_to_node(cpu), N_CPU);
-	put_online_cpus();
 }
 
 static void vmstat_cpu_dead(int node)
 {
 	int cpu;
 
-	get_online_cpus();
 	for_each_online_cpu(cpu)
 		if (cpu_to_node(cpu) == node)
-			goto end;
+			return;
 
 	node_clear_state(node, N_CPU);
-end:
-	put_online_cpus();
 }
 
 /*
