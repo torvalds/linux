@@ -237,6 +237,16 @@ $(OUTPUT)test-llvm.bin:
 		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
 		$(shell $(LLVM_CONFIG) --system-libs)
 
+$(OUTPUT)test-clang.bin:
+	$(BUILDXX) -std=gnu++11 					\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		-Wl,--start-group -lclangBasic -lclangDriver	\
+		  -lclangFrontend -lclangEdit -lclangLex	\
+		  -lclangAST -Wl,--end-group 			\
+		$(shell $(LLVM_CONFIG) --libs Core option)	\
+		$(shell $(LLVM_CONFIG) --system-libs)
+
 -include $(OUTPUT)*.d
 
 ###############################
