@@ -90,6 +90,10 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 		if (err)
 			return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
 		obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, filename);
+
+		if (!IS_ERR(obj) && llvm_param.dump_obj)
+			llvm__dump_obj(filename, obj_buf, obj_buf_sz);
+
 		free(obj_buf);
 	} else
 		obj = bpf_object__open(filename);
