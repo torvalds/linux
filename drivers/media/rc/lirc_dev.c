@@ -157,13 +157,13 @@ static const struct file_operations lirc_dev_fops = {
 
 static int lirc_cdev_add(struct irctl *ir)
 {
-	int retval = -ENOMEM;
 	struct lirc_driver *d = &ir->d;
 	struct cdev *cdev;
+	int retval;
 
 	cdev = cdev_alloc();
 	if (!cdev)
-		goto err_out;
+		return -ENOMEM;
 
 	if (d->fops) {
 		cdev->ops = d->fops;
@@ -177,10 +177,8 @@ static int lirc_cdev_add(struct irctl *ir)
 		goto err_out;
 
 	retval = cdev_add(cdev, MKDEV(MAJOR(lirc_base_dev), d->minor), 1);
-	if (retval) {
-		kobject_put(&cdev->kobj);
+	if (retval)
 		goto err_out;
-	}
 
 	ir->cdev = cdev;
 
