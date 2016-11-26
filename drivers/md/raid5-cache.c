@@ -1919,7 +1919,6 @@ r5c_recovery_analyze_meta_block(struct r5l_log *log,
 static void r5c_recovery_load_one_stripe(struct r5l_log *log,
 					 struct stripe_head *sh)
 {
-	struct r5conf *conf = sh->raid_conf;
 	struct r5dev *dev;
 	int i;
 
@@ -1930,9 +1929,8 @@ static void r5c_recovery_load_one_stripe(struct r5l_log *log,
 			set_bit(R5_UPTODATE, &dev->flags);
 		}
 	}
-	set_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state);
-	atomic_inc(&conf->r5c_cached_partial_stripes);
 	list_add_tail(&sh->r5c, &log->stripe_in_journal_list);
+	atomic_inc(&log->stripe_in_journal_count);
 }
 
 /*
