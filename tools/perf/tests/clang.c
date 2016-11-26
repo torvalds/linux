@@ -12,6 +12,10 @@ static struct {
 		.func = test__clang_to_IR,
 		.desc = "builtin clang compile C source to IR",
 	},
+	{
+		.func = test__clang_to_obj,
+		.desc = "builtin clang compile C source to ELF object",
+	},
 #endif
 };
 
@@ -33,7 +37,7 @@ int test__clang(int i __maybe_unused)
 	return TEST_SKIP;
 }
 #else
-int test__clang(int i __maybe_unused)
+int test__clang(int i)
 {
 	if (i < 0 || i >= (int)ARRAY_SIZE(clang_testcase_table))
 		return TEST_FAIL;

@@ -9,6 +9,7 @@ extern void perf_clang__init(void);
 extern void perf_clang__cleanup(void);
 
 extern int test__clang_to_IR(void);
+extern int test__clang_to_obj(void);
 
 #ifdef __cplusplus
 }

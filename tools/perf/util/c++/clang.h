@@ -19,5 +19,8 @@ std::unique_ptr<Module>
 getModuleFromSource(opt::ArgStringList CFlags,
 		    StringRef Path);
 
+std::unique_ptr<llvm::SmallVectorImpl<char>>
+getBPFObjectFromModule(llvm::Module *Module);
+
 }
 #endif
