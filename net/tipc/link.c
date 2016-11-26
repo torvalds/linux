@@ -1492,8 +1492,9 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL))
 			l->tolerance = peers_tol;
 
-		if (peers_prio && in_range(peers_prio, TIPC_MIN_LINK_PRI,
-					   TIPC_MAX_LINK_PRI)) {
+		/* Update own prio if peer indicates a different value */
+		if ((peers_prio != l->priority) &&
+		    in_range(peers_prio, 1, TIPC_MAX_LINK_PRI)) {
 			l->priority = peers_prio;
 			rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
 		}

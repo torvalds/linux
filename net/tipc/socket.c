@@ -186,7 +186,7 @@ static struct tipc_sock *tipc_sk(const struct sock *sk)
 
 static bool tsk_conn_cong(struct tipc_sock *tsk)
 {
-	return tsk->snt_unacked >= tsk->snd_win;
+	return tsk->snt_unacked > tsk->snd_win;
 }
 
 /* tsk_blocks(): translate a buffer size in bytes to number of
