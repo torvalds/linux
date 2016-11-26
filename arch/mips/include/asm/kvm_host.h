@@ -226,6 +226,7 @@ enum emulation_result {
 	EMULATE_FAIL,		/* can't emulate this instruction */
 	EMULATE_WAIT,		/* WAIT instruction */
 	EMULATE_PRIV_FAIL,
+	EMULATE_EXCEPT,		/* A guest exception has been generated */
 };
 
 #define mips3_paddr_to_tlbpfn(x) \
@@ -614,7 +615,6 @@ extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi,
 
 extern int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu,
 				     unsigned long entryhi);
-extern int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr);
 
 void kvm_mips_suspend_mm(int cpu);
 void kvm_mips_resume_mm(int cpu);

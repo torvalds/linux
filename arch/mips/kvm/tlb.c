@@ -117,41 +117,6 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 }
 EXPORT_SYMBOL_GPL(kvm_mips_guest_tlb_lookup);
 
-int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
-{
-	unsigned long old_entryhi, flags;
-	int idx;
-
-	local_irq_save(flags);
-
-	old_entryhi = read_c0_entryhi();
-
-	if (KVM_GUEST_KERNEL_MODE(vcpu))
-		write_c0_entryhi((vaddr & VPN2_MASK) |
-				 kvm_mips_get_kernel_asid(vcpu));
-	else {
-		write_c0_entryhi((vaddr & VPN2_MASK) |
-				 kvm_mips_get_user_asid(vcpu));
-	}
-
-	mtc0_tlbw_hazard();
-
-	tlb_probe();
-	tlb_probe_hazard();
-	idx = read_c0_index();
-
-	/* Restore old ASID */
-	write_c0_entryhi(old_entryhi);
-	mtc0_tlbw_hazard();
-
-	local_irq_restore(flags);
-
-	kvm_debug("Host TLB lookup, %#lx, idx: %2d\n", vaddr, idx);
-
-	return idx;
-}
-EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_lookup);
-
 static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 {
 	int idx;

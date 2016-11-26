@@ -1697,12 +1697,56 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 	return er;
 }
 
+static enum emulation_result kvm_mips_guest_cache_op(int (*fn)(unsigned long),
+						     unsigned long curr_pc,
+						     unsigned long addr,
+						     struct kvm_run *run,
+						     struct kvm_vcpu *vcpu,
+						     u32 cause)
+{
+	int err;
+
+	for (;;) {
+		/* Carefully attempt the cache operation */
+		kvm_trap_emul_gva_lockless_begin(vcpu);
+		err = fn(addr);
+		kvm_trap_emul_gva_lockless_end(vcpu);
+
+		if (likely(!err))
+			return EMULATE_DONE;
+
+		/*
+		 * Try to handle the fault and retry, maybe we just raced with a
+		 * GVA invalidation.
+		 */
+		switch (kvm_trap_emul_gva_fault(vcpu, addr, false)) {
+		case KVM_MIPS_GVA:
+		case KVM_MIPS_GPA:
+			/* bad virtual or physical address */
+			return EMULATE_FAIL;
+		case KVM_MIPS_TLB:
+			/* no matching guest TLB */
+			vcpu->arch.host_cp0_badvaddr = addr;
+			vcpu->arch.pc = curr_pc;
+			kvm_mips_emulate_tlbmiss_ld(cause, NULL, run, vcpu);
+			return EMULATE_EXCEPT;
+		case KVM_MIPS_TLBINV:
+			/* invalid matching guest TLB */
+			vcpu->arch.host_cp0_badvaddr = addr;
+			vcpu->arch.pc = curr_pc;
+			kvm_mips_emulate_tlbinv_ld(cause, NULL, run, vcpu);
+			return EMULATE_EXCEPT;
+		default:
+			break;
+		};
+	}
+}
+
 enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 					     u32 *opc, u32 cause,
 					     struct kvm_run *run,
 					     struct kvm_vcpu *vcpu)
 {
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	enum emulation_result er = EMULATE_DONE;
 	u32 cache, op_inst, op, base;
 	s16 offset;
@@ -1759,81 +1803,16 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 		goto done;
 	}
 
-	preempt_disable();
-	if (KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG0) {
-		if (kvm_mips_host_tlb_lookup(vcpu, va) < 0 &&
-		    kvm_mips_handle_kseg0_tlb_fault(va, vcpu)) {
-			kvm_err("%s: handling mapped kseg0 tlb fault for %lx, vcpu: %p, ASID: %#lx\n",
-				__func__, va, vcpu, read_c0_entryhi());
-			er = EMULATE_FAIL;
-			preempt_enable();
-			goto done;
-		}
-	} else if ((KVM_GUEST_KSEGX(va) < KVM_GUEST_KSEG0) ||
-		   KVM_GUEST_KSEGX(va) == KVM_GUEST_KSEG23) {
-		int index;
-
-		/* If an entry already exists then skip */
-		if (kvm_mips_host_tlb_lookup(vcpu, va) >= 0)
-			goto skip_fault;
-
-		/*
-		 * If address not in the guest TLB, then give the guest a fault,
-		 * the resulting handler will do the right thing
-		 */
-		index = kvm_mips_guest_tlb_lookup(vcpu, (va & VPN2_MASK) |
-						  (kvm_read_c0_guest_entryhi
-						   (cop0) & KVM_ENTRYHI_ASID));
-
-		if (index < 0) {
-			vcpu->arch.host_cp0_badvaddr = va;
-			vcpu->arch.pc = curr_pc;
-			er = kvm_mips_emulate_tlbmiss_ld(cause, NULL, run,
-							 vcpu);
-			preempt_enable();
-			goto dont_update_pc;
-		} else {
-			struct kvm_mips_tlb *tlb = &vcpu->arch.guest_tlb[index];
-			/*
-			 * Check if the entry is valid, if not then setup a TLB
-			 * invalid exception to the guest
-			 */
-			if (!TLB_IS_VALID(*tlb, va)) {
-				vcpu->arch.host_cp0_badvaddr = va;
-				vcpu->arch.pc = curr_pc;
-				er = kvm_mips_emulate_tlbinv_ld(cause, NULL,
-								run, vcpu);
-				preempt_enable();
-				goto dont_update_pc;
-			}
-			/*
-			 * We fault an entry from the guest tlb to the
-			 * shadow host TLB
-			 */
-			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb,
-								 va)) {
-				kvm_err("%s: handling mapped seg tlb fault for %lx, index: %u, vcpu: %p, ASID: %#lx\n",
-					__func__, va, index, vcpu,
-					read_c0_entryhi());
-				er = EMULATE_FAIL;
-				preempt_enable();
-				goto done;
-			}
-		}
-	} else {
-		kvm_err("INVALID CACHE INDEX/ADDRESS (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
-			cache, op, base, arch->gprs[base], offset);
-		er = EMULATE_FAIL;
-		preempt_enable();
-		goto done;
-
-	}
-
-skip_fault:
 	/* XXXKYMA: Only a subset of cache ops are supported, used by Linux */
 	if (op_inst == Hit_Writeback_Inv_D || op_inst == Hit_Invalidate_D) {
-		protected_writeback_dcache_line(va);
-
+		/*
+		 * Perform the dcache part of icache synchronisation on the
+		 * guest's behalf.
+		 */
+		er = kvm_mips_guest_cache_op(protected_writeback_dcache_line,
+					     curr_pc, va, run, vcpu, cause);
+		if (er != EMULATE_DONE)
+			goto done;
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 		/*
 		 * Replace the CACHE instruction, with a SYNCI, not the same,
@@ -1842,8 +1821,15 @@ skip_fault:
 		kvm_mips_trans_cache_va(inst, opc, vcpu);
 #endif
 	} else if (op_inst == Hit_Invalidate_I) {
-		protected_writeback_dcache_line(va);
-		protected_flush_icache_line(va);
+		/* Perform the icache synchronisation on the guest's behalf */
+		er = kvm_mips_guest_cache_op(protected_writeback_dcache_line,
+					     curr_pc, va, run, vcpu, cause);
+		if (er != EMULATE_DONE)
+			goto done;
+		er = kvm_mips_guest_cache_op(protected_flush_icache_line,
+					     curr_pc, va, run, vcpu, cause);
+		if (er != EMULATE_DONE)
+			goto done;
 
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 		/* Replace the CACHE instruction, with a SYNCI */
@@ -1855,17 +1841,13 @@ skip_fault:
 		er = EMULATE_FAIL;
 	}
 
-	preempt_enable();
 done:
 	/* Rollback PC only if emulation was unsuccessful */
 	if (er == EMULATE_FAIL)
 		vcpu->arch.pc = curr_pc;
-
-dont_update_pc:
-	/*
-	 * This is for exceptions whose emulation updates the PC, so do not
-	 * overwrite the PC under any circumstances
-	 */
+	/* Guest exception needs guest to resume */
+	if (er == EMULATE_EXCEPT)
+		er = EMULATE_DONE;
 
 	return er;
 }
