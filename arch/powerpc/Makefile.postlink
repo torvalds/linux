@@ -11,7 +11,7 @@ include include/config/auto.conf
 include scripts/Kbuild.include
 
 quiet_cmd_relocs_check = CHKREL  $@
-      cmd_relocs_check = $(CONFIG_SHELL) $(srctree)/arch/powerpc/relocs_check.sh "$(OBJDUMP)" "$@"
+      cmd_relocs_check = $(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/relocs_check.sh "$(OBJDUMP)" "$@"
 
 # `@true` prevents complaint when there is nothing to be done
 
