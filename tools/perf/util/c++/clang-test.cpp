@@ -16,8 +16,9 @@ int test__clang_to_IR(void)
 	perf_clang_scope _scope;
 
 	std::unique_ptr<llvm::Module> M =
-		perf::getModuleFromSource("perf-test.c",
-					  "int myfunc(void) {return 1;}");
+		perf::getModuleFromSource({"-DRESULT=1"},
+					  "perf-test.c",
+					  "int myfunc(void) {return RESULT;}");
 
 	if (!M)
 		return -1;
