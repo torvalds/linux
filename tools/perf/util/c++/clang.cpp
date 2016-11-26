@@ -15,6 +15,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include <memory>
 
@@ -26,14 +27,6 @@ namespace perf {
 static std::unique_ptr<llvm::LLVMContext> LLVMCtx;
 
 using namespace clang;
-
-static vfs::InMemoryFileSystem *
-buildVFS(StringRef& Name, StringRef& Content)
-{
-	vfs::InMemoryFileSystem *VFS = new vfs::InMemoryFileSystem(true);
-	VFS->addFile(Twine(Name), 0, llvm::MemoryBuffer::getMemBuffer(Content));
-	return VFS;
-}
 
 static CompilerInvocation *
 createCompilerInvocation(StringRef& Path, DiagnosticsEngine& Diags)
@@ -60,17 +53,17 @@ createCompilerInvocation(StringRef& Path, DiagnosticsEngine& Diags)
 	return CI;
 }
 
-std::unique_ptr<llvm::Module>
-getModuleFromSource(StringRef Name, StringRef Content)
+static std::unique_ptr<llvm::Module>
+getModuleFromSource(StringRef Path,
+		    IntrusiveRefCntPtr<vfs::FileSystem> VFS)
 {
 	CompilerInstance Clang;
 	Clang.createDiagnostics();
 
-	IntrusiveRefCntPtr<vfs::FileSystem> VFS = buildVFS(Name, Content);
 	Clang.setVirtualFileSystem(&*VFS);
 
 	IntrusiveRefCntPtr<CompilerInvocation> CI =
-		createCompilerInvocation(Name, Clang.getDiagnostics());
+		createCompilerInvocation(Path, Clang.getDiagnostics());
 	Clang.setInvocation(&*CI);
 
 	std::unique_ptr<CodeGenAction> Act(new EmitLLVMOnlyAction(&*LLVMCtx));
@@ -78,6 +71,33 @@ getModuleFromSource(StringRef Name, StringRef Content)
 		return std::unique_ptr<llvm::Module>(nullptr);
 
 	return Act->takeModule();
+}
+
+std::unique_ptr<llvm::Module>
+getModuleFromSource(StringRef Name, StringRef Content)
+{
+	using namespace vfs;
+
+	llvm::IntrusiveRefCntPtr<OverlayFileSystem> OverlayFS(
+			new OverlayFileSystem(getRealFileSystem()));
+	llvm::IntrusiveRefCntPtr<InMemoryFileSystem> MemFS(
+			new InMemoryFileSystem(true));
+
+	/*
+	 * pushOverlay helps setting working dir for MemFS. Must call
+	 * before addFile.
+	 */
+	OverlayFS->pushOverlay(MemFS);
+	MemFS->addFile(Twine(Name), 0, llvm::MemoryBuffer::getMemBuffer(Content));
+
+	return getModuleFromSource(Name, OverlayFS);
+}
+
+std::unique_ptr<llvm::Module>
+getModuleFromSource(StringRef Path)
+{
+	IntrusiveRefCntPtr<vfs::FileSystem> VFS(vfs::getRealFileSystem());
+	return getModuleFromSource(Path, VFS);
 }
 
 }

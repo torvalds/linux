@@ -12,5 +12,8 @@ using namespace llvm;
 std::unique_ptr<Module>
 getModuleFromSource(StringRef Name, StringRef Content);
 
+std::unique_ptr<Module>
+getModuleFromSource(StringRef Path);
+
 }
 #endif
