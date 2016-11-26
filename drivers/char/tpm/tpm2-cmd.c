@@ -419,6 +419,35 @@ static const struct tpm_input_header tpm2_get_tpm_pt_header = {
 };
 
 /**
+ * tpm2_flush_context_cmd() - execute a TPM2_FlushContext command
+ * @chip: TPM chip to use
+ * @payload: the key data in clear and encrypted form
+ * @options: authentication values and other options
+ *
+ * Return: same as with tpm_transmit_cmd
+ */
+void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
+			    unsigned int flags)
+{
+	struct tpm_buf buf;
+	int rc;
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
+	if (rc) {
+		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
+			 handle);
+		return;
+	}
+
+	tpm_buf_append_u32(&buf, handle);
+
+	(void) tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 0, flags,
+				"flushing context");
+
+	tpm_buf_destroy(&buf);
+}
+
+/**
  * tpm_buf_append_auth() - append TPMS_AUTH_COMMAND to the buffer.
  *
  * @buf: an allocated tpm_buf instance
@@ -625,39 +654,6 @@ out:
 		rc = -EPERM;
 
 	return rc;
-}
-
-/**
- * tpm2_flush_context_cmd() - execute a TPM2_FlushContext command
- *
- * @chip: TPM chip to use
- * @handle: the key data in clear and encrypted form
- * @flags: tpm transmit flags
- *
- * Return: Same as with tpm_transmit_cmd.
- */
-static void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
-				   unsigned int flags)
-{
-	struct tpm_buf buf;
-	int rc;
-
-	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_FLUSH_CONTEXT);
-	if (rc) {
-		dev_warn(&chip->dev, "0x%08x was not flushed, out of memory\n",
-			 handle);
-		return;
-	}
-
-	tpm_buf_append_u32(&buf, handle);
-
-	rc = tpm_transmit_cmd(chip, buf.data, PAGE_SIZE, 0, flags,
-			      "flushing context");
-	if (rc)
-		dev_warn(&chip->dev, "0x%08x was not flushed, rc=%d\n", handle,
-			 rc);
-
-	tpm_buf_destroy(&buf);
 }
 
 /**
