@@ -1243,4 +1243,4 @@ MODULE_PARM_DESC(g_option,
 MODULE_AUTHOR("monk liu <monk.liu@siliconmotion.com>");
 MODULE_AUTHOR("Sudip Mukherjee <sudip@vectorindia.org>");
 MODULE_DESCRIPTION("Frame buffer driver for SM750 chipset");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("Dual BSD/GPL");
