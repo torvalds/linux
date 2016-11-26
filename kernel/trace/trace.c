@@ -7659,10 +7659,21 @@ __init static int tracer_alloc_buffers(void)
 
 	raw_spin_lock_init(&global_trace.start_lock);
 
+	/*
+	 * The prepare callbacks allocates some memory for the ring buffer. We
+	 * don't free the buffer if the if the CPU goes down. If we were to free
+	 * the buffer, then the user would lose any trace that was in the
+	 * buffer. The memory will be removed once the "instance" is removed.
+	 */
+	ret = cpuhp_setup_state_multi(CPUHP_TRACE_RB_PREPARE,
+				      "trace/RB:preapre", trace_rb_cpu_prepare,
+				      NULL);
+	if (ret < 0)
+		goto out_free_cpumask;
 	/* Used for event triggers */
 	temp_buffer = ring_buffer_alloc(PAGE_SIZE, RB_FL_OVERWRITE);
 	if (!temp_buffer)
-		goto out_free_cpumask;
+		goto out_rm_hp_state;
 
 	if (trace_create_savedcmd() < 0)
 		goto out_free_temp_buffer;
@@ -7723,6 +7734,8 @@ out_free_savedcmd:
 	free_saved_cmdlines_buffer(savedcmd);
 out_free_temp_buffer:
 	ring_buffer_free(temp_buffer);
+out_rm_hp_state:
+	cpuhp_remove_multi_state(CPUHP_TRACE_RB_PREPARE);
 out_free_cpumask:
 	free_cpumask_var(global_trace.tracing_cpumask);
 out_free_buffer_mask:
