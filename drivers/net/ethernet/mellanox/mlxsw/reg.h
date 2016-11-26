@@ -1757,6 +1757,146 @@ static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
 	}
 }
 
+/* QPCR - QoS Policer Configuration Register
+ * -----------------------------------------
+ * The QPCR register is used to create policers - that limit
+ * the rate of bytes or packets via some trap group.
+ */
+#define MLXSW_REG_QPCR_ID 0x4004
+#define MLXSW_REG_QPCR_LEN 0x28
+
+MLXSW_REG_DEFINE(qpcr, MLXSW_REG_QPCR_ID, MLXSW_REG_QPCR_LEN);
+
+enum mlxsw_reg_qpcr_g {
+	MLXSW_REG_QPCR_G_GLOBAL = 2,
+	MLXSW_REG_QPCR_G_STORM_CONTROL = 3,
+};
+
+/* reg_qpcr_g
+ * The policer type.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, qpcr, g, 0x00, 14, 2);
+
+/* reg_qpcr_pid
+ * Policer ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, qpcr, pid, 0x00, 0, 14);
+
+/* reg_qpcr_color_aware
+ * Is the policer aware of colors.
+ * Must be 0 (unaware) for cpu port.
+ * Access: RW for unbounded policer. RO for bounded policer.
+ */
+MLXSW_ITEM32(reg, qpcr, color_aware, 0x04, 15, 1);
+
+/* reg_qpcr_bytes
+ * Is policer limit is for bytes per sec or packets per sec.
+ * 0 - packets
+ * 1 - bytes
+ * Access: RW for unbounded policer. RO for bounded policer.
+ */
+MLXSW_ITEM32(reg, qpcr, bytes, 0x04, 14, 1);
+
+enum mlxsw_reg_qpcr_ir_units {
+	MLXSW_REG_QPCR_IR_UNITS_M,
+	MLXSW_REG_QPCR_IR_UNITS_K,
+};
+
+/* reg_qpcr_ir_units
+ * Policer's units for cir and eir fields (for bytes limits only)
+ * 1 - 10^3
+ * 0 - 10^6
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, qpcr, ir_units, 0x04, 12, 1);
+
+enum mlxsw_reg_qpcr_rate_type {
+	MLXSW_REG_QPCR_RATE_TYPE_SINGLE = 1,
+	MLXSW_REG_QPCR_RATE_TYPE_DOUBLE = 2,
+};
+
+/* reg_qpcr_rate_type
+ * Policer can have one limit (single rate) or 2 limits with specific operation
+ * for packets that exceed the lower rate but not the upper one.
+ * (For cpu port must be single rate)
+ * Access: RW for unbounded policer. RO for bounded policer.
+ */
+MLXSW_ITEM32(reg, qpcr, rate_type, 0x04, 8, 2);
+
+/* reg_qpc_cbs
+ * Policer's committed burst size.
+ * The policer is working with time slices of 50 nano sec. By default every
+ * slice is granted the proportionate share of the committed rate. If we want to
+ * allow a slice to exceed that share (while still keeping the rate per sec) we
+ * can allow burst. The burst size is between the default proportionate share
+ * (and no lower than 8) to 32Gb. (Even though giving a number higher than the
+ * committed rate will result in exceeding the rate). The burst size must be a
+ * log of 2 and will be determined by 2^cbs.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qpcr, cbs, 0x08, 24, 6);
+
+/* reg_qpcr_cir
+ * Policer's committed rate.
+ * The rate used for sungle rate, the lower rate for double rate.
+ * For bytes limits, the rate will be this value * the unit from ir_units.
+ * (Resolution error is up to 1%).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qpcr, cir, 0x0C, 0, 32);
+
+/* reg_qpcr_eir
+ * Policer's exceed rate.
+ * The higher rate for double rate, reserved for single rate.
+ * Lower rate for double rate policer.
+ * For bytes limits, the rate will be this value * the unit from ir_units.
+ * (Resolution error is up to 1%).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, qpcr, eir, 0x10, 0, 32);
+
+#define MLXSW_REG_QPCR_DOUBLE_RATE_ACTION 2
+
+/* reg_qpcr_exceed_action.
+ * What to do with packets between the 2 limits for double rate.
+ * Access: RW for unbounded policer. RO for bounded policer.
+ */
+MLXSW_ITEM32(reg, qpcr, exceed_action, 0x14, 0, 4);
+
+enum mlxsw_reg_qpcr_action {
+	/* Discard */
+	MLXSW_REG_QPCR_ACTION_DISCARD = 1,
+	/* Forward and set color to red.
+	 * If the packet is intended to cpu port, it will be dropped.
+	 */
+	MLXSW_REG_QPCR_ACTION_FORWARD = 2,
+};
+
+/* reg_qpcr_violate_action
+ * What to do with packets that cross the cir limit (for single rate) or the eir
+ * limit (for double rate).
+ * Access: RW for unbounded policer. RO for bounded policer.
+ */
+MLXSW_ITEM32(reg, qpcr, violate_action, 0x18, 0, 4);
+
+static inline void mlxsw_reg_qpcr_pack(char *payload, u16 pid,
+				       enum mlxsw_reg_qpcr_ir_units ir_units,
+				       bool bytes, u32 cir, u16 cbs)
+{
+	MLXSW_REG_ZERO(qpcr, payload);
+	mlxsw_reg_qpcr_pid_set(payload, pid);
+	mlxsw_reg_qpcr_g_set(payload, MLXSW_REG_QPCR_G_GLOBAL);
+	mlxsw_reg_qpcr_rate_type_set(payload, MLXSW_REG_QPCR_RATE_TYPE_SINGLE);
+	mlxsw_reg_qpcr_violate_action_set(payload,
+					  MLXSW_REG_QPCR_ACTION_DISCARD);
+	mlxsw_reg_qpcr_cir_set(payload, cir);
+	mlxsw_reg_qpcr_ir_units_set(payload, ir_units);
+	mlxsw_reg_qpcr_bytes_set(payload, bytes);
+	mlxsw_reg_qpcr_cbs_set(payload, cbs);
+}
+
 /* QTCT - QoS Switch Traffic Class Table
  * -------------------------------------
  * Configures the mapping between the packet switch priority and the
@@ -3034,8 +3174,21 @@ MLXSW_ITEM32(reg, htgt, type, 0x00, 8, 4);
 
 enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
-	MLXSW_REG_HTGT_TRAP_GROUP_RX,
-	MLXSW_REG_HTGT_TRAP_GROUP_CTRL,
+	MLXSW_REG_HTGT_TRAP_GROUP_SX2_RX,
+	MLXSW_REG_HTGT_TRAP_GROUP_SX2_CTRL,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_STP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_IGMP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP_IPV4,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_ARP_MISS,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT,
 };
 
 /* reg_htgt_trap_group
@@ -3056,6 +3209,8 @@ enum {
  * Access: RW
  */
 MLXSW_ITEM32(reg, htgt, pide, 0x04, 15, 1);
+
+#define MLXSW_REG_HTGT_INVALID_POLICER 0xff
 
 /* reg_htgt_pid
  * Policer ID for the trap group.
@@ -3082,6 +3237,8 @@ MLXSW_ITEM32(reg, htgt, mirror_action, 0x08, 8, 2);
  */
 MLXSW_ITEM32(reg, htgt, mirroring_agent, 0x08, 0, 3);
 
+#define MLXSW_REG_HTGT_DEFAULT_PRIORITY 0
+
 /* reg_htgt_priority
  * Trap group priority.
  * In case a packet matches multiple classification rules, the packet will
@@ -3095,52 +3252,47 @@ MLXSW_ITEM32(reg, htgt, mirroring_agent, 0x08, 0, 3);
  */
 MLXSW_ITEM32(reg, htgt, priority, 0x0C, 0, 4);
 
+#define MLXSW_REG_HTGT_DEFAULT_TC 7
+
 /* reg_htgt_local_path_cpu_tclass
  * CPU ingress traffic class for the trap group.
  * Access: RW
  */
 MLXSW_ITEM32(reg, htgt, local_path_cpu_tclass, 0x10, 16, 6);
 
-#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD	0x15
-#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX	0x14
-#define MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL	0x13
-
+enum mlxsw_reg_htgt_local_path_rdq {
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_CTRL = 0x13,
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_RX = 0x14,
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_EMAD = 0x15,
+	MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SIB_EMAD = 0x15,
+};
 /* reg_htgt_local_path_rdq
  * Receive descriptor queue (RDQ) to use for the trap group.
  * Access: RW
  */
 MLXSW_ITEM32(reg, htgt, local_path_rdq, 0x10, 0, 6);
 
-static inline void mlxsw_reg_htgt_pack(char *payload,
-				       enum mlxsw_reg_htgt_trap_group group)
+static inline void mlxsw_reg_htgt_pack(char *payload, u8 group, u8 policer_id,
+				       u8 priority, u8 tc)
 {
-	u8 swid, rdq;
-
 	MLXSW_REG_ZERO(htgt, payload);
-	switch (group) {
-	case MLXSW_REG_HTGT_TRAP_GROUP_EMAD:
-		swid = MLXSW_PORT_SWID_ALL_SWIDS;
-		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_EMAD;
-		break;
-	case MLXSW_REG_HTGT_TRAP_GROUP_RX:
-		swid = 0;
-		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_RX;
-		break;
-	case MLXSW_REG_HTGT_TRAP_GROUP_CTRL:
-		swid = 0;
-		rdq = MLXSW_REG_HTGT_LOCAL_PATH_RDQ_CTRL;
-		break;
+
+	if (policer_id == MLXSW_REG_HTGT_INVALID_POLICER) {
+		mlxsw_reg_htgt_pide_set(payload,
+					MLXSW_REG_HTGT_POLICER_DISABLE);
+	} else {
+		mlxsw_reg_htgt_pide_set(payload,
+					MLXSW_REG_HTGT_POLICER_ENABLE);
+		mlxsw_reg_htgt_pid_set(payload, policer_id);
 	}
-	mlxsw_reg_htgt_swid_set(payload, swid);
+
 	mlxsw_reg_htgt_type_set(payload, MLXSW_REG_HTGT_PATH_TYPE_LOCAL);
 	mlxsw_reg_htgt_trap_group_set(payload, group);
-	mlxsw_reg_htgt_pide_set(payload, MLXSW_REG_HTGT_POLICER_DISABLE);
-	mlxsw_reg_htgt_pid_set(payload, 0);
 	mlxsw_reg_htgt_mirror_action_set(payload, MLXSW_REG_HTGT_TRAP_TO_CPU);
 	mlxsw_reg_htgt_mirroring_agent_set(payload, 0);
-	mlxsw_reg_htgt_priority_set(payload, 0);
-	mlxsw_reg_htgt_local_path_cpu_tclass_set(payload, 7);
-	mlxsw_reg_htgt_local_path_rdq_set(payload, rdq);
+	mlxsw_reg_htgt_priority_set(payload, priority);
+	mlxsw_reg_htgt_local_path_cpu_tclass_set(payload, tc);
+	mlxsw_reg_htgt_local_path_rdq_set(payload, group);
 }
 
 /* HPKT - Host Packet Trap
@@ -3214,6 +3366,7 @@ enum {
 
 /* reg_hpkt_ctrl
  * Configure dedicated buffer resources for control packets.
+ * Ignored by SwitchX-2.
  * 0 - Keep factory defaults.
  * 1 - Do not use control buffer for this trap ID.
  * 2 - Use control buffer for this trap ID.
@@ -3221,25 +3374,18 @@ enum {
  */
 MLXSW_ITEM32(reg, hpkt, ctrl, 0x04, 16, 2);
 
-static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
+static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id,
+				       enum mlxsw_reg_htgt_trap_group trap_group,
+				       bool is_ctrl)
 {
-	enum mlxsw_reg_htgt_trap_group trap_group;
-
 	MLXSW_REG_ZERO(hpkt, payload);
 	mlxsw_reg_hpkt_ack_set(payload, MLXSW_REG_HPKT_ACK_NOT_REQUIRED);
 	mlxsw_reg_hpkt_action_set(payload, action);
-	switch (trap_id) {
-	case MLXSW_TRAP_ID_ETHEMAD:
-	case MLXSW_TRAP_ID_PUDE:
-		trap_group = MLXSW_REG_HTGT_TRAP_GROUP_EMAD;
-		break;
-	default:
-		trap_group = MLXSW_REG_HTGT_TRAP_GROUP_RX;
-		break;
-	}
 	mlxsw_reg_hpkt_trap_group_set(payload, trap_group);
 	mlxsw_reg_hpkt_trap_id_set(payload, trap_id);
-	mlxsw_reg_hpkt_ctrl_set(payload, MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT);
+	mlxsw_reg_hpkt_ctrl_set(payload, is_ctrl ?
+				MLXSW_REG_HPKT_CTRL_PACKET_USE_BUFFER :
+				MLXSW_REG_HPKT_CTRL_PACKET_NO_BUFFER);
 }
 
 /* RGCR - Router General Configuration Register
@@ -5248,6 +5394,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(svpe),
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
+	MLXSW_REG(qpcr),
 	MLXSW_REG(qtct),
 	MLXSW_REG(qeec),
 	MLXSW_REG(pmlp),

@@ -1396,52 +1396,6 @@ static void mlxsw_sx_pude_event_func(const struct mlxsw_reg_info *reg,
 		mlxsw_sx_pude_ib_event_func(mlxsw_sx_port, status);
 }
 
-static struct mlxsw_event_listener mlxsw_sx_pude_event = {
-	.func = mlxsw_sx_pude_event_func,
-	.trap_id = MLXSW_TRAP_ID_PUDE,
-};
-
-static int mlxsw_sx_event_register(struct mlxsw_sx *mlxsw_sx,
-				   enum mlxsw_event_trap_id trap_id)
-{
-	struct mlxsw_event_listener *el;
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
-	int err;
-
-	switch (trap_id) {
-	case MLXSW_TRAP_ID_PUDE:
-		el = &mlxsw_sx_pude_event;
-		break;
-	}
-	err = mlxsw_core_event_listener_register(mlxsw_sx->core, el, mlxsw_sx);
-	if (err)
-		return err;
-
-	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD, trap_id);
-	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-	if (err)
-		goto err_event_trap_set;
-
-	return 0;
-
-err_event_trap_set:
-	mlxsw_core_event_listener_unregister(mlxsw_sx->core, el, mlxsw_sx);
-	return err;
-}
-
-static void mlxsw_sx_event_unregister(struct mlxsw_sx *mlxsw_sx,
-				      enum mlxsw_event_trap_id trap_id)
-{
-	struct mlxsw_event_listener *el;
-
-	switch (trap_id) {
-	case MLXSW_TRAP_ID_PUDE:
-		el = &mlxsw_sx_pude_event;
-		break;
-	}
-	mlxsw_core_event_listener_unregister(mlxsw_sx->core, el, mlxsw_sx);
-}
-
 static void mlxsw_sx_rx_listener_func(struct sk_buff *skb, u8 local_port,
 				      void *priv)
 {
@@ -1494,142 +1448,83 @@ err_port_module_info_get:
 	return err;
 }
 
-static const struct mlxsw_rx_listener mlxsw_sx_rx_listener[] = {
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_FDB_MC,
-	},
-	/* Traps for specific L2 packet types, not trapped as FDB MC */
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_STP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_LACP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_EAPOL,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_LLDP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_MMRP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_MVRP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_RPVST,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_DHCP,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_QUERY,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V1_REPORT,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V2_REPORT,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V2_LEAVE,
-	},
-	{
-		.func = mlxsw_sx_rx_listener_func,
-		.local_port = MLXSW_PORT_DONT_CARE,
-		.trap_id = MLXSW_TRAP_ID_IGMP_V3_REPORT,
-	},
+#define MLXSW_SX_RXL(_trap_id) \
+	MLXSW_RXL(mlxsw_sx_rx_listener_func, _trap_id, TRAP_TO_CPU,	\
+		  false, SX2_RX, FORWARD)
+
+static const struct mlxsw_listener mlxsw_sx_listener[] = {
+	MLXSW_EVENTL(mlxsw_sx_pude_event_func, PUDE, EMAD),
+	MLXSW_SX_RXL(FDB_MC),
+	MLXSW_SX_RXL(STP),
+	MLXSW_SX_RXL(LACP),
+	MLXSW_SX_RXL(EAPOL),
+	MLXSW_SX_RXL(LLDP),
+	MLXSW_SX_RXL(MMRP),
+	MLXSW_SX_RXL(MVRP),
+	MLXSW_SX_RXL(RPVST),
+	MLXSW_SX_RXL(DHCP),
+	MLXSW_SX_RXL(IGMP_QUERY),
+	MLXSW_SX_RXL(IGMP_V1_REPORT),
+	MLXSW_SX_RXL(IGMP_V2_REPORT),
+	MLXSW_SX_RXL(IGMP_V2_LEAVE),
+	MLXSW_SX_RXL(IGMP_V3_REPORT),
 };
 
 static int mlxsw_sx_traps_init(struct mlxsw_sx *mlxsw_sx)
 {
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int i;
 	int err;
 
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_RX);
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_SX2_RX,
+			    MLXSW_REG_HTGT_INVALID_POLICER,
+			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+			    MLXSW_REG_HTGT_DEFAULT_TC);
+	mlxsw_reg_htgt_local_path_rdq_set(htgt_pl,
+					  MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_RX);
+
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(htgt), htgt_pl);
 	if (err)
 		return err;
 
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_CTRL);
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_SX2_CTRL,
+			    MLXSW_REG_HTGT_INVALID_POLICER,
+			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+			    MLXSW_REG_HTGT_DEFAULT_TC);
+	mlxsw_reg_htgt_local_path_rdq_set(htgt_pl,
+					MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_CTRL);
+
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(htgt), htgt_pl);
 	if (err)
 		return err;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_rx_listener); i++) {
-		err = mlxsw_core_rx_listener_register(mlxsw_sx->core,
-						      &mlxsw_sx_rx_listener[i],
-						      mlxsw_sx);
+	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_listener); i++) {
+		err = mlxsw_core_trap_register(mlxsw_sx->core,
+					       &mlxsw_sx_listener[i],
+					       mlxsw_sx);
 		if (err)
-			goto err_rx_listener_register;
+			goto err_listener_register;
 
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-				    mlxsw_sx_rx_listener[i].trap_id);
-		err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-		if (err)
-			goto err_rx_trap_set;
 	}
 	return 0;
 
-err_rx_trap_set:
-	mlxsw_core_rx_listener_unregister(mlxsw_sx->core,
-					  &mlxsw_sx_rx_listener[i],
-					  mlxsw_sx);
-err_rx_listener_register:
+err_listener_register:
 	for (i--; i >= 0; i--) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-				    mlxsw_sx_rx_listener[i].trap_id);
-		mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-
-		mlxsw_core_rx_listener_unregister(mlxsw_sx->core,
-						  &mlxsw_sx_rx_listener[i],
-						  mlxsw_sx);
+		mlxsw_core_trap_unregister(mlxsw_sx->core,
+					   &mlxsw_sx_listener[i],
+					   mlxsw_sx);
 	}
 	return err;
 }
 
 static void mlxsw_sx_traps_fini(struct mlxsw_sx *mlxsw_sx)
 {
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_rx_listener); i++) {
-		mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_FORWARD,
-				    mlxsw_sx_rx_listener[i].trap_id);
-		mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(hpkt), hpkt_pl);
-
-		mlxsw_core_rx_listener_unregister(mlxsw_sx->core,
-						  &mlxsw_sx_rx_listener[i],
-						  mlxsw_sx);
+	for (i = 0; i < ARRAY_SIZE(mlxsw_sx_listener); i++) {
+		mlxsw_core_trap_unregister(mlxsw_sx->core,
+					   &mlxsw_sx_listener[i],
+					   mlxsw_sx);
 	}
 }
 
@@ -1701,6 +1596,20 @@ static int mlxsw_sx_flood_init(struct mlxsw_sx *mlxsw_sx)
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(sgcr), sgcr_pl);
 }
 
+static int mlxsw_sx_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
+{
+	char htgt_pl[MLXSW_REG_HTGT_LEN];
+
+	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_EMAD,
+			    MLXSW_REG_HTGT_INVALID_POLICER,
+			    MLXSW_REG_HTGT_DEFAULT_PRIORITY,
+			    MLXSW_REG_HTGT_DEFAULT_TC);
+	mlxsw_reg_htgt_swid_set(htgt_pl, MLXSW_PORT_SWID_ALL_SWIDS);
+	mlxsw_reg_htgt_local_path_rdq_set(htgt_pl,
+					MLXSW_REG_HTGT_LOCAL_PATH_RDQ_SX2_EMAD);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
+}
+
 static int mlxsw_sx_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *mlxsw_bus_info)
 {
@@ -1722,16 +1631,10 @@ static int mlxsw_sx_init(struct mlxsw_core *mlxsw_core,
 		return err;
 	}
 
-	err = mlxsw_sx_event_register(mlxsw_sx, MLXSW_TRAP_ID_PUDE);
-	if (err) {
-		dev_err(mlxsw_sx->bus_info->dev, "Failed to register for PUDE events\n");
-		goto err_event_register;
-	}
-
 	err = mlxsw_sx_traps_init(mlxsw_sx);
 	if (err) {
-		dev_err(mlxsw_sx->bus_info->dev, "Failed to set traps for RX\n");
-		goto err_rx_listener_register;
+		dev_err(mlxsw_sx->bus_info->dev, "Failed to set traps\n");
+		goto err_listener_register;
 	}
 
 	err = mlxsw_sx_flood_init(mlxsw_sx);
@@ -1744,9 +1647,7 @@ static int mlxsw_sx_init(struct mlxsw_core *mlxsw_core,
 
 err_flood_init:
 	mlxsw_sx_traps_fini(mlxsw_sx);
-err_rx_listener_register:
-	mlxsw_sx_event_unregister(mlxsw_sx, MLXSW_TRAP_ID_PUDE);
-err_event_register:
+err_listener_register:
 	mlxsw_sx_ports_remove(mlxsw_sx);
 	return err;
 }
@@ -1756,7 +1657,6 @@ static void mlxsw_sx_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sx *mlxsw_sx = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sx_traps_fini(mlxsw_sx);
-	mlxsw_sx_event_unregister(mlxsw_sx, MLXSW_TRAP_ID_PUDE);
 	mlxsw_sx_ports_remove(mlxsw_sx);
 }
 
@@ -1800,6 +1700,7 @@ static struct mlxsw_driver mlxsw_sx_driver = {
 	.priv_size		= sizeof(struct mlxsw_sx),
 	.init			= mlxsw_sx_init,
 	.fini			= mlxsw_sx_fini,
+	.basic_trap_groups_set	= mlxsw_sx_basic_trap_groups_set,
 	.txhdr_construct	= mlxsw_sx_txhdr_construct,
 	.txhdr_len		= MLXSW_TXHDR_LEN,
 	.profile		= &mlxsw_sx_config_profile,

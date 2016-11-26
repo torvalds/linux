@@ -572,27 +572,9 @@ free_skb:
 	dev_kfree_skb(skb);
 }
 
-static const struct mlxsw_rx_listener mlxsw_emad_rx_listener = {
-	.func = mlxsw_emad_rx_listener_func,
-	.local_port = MLXSW_PORT_DONT_CARE,
-	.trap_id = MLXSW_TRAP_ID_ETHEMAD,
-};
-
-static int mlxsw_emad_traps_set(struct mlxsw_core *mlxsw_core)
-{
-	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
-	int err;
-
-	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_EMAD);
-	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_TRAP_TO_CPU,
-			    MLXSW_TRAP_ID_ETHEMAD);
-	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
-}
+static const struct mlxsw_listener mlxsw_emad_rx_listener =
+	MLXSW_RXL(mlxsw_emad_rx_listener_func, ETHEMAD, TRAP_TO_CPU, false,
+		  EMAD, DISCARD);
 
 static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 {
@@ -613,42 +595,33 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	INIT_LIST_HEAD(&mlxsw_core->emad.trans_list);
 	spin_lock_init(&mlxsw_core->emad.trans_list_lock);
 
-	err = mlxsw_core_rx_listener_register(mlxsw_core,
-					      &mlxsw_emad_rx_listener,
-					      mlxsw_core);
+	err = mlxsw_core_trap_register(mlxsw_core, &mlxsw_emad_rx_listener,
+				       mlxsw_core);
 	if (err)
 		return err;
 
-	err = mlxsw_emad_traps_set(mlxsw_core);
+	err = mlxsw_core->driver->basic_trap_groups_set(mlxsw_core);
 	if (err)
 		goto err_emad_trap_set;
-
 	mlxsw_core->emad.use_emad = true;
 
 	return 0;
 
 err_emad_trap_set:
-	mlxsw_core_rx_listener_unregister(mlxsw_core,
-					  &mlxsw_emad_rx_listener,
-					  mlxsw_core);
+	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
+				   mlxsw_core);
 	return err;
 }
 
 static void mlxsw_emad_fini(struct mlxsw_core *mlxsw_core)
 {
-	char hpkt_pl[MLXSW_REG_HPKT_LEN];
 
 	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return;
 
 	mlxsw_core->emad.use_emad = false;
-	mlxsw_reg_hpkt_pack(hpkt_pl, MLXSW_REG_HPKT_ACTION_DISCARD,
-			    MLXSW_TRAP_ID_ETHEMAD);
-	mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
-
-	mlxsw_core_rx_listener_unregister(mlxsw_core,
-					  &mlxsw_emad_rx_listener,
-					  mlxsw_core);
+	mlxsw_core_trap_unregister(mlxsw_core, &mlxsw_emad_rx_listener,
+				   mlxsw_core);
 }
 
 static struct sk_buff *mlxsw_emad_alloc(const struct mlxsw_core *mlxsw_core,
@@ -1391,6 +1364,75 @@ void mlxsw_core_event_listener_unregister(struct mlxsw_core *mlxsw_core,
 	kfree(el_item);
 }
 EXPORT_SYMBOL(mlxsw_core_event_listener_unregister);
+
+static int mlxsw_core_listener_register(struct mlxsw_core *mlxsw_core,
+					const struct mlxsw_listener *listener,
+					void *priv)
+{
+	if (listener->is_event)
+		return mlxsw_core_event_listener_register(mlxsw_core,
+						&listener->u.event_listener,
+						priv);
+	else
+		return mlxsw_core_rx_listener_register(mlxsw_core,
+						&listener->u.rx_listener,
+						priv);
+}
+
+static void mlxsw_core_listener_unregister(struct mlxsw_core *mlxsw_core,
+				      const struct mlxsw_listener *listener,
+				      void *priv)
+{
+	if (listener->is_event)
+		mlxsw_core_event_listener_unregister(mlxsw_core,
+						     &listener->u.event_listener,
+						     priv);
+	else
+		mlxsw_core_rx_listener_unregister(mlxsw_core,
+						  &listener->u.rx_listener,
+						  priv);
+}
+
+int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_listener *listener, void *priv)
+{
+	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+	int err;
+
+	err = mlxsw_core_listener_register(mlxsw_core, listener, priv);
+	if (err)
+		return err;
+
+	mlxsw_reg_hpkt_pack(hpkt_pl, listener->action, listener->trap_id,
+			    listener->trap_group, listener->is_ctrl);
+	err = mlxsw_reg_write(mlxsw_core,  MLXSW_REG(hpkt), hpkt_pl);
+	if (err)
+		goto err_trap_set;
+
+	return 0;
+
+err_trap_set:
+	mlxsw_core_listener_unregister(mlxsw_core, listener, priv);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_core_trap_register);
+
+void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
+				const struct mlxsw_listener *listener,
+				void *priv)
+{
+	char hpkt_pl[MLXSW_REG_HPKT_LEN];
+
+	if (!listener->is_event) {
+		mlxsw_reg_hpkt_pack(hpkt_pl, listener->unreg_action,
+				    listener->trap_id, listener->trap_group,
+				    listener->is_ctrl);
+		mlxsw_reg_write(mlxsw_core, MLXSW_REG(hpkt), hpkt_pl);
+	}
+
+	mlxsw_core_listener_unregister(mlxsw_core, listener, priv);
+}
+EXPORT_SYMBOL(mlxsw_core_trap_unregister);
 
 static u64 mlxsw_core_tid_get(struct mlxsw_core *mlxsw_core)
 {
