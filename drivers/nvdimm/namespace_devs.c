@@ -1997,7 +1997,7 @@ struct device *create_namespace_blk(struct nd_region *nd_region,
 	struct nd_mapping *nd_mapping = &nd_region->mapping[0];
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	struct nd_namespace_blk *nsblk;
-	char *name[NSLABEL_NAME_LEN];
+	char name[NSLABEL_NAME_LEN];
 	struct device *dev = NULL;
 	struct resource *res;
 
