@@ -741,7 +741,7 @@ static void vmd_remove(struct pci_dev *dev)
 	irq_domain_remove(vmd->irq_domain);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int vmd_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
