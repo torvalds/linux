@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
+#include <linux/if_arp.h>
 #include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -72,20 +73,6 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 
 static unsigned int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
-
-static bool dev_is_mac_header_xmit(const struct net_device *dev)
-{
-	switch (dev->type) {
-	case ARPHRD_TUNNEL:
-	case ARPHRD_TUNNEL6:
-	case ARPHRD_SIT:
-	case ARPHRD_IPGRE:
-	case ARPHRD_VOID:
-	case ARPHRD_NONE:
-		return false;
-	}
-	return true;
-}
 
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a, int ovr,
