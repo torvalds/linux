@@ -123,6 +123,8 @@ libperf-$(CONFIG_LIBELF) += genelf.o
 libperf-$(CONFIG_DWARF) += genelf_debug.o
 endif
 
+libperf-y += perf-hooks.o
+
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 # avoid compiler warnings in 32-bit mode
 CFLAGS_genelf_debug.o  += -Wno-packed

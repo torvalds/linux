@@ -230,6 +230,10 @@ static struct test generic_tests[] = {
 		.func = test__bitmap_print,
 	},
 	{
+		.desc = "Test perf hooks",
+		.func = test__perf_hooks,
+	},
+	{
 		.func = NULL,
 	},
 };
