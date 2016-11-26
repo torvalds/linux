@@ -14,7 +14,7 @@ logical_chip_type_t sm750_get_chip_type(void)
 	return chip;
 }
 
-void sm750_set_chip_type(unsigned short devId, char revId)
+void sm750_set_chip_type(unsigned short devId, u8 revId)
 {
 	if (devId == 0x718)
 		chip = SM718;
