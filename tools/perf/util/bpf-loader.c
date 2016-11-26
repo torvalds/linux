@@ -14,11 +14,11 @@
 #include "debug.h"
 #include "bpf-loader.h"
 #include "bpf-prologue.h"
-#include "llvm-utils.h"
 #include "probe-event.h"
 #include "probe-finder.h" // for MAX_PROBES
 #include "parse-events.h"
 #include "llvm-utils.h"
+#include "c++/clang-c.h"
 
 #define DEFINE_PRINT_FN(name, level) \
 static int libbpf_##name(const char *fmt, ...)	\
@@ -86,9 +86,16 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 		void *obj_buf;
 		size_t obj_buf_sz;
 
-		err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
-		if (err)
-			return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
+		perf_clang__init();
+		err = perf_clang__compile_bpf(filename, &obj_buf, &obj_buf_sz);
+		perf_clang__cleanup();
+		if (err) {
+			pr_warning("bpf: builtin compilation failed: %d, try external compiler\n", err);
+			err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
+			if (err)
+				return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
+		} else
+			pr_debug("bpf: successfull builtin compilation\n");
 		obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, filename);
 
 		if (!IS_ERR(obj) && llvm_param.dump_obj)

@@ -163,4 +163,33 @@ void perf_clang__cleanup(void)
 	perf::LLVMCtx.reset(nullptr);
 	llvm::llvm_shutdown();
 }
+
+int perf_clang__compile_bpf(const char *filename,
+			    void **p_obj_buf,
+			    size_t *p_obj_buf_sz)
+{
+	using namespace perf;
+
+	if (!p_obj_buf || !p_obj_buf_sz)
+		return -EINVAL;
+
+	llvm::opt::ArgStringList CFlags;
+	auto M = getModuleFromSource(std::move(CFlags), filename);
+	if (!M)
+		return  -EINVAL;
+	auto O = getBPFObjectFromModule(&*M);
+	if (!O)
+		return -EINVAL;
+
+	size_t size = O->size_in_bytes();
+	void *buffer;
+
+	buffer = malloc(size);
+	if (!buffer)
+		return -ENOMEM;
+	memcpy(buffer, O->data(), size);
+	*p_obj_buf = buffer;
+	*p_obj_buf_sz = size;
+	return 0;
+}
 }
