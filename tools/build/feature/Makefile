@@ -55,6 +55,7 @@ FILES := $(addprefix $(OUTPUT),$(FILES))
 CC := $(CROSS_COMPILE)gcc -MD
 CXX := $(CROSS_COMPILE)g++ -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
+LLVM_CONFIG ?= llvm-config
 
 all: $(FILES)
 
@@ -228,6 +229,13 @@ $(OUTPUT)test-cxx.bin:
 
 $(OUTPUT)test-jvmti.bin:
 	$(BUILD)
+
+$(OUTPUT)test-llvm.bin:
+	$(BUILDXX) -std=gnu++11 					\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
+		$(shell $(LLVM_CONFIG) --system-libs)
 
 -include $(OUTPUT)*.d
 
