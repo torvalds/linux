@@ -1138,6 +1138,20 @@ enum nft_fwd_attributes {
 #define NFTA_FWD_MAX	(__NFTA_FWD_MAX - 1)
 
 /**
+ * enum nft_objref_attributes - nf_tables stateful object expression netlink attributes
+ *
+ * @NFTA_OBJREF_IMM_TYPE: object type for immediate reference (NLA_U32: nft_register)
+ * @NFTA_OBJREF_IMM_NAME: object name for immediate reference (NLA_STRING)
+ */
+enum nft_objref_attributes {
+	NFTA_OBJREF_UNSPEC,
+	NFTA_OBJREF_IMM_TYPE,
+	NFTA_OBJREF_IMM_NAME,
+	__NFTA_OBJREF_MAX
+};
+#define NFTA_OBJREF_MAX	(__NFTA_OBJREF_MAX - 1)
+
+/**
  * enum nft_gen_attributes - nf_tables ruleset generation attributes
  *
  * @NFTA_GEN_ID: Ruleset generation ID (NLA_U32)
