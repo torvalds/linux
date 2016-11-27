@@ -885,7 +885,8 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 		       struct mlx5e_tir *tir);
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
-int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev);
+int mlx5e_refresh_tirs_self_loopback(struct mlx5_core_dev *mdev,
+				     bool enable_uc_lb);
 
 struct mlx5_eswitch_rep;
 int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
