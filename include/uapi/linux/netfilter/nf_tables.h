@@ -988,12 +988,14 @@ enum nft_quota_flags {
  *
  * @NFTA_QUOTA_BYTES: quota in bytes (NLA_U16)
  * @NFTA_QUOTA_FLAGS: flags (NLA_U32)
+ * @NFTA_QUOTA_CONSUMED: quota already consumed in bytes (NLA_U64)
  */
 enum nft_quota_attributes {
 	NFTA_QUOTA_UNSPEC,
 	NFTA_QUOTA_BYTES,
 	NFTA_QUOTA_FLAGS,
 	NFTA_QUOTA_PAD,
+	NFTA_QUOTA_CONSUMED,
 	__NFTA_QUOTA_MAX
 };
 #define NFTA_QUOTA_MAX		(__NFTA_QUOTA_MAX - 1)
