@@ -221,6 +221,26 @@ struct mlx5e_params {
 	u32 lro_timeout;
 };
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+struct mlx5e_cee_config {
+	/* bw pct for priority group */
+	u8                         pg_bw_pct[CEE_DCBX_MAX_PGS];
+	u8                         prio_to_pg_map[CEE_DCBX_MAX_PRIO];
+	bool                       pfc_setting[CEE_DCBX_MAX_PRIO];
+	bool                       pfc_enable;
+};
+
+enum {
+	MLX5_DCB_CHG_RESET,
+	MLX5_DCB_NO_CHG,
+	MLX5_DCB_CHG_NO_RESET,
+};
+
+struct mlx5e_dcbx {
+	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
+};
+#endif
+
 struct mlx5e_tstamp {
 	rwlock_t                   lock;
 	struct cyclecounter        cycles;
@@ -688,6 +708,10 @@ struct mlx5e_priv {
 	struct mlx5e_stats         stats;
 	struct mlx5e_tstamp        tstamp;
 	u16 q_counter;
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	struct mlx5e_dcbx          dcbx;
+#endif
+
 	const struct mlx5e_profile *profile;
 	void                      *ppriv;
 };

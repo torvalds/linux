@@ -38,6 +38,9 @@
 #define MLX5E_100MB (100000)
 #define MLX5E_1GB   (1000000)
 
+#define MLX5E_CEE_STATE_UP    1
+#define MLX5E_CEE_STATE_DOWN  0
+
 static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 				   struct ieee_ets *ets)
 {
@@ -222,13 +225,15 @@ static int mlx5e_dcbnl_ieee_setpfc(struct net_device *dev,
 
 static u8 mlx5e_dcbnl_getdcbx(struct net_device *dev)
 {
-	return DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
+	return DCB_CAP_DCBX_HOST |
+	       DCB_CAP_DCBX_VER_IEEE |
+	       DCB_CAP_DCBX_VER_CEE;
 }
 
 static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 {
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
-	    (mode & DCB_CAP_DCBX_VER_CEE) ||
+	    !(mode & DCB_CAP_DCBX_VER_CEE) ||
 	    !(mode & DCB_CAP_DCBX_VER_IEEE) ||
 	    !(mode & DCB_CAP_DCBX_HOST))
 		return 1;
@@ -304,6 +309,281 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 	return mlx5_modify_port_ets_rate_limit(mdev, max_bw_value, max_bw_unit);
 }
 
+static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_cee_config *cee_cfg = &priv->dcbx.cee_cfg;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct ieee_ets ets;
+	struct ieee_pfc pfc;
+	int err;
+	int i;
+
+	memset(&ets, 0, sizeof(ets));
+	memset(&pfc, 0, sizeof(pfc));
+
+	ets.ets_cap = IEEE_8021QAZ_MAX_TCS;
+	for (i = 0; i < CEE_DCBX_MAX_PGS; i++) {
+		ets.tc_tx_bw[i] = cee_cfg->pg_bw_pct[i];
+		ets.tc_rx_bw[i] = cee_cfg->pg_bw_pct[i];
+		ets.tc_tsa[i]   = IEEE_8021QAZ_TSA_ETS;
+		ets.prio_tc[i]  = cee_cfg->prio_to_pg_map[i];
+	}
+
+	err = mlx5e_dbcnl_validate_ets(netdev, &ets);
+	if (err) {
+		netdev_err(netdev,
+			   "%s, Failed to validate ETS: %d\n", __func__, err);
+		goto out;
+	}
+
+	err = mlx5e_dcbnl_ieee_setets_core(priv, &ets);
+	if (err) {
+		netdev_err(netdev,
+			   "%s, Failed to set ETS: %d\n", __func__, err);
+		goto out;
+	}
+
+	/* Set PFC */
+	pfc.pfc_cap = mlx5_max_tc(mdev) + 1;
+	if (!cee_cfg->pfc_enable)
+		pfc.pfc_en = 0;
+	else
+		for (i = 0; i < CEE_DCBX_MAX_PRIO; i++)
+			pfc.pfc_en |= cee_cfg->pfc_setting[i] << i;
+
+	err = mlx5e_dcbnl_ieee_setpfc(netdev, &pfc);
+	if (err) {
+		netdev_err(netdev,
+			   "%s, Failed to set PFC: %d\n", __func__, err);
+		goto out;
+	}
+out:
+	return err ? MLX5_DCB_NO_CHG : MLX5_DCB_CHG_RESET;
+}
+
+static u8 mlx5e_dcbnl_getstate(struct net_device *netdev)
+{
+	return MLX5E_CEE_STATE_UP;
+}
+
+static void mlx5e_dcbnl_getpermhwaddr(struct net_device *netdev,
+				      u8 *perm_addr)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+
+	if (!perm_addr)
+		return;
+
+	mlx5_query_nic_vport_mac_address(priv->mdev, 0, perm_addr);
+}
+
+static void mlx5e_dcbnl_setpgtccfgtx(struct net_device *netdev,
+				     int priority, u8 prio_type,
+				     u8 pgid, u8 bw_pct, u8 up_map)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_cee_config *cee_cfg = &priv->dcbx.cee_cfg;
+
+	if (priority >= CEE_DCBX_MAX_PRIO) {
+		netdev_err(netdev,
+			   "%s, priority is out of range\n", __func__);
+		return;
+	}
+
+	if (pgid >= CEE_DCBX_MAX_PGS) {
+		netdev_err(netdev,
+			   "%s, priority group is out of range\n", __func__);
+		return;
+	}
+
+	cee_cfg->prio_to_pg_map[priority] = pgid;
+}
+
+static void mlx5e_dcbnl_setpgbwgcfgtx(struct net_device *netdev,
+				      int pgid, u8 bw_pct)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_cee_config *cee_cfg = &priv->dcbx.cee_cfg;
+
+	if (pgid >= CEE_DCBX_MAX_PGS) {
+		netdev_err(netdev,
+			   "%s, priority group is out of range\n", __func__);
+		return;
+	}
+
+	cee_cfg->pg_bw_pct[pgid] = bw_pct;
+}
+
+static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
+				     int priority, u8 *prio_type,
+				     u8 *pgid, u8 *bw_pct, u8 *up_map)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (priority >= CEE_DCBX_MAX_PRIO) {
+		netdev_err(netdev,
+			   "%s, priority is out of range\n", __func__);
+		return;
+	}
+
+	*prio_type = 0;
+	*bw_pct = 0;
+	*up_map = 0;
+
+	if (mlx5_query_port_prio_tc(mdev, priority, pgid))
+		*pgid = 0;
+}
+
+static void mlx5e_dcbnl_getpgbwgcfgtx(struct net_device *netdev,
+				      int pgid, u8 *bw_pct)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (pgid >= CEE_DCBX_MAX_PGS) {
+		netdev_err(netdev,
+			   "%s, priority group is out of range\n", __func__);
+		return;
+	}
+
+	if (mlx5_query_port_tc_bw_alloc(mdev, pgid, bw_pct))
+		*bw_pct = 0;
+}
+
+static void mlx5e_dcbnl_setpfccfg(struct net_device *netdev,
+				  int priority, u8 setting)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_cee_config *cee_cfg = &priv->dcbx.cee_cfg;
+
+	if (priority >= CEE_DCBX_MAX_PRIO) {
+		netdev_err(netdev,
+			   "%s, priority is out of range\n", __func__);
+		return;
+	}
+
+	if (setting > 1)
+		return;
+
+	cee_cfg->pfc_setting[priority] = setting;
+}
+
+static int
+mlx5e_dcbnl_get_priority_pfc(struct net_device *netdev,
+			     int priority, u8 *setting)
+{
+	struct ieee_pfc pfc;
+	int err;
+
+	err = mlx5e_dcbnl_ieee_getpfc(netdev, &pfc);
+
+	if (err)
+		*setting = 0;
+	else
+		*setting = (pfc.pfc_en >> priority) & 0x01;
+
+	return err;
+}
+
+static void mlx5e_dcbnl_getpfccfg(struct net_device *netdev,
+				  int priority, u8 *setting)
+{
+	if (priority >= CEE_DCBX_MAX_PRIO) {
+		netdev_err(netdev,
+			   "%s, priority is out of range\n", __func__);
+		return;
+	}
+
+	if (!setting)
+		return;
+
+	mlx5e_dcbnl_get_priority_pfc(netdev, priority, setting);
+}
+
+static u8 mlx5e_dcbnl_getcap(struct net_device *netdev,
+			     int capid, u8 *cap)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 rval = 0;
+
+	switch (capid) {
+	case DCB_CAP_ATTR_PG:
+		*cap = true;
+		break;
+	case DCB_CAP_ATTR_PFC:
+		*cap = true;
+		break;
+	case DCB_CAP_ATTR_UP2TC:
+		*cap = false;
+		break;
+	case DCB_CAP_ATTR_PG_TCS:
+		*cap = 1 << mlx5_max_tc(mdev);
+		break;
+	case DCB_CAP_ATTR_PFC_TCS:
+		*cap = 1 << mlx5_max_tc(mdev);
+		break;
+	case DCB_CAP_ATTR_GSP:
+		*cap = false;
+		break;
+	case DCB_CAP_ATTR_BCN:
+		*cap = false;
+		break;
+	case DCB_CAP_ATTR_DCBX:
+		*cap = (DCB_CAP_DCBX_LLD_MANAGED |
+			DCB_CAP_DCBX_VER_CEE |
+			DCB_CAP_DCBX_STATIC);
+		break;
+	default:
+		*cap = 0;
+		rval = 1;
+		break;
+	}
+
+	return rval;
+}
+
+static int mlx5e_dcbnl_getnumtcs(struct net_device *netdev,
+				 int tcs_id, u8 *num)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	switch (tcs_id) {
+	case DCB_NUMTCS_ATTR_PG:
+	case DCB_NUMTCS_ATTR_PFC:
+		*num = mlx5_max_tc(mdev) + 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static u8 mlx5e_dcbnl_getpfcstate(struct net_device *netdev)
+{
+	struct ieee_pfc pfc;
+
+	if (mlx5e_dcbnl_ieee_getpfc(netdev, &pfc))
+		return MLX5E_CEE_STATE_DOWN;
+
+	return pfc.pfc_en ? MLX5E_CEE_STATE_UP : MLX5E_CEE_STATE_DOWN;
+}
+
+static void mlx5e_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_cee_config *cee_cfg = &priv->dcbx.cee_cfg;
+
+	if ((state != MLX5E_CEE_STATE_UP) && (state != MLX5E_CEE_STATE_DOWN))
+		return;
+
+	cee_cfg->pfc_enable = state;
+}
+
 const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_getets	= mlx5e_dcbnl_ieee_getets,
 	.ieee_setets	= mlx5e_dcbnl_ieee_setets,
@@ -313,4 +593,21 @@ const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_setpfc	= mlx5e_dcbnl_ieee_setpfc,
 	.getdcbx	= mlx5e_dcbnl_getdcbx,
 	.setdcbx	= mlx5e_dcbnl_setdcbx,
+
+/* CEE interfaces */
+	.setall         = mlx5e_dcbnl_setall,
+	.getstate       = mlx5e_dcbnl_getstate,
+	.getpermhwaddr  = mlx5e_dcbnl_getpermhwaddr,
+
+	.setpgtccfgtx   = mlx5e_dcbnl_setpgtccfgtx,
+	.setpgbwgcfgtx  = mlx5e_dcbnl_setpgbwgcfgtx,
+	.getpgtccfgtx   = mlx5e_dcbnl_getpgtccfgtx,
+	.getpgbwgcfgtx  = mlx5e_dcbnl_getpgbwgcfgtx,
+
+	.setpfccfg      = mlx5e_dcbnl_setpfccfg,
+	.getpfccfg      = mlx5e_dcbnl_getpfccfg,
+	.getcap         = mlx5e_dcbnl_getcap,
+	.getnumtcs      = mlx5e_dcbnl_getnumtcs,
+	.getpfcstate    = mlx5e_dcbnl_getpfcstate,
+	.setpfcstate    = mlx5e_dcbnl_setpfcstate,
 };
