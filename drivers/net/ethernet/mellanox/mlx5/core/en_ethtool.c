@@ -1488,7 +1488,7 @@ static int mlx5e_handle_pflag(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	bool enable = !!(wanted_flags & flag);
-	u32 changes = wanted_flags ^ priv->pflags;
+	u32 changes = wanted_flags ^ priv->params.pflags;
 	int err;
 
 	if (!(changes & flag))
@@ -1501,7 +1501,7 @@ static int mlx5e_handle_pflag(struct net_device *netdev,
 		return err;
 	}
 
-	MLX5E_SET_PRIV_FLAG(priv, flag, enable);
+	MLX5E_SET_PFLAG(priv, flag, enable);
 	return 0;
 }
 
@@ -1524,7 +1524,7 @@ static u32 mlx5e_get_priv_flags(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
-	return priv->pflags;
+	return priv->params.pflags;
 }
 
 static int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
