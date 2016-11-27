@@ -45,12 +45,31 @@ static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 				   struct ieee_ets *ets)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err = 0;
+	int i;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
 		return -ENOTSUPP;
 
-	memcpy(ets, &priv->params.ets, sizeof(*ets));
-	return 0;
+	ets->ets_cap = mlx5_max_tc(priv->mdev) + 1;
+	for (i = 0; i < ets->ets_cap; i++) {
+		err = mlx5_query_port_prio_tc(mdev, i, &ets->prio_tc[i]);
+		if (err)
+			return err;
+	}
+
+	for (i = 0; i < ets->ets_cap; i++) {
+		err = mlx5_query_port_tc_bw_alloc(mdev, i, &ets->tc_tx_bw[i]);
+		if (err)
+			return err;
+		if (ets->tc_tx_bw[i] < MLX5E_MAX_BW_ALLOC)
+			priv->dcbx.tc_tsa[i] = IEEE_8021QAZ_TSA_ETS;
+	}
+
+	memcpy(ets->tc_tsa, priv->dcbx.tc_tsa, sizeof(ets->tc_tsa));
+
+	return err;
 }
 
 enum {
@@ -113,9 +132,6 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 	int max_tc = mlx5_max_tc(mdev);
 	int err;
 
-	if (!MLX5_CAP_GEN(mdev, ets))
-		return -ENOTSUPP;
-
 	mlx5e_build_tc_group(ets, tc_group, max_tc);
 	mlx5e_build_tc_tx_bw(ets, tc_tx_bw, tc_group, max_tc);
 
@@ -127,7 +143,14 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 	if (err)
 		return err;
 
-	return mlx5_set_port_tc_bw_alloc(mdev, tc_tx_bw);
+	err = mlx5_set_port_tc_bw_alloc(mdev, tc_tx_bw);
+
+	if (err)
+		return err;
+
+	memcpy(priv->dcbx.tc_tsa, ets->tc_tsa, sizeof(ets->tc_tsa));
+
+	return err;
 }
 
 static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
@@ -173,6 +196,9 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
+	if (!MLX5_CAP_GEN(priv->mdev, ets))
+		return -ENOTSUPP;
+
 	err = mlx5e_dbcnl_validate_ets(netdev, ets);
 	if (err)
 		return err;
@@ -180,9 +206,6 @@ static int mlx5e_dcbnl_ieee_setets(struct net_device *netdev,
 	err = mlx5e_dcbnl_ieee_setets_core(priv, ets);
 	if (err)
 		return err;
-
-	memcpy(&priv->params.ets, ets, sizeof(*ets));
-	priv->params.ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;
 
 	return 0;
 }
@@ -316,8 +339,11 @@ static u8 mlx5e_dcbnl_setall(struct net_device *netdev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct ieee_ets ets;
 	struct ieee_pfc pfc;
-	int err;
+	int err = -ENOTSUPP;
 	int i;
+
+	if (!MLX5_CAP_GEN(mdev, ets))
+		goto out;
 
 	memset(&ets, 0, sizeof(ets));
 	memset(&pfc, 0, sizeof(pfc));
