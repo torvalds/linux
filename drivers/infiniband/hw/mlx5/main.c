@@ -2843,7 +2843,21 @@ static void mlx5_roce_lag_cleanup(struct mlx5_ib_dev *dev)
 	}
 }
 
-static void mlx5_remove_roce_notifier(struct mlx5_ib_dev *dev)
+static int mlx5_add_netdev_notifier(struct mlx5_ib_dev *dev)
+{
+	int err;
+
+	dev->roce.nb.notifier_call = mlx5_netdev_event;
+	err = register_netdevice_notifier(&dev->roce.nb);
+	if (err) {
+		dev->roce.nb.notifier_call = NULL;
+		return err;
+	}
+
+	return 0;
+}
+
+static void mlx5_remove_netdev_notifier(struct mlx5_ib_dev *dev)
 {
 	if (dev->roce.nb.notifier_call) {
 		unregister_netdevice_notifier(&dev->roce.nb);
@@ -2855,12 +2869,9 @@ static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
 {
 	int err;
 
-	dev->roce.nb.notifier_call = mlx5_netdev_event;
-	err = register_netdevice_notifier(&dev->roce.nb);
-	if (err) {
-		dev->roce.nb.notifier_call = NULL;
+	err = mlx5_add_netdev_notifier(dev);
+	if (err)
 		return err;
-	}
 
 	err = mlx5_nic_vport_enable_roce(dev->mdev);
 	if (err)
@@ -2876,7 +2887,7 @@ err_disable_roce:
 	mlx5_nic_vport_disable_roce(dev->mdev);
 
 err_unregister_netdevice_notifier:
-	mlx5_remove_roce_notifier(dev);
+	mlx5_remove_netdev_notifier(dev);
 	return err;
 }
 
@@ -3242,7 +3253,7 @@ err_rsrc:
 err_disable_roce:
 	if (ll == IB_LINK_LAYER_ETHERNET) {
 		mlx5_disable_roce(dev);
-		mlx5_remove_roce_notifier(dev);
+		mlx5_remove_netdev_notifier(dev);
 	}
 
 err_free_port:
@@ -3259,7 +3270,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	struct mlx5_ib_dev *dev = context;
 	enum rdma_link_layer ll = mlx5_ib_port_link_layer(&dev->ib_dev, 1);
 
-	mlx5_remove_roce_notifier(dev);
+	mlx5_remove_netdev_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);
 	mlx5_ib_dealloc_q_counters(dev);
 	destroy_umrc_res(dev);
