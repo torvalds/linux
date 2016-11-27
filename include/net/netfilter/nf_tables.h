@@ -875,6 +875,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@list: used internally
  *	@chains: chains in the table
  *	@sets: sets in the table
+ *	@objects: stateful objects in the table
  *	@hgenerator: handle generator state
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
@@ -885,6 +886,7 @@ struct nft_table {
 	struct list_head		list;
 	struct list_head		chains;
 	struct list_head		sets;
+	struct list_head		objects;
 	u64				hgenerator;
 	u32				use;
 	u16				flags:14,
@@ -935,6 +937,73 @@ int nft_verdict_dump(struct sk_buff *skb, int type,
 		     const struct nft_verdict *v);
 
 /**
+ *	struct nft_object - nf_tables stateful object
+ *
+ *	@list: table stateful object list node
+ *	@type: pointer to object type
+ *	@data: pointer to object data
+ *	@name: name of this stateful object
+ *	@genmask: generation mask
+ *	@use: number of references to this stateful object
+ * 	@data: object data, layout depends on type
+ */
+struct nft_object {
+	struct list_head		list;
+	char				name[NFT_OBJ_MAXNAMELEN];
+	u32				genmask:2,
+					use:30;
+	/* runtime data below here */
+	const struct nft_object_type	*type ____cacheline_aligned;
+	unsigned char			data[]
+		__attribute__((aligned(__alignof__(u64))));
+};
+
+static inline void *nft_obj_data(const struct nft_object *obj)
+{
+	return (void *)obj->data;
+}
+
+#define nft_expr_obj(expr)	*((struct nft_object **)nft_expr_priv(expr))
+
+struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
+					const struct nlattr *nla, u32 objtype,
+					u8 genmask);
+
+/**
+ *	struct nft_object_type - stateful object type
+ *
+ *	@eval: stateful object evaluation function
+ *	@list: list node in list of object types
+ *	@type: stateful object numeric type
+ *	@size: stateful object size
+ *	@owner: module owner
+ *	@maxattr: maximum netlink attribute
+ *	@policy: netlink attribute policy
+ *	@init: initialize object from netlink attributes
+ *	@destroy: release existing stateful object
+ *	@dump: netlink dump stateful object
+ */
+struct nft_object_type {
+	void				(*eval)(struct nft_object *obj,
+						struct nft_regs *regs,
+						const struct nft_pktinfo *pkt);
+	struct list_head		list;
+	u32				type;
+	unsigned int			size;
+	unsigned int			maxattr;
+	struct module			*owner;
+	const struct nla_policy		*policy;
+	int				(*init)(const struct nlattr * const tb[],
+						struct nft_object *obj);
+	void				(*destroy)(struct nft_object *obj);
+	int				(*dump)(struct sk_buff *skb,
+						const struct nft_object *obj);
+};
+
+int nft_register_obj(struct nft_object_type *obj_type);
+void nft_unregister_obj(struct nft_object_type *obj_type);
+
+/**
  *	struct nft_traceinfo - nft tracing information and state
  *
  *	@pkt: pktinfo currently processed
@@ -980,6 +1049,9 @@ void nft_trace_notify(struct nft_traceinfo *info);
 
 #define MODULE_ALIAS_NFT_SET() \
 	MODULE_ALIAS("nft-set")
+
+#define MODULE_ALIAS_NFT_OBJ(type) \
+	MODULE_ALIAS("nft-obj-" __stringify(type))
 
 /*
  * The gencursor defines two generations, the currently active and the
@@ -1156,5 +1228,12 @@ struct nft_trans_elem {
 	(((struct nft_trans_elem *)trans->data)->set)
 #define nft_trans_elem(trans)	\
 	(((struct nft_trans_elem *)trans->data)->elem)
+
+struct nft_trans_obj {
+	struct nft_object		*obj;
+};
+
+#define nft_trans_obj(trans)	\
+	(((struct nft_trans_obj *)trans->data)->obj)
 
 #endif /* _NET_NF_TABLES_H */

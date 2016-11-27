@@ -4,6 +4,7 @@
 #define NFT_TABLE_MAXNAMELEN	32
 #define NFT_CHAIN_MAXNAMELEN	32
 #define NFT_SET_MAXNAMELEN	32
+#define NFT_OBJ_MAXNAMELEN	32
 #define NFT_USERDATA_MAXLEN	256
 
 /**
@@ -85,6 +86,9 @@ enum nft_verdicts {
  * @NFT_MSG_NEWGEN: announce a new generation, only for events (enum nft_gen_attributes)
  * @NFT_MSG_GETGEN: get the rule-set generation (enum nft_gen_attributes)
  * @NFT_MSG_TRACE: trace event (enum nft_trace_attributes)
+ * @NFT_MSG_NEWOBJ: create a stateful object (enum nft_obj_attributes)
+ * @NFT_MSG_GETOBJ: get a stateful object (enum nft_obj_attributes)
+ * @NFT_MSG_DELOBJ: delete a stateful object (enum nft_obj_attributes)
  */
 enum nf_tables_msg_types {
 	NFT_MSG_NEWTABLE,
@@ -105,6 +109,9 @@ enum nf_tables_msg_types {
 	NFT_MSG_NEWGEN,
 	NFT_MSG_GETGEN,
 	NFT_MSG_TRACE,
+	NFT_MSG_NEWOBJ,
+	NFT_MSG_GETOBJ,
+	NFT_MSG_DELOBJ,
 	NFT_MSG_MAX,
 };
 
@@ -1177,6 +1184,28 @@ enum nft_fib_flags {
 	NFTA_FIB_F_IIF		= 1 << 3,	/* restrict to iif */
 	NFTA_FIB_F_OIF		= 1 << 4,	/* restrict to oif */
 };
+
+#define NFT_OBJECT_UNSPEC	0
+
+/**
+ * enum nft_object_attributes - nf_tables stateful object netlink attributes
+ *
+ * @NFTA_OBJ_TABLE: name of the table containing the expression (NLA_STRING)
+ * @NFTA_OBJ_NAME: name of this expression type (NLA_STRING)
+ * @NFTA_OBJ_TYPE: stateful object type (NLA_U32)
+ * @NFTA_OBJ_DATA: stateful object data (NLA_NESTED)
+ * @NFTA_OBJ_USE: number of references to this expression (NLA_U32)
+ */
+enum nft_object_attributes {
+	NFTA_OBJ_UNSPEC,
+	NFTA_OBJ_TABLE,
+	NFTA_OBJ_NAME,
+	NFTA_OBJ_TYPE,
+	NFTA_OBJ_DATA,
+	NFTA_OBJ_USE,
+	__NFTA_OBJ_MAX
+};
+#define NFTA_OBJ_MAX		(__NFTA_OBJ_MAX - 1)
 
 /**
  * enum nft_trace_attributes - nf_tables trace netlink attributes
