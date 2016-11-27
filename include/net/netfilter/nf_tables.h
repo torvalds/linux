@@ -326,6 +326,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@name: name of the set
  * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
  * 	@dtype: data type (verdict or numeric type defined by userspace)
+ * 	@objtype: object type (see NFT_OBJECT_* definitions)
  * 	@size: maximum set size
  * 	@nelems: number of elements
  * 	@ndeact: number of deactivated elements queued for removal
@@ -347,6 +348,7 @@ struct nft_set {
 	char				name[NFT_SET_MAXNAMELEN];
 	u32				ktype;
 	u32				dtype;
+	u32				objtype;
 	u32				size;
 	atomic_t			nelems;
 	u32				ndeact;
@@ -416,6 +418,7 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@NFT_SET_EXT_EXPIRATION: element expiration time
  *	@NFT_SET_EXT_USERDATA: user data associated with the element
  *	@NFT_SET_EXT_EXPR: expression assiociated with the element
+ *	@NFT_SET_EXT_OBJREF: stateful object reference associated with element
  *	@NFT_SET_EXT_NUM: number of extension types
  */
 enum nft_set_extensions {
@@ -426,6 +429,7 @@ enum nft_set_extensions {
 	NFT_SET_EXT_EXPIRATION,
 	NFT_SET_EXT_USERDATA,
 	NFT_SET_EXT_EXPR,
+	NFT_SET_EXT_OBJREF,
 	NFT_SET_EXT_NUM
 };
 
@@ -552,6 +556,11 @@ static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
 						   void *elem)
 {
 	return elem + set->ops->elemsize;
+}
+
+static inline struct nft_object **nft_set_ext_obj(const struct nft_set_ext *ext)
+{
+	return nft_set_ext(ext, NFT_SET_EXT_OBJREF);
 }
 
 void *nft_set_elem_init(const struct nft_set *set,
