@@ -997,7 +997,8 @@ struct nft_object_type {
 						struct nft_object *obj);
 	void				(*destroy)(struct nft_object *obj);
 	int				(*dump)(struct sk_buff *skb,
-						const struct nft_object *obj);
+						struct nft_object *obj,
+						bool reset);
 };
 
 int nft_register_obj(struct nft_object_type *obj_type);

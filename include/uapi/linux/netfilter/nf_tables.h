@@ -89,6 +89,7 @@ enum nft_verdicts {
  * @NFT_MSG_NEWOBJ: create a stateful object (enum nft_obj_attributes)
  * @NFT_MSG_GETOBJ: get a stateful object (enum nft_obj_attributes)
  * @NFT_MSG_DELOBJ: delete a stateful object (enum nft_obj_attributes)
+ * @NFT_MSG_GETOBJ_RESET: get and reset a stateful object (enum nft_obj_attributes)
  */
 enum nf_tables_msg_types {
 	NFT_MSG_NEWTABLE,
@@ -112,6 +113,7 @@ enum nf_tables_msg_types {
 	NFT_MSG_NEWOBJ,
 	NFT_MSG_GETOBJ,
 	NFT_MSG_DELOBJ,
+	NFT_MSG_GETOBJ_RESET,
 	NFT_MSG_MAX,
 };
 

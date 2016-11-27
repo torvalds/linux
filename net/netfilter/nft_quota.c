@@ -83,12 +83,17 @@ static int nft_quota_obj_init(const struct nlattr * const tb[],
 	return nft_quota_do_init(tb, priv);
 }
 
-static int nft_quota_do_dump(struct sk_buff *skb, const struct nft_quota *priv)
+static int nft_quota_do_dump(struct sk_buff *skb, struct nft_quota *priv,
+			     bool reset)
 {
 	u32 flags = priv->invert ? NFT_QUOTA_F_INV : 0;
 	u64 consumed;
 
-	consumed = atomic64_read(&priv->consumed);
+	if (reset)
+		consumed = atomic64_xchg(&priv->consumed, 0);
+	else
+		consumed = atomic64_read(&priv->consumed);
+
 	/* Since we inconditionally increment consumed quota for each packet
 	 * that we see, don't go over the quota boundary in what we send to
 	 * userspace.
@@ -108,11 +113,12 @@ nla_put_failure:
 	return -1;
 }
 
-static int nft_quota_obj_dump(struct sk_buff *skb, const struct nft_object *obj)
+static int nft_quota_obj_dump(struct sk_buff *skb, struct nft_object *obj,
+			      bool reset)
 {
 	struct nft_quota *priv = nft_obj_data(obj);
 
-	return nft_quota_do_dump(skb, priv);
+	return nft_quota_do_dump(skb, priv, reset);
 }
 
 static struct nft_object_type nft_quota_obj __read_mostly = {
@@ -146,9 +152,9 @@ static int nft_quota_init(const struct nft_ctx *ctx,
 
 static int nft_quota_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
-	const struct nft_quota *priv = nft_expr_priv(expr);
+	struct nft_quota *priv = nft_expr_priv(expr);
 
-	return nft_quota_do_dump(skb, priv);
+	return nft_quota_do_dump(skb, priv, false);
 }
 
 static struct nft_expr_type nft_quota_type;
