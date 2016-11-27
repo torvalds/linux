@@ -10,8 +10,8 @@
 
 #include <linux/random.h>
 #include <linux/string.h>
-#include <linux/fscrypto.h>
 #include <linux/mount.h>
+#include "fscrypt_private.h"
 
 static int inode_has_encryption_context(struct inode *inode)
 {
