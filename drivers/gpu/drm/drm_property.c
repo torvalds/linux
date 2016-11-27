@@ -729,7 +729,6 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	struct drm_mode_get_blob *out_resp = data;
 	struct drm_property_blob *blob;
 	int ret = 0;
-	void __user *blob_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -739,8 +738,9 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 		return -ENOENT;
 
 	if (out_resp->length == blob->length) {
-		blob_ptr = (void __user *)(unsigned long)out_resp->data;
-		if (copy_to_user(blob_ptr, blob->data, blob->length)) {
+		if (copy_to_user(u64_to_user_ptr(out_resp->data),
+				 blob->data,
+				 blob->length)) {
 			ret = -EFAULT;
 			goto unref;
 		}
@@ -757,7 +757,6 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_create_blob *out_resp = data;
 	struct drm_property_blob *blob;
-	void __user *blob_ptr;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -767,8 +766,9 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 	if (IS_ERR(blob))
 		return PTR_ERR(blob);
 
-	blob_ptr = (void __user *)(unsigned long)out_resp->data;
-	if (copy_from_user(blob->data, blob_ptr, out_resp->length)) {
+	if (copy_from_user(blob->data,
+			   u64_to_user_ptr(out_resp->data),
+			   out_resp->length)) {
 		ret = -EFAULT;
 		goto out_blob;
 	}
