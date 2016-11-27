@@ -627,7 +627,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->order = i + 2;
 		ent->dev = dev;
 
-		if (dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE)
+		if ((dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE) &&
+		    (mlx5_core_is_pf(dev->mdev)))
 			limit = dev->mdev->profile->mr_cache[i].limit;
 		else
 			limit = 0;
