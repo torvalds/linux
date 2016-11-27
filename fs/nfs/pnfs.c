@@ -2293,6 +2293,10 @@ void pnfs_read_resend_pnfs(struct nfs_pgio_header *hdr)
 	struct nfs_pageio_descriptor pgio;
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
+		/* Prevent deadlocks with layoutreturn! */
+		pnfs_put_lseg(hdr->lseg);
+		hdr->lseg = NULL;
+
 		nfs_pageio_init_read(&pgio, hdr->inode, false,
 					hdr->completion_ops);
 		hdr->task.tk_status = nfs_pageio_resend(&pgio, hdr);
