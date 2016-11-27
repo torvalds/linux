@@ -2504,6 +2504,7 @@ struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
 	}
 	return ERR_PTR(-ENOENT);
 }
+EXPORT_SYMBOL_GPL(nf_tables_set_lookup);
 
 struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
 					  const struct nlattr *nla,
@@ -2522,6 +2523,7 @@ struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
 	}
 	return ERR_PTR(-ENOENT);
 }
+EXPORT_SYMBOL_GPL(nf_tables_set_lookup_byid);
 
 static int nf_tables_set_alloc_name(struct nft_ctx *ctx, struct nft_set *set,
 				    const char *name)
@@ -3124,6 +3126,7 @@ bind:
 	list_add_tail_rcu(&binding->list, &set->bindings);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_tables_bind_set);
 
 void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
 			  struct nft_set_binding *binding)
@@ -3134,6 +3137,7 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
 	    nft_is_active(ctx->net, set))
 		nf_tables_set_destroy(ctx, set);
 }
+EXPORT_SYMBOL_GPL(nf_tables_unbind_set);
 
 const struct nft_set_ext_type nft_set_ext_types[] = {
 	[NFT_SET_EXT_KEY]		= {

@@ -1153,11 +1153,17 @@ enum nft_fwd_attributes {
  *
  * @NFTA_OBJREF_IMM_TYPE: object type for immediate reference (NLA_U32: nft_register)
  * @NFTA_OBJREF_IMM_NAME: object name for immediate reference (NLA_STRING)
+ * @NFTA_OBJREF_SET_SREG: source register of the data to look for (NLA_U32: nft_registers)
+ * @NFTA_OBJREF_SET_NAME: name of the set where to look for (NLA_STRING)
+ * @NFTA_OBJREF_SET_ID: id of the set where to look for in this transaction (NLA_U32)
  */
 enum nft_objref_attributes {
 	NFTA_OBJREF_UNSPEC,
 	NFTA_OBJREF_IMM_TYPE,
 	NFTA_OBJREF_IMM_NAME,
+	NFTA_OBJREF_SET_SREG,
+	NFTA_OBJREF_SET_NAME,
+	NFTA_OBJREF_SET_ID,
 	__NFTA_OBJREF_MAX
 };
 #define NFTA_OBJREF_MAX	(__NFTA_OBJREF_MAX - 1)
