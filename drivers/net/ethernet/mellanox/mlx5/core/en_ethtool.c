@@ -180,6 +180,8 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
+	case ETH_SS_TEST:
+		return mlx5e_self_test_num(priv);
 	/* fallthrough */
 	default:
 		return -EOPNOTSUPP;
@@ -286,6 +288,9 @@ static void mlx5e_get_strings(struct net_device *dev,
 		break;
 
 	case ETH_SS_TEST:
+		for (i = 0; i < mlx5e_self_test_num(priv); i++)
+			strcpy(data + i * ETH_GSTRING_LEN,
+			       mlx5e_self_tests[i]);
 		break;
 
 	case ETH_SS_STATS:
@@ -1573,5 +1578,6 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_module_info   = mlx5e_get_module_info,
 	.get_module_eeprom = mlx5e_get_module_eeprom,
 	.get_priv_flags    = mlx5e_get_priv_flags,
-	.set_priv_flags    = mlx5e_set_priv_flags
+	.set_priv_flags    = mlx5e_set_priv_flags,
+	.self_test         = mlx5e_self_test,
 };

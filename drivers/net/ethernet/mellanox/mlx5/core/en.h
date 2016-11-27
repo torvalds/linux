@@ -167,6 +167,8 @@ struct mlx5e_umr_wqe {
 	struct mlx5_wqe_data_seg       data;
 };
 
+extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];
+
 static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
 	"rx_cqe_moder",
 };
@@ -754,6 +756,9 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
+int mlx5e_self_test_num(struct mlx5e_priv *priv);
+void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
+		     u64 *buf);
 int mlx5e_ethtool_get_flow(struct mlx5e_priv *priv, struct ethtool_rxnfc *info,
 			   int location);
 int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
