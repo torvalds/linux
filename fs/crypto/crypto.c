@@ -540,7 +540,6 @@ fail:
 	mutex_unlock(&fscrypt_init_mutex);
 	return res;
 }
-EXPORT_SYMBOL(fscrypt_initialize);
 
 /**
  * fscrypt_init() - Set up for fs encryption.

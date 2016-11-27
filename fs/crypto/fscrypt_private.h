@@ -13,6 +13,9 @@
 
 #include <linux/fscrypto.h>
 
+/* crypto.c */
+int fscrypt_initialize(void);
+
 /* keyinfo.c */
 extern int fscrypt_get_crypt_info(struct inode *);
 
