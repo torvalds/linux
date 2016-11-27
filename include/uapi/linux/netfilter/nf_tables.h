@@ -1187,6 +1187,7 @@ enum nft_fib_flags {
 
 #define NFT_OBJECT_UNSPEC	0
 #define NFT_OBJECT_COUNTER	1
+#define NFT_OBJECT_QUOTA	2
 
 /**
  * enum nft_object_attributes - nf_tables stateful object netlink attributes
