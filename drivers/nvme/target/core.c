@@ -935,6 +935,16 @@ static void nvmet_subsys_free(struct kref *ref)
 	kfree(subsys);
 }
 
+void nvmet_subsys_del_ctrls(struct nvmet_subsys *subsys)
+{
+	struct nvmet_ctrl *ctrl;
+
+	mutex_lock(&subsys->lock);
+	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry)
+		ctrl->ops->delete_ctrl(ctrl);
+	mutex_unlock(&subsys->lock);
+}
+
 void nvmet_subsys_put(struct nvmet_subsys *subsys)
 {
 	kref_put(&subsys->ref, nvmet_subsys_free);
