@@ -282,6 +282,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	mlx5_ib_dbg(dev, "desc_size 0x%x, req wr 0x%x, srq size 0x%x, max_gs 0x%x, max_avail_gather 0x%x\n",
 		    desc_size, init_attr->attr.max_wr, srq->msrq.max, srq->msrq.max_gs,
 		    srq->msrq.max_avail_gather);
+	in.type = init_attr->srq_type;
 
 	if (pd->uobject)
 		err = create_srq_user(pd, srq, &in, udata, buf_size);
@@ -294,7 +295,6 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		goto err_srq;
 	}
 
-	in.type = init_attr->srq_type;
 	in.log_size = ilog2(srq->msrq.max);
 	in.wqe_shift = srq->msrq.wqe_shift - 4;
 	if (srq->wq_sig)
