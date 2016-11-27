@@ -420,7 +420,7 @@ struct mlx5_umr_wr {
 	struct ib_pd		       *pd;
 	unsigned int			page_shift;
 	unsigned int			npages;
-	u32				length;
+	u64				length;
 	int				access_flags;
 	u32				mkey;
 };
