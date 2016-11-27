@@ -3549,7 +3549,8 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
 		netdev->netdev_ops = &mlx5e_netdev_ops_sriov;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
-		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
+		if (MLX5_CAP_GEN(mdev, qos))
+			netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
 #endif
 	} else {
 		netdev->netdev_ops = &mlx5e_netdev_ops_basic;
