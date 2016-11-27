@@ -1313,8 +1313,8 @@ ath10k_wmi_tlv_op_gen_pdev_set_rd(struct ath10k *ar,
 	cmd->regd = __cpu_to_le32(rd);
 	cmd->regd_2ghz = __cpu_to_le32(rd2g);
 	cmd->regd_5ghz = __cpu_to_le32(rd5g);
-	cmd->conform_limit_2ghz = __cpu_to_le32(rd2g);
-	cmd->conform_limit_5ghz = __cpu_to_le32(rd5g);
+	cmd->conform_limit_2ghz = __cpu_to_le32(ctl2g);
+	cmd->conform_limit_5ghz = __cpu_to_le32(ctl5g);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv pdev set rd\n");
 	return skb;
