@@ -2802,7 +2802,7 @@ static void get_dev_fw_str(struct ib_device *ibdev, char *str,
 		       fw_rev_min(dev->mdev), fw_rev_sub(dev->mdev));
 }
 
-static int mlx5_roce_lag_init(struct mlx5_ib_dev *dev)
+static int mlx5_eth_lag_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_flow_namespace *ns = mlx5_get_flow_namespace(mdev,
@@ -2831,7 +2831,7 @@ err_destroy_vport_lag:
 	return err;
 }
 
-static void mlx5_roce_lag_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_eth_lag_cleanup(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 
@@ -2865,7 +2865,7 @@ static void mlx5_remove_netdev_notifier(struct mlx5_ib_dev *dev)
 	}
 }
 
-static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
+static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 {
 	int err;
 
@@ -2877,7 +2877,7 @@ static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
 	if (err)
 		goto err_unregister_netdevice_notifier;
 
-	err = mlx5_roce_lag_init(dev);
+	err = mlx5_eth_lag_init(dev);
 	if (err)
 		goto err_disable_roce;
 
@@ -2891,9 +2891,9 @@ err_unregister_netdevice_notifier:
 	return err;
 }
 
-static void mlx5_disable_roce(struct mlx5_ib_dev *dev)
+static void mlx5_disable_eth(struct mlx5_ib_dev *dev)
 {
-	mlx5_roce_lag_cleanup(dev);
+	mlx5_eth_lag_cleanup(dev);
 	mlx5_nic_vport_disable_roce(dev->mdev);
 }
 
@@ -3199,14 +3199,14 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	spin_lock_init(&dev->reset_flow_resource_lock);
 
 	if (ll == IB_LINK_LAYER_ETHERNET) {
-		err = mlx5_enable_roce(dev);
+		err = mlx5_enable_eth(dev);
 		if (err)
 			goto err_dealloc;
 	}
 
 	err = create_dev_resources(&dev->devr);
 	if (err)
-		goto err_disable_roce;
+		goto err_disable_eth;
 
 	err = mlx5_ib_odp_init_one(dev);
 	if (err)
@@ -3250,9 +3250,9 @@ err_odp:
 err_rsrc:
 	destroy_dev_resources(&dev->devr);
 
-err_disable_roce:
+err_disable_eth:
 	if (ll == IB_LINK_LAYER_ETHERNET) {
-		mlx5_disable_roce(dev);
+		mlx5_disable_eth(dev);
 		mlx5_remove_netdev_notifier(dev);
 	}
 
@@ -3277,7 +3277,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	mlx5_ib_odp_remove_one(dev);
 	destroy_dev_resources(&dev->devr);
 	if (ll == IB_LINK_LAYER_ETHERNET)
-		mlx5_disable_roce(dev);
+		mlx5_disable_eth(dev);
 	kfree(dev->port);
 	ib_dealloc_device(&dev->ib_dev);
 }
