@@ -1619,7 +1619,7 @@ enum netdev_priv_flags {
  *	@dcbnl_ops:	Data Center Bridging netlink ops
  *	@num_tc:	Number of traffic classes in the net device
  *	@tc_to_txq:	XXX: need comments on this one
- *	@prio_tc_map	XXX: need comments on this one
+ *	@prio_tc_map:	XXX: need comments on this one
  *
  *	@fcoe_ddp_xid:	Max exchange id for FCoE LRO by ddp
  *

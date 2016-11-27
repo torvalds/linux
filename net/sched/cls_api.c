@@ -112,7 +112,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 
 	for (it_chain = chain; (tp = rtnl_dereference(*it_chain)) != NULL;
 	     it_chain = &tp->next)
-		tfilter_notify(net, oskb, n, tp, n->nlmsg_flags, event, false);
+		tfilter_notify(net, oskb, n, tp, 0, event, false);
 }
 
 /* Select new prio value from the range, managed by kernel. */

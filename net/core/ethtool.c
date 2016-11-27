@@ -2570,6 +2570,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GEEE:
 	case ETHTOOL_GTUNABLE:
 	case ETHTOOL_PHY_GTUNABLE:
+	case ETHTOOL_GLINKSETTINGS:
 		break;
 	default:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))

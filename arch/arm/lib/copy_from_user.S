@@ -13,7 +13,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 /*
  * Prototype:
@@ -95,7 +94,6 @@ ENTRY(arm_copy_from_user)
 #include "copy_template.S"
 
 ENDPROC(arm_copy_from_user)
-EXPORT_SYMBOL(arm_copy_from_user)
 
 	.pushsection .fixup,"ax"
 	.align 0
