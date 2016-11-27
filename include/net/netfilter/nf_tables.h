@@ -940,6 +940,7 @@ int nft_verdict_dump(struct sk_buff *skb, int type,
  *	struct nft_object - nf_tables stateful object
  *
  *	@list: table stateful object list node
+ *	@table: table this object belongs to
  *	@type: pointer to object type
  *	@data: pointer to object data
  *	@name: name of this stateful object
@@ -950,6 +951,7 @@ int nft_verdict_dump(struct sk_buff *skb, int type,
 struct nft_object {
 	struct list_head		list;
 	char				name[NFT_OBJ_MAXNAMELEN];
+	struct nft_table		*table;
 	u32				genmask:2,
 					use:30;
 	/* runtime data below here */

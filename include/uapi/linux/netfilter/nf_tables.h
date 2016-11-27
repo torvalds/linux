@@ -983,6 +983,7 @@ enum nft_queue_attributes {
 
 enum nft_quota_flags {
 	NFT_QUOTA_F_INV		= (1 << 0),
+	NFT_QUOTA_F_DEPLETED	= (1 << 1),
 };
 
 /**

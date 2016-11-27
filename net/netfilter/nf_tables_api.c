@@ -4075,6 +4075,7 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 		err = PTR_ERR(obj);
 		goto err1;
 	}
+	obj->table = table;
 	nla_strlcpy(obj->name, nla[NFTA_OBJ_NAME], NFT_OBJ_MAXNAMELEN);
 
 	err = nft_trans_obj_add(&ctx, NFT_MSG_NEWOBJ, obj);

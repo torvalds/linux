@@ -17,7 +17,7 @@
 
 struct nft_quota {
 	u64		quota;
-	bool		invert;
+	unsigned long	flags;
 	atomic64_t	consumed;
 };
 
@@ -27,11 +27,16 @@ static inline bool nft_overquota(struct nft_quota *priv,
 	return atomic64_add_return(skb->len, &priv->consumed) >= priv->quota;
 }
 
+static inline bool nft_quota_invert(struct nft_quota *priv)
+{
+	return priv->flags & NFT_QUOTA_F_INV;
+}
+
 static inline void nft_quota_do_eval(struct nft_quota *priv,
 				     struct nft_regs *regs,
 				     const struct nft_pktinfo *pkt)
 {
-	if (nft_overquota(priv, pkt->skb) ^ priv->invert)
+	if (nft_overquota(priv, pkt->skb) ^ nft_quota_invert(priv))
 		regs->verdict.code = NFT_BREAK;
 }
 
@@ -40,19 +45,29 @@ static const struct nla_policy nft_quota_policy[NFTA_QUOTA_MAX + 1] = {
 	[NFTA_QUOTA_FLAGS]	= { .type = NLA_U32 },
 };
 
+#define NFT_QUOTA_DEPLETED_BIT	1	/* From NFT_QUOTA_F_DEPLETED. */
+
 static void nft_quota_obj_eval(struct nft_object *obj,
 			       struct nft_regs *regs,
 			       const struct nft_pktinfo *pkt)
 {
 	struct nft_quota *priv = nft_obj_data(obj);
+	bool overquota;
 
-	nft_quota_do_eval(priv, regs, pkt);
+	overquota = nft_overquota(priv, pkt->skb);
+	if (overquota ^ nft_quota_invert(priv))
+		regs->verdict.code = NFT_BREAK;
+
+	if (overquota &&
+	    !test_and_set_bit(NFT_QUOTA_DEPLETED_BIT, &priv->flags))
+		nft_obj_notify(nft_net(pkt), obj->table, obj, 0, 0,
+			       NFT_MSG_NEWOBJ, nft_pf(pkt), 0, GFP_ATOMIC);
 }
 
 static int nft_quota_do_init(const struct nlattr * const tb[],
 			     struct nft_quota *priv)
 {
-	u32 flags = 0;
+	unsigned long flags = 0;
 	u64 quota;
 
 	if (!tb[NFTA_QUOTA_BYTES])
@@ -66,10 +81,12 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 		flags = ntohl(nla_get_be32(tb[NFTA_QUOTA_FLAGS]));
 		if (flags & ~NFT_QUOTA_F_INV)
 			return -EINVAL;
+		if (flags & NFT_QUOTA_F_DEPLETED)
+			return -EOPNOTSUPP;
 	}
 
 	priv->quota = quota;
-	priv->invert = (flags & NFT_QUOTA_F_INV) ? true : false;
+	priv->flags = flags;
 	atomic64_set(&priv->consumed, 0);
 
 	return 0;
@@ -86,13 +103,16 @@ static int nft_quota_obj_init(const struct nlattr * const tb[],
 static int nft_quota_do_dump(struct sk_buff *skb, struct nft_quota *priv,
 			     bool reset)
 {
-	u32 flags = priv->invert ? NFT_QUOTA_F_INV : 0;
+	u32 flags = priv->flags;
 	u64 consumed;
 
-	if (reset)
+	if (reset) {
 		consumed = atomic64_xchg(&priv->consumed, 0);
-	else
+		if (test_and_clear_bit(NFT_QUOTA_DEPLETED_BIT, &priv->flags))
+			flags |= NFT_QUOTA_F_DEPLETED;
+	} else {
 		consumed = atomic64_read(&priv->consumed);
+	}
 
 	/* Since we inconditionally increment consumed quota for each packet
 	 * that we see, don't go over the quota boundary in what we send to
