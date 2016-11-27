@@ -171,10 +171,12 @@ extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];
 
 static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
 	"rx_cqe_moder",
+	"rx_cqe_compress",
 };
 
 enum mlx5e_priv_flag {
 	MLX5E_PFLAG_RX_CQE_BASED_MODER = (1 << 0),
+	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 1),
 };
 
 #define MLX5E_SET_PFLAG(priv, pflag, enable)			\
@@ -205,8 +207,7 @@ struct mlx5e_params {
 	u16 num_channels;
 	u8  num_tc;
 	u8  rx_cq_period_mode;
-	bool rx_cqe_compress_admin;
-	bool rx_cqe_compress;
+	bool rx_cqe_compress_def;
 	struct mlx5e_cq_moder rx_cq_moderation;
 	struct mlx5e_cq_moder tx_cq_moderation;
 	u16 min_rx_wqes;
