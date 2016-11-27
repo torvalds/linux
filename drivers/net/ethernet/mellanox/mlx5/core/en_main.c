@@ -3325,33 +3325,6 @@ u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
 	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
 }
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-static void mlx5e_ets_init(struct mlx5e_priv *priv)
-{
-	struct ieee_ets ets;
-	int i;
-
-	if (!MLX5_CAP_GEN(priv->mdev, ets))
-		return;
-
-	memset(&ets, 0, sizeof(ets));
-	ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;
-	for (i = 0; i < ets.ets_cap; i++) {
-		ets.tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
-		ets.tc_tsa[i] = IEEE_8021QAZ_TSA_VENDOR;
-		ets.prio_tc[i] = i;
-	}
-
-	memcpy(priv->dcbx.tc_tsa, ets.tc_tsa, sizeof(ets.tc_tsa));
-
-	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
-	ets.prio_tc[0] = 1;
-	ets.prio_tc[1] = 0;
-
-	mlx5e_dcbnl_ieee_setets_core(priv, &ets);
-}
-#endif
-
 void mlx5e_build_default_indir_rqt(struct mlx5_core_dev *mdev,
 				   u32 *indirection_rqt, int len,
 				   int num_channels)
@@ -3794,7 +3767,7 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 	}
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
-	mlx5e_ets_init(priv);
+	mlx5e_dcbnl_initialize(priv);
 #endif
 	return 0;
 }

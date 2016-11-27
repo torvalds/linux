@@ -41,6 +41,45 @@
 #define MLX5E_CEE_STATE_UP    1
 #define MLX5E_CEE_STATE_DOWN  0
 
+/* If dcbx mode is non-host set the dcbx mode to host.
+ */
+static int mlx5e_dcbnl_set_dcbx_mode(struct mlx5e_priv *priv,
+				     enum mlx5_dcbx_oper_mode mode)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 param[MLX5_ST_SZ_DW(dcbx_param)];
+	int err;
+
+	err = mlx5_query_port_dcbx_param(mdev, param);
+	if (err)
+		return err;
+
+	MLX5_SET(dcbx_param, param, version_admin, mode);
+	if (mode != MLX5E_DCBX_PARAM_VER_OPER_HOST)
+		MLX5_SET(dcbx_param, param, willing_admin, 1);
+
+	return mlx5_set_port_dcbx_param(mdev, param);
+}
+
+static int mlx5e_dcbnl_switch_to_host_mode(struct mlx5e_priv *priv)
+{
+	struct mlx5e_dcbx *dcbx = &priv->dcbx;
+	int err;
+
+	if (!MLX5_CAP_GEN(priv->mdev, dcbx))
+		return 0;
+
+	if (dcbx->mode == MLX5E_DCBX_PARAM_VER_OPER_HOST)
+		return 0;
+
+	err = mlx5e_dcbnl_set_dcbx_mode(priv, MLX5E_DCBX_PARAM_VER_OPER_HOST);
+	if (err)
+		return err;
+
+	dcbx->mode = MLX5E_DCBX_PARAM_VER_OPER_HOST;
+	return 0;
+}
+
 static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 				   struct ieee_ets *ets)
 {
@@ -255,6 +294,9 @@ static u8 mlx5e_dcbnl_getdcbx(struct net_device *dev)
 
 static u8 mlx5e_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 {
+	if (mlx5e_dcbnl_switch_to_host_mode(netdev_priv(dev)))
+		return 1;
+
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    !(mode & DCB_CAP_DCBX_VER_CEE) ||
 	    !(mode & DCB_CAP_DCBX_VER_IEEE) ||
@@ -637,3 +679,52 @@ const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.getpfcstate    = mlx5e_dcbnl_getpfcstate,
 	.setpfcstate    = mlx5e_dcbnl_setpfcstate,
 };
+
+static void mlx5e_dcbnl_query_dcbx_mode(struct mlx5e_priv *priv,
+					enum mlx5_dcbx_oper_mode *mode)
+{
+	u32 out[MLX5_ST_SZ_DW(dcbx_param)];
+
+	*mode = MLX5E_DCBX_PARAM_VER_OPER_HOST;
+
+	if (!mlx5_query_port_dcbx_param(priv->mdev, out))
+		*mode = MLX5_GET(dcbx_param, out, version_oper);
+
+	/* From driver's point of view, we only care if the mode
+	 * is host (HOST) or non-host (AUTO)
+	 */
+	if (*mode != MLX5E_DCBX_PARAM_VER_OPER_HOST)
+		*mode = MLX5E_DCBX_PARAM_VER_OPER_AUTO;
+}
+
+static void mlx5e_ets_init(struct mlx5e_priv *priv)
+{
+	int i;
+	struct ieee_ets ets;
+
+	memset(&ets, 0, sizeof(ets));
+	ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;
+	for (i = 0; i < ets.ets_cap; i++) {
+		ets.tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
+		ets.tc_tsa[i] = IEEE_8021QAZ_TSA_VENDOR;
+		ets.prio_tc[i] = i;
+	}
+
+	memcpy(priv->dcbx.tc_tsa, ets.tc_tsa, sizeof(ets.tc_tsa));
+
+	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
+	ets.prio_tc[0] = 1;
+	ets.prio_tc[1] = 0;
+
+	mlx5e_dcbnl_ieee_setets_core(priv, &ets);
+}
+
+void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
+{
+	struct mlx5e_dcbx *dcbx = &priv->dcbx;
+
+	if (MLX5_CAP_GEN(priv->mdev, dcbx))
+		mlx5e_dcbnl_query_dcbx_mode(priv, &dcbx->mode);
+
+	mlx5e_ets_init(priv);
+}
