@@ -548,6 +548,26 @@ int mlx5_max_tc(struct mlx5_core_dev *mdev)
 	return num_tc - 1;
 }
 
+int mlx5_query_port_dcbx_param(struct mlx5_core_dev *mdev, u32 *out)
+{
+	u32 in[MLX5_ST_SZ_DW(dcbx_param)] = {0};
+
+	MLX5_SET(dcbx_param, in, port_number, 1);
+
+	return  mlx5_core_access_reg(mdev, in, sizeof(in), out,
+				    sizeof(in), MLX5_REG_DCBX_PARAM, 0, 0);
+}
+
+int mlx5_set_port_dcbx_param(struct mlx5_core_dev *mdev, u32 *in)
+{
+	u32 out[MLX5_ST_SZ_DW(dcbx_param)];
+
+	MLX5_SET(dcbx_param, in, port_number, 1);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(out), out,
+				    sizeof(out), MLX5_REG_DCBX_PARAM, 0, 1);
+}
+
 int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, u8 *prio_tc)
 {
 	u32 in[MLX5_ST_SZ_DW(qtct_reg)] = {0};

@@ -104,6 +104,8 @@ enum {
 enum {
 	MLX5_REG_QETCR		 = 0x4005,
 	MLX5_REG_QTCT		 = 0x400a,
+	MLX5_REG_DCBX_PARAM      = 0x4020,
+	MLX5_REG_DCBX_APP        = 0x4021,
 	MLX5_REG_PCAP		 = 0x5001,
 	MLX5_REG_PMTU		 = 0x5003,
 	MLX5_REG_PTYS		 = 0x5004,
@@ -122,6 +124,11 @@ enum {
 	MLX5_REG_MCIA		 = 0x9014,
 	MLX5_REG_MLCR		 = 0x902b,
 	MLX5_REG_MPCNT		 = 0x9051,
+};
+
+enum mlx5_dcbx_oper_mode {
+	MLX5E_DCBX_PARAM_VER_OPER_HOST  = 0x0,
+	MLX5E_DCBX_PARAM_VER_OPER_AUTO  = 0x3,
 };
 
 enum {
