@@ -166,9 +166,18 @@ static int benchmark_event_kthread(void *arg)
  */
 int trace_benchmark_reg(void)
 {
+	if (system_state != SYSTEM_RUNNING) {
+		pr_warning("trace benchmark cannot be started via kernel command line\n");
+		return -EBUSY;
+	}
+
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
-	WARN_ON(!bm_event_thread);
+	if (!bm_event_thread) {
+		pr_warning("trace benchmark failed to create kernel thread\n");
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -183,6 +192,7 @@ void trace_benchmark_unreg(void)
 		return;
 
 	kthread_stop(bm_event_thread);
+	bm_event_thread = NULL;
 
 	strcpy(bm_str, "START");
 	bm_total = 0;
