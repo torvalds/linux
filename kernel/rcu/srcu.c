@@ -358,6 +358,7 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 	head->next = NULL;
 	head->func = func;
 	spin_lock_irqsave(&sp->queue_lock, flags);
+	smp_mb__after_unlock_lock(); /* Caller's prior accesses before GP. */
 	rcu_batch_queue(&sp->batch_queue, head);
 	if (!sp->running) {
 		sp->running = true;
@@ -391,6 +392,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 	head->next = NULL;
 	head->func = wakeme_after_rcu;
 	spin_lock_irq(&sp->queue_lock);
+	smp_mb__after_unlock_lock(); /* Caller's prior accesses before GP. */
 	if (!sp->running) {
 		/* steal the processing owner */
 		sp->running = true;
@@ -410,8 +412,11 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 		spin_unlock_irq(&sp->queue_lock);
 	}
 
-	if (!done)
+	if (!done) {
 		wait_for_completion(&rcu.completion);
+		smp_mb(); /* Caller's later accesses after GP. */
+	}
+
 }
 
 /**
@@ -579,7 +584,8 @@ static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
 /*
  * Invoke a limited number of SRCU callbacks that have passed through
  * their grace period.  If there are more to do, SRCU will reschedule
- * the workqueue.
+ * the workqueue.  Note that needed memory barriers have been executed
+ * in this task's context by srcu_readers_active_idx_check().
  */
 static void srcu_invoke_callbacks(struct srcu_struct *sp)
 {
