@@ -86,8 +86,7 @@ void *nvm_dev_dma_alloc(struct nvm_dev *dev, gfp_t mem_flags,
 }
 EXPORT_SYMBOL(nvm_dev_dma_alloc);
 
-void nvm_dev_dma_free(struct nvm_dev *dev, void *addr,
-							dma_addr_t dma_handler)
+void nvm_dev_dma_free(struct nvm_dev *dev, void *addr, dma_addr_t dma_handler)
 {
 	dev->ops->dev_dma_free(dev->dma_pool, addr, dma_handler);
 }
@@ -227,9 +226,11 @@ int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p, int flags)
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
-int nvm_get_l2p_tbl(struct nvm_dev *dev, u64 slba, u32 nlb,
+int nvm_get_l2p_tbl(struct nvm_tgt_dev *tgt_dev, u64 slba, u32 nlb,
 		    nvm_l2p_update_fn *update_l2p, void *priv)
 {
+	struct nvm_dev *dev = tgt_dev->parent;
+
 	if (!dev->ops->get_l2p_tbl)
 		return 0;
 
@@ -237,14 +238,18 @@ int nvm_get_l2p_tbl(struct nvm_dev *dev, u64 slba, u32 nlb,
 }
 EXPORT_SYMBOL(nvm_get_l2p_tbl);
 
-int nvm_get_area(struct nvm_dev *dev, sector_t *lba, sector_t len)
+int nvm_get_area(struct nvm_tgt_dev *tgt_dev, sector_t *lba, sector_t len)
 {
+	struct nvm_dev *dev = tgt_dev->parent;
+
 	return dev->mt->get_area(dev, lba, len);
 }
 EXPORT_SYMBOL(nvm_get_area);
 
-void nvm_put_area(struct nvm_dev *dev, sector_t lba)
+void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t lba)
 {
+	struct nvm_dev *dev = tgt_dev->parent;
+
 	dev->mt->put_area(dev, lba);
 }
 EXPORT_SYMBOL(nvm_put_area);

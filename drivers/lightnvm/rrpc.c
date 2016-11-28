@@ -983,8 +983,8 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 		if (!(flags & NVM_IOTYPE_GC)) {
 			rrpc_unlock_rq(rrpc, rqd);
 			if (rqd->nr_ppas > 1)
-				nvm_dev_dma_free(dev->parent,
-					rqd->ppa_list, rqd->dma_ppa_list);
+				nvm_dev_dma_free(dev->parent, rqd->ppa_list,
+							rqd->dma_ppa_list);
 		}
 		return NVM_IO_ERR;
 	}
@@ -1116,7 +1116,7 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 
 		div_u64_rem(pba, rrpc->nr_sects, &mod);
 
-		gaddr = rrpc_recov_addr(dev->parent, pba);
+		gaddr = rrpc_recov_addr(dev, pba);
 		rlun = rrpc_ppa_to_lun(rrpc, gaddr);
 		if (!rlun) {
 			pr_err("rrpc: l2p corruption on lba %llu\n",
@@ -1167,8 +1167,8 @@ static int rrpc_map_init(struct rrpc *rrpc)
 	}
 
 	/* Bring up the mapping table from device */
-	ret = nvm_get_l2p_tbl(dev->parent, rrpc->soffset, rrpc->nr_sects,
-					rrpc_l2p_update, rrpc);
+	ret = nvm_get_l2p_tbl(dev, rrpc->soffset, rrpc->nr_sects,
+							rrpc_l2p_update, rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
 		return -EINVAL;
@@ -1376,7 +1376,7 @@ static int rrpc_area_init(struct rrpc *rrpc, sector_t *begin)
 
 	size >>= 9;
 
-	ret = nvm_get_area(dev->parent, begin, size);
+	ret = nvm_get_area(dev, begin, size);
 	if (!ret)
 		*begin >>= (ilog2(dev->geo.sec_size) - 9);
 
@@ -1388,7 +1388,7 @@ static void rrpc_area_free(struct rrpc *rrpc)
 	struct nvm_tgt_dev *dev = rrpc->dev;
 	sector_t begin = rrpc->soffset << (ilog2(dev->geo.sec_size) - 9);
 
-	nvm_put_area(dev->parent, begin);
+	nvm_put_area(dev, begin);
 }
 
 static void rrpc_free(struct rrpc *rrpc)

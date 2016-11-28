@@ -184,7 +184,7 @@ static inline struct ppa_addr rrpc_linear_to_generic_addr(struct nvm_geo *geo,
 	return l;
 }
 
-static inline struct ppa_addr rrpc_recov_addr(struct nvm_dev *dev, u64 pba)
+static inline struct ppa_addr rrpc_recov_addr(struct nvm_tgt_dev *dev, u64 pba)
 {
 	return linear_to_generic_addr(&dev->geo, pba);
 }
