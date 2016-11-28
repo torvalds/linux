@@ -382,6 +382,8 @@ enum err_codes {
 	ERR_NODE	= -1,
 	ERR_CSROW	= -2,
 	ERR_CHANNEL	= -3,
+	ERR_SYND	= -4,
+	ERR_NORM_ADDR	= -5,
 };
 
 struct err_info {
