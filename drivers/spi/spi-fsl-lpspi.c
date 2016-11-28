@@ -348,7 +348,12 @@ static int fsl_lpspi_transfer_one(struct spi_master *master,
 
 	reinit_completion(&fsl_lpspi->xfer_done);
 	fsl_lpspi_write_tx_fifo(fsl_lpspi);
-	wait_for_completion(&fsl_lpspi->xfer_done);
+
+	ret = wait_for_completion_timeout(&fsl_lpspi->xfer_done, HZ);
+	if (!ret) {
+		dev_dbg(fsl_lpspi->dev, "wait for completion timeout\n");
+		return -ETIMEDOUT;
+	}
 
 	ret = fsl_lpspi_txfifo_empty(fsl_lpspi);
 	fsl_lpspi_read_rx_fifo(fsl_lpspi);
