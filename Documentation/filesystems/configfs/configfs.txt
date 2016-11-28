@@ -174,7 +174,7 @@ among other things.  For that, it needs a type.
 		void (*release)(struct config_item *);
 		int (*allow_link)(struct config_item *src,
 				  struct config_item *target);
-		int (*drop_link)(struct config_item *src,
+		void (*drop_link)(struct config_item *src,
 				 struct config_item *target);
 	};
 

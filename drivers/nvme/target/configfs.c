@@ -466,7 +466,7 @@ out_free_link:
 	return ret;
 }
 
-static int nvmet_port_subsys_drop_link(struct config_item *parent,
+static void nvmet_port_subsys_drop_link(struct config_item *parent,
 		struct config_item *target)
 {
 	struct nvmet_port *port = to_nvmet_port(parent->ci_parent);
@@ -479,7 +479,7 @@ static int nvmet_port_subsys_drop_link(struct config_item *parent,
 			goto found;
 	}
 	up_write(&nvmet_config_sem);
-	return -EINVAL;
+	return;
 
 found:
 	list_del(&p->entry);
@@ -488,7 +488,6 @@ found:
 		nvmet_disable_port(port);
 	up_write(&nvmet_config_sem);
 	kfree(p);
-	return 0;
 }
 
 static struct configfs_item_operations nvmet_port_subsys_item_ops = {
@@ -542,7 +541,7 @@ out_free_link:
 	return ret;
 }
 
-static int nvmet_allowed_hosts_drop_link(struct config_item *parent,
+static void nvmet_allowed_hosts_drop_link(struct config_item *parent,
 		struct config_item *target)
 {
 	struct nvmet_subsys *subsys = to_subsys(parent->ci_parent);
@@ -555,14 +554,13 @@ static int nvmet_allowed_hosts_drop_link(struct config_item *parent,
 			goto found;
 	}
 	up_write(&nvmet_config_sem);
-	return -EINVAL;
+	return;
 
 found:
 	list_del(&p->entry);
 	nvmet_genctr++;
 	up_write(&nvmet_config_sem);
 	kfree(p);
-	return 0;
 }
 
 static struct configfs_item_operations nvmet_allowed_hosts_item_ops = {
