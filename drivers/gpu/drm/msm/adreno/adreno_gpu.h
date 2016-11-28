@@ -28,6 +28,9 @@
 #include "adreno_pm4.xml.h"
 
 #define REG_ADRENO_DEFINE(_offset, _reg) [_offset] = (_reg) + 1
+#define REG_SKIP ~0
+#define REG_ADRENO_SKIP(_offset) [_offset] = REG_SKIP
+
 /**
  * adreno_regs: List of registers that are used in across all
  * 3D devices. Each device type has different offset value for the same
@@ -36,7 +39,9 @@
  */
 enum adreno_regs {
 	REG_ADRENO_CP_RB_BASE,
+	REG_ADRENO_CP_RB_BASE_HI,
 	REG_ADRENO_CP_RB_RPTR_ADDR,
+	REG_ADRENO_CP_RB_RPTR_ADDR_HI,
 	REG_ADRENO_CP_RB_RPTR,
 	REG_ADRENO_CP_RB_WPTR,
 	REG_ADRENO_CP_RB_CNTL,
@@ -220,7 +225,7 @@ OUT_PKT3(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 }
 
 /*
- * adreno_checkreg_off() - Checks the validity of a register enum
+ * adreno_reg_check() - Checks the validity of a register enum
  * @gpu:		Pointer to struct adreno_gpu
  * @offset_name:	The register enum that is checked
  */
@@ -231,6 +236,16 @@ static inline bool adreno_reg_check(struct adreno_gpu *gpu,
 			!gpu->reg_offsets[offset_name]) {
 		BUG();
 	}
+
+	/*
+	 * REG_SKIP is a special value that tell us that the register in
+	 * question isn't implemented on target but don't trigger a BUG(). This
+	 * is used to cleanly implement adreno_gpu_write64() and
+	 * adreno_gpu_read64() in a generic fashion
+	 */
+	if (gpu->reg_offsets[offset_name] == REG_SKIP)
+		return false;
+
 	return true;
 }
 
@@ -254,5 +269,12 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 
 struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
+
+static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
+		enum adreno_regs lo, enum adreno_regs hi, u64 data)
+{
+	adreno_gpu_write(gpu, lo, lower_32_bits(data));
+	adreno_gpu_write(gpu, hi, upper_32_bits(data));
+}
 
 #endif /* __ADRENO_GPU_H__ */
