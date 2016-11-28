@@ -140,13 +140,20 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 		unsigned long new_pte;
 
 		old_pte = __radix_pte_update(ptep, ~0, 0);
-		asm volatile("ptesync" : : : "memory");
 		/*
 		 * new value of pte
 		 */
 		new_pte = (old_pte | set) & ~clr;
-		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
-		__radix_pte_update(ptep, 0, new_pte);
+		/*
+		 * If we are trying to clear the pte, we can skip
+		 * the below sequence and batch the tlb flush. The
+		 * tlb flush batching is done by mmu gather code
+		 */
+		if (new_pte) {
+			asm volatile("ptesync" : : : "memory");
+			radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+			__radix_pte_update(ptep, 0, new_pte);
+		}
 	} else
 		old_pte = __radix_pte_update(ptep, clr, set);
 	asm volatile("ptesync" : : : "memory");
