@@ -176,12 +176,6 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
-void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
-{
-	return dev->mt->mark_blk(dev, ppa, type);
-}
-EXPORT_SYMBOL(nvm_mark_blk);
-
 int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas,
 								int type)
 {
@@ -215,9 +209,9 @@ int nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-int nvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk, int flags)
+int nvm_erase_blk(struct nvm_dev *dev, struct ppa_addr *p, int flags)
 {
-	return dev->mt->erase_blk(dev, blk, flags);
+	return dev->mt->erase_blk(dev, p, flags);
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 

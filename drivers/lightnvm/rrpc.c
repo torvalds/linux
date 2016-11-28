@@ -126,19 +126,21 @@ static int block_is_full(struct rrpc *rrpc, struct rrpc_block *rblk)
 static u64 block_to_rel_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	struct nvm_block *blk = rblk->parent;
-	int lun_blk = blk->id % (dev->geo.blks_per_lun * rrpc->nr_luns);
+	struct rrpc_lun *rlun = rblk->rlun;
+	struct nvm_lun *lun = rlun->parent;
 
-	return lun_blk * dev->geo.sec_per_blk;
+	return lun->id * dev->geo.sec_per_blk;
 }
 
 /* Calculate global addr for the given block */
 static u64 block_to_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	struct nvm_block *blk = rblk->parent;
+	struct nvm_geo *geo = &dev->geo;
+	struct rrpc_lun *rlun = rblk->rlun;
+	struct nvm_lun *lun = rlun->parent;
 
-	return blk->id * dev->geo.sec_per_blk;
+	return lun->id * geo->sec_per_lun + rblk->id * geo->sec_per_blk;
 }
 
 static struct ppa_addr rrpc_ppa_to_gaddr(struct nvm_tgt_dev *dev, u64 addr)
@@ -163,51 +165,46 @@ static void rrpc_set_lun_cur(struct rrpc_lun *rlun, struct rrpc_block *new_rblk,
 	*cur_rblk = new_rblk;
 }
 
-static struct nvm_block *__rrpc_get_blk(struct rrpc *rrpc,
+static struct rrpc_block *__rrpc_get_blk(struct rrpc *rrpc,
 							struct rrpc_lun *rlun)
 {
-	struct nvm_lun *lun = rlun->parent;
-	struct nvm_block *blk = NULL;
+	struct rrpc_block *rblk = NULL;
 
-	if (list_empty(&lun->free_list))
+	if (list_empty(&rlun->free_list))
 		goto out;
 
-	blk = list_first_entry(&lun->free_list, struct nvm_block, list);
+	rblk = list_first_entry(&rlun->free_list, struct rrpc_block, list);
 
-	list_move_tail(&blk->list, &lun->used_list);
-	blk->state = NVM_BLK_ST_TGT;
-	lun->nr_free_blocks--;
+	list_move_tail(&rblk->list, &rlun->used_list);
+	rblk->state = NVM_BLK_ST_TGT;
+	rlun->nr_free_blocks--;
 
 out:
-	return blk;
+	return rblk;
 }
 
 static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 							unsigned long flags)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	struct nvm_lun *lun = rlun->parent;
-	struct nvm_block *blk;
 	struct rrpc_block *rblk;
 	int is_gc = flags & NVM_IOTYPE_GC;
 
 	spin_lock(&rlun->lock);
-	if (!is_gc && lun->nr_free_blocks < rlun->reserved_blocks) {
+	if (!is_gc && rlun->nr_free_blocks < rlun->reserved_blocks) {
 		pr_err("nvm: rrpc: cannot give block to non GC request\n");
 		spin_unlock(&rlun->lock);
 		return NULL;
 	}
 
-	blk = __rrpc_get_blk(rrpc, rlun);
-	if (!blk) {
+	rblk = __rrpc_get_blk(rrpc, rlun);
+	if (!rblk) {
 		pr_err("nvm: rrpc: cannot get new block\n");
 		spin_unlock(&rlun->lock);
 		return NULL;
 	}
 	spin_unlock(&rlun->lock);
 
-	rblk = rrpc_get_rblk(rlun, blk->id);
-	blk->priv = rblk;
 	bitmap_zero(rblk->invalid_pages, dev->geo.sec_per_blk);
 	rblk->next_page = 0;
 	rblk->nr_invalid_pages = 0;
@@ -218,23 +215,23 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 
 static void rrpc_put_blk(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	struct nvm_block *blk = rblk->parent;
 	struct rrpc_lun *rlun = rblk->rlun;
 	struct nvm_lun *lun = rlun->parent;
 
 	spin_lock(&rlun->lock);
-	if (blk->state & NVM_BLK_ST_TGT) {
-		list_move_tail(&blk->list, &lun->free_list);
-		lun->nr_free_blocks++;
-		blk->state = NVM_BLK_ST_FREE;
-	} else if (blk->state & NVM_BLK_ST_BAD) {
-		list_move_tail(&blk->list, &lun->bb_list);
-		blk->state = NVM_BLK_ST_BAD;
+	if (rblk->state & NVM_BLK_ST_TGT) {
+		list_move_tail(&rblk->list, &rlun->free_list);
+		rlun->nr_free_blocks++;
+		rblk->state = NVM_BLK_ST_FREE;
+	} else if (rblk->state & NVM_BLK_ST_BAD) {
+		list_move_tail(&rblk->list, &rlun->bb_list);
+		rblk->state = NVM_BLK_ST_BAD;
 	} else {
 		WARN_ON_ONCE(1);
-		pr_err("rrpc: erroneous block type (%lu -> %u)\n",
-							blk->id, blk->state);
-		list_move_tail(&blk->list, &lun->bb_list);
+		pr_err("rrpc: erroneous type (ch:%d,lun:%d,blk%d-> %u)\n",
+						lun->chnl_id, lun->lun_id,
+						rblk->id, rblk->state);
+		list_move_tail(&rblk->list, &rlun->bb_list);
 	}
 	spin_unlock(&rlun->lock);
 }
@@ -334,7 +331,7 @@ static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 					    nr_sec_per_blk)) < nr_sec_per_blk) {
 
 		/* Lock laddr */
-		phys_addr = rblk->parent->id * nr_sec_per_blk + slot;
+		phys_addr = rrpc_blk_to_ppa(rrpc, rblk) + slot;
 
 try:
 		spin_lock(&rrpc->rev_lock);
@@ -422,14 +419,22 @@ static void rrpc_block_gc(struct work_struct *work)
 	struct rrpc_block *rblk = gcb->rblk;
 	struct rrpc_lun *rlun = rblk->rlun;
 	struct nvm_tgt_dev *dev = rrpc->dev;
+	struct ppa_addr ppa;
 
 	mempool_free(gcb, rrpc->gcb_pool);
-	pr_debug("nvm: block '%lu' being reclaimed\n", rblk->parent->id);
+	pr_debug("nvm: block 'ch:%d,lun:%d,blk:%d' being reclaimed\n",
+			rlun->parent->chnl_id, rlun->parent->lun_id,
+			rblk->id);
 
 	if (rrpc_move_valid_pages(rrpc, rblk))
 		goto put_back;
 
-	if (nvm_erase_blk(dev->parent, rblk->parent, 0))
+	ppa.ppa = 0;
+	ppa.g.ch = rlun->parent->chnl_id;
+	ppa.g.lun = rlun->parent->lun_id;
+	ppa.g.blk = rblk->id;
+
+	if (nvm_erase_blk(dev->parent, &ppa, 0))
 		goto put_back;
 
 	rrpc_put_blk(rrpc, rblk);
@@ -445,7 +450,7 @@ put_back:
 /* the block with highest number of invalid pages, will be in the beginning
  * of the list
  */
-static struct rrpc_block *rblock_max_invalid(struct rrpc_block *ra,
+static struct rrpc_block *rblk_max_invalid(struct rrpc_block *ra,
 							struct rrpc_block *rb)
 {
 	if (ra->nr_invalid_pages == rb->nr_invalid_pages)
@@ -460,13 +465,13 @@ static struct rrpc_block *rblock_max_invalid(struct rrpc_block *ra,
 static struct rrpc_block *block_prio_find_max(struct rrpc_lun *rlun)
 {
 	struct list_head *prio_list = &rlun->prio_list;
-	struct rrpc_block *rblock, *max;
+	struct rrpc_block *rblk, *max;
 
 	BUG_ON(list_empty(prio_list));
 
 	max = list_first_entry(prio_list, struct rrpc_block, prio);
-	list_for_each_entry(rblock, prio_list, prio)
-		max = rblock_max_invalid(max, rblock);
+	list_for_each_entry(rblk, prio_list, prio)
+		max = rblk_max_invalid(max, rblk);
 
 	return max;
 }
@@ -476,7 +481,6 @@ static void rrpc_lun_gc(struct work_struct *work)
 	struct rrpc_lun *rlun = container_of(work, struct rrpc_lun, ws_gc);
 	struct rrpc *rrpc = rlun->rrpc;
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	struct nvm_lun *lun = rlun->parent;
 	struct rrpc_block_gc *gcb;
 	unsigned int nr_blocks_need;
 
@@ -486,26 +490,28 @@ static void rrpc_lun_gc(struct work_struct *work)
 		nr_blocks_need = rrpc->nr_luns;
 
 	spin_lock(&rlun->lock);
-	while (nr_blocks_need > lun->nr_free_blocks &&
+	while (nr_blocks_need > rlun->nr_free_blocks &&
 					!list_empty(&rlun->prio_list)) {
-		struct rrpc_block *rblock = block_prio_find_max(rlun);
-		struct nvm_block *block = rblock->parent;
+		struct rrpc_block *rblk = block_prio_find_max(rlun);
 
-		if (!rblock->nr_invalid_pages)
+		if (!rblk->nr_invalid_pages)
 			break;
 
 		gcb = mempool_alloc(rrpc->gcb_pool, GFP_ATOMIC);
 		if (!gcb)
 			break;
 
-		list_del_init(&rblock->prio);
+		list_del_init(&rblk->prio);
 
-		BUG_ON(!block_is_full(rrpc, rblock));
+		WARN_ON(!block_is_full(rrpc, rblk));
 
-		pr_debug("rrpc: selected block '%lu' for GC\n", block->id);
+		pr_debug("rrpc: selected block 'ch:%d,lun:%d,blk:%d' for GC\n",
+					rlun->parent->chnl_id,
+					rlun->parent->lun_id,
+					rblk->id);
 
 		gcb->rrpc = rrpc;
-		gcb->rblk = rblock;
+		gcb->rblk = rblk;
 		INIT_WORK(&gcb->ws_gc, rrpc_block_gc);
 
 		queue_work(rrpc->kgc_wq, &gcb->ws_gc);
@@ -530,8 +536,10 @@ static void rrpc_gc_queue(struct work_struct *work)
 	spin_unlock(&rlun->lock);
 
 	mempool_free(gcb, rrpc->gcb_pool);
-	pr_debug("nvm: block '%lu' is full, allow GC (sched)\n",
-							rblk->parent->id);
+	pr_debug("nvm: block 'ch:%d,lun:%d,blk:%d' full, allow GC (sched)\n",
+					rlun->parent->chnl_id,
+					rlun->parent->lun_id,
+					rblk->id);
 }
 
 static const struct block_device_operations rrpc_fops = {
@@ -555,8 +563,7 @@ static struct rrpc_lun *rrpc_get_lun_rr(struct rrpc *rrpc, int is_gc)
 	 * estimate.
 	 */
 	rrpc_for_each_lun(rrpc, rlun, i) {
-		if (rlun->parent->nr_free_blocks >
-					max_free->parent->nr_free_blocks)
+		if (rlun->nr_free_blocks > max_free->nr_free_blocks)
 			max_free = rlun;
 	}
 
@@ -613,14 +620,12 @@ static struct rrpc_addr *rrpc_map_page(struct rrpc *rrpc, sector_t laddr,
 {
 	struct rrpc_lun *rlun;
 	struct rrpc_block *rblk, **cur_rblk;
-	struct nvm_lun *lun;
 	u64 paddr;
 	int gc_force = 0;
 
 	rlun = rrpc_get_lun_rr(rrpc, is_gc);
-	lun = rlun->parent;
 
-	if (!is_gc && lun->nr_free_blocks < rrpc->nr_luns * 4)
+	if (!is_gc && rlun->nr_free_blocks < rrpc->nr_luns * 4)
 		return NULL;
 
 	/*
@@ -701,22 +706,44 @@ static void rrpc_run_gc(struct rrpc *rrpc, struct rrpc_block *rblk)
 	queue_work(rrpc->kgc_wq, &gcb->ws_gc);
 }
 
-static void __rrpc_mark_bad_block(struct nvm_tgt_dev *dev, struct ppa_addr *ppa)
+static struct rrpc_lun *rrpc_ppa_to_lun(struct rrpc *rrpc, struct ppa_addr p)
 {
-		nvm_mark_blk(dev->parent, *ppa, NVM_BLK_ST_BAD);
-		nvm_set_bb_tbl(dev->parent, ppa, 1, NVM_BLK_T_GRWN_BAD);
+	struct rrpc_lun *rlun = NULL;
+	int i;
+
+	for (i = 0; i < rrpc->nr_luns; i++) {
+		if (rrpc->luns[i].parent->chnl_id == p.g.ch &&
+				rrpc->luns[i].parent->lun_id == p.g.lun) {
+			rlun = &rrpc->luns[i];
+			break;
+		}
+	}
+
+	return rlun;
+}
+
+static void __rrpc_mark_bad_block(struct rrpc *rrpc, struct ppa_addr ppa)
+{
+	struct nvm_tgt_dev *dev = rrpc->dev;
+	struct rrpc_lun *rlun;
+	struct rrpc_block *rblk;
+
+	rlun = rrpc_ppa_to_lun(rrpc, ppa);
+	rblk = &rlun->blocks[ppa.g.blk];
+	rblk->state = NVM_BLK_ST_BAD;
+
+	nvm_set_bb_tbl(dev->parent, &ppa, 1, NVM_BLK_T_GRWN_BAD);
 }
 
 static void rrpc_mark_bad_block(struct rrpc *rrpc, struct nvm_rq *rqd)
 {
-	struct nvm_tgt_dev *dev = rrpc->dev;
 	void *comp_bits = &rqd->ppa_status;
 	struct ppa_addr ppa, prev_ppa;
 	int nr_ppas = rqd->nr_ppas;
 	int bit;
 
 	if (rqd->nr_ppas == 1)
-		__rrpc_mark_bad_block(dev, &rqd->ppa_addr);
+		__rrpc_mark_bad_block(rrpc, rqd->ppa_addr);
 
 	ppa_set_empty(&prev_ppa);
 	bit = -1;
@@ -725,7 +752,7 @@ static void rrpc_mark_bad_block(struct rrpc *rrpc, struct nvm_rq *rqd)
 		if (ppa_cmp_blk(ppa, prev_ppa))
 			continue;
 
-		__rrpc_mark_bad_block(dev, &ppa);
+		__rrpc_mark_bad_block(rrpc, ppa);
 	}
 }
 
@@ -735,13 +762,11 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_addr *p;
 	struct rrpc_block *rblk;
-	struct nvm_lun *lun;
 	int cmnt_size, i;
 
 	for (i = 0; i < npages; i++) {
 		p = &rrpc->trans_map[laddr + i];
 		rblk = p->rblk;
-		lun = rblk->parent->lun;
 
 		cmnt_size = atomic_inc_return(&rblk->data_cmnt_size);
 		if (unlikely(cmnt_size == dev->geo.sec_per_blk))
@@ -1061,16 +1086,21 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_addr *addr = rrpc->trans_map + slba;
 	struct rrpc_rev_addr *raddr = rrpc->rev_trans_map;
+	struct rrpc_lun *rlun;
+	struct rrpc_block *rblk;
 	u64 i;
 
 	for (i = 0; i < nlb; i++) {
+		struct ppa_addr gaddr;
 		u64 pba = le64_to_cpu(entries[i]);
 		unsigned int mod;
+
 		/* LNVM treats address-spaces as silos, LBA and PBA are
 		 * equally large and zero-indexed.
 		 */
 		if (unlikely(pba >= dev->total_secs && pba != U64_MAX)) {
 			pr_err("nvm: L2P data entry is out of bounds!\n");
+			pr_err("nvm: Maybe loaded an old target L2P\n");
 			return -EINVAL;
 		}
 
@@ -1085,6 +1115,25 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 
 		addr[i].addr = pba;
 		raddr[mod].addr = slba + i;
+
+		gaddr = rrpc_ppa_to_gaddr(dev, pba);
+		rlun = rrpc_ppa_to_lun(rrpc, gaddr);
+		if (!rlun) {
+			pr_err("rrpc: l2p corruption on lba %llu\n",
+							slba + i);
+			return -EINVAL;
+		}
+
+		rblk = &rlun->blocks[gaddr.g.blk];
+		if (!rblk->state) {
+			/* at this point, we don't know anything about the
+			 * block. It's up to the FTL on top to re-etablish the
+			 * block state. The block is assumed to be open.
+			 */
+			list_move_tail(&rblk->list, &rlun->used_list);
+			rblk->state = NVM_BLK_ST_TGT;
+			rlun->nr_free_blocks--;
+		}
 	}
 
 	return 0;
@@ -1199,6 +1248,51 @@ static void rrpc_luns_free(struct rrpc *rrpc)
 	kfree(rrpc->luns);
 }
 
+static int rrpc_bb_discovery(struct nvm_tgt_dev *dev, struct rrpc_lun *rlun)
+{
+	struct nvm_geo *geo = &dev->geo;
+	struct rrpc_block *rblk;
+	struct ppa_addr ppa;
+	u8 *blks;
+	int nr_blks;
+	int i;
+	int ret;
+
+	nr_blks = geo->blks_per_lun * geo->plane_mode;
+	blks = kmalloc(nr_blks, GFP_KERNEL);
+	if (!blks)
+		return -ENOMEM;
+
+	ppa.ppa = 0;
+	ppa.g.ch = rlun->parent->chnl_id;
+	ppa.g.lun = rlun->parent->lun_id;
+
+	ret = nvm_get_bb_tbl(dev->parent, ppa, blks);
+	if (ret) {
+		pr_err("rrpc: could not get BB table\n");
+		goto out;
+	}
+
+	nr_blks = nvm_bb_tbl_fold(dev->parent, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
+
+	rlun->nr_free_blocks = geo->blks_per_lun;
+	for (i = 0; i < nr_blks; i++) {
+		if (blks[i] == NVM_BLK_T_FREE)
+			continue;
+
+		rblk = &rlun->blocks[i];
+		list_move_tail(&rblk->list, &rlun->bb_list);
+		rblk->state = NVM_BLK_ST_BAD;
+		rlun->nr_free_blocks--;
+	}
+
+out:
+	kfree(blks);
+	return ret;
+}
+
 static int rrpc_luns_init(struct rrpc *rrpc, struct list_head *lun_list)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
@@ -1232,15 +1326,25 @@ static int rrpc_luns_init(struct rrpc *rrpc, struct list_head *lun_list)
 			goto err;
 		}
 
+		INIT_LIST_HEAD(&rlun->free_list);
+		INIT_LIST_HEAD(&rlun->used_list);
+		INIT_LIST_HEAD(&rlun->bb_list);
+
 		for (j = 0; j < geo->blks_per_lun; j++) {
 			struct rrpc_block *rblk = &rlun->blocks[j];
-			struct nvm_block *blk = &lun->blocks[j];
 
-			rblk->parent = blk;
+			rblk->id = j;
 			rblk->rlun = rlun;
+			rblk->state = NVM_BLK_T_FREE;
 			INIT_LIST_HEAD(&rblk->prio);
+			INIT_LIST_HEAD(&rblk->list);
 			spin_lock_init(&rblk->lock);
+
+			list_add_tail(&rblk->list, &rlun->free_list);
 		}
+
+		if (rrpc_bb_discovery(dev, rlun))
+			goto err;
 
 		rlun->reserved_blocks = 2; /* for GC only */
 

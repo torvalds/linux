@@ -266,8 +266,6 @@ static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 	return rqdata + 1;
 }
 
-struct nvm_block;
-
 struct nvm_lun {
 	int id;
 
@@ -275,34 +273,12 @@ struct nvm_lun {
 	int chnl_id;
 
 	struct list_head list;
-	spinlock_t lock;
-
-	/* lun block lists */
-	struct list_head used_list;	/* In-use blocks */
-	struct list_head free_list;	/* Not used blocks i.e. released
-					 * and ready for use
-					 */
-	struct list_head bb_list;	/* Bad blocks. Mutually exclusive with
-					 * free_list and used_list
-					 */
-	unsigned int nr_free_blocks;	/* Number of unused blocks */
-
-	struct nvm_block *blocks;
 };
 
 enum {
 	NVM_BLK_ST_FREE =	0x1,	/* Free block */
 	NVM_BLK_ST_TGT =	0x2,	/* Block in use by target */
 	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
-};
-
-struct nvm_block {
-	struct list_head list;
-	struct nvm_lun *lun;
-	unsigned long id;
-
-	void *priv;
-	int state;
 };
 
 /* system block cpu representation */
@@ -473,21 +449,6 @@ static inline void ppa_set_empty(struct ppa_addr *ppa_addr)
 	ppa_addr->ppa = ADDR_EMPTY;
 }
 
-static inline struct ppa_addr block_to_ppa(struct nvm_dev *dev,
-							struct nvm_block *blk)
-{
-	struct nvm_geo *geo = &dev->geo;
-	struct ppa_addr ppa;
-	struct nvm_lun *lun = blk->lun;
-
-	ppa.ppa = 0;
-	ppa.g.blk = blk->id % geo->blks_per_lun;
-	ppa.g.lun = lun->lun_id;
-	ppa.g.ch = lun->chnl_id;
-
-	return ppa;
-}
-
 static inline int ppa_cmp_blk(struct ppa_addr ppa1, struct ppa_addr ppa2)
 {
 	if (ppa_empty(ppa1) || ppa_empty(ppa2))
@@ -539,8 +500,7 @@ typedef void (nvmm_unregister_fn)(struct nvm_dev *);
 typedef int (nvmm_create_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_create *);
 typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
 typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *, int);
-typedef void (nvmm_mark_blk_fn)(struct nvm_dev *, struct ppa_addr, int);
+typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct ppa_addr *, int);
 typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
 typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
 
@@ -557,9 +517,6 @@ struct nvmm_type {
 	nvmm_submit_io_fn *submit_io;
 	nvmm_erase_blk_fn *erase_blk;
 
-	/* Bad block mgmt */
-	nvmm_mark_blk_fn *mark_blk;
-
 	nvmm_get_area_fn *get_area;
 	nvmm_put_area_fn *put_area;
 
@@ -573,7 +530,6 @@ extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
 
-extern void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type);
 extern int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas,
 							int nr_ppas, int type);
 
@@ -584,7 +540,7 @@ extern int nvm_set_rqd_ppalist(struct nvm_dev *, struct nvm_rq *,
 					const struct ppa_addr *, int, int);
 extern void nvm_free_rqd_ppalist(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_erase_ppa(struct nvm_dev *, struct ppa_addr *, int, int);
-extern int nvm_erase_blk(struct nvm_dev *, struct nvm_block *, int);
+extern int nvm_erase_blk(struct nvm_dev *, struct ppa_addr *, int);
 extern void nvm_end_io(struct nvm_rq *, int);
 extern int nvm_submit_ppa(struct nvm_dev *, struct ppa_addr *, int, int, int,
 								void *, int);

@@ -52,8 +52,7 @@ struct rrpc_rq {
 };
 
 struct rrpc_block {
-	unsigned long id;
-	struct nvm_block *parent;
+	int id;				/* id inside of LUN */
 	struct rrpc_lun *rlun;
 
 	struct list_head prio;		/* LUN CG list */
@@ -82,6 +81,16 @@ struct rrpc_lun {
 
 	struct list_head prio_list;	/* Blocks that may be GC'ed */
 	struct list_head wblk_list;	/* Queued blocks to be written to */
+
+	/* lun block lists */
+	struct list_head used_list;	/* In-use blocks */
+	struct list_head free_list;	/* Not used blocks i.e. released
+					 * and ready for use
+					 */
+	struct list_head bb_list;	/* Bad blocks. Mutually exclusive with
+					 * free_list and used_list
+					 */
+	unsigned int nr_free_blocks;	/* Number of unused blocks */
 
 	struct work_struct ws_gc;
 
@@ -155,14 +164,14 @@ struct rrpc_rev_addr {
 	u64 addr;
 };
 
-static inline struct rrpc_block *rrpc_get_rblk(struct rrpc_lun *rlun,
-								int blk_id)
+static inline u64 rrpc_blk_to_ppa(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	struct rrpc *rrpc = rlun->rrpc;
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	int lun_blk = blk_id % dev->geo.blks_per_lun;
+	struct nvm_geo *geo = &dev->geo;
+	struct rrpc_lun *rlun = rblk->rlun;
+	struct nvm_lun *lun = rlun->parent;
 
-	return &rlun->blocks[lun_blk];
+	return (lun->id * geo->sec_per_lun) + (rblk->id * geo->sec_per_blk);
 }
 
 static inline sector_t rrpc_get_laddr(struct bio *bio)

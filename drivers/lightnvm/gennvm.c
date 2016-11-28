@@ -306,19 +306,6 @@ static void gen_put_area(struct nvm_dev *dev, sector_t begin)
 	spin_unlock(&dev->lock);
 }
 
-static void gen_blocks_free(struct nvm_dev *dev)
-{
-	struct gen_dev *gn = dev->mp;
-	struct nvm_lun *lun;
-	int i;
-
-	gen_for_each_lun(gn, lun, i) {
-		if (!lun->blocks)
-			break;
-		vfree(lun->blocks);
-	}
-}
-
 static void gen_luns_free(struct nvm_dev *dev)
 {
 	struct gen_dev *gn = dev->mp;
@@ -337,167 +324,17 @@ static int gen_luns_init(struct nvm_dev *dev, struct gen_dev *gn)
 		return -ENOMEM;
 
 	gen_for_each_lun(gn, lun, i) {
-		INIT_LIST_HEAD(&lun->free_list);
-		INIT_LIST_HEAD(&lun->used_list);
-		INIT_LIST_HEAD(&lun->bb_list);
 		INIT_LIST_HEAD(&lun->list);
-
-		spin_lock_init(&lun->lock);
 
 		lun->id = i;
 		lun->lun_id = i % geo->luns_per_chnl;
 		lun->chnl_id = i / geo->luns_per_chnl;
-		lun->nr_free_blocks = geo->blks_per_lun;
 	}
-	return 0;
-}
-
-static int gen_block_bb(struct gen_dev *gn, struct ppa_addr ppa,
-							u8 *blks, int nr_blks)
-{
-	struct nvm_dev *dev = gn->dev;
-	struct nvm_lun *lun;
-	struct nvm_block *blk;
-	int i;
-
-	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
-	if (nr_blks < 0)
-		return nr_blks;
-
-	lun = &gn->luns[(dev->geo.luns_per_chnl * ppa.g.ch) + ppa.g.lun];
-
-	for (i = 0; i < nr_blks; i++) {
-		if (blks[i] == NVM_BLK_T_FREE)
-			continue;
-
-		blk = &lun->blocks[i];
-		list_move_tail(&blk->list, &lun->bb_list);
-		blk->state = NVM_BLK_ST_BAD;
-		lun->nr_free_blocks--;
-	}
-
-	return 0;
-}
-
-static int gen_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
-{
-	struct nvm_dev *dev = private;
-	struct nvm_geo *geo = &dev->geo;
-	struct gen_dev *gn = dev->mp;
-	u64 elba = slba + nlb;
-	struct nvm_lun *lun;
-	struct nvm_block *blk;
-	u64 i;
-	int lun_id;
-
-	if (unlikely(elba > dev->total_secs)) {
-		pr_err("gen: L2P data from device is out of bounds!\n");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < nlb; i++) {
-		u64 pba = le64_to_cpu(entries[i]);
-
-		if (unlikely(pba >= dev->total_secs && pba != U64_MAX)) {
-			pr_err("gen: L2P data entry is out of bounds!\n");
-			return -EINVAL;
-		}
-
-		/* Address zero is a special one. The first page on a disk is
-		 * protected. It often holds internal device boot
-		 * information.
-		 */
-		if (!pba)
-			continue;
-
-		/* resolve block from physical address */
-		lun_id = div_u64(pba, geo->sec_per_lun);
-		lun = &gn->luns[lun_id];
-
-		/* Calculate block offset into lun */
-		pba = pba - (geo->sec_per_lun * lun_id);
-		blk = &lun->blocks[div_u64(pba, geo->sec_per_blk)];
-
-		if (!blk->state) {
-			/* at this point, we don't know anything about the
-			 * block. It's up to the FTL on top to re-etablish the
-			 * block state. The block is assumed to be open.
-			 */
-			list_move_tail(&blk->list, &lun->used_list);
-			blk->state = NVM_BLK_ST_TGT;
-			lun->nr_free_blocks--;
-		}
-	}
-
-	return 0;
-}
-
-static int gen_blocks_init(struct nvm_dev *dev, struct gen_dev *gn)
-{
-	struct nvm_geo *geo = &dev->geo;
-	struct nvm_lun *lun;
-	struct nvm_block *block;
-	sector_t lun_iter, blk_iter, cur_block_id = 0;
-	int ret, nr_blks;
-	u8 *blks;
-
-	nr_blks = geo->blks_per_lun * geo->plane_mode;
-	blks = kmalloc(nr_blks, GFP_KERNEL);
-	if (!blks)
-		return -ENOMEM;
-
-	gen_for_each_lun(gn, lun, lun_iter) {
-		lun->blocks = vzalloc(sizeof(struct nvm_block) *
-							geo->blks_per_lun);
-		if (!lun->blocks) {
-			kfree(blks);
-			return -ENOMEM;
-		}
-
-		for (blk_iter = 0; blk_iter < geo->blks_per_lun; blk_iter++) {
-			block = &lun->blocks[blk_iter];
-
-			INIT_LIST_HEAD(&block->list);
-
-			block->lun = lun;
-			block->id = cur_block_id++;
-
-			list_add_tail(&block->list, &lun->free_list);
-		}
-
-		if (dev->ops->get_bb_tbl) {
-			struct ppa_addr ppa;
-
-			ppa.ppa = 0;
-			ppa.g.ch = lun->chnl_id;
-			ppa.g.lun = lun->lun_id;
-
-			ret = nvm_get_bb_tbl(dev, ppa, blks);
-			if (ret)
-				pr_err("gen: could not get BB table\n");
-
-			ret = gen_block_bb(gn, ppa, blks, nr_blks);
-			if (ret)
-				pr_err("gen: BB table map failed\n");
-		}
-	}
-
-	if ((dev->identity.dom & NVM_RSP_L2P) && dev->ops->get_l2p_tbl) {
-		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs,
-							gen_block_map, dev);
-		if (ret) {
-			pr_err("gen: could not read L2P table.\n");
-			pr_warn("gen: default block initialization");
-		}
-	}
-
-	kfree(blks);
 	return 0;
 }
 
 static void gen_free(struct nvm_dev *dev)
 {
-	gen_blocks_free(dev);
 	gen_luns_free(dev);
 	kfree(dev->mp);
 	dev->mp = NULL;
@@ -528,12 +365,6 @@ static int gen_register(struct nvm_dev *dev)
 		goto err;
 	}
 
-	ret = gen_blocks_init(dev, gn);
-	if (ret) {
-		pr_err("gen: could not initialize blocks\n");
-		goto err;
-	}
-
 	return 1;
 err:
 	gen_free(dev);
@@ -558,34 +389,6 @@ static void gen_unregister(struct nvm_dev *dev)
 	module_put(THIS_MODULE);
 }
 
-static void gen_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
-{
-	struct nvm_geo *geo = &dev->geo;
-	struct gen_dev *gn = dev->mp;
-	struct nvm_lun *lun;
-	struct nvm_block *blk;
-
-	pr_debug("gen: ppa  (ch: %u lun: %u blk: %u pg: %u) -> %u\n",
-			ppa.g.ch, ppa.g.lun, ppa.g.blk, ppa.g.pg, type);
-
-	if (unlikely(ppa.g.ch > geo->nr_chnls ||
-					ppa.g.lun > geo->luns_per_chnl ||
-					ppa.g.blk > geo->blks_per_lun)) {
-		WARN_ON_ONCE(1);
-		pr_err("gen: ppa broken (ch: %u > %u lun: %u > %u blk: %u > %u",
-				ppa.g.ch, geo->nr_chnls,
-				ppa.g.lun, geo->luns_per_chnl,
-				ppa.g.blk, geo->blks_per_lun);
-		return;
-	}
-
-	lun = &gn->luns[(geo->luns_per_chnl * ppa.g.ch) + ppa.g.lun];
-	blk = &lun->blocks[ppa.g.blk];
-
-	/* will be moved to bb list on put_blk from target */
-	blk->state = type;
-}
-
 static void gen_end_io(struct nvm_rq *rqd)
 {
 	struct nvm_tgt_instance *ins = rqd->ins;
@@ -606,11 +409,9 @@ static int gen_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	return dev->ops->submit_io(dev, rqd);
 }
 
-static int gen_erase_blk(struct nvm_dev *dev, struct nvm_block *blk, int flags)
+static int gen_erase_blk(struct nvm_dev *dev, struct ppa_addr *p, int flags)
 {
-	struct ppa_addr addr = block_to_ppa(dev, blk);
-
-	return nvm_erase_ppa(dev, &addr, 1, flags);
+	return nvm_erase_ppa(dev, p, 1, flags);
 }
 
 static struct nvmm_type gen = {
@@ -625,8 +426,6 @@ static struct nvmm_type gen = {
 
 	.submit_io		= gen_submit_io,
 	.erase_blk		= gen_erase_blk,
-
-	.mark_blk		= gen_mark_blk,
 
 	.get_area		= gen_get_area,
 	.put_area		= gen_put_area,
