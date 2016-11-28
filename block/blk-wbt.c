@@ -675,6 +675,18 @@ void wbt_disable(struct rq_wb *rwb)
 }
 EXPORT_SYMBOL_GPL(wbt_disable);
 
+u64 wbt_default_latency_nsec(struct request_queue *q)
+{
+	/*
+	 * We default to 2msec for non-rotational storage, and 75msec
+	 * for rotational storage.
+	 */
+	if (blk_queue_nonrot(q))
+		return 2000000ULL;
+	else
+		return 75000000ULL;
+}
+
 int wbt_init(struct request_queue *q)
 {
 	struct rq_wb *rwb;
@@ -711,10 +723,7 @@ int wbt_init(struct request_queue *q)
 	q->rq_wb = rwb;
 	blk_stat_enable(q);
 
-	if (blk_queue_nonrot(q))
-		rwb->min_lat_nsec = 2000000ULL;
-	else
-		rwb->min_lat_nsec = 75000000ULL;
+	rwb->min_lat_nsec = wbt_default_latency_nsec(q);
 
 	wbt_set_queue_depth(rwb, blk_queue_depth(q));
 	wbt_set_write_cache(rwb, test_bit(QUEUE_FLAG_WC, &q->queue_flags));

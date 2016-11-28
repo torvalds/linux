@@ -110,6 +110,8 @@ void wbt_disable(struct rq_wb *);
 void wbt_set_queue_depth(struct rq_wb *, unsigned int);
 void wbt_set_write_cache(struct rq_wb *, bool);
 
+u64 wbt_default_latency_nsec(struct request_queue *);
+
 #else
 
 static inline void __wbt_done(struct rq_wb *rwb, enum wbt_flags flags)
@@ -147,6 +149,10 @@ static inline void wbt_set_queue_depth(struct rq_wb *rwb, unsigned int depth)
 }
 static inline void wbt_set_write_cache(struct rq_wb *rwb, bool wc)
 {
+}
+static inline u64 wbt_default_latency_nsec(struct request_queue *q)
+{
+	return 0;
 }
 
 #endif /* CONFIG_BLK_WBT */
