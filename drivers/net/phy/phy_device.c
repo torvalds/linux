@@ -981,6 +981,8 @@ void phy_detach(struct phy_device *phydev)
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
 
+	phy_led_triggers_unregister(phydev);
+
 	/* If the device had no specific driver before (i.e. - it
 	 * was using the generic driver), we unbind the device
 	 * from the generic driver so that there's a chance a
@@ -993,8 +995,6 @@ void phy_detach(struct phy_device *phydev)
 			break;
 		}
 	}
-
-	phy_led_triggers_unregister(phydev);
 
 	/*
 	 * The phydev might go away on the put_device() below, so avoid
