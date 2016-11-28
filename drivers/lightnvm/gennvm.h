@@ -20,25 +20,11 @@
 
 #include <linux/lightnvm.h>
 
-struct gen_lun {
-	struct nvm_lun vlun;
-
-	int reserved_blocks;
-	/* lun block lists */
-	struct list_head used_list;	/* In-use blocks */
-	struct list_head free_list;	/* Not used blocks i.e. released
-					 * and ready for use
-					 */
-	struct list_head bb_list;	/* Bad blocks. Mutually exclusive with
-					 * free_list and used_list
-					 */
-};
-
 struct gen_dev {
 	struct nvm_dev *dev;
 
 	int nr_luns;
-	struct gen_lun *luns;
+	struct nvm_lun *luns;
 	struct list_head area_list;
 
 	struct mutex lock;

@@ -275,7 +275,17 @@ struct nvm_lun {
 
 	spinlock_t lock;
 
+	/* lun block lists */
+	struct list_head used_list;	/* In-use blocks */
+	struct list_head free_list;	/* Not used blocks i.e. released
+					 * and ready for use
+					 */
+	struct list_head bb_list;	/* Bad blocks. Mutually exclusive with
+					 * free_list and used_list
+					 */
 	unsigned int nr_free_blocks;	/* Number of unused blocks */
+	int reserved_blocks;
+
 	struct nvm_block *blocks;
 };
 
