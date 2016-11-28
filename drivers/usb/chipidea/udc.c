@@ -365,7 +365,7 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 		if (hwreq->req.length == 0
 				|| hwreq->req.length % hwep->ep.maxpacket)
 			mul++;
-		node->ptr->token |= mul << __ffs(TD_MULTO);
+		node->ptr->token |= cpu_to_le32(mul << __ffs(TD_MULTO));
 	}
 
 	temp = (u32) (hwreq->req.dma + hwreq->req.actual);
@@ -504,7 +504,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		if (hwreq->req.length == 0
 				|| hwreq->req.length % hwep->ep.maxpacket)
 			mul++;
-		hwep->qh.ptr->cap |= mul << __ffs(QH_MULT);
+		hwep->qh.ptr->cap |= cpu_to_le32(mul << __ffs(QH_MULT));
 	}
 
 	ret = hw_ep_prime(ci, hwep->num, hwep->dir,
@@ -529,7 +529,7 @@ static void free_pending_td(struct ci_hw_ep *hwep)
 static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
 					   struct td_node *node)
 {
-	hwep->qh.ptr->td.next = node->dma;
+	hwep->qh.ptr->td.next = cpu_to_le32(node->dma);
 	hwep->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED | TD_STATUS_ACTIVE));
 
