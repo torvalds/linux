@@ -319,7 +319,7 @@ static bool rk_iommu_is_stall_active(struct rk_iommu *iommu)
 	int i;
 
 	for (i = 0; i < iommu->num_mmu; i++)
-		active &= rk_iommu_read(iommu->bases[i], RK_MMU_STATUS);
+		active &= !!rk_iommu_read(iommu->bases[i], RK_MMU_STATUS);
 
 	return active;
 }
@@ -330,7 +330,7 @@ static bool rk_iommu_is_paging_enabled(struct rk_iommu *iommu)
 	int i;
 
 	for (i = 0; i < iommu->num_mmu; i++)
-		enable &= rk_iommu_read(iommu->bases[i], RK_MMU_STATUS);
+		enable &= !!rk_iommu_read(iommu->bases[i], RK_MMU_STATUS);
 
 	return enable;
 }
