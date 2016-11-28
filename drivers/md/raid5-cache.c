@@ -1948,7 +1948,7 @@ static void r5c_recovery_load_one_stripe(struct r5l_log *log,
 static int r5c_recovery_flush_log(struct r5l_log *log,
 				  struct r5l_recovery_ctx *ctx)
 {
-	struct stripe_head *sh, *next;
+	struct stripe_head *sh;
 	int ret = 0;
 
 	/* scan through the log */
@@ -1977,11 +1977,9 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
 	r5c_recovery_replay_stripes(&ctx->cached_list, ctx);
 
 	/* load data-only stripes to stripe cache */
-	list_for_each_entry_safe(sh, next, &ctx->cached_list, lru) {
+	list_for_each_entry(sh, &ctx->cached_list, lru) {
 		WARN_ON(!test_bit(STRIPE_R5C_CACHING, &sh->state));
 		r5c_recovery_load_one_stripe(log, sh);
-		list_del_init(&sh->lru);
-		raid5_release_stripe(sh);
 		ctx->data_only_stripes++;
 	}
 
@@ -2061,7 +2059,7 @@ static int
 r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 				       struct r5l_recovery_ctx *ctx)
 {
-	struct stripe_head *sh;
+	struct stripe_head *sh, *next;
 	struct mddev *mddev = log->rdev->mddev;
 	struct page *page;
 
@@ -2073,7 +2071,7 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 	}
 
 	ctx->seq += 10;
-	list_for_each_entry(sh, &ctx->cached_list, lru) {
+	list_for_each_entry_safe(sh, next, &ctx->cached_list, lru) {
 		struct r5l_meta_block *mb;
 		int i;
 		int offset;
@@ -2119,6 +2117,9 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 		sh->log_start = ctx->pos;
 		ctx->pos = write_pos;
 		ctx->seq += 1;
+
+		list_del_init(&sh->lru);
+		raid5_release_stripe(sh);
 	}
 	__free_page(page);
 	return 0;
