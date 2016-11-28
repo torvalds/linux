@@ -547,7 +547,8 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 				  "Received expired RX queue sync message\n");
 			return;
 		}
-		atomic_dec(&mvm->queue_sync_counter);
+		if (!atomic_dec_return(&mvm->queue_sync_counter))
+			wake_up(&mvm->rx_sync_waitq);
 	}
 
 	switch (internal_notif->type) {

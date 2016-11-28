@@ -186,6 +186,7 @@ int arche_platform_change_state(enum arche_platform_state state,
 exit:
 	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 	mutex_unlock(&arche_pdata->platform_state_mutex);
+	put_device(&pdev->dev);
 	of_node_put(np);
 	return ret;
 }

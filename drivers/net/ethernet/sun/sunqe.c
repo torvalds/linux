@@ -124,7 +124,7 @@ static void qe_init_rings(struct sunqe *qep)
 {
 	struct qe_init_block *qb = qep->qe_block;
 	struct sunqe_buffers *qbufs = qep->buffers;
-	__u32 qbufs_dvma = qep->buffers_dvma;
+	__u32 qbufs_dvma = (__u32)qep->buffers_dvma;
 	int i;
 
 	qep->rx_new = qep->rx_old = qep->tx_new = qep->tx_old = 0;
@@ -144,6 +144,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	void __iomem *mregs = qep->mregs;
 	void __iomem *gregs = qecp->gregs;
 	unsigned char *e = &qep->dev->dev_addr[0];
+	__u32 qblk_dvma = (__u32)qep->qblock_dvma;
 	u32 tmp;
 	int i;
 
@@ -152,8 +153,8 @@ static int qe_init(struct sunqe *qep, int from_irq)
 		return -EAGAIN;
 
 	/* Setup initial rx/tx init block pointers. */
-	sbus_writel(qep->qblock_dvma + qib_offset(qe_rxd, 0), cregs + CREG_RXDS);
-	sbus_writel(qep->qblock_dvma + qib_offset(qe_txd, 0), cregs + CREG_TXDS);
+	sbus_writel(qblk_dvma + qib_offset(qe_rxd, 0), cregs + CREG_RXDS);
+	sbus_writel(qblk_dvma + qib_offset(qe_txd, 0), cregs + CREG_TXDS);
 
 	/* Enable/mask the various irq's. */
 	sbus_writel(0, cregs + CREG_RIMASK);
@@ -413,7 +414,7 @@ static void qe_rx(struct sunqe *qep)
 	struct net_device *dev = qep->dev;
 	struct qe_rxd *this;
 	struct sunqe_buffers *qbufs = qep->buffers;
-	__u32 qbufs_dvma = qep->buffers_dvma;
+	__u32 qbufs_dvma = (__u32)qep->buffers_dvma;
 	int elem = qep->rx_new;
 	u32 flags;
 
@@ -572,7 +573,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sunqe *qep = netdev_priv(dev);
 	struct sunqe_buffers *qbufs = qep->buffers;
-	__u32 txbuf_dvma, qbufs_dvma = qep->buffers_dvma;
+	__u32 txbuf_dvma, qbufs_dvma = (__u32)qep->buffers_dvma;
 	unsigned char *txbuf;
 	int len, entry;
 

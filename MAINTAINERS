@@ -7084,6 +7084,7 @@ F:	drivers/scsi/53c700*
 LED SUBSYSTEM
 M:	Richard Purdie <rpurdie@rpsys.net>
 M:	Jacek Anaszewski <j.anaszewski@samsung.com>
+M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds.git
 S:	Maintained
@@ -8057,6 +8058,7 @@ F:	drivers/infiniband/hw/mlx4/
 F:	include/linux/mlx4/
 
 MELLANOX MLX5 core VPI driver
+M:	Saeed Mahameed <saeedm@mellanox.com>
 M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	netdev@vger.kernel.org
@@ -9335,7 +9337,7 @@ PCI DRIVER FOR INTEL VOLUME MANAGEMENT DEVICE (VMD)
 M:	Keith Busch <keith.busch@intel.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
-F:	arch/x86/pci/vmd.c
+F:	drivers/pci/host/vmd.c
 
 PCIE DRIVER FOR ST SPEAR13XX
 M:	Pratyush Anand <pratyush.anand@gmail.com>

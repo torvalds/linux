@@ -1451,7 +1451,6 @@ static void nfs_resync_open_stateid_locked(struct nfs4_state *state)
 }
 
 static void nfs_clear_open_stateid_locked(struct nfs4_state *state,
-		nfs4_stateid *arg_stateid,
 		nfs4_stateid *stateid, fmode_t fmode)
 {
 	clear_bit(NFS_O_RDWR_STATE, &state->flags);
@@ -1469,10 +1468,9 @@ static void nfs_clear_open_stateid_locked(struct nfs4_state *state,
 	}
 	if (stateid == NULL)
 		return;
-	/* Handle races with OPEN */
-	if (!nfs4_stateid_match_other(arg_stateid, &state->open_stateid) ||
-	    (nfs4_stateid_match_other(stateid, &state->open_stateid) &&
-	    !nfs4_stateid_is_newer(stateid, &state->open_stateid))) {
+	/* Handle OPEN+OPEN_DOWNGRADE races */
+	if (nfs4_stateid_match_other(stateid, &state->open_stateid) &&
+	    !nfs4_stateid_is_newer(stateid, &state->open_stateid)) {
 		nfs_resync_open_stateid_locked(state);
 		return;
 	}
@@ -1486,7 +1484,9 @@ static void nfs_clear_open_stateid(struct nfs4_state *state,
 	nfs4_stateid *stateid, fmode_t fmode)
 {
 	write_seqlock(&state->seqlock);
-	nfs_clear_open_stateid_locked(state, arg_stateid, stateid, fmode);
+	/* Ignore, if the CLOSE argment doesn't match the current stateid */
+	if (nfs4_state_match_open_stateid_other(state, arg_stateid))
+		nfs_clear_open_stateid_locked(state, stateid, fmode);
 	write_sequnlock(&state->seqlock);
 	if (test_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags))
 		nfs4_schedule_state_manager(state->owner->so_server->nfs_client);
@@ -2564,14 +2564,22 @@ static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 static int nfs41_check_expired_locks(struct nfs4_state *state)
 {
 	int status, ret = NFS_OK;
-	struct nfs4_lock_state *lsp;
+	struct nfs4_lock_state *lsp, *prev = NULL;
 	struct nfs_server *server = NFS_SERVER(state->inode);
 
 	if (!test_bit(LK_STATE_IN_USE, &state->flags))
 		goto out;
+
+	spin_lock(&state->state_lock);
 	list_for_each_entry(lsp, &state->lock_states, ls_locks) {
 		if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
 			struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
+
+			atomic_inc(&lsp->ls_count);
+			spin_unlock(&state->state_lock);
+
+			nfs4_put_lock_state(prev);
+			prev = lsp;
 
 			status = nfs41_test_and_free_expired_stateid(server,
 					&lsp->ls_stateid,
@@ -2585,10 +2593,14 @@ static int nfs41_check_expired_locks(struct nfs4_state *state)
 					set_bit(NFS_LOCK_LOST, &lsp->ls_flags);
 			} else if (status != NFS_OK) {
 				ret = status;
-				break;
+				nfs4_put_lock_state(prev);
+				goto out;
 			}
+			spin_lock(&state->state_lock);
 		}
-	};
+	}
+	spin_unlock(&state->state_lock);
+	nfs4_put_lock_state(prev);
 out:
 	return ret;
 }
@@ -3122,7 +3134,8 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	} else if (is_rdwr)
 		calldata->arg.fmode |= FMODE_READ|FMODE_WRITE;
 
-	if (!nfs4_valid_open_stateid(state))
+	if (!nfs4_valid_open_stateid(state) ||
+	    test_bit(NFS_OPEN_STATE, &state->flags) == 0)
 		call_close = 0;
 	spin_unlock(&state->owner->so_lock);
 
@@ -5569,6 +5582,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	switch (task->tk_status) {
 	case 0:
 		renew_lease(data->res.server, data->timestamp);
+		break;
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_EXPIRED:
@@ -5579,8 +5593,6 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	case -NFS4ERR_OLD_STATEID:
 	case -NFS4ERR_STALE_STATEID:
 		task->tk_status = 0;
-		if (data->roc)
-			pnfs_roc_set_barrier(data->inode, data->roc_barrier);
 		break;
 	default:
 		if (nfs4_async_handle_error(task, data->res.server,
@@ -5590,6 +5602,8 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		}
 	}
 	data->rpc_status = task->tk_status;
+	if (data->roc && data->rpc_status == 0)
+		pnfs_roc_set_barrier(data->inode, data->roc_barrier);
 }
 
 static void nfs4_delegreturn_release(void *calldata)

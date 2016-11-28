@@ -272,7 +272,7 @@ bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hw
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration == NULL)
-		return -EINVAL;
+		return false;
 
 	return hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration(hwmgr);
 }

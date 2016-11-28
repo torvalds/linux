@@ -15,6 +15,7 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 #include "gp8psk.h"
+#include "gp8psk-fe.h"
 
 /* debug */
 static char bcm4500_firmware[] = "dvb-usb-gp8psk-02.fw";
@@ -28,34 +29,8 @@ struct gp8psk_state {
 	unsigned char data[80];
 };
 
-static int gp8psk_get_fw_version(struct dvb_usb_device *d, u8 *fw_vers)
-{
-	return (gp8psk_usb_in_op(d, GET_FW_VERS, 0, 0, fw_vers, 6));
-}
-
-static int gp8psk_get_fpga_version(struct dvb_usb_device *d, u8 *fpga_vers)
-{
-	return (gp8psk_usb_in_op(d, GET_FPGA_VERS, 0, 0, fpga_vers, 1));
-}
-
-static void gp8psk_info(struct dvb_usb_device *d)
-{
-	u8 fpga_vers, fw_vers[6];
-
-	if (!gp8psk_get_fw_version(d, fw_vers))
-		info("FW Version = %i.%02i.%i (0x%x)  Build %4i/%02i/%02i",
-		fw_vers[2], fw_vers[1], fw_vers[0], GP8PSK_FW_VERS(fw_vers),
-		2000 + fw_vers[5], fw_vers[4], fw_vers[3]);
-	else
-		info("failed to get FW version");
-
-	if (!gp8psk_get_fpga_version(d, &fpga_vers))
-		info("FPGA Version = %i", fpga_vers);
-	else
-		info("failed to get FPGA version");
-}
-
-int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen)
+static int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
+			    u16 index, u8 *b, int blen)
 {
 	struct gp8psk_state *st = d->priv;
 	int ret = 0,try = 0;
@@ -67,7 +42,6 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 		return ret;
 
 	while (ret >= 0 && ret != blen && try < 3) {
-		memcpy(st->data, b, blen);
 		ret = usb_control_msg(d->udev,
 			usb_rcvctrlpipe(d->udev,0),
 			req,
@@ -81,8 +55,10 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 	if (ret < 0 || ret != blen) {
 		warn("usb in %d operation failed.", req);
 		ret = -EIO;
-	} else
+	} else {
 		ret = 0;
+		memcpy(b, st->data, blen);
+	}
 
 	deb_xfer("in: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
 	debug_dump(b,blen,deb_xfer);
@@ -92,7 +68,7 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 	return ret;
 }
 
-int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
+static int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 			     u16 index, u8 *b, int blen)
 {
 	struct gp8psk_state *st = d->priv;
@@ -121,6 +97,34 @@ int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 	mutex_unlock(&d->usb_mutex);
 
 	return ret;
+}
+
+
+static int gp8psk_get_fw_version(struct dvb_usb_device *d, u8 *fw_vers)
+{
+	return gp8psk_usb_in_op(d, GET_FW_VERS, 0, 0, fw_vers, 6);
+}
+
+static int gp8psk_get_fpga_version(struct dvb_usb_device *d, u8 *fpga_vers)
+{
+	return gp8psk_usb_in_op(d, GET_FPGA_VERS, 0, 0, fpga_vers, 1);
+}
+
+static void gp8psk_info(struct dvb_usb_device *d)
+{
+	u8 fpga_vers, fw_vers[6];
+
+	if (!gp8psk_get_fw_version(d, fw_vers))
+		info("FW Version = %i.%02i.%i (0x%x)  Build %4i/%02i/%02i",
+		fw_vers[2], fw_vers[1], fw_vers[0], GP8PSK_FW_VERS(fw_vers),
+		2000 + fw_vers[5], fw_vers[4], fw_vers[3]);
+	else
+		info("failed to get FW version");
+
+	if (!gp8psk_get_fpga_version(d, &fpga_vers))
+		info("FPGA Version = %i", fpga_vers);
+	else
+		info("failed to get FPGA version");
 }
 
 static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
@@ -225,10 +229,13 @@ static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
 	return 0;
 }
 
-int gp8psk_bcm4500_reload(struct dvb_usb_device *d)
+static int gp8psk_bcm4500_reload(struct dvb_usb_device *d)
 {
 	u8 buf;
 	int gp_product_id = le16_to_cpu(d->udev->descriptor.idProduct);
+
+	deb_xfer("reloading firmware\n");
+
 	/* Turn off 8psk power */
 	if (gp8psk_usb_in_op(d, BOOT_8PSK, 0, 0, &buf, 1))
 		return -EINVAL;
@@ -247,9 +254,47 @@ static int gp8psk_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return gp8psk_usb_out_op(adap->dev, ARM_TRANSFER, onoff, 0 , NULL, 0);
 }
 
+/* Callbacks for gp8psk-fe.c */
+
+static int gp8psk_fe_in(void *priv, u8 req, u16 value,
+			    u16 index, u8 *b, int blen)
+{
+	struct dvb_usb_device *d = priv;
+
+	return gp8psk_usb_in_op(d, req, value, index, b, blen);
+}
+
+static int gp8psk_fe_out(void *priv, u8 req, u16 value,
+			    u16 index, u8 *b, int blen)
+{
+	struct dvb_usb_device *d = priv;
+
+	return gp8psk_usb_out_op(d, req, value, index, b, blen);
+}
+
+static int gp8psk_fe_reload(void *priv)
+{
+	struct dvb_usb_device *d = priv;
+
+	return gp8psk_bcm4500_reload(d);
+}
+
+const struct gp8psk_fe_ops gp8psk_fe_ops = {
+	.in = gp8psk_fe_in,
+	.out = gp8psk_fe_out,
+	.reload = gp8psk_fe_reload,
+};
+
 static int gp8psk_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe_adap[0].fe = gp8psk_fe_attach(adap->dev);
+	struct dvb_usb_device *d = adap->dev;
+	int id = le16_to_cpu(d->udev->descriptor.idProduct);
+	int is_rev1;
+
+	is_rev1 = (id == USB_PID_GENPIX_8PSK_REV_1_WARM) ? true : false;
+
+	adap->fe_adap[0].fe = dvb_attach(gp8psk_fe_attach,
+					 &gp8psk_fe_ops, d, is_rev1);
 	return 0;
 }
 

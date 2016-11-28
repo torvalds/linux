@@ -692,6 +692,7 @@ static inline u64 get_node_id(struct inode *inode)
 extern const struct file_operations fuse_dev_operations;
 
 extern const struct dentry_operations fuse_dentry_operations;
+extern const struct dentry_operations fuse_root_dentry_operations;
 
 /**
  * Inode to nodeid comparison.

@@ -228,7 +228,7 @@ static int msm_drm_uninit(struct device *dev)
 	flush_workqueue(priv->atomic_wq);
 	destroy_workqueue(priv->atomic_wq);
 
-	if (kms)
+	if (kms && kms->funcs)
 		kms->funcs->destroy(kms);
 
 	if (gpu) {

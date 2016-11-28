@@ -1029,6 +1029,10 @@ void hash__early_init_mmu_secondary(void)
 {
 	/* Initialize hash table for that CPU */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+
+		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+			update_hid_for_hash();
+
 		if (!cpu_has_feature(CPU_FTR_ARCH_300))
 			mtspr(SPRN_SDR1, _SDR1);
 		else

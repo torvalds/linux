@@ -1364,6 +1364,9 @@ static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 	if (rt6->rt6i_flags & RTF_LOCAL)
 		return;
 
+	if (dst_metric_locked(dst, RTAX_MTU))
+		return;
+
 	dst_confirm(dst);
 	mtu = max_t(u32, mtu, IPV6_MIN_MTU);
 	if (mtu >= dst_mtu(dst))
@@ -2758,6 +2761,7 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 	   PMTU discouvery.
 	 */
 	if (rt->dst.dev == arg->dev &&
+	    dst_metric_raw(&rt->dst, RTAX_MTU) &&
 	    !dst_metric_locked(&rt->dst, RTAX_MTU)) {
 		if (rt->rt6i_flags & RTF_CACHE) {
 			/* For RTF_CACHE with rt6i_pmtu == 0

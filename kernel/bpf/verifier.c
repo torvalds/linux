@@ -216,8 +216,8 @@ static void print_verifier_state(struct bpf_verifier_state *state)
 				reg->map_ptr->key_size,
 				reg->map_ptr->value_size);
 		if (reg->min_value != BPF_REGISTER_MIN_RANGE)
-			verbose(",min_value=%llu",
-				(unsigned long long)reg->min_value);
+			verbose(",min_value=%lld",
+				(long long)reg->min_value);
 		if (reg->max_value != BPF_REGISTER_MAX_RANGE)
 			verbose(",max_value=%llu",
 				(unsigned long long)reg->max_value);
@@ -758,7 +758,7 @@ static int check_mem_access(struct bpf_verifier_env *env, u32 regno, int off,
 			 * index'es we need to make sure that whatever we use
 			 * will have a set floor within our range.
 			 */
-			if ((s64)reg->min_value < 0) {
+			if (reg->min_value < 0) {
 				verbose("R%d min value is negative, either use unsigned index or do a if (index >=0) check.\n",
 					regno);
 				return -EACCES;
@@ -1468,7 +1468,8 @@ static void check_reg_overflow(struct bpf_reg_state *reg)
 {
 	if (reg->max_value > BPF_REGISTER_MAX_RANGE)
 		reg->max_value = BPF_REGISTER_MAX_RANGE;
-	if ((s64)reg->min_value < BPF_REGISTER_MIN_RANGE)
+	if (reg->min_value < BPF_REGISTER_MIN_RANGE ||
+	    reg->min_value > BPF_REGISTER_MAX_RANGE)
 		reg->min_value = BPF_REGISTER_MIN_RANGE;
 }
 
@@ -1476,7 +1477,8 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 				    struct bpf_insn *insn)
 {
 	struct bpf_reg_state *regs = env->cur_state.regs, *dst_reg;
-	u64 min_val = BPF_REGISTER_MIN_RANGE, max_val = BPF_REGISTER_MAX_RANGE;
+	s64 min_val = BPF_REGISTER_MIN_RANGE;
+	u64 max_val = BPF_REGISTER_MAX_RANGE;
 	bool min_set = false, max_set = false;
 	u8 opcode = BPF_OP(insn->code);
 
@@ -1512,22 +1514,43 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 		return;
 	}
 
+	/* If one of our values was at the end of our ranges then we can't just
+	 * do our normal operations to the register, we need to set the values
+	 * to the min/max since they are undefined.
+	 */
+	if (min_val == BPF_REGISTER_MIN_RANGE)
+		dst_reg->min_value = BPF_REGISTER_MIN_RANGE;
+	if (max_val == BPF_REGISTER_MAX_RANGE)
+		dst_reg->max_value = BPF_REGISTER_MAX_RANGE;
+
 	switch (opcode) {
 	case BPF_ADD:
-		dst_reg->min_value += min_val;
-		dst_reg->max_value += max_val;
+		if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
+			dst_reg->min_value += min_val;
+		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
+			dst_reg->max_value += max_val;
 		break;
 	case BPF_SUB:
-		dst_reg->min_value -= min_val;
-		dst_reg->max_value -= max_val;
+		if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
+			dst_reg->min_value -= min_val;
+		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
+			dst_reg->max_value -= max_val;
 		break;
 	case BPF_MUL:
-		dst_reg->min_value *= min_val;
-		dst_reg->max_value *= max_val;
+		if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
+			dst_reg->min_value *= min_val;
+		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
+			dst_reg->max_value *= max_val;
 		break;
 	case BPF_AND:
-		/* & is special since it could end up with 0 bits set. */
-		dst_reg->min_value &= min_val;
+		/* Disallow AND'ing of negative numbers, ain't nobody got time
+		 * for that.  Otherwise the minimum is 0 and the max is the max
+		 * value we could AND against.
+		 */
+		if (min_val < 0)
+			dst_reg->min_value = BPF_REGISTER_MIN_RANGE;
+		else
+			dst_reg->min_value = 0;
 		dst_reg->max_value = max_val;
 		break;
 	case BPF_LSH:
@@ -1537,24 +1560,25 @@ static void adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 		 */
 		if (min_val > ilog2(BPF_REGISTER_MAX_RANGE))
 			dst_reg->min_value = BPF_REGISTER_MIN_RANGE;
-		else
+		else if (dst_reg->min_value != BPF_REGISTER_MIN_RANGE)
 			dst_reg->min_value <<= min_val;
 
 		if (max_val > ilog2(BPF_REGISTER_MAX_RANGE))
 			dst_reg->max_value = BPF_REGISTER_MAX_RANGE;
-		else
+		else if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
 			dst_reg->max_value <<= max_val;
 		break;
 	case BPF_RSH:
-		dst_reg->min_value >>= min_val;
-		dst_reg->max_value >>= max_val;
-		break;
-	case BPF_MOD:
-		/* % is special since it is an unsigned modulus, so the floor
-		 * will always be 0.
+		/* RSH by a negative number is undefined, and the BPF_RSH is an
+		 * unsigned shift, so make the appropriate casts.
 		 */
-		dst_reg->min_value = 0;
-		dst_reg->max_value = max_val - 1;
+		if (min_val < 0 || dst_reg->min_value < 0)
+			dst_reg->min_value = BPF_REGISTER_MIN_RANGE;
+		else
+			dst_reg->min_value =
+				(u64)(dst_reg->min_value) >> min_val;
+		if (dst_reg->max_value != BPF_REGISTER_MAX_RANGE)
+			dst_reg->max_value >>= max_val;
 		break;
 	default:
 		reset_reg_range_values(regs, insn->dst_reg);

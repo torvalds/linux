@@ -54,7 +54,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	priv->hw->ptp->config_addend(priv->ioaddr, addend);
+	priv->hw->ptp->config_addend(priv->ptpaddr, addend);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -89,7 +89,8 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	priv->hw->ptp->adjust_systime(priv->ioaddr, sec, nsec, neg_adj);
+	priv->hw->ptp->adjust_systime(priv->ptpaddr, sec, nsec, neg_adj,
+				      priv->plat->has_gmac4);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -114,7 +115,7 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	ns = priv->hw->ptp->get_systime(priv->ioaddr);
+	ns = priv->hw->ptp->get_systime(priv->ptpaddr);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
@@ -141,7 +142,7 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 
-	priv->hw->ptp->init_systime(priv->ioaddr, ts->tv_sec, ts->tv_nsec);
+	priv->hw->ptp->init_systime(priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
 
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
