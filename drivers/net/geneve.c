@@ -852,7 +852,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 					   ip_hdr(skb), skb);
 		ttl = key->ttl ? : ip6_dst_hoplimit(dst);
 	}
-	err = geneve_build_skb(dst, skb, info, xnet, sizeof(struct iphdr));
+	err = geneve_build_skb(dst, skb, info, xnet, sizeof(struct ipv6hdr));
 	if (unlikely(err))
 		return err;
 
