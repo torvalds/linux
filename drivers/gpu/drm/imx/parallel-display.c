@@ -191,9 +191,7 @@ static int imx_pd_register(struct drm_device *drm,
 		drm_panel_attach(imxpd->panel, &imxpd->connector);
 
 	if (imxpd->bridge) {
-		imxpd->bridge->encoder = encoder;
-		encoder->bridge = imxpd->bridge;
-		ret = drm_bridge_attach(drm, imxpd->bridge);
+		ret = drm_bridge_attach(encoder, imxpd->bridge, NULL);
 		if (ret < 0) {
 			dev_err(imxpd->dev, "failed to attach bridge: %d\n",
 				ret);

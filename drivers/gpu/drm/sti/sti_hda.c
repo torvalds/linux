@@ -707,9 +707,8 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = hda;
 	bridge->funcs = &sti_hda_bridge_funcs;
-	drm_bridge_attach(drm_dev, bridge);
+	drm_bridge_attach(encoder, bridge, NULL);
 
-	encoder->bridge = bridge;
 	connector->encoder = encoder;
 
 	drm_connector = (struct drm_connector *)connector;

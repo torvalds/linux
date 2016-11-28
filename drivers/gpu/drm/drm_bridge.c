@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 
 #include <drm/drm_bridge.h>
+#include <drm/drm_encoder.h>
 
 /**
  * DOC: overview
@@ -92,32 +93,53 @@ void drm_bridge_remove(struct drm_bridge *bridge)
 EXPORT_SYMBOL(drm_bridge_remove);
 
 /**
- * drm_bridge_attach - associate given bridge to our DRM device
+ * drm_bridge_attach - attach the bridge to an encoder's chain
  *
- * @dev: DRM device
- * @bridge: bridge control structure
+ * @encoder: DRM encoder
+ * @bridge: bridge to attach
+ * @previous: previous bridge in the chain (optional)
  *
- * Called by a kms driver to link one of our encoder/bridge to the given
- * bridge.
+ * Called by a kms driver to link the bridge to an encoder's chain. The previous
+ * argument specifies the previous bridge in the chain. If NULL, the bridge is
+ * linked directly at the encoder's output. Otherwise it is linked at the
+ * previous bridge's output.
  *
- * Note that setting up links between the bridge and our encoder/bridge
- * objects needs to be handled by the kms driver itself.
+ * If non-NULL the previous bridge must be already attached by a call to this
+ * function.
  *
  * RETURNS:
  * Zero on success, error code on failure
  */
-int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
+int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
+		      struct drm_bridge *previous)
 {
-	if (!dev || !bridge)
+	int ret;
+
+	if (!encoder || !bridge)
+		return -EINVAL;
+
+	if (previous && (!previous->dev || previous->encoder != encoder))
 		return -EINVAL;
 
 	if (bridge->dev)
 		return -EBUSY;
 
-	bridge->dev = dev;
+	bridge->dev = encoder->dev;
+	bridge->encoder = encoder;
 
-	if (bridge->funcs->attach)
-		return bridge->funcs->attach(bridge);
+	if (bridge->funcs->attach) {
+		ret = bridge->funcs->attach(bridge);
+		if (ret < 0) {
+			bridge->dev = NULL;
+			bridge->encoder = NULL;
+			return ret;
+		}
+	}
+
+	if (previous)
+		previous->next = bridge;
+	else
+		encoder->bridge = bridge;
 
 	return 0;
 }

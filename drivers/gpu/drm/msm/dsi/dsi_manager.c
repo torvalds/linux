@@ -579,6 +579,7 @@ struct drm_bridge *msm_dsi_manager_bridge_init(u8 id)
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_bridge *bridge = NULL;
 	struct dsi_bridge *dsi_bridge;
+	struct drm_encoder *encoder;
 	int ret;
 
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
@@ -590,10 +591,18 @@ struct drm_bridge *msm_dsi_manager_bridge_init(u8 id)
 
 	dsi_bridge->id = id;
 
+	/*
+	 * HACK: we may not know the external DSI bridge device's mode
+	 * flags here. We'll get to know them only when the device
+	 * attaches to the dsi host. For now, assume the bridge supports
+	 * DSI video mode
+	 */
+	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
+
 	bridge = &dsi_bridge->base;
 	bridge->funcs = &dsi_mgr_bridge_funcs;
 
-	ret = drm_bridge_attach(msm_dsi->dev, bridge);
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret)
 		goto fail;
 
@@ -628,11 +637,7 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
 
 	/* link the internal dsi bridge to the external bridge */
-	int_bridge->next = ext_bridge;
-	/* set the external bridge's encoder as dsi's encoder */
-	ext_bridge->encoder = encoder;
-
-	drm_bridge_attach(dev, ext_bridge);
+	drm_bridge_attach(encoder, ext_bridge, int_bridge);
 
 	/*
 	 * we need the drm_connector created by the external bridge

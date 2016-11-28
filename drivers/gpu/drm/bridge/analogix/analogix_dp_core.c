@@ -1232,12 +1232,10 @@ static int analogix_dp_create_bridge(struct drm_device *drm_dev,
 
 	dp->bridge = bridge;
 
-	dp->encoder->bridge = bridge;
 	bridge->driver_private = dp;
-	bridge->encoder = dp->encoder;
 	bridge->funcs = &analogix_dp_bridge_funcs;
 
-	ret = drm_bridge_attach(drm_dev, bridge);
+	ret = drm_bridge_attach(dp->encoder, bridge, NULL);
 	if (ret) {
 		DRM_ERROR("failed to attach drm bridge\n");
 		return -EINVAL;

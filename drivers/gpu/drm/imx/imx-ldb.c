@@ -454,10 +454,8 @@ static int imx_ldb_register(struct drm_device *drm,
 			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	if (imx_ldb_ch->bridge) {
-		imx_ldb_ch->bridge->encoder = encoder;
-
-		imx_ldb_ch->encoder.bridge = imx_ldb_ch->bridge;
-		ret = drm_bridge_attach(drm, imx_ldb_ch->bridge);
+		ret = drm_bridge_attach(&imx_ldb_ch->encoder,
+					imx_ldb_ch->bridge, NULL);
 		if (ret) {
 			DRM_ERROR("Failed to initialize bridge with drm\n");
 			return ret;
