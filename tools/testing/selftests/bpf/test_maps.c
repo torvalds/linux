@@ -22,6 +22,7 @@
 #include <linux/bpf.h>
 
 #include "bpf_sys.h"
+#include "bpf_util.h"
 
 static int map_flags;
 
@@ -110,7 +111,7 @@ static void test_hashmap(int task, void *data)
 
 static void test_hashmap_percpu(int task, void *data)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	long long value[nr_cpus];
 	long long key, next_key;
 	int expected_key_mask = 0;
@@ -258,7 +259,7 @@ static void test_arraymap(int task, void *data)
 
 static void test_arraymap_percpu(int task, void *data)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	int key, next_key, fd, i;
 	long values[nr_cpus];
 
@@ -313,7 +314,7 @@ static void test_arraymap_percpu(int task, void *data)
 
 static void test_arraymap_percpu_many_keys(void)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	unsigned int nr_keys = 20000;
 	long values[nr_cpus];
 	int key, fd, i;

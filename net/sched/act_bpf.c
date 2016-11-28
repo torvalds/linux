@@ -28,7 +28,6 @@ struct tcf_bpf_cfg {
 	struct bpf_prog *filter;
 	struct sock_filter *bpf_ops;
 	const char *bpf_name;
-	u32 bpf_fd;
 	u16 bpf_num_ops;
 	bool is_ebpf;
 };
@@ -118,9 +117,6 @@ static int tcf_bpf_dump_bpf_info(const struct tcf_bpf *prog,
 static int tcf_bpf_dump_ebpf_info(const struct tcf_bpf *prog,
 				  struct sk_buff *skb)
 {
-	if (nla_put_u32(skb, TCA_ACT_BPF_FD, prog->bpf_fd))
-		return -EMSGSIZE;
-
 	if (prog->bpf_name &&
 	    nla_put_string(skb, TCA_ACT_BPF_NAME, prog->bpf_name))
 		return -EMSGSIZE;
@@ -233,7 +229,6 @@ static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 		}
 	}
 
-	cfg->bpf_fd = bpf_fd;
 	cfg->bpf_name = name;
 	cfg->filter = fp;
 	cfg->is_ebpf = true;
@@ -332,8 +327,6 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	if (cfg.bpf_num_ops)
 		prog->bpf_num_ops = cfg.bpf_num_ops;
-	if (cfg.bpf_fd)
-		prog->bpf_fd = cfg.bpf_fd;
 
 	prog->tcf_action = parm->action;
 	rcu_assign_pointer(prog->filter, cfg.filter);

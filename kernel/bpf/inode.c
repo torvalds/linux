@@ -18,6 +18,7 @@
 #include <linux/namei.h>
 #include <linux/fs.h>
 #include <linux/kdev_t.h>
+#include <linux/parser.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 
@@ -364,14 +365,65 @@ static void bpf_evict_inode(struct inode *inode)
 static const struct super_operations bpf_super_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
+	.show_options	= generic_show_options,
 	.evict_inode	= bpf_evict_inode,
 };
+
+enum {
+	OPT_MODE,
+	OPT_ERR,
+};
+
+static const match_table_t bpf_mount_tokens = {
+	{ OPT_MODE, "mode=%o" },
+	{ OPT_ERR, NULL },
+};
+
+struct bpf_mount_opts {
+	umode_t mode;
+};
+
+static int bpf_parse_options(char *data, struct bpf_mount_opts *opts)
+{
+	substring_t args[MAX_OPT_ARGS];
+	int option, token;
+	char *ptr;
+
+	opts->mode = S_IRWXUGO;
+
+	while ((ptr = strsep(&data, ",")) != NULL) {
+		if (!*ptr)
+			continue;
+
+		token = match_token(ptr, bpf_mount_tokens, args);
+		switch (token) {
+		case OPT_MODE:
+			if (match_octal(&args[0], &option))
+				return -EINVAL;
+			opts->mode = option & S_IALLUGO;
+			break;
+		/* We might like to report bad mount options here, but
+		 * traditionally we've ignored all mount options, so we'd
+		 * better continue to ignore non-existing options for bpf.
+		 */
+		}
+	}
+
+	return 0;
+}
 
 static int bpf_fill_super(struct super_block *sb, void *data, int silent)
 {
 	static struct tree_descr bpf_rfiles[] = { { "" } };
+	struct bpf_mount_opts opts;
 	struct inode *inode;
 	int ret;
+
+	save_mount_options(sb, data);
+
+	ret = bpf_parse_options(data, &opts);
+	if (ret)
+		return ret;
 
 	ret = simple_fill_super(sb, BPF_FS_MAGIC, bpf_rfiles);
 	if (ret)
@@ -382,7 +434,7 @@ static int bpf_fill_super(struct super_block *sb, void *data, int silent)
 	inode = sb->s_root->d_inode;
 	inode->i_op = &bpf_dir_iops;
 	inode->i_mode &= ~S_IALLUGO;
-	inode->i_mode |= S_ISVTX | S_IRWXUGO;
+	inode->i_mode |= S_ISVTX | opts.mode;
 
 	return 0;
 }

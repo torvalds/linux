@@ -285,7 +285,7 @@ static struct bpf_test tests[] = {
 			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, 1234567),
 			BPF_EXIT_INSN(),
 		},
-		.errstr = "invalid func 1234567",
+		.errstr = "invalid func unknown#1234567",
 		.result = REJECT,
 	},
 	{

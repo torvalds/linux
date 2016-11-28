@@ -4,8 +4,10 @@
 #include <signal.h>
 #include <linux/bpf.h>
 #include <string.h>
+
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "bpf_util.h"
 
 #define MAX_INDEX	64
 #define MAX_STARS	38
@@ -36,8 +38,8 @@ struct hist_key {
 
 static void print_hist_for_pid(int fd, void *task)
 {
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	struct hist_key key = {}, next_key;
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	long values[nr_cpus];
 	char starstr[MAX_STARS];
 	long value;

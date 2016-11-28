@@ -15,7 +15,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
 #include "bpf_load.h"
+#include "bpf_util.h"
 #include "libbpf.h"
 
 static int set_link_xdp_fd(int ifindex, int fd)
@@ -120,7 +122,7 @@ static void int_exit(int sig)
  */
 static void poll_stats(int interval)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	const unsigned int nr_keys = 256;
 	__u64 values[nr_cpus], prev[nr_keys][nr_cpus];
 	__u32 key;

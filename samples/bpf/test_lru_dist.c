@@ -16,10 +16,13 @@
 #include <sched.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
+
 #include "libbpf.h"
+#include "bpf_util.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define offsetof(TYPE, MEMBER)	((size_t)&((TYPE *)0)->MEMBER)
@@ -510,7 +513,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	nr_cpus = bpf_num_possible_cpus();
 	assert(nr_cpus != -1);
 	printf("nr_cpus:%d\n\n", nr_cpus);
 

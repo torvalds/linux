@@ -12,10 +12,14 @@
 #include <string.h>
 #include <assert.h>
 #include <sched.h>
-#include <sys/wait.h>
 #include <stdlib.h>
 #include <time.h>
+
+#include <sys/wait.h>
+#include <sys/resource.h>
+
 #include "bpf_sys.h"
+#include "bpf_util.h"
 
 #define LOCAL_FREE_TARGET	(128)
 #define PERCPU_FREE_TARGET	(16)
@@ -559,7 +563,7 @@ int main(int argc, char **argv)
 
 	assert(!setrlimit(RLIMIT_MEMLOCK, &r));
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	nr_cpus = bpf_num_possible_cpus();
 	assert(nr_cpus != -1);
 	printf("nr_cpus:%d\n\n", nr_cpus);
 

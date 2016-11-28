@@ -408,8 +408,8 @@ struct bpf_prog {
 	enum bpf_prog_type	type;		/* Type of BPF program */
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
-	unsigned int		(*bpf_func)(const struct sk_buff *skb,
-					    const struct bpf_insn *filter);
+	unsigned int		(*bpf_func)(const void *ctx,
+					    const struct bpf_insn *insn);
 	/* Instructions for interpreter */
 	union {
 		struct sock_filter	insns[0];
@@ -504,7 +504,7 @@ static inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
 	u32 ret;
 
 	rcu_read_lock();
-	ret = BPF_PROG_RUN(prog, (void *)xdp);
+	ret = BPF_PROG_RUN(prog, xdp);
 	rcu_read_unlock();
 
 	return ret;
