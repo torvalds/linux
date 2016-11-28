@@ -25,6 +25,7 @@
 /* ADC configuration registers field define */
 #define ADC_AIEN		(0x1 << 7)
 #define ADC_CONV_DISABLE	0x1F
+#define ADC_AVGE		(0x1 << 5)
 #define ADC_CAL			(0x1 << 7)
 #define ADC_CALF		0x2
 #define ADC_12BIT_MODE		(0x2 << 2)
@@ -32,6 +33,7 @@
 #define ADC_CLK_DIV_8		(0x03 << 5)
 #define ADC_SHORT_SAMPLE_MODE	(0x0 << 4)
 #define ADC_HARDWARE_TRIGGER	(0x1 << 13)
+#define ADC_AVGS_SHIFT		14
 #define SELECT_CHANNEL_4	0x04
 #define SELECT_CHANNEL_1	0x01
 #define DISABLE_CONVERSION_INT	(0x0 << 7)
@@ -86,6 +88,7 @@ struct imx6ul_tsc {
 
 	int measure_delay_time;
 	int pre_charge_time;
+	int average_samples;
 
 	struct completion completion;
 };
@@ -107,6 +110,8 @@ static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 	adc_cfg = readl(tsc->adc_regs + REG_ADC_CFG);
 	adc_cfg |= ADC_12BIT_MODE | ADC_IPG_CLK;
 	adc_cfg |= ADC_CLK_DIV_8 | ADC_SHORT_SAMPLE_MODE;
+	if (tsc->average_samples)
+		adc_cfg |= (tsc->average_samples - 1) << ADC_AVGS_SHIFT;
 	adc_cfg &= ~ADC_HARDWARE_TRIGGER;
 	writel(adc_cfg, tsc->adc_regs + REG_ADC_CFG);
 
@@ -118,6 +123,8 @@ static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 	/* start ADC calibration */
 	adc_gc = readl(tsc->adc_regs + REG_ADC_GC);
 	adc_gc |= ADC_CAL;
+	if (tsc->average_samples)
+		adc_gc |= ADC_AVGE;
 	writel(adc_gc, tsc->adc_regs + REG_ADC_GC);
 
 	timeout = wait_for_completion_timeout
@@ -449,6 +456,17 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 				   &tsc->pre_charge_time);
 	if (err)
 		tsc->pre_charge_time = 0xfff;
+
+	err = of_property_read_u32(np, "average-samples",
+				   &tsc->average_samples);
+	if (err)
+		tsc->average_samples = 0;
+
+	if (tsc->average_samples > 4) {
+		dev_err(&pdev->dev, "average-samples (%u) must be [0-4]\n",
+			tsc->average_samples);
+		return -EINVAL;
+	}
 
 	err = input_register_device(tsc->input);
 	if (err) {

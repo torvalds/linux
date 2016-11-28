@@ -17,6 +17,13 @@ Optional properties:
   This value depends on the touch screen.
 - pre-charge-time: the touch screen need some time to precharge.
   This value depends on the touch screen.
+- average-samples: Number of data samples which are averaged for each read.
+	Valid values 0-4
+	0 =  1 sample
+	1 =  4 samples
+	2 =  8 samples
+	3 = 16 samples
+	4 = 32 samples
 
 Example:
 	tsc: tsc@02040000 {
@@ -32,5 +39,6 @@ Example:
 		xnur-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
 		measure-delay-time = <0xfff>;
 		pre-charge-time = <0xffff>;
+		average-samples = <4>;
 		status = "okay";
 	};
