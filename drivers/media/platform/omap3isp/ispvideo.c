@@ -232,7 +232,7 @@ static int isp_video_get_graph_data(struct isp_video *video,
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
-	ret = media_graph_walk_init(&graph, entity->graph_obj.mdev);
+	ret = media_graph_walk_init(&graph, mdev);
 	if (ret) {
 		mutex_unlock(&mdev->graph_mutex);
 		return ret;
