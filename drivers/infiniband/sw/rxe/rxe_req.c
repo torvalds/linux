@@ -696,7 +696,8 @@ next_wqe:
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
-			goto complete;
+			__rxe_do_task(&qp->comp.task);
+			return 0;
 		}
 		payload = mtu;
 	}
@@ -745,13 +746,17 @@ err:
 	wqe->status = IB_WC_LOC_PROT_ERR;
 	wqe->state = wqe_state_error;
 
-complete:
-	if (qp_type(qp) != IB_QPT_RC) {
-		while (rxe_completer(qp) == 0)
-			;
-	}
-
-	return 0;
+	/*
+	 * IBA Spec. Section 10.7.3.1 SIGNALED COMPLETIONS
+	 * ---------8<---------8<-------------
+	 * ...Note that if a completion error occurs, a Work Completion
+	 * will always be generated, even if the signaling
+	 * indicator requests an Unsignaled Completion.
+	 * ---------8<---------8<-------------
+	 */
+	wqe->wr.send_flags |= IB_SEND_SIGNALED;
+	__rxe_do_task(&qp->comp.task);
+	return -EAGAIN;
 
 exit:
 	return -EAGAIN;

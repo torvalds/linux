@@ -24,8 +24,36 @@ struct iommu_arena {
 	unsigned int	limit;
 };
 
+#define ATU_64_SPACE_SIZE 0x800000000 /* 32G */
+
+/* Data structures for SPARC ATU architecture */
+struct atu_iotsb {
+	void	*table;		/* IOTSB table base virtual addr*/
+	u64	ra;		/* IOTSB table real addr */
+	u64	dvma_size;	/* ranges[3].size or OS slected 32G size */
+	u64	dvma_base;	/* ranges[3].base */
+	u64	table_size;	/* IOTSB table size */
+	u64	page_size;	/* IO PAGE size for IOTSB */
+	u32	iotsb_num;	/* tsbnum is same as iotsb_handle */
+};
+
+struct atu_ranges {
+	u64	base;
+	u64	size;
+};
+
+struct atu {
+	struct	atu_ranges	*ranges;
+	struct	atu_iotsb	*iotsb;
+	struct	iommu_map_table	tbl;
+	u64			base;
+	u64			size;
+	u64			dma_addr_mask;
+};
+
 struct iommu {
 	struct iommu_map_table	tbl;
+	struct atu		*atu;
 	spinlock_t		lock;
 	u32			dma_addr_mask;
 	iopte_t			*page_table;

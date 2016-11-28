@@ -1143,7 +1143,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (!child)
 		return;
 
-	aux_channel = child->raw[25];
+	aux_channel = child->common.aux_channel;
 	ddc_pin = child->common.ddc_pin;
 
 	is_dvi = child->common.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
@@ -1673,7 +1673,8 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	return false;
 }
 
-bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port)
+static bool child_dev_is_dp_dual_mode(const union child_device_config *p_child,
+				      enum port port)
 {
 	static const struct {
 		u16 dp, hdmi;
@@ -1687,22 +1688,35 @@ bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum por
 		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
 		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
 	};
-	int i;
 
 	if (port == PORT_A || port >= ARRAY_SIZE(port_mapping))
 		return false;
 
-	if (!dev_priv->vbt.child_dev_num)
+	if ((p_child->common.device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) !=
+	    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
 		return false;
+
+	if (p_child->common.dvo_port == port_mapping[port].dp)
+		return true;
+
+	/* Only accept a HDMI dvo_port as DP++ if it has an AUX channel */
+	if (p_child->common.dvo_port == port_mapping[port].hdmi &&
+	    p_child->common.aux_channel != 0)
+		return true;
+
+	return false;
+}
+
+bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv,
+				     enum port port)
+{
+	int i;
 
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		const union child_device_config *p_child =
 			&dev_priv->vbt.child_dev[i];
 
-		if ((p_child->common.dvo_port == port_mapping[port].dp ||
-		     p_child->common.dvo_port == port_mapping[port].hdmi) &&
-		    (p_child->common.device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) ==
-		    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
+		if (child_dev_is_dp_dual_mode(p_child, port))
 			return true;
 	}
 

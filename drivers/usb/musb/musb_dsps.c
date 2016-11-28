@@ -185,24 +185,19 @@ static void dsps_musb_disable(struct musb *musb)
 	musb_writel(reg_base, wrp->coreintr_clear, wrp->usb_bitmap);
 	musb_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
+	del_timer_sync(&glue->timer);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 }
 
-static void otg_timer(unsigned long _musb)
+/* Caller must take musb->lock */
+static int dsps_check_status(struct musb *musb, void *unused)
 {
-	struct musb *musb = (void *)_musb;
 	void __iomem *mregs = musb->mregs;
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	u8 devctl;
-	unsigned long flags;
 	int skip_session = 0;
-	int err;
-
-	err = pm_runtime_get_sync(dev);
-	if (err < 0)
-		dev_err(dev, "Poll could not pm_runtime_get: %i\n", err);
 
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
@@ -212,7 +207,6 @@ static void otg_timer(unsigned long _musb)
 	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
 				usb_otg_state_string(musb->xceiv->otg->state));
 
-	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_VRISE:
 		mod_timer(&glue->timer, jiffies +
@@ -245,8 +239,30 @@ static void otg_timer(unsigned long _musb)
 	default:
 		break;
 	}
-	spin_unlock_irqrestore(&musb->lock, flags);
 
+	return 0;
+}
+
+static void otg_timer(unsigned long _musb)
+{
+	struct musb *musb = (void *)_musb;
+	struct device *dev = musb->controller;
+	unsigned long flags;
+	int err;
+
+	err = pm_runtime_get(dev);
+	if ((err != -EINPROGRESS) && err < 0) {
+		dev_err(dev, "Poll could not pm_runtime_get: %i\n", err);
+		pm_runtime_put_noidle(dev);
+
+		return;
+	}
+
+	spin_lock_irqsave(&musb->lock, flags);
+	err = musb_queue_resume_work(musb, dsps_check_status, NULL);
+	if (err < 0)
+		dev_err(dev, "%s resume work: %i\n", __func__, err);
+	spin_unlock_irqrestore(&musb->lock, flags);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }
@@ -767,28 +783,13 @@ static int dsps_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 200);
-
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync FAILED");
-		goto err2;
-	}
-
 	ret = dsps_create_musb_pdev(glue, pdev);
 	if (ret)
-		goto err3;
-
-	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
+		goto err;
 
 	return 0;
 
-err3:
-	pm_runtime_put_sync(&pdev->dev);
-err2:
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
+err:
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
@@ -799,9 +800,6 @@ static int dsps_remove(struct platform_device *pdev)
 
 	platform_device_unregister(glue->musb);
 
-	/* disable usbss clocks */
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

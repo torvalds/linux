@@ -308,7 +308,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 	netdev->switchdev_ops = &mlx5e_rep_switchdev_ops;
 #endif
 
-	netdev->features	 |= NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_TC;
+	netdev->features	 |= NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_TC | NETIF_F_NETNS_LOCAL;
 	netdev->hw_features      |= NETIF_F_HW_TC;
 
 	eth_hw_addr_random(netdev);

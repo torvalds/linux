@@ -1619,7 +1619,7 @@ enum netdev_priv_flags {
  *	@dcbnl_ops:	Data Center Bridging netlink ops
  *	@num_tc:	Number of traffic classes in the net device
  *	@tc_to_txq:	XXX: need comments on this one
- *	@prio_tc_map	XXX: need comments on this one
+ *	@prio_tc_map:	XXX: need comments on this one
  *
  *	@fcoe_ddp_xid:	Max exchange id for FCoE LRO by ddp
  *
@@ -3353,6 +3353,21 @@ int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 bool is_skb_forwardable(const struct net_device *dev,
 			const struct sk_buff *skb);
+
+static __always_inline int ____dev_forward_skb(struct net_device *dev,
+					       struct sk_buff *skb)
+{
+	if (skb_orphan_frags(skb, GFP_ATOMIC) ||
+	    unlikely(!is_skb_forwardable(dev, skb))) {
+		atomic_long_inc(&dev->rx_dropped);
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
+
+	skb_scrub_packet(skb, true);
+	skb->priority = 0;
+	return 0;
+}
 
 void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
 
