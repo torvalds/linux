@@ -233,6 +233,8 @@ int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
 		genphy_read_status(phydev);
 		if (ds->ops->adjust_link)
 			ds->ops->adjust_link(ds, port, phydev);
+
+		put_device(&phydev->mdio.dev);
 	}
 
 	return 0;
@@ -509,8 +511,9 @@ void dsa_cpu_dsa_destroy(struct device_node *port_dn)
 	if (of_phy_is_fixed_link(port_dn)) {
 		phydev = of_phy_find_device(port_dn);
 		if (phydev) {
-			phy_device_free(phydev);
 			fixed_phy_unregister(phydev);
+			put_device(&phydev->mdio.dev);
+			phy_device_free(phydev);
 		}
 	}
 }
