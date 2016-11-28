@@ -5023,7 +5023,6 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	 */
 	if (HAS_GMCH_DISPLAY(dev_priv)) {
 		intel_set_memory_cxsr(dev_priv, false);
-		dev_priv->wm.vlv.cxsr = false;
 		intel_wait_for_vblank(dev_priv, pipe);
 	}
 }
@@ -5102,7 +5101,6 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 		 */
 		if (old_crtc_state->base.active) {
 			intel_set_memory_cxsr(dev_priv, false);
-			dev_priv->wm.vlv.cxsr = false;
 			intel_wait_for_vblank(dev_priv, crtc->pipe);
 		}
 	}

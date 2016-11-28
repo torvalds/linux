@@ -312,14 +312,13 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 #define FW_WM(value, plane) \
 	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK)
 
-void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
+static void _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
 		POSTING_READ(FW_BLC_SELF_VLV);
-		dev_priv->wm.vlv.cxsr = enable;
 	} else if (IS_G4X(dev_priv) || IS_CRESTLINE(dev_priv)) {
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 		POSTING_READ(FW_BLC_SELF);
@@ -350,6 +349,13 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 	DRM_DEBUG_KMS("memory self-refresh is %s\n", enableddisabled(enable));
 }
 
+void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
+{
+	mutex_lock(&dev_priv->wm.wm_mutex);
+	_intel_set_memory_cxsr(dev_priv, enable);
+	dev_priv->wm.vlv.cxsr = enable;
+	mutex_unlock(&dev_priv->wm.wm_mutex);
+}
 
 /*
  * Latency for FIFO fetches is dependent on several factors:
@@ -1322,7 +1328,7 @@ static void vlv_update_wm(struct intel_crtc *crtc)
 		chv_set_memory_pm5(dev_priv, false);
 
 	if (!wm.cxsr && dev_priv->wm.vlv.cxsr)
-		intel_set_memory_cxsr(dev_priv, false);
+		_intel_set_memory_cxsr(dev_priv, false);
 
 	/* FIXME should be part of crtc atomic commit */
 	vlv_pipe_set_fifo_size(crtc);
@@ -1336,7 +1342,7 @@ static void vlv_update_wm(struct intel_crtc *crtc)
 		      wm.sr.plane, wm.sr.cursor, wm.level, wm.cxsr);
 
 	if (wm.cxsr && !dev_priv->wm.vlv.cxsr)
-		intel_set_memory_cxsr(dev_priv, true);
+		_intel_set_memory_cxsr(dev_priv, true);
 
 	if (wm.level >= VLV_WM_LEVEL_PM5 &&
 	    dev_priv->wm.vlv.level < VLV_WM_LEVEL_PM5)
