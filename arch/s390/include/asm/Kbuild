@@ -1,3 +1,4 @@
+generic-y += asm-offsets.h
 generic-y += clkdev.h
 generic-y += dma-contiguous.h
 generic-y += export.h
