@@ -1146,6 +1146,43 @@ static int genphy_config_advert(struct phy_device *phydev)
 }
 
 /**
+ * genphy_config_eee_advert - disable unwanted eee mode advertisement
+ * @phydev: target phy_device struct
+ *
+ * Description: Writes MDIO_AN_EEE_ADV after disabling unsupported energy
+ *   efficent ethernet modes. Returns 0 if the PHY's advertisement hasn't
+ *   changed, and 1 if it has changed.
+ */
+static int genphy_config_eee_advert(struct phy_device *phydev)
+{
+	u32 broken = phydev->eee_broken_modes;
+	u32 old_adv, adv;
+
+	/* Nothing to disable */
+	if (!broken)
+		return 0;
+
+	/* If the following call fails, we assume that EEE is not
+	 * supported by the phy. If we read 0, EEE is not advertised
+	 * In both case, we don't need to continue
+	 */
+	adv = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV, MDIO_MMD_AN);
+	if (adv <= 0)
+		return 0;
+
+	old_adv = adv;
+	adv &= ~broken;
+
+	/* Advertising remains unchanged with the broken mask */
+	if (old_adv == adv)
+		return 0;
+
+	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV, MDIO_MMD_AN, adv);
+
+	return 1;
+}
+
+/**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
  * @phydev: target phy_device struct
  *
@@ -1203,15 +1240,20 @@ EXPORT_SYMBOL(genphy_restart_aneg);
  */
 int genphy_config_aneg(struct phy_device *phydev)
 {
-	int result;
+	int err, changed;
+
+	changed = genphy_config_eee_advert(phydev);
 
 	if (AUTONEG_ENABLE != phydev->autoneg)
 		return genphy_setup_forced(phydev);
 
-	result = genphy_config_advert(phydev);
-	if (result < 0) /* error */
-		return result;
-	if (result == 0) {
+	err = genphy_config_advert(phydev);
+	if (err < 0) /* error */
+		return err;
+
+	changed |= err;
+
+	if (changed == 0) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated?
 		 */
@@ -1221,16 +1263,16 @@ int genphy_config_aneg(struct phy_device *phydev)
 			return ctl;
 
 		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
-			result = 1; /* do restart aneg */
+			changed = 1; /* do restart aneg */
 	}
 
 	/* Only restart aneg if we are advertising something different
 	 * than we were before.
 	 */
-	if (result > 0)
-		result = genphy_restart_aneg(phydev);
+	if (changed > 0)
+		return genphy_restart_aneg(phydev);
 
-	return result;
+	return 0;
 }
 EXPORT_SYMBOL(genphy_config_aneg);
 
@@ -1588,6 +1630,21 @@ static void of_set_phy_supported(struct phy_device *phydev)
 		__set_phy_supported(phydev, max_speed);
 }
 
+static void of_set_phy_eee_broken(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	u32 broken;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return;
+
+	if (!node)
+		return;
+
+	if (!of_property_read_u32(node, "eee-broken-modes", &broken))
+		phydev->eee_broken_modes = broken;
+}
+
 /**
  * phy_probe - probe and init a PHY device
  * @dev: device to probe and init
@@ -1624,6 +1681,11 @@ static int phy_probe(struct device *dev)
 	phydev->supported = phydrv->features;
 	of_set_phy_supported(phydev);
 	phydev->advertising = phydev->supported;
+
+	/* Get the EEE modes we want to prohibit. We will ask
+	 * the PHY stop advertising these mode later on
+	 */
+	of_set_phy_eee_broken(phydev);
 
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;

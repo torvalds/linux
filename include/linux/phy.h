@@ -401,6 +401,9 @@ struct phy_device {
 	u32 advertising;
 	u32 lp_advertising;
 
+	/* Energy efficient ethernet modes which should be prohibited */
+	u32 eee_broken_modes;
+
 	int autoneg;
 
 	int link_timeout;
