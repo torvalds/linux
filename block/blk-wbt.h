@@ -21,6 +21,15 @@ enum {
 	WBT_NUM_RWQ		= 2,
 };
 
+/*
+ * Enable states. Either off, or on by default (done at init time),
+ * or on through manual setup in sysfs.
+ */
+enum {
+	WBT_STATE_ON_DEFAULT	= 1,
+	WBT_STATE_ON_MANUAL	= 2,
+};
+
 static inline void wbt_clear_state(struct blk_issue_stat *stat)
 {
 	stat->time &= BLK_STAT_TIME_MASK;
@@ -60,6 +69,8 @@ struct rq_wb {
 	unsigned int wb_max;			/* max throughput writeback */
 	int scale_step;
 	bool scaled_max;
+
+	short enable_state;			/* WBT_STATE_* */
 
 	/*
 	 * Number of consecutive periods where we don't have enough

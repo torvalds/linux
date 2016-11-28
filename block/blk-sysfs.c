@@ -425,20 +425,30 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	ssize_t ret;
 	s64 val;
 
-	rwb = q->rq_wb;
-	if (!rwb)
-		return -EINVAL;
-
 	ret = queue_var_store64(&val, page);
 	if (ret < 0)
 		return ret;
+	if (val < -1)
+		return -EINVAL;
+
+	rwb = q->rq_wb;
+	if (!rwb) {
+		ret = wbt_init(q);
+		if (ret)
+			return ret;
+
+		rwb = q->rq_wb;
+		if (!rwb)
+			return -EINVAL;
+	}
 
 	if (val == -1)
 		rwb->min_lat_nsec = wbt_default_latency_nsec(q);
 	else if (val >= 0)
 		rwb->min_lat_nsec = val * 1000ULL;
-	else
-		return -EINVAL;
+
+	if (rwb->enable_state == WBT_STATE_ON_DEFAULT)
+		rwb->enable_state = WBT_STATE_ON_MANUAL;
 
 	wbt_update_limits(rwb);
 	return count;

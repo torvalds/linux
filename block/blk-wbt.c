@@ -673,7 +673,7 @@ void wbt_disable_default(struct request_queue *q)
 {
 	struct rq_wb *rwb = q->rq_wb;
 
-	if (rwb) {
+	if (rwb && rwb->enable_state == WBT_STATE_ON_DEFAULT) {
 		del_timer_sync(&rwb->window_timer);
 		rwb->win_nsec = rwb->min_lat_nsec = 0;
 		wbt_update_limits(rwb);
@@ -721,6 +721,7 @@ int wbt_init(struct request_queue *q)
 	rwb->last_comp = rwb->last_issue = jiffies;
 	rwb->queue = q;
 	rwb->win_nsec = RWB_WINDOW_NSEC;
+	rwb->enable_state = WBT_STATE_ON_DEFAULT;
 	wbt_update_limits(rwb);
 
 	/*
