@@ -175,8 +175,6 @@ static struct nvm_tgt_dev *gen_create_tgt_dev(struct nvm_dev *dev,
 	tgt_dev->geo.luns_per_chnl = (lun_balanced) ? prev_nr_luns : -1;
 	tgt_dev->total_secs = nr_luns * tgt_dev->geo.sec_per_lun;
 	tgt_dev->q = dev->q;
-	tgt_dev->ops = dev->ops;
-	tgt_dev->mt = dev->mt;
 	tgt_dev->map = dev_map;
 	tgt_dev->luns = luns;
 	memcpy(&tgt_dev->identity, &dev->identity, sizeof(struct nvm_id));

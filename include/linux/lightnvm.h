@@ -320,10 +320,7 @@ struct nvm_tgt_dev {
 	struct nvm_id identity;
 	struct request_queue *q;
 
-	struct nvmm_type *mt;
-	struct nvm_dev_ops *ops;
-
-	void *parent;
+	struct nvm_dev *parent;
 	void *map;
 };
 

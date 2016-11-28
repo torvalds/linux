@@ -219,6 +219,28 @@ int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p, int flags)
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
+int nvm_get_l2p_tbl(struct nvm_dev *dev, u64 slba, u32 nlb,
+		    nvm_l2p_update_fn *update_l2p, void *priv)
+{
+	if (!dev->ops->get_l2p_tbl)
+		return 0;
+
+	return dev->ops->get_l2p_tbl(dev, slba, nlb, update_l2p, priv);
+}
+EXPORT_SYMBOL(nvm_get_l2p_tbl);
+
+int nvm_get_area(struct nvm_dev *dev, sector_t *lba, sector_t len)
+{
+	return dev->mt->get_area(dev, lba, len);
+}
+EXPORT_SYMBOL(nvm_get_area);
+
+void nvm_put_area(struct nvm_dev *dev, sector_t lba)
+{
+	dev->mt->put_area(dev, lba);
+}
+EXPORT_SYMBOL(nvm_put_area);
+
 void nvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	int i;

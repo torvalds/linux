@@ -1166,11 +1166,8 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		r->addr = ADDR_EMPTY;
 	}
 
-	if (!dev->ops->get_l2p_tbl)
-		return 0;
-
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev->parent, rrpc->soffset, rrpc->nr_sects,
+	ret = nvm_get_l2p_tbl(dev->parent, rrpc->soffset, rrpc->nr_sects,
 					rrpc_l2p_update, rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
@@ -1258,6 +1255,9 @@ static int rrpc_bb_discovery(struct nvm_tgt_dev *dev, struct rrpc_lun *rlun)
 	int i;
 	int ret;
 
+	if (!dev->parent->ops->get_bb_tbl)
+		return 0;
+
 	nr_blks = geo->blks_per_lun * geo->plane_mode;
 	blks = kmalloc(nr_blks, GFP_KERNEL);
 	if (!blks)
@@ -1277,7 +1277,6 @@ static int rrpc_bb_discovery(struct nvm_tgt_dev *dev, struct rrpc_lun *rlun)
 	if (nr_blks < 0)
 		return nr_blks;
 
-	rlun->nr_free_blocks = geo->blks_per_lun;
 	for (i = 0; i < nr_blks; i++) {
 		if (blks[i] == NVM_BLK_T_FREE)
 			continue;
@@ -1348,17 +1347,19 @@ static int rrpc_luns_init(struct rrpc *rrpc, struct ppa_addr *luns)
 			list_add_tail(&rblk->list, &rlun->free_list);
 		}
 
-		if (rrpc_bb_discovery(dev, rlun))
-			goto err;
-
+		rlun->rrpc = rrpc;
+		rlun->nr_free_blocks = geo->blks_per_lun;
 		rlun->reserved_blocks = 2; /* for GC only */
 
-		rlun->rrpc = rrpc;
 		INIT_LIST_HEAD(&rlun->prio_list);
 		INIT_LIST_HEAD(&rlun->wblk_list);
 
 		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
 		spin_lock_init(&rlun->lock);
+
+		if (rrpc_bb_discovery(dev, rlun))
+			goto err;
+
 	}
 
 	return 0;
@@ -1370,13 +1371,12 @@ err:
 static int rrpc_area_init(struct rrpc *rrpc, sector_t *begin)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	struct nvmm_type *mt = dev->mt;
 	sector_t size = rrpc->nr_sects * dev->geo.sec_size;
 	int ret;
 
 	size >>= 9;
 
-	ret = mt->get_area(dev->parent, begin, size);
+	ret = nvm_get_area(dev->parent, begin, size);
 	if (!ret)
 		*begin >>= (ilog2(dev->geo.sec_size) - 9);
 
@@ -1386,10 +1386,9 @@ static int rrpc_area_init(struct rrpc *rrpc, sector_t *begin)
 static void rrpc_area_free(struct rrpc *rrpc)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
-	struct nvmm_type *mt = dev->mt;
 	sector_t begin = rrpc->soffset << (ilog2(dev->geo.sec_size) - 9);
 
-	mt->put_area(dev->parent, begin);
+	nvm_put_area(dev->parent, begin);
 }
 
 static void rrpc_free(struct rrpc *rrpc)
