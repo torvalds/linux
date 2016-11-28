@@ -117,7 +117,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 			entry->allowed_domains = AMDGPU_GEM_DOMAIN_GTT;
 		}
 		entry->tv.bo = &entry->robj->tbo;
-		entry->tv.shared = true;
+		entry->tv.shared = !entry->robj->prime_shared_count;
 
 		if (entry->prefered_domains == AMDGPU_GEM_DOMAIN_GDS)
 			gds_obj = entry->robj;

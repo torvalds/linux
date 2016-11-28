@@ -4542,6 +4542,15 @@ static int __init caam_algapi_init(void)
 		if (!aes_inst && (alg_sel == OP_ALG_ALGSEL_AES))
 				continue;
 
+		/*
+		 * Check support for AES modes not available
+		 * on LP devices.
+		 */
+		if ((cha_vid & CHA_ID_LS_AES_MASK) == CHA_ID_LS_AES_LP)
+			if ((alg->class1_alg_type & OP_ALG_AAI_MASK) ==
+			     OP_ALG_AAI_XTS)
+				continue;
+
 		t_alg = caam_alg_alloc(alg);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
