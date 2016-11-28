@@ -1067,9 +1067,9 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 	int level;
 
 	for (level = 0; level < wm_state->num_levels; level++) {
-		struct drm_device *dev = crtc->base.dev;
+		struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 		const int sr_fifo_size =
-			INTEL_INFO(to_i915(dev))->num_pipes * 512 - 1;
+			INTEL_INFO(dev_priv)->num_pipes * 512 - 1;
 		struct intel_plane *plane;
 
 		wm_state->sr[level].plane =
@@ -1079,7 +1079,7 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 			vlv_invert_wm_value(wm_state->sr[level].cursor,
 					    63);
 
-		for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 			wm_state->wm[level].plane[plane->id] =
 				vlv_invert_wm_value(wm_state->wm[level].plane[plane->id],
 						    plane->wm.fifo_size);
@@ -1089,8 +1089,7 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 
 static void vlv_compute_wm(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct vlv_wm_state *wm_state = &crtc->wm_state;
 	struct intel_plane *plane;
 	int level;
@@ -1107,7 +1106,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 	if (wm_state->num_active_planes != 1)
 		wm_state->cxsr = false;
 
-	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 		struct intel_plane_state *state =
 			to_intel_plane_state(plane->base.state);
 		int level;
@@ -1253,16 +1252,16 @@ static void vlv_pipe_set_fifo_size(struct intel_crtc *crtc)
 
 #undef VLV_FIFO
 
-static void vlv_merge_wm(struct drm_device *dev,
+static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 			 struct vlv_wm_values *wm)
 {
 	struct intel_crtc *crtc;
 	int num_active_crtcs = 0;
 
-	wm->level = to_i915(dev)->wm.max_level;
+	wm->level = dev_priv->wm.max_level;
 	wm->cxsr = true;
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		const struct vlv_wm_state *wm_state = &crtc->wm_state;
 
 		if (!crtc->active)
@@ -1281,7 +1280,7 @@ static void vlv_merge_wm(struct drm_device *dev,
 	if (num_active_crtcs > 1)
 		wm->level = VLV_WM_LEVEL_PM2;
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct vlv_wm_state *wm_state = &crtc->wm_state;
 		enum pipe pipe = crtc->pipe;
 
@@ -1301,13 +1300,12 @@ static void vlv_merge_wm(struct drm_device *dev,
 
 static void vlv_update_wm(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	struct vlv_wm_values wm = {};
 
 	vlv_compute_wm(crtc);
-	vlv_merge_wm(dev, &wm);
+	vlv_merge_wm(dev_priv, &wm);
 
 	if (memcmp(&dev_priv->wm.vlv, &wm, sizeof(wm)) == 0) {
 		/* FIXME should be part of crtc atomic commit */
