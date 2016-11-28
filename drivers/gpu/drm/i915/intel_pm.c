@@ -1327,55 +1327,63 @@ static void vlv_merge_wm(struct drm_i915_private *dev_priv,
 	}
 }
 
+static bool is_disabling(int old, int new, int threshold)
+{
+	return old >= threshold && new < threshold;
+}
+
+static bool is_enabling(int old, int new, int threshold)
+{
+	return old < threshold && new >= threshold;
+}
+
 static void vlv_update_wm(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-	struct vlv_wm_values wm = {};
+	struct vlv_wm_values *old_wm = &dev_priv->wm.vlv;
+	struct vlv_wm_values new_wm = {};
 
 	vlv_compute_wm(crtc);
-	vlv_merge_wm(dev_priv, &wm);
+	vlv_merge_wm(dev_priv, &new_wm);
 
-	if (memcmp(&dev_priv->wm.vlv, &wm, sizeof(wm)) == 0) {
+	if (memcmp(old_wm, &new_wm, sizeof(new_wm)) == 0) {
 		/* FIXME should be part of crtc atomic commit */
 		vlv_pipe_set_fifo_size(crtc);
+
 		return;
 	}
 
-	if (wm.level < VLV_WM_LEVEL_DDR_DVFS &&
-	    dev_priv->wm.vlv.level >= VLV_WM_LEVEL_DDR_DVFS)
+	if (is_disabling(old_wm->level, new_wm.level, VLV_WM_LEVEL_DDR_DVFS))
 		chv_set_memory_dvfs(dev_priv, false);
 
-	if (wm.level < VLV_WM_LEVEL_PM5 &&
-	    dev_priv->wm.vlv.level >= VLV_WM_LEVEL_PM5)
+	if (is_disabling(old_wm->level, new_wm.level, VLV_WM_LEVEL_PM5))
 		chv_set_memory_pm5(dev_priv, false);
 
-	if (!wm.cxsr && dev_priv->wm.vlv.cxsr)
+	if (is_disabling(old_wm->cxsr, new_wm.cxsr, true))
 		_intel_set_memory_cxsr(dev_priv, false);
 
 	/* FIXME should be part of crtc atomic commit */
 	vlv_pipe_set_fifo_size(crtc);
 
-	vlv_write_wm_values(dev_priv, &wm);
+	vlv_write_wm_values(dev_priv, &new_wm);
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - %c: plane=%d, cursor=%d, "
 		      "sprite0=%d, sprite1=%d, SR: plane=%d, cursor=%d level=%d cxsr=%d\n",
-		      pipe_name(pipe), wm.pipe[pipe].plane[PLANE_PRIMARY], wm.pipe[pipe].plane[PLANE_CURSOR],
-		      wm.pipe[pipe].plane[PLANE_SPRITE0], wm.pipe[pipe].plane[PLANE_SPRITE1],
-		      wm.sr.plane, wm.sr.cursor, wm.level, wm.cxsr);
+		      pipe_name(pipe), new_wm.pipe[pipe].plane[PLANE_PRIMARY], new_wm.pipe[pipe].plane[PLANE_CURSOR],
+		      new_wm.pipe[pipe].plane[PLANE_SPRITE0], new_wm.pipe[pipe].plane[PLANE_SPRITE1],
+		      new_wm.sr.plane, new_wm.sr.cursor, new_wm.level, new_wm.cxsr);
 
-	if (wm.cxsr && !dev_priv->wm.vlv.cxsr)
+	if (is_enabling(old_wm->cxsr, new_wm.cxsr, true))
 		_intel_set_memory_cxsr(dev_priv, true);
 
-	if (wm.level >= VLV_WM_LEVEL_PM5 &&
-	    dev_priv->wm.vlv.level < VLV_WM_LEVEL_PM5)
+	if (is_enabling(old_wm->level, new_wm.level, VLV_WM_LEVEL_PM5))
 		chv_set_memory_pm5(dev_priv, true);
 
-	if (wm.level >= VLV_WM_LEVEL_DDR_DVFS &&
-	    dev_priv->wm.vlv.level < VLV_WM_LEVEL_DDR_DVFS)
+	if (is_enabling(old_wm->level, new_wm.level, VLV_WM_LEVEL_DDR_DVFS))
 		chv_set_memory_dvfs(dev_priv, true);
 
-	dev_priv->wm.vlv = wm;
+	*old_wm = new_wm;
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
