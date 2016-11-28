@@ -528,7 +528,6 @@
 				fsl,tempmon = <&anatop>;
 				fsl,tempmon-data = <&ocotp>;
 				clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
-				status = "disabled";
 			};
 
 			usbphy1: usbphy@020c9000 {
