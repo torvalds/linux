@@ -33,10 +33,32 @@ static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc,
 	unsigned long vaddr = (unsigned long)opc;
 	int err;
 
+retry:
+	/* The GVA page table is still active so use the Linux TLB handlers */
+	kvm_trap_emul_gva_lockless_begin(vcpu);
 	err = put_user(replace.word, opc);
+	kvm_trap_emul_gva_lockless_end(vcpu);
+
 	if (unlikely(err)) {
-		kvm_err("%s: Invalid address: %p\n", __func__, opc);
-		return err;
+		/*
+		 * We write protect clean pages in GVA page table so normal
+		 * Linux TLB mod handler doesn't silently dirty the page.
+		 * Its also possible we raced with a GVA invalidation.
+		 * Try to force the page to become dirty.
+		 */
+		err = kvm_trap_emul_gva_fault(vcpu, vaddr, true);
+		if (unlikely(err)) {
+			kvm_info("%s: Address unwriteable: %p\n",
+				 __func__, opc);
+			return -EFAULT;
+		}
+
+		/*
+		 * Try again. This will likely trigger a TLB refill, which will
+		 * fetch the new dirty entry from the GVA page table, which
+		 * should then succeed.
+		 */
+		goto retry;
 	}
 	__local_flush_icache_user_range(vaddr, vaddr + 4);
 
