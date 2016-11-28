@@ -1100,7 +1100,6 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct vlv_wm_state *wm_state = &crtc->wm_state;
 	struct intel_plane *plane;
-	int sr_fifo_size = INTEL_INFO(dev_priv)->num_pipes * 512 - 1;
 	int level;
 
 	memset(wm_state, 0, sizeof(*wm_state));
@@ -1114,13 +1113,6 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 
 	if (wm_state->num_active_planes != 1)
 		wm_state->cxsr = false;
-
-	if (wm_state->cxsr) {
-		for (level = 0; level < wm_state->num_levels; level++) {
-			wm_state->sr[level].plane = sr_fifo_size;
-			wm_state->sr[level].cursor = 63;
-		}
-	}
 
 	for_each_intel_plane_on_crtc(dev, crtc, plane) {
 		struct intel_plane_state *state =
@@ -1172,14 +1164,14 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 		case DRM_PLANE_TYPE_PRIMARY:
 			for (level = 0; level < wm_state->num_levels; level++)
 				wm_state->sr[level].plane =
-					min(wm_state->sr[level].plane,
+					max(wm_state->sr[level].plane,
 					    wm_state->wm[level].primary);
 			break;
 		case DRM_PLANE_TYPE_OVERLAY:
 			sprite = vlv_sprite_id(plane->id);
 			for (level = 0; level < wm_state->num_levels; level++)
 				wm_state->sr[level].plane =
-					min(wm_state->sr[level].plane,
+					max(wm_state->sr[level].plane,
 					    wm_state->wm[level].sprite[sprite]);
 			break;
 		}
