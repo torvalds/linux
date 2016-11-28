@@ -56,6 +56,7 @@
  *	document number TBD : Wildcat Point-LP
  *	document number TBD : 9 Series
  *	document number TBD : Lewisburg
+ *	document number TBD : Apollo Lake SoC
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -91,6 +92,8 @@
 #define SPIBASE_LPT_SZ		512
 #define BCR			0xdc
 #define BCR_WPD			BIT(0)
+
+#define SPIBASE_APL_SZ		4096
 
 #define GPIOBASE_ICH0		0x58
 #define GPIOCTRL_ICH0		0x5C
@@ -239,6 +242,7 @@ enum lpc_chipsets {
 	LPC_BRASWELL,	/* Braswell SoC */
 	LPC_LEWISBURG,	/* Lewisburg */
 	LPC_9S,		/* 9 Series */
+	LPC_APL,	/* Apollo Lake SoC */
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
@@ -561,6 +565,10 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
+	[LPC_APL] = {
+		.name = "Apollo Lake SoC",
+		.spi_type = INTEL_SPI_BXT,
+	},
 };
 
 /*
@@ -709,6 +717,7 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x3b14), LPC_3420},
 	{ PCI_VDEVICE(INTEL, 0x3b16), LPC_3450},
 	{ PCI_VDEVICE(INTEL, 0x5031), LPC_EP80579},
+	{ PCI_VDEVICE(INTEL, 0x5ae8), LPC_APL},
 	{ PCI_VDEVICE(INTEL, 0x8c40), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c41), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c42), LPC_LPT},
@@ -1127,6 +1136,36 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 			info->writeable = !!(bcr & BCR_WPD);
 		}
 		break;
+
+	case INTEL_SPI_BXT: {
+		unsigned int p2sb = PCI_DEVFN(13, 0);
+		unsigned int spi = PCI_DEVFN(13, 2);
+		struct pci_bus *bus = dev->bus;
+
+		/*
+		 * The P2SB is hidden by BIOS and we need to unhide it in
+		 * order to read BAR of the SPI flash device. Once that is
+		 * done we hide it again.
+		 */
+		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x0);
+		pci_bus_read_config_dword(bus, spi, PCI_BASE_ADDRESS_0,
+					  &spi_base);
+		if (spi_base != ~0) {
+			res->start = spi_base & 0xfffffff0;
+			res->end = res->start + SPIBASE_APL_SZ - 1;
+
+			pci_bus_read_config_dword(bus, spi, BCR, &bcr);
+			if (!(bcr & BCR_WPD)) {
+				bcr |= BCR_WPD;
+				pci_bus_write_config_dword(bus, spi, BCR, bcr);
+				pci_bus_read_config_dword(bus, spi, BCR, &bcr);
+			}
+			info->writeable = !!(bcr & BCR_WPD);
+		}
+
+		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x1);
+		break;
+	}
 
 	default:
 		return -EINVAL;
