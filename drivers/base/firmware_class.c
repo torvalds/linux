@@ -546,11 +546,13 @@ static ssize_t timeout_store(struct class *class, struct class_attribute *attr,
 
 	return count;
 }
+static CLASS_ATTR_RW(timeout);
 
-static struct class_attribute firmware_class_attrs[] = {
-	__ATTR_RW(timeout),
-	__ATTR_NULL
+static struct attribute *firmware_class_attrs[] = {
+	&class_attr_timeout.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(firmware_class);
 
 static void fw_dev_release(struct device *dev)
 {
@@ -585,7 +587,7 @@ static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static struct class firmware_class = {
 	.name		= "firmware",
-	.class_attrs	= firmware_class_attrs,
+	.class_groups	= firmware_class_groups,
 	.dev_uevent	= firmware_uevent,
 	.dev_release	= fw_dev_release,
 };
