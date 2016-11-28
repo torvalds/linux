@@ -762,8 +762,75 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 		 (dclr & BIT(15)) ?  "yes" : "no");
 }
 
+static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
+{
+	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
+	int dimm, size0, size1;
+
+	edac_printk(KERN_DEBUG, EDAC_MC, "UMC%d chip selects:\n", ctrl);
+
+	for (dimm = 0; dimm < 4; dimm++) {
+		size0 = 0;
+
+		if (dcsb[dimm*2] & DCSB_CS_ENABLE)
+			size0 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, dimm);
+
+		size1 = 0;
+		if (dcsb[dimm*2 + 1] & DCSB_CS_ENABLE)
+			size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, dimm);
+
+		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
+				dimm * 2,     size0,
+				dimm * 2 + 1, size1);
+	}
+}
+
+static void __dump_misc_regs_df(struct amd64_pvt *pvt)
+{
+	struct amd64_umc *umc;
+	u32 i, tmp, umc_base;
+
+	for (i = 0; i < NUM_UMCS; i++) {
+		umc_base = get_umc_base(i);
+		umc = &pvt->umc[i];
+
+		edac_dbg(1, "UMC%d DIMM cfg: 0x%x\n", i, umc->dimm_cfg);
+		edac_dbg(1, "UMC%d UMC cfg: 0x%x\n", i, umc->umc_cfg);
+		edac_dbg(1, "UMC%d SDP ctrl: 0x%x\n", i, umc->sdp_ctrl);
+		edac_dbg(1, "UMC%d ECC ctrl: 0x%x\n", i, umc->ecc_ctrl);
+
+		amd_smn_read(pvt->mc_node_id, umc_base + UMCCH_ECC_BAD_SYMBOL, &tmp);
+		edac_dbg(1, "UMC%d ECC bad symbol: 0x%x\n", i, tmp);
+
+		amd_smn_read(pvt->mc_node_id, umc_base + UMCCH_UMC_CAP, &tmp);
+		edac_dbg(1, "UMC%d UMC cap: 0x%x\n", i, tmp);
+		edac_dbg(1, "UMC%d UMC cap high: 0x%x\n", i, umc->umc_cap_hi);
+
+		edac_dbg(1, "UMC%d ECC capable: %s, ChipKill ECC capable: %s\n",
+				i, (umc->umc_cap_hi & BIT(30)) ? "yes" : "no",
+				    (umc->umc_cap_hi & BIT(31)) ? "yes" : "no");
+		edac_dbg(1, "UMC%d All DIMMs support ECC: %s\n",
+				i, (umc->umc_cfg & BIT(12)) ? "yes" : "no");
+		edac_dbg(1, "UMC%d x4 DIMMs present: %s\n",
+				i, (umc->dimm_cfg & BIT(6)) ? "yes" : "no");
+		edac_dbg(1, "UMC%d x16 DIMMs present: %s\n",
+				i, (umc->dimm_cfg & BIT(7)) ? "yes" : "no");
+
+		if (pvt->dram_type == MEM_LRDDR4) {
+			amd_smn_read(pvt->mc_node_id, umc_base + UMCCH_ADDR_CFG, &tmp);
+			edac_dbg(1, "UMC%d LRDIMM %dx rank multiply\n",
+					i, 1 << ((tmp >> 4) & 0x3));
+		}
+
+		debug_display_dimm_sizes_df(pvt, i);
+	}
+
+	edac_dbg(1, "F0x104 (DRAM Hole Address): 0x%08x, base: 0x%08x\n",
+		 pvt->dhar, dhar_base(pvt));
+}
+
 /* Display and decode various NB registers for debug purposes. */
-static void dump_misc_regs(struct amd64_pvt *pvt)
+static void __dump_misc_regs(struct amd64_pvt *pvt)
 {
 	edac_dbg(1, "F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
@@ -783,8 +850,6 @@ static void dump_misc_regs(struct amd64_pvt *pvt)
 		 (pvt->fam == 0xf) ? k8_dhar_offset(pvt)
 				   : f10_dhar_offset(pvt));
 
-	edac_dbg(1, "  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
-
 	debug_display_dimm_sizes(pvt, 0);
 
 	/* everything below this point is Fam10h and above */
@@ -793,11 +858,23 @@ static void dump_misc_regs(struct amd64_pvt *pvt)
 
 	debug_display_dimm_sizes(pvt, 1);
 
-	amd64_info("using %s syndromes.\n", ((pvt->ecc_sym_sz == 8) ? "x8" : "x4"));
-
 	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
 		debug_dump_dramcfg_low(pvt, pvt->dclr1, 1);
+}
+
+/* Display and decode various NB registers for debug purposes. */
+static void dump_misc_regs(struct amd64_pvt *pvt)
+{
+	if (pvt->umc)
+		__dump_misc_regs_df(pvt);
+	else
+		__dump_misc_regs(pvt);
+
+	edac_dbg(1, "  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
+
+	amd64_info("using %s syndromes.\n",
+			((pvt->ecc_sym_sz == 8) ? "x8" : "x4"));
 }
 
 /*
@@ -2001,8 +2078,9 @@ static void debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 
 		size0 = 0;
 		if (dcsb[dimm*2] & DCSB_CS_ENABLE)
-			/* For f15m60h, need multiplier for LRDIMM cs_size
-			 * calculation. We pass 'dimm' value to the dbam_to_cs
+			/*
+			 * For F15m60h, we need multiplier for LRDIMM cs_size
+			 * calculation. We pass dimm value to the dbam_to_cs
 			 * mapper so we can find the multiplier from the
 			 * corresponding DCSM.
 			 */
@@ -2463,9 +2541,11 @@ static void __read_mc_regs_df(struct amd64_pvt *pvt)
 		umc_base = get_umc_base(i);
 		umc = &pvt->umc[i];
 
+		amd_smn_read(nid, umc_base + UMCCH_DIMM_CFG, &umc->dimm_cfg);
+		amd_smn_read(nid, umc_base + UMCCH_UMC_CFG, &umc->umc_cfg);
 		amd_smn_read(nid, umc_base + UMCCH_SDP_CTRL, &umc->sdp_ctrl);
 		amd_smn_read(nid, umc_base + UMCCH_ECC_CTRL, &umc->ecc_ctrl);
-		amd_smn_read(nid, umc_base + UMCCH_DIMM_CFG, &umc->dimm_cfg);
+		amd_smn_read(nid, umc_base + UMCCH_UMC_CAP_HI, &umc->umc_cap_hi);
 	}
 }
 

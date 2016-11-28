@@ -260,9 +260,13 @@
 /* UMC CH register offsets */
 #define UMCCH_BASE_ADDR			0x0
 #define UMCCH_ADDR_MASK			0x20
+#define UMCCH_ADDR_CFG			0x30
 #define UMCCH_DIMM_CFG			0x80
+#define UMCCH_UMC_CFG			0x100
 #define UMCCH_SDP_CTRL			0x104
 #define UMCCH_ECC_CTRL			0x14C
+#define UMCCH_ECC_BAD_SYMBOL		0xD90
+#define UMCCH_UMC_CAP			0xDF0
 #define UMCCH_UMC_CAP_HI		0xDF4
 
 /* UMC CH bitfields */
@@ -316,8 +320,10 @@ struct chip_select {
 
 struct amd64_umc {
 	u32 dimm_cfg;		/* DIMM Configuration reg */
+	u32 umc_cfg;		/* Configuration reg */
 	u32 sdp_ctrl;		/* SDP Control reg */
 	u32 ecc_ctrl;		/* DRAM ECC Control reg */
+	u32 umc_cap_hi;		/* Capabilities High reg */
 };
 
 struct amd64_pvt {
