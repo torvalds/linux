@@ -267,29 +267,10 @@ static int nvm_scan_block(struct nvm_dev *dev, struct ppa_addr *ppa,
 	return found;
 }
 
-static int nvm_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s, int type)
+static int nvm_sysblk_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s,
+								int type)
 {
-	struct nvm_rq rqd;
-	int ret;
-
-	if (s->nr_ppas > dev->ops->max_phys_sect) {
-		pr_err("nvm: unable to update all sysblocks atomically\n");
-		return -EINVAL;
-	}
-
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-
-	nvm_set_rqd_ppalist(dev, &rqd, s->ppas, s->nr_ppas, 1);
-	nvm_generic_to_addr_mode(dev, &rqd);
-
-	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
-	nvm_free_rqd_ppalist(dev, &rqd);
-	if (ret) {
-		pr_err("nvm: sysblk failed bb mark\n");
-		return -EINVAL;
-	}
-
-	return 0;
+	return nvm_set_bb_tbl(dev, s->ppas, s->nr_ppas, type);
 }
 
 static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
@@ -573,7 +554,7 @@ int nvm_init_sysblock(struct nvm_dev *dev, struct nvm_sb_info *info)
 	if (ret)
 		goto err_mark;
 
-	ret = nvm_set_bb_tbl(dev, &s, NVM_BLK_T_HOST);
+	ret = nvm_sysblk_set_bb_tbl(dev, &s, NVM_BLK_T_HOST);
 	if (ret)
 		goto err_mark;
 
@@ -733,7 +714,7 @@ int nvm_dev_factory(struct nvm_dev *dev, int flags)
 		mutex_lock(&dev->mlock);
 		ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, 0);
 		if (!ret)
-			ret = nvm_set_bb_tbl(dev, &s, NVM_BLK_T_FREE);
+			ret = nvm_sysblk_set_bb_tbl(dev, &s, NVM_BLK_T_FREE);
 		mutex_unlock(&dev->mlock);
 	}
 err_ppas:

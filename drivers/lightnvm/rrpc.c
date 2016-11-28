@@ -675,6 +675,34 @@ static void rrpc_run_gc(struct rrpc *rrpc, struct rrpc_block *rblk)
 	queue_work(rrpc->kgc_wq, &gcb->ws_gc);
 }
 
+static void __rrpc_mark_bad_block(struct nvm_dev *dev, struct ppa_addr *ppa)
+{
+		nvm_mark_blk(dev, *ppa, NVM_BLK_ST_BAD);
+		nvm_set_bb_tbl(dev, ppa, 1, NVM_BLK_T_GRWN_BAD);
+}
+
+static void rrpc_mark_bad_block(struct rrpc *rrpc, struct nvm_rq *rqd)
+{
+	struct nvm_dev *dev = rrpc->dev;
+	void *comp_bits = &rqd->ppa_status;
+	struct ppa_addr ppa, prev_ppa;
+	int nr_ppas = rqd->nr_ppas;
+	int bit;
+
+	if (rqd->nr_ppas == 1)
+		__rrpc_mark_bad_block(dev, &rqd->ppa_addr);
+
+	ppa_set_empty(&prev_ppa);
+	bit = -1;
+	while ((bit = find_next_bit(comp_bits, nr_ppas, bit + 1)) < nr_ppas) {
+		ppa = rqd->ppa_list[bit];
+		if (ppa_cmp_blk(ppa, prev_ppa))
+			continue;
+
+		__rrpc_mark_bad_block(dev, &ppa);
+	}
+}
+
 static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 						sector_t laddr, uint8_t npages)
 {
@@ -701,8 +729,12 @@ static void rrpc_end_io(struct nvm_rq *rqd)
 	uint8_t npages = rqd->nr_ppas;
 	sector_t laddr = rrpc_get_laddr(rqd->bio) - npages;
 
-	if (bio_data_dir(rqd->bio) == WRITE)
+	if (bio_data_dir(rqd->bio) == WRITE) {
+		if (rqd->error == NVM_RSP_ERR_FAILWRITE)
+			rrpc_mark_bad_block(rrpc, rqd);
+
 		rrpc_end_io_write(rrpc, rrqd, laddr, npages);
+	}
 
 	bio_put(rqd->bio);
 

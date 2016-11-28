@@ -423,6 +423,15 @@ static inline struct ppa_addr block_to_ppa(struct nvm_dev *dev,
 	return ppa;
 }
 
+static inline int ppa_cmp_blk(struct ppa_addr ppa1, struct ppa_addr ppa2)
+{
+	if (ppa_empty(ppa1) || ppa_empty(ppa2))
+		return 0;
+
+	return ((ppa1.g.ch == ppa2.g.ch) && (ppa1.g.lun == ppa2.g.lun) &&
+					(ppa1.g.blk == ppa2.g.blk));
+}
+
 static inline int ppa_to_slc(struct nvm_dev *dev, int slc_pg)
 {
 	return dev->lptbl[slc_pg];
@@ -528,7 +537,9 @@ extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
 
-void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type);
+extern void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type);
+extern int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas,
+							int nr_ppas, int type);
 
 extern int nvm_submit_io(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
