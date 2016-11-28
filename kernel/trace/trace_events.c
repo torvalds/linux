@@ -702,6 +702,7 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 	struct trace_event_call *call;
 	const char *name;
 	int ret = -EINVAL;
+	int eret = 0;
 
 	list_for_each_entry(file, &tr->events, list) {
 
@@ -725,9 +726,17 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 		if (event && strcmp(event, name) != 0)
 			continue;
 
-		ftrace_event_enable_disable(file, set);
+		ret = ftrace_event_enable_disable(file, set);
 
-		ret = 0;
+		/*
+		 * Save the first error and return that. Some events
+		 * may still have been enabled, but let the user
+		 * know that something went wrong.
+		 */
+		if (ret && !eret)
+			eret = ret;
+
+		ret = eret;
 	}
 
 	return ret;
