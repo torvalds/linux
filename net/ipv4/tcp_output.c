@@ -1514,6 +1514,18 @@ static void tcp_cwnd_validate(struct sock *sk, bool is_cwnd_limited)
 		if (sysctl_tcp_slow_start_after_idle &&
 		    (s32)(tcp_time_stamp - tp->snd_cwnd_stamp) >= inet_csk(sk)->icsk_rto)
 			tcp_cwnd_application_limited(sk);
+
+		/* The following conditions together indicate the starvation
+		 * is caused by insufficient sender buffer:
+		 * 1) just sent some data (see tcp_write_xmit)
+		 * 2) not cwnd limited (this else condition)
+		 * 3) no more data to send (null tcp_send_head )
+		 * 4) application is hitting buffer limit (SOCK_NOSPACE)
+		 */
+		if (!tcp_send_head(sk) && sk->sk_socket &&
+		    test_bit(SOCK_NOSPACE, &sk->sk_socket->flags) &&
+		    (1 << sk->sk_state) & (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT))
+			tcp_chrono_start(sk, TCP_CHRONO_SNDBUF_LIMITED);
 	}
 }
 

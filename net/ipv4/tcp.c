@@ -996,8 +996,11 @@ do_error:
 		goto out;
 out_err:
 	/* make sure we wake any epoll edge trigger waiter */
-	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 &&
+		     err == -EAGAIN)) {
 		sk->sk_write_space(sk);
+		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
+	}
 	return sk_stream_error(sk, flags, err);
 }
 
@@ -1331,8 +1334,11 @@ do_error:
 out_err:
 	err = sk_stream_error(sk, flags, err);
 	/* make sure we wake any epoll edge trigger waiter */
-	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 &&
+		     err == -EAGAIN)) {
 		sk->sk_write_space(sk);
+		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
+	}
 	release_sock(sk);
 	return err;
 }
