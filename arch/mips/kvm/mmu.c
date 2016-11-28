@@ -696,6 +696,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	local_irq_save(flags);
 
+	vcpu->cpu = cpu;
 	if (vcpu->arch.last_sched_cpu != cpu) {
 		kvm_debug("[%d->%d]KVM VCPU[%d] switch\n",
 			  vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
@@ -723,6 +724,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 	cpu = smp_processor_id();
 	vcpu->arch.last_sched_cpu = cpu;
+	vcpu->cpu = -1;
 
 	/* save guest state in registers */
 	kvm_mips_callbacks->vcpu_put(vcpu, cpu);

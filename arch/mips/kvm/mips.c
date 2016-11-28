@@ -365,6 +365,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	guest_enter_irqoff();
 	trace_kvm_enter(vcpu);
 
+	/*
+	 * Make sure the read of VCPU requests in vcpu_run() callback is not
+	 * reordered ahead of the write to vcpu->mode, or we could miss a TLB
+	 * flush request while the requester sees the VCPU as outside of guest
+	 * mode and not needing an IPI.
+	 */
+	smp_store_mb(vcpu->mode, IN_GUEST_MODE);
+
 	r = kvm_mips_callbacks->vcpu_run(run, vcpu);
 
 	trace_kvm_out(vcpu);
@@ -1326,6 +1334,8 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	u32 inst;
 	int ret = RESUME_GUEST;
 
+	vcpu->mode = OUTSIDE_GUEST_MODE;
+
 	/* re-enable HTW before enabling interrupts */
 	htw_start();
 
@@ -1480,6 +1490,14 @@ skip_emul:
 
 	if (ret == RESUME_GUEST) {
 		trace_kvm_reenter(vcpu);
+
+		/*
+		 * Make sure the read of VCPU requests in vcpu_reenter()
+		 * callback is not reordered ahead of the write to vcpu->mode,
+		 * or we could miss a TLB flush request while the requester sees
+		 * the VCPU as outside of guest mode and not needing an IPI.
+		 */
+		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
 		kvm_mips_callbacks->vcpu_reenter(run, vcpu);
 
