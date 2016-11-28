@@ -877,6 +877,17 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 		   (wm->ddl[pipe].plane[PLANE_SPRITE0] << DDL_SPRITE_SHIFT(0)) |
 		   (wm->ddl[pipe].plane[PLANE_PRIMARY] << DDL_PLANE_SHIFT));
 
+	/*
+	 * Zero the (unused) WM1 watermarks, and also clear all the
+	 * high order bits so that there are no out of bounds values
+	 * present in the registers during the reprogramming.
+	 */
+	I915_WRITE(DSPHOWM, 0);
+	I915_WRITE(DSPHOWM1, 0);
+	I915_WRITE(DSPFW4, 0);
+	I915_WRITE(DSPFW5, 0);
+	I915_WRITE(DSPFW6, 0);
+
 	I915_WRITE(DSPFW1,
 		   FW_WM(wm->sr.plane, SR) |
 		   FW_WM(wm->pipe[PIPE_B].plane[PLANE_CURSOR], CURSORB) |
@@ -923,12 +934,6 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 			   FW_WM(wm->pipe[PIPE_A].plane[PLANE_SPRITE0] >> 8, SPRITEA_HI) |
 			   FW_WM(wm->pipe[PIPE_A].plane[PLANE_PRIMARY] >> 8, PLANEA_HI));
 	}
-
-	/* zero (unused) WM1 watermarks */
-	I915_WRITE(DSPFW4, 0);
-	I915_WRITE(DSPFW5, 0);
-	I915_WRITE(DSPFW6, 0);
-	I915_WRITE(DSPHOWM1, 0);
 
 	POSTING_READ(DSPFW1);
 }
