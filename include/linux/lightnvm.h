@@ -210,6 +210,7 @@ struct nvm_id {
 
 struct nvm_target {
 	struct list_head list;
+	struct list_head lun_list;
 	struct nvm_dev *dev;
 	struct nvm_tgt_type *type;
 	struct gendisk *disk;
@@ -273,6 +274,7 @@ struct nvm_lun {
 	int lun_id;
 	int chnl_id;
 
+	struct list_head list;
 	spinlock_t lock;
 
 	/* lun block lists */
@@ -521,8 +523,6 @@ typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *, int);
 typedef void (nvmm_mark_blk_fn)(struct nvm_dev *, struct ppa_addr, int);
 typedef struct nvm_lun *(nvmm_get_lun_fn)(struct nvm_dev *, int);
-typedef int (nvmm_reserve_lun)(struct nvm_dev *, int);
-typedef void (nvmm_release_lun)(struct nvm_dev *, int);
 typedef void (nvmm_lun_info_print_fn)(struct nvm_dev *);
 
 typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
@@ -550,8 +550,6 @@ struct nvmm_type {
 
 	/* Configuration management */
 	nvmm_get_lun_fn *get_lun;
-	nvmm_reserve_lun *reserve_lun;
-	nvmm_release_lun *release_lun;
 
 	/* Statistics */
 	nvmm_lun_info_print_fn *lun_info_print;

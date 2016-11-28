@@ -35,6 +35,45 @@ static const struct block_device_operations gen_fops = {
 	.owner		= THIS_MODULE,
 };
 
+static int gen_reserve_luns(struct nvm_dev *dev, struct nvm_target *t,
+			    int lun_begin, int lun_end)
+{
+	struct gen_dev *gn = dev->mp;
+	struct nvm_lun *lun;
+	int i;
+
+	for (i = lun_begin; i <= lun_end; i++) {
+		if (test_and_set_bit(i, dev->lun_map)) {
+			pr_err("nvm: lun %d already allocated\n", i);
+			goto err;
+		}
+
+		lun = &gn->luns[i];
+		list_add_tail(&lun->list, &t->lun_list);
+	}
+
+	return 0;
+
+err:
+	while (--i > lun_begin) {
+		lun = &gn->luns[i];
+		clear_bit(i, dev->lun_map);
+		list_del(&lun->list);
+	}
+
+	return -EBUSY;
+}
+
+static void gen_release_luns(struct nvm_dev *dev, struct nvm_target *t)
+{
+	struct nvm_lun *lun, *tmp;
+
+	list_for_each_entry_safe(lun, tmp, &t->lun_list, list) {
+		WARN_ON(!test_and_clear_bit(lun->id, dev->lun_map));
+		list_del(&lun->list);
+	}
+}
+
 static int gen_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 {
 	struct gen_dev *gn = dev->mp;
@@ -64,9 +103,14 @@ static int gen_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	if (!t)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&t->lun_list);
+
+	if (gen_reserve_luns(dev, t, s->lun_begin, s->lun_end))
+		goto err_t;
+
 	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
 	if (!tqueue)
-		goto err_t;
+		goto err_reserve;
 	blk_queue_make_request(tqueue, tt->make_rq);
 
 	tdisk = alloc_disk(0);
@@ -105,6 +149,8 @@ err_init:
 	put_disk(tdisk);
 err_queue:
 	blk_cleanup_queue(tqueue);
+err_reserve:
+	gen_release_luns(dev, t);
 err_t:
 	kfree(t);
 	return -ENOMEM;
@@ -122,6 +168,7 @@ static void __gen_remove_target(struct nvm_target *t)
 	if (tt->exit)
 		tt->exit(tdisk->private_data);
 
+	gen_release_luns(t->dev, t);
 	put_disk(tdisk);
 
 	list_del(&t->list);
@@ -253,6 +300,7 @@ static int gen_luns_init(struct nvm_dev *dev, struct gen_dev *gn)
 		INIT_LIST_HEAD(&lun->free_list);
 		INIT_LIST_HEAD(&lun->used_list);
 		INIT_LIST_HEAD(&lun->bb_list);
+		INIT_LIST_HEAD(&lun->list);
 
 		spin_lock_init(&lun->lock);
 
@@ -569,16 +617,6 @@ static int gen_erase_blk(struct nvm_dev *dev, struct nvm_block *blk, int flags)
 	return nvm_erase_ppa(dev, &addr, 1, flags);
 }
 
-static int gen_reserve_lun(struct nvm_dev *dev, int lunid)
-{
-	return test_and_set_bit(lunid, dev->lun_map);
-}
-
-static void gen_release_lun(struct nvm_dev *dev, int lunid)
-{
-	WARN_ON(!test_and_clear_bit(lunid, dev->lun_map));
-}
-
 static struct nvm_lun *gen_get_lun(struct nvm_dev *dev, int lunid)
 {
 	struct gen_dev *gn = dev->mp;
@@ -625,8 +663,6 @@ static struct nvmm_type gen = {
 	.mark_blk		= gen_mark_blk,
 
 	.get_lun		= gen_get_lun,
-	.reserve_lun		= gen_reserve_lun,
-	.release_lun		= gen_release_lun,
 	.lun_info_print		= gen_lun_info_print,
 
 	.get_area		= gen_get_area,

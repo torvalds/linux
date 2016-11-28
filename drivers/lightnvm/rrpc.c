@@ -1126,7 +1126,6 @@ static void rrpc_core_free(struct rrpc *rrpc)
 
 static void rrpc_luns_free(struct rrpc *rrpc)
 {
-	struct nvm_dev *dev = rrpc->dev;
 	struct nvm_lun *lun;
 	struct rrpc_lun *rlun;
 	int i;
@@ -1139,7 +1138,6 @@ static void rrpc_luns_free(struct rrpc *rrpc)
 		lun = rlun->parent;
 		if (!lun)
 			break;
-		dev->mt->release_lun(dev, lun->id);
 		vfree(rlun->blocks);
 	}
 
@@ -1168,11 +1166,6 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 	for (i = 0; i < rrpc->nr_luns; i++) {
 		int lunid = lun_begin + i;
 		struct nvm_lun *lun;
-
-		if (dev->mt->reserve_lun(dev, lunid)) {
-			pr_err("rrpc: lun %u is already allocated\n", lunid);
-			goto err;
-		}
 
 		lun = dev->mt->get_lun(dev, lunid);
 		if (!lun)
