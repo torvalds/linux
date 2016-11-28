@@ -665,15 +665,21 @@ void wbt_set_write_cache(struct rq_wb *rwb, bool write_cache_on)
 		rwb->wc = write_cache_on;
 }
 
-void wbt_disable(struct rq_wb *rwb)
+ /*
+ * Disable wbt, if enabled by default. Only called from CFQ, if we have
+ * cgroups enabled
+ */
+void wbt_disable_default(struct request_queue *q)
 {
+	struct rq_wb *rwb = q->rq_wb;
+
 	if (rwb) {
 		del_timer_sync(&rwb->window_timer);
 		rwb->win_nsec = rwb->min_lat_nsec = 0;
 		wbt_update_limits(rwb);
 	}
 }
-EXPORT_SYMBOL_GPL(wbt_disable);
+EXPORT_SYMBOL_GPL(wbt_disable_default);
 
 u64 wbt_default_latency_nsec(struct request_queue *q)
 {

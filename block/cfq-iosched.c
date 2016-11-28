@@ -3780,13 +3780,10 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	/*
 	 * If we have a non-root cgroup, we can depend on that to
 	 * do proper throttling of writes. Turn off wbt for that
-	 * case.
+	 * case, if it was enabled by default.
 	 */
-	if (nonroot_cg) {
-		struct request_queue *q = cfqd->queue;
-
-		wbt_disable(q->rq_wb);
-	}
+	if (nonroot_cg)
+		wbt_disable_default(cfqd->queue);
 
 	/*
 	 * Drop reference to queues.  New queues will be assigned in new

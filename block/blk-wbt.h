@@ -105,7 +105,7 @@ void wbt_exit(struct request_queue *);
 void wbt_update_limits(struct rq_wb *);
 void wbt_requeue(struct rq_wb *, struct blk_issue_stat *);
 void wbt_issue(struct rq_wb *, struct blk_issue_stat *);
-void wbt_disable(struct rq_wb *);
+void wbt_disable_default(struct request_queue *);
 
 void wbt_set_queue_depth(struct rq_wb *, unsigned int);
 void wbt_set_write_cache(struct rq_wb *, bool);
@@ -141,7 +141,7 @@ static inline void wbt_requeue(struct rq_wb *rwb, struct blk_issue_stat *stat)
 static inline void wbt_issue(struct rq_wb *rwb, struct blk_issue_stat *stat)
 {
 }
-static inline void wbt_disable(struct rq_wb *rwb)
+static inline void wbt_disable_default(struct request_queue *q)
 {
 }
 static inline void wbt_set_queue_depth(struct rq_wb *rwb, unsigned int depth)
