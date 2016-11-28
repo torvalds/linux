@@ -735,7 +735,7 @@ static void __rrpc_mark_bad_block(struct rrpc *rrpc, struct ppa_addr ppa)
 	rblk = &rlun->blocks[ppa.g.blk];
 	rblk->state = NVM_BLK_ST_BAD;
 
-	nvm_set_bb_tbl(dev->parent, &ppa, 1, NVM_BLK_T_GRWN_BAD);
+	nvm_set_tgt_bb_tbl(dev, &ppa, 1, NVM_BLK_T_GRWN_BAD);
 }
 
 static void rrpc_mark_bad_block(struct rrpc *rrpc, struct nvm_rq *rqd)
@@ -1267,7 +1267,7 @@ static int rrpc_bb_discovery(struct nvm_tgt_dev *dev, struct rrpc_lun *rlun)
 	ppa.g.ch = rlun->bppa.g.ch;
 	ppa.g.lun = rlun->bppa.g.lun;
 
-	ret = nvm_get_bb_tbl(dev->parent, ppa, blks);
+	ret = nvm_get_tgt_bb_tbl(dev, ppa, blks);
 	if (ret) {
 		pr_err("rrpc: could not get BB table\n");
 		goto out;

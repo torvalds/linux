@@ -175,6 +175,26 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
+static void nvm_tgt_generic_to_addr_mode(struct nvm_tgt_dev *tgt_dev,
+					 struct nvm_rq *rqd)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+	int i;
+
+	if (rqd->nr_ppas > 1) {
+		for (i = 0; i < rqd->nr_ppas; i++) {
+			rqd->ppa_list[i] = dev->mt->trans_ppa(tgt_dev,
+					rqd->ppa_list[i], TRANS_TGT_TO_DEV);
+			rqd->ppa_list[i] = generic_to_dev_addr(dev,
+							rqd->ppa_list[i]);
+		}
+	} else {
+		rqd->ppa_addr = dev->mt->trans_ppa(tgt_dev, rqd->ppa_addr,
+						TRANS_TGT_TO_DEV);
+		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
+	}
+}
+
 int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas,
 								int type)
 {
@@ -201,6 +221,34 @@ int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas,
 	return 0;
 }
 EXPORT_SYMBOL(nvm_set_bb_tbl);
+
+int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
+		       int nr_ppas, int type)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_rq rqd;
+	int ret;
+
+	if (nr_ppas > dev->ops->max_phys_sect) {
+		pr_err("nvm: unable to update all blocks atomically\n");
+		return -EINVAL;
+	}
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+
+	nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas, 1);
+	nvm_tgt_generic_to_addr_mode(tgt_dev, &rqd);
+
+	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
+	nvm_free_rqd_ppalist(dev, &rqd);
+	if (ret) {
+		pr_err("nvm: sysblk failed bb mark\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nvm_set_tgt_bb_tbl);
 
 int nvm_max_phys_sects(struct nvm_tgt_dev *tgt_dev)
 {
@@ -518,6 +566,16 @@ int nvm_get_bb_tbl(struct nvm_dev *dev, struct ppa_addr ppa, u8 *blks)
 	return dev->ops->get_bb_tbl(dev, ppa, blks);
 }
 EXPORT_SYMBOL(nvm_get_bb_tbl);
+
+int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr ppa,
+		       u8 *blks)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+
+	ppa = dev->mt->trans_ppa(tgt_dev, ppa, TRANS_TGT_TO_DEV);
+	return nvm_get_bb_tbl(dev, ppa, blks);
+}
+EXPORT_SYMBOL(nvm_get_tgt_bb_tbl);
 
 static int nvm_init_slc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
 {

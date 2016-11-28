@@ -496,7 +496,14 @@ typedef int (nvmm_submit_io_fn)(struct nvm_tgt_dev *, struct nvm_rq *);
 typedef int (nvmm_erase_blk_fn)(struct nvm_tgt_dev *, struct ppa_addr *, int);
 typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
 typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
+typedef struct ppa_addr (nvmm_trans_ppa_fn)(struct nvm_tgt_dev *,
+					    struct ppa_addr, int);
 typedef void (nvmm_part_to_tgt_fn)(struct nvm_dev *, sector_t*, int);
+
+enum {
+	TRANS_TGT_TO_DEV =	0x0,
+	TRANS_DEV_TO_TGT =	0x1,
+};
 
 struct nvmm_type {
 	const char *name;
@@ -514,6 +521,7 @@ struct nvmm_type {
 	nvmm_get_area_fn *get_area;
 	nvmm_put_area_fn *put_area;
 
+	nvmm_trans_ppa_fn *trans_ppa;
 	nvmm_part_to_tgt_fn *part_to_tgt;
 
 	struct list_head list;
@@ -526,9 +534,9 @@ extern struct nvm_dev *nvm_alloc_dev(int);
 extern int nvm_register(struct nvm_dev *);
 extern void nvm_unregister(struct nvm_dev *);
 
-extern int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas,
-							int nr_ppas, int type);
-
+extern int nvm_set_bb_tbl(struct nvm_dev *, struct ppa_addr *, int, int);
+extern int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr *,
+			      int, int);
 extern int nvm_max_phys_sects(struct nvm_tgt_dev *);
 extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
@@ -549,6 +557,7 @@ extern int nvm_submit_ppa_list(struct nvm_dev *, struct ppa_addr *, int, int,
 							int, void *, int);
 extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
 extern int nvm_get_bb_tbl(struct nvm_dev *, struct ppa_addr, u8 *);
+extern int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *, struct ppa_addr, u8 *);
 
 /* sysblk.c */
 #define NVM_SYSBLK_MAGIC 0x4E564D53 /* "NVMS" */
