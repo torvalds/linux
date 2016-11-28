@@ -21,6 +21,8 @@ static u64 bm_stddev;
 static unsigned int bm_avg;
 static unsigned int bm_std;
 
+static bool ok_to_run;
+
 /*
  * This gets called in a loop recording the time it took to write
  * the tracepoint. What it writes is the time statistics of the last
@@ -166,7 +168,7 @@ static int benchmark_event_kthread(void *arg)
  */
 int trace_benchmark_reg(void)
 {
-	if (system_state != SYSTEM_RUNNING) {
+	if (!ok_to_run) {
 		pr_warning("trace benchmark cannot be started via kernel command line\n");
 		return -EBUSY;
 	}
@@ -207,3 +209,12 @@ void trace_benchmark_unreg(void)
 	bm_avg = 0;
 	bm_stddev = 0;
 }
+
+static __init int ok_to_run_trace_benchmark(void)
+{
+	ok_to_run = true;
+
+	return 0;
+}
+
+early_initcall(ok_to_run_trace_benchmark);
