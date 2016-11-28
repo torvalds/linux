@@ -224,6 +224,36 @@ OUT_PKT3(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 	OUT_RING(ring, CP_TYPE3_PKT | ((cnt-1) << 16) | ((opcode & 0xFF) << 8));
 }
 
+static inline u32 PM4_PARITY(u32 val)
+{
+	return (0x9669 >> (0xF & (val ^
+		(val >> 4) ^ (val >> 8) ^ (val >> 12) ^
+		(val >> 16) ^ ((val) >> 20) ^ (val >> 24) ^
+		(val >> 28)))) & 1;
+}
+
+/* Maximum number of values that can be executed for one opcode */
+#define TYPE4_MAX_PAYLOAD 127
+
+#define PKT4(_reg, _cnt) \
+	(CP_TYPE4_PKT | ((_cnt) << 0) | (PM4_PARITY((_cnt)) << 7) | \
+	 (((_reg) & 0x3FFFF) << 8) | (PM4_PARITY((_reg)) << 27))
+
+static inline void
+OUT_PKT4(struct msm_ringbuffer *ring, uint16_t regindx, uint16_t cnt)
+{
+	adreno_wait_ring(ring->gpu, cnt + 1);
+	OUT_RING(ring, PKT4(regindx, cnt));
+}
+
+static inline void
+OUT_PKT7(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
+{
+	adreno_wait_ring(ring->gpu, cnt + 1);
+	OUT_RING(ring, CP_TYPE7_PKT | (cnt << 0) | (PM4_PARITY(cnt) << 15) |
+		((opcode & 0x7F) << 16) | (PM4_PARITY(opcode) << 23));
+}
+
 /*
  * adreno_reg_check() - Checks the validity of a register enum
  * @gpu:		Pointer to struct adreno_gpu
