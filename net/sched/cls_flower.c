@@ -732,8 +732,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 
 	if (fold) {
-		rhashtable_remove_fast(&head->ht, &fold->ht_node,
-				       head->ht_params);
+		if (!tc_skip_sw(fold->flags))
+			rhashtable_remove_fast(&head->ht, &fold->ht_node,
+					       head->ht_params);
 		fl_hw_destroy_filter(tp, (unsigned long)fold);
 	}
 
@@ -760,8 +761,9 @@ static int fl_delete(struct tcf_proto *tp, unsigned long arg)
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = (struct cls_fl_filter *) arg;
 
-	rhashtable_remove_fast(&head->ht, &f->ht_node,
-			       head->ht_params);
+	if (!tc_skip_sw(f->flags))
+		rhashtable_remove_fast(&head->ht, &f->ht_node,
+				       head->ht_params);
 	list_del_rcu(&f->list);
 	fl_hw_destroy_filter(tp, (unsigned long)f);
 	tcf_unbind_filter(tp, &f->res);
