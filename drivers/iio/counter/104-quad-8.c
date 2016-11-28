@@ -153,7 +153,7 @@ static int quad8_write_raw(struct iio_dev *indio_dev,
 		ior_cfg = val | priv->preset_enable[chan->channel] << 1;
 
 		/* Load I/O control configuration */
-		outb(0x40 | ior_cfg, base_offset);
+		outb(0x40 | ior_cfg, base_offset + 1);
 
 		return 0;
 	case IIO_CHAN_INFO_SCALE:
@@ -241,7 +241,7 @@ static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
 	size_t len)
 {
 	struct quad8_iio *const priv = iio_priv(indio_dev);
-	const int base_offset = priv->base + 2 * chan->channel;
+	const int base_offset = priv->base + 2 * chan->channel + 1;
 	bool preset_enable;
 	int ret;
 	unsigned int ior_cfg;
