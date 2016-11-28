@@ -66,8 +66,8 @@ void cgroup_bpf_inherit(struct cgroup *cgrp, struct cgroup *parent)
  * Each cgroup has a set of two pointers for bpf programs; one for eBPF
  * programs it owns, and which is effective for execution.
  *
- * If @prog is %NULL, this function attaches a new program to the cgroup and
- * releases the one that is currently attached, if any. @prog is then made
+ * If @prog is not %NULL, this function attaches a new program to the cgroup
+ * and releases the one that is currently attached, if any. @prog is then made
  * the effective program of type @type in that cgroup.
  *
  * If @prog is %NULL, the currently attached program of type @type is released,
