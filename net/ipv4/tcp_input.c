@@ -3178,6 +3178,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			tp->lost_skb_hint = NULL;
 	}
 
+	if (!skb)
+		tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
+
 	if (likely(between(tp->snd_up, prior_snd_una, tp->snd_una)))
 		tp->snd_up = tp->snd_una;
 

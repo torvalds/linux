@@ -2096,8 +2096,8 @@ void tcp_chrono_start(struct sock *sk, const enum tcp_chrono type)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	/* If there are multiple conditions worthy of tracking in a
-	 * chronograph then the highest priority enum takes precedence over
-	 * the other conditions. So that if something "more interesting"
+	 * chronograph then the highest priority enum takes precedence
+	 * over the other conditions. So that if something "more interesting"
 	 * starts happening, stop the previous chrono and start a new one.
 	 */
 	if (type > tp->chrono_type)
@@ -2108,7 +2108,18 @@ void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	tcp_chrono_set(tp, TCP_CHRONO_UNSPEC);
+
+	/* There are multiple conditions worthy of tracking in a
+	 * chronograph, so that the highest priority enum takes
+	 * precedence over the other conditions (see tcp_chrono_start).
+	 * If a condition stops, we only stop chrono tracking if
+	 * it's the "most interesting" or current chrono we are
+	 * tracking and starts busy chrono if we have pending data.
+	 */
+	if (tcp_write_queue_empty(sk))
+		tcp_chrono_set(tp, TCP_CHRONO_UNSPEC);
+	else if (type == tp->chrono_type)
+		tcp_chrono_set(tp, TCP_CHRONO_BUSY);
 }
 
 /* This routine writes packets to the network.  It advances the
@@ -3328,6 +3339,8 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 	fo->copied = space;
 
 	tcp_connect_queue_skb(sk, syn_data);
+	if (syn_data->len)
+		tcp_chrono_start(sk, TCP_CHRONO_BUSY);
 
 	err = tcp_transmit_skb(sk, syn_data, 1, sk->sk_allocation);
 
