@@ -27,8 +27,6 @@
 #include <linux/lightnvm.h>
 #include <linux/sched/sysctl.h>
 
-#include "lightnvm.h"
-
 static LIST_HEAD(nvm_tgt_types);
 static DECLARE_RWSEM(nvm_tgtt_lock);
 static LIST_HEAD(nvm_mgrs);
@@ -657,11 +655,6 @@ err:
 	return ret;
 }
 
-static void nvm_exit(struct nvm_dev *dev)
-{
-	nvm_sysfs_unregister_dev(dev);
-}
-
 struct nvm_dev *nvm_alloc_dev(int node)
 {
 	return kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
@@ -691,10 +684,6 @@ int nvm_register(struct nvm_dev *dev)
 		}
 	}
 
-	ret = nvm_sysfs_register_dev(dev);
-	if (ret)
-		goto err_ppalist;
-
 	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
 		ret = nvm_get_sysblock(dev, &dev->sb);
 		if (!ret)
@@ -711,8 +700,6 @@ int nvm_register(struct nvm_dev *dev)
 	up_write(&nvm_lock);
 
 	return 0;
-err_ppalist:
-	dev->ops->destroy_dma_pool(dev->dma_pool);
 err_init:
 	kfree(dev->lun_map);
 	return ret;
@@ -725,7 +712,7 @@ void nvm_unregister(struct nvm_dev *dev)
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
 
-	nvm_exit(dev);
+	nvm_free(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
 

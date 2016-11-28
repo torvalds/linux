@@ -352,8 +352,6 @@ struct nvm_dev {
 
 	/* Backend device */
 	struct request_queue *q;
-	struct device dev;
-	struct device *parent_dev;
 	char name[DISK_NAME_LEN];
 	void *private_data;
 
