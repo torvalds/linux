@@ -267,15 +267,16 @@ process is as follows:
     is using git (the kernel's source management tool, more information
     can be found at https://git-scm.com/) but plain patches are also just
     fine.
-  - After two weeks a -rc1 kernel is released it is now possible to push
-    only patches that do not include new features that could affect the
-    stability of the whole kernel.  Please note that a whole new driver
-    (or filesystem) might be accepted after -rc1 because there is no
-    risk of causing regressions with such a change as long as the change
-    is self-contained and does not affect areas outside of the code that
-    is being added.  git can be used to send patches to Linus after -rc1
-    is released, but the patches need to also be sent to a public
-    mailing list for review.
+  - After two weeks a -rc1 kernel is released and the focus is on making the
+    new kernel as rock solid as possible.  Most of the patches at this point
+    should fix a regression.  Bugs that have always existed are not
+    regressions, so only push these kinds of fixes if they are important.
+    Please note that a whole new driver (or filesystem) might be accepted
+    after -rc1 because there is no risk of causing regressions with such a
+    change as long as the change is self-contained and does not affect areas
+    outside of the code that is being added.  git can be used to send
+    patches to Linus after -rc1 is released, but the patches need to also be
+    sent to a public mailing list for review.
   - A new -rc is released whenever Linus deems the current git tree to
     be in a reasonably sane state adequate for testing.  The goal is to
     release a new -rc kernel every week.
