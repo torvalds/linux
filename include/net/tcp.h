@@ -1516,6 +1516,20 @@ struct tcp_fastopen_context {
 	struct rcu_head		rcu;
 };
 
+/* Latencies incurred by various limits for a sender. They are
+ * chronograph-like stats that are mutually exclusive.
+ */
+enum tcp_chrono {
+	TCP_CHRONO_UNSPEC,
+	TCP_CHRONO_BUSY, /* Actively sending data (non-empty write queue) */
+	TCP_CHRONO_RWND_LIMITED, /* Stalled by insufficient receive window */
+	TCP_CHRONO_SNDBUF_LIMITED, /* Stalled by insufficient send buffer */
+	__TCP_CHRONO_MAX,
+};
+
+void tcp_chrono_start(struct sock *sk, const enum tcp_chrono type);
+void tcp_chrono_stop(struct sock *sk, const enum tcp_chrono type);
+
 /* write queue abstraction */
 static inline void tcp_write_queue_purge(struct sock *sk)
 {

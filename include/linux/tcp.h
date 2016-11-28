@@ -211,8 +211,11 @@ struct tcp_sock {
 		u8 reord;    /* reordering detected */
 	} rack;
 	u16	advmss;		/* Advertised MSS			*/
-	u8	rate_app_limited:1,  /* rate_{delivered,interval_us} limited? */
-		unused:7;
+	u32	chrono_start;	/* Start time in jiffies of a TCP chrono */
+	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
+	u8	chrono_type:2,	/* current chronograph type */
+		rate_app_limited:1,  /* rate_{delivered,interval_us} limited? */
+		unused:5;
 	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
 		thin_lto    : 1,/* Use linear timeouts for thin streams */
 		thin_dupack : 1,/* Fast retransmit on first dupack      */
