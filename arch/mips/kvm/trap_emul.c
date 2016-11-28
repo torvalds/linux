@@ -773,31 +773,86 @@ static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	return 0;
 }
 
+static void kvm_trap_emul_check_requests(struct kvm_vcpu *vcpu, int cpu,
+					 bool reload_asid)
+{
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+	struct mm_struct *mm;
+	int i;
+
+	if (likely(!vcpu->requests))
+		return;
+
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu)) {
+		/*
+		 * Both kernel & user GVA mappings must be invalidated. The
+		 * caller is just about to check whether the ASID is stale
+		 * anyway so no need to reload it here.
+		 */
+		kvm_mips_flush_gva_pt(kern_mm->pgd, KMF_GPA | KMF_KERN);
+		kvm_mips_flush_gva_pt(user_mm->pgd, KMF_GPA | KMF_USER);
+		for_each_possible_cpu(i) {
+			cpu_context(i, kern_mm) = 0;
+			cpu_context(i, user_mm) = 0;
+		}
+
+		/* Generate new ASID for current mode */
+		if (reload_asid) {
+			mm = KVM_GUEST_KERNEL_MODE(vcpu) ? kern_mm : user_mm;
+			get_new_mmu_context(mm, cpu);
+			htw_stop();
+			write_c0_entryhi(cpu_asid(cpu, mm));
+			TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
+			htw_start();
+		}
+	}
+}
+
 static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 				       struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
 	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
+	struct mm_struct *mm;
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int i, cpu = smp_processor_id();
 	unsigned int gasid;
 
 	/*
-	 * Lazy host ASID regeneration / PT flush for guest user mode.
-	 * If the guest ASID has changed since the last guest usermode
-	 * execution, regenerate the host ASID so as to invalidate stale TLB
-	 * entries and flush GVA PT entries too.
+	 * No need to reload ASID, IRQs are disabled already so there's no rush,
+	 * and we'll check if we need to regenerate below anyway before
+	 * re-entering the guest.
 	 */
-	if (!KVM_GUEST_KERNEL_MODE(vcpu)) {
+	kvm_trap_emul_check_requests(vcpu, cpu, false);
+
+	if (KVM_GUEST_KERNEL_MODE(vcpu)) {
+		mm = kern_mm;
+	} else {
+		mm = user_mm;
+
+		/*
+		 * Lazy host ASID regeneration / PT flush for guest user mode.
+		 * If the guest ASID has changed since the last guest usermode
+		 * execution, invalidate the stale TLB entries and flush GVA PT
+		 * entries too.
+		 */
 		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
 		if (gasid != vcpu->arch.last_user_gasid) {
 			kvm_mips_flush_gva_pt(user_mm->pgd, KMF_USER);
-			get_new_mmu_context(user_mm, cpu);
 			for_each_possible_cpu(i)
-				if (i != cpu)
-					cpu_context(i, user_mm) = 0;
+				cpu_context(i, user_mm) = 0;
 			vcpu->arch.last_user_gasid = gasid;
 		}
 	}
+
+	/*
+	 * Check if ASID is stale. This may happen due to a TLB flush request or
+	 * a lazy user MM invalidation.
+	 */
+	if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) &
+	    asid_version_mask(cpu))
+		get_new_mmu_context(mm, cpu);
 }
 
 static int kvm_trap_emul_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
