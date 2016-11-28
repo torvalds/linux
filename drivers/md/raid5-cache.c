@@ -2084,7 +2084,7 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 						     ctx->pos, ctx->seq);
 		mb = page_address(page);
 		offset = le32_to_cpu(mb->meta_size);
-		write_pos = ctx->pos + BLOCK_SECTORS;
+		write_pos = r5l_ring_add(log, ctx->pos, BLOCK_SECTORS);
 
 		for (i = sh->disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
