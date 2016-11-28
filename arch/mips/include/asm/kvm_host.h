@@ -643,6 +643,33 @@ void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu);
 enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause);
 
+/**
+ * kvm_is_ifetch_fault() - Find whether a TLBL exception is due to ifetch fault.
+ * @vcpu:	Virtual CPU.
+ *
+ * Returns:	Whether the TLBL exception was likely due to an instruction
+ *		fetch fault rather than a data load fault.
+ */
+static inline bool kvm_is_ifetch_fault(struct kvm_vcpu_arch *vcpu)
+{
+	unsigned long badvaddr = vcpu->host_cp0_badvaddr;
+	unsigned long epc = msk_isa16_mode(vcpu->pc);
+	u32 cause = vcpu->host_cp0_cause;
+
+	if (epc == badvaddr)
+		return true;
+
+	/*
+	 * Branches may be 32-bit or 16-bit instructions.
+	 * This isn't exact, but we don't really support MIPS16 or microMIPS yet
+	 * in KVM anyway.
+	 */
+	if ((cause & CAUSEF_BD) && badvaddr - epc <= 4)
+		return true;
+
+	return false;
+}
+
 extern enum emulation_result kvm_mips_emulate_inst(u32 cause,
 						   u32 *opc,
 						   struct kvm_run *run,
