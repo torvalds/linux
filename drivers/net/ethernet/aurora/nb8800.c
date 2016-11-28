@@ -1466,12 +1466,12 @@ static int nb8800_probe(struct platform_device *pdev)
 
 	ret = nb8800_hw_init(dev);
 	if (ret)
-		goto err_free_bus;
+		goto err_deregister_fixed_link;
 
 	if (ops && ops->init) {
 		ret = ops->init(dev);
 		if (ret)
-			goto err_free_bus;
+			goto err_deregister_fixed_link;
 	}
 
 	dev->netdev_ops = &nb8800_netdev_ops;
@@ -1504,6 +1504,9 @@ static int nb8800_probe(struct platform_device *pdev)
 
 err_free_dma:
 	nb8800_dma_free(dev);
+err_deregister_fixed_link:
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
 err_free_bus:
 	of_node_put(priv->phy_node);
 	mdiobus_unregister(bus);
@@ -1521,6 +1524,8 @@ static int nb8800_remove(struct platform_device *pdev)
 	struct nb8800_priv *priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
 	of_node_put(priv->phy_node);
 
 	mdiobus_unregister(priv->mii_bus);
