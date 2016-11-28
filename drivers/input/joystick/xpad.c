@@ -1047,9 +1047,9 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 		packet->data[7] = 0x00;
 		packet->data[8] = strong / 512;	/* left actuator */
 		packet->data[9] = weak / 512;	/* right actuator */
-		packet->data[10] = 0xFF;
-		packet->data[11] = 0x00;
-		packet->data[12] = 0x00;
+		packet->data[10] = 0xFF; /* on period */
+		packet->data[11] = 0x00; /* off period */
+		packet->data[12] = 0xFF; /* repeat count */
 		packet->len = 13;
 		packet->pending = true;
 		break;
