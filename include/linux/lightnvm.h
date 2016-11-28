@@ -477,9 +477,6 @@ typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
 typedef struct nvm_block *(nvmm_get_blk_fn)(struct nvm_dev *,
 					      struct nvm_lun *, unsigned long);
 typedef void (nvmm_put_blk_fn)(struct nvm_dev *, struct nvm_block *);
-typedef int (nvmm_open_blk_fn)(struct nvm_dev *, struct nvm_block *);
-typedef int (nvmm_close_blk_fn)(struct nvm_dev *, struct nvm_block *);
-typedef void (nvmm_flush_blk_fn)(struct nvm_dev *, struct nvm_block *);
 typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *, int);
 typedef void (nvmm_mark_blk_fn)(struct nvm_dev *, struct ppa_addr, int);
@@ -504,9 +501,6 @@ struct nvmm_type {
 	/* Block administration callbacks */
 	nvmm_get_blk_fn *get_blk;
 	nvmm_put_blk_fn *put_blk;
-	nvmm_open_blk_fn *open_blk;
-	nvmm_close_blk_fn *close_blk;
-	nvmm_flush_blk_fn *flush_blk;
 
 	nvmm_submit_io_fn *submit_io;
 	nvmm_erase_blk_fn *erase_blk;
