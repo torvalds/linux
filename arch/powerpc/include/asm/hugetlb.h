@@ -9,7 +9,7 @@ extern struct kmem_cache *hugepte_cache;
 
 #ifdef CONFIG_PPC_BOOK3S_64
 
-#include <asm/book3s/64/hugetlb-radix.h>
+#include <asm/book3s/64/hugetlb.h>
 /*
  * This should work for other subarchs too. But right now we use the
  * new format only for 64bit book3s
