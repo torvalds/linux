@@ -91,21 +91,16 @@ static int disable_pwrrail(struct msm_gpu *gpu)
 
 static int enable_clk(struct msm_gpu *gpu)
 {
-	struct clk *rate_clk = NULL;
 	int i;
 
-	/* NOTE: kgsl_pwrctrl_clk() ignores grp_clks[0].. */
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i > 0; i--) {
-		if (gpu->grp_clks[i]) {
+	if (gpu->grp_clks[0] && gpu->fast_rate)
+		clk_set_rate(gpu->grp_clks[0], gpu->fast_rate);
+
+	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
+		if (gpu->grp_clks[i])
 			clk_prepare(gpu->grp_clks[i]);
-			rate_clk = gpu->grp_clks[i];
-		}
-	}
 
-	if (rate_clk && gpu->fast_rate)
-		clk_set_rate(rate_clk, gpu->fast_rate);
-
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i > 0; i--)
+	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_enable(gpu->grp_clks[i]);
 
@@ -114,23 +109,18 @@ static int enable_clk(struct msm_gpu *gpu)
 
 static int disable_clk(struct msm_gpu *gpu)
 {
-	struct clk *rate_clk = NULL;
 	int i;
 
-	/* NOTE: kgsl_pwrctrl_clk() ignores grp_clks[0].. */
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i > 0; i--) {
-		if (gpu->grp_clks[i]) {
+	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
+		if (gpu->grp_clks[i])
 			clk_disable(gpu->grp_clks[i]);
-			rate_clk = gpu->grp_clks[i];
-		}
-	}
 
-	if (rate_clk && gpu->slow_rate)
-		clk_set_rate(rate_clk, gpu->slow_rate);
-
-	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i > 0; i--)
+	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_unprepare(gpu->grp_clks[i]);
+
+	if (gpu->grp_clks[0] && gpu->slow_rate)
+		clk_set_rate(gpu->grp_clks[0], gpu->slow_rate);
 
 	return 0;
 }
@@ -563,7 +553,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 }
 
 static const char *clk_names[] = {
-		"src_clk", "core_clk", "iface_clk", "mem_clk", "mem_iface_clk",
+		"core_clk", "iface_clk", "mem_clk", "mem_iface_clk",
 		"alt_mem_iface_clk",
 };
 
