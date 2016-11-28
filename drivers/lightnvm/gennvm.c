@@ -371,12 +371,6 @@ static int gen_blocks_init(struct nvm_dev *dev, struct gen_dev *gn)
 			block->lun = &lun->vlun;
 			block->id = cur_block_id++;
 
-			/* First block is reserved for device */
-			if (unlikely(lun_iter == 0 && blk_iter == 0)) {
-				lun->vlun.nr_free_blocks--;
-				continue;
-			}
-
 			list_add_tail(&block->list, &lun->free_list);
 		}
 
