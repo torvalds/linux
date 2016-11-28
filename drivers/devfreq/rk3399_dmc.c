@@ -81,7 +81,6 @@ struct rk3399_dmcfreq {
 	struct regulator *vdd_center;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
-	struct dev_pm_opp *curr_opp;
 };
 
 static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
@@ -90,7 +89,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
 	unsigned long old_clk_rate = dmcfreq->rate;
-	unsigned long target_volt, target_rate;
+	unsigned long temp_rate, target_volt, target_rate;
 	int err;
 
 	rcu_read_lock();
@@ -100,16 +99,26 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		return PTR_ERR(opp);
 	}
 
-	target_rate = dev_pm_opp_get_freq(opp);
+	temp_rate = dev_pm_opp_get_freq(opp);
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
+	if ((long)target_rate <= 0)
+		target_rate = temp_rate;
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	dmcfreq->rate = dev_pm_opp_get_freq(dmcfreq->curr_opp);
-	dmcfreq->volt = dev_pm_opp_get_voltage(dmcfreq->curr_opp);
 
 	rcu_read_unlock();
 
-	if (dmcfreq->rate == target_rate)
-		return 0;
+	if (dmcfreq->rate == target_rate) {
+		if (dmcfreq->volt == target_volt)
+			return 0;
+		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
+					    target_volt);
+		if (err) {
+			dev_err(dev, "Cannot to set voltage %lu uV\n",
+				target_volt);
+			goto out;
+		}
+	}
+
 
 	mutex_lock(&dmcfreq->lock);
 
@@ -151,13 +160,16 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
 		goto out;
-	} else if (old_clk_rate > target_rate)
+	} else if (old_clk_rate > target_rate) {
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
-	if (err)
-		dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+		if (err) {
+			dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+			goto out;
+		}
+	}
 
-	dmcfreq->curr_opp = opp;
+	dmcfreq->volt = target_volt;
 out:
 	mutex_unlock(&dmcfreq->lock);
 	return err;
@@ -372,7 +384,6 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	struct rk3399_dmcfreq *data;
 	int ret, index, size;
 	uint32_t *timing;
-	struct dev_pm_opp *opp;
 	struct devfreq_dev_profile *devp = &rk3399_devfreq_dmc_profile;
 
 	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
@@ -447,16 +458,8 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 			     &data->ondemand_data.downdifferential);
 
 	data->rate = clk_get_rate(data->dmc_clk);
+	data->volt = regulator_get_voltage(data->vdd_center);
 
-	rcu_read_lock();
-	opp = devfreq_recommended_opp(dev, &data->rate, 0);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
-		return PTR_ERR(opp);
-	}
-	rcu_read_unlock();
-
-	data->curr_opp = opp;
 	devp->initial_freq = data->rate;
 	data->devfreq = devfreq_add_device(dev, devp,
 					   "simple_ondemand",
