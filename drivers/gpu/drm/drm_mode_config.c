@@ -20,6 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drmP.h>
 

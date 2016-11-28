@@ -30,6 +30,7 @@
 #define __DRM_MODESET_HELPER_VTABLES_H__
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_encoder.h>
 
 /**
  * DOC: overview

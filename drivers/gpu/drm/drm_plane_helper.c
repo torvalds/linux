@@ -29,6 +29,7 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_atomic_helper.h>
 
 #define SUBPIXEL_MASK 0xffff

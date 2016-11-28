@@ -39,7 +39,6 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_encoder.h>
 #include <drm/drm_property.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
@@ -68,14 +67,12 @@ static inline uint64_t I642U64(int64_t val)
 }
 
 struct drm_crtc;
-struct drm_encoder;
 struct drm_pending_vblank_event;
 struct drm_plane;
 struct drm_bridge;
 struct drm_atomic_state;
 
 struct drm_crtc_helper_funcs;
-struct drm_encoder_helper_funcs;
 struct drm_plane_helper_funcs;
 
 /**

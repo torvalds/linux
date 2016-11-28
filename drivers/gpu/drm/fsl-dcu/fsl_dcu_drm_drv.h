@@ -12,6 +12,8 @@
 #ifndef __FSL_DCU_DRM_DRV_H__
 #define __FSL_DCU_DRM_DRV_H__
 
+#include <drm/drm_encoder.h>
+
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_output.h"
 #include "fsl_dcu_drm_plane.h"

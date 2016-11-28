@@ -23,6 +23,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
