@@ -4836,12 +4836,9 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 	 * This can occur when using nested virtualization with nested
 	 * paging in both guests. If true, we simply unprotect the page
 	 * and resume the guest.
-	 *
-	 * Note: AMD only (since it supports the PFERR_GUEST_PAGE_MASK used
-	 *       in PFERR_NEXT_GUEST_PAGE)
 	 */
 	if (vcpu->arch.mmu.direct_map &&
-		error_code == PFERR_NESTED_GUEST_PAGE) {
+	    (error_code & PFERR_NESTED_GUEST_PAGE) == PFERR_NESTED_GUEST_PAGE) {
 		kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(cr2));
 		return 1;
 	}

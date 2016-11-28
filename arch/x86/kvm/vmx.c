@@ -6358,7 +6358,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
 	gpa_t gpa;
-	u32 error_code;
+	u64 error_code;
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
@@ -6389,6 +6389,9 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 		       (EPT_VIOLATION_READABLE | EPT_VIOLATION_WRITABLE |
 			EPT_VIOLATION_EXECUTABLE))
 		      ? PFERR_PRESENT_MASK : 0;
+
+	error_code |= (exit_qualification & 0x100) != 0 ?
+	       PFERR_GUEST_FINAL_MASK : PFERR_GUEST_PAGE_MASK;
 
 	vcpu->arch.gpa_available = true;
 	vcpu->arch.exit_qualification = exit_qualification;
