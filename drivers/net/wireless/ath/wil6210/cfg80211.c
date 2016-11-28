@@ -354,14 +354,6 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "%s(), wdev=0x%p iftype=%d\n",
 		     __func__, wdev, wdev->iftype);
 
-	mutex_lock(&wil->p2p_wdev_mutex);
-	if (wil->scan_request) {
-		wil_err(wil, "Already scanning\n");
-		mutex_unlock(&wil->p2p_wdev_mutex);
-		return -EAGAIN;
-	}
-	mutex_unlock(&wil->p2p_wdev_mutex);
-
 	/* check we are client side */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -378,12 +370,24 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
+	mutex_lock(&wil->mutex);
+
+	mutex_lock(&wil->p2p_wdev_mutex);
+	if (wil->scan_request || wil->p2p.discovery_started) {
+		wil_err(wil, "Already scanning\n");
+		mutex_unlock(&wil->p2p_wdev_mutex);
+		rc = -EAGAIN;
+		goto out;
+	}
+	mutex_unlock(&wil->p2p_wdev_mutex);
+
 	/* social scan on P2P_DEVICE is handled as p2p search */
 	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE &&
 	    wil_p2p_is_social_scan(request)) {
 		if (!wil->p2p.p2p_dev_started) {
 			wil_err(wil, "P2P search requested on stopped P2P device\n");
-			return -EIO;
+			rc = -EIO;
+			goto out;
 		}
 		wil->scan_request = request;
 		wil->radio_wdev = wdev;
@@ -392,7 +396,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 			wil->radio_wdev = wil_to_wdev(wil);
 			wil->scan_request = NULL;
 		}
-		return rc;
+		goto out;
 	}
 
 	(void)wil_p2p_stop_discovery(wil);
@@ -415,7 +419,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	if (rc) {
 		wil_err(wil, "set SSID for scan request failed: %d\n", rc);
-		return rc;
+		goto out;
 	}
 
 	wil->scan_request = request;
@@ -448,7 +452,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	rc = wmi_set_ie(wil, WMI_FRAME_PROBE_REQ, request->ie_len, request->ie);
 	if (rc)
-		goto out;
+		goto out_restore;
 
 	if (wil->discovery_mode && cmd.cmd.scan_type == WMI_ACTIVE_SCAN) {
 		cmd.cmd.discovery_mode = 1;
@@ -459,13 +463,14 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &cmd, sizeof(cmd.cmd) +
 			cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
 
-out:
+out_restore:
 	if (rc) {
 		del_timer_sync(&wil->scan_timer);
 		wil->radio_wdev = wil_to_wdev(wil);
 		wil->scan_request = NULL;
 	}
-
+out:
+	mutex_unlock(&wil->mutex);
 	return rc;
 }
 
@@ -988,16 +993,8 @@ static int wil_remain_on_channel(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "%s() center_freq=%d, duration=%d iftype=%d\n",
 		     __func__, chan->center_freq, duration, wdev->iftype);
 
-	rc = wil_p2p_listen(wil, duration, chan, cookie);
-	if (rc)
-		return rc;
-
-	wil->radio_wdev = wdev;
-
-	cfg80211_ready_on_channel(wdev, *cookie, chan, duration,
-				  GFP_KERNEL);
-
-	return 0;
+	rc = wil_p2p_listen(wil, wdev, duration, chan, cookie);
+	return rc;
 }
 
 static int wil_cancel_remain_on_channel(struct wiphy *wiphy,

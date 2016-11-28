@@ -461,8 +461,11 @@ struct wil_p2p_info {
 	u8 discovery_started;
 	u8 p2p_dev_started;
 	u64 cookie;
+	struct wireless_dev *pending_listen_wdev;
+	unsigned int listen_duration;
 	struct timer_list discovery_timer; /* listen/search duration */
 	struct work_struct discovery_expired_work; /* listen/search expire */
+	struct work_struct delayed_listen_work; /* listen after scan done */
 };
 
 enum wil_sta_status {
@@ -843,13 +846,15 @@ bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request);
 void wil_p2p_discovery_timer_fn(ulong x);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
-int wil_p2p_listen(struct wil6210_priv *wil, unsigned int duration,
-		   struct ieee80211_channel *chan, u64 *cookie);
+int wil_p2p_listen(struct wil6210_priv *wil, struct wireless_dev *wdev,
+		   unsigned int duration, struct ieee80211_channel *chan,
+		   u64 *cookie);
 u8 wil_p2p_stop_discovery(struct wil6210_priv *wil);
 int wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie);
 void wil_p2p_listen_expired(struct work_struct *work);
 void wil_p2p_search_expired(struct work_struct *work);
 void wil_p2p_stop_radio_operations(struct wil6210_priv *wil);
+void wil_p2p_delayed_listen_work(struct work_struct *work);
 
 /* WMI for P2P */
 int wmi_p2p_cfg(struct wil6210_priv *wil, int channel, int bi);

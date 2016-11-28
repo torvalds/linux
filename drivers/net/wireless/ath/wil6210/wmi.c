@@ -441,6 +441,10 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 		wil->radio_wdev = wil->wdev;
 		wil->scan_request = NULL;
 		wake_up_interruptible(&wil->wq);
+		if (wil->p2p.pending_listen_wdev) {
+			wil_dbg_misc(wil, "Scheduling delayed listen\n");
+			schedule_work(&wil->p2p.delayed_listen_work);
+		}
 	} else {
 		wil_err(wil, "SCAN_COMPLETE while not scanning\n");
 	}

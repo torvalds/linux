@@ -518,6 +518,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
 	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
 	INIT_WORK(&wil->probe_client_worker, wil_probe_client_worker);
+	INIT_WORK(&wil->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	INIT_LIST_HEAD(&wil->probe_client_pending);
@@ -579,6 +580,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
 	cancel_work_sync(&wil->p2p.discovery_expired_work);
+	cancel_work_sync(&wil->p2p.delayed_listen_work);
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	mutex_unlock(&wil->mutex);
