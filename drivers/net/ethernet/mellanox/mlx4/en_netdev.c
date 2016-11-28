@@ -2079,13 +2079,6 @@ err:
 	return -ENOMEM;
 }
 
-static void mlx4_en_shutdown(struct net_device *dev)
-{
-	rtnl_lock();
-	netif_device_detach(dev);
-	mlx4_en_close(dev);
-	rtnl_unlock();
-}
 
 static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
 			     struct mlx4_en_priv *src,
@@ -2162,8 +2155,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	bool shutdown = mdev->dev->persist->interface_state &
-					    MLX4_INTERFACE_STATE_SHUTDOWN;
 
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
 
@@ -2171,10 +2162,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (priv->registered) {
 		devlink_port_type_clear(mlx4_get_devlink_port(mdev->dev,
 							      priv->port));
-		if (shutdown)
-			mlx4_en_shutdown(dev);
-		else
-			unregister_netdev(dev);
+		unregister_netdev(dev);
 	}
 
 	if (priv->allocated)
@@ -2203,8 +2191,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	kfree(priv->tx_ring);
 	kfree(priv->tx_cq);
 
-	if (!shutdown)
-		free_netdev(dev);
+	free_netdev(dev);
 }
 
 static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
