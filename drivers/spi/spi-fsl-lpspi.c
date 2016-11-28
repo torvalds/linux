@@ -236,15 +236,9 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
 
 static void fsl_lpspi_set_watermark(struct fsl_lpspi_data *fsl_lpspi)
 {
-	u8 txwatermark, rxwatermark;
 	u32 temp;
 
-	temp = readl(fsl_lpspi->base + IMX7ULP_PARAM);
-	fsl_lpspi->txfifosize = 1 << (temp & 0x0f);
-	fsl_lpspi->rxfifosize = 1 << ((temp >> 8) & 0x0f);
-	rxwatermark = fsl_lpspi->txfifosize >> 1;
-	txwatermark = fsl_lpspi->rxfifosize >> 1;
-	temp = txwatermark | rxwatermark << 16;
+	temp = fsl_lpspi->txfifosize >> 1 | (fsl_lpspi->rxfifosize >> 1) << 16;
 
 	writel(temp, fsl_lpspi->base + IMX7ULP_FCR);
 
@@ -427,6 +421,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct resource *res;
 	int ret, irq;
+	u32 temp;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct fsl_lpspi_data));
 	if (!master)
@@ -475,6 +470,18 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(fsl_lpspi->clk);
 		goto out_master_put;
 	}
+
+	ret = clk_prepare_enable(fsl_lpspi->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "can't enable lpspi clock, ret=%d\n", ret);
+		goto out_master_put;
+	}
+
+	temp = readl(fsl_lpspi->base + IMX7ULP_PARAM);
+	fsl_lpspi->txfifosize = 1 << (temp & 0x0f);
+	fsl_lpspi->rxfifosize = 1 << ((temp >> 8) & 0x0f);
+
+	clk_disable_unprepare(fsl_lpspi->clk);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
