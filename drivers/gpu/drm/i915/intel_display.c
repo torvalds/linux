@@ -5021,10 +5021,9 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	 * event which is after the vblank start event, so we need to have a
 	 * wait-for-vblank between disabling the plane and the pipe.
 	 */
-	if (HAS_GMCH_DISPLAY(dev_priv)) {
-		intel_set_memory_cxsr(dev_priv, false);
+	if (HAS_GMCH_DISPLAY(dev_priv) &&
+	    intel_set_memory_cxsr(dev_priv, false))
 		intel_wait_for_vblank(dev_priv, pipe);
-	}
 }
 
 static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
@@ -5099,10 +5098,9 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 		 * event which is after the vblank start event, so we need to have a
 		 * wait-for-vblank between disabling the plane and the pipe.
 		 */
-		if (old_crtc_state->base.active) {
-			intel_set_memory_cxsr(dev_priv, false);
+		if (old_crtc_state->base.active &&
+		    intel_set_memory_cxsr(dev_priv, false))
 			intel_wait_for_vblank(dev_priv, crtc->pipe);
-		}
 	}
 
 	/*

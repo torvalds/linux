@@ -312,22 +312,30 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 #define FW_WM(value, plane) \
 	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK)
 
-static void _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
+static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
+	bool was_enabled;
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		was_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
 		POSTING_READ(FW_BLC_SELF_VLV);
 	} else if (IS_G4X(dev_priv) || IS_CRESTLINE(dev_priv)) {
+		was_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 		POSTING_READ(FW_BLC_SELF);
 	} else if (IS_PINEVIEW(dev_priv)) {
-		val = I915_READ(DSPFW3) & ~PINEVIEW_SELF_REFRESH_EN;
-		val |= enable ? PINEVIEW_SELF_REFRESH_EN : 0;
+		val = I915_READ(DSPFW3);
+		was_enabled = val & PINEVIEW_SELF_REFRESH_EN;
+		if (enable)
+			val |= PINEVIEW_SELF_REFRESH_EN;
+		else
+			val &= ~PINEVIEW_SELF_REFRESH_EN;
 		I915_WRITE(DSPFW3, val);
 		POSTING_READ(DSPFW3);
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv)) {
+		was_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
 		val = enable ? _MASKED_BIT_ENABLE(FW_BLC_SELF_EN) :
 			       _MASKED_BIT_DISABLE(FW_BLC_SELF_EN);
 		I915_WRITE(FW_BLC_SELF, val);
@@ -338,23 +346,32 @@ static void _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 		 * and yet it does have the related watermark in
 		 * FW_BLC_SELF. What's going on?
 		 */
+		was_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;
 		val = enable ? _MASKED_BIT_ENABLE(INSTPM_SELF_EN) :
 			       _MASKED_BIT_DISABLE(INSTPM_SELF_EN);
 		I915_WRITE(INSTPM, val);
 		POSTING_READ(INSTPM);
 	} else {
-		return;
+		return false;
 	}
 
-	DRM_DEBUG_KMS("memory self-refresh is %s\n", enableddisabled(enable));
+	DRM_DEBUG_KMS("memory self-refresh is %s (was %s)\n",
+		      enableddisabled(enable),
+		      enableddisabled(was_enabled));
+
+	return was_enabled;
 }
 
-void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
+bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
+	bool ret;
+
 	mutex_lock(&dev_priv->wm.wm_mutex);
-	_intel_set_memory_cxsr(dev_priv, enable);
+	ret = _intel_set_memory_cxsr(dev_priv, enable);
 	dev_priv->wm.vlv.cxsr = enable;
 	mutex_unlock(&dev_priv->wm.wm_mutex);
+
+	return ret;
 }
 
 /*
