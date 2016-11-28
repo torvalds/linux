@@ -787,11 +787,26 @@ int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
 {
 	int err;
 
+retry:
+	kvm_trap_emul_gva_lockless_begin(vcpu);
 	err = get_user(*out, opc);
-	if (unlikely(err)) {
-		kvm_err("%s: illegal address: %p\n", __func__, opc);
-		return -EFAULT;
-	}
+	kvm_trap_emul_gva_lockless_end(vcpu);
 
+	if (unlikely(err)) {
+		/*
+		 * Try to handle the fault, maybe we just raced with a GVA
+		 * invalidation.
+		 */
+		err = kvm_trap_emul_gva_fault(vcpu, (unsigned long)opc,
+					      false);
+		if (unlikely(err)) {
+			kvm_err("%s: illegal address: %p\n",
+				__func__, opc);
+			return -EFAULT;
+		}
+
+		/* Hopefully it'll work now */
+		goto retry;
+	}
 	return 0;
 }
