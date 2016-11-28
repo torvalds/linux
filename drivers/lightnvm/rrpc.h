@@ -48,7 +48,6 @@ struct rrpc_inflight_rq {
 
 struct rrpc_rq {
 	struct rrpc_inflight_rq inflight_rq;
-	struct rrpc_addr *addr;
 	unsigned long flags;
 };
 
@@ -92,14 +91,12 @@ struct rrpc {
 
 	sector_t soffset; /* logical sector offset */
 	u64 poffset; /* physical page offset */
-	int lun_offset;
 
 	int nr_luns;
 	struct rrpc_lun *luns;
 
 	/* calculated values */
 	unsigned long long nr_sects;
-	unsigned long total_blocks;
 
 	/* Write strategy variables. Move these into each for structure for each
 	 * strategy

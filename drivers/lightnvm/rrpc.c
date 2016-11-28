@@ -758,7 +758,6 @@ static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 static int rrpc_read_rq(struct rrpc *rrpc, struct bio *bio, struct nvm_rq *rqd,
 							unsigned long flags)
 {
-	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);
 	int is_gc = flags & NVM_IOTYPE_GC;
 	sector_t laddr = rrpc_get_laddr(bio);
 	struct rrpc_addr *gp;
@@ -778,7 +777,6 @@ static int rrpc_read_rq(struct rrpc *rrpc, struct bio *bio, struct nvm_rq *rqd,
 	}
 
 	rqd->opcode = NVM_OP_HBREAD;
-	rrqd->addr = gp;
 
 	return NVM_IO_OK;
 }
@@ -821,7 +819,6 @@ static int rrpc_write_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 static int rrpc_write_rq(struct rrpc *rrpc, struct bio *bio,
 				struct nvm_rq *rqd, unsigned long flags)
 {
-	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);
 	struct rrpc_addr *p;
 	int is_gc = flags & NVM_IOTYPE_GC;
 	sector_t laddr = rrpc_get_laddr(bio);
@@ -839,7 +836,6 @@ static int rrpc_write_rq(struct rrpc *rrpc, struct bio *bio,
 
 	rqd->ppa_addr = rrpc_ppa_to_gaddr(rrpc->dev, p->addr);
 	rqd->opcode = NVM_OP_HBWRITE;
-	rrqd->addr = p;
 
 	return NVM_IO_OK;
 }
@@ -1389,7 +1385,6 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	INIT_WORK(&rrpc->ws_requeue, rrpc_requeue);
 
 	rrpc->nr_luns = lun_end - lun_begin + 1;
-	rrpc->total_blocks = (unsigned long)dev->blks_per_lun * rrpc->nr_luns;
 	rrpc->nr_sects = (unsigned long long)dev->sec_per_lun * rrpc->nr_luns;
 
 	/* simple round-robin strategy */
@@ -1409,7 +1404,6 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	}
 
 	rrpc->poffset = dev->sec_per_lun * lun_begin;
-	rrpc->lun_offset = lun_begin;
 
 	ret = rrpc_core_init(rrpc);
 	if (ret) {
