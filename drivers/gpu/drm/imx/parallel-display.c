@@ -284,8 +284,6 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 {
 	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
 
-	if (imxpd->bridge)
-		drm_bridge_detach(imxpd->bridge);
 	if (imxpd->panel)
 		drm_panel_detach(imxpd->panel);
 

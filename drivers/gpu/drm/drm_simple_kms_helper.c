@@ -187,23 +187,6 @@ int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
 
 /**
- * drm_simple_display_pipe_detach_bridge - Detach the bridge from the display pipe
- * @pipe: simple display pipe object
- *
- * Detaches the drm bridge previously attached with
- * drm_simple_display_pipe_attach_bridge()
- */
-void drm_simple_display_pipe_detach_bridge(struct drm_simple_display_pipe *pipe)
-{
-	if (WARN_ON(!pipe->encoder.bridge))
-		return;
-
-	drm_bridge_detach(pipe->encoder.bridge);
-	pipe->encoder.bridge = NULL;
-}
-EXPORT_SYMBOL(drm_simple_display_pipe_detach_bridge);
-
-/**
  * drm_simple_display_pipe_init - Initialize a simple display pipeline
  * @dev: DRM device
  * @pipe: simple display pipe object to initialize

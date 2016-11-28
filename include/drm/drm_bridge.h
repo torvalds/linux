@@ -203,7 +203,6 @@ void drm_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 		      struct drm_bridge *previous);
-void drm_bridge_detach(struct drm_bridge *bridge);
 
 bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
 			const struct drm_display_mode *mode,

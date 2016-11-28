@@ -28,6 +28,8 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_encoder.h>
 
+#include "drm_crtc_internal.h"
+
 /**
  * DOC: overview
  *
@@ -145,16 +147,6 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 }
 EXPORT_SYMBOL(drm_bridge_attach);
 
-/**
- * drm_bridge_detach - deassociate given bridge from its DRM device
- *
- * @bridge: bridge control structure
- *
- * Called by a kms driver to unlink the given bridge from its DRM device.
- *
- * Note that tearing down links between the bridge and our encoder/bridge
- * objects needs to be handled by the kms driver itself.
- */
 void drm_bridge_detach(struct drm_bridge *bridge)
 {
 	if (WARN_ON(!bridge))
@@ -168,7 +160,6 @@ void drm_bridge_detach(struct drm_bridge *bridge)
 
 	bridge->dev = NULL;
 }
-EXPORT_SYMBOL(drm_bridge_detach);
 
 /**
  * DOC: bridge callbacks

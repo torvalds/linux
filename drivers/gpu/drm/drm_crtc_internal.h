@@ -186,6 +186,9 @@ void drm_plane_unregister_all(struct drm_device *dev);
 int drm_plane_check_pixel_format(const struct drm_plane *plane,
 				 u32 format);
 
+/* drm_bridge.c */
+void drm_bridge_detach(struct drm_bridge *bridge);
+
 /* IOCTL */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
