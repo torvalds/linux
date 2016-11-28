@@ -164,11 +164,12 @@ static int benchmark_event_kthread(void *arg)
  * When the benchmark tracepoint is enabled, it calls this
  * function and the thread that calls the tracepoint is created.
  */
-void trace_benchmark_reg(void)
+int trace_benchmark_reg(void)
 {
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
 	WARN_ON(!bm_event_thread);
+	return 0;
 }
 
 /*

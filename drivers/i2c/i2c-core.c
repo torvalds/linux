@@ -77,9 +77,10 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
 static bool is_registered;
 
-void i2c_transfer_trace_reg(void)
+int i2c_transfer_trace_reg(void)
 {
 	static_key_slow_inc(&i2c_trace_msg);
+	return 0;
 }
 
 void i2c_transfer_trace_unreg(void)
