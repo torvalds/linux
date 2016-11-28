@@ -104,7 +104,6 @@
 #define KVM_GUEST_KSEG23ADDR(a)		(KVM_GUEST_CPHYSADDR(a) | KVM_GUEST_KSEG23)
 
 #define KVM_INVALID_PAGE		0xdeadbeef
-#define KVM_INVALID_INST		0xdeadbeef
 #define KVM_INVALID_ADDR		0xdeadbeef
 
 /*
@@ -640,7 +639,7 @@ void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 				  bool user);
 
 /* Emulation */
-u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu);
+int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);
 enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause);
 
 /**

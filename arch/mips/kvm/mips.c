@@ -1343,6 +1343,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	enum emulation_result er = EMULATE_DONE;
+	u32 inst;
 	int ret = RESUME_GUEST;
 
 	/* re-enable HTW before enabling interrupts */
@@ -1467,8 +1468,12 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	default:
+		if (cause & CAUSEF_BD)
+			opc += 1;
+		inst = 0;
+		kvm_get_inst(opc, vcpu, &inst);
 		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#lx\n",
-			exccode, opc, kvm_get_inst(opc, vcpu), badvaddr,
+			exccode, opc, inst, badvaddr,
 			kvm_read_c0_guest_status(vcpu->arch.cop0));
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;

@@ -503,16 +503,15 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	local_irq_restore(flags);
 }
 
-u32 kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu)
+int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
 {
-	u32 inst;
 	int err;
 
-	err = get_user(inst, opc);
+	err = get_user(*out, opc);
 	if (unlikely(err)) {
 		kvm_err("%s: illegal address: %p\n", __func__, opc);
-		return KVM_INVALID_INST;
+		return -EFAULT;
 	}
 
-	return inst;
+	return 0;
 }

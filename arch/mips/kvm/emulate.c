@@ -38,23 +38,25 @@
  * Compute the return address and do emulate branch simulation, if required.
  * This function should be called only in branch delay slot active.
  */
-unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
-	unsigned long instpc)
+static int kvm_compute_return_epc(struct kvm_vcpu *vcpu, unsigned long instpc,
+				  unsigned long *out)
 {
 	unsigned int dspcontrol;
 	union mips_instruction insn;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	long epc = instpc;
-	long nextpc = KVM_INVALID_INST;
+	long nextpc;
+	int err;
 
-	if (epc & 3)
-		goto unaligned;
+	if (epc & 3) {
+		kvm_err("%s: unaligned epc\n", __func__);
+		return -EINVAL;
+	}
 
 	/* Read the instruction */
-	insn.word = kvm_get_inst((u32 *) epc, vcpu);
-
-	if (insn.word == KVM_INVALID_INST)
-		return KVM_INVALID_INST;
+	err = kvm_get_inst((u32 *)epc, vcpu, &insn.word);
+	if (err)
+		return err;
 
 	switch (insn.i_format.opcode) {
 		/* jr and jalr are in r_format format. */
@@ -66,6 +68,8 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 		case jr_op:
 			nextpc = arch->gprs[insn.r_format.rs];
 			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 
@@ -114,8 +118,11 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 			nextpc = epc;
 			break;
 		case bposge32_op:
-			if (!cpu_has_dsp)
-				goto sigill;
+			if (!cpu_has_dsp) {
+				kvm_err("%s: DSP branch but not DSP ASE\n",
+					__func__);
+				return -EINVAL;
+			}
 
 			dspcontrol = rddsp(0x01);
 
@@ -125,6 +132,8 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 				epc += 8;
 			nextpc = epc;
 			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 
@@ -189,7 +198,7 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 		/* And now the FPA/cp1 branch instructions. */
 	case cop1_op:
 		kvm_err("%s: unsupported cop1_op\n", __func__);
-		break;
+		return -EINVAL;
 
 #ifdef CONFIG_CPU_MIPSR6
 	/* R6 added the following compact branches with forbidden slots */
@@ -198,19 +207,19 @@ unsigned long kvm_compute_return_epc(struct kvm_vcpu *vcpu,
 		/* only rt == 0 isn't compact branch */
 		if (insn.i_format.rt != 0)
 			goto compact_branch;
-		break;
+		return -EINVAL;
 	case pop10_op:
 	case pop30_op:
 		/* only rs == rt == 0 is reserved, rest are compact branches */
 		if (insn.i_format.rs != 0 || insn.i_format.rt != 0)
 			goto compact_branch;
-		break;
+		return -EINVAL;
 	case pop66_op:
 	case pop76_op:
 		/* only rs == 0 isn't compact branch */
 		if (insn.i_format.rs != 0)
 			goto compact_branch;
-		break;
+		return -EINVAL;
 compact_branch:
 		/*
 		 * If we've hit an exception on the forbidden slot, then
@@ -221,42 +230,32 @@ compact_branch:
 		break;
 #else
 compact_branch:
-		/* Compact branches not supported before R6 */
-		break;
+		/* Fall through - Compact branches not supported before R6 */
 #endif
+	default:
+		return -EINVAL;
 	}
 
-	return nextpc;
-
-unaligned:
-	kvm_err("%s: unaligned epc\n", __func__);
-	return nextpc;
-
-sigill:
-	kvm_err("%s: DSP branch but not DSP ASE\n", __func__);
-	return nextpc;
+	*out = nextpc;
+	return 0;
 }
 
 enum emulation_result update_pc(struct kvm_vcpu *vcpu, u32 cause)
 {
-	unsigned long branch_pc;
-	enum emulation_result er = EMULATE_DONE;
+	int err;
 
 	if (cause & CAUSEF_BD) {
-		branch_pc = kvm_compute_return_epc(vcpu, vcpu->arch.pc);
-		if (branch_pc == KVM_INVALID_INST) {
-			er = EMULATE_FAIL;
-		} else {
-			vcpu->arch.pc = branch_pc;
-			kvm_debug("BD update_pc(): New PC: %#lx\n",
-				  vcpu->arch.pc);
-		}
-	} else
+		err = kvm_compute_return_epc(vcpu, vcpu->arch.pc,
+					     &vcpu->arch.pc);
+		if (err)
+			return EMULATE_FAIL;
+	} else {
 		vcpu->arch.pc += 4;
+	}
 
 	kvm_debug("update_pc(): New PC: %#lx\n", vcpu->arch.pc);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 /**
@@ -1835,12 +1834,14 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 {
 	union mips_instruction inst;
 	enum emulation_result er = EMULATE_DONE;
+	int err;
 
 	/* Fetch the instruction. */
 	if (cause & CAUSEF_BD)
 		opc += 1;
-
-	inst.word = kvm_get_inst(opc, vcpu);
+	err = kvm_get_inst(opc, vcpu, &inst.word);
+	if (err)
+		return EMULATE_FAIL;
 
 	switch (inst.r_format.opcode) {
 	case cop0_op:
@@ -2419,6 +2420,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 	enum emulation_result er = EMULATE_DONE;
 	unsigned long curr_pc;
 	union mips_instruction inst;
+	int err;
 
 	/*
 	 * Update PC and hold onto current PC in case there is
@@ -2432,11 +2434,9 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 	/* Fetch the instruction. */
 	if (cause & CAUSEF_BD)
 		opc += 1;
-
-	inst.word = kvm_get_inst(opc, vcpu);
-
-	if (inst.word == KVM_INVALID_INST) {
-		kvm_err("%s: Cannot get inst @ %p\n", __func__, opc);
+	err = kvm_get_inst(opc, vcpu, &inst.word);
+	if (err) {
+		kvm_err("%s: Cannot get inst @ %p (%d)\n", __func__, opc, err);
 		return EMULATE_FAIL;
 	}
 
