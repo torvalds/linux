@@ -6692,26 +6692,42 @@ EXPORT_SYMBOL(dev_change_proto_down);
  *	dev_change_xdp_fd - set or clear a bpf program for a device rx path
  *	@dev: device
  *	@fd: new program fd or negative value to clear
+ *	@flags: xdp-related flags
  *
  *	Set or clear a bpf program for a device
  */
-int dev_change_xdp_fd(struct net_device *dev, int fd)
+int dev_change_xdp_fd(struct net_device *dev, int fd, u32 flags)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	struct bpf_prog *prog = NULL;
-	struct netdev_xdp xdp = {};
+	struct netdev_xdp xdp;
 	int err;
+
+	ASSERT_RTNL();
 
 	if (!ops->ndo_xdp)
 		return -EOPNOTSUPP;
 	if (fd >= 0) {
+		if (flags & XDP_FLAGS_UPDATE_IF_NOEXIST) {
+			memset(&xdp, 0, sizeof(xdp));
+			xdp.command = XDP_QUERY_PROG;
+
+			err = ops->ndo_xdp(dev, &xdp);
+			if (err < 0)
+				return err;
+			if (xdp.prog_attached)
+				return -EBUSY;
+		}
+
 		prog = bpf_prog_get_type(fd, BPF_PROG_TYPE_XDP);
 		if (IS_ERR(prog))
 			return PTR_ERR(prog);
 	}
 
+	memset(&xdp, 0, sizeof(xdp));
 	xdp.command = XDP_SETUP_PROG;
 	xdp.prog = prog;
+
 	err = ops->ndo_xdp(dev, &xdp);
 	if (err < 0 && prog)
 		bpf_prog_put(prog);
