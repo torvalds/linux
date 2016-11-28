@@ -1132,13 +1132,13 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 		/* normal watermarks */
 		for (level = 0; level < wm_state->num_levels; level++) {
 			int wm = vlv_compute_wm_level(plane, crtc, state, level);
-			int max_wm = plane->base.type == DRM_PLANE_TYPE_CURSOR ? 63 : 511;
+			int max_wm = plane->wm.fifo_size;
 
 			/* hack */
 			if (WARN_ON(level == 0 && wm > max_wm))
 				wm = max_wm;
 
-			if (wm > plane->wm.fifo_size)
+			if (wm > max_wm)
 				break;
 
 			switch (plane->base.type) {
