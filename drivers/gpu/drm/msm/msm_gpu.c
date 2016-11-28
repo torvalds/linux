@@ -96,6 +96,10 @@ static int enable_clk(struct msm_gpu *gpu)
 	if (gpu->grp_clks[0] && gpu->fast_rate)
 		clk_set_rate(gpu->grp_clks[0], gpu->fast_rate);
 
+	/* Set the RBBM timer rate to 19.2Mhz */
+	if (gpu->grp_clks[2])
+		clk_set_rate(gpu->grp_clks[2], 19200000);
+
 	for (i = ARRAY_SIZE(gpu->grp_clks) - 1; i >= 0; i--)
 		if (gpu->grp_clks[i])
 			clk_prepare(gpu->grp_clks[i]);
@@ -121,6 +125,9 @@ static int disable_clk(struct msm_gpu *gpu)
 
 	if (gpu->grp_clks[0] && gpu->slow_rate)
 		clk_set_rate(gpu->grp_clks[0], gpu->slow_rate);
+
+	if (gpu->grp_clks[2])
+		clk_set_rate(gpu->grp_clks[2], 0);
 
 	return 0;
 }
@@ -553,8 +560,8 @@ static irqreturn_t irq_handler(int irq, void *data)
 }
 
 static const char *clk_names[] = {
-		"core_clk", "iface_clk", "mem_clk", "mem_iface_clk",
-		"alt_mem_iface_clk",
+		"core_clk", "iface_clk", "rbbmtimer_clk", "mem_clk",
+		"mem_iface_clk", "alt_mem_iface_clk",
 };
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
@@ -647,7 +654,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	iommu = iommu_domain_alloc(&platform_bus_type);
 	if (iommu) {
 		/* TODO 32b vs 64b address space.. */
-		iommu->geometry.aperture_start = 0x1000;
+		iommu->geometry.aperture_start = SZ_16M;
 		iommu->geometry.aperture_end = 0xffffffff;
 
 		dev_info(drm->dev, "%s: using IOMMU\n", name);

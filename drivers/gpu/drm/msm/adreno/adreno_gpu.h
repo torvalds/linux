@@ -48,6 +48,11 @@ enum adreno_regs {
 	REG_ADRENO_REGISTER_MAX,
 };
 
+enum adreno_quirks {
+	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
+	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
+};
+
 struct adreno_rev {
 	uint8_t  core;
 	uint8_t  major;
@@ -73,6 +78,9 @@ struct adreno_info {
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
+
+#define rbmemptr(adreno_gpu, member)  \
+	((adreno_gpu)->memptrs_iova + offsetof(struct adreno_rbmemptrs, member))
 
 struct adreno_rbmemptrs {
 	volatile uint32_t rptr;
@@ -107,6 +115,8 @@ struct adreno_gpu {
 	 * code (a3xx_gpu.c) and stored in this common location.
 	 */
 	const unsigned int *reg_offsets;
+
+	uint32_t quirks;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -117,6 +127,7 @@ struct adreno_platform_config {
 #ifdef DOWNSTREAM_CONFIG_MSM_BUS_SCALING
 	struct msm_bus_scale_pdata *bus_scale_table;
 #endif
+	uint32_t quirks;
 };
 
 #define ADRENO_IDLE_TIMEOUT msecs_to_jiffies(1000)
@@ -178,6 +189,11 @@ static inline int adreno_is_a420(struct adreno_gpu *gpu)
 static inline int adreno_is_a430(struct adreno_gpu *gpu)
 {
        return gpu->revn == 430;
+}
+
+static inline int adreno_is_a530(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 530;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
@@ -299,6 +315,7 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 
 struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
+struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);
 
 static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
 		enum adreno_regs lo, enum adreno_regs hi, u64 data)
@@ -306,5 +323,29 @@ static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
 	adreno_gpu_write(gpu, lo, lower_32_bits(data));
 	adreno_gpu_write(gpu, hi, upper_32_bits(data));
 }
+
+/*
+ * Given a register and a count, return a value to program into
+ * REG_CP_PROTECT_REG(n) - this will block both reads and writes for _len
+ * registers starting at _reg.
+ *
+ * The register base needs to be a multiple of the length. If it is not, the
+ * hardware will quietly mask off the bits for you and shift the size. For
+ * example, if you intend the protection to start at 0x07 for a length of 4
+ * (0x07-0x0A) the hardware will actually protect (0x04-0x07) which might
+ * expose registers you intended to protect!
+ */
+#define ADRENO_PROTECT_RW(_reg, _len) \
+	((1 << 30) | (1 << 29) | \
+	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
+
+/*
+ * Same as above, but allow reads over the range. For areas of mixed use (such
+ * as performance counters) this allows us to protect a much larger range with a
+ * single register
+ */
+#define ADRENO_PROTECT_RDONLY(_reg, _len) \
+	((1 << 29) \
+	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
 
 #endif /* __ADRENO_GPU_H__ */
