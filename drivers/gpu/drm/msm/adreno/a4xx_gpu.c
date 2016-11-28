@@ -113,7 +113,7 @@ static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 }
 
 
-static void a4xx_me_init(struct msm_gpu *gpu)
+static bool a4xx_me_init(struct msm_gpu *gpu)
 {
 	struct msm_ringbuffer *ring = gpu->rb;
 
@@ -137,7 +137,7 @@ static void a4xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 
 	gpu->funcs->flush(gpu);
-	gpu->funcs->idle(gpu);
+	return gpu->funcs->idle(gpu);
 }
 
 static int a4xx_hw_init(struct msm_gpu *gpu)
@@ -292,9 +292,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	/* clear ME_HALT to start micro engine */
 	gpu_write(gpu, REG_A4XX_CP_ME_CNTL, 0);
 
-	a4xx_me_init(gpu);
-
-	return 0;
+	return a4xx_me_init(gpu) ? 0 : -EINVAL;
 }
 
 static void a4xx_recover(struct msm_gpu *gpu)
@@ -335,17 +333,21 @@ static void a4xx_destroy(struct msm_gpu *gpu)
 	kfree(a4xx_gpu);
 }
 
-static void a4xx_idle(struct msm_gpu *gpu)
+static bool a4xx_idle(struct msm_gpu *gpu)
 {
 	/* wait for ringbuffer to drain: */
-	adreno_idle(gpu);
+	if (!adreno_idle(gpu))
+		return false;
 
 	/* then wait for GPU to finish: */
 	if (spin_until(!(gpu_read(gpu, REG_A4XX_RBBM_STATUS) &
-					A4XX_RBBM_STATUS_GPU_BUSY)))
+					A4XX_RBBM_STATUS_GPU_BUSY))) {
 		DRM_ERROR("%s: timeout waiting for GPU to idle!\n", gpu->name);
+		/* TODO maybe we need to reset GPU here to recover from hang? */
+		return false;
+	}
 
-	/* TODO maybe we need to reset GPU here to recover from hang? */
+	return true;
 }
 
 static irqreturn_t a4xx_irq(struct msm_gpu *gpu)

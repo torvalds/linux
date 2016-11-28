@@ -218,19 +218,18 @@ void adreno_flush(struct msm_gpu *gpu)
 	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_WPTR, wptr);
 }
 
-void adreno_idle(struct msm_gpu *gpu)
+bool adreno_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	uint32_t wptr = get_wptr(gpu->rb);
-	int ret;
 
 	/* wait for CP to drain ringbuffer: */
-	ret = spin_until(get_rptr(adreno_gpu) == wptr);
-
-	if (ret)
-		DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
+	if (!spin_until(get_rptr(adreno_gpu) == wptr))
+		return true;
 
 	/* TODO maybe we need to reset GPU here to recover from hang? */
+	DRM_ERROR("%s: timeout waiting to drain ringbuffer!\n", gpu->name);
+	return false;
 }
 
 #ifdef CONFIG_DEBUG_FS
