@@ -8,6 +8,7 @@ Kernel and driver related documentation.
    :maxdepth: 1
 
    assoc_array
+   local_ops
    workqueue
 
 .. only::  subproject
