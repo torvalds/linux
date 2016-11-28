@@ -164,14 +164,14 @@ void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val)
 
 	mutex_lock(&priv->state_lock);
 
-	if (priv->params.rx_cqe_compress == val)
+	if (MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) == val)
 		goto unlock;
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (was_opened)
 		mlx5e_close_locked(priv->netdev);
 
-	priv->params.rx_cqe_compress = val;
+	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, val);
 
 	if (was_opened)
 		mlx5e_open_locked(priv->netdev);

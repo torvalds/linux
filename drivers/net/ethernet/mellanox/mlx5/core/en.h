@@ -167,21 +167,27 @@ struct mlx5e_umr_wqe {
 	struct mlx5_wqe_data_seg       data;
 };
 
+extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];
+
 static const char mlx5e_priv_flags[][ETH_GSTRING_LEN] = {
 	"rx_cqe_moder",
+	"rx_cqe_compress",
 };
 
 enum mlx5e_priv_flag {
 	MLX5E_PFLAG_RX_CQE_BASED_MODER = (1 << 0),
+	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 1),
 };
 
-#define MLX5E_SET_PRIV_FLAG(priv, pflag, enable)    \
-	do {                                        \
-		if (enable)                         \
-			priv->pflags |= pflag;      \
-		else                                \
-			priv->pflags &= ~pflag;     \
+#define MLX5E_SET_PFLAG(priv, pflag, enable)			\
+	do {							\
+		if (enable)					\
+			(priv)->params.pflags |= (pflag);	\
+		else						\
+			(priv)->params.pflags &= ~(pflag);	\
 	} while (0)
+
+#define MLX5E_GET_PFLAG(priv, pflag) (!!((priv)->params.pflags & (pflag)))
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
@@ -201,8 +207,7 @@ struct mlx5e_params {
 	u16 num_channels;
 	u8  num_tc;
 	u8  rx_cq_period_mode;
-	bool rx_cqe_compress_admin;
-	bool rx_cqe_compress;
+	bool rx_cqe_compress_def;
 	struct mlx5e_cq_moder rx_cq_moderation;
 	struct mlx5e_cq_moder tx_cq_moderation;
 	u16 min_rx_wqes;
@@ -214,12 +219,34 @@ struct mlx5e_params {
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 	bool vlan_strip_disable;
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	struct ieee_ets ets;
-#endif
 	bool rx_am_enabled;
 	u32 lro_timeout;
+	u32 pflags;
 };
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+struct mlx5e_cee_config {
+	/* bw pct for priority group */
+	u8                         pg_bw_pct[CEE_DCBX_MAX_PGS];
+	u8                         prio_to_pg_map[CEE_DCBX_MAX_PRIO];
+	bool                       pfc_setting[CEE_DCBX_MAX_PRIO];
+	bool                       pfc_enable;
+};
+
+enum {
+	MLX5_DCB_CHG_RESET,
+	MLX5_DCB_NO_CHG,
+	MLX5_DCB_CHG_NO_RESET,
+};
+
+struct mlx5e_dcbx {
+	enum mlx5_dcbx_oper_mode   mode;
+	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
+
+	/* The only setting that cannot be read from FW */
+	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
+};
+#endif
 
 struct mlx5e_tstamp {
 	rwlock_t                   lock;
@@ -682,12 +709,15 @@ struct mlx5e_priv {
 	struct work_struct         tx_timeout_work;
 	struct delayed_work        update_stats_work;
 
-	u32                        pflags;
 	struct mlx5_core_dev      *mdev;
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
 	struct mlx5e_tstamp        tstamp;
 	u16 q_counter;
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	struct mlx5e_dcbx          dcbx;
+#endif
+
 	const struct mlx5e_profile *profile;
 	void                      *ppriv;
 };
@@ -729,6 +759,9 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_table(struct mlx5e_flow_table *ft);
+int mlx5e_self_test_num(struct mlx5e_priv *priv);
+void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
+		     u64 *buf);
 int mlx5e_ethtool_get_flow(struct mlx5e_priv *priv, struct ethtool_rxnfc *info,
 			   int location);
 int mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
@@ -819,6 +852,7 @@ extern const struct ethtool_ops mlx5e_ethtool_ops;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
 int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
+void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv);
 #endif
 
 #ifndef CONFIG_RFS_ACCEL
@@ -854,7 +888,8 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 		       struct mlx5e_tir *tir);
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
-int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev);
+int mlx5e_refresh_tirs_self_loopback(struct mlx5_core_dev *mdev,
+				     bool enable_uc_lb);
 
 struct mlx5_eswitch_rep;
 int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,

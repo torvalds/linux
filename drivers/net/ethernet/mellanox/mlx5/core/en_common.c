@@ -137,7 +137,8 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mlx5_unmap_free_uar(mdev, &res->cq_uar);
 }
 
-int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
+int mlx5e_refresh_tirs_self_loopback(struct mlx5_core_dev *mdev,
+				     bool enable_uc_lb)
 {
 	struct mlx5e_tir *tir;
 	void *in;
@@ -148,6 +149,10 @@ int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
 	in = mlx5_vzalloc(inlen);
 	if (!in)
 		return -ENOMEM;
+
+	if (enable_uc_lb)
+		MLX5_SET(modify_tir_in, in, ctx.self_lb_block,
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 

@@ -84,7 +84,8 @@ static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW;
-		priv->params.mpwqe_log_stride_sz = priv->params.rx_cqe_compress ?
+		priv->params.mpwqe_log_stride_sz =
+			MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) ?
 			MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS :
 			MLX5_MPWRQ_LOG_STRIDE_SIZE;
 		priv->params.mpwqe_log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ -
@@ -101,7 +102,7 @@ static void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type)
 		       priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
 		       BIT(priv->params.log_rq_size),
 		       BIT(priv->params.mpwqe_log_stride_sz),
-		       priv->params.rx_cqe_compress_admin);
+		       MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS));
 }
 
 static void mlx5e_set_rq_priv_params(struct mlx5e_priv *priv)
@@ -1664,7 +1665,7 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	MLX5_SET(cqc, cqc, log_cq_size, log_cq_size);
-	if (priv->params.rx_cqe_compress) {
+	if (MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS)) {
 		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_CSUM);
 		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
 	}
@@ -2136,7 +2137,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 		goto err_clear_state_opened_flag;
 	}
 
-	err = mlx5e_refresh_tirs_self_loopback_enable(priv->mdev);
+	err = mlx5e_refresh_tirs_self_loopback(priv->mdev, false);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_refresh_tirs_self_loopback_enable failed, %d\n",
 			   __func__, err);
@@ -3325,24 +3326,6 @@ u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
 	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
 }
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-static void mlx5e_ets_init(struct mlx5e_priv *priv)
-{
-	int i;
-
-	priv->params.ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;
-	for (i = 0; i < priv->params.ets.ets_cap; i++) {
-		priv->params.ets.tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
-		priv->params.ets.tc_tsa[i] = IEEE_8021QAZ_TSA_VENDOR;
-		priv->params.ets.prio_tc[i] = i;
-	}
-
-	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
-	priv->params.ets.prio_tc[0] = 1;
-	priv->params.ets.prio_tc[1] = 0;
-}
-#endif
-
 void mlx5e_build_default_indir_rqt(struct mlx5_core_dev *mdev,
 				   u32 *indirection_rqt, int len,
 				   int num_channels)
@@ -3465,17 +3448,16 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->params.log_sq_size = MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 
 	/* set CQE compression */
-	priv->params.rx_cqe_compress_admin = false;
+	priv->params.rx_cqe_compress_def = false;
 	if (MLX5_CAP_GEN(mdev, cqe_compression) &&
 	    MLX5_CAP_GEN(mdev, vport_group_manager)) {
 		mlx5e_get_max_linkspeed(mdev, &link_speed);
 		mlx5e_get_pci_bw(mdev, &pci_bw);
 		mlx5_core_dbg(mdev, "Max link speed = %d, PCI BW = %d\n",
 			      link_speed, pci_bw);
-		priv->params.rx_cqe_compress_admin =
+		priv->params.rx_cqe_compress_def =
 			cqe_compress_heuristic(link_speed, pci_bw);
 	}
-	priv->params.rx_cqe_compress = priv->params.rx_cqe_compress_admin;
 
 	mlx5e_set_rq_priv_params(priv);
 	if (priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
@@ -3506,12 +3488,9 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	/* Initialize pflags */
-	MLX5E_SET_PRIV_FLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
-			    priv->params.rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
-
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	mlx5e_ets_init(priv);
-#endif
+	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_BASED_MODER,
+			priv->params.rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
+	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, priv->params.rx_cqe_compress_def);
 
 	mutex_init(&priv->state_lock);
 
@@ -3549,7 +3528,8 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
 		netdev->netdev_ops = &mlx5e_netdev_ops_sriov;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
-		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
+		if (MLX5_CAP_GEN(mdev, qos))
+			netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
 #endif
 	} else {
 		netdev->netdev_ops = &mlx5e_netdev_ops_basic;
@@ -3788,7 +3768,7 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 	}
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
-	mlx5e_dcbnl_ieee_setets_core(priv, &priv->params.ets);
+	mlx5e_dcbnl_initialize(priv);
 #endif
 	return 0;
 }
