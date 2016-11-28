@@ -450,6 +450,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_HI, 0x00000000);
 	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_SIZE, 0x00000000);
 
+	/* Load the GPMU firmware before starting the HW init */
+	a5xx_gpmu_ucode_init(gpu);
+
 	ret = adreno_hw_init(gpu);
 	if (ret)
 		return ret;
@@ -467,8 +470,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
-	/* Put the GPU into insecure mode */
-	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TRUST_CNTL, 0x0);
+	ret = a5xx_power_init(gpu);
+	if (ret)
+		return ret;
 
 	/*
 	 * Send a pipeline event stat to get misbehaving counters to start
@@ -482,6 +486,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		if (!gpu->funcs->idle(gpu))
 			return -EINVAL;
 	}
+
+	/* Put the GPU into unsecure mode */
+	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TRUST_CNTL, 0x0);
 
 	return 0;
 }
@@ -523,6 +530,12 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 		if (a5xx_gpu->pfp_iova)
 			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->id);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->pfp_bo);
+	}
+
+	if (a5xx_gpu->gpmu_bo) {
+		if (a5xx_gpu->gpmu_bo)
+			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
+		drm_gem_object_unreference_unlocked(a5xx_gpu->gpmu_bo);
 	}
 
 	adreno_gpu_cleanup(adreno_gpu);
@@ -748,11 +761,54 @@ static void a5xx_dump(struct msm_gpu *gpu)
 
 static int a5xx_pm_resume(struct msm_gpu *gpu)
 {
-	return msm_gpu_pm_resume(gpu);
+	int ret;
+
+	/* Turn on the core power */
+	ret = msm_gpu_pm_resume(gpu);
+	if (ret)
+		return ret;
+
+	/* Turn the RBCCU domain first to limit the chances of voltage droop */
+	gpu_write(gpu, REG_A5XX_GPMU_RBCCU_POWER_CNTL, 0x778000);
+
+	/* Wait 3 usecs before polling */
+	udelay(3);
+
+	ret = spin_usecs(gpu, 20, REG_A5XX_GPMU_RBCCU_PWR_CLK_STATUS,
+		(1 << 20), (1 << 20));
+	if (ret) {
+		DRM_ERROR("%s: timeout waiting for RBCCU GDSC enable: %X\n",
+			gpu->name,
+			gpu_read(gpu, REG_A5XX_GPMU_RBCCU_PWR_CLK_STATUS));
+		return ret;
+	}
+
+	/* Turn on the SP domain */
+	gpu_write(gpu, REG_A5XX_GPMU_SP_POWER_CNTL, 0x778000);
+	ret = spin_usecs(gpu, 20, REG_A5XX_GPMU_SP_PWR_CLK_STATUS,
+		(1 << 20), (1 << 20));
+	if (ret)
+		DRM_ERROR("%s: timeout waiting for SP GDSC enable\n",
+			gpu->name);
+
+	return ret;
 }
 
 static int a5xx_pm_suspend(struct msm_gpu *gpu)
 {
+	/* Clear the VBIF pipe before shutting down */
+	gpu_write(gpu, REG_A5XX_VBIF_XIN_HALT_CTRL0, 0xF);
+	spin_until((gpu_read(gpu, REG_A5XX_VBIF_XIN_HALT_CTRL1) & 0xF) == 0xF);
+
+	gpu_write(gpu, REG_A5XX_VBIF_XIN_HALT_CTRL0, 0);
+
+	/*
+	 * Reset the VBIF before power collapse to avoid issue with FIFO
+	 * entries
+	 */
+	gpu_write(gpu, REG_A5XX_RBBM_BLOCK_SW_RESET_CMD, 0x003C0000);
+	gpu_write(gpu, REG_A5XX_RBBM_BLOCK_SW_RESET_CMD, 0x00000000);
+
 	return msm_gpu_pm_suspend(gpu);
 }
 
@@ -819,6 +875,8 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	a5xx_gpu->pdev = pdev;
 	adreno_gpu->registers = a5xx_registers;
 	adreno_gpu->reg_offsets = a5xx_register_offsets;
+
+	a5xx_gpu->lm_leakage = 0x4E001A;
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs);
 	if (ret) {

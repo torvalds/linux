@@ -30,8 +30,31 @@ struct a5xx_gpu {
 
 	struct drm_gem_object *pfp_bo;
 	uint64_t pfp_iova;
+
+	struct drm_gem_object *gpmu_bo;
+	uint64_t gpmu_iova;
+	uint32_t gpmu_dwords;
+
+	uint32_t lm_leakage;
 };
 
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)
+
+int a5xx_power_init(struct msm_gpu *gpu);
+void a5xx_gpmu_ucode_init(struct msm_gpu *gpu);
+
+static inline int spin_usecs(struct msm_gpu *gpu, uint32_t usecs,
+		uint32_t reg, uint32_t mask, uint32_t value)
+{
+	while (usecs--) {
+		udelay(1);
+		if ((gpu_read(gpu, reg) & mask) == value)
+			return 0;
+		cpu_relax();
+	}
+
+	return -ETIMEDOUT;
+}
+
 
 #endif /* __A5XX_GPU_H__ */
