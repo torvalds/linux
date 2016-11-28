@@ -7838,6 +7838,7 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 	}
 
 	I915_WRITE_FW(GEN6_PCODE_DATA, val);
+	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
 	I915_WRITE_FW(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
 	if (intel_wait_for_register_fw(dev_priv,
