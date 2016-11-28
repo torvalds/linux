@@ -245,11 +245,9 @@ xfs_reflink_reserve_cow(
 {
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec	got;
-	xfs_fileoff_t		end_fsb, orig_end_fsb;
 	int			error = 0;
 	bool			eof = false, trimmed;
 	xfs_extnum_t		idx;
-	xfs_extlen_t		align;
 
 	/*
 	 * Search the COW fork extent list first.  This serves two purposes:
@@ -287,33 +285,12 @@ xfs_reflink_reserve_cow(
 	if (error)
 		return error;
 
-	end_fsb = orig_end_fsb = imap->br_startoff + imap->br_blockcount;
-
-	align = xfs_eof_alignment(ip, xfs_get_cowextsz_hint(ip));
-	if (align)
-		end_fsb = roundup_64(end_fsb, align);
-
-retry:
 	error = xfs_bmapi_reserve_delalloc(ip, XFS_COW_FORK, imap->br_startoff,
-			end_fsb - imap->br_startoff, &got, &idx, eof);
-	switch (error) {
-	case 0:
-		break;
-	case -ENOSPC:
-	case -EDQUOT:
-		/* retry without any preallocation */
+			imap->br_blockcount, 0, &got, &idx, eof);
+	if (error == -ENOSPC || error == -EDQUOT)
 		trace_xfs_reflink_cow_enospc(ip, imap);
-		if (end_fsb != orig_end_fsb) {
-			end_fsb = orig_end_fsb;
-			goto retry;
-		}
-		/*FALLTHRU*/
-	default:
+	if (error)
 		return error;
-	}
-
-	if (end_fsb != orig_end_fsb)
-		xfs_inode_set_cowblocks_tag(ip);
 
 	trace_xfs_reflink_cow_alloc(ip, &got);
 	return 0;
@@ -1317,8 +1294,14 @@ xfs_reflink_remap_range(
 		goto out_unlock;
 	}
 
-	if (len == 0)
+	/* Zero length dedupe exits immediately; reflink goes to EOF. */
+	if (len == 0) {
+		if (is_dedupe) {
+			ret = 0;
+			goto out_unlock;
+		}
 		len = isize - pos_in;
+	}
 
 	/* Ensure offsets don't wrap and the input is inside i_size */
 	if (pos_in + len < pos_in || pos_out + len < pos_out ||
