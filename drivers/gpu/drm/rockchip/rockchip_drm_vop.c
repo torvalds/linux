@@ -1536,13 +1536,25 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
 		int ret;
 		if (!vop_is_allwin_disabled(vop)) {
+			reinit_completion(&vop->dsp_hold_completion);
+			vop_dsp_hold_valid_irq_enable(vop);
+
 			vop_cfg_update(crtc, old_crtc_state);
-			while(!vop_is_cfg_done_complete(vop));
+			spin_lock(&vop->reg_lock);
+
+			VOP_CTRL_SET(vop, standby, 1);
+
+			spin_unlock(&vop->reg_lock);
+
+			wait_for_completion(&vop->dsp_hold_completion);
+
+			vop_dsp_hold_valid_irq_disable(vop);
 		}
 		ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
 		if (ret) {
 			dev_err(vop->dev, "failed to attach dma mapping, %d\n", ret);
 		}
+		VOP_CTRL_SET(vop, standby, 0);
 		vop->is_iommu_enabled = true;
 	}
 
