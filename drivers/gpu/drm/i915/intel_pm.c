@@ -1053,6 +1053,14 @@ static void vlv_compute_fifo(struct intel_crtc *crtc)
 	WARN_ON(fifo_left != 0);
 }
 
+static u16 vlv_invert_wm_value(u16 wm, u16 fifo_size)
+{
+	if (wm > fifo_size)
+		return USHRT_MAX;
+	else
+		return fifo_size - wm;
+}
+
 static void vlv_invert_wms(struct intel_crtc *crtc)
 {
 	struct vlv_wm_state *wm_state = &crtc->wm_state;
@@ -1064,12 +1072,17 @@ static void vlv_invert_wms(struct intel_crtc *crtc)
 			INTEL_INFO(to_i915(dev))->num_pipes * 512 - 1;
 		struct intel_plane *plane;
 
-		wm_state->sr[level].plane = sr_fifo_size - wm_state->sr[level].plane;
-		wm_state->sr[level].cursor = 63 - wm_state->sr[level].cursor;
+		wm_state->sr[level].plane =
+			vlv_invert_wm_value(wm_state->sr[level].plane,
+					    sr_fifo_size);
+		wm_state->sr[level].cursor =
+			vlv_invert_wm_value(wm_state->sr[level].cursor,
+					    63);
 
 		for_each_intel_plane_on_crtc(dev, crtc, plane) {
-			wm_state->wm[level].plane[plane->id] = plane->wm.fifo_size -
-				wm_state->wm[level].plane[plane->id];
+			wm_state->wm[level].plane[plane->id] =
+				vlv_invert_wm_value(wm_state->wm[level].plane[plane->id],
+						    plane->wm.fifo_size);
 		}
 	}
 }
