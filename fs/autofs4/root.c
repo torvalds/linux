@@ -297,7 +297,7 @@ static int do_expire_wait(const struct path *path, bool rcu_walk)
 	if (!expiring)
 		return autofs4_expire_wait(path, rcu_walk);
 	else {
-		struct path this = { .mnt = path->mnt, .dentry = expiring };
+		const struct path this = { .mnt = path->mnt, .dentry = expiring };
 		/*
 		 * If we are racing with expire the request might not
 		 * be quite complete, but the directory has been removed

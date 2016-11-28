@@ -593,7 +593,7 @@ int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 
 	if (dentry) {
 		struct autofs_info *ino = autofs4_dentry_ino(dentry);
-		struct path path = { .mnt = mnt, .dentry = dentry };
+		const struct path path = { .mnt = mnt, .dentry = dentry };
 
 		/* This is synchronous because it makes the daemon a
 		 * little easier
