@@ -865,17 +865,18 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 #define FW_WM_VLV(value, plane) \
 	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK_VLV)
 
-static void vlv_write_wm_values(struct intel_crtc *crtc,
+static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 				const struct vlv_wm_values *wm)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
+	enum pipe pipe;
 
-	I915_WRITE(VLV_DDL(pipe),
-		   (wm->ddl[pipe].plane[PLANE_CURSOR] << DDL_CURSOR_SHIFT) |
-		   (wm->ddl[pipe].plane[PLANE_SPRITE1] << DDL_SPRITE_SHIFT(1)) |
-		   (wm->ddl[pipe].plane[PLANE_SPRITE0] << DDL_SPRITE_SHIFT(0)) |
-		   (wm->ddl[pipe].plane[PLANE_PRIMARY] << DDL_PLANE_SHIFT));
+	for_each_pipe(dev_priv, pipe) {
+		I915_WRITE(VLV_DDL(pipe),
+			   (wm->ddl[pipe].plane[PLANE_CURSOR] << DDL_CURSOR_SHIFT) |
+			   (wm->ddl[pipe].plane[PLANE_SPRITE1] << DDL_SPRITE_SHIFT(1)) |
+			   (wm->ddl[pipe].plane[PLANE_SPRITE0] << DDL_SPRITE_SHIFT(0)) |
+			   (wm->ddl[pipe].plane[PLANE_PRIMARY] << DDL_PLANE_SHIFT));
+	}
 
 	/*
 	 * Zero the (unused) WM1 watermarks, and also clear all the
@@ -1355,7 +1356,7 @@ static void vlv_update_wm(struct intel_crtc *crtc)
 	/* FIXME should be part of crtc atomic commit */
 	vlv_pipe_set_fifo_size(crtc);
 
-	vlv_write_wm_values(crtc, &wm);
+	vlv_write_wm_values(dev_priv, &wm);
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - %c: plane=%d, cursor=%d, "
 		      "sprite0=%d, sprite1=%d, SR: plane=%d, cursor=%d level=%d cxsr=%d\n",
