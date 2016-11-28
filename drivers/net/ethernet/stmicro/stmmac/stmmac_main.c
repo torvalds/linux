@@ -105,8 +105,8 @@ module_param(eee_timer, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(eee_timer, "LPI tx expiration time in msec");
 #define STMMAC_LPI_T(x) (jiffies + msecs_to_jiffies(x))
 
-/* By default the driver will use the ring mode to manage tx and rx descriptors
- * but passing this value so user can force to use the chain instead of the ring
+/* By default the driver will use the ring mode to manage tx and rx descriptors,
+ * but allow user to force to use the chain instead of the ring
  */
 static unsigned int chain_mode;
 module_param(chain_mode, int, S_IRUGO);
@@ -2960,6 +2960,8 @@ static int stmmac_sysfs_ring_open(struct inode *inode, struct file *file)
 	return single_open(file, stmmac_sysfs_ring_read, inode->i_private);
 }
 
+/* Debugfs files, should appear in /sys/kernel/debug/stmmaceth/eth0 */
+
 static const struct file_operations stmmac_rings_status_fops = {
 	.owner = THIS_MODULE,
 	.open = stmmac_sysfs_ring_open,
@@ -2982,11 +2984,11 @@ static int stmmac_sysfs_dma_cap_read(struct seq_file *seq, void *v)
 	seq_printf(seq, "\tDMA HW features\n");
 	seq_printf(seq, "==============================\n");
 
-	seq_printf(seq, "\t10/100 Mbps %s\n",
+	seq_printf(seq, "\t10/100 Mbps: %s\n",
 		   (priv->dma_cap.mbps_10_100) ? "Y" : "N");
-	seq_printf(seq, "\t1000 Mbps %s\n",
+	seq_printf(seq, "\t1000 Mbps: %s\n",
 		   (priv->dma_cap.mbps_1000) ? "Y" : "N");
-	seq_printf(seq, "\tHalf duple %s\n",
+	seq_printf(seq, "\tHalf duplex: %s\n",
 		   (priv->dma_cap.half_duplex) ? "Y" : "N");
 	seq_printf(seq, "\tHash Filter: %s\n",
 		   (priv->dma_cap.hash_filter) ? "Y" : "N");
@@ -3004,9 +3006,9 @@ static int stmmac_sysfs_dma_cap_read(struct seq_file *seq, void *v)
 		   (priv->dma_cap.rmon) ? "Y" : "N");
 	seq_printf(seq, "\tIEEE 1588-2002 Time Stamp: %s\n",
 		   (priv->dma_cap.time_stamp) ? "Y" : "N");
-	seq_printf(seq, "\tIEEE 1588-2008 Advanced Time Stamp:%s\n",
+	seq_printf(seq, "\tIEEE 1588-2008 Advanced Time Stamp: %s\n",
 		   (priv->dma_cap.atime_stamp) ? "Y" : "N");
-	seq_printf(seq, "\t802.3az - Energy-Efficient Ethernet (EEE) %s\n",
+	seq_printf(seq, "\t802.3az - Energy-Efficient Ethernet (EEE): %s\n",
 		   (priv->dma_cap.eee) ? "Y" : "N");
 	seq_printf(seq, "\tAV features: %s\n", (priv->dma_cap.av) ? "Y" : "N");
 	seq_printf(seq, "\tChecksum Offload in TX: %s\n",
