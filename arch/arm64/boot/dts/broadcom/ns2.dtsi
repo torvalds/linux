@@ -169,6 +169,23 @@
 		msi-parent = <&v2m0>;
 	};
 
+	pcie8: pcie@60c00000 {
+		compatible = "brcm,iproc-pcie-paxc";
+		reg = <0 0x60c00000 0 0x1000>;
+		linux,pci-domain = <8>;
+
+		bus-range = <0x0 0x1>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		device_type = "pci";
+		ranges = <0x83000000 0 0x00000000 0 0x60000000 0 0x00c00000>;
+
+		status = "disabled";
+
+		msi-parent = <&v2m0>;
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
