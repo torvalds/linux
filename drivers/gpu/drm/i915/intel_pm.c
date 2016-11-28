@@ -978,24 +978,26 @@ static void vlv_setup_wm_latency(struct drm_i915_private *dev_priv)
 	}
 }
 
-static uint16_t vlv_compute_wm_level(struct intel_plane *plane,
-				     struct intel_crtc *crtc,
-				     const struct intel_plane_state *state,
+static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
+				     const struct intel_plane_state *plane_state,
 				     int level)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 	int clock, htotal, cpp, width, wm;
 
 	if (dev_priv->wm.pri_latency[level] == 0)
 		return USHRT_MAX;
 
-	if (!state->base.visible)
+	if (!plane_state->base.visible)
 		return 0;
 
-	cpp = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
-	clock = crtc->config->base.adjusted_mode.crtc_clock;
-	htotal = crtc->config->base.adjusted_mode.crtc_htotal;
-	width = crtc->config->pipe_src_w;
+	cpp = drm_format_plane_cpp(plane_state->base.fb->pixel_format, 0);
+	clock = adjusted_mode->crtc_clock;
+	htotal = adjusted_mode->crtc_htotal;
+	width = crtc_state->pipe_src_w;
 	if (WARN_ON(htotal == 0))
 		htotal = 1;
 
@@ -1145,7 +1147,7 @@ static void vlv_compute_wm(struct intel_crtc *crtc)
 
 		/* normal watermarks */
 		for (level = 0; level < wm_state->num_levels; level++) {
-			int wm = vlv_compute_wm_level(plane, crtc, state, level);
+			int wm = vlv_compute_wm_level(crtc->config, state, level);
 			int max_wm = plane->wm.fifo_size;
 
 			/* hack */
