@@ -613,23 +613,6 @@ static int gen_erase_blk(struct nvm_dev *dev, struct nvm_block *blk, int flags)
 	return nvm_erase_ppa(dev, &addr, 1, flags);
 }
 
-static void gen_lun_info_print(struct nvm_dev *dev)
-{
-	struct gen_dev *gn = dev->mp;
-	struct nvm_lun *lun;
-	unsigned int i;
-
-
-	gen_for_each_lun(gn, lun, i) {
-		spin_lock(&lun->lock);
-
-		pr_info("%s: lun%8u\t%u\n", dev->name, i,
-						lun->nr_free_blocks);
-
-		spin_unlock(&lun->lock);
-	}
-}
-
 static struct nvmm_type gen = {
 	.name			= "gennvm",
 	.version		= {0, 1, 0},
@@ -644,8 +627,6 @@ static struct nvmm_type gen = {
 	.erase_blk		= gen_erase_blk,
 
 	.mark_blk		= gen_mark_blk,
-
-	.lun_info_print		= gen_lun_info_print,
 
 	.get_area		= gen_get_area,
 	.put_area		= gen_put_area,

@@ -541,8 +541,6 @@ typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
 typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *, int);
 typedef void (nvmm_mark_blk_fn)(struct nvm_dev *, struct ppa_addr, int);
-typedef void (nvmm_lun_info_print_fn)(struct nvm_dev *);
-
 typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
 typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
 
@@ -561,9 +559,6 @@ struct nvmm_type {
 
 	/* Bad block mgmt */
 	nvmm_mark_blk_fn *mark_blk;
-
-	/* Statistics */
-	nvmm_lun_info_print_fn *lun_info_print;
 
 	nvmm_get_area_fn *get_area;
 	nvmm_put_area_fn *put_area;
