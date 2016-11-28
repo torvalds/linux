@@ -38,6 +38,8 @@ Optional Properties:
 - enet-phy-lane-swap: If set, indicates the PHY will swap the TX/RX lanes to
   compensate for the board being designed with the lanes swapped.
 
+- eee-broken-modes: Bits to clear in the MDIO_AN_EEE_ADV register to
+  disable EEE broken modes.
 
 Example:
 
