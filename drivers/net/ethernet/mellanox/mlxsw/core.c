@@ -1188,8 +1188,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
-	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	kfree(mlxsw_core->lag.mapping);
+	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	free_percpu(mlxsw_core->pcpu_stats);
 	devlink_free(devlink);
 	mlxsw_core_driver_put(device_kind);
