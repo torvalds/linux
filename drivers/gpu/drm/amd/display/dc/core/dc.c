@@ -1096,8 +1096,12 @@ bool dc_commit_targets(
 
 	resource_validate_ctx_destruct(core_dc->current_context);
 
-	dm_free(core_dc->current_context);
+	if (core_dc->temp_flip_context != core_dc->current_context) {
+		dm_free(core_dc->temp_flip_context);
+		core_dc->temp_flip_context = core_dc->current_context;
+	}
 	core_dc->current_context = context;
+	memset(core_dc->temp_flip_context, 0, sizeof(*core_dc->temp_flip_context));
 
 	return (result == DC_OK);
 
