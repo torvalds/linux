@@ -434,6 +434,11 @@
 			ti,davinci-gpio-unbanked = <0>;
 			status = "disabled";
 		};
+		pinconf: pin-controller@22c00c {
+			compatible = "ti,da850-pupd";
+			reg = <0x22c00c 0x8>;
+			status = "disabled";
+		};
 
 		mcasp0: mcasp@100000 {
 			compatible = "ti,da830-mcasp-audio";
