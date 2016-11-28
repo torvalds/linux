@@ -1671,6 +1671,10 @@ static int mwifiex_save_hidden_ssid_channels(struct mwifiex_private *priv,
 	}
 
 done:
+	/* beacon_ie buffer was allocated in function
+	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 */
+	kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
 	return 0;
 }

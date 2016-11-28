@@ -19,6 +19,7 @@
 
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
+#include <linux/acpi.h>
 
 #include "hif.h"
 #include "core.h"
@@ -3179,7 +3180,8 @@ static void ath10k_mac_vif_handle_tx_pause(struct ath10k_vif *arvif,
 		ath10k_mac_vif_tx_unlock(arvif, pause_id);
 		break;
 	default:
-		ath10k_warn(ar, "received unknown tx pause action %d on vdev %i, ignoring\n",
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "received unknown tx pause action %d on vdev %i, ignoring\n",
 			    action, arvif->vdev_id);
 		break;
 	}
@@ -3255,8 +3257,6 @@ ath10k_mac_tx_h_get_txmode(struct ath10k *ar,
 	if (ar->htt.target_version_major < 3 &&
 	    (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc)) &&
 	    !test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
-		      ar->running_fw->fw_file.fw_features) &&
-	    !test_bit(ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR,
 		      ar->running_fw->fw_file.fw_features))
 		return ATH10K_HW_TXRX_MGMT;
 
@@ -4929,7 +4929,9 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ar->free_vdev_map &= ~(1LL << arvif->vdev_id);
+	spin_lock_bh(&ar->data_lock);
 	list_add(&arvif->list, &ar->arvifs);
+	spin_unlock_bh(&ar->data_lock);
 
 	/* It makes no sense to have firmware do keepalives. mac80211 already
 	 * takes care of this with idle connection polling.
@@ -5080,7 +5082,9 @@ err_peer_delete:
 err_vdev_delete:
 	ath10k_wmi_vdev_delete(ar, arvif->vdev_id);
 	ar->free_vdev_map |= 1LL << arvif->vdev_id;
+	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
+	spin_unlock_bh(&ar->data_lock);
 
 err:
 	if (arvif->beacon_buf) {
@@ -5126,7 +5130,9 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 
 	ar->free_vdev_map |= 1LL << arvif->vdev_id;
+	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
+	spin_unlock_bh(&ar->data_lock);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
 	    arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
@@ -5408,6 +5414,20 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	mutex_unlock(&ar->conf_mutex);
+}
+
+static void ath10k_mac_op_set_coverage_class(struct ieee80211_hw *hw, s16 value)
+{
+	struct ath10k *ar = hw->priv;
+
+	/* This function should never be called if setting the coverage class
+	 * is not supported on this hardware.
+	 */
+	if (!ar->hw_params.hw_ops->set_coverage_class) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+	ar->hw_params.hw_ops->set_coverage_class(ar, value);
 }
 
 static int ath10k_hw_scan(struct ieee80211_hw *hw,
@@ -7435,6 +7455,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.remove_interface		= ath10k_remove_interface,
 	.configure_filter		= ath10k_configure_filter,
 	.bss_info_changed		= ath10k_bss_info_changed,
+	.set_coverage_class		= ath10k_mac_op_set_coverage_class,
 	.hw_scan			= ath10k_hw_scan,
 	.cancel_hw_scan			= ath10k_cancel_hw_scan,
 	.set_key			= ath10k_set_key,
@@ -7789,6 +7810,109 @@ struct ath10k_vif *ath10k_get_arvif(struct ath10k *ar, u32 vdev_id)
 	return arvif_iter.arvif;
 }
 
+#define WRD_METHOD "WRDD"
+#define WRDD_WIFI  (0x07)
+
+static u32 ath10k_mac_wrdd_get_mcc(struct ath10k *ar, union acpi_object *wrdd)
+{
+	union acpi_object *mcc_pkg;
+	union acpi_object *domain_type;
+	union acpi_object *mcc_value;
+	u32 i;
+
+	if (wrdd->type != ACPI_TYPE_PACKAGE ||
+	    wrdd->package.count < 2 ||
+	    wrdd->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    wrdd->package.elements[0].integer.value != 0) {
+		ath10k_warn(ar, "ignoring malformed/unsupported wrdd structure\n");
+		return 0;
+	}
+
+	for (i = 1; i < wrdd->package.count; ++i) {
+		mcc_pkg = &wrdd->package.elements[i];
+
+		if (mcc_pkg->type != ACPI_TYPE_PACKAGE)
+			continue;
+		if (mcc_pkg->package.count < 2)
+			continue;
+		if (mcc_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
+		    mcc_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+			continue;
+
+		domain_type = &mcc_pkg->package.elements[0];
+		if (domain_type->integer.value != WRDD_WIFI)
+			continue;
+
+		mcc_value = &mcc_pkg->package.elements[1];
+		return mcc_value->integer.value;
+	}
+	return 0;
+}
+
+static int ath10k_mac_get_wrdd_regulatory(struct ath10k *ar, u16 *rd)
+{
+	struct pci_dev __maybe_unused *pdev = to_pci_dev(ar->dev);
+	acpi_handle root_handle;
+	acpi_handle handle;
+	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_status status;
+	u32 alpha2_code;
+	char alpha2[3];
+
+	root_handle = ACPI_HANDLE(&pdev->dev);
+	if (!root_handle)
+		return -EOPNOTSUPP;
+
+	status = acpi_get_handle(root_handle, (acpi_string)WRD_METHOD, &handle);
+	if (ACPI_FAILURE(status)) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "failed to get wrd method %d\n", status);
+		return -EIO;
+	}
+
+	status = acpi_evaluate_object(handle, NULL, NULL, &wrdd);
+	if (ACPI_FAILURE(status)) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "failed to call wrdc %d\n", status);
+		return -EIO;
+	}
+
+	alpha2_code = ath10k_mac_wrdd_get_mcc(ar, wrdd.pointer);
+	kfree(wrdd.pointer);
+	if (!alpha2_code)
+		return -EIO;
+
+	alpha2[0] = (alpha2_code >> 8) & 0xff;
+	alpha2[1] = (alpha2_code >> 0) & 0xff;
+	alpha2[2] = '\0';
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "regulatory hint from WRDD (alpha2-code): %s\n", alpha2);
+
+	*rd = ath_regd_find_country_by_name(alpha2);
+	if (*rd == 0xffff)
+		return -EIO;
+
+	*rd |= COUNTRY_ERD_FLAG;
+	return 0;
+}
+
+static int ath10k_mac_init_rd(struct ath10k *ar)
+{
+	int ret;
+	u16 rd;
+
+	ret = ath10k_mac_get_wrdd_regulatory(ar, &rd);
+	if (ret) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "fallback to eeprom programmed regulatory settings\n");
+		rd = ar->hw_eeprom_rd;
+	}
+
+	ar->ath_common.regulatory.current_rd = rd;
+	return 0;
+}
+
 int ath10k_mac_register(struct ath10k *ar)
 {
 	static const u32 cipher_suites[] = {
@@ -8012,6 +8136,16 @@ int ath10k_mac_register(struct ath10k *ar)
 	if (!test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
 		      ar->running_fw->fw_file.fw_features))
 		ar->ops->wake_tx_queue = NULL;
+
+	ret = ath10k_mac_init_rd(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to derive regdom: %d\n", ret);
+		goto err_dfs_detector_exit;
+	}
+
+	/* Disable set_coverage_class for chipsets that do not support it. */
+	if (!ar->hw_params.hw_ops->set_coverage_class)
+		ar->ops->set_coverage_class = NULL;
 
 	ret = ath_regd_init(&ar->ath_common.regulatory, ar->hw->wiphy,
 			    ath10k_reg_notifier);

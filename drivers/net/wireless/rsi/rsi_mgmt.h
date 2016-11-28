@@ -145,6 +145,12 @@ enum opmode {
 	AP_OPMODE = 2
 };
 
+enum vap_status {
+	VAP_ADD = 1,
+	VAP_DELETE = 2,
+	VAP_UPDATE = 3
+};
+
 extern struct ieee80211_rate rsi_rates[12];
 extern const u16 rsi_mcsrates[8];
 
@@ -287,7 +293,8 @@ static inline u8 rsi_get_channel(u8 *addr)
 }
 
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
-int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode);
+int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
+			     u8 vap_status);
 int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
 				      u16 ssn, u8 buf_size, u8 event);
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,

@@ -4580,8 +4580,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_configure_opensecurity(ifp);
 	}
 
-	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
-
 	/* Parameters shared by all radio interfaces */
 	if (!mbss) {
 		if ((supports_11d) && (is_11d != ifp->vif->is_11d)) {
@@ -4710,6 +4708,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		WARN_ON(1);
 	}
 
+	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
 	set_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 	brcmf_net_setcarrier(ifp, true);
 
@@ -4766,6 +4765,8 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
 		if (err < 0)
 			brcmf_err("BRCMF_C_UP error %d\n", err);
+
+		brcmf_vif_clear_mgmt_ies(ifp->vif);
 	} else {
 		bss_enable.bsscfgidx = cpu_to_le32(ifp->bsscfgidx);
 		bss_enable.enable = cpu_to_le32(0);
@@ -5508,7 +5509,8 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 	u32 reason = e->reason;
 	struct station_info sinfo;
 
-	brcmf_dbg(CONN, "event %d, reason %d\n", event, reason);
+	brcmf_dbg(CONN, "event %s (%u), reason %d\n",
+		  brcmf_fweh_event_name(event), event, reason);
 	if (event == BRCMF_E_LINK && reason == BRCMF_E_REASON_LINK_BSSCFG_DIS &&
 	    ndev != cfg_to_ndev(cfg)) {
 		brcmf_dbg(CONN, "AP mode link down\n");

@@ -1,8 +1,8 @@
-Marvell 8897/8997 (sd8897/sd8997) SDIO devices
+Marvell 8897/8997 (sd8897/sd8997/pcie8997) SDIO/PCIE devices
 ------
 
-This node provides properties for controlling the marvell sdio wireless device.
-The node is expected to be specified as a child node to the SDIO controller that
+This node provides properties for controlling the Marvell SDIO/PCIE wireless device.
+The node is expected to be specified as a child node to the SDIO/PCIE controller that
 connects the device to the system.
 
 Required properties:
@@ -10,6 +10,8 @@ Required properties:
   - compatible : should be one of the following:
 	* "marvell,sd8897"
 	* "marvell,sd8997"
+	* "pci11ab,2b42"
+	* "pci1b4b,2b42"
 
 Optional properties:
 
