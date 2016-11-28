@@ -449,6 +449,7 @@ struct f2fs_map_blocks {
 #define FADVISE_LOST_PINO_BIT	0x02
 #define FADVISE_ENCRYPT_BIT	0x04
 #define FADVISE_ENC_NAME_BIT	0x08
+#define FADVISE_KEEP_SIZE_BIT	0x10
 
 #define file_is_cold(inode)	is_file(inode, FADVISE_COLD_BIT)
 #define file_wrong_pino(inode)	is_file(inode, FADVISE_LOST_PINO_BIT)
@@ -461,6 +462,8 @@ struct f2fs_map_blocks {
 #define file_clear_encrypt(inode) clear_file(inode, FADVISE_ENCRYPT_BIT)
 #define file_enc_name(inode)	is_file(inode, FADVISE_ENC_NAME_BIT)
 #define file_set_enc_name(inode) set_file(inode, FADVISE_ENC_NAME_BIT)
+#define file_keep_isize(inode)	is_file(inode, FADVISE_KEEP_SIZE_BIT)
+#define file_set_keep_isize(inode) set_file(inode, FADVISE_KEEP_SIZE_BIT)
 
 #define DEF_DIR_LEVEL		0
 
@@ -1763,23 +1766,6 @@ static inline void f2fs_i_size_write(struct inode *inode, loff_t i_size)
 		set_inode_flag(inode, FI_AUTO_RECOVER);
 }
 
-static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
-{
-	if (dsync) {
-		struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-		bool ret;
-
-		spin_lock(&sbi->inode_lock[DIRTY_META]);
-		ret = list_empty(&F2FS_I(inode)->gdirty_list);
-		spin_unlock(&sbi->inode_lock[DIRTY_META]);
-		return ret;
-	}
-	if (!is_inode_flag_set(inode, FI_AUTO_RECOVER) ||
-			i_size_read(inode) & PAGE_MASK)
-		return false;
-	return F2FS_I(inode)->last_disk_size == i_size_read(inode);
-}
-
 static inline void f2fs_i_depth_write(struct inode *inode, unsigned int depth)
 {
 	F2FS_I(inode)->i_current_depth = depth;
@@ -1930,6 +1916,24 @@ static inline void clear_file(struct inode *inode, int type)
 {
 	F2FS_I(inode)->i_advise &= ~type;
 	f2fs_mark_inode_dirty_sync(inode, true);
+}
+
+static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
+{
+	if (dsync) {
+		struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+		bool ret;
+
+		spin_lock(&sbi->inode_lock[DIRTY_META]);
+		ret = list_empty(&F2FS_I(inode)->gdirty_list);
+		spin_unlock(&sbi->inode_lock[DIRTY_META]);
+		return ret;
+	}
+	if (!is_inode_flag_set(inode, FI_AUTO_RECOVER) ||
+			file_keep_isize(inode) ||
+			i_size_read(inode) & PAGE_MASK)
+		return false;
+	return F2FS_I(inode)->last_disk_size == i_size_read(inode);
 }
 
 static inline int f2fs_readonly(struct super_block *sb)
