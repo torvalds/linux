@@ -1199,10 +1199,11 @@ static void rrpc_luns_free(struct rrpc *rrpc)
 	kfree(rrpc->luns);
 }
 
-static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
+static int rrpc_luns_init(struct rrpc *rrpc, struct list_head *lun_list)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvm_geo *geo = &dev->geo;
+	struct nvm_lun *lun;
 	struct rrpc_lun *rlun;
 	int i, j, ret = -EINVAL;
 
@@ -1218,16 +1219,11 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 	if (!rrpc->luns)
 		return -ENOMEM;
 
+	i = 0;
+
 	/* 1:1 mapping */
-	for (i = 0; i < rrpc->nr_luns; i++) {
-		int lunid = lun_begin + i;
-		struct nvm_lun *lun;
-
-		lun = dev->mt->get_lun(dev->parent, lunid);
-		if (!lun)
-			goto err;
-
-		rlun = &rrpc->luns[i];
+	list_for_each_entry(lun, lun_list, list) {
+		rlun = &rrpc->luns[i++];
 		rlun->parent = lun;
 		rlun->blocks = vzalloc(sizeof(struct rrpc_block) *
 							geo->blks_per_lun);
@@ -1255,6 +1251,8 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
 		spin_lock_init(&rlun->lock);
 	}
+
+	WARN_ON(i != rrpc->nr_luns);
 
 	return 0;
 err:
@@ -1410,12 +1408,13 @@ err:
 static struct nvm_tgt_type tt_rrpc;
 
 static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
-						int lun_begin, int lun_end)
+						struct list_head *lun_list)
 {
 	struct request_queue *bqueue = dev->q;
 	struct request_queue *tqueue = tdisk->queue;
 	struct nvm_geo *geo = &dev->geo;
 	struct rrpc *rrpc;
+	int lun_begin = (list_first_entry(lun_list, struct nvm_lun, list))->id;
 	sector_t soffset;
 	int ret;
 
@@ -1450,7 +1449,7 @@ static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	}
 	rrpc->soffset = soffset;
 
-	ret = rrpc_luns_init(rrpc, lun_begin, lun_end);
+	ret = rrpc_luns_init(rrpc, lun_list);
 	if (ret) {
 		pr_err("nvm: rrpc: could not initialize luns\n");
 		goto err;

@@ -159,7 +159,7 @@ static int gen_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	tdisk->fops = &gen_fops;
 	tdisk->queue = tqueue;
 
-	targetdata = tt->init(tgt_dev, tdisk, s->lun_begin, s->lun_end);
+	targetdata = tt->init(tgt_dev, tdisk, &t->lun_list);
 	if (IS_ERR(targetdata))
 		goto err_init;
 
@@ -613,16 +613,6 @@ static int gen_erase_blk(struct nvm_dev *dev, struct nvm_block *blk, int flags)
 	return nvm_erase_ppa(dev, &addr, 1, flags);
 }
 
-static struct nvm_lun *gen_get_lun(struct nvm_dev *dev, int lunid)
-{
-	struct gen_dev *gn = dev->mp;
-
-	if (unlikely(lunid >= dev->geo.nr_luns))
-		return NULL;
-
-	return &gn->luns[lunid];
-}
-
 static void gen_lun_info_print(struct nvm_dev *dev)
 {
 	struct gen_dev *gn = dev->mp;
@@ -655,7 +645,6 @@ static struct nvmm_type gen = {
 
 	.mark_blk		= gen_mark_blk,
 
-	.get_lun		= gen_get_lun,
 	.lun_info_print		= gen_lun_info_print,
 
 	.get_area		= gen_get_area,
