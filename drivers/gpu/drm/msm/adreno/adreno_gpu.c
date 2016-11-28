@@ -129,11 +129,14 @@ void adreno_recover(struct msm_gpu *gpu)
 	adreno_gpu->memptrs->wptr  = 0;
 
 	gpu->funcs->pm_resume(gpu);
+
+	disable_irq(gpu->irq);
 	ret = gpu->funcs->hw_init(gpu);
 	if (ret) {
 		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 		/* hmm, oh well? */
 	}
+	enable_irq(gpu->irq);
 }
 
 void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,

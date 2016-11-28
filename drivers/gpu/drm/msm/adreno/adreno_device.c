@@ -145,12 +145,16 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_resume(gpu);
 		mutex_unlock(&dev->struct_mutex);
+
+		disable_irq(gpu->irq);
+
 		ret = gpu->funcs->hw_init(gpu);
 		if (ret) {
 			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 			gpu->funcs->destroy(gpu);
 			gpu = NULL;
 		} else {
+			enable_irq(gpu->irq);
 			/* give inactive pm a chance to kick in: */
 			msm_gpu_retire(gpu);
 		}
