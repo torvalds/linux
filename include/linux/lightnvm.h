@@ -47,6 +47,7 @@ struct ppa_addr {
 struct nvm_rq;
 struct nvm_id;
 struct nvm_dev;
+struct nvm_tgt_dev;
 
 typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
 typedef int (nvm_id_fn)(struct nvm_dev *, struct nvm_id *);
@@ -210,7 +211,6 @@ struct nvm_id {
 
 struct nvm_target {
 	struct list_head list;
-	struct list_head lun_list;
 	struct nvm_tgt_dev *dev;
 	struct nvm_tgt_type *type;
 	struct gendisk *disk;
@@ -231,7 +231,7 @@ typedef void (nvm_end_io_fn)(struct nvm_rq *);
 
 struct nvm_rq {
 	struct nvm_tgt_instance *ins;
-	struct nvm_dev *dev;
+	struct nvm_tgt_dev *dev;
 
 	struct bio *bio;
 
@@ -265,15 +265,6 @@ static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 {
 	return rqdata + 1;
 }
-
-struct nvm_lun {
-	int id;
-
-	int lun_id;
-	int chnl_id;
-
-	struct list_head list;
-};
 
 enum {
 	NVM_BLK_ST_FREE =	0x1,	/* Free block */
@@ -321,6 +312,9 @@ struct nvm_tgt_dev {
 	/* Device information */
 	struct nvm_geo geo;
 
+	/* Base ppas for target LUNs */
+	struct ppa_addr *luns;
+
 	sector_t total_secs;
 
 	struct nvm_id identity;
@@ -330,6 +324,7 @@ struct nvm_tgt_dev {
 	struct nvm_dev_ops *ops;
 
 	void *parent;
+	void *map;
 };
 
 struct nvm_dev {
@@ -363,16 +358,18 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 	void *private_data;
 
+	void *rmap;
+
 	struct mutex mlock;
 	spinlock_t lock;
 };
 
 static inline struct ppa_addr linear_to_generic_addr(struct nvm_geo *geo,
-							struct ppa_addr r)
+						     u64 pba)
 {
 	struct ppa_addr l;
 	int secs, pgs, blks, luns;
-	sector_t ppa = r.ppa;
+	sector_t ppa = pba;
 
 	l.ppa = 0;
 
@@ -465,8 +462,7 @@ static inline int ppa_to_slc(struct nvm_dev *dev, int slc_pg)
 
 typedef blk_qc_t (nvm_tgt_make_rq_fn)(struct request_queue *, struct bio *);
 typedef sector_t (nvm_tgt_capacity_fn)(void *);
-typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *,
-				struct list_head *lun_list);
+typedef void *(nvm_tgt_init_fn)(struct nvm_tgt_dev *, struct gendisk *);
 typedef void (nvm_tgt_exit_fn)(void *);
 
 struct nvm_tgt_type {
@@ -499,10 +495,11 @@ typedef void (nvmm_unregister_fn)(struct nvm_dev *);
 
 typedef int (nvmm_create_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_create *);
 typedef int (nvmm_remove_tgt_fn)(struct nvm_dev *, struct nvm_ioctl_remove *);
-typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
-typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct ppa_addr *, int);
+typedef int (nvmm_submit_io_fn)(struct nvm_tgt_dev *, struct nvm_rq *);
+typedef int (nvmm_erase_blk_fn)(struct nvm_tgt_dev *, struct ppa_addr *, int);
 typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
 typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
+typedef void (nvmm_part_to_tgt_fn)(struct nvm_dev *, sector_t*, int);
 
 struct nvmm_type {
 	const char *name;
@@ -520,6 +517,8 @@ struct nvmm_type {
 	nvmm_get_area_fn *get_area;
 	nvmm_put_area_fn *put_area;
 
+	nvmm_part_to_tgt_fn *part_to_tgt;
+
 	struct list_head list;
 };
 
@@ -533,14 +532,18 @@ extern void nvm_unregister(struct nvm_dev *);
 extern int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas,
 							int nr_ppas, int type);
 
-extern int nvm_submit_io(struct nvm_dev *, struct nvm_rq *);
+extern int nvm_submit_io(struct nvm_tgt_dev *, struct nvm_rq *);
 extern void nvm_generic_to_addr_mode(struct nvm_dev *, struct nvm_rq *);
 extern void nvm_addr_to_generic_mode(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_set_rqd_ppalist(struct nvm_dev *, struct nvm_rq *,
 					const struct ppa_addr *, int, int);
 extern void nvm_free_rqd_ppalist(struct nvm_dev *, struct nvm_rq *);
 extern int nvm_erase_ppa(struct nvm_dev *, struct ppa_addr *, int, int);
-extern int nvm_erase_blk(struct nvm_dev *, struct ppa_addr *, int);
+extern int nvm_erase_blk(struct nvm_tgt_dev *, struct ppa_addr *, int);
+extern int nvm_get_l2p_tbl(struct nvm_dev *, u64, u32, nvm_l2p_update_fn *,
+			   void *);
+extern int nvm_get_area(struct nvm_dev *, sector_t *, sector_t);
+extern void nvm_put_area(struct nvm_dev *, sector_t);
 extern void nvm_end_io(struct nvm_rq *, int);
 extern int nvm_submit_ppa(struct nvm_dev *, struct ppa_addr *, int, int, int,
 								void *, int);

@@ -371,6 +371,9 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 			return -EINVAL;
 		}
 
+		/* Transform physical address to target address space */
+		nvmdev->mt->part_to_tgt(nvmdev, entries, cmd_nlb);
+
 		if (update_l2p(cmd_slba, cmd_nlb, entries, priv)) {
 			ret = -EINTR;
 			goto out;

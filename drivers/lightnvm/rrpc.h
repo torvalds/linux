@@ -74,7 +74,9 @@ struct rrpc_block {
 
 struct rrpc_lun {
 	struct rrpc *rrpc;
-	struct nvm_lun *parent;
+
+	int id;
+	struct ppa_addr bppa;
 
 	struct rrpc_block *cur, *gc_cur;
 	struct rrpc_block *blocks;	/* Reference to block allocation */
@@ -107,7 +109,6 @@ struct rrpc {
 	struct gendisk *disk;
 
 	sector_t soffset; /* logical sector offset */
-	u64 poffset; /* physical page offset */
 
 	int nr_luns;
 	struct rrpc_lun *luns;
@@ -164,14 +165,37 @@ struct rrpc_rev_addr {
 	u64 addr;
 };
 
+static inline struct ppa_addr rrpc_linear_to_generic_addr(struct nvm_geo *geo,
+							  struct ppa_addr r)
+{
+	struct ppa_addr l;
+	int secs, pgs;
+	sector_t ppa = r.ppa;
+
+	l.ppa = 0;
+
+	div_u64_rem(ppa, geo->sec_per_pg, &secs);
+	l.g.sec = secs;
+
+	sector_div(ppa, geo->sec_per_pg);
+	div_u64_rem(ppa, geo->pgs_per_blk, &pgs);
+	l.g.pg = pgs;
+
+	return l;
+}
+
+static inline struct ppa_addr rrpc_recov_addr(struct nvm_dev *dev, u64 pba)
+{
+	return linear_to_generic_addr(&dev->geo, pba);
+}
+
 static inline u64 rrpc_blk_to_ppa(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
 	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct rrpc_lun *rlun = rblk->rlun;
-	struct nvm_lun *lun = rlun->parent;
 
-	return (lun->id * geo->sec_per_lun) + (rblk->id * geo->sec_per_blk);
+	return (rlun->id * geo->sec_per_lun) + (rblk->id * geo->sec_per_blk);
 }
 
 static inline sector_t rrpc_get_laddr(struct bio *bio)

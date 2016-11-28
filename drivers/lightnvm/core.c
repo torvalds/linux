@@ -203,15 +203,19 @@ int nvm_set_bb_tbl(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas,
 }
 EXPORT_SYMBOL(nvm_set_bb_tbl);
 
-int nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
+int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	return dev->mt->submit_io(dev, rqd);
+	struct nvm_dev *dev = tgt_dev->parent;
+
+	return dev->mt->submit_io(tgt_dev, rqd);
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-int nvm_erase_blk(struct nvm_dev *dev, struct ppa_addr *p, int flags)
+int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p, int flags)
 {
-	return dev->mt->erase_blk(dev, p, flags);
+	struct nvm_dev *dev = tgt_dev->parent;
+
+	return dev->mt->erase_blk(tgt_dev, p, flags);
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
@@ -350,7 +354,7 @@ static int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
 
 	nvm_generic_to_addr_mode(dev, rqd);
 
-	rqd->dev = dev;
+	rqd->dev = NULL;
 	rqd->opcode = opcode;
 	rqd->flags = flags;
 	rqd->bio = bio;
