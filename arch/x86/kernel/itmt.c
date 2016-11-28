@@ -23,7 +23,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>
-#include <asm/mutex.h>
+#include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/sysctl.h>
 #include <linux/nodemask.h>
