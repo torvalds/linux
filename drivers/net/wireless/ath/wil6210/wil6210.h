@@ -276,10 +276,11 @@ struct fw_map {
 	u32 to;   /* linker address - to, exclusive */
 	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
 	const char *name; /* for debugfs */
+	bool fw; /* true if FW mapping, false if UCODE mapping */
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[8];
+extern const struct fw_map fw_mapping[10];
 
 /**
  * mk_cidxtid - construct @cidxtid field
