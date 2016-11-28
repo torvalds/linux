@@ -1157,6 +1157,7 @@ err_debugfs_init:
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
 err_driver_init:
+	mlxsw_thermal_fini(mlxsw_core->thermal);
 err_thermal_init:
 err_hwmon_init:
 	devlink_unregister(devlink);
