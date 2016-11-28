@@ -379,7 +379,7 @@ static int nvm_prepare_new_sysblks(struct nvm_dev *dev, struct sysblk_scan *s)
 		ppa = &s->ppas[scan_ppa_idx(i, nxt_blk)];
 		ppa->g.pg = ppa_to_slc(dev, 0);
 
-		ret = nvm_erase_ppa(dev, ppa, 1);
+		ret = nvm_erase_ppa(dev, ppa, 1, 0);
 		if (ret)
 			return ret;
 
@@ -725,7 +725,7 @@ int nvm_dev_factory(struct nvm_dev *dev, int flags)
 	/* continue to erase until list of blks until empty */
 	while ((ppa_cnt =
 			nvm_fact_get_blks(dev, ppas, max_ppas, blk_bitmap)) > 0)
-		nvm_erase_ppa(dev, ppas, ppa_cnt);
+		nvm_erase_ppa(dev, ppas, ppa_cnt, 0);
 
 	/* mark host reserved blocks free */
 	if (flags & NVM_FACTORY_RESET_HOST_BLKS) {

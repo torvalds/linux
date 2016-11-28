@@ -526,6 +526,7 @@ static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
 	c.erase.nsid = cpu_to_le32(ns->ns_id);
 	c.erase.spba = cpu_to_le64(rqd->ppa_addr.ppa);
 	c.erase.length = cpu_to_le16(rqd->nr_ppas - 1);
+	c.erase.control = cpu_to_le16(rqd->flags);
 
 	return nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
 }
