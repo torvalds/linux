@@ -7683,10 +7683,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");
 		}
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		vlv_setup_wm_latency(dev_priv);
-		dev_priv->display.update_wm = vlv_update_wm;
-	} else if (IS_VALLEYVIEW(dev_priv)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev_priv);
 		dev_priv->display.update_wm = vlv_update_wm;
 	} else if (IS_PINEVIEW(dev_priv)) {
