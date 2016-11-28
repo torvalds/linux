@@ -279,7 +279,7 @@ static int gen_block_bb(struct gen_dev *gn, struct ppa_addr ppa,
 	lun = &gn->luns[(dev->luns_per_chnl * ppa.g.ch) + ppa.g.lun];
 
 	for (i = 0; i < nr_blks; i++) {
-		if (blks[i] == 0)
+		if (blks[i] == NVM_BLK_T_FREE)
 			continue;
 
 		blk = &lun->vlun.blocks[i];
