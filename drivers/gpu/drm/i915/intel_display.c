@@ -5114,10 +5114,8 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 	 *
 	 * WaCxSRDisabledForSpriteScaling:ivb
 	 */
-	if (pipe_config->disable_lp_wm) {
-		ilk_disable_lp_wm(dev);
+	if (pipe_config->disable_lp_wm && ilk_disable_lp_wm(dev))
 		intel_wait_for_vblank(dev_priv, crtc->pipe);
-	}
 
 	/*
 	 * If we're doing a modeset, we're done.  No need to do any pre-vblank
