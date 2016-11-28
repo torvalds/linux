@@ -592,7 +592,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 {
 	struct pci_dev *pdev = dev->pdev;
 	struct drm_i915_gem_object *obj;
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 	struct guc_css_header *css;
 	size_t size;
 	int err;
