@@ -127,8 +127,9 @@ Letting the PHY Abstraction Layer do Everything
  values pruned from them which don't make sense for your controller (a 10/100
  controller may be connected to a gigabit capable PHY, so you would need to
  mask off SUPPORTED_1000baseT*).  See include/linux/ethtool.h for definitions
- for these bitfields. Note that you should not SET any bits, or the PHY may
- get put into an unsupported state.
+ for these bitfields. Note that you should not SET any bits, except the
+ SUPPORTED_Pause and SUPPORTED_AsymPause bits (see below), or the PHY may get
+ put into an unsupported state.
 
  Lastly, once the controller is ready to handle network traffic, you call
  phy_start(phydev).  This tells the PAL that you are ready, and configures the
@@ -138,6 +139,19 @@ Letting the PHY Abstraction Layer do Everything
 
  When you want to disconnect from the network (even if just briefly), you call
  phy_stop(phydev).
+
+Pause frames / flow control
+
+ The PHY does not participate directly in flow control/pause frames except by
+ making sure that the SUPPORTED_Pause and SUPPORTED_AsymPause bits are set in
+ MII_ADVERTISE to indicate towards the link partner that the Ethernet MAC
+ controller supports such a thing. Since flow control/pause frames generation
+ involves the Ethernet MAC driver, it is recommended that this driver takes care
+ of properly indicating advertisement and support for such features by setting
+ the SUPPORTED_Pause and SUPPORTED_AsymPause bits accordingly. This can be done
+ either before or after phy_connect() and/or as a result of implementing the
+ ethtool::set_pauseparam feature.
+
 
 Keeping Close Tabs on the PAL
 
