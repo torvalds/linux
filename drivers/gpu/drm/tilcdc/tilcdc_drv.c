@@ -296,12 +296,12 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 
 	DBG("Maximum Bandwidth Value %d", priv->max_bandwidth);
 
-	if (of_property_read_u32(node, "ti,max-width", &priv->max_width))
+	if (of_property_read_u32(node, "max-width", &priv->max_width))
 		priv->max_width = TILCDC_DEFAULT_MAX_WIDTH;
 
 	DBG("Maximum Horizontal Pixel Width Value %dpixels", priv->max_width);
 
-	if (of_property_read_u32(node, "ti,max-pixelclock",
+	if (of_property_read_u32(node, "max-pixelclock",
 					&priv->max_pixelclock))
 		priv->max_pixelclock = TILCDC_DEFAULT_MAX_PIXELCLOCK;
 
