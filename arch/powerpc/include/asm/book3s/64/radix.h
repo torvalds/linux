@@ -243,6 +243,8 @@ static inline int radix__pmd_trans_huge(pmd_t pmd)
 
 static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
 {
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		return __pmd(pmd_val(pmd) | _PAGE_PTE | _PAGE_LARGE);
 	return __pmd(pmd_val(pmd) | _PAGE_PTE);
 }
 static inline void radix__pmdp_huge_split_prepare(struct vm_area_struct *vma,
