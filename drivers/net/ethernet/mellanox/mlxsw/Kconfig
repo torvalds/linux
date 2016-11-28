@@ -50,7 +50,7 @@ config MLXSW_I2C
 
 config MLXSW_SWITCHIB
 	tristate "Mellanox Technologies SwitchIB and SwitchIB-2 support"
-	depends on MLXSW_CORE && NET_SWITCHDEV
+	depends on MLXSW_CORE && MLXSW_PCI && NET_SWITCHDEV
 	default m
 	---help---
 	  This driver supports Mellanox Technologies SwitchIB and SwitchIB-2
