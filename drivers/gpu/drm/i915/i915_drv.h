@@ -1660,24 +1660,22 @@ struct ilk_wm_values {
 };
 
 struct vlv_pipe_wm {
-	uint16_t primary;
-	uint16_t sprite[2];
-	uint8_t cursor;
+	uint16_t plane[I915_MAX_PLANES];
 };
 
 struct vlv_sr_wm {
 	uint16_t plane;
-	uint8_t cursor;
+	uint16_t cursor;
+};
+
+struct vlv_wm_ddl_values {
+	uint8_t plane[I915_MAX_PLANES];
 };
 
 struct vlv_wm_values {
 	struct vlv_pipe_wm pipe[3];
 	struct vlv_sr_wm sr;
-	struct {
-		uint8_t cursor;
-		uint8_t sprite[2];
-		uint8_t primary;
-	} ddl[3];
+	struct vlv_wm_ddl_values ddl[3];
 	uint8_t level;
 	bool cxsr;
 };
