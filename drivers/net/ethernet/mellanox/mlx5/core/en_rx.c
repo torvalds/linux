@@ -687,8 +687,8 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	memset(wqe, 0, sizeof(*wqe));
 
 	/* copy the inline part */
-	memcpy(eseg->inline_hdr_start, xdp->data, MLX5E_XDP_MIN_INLINE);
-	eseg->inline_hdr_sz = cpu_to_be16(MLX5E_XDP_MIN_INLINE);
+	memcpy(eseg->inline_hdr.start, xdp->data, MLX5E_XDP_MIN_INLINE);
+	eseg->inline_hdr.sz = cpu_to_be16(MLX5E_XDP_MIN_INLINE);
 
 	dseg = (struct mlx5_wqe_data_seg *)cseg + (MLX5E_XDP_TX_DS_COUNT - 1);
 

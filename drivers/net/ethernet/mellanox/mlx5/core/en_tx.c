@@ -284,18 +284,18 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	wi->num_bytes = num_bytes;
 
 	if (skb_vlan_tag_present(skb)) {
-		mlx5e_insert_vlan(eseg->inline_hdr_start, skb, ihs, &skb_data,
+		mlx5e_insert_vlan(eseg->inline_hdr.start, skb, ihs, &skb_data,
 				  &skb_len);
 		ihs += VLAN_HLEN;
 	} else {
-		memcpy(eseg->inline_hdr_start, skb_data, ihs);
+		memcpy(eseg->inline_hdr.start, skb_data, ihs);
 		mlx5e_tx_skb_pull_inline(&skb_data, &skb_len, ihs);
 	}
 
-	eseg->inline_hdr_sz = cpu_to_be16(ihs);
+	eseg->inline_hdr.sz = cpu_to_be16(ihs);
 
 	ds_cnt  = sizeof(*wqe) / MLX5_SEND_WQE_DS;
-	ds_cnt += DIV_ROUND_UP(ihs - sizeof(eseg->inline_hdr_start),
+	ds_cnt += DIV_ROUND_UP(ihs - sizeof(eseg->inline_hdr.start),
 			       MLX5_SEND_WQE_DS);
 	dseg    = (struct mlx5_wqe_data_seg *)cseg + ds_cnt;
 
