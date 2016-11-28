@@ -97,7 +97,7 @@ static int tc3589x_gpio_get_direction(struct gpio_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	return !!(ret & BIT(pos));
+	return !(ret & BIT(pos));
 }
 
 static int tc3589x_gpio_set_single_ended(struct gpio_chip *chip,

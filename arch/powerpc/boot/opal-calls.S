@@ -12,6 +12,19 @@
 
 	.text
 
+	.globl opal_kentry
+opal_kentry:
+	/* r3 is the fdt ptr */
+	mtctr r4
+	li	r4, 0
+	li	r5, 0
+	li	r6, 0
+	li	r7, 0
+	ld	r11,opal@got(r2)
+	ld	r8,0(r11)
+	ld	r9,8(r11)
+	bctr
+
 #define OPAL_CALL(name, token)				\
 	.globl name;					\
 name:							\

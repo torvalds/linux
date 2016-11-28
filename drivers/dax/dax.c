@@ -270,8 +270,8 @@ static int check_vma(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 	if (!dax_dev->alive)
 		return -ENXIO;
 
-	/* prevent private / writable mappings from being established */
-	if ((vma->vm_flags & (VM_NORESERVE|VM_SHARED|VM_WRITE)) == VM_WRITE) {
+	/* prevent private mappings from being established */
+	if ((vma->vm_flags & VM_SHARED) != VM_SHARED) {
 		dev_info(dev, "%s: %s: fail, attempted private mapping\n",
 				current->comm, func);
 		return -EINVAL;

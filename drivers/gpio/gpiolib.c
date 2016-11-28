@@ -2737,8 +2737,11 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	/* Flush direction if something changed behind our back */
-	if (chip->get_direction) {
+	/*
+	 * If it's fast: flush the direction setting if something changed
+	 * behind our back
+	 */
+	if (!chip->can_sleep && chip->get_direction) {
 		int dir = chip->get_direction(chip, offset);
 
 		if (dir)

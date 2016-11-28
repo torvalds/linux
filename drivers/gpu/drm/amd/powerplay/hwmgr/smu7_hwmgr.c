@@ -2984,19 +2984,19 @@ static int smu7_get_pp_table_entry_callback_func_v0(struct pp_hwmgr *hwmgr,
 	if (!(data->mc_micro_code_feature & DISABLE_MC_LOADMICROCODE) && memory_clock > data->highest_mclk)
 		data->highest_mclk = memory_clock;
 
-	performance_level = &(ps->performance_levels
-			[ps->performance_level_count++]);
-
 	PP_ASSERT_WITH_CODE(
 			(ps->performance_level_count < smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_GRAPHICS)),
 			"Performance levels exceeds SMC limit!",
 			return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(
-			(ps->performance_level_count <=
+			(ps->performance_level_count <
 					hwmgr->platform_descriptor.hardwareActivityPerformanceLevels),
-			"Performance levels exceeds Driver limit!",
-			return -EINVAL);
+			"Performance levels exceeds Driver limit, Skip!",
+			return 0);
+
+	performance_level = &(ps->performance_levels
+			[ps->performance_level_count++]);
 
 	/* Performance levels are arranged from low to high. */
 	performance_level->memory_clock = memory_clock;

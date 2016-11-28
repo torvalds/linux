@@ -78,7 +78,9 @@ static int dax_pmem_probe(struct device *dev)
 	nsio = to_nd_namespace_io(&ndns->dev);
 
 	/* parse the 'pfn' info block via ->rw_bytes */
-	devm_nsio_enable(dev, nsio);
+	rc = devm_nsio_enable(dev, nsio);
+	if (rc)
+		return rc;
 	altmap = nvdimm_setup_pfn(nd_pfn, &res, &__altmap);
 	if (IS_ERR(altmap))
 		return PTR_ERR(altmap);
