@@ -243,6 +243,7 @@ enum emulation_result {
 #define TLB_ASID(x)		((x).tlb_hi & KVM_ENTRYHI_ASID)
 #define TLB_LO_IDX(x, va)	(((va) >> PAGE_SHIFT) & 1)
 #define TLB_IS_VALID(x, va)	((x).tlb_lo[TLB_LO_IDX(x, va)] & ENTRYLO_V)
+#define TLB_IS_DIRTY(x, va)	((x).tlb_lo[TLB_LO_IDX(x, va)] & ENTRYLO_D)
 #define TLB_HI_VPN2_HIT(x, y)	((TLB_VPN2(x) & ~(x).tlb_mask) ==	\
 				 ((y) & VPN2_MASK & ~(x).tlb_mask))
 #define TLB_HI_ASID_HIT(x, y)	(TLB_IS_GLOBAL(x) ||			\
@@ -640,6 +641,20 @@ pgd_t *kvm_pgd_alloc(void);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 				  bool user);
+void kvm_trap_emul_gva_lockless_begin(struct kvm_vcpu *vcpu);
+void kvm_trap_emul_gva_lockless_end(struct kvm_vcpu *vcpu);
+
+enum kvm_mips_fault_result {
+	KVM_MIPS_MAPPED = 0,
+	KVM_MIPS_GVA,
+	KVM_MIPS_GPA,
+	KVM_MIPS_TLB,
+	KVM_MIPS_TLBINV,
+	KVM_MIPS_TLBMOD,
+};
+enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
+						   unsigned long gva,
+						   bool write);
 
 /* Emulation */
 int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out);

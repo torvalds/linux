@@ -786,6 +786,71 @@ static void kvm_trap_emul_check_requests(struct kvm_vcpu *vcpu, int cpu,
 	}
 }
 
+/**
+ * kvm_trap_emul_gva_lockless_begin() - Begin lockless access to GVA space.
+ * @vcpu:	VCPU pointer.
+ *
+ * Call before a GVA space access outside of guest mode, to ensure that
+ * asynchronous TLB flush requests are handled or delayed until completion of
+ * the GVA access (as indicated by a matching kvm_trap_emul_gva_lockless_end()).
+ *
+ * Should be called with IRQs already enabled.
+ */
+void kvm_trap_emul_gva_lockless_begin(struct kvm_vcpu *vcpu)
+{
+	/* We re-enable IRQs in kvm_trap_emul_gva_lockless_end() */
+	WARN_ON_ONCE(irqs_disabled());
+
+	/*
+	 * The caller is about to access the GVA space, so we set the mode to
+	 * force TLB flush requests to send an IPI, and also disable IRQs to
+	 * delay IPI handling until kvm_trap_emul_gva_lockless_end().
+	 */
+	local_irq_disable();
+
+	/*
+	 * Make sure the read of VCPU requests is not reordered ahead of the
+	 * write to vcpu->mode, or we could miss a TLB flush request while
+	 * the requester sees the VCPU as outside of guest mode and not needing
+	 * an IPI.
+	 */
+	smp_store_mb(vcpu->mode, READING_SHADOW_PAGE_TABLES);
+
+	/*
+	 * If a TLB flush has been requested (potentially while
+	 * OUTSIDE_GUEST_MODE and assumed immediately effective), perform it
+	 * before accessing the GVA space, and be sure to reload the ASID if
+	 * necessary as it'll be immediately used.
+	 *
+	 * TLB flush requests after this check will trigger an IPI due to the
+	 * mode change above, which will be delayed due to IRQs disabled.
+	 */
+	kvm_trap_emul_check_requests(vcpu, smp_processor_id(), true);
+}
+
+/**
+ * kvm_trap_emul_gva_lockless_end() - End lockless access to GVA space.
+ * @vcpu:	VCPU pointer.
+ *
+ * Called after a GVA space access outside of guest mode. Should have a matching
+ * call to kvm_trap_emul_gva_lockless_begin().
+ */
+void kvm_trap_emul_gva_lockless_end(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Make sure the write to vcpu->mode is not reordered in front of GVA
+	 * accesses, or a TLB flush requester may not think it necessary to send
+	 * an IPI.
+	 */
+	smp_store_release(&vcpu->mode, OUTSIDE_GUEST_MODE);
+
+	/*
+	 * Now that the access to GVA space is complete, its safe for pending
+	 * TLB flush request IPIs to be handled (which indicates completion).
+	 */
+	local_irq_enable();
+}
+
 static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 				       struct kvm_vcpu *vcpu)
 {

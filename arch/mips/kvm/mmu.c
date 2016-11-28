@@ -732,6 +732,57 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	local_irq_restore(flags);
 }
 
+/**
+ * kvm_trap_emul_gva_fault() - Safely attempt to handle a GVA access fault.
+ * @vcpu:	Virtual CPU.
+ * @gva:	Guest virtual address to be accessed.
+ * @write:	True if write attempted (must be dirtied and made writable).
+ *
+ * Safely attempt to handle a GVA fault, mapping GVA pages if necessary, and
+ * dirtying the page if @write so that guest instructions can be modified.
+ *
+ * Returns:	KVM_MIPS_MAPPED on success.
+ *		KVM_MIPS_GVA if bad guest virtual address.
+ *		KVM_MIPS_GPA if bad guest physical address.
+ *		KVM_MIPS_TLB if guest TLB not present.
+ *		KVM_MIPS_TLBINV if guest TLB present but not valid.
+ *		KVM_MIPS_TLBMOD if guest TLB read only.
+ */
+enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
+						   unsigned long gva,
+						   bool write)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct kvm_mips_tlb *tlb;
+	int index;
+
+	if (KVM_GUEST_KSEGX(gva) == KVM_GUEST_KSEG0) {
+		if (kvm_mips_handle_kseg0_tlb_fault(gva, vcpu) < 0)
+			return KVM_MIPS_GPA;
+	} else if ((KVM_GUEST_KSEGX(gva) < KVM_GUEST_KSEG0) ||
+		   KVM_GUEST_KSEGX(gva) == KVM_GUEST_KSEG23) {
+		/* Address should be in the guest TLB */
+		index = kvm_mips_guest_tlb_lookup(vcpu, (gva & VPN2_MASK) |
+			  (kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID));
+		if (index < 0)
+			return KVM_MIPS_TLB;
+		tlb = &vcpu->arch.guest_tlb[index];
+
+		/* Entry should be valid, and dirty for writes */
+		if (!TLB_IS_VALID(*tlb, gva))
+			return KVM_MIPS_TLBINV;
+		if (write && !TLB_IS_DIRTY(*tlb, gva))
+			return KVM_MIPS_TLBMOD;
+
+		if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, gva))
+			return KVM_MIPS_GPA;
+	} else {
+		return KVM_MIPS_GVA;
+	}
+
+	return KVM_MIPS_MAPPED;
+}
+
 int kvm_get_inst(u32 *opc, struct kvm_vcpu *vcpu, u32 *out)
 {
 	int err;
