@@ -21,6 +21,10 @@ static inline int hstate_get_psize(struct hstate *hstate)
 		return MMU_PAGE_2M;
 	else if (shift == mmu_psize_defs[MMU_PAGE_1G].shift)
 		return MMU_PAGE_1G;
+	else if (shift == mmu_psize_defs[MMU_PAGE_16M].shift)
+		return MMU_PAGE_16M;
+	else if (shift == mmu_psize_defs[MMU_PAGE_16G].shift)
+		return MMU_PAGE_16G;
 	else {
 		WARN(1, "Wrong huge page shift\n");
 		return mmu_virtual_psize;
