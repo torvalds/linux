@@ -154,6 +154,45 @@ static inline u32 gpu_read(struct msm_gpu *gpu, u32 reg)
 	return msm_readl(gpu->mmio + (reg << 2));
 }
 
+static inline void gpu_rmw(struct msm_gpu *gpu, u32 reg, u32 mask, u32 or)
+{
+	uint32_t val = gpu_read(gpu, reg);
+
+	val &= ~mask;
+	gpu_write(gpu, reg, val | or);
+}
+
+static inline u64 gpu_read64(struct msm_gpu *gpu, u32 lo, u32 hi)
+{
+	u64 val;
+
+	/*
+	 * Why not a readq here? Two reasons: 1) many of the LO registers are
+	 * not quad word aligned and 2) the GPU hardware designers have a bit
+	 * of a history of putting registers where they fit, especially in
+	 * spins. The longer a GPU family goes the higher the chance that
+	 * we'll get burned.  We could do a series of validity checks if we
+	 * wanted to, but really is a readq() that much better? Nah.
+	 */
+
+	/*
+	 * For some lo/hi registers (like perfcounters), the hi value is latched
+	 * when the lo is read, so make sure to read the lo first to trigger
+	 * that
+	 */
+	val = (u64) msm_readl(gpu->mmio + (lo << 2));
+	val |= ((u64) msm_readl(gpu->mmio + (hi << 2)) << 32);
+
+	return val;
+}
+
+static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
+{
+	/* Why not a writeq here? Read the screed above */
+	msm_writel(lower_32_bits(val), gpu->mmio + (lo << 2));
+	msm_writel(upper_32_bits(val), gpu->mmio + (hi << 2));
+}
+
 int msm_gpu_pm_suspend(struct msm_gpu *gpu);
 int msm_gpu_pm_resume(struct msm_gpu *gpu);
 

@@ -520,16 +520,8 @@ static int a4xx_pm_suspend(struct msm_gpu *gpu) {
 
 static int a4xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 {
-	uint32_t hi, lo, tmp;
-
-	tmp = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_HI);
-	do {
-		hi = tmp;
-		lo = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_LO);
-		tmp = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_HI);
-	} while (tmp != hi);
-
-	*value = (((uint64_t)hi) << 32) | lo;
+	*value = gpu_read64(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_LO,
+		REG_A4XX_RBBM_PERFCTR_CP_0_HI);
 
 	return 0;
 }
