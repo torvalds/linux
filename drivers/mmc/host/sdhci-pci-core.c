@@ -27,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mmc/sdhci-pci-data.h>
+#include <linux/acpi.h>
 
 #include "sdhci.h"
 #include "sdhci-pci.h"
@@ -375,8 +376,39 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static int ni_set_max_freq(struct sdhci_pci_slot *slot)
+{
+	acpi_status status;
+	unsigned long long max_freq;
+
+	status = acpi_evaluate_integer(ACPI_HANDLE(&slot->chip->pdev->dev),
+				       "MXFQ", NULL, &max_freq);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&slot->chip->pdev->dev,
+			"MXFQ not found in acpi table\n");
+		return -EINVAL;
+	}
+
+	slot->host->mmc->f_max = max_freq * 1000000;
+
+	return 0;
+}
+#else
+static inline int ni_set_max_freq(struct sdhci_pci_slot *slot)
+{
+	return 0;
+}
+#endif
+
 static int ni_byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
 {
+	int err;
+
+	err = ni_set_max_freq(slot);
+	if (err)
+		return err;
+
 	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE |
 				 MMC_CAP_WAIT_WHILE_BUSY;
 	return 0;
