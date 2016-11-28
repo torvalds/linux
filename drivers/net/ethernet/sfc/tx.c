@@ -97,10 +97,8 @@ unsigned int efx_tx_max_skb_descs(struct efx_nic *efx)
 	 */
 	unsigned int max_descs = EFX_TSO_MAX_SEGS * 2 + MAX_SKB_FRAGS;
 
-	/* Possibly one more per segment for the alignment workaround,
-	 * or for option descriptors
-	 */
-	if (EFX_WORKAROUND_5391(efx) || efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
+	/* Possibly one more per segment for option descriptors */
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
 		max_descs += EFX_TSO_MAX_SEGS;
 
 	/* Possibly more for PCIe page boundaries within input fragments */
@@ -155,7 +153,6 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 static int efx_enqueue_skb_copy(struct efx_tx_queue *tx_queue,
 				struct sk_buff *skb)
 {
-	unsigned int min_len = tx_queue->tx_min_size;
 	unsigned int copy_len = skb->len;
 	struct efx_tx_buffer *buffer;
 	u8 *copy_buffer;
@@ -171,12 +168,7 @@ static int efx_enqueue_skb_copy(struct efx_tx_queue *tx_queue,
 
 	rc = skb_copy_bits(skb, 0, copy_buffer, copy_len);
 	EFX_WARN_ON_PARANOID(rc);
-	if (unlikely(copy_len < min_len)) {
-		memset(copy_buffer + copy_len, 0, min_len - copy_len);
-		buffer->len = min_len;
-	} else {
-		buffer->len = copy_len;
-	}
+	buffer->len = copy_len;
 
 	buffer->skb = skb;
 	buffer->flags = EFX_TX_BUF_SKB;
@@ -530,8 +522,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		tx_queue->pio_packets++;
 		data_mapped = true;
 #endif
-	} else if (skb_len < tx_queue->tx_min_size ||
-			(skb->data_len && skb_len <= EFX_TX_CB_SIZE)) {
+	} else if (skb->data_len && skb_len <= EFX_TX_CB_SIZE) {
 		/* Pad short packets or coalesce short fragmented packets. */
 		if (efx_enqueue_skb_copy(tx_queue, skb))
 			goto err;
@@ -677,7 +668,7 @@ int efx_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
 
 	num_tc = ntc->tc;
 
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0 || num_tc > EFX_MAX_TX_TC)
+	if (num_tc > EFX_MAX_TX_TC)
 		return -EINVAL;
 
 	if (num_tc == net_dev->num_tc)
@@ -836,9 +827,6 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	 * efx_nic_init_tx() based off NIC/queue capabilities.
 	 */
 	tx_queue->handle_tso = efx_enqueue_skb_tso;
-
-	/* Some older hardware requires Tx writes larger than 32. */
-	tx_queue->tx_min_size = EFX_WORKAROUND_15592(efx) ? 33 : 0;
 
 	/* Set up TX descriptor ring */
 	efx_nic_init_tx(tx_queue);

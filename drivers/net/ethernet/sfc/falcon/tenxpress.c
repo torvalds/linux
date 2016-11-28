@@ -143,27 +143,27 @@
 #define LNPGA_PDOWN_WAIT	(HZ / 5)
 
 struct tenxpress_phy_data {
-	enum efx_loopback_mode loopback_mode;
-	enum efx_phy_mode phy_mode;
+	enum ef4_loopback_mode loopback_mode;
+	enum ef4_phy_mode phy_mode;
 	int bad_lp_tries;
 };
 
-static int tenxpress_init(struct efx_nic *efx)
+static int tenxpress_init(struct ef4_nic *efx)
 {
 	/* Enable 312.5 MHz clock */
-	efx_mdio_write(efx, MDIO_MMD_PCS, PCS_TEST_SELECT_REG,
+	ef4_mdio_write(efx, MDIO_MMD_PCS, PCS_TEST_SELECT_REG,
 		       1 << CLK312_EN_LBN);
 
 	/* Set the LEDs up as: Green = Link, Amber = Link/Act, Red = Off */
-	efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_CTRL_REG,
+	ef4_mdio_set_flag(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_CTRL_REG,
 			  1 << PMA_PMA_LED_ACTIVITY_LBN, true);
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG,
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG,
 		       SFX7101_PMA_PMD_LED_DEFAULT);
 
 	return 0;
 }
 
-static int tenxpress_phy_probe(struct efx_nic *efx)
+static int tenxpress_phy_probe(struct ef4_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data;
 
@@ -185,18 +185,18 @@ static int tenxpress_phy_probe(struct efx_nic *efx)
 	return 0;
 }
 
-static int tenxpress_phy_init(struct efx_nic *efx)
+static int tenxpress_phy_init(struct ef4_nic *efx)
 {
 	int rc;
 
 	falcon_board(efx)->type->init_phy(efx);
 
 	if (!(efx->phy_mode & PHY_MODE_SPECIAL)) {
-		rc = efx_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
+		rc = ef4_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 		if (rc < 0)
 			return rc;
 
-		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS);
+		rc = ef4_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 		if (rc < 0)
 			return rc;
 	}
@@ -206,8 +206,8 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 		return rc;
 
 	/* Reinitialise flow control settings */
-	efx_link_set_wanted_fc(efx, efx->wanted_fc);
-	efx_mdio_an_reconfigure(efx);
+	ef4_link_set_wanted_fc(efx, efx->wanted_fc);
+	ef4_mdio_an_reconfigure(efx);
 
 	schedule_timeout_uninterruptible(HZ / 5); /* 200ms */
 
@@ -220,7 +220,7 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 /* Perform a "special software reset" on the PHY. The caller is
  * responsible for saving and restoring the PHY hardware registers
  * properly, and masking/unmasking LASI */
-static int tenxpress_special_reset(struct efx_nic *efx)
+static int tenxpress_special_reset(struct ef4_nic *efx)
 {
 	int rc, reg;
 
@@ -230,14 +230,14 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 	falcon_stop_nic_stats(efx);
 
 	/* Initiate reset */
-	reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG);
+	reg = ef4_mdio_read(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG);
 	reg |= (1 << PMA_PMD_EXT_SSR_LBN);
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
 
 	mdelay(200);
 
 	/* Wait for the blocks to come out of reset */
-	rc = efx_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
+	rc = ef4_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 	if (rc < 0)
 		goto out;
 
@@ -253,7 +253,7 @@ out:
 	return rc;
 }
 
-static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
+static void sfx7101_check_bad_lp(struct ef4_nic *efx, bool link_ok)
 {
 	struct tenxpress_phy_data *pd = efx->phy_data;
 	bool bad_lp;
@@ -263,7 +263,7 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 		bad_lp = false;
 	} else {
 		/* Check that AN has started but not completed. */
-		reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_STAT1);
+		reg = ef4_mdio_read(efx, MDIO_MMD_AN, MDIO_STAT1);
 		if (!(reg & MDIO_AN_STAT1_LPABLE))
 			return; /* LP status is unknown */
 		bad_lp = !(reg & MDIO_AN_STAT1_COMPLETE);
@@ -278,7 +278,7 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 	/* Use the RX (red) LED as an error indicator once we've seen AN
 	 * failure several times in a row, and also log a message. */
 	if (!bad_lp || pd->bad_lp_tries == MAX_BAD_LP_TRIES) {
-		reg = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+		reg = ef4_mdio_read(efx, MDIO_MMD_PMAPMD,
 				    PMA_PMD_LED_OVERR_REG);
 		reg &= ~(PMA_PMD_LED_MASK << PMA_PMD_LED_RX_LBN);
 		if (!bad_lp) {
@@ -291,35 +291,35 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 				  " supports 10GBASE-T ONLY, so no link can"
 				  " be established\n");
 		}
-		efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+		ef4_mdio_write(efx, MDIO_MMD_PMAPMD,
 			       PMA_PMD_LED_OVERR_REG, reg);
 		pd->bad_lp_tries = bad_lp;
 	}
 }
 
-static bool sfx7101_link_ok(struct efx_nic *efx)
+static bool sfx7101_link_ok(struct ef4_nic *efx)
 {
-	return efx_mdio_links_ok(efx,
+	return ef4_mdio_links_ok(efx,
 				 MDIO_DEVS_PMAPMD |
 				 MDIO_DEVS_PCS |
 				 MDIO_DEVS_PHYXS);
 }
 
-static void tenxpress_ext_loopback(struct efx_nic *efx)
+static void tenxpress_ext_loopback(struct ef4_nic *efx)
 {
-	efx_mdio_set_flag(efx, MDIO_MMD_PHYXS, PHYXS_TEST1,
+	ef4_mdio_set_flag(efx, MDIO_MMD_PHYXS, PHYXS_TEST1,
 			  1 << LOOPBACK_NEAR_LBN,
 			  efx->loopback_mode == LOOPBACK_PHYXS);
 }
 
-static void tenxpress_low_power(struct efx_nic *efx)
+static void tenxpress_low_power(struct ef4_nic *efx)
 {
-	efx_mdio_set_mmds_lpower(
+	ef4_mdio_set_mmds_lpower(
 		efx, !!(efx->phy_mode & PHY_MODE_LOW_POWER),
 		TENXPRESS_REQUIRED_DEVS);
 }
 
-static int tenxpress_phy_reconfigure(struct efx_nic *efx)
+static int tenxpress_phy_reconfigure(struct ef4_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
 	bool phy_mode_change, loop_reset;
@@ -340,10 +340,10 @@ static int tenxpress_phy_reconfigure(struct efx_nic *efx)
 	}
 
 	tenxpress_low_power(efx);
-	efx_mdio_transmit_disable(efx);
-	efx_mdio_phy_reconfigure(efx);
+	ef4_mdio_transmit_disable(efx);
+	ef4_mdio_phy_reconfigure(efx);
 	tenxpress_ext_loopback(efx);
-	efx_mdio_an_reconfigure(efx);
+	ef4_mdio_an_reconfigure(efx);
 
 	phy_data->loopback_mode = efx->loopback_mode;
 	phy_data->phy_mode = efx->phy_mode;
@@ -352,30 +352,30 @@ static int tenxpress_phy_reconfigure(struct efx_nic *efx)
 }
 
 static void
-tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd);
+tenxpress_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd);
 
 /* Poll for link state changes */
-static bool tenxpress_phy_poll(struct efx_nic *efx)
+static bool tenxpress_phy_poll(struct ef4_nic *efx)
 {
-	struct efx_link_state old_state = efx->link_state;
+	struct ef4_link_state old_state = efx->link_state;
 
 	efx->link_state.up = sfx7101_link_ok(efx);
 	efx->link_state.speed = 10000;
 	efx->link_state.fd = true;
-	efx->link_state.fc = efx_mdio_get_pause(efx);
+	efx->link_state.fc = ef4_mdio_get_pause(efx);
 
 	sfx7101_check_bad_lp(efx, efx->link_state.up);
 
-	return !efx_link_state_equal(&efx->link_state, &old_state);
+	return !ef4_link_state_equal(&efx->link_state, &old_state);
 }
 
-static void sfx7101_phy_fini(struct efx_nic *efx)
+static void sfx7101_phy_fini(struct ef4_nic *efx)
 {
 	int reg;
 
 	/* Power down the LNPGA */
 	reg = (1 << PMA_PMD_LNPGA_POWERDOWN_LBN);
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
 
 	/* Waiting here ensures that the board fini, which can turn
 	 * off the power to the PHY, won't get run until the LNPGA
@@ -383,7 +383,7 @@ static void sfx7101_phy_fini(struct efx_nic *efx)
 	schedule_timeout_uninterruptible(LNPGA_PDOWN_WAIT); /* 200 ms */
 }
 
-static void tenxpress_phy_remove(struct efx_nic *efx)
+static void tenxpress_phy_remove(struct ef4_nic *efx)
 {
 	kfree(efx->phy_data);
 	efx->phy_data = NULL;
@@ -391,17 +391,17 @@ static void tenxpress_phy_remove(struct efx_nic *efx)
 
 
 /* Override the RX, TX and link LEDs */
-void tenxpress_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+void tenxpress_set_id_led(struct ef4_nic *efx, enum ef4_led_mode mode)
 {
 	int reg;
 
 	switch (mode) {
-	case EFX_LED_OFF:
+	case EF4_LED_OFF:
 		reg = (PMA_PMD_LED_OFF << PMA_PMD_LED_TX_LBN) |
 			(PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN) |
 			(PMA_PMD_LED_OFF << PMA_PMD_LED_LINK_LBN);
 		break;
-	case EFX_LED_ON:
+	case EF4_LED_ON:
 		reg = (PMA_PMD_LED_ON << PMA_PMD_LED_TX_LBN) |
 			(PMA_PMD_LED_ON << PMA_PMD_LED_RX_LBN) |
 			(PMA_PMD_LED_ON << PMA_PMD_LED_LINK_LBN);
@@ -411,14 +411,14 @@ void tenxpress_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 		break;
 	}
 
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG, reg);
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_LED_OVERR_REG, reg);
 }
 
 static const char *const sfx7101_test_names[] = {
 	"bist"
 };
 
-static const char *sfx7101_test_name(struct efx_nic *efx, unsigned int index)
+static const char *sfx7101_test_name(struct ef4_nic *efx, unsigned int index)
 {
 	if (index < ARRAY_SIZE(sfx7101_test_names))
 		return sfx7101_test_names[index];
@@ -426,7 +426,7 @@ static const char *sfx7101_test_name(struct efx_nic *efx, unsigned int index)
 }
 
 static int
-sfx7101_run_tests(struct efx_nic *efx, int *results, unsigned flags)
+sfx7101_run_tests(struct ef4_nic *efx, int *results, unsigned flags)
 {
 	int rc;
 
@@ -437,21 +437,21 @@ sfx7101_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 	rc = tenxpress_special_reset(efx);
 	results[0] = rc ? -1 : 1;
 
-	efx_mdio_an_reconfigure(efx);
+	ef4_mdio_an_reconfigure(efx);
 
 	return rc;
 }
 
 static void
-tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+tenxpress_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
 {
 	u32 adv = 0, lpa = 0;
 	int reg;
 
-	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL);
+	reg = ef4_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL);
 	if (reg & MDIO_AN_10GBT_CTRL_ADV10G)
 		adv |= ADVERTISED_10000baseT_Full;
-	reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
+	reg = ef4_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
 	if (reg & MDIO_AN_10GBT_STAT_LP10G)
 		lpa |= ADVERTISED_10000baseT_Full;
 
@@ -463,22 +463,22 @@ tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 		ethtool_cmd_speed_set(ecmd, SPEED_10000);
 }
 
-static int tenxpress_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static int tenxpress_set_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
 {
 	if (!ecmd->autoneg)
 		return -EINVAL;
 
-	return efx_mdio_set_settings(efx, ecmd);
+	return ef4_mdio_set_settings(efx, ecmd);
 }
 
-static void sfx7101_set_npage_adv(struct efx_nic *efx, u32 advertising)
+static void sfx7101_set_npage_adv(struct ef4_nic *efx, u32 advertising)
 {
-	efx_mdio_set_flag(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+	ef4_mdio_set_flag(efx, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
 			  MDIO_AN_10GBT_CTRL_ADV10G,
 			  advertising & ADVERTISED_10000baseT_Full);
 }
 
-const struct efx_phy_operations falcon_sfx7101_phy_ops = {
+const struct ef4_phy_operations falcon_sfx7101_phy_ops = {
 	.probe		  = tenxpress_phy_probe,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,
@@ -488,7 +488,7 @@ const struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sfx7101_set_npage_adv,
-	.test_alive	  = efx_mdio_test_alive,
+	.test_alive	  = ef4_mdio_test_alive,
 	.test_name	  = sfx7101_test_name,
 	.run_tests	  = sfx7101_run_tests,
 };

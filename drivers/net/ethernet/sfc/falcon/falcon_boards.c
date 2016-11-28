@@ -66,7 +66,7 @@
 
 #if IS_ENABLED(CONFIG_SENSORS_LM87)
 
-static int efx_poke_lm87(struct i2c_client *client, const u8 *reg_values)
+static int ef4_poke_lm87(struct i2c_client *client, const u8 *reg_values)
 {
 	while (*reg_values) {
 		u8 reg = *reg_values++;
@@ -87,7 +87,7 @@ static const u8 falcon_lm87_common_regs[] = {
 	0
 };
 
-static int efx_init_lm87(struct efx_nic *efx, const struct i2c_board_info *info,
+static int ef4_init_lm87(struct ef4_nic *efx, const struct i2c_board_info *info,
 			 const u8 *reg_values)
 {
 	struct falcon_board *board = falcon_board(efx);
@@ -101,10 +101,10 @@ static int efx_init_lm87(struct efx_nic *efx, const struct i2c_board_info *info,
 	i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);
 	i2c_smbus_read_byte_data(client, LM87_REG_ALARMS2);
 
-	rc = efx_poke_lm87(client, reg_values);
+	rc = ef4_poke_lm87(client, reg_values);
 	if (rc)
 		goto err;
-	rc = efx_poke_lm87(client, falcon_lm87_common_regs);
+	rc = ef4_poke_lm87(client, falcon_lm87_common_regs);
 	if (rc)
 		goto err;
 
@@ -116,12 +116,12 @@ err:
 	return rc;
 }
 
-static void efx_fini_lm87(struct efx_nic *efx)
+static void ef4_fini_lm87(struct ef4_nic *efx)
 {
 	i2c_unregister_device(falcon_board(efx)->hwmon_client);
 }
 
-static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
+static int ef4_check_lm87(struct ef4_nic *efx, unsigned mask)
 {
 	struct i2c_client *client = falcon_board(efx)->hwmon_client;
 	bool temp_crit, elec_fault, is_failure;
@@ -129,7 +129,7 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 	s32 reg;
 
 	/* If link is up then do not monitor temperature */
-	if (EFX_WORKAROUND_7884(efx) && efx->link_state.up)
+	if (EF4_WORKAROUND_7884(efx) && efx->link_state.up)
 		return 0;
 
 	reg = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);
@@ -179,15 +179,15 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 #else /* !CONFIG_SENSORS_LM87 */
 
 static inline int
-efx_init_lm87(struct efx_nic *efx, const struct i2c_board_info *info,
+ef4_init_lm87(struct ef4_nic *efx, const struct i2c_board_info *info,
 	      const u8 *reg_values)
 {
 	return 0;
 }
-static inline void efx_fini_lm87(struct efx_nic *efx)
+static inline void ef4_fini_lm87(struct ef4_nic *efx)
 {
 }
-static inline int efx_check_lm87(struct efx_nic *efx, unsigned mask)
+static inline int ef4_check_lm87(struct ef4_nic *efx, unsigned mask)
 {
 	return 0;
 }
@@ -255,7 +255,7 @@ static inline int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 #define MAX664X_REG_RSL		0x02
 #define MAX664X_REG_WLHO	0x0B
 
-static void sfe4001_poweroff(struct efx_nic *efx)
+static void sfe4001_poweroff(struct ef4_nic *efx)
 {
 	struct i2c_client *ioexp_client = falcon_board(efx)->ioexp_client;
 	struct i2c_client *hwmon_client = falcon_board(efx)->hwmon_client;
@@ -269,7 +269,7 @@ static void sfe4001_poweroff(struct efx_nic *efx)
 	i2c_smbus_read_byte_data(hwmon_client, MAX664X_REG_RSL);
 }
 
-static int sfe4001_poweron(struct efx_nic *efx)
+static int sfe4001_poweron(struct ef4_nic *efx)
 {
 	struct i2c_client *ioexp_client = falcon_board(efx)->ioexp_client;
 	struct i2c_client *hwmon_client = falcon_board(efx)->hwmon_client;
@@ -360,7 +360,7 @@ fail_on:
 static ssize_t show_phy_flash_cfg(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 	return sprintf(buf, "%d\n", !!(efx->phy_mode & PHY_MODE_SPECIAL));
 }
 
@@ -368,8 +368,8 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
-	enum efx_phy_mode old_mode, new_mode;
+	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	enum ef4_phy_mode old_mode, new_mode;
 	int err;
 
 	rtnl_lock();
@@ -390,7 +390,7 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 			falcon_stop_nic_stats(efx);
 		err = sfe4001_poweron(efx);
 		if (!err)
-			err = efx_reconfigure_port(efx);
+			err = ef4_reconfigure_port(efx);
 		if (!(new_mode & PHY_MODE_SPECIAL))
 			falcon_start_nic_stats(efx);
 	}
@@ -401,7 +401,7 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 
 static DEVICE_ATTR(phy_flash_cfg, 0644, show_phy_flash_cfg, set_phy_flash_cfg);
 
-static void sfe4001_fini(struct efx_nic *efx)
+static void sfe4001_fini(struct ef4_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
@@ -413,13 +413,13 @@ static void sfe4001_fini(struct efx_nic *efx)
 	i2c_unregister_device(board->hwmon_client);
 }
 
-static int sfe4001_check_hw(struct efx_nic *efx)
+static int sfe4001_check_hw(struct ef4_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	s32 status;
 
 	/* If XAUI link is up then do not monitor */
-	if (EFX_WORKAROUND_7884(efx) && !nic_data->xmac_poll_required)
+	if (EF4_WORKAROUND_7884(efx) && !nic_data->xmac_poll_required)
 		return 0;
 
 	/* Check the powered status of the PHY. Lack of power implies that
@@ -450,7 +450,7 @@ static const struct i2c_board_info sfe4001_hwmon_info = {
  * be turned on before the PHY can be used.
  * Context: Process context, rtnl lock held
  */
-static int sfe4001_init(struct efx_nic *efx)
+static int sfe4001_init(struct ef4_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 	int rc;
@@ -537,7 +537,7 @@ static const struct i2c_board_info sfe4002_hwmon_info = {
 #define SFE4002_RX_LED    (0)	/* Green */
 #define SFE4002_TX_LED    (1)	/* Amber */
 
-static void sfe4002_init_phy(struct efx_nic *efx)
+static void sfe4002_init_phy(struct ef4_nic *efx)
 {
 	/* Set the TX and RX LEDs to reflect status and activity, and the
 	 * fault LED off */
@@ -548,14 +548,14 @@ static void sfe4002_init_phy(struct efx_nic *efx)
 	falcon_qt202x_set_led(efx, SFE4002_FAULT_LED, QUAKE_LED_OFF);
 }
 
-static void sfe4002_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+static void sfe4002_set_id_led(struct ef4_nic *efx, enum ef4_led_mode mode)
 {
 	falcon_qt202x_set_led(
 		efx, SFE4002_FAULT_LED,
-		(mode == EFX_LED_ON) ? QUAKE_LED_ON : QUAKE_LED_OFF);
+		(mode == EF4_LED_ON) ? QUAKE_LED_ON : QUAKE_LED_OFF);
 }
 
-static int sfe4002_check_hw(struct efx_nic *efx)
+static int sfe4002_check_hw(struct ef4_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
@@ -565,12 +565,12 @@ static int sfe4002_check_hw(struct efx_nic *efx)
 		(board->major == 0 && board->minor == 0) ?
 		~LM87_ALARM_TEMP_EXT1 : ~0;
 
-	return efx_check_lm87(efx, alarm_mask);
+	return ef4_check_lm87(efx, alarm_mask);
 }
 
-static int sfe4002_init(struct efx_nic *efx)
+static int sfe4002_init(struct ef4_nic *efx)
 {
-	return efx_init_lm87(efx, &sfe4002_hwmon_info, sfe4002_lm87_regs);
+	return ef4_init_lm87(efx, &sfe4002_hwmon_info, sfe4002_lm87_regs);
 }
 
 /*****************************************************************************
@@ -599,7 +599,7 @@ static const struct i2c_board_info sfn4112f_hwmon_info = {
 #define SFN4112F_ACT_LED	0
 #define SFN4112F_LINK_LED	1
 
-static void sfn4112f_init_phy(struct efx_nic *efx)
+static void sfn4112f_init_phy(struct ef4_nic *efx)
 {
 	falcon_qt202x_set_led(efx, SFN4112F_ACT_LED,
 			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACT);
@@ -607,15 +607,15 @@ static void sfn4112f_init_phy(struct efx_nic *efx)
 			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_STAT);
 }
 
-static void sfn4112f_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+static void sfn4112f_set_id_led(struct ef4_nic *efx, enum ef4_led_mode mode)
 {
 	int reg;
 
 	switch (mode) {
-	case EFX_LED_OFF:
+	case EF4_LED_OFF:
 		reg = QUAKE_LED_OFF;
 		break;
-	case EFX_LED_ON:
+	case EF4_LED_ON:
 		reg = QUAKE_LED_ON;
 		break;
 	default:
@@ -626,15 +626,15 @@ static void sfn4112f_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 	falcon_qt202x_set_led(efx, SFN4112F_LINK_LED, reg);
 }
 
-static int sfn4112f_check_hw(struct efx_nic *efx)
+static int sfn4112f_check_hw(struct ef4_nic *efx)
 {
 	/* Mask out unused sensors */
-	return efx_check_lm87(efx, ~0x48);
+	return ef4_check_lm87(efx, ~0x48);
 }
 
-static int sfn4112f_init(struct efx_nic *efx)
+static int sfn4112f_init(struct ef4_nic *efx)
 {
-	return efx_init_lm87(efx, &sfn4112f_hwmon_info, sfn4112f_lm87_regs);
+	return ef4_init_lm87(efx, &sfn4112f_hwmon_info, sfn4112f_lm87_regs);
 }
 
 /*****************************************************************************
@@ -663,7 +663,7 @@ static const struct i2c_board_info sfe4003_hwmon_info = {
 #define SFE4003_LED_ON		1
 #define SFE4003_LED_OFF		0
 
-static void sfe4003_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
+static void sfe4003_set_id_led(struct ef4_nic *efx, enum ef4_led_mode mode)
 {
 	struct falcon_board *board = falcon_board(efx);
 
@@ -673,10 +673,10 @@ static void sfe4003_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 	falcon_txc_set_gpio_val(
 		efx, SFE4003_RED_LED_GPIO,
-		(mode == EFX_LED_ON) ? SFE4003_LED_ON : SFE4003_LED_OFF);
+		(mode == EF4_LED_ON) ? SFE4003_LED_ON : SFE4003_LED_OFF);
 }
 
-static void sfe4003_init_phy(struct efx_nic *efx)
+static void sfe4003_init_phy(struct ef4_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
@@ -688,7 +688,7 @@ static void sfe4003_init_phy(struct efx_nic *efx)
 	falcon_txc_set_gpio_val(efx, SFE4003_RED_LED_GPIO, SFE4003_LED_OFF);
 }
 
-static int sfe4003_check_hw(struct efx_nic *efx)
+static int sfe4003_check_hw(struct ef4_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
@@ -698,19 +698,19 @@ static int sfe4003_check_hw(struct efx_nic *efx)
 		(board->major == 0 && board->minor <= 2) ?
 		~LM87_ALARM_TEMP_EXT1 : ~0;
 
-	return efx_check_lm87(efx, alarm_mask);
+	return ef4_check_lm87(efx, alarm_mask);
 }
 
-static int sfe4003_init(struct efx_nic *efx)
+static int sfe4003_init(struct ef4_nic *efx)
 {
-	return efx_init_lm87(efx, &sfe4003_hwmon_info, sfe4003_lm87_regs);
+	return ef4_init_lm87(efx, &sfe4003_hwmon_info, sfe4003_lm87_regs);
 }
 
 static const struct falcon_board_type board_types[] = {
 	{
 		.id		= FALCON_BOARD_SFE4001,
 		.init		= sfe4001_init,
-		.init_phy	= efx_port_dummy_op_void,
+		.init_phy	= ef4_port_dummy_op_void,
 		.fini		= sfe4001_fini,
 		.set_id_led	= tenxpress_set_id_led,
 		.monitor	= sfe4001_check_hw,
@@ -719,7 +719,7 @@ static const struct falcon_board_type board_types[] = {
 		.id		= FALCON_BOARD_SFE4002,
 		.init		= sfe4002_init,
 		.init_phy	= sfe4002_init_phy,
-		.fini		= efx_fini_lm87,
+		.fini		= ef4_fini_lm87,
 		.set_id_led	= sfe4002_set_id_led,
 		.monitor	= sfe4002_check_hw,
 	},
@@ -727,7 +727,7 @@ static const struct falcon_board_type board_types[] = {
 		.id		= FALCON_BOARD_SFE4003,
 		.init		= sfe4003_init,
 		.init_phy	= sfe4003_init_phy,
-		.fini		= efx_fini_lm87,
+		.fini		= ef4_fini_lm87,
 		.set_id_led	= sfe4003_set_id_led,
 		.monitor	= sfe4003_check_hw,
 	},
@@ -735,13 +735,13 @@ static const struct falcon_board_type board_types[] = {
 		.id		= FALCON_BOARD_SFN4112F,
 		.init		= sfn4112f_init,
 		.init_phy	= sfn4112f_init_phy,
-		.fini		= efx_fini_lm87,
+		.fini		= ef4_fini_lm87,
 		.set_id_led	= sfn4112f_set_id_led,
 		.monitor	= sfn4112f_check_hw,
 	},
 };
 
-int falcon_probe_board(struct efx_nic *efx, u16 revision_info)
+int falcon_probe_board(struct ef4_nic *efx, u16 revision_info)
 {
 	struct falcon_board *board = falcon_board(efx);
 	u8 type_id = FALCON_BOARD_TYPE(revision_info);

@@ -158,8 +158,8 @@
 
 struct txc43128_data {
 	unsigned long bug10934_timer;
-	enum efx_phy_mode phy_mode;
-	enum efx_loopback_mode loopback_mode;
+	enum ef4_phy_mode phy_mode;
+	enum ef4_loopback_mode loopback_mode;
 };
 
 /* The PHY sometimes needs a reset to bring the link back up.  So long as
@@ -168,32 +168,32 @@ struct txc43128_data {
 #define BUG10934_RESET_INTERVAL (5 * HZ)
 
 /* Perform a reset that doesn't clear configuration changes */
-static void txc_reset_logic(struct efx_nic *efx);
+static void txc_reset_logic(struct ef4_nic *efx);
 
 /* Set the output value of a gpio */
-void falcon_txc_set_gpio_val(struct efx_nic *efx, int pin, int on)
+void falcon_txc_set_gpio_val(struct ef4_nic *efx, int pin, int on)
 {
-	efx_mdio_set_flag(efx, MDIO_MMD_PHYXS, TXC_GPIO_OUTPUT, 1 << pin, on);
+	ef4_mdio_set_flag(efx, MDIO_MMD_PHYXS, TXC_GPIO_OUTPUT, 1 << pin, on);
 }
 
 /* Set up the GPIO direction register */
-void falcon_txc_set_gpio_dir(struct efx_nic *efx, int pin, int dir)
+void falcon_txc_set_gpio_dir(struct ef4_nic *efx, int pin, int dir)
 {
-	efx_mdio_set_flag(efx, MDIO_MMD_PHYXS, TXC_GPIO_DIR, 1 << pin, dir);
+	ef4_mdio_set_flag(efx, MDIO_MMD_PHYXS, TXC_GPIO_DIR, 1 << pin, dir);
 }
 
 /* Reset the PMA/PMD MMD. The documentation is explicit that this does a
  * global reset (it's less clear what reset of other MMDs does).*/
-static int txc_reset_phy(struct efx_nic *efx)
+static int txc_reset_phy(struct ef4_nic *efx)
 {
-	int rc = efx_mdio_reset_mmd(efx, MDIO_MMD_PMAPMD,
+	int rc = ef4_mdio_reset_mmd(efx, MDIO_MMD_PMAPMD,
 				    TXC_MAX_RESET_TIME / TXC_RESET_WAIT,
 				    TXC_RESET_WAIT);
 	if (rc < 0)
 		goto fail;
 
 	/* Check that all the MMDs we expect are present and responding. */
-	rc = efx_mdio_check_mmds(efx, TXC_REQUIRED_DEVS);
+	rc = ef4_mdio_check_mmds(efx, TXC_REQUIRED_DEVS);
 	if (rc < 0)
 		goto fail;
 
@@ -205,28 +205,28 @@ fail:
 }
 
 /* Run a single BIST on one MMD */
-static int txc_bist_one(struct efx_nic *efx, int mmd, int test)
+static int txc_bist_one(struct ef4_nic *efx, int mmd, int test)
 {
 	int ctrl, bctl;
 	int lane;
 	int rc = 0;
 
 	/* Set PMA to test into loopback using Mt Diablo reg as per app note */
-	ctrl = efx_mdio_read(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL);
+	ctrl = ef4_mdio_read(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL);
 	ctrl |= (1 << TXC_MTDIABLO_CTRL_PMA_LOOP_LBN);
-	efx_mdio_write(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL, ctrl);
+	ef4_mdio_write(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL, ctrl);
 
 	/* The BIST app. note lists these  as 3 distinct steps. */
 	/* Set the BIST type */
 	bctl = (test << TXC_BIST_CTRL_TYPE_LBN);
-	efx_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
+	ef4_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
 
 	/* Set the BSTEN bit in the BIST Control register to enable */
 	bctl |= (1 << TXC_BIST_CTRL_ENAB_LBN);
-	efx_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
+	ef4_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
 
 	/* Set the BSTRT bit in the BIST Control register */
-	efx_mdio_write(efx, mmd, TXC_BIST_CTL,
+	ef4_mdio_write(efx, mmd, TXC_BIST_CTL,
 		       bctl | (1 << TXC_BIST_CTRL_STRT_LBN));
 
 	/* Wait. */
@@ -234,22 +234,22 @@ static int txc_bist_one(struct efx_nic *efx, int mmd, int test)
 
 	/* Set the BSTOP bit in the BIST Control register */
 	bctl |= (1 << TXC_BIST_CTRL_STOP_LBN);
-	efx_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
+	ef4_mdio_write(efx, mmd, TXC_BIST_CTL, bctl);
 
 	/* The STOP bit should go off when things have stopped */
 	while (bctl & (1 << TXC_BIST_CTRL_STOP_LBN))
-		bctl = efx_mdio_read(efx, mmd, TXC_BIST_CTL);
+		bctl = ef4_mdio_read(efx, mmd, TXC_BIST_CTL);
 
 	/* Check all the error counts are 0 and all the frame counts are
 	   non-zero */
 	for (lane = 0; lane < 4; lane++) {
-		int count = efx_mdio_read(efx, mmd, TXC_BIST_RX0ERRCNT + lane);
+		int count = ef4_mdio_read(efx, mmd, TXC_BIST_RX0ERRCNT + lane);
 		if (count != 0) {
 			netif_err(efx, hw, efx->net_dev, TXCNAME": BIST error. "
 				  "Lane %d had %d errs\n", lane, count);
 			rc = -EIO;
 		}
-		count = efx_mdio_read(efx, mmd, TXC_BIST_RX0FRMCNT + lane);
+		count = ef4_mdio_read(efx, mmd, TXC_BIST_RX0FRMCNT + lane);
 		if (count == 0) {
 			netif_err(efx, hw, efx->net_dev, TXCNAME": BIST error. "
 				  "Lane %d got 0 frames\n", lane);
@@ -261,23 +261,23 @@ static int txc_bist_one(struct efx_nic *efx, int mmd, int test)
 		netif_info(efx, hw, efx->net_dev, TXCNAME": BIST pass\n");
 
 	/* Disable BIST */
-	efx_mdio_write(efx, mmd, TXC_BIST_CTL, 0);
+	ef4_mdio_write(efx, mmd, TXC_BIST_CTL, 0);
 
 	/* Turn off loopback */
 	ctrl &= ~(1 << TXC_MTDIABLO_CTRL_PMA_LOOP_LBN);
-	efx_mdio_write(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL, ctrl);
+	ef4_mdio_write(efx, MDIO_MMD_PCS, TXC_MTDIABLO_CTRL, ctrl);
 
 	return rc;
 }
 
-static int txc_bist(struct efx_nic *efx)
+static int txc_bist(struct ef4_nic *efx)
 {
 	return txc_bist_one(efx, MDIO_MMD_PCS, TXC_BIST_CTRL_TYPE_TSD);
 }
 
 /* Push the non-configurable defaults into the PHY. This must be
  * done after every full reset */
-static void txc_apply_defaults(struct efx_nic *efx)
+static void txc_apply_defaults(struct ef4_nic *efx)
 {
 	int mctrl;
 
@@ -287,33 +287,33 @@ static void txc_apply_defaults(struct efx_nic *efx)
 	 * saves a picowatt or two */
 
 	/* Turn off preemphasis */
-	efx_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE0, TXC_ATXPRE_NONE);
-	efx_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE1, TXC_ATXPRE_NONE);
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE0, TXC_ATXPRE_NONE);
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_ALRGS_ATXPRE1, TXC_ATXPRE_NONE);
 
 	/* Turn down the amplitude */
-	efx_mdio_write(efx, MDIO_MMD_PHYXS,
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS,
 		       TXC_ALRGS_ATXAMP0, TXC_ATXAMP_0820_BOTH);
-	efx_mdio_write(efx, MDIO_MMD_PHYXS,
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS,
 		       TXC_ALRGS_ATXAMP1, TXC_ATXAMP_0820_BOTH);
 
 	/* Set the line side amplitude and preemphasis to the databook
 	 * defaults as an erratum causes them to be 0 on at least some
 	 * PHY rev.s */
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD,
 		       TXC_ALRGS_ATXPRE0, TXC_ATXPRE_DEFAULT);
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD,
 		       TXC_ALRGS_ATXPRE1, TXC_ATXPRE_DEFAULT);
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD,
 		       TXC_ALRGS_ATXAMP0, TXC_ATXAMP_DEFAULT);
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD,
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD,
 		       TXC_ALRGS_ATXAMP1, TXC_ATXAMP_DEFAULT);
 
 	/* Set up the LEDs  */
-	mctrl = efx_mdio_read(efx, MDIO_MMD_PHYXS, TXC_MRGS_CTL);
+	mctrl = ef4_mdio_read(efx, MDIO_MMD_PHYXS, TXC_MRGS_CTL);
 
 	/* Set the Green and Red LEDs to their default modes */
 	mctrl &= ~((1 << TXC_MCTL_TXLED_LBN) | (1 << TXC_MCTL_RXLED_LBN));
-	efx_mdio_write(efx, MDIO_MMD_PHYXS, TXC_MRGS_CTL, mctrl);
+	ef4_mdio_write(efx, MDIO_MMD_PHYXS, TXC_MRGS_CTL, mctrl);
 
 	/* Databook recommends doing this after configuration changes */
 	txc_reset_logic(efx);
@@ -321,7 +321,7 @@ static void txc_apply_defaults(struct efx_nic *efx)
 	falcon_board(efx)->type->init_phy(efx);
 }
 
-static int txc43128_phy_probe(struct efx_nic *efx)
+static int txc43128_phy_probe(struct ef4_nic *efx)
 {
 	struct txc43128_data *phy_data;
 
@@ -341,7 +341,7 @@ static int txc43128_phy_probe(struct efx_nic *efx)
 }
 
 /* Initialisation entry point for this PHY driver */
-static int txc43128_phy_init(struct efx_nic *efx)
+static int txc43128_phy_init(struct ef4_nic *efx)
 {
 	int rc;
 
@@ -359,28 +359,28 @@ static int txc43128_phy_init(struct efx_nic *efx)
 }
 
 /* Set the lane power down state in the global registers */
-static void txc_glrgs_lane_power(struct efx_nic *efx, int mmd)
+static void txc_glrgs_lane_power(struct ef4_nic *efx, int mmd)
 {
 	int pd = (1 << TXC_GLCMD_L01PD_LBN) | (1 << TXC_GLCMD_L23PD_LBN);
-	int ctl = efx_mdio_read(efx, mmd, TXC_GLRGS_GLCMD);
+	int ctl = ef4_mdio_read(efx, mmd, TXC_GLRGS_GLCMD);
 
 	if (!(efx->phy_mode & PHY_MODE_LOW_POWER))
 		ctl &= ~pd;
 	else
 		ctl |= pd;
 
-	efx_mdio_write(efx, mmd, TXC_GLRGS_GLCMD, ctl);
+	ef4_mdio_write(efx, mmd, TXC_GLRGS_GLCMD, ctl);
 }
 
 /* Set the lane power down state in the analog control registers */
-static void txc_analog_lane_power(struct efx_nic *efx, int mmd)
+static void txc_analog_lane_power(struct ef4_nic *efx, int mmd)
 {
 	int txpd = (1 << TXC_ATXCTL_TXPD3_LBN) | (1 << TXC_ATXCTL_TXPD2_LBN)
 		| (1 << TXC_ATXCTL_TXPD1_LBN) | (1 << TXC_ATXCTL_TXPD0_LBN);
 	int rxpd = (1 << TXC_ARXCTL_RXPD3_LBN) | (1 << TXC_ARXCTL_RXPD2_LBN)
 		| (1 << TXC_ARXCTL_RXPD1_LBN) | (1 << TXC_ARXCTL_RXPD0_LBN);
-	int txctl = efx_mdio_read(efx, mmd, TXC_ALRGS_ATXCTL);
-	int rxctl = efx_mdio_read(efx, mmd, TXC_ALRGS_ARXCTL);
+	int txctl = ef4_mdio_read(efx, mmd, TXC_ALRGS_ATXCTL);
+	int rxctl = ef4_mdio_read(efx, mmd, TXC_ALRGS_ARXCTL);
 
 	if (!(efx->phy_mode & PHY_MODE_LOW_POWER)) {
 		txctl &= ~txpd;
@@ -390,14 +390,14 @@ static void txc_analog_lane_power(struct efx_nic *efx, int mmd)
 		rxctl |= rxpd;
 	}
 
-	efx_mdio_write(efx, mmd, TXC_ALRGS_ATXCTL, txctl);
-	efx_mdio_write(efx, mmd, TXC_ALRGS_ARXCTL, rxctl);
+	ef4_mdio_write(efx, mmd, TXC_ALRGS_ATXCTL, txctl);
+	ef4_mdio_write(efx, mmd, TXC_ALRGS_ARXCTL, rxctl);
 }
 
-static void txc_set_power(struct efx_nic *efx)
+static void txc_set_power(struct ef4_nic *efx)
 {
 	/* According to the data book, all the MMDs can do low power */
-	efx_mdio_set_mmds_lpower(efx,
+	ef4_mdio_set_mmds_lpower(efx,
 				 !!(efx->phy_mode & PHY_MODE_LOW_POWER),
 				 TXC_REQUIRED_DEVS);
 
@@ -411,15 +411,15 @@ static void txc_set_power(struct efx_nic *efx)
 	txc_analog_lane_power(efx, MDIO_MMD_PHYXS);
 }
 
-static void txc_reset_logic_mmd(struct efx_nic *efx, int mmd)
+static void txc_reset_logic_mmd(struct ef4_nic *efx, int mmd)
 {
-	int val = efx_mdio_read(efx, mmd, TXC_GLRGS_GLCMD);
+	int val = ef4_mdio_read(efx, mmd, TXC_GLRGS_GLCMD);
 	int tries = 50;
 
 	val |= (1 << TXC_GLCMD_LMTSWRST_LBN);
-	efx_mdio_write(efx, mmd, TXC_GLRGS_GLCMD, val);
+	ef4_mdio_write(efx, mmd, TXC_GLRGS_GLCMD, val);
 	while (--tries) {
-		val = efx_mdio_read(efx, mmd, TXC_GLRGS_GLCMD);
+		val = ef4_mdio_read(efx, mmd, TXC_GLRGS_GLCMD);
 		if (!(val & (1 << TXC_GLCMD_LMTSWRST_LBN)))
 			break;
 		udelay(1);
@@ -431,7 +431,7 @@ static void txc_reset_logic_mmd(struct efx_nic *efx, int mmd)
 
 /* Perform a logic reset. This preserves the configuration registers
  * and is needed for some configuration changes to take effect */
-static void txc_reset_logic(struct efx_nic *efx)
+static void txc_reset_logic(struct ef4_nic *efx)
 {
 	/* The data sheet claims we can do the logic reset on either the
 	 * PCS or the PHYXS and the result is a reset of both host- and
@@ -439,15 +439,15 @@ static void txc_reset_logic(struct efx_nic *efx)
 	txc_reset_logic_mmd(efx, MDIO_MMD_PCS);
 }
 
-static bool txc43128_phy_read_link(struct efx_nic *efx)
+static bool txc43128_phy_read_link(struct ef4_nic *efx)
 {
-	return efx_mdio_links_ok(efx, TXC_REQUIRED_DEVS);
+	return ef4_mdio_links_ok(efx, TXC_REQUIRED_DEVS);
 }
 
-static int txc43128_phy_reconfigure(struct efx_nic *efx)
+static int txc43128_phy_reconfigure(struct ef4_nic *efx)
 {
 	struct txc43128_data *phy_data = efx->phy_data;
-	enum efx_phy_mode mode_change = efx->phy_mode ^ phy_data->phy_mode;
+	enum ef4_phy_mode mode_change = efx->phy_mode ^ phy_data->phy_mode;
 	bool loop_change = LOOPBACK_CHANGED(phy_data, efx, TXC_LOOPBACKS);
 
 	if (efx->phy_mode & mode_change & PHY_MODE_TX_DISABLED) {
@@ -457,8 +457,8 @@ static int txc43128_phy_reconfigure(struct efx_nic *efx)
 		mode_change &= ~PHY_MODE_TX_DISABLED;
 	}
 
-	efx_mdio_transmit_disable(efx);
-	efx_mdio_phy_reconfigure(efx);
+	ef4_mdio_transmit_disable(efx);
+	ef4_mdio_phy_reconfigure(efx);
 	if (mode_change & PHY_MODE_LOW_POWER)
 		txc_set_power(efx);
 
@@ -475,13 +475,13 @@ static int txc43128_phy_reconfigure(struct efx_nic *efx)
 	return 0;
 }
 
-static void txc43128_phy_fini(struct efx_nic *efx)
+static void txc43128_phy_fini(struct ef4_nic *efx)
 {
 	/* Disable link events */
-	efx_mdio_write(efx, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_CTRL, 0);
+	ef4_mdio_write(efx, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_CTRL, 0);
 }
 
-static void txc43128_phy_remove(struct efx_nic *efx)
+static void txc43128_phy_remove(struct ef4_nic *efx)
 {
 	kfree(efx->phy_data);
 	efx->phy_data = NULL;
@@ -489,7 +489,7 @@ static void txc43128_phy_remove(struct efx_nic *efx)
 
 /* Periodic callback: this exists mainly to poll link status as we
  * don't use LASI interrupts */
-static bool txc43128_phy_poll(struct efx_nic *efx)
+static bool txc43128_phy_poll(struct ef4_nic *efx)
 {
 	struct txc43128_data *data = efx->phy_data;
 	bool was_up = efx->link_state.up;
@@ -516,14 +516,14 @@ static const char *const txc43128_test_names[] = {
 	"bist"
 };
 
-static const char *txc43128_test_name(struct efx_nic *efx, unsigned int index)
+static const char *txc43128_test_name(struct ef4_nic *efx, unsigned int index)
 {
 	if (index < ARRAY_SIZE(txc43128_test_names))
 		return txc43128_test_names[index];
 	return NULL;
 }
 
-static int txc43128_run_tests(struct efx_nic *efx, int *results, unsigned flags)
+static int txc43128_run_tests(struct ef4_nic *efx, int *results, unsigned flags)
 {
 	int rc;
 
@@ -540,12 +540,12 @@ static int txc43128_run_tests(struct efx_nic *efx, int *results, unsigned flags)
 	return rc;
 }
 
-static void txc43128_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static void txc43128_get_settings(struct ef4_nic *efx, struct ethtool_cmd *ecmd)
 {
 	mdio45_ethtool_gset(&efx->mdio, ecmd);
 }
 
-const struct efx_phy_operations falcon_txc_phy_ops = {
+const struct ef4_phy_operations falcon_txc_phy_ops = {
 	.probe		= txc43128_phy_probe,
 	.init		= txc43128_phy_init,
 	.reconfigure	= txc43128_phy_reconfigure,
@@ -553,8 +553,8 @@ const struct efx_phy_operations falcon_txc_phy_ops = {
 	.fini		= txc43128_phy_fini,
 	.remove		= txc43128_phy_remove,
 	.get_settings	= txc43128_get_settings,
-	.set_settings	= efx_mdio_set_settings,
-	.test_alive	= efx_mdio_test_alive,
+	.set_settings	= ef4_mdio_set_settings,
+	.test_alive	= ef4_mdio_test_alive,
 	.run_tests	= txc43128_run_tests,
 	.test_name	= txc43128_test_name,
 };

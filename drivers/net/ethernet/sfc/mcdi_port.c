@@ -13,7 +13,6 @@
 
 #include <linux/slab.h>
 #include "efx.h"
-#include "phy.h"
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "nic.h"
