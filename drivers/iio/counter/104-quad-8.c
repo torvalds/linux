@@ -362,7 +362,7 @@ static int quad8_set_synchronous_mode(struct iio_dev *indio_dev,
 	priv->synchronous_mode[chan->channel] = synchronous_mode;
 
 	/* Load Index Control configuration to Index Control Register */
-	outb(0x40 | idr_cfg, base_offset);
+	outb(0x60 | idr_cfg, base_offset);
 
 	return 0;
 }
@@ -444,7 +444,7 @@ static int quad8_set_index_polarity(struct iio_dev *indio_dev,
 	priv->index_polarity[chan->channel] = index_polarity;
 
 	/* Load Index Control configuration to Index Control Register */
-	outb(0x40 | idr_cfg, base_offset);
+	outb(0x60 | idr_cfg, base_offset);
 
 	return 0;
 }
