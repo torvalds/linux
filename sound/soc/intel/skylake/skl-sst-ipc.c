@@ -498,7 +498,7 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 	skl_ipc_int_enable(dsp);
 
 	/* continue to send any remaining messages... */
-	kthread_queue_work(&ipc->kworker, &ipc->kwork);
+	schedule_work(&ipc->kwork);
 
 	return IRQ_HANDLED;
 }
