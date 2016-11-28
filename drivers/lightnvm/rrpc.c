@@ -28,6 +28,7 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 
 static void rrpc_page_invalidate(struct rrpc *rrpc, struct rrpc_addr *a)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_block *rblk = a->rblk;
 	unsigned int pg_offset;
 
@@ -38,7 +39,7 @@ static void rrpc_page_invalidate(struct rrpc *rrpc, struct rrpc_addr *a)
 
 	spin_lock(&rblk->lock);
 
-	div_u64_rem(a->addr, rrpc->dev->sec_per_blk, &pg_offset);
+	div_u64_rem(a->addr, dev->geo.sec_per_blk, &pg_offset);
 	WARN_ON(test_and_set_bit(pg_offset, rblk->invalid_pages));
 	rblk->nr_invalid_pages++;
 
@@ -116,32 +117,36 @@ static void rrpc_discard(struct rrpc *rrpc, struct bio *bio)
 
 static int block_is_full(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	return (rblk->next_page == rrpc->dev->sec_per_blk);
+	struct nvm_tgt_dev *dev = rrpc->dev;
+
+	return (rblk->next_page == dev->geo.sec_per_blk);
 }
 
 /* Calculate relative addr for the given block, considering instantiated LUNs */
 static u64 block_to_rel_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvm_block *blk = rblk->parent;
-	int lun_blk = blk->id % (rrpc->dev->blks_per_lun * rrpc->nr_luns);
+	int lun_blk = blk->id % (dev->geo.blks_per_lun * rrpc->nr_luns);
 
-	return lun_blk * rrpc->dev->sec_per_blk;
+	return lun_blk * dev->geo.sec_per_blk;
 }
 
 /* Calculate global addr for the given block */
 static u64 block_to_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvm_block *blk = rblk->parent;
 
-	return blk->id * rrpc->dev->sec_per_blk;
+	return blk->id * dev->geo.sec_per_blk;
 }
 
-static struct ppa_addr rrpc_ppa_to_gaddr(struct nvm_dev *dev, u64 addr)
+static struct ppa_addr rrpc_ppa_to_gaddr(struct nvm_tgt_dev *dev, u64 addr)
 {
 	struct ppa_addr paddr;
 
 	paddr.ppa = addr;
-	return linear_to_generic_addr(dev, paddr);
+	return linear_to_generic_addr(&dev->geo, paddr);
 }
 
 /* requires lun->lock taken */
@@ -158,21 +163,52 @@ static void rrpc_set_lun_cur(struct rrpc_lun *rlun, struct rrpc_block *new_rblk,
 	*cur_rblk = new_rblk;
 }
 
+static struct nvm_block *__rrpc_get_blk(struct rrpc *rrpc,
+							struct rrpc_lun *rlun)
+{
+	struct nvm_lun *lun = rlun->parent;
+	struct nvm_block *blk = NULL;
+
+	if (list_empty(&lun->free_list))
+		goto out;
+
+	blk = list_first_entry(&lun->free_list, struct nvm_block, list);
+
+	list_move_tail(&blk->list, &lun->used_list);
+	blk->state = NVM_BLK_ST_TGT;
+	lun->nr_free_blocks--;
+
+out:
+	return blk;
+}
+
 static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 							unsigned long flags)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
+	struct nvm_lun *lun = rlun->parent;
 	struct nvm_block *blk;
 	struct rrpc_block *rblk;
+	int is_gc = flags & NVM_IOTYPE_GC;
 
-	blk = nvm_get_blk(rrpc->dev, rlun->parent, flags);
-	if (!blk) {
-		pr_err("nvm: rrpc: cannot get new block from media manager\n");
+	spin_lock(&rlun->lock);
+	if (!is_gc && lun->nr_free_blocks < rlun->reserved_blocks) {
+		pr_err("nvm: rrpc: cannot give block to non GC request\n");
+		spin_unlock(&rlun->lock);
 		return NULL;
 	}
 
+	blk = __rrpc_get_blk(rrpc, rlun);
+	if (!blk) {
+		pr_err("nvm: rrpc: cannot get new block\n");
+		spin_unlock(&rlun->lock);
+		return NULL;
+	}
+	spin_unlock(&rlun->lock);
+
 	rblk = rrpc_get_rblk(rlun, blk->id);
 	blk->priv = rblk;
-	bitmap_zero(rblk->invalid_pages, rrpc->dev->sec_per_blk);
+	bitmap_zero(rblk->invalid_pages, dev->geo.sec_per_blk);
 	rblk->next_page = 0;
 	rblk->nr_invalid_pages = 0;
 	atomic_set(&rblk->data_cmnt_size, 0);
@@ -182,7 +218,25 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 
 static void rrpc_put_blk(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	nvm_put_blk(rrpc->dev, rblk->parent);
+	struct nvm_block *blk = rblk->parent;
+	struct rrpc_lun *rlun = rblk->rlun;
+	struct nvm_lun *lun = rlun->parent;
+
+	spin_lock(&rlun->lock);
+	if (blk->state & NVM_BLK_ST_TGT) {
+		list_move_tail(&blk->list, &lun->free_list);
+		lun->nr_free_blocks++;
+		blk->state = NVM_BLK_ST_FREE;
+	} else if (blk->state & NVM_BLK_ST_BAD) {
+		list_move_tail(&blk->list, &lun->bb_list);
+		blk->state = NVM_BLK_ST_BAD;
+	} else {
+		WARN_ON_ONCE(1);
+		pr_err("rrpc: erroneous block type (%lu -> %u)\n",
+							blk->id, blk->state);
+		list_move_tail(&blk->list, &lun->bb_list);
+	}
+	spin_unlock(&rlun->lock);
 }
 
 static void rrpc_put_blks(struct rrpc *rrpc)
@@ -250,13 +304,14 @@ static void rrpc_end_sync_bio(struct bio *bio)
  */
 static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	struct request_queue *q = rrpc->dev->q;
+	struct nvm_tgt_dev *dev = rrpc->dev;
+	struct request_queue *q = dev->q;
 	struct rrpc_rev_addr *rev;
 	struct nvm_rq *rqd;
 	struct bio *bio;
 	struct page *page;
 	int slot;
-	int nr_sec_per_blk = rrpc->dev->sec_per_blk;
+	int nr_sec_per_blk = dev->geo.sec_per_blk;
 	u64 phys_addr;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
@@ -366,7 +421,7 @@ static void rrpc_block_gc(struct work_struct *work)
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
 	struct rrpc_lun *rlun = rblk->rlun;
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 
 	mempool_free(gcb, rrpc->gcb_pool);
 	pr_debug("nvm: block '%lu' being reclaimed\n", rblk->parent->id);
@@ -374,7 +429,7 @@ static void rrpc_block_gc(struct work_struct *work)
 	if (rrpc_move_valid_pages(rrpc, rblk))
 		goto put_back;
 
-	if (nvm_erase_blk(dev, rblk->parent, 0))
+	if (nvm_erase_blk(dev->parent, rblk->parent, 0))
 		goto put_back;
 
 	rrpc_put_blk(rrpc, rblk);
@@ -420,11 +475,12 @@ static void rrpc_lun_gc(struct work_struct *work)
 {
 	struct rrpc_lun *rlun = container_of(work, struct rrpc_lun, ws_gc);
 	struct rrpc *rrpc = rlun->rrpc;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvm_lun *lun = rlun->parent;
 	struct rrpc_block_gc *gcb;
 	unsigned int nr_blocks_need;
 
-	nr_blocks_need = rrpc->dev->blks_per_lun / GC_LIMIT_INVERSE;
+	nr_blocks_need = dev->geo.blks_per_lun / GC_LIMIT_INVERSE;
 
 	if (nr_blocks_need < rrpc->nr_luns)
 		nr_blocks_need = rrpc->nr_luns;
@@ -645,15 +701,15 @@ static void rrpc_run_gc(struct rrpc *rrpc, struct rrpc_block *rblk)
 	queue_work(rrpc->kgc_wq, &gcb->ws_gc);
 }
 
-static void __rrpc_mark_bad_block(struct nvm_dev *dev, struct ppa_addr *ppa)
+static void __rrpc_mark_bad_block(struct nvm_tgt_dev *dev, struct ppa_addr *ppa)
 {
-		nvm_mark_blk(dev, *ppa, NVM_BLK_ST_BAD);
-		nvm_set_bb_tbl(dev, ppa, 1, NVM_BLK_T_GRWN_BAD);
+		nvm_mark_blk(dev->parent, *ppa, NVM_BLK_ST_BAD);
+		nvm_set_bb_tbl(dev->parent, ppa, 1, NVM_BLK_T_GRWN_BAD);
 }
 
 static void rrpc_mark_bad_block(struct rrpc *rrpc, struct nvm_rq *rqd)
 {
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	void *comp_bits = &rqd->ppa_status;
 	struct ppa_addr ppa, prev_ppa;
 	int nr_ppas = rqd->nr_ppas;
@@ -676,6 +732,7 @@ static void rrpc_mark_bad_block(struct rrpc *rrpc, struct nvm_rq *rqd)
 static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 						sector_t laddr, uint8_t npages)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_addr *p;
 	struct rrpc_block *rblk;
 	struct nvm_lun *lun;
@@ -687,7 +744,7 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 		lun = rblk->parent->lun;
 
 		cmnt_size = atomic_inc_return(&rblk->data_cmnt_size);
-		if (unlikely(cmnt_size == rrpc->dev->sec_per_blk))
+		if (unlikely(cmnt_size == dev->geo.sec_per_blk))
 			rrpc_run_gc(rrpc, rblk);
 	}
 }
@@ -695,6 +752,7 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 static void rrpc_end_io(struct nvm_rq *rqd)
 {
 	struct rrpc *rrpc = container_of(rqd->ins, struct rrpc, instance);
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);
 	uint8_t npages = rqd->nr_ppas;
 	sector_t laddr = rrpc_get_laddr(rqd->bio) - npages;
@@ -714,7 +772,7 @@ static void rrpc_end_io(struct nvm_rq *rqd)
 	rrpc_unlock_rq(rrpc, rqd);
 
 	if (npages > 1)
-		nvm_dev_dma_free(rrpc->dev, rqd->ppa_list, rqd->dma_ppa_list);
+		nvm_dev_dma_free(dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 
 	mempool_free(rqd, rrpc->rq_pool);
 }
@@ -722,6 +780,7 @@ static void rrpc_end_io(struct nvm_rq *rqd)
 static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 			struct nvm_rq *rqd, unsigned long flags, int npages)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_inflight_rq *r = rrpc_get_inflight_rq(rqd);
 	struct rrpc_addr *gp;
 	sector_t laddr = rrpc_get_laddr(bio);
@@ -729,7 +788,7 @@ static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 	int i;
 
 	if (!is_gc && rrpc_lock_rq(rrpc, bio, rqd)) {
-		nvm_dev_dma_free(rrpc->dev, rqd->ppa_list, rqd->dma_ppa_list);
+		nvm_dev_dma_free(dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 		return NVM_IO_REQUEUE;
 	}
 
@@ -739,12 +798,11 @@ static int rrpc_read_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 		gp = &rrpc->trans_map[laddr + i];
 
 		if (gp->rblk) {
-			rqd->ppa_list[i] = rrpc_ppa_to_gaddr(rrpc->dev,
-								gp->addr);
+			rqd->ppa_list[i] = rrpc_ppa_to_gaddr(dev, gp->addr);
 		} else {
 			BUG_ON(is_gc);
 			rrpc_unlock_laddr(rrpc, r);
-			nvm_dev_dma_free(rrpc->dev, rqd->ppa_list,
+			nvm_dev_dma_free(dev->parent, rqd->ppa_list,
 							rqd->dma_ppa_list);
 			return NVM_IO_DONE;
 		}
@@ -784,6 +842,7 @@ static int rrpc_read_rq(struct rrpc *rrpc, struct bio *bio, struct nvm_rq *rqd,
 static int rrpc_write_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 			struct nvm_rq *rqd, unsigned long flags, int npages)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_inflight_rq *r = rrpc_get_inflight_rq(rqd);
 	struct rrpc_addr *p;
 	sector_t laddr = rrpc_get_laddr(bio);
@@ -791,7 +850,7 @@ static int rrpc_write_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 	int i;
 
 	if (!is_gc && rrpc_lock_rq(rrpc, bio, rqd)) {
-		nvm_dev_dma_free(rrpc->dev, rqd->ppa_list, rqd->dma_ppa_list);
+		nvm_dev_dma_free(dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 		return NVM_IO_REQUEUE;
 	}
 
@@ -801,14 +860,13 @@ static int rrpc_write_ppalist_rq(struct rrpc *rrpc, struct bio *bio,
 		if (!p) {
 			BUG_ON(is_gc);
 			rrpc_unlock_laddr(rrpc, r);
-			nvm_dev_dma_free(rrpc->dev, rqd->ppa_list,
+			nvm_dev_dma_free(dev->parent, rqd->ppa_list,
 							rqd->dma_ppa_list);
 			rrpc_gc_kick(rrpc);
 			return NVM_IO_REQUEUE;
 		}
 
-		rqd->ppa_list[i] = rrpc_ppa_to_gaddr(rrpc->dev,
-								p->addr);
+		rqd->ppa_list[i] = rrpc_ppa_to_gaddr(dev, p->addr);
 	}
 
 	rqd->opcode = NVM_OP_HBWRITE;
@@ -843,8 +901,10 @@ static int rrpc_write_rq(struct rrpc *rrpc, struct bio *bio,
 static int rrpc_setup_rq(struct rrpc *rrpc, struct bio *bio,
 			struct nvm_rq *rqd, unsigned long flags, uint8_t npages)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
+
 	if (npages > 1) {
-		rqd->ppa_list = nvm_dev_dma_alloc(rrpc->dev, GFP_KERNEL,
+		rqd->ppa_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
 							&rqd->dma_ppa_list);
 		if (!rqd->ppa_list) {
 			pr_err("rrpc: not able to allocate ppa list\n");
@@ -867,14 +927,15 @@ static int rrpc_setup_rq(struct rrpc *rrpc, struct bio *bio,
 static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 				struct nvm_rq *rqd, unsigned long flags)
 {
-	int err;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_rq *rrq = nvm_rq_to_pdu(rqd);
 	uint8_t nr_pages = rrpc_get_pages(bio);
 	int bio_size = bio_sectors(bio) << 9;
+	int err;
 
-	if (bio_size < rrpc->dev->sec_size)
+	if (bio_size < dev->geo.sec_size)
 		return NVM_IO_ERR;
-	else if (bio_size > rrpc->dev->max_rq_size)
+	else if (bio_size > dev->geo.max_rq_size)
 		return NVM_IO_ERR;
 
 	err = rrpc_setup_rq(rrpc, bio, rqd, flags, nr_pages);
@@ -887,15 +948,15 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 	rqd->nr_ppas = nr_pages;
 	rrq->flags = flags;
 
-	err = nvm_submit_io(rrpc->dev, rqd);
+	err = nvm_submit_io(dev->parent, rqd);
 	if (err) {
 		pr_err("rrpc: I/O submission failed: %d\n", err);
 		bio_put(bio);
 		if (!(flags & NVM_IOTYPE_GC)) {
 			rrpc_unlock_rq(rrpc, rqd);
 			if (rqd->nr_ppas > 1)
-				nvm_dev_dma_free(rrpc->dev,
-			rqd->ppa_list, rqd->dma_ppa_list);
+				nvm_dev_dma_free(dev->parent,
+					rqd->ppa_list, rqd->dma_ppa_list);
 		}
 		return NVM_IO_ERR;
 	}
@@ -997,16 +1058,10 @@ static void rrpc_map_free(struct rrpc *rrpc)
 static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 {
 	struct rrpc *rrpc = (struct rrpc *)private;
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_addr *addr = rrpc->trans_map + slba;
 	struct rrpc_rev_addr *raddr = rrpc->rev_trans_map;
-	u64 elba = slba + nlb;
 	u64 i;
-
-	if (unlikely(elba > dev->total_secs)) {
-		pr_err("nvm: L2P data from device is out of bounds!\n");
-		return -EINVAL;
-	}
 
 	for (i = 0; i < nlb; i++) {
 		u64 pba = le64_to_cpu(entries[i]);
@@ -1037,7 +1092,7 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 
 static int rrpc_map_init(struct rrpc *rrpc)
 {
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	sector_t i;
 	int ret;
 
@@ -1062,7 +1117,7 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		return 0;
 
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev, rrpc->soffset, rrpc->nr_sects,
+	ret = dev->ops->get_l2p_tbl(dev->parent, rrpc->soffset, rrpc->nr_sects,
 					rrpc_l2p_update, rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
@@ -1102,7 +1157,7 @@ static int rrpc_core_init(struct rrpc *rrpc)
 	if (!rrpc->page_pool)
 		return -ENOMEM;
 
-	rrpc->gcb_pool = mempool_create_slab_pool(rrpc->dev->nr_luns,
+	rrpc->gcb_pool = mempool_create_slab_pool(rrpc->dev->geo.nr_luns,
 								rrpc_gcb_cache);
 	if (!rrpc->gcb_pool)
 		return -ENOMEM;
@@ -1146,11 +1201,12 @@ static void rrpc_luns_free(struct rrpc *rrpc)
 
 static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 {
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
+	struct nvm_geo *geo = &dev->geo;
 	struct rrpc_lun *rlun;
 	int i, j, ret = -EINVAL;
 
-	if (dev->sec_per_blk > MAX_INVALID_PAGES_STORAGE * BITS_PER_LONG) {
+	if (geo->sec_per_blk > MAX_INVALID_PAGES_STORAGE * BITS_PER_LONG) {
 		pr_err("rrpc: number of pages per block too high.");
 		return -EINVAL;
 	}
@@ -1167,20 +1223,20 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 		int lunid = lun_begin + i;
 		struct nvm_lun *lun;
 
-		lun = dev->mt->get_lun(dev, lunid);
+		lun = dev->mt->get_lun(dev->parent, lunid);
 		if (!lun)
 			goto err;
 
 		rlun = &rrpc->luns[i];
 		rlun->parent = lun;
 		rlun->blocks = vzalloc(sizeof(struct rrpc_block) *
-						rrpc->dev->blks_per_lun);
+							geo->blks_per_lun);
 		if (!rlun->blocks) {
 			ret = -ENOMEM;
 			goto err;
 		}
 
-		for (j = 0; j < rrpc->dev->blks_per_lun; j++) {
+		for (j = 0; j < geo->blks_per_lun; j++) {
 			struct rrpc_block *rblk = &rlun->blocks[j];
 			struct nvm_block *blk = &lun->blocks[j];
 
@@ -1189,6 +1245,8 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 			INIT_LIST_HEAD(&rblk->prio);
 			spin_lock_init(&rblk->lock);
 		}
+
+		rlun->reserved_blocks = 2; /* for GC only */
 
 		rlun->rrpc = rrpc;
 		INIT_LIST_HEAD(&rlun->prio_list);
@@ -1206,27 +1264,27 @@ err:
 /* returns 0 on success and stores the beginning address in *begin */
 static int rrpc_area_init(struct rrpc *rrpc, sector_t *begin)
 {
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvmm_type *mt = dev->mt;
-	sector_t size = rrpc->nr_sects * dev->sec_size;
+	sector_t size = rrpc->nr_sects * dev->geo.sec_size;
 	int ret;
 
 	size >>= 9;
 
-	ret = mt->get_area(dev, begin, size);
+	ret = mt->get_area(dev->parent, begin, size);
 	if (!ret)
-		*begin >>= (ilog2(dev->sec_size) - 9);
+		*begin >>= (ilog2(dev->geo.sec_size) - 9);
 
 	return ret;
 }
 
 static void rrpc_area_free(struct rrpc *rrpc)
 {
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct nvmm_type *mt = dev->mt;
-	sector_t begin = rrpc->soffset << (ilog2(dev->sec_size) - 9);
+	sector_t begin = rrpc->soffset << (ilog2(dev->geo.sec_size) - 9);
 
-	mt->put_area(dev, begin);
+	mt->put_area(dev->parent, begin);
 }
 
 static void rrpc_free(struct rrpc *rrpc)
@@ -1255,11 +1313,11 @@ static void rrpc_exit(void *private)
 static sector_t rrpc_capacity(void *private)
 {
 	struct rrpc *rrpc = private;
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	sector_t reserved, provisioned;
 
 	/* cur, gc, and two emergency blocks for each lun */
-	reserved = rrpc->nr_luns * dev->sec_per_blk * 4;
+	reserved = rrpc->nr_luns * dev->geo.sec_per_blk * 4;
 	provisioned = rrpc->nr_sects - reserved;
 
 	if (reserved > rrpc->nr_sects) {
@@ -1278,13 +1336,13 @@ static sector_t rrpc_capacity(void *private)
  */
 static void rrpc_block_map_update(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	int offset;
 	struct rrpc_addr *laddr;
 	u64 bpaddr, paddr, pladdr;
 
 	bpaddr = block_to_rel_addr(rrpc, rblk);
-	for (offset = 0; offset < dev->sec_per_blk; offset++) {
+	for (offset = 0; offset < dev->geo.sec_per_blk; offset++) {
 		paddr = bpaddr + offset;
 
 		pladdr = rrpc->rev_trans_map[paddr].addr;
@@ -1304,6 +1362,7 @@ static void rrpc_block_map_update(struct rrpc *rrpc, struct rrpc_block *rblk)
 
 static int rrpc_blocks_init(struct rrpc *rrpc)
 {
+	struct nvm_tgt_dev *dev = rrpc->dev;
 	struct rrpc_lun *rlun;
 	struct rrpc_block *rblk;
 	int lun_iter, blk_iter;
@@ -1311,7 +1370,7 @@ static int rrpc_blocks_init(struct rrpc *rrpc)
 	for (lun_iter = 0; lun_iter < rrpc->nr_luns; lun_iter++) {
 		rlun = &rrpc->luns[lun_iter];
 
-		for (blk_iter = 0; blk_iter < rrpc->dev->blks_per_lun;
+		for (blk_iter = 0; blk_iter < dev->geo.blks_per_lun;
 								blk_iter++) {
 			rblk = &rlun->blocks[blk_iter];
 			rrpc_block_map_update(rrpc, rblk);
@@ -1350,11 +1409,12 @@ err:
 
 static struct nvm_tgt_type tt_rrpc;
 
-static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
+static void *rrpc_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 						int lun_begin, int lun_end)
 {
 	struct request_queue *bqueue = dev->q;
 	struct request_queue *tqueue = tdisk->queue;
+	struct nvm_geo *geo = &dev->geo;
 	struct rrpc *rrpc;
 	sector_t soffset;
 	int ret;
@@ -1377,8 +1437,8 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	spin_lock_init(&rrpc->bio_lock);
 	INIT_WORK(&rrpc->ws_requeue, rrpc_requeue);
 
-	rrpc->nr_luns = lun_end - lun_begin + 1;
-	rrpc->nr_sects = (unsigned long long)dev->sec_per_lun * rrpc->nr_luns;
+	rrpc->nr_luns = geo->nr_luns;
+	rrpc->nr_sects = (unsigned long long)geo->sec_per_lun * rrpc->nr_luns;
 
 	/* simple round-robin strategy */
 	atomic_set(&rrpc->next_lun, -1);
@@ -1396,7 +1456,7 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 		goto err;
 	}
 
-	rrpc->poffset = dev->sec_per_lun * lun_begin;
+	rrpc->poffset = geo->sec_per_lun * lun_begin;
 
 	ret = rrpc_core_init(rrpc);
 	if (ret) {

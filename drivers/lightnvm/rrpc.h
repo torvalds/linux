@@ -52,9 +52,12 @@ struct rrpc_rq {
 };
 
 struct rrpc_block {
+	unsigned long id;
 	struct nvm_block *parent;
 	struct rrpc_lun *rlun;
-	struct list_head prio;
+
+	struct list_head prio;		/* LUN CG list */
+	struct list_head list;		/* LUN free, used, bb list */
 
 #define MAX_INVALID_PAGES_STORAGE 8
 	/* Bitmap for invalid page intries */
@@ -64,6 +67,8 @@ struct rrpc_block {
 	/* number of pages that are invalid, wrt host page size */
 	unsigned int nr_invalid_pages;
 
+	int state;
+
 	spinlock_t lock;
 	atomic_t data_cmnt_size; /* data pages committed to stable storage */
 };
@@ -71,6 +76,7 @@ struct rrpc_block {
 struct rrpc_lun {
 	struct rrpc *rrpc;
 	struct nvm_lun *parent;
+
 	struct rrpc_block *cur, *gc_cur;
 	struct rrpc_block *blocks;	/* Reference to block allocation */
 
@@ -79,6 +85,8 @@ struct rrpc_lun {
 
 	struct work_struct ws_gc;
 
+	int reserved_blocks;
+
 	spinlock_t lock;
 };
 
@@ -86,7 +94,7 @@ struct rrpc {
 	/* instance must be kept in top to resolve rrpc in unprep */
 	struct nvm_tgt_instance instance;
 
-	struct nvm_dev *dev;
+	struct nvm_tgt_dev *dev;
 	struct gendisk *disk;
 
 	sector_t soffset; /* logical sector offset */
@@ -151,7 +159,8 @@ static inline struct rrpc_block *rrpc_get_rblk(struct rrpc_lun *rlun,
 								int blk_id)
 {
 	struct rrpc *rrpc = rlun->rrpc;
-	int lun_blk = blk_id % rrpc->dev->blks_per_lun;
+	struct nvm_tgt_dev *dev = rrpc->dev;
+	int lun_blk = blk_id % dev->geo.blks_per_lun;
 
 	return &rlun->blocks[lun_blk];
 }

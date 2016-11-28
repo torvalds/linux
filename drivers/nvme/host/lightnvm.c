@@ -352,6 +352,7 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 
 	while (nlb) {
 		u32 cmd_nlb = min(nlb_pr_rq, nlb);
+		u64 elba = slba + cmd_nlb;
 
 		c.l2p.slba = cpu_to_le64(cmd_slba);
 		c.l2p.nlb = cpu_to_le32(cmd_nlb);
@@ -363,6 +364,11 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 				"L2P table transfer failed (%d)\n", ret);
 			ret = -EIO;
 			goto out;
+		}
+
+		if (unlikely(elba > nvmdev->total_secs)) {
+			pr_err("nvm: L2P data from device is out of bounds!\n");
+			return -EINVAL;
 		}
 
 		if (update_l2p(cmd_slba, cmd_nlb, entries, priv)) {
@@ -383,11 +389,12 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 								u8 *blks)
 {
 	struct request_queue *q = nvmdev->q;
+	struct nvm_geo *geo = &nvmdev->geo;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
-	int nr_blks = nvmdev->blks_per_lun * nvmdev->plane_mode;
+	int nr_blks = geo->blks_per_lun * geo->plane_mode;
 	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blks;
 	int ret = 0;
 
@@ -428,7 +435,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 		goto out;
 	}
 
-	memcpy(blks, bb_tbl->blk, nvmdev->blks_per_lun * nvmdev->plane_mode);
+	memcpy(blks, bb_tbl->blk, geo->blks_per_lun * geo->plane_mode);
 out:
 	kfree(bb_tbl);
 	return ret;
