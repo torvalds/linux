@@ -182,6 +182,7 @@ mti	Imagination Technologies Ltd. (formerly MIPS Technologies Inc.)
 mundoreader	Mundo Reader S.L.
 murata	Murata Manufacturing Co., Ltd.
 mxicy	Macronix International Co., Ltd.
+myir	MYIR Tech Limited
 national	National Semiconductor
 nec	NEC LCD Technologies, Ltd.
 neonode		Neonode Inc.
