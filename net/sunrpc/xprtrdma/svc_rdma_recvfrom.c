@@ -373,9 +373,7 @@ rdma_copy_tail(struct svc_rqst *rqstp, struct svc_rdma_op_ctxt *head,
 	       u32 position, u32 byte_count, u32 page_offset, int page_no)
 {
 	char *srcp, *destp;
-	int ret;
 
-	ret = 0;
 	srcp = head->arg.head[0].iov_base + position;
 	byte_count = head->arg.head[0].iov_len - position;
 	if (byte_count > PAGE_SIZE) {
