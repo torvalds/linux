@@ -268,6 +268,9 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	for (i = 0, mask = 1; i < 32; i++, mask <<= 1) {
 		if (!(mask & EXT4_FL_USER_MODIFIABLE))
 			continue;
+		/* These flags get special treatment later */
+		if (mask == EXT4_JOURNAL_DATA_FL || mask == EXT4_EXTENTS_FL)
+			continue;
 		if (mask & flags)
 			ext4_set_inode_flag(inode, i);
 		else
