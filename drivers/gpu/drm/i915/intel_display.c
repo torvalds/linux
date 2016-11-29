@@ -115,9 +115,8 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
-static void skl_init_scalers(struct drm_i915_private *dev_priv,
-			     struct intel_crtc *crtc,
-			     struct intel_crtc_state *crtc_state);
+static void intel_crtc_init_scalers(struct intel_crtc *crtc,
+				    struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
@@ -10745,7 +10744,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		I915_READ(GAMMA_MODE(crtc->pipe)) & GAMMA_MODE_MODE_MASK;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		skl_init_scalers(dev_priv, crtc, pipe_config);
+		intel_crtc_init_scalers(crtc, pipe_config);
 
 		pipe_config->scaler_state.scaler_id = -1;
 		pipe_config->scaler_state.scaler_users &= ~(1 << SKL_CRTC_INDEX);
@@ -15273,13 +15272,17 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static void skl_init_scalers(struct drm_i915_private *dev_priv,
-			     struct intel_crtc *crtc,
-			     struct intel_crtc_state *crtc_state)
+static void intel_crtc_init_scalers(struct intel_crtc *crtc,
+				    struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int i;
+
+	crtc->num_scalers = dev_priv->info.num_scalers[crtc->pipe];
+	if (!crtc->num_scalers)
+		return;
 
 	for (i = 0; i < crtc->num_scalers; i++) {
 		struct intel_scaler *scaler = &scaler_state->scalers[i];
@@ -15311,16 +15314,6 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	intel_crtc->config = crtc_state;
 	intel_crtc->base.state = &crtc_state->base;
 	crtc_state->base.crtc = &intel_crtc->base;
-
-	/* initialize shared scalers */
-	if (INTEL_GEN(dev_priv) >= 9) {
-		if (pipe == PIPE_C)
-			intel_crtc->num_scalers = 1;
-		else
-			intel_crtc->num_scalers = SKL_NUM_SCALERS;
-
-		skl_init_scalers(dev_priv, intel_crtc, crtc_state);
-	}
 
 	primary = intel_primary_plane_create(dev_priv, pipe);
 	if (IS_ERR(primary)) {
@@ -15362,6 +15355,9 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	intel_crtc->cursor_size = ~0;
 
 	intel_crtc->wm.cxsr_allowed = true;
+
+	/* initialize shared scalers */
+	intel_crtc_init_scalers(intel_crtc, crtc_state);
 
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
