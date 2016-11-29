@@ -1058,7 +1058,7 @@ static int qede_fill_frag_skb(struct qede_dev *edev,
 	struct qede_agg_info *tpa_info = &rxq->tpa_info[tpa_agg_index];
 	struct sk_buff *skb = tpa_info->skb;
 
-	if (unlikely(tpa_info->agg_state != QEDE_AGG_STATE_START))
+	if (unlikely(tpa_info->state != QEDE_AGG_STATE_START))
 		goto out;
 
 	/* Add one frag and update the appropriate fields in the skb */
@@ -1084,7 +1084,7 @@ static int qede_fill_frag_skb(struct qede_dev *edev,
 	return 0;
 
 out:
-	tpa_info->agg_state = QEDE_AGG_STATE_ERROR;
+	tpa_info->state = QEDE_AGG_STATE_ERROR;
 	qede_recycle_rx_bd_ring(rxq, edev, 1);
 	return -ENOMEM;
 }
@@ -1096,8 +1096,8 @@ static void qede_tpa_start(struct qede_dev *edev,
 	struct qede_agg_info *tpa_info = &rxq->tpa_info[cqe->tpa_agg_index];
 	struct eth_rx_bd *rx_bd_cons = qed_chain_consume(&rxq->rx_bd_ring);
 	struct eth_rx_bd *rx_bd_prod = qed_chain_produce(&rxq->rx_bd_ring);
-	struct sw_rx_data *replace_buf = &tpa_info->replace_buf;
-	dma_addr_t mapping = tpa_info->replace_buf_mapping;
+	struct sw_rx_data *replace_buf = &tpa_info->buffer;
+	dma_addr_t mapping = tpa_info->buffer_mapping;
 	struct sw_rx_data *sw_rx_data_cons;
 	struct sw_rx_data *sw_rx_data_prod;
 	enum pkt_hash_types rxhash_type;
@@ -1122,11 +1122,11 @@ static void qede_tpa_start(struct qede_dev *edev,
 	/* move partial skb from cons to pool (don't unmap yet)
 	 * save mapping, incase we drop the packet later on.
 	 */
-	tpa_info->start_buf = *sw_rx_data_cons;
+	tpa_info->buffer = *sw_rx_data_cons;
 	mapping = HILO_U64(le32_to_cpu(rx_bd_cons->addr.hi),
 			   le32_to_cpu(rx_bd_cons->addr.lo));
 
-	tpa_info->start_buf_mapping = mapping;
+	tpa_info->buffer_mapping = mapping;
 	rxq->sw_rx_cons++;
 
 	/* set tpa state to start only if we are able to allocate skb
@@ -1137,23 +1137,25 @@ static void qede_tpa_start(struct qede_dev *edev,
 					 le16_to_cpu(cqe->len_on_first_bd));
 	if (unlikely(!tpa_info->skb)) {
 		DP_NOTICE(edev, "Failed to allocate SKB for gro\n");
-		tpa_info->agg_state = QEDE_AGG_STATE_ERROR;
+		tpa_info->state = QEDE_AGG_STATE_ERROR;
 		goto cons_buf;
 	}
 
-	skb_put(tpa_info->skb, le16_to_cpu(cqe->len_on_first_bd));
-	memcpy(&tpa_info->start_cqe, cqe, sizeof(tpa_info->start_cqe));
-
 	/* Start filling in the aggregation info */
+	skb_put(tpa_info->skb, le16_to_cpu(cqe->len_on_first_bd));
 	tpa_info->frag_id = 0;
-	tpa_info->agg_state = QEDE_AGG_STATE_START;
+	tpa_info->state = QEDE_AGG_STATE_START;
 
 	rxhash = qede_get_rxhash(edev, cqe->bitfields,
 				 cqe->rss_hash, &rxhash_type);
 	skb_set_hash(tpa_info->skb, rxhash, rxhash_type);
+
+	/* Store some information from first CQE */
+	tpa_info->start_cqe_placement_offset = cqe->placement_offset;
+	tpa_info->start_cqe_bd_len = le16_to_cpu(cqe->len_on_first_bd);
 	if ((le16_to_cpu(cqe->pars_flags.flags) >>
 	     PARSING_AND_ERR_FLAGS_TAG8021QEXIST_SHIFT) &
-		    PARSING_AND_ERR_FLAGS_TAG8021QEXIST_MASK)
+	    PARSING_AND_ERR_FLAGS_TAG8021QEXIST_MASK)
 		tpa_info->vlan_tag = le16_to_cpu(cqe->vlan_tag);
 	else
 		tpa_info->vlan_tag = 0;
@@ -1169,7 +1171,7 @@ cons_buf: /* We still need to handle bd_len_list to consume buffers */
 	if (unlikely(cqe->ext_bd_len_list[1])) {
 		DP_ERR(edev,
 		       "Unlikely - got a TPA aggregation with more than one ext_bd_len_list entry in the TPA start\n");
-		tpa_info->agg_state = QEDE_AGG_STATE_ERROR;
+		tpa_info->state = QEDE_AGG_STATE_ERROR;
 	}
 }
 
@@ -1276,7 +1278,7 @@ static void qede_tpa_end(struct qede_dev *edev,
 		DP_ERR(edev,
 		       "Strange - TPA emd with more than a single len_list entry\n");
 
-	if (unlikely(tpa_info->agg_state != QEDE_AGG_STATE_START))
+	if (unlikely(tpa_info->state != QEDE_AGG_STATE_START))
 		goto err;
 
 	/* Sanity */
@@ -1290,14 +1292,9 @@ static void qede_tpa_end(struct qede_dev *edev,
 		       le16_to_cpu(cqe->total_packet_len), skb->len);
 
 	memcpy(skb->data,
-	       page_address(tpa_info->start_buf.data) +
-		tpa_info->start_cqe.placement_offset +
-		tpa_info->start_buf.page_offset,
-	       le16_to_cpu(tpa_info->start_cqe.len_on_first_bd));
-
-	/* Recycle [mapped] start buffer for the next replacement */
-	tpa_info->replace_buf = tpa_info->start_buf;
-	tpa_info->replace_buf_mapping = tpa_info->start_buf_mapping;
+	       page_address(tpa_info->buffer.data) +
+	       tpa_info->start_cqe_placement_offset +
+	       tpa_info->buffer.page_offset, tpa_info->start_cqe_bd_len);
 
 	/* Finalize the SKB */
 	skb->protocol = eth_type_trans(skb, edev->ndev);
@@ -1310,18 +1307,11 @@ static void qede_tpa_end(struct qede_dev *edev,
 
 	qede_gro_receive(edev, fp, skb, tpa_info->vlan_tag);
 
-	tpa_info->agg_state = QEDE_AGG_STATE_NONE;
+	tpa_info->state = QEDE_AGG_STATE_NONE;
 
 	return;
 err:
-	/* The BD starting the aggregation is still mapped; Re-use it for
-	 * future aggregations [as replacement buffer]
-	 */
-	memcpy(&tpa_info->replace_buf, &tpa_info->start_buf,
-	       sizeof(struct sw_rx_data));
-	tpa_info->replace_buf_mapping = tpa_info->start_buf_mapping;
-	tpa_info->start_buf.data = NULL;
-	tpa_info->agg_state = QEDE_AGG_STATE_NONE;
+	tpa_info->state = QEDE_AGG_STATE_NONE;
 	dev_kfree_skb_any(tpa_info->skb);
 	tpa_info->skb = NULL;
 }
@@ -2823,7 +2813,7 @@ static void qede_free_sge_mem(struct qede_dev *edev, struct qede_rx_queue *rxq)
 
 	for (i = 0; i < ETH_TPA_MAX_AGGS_NUM; i++) {
 		struct qede_agg_info *tpa_info = &rxq->tpa_info[i];
-		struct sw_rx_data *replace_buf = &tpa_info->replace_buf;
+		struct sw_rx_data *replace_buf = &tpa_info->buffer;
 
 		if (replace_buf->data) {
 			dma_unmap_page(&edev->pdev->dev,
@@ -2905,7 +2895,7 @@ static int qede_alloc_sge_mem(struct qede_dev *edev, struct qede_rx_queue *rxq)
 
 	for (i = 0; i < ETH_TPA_MAX_AGGS_NUM; i++) {
 		struct qede_agg_info *tpa_info = &rxq->tpa_info[i];
-		struct sw_rx_data *replace_buf = &tpa_info->replace_buf;
+		struct sw_rx_data *replace_buf = &tpa_info->buffer;
 
 		replace_buf->data = alloc_pages(GFP_ATOMIC, 0);
 		if (unlikely(!replace_buf->data)) {
@@ -2923,10 +2913,9 @@ static int qede_alloc_sge_mem(struct qede_dev *edev, struct qede_rx_queue *rxq)
 		}
 
 		replace_buf->mapping = mapping;
-		tpa_info->replace_buf.page_offset = 0;
-
-		tpa_info->replace_buf_mapping = mapping;
-		tpa_info->agg_state = QEDE_AGG_STATE_NONE;
+		tpa_info->buffer.page_offset = 0;
+		tpa_info->buffer_mapping = mapping;
+		tpa_info->state = QEDE_AGG_STATE_NONE;
 	}
 
 	return 0;

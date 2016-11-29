@@ -225,15 +225,30 @@ enum qede_agg_state {
 };
 
 struct qede_agg_info {
-	struct sw_rx_data replace_buf;
-	dma_addr_t replace_buf_mapping;
-	struct sw_rx_data start_buf;
-	dma_addr_t start_buf_mapping;
-	struct eth_fast_path_rx_tpa_start_cqe start_cqe;
-	enum qede_agg_state agg_state;
+	/* rx_buf is a data buffer that can be placed / consumed from rx bd
+	 * chain. It has two purposes: We will preallocate the data buffer
+	 * for each aggregation when we open the interface and will place this
+	 * buffer on the rx-bd-ring when we receive TPA_START. We don't want
+	 * to be in a state where allocation fails, as we can't reuse the
+	 * consumer buffer in the rx-chain since FW may still be writing to it
+	 * (since header needs to be modified for TPA).
+	 * The second purpose is to keep a pointer to the bd buffer during
+	 * aggregation.
+	 */
+	struct sw_rx_data buffer;
+	dma_addr_t buffer_mapping;
+
 	struct sk_buff *skb;
-	int frag_id;
+
+	/* We need some structs from the start cookie until termination */
 	u16 vlan_tag;
+	u16 start_cqe_bd_len;
+	u8 start_cqe_placement_offset;
+
+	u8 state;
+	u8 frag_id;
+
+	u8 tunnel_type;
 };
 
 struct qede_rx_queue {
