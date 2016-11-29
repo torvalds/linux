@@ -641,6 +641,7 @@ __kthread_create_worker(int cpu, unsigned int flags,
 {
 	struct kthread_worker *worker;
 	struct task_struct *task;
+	int node = -1;
 
 	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
 	if (!worker)
@@ -648,24 +649,16 @@ __kthread_create_worker(int cpu, unsigned int flags,
 
 	kthread_init_worker(worker);
 
-	if (cpu >= 0) {
-		char name[TASK_COMM_LEN];
+	if (cpu >= 0)
+		node = cpu_to_node(cpu);
 
-		/*
-		 * kthread_create_worker_on_cpu() allows to pass a generic
-		 * namefmt in compare with kthread_create_on_cpu. We need
-		 * to format it here.
-		 */
-		vsnprintf(name, sizeof(name), namefmt, args);
-		task = kthread_create_on_cpu(kthread_worker_fn, worker,
-					     cpu, name);
-	} else {
-		task = __kthread_create_on_node(kthread_worker_fn, worker,
-						-1, namefmt, args);
-	}
-
+	task = __kthread_create_on_node(kthread_worker_fn, worker,
+						node, namefmt, args);
 	if (IS_ERR(task))
 		goto fail_task;
+
+	if (cpu >= 0)
+		kthread_bind(task, cpu);
 
 	worker->flags = flags;
 	worker->task = task;
