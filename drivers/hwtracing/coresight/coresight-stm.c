@@ -419,10 +419,10 @@ static ssize_t stm_generic_packet(struct stm_data *stm_data,
 						   struct stm_drvdata, stm);
 
 	if (!(drvdata && local_read(&drvdata->mode)))
-		return 0;
+		return -EACCES;
 
 	if (channel >= drvdata->numsp)
-		return 0;
+		return -EINVAL;
 
 	ch_addr = (unsigned long)stm_channel_addr(drvdata, channel);
 
