@@ -1,7 +1,4 @@
 CFLAGS = -Wall
-BINARIES = execveat
-DEPS = execveat.symlink execveat.denatured script subdir
-all: $(BINARIES) $(DEPS)
 
 subdir:
 	mkdir -p $@
@@ -17,11 +14,12 @@ execveat.denatured: execveat
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-TEST_PROGS := execveat
+TEST_GEN_PROGS := execveat
+TEST_GEN_FILES := execveat.symlink execveat.denatured script subdir
 # Makefile is a run-time dependency, since it's accessed by the execveat test
-TEST_FILES := $(DEPS) Makefile
+TEST_FILES := Makefile
 
 include ../lib.mk
 
 clean:
-	rm -rf $(BINARIES) $(DEPS) subdir.moved execveat.moved xxxxx*
+	rm -rf $(TEST_GEN_PROGS) $(TEST_GEN_FILES) subdir.moved execveat.moved xxxxx*

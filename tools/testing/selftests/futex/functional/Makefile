@@ -3,7 +3,7 @@ CFLAGS := $(CFLAGS) -g -O2 -Wall -D_GNU_SOURCE -pthread $(INCLUDES)
 LDFLAGS := $(LDFLAGS) -pthread -lrt
 
 HEADERS := ../include/futextest.h
-TARGETS := \
+TEST_GEN_FILES := \
 	futex_wait_timeout \
 	futex_wait_wouldblock \
 	futex_requeue_pi \
@@ -12,14 +12,8 @@ TARGETS := \
 	futex_wait_uninitialized_heap \
 	futex_wait_private_mapped_file
 
-TEST_PROGS := $(TARGETS) run.sh
-
-.PHONY: all clean
-all: $(TARGETS)
-
-$(TARGETS): $(HEADERS)
+TEST_PROGS := run.sh
 
 include ../../lib.mk
 
-clean:
-	rm -f $(TARGETS)
+$(TEST_GEN_FILES): $(HEADERS)

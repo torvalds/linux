@@ -1,20 +1,20 @@
 noarg:
 	$(MAKE) -C ../
 
-TEST_PROGS := count_instructions l3_bank_test per_event_excludes
+TEST_GEN_PROGS := count_instructions l3_bank_test per_event_excludes
 EXTRA_SOURCES := ../harness.c event.c lib.c ../utils.c
 
-all: $(TEST_PROGS) ebb
+include ../../lib.mk
 
-$(TEST_PROGS): $(EXTRA_SOURCES)
+all: $(TEST_GEN_PROGS) ebb
+
+$(TEST_GEN_PROGS): $(EXTRA_SOURCES)
 
 # loop.S can only be built 64-bit
 count_instructions: loop.S count_instructions.c $(EXTRA_SOURCES)
 	$(CC) $(CFLAGS) -m64 -o $@ $^
 
 per_event_excludes: ../utils.c
-
-include ../../lib.mk
 
 DEFAULT_RUN_TESTS := $(RUN_TESTS)
 override define RUN_TESTS
@@ -35,7 +35,7 @@ override define INSTALL_RULE
 endef
 
 clean:
-	rm -f $(TEST_PROGS) loop.o
+	$(RM) $(TEST_PROGS) loop.o
 	$(MAKE) -C ebb clean
 
 ebb:
