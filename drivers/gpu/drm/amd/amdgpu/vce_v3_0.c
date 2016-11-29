@@ -695,15 +695,15 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 
 	WREG32_FIELD(VCE_SYS_INT_STATUS, VCE_SYS_INT_TRAP_INTERRUPT_INT, 1);
 
-	switch (entry->src_data) {
+	switch (entry->src_data[0]) {
 	case 0:
 	case 1:
 	case 2:
-		amdgpu_fence_process(&adev->vce.ring[entry->src_data]);
+		amdgpu_fence_process(&adev->vce.ring[entry->src_data[0]]);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
-			  entry->src_id, entry->src_data);
+			  entry->src_id, entry->src_data[0]);
 		break;
 	}
 

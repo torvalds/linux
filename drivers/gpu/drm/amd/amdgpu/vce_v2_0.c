@@ -560,14 +560,14 @@ static int vce_v2_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	DRM_DEBUG("IH: VCE\n");
-	switch (entry->src_data) {
+	switch (entry->src_data[0]) {
 	case 0:
 	case 1:
-		amdgpu_fence_process(&adev->vce.ring[entry->src_data]);
+		amdgpu_fence_process(&adev->vce.ring[entry->src_data[0]]);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
-			  entry->src_id, entry->src_data);
+			  entry->src_id, entry->src_data[0]);
 		break;
 	}
 
