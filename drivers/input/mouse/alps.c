@@ -1346,6 +1346,18 @@ static void alps_process_packet_ss4_v2(struct psmouse *psmouse)
 
 	priv->multi_packet = 0;
 
+	/* Report trackstick */
+	if (alps_get_pkt_id_ss4_v2(packet) == SS4_PACKET_ID_STICK) {
+		if (priv->flags & ALPS_DUALPOINT) {
+			input_report_key(dev2, BTN_LEFT, f->ts_left);
+			input_report_key(dev2, BTN_RIGHT, f->ts_right);
+			input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
+			input_sync(dev2);
+		}
+		return;
+	}
+
+	/* Report touchpad */
 	alps_report_mt_data(psmouse, (f->fingers <= 4) ? f->fingers : 4);
 
 	input_mt_report_finger_count(dev, f->fingers);
@@ -1356,13 +1368,6 @@ static void alps_process_packet_ss4_v2(struct psmouse *psmouse)
 
 	input_report_abs(dev, ABS_PRESSURE, f->pressure);
 	input_sync(dev);
-
-	if (priv->flags & ALPS_DUALPOINT) {
-		input_report_key(dev2, BTN_LEFT, f->ts_left);
-		input_report_key(dev2, BTN_RIGHT, f->ts_right);
-		input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
-		input_sync(dev2);
-	}
 }
 
 static bool alps_is_valid_package_ss4_v2(struct psmouse *psmouse)
