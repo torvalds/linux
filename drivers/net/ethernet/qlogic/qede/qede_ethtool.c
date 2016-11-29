@@ -59,8 +59,8 @@ static const struct {
 	QEDE_TQSTAT(stopped_cnt),
 };
 
-#define QEDE_TQSTATS_DATA(dev, sindex, tssid, tcid) \
-	(*((u64 *)(((void *)(&dev->fp_array[tssid].txqs[tcid])) +\
+#define QEDE_TQSTATS_DATA(dev, sindex, tssid) \
+	(*((u64 *)(((void *)((dev)->fp_array[tssid].txq)) + \
 		   qede_tqstats_arr[(sindex)].offset)))
 
 static const struct {
@@ -175,7 +175,6 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 	int i, j, k;
 
 	for (i = 0, k = 0; i < QEDE_QUEUE_CNT(edev); i++) {
-		int tc;
 
 		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
 			for (j = 0; j < QEDE_NUM_RQSTATS; j++)
@@ -186,14 +185,12 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 		}
 
 		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
-			for (tc = 0; tc < edev->num_tc; tc++) {
-				for (j = 0; j < QEDE_NUM_TQSTATS; j++)
-					sprintf(buf + (k + j) *
-						ETH_GSTRING_LEN,
-						"%d.%d: %s", i, tc,
-						qede_tqstats_arr[j].string);
-				k += QEDE_NUM_TQSTATS;
-			}
+			for (j = 0; j < QEDE_NUM_TQSTATS; j++)
+				sprintf(buf + (k + j) *
+					ETH_GSTRING_LEN,
+					"%d: %s", i,
+					qede_tqstats_arr[j].string);
+			k += QEDE_NUM_TQSTATS;
 		}
 	}
 
@@ -240,21 +237,16 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 	mutex_lock(&edev->qede_lock);
 
 	for (qid = 0; qid < QEDE_QUEUE_CNT(edev); qid++) {
-		int tc;
 
-		if (edev->fp_array[qid].type & QEDE_FASTPATH_RX) {
+		if (edev->fp_array[qid].type & QEDE_FASTPATH_RX)
 			for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++)
 				buf[cnt++] = QEDE_RQSTATS_DATA(edev, sidx, qid);
-		}
 
-		if (edev->fp_array[qid].type & QEDE_FASTPATH_TX) {
-			for (tc = 0; tc < edev->num_tc; tc++) {
-				for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
-					buf[cnt++] = QEDE_TQSTATS_DATA(edev,
-								       sidx,
-								       qid, tc);
-			}
-		}
+		if (edev->fp_array[qid].type & QEDE_FASTPATH_TX)
+			for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
+				buf[cnt++] = QEDE_TQSTATS_DATA(edev,
+							       sidx,
+							       qid);
 	}
 
 	for (sidx = 0; sidx < QEDE_NUM_STATS; sidx++) {
@@ -281,7 +273,7 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 					num_stats--;
 		}
 		return num_stats + QEDE_RSS_COUNT(edev) * QEDE_NUM_RQSTATS +
-		       QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS * edev->num_tc;
+		       QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS;
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
 	case ETH_SS_TEST:
@@ -1178,7 +1170,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 	for_each_queue(i) {
 		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
-			txq = edev->fp_array[i].txqs;
+			txq = edev->fp_array[i].txq;
 			break;
 		}
 	}

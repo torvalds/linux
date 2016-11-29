@@ -127,10 +127,9 @@ struct qede_dev {
 
 	const struct qed_eth_ops	*ops;
 
-	struct qed_dev_eth_info	dev_info;
+	struct qed_dev_eth_info dev_info;
 #define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
-#define QEDE_MAX_TSS_CNT(edev)	((edev)->dev_info.num_queues * \
-				 (edev)->dev_info.num_tc)
+#define QEDE_MAX_TSS_CNT(edev)	((edev)->dev_info.num_queues)
 
 	struct qede_fastpath		*fp_array;
 	u8				req_num_tx;
@@ -139,17 +138,9 @@ struct qede_dev {
 	u8				fp_num_rx;
 	u16				req_queues;
 	u16				num_queues;
-	u8				num_tc;
 #define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
 #define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
-#define QEDE_TSS_COUNT(edev)	(((edev)->num_queues - (edev)->fp_num_rx) * \
-				 (edev)->num_tc)
-#define QEDE_TX_IDX(edev, txqidx)	((edev)->fp_num_rx + (txqidx) % \
-					 QEDE_TSS_COUNT(edev))
-#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / QEDE_TSS_COUNT(edev))
-#define QEDE_TX_QUEUE(edev, txqidx)	\
-	(&(edev)->fp_array[QEDE_TX_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX(\
-							(edev), (txqidx))])
+#define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
 	unsigned char			primary_mac[ETH_ALEN];
@@ -324,7 +315,7 @@ struct qede_fastpath {
 	struct napi_struct	napi;
 	struct qed_sb_info	*sb_info;
 	struct qede_rx_queue	*rxq;
-	struct qede_tx_queue	*txqs;
+	struct qede_tx_queue	*txq;
 
 #define VEC_NAME_SIZE	(sizeof(((struct net_device *)0)->name) + 8)
 	char	name[VEC_NAME_SIZE];
