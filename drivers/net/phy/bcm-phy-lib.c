@@ -17,6 +17,7 @@
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/ethtool.h>
 
 #define MII_BCM_CHANNEL_WIDTH     0x2000
 #define BCM_CL45VEN_EEE_ADV       0x3c
@@ -316,6 +317,75 @@ int bcm_phy_downshift_set(struct phy_device *phydev, u8 count)
 	return bcm_phy_write_shadow(phydev, BCM54XX_SHD_SCR2, val);
 }
 EXPORT_SYMBOL_GPL(bcm_phy_downshift_set);
+
+struct bcm_phy_hw_stat {
+	const char *string;
+	u8 reg;
+	u8 shift;
+	u8 bits;
+};
+
+/* Counters freeze at either 0xffff or 0xff, better than nothing */
+static const struct bcm_phy_hw_stat bcm_phy_hw_stats[] = {
+	{ "phy_receive_errors", MII_BRCM_CORE_BASE12, 0, 16 },
+	{ "phy_serdes_ber_errors", MII_BRCM_CORE_BASE13, 8, 8 },
+	{ "phy_false_carrier_sense_errors", MII_BRCM_CORE_BASE13, 0, 8 },
+	{ "phy_local_rcvr_nok", MII_BRCM_CORE_BASE14, 8, 8 },
+	{ "phy_remote_rcv_nok", MII_BRCM_CORE_BASE14, 0, 8 },
+};
+
+int bcm_phy_get_sset_count(struct phy_device *phydev)
+{
+	return ARRAY_SIZE(bcm_phy_hw_stats);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_sset_count);
+
+void bcm_phy_get_strings(struct phy_device *phydev, u8 *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(bcm_phy_hw_stats); i++)
+		memcpy(data + i * ETH_GSTRING_LEN,
+		       bcm_phy_hw_stats[i].string, ETH_GSTRING_LEN);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_strings);
+
+#ifndef UINT64_MAX
+#define UINT64_MAX              (u64)(~((u64)0))
+#endif
+
+/* Caller is supposed to provide appropriate storage for the library code to
+ * access the shadow copy
+ */
+static u64 bcm_phy_get_stat(struct phy_device *phydev, u64 *shadow,
+			    unsigned int i)
+{
+	struct bcm_phy_hw_stat stat = bcm_phy_hw_stats[i];
+	int val;
+	u64 ret;
+
+	val = phy_read(phydev, stat.reg);
+	if (val < 0) {
+		ret = UINT64_MAX;
+	} else {
+		val >>= stat.shift;
+		val = val & ((1 << stat.bits) - 1);
+		shadow[i] += val;
+		ret = shadow[i];
+	}
+
+	return ret;
+}
+
+void bcm_phy_get_stats(struct phy_device *phydev, u64 *shadow,
+		       struct ethtool_stats *stats, u64 *data)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(bcm_phy_hw_stats); i++)
+		data[i] = bcm_phy_get_stat(phydev, shadow, i);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_stats);
 
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");
