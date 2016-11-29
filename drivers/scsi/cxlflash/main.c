@@ -388,11 +388,11 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct afu_cmd *cmd = sc_to_afucz(scp);
+	struct scatterlist *sg = scsi_sglist(scp);
 	u32 port_sel = scp->device->channel + 1;
-	int nseg, i, ncount;
-	struct scatterlist *sg;
+	u16 req_flags = SISL_REQ_FLAGS_SUP_UNDERRUN;
 	ulong lock_flags;
-	short lflag = 0;
+	int nseg = 0;
 	int rc = 0;
 	int kref_got = 0;
 
@@ -435,45 +435,35 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	kref_get(&cfg->afu->mapcount);
 	kref_got = 1;
 
+	if (likely(sg)) {
+		nseg = scsi_dma_map(scp);
+		if (unlikely(nseg < 0)) {
+			dev_err(dev, "%s: Fail DMA map!\n", __func__);
+			rc = SCSI_MLQUEUE_HOST_BUSY;
+			goto out;
+		}
+
+		cmd->rcb.data_len = sg_dma_len(sg);
+		cmd->rcb.data_ea = sg_dma_address(sg);
+	}
+
+	cmd->rcb.scp = scp;
+	cmd->parent = afu;
+
 	cmd->rcb.ctx_id = afu->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.port_sel = port_sel;
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
 
 	if (scp->sc_data_direction == DMA_TO_DEVICE)
-		lflag = SISL_REQ_FLAGS_HOST_WRITE;
-	else
-		lflag = SISL_REQ_FLAGS_HOST_READ;
+		req_flags |= SISL_REQ_FLAGS_HOST_WRITE;
 
-	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
-			      SISL_REQ_FLAGS_SUP_UNDERRUN | lflag);
-
-	/* Stash the scp in the reserved field, for reuse during interrupt */
-	cmd->rcb.scp = scp;
-	cmd->parent = afu;
-
-	nseg = scsi_dma_map(scp);
-	if (unlikely(nseg < 0)) {
-		dev_err(dev, "%s: Fail DMA map! nseg=%d\n",
-			__func__, nseg);
-		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto out;
-	}
-
-	ncount = scsi_sg_count(scp);
-	scsi_for_each_sg(scp, sg, ncount, i) {
-		cmd->rcb.data_len = sg_dma_len(sg);
-		cmd->rcb.data_ea = sg_dma_address(sg);
-	}
-
-	/* Copy the CDB from the scsi_cmnd passed in */
+	cmd->rcb.req_flags = req_flags;
 	memcpy(cmd->rcb.cdb, scp->cmnd, sizeof(cmd->rcb.cdb));
 
-	/* Send the command */
 	rc = send_cmd(afu, cmd);
 	if (unlikely(rc))
 		scsi_dma_unmap(scp);
-
 out:
 	if (kref_got)
 		kref_put(&afu->mapcount, afu_unmap);
