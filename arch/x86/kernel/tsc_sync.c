@@ -61,7 +61,7 @@ void tsc_verify_tsc_adjust(void)
 #ifndef CONFIG_SMP
 bool __init tsc_store_and_check_tsc_adjust(void)
 {
-	struct tsc_adjust *ref, *cur = this_cpu_ptr(&tsc_adjust);
+	struct tsc_adjust *cur = this_cpu_ptr(&tsc_adjust);
 	s64 bootval;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))

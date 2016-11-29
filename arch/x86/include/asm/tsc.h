@@ -45,15 +45,16 @@ extern int tsc_clocksource_reliable;
  * Boot-time check whether the TSCs are synchronized across
  * all CPUs/cores:
  */
-extern void check_tsc_sync_source(int cpu);
-extern void check_tsc_sync_target(void);
-
 #ifdef CONFIG_X86_TSC
 extern bool tsc_store_and_check_tsc_adjust(void);
 extern void tsc_verify_tsc_adjust(void);
+extern void check_tsc_sync_source(int cpu);
+extern void check_tsc_sync_target(void);
 #else
-static inline bool tsc_store_and_check_tsc_adjust(void) { }
+static inline bool tsc_store_and_check_tsc_adjust(void) { return false; }
 static inline void tsc_verify_tsc_adjust(void) { }
+static inline void check_tsc_sync_source(int cpu) { }
+static inline void check_tsc_sync_target(void) { }
 #endif
 
 extern int notsc_setup(char *);
