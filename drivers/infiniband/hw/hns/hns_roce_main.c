@@ -433,7 +433,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	spin_lock_init(&iboe->lock);
 
 	ib_dev = &hr_dev->ib_dev;
-	strlcpy(ib_dev->name, "hisi_%d", IB_DEVICE_NAME_MAX);
+	strlcpy(ib_dev->name, "hns_%d", IB_DEVICE_NAME_MAX);
 
 	ib_dev->owner			= THIS_MODULE;
 	ib_dev->node_type		= RDMA_NODE_IB_CA;
