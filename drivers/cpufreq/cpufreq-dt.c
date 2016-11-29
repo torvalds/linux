@@ -358,6 +358,9 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_cpufreq_suspend(policy);
+#endif
 	cpufreq_cooling_unregister(priv->cdev);
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
 	if (priv->have_static_opps)
