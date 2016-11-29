@@ -1247,8 +1247,6 @@ static void r5c_flush_stripe(struct r5conf *conf, struct stripe_head *sh)
 	atomic_inc(&conf->active_stripes);
 	r5c_make_stripe_write_out(sh);
 
-	if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
-		atomic_inc(&conf->preread_active_stripes);
 	raid5_release_stripe(sh);
 }
 
