@@ -72,18 +72,6 @@ static void hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 	hr_dev->hw->set_mac(hr_dev, phy_port, addr);
 }
 
-static void hns_roce_set_mtu(struct hns_roce_dev *hr_dev, u8 port, int mtu)
-{
-	u8 phy_port = hr_dev->iboe.phy_port[port];
-	enum ib_mtu tmp;
-
-	tmp = iboe_get_mtu(mtu);
-	if (!tmp)
-		tmp = IB_MTU_256;
-
-	hr_dev->hw->set_mtu(hr_dev, phy_port, tmp);
-}
-
 static int hns_roce_add_gid(struct ib_device *device, u8 port_num,
 			    unsigned int index, const union ib_gid *gid,
 			    const struct ib_gid_attr *attr, void **context)
@@ -188,8 +176,8 @@ static int hns_roce_setup_mtu_mac(struct hns_roce_dev *hr_dev)
 	u8 i;
 
 	for (i = 0; i < hr_dev->caps.num_ports; i++) {
-		hns_roce_set_mtu(hr_dev, i,
-				 ib_mtu_enum_to_int(hr_dev->caps.max_mtu));
+		hr_dev->hw->set_mtu(hr_dev, hr_dev->iboe.phy_port[i],
+				    hr_dev->caps.max_mtu);
 		hns_roce_set_mac(hr_dev, i, hr_dev->iboe.netdevs[i]->dev_addr);
 	}
 
