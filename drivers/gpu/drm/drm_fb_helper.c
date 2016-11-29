@@ -2099,20 +2099,19 @@ out:
 	return best_score;
 }
 
-static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
+static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
+			    u32 width, u32 height)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_fb_helper_crtc **crtcs;
 	struct drm_display_mode **modes;
 	struct drm_fb_offset *offsets;
 	bool *enabled;
-	int width, height;
 	int i;
 
 	DRM_DEBUG_KMS("\n");
-
-	width = dev->mode_config.max_width;
-	height = dev->mode_config.max_height;
+	if (drm_fb_helper_probe_connector_modes(fb_helper, width, height) == 0)
+		DRM_DEBUG_KMS("No connectors reported connected with modes\n");
 
 	/* prevent concurrent modification of connector_count by hotplug */
 	lockdep_assert_held(&fb_helper->dev->mode_config.mutex);
@@ -2236,23 +2235,15 @@ int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct fb_info *info;
-	int count = 0;
 	int ret;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
-	count = drm_fb_helper_probe_connector_modes(fb_helper,
-						    dev->mode_config.max_width,
-						    dev->mode_config.max_height);
-	/*
-	 * we shouldn't end up with no modes here.
-	 */
-	if (count == 0)
-		dev_info(fb_helper->dev->dev, "No connectors reported connected with modes\n");
-
-	drm_setup_crtcs(fb_helper);
+	drm_setup_crtcs(fb_helper,
+			dev->mode_config.max_width,
+			dev->mode_config.max_height);
 	ret = drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 	mutex_unlock(&dev->mode_config.mutex);
 	if (ret)
@@ -2300,28 +2291,22 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
-	u32 max_width, max_height;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
+	mutex_lock(&dev->mode_config.mutex);
 	if (!fb_helper->fb || !drm_fb_helper_is_bound(fb_helper)) {
 		fb_helper->delayed_hotplug = true;
-		mutex_unlock(&fb_helper->dev->mode_config.mutex);
+		mutex_unlock(&dev->mode_config.mutex);
 		return 0;
 	}
 	DRM_DEBUG_KMS("\n");
 
-	max_width = fb_helper->fb->width;
-	max_height = fb_helper->fb->height;
+	drm_setup_crtcs(fb_helper, fb_helper->fb->width, fb_helper->fb->height);
 
-	drm_fb_helper_probe_connector_modes(fb_helper, max_width, max_height);
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.mutex);
 
-	drm_modeset_lock_all(dev);
-	drm_setup_crtcs(fb_helper);
-	drm_modeset_unlock_all(dev);
 	drm_fb_helper_set_par(fb_helper->fbdev);
 
 	return 0;
