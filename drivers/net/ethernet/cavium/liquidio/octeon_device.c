@@ -797,6 +797,8 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 			CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn6xxx));
 	else if (OCTEON_CN23XX_PF(oct))
 		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn23xx_pf));
+	else if (OCTEON_CN23XX_VF(oct))
+		num_descs = CFG_GET_NUM_DEF_TX_DESCS(CHIP_CONF(oct, cn23xx_vf));
 
 	oct->num_iqs = 0;
 
@@ -842,6 +844,9 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	} else if (OCTEON_CN23XX_PF(oct)) {
 		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_CONF(oct, cn23xx_pf));
 		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_pf));
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		num_descs = CFG_GET_NUM_DEF_RX_DESCS(CHIP_CONF(oct, cn23xx_vf));
+		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_vf));
 	}
 	oct->num_oqs = 0;
 	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
