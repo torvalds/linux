@@ -48,7 +48,6 @@ struct display_clock_dce80 {
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
 	uint32_t dfs_bypass_disp_clk;
 	bool use_max_disp_clk;
-	struct display_clock_state clock_state;
 };
 
 struct display_clock *dal_display_clock_dce80_create(

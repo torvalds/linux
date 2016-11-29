@@ -30,14 +30,8 @@
 
 struct display_clock_funcs {
 	void (*destroy)(struct display_clock **to_destroy);
-	bool (*validate)(struct display_clock *disp_clk,
-		struct min_clock_params *params);
-	uint32_t (*calculate_min_clock)(struct display_clock *disp_clk,
-		uint32_t path_num, struct min_clock_params *params);
-	uint32_t (*get_validation_clock)(struct display_clock *disp_clk);
 	void (*set_clock)(struct display_clock *disp_clk,
 		uint32_t requested_clock_khz);
-	uint32_t (*get_clock)(struct display_clock *disp_clk);
 	enum clocks_state (*get_min_clocks_state)(
 		struct display_clock *disp_clk);
 	enum clocks_state (*get_required_clocks_state)(
@@ -46,15 +40,8 @@ struct display_clock_funcs {
 	bool (*set_min_clocks_state)(struct display_clock *disp_clk,
 		enum clocks_state clocks_state);
 	uint32_t (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
-	void (*set_dp_ref_clock_source)(struct display_clock *disp_clk,
-		enum clock_source_id clk_src);
 	void (*store_max_clocks_state)(struct display_clock *disp_clk,
 		enum clocks_state max_clocks_state);
-	void (*set_clock_state)(struct display_clock *disp_clk,
-		struct display_clock_state clk_state);
-	struct display_clock_state (*get_clock_state)(
-		struct display_clock *disp_clk);
-	uint32_t (*get_dfs_bypass_threshold)(struct display_clock *disp_clk);
 
 };
 
@@ -66,21 +53,6 @@ struct display_clock {
 
 	enum clocks_state cur_min_clks_state;
 };
-void dal_display_clock_base_set_dp_ref_clock_source(
-	struct display_clock *disp_clk,
-	enum clock_source_id clk_src);
-struct display_clock_state dal_display_clock_base_get_clock_state(
-	struct display_clock *disp_clk);
-uint32_t dal_display_clock_base_get_dfs_bypass_threshold(
-	struct display_clock *disp_clk);
-void dal_display_clock_base_set_clock_state(struct display_clock *disp_clk,
-	struct display_clock_state clk_state);
-bool dal_display_clock_construct_base(
-	struct display_clock *base,
-	struct dc_context *ctx);
-
-uint32_t dal_display_clock_get_validation_clock(struct display_clock *disp_clk);
-
 void dal_display_clock_store_max_clocks_state(
 	struct display_clock *disp_clk,
 	enum clocks_state max_clocks_state);

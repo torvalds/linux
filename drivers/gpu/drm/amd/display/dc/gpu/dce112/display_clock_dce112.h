@@ -45,7 +45,6 @@ struct display_clock_dce112 {
 	/* Cache the display clock returned by VBIOS if DFS-bypass is enabled.
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
 	uint32_t dfs_bypass_disp_clk;
-	struct display_clock_state clock_state;
 	struct state_dependent_clocks *max_clks_by_state;
 
 };
@@ -75,17 +74,6 @@ bool dal_display_clock_dce112_construct(
 
 void dispclk_dce112_destroy(struct display_clock **base);
 
-uint32_t dispclk_dce112_calculate_min_clock(
-	struct display_clock *base,
-	uint32_t path_num,
-	struct min_clock_params *params);
-
-struct display_clock_state dispclk_dce112_get_clock_state(
-	struct display_clock *dc);
-
-uint32_t dispclk_dce112_get_dfs_bypass_threshold(
-	struct display_clock *dc);
-
 enum clocks_state dispclk_dce112_get_min_clocks_state(
 	struct display_clock *base);
 
@@ -93,15 +81,9 @@ enum clocks_state dispclk_dce112_get_required_clocks_state(
 	struct display_clock *dc,
 	struct state_dependent_clocks *req_clocks);
 
-uint32_t dispclk_dce112_get_validation_clock(struct display_clock *dc);
-
 void dispclk_dce112_set_clock(
 	struct display_clock *base,
 	uint32_t requested_clk_khz);
-
-void dispclk_dce112_set_clock_state(
-	struct display_clock *dc,
-	struct display_clock_state clk_state);
 
 bool dispclk_dce112_set_min_clocks_state(
 	struct display_clock *base,

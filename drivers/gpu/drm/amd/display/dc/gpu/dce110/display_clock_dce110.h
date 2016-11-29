@@ -44,7 +44,6 @@ struct display_clock_dce110 {
 	/* Cache the display clock returned by VBIOS if DFS-bypass is enabled.
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
 	uint32_t dfs_bypass_disp_clk;
-	struct display_clock_state clock_state;
 };
 
 #define DCLCK110_FROM_BASE(dc_base) \

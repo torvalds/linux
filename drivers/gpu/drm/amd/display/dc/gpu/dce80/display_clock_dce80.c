@@ -90,380 +90,6 @@ static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
 #define FROM_DISPLAY_CLOCK(base) \
 	container_of(base, struct display_clock_dce80, disp_clk)
 
-static struct fixed32_32 get_deep_color_factor(struct min_clock_params *params)
-{
-	/* DeepColorFactor = IF (HDMI = True, bpp / 24, 1)*/
-	struct fixed32_32 deep_color_factor = dal_fixed32_32_from_int(1);
-
-	if (params->signal_type != SIGNAL_TYPE_HDMI_TYPE_A)
-		return deep_color_factor;
-
-	switch (params->deep_color_depth) {
-	case COLOR_DEPTH_101010:
-		/*deep color ratio for 30bpp is 30/24 = 1.25*/
-		deep_color_factor = dal_fixed32_32_from_fraction(30, 24);
-		break;
-
-	case COLOR_DEPTH_121212:
-		/* deep color ratio for 36bpp is 36/24 = 1.5*/
-		deep_color_factor = dal_fixed32_32_from_fraction(36, 24);
-		break;
-
-	case COLOR_DEPTH_161616:
-		/* deep color ratio for 48bpp is 48/24 = 2.0 */
-		deep_color_factor = dal_fixed32_32_from_fraction(48, 24);
-		break;
-	default:
-		break;
-	}
-	return deep_color_factor;
-}
-
-static uint32_t get_scaler_efficiency(struct min_clock_params *params)
-{
-	uint32_t scaler_efficiency = 3;
-
-	switch (params->scaler_efficiency) {
-	case V_SCALER_EFFICIENCY_LB18BPP:
-	case V_SCALER_EFFICIENCY_LB24BPP:
-		scaler_efficiency = 4;
-		break;
-
-	case V_SCALER_EFFICIENCY_LB30BPP:
-	case V_SCALER_EFFICIENCY_LB36BPP:
-		scaler_efficiency = 3;
-		break;
-
-	default:
-		break;
-	}
-
-	return scaler_efficiency;
-}
-
-static uint32_t get_actual_required_display_clk(
-	struct display_clock_dce80 *disp_clk,
-	uint32_t  target_clk_khz)
-{
-	uint32_t disp_clk_khz = target_clk_khz;
-	uint32_t div = INVALID_DIVIDER;
-	uint32_t did = INVALID_DID;
-	uint32_t scaled_vco =
-		disp_clk->dentist_vco_freq_khz * DIVIDER_RANGE_SCALE_FACTOR;
-
-	ASSERT(disp_clk_khz);
-
-	if (disp_clk_khz)
-		div = scaled_vco / disp_clk_khz;
-
-	did = dal_divider_range_get_did(divider_ranges, DIVIDER_RANGE_MAX, div);
-
-	if (did != INVALID_DID) {
-		div = dal_divider_range_get_divider(
-			divider_ranges, DIVIDER_RANGE_MAX, did);
-
-		if ((div != INVALID_DIVIDER) &&
-			(did > DIVIDER_RANGE_01_BASE_DIVIDER_ID))
-			if (disp_clk_khz > (scaled_vco / div))
-				div = dal_divider_range_get_divider(
-					divider_ranges, DIVIDER_RANGE_MAX,
-					did - 1);
-
-		if (div != INVALID_DIVIDER)
-			disp_clk_khz = scaled_vco / div;
-
-	}
-	/* We need to add 10KHz to this value because the accuracy in VBIOS is
-	 in 10KHz units. So we need to always round the last digit up in order
-	 to reach the next div level.*/
-	return disp_clk_khz + 10;
-}
-
-static uint32_t get_validation_clock(struct display_clock *dc)
-{
-	uint32_t clk = 0;
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	switch (disp_clk->max_clks_state) {
-	case CLOCKS_STATE_ULTRA_LOW:
-		/*Currently not supported, it has 0 in table entry*/
-	case CLOCKS_STATE_LOW:
-		clk = max_clks_by_state[CLOCKS_STATE_LOW].
-						display_clk_khz;
-		break;
-
-	case CLOCKS_STATE_NOMINAL:
-		clk = max_clks_by_state[CLOCKS_STATE_NOMINAL].
-						display_clk_khz;
-		break;
-
-	case CLOCKS_STATE_PERFORMANCE:
-		clk = max_clks_by_state[CLOCKS_STATE_PERFORMANCE].
-						display_clk_khz;
-		break;
-
-	case CLOCKS_STATE_INVALID:
-	default:
-		/*Invalid Clocks State*/
-		BREAK_TO_DEBUGGER();
-		/* just return the display engine clock for
-		 * lowest supported state*/
-		clk = max_clks_by_state[CLOCKS_STATE_LOW].
-						display_clk_khz;
-		break;
-	}
-	return clk;
-}
-
-static uint32_t calc_single_display_min_clks(
-	struct display_clock *base,
-	struct min_clock_params *params,
-	bool set_clk)
-{
-	struct fixed32_32 h_scale = dal_fixed32_32_from_int(1);
-	struct fixed32_32 v_scale = dal_fixed32_32_from_int(1);
-	uint32_t pix_clk_khz = params->requested_pixel_clock;
-	uint32_t line_total = params->timing_info.h_total;
-	uint32_t max_clk_khz = get_validation_clock(base);
-	struct fixed32_32 deep_color_factor = get_deep_color_factor(params);
-	uint32_t scaler_efficiency = get_scaler_efficiency(params);
-	struct fixed32_32 v_filter_init;
-	uint32_t v_filter_init_trunc;
-	struct fixed32_32 v_filter_init_ceil;
-	struct fixed32_32 src_lines_per_dst_line;
-	uint32_t src_wdth_rnd_to_chunks;
-	struct fixed32_32 scaling_coeff;
-	struct fixed32_32 fx_disp_clk_khz;
-	struct fixed32_32 fx_alt_disp_clk_khz;
-	uint32_t disp_clk_khz;
-	uint32_t alt_disp_clk_khz;
-	struct display_clock_dce80 *dc = FROM_DISPLAY_CLOCK(base);
-
-	if (0 != params->dest_view.height && 0 != params->dest_view.width) {
-
-		h_scale = dal_fixed32_32_from_fraction(
-			params->source_view.width,
-			params->dest_view.width);
-		v_scale = dal_fixed32_32_from_fraction(
-			params->source_view.height,
-			params->dest_view.height);
-	}
-
-	v_filter_init = dal_fixed32_32_from_fraction(
-		params->scaling_info.v_taps, 2u);
-	v_filter_init = dal_fixed32_32_add(v_filter_init,
-		dal_fixed32_32_div_int(v_scale, 2));
-	v_filter_init = dal_fixed32_32_add(v_filter_init,
-		dal_fixed32_32_from_fraction(15, 10));
-
-	v_filter_init_trunc = dal_fixed32_32_floor(v_filter_init);
-
-	v_filter_init_ceil = dal_fixed32_32_from_fraction(
-						v_filter_init_trunc, 2);
-	v_filter_init_ceil = dal_fixed32_32_from_int(
-		dal_fixed32_32_ceil(v_filter_init_ceil));
-	v_filter_init_ceil = dal_fixed32_32_mul_int(v_filter_init_ceil, 2);
-	v_filter_init_ceil = dal_fixed32_32_div_int(v_filter_init_ceil, 3);
-	v_filter_init_ceil = dal_fixed32_32_from_int(
-		dal_fixed32_32_ceil(v_filter_init_ceil));
-
-	src_lines_per_dst_line = dal_fixed32_32_max(
-		dal_fixed32_32_from_int(dal_fixed32_32_ceil(v_scale)),
-		v_filter_init_ceil);
-
-	src_wdth_rnd_to_chunks =
-		((params->source_view.width - 1) / 128) * 128 + 256;
-
-	scaling_coeff = dal_fixed32_32_max(
-		dal_fixed32_32_from_fraction(params->scaling_info.h_taps, 4),
-		dal_fixed32_32_mul(
-			dal_fixed32_32_from_fraction(
-				params->scaling_info.v_taps,
-				scaler_efficiency),
-					h_scale));
-
-	scaling_coeff = dal_fixed32_32_max(scaling_coeff, h_scale);
-
-	fx_disp_clk_khz = dal_fixed32_32_mul(
-		scaling_coeff, dal_fixed32_32_from_fraction(11, 10));
-	if (0 != line_total) {
-		struct fixed32_32 d_clk = dal_fixed32_32_mul_int(
-			src_lines_per_dst_line, src_wdth_rnd_to_chunks);
-		d_clk = dal_fixed32_32_div_int(d_clk, line_total);
-		d_clk = dal_fixed32_32_mul(d_clk,
-				dal_fixed32_32_from_fraction(11, 10));
-		fx_disp_clk_khz = dal_fixed32_32_max(fx_disp_clk_khz, d_clk);
-	}
-
-	fx_disp_clk_khz = dal_fixed32_32_max(fx_disp_clk_khz,
-		dal_fixed32_32_mul(deep_color_factor,
-		dal_fixed32_32_from_fraction(11, 10)));
-
-	fx_disp_clk_khz = dal_fixed32_32_mul_int(fx_disp_clk_khz, pix_clk_khz);
-	fx_disp_clk_khz = dal_fixed32_32_mul(fx_disp_clk_khz,
-		dal_fixed32_32_from_fraction(1005, 1000));
-
-	fx_alt_disp_clk_khz = scaling_coeff;
-
-	if (0 != line_total) {
-		struct fixed32_32 d_clk = dal_fixed32_32_mul_int(
-			src_lines_per_dst_line, src_wdth_rnd_to_chunks);
-		d_clk = dal_fixed32_32_div_int(d_clk, line_total);
-		d_clk = dal_fixed32_32_mul(d_clk,
-			dal_fixed32_32_from_fraction(105, 100));
-		fx_alt_disp_clk_khz = dal_fixed32_32_max(
-			fx_alt_disp_clk_khz, d_clk);
-	}
-	fx_alt_disp_clk_khz = dal_fixed32_32_max(
-		fx_alt_disp_clk_khz, fx_alt_disp_clk_khz);
-
-	fx_alt_disp_clk_khz = dal_fixed32_32_mul_int(
-		fx_alt_disp_clk_khz, pix_clk_khz);
-
-	/* convert to integer*/
-	disp_clk_khz = dal_fixed32_32_floor(fx_disp_clk_khz);
-	alt_disp_clk_khz = dal_fixed32_32_floor(fx_alt_disp_clk_khz);
-
-	if (set_clk) { /* only compensate clock if we are going to set it.*/
-		disp_clk_khz = get_actual_required_display_clk(
-			dc, disp_clk_khz);
-		alt_disp_clk_khz = get_actual_required_display_clk(
-			dc, alt_disp_clk_khz);
-	}
-
-	if ((disp_clk_khz > max_clk_khz) && (alt_disp_clk_khz <= max_clk_khz))
-		disp_clk_khz = alt_disp_clk_khz;
-
-	return disp_clk_khz;
-
-}
-
-static uint32_t calc_cursor_bw_for_min_clks(struct min_clock_params *params)
-{
-
-	struct fixed32_32 v_scale = dal_fixed32_32_from_int(1);
-	struct fixed32_32 v_filter_ceiling;
-	struct fixed32_32 src_lines_per_dst_line;
-	struct fixed32_32 cursor_bw;
-
-	/*  DCE8 Mode Support and Mode Set Architecture Specification Rev 1.3
-	 6.3.3	Cursor data Throughput requirement on DISPCLK
-	 The MCIF to DCP cursor data return throughput is one pixel per DISPCLK
-	  shared among the display heads.
-	 If (Total Cursor Bandwidth in pixels for All heads> DISPCLK)
-	 The mode is not supported
-	 Cursor Bandwidth in Pixels = Cursor Width *
-	 (SourceLinesPerDestinationLine / Line Time)
-	 Assuming that Cursor Width = 128
-	 */
-	/*In the hardware doc they mention an Interlace Factor
-	  It is not used here because we have already used it when
-	  calculating destination view*/
-	if (0 != params->dest_view.height)
-		v_scale = dal_fixed32_32_from_fraction(
-			params->source_view.height,
-			params->dest_view.height);
-
-	{
-	/*Do: Vertical Filter Init = 0.5 + VTAPS/2 + VSR/2 * Interlace Factor*/
-	/*Interlace Factor is included in verticalScaleRatio*/
-	struct fixed32_32 v_filter = dal_fixed32_32_add(
-		dal_fixed32_32_from_fraction(params->scaling_info.v_taps, 2),
-		dal_fixed32_32_div_int(v_scale, 2));
-	/*Do : Ceiling (Vertical Filter Init, 2)/3 )*/
-	v_filter_ceiling = dal_fixed32_32_div_int(v_filter, 2);
-	v_filter_ceiling = dal_fixed32_32_mul_int(
-		dal_fixed32_32_from_int(dal_fixed32_32_ceil(v_filter_ceiling)),
-							2);
-	v_filter_ceiling = dal_fixed32_32_div_int(v_filter_ceiling, 3);
-	}
-	/*Do : MAX( CeilCeiling (VSR), Ceiling (Vertical Filter Init, 2)/3 )*/
-	/*Do : SourceLinesPerDestinationLine =
-	 * MAX( Ceiling (VSR), Ceiling (Vertical Filter Init, 2)/3 )*/
-	src_lines_per_dst_line = dal_fixed32_32_max(v_scale, v_filter_ceiling);
-
-	if ((params->requested_pixel_clock != 0) &&
-		(params->timing_info.h_total != 0)) {
-		/* pixelClock is in units of KHz.  Calc lineTime in us*/
-		struct fixed32_32 inv_line_time = dal_fixed32_32_from_fraction(
-			params->requested_pixel_clock,
-			params->timing_info.h_total);
-		cursor_bw = dal_fixed32_32_mul(
-			dal_fixed32_32_mul_int(inv_line_time, 128),
-						src_lines_per_dst_line);
-	}
-
-	/* convert to integer*/
-	return dal_fixed32_32_floor(cursor_bw);
-}
-
-static bool validate(
-	struct display_clock *dc,
-	struct min_clock_params *params)
-{
-	uint32_t max_clk_khz = get_validation_clock(dc);
-	uint32_t req_clk_khz;
-
-	if (params == NULL)
-		return false;
-
-	req_clk_khz = calc_single_display_min_clks(dc, params, false);
-
-	return (req_clk_khz <= max_clk_khz);
-}
-
-static uint32_t calculate_min_clock(
-	struct display_clock *dc,
-	uint32_t path_num,
-	struct min_clock_params *params)
-{
-	uint32_t i;
-	uint32_t validation_clk_khz = get_validation_clock(dc);
-	uint32_t min_clk_khz = validation_clk_khz;
-	uint32_t max_clk_khz = 0;
-	uint32_t total_cursor_bw = 0;
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	if (disp_clk->use_max_disp_clk)
-		return min_clk_khz;
-
-	if (params != NULL) {
-		uint32_t disp_clk_khz = 0;
-
-		for (i = 0; i < path_num; ++i) {
-			disp_clk_khz = calc_single_display_min_clks(
-				dc, params, true);
-
-			/* update the max required clock found*/
-			if (disp_clk_khz > max_clk_khz)
-				max_clk_khz = disp_clk_khz;
-
-			disp_clk_khz = calc_cursor_bw_for_min_clks(params);
-
-			total_cursor_bw += disp_clk_khz;
-
-			params++;
-
-		}
-	}
-
-	max_clk_khz = (total_cursor_bw > max_clk_khz) ? total_cursor_bw :
-								max_clk_khz;
-
-	min_clk_khz = max_clk_khz;
-
-	/*"Cursor data Throughput requirement on DISPCLK is now a factor,
-	 *  need to change the code */
-	ASSERT(total_cursor_bw < validation_clk_khz);
-
-	if (min_clk_khz > validation_clk_khz)
-		min_clk_khz = validation_clk_khz;
-	else if (min_clk_khz < dc->min_display_clk_threshold_khz)
-		min_clk_khz = dc->min_display_clk_threshold_khz;
-
-	return min_clk_khz;
-}
-
 static void set_clock(
 	struct display_clock *dc,
 	uint32_t requested_clk_khz)
@@ -491,54 +117,6 @@ static void set_clock(
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
 		disp_clk->cur_min_clks_state = CLOCKS_STATE_NOMINAL;
-}
-
-static uint32_t get_clock(struct display_clock *dc)
-{
-	uint32_t disp_clock = get_validation_clock(dc);
-	uint32_t target_div = INVALID_DIVIDER;
-	uint32_t addr = mmDENTIST_DISPCLK_CNTL;
-	uint32_t value = 0;
-	uint32_t field = 0;
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	if (disp_clk->dfs_bypass_enabled && disp_clk->dfs_bypass_disp_clk)
-		return disp_clk->dfs_bypass_disp_clk;
-
-	/* Read the mmDENTIST_DISPCLK_CNTL to get the currently programmed
-	 DID DENTIST_DISPCLK_WDIVIDER.*/
-	value = dm_read_reg(dc->ctx, addr);
-	field = get_reg_field_value(
-			value, DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER);
-
-	/* Convert DENTIST_DISPCLK_WDIVIDER to actual divider*/
-	target_div = dal_divider_range_get_divider(
-		divider_ranges,
-		DIVIDER_RANGE_MAX,
-		field);
-
-	if (target_div != INVALID_DIVIDER)
-		/* Calculate the current DFS clock in KHz.
-		 Should be okay up to 42.9 THz before overflowing.*/
-		disp_clock = (DIVIDER_RANGE_SCALE_FACTOR
-			* disp_clk->dentist_vco_freq_khz) / target_div;
-	return disp_clock;
-}
-
-static void set_clock_state(
-	struct display_clock *dc,
-	struct display_clock_state clk_state)
-{
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	disp_clk->clock_state = clk_state;
-}
-static struct display_clock_state get_clock_state(
-	struct display_clock *dc)
-{
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	return disp_clk->clock_state;
 }
 
 static enum clocks_state get_min_clocks_state(struct display_clock *dc)
@@ -818,11 +396,6 @@ static bool display_clock_integrated_info_construct(
 	return true;
 }
 
-static uint32_t get_dfs_bypass_threshold(struct display_clock *dc)
-{
-	return DCE80_DFS_BYPASS_THRESHOLD_KHZ;
-}
-
 static void destroy(struct display_clock **dc)
 {
 	struct display_clock_dce80 *disp_clk;
@@ -833,32 +406,34 @@ static void destroy(struct display_clock **dc)
 }
 
 static const struct display_clock_funcs funcs = {
-	.calculate_min_clock = calculate_min_clock,
 	.destroy = destroy,
-	.get_clock = get_clock,
-	.get_clock_state = get_clock_state,
-	.get_dfs_bypass_threshold = get_dfs_bypass_threshold,
 	.get_dp_ref_clk_frequency = get_dp_ref_clk_frequency,
 	.get_min_clocks_state = get_min_clocks_state,
 	.get_required_clocks_state = get_required_clocks_state,
-	.get_validation_clock = get_validation_clock,
 	.set_clock = set_clock,
-	.set_clock_state = set_clock_state,
-	.set_dp_ref_clock_source =
-		dal_display_clock_base_set_dp_ref_clock_source,
 	.set_min_clocks_state = set_min_clocks_state,
-	.store_max_clocks_state = store_max_clocks_state,
-	.validate = validate,
+	.store_max_clocks_state = store_max_clocks_state
 };
 
-static bool display_clock_construct(
-	struct dc_context *ctx,
-	struct display_clock_dce80 *disp_clk)
-{
-	struct display_clock *dc_base = &disp_clk->disp_clk;
 
-	if (!dal_display_clock_construct_base(dc_base, ctx))
-		return false;
+struct display_clock *dal_display_clock_dce80_create(
+	struct dc_context *ctx)
+{
+	struct display_clock_dce80 *disp_clk;
+	struct display_clock *dc_base;
+
+	disp_clk = dm_alloc(sizeof(struct display_clock_dce80));
+
+	if (disp_clk == NULL)
+		return NULL;
+
+	dc_base = &disp_clk->disp_clk;
+
+	dc_base->ctx = ctx;
+	dc_base->id = CLOCK_SOURCE_ID_DCPLL;
+	dc_base->min_display_clk_threshold_khz = 0;
+
+	dc_base->cur_min_clks_state = CLOCKS_STATE_INVALID;
 
 	dc_base->funcs = &funcs;
 	/*
@@ -912,21 +487,6 @@ static bool display_clock_construct(
 		DIVIDER_RANGE_03_STEP_SIZE,
 		DIVIDER_RANGE_03_BASE_DIVIDER_ID,
 		DIVIDER_RANGE_MAX_DIVIDER_ID);
-	return true;
-}
-
-struct display_clock *dal_display_clock_dce80_create(
-	struct dc_context *ctx)
-{
-	struct display_clock_dce80 *disp_clk;
-
-	disp_clk = dm_alloc(sizeof(struct display_clock_dce80));
-
-	if (disp_clk == NULL)
-		return NULL;
-
-	if (display_clock_construct(ctx, disp_clk))
-		return &disp_clk->disp_clk;
 
 	dm_free(disp_clk);
 	return NULL;
