@@ -338,7 +338,7 @@ static void acpi_bus_osc_support(void)
 	}
 #endif
 
-	if (IS_ENABLED(CONFIG_SCHED_ITMT))
+	if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
 
 	if (!ghes_disable)
