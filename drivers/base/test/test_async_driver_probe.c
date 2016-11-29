@@ -116,7 +116,7 @@ static int __init test_async_probe_init(void)
 	calltime = ktime_get();
 	sync_dev_1 = platform_device_register_simple("test_sync_driver", 1,
 						     NULL, 0);
-	if (IS_ERR(async_dev_1)) {
+	if (IS_ERR(sync_dev_1)) {
 		error = PTR_ERR(sync_dev_1);
 		pr_err("failed to create sync_dev_1: %d", error);
 		goto err_unregister_sync_driver;
