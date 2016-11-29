@@ -198,6 +198,7 @@ static int wa_nep_queue(struct wahc *wa, size_t size)
 	if (nw == NULL) {
 		if (printk_ratelimit())
 			dev_err(dev, "No memory to queue notification\n");
+		result = -ENOMEM;
 		goto out;
 	}
 	INIT_WORK(&nw->work, wa_notif_dispatch);
