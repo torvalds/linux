@@ -439,8 +439,9 @@ write_sg_to_skb(struct sk_buff *skb, unsigned int *frags,
 	skb->len += count;
 	skb->data_len += count;
 	skb->truesize += count;
+
 	while (count > 0) {
-		if (sg && (!(sg->length)))
+		if (!sg || (!(sg->length)))
 			break;
 		spage = sg_page(sg);
 		get_page(spage);
