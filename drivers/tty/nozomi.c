@@ -63,44 +63,23 @@
 
 #define VERSION_STRING DRIVER_DESC " 2.1d"
 
-/*    Macros definitions */
-
 /* Default debug printout level */
 #define NOZOMI_DEBUG_LEVEL 0x00
+static int debug = NOZOMI_DEBUG_LEVEL;
+module_param(debug, int, S_IRUGO | S_IWUSR);
 
-#define P_BUF_SIZE 128
-#define NFO(_err_flag_, args...)				\
-do {								\
-	char tmp[P_BUF_SIZE];					\
-	snprintf(tmp, sizeof(tmp), ##args);			\
-	printk(_err_flag_ "[%d] %s(): %s\n", __LINE__,		\
-		__func__, tmp);				\
+/*    Macros definitions */
+#define DBG_(lvl, fmt, args...)				\
+do {							\
+	if (lvl & debug)				\
+		pr_debug("[%d] %s(): " fmt "\n",	\
+			 __LINE__, __func__,  ##args);	\
 } while (0)
 
-#define DBG1(args...) D_(0x01, ##args)
-#define DBG2(args...) D_(0x02, ##args)
-#define DBG3(args...) D_(0x04, ##args)
-#define DBG4(args...) D_(0x08, ##args)
-#define DBG5(args...) D_(0x10, ##args)
-#define DBG6(args...) D_(0x20, ##args)
-#define DBG7(args...) D_(0x40, ##args)
-#define DBG8(args...) D_(0x80, ##args)
-
-#ifdef DEBUG
-/* Do we need this settable at runtime? */
-static int debug = NOZOMI_DEBUG_LEVEL;
-
-#define D(lvl, args...)  do \
-			{if (lvl & debug) NFO(KERN_DEBUG, ##args); } \
-			while (0)
-#define D_(lvl, args...) D(lvl, ##args)
-
-/* These printouts are always printed */
-
-#else
-static int debug;
-#define D_(lvl, args...)
-#endif
+#define DBG1(args...) DBG_(0x01, ##args)
+#define DBG2(args...) DBG_(0x02, ##args)
+#define DBG3(args...) DBG_(0x04, ##args)
+#define DBG4(args...) DBG_(0x08, ##args)
 
 /* TODO: rewrite to optimize macros... */
 
@@ -1942,8 +1921,6 @@ static __exit void nozomi_exit(void)
 
 module_init(nozomi_init);
 module_exit(nozomi_exit);
-
-module_param(debug, int, S_IRUGO | S_IWUSR);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);
