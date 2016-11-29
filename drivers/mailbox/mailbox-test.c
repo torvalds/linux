@@ -352,6 +352,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 {
 	struct mbox_test_device *tdev;
 	struct resource *res;
+	resource_size_t size;
 	int ret;
 
 	tdev = devm_kzalloc(&pdev->dev, sizeof(*tdev), GFP_KERNEL);
@@ -360,14 +361,21 @@ static int mbox_test_probe(struct platform_device *pdev)
 
 	/* It's okay for MMIO to be NULL */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	size = resource_size(res);
 	tdev->tx_mmio = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(tdev->tx_mmio))
+	if (PTR_ERR(tdev->tx_mmio) == -EBUSY)
+		/* if reserved area in SRAM, try just ioremap */
+		tdev->tx_mmio = devm_ioremap(&pdev->dev, res->start, size);
+	else if (IS_ERR(tdev->tx_mmio))
 		tdev->tx_mmio = NULL;
 
 	/* If specified, second reg entry is Rx MMIO */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	size = resource_size(res);
 	tdev->rx_mmio = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(tdev->rx_mmio))
+	if (PTR_ERR(tdev->rx_mmio) == -EBUSY)
+		tdev->rx_mmio = devm_ioremap(&pdev->dev, res->start, size);
+	else if (IS_ERR(tdev->rx_mmio))
 		tdev->rx_mmio = tdev->tx_mmio;
 
 	tdev->tx_channel = mbox_test_request_channel(pdev, "tx");
