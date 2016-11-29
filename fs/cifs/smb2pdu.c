@@ -250,16 +250,19 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	}
 
 	cifs_mark_open_files_invalid(tcon);
+	if (tcon->use_persistent)
+		tcon->need_reopen_files = true;
 
 	rc = SMB2_tcon(0, tcon->ses, tcon->treeName, tcon, nls_codepage);
 	mutex_unlock(&tcon->ses->session_mutex);
 
-	if (tcon->use_persistent)
-		cifs_reopen_persistent_handles(tcon);
-
 	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 	if (rc)
 		goto out;
+
+	if (smb2_command != SMB2_INTERNAL_CMD)
+		queue_delayed_work(cifsiod_wq, &server->reconnect, 0);
+
 	atomic_inc(&tconInfoReconnectCount);
 out:
 	/*
@@ -1990,7 +1993,7 @@ void smb2_reconnect_server(struct work_struct *work)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
-			if (tcon->need_reconnect) {
+			if (tcon->need_reconnect || tcon->need_reopen_files) {
 				tcon->tc_count++;
 				list_add_tail(&tcon->rlist, &tmp_list);
 				tcon_exist = true;
@@ -2007,7 +2010,8 @@ void smb2_reconnect_server(struct work_struct *work)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	list_for_each_entry_safe(tcon, tcon2, &tmp_list, rlist) {
-		smb2_reconnect(SMB2_ECHO, tcon);
+		if (!smb2_reconnect(SMB2_INTERNAL_CMD, tcon))
+			cifs_reopen_persistent_handles(tcon);
 		list_del_init(&tcon->rlist);
 		cifs_put_tcon(tcon);
 	}
