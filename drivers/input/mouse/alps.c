@@ -1267,18 +1267,12 @@ static int alps_decode_ss4_v2(struct alps_fields *f,
 		break;
 
 	case SS4_PACKET_ID_STICK:
-		if (!(priv->flags & ALPS_DUALPOINT)) {
-			psmouse_warn(psmouse,
-				     "Rejected trackstick packet from non DualPoint device");
-		} else {
-			int x = (s8)(((p[0] & 1) << 7) | (p[1] & 0x7f));
-			int y = (s8)(((p[3] & 1) << 7) | (p[2] & 0x7f));
-			int pressure = (s8)(p[4] & 0x7f);
-
-			input_report_rel(priv->dev2, REL_X, x);
-			input_report_rel(priv->dev2, REL_Y, -y);
-			input_report_abs(priv->dev2, ABS_PRESSURE, pressure);
-		}
+		/*
+		 * x, y, and pressure are decoded in
+		 * alps_process_packet_ss4_v2()
+		 */
+		f->first_mp = 0;
+		f->is_mp = 0;
 		break;
 
 	case SS4_PACKET_ID_IDLE:
@@ -1312,6 +1306,7 @@ static void alps_process_packet_ss4_v2(struct psmouse *psmouse)
 	struct input_dev *dev = psmouse->dev;
 	struct input_dev *dev2 = priv->dev2;
 	struct alps_fields *f = &priv->f;
+	int x, y, pressure;
 
 	memset(f, 0, sizeof(struct alps_fields));
 	priv->decode_fields(f, packet, psmouse);
@@ -1348,12 +1343,25 @@ static void alps_process_packet_ss4_v2(struct psmouse *psmouse)
 
 	/* Report trackstick */
 	if (alps_get_pkt_id_ss4_v2(packet) == SS4_PACKET_ID_STICK) {
-		if (priv->flags & ALPS_DUALPOINT) {
-			input_report_key(dev2, BTN_LEFT, f->ts_left);
-			input_report_key(dev2, BTN_RIGHT, f->ts_right);
-			input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
-			input_sync(dev2);
+		if (!(priv->flags & ALPS_DUALPOINT)) {
+			psmouse_warn(psmouse,
+				     "Rejected trackstick packet from non DualPoint device");
+			return;
 		}
+
+		x = (s8)(((packet[0] & 1) << 7) | (packet[1] & 0x7f));
+		y = (s8)(((packet[3] & 1) << 7) | (packet[2] & 0x7f));
+		pressure = (s8)(packet[4] & 0x7f);
+
+		input_report_rel(dev2, REL_X, x);
+		input_report_rel(dev2, REL_Y, -y);
+		input_report_abs(dev2, ABS_PRESSURE, pressure);
+
+		input_report_key(dev2, BTN_LEFT, f->ts_left);
+		input_report_key(dev2, BTN_RIGHT, f->ts_right);
+		input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
+
+		input_sync(dev2);
 		return;
 	}
 
