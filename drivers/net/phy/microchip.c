@@ -111,7 +111,7 @@ static void lan88xx_set_mdix(struct phy_device *phydev)
 	int buf;
 	int val;
 
-	switch (phydev->mdix) {
+	switch (phydev->mdix_ctrl) {
 	case ETH_TP_MDI:
 		val = LAN88XX_EXT_MODE_CTRL_MDI_;
 		break;
