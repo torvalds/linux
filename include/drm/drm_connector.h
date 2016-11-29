@@ -262,6 +262,9 @@ struct drm_connector_funcs {
 	 * connector due to a user request. force can be used by the driver to
 	 * avoid expensive, destructive operations during automated probing.
 	 *
+	 * This callback is optional, if not implemented the connector will be
+	 * considered as always being attached.
+	 *
 	 * FIXME:
 	 *
 	 * Note that this hook is only called by the probe helper. It's not in
