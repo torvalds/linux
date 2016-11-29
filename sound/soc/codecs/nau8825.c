@@ -1233,7 +1233,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val_len = 0, osr;
 
-	nau8825_sema_acquire(nau8825, 2 * HZ);
+	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	/* CLK_DAC or CLK_ADC = OSR * FS
 	 * DAC or ADC clock frequency is defined as Over Sampling Rate (OSR)
@@ -1293,7 +1293,7 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
 
-	nau8825_sema_acquire(nau8825, 2 * HZ);
+	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -2121,7 +2121,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
 		nau8825_configure_mclk_as_sysclk(regmap);
 		/* MCLK not changed by clock tree */
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
@@ -2169,7 +2169,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
 		/* Higher FLL reference input frequency can only set lower
 		 * gain error, such as 0000 for input reference from MCLK
 		 * 12.288Mhz.
@@ -2191,7 +2191,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
 		/* If FLL reference input is from low frequency source,
 		 * higher error gain can apply such as 0xf which has
 		 * the most sensitive gain error correction threshold,
@@ -2217,7 +2217,7 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		 * fered by cross talk process, the driver make the playback
 		 * preparation halted until cross talk process finish.
 		 */
-		nau8825_sema_acquire(nau8825, 2 * HZ);
+		nau8825_sema_acquire(nau8825, 3 * HZ);
 		/* If FLL reference input is from low frequency source,
 		 * higher error gain can apply such as 0xf which has
 		 * the most sensitive gain error correction threshold,
