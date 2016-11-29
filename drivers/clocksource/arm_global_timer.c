@@ -48,6 +48,7 @@
  * the units for all operations.
  */
 static void __iomem *gt_base;
+static struct clk *gt_clk;
 static unsigned long gt_clk_rate;
 static int gt_ppi;
 static struct clock_event_device __percpu *gt_evt;
@@ -135,6 +136,97 @@ static int gt_clockevent_set_next_event(unsigned long evt,
 	gt_compare_set(evt, 0);
 	return 0;
 }
+
+#ifdef CONFIG_COMMON_CLK
+
+/*
+ * Updates clockevent frequency when the cpu frequency changes.
+ * Called on the cpu that is changing frequency with interrupts disabled.
+ */
+static void gt_update_frequency(void *new_rate)
+{
+	gt_clk_rate = *((unsigned long *) new_rate);
+
+	clockevents_update_freq(raw_cpu_ptr(gt_evt), gt_clk_rate);
+}
+
+static int gt_rate_change(struct notifier_block *nb,
+	unsigned long flags, void *data)
+{
+	struct clk_notifier_data *cnd = data;
+
+	/*
+	 * The gt clock events must be reprogrammed to account for the new
+	 * frequency.  The timer is local to a cpu, so cross-call to the
+	 * changing cpu.
+	 */
+	if (flags == POST_RATE_CHANGE)
+		on_each_cpu(gt_update_frequency,
+				  (void *)&cnd->new_rate, 1);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block gt_clk_nb = {
+	.notifier_call = gt_rate_change,
+};
+
+static int gt_clk_init(void)
+{
+	if (gt_evt && raw_cpu_ptr(gt_evt) && !IS_ERR(gt_clk))
+		return clk_notifier_register(gt_clk, &gt_clk_nb);
+
+	return 0;
+}
+core_initcall(gt_clk_init);
+
+#elif defined (CONFIG_CPU_FREQ)
+
+#include <linux/cpufreq.h>
+
+/*
+ * Updates clockevent frequency when the cpu frequency changes.
+ * Called on the cpu that is changing frequency with interrupts disabled.
+ */
+static void gt_update_frequency(void *data)
+{
+	gt_clk_rate = clk_get_rate(gt_clk);
+
+	clockevents_update_freq(raw_cpu_ptr(gt_evt), gt_clk_rate);
+}
+
+static int gt_cpufreq_transition(struct notifier_block *nb,
+	unsigned long state, void *data)
+{
+	struct cpufreq_freqs *freqs = data;
+
+	/*
+	 * The gt clock events must be reprogrammed to account for the new
+	 * frequency.  The timer is local to a cpu, so cross-call to the
+	 * changing cpu.
+	 */
+	if (state == CPUFREQ_POSTCHANGE)
+		smp_call_function_single(freqs->cpu, gt_update_frequency,
+			NULL, 1);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block gt_cpufreq_nb = {
+	.notifier_call = gt_cpufreq_transition,
+};
+
+static int gt_cpufreq_init(void)
+{
+	if (gt_evt && raw_cpu_ptr(gt_evt) && !IS_ERR(gt_clk))
+		return cpufreq_register_notifier(&gt_cpufreq_nb,
+			CPUFREQ_TRANSITION_NOTIFIER);
+
+	return 0;
+}
+core_initcall(gt_cpufreq_init);
+
+#endif
 
 static irqreturn_t gt_clockevent_interrupt(int irq, void *dev_id)
 {
@@ -244,7 +336,6 @@ static struct notifier_block gt_cpu_nb = {
 
 static void __init global_timer_of_register(struct device_node *np)
 {
-	struct clk *gt_clk;
 	int err = 0;
 
 	/*
