@@ -78,21 +78,6 @@ void free_kthread_struct(struct task_struct *k)
 	kfree(to_kthread(k));
 }
 
-#define __to_kthread(vfork)	\
-	container_of(vfork, struct kthread, exited)
-
-/*
- * TODO: kill it and use to_kthread(). But we still need the users
- * like kthread_stop() which has to sync with the exiting kthread.
- */
-static struct kthread *to_live_kthread(struct task_struct *k)
-{
-	struct completion *vfork = ACCESS_ONCE(k->vfork_done);
-	if (likely(vfork))
-		return __to_kthread(vfork);
-	return NULL;
-}
-
 /**
  * kthread_should_stop - should this kthread return now?
  *
@@ -441,8 +426,18 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 	return p;
 }
 
-static void __kthread_unpark(struct task_struct *k, struct kthread *kthread)
+/**
+ * kthread_unpark - unpark a thread created by kthread_create().
+ * @k:		thread created by kthread_create().
+ *
+ * Sets kthread_should_park() for @k to return false, wakes it, and
+ * waits for it to return. If the thread is marked percpu then its
+ * bound to the cpu again.
+ */
+void kthread_unpark(struct task_struct *k)
 {
+	struct kthread *kthread = to_kthread(k);
+
 	clear_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
 	/*
 	 * We clear the IS_PARKED bit here as we don't wait
@@ -460,22 +455,6 @@ static void __kthread_unpark(struct task_struct *k, struct kthread *kthread)
 		wake_up_state(k, TASK_PARKED);
 	}
 }
-
-/**
- * kthread_unpark - unpark a thread created by kthread_create().
- * @k:		thread created by kthread_create().
- *
- * Sets kthread_should_park() for @k to return false, wakes it, and
- * waits for it to return. If the thread is marked percpu then its
- * bound to the cpu again.
- */
-void kthread_unpark(struct task_struct *k)
-{
-	struct kthread *kthread = to_live_kthread(k);
-
-	if (kthread)
-		__kthread_unpark(k, kthread);
-}
 EXPORT_SYMBOL_GPL(kthread_unpark);
 
 /**
@@ -492,20 +471,20 @@ EXPORT_SYMBOL_GPL(kthread_unpark);
  */
 int kthread_park(struct task_struct *k)
 {
-	struct kthread *kthread = to_live_kthread(k);
-	int ret = -ENOSYS;
+	struct kthread *kthread = to_kthread(k);
 
-	if (kthread) {
-		if (!test_bit(KTHREAD_IS_PARKED, &kthread->flags)) {
-			set_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
-			if (k != current) {
-				wake_up_process(k);
-				wait_for_completion(&kthread->parked);
-			}
+	if (WARN_ON(k->flags & PF_EXITING))
+		return -ENOSYS;
+
+	if (!test_bit(KTHREAD_IS_PARKED, &kthread->flags)) {
+		set_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
+		if (k != current) {
+			wake_up_process(k);
+			wait_for_completion(&kthread->parked);
 		}
-		ret = 0;
 	}
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kthread_park);
 
@@ -534,7 +513,7 @@ int kthread_stop(struct task_struct *k)
 	get_task_struct(k);
 	kthread = to_kthread(k);
 	set_bit(KTHREAD_SHOULD_STOP, &kthread->flags);
-	__kthread_unpark(k, kthread);
+	kthread_unpark(k);
 	wake_up_process(k);
 	wait_for_completion(&kthread->exited);
 	ret = k->exit_code;
