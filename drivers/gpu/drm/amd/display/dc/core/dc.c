@@ -452,6 +452,8 @@ static void destruct(struct core_dc *dc)
 
 	dm_free(dc->temp_flip_context);
 	dc->temp_flip_context = NULL;
+	dm_free(dc->scratch_val_ctx);
+	dc->scratch_val_ctx = NULL;
 
 	destroy_links(dc);
 
@@ -490,6 +492,7 @@ static bool construct(struct core_dc *dc,
 
 	dc->current_context = dm_alloc(sizeof(*dc->current_context));
 	dc->temp_flip_context = dm_alloc(sizeof(*dc->temp_flip_context));
+	dc->scratch_val_ctx = dm_alloc(sizeof(*dc->temp_flip_context));
 
 	if (!dc->current_context || !dc->temp_flip_context) {
 		dm_error("%s: failed to create validate ctx\n", __func__);
@@ -1217,7 +1220,7 @@ bool dc_pre_update_surfaces_to_target(
 			goto unexpected_fail;
 		}
 		resource_validate_ctx_destruct(context);
-		dm_free(context);
+		core_dc->scratch_val_ctx = context;
 		context = temp_context;
 	}
 
