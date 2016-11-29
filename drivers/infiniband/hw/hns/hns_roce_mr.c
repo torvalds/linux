@@ -42,7 +42,7 @@ static u32 hw_index_to_key(unsigned long ind)
 	return (u32)(ind >> 24) | (ind << 8);
 }
 
-static unsigned long key_to_hw_index(u32 key)
+unsigned long key_to_hw_index(u32 key)
 {
 	return (key << 24) | (key >> 8);
 }
@@ -56,7 +56,7 @@ static int hns_roce_sw2hw_mpt(struct hns_roce_dev *hr_dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-static int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
+int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_cmd_mailbox *mailbox,
 			      unsigned long mpt_index)
 {
@@ -607,13 +607,20 @@ err_free:
 
 int hns_roce_dereg_mr(struct ib_mr *ibmr)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
+	int ret = 0;
 
-	hns_roce_mr_free(to_hr_dev(ibmr->device), mr);
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	if (hr_dev->hw->dereg_mr) {
+		ret = hr_dev->hw->dereg_mr(hr_dev, mr);
+	} else {
+		hns_roce_mr_free(hr_dev, mr);
 
-	kfree(mr);
+		if (mr->umem)
+			ib_umem_release(mr->umem);
 
-	return 0;
+		kfree(mr);
+	}
+
+	return ret;
 }

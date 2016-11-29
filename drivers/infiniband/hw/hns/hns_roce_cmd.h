@@ -58,11 +58,6 @@ enum {
 	HNS_ROCE_CMD_QUERY_QP		= 0x22,
 };
 
-struct hns_roce_cmd_mailbox {
-	void		       *buf;
-	dma_addr_t		dma;
-};
-
 int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 		      unsigned long in_modifier, u8 op_modifier, u16 op,
 		      unsigned long timeout);

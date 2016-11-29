@@ -388,6 +388,11 @@ struct hns_roce_cmdq {
 	u8			toggle;
 };
 
+struct hns_roce_cmd_mailbox {
+	void		       *buf;
+	dma_addr_t		dma;
+};
+
 struct hns_roce_dev;
 
 struct hns_roce_qp {
@@ -522,6 +527,7 @@ struct hns_roce_hw {
 			 struct ib_recv_wr **bad_recv_wr);
 	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
+	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
 	void	*priv;
 };
 
@@ -688,6 +694,10 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   u64 virt_addr, int access_flags,
 				   struct ib_udata *udata);
 int hns_roce_dereg_mr(struct ib_mr *ibmr);
+int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_cmd_mailbox *mailbox,
+		       unsigned long mpt_index);
+unsigned long key_to_hw_index(u32 key);
 
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		       struct hns_roce_buf *buf);

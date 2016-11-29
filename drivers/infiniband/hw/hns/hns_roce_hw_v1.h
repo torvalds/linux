@@ -58,6 +58,7 @@
 #define HNS_ROCE_V1_PHY_UAR_NUM				8
 
 #define HNS_ROCE_V1_GID_NUM				16
+#define HNS_ROCE_V1_RESV_QP				8
 
 #define HNS_ROCE_V1_NUM_COMP_EQE			0x8000
 #define HNS_ROCE_V1_NUM_ASYNC_EQE			0x400
@@ -107,6 +108,10 @@
 #define HNS_ROCE_V1_DB_STAGE2				2
 #define HNS_ROCE_V1_CHECK_DB_TIMEOUT_MSECS		10000
 #define HNS_ROCE_V1_CHECK_DB_SLEEP_MSECS		20
+#define HNS_ROCE_V1_FREE_MR_TIMEOUT_MSECS		50000
+#define HNS_ROCE_V1_RECREATE_LP_QP_TIMEOUT_MSECS	10000
+#define HNS_ROCE_V1_FREE_MR_WAIT_VALUE			5
+#define HNS_ROCE_V1_RECREATE_LP_QP_WAIT_VALUE		20
 
 #define HNS_ROCE_BT_RSV_BUF_SIZE			(1 << 17)
 
@@ -969,6 +974,10 @@ struct hns_roce_sq_db {
 #define SQ_DOORBELL_U32_4_SQ_HEAD_M   \
 	(((1UL << 15) - 1) << SQ_DOORBELL_U32_4_SQ_HEAD_S)
 
+#define SQ_DOORBELL_U32_4_SL_S 16
+#define SQ_DOORBELL_U32_4_SL_M   \
+	(((1UL << 2) - 1) << SQ_DOORBELL_U32_4_SL_S)
+
 #define SQ_DOORBELL_U32_4_PORT_S 18
 #define SQ_DOORBELL_U32_4_PORT_M  (((1UL << 3) - 1) << SQ_DOORBELL_U32_4_PORT_S)
 
@@ -1015,14 +1024,39 @@ struct hns_roce_des_qp {
 	int	requeue_flag;
 };
 
+struct hns_roce_mr_free_work {
+	struct	work_struct work;
+	struct	ib_device *ib_dev;
+	struct	completion *comp;
+	int	comp_flag;
+	void	*mr;
+};
+
+struct hns_roce_recreate_lp_qp_work {
+	struct	work_struct work;
+	struct	ib_device *ib_dev;
+	struct	completion *comp;
+	int	comp_flag;
+};
+
+struct hns_roce_free_mr {
+	struct workqueue_struct *free_mr_wq;
+	struct hns_roce_qp *mr_free_qp[HNS_ROCE_V1_RESV_QP];
+	struct hns_roce_cq *mr_free_cq;
+	struct hns_roce_pd *mr_free_pd;
+};
+
 struct hns_roce_v1_priv {
 	struct hns_roce_db_table  db_table;
 	struct hns_roce_raq_table raq_table;
 	struct hns_roce_bt_table  bt_table;
 	struct hns_roce_tptr_table tptr_table;
 	struct hns_roce_des_qp des_qp;
+	struct hns_roce_free_mr free_mr;
 };
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
+int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp);
 
 #endif
