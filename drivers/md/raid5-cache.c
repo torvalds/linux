@@ -113,7 +113,6 @@ struct r5l_log {
 	u64 seq;			/* log head sequence */
 
 	sector_t next_checkpoint;
-	u64 next_cp_seq;
 
 	struct mutex io_mutex;
 	struct r5l_io_unit *current_io;	/* current io_unit accepting new data */
@@ -1075,7 +1074,6 @@ static bool r5l_complete_finished_ios(struct r5l_log *log)
 			break;
 
 		log->next_checkpoint = io->log_start;
-		log->next_cp_seq = io->seq;
 
 		list_del(&io->log_sibling);
 		mempool_free(io, log->io_pool);
