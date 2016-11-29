@@ -164,11 +164,14 @@ static void cpuidle_idle_call(void)
 	 * timekeeping to prevent timer interrupts from kicking us out of idle
 	 * until a proper wakeup interrupt happens.
 	 */
-	if (idle_should_freeze()) {
-		entered_state = cpuidle_enter_freeze(drv, dev);
-		if (entered_state > 0) {
-			local_irq_enable();
-			goto exit_idle;
+
+	if (idle_should_freeze() || dev->use_deepest_state) {
+		if (idle_should_freeze()) {
+			entered_state = cpuidle_enter_freeze(drv, dev);
+			if (entered_state > 0) {
+				local_irq_enable();
+				goto exit_idle;
+			}
 		}
 
 		next_state = cpuidle_find_deepest_state(drv, dev);
