@@ -1488,11 +1488,19 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (unlikely(!audit_filter(type, AUDIT_FILTER_TYPE)))
 		return NULL;
 
-	/* don't ever fail/sleep on auditd since we need auditd to drain the
-	 * queue; also, when we are checking for auditd, compare PIDs using
-	 * task_tgid_vnr() since auditd_pid is set in audit_receive_msg() using
-	 * a PID anchored in the caller's namespace */
-	if (!(audit_pid && audit_pid == task_tgid_vnr(current))) {
+	/* don't ever fail/sleep on these two conditions:
+	 * 1. auditd generated record - since we need auditd to drain the
+	 *    queue; also, when we are checking for auditd, compare PIDs using
+	 *    task_tgid_vnr() since auditd_pid is set in audit_receive_msg()
+	 *    using a PID anchored in the caller's namespace
+	 * 2. audit command message - record types 1000 through 1099 inclusive
+	 *    are command messages/records used to manage the kernel subsystem
+	 *    and the audit userspace, blocking on these messages could cause
+	 *    problems under load so don't do it (note: not all of these
+	 *    command types are valid as record types, but it is quicker to
+	 *    just check two ints than a series of ints in a if/switch stmt) */
+	if (!((audit_pid && audit_pid == task_tgid_vnr(current)) ||
+	      (type >= 1000 && type <= 1099))) {
 		long sleep_time = audit_backlog_wait_time;
 
 		while (audit_backlog_limit &&
