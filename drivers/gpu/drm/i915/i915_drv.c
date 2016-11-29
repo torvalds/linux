@@ -1575,17 +1575,20 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_opregion_setup(dev_priv);
 
 	intel_init_pch_refclk(dev_priv);
-	drm_mode_config_reset(dev);
 
 	/*
 	 * Interrupts have to be enabled before any batches are run. If not the
 	 * GPU will hang. i915_gem_init_hw() will initiate batches to
 	 * update/restore the context.
 	 *
+	 * drm_mode_config_reset() needs AUX interrupts.
+	 *
 	 * Modeset enabling in intel_modeset_init_hw() also needs working
 	 * interrupts.
 	 */
 	intel_runtime_pm_enable_interrupts(dev_priv);
+
+	drm_mode_config_reset(dev);
 
 	mutex_lock(&dev->struct_mutex);
 	if (i915_gem_init_hw(dev)) {
