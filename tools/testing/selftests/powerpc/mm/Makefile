@@ -8,8 +8,8 @@ include ../../lib.mk
 
 $(TEST_GEN_PROGS): ../harness.c
 
-prot_sao: ../utils.c
+$(OUTPUT)/prot_sao: ../utils.c
 
-tempfile:
-	dd if=/dev/zero of=tempfile bs=64k count=1
+$(OUTPUT)/tempfile:
+	dd if=/dev/zero of=$@ bs=64k count=1
 

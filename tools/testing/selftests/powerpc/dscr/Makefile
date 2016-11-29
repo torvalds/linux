@@ -4,6 +4,6 @@ TEST_GEN_PROGS := dscr_default_test dscr_explicit_test dscr_user_test	\
 
 include ../../lib.mk
 
-dscr_default_test: LDLIBS += -lpthread
+$(OUTPUT)/dscr_default_test: LDLIBS += -lpthread
 
 $(TEST_GEN_PROGS): ../harness.c

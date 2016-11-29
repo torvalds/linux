@@ -17,8 +17,8 @@ TEST_PROGS := run_vmtests
 
 include ../lib.mk
 
-userfaultfd: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.h
-mlock-random-test: LDLIBS += -lcap
+$(OUTPUT)/userfaultfd: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.h
+$(OUTPUT)/mlock-random-test: LDLIBS += -lcap
 
 ../../../../usr/include/linux/kernel.h:
 	make -C ../../../.. headers_install

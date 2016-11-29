@@ -21,6 +21,6 @@ include ../../../lib.mk
 $(TEST_GEN_PROGS): ../../harness.c ../../utils.c ../event.c ../lib.c \
 	       ebb.c ebb_handler.S trace.c busy_loop.S
 
-instruction_count_test: ../loop.S
+$(OUTPUT)/instruction_count_test: ../loop.S
 
-lost_exception_test: ../lib.c
+$(OUTPUT)/lost_exception_test: ../lib.c

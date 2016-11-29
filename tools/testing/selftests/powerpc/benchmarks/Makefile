@@ -6,6 +6,6 @@ $(TEST_GEN_PROGS): ../harness.c
 
 include ../../lib.mk
 
-context_switch: ../utils.c
-context_switch: CFLAGS += -maltivec -mvsx -mabi=altivec
-context_switch: LDLIBS += -lpthread
+$(OUTPUT)/context_switch: ../utils.c
+$(OUTPUT)/context_switch: CFLAGS += -maltivec -mvsx -mabi=altivec
+$(OUTPUT)/context_switch: LDLIBS += -lpthread

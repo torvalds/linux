@@ -5,18 +5,19 @@ TEST_GEN_FILES := execveat.symlink execveat.denatured script subdir
 # Makefile is a run-time dependency, since it's accessed by the execveat test
 TEST_FILES := Makefile
 
-EXTRA_CLEAN := subdir.moved execveat.moved xxxxx*
+EXTRA_CLEAN := $(OUTPUT)/subdir.moved $(OUTPUT)/execveat.moved $(OUTPUT)/xxxxx*
 
 include ../lib.mk
 
-subdir:
+$(OUTPUT)/subdir:
 	mkdir -p $@
-script:
+$(OUTPUT)/script:
 	echo '#!/bin/sh' > $@
 	echo 'exit $$*' >> $@
 	chmod +x $@
-execveat.symlink: execveat
-	ln -s -f $< $@
-execveat.denatured: execveat
+$(OUTPUT)/execveat.symlink: $(OUTPUT)/execveat
+	cd $(OUTPUT) && ln -s -f $(shell basename $<) $(shell basename $@)
+$(OUTPUT)/execveat.denatured: $(OUTPUT)/execveat
 	cp $< $@
 	chmod -x $@
+
