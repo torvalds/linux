@@ -5419,7 +5419,6 @@ static void kvm_vcpu_check_singlestep(struct kvm_vcpu *vcpu, unsigned long rflag
 			kvm_run->exit_reason = KVM_EXIT_DEBUG;
 			*r = EMULATE_USER_EXIT;
 		} else {
-			vcpu->arch.emulate_ctxt.eflags &= ~X86_EFLAGS_TF;
 			/*
 			 * "Certain debug exceptions may clear bit 0-3.  The
 			 * remaining contents of the DR6 register are never
