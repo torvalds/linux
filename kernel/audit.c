@@ -138,9 +138,9 @@ static DEFINE_SPINLOCK(audit_freelist_lock);
 static int	   audit_freelist_count;
 static LIST_HEAD(audit_freelist);
 
-static struct sk_buff_head audit_skb_queue;
+static struct sk_buff_head audit_queue;
 /* queue of skbs to send to auditd when/if it comes back */
-static struct sk_buff_head audit_skb_hold_queue;
+static struct sk_buff_head audit_hold_queue;
 static struct task_struct *kauditd_task;
 static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
 static DECLARE_WAIT_QUEUE_HEAD(audit_backlog_wait);
@@ -377,8 +377,8 @@ static void audit_hold_skb(struct sk_buff *skb)
 {
 	if (audit_default &&
 	    (!audit_backlog_limit ||
-	     skb_queue_len(&audit_skb_hold_queue) < audit_backlog_limit))
-		skb_queue_tail(&audit_skb_hold_queue, skb);
+	     skb_queue_len(&audit_hold_queue) < audit_backlog_limit))
+		skb_queue_tail(&audit_hold_queue, skb);
 	else
 		kfree_skb(skb);
 }
@@ -387,7 +387,7 @@ static void audit_hold_skb(struct sk_buff *skb)
  * For one reason or another this nlh isn't getting delivered to the userspace
  * audit daemon, just send it to printk.
  */
-static void audit_printk_skb(struct sk_buff *skb)
+static void kauditd_printk_skb(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
 	char *data = nlmsg_data(nlh);
@@ -402,7 +402,7 @@ static void audit_printk_skb(struct sk_buff *skb)
 	audit_hold_skb(skb);
 }
 
-static void kauditd_send_skb(struct sk_buff *skb)
+static void kauditd_send_unicast_skb(struct sk_buff *skb)
 {
 	int err;
 	int attempts = 0;
@@ -493,13 +493,13 @@ static void flush_hold_queue(void)
 	if (!audit_default || !audit_pid)
 		return;
 
-	skb = skb_dequeue(&audit_skb_hold_queue);
+	skb = skb_dequeue(&audit_hold_queue);
 	if (likely(!skb))
 		return;
 
 	while (skb && audit_pid) {
-		kauditd_send_skb(skb);
-		skb = skb_dequeue(&audit_skb_hold_queue);
+		kauditd_send_unicast_skb(skb);
+		skb = skb_dequeue(&audit_hold_queue);
 	}
 
 	/*
@@ -518,7 +518,7 @@ static int kauditd_thread(void *dummy)
 	while (!kthread_should_stop()) {
 		flush_hold_queue();
 
-		skb = skb_dequeue(&audit_skb_queue);
+		skb = skb_dequeue(&audit_queue);
 		if (skb) {
 			nlh = nlmsg_hdr(skb);
 
@@ -540,16 +540,16 @@ static int kauditd_thread(void *dummy)
 			}
 
 			if (audit_pid)
-				kauditd_send_skb(skb);
+				kauditd_send_unicast_skb(skb);
 			else
-				audit_printk_skb(skb);
+				kauditd_printk_skb(skb);
 		} else {
 			/* we have flushed the backlog so wake everyone up who
 			 * is blocked and go to sleep until we have something
 			 * in the backlog again */
 			wake_up(&audit_backlog_wait);
 			wait_event_freezable(kauditd_wait,
-					     skb_queue_len(&audit_skb_queue));
+					     skb_queue_len(&audit_queue));
 		}
 	}
 	return 0;
@@ -865,7 +865,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.rate_limit		= audit_rate_limit;
 		s.backlog_limit		= audit_backlog_limit;
 		s.lost			= atomic_read(&audit_lost);
-		s.backlog		= skb_queue_len(&audit_skb_queue);
+		s.backlog		= skb_queue_len(&audit_queue);
 		s.feature_bitmap	= AUDIT_FEATURE_BITMAP_ALL;
 		s.backlog_wait_time	= audit_backlog_wait_time_master;
 		audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &s, sizeof(s));
@@ -1200,8 +1200,8 @@ static int __init audit_init(void)
 		audit_default ? "enabled" : "disabled");
 	register_pernet_subsys(&audit_net_ops);
 
-	skb_queue_head_init(&audit_skb_queue);
-	skb_queue_head_init(&audit_skb_hold_queue);
+	skb_queue_head_init(&audit_queue);
+	skb_queue_head_init(&audit_hold_queue);
 	audit_initialized = AUDIT_INITIALIZED;
 	audit_enabled = audit_default;
 	audit_ever_enabled |= !!audit_default;
@@ -1357,7 +1357,7 @@ static long wait_for_auditd(long sleep_time)
 	DECLARE_WAITQUEUE(wait, current);
 
 	if (audit_backlog_limit &&
-	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit) {
+	    skb_queue_len(&audit_queue) > audit_backlog_limit) {
 		add_wait_queue_exclusive(&audit_backlog_wait, &wait);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		sleep_time = schedule_timeout(sleep_time);
@@ -1406,7 +1406,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	}
 
 	while (audit_backlog_limit
-	       && skb_queue_len(&audit_skb_queue) > audit_backlog_limit + reserve) {
+	       && skb_queue_len(&audit_queue) > audit_backlog_limit + reserve) {
 		if (gfp_mask & __GFP_DIRECT_RECLAIM && audit_backlog_wait_time) {
 			long sleep_time;
 
@@ -1419,7 +1419,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		}
 		if (audit_rate_check() && printk_ratelimit())
 			pr_warn("audit_backlog=%d > audit_backlog_limit=%d\n",
-				skb_queue_len(&audit_skb_queue),
+				skb_queue_len(&audit_queue),
 				audit_backlog_limit);
 		audit_log_lost("backlog limit exceeded");
 		audit_backlog_wait_time = 0;
@@ -2001,7 +2001,7 @@ void audit_log_end(struct audit_buffer *ab)
 	if (!audit_rate_check()) {
 		audit_log_lost("rate limit exceeded");
 	} else {
-		skb_queue_tail(&audit_skb_queue, ab->skb);
+		skb_queue_tail(&audit_queue, ab->skb);
 		wake_up_interruptible(&kauditd_wait);
 		ab->skb = NULL;
 	}
