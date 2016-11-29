@@ -125,8 +125,8 @@ struct ablk_ctx {
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
 	unsigned int dst_nents;
-	struct scatterlist iv_sg;
 	u8 key[CHCR_AES_MAX_KEY_LEN];
+	u8 rrkey[AES_MAX_KEY_SIZE];
 	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 	unsigned char ciph_mode;
 };
