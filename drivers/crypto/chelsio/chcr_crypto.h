@@ -150,12 +150,14 @@ struct chcr_context {
 
 struct chcr_ahash_req_ctx {
 	u32 result;
-	char bfr[CHCR_HASH_MAX_BLOCK_SIZE_128];
-	u8 bfr_len;
+	u8 bfr1[CHCR_HASH_MAX_BLOCK_SIZE_128];
+	u8 bfr2[CHCR_HASH_MAX_BLOCK_SIZE_128];
+	u8 *reqbfr;
+	u8 *skbfr;
+	u8 reqlen;
 	/* DMA the partial hash in it */
 	u8 partial_hash[CHCR_HASH_MAX_DIGEST_SIZE];
 	u64 data_len;  /* Data len till time */
-	void *dummy_payload_ptr;
 	/* SKB which is being sent to the hardware for processing */
 	struct sk_buff *skb;
 };
