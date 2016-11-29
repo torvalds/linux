@@ -121,6 +121,8 @@ struct media_device_ops {
  *    bridge driver finds the media_device during probe.
  *    Bridge driver sets source_priv with information
  *    necessary to run @enable_source and @disable_source handlers.
+ *    Callers should hold graph_mutex to access and call @enable_source
+ *    and @disable_source handlers.
  */
 struct media_device {
 	/* dev->driver_data points to this struct. */

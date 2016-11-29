@@ -198,14 +198,20 @@ EXPORT_SYMBOL_GPL(v4l2_mc_create_media_graph);
 int v4l_enable_media_source(struct video_device *vdev)
 {
 	struct media_device *mdev = vdev->entity.graph_obj.mdev;
-	int ret;
+	int ret = 0, err;
 
-	if (!mdev || !mdev->enable_source)
+	if (!mdev)
 		return 0;
-	ret = mdev->enable_source(&vdev->entity, &vdev->pipe);
-	if (ret)
-		return -EBUSY;
-	return 0;
+
+	mutex_lock(&mdev->graph_mutex);
+	if (!mdev->enable_source)
+		goto end;
+	err = mdev->enable_source(&vdev->entity, &vdev->pipe);
+	if (err)
+		ret = -EBUSY;
+end:
+	mutex_unlock(&mdev->graph_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(v4l_enable_media_source);
 
@@ -213,8 +219,12 @@ void v4l_disable_media_source(struct video_device *vdev)
 {
 	struct media_device *mdev = vdev->entity.graph_obj.mdev;
 
-	if (mdev && mdev->disable_source)
-		mdev->disable_source(&vdev->entity);
+	if (mdev) {
+		mutex_lock(&mdev->graph_mutex);
+		if (mdev->disable_source)
+			mdev->disable_source(&vdev->entity);
+		mutex_unlock(&mdev->graph_mutex);
+	}
 }
 EXPORT_SYMBOL_GPL(v4l_disable_media_source);
 
