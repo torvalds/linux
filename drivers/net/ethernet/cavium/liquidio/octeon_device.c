@@ -860,12 +860,53 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 	return 0;
 }
 
-void octeon_set_io_queues_off(struct octeon_device *oct)
+int octeon_set_io_queues_off(struct octeon_device *oct)
 {
+	int loop = BUSY_READING_REG_VF_LOOP_COUNT;
+
 	if (OCTEON_CN6XXX(oct)) {
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_INSTR_ENB, 0);
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, 0);
+	} else if (oct->chip_id == OCTEON_CN23XX_VF_VID) {
+		u32 q_no;
+
+		/* IOQs will already be in reset.
+		 * If RST bit is set, wait for quiet bit to be set.
+		 * Once quiet bit is set, clear the RST bit.
+		 */
+		for (q_no = 0; q_no < oct->sriov_info.rings_per_vf; q_no++) {
+			u64 reg_val = octeon_read_csr64(
+				oct, CN23XX_VF_SLI_IQ_PKT_CONTROL64(q_no));
+
+			while ((reg_val & CN23XX_PKT_INPUT_CTL_RST) &&
+			       !(reg_val &  CN23XX_PKT_INPUT_CTL_QUIET) &&
+			       loop) {
+				reg_val = octeon_read_csr64(
+					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+				loop--;
+			}
+			if (!loop) {
+				dev_err(&oct->pci_dev->dev,
+					"clearing the reset reg failed or setting the quiet reg failed for qno: %u\n",
+					q_no);
+				return -1;
+			}
+
+			reg_val = reg_val & ~CN23XX_PKT_INPUT_CTL_RST;
+			octeon_write_csr64(oct,
+					   CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+					   reg_val);
+
+			reg_val = octeon_read_csr64(
+					oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+			if (reg_val & CN23XX_PKT_INPUT_CTL_RST) {
+				dev_err(&oct->pci_dev->dev,
+					"unable to reset qno %u\n", q_no);
+				return -1;
+			}
+		}
 	}
+	return 0;
 }
 
 void octeon_set_droq_pkt_op(struct octeon_device *oct,

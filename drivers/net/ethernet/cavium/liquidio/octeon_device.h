@@ -401,8 +401,13 @@ struct octeon_device {
 
 	/** Octeon Chip type. */
 	u16 chip_id;
+
 	u16 rev_id;
+
 	u16 pf_num;
+
+	u16 vf_num;
+
 	/** This device's id - set by the driver. */
 	u32 octeon_id;
 
@@ -766,7 +771,7 @@ int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no);
 /** Turns off the input and output queues for the device
  *  @param oct which octeon to disable
  */
-void octeon_set_io_queues_off(struct octeon_device *oct);
+int octeon_set_io_queues_off(struct octeon_device *oct);
 
 /** Turns on or off the given output queue for the device
  *  @param oct which octeon to change

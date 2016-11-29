@@ -40,6 +40,7 @@ MODULE_VERSION(LIQUIDIO_VERSION);
 MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210SV_NAME LIO_FW_NAME_SUFFIX);
 MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210NV_NAME LIO_FW_NAME_SUFFIX);
 MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_410NV_NAME LIO_FW_NAME_SUFFIX);
+MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_23XX_NAME LIO_FW_NAME_SUFFIX);
 
 static int ddr_timeout = 10000;
 module_param(ddr_timeout, int, 0644);
@@ -4484,7 +4485,10 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_DISPATCH_INIT_DONE);
 
-	octeon_set_io_queues_off(octeon_dev);
+	if (octeon_set_io_queues_off(octeon_dev)) {
+		dev_err(&octeon_dev->pci_dev->dev, "setting io queues off failed\n");
+		return 1;
+	}
 
 	if (OCTEON_CN23XX_PF(octeon_dev)) {
 		ret = octeon_dev->fn_list.setup_device_regs(octeon_dev);

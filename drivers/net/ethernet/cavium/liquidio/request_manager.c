@@ -235,7 +235,9 @@ int octeon_setup_iq(struct octeon_device *oct,
 	}
 
 	oct->num_iqs++;
-	oct->fn_list.enable_io_queues(oct);
+	if (oct->fn_list.enable_io_queues(oct))
+		return 1;
+
 	return 0;
 }
 

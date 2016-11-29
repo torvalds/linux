@@ -236,6 +236,11 @@ static int octeon_device_init(struct octeon_device *oct)
 
 	atomic_set(&oct->status, OCT_DEV_PCI_MAP_DONE);
 
+	if (octeon_set_io_queues_off(oct)) {
+		dev_err(&oct->pci_dev->dev, "setting io queues off failed\n");
+		return 1;
+	}
+
 	return 0;
 }
 
