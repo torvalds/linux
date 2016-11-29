@@ -206,6 +206,7 @@ static int ctr_encrypt(struct skcipher_request *req)
 				(u8 *)ctx->key_enc, rounds, blocks, walk.iv,
 				first);
 		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
+		first = 0;
 	}
 	if (walk.nbytes) {
 		u8 __aligned(8) tail[AES_BLOCK_SIZE];
