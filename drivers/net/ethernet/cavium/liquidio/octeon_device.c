@@ -28,6 +28,7 @@
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
 #include "cn23xx_pf_device.h"
+#include "cn23xx_vf_device.h"
 
 /** Default configuration
  *  for CN66XX OCTEON Models.
@@ -671,6 +672,9 @@ static struct octeon_device *octeon_allocate_device_mem(u32 pci_id,
 
 	case OCTEON_CN23XX_PF_VID:
 		configsize = sizeof(struct octeon_cn23xx_pf);
+		break;
+	case OCTEON_CN23XX_VF_VID:
+		configsize = sizeof(struct octeon_cn23xx_vf);
 		break;
 	default:
 		pr_err("%s: Unknown PCI Device: 0x%x\n",
