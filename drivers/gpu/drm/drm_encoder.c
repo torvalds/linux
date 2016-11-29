@@ -159,8 +159,16 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	 * the indices on the drm_encoder after us in the encoder_list.
 	 */
 
-	if (encoder->bridge)
-		drm_bridge_detach(encoder->bridge);
+	if (encoder->bridge) {
+		struct drm_bridge *bridge = encoder->bridge;
+		struct drm_bridge *next;
+
+		while (bridge) {
+			next = bridge->next;
+			drm_bridge_detach(bridge);
+			bridge = next;
+		}
+	}
 
 	drm_mode_object_unregister(dev, &encoder->base);
 	kfree(encoder->name);
