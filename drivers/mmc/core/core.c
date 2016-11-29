@@ -504,18 +504,14 @@ static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
 	struct mmc_command *cmd;
 	struct mmc_context_info *context_info = &host->context_info;
 	enum mmc_blk_status status;
-	unsigned long flags;
 
 	while (1) {
 		wait_event_interruptible(context_info->wait,
 				(context_info->is_done_rcv ||
 				 context_info->is_new_req));
-		spin_lock_irqsave(&context_info->lock, flags);
 		context_info->is_waiting_last_req = false;
-		spin_unlock_irqrestore(&context_info->lock, flags);
 		if (context_info->is_done_rcv) {
 			context_info->is_done_rcv = false;
-			context_info->is_new_req = false;
 			cmd = mrq->cmd;
 
 			if (!cmd->error || !cmd->retries ||
@@ -534,7 +530,6 @@ static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
 				continue; /* wait for done/new event again */
 			}
 		} else if (context_info->is_new_req) {
-			context_info->is_new_req = false;
 			if (!next_req)
 				return MMC_BLK_NEW_REQUEST;
 		}
@@ -3016,7 +3011,6 @@ void mmc_unregister_pm_notifier(struct mmc_host *host)
  */
 void mmc_init_context_info(struct mmc_host *host)
 {
-	spin_lock_init(&host->context_info.lock);
 	host->context_info.is_new_req = false;
 	host->context_info.is_done_rcv = false;
 	host->context_info.is_waiting_last_req = false;

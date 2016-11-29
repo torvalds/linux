@@ -53,6 +53,7 @@ static int mmc_queue_thread(void *d)
 {
 	struct mmc_queue *mq = d;
 	struct request_queue *q = mq->queue;
+	struct mmc_context_info *cntx = &mq->card->host->context_info;
 
 	current->flags |= PF_MEMALLOC;
 
@@ -63,6 +64,19 @@ static int mmc_queue_thread(void *d)
 		spin_lock_irq(q->queue_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
 		req = blk_fetch_request(q);
+		mq->asleep = false;
+		cntx->is_waiting_last_req = false;
+		cntx->is_new_req = false;
+		if (!req) {
+			/*
+			 * Dispatch queue is empty so set flags for
+			 * mmc_request_fn() to wake us up.
+			 */
+			if (mq->mqrq_prev->req)
+				cntx->is_waiting_last_req = true;
+			else
+				mq->asleep = true;
+		}
 		mq->mqrq_cur->req = req;
 		spin_unlock_irq(q->queue_lock);
 
@@ -115,7 +129,6 @@ static void mmc_request_fn(struct request_queue *q)
 {
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
-	unsigned long flags;
 	struct mmc_context_info *cntx;
 
 	if (!mq) {
@@ -127,19 +140,13 @@ static void mmc_request_fn(struct request_queue *q)
 	}
 
 	cntx = &mq->card->host->context_info;
-	if (!mq->mqrq_cur->req && mq->mqrq_prev->req) {
-		/*
-		 * New MMC request arrived when MMC thread may be
-		 * blocked on the previous request to be complete
-		 * with no current request fetched
-		 */
-		spin_lock_irqsave(&cntx->lock, flags);
-		if (cntx->is_waiting_last_req) {
-			cntx->is_new_req = true;
-			wake_up_interruptible(&cntx->wait);
-		}
-		spin_unlock_irqrestore(&cntx->lock, flags);
-	} else if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
+
+	if (cntx->is_waiting_last_req) {
+		cntx->is_new_req = true;
+		wake_up_interruptible(&cntx->wait);
+	}
+
+	if (mq->asleep)
 		wake_up_process(mq->thread);
 }
 
