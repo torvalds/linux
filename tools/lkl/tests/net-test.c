@@ -97,7 +97,9 @@ static int test_icmp(char *str, int len)
 
 	iph = (struct iphdr *)buf;
 	icmp = (struct icmphdr *)(buf + iph->ihl * 4);
-	if (icmp->type != ICMP_ECHOREPLY || icmp->code != 0) {
+	/* DHCP server may issue an ICMP echo request to a dhcp client */
+	if ((icmp->type != ICMP_ECHOREPLY || icmp->code != 0) &&
+	    (icmp->type != ICMP_ECHO)) {
 		snprintf(str, len, "no ICMP echo reply (type=%d, code=%d)",
 			 icmp->type, icmp->code);
 		return TEST_FAILURE;
@@ -114,17 +116,19 @@ static int test_net_init(int argc, char **argv)
 	char *debug = getenv("LKL_DEBUG");
 	int ret, nd_id = -1, nd_ifindex = -1;
 	struct lkl_netdev *nd = NULL;
+	/* with dhcp client by default */
+	char boot_cmdline[256] = "\0";
 
-	if (argc < 6) {
-		printf("usage %s <iftype: tap|dpdk|raw> <ifname> <v4addr> <v4mask> <dstaddr> [gateway]\n", argv[0]);
+	if (argc < 3) {
+		printf("usage %s <iftype: tap|dpdk|raw> <ifname> <dstaddr> <v4addr>|dhcp <v4mask> [gateway]\n", argv[0]);
 		exit(0);
 	}
 
 	iftype = argv[1];
 	ifname = argv[2];
-	ip = argv[3];
-	netmask_len = argv[4];
-	dst = argv[5];
+	dst = argv[3];
+	ip = argv[4];
+	netmask_len = argv[5];
 
 	if (argc == 7)
 		gateway = argv[6];
@@ -156,7 +160,10 @@ static int test_net_init(int argc, char **argv)
 		lkl_host_ops.print = NULL;
 
 
-	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, "");
+	if (ip && !strcmp(ip, "dhcp"))
+		snprintf(boot_cmdline, sizeof(boot_cmdline), "ip=dhcp");
+
+	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, boot_cmdline);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return -1;
