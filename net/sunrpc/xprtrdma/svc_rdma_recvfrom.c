@@ -640,8 +640,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 			goto defer;
 		goto out;
 	}
-	dprintk("svcrdma: processing ctxt=%p on xprt=%p, rqstp=%p, status=%d\n",
-		ctxt, rdma_xprt, rqstp, ctxt->wc_status);
+	dprintk("svcrdma: processing ctxt=%p on xprt=%p, rqstp=%p\n",
+		ctxt, rdma_xprt, rqstp);
 	atomic_inc(&rdma_stat_recv);
 
 	/* Build up the XDR from the receive buffers. */

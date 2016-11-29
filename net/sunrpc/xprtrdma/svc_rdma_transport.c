@@ -393,7 +393,6 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wc->wr_cqe and wc->status are reliable */
 	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
-	ctxt->wc_status = wc->status;
 	svc_rdma_unmap_dma(ctxt);
 
 	if (wc->status != IB_WC_SUCCESS)

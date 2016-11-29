@@ -79,7 +79,6 @@ struct svc_rdma_op_ctxt {
 	struct ib_cqe reg_cqe;
 	struct ib_cqe inv_cqe;
 	struct list_head dto_q;
-	enum ib_wc_status wc_status;
 	u32 byte_len;
 	u32 position;
 	struct svcxprt_rdma *xprt;
