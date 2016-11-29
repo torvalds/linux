@@ -2698,20 +2698,22 @@ static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 static int init_csrows(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
+	enum edac_type edac_mode = EDAC_NONE;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
-	enum edac_type edac_mode;
 	int i, j, empty = 1;
 	int nr_pages = 0;
 	u32 val;
 
-	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
+	if (!pvt->umc) {
+		amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
-	pvt->nbcfg = val;
+		pvt->nbcfg = val;
 
-	edac_dbg(0, "node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
-		 pvt->mc_node_id, val,
-		 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
+		edac_dbg(0, "node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
+			 pvt->mc_node_id, val,
+			 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
+	}
 
 	/*
 	 * We iterate over DCT0 here but we look at DCT1 in parallel, if needed.
@@ -2747,14 +2749,18 @@ static int init_csrows(struct mem_ctl_info *mci)
 
 		edac_dbg(1, "Total csrow%d pages: %u\n", i, nr_pages);
 
-		/*
-		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating
-		 */
-		if (pvt->nbcfg & NBCFG_ECC_ENABLE)
-			edac_mode = (pvt->nbcfg & NBCFG_CHIPKILL) ?
-				    EDAC_S4ECD4ED : EDAC_SECDED;
-		else
-			edac_mode = EDAC_NONE;
+		/* Determine DIMM ECC mode: */
+		if (pvt->umc) {
+			if (mci->edac_ctl_cap & EDAC_FLAG_S4ECD4ED)
+				edac_mode = EDAC_S4ECD4ED;
+			else if (mci->edac_ctl_cap & EDAC_FLAG_SECDED)
+				edac_mode = EDAC_SECDED;
+
+		} else if (pvt->nbcfg & NBCFG_ECC_ENABLE) {
+			edac_mode = (pvt->nbcfg & NBCFG_CHIPKILL)
+					? EDAC_S4ECD4ED
+					: EDAC_SECDED;
+		}
 
 		for (j = 0; j < pvt->channel_count; j++) {
 			dimm = csrow->channels[j]->dimm;
@@ -2992,6 +2998,27 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 	return true;
 }
 
+static inline void
+f17h_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
+{
+	u8 i, ecc_en = 1, cpk_en = 1;
+
+	for (i = 0; i < NUM_UMCS; i++) {
+		if (pvt->umc[i].sdp_ctrl & UMC_SDP_INIT) {
+			ecc_en &= !!(pvt->umc[i].umc_cap_hi & UMC_ECC_ENABLED);
+			cpk_en &= !!(pvt->umc[i].umc_cap_hi & UMC_ECC_CHIPKILL_CAP);
+		}
+	}
+
+	/* Set chipkill only if ECC is enabled: */
+	if (ecc_en) {
+		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
+
+		if (cpk_en)
+			mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
+	}
+}
+
 static void setup_mci_misc_attrs(struct mem_ctl_info *mci,
 				 struct amd64_family_type *fam)
 {
@@ -3000,11 +3027,15 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci,
 	mci->mtype_cap		= MEM_FLAG_DDR2 | MEM_FLAG_RDDR2;
 	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
 
-	if (pvt->nbcap & NBCAP_SECDED)
-		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
+	if (pvt->umc) {
+		f17h_determine_edac_ctl_cap(mci, pvt);
+	} else {
+		if (pvt->nbcap & NBCAP_SECDED)
+			mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
 
-	if (pvt->nbcap & NBCAP_CHIPKILL)
-		mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
+		if (pvt->nbcap & NBCAP_CHIPKILL)
+			mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
+	}
 
 	mci->edac_cap		= determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
