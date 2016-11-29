@@ -161,6 +161,9 @@ struct afu {
 	 * fields after this point
 	 */
 
+	int (*send_cmd)(struct afu *, struct afu_cmd *);
+	void (*context_reset)(struct afu_cmd *);
+
 	/* AFU HW */
 	struct cxl_ioctl_start_work work;
 	struct cxlflash_afu_map __iomem *afu_map;	/* entire MMIO map */

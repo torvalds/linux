@@ -188,12 +188,10 @@ static void cmd_complete(struct afu_cmd *cmd)
 }
 
 /**
- * context_reset() - timeout handler for AFU commands
+ * context_reset_ioarrin() - reset command owner context via IOARRIN register
  * @cmd:	AFU command that timed out.
- *
- * Sends a reset to the AFU.
  */
-static void context_reset(struct afu_cmd *cmd)
+static void context_reset_ioarrin(struct afu_cmd *cmd)
 {
 	int nretry = 0;
 	u64 rrin = 0x1;
@@ -217,14 +215,14 @@ static void context_reset(struct afu_cmd *cmd)
 }
 
 /**
- * send_cmd() - sends an AFU command
+ * send_cmd_ioarrin() - sends an AFU command via IOARRIN register
  * @afu:	AFU associated with the host.
  * @cmd:	AFU command to send.
  *
  * Return:
  *	0 on success, SCSI_MLQUEUE_HOST_BUSY on failure
  */
-static int send_cmd(struct afu *afu, struct afu_cmd *cmd)
+static int send_cmd_ioarrin(struct afu *afu, struct afu_cmd *cmd)
 {
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
@@ -273,7 +271,7 @@ static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
 
 	timeout = wait_for_completion_timeout(&cmd->cevent, timeout);
 	if (!timeout) {
-		context_reset(cmd);
+		afu->context_reset(cmd);
 		rc = -1;
 	}
 
@@ -330,7 +328,7 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 			      SISL_REQ_FLAGS_TMF_CMD);
 	memcpy(cmd->rcb.cdb, &tmfcmd, sizeof(tmfcmd));
 
-	rc = send_cmd(afu, cmd);
+	rc = afu->send_cmd(afu, cmd);
 	if (unlikely(rc)) {
 		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
 		cfg->tmf_active = false;
@@ -461,7 +459,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	cmd->rcb.req_flags = req_flags;
 	memcpy(cmd->rcb.cdb, scp->cmnd, sizeof(cmd->rcb.cdb));
 
-	rc = send_cmd(afu, cmd);
+	rc = afu->send_cmd(afu, cmd);
 	if (unlikely(rc))
 		scsi_dma_unmap(scp);
 out:
@@ -1631,6 +1629,9 @@ static int init_afu(struct cxlflash_cfg *cfg)
 		goto err2;
 	}
 
+	afu->send_cmd = send_cmd_ioarrin;
+	afu->context_reset = context_reset_ioarrin;
+
 	pr_debug("%s: afu version %s, interface version 0x%llX\n", __func__,
 		 afu->version, afu->interface_version);
 
@@ -1723,7 +1724,7 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	*((__be16 *)&cmd->rcb.cdb[2]) = cpu_to_be16(ctx_hndl_u);
 	*((__be32 *)&cmd->rcb.cdb[4]) = cpu_to_be32(res_hndl_u);
 
-	rc = send_cmd(afu, cmd);
+	rc = afu->send_cmd(afu, cmd);
 	if (unlikely(rc))
 		goto out;
 
