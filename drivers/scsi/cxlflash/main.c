@@ -35,38 +35,6 @@ MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
 /**
- * cmd_checkout() - checks out an AFU command
- * @afu:	AFU to checkout from.
- *
- * Commands are checked out in a round-robin fashion. Note that since
- * the command pool is larger than the hardware queue, the majority of
- * times we will only loop once or twice before getting a command. The
- * CDB within the command is initialized (zeroed) prior to returning.
- *
- * Return: The checked out command or NULL when command pool is empty.
- */
-static struct afu_cmd *cmd_checkout(struct afu *afu)
-{
-	int k, dec = CXLFLASH_NUM_CMDS;
-	struct afu_cmd *cmd;
-
-	while (dec--) {
-		k = (afu->cmd_couts++ & (CXLFLASH_NUM_CMDS - 1));
-
-		cmd = &afu->cmd[k];
-
-		if (!atomic_dec_if_positive(&cmd->free)) {
-			pr_devel("%s: returning found index=%d cmd=%p\n",
-				 __func__, cmd->slot, cmd);
-			memset(cmd->rcb.cdb, 0, sizeof(cmd->rcb.cdb));
-			return cmd;
-		}
-	}
-
-	return NULL;
-}
-
-/**
  * cmd_checkin() - checks in an AFU command
  * @cmd:	AFU command to checkin.
  *
@@ -232,7 +200,6 @@ static void cmd_complete(struct afu_cmd *cmd)
 			scp->result = (DID_OK << 16);
 
 		cmd_is_tmf = cmd->cmd_tmf;
-		cmd_checkin(cmd); /* Don't use cmd after here */
 
 		pr_debug_ratelimited("%s: calling scsi_done scp=%p result=%X "
 				     "ioasc=%d\n", __func__, scp, scp->result,
@@ -365,7 +332,7 @@ static void wait_resp(struct afu *afu, struct afu_cmd *cmd)
  */
 static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 {
-	struct afu_cmd *cmd;
+	struct afu_cmd *cmd = sc_to_afucz(scp);
 
 	u32 port_sel = scp->device->channel + 1;
 	short lflag = 0;
@@ -375,13 +342,6 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	ulong lock_flags;
 	int rc = 0;
 	ulong to;
-
-	cmd = cmd_checkout(afu);
-	if (unlikely(!cmd)) {
-		dev_err(dev, "%s: could not get a free command\n", __func__);
-		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto out;
-	}
 
 	/* When Task Management Function is active do not send another */
 	spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
@@ -394,6 +354,7 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 
 	cmd->rcb.ctx_id = afu->ctx_hndl;
+	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.port_sel = port_sel;
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
 
@@ -402,8 +363,10 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
 			      SISL_REQ_FLAGS_SUP_UNDERRUN | lflag);
 
-	/* Stash the scp in the reserved field, for reuse during interrupt */
+	/* Stash the scp in the command, for reuse during interrupt */
 	cmd->rcb.scp = scp;
+	cmd->parent = afu;
+	spin_lock_init(&cmd->slock);
 
 	/* Copy the CDB from the cmd passed in */
 	memcpy(cmd->rcb.cdb, &tmfcmd, sizeof(tmfcmd));
@@ -411,7 +374,6 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	/* Send the command */
 	rc = send_cmd(afu, cmd);
 	if (unlikely(rc)) {
-		cmd_checkin(cmd);
 		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
 		cfg->tmf_active = false;
 		spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
@@ -467,7 +429,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)host->hostdata;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct afu_cmd *cmd;
+	struct afu_cmd *cmd = sc_to_afucz(scp);
 	u32 port_sel = scp->device->channel + 1;
 	int nseg, i, ncount;
 	struct scatterlist *sg;
@@ -512,17 +474,11 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 		break;
 	}
 
-	cmd = cmd_checkout(afu);
-	if (unlikely(!cmd)) {
-		dev_err(dev, "%s: could not get a free command\n", __func__);
-		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto out;
-	}
-
 	kref_get(&cfg->afu->mapcount);
 	kref_got = 1;
 
 	cmd->rcb.ctx_id = afu->ctx_hndl;
+	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.port_sel = port_sel;
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
 
@@ -536,6 +492,8 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 
 	/* Stash the scp in the reserved field, for reuse during interrupt */
 	cmd->rcb.scp = scp;
+	cmd->parent = afu;
+	spin_lock_init(&cmd->slock);
 
 	nseg = scsi_dma_map(scp);
 	if (unlikely(nseg < 0)) {
@@ -556,10 +514,8 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 
 	/* Send the command */
 	rc = send_cmd(afu, cmd);
-	if (unlikely(rc)) {
-		cmd_checkin(cmd);
+	if (unlikely(rc))
 		scsi_dma_unmap(scp);
-	}
 
 out:
 	if (kref_got)
@@ -2314,6 +2270,7 @@ static struct scsi_host_template driver_template = {
 	.change_queue_depth = cxlflash_change_queue_depth,
 	.cmd_per_lun = CXLFLASH_MAX_CMDS_PER_LUN,
 	.can_queue = CXLFLASH_MAX_CMDS,
+	.cmd_size = sizeof(struct afu_cmd) + __alignof__(struct afu_cmd) - 1,
 	.this_id = -1,
 	.sg_tablesize = 1,	/* No scatter gather support */
 	.max_sectors = CXLFLASH_MAX_SECTORS,

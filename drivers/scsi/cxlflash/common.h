@@ -19,6 +19,7 @@
 #include <linux/rwsem.h>
 #include <linux/types.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 
 extern const struct file_operations cxlflash_cxl_fops;
@@ -145,6 +146,19 @@ struct afu_cmd {
 	 * cache line aligned.
 	 */
 } __aligned(cache_line_size());
+
+static inline struct afu_cmd *sc_to_afuc(struct scsi_cmnd *sc)
+{
+	return PTR_ALIGN(scsi_cmd_priv(sc), __alignof__(struct afu_cmd));
+}
+
+static inline struct afu_cmd *sc_to_afucz(struct scsi_cmnd *sc)
+{
+	struct afu_cmd *afuc = sc_to_afuc(sc);
+
+	memset(afuc, 0, sizeof(*afuc));
+	return afuc;
+}
 
 struct afu {
 	/* Stuff requiring alignment go first. */
