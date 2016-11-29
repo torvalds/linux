@@ -41,8 +41,7 @@ MODULE_LICENSE("GPL");
  * Commands are checked out in a round-robin fashion. Note that since
  * the command pool is larger than the hardware queue, the majority of
  * times we will only loop once or twice before getting a command. The
- * buffer and CDB within the command are initialized (zeroed) prior to
- * returning.
+ * CDB within the command is initialized (zeroed) prior to returning.
  *
  * Return: The checked out command or NULL when command pool is empty.
  */
@@ -59,7 +58,6 @@ static struct afu_cmd *cmd_checkout(struct afu *afu)
 		if (!atomic_dec_if_positive(&cmd->free)) {
 			pr_devel("%s: returning found index=%d cmd=%p\n",
 				 __func__, cmd->slot, cmd);
-			memset(cmd->buf, 0, CMD_BUFSIZE);
 			memset(cmd->rcb.cdb, 0, sizeof(cmd->rcb.cdb));
 			return cmd;
 		}
@@ -590,17 +588,9 @@ static void cxlflash_wait_for_pci_err_recovery(struct cxlflash_cfg *cfg)
  */
 static void free_mem(struct cxlflash_cfg *cfg)
 {
-	int i;
-	char *buf = NULL;
 	struct afu *afu = cfg->afu;
 
 	if (cfg->afu) {
-		for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-			buf = afu->cmd[i].buf;
-			if (!((u64)buf & (PAGE_SIZE - 1)))
-				free_page((ulong)buf);
-		}
-
 		free_pages((ulong)afu, get_order(sizeof(struct afu)));
 		cfg->afu = NULL;
 	}
@@ -849,7 +839,6 @@ static int alloc_mem(struct cxlflash_cfg *cfg)
 {
 	int rc = 0;
 	int i;
-	char *buf = NULL;
 	struct device *dev = &cfg->dev->dev;
 
 	/* AFU is ~12k, i.e. only one 64k page or up to four 4k pages */
@@ -864,20 +853,7 @@ static int alloc_mem(struct cxlflash_cfg *cfg)
 	cfg->afu->parent = cfg;
 	cfg->afu->afu_map = NULL;
 
-	for (i = 0; i < CXLFLASH_NUM_CMDS; buf += CMD_BUFSIZE, i++) {
-		if (!((u64)buf & (PAGE_SIZE - 1))) {
-			buf = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-			if (unlikely(!buf)) {
-				dev_err(dev,
-					"%s: Allocate command buffers fail!\n",
-				       __func__);
-				rc = -ENOMEM;
-				free_mem(cfg);
-				goto out;
-			}
-		}
-
-		cfg->afu->cmd[i].buf = buf;
+	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
 		atomic_set(&cfg->afu->cmd[i].free, 1);
 		cfg->afu->cmd[i].slot = i;
 	}
