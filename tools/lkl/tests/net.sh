@@ -2,8 +2,12 @@
 
 IFNAME=`ip route |grep default | awk '{print $5}'`
 GW=`ip route |grep default | awk '{print $3}'`
-IPADDR=`echo $GW | sed -r "s/([0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)$/\1\`expr \2 + 10\`/"`
+HOST_IPADDR=`ip rou |grep ${IFNAME} | grep "scope link" | awk '{print $1}' | sed "s/\(.*\)\/.*/\1/"`
 PLEN=`ip rou |grep ${IFNAME} | grep "scope link" | awk '{print $1}' | sed "s/.*\/\(.*\)/\1/"`
+IPADDR=`echo ${HOST_IPADDR}|awk -F. '{printf ("%d.%d.%d.%d\n",$1,$2,$3,$4+10)}'`
+
+script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
+cd ${script_dir}
 
 # And make sure we clean up when we're done
 function clear_work_dir {
@@ -22,7 +26,7 @@ if [ -c /dev/net/tun ]; then
     sudo ip link set dev lkl_ptt1 up
     sudo ip addr add dev lkl_ptt1 192.168.14.1/24
 
-    ./net-test tap lkl_ptt1 192.168.14.2 24 192.168.14.1
+    ./net-test tap lkl_ptt1 192.168.14.1 192.168.14.2 24
 
     sudo ip link set dev lkl_ptt1 down
     sudo ip tuntap del dev lkl_ptt1 mode tap
@@ -33,7 +37,11 @@ echo "== RAW socket (LKL net) tests =="
 if [ -n "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" ] ; then
     sudo ip link set dev ${IFNAME} promisc on
     # this won't work if IFNAME is wifi since it rewrites the src macaddr
-    sudo ./net-test raw ${IFNAME} ${IPADDR} ${PLEN} 8.8.8.8 ${GW}
+    sudo ./net-test raw ${IFNAME} 8.8.8.8 ${IPADDR} ${PLEN} ${GW}
+
+    # DHCP test
+    echo "  == DHCP with RAW socket test =="
+    sudo ./net-test raw ${IFNAME} 8.8.8.8 dhcp
     sudo ip link set dev ${IFNAME} promisc off
 fi
 
@@ -44,7 +52,7 @@ if ls /dev/tap* > /dev/null 2>&1 ; then
     sudo ip link set dev lkl_vtap0 up
     sudo chown ${USER} `ls /dev/tap*`
 
-    ./net-test macvtap `ls /dev/tap*` ${IPADDR} ${PLEN} 8.8.8.8 ${GW}
+    ./net-test macvtap `ls /dev/tap*` 8.8.8.8 ${IPADDR} ${PLEN} ${GW}
 fi
 
 # we disabled this DPDK test because it's unlikely possible to describe
@@ -52,5 +60,5 @@ fi
 # may customize those test commands for your host.
 if false ; then
     echo "== DPDK (LKL net) tests =="
-    sudo ./net-test dpdk dpdk0 192.168.15.2 24 192.168.15.1
+    sudo ./net-test dpdk dpdk0 192.168.15.1 192.168.15.2 24
 fi

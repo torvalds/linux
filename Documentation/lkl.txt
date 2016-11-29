@@ -165,6 +165,12 @@ are the list of those variable for your environment.
 ```
     $ LKL_HIJACK_NET_IP=198.51.100.5 lkl-hijack.sh ip address show
 ```
+
+  Additionally, DHCP is experimentally available with the following syntax.
+```
+    $ LKL_HIJACK_NET_IP=dhcp LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=tap0 lkl-hijack.sh ip address show
+```
+
 * LKL_HIJACK_NET_NETMASK_LEN
 
   the network mask length of the interface specified by LKL_HIJACK_NET_TAP.
