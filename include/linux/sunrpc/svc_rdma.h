@@ -139,7 +139,7 @@ struct svcxprt_rdma {
 	int                  sc_max_sge_rd;	/* max sge for read target */
 	bool		     sc_snd_w_inv;	/* OK to use Send With Invalidate */
 
-	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
+	atomic_t             sc_sq_avail;	/* SQEs ready to be consumed */
 	unsigned int	     sc_sq_depth;	/* Depth of SQ */
 	unsigned int	     sc_rq_depth;	/* Depth of RQ */
 	u32		     sc_max_requests;	/* Forward credits */

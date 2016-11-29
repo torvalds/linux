@@ -594,7 +594,12 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		goto err0;
 	inline_bytes = rqstp->rq_res.len;
 
-	/* Create the RDMA response header */
+	/* Create the RDMA response header. xprt->xpt_mutex,
+	 * acquired in svc_send(), serializes RPC replies. The
+	 * code path below that inserts the credit grant value
+	 * into each transport header runs only inside this
+	 * critical section.
+	 */
 	ret = -ENOMEM;
 	res_page = alloc_page(GFP_KERNEL);
 	if (!res_page)
