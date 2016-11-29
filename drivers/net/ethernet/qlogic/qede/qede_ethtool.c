@@ -16,13 +16,6 @@
 #include <linux/capability.h>
 #include "qede.h"
 
-#define QEDE_STAT_OFFSET(stat_name) (offsetof(struct qede_stats, stat_name))
-#define QEDE_STAT_STRING(stat_name) (#stat_name)
-#define _QEDE_STAT(stat_name, pf_only) \
-	 {QEDE_STAT_OFFSET(stat_name), QEDE_STAT_STRING(stat_name), pf_only}
-#define QEDE_PF_STAT(stat_name)		_QEDE_STAT(stat_name, true)
-#define QEDE_STAT(stat_name)		_QEDE_STAT(stat_name, false)
-
 #define QEDE_RQSTAT_OFFSET(stat_name) \
 	 (offsetof(struct qede_rx_queue, stat_name))
 #define QEDE_RQSTAT_STRING(stat_name) (#stat_name)
@@ -42,9 +35,6 @@ static const struct {
 };
 
 #define QEDE_NUM_RQSTATS ARRAY_SIZE(qede_rqstats_arr)
-#define QEDE_RQSTATS_DATA(dev, sindex, rqindex) \
-	(*((u64 *)(((char *)(dev->fp_array[(rqindex)].rxq)) +\
-		    qede_rqstats_arr[(sindex)].offset)))
 #define QEDE_TQSTAT_OFFSET(stat_name) \
 	(offsetof(struct qede_tx_queue, stat_name))
 #define QEDE_TQSTAT_STRING(stat_name) (#stat_name)
@@ -59,10 +49,12 @@ static const struct {
 	QEDE_TQSTAT(stopped_cnt),
 };
 
-#define QEDE_TQSTATS_DATA(dev, sindex, tssid) \
-	(*((u64 *)(((void *)((dev)->fp_array[tssid].txq)) + \
-		   qede_tqstats_arr[(sindex)].offset)))
-
+#define QEDE_STAT_OFFSET(stat_name) (offsetof(struct qede_stats, stat_name))
+#define QEDE_STAT_STRING(stat_name) (#stat_name)
+#define _QEDE_STAT(stat_name, pf_only) \
+	 {QEDE_STAT_OFFSET(stat_name), QEDE_STAT_STRING(stat_name), pf_only}
+#define QEDE_PF_STAT(stat_name)	_QEDE_STAT(stat_name, true)
+#define QEDE_STAT(stat_name)	_QEDE_STAT(stat_name, false)
 static const struct {
 	u64 offset;
 	char string[ETH_GSTRING_LEN];
@@ -136,10 +128,6 @@ static const struct {
 	QEDE_STAT(coalesced_bytes),
 };
 
-#define QEDE_STATS_DATA(dev, index) \
-	(*((u64 *)(((char *)(dev)) + offsetof(struct qede_dev, stats) \
-			+ qede_stats_arr[(index)].offset)))
-
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
 
 enum {
@@ -170,36 +158,52 @@ static const char qede_tests_str_arr[QEDE_ETHTOOL_TEST_MAX][ETH_GSTRING_LEN] = {
 	"Nvram (online)\t\t",
 };
 
+static void qede_get_strings_stats_txq(struct qede_dev *edev,
+				       struct qede_tx_queue *txq, u8 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_TQSTATS; i++) {
+		sprintf(*buf, "%d: %s", txq->index,
+			qede_tqstats_arr[i].string);
+		*buf += ETH_GSTRING_LEN;
+	}
+}
+
+static void qede_get_strings_stats_rxq(struct qede_dev *edev,
+				       struct qede_rx_queue *rxq, u8 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_RQSTATS; i++) {
+		sprintf(*buf, "%d: %s", rxq->rxq_id,
+			qede_rqstats_arr[i].string);
+		*buf += ETH_GSTRING_LEN;
+	}
+}
+
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
-	int i, j, k;
+	struct qede_fastpath *fp;
+	int i;
 
-	for (i = 0, k = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+	/* Account for queue statistics */
+	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+		fp = &edev->fp_array[i];
 
-		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
-			for (j = 0; j < QEDE_NUM_RQSTATS; j++)
-				sprintf(buf + (k + j) * ETH_GSTRING_LEN,
-					"%d:   %s", i,
-					qede_rqstats_arr[j].string);
-			k += QEDE_NUM_RQSTATS;
-		}
+		if (fp->type & QEDE_FASTPATH_RX)
+			qede_get_strings_stats_rxq(edev, fp->rxq, &buf);
 
-		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
-			for (j = 0; j < QEDE_NUM_TQSTATS; j++)
-				sprintf(buf + (k + j) *
-					ETH_GSTRING_LEN,
-					"%d: %s", i,
-					qede_tqstats_arr[j].string);
-			k += QEDE_NUM_TQSTATS;
-		}
+		if (fp->type & QEDE_FASTPATH_TX)
+			qede_get_strings_stats_txq(edev, fp->txq, &buf);
 	}
 
-	for (i = 0, j = 0; i < QEDE_NUM_STATS; i++) {
+	/* Account for non-queue statistics */
+	for (i = 0; i < QEDE_NUM_STATS; i++) {
 		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
 			continue;
-		strcpy(buf + (k + j) * ETH_GSTRING_LEN,
-		       qede_stats_arr[i].string);
-		j++;
+		strcpy(buf, qede_stats_arr[i].string);
+		buf += ETH_GSTRING_LEN;
 	}
 }
 
@@ -225,34 +229,53 @@ static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	}
 }
 
+static void qede_get_ethtool_stats_txq(struct qede_tx_queue *txq, u64 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_TQSTATS; i++) {
+		**buf = *((u64 *)(((void *)txq) + qede_tqstats_arr[i].offset));
+		(*buf)++;
+	}
+}
+
+static void qede_get_ethtool_stats_rxq(struct qede_rx_queue *rxq, u64 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_RQSTATS; i++) {
+		**buf = *((u64 *)(((void *)rxq) + qede_rqstats_arr[i].offset));
+		(*buf)++;
+	}
+}
+
 static void qede_get_ethtool_stats(struct net_device *dev,
 				   struct ethtool_stats *stats, u64 *buf)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	int sidx, cnt = 0;
-	int qid;
+	struct qede_fastpath *fp;
+	int i;
 
 	qede_fill_by_demand_stats(edev);
 
 	mutex_lock(&edev->qede_lock);
+	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+		fp = &edev->fp_array[i];
 
-	for (qid = 0; qid < QEDE_QUEUE_CNT(edev); qid++) {
+		if (fp->type & QEDE_FASTPATH_RX)
+			qede_get_ethtool_stats_rxq(fp->rxq, &buf);
 
-		if (edev->fp_array[qid].type & QEDE_FASTPATH_RX)
-			for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++)
-				buf[cnt++] = QEDE_RQSTATS_DATA(edev, sidx, qid);
-
-		if (edev->fp_array[qid].type & QEDE_FASTPATH_TX)
-			for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
-				buf[cnt++] = QEDE_TQSTATS_DATA(edev,
-							       sidx,
-							       qid);
+		if (fp->type & QEDE_FASTPATH_TX)
+			qede_get_ethtool_stats_txq(fp->txq, &buf);
 	}
 
-	for (sidx = 0; sidx < QEDE_NUM_STATS; sidx++) {
-		if (IS_VF(edev) && qede_stats_arr[sidx].pf_only)
+	for (i = 0; i < QEDE_NUM_STATS; i++) {
+		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
 			continue;
-		buf[cnt++] = QEDE_STATS_DATA(edev, sidx);
+		*buf = *((u64 *)(((void *)&edev->stats) +
+				 qede_stats_arr[i].offset));
+
+		buf++;
 	}
 
 	mutex_unlock(&edev->qede_lock);
@@ -272,8 +295,15 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 				if (qede_stats_arr[i].pf_only)
 					num_stats--;
 		}
-		return num_stats + QEDE_RSS_COUNT(edev) * QEDE_NUM_RQSTATS +
-		       QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS;
+
+		/* Account for the Regular Tx statistics */
+		num_stats += QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS;
+
+		/* Account for the Regular Rx statistics */
+		num_stats += QEDE_RSS_COUNT(edev) * QEDE_NUM_RQSTATS;
+
+		return num_stats;
+
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
 	case ETH_SS_TEST:
