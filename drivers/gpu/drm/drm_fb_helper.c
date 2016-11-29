@@ -49,6 +49,7 @@ MODULE_PARM_DESC(fbdev_emulation,
 		 "Enable legacy fbdev emulation [default=true]");
 
 static LIST_HEAD(kernel_fb_helper_list);
+static DEFINE_MUTEX(kernel_fb_helper_lock);
 
 /**
  * DOC: fbdev helpers
@@ -855,12 +856,14 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!drm_fbdev_emulation)
 		return;
 
+	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 		}
 	}
+	mutex_unlock(&kernel_fb_helper_lock);
 
 	drm_fb_helper_crtc_free(fb_helper);
 
@@ -2258,10 +2261,12 @@ int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	dev_info(dev->dev, "fb%d: %s frame buffer device\n",
 		 info->node, info->fix.id);
 
+	mutex_lock(&kernel_fb_helper_lock);
 	if (list_empty(&kernel_fb_helper_list))
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 
 	list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
+	mutex_unlock(&kernel_fb_helper_lock);
 
 	return 0;
 }
