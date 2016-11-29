@@ -29,6 +29,7 @@ static const struct reg_sequence adv7533_cec_fixed_registers[] = {
 	{ 0x17, 0xd0 },
 	{ 0x24, 0x20 },
 	{ 0x57, 0x11 },
+	{ 0x05, 0xc8 },
 };
 
 static const struct regmap_config adv7533_cec_regmap_config = {
