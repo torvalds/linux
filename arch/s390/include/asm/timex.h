@@ -98,21 +98,28 @@ struct ptff_qui {
 	unsigned int pad_0x5c[41];
 } __packed;
 
-static inline int ptff(void *ptff_block, size_t len, unsigned int func)
-{
-	typedef struct { char _[len]; } addrtype;
-	register unsigned int reg0 asm("0") = func;
-	register unsigned long reg1 asm("1") = (unsigned long) ptff_block;
-	int rc;
-
-	asm volatile(
-		"	.word	0x0104\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (rc), "+m" (*(addrtype *) ptff_block)
-		: "d" (reg0), "d" (reg1) : "cc");
-	return rc;
-}
+/*
+ * ptff - Perform timing facility function
+ * @ptff_block: Pointer to ptff parameter block
+ * @len: Length of parameter block
+ * @func: Function code
+ * Returns: Condition code (0 on success)
+ */
+#define ptff(ptff_block, len, func)					\
+({									\
+	struct addrtype { char _[len]; };				\
+	register unsigned int reg0 asm("0") = func;			\
+	register unsigned long reg1 asm("1") = (unsigned long) (ptff_block);\
+	int rc;								\
+									\
+	asm volatile(							\
+		"	.word	0x0104\n"				\
+		"	ipm	%0\n"					\
+		"	srl	%0,28\n"				\
+		: "=d" (rc), "+m" (*(struct addrtype *) reg1)		\
+		: "d" (reg0), "d" (reg1) : "cc");			\
+	rc;								\
+})
 
 static inline unsigned long long local_tick_disable(void)
 {
