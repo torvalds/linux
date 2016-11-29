@@ -406,7 +406,7 @@ TRACE_EVENT(i915_gem_evict,
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = vm->dev->primary->index;
+			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
 			   __entry->size = size;
 			   __entry->align = align;
@@ -443,7 +443,7 @@ TRACE_EVENT(i915_gem_evict_vm,
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = vm->dev->primary->index;
+			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
 			  ),
 
@@ -711,7 +711,7 @@ DECLARE_EVENT_CLASS(i915_ppgtt,
 
 	TP_fast_assign(
 			__entry->vm = vm;
-			__entry->dev = vm->dev->primary->index;
+			__entry->dev = vm->i915->drm.primary->index;
 	),
 
 	TP_printk("dev=%u, vm=%p", __entry->dev, __entry->vm)

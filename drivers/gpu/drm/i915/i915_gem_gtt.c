@@ -858,7 +858,7 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
-	if (USES_FULL_48BIT_PPGTT(to_i915(vm->dev)))
+	if (USES_FULL_48BIT_PPGTT(vm->i915))
 		gen8_ppgtt_clear_pml4(vm, &ppgtt->pml4, start, length);
 	else
 		gen8_ppgtt_clear_pdp(vm, &ppgtt->pdp, start, length);
@@ -893,7 +893,7 @@ gen8_ppgtt_insert_pte_entries(struct i915_address_space *vm,
 			kunmap_px(ppgtt, pt_vaddr);
 			pt_vaddr = NULL;
 			if (++pde == I915_PDES) {
-				if (++pdpe == I915_PDPES_PER_PDP(to_i915(vm->dev)))
+				if (++pdpe == I915_PDPES_PER_PDP(vm->i915))
 					break;
 				pde = 0;
 			}
@@ -916,7 +916,7 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 
 	__sg_page_iter_start(&sg_iter, pages->sgl, sg_nents(pages->sgl), 0);
 
-	if (!USES_FULL_48BIT_PPGTT(to_i915(vm->dev))) {
+	if (!USES_FULL_48BIT_PPGTT(vm->i915)) {
 		gen8_ppgtt_insert_pte_entries(vm, &ppgtt->pdp, &sg_iter, start,
 					      cache_level);
 	} else {
@@ -1455,7 +1455,7 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
-	if (USES_FULL_48BIT_PPGTT(to_i915(vm->dev)))
+	if (USES_FULL_48BIT_PPGTT(vm->i915))
 		return gen8_alloc_va_range_4lvl(vm, &ppgtt->pml4, start, length);
 	else
 		return gen8_alloc_va_range_3lvl(vm, &ppgtt->pdp, start, length);
@@ -1526,7 +1526,7 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	gen8_pte_t scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 						 I915_CACHE_LLC);
 
-	if (!USES_FULL_48BIT_PPGTT(to_i915(vm->dev))) {
+	if (!USES_FULL_48BIT_PPGTT(vm->i915)) {
 		gen8_dump_pdp(&ppgtt->pdp, start, length, scratch_pte, m);
 	} else {
 		uint64_t pml4e;
