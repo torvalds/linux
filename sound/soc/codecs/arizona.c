@@ -257,6 +257,7 @@ EXPORT_SYMBOL_GPL(arizona_init_mono);
 int arizona_init_gpio(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
 	struct arizona *arizona = priv->arizona;
 	int i;
@@ -264,21 +265,24 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		snd_soc_dapm_disable_pin(dapm, "DRC2 Signal Activity");
+		snd_soc_component_disable_pin(component,
+					      "DRC2 Signal Activity");
 		break;
 	default:
 		break;
 	}
 
-	snd_soc_dapm_disable_pin(dapm, "DRC1 Signal Activity");
+	snd_soc_component_disable_pin(component, "DRC1 Signal Activity");
 
 	for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
 		switch (arizona->pdata.gpio_defaults[i] & ARIZONA_GPN_FN_MASK) {
 		case ARIZONA_GP_FN_DRC1_SIGNAL_DETECT:
-			snd_soc_dapm_enable_pin(dapm, "DRC1 Signal Activity");
+			snd_soc_component_enable_pin(component,
+						     "DRC1 Signal Activity");
 			break;
 		case ARIZONA_GP_FN_DRC2_SIGNAL_DETECT:
-			snd_soc_dapm_enable_pin(dapm, "DRC2 Signal Activity");
+			snd_soc_component_enable_pin(component,
+						     "DRC2 Signal Activity");
 			break;
 		default:
 			break;
