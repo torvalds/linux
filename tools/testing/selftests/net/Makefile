@@ -4,8 +4,6 @@ CFLAGS =  -Wall -Wl,--no-as-needed -O2 -g
 CFLAGS += -I../../../../usr/include/
 
 reuseport_bpf_numa: LDFLAGS += -lnuma
-%: %.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 TEST_PROGS := run_netsocktests run_afpackettests test_bpf.sh
 TEST_GEN_FILES =  socket

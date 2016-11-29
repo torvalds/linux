@@ -2,9 +2,6 @@
 CFLAGS = -Wall \
          -O2
 
-unprivileged-remount-test: unprivileged-remount-test.c
-	$(CC) $(CFLAGS) unprivileged-remount-test.c -o unprivileged-remount-test
-
 TEST_GEN_PROGS := unprivileged-remount-test
 
 include ../lib.mk

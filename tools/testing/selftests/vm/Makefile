@@ -1,6 +1,7 @@
 # Makefile for vm selftests
 
 CFLAGS = -Wall -I ../../../../usr/include $(EXTRA_CFLAGS)
+LDLIBS = -lrt
 TEST_GEN_FILES = compaction_test
 TEST_GEN_FILES += hugepage-mmap
 TEST_GEN_FILES += hugepage-shm
@@ -12,18 +13,12 @@ TEST_GEN_FILES += transhuge-stress
 TEST_GEN_FILES += userfaultfd
 TEST_GEN_FILES += mlock-random-test
 
-%: %.c
-	$(CC) $(CFLAGS) -o $@ $^ -lrt
-userfaultfd: userfaultfd.c ../../../../usr/include/linux/kernel.h
-	$(CC) $(CFLAGS) -O2 -o $@ $< -lpthread
-
-mlock-random-test: mlock-random-test.c
-	$(CC) $(CFLAGS) -o $@ $< -lcap
-
-../../../../usr/include/linux/kernel.h:
-	make -C ../../../.. headers_install
-
 TEST_PROGS := run_vmtests
 
 include ../lib.mk
 
+userfaultfd: LDLIBS += -lpthread ../../../../usr/include/linux/kernel.h
+mlock-random-test: LDLIBS += -lcap
+
+../../../../usr/include/linux/kernel.h:
+	make -C ../../../.. headers_install

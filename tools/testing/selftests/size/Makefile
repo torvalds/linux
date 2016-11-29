@@ -1,6 +1,4 @@
-
-get_size: get_size.c
-	$(CC) -static -ffreestanding -nostartfiles -s $< -o $@
+CFLAGS := -static -ffreestanding -nostartfiles -s
 
 TEST_GEN_PROGS := get_size
 

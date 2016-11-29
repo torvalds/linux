@@ -11,8 +11,6 @@ execveat.symlink: execveat
 execveat.denatured: execveat
 	cp $< $@
 	chmod -x $@
-%: %.c
-	$(CC) $(CFLAGS) -o $@ $^
 
 TEST_GEN_PROGS := execveat
 TEST_GEN_FILES := execveat.symlink execveat.denatured script subdir
