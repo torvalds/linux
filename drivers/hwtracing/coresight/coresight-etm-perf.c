@@ -202,6 +202,21 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 	if (!event_data)
 		return NULL;
 
+	/*
+	 * In theory nothing prevent tracers in a trace session from being
+	 * associated with different sinks, nor having a sink per tracer.  But
+	 * until we have HW with this kind of topology we need to assume tracers
+	 * in a trace session are using the same sink.  Therefore go through
+	 * the coresight bus and pick the first enabled sink.
+	 *
+	 * When operated from sysFS users are responsible to enable the sink
+	 * while from perf, the perf tools will do it based on the choice made
+	 * on the cmd line.  As such the "enable_sink" flag in sysFS is reset.
+	 */
+	sink = coresight_get_enabled_sink(true);
+	if (!sink)
+		return NULL;
+
 	INIT_WORK(&event_data->work, free_event_data);
 
 	mask = &event_data->mask;
@@ -219,24 +234,10 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 		 * list of devices from source to sink that can be
 		 * referenced later when the path is actually needed.
 		 */
-		event_data->path[cpu] = coresight_build_path(csdev);
+		event_data->path[cpu] = coresight_build_path(csdev, sink);
 		if (IS_ERR(event_data->path[cpu]))
 			goto err;
 	}
-
-	/*
-	 * In theory nothing prevent tracers in a trace session from being
-	 * associated with different sinks, nor having a sink per tracer.  But
-	 * until we have HW with this kind of topology and a way to convey
-	 * sink assignement from the perf cmd line we need to assume tracers
-	 * in a trace session are using the same sink.  Therefore pick the sink
-	 * found at the end of the first available path.
-	 */
-	cpu = cpumask_first(mask);
-	/* Grab the sink at the end of the path */
-	sink = coresight_get_sink(event_data->path[cpu]);
-	if (!sink)
-		goto err;
 
 	if (!sink_ops(sink)->alloc_buffer)
 		goto err;
