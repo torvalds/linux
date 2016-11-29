@@ -11,6 +11,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/callchain.h"
+#include "util/time-utils.h"
 
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
@@ -65,6 +66,10 @@ static struct rb_root root_caller_sorted;
 
 static unsigned long total_requested, total_allocated, total_freed;
 static unsigned long nr_allocs, nr_cross_allocs;
+
+/* filters for controlling start and stop of time of analysis */
+static struct perf_time_interval ptime;
+const char *time_str;
 
 static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 			     int bytes_req, int bytes_alloc, int cpu)
@@ -912,6 +917,15 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	return 0;
 }
 
+static bool perf_kmem__skip_sample(struct perf_sample *sample)
+{
+	/* skip sample based on time? */
+	if (perf_time__skip_sample(&ptime, sample->time))
+		return true;
+
+	return false;
+}
+
 typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
 				  struct perf_sample *sample);
 
@@ -930,6 +944,9 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 			 event->header.type);
 		return -1;
 	}
+
+	if (perf_kmem__skip_sample(sample))
+		return 0;
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 
@@ -1894,6 +1911,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
 			   parse_page_opt),
 	OPT_BOOLEAN(0, "live", &live_page, "Show live page stat"),
+	OPT_STRING(0, "time", &time_str, "str",
+		   "Time span of interest (start,stop)"),
 	OPT_END()
 	};
 	const char *const kmem_subcommands[] = { "record", "stat", NULL };
@@ -1953,6 +1972,11 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	symbol__init(&session->header.env);
+
+	if (perf_time__parse_str(&ptime, time_str) != 0) {
+		pr_err("Invalid time string\n");
+		return -EINVAL;
+	}
 
 	if (!strcmp(argv[0], "stat")) {
 		setlocale(LC_ALL, "");
