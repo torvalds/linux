@@ -1155,8 +1155,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	case SVC_DENIED:
 		goto err_bad_auth;
 	case SVC_CLOSE:
-		if (test_bit(XPT_TEMP, &rqstp->rq_xprt->xpt_flags))
-			svc_close_xprt(rqstp->rq_xprt);
+		goto close;
 	case SVC_DROP:
 		goto dropit;
 	case SVC_COMPLETE:
@@ -1246,7 +1245,7 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 
  sendit:
 	if (svc_authorise(rqstp))
-		goto dropit;
+		goto close;
 	return 1;		/* Caller can now send it */
 
  dropit:
@@ -1254,11 +1253,16 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	dprintk("svc: svc_process dropit\n");
 	return 0;
 
+ close:
+	if (test_bit(XPT_TEMP, &rqstp->rq_xprt->xpt_flags))
+		svc_close_xprt(rqstp->rq_xprt);
+	dprintk("svc: svc_process close\n");
+	return 0;
+
 err_short_len:
 	svc_printk(rqstp, "short len %Zd, dropping request\n",
 			argv->iov_len);
-
-	goto dropit;			/* drop request */
+	goto close;
 
 err_bad_rpc:
 	serv->sv_stats->rpcbadfmt++;
