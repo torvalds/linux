@@ -561,6 +561,7 @@ InstructionTLBError:
 	andis.	r10,r5,0x4000
 	beq+	1f
 	tlbie	r4
+itlbie:
 	/* 0x400 is InstructionAccess exception, needed by bad_page_fault() */
 1:	EXC_XFER_LITE(0x400, handle_page_fault)
 
@@ -585,6 +586,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	andis.	r10,r5,0x4000
 	beq+	1f
 	tlbie	r4
+dtlbie:
 1:	li	r10,RPN_PATTERN
 	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
@@ -602,7 +604,27 @@ DARFixed:/* Return from dcbx instruction bug workaround */
  * support of breakpoints and such.  Someday I will get around to
  * using them.
  */
-	EXCEPTION(0x1c00, Trap_1c, unknown_exception, EXC_XFER_EE)
+	. = 0x1c00
+DataBreakpoint:
+	EXCEPTION_PROLOG_0
+	mfcr	r10
+	mfspr	r11, SPRN_SRR0
+	cmplwi	cr0, r11, (dtlbie - PAGE_OFFSET)@l
+	cmplwi	cr7, r11, (itlbie - PAGE_OFFSET)@l
+	beq-	cr0, 11f
+	beq-	cr7, 11f
+	EXCEPTION_PROLOG_1
+	EXCEPTION_PROLOG_2
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mfspr	r4,SPRN_BAR
+	stw	r4,_DAR(r11)
+	mfspr	r5,SPRN_DSISR
+	EXC_XFER_EE(0x1c00, do_break)
+11:
+	mtcr	r10
+	EXCEPTION_EPILOG_0
+	rfi
+
 	EXCEPTION(0x1d00, Trap_1d, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x1e00, Trap_1e, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_EE)
@@ -977,6 +999,10 @@ initial_mmu:
 	lis	r8, IDC_ENABLE@h
 	mtspr	SPRN_DC_CST, r8
 #endif
+	/* Disable debug mode entry on data breakpoints */
+	mfspr	r8, SPRN_DER
+	rlwinm	r8, r8, 0, ~0x8
+	mtspr	SPRN_DER, r8
 	blr
 
 

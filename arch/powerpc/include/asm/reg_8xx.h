@@ -29,6 +29,13 @@
 #define SPRN_EIE	80	/* External interrupt enable (EE=1, RI=1) */
 #define SPRN_EID	81	/* External interrupt disable (EE=0, RI=1) */
 
+/* Debug registers */
+#define SPRN_CMPE	152
+#define SPRN_CMPF	153
+#define SPRN_LCTRL1	156
+#define SPRN_LCTRL2	157
+#define SPRN_BAR	159
+
 /* Commands.  Only the first few are available to the instruction cache.
 */
 #define	IDC_ENABLE	0x02000000	/* Cache enable */
