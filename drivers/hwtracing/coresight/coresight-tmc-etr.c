@@ -150,8 +150,6 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		drvdata->buf = drvdata->vaddr;
 	}
 
-	memset(drvdata->vaddr, 0, drvdata->size);
-
 	drvdata->mode = CS_MODE_SYSFS;
 	tmc_etr_enable_hw(drvdata);
 out:
