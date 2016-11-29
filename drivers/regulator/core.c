@@ -293,7 +293,8 @@ static int regulator_check_current_limit(struct regulator_dev *rdev,
 }
 
 /* operating mode constraint check */
-static int regulator_mode_constrain(struct regulator_dev *rdev, int *mode)
+static int regulator_mode_constrain(struct regulator_dev *rdev,
+				    unsigned int *mode)
 {
 	switch (*mode) {
 	case REGULATOR_MODE_FAST:
