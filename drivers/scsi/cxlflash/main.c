@@ -263,8 +263,9 @@ static void context_reset(struct afu_cmd *cmd)
 {
 	int nretry = 0;
 	u64 rrin = 0x1;
-	u64 room = 0;
 	struct afu *afu = cmd->parent;
+	struct cxlflash_cfg *cfg = afu->parent;
+	struct device *dev = &cfg->dev->dev;
 	ulong lock_flags;
 
 	pr_debug("%s: cmd=%p\n", __func__, cmd);
@@ -280,23 +281,6 @@ static void context_reset(struct afu_cmd *cmd)
 	cmd->sa.host_use_b[0] |= (B_DONE | B_ERROR | B_TIMEOUT);
 	spin_unlock_irqrestore(&cmd->slock, lock_flags);
 
-	/*
-	 * We really want to send this reset at all costs, so spread
-	 * out wait time on successive retries for available room.
-	 */
-	do {
-		room = readq_be(&afu->host_map->cmd_room);
-		atomic64_set(&afu->room, room);
-		if (room)
-			goto write_rrin;
-		udelay(1 << nretry);
-	} while (nretry++ < MC_ROOM_RETRY_CNT);
-
-	pr_err("%s: no cmd_room to send reset\n", __func__);
-	return;
-
-write_rrin:
-	nretry = 0;
 	writeq_be(rrin, &afu->host_map->ioarrin);
 	do {
 		rrin = readq_be(&afu->host_map->ioarrin);
@@ -305,6 +289,9 @@ write_rrin:
 		/* Double delay each time */
 		udelay(1 << nretry);
 	} while (nretry++ < MC_ROOM_RETRY_CNT);
+
+	dev_dbg(dev, "%s: returning rrin=0x%016llX nretry=%d\n",
+		__func__, rrin, nretry);
 }
 
 /**
