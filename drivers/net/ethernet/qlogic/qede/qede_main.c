@@ -997,22 +997,20 @@ void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	mmiowb();
 }
 
-static u32 qede_get_rxhash(struct qede_dev *edev,
-			   u8 bitfields,
-			   __le32 rss_hash, enum pkt_hash_types *rxhash_type)
+static void qede_get_rxhash(struct sk_buff *skb, u8 bitfields, __le32 rss_hash)
 {
+	enum pkt_hash_types hash_type = PKT_HASH_TYPE_NONE;
 	enum rss_hash_type htype;
+	u32 hash = 0;
 
 	htype = GET_FIELD(bitfields, ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE);
-
-	if ((edev->ndev->features & NETIF_F_RXHASH) && htype) {
-		*rxhash_type = ((htype == RSS_HASH_TYPE_IPV4) ||
-				(htype == RSS_HASH_TYPE_IPV6)) ?
-				PKT_HASH_TYPE_L3 : PKT_HASH_TYPE_L4;
-		return le32_to_cpu(rss_hash);
+	if (htype) {
+		hash_type = ((htype == RSS_HASH_TYPE_IPV4) ||
+			     (htype == RSS_HASH_TYPE_IPV6)) ?
+			    PKT_HASH_TYPE_L3 : PKT_HASH_TYPE_L4;
+		hash = le32_to_cpu(rss_hash);
 	}
-	*rxhash_type = PKT_HASH_TYPE_NONE;
-	return 0;
+	skb_set_hash(skb, hash, hash_type);
 }
 
 static void qede_set_skb_csum(struct sk_buff *skb, u8 csum_flag)
@@ -1104,8 +1102,6 @@ static void qede_tpa_start(struct qede_dev *edev,
 	dma_addr_t mapping = tpa_info->buffer_mapping;
 	struct sw_rx_data *sw_rx_data_cons;
 	struct sw_rx_data *sw_rx_data_prod;
-	enum pkt_hash_types rxhash_type;
-	u32 rxhash;
 
 	sw_rx_data_cons = &rxq->sw_rx_ring[rxq->sw_rx_cons & NUM_RX_BDS_MAX];
 	sw_rx_data_prod = &rxq->sw_rx_ring[rxq->sw_rx_prod & NUM_RX_BDS_MAX];
@@ -1150,10 +1146,6 @@ static void qede_tpa_start(struct qede_dev *edev,
 	tpa_info->frag_id = 0;
 	tpa_info->state = QEDE_AGG_STATE_START;
 
-	rxhash = qede_get_rxhash(edev, cqe->bitfields,
-				 cqe->rss_hash, &rxhash_type);
-	skb_set_hash(tpa_info->skb, rxhash, rxhash_type);
-
 	/* Store some information from first CQE */
 	tpa_info->start_cqe_placement_offset = cqe->placement_offset;
 	tpa_info->start_cqe_bd_len = le16_to_cpu(cqe->len_on_first_bd);
@@ -1163,6 +1155,8 @@ static void qede_tpa_start(struct qede_dev *edev,
 		tpa_info->vlan_tag = le16_to_cpu(cqe->vlan_tag);
 	else
 		tpa_info->vlan_tag = 0;
+
+	qede_get_rxhash(tpa_info->skb, cqe->bitfields, cqe->rss_hash);
 
 	/* This is needed in order to enable forwarding support */
 	qede_set_gro_params(edev, tpa_info->skb, cqe);
@@ -1541,14 +1535,12 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 {
 	struct eth_fast_path_rx_reg_cqe *fp_cqe;
 	u16 len, pad, bd_cons_idx, parse_flag;
-	enum pkt_hash_types rxhash_type;
 	enum eth_rx_cqe_type cqe_type;
 	union eth_rx_cqe *cqe;
 	struct sw_rx_data *bd;
 	struct sk_buff *skb;
 	__le16 flags;
 	u8 csum_flag;
-	u32 rx_hash;
 
 	/* Get the CQE from the completion ring */
 	cqe = (union eth_rx_cqe *)qed_chain_consume(&rxq->rx_comp_ring);
@@ -1621,9 +1613,7 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 
 	/* The SKB contains all the data. Now prepare meta-magic */
 	skb->protocol = eth_type_trans(skb, edev->ndev);
-	rx_hash = qede_get_rxhash(edev, fp_cqe->bitfields,
-				  fp_cqe->rss_hash, &rxhash_type);
-	skb_set_hash(skb, rx_hash, rxhash_type);
+	qede_get_rxhash(skb, fp_cqe->bitfields, fp_cqe->rss_hash);
 	qede_set_skb_csum(skb, csum_flag);
 	skb_record_rx_queue(skb, rxq->rxq_id);
 
