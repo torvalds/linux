@@ -1277,19 +1277,23 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
 
 	if (cs42l56->pdata.ain1a_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN1A_REF_MASK, 1);
+				   CS42L56_AIN1A_REF_MASK,
+				   CS42L56_AIN1A_REF_MASK);
 
 	if (cs42l56->pdata.ain1b_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN1B_REF_MASK, 1);
+				   CS42L56_AIN1B_REF_MASK,
+				   CS42L56_AIN1B_REF_MASK);
 
 	if (cs42l56->pdata.ain2a_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN2A_REF_MASK, 1);
+				   CS42L56_AIN2A_REF_MASK,
+				   CS42L56_AIN2A_REF_MASK);
 
 	if (cs42l56->pdata.ain2b_ref_cfg)
 		regmap_update_bits(cs42l56->regmap, CS42L56_AIN_REFCFG_ADC_MUX,
-				   CS42L56_AIN2B_REF_MASK, 1);
+				   CS42L56_AIN2B_REF_MASK,
+				   CS42L56_AIN2B_REF_MASK);
 
 	if (cs42l56->pdata.micbias_lvl)
 		regmap_update_bits(cs42l56->regmap, CS42L56_GAIN_BIAS_CTL,
