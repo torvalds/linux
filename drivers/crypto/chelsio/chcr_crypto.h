@@ -120,16 +120,13 @@
 /* Aligned to 128 bit boundary */
 
 struct ablk_ctx {
-	u8 enc;
-	unsigned int processed_len;
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
-	unsigned int dst_nents;
 	u8 key[CHCR_AES_MAX_KEY_LEN];
-	u8 rrkey[AES_MAX_KEY_SIZE];
-	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 	unsigned char ciph_mode;
+	u8 rrkey[AES_MAX_KEY_SIZE];
 };
+
 
 struct hmac_ctx {
 	struct crypto_shash *base_hash;
@@ -164,6 +161,8 @@ struct chcr_ahash_req_ctx {
 
 struct chcr_blkcipher_req_ctx {
 	struct sk_buff *skb;
+	unsigned int dst_nents;
+	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 };
 
 struct chcr_alg_template {
