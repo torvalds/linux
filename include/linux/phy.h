@@ -450,6 +450,7 @@ struct phy_device {
 	struct net_device *attached_dev;
 
 	u8 mdix;
+	u8 mdix_ctrl;
 
 	void (*adjust_link)(struct net_device *dev);
 };
