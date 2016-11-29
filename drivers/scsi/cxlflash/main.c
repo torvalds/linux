@@ -299,12 +299,10 @@ static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
  */
 static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 {
-	struct afu_cmd *cmd = sc_to_afucz(scp);
-
 	u32 port_sel = scp->device->channel + 1;
-	short lflag = 0;
 	struct Scsi_Host *host = scp->device->host;
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)host->hostdata;
+	struct afu_cmd *cmd = sc_to_afucz(scp);
 	struct device *dev = &cfg->dev->dev;
 	ulong lock_flags;
 	int rc = 0;
@@ -317,27 +315,21 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 						  !cfg->tmf_active,
 						  cfg->tmf_slock);
 	cfg->tmf_active = true;
-	cmd->cmd_tmf = true;
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
+
+	cmd->rcb.scp = scp;
+	cmd->parent = afu;
+	cmd->cmd_tmf = true;
 
 	cmd->rcb.ctx_id = afu->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.port_sel = port_sel;
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
-
-	lflag = SISL_REQ_FLAGS_TMF_CMD;
-
 	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
-			      SISL_REQ_FLAGS_SUP_UNDERRUN | lflag);
-
-	/* Stash the scp in the command, for reuse during interrupt */
-	cmd->rcb.scp = scp;
-	cmd->parent = afu;
-
-	/* Copy the CDB from the cmd passed in */
+			      SISL_REQ_FLAGS_SUP_UNDERRUN |
+			      SISL_REQ_FLAGS_TMF_CMD);
 	memcpy(cmd->rcb.cdb, &tmfcmd, sizeof(tmfcmd));
 
-	/* Send the command */
 	rc = send_cmd(afu, cmd);
 	if (unlikely(rc)) {
 		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
