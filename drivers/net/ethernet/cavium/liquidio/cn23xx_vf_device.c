@@ -17,6 +17,7 @@
  ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/vmalloc.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -24,6 +25,7 @@
 #include "octeon_device.h"
 #include "cn23xx_vf_device.h"
 #include "octeon_main.h"
+#include "octeon_mailbox.h"
 
 static int cn23xx_vf_reset_io_queues(struct octeon_device *oct, u32 num_queues)
 {
@@ -231,6 +233,61 @@ static void cn23xx_setup_vf_oq_regs(struct octeon_device *oct, u32 oq_no)
 	    (u8 *)oct->mmio[0].hw_addr + CN23XX_VF_SLI_OQ_PKTS_CREDIT(oq_no);
 }
 
+static void cn23xx_vf_mbox_thread(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct octeon_mbox *mbox = (struct octeon_mbox *)wk->ctxptr;
+
+	octeon_mbox_process_message(mbox);
+}
+
+static int cn23xx_free_vf_mbox(struct octeon_device *oct)
+{
+	cancel_delayed_work_sync(&oct->mbox[0]->mbox_poll_wk.work);
+	vfree(oct->mbox[0]);
+	return 0;
+}
+
+static int cn23xx_setup_vf_mbox(struct octeon_device *oct)
+{
+	struct octeon_mbox *mbox = NULL;
+
+	mbox = vmalloc(sizeof(*mbox));
+	if (!mbox)
+		return 1;
+
+	memset(mbox, 0, sizeof(struct octeon_mbox));
+
+	spin_lock_init(&mbox->lock);
+
+	mbox->oct_dev = oct;
+
+	mbox->q_no = 0;
+
+	mbox->state = OCTEON_MBOX_STATE_IDLE;
+
+	/* VF mbox interrupt reg */
+	mbox->mbox_int_reg =
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_VF_SLI_PKT_MBOX_INT(0);
+	/* VF reads from SIG0 reg */
+	mbox->mbox_read_reg =
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_PKT_PF_VF_MBOX_SIG(0, 0);
+	/* VF writes into SIG1 reg */
+	mbox->mbox_write_reg =
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_PKT_PF_VF_MBOX_SIG(0, 1);
+
+	INIT_DELAYED_WORK(&mbox->mbox_poll_wk.work,
+			  cn23xx_vf_mbox_thread);
+
+	mbox->mbox_poll_wk.ctxptr = mbox;
+
+	oct->mbox[0] = mbox;
+
+	writeq(OCTEON_PFVFSIG, mbox->mbox_read_reg);
+
+	return 0;
+}
+
 static int cn23xx_enable_vf_io_queues(struct octeon_device *oct)
 {
 	u32 q_no;
@@ -338,6 +395,8 @@ int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 
 	oct->fn_list.setup_iq_regs = cn23xx_setup_vf_iq_regs;
 	oct->fn_list.setup_oq_regs = cn23xx_setup_vf_oq_regs;
+	oct->fn_list.setup_mbox = cn23xx_setup_vf_mbox;
+	oct->fn_list.free_mbox = cn23xx_free_vf_mbox;
 	oct->fn_list.setup_device_regs = cn23xx_setup_vf_device_regs;
 
 	oct->fn_list.enable_io_queues = cn23xx_enable_vf_io_queues;

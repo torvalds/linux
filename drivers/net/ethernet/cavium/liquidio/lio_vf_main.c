@@ -143,6 +143,10 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	int i;
 
 	switch (atomic_read(&oct->status)) {
+	case OCT_DEV_MBOX_SETUP_DONE:
+		oct->fn_list.free_mbox(oct);
+
+		/* fallthrough */
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
 		mdelay(100);
@@ -315,6 +319,12 @@ static int octeon_device_init(struct octeon_device *oct)
 		return 1;
 	}
 	atomic_set(&oct->status, OCT_DEV_DROQ_INIT_DONE);
+
+	if (oct->fn_list.setup_mbox(oct)) {
+		dev_err(&oct->pci_dev->dev, "Mailbox setup failed\n");
+		return 1;
+	}
+	atomic_set(&oct->status, OCT_DEV_MBOX_SETUP_DONE);
 
 	return 0;
 }
