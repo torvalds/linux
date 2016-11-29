@@ -118,12 +118,6 @@
 #define CHCR_HASH_MAX_BLOCK_SIZE_128 128
 
 /* Aligned to 128 bit boundary */
-struct _key_ctx {
-	__be32 ctx_hdr;
-	u8 salt[MAX_SALT];
-	__be64 reserverd;
-	unsigned char key[0];
-};
 
 struct ablk_ctx {
 	u8 enc;

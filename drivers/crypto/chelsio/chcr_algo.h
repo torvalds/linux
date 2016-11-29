@@ -108,30 +108,24 @@
 #define IPAD_DATA 0x36363636
 #define OPAD_DATA 0x5c5c5c5c
 
-#define TRANSHDR_SIZE(alignedkctx_len)\
-	(sizeof(struct ulptx_idata) +\
-	 sizeof(struct ulp_txpkt) +\
-	 sizeof(struct fw_crypto_lookaside_wr) +\
-	 sizeof(struct cpl_tx_sec_pdu) +\
-	 (alignedkctx_len))
-#define CIPHER_TRANSHDR_SIZE(alignedkctx_len, sge_pairs) \
-	(TRANSHDR_SIZE(alignedkctx_len) + sge_pairs +\
+#define TRANSHDR_SIZE(kctx_len)\
+	(sizeof(struct chcr_wr) +\
+	 kctx_len)
+#define CIPHER_TRANSHDR_SIZE(kctx_len, sge_pairs) \
+	(TRANSHDR_SIZE((kctx_len)) + (sge_pairs) +\
 	 sizeof(struct cpl_rx_phys_dsgl))
-#define HASH_TRANSHDR_SIZE(alignedkctx_len)\
-	(TRANSHDR_SIZE(alignedkctx_len) + DUMMY_BYTES)
+#define HASH_TRANSHDR_SIZE(kctx_len)\
+	(TRANSHDR_SIZE(kctx_len) + DUMMY_BYTES)
 
-#define SEC_CPL_OFFSET (sizeof(struct fw_crypto_lookaside_wr) + \
-			sizeof(struct ulp_txpkt) + \
-			sizeof(struct ulptx_idata))
 
-#define FILL_SEC_CPL_OP_IVINSR(id, len, hldr, ofst)      \
+#define FILL_SEC_CPL_OP_IVINSR(id, len, ofst)      \
 	htonl( \
 	       CPL_TX_SEC_PDU_OPCODE_V(CPL_TX_SEC_PDU) | \
 	       CPL_TX_SEC_PDU_RXCHID_V((id)) | \
 	       CPL_TX_SEC_PDU_ACKFOLLOWS_V(0) | \
 	       CPL_TX_SEC_PDU_ULPTXLPBK_V(1) | \
 	       CPL_TX_SEC_PDU_CPLLEN_V((len)) | \
-	       CPL_TX_SEC_PDU_PLACEHOLDER_V((hldr)) | \
+	       CPL_TX_SEC_PDU_PLACEHOLDER_V(0) | \
 	       CPL_TX_SEC_PDU_IVINSRTOFST_V((ofst)))
 
 #define  FILL_SEC_CPL_CIPHERSTOP_HI(a_start, a_stop, c_start, c_stop_hi) \
@@ -148,7 +142,7 @@
 		CPL_TX_SEC_PDU_AUTHSTOP_V((a_stop)) | \
 		CPL_TX_SEC_PDU_AUTHINSERT_V((a_inst)))
 
-#define  FILL_SEC_CPL_SCMD0_SEQNO(ctrl, seq, cmode, amode, opad, size, nivs)  \
+#define  FILL_SEC_CPL_SCMD0_SEQNO(ctrl, seq, cmode, amode, opad, size)  \
 		htonl( \
 		SCMD_SEQ_NO_CTRL_V(0) | \
 		SCMD_STATUS_PRESENT_V(0) | \
@@ -159,7 +153,7 @@
 		SCMD_AUTH_MODE_V((amode)) | \
 		SCMD_HMAC_CTRL_V((opad)) | \
 		SCMD_IV_SIZE_V((size)) | \
-		SCMD_NUM_IVS_V((nivs)))
+		SCMD_NUM_IVS_V(0))
 
 #define FILL_SEC_CPL_IVGEN_HDRLEN(last, more, ctx_in, mac, ivdrop, len) htonl( \
 		SCMD_ENB_DBGID_V(0) | \
