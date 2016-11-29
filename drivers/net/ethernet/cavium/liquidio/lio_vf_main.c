@@ -41,6 +41,60 @@ liquidio_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void liquidio_vf_remove(struct pci_dev *pdev);
 static int octeon_device_init(struct octeon_device *oct);
 
+static int lio_wait_for_oq_pkts(struct octeon_device *oct)
+{
+	struct octeon_device_priv *oct_priv =
+	    (struct octeon_device_priv *)oct->priv;
+	int retry = MAX_VF_IP_OP_PENDING_PKT_COUNT;
+	int pkt_cnt = 0, pending_pkts;
+	int i;
+
+	do {
+		pending_pkts = 0;
+
+		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
+			if (!(oct->io_qmask.oq & BIT_ULL(i)))
+				continue;
+			pkt_cnt += octeon_droq_check_hw_for_pkts(oct->droq[i]);
+		}
+		if (pkt_cnt > 0) {
+			pending_pkts += pkt_cnt;
+			tasklet_schedule(&oct_priv->droq_tasklet);
+		}
+		pkt_cnt = 0;
+		schedule_timeout_uninterruptible(1);
+
+	} while (retry-- && pending_pkts);
+
+	return pkt_cnt;
+}
+
+/**
+ * \brief wait for all pending requests to complete
+ * @param oct Pointer to Octeon device
+ *
+ * Called during shutdown sequence
+ */
+static int wait_for_pending_requests(struct octeon_device *oct)
+{
+	int i, pcount = 0;
+
+	for (i = 0; i < MAX_VF_IP_OP_PENDING_PKT_COUNT; i++) {
+		pcount = atomic_read(
+		    &oct->response_list[OCTEON_ORDERED_SC_LIST]
+			 .pending_req_count);
+		if (pcount)
+			schedule_timeout_uninterruptible(HZ / 10);
+		else
+			break;
+	}
+
+	if (pcount)
+		return 1;
+
+	return 0;
+}
+
 static const struct pci_device_id liquidio_vf_pci_tbl[] = {
 	{
 		PCI_VENDOR_ID_CAVIUM, OCTEON_CN23XX_VF_VID,
@@ -257,6 +311,35 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	int i;
 
 	switch (atomic_read(&oct->status)) {
+	case OCT_DEV_RUNNING:
+	case OCT_DEV_CORE_OK:
+		/* No more instructions will be forwarded. */
+		atomic_set(&oct->status, OCT_DEV_IN_RESET);
+
+		dev_dbg(&oct->pci_dev->dev, "Device state is now %s\n",
+			lio_get_state_string(&oct->status));
+
+		schedule_timeout_uninterruptible(HZ / 10);
+
+		/* fallthrough */
+	case OCT_DEV_HOST_OK:
+		/* fallthrough */
+	case OCT_DEV_IO_QUEUES_DONE:
+		if (wait_for_pending_requests(oct))
+			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
+
+		if (lio_wait_for_instr_fetch(oct))
+			dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
+
+		/* Disable the input and output queues now. No more packets will
+		 * arrive from Octeon, but we should wait for all packet
+		 * processing to finish.
+		 */
+		oct->fn_list.disable_io_queues(oct);
+
+		if (lio_wait_for_oq_pkts(oct))
+			dev_err(&oct->pci_dev->dev, "OQ had pending packets\n");
+
 	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
@@ -395,6 +478,7 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
 static int octeon_device_init(struct octeon_device *oct)
 {
 	u32 rev_id;
+	int j;
 
 	atomic_set(&oct->status, OCT_DEV_BEGIN_STATE);
 
@@ -487,6 +571,28 @@ static int octeon_device_init(struct octeon_device *oct)
 	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
 
 	atomic_set(&oct->status, OCT_DEV_INTR_SET_DONE);
+
+	/* Enable the input and output queues for this Octeon device */
+	if (oct->fn_list.enable_io_queues(oct)) {
+		dev_err(&oct->pci_dev->dev, "enabling io queues failed\n");
+		return 1;
+	}
+
+	atomic_set(&oct->status, OCT_DEV_IO_QUEUES_DONE);
+
+	atomic_set(&oct->status, OCT_DEV_HOST_OK);
+
+	/* Send Credit for Octeon Output queues. Credits are always sent after
+	 * the output queue is enabled.
+	 */
+	for (j = 0; j < oct->num_oqs; j++)
+		writel(oct->droq[j]->max_count, oct->droq[j]->pkts_credit_reg);
+
+	/* Packets can start arriving on the output queues from this point. */
+
+	atomic_set(&oct->status, OCT_DEV_CORE_OK);
+
+	atomic_set(&oct->status, OCT_DEV_RUNNING);
 
 	return 0;
 }
