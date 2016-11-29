@@ -107,7 +107,6 @@ static u32	audit_rate_limit;
  * When set to zero, this means unlimited. */
 static u32	audit_backlog_limit = 64;
 #define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
-static u32	audit_backlog_wait_time_master = AUDIT_BACKLOG_WAIT_TIME;
 static u32	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
 
 /* The identity of the user shutting down the audit system. */
@@ -345,7 +344,7 @@ static int audit_set_backlog_limit(u32 limit)
 static int audit_set_backlog_wait_time(u32 timeout)
 {
 	return audit_do_config_change("audit_backlog_wait_time",
-				      &audit_backlog_wait_time_master, timeout);
+				      &audit_backlog_wait_time, timeout);
 }
 
 static int audit_set_enabled(u32 state)
@@ -973,7 +972,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		s.lost			= atomic_read(&audit_lost);
 		s.backlog		= skb_queue_len(&audit_queue);
 		s.feature_bitmap	= AUDIT_FEATURE_BITMAP_ALL;
-		s.backlog_wait_time	= audit_backlog_wait_time_master;
+		s.backlog_wait_time	= audit_backlog_wait_time;
 		audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &s, sizeof(s));
 		break;
 	}
@@ -1454,24 +1453,6 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 	}
 }
 
-/*
- * Wait for auditd to drain the queue a little
- */
-static long wait_for_auditd(long sleep_time)
-{
-	DECLARE_WAITQUEUE(wait, current);
-
-	if (audit_backlog_limit &&
-	    skb_queue_len(&audit_queue) > audit_backlog_limit) {
-		add_wait_queue_exclusive(&audit_backlog_wait, &wait);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		sleep_time = schedule_timeout(sleep_time);
-		remove_wait_queue(&audit_backlog_wait, &wait);
-	}
-
-	return sleep_time;
-}
-
 /**
  * audit_log_start - obtain an audit buffer
  * @ctx: audit_context (may be NULL)
@@ -1490,12 +1471,9 @@ static long wait_for_auditd(long sleep_time)
 struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 				     int type)
 {
-	struct audit_buffer	*ab	= NULL;
-	struct timespec		t;
-	unsigned int		uninitialized_var(serial);
-	int reserve = 5; /* Allow atomic callers to go up to five
-			    entries over the normal backlog limit */
-	unsigned long timeout_start = jiffies;
+	struct audit_buffer *ab;
+	struct timespec t;
+	unsigned int uninitialized_var(serial);
 
 	if (audit_initialized != AUDIT_INITIALIZED)
 		return NULL;
@@ -1503,37 +1481,39 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (unlikely(!audit_filter(type, AUDIT_FILTER_TYPE)))
 		return NULL;
 
-	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
-		if (audit_pid && audit_pid == current->tgid)
-			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-		else
-			reserve = 0;
-	}
+	/* don't ever fail/sleep on auditd since we need auditd to drain the
+	 * queue; also, when we are checking for auditd, compare PIDs using
+	 * task_tgid_vnr() since auditd_pid is set in audit_receive_msg() using
+	 * a PID anchored in the caller's namespace */
+	if (!(audit_pid && audit_pid == task_tgid_vnr(current))) {
+		long sleep_time = audit_backlog_wait_time;
 
-	while (audit_backlog_limit
-	       && skb_queue_len(&audit_queue) > audit_backlog_limit + reserve) {
-		if (gfp_mask & __GFP_DIRECT_RECLAIM && audit_backlog_wait_time) {
-			long sleep_time;
+		while (audit_backlog_limit &&
+		       (skb_queue_len(&audit_queue) > audit_backlog_limit)) {
+			/* wake kauditd to try and flush the queue */
+			wake_up_interruptible(&kauditd_wait);
 
-			sleep_time = timeout_start + audit_backlog_wait_time - jiffies;
-			if (sleep_time > 0) {
-				sleep_time = wait_for_auditd(sleep_time);
-				if (sleep_time > 0)
-					continue;
+			/* sleep if we are allowed and we haven't exhausted our
+			 * backlog wait limit */
+			if ((gfp_mask & __GFP_DIRECT_RECLAIM) &&
+			    (sleep_time > 0)) {
+				DECLARE_WAITQUEUE(wait, current);
+
+				add_wait_queue_exclusive(&audit_backlog_wait,
+							 &wait);
+				set_current_state(TASK_UNINTERRUPTIBLE);
+				sleep_time = schedule_timeout(sleep_time);
+				remove_wait_queue(&audit_backlog_wait, &wait);
+			} else {
+				if (audit_rate_check() && printk_ratelimit())
+					pr_warn("audit_backlog=%d > audit_backlog_limit=%d\n",
+						skb_queue_len(&audit_queue),
+						audit_backlog_limit);
+				audit_log_lost("backlog limit exceeded");
+				return NULL;
 			}
 		}
-		if (audit_rate_check() && printk_ratelimit())
-			pr_warn("audit_backlog=%d > audit_backlog_limit=%d\n",
-				skb_queue_len(&audit_queue),
-				audit_backlog_limit);
-		audit_log_lost("backlog limit exceeded");
-		audit_backlog_wait_time = 0;
-		wake_up(&audit_backlog_wait);
-		return NULL;
 	}
-
-	if (!reserve && !audit_backlog_wait_time)
-		audit_backlog_wait_time = audit_backlog_wait_time_master;
 
 	ab = audit_buffer_alloc(ctx, gfp_mask, type);
 	if (!ab) {
@@ -1542,9 +1522,9 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	}
 
 	audit_get_stamp(ab->ctx, &t, &serial);
-
 	audit_log_format(ab, "audit(%lu.%03lu:%u): ",
 			 t.tv_sec, t.tv_nsec/1000000, serial);
+
 	return ab;
 }
 
