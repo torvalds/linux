@@ -59,12 +59,17 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 		return;
 
 	pcibios_resource_to_bus(dev->bus, &region, res);
+	new = region.start;
 
-	new = region.start | (res->flags & PCI_REGION_FLAG_MASK);
-	if (res->flags & IORESOURCE_IO)
+	if (res->flags & IORESOURCE_IO) {
 		mask = (u32)PCI_BASE_ADDRESS_IO_MASK;
-	else
+		new |= res->flags & ~PCI_BASE_ADDRESS_IO_MASK;
+	} else if (resno == PCI_ROM_RESOURCE) {
+		mask = (u32)PCI_ROM_ADDRESS_MASK;
+	} else {
 		mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
+		new |= res->flags & ~PCI_BASE_ADDRESS_MEM_MASK;
+	}
 
 	reg = pci_resource_bar(dev, resno, &type);
 	if (!reg)
