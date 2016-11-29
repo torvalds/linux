@@ -343,7 +343,7 @@ static struct skcipher_alg aes_algs[] = { {
 	.decrypt	= xts_decrypt,
 } };
 
-struct simd_skcipher_alg *aes_simd_algs[ARRAY_SIZE(aes_algs)];
+static struct simd_skcipher_alg *aes_simd_algs[ARRAY_SIZE(aes_algs)];
 
 static void aes_exit(void)
 {
