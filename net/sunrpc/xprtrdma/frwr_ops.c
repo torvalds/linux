@@ -421,7 +421,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 			 IB_ACCESS_REMOTE_READ;
 
-	DECR_CQCOUNT(&r_xprt->rx_ep);
+	rpcrdma_set_signaled(&r_xprt->rx_ep, &reg_wr->wr);
 	rc = ib_post_send(ia->ri_id->qp, &reg_wr->wr, &bad_wr);
 	if (rc)
 		goto out_senderr;
@@ -486,7 +486,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mw *mw, *tmp;
 	struct rpcrdma_frmr *f;
-	int rc;
+	int count, rc;
 
 	dprintk("RPC:       %s: req %p\n", __func__, req);
 
@@ -496,6 +496,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * a single ib_post_send() call.
 	 */
 	f = NULL;
+	count = 0;
 	invalidate_wrs = pos = prev = NULL;
 	list_for_each_entry(mw, &req->rl_registered, mw_list) {
 		if ((rep->rr_wc_flags & IB_WC_WITH_INVALIDATE) &&
@@ -505,6 +506,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		}
 
 		pos = __frwr_prepare_linv_wr(mw);
+		count++;
 
 		if (!invalidate_wrs)
 			invalidate_wrs = pos;
@@ -523,7 +525,12 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	f->fr_invwr.send_flags = IB_SEND_SIGNALED;
 	f->fr_cqe.done = frwr_wc_localinv_wake;
 	reinit_completion(&f->fr_linv_done);
-	INIT_CQCOUNT(&r_xprt->rx_ep);
+
+	/* Initialize CQ count, since there is always a signaled
+	 * WR being posted here.  The new cqcount depends on how
+	 * many SQEs are about to be consumed.
+	 */
+	rpcrdma_init_cqcount(&r_xprt->rx_ep, count);
 
 	/* Transport disconnect drains the receive CQ before it
 	 * replaces the QP. The RPC reply handler won't call us
