@@ -258,7 +258,9 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 
 	qede_fill_by_demand_stats(edev);
 
-	mutex_lock(&edev->qede_lock);
+	/* Need to protect the access to the fastpath array */
+	__qede_lock(edev);
+
 	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
 		fp = &edev->fp_array[i];
 
@@ -278,7 +280,7 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 		buf++;
 	}
 
-	mutex_unlock(&edev->qede_lock);
+	__qede_unlock(edev);
 }
 
 static int qede_get_sset_count(struct net_device *dev, int stringset)
@@ -374,6 +376,8 @@ static int qede_get_link_ksettings(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
 
+	__qede_lock(edev);
+
 	memset(&current_link, 0, sizeof(current_link));
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
@@ -393,6 +397,9 @@ static int qede_get_link_ksettings(struct net_device *dev,
 		base->speed = SPEED_UNKNOWN;
 		base->duplex = DUPLEX_UNKNOWN;
 	}
+
+	__qede_unlock(edev);
+
 	base->port = current_link.port;
 	base->autoneg = (current_link.autoneg) ? AUTONEG_ENABLE :
 			AUTONEG_DISABLE;
@@ -701,8 +708,7 @@ static int qede_set_ringparam(struct net_device *dev,
 	edev->q_num_rx_buffers = ering->rx_pending;
 	edev->q_num_tx_buffers = ering->tx_pending;
 
-	if (netif_running(edev->ndev))
-		qede_reload(edev, NULL, NULL);
+	qede_reload(edev, NULL, false);
 
 	return 0;
 }
@@ -787,29 +793,27 @@ static int qede_get_regs_len(struct net_device *ndev)
 		return -EINVAL;
 }
 
-static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
+static void qede_update_mtu(struct qede_dev *edev,
+			    struct qede_reload_args *args)
 {
-	edev->ndev->mtu = args->mtu;
+	edev->ndev->mtu = args->u.mtu;
 }
 
 /* Netdevice NDOs */
 int qede_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
-	union qede_reload_args args;
+	struct qede_reload_args args;
 
 	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 		   "Configuring MTU size of %d\n", new_mtu);
 
-	/* Set the mtu field and re-start the interface if needed*/
-	args.mtu = new_mtu;
+	/* Set the mtu field and re-start the interface if needed */
+	args.u.mtu = new_mtu;
+	args.func = &qede_update_mtu;
+	qede_reload(edev, &args, false);
 
-	if (netif_running(edev->ndev))
-		qede_reload(edev, &qede_update_mtu, &args);
-
-	qede_update_mtu(edev, &args);
-
-	edev->ops->common->update_mtu(edev->cdev, args.mtu);
+	edev->ops->common->update_mtu(edev->cdev, new_mtu);
 
 	return 0;
 }
@@ -893,8 +897,7 @@ static int qede_set_channels(struct net_device *dev,
 		       sizeof(edev->rss_params.rss_ind_table));
 	}
 
-	if (netif_running(dev))
-		qede_reload(edev, NULL, NULL);
+	qede_reload(edev, NULL, false);
 
 	return 0;
 }

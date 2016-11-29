@@ -338,8 +338,12 @@ struct qede_fastpath {
 #define QEDE_SP_VXLAN_PORT_CONFIG	2
 #define QEDE_SP_GENEVE_PORT_CONFIG	3
 
-union qede_reload_args {
-	u16 mtu;
+struct qede_reload_args {
+	void (*func)(struct qede_dev *edev, struct qede_reload_args *args);
+	union {
+		netdev_features_t features;
+		u16 mtu;
+	} u;
 };
 
 #ifdef CONFIG_DCB
@@ -348,11 +352,11 @@ void qede_set_dcbnl_ops(struct net_device *ndev);
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,
-		 void (*func)(struct qede_dev *edev,
-			      union qede_reload_args *args),
-		 union qede_reload_args *args);
+		 struct qede_reload_args *args, bool is_locked);
 int qede_change_mtu(struct net_device *dev, int new_mtu);
 void qede_fill_by_demand_stats(struct qede_dev *edev);
+void __qede_lock(struct qede_dev *edev);
+void __qede_unlock(struct qede_dev *edev);
 bool qede_has_rx_work(struct qede_rx_queue *rxq);
 int qede_txq_has_work(struct qede_tx_queue *txq);
 void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
