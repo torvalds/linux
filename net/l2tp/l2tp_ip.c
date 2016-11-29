@@ -61,7 +61,8 @@ static struct sock *__l2tp_ip_bind_lookup(struct net *net, __be32 laddr, int dif
 		if ((l2tp->conn_id == tunnel_id) &&
 		    net_eq(sock_net(sk), net) &&
 		    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
-		    !(sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif))
+		    (!sk->sk_bound_dev_if || !dif ||
+		     sk->sk_bound_dev_if == dif))
 			goto found;
 	}
 
@@ -182,7 +183,8 @@ pass_up:
 		struct iphdr *iph = (struct iphdr *) skb_network_header(skb);
 
 		read_lock_bh(&l2tp_ip_lock);
-		sk = __l2tp_ip_bind_lookup(net, iph->daddr, 0, tunnel_id);
+		sk = __l2tp_ip_bind_lookup(net, iph->daddr, inet_iif(skb),
+					   tunnel_id);
 		if (!sk) {
 			read_unlock_bh(&l2tp_ip_lock);
 			goto discard;
