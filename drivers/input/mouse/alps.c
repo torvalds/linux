@@ -1153,15 +1153,13 @@ static void alps_process_packet_v7(struct psmouse *psmouse)
 		alps_process_touchpad_packet_v7(psmouse);
 }
 
-static unsigned char alps_get_pkt_id_ss4_v2(unsigned char *byte)
+static enum SS4_PACKET_ID alps_get_pkt_id_ss4_v2(unsigned char *byte)
 {
-	unsigned char pkt_id = SS4_PACKET_ID_IDLE;
+	enum SS4_PACKET_ID pkt_id = SS4_PACKET_ID_IDLE;
 
 	switch (byte[3] & 0x30) {
 	case 0x00:
-		if (byte[0] == 0x18 && byte[1] == 0x10 && byte[2] == 0x00 &&
-		    (byte[3] & 0x88) == 0x08 && byte[4] == 0x10 &&
-		    byte[5] == 0x00) {
+		if (SS4_IS_IDLE_V2(byte)) {
 			pkt_id = SS4_PACKET_ID_IDLE;
 		} else {
 			pkt_id = SS4_PACKET_ID_ONE;
@@ -1188,7 +1186,7 @@ static int alps_decode_ss4_v2(struct alps_fields *f,
 			      unsigned char *p, struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
-	unsigned char pkt_id;
+	enum SS4_PACKET_ID pkt_id;
 	unsigned int no_data_x, no_data_y;
 
 	pkt_id = alps_get_pkt_id_ss4_v2(p);
@@ -1306,7 +1304,6 @@ static void alps_process_packet_ss4_v2(struct psmouse *psmouse)
 	struct input_dev *dev = psmouse->dev;
 	struct input_dev *dev2 = priv->dev2;
 	struct alps_fields *f = &priv->f;
-	int x, y, pressure;
 
 	memset(f, 0, sizeof(struct alps_fields));
 	priv->decode_fields(f, packet, psmouse);
@@ -1349,13 +1346,9 @@ static void alps_process_packet_ss4_v2(struct psmouse *psmouse)
 			return;
 		}
 
-		x = (s8)(((packet[0] & 1) << 7) | (packet[1] & 0x7f));
-		y = (s8)(((packet[3] & 1) << 7) | (packet[2] & 0x7f));
-		pressure = (s8)(packet[4] & 0x7f);
-
-		input_report_rel(dev2, REL_X, x);
-		input_report_rel(dev2, REL_Y, -y);
-		input_report_abs(dev2, ABS_PRESSURE, pressure);
+		input_report_rel(dev2, REL_X, SS4_TS_X_V2(packet));
+		input_report_rel(dev2, REL_Y, SS4_TS_Y_V2(packet));
+		input_report_abs(dev2, ABS_PRESSURE, SS4_TS_Z_V2(packet));
 
 		input_report_key(dev2, BTN_LEFT, f->ts_left);
 		input_report_key(dev2, BTN_RIGHT, f->ts_right);

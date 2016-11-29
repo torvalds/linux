@@ -54,7 +54,15 @@ enum SS4_PACKET_ID {
 
 #define SS4_MASK_NORMAL_BUTTONS		0x07
 
-#define SS4_1F_X_V2(_b)		((_b[0] & 0x0007) |		\
+#define SS4_IS_IDLE_V2(_b)	(((_b[0]) == 0x18) &&		\
+				 ((_b[1]) == 0x10) &&		\
+				 ((_b[2]) == 0x00) &&		\
+				 ((_b[3] & 0x88) == 0x08) &&	\
+				 ((_b[4]) == 0x10) &&		\
+				 ((_b[5]) == 0x00)		\
+				)
+
+#define SS4_1F_X_V2(_b)		(((_b[0]) & 0x0007) |		\
 				 ((_b[1] << 3) & 0x0078) |	\
 				 ((_b[1] << 2) & 0x0380) |	\
 				 ((_b[2] << 5) & 0x1C00)	\
@@ -100,6 +108,18 @@ enum SS4_PACKET_ID {
 
 #define SS4_IS_MF_CONTINUE(_b)	((_b[2] & 0x10) == 0x10)
 #define SS4_IS_5F_DETECTED(_b)	((_b[2] & 0x10) == 0x10)
+
+#define SS4_TS_X_V2(_b)		(s8)(				\
+				 ((_b[0] & 0x01) << 7) |	\
+				 (_b[1] & 0x7F)		\
+				)
+
+#define SS4_TS_Y_V2(_b)		(s8)(				\
+				 ((_b[3] & 0x01) << 7) |	\
+				 (_b[2] & 0x7F)		\
+				)
+
+#define SS4_TS_Z_V2(_b)		(s8)(_b[4] & 0x7F)
 
 
 #define SS4_MFPACKET_NO_AX	8160	/* X-Coordinate value */
