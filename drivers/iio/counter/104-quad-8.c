@@ -233,7 +233,7 @@ static ssize_t quad8_read_set_to_preset_on_index(struct iio_dev *indio_dev,
 	const struct quad8_iio *const priv = iio_priv(indio_dev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
-		priv->preset_enable[chan->channel]);
+		!priv->preset_enable[chan->channel]);
 }
 
 static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
@@ -249,6 +249,9 @@ static ssize_t quad8_write_set_to_preset_on_index(struct iio_dev *indio_dev,
 	ret = kstrtobool(buf, &preset_enable);
 	if (ret)
 		return ret;
+
+	/* Preset enable is active low in Input/Output Control register */
+	preset_enable = !preset_enable;
 
 	priv->preset_enable[chan->channel] = preset_enable;
 
