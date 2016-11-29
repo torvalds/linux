@@ -179,8 +179,6 @@ static inline void *zalloc(size_t size)
 #undef tolower
 #undef toupper
 
-int parse_nsec_time(const char *str, u64 *ptime);
-
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01
 #define GIT_DIGIT		0x02
