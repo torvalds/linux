@@ -4487,7 +4487,7 @@ static int ath10k_wmi_alloc_chunk(struct ath10k *ar, u32 req_id,
 	if (!num_units)
 		return -ENOMEM;
 
-	paddr = dma_map_single(ar->dev, vaddr, pool_size, DMA_TO_DEVICE);
+	paddr = dma_map_single(ar->dev, vaddr, pool_size, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(ar->dev, paddr)) {
 		kfree(vaddr);
 		return -ENOMEM;
