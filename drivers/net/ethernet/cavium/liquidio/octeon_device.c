@@ -754,6 +754,9 @@ octeon_allocate_ioq_vector(struct octeon_device  *oct)
 
 	if (OCTEON_CN23XX_PF(oct))
 		num_ioqs = oct->sriov_info.num_pf_rings;
+	else if (OCTEON_CN23XX_VF(oct))
+		num_ioqs = oct->sriov_info.rings_per_vf;
+
 	size = sizeof(struct octeon_ioq_vector) * num_ioqs;
 
 	oct->ioq_vector = vmalloc(size);

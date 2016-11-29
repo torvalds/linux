@@ -34,6 +34,12 @@ struct octeon_cn23xx_vf {
 
 #define BUSY_READING_REG_VF_LOOP_COUNT		10000
 
+#define CN23XX_MAILBOX_MSGPARAM_SIZE		6
+
+void cn23xx_vf_ask_pf_to_do_flr(struct octeon_device *oct);
+
+int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct);
+
 int cn23xx_setup_octeon_vf_device(struct octeon_device *oct);
 
 void cn23xx_dump_vf_initialized_regs(struct octeon_device *oct);

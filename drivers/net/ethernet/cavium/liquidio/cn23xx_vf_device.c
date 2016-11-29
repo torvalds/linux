@@ -27,6 +27,26 @@
 #include "octeon_main.h"
 #include "octeon_mailbox.h"
 
+u32 cn23xx_vf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us)
+{
+	/* This gives the SLI clock per microsec */
+	u32 oqticks_per_us = (u32)oct->pfvf_hsword.coproc_tics_per_us;
+
+	/* This gives the clock cycles per millisecond */
+	oqticks_per_us *= 1000;
+
+	/* This gives the oq ticks (1024 core clock cycles) per millisecond */
+	oqticks_per_us /= 1024;
+
+	/* time_intr is in microseconds. The next 2 steps gives the oq ticks
+	 * corressponding to time_intr.
+	 */
+	oqticks_per_us *= time_intr_in_us;
+	oqticks_per_us /= 1000;
+
+	return oqticks_per_us;
+}
+
 static int cn23xx_vf_reset_io_queues(struct octeon_device *oct, u32 num_queues)
 {
 	u32 loop = BUSY_READING_REG_VF_LOOP_COUNT;
@@ -212,6 +232,11 @@ static void cn23xx_setup_vf_iq_regs(struct octeon_device *oct, u32 iq_no)
 	 */
 	pkt_in_done = readq(iq->inst_cnt_reg);
 
+	if (oct->msix_on) {
+		/* Set CINT_ENB to enable IQ interrupt */
+		writeq((pkt_in_done | CN23XX_INTR_CINT_ENB),
+		       iq->inst_cnt_reg);
+	}
 	iq->reset_instr_cnt = 0;
 }
 
@@ -342,6 +367,240 @@ static void cn23xx_disable_vf_io_queues(struct octeon_device *oct)
 	cn23xx_vf_reset_io_queues(oct, num_queues);
 }
 
+void cn23xx_vf_ask_pf_to_do_flr(struct octeon_device *oct)
+{
+	struct octeon_mbox_cmd mbox_cmd;
+
+	mbox_cmd.msg.u64 = 0;
+	mbox_cmd.msg.s.type = OCTEON_MBOX_REQUEST;
+	mbox_cmd.msg.s.resp_needed = 0;
+	mbox_cmd.msg.s.cmd = OCTEON_VF_FLR_REQUEST;
+	mbox_cmd.msg.s.len = 1;
+	mbox_cmd.q_no = 0;
+	mbox_cmd.recv_len = 0;
+	mbox_cmd.recv_status = 0;
+	mbox_cmd.fn = NULL;
+	mbox_cmd.fn_arg = 0;
+
+	octeon_mbox_write(oct, &mbox_cmd);
+}
+
+static void octeon_pfvf_hs_callback(struct octeon_device *oct,
+				    struct octeon_mbox_cmd *cmd,
+				    void *arg)
+{
+	u32 major = 0;
+
+	memcpy((uint8_t *)&oct->pfvf_hsword, cmd->msg.s.params,
+	       CN23XX_MAILBOX_MSGPARAM_SIZE);
+	if (cmd->recv_len > 1)  {
+		major = ((struct lio_version *)(cmd->data))->major;
+		major = major << 16;
+	}
+
+	atomic_set((atomic_t *)arg, major | 1);
+}
+
+int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct)
+{
+	struct octeon_mbox_cmd mbox_cmd;
+	u32 q_no, count = 0;
+	atomic_t status;
+	u32 pfmajor;
+	u32 vfmajor;
+	u32 ret;
+
+	/* Sending VF_ACTIVE indication to the PF driver */
+	dev_dbg(&oct->pci_dev->dev, "requesting info from pf\n");
+
+	mbox_cmd.msg.u64 = 0;
+	mbox_cmd.msg.s.type = OCTEON_MBOX_REQUEST;
+	mbox_cmd.msg.s.resp_needed = 1;
+	mbox_cmd.msg.s.cmd = OCTEON_VF_ACTIVE;
+	mbox_cmd.msg.s.len = 2;
+	mbox_cmd.data[0] = 0;
+	((struct lio_version *)&mbox_cmd.data[0])->major =
+						LIQUIDIO_BASE_MAJOR_VERSION;
+	((struct lio_version *)&mbox_cmd.data[0])->minor =
+						LIQUIDIO_BASE_MINOR_VERSION;
+	((struct lio_version *)&mbox_cmd.data[0])->micro =
+						LIQUIDIO_BASE_MICRO_VERSION;
+	mbox_cmd.q_no = 0;
+	mbox_cmd.recv_len = 0;
+	mbox_cmd.recv_status = 0;
+	mbox_cmd.fn = (octeon_mbox_callback_t)octeon_pfvf_hs_callback;
+	mbox_cmd.fn_arg = &status;
+
+	/* Interrupts are not enabled at this point.
+	 * Enable them with default oq ticks
+	 */
+	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
+
+	octeon_mbox_write(oct, &mbox_cmd);
+
+	atomic_set(&status, 0);
+
+	do {
+		schedule_timeout_uninterruptible(1);
+	} while ((!atomic_read(&status)) && (count++ < 100000));
+
+	/* Disable the interrupt so that the interrupsts will be reenabled
+	 * with the oq ticks received from the PF
+	 */
+	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
+
+	ret = atomic_read(&status);
+	if (!ret) {
+		dev_err(&oct->pci_dev->dev, "octeon_pfvf_handshake timeout\n");
+		return 1;
+	}
+
+	for (q_no = 0 ; q_no < oct->num_iqs ; q_no++)
+		oct->instr_queue[q_no]->txpciq.s.pkind = oct->pfvf_hsword.pkind;
+
+	vfmajor = LIQUIDIO_BASE_MAJOR_VERSION;
+	pfmajor = ret >> 16;
+	if (pfmajor != vfmajor) {
+		dev_err(&oct->pci_dev->dev,
+			"VF Liquidio driver (major version %d) is not compatible with Liquidio PF driver (major version %d)\n",
+			vfmajor, pfmajor);
+		return 1;
+	}
+
+	dev_dbg(&oct->pci_dev->dev,
+		"VF Liquidio driver (major version %d), Liquidio PF driver (major version %d)\n",
+		vfmajor, pfmajor);
+
+	dev_dbg(&oct->pci_dev->dev, "got data from pf pkind is %d\n",
+		oct->pfvf_hsword.pkind);
+
+	return 0;
+}
+
+static void cn23xx_handle_vf_mbox_intr(struct octeon_ioq_vector *ioq_vector)
+{
+	struct octeon_device *oct = ioq_vector->oct_dev;
+	u64 mbox_int_val;
+
+	if (!ioq_vector->droq_index) {
+		/* read and clear by writing 1 */
+		mbox_int_val = readq(oct->mbox[0]->mbox_int_reg);
+		writeq(mbox_int_val, oct->mbox[0]->mbox_int_reg);
+		if (octeon_mbox_read(oct->mbox[0]))
+			schedule_delayed_work(&oct->mbox[0]->mbox_poll_wk.work,
+					      msecs_to_jiffies(0));
+	}
+}
+
+static u64 cn23xx_vf_msix_interrupt_handler(void *dev)
+{
+	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
+	struct octeon_device *oct = ioq_vector->oct_dev;
+	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
+	u64 pkts_sent;
+	u64 ret = 0;
+
+	dev_dbg(&oct->pci_dev->dev, "In %s octeon_dev @ %p\n", __func__, oct);
+	pkts_sent = readq(droq->pkts_sent_reg);
+
+	/* If our device has interrupted, then proceed. Also check
+	 * for all f's if interrupt was triggered on an error
+	 * and the PCI read fails.
+	 */
+	if (!pkts_sent || (pkts_sent == 0xFFFFFFFFFFFFFFFFULL))
+		return ret;
+
+	/* Write count reg in sli_pkt_cnts to clear these int. */
+	if ((pkts_sent & CN23XX_INTR_PO_INT) ||
+	    (pkts_sent & CN23XX_INTR_PI_INT)) {
+		if (pkts_sent & CN23XX_INTR_PO_INT)
+			ret |= MSIX_PO_INT;
+	}
+
+	if (pkts_sent & CN23XX_INTR_PI_INT)
+		/* We will clear the count when we update the read_index. */
+		ret |= MSIX_PI_INT;
+
+	if (pkts_sent & CN23XX_INTR_MBOX_INT) {
+		cn23xx_handle_vf_mbox_intr(ioq_vector);
+		ret |= MSIX_MBOX_INT;
+	}
+
+	return ret;
+}
+
+static void cn23xx_enable_vf_interrupt(struct octeon_device *oct, u8 intr_flag)
+{
+	struct octeon_cn23xx_vf *cn23xx = (struct octeon_cn23xx_vf *)oct->chip;
+	u32 q_no, time_threshold;
+
+	if (intr_flag & OCTEON_OUTPUT_INTR) {
+		for (q_no = 0; q_no < oct->num_oqs; q_no++) {
+			/* Set up interrupt packet and time thresholds
+			 * for all the OQs
+			 */
+			time_threshold = cn23xx_vf_get_oq_ticks(
+				oct, (u32)CFG_GET_OQ_INTR_TIME(cn23xx->conf));
+
+			octeon_write_csr64(
+			    oct, CN23XX_VF_SLI_OQ_PKT_INT_LEVELS(q_no),
+			    (CFG_GET_OQ_INTR_PKT(cn23xx->conf) |
+			     ((u64)time_threshold << 32)));
+		}
+	}
+
+	if (intr_flag & OCTEON_INPUT_INTR) {
+		for (q_no = 0; q_no < oct->num_oqs; q_no++) {
+			/* Set CINT_ENB to enable IQ interrupt */
+			octeon_write_csr64(
+			    oct, CN23XX_VF_SLI_IQ_INSTR_COUNT64(q_no),
+			    ((octeon_read_csr64(
+				  oct, CN23XX_VF_SLI_IQ_INSTR_COUNT64(q_no)) &
+			      ~CN23XX_PKT_IN_DONE_CNT_MASK) |
+			     CN23XX_INTR_CINT_ENB));
+		}
+	}
+
+	/* Set queue-0 MBOX_ENB to enable VF mailbox interrupt */
+	if (intr_flag & OCTEON_MBOX_INTR) {
+		octeon_write_csr64(
+		    oct, CN23XX_VF_SLI_PKT_MBOX_INT(0),
+		    (octeon_read_csr64(oct, CN23XX_VF_SLI_PKT_MBOX_INT(0)) |
+		     CN23XX_INTR_MBOX_ENB));
+	}
+}
+
+static void cn23xx_disable_vf_interrupt(struct octeon_device *oct, u8 intr_flag)
+{
+	u32 q_no;
+
+	if (intr_flag & OCTEON_OUTPUT_INTR) {
+		for (q_no = 0; q_no < oct->num_oqs; q_no++) {
+			/* Write all 1's in INT_LEVEL reg to disable PO_INT */
+			octeon_write_csr64(
+			    oct, CN23XX_VF_SLI_OQ_PKT_INT_LEVELS(q_no),
+			    0x3fffffffffffff);
+		}
+	}
+	if (intr_flag & OCTEON_INPUT_INTR) {
+		for (q_no = 0; q_no < oct->num_oqs; q_no++) {
+			octeon_write_csr64(
+			    oct, CN23XX_VF_SLI_IQ_INSTR_COUNT64(q_no),
+			    (octeon_read_csr64(
+				 oct, CN23XX_VF_SLI_IQ_INSTR_COUNT64(q_no)) &
+			     ~(CN23XX_INTR_CINT_ENB |
+			       CN23XX_PKT_IN_DONE_CNT_MASK)));
+		}
+	}
+
+	if (intr_flag & OCTEON_MBOX_INTR) {
+		octeon_write_csr64(
+		    oct, CN23XX_VF_SLI_PKT_MBOX_INT(0),
+		    (octeon_read_csr64(oct, CN23XX_VF_SLI_PKT_MBOX_INT(0)) &
+		     ~CN23XX_INTR_MBOX_ENB));
+	}
+}
+
 int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 {
 	struct octeon_cn23xx_vf *cn23xx = (struct octeon_cn23xx_vf *)oct->chip;
@@ -397,7 +656,13 @@ int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 	oct->fn_list.setup_oq_regs = cn23xx_setup_vf_oq_regs;
 	oct->fn_list.setup_mbox = cn23xx_setup_vf_mbox;
 	oct->fn_list.free_mbox = cn23xx_free_vf_mbox;
+
+	oct->fn_list.msix_interrupt_handler = cn23xx_vf_msix_interrupt_handler;
+
 	oct->fn_list.setup_device_regs = cn23xx_setup_vf_device_regs;
+
+	oct->fn_list.enable_interrupt = cn23xx_enable_vf_interrupt;
+	oct->fn_list.disable_interrupt = cn23xx_disable_vf_interrupt;
 
 	oct->fn_list.enable_io_queues = cn23xx_enable_vf_io_queues;
 	oct->fn_list.disable_io_queues = cn23xx_disable_vf_io_queues;

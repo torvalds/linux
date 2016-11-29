@@ -53,6 +53,7 @@ enum {
 	NUM_OCTEON_CONFS,
 };
 
+#define  OCTEON_INPUT_INTR    (1)
 #define  OCTEON_OUTPUT_INTR   (2)
 #define  OCTEON_MBOX_INTR     (4)
 #define  OCTEON_ALL_INTR      0xff
@@ -294,6 +295,7 @@ struct octdev_props {
 #define LIO_FLAG_MSIX_ENABLED	0x1
 #define MSIX_PO_INT		0x1
 #define MSIX_PI_INT		0x2
+#define MSIX_MBOX_INT		0x4
 
 struct octeon_pf_vf_hs_word {
 #ifdef __LITTLE_ENDIAN_BITFIELD

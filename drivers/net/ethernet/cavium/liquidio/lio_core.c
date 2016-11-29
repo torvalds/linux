@@ -85,13 +85,6 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 	}
 
 	(*pkts_compl)++;
-/*TODO, Use some other pound define to suggest
- * the fact that iqs are not tied to netdevs
- * and can take traffic from different netdevs
- * hence bql reporting is done per packet
- * than in bulk. Usage of NO_NAPI in txq completion is
- * a little confusing
- */
 	*bytes_compl += skb->len;
 }
 
