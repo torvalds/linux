@@ -1376,6 +1376,8 @@ out:
 
 redirty_out:
 	redirty_page_for_writepage(wbc, page);
+	if (!err)
+		return AOP_WRITEPAGE_ACTIVATE;
 	unlock_page(page);
 	return err;
 }
@@ -1471,6 +1473,15 @@ continue_unlock:
 
 			ret = mapping->a_ops->writepage(page, wbc);
 			if (unlikely(ret)) {
+				/*
+				 * keep nr_to_write, since vfs uses this to
+				 * get # of written pages.
+				 */
+				if (ret == AOP_WRITEPAGE_ACTIVATE) {
+					unlock_page(page);
+					ret = 0;
+					continue;
+				}
 				done_index = page->index + 1;
 				done = 1;
 				break;
