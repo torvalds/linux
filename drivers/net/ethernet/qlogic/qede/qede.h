@@ -16,6 +16,7 @@
 #include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/bpf.h>
 #include <linux/io.h>
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/eth_common.h>
@@ -187,6 +188,8 @@ struct qede_dev {
 	bool wol_enabled;
 
 	struct qede_rdma_dev		rdma_info;
+
+	struct bpf_prog *xdp_prog;
 };
 
 enum QEDE_STATE {
@@ -249,6 +252,8 @@ struct qede_rx_queue {
 	/* Required for the allocation of replacement buffers */
 	struct device *dev;
 
+	struct bpf_prog *xdp_prog;
+
 	u16 sw_rx_cons;
 	u16 sw_rx_prod;
 
@@ -270,6 +275,8 @@ struct qede_rx_queue {
 	u64 rx_hw_errors;
 	u64 rx_alloc_errors;
 	u64 rx_ip_frags;
+
+	u64 xdp_no_pass;
 
 	void *handle;
 };
@@ -325,6 +332,7 @@ struct qede_fastpath {
 	struct qede_dev	*edev;
 #define QEDE_FASTPATH_TX	BIT(0)
 #define QEDE_FASTPATH_RX	BIT(1)
+#define QEDE_FASTPATH_XDP	BIT(2)
 #define QEDE_FASTPATH_COMBINED	(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
 	u8			type;
 	u8			id;
@@ -358,6 +366,7 @@ struct qede_reload_args {
 	void (*func)(struct qede_dev *edev, struct qede_reload_args *args);
 	union {
 		netdev_features_t features;
+		struct bpf_prog *new_prog;
 		u16 mtu;
 	} u;
 };
