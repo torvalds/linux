@@ -282,7 +282,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
  */
 static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
 	GEM_BUG_ON(vma->iomap == NULL);
 	i915_vma_unpin(vma);
 }
@@ -311,7 +311,7 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
 static inline bool
 i915_vma_pin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
 	if (vma->fence) {
 		vma->fence->pin_count++;
 		return true;
@@ -330,7 +330,7 @@ i915_vma_pin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
 	if (vma->fence) {
 		GEM_BUG_ON(vma->fence->pin_count <= 0);
 		vma->fence->pin_count--;

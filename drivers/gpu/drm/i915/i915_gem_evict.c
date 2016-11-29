@@ -96,7 +96,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 			 u64 start, u64 end,
 			 unsigned flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(vm->dev);
+	struct drm_i915_private *dev_priv = vm->i915;
 	struct list_head eviction_list;
 	struct list_head *phases[] = {
 		&vm->inactive_list,
@@ -106,7 +106,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct i915_vma *vma, *next;
 	int ret;
 
-	lockdep_assert_held(&vm->dev->struct_mutex);
+	lockdep_assert_held(&vm->i915->drm.struct_mutex);
 	trace_i915_gem_evict(vm, min_size, alignment, flags);
 
 	/*
@@ -162,7 +162,7 @@ search_again:
 		 * back to userspace to give our workqueues time to
 		 * acquire our locks and unpin the old scanouts.
 		 */
-		return intel_has_pending_fb_unpin(vm->dev) ? -EAGAIN : -ENOSPC;
+		return intel_has_pending_fb_unpin(dev_priv) ? -EAGAIN : -ENOSPC;
 	}
 
 	/* Not everything in the GGTT is tracked via vma (otherwise we
@@ -217,7 +217,7 @@ i915_gem_evict_for_vma(struct i915_vma *target)
 {
 	struct drm_mm_node *node, *next;
 
-	lockdep_assert_held(&target->vm->dev->struct_mutex);
+	lockdep_assert_held(&target->vm->i915->drm.struct_mutex);
 
 	list_for_each_entry_safe(node, next,
 			&target->vm->mm.head_node.node_list,
@@ -272,11 +272,11 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
-	lockdep_assert_held(&vm->dev->struct_mutex);
+	lockdep_assert_held(&vm->i915->drm.struct_mutex);
 	trace_i915_gem_evict_vm(vm);
 
 	if (do_idle) {
-		struct drm_i915_private *dev_priv = to_i915(vm->dev);
+		struct drm_i915_private *dev_priv = vm->i915;
 
 		if (i915_is_ggtt(vm)) {
 			ret = i915_gem_switch_to_kernel_context(dev_priv);

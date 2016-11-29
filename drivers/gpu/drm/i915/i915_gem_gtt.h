@@ -220,7 +220,7 @@ struct i915_pml4 {
 struct i915_address_space {
 	struct drm_mm mm;
 	struct i915_gem_timeline timeline;
-	struct drm_device *dev;
+	struct drm_i915_private *i915;
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
 	 * principle, no information should leak from one context to another

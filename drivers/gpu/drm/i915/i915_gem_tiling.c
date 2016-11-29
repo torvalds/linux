@@ -119,7 +119,7 @@ i915_tiling_ok(struct drm_i915_private *dev_priv,
 
 static bool i915_vma_fence_prepare(struct i915_vma *vma, int tiling_mode)
 {
-	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
+	struct drm_i915_private *dev_priv = vma->vm->i915;
 	u32 size;
 
 	if (!i915_vma_is_map_and_fenceable(vma))

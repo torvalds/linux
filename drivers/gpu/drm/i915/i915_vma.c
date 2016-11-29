@@ -198,9 +198,9 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	void __iomem *ptr;
 
 	/* Access through the GTT requires the device to be awake. */
-	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+	assert_rpm_wakelock_held(vma->vm->i915);
 
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma)))
 		return IO_ERR_PTR(-ENODEV);
 
@@ -347,7 +347,7 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 static int
 i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
+	struct drm_i915_private *dev_priv = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
 	u64 start, end;
 	int ret;
@@ -469,7 +469,7 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 	unsigned int bound = vma->flags;
 	int ret;
 
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 	GEM_BUG_ON((flags & (PIN_GLOBAL | PIN_USER)) == 0);
 	GEM_BUG_ON((flags & PIN_GLOBAL) && !i915_vma_is_ggtt(vma));
 
@@ -567,7 +567,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 		for_each_active(active, idx) {
 			ret = i915_gem_active_retire(&vma->last_read[idx],
-						   &vma->vm->dev->struct_mutex);
+						     &vma->vm->i915->drm.struct_mutex);
 			if (ret)
 				break;
 		}

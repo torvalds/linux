@@ -3532,7 +3532,7 @@ err_unpin_display:
 void
 i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 
 	if (WARN_ON(vma->obj->pin_display == 0))
 		return;
