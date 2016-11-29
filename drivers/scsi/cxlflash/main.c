@@ -306,59 +306,34 @@ static int send_cmd(struct afu *afu, struct afu_cmd *cmd)
 {
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
-	int nretry = 0;
 	int rc = 0;
-	u64 room;
-	long newval;
+	s64 room;
+	ulong lock_flags;
 
 	/*
-	 * This routine is used by critical users such an AFU sync and to
-	 * send a task management function (TMF). Thus we want to retry a
-	 * bit before returning an error. To avoid the performance penalty
-	 * of MMIO, we spread the update of 'room' over multiple commands.
+	 * To avoid the performance penalty of MMIO, spread the update of
+	 * 'room' over multiple commands.
 	 */
-retry:
-	newval = atomic64_dec_if_positive(&afu->room);
-	if (!newval) {
-		do {
-			room = readq_be(&afu->host_map->cmd_room);
-			atomic64_set(&afu->room, room);
-			if (room)
-				goto write_ioarrin;
-			udelay(1 << nretry);
-		} while (nretry++ < MC_ROOM_RETRY_CNT);
-
-		dev_err(dev, "%s: no cmd_room to send 0x%X\n",
-		       __func__, cmd->rcb.cdb[0]);
-
-		goto no_room;
-	} else if (unlikely(newval < 0)) {
-		/* This should be rare. i.e. Only if two threads race and
-		 * decrement before the MMIO read is done. In this case
-		 * just benefit from the other thread having updated
-		 * afu->room.
-		 */
-		if (nretry++ < MC_ROOM_RETRY_CNT) {
-			udelay(1 << nretry);
-			goto retry;
+	spin_lock_irqsave(&afu->rrin_slock, lock_flags);
+	if (--afu->room < 0) {
+		room = readq_be(&afu->host_map->cmd_room);
+		if (room <= 0) {
+			dev_dbg_ratelimited(dev, "%s: no cmd_room to send "
+					    "0x%02X, room=0x%016llX\n",
+					    __func__, cmd->rcb.cdb[0], room);
+			afu->room = 0;
+			rc = SCSI_MLQUEUE_HOST_BUSY;
+			goto out;
 		}
-
-		goto no_room;
+		afu->room = room - 1;
 	}
 
-write_ioarrin:
 	writeq_be((u64)&cmd->rcb, &afu->host_map->ioarrin);
 out:
+	spin_unlock_irqrestore(&afu->rrin_slock, lock_flags);
 	pr_devel("%s: cmd=%p len=%d ea=%p rc=%d\n", __func__, cmd,
 		 cmd->rcb.data_len, (void *)cmd->rcb.data_ea, rc);
 	return rc;
-
-no_room:
-	afu->read_room = true;
-	kref_get(&cfg->afu->mapcount);
-	schedule_work(&cfg->work_q);
-	rc = SCSI_MLQUEUE_HOST_BUSY;
-	goto out;
 }
 
 /**
@@ -1827,7 +1802,8 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	}
 
 	afu_err_intr_init(cfg->afu);
-	atomic64_set(&afu->room, readq_be(&afu->host_map->cmd_room));
+	spin_lock_init(&afu->rrin_slock);
+	afu->room = readq_be(&afu->host_map->cmd_room);
 
 	/* Restore the LUN mappings */
 	cxlflash_restore_luntable(cfg);
@@ -2399,7 +2375,6 @@ MODULE_DEVICE_TABLE(pci, cxlflash_pci_table);
  * Handles the following events:
  * - Link reset which cannot be performed on interrupt context due to
  * blocking up to a few seconds
- * - Read AFU command room
  * - Rescan the host
  */
 static void cxlflash_worker_thread(struct work_struct *work)
@@ -2434,11 +2409,6 @@ static void cxlflash_worker_thread(struct work_struct *work)
 		}
 
 		cfg->lr_state = LINK_RESET_COMPLETE;
-	}
-
-	if (afu->read_room) {
-		atomic64_set(&afu->room, readq_be(&afu->host_map->cmd_room));
-		afu->read_room = false;
 	}
 
 	spin_unlock_irqrestore(cfg->host->host_lock, lock_flags);
