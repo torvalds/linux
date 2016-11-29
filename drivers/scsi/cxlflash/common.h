@@ -63,11 +63,6 @@ static inline void check_sizes(void)
 /* AFU defines a fixed size of 4K for command buffers (borrow 4K page define) */
 #define CMD_BUFSIZE     SIZE_4K
 
-/* flags in IOA status area for host use */
-#define B_DONE       0x01
-#define B_ERROR      0x02	/* set with B_DONE */
-#define B_TIMEOUT    0x04	/* set with B_DONE & B_ERROR */
-
 enum cxlflash_lr_state {
 	LINK_RESET_INVALID,
 	LINK_RESET_REQUIRED,
@@ -133,9 +128,8 @@ struct cxlflash_cfg {
 struct afu_cmd {
 	struct sisl_ioarcb rcb;	/* IOARCB (cache line aligned) */
 	struct sisl_ioasa sa;	/* IOASA must follow IOARCB */
-	spinlock_t slock;
-	struct completion cevent;
 	struct afu *parent;
+	struct completion cevent;
 
 	u8 cmd_tmf:1;
 

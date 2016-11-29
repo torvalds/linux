@@ -161,10 +161,6 @@ static void cmd_complete(struct afu_cmd *cmd)
 	struct cxlflash_cfg *cfg = afu->parent;
 	bool cmd_is_tmf;
 
-	spin_lock_irqsave(&cmd->slock, lock_flags);
-	cmd->sa.host_use_b[0] |= B_DONE;
-	spin_unlock_irqrestore(&cmd->slock, lock_flags);
-
 	if (cmd->rcb.scp) {
 		scp = cmd->rcb.scp;
 		if (unlikely(cmd->sa.ioasc))
@@ -204,20 +200,8 @@ static void context_reset(struct afu_cmd *cmd)
 	struct afu *afu = cmd->parent;
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
-	ulong lock_flags;
 
 	pr_debug("%s: cmd=%p\n", __func__, cmd);
-
-	spin_lock_irqsave(&cmd->slock, lock_flags);
-
-	/* Already completed? */
-	if (cmd->sa.host_use_b[0] & B_DONE) {
-		spin_unlock_irqrestore(&cmd->slock, lock_flags);
-		return;
-	}
-
-	cmd->sa.host_use_b[0] |= (B_DONE | B_ERROR | B_TIMEOUT);
-	spin_unlock_irqrestore(&cmd->slock, lock_flags);
 
 	writeq_be(rrin, &afu->host_map->ioarrin);
 	do {
@@ -278,20 +262,30 @@ out:
  * wait_resp() - polls for a response or timeout to a sent AFU command
  * @afu:	AFU associated with the host.
  * @cmd:	AFU command that was sent.
+ *
+ * Return:
+ *	0 on success, -1 on timeout/error
  */
-static void wait_resp(struct afu *afu, struct afu_cmd *cmd)
+static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
 {
+	int rc = 0;
 	ulong timeout = msecs_to_jiffies(cmd->rcb.timeout * 2 * 1000);
 
 	timeout = wait_for_completion_timeout(&cmd->cevent, timeout);
-	if (!timeout)
+	if (!timeout) {
 		context_reset(cmd);
+		rc = -1;
+	}
 
-	if (unlikely(cmd->sa.ioasc != 0))
+	if (unlikely(cmd->sa.ioasc != 0)) {
 		pr_err("%s: CMD 0x%X failed, IOASC: flags 0x%X, afu_rc 0x%X, "
 		       "scsi_rc 0x%X, fc_rc 0x%X\n", __func__, cmd->rcb.cdb[0],
 		       cmd->sa.rc.flags, cmd->sa.rc.afu_rc, cmd->sa.rc.scsi_rc,
 		       cmd->sa.rc.fc_rc);
+		rc = -1;
+	}
+
+	return rc;
 }
 
 /**
@@ -339,7 +333,6 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	/* Stash the scp in the command, for reuse during interrupt */
 	cmd->rcb.scp = scp;
 	cmd->parent = afu;
-	spin_lock_init(&cmd->slock);
 
 	/* Copy the CDB from the cmd passed in */
 	memcpy(cmd->rcb.cdb, &tmfcmd, sizeof(tmfcmd));
@@ -466,7 +459,6 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	/* Stash the scp in the reserved field, for reuse during interrupt */
 	cmd->rcb.scp = scp;
 	cmd->parent = afu;
-	spin_lock_init(&cmd->slock);
 
 	nseg = scsi_dma_map(scp);
 	if (unlikely(nseg < 0)) {
@@ -1733,7 +1725,6 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 
 	cmd = (struct afu_cmd *)PTR_ALIGN(buf, __alignof__(*cmd));
 	init_completion(&cmd->cevent);
-	spin_lock_init(&cmd->slock);
 	cmd->parent = afu;
 
 	pr_debug("%s: afu=%p cmd=%p %d\n", __func__, afu, cmd, ctx_hndl_u);
@@ -1741,10 +1732,6 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	cmd->rcb.req_flags = SISL_REQ_FLAGS_AFU_CMD;
 	cmd->rcb.ctx_id = afu->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
-	cmd->rcb.port_sel = 0x0;	/* NA */
-	cmd->rcb.lun_id = 0x0;	/* NA */
-	cmd->rcb.data_len = 0x0;
-	cmd->rcb.data_ea = 0x0;
 	cmd->rcb.timeout = MC_AFU_SYNC_TIMEOUT;
 
 	cmd->rcb.cdb[0] = 0xC0;	/* AFU Sync */
@@ -1758,11 +1745,8 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	if (unlikely(rc))
 		goto out;
 
-	wait_resp(afu, cmd);
-
-	/* Set on timeout */
-	if (unlikely((cmd->sa.ioasc != 0) ||
-		     (cmd->sa.host_use_b[0] & B_ERROR)))
+	rc = wait_resp(afu, cmd);
+	if (unlikely(rc))
 		rc = -1;
 out:
 	atomic_dec(&afu->cmds_active);
