@@ -35,4 +35,6 @@ struct octeon_cn23xx_vf {
 #define BUSY_READING_REG_VF_LOOP_COUNT		10000
 
 int cn23xx_setup_octeon_vf_device(struct octeon_device *oct);
+
+void cn23xx_dump_vf_initialized_regs(struct octeon_device *oct);
 #endif

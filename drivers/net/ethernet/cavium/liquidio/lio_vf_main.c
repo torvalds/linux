@@ -241,6 +241,11 @@ static int octeon_device_init(struct octeon_device *oct)
 		return 1;
 	}
 
+	if (oct->fn_list.setup_device_regs(oct)) {
+		dev_err(&oct->pci_dev->dev, "device registers configuration failed\n");
+		return 1;
+	}
+
 	return 0;
 }
 
