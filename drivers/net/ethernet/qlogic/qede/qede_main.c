@@ -3334,6 +3334,12 @@ static int qede_drain_txq(struct qede_dev *edev,
 	return 0;
 }
 
+static int qede_stop_txq(struct qede_dev *edev,
+			 struct qede_tx_queue *txq, int rss_id)
+{
+	return edev->ops->q_tx_stop(edev->cdev, rss_id, txq->handle);
+}
+
 static int qede_stop_queues(struct qede_dev *edev)
 {
 	struct qed_update_vport_params vport_update_params;
@@ -3367,28 +3373,18 @@ static int qede_stop_queues(struct qede_dev *edev)
 
 	/* Stop all Queues in reverse order */
 	for (i = QEDE_QUEUE_CNT(edev) - 1; i >= 0; i--) {
-		struct qed_stop_rxq_params rx_params;
-
 		fp = &edev->fp_array[i];
 
 		/* Stop the Tx Queue(s) */
 		if (fp->type & QEDE_FASTPATH_TX) {
-			struct qed_stop_txq_params tx_params;
-
-			tx_params.rss_id = i;
-			tx_params.tx_queue_id = fp->txq->index;
-				rc = edev->ops->q_tx_stop(cdev, &tx_params);
-				if (rc)
-					return rc;
+			rc = qede_stop_txq(edev, fp->txq, i);
+			if (rc)
+				return rc;
 		}
 
 		/* Stop the Rx Queue */
 		if (fp->type & QEDE_FASTPATH_RX) {
-			memset(&rx_params, 0, sizeof(rx_params));
-			rx_params.rss_id = i;
-			rx_params.rx_queue_id = fp->rxq->rxq_id;
-
-			rc = edev->ops->q_rx_stop(cdev, &rx_params);
+			rc = edev->ops->q_rx_stop(cdev, i, fp->rxq->handle);
 			if (rc) {
 				DP_ERR(edev, "Failed to stop RXQ #%d\n", i);
 				return rc;
@@ -3400,6 +3396,46 @@ static int qede_stop_queues(struct qede_dev *edev)
 	rc = edev->ops->vport_stop(cdev, 0);
 	if (rc)
 		DP_ERR(edev, "Failed to stop VPORT\n");
+
+	return rc;
+}
+
+static int qede_start_txq(struct qede_dev *edev,
+			  struct qede_fastpath *fp,
+			  struct qede_tx_queue *txq, u8 rss_id, u16 sb_idx)
+{
+	dma_addr_t phys_table = qed_chain_get_pbl_phys(&txq->tx_pbl);
+	u32 page_cnt = qed_chain_get_page_cnt(&txq->tx_pbl);
+	struct qed_queue_start_common_params params;
+	struct qed_txq_start_ret_params ret_params;
+	int rc;
+
+	memset(&params, 0, sizeof(params));
+	memset(&ret_params, 0, sizeof(ret_params));
+
+	params.queue_id = txq->index;
+	params.sb = fp->sb_info->igu_sb_id;
+	params.sb_idx = sb_idx;
+
+	rc = edev->ops->q_tx_start(edev->cdev, rss_id, &params, phys_table,
+				   page_cnt, &ret_params);
+	if (rc) {
+		DP_ERR(edev, "Start TXQ #%d failed %d\n", txq->index, rc);
+		return rc;
+	}
+
+	txq->doorbell_addr = ret_params.p_doorbell;
+	txq->handle = ret_params.p_handle;
+
+	/* Determine the FW consumer address associated */
+	txq->hw_cons_ptr = &fp->sb_info->sb_virt->pi_array[sb_idx];
+
+	/* Prepare the doorbell parameters */
+	SET_FIELD(txq->tx_db.data.params, ETH_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(txq->tx_db.data.params, ETH_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
+	SET_FIELD(txq->tx_db.data.params, ETH_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_ETH_TX_BD_PROD_CMD);
+	txq->tx_db.data.agg_flags = DQ_XCM_ETH_DQ_CF_CMD;
 
 	return rc;
 }
@@ -3445,11 +3481,12 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 		u32 page_cnt;
 
 		if (fp->type & QEDE_FASTPATH_RX) {
+			struct qed_rxq_start_ret_params ret_params;
 			struct qede_rx_queue *rxq = fp->rxq;
 			__le16 *val;
 
+			memset(&ret_params, 0, sizeof(ret_params));
 			memset(&q_params, 0, sizeof(q_params));
-			q_params.rss_id = i;
 			q_params.queue_id = rxq->rxq_id;
 			q_params.vport_id = 0;
 			q_params.sb = fp->sb_info->igu_sb_id;
@@ -3459,17 +3496,20 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 			    qed_chain_get_pbl_phys(&rxq->rx_comp_ring);
 			page_cnt = qed_chain_get_page_cnt(&rxq->rx_comp_ring);
 
-			rc = edev->ops->q_rx_start(cdev, &q_params,
+			rc = edev->ops->q_rx_start(cdev, i, &q_params,
 						   rxq->rx_buf_size,
 						   rxq->rx_bd_ring.p_phys_addr,
 						   p_phys_table,
-						   page_cnt,
-						   &rxq->hw_rxq_prod_addr);
+						   page_cnt, &ret_params);
 			if (rc) {
 				DP_ERR(edev, "Start RXQ #%d failed %d\n", i,
 				       rc);
 				return rc;
 			}
+
+			/* Use the return parameters */
+			rxq->hw_rxq_prod_addr = ret_params.p_prod;
+			rxq->handle = ret_params.p_handle;
 
 			val = &fp->sb_info->sb_virt->pi_array[RX_PI];
 			rxq->hw_cons_ptr = val;
@@ -3478,38 +3518,9 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {
-			struct qede_tx_queue *txq = fp->txq;
-
-			p_phys_table = qed_chain_get_pbl_phys(&txq->tx_pbl);
-			page_cnt = qed_chain_get_page_cnt(&txq->tx_pbl);
-
-			memset(&q_params, 0, sizeof(q_params));
-			q_params.rss_id = i;
-			q_params.queue_id = txq->index;
-			q_params.vport_id = 0;
-			q_params.sb = fp->sb_info->igu_sb_id;
-			q_params.sb_idx = TX_PI(0);
-
-			rc = edev->ops->q_tx_start(cdev, &q_params,
-						   p_phys_table, page_cnt,
-						   &txq->doorbell_addr);
-			if (rc) {
-				DP_ERR(edev, "Start TXQ #%d failed %d\n",
-				       txq->index, rc);
+			rc = qede_start_txq(edev, fp, fp->txq, i, TX_PI(0));
+			if (rc)
 				return rc;
-			}
-
-			txq->hw_cons_ptr =
-				&fp->sb_info->sb_virt->pi_array[TX_PI(0)];
-			SET_FIELD(txq->tx_db.data.params,
-				  ETH_DB_DATA_DEST, DB_DEST_XCM);
-			SET_FIELD(txq->tx_db.data.params, ETH_DB_DATA_AGG_CMD,
-				  DB_AGG_CMD_SET);
-			SET_FIELD(txq->tx_db.data.params,
-				  ETH_DB_DATA_AGG_VAL_SEL,
-				  DQ_XCM_ETH_TX_BD_PROD_CMD);
-
-			txq->tx_db.data.agg_flags = DQ_XCM_ETH_DQ_CF_CMD;
 		}
 	}
 
