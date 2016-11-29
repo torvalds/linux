@@ -1,5 +1,14 @@
 CFLAGS = -Wall
 
+TEST_GEN_PROGS := execveat
+TEST_GEN_FILES := execveat.symlink execveat.denatured script subdir
+# Makefile is a run-time dependency, since it's accessed by the execveat test
+TEST_FILES := Makefile
+
+EXTRA_CLEAN := subdir.moved execveat.moved xxxxx*
+
+include ../lib.mk
+
 subdir:
 	mkdir -p $@
 script:
@@ -11,13 +20,3 @@ execveat.symlink: execveat
 execveat.denatured: execveat
 	cp $< $@
 	chmod -x $@
-
-TEST_GEN_PROGS := execveat
-TEST_GEN_FILES := execveat.symlink execveat.denatured script subdir
-# Makefile is a run-time dependency, since it's accessed by the execveat test
-TEST_FILES := Makefile
-
-include ../lib.mk
-
-clean:
-	rm -rf $(TEST_GEN_PROGS) $(TEST_GEN_FILES) subdir.moved execveat.moved xxxxx*
