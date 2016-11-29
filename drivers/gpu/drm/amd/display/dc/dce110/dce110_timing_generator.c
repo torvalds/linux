@@ -1113,6 +1113,10 @@ bool dce110_timing_generator_validate_timing(
 	if (!timing)
 		return false;
 
+	/* Currently we don't support 3D, so block all 3D timings */
+	if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE)
+		return false;
+
 	/* Check maximum number of pixels supported by Timing Generator
 	 * (Currently will never fail, in order to fail needs display which
 	 * needs more than 8192 horizontal and
