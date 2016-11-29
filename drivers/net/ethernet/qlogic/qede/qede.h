@@ -243,27 +243,33 @@ struct qede_agg_info {
 };
 
 struct qede_rx_queue {
-	__le16			*hw_cons_ptr;
-	struct sw_rx_data	*sw_rx_ring;
-	u16			sw_rx_cons;
-	u16			sw_rx_prod;
-	struct qed_chain	rx_bd_ring;
-	struct qed_chain	rx_comp_ring;
-	void __iomem		*hw_rxq_prod_addr;
+	__le16 *hw_cons_ptr;
+	void __iomem *hw_rxq_prod_addr;
+
+	/* Required for the allocation of replacement buffers */
+	struct device *dev;
+
+	u16 sw_rx_cons;
+	u16 sw_rx_prod;
+
+	u16 num_rx_buffers; /* Slowpath */
+	u8 rxq_id;
+
+	u32 rx_buf_size;
+	u32 rx_buf_seg_size;
+
+	u64 rcv_pkts;
+
+	struct sw_rx_data *sw_rx_ring;
+	struct qed_chain rx_bd_ring;
+	struct qed_chain rx_comp_ring ____cacheline_aligned;
 
 	/* GRO */
-	struct qede_agg_info	tpa_info[ETH_TPA_MAX_AGGS_NUM];
+	struct qede_agg_info tpa_info[ETH_TPA_MAX_AGGS_NUM];
 
-	int			rx_buf_size;
-	unsigned int		rx_buf_seg_size;
-
-	u16			num_rx_buffers;
-	u16			rxq_id;
-
-	u64			rcv_pkts;
-	u64			rx_hw_errors;
-	u64			rx_alloc_errors;
-	u64			rx_ip_frags;
+	u64 rx_hw_errors;
+	u64 rx_alloc_errors;
+	u64 rx_ip_frags;
 
 	void *handle;
 };
@@ -281,22 +287,28 @@ struct sw_tx_bd {
 };
 
 struct qede_tx_queue {
-	int			index; /* Queue index */
-	__le16			*hw_cons_ptr;
-	struct sw_tx_bd		*sw_tx_ring;
-	u16			sw_tx_cons;
-	u16			sw_tx_prod;
-	struct qed_chain	tx_pbl;
-	void __iomem		*doorbell_addr;
-	union db_prod		tx_db;
+	bool is_legacy;
+	u16 sw_tx_cons;
+	u16 sw_tx_prod;
+	u16 num_tx_buffers; /* Slowpath only */
 
-	u16			num_tx_buffers;
-	u64			xmit_pkts;
-	u64			stopped_cnt;
+	u64 xmit_pkts;
+	u64 stopped_cnt;
 
-	bool			is_legacy;
+	__le16 *hw_cons_ptr;
+
+	/* Needed for the mapping of packets */
+	struct device *dev;
+
+	void __iomem *doorbell_addr;
+	union db_prod tx_db;
+	int index; /* Slowpath only */
+
+	struct sw_tx_bd *sw_tx_ring;
+	struct qed_chain tx_pbl;
+
+	/* Slowpath; Should be kept in end [unless missing padding] */
 	void *handle;
-
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -363,8 +375,7 @@ void __qede_lock(struct qede_dev *edev);
 void __qede_unlock(struct qede_dev *edev);
 bool qede_has_rx_work(struct qede_rx_queue *rxq);
 int qede_txq_has_work(struct qede_tx_queue *txq);
-void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
-			     u8 count);
+void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, u8 count);
 void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 
 #define RX_RING_SIZE_POW	13

@@ -1337,13 +1337,13 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 					break;
 				}
 
-			qede_recycle_rx_bd_ring(rxq, edev, 1);
+			qede_recycle_rx_bd_ring(rxq, 1);
 			qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 			break;
 		}
 
 		DP_INFO(edev, "Not the transmitted packet\n");
-		qede_recycle_rx_bd_ring(rxq, edev, 1);
+		qede_recycle_rx_bd_ring(rxq, 1);
 		qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 	}
 
