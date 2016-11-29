@@ -74,7 +74,7 @@ struct i915_guc_client {
 	uint32_t proc_desc_offset;
 
 	uint32_t doorbell_offset;
-	uint32_t cookie;
+	uint32_t doorbell_cookie;
 	uint16_t doorbell_id;
 	uint16_t padding[3];		/* Maintain alignment		*/
 

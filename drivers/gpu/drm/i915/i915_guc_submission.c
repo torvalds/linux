@@ -454,11 +454,11 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 
 	/* current cookie */
 	db_cmp.db_status = GUC_DOORBELL_ENABLED;
-	db_cmp.cookie = gc->cookie;
+	db_cmp.cookie = gc->doorbell_cookie;
 
 	/* cookie to be updated */
 	db_exc.db_status = GUC_DOORBELL_ENABLED;
-	db_exc.cookie = gc->cookie + 1;
+	db_exc.cookie = gc->doorbell_cookie + 1;
 	if (db_exc.cookie == 0)
 		db_exc.cookie = 1;
 
@@ -473,7 +473,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		/* if the exchange was successfully executed */
 		if (db_ret.value_qw == db_cmp.value_qw) {
 			/* db was successfully rung */
-			gc->cookie = db_exc.cookie;
+			gc->doorbell_cookie = db_exc.cookie;
 			ret = 0;
 			break;
 		}

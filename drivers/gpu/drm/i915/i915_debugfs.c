@@ -2414,7 +2414,7 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tPriority %d, GuC ctx index: %u, PD offset 0x%x\n",
 		client->priority, client->ctx_index, client->proc_desc_offset);
 	seq_printf(m, "\tDoorbell id %d, offset: 0x%x, cookie 0x%x\n",
-		client->doorbell_id, client->doorbell_offset, client->cookie);
+		client->doorbell_id, client->doorbell_offset, client->doorbell_cookie);
 	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
 		client->wq_size, client->wq_offset, client->wq_tail);
 
