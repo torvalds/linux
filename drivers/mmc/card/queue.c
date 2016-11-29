@@ -237,6 +237,21 @@ static int mmc_queue_alloc_bounce_sgs(struct mmc_queue *mq,
 }
 #endif
 
+static int mmc_queue_alloc_sgs(struct mmc_queue *mq, int max_segs)
+{
+	struct mmc_queue_req *mqrq_cur = mq->mqrq_cur;
+	struct mmc_queue_req *mqrq_prev = mq->mqrq_prev;
+	int ret;
+
+	mqrq_cur->sg = mmc_alloc_sg(max_segs, &ret);
+	if (ret)
+		return ret;
+
+	mqrq_prev->sg = mmc_alloc_sg(max_segs, &ret);
+
+	return ret;
+}
+
 /**
  * mmc_init_queue - initialise a queue structure.
  * @mq: mmc queue
@@ -309,12 +324,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		blk_queue_max_segments(mq->queue, host->max_segs);
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
 
-		mqrq_cur->sg = mmc_alloc_sg(host->max_segs, &ret);
-		if (ret)
-			goto cleanup_queue;
-
-
-		mqrq_prev->sg = mmc_alloc_sg(host->max_segs, &ret);
+		ret = mmc_queue_alloc_sgs(mq, host->max_segs);
 		if (ret)
 			goto cleanup_queue;
 	}
