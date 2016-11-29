@@ -197,6 +197,10 @@ struct kvm_guest_debug_arch {
 #define KVM_SYNC_VRS    (1UL << 6)
 #define KVM_SYNC_RICCB  (1UL << 7)
 #define KVM_SYNC_FPRS   (1UL << 8)
+#define KVM_SYNC_GSCB   (1UL << 9)
+/* length and alignment of the sdnx as a power of two */
+#define SDNXC 8
+#define SDNXL (1UL << SDNXC)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
@@ -217,8 +221,16 @@ struct kvm_sync_regs {
 	};
 	__u8  reserved[512];	/* for future vector expansion */
 	__u32 fpc;		/* valid on KVM_SYNC_VRS or KVM_SYNC_FPRS */
-	__u8 padding[52];	/* riccb needs to be 64byte aligned */
+	__u8 padding1[52];	/* riccb needs to be 64byte aligned */
 	__u8 riccb[64];		/* runtime instrumentation controls block */
+	__u8 padding2[192];	/* sdnx needs to be 256byte aligned */
+	union {
+		__u8 sdnx[SDNXL];  /* state description annex */
+		struct {
+			__u64 reserved1[2];
+			__u64 gscb[4];
+		};
+	};
 };
 
 #define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)

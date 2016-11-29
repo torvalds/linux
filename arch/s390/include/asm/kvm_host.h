@@ -25,6 +25,7 @@
 #include <asm/cpu.h>
 #include <asm/fpu/api.h>
 #include <asm/isc.h>
+#include <asm/guarded_storage.h>
 
 #define KVM_S390_BSCA_CPU_SLOTS 64
 #define KVM_S390_ESCA_CPU_SLOTS 248
@@ -192,6 +193,7 @@ struct kvm_s390_sie_block {
 	__u32	ipb;			/* 0x0058 */
 	__u32	scaoh;			/* 0x005c */
 	__u8	reserved60;		/* 0x0060 */
+#define ECB_GS		0x40
 #define ECB_TE		0x10
 #define ECB_SRSI	0x04
 #define ECB_HOSTPROTINT	0x02
@@ -237,7 +239,9 @@ struct kvm_s390_sie_block {
 	__u32	crycbd;			/* 0x00fc */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
-	__u8	reserved188[24];	/* 0x0188 */
+	__u8    reserved188[8];		/* 0x0188 */
+	__u64   sdnxo;			/* 0x0190 */
+	__u8    reserved198[8];		/* 0x0198 */
 	__u32	fac;			/* 0x01a0 */
 	__u8	reserved1a4[20];	/* 0x01a4 */
 	__u64	cbrlo;			/* 0x01b8 */
@@ -573,6 +577,7 @@ struct kvm_vcpu_arch {
 	/* if vsie is active, currently executed shadow sie control block */
 	struct kvm_s390_sie_block *vsie_block;
 	unsigned int      host_acrs[NUM_ACRS];
+	struct gs_cb      *host_gscb;
 	struct fpu	  host_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
@@ -593,6 +598,7 @@ struct kvm_vcpu_arch {
 	 */
 	seqcount_t cputm_seqcount;
 	__u64 cputm_start;
+	bool gs_enabled;
 };
 
 struct kvm_vm_stat {

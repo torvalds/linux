@@ -329,6 +329,11 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* Instruction Execution Prevention */
 	if (test_kvm_facility(vcpu->kvm, 130))
 		scb_s->ecb2 |= scb_o->ecb2 & ECB2_IEP;
+	/* Guarded Storage */
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		scb_s->ecb |= scb_o->ecb & ECB_GS;
+		scb_s->ecd |= scb_o->ecd & ECD_HOSTREGMGMT;
+	}
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_SIIF))
 		scb_s->eca |= scb_o->eca & ECA_SII;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IB))
@@ -496,6 +501,13 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		unpin_guest_page(vcpu->kvm, gpa, hpa);
 		scb_s->riccbd = 0;
 	}
+
+	hpa = scb_s->sdnxo;
+	if (hpa) {
+		gpa = scb_o->sdnxo;
+		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		scb_s->sdnxo = 0;
+	}
 }
 
 /*
@@ -589,6 +601,33 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc)
 			goto unpin;
 		scb_s->riccbd = hpa;
+	}
+	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
+		unsigned long sdnxc;
+
+		gpa = scb_o->sdnxo & ~0xfUL;
+		sdnxc = scb_o->sdnxo & 0xfUL;
+		if (!gpa || !(gpa & ~0x1fffUL)) {
+			rc = set_validity_icpt(scb_s, 0x10b0U);
+			goto unpin;
+		}
+		if (sdnxc < 6 || sdnxc > 12) {
+			rc = set_validity_icpt(scb_s, 0x10b1U);
+			goto unpin;
+		}
+		if (gpa & ((1 << sdnxc) - 1)) {
+			rc = set_validity_icpt(scb_s, 0x10b2U);
+			goto unpin;
+		}
+		/* Due to alignment rules (checked above) this cannot
+		 * cross page boundaries
+		 */
+		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
+		if (rc == -EINVAL)
+			rc = set_validity_icpt(scb_s, 0x10b0U);
+		if (rc)
+			goto unpin;
+		scb_s->sdnxo = hpa;
 	}
 	return 0;
 unpin:
