@@ -103,17 +103,13 @@ static void tmc_etf_disable_hw(struct tmc_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev, u32 mode)
+static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 {
 	int ret = 0;
 	bool used = false;
 	char *buf = NULL;
 	unsigned long flags;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	 /* This shouldn't be happening */
-	if (WARN_ON(mode != CS_MODE_SYSFS))
-		return -EINVAL;
 
 	/*
 	 * If we don't have a buffer release the lock and allocate memory.
@@ -176,15 +172,11 @@ out:
 	return ret;
 }
 
-static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, u32 mode)
+static int tmc_enable_etf_sink_perf(struct coresight_device *csdev)
 {
 	int ret = 0;
 	unsigned long flags;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	 /* This shouldn't be happening */
-	if (WARN_ON(mode != CS_MODE_PERF))
-		return -EINVAL;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	if (drvdata->reading) {
@@ -202,7 +194,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, u32 mode)
 		goto out;
 	}
 
-	drvdata->mode = mode;
+	drvdata->mode = CS_MODE_PERF;
 	tmc_etb_enable_hw(drvdata);
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -214,9 +206,9 @@ static int tmc_enable_etf_sink(struct coresight_device *csdev, u32 mode)
 {
 	switch (mode) {
 	case CS_MODE_SYSFS:
-		return tmc_enable_etf_sink_sysfs(csdev, mode);
+		return tmc_enable_etf_sink_sysfs(csdev);
 	case CS_MODE_PERF:
-		return tmc_enable_etf_sink_perf(csdev, mode);
+		return tmc_enable_etf_sink_perf(csdev);
 	}
 
 	/* We shouldn't be here */
