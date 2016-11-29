@@ -113,7 +113,7 @@ static inline void aesbs_encrypt_one(struct crypto_skcipher *tfm,
 {
 	struct aesbs_cbc_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	AES_encrypt(src, dst, &ctx->dec.rk);
+	AES_encrypt(src, dst, &ctx->enc);
 }
 
 static int aesbs_cbc_encrypt(struct skcipher_request *req)
