@@ -454,7 +454,7 @@ static int dmatest_func(void *data)
 		src_cnt = min_odd(params->pq_sources | 1, dma_maxpq(dev, 0));
 		dst_cnt = 2;
 
-		pq_coefs = kmalloc(params->pq_sources+1, GFP_KERNEL);
+		pq_coefs = kmalloc(params->pq_sources + 1, GFP_KERNEL);
 		if (!pq_coefs)
 			goto err_thread_type;
 
@@ -463,7 +463,7 @@ static int dmatest_func(void *data)
 	} else
 		goto err_thread_type;
 
-	thread->srcs = kcalloc(src_cnt+1, sizeof(u8 *), GFP_KERNEL);
+	thread->srcs = kcalloc(src_cnt + 1, sizeof(u8 *), GFP_KERNEL);
 	if (!thread->srcs)
 		goto err_srcs;
 	for (i = 0; i < src_cnt; i++) {
@@ -473,7 +473,7 @@ static int dmatest_func(void *data)
 	}
 	thread->srcs[i] = NULL;
 
-	thread->dsts = kcalloc(dst_cnt+1, sizeof(u8 *), GFP_KERNEL);
+	thread->dsts = kcalloc(dst_cnt + 1, sizeof(u8 *), GFP_KERNEL);
 	if (!thread->dsts)
 		goto err_dsts;
 	for (i = 0; i < dst_cnt; i++) {
@@ -549,7 +549,7 @@ static int dmatest_func(void *data)
 			filltime = ktime_add(filltime, diff);
 		}
 
-		um = dmaengine_get_unmap_data(dev->dev, src_cnt+dst_cnt,
+		um = dmaengine_get_unmap_data(dev->dev, src_cnt + dst_cnt,
 					      GFP_KERNEL);
 		if (!um) {
 			failed_tests++;
