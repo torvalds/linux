@@ -2930,6 +2930,8 @@ static int cpsw_resume(struct device *dev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(dev);
 
+	/* shut up ASSERT_RTNL() warning in netif_set_real_num_tx/rx_queues */
+	rtnl_lock();
 	if (cpsw->data.dual_emac) {
 		int i;
 
@@ -2941,6 +2943,8 @@ static int cpsw_resume(struct device *dev)
 		if (netif_running(ndev))
 			cpsw_ndo_open(ndev);
 	}
+	rtnl_unlock();
+
 	return 0;
 }
 #endif
