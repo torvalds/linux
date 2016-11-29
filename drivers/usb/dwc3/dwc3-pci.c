@@ -73,16 +73,6 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 {
 	struct platform_device		*dwc3 = dwc->dwc3;
 	struct pci_dev			*pdev = dwc->pci;
-	int				ret;
-
-	struct property_entry sysdev_property[] = {
-		PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
-		{ },
-	};
-
-	ret = platform_device_add_properties(dwc3, sysdev_property);
-	if (ret)
-		return ret;
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
 	    pdev->device == PCI_DEVICE_ID_AMD_NL_USB) {
@@ -105,6 +95,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 			PROPERTY_ENTRY_BOOL("snps,disable_scramble_quirk"),
 			PROPERTY_ENTRY_BOOL("snps,dis_u3_susphy_quirk"),
 			PROPERTY_ENTRY_BOOL("snps,dis_u2_susphy_quirk"),
+			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 			{ },
 		};
 
@@ -116,6 +107,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 
 		struct property_entry properties[] = {
 			PROPERTY_ENTRY_STRING("dr_mode", "peripheral"),
+			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 			{ }
 		};
 
@@ -167,6 +159,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 			PROPERTY_ENTRY_BOOL("snps,usb3_lpm_capable"),
 			PROPERTY_ENTRY_BOOL("snps,has-lpm-erratum"),
 			PROPERTY_ENTRY_BOOL("snps,dis_enblslpm_quirk"),
+			PROPERTY_ENTRY_BOOL("linux,sysdev_is_parent"),
 			{ },
 		};
 
