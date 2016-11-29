@@ -1180,20 +1180,22 @@ static int __init audit_init(void)
 		audit_default ? "enabled" : "disabled");
 	register_pernet_subsys(&audit_net_ops);
 
-	kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
-	if (IS_ERR(kauditd_task))
-		return PTR_ERR(kauditd_task);
-
 	skb_queue_head_init(&audit_skb_queue);
 	skb_queue_head_init(&audit_skb_hold_queue);
 	audit_initialized = AUDIT_INITIALIZED;
 	audit_enabled = audit_default;
 	audit_ever_enabled |= !!audit_default;
 
-	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
-
 	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
 		INIT_LIST_HEAD(&audit_inode_hash[i]);
+
+	kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
+	if (IS_ERR(kauditd_task)) {
+		int err = PTR_ERR(kauditd_task);
+		panic("audit: failed to start the kauditd thread (%d)\n", err);
+	}
+
+	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
 
 	return 0;
 }
