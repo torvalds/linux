@@ -511,26 +511,46 @@ static void flush_hold_queue(void)
 
 static int kauditd_thread(void *dummy)
 {
+	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
+
 	set_freezable();
 	while (!kthread_should_stop()) {
-		struct sk_buff *skb;
-
 		flush_hold_queue();
 
 		skb = skb_dequeue(&audit_skb_queue);
-
 		if (skb) {
-			if (!audit_backlog_limit ||
-			    (skb_queue_len(&audit_skb_queue) <= audit_backlog_limit))
-				wake_up(&audit_backlog_wait);
+			nlh = nlmsg_hdr(skb);
+
+			/* if nlh->nlmsg_len is zero then we haven't attempted
+			 * to send the message to userspace yet, if nlmsg_len
+			 * is non-zero then we have attempted to send it to
+			 * the multicast listeners as well as auditd; keep
+			 * trying to send to auditd but don't repeat the
+			 * multicast send */
+			if (nlh->nlmsg_len == 0) {
+				nlh->nlmsg_len = skb->len;
+				kauditd_send_multicast_skb(skb, GFP_KERNEL);
+
+				/* see the note in kauditd_send_multicast_skb
+				 * regarding the nlh->nlmsg_len value and why
+				 * it differs between the multicast and unicast
+				 * clients */
+				nlh->nlmsg_len -= NLMSG_HDRLEN;
+			}
+
 			if (audit_pid)
 				kauditd_send_skb(skb);
 			else
 				audit_printk_skb(skb);
-			continue;
+		} else {
+			/* we have flushed the backlog so wake everyone up who
+			 * is blocked and go to sleep until we have something
+			 * in the backlog again */
+			wake_up(&audit_backlog_wait);
+			wait_event_freezable(kauditd_wait,
+					     skb_queue_len(&audit_skb_queue));
 		}
-
-		wait_event_freezable(kauditd_wait, skb_queue_len(&audit_skb_queue));
 	}
 	return 0;
 }
@@ -1969,10 +1989,10 @@ out:
  * audit_log_end - end one audit record
  * @ab: the audit_buffer
  *
- * netlink_unicast() cannot be called inside an irq context because it blocks
- * (last arg, flags, is not set to MSG_DONTWAIT), so the audit buffer is placed
- * on a queue and a tasklet is scheduled to remove them from the queue outside
- * the irq context.  May be called in any context.
+ * We can not do a netlink send inside an irq context because it blocks (last
+ * arg, flags, is not set to MSG_DONTWAIT), so the audit buffer is placed on a
+ * queue and a tasklet is scheduled to remove them from the queue outside the
+ * irq context.  May be called in any context.
  */
 void audit_log_end(struct audit_buffer *ab)
 {
@@ -1981,28 +2001,8 @@ void audit_log_end(struct audit_buffer *ab)
 	if (!audit_rate_check()) {
 		audit_log_lost("rate limit exceeded");
 	} else {
-		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-
-		nlh->nlmsg_len = ab->skb->len;
-		kauditd_send_multicast_skb(ab->skb, ab->gfp_mask);
-
-		/*
-		 * The original kaudit unicast socket sends up messages with
-		 * nlmsg_len set to the payload length rather than the entire
-		 * message length.  This breaks the standard set by netlink.
-		 * The existing auditd daemon assumes this breakage.  Fixing
-		 * this would require co-ordinating a change in the established
-		 * protocol between the kaudit kernel subsystem and the auditd
-		 * userspace code.
-		 */
-		nlh->nlmsg_len -= NLMSG_HDRLEN;
-
-		if (audit_pid) {
-			skb_queue_tail(&audit_skb_queue, ab->skb);
-			wake_up_interruptible(&kauditd_wait);
-		} else {
-			audit_printk_skb(ab->skb);
-		}
+		skb_queue_tail(&audit_skb_queue, ab->skb);
+		wake_up_interruptible(&kauditd_wait);
 		ab->skb = NULL;
 	}
 	audit_buffer_free(ab);
