@@ -437,7 +437,7 @@ static int macvtap_get_minor(struct macvlan_dev *vlan)
 	if (retval >= 0) {
 		vlan->minor = retval;
 	} else if (retval == -ENOSPC) {
-		printk(KERN_ERR "too many macvtap devices\n");
+		netdev_err(vlan->dev, "Too many macvtap devices\n");
 		retval = -EINVAL;
 	}
 	mutex_unlock(&minor_lock);
