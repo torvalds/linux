@@ -2994,6 +2994,9 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 	}
 
+	/* Disable/enable discard support on raid set. */
+	configure_discard_support(rs);
+
 	mddev_unlock(&rs->md);
 	return 0;
 
@@ -3579,12 +3582,6 @@ static int raid_preresume(struct dm_target *ti)
 	 */
 	if (test_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags))
 		rs_update_sbs(rs);
-
-	/*
-	 * Disable/enable discard support on raid set after any
-	 * conversion, because devices can have been added
-	 */
-	configure_discard_support(rs);
 
 	/* Load the bitmap from disk unless raid0 */
 	r = __load_dirty_region_bitmap(rs);
