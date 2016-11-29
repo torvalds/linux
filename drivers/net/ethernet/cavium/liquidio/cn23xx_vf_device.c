@@ -15,22 +15,30 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
-/*! \file  cn23xx_device.h
- * \brief Host Driver: Routines that perform CN23XX specific operations.
- */
+#include <linux/pci.h>
+#include <linux/netdevice.h>
+#include "liquidio_common.h"
+#include "octeon_droq.h"
+#include "octeon_iq.h"
+#include "response_manager.h"
+#include "octeon_device.h"
+#include "cn23xx_vf_device.h"
+#include "octeon_main.h"
 
-#ifndef __CN23XX_VF_DEVICE_H__
-#define __CN23XX_VF_DEVICE_H__
+int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
+{
+	struct octeon_cn23xx_vf *cn23xx = (struct octeon_cn23xx_vf *)oct->chip;
 
-#include "cn23xx_vf_regs.h"
+	if (octeon_map_pci_barx(oct, 0, 0))
+		return 1;
 
-/* Register address and configuration for a CN23XX devices.
- * If device specific changes need to be made then add a struct to include
- * device specific fields as shown in the commented section
- */
-struct octeon_cn23xx_vf {
-	struct octeon_config *conf;
-};
+	cn23xx->conf  = oct_get_config_info(oct, LIO_23XX);
+	if (!cn23xx->conf) {
+		dev_err(&oct->pci_dev->dev, "%s No Config found for CN23XX\n",
+			__func__);
+		octeon_unmap_pci_barx(oct, 0);
+		return 1;
+	}
 
-int cn23xx_setup_octeon_vf_device(struct octeon_device *oct);
-#endif
+	return 0;
+}

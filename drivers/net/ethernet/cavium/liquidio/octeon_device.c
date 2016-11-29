@@ -572,15 +572,17 @@ static void *__retrieve_octeon_config_info(struct octeon_device *oct,
 	switch (oct_conf_info[oct_id].conf_type) {
 	case OCTEON_CONFIG_TYPE_DEFAULT:
 		if (oct->chip_id == OCTEON_CN66XX) {
-			ret = (void *)&default_cn66xx_conf;
+			ret = &default_cn66xx_conf;
 		} else if ((oct->chip_id == OCTEON_CN68XX) &&
 			   (card_type == LIO_210NV)) {
-			ret =  (void *)&default_cn68xx_210nv_conf;
+			ret = &default_cn68xx_210nv_conf;
 		} else if ((oct->chip_id == OCTEON_CN68XX) &&
 			   (card_type == LIO_410NV)) {
-			ret =  (void *)&default_cn68xx_conf;
+			ret = &default_cn68xx_conf;
 		} else if (oct->chip_id == OCTEON_CN23XX_PF_VID) {
-			ret =  (void *)&default_cn23xx_conf;
+			ret = &default_cn23xx_conf;
+		} else if (oct->chip_id == OCTEON_CN23XX_VF_VID) {
+			ret = &default_cn23xx_conf;
 		}
 		break;
 	default:
@@ -596,6 +598,7 @@ static int __verify_octeon_config_info(struct octeon_device *oct, void *conf)
 	case OCTEON_CN68XX:
 		return lio_validate_cn6xxx_config_info(oct, conf);
 	case OCTEON_CN23XX_PF_VID:
+	case OCTEON_CN23XX_VF_VID:
 		return 0;
 	default:
 		break;

@@ -22,6 +22,8 @@
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
+#include "octeon_main.h"
+#include "cn23xx_vf_device.h"
 
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
 MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Virtual Function Driver");
@@ -37,6 +39,7 @@ struct octeon_device_priv {
 static int
 liquidio_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void liquidio_vf_remove(struct pci_dev *pdev);
+static int octeon_device_init(struct octeon_device *oct);
 
 static const struct pci_device_id liquidio_vf_pci_tbl[] = {
 	{
@@ -84,7 +87,75 @@ liquidio_vf_probe(struct pci_dev *pdev,
 	/* set linux specific device pointer */
 	oct_dev->pci_dev = pdev;
 
+	if (octeon_device_init(oct_dev)) {
+		liquidio_vf_remove(pdev);
+		return -ENOMEM;
+	}
+
+	dev_dbg(&oct_dev->pci_dev->dev, "Device is ready\n");
+
 	return 0;
+}
+
+/**
+ * \brief PCI FLR for each Octeon device.
+ * @param oct octeon device
+ */
+static void octeon_pci_flr(struct octeon_device *oct)
+{
+	u16 status;
+
+	pci_save_state(oct->pci_dev);
+
+	pci_cfg_access_lock(oct->pci_dev);
+
+	/* Quiesce the device completely */
+	pci_write_config_word(oct->pci_dev, PCI_COMMAND,
+			      PCI_COMMAND_INTX_DISABLE);
+
+	/* Wait for Transaction Pending bit clean */
+	msleep(100);
+	pcie_capability_read_word(oct->pci_dev, PCI_EXP_DEVSTA, &status);
+	if (status & PCI_EXP_DEVSTA_TRPND) {
+		dev_info(&oct->pci_dev->dev, "Function reset incomplete after 100ms, sleeping for 5 seconds\n");
+		ssleep(5);
+		pcie_capability_read_word(oct->pci_dev, PCI_EXP_DEVSTA,
+					  &status);
+		if (status & PCI_EXP_DEVSTA_TRPND)
+			dev_info(&oct->pci_dev->dev, "Function reset still incomplete after 5s, reset anyway\n");
+	}
+	pcie_capability_set_word(oct->pci_dev, PCI_EXP_DEVCTL,
+				 PCI_EXP_DEVCTL_BCR_FLR);
+	mdelay(100);
+
+	pci_cfg_access_unlock(oct->pci_dev);
+
+	pci_restore_state(oct->pci_dev);
+}
+
+/**
+ *\brief Destroy resources associated with octeon device
+ * @param pdev PCI device structure
+ * @param ent unused
+ */
+static void octeon_destroy_resources(struct octeon_device *oct)
+{
+	switch (atomic_read(&oct->status)) {
+	case OCT_DEV_PCI_MAP_DONE:
+		octeon_unmap_pci_barx(oct, 0);
+		octeon_unmap_pci_barx(oct, 1);
+
+	/* fallthrough */
+	case OCT_DEV_PCI_ENABLE_DONE:
+		pci_clear_master(oct->pci_dev);
+		/* Disable the device, releasing the PCI INT */
+		pci_disable_device(oct->pci_dev);
+
+	/* fallthrough */
+	case OCT_DEV_BEGIN_STATE:
+		/* Nothing to be done here either */
+		break;
+	}
 }
 
 /**
@@ -97,10 +168,75 @@ static void liquidio_vf_remove(struct pci_dev *pdev)
 
 	dev_dbg(&oct_dev->pci_dev->dev, "Stopping device\n");
 
+	/* Reset the octeon device and cleanup all memory allocated for
+	 * the octeon device by driver.
+	 */
+	octeon_destroy_resources(oct_dev);
+
+	dev_info(&oct_dev->pci_dev->dev, "Device removed\n");
+
 	/* This octeon device has been removed. Update the global
 	 * data structure to reflect this. Free the device structure.
 	 */
 	octeon_free_device_mem(oct_dev);
+}
+
+/**
+ * \brief PCI initialization for each Octeon device.
+ * @param oct octeon device
+ */
+static int octeon_pci_os_setup(struct octeon_device *oct)
+{
+#ifdef CONFIG_PCI_IOV
+	/* setup PCI stuff first */
+	if (!oct->pci_dev->physfn)
+		octeon_pci_flr(oct);
+#endif
+
+	if (pci_enable_device(oct->pci_dev)) {
+		dev_err(&oct->pci_dev->dev, "pci_enable_device failed\n");
+		return 1;
+	}
+
+	if (dma_set_mask_and_coherent(&oct->pci_dev->dev, DMA_BIT_MASK(64))) {
+		dev_err(&oct->pci_dev->dev, "Unexpected DMA device capability\n");
+		pci_disable_device(oct->pci_dev);
+		return 1;
+	}
+
+	/* Enable PCI DMA Master. */
+	pci_set_master(oct->pci_dev);
+
+	return 0;
+}
+
+/**
+ * \brief Device initialization for each Octeon device that is probed
+ * @param octeon_dev  octeon device
+ */
+static int octeon_device_init(struct octeon_device *oct)
+{
+	u32 rev_id;
+
+	atomic_set(&oct->status, OCT_DEV_BEGIN_STATE);
+
+	/* Enable access to the octeon device and make its DMA capability
+	 * known to the OS.
+	 */
+	if (octeon_pci_os_setup(oct))
+		return 1;
+	atomic_set(&oct->status, OCT_DEV_PCI_ENABLE_DONE);
+
+	oct->chip_id = OCTEON_CN23XX_VF_VID;
+	pci_read_config_dword(oct->pci_dev, 8, &rev_id);
+	oct->rev_id = rev_id & 0xff;
+
+	if (cn23xx_setup_octeon_vf_device(oct))
+		return 1;
+
+	atomic_set(&oct->status, OCT_DEV_PCI_MAP_DONE);
+
+	return 0;
 }
 
 static int __init liquidio_vf_init(void)
