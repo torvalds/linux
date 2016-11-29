@@ -736,10 +736,8 @@ static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 
 	bitmap_clear(pt->used_ptes, pte, num_entries);
 
-	if (bitmap_empty(pt->used_ptes, GEN8_PTES)) {
-		free_pt(to_i915(vm->dev), pt);
+	if (bitmap_empty(pt->used_ptes, GEN8_PTES))
 		return true;
-	}
 
 	pt_vaddr = kmap_px(pt);
 
@@ -775,13 +773,12 @@ static bool gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 			pde_vaddr = kmap_px(pd);
 			pde_vaddr[pde] = scratch_pde;
 			kunmap_px(ppgtt, pde_vaddr);
+			free_pt(to_i915(vm->dev), pt);
 		}
 	}
 
-	if (bitmap_empty(pd->used_pdes, I915_PDES)) {
-		free_pd(to_i915(vm->dev), pd);
+	if (bitmap_empty(pd->used_pdes, I915_PDES))
 		return true;
-	}
 
 	return false;
 }
@@ -795,7 +792,6 @@ static bool gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 				 uint64_t length)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	struct i915_page_directory *pd;
 	uint64_t pdpe;
 	gen8_ppgtt_pdpe_t *pdpe_vaddr;
@@ -813,16 +809,14 @@ static bool gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 				pdpe_vaddr[pdpe] = scratch_pdpe;
 				kunmap_px(ppgtt, pdpe_vaddr);
 			}
+			free_pd(to_i915(vm->dev), pd);
 		}
 	}
 
 	mark_tlbs_dirty(ppgtt);
 
-	if (USES_FULL_48BIT_PPGTT(dev_priv) &&
-	    bitmap_empty(pdp->used_pdpes, I915_PDPES_PER_PDP(dev_priv))) {
-		free_pdp(dev_priv, pdp);
+	if (bitmap_empty(pdp->used_pdpes, I915_PDPES_PER_PDP(dev_priv)))
 		return true;
-	}
 
 	return false;
 }
@@ -836,6 +830,7 @@ static void gen8_ppgtt_clear_pml4(struct i915_address_space *vm,
 				  uint64_t start,
 				  uint64_t length)
 {
+	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory_pointer *pdp;
 	uint64_t pml4e;
@@ -854,6 +849,7 @@ static void gen8_ppgtt_clear_pml4(struct i915_address_space *vm,
 			pml4e_vaddr = kmap_px(pml4);
 			pml4e_vaddr[pml4e] = scratch_pml4e;
 			kunmap_px(ppgtt, pml4e_vaddr);
+			free_pdp(dev_priv, pdp);
 		}
 	}
 }
