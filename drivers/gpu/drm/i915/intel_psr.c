@@ -813,7 +813,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 
 /**
  * intel_psr_init - Init basic PSR work and mutex.
- * @dev: DRM device
+ * @dev_priv: i915 device private
  *
  * This function is  called only once at driver load to initialize basic
  * PSR stuff.
