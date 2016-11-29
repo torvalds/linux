@@ -258,13 +258,15 @@ enum {
  * where they indicate the size of the integrity check value (ICV)
  */
 enum {
-	AES_CCM_ICV_4   = 4,
-	AES_CCM_ICV_6   = 6,
-	AES_CCM_ICV_8   = 8,
-	AES_CCM_ICV_10  = 10,
-	AES_CCM_ICV_12  = 12,
-	AES_CCM_ICV_14  = 14,
-	AES_CCM_ICV_16 = 16
+	ICV_4  = 4,
+	ICV_6  = 6,
+	ICV_8  = 8,
+	ICV_10 = 10,
+	ICV_12 = 12,
+	ICV_13 = 13,
+	ICV_14 = 14,
+	ICV_15 = 15,
+	ICV_16 = 16
 };
 
 struct hash_op_params {
