@@ -415,6 +415,20 @@ done:
 	return 1;
 }
 
+/* Returns the address of the first read chunk or <nul> if no read chunk
+ * is present
+ */
+static struct rpcrdma_read_chunk *
+svc_rdma_get_read_chunk(struct rpcrdma_msg *rmsgp)
+{
+	struct rpcrdma_read_chunk *ch =
+		(struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
+
+	if (ch->rc_discrim == xdr_zero)
+		return NULL;
+	return ch;
+}
+
 static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 			    struct rpcrdma_msg *rmsgp,
 			    struct svc_rqst *rqstp,
