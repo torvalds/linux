@@ -41,6 +41,7 @@
  */
 
 #include <linux/sunrpc/svc_xprt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/interrupt.h>
@@ -966,6 +967,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct rpcrdma_connect_private pmsg;
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device *dev;
+	struct sockaddr *sap;
 	unsigned int i;
 	int ret = 0;
 
@@ -1046,18 +1048,12 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	qp_attr.qp_type = IB_QPT_RC;
 	qp_attr.send_cq = newxprt->sc_sq_cq;
 	qp_attr.recv_cq = newxprt->sc_rq_cq;
-	dprintk("svcrdma: newxprt->sc_cm_id=%p, newxprt->sc_pd=%p\n"
-		"    cm_id->device=%p, sc_pd->device=%p\n"
-		"    cap.max_send_wr = %d\n"
-		"    cap.max_recv_wr = %d\n"
-		"    cap.max_send_sge = %d\n"
-		"    cap.max_recv_sge = %d\n",
-		newxprt->sc_cm_id, newxprt->sc_pd,
-		dev, newxprt->sc_pd->device,
-		qp_attr.cap.max_send_wr,
-		qp_attr.cap.max_recv_wr,
-		qp_attr.cap.max_send_sge,
-		qp_attr.cap.max_recv_sge);
+	dprintk("svcrdma: newxprt->sc_cm_id=%p, newxprt->sc_pd=%p\n",
+		newxprt->sc_cm_id, newxprt->sc_pd);
+	dprintk("    cap.max_send_wr = %d, cap.max_recv_wr = %d\n",
+		qp_attr.cap.max_send_wr, qp_attr.cap.max_recv_wr);
+	dprintk("    cap.max_send_sge = %d, cap.max_recv_sge = %d\n",
+		qp_attr.cap.max_send_sge, qp_attr.cap.max_recv_sge);
 
 	ret = rdma_create_qp(newxprt->sc_cm_id, newxprt->sc_pd, &qp_attr);
 	if (ret) {
@@ -1140,31 +1136,16 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		goto errout;
 	}
 
-	dprintk("svcrdma: new connection %p accepted with the following "
-		"attributes:\n"
-		"    local_ip        : %pI4\n"
-		"    local_port	     : %d\n"
-		"    remote_ip       : %pI4\n"
-		"    remote_port     : %d\n"
-		"    max_sge         : %d\n"
-		"    max_sge_rd      : %d\n"
-		"    sq_depth        : %d\n"
-		"    max_requests    : %d\n"
-		"    ord             : %d\n",
-		newxprt,
-		&((struct sockaddr_in *)&newxprt->sc_cm_id->
-			 route.addr.src_addr)->sin_addr.s_addr,
-		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
-		       route.addr.src_addr)->sin_port),
-		&((struct sockaddr_in *)&newxprt->sc_cm_id->
-			 route.addr.dst_addr)->sin_addr.s_addr,
-		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
-		       route.addr.dst_addr)->sin_port),
-		newxprt->sc_max_sge,
-		newxprt->sc_max_sge_rd,
-		newxprt->sc_sq_depth,
-		newxprt->sc_max_requests,
-		newxprt->sc_ord);
+	dprintk("svcrdma: new connection %p accepted:\n", newxprt);
+	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
+	dprintk("    local address   : %pIS:%u\n", sap, rpc_get_port(sap));
+	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
+	dprintk("    remote address  : %pIS:%u\n", sap, rpc_get_port(sap));
+	dprintk("    max_sge         : %d\n", newxprt->sc_max_sge);
+	dprintk("    max_sge_rd      : %d\n", newxprt->sc_max_sge_rd);
+	dprintk("    sq_depth        : %d\n", newxprt->sc_sq_depth);
+	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
+	dprintk("    ord             : %d\n", newxprt->sc_ord);
 
 	return &newxprt->sc_xprt;
 
