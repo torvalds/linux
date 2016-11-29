@@ -5708,8 +5708,8 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 	case 2: /* clts */
 		handle_clts(vcpu);
 		trace_kvm_cr_write(0, kvm_read_cr0(vcpu));
-		skip_emulated_instruction(vcpu);
 		vmx_fpu_activate(vcpu);
+		skip_emulated_instruction(vcpu);
 		return 1;
 	case 1: /*mov from cr*/
 		switch (cr) {
@@ -6133,8 +6133,8 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 	if (!kvm_io_bus_write(vcpu, KVM_FAST_MMIO_BUS, gpa, 0, NULL)) {
-		skip_emulated_instruction(vcpu);
 		trace_kvm_fast_mmio(gpa);
+		skip_emulated_instruction(vcpu);
 		return 1;
 	}
 
@@ -6507,8 +6507,8 @@ static int handle_pause(struct kvm_vcpu *vcpu)
 	if (ple_gap)
 		grow_ple_window(vcpu);
 
-	skip_emulated_instruction(vcpu);
 	kvm_vcpu_on_spin(vcpu);
+	skip_emulated_instruction(vcpu);
 
 	return 1;
 }
@@ -6962,8 +6962,8 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 
 	vmx->nested.vmxon = true;
 
-	skip_emulated_instruction(vcpu);
 	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
 	return 1;
 
 out_shadow_vmcs:
@@ -7083,8 +7083,8 @@ static int handle_vmoff(struct kvm_vcpu *vcpu)
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 	free_nested(to_vmx(vcpu));
-	skip_emulated_instruction(vcpu);
 	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
 	return 1;
 }
 
@@ -7124,8 +7124,8 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 
 	nested_free_vmcs02(vmx, vmptr);
 
-	skip_emulated_instruction(vcpu);
 	nested_vmx_succeed(vcpu);
+	skip_emulated_instruction(vcpu);
 	return 1;
 }
 
