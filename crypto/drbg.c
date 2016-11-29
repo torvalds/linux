@@ -262,6 +262,7 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inbuflen,
 			      u8 *outbuf, u32 outlen);
 #define DRBG_CTR_NULL_LEN 128
+#define DRBG_OUTSCRATCHLEN DRBG_CTR_NULL_LEN
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 static int drbg_ctr_bcc(struct drbg_state *drbg,
@@ -1644,6 +1645,9 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 	kfree(drbg->ctr_null_value_buf);
 	drbg->ctr_null_value = NULL;
 
+	kfree(drbg->outscratchpadbuf);
+	drbg->outscratchpadbuf = NULL;
+
 	return 0;
 }
 
@@ -1708,6 +1712,15 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 	drbg->ctr_null_value = (u8 *)PTR_ALIGN(drbg->ctr_null_value_buf,
 					       alignmask + 1);
 
+	drbg->outscratchpadbuf = kmalloc(DRBG_OUTSCRATCHLEN + alignmask,
+					 GFP_KERNEL);
+	if (!drbg->outscratchpadbuf) {
+		drbg_fini_sym_kernel(drbg);
+		return -ENOMEM;
+	}
+	drbg->outscratchpad = (u8 *)PTR_ALIGN(drbg->outscratchpadbuf,
+					      alignmask + 1);
+
 	return alignmask;
 }
 
@@ -1737,15 +1750,16 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *outbuf, u32 outlen)
 {
 	struct scatterlist sg_in;
+	int ret;
 
 	sg_init_one(&sg_in, inbuf, inlen);
 
 	while (outlen) {
-		u32 cryptlen = min_t(u32, inlen, outlen);
+		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
 		struct scatterlist sg_out;
-		int ret;
 
-		sg_init_one(&sg_out, outbuf, cryptlen);
+		/* Output buffer may not be valid for SGL, use scratchpad */
+		sg_init_one(&sg_out, drbg->outscratchpad, cryptlen);
 		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
 					   cryptlen, drbg->V);
 		ret = crypto_skcipher_encrypt(drbg->ctr_req);
@@ -1761,14 +1775,19 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 				break;
 			}
 		default:
-			return ret;
+			goto out;
 		}
 		init_completion(&drbg->ctr_completion);
 
+		memcpy(outbuf, drbg->outscratchpad, cryptlen);
+
 		outlen -= cryptlen;
 	}
+	ret = 0;
 
-	return 0;
+out:
+	memzero_explicit(drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
+	return ret;
 }
 #endif /* CONFIG_CRYPTO_DRBG_CTR */
 
