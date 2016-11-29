@@ -35,33 +35,6 @@ MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
 /**
- * cmd_checkin() - checks in an AFU command
- * @cmd:	AFU command to checkin.
- *
- * Safe to pass commands that have already been checked in. Several
- * internal tracking fields are reset as part of the checkin. Note
- * that these are intentionally reset prior to toggling the free bit
- * to avoid clobbering values in the event that the command is checked
- * out right away.
- */
-static void cmd_checkin(struct afu_cmd *cmd)
-{
-	cmd->rcb.scp = NULL;
-	cmd->rcb.timeout = 0;
-	cmd->sa.ioasc = 0;
-	cmd->cmd_tmf = false;
-	cmd->sa.host_use[0] = 0; /* clears both completion and retry bytes */
-
-	if (unlikely(atomic_inc_return(&cmd->free) != 1)) {
-		pr_err("%s: Freeing cmd (%d) that is not in use!\n",
-		       __func__, cmd->slot);
-		return;
-	}
-
-	pr_devel("%s: released cmd %p index=%d\n", __func__, cmd, cmd->slot);
-}
-
-/**
  * process_cmd_err() - command error handler
  * @cmd:	AFU command that experienced the error.
  * @scp:	SCSI command associated with the AFU command in error.
@@ -560,28 +533,12 @@ static void free_mem(struct cxlflash_cfg *cfg)
  *
  * Cleans up all state associated with the command queue, and unmaps
  * the MMIO space.
- *
- *  - complete() will take care of commands we initiated (they'll be checked
- *  in as part of the cleanup that occurs after the completion)
- *
- *  - cmd_checkin() will take care of entries that we did not initiate and that
- *  have not (and will not) complete because they are sitting on a [now stale]
- *  hardware queue
  */
 static void stop_afu(struct cxlflash_cfg *cfg)
 {
-	int i;
 	struct afu *afu = cfg->afu;
-	struct afu_cmd *cmd;
 
 	if (likely(afu)) {
-		for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-			cmd = &afu->cmd[i];
-			complete(&cmd->cevent);
-			if (!atomic_read(&cmd->free))
-				cmd_checkin(cmd);
-		}
-
 		if (likely(afu->afu_map)) {
 			cxl_psa_unmap((void __iomem *)afu->afu_map);
 			afu->afu_map = NULL;
@@ -794,7 +751,6 @@ static void cxlflash_remove(struct pci_dev *pdev)
 static int alloc_mem(struct cxlflash_cfg *cfg)
 {
 	int rc = 0;
-	int i;
 	struct device *dev = &cfg->dev->dev;
 
 	/* AFU is ~12k, i.e. only one 64k page or up to four 4k pages */
@@ -808,12 +764,6 @@ static int alloc_mem(struct cxlflash_cfg *cfg)
 	}
 	cfg->afu->parent = cfg;
 	cfg->afu->afu_map = NULL;
-
-	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-		atomic_set(&cfg->afu->cmd[i].free, 1);
-		cfg->afu->cmd[i].slot = i;
-	}
-
 out:
 	return rc;
 }
@@ -1443,13 +1393,6 @@ static void init_pcr(struct cxlflash_cfg *cfg)
 
 	/* Program the Endian Control for the master context */
 	writeq_be(SISL_ENDIAN_CTRL, &afu->host_map->endian_ctrl);
-
-	/* Initialize cmd fields that never change */
-	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-		afu->cmd[i].rcb.ctx_id = afu->ctx_hndl;
-		afu->cmd[i].rcb.msi = SISL_MSI_RRQ_UPDATED;
-		afu->cmd[i].rcb.rrq = 0x0;
-	}
 }
 
 /**
@@ -1538,18 +1481,7 @@ out:
 static int start_afu(struct cxlflash_cfg *cfg)
 {
 	struct afu *afu = cfg->afu;
-	struct afu_cmd *cmd;
-
-	int i = 0;
 	int rc = 0;
-
-	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-		cmd = &afu->cmd[i];
-
-		init_completion(&cmd->cevent);
-		spin_lock_init(&cmd->slock);
-		cmd->parent = afu;
-	}
 
 	init_pcr(cfg);
 

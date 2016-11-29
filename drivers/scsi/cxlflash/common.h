@@ -136,8 +136,6 @@ struct afu_cmd {
 	spinlock_t slock;
 	struct completion cevent;
 	struct afu *parent;
-	int slot;
-	atomic_t free;
 
 	u8 cmd_tmf:1;
 
@@ -164,10 +162,6 @@ struct afu {
 	/* Stuff requiring alignment go first. */
 
 	u64 rrq_entry[NUM_RRQ_ENTRY];	/* 2K RRQ */
-	/*
-	 * Command & data for AFU commands.
-	 */
-	struct afu_cmd cmd[CXLFLASH_NUM_CMDS];
 
 	/* Beware of alignment till here. Preferably introduce new
 	 * fields after this point
@@ -189,7 +183,6 @@ struct afu {
 	s64 room;
 	spinlock_t rrin_slock; /* Lock to rrin queuing and cmd_room updates */
 	u64 hb;
-	u32 cmd_couts;		/* Number of command checkouts */
 	u32 internal_lun;	/* User-desired LUN mode for this AFU */
 
 	char version[16];
