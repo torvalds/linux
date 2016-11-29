@@ -53,7 +53,7 @@
 
 typedef void (*crash_shutdown_t)(void);
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 
 /*
  * This function is responsible for capturing register states if coming
@@ -91,7 +91,7 @@ static inline bool kdump_in_progress(void)
 	return crashing_cpu >= 0;
 }
 
-#else /* !CONFIG_KEXEC */
+#else /* !CONFIG_KEXEC_CORE */
 static inline void crash_kexec_secondary(struct pt_regs *regs) { }
 
 static inline int overlaps_crashkernel(unsigned long start, unsigned long size)
@@ -116,7 +116,7 @@ static inline bool kdump_in_progress(void)
 	return false;
 }
 
-#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_KEXEC_CORE */
 #endif /* ! __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

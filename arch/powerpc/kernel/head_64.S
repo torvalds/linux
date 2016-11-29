@@ -160,7 +160,7 @@ __secondary_hold:
 	cmpdi	0,r12,0
 	beq	100b
 
-#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 #ifdef CONFIG_PPC_BOOK3E
 	tovirt(r12,r12)
 #endif

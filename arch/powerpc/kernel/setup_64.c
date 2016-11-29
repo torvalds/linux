@@ -346,7 +346,7 @@ void early_setup_secondary(void)
 
 #endif /* CONFIG_SMP */
 
-#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 static bool use_spinloop(void)
 {
 	if (!IS_ENABLED(CONFIG_PPC_BOOK3E))
@@ -391,7 +391,7 @@ void smp_release_cpus(void)
 
 	DBG(" <- smp_release_cpus()\n");
 }
-#endif /* CONFIG_SMP || CONFIG_KEXEC */
+#endif /* CONFIG_SMP || CONFIG_KEXEC_CORE */
 
 /*
  * Initialize some remaining members of the ppc64_caches and systemcfg
