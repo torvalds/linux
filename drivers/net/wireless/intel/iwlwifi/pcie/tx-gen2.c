@@ -107,9 +107,7 @@ static void iwl_pcie_gen2_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 * if not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx).
 	 */
-	if (!txq->block)
-		iwl_write32(trans, HBUS_TARG_WRPTR,
-			    txq->write_ptr | (txq->id << 16));
+	iwl_write32(trans, HBUS_TARG_WRPTR, txq->write_ptr | (txq->id << 16));
 }
 
 static u8 iwl_pcie_gen2_get_num_tbs(struct iwl_trans *trans,
@@ -341,19 +339,8 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* start timer if queue currently empty */
 	if (txq->read_ptr == txq->write_ptr) {
-		if (txq->wd_timeout) {
-			/*
-			 * If the TXQ is active, then set the timer, if not,
-			 * set the timer in remainder so that the timer will
-			 * be armed with the right value when the station will
-			 * wake up.
-			 */
-			if (!txq->frozen)
-				mod_timer(&txq->stuck_timer,
-					  jiffies + txq->wd_timeout);
-			else
-				txq->frozen_expiry_remainder = txq->wd_timeout;
-		}
+		if (txq->wd_timeout)
+			mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", txq->id);
 		iwl_trans_ref(trans);
 	}
@@ -842,9 +829,6 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	trans_pcie->txq[queue].frozen_expiry_remainder = 0;
-	trans_pcie->txq[queue].frozen = false;
 
 	/*
 	 * Upon HW Rfkill - we stop the device, and then stop the queues

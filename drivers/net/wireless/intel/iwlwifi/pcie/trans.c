@@ -2925,9 +2925,6 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 
 	.txq_alloc = iwl_trans_pcie_dyn_txq_alloc,
 	.txq_free = iwl_trans_pcie_dyn_txq_free,
-
-	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
-	.block_txq_ptrs = iwl_trans_pcie_block_txq_ptrs,
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
