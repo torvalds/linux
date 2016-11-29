@@ -531,7 +531,7 @@ static void free_mem(struct cxlflash_cfg *cfg)
  *
  * Safe to call with AFU in a partially allocated/initialized state.
  *
- * Cleans up all state associated with the command queue, and unmaps
+ * Waits for any active internal AFU commands to timeout and then unmaps
  * the MMIO space.
  */
 static void stop_afu(struct cxlflash_cfg *cfg)
@@ -539,6 +539,8 @@ static void stop_afu(struct cxlflash_cfg *cfg)
 	struct afu *afu = cfg->afu;
 
 	if (likely(afu)) {
+		while (atomic_read(&afu->cmds_active))
+			ssleep(1);
 		if (likely(afu->afu_map)) {
 			cxl_psa_unmap((void __iomem *)afu->afu_map);
 			afu->afu_map = NULL;
@@ -1721,6 +1723,7 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	}
 
 	mutex_lock(&sync_active);
+	atomic_inc(&afu->cmds_active);
 	buf = kzalloc(sizeof(*cmd) + __alignof__(*cmd) - 1, GFP_KERNEL);
 	if (unlikely(!buf)) {
 		dev_err(dev, "%s: no memory for command\n", __func__);
@@ -1762,6 +1765,7 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 		     (cmd->sa.host_use_b[0] & B_ERROR)))
 		rc = -1;
 out:
+	atomic_dec(&afu->cmds_active);
 	mutex_unlock(&sync_active);
 	kfree(buf);
 	pr_debug("%s: returning rc=%d\n", __func__, rc);

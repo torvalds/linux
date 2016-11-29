@@ -180,6 +180,7 @@ struct afu {
 	u64 *hrrq_end;
 	u64 *hrrq_curr;
 	bool toggle;
+	atomic_t cmds_active;	/* Number of currently active AFU commands */
 	s64 room;
 	spinlock_t rrin_slock; /* Lock to rrin queuing and cmd_room updates */
 	u64 hb;
