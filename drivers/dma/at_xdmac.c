@@ -444,9 +444,8 @@ static struct at_xdmac_desc *at_xdmac_alloc_desc(struct dma_chan *chan,
 	struct at_xdmac		*atxdmac = to_at_xdmac(chan->device);
 	dma_addr_t		phys;
 
-	desc = dma_pool_alloc(atxdmac->at_xdmac_desc_pool, gfp_flags, &phys);
+	desc = dma_pool_zalloc(atxdmac->at_xdmac_desc_pool, gfp_flags, &phys);
 	if (desc) {
-		memset(desc, 0, sizeof(*desc));
 		INIT_LIST_HEAD(&desc->descs_list);
 		dma_async_tx_descriptor_init(&desc->tx_dma_desc, chan);
 		desc->tx_dma_desc.tx_submit = at_xdmac_tx_submit;
