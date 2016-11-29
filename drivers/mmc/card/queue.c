@@ -186,6 +186,33 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 		queue_flag_set_unlocked(QUEUE_FLAG_SECERASE, q);
 }
 
+#ifdef CONFIG_MMC_BLOCK_BOUNCE
+static bool mmc_queue_alloc_bounce_bufs(struct mmc_queue *mq,
+					unsigned int bouncesz)
+{
+	struct mmc_queue_req *mqrq_cur = mq->mqrq_cur;
+	struct mmc_queue_req *mqrq_prev = mq->mqrq_prev;
+
+	mqrq_cur->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
+	if (!mqrq_cur->bounce_buf) {
+		pr_warn("%s: unable to allocate bounce cur buffer\n",
+			mmc_card_name(mq->card));
+		return false;
+	}
+
+	mqrq_prev->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
+	if (!mqrq_prev->bounce_buf) {
+		pr_warn("%s: unable to allocate bounce prev buffer\n",
+			mmc_card_name(mq->card));
+		kfree(mqrq_cur->bounce_buf);
+		mqrq_cur->bounce_buf = NULL;
+		return false;
+	}
+
+	return true;
+}
+#endif
+
 /**
  * mmc_init_queue - initialise a queue structure.
  * @mq: mmc queue
@@ -235,24 +262,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		if (bouncesz > (host->max_blk_count * 512))
 			bouncesz = host->max_blk_count * 512;
 
-		if (bouncesz > 512) {
-			mqrq_cur->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
-			if (!mqrq_cur->bounce_buf) {
-				pr_warn("%s: unable to allocate bounce cur buffer\n",
-					mmc_card_name(card));
-			} else {
-				mqrq_prev->bounce_buf =
-						kmalloc(bouncesz, GFP_KERNEL);
-				if (!mqrq_prev->bounce_buf) {
-					pr_warn("%s: unable to allocate bounce prev buffer\n",
-						mmc_card_name(card));
-					kfree(mqrq_cur->bounce_buf);
-					mqrq_cur->bounce_buf = NULL;
-				}
-			}
-		}
-
-		if (mqrq_cur->bounce_buf && mqrq_prev->bounce_buf) {
+		if (bouncesz > 512 &&
+		    mmc_queue_alloc_bounce_bufs(mq, bouncesz)) {
 			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
 			blk_queue_max_hw_sectors(mq->queue, bouncesz / 512);
 			blk_queue_max_segments(mq->queue, bouncesz / 512);
