@@ -372,6 +372,10 @@ static int smu7_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 		entry->image_addr_low = smu_lower_32_bits(info.mc_addr);
 		entry->meta_data_addr_high = 0;
 		entry->meta_data_addr_low = 0;
+
+		/* digest need be excluded out */
+		if (cgs_is_virtualization_enabled(smumgr->device))
+			info.image_size -= 20;
 		entry->data_size_byte = info.image_size;
 		entry->num_register_entries = 0;
 	}
