@@ -53,14 +53,38 @@ enum KTHREAD_BITS {
 	KTHREAD_IS_PARKED,
 };
 
-#define __to_kthread(vfork)	\
-	container_of(vfork, struct kthread, exited)
+static inline void set_kthread_struct(void *kthread)
+{
+	/*
+	 * We abuse ->set_child_tid to avoid the new member and because it
+	 * can't be wrongly copied by copy_process(). We also rely on fact
+	 * that the caller can't exec, so PF_KTHREAD can't be cleared.
+	 */
+	current->set_child_tid = (__force void __user *)kthread;
+}
 
 static inline struct kthread *to_kthread(struct task_struct *k)
 {
-	return __to_kthread(k->vfork_done);
+	WARN_ON(!(k->flags & PF_KTHREAD));
+	return (__force void *)k->set_child_tid;
 }
 
+void free_kthread_struct(struct task_struct *k)
+{
+	/*
+	 * Can be NULL if this kthread was created by kernel_thread()
+	 * or if kmalloc() in kthread() failed.
+	 */
+	kfree(to_kthread(k));
+}
+
+#define __to_kthread(vfork)	\
+	container_of(vfork, struct kthread, exited)
+
+/*
+ * TODO: kill it and use to_kthread(). But we still need the users
+ * like kthread_stop() which has to sync with the exiting kthread.
+ */
 static struct kthread *to_live_kthread(struct task_struct *k)
 {
 	struct completion *vfork = ACCESS_ONCE(k->vfork_done);
@@ -181,14 +205,11 @@ static int kthread(void *_create)
 	int (*threadfn)(void *data) = create->threadfn;
 	void *data = create->data;
 	struct completion *done;
-	struct kthread self;
+	struct kthread *self;
 	int ret;
 
-	self.flags = 0;
-	self.data = data;
-	init_completion(&self.exited);
-	init_completion(&self.parked);
-	current->vfork_done = &self.exited;
+	self = kmalloc(sizeof(*self), GFP_KERNEL);
+	set_kthread_struct(self);
 
 	/* If user was SIGKILLed, I release the structure. */
 	done = xchg(&create->done, NULL);
@@ -196,6 +217,19 @@ static int kthread(void *_create)
 		kfree(create);
 		do_exit(-EINTR);
 	}
+
+	if (!self) {
+		create->result = ERR_PTR(-ENOMEM);
+		complete(done);
+		do_exit(-ENOMEM);
+	}
+
+	self->flags = 0;
+	self->data = data;
+	init_completion(&self->exited);
+	init_completion(&self->parked);
+	current->vfork_done = &self->exited;
+
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	create->result = current;
@@ -203,12 +237,10 @@ static int kthread(void *_create)
 	schedule();
 
 	ret = -EINTR;
-
-	if (!test_bit(KTHREAD_SHOULD_STOP, &self.flags)) {
-		__kthread_parkme(&self);
+	if (!test_bit(KTHREAD_SHOULD_STOP, &self->flags)) {
+		__kthread_parkme(self);
 		ret = threadfn(data);
 	}
-	/* we can't just return, we must preserve "self" on stack */
 	do_exit(ret);
 }
 
