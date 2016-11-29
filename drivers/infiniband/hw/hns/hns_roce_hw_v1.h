@@ -102,6 +102,12 @@
 #define HNS_ROCE_V1_EXT_ODB_ALFUL	\
 	(HNS_ROCE_V1_EXT_ODB_DEPTH - HNS_ROCE_V1_DB_RSVD)
 
+#define HNS_ROCE_V1_DB_WAIT_OK				0
+#define HNS_ROCE_V1_DB_STAGE1				1
+#define HNS_ROCE_V1_DB_STAGE2				2
+#define HNS_ROCE_V1_CHECK_DB_TIMEOUT_MSECS		10000
+#define HNS_ROCE_V1_CHECK_DB_SLEEP_MSECS		20
+
 #define HNS_ROCE_BT_RSV_BUF_SIZE			(1 << 17)
 
 #define HNS_ROCE_V1_TPTR_ENTRY_SIZE			2
@@ -144,6 +150,7 @@
 #define SQ_PSN_SHIFT					8
 #define QKEY_VAL					0x80010000
 #define SDB_INV_CNT_OFFSET				8
+#define SDB_ST_CMP_VAL					8
 
 struct hns_roce_cq_context {
 	u32 cqc_byte_4;
@@ -993,11 +1000,27 @@ struct hns_roce_tptr_table {
 	struct hns_roce_buf_list tptr_buf;
 };
 
+struct hns_roce_qp_work {
+	struct	work_struct work;
+	struct	ib_device *ib_dev;
+	struct	hns_roce_qp *qp;
+	u32	db_wait_stage;
+	u32	sdb_issue_ptr;
+	u32	sdb_inv_cnt;
+	u32	sche_cnt;
+};
+
+struct hns_roce_des_qp {
+	struct workqueue_struct	*qp_wq;
+	int	requeue_flag;
+};
+
 struct hns_roce_v1_priv {
 	struct hns_roce_db_table  db_table;
 	struct hns_roce_raq_table raq_table;
 	struct hns_roce_bt_table  bt_table;
 	struct hns_roce_tptr_table tptr_table;
+	struct hns_roce_des_qp des_qp;
 };
 
 int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset);
