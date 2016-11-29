@@ -164,6 +164,16 @@ static ssize_t mode_store(struct device *dev,
 	else
 		config->ctrl &= ~ETMCR_CTXID_SIZE;
 
+	if (config->mode & ETM_MODE_BBROAD)
+		config->ctrl |= ETMCR_BRANCH_BROADCAST;
+	else
+		config->ctrl &= ~ETMCR_BRANCH_BROADCAST;
+
+	if (config->mode & ETM_MODE_RET_STACK)
+		config->ctrl |= ETMCR_RETURN_STACK;
+	else
+		config->ctrl &= ~ETMCR_RETURN_STACK;
+
 	if (config->mode & (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
 		etm_config_trace_mode(config);
 
