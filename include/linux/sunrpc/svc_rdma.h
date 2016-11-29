@@ -148,7 +148,6 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
-	atomic_t	     sc_dma_used;
 	spinlock_t	     sc_ctxt_lock;
 	struct list_head     sc_ctxts;
 	int		     sc_ctxt_used;
@@ -200,7 +199,6 @@ static inline void svc_rdma_count_mappings(struct svcxprt_rdma *rdma,
 					   struct svc_rdma_op_ctxt *ctxt)
 {
 	ctxt->mapped_sges++;
-	atomic_inc(&rdma->sc_dma_used);
 }
 
 /* svc_rdma_backchannel.c */

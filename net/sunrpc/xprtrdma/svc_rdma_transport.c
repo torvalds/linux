@@ -224,25 +224,22 @@ void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 	struct svcxprt_rdma *xprt = ctxt->xprt;
 	struct ib_device *device = xprt->sc_cm_id->device;
 	u32 lkey = xprt->sc_pd->local_dma_lkey;
-	unsigned int i, count;
+	unsigned int i;
 
-	for (count = 0, i = 0; i < ctxt->mapped_sges; i++) {
+	for (i = 0; i < ctxt->mapped_sges; i++) {
 		/*
 		 * Unmap the DMA addr in the SGE if the lkey matches
 		 * the local_dma_lkey, otherwise, ignore it since it is
 		 * an FRMR lkey and will be unmapped later when the
 		 * last WR that uses it completes.
 		 */
-		if (ctxt->sge[i].lkey == lkey) {
-			count++;
+		if (ctxt->sge[i].lkey == lkey)
 			ib_dma_unmap_page(device,
 					    ctxt->sge[i].addr,
 					    ctxt->sge[i].length,
 					    ctxt->direction);
-		}
 	}
 	ctxt->mapped_sges = 0;
-	atomic_sub(count, &xprt->sc_dma_used);
 }
 
 void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
@@ -944,7 +941,6 @@ void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
 	if (frmr) {
 		ib_dma_unmap_sg(rdma->sc_cm_id->device,
 				frmr->sg, frmr->sg_nents, frmr->direction);
-		atomic_dec(&rdma->sc_dma_used);
 		spin_lock_bh(&rdma->sc_frmr_q_lock);
 		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
 		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
@@ -1256,9 +1252,6 @@ static void __svc_rdma_free(struct work_struct *work)
 	if (rdma->sc_ctxt_used != 0)
 		pr_err("svcrdma: ctxt still in use? (%d)\n",
 		       rdma->sc_ctxt_used);
-	if (atomic_read(&rdma->sc_dma_used) != 0)
-		pr_err("svcrdma: dma still in use? (%d)\n",
-		       atomic_read(&rdma->sc_dma_used));
 
 	/* Final put of backchannel client transport */
 	if (xprt->xpt_bc_xprt) {

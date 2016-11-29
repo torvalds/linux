@@ -279,7 +279,6 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 		       frmr->sg);
 		return -ENOMEM;
 	}
-	atomic_inc(&xprt->sc_dma_used);
 
 	n = ib_map_mr_sg(frmr->mr, frmr->sg, frmr->sg_nents, NULL, PAGE_SIZE);
 	if (unlikely(n != frmr->sg_nents)) {
