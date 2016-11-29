@@ -788,19 +788,13 @@ static int cpsw_tx_poll(struct napi_struct *napi_tx, int budget)
 
 	/* process every unprocessed channel */
 	ch_map = cpdma_ctrl_txchs_state(cpsw->dma);
-	for (ch = 0, num_tx = 0; num_tx < budget; ch_map >>= 1, ch++) {
-		if (!ch_map) {
-			ch_map = cpdma_ctrl_txchs_state(cpsw->dma);
-			if (!ch_map)
-				break;
-
-			ch = 0;
-		}
-
+	for (ch = 0, num_tx = 0; ch_map; ch_map >>= 1, ch++) {
 		if (!(ch_map & 0x01))
 			continue;
 
 		num_tx += cpdma_chan_process(cpsw->txch[ch], budget - num_tx);
+		if (num_tx >= budget)
+			break;
 	}
 
 	if (num_tx < budget) {
@@ -823,19 +817,13 @@ static int cpsw_rx_poll(struct napi_struct *napi_rx, int budget)
 
 	/* process every unprocessed channel */
 	ch_map = cpdma_ctrl_rxchs_state(cpsw->dma);
-	for (ch = 0, num_rx = 0; num_rx < budget; ch_map >>= 1, ch++) {
-		if (!ch_map) {
-			ch_map = cpdma_ctrl_rxchs_state(cpsw->dma);
-			if (!ch_map)
-				break;
-
-			ch = 0;
-		}
-
+	for (ch = 0, num_rx = 0; ch_map; ch_map >>= 1, ch++) {
 		if (!(ch_map & 0x01))
 			continue;
 
 		num_rx += cpdma_chan_process(cpsw->rxch[ch], budget - num_rx);
+		if (num_rx >= budget)
+			break;
 	}
 
 	if (num_rx < budget) {
