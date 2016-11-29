@@ -395,6 +395,6 @@ int sm750_hw_imageblit(struct lynx_accel *accel,
 		pSrcbuf += srcDelta;
 	}
 
-	    return 0;
+	return 0;
 }
 
