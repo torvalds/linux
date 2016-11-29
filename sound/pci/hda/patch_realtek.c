@@ -5917,6 +5917,9 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x12, 0x90a60180},
 		{0x14, 0x90170120},
 		{0x21, 0x02211030}),
+	SND_HDA_PIN_QUIRK(0x10ec0255, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
+		{0x1b, 0x01011020},
+		{0x21, 0x02211010}),
 	SND_HDA_PIN_QUIRK(0x10ec0256, 0x1028, "Dell", ALC255_FIXUP_DELL1_MIC_NO_PRESENCE,
 		{0x12, 0x90a60160},
 		{0x14, 0x90170120},
@@ -6907,8 +6910,6 @@ static const struct hda_fixup alc662_fixups[] = {
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x15, 0x40f000f0 }, /* disabled */
 			{ 0x16, 0x40f000f0 }, /* disabled */
-			{ 0x18, 0x01014011 }, /* LO */
-			{ 0x1a, 0x01014012 }, /* LO */
 			{ }
 		}
 	},
