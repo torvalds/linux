@@ -221,7 +221,8 @@ void drm_plane_cleanup(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_fini(&plane->mutex);
+
 	kfree(plane->format_types);
 	drm_mode_object_unregister(dev, &plane->base);
 
@@ -236,7 +237,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	dev->mode_config.num_total_plane--;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		dev->mode_config.num_overlay_plane--;
-	drm_modeset_unlock_all(dev);
 
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
