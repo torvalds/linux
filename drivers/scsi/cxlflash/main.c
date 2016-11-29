@@ -151,7 +151,7 @@ static void process_cmd_err(struct afu_cmd *cmd, struct scsi_cmnd *scp)
  *
  * Prepares and submits command that has either completed or timed out to
  * the SCSI stack. Checks AFU command back into command pool for non-internal
- * (rcb.scp populated) commands.
+ * (cmd->scp populated) commands.
  */
 static void cmd_complete(struct afu_cmd *cmd)
 {
@@ -161,8 +161,8 @@ static void cmd_complete(struct afu_cmd *cmd)
 	struct cxlflash_cfg *cfg = afu->parent;
 	bool cmd_is_tmf;
 
-	if (cmd->rcb.scp) {
-		scp = cmd->rcb.scp;
+	if (cmd->scp) {
+		scp = cmd->scp;
 		if (unlikely(cmd->sa.ioasc))
 			process_cmd_err(cmd, scp);
 		else
@@ -315,7 +315,7 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	cfg->tmf_active = true;
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 
-	cmd->rcb.scp = scp;
+	cmd->scp = scp;
 	cmd->parent = afu;
 	cmd->cmd_tmf = true;
 
@@ -445,7 +445,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 		cmd->rcb.data_ea = sg_dma_address(sg);
 	}
 
-	cmd->rcb.scp = scp;
+	cmd->scp = scp;
 	cmd->parent = afu;
 
 	cmd->rcb.ctx_id = afu->ctx_hndl;

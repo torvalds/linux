@@ -129,6 +129,7 @@ struct afu_cmd {
 	struct sisl_ioarcb rcb;	/* IOARCB (cache line aligned) */
 	struct sisl_ioasa sa;	/* IOASA must follow IOARCB */
 	struct afu *parent;
+	struct scsi_cmnd *scp;
 	struct completion cevent;
 
 	u8 cmd_tmf:1;
