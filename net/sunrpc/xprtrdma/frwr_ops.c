@@ -101,7 +101,7 @@ frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *r)
 	struct rpcrdma_frmr *f = &r->frmr;
 	int rc;
 
-	f->fr_mr = ib_alloc_mr(ia->ri_pd, IB_MR_TYPE_MEM_REG, depth);
+	f->fr_mr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype, depth);
 	if (IS_ERR(f->fr_mr))
 		goto out_mr_err;
 
@@ -157,7 +157,7 @@ __frwr_reset_mr(struct rpcrdma_ia *ia, struct rpcrdma_mw *r)
 		return rc;
 	}
 
-	f->fr_mr = ib_alloc_mr(ia->ri_pd, IB_MR_TYPE_MEM_REG,
+	f->fr_mr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype,
 			       ia->ri_max_frmr_depth);
 	if (IS_ERR(f->fr_mr)) {
 		pr_warn("rpcrdma: ib_alloc_mr status %ld, frwr %p orphaned\n",
@@ -210,11 +210,16 @@ static int
 frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	     struct rpcrdma_create_data_internal *cdata)
 {
+	struct ib_device_attr *attrs = &ia->ri_device->attrs;
 	int depth, delta;
+
+	ia->ri_mrtype = IB_MR_TYPE_MEM_REG;
+	if (attrs->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+		ia->ri_mrtype = IB_MR_TYPE_SG_GAPS;
 
 	ia->ri_max_frmr_depth =
 			min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
-			      ia->ri_device->attrs.max_fast_reg_page_list_len);
+			      attrs->max_fast_reg_page_list_len);
 	dprintk("RPC:       %s: device's max FR page list len = %u\n",
 		__func__, ia->ri_max_frmr_depth);
 
@@ -241,8 +246,8 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	}
 
 	ep->rep_attr.cap.max_send_wr *= depth;
-	if (ep->rep_attr.cap.max_send_wr > ia->ri_device->attrs.max_qp_wr) {
-		cdata->max_requests = ia->ri_device->attrs.max_qp_wr / depth;
+	if (ep->rep_attr.cap.max_send_wr > attrs->max_qp_wr) {
+		cdata->max_requests = attrs->max_qp_wr / depth;
 		if (!cdata->max_requests)
 			return -EINVAL;
 		ep->rep_attr.cap.max_send_wr = cdata->max_requests *
@@ -348,6 +353,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	    int nsegs, bool writing, struct rpcrdma_mw **out)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	bool holes_ok = ia->ri_mrtype == IB_MR_TYPE_SG_GAPS;
 	struct rpcrdma_mw *mw;
 	struct rpcrdma_frmr *frmr;
 	struct ib_mr *mr;
@@ -383,8 +389,8 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 		++seg;
 		++i;
-
-		/* Check for holes */
+		if (holes_ok)
+			continue;
 		if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
 			break;
