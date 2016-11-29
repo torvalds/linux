@@ -415,6 +415,10 @@ static inline __u32 ext4_iflags_to_xflags(unsigned long iflags)
 	return xflags;
 }
 
+#define EXT4_SUPPORTED_FS_XFLAGS (FS_XFLAG_SYNC | FS_XFLAG_IMMUTABLE | \
+				  FS_XFLAG_APPEND | FS_XFLAG_NODUMP | \
+				  FS_XFLAG_NOATIME | FS_XFLAG_PROJINHERIT)
+
 /* Transfer xflags flags to internal */
 static inline unsigned long ext4_xflags_to_iflags(__u32 xflags)
 {
@@ -459,11 +463,21 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (get_user(flags, (int __user *) arg))
 			return -EFAULT;
 
+		if (flags & ~EXT4_FL_USER_VISIBLE)
+			return -EOPNOTSUPP;
+		/*
+		 * chattr(1) grabs flags via GETFLAGS, modifies the result and
+		 * passes that to SETFLAGS. So we cannot easily make SETFLAGS
+		 * more restrictive than just silently masking off visible but
+		 * not settable flags as we always did.
+		 */
+		flags &= EXT4_FL_USER_MODIFIABLE;
+		if (ext4_mask_flags(inode->i_mode, flags) != flags)
+			return -EOPNOTSUPP;
+
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
-
-		flags = ext4_mask_flags(inode->i_mode, flags);
 
 		inode_lock(inode);
 		err = ext4_ioctl_setflags(inode, flags);
@@ -871,12 +885,16 @@ resizefs_out:
 		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
+		if (fa.fsx_xflags & ~EXT4_SUPPORTED_FS_XFLAGS)
+			return -EOPNOTSUPP;
+
+		flags = ext4_xflags_to_iflags(fa.fsx_xflags);
+		if (ext4_mask_flags(inode->i_mode, flags) != flags)
+			return -EOPNOTSUPP;
+
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
-
-		flags = ext4_xflags_to_iflags(fa.fsx_xflags);
-		flags = ext4_mask_flags(inode->i_mode, flags);
 
 		inode_lock(inode);
 		flags = (ei->i_flags & ~EXT4_FL_XFLAG_VISIBLE) |
