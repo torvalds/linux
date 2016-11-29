@@ -2629,8 +2629,12 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	if (perf_session__set_tracepoints_handlers(session, handlers))
 		goto out;
 
-	if (!perf_session__has_traces(session, "record -R"))
+	/* sched_switch event at a minimum needs to exist */
+	if (!perf_evlist__find_tracepoint_by_name(session->evlist,
+						  "sched:sched_switch")) {
+		pr_err("No sched_switch events found. Have you run 'perf sched record'?\n");
 		goto out;
+	}
 
 	if (sched->show_migrations &&
 	    perf_session__set_tracepoints_handlers(session, migrate_handlers))
