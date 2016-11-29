@@ -920,6 +920,11 @@ static struct amba_id stm_ids[] = {
 		.mask   = 0x0003ffff,
 		.data	= "STM32",
 	},
+	{
+		.id	= 0x0003b963,
+		.mask	= 0x0003ffff,
+		.data	= "STM500",
+	},
 	{ 0, 0},
 };
 
