@@ -134,8 +134,8 @@ static int guc_update_doorbell_id(struct intel_guc *guc,
 
 	/* Activate the new doorbell */
 	__set_bit(new_id, doorbell_bitmap);
-	doorbell->cookie = 0;
 	doorbell->db_status = GUC_DOORBELL_ENABLED;
+	doorbell->cookie = client->doorbell_cookie;
 	return guc_allocate_doorbell(guc, client);
 }
 
