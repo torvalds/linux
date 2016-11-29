@@ -215,7 +215,7 @@ static void *etm_setup_aux(int event_cpu, void **pages,
 	 */
 	sink = coresight_get_enabled_sink(true);
 	if (!sink)
-		return NULL;
+		goto err;
 
 	INIT_WORK(&event_data->work, free_event_data);
 
