@@ -843,9 +843,6 @@ static int hns_roce_probe(struct platform_device *pdev)
 	if (!hr_dev)
 		return -ENOMEM;
 
-	memset((u8 *)hr_dev + sizeof(struct ib_device), 0,
-		sizeof(struct hns_roce_dev) - sizeof(struct ib_device));
-
 	hr_dev->pdev = pdev;
 	platform_set_drvdata(pdev, hr_dev);
 
