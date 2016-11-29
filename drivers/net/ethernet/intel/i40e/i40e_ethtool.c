@@ -2072,7 +2072,7 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 	struct i40e_q_vector *q_vector;
 	u16 vector, intrl;
 
-	intrl = INTRL_USEC_TO_REG(vsi->int_rate_limit);
+	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
 	vsi->rx_rings[queue]->rx_itr_setting = ec->rx_coalesce_usecs;
 	vsi->tx_rings[queue]->tx_itr_setting = ec->tx_coalesce_usecs;

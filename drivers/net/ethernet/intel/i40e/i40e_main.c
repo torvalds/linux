@@ -3268,7 +3268,7 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 		wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1),
 		     q_vector->tx.itr);
 		wr32(hw, I40E_PFINT_RATEN(vector - 1),
-		     INTRL_USEC_TO_REG(vsi->int_rate_limit));
+		     i40e_intrl_usec_to_reg(vsi->int_rate_limit));
 
 		/* Linked list for the queuepairs assigned to this vector */
 		wr32(hw, I40E_PFINT_LNKLSTN(vector - 1), qp);
