@@ -572,24 +572,13 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 	unsigned int count;
 
 	/* Reading the EDID only works if the device is powered */
-	if (!adv7511->powered) {
-		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
-				   ADV7511_POWER_POWER_DOWN, 0);
-		if (adv7511->i2c_main->irq) {
-			regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(0),
-				     ADV7511_INT0_EDID_READY);
-			regmap_write(adv7511->regmap, ADV7511_REG_INT_ENABLE(1),
-				     ADV7511_INT1_DDC_ERROR);
-		}
-		adv7511->current_edid_segment = -1;
-	}
+	if (!adv7511->powered)
+		__adv7511_power_on(adv7511);
 
 	edid = drm_do_get_edid(connector, adv7511_get_edid_block, adv7511);
 
 	if (!adv7511->powered)
-		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
-				   ADV7511_POWER_POWER_DOWN,
-				   ADV7511_POWER_POWER_DOWN);
+		__adv7511_power_off(adv7511);
 
 	kfree(adv7511->edid);
 	adv7511->edid = edid;
