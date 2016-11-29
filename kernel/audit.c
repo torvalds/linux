@@ -832,16 +832,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (err)
 		return err;
 
-	/* As soon as there's any sign of userspace auditd,
-	 * start kauditd to talk to it */
-	if (!kauditd_task) {
-		kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
-		if (IS_ERR(kauditd_task)) {
-			err = PTR_ERR(kauditd_task);
-			kauditd_task = NULL;
-			return err;
-		}
-	}
 	seq  = nlh->nlmsg_seq;
 	data = nlmsg_data(nlh);
 
@@ -1189,6 +1179,10 @@ static int __init audit_init(void)
 	pr_info("initializing netlink subsys (%s)\n",
 		audit_default ? "enabled" : "disabled");
 	register_pernet_subsys(&audit_net_ops);
+
+	kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
+	if (IS_ERR(kauditd_task))
+		return PTR_ERR(kauditd_task);
 
 	skb_queue_head_init(&audit_skb_queue);
 	skb_queue_head_init(&audit_skb_hold_queue);
