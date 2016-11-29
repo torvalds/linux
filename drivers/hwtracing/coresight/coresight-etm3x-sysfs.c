@@ -146,7 +146,7 @@ static ssize_t mode_store(struct device *dev,
 			goto err_unlock;
 		}
 		config->ctrl |= ETMCR_STALL_MODE;
-	 } else
+	} else
 		config->ctrl &= ~ETMCR_STALL_MODE;
 
 	if (config->mode & ETM_MODE_TIMESTAMP) {
