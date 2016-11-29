@@ -56,6 +56,12 @@
 #define HNS_ROCE_MAX_INNER_MTPT_NUM		0x7
 #define HNS_ROCE_MAX_MTPT_PBL_NUM		0x100000
 
+#define HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS	20
+#define HNS_ROCE_MAX_FREE_CQ_WAIT_CNT	\
+	(5000 / HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS)
+#define HNS_ROCE_CQE_WCMD_EMPTY_BIT		0x2
+#define HNS_ROCE_MIN_CQE_CNT			16
+
 #define HNS_ROCE_MAX_IRQ_NUM			34
 
 #define HNS_ROCE_COMP_VEC_NUM			32
@@ -528,6 +534,7 @@ struct hns_roce_hw {
 	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
+	int (*destroy_cq)(struct ib_cq *ibcq);
 	void	*priv;
 };
 
@@ -734,6 +741,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				    struct ib_udata *udata);
 
 int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq);
+void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);

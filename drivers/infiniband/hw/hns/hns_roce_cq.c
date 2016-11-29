@@ -179,8 +179,7 @@ static int hns_roce_hw2sw_cq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-static void hns_roce_free_cq(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_cq *hr_cq)
+void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
 	struct device *dev = &hr_dev->pdev->dev;
@@ -392,19 +391,25 @@ int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
+	int ret = 0;
 
-	hns_roce_free_cq(hr_dev, hr_cq);
-	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+	if (hr_dev->hw->destroy_cq) {
+		ret = hr_dev->hw->destroy_cq(ib_cq);
+	} else {
+		hns_roce_free_cq(hr_dev, hr_cq);
+		hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
 
-	if (ib_cq->uobject)
-		ib_umem_release(hr_cq->umem);
-	else
-		/* Free the buff of stored cq */
-		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf, ib_cq->cqe);
+		if (ib_cq->uobject)
+			ib_umem_release(hr_cq->umem);
+		else
+			/* Free the buff of stored cq */
+			hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
+						ib_cq->cqe);
 
-	kfree(hr_cq);
+		kfree(hr_cq);
+	}
 
-	return 0;
+	return ret;
 }
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)

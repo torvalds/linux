@@ -3763,6 +3763,58 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
+int hns_roce_v1_destroy_cq(struct ib_cq *ibcq)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
+	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
+	struct device *dev = &hr_dev->pdev->dev;
+	u32 cqe_cnt_ori;
+	u32 cqe_cnt_cur;
+	u32 cq_buf_size;
+	int wait_time = 0;
+	int ret = 0;
+
+	hns_roce_free_cq(hr_dev, hr_cq);
+
+	/*
+	 * Before freeing cq buffer, we need to ensure that the outstanding CQE
+	 * have been written by checking the CQE counter.
+	 */
+	cqe_cnt_ori = roce_read(hr_dev, ROCEE_SCAEP_WR_CQE_CNT);
+	while (1) {
+		if (roce_read(hr_dev, ROCEE_CAEP_CQE_WCMD_EMPTY) &
+		    HNS_ROCE_CQE_WCMD_EMPTY_BIT)
+			break;
+
+		cqe_cnt_cur = roce_read(hr_dev, ROCEE_SCAEP_WR_CQE_CNT);
+		if ((cqe_cnt_cur - cqe_cnt_ori) >= HNS_ROCE_MIN_CQE_CNT)
+			break;
+
+		msleep(HNS_ROCE_EACH_FREE_CQ_WAIT_MSECS);
+		if (wait_time > HNS_ROCE_MAX_FREE_CQ_WAIT_CNT) {
+			dev_warn(dev, "Destroy cq 0x%lx timeout!\n",
+				hr_cq->cqn);
+			ret = -ETIMEDOUT;
+			break;
+		}
+		wait_time++;
+	}
+
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+
+	if (ibcq->uobject)
+		ib_umem_release(hr_cq->umem);
+	else {
+		/* Free the buff of stored cq */
+		cq_buf_size = (ibcq->cqe + 1) * hr_dev->caps.cq_entry_sz;
+		hns_roce_buf_free(hr_dev, cq_buf_size, &hr_cq->hr_buf.hr_buf);
+	}
+
+	kfree(hr_cq);
+
+	return ret;
+}
+
 struct hns_roce_v1_priv hr_v1_priv;
 
 struct hns_roce_hw hns_roce_hw_v1 = {
@@ -3784,5 +3836,6 @@ struct hns_roce_hw hns_roce_hw_v1 = {
 	.req_notify_cq = hns_roce_v1_req_notify_cq,
 	.poll_cq = hns_roce_v1_poll_cq,
 	.dereg_mr = hns_roce_v1_dereg_mr,
+	.destroy_cq = hns_roce_v1_destroy_cq,
 	.priv = &hr_v1_priv,
 };
