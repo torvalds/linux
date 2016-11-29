@@ -139,13 +139,6 @@ static int guc_update_doorbell_id(struct intel_guc *guc,
 	return guc_allocate_doorbell(guc, client);
 }
 
-static int guc_init_doorbell(struct intel_guc *guc,
-			      struct i915_guc_client *client,
-			      uint16_t db_id)
-{
-	return guc_update_doorbell_id(guc, client, db_id);
-}
-
 static void guc_disable_doorbell(struct intel_guc *guc,
 				 struct i915_guc_client *client)
 {
@@ -666,8 +659,7 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 	uint16_t db_id;
 	int i, err;
 
-	/* Save client's original doorbell selection */
-	db_id = client->doorbell_id;
+	guc_disable_doorbell(guc, client);
 
 	for (i = 0; i < GUC_MAX_DOORBELLS; ++i) {
 		/* Skip if doorbell is OK */
@@ -680,7 +672,9 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 					i, err);
 	}
 
-	/* Restore to original value */
+	db_id = select_doorbell_register(guc, client->priority);
+	WARN_ON(db_id == GUC_INVALID_DOORBELL_ID);
+
 	err = guc_update_doorbell_id(guc, client, db_id);
 	if (err)
 		DRM_WARN("Failed to restore doorbell to %d, err %d\n",
@@ -770,8 +764,13 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 
 	guc_proc_desc_init(guc, client);
 	guc_ctx_desc_init(guc, client);
-	if (guc_init_doorbell(guc, client, db_id))
-		goto err;
+
+	/* For runtime client allocation we need to enable the doorbell. Not
+	 * required yet for the static execbuf_client as this special kernel
+	 * client is enabled from i915_guc_submission_enable().
+	 *
+	 * guc_update_doorbell_id(guc, client, db_id);
+	 */
 
 	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: ctx_index %u\n",
 		priority, client, client->engines, client->ctx_index);
@@ -1371,6 +1370,9 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 
+	if (!HAS_GUC_SCHED(dev_priv))
+		return 0;
+
 	/* Wipe bitmap & delete client in case of reinitialisation */
 	bitmap_clear(guc->doorbell_bitmap, 0, GUC_MAX_DOORBELLS);
 	i915_guc_submission_disable(dev_priv);
@@ -1390,42 +1392,58 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	guc_log_create(guc);
 	guc_addon_create(guc);
 
+	guc->execbuf_client = guc_client_alloc(dev_priv,
+					       INTEL_INFO(dev_priv)->ring_mask,
+					       GUC_CTX_PRIORITY_KMD_NORMAL,
+					       dev_priv->kernel_context);
+	if (!guc->execbuf_client) {
+		DRM_ERROR("Failed to create GuC client for execbuf!\n");
+		goto err;
+	}
+
 	return 0;
+
+err:
+	i915_guc_submission_fini(dev_priv);
+	return -ENOMEM;
+}
+
+static void guc_reset_wq(struct i915_guc_client *gc)
+{
+	struct guc_process_desc *desc = gc->vaddr + gc->proc_desc_offset;
+
+	desc->head = 0;
+	desc->tail = 0;
+
+	gc->wq_tail = 0;
 }
 
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct drm_i915_gem_request *request;
-	struct i915_guc_client *client;
+	struct i915_guc_client *client = guc->execbuf_client;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/* client for execbuf submission */
-	client = guc_client_alloc(dev_priv,
-				  INTEL_INFO(dev_priv)->ring_mask,
-				  GUC_CTX_PRIORITY_KMD_NORMAL,
-				  dev_priv->kernel_context);
-	if (!client) {
-		DRM_ERROR("Failed to create normal GuC client!\n");
-		return -ENOMEM;
-	}
+	if (!client)
+		return -ENODEV;
 
-	guc->execbuf_client = client;
 	intel_guc_sample_forcewake(guc);
+
+	guc_reset_wq(client);
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
 	for_each_engine(engine, dev_priv, id) {
+		struct drm_i915_gem_request *rq;
+
 		engine->submit_request = i915_guc_submit;
 		engine->schedule = NULL;
 
 		/* Replay the current set of previously submitted requests */
-		list_for_each_entry(request,
-				    &engine->timeline->requests, link) {
+		list_for_each_entry(rq, &engine->timeline->requests, link) {
 			client->wq_rsvd += sizeof(struct guc_wq_item);
-			if (i915_sw_fence_done(&request->submit))
-				i915_guc_submit(request);
+			i915_guc_submit(rq);
 		}
 	}
 
@@ -1441,14 +1459,18 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 
 	/* Revert back to manual ELSP submission */
 	intel_execlists_enable_submission(dev_priv);
-
-	guc_client_free(dev_priv, guc->execbuf_client);
-	guc->execbuf_client = NULL;
 }
 
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
+	struct i915_guc_client *client;
+
+	client = fetch_and_zero(&guc->execbuf_client);
+	if (!client)
+		return;
+
+	guc_client_free(dev_priv, client);
 
 	i915_vma_unpin_and_release(&guc->ads_vma);
 	i915_vma_unpin_and_release(&guc->log.vma);
