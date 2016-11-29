@@ -90,6 +90,7 @@ int cpdma_chan_int_ctrl(struct cpdma_chan *chan, bool enable);
 u32 cpdma_ctrl_rxchs_state(struct cpdma_ctlr *ctlr);
 u32 cpdma_ctrl_txchs_state(struct cpdma_ctlr *ctlr);
 bool cpdma_check_free_tx_desc(struct cpdma_chan *chan);
+int cpdma_chan_set_weight(struct cpdma_chan *ch, int weight);
 
 enum cpdma_control {
 	CPDMA_CMD_IDLE,			/* write-only */
