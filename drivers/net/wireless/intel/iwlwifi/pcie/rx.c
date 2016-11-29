@@ -1419,8 +1419,11 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	iwl_trans_fw_error(trans);
 	local_bh_enable();
 
-	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		if (!trans_pcie->txq[i])
+			continue;
 		del_timer(&trans_pcie->txq[i]->stuck_timer);
+	}
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);

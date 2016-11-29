@@ -126,8 +126,8 @@ static int iwl_queue_init(struct iwl_txq *q, int slots_num, u32 id)
 	return 0;
 }
 
-static int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
-				  struct iwl_dma_ptr *ptr, size_t size)
+int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
+			   struct iwl_dma_ptr *ptr, size_t size)
 {
 	if (WARN_ON(ptr->addr))
 		return -EINVAL;
@@ -140,8 +140,7 @@ static int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 	return 0;
 }
 
-static void iwl_pcie_free_dma_ptr(struct iwl_trans *trans,
-				  struct iwl_dma_ptr *ptr)
+void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr)
 {
 	if (unlikely(!ptr->addr))
 		return;
@@ -484,9 +483,8 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 	return num_tbs;
 }
 
-static int iwl_pcie_txq_alloc(struct iwl_trans *trans,
-			       struct iwl_txq *txq, int slots_num,
-			       u32 txq_id)
+int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
+		       int slots_num, u32 txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	size_t tfd_sz = trans_pcie->tfd_size * TFD_QUEUE_SIZE_MAX;
@@ -551,8 +549,8 @@ error:
 
 }
 
-static int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
-			      int slots_num, u32 txq_id)
+int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
+		      int slots_num, u32 txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
@@ -777,6 +775,13 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int txq_id;
+
+	/*
+	 * we should never get here in gen2 trans mode return early to avoid
+	 * having invalid accesses
+	 */
+	if (WARN_ON_ONCE(trans->cfg->gen2))
+		return;
 
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
 	     txq_id++) {
@@ -1020,51 +1025,6 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	return 0;
 error:
 	/*Upon error, free only if we allocated something */
-	if (alloc)
-		iwl_pcie_tx_free(trans);
-	return ret;
-}
-
-int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int ret;
-	int txq_id, slots_num;
-	bool alloc = false;
-
-	if (!trans_pcie->txq_memory) {
-		/* TODO: change this when moving to new TX alloc model */
-		ret = iwl_pcie_tx_alloc(trans);
-		if (ret)
-			goto error;
-		alloc = true;
-	}
-
-	spin_lock(&trans_pcie->irq_lock);
-
-	/* Tell NIC where to find the "keep warm" buffer */
-	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
-			   trans_pcie->kw.dma >> 4);
-
-	spin_unlock(&trans_pcie->irq_lock);
-
-	/* TODO: remove this when moving to new TX alloc model */
-	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
-	     txq_id++) {
-		slots_num = (txq_id == trans_pcie->cmd_queue) ?
-					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
-					slots_num, txq_id);
-		if (ret) {
-			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
-			goto error;
-		}
-	}
-
-	return 0;
-
-error:
-	/* Upon error, free only if we allocated something */
 	if (alloc)
 		iwl_pcie_tx_free(trans);
 	return ret;

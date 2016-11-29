@@ -241,6 +241,7 @@ struct iwl_pcie_first_tb_buf {
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  * @frozen: tx stuck queue timer is frozen
  * @frozen_expiry_remainder: remember how long until the timer fires
+ * @bc_tbl: byte count table of the queue (relevant only for gen2 transport)
  * @write_ptr: 1-st empty entry (index) host_w
  * @read_ptr: last used entry (index) host_r
  * @dma_addr:  physical addr for BD's
@@ -280,6 +281,7 @@ struct iwl_txq {
 	int block;
 	unsigned long wd_timeout;
 	struct sk_buff_head overflow_q;
+	struct iwl_dma_ptr bc_tbl;
 
 	int write_ptr;
 	int read_ptr;
@@ -769,6 +771,13 @@ void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 int iwl_queue_space(const struct iwl_txq *q);
 int iwl_pcie_apm_stop_master(struct iwl_trans *trans);
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
+int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
+		      int slots_num, u32 txq_id);
+int iwl_pcie_txq_alloc(struct iwl_trans *trans,
+		       struct iwl_txq *txq, int slots_num, u32 txq_id);
+int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
+			   struct iwl_dma_ptr *ptr, size_t size);
+void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
@@ -786,5 +795,7 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans,
 				     bool low_power);
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power);
-
+void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id);
+void iwl_pcie_gen2_tx_free(struct iwl_trans *trans);
+void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans);
 #endif /* __iwl_trans_int_pcie_h__ */

@@ -177,7 +177,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
-		iwl_pcie_tx_stop(trans);
+		iwl_pcie_gen2_tx_stop(trans);
 		iwl_pcie_rx_stop(trans);
 	}
 
