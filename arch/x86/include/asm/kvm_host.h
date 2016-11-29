@@ -1134,7 +1134,7 @@ struct x86_emulate_ctxt;
 
 int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
 int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port);
-void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
+int kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int kvm_vcpu_halt(struct kvm_vcpu *vcpu);
 int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
