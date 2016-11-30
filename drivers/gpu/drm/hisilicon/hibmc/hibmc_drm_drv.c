@@ -94,7 +94,7 @@ static struct drm_driver hibmc_driver = {
 	.irq_handler		= hibmc_drm_interrupt,
 };
 
-static int hibmc_pm_suspend(struct device *dev)
+static int __maybe_unused hibmc_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
@@ -112,7 +112,7 @@ static int hibmc_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int hibmc_pm_resume(struct device *dev)
+static int  __maybe_unused hibmc_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
@@ -377,9 +377,9 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	int ret;
 
 	dev = drm_dev_alloc(&hibmc_driver, &pdev->dev);
-	if (!dev) {
+	if (IS_ERR(dev)) {
 		DRM_ERROR("failed to allocate drm_device\n");
-		return -ENOMEM;
+		return PTR_ERR(dev);
 	}
 
 	dev->pdev = pdev;

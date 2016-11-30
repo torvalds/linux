@@ -497,12 +497,6 @@ int drm_dev_init(struct drm_device *dev,
 		goto err_free;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = drm_minor_alloc(dev, DRM_MINOR_CONTROL);
-		if (ret)
-			goto err_minors;
-	}
-
 	if (drm_core_check_feature(dev, DRIVER_RENDER)) {
 		ret = drm_minor_alloc(dev, DRM_MINOR_RENDER);
 		if (ret)

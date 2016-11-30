@@ -372,6 +372,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 #ifdef CONFIG_DEBUG_FS
 struct drm_minor;
 int drm_atomic_debugfs_init(struct drm_minor *minor);
+int drm_atomic_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
@@ -417,7 +418,7 @@ int drm_atomic_debugfs_init(struct drm_minor *minor);
  * should clear mode_changed during its ->atomic_check.
  */
 static inline bool
-drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)
+drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 {
 	return state->mode_changed || state->active_changed ||
 	       state->connectors_changed;
