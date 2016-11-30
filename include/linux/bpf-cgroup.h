@@ -1,7 +1,6 @@
 #ifndef _BPF_CGROUP_H
 #define _BPF_CGROUP_H
 
-#include <linux/bpf.h>
 #include <linux/jump_label.h>
 #include <uapi/linux/bpf.h>
 
