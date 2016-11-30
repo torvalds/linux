@@ -41,7 +41,7 @@
 			label = "BTN1";
 			linux,code = <169>;
 			gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;	/* gpio3_83 */
-			gpio-key,wakeup;
+			wakeup-source;
 			autorepeat;
 			debounce_interval = <50>;
 		};

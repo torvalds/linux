@@ -5,85 +5,77 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 /dts-v1/;
 
-#include "dra74x.dtsi"
+#include "dra72x.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "am57xx-idk-common.dtsi"
 
 / {
-	model = "TI AM5728 IDK";
-	compatible = "ti,am5728-idk", "ti,am5728", "ti,dra742", "ti,dra74",
-		     "ti,dra7";
+	model = "TI AM5718 IDK";
+	compatible = "ti,am5718-idk", "ti,am5718", "ti,dra7";
 
-	memory@0 {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x40000000>;
 	};
 
-	extcon_usb2: extcon_usb2 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
-	};
-
-	status-leds {
+	leds {
 		compatible = "gpio-leds";
 		cpu0-led {
 			label = "status0:red:cpu0";
-			gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 25 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "cpu0";
 		};
 
 		usr0-led {
 			label = "status0:green:usr";
-			gpios = <&gpio3 11 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
 		heartbeat-led {
 			label = "status0:blue:heartbeat";
-			gpios = <&gpio3 12 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 27 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "heartbeat";
 		};
 
-		cpu1-led {
-			label = "status1:red:cpu1";
-			gpios = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+		usr1-led {
+			label = "status1:red:usr";
+			gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			linux,default-trigger = "cpu1";
 		};
 
-		usr1-led {
+		usr2-led {
 			label = "status1:green:usr";
-			gpios = <&gpio7 23 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
 		mmc0-led {
 			label = "status1:blue:mmc0";
-			gpios = <&gpio7 22 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "mmc0";
 		};
 	};
-};
 
-&omap_dwc3_2 {
-	extcon = <&extcon_usb2>;
+	extcon_usb2: extcon_usb2 {
+	     compatible = "linux,extcon-usb-gpio";
+	     id-gpio = <&gpio5 7 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &mmc1 {
 	status = "okay";
-	vmmc-supply = <&v3_3d>;
-	vmmc_aux-supply = <&ldo1_reg>;
+	vmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
 };
 
-&sn65hvs882 {
-	load-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
 };
