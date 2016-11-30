@@ -1193,6 +1193,16 @@
 			<&cru SCLK_HEVC_CABAC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
 			"clk_cabac";
+		/*
+		 * The 4K hevc would also work well with 500/125/300/300,
+		 * no more err irq and reset request.
+		 */
+		assigned-clocks = <&cru ACLK_HEVC>, <&cru HCLK_HEVC>,
+				  <&cru SCLK_HEVC_CORE>,
+				  <&cru SCLK_HEVC_CABAC>;
+		assigned-clock-rates = <400000000>, <100000000>,
+				       <300000000>, <300000000>;
+
 		resets = <&cru SRST_HEVC>;
 		reset-names = "video";
 		power-domains = <&power RK3288_PD_HEVC>;
