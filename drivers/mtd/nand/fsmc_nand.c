@@ -926,8 +926,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	/*
 	 * Scan to find existence of the device
 	 */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		ret = -ENXIO;
+	ret = nand_scan_ident(mtd, 1, NULL);
+	if (ret) {
 		dev_err(&pdev->dev, "No NAND Device found!\n");
 		goto err_scan_ident;
 	}
@@ -992,10 +992,9 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	}
 
 	/* Second stage of scan to fill MTD data-structures */
-	if (nand_scan_tail(mtd)) {
-		ret = -ENXIO;
+	ret = nand_scan_tail(mtd);
+	if (ret)
 		goto err_probe;
-	}
 
 	/*
 	 * The partition information can is accessed by (in the same precedence)
