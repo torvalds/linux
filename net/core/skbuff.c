@@ -3714,20 +3714,29 @@ int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_queue_err_skb);
 
+static bool is_icmp_err_skb(const struct sk_buff *skb)
+{
+	return skb && (SKB_EXT_ERR(skb)->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
+		       SKB_EXT_ERR(skb)->ee.ee_origin == SO_EE_ORIGIN_ICMP6);
+}
+
 struct sk_buff *sock_dequeue_err_skb(struct sock *sk)
 {
 	struct sk_buff_head *q = &sk->sk_error_queue;
-	struct sk_buff *skb, *skb_next;
+	struct sk_buff *skb, *skb_next = NULL;
+	bool icmp_next = false;
 	unsigned long flags;
-	int err = 0;
 
 	spin_lock_irqsave(&q->lock, flags);
 	skb = __skb_dequeue(q);
 	if (skb && (skb_next = skb_peek(q)))
-		err = SKB_EXT_ERR(skb_next)->ee.ee_errno;
+		icmp_next = is_icmp_err_skb(skb_next);
 	spin_unlock_irqrestore(&q->lock, flags);
 
-	if (err)
+	if (is_icmp_err_skb(skb) && !icmp_next)
+		sk->sk_err = 0;
+
+	if (skb_next)
 		sk->sk_error_report(sk);
 
 	return skb;
