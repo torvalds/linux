@@ -97,6 +97,51 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ns_handle_to_name
+ *
+ * PARAMETERS:  target_handle           - Handle of named object whose name is
+ *                                        to be found
+ *              buffer                  - Where the name is returned
+ *
+ * RETURN:      Status, Buffer is filled with name if status is AE_OK
+ *
+ * DESCRIPTION: Build and return a full namespace name
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
+{
+	acpi_status status;
+	struct acpi_namespace_node *node;
+	const char *node_name;
+
+	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_name, target_handle);
+
+	node = acpi_ns_validate_handle(target_handle);
+	if (!node) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Validate/Allocate/Clear caller buffer */
+
+	status = acpi_ut_initialize_buffer(buffer, ACPI_PATH_SEGMENT_LENGTH);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Just copy the ACPI name from the Node and zero terminate it */
+
+	node_name = acpi_ut_get_node_name(node);
+	ACPI_MOVE_NAME(buffer->pointer, node_name);
+	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ns_handle_to_pathname
  *
  * PARAMETERS:  target_handle           - Handle of named object whose name is
