@@ -445,7 +445,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 
 		iph->version = IPVERSION;
 		iph->ihl = 5;	/* 5 * 4Byte words, IP headr len */
-		iph->tos = 0;
+		iph->tos = cm_node->tos;
 		iph->tot_len = htons(packetsize);
 		iph->id = htons(++cm_node->tcp_cntxt.loc_id);
 
@@ -472,7 +472,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 			ethh->h_proto = htons(ETH_P_IPV6);
 		}
 		ip6h->version = 6;
-		ip6h->flow_lbl[0] = 0;
+		ip6h->priority = cm_node->tos >> 4;
+		ip6h->flow_lbl[0] = cm_node->tos << 4;
 		ip6h->flow_lbl[1] = 0;
 		ip6h->flow_lbl[2] = 0;
 		ip6h->payload_len = htons(packetsize - sizeof(*ip6h));
@@ -2141,9 +2142,18 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 	cm_node->vlan_id = cm_info->vlan_id;
 	if ((cm_node->vlan_id == I40IW_NO_VLAN) && iwdev->dcb)
 		cm_node->vlan_id = 0;
+	cm_node->tos = cm_info->tos;
 	cm_node->user_pri = cm_info->user_pri;
-	if (listener)
-		cm_node->user_pri = listener->user_pri;
+	if (listener) {
+		if (listener->tos != cm_info->tos)
+			i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB,
+				    "application TOS[%d] and remote client TOS[%d] mismatch\n",
+				     listener->tos, cm_info->tos);
+		cm_node->tos = max(listener->tos, cm_info->tos);
+		cm_node->user_pri = rt_tos2priority(cm_node->tos);
+		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "listener: TOS:[%d] UP:[%d]\n",
+			    cm_node->tos, cm_node->user_pri);
+	}
 	memcpy(cm_node->loc_addr, cm_info->loc_addr, sizeof(cm_node->loc_addr));
 	memcpy(cm_node->rem_addr, cm_info->rem_addr, sizeof(cm_node->rem_addr));
 	cm_node->loc_port = cm_info->loc_port;
@@ -3092,6 +3102,7 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 		cm_info.loc_addr[0] = ntohl(iph->daddr);
 		cm_info.rem_addr[0] = ntohl(iph->saddr);
 		cm_info.ipv4 = true;
+		cm_info.tos = iph->tos;
 	} else {
 		ip6h = (struct ipv6hdr *)rbuf->iph;
 		i40iw_copy_ip_ntohl(cm_info.loc_addr,
@@ -3099,6 +3110,7 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 		i40iw_copy_ip_ntohl(cm_info.rem_addr,
 				    ip6h->saddr.in6_u.u6_addr32);
 		cm_info.ipv4 = false;
+		cm_info.tos = (ip6h->priority << 4) | (ip6h->flow_lbl[0] >> 4);
 	}
 	cm_info.loc_port = ntohs(tcph->dest);
 	cm_info.rem_port = ntohs(tcph->source);
@@ -3331,6 +3343,7 @@ static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
 	cm_node->state = I40IW_CM_STATE_OFFLOADED;
 	tcp_info.tcp_state = I40IW_TCP_STATE_ESTABLISHED;
 	tcp_info.src_mac_addr_idx = iwdev->mac_ip_table_idx;
+	tcp_info.tos = cm_node->tos;
 
 	dev->iw_priv_qp_ops->qp_setctx(&iwqp->sc_qp, (u64 *)(iwqp->host_ctx.va), ctx_info);
 
@@ -3763,6 +3776,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		i40iw_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id, NULL);
 	}
 	cm_info.cm_id = cm_id;
+	cm_info.tos = cm_id->tos;
 	cm_info.user_pri = rt_tos2priority(cm_id->tos);
 	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "%s TOS:[%d] UP:[%d]\n",
 		    __func__, cm_id->tos, cm_info.user_pri);
@@ -3911,10 +3925,9 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	cm_id->provider_data = cm_listen_node;
 
+	cm_listen_node->tos = cm_id->tos;
 	cm_listen_node->user_pri = rt_tos2priority(cm_id->tos);
 	cm_info.user_pri = cm_listen_node->user_pri;
-	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "%s TOS:[%d] UP:[%d]\n",
-		    __func__, cm_id->tos, cm_listen_node->user_pri);
 
 	if (!cm_listen_node->reused_node) {
 		if (wildcard) {

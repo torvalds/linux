@@ -297,6 +297,7 @@ struct i40iw_cm_listener {
 	enum i40iw_cm_listener_state listener_state;
 	u32 reused_node;
 	u8 user_pri;
+	u8 tos;
 	u16 vlan_id;
 	bool qhash_set;
 	bool ipv4;
@@ -343,6 +344,7 @@ struct i40iw_cm_node {
 	atomic_t passive_state;
 	bool qhash_set;
 	u8 user_pri;
+	u8 tos;
 	bool ipv4;
 	bool snd_mark_en;
 	u16 lsmm_size;
@@ -368,6 +370,7 @@ struct i40iw_cm_info {
 	u16 vlan_id;
 	int backlog;
 	u8 user_pri;
+	u8 tos;
 	bool ipv4;
 };
 
