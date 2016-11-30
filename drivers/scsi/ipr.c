@@ -10157,6 +10157,7 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 			pci_free_irq_vectors(pdev);
 
 			ioa_cfg->nvectors = 1;
+			ioa_cfg->clear_isr = 1;
 			break;
 		default:
 			goto out_msi_disable;
