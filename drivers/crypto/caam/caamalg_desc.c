@@ -1300,3 +1300,7 @@ void cnstr_shdsc_xts_ablkcipher_decap(u32 * const desc, struct alginfo *cdata)
 #endif
 }
 EXPORT_SYMBOL(cnstr_shdsc_xts_ablkcipher_decap);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("FSL CAAM descriptor support");
+MODULE_AUTHOR("Freescale Semiconductor - NMG/STC");
