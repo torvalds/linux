@@ -396,7 +396,10 @@ static int i40iw_wait_event(struct i40iw_device *iwdev,
 		i40iw_pr_err("error cqp command 0x%x timed out ret = %d\n",
 			     info->cqp_cmd, timeout_ret);
 		err_code = -ETIME;
-		i40iw_request_reset(iwdev);
+		if (!iwdev->reset) {
+			iwdev->reset = true;
+			i40iw_request_reset(iwdev);
+		}
 		goto done;
 	}
 	cqp_error = cqp_request->compl_info.error;
@@ -425,6 +428,11 @@ enum i40iw_status_code i40iw_handle_cqp_op(struct i40iw_device *iwdev,
 	enum i40iw_status_code status;
 	struct cqp_commands_info *info = &cqp_request->info;
 	int err_code = 0;
+
+	if (iwdev->reset) {
+		i40iw_free_cqp_request(&iwdev->cqp, cqp_request);
+		return I40IW_ERR_CQP_COMPL_ERROR;
+	}
 
 	status = i40iw_process_cqp_cmd(dev, info);
 	if (status) {

@@ -304,6 +304,7 @@ struct i40iw_device {
 	u32 mpa_version;
 	bool dcb;
 	bool closing;
+	bool reset;
 	u32 used_pds;
 	u32 used_cqs;
 	u32 used_mrs;
