@@ -108,17 +108,6 @@ bool  dce110_mem_input_program_surface_config(
 	bool horizontal_mirror);
 
 /*
- * dce110_mem_input_program_pte_vm
- *
- * This function will program pte vm registers.
- */
-bool  dce110_mem_input_program_pte_vm(
-	struct mem_input *mem_input,
-	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
-	enum dc_rotation_angle rotation);
-
-/*
  * dce110_mem_input_is_flip_pending
  *
  * This function will wait until the surface update-pending bit is cleared.

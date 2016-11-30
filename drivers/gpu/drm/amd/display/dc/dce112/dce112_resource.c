@@ -495,7 +495,7 @@ static const struct resource_create_funcs res_create_funcs = {
 	.create_hwseq = dce112_hwseq_create,
 };
 
-#define mi_inst_regs(id) { MI_REG_LIST(id) }
+#define mi_inst_regs(id) { MI_DCE11_2_REG_LIST(id) }
 static const struct dce_mem_input_registers mi_regs[] = {
 		mi_inst_regs(0),
 		mi_inst_regs(1),
@@ -506,11 +506,11 @@ static const struct dce_mem_input_registers mi_regs[] = {
 };
 
 static const struct dce_mem_input_shift mi_shifts = {
-		MI_DCE_MASK_SH_LIST(__SHIFT)
+		MI_DCE11_2_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dce_mem_input_mask mi_masks = {
-		MI_DCE_MASK_SH_LIST(_MASK)
+		MI_DCE11_2_MASK_SH_LIST(_MASK)
 };
 
 static struct mem_input *dce112_mem_input_create(

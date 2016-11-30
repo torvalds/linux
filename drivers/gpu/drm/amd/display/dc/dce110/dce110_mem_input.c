@@ -150,117 +150,6 @@ bool dce110_mem_input_program_surface_flip_and_addr(
 	return true;
 }
 
-/* Scatter Gather param tables */
-static const unsigned int dvmm_Hw_Setting_2DTiling[4][9] = {
-		{  8, 64, 64,  8,  8, 1, 4, 0, 0},
-		{ 16, 64, 32,  8, 16, 1, 8, 0, 0},
-		{ 32, 32, 32, 16, 16, 1, 8, 0, 0},
-		{ 64,  8, 32, 16, 16, 1, 8, 0, 0}, /* fake */
-};
-
-static const unsigned int dvmm_Hw_Setting_1DTiling[4][9] = {
-		{  8, 512, 8, 1, 0, 1, 0, 0, 0},  /* 0 for invalid */
-		{ 16, 256, 8, 2, 0, 1, 0, 0, 0},
-		{ 32, 128, 8, 4, 0, 1, 0, 0, 0},
-		{ 64,  64, 8, 4, 0, 1, 0, 0, 0}, /* fake */
-};
-
-static const unsigned int dvmm_Hw_Setting_Linear[4][9] = {
-		{  8, 4096, 1, 8, 0, 1, 0, 0, 0},
-		{ 16, 2048, 1, 8, 0, 1, 0, 0, 0},
-		{ 32, 1024, 1, 8, 0, 1, 0, 0, 0},
-		{ 64,  512, 1, 8, 0, 1, 0, 0, 0}, /* new for 64bpp from HW */
-};
-
-/* Helper to get table entry from surface info */
-static const unsigned int *get_dvmm_hw_setting(
-		union dc_tiling_info *tiling_info,
-		enum surface_pixel_format format)
-{
-	enum bits_per_pixel {
-		bpp_8 = 0,
-		bpp_16,
-		bpp_32,
-		bpp_64
-	} bpp;
-
-	if (format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616)
-		bpp = bpp_64;
-	else if (format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888)
-		bpp = bpp_32;
-	else if (format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB1555)
-		bpp = bpp_16;
-	else
-		bpp = bpp_8;
-
-	switch (tiling_info->gfx8.array_mode) {
-	case DC_ARRAY_1D_TILED_THIN1:
-	case DC_ARRAY_1D_TILED_THICK:
-	case DC_ARRAY_PRT_TILED_THIN1:
-		return dvmm_Hw_Setting_1DTiling[bpp];
-	case DC_ARRAY_2D_TILED_THIN1:
-	case DC_ARRAY_2D_TILED_THICK:
-	case DC_ARRAY_2D_TILED_X_THICK:
-	case DC_ARRAY_PRT_2D_TILED_THIN1:
-	case DC_ARRAY_PRT_2D_TILED_THICK:
-		return dvmm_Hw_Setting_2DTiling[bpp];
-	case DC_ARRAY_LINEAR_GENERAL:
-	case DC_ARRAY_LINEAR_ALLIGNED:
-		return dvmm_Hw_Setting_Linear[bpp];
-	default:
-		return dvmm_Hw_Setting_2DTiling[bpp];
-	}
-}
-
-bool dce110_mem_input_program_pte_vm(
-		struct mem_input *mem_input,
-		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
-		enum dc_rotation_angle rotation)
-{
-	struct dce110_mem_input *mem_input110 = TO_DCE110_MEM_INPUT(mem_input);
-	const unsigned int *pte = get_dvmm_hw_setting(tiling_info, format);
-
-	unsigned int page_width = 0;
-	unsigned int page_height = 0;
-	unsigned int temp_page_width = pte[1];
-	unsigned int temp_page_height = pte[2];
-	unsigned int min_pte_before_flip = 0;
-	uint32_t value = 0;
-
-	while ((temp_page_width >>= 1) != 0)
-		page_width++;
-	while ((temp_page_height >>= 1) != 0)
-		page_height++;
-
-	switch (rotation) {
-	case ROTATION_ANGLE_90:
-	case ROTATION_ANGLE_270:
-		min_pte_before_flip = pte[4];
-		break;
-	default:
-		min_pte_before_flip = pte[3];
-		break;
-	}
-
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_PIPE_OUTSTANDING_REQUEST_LIMIT));
-	set_reg_field_value(value, 0xff, GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_PIPE_OUTSTANDING_REQUEST_LIMIT), value);
-
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmDVMM_PTE_CONTROL));
-	set_reg_field_value(value, page_width, DVMM_PTE_CONTROL, DVMM_PAGE_WIDTH);
-	set_reg_field_value(value, page_height, DVMM_PTE_CONTROL, DVMM_PAGE_HEIGHT);
-	set_reg_field_value(value, min_pte_before_flip, DVMM_PTE_CONTROL, DVMM_MIN_PTE_BEFORE_FLIP);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmDVMM_PTE_CONTROL), value);
-
-	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmDVMM_PTE_ARB_CONTROL));
-	set_reg_field_value(value, pte[5], DVMM_PTE_ARB_CONTROL, DVMM_PTE_REQ_PER_CHUNK);
-	set_reg_field_value(value, 0xff, DVMM_PTE_ARB_CONTROL, DVMM_MAX_PTE_REQ_OUTSTANDING);
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmDVMM_PTE_ARB_CONTROL), value);
-
-	return true;
-}
-
 static void program_urgency_watermark(
 	const struct dc_context *ctx,
 	const uint32_t offset,
@@ -502,7 +391,7 @@ static struct mem_input_funcs dce110_mem_input_funcs = {
 	.mem_input_program_surface_flip_and_addr =
 			dce110_mem_input_program_surface_flip_and_addr,
 	.mem_input_program_pte_vm =
-			dce110_mem_input_program_pte_vm,
+			dce_mem_input_program_pte_vm,
 	.mem_input_program_surface_config =
 			dce_mem_input_program_surface_config,
 	.mem_input_is_flip_pending =

@@ -584,7 +584,7 @@ static const unsigned int *get_dvmm_hw_setting(
 	}
 }
 
-bool dce110_mem_input_v_program_pte_vm(
+void dce110_mem_input_v_program_pte_vm(
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
@@ -655,11 +655,9 @@ bool dce110_mem_input_v_program_pte_vm(
 	set_reg_field_value(value, pte_chroma[5], UNP_DVMM_PTE_ARB_CONTROL_C, DVMM_PTE_REQ_PER_CHUNK_C);
 	set_reg_field_value(value, 0xff, UNP_DVMM_PTE_ARB_CONTROL_C, DVMM_MAX_PTE_REQ_OUTSTANDING_C);
 	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmUNP_DVMM_PTE_ARB_CONTROL_C), value);
-
-	return true;
 }
 
-bool dce110_mem_input_v_program_surface_config(
+void dce110_mem_input_v_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
@@ -674,8 +672,6 @@ bool dce110_mem_input_v_program_surface_config(
 	program_tiling(mem_input110, tiling_info, format);
 	program_size_and_rotation(mem_input110, rotation, plane_size);
 	program_pixel_format(mem_input110, format);
-
-	return true;
 }
 
 static void program_urgency_watermark(

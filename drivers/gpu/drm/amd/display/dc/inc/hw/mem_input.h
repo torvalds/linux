@@ -82,13 +82,13 @@ struct mem_input_funcs {
 		const struct dc_plane_address *address,
 		bool flip_immediate);
 
-	bool (*mem_input_program_pte_vm)(
+	void (*mem_input_program_pte_vm)(
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation);
 
-	bool (*mem_input_program_surface_config)(
+	void (*mem_input_program_surface_config)(
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,

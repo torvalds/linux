@@ -35,6 +35,137 @@
 #define FN(reg_name, field_name) \
 	mi->shifts->field_name, mi->masks->field_name
 
+struct pte_setting {
+	unsigned int bpp;
+	unsigned int page_width;
+	unsigned int page_height;
+	unsigned char min_pte_before_flip_horiz_scan;
+	unsigned char min_pte_before_flip_vert_scan;
+	unsigned char pte_req_per_chunk;
+	unsigned char param_6;
+	unsigned char param_7;
+	unsigned char param_8;
+};
+
+enum mi_bits_per_pixel {
+	mi_bpp_8 = 0,
+	mi_bpp_16,
+	mi_bpp_32,
+	mi_bpp_64,
+	mi_bpp_count,
+};
+
+enum mi_tiling_format {
+	mi_tiling_linear = 0,
+	mi_tiling_1D,
+	mi_tiling_2D,
+	mi_tiling_count,
+};
+
+static const struct pte_setting pte_settings[mi_tiling_count][mi_bpp_count] = {
+	[mi_tiling_linear] = {
+		{  8, 4096, 1, 8, 0, 1, 0, 0, 0},
+		{ 16, 2048, 1, 8, 0, 1, 0, 0, 0},
+		{ 32, 1024, 1, 8, 0, 1, 0, 0, 0},
+		{ 64,  512, 1, 8, 0, 1, 0, 0, 0}, /* new for 64bpp from HW */
+	},
+	[mi_tiling_1D] = {
+		{  8, 512, 8, 1, 0, 1, 0, 0, 0},  /* 0 for invalid */
+		{ 16, 256, 8, 2, 0, 1, 0, 0, 0},
+		{ 32, 128, 8, 4, 0, 1, 0, 0, 0},
+		{ 64,  64, 8, 4, 0, 1, 0, 0, 0}, /* fake */
+	},
+	[mi_tiling_2D] = {
+		{  8, 64, 64,  8,  8, 1, 4, 0, 0},
+		{ 16, 64, 32,  8, 16, 1, 8, 0, 0},
+		{ 32, 32, 32, 16, 16, 1, 8, 0, 0},
+		{ 64,  8, 32, 16, 16, 1, 8, 0, 0}, /* fake */
+	},
+};
+
+static enum mi_bits_per_pixel get_mi_bpp(
+		enum surface_pixel_format format)
+{
+	if (format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616)
+		return mi_bpp_64;
+	else if (format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888)
+		return mi_bpp_32;
+	else if (format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB1555)
+		return mi_bpp_16;
+	else
+		return mi_bpp_8;
+}
+
+static enum mi_tiling_format get_mi_tiling(
+		union dc_tiling_info *tiling_info)
+{
+	switch (tiling_info->gfx8.array_mode) {
+	case DC_ARRAY_1D_TILED_THIN1:
+	case DC_ARRAY_1D_TILED_THICK:
+	case DC_ARRAY_PRT_TILED_THIN1:
+		return mi_tiling_1D;
+	case DC_ARRAY_2D_TILED_THIN1:
+	case DC_ARRAY_2D_TILED_THICK:
+	case DC_ARRAY_2D_TILED_X_THICK:
+	case DC_ARRAY_PRT_2D_TILED_THIN1:
+	case DC_ARRAY_PRT_2D_TILED_THICK:
+		return mi_tiling_2D;
+	case DC_ARRAY_LINEAR_GENERAL:
+	case DC_ARRAY_LINEAR_ALLIGNED:
+		return mi_tiling_linear;
+	default:
+		return mi_tiling_2D;
+	}
+}
+
+static bool is_vert_scan(enum dc_rotation_angle rotation)
+{
+	switch (rotation) {
+	case ROTATION_ANGLE_90:
+	case ROTATION_ANGLE_270:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static unsigned int log_2(unsigned int num)
+{
+	unsigned int result = 0;
+
+	while ((num >>= 1) != 0)
+		result++;
+
+	return result;
+}
+
+void dce_mem_input_program_pte_vm(struct mem_input *mi,
+		enum surface_pixel_format format,
+		union dc_tiling_info *tiling_info,
+		enum dc_rotation_angle rotation)
+{
+	enum mi_bits_per_pixel mi_bpp = get_mi_bpp(format);
+	enum mi_tiling_format mi_tiling = get_mi_tiling(tiling_info);
+	const struct pte_setting *pte = &pte_settings[mi_tiling][mi_bpp];
+
+	unsigned int page_width = log_2(pte->page_width);
+	unsigned int page_height = log_2(pte->page_height);
+	unsigned int min_pte_before_flip = is_vert_scan(rotation) ?
+			pte->min_pte_before_flip_vert_scan :
+			pte->min_pte_before_flip_horiz_scan;
+
+	REG_UPDATE(GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT,
+			GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, 0xff);
+
+	REG_UPDATE_3(DVMM_PTE_CONTROL,
+			DVMM_PAGE_WIDTH, page_width,
+			DVMM_PAGE_HEIGHT, page_height,
+			DVMM_MIN_PTE_BEFORE_FLIP, min_pte_before_flip);
+
+	REG_UPDATE_2(DVMM_PTE_ARB_CONTROL,
+			DVMM_PTE_REQ_PER_CHUNK, pte->pte_req_per_chunk,
+			DVMM_MAX_PTE_REQ_OUTSTANDING, 0xff);
+}
 
 static void program_urgency_watermark(struct mem_input *mi,
 	uint32_t wm_select,
@@ -244,7 +375,7 @@ static void program_grph_pixel_format(
 			GRPH_PRESCALE_B_SIGN, sign);
 }
 
-bool dce_mem_input_program_surface_config(struct mem_input *mi,
+void dce_mem_input_program_surface_config(struct mem_input *mi,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	union plane_size *plane_size,
@@ -260,8 +391,6 @@ bool dce_mem_input_program_surface_config(struct mem_input *mi,
 	if (format >= SURFACE_PIXEL_FORMAT_GRPH_BEGIN &&
 		format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		program_grph_pixel_format(mi, format);
-
-	return true;
 }
 
 static uint32_t get_dmif_switch_time_us(

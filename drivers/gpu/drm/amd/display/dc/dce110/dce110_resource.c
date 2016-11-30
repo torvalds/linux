@@ -474,7 +474,7 @@ static const struct resource_create_funcs res_create_funcs = {
 };
 
 #define mi_inst_regs(id) { \
-	MI_REG_LIST(id), \
+	MI_DCE11_REG_LIST(id), \
 	.MC_HUB_RDREQ_DMIF_LIMIT = mmMC_HUB_RDREQ_DMIF_LIMIT \
 }
 static const struct dce_mem_input_registers mi_regs[] = {
@@ -484,12 +484,12 @@ static const struct dce_mem_input_registers mi_regs[] = {
 };
 
 static const struct dce_mem_input_shift mi_shifts = {
-		MI_DCE_MASK_SH_LIST(__SHIFT),
+		MI_DCE11_MASK_SH_LIST(__SHIFT),
 		.ENABLE = MC_HUB_RDREQ_DMIF_LIMIT__ENABLE__SHIFT
 };
 
 static const struct dce_mem_input_mask mi_masks = {
-		MI_DCE_MASK_SH_LIST(_MASK),
+		MI_DCE11_MASK_SH_LIST(_MASK),
 		.ENABLE = MC_HUB_RDREQ_DMIF_LIMIT__ENABLE_MASK
 };
 

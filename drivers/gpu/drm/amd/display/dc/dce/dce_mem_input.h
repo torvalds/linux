@@ -42,9 +42,21 @@
 	SRI(DPG_PIPE_STUTTER_CONTROL, DMIF_PG, id),\
 	SRI(DMIF_BUFFER_CONTROL, PIPE, id)
 
-#define MI_REG_LIST(id)\
+#define MI_DCE_PTE_REG_LIST(id)\
+	SRI(DVMM_PTE_CONTROL, DCP, id),\
+	SRI(DVMM_PTE_ARB_CONTROL, DCP, id)
+
+#define MI_DCE8_REG_LIST(id)\
 	MI_DCE_BASE_REG_LIST(id),\
 	SRI(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL, DMIF_PG, id)
+
+#define MI_DCE11_2_REG_LIST(id)\
+	MI_DCE8_REG_LIST(id),\
+	SRI(GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, DCP, id)
+
+#define MI_DCE11_REG_LIST(id)\
+	MI_DCE11_2_REG_LIST(id),\
+	MI_DCE_PTE_REG_LIST(id)
 
 struct dce_mem_input_registers {
 	/* DCP */
@@ -58,6 +70,9 @@ struct dce_mem_input_registers {
 	uint32_t HW_ROTATION;
 	uint32_t GRPH_SWAP_CNTL;
 	uint32_t PRESCALE_GRPH_CONTROL;
+	uint32_t GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT;
+	uint32_t DVMM_PTE_CONTROL;
+	uint32_t DVMM_PTE_ARB_CONTROL;
 	/* DMIF_PG */
 	uint32_t DPG_PIPE_ARBITRATION_CONTROL1;
 	uint32_t DPG_WATERMARK_MASK_CONTROL;
@@ -103,6 +118,16 @@ struct dce_mem_input_registers {
 	SFB(blk, PRESCALE_GRPH_CONTROL, GRPH_PRESCALE_G_SIGN, mask_sh),\
 	SFB(blk, PRESCALE_GRPH_CONTROL, GRPH_PRESCALE_B_SIGN, mask_sh)
 
+#define MI_DCP_DCE11_MASK_SH_LIST(mask_sh, blk)\
+	SFB(blk, GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT, mask_sh)
+
+#define MI_DCP_PTE_MASK_SH_LIST(mask_sh, blk)\
+	SFB(blk, DVMM_PTE_CONTROL, DVMM_PAGE_WIDTH, mask_sh),\
+	SFB(blk, DVMM_PTE_CONTROL, DVMM_PAGE_HEIGHT, mask_sh),\
+	SFB(blk, DVMM_PTE_CONTROL, DVMM_MIN_PTE_BEFORE_FLIP, mask_sh),\
+	SFB(blk, DVMM_PTE_ARB_CONTROL, DVMM_PTE_REQ_PER_CHUNK, mask_sh),\
+	SFB(blk, DVMM_PTE_ARB_CONTROL, DVMM_MAX_PTE_REQ_OUTSTANDING, mask_sh)
+
 #define MI_DMIF_PG_MASK_SH_LIST(mask_sh, blk)\
 	SFB(blk, DPG_PIPE_ARBITRATION_CONTROL1, PIXEL_DURATION, mask_sh),\
 	SFB(blk, DPG_WATERMARK_MASK_CONTROL, URGENCY_WATERMARK_MASK, mask_sh),\
@@ -122,11 +147,19 @@ struct dce_mem_input_registers {
 	SFB(blk, DPG_PIPE_NB_PSTATE_CHANGE_CONTROL, NB_PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST, mask_sh),\
 	SFB(blk, DPG_PIPE_NB_PSTATE_CHANGE_CONTROL, NB_PSTATE_CHANGE_WATERMARK, mask_sh)
 
-#define MI_DCE_MASK_SH_LIST(mask_sh)\
-	MI_DCP_MASK_SH_LIST(mask_sh,),\
-	MI_DMIF_PG_MASK_SH_LIST(mask_sh,),\
-	MI_DMIF_PG_MASK_SH_DCE(mask_sh,),\
-	MI_GFX8_TILE_MASK_SH_LIST(mask_sh,)
+#define MI_DCE8_MASK_SH_LIST(mask_sh)\
+	MI_DCP_MASK_SH_LIST(mask_sh, ),\
+	MI_DMIF_PG_MASK_SH_LIST(mask_sh, ),\
+	MI_DMIF_PG_MASK_SH_DCE(mask_sh, ),\
+	MI_GFX8_TILE_MASK_SH_LIST(mask_sh, )
+
+#define MI_DCE11_2_MASK_SH_LIST(mask_sh)\
+	MI_DCE8_MASK_SH_LIST(mask_sh),\
+	MI_DCP_DCE11_MASK_SH_LIST(mask_sh, )
+
+#define MI_DCE11_MASK_SH_LIST(mask_sh)\
+	MI_DCE11_2_MASK_SH_LIST(mask_sh),\
+	MI_DCP_PTE_MASK_SH_LIST(mask_sh, )
 
 #define MI_REG_FIELD_LIST(type) \
 	type GRPH_ENABLE; \
@@ -142,6 +175,12 @@ struct dce_mem_input_registers {
 	type GRPH_PRESCALE_R_SIGN; \
 	type GRPH_PRESCALE_G_SIGN; \
 	type GRPH_PRESCALE_B_SIGN; \
+	type GRPH_PIPE_OUTSTANDING_REQUEST_LIMIT; \
+	type DVMM_PAGE_WIDTH; \
+	type DVMM_PAGE_HEIGHT; \
+	type DVMM_MIN_PTE_BEFORE_FLIP; \
+	type DVMM_PTE_REQ_PER_CHUNK; \
+	type DVMM_MAX_PTE_REQ_OUTSTANDING; \
 	type GRPH_DEPTH; \
 	type GRPH_FORMAT; \
 	type GRPH_NUM_BANKS; \
@@ -191,7 +230,13 @@ struct dce_mem_input_wa {
 };
 
 struct mem_input;
-bool dce_mem_input_program_surface_config(struct mem_input *mi,
+
+void dce_mem_input_program_pte_vm(struct mem_input *mi,
+	enum surface_pixel_format format,
+	union dc_tiling_info *tiling_info,
+	enum dc_rotation_angle rotation);
+
+void dce_mem_input_program_surface_config(struct mem_input *mi,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	union plane_size *plane_size,
