@@ -2878,7 +2878,7 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 	/* create a CM connection node */
 	cm_node = i40iw_make_cm_node(cm_core, iwdev, cm_info, NULL);
 	if (!cm_node)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	/* set our node side to client (active) side */
 	cm_node->tcp_cntxt.client = 1;
 	cm_node->tcp_cntxt.rcv_wscale = I40IW_CM_DEFAULT_RCV_WND_SCALE;
@@ -2891,7 +2891,8 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 						cm_node->vlan_id,
 						I40IW_CM_LISTENER_ACTIVE_STATE);
 		if (!loopback_remotelistener) {
-			i40iw_create_event(cm_node, I40IW_CM_EVENT_ABORTED);
+			i40iw_rem_ref_cm_node(cm_node);
+			return ERR_PTR(-ECONNREFUSED);
 		} else {
 			loopback_cm_info = *cm_info;
 			loopback_cm_info.loc_port = cm_info->rem_port;
@@ -2904,7 +2905,7 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 								 loopback_remotelistener);
 			if (!loopback_remotenode) {
 				i40iw_rem_ref_cm_node(cm_node);
-				return NULL;
+				return ERR_PTR(-ENOMEM);
 			}
 			cm_core->stats_loopbacks++;
 			loopback_remotenode->loopbackpartner = cm_node;
@@ -3732,6 +3733,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct sockaddr_in6 *raddr6;
 	bool qhash_set = false;
 	int apbvt_set = 0;
+	int err = 0;
 	enum i40iw_status_code status;
 
 	ibqp = i40iw_get_qp(cm_id->device, conn_param->qpn);
@@ -3812,8 +3814,11 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				       conn_param->private_data_len,
 				       (void *)conn_param->private_data,
 				       &cm_info);
-	if (!cm_node)
-		goto err;
+
+	if (IS_ERR(cm_node)) {
+		err = PTR_ERR(cm_node);
+		goto err_out;
+	}
 
 	i40iw_record_ird_ord(cm_node, (u16)conn_param->ird, (u16)conn_param->ord);
 	if (cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO &&
@@ -3827,10 +3832,12 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	iwqp->cm_id = cm_id;
 	i40iw_add_ref(&iwqp->ibqp);
 
-	if (cm_node->state == I40IW_CM_STATE_SYN_SENT) {
-		if (i40iw_send_syn(cm_node, 0)) {
+	if (cm_node->state != I40IW_CM_STATE_OFFLOADED) {
+		cm_node->state = I40IW_CM_STATE_SYN_SENT;
+		err = i40iw_send_syn(cm_node, 0);
+		if (err) {
 			i40iw_rem_ref_cm_node(cm_node);
-			goto err;
+			goto err_out;
 		}
 	}
 
@@ -3842,24 +3849,25 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		    cm_node->cm_id);
 	return 0;
 
-err:
-	if (cm_node) {
-		if (cm_node->ipv4)
-			i40iw_debug(cm_node->dev,
-				    I40IW_DEBUG_CM,
-				    "Api - connect() FAILED: dest addr=%pI4",
-				    cm_node->rem_addr);
-		else
-			i40iw_debug(cm_node->dev, I40IW_DEBUG_CM,
-				    "Api - connect() FAILED: dest addr=%pI6",
-				    cm_node->rem_addr);
-	}
-	i40iw_manage_qhash(iwdev,
-			   &cm_info,
-			   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
-			   I40IW_QHASH_MANAGE_TYPE_DELETE,
-			   NULL,
-			   false);
+err_out:
+	if (cm_info.ipv4)
+		i40iw_debug(&iwdev->sc_dev,
+			    I40IW_DEBUG_CM,
+			    "Api - connect() FAILED: dest addr=%pI4",
+			    cm_info.rem_addr);
+	else
+		i40iw_debug(&iwdev->sc_dev,
+			    I40IW_DEBUG_CM,
+			    "Api - connect() FAILED: dest addr=%pI6",
+			    cm_info.rem_addr);
+
+	if (qhash_set)
+		i40iw_manage_qhash(iwdev,
+				   &cm_info,
+				   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
+				   I40IW_QHASH_MANAGE_TYPE_DELETE,
+				   NULL,
+				   false);
 
 	if (apbvt_set && !i40iw_listen_port_in_use(&iwdev->cm_core,
 						   cm_info.loc_port))
@@ -3868,7 +3876,7 @@ err:
 				   I40IW_MANAGE_APBVT_DEL);
 	cm_id->rem_ref(cm_id);
 	iwdev->cm_core.stats_connect_errs++;
-	return -ENOMEM;
+	return err;
 }
 
 /**
