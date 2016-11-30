@@ -20,6 +20,11 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 
+/*
+ * Note: test functions are marked noinline so that their names appear in
+ * reports.
+ */
+
 static noinline void __init kmalloc_oob_right(void)
 {
 	char *ptr;
@@ -411,6 +416,29 @@ static noinline void __init copy_user_test(void)
 	kfree(kmem);
 }
 
+static noinline void __init use_after_scope_test(void)
+{
+	volatile char *volatile p;
+
+	pr_info("use-after-scope on int\n");
+	{
+		int local = 0;
+
+		p = (char *)&local;
+	}
+	p[0] = 1;
+	p[3] = 1;
+
+	pr_info("use-after-scope on array\n");
+	{
+		char local[1024] = {0};
+
+		p = local;
+	}
+	p[0] = 1;
+	p[1023] = 1;
+}
+
 static int __init kmalloc_tests_init(void)
 {
 	kmalloc_oob_right();
@@ -436,6 +464,7 @@ static int __init kmalloc_tests_init(void)
 	kasan_global_oob();
 	ksize_unpoisons_memory();
 	copy_user_test();
+	use_after_scope_test();
 	return -EAGAIN;
 }
 
