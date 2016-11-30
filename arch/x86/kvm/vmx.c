@@ -10272,15 +10272,6 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		nested_ept_init_mmu_context(vcpu);
 	}
 
-	if (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_IA32_EFER)
-		vcpu->arch.efer = vmcs12->guest_ia32_efer;
-	else if (vmcs12->vm_entry_controls & VM_ENTRY_IA32E_MODE)
-		vcpu->arch.efer |= (EFER_LMA | EFER_LME);
-	else
-		vcpu->arch.efer &= ~(EFER_LMA | EFER_LME);
-	/* Note: modifies VM_ENTRY/EXIT_CONTROLS and GUEST/HOST_IA32_EFER */
-	vmx_set_efer(vcpu, vcpu->arch.efer);
-
 	/*
 	 * This sets GUEST_CR0 to vmcs12->guest_cr0, with possibly a modified
 	 * TS bit (for lazy fpu) and bits which we consider mandatory enabled.
@@ -10294,6 +10285,15 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	vmx_set_cr4(vcpu, vmcs12->guest_cr4);
 	vmcs_writel(CR4_READ_SHADOW, nested_read_cr4(vmcs12));
+
+	if (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_IA32_EFER)
+		vcpu->arch.efer = vmcs12->guest_ia32_efer;
+	else if (vmcs12->vm_entry_controls & VM_ENTRY_IA32E_MODE)
+		vcpu->arch.efer |= (EFER_LMA | EFER_LME);
+	else
+		vcpu->arch.efer &= ~(EFER_LMA | EFER_LME);
+	/* Note: modifies VM_ENTRY/EXIT_CONTROLS and GUEST/HOST_IA32_EFER */
+	vmx_set_efer(vcpu, vcpu->arch.efer);
 
 	/* shadow page tables on either EPT or shadow page tables */
 	kvm_set_cr3(vcpu, vmcs12->guest_cr3);
