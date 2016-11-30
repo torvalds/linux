@@ -105,7 +105,7 @@ xml: all
 latex: $(IMGPDF) all
 
 clean:
-	-rm -f $(DOTTGT) $(IMGTGT) $(patsubst %,$(SRC_DIR)/%,${TARGETS}) 2>/dev/null
+	-rm -f $(DOTTGT) $(IMGTGT) ${TARGETS} 2>/dev/null
 
 $(BUILDDIR):
 	$(Q)mkdir -p $@
