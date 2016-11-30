@@ -93,7 +93,7 @@ xfs_ascii_ci_compname(
 	return result;
 }
 
-static struct xfs_nameops xfs_ascii_ci_nameops = {
+static const struct xfs_nameops xfs_ascii_ci_nameops = {
 	.hashname	= xfs_ascii_ci_hashname,
 	.compname	= xfs_ascii_ci_compname,
 };
