@@ -49,7 +49,7 @@ under development.
 
 Here's an example of how to use the API:
 
-	#include <crypto/ahash.h>
+	#include <crypto/hash.h>
 	#include <linux/err.h>
 	#include <linux/scatterlist.h>
 	
