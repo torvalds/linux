@@ -471,6 +471,12 @@ struct nested_vmx {
 	u32 nested_vmx_misc_high;
 	u32 nested_vmx_ept_caps;
 	u32 nested_vmx_vpid_caps;
+	u64 nested_vmx_basic;
+	u64 nested_vmx_cr0_fixed0;
+	u64 nested_vmx_cr0_fixed1;
+	u64 nested_vmx_cr4_fixed0;
+	u64 nested_vmx_cr4_fixed1;
+	u64 nested_vmx_vmcs_enum;
 };
 
 #define POSTED_INTR_ON  0
@@ -2854,6 +2860,36 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE |
 		VMX_MISC_ACTIVITY_HLT;
 	vmx->nested.nested_vmx_misc_high = 0;
+
+	/*
+	 * This MSR reports some information about VMX support. We
+	 * should return information about the VMX we emulate for the
+	 * guest, and the VMCS structure we give it - not about the
+	 * VMX support of the underlying hardware.
+	 */
+	vmx->nested.nested_vmx_basic =
+		VMCS12_REVISION |
+		VMX_BASIC_TRUE_CTLS |
+		((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
+		(VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
+
+	if (cpu_has_vmx_basic_inout())
+		vmx->nested.nested_vmx_basic |= VMX_BASIC_INOUT;
+
+	/*
+	 * These MSRs specify bits which the guest must keep fixed (on or off)
+	 * while L1 is in VMXON mode (in L1's root mode, or running an L2).
+	 * We picked the standard core2 setting.
+	 */
+#define VMXON_CR0_ALWAYSON     (X86_CR0_PE | X86_CR0_PG | X86_CR0_NE)
+#define VMXON_CR4_ALWAYSON     X86_CR4_VMXE
+	vmx->nested.nested_vmx_cr0_fixed0 = VMXON_CR0_ALWAYSON;
+	vmx->nested.nested_vmx_cr0_fixed1 = -1ULL;
+	vmx->nested.nested_vmx_cr4_fixed0 = VMXON_CR4_ALWAYSON;
+	vmx->nested.nested_vmx_cr4_fixed1 = -1ULL;
+
+	/* highest index: VMX_PREEMPTION_TIMER_VALUE */
+	vmx->nested.nested_vmx_vmcs_enum = 0x2e;
 }
 
 static inline bool vmx_control_verify(u32 control, u32 low, u32 high)
@@ -2869,6 +2905,225 @@ static inline u64 vmx_control_msr(u32 low, u32 high)
 	return low | ((u64)high << 32);
 }
 
+static bool is_bitwise_subset(u64 superset, u64 subset, u64 mask)
+{
+	superset &= mask;
+	subset &= mask;
+
+	return (superset | subset) == superset;
+}
+
+static int vmx_restore_vmx_basic(struct vcpu_vmx *vmx, u64 data)
+{
+	const u64 feature_and_reserved =
+		/* feature (except bit 48; see below) */
+		BIT_ULL(49) | BIT_ULL(54) | BIT_ULL(55) |
+		/* reserved */
+		BIT_ULL(31) | GENMASK_ULL(47, 45) | GENMASK_ULL(63, 56);
+	u64 vmx_basic = vmx->nested.nested_vmx_basic;
+
+	if (!is_bitwise_subset(vmx_basic, data, feature_and_reserved))
+		return -EINVAL;
+
+	/*
+	 * KVM does not emulate a version of VMX that constrains physical
+	 * addresses of VMX structures (e.g. VMCS) to 32-bits.
+	 */
+	if (data & BIT_ULL(48))
+		return -EINVAL;
+
+	if (vmx_basic_vmcs_revision_id(vmx_basic) !=
+	    vmx_basic_vmcs_revision_id(data))
+		return -EINVAL;
+
+	if (vmx_basic_vmcs_size(vmx_basic) > vmx_basic_vmcs_size(data))
+		return -EINVAL;
+
+	vmx->nested.nested_vmx_basic = data;
+	return 0;
+}
+
+static int
+vmx_restore_control_msr(struct vcpu_vmx *vmx, u32 msr_index, u64 data)
+{
+	u64 supported;
+	u32 *lowp, *highp;
+
+	switch (msr_index) {
+	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
+		lowp = &vmx->nested.nested_vmx_pinbased_ctls_low;
+		highp = &vmx->nested.nested_vmx_pinbased_ctls_high;
+		break;
+	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+		lowp = &vmx->nested.nested_vmx_procbased_ctls_low;
+		highp = &vmx->nested.nested_vmx_procbased_ctls_high;
+		break;
+	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
+		lowp = &vmx->nested.nested_vmx_exit_ctls_low;
+		highp = &vmx->nested.nested_vmx_exit_ctls_high;
+		break;
+	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
+		lowp = &vmx->nested.nested_vmx_entry_ctls_low;
+		highp = &vmx->nested.nested_vmx_entry_ctls_high;
+		break;
+	case MSR_IA32_VMX_PROCBASED_CTLS2:
+		lowp = &vmx->nested.nested_vmx_secondary_ctls_low;
+		highp = &vmx->nested.nested_vmx_secondary_ctls_high;
+		break;
+	default:
+		BUG();
+	}
+
+	supported = vmx_control_msr(*lowp, *highp);
+
+	/* Check must-be-1 bits are still 1. */
+	if (!is_bitwise_subset(data, supported, GENMASK_ULL(31, 0)))
+		return -EINVAL;
+
+	/* Check must-be-0 bits are still 0. */
+	if (!is_bitwise_subset(supported, data, GENMASK_ULL(63, 32)))
+		return -EINVAL;
+
+	*lowp = data;
+	*highp = data >> 32;
+	return 0;
+}
+
+static int vmx_restore_vmx_misc(struct vcpu_vmx *vmx, u64 data)
+{
+	const u64 feature_and_reserved_bits =
+		/* feature */
+		BIT_ULL(5) | GENMASK_ULL(8, 6) | BIT_ULL(14) | BIT_ULL(15) |
+		BIT_ULL(28) | BIT_ULL(29) | BIT_ULL(30) |
+		/* reserved */
+		GENMASK_ULL(13, 9) | BIT_ULL(31);
+	u64 vmx_misc;
+
+	vmx_misc = vmx_control_msr(vmx->nested.nested_vmx_misc_low,
+				   vmx->nested.nested_vmx_misc_high);
+
+	if (!is_bitwise_subset(vmx_misc, data, feature_and_reserved_bits))
+		return -EINVAL;
+
+	if ((vmx->nested.nested_vmx_pinbased_ctls_high &
+	     PIN_BASED_VMX_PREEMPTION_TIMER) &&
+	    vmx_misc_preemption_timer_rate(data) !=
+	    vmx_misc_preemption_timer_rate(vmx_misc))
+		return -EINVAL;
+
+	if (vmx_misc_cr3_count(data) > vmx_misc_cr3_count(vmx_misc))
+		return -EINVAL;
+
+	if (vmx_misc_max_msr(data) > vmx_misc_max_msr(vmx_misc))
+		return -EINVAL;
+
+	if (vmx_misc_mseg_revid(data) != vmx_misc_mseg_revid(vmx_misc))
+		return -EINVAL;
+
+	vmx->nested.nested_vmx_misc_low = data;
+	vmx->nested.nested_vmx_misc_high = data >> 32;
+	return 0;
+}
+
+static int vmx_restore_vmx_ept_vpid_cap(struct vcpu_vmx *vmx, u64 data)
+{
+	u64 vmx_ept_vpid_cap;
+
+	vmx_ept_vpid_cap = vmx_control_msr(vmx->nested.nested_vmx_ept_caps,
+					   vmx->nested.nested_vmx_vpid_caps);
+
+	/* Every bit is either reserved or a feature bit. */
+	if (!is_bitwise_subset(vmx_ept_vpid_cap, data, -1ULL))
+		return -EINVAL;
+
+	vmx->nested.nested_vmx_ept_caps = data;
+	vmx->nested.nested_vmx_vpid_caps = data >> 32;
+	return 0;
+}
+
+static int vmx_restore_fixed0_msr(struct vcpu_vmx *vmx, u32 msr_index, u64 data)
+{
+	u64 *msr;
+
+	switch (msr_index) {
+	case MSR_IA32_VMX_CR0_FIXED0:
+		msr = &vmx->nested.nested_vmx_cr0_fixed0;
+		break;
+	case MSR_IA32_VMX_CR4_FIXED0:
+		msr = &vmx->nested.nested_vmx_cr4_fixed0;
+		break;
+	default:
+		BUG();
+	}
+
+	/*
+	 * 1 bits (which indicates bits which "must-be-1" during VMX operation)
+	 * must be 1 in the restored value.
+	 */
+	if (!is_bitwise_subset(data, *msr, -1ULL))
+		return -EINVAL;
+
+	*msr = data;
+	return 0;
+}
+
+/*
+ * Called when userspace is restoring VMX MSRs.
+ *
+ * Returns 0 on success, non-0 otherwise.
+ */
+static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	switch (msr_index) {
+	case MSR_IA32_VMX_BASIC:
+		return vmx_restore_vmx_basic(vmx, data);
+	case MSR_IA32_VMX_PINBASED_CTLS:
+	case MSR_IA32_VMX_PROCBASED_CTLS:
+	case MSR_IA32_VMX_EXIT_CTLS:
+	case MSR_IA32_VMX_ENTRY_CTLS:
+		/*
+		 * The "non-true" VMX capability MSRs are generated from the
+		 * "true" MSRs, so we do not support restoring them directly.
+		 *
+		 * If userspace wants to emulate VMX_BASIC[55]=0, userspace
+		 * should restore the "true" MSRs with the must-be-1 bits
+		 * set according to the SDM Vol 3. A.2 "RESERVED CONTROLS AND
+		 * DEFAULT SETTINGS".
+		 */
+		return -EINVAL;
+	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
+	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
+	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
+	case MSR_IA32_VMX_PROCBASED_CTLS2:
+		return vmx_restore_control_msr(vmx, msr_index, data);
+	case MSR_IA32_VMX_MISC:
+		return vmx_restore_vmx_misc(vmx, data);
+	case MSR_IA32_VMX_CR0_FIXED0:
+	case MSR_IA32_VMX_CR4_FIXED0:
+		return vmx_restore_fixed0_msr(vmx, msr_index, data);
+	case MSR_IA32_VMX_CR0_FIXED1:
+	case MSR_IA32_VMX_CR4_FIXED1:
+		/*
+		 * These MSRs are generated based on the vCPU's CPUID, so we
+		 * do not support restoring them directly.
+		 */
+		return -EINVAL;
+	case MSR_IA32_VMX_EPT_VPID_CAP:
+		return vmx_restore_vmx_ept_vpid_cap(vmx, data);
+	case MSR_IA32_VMX_VMCS_ENUM:
+		vmx->nested.nested_vmx_vmcs_enum = data;
+		return 0;
+	default:
+		/*
+		 * The rest of the VMX capability MSRs do not support restore.
+		 */
+		return -EINVAL;
+	}
+}
+
 /* Returns 0 on success, non-0 otherwise. */
 static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 {
@@ -2876,17 +3131,7 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 
 	switch (msr_index) {
 	case MSR_IA32_VMX_BASIC:
-		/*
-		 * This MSR reports some information about VMX support. We
-		 * should return information about the VMX we emulate for the
-		 * guest, and the VMCS structure we give it - not about the
-		 * VMX support of the underlying hardware.
-		 */
-		*pdata = VMCS12_REVISION | VMX_BASIC_TRUE_CTLS |
-			   ((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
-			   (VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
-		if (cpu_has_vmx_basic_inout())
-			*pdata |= VMX_BASIC_INOUT;
+		*pdata = vmx->nested.nested_vmx_basic;
 		break;
 	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
 	case MSR_IA32_VMX_PINBASED_CTLS:
@@ -2925,27 +3170,20 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 			vmx->nested.nested_vmx_misc_low,
 			vmx->nested.nested_vmx_misc_high);
 		break;
-	/*
-	 * These MSRs specify bits which the guest must keep fixed (on or off)
-	 * while L1 is in VMXON mode (in L1's root mode, or running an L2).
-	 * We picked the standard core2 setting.
-	 */
-#define VMXON_CR0_ALWAYSON	(X86_CR0_PE | X86_CR0_PG | X86_CR0_NE)
-#define VMXON_CR4_ALWAYSON	X86_CR4_VMXE
 	case MSR_IA32_VMX_CR0_FIXED0:
-		*pdata = VMXON_CR0_ALWAYSON;
+		*pdata = vmx->nested.nested_vmx_cr0_fixed0;
 		break;
 	case MSR_IA32_VMX_CR0_FIXED1:
-		*pdata = -1ULL;
+		*pdata = vmx->nested.nested_vmx_cr0_fixed1;
 		break;
 	case MSR_IA32_VMX_CR4_FIXED0:
-		*pdata = VMXON_CR4_ALWAYSON;
+		*pdata = vmx->nested.nested_vmx_cr4_fixed0;
 		break;
 	case MSR_IA32_VMX_CR4_FIXED1:
-		*pdata = -1ULL;
+		*pdata = vmx->nested.nested_vmx_cr4_fixed1;
 		break;
 	case MSR_IA32_VMX_VMCS_ENUM:
-		*pdata = 0x2e; /* highest index: VMX_PREEMPTION_TIMER_VALUE */
+		*pdata = vmx->nested.nested_vmx_vmcs_enum;
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
 		*pdata = vmx_control_msr(
@@ -3128,7 +3366,11 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			vmx_leave_nested(vcpu);
 		break;
 	case MSR_IA32_VMX_BASIC ... MSR_IA32_VMX_VMFUNC:
-		return 1; /* they are read-only */
+		if (!msr_info->host_initiated)
+			return 1; /* they are read-only */
+		if (!nested_vmx_allowed(vcpu))
+			return 1;
+		return vmx_set_vmx_msr(vcpu, msr_index, data);
 	case MSR_IA32_XSS:
 		if (!vmx_xsaves_supported())
 			return 1;
