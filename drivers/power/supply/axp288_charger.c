@@ -581,15 +581,15 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	bool old_connected = info->cable.connected;
 
 	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_SDP) > 0) {
+	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
 		dev_dbg(&info->pdev->dev, "USB SDP charger  is connected");
 		info->cable.connected = true;
 		info->cable.chg_type = POWER_SUPPLY_TYPE_USB;
-	} else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_CDP) > 0) {
+	} else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
 		dev_dbg(&info->pdev->dev, "USB CDP charger is connected");
 		info->cable.connected = true;
 		info->cable.chg_type = POWER_SUPPLY_TYPE_USB_CDP;
-	} else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_DCP) > 0) {
+	} else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
 		dev_dbg(&info->pdev->dev, "USB DCP charger is connected");
 		info->cable.connected = true;
 		info->cable.chg_type = POWER_SUPPLY_TYPE_USB_DCP;
@@ -686,7 +686,7 @@ static int axp288_charger_handle_otg_evt(struct notifier_block *nb,
 	struct axp288_chrg_info *info =
 	    container_of(nb, struct axp288_chrg_info, otg.id_nb);
 	struct extcon_dev *edev = info->otg.cable;
-	int usb_host = extcon_get_cable_state_(edev, EXTCON_USB_HOST);
+	int usb_host = extcon_get_state(edev, EXTCON_USB_HOST);
 
 	dev_dbg(&info->pdev->dev, "external connector USB-Host is %s\n",
 				usb_host ? "attached" : "detached");
@@ -841,33 +841,27 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	/* Register for extcon notification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
 	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
-	ret = extcon_register_notifier(info->cable.edev, EXTCON_CHG_USB_SDP,
-					&info->cable.nb);
+	ret = devm_extcon_register_notifier(&pdev->dev, info->cable.edev,
+					EXTCON_CHG_USB_SDP, &info->cable.nb);
 	if (ret) {
 		dev_err(&info->pdev->dev,
 			"failed to register extcon notifier for SDP %d\n", ret);
 		return ret;
 	}
 
-	ret = extcon_register_notifier(info->cable.edev, EXTCON_CHG_USB_CDP,
-					&info->cable.nb);
+	ret = devm_extcon_register_notifier(&pdev->dev, info->cable.edev,
+					EXTCON_CHG_USB_CDP, &info->cable.nb);
 	if (ret) {
 		dev_err(&info->pdev->dev,
 			"failed to register extcon notifier for CDP %d\n", ret);
-		extcon_unregister_notifier(info->cable.edev,
-				EXTCON_CHG_USB_SDP, &info->cable.nb);
 		return ret;
 	}
 
-	ret = extcon_register_notifier(info->cable.edev, EXTCON_CHG_USB_DCP,
-					&info->cable.nb);
+	ret = devm_extcon_register_notifier(&pdev->dev, info->cable.edev,
+					EXTCON_CHG_USB_DCP, &info->cable.nb);
 	if (ret) {
 		dev_err(&info->pdev->dev,
 			"failed to register extcon notifier for DCP %d\n", ret);
-		extcon_unregister_notifier(info->cable.edev,
-				EXTCON_CHG_USB_SDP, &info->cable.nb);
-		extcon_unregister_notifier(info->cable.edev,
-				EXTCON_CHG_USB_CDP, &info->cable.nb);
 		return ret;
 	}
 
@@ -887,13 +881,13 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	/* Register for OTG notification */
 	INIT_WORK(&info->otg.work, axp288_charger_otg_evt_worker);
 	info->otg.id_nb.notifier_call = axp288_charger_handle_otg_evt;
-	ret = extcon_register_notifier(info->otg.cable, EXTCON_USB_HOST,
-				       &info->otg.id_nb);
+	ret = devm_extcon_register_notifier(&pdev->dev, info->otg.cable,
+					EXTCON_USB_HOST, &info->otg.id_nb);
 	if (ret)
 		dev_warn(&pdev->dev, "failed to register otg notifier\n");
 
 	if (info->otg.cable)
-		info->otg.id_short = extcon_get_cable_state_(
+		info->otg.id_short = extcon_get_state(
 					info->otg.cable, EXTCON_USB_HOST);
 
 	/* Register charger interrupts */
@@ -921,17 +915,8 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	return 0;
 
 intr_reg_failed:
-	if (info->otg.cable)
-		extcon_unregister_notifier(info->otg.cable, EXTCON_USB_HOST,
-					&info->otg.id_nb);
 	power_supply_unregister(info->psy_usb);
 psy_reg_failed:
-	extcon_unregister_notifier(info->cable.edev, EXTCON_CHG_USB_SDP,
-					&info->cable.nb);
-	extcon_unregister_notifier(info->cable.edev, EXTCON_CHG_USB_CDP,
-					&info->cable.nb);
-	extcon_unregister_notifier(info->cable.edev, EXTCON_CHG_USB_DCP,
-					&info->cable.nb);
 	return ret;
 }
 
@@ -939,16 +924,6 @@ static int axp288_charger_remove(struct platform_device *pdev)
 {
 	struct axp288_chrg_info *info =  dev_get_drvdata(&pdev->dev);
 
-	if (info->otg.cable)
-		extcon_unregister_notifier(info->otg.cable, EXTCON_USB_HOST,
-					&info->otg.id_nb);
-
-	extcon_unregister_notifier(info->cable.edev, EXTCON_CHG_USB_SDP,
-					&info->cable.nb);
-	extcon_unregister_notifier(info->cable.edev, EXTCON_CHG_USB_CDP,
-					&info->cable.nb);
-	extcon_unregister_notifier(info->cable.edev, EXTCON_CHG_USB_DCP,
-					&info->cable.nb);
 	power_supply_unregister(info->psy_usb);
 
 	return 0;
