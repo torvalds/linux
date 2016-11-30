@@ -750,6 +750,8 @@ pnfs_layout_bulk_destroy_byserver_locked(struct nfs_client *clp,
 	struct inode *inode;
 
 	list_for_each_entry_safe(lo, next, &server->layouts, plh_layouts) {
+		if (test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags))
+			continue;
 		inode = igrab(lo->plh_inode);
 		if (inode == NULL)
 			continue;
