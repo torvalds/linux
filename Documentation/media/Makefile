@@ -10,6 +10,9 @@ FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
+DOTS = \
+	uapi/v4l/pipeline.dot \
+
 IMAGES = \
 	typical_media_device.svg \
 	uapi/dvb/dvbstb.svg \
@@ -29,8 +32,10 @@ IMAGES = \
 	uapi/v4l/vbi_625.svg \
 	uapi/v4l/vbi_hsync.svg \
 
+DOTTGT := $(patsubst %.dot,%.svg,$(DOTS))
+IMGDOT := $(patsubst %,$(SRC_DIR)/%,$(DOTTGT))
 
-IMGTGT := $(patsubst %.png,%.pdf,$(patsubst %.svg,%.pdf,$(IMAGES)))
+IMGTGT := $(patsubst %.svg,%.pdf,$(IMAGES))
 IMGPDF := $(patsubst %,$(SRC_DIR)/%,$(IMGTGT))
 
 cmd = $(echo-cmd) $(cmd_$(1))
@@ -38,19 +43,25 @@ cmd = $(echo-cmd) $(cmd_$(1))
 quiet_cmd_genpdf = GENPDF  $2
       cmd_genpdf = convert $2 $3
 
+quiet_cmd_gendot = DOT     $2
+      cmd_gendot = dot -Tsvg $2 > $3
+
 %.pdf: %.svg
 	@$(call cmd,genpdf,$<,$@)
 
+%.svg: %.dot
+	@$(call cmd,gendot,$<,$@)
+
 .PHONY: all html epub xml latex
 
-all: $(BUILDDIR) ${TARGETS}
+all: $(IMGDOT) $(BUILDDIR) ${TARGETS}
 html: all
 epub: all
 xml: all
 latex: $(IMGPDF) all
 
 clean:
-	-rm -f $(IMGTGT) 2>/dev/null
+	-rm -f $(DOTTGT) $(IMGTGT) $(patsubst %,$(SRC_DIR)/%,${TARGETS}) 2>/dev/null
 
 $(BUILDDIR):
 	$(Q)mkdir -p $@
@@ -95,6 +106,3 @@ $(BUILDDIR)/cec.h.rst: ${KAPI}/cec.h ${PARSER} $(SRC_DIR)/cec.h.rst.exceptions
 
 $(BUILDDIR)/lirc.h.rst: ${UAPI}/lirc.h ${PARSER} $(SRC_DIR)/lirc.h.rst.exceptions
 	@$($(quiet)gen_rst)
-
-cleandocs:
-	-rm -f ${TARGETS}
