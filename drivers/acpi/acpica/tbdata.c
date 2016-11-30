@@ -871,3 +871,51 @@ unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_ACPI_STATUS(status);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_unload_table
+ *
+ * PARAMETERS:  table_index             - Table index
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Unload an ACPI table
+ *
+ ******************************************************************************/
+
+acpi_status acpi_tb_unload_table(u32 table_index)
+{
+	acpi_status status = AE_OK;
+	struct acpi_table_header *table;
+
+	ACPI_FUNCTION_TRACE(tb_unload_table);
+
+	/* Ensure the table is still loaded */
+
+	if (!acpi_tb_is_table_loaded(table_index)) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		status = acpi_get_table_by_index(table_index, &table);
+		if (ACPI_SUCCESS(status)) {
+			(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_UNLOAD,
+						     table,
+						     acpi_gbl_table_handler_context);
+		}
+	}
+
+	/* Delete the portion of the namespace owned by this table */
+
+	status = acpi_tb_delete_namespace_by_owner(table_index);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	(void)acpi_tb_release_owner_id(table_index);
+	acpi_tb_set_table_loaded_flag(table_index, FALSE);
+	return_ACPI_STATUS(status);
+}

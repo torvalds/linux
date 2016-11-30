@@ -408,37 +408,8 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 			break;
 		}
 
-		/* Ensure the table is actually loaded */
-
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		if (!acpi_tb_is_table_loaded(i)) {
-			status = AE_NOT_EXIST;
-			(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-			break;
-		}
-
-		/* Invoke table handler if present */
-
-		if (acpi_gbl_table_handler) {
-			(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_UNLOAD,
-						     acpi_gbl_root_table_list.
-						     tables[i].pointer,
-						     acpi_gbl_table_handler_context);
-		}
-
-		/*
-		 * Delete all namespace objects owned by this table. Note that
-		 * these objects can appear anywhere in the namespace by virtue
-		 * of the AML "Scope" operator. Thus, we need to track ownership
-		 * by an ID, not simply a position within the hierarchy.
-		 */
-		status = acpi_tb_delete_namespace_by_owner(i);
-		if (ACPI_FAILURE(status)) {
-			break;
-		}
-
-		status = acpi_tb_release_owner_id(i);
-		acpi_tb_set_table_loaded_flag(i, FALSE);
+		status = acpi_tb_unload_table(i);
 		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 		break;
 	}

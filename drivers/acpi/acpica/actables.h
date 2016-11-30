@@ -130,6 +130,8 @@ acpi_status
 acpi_tb_install_and_load_table(acpi_physical_address address,
 			       u8 flags, u8 override, u32 *table_index);
 
+acpi_status acpi_tb_unload_table(u32 table_index);
+
 void acpi_tb_terminate(void);
 
 acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index);
