@@ -6,10 +6,15 @@ Required properties:
 
 Optional properties:
 - powerdown-gpios: power-down gpio
+- reg: I2C address. If and only if present the device node
+       should be placed into the i2c controller node where the
+       tfp410 i2c is connected to.
 
 Required nodes:
-- Video port 0 for DPI input
-- Video port 1 for DVI output
+- Video port 0 for DPI input [1].
+- Video port 1 for DVI output [1].
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example
 -------

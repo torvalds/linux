@@ -90,6 +90,13 @@ config DRM_TOSHIBA_TC358767
 	---help---
 	  Toshiba TC358767 eDP bridge chip driver.
 
+config DRM_TI_TFP410
+	tristate "TI TFP410 DVI/HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	---help---
+	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 source "drivers/gpu/drm/bridge/adv7511/Kconfig"
