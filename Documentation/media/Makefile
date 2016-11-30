@@ -20,6 +20,7 @@ IMAGES = \
 	uapi/v4l/nv12mt.svg \
 	uapi/v4l/nv12mt_example.svg \
 	uapi/v4l/pipeline.svg \
+	uapi/v4l/selection.svg \
 	uapi/v4l/subdev-image-processing-full.svg \
 	uapi/v4l/subdev-image-processing-scaling-multi-source.svg \
 	uapi/v4l/subdev-image-processing-crop.svg \
