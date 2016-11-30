@@ -38,13 +38,6 @@ void dal_display_clock_destroy(struct display_clock **disp_clk)
 	*disp_clk = NULL;
 }
 
-void dal_display_clock_set_clock(
-	struct display_clock *disp_clk,
-	uint32_t requested_clock_khz)
-{
-	disp_clk->funcs->set_clock(disp_clk, requested_clock_khz);
-}
-
 bool dal_display_clock_get_min_clocks_state(
 	struct display_clock *disp_clk,
 	enum clocks_state *clocks_state)
@@ -78,18 +71,5 @@ bool dal_display_clock_set_min_clocks_state(
 
 	disp_clk->funcs->set_min_clocks_state(disp_clk, clocks_state);
 	return true;
-}
-
-uint32_t dal_display_clock_get_dp_ref_clk_frequency(
-	struct display_clock *disp_clk)
-{
-	return disp_clk->funcs->get_dp_ref_clk_frequency(disp_clk);
-}
-
-void dal_display_clock_store_max_clocks_state(
-	struct display_clock *disp_clk,
-	enum clocks_state max_clocks_state)
-{
-	disp_clk->funcs->store_max_clocks_state(disp_clk, max_clocks_state);
 }
 

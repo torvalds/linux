@@ -1315,7 +1315,7 @@ static bool construct(
 			dce110_resource_convert_clock_state_pp_to_dc(
 					static_clk_info.max_clocks_state);
 
-		dal_display_clock_store_max_clocks_state(
+		pool->base.display_clock->funcs->store_max_clocks_state(
 				pool->base.display_clock, max_clocks_state);
 	}
 

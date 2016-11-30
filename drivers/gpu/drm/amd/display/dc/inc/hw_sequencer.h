@@ -132,8 +132,6 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct validate_context *context);
 
-	void (*set_display_clock)(struct validate_context *context);
-
 	void (*set_bandwidth)(struct core_dc *dc);
 
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,

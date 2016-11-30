@@ -1224,7 +1224,9 @@ bool dc_pre_update_surfaces_to_target(
 	if (prev_disp_clk < context->bw_results.dispclk_khz) {
 		pplib_apply_display_requirements(core_dc, context,
 						&context->pp_display_cfg);
-		core_dc->hwss.set_display_clock(context);
+		context->res_ctx.pool->display_clock->funcs->set_clock(
+				context->res_ctx.pool->display_clock,
+				context->bw_results.dispclk_khz * 115 / 100);
 		core_dc->current_context->bw_results.dispclk_khz =
 				context->bw_results.dispclk_khz;
 	}

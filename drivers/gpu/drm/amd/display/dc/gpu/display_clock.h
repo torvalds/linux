@@ -28,34 +28,4 @@
 
 #include "include/display_clock_interface.h"
 
-struct display_clock_funcs {
-	void (*destroy)(struct display_clock **to_destroy);
-	void (*set_clock)(struct display_clock *disp_clk,
-		uint32_t requested_clock_khz);
-	enum clocks_state (*get_min_clocks_state)(
-		struct display_clock *disp_clk);
-	enum clocks_state (*get_required_clocks_state)(
-		struct display_clock *disp_clk,
-		struct state_dependent_clocks *req_clocks);
-	bool (*set_min_clocks_state)(struct display_clock *disp_clk,
-		enum clocks_state clocks_state);
-	uint32_t (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
-	void (*store_max_clocks_state)(struct display_clock *disp_clk,
-		enum clocks_state max_clocks_state);
-
-};
-
-struct display_clock {
-	struct dc_context *ctx;
-	const struct display_clock_funcs *funcs;
-	uint32_t min_display_clk_threshold_khz;
-	enum clock_source_id id;
-
-	enum clocks_state cur_min_clks_state;
-};
-void dal_display_clock_store_max_clocks_state(
-	struct display_clock *disp_clk,
-	enum clocks_state max_clocks_state);
-
-
 #endif /* __DAL_DISPLAY_CLOCK_H__*/

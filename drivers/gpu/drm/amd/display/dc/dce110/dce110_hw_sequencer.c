@@ -497,8 +497,8 @@ static void build_audio_output(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		audio_output->pll_info.dp_dto_source_clock_in_khz =
-			dal_display_clock_get_dp_ref_clk_frequency(
-				pipe_ctx->dis_clk);
+				pipe_ctx->dis_clk->funcs->get_dp_ref_clk_frequency(
+						pipe_ctx->dis_clk);
 	}
 
 	audio_output->pll_info.feed_back_divider =
@@ -786,39 +786,6 @@ void dce110_enable_accelerated_mode(struct core_dc *dc)
 
 	disable_vga_and_power_gate_all_controllers(dc);
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
-}
-
-/**
- * Call display_engine_clock_dce80 to perform the Dclk programming.
- */
-void dce110_set_display_clock(struct validate_context *context)
-{
-	/* Program the display engine clock.
-	 * Check DFS bypass mode support or not. DFSbypass feature is only when
-	 * BIOS GPU info table reports support. */
-
-	if (/*dal_adapter_service_is_dfs_bypass_enabled()*/ false) {
-		/*TODO: set_display_clock_dfs_bypass(
-				hws,
-				path_set,
-				context->res_ctx.pool->display_clock,
-				context->res_ctx.min_clocks.min_dclk_khz);*/
-	} else {
-		/*
-		 * TODO: need to either port work around from DAL2 function
-		 * getActualRequiredDisplayClock or program displayclock without
-		 * calling vbios. Currently temporily work
-		 * around by increasing the displclk by 15 percent
-		 */
-		dal_display_clock_set_clock(
-				context->res_ctx.pool->display_clock,
-				context->bw_results.dispclk_khz * 115 / 100);
-	}
-
-
-	/* TODO: When changing display engine clock, DMCU WaitLoop must be
-	 * reconfigured in order to maintain the same delays within DMCU
-	 * programming sequences. */
 }
 
 static uint32_t compute_pstate_blackout_duration(
@@ -1267,8 +1234,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, true);
 
 	if (context->bw_results.dispclk_khz
-		> dc->current_context->bw_results.dispclk_khz)
-		dc->hwss.set_display_clock(context);
+			> dc->current_context->bw_results.dispclk_khz)
+		context->res_ctx.pool->display_clock->funcs->set_clock(
+				context->res_ctx.pool->display_clock,
+				context->bw_results.dispclk_khz * 115 / 100);
 
 	for (i = 0; i < context->res_ctx.pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx_old =
@@ -1738,7 +1707,9 @@ static void dce110_set_bandwidth(struct core_dc *dc)
 		program_wm_for_pipe(dc, pipe_ctx, dc->current_context);
 	}
 
-	dc->hwss.set_display_clock(dc->current_context);
+	dc->current_context->res_ctx.pool->display_clock->funcs->set_clock(
+			dc->current_context->res_ctx.pool->display_clock,
+			dc->current_context->bw_results.dispclk_khz * 115 / 100);
 }
 
 static void dce110_program_front_end_for_pipe(
@@ -1959,7 +1930,6 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.enable_display_power_gating = dce110_enable_display_power_gating,
 	.power_down_front_end = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
-	.set_display_clock = dce110_set_display_clock,
 	.set_displaymarks = dce110_set_displaymarks,
 	.increase_watermarks_for_pipe = dce110_increase_watermarks_for_pipe,
 	.set_bandwidth = dce110_set_bandwidth,

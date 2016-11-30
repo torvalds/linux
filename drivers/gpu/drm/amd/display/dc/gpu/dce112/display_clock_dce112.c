@@ -383,7 +383,6 @@ bool dal_display_clock_dce112_construct(
 	struct display_clock *dc_base = &dc112->disp_clk_base;
 
 	dc_base->ctx = ctx;
-	dc_base->id = CLOCK_SOURCE_ID_DCPLL;
 	dc_base->min_display_clk_threshold_khz = 0;
 
 	dc_base->cur_min_clks_state = CLOCKS_STATE_INVALID;
