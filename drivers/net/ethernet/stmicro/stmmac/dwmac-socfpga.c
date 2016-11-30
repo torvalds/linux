@@ -304,6 +304,8 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			ret;
 	struct socfpga_dwmac	*dwmac;
+	struct net_device	*ndev;
+	struct stmmac_priv	*stpriv;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
@@ -327,19 +329,26 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		return ret;
 
-	if (!ret) {
-		struct net_device *ndev = platform_get_drvdata(pdev);
-		struct stmmac_priv *stpriv = netdev_priv(ndev);
+	ndev = platform_get_drvdata(pdev);
+	stpriv = netdev_priv(ndev);
 
-		/* The socfpga driver needs to control the stmmac reset to
-		 * set the phy mode. Create a copy of the core reset handel
-		 * so it can be used by the driver later.
-		 */
-		dwmac->stmmac_rst = stpriv->stmmac_rst;
+	/* The socfpga driver needs to control the stmmac reset to set the phy
+	 * mode. Create a copy of the core reset handle so it can be used by
+	 * the driver later.
+	 */
+	dwmac->stmmac_rst = stpriv->stmmac_rst;
 
-		ret = socfpga_dwmac_set_phy_mode(dwmac);
-	}
+	ret = socfpga_dwmac_set_phy_mode(dwmac);
+	if (ret)
+		goto err_dvr_remove;
+
+	return 0;
+
+err_dvr_remove:
+	stmmac_dvr_remove(&pdev->dev);
 
 	return ret;
 }
