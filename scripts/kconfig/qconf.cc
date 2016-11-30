@@ -1014,7 +1014,7 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 
 	if (!objectName().isEmpty()) {
 		configSettings->beginGroup(objectName());
-		_showDebug = configSettings->value("/showDebug", false).toBool();
+		setShowDebug(configSettings->value("/showDebug", false).toBool());
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
 	}
@@ -1474,6 +1474,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	optionMenu->addSeparator();
 	optionMenu->addActions(optGroup->actions());
 	optionMenu->addSeparator();
+	optionMenu->addAction(showDebugAction);
 
 	// create help menu
 	menu->addSeparator();
