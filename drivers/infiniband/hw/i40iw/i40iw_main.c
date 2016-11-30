@@ -1164,7 +1164,7 @@ static void i40iw_add_ipv6_addr(struct i40iw_device *iwdev)
 {
 	struct net_device *ip_dev;
 	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifp;
+	struct inet6_ifaddr *ifp, *tmp;
 	u32 local_ipaddr6[4];
 
 	rcu_read_lock();
@@ -1177,7 +1177,7 @@ static void i40iw_add_ipv6_addr(struct i40iw_device *iwdev)
 				i40iw_pr_err("ipv6 inet device not found\n");
 				break;
 			}
-			list_for_each_entry(ifp, &idev->addr_list, if_list) {
+			list_for_each_entry_safe(ifp, tmp, &idev->addr_list, if_list) {
 				i40iw_pr_info("IP=%pI6, vlan_id=%d, MAC=%pM\n", &ifp->addr,
 					      rdma_vlan_dev_vlan_id(ip_dev), ip_dev->dev_addr);
 				i40iw_copy_ip_ntohl(local_ipaddr6,

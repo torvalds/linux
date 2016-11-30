@@ -1644,7 +1644,7 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 {
 	struct net_device *ip_dev;
 	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifp;
+	struct inet6_ifaddr *ifp, *tmp;
 	enum i40iw_status_code ret = 0;
 	struct i40iw_cm_listener *child_listen_node;
 	unsigned long flags;
@@ -1659,7 +1659,7 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 				i40iw_pr_err("idev == NULL\n");
 				break;
 			}
-			list_for_each_entry(ifp, &idev->addr_list, if_list) {
+			list_for_each_entry_safe(ifp, tmp, &idev->addr_list, if_list) {
 				i40iw_debug(&iwdev->sc_dev,
 					    I40IW_DEBUG_CM,
 					    "IP=%pI6, vlan_id=%d, MAC=%pM\n",
