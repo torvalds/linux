@@ -506,16 +506,8 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 
 void dsa_cpu_dsa_destroy(struct device_node *port_dn)
 {
-	struct phy_device *phydev;
-
-	if (of_phy_is_fixed_link(port_dn)) {
-		phydev = of_phy_find_device(port_dn);
-		if (phydev) {
-			fixed_phy_unregister(phydev);
-			put_device(&phydev->mdio.dev);
-			phy_device_free(phydev);
-		}
-	}
+	if (of_phy_is_fixed_link(port_dn))
+		of_phy_deregister_fixed_link(port_dn);
 }
 
 static void dsa_switch_destroy(struct dsa_switch *ds)

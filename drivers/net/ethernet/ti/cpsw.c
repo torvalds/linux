@@ -2459,20 +2459,8 @@ static void cpsw_remove_dt(struct platform_device *pdev)
 		if (strcmp(slave_node->name, "slave"))
 			continue;
 
-		if (of_phy_is_fixed_link(slave_node)) {
-			struct phy_device *phydev;
-
-			phydev = of_phy_find_device(slave_node);
-			if (phydev) {
-				fixed_phy_unregister(phydev);
-				/* Put references taken by
-				 * of_phy_find_device() and
-				 * of_phy_register_fixed_link().
-				 */
-				phy_device_free(phydev);
-				phy_device_free(phydev);
-			}
-		}
+		if (of_phy_is_fixed_link(slave_node))
+			of_phy_deregister_fixed_link(slave_node);
 
 		of_node_put(slave_data->phy_node);
 
