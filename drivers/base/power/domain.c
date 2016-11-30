@@ -2031,8 +2031,9 @@ int genpd_dev_pm_attach(struct device *dev)
 	mutex_unlock(&gpd_list_lock);
 
 	if (ret < 0) {
-		dev_err(dev, "failed to add to PM domain %s: %d",
-			pd->name, ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to add to PM domain %s: %d",
+				pd->name, ret);
 		goto out;
 	}
 
