@@ -555,6 +555,35 @@ static const struct panel_desc auo_b133htn01 = {
 	},
 };
 
+static const struct display_timing auo_g133han01_timings = {
+	.pixelclock = { 134000000, 141200000, 149000000 },
+	.hactive = { 1920, 1920, 1920 },
+	.hfront_porch = { 39, 58, 77 },
+	.hback_porch = { 59, 88, 117 },
+	.hsync_len = { 28, 42, 56 },
+	.vactive = { 1080, 1080, 1080 },
+	.vfront_porch = { 3, 8, 11 },
+	.vback_porch = { 5, 14, 19 },
+	.vsync_len = { 4, 14, 19 },
+};
+
+static const struct panel_desc auo_g133han01 = {
+	.timings = &auo_g133han01_timings,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 293,
+		.height = 165,
+	},
+	.delay = {
+		.prepare = 200,
+		.enable = 50,
+		.disable = 50,
+		.unprepare = 1000,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA,
+};
+
 static const struct drm_display_mode auo_t215hvn01_mode = {
 	.clock = 148800,
 	.hdisplay = 1920,
@@ -1677,6 +1706,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
+	}, {
+		.compatible = "auo,g133han01",
+		.data = &auo_g133han01,
 	}, {
 		.compatible = "auo,t215hvn01",
 		.data = &auo_t215hvn01,
