@@ -64,11 +64,11 @@ void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
 	if (adata->key_inline)
-		append_key_as_imm(desc, (void *)adata->key, adata->keylen_pad,
+		append_key_as_imm(desc, adata->key_virt, adata->keylen_pad,
 				  adata->keylen, CLASS_2 | KEY_DEST_MDHA_SPLIT |
 				  KEY_ENC);
 	else
-		append_key(desc, adata->key, adata->keylen, CLASS_2 |
+		append_key(desc, adata->key_dma, adata->keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -140,11 +140,11 @@ void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
 	if (adata->key_inline)
-		append_key_as_imm(desc, (void *)adata->key, adata->keylen_pad,
+		append_key_as_imm(desc, adata->key_virt, adata->keylen_pad,
 				  adata->keylen, CLASS_2 |
 				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	else
-		append_key(desc, adata->key, adata->keylen, CLASS_2 |
+		append_key(desc, adata->key_dma, adata->keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -225,18 +225,18 @@ static void init_sh_desc_key_aead(u32 * const desc,
 		enckeylen -= CTR_RFC3686_NONCE_SIZE;
 
 	if (adata->key_inline)
-		append_key_as_imm(desc, (void *)adata->key, adata->keylen_pad,
+		append_key_as_imm(desc, adata->key_virt, adata->keylen_pad,
 				  adata->keylen, CLASS_2 |
 				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
 	else
-		append_key(desc, adata->key, adata->keylen, CLASS_2 |
+		append_key(desc, adata->key_dma, adata->keylen, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
 
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, enckeylen,
+		append_key_as_imm(desc, cdata->key_virt, enckeylen,
 				  enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, enckeylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, enckeylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 
 	/* Load Counter into CONTEXT1 reg */
@@ -536,10 +536,10 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD | JUMP_COND_SELF);
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, cdata->keylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, cdata->keylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -626,10 +626,10 @@ void cnstr_shdsc_gcm_decap(u32 * const desc, struct alginfo *cdata,
 				   JUMP_TEST_ALL | JUMP_COND_SHRD |
 				   JUMP_COND_SELF);
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, cdata->keylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, cdata->keylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -702,10 +702,10 @@ void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, cdata->keylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, cdata->keylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -773,11 +773,11 @@ void cnstr_shdsc_rfc4106_decap(u32 * const desc, struct alginfo *cdata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 |
 				  KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, cdata->keylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, cdata->keylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -845,10 +845,10 @@ void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, cdata->keylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, cdata->keylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -915,10 +915,10 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
 	if (cdata->key_inline)
-		append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	else
-		append_key(desc, cdata->key, cdata->keylen, CLASS_1 |
+		append_key(desc, cdata->key_dma, cdata->keylen, CLASS_1 |
 			   KEY_DEST_CLASS_REG);
 	set_jump_tgt_here(desc, key_jump_cmd);
 
@@ -1006,12 +1006,12 @@ void cnstr_shdsc_ablkcipher_encap(u32 * const desc, struct alginfo *cdata,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = (u8 *)cdata->key + cdata->keylen;
+		u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1071,12 +1071,12 @@ void cnstr_shdsc_ablkcipher_decap(u32 * const desc, struct alginfo *cdata,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = (u8 *)cdata->key + cdata->keylen;
+		u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1140,12 +1140,12 @@ void cnstr_shdsc_ablkcipher_givencap(u32 * const desc, struct alginfo *cdata,
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load Nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = (u8 *)cdata->key + cdata->keylen;
+		u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1216,7 +1216,7 @@ void cnstr_shdsc_xts_ablkcipher_encap(u32 * const desc, struct alginfo *cdata)
 				   JUMP_COND_SHRD);
 
 	/* Load class1 keys only */
-	append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load sector size with index 40 bytes (0x28) */
@@ -1268,7 +1268,7 @@ void cnstr_shdsc_xts_ablkcipher_decap(u32 * const desc, struct alginfo *cdata)
 				   JUMP_COND_SHRD);
 
 	/* Load class1 key only */
-	append_key_as_imm(desc, (void *)cdata->key, cdata->keylen,
+	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
 
 	/* Load sector size with index 40 bytes (0x28) */

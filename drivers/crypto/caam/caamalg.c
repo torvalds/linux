@@ -162,10 +162,10 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_AEAD_NULL_ENC_LEN) {
 		ctx->adata.key_inline = true;
-		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->adata.key_virt = ctx->key;
 	} else {
 		ctx->adata.key_inline = false;
-		ctx->adata.key = ctx->key_dma;
+		ctx->adata.key_dma = ctx->key_dma;
 	}
 
 	/* aead_encrypt shared descriptor */
@@ -185,10 +185,10 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_AEAD_NULL_DEC_LEN) {
 		ctx->adata.key_inline = true;
-		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->adata.key_virt = ctx->key;
 	} else {
 		ctx->adata.key_inline = false;
-		ctx->adata.key = ctx->key_dma;
+		ctx->adata.key_dma = ctx->key_dma;
 	}
 
 	/* aead_decrypt shared descriptor */
@@ -262,14 +262,14 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 		return -EINVAL;
 
 	if (inl_mask & 1)
-		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->adata.key_virt = ctx->key;
 	else
-		ctx->adata.key = ctx->key_dma;
+		ctx->adata.key_dma = ctx->key_dma;
 
 	if (inl_mask & 2)
-		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+		ctx->cdata.key_virt = ctx->key + ctx->adata.keylen_pad;
 	else
-		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
+		ctx->cdata.key_dma = ctx->key_dma + ctx->adata.keylen_pad;
 
 	ctx->adata.key_inline = !!(inl_mask & 1);
 	ctx->cdata.key_inline = !!(inl_mask & 2);
@@ -298,14 +298,14 @@ skip_enc:
 		return -EINVAL;
 
 	if (inl_mask & 1)
-		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->adata.key_virt = ctx->key;
 	else
-		ctx->adata.key = ctx->key_dma;
+		ctx->adata.key_dma = ctx->key_dma;
 
 	if (inl_mask & 2)
-		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+		ctx->cdata.key_virt = ctx->key + ctx->adata.keylen_pad;
 	else
-		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
+		ctx->cdata.key_dma = ctx->key_dma + ctx->adata.keylen_pad;
 
 	ctx->adata.key_inline = !!(inl_mask & 1);
 	ctx->cdata.key_inline = !!(inl_mask & 2);
@@ -337,14 +337,14 @@ skip_enc:
 		return -EINVAL;
 
 	if (inl_mask & 1)
-		ctx->adata.key = (uintptr_t)ctx->key;
+		ctx->adata.key_virt = ctx->key;
 	else
-		ctx->adata.key = ctx->key_dma;
+		ctx->adata.key_dma = ctx->key_dma;
 
 	if (inl_mask & 2)
-		ctx->cdata.key = (uintptr_t)(ctx->key + ctx->adata.keylen_pad);
+		ctx->cdata.key_virt = ctx->key + ctx->adata.keylen_pad;
 	else
-		ctx->cdata.key = ctx->key_dma + ctx->adata.keylen_pad;
+		ctx->cdata.key_dma = ctx->key_dma + ctx->adata.keylen_pad;
 
 	ctx->adata.key_inline = !!(inl_mask & 1);
 	ctx->cdata.key_inline = !!(inl_mask & 2);
@@ -395,10 +395,10 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_GCM_ENC_LEN) {
 		ctx->cdata.key_inline = true;
-		ctx->cdata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key_virt = ctx->key;
 	} else {
 		ctx->cdata.key_inline = false;
-		ctx->cdata.key = ctx->key_dma;
+		ctx->cdata.key_dma = ctx->key_dma;
 	}
 
 	desc = ctx->sh_desc_enc;
@@ -417,10 +417,10 @@ static int gcm_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_GCM_DEC_LEN) {
 		ctx->cdata.key_inline = true;
-		ctx->cdata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key_virt = ctx->key;
 	} else {
 		ctx->cdata.key_inline = false;
-		ctx->cdata.key = ctx->key_dma;
+		ctx->cdata.key_dma = ctx->key_dma;
 	}
 
 	desc = ctx->sh_desc_dec;
@@ -464,10 +464,10 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_RFC4106_ENC_LEN) {
 		ctx->cdata.key_inline = true;
-		ctx->cdata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key_virt = ctx->key;
 	} else {
 		ctx->cdata.key_inline = false;
-		ctx->cdata.key = ctx->key_dma;
+		ctx->cdata.key_dma = ctx->key_dma;
 	}
 
 	desc = ctx->sh_desc_enc;
@@ -486,10 +486,10 @@ static int rfc4106_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_RFC4106_DEC_LEN) {
 		ctx->cdata.key_inline = true;
-		ctx->cdata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key_virt = ctx->key;
 	} else {
 		ctx->cdata.key_inline = false;
-		ctx->cdata.key = ctx->key_dma;
+		ctx->cdata.key_dma = ctx->key_dma;
 	}
 
 	desc = ctx->sh_desc_dec;
@@ -534,10 +534,10 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_RFC4543_ENC_LEN) {
 		ctx->cdata.key_inline = true;
-		ctx->cdata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key_virt = ctx->key;
 	} else {
 		ctx->cdata.key_inline = false;
-		ctx->cdata.key = ctx->key_dma;
+		ctx->cdata.key_dma = ctx->key_dma;
 	}
 
 	desc = ctx->sh_desc_enc;
@@ -556,10 +556,10 @@ static int rfc4543_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (rem_bytes >= DESC_RFC4543_DEC_LEN) {
 		ctx->cdata.key_inline = true;
-		ctx->cdata.key = (uintptr_t)ctx->key;
+		ctx->cdata.key_virt = ctx->key;
 	} else {
 		ctx->cdata.key_inline = false;
-		ctx->cdata.key = ctx->key_dma;
+		ctx->cdata.key_dma = ctx->key_dma;
 	}
 
 	desc = ctx->sh_desc_dec;
@@ -794,7 +794,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		return -ENOMEM;
 	}
 	ctx->cdata.keylen = keylen;
-	ctx->cdata.key = (uintptr_t)ctx->key;
+	ctx->cdata.key_virt = ctx->key;
 	ctx->cdata.key_inline = true;
 
 	/* ablkcipher_encrypt shared descriptor */
@@ -857,7 +857,7 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		return -ENOMEM;
 	}
 	ctx->cdata.keylen = keylen;
-	ctx->cdata.key = (uintptr_t)ctx->key;
+	ctx->cdata.key_virt = ctx->key;
 	ctx->cdata.key_inline = true;
 
 	/* xts_ablkcipher_encrypt shared descriptor */

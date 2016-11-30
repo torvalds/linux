@@ -446,7 +446,10 @@ struct alginfo {
 	u32 algtype;
 	unsigned int keylen;
 	unsigned int keylen_pad;
-	u64 key;
+	union {
+		dma_addr_t key_dma;
+		void *key_virt;
+	};
 	bool key_inline;
 };
 
