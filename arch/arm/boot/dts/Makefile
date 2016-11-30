@@ -75,6 +75,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4708-asus-rt-ac56u.dtb \
 	bcm4708-asus-rt-ac68u.dtb \
 	bcm4708-buffalo-wzr-1750dhp.dtb \
+	bcm4708-luxul-xap-1510.dtb \
 	bcm4708-luxul-xwc-1000.dtb \
 	bcm4708-netgear-r6250.dtb \
 	bcm4708-netgear-r6300-v2.dtb \
@@ -86,11 +87,16 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4709-buffalo-wxr-1900dhp.dtb \
 	bcm4709-netgear-r7000.dtb \
 	bcm4709-netgear-r8000.dtb \
+	bcm4709-tplink-archer-c9-v1.dtb \
 	bcm47094-dlink-dir-885l.dtb \
+	bcm47094-luxul-xwr-3100.dtb \
+	bcm47094-netgear-r8500.dtb \
 	bcm94708.dtb \
 	bcm94709.dtb \
 	bcm953012er.dtb \
 	bcm953012k.dtb
+dtb-$(CONFIG_ARCH_BCM_53573) += \
+	bcm47189-tenda-ac9.dtb
 dtb-$(CONFIG_ARCH_BCM_63XX) += \
 	bcm963138dvt.dtb
 dtb-$(CONFIG_ARCH_BCM_CYGNUS) += \

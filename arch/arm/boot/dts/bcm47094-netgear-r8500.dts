@@ -1,20 +1,17 @@
 /*
- * Broadcom BCM470X / BCM5301X ARM platform code.
- * DTS for Netgear R7000
+ * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
  *
- * Copyright (C) 2015 Rafał Miłecki <zajec5@gmail.com>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
+ * Licensed under the ISC license.
  */
 
 /dts-v1/;
 
-#include "bcm4709.dtsi"
+#include "bcm47094.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
-	compatible = "netgear,r7000", "brcm,bcm4709", "brcm,bcm4708";
-	model = "Netgear R7000";
+	compatible = "netgear,r8500", "brcm,bcm47094", "brcm,bcm4708";
+	model = "Netgear R8500";
 
 	chosen {
 		bootargs = "console=ttyS0,115200";
@@ -27,20 +24,26 @@
 	leds {
 		compatible = "gpio-leds";
 
-		power-white {
+		power0 {
 			label = "bcm53xx:white:power";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		power-amber {
+		power1 {
 			label = "bcm53xx:amber:power";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
-		5ghz {
-			label = "bcm53xx:white:5ghz";
+		5ghz-1 {
+			label = "bcm53xx:white:5ghz-1";
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		5ghz-2 {
+			label = "bcm53xx:white:5ghz-2";
 			gpios = <&chipcommon 12 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
@@ -51,26 +54,14 @@
 			linux,default-trigger = "default-off";
 		};
 
-		wps {
-			label = "bcm53xx:white:wps";
-			gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
-		};
-
-		wireless {
-			label = "bcm53xx:white:wireless";
-			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
+		usb2 {
+			label = "bcm53xx:white:usb2";
+			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
 		usb3 {
 			label = "bcm53xx:white:usb3";
-			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
-		};
-
-		usb2 {
-			label = "bcm53xx:white:usb2";
 			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
@@ -81,22 +72,28 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		wps {
-			label = "WPS";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
-		};
-
-		rfkill {
-			label = "WiFi";
-			linux,code = <KEY_RFKILL>;
-			gpios = <&chipcommon 5 GPIO_ACTIVE_LOW>;
+		brightness {
+			label = "Backlight";
+			linux,code = <KEY_BRIGHTNESS_ZERO>;
+			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 		};
 
 		restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
-			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
+		};
+
+		rfkill {
+			label = "WiFi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

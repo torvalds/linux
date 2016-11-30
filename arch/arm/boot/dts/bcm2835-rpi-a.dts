@@ -15,7 +15,74 @@
 };
 
 &gpio {
-	pinctrl-0 = <&gpioout &alt0 &i2s_alt2 &alt3>;
+	/*
+	 * Taken from Raspberry-Pi-Rev-1.0-Model-AB-Schematics.pdf
+	 * RPI00021 sheet 02
+	 *
+	 * Legend:
+	 * "NC" = not connected (no rail from the SoC)
+	 * "FOO" = GPIO line named "FOO" on the schematic
+	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
+	 */
+	gpio-line-names = "SDA0",
+			  "SCL0",
+			  "SDA1",
+			  "SCL1",
+			  "GPIO_GCLK",
+			  "CAM_GPIO1",
+			  "LAN_RUN",
+			  "SPI_CE1_N",
+			  "SPI_CE0_N",
+			  "SPI_MISO",
+			  "SPI_MOSI",
+			  "SPI_SCLK",
+			  "NC", /* GPIO12 */
+			  "NC", /* GPIO13 */
+			  /* Serial port */
+			  "TXD0",
+			  "RXD0",
+			  "STATUS_LED_N",
+			  "GPIO17",
+			  "GPIO18",
+			  "NC", /* GPIO19 */
+			  "NC", /* GPIO20 */
+			  "GPIO21",
+			  "GPIO22",
+			  "GPIO23",
+			  "GPIO24",
+			  "GPIO25",
+			  "NC", /* GPIO26 */
+			  "CAM_GPIO0",
+			  /* Binary number representing build/revision */
+			  "CONFIG0",
+			  "CONFIG1",
+			  "CONFIG2",
+			  "CONFIG3",
+			  "NC", /* GPIO32 */
+			  "NC", /* GPIO33 */
+			  "NC", /* GPIO34 */
+			  "NC", /* GPIO35 */
+			  "NC", /* GPIO36 */
+			  "NC", /* GPIO37 */
+			  "NC", /* GPIO38 */
+			  "NC", /* GPIO39 */
+			  "PWM0_OUT",
+			  "NC", /* GPIO41 */
+			  "NC", /* GPIO42 */
+			  "NC", /* GPIO43 */
+			  "NC", /* GPIO44 */
+			  "PWM1_OUT",
+			  "HDMI_HPD_P",
+			  "SD_CARD_DET",
+			  /* Used by SD Card */
+			  "SD_CLK_R",
+			  "SD_CMD_R",
+			  "SD_DATA0_R",
+			  "SD_DATA1_R",
+			  "SD_DATA2_R",
+			  "SD_DATA3_R";
+
+	pinctrl-0 = <&gpioout &alt0 &i2s_alt2>;
 
 	/* I2S interface */
 	i2s_alt2: i2s_alt2 {

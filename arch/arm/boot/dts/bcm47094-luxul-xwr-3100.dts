@@ -1,20 +1,17 @@
 /*
- * Broadcom BCM470X / BCM5301X ARM platform code.
- * DTS for D-Link DIR-885L
+ * Copyright 2016 Luxul Inc.
  *
- * Copyright (C) 2016 Rafał Miłecki <zajec5@gmail.com>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
+ * Licensed under the ISC license.
  */
 
 /dts-v1/;
 
 #include "bcm47094.dtsi"
-#include "bcm5301x-nand-cs0-bch1.dtsi"
+#include "bcm5301x-nand-cs0-bch4.dtsi"
 
 / {
-	compatible = "dlink,dir-885l", "brcm,bcm47094", "brcm,bcm4708";
-	model = "D-Link DIR-885L";
+	compatible = "luxul,xwr-3100v1", "brcm,bcm47094", "brcm,bcm4708";
+	model = "Luxul XWR-3100 V1";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon";
@@ -24,56 +21,65 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
-	nand: nand@18028000 {
-		nandcs@0 {
-			partition@0 {
-				label = "firmware";
-				reg = <0x00000000 0x08000000>;
-			};
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
-		power-white {
-			label = "bcm53xx:white:power";
+		power	{
+			label = "bcm53xx:green:power";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		wan-white {
-			label = "bcm53xx:white:wan";
+		lan3	{
+			label = "bcm53xx:green:lan1";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
-		power-amber {
-			label = "bcm53xx:amber:power";
+		lan4	{
+			label = "bcm53xx:green:lan0";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
-		wan-amber {
-			label = "bcm53xx:amber:wan";
+		wan	{
+			label = "bcm53xx:green:wan";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
-		usb3-white {
-			label = "bcm53xx:white:usb3";
+		lan1	{
+			label = "bcm53xx:green:lan3";
+			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		lan2	{
+			label = "bcm53xx:green:lan2";
+			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-off";
+		};
+
+		usb3	{
+			label = "bcm53xx:green:usb3";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
+		status	{
+			label = "bcm53xx:green:status";
+			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+
 		2ghz {
-			label = "bcm53xx:white:2ghz";
+			label = "bcm53xx:green:2ghz";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
 		5ghz {
-			label = "bcm53xx:white:5ghz";
+			label = "bcm53xx:green:5ghz";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
@@ -83,19 +89,6 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-
-		wps {
-			label = "WPS";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
-		};
-
-		/* Switch: router / extender */
-		extender {
-			label = "Extender";
-			linux,code = <BTN_0>;
-			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
-		};
 
 		restart {
 			label = "Reset";
