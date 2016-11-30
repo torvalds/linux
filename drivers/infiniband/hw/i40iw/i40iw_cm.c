@@ -1556,9 +1556,15 @@ static enum i40iw_status_code i40iw_del_multiple_qhash(
 		memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 		       sizeof(cm_info->loc_addr));
 		cm_info->vlan_id = child_listen_node->vlan_id;
-		ret = i40iw_manage_qhash(iwdev, cm_info,
-					 I40IW_QHASH_TYPE_TCP_SYN,
-					 I40IW_QHASH_MANAGE_TYPE_DELETE, NULL, false);
+		if (child_listen_node->qhash_set) {
+			ret = i40iw_manage_qhash(iwdev, cm_info,
+						 I40IW_QHASH_TYPE_TCP_SYN,
+						 I40IW_QHASH_MANAGE_TYPE_DELETE,
+						 NULL, false);
+			child_listen_node->qhash_set = false;
+		} else {
+			ret = I40IW_SUCCESS;
+		}
 		i40iw_debug(&iwdev->sc_dev,
 			    I40IW_DEBUG_CM,
 			    "freed pointer = %p\n",
@@ -1687,6 +1693,7 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 							 I40IW_QHASH_MANAGE_TYPE_ADD,
 							 NULL, true);
 				if (!ret) {
+					child_listen_node->qhash_set = true;
 					spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
 					list_add(&child_listen_node->child_listen_list,
 						 &cm_parent_listen_node->child_listen_list);
@@ -1765,6 +1772,7 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 							 NULL,
 							 true);
 				if (!ret) {
+					child_listen_node->qhash_set = true;
 					spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
 					list_add(&child_listen_node->child_listen_list,
 						 &cm_parent_listen_node->child_listen_list);
@@ -4130,6 +4138,73 @@ static void i40iw_cm_post_event(struct i40iw_cm_event *event)
 }
 
 /**
+ * i40iw_qhash_ctrl - enable/disable qhash for list
+ * @iwdev: device pointer
+ * @parent_listen_node: parent listen node
+ * @nfo: cm info node
+ * @ipaddr: Pointer to IPv4 or IPv6 address
+ * @ipv4: flag indicating IPv4 when true
+ * @ifup: flag indicating interface up when true
+ *
+ * Enables or disables the qhash for the node in the child
+ * listen list that matches ipaddr. If no matching IP was found
+ * it will allocate and add a new child listen node to the
+ * parent listen node. The listen_list_lock is assumed to be
+ * held when called.
+ */
+static void i40iw_qhash_ctrl(struct i40iw_device *iwdev,
+			     struct i40iw_cm_listener *parent_listen_node,
+			     struct i40iw_cm_info *nfo,
+			     u32 *ipaddr, bool ipv4, bool ifup)
+{
+	struct list_head *child_listen_list = &parent_listen_node->child_listen_list;
+	struct i40iw_cm_listener *child_listen_node;
+	struct list_head *pos, *tpos;
+	enum i40iw_status_code ret;
+	bool node_allocated = false;
+	enum i40iw_quad_hash_manage_type op =
+		ifup ? I40IW_QHASH_MANAGE_TYPE_ADD : I40IW_QHASH_MANAGE_TYPE_DELETE;
+
+	list_for_each_safe(pos, tpos, child_listen_list) {
+		child_listen_node =
+			list_entry(pos,
+				   struct i40iw_cm_listener,
+				   child_listen_list);
+		if (!memcmp(child_listen_node->loc_addr, ipaddr, ipv4 ? 4 : 16))
+			goto set_qhash;
+	}
+
+	/* if not found then add a child listener if interface is going up */
+	if (!ifup)
+		return;
+	child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_ATOMIC);
+	if (!child_listen_node)
+		return;
+	node_allocated = true;
+	memcpy(child_listen_node, parent_listen_node, sizeof(*child_listen_node));
+
+	memcpy(child_listen_node->loc_addr, ipaddr,  ipv4 ? 4 : 16);
+
+set_qhash:
+	memcpy(nfo->loc_addr,
+	       child_listen_node->loc_addr,
+	       sizeof(nfo->loc_addr));
+	nfo->vlan_id = child_listen_node->vlan_id;
+	ret = i40iw_manage_qhash(iwdev, nfo,
+				 I40IW_QHASH_TYPE_TCP_SYN,
+				 op,
+				 NULL, false);
+	if (!ret) {
+		child_listen_node->qhash_set = ifup;
+		if (node_allocated)
+			list_add(&child_listen_node->child_listen_list,
+				 &parent_listen_node->child_listen_list);
+	} else if (node_allocated) {
+		kfree(child_listen_node);
+	}
+}
+
+/**
  * i40iw_cm_disconnect_all - disconnect all connected qp's
  * @iwdev: device pointer
  */
@@ -4158,4 +4233,61 @@ void i40iw_cm_disconnect_all(struct i40iw_device *iwdev)
 		i40iw_modify_qp(&cm_node->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 		i40iw_rem_ref_cm_node(cm_node);
 	}
+}
+
+/**
+ * i40iw_ifdown_notify - process an ifdown on an interface
+ * @iwdev: device pointer
+ * @ipaddr: Pointer to IPv4 or IPv6 address
+ * @ipv4: flag indicating IPv4 when true
+ * @ifup: flag indicating interface up when true
+ */
+void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
+		     u32 *ipaddr, bool ipv4, bool ifup)
+{
+	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
+	unsigned long flags;
+	struct i40iw_cm_listener *listen_node;
+	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
+	struct i40iw_cm_info nfo;
+	u16 vlan_id = rdma_vlan_dev_vlan_id(netdev);
+	enum i40iw_status_code ret;
+	enum i40iw_quad_hash_manage_type op =
+		ifup ? I40IW_QHASH_MANAGE_TYPE_ADD : I40IW_QHASH_MANAGE_TYPE_DELETE;
+
+	/* Disable or enable qhash for listeners */
+	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
+	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
+		if (vlan_id == listen_node->vlan_id &&
+		    (!memcmp(listen_node->loc_addr, ipaddr, ipv4 ? 4 : 16) ||
+		    !memcmp(listen_node->loc_addr, ip_zero, ipv4 ? 4 : 16))) {
+			memcpy(nfo.loc_addr, listen_node->loc_addr,
+			       sizeof(nfo.loc_addr));
+			nfo.loc_port = listen_node->loc_port;
+			nfo.ipv4 = listen_node->ipv4;
+			nfo.vlan_id = listen_node->vlan_id;
+			nfo.user_pri = listen_node->user_pri;
+			if (!list_empty(&listen_node->child_listen_list)) {
+				i40iw_qhash_ctrl(iwdev,
+						 listen_node,
+						 &nfo,
+						 ipaddr, ipv4, ifup);
+			} else if (memcmp(listen_node->loc_addr, ip_zero,
+					  ipv4 ? 4 : 16)) {
+				ret = i40iw_manage_qhash(iwdev,
+							 &nfo,
+							 I40IW_QHASH_TYPE_TCP_SYN,
+							 op,
+							 NULL,
+							 false);
+				if (!ret)
+					listen_node->qhash_set = ifup;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
+
+	/* disconnect any connected qp's on ifdown */
+	if (!ifup)
+		i40iw_cm_disconnect_all(iwdev);
 }

@@ -153,6 +153,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
 	u32 local_ipaddr;
+	u32 action = I40IW_ARP_ADD;
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -164,44 +165,25 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
 
+	if (upper_dev)
+		local_ipaddr = ntohl(
+			((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
+	else
+		local_ipaddr = ntohl(ifa->ifa_address);
 	switch (event) {
 	case NETDEV_DOWN:
-		if (upper_dev)
-			local_ipaddr = ntohl(
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-		else
-			local_ipaddr = ntohl(ifa->ifa_address);
-		i40iw_manage_arp_cache(iwdev,
-				       netdev->dev_addr,
-				       &local_ipaddr,
-				       true,
-				       I40IW_ARP_DELETE);
-		return NOTIFY_OK;
+		action = I40IW_ARP_DELETE;
+		/* Fall through */
 	case NETDEV_UP:
-		if (upper_dev)
-			local_ipaddr = ntohl(
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-		else
-			local_ipaddr = ntohl(ifa->ifa_address);
-		i40iw_manage_arp_cache(iwdev,
-				       netdev->dev_addr,
-				       &local_ipaddr,
-				       true,
-				       I40IW_ARP_ADD);
-		break;
+		/* Fall through */
 	case NETDEV_CHANGEADDR:
-		/* Add the address to the IP table */
-		if (upper_dev)
-			local_ipaddr = ntohl(
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-		else
-			local_ipaddr = ntohl(ifa->ifa_address);
-
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
 				       true,
-				       I40IW_ARP_ADD);
+				       action);
+		i40iw_if_notify(iwdev, netdev, &local_ipaddr, true,
+				(action == I40IW_ARP_ADD) ? true : false);
 		break;
 	default:
 		break;
@@ -225,6 +207,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
 	u32 local_ipaddr6[4];
+	u32 action = I40IW_ARP_ADD;
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -235,24 +218,21 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
 
+	i40iw_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
 	switch (event) {
 	case NETDEV_DOWN:
-		i40iw_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
-		i40iw_manage_arp_cache(iwdev,
-				       netdev->dev_addr,
-				       local_ipaddr6,
-				       false,
-				       I40IW_ARP_DELETE);
-		return NOTIFY_OK;
+		action = I40IW_ARP_DELETE;
+		/* Fall through */
 	case NETDEV_UP:
 		/* Fall through */
 	case NETDEV_CHANGEADDR:
-		i40iw_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       local_ipaddr6,
 				       false,
-				       I40IW_ARP_ADD);
+				       action);
+		i40iw_if_notify(iwdev, netdev, local_ipaddr6, false,
+				(action == I40IW_ARP_ADD) ? true : false);
 		break;
 	default:
 		break;
