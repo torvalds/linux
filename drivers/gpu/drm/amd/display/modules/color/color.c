@@ -854,26 +854,60 @@ static void calculate_rgb_matrix_legacy(struct core_color *core_color,
 	rgb_matrix[11] = grph_bright;
 }
 
-static void calculate_rgb_limited_range_matrix(struct core_color *core_color,
-		unsigned int sink_index, struct fixed31_32 *rgb_matrix)
+static void calculate_rgb_limited_range_matrix_legacy(
+		struct core_color *core_color, unsigned int sink_index,
+		struct fixed31_32 *rgb_matrix)
 {
-	struct fixed31_32 ideal[12];
+	const struct fixed31_32 k1 =
+		dal_fixed31_32_from_fraction(701000, 1000000);
+	const struct fixed31_32 k2 =
+		dal_fixed31_32_from_fraction(236568, 1000000);
+	const struct fixed31_32 k3 =
+		dal_fixed31_32_from_fraction(-587000, 1000000);
+	const struct fixed31_32 k4 =
+		dal_fixed31_32_from_fraction(464432, 1000000);
+	const struct fixed31_32 k5 =
+		dal_fixed31_32_from_fraction(-114000, 1000000);
+	const struct fixed31_32 k6 =
+		dal_fixed31_32_from_fraction(-701000, 1000000);
+	const struct fixed31_32 k7 =
+		dal_fixed31_32_from_fraction(-299000, 1000000);
+	const struct fixed31_32 k8 =
+		dal_fixed31_32_from_fraction(-292569, 1000000);
+	const struct fixed31_32 k9 =
+		dal_fixed31_32_from_fraction(413000, 1000000);
+	const struct fixed31_32 k10 =
+		dal_fixed31_32_from_fraction(-92482, 1000000);
+	const struct fixed31_32 k11 =
+		dal_fixed31_32_from_fraction(-114000, 1000000);
+	const struct fixed31_32 k12 =
+		dal_fixed31_32_from_fraction(385051, 1000000);
+	const struct fixed31_32 k13 =
+		dal_fixed31_32_from_fraction(-299000, 1000000);
+	const struct fixed31_32 k14 =
+		dal_fixed31_32_from_fraction(886000, 1000000);
+	const struct fixed31_32 k15 =
+		dal_fixed31_32_from_fraction(-587000, 1000000);
+	const struct fixed31_32 k16 =
+		dal_fixed31_32_from_fraction(-741914, 1000000);
+	const struct fixed31_32 k17 =
+		dal_fixed31_32_from_fraction(886000, 1000000);
+	const struct fixed31_32 k18 =
+		dal_fixed31_32_from_fraction(-144086, 1000000);
 
-	static const int32_t matrix_[] = {
-			85546875, 0, 0, 6250000,
-			0, 85546875, 0, 6250000,
-			0, 0, 85546875, 6250000
-		};
+	const struct fixed31_32 luma_r =
+		dal_fixed31_32_from_fraction(299, 1000);
+	const struct fixed31_32 luma_g =
+		dal_fixed31_32_from_fraction(587, 1000);
+	const struct fixed31_32 luma_b =
+		dal_fixed31_32_from_fraction(114, 1000);
+	const struct fixed31_32 luma_scale =
+		dal_fixed31_32_from_fraction(875855, 1000000);
 
-	uint32_t i = 0;
-
-	do {
-		ideal[i] = dal_fixed31_32_from_fraction(
-			matrix_[i],
-			100000000);
-		++i;
-	} while (i != ARRAY_SIZE(matrix_));
-
+	const struct fixed31_32 rgb_scale =
+		dal_fixed31_32_from_fraction(85546875, 100000000);
+	const struct fixed31_32 rgb_bias =
+		dal_fixed31_32_from_fraction(625, 10000);
 
 	struct fixed31_32 grph_cont;
 	struct fixed31_32 grph_sat;
@@ -885,84 +919,182 @@ static void calculate_rgb_limited_range_matrix(struct core_color *core_color,
 		core_color, sink_index, &grph_cont, &grph_sat,
 		&grph_bright, &sin_grph_hue, &cos_grph_hue);
 
-	const struct fixed31_32 multiplier =
-		dal_fixed31_32_mul(grph_cont, grph_sat);
+	/* COEF_1_1 = GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K1 +*/
+	/* Sin(GrphHue) * K2))*/
+	/* (Cos(GrphHue) * K1 + Sin(GrphHue) * K2)*/
+	rgb_matrix[0] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k1),
+			dal_fixed31_32_mul(sin_grph_hue, k2));
+	/* GrphSat * (Cos(GrphHue) * K1 + Sin(GrphHue) * K2 */
+	rgb_matrix[0] = dal_fixed31_32_mul(grph_sat, rgb_matrix[0]);
+	/* (LumaR + GrphSat * (Cos(GrphHue) * K1 + Sin(GrphHue) * K2))*/
+	rgb_matrix[0] = dal_fixed31_32_add(luma_r, rgb_matrix[0]);
+	/* GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K1 + Sin(GrphHue)**/
+	/* K2))*/
+	rgb_matrix[0] = dal_fixed31_32_mul(grph_cont, rgb_matrix[0]);
+	/* LumaScale * GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K1 + */
+	/* Sin(GrphHue) * K2))*/
+	rgb_matrix[0] = dal_fixed31_32_mul(luma_scale, rgb_matrix[0]);
 
-	rgb_matrix[8] = dal_fixed31_32_mul(ideal[0], grph_cont);
+	/* COEF_1_2 = GrphCont * (LumaG + GrphSat * (Cos(GrphHue) * K3 +*/
+	/* Sin(GrphHue) * K4))*/
+	/* (Cos(GrphHue) * K3 + Sin(GrphHue) * K4)*/
+	rgb_matrix[1] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k3),
+			dal_fixed31_32_mul(sin_grph_hue, k4));
+	/* GrphSat * (Cos(GrphHue) * K3 + Sin(GrphHue) * K4)*/
+	rgb_matrix[1] = dal_fixed31_32_mul(grph_sat, rgb_matrix[1]);
+	/* (LumaG + GrphSat * (Cos(GrphHue) * K3 + Sin(GrphHue) * K4))*/
+	rgb_matrix[1] = dal_fixed31_32_add(luma_g, rgb_matrix[1]);
+	/* GrphCont * (LumaG + GrphSat * (Cos(GrphHue) * K3 + Sin(GrphHue)**/
+	/* K4))*/
+	rgb_matrix[1] = dal_fixed31_32_mul(grph_cont, rgb_matrix[1]);
+	/* LumaScale * GrphCont * (LumaG + GrphSat *(Cos(GrphHue) * K3 + */
+	/* Sin(GrphHue) * K4))*/
+	rgb_matrix[1] = dal_fixed31_32_mul(luma_scale, rgb_matrix[1]);
 
-	rgb_matrix[9] = dal_fixed31_32_mul(ideal[1], grph_cont);
+	/* COEF_1_3 = GrphCont * (LumaB + GrphSat * (Cos(GrphHue) * K5 +*/
+	/* Sin(GrphHue) * K6))*/
+	/* (Cos(GrphHue) * K5 + Sin(GrphHue) * K6)*/
+	rgb_matrix[2] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k5),
+			dal_fixed31_32_mul(sin_grph_hue, k6));
+	/* GrphSat * (Cos(GrphHue) * K5 + Sin(GrphHue) * K6)*/
+	rgb_matrix[2] = dal_fixed31_32_mul(grph_sat, rgb_matrix[2]);
+	/* LumaB + GrphSat * (Cos(GrphHue) * K5 + Sin(GrphHue) * K6)*/
+	rgb_matrix[2] = dal_fixed31_32_add(luma_b, rgb_matrix[2]);
+	/* GrphCont  * (LumaB + GrphSat * (Cos(GrphHue) * K5 + Sin(GrphHue)**/
+	/* K6))*/
+	rgb_matrix[2] = dal_fixed31_32_mul(grph_cont, rgb_matrix[2]);
+	/* LumaScale * GrphCont  * (LumaB + GrphSat *(Cos(GrphHue) * K5 + */
+	/* Sin(GrphHue) * K6))*/
+	rgb_matrix[2] = dal_fixed31_32_mul(luma_scale, rgb_matrix[2]);
 
-	rgb_matrix[10] = dal_fixed31_32_mul(ideal[2], grph_cont);
+	/* COEF_1_4 = RGBBias + RGBScale * GrphBright*/
+	rgb_matrix[3] = dal_fixed31_32_add(
+			rgb_bias,
+			dal_fixed31_32_mul(rgb_scale, grph_bright));
 
+	/* COEF_2_1 = GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K7 +*/
+	/* Sin(GrphHue) * K8))*/
+	/* (Cos(GrphHue) * K7 + Sin(GrphHue) * K8)*/
+	rgb_matrix[4] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k7),
+			dal_fixed31_32_mul(sin_grph_hue, k8));
+	/* GrphSat * (Cos(GrphHue) * K7 + Sin(GrphHue) * K8)*/
+	rgb_matrix[4] = dal_fixed31_32_mul(grph_sat, rgb_matrix[4]);
+	/* (LumaR + GrphSat * (Cos(GrphHue) * K7 + Sin(GrphHue) * K8))*/
+	rgb_matrix[4] = dal_fixed31_32_add(luma_r, rgb_matrix[4]);
+	/* GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K7 + Sin(GrphHue)**/
+	/* K8))*/
+	rgb_matrix[4] = dal_fixed31_32_mul(grph_cont, rgb_matrix[4]);
+	/* LumaScale * GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K7 + */
+	/* Sin(GrphHue) * K8))*/
+	rgb_matrix[4] = dal_fixed31_32_mul(luma_scale, rgb_matrix[4]);
+
+	/* COEF_2_2 = GrphCont * (LumaG + GrphSat * (Cos(GrphHue) * K9 +*/
+	/* Sin(GrphHue) * K10))*/
+	/* (Cos(GrphHue) * K9 + Sin(GrphHue) * K10))*/
+	rgb_matrix[5] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k9),
+			dal_fixed31_32_mul(sin_grph_hue, k10));
+	/* GrphSat * (Cos(GrphHue) * K9 + Sin(GrphHue) * K10))*/
+	rgb_matrix[5] = dal_fixed31_32_mul(grph_sat, rgb_matrix[5]);
+	/* (LumaG + GrphSat * (Cos(GrphHue) * K9 + Sin(GrphHue) * K10))*/
+	rgb_matrix[5] = dal_fixed31_32_add(luma_g, rgb_matrix[5]);
+	/* GrphCont * (LumaG + GrphSat * (Cos(GrphHue) * K9 + Sin(GrphHue)**/
+	/* K10))*/
+	rgb_matrix[5] = dal_fixed31_32_mul(grph_cont, rgb_matrix[5]);
+	/* LumaScale * GrphCont * (LumaG + GrphSat *(Cos(GrphHue) * K9 + */
+	/* Sin(GrphHue) * K10))*/
+	rgb_matrix[5] = dal_fixed31_32_mul(luma_scale, rgb_matrix[5]);
+
+	/* COEF_2_3 = GrphCont * (LumaB + GrphSat * (Cos(GrphHue) * K11 +*/
+	/* Sin(GrphHue) * K12))*/
+	/* (Cos(GrphHue) * K11 + Sin(GrphHue) * K12))*/
+	rgb_matrix[6] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k11),
+			dal_fixed31_32_mul(sin_grph_hue, k12));
+	/* GrphSat * (Cos(GrphHue) * K11 + Sin(GrphHue) * K12))*/
+	rgb_matrix[6] = dal_fixed31_32_mul(grph_sat, rgb_matrix[6]);
+	/* (LumaB + GrphSat * (Cos(GrphHue) * K11 + Sin(GrphHue) * K12))*/
+	rgb_matrix[6] = dal_fixed31_32_add(luma_b, rgb_matrix[6]);
+	/* GrphCont * (LumaB + GrphSat * (Cos(GrphHue) * K11 + Sin(GrphHue)**/
+	/* K12))*/
+	rgb_matrix[6] = dal_fixed31_32_mul(grph_cont, rgb_matrix[6]);
+	/* LumaScale * GrphCont  * (LumaB + GrphSat *(Cos(GrphHue) * K11 +*/
+	/* Sin(GrphHue) * K12)) */
+	rgb_matrix[6] = dal_fixed31_32_mul(luma_scale, rgb_matrix[6]);
+
+	/* COEF_2_4 = RGBBias + RGBScale * GrphBright*/
+	rgb_matrix[7] = dal_fixed31_32_add(
+			rgb_bias,
+			dal_fixed31_32_mul(rgb_scale, grph_bright));
+
+	/* COEF_3_1 = GrphCont  * (LumaR + GrphSat * (Cos(GrphHue) * K13 +*/
+	/* Sin(GrphHue) * K14))*/
+	/* (Cos(GrphHue) * K13 + Sin(GrphHue) * K14)) */
+	rgb_matrix[8] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k13),
+			dal_fixed31_32_mul(sin_grph_hue, k14));
+	/* GrphSat * (Cos(GrphHue) * K13 + Sin(GrphHue) * K14)) */
+	rgb_matrix[8] = dal_fixed31_32_mul(grph_sat, rgb_matrix[8]);
+	/* (LumaR + GrphSat * (Cos(GrphHue) * K13 + Sin(GrphHue) * K14)) */
+	rgb_matrix[8] = dal_fixed31_32_add(luma_r, rgb_matrix[8]);
+	/* GrphCont  * (LumaR + GrphSat * (Cos(GrphHue) * K13 + Sin(GrphHue)**/
+	/* K14)) */
+	rgb_matrix[8] = dal_fixed31_32_mul(grph_cont, rgb_matrix[8]);
+	/* LumaScale * GrphCont * (LumaR + GrphSat * (Cos(GrphHue) * K13 +*/
+	/* Sin(GrphHue) * K14))*/
+	rgb_matrix[8] = dal_fixed31_32_mul(luma_scale, rgb_matrix[8]);
+
+	/* COEF_3_2    = GrphCont * (LumaG + GrphSat * (Cos(GrphHue) * K15 +*/
+	/* Sin(GrphHue) * K16)) */
+	/* GrphSat * (Cos(GrphHue) * K15 + Sin(GrphHue) * K16) */
+	rgb_matrix[9] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k15),
+			dal_fixed31_32_mul(sin_grph_hue, k16));
+	/* (LumaG + GrphSat * (Cos(GrphHue) * K15 + Sin(GrphHue) * K16)) */
+	rgb_matrix[9] = dal_fixed31_32_mul(grph_sat, rgb_matrix[9]);
+	/* (LumaG + GrphSat * (Cos(GrphHue) * K15 + Sin(GrphHue) * K16)) */
+	rgb_matrix[9] = dal_fixed31_32_add(luma_g, rgb_matrix[9]);
+	/* GrphCont * (LumaG + GrphSat * (Cos(GrphHue) * K15 + Sin(GrphHue)**/
+	/* K16)) */
+	rgb_matrix[9] = dal_fixed31_32_mul(grph_cont, rgb_matrix[9]);
+	/* LumaScale * GrphCont * (LumaG + GrphSat *(Cos(GrphHue) * K15 + */
+	/* Sin(GrphHue) * K16))*/
+	rgb_matrix[9] = dal_fixed31_32_mul(luma_scale, rgb_matrix[9]);
+
+	/*  COEF_3_3 = GrphCont * (LumaB + GrphSat * (Cos(GrphHue) * K17 +*/
+	/* Sin(GrphHue) * K18)) */
+	/* (Cos(GrphHue) * K17 + Sin(GrphHue) * K18)) */
+	rgb_matrix[10] =
+		dal_fixed31_32_add(
+			dal_fixed31_32_mul(cos_grph_hue, k17),
+			dal_fixed31_32_mul(sin_grph_hue, k18));
+	/*  GrphSat * (Cos(GrphHue) * K17 + Sin(GrphHue) * K18)) */
+	rgb_matrix[10] = dal_fixed31_32_mul(grph_sat, rgb_matrix[10]);
+	/* (LumaB + GrphSat * (Cos(GrphHue) * K17 + Sin(GrphHue) * K18)) */
+	rgb_matrix[10] = dal_fixed31_32_add(luma_b, rgb_matrix[10]);
+	/* GrphCont * (LumaB + GrphSat * (Cos(GrphHue) * K17 + Sin(GrphHue)**/
+	/* K18)) */
+	rgb_matrix[10] = dal_fixed31_32_mul(grph_cont, rgb_matrix[10]);
+	/* LumaScale * GrphCont * (LumaB + GrphSat *(Cos(GrphHue) * */
+	/* K17 + Sin(GrphHue) * K18))*/
+	rgb_matrix[10] = dal_fixed31_32_mul(luma_scale, rgb_matrix[10]);
+
+	/* COEF_3_4 = RGBBias + RGBScale * GrphBright */
 	rgb_matrix[11] = dal_fixed31_32_add(
-			ideal[3],
-			dal_fixed31_32_mul(
-				grph_bright,
-				dal_fixed31_32_from_fraction(86, 100)));
-
-	rgb_matrix[0] = dal_fixed31_32_mul(
-		multiplier,
-		dal_fixed31_32_add(
-			dal_fixed31_32_mul(
-				ideal[8],
-				sin_grph_hue),
-			dal_fixed31_32_mul(
-				ideal[4],
-				cos_grph_hue)));
-
-	rgb_matrix[1] = dal_fixed31_32_mul(
-		multiplier,
-		dal_fixed31_32_add(
-			dal_fixed31_32_mul(
-				ideal[9],
-				sin_grph_hue),
-			dal_fixed31_32_mul(
-				ideal[5],
-				cos_grph_hue)));
-
-	rgb_matrix[2] = dal_fixed31_32_mul(
-		multiplier,
-		dal_fixed31_32_add(
-			dal_fixed31_32_mul(
-				ideal[10],
-				sin_grph_hue),
-			dal_fixed31_32_mul(
-				ideal[6],
-				cos_grph_hue)));
-
-	rgb_matrix[3] = ideal[7];
-
-	rgb_matrix[4] = dal_fixed31_32_mul(
-		multiplier,
-		dal_fixed31_32_sub(
-			dal_fixed31_32_mul(
-				ideal[8],
-				cos_grph_hue),
-			dal_fixed31_32_mul(
-				ideal[4],
-				sin_grph_hue)));
-
-	rgb_matrix[5] = dal_fixed31_32_mul(
-		multiplier,
-		dal_fixed31_32_sub(
-			dal_fixed31_32_mul(
-				ideal[9],
-				cos_grph_hue),
-			dal_fixed31_32_mul(
-				ideal[5],
-				sin_grph_hue)));
-
-	rgb_matrix[6] = dal_fixed31_32_mul(
-		multiplier,
-		dal_fixed31_32_sub(
-			dal_fixed31_32_mul(
-				ideal[10],
-				cos_grph_hue),
-			dal_fixed31_32_mul(
-				ideal[6],
-				sin_grph_hue)));
-
-	rgb_matrix[7] = ideal[11];
+			rgb_bias,
+			dal_fixed31_32_mul(rgb_scale, grph_bright));
 }
 
 static void calculate_yuv_matrix(struct core_color *core_color,
@@ -1110,9 +1242,9 @@ static void calculate_csc_matrix(struct core_color *core_color,
 			(csc_matrix, fixed_csc_matrix, 12);
 		break;
 	case COLOR_SPACE_SRGB_LIMITED:
-		calculate_rgb_limited_range_matrix(core_color, sink_index,
-				fixed_csc_matrix);
-		convert_float_matrix(csc_matrix, fixed_csc_matrix, 12);
+		calculate_rgb_limited_range_matrix_legacy(
+				core_color, sink_index, fixed_csc_matrix);
+		convert_float_matrix_legacy(csc_matrix, fixed_csc_matrix, 12);
 		break;
 	case COLOR_SPACE_YCBCR601:
 	case COLOR_SPACE_YCBCR709:
