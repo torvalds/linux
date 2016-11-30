@@ -423,10 +423,24 @@ static int update_state(struct drm_device *drm_dev,
 		crtc_state->active = true;
 	} else {
 		const struct drm_crtc_helper_funcs *funcs;
+		const struct drm_encoder_helper_funcs *encoder_helper_funcs;
+		const struct drm_connector_helper_funcs *connector_helper_funcs;
+		struct drm_encoder *encoder;
 
 		funcs = crtc->helper_private;
-		if (!funcs || !funcs->enable)
+		connector_helper_funcs = connector->helper_private;
+		if (!funcs || !funcs->enable ||
+		    !connector_helper_funcs ||
+		    !connector_helper_funcs->best_encoder)
 			return -ENXIO;
+		encoder = connector_helper_funcs->best_encoder(connector);
+		encoder_helper_funcs = encoder->helper_private;
+		if (!encoder || !encoder_helper_funcs->atomic_check)
+			return -ENXIO;
+		ret = encoder_helper_funcs->atomic_check(encoder, crtc->state,
+							 conn_state);
+		if (ret)
+			return ret;
 		funcs->enable(crtc);
 	}
 
