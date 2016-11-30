@@ -96,7 +96,7 @@ do {									    \
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
 do {									    \
-	if (!unlikely((ptr))) {						    \
+	if (unlikely(!(ptr))) {						    \
 		CERROR("LNET: out of memory at %s:%d (tried to alloc '"	    \
 		       #ptr "' = %d)\n", __FILE__, __LINE__, (int)(size));  \
 	} else {							    \
@@ -147,7 +147,7 @@ do {									    \
 
 #define LIBCFS_FREE(ptr, size)					  \
 do {								    \
-	if (!unlikely((ptr))) {						\
+	if (unlikely(!(ptr))) {						\
 		CERROR("LIBCFS: free NULL '" #ptr "' (%d bytes) at "    \
 		       "%s:%d\n", (int)(size), __FILE__, __LINE__);	\
 		break;						  \
