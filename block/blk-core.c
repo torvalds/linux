@@ -1950,6 +1950,10 @@ generic_make_request_checks(struct bio *bio)
 		if (!bdev_is_zoned(bio->bi_bdev))
 			goto not_supported;
 		break;
+	case REQ_OP_WRITE_ZEROES:
+		if (!bdev_write_zeroes_sectors(bio->bi_bdev))
+			goto not_supported;
+		break;
 	default:
 		break;
 	}

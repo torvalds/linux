@@ -199,6 +199,10 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 	case REQ_OP_SECURE_ERASE:
 		split = blk_bio_discard_split(q, *bio, bs, &nsegs);
 		break;
+	case REQ_OP_WRITE_ZEROES:
+		split = NULL;
+		nsegs = (*bio)->bi_phys_segments;
+		break;
 	case REQ_OP_WRITE_SAME:
 		split = blk_bio_write_same_split(q, *bio, bs, &nsegs);
 		break;
@@ -241,11 +245,15 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	 * This should probably be returning 0, but blk_add_request_payload()
 	 * (Christoph!!!!)
 	 */
-	if (bio_op(bio) == REQ_OP_DISCARD || bio_op(bio) == REQ_OP_SECURE_ERASE)
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_SAME:
+	case REQ_OP_WRITE_ZEROES:
 		return 1;
-
-	if (bio_op(bio) == REQ_OP_WRITE_SAME)
-		return 1;
+	default:
+		break;
+	}
 
 	fbio = bio;
 	cluster = blk_queue_cluster(q);
@@ -416,6 +424,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
 		/*
 		 * This is a hack - drivers should be neither modifying the
 		 * biovec, nor relying on bi_vcnt - but because of

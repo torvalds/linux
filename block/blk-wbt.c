@@ -575,9 +575,10 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
 	const int op = bio_op(bio);
 
 	/*
-	 * If not a WRITE (or a discard), do nothing
+	 * If not a WRITE (or a discard or write zeroes), do nothing
 	 */
-	if (!(op == REQ_OP_WRITE || op == REQ_OP_DISCARD))
+	if (!(op == REQ_OP_WRITE || op == REQ_OP_DISCARD ||
+				op == REQ_OP_WRITE_ZEROES))
 		return false;
 
 	/*

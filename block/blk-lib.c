@@ -227,6 +227,55 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 EXPORT_SYMBOL(blkdev_issue_write_same);
 
 /**
+ * __blkdev_issue_write_zeroes - generate number of bios with WRITE ZEROES
+ * @bdev:	blockdev to issue
+ * @sector:	start sector
+ * @nr_sects:	number of sectors to write
+ * @gfp_mask:	memory allocation flags (for bio_alloc)
+ * @biop:	pointer to anchor bio
+ *
+ * Description:
+ *  Generate and issue number of bios(REQ_OP_WRITE_ZEROES) with zerofiled pages.
+ */
+static int __blkdev_issue_write_zeroes(struct block_device *bdev,
+		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
+		struct bio **biop)
+{
+	struct bio *bio = *biop;
+	unsigned int max_write_zeroes_sectors;
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (!q)
+		return -ENXIO;
+
+	/* Ensure that max_write_zeroes_sectors doesn't overflow bi_size */
+	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bdev);
+
+	if (max_write_zeroes_sectors == 0)
+		return -EOPNOTSUPP;
+
+	while (nr_sects) {
+		bio = next_bio(bio, 0, gfp_mask);
+		bio->bi_iter.bi_sector = sector;
+		bio->bi_bdev = bdev;
+		bio_set_op_attrs(bio, REQ_OP_WRITE_ZEROES, 0);
+
+		if (nr_sects > max_write_zeroes_sectors) {
+			bio->bi_iter.bi_size = max_write_zeroes_sectors << 9;
+			nr_sects -= max_write_zeroes_sectors;
+			sector += max_write_zeroes_sectors;
+		} else {
+			bio->bi_iter.bi_size = nr_sects << 9;
+			nr_sects = 0;
+		}
+		cond_resched();
+	}
+
+	*biop = bio;
+	return 0;
+}
+
+/**
  * __blkdev_issue_zeroout - generate number of zero filed write bios
  * @bdev:	blockdev to issue
  * @sector:	start sector
@@ -258,6 +307,11 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		if (ret == 0 || (ret && ret != -EOPNOTSUPP))
 			goto out;
 	}
+
+	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
+			biop);
+	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
+		goto out;
 
 	ret = __blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
 			ZERO_PAGE(0), biop);
@@ -304,8 +358,8 @@ EXPORT_SYMBOL(__blkdev_issue_zeroout);
  *  the discard request fail, if the discard flag is not set, or if
  *  discard_zeroes_data is not supported, this function will resort to
  *  zeroing the blocks manually, thus provisioning (allocating,
- *  anchoring) them. If the block device supports the WRITE SAME command
- *  blkdev_issue_zeroout() will use it to optimize the process of
+ *  anchoring) them. If the block device supports WRITE ZEROES or WRITE SAME
+ *  command(s), blkdev_issue_zeroout() will use it to optimize the process of
  *  clearing the block range. Otherwise the zeroing will be performed
  *  using regular WRITE calls.
  */

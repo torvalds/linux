@@ -323,6 +323,7 @@ struct queue_limits {
 	unsigned int		max_discard_sectors;
 	unsigned int		max_hw_discard_sectors;
 	unsigned int		max_write_same_sectors;
+	unsigned int		max_write_zeroes_sectors;
 	unsigned int		discard_granularity;
 	unsigned int		discard_alignment;
 
@@ -774,6 +775,9 @@ static inline bool rq_mergeable(struct request *rq)
 	if (req_op(rq) == REQ_OP_FLUSH)
 		return false;
 
+	if (req_op(rq) == REQ_OP_WRITE_ZEROES)
+		return false;
+
 	if (rq->cmd_flags & REQ_NOMERGE_FLAGS)
 		return false;
 	if (rq->rq_flags & RQF_NOMERGE_FLAGS)
@@ -1004,6 +1008,9 @@ static inline unsigned int blk_queue_get_max_sectors(struct request_queue *q,
 	if (unlikely(op == REQ_OP_WRITE_SAME))
 		return q->limits.max_write_same_sectors;
 
+	if (unlikely(op == REQ_OP_WRITE_ZEROES))
+		return q->limits.max_write_zeroes_sectors;
+
 	return q->limits.max_sectors;
 }
 
@@ -1106,6 +1113,8 @@ extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors);
 extern void blk_queue_max_write_same_sectors(struct request_queue *q,
+		unsigned int max_write_same_sectors);
+extern void blk_queue_max_write_zeroes_sectors(struct request_queue *q,
 		unsigned int max_write_same_sectors);
 extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
 extern void blk_queue_physical_block_size(struct request_queue *, unsigned int);
@@ -1471,6 +1480,16 @@ static inline unsigned int bdev_write_same(struct block_device *bdev)
 
 	if (q)
 		return q->limits.max_write_same_sectors;
+
+	return 0;
+}
+
+static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q)
+		return q->limits.max_write_zeroes_sectors;
 
 	return 0;
 }
