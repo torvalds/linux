@@ -534,8 +534,8 @@ module_param(rcu_kick_kthreads, bool, 0644);
  * How long the grace period must be before we start recruiting
  * quiescent-state help from rcu_note_context_switch().
  */
-static ulong jiffies_till_sched_qs = HZ / 20;
-module_param(jiffies_till_sched_qs, ulong, 0644);
+static ulong jiffies_till_sched_qs = HZ / 10;
+module_param(jiffies_till_sched_qs, ulong, 0444);
 
 static bool rcu_start_gp_advanced(struct rcu_state *rsp, struct rcu_node *rnp,
 				  struct rcu_data *rdp);
@@ -1235,7 +1235,6 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	unsigned long jtsq;
 	bool *rnhqp;
 	bool *ruqp;
-	unsigned long rjtsc;
 	struct rcu_node *rnp;
 
 	/*
@@ -1252,23 +1251,13 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 		return 1;
 	}
 
-	/* Compute and saturate jiffies_till_sched_qs. */
-	jtsq = jiffies_till_sched_qs;
-	rjtsc = rcu_jiffies_till_stall_check();
-	if (jtsq > rjtsc / 2) {
-		WRITE_ONCE(jiffies_till_sched_qs, rjtsc);
-		jtsq = rjtsc / 2;
-	} else if (jtsq < 1) {
-		WRITE_ONCE(jiffies_till_sched_qs, 1);
-		jtsq = 1;
-	}
-
 	/*
 	 * Has this CPU encountered a cond_resched_rcu_qs() since the
 	 * beginning of the grace period?  For this to be the case,
 	 * the CPU has to have noticed the current grace period.  This
 	 * might not be the case for nohz_full CPUs looping in the kernel.
 	 */
+	jtsq = jiffies_till_sched_qs;
 	rnp = rdp->mynode;
 	ruqp = per_cpu_ptr(&rcu_dynticks.rcu_urgent_qs, rdp->cpu);
 	if (time_after(jiffies, rdp->rsp->gp_start + jtsq) &&
@@ -1276,7 +1265,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	    READ_ONCE(rdp->gpnum) == rnp->gpnum && !rdp->gpwrap) {
 		trace_rcu_fqs(rdp->rsp->name, rdp->gpnum, rdp->cpu, TPS("rqc"));
 		return 1;
-	} else {
+	} else if (time_after(jiffies, rdp->rsp->gp_start + jtsq)) {
 		/* Load rcu_qs_ctr before store to rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
 	}
@@ -1304,10 +1293,6 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * updates are only once every few jiffies, the probability of
 	 * lossage (and thus of slight grace-period extension) is
 	 * quite low.
-	 *
-	 * Note that if the jiffies_till_sched_qs boot/sysfs parameter
-	 * is set too high, we override with half of the RCU CPU stall
-	 * warning delay.
 	 */
 	rnhqp = &per_cpu(rcu_dynticks.rcu_need_heavy_qs, rdp->cpu);
 	if (!READ_ONCE(*rnhqp) &&
@@ -1316,7 +1301,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 		WRITE_ONCE(*rnhqp, true);
 		/* Store rcu_need_heavy_qs before rcu_urgent_qs. */
 		smp_store_release(ruqp, true);
-		rdp->rsp->jiffies_resched += 5; /* Re-enable beating. */
+		rdp->rsp->jiffies_resched += jtsq; /* Re-enable beating. */
 	}
 
 	/*
