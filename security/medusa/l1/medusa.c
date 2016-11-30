@@ -282,6 +282,8 @@ static int medusa_l1_inode_rename(struct inode *old_inode, struct dentry *old_de
 
 static int medusa_l1_inode_readlink(struct dentry *dentry)
 {
+	if (medusa_readlink(dentry) == MED_NO)
+		return -EPERM;
 	return 0;
 }
 
