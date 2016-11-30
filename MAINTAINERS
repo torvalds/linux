@@ -3412,6 +3412,7 @@ F:	arch/*/crypto/
 F:	crypto/
 F:	drivers/crypto/
 F:	include/crypto/
+F:	include/linux/crypto*
 
 CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
 M:	Neil Horman <nhorman@tuxdriver.com>
