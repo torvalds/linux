@@ -197,7 +197,7 @@
 	};
 
 	gmac: ethernet@00230000 {
-		compatible = "snps,dwmac-3.70a";
+		compatible = "snps,dwmac-3.70a", "snps,dwmac";
 		reg = <0x00230000 0x8000>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 31 4>;

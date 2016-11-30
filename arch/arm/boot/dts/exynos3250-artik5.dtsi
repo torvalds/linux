@@ -310,7 +310,7 @@
 	card-detect-delay = <200>;
 	vmmc-supply = <&ldo12_reg>;
 	clock-frequency = <100000000>;
-	clock-freq-min-max = <400000 100000000>;
+	max-frequency = <100000000>;
 	samsung,dw-mshc-ciu-div = <1>;
 	samsung,dw-mshc-sdr-timing = <0 1>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
