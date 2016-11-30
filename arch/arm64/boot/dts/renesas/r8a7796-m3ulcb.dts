@@ -1,7 +1,8 @@
 /*
- * Device Tree Source for the Salvator-X board
+ * Device Tree Source for the M3ULCB (R-Car Starter Kit Pro) board
  *
  * Copyright (C) 2016 Renesas Electronics Corp.
+ * Copyright (C) 2016 Cogent Embedded, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -11,24 +12,47 @@
 /dts-v1/;
 #include "r8a7796.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
-	model = "Renesas Salvator-X board based on r8a7796";
-	compatible = "renesas,salvator-x", "renesas,r8a7796";
+	model = "Renesas M3ULCB board based on r8a7796";
+	compatible = "renesas,m3ulcb", "renesas,r8a7796";
 
 	aliases {
 		serial0 = &scif2;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */
-		reg = <0x0 0x48000000 0x0 0x78000000>;
+		reg = <0x0 0x48000000 0x0 0x38000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led5 {
+			gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
+		};
+		led6 {
+			gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	keyboard {
+		compatible = "gpio-keys";
+
+		key-1 {
+			linux,code = <KEY_1>;
+			label = "SW3";
+			wakeup-source;
+			debounce-interval = <20>;
+			gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	reg_1p8v: regulator0 {
@@ -72,30 +96,14 @@
 		states = <3300000 1
 			  1800000 0>;
 	};
+};
 
-	vcc_sdhi3: regulator-vcc-sdhi3 {
-		compatible = "regulator-fixed";
+&extal_clk {
+	clock-frequency = <16666666>;
+};
 
-		regulator-name = "SDHI3 Vcc";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpio = <&gpio3 15 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
-	vccq_sdhi3: regulator-vccq-sdhi3 {
-		compatible = "regulator-gpio";
-
-		regulator-name = "SDHI3 VccQ";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
-		gpios-states = <1>;
-		states = <3300000 1
-			  1800000 0>;
-	};
+&extalr_clk {
+	clock-frequency = <32768>;
 };
 
 &pfc {
@@ -106,14 +114,10 @@
 		groups = "scif2_data_a";
 		function = "scif2";
 	};
+
 	scif_clk_pins: scif_clk {
 		groups = "scif_clk_a";
 		function = "scif_clk";
-	};
-
-	i2c2_pins: i2c2 {
-		groups = "i2c2_a";
-		function = "i2c2";
 	};
 
 	sdhi0_pins: sd0 {
@@ -139,26 +143,6 @@
 		function = "sdhi2";
 		power-source = <1800>;
 	};
-
-	sdhi3_pins: sd3 {
-		groups = "sdhi3_data4", "sdhi3_ctrl";
-		function = "sdhi3";
-		power-source = <3300>;
-	};
-
-	sdhi3_pins_uhs: sd3_uhs {
-		groups = "sdhi3_data4", "sdhi3_ctrl";
-		function = "sdhi3";
-		power-source = <1800>;
-	};
-};
-
-&extal_clk {
-	clock-frequency = <16666666>;
-};
-
-&extalr_clk {
-	clock-frequency = <32768>;
 };
 
 &sdhi0 {
@@ -169,7 +153,6 @@
 	vmmc-supply = <&vcc_sdhi0>;
 	vqmmc-supply = <&vccq_sdhi0>;
 	cd-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	status = "okay";
@@ -188,35 +171,15 @@
 	status = "okay";
 };
 
-&sdhi3 {
-	pinctrl-0 = <&sdhi3_pins>;
-	pinctrl-1 = <&sdhi3_pins_uhs>;
-	pinctrl-names = "default", "state_uhs";
-
-	vmmc-supply = <&vcc_sdhi3>;
-	vqmmc-supply = <&vccq_sdhi3>;
-	cd-gpios = <&gpio4 15 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
-	bus-width = <4>;
-	sd-uhs-sdr50;
-	status = "okay";
-};
-
 &scif2 {
 	pinctrl-0 = <&scif2_pins>;
 	pinctrl-names = "default";
+
 	status = "okay";
 };
 
 &scif_clk {
 	clock-frequency = <14745600>;
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-0 = <&i2c2_pins>;
-	pinctrl-names = "default";
-
 	status = "okay";
 };
 
