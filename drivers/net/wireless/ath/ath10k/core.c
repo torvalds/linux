@@ -1858,7 +1858,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		goto err_wmi_detach;
 	}
 
-	status = ath10k_htt_tx_alloc(&ar->htt);
+	status = ath10k_htt_tx_start(&ar->htt);
 	if (status) {
 		ath10k_err(ar, "failed to alloc htt tx: %d\n", status);
 		goto err_wmi_detach;
@@ -2053,7 +2053,7 @@ void ath10k_core_stop(struct ath10k *ar)
 		ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR);
 
 	ath10k_hif_stop(ar);
-	ath10k_htt_tx_free(&ar->htt);
+	ath10k_htt_tx_stop(&ar->htt);
 	ath10k_htt_rx_free(&ar->htt);
 	ath10k_wmi_detach(ar);
 }
@@ -2386,6 +2386,7 @@ void ath10k_core_destroy(struct ath10k *ar)
 	destroy_workqueue(ar->workqueue_aux);
 
 	ath10k_debug_destroy(ar);
+	ath10k_htt_tx_destroy(&ar->htt);
 	ath10k_wmi_free_host_mem(ar);
 	ath10k_mac_destroy(ar);
 }

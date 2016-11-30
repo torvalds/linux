@@ -1717,6 +1717,8 @@ struct ath10k_htt {
 		enum htt_tx_mode_switch_mode mode;
 		enum htt_q_depth_type type;
 	} tx_q_state;
+
+	bool tx_mem_allocated;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1779,7 +1781,9 @@ int ath10k_htt_connect(struct ath10k_htt *htt);
 int ath10k_htt_init(struct ath10k *ar);
 int ath10k_htt_setup(struct ath10k_htt *htt);
 
-int ath10k_htt_tx_alloc(struct ath10k_htt *htt);
+int ath10k_htt_tx_start(struct ath10k_htt *htt);
+void ath10k_htt_tx_stop(struct ath10k_htt *htt);
+void ath10k_htt_tx_destroy(struct ath10k_htt *htt);
 void ath10k_htt_tx_free(struct ath10k_htt *htt);
 
 int ath10k_htt_rx_alloc(struct ath10k_htt *htt);
