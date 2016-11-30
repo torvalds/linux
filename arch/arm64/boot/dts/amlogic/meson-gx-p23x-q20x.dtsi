@@ -41,7 +41,9 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "meson-gxl-s905d.dtsi"
+/* Common DTSI for same Amlogic Q200/Q201 and P230/P231 boards using either
+ * the pin-compatible S912 (GXM) or S905D (GXL) SoCs.
+ */
 
 / {
 	aliases {
