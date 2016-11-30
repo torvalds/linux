@@ -9968,6 +9968,14 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	return 0;
 }
 
+static bool nested_cr3_valid(struct kvm_vcpu *vcpu, unsigned long val)
+{
+	unsigned long invalid_mask;
+
+	invalid_mask = (~0ULL) << cpuid_maxphyaddr(vcpu);
+	return (val & invalid_mask) == 0;
+}
+
 /*
  * Load guest's/host's cr3 at nested entry/exit. nested_ept is true if we are
  * emulating VM entry into a guest with EPT enabled.
@@ -9977,11 +9985,8 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool nested_ept,
 			       unsigned long *entry_failure_code)
 {
-	unsigned long invalid_mask;
-
 	if (cr3 != kvm_read_cr3(vcpu) || (!nested_ept && pdptrs_changed(vcpu))) {
-		invalid_mask = (~0ULL) << cpuid_maxphyaddr(vcpu);
-		if (cr3 & invalid_mask) {
+		if (!nested_cr3_valid(vcpu, cr3)) {
 			*entry_failure_code = ENTRY_FAIL_DEFAULT;
 			return 1;
 		}
@@ -10452,7 +10457,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	if (!nested_host_cr0_valid(vcpu, vmcs12->host_cr0) ||
-	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4)) {
+	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
+	    !nested_cr3_valid(vcpu, vmcs12->host_cr3)) {
 		nested_vmx_failValid(vcpu,
 			VMXERR_ENTRY_INVALID_HOST_STATE_FIELD);
 		goto out;
@@ -10879,6 +10885,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 				   struct vmcs12 *vmcs12)
 {
 	struct kvm_segment seg;
+	unsigned long entry_failure_code;
 
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER)
 		vcpu->arch.efer = vmcs12->host_ia32_efer;
@@ -10916,8 +10923,12 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	nested_ept_uninit_mmu_context(vcpu);
 
-	kvm_set_cr3(vcpu, vmcs12->host_cr3);
-	kvm_mmu_reset_context(vcpu);
+	/*
+	 * Only PDPTE load can fail as the value of cr3 was checked on entry and
+	 * couldn't have changed.
+	 */
+	if (nested_vmx_load_cr3(vcpu, vmcs12->host_cr3, false, &entry_failure_code))
+		nested_vmx_abort(vcpu, VMX_ABORT_LOAD_HOST_PDPTE_FAIL);
 
 	if (!enable_ept)
 		vcpu->arch.walk_mmu->inject_page_fault = kvm_inject_page_fault;
