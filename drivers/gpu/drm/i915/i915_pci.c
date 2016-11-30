@@ -71,7 +71,7 @@ static const struct intel_device_info intel_i830_info = {
 	.num_pipes = 2, /* legal, last one wins */
 };
 
-static const struct intel_device_info intel_845g_info = {
+static const struct intel_device_info intel_i845g_info = {
 	GEN2_FEATURES,
 	.platform = INTEL_I845G,
 };
@@ -432,7 +432,7 @@ static const struct intel_device_info intel_kabylake_gt3_info = {
  */
 static const struct pci_device_id pciidlist[] = {
 	INTEL_I830_IDS(&intel_i830_info),
-	INTEL_I845G_IDS(&intel_845g_info),
+	INTEL_I845G_IDS(&intel_i845g_info),
 	INTEL_I85X_IDS(&intel_i85x_info),
 	INTEL_I865G_IDS(&intel_i865g_info),
 	INTEL_I915G_IDS(&intel_i915g_info),

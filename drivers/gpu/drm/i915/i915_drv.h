@@ -2515,7 +2515,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 	(INTEL_REVID(p) >= (since) && INTEL_REVID(p) <= (until))
 
 #define IS_I830(dev_priv)	(INTEL_DEVID(dev_priv) == 0x3577)
-#define IS_845G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2562)
+#define IS_I845G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2562)
 #define IS_I85X(dev_priv)	((dev_priv)->info.platform == INTEL_I85X)
 #define IS_I865G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2572)
 #define IS_I915G(dev_priv)	((dev_priv)->info.platform == INTEL_I915G)
@@ -2667,7 +2667,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 		((dev_priv)->info.overlay_needs_physical)
 
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
-#define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_845G(dev_priv))
+#define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_I845G(dev_priv))
 
 /* WaRsDisableCoarsePowerGating:skl,bxt */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \

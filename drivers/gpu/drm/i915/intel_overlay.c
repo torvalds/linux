@@ -957,7 +957,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 	u32 tmp;
 
 	/* check src dimensions */
-	if (IS_845G(dev_priv) || IS_I830(dev_priv)) {
+	if (IS_I845G(dev_priv) || IS_I830(dev_priv)) {
 		if (rec->src_height > IMAGE_MAX_HEIGHT_LEGACY ||
 		    rec->src_width  > IMAGE_MAX_WIDTH_LEGACY)
 			return -EINVAL;
@@ -1009,7 +1009,7 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 		return -EINVAL;
 
 	/* stride checking */
-	if (IS_I830(dev_priv) || IS_845G(dev_priv))
+	if (IS_I830(dev_priv) || IS_I845G(dev_priv))
 		stride_mask = 255;
 	else
 		stride_mask = 63;

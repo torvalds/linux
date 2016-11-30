@@ -153,7 +153,7 @@ static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 		tom = tmp * MB(32);
 
 		base = tom - tseg_size - ggtt->stolen_size;
-	} else if (IS_845G(dev_priv)) {
+	} else if (IS_I845G(dev_priv)) {
 		u32 tseg_size = 0;
 		u32 tom;
 		u8 tmp;

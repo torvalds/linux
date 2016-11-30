@@ -1233,7 +1233,7 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 {
 	bool cur_state;
 
-	if (IS_845G(dev_priv) || IS_I865G(dev_priv))
+	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
 		cur_state = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
 	else
 		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
@@ -10936,7 +10936,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 	I915_WRITE(CURPOS(pipe), pos);
 
-	if (IS_845G(dev_priv) || IS_I865G(dev_priv))
+	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
 		i845_update_cursor(crtc, base, plane_state);
 	else
 		i9xx_update_cursor(crtc, base, plane_state);
@@ -10954,11 +10954,11 @@ static bool cursor_size_ok(struct drm_i915_private *dev_priv,
 	 * the precision of the register. Everything else requires
 	 * square cursors, limited to a few power-of-two sizes.
 	 */
-	if (IS_845G(dev_priv) || IS_I865G(dev_priv)) {
+	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		if ((width & 63) != 0)
 			return false;
 
-		if (width > (IS_845G(dev_priv) ? 64 : 512))
+		if (width > (IS_I845G(dev_priv) ? 64 : 512))
 			return false;
 
 		if (height > 1023)
@@ -16127,7 +16127,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	else if (IS_I915G(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i915_get_display_clock_speed;
-	else if (IS_I945GM(dev_priv) || IS_845G(dev_priv))
+	else if (IS_I945GM(dev_priv) || IS_I845G(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i9xx_misc_get_display_clock_speed;
 	else if (IS_I915GM(dev_priv))
@@ -16549,8 +16549,8 @@ int intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.max_height = 8192;
 	}
 
-	if (IS_845G(dev_priv) || IS_I865G(dev_priv)) {
-		dev->mode_config.cursor_width = IS_845G(dev_priv) ? 64 : 512;
+	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
+		dev->mode_config.cursor_width = IS_I845G(dev_priv) ? 64 : 512;
 		dev->mode_config.cursor_height = 1023;
 	} else if (IS_GEN2(dev_priv)) {
 		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;

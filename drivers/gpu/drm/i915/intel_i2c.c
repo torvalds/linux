@@ -139,7 +139,7 @@ static u32 get_reserved(struct intel_gmbus *bus)
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
-	if (!IS_I830(dev_priv) && !IS_845G(dev_priv))
+	if (!IS_I830(dev_priv) && !IS_I845G(dev_priv))
 		reserved = I915_READ_NOTRACE(bus->gpio_reg) &
 					     (GPIO_DATA_PULLUP_DISABLE |
 					      GPIO_CLOCK_PULLUP_DISABLE);
