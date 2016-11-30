@@ -143,18 +143,17 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 }
 
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
-			      struct mlx5_flow_handle *rule,
-			      struct mlx5_esw_flow_attr *attr)
+			      struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_fc *counter = NULL;
 
-	counter = mlx5_flow_rule_counter(rule);
+	counter = mlx5_flow_rule_counter(flow->rule);
 
-	mlx5_del_flow_rules(rule);
+	mlx5_del_flow_rules(flow->rule);
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
-		mlx5_eswitch_del_vlan_action(esw, attr);
+		mlx5_eswitch_del_vlan_action(esw, flow->attr);
 
 	mlx5_fc_destroy(priv->mdev, counter);
 
@@ -1005,7 +1004,7 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 
 	rhashtable_remove_fast(&tc->ht, &flow->node, tc->ht_params);
 
-	mlx5e_tc_del_flow(priv, flow->rule, flow->attr);
+	mlx5e_tc_del_flow(priv, flow);
 
 	if (flow->attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
 		mlx5e_detach_encap(priv, flow);
@@ -1065,7 +1064,7 @@ static void _mlx5e_tc_del_flow(void *ptr, void *arg)
 	struct mlx5e_tc_flow *flow = ptr;
 	struct mlx5e_priv *priv = arg;
 
-	mlx5e_tc_del_flow(priv, flow->rule, flow->attr);
+	mlx5e_tc_del_flow(priv, flow);
 	kfree(flow);
 }
 
