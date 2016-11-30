@@ -651,7 +651,6 @@ static u32 adpt_ioctl_to_context(adpt_hba * pHba, void *reply)
 	}
 	spin_unlock_irqrestore(pHba->host->host_lock, flags);
 	if (i >= nr) {
-		kfree (reply);
 		printk(KERN_WARNING"%s: Too many outstanding "
 				"ioctl commands\n", pHba->name);
 		return (u32)-1;
