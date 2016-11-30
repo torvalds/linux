@@ -996,8 +996,9 @@ static int lme_name(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct lme2510_state *st = adap_to_priv(adap);
 	const char *desc = d->name;
-	char *fe_name[] = {"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395",
-				" SHARP:BS2F7HZ0194", " RS2000"};
+	static const char * const fe_name[] = {
+		"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395",
+		" SHARP:BS2F7HZ0194", " RS2000"};
 	char *name = adap->fe[0]->ops.info.name;
 
 	strlcpy(name, desc, 128);
@@ -1118,7 +1119,7 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct lme2510_state *st = adap_to_priv(adap);
-	char *tun_msg[] = {"", "TDA8263", "IX2505V", "DVB_PLL_OPERA", "RS2000"};
+	static const char * const tun_msg[] = {"", "TDA8263", "IX2505V", "DVB_PLL_OPERA", "RS2000"};
 	int ret = 0;
 
 	switch (st->tuner_config) {
