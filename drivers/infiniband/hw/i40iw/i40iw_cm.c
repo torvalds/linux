@@ -3474,7 +3474,7 @@ static void i40iw_cm_disconn_true(struct i40iw_qp *iwqp)
 		/* Flush the queues */
 		i40iw_flush_wqes(iwdev, iwqp);
 
-		if (qp->term_flags) {
+		if (qp->term_flags && iwqp->ibqp.event_handler) {
 			ibevent.device = iwqp->ibqp.device;
 			ibevent.event = (qp->eventtype == TERM_EVENT_QP_FATAL) ?
 					IB_EVENT_QP_FATAL : IB_EVENT_QP_ACCESS_ERR;
