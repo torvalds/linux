@@ -408,7 +408,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 	if (ops->target.raw == NULL)
 		return -1;
 
-	comment = strchr(s, '#');
+	comment = strchr(s, arch->objdump.comment_char);
 	if (comment == NULL)
 		return 0;
 
