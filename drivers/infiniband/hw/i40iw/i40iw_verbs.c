@@ -37,6 +37,7 @@
 #include <linux/random.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
+#include <linux/hugetlb.h>
 #include <asm/byteorder.h>
 #include <net/ip.h>
 #include <rdma/ib_verbs.h>
@@ -1305,13 +1306,11 @@ static u32 i40iw_create_stag(struct i40iw_device *iwdev)
 
 /**
  * i40iw_next_pbl_addr - Get next pbl address
- * @palloc: Poiner to allocated pbles
  * @pbl: pointer to a pble
  * @pinfo: info pointer
  * @idx: index
  */
-static inline u64 *i40iw_next_pbl_addr(struct i40iw_pble_alloc *palloc,
-				       u64 *pbl,
+static inline u64 *i40iw_next_pbl_addr(u64 *pbl,
 				       struct i40iw_pble_info **pinfo,
 				       u32 *idx)
 {
@@ -1339,9 +1338,11 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 	struct i40iw_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct i40iw_pble_info *pinfo;
 	struct scatterlist *sg;
+	u64 pg_addr = 0;
 	u32 idx = 0;
 
 	pinfo = (level == I40IW_LEVEL_1) ? NULL : palloc->level2.leaf;
+
 	pg_shift = ffs(region->page_size) - 1;
 	for_each_sg(region->sg_head.sgl, sg, region->nmap, entry) {
 		chunk_pages = sg_dma_len(sg) >> pg_shift;
@@ -1349,8 +1350,35 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 		    !iwpbl->qp_mr.sq_page)
 			iwpbl->qp_mr.sq_page = sg_page(sg);
 		for (i = 0; i < chunk_pages; i++) {
-			*pbl = cpu_to_le64(sg_dma_address(sg) + region->page_size * i);
-			pbl = i40iw_next_pbl_addr(palloc, pbl, &pinfo, &idx);
+			pg_addr = sg_dma_address(sg) + region->page_size * i;
+
+			if ((entry + i) == 0)
+				*pbl = cpu_to_le64(pg_addr & iwmr->page_msk);
+			else if (!(pg_addr & ~iwmr->page_msk))
+				*pbl = cpu_to_le64(pg_addr);
+			else
+				continue;
+			pbl = i40iw_next_pbl_addr(pbl, &pinfo, &idx);
+		}
+	}
+}
+
+/**
+ * i40iw_set_hugetlb_params - set MR pg size and mask to huge pg values.
+ * @addr: virtual address
+ * @iwmr: mr pointer for this memory registration
+ */
+static void i40iw_set_hugetlb_values(u64 addr, struct i40iw_mr *iwmr)
+{
+	struct vm_area_struct *vma;
+	struct hstate *h;
+
+	vma = find_vma(current->mm, addr);
+	if (vma && is_vm_hugetlb_page(vma)) {
+		h = hstate_vma(vma);
+		if (huge_page_size(h) == 0x200000) {
+			iwmr->page_size = huge_page_size(h);
+			iwmr->page_msk = huge_page_mask(h);
 		}
 	}
 }
@@ -1471,7 +1499,7 @@ static int i40iw_handle_q_mem(struct i40iw_device *iwdev,
 	bool ret = true;
 
 	total = req->sq_pages + req->rq_pages + req->cq_pages;
-	pg_size = iwmr->region->page_size;
+	pg_size = iwmr->page_size;
 
 	err = i40iw_setup_pbles(iwdev, iwmr, use_pbles);
 	if (err)
@@ -1720,6 +1748,7 @@ static int i40iw_hwreg_mr(struct i40iw_device *iwdev,
 	stag_info->access_rights = access;
 	stag_info->pd_id = iwpd->sc_pd.pd_id;
 	stag_info->addr_type = I40IW_ADDR_TYPE_VA_BASED;
+	stag_info->page_size = iwmr->page_size;
 
 	if (iwpbl->pbl_allocated) {
 		if (palloc->level == I40IW_LEVEL_1) {
@@ -1778,6 +1807,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	unsigned long flags;
 	int err = -ENOSYS;
 	int ret;
+	int pg_shift;
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
@@ -1802,9 +1832,17 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->ibmr.pd = pd;
 	iwmr->ibmr.device = pd->device;
 	ucontext = to_ucontext(pd->uobject->context);
-	region_length = region->length + (start & 0xfff);
-	pbl_depth = region_length >> 12;
-	pbl_depth += (region_length & (4096 - 1)) ? 1 : 0;
+
+	iwmr->page_size = region->page_size;
+	iwmr->page_msk = PAGE_MASK;
+
+	if (region->hugetlb && (req.reg_type == IW_MEMREG_TYPE_MEM))
+		i40iw_set_hugetlb_values(start, iwmr);
+
+	region_length = region->length + (start & (iwmr->page_size - 1));
+	pg_shift = ffs(iwmr->page_size) - 1;
+	pbl_depth = region_length >> pg_shift;
+	pbl_depth += (region_length & (iwmr->page_size - 1)) ? 1 : 0;
 	iwmr->length = region->length;
 
 	iwpbl->user_base = virt;
@@ -1842,7 +1880,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 			goto error;
 
 		if (use_pbles) {
-			ret = i40iw_check_mr_contiguous(palloc, region->page_size);
+			ret = i40iw_check_mr_contiguous(palloc, iwmr->page_size);
 			if (ret) {
 				i40iw_free_pble(iwdev->pble_rsrc, palloc);
 				iwpbl->pbl_allocated = false;
@@ -1865,6 +1903,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 			i40iw_free_stag(iwdev, stag);
 			goto error;
 		}
+
 		break;
 	default:
 		goto error;
