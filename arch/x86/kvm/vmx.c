@@ -9969,6 +9969,44 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 }
 
 /*
+ * Load guest's/host's cr3 at nested entry/exit. nested_ept is true if we are
+ * emulating VM entry into a guest with EPT enabled.
+ * Returns 0 on success, 1 on failure. Invalid state exit qualification code
+ * is assigned to entry_failure_code on failure.
+ */
+static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool nested_ept,
+			       unsigned long *entry_failure_code)
+{
+	unsigned long invalid_mask;
+
+	if (cr3 != kvm_read_cr3(vcpu) || (!nested_ept && pdptrs_changed(vcpu))) {
+		invalid_mask = (~0ULL) << cpuid_maxphyaddr(vcpu);
+		if (cr3 & invalid_mask) {
+			*entry_failure_code = ENTRY_FAIL_DEFAULT;
+			return 1;
+		}
+
+		/*
+		 * If PAE paging and EPT are both on, CR3 is not used by the CPU and
+		 * must not be dereferenced.
+		 */
+		if (!is_long_mode(vcpu) && is_pae(vcpu) && is_paging(vcpu) &&
+		    !nested_ept) {
+			if (!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3)) {
+				*entry_failure_code = ENTRY_FAIL_PDPTE;
+				return 1;
+			}
+		}
+
+		vcpu->arch.cr3 = cr3;
+		__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
+	}
+
+	kvm_mmu_reset_context(vcpu);
+	return 0;
+}
+
+/*
  * prepare_vmcs02 is called when the L1 guest hypervisor runs its nested
  * L2 guest. L1 has a vmcs for L2 (vmcs12), and this function "merges" it
  * with L0's requirements for its guest (a.k.a. vmcs01), so we can run the L2
@@ -10300,21 +10338,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	/* Note: modifies VM_ENTRY/EXIT_CONTROLS and GUEST/HOST_IA32_EFER */
 	vmx_set_efer(vcpu, vcpu->arch.efer);
 
-	/*
-	 * Shadow page tables on either EPT or shadow page tables.
-	 * If PAE and EPT are both on, CR3 is not used by the CPU and must not
-	 * be dereferenced.
-	 */
-	if (is_pae(vcpu) && is_paging(vcpu) && !is_long_mode(vcpu) &&
-	    nested_ept_enabled) {
-		vcpu->arch.cr3 = vmcs12->guest_cr3;
-		__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
-	} else {
-		if (kvm_set_cr3(vcpu, vmcs12->guest_cr3)) {
-			*entry_failure_code = ENTRY_FAIL_DEFAULT;
-			return 1;
-		}
-	}
+	/* Shadow page tables on either EPT or shadow page tables. */
+	if (nested_vmx_load_cr3(vcpu, vmcs12->guest_cr3, nested_ept_enabled,
+				entry_failure_code))
+		return 1;
 
 	kvm_mmu_reset_context(vcpu);
 
