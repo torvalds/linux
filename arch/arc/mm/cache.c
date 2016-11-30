@@ -23,7 +23,7 @@
 
 static int l2_line_sz;
 static int ioc_exists;
-int slc_enable = 1, ioc_enable = 1;
+int slc_enable = 1, ioc_enable = 0;
 unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
 unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
