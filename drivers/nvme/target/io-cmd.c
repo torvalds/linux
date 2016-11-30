@@ -170,6 +170,32 @@ static void nvmet_execute_dsm(struct nvmet_req *req)
 	}
 }
 
+static void nvmet_execute_write_zeroes(struct nvmet_req *req)
+{
+	struct nvme_write_zeroes_cmd *write_zeroes = &req->cmd->write_zeroes;
+	struct bio *bio = NULL;
+	u16 status = NVME_SC_SUCCESS;
+	sector_t sector;
+	sector_t nr_sector;
+
+	sector = le64_to_cpu(write_zeroes->slba) <<
+		(req->ns->blksize_shift - 9);
+	nr_sector = (((sector_t)le32_to_cpu(write_zeroes->length)) <<
+		(req->ns->blksize_shift - 9)) + 1;
+
+	if (__blkdev_issue_zeroout(req->ns->bdev, sector, nr_sector,
+				GFP_KERNEL, &bio, true))
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+
+	if (bio) {
+		bio->bi_private = req;
+		bio->bi_end_io = nvmet_bio_done;
+		submit_bio(bio);
+	} else {
+		nvmet_req_complete(req, status);
+	}
+}
+
 int nvmet_parse_io_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
@@ -206,6 +232,9 @@ int nvmet_parse_io_cmd(struct nvmet_req *req)
 		req->execute = nvmet_execute_dsm;
 		req->data_len = le32_to_cpu(cmd->dsm.nr + 1) *
 			sizeof(struct nvme_dsm_range);
+		return 0;
+	case nvme_cmd_write_zeroes:
+		req->execute = nvmet_execute_write_zeroes;
 		return 0;
 	default:
 		pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
