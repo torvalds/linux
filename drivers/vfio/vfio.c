@@ -1933,8 +1933,8 @@ int vfio_pin_pages(struct device *dev, unsigned long *user_pfn, int npage,
 		return -E2BIG;
 
 	group = vfio_group_get_from_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
+	if (!group)
+		return -ENODEV;
 
 	ret = vfio_group_add_container_user(group);
 	if (ret)
@@ -1982,8 +1982,8 @@ int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn, int npage)
 		return -E2BIG;
 
 	group = vfio_group_get_from_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
+	if (!group)
+		return -ENODEV;
 
 	ret = vfio_group_add_container_user(group);
 	if (ret)
@@ -2019,8 +2019,8 @@ int vfio_register_notifier(struct device *dev, struct notifier_block *nb)
 		return -EINVAL;
 
 	group = vfio_group_get_from_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
+	if (!group)
+		return -ENODEV;
 
 	ret = vfio_group_add_container_user(group);
 	if (ret)
@@ -2055,8 +2055,8 @@ int vfio_unregister_notifier(struct device *dev, struct notifier_block *nb)
 		return -EINVAL;
 
 	group = vfio_group_get_from_dev(dev);
-	if (IS_ERR(group))
-		return PTR_ERR(group);
+	if (!group)
+		return -ENODEV;
 
 	ret = vfio_group_add_container_user(group);
 	if (ret)
