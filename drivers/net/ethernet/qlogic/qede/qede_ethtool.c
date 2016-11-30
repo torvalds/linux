@@ -16,13 +16,6 @@
 #include <linux/capability.h>
 #include "qede.h"
 
-#define QEDE_STAT_OFFSET(stat_name) (offsetof(struct qede_stats, stat_name))
-#define QEDE_STAT_STRING(stat_name) (#stat_name)
-#define _QEDE_STAT(stat_name, pf_only) \
-	 {QEDE_STAT_OFFSET(stat_name), QEDE_STAT_STRING(stat_name), pf_only}
-#define QEDE_PF_STAT(stat_name)		_QEDE_STAT(stat_name, true)
-#define QEDE_STAT(stat_name)		_QEDE_STAT(stat_name, false)
-
 #define QEDE_RQSTAT_OFFSET(stat_name) \
 	 (offsetof(struct qede_rx_queue, stat_name))
 #define QEDE_RQSTAT_STRING(stat_name) (#stat_name)
@@ -39,12 +32,10 @@ static const struct {
 	QEDE_RQSTAT(rx_hw_errors),
 	QEDE_RQSTAT(rx_alloc_errors),
 	QEDE_RQSTAT(rx_ip_frags),
+	QEDE_RQSTAT(xdp_no_pass),
 };
 
 #define QEDE_NUM_RQSTATS ARRAY_SIZE(qede_rqstats_arr)
-#define QEDE_RQSTATS_DATA(dev, sindex, rqindex) \
-	(*((u64 *)(((char *)(dev->fp_array[(rqindex)].rxq)) +\
-		    qede_rqstats_arr[(sindex)].offset)))
 #define QEDE_TQSTAT_OFFSET(stat_name) \
 	(offsetof(struct qede_tx_queue, stat_name))
 #define QEDE_TQSTAT_STRING(stat_name) (#stat_name)
@@ -59,10 +50,12 @@ static const struct {
 	QEDE_TQSTAT(stopped_cnt),
 };
 
-#define QEDE_TQSTATS_DATA(dev, sindex, tssid, tcid) \
-	(*((u64 *)(((void *)(&dev->fp_array[tssid].txqs[tcid])) +\
-		   qede_tqstats_arr[(sindex)].offset)))
-
+#define QEDE_STAT_OFFSET(stat_name) (offsetof(struct qede_stats, stat_name))
+#define QEDE_STAT_STRING(stat_name) (#stat_name)
+#define _QEDE_STAT(stat_name, pf_only) \
+	 {QEDE_STAT_OFFSET(stat_name), QEDE_STAT_STRING(stat_name), pf_only}
+#define QEDE_PF_STAT(stat_name)	_QEDE_STAT(stat_name, true)
+#define QEDE_STAT(stat_name)	_QEDE_STAT(stat_name, false)
 static const struct {
 	u64 offset;
 	char string[ETH_GSTRING_LEN];
@@ -136,10 +129,6 @@ static const struct {
 	QEDE_STAT(coalesced_bytes),
 };
 
-#define QEDE_STATS_DATA(dev, index) \
-	(*((u64 *)(((char *)(dev)) + offsetof(struct qede_dev, stats) \
-			+ qede_stats_arr[(index)].offset)))
-
 #define QEDE_NUM_STATS	ARRAY_SIZE(qede_stats_arr)
 
 enum {
@@ -170,39 +159,60 @@ static const char qede_tests_str_arr[QEDE_ETHTOOL_TEST_MAX][ETH_GSTRING_LEN] = {
 	"Nvram (online)\t\t",
 };
 
+static void qede_get_strings_stats_txq(struct qede_dev *edev,
+				       struct qede_tx_queue *txq, u8 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_TQSTATS; i++) {
+		if (txq->is_xdp)
+			sprintf(*buf, "%d [XDP]: %s",
+				QEDE_TXQ_XDP_TO_IDX(edev, txq),
+				qede_tqstats_arr[i].string);
+		else
+			sprintf(*buf, "%d: %s", txq->index,
+				qede_tqstats_arr[i].string);
+		*buf += ETH_GSTRING_LEN;
+	}
+}
+
+static void qede_get_strings_stats_rxq(struct qede_dev *edev,
+				       struct qede_rx_queue *rxq, u8 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_RQSTATS; i++) {
+		sprintf(*buf, "%d: %s", rxq->rxq_id,
+			qede_rqstats_arr[i].string);
+		*buf += ETH_GSTRING_LEN;
+	}
+}
+
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 {
-	int i, j, k;
+	struct qede_fastpath *fp;
+	int i;
 
-	for (i = 0, k = 0; i < QEDE_QUEUE_CNT(edev); i++) {
-		int tc;
+	/* Account for queue statistics */
+	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+		fp = &edev->fp_array[i];
 
-		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
-			for (j = 0; j < QEDE_NUM_RQSTATS; j++)
-				sprintf(buf + (k + j) * ETH_GSTRING_LEN,
-					"%d:   %s", i,
-					qede_rqstats_arr[j].string);
-			k += QEDE_NUM_RQSTATS;
-		}
+		if (fp->type & QEDE_FASTPATH_RX)
+			qede_get_strings_stats_rxq(edev, fp->rxq, &buf);
 
-		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
-			for (tc = 0; tc < edev->num_tc; tc++) {
-				for (j = 0; j < QEDE_NUM_TQSTATS; j++)
-					sprintf(buf + (k + j) *
-						ETH_GSTRING_LEN,
-						"%d.%d: %s", i, tc,
-						qede_tqstats_arr[j].string);
-				k += QEDE_NUM_TQSTATS;
-			}
-		}
+		if (fp->type & QEDE_FASTPATH_XDP)
+			qede_get_strings_stats_txq(edev, fp->xdp_tx, &buf);
+
+		if (fp->type & QEDE_FASTPATH_TX)
+			qede_get_strings_stats_txq(edev, fp->txq, &buf);
 	}
 
-	for (i = 0, j = 0; i < QEDE_NUM_STATS; i++) {
+	/* Account for non-queue statistics */
+	for (i = 0; i < QEDE_NUM_STATS; i++) {
 		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
 			continue;
-		strcpy(buf + (k + j) * ETH_GSTRING_LEN,
-		       qede_stats_arr[i].string);
-		j++;
+		strcpy(buf, qede_stats_arr[i].string);
+		buf += ETH_GSTRING_LEN;
 	}
 }
 
@@ -228,42 +238,61 @@ static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	}
 }
 
+static void qede_get_ethtool_stats_txq(struct qede_tx_queue *txq, u64 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_TQSTATS; i++) {
+		**buf = *((u64 *)(((void *)txq) + qede_tqstats_arr[i].offset));
+		(*buf)++;
+	}
+}
+
+static void qede_get_ethtool_stats_rxq(struct qede_rx_queue *rxq, u64 **buf)
+{
+	int i;
+
+	for (i = 0; i < QEDE_NUM_RQSTATS; i++) {
+		**buf = *((u64 *)(((void *)rxq) + qede_rqstats_arr[i].offset));
+		(*buf)++;
+	}
+}
+
 static void qede_get_ethtool_stats(struct net_device *dev,
 				   struct ethtool_stats *stats, u64 *buf)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	int sidx, cnt = 0;
-	int qid;
+	struct qede_fastpath *fp;
+	int i;
 
 	qede_fill_by_demand_stats(edev);
 
-	mutex_lock(&edev->qede_lock);
+	/* Need to protect the access to the fastpath array */
+	__qede_lock(edev);
 
-	for (qid = 0; qid < QEDE_QUEUE_CNT(edev); qid++) {
-		int tc;
+	for (i = 0; i < QEDE_QUEUE_CNT(edev); i++) {
+		fp = &edev->fp_array[i];
 
-		if (edev->fp_array[qid].type & QEDE_FASTPATH_RX) {
-			for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++)
-				buf[cnt++] = QEDE_RQSTATS_DATA(edev, sidx, qid);
-		}
+		if (fp->type & QEDE_FASTPATH_RX)
+			qede_get_ethtool_stats_rxq(fp->rxq, &buf);
 
-		if (edev->fp_array[qid].type & QEDE_FASTPATH_TX) {
-			for (tc = 0; tc < edev->num_tc; tc++) {
-				for (sidx = 0; sidx < QEDE_NUM_TQSTATS; sidx++)
-					buf[cnt++] = QEDE_TQSTATS_DATA(edev,
-								       sidx,
-								       qid, tc);
-			}
-		}
+		if (fp->type & QEDE_FASTPATH_XDP)
+			qede_get_ethtool_stats_txq(fp->xdp_tx, &buf);
+
+		if (fp->type & QEDE_FASTPATH_TX)
+			qede_get_ethtool_stats_txq(fp->txq, &buf);
 	}
 
-	for (sidx = 0; sidx < QEDE_NUM_STATS; sidx++) {
-		if (IS_VF(edev) && qede_stats_arr[sidx].pf_only)
+	for (i = 0; i < QEDE_NUM_STATS; i++) {
+		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
 			continue;
-		buf[cnt++] = QEDE_STATS_DATA(edev, sidx);
+		*buf = *((u64 *)(((void *)&edev->stats) +
+				 qede_stats_arr[i].offset));
+
+		buf++;
 	}
 
-	mutex_unlock(&edev->qede_lock);
+	__qede_unlock(edev);
 }
 
 static int qede_get_sset_count(struct net_device *dev, int stringset)
@@ -280,8 +309,18 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 				if (qede_stats_arr[i].pf_only)
 					num_stats--;
 		}
-		return num_stats + QEDE_RSS_COUNT(edev) * QEDE_NUM_RQSTATS +
-		       QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS * edev->num_tc;
+
+		/* Account for the Regular Tx statistics */
+		num_stats += QEDE_TSS_COUNT(edev) * QEDE_NUM_TQSTATS;
+
+		/* Account for the Regular Rx statistics */
+		num_stats += QEDE_RSS_COUNT(edev) * QEDE_NUM_RQSTATS;
+
+		/* Account for XDP statistics [if needed] */
+		if (edev->xdp_prog)
+			num_stats += QEDE_RSS_COUNT(edev) * QEDE_NUM_TQSTATS;
+		return num_stats;
+
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
 	case ETH_SS_TEST:
@@ -352,6 +391,8 @@ static int qede_get_link_ksettings(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
 
+	__qede_lock(edev);
+
 	memset(&current_link, 0, sizeof(current_link));
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
@@ -371,6 +412,9 @@ static int qede_get_link_ksettings(struct net_device *dev,
 		base->speed = SPEED_UNKNOWN;
 		base->duplex = DUPLEX_UNKNOWN;
 	}
+
+	__qede_unlock(edev);
+
 	base->port = current_link.port;
 	base->autoneg = (current_link.autoneg) ? AUTONEG_ENABLE :
 			AUTONEG_DISABLE;
@@ -679,8 +723,7 @@ static int qede_set_ringparam(struct net_device *dev,
 	edev->q_num_rx_buffers = ering->rx_pending;
 	edev->q_num_tx_buffers = ering->tx_pending;
 
-	if (netif_running(edev->ndev))
-		qede_reload(edev, NULL, NULL);
+	qede_reload(edev, NULL, false);
 
 	return 0;
 }
@@ -765,29 +808,27 @@ static int qede_get_regs_len(struct net_device *ndev)
 		return -EINVAL;
 }
 
-static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
+static void qede_update_mtu(struct qede_dev *edev,
+			    struct qede_reload_args *args)
 {
-	edev->ndev->mtu = args->mtu;
+	edev->ndev->mtu = args->u.mtu;
 }
 
 /* Netdevice NDOs */
 int qede_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
-	union qede_reload_args args;
+	struct qede_reload_args args;
 
 	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 		   "Configuring MTU size of %d\n", new_mtu);
 
-	/* Set the mtu field and re-start the interface if needed*/
-	args.mtu = new_mtu;
+	/* Set the mtu field and re-start the interface if needed */
+	args.u.mtu = new_mtu;
+	args.func = &qede_update_mtu;
+	qede_reload(edev, &args, false);
 
-	if (netif_running(edev->ndev))
-		qede_reload(edev, &qede_update_mtu, &args);
-
-	qede_update_mtu(edev, &args);
-
-	edev->ops->common->update_mtu(edev->cdev, args.mtu);
+	edev->ops->common->update_mtu(edev->cdev, new_mtu);
 
 	return 0;
 }
@@ -871,8 +912,7 @@ static int qede_set_channels(struct net_device *dev,
 		       sizeof(edev->rss_params.rss_ind_table));
 	}
 
-	if (netif_running(dev))
-		qede_reload(edev, NULL, NULL);
+	qede_reload(edev, NULL, false);
 
 	return 0;
 }
@@ -1178,7 +1218,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 	for_each_queue(i) {
 		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
-			txq = edev->fp_array[i].txqs;
+			txq = edev->fp_array[i].txq;
 			break;
 		}
 	}
@@ -1190,7 +1230,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
 	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
-	txq->sw_tx_ring[idx].skb = skb;
+	txq->sw_tx_ring.skbs[idx].skb = skb;
 	first_bd = qed_chain_produce(&txq->tx_pbl);
 	memset(first_bd, 0, sizeof(*first_bd));
 	val = 1 << ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT;
@@ -1244,7 +1284,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
 			 BD_UNMAP_LEN(first_bd), DMA_TO_DEVICE);
 	txq->sw_tx_cons++;
-	txq->sw_tx_ring[idx].skb = NULL;
+	txq->sw_tx_ring.skbs[idx].skb = NULL;
 
 	return 0;
 }
@@ -1312,13 +1352,13 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 					break;
 				}
 
-			qede_recycle_rx_bd_ring(rxq, edev, 1);
+			qede_recycle_rx_bd_ring(rxq, 1);
 			qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 			break;
 		}
 
 		DP_INFO(edev, "Not the transmitted packet\n");
-		qede_recycle_rx_bd_ring(rxq, edev, 1);
+		qede_recycle_rx_bd_ring(rxq, 1);
 		qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 	}
 

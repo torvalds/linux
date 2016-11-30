@@ -241,15 +241,6 @@ struct qed_hw_info {
 	enum qed_wol_support b_wol_support;
 };
 
-struct qed_hw_cid_data {
-	u32	cid;
-	bool	b_cid_allocated;
-
-	/* Additional identifiers */
-	u16	opaque_fid;
-	u8	vport_id;
-};
-
 /* maximun size of read/write commands (HW limit) */
 #define DMAE_MAX_RW_SIZE        0x2000
 
@@ -415,9 +406,6 @@ struct qed_hwfn {
 	struct qed_mcp_info		*mcp_info;
 
 	struct qed_dcbx_info		*p_dcbx_info;
-
-	struct qed_hw_cid_data		*p_tx_cids;
-	struct qed_hw_cid_data		*p_rx_cids;
 
 	struct qed_dmae_info		dmae_info;
 

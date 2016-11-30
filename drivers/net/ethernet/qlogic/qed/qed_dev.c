@@ -137,15 +137,6 @@ void qed_resc_free(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
-		kfree(p_hwfn->p_tx_cids);
-		p_hwfn->p_tx_cids = NULL;
-		kfree(p_hwfn->p_rx_cids);
-		p_hwfn->p_rx_cids = NULL;
-	}
-
-	for_each_hwfn(cdev, i) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-
 		qed_cxt_mngr_free(p_hwfn);
 		qed_qm_info_free(p_hwfn);
 		qed_spq_free(p_hwfn);
@@ -424,23 +415,6 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
 	if (!cdev->fw_data)
 		return -ENOMEM;
-
-	/* Allocate Memory for the Queue->CID mapping */
-	for_each_hwfn(cdev, i) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-		int tx_size = sizeof(struct qed_hw_cid_data) *
-				     RESC_NUM(p_hwfn, QED_L2_QUEUE);
-		int rx_size = sizeof(struct qed_hw_cid_data) *
-				     RESC_NUM(p_hwfn, QED_L2_QUEUE);
-
-		p_hwfn->p_tx_cids = kzalloc(tx_size, GFP_KERNEL);
-		if (!p_hwfn->p_tx_cids)
-			goto alloc_no_mem;
-
-		p_hwfn->p_rx_cids = kzalloc(rx_size, GFP_KERNEL);
-		if (!p_hwfn->p_rx_cids)
-			goto alloc_no_mem;
-	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -2283,12 +2257,12 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 {
 	void **pp_virt_addr_tbl = p_chain->pbl.pp_virt_addr_tbl;
 	u32 page_cnt = p_chain->page_cnt, i, pbl_size;
-	u8 *p_pbl_virt = p_chain->pbl.p_virt_table;
+	u8 *p_pbl_virt = p_chain->pbl_sp.p_virt_table;
 
 	if (!pp_virt_addr_tbl)
 		return;
 
-	if (!p_chain->pbl.p_virt_table)
+	if (!p_pbl_virt)
 		goto out;
 
 	for (i = 0; i < page_cnt; i++) {
@@ -2306,7 +2280,8 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 	pbl_size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
 	dma_free_coherent(&cdev->pdev->dev,
 			  pbl_size,
-			  p_chain->pbl.p_virt_table, p_chain->pbl.p_phys_table);
+			  p_chain->pbl_sp.p_virt_table,
+			  p_chain->pbl_sp.p_phys_table);
 out:
 	vfree(p_chain->pbl.pp_virt_addr_tbl);
 }
