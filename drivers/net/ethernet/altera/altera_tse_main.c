@@ -463,7 +463,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     tse_tx_avail(priv) > TSE_TX_THRESH(priv))) {
-		netif_tx_lock(priv->dev);
 		if (netif_queue_stopped(priv->dev) &&
 		    tse_tx_avail(priv) > TSE_TX_THRESH(priv)) {
 			if (netif_msg_tx_done(priv))
@@ -471,7 +470,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 					   __func__);
 			netif_wake_queue(priv->dev);
 		}
-		netif_tx_unlock(priv->dev);
 	}
 
 	spin_unlock(&priv->tx_lock);
