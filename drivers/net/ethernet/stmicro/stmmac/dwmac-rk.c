@@ -1118,7 +1118,16 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_gmac_powerdown;
+
+	return 0;
+
+err_gmac_powerdown:
+	rk_gmac_powerdown(plat_dat->bsp_priv);
+
+	return ret;
 }
 
 static int rk_gmac_remove(struct platform_device *pdev)
