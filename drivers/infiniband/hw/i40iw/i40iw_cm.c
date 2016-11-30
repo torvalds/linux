@@ -272,6 +272,7 @@ static int i40iw_send_cm_event(struct i40iw_cm_node *cm_node,
 		event.provider_data = (void *)cm_node;
 		event.private_data = (void *)cm_node->pdata_buf;
 		event.private_data_len = (u8)cm_node->pdata.size;
+		event.ird = cm_node->ird_size;
 		break;
 	case IW_CM_EVENT_CONNECT_REPLY:
 		i40iw_get_cmevent_info(cm_node, cm_id, &event);
