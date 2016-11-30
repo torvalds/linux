@@ -46,17 +46,21 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.output_poll_changed = msm_fb_output_poll_changed,
 	.atomic_check = msm_atomic_check,
 	.atomic_commit = msm_atomic_commit,
+	.atomic_state_alloc = msm_atomic_state_alloc,
+	.atomic_state_clear = msm_atomic_state_clear,
+	.atomic_state_free = msm_atomic_state_free,
 };
 
-int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
+int msm_register_address_space(struct drm_device *dev,
+		struct msm_gem_address_space *aspace)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	int idx = priv->num_mmus++;
+	int idx = priv->num_aspaces++;
 
-	if (WARN_ON(idx >= ARRAY_SIZE(priv->mmus)))
+	if (WARN_ON(idx >= ARRAY_SIZE(priv->aspace)))
 		return -EINVAL;
 
-	priv->mmus[idx] = mmu;
+	priv->aspace[idx] = aspace;
 
 	return idx;
 }
@@ -907,10 +911,8 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * remote-endpoint isn't a component that we need to add
 		 */
 		if (of_device_is_compatible(np, "qcom,mdp4") &&
-		    ep.port == 0) {
-			of_node_put(ep_node);
+		    ep.port == 0)
 			continue;
-		}
 
 		/*
 		 * It's okay if some of the ports don't have a remote endpoint
@@ -918,15 +920,12 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * any external interface.
 		 */
 		intf = of_graph_get_remote_port_parent(ep_node);
-		if (!intf) {
-			of_node_put(ep_node);
+		if (!intf)
 			continue;
-		}
 
 		drm_of_component_match_add(master_dev, matchptr, compare_of,
 					   intf);
 		of_node_put(intf);
-		of_node_put(ep_node);
 	}
 
 	return 0;
@@ -1039,7 +1038,13 @@ static int msm_pdev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	/* on all devices that I am aware of, iommu's which can map
+	 * any address the cpu can see are used:
+	 */
+	ret = dma_set_mask_and_coherent(&pdev->dev, ~0);
+	if (ret)
+		return ret;
+
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
 }
 

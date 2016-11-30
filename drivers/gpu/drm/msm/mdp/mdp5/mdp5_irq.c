@@ -41,6 +41,8 @@ static void mdp5_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
 	if (dumpstate && __ratelimit(&rs)) {
 		struct drm_printer p = drm_info_printer(mdp5_kms->dev->dev);
 		drm_state_dump(mdp5_kms->dev, &p);
+		if (mdp5_kms->smp)
+			mdp5_smp_dump(mdp5_kms->smp, &p);
 	}
 }
 
