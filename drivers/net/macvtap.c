@@ -742,13 +742,8 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 
 	if (zerocopy)
 		err = zerocopy_sg_from_iter(skb, from);
-	else {
+	else
 		err = skb_copy_datagram_from_iter(skb, 0, from, len);
-		if (!err && m && m->msg_control) {
-			struct ubuf_info *uarg = m->msg_control;
-			uarg->callback(uarg, false);
-		}
-	}
 
 	if (err)
 		goto err_kfree;
@@ -779,7 +774,11 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		skb_shinfo(skb)->destructor_arg = m->msg_control;
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+	} else if (m && m->msg_control) {
+		struct ubuf_info *uarg = m->msg_control;
+		uarg->callback(uarg, false);
 	}
+
 	if (vlan) {
 		skb->dev = vlan->dev;
 		dev_queue_xmit(skb);
