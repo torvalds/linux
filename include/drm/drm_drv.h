@@ -427,4 +427,7 @@ void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
 void drm_unplug_dev(struct drm_device *dev);
 
+int drm_dev_set_unique(struct drm_device *dev, const char *name);
+
+
 #endif

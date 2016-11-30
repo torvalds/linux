@@ -383,11 +383,6 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	ret = devm_snd_soc_register_component(&pdev->dev, &s3c_ac97_component,
-					 s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
-	if (ret)
-		goto err5;
-
 	ret = samsung_asoc_dma_platform_register(&pdev->dev,
 						 ac97_pdata->dma_filter,
 						 NULL, NULL);
@@ -395,6 +390,11 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
 		goto err5;
 	}
+
+	ret = devm_snd_soc_register_component(&pdev->dev, &s3c_ac97_component,
+					 s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
+	if (ret)
+		goto err5;
 
 	return 0;
 err5:

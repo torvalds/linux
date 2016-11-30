@@ -303,9 +303,10 @@ void drm_minor_release(struct drm_minor *minor)
  * callbacks implemented by the driver. The driver then needs to initialize all
  * the various subsystems for the drm device like memory management, vblank
  * handling, modesetting support and intial output configuration plus obviously
- * initialize all the corresponding hardware bits. Finally when everything is up
- * and running and ready for userspace the device instance can be published
- * using drm_dev_register().
+ * initialize all the corresponding hardware bits. An important part of this is
+ * also calling drm_dev_set_unique() to set the userspace-visible unique name of
+ * this device instance. Finally when everything is up and running and ready for
+ * userspace the device instance can be published using drm_dev_register().
  *
  * There is also deprecated support for initalizing device instances using
  * bus-specific helpers and the ->load() callback. But due to
@@ -326,17 +327,6 @@ void drm_minor_release(struct drm_minor *minor)
  * it would be easy to add). Drivers can store driver-private data in the
  * dev_priv field of &drm_device.
  */
-
-static int drm_dev_set_unique(struct drm_device *dev, const char *name)
-{
-	if (!name)
-		return -EINVAL;
-
-	kfree(dev->unique);
-	dev->unique = kstrdup(name, GFP_KERNEL);
-
-	return dev->unique ? 0 : -ENOMEM;
-}
 
 /**
  * drm_put_dev - Unregister and release a DRM device
@@ -759,6 +749,26 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
+
+/**
+ * drm_dev_set_unique - Set the unique name of a DRM device
+ * @dev: device of which to set the unique name
+ * @name: unique name
+ *
+ * Sets the unique name of a DRM device using the specified string. Drivers
+ * can use this at driver probe time if the unique name of the devices they
+ * drive is static.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int drm_dev_set_unique(struct drm_device *dev, const char *name)
+{
+	kfree(dev->unique);
+	dev->unique = kstrdup(name, GFP_KERNEL);
+
+	return dev->unique ? 0 : -ENOMEM;
+}
+EXPORT_SYMBOL(drm_dev_set_unique);
 
 /*
  * DRM Core

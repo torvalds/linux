@@ -844,6 +844,6 @@ static struct platform_driver iproc_gpio_driver = {
 
 static int __init iproc_gpio_init(void)
 {
-	return platform_driver_probe(&iproc_gpio_driver, iproc_gpio_probe);
+	return platform_driver_register(&iproc_gpio_driver);
 }
 arch_initcall_sync(iproc_gpio_init);

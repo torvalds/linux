@@ -395,8 +395,11 @@ static int acp_hw_fini(void *handle)
 {
 	int i, ret;
 	struct device *dev;
-
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	/* return early if no ACP */
+	if (!adev->acp.acp_genpd)
+		return 0;
 
 	for (i = 0; i < ACP_DEVS ; i++) {
 		dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
