@@ -124,8 +124,9 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 	struct device *dev = &root->device->dev;
 	struct resource *bus_res = &root->secondary;
 	u16 seg = root->segment;
-	struct pci_config_window *cfg;
 	struct resource cfgres;
+	struct acpi_device *adev;
+	struct pci_config_window *cfg;
 	unsigned int bsz;
 
 	/* Use address from _CBA if present, otherwise lookup MCFG */
@@ -141,6 +142,15 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 	cfgres.start = root->mcfg_addr + bus_res->start * bsz;
 	cfgres.end = cfgres.start + resource_size(bus_res) * bsz - 1;
 	cfgres.flags = IORESOURCE_MEM;
+
+	adev = acpi_resource_consumer(&cfgres);
+	if (adev)
+		dev_info(dev, "ECAM area %pR reserved by %s\n", &cfgres,
+			 dev_name(&adev->dev));
+	else
+		dev_warn(dev, FW_BUG "ECAM area %pR not reserved in ACPI namespace\n",
+			 &cfgres);
+
 	cfg = pci_ecam_create(dev, &cfgres, bus_res, &pci_generic_ecam_ops);
 	if (IS_ERR(cfg)) {
 		dev_err(dev, "%04x:%pR error %ld mapping ECAM\n", seg, bus_res,
