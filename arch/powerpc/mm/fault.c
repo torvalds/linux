@@ -392,8 +392,16 @@ good_area:
 	if (is_exec) {
 		/*
 		 * An execution fault + no execute ?
+		 *
+		 * On CPUs that don't have CPU_FTR_COHERENT_ICACHE we
+		 * deliberately create NX mappings, and use the fault to do the
+		 * cache flush. This is usually handled in hash_page_do_lazy_icache()
+		 * but we could end up here if that races with a concurrent PTE
+		 * update. In that case we need to fall through here to the VMA
+		 * check below.
 		 */
-		if (regs->msr & SRR1_ISI_N_OR_G)
+		if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&
+			(regs->msr & SRR1_ISI_N_OR_G))
 			goto bad_area;
 
 		/*
