@@ -58,6 +58,8 @@ static void pnfs_free_returned_lsegs(struct pnfs_layout_hdr *lo,
 		struct list_head *free_me,
 		const struct pnfs_layout_range *range,
 		u32 seq);
+static bool pnfs_lseg_dec_and_remove_zero(struct pnfs_layout_segment *lseg,
+		                struct list_head *tmp_list);
 
 /* Return the registered pnfs layout driver module matching given id */
 static struct pnfs_layoutdriver_type *
@@ -311,6 +313,18 @@ pnfs_clear_layoutreturn_info(struct pnfs_layout_hdr *lo)
 	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 }
 
+static void
+pnfs_clear_lseg_state(struct pnfs_layout_segment *lseg,
+		struct list_head *free_me)
+{
+	clear_bit(NFS_LSEG_ROC, &lseg->pls_flags);
+	clear_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
+	if (test_and_clear_bit(NFS_LSEG_VALID, &lseg->pls_flags))
+		pnfs_lseg_dec_and_remove_zero(lseg, free_me);
+	if (test_and_clear_bit(NFS_LSEG_LAYOUTCOMMIT, &lseg->pls_flags))
+		pnfs_lseg_dec_and_remove_zero(lseg, free_me);
+}
+
 /*
  * Mark a pnfs_layout_hdr and all associated layout segments as invalid
  *
@@ -327,11 +341,14 @@ pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
 		.offset = 0,
 		.length = NFS4_MAX_UINT64,
 	};
+	struct pnfs_layout_segment *lseg, *next;
 
 	set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
 	pnfs_clear_layoutreturn_info(lo);
+	list_for_each_entry_safe(lseg, next, &lo->plh_segs, pls_list)
+		pnfs_clear_lseg_state(lseg, lseg_list);
 	pnfs_free_returned_lsegs(lo, lseg_list, &range, 0);
-	return pnfs_mark_matching_lsegs_invalid(lo, lseg_list, &range, 0);
+	return !list_empty(&lo->plh_segs);
 }
 
 static int
