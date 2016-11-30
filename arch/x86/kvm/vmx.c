@@ -9626,17 +9626,16 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 		kvm_inject_page_fault(vcpu, fault);
 }
 
-static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
+static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
+					       struct vmcs12 *vmcs12);
+
+static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 					struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	int maxphyaddr = cpuid_maxphyaddr(vcpu);
+	u64 hpa;
 
 	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
-		if (!PAGE_ALIGNED(vmcs12->apic_access_addr) ||
-		    vmcs12->apic_access_addr >> maxphyaddr)
-			return false;
-
 		/*
 		 * Translate L1 physical address to host physical
 		 * address for vmcs02. Keep the page pinned, so this
@@ -9647,59 +9646,80 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 			nested_release_page(vmx->nested.apic_access_page);
 		vmx->nested.apic_access_page =
 			nested_get_page(vcpu, vmcs12->apic_access_addr);
+		/*
+		 * If translation failed, no matter: This feature asks
+		 * to exit when accessing the given address, and if it
+		 * can never be accessed, this feature won't do
+		 * anything anyway.
+		 */
+		if (vmx->nested.apic_access_page) {
+			hpa = page_to_phys(vmx->nested.apic_access_page);
+			vmcs_write64(APIC_ACCESS_ADDR, hpa);
+		} else {
+			vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL,
+					SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+		}
+	} else if (!(nested_cpu_has_virt_x2apic_mode(vmcs12)) &&
+		   cpu_need_virtualize_apic_accesses(&vmx->vcpu)) {
+		vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
+			      SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+		kvm_vcpu_reload_apic_access_page(vcpu);
 	}
 
 	if (nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW)) {
-		if (!PAGE_ALIGNED(vmcs12->virtual_apic_page_addr) ||
-		    vmcs12->virtual_apic_page_addr >> maxphyaddr)
-			return false;
-
 		if (vmx->nested.virtual_apic_page) /* shouldn't happen */
 			nested_release_page(vmx->nested.virtual_apic_page);
 		vmx->nested.virtual_apic_page =
 			nested_get_page(vcpu, vmcs12->virtual_apic_page_addr);
 
 		/*
-		 * Failing the vm entry is _not_ what the processor does
-		 * but it's basically the only possibility we have.
-		 * We could still enter the guest if CR8 load exits are
-		 * enabled, CR8 store exits are enabled, and virtualize APIC
-		 * access is disabled; in this case the processor would never
-		 * use the TPR shadow and we could simply clear the bit from
-		 * the execution control.  But such a configuration is useless,
-		 * so let's keep the code simple.
+		 * If translation failed, VM entry will fail because
+		 * prepare_vmcs02 set VIRTUAL_APIC_PAGE_ADDR to -1ull.
+		 * Failing the vm entry is _not_ what the processor
+		 * does but it's basically the only possibility we
+		 * have.  We could still enter the guest if CR8 load
+		 * exits are enabled, CR8 store exits are enabled, and
+		 * virtualize APIC access is disabled; in this case
+		 * the processor would never use the TPR shadow and we
+		 * could simply clear the bit from the execution
+		 * control.  But such a configuration is useless, so
+		 * let's keep the code simple.
 		 */
-		if (!vmx->nested.virtual_apic_page)
-			return false;
+		if (vmx->nested.virtual_apic_page) {
+			hpa = page_to_phys(vmx->nested.virtual_apic_page);
+			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, hpa);
+		}
 	}
 
 	if (nested_cpu_has_posted_intr(vmcs12)) {
-		if (!IS_ALIGNED(vmcs12->posted_intr_desc_addr, 64) ||
-		    vmcs12->posted_intr_desc_addr >> maxphyaddr)
-			return false;
-
 		if (vmx->nested.pi_desc_page) { /* shouldn't happen */
 			kunmap(vmx->nested.pi_desc_page);
 			nested_release_page(vmx->nested.pi_desc_page);
 		}
 		vmx->nested.pi_desc_page =
 			nested_get_page(vcpu, vmcs12->posted_intr_desc_addr);
-		if (!vmx->nested.pi_desc_page)
-			return false;
-
 		vmx->nested.pi_desc =
 			(struct pi_desc *)kmap(vmx->nested.pi_desc_page);
 		if (!vmx->nested.pi_desc) {
 			nested_release_page_clean(vmx->nested.pi_desc_page);
-			return false;
+			return;
 		}
 		vmx->nested.pi_desc =
 			(struct pi_desc *)((void *)vmx->nested.pi_desc +
 			(unsigned long)(vmcs12->posted_intr_desc_addr &
 			(PAGE_SIZE - 1)));
+		vmcs_write64(POSTED_INTR_DESC_ADDR,
+			page_to_phys(vmx->nested.pi_desc_page) +
+			(unsigned long)(vmcs12->posted_intr_desc_addr &
+			(PAGE_SIZE - 1)));
 	}
-
-	return true;
+	if (cpu_has_vmx_msr_bitmap() &&
+	    nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS) &&
+	    nested_vmx_merge_msr_bitmap(vcpu, vmcs12))
+		;
+	else
+		vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
+				CPU_BASED_USE_MSR_BITMAPS);
 }
 
 static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu)
@@ -10146,12 +10166,9 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vmx->nested.posted_intr_nv = vmcs12->posted_intr_nv;
 		vmx->nested.pi_pending = false;
 		vmcs_write16(POSTED_INTR_NV, POSTED_INTR_VECTOR);
-		vmcs_write64(POSTED_INTR_DESC_ADDR,
-			page_to_phys(vmx->nested.pi_desc_page) +
-			(unsigned long)(vmcs12->posted_intr_desc_addr &
-			(PAGE_SIZE - 1)));
-	} else
+	} else {
 		exec_control &= ~PIN_BASED_POSTED_INTR;
+	}
 
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, exec_control);
 
@@ -10196,26 +10213,6 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
 			exec_control |= vmcs12->secondary_vm_exec_control;
 
-		if (exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) {
-			/*
-			 * If translation failed, no matter: This feature asks
-			 * to exit when accessing the given address, and if it
-			 * can never be accessed, this feature won't do
-			 * anything anyway.
-			 */
-			if (!vmx->nested.apic_access_page)
-				exec_control &=
-				  ~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
-			else
-				vmcs_write64(APIC_ACCESS_ADDR,
-				  page_to_phys(vmx->nested.apic_access_page));
-		} else if (!(nested_cpu_has_virt_x2apic_mode(vmcs12)) &&
-			    cpu_need_virtualize_apic_accesses(&vmx->vcpu)) {
-			exec_control |=
-				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
-			kvm_vcpu_reload_apic_access_page(vcpu);
-		}
-
 		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) {
 			vmcs_write64(EOI_EXIT_BITMAP0,
 				vmcs12->eoi_exit_bitmap0);
@@ -10230,6 +10227,15 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		}
 
 		nested_ept_enabled = (exec_control & SECONDARY_EXEC_ENABLE_EPT) != 0;
+
+		/*
+		 * Write an illegal value to APIC_ACCESS_ADDR. Later,
+		 * nested_get_vmcs12_pages will either fix it up or
+		 * remove the VM execution control.
+		 */
+		if (exec_control & SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)
+			vmcs_write64(APIC_ACCESS_ADDR, -1ull);
+
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 	}
 
@@ -10266,18 +10272,15 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	exec_control &= ~CPU_BASED_TPR_SHADOW;
 	exec_control |= vmcs12->cpu_based_vm_exec_control;
 
+	/*
+	 * Write an illegal value to VIRTUAL_APIC_PAGE_ADDR. Later, if
+	 * nested_get_vmcs12_pages can't fix it up, the illegal value
+	 * will result in a VM entry failure.
+	 */
 	if (exec_control & CPU_BASED_TPR_SHADOW) {
-		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
-				page_to_phys(vmx->nested.virtual_apic_page));
+		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, -1ull);
 		vmcs_write32(TPR_THRESHOLD, vmcs12->tpr_threshold);
 	}
-
-	if (cpu_has_vmx_msr_bitmap() &&
-	    exec_control & CPU_BASED_USE_MSR_BITMAPS &&
-	    nested_vmx_merge_msr_bitmap(vcpu, vmcs12))
-		; /* MSR_BITMAP will be set by following vmx_set_efer. */
-	else
-		exec_control &= ~CPU_BASED_USE_MSR_BITMAPS;
 
 	/*
 	 * Merging of IO bitmap not currently supported.
@@ -10456,11 +10459,6 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		goto out;
 	}
 
-	if (!nested_get_vmcs12_pages(vcpu, vmcs12)) {
-		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
-		goto out;
-	}
-
 	if (nested_vmx_check_msr_bitmap_controls(vcpu, vmcs12)) {
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		goto out;
@@ -10591,6 +10589,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 				EXIT_REASON_INVALID_STATE, exit_qualification);
 		return 1;
 	}
+
+	nested_get_vmcs12_pages(vcpu, vmcs12);
 
 	msr_entry_idx = nested_vmx_load_msr(vcpu,
 					    vmcs12->vm_entry_msr_load_addr,
