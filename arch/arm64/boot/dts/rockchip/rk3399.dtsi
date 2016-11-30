@@ -1388,6 +1388,10 @@
 		clock-names = "pclk_efuse";
 
 		/* Data cells */
+		specification_serial_number: specification-serial-number@6 {
+			reg = <0x06 0x1>;
+			bits = <0 5>;
+		};
 		cpu_id: cpu-id@7 {
 			reg = <0x07 0x10>;
 		};
@@ -1408,6 +1412,10 @@
 		};
 		wafer_info: wafer-info@1c {
 			reg = <0x1c 0x1>;
+		};
+		customer_demand: customer-demand@22 {
+			reg = <0x22 0x1>;
+			bits = <4 4>;
 		};
 	};
 
