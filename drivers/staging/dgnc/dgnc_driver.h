@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 
 #include "digi.h"		/* Digi specific ioctl header */
-#include "dgnc_sysfs.h"		/* Support for SYSFS */
 
 /* Driver defines */
 

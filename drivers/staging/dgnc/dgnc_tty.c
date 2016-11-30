@@ -35,7 +35,6 @@
 #include "dgnc_tty.h"
 #include "dgnc_neo.h"
 #include "dgnc_cls.h"
-#include "dgnc_sysfs.h"
 #include "dgnc_utils.h"
 
 /* Default transparent print information. */
@@ -304,12 +303,10 @@ int dgnc_tty_init(struct dgnc_board *brd)
 			classp = tty_register_device(brd->serial_driver, i,
 						     &ch->ch_bd->pdev->dev);
 			ch->ch_tun.un_sysfs = classp;
-			dgnc_create_tty_sysfs(&ch->ch_tun, classp);
 
 			classp = tty_register_device(brd->print_driver, i,
 						     &ch->ch_bd->pdev->dev);
 			ch->ch_pun.un_sysfs = classp;
-			dgnc_create_tty_sysfs(&ch->ch_pun, classp);
 		}
 	}
 
@@ -333,20 +330,14 @@ void dgnc_cleanup_tty(struct dgnc_board *brd)
 {
 	int i = 0;
 
-	for (i = 0; i < brd->nasync; i++) {
-		if (brd->channels[i])
-			dgnc_remove_tty_sysfs(brd->channels[i]->
-					      ch_tun.un_sysfs);
+	for (i = 0; i < brd->nasync; i++)
 		tty_unregister_device(brd->serial_driver, i);
-	}
+
 	tty_unregister_driver(brd->serial_driver);
 
-	for (i = 0; i < brd->nasync; i++) {
-		if (brd->channels[i])
-			dgnc_remove_tty_sysfs(brd->channels[i]->
-					      ch_pun.un_sysfs);
+	for (i = 0; i < brd->nasync; i++)
 		tty_unregister_device(brd->print_driver, i);
-	}
+
 	tty_unregister_driver(brd->print_driver);
 
 	put_tty_driver(brd->serial_driver);
