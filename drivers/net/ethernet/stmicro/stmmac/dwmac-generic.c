@@ -53,7 +53,17 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_exit;
+
+	return 0;
+
+err_exit:
+	if (plat_dat->exit)
+		plat_dat->exit(pdev, plat_dat->bsp_priv);
+
+	return ret;
 }
 
 static const struct of_device_id dwmac_generic_match[] = {
