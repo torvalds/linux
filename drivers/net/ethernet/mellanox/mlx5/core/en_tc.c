@@ -151,10 +151,10 @@ static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 
 	counter = mlx5_flow_rule_counter(rule);
 
+	mlx5_del_flow_rules(rule);
+
 	if (esw && esw->mode == SRIOV_OFFLOADS)
 		mlx5_eswitch_del_vlan_action(esw, attr);
-
-	mlx5_del_flow_rules(rule);
 
 	mlx5_fc_destroy(priv->mdev, counter);
 
