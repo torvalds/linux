@@ -1012,13 +1012,9 @@ static int lance_rx( struct net_device *dev )
 					u_char *data = PKTBUF_ADDR(head);
 
 					printk(KERN_DEBUG "%s: RX pkt type 0x%04x from %pM to %pM "
-						   "data %02x %02x %02x %02x %02x %02x %02x %02x "
-						   "len %d\n",
+						   "data %8ph len %d\n",
 						   dev->name, ((u_short *)data)[6],
-						   &data[6], data,
-						   data[15], data[16], data[17], data[18],
-						   data[19], data[20], data[21], data[22],
-						   pkt_len);
+						   &data[6], data, &data[15], pkt_len);
 				}
 
 				skb_reserve( skb, 2 );	/* 16 byte align */
