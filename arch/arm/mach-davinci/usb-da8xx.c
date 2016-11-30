@@ -109,8 +109,8 @@ static struct resource da8xx_usb11_resources[] = {
 static u64 da8xx_usb11_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device da8xx_usb11_device = {
-	.name		= "ohci",
-	.id		= 0,
+	.name		= "ohci-da8xx",
+	.id		= -1,
 	.dev = {
 		.dma_mask		= &da8xx_usb11_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
