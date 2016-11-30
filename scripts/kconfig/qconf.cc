@@ -65,11 +65,19 @@ ConfigSettings::ConfigSettings()
 QList<int> ConfigSettings::readSizes(const QString& key, bool *ok)
 {
 	QList<int> result;
-	QStringList entryList = value(key).toStringList();
-	QStringList::Iterator it;
 
-	for (it = entryList.begin(); it != entryList.end(); ++it)
-		result.push_back((*it).toInt());
+	if (contains(key))
+	{
+		QStringList entryList = value(key).toStringList();
+		QStringList::Iterator it;
+
+		for (it = entryList.begin(); it != entryList.end(); ++it)
+			result.push_back((*it).toInt());
+
+		*ok = true;
+	}
+	else
+		*ok = false;
 
 	return result;
 }
