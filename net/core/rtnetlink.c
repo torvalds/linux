@@ -3177,7 +3177,7 @@ int ndo_dflt_fdb_dump(struct sk_buff *skb,
 	err = nlmsg_populate_fdb(skb, cb, dev, idx, &dev->uc);
 	if (err)
 		goto out;
-	nlmsg_populate_fdb(skb, cb, dev, idx, &dev->mc);
+	err = nlmsg_populate_fdb(skb, cb, dev, idx, &dev->mc);
 out:
 	netif_addr_unlock_bh(dev);
 	return err;
