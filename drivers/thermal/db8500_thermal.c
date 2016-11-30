@@ -512,6 +512,7 @@ static const struct of_device_id db8500_thermal_match[] = {
 	{ .compatible = "stericsson,db8500-thermal" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, db8500_thermal_match);
 #endif
 
 static struct platform_driver db8500_thermal_driver = {
