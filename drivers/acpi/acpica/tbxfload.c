@@ -330,10 +330,9 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	/* Install the table and load it into the namespace */
 
 	ACPI_INFO(("Host-directed Dynamic ACPI Table Load:"));
-	status =
-	    acpi_tb_install_and_load_table(table, ACPI_PTR_TO_PHYSADDR(table),
-					   ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
-					   FALSE, &table_index);
+	status = acpi_tb_install_and_load_table(ACPI_PTR_TO_PHYSADDR(table),
+						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
+						FALSE, &table_index);
 	return_ACPI_STATUS(status);
 }
 

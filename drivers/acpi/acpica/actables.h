@@ -127,8 +127,7 @@ acpi_status
 acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node);
 
 acpi_status
-acpi_tb_install_and_load_table(struct acpi_table_header *table,
-			       acpi_physical_address address,
+acpi_tb_install_and_load_table(acpi_physical_address address,
 			       u8 flags, u8 override, u32 *table_index);
 
 void acpi_tb_terminate(void);
