@@ -18,13 +18,6 @@ about how to use it inside the Kernel tree.
 parse_headers.pl
 ^^^^^^^^^^^^^^^^
 
-.. NOTE: the man pages below were generated using pod2rst tool:
-.. http://search.cpan.org/~dowens/Pod-POM-View-Restructured-0.02/bin/pod2rst
-.. If you need to change anything below this point, please do the changes
-.. at parse-headers.pl directly, re-run the script and paste the output of
-.. the script here.
-
-****
 NAME
 ****
 
@@ -33,7 +26,6 @@ parse_headers.pl - parse a C file, in order to identify functions, structs,
 enums and defines and create cross-references to a Sphinx book.
 
 
-********
 SYNOPSIS
 ********
 
@@ -43,7 +35,6 @@ SYNOPSIS
 Where <options> can be: --debug, --help or --man.
 
 
-*******
 OPTIONS
 *******
 
@@ -55,20 +46,17 @@ OPTIONS
 
 
 
-\ **--help**\
+\ **--usage**\
 
  Prints a brief help message and exits.
 
 
 
-\ **--man**\
+\ **--help**\
 
- Prints the manual page and exits.
-
-
+ Prints a more detailed help message and exits.
 
 
-***********
 DESCRIPTION
 ***********
 
@@ -155,8 +143,6 @@ For both statements, \ **type**\  can be either one of the following:
 
 
 
-
-********
 EXAMPLES
 ********
 
@@ -187,7 +173,6 @@ It will make the BAR1 and BAR2 enum symbols to cross reference the foo
 symbol at the C domain.
 
 
-****
 BUGS
 ****
 
@@ -195,7 +180,6 @@ BUGS
 Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
 
 
-*********
 COPYRIGHT
 *********
 
