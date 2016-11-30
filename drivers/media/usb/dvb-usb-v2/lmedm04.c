@@ -95,9 +95,7 @@ static int dvb_usb_lme2510_debug;
 } while (0)
 #define deb_info(level, args...) lme_debug(dvb_usb_lme2510_debug, level, args)
 #define debug_data_snipet(level, name, p) \
-	 deb_info(level, name" (%02x%02x%02x%02x%02x%02x%02x%02x)", \
-		*p, *(p+1), *(p+2), *(p+3), *(p+4), \
-			*(p+5), *(p+6), *(p+7));
+	 deb_info(level, name" (%8phN)", p);
 #define info(args...) pr_info(DVB_USB_LOG_PREFIX": "args)
 
 module_param_named(debug, dvb_usb_lme2510_debug, int, 0644);
