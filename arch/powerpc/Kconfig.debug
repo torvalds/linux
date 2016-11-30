@@ -366,4 +366,8 @@ config PPC_PTDUMP
 
 	  If you are unsure, say N.
 
+config PPC_HTDUMP
+	def_bool y
+	depends on PPC_PTDUMP && PPC_BOOK3S
+
 endmenu

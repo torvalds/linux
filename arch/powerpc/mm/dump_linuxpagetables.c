@@ -159,6 +159,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "no cache",
 		.clear	= "        ",
 	}, {
+#ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= H_PAGE_BUSY,
 		.val	= H_PAGE_BUSY,
 		.set	= "busy",
@@ -183,6 +184,7 @@ static const struct flag_info flag_array[] = {
 		.val	= H_PAGE_F_SECOND,
 		.set	= "f_second",
 	}, {
+#endif
 		.mask	= _PAGE_SPECIAL,
 		.val	= _PAGE_SPECIAL,
 		.set	= "special",
