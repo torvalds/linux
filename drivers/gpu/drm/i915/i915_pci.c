@@ -172,14 +172,14 @@ static const struct intel_device_info intel_i965gm_info = {
 
 static const struct intel_device_info intel_g45_info = {
 	GEN4_FEATURES,
-	.platform = INTEL_G4X,
+	.platform = INTEL_G45,
 	.has_pipe_cxsr = 1,
 	.ring_mask = RENDER_RING | BSD_RING,
 };
 
 static const struct intel_device_info intel_gm45_info = {
 	GEN4_FEATURES,
-	.platform = INTEL_G4X,
+	.platform = INTEL_GM45,
 	.is_mobile = 1, .has_fbc = 1,
 	.has_pipe_cxsr = 1,
 	.supports_tv = 1,
