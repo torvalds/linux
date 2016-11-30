@@ -93,15 +93,4 @@ struct display_clock *dal_display_clock_dce80_create(
 
 void dal_display_clock_destroy(struct display_clock **to_destroy);
 
-bool dal_display_clock_get_min_clocks_state(
-	struct display_clock *disp_clk,
-	enum clocks_state *clocks_state);
-bool dal_display_clock_get_required_clocks_state(
-	struct display_clock *disp_clk,
-	struct state_dependent_clocks *req_clocks,
-	enum clocks_state *clocks_state);
-bool dal_display_clock_set_min_clocks_state(
-	struct display_clock *disp_clk,
-	enum clocks_state clocks_state);
-
 #endif /* __DISPLAY_CLOCK_INTERFACE_H__ */

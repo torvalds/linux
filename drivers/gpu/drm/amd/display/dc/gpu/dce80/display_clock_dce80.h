@@ -25,7 +25,7 @@
 #ifndef __DAL_DISPLAY_CLOCK_DCE80_H__
 #define __DAL_DISPLAY_CLOCK_DCE80_H__
 
-#include "gpu/display_clock.h"
+#include "display_clock_interface.h"
 
 struct display_clock_dce80 {
 	struct display_clock disp_clk;

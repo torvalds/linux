@@ -1223,12 +1223,13 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 	if (link_settings.link_rate == max_link_rate) {
 		cur_min_clock_state = CLOCKS_STATE_INVALID;
 
-		if (dal_display_clock_get_min_clocks_state(
-				pipe_ctx->dis_clk, &cur_min_clock_state)) {
+		if (pipe_ctx->dis_clk->funcs->get_min_clocks_state) {
+			cur_min_clock_state =
+				pipe_ctx->dis_clk->funcs->get_min_clocks_state(
+							pipe_ctx->dis_clk);
 			if (cur_min_clock_state < CLOCKS_STATE_NOMINAL)
-				dal_display_clock_set_min_clocks_state(
-						pipe_ctx->dis_clk,
-						CLOCKS_STATE_NOMINAL);
+				pipe_ctx->dis_clk->funcs->set_min_clocks_state(
+					pipe_ctx->dis_clk, CLOCKS_STATE_NOMINAL);
 		} else {
 		}
 	}

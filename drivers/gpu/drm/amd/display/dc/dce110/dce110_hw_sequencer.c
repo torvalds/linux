@@ -1099,9 +1099,11 @@ static void apply_min_clocks(
 
 	if (!pre_mode_set) {
 		/* set clock_state without verification */
-		if (dal_display_clock_set_min_clocks_state(
-				pipe_ctx->dis_clk, *clocks_state))
+		if (pipe_ctx->dis_clk->funcs->set_min_clocks_state) {
+			pipe_ctx->dis_clk->funcs->set_min_clocks_state(
+						pipe_ctx->dis_clk, *clocks_state);
 			return;
+		}
 
 		/* TODOFPGA */
 	}
@@ -1114,9 +1116,10 @@ static void apply_min_clocks(
 	req_clocks.pixel_clk_khz = get_max_pixel_clock_for_all_paths(
 			dc, context, true);
 
-	if (dal_display_clock_get_required_clocks_state(
-				pipe_ctx->dis_clk, &req_clocks, clocks_state)) {
-		dal_display_clock_set_min_clocks_state(
+	if (pipe_ctx->dis_clk->funcs->get_required_clocks_state) {
+		*clocks_state = pipe_ctx->dis_clk->funcs->get_required_clocks_state(
+				pipe_ctx->dis_clk, &req_clocks);
+		pipe_ctx->dis_clk->funcs->set_min_clocks_state(
 			pipe_ctx->dis_clk, *clocks_state);
 	} else {
 	}

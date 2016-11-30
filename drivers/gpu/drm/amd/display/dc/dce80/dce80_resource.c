@@ -657,7 +657,9 @@ static void destruct(struct dce110_resource_pool *pool)
 	}
 
 	if (pool->base.display_clock != NULL) {
-		dal_display_clock_destroy(&pool->base.display_clock);
+		pool->base.display_clock->funcs->destroy(
+				&pool->base.display_clock);
+		pool->base.display_clock = NULL;
 	}
 
 	if (pool->base.irqs != NULL) {
