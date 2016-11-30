@@ -9976,8 +9976,11 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
  * needs. In addition to modifying the active vmcs (which is vmcs02), this
  * function also has additional necessary side-effects, like setting various
  * vcpu->arch fields.
+ * Returns 0 on success, 1 on failure. Invalid state exit qualification code
+ * is assigned to entry_failure_code on failure.
  */
-static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
+static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
+			  unsigned long *entry_failure_code)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exec_control;
@@ -10306,8 +10309,12 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	    nested_ept_enabled) {
 		vcpu->arch.cr3 = vmcs12->guest_cr3;
 		__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
-	} else
-		kvm_set_cr3(vcpu, vmcs12->guest_cr3);
+	} else {
+		if (kvm_set_cr3(vcpu, vmcs12->guest_cr3)) {
+			*entry_failure_code = ENTRY_FAIL_DEFAULT;
+			return 1;
+		}
+	}
 
 	kvm_mmu_reset_context(vcpu);
 
@@ -10326,6 +10333,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->guest_rsp);
 	kvm_register_write(vcpu, VCPU_REGS_RIP, vmcs12->guest_rip);
+	return 0;
 }
 
 /*
@@ -10340,6 +10348,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	struct loaded_vmcs *vmcs02;
 	bool ia32e;
 	u32 msr_entry_idx;
+	unsigned long exit_qualification;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -10502,7 +10511,13 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 
 	vmx_segment_cache_clear(vmx);
 
-	prepare_vmcs02(vcpu, vmcs12);
+	if (prepare_vmcs02(vcpu, vmcs12, &exit_qualification)) {
+		leave_guest_mode(vcpu);
+		vmx_load_vmcs01(vcpu);
+		nested_vmx_entry_failure(vcpu, vmcs12,
+				EXIT_REASON_INVALID_STATE, exit_qualification);
+		return 1;
+	}
 
 	msr_entry_idx = nested_vmx_load_msr(vcpu,
 					    vmcs12->vm_entry_msr_load_addr,
