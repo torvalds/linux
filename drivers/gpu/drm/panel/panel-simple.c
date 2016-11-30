@@ -928,27 +928,31 @@ static const struct panel_desc innolux_g101ice_l01 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
-static const struct drm_display_mode innolux_g121i1_l01_mode = {
-	.clock = 71000,
-	.hdisplay = 1280,
-	.hsync_start = 1280 + 64,
-	.hsync_end = 1280 + 64 + 32,
-	.htotal = 1280 + 64 + 32 + 64,
-	.vdisplay = 800,
-	.vsync_start = 800 + 9,
-	.vsync_end = 800 + 9 + 6,
-	.vtotal = 800 + 9 + 6 + 9,
-	.vrefresh = 60,
+static const struct display_timing innolux_g121i1_l01_timing = {
+	.pixelclock = { 67450000, 71000000, 74550000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 40, 80, 160 },
+	.hback_porch = { 39, 79, 159 },
+	.hsync_len = { 1, 1, 1 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 5, 11, 100 },
+	.vback_porch = { 4, 11, 99 },
+	.vsync_len = { 1, 1, 1 },
 };
 
 static const struct panel_desc innolux_g121i1_l01 = {
-	.modes = &innolux_g121i1_l01_mode,
-	.num_modes = 1,
+	.timings = &innolux_g121i1_l01_timing,
+	.num_timings = 1,
 	.bpc = 6,
 	.size = {
 		.width = 261,
 		.height = 163,
 	},
+	.delay = {
+		.enable = 200,
+		.disable = 20,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
 static const struct drm_display_mode innolux_g121x1_l03_mode = {
