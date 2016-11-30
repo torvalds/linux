@@ -22,7 +22,6 @@
 
 #define USB_VERSION	"1.0"
 
-static u8 user_rmmod;
 static struct mwifiex_if_ops usb_ops;
 
 static struct usb_device_id mwifiex_usb_table[] = {
@@ -618,7 +617,7 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	if (user_rmmod && !adapter->mfg_mode) {
+	if (card->udev->state != USB_STATE_NOTATTACHED && !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
 
 		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
@@ -1230,9 +1229,6 @@ static int mwifiex_usb_init_module(void)
  */
 static void mwifiex_usb_cleanup_module(void)
 {
-	/* set the flag as user is removing this module */
-	user_rmmod = 1;
-
 	usb_deregister(&mwifiex_usb_driver);
 }
 

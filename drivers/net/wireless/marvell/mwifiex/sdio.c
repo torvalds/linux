@@ -31,21 +31,6 @@
 
 #define SDIO_VERSION	"1.0"
 
-/* The mwifiex_sdio_remove() callback function is called when
- * user removes this module from kernel space or ejects
- * the card from the slot. The driver handles these 2 cases
- * differently.
- * If the user is removing the module, the few commands (FUNC_SHUTDOWN,
- * HS_CANCEL etc.) are sent to the firmware.
- * If the card is removed, there is no need to send these command.
- *
- * The variable 'user_rmmod' is used to distinguish these two
- * scenarios. This flag is initialized as FALSE in case the card
- * is removed, and will be set to TRUE for module removal when
- * module_exit function is called.
- */
-static u8 user_rmmod;
-
 static void mwifiex_sdio_work(struct work_struct *work);
 static DECLARE_WORK(sdio_work, mwifiex_sdio_work);
 
@@ -391,6 +376,8 @@ __mwifiex_sdio_remove(struct sdio_func *func)
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_private *priv;
+	int ret = 0;
+	u16 firmware_stat;
 
 	card = sdio_get_drvdata(func);
 	if (!card)
@@ -404,7 +391,8 @@ __mwifiex_sdio_remove(struct sdio_func *func)
 
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
-	if (user_rmmod && !adapter->mfg_mode) {
+	ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
+	if (firmware_stat == FIRMWARE_READY_SDIO && !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
@@ -2724,9 +2712,6 @@ static struct mwifiex_if_ops sdio_ops = {
 static int
 mwifiex_sdio_init_module(void)
 {
-	/* Clear the flag in case user removes the card. */
-	user_rmmod = 0;
-
 	return sdio_register_driver(&mwifiex_sdio);
 }
 
@@ -2742,10 +2727,6 @@ mwifiex_sdio_init_module(void)
 static void
 mwifiex_sdio_cleanup_module(void)
 {
-	/* Set the flag as user is removing this module. */
-	user_rmmod = 1;
-	cancel_work_sync(&sdio_work);
-
 	sdio_unregister_driver(&mwifiex_sdio);
 }
 

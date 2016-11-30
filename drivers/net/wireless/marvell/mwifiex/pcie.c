@@ -31,8 +31,6 @@
 #define PCIE_VERSION	"1.0"
 #define DRV_NAME        "Marvell mwifiex PCIe"
 
-static u8 user_rmmod;
-
 static struct mwifiex_if_ops pcie_ops;
 
 static const struct of_device_id mwifiex_pcie_of_match_table[] = {
@@ -284,6 +282,9 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	struct pcie_service_card *card;
 	struct mwifiex_adapter *adapter;
 	struct mwifiex_private *priv;
+	const struct mwifiex_pcie_card_reg *reg;
+	u32 fw_status;
+	int ret;
 
 	card = pci_get_drvdata(pdev);
 
@@ -295,7 +296,11 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&card->work);
 
-	if (user_rmmod && !adapter->mfg_mode) {
+	reg = card->pcie.reg;
+	if (reg)
+		ret = mwifiex_read_reg(adapter, reg->fw_status, &fw_status);
+
+	if (fw_status == FIRMWARE_READY_PCIE && !adapter->mfg_mode) {
 		mwifiex_deauthenticate_all(adapter);
 
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
@@ -310,7 +315,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 
 static void mwifiex_pcie_shutdown(struct pci_dev *pdev)
 {
-	user_rmmod = 1;
 	mwifiex_pcie_remove(pdev);
 
 	return;
@@ -2874,8 +2878,11 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 	struct pci_dev *pdev = card->dev;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	int ret;
+	u32 fw_status;
 
-	if (user_rmmod) {
+	ret = mwifiex_read_reg(adapter, reg->fw_status, &fw_status);
+	if (fw_status == FIRMWARE_READY_PCIE) {
 		mwifiex_dbg(adapter, INFO,
 			    "Clearing driver ready signature\n");
 		if (mwifiex_write_reg(adapter, reg->drv_rdy, 0x00000000))
@@ -3187,9 +3194,6 @@ static int mwifiex_pcie_init_module(void)
 
 	pr_debug("Marvell PCIe Driver\n");
 
-	/* Clear the flag in case user removes the card. */
-	user_rmmod = 0;
-
 	ret = pci_register_driver(&mwifiex_pcie);
 	if (ret)
 		pr_err("Driver register failed!\n");
@@ -3210,9 +3214,6 @@ static int mwifiex_pcie_init_module(void)
  */
 static void mwifiex_pcie_cleanup_module(void)
 {
-	/* Set the flag as user is removing this module. */
-	user_rmmod = 1;
-
 	pci_unregister_driver(&mwifiex_pcie);
 }
 
