@@ -215,6 +215,7 @@ static irqreturn_t rmi_irq_fn(int irq, void *dev_id)
 static int rmi_irq_init(struct rmi_device *rmi_dev)
 {
 	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
 	int irq_flags = irq_get_trigger_type(pdata->irq);
 	int ret;
 
@@ -231,6 +232,8 @@ static int rmi_irq_init(struct rmi_device *rmi_dev)
 
 		return ret;
 	}
+
+	data->enabled = true;
 
 	return 0;
 }
@@ -866,17 +869,54 @@ err_put_fn:
 	return error;
 }
 
-int rmi_driver_suspend(struct rmi_device *rmi_dev, bool enable_wake)
+void rmi_enable_irq(struct rmi_device *rmi_dev, bool clear_wake)
 {
 	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
 	int irq = pdata->irq;
-	int retval = 0;
+	int irq_flags;
+	int retval;
 
-	retval = rmi_suspend_functions(rmi_dev);
-	if (retval)
-		dev_warn(&rmi_dev->dev, "Failed to suspend functions: %d\n",
-			retval);
+	mutex_lock(&data->enabled_mutex);
 
+	if (data->enabled)
+		goto out;
+
+	enable_irq(irq);
+	data->enabled = true;
+	if (clear_wake && device_may_wakeup(rmi_dev->xport->dev)) {
+		retval = disable_irq_wake(irq);
+		if (!retval)
+			dev_warn(&rmi_dev->dev,
+				 "Failed to disable irq for wake: %d\n",
+				 retval);
+	}
+
+	/*
+	 * Call rmi_process_interrupt_requests() after enabling irq,
+	 * otherwise we may lose interrupt on edge-triggered systems.
+	 */
+	irq_flags = irq_get_trigger_type(pdata->irq);
+	if (irq_flags & IRQ_TYPE_EDGE_BOTH)
+		rmi_process_interrupt_requests(rmi_dev);
+
+out:
+	mutex_unlock(&data->enabled_mutex);
+}
+
+void rmi_disable_irq(struct rmi_device *rmi_dev, bool enable_wake)
+{
+	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
+	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
+	int irq = pdata->irq;
+	int retval;
+
+	mutex_lock(&data->enabled_mutex);
+
+	if (!data->enabled)
+		goto out;
+
+	data->enabled = false;
 	disable_irq(irq);
 	if (enable_wake && device_may_wakeup(rmi_dev->xport->dev)) {
 		retval = enable_irq_wake(irq);
@@ -885,24 +925,30 @@ int rmi_driver_suspend(struct rmi_device *rmi_dev, bool enable_wake)
 				 "Failed to enable irq for wake: %d\n",
 				 retval);
 	}
+
+out:
+	mutex_unlock(&data->enabled_mutex);
+}
+
+int rmi_driver_suspend(struct rmi_device *rmi_dev, bool enable_wake)
+{
+	int retval;
+
+	retval = rmi_suspend_functions(rmi_dev);
+	if (retval)
+		dev_warn(&rmi_dev->dev, "Failed to suspend functions: %d\n",
+			retval);
+
+	rmi_disable_irq(rmi_dev, enable_wake);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(rmi_driver_suspend);
 
 int rmi_driver_resume(struct rmi_device *rmi_dev, bool clear_wake)
 {
-	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
-	int irq = pdata->irq;
 	int retval;
 
-	enable_irq(irq);
-	if (clear_wake && device_may_wakeup(rmi_dev->xport->dev)) {
-		retval = disable_irq_wake(irq);
-		if (!retval)
-			dev_warn(&rmi_dev->dev,
-				 "Failed to disable irq for wake: %d\n",
-				 retval);
-	}
+	rmi_enable_irq(rmi_dev, clear_wake);
 
 	retval = rmi_resume_functions(rmi_dev);
 	if (retval)
@@ -916,10 +962,8 @@ EXPORT_SYMBOL_GPL(rmi_driver_resume);
 static int rmi_driver_remove(struct device *dev)
 {
 	struct rmi_device *rmi_dev = to_rmi_device(dev);
-	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
-	int irq = pdata->irq;
 
-	disable_irq(irq);
+	rmi_disable_irq(rmi_dev, false);
 
 	rmi_f34_remove_sysfs(rmi_dev);
 	rmi_free_function_list(rmi_dev);
@@ -1108,6 +1152,7 @@ static int rmi_driver_probe(struct device *dev)
 	}
 
 	mutex_init(&data->irq_mutex);
+	mutex_init(&data->enabled_mutex);
 
 	retval = rmi_probe_interrupts(data);
 	if (retval)

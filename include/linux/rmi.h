@@ -356,6 +356,7 @@ struct rmi_driver_data {
 	u8 num_tx_electrodes;
 
 	bool enabled;
+	struct mutex enabled_mutex;
 };
 
 int rmi_register_transport_device(struct rmi_transport_dev *xport);
