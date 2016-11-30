@@ -95,28 +95,20 @@ static void set_clock(
 	uint32_t requested_clk_khz)
 {
 	struct bp_pixel_clock_parameters pxl_clk_params;
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
 	struct dc_bios *bp = dc->ctx->dc_bios;
 
 	/* Prepare to program display clock*/
 	memset(&pxl_clk_params, 0, sizeof(pxl_clk_params));
 
 	pxl_clk_params.target_pixel_clock = requested_clk_khz;
-	pxl_clk_params.pll_id = dc->id;
+	pxl_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
 
 	bp->funcs->program_display_engine_pll(bp, &pxl_clk_params);
-
-	if (disp_clk->dfs_bypass_enabled) {
-
-		/* Cache the fixed display clock*/
-		disp_clk->dfs_bypass_disp_clk =
-			pxl_clk_params.dfs_bypass_display_clock;
-	}
 
 	/* from power down, we need mark the clock state as ClocksStateNominal
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
-		disp_clk->cur_min_clks_state = CLOCKS_STATE_NOMINAL;
+		dc->cur_min_clks_state = CLOCKS_STATE_NOMINAL;
 }
 
 static enum clocks_state get_min_clocks_state(struct display_clock *dc)
@@ -131,8 +123,7 @@ static enum clocks_state get_required_clocks_state
 	struct state_dependent_clocks *req_clocks)
 {
 	int32_t i;
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-	enum clocks_state low_req_clk = disp_clk->max_clks_state;
+	enum clocks_state low_req_clk = dc->max_clks_state;
 
 	if (!req_clocks) {
 		/* NULL pointer*/
@@ -144,7 +135,7 @@ static enum clocks_state get_required_clocks_state
 	 * lowest RequiredState with the lowest state that satisfies
 	 * all required clocks
 	 */
-	for (i = disp_clk->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
+	for (i = dc->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
 		if ((req_clocks->display_clk_khz <=
 			max_clks_by_state[i].display_clk_khz) &&
 			(req_clocks->pixel_clk_khz <=
@@ -158,12 +149,10 @@ static bool set_min_clocks_state(
 	struct display_clock *dc,
 	enum clocks_state clocks_state)
 {
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
 	struct dm_pp_power_level_change_request level_change_req = {
 			DM_PP_POWER_LEVEL_INVALID};
 
-	if (clocks_state > disp_clk->max_clks_state) {
+	if (clocks_state > dc->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
 		dm_logger_write(dc->ctx->logger, LOG_WARNING,
 				"Requested state exceeds max supported state");
@@ -269,28 +258,6 @@ static uint32_t get_dp_ref_clk_frequency(struct display_clock *dc)
 	}
 
 	return dp_ref_clk_khz;
-}
-
-static void store_max_clocks_state(
-	struct display_clock *dc,
-	enum clocks_state max_clocks_state)
-{
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	switch (max_clocks_state) {
-	case CLOCKS_STATE_LOW:
-	case CLOCKS_STATE_NOMINAL:
-	case CLOCKS_STATE_PERFORMANCE:
-	case CLOCKS_STATE_ULTRA_LOW:
-		disp_clk->max_clks_state = max_clocks_state;
-		break;
-
-	case CLOCKS_STATE_INVALID:
-	default:
-		/*Invalid Clocks State!*/
-		BREAK_TO_DEBUGGER();
-		break;
-	}
 }
 
 static void display_clock_ss_construct(
@@ -411,8 +378,7 @@ static const struct display_clock_funcs funcs = {
 	.get_min_clocks_state = get_min_clocks_state,
 	.get_required_clocks_state = get_required_clocks_state,
 	.set_clock = set_clock,
-	.set_min_clocks_state = set_min_clocks_state,
-	.store_max_clocks_state = store_max_clocks_state
+	.set_min_clocks_state = set_min_clocks_state
 };
 
 
@@ -430,7 +396,6 @@ struct display_clock *dal_display_clock_dce80_create(
 	dc_base = &disp_clk->disp_clk;
 
 	dc_base->ctx = ctx;
-	dc_base->id = CLOCK_SOURCE_ID_DCPLL;
 	dc_base->min_display_clk_threshold_khz = 0;
 
 	dc_base->cur_min_clks_state = CLOCKS_STATE_INVALID;
@@ -450,12 +415,11 @@ struct display_clock *dal_display_clock_dce80_create(
 	disp_clk->dfs_bypass_disp_clk = 0;
 	disp_clk->use_max_disp_clk = true;/* false will hang the system! */
 
-	disp_clk->disp_clk.id = CLOCK_SOURCE_ID_DFS;
 /* Initially set max clocks state to nominal.  This should be updated by
  * via a pplib call to DAL IRI eventually calling a
  * DisplayEngineClock_Dce50::StoreMaxClocksState().  This call will come in
  * on PPLIB init. This is from DCE5x. in case HW wants to use mixed method.*/
-	disp_clk->max_clks_state = CLOCKS_STATE_NOMINAL;
+	dc_base->max_clks_state = CLOCKS_STATE_NOMINAL;
 /* Initially set current min clocks state to invalid since we
  * cannot make any assumption about PPLIB's initial state. This will be updated
  * by HWSS via SetMinClocksState() on first mode set prior to programming

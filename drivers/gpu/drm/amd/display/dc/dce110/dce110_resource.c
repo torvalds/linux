@@ -1312,14 +1312,10 @@ static bool construct(
 	/* get static clock information for PPLIB or firmware, save
 	 * max_clock_state
 	 */
-	if (dm_pp_get_static_clocks(ctx, &static_clk_info)) {
-		enum clocks_state max_clocks_state =
+	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
+		pool->base.display_clock->max_clks_state =
 			dce110_resource_convert_clock_state_pp_to_dc(
 					static_clk_info.max_clocks_state);
-
-		pool->base.display_clock->funcs->store_max_clocks_state(
-				pool->base.display_clock, max_clocks_state);
-	}
 
 	{
 		struct irq_service_init_data init_data;

@@ -60,7 +60,8 @@ struct display_clock {
 	struct dc_context *ctx;
 	const struct display_clock_funcs *funcs;
 	uint32_t min_display_clk_threshold_khz;
-	enum clock_source_id id;
+	/* Max display block clocks state*/
+	enum clocks_state max_clks_state;
 
 	enum clocks_state cur_min_clks_state;
 };
@@ -77,8 +78,6 @@ struct display_clock_funcs {
 	bool (*set_min_clocks_state)(struct display_clock *disp_clk,
 		enum clocks_state clocks_state);
 	uint32_t (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
-	void (*store_max_clocks_state)(struct display_clock *disp_clk,
-		enum clocks_state max_clocks_state);
 
 };
 

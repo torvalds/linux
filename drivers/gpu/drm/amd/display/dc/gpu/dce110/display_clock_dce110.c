@@ -103,38 +103,6 @@ static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
  * static functions
  *****************************************************************************/
 
-/*
- * store_max_clocks_state
- *
- * @brief
- * Cache the clock state
- *
- * @param
- * struct display_clock *base - [out] cach the state in this structure
- * enum clocks_state max_clocks_state - [in] state to be stored
- */
-static void store_max_clocks_state(
-	struct display_clock *base,
-	enum clocks_state max_clocks_state)
-{
-	struct display_clock_dce110 *dc = DCLCK110_FROM_BASE(base);
-
-	switch (max_clocks_state) {
-	case CLOCKS_STATE_LOW:
-	case CLOCKS_STATE_NOMINAL:
-	case CLOCKS_STATE_PERFORMANCE:
-	case CLOCKS_STATE_ULTRA_LOW:
-		dc->max_clks_state = max_clocks_state;
-		break;
-
-	case CLOCKS_STATE_INVALID:
-	default:
-		/*Invalid Clocks State!*/
-		ASSERT_CRITICAL(false);
-		break;
-	}
-}
-
 static enum clocks_state get_min_clocks_state(struct display_clock *base)
 {
 	return base->cur_min_clks_state;
@@ -148,7 +116,7 @@ static bool set_min_clocks_state(
 	struct dm_pp_power_level_change_request level_change_req = {
 			DM_PP_POWER_LEVEL_INVALID};
 
-	if (clocks_state > dc->max_clks_state) {
+	if (clocks_state > base->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
 		dm_logger_write(base->ctx->logger, LOG_WARNING,
 				"Requested state exceeds max supported state");
@@ -349,7 +317,7 @@ static enum clocks_state get_required_clocks_state(
 {
 	int32_t i;
 	struct display_clock_dce110 *disp_clk = DCLCK110_FROM_BASE(dc);
-	enum clocks_state low_req_clk = disp_clk->max_clks_state;
+	enum clocks_state low_req_clk = dc->max_clks_state;
 
 	if (!req_clocks) {
 		/* NULL pointer*/
@@ -363,7 +331,7 @@ static enum clocks_state get_required_clocks_state(
 	 * lowest RequiredState with the lowest state that satisfies
 	 * all required clocks
 	 */
-	for (i = disp_clk->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
+	for (i = dc->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
 		if ((req_clocks->display_clk_khz <=
 			max_clks_by_state[i].display_clk_khz) &&
 			(req_clocks->pixel_clk_khz <=
@@ -433,7 +401,7 @@ static void set_clock(
 				base->min_display_clk_threshold_khz);
 
 	pxl_clk_params.target_pixel_clock = requested_clk_khz;
-	pxl_clk_params.pll_id = base->id;
+	pxl_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
 
 	bp->funcs->program_display_engine_pll(bp, &pxl_clk_params);
 
@@ -459,8 +427,7 @@ static const struct display_clock_funcs funcs = {
 	.get_min_clocks_state = get_min_clocks_state,
 	.get_required_clocks_state = get_required_clocks_state,
 	.set_clock = set_clock,
-	.set_min_clocks_state = set_min_clocks_state,
-	.store_max_clocks_state = store_max_clocks_state
+	.set_min_clocks_state = set_min_clocks_state
 };
 
 static bool dal_display_clock_dce110_construct(
@@ -471,7 +438,6 @@ static bool dal_display_clock_dce110_construct(
 	struct dc_bios *bp = ctx->dc_bios;
 
 	dc_base->ctx = ctx;
-	dc_base->id = CLOCK_SOURCE_ID_DCPLL;
 	dc_base->min_display_clk_threshold_khz = 0;
 
 	dc_base->cur_min_clks_state = CLOCKS_STATE_INVALID;
@@ -488,12 +454,11 @@ static bool dal_display_clock_dce110_construct(
 	dc110->gpu_pll_ss_divider = 1000;
 	dc110->ss_on_gpu_pll = false;
 
-	dc_base->id = CLOCK_SOURCE_ID_DFS;
 /* Initially set max clocks state to nominal.  This should be updated by
  * via a pplib call to DAL IRI eventually calling a
  * DisplayEngineClock_Dce110::StoreMaxClocksState().  This call will come in
  * on PPLIB init. This is from DCE5x. in case HW wants to use mixed method.*/
-	dc110->max_clks_state = CLOCKS_STATE_NOMINAL;
+	dc_base->max_clks_state = CLOCKS_STATE_NOMINAL;
 
 	dal_divider_range_construct(
 		&divider_ranges[DIVIDER_RANGE_01],

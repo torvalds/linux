@@ -72,41 +72,6 @@ enum divider_range_step_size {
 static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
 #define dce112_DFS_BYPASS_THRESHOLD_KHZ 400000
-/*****************************************************************************
- * static functions
- *****************************************************************************/
-
-/*
- * store_max_clocks_state
- *
- * @brief
- * Cache the clock state
- *
- * @param
- * struct display_clock *base - [out] cach the state in this structure
- * enum clocks_state max_clocks_state - [in] state to be stored
- */
-void dispclk_dce112_store_max_clocks_state(
-	struct display_clock *base,
-	enum clocks_state max_clocks_state)
-{
-	struct display_clock_dce112 *dc = DCLCK112_FROM_BASE(base);
-
-	switch (max_clocks_state) {
-	case CLOCKS_STATE_LOW:
-	case CLOCKS_STATE_NOMINAL:
-	case CLOCKS_STATE_PERFORMANCE:
-	case CLOCKS_STATE_ULTRA_LOW:
-		dc->max_clks_state = max_clocks_state;
-		break;
-
-	case CLOCKS_STATE_INVALID:
-	default:
-		/*Invalid Clocks State!*/
-		ASSERT_CRITICAL(false);
-		break;
-	}
-}
 
 enum clocks_state dispclk_dce112_get_min_clocks_state(
 	struct display_clock *base)
@@ -122,7 +87,7 @@ bool dispclk_dce112_set_min_clocks_state(
 	struct dm_pp_power_level_change_request level_change_req = {
 			DM_PP_POWER_LEVEL_INVALID};
 
-	if (clocks_state > dc->max_clks_state) {
+	if (clocks_state > base->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
 		dm_logger_write(base->ctx->logger, LOG_WARNING,
 				"Requested state exceeds max supported state");
@@ -302,7 +267,7 @@ enum clocks_state dispclk_dce112_get_required_clocks_state(
 {
 	int32_t i;
 	struct display_clock_dce112 *disp_clk = DCLCK112_FROM_BASE(dc);
-	enum clocks_state low_req_clk = disp_clk->max_clks_state;
+	enum clocks_state low_req_clk = dc->max_clks_state;
 
 	if (!req_clocks) {
 		/* NULL pointer*/
@@ -316,7 +281,7 @@ enum clocks_state dispclk_dce112_get_required_clocks_state(
 	 * lowest RequiredState with the lowest state that satisfies
 	 * all required clocks
 	 */
-	for (i = disp_clk->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
+	for (i = dc->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
 		if ((req_clocks->display_clk_khz <=
 				(disp_clk->max_clks_by_state + i)->
 					display_clk_khz) &&
@@ -333,7 +298,6 @@ void dispclk_dce112_set_clock(
 	uint32_t requested_clk_khz)
 {
 	struct bp_set_dce_clock_parameters dce_clk_params;
-	struct display_clock_dce112 *dc = DCLCK112_FROM_BASE(base);
 	struct dc_bios *bp = base->ctx->dc_bios;
 
 	/* Prepare to program display clock*/
@@ -345,7 +309,7 @@ void dispclk_dce112_set_clock(
 				base->min_display_clk_threshold_khz);
 
 	dce_clk_params.target_clock_frequency = requested_clk_khz;
-	dce_clk_params.pll_id = dc->disp_clk_base.id;
+	dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
 	dce_clk_params.clock_type = DCECLOCK_TYPE_DISPLAY_CLOCK;
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
@@ -372,8 +336,7 @@ static const struct display_clock_funcs funcs = {
 	.get_min_clocks_state = dispclk_dce112_get_min_clocks_state,
 	.get_required_clocks_state = dispclk_dce112_get_required_clocks_state,
 	.set_clock = dispclk_dce112_set_clock,
-	.set_min_clocks_state = dispclk_dce112_set_min_clocks_state,
-	.store_max_clocks_state = dispclk_dce112_store_max_clocks_state,
+	.set_min_clocks_state = dispclk_dce112_set_min_clocks_state
 };
 
 bool dal_display_clock_dce112_construct(
@@ -399,12 +362,11 @@ bool dal_display_clock_dce112_construct(
 	dc112->gpu_pll_ss_divider = 1000;
 	dc112->ss_on_gpu_pll = false;
 
-	dc_base->id = CLOCK_SOURCE_ID_DFS;
 /* Initially set max clocks state to nominal.  This should be updated by
  * via a pplib call to DAL IRI eventually calling a
  * DisplayEngineClock_dce112::StoreMaxClocksState().  This call will come in
  * on PPLIB init. This is from DCE5x. in case HW wants to use mixed method.*/
-	dc112->max_clks_state = CLOCKS_STATE_NOMINAL;
+	dc_base->max_clks_state = CLOCKS_STATE_NOMINAL;
 
 	dc112->disp_clk_base.min_display_clk_threshold_khz =
 			(dc112->dentist_vco_freq_khz / 62);

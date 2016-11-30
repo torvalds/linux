@@ -37,8 +37,6 @@ struct display_clock_dce80 {
 	uint32_t gpu_pll_ss_divider;
 	/* Flag for Enabled SS on GPU PLL*/
 	bool ss_on_gpu_pll;
-	/* Max display block clocks state*/
-	enum clocks_state max_clks_state;
 	/* Current minimum display block clocks state*/
 	enum clocks_state cur_min_clks_state;
 	/* DFS-bypass feature variable

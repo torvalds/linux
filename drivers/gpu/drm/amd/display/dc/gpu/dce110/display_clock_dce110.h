@@ -29,8 +29,6 @@
 
 struct display_clock_dce110 {
 	struct display_clock disp_clk_base;
-	/* Max display block clocks state*/
-	enum clocks_state max_clks_state;
 	bool use_max_disp_clk;
 	uint32_t dentist_vco_freq_khz;
 	/* Cache the status of DFS-bypass feature*/
