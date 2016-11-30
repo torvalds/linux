@@ -168,12 +168,22 @@ bool mod_color_set_saturation(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,
 		int saturation_value);
 
-bool mod_color_set_preferred_quantization_range(struct mod_color *mod_color,
+bool mod_color_persist_user_preferred_quantization_range(
+		struct mod_color *mod_color,
 		const struct dc_sink *sink,
 		enum dc_quantization_range quantization_range);
 
 bool mod_color_get_preferred_quantization_range(struct mod_color *mod_color,
 		const struct dc_sink *sink,
+		const struct dc_crtc_timing *timing,
 		enum dc_quantization_range *quantization_range);
+
+bool mod_color_is_rgb_full_range_supported_for_timing(
+		const struct dc_sink *sink,
+		const struct dc_crtc_timing *timing);
+
+bool mod_color_is_rgb_limited_range_supported_for_timing(
+		const struct dc_sink *sink,
+		const struct dc_crtc_timing *timing);
 
 #endif /* MOD_COLOR_H_ */
