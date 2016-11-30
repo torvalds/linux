@@ -50,7 +50,7 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 	if (plat_dat->init) {
 		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
 		if (ret)
-			return ret;
+			goto err_remove_config_dt;
 	}
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
@@ -62,6 +62,9 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 err_exit:
 	if (plat_dat->exit)
 		plat_dat->exit(pdev, plat_dat->bsp_priv);
+err_remove_config_dt:
+	if (pdev->dev.of_node)
+		stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
