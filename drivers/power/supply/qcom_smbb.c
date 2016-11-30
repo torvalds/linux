@@ -378,7 +378,7 @@ static irqreturn_t smbb_usb_valid_handler(int irq, void *_data)
 	struct smbb_charger *chg = _data;
 
 	smbb_set_line_flag(chg, irq, STATUS_USBIN_VALID);
-	extcon_set_cable_state_(chg->edev, EXTCON_USB,
+	extcon_set_state_sync(chg->edev, EXTCON_USB,
 				chg->status & STATUS_USBIN_VALID);
 	power_supply_changed(chg->usb_psy);
 
