@@ -99,8 +99,8 @@ the video sensor and the host image processing hardware.
 
 .. _pipeline-scaling:
 
-.. figure::  pipeline.png
-    :alt:    pipeline.png
+.. figure::  pipeline.*
+    :alt:    pipeline.pdf / pipeline.svg
     :align:  center
 
     Image Format Negotiation on Pipelines
