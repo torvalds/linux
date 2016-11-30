@@ -200,7 +200,6 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 /**
  * stmmac_probe_config_dt - parse device-tree driver parameters
  * @pdev: platform_device structure
- * @plat: driver data platform structure
  * @mac: MAC address to use
  * Description:
  * this function is to read the driver parameters from device-tree and
