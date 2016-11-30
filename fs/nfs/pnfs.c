@@ -455,6 +455,8 @@ pnfs_layout_remove_lseg(struct pnfs_layout_hdr *lo,
 	list_del_init(&lseg->pls_list);
 	/* Matched by pnfs_get_layout_hdr in pnfs_layout_insert_lseg */
 	atomic_dec(&lo->plh_refcount);
+	if (test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags))
+		return;
 	if (list_empty(&lo->plh_segs) &&
 	    !test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags) &&
 	    !test_bit(NFS_LAYOUT_RETURN, &lo->plh_flags)) {
