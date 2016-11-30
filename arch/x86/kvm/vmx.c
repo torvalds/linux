@@ -452,19 +452,21 @@ struct nested_vmx {
 	u16 vpid02;
 	u16 last_vpid;
 
+	/*
+	 * We only store the "true" versions of the VMX capability MSRs. We
+	 * generate the "non-true" versions by setting the must-be-1 bits
+	 * according to the SDM.
+	 */
 	u32 nested_vmx_procbased_ctls_low;
 	u32 nested_vmx_procbased_ctls_high;
-	u32 nested_vmx_true_procbased_ctls_low;
 	u32 nested_vmx_secondary_ctls_low;
 	u32 nested_vmx_secondary_ctls_high;
 	u32 nested_vmx_pinbased_ctls_low;
 	u32 nested_vmx_pinbased_ctls_high;
 	u32 nested_vmx_exit_ctls_low;
 	u32 nested_vmx_exit_ctls_high;
-	u32 nested_vmx_true_exit_ctls_low;
 	u32 nested_vmx_entry_ctls_low;
 	u32 nested_vmx_entry_ctls_high;
-	u32 nested_vmx_true_entry_ctls_low;
 	u32 nested_vmx_misc_low;
 	u32 nested_vmx_misc_high;
 	u32 nested_vmx_ept_caps;
@@ -2740,9 +2742,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_exit_ctls_high |= VM_EXIT_CLEAR_BNDCFGS;
 
 	/* We support free control of debug control saving. */
-	vmx->nested.nested_vmx_true_exit_ctls_low =
-		vmx->nested.nested_vmx_exit_ctls_low &
-		~VM_EXIT_SAVE_DEBUG_CONTROLS;
+	vmx->nested.nested_vmx_exit_ctls_low &= ~VM_EXIT_SAVE_DEBUG_CONTROLS;
 
 	/* entry controls */
 	rdmsr(MSR_IA32_VMX_ENTRY_CTLS,
@@ -2761,9 +2761,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_entry_ctls_high |= VM_ENTRY_LOAD_BNDCFGS;
 
 	/* We support free control of debug control loading. */
-	vmx->nested.nested_vmx_true_entry_ctls_low =
-		vmx->nested.nested_vmx_entry_ctls_low &
-		~VM_ENTRY_LOAD_DEBUG_CONTROLS;
+	vmx->nested.nested_vmx_entry_ctls_low &= ~VM_ENTRY_LOAD_DEBUG_CONTROLS;
 
 	/* cpu-based controls */
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS,
@@ -2796,8 +2794,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		CPU_BASED_USE_MSR_BITMAPS;
 
 	/* We support free control of CR3 access interception. */
-	vmx->nested.nested_vmx_true_procbased_ctls_low =
-		vmx->nested.nested_vmx_procbased_ctls_low &
+	vmx->nested.nested_vmx_procbased_ctls_low &=
 		~(CPU_BASED_CR3_LOAD_EXITING | CPU_BASED_CR3_STORE_EXITING);
 
 	/* secondary cpu-based controls */
@@ -2896,36 +2893,32 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		*pdata = vmx_control_msr(
 			vmx->nested.nested_vmx_pinbased_ctls_low,
 			vmx->nested.nested_vmx_pinbased_ctls_high);
+		if (msr_index == MSR_IA32_VMX_PINBASED_CTLS)
+			*pdata |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 		break;
 	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
-		*pdata = vmx_control_msr(
-			vmx->nested.nested_vmx_true_procbased_ctls_low,
-			vmx->nested.nested_vmx_procbased_ctls_high);
-		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS:
 		*pdata = vmx_control_msr(
 			vmx->nested.nested_vmx_procbased_ctls_low,
 			vmx->nested.nested_vmx_procbased_ctls_high);
+		if (msr_index == MSR_IA32_VMX_PROCBASED_CTLS)
+			*pdata |= CPU_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 		break;
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
-		*pdata = vmx_control_msr(
-			vmx->nested.nested_vmx_true_exit_ctls_low,
-			vmx->nested.nested_vmx_exit_ctls_high);
-		break;
 	case MSR_IA32_VMX_EXIT_CTLS:
 		*pdata = vmx_control_msr(
 			vmx->nested.nested_vmx_exit_ctls_low,
 			vmx->nested.nested_vmx_exit_ctls_high);
+		if (msr_index == MSR_IA32_VMX_EXIT_CTLS)
+			*pdata |= VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
 		break;
 	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
-		*pdata = vmx_control_msr(
-			vmx->nested.nested_vmx_true_entry_ctls_low,
-			vmx->nested.nested_vmx_entry_ctls_high);
-		break;
 	case MSR_IA32_VMX_ENTRY_CTLS:
 		*pdata = vmx_control_msr(
 			vmx->nested.nested_vmx_entry_ctls_low,
 			vmx->nested.nested_vmx_entry_ctls_high);
+		if (msr_index == MSR_IA32_VMX_ENTRY_CTLS)
+			*pdata |= VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 		break;
 	case MSR_IA32_VMX_MISC:
 		*pdata = vmx_control_msr(
@@ -10071,7 +10064,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	if (!vmx_control_verify(vmcs12->cpu_based_vm_exec_control,
-				vmx->nested.nested_vmx_true_procbased_ctls_low,
+				vmx->nested.nested_vmx_procbased_ctls_low,
 				vmx->nested.nested_vmx_procbased_ctls_high) ||
 	    !vmx_control_verify(vmcs12->secondary_vm_exec_control,
 				vmx->nested.nested_vmx_secondary_ctls_low,
@@ -10080,10 +10073,10 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 				vmx->nested.nested_vmx_pinbased_ctls_low,
 				vmx->nested.nested_vmx_pinbased_ctls_high) ||
 	    !vmx_control_verify(vmcs12->vm_exit_controls,
-				vmx->nested.nested_vmx_true_exit_ctls_low,
+				vmx->nested.nested_vmx_exit_ctls_low,
 				vmx->nested.nested_vmx_exit_ctls_high) ||
 	    !vmx_control_verify(vmcs12->vm_entry_controls,
-				vmx->nested.nested_vmx_true_entry_ctls_low,
+				vmx->nested.nested_vmx_entry_ctls_low,
 				vmx->nested.nested_vmx_entry_ctls_high))
 	{
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
