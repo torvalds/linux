@@ -1292,7 +1292,7 @@ struct drm_i915_perf_open_param {
 	 * Pointer to array of u64 (id, value) pairs configuring the stream
 	 * to open.
 	 */
-	__u64 __user properties_ptr;
+	__u64 properties_ptr;
 };
 
 /**
