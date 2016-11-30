@@ -38,7 +38,7 @@ struct display_clock_dce80 {
 	/* Flag for Enabled SS on GPU PLL*/
 	bool ss_on_gpu_pll;
 	/* Current minimum display block clocks state*/
-	enum clocks_state cur_min_clks_state;
+	enum dm_pp_clocks_state cur_min_clks_state;
 	/* DFS-bypass feature variable
 	 Cache the status of DFS-bypass feature*/
 	bool dfs_bypass_enabled;

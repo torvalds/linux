@@ -26,28 +26,10 @@
 #ifndef __DISPLAY_CLOCK_INTERFACE_H__
 #define __DISPLAY_CLOCK_INTERFACE_H__
 
+#include "dm_services_types.h"
 #include "hw_sequencer_types.h"
 #include "grph_object_defs.h"
 #include "signal_types.h"
-
-/* Enumeration of all clocks states */
-enum clocks_state {
-	CLOCKS_STATE_INVALID = 0,
-	CLOCKS_STATE_ULTRA_LOW,
-	CLOCKS_STATE_LOW,
-	CLOCKS_STATE_NOMINAL,
-	CLOCKS_STATE_PERFORMANCE,
-	/* Starting from DCE11, Max 8 level DPM state supported */
-	CLOCKS_DPM_STATE_LEVEL_INVALID = CLOCKS_STATE_INVALID,
-	CLOCKS_DPM_STATE_LEVEL_0 = CLOCKS_STATE_ULTRA_LOW,
-	CLOCKS_DPM_STATE_LEVEL_1 = CLOCKS_STATE_LOW,
-	CLOCKS_DPM_STATE_LEVEL_2 = CLOCKS_STATE_NOMINAL,
-	CLOCKS_DPM_STATE_LEVEL_3 = CLOCKS_STATE_PERFORMANCE,
-	CLOCKS_DPM_STATE_LEVEL_4 = CLOCKS_DPM_STATE_LEVEL_3 + 1,
-	CLOCKS_DPM_STATE_LEVEL_5 = CLOCKS_DPM_STATE_LEVEL_4 + 1,
-	CLOCKS_DPM_STATE_LEVEL_6 = CLOCKS_DPM_STATE_LEVEL_5 + 1,
-	CLOCKS_DPM_STATE_LEVEL_7 = CLOCKS_DPM_STATE_LEVEL_6 + 1,
-};
 
 /* Structure containing all state-dependent clocks
  * (dependent on "enum clocks_state") */
@@ -61,20 +43,20 @@ struct display_clock {
 	const struct display_clock_funcs *funcs;
 	uint32_t min_display_clk_threshold_khz;
 	/* Max display block clocks state*/
-	enum clocks_state max_clks_state;
+	enum dm_pp_clocks_state max_clks_state;
 
-	enum clocks_state cur_min_clks_state;
+	enum dm_pp_clocks_state cur_min_clks_state;
 };
 
 struct display_clock_funcs {
 	void (*destroy)(struct display_clock **to_destroy);
 	void (*set_clock)(struct display_clock *disp_clk,
 		uint32_t requested_clock_khz);
-	enum clocks_state (*get_required_clocks_state)(
+	enum dm_pp_clocks_state (*get_required_clocks_state)(
 		struct display_clock *disp_clk,
 		struct state_dependent_clocks *req_clocks);
 	bool (*set_min_clocks_state)(struct display_clock *disp_clk,
-		enum clocks_state clocks_state);
+		enum dm_pp_clocks_state dm_pp_clocks_state);
 	uint32_t (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
 
 };

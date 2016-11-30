@@ -40,9 +40,6 @@ struct dce110_resource_pool {
 
 enum dc_status dce110_resource_build_pipe_hw_param(struct pipe_ctx *pipe_ctx);
 
-enum clocks_state dce110_resource_convert_clock_state_pp_to_dc(
-	enum dm_pp_clocks_state pp_clock_state);
-
 void dce110_resource_build_bit_depth_reduction_params(
 		const struct core_stream *stream,
 		struct bit_depth_reduction_params *fmt_bit_depth);

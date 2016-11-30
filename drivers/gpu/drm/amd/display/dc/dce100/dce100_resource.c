@@ -983,8 +983,7 @@ static bool construct(
 	 */
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		pool->base.display_clock->max_clks_state =
-			dce110_resource_convert_clock_state_pp_to_dc(
-					static_clk_info.max_clocks_state);
+					static_clk_info.max_clocks_state;
 	{
 		struct irq_service_init_data init_data;
 		init_data.ctx = dc->ctx;

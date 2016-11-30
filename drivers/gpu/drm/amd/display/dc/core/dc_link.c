@@ -1221,9 +1221,9 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 
 	if (link_settings.link_rate == max_link_rate) {
 		if (pipe_ctx->dis_clk->funcs->set_min_clocks_state) {
-			if (pipe_ctx->dis_clk->cur_min_clks_state < CLOCKS_STATE_NOMINAL)
+			if (pipe_ctx->dis_clk->cur_min_clks_state < DM_PP_CLOCKS_STATE_NOMINAL)
 				pipe_ctx->dis_clk->funcs->set_min_clocks_state(
-					pipe_ctx->dis_clk, CLOCKS_STATE_NOMINAL);
+					pipe_ctx->dis_clk, DM_PP_CLOCKS_STATE_NOMINAL);
 		} else {
 		}
 	}

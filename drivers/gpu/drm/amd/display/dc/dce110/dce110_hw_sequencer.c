@@ -1084,7 +1084,7 @@ static uint32_t get_max_pixel_clock_for_all_paths(
 static void apply_min_clocks(
 	struct core_dc *dc,
 	struct validate_context *context,
-	enum clocks_state *clocks_state,
+	enum dm_pp_clocks_state *clocks_state,
 	bool pre_mode_set)
 {
 	struct state_dependent_clocks req_clocks = {0};
@@ -1193,7 +1193,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	enum dc_status status;
 	int i;
 	bool programmed_audio_dto = false;
-	enum clocks_state clocks_state = CLOCKS_STATE_INVALID;
+	enum dm_pp_clocks_state clocks_state = DM_PP_CLOCKS_STATE_INVALID;
 
 	/* Reset old context */
 	/* look up the targets that have been removed since last commit */

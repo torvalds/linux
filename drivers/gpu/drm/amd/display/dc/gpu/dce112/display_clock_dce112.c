@@ -75,10 +75,10 @@ static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
 static bool dce112_set_min_clocks_state(
 	struct display_clock *dc,
-	enum clocks_state clocks_state)
+	enum dm_pp_clocks_state clocks_state)
 {
 	struct dm_pp_power_level_change_request level_change_req = {
-			DM_PP_POWER_LEVEL_INVALID };
+			clocks_state };
 
 	if (clocks_state > dc->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
@@ -89,38 +89,6 @@ static bool dce112_set_min_clocks_state(
 		/*if we're trying to set the same state, we can just return
 		 * since nothing needs to be done*/
 		return true;
-	}
-
-	switch (clocks_state) {
-	case CLOCKS_STATE_ULTRA_LOW:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_ULTRA_LOW;
-		break;
-	case CLOCKS_STATE_LOW:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_LOW;
-		break;
-	case CLOCKS_STATE_NOMINAL:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_NOMINAL;
-		break;
-	case CLOCKS_STATE_PERFORMANCE:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_PERFORMANCE;
-		break;
-	case CLOCKS_DPM_STATE_LEVEL_4:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_4;
-		break;
-	case CLOCKS_DPM_STATE_LEVEL_5:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_5;
-		break;
-	case CLOCKS_DPM_STATE_LEVEL_6:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_6;
-		break;
-	case CLOCKS_DPM_STATE_LEVEL_7:
-		level_change_req.power_level = DM_PP_POWER_LEVEL_7;
-		break;
-	case CLOCKS_STATE_INVALID:
-	default:
-		dm_logger_write(dc->ctx->logger, LOG_WARNING,
-				"Requested state invalid state");
-		return false;
 	}
 
 	/* get max clock state from PPLIB */
@@ -229,27 +197,27 @@ static bool display_clock_integrated_info_construct(
 
 	/*update the maximum display clock for each power state*/
 	for (i = 0; i < NUMBER_OF_DISP_CLK_VOLTAGE; ++i) {
-		enum clocks_state clk_state = CLOCKS_STATE_INVALID;
+		enum dm_pp_clocks_state clk_state = DM_PP_CLOCKS_STATE_INVALID;
 
 		switch (i) {
 		case 0:
-			clk_state = CLOCKS_STATE_ULTRA_LOW;
+			clk_state = DM_PP_CLOCKS_STATE_ULTRA_LOW;
 			break;
 
 		case 1:
-			clk_state = CLOCKS_STATE_LOW;
+			clk_state = DM_PP_CLOCKS_STATE_LOW;
 			break;
 
 		case 2:
-			clk_state = CLOCKS_STATE_NOMINAL;
+			clk_state = DM_PP_CLOCKS_STATE_NOMINAL;
 			break;
 
 		case 3:
-			clk_state = CLOCKS_STATE_PERFORMANCE;
+			clk_state = DM_PP_CLOCKS_STATE_PERFORMANCE;
 			break;
 
 		default:
-			clk_state = CLOCKS_STATE_INVALID;
+			clk_state = DM_PP_CLOCKS_STATE_INVALID;
 			break;
 		}
 
@@ -265,27 +233,27 @@ static bool display_clock_integrated_info_construct(
 	return true;
 }
 
-enum clocks_state dispclk_dce112_get_required_clocks_state(
+enum dm_pp_clocks_state dispclk_dce112_get_required_clocks_state(
 	struct display_clock *dc,
 	struct state_dependent_clocks *req_clocks)
 {
 	int32_t i;
 	struct display_clock_dce112 *disp_clk = DCLCK112_FROM_BASE(dc);
-	enum clocks_state low_req_clk = dc->max_clks_state;
+	enum dm_pp_clocks_state low_req_clk = dc->max_clks_state;
 
 	if (!req_clocks) {
 		/* NULL pointer*/
 		dm_logger_write(dc->ctx->logger, LOG_WARNING,
 				"%s: Invalid parameter",
 				__func__);
-		return CLOCKS_STATE_INVALID;
+		return DM_PP_CLOCKS_STATE_INVALID;
 	}
 
 	/* Iterate from highest supported to lowest valid state, and update
 	 * lowest RequiredState with the lowest state that satisfies
 	 * all required clocks
 	 */
-	for (i = dc->max_clks_state; i >= CLOCKS_STATE_ULTRA_LOW; --i) {
+	for (i = dc->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; --i) {
 		if ((req_clocks->display_clk_khz <=
 				(disp_clk->max_clks_by_state + i)->
 					display_clk_khz) &&
@@ -321,7 +289,7 @@ void dce112_set_clock(
 	/* from power down, we need mark the clock state as ClocksStateNominal
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
-		base->cur_min_clks_state = CLOCKS_STATE_NOMINAL;
+		base->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
 	/*Program DP ref Clock*/
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
@@ -351,7 +319,7 @@ bool dal_display_clock_dce112_construct(
 	dc_base->ctx = ctx;
 	dc_base->min_display_clk_threshold_khz = 0;
 
-	dc_base->cur_min_clks_state = CLOCKS_STATE_INVALID;
+	dc_base->cur_min_clks_state = DM_PP_CLOCKS_STATE_INVALID;
 
 	dc_base->funcs = &funcs;
 
@@ -369,7 +337,7 @@ bool dal_display_clock_dce112_construct(
  * via a pplib call to DAL IRI eventually calling a
  * DisplayEngineClock_dce112::StoreMaxClocksState().  This call will come in
  * on PPLIB init. This is from DCE5x. in case HW wants to use mixed method.*/
-	dc_base->max_clks_state = CLOCKS_STATE_NOMINAL;
+	dc_base->max_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
 	dc112->disp_clk_base.min_display_clk_threshold_khz =
 			(dc112->dentist_vco_freq_khz / 62);
