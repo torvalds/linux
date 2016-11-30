@@ -400,12 +400,6 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 
 		skb_put(skb, pktlength);
 
-		/* make cache consistent with receive packet buffer */
-		dma_sync_single_for_cpu(priv->device,
-					priv->rx_ring[entry].dma_addr,
-					priv->rx_ring[entry].len,
-					DMA_FROM_DEVICE);
-
 		dma_unmap_single(priv->device, priv->rx_ring[entry].dma_addr,
 				 priv->rx_ring[entry].len, DMA_FROM_DEVICE);
 
@@ -591,10 +585,6 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	buffer->skb = skb;
 	buffer->dma_addr = dma_addr;
 	buffer->len = nopaged_len;
-
-	/* Push data out of the cache hierarchy into main memory */
-	dma_sync_single_for_device(priv->device, buffer->dma_addr,
-				   buffer->len, DMA_TO_DEVICE);
 
 	priv->dmaops->tx_buffer(priv, buffer);
 
