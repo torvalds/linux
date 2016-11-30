@@ -1208,7 +1208,6 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 	struct core_link *link = stream->sink->link;
 	struct dc_link_settings link_settings = {0};
 	enum dp_panel_mode panel_mode;
-	enum clocks_state cur_min_clock_state;
 	enum dc_link_rate max_link_rate = LINK_RATE_HIGH2;
 
 	/* get link settings for video mode timing */
@@ -1221,13 +1220,8 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 		max_link_rate = LINK_RATE_HIGH3;
 
 	if (link_settings.link_rate == max_link_rate) {
-		cur_min_clock_state = CLOCKS_STATE_INVALID;
-
-		if (pipe_ctx->dis_clk->funcs->get_min_clocks_state) {
-			cur_min_clock_state =
-				pipe_ctx->dis_clk->funcs->get_min_clocks_state(
-							pipe_ctx->dis_clk);
-			if (cur_min_clock_state < CLOCKS_STATE_NOMINAL)
+		if (pipe_ctx->dis_clk->funcs->set_min_clocks_state) {
+			if (pipe_ctx->dis_clk->cur_min_clks_state < CLOCKS_STATE_NOMINAL)
 				pipe_ctx->dis_clk->funcs->set_min_clocks_state(
 					pipe_ctx->dis_clk, CLOCKS_STATE_NOMINAL);
 		} else {

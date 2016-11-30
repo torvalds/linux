@@ -90,7 +90,7 @@ static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
 #define FROM_DISPLAY_CLOCK(base) \
 	container_of(base, struct display_clock_dce80, disp_clk)
 
-static void set_clock(
+static void dce80_set_clock(
 	struct display_clock *dc,
 	uint32_t requested_clk_khz)
 {
@@ -109,13 +109,6 @@ static void set_clock(
 	 * from HWReset, so when resume we will call pplib voltage regulator.*/
 	if (requested_clk_khz == 0)
 		dc->cur_min_clks_state = CLOCKS_STATE_NOMINAL;
-}
-
-static enum clocks_state get_min_clocks_state(struct display_clock *dc)
-{
-	struct display_clock_dce80 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	return disp_clk->cur_min_clks_state;
 }
 
 static enum clocks_state get_required_clocks_state
@@ -145,12 +138,12 @@ static enum clocks_state get_required_clocks_state
 	return low_req_clk;
 }
 
-static bool set_min_clocks_state(
+static bool dce80_set_min_clocks_state(
 	struct display_clock *dc,
 	enum clocks_state clocks_state)
 {
 	struct dm_pp_power_level_change_request level_change_req = {
-			DM_PP_POWER_LEVEL_INVALID};
+			DM_PP_POWER_LEVEL_INVALID };
 
 	if (clocks_state > dc->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
@@ -175,6 +168,18 @@ static bool set_min_clocks_state(
 		break;
 	case CLOCKS_STATE_PERFORMANCE:
 		level_change_req.power_level = DM_PP_POWER_LEVEL_PERFORMANCE;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_4:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_4;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_5:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_5;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_6:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_6;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_7:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_7;
 		break;
 	case CLOCKS_STATE_INVALID:
 	default:
@@ -375,10 +380,9 @@ static void destroy(struct display_clock **dc)
 static const struct display_clock_funcs funcs = {
 	.destroy = destroy,
 	.get_dp_ref_clk_frequency = get_dp_ref_clk_frequency,
-	.get_min_clocks_state = get_min_clocks_state,
 	.get_required_clocks_state = get_required_clocks_state,
-	.set_clock = set_clock,
-	.set_min_clocks_state = set_min_clocks_state
+	.set_clock = dce80_set_clock,
+	.set_min_clocks_state = dce80_set_min_clocks_state
 };
 
 

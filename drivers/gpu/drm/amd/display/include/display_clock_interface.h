@@ -70,8 +70,6 @@ struct display_clock_funcs {
 	void (*destroy)(struct display_clock **to_destroy);
 	void (*set_clock)(struct display_clock *disp_clk,
 		uint32_t requested_clock_khz);
-	enum clocks_state (*get_min_clocks_state)(
-		struct display_clock *disp_clk);
 	enum clocks_state (*get_required_clocks_state)(
 		struct display_clock *disp_clk,
 		struct state_dependent_clocks *req_clocks);

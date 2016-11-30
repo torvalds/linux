@@ -103,25 +103,19 @@ static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
  * static functions
  *****************************************************************************/
 
-static enum clocks_state get_min_clocks_state(struct display_clock *base)
-{
-	return base->cur_min_clks_state;
-}
-
-static bool set_min_clocks_state(
-	struct display_clock *base,
+static bool dce110_set_min_clocks_state(
+	struct display_clock *dc,
 	enum clocks_state clocks_state)
 {
-	struct display_clock_dce110 *dc = DCLCK110_FROM_BASE(base);
 	struct dm_pp_power_level_change_request level_change_req = {
 			DM_PP_POWER_LEVEL_INVALID};
 
-	if (clocks_state > base->max_clks_state) {
+	if (clocks_state > dc->max_clks_state) {
 		/*Requested state exceeds max supported state.*/
-		dm_logger_write(base->ctx->logger, LOG_WARNING,
+		dm_logger_write(dc->ctx->logger, LOG_WARNING,
 				"Requested state exceeds max supported state");
 		return false;
-	} else if (clocks_state == base->cur_min_clks_state) {
+	} else if (clocks_state == dc->cur_min_clks_state) {
 		/*if we're trying to set the same state, we can just return
 		 * since nothing needs to be done*/
 		return true;
@@ -140,17 +134,28 @@ static bool set_min_clocks_state(
 	case CLOCKS_STATE_PERFORMANCE:
 		level_change_req.power_level = DM_PP_POWER_LEVEL_PERFORMANCE;
 		break;
+	case CLOCKS_DPM_STATE_LEVEL_4:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_4;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_5:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_5;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_6:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_6;
+		break;
+	case CLOCKS_DPM_STATE_LEVEL_7:
+		level_change_req.power_level = DM_PP_POWER_LEVEL_7;
+		break;
 	case CLOCKS_STATE_INVALID:
 	default:
-		dm_logger_write(base->ctx->logger, LOG_WARNING,
+		dm_logger_write(dc->ctx->logger, LOG_WARNING,
 				"Requested state invalid state");
 		return false;
 	}
 
 	/* get max clock state from PPLIB */
-	if (dm_pp_apply_power_level_change_request(
-			base->ctx, &level_change_req))
-		base->cur_min_clks_state = clocks_state;
+	if (dm_pp_apply_power_level_change_request(dc->ctx, &level_change_req))
+		dc->cur_min_clks_state = clocks_state;
 
 	return true;
 }
@@ -384,7 +389,7 @@ static void psr_wait_loop(struct dc_context *ctx, unsigned int display_clk_khz)
 	dm_write_reg(ctx, mmMASTER_COMM_CNTL_REG, masterComCntl);
 }
 
-static void set_clock(
+static void dce110_set_clock(
 	struct display_clock *base,
 	uint32_t requested_clk_khz)
 {
@@ -424,10 +429,9 @@ static void set_clock(
 static const struct display_clock_funcs funcs = {
 	.destroy = destroy,
 	.get_dp_ref_clk_frequency = get_dp_ref_clk_frequency,
-	.get_min_clocks_state = get_min_clocks_state,
 	.get_required_clocks_state = get_required_clocks_state,
-	.set_clock = set_clock,
-	.set_min_clocks_state = set_min_clocks_state
+	.set_clock = dce110_set_clock,
+	.set_min_clocks_state = dce110_set_min_clocks_state
 };
 
 static bool dal_display_clock_dce110_construct(

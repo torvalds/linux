@@ -78,7 +78,7 @@ enum clocks_state dispclk_dce112_get_required_clocks_state(
 	struct display_clock *dc,
 	struct state_dependent_clocks *req_clocks);
 
-void dispclk_dce112_set_clock(
+void dce112_set_clock(
 	struct display_clock *base,
 	uint32_t requested_clk_khz);
 
