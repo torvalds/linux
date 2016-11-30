@@ -950,6 +950,19 @@ static inline bool imap_needs_alloc(struct inode *inode,
 		(IS_DAX(inode) && ISUNWRITTEN(imap));
 }
 
+static inline bool need_excl_ilock(struct xfs_inode *ip, unsigned flags)
+{
+	/*
+	 * COW writes will allocate delalloc space, so we need to make sure
+	 * to take the lock exclusively here.
+	 */
+	if (xfs_is_reflink_inode(ip) && (flags & (IOMAP_WRITE | IOMAP_ZERO)))
+		return true;
+	if ((flags & IOMAP_DIRECT) && (flags & IOMAP_WRITE))
+		return true;
+	return false;
+}
+
 static int
 xfs_file_iomap_begin(
 	struct inode		*inode,
@@ -969,18 +982,14 @@ xfs_file_iomap_begin(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if ((flags & IOMAP_WRITE) && !IS_DAX(inode) &&
-		   !xfs_get_extsz_hint(ip)) {
+	if (((flags & (IOMAP_WRITE | IOMAP_DIRECT)) == IOMAP_WRITE) &&
+			!IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
 		/* Reserve delalloc blocks for regular writeback. */
 		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
 				iomap);
 	}
 
-	/*
-	 * COW writes will allocate delalloc space, so we need to make sure
-	 * to take the lock exclusively here.
-	 */
-	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
+	if (need_excl_ilock(ip, flags)) {
 		lockmode = XFS_ILOCK_EXCL;
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 	} else {
@@ -993,17 +1002,41 @@ xfs_file_iomap_begin(
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
+	if (xfs_is_reflink_inode(ip) &&
+	    (flags & IOMAP_WRITE) && (flags & IOMAP_DIRECT)) {
+		shared = xfs_reflink_find_cow_mapping(ip, offset, &imap);
+		if (shared) {
+			xfs_iunlock(ip, lockmode);
+			goto alloc_done;
+		}
+		ASSERT(!isnullstartblock(imap.br_startblock));
+	}
+
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
 			       &nimaps, 0);
 	if (error)
 		goto out_unlock;
 
-	if (flags & IOMAP_REPORT) {
+	if ((flags & IOMAP_REPORT) ||
+	    (xfs_is_reflink_inode(ip) &&
+	     (flags & IOMAP_WRITE) && (flags & IOMAP_DIRECT))) {
 		/* Trim the mapping to the nearest shared extent boundary. */
 		error = xfs_reflink_trim_around_shared(ip, &imap, &shared,
 				&trimmed);
 		if (error)
 			goto out_unlock;
+
+		/*
+		 * We're here because we're trying to do a directio write to a
+		 * region that isn't aligned to a filesystem block.  If the
+		 * extent is shared, fall back to buffered mode to handle the
+		 * RMW.
+		 */
+		if (!(flags & IOMAP_REPORT) && shared) {
+			trace_xfs_reflink_bounce_dio_write(ip, &imap);
+			error = -EREMCHG;
+			goto out_unlock;
+		}
 	}
 
 	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
@@ -1038,6 +1071,7 @@ xfs_file_iomap_begin(
 		if (error)
 			return error;
 
+alloc_done:
 		iomap->flags = IOMAP_F_NEW;
 		trace_xfs_iomap_alloc(ip, offset, length, 0, &imap);
 	} else {

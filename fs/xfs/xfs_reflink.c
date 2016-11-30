@@ -1251,13 +1251,11 @@ xfs_reflink_remap_range(
 		return -EIO;
 
 	/* Lock both files against IO */
-	if (same_inode) {
-		xfs_ilock(src, XFS_IOLOCK_EXCL);
+	lock_two_nondirectories(inode_in, inode_out);
+	if (same_inode)
 		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
-	} else {
-		xfs_lock_two_inodes(src, dest, XFS_IOLOCK_EXCL);
+	else
 		xfs_lock_two_inodes(src, dest, XFS_MMAPLOCK_EXCL);
-	}
 
 	/* Don't touch certain kinds of inodes */
 	ret = -EPERM;
@@ -1402,11 +1400,9 @@ xfs_reflink_remap_range(
 
 out_unlock:
 	xfs_iunlock(src, XFS_MMAPLOCK_EXCL);
-	xfs_iunlock(src, XFS_IOLOCK_EXCL);
-	if (src->i_ino != dest->i_ino) {
+	if (!same_inode)
 		xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
-		xfs_iunlock(dest, XFS_IOLOCK_EXCL);
-	}
+	unlock_two_nondirectories(inode_in, inode_out);
 	if (ret)
 		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
 	return ret;
