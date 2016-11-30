@@ -7678,6 +7678,18 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
+static void set_current_vmptr(struct vcpu_vmx *vmx, gpa_t vmptr)
+{
+	vmx->nested.current_vmptr = vmptr;
+	if (enable_shadow_vmcs) {
+		vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
+			      SECONDARY_EXEC_SHADOW_VMCS);
+		vmcs_write64(VMCS_LINK_POINTER,
+			     __pa(vmx->vmcs01.shadow_vmcs));
+		vmx->nested.sync_shadow_vmcs = true;
+	}
+}
+
 /* Emulate the VMPTRLD instruction */
 static int handle_vmptrld(struct kvm_vcpu *vcpu)
 {
@@ -7708,7 +7720,6 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		}
 
 		nested_release_vmcs12(vmx);
-		vmx->nested.current_vmptr = vmptr;
 		vmx->nested.current_vmcs12 = new_vmcs12;
 		vmx->nested.current_vmcs12_page = page;
 		/*
@@ -7717,14 +7728,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		 */
 		memcpy(vmx->nested.cached_vmcs12,
 		       vmx->nested.current_vmcs12, VMCS12_SIZE);
-
-		if (enable_shadow_vmcs) {
-			vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
-				      SECONDARY_EXEC_SHADOW_VMCS);
-			vmcs_write64(VMCS_LINK_POINTER,
-				     __pa(vmx->vmcs01.shadow_vmcs));
-			vmx->nested.sync_shadow_vmcs = true;
-		}
+		set_current_vmptr(vmx, vmptr);
 	}
 
 	nested_vmx_succeed(vcpu);
