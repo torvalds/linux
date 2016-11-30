@@ -500,8 +500,8 @@ int skcipher_walk_async(struct skcipher_walk *walk,
 }
 EXPORT_SYMBOL_GPL(skcipher_walk_async);
 
-int skcipher_walk_aead(struct skcipher_walk *walk, struct aead_request *req,
-		       bool atomic)
+static int skcipher_walk_aead_common(struct skcipher_walk *walk,
+				     struct aead_request *req, bool atomic)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	int err;
@@ -514,7 +514,6 @@ int skcipher_walk_aead(struct skcipher_walk *walk, struct aead_request *req,
 	scatterwalk_copychunks(NULL, &walk->in, req->assoclen, 2);
 	scatterwalk_copychunks(NULL, &walk->out, req->assoclen, 2);
 
-	walk->total = req->cryptlen;
 	walk->iv = req->iv;
 	walk->oiv = req->iv;
 
@@ -535,7 +534,35 @@ int skcipher_walk_aead(struct skcipher_walk *walk, struct aead_request *req,
 
 	return err;
 }
+
+int skcipher_walk_aead(struct skcipher_walk *walk, struct aead_request *req,
+		       bool atomic)
+{
+	walk->total = req->cryptlen;
+
+	return skcipher_walk_aead_common(walk, req, atomic);
+}
 EXPORT_SYMBOL_GPL(skcipher_walk_aead);
+
+int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
+			       struct aead_request *req, bool atomic)
+{
+	walk->total = req->cryptlen;
+
+	return skcipher_walk_aead_common(walk, req, atomic);
+}
+EXPORT_SYMBOL_GPL(skcipher_walk_aead_encrypt);
+
+int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
+			       struct aead_request *req, bool atomic)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+	walk->total = req->cryptlen - crypto_aead_authsize(tfm);
+
+	return skcipher_walk_aead_common(walk, req, atomic);
+}
+EXPORT_SYMBOL_GPL(skcipher_walk_aead_decrypt);
 
 static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
 {
