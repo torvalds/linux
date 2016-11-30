@@ -2794,7 +2794,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		}
 		if (kvm_lapic_hv_timer_in_use(vcpu) &&
 				kvm_x86_ops->set_hv_timer(vcpu,
-					kvm_get_lapic_tscdeadline_msr(vcpu)))
+					kvm_get_lapic_target_expiration_tsc(vcpu)))
 			kvm_lapic_switch_to_sw_timer(vcpu);
 		/*
 		 * On a host with synchronized TSC, there is no need to update
@@ -8155,7 +8155,7 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *slot)
 {
-	kvm_mmu_invalidate_zap_all_pages(kvm);
+	kvm_page_track_flush_slot(kvm, slot);
 }
 
 static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)

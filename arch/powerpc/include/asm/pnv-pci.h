@@ -11,7 +11,6 @@
 #define _ASM_PNV_PCI_H
 
 #include <linux/pci.h>
-#include <linux/irq.h>
 #include <linux/pci_hotplug.h>
 #include <linux/irq.h>
 #include <misc/cxl-base.h>

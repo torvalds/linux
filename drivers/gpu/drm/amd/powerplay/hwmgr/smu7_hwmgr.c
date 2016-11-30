@@ -1460,19 +1460,19 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table = NULL;
 
 
-	if (table_info == NULL)
-		return -EINVAL;
-
-	sclk_table = table_info->vdd_dep_on_sclk;
-
 	for (i = 0; i < SMU7_MAX_LEAKAGE_COUNT; i++) {
 		vv_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
 
 		if (data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
-			if (0 == phm_get_sclk_for_voltage_evv(hwmgr,
+			if ((hwmgr->pp_table_version == PP_TABLE_V1)
+			    && !phm_get_sclk_for_voltage_evv(hwmgr,
 						table_info->vddgfx_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_ClockStretcher)) {
+					if (table_info == NULL)
+						return -EINVAL;
+					sclk_table = table_info->vdd_dep_on_sclk;
+
 					for (j = 1; j < sclk_table->count; j++) {
 						if (sclk_table->entries[j].clk == sclk &&
 								sclk_table->entries[j].cks_enable == 0) {
@@ -1498,12 +1498,15 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				}
 			}
 		} else {
-
 			if ((hwmgr->pp_table_version == PP_TABLE_V0)
 				|| !phm_get_sclk_for_voltage_evv(hwmgr,
 					table_info->vddc_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_ClockStretcher)) {
+					if (table_info == NULL)
+						return -EINVAL;
+					sclk_table = table_info->vdd_dep_on_sclk;
+
 					for (j = 1; j < sclk_table->count; j++) {
 						if (sclk_table->entries[j].clk == sclk &&
 								sclk_table->entries[j].cks_enable == 0) {
@@ -2133,9 +2136,11 @@ static int smu7_patch_limits_vddc(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (tab) {
+		vddc = tab->vddc;
 		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddc,
 						   &data->vddc_leakage);
 		tab->vddc = vddc;
+		vddci = tab->vddci;
 		smu7_patch_ppt_v0_with_vdd_leakage(hwmgr, &vddci,
 						   &data->vddci_leakage);
 		tab->vddci = vddci;
@@ -4228,18 +4233,26 @@ static int smu7_get_sclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 {
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table = NULL;
+	struct phm_clock_voltage_dependency_table *sclk_table;
 	int i;
 
-	if (table_info == NULL)
-		return -EINVAL;
-
-	dep_sclk_table = table_info->vdd_dep_on_sclk;
-
-	for (i = 0; i < dep_sclk_table->count; i++) {
-		clocks->clock[i] = dep_sclk_table->entries[i].clk;
-		clocks->count++;
+	if (hwmgr->pp_table_version == PP_TABLE_V1) {
+		if (table_info == NULL || table_info->vdd_dep_on_sclk == NULL)
+			return -EINVAL;
+		dep_sclk_table = table_info->vdd_dep_on_sclk;
+		for (i = 0; i < dep_sclk_table->count; i++) {
+			clocks->clock[i] = dep_sclk_table->entries[i].clk;
+			clocks->count++;
+		}
+	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
+		sclk_table = hwmgr->dyn_state.vddc_dependency_on_sclk;
+		for (i = 0; i < sclk_table->count; i++) {
+			clocks->clock[i] = sclk_table->entries[i].clk;
+			clocks->count++;
+		}
 	}
+
 	return 0;
 }
 
@@ -4261,17 +4274,24 @@ static int smu7_get_mclks(struct pp_hwmgr *hwmgr, struct amd_pp_clocks *clocks)
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table;
 	int i;
+	struct phm_clock_voltage_dependency_table *mclk_table;
 
-	if (table_info == NULL)
-		return -EINVAL;
-
-	dep_mclk_table = table_info->vdd_dep_on_mclk;
-
-	for (i = 0; i < dep_mclk_table->count; i++) {
-		clocks->clock[i] = dep_mclk_table->entries[i].clk;
-		clocks->latency[i] = smu7_get_mem_latency(hwmgr,
+	if (hwmgr->pp_table_version == PP_TABLE_V1) {
+		if (table_info == NULL)
+			return -EINVAL;
+		dep_mclk_table = table_info->vdd_dep_on_mclk;
+		for (i = 0; i < dep_mclk_table->count; i++) {
+			clocks->clock[i] = dep_mclk_table->entries[i].clk;
+			clocks->latency[i] = smu7_get_mem_latency(hwmgr,
 						dep_mclk_table->entries[i].clk);
-		clocks->count++;
+			clocks->count++;
+		}
+	} else if (hwmgr->pp_table_version == PP_TABLE_V0) {
+		mclk_table = hwmgr->dyn_state.vddc_dependency_on_mclk;
+		for (i = 0; i < mclk_table->count; i++) {
+			clocks->clock[i] = mclk_table->entries[i].clk;
+			clocks->count++;
+		}
 	}
 	return 0;
 }

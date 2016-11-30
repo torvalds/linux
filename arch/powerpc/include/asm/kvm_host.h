@@ -48,7 +48,7 @@
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
-#define KVM_HALT_POLL_NS_DEFAULT 500000
+#define KVM_HALT_POLL_NS_DEFAULT 10000	/* 10 us */
 
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1
@@ -244,6 +244,7 @@ struct kvm_arch_memory_slot {
 struct kvm_arch {
 	unsigned int lpid;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	unsigned int tlb_sets;
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
 	atomic64_t mmio_update;
@@ -517,6 +518,8 @@ struct kvm_vcpu_arch {
 	ulong tcscr;
 	ulong acop;
 	ulong wort;
+	ulong tid;
+	ulong psscr;
 	ulong shadow_srr1;
 #endif
 	u32 vrsave; /* also USPRG0 */

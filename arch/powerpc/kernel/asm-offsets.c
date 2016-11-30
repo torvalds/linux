@@ -487,6 +487,7 @@ int main(void)
 
 	/* book3s */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	DEFINE(KVM_TLB_SETS, offsetof(struct kvm, arch.tlb_sets));
 	DEFINE(KVM_SDR1, offsetof(struct kvm, arch.sdr1));
 	DEFINE(KVM_HOST_LPID, offsetof(struct kvm, arch.host_lpid));
 	DEFINE(KVM_HOST_LPCR, offsetof(struct kvm, arch.host_lpcr));
@@ -548,6 +549,8 @@ int main(void)
 	DEFINE(VCPU_TCSCR, offsetof(struct kvm_vcpu, arch.tcscr));
 	DEFINE(VCPU_ACOP, offsetof(struct kvm_vcpu, arch.acop));
 	DEFINE(VCPU_WORT, offsetof(struct kvm_vcpu, arch.wort));
+	DEFINE(VCPU_TID, offsetof(struct kvm_vcpu, arch.tid));
+	DEFINE(VCPU_PSSCR, offsetof(struct kvm_vcpu, arch.psscr));
 	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_map));
 	DEFINE(VCORE_IN_GUEST, offsetof(struct kvmppc_vcore, in_guest));
 	DEFINE(VCORE_NAPPING_THREADS, offsetof(struct kvmppc_vcore, napping_threads));

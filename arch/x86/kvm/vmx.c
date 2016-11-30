@@ -520,6 +520,12 @@ static inline void pi_set_sn(struct pi_desc *pi_desc)
 			(unsigned long *)&pi_desc->control);
 }
 
+static inline void pi_clear_on(struct pi_desc *pi_desc)
+{
+	clear_bit(POSTED_INTR_ON,
+  		  (unsigned long *)&pi_desc->control);
+}
+
 static inline int pi_test_on(struct pi_desc *pi_desc)
 {
 	return test_bit(POSTED_INTR_ON,
@@ -920,16 +926,32 @@ static DEFINE_PER_CPU(struct desc_ptr, host_gdt);
 static DEFINE_PER_CPU(struct list_head, blocked_vcpu_on_cpu);
 static DEFINE_PER_CPU(spinlock_t, blocked_vcpu_on_cpu_lock);
 
-static unsigned long *vmx_io_bitmap_a;
-static unsigned long *vmx_io_bitmap_b;
-static unsigned long *vmx_msr_bitmap_legacy;
-static unsigned long *vmx_msr_bitmap_longmode;
-static unsigned long *vmx_msr_bitmap_legacy_x2apic;
-static unsigned long *vmx_msr_bitmap_longmode_x2apic;
-static unsigned long *vmx_msr_bitmap_legacy_x2apic_apicv_inactive;
-static unsigned long *vmx_msr_bitmap_longmode_x2apic_apicv_inactive;
-static unsigned long *vmx_vmread_bitmap;
-static unsigned long *vmx_vmwrite_bitmap;
+enum {
+	VMX_IO_BITMAP_A,
+	VMX_IO_BITMAP_B,
+	VMX_MSR_BITMAP_LEGACY,
+	VMX_MSR_BITMAP_LONGMODE,
+	VMX_MSR_BITMAP_LEGACY_X2APIC_APICV,
+	VMX_MSR_BITMAP_LONGMODE_X2APIC_APICV,
+	VMX_MSR_BITMAP_LEGACY_X2APIC,
+	VMX_MSR_BITMAP_LONGMODE_X2APIC,
+	VMX_VMREAD_BITMAP,
+	VMX_VMWRITE_BITMAP,
+	VMX_BITMAP_NR
+};
+
+static unsigned long *vmx_bitmap[VMX_BITMAP_NR];
+
+#define vmx_io_bitmap_a                      (vmx_bitmap[VMX_IO_BITMAP_A])
+#define vmx_io_bitmap_b                      (vmx_bitmap[VMX_IO_BITMAP_B])
+#define vmx_msr_bitmap_legacy                (vmx_bitmap[VMX_MSR_BITMAP_LEGACY])
+#define vmx_msr_bitmap_longmode              (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE])
+#define vmx_msr_bitmap_legacy_x2apic_apicv   (vmx_bitmap[VMX_MSR_BITMAP_LEGACY_X2APIC_APICV])
+#define vmx_msr_bitmap_longmode_x2apic_apicv (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE_X2APIC_APICV])
+#define vmx_msr_bitmap_legacy_x2apic         (vmx_bitmap[VMX_MSR_BITMAP_LEGACY_X2APIC])
+#define vmx_msr_bitmap_longmode_x2apic       (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE_X2APIC])
+#define vmx_vmread_bitmap                    (vmx_bitmap[VMX_VMREAD_BITMAP])
+#define vmx_vmwrite_bitmap                   (vmx_bitmap[VMX_VMWRITE_BITMAP])
 
 static bool cpu_has_load_ia32_efer;
 static bool cpu_has_load_perf_global_ctrl;
@@ -2529,14 +2551,14 @@ static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 		  SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
 		if (enable_apicv && kvm_vcpu_apicv_active(vcpu)) {
 			if (is_long_mode(vcpu))
+				msr_bitmap = vmx_msr_bitmap_longmode_x2apic_apicv;
+			else
+				msr_bitmap = vmx_msr_bitmap_legacy_x2apic_apicv;
+		} else {
+			if (is_long_mode(vcpu))
 				msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
 			else
 				msr_bitmap = vmx_msr_bitmap_legacy_x2apic;
-		} else {
-			if (is_long_mode(vcpu))
-				msr_bitmap = vmx_msr_bitmap_longmode_x2apic_apicv_inactive;
-			else
-				msr_bitmap = vmx_msr_bitmap_legacy_x2apic_apicv_inactive;
 		}
 	} else {
 		if (is_long_mode(vcpu))
@@ -2780,6 +2802,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	vmx->nested.nested_vmx_secondary_ctls_high &=
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_RDTSCP |
+		SECONDARY_EXEC_DESC |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		SECONDARY_EXEC_ENABLE_VPID |
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
@@ -4575,41 +4598,6 @@ static void __vmx_disable_intercept_for_msr(unsigned long *msr_bitmap,
 	}
 }
 
-static void __vmx_enable_intercept_for_msr(unsigned long *msr_bitmap,
-						u32 msr, int type)
-{
-	int f = sizeof(unsigned long);
-
-	if (!cpu_has_vmx_msr_bitmap())
-		return;
-
-	/*
-	 * See Intel PRM Vol. 3, 20.6.9 (MSR-Bitmap Address). Early manuals
-	 * have the write-low and read-high bitmap offsets the wrong way round.
-	 * We can control MSRs 0x00000000-0x00001fff and 0xc0000000-0xc0001fff.
-	 */
-	if (msr <= 0x1fff) {
-		if (type & MSR_TYPE_R)
-			/* read-low */
-			__set_bit(msr, msr_bitmap + 0x000 / f);
-
-		if (type & MSR_TYPE_W)
-			/* write-low */
-			__set_bit(msr, msr_bitmap + 0x800 / f);
-
-	} else if ((msr >= 0xc0000000) && (msr <= 0xc0001fff)) {
-		msr &= 0x1fff;
-		if (type & MSR_TYPE_R)
-			/* read-high */
-			__set_bit(msr, msr_bitmap + 0x400 / f);
-
-		if (type & MSR_TYPE_W)
-			/* write-high */
-			__set_bit(msr, msr_bitmap + 0xc00 / f);
-
-	}
-}
-
 /*
  * If a msr is allowed by L0, we should check whether it is allowed by L1.
  * The corresponding bit will be cleared unless both of L0 and L1 allow it.
@@ -4665,48 +4653,18 @@ static void vmx_disable_intercept_for_msr(u32 msr, bool longmode_only)
 						msr, MSR_TYPE_R | MSR_TYPE_W);
 }
 
-static void vmx_enable_intercept_msr_read_x2apic(u32 msr, bool apicv_active)
+static void vmx_disable_intercept_msr_x2apic(u32 msr, int type, bool apicv_active)
 {
 	if (apicv_active) {
-		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-				msr, MSR_TYPE_R);
-		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-				msr, MSR_TYPE_R);
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv,
+				msr, type);
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv,
+				msr, type);
 	} else {
-		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
-				msr, MSR_TYPE_R);
-		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
-				msr, MSR_TYPE_R);
-	}
-}
-
-static void vmx_disable_intercept_msr_read_x2apic(u32 msr, bool apicv_active)
-{
-	if (apicv_active) {
 		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-				msr, MSR_TYPE_R);
+				msr, type);
 		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-				msr, MSR_TYPE_R);
-	} else {
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
-				msr, MSR_TYPE_R);
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
-				msr, MSR_TYPE_R);
-	}
-}
-
-static void vmx_disable_intercept_msr_write_x2apic(u32 msr, bool apicv_active)
-{
-	if (apicv_active) {
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-				msr, MSR_TYPE_W);
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-				msr, MSR_TYPE_W);
-	} else {
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
-				msr, MSR_TYPE_W);
-		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
-				msr, MSR_TYPE_W);
+				msr, type);
 	}
 }
 
@@ -4828,9 +4786,15 @@ static void vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!pi_test_and_clear_on(&vmx->pi_desc))
+	if (!pi_test_on(&vmx->pi_desc))
 		return;
 
+	pi_clear_on(&vmx->pi_desc);
+	/*
+	 * IOMMU can write to PIR.ON, so the barrier matters even on UP.
+	 * But on x86 this is just a compiler barrier anyway.
+	 */
+	smp_mb__after_atomic();
 	kvm_apic_update_irr(vcpu, vmx->pi_desc.pir);
 }
 
@@ -6352,50 +6316,13 @@ static __init int hardware_setup(void)
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
 		kvm_define_shared_msr(i, vmx_msr_index[i]);
 
-	vmx_io_bitmap_a = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_io_bitmap_a)
-		return r;
+	for (i = 0; i < VMX_BITMAP_NR; i++) {
+		vmx_bitmap[i] = (unsigned long *)__get_free_page(GFP_KERNEL);
+		if (!vmx_bitmap[i])
+			goto out;
+	}
 
 	vmx_io_bitmap_b = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_io_bitmap_b)
-		goto out;
-
-	vmx_msr_bitmap_legacy = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy)
-		goto out1;
-
-	vmx_msr_bitmap_legacy_x2apic =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy_x2apic)
-		goto out2;
-
-	vmx_msr_bitmap_legacy_x2apic_apicv_inactive =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_legacy_x2apic_apicv_inactive)
-		goto out3;
-
-	vmx_msr_bitmap_longmode = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode)
-		goto out4;
-
-	vmx_msr_bitmap_longmode_x2apic =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode_x2apic)
-		goto out5;
-
-	vmx_msr_bitmap_longmode_x2apic_apicv_inactive =
-				(unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_msr_bitmap_longmode_x2apic_apicv_inactive)
-		goto out6;
-
-	vmx_vmread_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_vmread_bitmap)
-		goto out7;
-
-	vmx_vmwrite_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
-	if (!vmx_vmwrite_bitmap)
-		goto out8;
-
 	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
 
@@ -6413,7 +6340,7 @@ static __init int hardware_setup(void)
 
 	if (setup_vmcs_config(&vmcs_config) < 0) {
 		r = -EIO;
-		goto out9;
+		goto out;
 	}
 
 	if (boot_cpu_has(X86_FEATURE_NX))
@@ -6476,39 +6403,34 @@ static __init int hardware_setup(void)
 	vmx_disable_intercept_for_msr(MSR_IA32_SYSENTER_EIP, false);
 	vmx_disable_intercept_for_msr(MSR_IA32_BNDCFGS, true);
 
+	memcpy(vmx_msr_bitmap_legacy_x2apic_apicv,
+			vmx_msr_bitmap_legacy, PAGE_SIZE);
+	memcpy(vmx_msr_bitmap_longmode_x2apic_apicv,
+			vmx_msr_bitmap_longmode, PAGE_SIZE);
 	memcpy(vmx_msr_bitmap_legacy_x2apic,
 			vmx_msr_bitmap_legacy, PAGE_SIZE);
 	memcpy(vmx_msr_bitmap_longmode_x2apic,
 			vmx_msr_bitmap_longmode, PAGE_SIZE);
-	memcpy(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
-			vmx_msr_bitmap_legacy, PAGE_SIZE);
-	memcpy(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
-			vmx_msr_bitmap_longmode, PAGE_SIZE);
 
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
-	/*
-	 * enable_apicv && kvm_vcpu_apicv_active()
-	 */
-	for (msr = 0x800; msr <= 0x8ff; msr++)
-		vmx_disable_intercept_msr_read_x2apic(msr, true);
+	for (msr = 0x800; msr <= 0x8ff; msr++) {
+		if (msr == 0x839 /* TMCCT */)
+			continue;
+		vmx_disable_intercept_msr_x2apic(msr, MSR_TYPE_R, true);
+	}
 
-	/* TMCCT */
-	vmx_enable_intercept_msr_read_x2apic(0x839, true);
-	/* TPR */
-	vmx_disable_intercept_msr_write_x2apic(0x808, true);
+	/*
+	 * TPR reads and writes can be virtualized even if virtual interrupt
+	 * delivery is not in use.
+	 */
+	vmx_disable_intercept_msr_x2apic(0x808, MSR_TYPE_W, true);
+	vmx_disable_intercept_msr_x2apic(0x808, MSR_TYPE_R | MSR_TYPE_W, false);
+
 	/* EOI */
-	vmx_disable_intercept_msr_write_x2apic(0x80b, true);
+	vmx_disable_intercept_msr_x2apic(0x80b, MSR_TYPE_W, true);
 	/* SELF-IPI */
-	vmx_disable_intercept_msr_write_x2apic(0x83f, true);
-
-	/*
-	 * (enable_apicv && !kvm_vcpu_apicv_active()) ||
-	 * 	!enable_apicv
-	 */
-	/* TPR */
-	vmx_disable_intercept_msr_read_x2apic(0x808, false);
-	vmx_disable_intercept_msr_write_x2apic(0x808, false);
+	vmx_disable_intercept_msr_x2apic(0x83f, MSR_TYPE_W, true);
 
 	if (enable_ept) {
 		kvm_mmu_set_mask_ptes(VMX_EPT_READABLE_MASK,
@@ -6555,42 +6477,19 @@ static __init int hardware_setup(void)
 
 	return alloc_kvm_area();
 
-out9:
-	free_page((unsigned long)vmx_vmwrite_bitmap);
-out8:
-	free_page((unsigned long)vmx_vmread_bitmap);
-out7:
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic_apicv_inactive);
-out6:
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
-out5:
-	free_page((unsigned long)vmx_msr_bitmap_longmode);
-out4:
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic_apicv_inactive);
-out3:
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic);
-out2:
-	free_page((unsigned long)vmx_msr_bitmap_legacy);
-out1:
-	free_page((unsigned long)vmx_io_bitmap_b);
 out:
-	free_page((unsigned long)vmx_io_bitmap_a);
+	for (i = 0; i < VMX_BITMAP_NR; i++)
+		free_page((unsigned long)vmx_bitmap[i]);
 
     return r;
 }
 
 static __exit void hardware_unsetup(void)
 {
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic);
-	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic_apicv_inactive);
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
-	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic_apicv_inactive);
-	free_page((unsigned long)vmx_msr_bitmap_legacy);
-	free_page((unsigned long)vmx_msr_bitmap_longmode);
-	free_page((unsigned long)vmx_io_bitmap_b);
-	free_page((unsigned long)vmx_io_bitmap_a);
-	free_page((unsigned long)vmx_vmwrite_bitmap);
-	free_page((unsigned long)vmx_vmread_bitmap);
+	int i;
+
+	for (i = 0; i < VMX_BITMAP_NR; i++)
+		free_page((unsigned long)vmx_bitmap[i]);
 
 	free_kvm_area();
 }
@@ -8075,6 +7974,8 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		return nested_cpu_has(vmcs12, CPU_BASED_MOV_DR_EXITING);
 	case EXIT_REASON_IO_INSTRUCTION:
 		return nested_vmx_exit_handled_io(vcpu, vmcs12);
+	case EXIT_REASON_GDTR_IDTR: case EXIT_REASON_LDTR_TR:
+		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_DESC);
 	case EXIT_REASON_MSR_READ:
 	case EXIT_REASON_MSR_WRITE:
 		return nested_vmx_exit_handled_msr(vcpu, vmcs12, exit_reason);
@@ -8624,11 +8525,6 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 	u32 exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	register void *__sp asm(_ASM_SP);
 
-	/*
-	 * If external interrupt exists, IF bit is set in rflags/eflags on the
-	 * interrupt stack frame, and interrupt will be enabled on a return
-	 * from interrupt handler.
-	 */
 	if ((exit_intr_info & (INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK))
 			== (INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR)) {
 		unsigned int vector;
@@ -9968,6 +9864,15 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	vmx_set_constant_host_state(vmx);
 
 	/*
+	 * Set the MSR load/store lists to match L0's settings.
+	 */
+	vmcs_write32(VM_EXIT_MSR_STORE_COUNT, 0);
+	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.nr);
+	vmcs_write64(VM_EXIT_MSR_LOAD_ADDR, __pa(vmx->msr_autoload.host));
+	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.nr);
+	vmcs_write64(VM_ENTRY_MSR_LOAD_ADDR, __pa(vmx->msr_autoload.guest));
+
+	/*
 	 * HOST_RSP is normally set correctly in vmx_vcpu_run() just before
 	 * entry, but only if the current (host) sp changed from the value
 	 * we wrote last (vmx->host_rsp). This cache is no longer relevant
@@ -10755,6 +10660,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	u32 vm_inst_error = 0;
 
 	/* trying to cancel vmlaunch/vmresume is a bug */
 	WARN_ON_ONCE(vmx->nested.nested_run_pending);
@@ -10766,6 +10672,9 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	if (nested_vmx_store_msr(vcpu, vmcs12->vm_exit_msr_store_addr,
 				 vmcs12->vm_exit_msr_store_count))
 		nested_vmx_abort(vcpu, VMX_ABORT_SAVE_GUEST_MSR_FAIL);
+
+	if (unlikely(vmx->fail))
+		vm_inst_error = vmcs_read32(VM_INSTRUCTION_ERROR);
 
 	vmx_load_vmcs01(vcpu);
 
@@ -10795,6 +10704,8 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	load_vmcs12_host_state(vcpu, vmcs12);
 
 	/* Update any VMCS fields that might have changed while L2 ran */
+	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.nr);
+	vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.nr);
 	vmcs_write64(TSC_OFFSET, vcpu->arch.tsc_offset);
 	if (vmx->hv_deadline_tsc == -1)
 		vmcs_clear_bits(PIN_BASED_VM_EXEC_CONTROL,
@@ -10843,7 +10754,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	 */
 	if (unlikely(vmx->fail)) {
 		vmx->fail = 0;
-		nested_vmx_failValid(vcpu, vmcs_read32(VM_INSTRUCTION_ERROR));
+		nested_vmx_failValid(vcpu, vm_inst_error);
 	} else
 		nested_vmx_succeed(vcpu);
 	if (enable_shadow_vmcs)
