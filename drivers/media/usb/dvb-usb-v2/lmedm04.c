@@ -1173,10 +1173,7 @@ static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
 
 	mutex_lock(&d->i2c_mutex);
 
-	if (onoff)
-		ret = lme2510_usb_talk(d, lnb_on, len, rbuf, rlen);
-	else
-		ret = lme2510_usb_talk(d, lnb_off, len, rbuf, rlen);
+	ret = lme2510_usb_talk(d, onoff ? lnb_on : lnb_off, len, rbuf, rlen);
 
 	st->i2c_talk_onoff = 1;
 
