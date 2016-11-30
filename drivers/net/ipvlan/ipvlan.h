@@ -73,7 +73,6 @@ struct ipvl_dev {
 	DECLARE_BITMAP(mac_filters, IPVLAN_MAC_FILTER_SIZE);
 	netdev_features_t	sfeatures;
 	u32			msg_enable;
-	u16			mtu_adj;
 };
 
 struct ipvl_addr {
