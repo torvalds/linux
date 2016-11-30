@@ -339,6 +339,8 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 	for_each_child_of_node(root, child) {
 		pwr_ctr = kmalloc(sizeof(struct rk_disp_pwr_ctr_list),
 				  GFP_KERNEL);
+		if (!pwr_ctr)
+			return -ENOMEM;
 		strcpy(pwr_ctr->pwr_ctr.name, child->name);
 		if (!of_property_read_u32(child, "rockchip,power_type", &val)) {
 			if (val == GPIO) {
@@ -3978,7 +3980,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 						       fb_par->ion_hdl);
 				dev_drv->win[win_id]->area[0].ion_hdl =
 					fb_par->ion_hdl;
-				if (dev_drv->iommu_enabled && dev_drv->mmu_dev)
+				if (dev_drv->mmu_dev)
 					ret = ion_map_iommu(dev_drv->dev,
 							    rk_fb->ion_client,
 							    fb_par->ion_hdl,
@@ -4231,7 +4233,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		fbi = framebuffer_alloc(0, &fb_pdev->dev);
 		if (!fbi) {
 			dev_err(&fb_pdev->dev, "fb framebuffer_alloc fail!");
-			ret = -ENOMEM;
+			return -ENOMEM;
 		}
 		fb_par = devm_kzalloc(&fb_pdev->dev, sizeof(struct rk_fb_par),
 				      GFP_KERNEL);
@@ -4364,6 +4366,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			nr_pages = size >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
 					GFP_KERNEL);
+			if (!pages)
+				return -ENOMEM;
 			while (i < nr_pages) {
 				pages[i] = phys_to_page(start);
 				start += PAGE_SIZE;
@@ -4374,6 +4378,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 				pr_err("failed to vmap phy addr 0x%lx\n",
 				       (long)(uboot_logo_base +
 				       uboot_logo_offset));
+				kfree(pages);
 				return -1;
 			}
 
@@ -4385,8 +4390,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			}
 			kfree(pages);
 			vunmap(vaddr);
-			if (dev_drv->uboot_logo &&
-			    (width != xact || height != yact)) {
+			if (width != xact || height != yact) {
 				pr_err("can't support uboot kernel logo use different size [%dx%d] != [%dx%d]\n",
 				       xact, yact, width, height);
 				return 0;
@@ -4440,6 +4444,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			nr_pages = PAGE_ALIGN(logo_len + align) >> PAGE_SHIFT;
 			pages = kzalloc(sizeof(struct page) * nr_pages,
 					GFP_KERNEL);
+			if (!pages)
+				return -ENOMEM;
 			while (i < nr_pages) {
 				pages[i] = phys_to_page(start);
 				start += PAGE_SIZE;
@@ -4449,6 +4455,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			if (!vaddr) {
 				pr_err("failed to vmap phy addr 0x%x\n",
 				       start);
+				kfree(pages);
 				return -1;
 			}
 
