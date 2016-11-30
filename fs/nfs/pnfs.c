@@ -306,6 +306,20 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 }
 
 static void
+pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
+			 u32 seq)
+{
+	if (lo->plh_return_iomode != 0 && lo->plh_return_iomode != iomode)
+		iomode = IOMODE_ANY;
+	lo->plh_return_iomode = iomode;
+	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+	if (seq != 0) {
+		WARN_ON_ONCE(lo->plh_return_seq != 0 && lo->plh_return_seq != seq);
+		lo->plh_return_seq = seq;
+	}
+}
+
+static void
 pnfs_clear_layoutreturn_info(struct pnfs_layout_hdr *lo)
 {
 	lo->plh_return_iomode = 0;
@@ -456,6 +470,7 @@ pnfs_cache_lseg_for_layoutreturn(struct pnfs_layout_hdr *lo,
 {
 	if (test_and_clear_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags) &&
 	    pnfs_layout_is_valid(lo)) {
+		pnfs_set_plh_return_info(lo, lseg->pls_range.iomode, 0);
 		list_move_tail(&lseg->pls_list, &lo->plh_return_segs);
 		return true;
 	}
@@ -999,20 +1014,6 @@ out_unlock:
 	spin_unlock(&inode->i_lock);
 	pnfs_free_lseg_list(&freeme);
 
-}
-
-static void
-pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
-			 u32 seq)
-{
-	if (lo->plh_return_iomode != 0 && lo->plh_return_iomode != iomode)
-		iomode = IOMODE_ANY;
-	lo->plh_return_iomode = iomode;
-	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
-	if (seq != 0) {
-		WARN_ON_ONCE(lo->plh_return_seq != 0 && lo->plh_return_seq != seq);
-		lo->plh_return_seq = seq;
-	}
 }
 
 static bool
