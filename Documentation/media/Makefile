@@ -13,6 +13,7 @@ TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 IMAGES = \
 	typical_media_device.svg \
 	uapi/dvb/dvbstb.svg \
+	uapi/v4l/bayer.svg \
 	uapi/v4l/constraints.svg \
 	uapi/v4l/crop.svg \
 	uapi/v4l/fieldseq_bt.svg \
