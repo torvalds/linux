@@ -90,7 +90,7 @@
 #define CRYPTO_ALG_TESTED		0x00000400
 
 /*
- * Set if the algorithm is an instance that is build from templates.
+ * Set if the algorithm is an instance that is built from templates.
  */
 #define CRYPTO_ALG_INSTANCE		0x00000800
 
