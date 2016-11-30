@@ -777,6 +777,17 @@ Gets the current timestamp of kvmclock as seen by the current guest. In
 conjunction with KVM_SET_CLOCK, it is used to ensure monotonicity on scenarios
 such as migration.
 
+When KVM_CAP_ADJUST_CLOCK is passed to KVM_CHECK_EXTENSION, it returns the
+set of bits that KVM can return in struct kvm_clock_data's flag member.
+
+The only flag defined now is KVM_CLOCK_TSC_STABLE.  If set, the returned
+value is the exact kvmclock value seen by all VCPUs at the instant
+when KVM_GET_CLOCK was called.  If clear, the returned value is simply
+CLOCK_MONOTONIC plus a constant offset; the offset can be modified
+with KVM_SET_CLOCK.  KVM will try to make all VCPUs follow this clock,
+but the exact value read by each VCPU could differ, because the host
+TSC is not stable.
+
 struct kvm_clock_data {
 	__u64 clock;  /* kvmclock current value */
 	__u32 flags;

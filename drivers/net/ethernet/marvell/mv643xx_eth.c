@@ -1381,6 +1381,7 @@ static unsigned int get_rx_coal(struct mv643xx_eth_private *mp)
 		temp = (val & 0x003fff00) >> 8;
 
 	temp *= 64000000;
+	temp += mp->t_clk / 2;
 	do_div(temp, mp->t_clk);
 
 	return (unsigned int)temp;
@@ -1417,6 +1418,7 @@ static unsigned int get_tx_coal(struct mv643xx_eth_private *mp)
 
 	temp = (rdlp(mp, TX_FIFO_URGENT_THRESHOLD) & 0x3fff0) >> 4;
 	temp *= 64000000;
+	temp += mp->t_clk / 2;
 	do_div(temp, mp->t_clk);
 
 	return (unsigned int)temp;

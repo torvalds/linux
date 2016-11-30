@@ -2839,7 +2839,7 @@ static int qede_alloc_sge_mem(struct qede_dev *edev, struct qede_rx_queue *rxq)
 		}
 
 		mapping = dma_map_page(&edev->pdev->dev, replace_buf->data, 0,
-				       rxq->rx_buf_size, DMA_FROM_DEVICE);
+				       PAGE_SIZE, DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(&edev->pdev->dev, mapping))) {
 			DP_NOTICE(edev,
 				  "Failed to map TPA replacement buffer\n");

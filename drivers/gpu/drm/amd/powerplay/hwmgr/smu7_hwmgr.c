@@ -1469,8 +1469,6 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 						table_info->vddgfx_lookup_table, vv_id, &sclk)) {
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_ClockStretcher)) {
-					if (table_info == NULL)
-						return -EINVAL;
 					sclk_table = table_info->vdd_dep_on_sclk;
 
 					for (j = 1; j < sclk_table->count; j++) {
@@ -2986,19 +2984,19 @@ static int smu7_get_pp_table_entry_callback_func_v0(struct pp_hwmgr *hwmgr,
 	if (!(data->mc_micro_code_feature & DISABLE_MC_LOADMICROCODE) && memory_clock > data->highest_mclk)
 		data->highest_mclk = memory_clock;
 
-	performance_level = &(ps->performance_levels
-			[ps->performance_level_count++]);
-
 	PP_ASSERT_WITH_CODE(
 			(ps->performance_level_count < smum_get_mac_definition(hwmgr->smumgr, SMU_MAX_LEVELS_GRAPHICS)),
 			"Performance levels exceeds SMC limit!",
 			return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(
-			(ps->performance_level_count <=
+			(ps->performance_level_count <
 					hwmgr->platform_descriptor.hardwareActivityPerformanceLevels),
-			"Performance levels exceeds Driver limit!",
-			return -EINVAL);
+			"Performance levels exceeds Driver limit, Skip!",
+			return 0);
+
+	performance_level = &(ps->performance_levels
+			[ps->performance_level_count++]);
 
 	/* Performance levels are arranged from low to high. */
 	performance_level->memory_clock = memory_clock;

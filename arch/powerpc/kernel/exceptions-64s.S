@@ -116,7 +116,9 @@ EXC_VIRT_NONE(0x4000, 0x4100)
 
 EXC_REAL_BEGIN(system_reset, 0x100, 0x200)
 	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
+	GET_PACA(r13)
+	clrrdi	r13,r13,1 /* Last bit of HSPRG0 is set if waking from winkle */
+	EXCEPTION_PROLOG_PSERIES_PACA(PACA_EXGEN, system_reset_common, EXC_STD,
 				 IDLETEST, 0x100)
 
 EXC_REAL_END(system_reset, 0x100, 0x200)
@@ -124,6 +126,9 @@ EXC_VIRT_NONE(0x4100, 0x4200)
 
 #ifdef CONFIG_PPC_P7_NAP
 EXC_COMMON_BEGIN(system_reset_idle_common)
+BEGIN_FTR_SECTION
+	GET_PACA(r13) /* Restore HSPRG0 to get the winkle bit in r13 */
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	bl	pnv_restore_hyp_resource
 
 	li	r0,PNV_THREAD_RUNNING
@@ -169,7 +174,7 @@ EXC_REAL_BEGIN(machine_check, 0x200, 0x300)
 	SET_SCRATCH0(r13)		/* save r13 */
 	/*
 	 * Running native on arch 2.06 or later, we may wakeup from winkle
-	 * inside machine check. If yes, then last bit of HSPGR0 would be set
+	 * inside machine check. If yes, then last bit of HSPRG0 would be set
 	 * to 1. Hence clear it unconditionally.
 	 */
 	GET_PACA(r13)
@@ -388,7 +393,7 @@ EXC_COMMON_BEGIN(machine_check_handle_early)
 	/*
 	 * Go back to winkle. Please note that this thread was woken up in
 	 * machine check from winkle and have not restored the per-subcore
-	 * state. Hence before going back to winkle, set last bit of HSPGR0
+	 * state. Hence before going back to winkle, set last bit of HSPRG0
 	 * to 1. This will make sure that if this thread gets woken up
 	 * again at reset vector 0x100 then it will get chance to restore
 	 * the subcore state.

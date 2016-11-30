@@ -1018,7 +1018,7 @@ static inline void hci_set_drvdata(struct hci_dev *hdev, void *data)
 }
 
 struct hci_dev *hci_dev_get(int index);
-struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src);
+struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src, u8 src_type);
 
 struct hci_dev *hci_alloc_dev(void);
 void hci_free_dev(struct hci_dev *hdev);
