@@ -215,6 +215,171 @@ static int mwifiex_sdio_resume(struct device *dev)
 	return 0;
 }
 
+/* Write data into SDIO card register. Caller claims SDIO device. */
+static int
+mwifiex_write_reg_locked(struct sdio_func *func, u32 reg, u8 data)
+{
+	int ret = -1;
+
+	sdio_writeb(func, data, reg, &ret);
+	return ret;
+}
+
+/* This function writes data into SDIO card register.
+ */
+static int
+mwifiex_write_reg(struct mwifiex_adapter *adapter, u32 reg, u8 data)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	int ret;
+
+	sdio_claim_host(card->func);
+	ret = mwifiex_write_reg_locked(card->func, reg, data);
+	sdio_release_host(card->func);
+
+	return ret;
+}
+
+/* This function reads data from SDIO card register.
+ */
+static int
+mwifiex_read_reg(struct mwifiex_adapter *adapter, u32 reg, u8 *data)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	int ret = -1;
+	u8 val;
+
+	sdio_claim_host(card->func);
+	val = sdio_readb(card->func, reg, &ret);
+	sdio_release_host(card->func);
+
+	*data = val;
+
+	return ret;
+}
+
+/* This function writes multiple data into SDIO card memory.
+ *
+ * This does not work in suspended mode.
+ */
+static int
+mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
+			u8 *buffer, u32 pkt_len, u32 port)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	int ret;
+	u8 blk_mode =
+		(port & MWIFIEX_SDIO_BYTE_MODE_MASK) ? BYTE_MODE : BLOCK_MODE;
+	u32 blk_size = (blk_mode == BLOCK_MODE) ? MWIFIEX_SDIO_BLOCK_SIZE : 1;
+	u32 blk_cnt =
+		(blk_mode ==
+		 BLOCK_MODE) ? (pkt_len /
+				MWIFIEX_SDIO_BLOCK_SIZE) : pkt_len;
+	u32 ioport = (port & MWIFIEX_SDIO_IO_PORT_MASK);
+
+	if (adapter->is_suspended) {
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: not allowed while suspended\n", __func__);
+		return -1;
+	}
+
+	sdio_claim_host(card->func);
+
+	ret = sdio_writesb(card->func, ioport, buffer, blk_cnt * blk_size);
+
+	sdio_release_host(card->func);
+
+	return ret;
+}
+
+/* This function reads multiple data from SDIO card memory.
+ */
+static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
+				  u32 len, u32 port, u8 claim)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	int ret;
+	u8 blk_mode = (port & MWIFIEX_SDIO_BYTE_MODE_MASK) ? BYTE_MODE
+		       : BLOCK_MODE;
+	u32 blk_size = (blk_mode == BLOCK_MODE) ? MWIFIEX_SDIO_BLOCK_SIZE : 1;
+	u32 blk_cnt = (blk_mode == BLOCK_MODE) ? (len / MWIFIEX_SDIO_BLOCK_SIZE)
+			: len;
+	u32 ioport = (port & MWIFIEX_SDIO_IO_PORT_MASK);
+
+	if (claim)
+		sdio_claim_host(card->func);
+
+	ret = sdio_readsb(card->func, buffer, ioport, blk_cnt * blk_size);
+
+	if (claim)
+		sdio_release_host(card->func);
+
+	return ret;
+}
+
+/* This function reads the firmware status.
+ */
+static int
+mwifiex_sdio_read_fw_status(struct mwifiex_adapter *adapter, u16 *dat)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
+	u8 fws0, fws1;
+
+	if (mwifiex_read_reg(adapter, reg->status_reg_0, &fws0))
+		return -1;
+
+	if (mwifiex_read_reg(adapter, reg->status_reg_1, &fws1))
+		return -1;
+
+	*dat = (u16)((fws1 << 8) | fws0);
+	return 0;
+}
+
+/* This function checks the firmware status in card.
+ */
+static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
+				   u32 poll_num)
+{
+	int ret = 0;
+	u16 firmware_stat;
+	u32 tries;
+
+	for (tries = 0; tries < poll_num; tries++) {
+		ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
+		if (ret)
+			continue;
+		if (firmware_stat == FIRMWARE_READY_SDIO) {
+			ret = 0;
+			break;
+		}
+
+		msleep(100);
+		ret = -1;
+	}
+
+	return ret;
+}
+
+/* This function checks if WLAN is the winner.
+ */
+static int mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
+{
+	int ret = 0;
+	u8 winner = 0;
+	struct sdio_mmc_card *card = adapter->card;
+
+	if (mwifiex_read_reg(adapter, card->reg->status_reg_0, &winner))
+		return -1;
+
+	if (winner)
+		adapter->winner = 0;
+	else
+		adapter->winner = 1;
+
+	return ret;
+}
+
 /*
  * SDIO remove.
  *
@@ -373,111 +538,6 @@ static struct sdio_driver mwifiex_sdio = {
 		.pm = &mwifiex_sdio_pm_ops,
 	}
 };
-
-/* Write data into SDIO card register. Caller claims SDIO device. */
-static int
-mwifiex_write_reg_locked(struct sdio_func *func, u32 reg, u8 data)
-{
-	int ret = -1;
-	sdio_writeb(func, data, reg, &ret);
-	return ret;
-}
-
-/*
- * This function writes data into SDIO card register.
- */
-static int
-mwifiex_write_reg(struct mwifiex_adapter *adapter, u32 reg, u8 data)
-{
-	struct sdio_mmc_card *card = adapter->card;
-	int ret;
-
-	sdio_claim_host(card->func);
-	ret = mwifiex_write_reg_locked(card->func, reg, data);
-	sdio_release_host(card->func);
-
-	return ret;
-}
-
-/*
- * This function reads data from SDIO card register.
- */
-static int
-mwifiex_read_reg(struct mwifiex_adapter *adapter, u32 reg, u8 *data)
-{
-	struct sdio_mmc_card *card = adapter->card;
-	int ret = -1;
-	u8 val;
-
-	sdio_claim_host(card->func);
-	val = sdio_readb(card->func, reg, &ret);
-	sdio_release_host(card->func);
-
-	*data = val;
-
-	return ret;
-}
-
-/*
- * This function writes multiple data into SDIO card memory.
- *
- * This does not work in suspended mode.
- */
-static int
-mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
-			u8 *buffer, u32 pkt_len, u32 port)
-{
-	struct sdio_mmc_card *card = adapter->card;
-	int ret;
-	u8 blk_mode =
-		(port & MWIFIEX_SDIO_BYTE_MODE_MASK) ? BYTE_MODE : BLOCK_MODE;
-	u32 blk_size = (blk_mode == BLOCK_MODE) ? MWIFIEX_SDIO_BLOCK_SIZE : 1;
-	u32 blk_cnt =
-		(blk_mode ==
-		 BLOCK_MODE) ? (pkt_len /
-				MWIFIEX_SDIO_BLOCK_SIZE) : pkt_len;
-	u32 ioport = (port & MWIFIEX_SDIO_IO_PORT_MASK);
-
-	if (adapter->is_suspended) {
-		mwifiex_dbg(adapter, ERROR,
-			    "%s: not allowed while suspended\n", __func__);
-		return -1;
-	}
-
-	sdio_claim_host(card->func);
-
-	ret = sdio_writesb(card->func, ioport, buffer, blk_cnt * blk_size);
-
-	sdio_release_host(card->func);
-
-	return ret;
-}
-
-/*
- * This function reads multiple data from SDIO card memory.
- */
-static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
-				  u32 len, u32 port, u8 claim)
-{
-	struct sdio_mmc_card *card = adapter->card;
-	int ret;
-	u8 blk_mode = (port & MWIFIEX_SDIO_BYTE_MODE_MASK) ? BYTE_MODE
-		       : BLOCK_MODE;
-	u32 blk_size = (blk_mode == BLOCK_MODE) ? MWIFIEX_SDIO_BLOCK_SIZE : 1;
-	u32 blk_cnt = (blk_mode == BLOCK_MODE) ? (len / MWIFIEX_SDIO_BLOCK_SIZE)
-			: len;
-	u32 ioport = (port & MWIFIEX_SDIO_IO_PORT_MASK);
-
-	if (claim)
-		sdio_claim_host(card->func);
-
-	ret = sdio_readsb(card->func, buffer, ioport, blk_cnt * blk_size);
-
-	if (claim)
-		sdio_release_host(card->func);
-
-	return ret;
-}
 
 /*
  * This function wakes up the card.
@@ -762,27 +822,6 @@ mwifiex_sdio_poll_card_status(struct mwifiex_adapter *adapter, u8 bits)
 		    "poll card status failed, tries = %d\n", tries);
 
 	return -1;
-}
-
-/*
- * This function reads the firmware status.
- */
-static int
-mwifiex_sdio_read_fw_status(struct mwifiex_adapter *adapter, u16 *dat)
-{
-	struct sdio_mmc_card *card = adapter->card;
-	const struct mwifiex_sdio_card_reg *reg = card->reg;
-	u8 fws0, fws1;
-
-	if (mwifiex_read_reg(adapter, reg->status_reg_0, &fws0))
-		return -1;
-
-	if (mwifiex_read_reg(adapter, reg->status_reg_1, &fws1))
-		return -1;
-
-	*dat = (u16) ((fws1 << 8) | fws0);
-
-	return 0;
 }
 
 /*
@@ -1086,51 +1125,6 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 done:
 	sdio_release_host(card->func);
 	kfree(fwbuf);
-	return ret;
-}
-
-/*
- * This function checks the firmware status in card.
- */
-static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
-				   u32 poll_num)
-{
-	int ret = 0;
-	u16 firmware_stat;
-	u32 tries;
-
-	for (tries = 0; tries < poll_num; tries++) {
-		ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
-		if (ret)
-			continue;
-		if (firmware_stat == FIRMWARE_READY_SDIO) {
-			ret = 0;
-			break;
-		} else {
-			msleep(100);
-			ret = -1;
-		}
-	}
-
-	return ret;
-}
-
-/* This function checks if WLAN is the winner.
- */
-static int mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
-{
-	int ret = 0;
-	u8 winner = 0;
-	struct sdio_mmc_card *card = adapter->card;
-
-	if (mwifiex_read_reg(adapter, card->reg->status_reg_0, &winner))
-		return -1;
-
-	if (winner)
-		adapter->winner = 0;
-	else
-		adapter->winner = 1;
-
 	return ret;
 }
 
