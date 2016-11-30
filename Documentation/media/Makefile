@@ -17,6 +17,8 @@ IMAGES = \
 	uapi/v4l/crop.svg \
 	uapi/v4l/fieldseq_bt.svg \
 	uapi/v4l/fieldseq_tb.svg \
+	uapi/v4l/nv12mt.svg \
+	uapi/v4l/nv12mt_example.svg \
 	uapi/v4l/subdev-image-processing-full.svg \
 	uapi/v4l/subdev-image-processing-scaling-multi-source.svg \
 	uapi/v4l/subdev-image-processing-crop.svg \
