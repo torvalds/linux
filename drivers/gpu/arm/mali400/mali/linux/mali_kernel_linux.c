@@ -970,8 +970,7 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 	return err;
 }
 
-
-module_init(mali_module_init);
+late_initcall_sync(mali_module_init);
 module_exit(mali_module_exit);
 
 MODULE_LICENSE(MALI_KERNEL_LINUX_LICENSE);
