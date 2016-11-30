@@ -29,11 +29,16 @@
 #define ADC_CAL			(0x1 << 7)
 #define ADC_CALF		0x2
 #define ADC_12BIT_MODE		(0x2 << 2)
+#define ADC_CONV_MODE_MASK	(0x3 << 2)
 #define ADC_IPG_CLK		0x00
+#define ADC_INPUT_CLK_MASK	0x3
 #define ADC_CLK_DIV_8		(0x03 << 5)
+#define ADC_CLK_DIV_MASK	(0x3 << 5)
 #define ADC_SHORT_SAMPLE_MODE	(0x0 << 4)
+#define ADC_SAMPLE_MODE_MASK	(0x1 << 4)
 #define ADC_HARDWARE_TRIGGER	(0x1 << 13)
 #define ADC_AVGS_SHIFT		14
+#define ADC_AVGS_MASK		(0x3 << 14)
 #define SELECT_CHANNEL_4	0x04
 #define SELECT_CHANNEL_1	0x01
 #define DISABLE_CONVERSION_INT	(0x0 << 7)
@@ -108,10 +113,14 @@ static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 	reinit_completion(&tsc->completion);
 
 	adc_cfg = readl(tsc->adc_regs + REG_ADC_CFG);
+	adc_cfg &= ~(ADC_CONV_MODE_MASK | ADC_INPUT_CLK_MASK);
 	adc_cfg |= ADC_12BIT_MODE | ADC_IPG_CLK;
+	adc_cfg &= ~(ADC_CLK_DIV_MASK | ADC_SAMPLE_MODE_MASK);
 	adc_cfg |= ADC_CLK_DIV_8 | ADC_SHORT_SAMPLE_MODE;
-	if (tsc->average_samples)
+	if (tsc->average_samples) {
+		adc_cfg &= ~ADC_AVGS_MASK;
 		adc_cfg |= (tsc->average_samples - 1) << ADC_AVGS_SHIFT;
+	}
 	adc_cfg &= ~ADC_HARDWARE_TRIGGER;
 	writel(adc_cfg, tsc->adc_regs + REG_ADC_CFG);
 
