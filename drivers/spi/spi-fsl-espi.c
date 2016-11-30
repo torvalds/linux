@@ -124,7 +124,7 @@ static inline u32 fsl_espi_read_reg(struct fsl_espi *espi, int offset)
 
 static inline u16 fsl_espi_read_reg16(struct fsl_espi *espi, int offset)
 {
-	return ioread16(espi->reg_base + offset);
+	return ioread16be(espi->reg_base + offset);
 }
 
 static inline u8 fsl_espi_read_reg8(struct fsl_espi *espi, int offset)
@@ -141,7 +141,7 @@ static inline void fsl_espi_write_reg(struct fsl_espi *espi, int offset,
 static inline void fsl_espi_write_reg16(struct fsl_espi *espi, int offset,
 					u16 val)
 {
-	iowrite16(val, espi->reg_base + offset);
+	iowrite16be(val, espi->reg_base + offset);
 }
 
 static inline void fsl_espi_write_reg8(struct fsl_espi *espi, int offset,
