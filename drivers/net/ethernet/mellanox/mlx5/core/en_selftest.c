@@ -39,7 +39,9 @@ enum {
 	MLX5E_ST_LINK_STATE,
 	MLX5E_ST_LINK_SPEED,
 	MLX5E_ST_HEALTH_INFO,
+#ifdef CONFIG_INET
 	MLX5E_ST_LOOPBACK,
+#endif
 	MLX5E_ST_NUM,
 };
 
@@ -47,7 +49,9 @@ const char mlx5e_self_tests[MLX5E_ST_NUM][ETH_GSTRING_LEN] = {
 	"Link Test",
 	"Speed Test",
 	"Health Test",
+#ifdef CONFIG_INET
 	"Loopback Test",
+#endif
 };
 
 int mlx5e_self_test_num(struct mlx5e_priv *priv)
@@ -93,6 +97,7 @@ static int mlx5e_test_link_speed(struct mlx5e_priv *priv)
 	return 1;
 }
 
+#ifdef CONFIG_INET
 /* loopback test */
 #define MLX5E_TEST_PKT_SIZE (MLX5_MPWRQ_SMALL_PACKET_THRESHOLD - NET_IP_ALIGN)
 static const char mlx5e_test_text[ETH_GSTRING_LEN] = "MLX5E SELF TEST";
@@ -304,12 +309,15 @@ out:
 	kfree(lbtp);
 	return err;
 }
+#endif
 
 static int (*mlx5e_st_func[MLX5E_ST_NUM])(struct mlx5e_priv *) = {
 	mlx5e_test_link_state,
 	mlx5e_test_link_speed,
 	mlx5e_test_health_info,
-	mlx5e_test_loopback
+#ifdef CONFIG_INET
+	mlx5e_test_loopback,
+#endif
 };
 
 void mlx5e_self_test(struct net_device *ndev, struct ethtool_test *etest,
