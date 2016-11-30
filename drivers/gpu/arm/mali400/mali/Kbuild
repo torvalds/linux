@@ -41,8 +41,7 @@ ifneq ($(MALI_PLATFORM),)
 	mali-y += \
 		platform/$(MALI_PLATFORM)/mali_platform.o \
 		platform/$(MALI_PLATFORM)/rk3066.o \
-		platform/$(MALI_PLATFORM)/mali_dvfs.o \
-		platform/$(MALI_PLATFORM)/arm_core_scaling.o
+		platform/$(MALI_PLATFORM)/mali_dvfs.o
 endif
 
 mali-y += \

@@ -32,15 +32,7 @@
 
 #include "mali_kernel_common.h"
 #include "mali_osk.h"
-#include "arm_core_scaling.h"
 #include "mali_platform.h"
-
-/*
- * 是否使能 core_scaling 机制.
- * .DP : core_scaling : 根据当前 mali_utilization_data,
- *			配置 mali_gpu 中具体使用的 pp_core 的个数.
- */
-static int mali_core_scaling_enable;
 
 u32 mali_group_error;
 
@@ -324,7 +316,6 @@ _mali_osk_errcode_t mali_platform_init(struct platform_device *pdev)
 	mali_drv_data->clock_set_lock =
 		_mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,
 				     _MALI_OSK_LOCK_ORDER_UTILIZATION);
-	mali_core_scaling_enable = 1;
 
 	return 0;
 term_clk:
@@ -340,7 +331,6 @@ _mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev)
 
 	mali_remove_sysfs(dev);
 
-	mali_core_scaling_term();
 	mali_clock_term(dev);
 	_mali_osk_mutex_term(drv_data->clock_set_lock);
 
@@ -407,9 +397,6 @@ void mali_gpu_utilization_handler(struct mali_gpu_utilization_data *data)
 {
 	if (data->utilization_pp > 256)
 		return;
-
-	if (mali_core_scaling_enable)
-		mali_core_scaling_update(data);
 
 	/* dev_dbg(mali_dev, "utilization:%d\r\n", data->utilization_pp); */
 
