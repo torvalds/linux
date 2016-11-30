@@ -7,6 +7,8 @@
 #include <linux/irq.h>
 #include <asm/host_ops.h>
 
+static unsigned long long boot_time;
+
 void __ndelay(unsigned long nsecs)
 {
 	unsigned long long start = lkl_ops->time();
@@ -32,6 +34,18 @@ void calibrate_delay(void)
 void read_persistent_clock(struct timespec *ts)
 {
 	*ts = ns_to_timespec(lkl_ops->time());
+}
+
+/*
+ * Scheduler clock - returns current time in nanosec units.
+ *
+ */
+unsigned long long sched_clock(void)
+{
+	if (!boot_time)
+		return 0;
+
+	return lkl_ops->time() - boot_time;
 }
 
 static cycle_t clock_read(struct clocksource *cs)
@@ -124,5 +138,6 @@ void __init time_init(void)
 
 	clockevents_config_and_register(&clockevent, NSEC_PER_SEC, 1, ULONG_MAX);
 
+	boot_time = lkl_ops->time();
 	pr_info("lkl: time and timers initialized (irq%d)\n", timer_irq);
 }
