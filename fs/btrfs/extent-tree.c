@@ -1114,7 +1114,7 @@ static int convert_extent_item_v0(struct btrfs_trans_handle *trans,
 				       BTRFS_BLOCK_FLAG_FULL_BACKREF);
 		bi = (struct btrfs_tree_block_info *)(item + 1);
 		/* FIXME: get first key of the block */
-		memset_extent_buffer(leaf, 0, (unsigned long)bi, sizeof(*bi));
+		memzero_extent_buffer(leaf, (unsigned long)bi, sizeof(*bi));
 		btrfs_set_tree_block_level(leaf, bi, (int)owner);
 	} else {
 		btrfs_set_extent_flags(leaf, item, BTRFS_EXTENT_FLAG_DATA);
@@ -2036,7 +2036,7 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	 */
 	btrfs_bio_counter_inc_blocked(root->fs_info);
 	/* Tell the block device(s) that the sectors can be discarded */
-	ret = btrfs_map_block(root->fs_info, REQ_OP_DISCARD,
+	ret = btrfs_map_block(root->fs_info, BTRFS_MAP_DISCARD,
 			      bytenr, &num_bytes, &bbio, 0);
 	/* Error condition is -ENOMEM */
 	if (!ret) {
@@ -2454,13 +2454,14 @@ select_delayed_ref(struct btrfs_delayed_ref_head *head)
 	 * the extent item from the extent tree, when there still are references
 	 * to add, which would fail because they would not find the extent item.
 	 */
-	list_for_each_entry(ref, &head->ref_list, list) {
-		if (ref->action == BTRFS_ADD_DELAYED_REF)
-			return ref;
-	}
+	if (!list_empty(&head->ref_add_list))
+		return list_first_entry(&head->ref_add_list,
+				struct btrfs_delayed_ref_node, add_list);
 
-	return list_entry(head->ref_list.next, struct btrfs_delayed_ref_node,
-			  list);
+	ref = list_first_entry(&head->ref_list, struct btrfs_delayed_ref_node,
+			       list);
+	ASSERT(list_empty(&ref->add_list));
+	return ref;
 }
 
 /*
@@ -2620,6 +2621,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			actual_count++;
 			ref->in_tree = 0;
 			list_del(&ref->list);
+			if (!list_empty(&ref->add_list))
+				list_del(&ref->add_list);
 		}
 		atomic_dec(&delayed_refs->num_entries);
 
@@ -2826,7 +2829,7 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
 	smp_mb();
 	avg_runtime = fs_info->avg_delayed_ref_runtime;
 	val = num_entries * avg_runtime;
-	if (num_entries * avg_runtime >= NSEC_PER_SEC)
+	if (val >= NSEC_PER_SEC)
 		return 1;
 	if (val >= NSEC_PER_SEC / 2)
 		return 2;
@@ -4322,6 +4325,13 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
  */
 void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	/* Make sure the range is aligned to sectorsize */
+	len = round_up(start + len, root->sectorsize) -
+	      round_down(start, root->sectorsize);
+	start = round_down(start, root->sectorsize);
+
 	btrfs_free_reserved_data_space_noquota(inode, start, len);
 	btrfs_qgroup_free_data(inode, start, len);
 }
@@ -6499,16 +6509,9 @@ void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg)
  * @num_bytes:	The number of bytes in question
  * @delalloc:   The blocks are allocated for the delalloc write
  *
- * This is called by the allocator when it reserves space. Metadata
- * reservations should be called with RESERVE_ALLOC so we do the proper
- * ENOSPC accounting.  For data we handle the reservation through clearing the
- * delalloc bits in the io_tree.  We have to do this since we could end up
- * allocating less disk space for the amount of data we have reserved in the
- * case of compression.
- *
- * If this is a reservation and the block group has become read only we cannot
- * make the reservation and return -EAGAIN, otherwise this function always
- * succeeds.
+ * This is called by the allocator when it reserves space. If this is a
+ * reservation and the block group has become read only we cannot make the
+ * reservation and return -EAGAIN, otherwise this function always succeeds.
  */
 static int btrfs_add_reserved_bytes(struct btrfs_block_group_cache *cache,
 				    u64 ram_bytes, u64 num_bytes, int delalloc)
@@ -8538,220 +8541,6 @@ reada:
 	wc->reada_slot = slot;
 }
 
-static int account_leaf_items(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct extent_buffer *eb)
-{
-	int nr = btrfs_header_nritems(eb);
-	int i, extent_type, ret;
-	struct btrfs_key key;
-	struct btrfs_file_extent_item *fi;
-	u64 bytenr, num_bytes;
-
-	/* We can be called directly from walk_up_proc() */
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags))
-		return 0;
-
-	for (i = 0; i < nr; i++) {
-		btrfs_item_key_to_cpu(eb, &key, i);
-
-		if (key.type != BTRFS_EXTENT_DATA_KEY)
-			continue;
-
-		fi = btrfs_item_ptr(eb, i, struct btrfs_file_extent_item);
-		/* filter out non qgroup-accountable extents  */
-		extent_type = btrfs_file_extent_type(eb, fi);
-
-		if (extent_type == BTRFS_FILE_EXTENT_INLINE)
-			continue;
-
-		bytenr = btrfs_file_extent_disk_bytenr(eb, fi);
-		if (!bytenr)
-			continue;
-
-		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
-
-		ret = btrfs_qgroup_insert_dirty_extent(trans, root->fs_info,
-				bytenr, num_bytes, GFP_NOFS);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
-/*
- * Walk up the tree from the bottom, freeing leaves and any interior
- * nodes which have had all slots visited. If a node (leaf or
- * interior) is freed, the node above it will have it's slot
- * incremented. The root node will never be freed.
- *
- * At the end of this function, we should have a path which has all
- * slots incremented to the next position for a search. If we need to
- * read a new node it will be NULL and the node above it will have the
- * correct slot selected for a later read.
- *
- * If we increment the root nodes slot counter past the number of
- * elements, 1 is returned to signal completion of the search.
- */
-static int adjust_slots_upwards(struct btrfs_root *root,
-				struct btrfs_path *path, int root_level)
-{
-	int level = 0;
-	int nr, slot;
-	struct extent_buffer *eb;
-
-	if (root_level == 0)
-		return 1;
-
-	while (level <= root_level) {
-		eb = path->nodes[level];
-		nr = btrfs_header_nritems(eb);
-		path->slots[level]++;
-		slot = path->slots[level];
-		if (slot >= nr || level == 0) {
-			/*
-			 * Don't free the root -  we will detect this
-			 * condition after our loop and return a
-			 * positive value for caller to stop walking the tree.
-			 */
-			if (level != root_level) {
-				btrfs_tree_unlock_rw(eb, path->locks[level]);
-				path->locks[level] = 0;
-
-				free_extent_buffer(eb);
-				path->nodes[level] = NULL;
-				path->slots[level] = 0;
-			}
-		} else {
-			/*
-			 * We have a valid slot to walk back down
-			 * from. Stop here so caller can process these
-			 * new nodes.
-			 */
-			break;
-		}
-
-		level++;
-	}
-
-	eb = path->nodes[root_level];
-	if (path->slots[root_level] >= btrfs_header_nritems(eb))
-		return 1;
-
-	return 0;
-}
-
-/*
- * root_eb is the subtree root and is locked before this function is called.
- */
-static int account_shared_subtree(struct btrfs_trans_handle *trans,
-				  struct btrfs_root *root,
-				  struct extent_buffer *root_eb,
-				  u64 root_gen,
-				  int root_level)
-{
-	int ret = 0;
-	int level;
-	struct extent_buffer *eb = root_eb;
-	struct btrfs_path *path = NULL;
-
-	BUG_ON(root_level < 0 || root_level > BTRFS_MAX_LEVEL);
-	BUG_ON(root_eb == NULL);
-
-	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags))
-		return 0;
-
-	if (!extent_buffer_uptodate(root_eb)) {
-		ret = btrfs_read_buffer(root_eb, root_gen);
-		if (ret)
-			goto out;
-	}
-
-	if (root_level == 0) {
-		ret = account_leaf_items(trans, root, root_eb);
-		goto out;
-	}
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-	/*
-	 * Walk down the tree.  Missing extent blocks are filled in as
-	 * we go. Metadata is accounted every time we read a new
-	 * extent block.
-	 *
-	 * When we reach a leaf, we account for file extent items in it,
-	 * walk back up the tree (adjusting slot pointers as we go)
-	 * and restart the search process.
-	 */
-	extent_buffer_get(root_eb); /* For path */
-	path->nodes[root_level] = root_eb;
-	path->slots[root_level] = 0;
-	path->locks[root_level] = 0; /* so release_path doesn't try to unlock */
-walk_down:
-	level = root_level;
-	while (level >= 0) {
-		if (path->nodes[level] == NULL) {
-			int parent_slot;
-			u64 child_gen;
-			u64 child_bytenr;
-
-			/* We need to get child blockptr/gen from
-			 * parent before we can read it. */
-			eb = path->nodes[level + 1];
-			parent_slot = path->slots[level + 1];
-			child_bytenr = btrfs_node_blockptr(eb, parent_slot);
-			child_gen = btrfs_node_ptr_generation(eb, parent_slot);
-
-			eb = read_tree_block(root, child_bytenr, child_gen);
-			if (IS_ERR(eb)) {
-				ret = PTR_ERR(eb);
-				goto out;
-			} else if (!extent_buffer_uptodate(eb)) {
-				free_extent_buffer(eb);
-				ret = -EIO;
-				goto out;
-			}
-
-			path->nodes[level] = eb;
-			path->slots[level] = 0;
-
-			btrfs_tree_read_lock(eb);
-			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
-			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
-
-			ret = btrfs_qgroup_insert_dirty_extent(trans,
-					root->fs_info, child_bytenr,
-					root->nodesize, GFP_NOFS);
-			if (ret)
-				goto out;
-		}
-
-		if (level == 0) {
-			ret = account_leaf_items(trans, root, path->nodes[level]);
-			if (ret)
-				goto out;
-
-			/* Nonzero return here means we completed our search */
-			ret = adjust_slots_upwards(root, path, root_level);
-			if (ret)
-				break;
-
-			/* Restart search with new slots */
-			goto walk_down;
-		}
-
-		level--;
-	}
-
-	ret = 0;
-out:
-	btrfs_free_path(path);
-
-	return ret;
-}
-
 /*
  * helper to process tree block while walking down the tree.
  *
@@ -8873,7 +8662,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 	blocksize = root->nodesize;
 
-	next = btrfs_find_tree_block(root->fs_info, bytenr);
+	next = find_extent_buffer(root->fs_info, bytenr);
 	if (!next) {
 		next = btrfs_find_create_tree_block(root, bytenr);
 		if (IS_ERR(next))
@@ -8980,8 +8769,8 @@ skip:
 		}
 
 		if (need_account) {
-			ret = account_shared_subtree(trans, root, next,
-						     generation, level - 1);
+			ret = btrfs_qgroup_trace_subtree(trans, root, next,
+							 generation, level - 1);
 			if (ret) {
 				btrfs_err_rl(root->fs_info,
 					     "Error %d accounting shared subtree. Quota is out of sync, rescan required.",
@@ -9078,7 +8867,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			else
 				ret = btrfs_dec_ref(trans, root, eb, 0);
 			BUG_ON(ret); /* -ENOMEM */
-			ret = account_leaf_items(trans, root, eb);
+			ret = btrfs_qgroup_trace_leaf_items(trans, root, eb);
 			if (ret) {
 				btrfs_err_rl(root->fs_info,
 					     "error %d accounting leaf items. Quota is out of sync, rescan required.",

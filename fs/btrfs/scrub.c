@@ -1334,8 +1334,8 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		 * with a length of PAGE_SIZE, each returned stripe
 		 * represents one mirror
 		 */
-		ret = btrfs_map_sblock(fs_info, REQ_GET_READ_MIRRORS, logical,
-				       &mapped_length, &bbio, 0, 1);
+		ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
+				logical, &mapped_length, &bbio, 0, 1);
 		if (ret || !bbio || mapped_length < sublen) {
 			btrfs_put_bbio(bbio);
 			return -EIO;
@@ -2191,8 +2191,8 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	int ret;
 	int i;
 
-	ret = btrfs_map_sblock(fs_info, REQ_GET_READ_MIRRORS, logical, &length,
-			       &bbio, 0, 1);
+	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
+			&length, &bbio, 0, 1);
 	if (ret || !bbio || !bbio->raid_map)
 		goto bbio_out;
 
@@ -2778,7 +2778,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 		goto out;
 
 	length = sparity->logic_end - sparity->logic_start;
-	ret = btrfs_map_sblock(sctx->dev_root->fs_info, WRITE,
+	ret = btrfs_map_sblock(sctx->dev_root->fs_info, BTRFS_MAP_WRITE,
 			       sparity->logic_start,
 			       &length, &bbio, 0, 1);
 	if (ret || !bbio || !bbio->raid_map)
@@ -2988,8 +2988,9 @@ again:
 
 			mapped_length = extent_len;
 			bbio = NULL;
-			ret = btrfs_map_block(fs_info, READ, extent_logical,
-					      &mapped_length, &bbio, 0);
+			ret = btrfs_map_block(fs_info, BTRFS_MAP_READ,
+					extent_logical, &mapped_length, &bbio,
+					0);
 			if (!ret) {
 				if (!bbio || mapped_length < extent_len)
 					ret = -EIO;
@@ -4076,7 +4077,7 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	mapped_length = extent_len;
-	ret = btrfs_map_block(fs_info, READ, extent_logical,
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, extent_logical,
 			      &mapped_length, &bbio, 0);
 	if (ret || !bbio || mapped_length < extent_len ||
 	    !bbio->stripes[0].dev->bdev) {

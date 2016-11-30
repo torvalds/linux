@@ -30,7 +30,6 @@
 #include <linux/mpage.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
-#include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
 #include <linux/xattr.h>
@@ -1864,7 +1863,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 
 	length = bio->bi_iter.bi_size;
 	map_length = length;
-	ret = btrfs_map_block(root->fs_info, bio_op(bio), logical,
+	ret = btrfs_map_block(root->fs_info, btrfs_op(bio), logical,
 			      &map_length, NULL, 0);
 	if (ret < 0)
 		return ret;
@@ -3103,7 +3102,7 @@ static int __readpage_endio_check(struct inode *inode,
 
 	kaddr = kmap_atomic(page);
 	csum = btrfs_csum_data(kaddr + pgoff, csum,  len);
-	btrfs_csum_final(csum, (char *)&csum);
+	btrfs_csum_final(csum, (u8 *)&csum);
 	if (csum != csum_expected)
 		goto zeroit;
 
@@ -5805,20 +5804,11 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	int slot;
 	unsigned char d_type;
 	int over = 0;
-	u32 di_cur;
-	u32 di_total;
-	u32 di_len;
-	int key_type = BTRFS_DIR_INDEX_KEY;
 	char tmp_name[32];
 	char *name_ptr;
 	int name_len;
-	int is_curr = 0;	/* ctx->pos points to the current index? */
-	bool emitted;
 	bool put = false;
-
-	/* FIXME, use a real flag for deciding about the key type */
-	if (root->fs_info->tree_root == root)
-		key_type = BTRFS_DIR_ITEM_KEY;
+	struct btrfs_key location;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
@@ -5829,14 +5819,11 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 
 	path->reada = READA_FORWARD;
 
-	if (key_type == BTRFS_DIR_INDEX_KEY) {
-		INIT_LIST_HEAD(&ins_list);
-		INIT_LIST_HEAD(&del_list);
-		put = btrfs_readdir_get_delayed_items(inode, &ins_list,
-						      &del_list);
-	}
+	INIT_LIST_HEAD(&ins_list);
+	INIT_LIST_HEAD(&del_list);
+	put = btrfs_readdir_get_delayed_items(inode, &ins_list, &del_list);
 
-	key.type = key_type;
+	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = ctx->pos;
 	key.objectid = btrfs_ino(inode);
 
@@ -5844,7 +5831,6 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	if (ret < 0)
 		goto err;
 
-	emitted = false;
 	while (1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];
@@ -5862,97 +5848,51 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 
 		if (found_key.objectid != key.objectid)
 			break;
-		if (found_key.type != key_type)
+		if (found_key.type != BTRFS_DIR_INDEX_KEY)
 			break;
 		if (found_key.offset < ctx->pos)
 			goto next;
-		if (key_type == BTRFS_DIR_INDEX_KEY &&
-		    btrfs_should_delete_dir_index(&del_list,
-						  found_key.offset))
+		if (btrfs_should_delete_dir_index(&del_list, found_key.offset))
 			goto next;
 
 		ctx->pos = found_key.offset;
-		is_curr = 1;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
-		di_cur = 0;
-		di_total = btrfs_item_size(leaf, item);
+		if (verify_dir_item(root, leaf, di))
+			goto next;
 
-		while (di_cur < di_total) {
-			struct btrfs_key location;
-
-			if (verify_dir_item(root, leaf, di))
-				break;
-
-			name_len = btrfs_dir_name_len(leaf, di);
-			if (name_len <= sizeof(tmp_name)) {
-				name_ptr = tmp_name;
-			} else {
-				name_ptr = kmalloc(name_len, GFP_KERNEL);
-				if (!name_ptr) {
-					ret = -ENOMEM;
-					goto err;
-				}
+		name_len = btrfs_dir_name_len(leaf, di);
+		if (name_len <= sizeof(tmp_name)) {
+			name_ptr = tmp_name;
+		} else {
+			name_ptr = kmalloc(name_len, GFP_KERNEL);
+			if (!name_ptr) {
+				ret = -ENOMEM;
+				goto err;
 			}
-			read_extent_buffer(leaf, name_ptr,
-					   (unsigned long)(di + 1), name_len);
-
-			d_type = btrfs_filetype_table[btrfs_dir_type(leaf, di)];
-			btrfs_dir_item_key_to_cpu(leaf, di, &location);
-
-
-			/* is this a reference to our own snapshot? If so
-			 * skip it.
-			 *
-			 * In contrast to old kernels, we insert the snapshot's
-			 * dir item and dir index after it has been created, so
-			 * we won't find a reference to our own snapshot. We
-			 * still keep the following code for backward
-			 * compatibility.
-			 */
-			if (location.type == BTRFS_ROOT_ITEM_KEY &&
-			    location.objectid == root->root_key.objectid) {
-				over = 0;
-				goto skip;
-			}
-			over = !dir_emit(ctx, name_ptr, name_len,
-				       location.objectid, d_type);
-
-skip:
-			if (name_ptr != tmp_name)
-				kfree(name_ptr);
-
-			if (over)
-				goto nopos;
-			emitted = true;
-			di_len = btrfs_dir_name_len(leaf, di) +
-				 btrfs_dir_data_len(leaf, di) + sizeof(*di);
-			di_cur += di_len;
-			di = (struct btrfs_dir_item *)((char *)di + di_len);
 		}
+		read_extent_buffer(leaf, name_ptr, (unsigned long)(di + 1),
+				   name_len);
+
+		d_type = btrfs_filetype_table[btrfs_dir_type(leaf, di)];
+		btrfs_dir_item_key_to_cpu(leaf, di, &location);
+
+		over = !dir_emit(ctx, name_ptr, name_len, location.objectid,
+				 d_type);
+
+		if (name_ptr != tmp_name)
+			kfree(name_ptr);
+
+		if (over)
+			goto nopos;
+		ctx->pos++;
 next:
 		path->slots[0]++;
 	}
 
-	if (key_type == BTRFS_DIR_INDEX_KEY) {
-		if (is_curr)
-			ctx->pos++;
-		ret = btrfs_readdir_delayed_dir_index(ctx, &ins_list, &emitted);
-		if (ret)
-			goto nopos;
-	}
-
-	/*
-	 * If we haven't emitted any dir entry, we must not touch ctx->pos as
-	 * it was was set to the termination value in previous call. We assume
-	 * that "." and ".." were emitted if we reach this point and set the
-	 * termination value as well for an empty directory.
-	 */
-	if (ctx->pos > 2 && !emitted)
+	ret = btrfs_readdir_delayed_dir_index(ctx, &ins_list);
+	if (ret)
 		goto nopos;
-
-	/* Reached end of directory/root. Bump pos past the last item. */
-	ctx->pos++;
 
 	/*
 	 * Stop new entries from being returned after we return the last
@@ -5971,12 +5911,10 @@ next:
 	 * last entry requires it because doing so has broken 32bit apps
 	 * in the past.
 	 */
-	if (key_type == BTRFS_DIR_INDEX_KEY) {
-		if (ctx->pos >= INT_MAX)
-			ctx->pos = LLONG_MAX;
-		else
-			ctx->pos = INT_MAX;
-	}
+	if (ctx->pos >= INT_MAX)
+		ctx->pos = LLONG_MAX;
+	else
+		ctx->pos = INT_MAX;
 nopos:
 	ret = 0;
 err:
@@ -6277,7 +6215,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 
 	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				  struct btrfs_inode_item);
-	memset_extent_buffer(path->nodes[0], 0, (unsigned long)inode_item,
+	memzero_extent_buffer(path->nodes[0], (unsigned long)inode_item,
 			     sizeof(*inode_item));
 	fill_inode_item(trans, path->nodes[0], inode_item, inode);
 
@@ -7049,11 +6987,11 @@ insert:
 		 * extent causing the -EEXIST.
 		 */
 		if (existing->start == em->start &&
-		    extent_map_end(existing) == extent_map_end(em) &&
+		    extent_map_end(existing) >= extent_map_end(em) &&
 		    em->block_start == existing->block_start) {
 			/*
-			 * these two extents are the same, it happens
-			 * with inlines especially
+			 * The existing extent map already encompasses the
+			 * entire extent map we tried to add.
 			 */
 			free_extent_map(em);
 			em = existing;
@@ -7783,10 +7721,12 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	}
 
 	/*
-	 * this will cow the extent, reset the len in case we changed
-	 * it above
+	 * this will cow the extent, if em is within [start, len], then
+	 * probably we've found a preallocated/existing extent, let's
+	 * give it a chance to use preallocated space.
 	 */
-	len = bh_result->b_size;
+	len = min_t(u64, bh_result->b_size, em->len - (start - em->start));
+	len = ALIGN(len, root->sectorsize);
 	free_extent_map(em);
 	em = btrfs_new_extent_direct(inode, start, len);
 	if (IS_ERR(em)) {
@@ -8394,7 +8334,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct bio *bio;
 	struct bio *orig_bio = dip->orig_bio;
-	struct bio_vec *bvec = orig_bio->bi_io_vec;
+	struct bio_vec *bvec;
 	u64 start_sector = orig_bio->bi_iter.bi_sector;
 	u64 file_offset = dip->logical_offset;
 	u64 submit_len = 0;
@@ -8403,10 +8343,10 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	int async_submit = 0;
 	int nr_sectors;
 	int ret;
-	int i;
+	int i, j;
 
 	map_length = orig_bio->bi_iter.bi_size;
-	ret = btrfs_map_block(root->fs_info, bio_op(orig_bio),
+	ret = btrfs_map_block(root->fs_info, btrfs_op(orig_bio),
 			      start_sector << 9, &map_length, NULL, 0);
 	if (ret)
 		return -EIO;
@@ -8433,7 +8373,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	btrfs_io_bio(bio)->logical = file_offset;
 	atomic_inc(&dip->pending_bios);
 
-	while (bvec <= (orig_bio->bi_io_vec + orig_bio->bi_vcnt - 1)) {
+	bio_for_each_segment_all(bvec, orig_bio, j) {
 		nr_sectors = BTRFS_BYTES_TO_BLKS(root->fs_info, bvec->bv_len);
 		i = 0;
 next_block:
@@ -8472,7 +8412,7 @@ next_block:
 			btrfs_io_bio(bio)->logical = file_offset;
 
 			map_length = orig_bio->bi_iter.bi_size;
-			ret = btrfs_map_block(root->fs_info, bio_op(orig_bio),
+			ret = btrfs_map_block(root->fs_info, btrfs_op(orig_bio),
 					      start_sector << 9,
 					      &map_length, NULL, 0);
 			if (ret) {
@@ -8487,7 +8427,6 @@ next_block:
 				i++;
 				goto next_block;
 			}
-			bvec++;
 		}
 	}
 

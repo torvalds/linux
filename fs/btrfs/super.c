@@ -2086,10 +2086,6 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	u64 thresh = 0;
 	int mixed = 0;
 
-	/*
-	 * holding chunk_mutex to avoid allocating new chunks, holding
-	 * device_list_mutex to avoid the device being removed
-	 */
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_DATA) {

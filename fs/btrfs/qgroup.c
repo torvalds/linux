@@ -131,8 +131,15 @@ struct btrfs_qgroup_list {
 	struct btrfs_qgroup *member;
 };
 
-#define ptr_to_u64(x) ((u64)(uintptr_t)x)
-#define u64_to_ptr(x) ((struct btrfs_qgroup *)(uintptr_t)x)
+static inline u64 qgroup_to_aux(struct btrfs_qgroup *qg)
+{
+	return (u64)(uintptr_t)qg;
+}
+
+static inline struct btrfs_qgroup* unode_aux_to_qgroup(struct ulist_node *n)
+{
+	return (struct btrfs_qgroup *)(uintptr_t)n->aux;
+}
 
 static int
 qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
@@ -1066,7 +1073,7 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	/* Get all of the parent groups that contain this qgroup */
 	list_for_each_entry(glist, &qgroup->groups, next_group) {
 		ret = ulist_add(tmp, glist->group->qgroupid,
-				ptr_to_u64(glist->group), GFP_ATOMIC);
+				qgroup_to_aux(glist->group), GFP_ATOMIC);
 		if (ret < 0)
 			goto out;
 	}
@@ -1074,7 +1081,7 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	/* Iterate all of the parents and adjust their reference counts */
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(tmp, &uiter))) {
-		qgroup = u64_to_ptr(unode->aux);
+		qgroup = unode_aux_to_qgroup(unode);
 		qgroup->rfer += sign * num_bytes;
 		qgroup->rfer_cmpr += sign * num_bytes;
 		WARN_ON(sign < 0 && qgroup->excl < num_bytes);
@@ -1087,7 +1094,7 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 		/* Add any parents of the parents */
 		list_for_each_entry(glist, &qgroup->groups, next_group) {
 			ret = ulist_add(tmp, glist->group->qgroupid,
-					ptr_to_u64(glist->group), GFP_ATOMIC);
+					qgroup_to_aux(glist->group), GFP_ATOMIC);
 			if (ret < 0)
 				goto out;
 		}
@@ -1450,7 +1457,7 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int btrfs_qgroup_insert_dirty_extent_nolock(struct btrfs_fs_info *fs_info,
+int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 				struct btrfs_delayed_ref_root *delayed_refs,
 				struct btrfs_qgroup_extent_record *record)
 {
@@ -1460,7 +1467,7 @@ int btrfs_qgroup_insert_dirty_extent_nolock(struct btrfs_fs_info *fs_info,
 	u64 bytenr = record->bytenr;
 
 	assert_spin_locked(&delayed_refs->lock);
-	trace_btrfs_qgroup_insert_dirty_extent(fs_info, record);
+	trace_btrfs_qgroup_trace_extent(fs_info, record);
 
 	while (*p) {
 		parent_node = *p;
@@ -1479,7 +1486,7 @@ int btrfs_qgroup_insert_dirty_extent_nolock(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_qgroup_insert_dirty_extent(struct btrfs_trans_handle *trans,
+int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
 		gfp_t gfp_flag)
 {
@@ -1502,12 +1509,225 @@ int btrfs_qgroup_insert_dirty_extent(struct btrfs_trans_handle *trans,
 	record->old_roots = NULL;
 
 	spin_lock(&delayed_refs->lock);
-	ret = btrfs_qgroup_insert_dirty_extent_nolock(fs_info, delayed_refs,
+	ret = btrfs_qgroup_trace_extent_nolock(fs_info, delayed_refs,
 						      record);
 	spin_unlock(&delayed_refs->lock);
 	if (ret > 0)
 		kfree(record);
 	return 0;
+}
+
+int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  struct extent_buffer *eb)
+{
+	int nr = btrfs_header_nritems(eb);
+	int i, extent_type, ret;
+	struct btrfs_key key;
+	struct btrfs_file_extent_item *fi;
+	u64 bytenr, num_bytes;
+
+	/* We can be called directly from walk_up_proc() */
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags))
+		return 0;
+
+	for (i = 0; i < nr; i++) {
+		btrfs_item_key_to_cpu(eb, &key, i);
+
+		if (key.type != BTRFS_EXTENT_DATA_KEY)
+			continue;
+
+		fi = btrfs_item_ptr(eb, i, struct btrfs_file_extent_item);
+		/* filter out non qgroup-accountable extents  */
+		extent_type = btrfs_file_extent_type(eb, fi);
+
+		if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+			continue;
+
+		bytenr = btrfs_file_extent_disk_bytenr(eb, fi);
+		if (!bytenr)
+			continue;
+
+		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
+
+		ret = btrfs_qgroup_trace_extent(trans, root->fs_info,
+						bytenr, num_bytes, GFP_NOFS);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+/*
+ * Walk up the tree from the bottom, freeing leaves and any interior
+ * nodes which have had all slots visited. If a node (leaf or
+ * interior) is freed, the node above it will have it's slot
+ * incremented. The root node will never be freed.
+ *
+ * At the end of this function, we should have a path which has all
+ * slots incremented to the next position for a search. If we need to
+ * read a new node it will be NULL and the node above it will have the
+ * correct slot selected for a later read.
+ *
+ * If we increment the root nodes slot counter past the number of
+ * elements, 1 is returned to signal completion of the search.
+ */
+static int adjust_slots_upwards(struct btrfs_root *root,
+				struct btrfs_path *path, int root_level)
+{
+	int level = 0;
+	int nr, slot;
+	struct extent_buffer *eb;
+
+	if (root_level == 0)
+		return 1;
+
+	while (level <= root_level) {
+		eb = path->nodes[level];
+		nr = btrfs_header_nritems(eb);
+		path->slots[level]++;
+		slot = path->slots[level];
+		if (slot >= nr || level == 0) {
+			/*
+			 * Don't free the root -  we will detect this
+			 * condition after our loop and return a
+			 * positive value for caller to stop walking the tree.
+			 */
+			if (level != root_level) {
+				btrfs_tree_unlock_rw(eb, path->locks[level]);
+				path->locks[level] = 0;
+
+				free_extent_buffer(eb);
+				path->nodes[level] = NULL;
+				path->slots[level] = 0;
+			}
+		} else {
+			/*
+			 * We have a valid slot to walk back down
+			 * from. Stop here so caller can process these
+			 * new nodes.
+			 */
+			break;
+		}
+
+		level++;
+	}
+
+	eb = path->nodes[root_level];
+	if (path->slots[root_level] >= btrfs_header_nritems(eb))
+		return 1;
+
+	return 0;
+}
+
+int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *root_eb,
+			       u64 root_gen, int root_level)
+{
+	int ret = 0;
+	int level;
+	struct extent_buffer *eb = root_eb;
+	struct btrfs_path *path = NULL;
+
+	BUG_ON(root_level < 0 || root_level > BTRFS_MAX_LEVEL);
+	BUG_ON(root_eb == NULL);
+
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &root->fs_info->flags))
+		return 0;
+
+	if (!extent_buffer_uptodate(root_eb)) {
+		ret = btrfs_read_buffer(root_eb, root_gen);
+		if (ret)
+			goto out;
+	}
+
+	if (root_level == 0) {
+		ret = btrfs_qgroup_trace_leaf_items(trans, root, root_eb);
+		goto out;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	/*
+	 * Walk down the tree.  Missing extent blocks are filled in as
+	 * we go. Metadata is accounted every time we read a new
+	 * extent block.
+	 *
+	 * When we reach a leaf, we account for file extent items in it,
+	 * walk back up the tree (adjusting slot pointers as we go)
+	 * and restart the search process.
+	 */
+	extent_buffer_get(root_eb); /* For path */
+	path->nodes[root_level] = root_eb;
+	path->slots[root_level] = 0;
+	path->locks[root_level] = 0; /* so release_path doesn't try to unlock */
+walk_down:
+	level = root_level;
+	while (level >= 0) {
+		if (path->nodes[level] == NULL) {
+			int parent_slot;
+			u64 child_gen;
+			u64 child_bytenr;
+
+			/*
+			 * We need to get child blockptr/gen from parent before
+			 * we can read it.
+			  */
+			eb = path->nodes[level + 1];
+			parent_slot = path->slots[level + 1];
+			child_bytenr = btrfs_node_blockptr(eb, parent_slot);
+			child_gen = btrfs_node_ptr_generation(eb, parent_slot);
+
+			eb = read_tree_block(root, child_bytenr, child_gen);
+			if (IS_ERR(eb)) {
+				ret = PTR_ERR(eb);
+				goto out;
+			} else if (!extent_buffer_uptodate(eb)) {
+				free_extent_buffer(eb);
+				ret = -EIO;
+				goto out;
+			}
+
+			path->nodes[level] = eb;
+			path->slots[level] = 0;
+
+			btrfs_tree_read_lock(eb);
+			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
+
+			ret = btrfs_qgroup_trace_extent(trans,
+					root->fs_info, child_bytenr,
+					root->nodesize, GFP_NOFS);
+			if (ret)
+				goto out;
+		}
+
+		if (level == 0) {
+			ret = btrfs_qgroup_trace_leaf_items(trans, root,
+					path->nodes[level]);
+			if (ret)
+				goto out;
+
+			/* Nonzero return here means we completed our search */
+			ret = adjust_slots_upwards(root, path, root_level);
+			if (ret)
+				break;
+
+			/* Restart search with new slots */
+			goto walk_down;
+		}
+
+		level--;
+	}
+
+	ret = 0;
+out:
+	btrfs_free_path(path);
+
+	return ret;
 }
 
 #define UPDATE_NEW	0
@@ -1535,30 +1755,30 @@ static int qgroup_update_refcnt(struct btrfs_fs_info *fs_info,
 			continue;
 
 		ulist_reinit(tmp);
-		ret = ulist_add(qgroups, qg->qgroupid, ptr_to_u64(qg),
+		ret = ulist_add(qgroups, qg->qgroupid, qgroup_to_aux(qg),
 				GFP_ATOMIC);
 		if (ret < 0)
 			return ret;
-		ret = ulist_add(tmp, qg->qgroupid, ptr_to_u64(qg), GFP_ATOMIC);
+		ret = ulist_add(tmp, qg->qgroupid, qgroup_to_aux(qg), GFP_ATOMIC);
 		if (ret < 0)
 			return ret;
 		ULIST_ITER_INIT(&tmp_uiter);
 		while ((tmp_unode = ulist_next(tmp, &tmp_uiter))) {
 			struct btrfs_qgroup_list *glist;
 
-			qg = u64_to_ptr(tmp_unode->aux);
+			qg = unode_aux_to_qgroup(tmp_unode);
 			if (update_old)
 				btrfs_qgroup_update_old_refcnt(qg, seq, 1);
 			else
 				btrfs_qgroup_update_new_refcnt(qg, seq, 1);
 			list_for_each_entry(glist, &qg->groups, next_group) {
 				ret = ulist_add(qgroups, glist->group->qgroupid,
-						ptr_to_u64(glist->group),
+						qgroup_to_aux(glist->group),
 						GFP_ATOMIC);
 				if (ret < 0)
 					return ret;
 				ret = ulist_add(tmp, glist->group->qgroupid,
-						ptr_to_u64(glist->group),
+						qgroup_to_aux(glist->group),
 						GFP_ATOMIC);
 				if (ret < 0)
 					return ret;
@@ -1619,7 +1839,7 @@ static int qgroup_update_counters(struct btrfs_fs_info *fs_info,
 	while ((unode = ulist_next(qgroups, &uiter))) {
 		bool dirty = false;
 
-		qg = u64_to_ptr(unode->aux);
+		qg = unode_aux_to_qgroup(unode);
 		cur_old_count = btrfs_qgroup_get_old_refcnt(qg, seq);
 		cur_new_count = btrfs_qgroup_get_new_refcnt(qg, seq);
 
@@ -2125,7 +2345,7 @@ static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 		struct btrfs_qgroup *qg;
 		struct btrfs_qgroup_list *glist;
 
-		qg = u64_to_ptr(unode->aux);
+		qg = unode_aux_to_qgroup(unode);
 
 		if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
 		    qg->reserved + (s64)qg->rfer + num_bytes >
@@ -2157,7 +2377,7 @@ static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 	while ((unode = ulist_next(fs_info->qgroup_ulist, &uiter))) {
 		struct btrfs_qgroup *qg;
 
-		qg = u64_to_ptr(unode->aux);
+		qg = unode_aux_to_qgroup(unode);
 
 		qg->reserved += num_bytes;
 	}
@@ -2202,7 +2422,7 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 		struct btrfs_qgroup *qg;
 		struct btrfs_qgroup_list *glist;
 
-		qg = u64_to_ptr(unode->aux);
+		qg = unode_aux_to_qgroup(unode);
 
 		qg->reserved -= num_bytes;
 

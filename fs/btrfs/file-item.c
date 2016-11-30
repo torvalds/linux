@@ -163,7 +163,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 				   struct inode *inode, struct bio *bio,
 				   u64 logical_offset, u32 *dst, int dio)
 {
-	struct bio_vec *bvec = bio->bi_io_vec;
+	struct bio_vec *bvec;
 	struct btrfs_io_bio *btrfs_bio = btrfs_io_bio(bio);
 	struct btrfs_csum_item *item = NULL;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
@@ -176,8 +176,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	u64 page_bytes_left;
 	u32 diff;
 	int nblocks;
-	int bio_index = 0;
-	int count;
+	int count = 0, i;
 	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
 
 	path = btrfs_alloc_path();
@@ -223,8 +222,11 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	if (dio)
 		offset = logical_offset;
 
-	page_bytes_left = bvec->bv_len;
-	while (bio_index < bio->bi_vcnt) {
+	bio_for_each_segment_all(bvec, bio, i) {
+		page_bytes_left = bvec->bv_len;
+		if (count)
+			goto next;
+
 		if (!dio)
 			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 		count = btrfs_find_ordered_sum(inode, offset, disk_bytenr,
@@ -285,29 +287,17 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 found:
 		csum += count * csum_size;
 		nblocks -= count;
-
+next:
 		while (count--) {
 			disk_bytenr += root->sectorsize;
 			offset += root->sectorsize;
 			page_bytes_left -= root->sectorsize;
-			if (!page_bytes_left) {
-				bio_index++;
-				/*
-				 * make sure we're still inside the
-				 * bio before we update page_bytes_left
-				 */
-				if (bio_index >= bio->bi_vcnt) {
-					WARN_ON_ONCE(count);
-					goto done;
-				}
-				bvec++;
-				page_bytes_left = bvec->bv_len;
-			}
-
+			if (!page_bytes_left)
+				break; /* move to next bio */
 		}
 	}
 
-done:
+	WARN_ON_ONCE(count);
 	btrfs_free_path(path);
 	return 0;
 }
@@ -447,13 +437,12 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		       struct bio *bio, u64 file_start, int contig)
 {
 	struct btrfs_ordered_sum *sums;
-	struct btrfs_ordered_extent *ordered;
+	struct btrfs_ordered_extent *ordered = NULL;
 	char *data;
-	struct bio_vec *bvec = bio->bi_io_vec;
-	int bio_index = 0;
+	struct bio_vec *bvec;
 	int index;
 	int nr_sectors;
-	int i;
+	int i, j;
 	unsigned long total_bytes = 0;
 	unsigned long this_sum_bytes = 0;
 	u64 offset;
@@ -470,16 +459,19 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 	if (contig)
 		offset = file_start;
 	else
-		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+		offset = 0; /* shut up gcc */
 
-	ordered = btrfs_lookup_ordered_extent(inode, offset);
-	BUG_ON(!ordered); /* Logic error */
 	sums->bytenr = (u64)bio->bi_iter.bi_sector << 9;
 	index = 0;
 
-	while (bio_index < bio->bi_vcnt) {
+	bio_for_each_segment_all(bvec, bio, j) {
 		if (!contig)
 			offset = page_offset(bvec->bv_page) + bvec->bv_offset;
+
+		if (!ordered) {
+			ordered = btrfs_lookup_ordered_extent(inode, offset);
+			BUG_ON(!ordered); /* Logic error */
+		}
 
 		data = kmap_atomic(bvec->bv_page);
 
@@ -529,9 +521,6 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		}
 
 		kunmap_atomic(data);
-
-		bio_index++;
-		bvec++;
 	}
 	this_sum_bytes = 0;
 	btrfs_add_ordered_sum(inode, ordered, sums);
@@ -689,7 +678,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 			item_offset = btrfs_item_ptr_offset(leaf,
 							    path->slots[0]);
 
-			memset_extent_buffer(leaf, 0, item_offset + offset,
+			memzero_extent_buffer(leaf, item_offset + offset,
 					     shift_len);
 			key.offset = bytenr;
 

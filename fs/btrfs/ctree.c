@@ -260,7 +260,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
-	copy_extent_buffer(cow, buf, 0, 0, cow->len);
+	copy_extent_buffer_full(cow, buf);
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_backref_rev(cow, BTRFS_MIXED_BACKREF_REV);
@@ -271,8 +271,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	else
 		btrfs_set_header_owner(cow, new_root_objectid);
 
-	write_extent_buffer(cow, root->fs_info->fsid, btrfs_header_fsid(),
-			    BTRFS_FSID_SIZE);
+	write_extent_buffer_fsid(cow, root->fs_info->fsid);
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID)
@@ -1130,7 +1129,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	/* cow is set to blocking by btrfs_init_new_buffer */
 
-	copy_extent_buffer(cow, buf, 0, 0, cow->len);
+	copy_extent_buffer_full(cow, buf);
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_backref_rev(cow, BTRFS_MIXED_BACKREF_REV);
@@ -1141,8 +1140,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	else
 		btrfs_set_header_owner(cow, root->root_key.objectid);
 
-	write_extent_buffer(cow, root->fs_info->fsid, btrfs_header_fsid(),
-			    BTRFS_FSID_SIZE);
+	write_extent_buffer_fsid(cow, root->fs_info->fsid);
 
 	ret = update_ref_for_cow(trans, root, buf, cow, &last_ref);
 	if (ret) {
@@ -1670,7 +1668,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			continue;
 		}
 
-		cur = btrfs_find_tree_block(root->fs_info, blocknr);
+		cur = find_extent_buffer(root->fs_info, blocknr);
 		if (cur)
 			uptodate = btrfs_buffer_uptodate(cur, gen, 0);
 		else
@@ -2255,7 +2253,7 @@ static void reada_for_search(struct btrfs_root *root,
 
 	search = btrfs_node_blockptr(node, slot);
 	blocksize = root->nodesize;
-	eb = btrfs_find_tree_block(root->fs_info, search);
+	eb = find_extent_buffer(root->fs_info, search);
 	if (eb) {
 		free_extent_buffer(eb);
 		return;
@@ -2314,7 +2312,7 @@ static noinline void reada_for_balance(struct btrfs_root *root,
 	if (slot > 0) {
 		block1 = btrfs_node_blockptr(parent, slot - 1);
 		gen = btrfs_node_ptr_generation(parent, slot - 1);
-		eb = btrfs_find_tree_block(root->fs_info, block1);
+		eb = find_extent_buffer(root->fs_info, block1);
 		/*
 		 * if we get -eagain from btrfs_buffer_uptodate, we
 		 * don't want to return eagain here.  That will loop
@@ -2327,7 +2325,7 @@ static noinline void reada_for_balance(struct btrfs_root *root,
 	if (slot + 1 < nritems) {
 		block2 = btrfs_node_blockptr(parent, slot + 1);
 		gen = btrfs_node_ptr_generation(parent, slot + 1);
-		eb = btrfs_find_tree_block(root->fs_info, block2);
+		eb = find_extent_buffer(root->fs_info, block2);
 		if (eb && btrfs_buffer_uptodate(eb, gen, 1) != 0)
 			block2 = 0;
 		free_extent_buffer(eb);
@@ -2445,7 +2443,7 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	blocknr = btrfs_node_blockptr(b, slot);
 	gen = btrfs_node_ptr_generation(b, slot);
 
-	tmp = btrfs_find_tree_block(root->fs_info, blocknr);
+	tmp = find_extent_buffer(root->fs_info, blocknr);
 	if (tmp) {
 		/* first we do an atomic uptodate check */
 		if (btrfs_buffer_uptodate(tmp, gen, 1) > 0) {
@@ -3350,7 +3348,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	root_add_used(root, root->nodesize);
 
-	memset_extent_buffer(c, 0, 0, sizeof(struct btrfs_header));
+	memzero_extent_buffer(c, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_nritems(c, 1);
 	btrfs_set_header_level(c, level);
 	btrfs_set_header_bytenr(c, c->start);
@@ -3358,11 +3356,8 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	btrfs_set_header_backref_rev(c, BTRFS_MIXED_BACKREF_REV);
 	btrfs_set_header_owner(c, root->root_key.objectid);
 
-	write_extent_buffer(c, root->fs_info->fsid, btrfs_header_fsid(),
-			    BTRFS_FSID_SIZE);
-
-	write_extent_buffer(c, root->fs_info->chunk_tree_uuid,
-			    btrfs_header_chunk_tree_uuid(c), BTRFS_UUID_SIZE);
+	write_extent_buffer_fsid(c, root->fs_info->fsid);
+	write_extent_buffer_chunk_tree_uuid(c, root->fs_info->chunk_tree_uuid);
 
 	btrfs_set_node_key(c, &lower_key, 0);
 	btrfs_set_node_blockptr(c, 0, lower->start);
@@ -3489,17 +3484,15 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 
 	root_add_used(root, root->nodesize);
 
-	memset_extent_buffer(split, 0, 0, sizeof(struct btrfs_header));
+	memzero_extent_buffer(split, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_level(split, btrfs_header_level(c));
 	btrfs_set_header_bytenr(split, split->start);
 	btrfs_set_header_generation(split, trans->transid);
 	btrfs_set_header_backref_rev(split, BTRFS_MIXED_BACKREF_REV);
 	btrfs_set_header_owner(split, root->root_key.objectid);
-	write_extent_buffer(split, root->fs_info->fsid,
-			    btrfs_header_fsid(), BTRFS_FSID_SIZE);
-	write_extent_buffer(split, root->fs_info->chunk_tree_uuid,
-			    btrfs_header_chunk_tree_uuid(split),
-			    BTRFS_UUID_SIZE);
+	write_extent_buffer_fsid(split, root->fs_info->fsid);
+	write_extent_buffer_chunk_tree_uuid(split,
+			root->fs_info->chunk_tree_uuid);
 
 	ret = tree_mod_log_eb_copy(root->fs_info, split, c, 0,
 				   mid, c_nritems - mid);
@@ -4277,18 +4270,14 @@ again:
 
 	root_add_used(root, root->nodesize);
 
-	memset_extent_buffer(right, 0, 0, sizeof(struct btrfs_header));
+	memzero_extent_buffer(right, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_bytenr(right, right->start);
 	btrfs_set_header_generation(right, trans->transid);
 	btrfs_set_header_backref_rev(right, BTRFS_MIXED_BACKREF_REV);
 	btrfs_set_header_owner(right, root->root_key.objectid);
 	btrfs_set_header_level(right, 0);
-	write_extent_buffer(right, fs_info->fsid,
-			    btrfs_header_fsid(), BTRFS_FSID_SIZE);
-
-	write_extent_buffer(right, fs_info->chunk_tree_uuid,
-			    btrfs_header_chunk_tree_uuid(right),
-			    BTRFS_UUID_SIZE);
+	write_extent_buffer_fsid(right, fs_info->fsid);
+	write_extent_buffer_chunk_tree_uuid(right, fs_info->chunk_tree_uuid);
 
 	if (split == 0) {
 		if (mid <= slot) {

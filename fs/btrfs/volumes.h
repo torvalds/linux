@@ -371,14 +371,35 @@ struct btrfs_balance_control {
 	struct btrfs_balance_progress stat;
 };
 
+enum btrfs_map_op {
+	BTRFS_MAP_READ,
+	BTRFS_MAP_WRITE,
+	BTRFS_MAP_DISCARD,
+	BTRFS_MAP_GET_READ_MIRRORS,
+};
+
+static inline enum btrfs_map_op btrfs_op(struct bio *bio)
+{
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+		return BTRFS_MAP_DISCARD;
+	case REQ_OP_WRITE:
+		return BTRFS_MAP_WRITE;
+	default:
+		WARN_ON_ONCE(1);
+	case REQ_OP_READ:
+		return BTRFS_MAP_READ;
+	}
+}
+
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
 void btrfs_get_bbio(struct btrfs_bio *bbio);
 void btrfs_put_bbio(struct btrfs_bio *bbio);
-int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
+int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    u64 logical, u64 *length,
 		    struct btrfs_bio **bbio_ret, int mirror_num);
-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_bio **bbio_ret, int mirror_num,
 		     int need_raid_map);

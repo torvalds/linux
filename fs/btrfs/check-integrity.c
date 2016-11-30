@@ -1539,7 +1539,7 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	struct btrfs_device *device;
 
 	length = len;
-	ret = btrfs_map_block(state->root->fs_info, READ,
+	ret = btrfs_map_block(state->root->fs_info, BTRFS_MAP_READ,
 			      bytenr, &length, &multi, mirror_num);
 
 	if (ret) {
@@ -2819,10 +2819,11 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	 * btrfsic_mount(), this might return NULL */
 	dev_state = btrfsic_dev_state_lookup(bio->bi_bdev);
 	if (NULL != dev_state &&
-	    (bio_op(bio) == REQ_OP_WRITE) && NULL != bio->bi_io_vec) {
+	    (bio_op(bio) == REQ_OP_WRITE) && bio_has_data(bio)) {
 		unsigned int i;
 		u64 dev_bytenr;
 		u64 cur_bytenr;
+		struct bio_vec *bvec;
 		int bio_is_patched;
 		char **mapped_datav;
 
@@ -2840,32 +2841,23 @@ static void __btrfsic_submit_bio(struct bio *bio)
 		if (!mapped_datav)
 			goto leave;
 		cur_bytenr = dev_bytenr;
-		for (i = 0; i < bio->bi_vcnt; i++) {
-			BUG_ON(bio->bi_io_vec[i].bv_len != PAGE_SIZE);
-			mapped_datav[i] = kmap(bio->bi_io_vec[i].bv_page);
-			if (!mapped_datav[i]) {
-				while (i > 0) {
-					i--;
-					kunmap(bio->bi_io_vec[i].bv_page);
-				}
-				kfree(mapped_datav);
-				goto leave;
-			}
+
+		bio_for_each_segment_all(bvec, bio, i) {
+			BUG_ON(bvec->bv_len != PAGE_SIZE);
+			mapped_datav[i] = kmap(bvec->bv_page);
+
 			if (dev_state->state->print_mask &
 			    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH_VERBOSE)
 				pr_info("#%u: bytenr=%llu, len=%u, offset=%u\n",
-				       i, cur_bytenr, bio->bi_io_vec[i].bv_len,
-				       bio->bi_io_vec[i].bv_offset);
-			cur_bytenr += bio->bi_io_vec[i].bv_len;
+				       i, cur_bytenr, bvec->bv_len, bvec->bv_offset);
+			cur_bytenr += bvec->bv_len;
 		}
 		btrfsic_process_written_block(dev_state, dev_bytenr,
 					      mapped_datav, bio->bi_vcnt,
 					      bio, &bio_is_patched,
 					      NULL, bio->bi_opf);
-		while (i > 0) {
-			i--;
-			kunmap(bio->bi_io_vec[i].bv_page);
-		}
+		bio_for_each_segment_all(bvec, bio, i)
+			kunmap(bvec->bv_page);
 		kfree(mapped_datav);
 	} else if (NULL != dev_state && (bio->bi_opf & REQ_PREFLUSH)) {
 		if (dev_state->state->print_mask &

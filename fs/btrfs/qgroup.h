@@ -23,6 +23,34 @@
 #include "delayed-ref.h"
 
 /*
+ * Btrfs qgroup overview
+ *
+ * Btrfs qgroup splits into 3 main part:
+ * 1) Reserve
+ *    Reserve metadata/data space for incoming operations
+ *    Affect how qgroup limit works
+ *
+ * 2) Trace
+ *    Tell btrfs qgroup to trace dirty extents.
+ *
+ *    Dirty extents including:
+ *    - Newly allocated extents
+ *    - Extents going to be deleted (in this trans)
+ *    - Extents whose owner is going to be modified
+ *
+ *    This is the main part affects whether qgroup numbers will stay
+ *    consistent.
+ *    Btrfs qgroup can trace clean extents and won't cause any problem,
+ *    but it will consume extra CPU time, it should be avoided if possible.
+ *
+ * 3) Account
+ *    Btrfs qgroup will updates its numbers, based on dirty extents traced
+ *    in previous step.
+ *
+ *    Normally at qgroup rescan and transaction commit time.
+ */
+
+/*
  * Record a dirty extent, and info qgroup to update quota on it
  * TODO: Use kmem cache to alloc it.
  */
@@ -65,8 +93,8 @@ struct btrfs_delayed_extent_op;
 int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info);
 /*
- * Insert one dirty extent record into @delayed_refs, informing qgroup to
- * account that extent at commit trans time.
+ * Inform qgroup to trace one dirty extent, its info is recorded in @record.
+ * So qgroup can account it at commit trans time.
  *
  * No lock version, caller must acquire delayed ref lock and allocate memory.
  *
@@ -74,14 +102,15 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
  * Return >0 for existing record, caller can free @record safely.
  * Error is not possible
  */
-int btrfs_qgroup_insert_dirty_extent_nolock(
+int btrfs_qgroup_trace_extent_nolock(
 		struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs,
 		struct btrfs_qgroup_extent_record *record);
 
 /*
- * Insert one dirty extent record into @delayed_refs, informing qgroup to
- * account that extent at commit trans time.
+ * Inform qgroup to trace one dirty extent, specified by @bytenr and
+ * @num_bytes.
+ * So qgroup can account it at commit trans time.
  *
  * Better encapsulated version.
  *
@@ -89,10 +118,33 @@ int btrfs_qgroup_insert_dirty_extent_nolock(
  * Return <0 for error, like memory allocation failure or invalid parameter
  * (NULL trans)
  */
-int btrfs_qgroup_insert_dirty_extent(struct btrfs_trans_handle *trans,
+int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
 		gfp_t gfp_flag);
 
+/*
+ * Inform qgroup to trace all leaf items of data
+ *
+ * Return 0 for success
+ * Return <0 for error(ENOMEM)
+ */
+int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  struct extent_buffer *eb);
+/*
+ * Inform qgroup to trace a whole subtree, including all its child tree
+ * blocks and data.
+ * The root tree block is specified by @root_eb.
+ *
+ * Normally used by relocation(tree block swap) and subvolume deletion.
+ *
+ * Return 0 for success
+ * Return <0 for error(ENOMEM or tree search error)
+ */
+int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *root_eb,
+			       u64 root_gen, int root_level);
 int
 btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,

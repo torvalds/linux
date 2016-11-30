@@ -75,8 +75,6 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	btrfs_release_path(path);
 
 	inode = btrfs_iget(root->fs_info->sb, &location, root, NULL);
-	if (!inode)
-		return ERR_PTR(-ENOENT);
 	if (IS_ERR(inode))
 		return inode;
 	if (is_bad_inode(inode)) {
@@ -153,7 +151,7 @@ static int __create_free_space_inode(struct btrfs_root *root,
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_inode_item);
 	btrfs_item_key(leaf, &disk_key, path->slots[0]);
-	memset_extent_buffer(leaf, 0, (unsigned long)inode_item,
+	memzero_extent_buffer(leaf, (unsigned long)inode_item,
 			     sizeof(*inode_item));
 	btrfs_set_inode_generation(leaf, inode_item, trans->transid);
 	btrfs_set_inode_size(leaf, inode_item, 0);
@@ -181,7 +179,7 @@ static int __create_free_space_inode(struct btrfs_root *root,
 	leaf = path->nodes[0];
 	header = btrfs_item_ptr(leaf, path->slots[0],
 				struct btrfs_free_space_header);
-	memset_extent_buffer(leaf, 0, (unsigned long)header, sizeof(*header));
+	memzero_extent_buffer(leaf, (unsigned long)header, sizeof(*header));
 	btrfs_set_free_space_key(leaf, header, &disk_key);
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
@@ -476,7 +474,7 @@ static void io_ctl_set_crc(struct btrfs_io_ctl *io_ctl, int index)
 
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
 			      PAGE_SIZE - offset);
-	btrfs_csum_final(crc, (char *)&crc);
+	btrfs_csum_final(crc, (u8 *)&crc);
 	io_ctl_unmap_page(io_ctl);
 	tmp = page_address(io_ctl->pages[0]);
 	tmp += index;
@@ -504,7 +502,7 @@ static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
 	io_ctl_map_page(io_ctl, 0);
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
 			      PAGE_SIZE - offset);
-	btrfs_csum_final(crc, (char *)&crc);
+	btrfs_csum_final(crc, (u8 *)&crc);
 	if (val != crc) {
 		btrfs_err_rl(io_ctl->root->fs_info,
 			"csum mismatch on free space cache");

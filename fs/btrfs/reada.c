@@ -107,17 +107,13 @@ static int reada_add_block(struct reada_control *rc, u64 logical,
 /* in case of err, eb might be NULL */
 static void __readahead_hook(struct btrfs_fs_info *fs_info,
 			     struct reada_extent *re, struct extent_buffer *eb,
-			     u64 start, int err)
+			     int err)
 {
-	int level = 0;
 	int nritems;
 	int i;
 	u64 bytenr;
 	u64 generation;
 	struct list_head list;
-
-	if (eb)
-		level = btrfs_header_level(eb);
 
 	spin_lock(&re->lock);
 	/*
@@ -143,7 +139,7 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 	 * trigger more readahead depending from the content, e.g.
 	 * fetch the checksums for the extents in the leaf.
 	 */
-	if (!level)
+	if (!btrfs_header_level(eb))
 		goto cleanup;
 
 	nritems = btrfs_header_nritems(eb);
@@ -213,12 +209,8 @@ cleanup:
 	return;
 }
 
-/*
- * start is passed separately in case eb in NULL, which may be the case with
- * failed I/O
- */
 int btree_readahead_hook(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *eb, u64 start, int err)
+			 struct extent_buffer *eb, int err)
 {
 	int ret = 0;
 	struct reada_extent *re;
@@ -226,7 +218,7 @@ int btree_readahead_hook(struct btrfs_fs_info *fs_info,
 	/* find extent */
 	spin_lock(&fs_info->reada_lock);
 	re = radix_tree_lookup(&fs_info->reada_tree,
-			       start >> PAGE_SHIFT);
+			       eb->start >> PAGE_SHIFT);
 	if (re)
 		re->refcnt++;
 	spin_unlock(&fs_info->reada_lock);
@@ -235,7 +227,7 @@ int btree_readahead_hook(struct btrfs_fs_info *fs_info,
 		goto start_machine;
 	}
 
-	__readahead_hook(fs_info, re, eb, start, err);
+	__readahead_hook(fs_info, re, eb, err);
 	reada_extent_put(fs_info, re);	/* our ref */
 
 start_machine:
@@ -354,8 +346,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	 * map block
 	 */
 	length = blocksize;
-	ret = btrfs_map_block(fs_info, REQ_GET_READ_MIRRORS, logical, &length,
-			      &bbio, 0);
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
+			&length, &bbio, 0);
 	if (ret || !bbio || length < blocksize)
 		goto error;
 
@@ -401,7 +393,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	ret = radix_tree_insert(&fs_info->reada_tree, index, re);
 	if (ret == -EEXIST) {
 		re_exist = radix_tree_lookup(&fs_info->reada_tree, index);
-		BUG_ON(!re_exist);
 		re_exist->refcnt++;
 		spin_unlock(&fs_info->reada_lock);
 		btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
@@ -448,7 +439,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 				/* ignore whether the entry was inserted */
 				radix_tree_delete(&dev->reada_extents, index);
 			}
-			BUG_ON(fs_info == NULL);
 			radix_tree_delete(&fs_info->reada_tree, index);
 			spin_unlock(&fs_info->reada_lock);
 			btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
@@ -717,9 +707,9 @@ static int reada_start_machine_dev(struct btrfs_fs_info *fs_info,
 	ret = reada_tree_block_flagged(fs_info->extent_root, logical,
 			mirror_num, &eb);
 	if (ret)
-		__readahead_hook(fs_info, re, NULL, logical, ret);
+		__readahead_hook(fs_info, re, NULL, ret);
 	else if (eb)
-		__readahead_hook(fs_info, re, eb, eb->start, ret);
+		__readahead_hook(fs_info, re, eb, ret);
 
 	if (eb)
 		free_extent_buffer(eb);
