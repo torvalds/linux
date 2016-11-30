@@ -915,25 +915,17 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	u32 flow_tag, action;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_flow_spec *spec;
-	struct mlx5_flow_handle *old = NULL;
-	struct mlx5_esw_flow_attr *old_attr = NULL;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
 		fdb_flow = true;
 
-	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
-				      tc->ht_params);
-	if (flow) {
-		old = flow->rule;
-		old_attr = flow->attr;
-	} else {
-		if (fdb_flow)
-			flow = kzalloc(sizeof(*flow) + sizeof(struct mlx5_esw_flow_attr),
-				       GFP_KERNEL);
-		else
-			flow = kzalloc(sizeof(*flow), GFP_KERNEL);
-	}
+	if (fdb_flow)
+		flow = kzalloc(sizeof(*flow) +
+			       sizeof(struct mlx5_esw_flow_attr),
+			       GFP_KERNEL);
+	else
+		flow = kzalloc(sizeof(*flow), GFP_KERNEL);
 
 	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec || !flow) {
@@ -970,17 +962,13 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	if (err)
 		goto err_del_rule;
 
-	if (old)
-		mlx5e_tc_del_flow(priv, old, old_attr);
-
 	goto out;
 
 err_del_rule:
 	mlx5_del_flow_rules(flow->rule);
 
 err_free:
-	if (!old)
-		kfree(flow);
+	kfree(flow);
 out:
 	kvfree(spec);
 	return err;
