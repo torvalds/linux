@@ -908,7 +908,7 @@ static int tc_main_link_setup(struct tc_data *tc)
 			goto err_dpcd_read;
 
 		if (tmp[0] != tc->assr) {
-			dev_warn(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
+			dev_dbg(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
 				 tc->assr);
 			/* trying with disabled scrambler */
 			tc->link.scrambler_dis = 1;
