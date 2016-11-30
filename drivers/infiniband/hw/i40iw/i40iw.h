@@ -303,10 +303,13 @@ struct i40iw_device {
 	u32 mr_stagmask;
 	u32 mpa_version;
 	bool dcb;
+	bool closing;
 	u32 used_pds;
 	u32 used_cqs;
 	u32 used_mrs;
 	u32 used_qps;
+	wait_queue_head_t close_wq;
+	atomic64_t use_count;
 };
 
 struct i40iw_ib_device {
@@ -521,6 +524,8 @@ int i40iw_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *)
 
 void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev);
 void i40iw_add_pdusecount(struct i40iw_pd *iwpd);
+void i40iw_rem_devusecount(struct i40iw_device *iwdev);
+void i40iw_add_devusecount(struct i40iw_device *iwdev);
 void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 			struct i40iw_modify_qp_info *info, bool wait);
 

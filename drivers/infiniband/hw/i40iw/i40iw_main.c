@@ -1546,6 +1546,7 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 
 	init_waitqueue_head(&iwdev->vchnl_waitq);
 	init_waitqueue_head(&dev->vf_reqs);
+	init_waitqueue_head(&iwdev->close_wq);
 
 	status = i40iw_initialize_dev(iwdev, ldev);
 exit:
@@ -1748,6 +1749,9 @@ static void i40iw_close(struct i40e_info *ldev, struct i40e_client *client, bool
 		return;
 
 	iwdev = &hdl->device;
+	iwdev->closing = true;
+
+	i40iw_cm_disconnect_all(iwdev);
 	destroy_workqueue(iwdev->virtchnl_wq);
 	i40iw_deinit_device(iwdev, reset);
 }

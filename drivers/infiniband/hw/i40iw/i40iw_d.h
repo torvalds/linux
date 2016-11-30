@@ -35,6 +35,8 @@
 #ifndef I40IW_D_H
 #define I40IW_D_H
 
+#define I40IW_FIRST_USER_QP_ID  2
+
 #define I40IW_DB_ADDR_OFFSET    (4 * 1024 * 1024 - 64 * 1024)
 #define I40IW_VF_DB_ADDR_OFFSET (64 * 1024)
 

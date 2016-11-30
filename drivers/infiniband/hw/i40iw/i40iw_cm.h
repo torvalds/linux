@@ -339,6 +339,7 @@ struct i40iw_cm_node {
 	int accept_pend;
 	struct list_head timer_entry;
 	struct list_head reset_entry;
+	struct list_head connected_entry;
 	atomic_t passive_state;
 	bool qhash_set;
 	u8 user_pri;
@@ -443,4 +444,5 @@ int i40iw_arp_table(struct i40iw_device *iwdev,
 		    u8 *mac_addr,
 		    u32 action);
 
+void i40iw_cm_disconnect_all(struct i40iw_device *iwdev);
 #endif /* I40IW_CM_H */

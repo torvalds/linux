@@ -4128,3 +4128,34 @@ static void i40iw_cm_post_event(struct i40iw_cm_event *event)
 
 	queue_work(event->cm_node->cm_core->event_wq, &event->event_work);
 }
+
+/**
+ * i40iw_cm_disconnect_all - disconnect all connected qp's
+ * @iwdev: device pointer
+ */
+void i40iw_cm_disconnect_all(struct i40iw_device *iwdev)
+{
+	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
+	struct list_head *list_core_temp;
+	struct list_head *list_node;
+	struct i40iw_cm_node *cm_node;
+	unsigned long flags;
+	struct list_head connected_list;
+	struct ib_qp_attr attr;
+
+	INIT_LIST_HEAD(&connected_list);
+	spin_lock_irqsave(&cm_core->ht_lock, flags);
+	list_for_each_safe(list_node, list_core_temp, &cm_core->connected_nodes) {
+		cm_node = container_of(list_node, struct i40iw_cm_node, list);
+		atomic_inc(&cm_node->ref_count);
+		list_add(&cm_node->connected_entry, &connected_list);
+	}
+	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
+
+	list_for_each_safe(list_node, list_core_temp, &connected_list) {
+		cm_node = container_of(list_node, struct i40iw_cm_node, connected_entry);
+		attr.qp_state = IB_QPS_ERR;
+		i40iw_modify_qp(&cm_node->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
+		i40iw_rem_ref_cm_node(cm_node);
+	}
+}

@@ -336,6 +336,9 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	u32 pd_id = 0;
 	int err;
 
+	if (iwdev->closing)
+		return ERR_PTR(-ENODEV);
+
 	err = i40iw_alloc_resource(iwdev, iwdev->allocated_pds,
 				   iwdev->max_pd, &pd_id, &iwdev->next_pd);
 	if (err) {
@@ -601,6 +604,9 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	struct i40iwarp_offload_info *iwarp_info;
 	unsigned long flags;
 
+	if (iwdev->closing)
+		return ERR_PTR(-ENODEV);
+
 	if (init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
 	if (init_attr->cap.max_inline_data > I40IW_MAX_INLINE_DATA_SIZE)
@@ -776,6 +782,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR) ? 1 : 0;
 	iwdev->qp_table[qp_num] = iwqp;
 	i40iw_add_pdusecount(iwqp->iwpd);
+	i40iw_add_devusecount(iwdev);
 	if (ibpd->uobject && udata) {
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.actual_sq_size = sq_size;
@@ -887,6 +894,11 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	spin_lock_irqsave(&iwqp->lock, flags);
 
 	if (attr_mask & IB_QP_STATE) {
+		if (iwdev->closing && attr->qp_state != IB_QPS_ERR) {
+			err = -EINVAL;
+			goto exit;
+		}
+
 		switch (attr->qp_state) {
 		case IB_QPS_INIT:
 		case IB_QPS_RTR:
@@ -1086,6 +1098,7 @@ static int i40iw_destroy_cq(struct ib_cq *ib_cq)
 	cq_wq_destroy(iwdev, cq);
 	cq_free_resources(iwdev, iwcq);
 	kfree(iwcq);
+	i40iw_rem_devusecount(iwdev);
 	return 0;
 }
 
@@ -1115,6 +1128,9 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	unsigned long flags;
 	int err_code;
 	int entries = attr->cqe;
+
+	if (iwdev->closing)
+		return ERR_PTR(-ENODEV);
 
 	if (entries > iwdev->max_cqe)
 		return ERR_PTR(-EINVAL);
@@ -1233,6 +1249,7 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 		}
 	}
 
+	i40iw_add_devusecount(iwdev);
 	return (struct ib_cq *)iwcq;
 
 cq_destroy:
@@ -1270,6 +1287,7 @@ static void i40iw_free_stag(struct i40iw_device *iwdev, u32 stag)
 
 	stag_idx = (stag & iwdev->mr_stagmask) >> I40IW_CQPSQ_STAG_IDX_SHIFT;
 	i40iw_free_resource(iwdev, iwdev->allocated_mrs, stag_idx);
+	i40iw_rem_devusecount(iwdev);
 }
 
 /**
@@ -1300,6 +1318,7 @@ static u32 i40iw_create_stag(struct i40iw_device *iwdev)
 		stag = stag_index << I40IW_CQPSQ_STAG_IDX_SHIFT;
 		stag |= driver_key;
 		stag += (u32)consumer_key;
+		i40iw_add_devusecount(iwdev);
 	}
 	return stag;
 }
@@ -1808,6 +1827,9 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	int err = -ENOSYS;
 	int ret;
 	int pg_shift;
+
+	if (iwdev->closing)
+		return ERR_PTR(-ENODEV);
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
@@ -2842,6 +2864,9 @@ void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
 	i40iw_unregister_rdma_device(iwibdev);
 	kfree(iwibdev->ibdev.iwcm);
 	iwibdev->ibdev.iwcm = NULL;
+	wait_event_timeout(iwibdev->iwdev->close_wq,
+			   !atomic64_read(&iwibdev->iwdev->use_count),
+			   I40IW_EVENT_TIMEOUT);
 	ib_dealloc_device(&iwibdev->ibdev);
 }
 

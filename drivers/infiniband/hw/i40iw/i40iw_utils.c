@@ -392,6 +392,7 @@ static void i40iw_free_qp(struct i40iw_cqp_request *cqp_request, u32 num)
 
 	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
 	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
+	i40iw_rem_devusecount(iwdev);
 }
 
 /**
@@ -456,6 +457,26 @@ enum i40iw_status_code i40iw_handle_cqp_op(struct i40iw_device *iwdev,
 	if (err_code)
 		status = I40IW_ERR_CQP_COMPL_ERROR;
 	return status;
+}
+
+/**
+ * i40iw_add_devusecount - add dev refcount
+ * @iwdev: dev for refcount
+ */
+void i40iw_add_devusecount(struct i40iw_device *iwdev)
+{
+	atomic64_inc(&iwdev->use_count);
+}
+
+/**
+ * i40iw_rem_devusecount - decrement refcount for dev
+ * @iwdev: device
+ */
+void i40iw_rem_devusecount(struct i40iw_device *iwdev)
+{
+	if (!atomic64_dec_and_test(&iwdev->use_count))
+		return;
+	wake_up(&iwdev->close_wq);
 }
 
 /**
