@@ -14,9 +14,16 @@ IMAGES = \
 	typical_media_device.svg \
 	uapi/dvb/dvbstb.svg \
 	uapi/v4l/constraints.svg \
+	uapi/v4l/crop.svg \
+	uapi/v4l/fieldseq_bt.svg \
+	uapi/v4l/fieldseq_tb.svg \
 	uapi/v4l/subdev-image-processing-full.svg \
 	uapi/v4l/subdev-image-processing-scaling-multi-source.svg \
 	uapi/v4l/subdev-image-processing-crop.svg \
+	uapi/v4l/vbi_525.svg \
+	uapi/v4l/vbi_625.svg \
+	uapi/v4l/vbi_hsync.svg \
+
 
 IMGTGT := $(patsubst %.png,%.pdf,$(patsubst %.svg,%.pdf,$(IMAGES)))
 IMGPDF := $(patsubst %,$(SRC_DIR)/%,$(IMGTGT))
