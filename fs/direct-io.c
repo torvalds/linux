@@ -554,7 +554,7 @@ static inline int dio_bio_reap(struct dio *dio, struct dio_submit *sdio)
  * filesystems that don't need it and also allows us to create the workqueue
  * late enough so the we can include s_id in the name of the workqueue.
  */
-static int sb_init_dio_done_wq(struct super_block *sb)
+int sb_init_dio_done_wq(struct super_block *sb)
 {
 	struct workqueue_struct *old;
 	struct workqueue_struct *wq = alloc_workqueue("dio/%s",
