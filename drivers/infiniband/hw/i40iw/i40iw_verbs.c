@@ -1356,10 +1356,62 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
 }
 
 /**
+ * i40iw_check_mem_contiguous - check if pbls stored in arr are contiguous
+ * @arr: lvl1 pbl array
+ * @npages: page count
+ * pg_size: page size
+ *
+ */
+static bool i40iw_check_mem_contiguous(u64 *arr, u32 npages, u32 pg_size)
+{
+	u32 pg_idx;
+
+	for (pg_idx = 0; pg_idx < npages; pg_idx++) {
+		if ((*arr + (pg_size * pg_idx)) != arr[pg_idx])
+			return false;
+	}
+	return true;
+}
+
+/**
+ * i40iw_check_mr_contiguous - check if MR is physically contiguous
+ * @palloc: pbl allocation struct
+ * pg_size: page size
+ */
+static bool i40iw_check_mr_contiguous(struct i40iw_pble_alloc *palloc, u32 pg_size)
+{
+	struct i40iw_pble_level2 *lvl2 = &palloc->level2;
+	struct i40iw_pble_info *leaf = lvl2->leaf;
+	u64 *arr = NULL;
+	u64 *start_addr = NULL;
+	int i;
+	bool ret;
+
+	if (palloc->level == I40IW_LEVEL_1) {
+		arr = (u64 *)palloc->level1.addr;
+		ret = i40iw_check_mem_contiguous(arr, palloc->total_cnt, pg_size);
+		return ret;
+	}
+
+	start_addr = (u64 *)leaf->addr;
+
+	for (i = 0; i < lvl2->leaf_cnt; i++, leaf++) {
+		arr = (u64 *)leaf->addr;
+		if ((*start_addr + (i * pg_size * PBLE_PER_PAGE)) != *arr)
+			return false;
+		ret = i40iw_check_mem_contiguous(arr, leaf->cnt, pg_size);
+		if (!ret)
+			return false;
+	}
+
+	return true;
+}
+
+/**
  * i40iw_setup_pbles - copy user pg address to pble's
  * @iwdev: iwarp device
  * @iwmr: mr pointer for this memory registration
- * @use_pbles: flag if to use pble's or memory (level 0)
+ * @use_pbles: flag if to use pble's
  */
 static int i40iw_setup_pbles(struct i40iw_device *iwdev,
 			     struct i40iw_mr *iwmr,
@@ -1371,9 +1423,6 @@ static int i40iw_setup_pbles(struct i40iw_device *iwdev,
 	u64 *pbl;
 	enum i40iw_status_code status;
 	enum i40iw_pble_level level = I40IW_LEVEL_1;
-
-	if (!use_pbles && (iwmr->page_cnt > MAX_SAVE_PAGE_ADDRS))
-		return -ENOMEM;
 
 	if (use_pbles) {
 		mutex_lock(&iwdev->pbl_mutex);
@@ -1391,6 +1440,10 @@ static int i40iw_setup_pbles(struct i40iw_device *iwdev,
 	}
 
 	i40iw_copy_user_pgaddrs(iwmr, pbl, level);
+
+	if (use_pbles)
+		iwmr->pgaddrmem[0] = *pbl;
+
 	return 0;
 }
 
@@ -1412,14 +1465,18 @@ static int i40iw_handle_q_mem(struct i40iw_device *iwdev,
 	struct i40iw_cq_mr *cqmr = &iwpbl->cq_mr;
 	struct i40iw_hmc_pble *hmc_p;
 	u64 *arr = iwmr->pgaddrmem;
+	u32 pg_size;
 	int err;
 	int total;
+	bool ret = true;
 
 	total = req->sq_pages + req->rq_pages + req->cq_pages;
+	pg_size = iwmr->region->page_size;
 
 	err = i40iw_setup_pbles(iwdev, iwmr, use_pbles);
 	if (err)
 		return err;
+
 	if (use_pbles && (palloc->level != I40IW_LEVEL_1)) {
 		i40iw_free_pble(iwdev->pble_rsrc, palloc);
 		iwpbl->pbl_allocated = false;
@@ -1428,26 +1485,44 @@ static int i40iw_handle_q_mem(struct i40iw_device *iwdev,
 
 	if (use_pbles)
 		arr = (u64 *)palloc->level1.addr;
-	if (req->reg_type == IW_MEMREG_TYPE_QP) {
+
+	if (iwmr->type == IW_MEMREG_TYPE_QP) {
 		hmc_p = &qpmr->sq_pbl;
 		qpmr->shadow = (dma_addr_t)arr[total];
+
 		if (use_pbles) {
+			ret = i40iw_check_mem_contiguous(arr, req->sq_pages, pg_size);
+			if (ret)
+				ret = i40iw_check_mem_contiguous(&arr[req->sq_pages], req->rq_pages, pg_size);
+		}
+
+		if (!ret) {
 			hmc_p->idx = palloc->level1.idx;
 			hmc_p = &qpmr->rq_pbl;
 			hmc_p->idx = palloc->level1.idx + req->sq_pages;
 		} else {
 			hmc_p->addr = arr[0];
 			hmc_p = &qpmr->rq_pbl;
-			hmc_p->addr = arr[1];
+			hmc_p->addr = arr[req->sq_pages];
 		}
 	} else {		/* CQ */
 		hmc_p = &cqmr->cq_pbl;
 		cqmr->shadow = (dma_addr_t)arr[total];
+
 		if (use_pbles)
+			ret = i40iw_check_mem_contiguous(arr, req->cq_pages, pg_size);
+
+		if (!ret)
 			hmc_p->idx = palloc->level1.idx;
 		else
 			hmc_p->addr = arr[0];
 	}
+
+	if (use_pbles && ret) {
+		i40iw_free_pble(iwdev->pble_rsrc, palloc);
+		iwpbl->pbl_allocated = false;
+	}
+
 	return err;
 }
 
@@ -1646,7 +1721,7 @@ static int i40iw_hwreg_mr(struct i40iw_device *iwdev,
 	stag_info->pd_id = iwpd->sc_pd.pd_id;
 	stag_info->addr_type = I40IW_ADDR_TYPE_VA_BASED;
 
-	if (iwmr->page_cnt > 1) {
+	if (iwpbl->pbl_allocated) {
 		if (palloc->level == I40IW_LEVEL_1) {
 			stag_info->first_pm_pbl_index = palloc->level1.idx;
 			stag_info->chunk_size = 1;
@@ -1702,6 +1777,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	bool use_pbles = false;
 	unsigned long flags;
 	int err = -ENOSYS;
+	int ret;
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
@@ -1758,12 +1834,20 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
 		break;
 	case IW_MEMREG_TYPE_MEM:
+		use_pbles = (iwmr->page_cnt != 1);
 		access = I40IW_ACCESS_FLAGS_LOCALREAD;
 
-		use_pbles = (iwmr->page_cnt != 1);
 		err = i40iw_setup_pbles(iwdev, iwmr, use_pbles);
 		if (err)
 			goto error;
+
+		if (use_pbles) {
+			ret = i40iw_check_mr_contiguous(palloc, region->page_size);
+			if (ret) {
+				i40iw_free_pble(iwdev->pble_rsrc, palloc);
+				iwpbl->pbl_allocated = false;
+			}
+		}
 
 		access |= i40iw_get_user_access(acc);
 		stag = i40iw_create_stag(iwdev);
@@ -1792,7 +1876,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	return &iwmr->ibmr;
 
 error:
-	if (palloc->level != I40IW_LEVEL_0)
+	if (palloc->level != I40IW_LEVEL_0 && iwpbl->pbl_allocated)
 		i40iw_free_pble(iwdev->pble_rsrc, palloc);
 	ib_umem_release(region);
 	kfree(iwmr);
