@@ -113,6 +113,82 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	spin_unlock(&file_priv->mm.lock);
 }
 
+static struct i915_dependency *
+i915_dependency_alloc(struct drm_i915_private *i915)
+{
+	return kmem_cache_alloc(i915->dependencies, GFP_KERNEL);
+}
+
+static void
+i915_dependency_free(struct drm_i915_private *i915,
+		     struct i915_dependency *dep)
+{
+	kmem_cache_free(i915->dependencies, dep);
+}
+
+static void
+__i915_priotree_add_dependency(struct i915_priotree *pt,
+			       struct i915_priotree *signal,
+			       struct i915_dependency *dep,
+			       unsigned long flags)
+{
+	INIT_LIST_HEAD(&dep->dfs_link);
+	list_add(&dep->wait_link, &signal->waiters_list);
+	list_add(&dep->signal_link, &pt->signalers_list);
+	dep->signaler = signal;
+	dep->flags = flags;
+}
+
+static int
+i915_priotree_add_dependency(struct drm_i915_private *i915,
+			     struct i915_priotree *pt,
+			     struct i915_priotree *signal)
+{
+	struct i915_dependency *dep;
+
+	dep = i915_dependency_alloc(i915);
+	if (!dep)
+		return -ENOMEM;
+
+	__i915_priotree_add_dependency(pt, signal, dep, I915_DEPENDENCY_ALLOC);
+	return 0;
+}
+
+static void
+i915_priotree_fini(struct drm_i915_private *i915, struct i915_priotree *pt)
+{
+	struct i915_dependency *dep, *next;
+
+	GEM_BUG_ON(!RB_EMPTY_NODE(&pt->node));
+
+	/* Everyone we depended upon (the fences we wait to be signaled)
+	 * should retire before us and remove themselves from our list.
+	 * However, retirement is run independently on each timeline and
+	 * so we may be called out-of-order.
+	 */
+	list_for_each_entry_safe(dep, next, &pt->signalers_list, signal_link) {
+		list_del(&dep->wait_link);
+		if (dep->flags & I915_DEPENDENCY_ALLOC)
+			i915_dependency_free(i915, dep);
+	}
+
+	/* Remove ourselves from everyone who depends upon us */
+	list_for_each_entry_safe(dep, next, &pt->waiters_list, wait_link) {
+		list_del(&dep->signal_link);
+		if (dep->flags & I915_DEPENDENCY_ALLOC)
+			i915_dependency_free(i915, dep);
+	}
+}
+
+static void
+i915_priotree_init(struct i915_priotree *pt)
+{
+	INIT_LIST_HEAD(&pt->signalers_list);
+	INIT_LIST_HEAD(&pt->waiters_list);
+	RB_CLEAR_NODE(&pt->node);
+	pt->priority = INT_MIN;
+}
+
 void i915_gem_retire_noop(struct i915_gem_active *active,
 			  struct drm_i915_gem_request *request)
 {
@@ -124,7 +200,10 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	struct i915_gem_active *active, *next;
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
+	GEM_BUG_ON(!i915_sw_fence_done(&request->submit));
+	GEM_BUG_ON(!i915_sw_fence_done(&request->execute));
 	GEM_BUG_ON(!i915_gem_request_completed(request));
+	GEM_BUG_ON(!request->i915->gt.active_requests);
 
 	trace_i915_gem_request_retire(request);
 
@@ -142,7 +221,12 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 */
 	list_del(&request->ring_link);
 	request->ring->last_retired_head = request->postfix;
-	request->i915->gt.active_requests--;
+	if (!--request->i915->gt.active_requests) {
+		GEM_BUG_ON(!request->i915->gt.awake);
+		mod_delayed_work(request->i915->wq,
+				 &request->i915->gt.idle_work,
+				 msecs_to_jiffies(100));
+	}
 
 	/* Walk through the active list, calling retire on each. This allows
 	 * objects to track their GPU activity and mark themselves as idle
@@ -182,6 +266,8 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	i915_gem_context_put(request->ctx);
 
 	dma_fence_signal(&request->fence);
+
+	i915_priotree_fini(request->i915, &request->priotree);
 	i915_gem_request_put(request);
 }
 
@@ -241,9 +327,8 @@ static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	if (!i915_seqno_passed(seqno, atomic_read(&timeline->next_seqno))) {
-		while (intel_kick_waiters(i915) || intel_kick_signalers(i915))
-			yield();
-		yield();
+		while (intel_breadcrumbs_busy(i915))
+			cond_resched(); /* spin until threads are complete */
 	}
 	atomic_set(&timeline->next_seqno, seqno);
 
@@ -307,25 +392,16 @@ static u32 timeline_get_seqno(struct i915_gem_timeline *tl)
 	return atomic_inc_return(&tl->next_seqno);
 }
 
-static int __i915_sw_fence_call
-submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 {
-	struct drm_i915_gem_request *request =
-		container_of(fence, typeof(*request), submit);
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_timeline *timeline;
-	unsigned long flags;
 	u32 seqno;
-
-	if (state != FENCE_COMPLETE)
-		return NOTIFY_DONE;
 
 	/* Transfer from per-context onto the global per-engine timeline */
 	timeline = engine->timeline;
 	GEM_BUG_ON(timeline == request->timeline);
-
-	/* Will be called from irq-context when using foreign DMA fences */
-	spin_lock_irqsave(&timeline->lock, flags);
+	assert_spin_locked(&timeline->lock);
 
 	seqno = timeline_get_seqno(timeline->common);
 	GEM_BUG_ON(!seqno);
@@ -345,14 +421,43 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	GEM_BUG_ON(!request->global_seqno);
 	engine->emit_breadcrumb(request,
 				request->ring->vaddr + request->postfix);
-	engine->submit_request(request);
 
-	spin_lock_nested(&request->timeline->lock, SINGLE_DEPTH_NESTING);
+	spin_lock(&request->timeline->lock);
 	list_move_tail(&request->link, &timeline->requests);
 	spin_unlock(&request->timeline->lock);
 
-	spin_unlock_irqrestore(&timeline->lock, flags);
+	i915_sw_fence_commit(&request->execute);
+}
 
+void i915_gem_request_submit(struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *engine = request->engine;
+	unsigned long flags;
+
+	/* Will be called from irq-context when using foreign fences. */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	__i915_gem_request_submit(request);
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+}
+
+static int __i915_sw_fence_call
+submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
+	if (state == FENCE_COMPLETE) {
+		struct drm_i915_gem_request *request =
+			container_of(fence, typeof(*request), submit);
+
+		request->engine->submit_request(request);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int __i915_sw_fence_call
+execute_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+{
 	return NOTIFY_DONE;
 }
 
@@ -441,6 +546,14 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       __timeline_get_seqno(req->timeline->common));
 
 	i915_sw_fence_init(&req->submit, submit_notify);
+	i915_sw_fence_init(&req->execute, execute_notify);
+	/* Ensure that the execute fence completes after the submit fence -
+	 * as we complete the execute fence from within the submit fence
+	 * callback, its completion would otherwise be visible first.
+	 */
+	i915_sw_fence_await_sw_fence(&req->execute, &req->submit, &req->execq);
+
+	i915_priotree_init(&req->priotree);
 
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
@@ -494,6 +607,14 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	int ret;
 
 	GEM_BUG_ON(to == from);
+
+	if (to->engine->schedule) {
+		ret = i915_priotree_add_dependency(to->i915,
+						   &to->priotree,
+						   &from->priotree);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (to->timeline == from->timeline)
 		return 0;
@@ -650,6 +771,8 @@ static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
 	if (dev_priv->gt.awake)
 		return;
 
+	GEM_BUG_ON(!dev_priv->gt.active_requests);
+
 	intel_runtime_pm_get_noresume(dev_priv);
 	dev_priv->gt.awake = true;
 
@@ -718,9 +841,15 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 
 	prev = i915_gem_active_raw(&timeline->last_request,
 				   &request->i915->drm.struct_mutex);
-	if (prev)
+	if (prev) {
 		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
 					     &request->submitq);
+		if (engine->schedule)
+			__i915_priotree_add_dependency(&request->priotree,
+						       &prev->priotree,
+						       &request->dep,
+						       0);
+	}
 
 	spin_lock_irq(&timeline->lock);
 	list_add_tail(&request->link, &timeline->requests);
@@ -736,6 +865,19 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	request->emitted_jiffies = jiffies;
 
 	i915_gem_mark_busy(engine);
+
+	/* Let the backend know a new request has arrived that may need
+	 * to adjust the existing execution schedule due to a high priority
+	 * request - i.e. we may want to preempt the current request in order
+	 * to run a high priority dependency chain *before* we can execute this
+	 * request.
+	 *
+	 * This is called before the request is ready to run so that we can
+	 * decide whether to preempt the entire chain so that it is ready to
+	 * run at the earliest possible convenience.
+	 */
+	if (engine->schedule)
+		engine->schedule(request, request->ctx->priority);
 
 	local_bh_disable();
 	i915_sw_fence_commit(&request->submit);
@@ -817,9 +959,9 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 }
 
 static long
-__i915_request_wait_for_submit(struct drm_i915_gem_request *request,
-			       unsigned int flags,
-			       long timeout)
+__i915_request_wait_for_execute(struct drm_i915_gem_request *request,
+				unsigned int flags,
+				long timeout)
 {
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
@@ -831,9 +973,9 @@ __i915_request_wait_for_submit(struct drm_i915_gem_request *request,
 		add_wait_queue(q, &reset);
 
 	do {
-		prepare_to_wait(&request->submit.wait, &wait, state);
+		prepare_to_wait(&request->execute.wait, &wait, state);
 
-		if (i915_sw_fence_done(&request->submit))
+		if (i915_sw_fence_done(&request->execute))
 			break;
 
 		if (flags & I915_WAIT_LOCKED &&
@@ -851,7 +993,7 @@ __i915_request_wait_for_submit(struct drm_i915_gem_request *request,
 
 		timeout = io_schedule_timeout(timeout);
 	} while (timeout);
-	finish_wait(&request->submit.wait, &wait);
+	finish_wait(&request->execute.wait, &wait);
 
 	if (flags & I915_WAIT_LOCKED)
 		remove_wait_queue(q, &reset);
@@ -903,13 +1045,14 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 	trace_i915_gem_request_wait_begin(req);
 
-	if (!i915_sw_fence_done(&req->submit)) {
-		timeout = __i915_request_wait_for_submit(req, flags, timeout);
+	if (!i915_sw_fence_done(&req->execute)) {
+		timeout = __i915_request_wait_for_execute(req, flags, timeout);
 		if (timeout < 0)
 			goto complete;
 
-		GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
+		GEM_BUG_ON(!i915_sw_fence_done(&req->execute));
 	}
+	GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
 	GEM_BUG_ON(!req->global_seqno);
 
 	/* Optimistic short spin before touching IRQs */
@@ -1013,13 +1156,6 @@ void i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 	if (!dev_priv->gt.active_requests)
 		return;
 
-	GEM_BUG_ON(!dev_priv->gt.awake);
-
 	for_each_engine(engine, dev_priv, id)
 		engine_retire_requests(engine);
-
-	if (!dev_priv->gt.active_requests)
-		mod_delayed_work(dev_priv->wq,
-				 &dev_priv->gt.idle_work,
-				 msecs_to_jiffies(100));
 }

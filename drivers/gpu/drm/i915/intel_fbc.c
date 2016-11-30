@@ -48,17 +48,17 @@ static inline bool fbc_supported(struct drm_i915_private *dev_priv)
 
 static inline bool fbc_on_pipe_a_only(struct drm_i915_private *dev_priv)
 {
-	return IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8;
+	return IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8;
 }
 
 static inline bool fbc_on_plane_a_only(struct drm_i915_private *dev_priv)
 {
-	return INTEL_INFO(dev_priv)->gen < 4;
+	return INTEL_GEN(dev_priv) < 4;
 }
 
 static inline bool no_fbc_on_multiple_pipes(struct drm_i915_private *dev_priv)
 {
-	return INTEL_INFO(dev_priv)->gen <= 3;
+	return INTEL_GEN(dev_priv) <= 3;
 }
 
 /*
@@ -351,7 +351,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 
 static bool intel_fbc_hw_is_active(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev_priv)->gen >= 5)
+	if (INTEL_GEN(dev_priv) >= 5)
 		return ilk_fbc_is_active(dev_priv);
 	else if (IS_GM45(dev_priv))
 		return g4x_fbc_is_active(dev_priv);
@@ -365,9 +365,9 @@ static void intel_fbc_hw_activate(struct drm_i915_private *dev_priv)
 
 	fbc->active = true;
 
-	if (INTEL_INFO(dev_priv)->gen >= 7)
+	if (INTEL_GEN(dev_priv) >= 7)
 		gen7_fbc_activate(dev_priv);
-	else if (INTEL_INFO(dev_priv)->gen >= 5)
+	else if (INTEL_GEN(dev_priv) >= 5)
 		ilk_fbc_activate(dev_priv);
 	else if (IS_GM45(dev_priv))
 		g4x_fbc_activate(dev_priv);
@@ -381,7 +381,7 @@ static void intel_fbc_hw_deactivate(struct drm_i915_private *dev_priv)
 
 	fbc->active = false;
 
-	if (INTEL_INFO(dev_priv)->gen >= 5)
+	if (INTEL_GEN(dev_priv) >= 5)
 		ilk_fbc_deactivate(dev_priv);
 	else if (IS_GM45(dev_priv))
 		g4x_fbc_deactivate(dev_priv);
@@ -561,7 +561,7 @@ again:
 
 	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size >>= 1,
 						   4096, 0, end);
-	if (ret && INTEL_INFO(dev_priv)->gen <= 4) {
+	if (ret && INTEL_GEN(dev_priv) <= 4) {
 		return 0;
 	} else if (ret) {
 		compression_threshold <<= 1;
@@ -594,7 +594,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 
 	fbc->threshold = ret;
 
-	if (INTEL_INFO(dev_priv)->gen >= 5)
+	if (INTEL_GEN(dev_priv) >= 5)
 		I915_WRITE(ILK_DPFC_CB_BASE, fbc->compressed_fb.start);
 	else if (IS_GM45(dev_priv)) {
 		I915_WRITE(DPFC_CB_BASE, fbc->compressed_fb.start);
@@ -708,10 +708,10 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	unsigned int effective_w, effective_h, max_w, max_h;
 
-	if (INTEL_INFO(dev_priv)->gen >= 8 || IS_HASWELL(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv)) {
 		max_w = 4096;
 		max_h = 4096;
-	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
+	} else if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
 		max_w = 4096;
 		max_h = 2048;
 	} else {
@@ -812,7 +812,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
 		return false;
 	}
-	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_G4X(dev_priv) &&
+	if (INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv) &&
 	    cache->plane.rotation != DRM_ROTATE_0) {
 		fbc->no_fbc_reason = "rotation unsupported";
 		return false;
@@ -854,9 +854,8 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	return true;
 }
 
-static bool intel_fbc_can_choose(struct intel_crtc *crtc)
+static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (intel_vgpu_active(dev_priv)) {
@@ -871,16 +870,6 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 
 	if (fbc->underrun_detected) {
 		fbc->no_fbc_reason = "underrun detected";
-		return false;
-	}
-
-	if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A) {
-		fbc->no_fbc_reason = "no enabled pipes can have FBC";
-		return false;
-	}
-
-	if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A) {
-		fbc->no_fbc_reason = "no enabled planes can have FBC";
 		return false;
 	}
 
@@ -1066,23 +1055,19 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 			   struct drm_atomic_state *state)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	bool fbc_crtc_present = false;
-	int i, j;
+	bool crtc_chosen = false;
+	int i;
 
 	mutex_lock(&fbc->lock);
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (fbc->crtc == to_intel_crtc(crtc)) {
-			fbc_crtc_present = true;
-			break;
-		}
-	}
-	/* This atomic commit doesn't involve the CRTC currently tied to FBC. */
-	if (!fbc_crtc_present && fbc->crtc != NULL)
+	/* Does this atomic commit involve the CRTC currently tied to FBC? */
+	if (fbc->crtc &&
+	    !drm_atomic_get_existing_crtc_state(state, &fbc->crtc->base))
+		goto out;
+
+	if (!intel_fbc_can_enable(dev_priv))
 		goto out;
 
 	/* Simply choose the first CRTC that is compatible and has a visible
@@ -1092,24 +1077,28 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		struct intel_plane_state *intel_plane_state =
 			to_intel_plane_state(plane_state);
+		struct intel_crtc_state *intel_crtc_state;
+		struct intel_crtc *crtc = to_intel_crtc(plane_state->crtc);
 
 		if (!intel_plane_state->base.visible)
 			continue;
 
-		for_each_crtc_in_state(state, crtc, crtc_state, j) {
-			struct intel_crtc_state *intel_crtc_state =
-				to_intel_crtc_state(crtc_state);
+		if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
+			continue;
 
-			if (plane_state->crtc != crtc)
-				continue;
+		if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A)
+			continue;
 
-			if (!intel_fbc_can_choose(to_intel_crtc(crtc)))
-				break;
+		intel_crtc_state = to_intel_crtc_state(
+			drm_atomic_get_existing_crtc_state(state, &crtc->base));
 
-			intel_crtc_state->enable_fbc = true;
-			goto out;
-		}
+		intel_crtc_state->enable_fbc = true;
+		crtc_chosen = true;
+		break;
 	}
+
+	if (!crtc_chosen)
+		fbc->no_fbc_reason = "no suitable CRTC for FBC";
 
 out:
 	mutex_unlock(&fbc->lock);
@@ -1386,7 +1375,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	}
 
 	/* This value was pulled out of someone's hat */
-	if (INTEL_INFO(dev_priv)->gen <= 4 && !IS_GM45(dev_priv))
+	if (INTEL_GEN(dev_priv) <= 4 && !IS_GM45(dev_priv))
 		I915_WRITE(FBC_CONTROL, 500 << FBC_CTL_INTERVAL_SHIFT);
 
 	/* We still don't have any sort of hardware state readout for FBC, so

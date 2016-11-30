@@ -152,6 +152,8 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 
 	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
 		gvt_err("timeout in invalidate ring (%d) tlb\n", ring_id);
+	else
+		vgpu_vreg(vgpu, regs[ring_id]) = 0;
 
 	intel_uncore_forcewake_put(dev_priv, fw);
 

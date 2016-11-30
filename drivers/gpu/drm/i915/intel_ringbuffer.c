@@ -1294,6 +1294,8 @@ static void i9xx_submit_request(struct drm_i915_gem_request *request)
 {
 	struct drm_i915_private *dev_priv = request->i915;
 
+	i915_gem_request_submit(request);
+
 	I915_WRITE_TAIL(request->engine, request->tail);
 }
 

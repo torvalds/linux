@@ -30,6 +30,9 @@
 #include "i915_gem.h"
 #include "i915_sw_fence.h"
 
+struct drm_file;
+struct drm_i915_gem_object;
+
 struct intel_wait {
 	struct rb_node node;
 	struct task_struct *tsk;
@@ -39,6 +42,33 @@ struct intel_wait {
 struct intel_signal_node {
 	struct rb_node node;
 	struct intel_wait wait;
+};
+
+struct i915_dependency {
+	struct i915_priotree *signaler;
+	struct list_head signal_link;
+	struct list_head wait_link;
+	struct list_head dfs_link;
+	unsigned long flags;
+#define I915_DEPENDENCY_ALLOC BIT(0)
+};
+
+/* Requests exist in a complex web of interdependencies. Each request
+ * has to wait for some other request to complete before it is ready to be run
+ * (e.g. we have to wait until the pixels have been rendering into a texture
+ * before we can copy from it). We track the readiness of a request in terms
+ * of fences, but we also need to keep the dependency tree for the lifetime
+ * of the request (beyond the life of an individual fence). We use the tree
+ * at various points to reorder the requests whilst keeping the requests
+ * in order with respect to their various dependencies.
+ */
+struct i915_priotree {
+	struct list_head signalers_list; /* those before us, we depend upon */
+	struct list_head waiters_list; /* those after us, they depend upon us */
+	struct rb_node node;
+	int priority;
+#define I915_PRIORITY_MAX 1024
+#define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
 };
 
 /**
@@ -84,8 +114,34 @@ struct drm_i915_gem_request {
 	struct intel_timeline *timeline;
 	struct intel_signal_node signaling;
 
+	/* Fences for the various phases in the request's lifetime.
+	 *
+	 * The submit fence is used to await upon all of the request's
+	 * dependencies. When it is signaled, the request is ready to run.
+	 * It is used by the driver to then queue the request for execution.
+	 *
+	 * The execute fence is used to signal when the request has been
+	 * sent to hardware.
+	 *
+	 * It is illegal for the submit fence of one request to wait upon the
+	 * execute fence of an earlier request. It should be sufficient to
+	 * wait upon the submit fence of the earlier request.
+	 */
 	struct i915_sw_fence submit;
+	struct i915_sw_fence execute;
 	wait_queue_t submitq;
+	wait_queue_t execq;
+
+	/* A list of everyone we wait upon, and everyone who waits upon us.
+	 * Even though we will not be submitted to the hardware before the
+	 * submit fence is signaled (it waits for all external events as well
+	 * as our own requests), the scheduler still needs to know the
+	 * dependency tree for the lifetime of the request (from execbuf
+	 * to retirement), i.e. bidirectional dependency information for the
+	 * request not tied to individual fences.
+	 */
+	struct i915_priotree priotree;
+	struct i915_dependency dep;
 
 	u32 global_seqno;
 
@@ -143,9 +199,6 @@ struct drm_i915_gem_request {
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
 	struct list_head client_list;
-
-	/** Link in the execlist submission queue, guarded by execlist_lock. */
-	struct list_head execlist_link;
 };
 
 extern const struct dma_fence_ops i915_fence_ops;
@@ -161,18 +214,6 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
 void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
-
-static inline u32
-i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
-{
-	return req ? req->global_seqno : 0;
-}
-
-static inline struct intel_engine_cs *
-i915_gem_request_get_engine(struct drm_i915_gem_request *req)
-{
-	return req ? req->engine : NULL;
-}
 
 static inline struct drm_i915_gem_request *
 to_request(struct dma_fence *fence)
@@ -225,6 +266,9 @@ void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 	__i915_add_request(req, true)
 #define i915_add_request_no_flush(req) \
 	__i915_add_request(req, false)
+
+void __i915_gem_request_submit(struct drm_i915_gem_request *request);
+void i915_gem_request_submit(struct drm_i915_gem_request *request);
 
 struct intel_rps_client;
 #define NO_WAITBOOST ERR_PTR(-1)

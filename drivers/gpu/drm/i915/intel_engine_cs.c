@@ -102,6 +102,9 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
 
+	/* Nothing to do here, execute in order of dependencies */
+	engine->schedule = NULL;
+
 	dev_priv->engine[id] = engine;
 	return 0;
 }
@@ -236,8 +239,8 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
  */
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
-	INIT_LIST_HEAD(&engine->execlist_queue);
-	spin_lock_init(&engine->execlist_lock);
+	engine->execlist_queue = RB_ROOT;
+	engine->execlist_first = NULL;
 
 	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);

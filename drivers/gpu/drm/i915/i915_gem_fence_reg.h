@@ -22,15 +22,30 @@
  *
  */
 
-#ifndef __I915_GEM_H__
-#define __I915_GEM_H__
+#ifndef __I915_FENCE_REG_H__
+#define __I915_FENCE_REG_H__
 
-#ifdef CONFIG_DRM_I915_DEBUG_GEM
-#define GEM_BUG_ON(expr) BUG_ON(expr)
-#else
-#define GEM_BUG_ON(expr) do { } while (0)
+#include <linux/list.h>
+
+struct drm_i915_private;
+struct i915_vma;
+
+struct drm_i915_fence_reg {
+	struct list_head link;
+	struct drm_i915_private *i915;
+	struct i915_vma *vma;
+	int pin_count;
+	int id;
+	/**
+	 * Whether the tiling parameters for the currently
+	 * associated fence register have changed. Note that
+	 * for the purposes of tracking tiling changes we also
+	 * treat the unfenced register, the register slot that
+	 * the object occupies whilst it executes a fenced
+	 * command (such as BLT on gen2/3), as a "fence".
+	 */
+	bool dirty;
+};
+
 #endif
 
-#define I915_NUM_ENGINES 5
-
-#endif /* __I915_GEM_H__ */

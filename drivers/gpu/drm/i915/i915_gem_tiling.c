@@ -60,9 +60,9 @@
 
 /* Check pitch constriants for all chips & tiling formats */
 static bool
-i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
+i915_tiling_ok(struct drm_i915_private *dev_priv,
+	       int stride, int size, int tiling_mode)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int tile_width;
 
 	/* Linear is always fine */
@@ -81,10 +81,10 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	/* check maximum stride & object size */
 	/* i965+ stores the end address of the gtt mapping in the fence
 	 * reg, so dont bother to check the size */
-	if (INTEL_INFO(dev)->gen >= 7) {
+	if (INTEL_GEN(dev_priv) >= 7) {
 		if (stride / 128 > GEN7_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (INTEL_INFO(dev)->gen >= 4) {
+	} else if (INTEL_GEN(dev_priv) >= 4) {
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else {
@@ -104,7 +104,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		return false;
 
 	/* 965+ just needs multiples of tile width */
-	if (INTEL_INFO(dev)->gen >= 4) {
+	if (INTEL_GEN(dev_priv) >= 4) {
 		if (stride & (tile_width - 1))
 			return false;
 		return true;
@@ -199,7 +199,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	if (!i915_tiling_ok(dev,
+	if (!i915_tiling_ok(dev_priv,
 			    args->stride, obj->base.size, args->tiling_mode)) {
 		i915_gem_object_put(obj);
 		return -EINVAL;
