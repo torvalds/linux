@@ -286,7 +286,7 @@ struct mlx5e_cq {
 	u16                        decmprs_wqe_counter;
 
 	/* control */
-	struct mlx5_wq_ctrl        wq_ctrl;
+	struct mlx5_frag_wq_ctrl   wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_rq;
