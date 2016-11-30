@@ -23,6 +23,9 @@
 	compatible = "samsung,tm2", "samsung,exynos5433";
 
 	aliases {
+		gsc0 = &gsc_0;
+		gsc1 = &gsc_1;
+		gsc2 = &gsc_2;
 		pinctrl0 = &pinctrl_alive;
 		pinctrl1 = &pinctrl_aud;
 		pinctrl2 = &pinctrl_cpif;
@@ -42,6 +45,8 @@
 		spi2 = &spi_2;
 		spi3 = &spi_3;
 		spi4 = &spi_4;
+		mshc0 = &mshc_0;
+		mshc2 = &mshc_2;
 	};
 
 	chosen {
@@ -156,6 +161,57 @@
 		pulldown-ohm = <0>;
 		io-channels = <&adc 2>;
 	};
+};
+
+&cmu_aud {
+	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>;
+	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
+};
+
+&cmu_fsys {
+	assigned-clocks = <&cmu_top CLK_MOUT_SCLK_USBDRD30>,
+		<&cmu_top CLK_MOUT_SCLK_USBHOST30>,
+		<&cmu_fsys CLK_MOUT_SCLK_USBDRD30_USER>,
+		<&cmu_fsys CLK_MOUT_SCLK_USBHOST30_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_USER>,
+		<&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_USER>,
+		<&cmu_top CLK_DIV_SCLK_USBDRD30>,
+		<&cmu_top CLK_DIV_SCLK_USBHOST30>;
+	assigned-clock-parents = <&cmu_top CLK_MOUT_BUS_PLL_USER>,
+		<&cmu_top CLK_MOUT_BUS_PLL_USER>,
+		<&cmu_top CLK_SCLK_USBDRD30_FSYS>,
+		<&cmu_top CLK_SCLK_USBHOST30_FSYS>,
+		<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_PHY>,
+		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_PHY>,
+		<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_PHY>,
+		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY>;
+	assigned-clock-rates = <0>, <0>, <0>, <0>, <0>, <0>, <0>, <0>,
+			       <66700000>, <66700000>;
+};
+
+&cmu_gscl {
+	assigned-clocks = <&cmu_gscl CLK_MOUT_ACLK_GSCL_111_USER>,
+			  <&cmu_gscl CLK_MOUT_ACLK_GSCL_333_USER>;
+	assigned-clock-parents = <&cmu_top CLK_ACLK_GSCL_111>,
+				 <&cmu_top CLK_ACLK_GSCL_333>;
+};
+
+&cmu_mfc {
+	assigned-clocks = <&cmu_mfc CLK_MOUT_ACLK_MFC_400_USER>;
+	assigned-clock-parents = <&cmu_top CLK_ACLK_MFC_400>;
+};
+
+&cmu_mscl {
+	assigned-clocks = <&cmu_mscl CLK_MOUT_ACLK_MSCL_400_USER>,
+			  <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
+			  <&cmu_mscl CLK_MOUT_SCLK_JPEG>,
+			  <&cmu_top CLK_MOUT_SCLK_JPEG_A>;
+	assigned-clock-parents = <&cmu_top CLK_ACLK_MSCL_400>,
+				 <&cmu_top CLK_SCLK_JPEG_MSCL>,
+				 <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
+				 <&cmu_top CLK_MOUT_BUS_PLL_USER>;
 };
 
 &cpu0 {
@@ -645,6 +701,9 @@
 &mshc_0 {
 	status = "okay";
 	num-slots = <1>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	cap-mmc-highspeed;
 	non-removable;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -659,6 +718,23 @@
 	bus-width = <8>;
 	assigned-clocks = <&cmu_top CLK_SCLK_MMC0_FSYS>;
 	assigned-clock-rates = <800000000>;
+};
+
+&mshc_2 {
+	status = "okay";
+	num-slots = <1>;
+	cap-sd-highspeed;
+	disable-wp;
+	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
+	cd-inverted;
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	fifo-depth = <0x80>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
+	bus-width = <4>;
 };
 
 &pinctrl_alive {
@@ -882,13 +958,12 @@
 	};
 };
 
-&serial_1 {
-	status = "okay";
+&pmu_system_controller {
+	assigned-clocks = <&pmu_system_controller 0>;
+	assigned-clock-parents = <&xxti>;
 };
 
-&serial_3 {
-	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>;
-	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
+&serial_1 {
 	status = "okay";
 };
 
