@@ -53,6 +53,7 @@ enum {
 	NUM_OCTEON_CONFS,
 };
 
+#define  OCTEON_INPUT_INTR    (1)
 #define  OCTEON_OUTPUT_INTR   (2)
 #define  OCTEON_MBOX_INTR     (4)
 #define  OCTEON_ALL_INTR      0xff
@@ -294,6 +295,7 @@ struct octdev_props {
 #define LIO_FLAG_MSIX_ENABLED	0x1
 #define MSIX_PO_INT		0x1
 #define MSIX_PI_INT		0x2
+#define MSIX_MBOX_INT		0x4
 
 struct octeon_pf_vf_hs_word {
 #ifdef __LITTLE_ENDIAN_BITFIELD
@@ -401,8 +403,13 @@ struct octeon_device {
 
 	/** Octeon Chip type. */
 	u16 chip_id;
+
 	u16 rev_id;
+
 	u16 pf_num;
+
+	u16 vf_num;
+
 	/** This device's id - set by the driver. */
 	u32 octeon_id;
 
@@ -766,7 +773,7 @@ int octeon_get_rx_qsize(struct octeon_device *oct, u32 q_no);
 /** Turns off the input and output queues for the device
  *  @param oct which octeon to disable
  */
-void octeon_set_io_queues_off(struct octeon_device *oct);
+int octeon_set_io_queues_off(struct octeon_device *oct);
 
 /** Turns on or off the given output queue for the device
  *  @param oct which octeon to change

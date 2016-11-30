@@ -28,6 +28,7 @@
 #include "octeon_network.h"
 #include "cn66xx_device.h"
 #include "cn23xx_pf_device.h"
+#include "cn23xx_vf_device.h"
 
 struct iq_post_status {
 	int status;
@@ -68,6 +69,9 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 		conf = &(CFG_GET_IQ_CFG(CHIP_CONF(oct, cn6xxx)));
 	else if (OCTEON_CN23XX_PF(oct))
 		conf = &(CFG_GET_IQ_CFG(CHIP_CONF(oct, cn23xx_pf)));
+	else if (OCTEON_CN23XX_VF(oct))
+		conf = &(CFG_GET_IQ_CFG(CHIP_CONF(oct, cn23xx_vf)));
+
 	if (!conf) {
 		dev_err(&oct->pci_dev->dev, "Unsupported Chip %x\n",
 			oct->chip_id);
@@ -183,6 +187,9 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 	else if (OCTEON_CN23XX_PF(oct))
 		desc_size =
 		    CFG_GET_IQ_INSTR_TYPE(CHIP_CONF(oct, cn23xx_pf));
+	else if (OCTEON_CN23XX_VF(oct))
+		desc_size =
+		    CFG_GET_IQ_INSTR_TYPE(CHIP_CONF(oct, cn23xx_vf));
 
 	vfree(iq->request_list);
 
@@ -235,7 +242,9 @@ int octeon_setup_iq(struct octeon_device *oct,
 	}
 
 	oct->num_iqs++;
-	oct->fn_list.enable_io_queues(oct);
+	if (oct->fn_list.enable_io_queues(oct))
+		return 1;
+
 	return 0;
 }
 
