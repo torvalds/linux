@@ -1519,7 +1519,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		return;
 	}
 
-	if ((status < ARRAY_SIZE(facility_strings)) &&
+	if ((hv || status >= 2) &&
+	    (status < ARRAY_SIZE(facility_strings)) &&
 	    facility_strings[status])
 		facility = facility_strings[status];
 
@@ -1527,9 +1528,8 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	pr_err_ratelimited(
-		"%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
-		hv ? "Hypervisor " : "", facility, regs->nip, regs->msr);
+	pr_err_ratelimited("%sFacility '%s' unavailable (%d), exception at 0x%lx, MSR=%lx\n",
+		hv ? "Hypervisor " : "", facility, status, regs->nip, regs->msr);
 
 out:
 	if (user_mode(regs)) {
