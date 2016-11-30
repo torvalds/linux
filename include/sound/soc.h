@@ -810,6 +810,7 @@ struct snd_soc_component {
 
 	struct list_head list;
 	struct list_head list_aux; /* for auxiliary component of the card */
+	struct list_head card_list;
 
 	struct snd_soc_dai_driver *dai_drv;
 	int num_dai;
@@ -868,7 +869,6 @@ struct snd_soc_codec {
 	const struct snd_soc_codec_driver *driver;
 
 	struct list_head list;
-	struct list_head card_list;
 
 	/* runtime */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
@@ -1170,7 +1170,7 @@ struct snd_soc_card {
 	struct work_struct deferred_resume_work;
 
 	/* lists of probed devices belonging to this card */
-	struct list_head codec_dev_list;
+	struct list_head component_dev_list;
 
 	struct list_head widgets;
 	struct list_head paths;
@@ -1540,11 +1540,11 @@ static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platfo
 
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
 {
-	INIT_LIST_HEAD(&card->codec_dev_list);
 	INIT_LIST_HEAD(&card->widgets);
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
 	INIT_LIST_HEAD(&card->aux_comp_list);
+	INIT_LIST_HEAD(&card->component_dev_list);
 }
 
 static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)

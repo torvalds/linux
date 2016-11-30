@@ -626,7 +626,7 @@ static void codec2codec_close_delayed_work(struct work_struct *work)
 int snd_soc_suspend(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct snd_soc_pcm_runtime *rtd;
 	int i;
 
@@ -703,8 +703,12 @@ int snd_soc_suspend(struct device *dev)
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* suspend all CODECs */
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+		struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+		if (!codec)
+			continue;
 
 		/* If there are paths active then the CODEC will be held with
 		 * bias _ON and should not be suspended. */
@@ -768,7 +772,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	struct snd_soc_card *card =
 			container_of(work, struct snd_soc_card, deferred_resume_work);
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int i;
 
 	/* our power state is still SNDRV_CTL_POWER_D3hot from suspend time,
@@ -794,7 +798,12 @@ static void soc_resume_deferred(struct work_struct *work)
 			cpu_dai->driver->resume(cpu_dai);
 	}
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+		if (!codec)
+			continue;
+
 		if (codec->suspended) {
 			if (codec->driver->resume)
 				codec->driver->resume(codec);
@@ -1072,9 +1081,7 @@ static void soc_remove_component(struct snd_soc_component *component)
 	if (!component->card)
 		return;
 
-	/* This is a HACK and will be removed soon */
-	if (component->codec)
-		list_del(&component->codec->card_list);
+	list_del(&component->card_list);
 
 	if (component->remove)
 		component->remove(component);
@@ -1443,10 +1450,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 					component->num_dapm_routes);
 
 	list_add(&dapm->list, &card->dapm_list);
-
-	/* This is a HACK and will be removed soon */
-	if (component->codec)
-		list_add(&component->codec->card_list, &card->codec_dev_list);
+	list_add(&component->card_list, &card->component_dev_list);
 
 	return 0;
 
