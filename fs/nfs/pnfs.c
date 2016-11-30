@@ -1245,11 +1245,20 @@ bool pnfs_roc(struct inode *ino,
 
 	if (!nfs_have_layout(ino))
 		return false;
+retry:
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
 	if (!lo || !pnfs_layout_is_valid(lo) ||
 	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
 		goto out_noroc;
+	if (test_bit(NFS_LAYOUT_RETURN_LOCK, &lo->plh_flags)) {
+		pnfs_get_layout_hdr(lo);
+		spin_unlock(&ino->i_lock);
+		wait_on_bit(&lo->plh_flags, NFS_LAYOUT_RETURN,
+				TASK_UNINTERRUPTIBLE);
+		pnfs_put_layout_hdr(lo);
+		goto retry;
+	}
 
 	/* no roc if we hold a delegation */
 	if (nfs4_check_delegation(ino, FMODE_READ))
