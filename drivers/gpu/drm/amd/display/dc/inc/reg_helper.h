@@ -84,7 +84,7 @@
 
 #define REG_SET_5(reg, init_value, f1, v1, f2, v2, f3, v3, f4, v4,	\
 		f5, v5)	\
-		REG_SET_N(reg, 6, init_value, \
+		REG_SET_N(reg, 5, init_value, \
 				FN(reg, f1), v1,\
 				FN(reg, f2), v2,\
 				FN(reg, f3), v3,\
