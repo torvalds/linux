@@ -782,6 +782,8 @@ struct snd_soc_component_driver {
 
 	int (*probe)(struct snd_soc_component *);
 	void (*remove)(struct snd_soc_component *);
+	int (*suspend)(struct snd_soc_component *);
+	int (*resume)(struct snd_soc_component *);
 
 	/* DT */
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
@@ -808,6 +810,7 @@ struct snd_soc_component {
 	unsigned int ignore_pmdown_time:1; /* pmdown_time is ignored at stop */
 	unsigned int registered_as_component:1;
 	unsigned int auxiliary:1; /* for auxiliary component of the card */
+	unsigned int suspended:1; /* is in suspend PM state */
 
 	struct list_head list;
 	struct list_head card_list;
@@ -853,6 +856,8 @@ struct snd_soc_component {
 
 	int (*probe)(struct snd_soc_component *);
 	void (*remove)(struct snd_soc_component *);
+	int (*suspend)(struct snd_soc_component *);
+	int (*resume)(struct snd_soc_component *);
 
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);
@@ -872,7 +877,6 @@ struct snd_soc_codec {
 
 	/* runtime */
 	unsigned int cache_bypass:1; /* Suppress access to the cache */
-	unsigned int suspended:1; /* Codec is in suspend PM state */
 	unsigned int cache_init:1; /* codec cache has been initialized */
 
 	/* codec IO */
