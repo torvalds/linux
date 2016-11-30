@@ -886,6 +886,7 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dev_pm_qos_update_user_latency_tolerance);
 
 /**
  * dev_pm_qos_expose_latency_tolerance - Expose latency tolerance to userspace
