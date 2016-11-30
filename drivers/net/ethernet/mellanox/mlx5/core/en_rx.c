@@ -737,10 +737,10 @@ static inline
 struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     u16 wqe_counter, u32 cqe_bcnt)
 {
-	struct bpf_prog *xdp_prog = READ_ONCE(rq->xdp_prog);
 	struct mlx5e_dma_info *di;
 	struct sk_buff *skb;
 	void *va, *data;
+	bool consumed;
 
 	di             = &rq->dma_info[wqe_counter];
 	va             = page_address(di->page);
@@ -759,7 +759,11 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 		return NULL;
 	}
 
-	if (mlx5e_xdp_handle(rq, xdp_prog, di, data, cqe_bcnt))
+	rcu_read_lock();
+	consumed = mlx5e_xdp_handle(rq, READ_ONCE(rq->xdp_prog), di, data,
+				    cqe_bcnt);
+	rcu_read_unlock();
+	if (consumed)
 		return NULL; /* page/packet was consumed by XDP */
 
 	skb = build_skb(va, RQ_PAGE_SIZE(rq));

@@ -1497,7 +1497,14 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 
 	xdp.data = page_address(bd->data) + cqe->placement_offset;
 	xdp.data_end = xdp.data + len;
+
+	/* Queues always have a full reset currently, so for the time
+	 * being until there's atomic program replace just mark read
+	 * side for map helpers.
+	 */
+	rcu_read_lock();
 	act = bpf_prog_run_xdp(prog, &xdp);
+	rcu_read_unlock();
 
 	if (act == XDP_PASS)
 		return true;
