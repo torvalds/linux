@@ -45,6 +45,10 @@
 #define AFE_VDAC_OTHERS_0		MISC_ADDR(0x39, 3)
 #define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
 
+struct bcm7xxx_phy_priv {
+	u64	*stats;
+};
+
 static void r_rc_cal_reset(struct phy_device *phydev)
 {
 	/* Reset R_CAL/RC_CAL Engine */
@@ -350,6 +354,33 @@ static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
 	return genphy_restart_aneg(phydev);
 }
 
+static void bcm7xxx_28nm_get_phy_stats(struct phy_device *phydev,
+				       struct ethtool_stats *stats, u64 *data)
+{
+	struct bcm7xxx_phy_priv *priv = phydev->priv;
+
+	bcm_phy_get_stats(phydev, priv->stats, stats, data);
+}
+
+static int bcm7xxx_28nm_probe(struct phy_device *phydev)
+{
+	struct bcm7xxx_phy_priv *priv;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	priv->stats = devm_kcalloc(&phydev->mdio.dev,
+				   bcm_phy_get_sset_count(phydev), sizeof(u64),
+				   GFP_KERNEL);
+	if (!priv->stats)
+		return -ENOMEM;
+
+	return 0;
+}
+
 #define BCM7XXX_28NM_GPHY(_oui, _name)					\
 {									\
 	.phy_id		= (_oui),					\
@@ -364,6 +395,10 @@ static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
 	.resume		= bcm7xxx_28nm_resume,				\
 	.get_tunable	= bcm7xxx_28nm_get_tunable,			\
 	.set_tunable	= bcm7xxx_28nm_set_tunable,			\
+	.get_sset_count	= bcm_phy_get_sset_count,			\
+	.get_strings	= bcm_phy_get_strings,				\
+	.get_stats	= bcm7xxx_28nm_get_phy_stats,			\
+	.probe		= bcm7xxx_28nm_probe,				\
 }
 
 #define BCM7XXX_40NM_EPHY(_oui, _name)					\
