@@ -451,7 +451,7 @@ static int amdgpu_cs_validate(void *param, struct amdgpu_bo *bo)
 		return r;
 
 	if (bo->shadow)
-		r = amdgpu_cs_bo_validate(p, bo);
+		r = amdgpu_cs_bo_validate(p, bo->shadow);
 
 	return r;
 }
