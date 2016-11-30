@@ -48,40 +48,6 @@
 static const struct vm_operations_struct xfs_file_vm_ops;
 
 /*
- * Locking primitives for read and write IO paths to ensure we consistently use
- * and order the inode->i_mutex, ip->i_lock and ip->i_iolock.
- */
-static inline void
-xfs_rw_ilock(
-	struct xfs_inode	*ip,
-	int			type)
-{
-	if (type & XFS_IOLOCK_EXCL)
-		inode_lock(VFS_I(ip));
-	xfs_ilock(ip, type);
-}
-
-static inline void
-xfs_rw_iunlock(
-	struct xfs_inode	*ip,
-	int			type)
-{
-	xfs_iunlock(ip, type);
-	if (type & XFS_IOLOCK_EXCL)
-		inode_unlock(VFS_I(ip));
-}
-
-static inline void
-xfs_rw_ilock_demote(
-	struct xfs_inode	*ip,
-	int			type)
-{
-	xfs_ilock_demote(ip, type);
-	if (type & XFS_IOLOCK_EXCL)
-		inode_unlock(VFS_I(ip));
-}
-
-/*
  * Clear the specified ranges to zero through either the pagecache or DAX.
  * Holes and unwritten extents will be left as-is as they already are zeroed.
  */
@@ -273,7 +239,7 @@ xfs_file_dio_aio_read(
 
 	file_accessed(iocb->ki_filp);
 
-	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	if (mapping->nrpages) {
 		ret = filemap_write_and_wait_range(mapping, iocb->ki_pos, end);
 		if (ret)
@@ -299,7 +265,7 @@ xfs_file_dio_aio_read(
 	}
 
 out_unlock:
-	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 	return ret;
 }
 
@@ -317,9 +283,9 @@ xfs_file_dax_read(
 	if (!count)
 		return 0; /* skip atime */
 
-	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	ret = dax_iomap_rw(iocb, to, &xfs_iomap_ops);
-	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	file_accessed(iocb->ki_filp);
 	return ret;
@@ -335,9 +301,9 @@ xfs_file_buffered_aio_read(
 
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
-	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	ret = generic_file_read_iter(iocb, to);
-	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	return ret;
 }
@@ -418,15 +384,18 @@ restart:
 	if (error <= 0)
 		return error;
 
-	error = xfs_break_layouts(inode, iolock, true);
+	error = xfs_break_layouts(inode, iolock);
 	if (error)
 		return error;
 
-	/* For changing security info in file_remove_privs() we need i_mutex */
+	/*
+	 * For changing security info in file_remove_privs() we need i_rwsem
+	 * exclusively.
+	 */
 	if (*iolock == XFS_IOLOCK_SHARED && !IS_NOSEC(inode)) {
-		xfs_rw_iunlock(ip, *iolock);
+		xfs_iunlock(ip, *iolock);
 		*iolock = XFS_IOLOCK_EXCL;
-		xfs_rw_ilock(ip, *iolock);
+		xfs_ilock(ip, *iolock);
 		goto restart;
 	}
 	/*
@@ -451,9 +420,9 @@ restart:
 		spin_unlock(&ip->i_flags_lock);
 		if (!drained_dio) {
 			if (*iolock == XFS_IOLOCK_SHARED) {
-				xfs_rw_iunlock(ip, *iolock);
+				xfs_iunlock(ip, *iolock);
 				*iolock = XFS_IOLOCK_EXCL;
-				xfs_rw_ilock(ip, *iolock);
+				xfs_ilock(ip, *iolock);
 				iov_iter_reexpand(from, count);
 			}
 			/*
@@ -559,7 +528,7 @@ xfs_file_dio_aio_write(
 		iolock = XFS_IOLOCK_SHARED;
 	}
 
-	xfs_rw_ilock(ip, iolock);
+	xfs_ilock(ip, iolock);
 
 	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
@@ -591,7 +560,7 @@ xfs_file_dio_aio_write(
 	if (unaligned_io)
 		inode_dio_wait(inode);
 	else if (iolock == XFS_IOLOCK_EXCL) {
-		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
+		xfs_ilock_demote(ip, XFS_IOLOCK_EXCL);
 		iolock = XFS_IOLOCK_SHARED;
 	}
 
@@ -621,7 +590,7 @@ xfs_file_dio_aio_write(
 		iov_iter_advance(from, ret);
 	}
 out:
-	xfs_rw_iunlock(ip, iolock);
+	xfs_iunlock(ip, iolock);
 
 	/*
 	 * No fallback to buffered IO on errors for XFS, direct IO will either
@@ -643,7 +612,7 @@ xfs_file_dax_write(
 	size_t			count;
 	loff_t			pos;
 
-	xfs_rw_ilock(ip, iolock);
+	xfs_ilock(ip, iolock);
 	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
@@ -652,15 +621,13 @@ xfs_file_dax_write(
 	count = iov_iter_count(from);
 
 	trace_xfs_file_dax_write(ip, count, pos);
-
 	ret = dax_iomap_rw(iocb, from, &xfs_iomap_ops);
 	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
 		i_size_write(inode, iocb->ki_pos);
 		error = xfs_setfilesize(ip, pos, ret);
 	}
-
 out:
-	xfs_rw_iunlock(ip, iolock);
+	xfs_iunlock(ip, iolock);
 	return error ? error : ret;
 }
 
@@ -677,7 +644,7 @@ xfs_file_buffered_aio_write(
 	int			enospc = 0;
 	int			iolock = XFS_IOLOCK_EXCL;
 
-	xfs_rw_ilock(ip, iolock);
+	xfs_ilock(ip, iolock);
 
 	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
@@ -721,7 +688,7 @@ write_retry:
 
 	current->backing_dev_info = NULL;
 out:
-	xfs_rw_iunlock(ip, iolock);
+	xfs_iunlock(ip, iolock);
 	return ret;
 }
 
@@ -797,7 +764,7 @@ xfs_file_fallocate(
 		return -EOPNOTSUPP;
 
 	xfs_ilock(ip, iolock);
-	error = xfs_break_layouts(inode, &iolock, false);
+	error = xfs_break_layouts(inode, &iolock);
 	if (error)
 		goto out_unlock;
 
