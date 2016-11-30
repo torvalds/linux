@@ -499,8 +499,7 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	num_mtts = MLX5E_REQUIRED_MTTS(priv->params.num_channels,
-				       rx_pending_wqes);
+	num_mtts = MLX5E_REQUIRED_MTTS(rx_pending_wqes);
 	if (priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
 	    !MLX5E_VALID_NUM_MTTS(num_mtts)) {
 		netdev_info(dev, "%s: rx_pending (%d) request can't be satisfied, try to reduce.\n",
@@ -565,7 +564,6 @@ static int mlx5e_set_channels(struct net_device *dev,
 	unsigned int count = ch->combined_count;
 	bool arfs_enabled;
 	bool was_opened;
-	u32 num_mtts;
 	int err = 0;
 
 	if (!count) {
@@ -581,14 +579,6 @@ static int mlx5e_set_channels(struct net_device *dev,
 	if (count > ncv) {
 		netdev_info(dev, "%s: count (%d) > max (%d)\n",
 			    __func__, count, ncv);
-		return -EINVAL;
-	}
-
-	num_mtts = MLX5E_REQUIRED_MTTS(count, BIT(priv->params.log_rq_size));
-	if (priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
-	    !MLX5E_VALID_NUM_MTTS(num_mtts)) {
-		netdev_info(dev, "%s: rx count (%d) request can't be satisfied, try to reduce.\n",
-			    __func__, count);
 		return -EINVAL;
 	}
 
