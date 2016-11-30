@@ -309,7 +309,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 {
 	struct dvb_usb_adapter *adap = lme_urb->context;
 	struct lme2510_state *st = adap_to_priv(adap);
-	static u8 *ibuf, *rbuf;
+	u8 *ibuf, *rbuf;
 	int i = 0, offset;
 	u32 key;
 	u8 signal_lock = 0;
