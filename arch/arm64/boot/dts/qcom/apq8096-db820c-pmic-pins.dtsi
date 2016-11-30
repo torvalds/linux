@@ -9,7 +9,7 @@
 		pinconf {
 			pins = "gpio5";
 			output-low;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <2>; // PM8994_GPIO_S4, 1.8V
 		};
 	};
 };
