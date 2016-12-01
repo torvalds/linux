@@ -231,13 +231,12 @@ static int
 __xattr_check_inode(struct inode *inode, struct ext4_xattr_ibody_header *header,
 			 void *end, const char *function, unsigned int line)
 {
-	struct ext4_xattr_entry *entry = IFIRST(header);
 	int error = -EFSCORRUPTED;
 
-	if (((void *) header >= end) ||
+	if (end - (void *)header < sizeof(*header) + sizeof(u32) ||
 	    (header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)))
 		goto errout;
-	error = ext4_xattr_check_names(entry, end, entry);
+	error = ext4_xattr_check_names(IFIRST(header), end, IFIRST(header));
 errout:
 	if (error)
 		__ext4_error_inode(inode, function, line, 0,
