@@ -640,7 +640,7 @@ static unsigned int tcp_synack_options(struct request_sock *req,
 	}
 	if (likely(ireq->tstamp_ok)) {
 		opts->options |= OPTION_TS;
-		opts->tsval = tcp_skb_timestamp(skb);
+		opts->tsval = tcp_skb_timestamp(skb) + tcp_rsk(req)->ts_off;
 		opts->tsecr = req->ts_recent;
 		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}

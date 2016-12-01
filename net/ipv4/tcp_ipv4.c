@@ -95,12 +95,12 @@ static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 struct inet_hashinfo tcp_hashinfo;
 EXPORT_SYMBOL(tcp_hashinfo);
 
-static  __u32 tcp_v4_init_sequence(const struct sk_buff *skb)
+static u32 tcp_v4_init_sequence(const struct sk_buff *skb, u32 *tsoff)
 {
 	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
 					  ip_hdr(skb)->saddr,
 					  tcp_hdr(skb)->dest,
-					  tcp_hdr(skb)->source);
+					  tcp_hdr(skb)->source, tsoff);
 }
 
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
@@ -237,7 +237,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		tp->write_seq = secure_tcp_sequence_number(inet->inet_saddr,
 							   inet->inet_daddr,
 							   inet->inet_sport,
-							   usin->sin_port);
+							   usin->sin_port,
+							   &tp->tsoffset);
 
 	inet->inet_id = tp->write_seq ^ jiffies;
 
@@ -824,7 +825,7 @@ static void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 	tcp_v4_send_ack(sk, skb, seq,
 			tcp_rsk(req)->rcv_nxt,
 			req->rsk_rcv_wnd >> inet_rsk(req)->rcv_wscale,
-			tcp_time_stamp,
+			tcp_time_stamp + tcp_rsk(req)->ts_off,
 			req->ts_recent,
 			0,
 			tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&ip_hdr(skb)->daddr,

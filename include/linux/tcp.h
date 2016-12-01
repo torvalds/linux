@@ -123,6 +123,7 @@ struct tcp_request_sock {
 	u32				txhash;
 	u32				rcv_isn;
 	u32				snt_isn;
+	u32				ts_off;
 	u32				last_oow_ack_time; /* last SYNACK */
 	u32				rcv_nxt; /* the ack # by SYNACK. For
 						  * FastOpen it's the seq#

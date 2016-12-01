@@ -1827,7 +1827,7 @@ struct tcp_request_sock_ops {
 	struct dst_entry *(*route_req)(const struct sock *sk, struct flowi *fl,
 				       const struct request_sock *req,
 				       bool *strict);
-	__u32 (*init_seq)(const struct sk_buff *skb);
+	__u32 (*init_seq)(const struct sk_buff *skb, u32 *tsoff);
 	int (*send_synack)(const struct sock *sk, struct dst_entry *dst,
 			   struct flowi *fl, struct request_sock *req,
 			   struct tcp_fastopen_cookie *foc,
