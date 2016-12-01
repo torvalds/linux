@@ -993,24 +993,24 @@ static void pcan_usb_fd_free(struct peak_usb_device *dev)
 static const struct can_bittiming_const pcan_usb_fd_const = {
 	.name = "pcan_usb_fd",
 	.tseg1_min = 1,
-	.tseg1_max = 64,
+	.tseg1_max = (1 << PUCAN_TSLOW_TSGEG1_BITS),
 	.tseg2_min = 1,
-	.tseg2_max = 16,
-	.sjw_max = 16,
+	.tseg2_max = (1 << PUCAN_TSLOW_TSGEG2_BITS),
+	.sjw_max = (1 << PUCAN_TSLOW_SJW_BITS),
 	.brp_min = 1,
-	.brp_max = 1024,
+	.brp_max = (1 << PUCAN_TSLOW_BRP_BITS),
 	.brp_inc = 1,
 };
 
 static const struct can_bittiming_const pcan_usb_fd_data_const = {
 	.name = "pcan_usb_fd",
 	.tseg1_min = 1,
-	.tseg1_max = 16,
+	.tseg1_max = (1 << PUCAN_TFAST_TSGEG1_BITS),
 	.tseg2_min = 1,
-	.tseg2_max = 8,
-	.sjw_max = 4,
+	.tseg2_max = (1 << PUCAN_TFAST_TSGEG2_BITS),
+	.sjw_max = (1 << PUCAN_TFAST_SJW_BITS),
 	.brp_min = 1,
-	.brp_max = 1024,
+	.brp_max = (1 << PUCAN_TFAST_BRP_BITS),
 	.brp_inc = 1,
 };
 
@@ -1065,24 +1065,24 @@ const struct peak_usb_adapter pcan_usb_fd = {
 static const struct can_bittiming_const pcan_usb_pro_fd_const = {
 	.name = "pcan_usb_pro_fd",
 	.tseg1_min = 1,
-	.tseg1_max = 64,
+	.tseg1_max = (1 << PUCAN_TSLOW_TSGEG1_BITS),
 	.tseg2_min = 1,
-	.tseg2_max = 16,
-	.sjw_max = 16,
+	.tseg2_max = (1 << PUCAN_TSLOW_TSGEG2_BITS),
+	.sjw_max = (1 << PUCAN_TSLOW_SJW_BITS),
 	.brp_min = 1,
-	.brp_max = 1024,
+	.brp_max = (1 << PUCAN_TSLOW_BRP_BITS),
 	.brp_inc = 1,
 };
 
 static const struct can_bittiming_const pcan_usb_pro_fd_data_const = {
 	.name = "pcan_usb_pro_fd",
 	.tseg1_min = 1,
-	.tseg1_max = 16,
+	.tseg1_max = (1 << PUCAN_TFAST_TSGEG1_BITS),
 	.tseg2_min = 1,
-	.tseg2_max = 8,
-	.sjw_max = 4,
+	.tseg2_max = (1 << PUCAN_TFAST_TSGEG2_BITS),
+	.sjw_max = (1 << PUCAN_TFAST_SJW_BITS),
 	.brp_min = 1,
-	.brp_max = 1024,
+	.brp_max = (1 << PUCAN_TFAST_BRP_BITS),
 	.brp_inc = 1,
 };
 
