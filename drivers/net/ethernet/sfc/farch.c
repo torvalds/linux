@@ -913,7 +913,7 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	if (rx_ev_other_err && net_ratelimit()) {
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "
-			  EFX_QWORD_FMT "%s%s%s%s%s%s%s%s\n",
+			  EFX_QWORD_FMT "%s%s%s%s%s%s%s\n",
 			  efx_rx_queue_index(rx_queue), EFX_QWORD_VAL(*event),
 			  rx_ev_buf_owner_id_err ? " [OWNER_ID_ERR]" : "",
 			  rx_ev_ip_hdr_chksum_err ?

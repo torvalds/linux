@@ -6,7 +6,6 @@ config SFC
 	select I2C
 	select I2C_ALGOBIT
 	select PTP_1588_CLOCK
-	select SFC_FALCON
 	---help---
 	  This driver supports 10/40-gigabit Ethernet cards based on
 	  the Solarflare SFC9000-family and SFC9100-family controllers.
