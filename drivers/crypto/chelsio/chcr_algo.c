@@ -956,9 +956,8 @@ static int chcr_ahash_update(struct ahash_request *req)
 	req_ctx->result = 0;
 	req_ctx->data_len += params.sg_len + params.bfr_len;
 	skb = create_hash_wr(req, &params);
-
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (!skb)
+		return -ENOMEM;
 
 	if (remainder) {
 		u8 *temp;
@@ -1021,8 +1020,8 @@ static int chcr_ahash_final(struct ahash_request *req)
 		params.more = 0;
 	}
 	skb = create_hash_wr(req, &params);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (!skb)
+		return -ENOMEM;
 
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
@@ -1072,8 +1071,8 @@ static int chcr_ahash_finup(struct ahash_request *req)
 	}
 
 	skb = create_hash_wr(req, &params);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (!skb)
+		return -ENOMEM;
 
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
@@ -1123,8 +1122,8 @@ static int chcr_ahash_digest(struct ahash_request *req)
 	}
 
 	skb = create_hash_wr(req, &params);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (!skb)
+		return -ENOMEM;
 
 	skb->dev = u_ctx->lldi.ports[0];
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ctx->tx_channel_id);
