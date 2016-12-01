@@ -108,7 +108,14 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pcie->map_irq = of_irq_parse_and_map_pci;
+	/* PAXC doesn't support legacy IRQs, skip mapping */
+	switch (pcie->type) {
+	case IPROC_PCIE_PAXC:
+	case IPROC_PCIE_PAXC_V2:
+		break;
+	default:
+		pcie->map_irq = of_irq_parse_and_map_pci;
+	}
 
 	ret = iproc_pcie_setup(pcie, &res);
 	if (ret)

@@ -1274,7 +1274,10 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
-	pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
+
+	if (pcie->map_irq)
+		pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
+
 	pci_bus_add_devices(bus);
 
 	return 0;
