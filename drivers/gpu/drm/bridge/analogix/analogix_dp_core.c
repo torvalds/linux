@@ -1349,8 +1349,6 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		}
 	}
 
-	analogix_dp_init_dp(dp);
-
 	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
