@@ -2552,6 +2552,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	int ret;
 
 	IWL_DEBUG_MAC80211(mvm, "station %pM state change %d->%d\n",
@@ -2580,8 +2581,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	if (old_state == IEEE80211_STA_NONE &&
 	    new_state == IEEE80211_STA_NOTEXIST &&
 	    iwl_mvm_is_dqa_supported(mvm)) {
-		struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-
 		iwl_mvm_purge_deferred_tx_frames(mvm, mvm_sta);
 		flush_work(&mvm->add_stream_wk);
 
@@ -2592,6 +2591,9 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	}
 
 	mutex_lock(&mvm->mutex);
+	/* track whether or not the station is associated */
+	mvm_sta->associated = new_state >= IEEE80211_STA_ASSOC;
+
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
 		/*
