@@ -1102,6 +1102,7 @@ enum ib_qp_attr_mask {
 	IB_QP_RESERVED2			= (1<<22),
 	IB_QP_RESERVED3			= (1<<23),
 	IB_QP_RESERVED4			= (1<<24),
+	IB_QP_RATE_LIMIT		= (1<<25),
 };
 
 enum ib_qp_state {
@@ -1151,6 +1152,7 @@ struct ib_qp_attr {
 	u8			rnr_retry;
 	u8			alt_port_num;
 	u8			alt_timeout;
+	u32			rate_limit;
 };
 
 enum ib_wr_opcode {
