@@ -241,7 +241,6 @@ enum event_pc {			/* POSTCODE event identifier tuples */
  * entered/exited from.
  */
 
-/* BASE FUNCTIONS */
 #define POSTCODE_LINUX(EVENT_PC, pc16bit1, pc16bit2, severity)		\
 do {									\
 	unsigned long long post_code_temp;				\
@@ -252,9 +251,5 @@ do {									\
 		(((u64)pc16bit2) & 0xFFFF);				\
 	ISSUE_IO_VMCALL_POSTCODE_SEVERITY(post_code_temp, severity);	\
 } while (0)
-
-/* MOST COMMON */
-#define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
-	POSTCODE_LINUX(EVENT_PC, pc16bit1, pc16bit2, severity)
 
 #endif /* __IOMONINTF_H__ */
