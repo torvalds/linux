@@ -414,7 +414,6 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	 */
 	if (dev_pm_opp_of_add_table(dev)) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");
-		rcu_read_unlock();
 		return -EINVAL;
 	}
 
