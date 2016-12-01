@@ -75,7 +75,7 @@ struct s626_buffer_dma {
 };
 
 struct s626_private {
-	uint8_t ai_cmd_running;		/* ai_cmd is running */
+	u8 ai_cmd_running;		/* ai_cmd is running */
 	unsigned int ai_sample_timer;	/* time between samples in
 					 * units of the timer */
 	int ai_convert_count;		/* conversion counter */
@@ -83,7 +83,7 @@ struct s626_private {
 					 * units of the timer */
 	uint16_t counter_int_enabs;	/* counter interrupt enable mask
 					 * for MISC2 register */
-	uint8_t adc_items;		/* number of items in ADC poll list */
+	u8 adc_items;		        /* number of items in ADC poll list */
 	struct s626_buffer_dma rps_buf;	/* DMA buffer used to hold ADC (RPS1)
 					 * program */
 	struct s626_buffer_dma ana_buf;	/* DMA buffer used to receive ADC data
@@ -91,7 +91,7 @@ struct s626_private {
 	uint32_t *dac_wbuf;		/* pointer to logical adrs of DMA buffer
 					 * used to hold DAC data */
 	uint16_t dacpol;		/* image of DAC polarity register */
-	uint8_t trim_setpoint[12];	/* images of TrimDAC setpoints */
+	u8 trim_setpoint[12];	        /* images of TrimDAC setpoints */
 	uint32_t i2c_adrs;		/* I2C device address for onboard EEPROM
 					 * (board rev dependent) */
 };
@@ -267,8 +267,8 @@ static int s626_i2c_handshake(struct comedi_device *dev, uint32_t val)
 	return ctrl & S626_I2C_ERR;
 }
 
-/* Read uint8_t from EEPROM. */
-static uint8_t s626_i2c_read(struct comedi_device *dev, uint8_t addr)
+/* Read u8 from EEPROM. */
+static u8 s626_i2c_read(struct comedi_device *dev, u8 addr)
 {
 	struct s626_private *devpriv = dev->private;
 
@@ -304,10 +304,10 @@ static uint8_t s626_i2c_read(struct comedi_device *dev, uint8_t addr)
 /* ***********  DAC FUNCTIONS *********** */
 
 /* TrimDac LogicalChan-to-PhysicalChan mapping table. */
-static const uint8_t s626_trimchan[] = { 10, 9, 8, 3, 2, 7, 6, 1, 0, 5, 4 };
+static const u8 s626_trimchan[] = { 10, 9, 8, 3, 2, 7, 6, 1, 0, 5, 4 };
 
 /* TrimDac LogicalChan-to-EepromAdrs mapping table. */
-static const uint8_t s626_trimadrs[] = {
+static const u8 s626_trimadrs[] = {
 	0x40, 0x41, 0x42, 0x50, 0x51, 0x52, 0x53, 0x60, 0x61, 0x62, 0x63
 };
 
@@ -582,7 +582,7 @@ static int s626_set_dac(struct comedi_device *dev,
 }
 
 static int s626_write_trim_dac(struct comedi_device *dev,
-			       uint8_t logical_chan, uint8_t dac_data)
+			       u8 logical_chan, u8 dac_data)
 {
 	struct s626_private *devpriv = dev->private;
 	uint32_t chan;
@@ -591,7 +591,7 @@ static int s626_write_trim_dac(struct comedi_device *dev,
 	 * Save the new setpoint in case the application needs to read it back
 	 * later.
 	 */
-	devpriv->trim_setpoint[logical_chan] = (uint8_t)dac_data;
+	devpriv->trim_setpoint[logical_chan] = (u8)dac_data;
 
 	/* Map logical channel number to physical channel number. */
 	chan = s626_trimchan[logical_chan];
@@ -633,7 +633,7 @@ static int s626_write_trim_dac(struct comedi_device *dev,
 
 static int s626_load_trim_dacs(struct comedi_device *dev)
 {
-	uint8_t i;
+	u8 i;
 	int ret;
 
 	/* Copy TrimDac setpoint values from EEPROM to TrimDacs. */
@@ -1062,7 +1062,7 @@ static int s626_dio_clear_irq(struct comedi_device *dev)
 }
 
 static void s626_handle_dio_interrupt(struct comedi_device *dev,
-				      uint16_t irqbit, uint8_t group)
+				      uint16_t irqbit, u8 group)
 {
 	struct s626_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -1111,7 +1111,7 @@ static void s626_handle_dio_interrupt(struct comedi_device *dev,
 static void s626_check_dio_interrupts(struct comedi_device *dev)
 {
 	uint16_t irqbit;
-	uint8_t group;
+	u8 group;
 
 	for (group = 0; group < S626_DIO_BANKS; group++) {
 		/* read interrupt type */
@@ -1272,7 +1272,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 /*
  * This function builds the RPS program for hardware driven acquisition.
  */
-static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
+static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 {
 	struct s626_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -1585,7 +1585,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd)
+static int s626_ai_load_polllist(u8 *ppl, struct comedi_cmd *cmd)
 {
 	int n;
 
@@ -1693,7 +1693,7 @@ static void s626_timer_load(struct comedi_device *dev,
 static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct s626_private *devpriv = dev->private;
-	uint8_t ppl[16];
+	u8 ppl[16];
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int tick;
 
