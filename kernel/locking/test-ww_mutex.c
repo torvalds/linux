@@ -21,9 +21,11 @@
 #include <linux/completion.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/ww_mutex.h>
 
 static DEFINE_WW_CLASS(ww_class);
+struct workqueue_struct *wq;
 
 struct test_mutex {
 	struct work_struct work;
@@ -243,9 +245,117 @@ static int test_abba(bool resolve)
 	return ret;
 }
 
+struct test_cycle {
+	struct work_struct work;
+	struct ww_mutex a_mutex;
+	struct ww_mutex *b_mutex;
+	struct completion *a_signal;
+	struct completion b_signal;
+	int result;
+};
+
+static void test_cycle_work(struct work_struct *work)
+{
+	struct test_cycle *cycle = container_of(work, typeof(*cycle), work);
+	struct ww_acquire_ctx ctx;
+	int err;
+
+	ww_acquire_init(&ctx, &ww_class);
+	ww_mutex_lock(&cycle->a_mutex, &ctx);
+
+	complete(cycle->a_signal);
+	wait_for_completion(&cycle->b_signal);
+
+	err = ww_mutex_lock(cycle->b_mutex, &ctx);
+	if (err == -EDEADLK) {
+		ww_mutex_unlock(&cycle->a_mutex);
+		ww_mutex_lock_slow(cycle->b_mutex, &ctx);
+		err = ww_mutex_lock(&cycle->a_mutex, &ctx);
+	}
+
+	if (!err)
+		ww_mutex_unlock(cycle->b_mutex);
+	ww_mutex_unlock(&cycle->a_mutex);
+	ww_acquire_fini(&ctx);
+
+	cycle->result = err;
+}
+
+static int __test_cycle(unsigned int nthreads)
+{
+	struct test_cycle *cycles;
+	unsigned int n, last = nthreads - 1;
+	int ret;
+
+	cycles = kmalloc_array(nthreads, sizeof(*cycles), GFP_KERNEL);
+	if (!cycles)
+		return -ENOMEM;
+
+	for (n = 0; n < nthreads; n++) {
+		struct test_cycle *cycle = &cycles[n];
+
+		ww_mutex_init(&cycle->a_mutex, &ww_class);
+		if (n == last)
+			cycle->b_mutex = &cycles[0].a_mutex;
+		else
+			cycle->b_mutex = &cycles[n + 1].a_mutex;
+
+		if (n == 0)
+			cycle->a_signal = &cycles[last].b_signal;
+		else
+			cycle->a_signal = &cycles[n - 1].b_signal;
+		init_completion(&cycle->b_signal);
+
+		INIT_WORK(&cycle->work, test_cycle_work);
+		cycle->result = 0;
+	}
+
+	for (n = 0; n < nthreads; n++)
+		queue_work(wq, &cycles[n].work);
+
+	flush_workqueue(wq);
+
+	ret = 0;
+	for (n = 0; n < nthreads; n++) {
+		struct test_cycle *cycle = &cycles[n];
+
+		if (!cycle->result)
+			continue;
+
+		pr_err("cylic deadlock not resolved, ret[%d/%d] = %d\n",
+		       n, nthreads, cycle->result);
+		ret = -EINVAL;
+		break;
+	}
+
+	for (n = 0; n < nthreads; n++)
+		ww_mutex_destroy(&cycles[n].a_mutex);
+	kfree(cycles);
+	return ret;
+}
+
+static int test_cycle(unsigned int ncpus)
+{
+	unsigned int n;
+	int ret;
+
+	for (n = 2; n <= ncpus + 1; n++) {
+		ret = __test_cycle(n);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int __init test_ww_mutex_init(void)
 {
+	int ncpus = num_online_cpus();
 	int ret;
+
+	wq = alloc_workqueue("test-ww_mutex", WQ_UNBOUND, 0);
+	if (!wq)
+		return -ENOMEM;
 
 	ret = test_mutex();
 	if (ret)
@@ -263,11 +373,16 @@ static int __init test_ww_mutex_init(void)
 	if (ret)
 		return ret;
 
+	ret = test_cycle(ncpus);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static void __exit test_ww_mutex_exit(void)
 {
+	destroy_workqueue(wq);
 }
 
 module_init(test_ww_mutex_init);
