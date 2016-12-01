@@ -115,11 +115,9 @@ static enum bp_result encoder_control_digx_v4(
 	struct bios_parser *bp,
 	struct bp_encoder_control *cntl);
 
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 static enum bp_result encoder_control_digx_v5(
 	struct bios_parser *bp,
 	struct bp_encoder_control *cntl);
-#endif
 
 static void init_encoder_control_dig_v1(struct bios_parser *bp);
 
@@ -136,11 +134,9 @@ static void init_dig_encoder_control(struct bios_parser *bp)
 		bp->cmd_tbl.dig_encoder_control = encoder_control_digx_v4;
 		break;
 
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 	case 5:
 		bp->cmd_tbl.dig_encoder_control = encoder_control_digx_v5;
 		break;
-#endif
 
 	default:
 		init_encoder_control_dig_v1(bp);
@@ -290,7 +286,6 @@ static enum bp_result encoder_control_digx_v4(
 	return result;
 }
 
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 static enum bp_result encoder_control_digx_v5(
 	struct bios_parser *bp,
 	struct bp_encoder_control *cntl)
@@ -348,7 +343,6 @@ static enum bp_result encoder_control_digx_v5(
 
 	return result;
 }
-#endif
 
 /*******************************************************************************
  ********************************************************************************
@@ -829,7 +823,6 @@ static enum bp_result transmitter_control_v1_6(
 	struct bp_transmitter_control *cntl)
 {
 	enum bp_result result = BP_RESULT_FAILURE;
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 	const struct command_table_helper *cmd = bp->cmd_helper;
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V1_6 params;
 
@@ -883,7 +876,6 @@ static enum bp_result transmitter_control_v1_6(
 
 	if (EXEC_BIOS_CMD_TABLE(UNIPHYTransmitterControl, params))
 		result = BP_RESULT_OK;
-#endif
 	return result;
 }
 
@@ -1141,7 +1133,6 @@ static enum bp_result set_pixel_clock_v7(
 	struct bp_pixel_clock_parameters *bp_params)
 {
 	enum bp_result result = BP_RESULT_FAILURE;
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 	PIXEL_CLOCK_PARAMETERS_V7 clk;
 	uint8_t controller_id;
 	uint32_t pll_id;
@@ -1203,7 +1194,6 @@ static enum bp_result set_pixel_clock_v7(
 		if (EXEC_BIOS_CMD_TABLE(SetPixelClock, clk))
 			result = BP_RESULT_OK;
 	}
-#endif
 	return result;
 }
 
@@ -2539,15 +2529,12 @@ static enum bp_result enable_disp_power_gating_v2_1(
  **
  ********************************************************************************
  *******************************************************************************/
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 static enum bp_result set_dce_clock_v2_1(
 	struct bios_parser *bp,
 	struct bp_set_dce_clock_parameters *bp_params);
-#endif
 
 static void init_set_dce_clock(struct bios_parser *bp)
 {
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 	switch (BIOS_CMD_TABLE_PARA_REVISION(SetDCEClock)) {
 	case 1:
 		bp->cmd_tbl.set_dce_clock = set_dce_clock_v2_1;
@@ -2556,10 +2543,8 @@ static void init_set_dce_clock(struct bios_parser *bp)
 		bp->cmd_tbl.set_dce_clock = NULL;
 		break;
 	}
-#endif
 }
 
-#ifdef LATEST_ATOM_BIOS_SUPPORT
 static enum bp_result set_dce_clock_v2_1(
 	struct bios_parser *bp,
 	struct bp_set_dce_clock_parameters *bp_params)
@@ -2606,4 +2591,3 @@ static enum bp_result set_dce_clock_v2_1(
 
 	return result;
 }
-#endif
