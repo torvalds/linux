@@ -117,22 +117,13 @@ struct vmcall_io_controlvm_addr_params {
 
 /******* INFO ON ISSUE_POSTCODE_LINUX() BELOW *******/
 enum driver_pc {		/* POSTCODE driver identifier tuples */
-	/* visorchipset driver files */
-	VISOR_CHIPSET_PC = 0xA0,
-	VISOR_CHIPSET_PC_controlvm_c = 0xA1,
-	VISOR_CHIPSET_PC_controlvm_cm2 = 0xA2,
-	VISOR_CHIPSET_PC_controlvm_direct_c = 0xA3,
-	VISOR_CHIPSET_PC_file_c = 0xA4,
-	VISOR_CHIPSET_PC_parser_c = 0xA5,
-	VISOR_CHIPSET_PC_testing_c = 0xA6,
-	VISOR_CHIPSET_PC_visorchipset_main_c = 0xA7,
-	VISOR_CHIPSET_PC_visorswitchbus_c = 0xA8,
 	/* visorbus driver files */
 	VISOR_BUS_PC = 0xB0,
 	VISOR_BUS_PC_businst_attr_c = 0xB1,
 	VISOR_BUS_PC_channel_attr_c = 0xB2,
 	VISOR_BUS_PC_devmajorminor_attr_c = 0xB3,
 	VISOR_BUS_PC_visorbus_main_c = 0xB4,
+	VISOR_BUS_PC_visorchipset_c = 0xB5,
 	/* visorclientbus driver files */
 	VISOR_CLIENT_BUS_PC = 0xC0,
 	VISOR_CLIENT_BUS_PC_visorclientbus_main_c = 0xC1,
