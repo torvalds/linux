@@ -71,18 +71,17 @@ struct tps65086_regulator {
 	unsigned int decay_mask;
 };
 
-static const struct regulator_linear_range tps65086_buck126_10mv_ranges[] = {
+static const struct regulator_linear_range tps65086_10mv_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(410000, 0x1, 0x7F, 10000),
 };
 
 static const struct regulator_linear_range tps65086_buck126_25mv_ranges[] = {
-	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
-	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x18, 0),
+	REGULATOR_LINEAR_RANGE(1000000, 0x0, 0x18, 0),
 	REGULATOR_LINEAR_RANGE(1025000, 0x19, 0x7F, 25000),
 };
 
-static const struct regulator_linear_range tps65086_buck345_ranges[] = {
+static const struct regulator_linear_range tps65086_buck345_25mv_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
 	REGULATOR_LINEAR_RANGE(425000, 0x1, 0x7F, 25000),
 };
@@ -125,27 +124,27 @@ static int tps65086_of_parse_cb(struct device_node *dev,
 static struct tps65086_regulator regulators[] = {
 	TPS65086_REGULATOR("BUCK1", "buck1", BUCK1, 0x80, TPS65086_BUCK1CTRL,
 			   BUCK_VID_MASK, TPS65086_BUCK123CTRL, BIT(0),
-			   tps65086_buck126_10mv_ranges, TPS65086_BUCK1CTRL,
+			   tps65086_10mv_ranges, TPS65086_BUCK1CTRL,
 			   BIT(0)),
 	TPS65086_REGULATOR("BUCK2", "buck2", BUCK2, 0x80, TPS65086_BUCK2CTRL,
 			   BUCK_VID_MASK, TPS65086_BUCK123CTRL, BIT(1),
-			   tps65086_buck126_10mv_ranges, TPS65086_BUCK2CTRL,
+			   tps65086_10mv_ranges, TPS65086_BUCK2CTRL,
 			   BIT(0)),
 	TPS65086_REGULATOR("BUCK3", "buck3", BUCK3, 0x80, TPS65086_BUCK3VID,
 			   BUCK_VID_MASK, TPS65086_BUCK123CTRL, BIT(2),
-			   tps65086_buck345_ranges, TPS65086_BUCK3DECAY,
+			   tps65086_10mv_ranges, TPS65086_BUCK3DECAY,
 			   BIT(0)),
 	TPS65086_REGULATOR("BUCK4", "buck4", BUCK4, 0x80, TPS65086_BUCK4VID,
 			   BUCK_VID_MASK, TPS65086_BUCK4CTRL, BIT(0),
-			   tps65086_buck345_ranges, TPS65086_BUCK4VID,
+			   tps65086_10mv_ranges, TPS65086_BUCK4VID,
 			   BIT(0)),
 	TPS65086_REGULATOR("BUCK5", "buck5", BUCK5, 0x80, TPS65086_BUCK5VID,
 			   BUCK_VID_MASK, TPS65086_BUCK5CTRL, BIT(0),
-			   tps65086_buck345_ranges, TPS65086_BUCK5CTRL,
+			   tps65086_10mv_ranges, TPS65086_BUCK5CTRL,
 			   BIT(0)),
 	TPS65086_REGULATOR("BUCK6", "buck6", BUCK6, 0x80, TPS65086_BUCK6VID,
 			   BUCK_VID_MASK, TPS65086_BUCK6CTRL, BIT(0),
-			   tps65086_buck126_10mv_ranges, TPS65086_BUCK6CTRL,
+			   tps65086_10mv_ranges, TPS65086_BUCK6CTRL,
 			   BIT(0)),
 	TPS65086_REGULATOR("LDOA1", "ldoa1", LDOA1, 0xF, TPS65086_LDOA1CTRL,
 			   VDOA1_VID_MASK, TPS65086_LDOA1CTRL, BIT(0),
@@ -162,18 +161,6 @@ static struct tps65086_regulator regulators[] = {
 	TPS65086_SWITCH("VTT", "vtt", VTT, TPS65086_SWVTT_EN, BIT(4)),
 };
 
-static inline bool has_25mv_mode(int id)
-{
-	switch (id) {
-	case BUCK1:
-	case BUCK2:
-	case BUCK6:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static int tps65086_of_parse_cb(struct device_node *dev,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
@@ -181,12 +168,27 @@ static int tps65086_of_parse_cb(struct device_node *dev,
 	int ret;
 
 	/* Check for 25mV step mode */
-	if (has_25mv_mode(desc->id) &&
-			of_property_read_bool(config->of_node, "ti,regulator-step-size-25mv")) {
-		regulators[desc->id].desc.linear_ranges =
+	if (of_property_read_bool(config->of_node, "ti,regulator-step-size-25mv")) {
+		switch (desc->id) {
+		case BUCK1:
+		case BUCK2:
+		case BUCK6:
+			regulators[desc->id].desc.linear_ranges =
 				tps65086_buck126_25mv_ranges;
-		regulators[desc->id].desc.n_linear_ranges =
+			regulators[desc->id].desc.n_linear_ranges =
 				ARRAY_SIZE(tps65086_buck126_25mv_ranges);
+			break;
+		case BUCK3:
+		case BUCK4:
+		case BUCK5:
+			regulators[desc->id].desc.linear_ranges =
+				tps65086_buck345_25mv_ranges;
+			regulators[desc->id].desc.n_linear_ranges =
+				ARRAY_SIZE(tps65086_buck345_25mv_ranges);
+			break;
+		default:
+			dev_warn(config->dev, "25mV step mode only valid for BUCK regulators\n");
+		}
 	}
 
 	/* Check for decay mode */
