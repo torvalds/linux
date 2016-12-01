@@ -101,6 +101,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_XDP,
 	BPF_PROG_TYPE_PERF_EVENT,
 	BPF_PROG_TYPE_CGROUP_SKB,
+	BPF_PROG_TYPE_CGROUP_SOCK,
 	BPF_PROG_TYPE_LWT_IN,
 	BPF_PROG_TYPE_LWT_OUT,
 	BPF_PROG_TYPE_LWT_XMIT,
@@ -109,6 +110,7 @@ enum bpf_prog_type {
 enum bpf_attach_type {
 	BPF_CGROUP_INET_INGRESS,
 	BPF_CGROUP_INET_EGRESS,
+	BPF_CGROUP_INET_SOCK_CREATE,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -565,6 +567,10 @@ enum bpf_ret_code {
 	/* 3-6 reserved */
 	BPF_REDIRECT = 7,
 	/* >127 are reserved for prog type specific return codes */
+};
+
+struct bpf_sock {
+	__u32 bound_dev_if;
 };
 
 /* User return codes for XDP prog type.
