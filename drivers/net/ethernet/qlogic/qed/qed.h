@@ -383,6 +383,7 @@ struct qed_hwfn {
 	/* Protocol related */
 	bool				using_ll2;
 	struct qed_ll2_info		*p_ll2_info;
+	struct qed_ooo_info		*p_ooo_info;
 	struct qed_rdma_info		*p_rdma_info;
 	struct qed_iscsi_info		*p_iscsi_info;
 	struct qed_pf_params		pf_params;

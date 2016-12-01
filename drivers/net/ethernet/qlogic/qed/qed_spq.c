@@ -26,6 +26,7 @@
 #include "qed_int.h"
 #include "qed_iscsi.h"
 #include "qed_mcp.h"
+#include "qed_ooo.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
@@ -281,6 +282,14 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 	case PROTOCOLID_ISCSI:
 		if (!IS_ENABLED(CONFIG_QED_ISCSI))
 			return -EINVAL;
+		if (p_eqe->opcode == ISCSI_EVENT_TYPE_ASYN_DELETE_OOO_ISLES) {
+			u32 cid = le32_to_cpu(p_eqe->data.iscsi_info.cid);
+
+			qed_ooo_release_connection_isles(p_hwfn,
+							 p_hwfn->p_ooo_info,
+							 cid);
+			return 0;
+		}
 
 		if (p_hwfn->p_iscsi_info->event_cb) {
 			struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
