@@ -24,7 +24,6 @@
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
 #include <asm/smp.h>
-#include <asm/asm-prototypes.h>
 
 #include "book3s_xics.h"
 
