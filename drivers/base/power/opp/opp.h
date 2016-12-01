@@ -61,7 +61,7 @@ extern struct list_head opp_tables;
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @rate:	Frequency in hertz
- * @supply:	Power supply voltage/current values
+ * @supplies:	Power supplies voltage/current values
  * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
  *		frequency from any other OPP's frequency.
  * @opp_table:	points back to the opp_table struct this opp belongs to
@@ -80,7 +80,7 @@ struct dev_pm_opp {
 	bool suspend;
 	unsigned long rate;
 
-	struct dev_pm_opp_supply supply;
+	struct dev_pm_opp_supply *supplies;
 
 	unsigned long clock_latency_ns;
 
@@ -139,7 +139,8 @@ enum opp_table_access {
  * @supported_hw_count: Number of elements in supported_hw array.
  * @prop_name: A name to postfix to many DT properties, while parsing them.
  * @clk: Device's clock handle
- * @regulator: Supply regulator
+ * @regulators: Supply regulators
+ * @regulator_count: Number of power supply regulators
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
@@ -174,7 +175,8 @@ struct opp_table {
 	unsigned int supported_hw_count;
 	const char *prop_name;
 	struct clk *clk;
-	struct regulator *regulator;
+	struct regulator **regulators;
+	unsigned int regulator_count;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;

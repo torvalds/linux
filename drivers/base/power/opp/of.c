@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/export.h>
 
 #include "opp.h"
@@ -101,15 +102,15 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 	return true;
 }
 
-/* TODO: Support multiple regulators */
 static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			      struct opp_table *opp_table)
 {
-	u32 microvolt[3] = {0};
-	u32 val;
-	int count, ret;
+	u32 *microvolt, *microamp = NULL;
+	int supplies, vcount, icount, ret, i, j;
 	struct property *prop = NULL;
 	char name[NAME_MAX];
+
+	supplies = opp_table->regulator_count ? opp_table->regulator_count : 1;
 
 	/* Search for "opp-microvolt-<name>" */
 	if (opp_table->prop_name) {
@@ -128,34 +129,29 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			return 0;
 	}
 
-	count = of_property_count_u32_elems(opp->np, name);
-	if (count < 0) {
+	vcount = of_property_count_u32_elems(opp->np, name);
+	if (vcount < 0) {
 		dev_err(dev, "%s: Invalid %s property (%d)\n",
-			__func__, name, count);
-		return count;
+			__func__, name, vcount);
+		return vcount;
 	}
 
-	/* There can be one or three elements here */
-	if (count != 1 && count != 3) {
-		dev_err(dev, "%s: Invalid number of elements in %s property (%d)\n",
-			__func__, name, count);
+	/* There can be one or three elements per supply */
+	if (vcount != supplies && vcount != supplies * 3) {
+		dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
+			__func__, name, vcount, supplies);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_array(opp->np, name, microvolt, count);
+	microvolt = kmalloc_array(vcount, sizeof(*microvolt), GFP_KERNEL);
+	if (!microvolt)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(opp->np, name, microvolt, vcount);
 	if (ret) {
 		dev_err(dev, "%s: error parsing %s: %d\n", __func__, name, ret);
-		return -EINVAL;
-	}
-
-	opp->supply.u_volt = microvolt[0];
-
-	if (count == 1) {
-		opp->supply.u_volt_min = opp->supply.u_volt;
-		opp->supply.u_volt_max = opp->supply.u_volt;
-	} else {
-		opp->supply.u_volt_min = microvolt[1];
-		opp->supply.u_volt_max = microvolt[2];
+		ret = -EINVAL;
+		goto free_microvolt;
 	}
 
 	/* Search for "opp-microamp-<name>" */
@@ -172,10 +168,59 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		prop = of_find_property(opp->np, name, NULL);
 	}
 
-	if (prop && !of_property_read_u32(opp->np, name, &val))
-		opp->supply.u_amp = val;
+	if (prop) {
+		icount = of_property_count_u32_elems(opp->np, name);
+		if (icount < 0) {
+			dev_err(dev, "%s: Invalid %s property (%d)\n", __func__,
+				name, icount);
+			ret = icount;
+			goto free_microvolt;
+		}
 
-	return 0;
+		if (icount != supplies) {
+			dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
+				__func__, name, icount, supplies);
+			ret = -EINVAL;
+			goto free_microvolt;
+		}
+
+		microamp = kmalloc_array(icount, sizeof(*microamp), GFP_KERNEL);
+		if (!microamp) {
+			ret = -EINVAL;
+			goto free_microvolt;
+		}
+
+		ret = of_property_read_u32_array(opp->np, name, microamp,
+						 icount);
+		if (ret) {
+			dev_err(dev, "%s: error parsing %s: %d\n", __func__,
+				name, ret);
+			ret = -EINVAL;
+			goto free_microamp;
+		}
+	}
+
+	for (i = 0, j = 0; i < supplies; i++) {
+		opp->supplies[i].u_volt = microvolt[j++];
+
+		if (vcount == supplies) {
+			opp->supplies[i].u_volt_min = opp->supplies[i].u_volt;
+			opp->supplies[i].u_volt_max = opp->supplies[i].u_volt;
+		} else {
+			opp->supplies[i].u_volt_min = microvolt[j++];
+			opp->supplies[i].u_volt_max = microvolt[j++];
+		}
+
+		if (microamp)
+			opp->supplies[i].u_amp = microamp[i];
+	}
+
+free_microamp:
+	kfree(microamp);
+free_microvolt:
+	kfree(microvolt);
+
+	return ret;
 }
 
 /**
@@ -304,8 +349,8 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 
 	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu\n",
 		 __func__, new_opp->turbo, new_opp->rate,
-		 new_opp->supply.u_volt, new_opp->supply.u_volt_min,
-		 new_opp->supply.u_volt_max, new_opp->clock_latency_ns);
+		 new_opp->supplies[0].u_volt, new_opp->supplies[0].u_volt_min,
+		 new_opp->supplies[0].u_volt_max, new_opp->clock_latency_ns);
 
 	/*
 	 * Notify the changes in the availability of the operable

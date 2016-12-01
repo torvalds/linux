@@ -79,8 +79,8 @@ int dev_pm_opp_set_supported_hw(struct device *dev, const u32 *versions,
 void dev_pm_opp_put_supported_hw(struct device *dev);
 int dev_pm_opp_set_prop_name(struct device *dev, const char *name);
 void dev_pm_opp_put_prop_name(struct device *dev);
-struct opp_table *dev_pm_opp_set_regulator(struct device *dev, const char *name);
-void dev_pm_opp_put_regulator(struct opp_table *opp_table);
+struct opp_table *dev_pm_opp_set_regulators(struct device *dev, const char * const names[], unsigned int count);
+void dev_pm_opp_put_regulators(struct opp_table *opp_table);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const struct cpumask *cpumask);
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask);
@@ -187,12 +187,12 @@ static inline int dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 
 static inline void dev_pm_opp_put_prop_name(struct device *dev) {}
 
-static inline struct opp_table *dev_pm_opp_set_regulator(struct device *dev, const char *name)
+static inline struct opp_table *dev_pm_opp_set_regulators(struct device *dev, const char * const names[], unsigned int count)
 {
 	return ERR_PTR(-ENOTSUPP);
 }
 
-static inline void dev_pm_opp_put_regulator(struct opp_table *opp_table) {}
+static inline void dev_pm_opp_put_regulators(struct opp_table *opp_table) {}
 
 static inline int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 {
