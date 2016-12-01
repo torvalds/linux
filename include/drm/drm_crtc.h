@@ -708,6 +708,7 @@ struct drm_connector {
 	bool override_edid;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	struct drm_encoder *encoder; /* currently active encoder */
+	bool loader_protect;
 
 	/* EDID bits */
 	uint8_t eld[MAX_ELD_BYTES];

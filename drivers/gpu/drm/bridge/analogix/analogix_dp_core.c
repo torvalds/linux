@@ -955,7 +955,28 @@ analogix_dp_best_encoder(struct drm_connector *connector)
 	return dp->encoder;
 }
 
+static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
+{
+	struct analogix_dp_device *dp = to_dp(connector);
+
+	if (on == connector->loader_protect)
+		return 0;
+
+	if (on) {
+		pm_runtime_get_sync(dp->dev);
+
+		connector->loader_protect = true;
+	} else {
+		pm_runtime_put(dp->dev);
+
+		connector->loader_protect = false;
+	}
+
+	return 0;
+}
+
 static const struct drm_connector_helper_funcs analogix_dp_connector_helper_funcs = {
+	.loader_protect = analogix_dp_loader_protect,
 	.get_modes = analogix_dp_get_modes,
 	.best_encoder = analogix_dp_best_encoder,
 };
@@ -1086,6 +1107,10 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 		dp->plat_data->power_off(dp->plat_data);
 
 	pm_runtime_put_sync(dp->dev);
+	if (dp->connector.loader_protect) {
+		pm_runtime_put_sync(dp->dev);
+		dp->connector.loader_protect = false;
+	}
 
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }

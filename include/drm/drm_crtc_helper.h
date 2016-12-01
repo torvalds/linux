@@ -167,6 +167,7 @@ struct drm_encoder_helper_funcs {
 
 /**
  * struct drm_connector_helper_funcs - helper operations for connectors
+ * @loader_protect: protect loader logo connector's power
  * @get_modes: get mode list for this connector
  * @mode_valid: is this mode valid on the given connector? (optional)
  * @best_encoder: return the preferred encoder for this connector
@@ -175,6 +176,7 @@ struct drm_encoder_helper_funcs {
  * The helper operations are called by the mid-layer CRTC helper.
  */
 struct drm_connector_helper_funcs {
+	int (*loader_protect)(struct drm_connector *connector, bool on);
 	int (*get_modes)(struct drm_connector *connector);
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
