@@ -1276,21 +1276,8 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp,
 		return 1;
 	}
 
-	/*
-	 * Check for the CPU being offline, but only if the grace period
-	 * is old enough.  We don't need to worry about the CPU changing
-	 * state: If we see it offline even once, it has been through a
-	 * quiescent state.
-	 *
-	 * The reason for insisting that the grace period be at least
-	 * one jiffy old is that CPUs that are not quite online and that
-	 * have just gone offline can still execute RCU read-side critical
-	 * sections.
-	 */
-	if (ULONG_CMP_GE(rdp->rsp->gp_start + 2, jiffies))
-		return 0;  /* Grace period is not old enough. */
-	barrier();
-	if (cpu_is_offline(rdp->cpu)) {
+	/* Check for the CPU being offline. */
+	if (!(rdp->grpmask & rcu_rnp_online_cpus(rnp))) {
 		trace_rcu_fqs(rdp->rsp->name, rdp->gpnum, rdp->cpu, TPS("ofl"));
 		rdp->offline_fqs++;
 		return 1;
