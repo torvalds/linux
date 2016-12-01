@@ -119,6 +119,90 @@ bool __i915_inject_load_failure(const char *func, int line);
 #define i915_inject_load_failure() \
 	__i915_inject_load_failure(__func__, __LINE__)
 
+typedef struct {
+	uint32_t val;
+} uint_fixed_16_16_t;
+
+#define FP_16_16_MAX ({ \
+	uint_fixed_16_16_t fp; \
+	fp.val = UINT_MAX; \
+	fp; \
+})
+
+static inline uint_fixed_16_16_t u32_to_fixed_16_16(uint32_t val)
+{
+	uint_fixed_16_16_t fp;
+
+	WARN_ON(val >> 16);
+
+	fp.val = val << 16;
+	return fp;
+}
+
+static inline uint32_t fixed_16_16_to_u32_round_up(uint_fixed_16_16_t fp)
+{
+	return DIV_ROUND_UP(fp.val, 1 << 16);
+}
+
+static inline uint32_t fixed_16_16_to_u32(uint_fixed_16_16_t fp)
+{
+	return fp.val >> 16;
+}
+
+static inline uint_fixed_16_16_t min_fixed_16_16(uint_fixed_16_16_t min1,
+						 uint_fixed_16_16_t min2)
+{
+	uint_fixed_16_16_t min;
+
+	min.val = min(min1.val, min2.val);
+	return min;
+}
+
+static inline uint_fixed_16_16_t max_fixed_16_16(uint_fixed_16_16_t max1,
+						 uint_fixed_16_16_t max2)
+{
+	uint_fixed_16_16_t max;
+
+	max.val = max(max1.val, max2.val);
+	return max;
+}
+
+static inline uint_fixed_16_16_t fixed_16_16_div_round_up(uint32_t val,
+							  uint32_t d)
+{
+	uint_fixed_16_16_t fp, res;
+
+	fp = u32_to_fixed_16_16(val);
+	res.val = DIV_ROUND_UP(fp.val, d);
+	return res;
+}
+
+static inline uint_fixed_16_16_t fixed_16_16_div_round_up_u64(uint32_t val,
+							      uint32_t d)
+{
+	uint_fixed_16_16_t res;
+	uint64_t interm_val;
+
+	interm_val = (uint64_t)val << 16;
+	interm_val = DIV_ROUND_UP_ULL(interm_val, d);
+	WARN_ON(interm_val >> 32);
+	res.val = (uint32_t) interm_val;
+
+	return res;
+}
+
+static inline uint_fixed_16_16_t mul_u32_fixed_16_16(uint32_t val,
+						     uint_fixed_16_16_t mul)
+{
+	uint64_t intermediate_val;
+	uint_fixed_16_16_t fp;
+
+	intermediate_val = (uint64_t) val * mul.val;
+	WARN_ON(intermediate_val >> 32);
+	fp.val = (uint32_t) intermediate_val;
+	return fp;
+}
+
 static inline const char *yesno(bool v)
 {
 	return v ? "yes" : "no";

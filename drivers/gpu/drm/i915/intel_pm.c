@@ -3509,32 +3509,35 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
  * should allow pixel_rate up to ~2 GHz which seems sufficient since max
  * 2xcdclk is 1350 MHz and the pixel rate should never exceed that.
 */
-static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp, uint32_t latency)
+static uint_fixed_16_16_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp,
+					 uint32_t latency)
 {
-	uint32_t wm_intermediate_val, ret;
+	uint32_t wm_intermediate_val;
+	uint_fixed_16_16_t ret;
 
 	if (latency == 0)
-		return UINT_MAX;
+		return FP_16_16_MAX;
 
-	wm_intermediate_val = latency * pixel_rate * cpp / 512;
-	ret = DIV_ROUND_UP(wm_intermediate_val, 1000);
-
+	wm_intermediate_val = latency * pixel_rate * cpp;
+	ret = fixed_16_16_div_round_up_u64(wm_intermediate_val, 1000 * 512);
 	return ret;
 }
 
-static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
-			       uint32_t latency, uint32_t plane_blocks_per_line)
+static uint_fixed_16_16_t skl_wm_method2(uint32_t pixel_rate,
+			uint32_t pipe_htotal,
+			uint32_t latency,
+			uint_fixed_16_16_t plane_blocks_per_line)
 {
-	uint32_t ret;
 	uint32_t wm_intermediate_val;
+	uint_fixed_16_16_t ret;
 
 	if (latency == 0)
-		return UINT_MAX;
+		return FP_16_16_MAX;
 
 	wm_intermediate_val = latency * pixel_rate;
-	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
-				plane_blocks_per_line;
-
+	wm_intermediate_val = DIV_ROUND_UP(wm_intermediate_val,
+					   pipe_htotal * 1000);
+	ret = mul_u32_fixed_16_16(wm_intermediate_val, plane_blocks_per_line);
 	return ret;
 }
 
@@ -3574,14 +3577,17 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	struct drm_plane_state *pstate = &intel_pstate->base;
 	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t latency = dev_priv->wm.skl_latency[level];
-	uint32_t method1, method2;
-	uint32_t plane_bytes_per_line, plane_blocks_per_line;
+	uint_fixed_16_16_t method1, method2;
+	uint_fixed_16_16_t plane_blocks_per_line;
+	uint_fixed_16_16_t selected_result;
+	uint32_t interm_pbpl;
+	uint32_t plane_bytes_per_line;
 	uint32_t res_blocks, res_lines;
-	uint32_t selected_result;
 	uint8_t cpp;
 	uint32_t width = 0, height = 0;
 	uint32_t plane_pixel_rate;
-	uint32_t y_tile_minimum, y_min_scanlines;
+	uint_fixed_16_16_t y_tile_minimum;
+	uint32_t y_min_scanlines;
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
@@ -3640,14 +3646,16 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	plane_bytes_per_line = width * cpp;
 	if (y_tiled) {
+		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line *
+					   y_min_scanlines, 512);
 		plane_blocks_per_line =
-		      DIV_ROUND_UP(plane_bytes_per_line * y_min_scanlines, 512);
-		plane_blocks_per_line /= y_min_scanlines;
+		      fixed_16_16_div_round_up(interm_pbpl, y_min_scanlines);
 	} else if (x_tiled) {
-		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line, 512);
+		plane_blocks_per_line = u32_to_fixed_16_16(interm_pbpl);
 	} else {
-		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512)
-					+ 1;
+		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line, 512) + 1;
+		plane_blocks_per_line = u32_to_fixed_16_16(interm_pbpl);
 	}
 
 	method1 = skl_wm_method1(plane_pixel_rate, cpp, latency);
@@ -3656,26 +3664,29 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 latency,
 				 plane_blocks_per_line);
 
-	y_tile_minimum = plane_blocks_per_line * y_min_scanlines;
+	y_tile_minimum = mul_u32_fixed_16_16(y_min_scanlines,
+					     plane_blocks_per_line);
 
 	if (y_tiled) {
-		selected_result = max(method2, y_tile_minimum);
+		selected_result = max_fixed_16_16(method2, y_tile_minimum);
 	} else {
 		if ((cpp * cstate->base.adjusted_mode.crtc_htotal / 512 < 1) &&
 		    (plane_bytes_per_line / 512 < 1))
 			selected_result = method2;
-		else if ((ddb_allocation / plane_blocks_per_line) >= 1)
-			selected_result = min(method1, method2);
+		else if ((ddb_allocation /
+			fixed_16_16_to_u32_round_up(plane_blocks_per_line)) >= 1)
+			selected_result = min_fixed_16_16(method1, method2);
 		else
 			selected_result = method1;
 	}
 
-	res_blocks = selected_result + 1;
-	res_lines = DIV_ROUND_UP(selected_result, plane_blocks_per_line);
+	res_blocks = fixed_16_16_to_u32_round_up(selected_result) + 1;
+	res_lines = DIV_ROUND_UP(selected_result.val,
+				 plane_blocks_per_line.val);
 
 	if (level >= 1 && level <= 7) {
 		if (y_tiled) {
-			res_blocks += y_tile_minimum;
+			res_blocks += fixed_16_16_to_u32_round_up(y_tile_minimum);
 			res_lines += y_min_scanlines;
 		} else {
 			res_blocks++;
