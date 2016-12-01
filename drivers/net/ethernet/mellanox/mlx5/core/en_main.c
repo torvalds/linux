@@ -3811,7 +3811,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 		rep.load = mlx5e_nic_rep_load;
 		rep.unload = mlx5e_nic_rep_unload;
 		rep.vport = FDB_UPLINK_VPORT;
-		rep.priv_data = priv;
+		rep.netdev = netdev;
 		mlx5_eswitch_register_vport_rep(esw, 0, &rep);
 	}
 }

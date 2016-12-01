@@ -970,7 +970,7 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 	rep->load   = __rep->load;
 	rep->unload = __rep->unload;
 	rep->vport  = __rep->vport;
-	rep->priv_data = __rep->priv_data;
+	rep->netdev = __rep->netdev;
 	ether_addr_copy(rep->hw_id, __rep->hw_id);
 
 	INIT_LIST_HEAD(&rep->vport_sqs_list);
@@ -989,4 +989,14 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 		rep->unload(esw, rep);
 
 	rep->valid = false;
+}
+
+struct net_device *mlx5_eswitch_get_uplink_netdev(struct mlx5_eswitch *esw)
+{
+#define UPLINK_REP_INDEX 0
+	struct mlx5_esw_offload *offloads = &esw->offloads;
+	struct mlx5_eswitch_rep *rep;
+
+	rep = &offloads->vport_reps[UPLINK_REP_INDEX];
+	return rep->netdev;
 }
