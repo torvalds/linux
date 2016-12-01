@@ -313,7 +313,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@size: maximum set size
  * 	@nelems: number of elements
  * 	@ndeact: number of deactivated elements queued for removal
- * 	@timeout: default timeout value in msecs
+ *	@timeout: default timeout value in jiffies
  * 	@gc_int: garbage collection interval in msecs
  *	@policy: set parameterization (see enum nft_set_policies)
  *	@udlen: user data length
