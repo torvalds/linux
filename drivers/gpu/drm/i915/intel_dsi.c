@@ -699,8 +699,6 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 		I915_WRITE(MIPI_DEVICE_READY(port), 0x00);
 		usleep_range(2000, 2500);
 	}
-
-	intel_disable_dsi_pll(encoder);
 }
 
 static void intel_dsi_post_disable(struct intel_encoder *encoder,
@@ -715,6 +713,8 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	intel_dsi_disable(encoder);
 
 	intel_dsi_clear_device_ready(encoder);
+
+	intel_disable_dsi_pll(encoder);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 val;
