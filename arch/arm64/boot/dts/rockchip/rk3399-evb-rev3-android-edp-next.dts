@@ -99,7 +99,6 @@
 	};
 };
 
-&mipi_dsi {
-	status = "disabled";
+&route_edp {
+	status = "okay";
 };
-
