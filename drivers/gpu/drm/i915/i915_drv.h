@@ -2759,9 +2759,6 @@ static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
 	return false;
 }
 
-extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
-extern int i915_resume_switcheroo(struct drm_device *dev);
-
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 				int enable_ppgtt);
 

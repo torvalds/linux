@@ -497,6 +497,9 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
+static int i915_resume_switcheroo(struct drm_device *dev);
+static int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
+
 static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -1710,7 +1713,7 @@ out:
 	return ret;
 }
 
-int i915_resume_switcheroo(struct drm_device *dev)
+static int i915_resume_switcheroo(struct drm_device *dev)
 {
 	int ret;
 
