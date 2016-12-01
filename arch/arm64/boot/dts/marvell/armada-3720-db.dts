@@ -62,6 +62,10 @@
 	};
 };
 
+&i2c0 {
+	status = "okay";
+};
+
 /* CON3 */
 &sata {
 	status = "okay";
