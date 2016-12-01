@@ -687,25 +687,8 @@ struct intel_csr {
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func) \
-	/* Keep is_* in chronological order */ \
 	func(is_mobile); \
-	func(is_i85x); \
-	func(is_i915g); \
-	func(is_i945gm); \
-	func(is_g33); \
-	func(is_g4x); \
 	func(is_pineview); \
-	func(is_broadwater); \
-	func(is_crestline); \
-	func(is_ivybridge); \
-	func(is_valleyview); \
-	func(is_cherryview); \
-	func(is_haswell); \
-	func(is_broadwell); \
-	func(is_skylake); \
-	func(is_broxton); \
-	func(is_geminilake); \
-	func(is_kabylake); \
 	func(is_lp); \
 	func(is_alpha_support); \
 	/* Keep has_* in alphabetical order */ \
@@ -759,6 +742,35 @@ static inline unsigned int sseu_subslice_total(const struct sseu_dev_info *sseu)
 	return hweight8(sseu->slice_mask) * hweight8(sseu->subslice_mask);
 }
 
+/* Keep in gen based order, and chronological order within a gen */
+enum intel_platform {
+	INTEL_PLATFORM_UNINITIALIZED = 0,
+	INTEL_I830,
+	INTEL_I845G,
+	INTEL_I85X,
+	INTEL_I865G,
+	INTEL_I915G,
+	INTEL_I915GM,
+	INTEL_I945G,
+	INTEL_I945GM,
+	INTEL_G33,
+	INTEL_PINEVIEW,
+	INTEL_BROADWATER,
+	INTEL_CRESTLINE,
+	INTEL_G4X,
+	INTEL_IRONLAKE,
+	INTEL_SANDYBRIDGE,
+	INTEL_IVYBRIDGE,
+	INTEL_VALLEYVIEW,
+	INTEL_HASWELL,
+	INTEL_BROADWELL,
+	INTEL_CHERRYVIEW,
+	INTEL_SKYLAKE,
+	INTEL_BROXTON,
+	INTEL_KABYLAKE,
+	INTEL_GEMINILAKE,
+};
+
 struct intel_device_info {
 	u32 display_mmio_offset;
 	u16 device_id;
@@ -766,6 +778,7 @@ struct intel_device_info {
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 gen;
 	u16 gen_mask;
+	enum intel_platform platform;
 	u8 ring_mask; /* Rings supported by the HW */
 	u8 num_rings;
 #define DEFINE_FLAG(name) u8 name:1
@@ -2503,33 +2516,33 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define IS_I830(dev_priv)	(INTEL_DEVID(dev_priv) == 0x3577)
 #define IS_845G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2562)
-#define IS_I85X(dev_priv)	((dev_priv)->info.is_i85x)
+#define IS_I85X(dev_priv)	((dev_priv)->info.platform == INTEL_I85X)
 #define IS_I865G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2572)
-#define IS_I915G(dev_priv)	((dev_priv)->info.is_i915g)
+#define IS_I915G(dev_priv)	((dev_priv)->info.platform == INTEL_I915G)
 #define IS_I915GM(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2592)
 #define IS_I945G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2772)
-#define IS_I945GM(dev_priv)	((dev_priv)->info.is_i945gm)
-#define IS_BROADWATER(dev_priv)	((dev_priv)->info.is_broadwater)
-#define IS_CRESTLINE(dev_priv)	((dev_priv)->info.is_crestline)
+#define IS_I945GM(dev_priv)	((dev_priv)->info.platform == INTEL_I945GM)
+#define IS_BROADWATER(dev_priv)	((dev_priv)->info.platform == INTEL_BROADWATER)
+#define IS_CRESTLINE(dev_priv)	((dev_priv)->info.platform == INTEL_CRESTLINE)
 #define IS_GM45(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2A42)
-#define IS_G4X(dev_priv)	((dev_priv)->info.is_g4x)
+#define IS_G4X(dev_priv)	((dev_priv)->info.platform == INTEL_G4X)
 #define IS_PINEVIEW_G(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa001)
 #define IS_PINEVIEW_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa011)
 #define IS_PINEVIEW(dev_priv)	((dev_priv)->info.is_pineview)
-#define IS_G33(dev_priv)	((dev_priv)->info.is_g33)
+#define IS_G33(dev_priv)	((dev_priv)->info.platform == INTEL_G33)
 #define IS_IRONLAKE_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0046)
-#define IS_IVYBRIDGE(dev_priv)	((dev_priv)->info.is_ivybridge)
+#define IS_IVYBRIDGE(dev_priv)	((dev_priv)->info.platform == INTEL_IVYBRIDGE)
 #define IS_IVB_GT1(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0156 || \
 				 INTEL_DEVID(dev_priv) == 0x0152 || \
 				 INTEL_DEVID(dev_priv) == 0x015a)
-#define IS_VALLEYVIEW(dev_priv)	((dev_priv)->info.is_valleyview)
-#define IS_CHERRYVIEW(dev_priv)	((dev_priv)->info.is_cherryview)
-#define IS_HASWELL(dev_priv)	((dev_priv)->info.is_haswell)
-#define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
-#define IS_SKYLAKE(dev_priv)	((dev_priv)->info.is_skylake)
-#define IS_BROXTON(dev_priv)	((dev_priv)->info.is_broxton)
-#define IS_GEMINILAKE(dev_priv)	((dev_priv)->info.is_geminilake)
-#define IS_KABYLAKE(dev_priv)	((dev_priv)->info.is_kabylake)
+#define IS_VALLEYVIEW(dev_priv)	((dev_priv)->info.platform == INTEL_VALLEYVIEW)
+#define IS_CHERRYVIEW(dev_priv)	((dev_priv)->info.platform == INTEL_CHERRYVIEW)
+#define IS_HASWELL(dev_priv)	((dev_priv)->info.platform == INTEL_HASWELL)
+#define IS_BROADWELL(dev_priv)	((dev_priv)->info.platform == INTEL_BROADWELL)
+#define IS_SKYLAKE(dev_priv)	((dev_priv)->info.platform == INTEL_SKYLAKE)
+#define IS_BROXTON(dev_priv)	((dev_priv)->info.platform == INTEL_BROXTON)
+#define IS_KABYLAKE(dev_priv)	((dev_priv)->info.platform == INTEL_KABYLAKE)
+#define IS_GEMINILAKE(dev_priv)	((dev_priv)->info.platform == INTEL_GEMINILAKE)
 #define IS_MOBILE(dev_priv)	((dev_priv)->info.is_mobile)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
@@ -3563,6 +3576,7 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 	return (struct intel_device_info *)&dev_priv->info;
 }
 
+const char *intel_platform_name(enum intel_platform platform);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
 void intel_device_info_dump(struct drm_i915_private *dev_priv);
 
