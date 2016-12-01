@@ -153,6 +153,96 @@ out:
 	return ret;
 }
 
+struct test_abba {
+	struct work_struct work;
+	struct ww_mutex a_mutex;
+	struct ww_mutex b_mutex;
+	struct completion a_ready;
+	struct completion b_ready;
+	bool resolve;
+	int result;
+};
+
+static void test_abba_work(struct work_struct *work)
+{
+	struct test_abba *abba = container_of(work, typeof(*abba), work);
+	struct ww_acquire_ctx ctx;
+	int err;
+
+	ww_acquire_init(&ctx, &ww_class);
+	ww_mutex_lock(&abba->b_mutex, &ctx);
+
+	complete(&abba->b_ready);
+	wait_for_completion(&abba->a_ready);
+
+	err = ww_mutex_lock(&abba->a_mutex, &ctx);
+	if (abba->resolve && err == -EDEADLK) {
+		ww_mutex_unlock(&abba->b_mutex);
+		ww_mutex_lock_slow(&abba->a_mutex, &ctx);
+		err = ww_mutex_lock(&abba->b_mutex, &ctx);
+	}
+
+	if (!err)
+		ww_mutex_unlock(&abba->a_mutex);
+	ww_mutex_unlock(&abba->b_mutex);
+	ww_acquire_fini(&ctx);
+
+	abba->result = err;
+}
+
+static int test_abba(bool resolve)
+{
+	struct test_abba abba;
+	struct ww_acquire_ctx ctx;
+	int err, ret;
+
+	ww_mutex_init(&abba.a_mutex, &ww_class);
+	ww_mutex_init(&abba.b_mutex, &ww_class);
+	INIT_WORK_ONSTACK(&abba.work, test_abba_work);
+	init_completion(&abba.a_ready);
+	init_completion(&abba.b_ready);
+	abba.resolve = resolve;
+
+	schedule_work(&abba.work);
+
+	ww_acquire_init(&ctx, &ww_class);
+	ww_mutex_lock(&abba.a_mutex, &ctx);
+
+	complete(&abba.a_ready);
+	wait_for_completion(&abba.b_ready);
+
+	err = ww_mutex_lock(&abba.b_mutex, &ctx);
+	if (resolve && err == -EDEADLK) {
+		ww_mutex_unlock(&abba.a_mutex);
+		ww_mutex_lock_slow(&abba.b_mutex, &ctx);
+		err = ww_mutex_lock(&abba.a_mutex, &ctx);
+	}
+
+	if (!err)
+		ww_mutex_unlock(&abba.b_mutex);
+	ww_mutex_unlock(&abba.a_mutex);
+	ww_acquire_fini(&ctx);
+
+	flush_work(&abba.work);
+	destroy_work_on_stack(&abba.work);
+
+	ret = 0;
+	if (resolve) {
+		if (err || abba.result) {
+			pr_err("%s: failed to resolve ABBA deadlock, A err=%d, B err=%d\n",
+			       __func__, err, abba.result);
+			ret = -EINVAL;
+		}
+	} else {
+		if (err != -EDEADLK && abba.result != -EDEADLK) {
+			pr_err("%s: missed ABBA deadlock, A err=%d, B err=%d\n",
+			       __func__, err, abba.result);
+			ret = -EINVAL;
+		}
+	}
+	return ret;
+}
+
 static int __init test_ww_mutex_init(void)
 {
 	int ret;
@@ -162,6 +252,14 @@ static int __init test_ww_mutex_init(void)
 		return ret;
 
 	ret = test_aa();
+	if (ret)
+		return ret;
+
+	ret = test_abba(false);
+	if (ret)
+		return ret;
+
+	ret = test_abba(true);
 	if (ret)
 		return ret;
 
