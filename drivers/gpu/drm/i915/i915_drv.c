@@ -142,9 +142,8 @@ static enum intel_pch intel_virt_detect_pch(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void intel_detect_pch(struct drm_device *dev)
+static void intel_detect_pch(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pch = NULL;
 
 	/* In all current cases, num_pipes is equivalent to the PCH_NOP setting
@@ -361,10 +360,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int i915_get_bridge_dev(struct drm_device *dev)
+static int i915_get_bridge_dev(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
 	if (!dev_priv->bridge_dev) {
 		DRM_ERROR("bridge device not found\n");
@@ -375,9 +372,8 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 
 /* Allocate space for the MCH regs if needed, return nonzero on error */
 static int
-intel_alloc_mchbar_resource(struct drm_device *dev)
+intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
@@ -421,9 +417,8 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 
 /* Setup MCHBAR if possible, return true if we should disable it again */
 static void
-intel_setup_mchbar(struct drm_device *dev)
+intel_setup_mchbar(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int mchbar_reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
@@ -445,7 +440,7 @@ intel_setup_mchbar(struct drm_device *dev)
 	if (enabled)
 		return;
 
-	if (intel_alloc_mchbar_resource(dev))
+	if (intel_alloc_mchbar_resource(dev_priv))
 		return;
 
 	dev_priv->mchbar_need_disable = true;
@@ -461,9 +456,8 @@ intel_setup_mchbar(struct drm_device *dev)
 }
 
 static void
-intel_teardown_mchbar(struct drm_device *dev)
+intel_teardown_mchbar(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int mchbar_reg = INTEL_GEN(dev_priv) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 
 	if (dev_priv->mchbar_need_disable) {
@@ -493,9 +487,9 @@ intel_teardown_mchbar(struct drm_device *dev)
 /* true = enable decode, false = disable decoder */
 static unsigned int i915_vga_set_decode(void *cookie, bool state)
 {
-	struct drm_device *dev = cookie;
+	struct drm_i915_private *dev_priv = cookie;
 
-	intel_modeset_vga_set_state(to_i915(dev), state);
+	intel_modeset_vga_set_state(dev_priv, state);
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
@@ -574,7 +568,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	ret = vga_client_register(pdev, dev, NULL, i915_vga_set_decode);
+	ret = vga_client_register(pdev, dev_priv, NULL, i915_vga_set_decode);
 	if (ret && ret != -ENODEV)
 		goto out;
 
@@ -823,7 +817,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 		goto err_workqueues;
 
 	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(&dev_priv->drm);
+	intel_detect_pch(dev_priv);
 
 	intel_pm_setup(&dev_priv->drm);
 	intel_init_dpio(dev_priv);
@@ -865,9 +859,8 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_workqueues_cleanup(dev_priv);
 }
 
-static int i915_mmio_setup(struct drm_device *dev)
+static int i915_mmio_setup(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int mmio_bar;
 	int mmio_size;
@@ -893,17 +886,16 @@ static int i915_mmio_setup(struct drm_device *dev)
 	}
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
-	intel_setup_mchbar(dev);
+	intel_setup_mchbar(dev_priv);
 
 	return 0;
 }
 
-static void i915_mmio_cleanup(struct drm_device *dev)
+static void i915_mmio_cleanup(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
-	intel_teardown_mchbar(dev);
+	intel_teardown_mchbar(dev_priv);
 	pci_iounmap(pdev, dev_priv->regs);
 }
 
@@ -918,16 +910,15 @@ static void i915_mmio_cleanup(struct drm_device *dev)
  */
 static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	if (i915_get_bridge_dev(dev))
+	if (i915_get_bridge_dev(dev_priv))
 		return -EIO;
 
-	ret = i915_mmio_setup(dev);
+	ret = i915_mmio_setup(dev_priv);
 	if (ret < 0)
 		goto put_bridge;
 
@@ -947,10 +938,8 @@ put_bridge:
  */
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-
 	intel_uncore_fini(dev_priv);
-	i915_mmio_cleanup(dev);
+	i915_mmio_cleanup(dev_priv);
 	pci_dev_put(dev_priv->bridge_dev);
 }
 
