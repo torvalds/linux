@@ -343,31 +343,34 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
+#define GEN9_LP_FEATURES \
+	.gen = 9, \
+	.has_hotplug = 1, \
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
+	.num_pipes = 3, \
+	.has_64bit_reloc = 1, \
+	.has_ddi = 1, \
+	.has_fpga_dbg = 1, \
+	.has_fbc = 1, \
+	.has_runtime_pm = 1, \
+	.has_pooled_eu = 0, \
+	.has_csr = 1, \
+	.has_resource_streamer = 1, \
+	.has_rc6 = 1, \
+	.has_dp_mst = 1, \
+	.has_gmbus_irq = 1, \
+	.has_hw_contexts = 1, \
+	.has_logical_ring_contexts = 1, \
+	.has_guc = 1, \
+	.has_decoupled_mmio = 1, \
+	GEN_DEFAULT_PIPEOFFSETS, \
+	IVB_CURSOR_OFFSETS, \
+	BDW_COLORS
+
 static const struct intel_device_info intel_broxton_info = {
 	.is_broxton = 1,
-	.gen = 9,
-	.has_hotplug = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
-	.num_pipes = 3,
-	.has_64bit_reloc = 1,
-	.has_ddi = 1,
-	.has_fpga_dbg = 1,
-	.has_fbc = 1,
-	.has_runtime_pm = 1,
-	.has_pooled_eu = 0,
-	.has_csr = 1,
-	.has_resource_streamer = 1,
-	.has_rc6 = 1,
-	.has_dp_mst = 1,
-	.has_gmbus_irq = 1,
-	.has_hw_contexts = 1,
-	.has_logical_ring_contexts = 1,
-	.has_guc = 1,
-	.has_decoupled_mmio = 1,
+	GEN9_LP_FEATURES,
 	.ddb_size = 512,
-	GEN_DEFAULT_PIPEOFFSETS,
-	IVB_CURSOR_OFFSETS,
-	BDW_COLORS,
 };
 
 static const struct intel_device_info intel_kabylake_info = {
