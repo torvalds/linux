@@ -130,6 +130,12 @@ enum dev_type {
  *				fatal (maybe it is on an unused memory area,
  *				or the memory controller could recover from
  *				it for example, by re-trying the operation).
+ * @HW_EVENT_ERR_DEFERRED:	Deferred Error - Indicates an uncorrectable
+ *				error whose handling is not urgent. This could
+ *				be due to hardware data poisoning where the
+ *				system can continue operation until the poisoned
+ *				data is consumed. Preemptive measures may also
+ *				be taken, e.g. offlining pages, etc.
  * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could not
  *				be recovered.
  * @HW_EVENT_ERR_INFO:		Informational - The CPER spec defines a forth
