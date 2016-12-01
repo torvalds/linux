@@ -806,7 +806,7 @@ resizefs_out:
 		struct ext4_sb_info *sbi = EXT4_SB(sb);
 		handle_t *handle;
 
-		if (!ext4_sb_has_crypto(sb))
+		if (!ext4_has_feature_encrypt(sb))
 			return -EOPNOTSUPP;
 		if (uuid_is_zero(sbi->s_es->s_encrypt_pw_salt)) {
 			err = mnt_want_write_file(filp);

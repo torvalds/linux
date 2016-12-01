@@ -2272,11 +2272,6 @@ extern unsigned ext4_free_clusters_after_init(struct super_block *sb,
 					      struct ext4_group_desc *gdp);
 ext4_fsblk_t ext4_inode_to_goal_block(struct inode *);
 
-static inline int ext4_sb_has_crypto(struct super_block *sb)
-{
-	return ext4_has_feature_encrypt(sb);
-}
-
 static inline bool ext4_encrypted_inode(struct inode *inode)
 {
 	return ext4_test_inode_flag(inode, EXT4_INODE_ENCRYPT);
