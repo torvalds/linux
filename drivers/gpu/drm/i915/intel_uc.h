@@ -178,12 +178,12 @@ int intel_guc_log_flush(struct intel_guc *guc);
 int intel_guc_log_control(struct intel_guc *guc, u32 control_val);
 
 /* intel_guc_loader.c */
-extern void intel_guc_init(struct drm_device *dev);
-extern int intel_guc_setup(struct drm_device *dev);
-extern void intel_guc_fini(struct drm_device *dev);
+extern void intel_guc_init(struct drm_i915_private *dev_priv);
+extern int intel_guc_setup(struct drm_i915_private *dev_priv);
+extern void intel_guc_fini(struct drm_i915_private *dev_priv);
 extern const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status);
-extern int intel_guc_suspend(struct drm_device *dev);
-extern int intel_guc_resume(struct drm_device *dev);
+extern int intel_guc_suspend(struct drm_i915_private *dev_priv);
+extern int intel_guc_resume(struct drm_i915_private *dev_priv);
 
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv);

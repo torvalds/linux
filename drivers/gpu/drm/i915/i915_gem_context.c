@@ -167,13 +167,12 @@ void i915_gem_context_free(struct kref *ctx_ref)
 }
 
 static struct drm_i915_gem_object *
-alloc_context_obj(struct drm_device *dev, u64 size)
+alloc_context_obj(struct drm_i915_private *dev_priv, u64 size)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	lockdep_assert_held(&dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
@@ -260,10 +259,9 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 }
 
 static struct i915_gem_context *
-__create_hw_context(struct drm_device *dev,
+__create_hw_context(struct drm_i915_private *dev_priv,
 		    struct drm_i915_file_private *file_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *ctx;
 	int ret;
 
@@ -287,7 +285,7 @@ __create_hw_context(struct drm_device *dev,
 		struct drm_i915_gem_object *obj;
 		struct i915_vma *vma;
 
-		obj = alloc_context_obj(dev, dev_priv->hw_context_size);
+		obj = alloc_context_obj(dev_priv, dev_priv->hw_context_size);
 		if (IS_ERR(obj)) {
 			ret = PTR_ERR(obj);
 			goto err_out;
@@ -353,21 +351,21 @@ err_out:
  * well as an idle case.
  */
 static struct i915_gem_context *
-i915_gem_create_context(struct drm_device *dev,
+i915_gem_create_context(struct drm_i915_private *dev_priv,
 			struct drm_i915_file_private *file_priv)
 {
 	struct i915_gem_context *ctx;
 
-	lockdep_assert_held(&dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	ctx = __create_hw_context(dev, file_priv);
+	ctx = __create_hw_context(dev_priv, file_priv);
 	if (IS_ERR(ctx))
 		return ctx;
 
-	if (USES_FULL_PPGTT(dev)) {
+	if (USES_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
-		ppgtt = i915_ppgtt_create(to_i915(dev), file_priv, ctx->name);
+		ppgtt = i915_ppgtt_create(dev_priv, file_priv, ctx->name);
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
@@ -407,7 +405,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = i915_gem_create_context(dev, NULL);
+	ctx = i915_gem_create_context(to_i915(dev), NULL);
 	if (IS_ERR(ctx))
 		goto out;
 
@@ -433,9 +431,8 @@ static void i915_gem_context_unpin(struct i915_gem_context *ctx,
 	}
 }
 
-int i915_gem_context_init(struct drm_device *dev)
+int i915_gem_context_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *ctx;
 
 	/* Init should only be called once per module load. Eventually the
@@ -469,7 +466,7 @@ int i915_gem_context_init(struct drm_device *dev)
 		}
 	}
 
-	ctx = i915_gem_create_context(dev, NULL);
+	ctx = i915_gem_create_context(dev_priv, NULL);
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("Failed to create default global context (error %ld)\n",
 			  PTR_ERR(ctx));
@@ -551,7 +548,7 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 	idr_init(&file_priv->context_idr);
 
 	mutex_lock(&dev->struct_mutex);
-	ctx = i915_gem_create_context(dev, file_priv);
+	ctx = i915_gem_create_context(to_i915(dev), file_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (IS_ERR(ctx)) {
@@ -1034,7 +1031,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(dev, file_priv);
+	ctx = i915_gem_create_context(to_i915(dev), file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);

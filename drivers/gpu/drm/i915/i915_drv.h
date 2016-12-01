@@ -3177,14 +3177,14 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 void i915_gem_reset(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
-int __must_check i915_gem_init(struct drm_device *dev);
-int __must_check i915_gem_init_hw(struct drm_device *dev);
+int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
+int __must_check i915_gem_init_hw(struct drm_i915_private *dev_priv);
 void i915_gem_init_swizzling(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_engines(struct drm_device *dev);
 int __must_check i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
 					unsigned int flags);
-int __must_check i915_gem_suspend(struct drm_device *dev);
-void i915_gem_resume(struct drm_device *dev);
+int __must_check i915_gem_suspend(struct drm_i915_private *dev_priv);
+void i915_gem_resume(struct drm_i915_private *dev_priv);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_wait(struct drm_i915_gem_object *obj,
 			 unsigned int flags,
@@ -3267,7 +3267,7 @@ void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
 
 /* i915_gem_context.c */
-int __must_check i915_gem_context_init(struct drm_device *dev);
+int __must_check i915_gem_context_init(struct drm_i915_private *dev_priv);
 void i915_gem_context_lost(struct drm_i915_private *dev_priv);
 void i915_gem_context_fini(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);

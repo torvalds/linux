@@ -437,7 +437,7 @@ static int guc_hw_reset(struct drm_i915_private *dev_priv)
 
 /**
  * intel_guc_setup() - finish preparing the GuC for activity
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  *
  * Called from gem_init_hw() during driver loading and also after a GPU reset.
  *
@@ -448,9 +448,8 @@ static int guc_hw_reset(struct drm_i915_private *dev_priv)
  *
  * Return:	non-zero code on error
  */
-int intel_guc_setup(struct drm_device *dev)
+int intel_guc_setup(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path = guc_fw->guc_fw_path;
 	int retries, ret, err;
@@ -588,10 +587,10 @@ fail:
 	return ret;
 }
 
-static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
+static void guc_fw_fetch(struct drm_i915_private *dev_priv,
+			 struct intel_guc_fw *guc_fw)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
 	struct guc_css_header *css;
@@ -676,9 +675,9 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 			guc_fw->guc_fw_major_found, guc_fw->guc_fw_minor_found,
 			guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (IS_ERR_OR_NULL(obj)) {
 		err = obj ? PTR_ERR(obj) : -ENOMEM;
 		goto fail;
@@ -700,12 +699,12 @@ fail:
 	DRM_DEBUG_DRIVER("GuC fw fetch status FAIL; err %d, fw %p, obj %p\n",
 		err, fw, guc_fw->guc_fw_obj);
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	obj = guc_fw->guc_fw_obj;
 	if (obj)
 		i915_gem_object_put(obj);
 	guc_fw->guc_fw_obj = NULL;
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_FAIL;
@@ -713,16 +712,15 @@ fail:
 
 /**
  * intel_guc_init() - define parameters and fetch firmware
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  *
  * Called early during driver load, but after GEM is initialised.
  *
  * The firmware will be transferred to the GuC's memory later,
  * when intel_guc_setup() is called.
  */
-void intel_guc_init(struct drm_device *dev)
+void intel_guc_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
 
@@ -769,7 +767,7 @@ void intel_guc_init(struct drm_device *dev)
 
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);
-	guc_fw_fetch(dev, guc_fw);
+	guc_fw_fetch(dev_priv, guc_fw);
 	/* status must now be FAIL or SUCCESS */
 }
 
@@ -777,12 +775,11 @@ void intel_guc_init(struct drm_device *dev)
  * intel_guc_fini() - clean up all allocated resources
  * @dev:	drm device
  */
-void intel_guc_fini(struct drm_device *dev)
+void intel_guc_fini(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	guc_interrupts_release(dev_priv);
 	i915_guc_submission_disable(dev_priv);
 	i915_guc_submission_fini(dev_priv);
@@ -790,7 +787,7 @@ void intel_guc_fini(struct drm_device *dev)
 	if (guc_fw->guc_fw_obj)
 		i915_gem_object_put(guc_fw->guc_fw_obj);
 	guc_fw->guc_fw_obj = NULL;
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_NONE;
 }

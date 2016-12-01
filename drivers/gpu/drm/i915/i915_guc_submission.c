@@ -1485,11 +1485,10 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 
 /**
  * intel_guc_suspend() - notify GuC entering suspend state
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  */
-int intel_guc_suspend(struct drm_device *dev)
+int intel_guc_suspend(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_gem_context *ctx;
 	u32 data[3];
@@ -1513,11 +1512,10 @@ int intel_guc_suspend(struct drm_device *dev)
 
 /**
  * intel_guc_resume() - notify GuC resuming from suspend state
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  */
-int intel_guc_resume(struct drm_device *dev)
+int intel_guc_resume(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_gem_context *ctx;
 	u32 data[3];

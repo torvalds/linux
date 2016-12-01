@@ -603,9 +603,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
-	intel_guc_init(dev);
+	intel_guc_init(dev_priv);
 
-	ret = i915_gem_init(dev);
+	ret = i915_gem_init(dev_priv);
 	if (ret)
 		goto cleanup_irq;
 
@@ -626,11 +626,11 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	return 0;
 
 cleanup_gem:
-	if (i915_gem_suspend(dev))
+	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 	i915_gem_fini(dev_priv);
 cleanup_irq:
-	intel_guc_fini(dev);
+	intel_guc_fini(dev_priv);
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev);
 cleanup_csr:
@@ -1283,7 +1283,7 @@ void i915_driver_unload(struct drm_device *dev)
 
 	intel_fbdev_fini(dev);
 
-	if (i915_gem_suspend(dev))
+	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
@@ -1320,7 +1320,7 @@ void i915_driver_unload(struct drm_device *dev)
 	/* Flush any outstanding unpin_work. */
 	drain_workqueue(dev_priv->wq);
 
-	intel_guc_fini(dev);
+	intel_guc_fini(dev_priv);
 	i915_gem_fini(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
@@ -1425,14 +1425,14 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	pci_save_state(pdev);
 
-	error = i915_gem_suspend(dev);
+	error = i915_gem_suspend(dev_priv);
 	if (error) {
 		dev_err(&pdev->dev,
 			"GEM idle failed, resume might fail\n");
 		goto out;
 	}
 
-	intel_guc_suspend(dev);
+	intel_guc_suspend(dev_priv);
 
 	intel_display_suspend(dev);
 
@@ -1568,7 +1568,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_csr_ucode_resume(dev_priv);
 
-	i915_gem_resume(dev);
+	i915_gem_resume(dev_priv);
 
 	i915_restore_state(dev);
 	intel_pps_unlock_regs_wa(dev_priv);
@@ -1591,13 +1591,13 @@ static int i915_drm_resume(struct drm_device *dev)
 	drm_mode_config_reset(dev);
 
 	mutex_lock(&dev->struct_mutex);
-	if (i915_gem_init_hw(dev)) {
+	if (i915_gem_init_hw(dev_priv)) {
 		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
 		i915_gem_set_wedged(dev_priv);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_guc_resume(dev);
+	intel_guc_resume(dev_priv);
 
 	intel_modeset_init_hw(dev);
 
@@ -1770,11 +1770,10 @@ static void enable_engines_irq(struct drm_i915_private *dev_priv)
  */
 void i915_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	int ret;
 
-	lockdep_assert_held(&dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	if (!test_and_clear_bit(I915_RESET_IN_PROGRESS, &error->flags))
 		return;
@@ -1814,7 +1813,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-	ret = i915_gem_init_hw(dev);
+	ret = i915_gem_init_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("Failed hw init on reset %d\n", ret);
 		goto error;
@@ -2328,7 +2327,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	 */
 	i915_gem_runtime_suspend(dev_priv);
 
-	intel_guc_suspend(dev);
+	intel_guc_suspend(dev_priv);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
@@ -2413,7 +2412,7 @@ static int intel_runtime_resume(struct device *kdev)
 	if (intel_uncore_unclaimed_mmio(dev_priv))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
-	intel_guc_resume(dev);
+	intel_guc_resume(dev_priv);
 
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev_priv);
