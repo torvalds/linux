@@ -193,6 +193,7 @@ struct dce_mem_input_registers {
 	type GRPH_ARRAY_MODE;\
 	type GRPH_COLOR_EXPANSION_MODE;\
 	type GRPH_SW_MODE; \
+	type GRPH_SE_ENABLE; \
 	type GRPH_NUM_SHADER_ENGINES; \
 	type GRPH_NUM_PIPES; \
 	type PIXEL_DURATION; \
