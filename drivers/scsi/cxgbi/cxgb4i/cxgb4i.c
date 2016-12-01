@@ -1452,8 +1452,8 @@ static int init_act_open(struct cxgbi_sock *csk)
 		csk->mtu = dst_mtu(csk->dst);
 	cxgb4_best_mtu(lldi->mtus, csk->mtu, &csk->mss_idx);
 	csk->tx_chan = cxgb4_port_chan(ndev);
-	/* SMT two entries per row */
-	csk->smac_idx = ((cxgb4_port_viid(ndev) & 0x7F)) << 1;
+	csk->smac_idx = cxgb4_tp_smt_idx(lldi->adapter_type,
+					 cxgb4_port_viid(ndev));
 	step = lldi->ntxq / lldi->nchan;
 	csk->txq_idx = cxgb4_port_idx(ndev) * step;
 	step = lldi->nrxq / lldi->nchan;
