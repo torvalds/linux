@@ -352,8 +352,8 @@ static int rmi_f12_probe(struct rmi_function *fn)
 		ret = rmi_2d_sensor_of_probe(&fn->dev, &f12->sensor_pdata);
 		if (ret)
 			return ret;
-	} else if (pdata->sensor_pdata) {
-		f12->sensor_pdata = *pdata->sensor_pdata;
+	} else {
+		f12->sensor_pdata = pdata->sensor_pdata;
 	}
 
 	ret = rmi_read_register_desc(rmi_dev, query_addr,

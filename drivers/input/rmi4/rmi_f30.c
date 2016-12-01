@@ -196,7 +196,7 @@ static int rmi_f30_config(struct rmi_function *fn)
 				rmi_get_platform_data(fn->rmi_dev);
 	int error;
 
-	if (pdata->f30_data && pdata->f30_data->disable) {
+	if (pdata->f30_data.disable) {
 		drv->clear_irq_bits(fn->rmi_dev, fn->irq_mask);
 	} else {
 		/* Write Control Register values back to device */
@@ -355,7 +355,7 @@ static inline int rmi_f30_initialize(struct rmi_function *fn)
 	f30->gpioled_key_map = (u16 *)map_memory;
 
 	pdata = rmi_get_platform_data(rmi_dev);
-	if (pdata && f30->has_gpio) {
+	if (f30->has_gpio) {
 		button = BTN_LEFT;
 		for (i = 0; i < f30->gpioled_count; i++) {
 			if (rmi_f30_is_valid_button(i, f30->ctrl)) {
@@ -366,8 +366,7 @@ static inline int rmi_f30_initialize(struct rmi_function *fn)
 				 * f30->has_mech_mouse_btns, but I am
 				 * not sure, so use only the pdata info
 				 */
-				if (pdata->f30_data &&
-				    pdata->f30_data->buttonpad)
+				if (pdata->f30_data.buttonpad)
 					break;
 			}
 		}
@@ -382,7 +381,7 @@ static int rmi_f30_probe(struct rmi_function *fn)
 	const struct rmi_device_platform_data *pdata =
 				rmi_get_platform_data(fn->rmi_dev);
 
-	if (pdata->f30_data && pdata->f30_data->disable)
+	if (pdata->f30_data.disable)
 		return 0;
 
 	rc = rmi_f30_initialize(fn);
