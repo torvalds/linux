@@ -3036,6 +3036,12 @@
 			may be specified.
 			Format: <port>,<port>....
 
+	powersave=off	[PPC] This option disables power saving features.
+			It specifically disables cpuidle and sets the
+			platform machine description specific power_save
+			function to NULL. On Idle the CPU just reduces
+			execution priority.
+
 	ppc_strict_facility_enable
 			[PPC] This option catches any kernel floating point,
 			Altivec, VSX and SPE outside of regions specifically
