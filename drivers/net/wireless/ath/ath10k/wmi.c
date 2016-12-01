@@ -785,7 +785,6 @@ static struct wmi_vdev_param_map wmi_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
-	.set_tsf = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 /* 10.X WMI VDEV param map */
@@ -861,7 +860,6 @@ static struct wmi_vdev_param_map wmi_10x_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
-	.set_tsf = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
@@ -936,7 +934,6 @@ static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
 	.meru_vc = WMI_VDEV_PARAM_UNSUPPORTED,
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
-	.set_tsf = WMI_10X_VDEV_PARAM_TSF_INCREMENT,
 };
 
 static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
@@ -1012,7 +1009,8 @@ static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
 	.meru_vc = WMI_10_4_VDEV_PARAM_MERU_VC,
 	.rx_decap_type = WMI_10_4_VDEV_PARAM_RX_DECAP_TYPE,
 	.bw_nss_ratemask = WMI_10_4_VDEV_PARAM_BW_NSS_RATEMASK,
-	.set_tsf = WMI_10_4_VDEV_PARAM_TSF_INCREMENT,
+	.inc_tsf = WMI_10_4_VDEV_PARAM_TSF_INCREMENT,
+	.dec_tsf = WMI_10_4_VDEV_PARAM_TSF_DECREMENT,
 };
 
 static struct wmi_pdev_param_map wmi_pdev_param_map = {
@@ -4489,7 +4487,7 @@ static int ath10k_wmi_alloc_chunk(struct ath10k *ar, u32 req_id,
 	if (!num_units)
 		return -ENOMEM;
 
-	paddr = dma_map_single(ar->dev, vaddr, pool_size, DMA_TO_DEVICE);
+	paddr = dma_map_single(ar->dev, vaddr, pool_size, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(ar->dev, paddr)) {
 		kfree(vaddr);
 		return -ENOMEM;
