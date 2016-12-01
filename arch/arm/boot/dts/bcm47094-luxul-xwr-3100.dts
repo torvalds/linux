@@ -98,10 +98,6 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
 &usb3 {
 	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
 };
