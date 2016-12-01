@@ -1485,7 +1485,7 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 	}
 
 	/* Already have regulators set */
-	if (WARN_ON(opp_table->regulators)) {
+	if (opp_table->regulators) {
 		ret = -EBUSY;
 		goto err;
 	}
