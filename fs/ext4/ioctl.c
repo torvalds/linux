@@ -191,6 +191,7 @@ journal_err_out:
 	return err;
 }
 
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 static int uuid_is_zero(__u8 u[16])
 {
 	int	i;
@@ -200,6 +201,7 @@ static int uuid_is_zero(__u8 u[16])
 			return 0;
 	return 1;
 }
+#endif
 
 static int ext4_ioctl_setflags(struct inode *inode,
 			       unsigned int flags)
@@ -802,6 +804,7 @@ resizefs_out:
 #endif
 	}
 	case EXT4_IOC_GET_ENCRYPTION_PWSALT: {
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 		int err, err2;
 		struct ext4_sb_info *sbi = EXT4_SB(sb);
 		handle_t *handle;
@@ -836,6 +839,9 @@ resizefs_out:
 				 sbi->s_es->s_encrypt_pw_salt, 16))
 			return -EFAULT;
 		return 0;
+#else
+		return -EOPNOTSUPP;
+#endif
 	}
 	case EXT4_IOC_GET_ENCRYPTION_POLICY: {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
