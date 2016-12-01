@@ -215,7 +215,7 @@ Connectors state change detection must be cleanup up with a call to
 Output discovery and initialization example
 -------------------------------------------
 
-::
+.. code-block:: c
 
     void intel_crt_init(struct drm_device *dev)
     {

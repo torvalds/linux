@@ -3,7 +3,7 @@
 
 I. For patch submitters
 
-  0) Normal patch submission rules from Documentation/SubmittingPatches
+  0) Normal patch submission rules from Documentation/process/submitting-patches.rst
      applies.
 
   1) The Documentation/ portion of the patch should be a separate patch.

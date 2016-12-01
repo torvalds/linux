@@ -11,7 +11,7 @@ details), without giving other tasks a chance to run. The current
 stack trace is displayed upon detection and, by default, the system
 will stay locked up. Alternatively, the kernel can be configured to
 panic; a sysctl, "kernel.softlockup_panic", a kernel parameter,
-"softlockup_panic" (see "Documentation/kernel-parameters.txt" for
+"softlockup_panic" (see "Documentation/admin-guide/kernel-parameters.rst" for
 details), and a compile option, "BOOTPARAM_SOFTLOCKUP_PANIC", are
 provided for this.
 
@@ -23,7 +23,7 @@ upon detection and the system will stay locked up unless the default
 behavior is changed, which can be done through a sysctl,
 'hardlockup_panic', a compile time knob, "BOOTPARAM_HARDLOCKUP_PANIC",
 and a kernel parameter, "nmi_watchdog"
-(see "Documentation/kernel-parameters.txt" for details).
+(see "Documentation/admin-guide/kernel-parameters.rst" for details).
 
 The panic option can be used in combination with panic_timeout (this
 timeout is set through the confusingly named "kernel.panic" sysctl),

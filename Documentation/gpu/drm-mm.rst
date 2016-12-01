@@ -45,7 +45,7 @@ the radeon_ttm.c file for an example of usage.
 
 The ttm_global_reference structure is made up of several fields:
 
-::
+.. code-block:: c
 
               struct ttm_global_reference {
                       enum ttm_global_types global_type;

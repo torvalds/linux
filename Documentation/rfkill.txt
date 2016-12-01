@@ -26,7 +26,7 @@ whether they can be changed or not:
                the system software.
 
 The rfkill subsystem has two parameters, rfkill.default_state and
-rfkill.master_switch_mode, which are documented in kernel-parameters.txt.
+rfkill.master_switch_mode, which are documented in admin-guide/kernel-parameters.rst.
 
 
 2. Implementation details
