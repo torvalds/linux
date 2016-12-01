@@ -474,7 +474,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 * copying it to userspace...
 		 */
 		if (report32[0] == 0) {
-			DRM_ERROR("Skipping spurious, invalid OA report\n");
+			DRM_NOTE("Skipping spurious, invalid OA report\n");
 			continue;
 		}
 
@@ -551,7 +551,7 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 		if (ret)
 			return ret;
 
-		DRM_ERROR("OA buffer overflow: force restart\n");
+		DRM_DEBUG("OA buffer overflow: force restart\n");
 
 		dev_priv->perf.oa.ops.oa_disable(dev_priv);
 		dev_priv->perf.oa.ops.oa_enable(dev_priv);
@@ -1000,17 +1000,17 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 * IDs
 	 */
 	if (!dev_priv->perf.metrics_kobj) {
-		DRM_ERROR("OA metrics weren't advertised via sysfs\n");
+		DRM_DEBUG("OA metrics weren't advertised via sysfs\n");
 		return -EINVAL;
 	}
 
 	if (!(props->sample_flags & SAMPLE_OA_REPORT)) {
-		DRM_ERROR("Only OA report sampling supported\n");
+		DRM_DEBUG("Only OA report sampling supported\n");
 		return -EINVAL;
 	}
 
 	if (!dev_priv->perf.oa.ops.init_oa_buffer) {
-		DRM_ERROR("OA unit not supported\n");
+		DRM_DEBUG("OA unit not supported\n");
 		return -ENODEV;
 	}
 
@@ -1019,17 +1019,17 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 * we currently only allow exclusive access
 	 */
 	if (dev_priv->perf.oa.exclusive_stream) {
-		DRM_ERROR("OA unit already in use\n");
+		DRM_DEBUG("OA unit already in use\n");
 		return -EBUSY;
 	}
 
 	if (!props->metrics_set) {
-		DRM_ERROR("OA metric set not specified\n");
+		DRM_DEBUG("OA metric set not specified\n");
 		return -EINVAL;
 	}
 
 	if (!props->oa_format) {
-		DRM_ERROR("OA report format not specified\n");
+		DRM_DEBUG("OA report format not specified\n");
 		return -EINVAL;
 	}
 
@@ -1385,7 +1385,7 @@ i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 		if (IS_ERR(specific_ctx)) {
 			ret = PTR_ERR(specific_ctx);
 			if (ret != -EINTR)
-				DRM_ERROR("Failed to look up context with ID %u for opening perf stream\n",
+				DRM_DEBUG("Failed to look up context with ID %u for opening perf stream\n",
 					  ctx_handle);
 			goto err;
 		}
@@ -1398,7 +1398,7 @@ i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 	 */
 	if (!specific_ctx &&
 	    i915_perf_stream_paranoid && !capable(CAP_SYS_ADMIN)) {
-		DRM_ERROR("Insufficient privileges to open system-wide i915 perf stream\n");
+		DRM_DEBUG("Insufficient privileges to open system-wide i915 perf stream\n");
 		ret = -EACCES;
 		goto err_ctx;
 	}
@@ -1477,7 +1477,7 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 	memset(props, 0, sizeof(struct perf_open_properties));
 
 	if (!n_props) {
-		DRM_ERROR("No i915 perf properties given");
+		DRM_DEBUG("No i915 perf properties given\n");
 		return -EINVAL;
 	}
 
@@ -1488,7 +1488,7 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 	 * from userspace.
 	 */
 	if (n_props >= DRM_I915_PERF_PROP_MAX) {
-		DRM_ERROR("More i915 perf properties specified than exist");
+		DRM_DEBUG("More i915 perf properties specified than exist\n");
 		return -EINVAL;
 	}
 
@@ -1516,26 +1516,26 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 		case DRM_I915_PERF_PROP_OA_METRICS_SET:
 			if (value == 0 ||
 			    value > dev_priv->perf.oa.n_builtin_sets) {
-				DRM_ERROR("Unknown OA metric set ID");
+				DRM_DEBUG("Unknown OA metric set ID\n");
 				return -EINVAL;
 			}
 			props->metrics_set = value;
 			break;
 		case DRM_I915_PERF_PROP_OA_FORMAT:
 			if (value == 0 || value >= I915_OA_FORMAT_MAX) {
-				DRM_ERROR("Invalid OA report format\n");
+				DRM_DEBUG("Invalid OA report format\n");
 				return -EINVAL;
 			}
 			if (!dev_priv->perf.oa.oa_formats[value].size) {
-				DRM_ERROR("Invalid OA report format\n");
+				DRM_DEBUG("Invalid OA report format\n");
 				return -EINVAL;
 			}
 			props->oa_format = value;
 			break;
 		case DRM_I915_PERF_PROP_OA_EXPONENT:
 			if (value > OA_EXPONENT_MAX) {
-				DRM_ERROR("OA timer exponent too high (> %u)\n",
-					  OA_EXPONENT_MAX);
+				DRM_DEBUG("OA timer exponent too high (> %u)\n",
+					 OA_EXPONENT_MAX);
 				return -EINVAL;
 			}
 
@@ -1566,7 +1566,7 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 
 			if (oa_freq_hz > i915_oa_max_sample_rate &&
 			    !capable(CAP_SYS_ADMIN)) {
-				DRM_ERROR("OA exponent would exceed the max sampling frequency (sysctl dev.i915.oa_max_sample_rate) %uHz without root privileges\n",
+				DRM_DEBUG("OA exponent would exceed the max sampling frequency (sysctl dev.i915.oa_max_sample_rate) %uHz without root privileges\n",
 					  i915_oa_max_sample_rate);
 				return -EACCES;
 			}
@@ -1576,7 +1576,7 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 			break;
 		default:
 			MISSING_CASE(id);
-			DRM_ERROR("Unknown i915 perf property ID");
+			DRM_DEBUG("Unknown i915 perf property ID\n");
 			return -EINVAL;
 		}
 
@@ -1596,7 +1596,7 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!dev_priv->perf.initialized) {
-		DRM_ERROR("i915 perf interface not available for this system");
+		DRM_DEBUG("i915 perf interface not available for this system\n");
 		return -ENOTSUPP;
 	}
 
@@ -1604,7 +1604,7 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			   I915_PERF_FLAG_FD_NONBLOCK |
 			   I915_PERF_FLAG_DISABLED;
 	if (param->flags & ~known_open_flags) {
-		DRM_ERROR("Unknown drm_i915_perf_open_param flag\n");
+		DRM_DEBUG("Unknown drm_i915_perf_open_param flag\n");
 		return -EINVAL;
 	}
 
