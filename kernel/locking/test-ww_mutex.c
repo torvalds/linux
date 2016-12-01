@@ -19,8 +19,10 @@
 #include <linux/kernel.h>
 
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/ww_mutex.h>
 
@@ -348,6 +350,246 @@ static int test_cycle(unsigned int ncpus)
 	return 0;
 }
 
+struct stress {
+	struct work_struct work;
+	struct ww_mutex *locks;
+	int nlocks;
+	int nloops;
+};
+
+static int *get_random_order(int count)
+{
+	int *order;
+	int n, r, tmp;
+
+	order = kmalloc_array(count, sizeof(*order), GFP_TEMPORARY);
+	if (!order)
+		return order;
+
+	for (n = 0; n < count; n++)
+		order[n] = n;
+
+	for (n = count - 1; n > 1; n--) {
+		r = get_random_int() % (n + 1);
+		if (r != n) {
+			tmp = order[n];
+			order[n] = order[r];
+			order[r] = tmp;
+		}
+	}
+
+	return order;
+}
+
+static void dummy_load(struct stress *stress)
+{
+	usleep_range(1000, 2000);
+}
+
+static void stress_inorder_work(struct work_struct *work)
+{
+	struct stress *stress = container_of(work, typeof(*stress), work);
+	const int nlocks = stress->nlocks;
+	struct ww_mutex *locks = stress->locks;
+	struct ww_acquire_ctx ctx;
+	int *order;
+
+	order = get_random_order(nlocks);
+	if (!order)
+		return;
+
+	ww_acquire_init(&ctx, &ww_class);
+
+	do {
+		int contended = -1;
+		int n, err;
+
+retry:
+		err = 0;
+		for (n = 0; n < nlocks; n++) {
+			if (n == contended)
+				continue;
+
+			err = ww_mutex_lock(&locks[order[n]], &ctx);
+			if (err < 0)
+				break;
+		}
+		if (!err)
+			dummy_load(stress);
+
+		if (contended > n)
+			ww_mutex_unlock(&locks[order[contended]]);
+		contended = n;
+		while (n--)
+			ww_mutex_unlock(&locks[order[n]]);
+
+		if (err == -EDEADLK) {
+			ww_mutex_lock_slow(&locks[order[contended]], &ctx);
+			goto retry;
+		}
+
+		if (err) {
+			pr_err_once("stress (%s) failed with %d\n",
+				    __func__, err);
+			break;
+		}
+	} while (--stress->nloops);
+
+	ww_acquire_fini(&ctx);
+
+	kfree(order);
+	kfree(stress);
+}
+
+struct reorder_lock {
+	struct list_head link;
+	struct ww_mutex *lock;
+};
+
+static void stress_reorder_work(struct work_struct *work)
+{
+	struct stress *stress = container_of(work, typeof(*stress), work);
+	LIST_HEAD(locks);
+	struct ww_acquire_ctx ctx;
+	struct reorder_lock *ll, *ln;
+	int *order;
+	int n, err;
+
+	order = get_random_order(stress->nlocks);
+	if (!order)
+		return;
+
+	for (n = 0; n < stress->nlocks; n++) {
+		ll = kmalloc(sizeof(*ll), GFP_KERNEL);
+		if (!ll)
+			goto out;
+
+		ll->lock = &stress->locks[order[n]];
+		list_add(&ll->link, &locks);
+	}
+	kfree(order);
+	order = NULL;
+
+	ww_acquire_init(&ctx, &ww_class);
+
+	do {
+		list_for_each_entry(ll, &locks, link) {
+			err = ww_mutex_lock(ll->lock, &ctx);
+			if (!err)
+				continue;
+
+			ln = ll;
+			list_for_each_entry_continue_reverse(ln, &locks, link)
+				ww_mutex_unlock(ln->lock);
+
+			if (err != -EDEADLK) {
+				pr_err_once("stress (%s) failed with %d\n",
+					    __func__, err);
+				break;
+			}
+
+			ww_mutex_lock_slow(ll->lock, &ctx);
+			list_move(&ll->link, &locks); /* restarts iteration */
+		}
+
+		dummy_load(stress);
+		list_for_each_entry(ll, &locks, link)
+			ww_mutex_unlock(ll->lock);
+	} while (--stress->nloops);
+
+	ww_acquire_fini(&ctx);
+
+out:
+	list_for_each_entry_safe(ll, ln, &locks, link)
+		kfree(ll);
+	kfree(order);
+	kfree(stress);
+}
+
+static void stress_one_work(struct work_struct *work)
+{
+	struct stress *stress = container_of(work, typeof(*stress), work);
+	const int nlocks = stress->nlocks;
+	struct ww_mutex *lock = stress->locks + (get_random_int() % nlocks);
+	int err;
+
+	do {
+		err = ww_mutex_lock(lock, NULL);
+		if (!err) {
+			dummy_load(stress);
+			ww_mutex_unlock(lock);
+		} else {
+			pr_err_once("stress (%s) failed with %d\n",
+				    __func__, err);
+			break;
+		}
+	} while (--stress->nloops);
+
+	kfree(stress);
+}
+
+#define STRESS_INORDER BIT(0)
+#define STRESS_REORDER BIT(1)
+#define STRESS_ONE BIT(2)
+#define STRESS_ALL (STRESS_INORDER | STRESS_REORDER | STRESS_ONE)
+
+static int stress(int nlocks, int nthreads, int nloops, unsigned int flags)
+{
+	struct ww_mutex *locks;
+	int n;
+
+	locks = kmalloc_array(nlocks, sizeof(*locks), GFP_KERNEL);
+	if (!locks)
+		return -ENOMEM;
+
+	for (n = 0; n < nlocks; n++)
+		ww_mutex_init(&locks[n], &ww_class);
+
+	for (n = 0; nthreads; n++) {
+		struct stress *stress;
+		void (*fn)(struct work_struct *work);
+
+		fn = NULL;
+		switch (n & 3) {
+		case 0:
+			if (flags & STRESS_INORDER)
+				fn = stress_inorder_work;
+			break;
+		case 1:
+			if (flags & STRESS_REORDER)
+				fn = stress_reorder_work;
+			break;
+		case 2:
+			if (flags & STRESS_ONE)
+				fn = stress_one_work;
+			break;
+		}
+
+		if (!fn)
+			continue;
+
+		stress = kmalloc(sizeof(*stress), GFP_KERNEL);
+		if (!stress)
+			break;
+
+		INIT_WORK(&stress->work, fn);
+		stress->locks = locks;
+		stress->nlocks = nlocks;
+		stress->nloops = nloops;
+
+		queue_work(wq, &stress->work);
+		nthreads--;
+	}
+
+	flush_workqueue(wq);
+
+	for (n = 0; n < nlocks; n++)
+		ww_mutex_destroy(&locks[n]);
+	kfree(locks);
+
+	return 0;
+}
+
 static int __init test_ww_mutex_init(void)
 {
 	int ncpus = num_online_cpus();
@@ -374,6 +616,18 @@ static int __init test_ww_mutex_init(void)
 		return ret;
 
 	ret = test_cycle(ncpus);
+	if (ret)
+		return ret;
+
+	ret = stress(16, 2*ncpus, 1<<10, STRESS_INORDER);
+	if (ret)
+		return ret;
+
+	ret = stress(16, 2*ncpus, 1<<10, STRESS_REORDER);
+	if (ret)
+		return ret;
+
+	ret = stress(4096, hweight32(STRESS_ALL)*ncpus, 1<<12, STRESS_ALL);
 	if (ret)
 		return ret;
 
