@@ -1065,7 +1065,7 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (nvec < 0)
 		return nvec;
 	if (nvec < minvec)
-		return -EINVAL;
+		return -ENOSPC;
 
 	if (nvec > maxvec)
 		nvec = maxvec;
