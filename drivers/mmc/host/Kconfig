@@ -135,7 +135,6 @@ config MMC_SDHCI_OF_AT91
 	tristate "SDHCI OF support for the Atmel SDMMC controller"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
-	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Atmel SDMMC driver
 
