@@ -1426,9 +1426,6 @@ static int ti_get_serial_info(struct ti_port *tport,
 	struct serial_struct ret_serial;
 	unsigned cwait;
 
-	if (!ret_arg)
-		return -EFAULT;
-
 	cwait = port->port.closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
 		cwait = jiffies_to_msecs(cwait) / 10;
