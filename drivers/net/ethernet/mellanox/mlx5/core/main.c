@@ -1340,9 +1340,7 @@ static int init_one(struct pci_dev *pdev,
 		goto clean_health;
 	}
 
-	err = request_module_nowait(MLX5_IB_MOD);
-	if (err)
-		pr_info("failed request module on %s\n", MLX5_IB_MOD);
+	request_module_nowait(MLX5_IB_MOD);
 
 	err = devlink_register(devlink, &pdev->dev);
 	if (err)
