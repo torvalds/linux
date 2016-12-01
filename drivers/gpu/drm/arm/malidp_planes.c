@@ -61,6 +61,27 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 	devm_kfree(plane->dev->dev, mp);
 }
 
+/*
+ * Replicate what the default ->reset hook does: free the state pointer and
+ * allocate a new empty object. We just need enough space to store
+ * a malidp_plane_state instead of a drm_plane_state.
+ */
+static void malidp_plane_reset(struct drm_plane *plane)
+{
+	struct malidp_plane_state *state = to_malidp_plane_state(plane->state);
+
+	if (state)
+		__drm_atomic_helper_plane_destroy_state(&state->base);
+	kfree(state);
+	plane->state = NULL;
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		state->base.plane = plane;
+		state->base.rotation = DRM_ROTATE_0;
+		plane->state = &state->base;
+	}
+}
+
 static struct
 drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 {
@@ -106,7 +127,7 @@ static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = malidp_de_plane_destroy,
-	.reset = drm_atomic_helper_plane_reset,
+	.reset = malidp_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
 	.atomic_destroy_state = malidp_destroy_plane_state,
 	.atomic_print_state = malidp_plane_atomic_print_state,
