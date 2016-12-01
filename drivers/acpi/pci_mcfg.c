@@ -93,6 +93,21 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	/* SoC pass2.x */
 	THUNDER_PEM_QUIRK(1, 0),
 	THUNDER_PEM_QUIRK(1, 1),
+
+#define THUNDER_ECAM_QUIRK(rev, seg)					\
+	{ "CAVIUM", "THUNDERX", rev, seg, MCFG_BUS_ANY,			\
+	&pci_thunder_ecam_ops }
+	/* SoC pass1.x */
+	THUNDER_PEM_QUIRK(2, 0),	/* off-chip devices */
+	THUNDER_PEM_QUIRK(2, 1),	/* off-chip devices */
+	THUNDER_ECAM_QUIRK(2,  0),
+	THUNDER_ECAM_QUIRK(2,  1),
+	THUNDER_ECAM_QUIRK(2,  2),
+	THUNDER_ECAM_QUIRK(2,  3),
+	THUNDER_ECAM_QUIRK(2, 10),
+	THUNDER_ECAM_QUIRK(2, 11),
+	THUNDER_ECAM_QUIRK(2, 12),
+	THUNDER_ECAM_QUIRK(2, 13),
 };
 
 static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
