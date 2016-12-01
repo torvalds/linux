@@ -242,10 +242,11 @@ enum event_pc {			/* POSTCODE event identifier tuples */
  */
 
 /* BASE FUNCTIONS */
-#define POSTCODE_LINUX(DRIVER_PC, EVENT_PC, pc16bit1, pc16bit2, severity) \
+#define POSTCODE_LINUX(EVENT_PC, pc16bit1, pc16bit2, severity)		\
 do {									\
 	unsigned long long post_code_temp;				\
-	post_code_temp = (((u64)DRIVER_PC) << 56) | (((u64)EVENT_PC) << 44) | \
+	post_code_temp = (((u64)CURRENT_FILE_PC) << 56) |		\
+		(((u64)EVENT_PC) << 44) |				\
 		((((u64)__LINE__) & 0xFFF) << 32) |			\
 		((((u64)pc16bit1) & 0xFFFF) << 16) |			\
 		(((u64)pc16bit2) & 0xFFFF);				\
@@ -254,14 +255,13 @@ do {									\
 
 /* MOST COMMON */
 #define POSTCODE_LINUX_2(EVENT_PC, severity)				\
-	POSTCODE_LINUX(CURRENT_FILE_PC, EVENT_PC, 0, 0, severity)
+	POSTCODE_LINUX(EVENT_PC, 0, 0, severity)
 
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
-	POSTCODE_LINUX(CURRENT_FILE_PC, EVENT_PC, (pc32bit >> 16),	\
-			 (pc32bit & 0xFFFF), severity)
+	POSTCODE_LINUX(EVENT_PC, (pc32bit >> 16), (pc32bit & 0xFFFF),	\
+		       severity)
 
 #define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
-	POSTCODE_LINUX(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\
-			 pc16bit2, severity)
+	POSTCODE_LINUX(EVENT_PC, pc16bit1, pc16bit2, severity)
 
 #endif /* __IOMONINTF_H__ */
