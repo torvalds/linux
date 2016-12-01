@@ -118,11 +118,50 @@ static int test_mutex(void)
 	return 0;
 }
 
+static int test_aa(void)
+{
+	struct ww_mutex mutex;
+	struct ww_acquire_ctx ctx;
+	int ret;
+
+	ww_mutex_init(&mutex, &ww_class);
+	ww_acquire_init(&ctx, &ww_class);
+
+	ww_mutex_lock(&mutex, &ctx);
+
+	if (ww_mutex_trylock(&mutex))  {
+		pr_err("%s: trylocked itself!\n", __func__);
+		ww_mutex_unlock(&mutex);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = ww_mutex_lock(&mutex, &ctx);
+	if (ret != -EALREADY) {
+		pr_err("%s: missed deadlock for recursing, ret=%d\n",
+		       __func__, ret);
+		if (!ret)
+			ww_mutex_unlock(&mutex);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	ww_mutex_unlock(&mutex);
+	ww_acquire_fini(&ctx);
+	return ret;
+}
+
 static int __init test_ww_mutex_init(void)
 {
 	int ret;
 
 	ret = test_mutex();
+	if (ret)
+		return ret;
+
+	ret = test_aa();
 	if (ret)
 		return ret;
 
