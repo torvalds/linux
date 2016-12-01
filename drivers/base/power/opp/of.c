@@ -148,14 +148,14 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		return -EINVAL;
 	}
 
-	opp->u_volt = microvolt[0];
+	opp->supply.u_volt = microvolt[0];
 
 	if (count == 1) {
-		opp->u_volt_min = opp->u_volt;
-		opp->u_volt_max = opp->u_volt;
+		opp->supply.u_volt_min = opp->supply.u_volt;
+		opp->supply.u_volt_max = opp->supply.u_volt;
 	} else {
-		opp->u_volt_min = microvolt[1];
-		opp->u_volt_max = microvolt[2];
+		opp->supply.u_volt_min = microvolt[1];
+		opp->supply.u_volt_max = microvolt[2];
 	}
 
 	/* Search for "opp-microamp-<name>" */
@@ -173,7 +173,7 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 	}
 
 	if (prop && !of_property_read_u32(opp->np, name, &val))
-		opp->u_amp = val;
+		opp->supply.u_amp = val;
 
 	return 0;
 }
@@ -303,9 +303,9 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	mutex_unlock(&opp_table_lock);
 
 	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu\n",
-		 __func__, new_opp->turbo, new_opp->rate, new_opp->u_volt,
-		 new_opp->u_volt_min, new_opp->u_volt_max,
-		 new_opp->clock_latency_ns);
+		 __func__, new_opp->turbo, new_opp->rate,
+		 new_opp->supply.u_volt, new_opp->supply.u_volt_min,
+		 new_opp->supply.u_volt_max, new_opp->clock_latency_ns);
 
 	/*
 	 * Notify the changes in the availability of the operable

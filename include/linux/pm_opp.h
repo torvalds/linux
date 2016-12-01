@@ -25,6 +25,22 @@ enum dev_pm_opp_event {
 	OPP_EVENT_ADD, OPP_EVENT_REMOVE, OPP_EVENT_ENABLE, OPP_EVENT_DISABLE,
 };
 
+/**
+ * struct dev_pm_opp_supply - Power supply voltage/current values
+ * @u_volt:	Target voltage in microvolts corresponding to this OPP
+ * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
+ * @u_volt_max:	Maximum voltage in microvolts corresponding to this OPP
+ * @u_amp:	Maximum current drawn by the device in microamperes
+ *
+ * This structure stores the voltage/current values for a single power supply.
+ */
+struct dev_pm_opp_supply {
+	unsigned long u_volt;
+	unsigned long u_volt_min;
+	unsigned long u_volt_max;
+	unsigned long u_amp;
+};
+
 #if defined(CONFIG_PM_OPP)
 
 unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp);

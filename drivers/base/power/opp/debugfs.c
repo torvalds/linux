@@ -63,16 +63,16 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	if (!debugfs_create_ulong("rate_hz", S_IRUGO, d, &opp->rate))
 		return -ENOMEM;
 
-	if (!debugfs_create_ulong("u_volt_target", S_IRUGO, d, &opp->u_volt))
+	if (!debugfs_create_ulong("u_volt_target", S_IRUGO, d, &opp->supply.u_volt))
 		return -ENOMEM;
 
-	if (!debugfs_create_ulong("u_volt_min", S_IRUGO, d, &opp->u_volt_min))
+	if (!debugfs_create_ulong("u_volt_min", S_IRUGO, d, &opp->supply.u_volt_min))
 		return -ENOMEM;
 
-	if (!debugfs_create_ulong("u_volt_max", S_IRUGO, d, &opp->u_volt_max))
+	if (!debugfs_create_ulong("u_volt_max", S_IRUGO, d, &opp->supply.u_volt_max))
 		return -ENOMEM;
 
-	if (!debugfs_create_ulong("u_amp", S_IRUGO, d, &opp->u_amp))
+	if (!debugfs_create_ulong("u_amp", S_IRUGO, d, &opp->supply.u_amp))
 		return -ENOMEM;
 
 	if (!debugfs_create_ulong("clock_latency_ns", S_IRUGO, d,

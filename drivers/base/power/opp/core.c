@@ -112,7 +112,7 @@ unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 	if (IS_ERR_OR_NULL(tmp_opp))
 		pr_err("%s: Invalid parameters\n", __func__);
 	else
-		v = tmp_opp->u_volt;
+		v = tmp_opp->supply.u_volt;
 
 	return v;
 }
@@ -246,10 +246,10 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 		if (!opp->available)
 			continue;
 
-		if (opp->u_volt_min < min_uV)
-			min_uV = opp->u_volt_min;
-		if (opp->u_volt_max > max_uV)
-			max_uV = opp->u_volt_max;
+		if (opp->supply.u_volt_min < min_uV)
+			min_uV = opp->supply.u_volt_min;
+		if (opp->supply.u_volt_max > max_uV)
+			max_uV = opp->supply.u_volt_max;
 	}
 
 	rcu_read_unlock();
@@ -637,14 +637,14 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	if (IS_ERR(old_opp)) {
 		old_u_volt = 0;
 	} else {
-		old_u_volt = old_opp->u_volt;
-		old_u_volt_min = old_opp->u_volt_min;
-		old_u_volt_max = old_opp->u_volt_max;
+		old_u_volt = old_opp->supply.u_volt;
+		old_u_volt_min = old_opp->supply.u_volt_min;
+		old_u_volt_max = old_opp->supply.u_volt_max;
 	}
 
-	u_volt = opp->u_volt;
-	u_volt_min = opp->u_volt_min;
-	u_volt_max = opp->u_volt_max;
+	u_volt = opp->supply.u_volt;
+	u_volt_min = opp->supply.u_volt_min;
+	u_volt_max = opp->supply.u_volt_max;
 
 	reg = opp_table->regulator;
 
@@ -957,10 +957,11 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 	struct regulator *reg = opp_table->regulator;
 
 	if (!IS_ERR(reg) &&
-	    !regulator_is_supported_voltage(reg, opp->u_volt_min,
-					    opp->u_volt_max)) {
+	    !regulator_is_supported_voltage(reg, opp->supply.u_volt_min,
+					    opp->supply.u_volt_max)) {
 		pr_warn("%s: OPP minuV: %lu maxuV: %lu, not supported by regulator\n",
-			__func__, opp->u_volt_min, opp->u_volt_max);
+			__func__, opp->supply.u_volt_min,
+			opp->supply.u_volt_max);
 		return false;
 	}
 
@@ -993,11 +994,12 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 
 		/* Duplicate OPPs */
 		dev_warn(dev, "%s: duplicate OPPs detected. Existing: freq: %lu, volt: %lu, enabled: %d. New: freq: %lu, volt: %lu, enabled: %d\n",
-			 __func__, opp->rate, opp->u_volt, opp->available,
-			 new_opp->rate, new_opp->u_volt, new_opp->available);
+			 __func__, opp->rate, opp->supply.u_volt,
+			 opp->available, new_opp->rate, new_opp->supply.u_volt,
+			 new_opp->available);
 
-		return opp->available && new_opp->u_volt == opp->u_volt ?
-			0 : -EEXIST;
+		return opp->available &&
+		       new_opp->supply.u_volt == opp->supply.u_volt ? 0 : -EEXIST;
 	}
 
 	new_opp->opp_table = opp_table;
@@ -1064,9 +1066,9 @@ int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
 	/* populate the opp table */
 	new_opp->rate = freq;
 	tol = u_volt * opp_table->voltage_tolerance_v1 / 100;
-	new_opp->u_volt = u_volt;
-	new_opp->u_volt_min = u_volt - tol;
-	new_opp->u_volt_max = u_volt + tol;
+	new_opp->supply.u_volt = u_volt;
+	new_opp->supply.u_volt_min = u_volt - tol;
+	new_opp->supply.u_volt_max = u_volt + tol;
 	new_opp->available = true;
 	new_opp->dynamic = dynamic;
 
