@@ -1574,6 +1574,25 @@ static int skb_read_pdu_bhs(struct iscsi_conn *conn, struct sk_buff *skb)
 		return -EIO;
 	}
 
+	if (cxgbi_skcb_test_flag(skb, SKCBF_RX_ISCSI_COMPL) &&
+	    cxgbi_skcb_test_flag(skb, SKCBF_RX_DATA_DDPD)) {
+		/* If completion flag is set and data is directly
+		 * placed in to the host memory then update
+		 * task->exp_datasn to the datasn in completion
+		 * iSCSI hdr as T6 adapter generates completion only
+		 * for the last pdu of a sequence.
+		 */
+		itt_t itt = ((struct iscsi_data *)skb->data)->itt;
+		struct iscsi_task *task = iscsi_itt_to_ctask(conn, itt);
+		u32 data_sn = be32_to_cpu(((struct iscsi_data *)
+							skb->data)->datasn);
+		if (task && task->sc) {
+			struct iscsi_tcp_task *tcp_task = task->dd_data;
+
+			tcp_task->exp_datasn = data_sn;
+		}
+	}
+
 	return read_pdu_skb(conn, skb, 0, 0);
 }
 
