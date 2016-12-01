@@ -227,7 +227,13 @@ enum event_pc {			/* POSTCODE event identifier tuples */
 /* TODO-> Info currently doesn't show, so we set info=warning */
 #define POSTCODE_SEVERITY_INFO DIAG_SEVERITY_PRINT
 
-/* example call of POSTCODE_LINUX_2(VISOR_CHIPSET_PC, POSTCODE_SEVERITY_ERR);
+/* Write a 64-bit value to the hypervisor's log file
+ * POSTCODE_LINUX generates a value in the form 0xAABBBCCCDDDDEEEE where
+ *	A is an identifier for the file logging the postcode
+ *	B is an identifier for the event logging the postcode
+ *	C is the line logging the postcode
+ *	D is additional information the caller wants to log
+ *	E is additional information the caller wants to log
  * Please also note that the resulting postcode is in hex, so if you are
  * searching for the __LINE__ number, convert it first to decimal.  The line
  * number combined with driver and type of call, will allow you to track down
@@ -236,16 +242,7 @@ enum event_pc {			/* POSTCODE event identifier tuples */
  */
 
 /* BASE FUNCTIONS */
-#define POSTCODE_LINUX_A(DRIVER_PC, EVENT_PC, pc32bit, severity)	\
-do {									\
-	unsigned long long post_code_temp;				\
-	post_code_temp = (((u64)DRIVER_PC) << 56) | (((u64)EVENT_PC) << 44) | \
-		((((u64)__LINE__) & 0xFFF) << 32) |			\
-		(((u64)pc32bit) & 0xFFFFFFFF);				\
-	ISSUE_IO_VMCALL_POSTCODE_SEVERITY(post_code_temp, severity);	\
-} while (0)
-
-#define POSTCODE_LINUX_B(DRIVER_PC, EVENT_PC, pc16bit1, pc16bit2, severity) \
+#define POSTCODE_LINUX(DRIVER_PC, EVENT_PC, pc16bit1, pc16bit2, severity) \
 do {									\
 	unsigned long long post_code_temp;				\
 	post_code_temp = (((u64)DRIVER_PC) << 56) | (((u64)EVENT_PC) << 44) | \
@@ -257,13 +254,14 @@ do {									\
 
 /* MOST COMMON */
 #define POSTCODE_LINUX_2(EVENT_PC, severity)				\
-	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, 0x0000, severity)
+	POSTCODE_LINUX(CURRENT_FILE_PC, EVENT_PC, 0, 0, severity)
 
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
-	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity)
+	POSTCODE_LINUX(CURRENT_FILE_PC, EVENT_PC, (pc32bit >> 16),	\
+			 (pc32bit & 0xFFFF), severity)
 
 #define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
-	POSTCODE_LINUX_B(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\
+	POSTCODE_LINUX(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\
 			 pc16bit2, severity)
 
 #endif /* __IOMONINTF_H__ */
