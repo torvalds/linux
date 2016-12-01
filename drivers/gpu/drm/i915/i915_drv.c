@@ -544,8 +544,8 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_gem_cleanup_engines(&dev_priv->drm);
-	i915_gem_context_fini(&dev_priv->drm);
+	i915_gem_cleanup_engines(dev_priv);
+	i915_gem_context_fini(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	rcu_barrier();
@@ -833,7 +833,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
-	ret = i915_gem_load_init(&dev_priv->drm);
+	ret = i915_gem_load_init(dev_priv);
 	if (ret < 0)
 		goto err_gvt;
 
@@ -861,7 +861,7 @@ err_workqueues:
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	i915_perf_fini(dev_priv);
-	i915_gem_load_cleanup(&dev_priv->drm);
+	i915_gem_load_cleanup(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 }
 

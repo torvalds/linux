@@ -4480,9 +4480,8 @@ out_unlock:
 }
 
 void
-i915_gem_cleanup_engines(struct drm_device *dev)
+i915_gem_cleanup_engines(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
@@ -4522,9 +4521,8 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 }
 
 int
-i915_gem_load_init(struct drm_device *dev)
+i915_gem_load_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int err = -ENOMEM;
 
 	dev_priv->objects = KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
@@ -4593,10 +4591,8 @@ err_out:
 	return err;
 }
 
-void i915_gem_load_cleanup(struct drm_device *dev)
+void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	WARN_ON(!llist_empty(&dev_priv->mm.free_list));
 
 	mutex_lock(&dev_priv->drm.struct_mutex);

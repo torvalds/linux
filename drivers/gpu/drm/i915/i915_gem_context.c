@@ -519,12 +519,11 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 	}
 }
 
-void i915_gem_context_fini(struct drm_device *dev)
+void i915_gem_context_fini(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_gem_context *dctx = dev_priv->kernel_context;
 
-	lockdep_assert_held(&dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	context_close(dctx);
 	dev_priv->kernel_context = NULL;
