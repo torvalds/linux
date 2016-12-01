@@ -1088,7 +1088,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 		desc[1] = tf->command; /* status */
 		desc[2] = tf->device;
 		desc[3] = tf->nsect;
-		desc[0] = 0;
+		desc[7] = 0;
 		if (tf->flags & ATA_TFLAG_LBA48)  {
 			desc[8] |= 0x80;
 			if (tf->hob_nsect)

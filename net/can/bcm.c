@@ -77,7 +77,7 @@
 		     (CAN_EFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG) : \
 		     (CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG))
 
-#define CAN_BCM_VERSION "20160617"
+#define CAN_BCM_VERSION "20161123"
 
 MODULE_DESCRIPTION("PF_CAN broadcast manager protocol");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -109,8 +109,9 @@ struct bcm_op {
 	u32 count;
 	u32 nframes;
 	u32 currframe;
-	struct canfd_frame *frames;
-	struct canfd_frame *last_frames;
+	/* void pointers to arrays of struct can[fd]_frame */
+	void *frames;
+	void *last_frames;
 	struct canfd_frame sframe;
 	struct canfd_frame last_sframe;
 	struct sock *sk;
@@ -681,7 +682,7 @@ static void bcm_rx_handler(struct sk_buff *skb, void *data)
 
 	if (op->flags & RX_FILTER_ID) {
 		/* the easiest case */
-		bcm_rx_update_and_send(op, &op->last_frames[0], rxframe);
+		bcm_rx_update_and_send(op, op->last_frames, rxframe);
 		goto rx_starttimer;
 	}
 
@@ -1068,7 +1069,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 
 		if (msg_head->nframes) {
 			/* update CAN frames content */
-			err = memcpy_from_msg((u8 *)op->frames, msg,
+			err = memcpy_from_msg(op->frames, msg,
 					      msg_head->nframes * op->cfsiz);
 			if (err < 0)
 				return err;
@@ -1118,7 +1119,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		}
 
 		if (msg_head->nframes) {
-			err = memcpy_from_msg((u8 *)op->frames, msg,
+			err = memcpy_from_msg(op->frames, msg,
 					      msg_head->nframes * op->cfsiz);
 			if (err < 0) {
 				if (op->frames != &op->sframe)
@@ -1163,6 +1164,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 	/* check flags */
 
 	if (op->flags & RX_RTR_FRAME) {
+		struct canfd_frame *frame0 = op->frames;
 
 		/* no timers in RTR-mode */
 		hrtimer_cancel(&op->thrtimer);
@@ -1174,8 +1176,8 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		 * prevent a full-load-loopback-test ... ;-]
 		 */
 		if ((op->flags & TX_CP_CAN_ID) ||
-		    (op->frames[0].can_id == op->can_id))
-			op->frames[0].can_id = op->can_id & ~CAN_RTR_FLAG;
+		    (frame0->can_id == op->can_id))
+			frame0->can_id = op->can_id & ~CAN_RTR_FLAG;
 
 	} else {
 		if (op->flags & SETTIMER) {

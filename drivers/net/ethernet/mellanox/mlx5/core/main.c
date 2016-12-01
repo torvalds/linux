@@ -46,7 +46,6 @@
 #include <linux/mlx5/srq.h>
 #include <linux/debugfs.h>
 #include <linux/kmod.h>
-#include <linux/delay.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>

@@ -1013,4 +1013,4 @@ static int __init init_default_flow_dissectors(void)
 	return 0;
 }
 
-late_initcall_sync(init_default_flow_dissectors);
+core_initcall(init_default_flow_dissectors);

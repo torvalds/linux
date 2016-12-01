@@ -623,7 +623,8 @@ hash_add:
 	return 0;
 
 clear_multi:
-	dev_set_allmulti(lowerdev, -1);
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(lowerdev, -1);
 del_unicast:
 	dev_uc_del(lowerdev, dev->dev_addr);
 out:

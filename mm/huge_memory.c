@@ -1456,9 +1456,9 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 		new_ptl = pmd_lockptr(mm, new_pmd);
 		if (new_ptl != old_ptl)
 			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
-		if (pmd_present(*old_pmd) && pmd_dirty(*old_pmd))
-			force_flush = true;
 		pmd = pmdp_huge_get_and_clear(mm, old_addr, old_pmd);
+		if (pmd_present(pmd) && pmd_dirty(pmd))
+			force_flush = true;
 		VM_BUG_ON(!pmd_none(*new_pmd));
 
 		if (pmd_move_must_withdraw(new_ptl, old_ptl) &&

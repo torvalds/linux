@@ -129,6 +129,9 @@ static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
 	}
 };
 
+/* Must not acquire state_lock, as its corresponding work_sync
+ * is done under it.
+ */
 static void mlx4_en_filter_work(struct work_struct *work)
 {
 	struct mlx4_en_filter *filter = container_of(work,
@@ -2189,13 +2192,13 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mutex_lock(&mdev->state_lock);
 	mdev->pndev[priv->port] = NULL;
 	mdev->upper[priv->port] = NULL;
-	mutex_unlock(&mdev->state_lock);
 
 #ifdef CONFIG_RFS_ACCEL
 	mlx4_en_cleanup_filters(priv);
 #endif
 
 	mlx4_en_free_resources(priv);
+	mutex_unlock(&mdev->state_lock);
 
 	kfree(priv->tx_ring);
 	kfree(priv->tx_cq);

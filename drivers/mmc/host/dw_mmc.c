@@ -1058,6 +1058,7 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
 	if (host->dma_ops->start(host, sg_len)) {
+		host->dma_ops->stop(host);
 		/* We can't do DMA, try PIO for this one */
 		dev_dbg(host->dev,
 			"%s: fall back to PIO mode for current transfer\n",

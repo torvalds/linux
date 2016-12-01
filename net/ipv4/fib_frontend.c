@@ -151,7 +151,7 @@ static void fib_replace_table(struct net *net, struct fib_table *old,
 
 int fib_unmerge(struct net *net)
 {
-	struct fib_table *old, *new;
+	struct fib_table *old, *new, *main_table;
 
 	/* attempt to fetch local table if it has been allocated */
 	old = fib_get_table(net, RT_TABLE_LOCAL);
@@ -162,11 +162,21 @@ int fib_unmerge(struct net *net)
 	if (!new)
 		return -ENOMEM;
 
+	/* table is already unmerged */
+	if (new == old)
+		return 0;
+
 	/* replace merged table with clean table */
-	if (new != old) {
-		fib_replace_table(net, old, new);
-		fib_free_table(old);
-	}
+	fib_replace_table(net, old, new);
+	fib_free_table(old);
+
+	/* attempt to fetch main table if it has been allocated */
+	main_table = fib_get_table(net, RT_TABLE_MAIN);
+	if (!main_table)
+		return 0;
+
+	/* flush local entries from main table */
+	fib_table_flush_external(main_table);
 
 	return 0;
 }
