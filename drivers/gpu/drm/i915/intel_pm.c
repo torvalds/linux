@@ -3761,7 +3761,10 @@ skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 static uint32_t
 skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 {
+	struct drm_atomic_state *state = cstate->base.state;
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	uint32_t pixel_rate;
+	uint32_t linetime_wm;
 
 	if (!cstate->base.active)
 		return 0;
@@ -3771,8 +3774,14 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 	if (WARN_ON(pixel_rate == 0))
 		return 0;
 
-	return DIV_ROUND_UP(8 * cstate->base.adjusted_mode.crtc_htotal * 1000,
-			    pixel_rate);
+	linetime_wm = DIV_ROUND_UP(8 * cstate->base.adjusted_mode.crtc_htotal *
+				   1000, pixel_rate);
+
+	/* Display WA #1135: bxt. */
+	if (IS_BROXTON(dev_priv) && dev_priv->ipc_enabled)
+		linetime_wm = DIV_ROUND_UP(linetime_wm, 2);
+
+	return linetime_wm;
 }
 
 static void skl_compute_transition_wm(struct intel_crtc_state *cstate,

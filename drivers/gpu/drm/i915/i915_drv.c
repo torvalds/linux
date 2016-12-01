@@ -1239,6 +1239,8 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	intel_runtime_pm_enable(dev_priv);
 
+	dev_priv->ipc_enabled = false;
+
 	/* Everything is in place, we can now relax! */
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver.name, driver.major, driver.minor, driver.patchlevel,
