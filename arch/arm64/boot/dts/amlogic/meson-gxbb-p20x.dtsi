@@ -125,6 +125,16 @@
 		clocks = <&wifi32k>;
 		clock-names = "ext_clock";
 	};
+
+	cvbs-connector {
+		compatible = "composite-video-connector";
+
+		port {
+			cvbs_connector_in: endpoint {
+				remote-endpoint = <&cvbs_vdac_out>;
+			};
+		};
+	};
 };
 
 /* This UART is brought out to the DB9 connector */
@@ -233,4 +243,10 @@
 	pinctrl-names = "default";
 	clocks = <&clkc CLKID_FCLK_DIV4>;
 	clock-names = "clkin0";
+};
+
+&cvbs_vdac_port {
+	cvbs_vdac_out: endpoint {
+		remote-endpoint = <&cvbs_connector_in>;
+	};
 };
