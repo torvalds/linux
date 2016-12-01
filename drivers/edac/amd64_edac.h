@@ -30,10 +30,10 @@
 	edac_printk(KERN_NOTICE, "amd64", fmt, ##arg)
 
 #define amd64_warn(fmt, arg...) \
-	edac_printk(KERN_WARNING, "amd64", fmt, ##arg)
+	edac_printk(KERN_WARNING, "amd64", "Warning: " fmt, ##arg)
 
 #define amd64_err(fmt, arg...) \
-	edac_printk(KERN_ERR, "amd64", fmt, ##arg)
+	edac_printk(KERN_ERR, "amd64", "Error: " fmt, ##arg)
 
 #define amd64_mc_warn(mci, fmt, arg...) \
 	edac_mc_chipset_printk(mci, KERN_WARNING, "amd64", fmt, ##arg)
