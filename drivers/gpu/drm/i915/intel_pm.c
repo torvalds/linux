@@ -7955,10 +7955,8 @@ void intel_queue_rps_boost_for_request(struct drm_i915_gem_request *req)
 	queue_work(req->i915->wq, &boost->work);
 }
 
-void intel_pm_setup(struct drm_device *dev)
+void intel_pm_setup(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	mutex_init(&dev_priv->rps.hw_lock);
 	spin_lock_init(&dev_priv->rps.client_lock);
 
