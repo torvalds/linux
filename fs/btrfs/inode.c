@@ -4695,6 +4695,13 @@ error:
 
 	btrfs_free_path(path);
 
+	if (err == 0) {
+		/* only inline file may have last_size != new_size */
+		if (new_size >= fs_info->sectorsize ||
+		    new_size > fs_info->max_inline)
+			ASSERT(last_size == new_size);
+	}
+
 	if (be_nice && bytes_deleted > SZ_32M) {
 		unsigned long updates = trans->delayed_ref_updates;
 		if (updates) {
@@ -5079,6 +5086,13 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		ret = btrfs_truncate(inode);
 		if (ret && inode->i_nlink) {
 			int err;
+
+			/* To get a stable disk_i_size */
+			err = btrfs_wait_ordered_range(inode, 0, (u64)-1);
+			if (err) {
+				btrfs_orphan_del(NULL, inode);
+				return err;
+			}
 
 			/*
 			 * failed to truncate, disk_i_size is only adjusted down
