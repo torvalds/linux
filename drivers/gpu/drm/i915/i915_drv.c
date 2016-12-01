@@ -1307,7 +1307,7 @@ void i915_driver_unload(struct drm_device *dev)
 
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
-	i915_destroy_error_state(dev);
+	i915_destroy_error_state(dev_priv);
 
 	/* Flush any outstanding unpin_work. */
 	drain_workqueue(dev_priv->wq);

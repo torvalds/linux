@@ -514,7 +514,7 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_error_state_file_priv *error_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(error_priv->dev);
+	struct drm_i915_private *dev_priv = error_priv->i915;
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
@@ -1644,9 +1644,8 @@ void i915_error_state_put(struct i915_error_state_file_priv *error_priv)
 		kref_put(&error_priv->error->ref, i915_error_state_free);
 }
 
-void i915_destroy_error_state(struct drm_device *dev)
+void i915_destroy_error_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_error_state *error;
 
 	spin_lock_irq(&dev_priv->gpu_error.lock);

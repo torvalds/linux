@@ -946,7 +946,7 @@ i915_error_state_write(struct file *filp,
 	struct i915_error_state_file_priv *error_priv = filp->private_data;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-	i915_destroy_error_state(error_priv->dev);
+	i915_destroy_error_state(error_priv->i915);
 
 	return cnt;
 }
@@ -960,7 +960,7 @@ static int i915_error_state_open(struct inode *inode, struct file *file)
 	if (!error_priv)
 		return -ENOMEM;
 
-	error_priv->dev = &dev_priv->drm;
+	error_priv->i915 = dev_priv;
 
 	i915_error_state_get(&dev_priv->drm, error_priv);
 
@@ -988,8 +988,8 @@ static ssize_t i915_error_state_read(struct file *file, char __user *userbuf,
 	ssize_t ret_count = 0;
 	int ret;
 
-	ret = i915_error_state_buf_init(&error_str,
-					to_i915(error_priv->dev), count, *pos);
+	ret = i915_error_state_buf_init(&error_str, error_priv->i915,
+					count, *pos);
 	if (ret)
 		return ret;
 

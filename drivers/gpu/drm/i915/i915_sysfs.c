@@ -535,7 +535,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	error_priv.dev = dev;
+	error_priv.i915 = dev_priv;
 	i915_error_state_get(dev, &error_priv);
 
 	ret = i915_error_state_to_str(&error_str, &error_priv);
@@ -560,7 +560,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
-	i915_destroy_error_state(&dev_priv->drm);
+	i915_destroy_error_state(dev_priv);
 
 	return count;
 }
