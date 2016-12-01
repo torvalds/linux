@@ -157,10 +157,6 @@ enum event_pc {			/* POSTCODE event identifier tuples */
 	SAVE_MSG_DEV_FAILURE_PC = 0x01F,
 };
 
-#define POSTCODE_SEVERITY_ERR DIAG_SEVERITY_ERR
-/* TODO-> Info currently doesn't show, so we set info=warning */
-#define POSTCODE_SEVERITY_INFO DIAG_SEVERITY_PRINT
-
 /* Write a 64-bit value to the hypervisor's log file
  * POSTCODE_LINUX generates a value in the form 0xAABBBCCCDDDDEEEE where
  *	A is an identifier for the file logging the postcode
