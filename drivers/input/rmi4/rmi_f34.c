@@ -282,7 +282,8 @@ out:
 static int rmi_firmware_update(struct rmi_driver_data *data,
 			       const struct firmware *fw)
 {
-	struct device *dev = &data->rmi_dev->dev;
+	struct rmi_device *rmi_dev = data->rmi_dev;
+	struct device *dev = &rmi_dev->dev;
 	struct f34_data *f34;
 	int ret;
 
@@ -305,8 +306,10 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	if (ret)
 		return ret;
 
+	rmi_disable_irq(rmi_dev, false);
+
 	/* Tear down functions and re-probe */
-	rmi_free_function_list(data->rmi_dev);
+	rmi_free_function_list(rmi_dev);
 
 	ret = rmi_probe_interrupts(data);
 	if (ret)
@@ -322,6 +325,8 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 		return -EINVAL;
 	}
 
+	rmi_enable_irq(rmi_dev, false);
+
 	f34 = dev_get_drvdata(&data->f34_container->dev);
 
 	/* Perform firmware update */
@@ -329,11 +334,13 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 
 	dev_info(&f34->fn->dev, "Firmware update complete, status:%d\n", ret);
 
+	rmi_disable_irq(rmi_dev, false);
+
 	/* Re-probe */
 	rmi_dbg(RMI_DEBUG_FN, dev, "Re-probing device\n");
-	rmi_free_function_list(data->rmi_dev);
+	rmi_free_function_list(rmi_dev);
 
-	ret = rmi_scan_pdt(data->rmi_dev, NULL, rmi_initial_reset);
+	ret = rmi_scan_pdt(rmi_dev, NULL, rmi_initial_reset);
 	if (ret < 0)
 		dev_warn(dev, "RMI reset failed!\n");
 
@@ -345,9 +352,11 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	if (ret)
 		return ret;
 
+	rmi_enable_irq(rmi_dev, false);
+
 	if (data->f01_container->dev.driver)
 		/* Driver already bound, so enable ATTN now. */
-		return rmi_enable_sensor(data->rmi_dev);
+		return rmi_enable_sensor(rmi_dev);
 
 	rmi_dbg(RMI_DEBUG_FN, dev, "%s complete\n", __func__);
 

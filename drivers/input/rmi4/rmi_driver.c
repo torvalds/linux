@@ -42,8 +42,6 @@ void rmi_free_function_list(struct rmi_device *rmi_dev)
 
 	rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev, "Freeing function list\n");
 
-	mutex_lock(&data->irq_mutex);
-
 	devm_kfree(&rmi_dev->dev, data->irq_memory);
 	data->irq_memory = NULL;
 	data->irq_status = NULL;
@@ -60,8 +58,6 @@ void rmi_free_function_list(struct rmi_device *rmi_dev)
 		list_del(&fn->node);
 		rmi_unregister_function(fn);
 	}
-
-	mutex_unlock(&data->irq_mutex);
 }
 EXPORT_SYMBOL_GPL(rmi_free_function_list);
 
@@ -160,25 +156,24 @@ static int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 	if (!data)
 		return 0;
 
-	mutex_lock(&data->irq_mutex);
-	if (!data->irq_status || !data->f01_container) {
-		mutex_unlock(&data->irq_mutex);
-		return 0;
-	}
-
 	if (!rmi_dev->xport->attn_data) {
 		error = rmi_read_block(rmi_dev,
 				data->f01_container->fd.data_base_addr + 1,
 				data->irq_status, data->num_of_irq_regs);
 		if (error < 0) {
 			dev_err(dev, "Failed to read irqs, code=%d\n", error);
-			mutex_unlock(&data->irq_mutex);
 			return error;
 		}
 	}
 
+	mutex_lock(&data->irq_mutex);
 	bitmap_and(data->irq_status, data->irq_status, data->current_irq_mask,
 	       data->irq_count);
+	/*
+	 * At this point, irq_status has all bits that are set in the
+	 * interrupt status register and are enabled.
+	 */
+	mutex_unlock(&data->irq_mutex);
 
 	/*
 	 * It would be nice to be able to use irq_chip to handle these
@@ -193,8 +188,6 @@ static int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 
 	if (data->input)
 		input_sync(data->input);
-
-	mutex_unlock(&data->irq_mutex);
 
 	return 0;
 }
@@ -263,17 +256,11 @@ static int rmi_suspend_functions(struct rmi_device *rmi_dev)
 	struct rmi_function *entry;
 	int retval;
 
-	mutex_lock(&data->irq_mutex);
-
 	list_for_each_entry(entry, &data->function_list, node) {
 		retval = suspend_one_function(entry);
-		if (retval < 0) {
-			mutex_unlock(&data->irq_mutex);
+		if (retval < 0)
 			return retval;
-		}
 	}
-
-	mutex_unlock(&data->irq_mutex);
 
 	return 0;
 }
@@ -303,17 +290,11 @@ static int rmi_resume_functions(struct rmi_device *rmi_dev)
 	struct rmi_function *entry;
 	int retval;
 
-	mutex_lock(&data->irq_mutex);
-
 	list_for_each_entry(entry, &data->function_list, node) {
 		retval = resume_one_function(entry);
-		if (retval < 0) {
-			mutex_unlock(&data->irq_mutex);
+		if (retval < 0)
 			return retval;
-		}
 	}
-
-	mutex_unlock(&data->irq_mutex);
 
 	return 0;
 }
@@ -1043,8 +1024,6 @@ int rmi_init_functions(struct rmi_driver_data *data)
 	int irq_count;
 	int retval;
 
-	mutex_lock(&data->irq_mutex);
-
 	irq_count = 0;
 	rmi_dbg(RMI_DEBUG_CORE, dev, "%s: Creating functions.\n", __func__);
 	retval = rmi_scan_pdt(rmi_dev, &irq_count, rmi_create_function);
@@ -1069,13 +1048,10 @@ int rmi_init_functions(struct rmi_driver_data *data)
 		goto err_destroy_functions;
 	}
 
-	mutex_unlock(&data->irq_mutex);
-
 	return 0;
 
 err_destroy_functions:
 	rmi_free_function_list(rmi_dev);
-	mutex_unlock(&data->irq_mutex);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(rmi_init_functions);
