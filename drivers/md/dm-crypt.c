@@ -24,6 +24,7 @@
 #include <linux/atomic.h>
 #include <linux/scatterlist.h>
 #include <linux/rbtree.h>
+#include <linux/ctype.h>
 #include <asm/page.h>
 #include <asm/unaligned.h>
 #include <crypto/hash.h>
@@ -1489,12 +1490,29 @@ static int crypt_setkey(struct crypt_config *cc)
 
 #ifdef CONFIG_KEYS
 
+static bool contains_whitespace(const char *str)
+{
+	while (*str)
+		if (isspace(*str++))
+			return true;
+	return false;
+}
+
 static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string)
 {
 	char *new_key_string, *key_desc;
 	int ret;
 	struct key *key;
 	const struct user_key_payload *ukp;
+
+	/*
+	 * Reject key_string with whitespace. dm core currently lacks code for
+	 * proper whitespace escaping in arguments on DM_TABLE_STATUS path.
+	 */
+	if (contains_whitespace(key_string)) {
+		DMERR("whitespace chars not allowed in key string");
+		return -EINVAL;
+	}
 
 	/* look for next ':' separating key_type from key_description */
 	key_desc = strpbrk(key_string, ":");
