@@ -385,7 +385,7 @@ int lru_queue_work(const struct lu_env *env, void *data)
 {
 	struct client_obd *cli = data;
 
-	CDEBUG(D_CACHE, "Run LRU work for client obd %p.\n", cli);
+	CDEBUG(D_CACHE, "%s: run LRU work for client obd\n", cli_name(cli));
 
 	if (osc_cache_too_much(cli))
 		osc_lru_shrink(env, cli, lru_shrink_max, true);
@@ -675,8 +675,7 @@ long osc_lru_reclaim(struct client_obd *cli)
 	}
 
 	CDEBUG(D_CACHE, "%s: cli %p no free slots, pages: %ld, busy: %ld.\n",
-	       cli->cl_import->imp_obd->obd_name, cli,
-	       atomic_long_read(&cli->cl_lru_in_list),
+	       cli_name(cli), cli, atomic_long_read(&cli->cl_lru_in_list),
 	       atomic_long_read(&cli->cl_lru_busy));
 
 	/* Reclaim LRU slots from other client_obd as it can't free enough
@@ -694,7 +693,7 @@ long osc_lru_reclaim(struct client_obd *cli)
 				 cl_lru_osc);
 
 		CDEBUG(D_CACHE, "%s: cli %p LRU pages: %ld, busy: %ld.\n",
-		       cli->cl_import->imp_obd->obd_name, cli,
+		       cli_name(cli), cli,
 		       atomic_long_read(&cli->cl_lru_in_list),
 		       atomic_long_read(&cli->cl_lru_busy));
 
@@ -714,7 +713,7 @@ long osc_lru_reclaim(struct client_obd *cli)
 out:
 	cl_env_put(env, &refcheck);
 	CDEBUG(D_CACHE, "%s: cli %p freed %ld pages.\n",
-	       cli->cl_import->imp_obd->obd_name, cli, rc);
+	       cli_name(cli), cli, rc);
 	return rc;
 }
 
@@ -903,8 +902,7 @@ bool osc_over_unstable_soft_limit(struct client_obd *cli)
 
 	CDEBUG(D_CACHE,
 	       "%s: cli: %p unstable pages: %lu, osc unstable pages: %lu\n",
-	       cli->cl_import->imp_obd->obd_name, cli,
-	       unstable_nr, osc_unstable_count);
+	       cli_name(cli), cli, unstable_nr, osc_unstable_count);
 
 	/*
 	 * If the LRU slots are in shortage - 25% remaining AND this OSC
