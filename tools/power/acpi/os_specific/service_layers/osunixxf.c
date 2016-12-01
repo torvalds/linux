@@ -646,8 +646,12 @@ acpi_os_create_semaphore(u32 max_units,
 	}
 #ifdef __APPLE__
 	{
-		char *semaphore_name = tmpnam(NULL);
+		static int semaphore_count = 0;
+		char semaphore_name[32];
 
+		snprintf(semaphore_name, sizeof(semaphore_name), "acpi_sem_%d",
+			 semaphore_count++);
+		printf("%s\n", semaphore_name);
 		sem =
 		    sem_open(semaphore_name, O_EXCL | O_CREAT, 0755,
 			     initial_units);
@@ -692,10 +696,15 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 	if (!sem) {
 		return (AE_BAD_PARAMETER);
 	}
-
+#ifdef __APPLE__
+	if (sem_close(sem) == -1) {
+		return (AE_BAD_PARAMETER);
+	}
+#else
 	if (sem_destroy(sem) == -1) {
 		return (AE_BAD_PARAMETER);
 	}
+#endif
 
 	return (AE_OK);
 }
