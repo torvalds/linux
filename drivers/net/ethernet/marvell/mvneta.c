@@ -2784,13 +2784,13 @@ static int mvneta_rxq_init(struct mvneta_port *pp,
 		mvneta_rxq_buf_size_set(pp, rxq,
 					MVNETA_RX_BUF_SIZE(pp->pkt_size));
 		mvneta_rxq_bm_disable(pp, rxq);
+		mvneta_rxq_fill(pp, rxq, rxq->size);
 	} else {
 		mvneta_rxq_bm_enable(pp, rxq);
 		mvneta_rxq_long_pool_set(pp, rxq);
 		mvneta_rxq_short_pool_set(pp, rxq);
+		mvneta_rxq_non_occup_desc_add(pp, rxq, rxq->size);
 	}
-
-	mvneta_rxq_fill(pp, rxq, rxq->size);
 
 	return 0;
 }
