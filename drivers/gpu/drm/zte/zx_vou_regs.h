@@ -150,6 +150,8 @@
 #define VOU_CLK_GL0_SEL			BIT(4)
 #define VOU_CLK_REQEN			0x20
 #define VOU_CLK_EN			0x24
+#define VOU_INF_HDMI_CTRL		0x30
+#define VOU_HDMI_AUD_MASK		0x1f
 
 /* OTFPPU_CTRL registers */
 #define OTFPPU_RSZ_DATA_SOURCE		0x04

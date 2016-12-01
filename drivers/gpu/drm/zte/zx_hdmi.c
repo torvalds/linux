@@ -25,6 +25,8 @@
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
 
+#include <sound/hdmi-codec.h>
+
 #include "zx_hdmi_regs.h"
 #include "zx_vou.h"
 
@@ -49,6 +51,7 @@ struct zx_hdmi {
 	bool sink_is_hdmi;
 	bool sink_has_audio;
 	const struct vou_inf *inf;
+	struct platform_device *audio_pdev;
 };
 
 #define to_zx_hdmi(x) container_of(x, struct zx_hdmi, x)
@@ -366,6 +369,142 @@ static irqreturn_t zx_hdmi_irq_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+static int zx_hdmi_audio_startup(struct device *dev, void *data)
+{
+	struct zx_hdmi *hdmi = dev_get_drvdata(dev);
+	struct drm_encoder *encoder = &hdmi->encoder;
+
+	vou_inf_hdmi_audio_sel(encoder->crtc, VOU_HDMI_AUD_SPDIF);
+
+	return 0;
+}
+
+static void zx_hdmi_audio_shutdown(struct device *dev, void *data)
+{
+	struct zx_hdmi *hdmi = dev_get_drvdata(dev);
+
+	/* Disable audio input */
+	hdmi_writeb_mask(hdmi, AUD_EN, AUD_IN_EN, 0);
+}
+
+static inline int zx_hdmi_audio_get_n(unsigned int fs)
+{
+	unsigned int n;
+
+	if (fs && (fs % 44100) == 0)
+		n = 6272 * (fs / 44100);
+	else
+		n = fs * 128 / 1000;
+
+	return n;
+}
+
+static int zx_hdmi_audio_hw_params(struct device *dev,
+				   void *data,
+				   struct hdmi_codec_daifmt *daifmt,
+				   struct hdmi_codec_params *params)
+{
+	struct zx_hdmi *hdmi = dev_get_drvdata(dev);
+	struct hdmi_audio_infoframe *cea = &params->cea;
+	union hdmi_infoframe frame;
+	int n;
+
+	/* We only support spdif for now */
+	if (daifmt->fmt != HDMI_SPDIF) {
+		DRM_DEV_ERROR(hdmi->dev, "invalid daifmt %d\n", daifmt->fmt);
+		return -EINVAL;
+	}
+
+	switch (params->sample_width) {
+	case 16:
+		hdmi_writeb_mask(hdmi, TPI_AUD_CONFIG, SPDIF_SAMPLE_SIZE_MASK,
+				 SPDIF_SAMPLE_SIZE_16BIT);
+		break;
+	case 20:
+		hdmi_writeb_mask(hdmi, TPI_AUD_CONFIG, SPDIF_SAMPLE_SIZE_MASK,
+				 SPDIF_SAMPLE_SIZE_20BIT);
+		break;
+	case 24:
+		hdmi_writeb_mask(hdmi, TPI_AUD_CONFIG, SPDIF_SAMPLE_SIZE_MASK,
+				 SPDIF_SAMPLE_SIZE_24BIT);
+		break;
+	default:
+		DRM_DEV_ERROR(hdmi->dev, "invalid sample width %d\n",
+			      params->sample_width);
+		return -EINVAL;
+	}
+
+	/* CTS is calculated by hardware, and we only need to take care of N */
+	n = zx_hdmi_audio_get_n(params->sample_rate);
+	hdmi_writeb(hdmi, N_SVAL1, n & 0xff);
+	hdmi_writeb(hdmi, N_SVAL2, (n >> 8) & 0xff);
+	hdmi_writeb(hdmi, N_SVAL3, (n >> 16) & 0xf);
+
+	/* Enable spdif mode */
+	hdmi_writeb_mask(hdmi, AUD_MODE, SPDIF_EN, SPDIF_EN);
+
+	/* Enable audio input */
+	hdmi_writeb_mask(hdmi, AUD_EN, AUD_IN_EN, AUD_IN_EN);
+
+	memcpy(&frame.audio, cea, sizeof(*cea));
+
+	return zx_hdmi_infoframe_trans(hdmi, &frame, FSEL_AUDIO);
+}
+
+static int zx_hdmi_audio_digital_mute(struct device *dev, void *data,
+				      bool enable)
+{
+	struct zx_hdmi *hdmi = dev_get_drvdata(dev);
+
+	if (enable)
+		hdmi_writeb_mask(hdmi, TPI_AUD_CONFIG, TPI_AUD_MUTE,
+				 TPI_AUD_MUTE);
+	else
+		hdmi_writeb_mask(hdmi, TPI_AUD_CONFIG, TPI_AUD_MUTE, 0);
+
+	return 0;
+}
+
+static int zx_hdmi_audio_get_eld(struct device *dev, void *data,
+				 uint8_t *buf, size_t len)
+{
+	struct zx_hdmi *hdmi = dev_get_drvdata(dev);
+	struct drm_connector *connector = &hdmi->connector;
+
+	memcpy(buf, connector->eld, min(sizeof(connector->eld), len));
+
+	return 0;
+}
+
+static const struct hdmi_codec_ops zx_hdmi_codec_ops = {
+	.audio_startup = zx_hdmi_audio_startup,
+	.hw_params = zx_hdmi_audio_hw_params,
+	.audio_shutdown = zx_hdmi_audio_shutdown,
+	.digital_mute = zx_hdmi_audio_digital_mute,
+	.get_eld = zx_hdmi_audio_get_eld,
+};
+
+static struct hdmi_codec_pdata zx_hdmi_codec_pdata = {
+	.ops = &zx_hdmi_codec_ops,
+	.spdif = 1,
+};
+
+static int zx_hdmi_audio_register(struct zx_hdmi *hdmi)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_data(hdmi->dev, HDMI_CODEC_DRV_NAME,
+					     PLATFORM_DEVID_AUTO,
+					     &zx_hdmi_codec_pdata,
+					     sizeof(zx_hdmi_codec_pdata));
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	hdmi->audio_pdev = pdev;
+
+	return 0;
+}
+
 static int zx_hdmi_i2c_read(struct zx_hdmi *hdmi, struct i2c_msg *msg)
 {
 	int len = msg->len;
@@ -566,6 +705,12 @@ static int zx_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
+	ret = zx_hdmi_audio_register(hdmi);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "failed to register audio: %d\n", ret);
+		return ret;
+	}
+
 	ret = zx_hdmi_register(drm, hdmi);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to register hdmi: %d\n", ret);
@@ -590,6 +735,9 @@ static void zx_hdmi_unbind(struct device *dev, struct device *master,
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+
+	if (hdmi->audio_pdev)
+		platform_device_unregister(hdmi->audio_pdev);
 }
 
 static const struct component_ops zx_hdmi_component_ops = {

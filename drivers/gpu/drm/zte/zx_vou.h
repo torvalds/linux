@@ -30,6 +30,14 @@ enum vou_inf_data_sel {
 	VOU_RGB_666	= 3,
 };
 
+enum vou_inf_hdmi_audio {
+	VOU_HDMI_AUD_SPDIF	= BIT(0),
+	VOU_HDMI_AUD_I2S	= BIT(1),
+	VOU_HDMI_AUD_DSD	= BIT(2),
+	VOU_HDMI_AUD_HBR	= BIT(3),
+	VOU_HDMI_AUD_PARALLEL	= BIT(4),
+};
+
 struct vou_inf {
 	enum vou_inf_id id;
 	enum vou_inf_data_sel data_sel;
@@ -37,6 +45,8 @@ struct vou_inf {
 	u32 clocks_sel_bits;
 };
 
+void vou_inf_hdmi_audio_sel(struct drm_crtc *crtc,
+			    enum vou_inf_hdmi_audio aud);
 void vou_inf_enable(const struct vou_inf *inf, struct drm_crtc *crtc);
 void vou_inf_disable(const struct vou_inf *inf, struct drm_crtc *crtc);
 

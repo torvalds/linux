@@ -119,6 +119,15 @@ static inline struct zx_vou_hw *crtc_to_vou(struct drm_crtc *crtc)
 	return zcrtc->vou;
 }
 
+void vou_inf_hdmi_audio_sel(struct drm_crtc *crtc,
+			    enum vou_inf_hdmi_audio aud)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+
+	zx_writel_mask(vou->vouctl + VOU_INF_HDMI_CTRL, VOU_HDMI_AUD_MASK, aud);
+}
+
 void vou_inf_enable(const struct vou_inf *inf, struct drm_crtc *crtc)
 {
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
