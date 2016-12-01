@@ -9,8 +9,8 @@ The current version can be found at:
 
 	    http://www.lanana.org/docs/unicode/admin-guide/unicode.rst
 
-Introdution
------------
+Introduction
+------------
 
 The Linux kernel code has been rewritten to use Unicode to map
 characters to fonts.  By downloading a single Unicode-to-font table,
