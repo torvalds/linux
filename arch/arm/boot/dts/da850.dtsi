@@ -316,6 +316,8 @@
 		mmc0: mmc@40000 {
 			compatible = "ti,da830-mmc";
 			reg = <0x40000 0x1000>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
 			interrupts = <16>;
 			dmas = <&edma0 16 0>, <&edma0 17 0>;
 			dma-names = "rx", "tx";
@@ -324,6 +326,8 @@
 		mmc1: mmc@21b000 {
 			compatible = "ti,da830-mmc";
 			reg = <0x21b000 0x1000>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
 			interrupts = <72>;
 			dmas = <&edma1 28 0>, <&edma1 29 0>;
 			dma-names = "rx", "tx";
