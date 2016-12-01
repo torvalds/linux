@@ -221,6 +221,7 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	struct drm_framebuffer *fb;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
+	const char *string;
 	u32 val;
 
 	connect = of_parse_phandle(route, "connect", 0);
@@ -256,11 +257,14 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	if (!of_property_read_u32(route, "logo,ymirror", &val))
 		set->ymirror = val;
 
+	set->ratio = 1;
+	if (!of_property_read_string(route, "logo,mode", &string) &&
+	    !strcmp(string, "fullscreen"))
+			set->ratio = 0;
+
 	set->fb = fb;
 	set->crtc = crtc;
 	set->connector = connector;
-	/* TODO: set display fullscreen or center */
-	set->ratio = 0;
 
 	return set;
 }
