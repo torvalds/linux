@@ -166,6 +166,7 @@ struct qed_iscsi_pf_params {
 	u32 max_cwnd;
 	u16 cq_num_entries;
 	u16 cmdq_num_entries;
+	u32 two_msl_timer;
 	u16 dup_ack_threshold;
 	u16 tx_sws_timer;
 	u16 min_rto;
@@ -275,6 +276,7 @@ struct qed_dev_info {
 enum qed_sb_type {
 	QED_SB_TYPE_L2_QUEUE,
 	QED_SB_TYPE_CNQ,
+	QED_SB_TYPE_STORAGE,
 };
 
 enum qed_protocol {

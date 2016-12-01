@@ -1517,6 +1517,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	enum qed_ll2_conn_type conn_type;
 	struct qed_ptt *p_ptt;
 	int rc, i;
+	u8 gsi_enable = 1;
 
 	/* Initialize LL2 locks & lists */
 	INIT_LIST_HEAD(&cdev->ll2->list);
@@ -1548,6 +1549,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	switch (QED_LEADING_HWFN(cdev)->hw_info.personality) {
 	case QED_PCI_ISCSI:
 		conn_type = QED_LL2_TYPE_ISCSI;
+		gsi_enable = 0;
 		break;
 	case QED_PCI_ETH_ROCE:
 		conn_type = QED_LL2_TYPE_ROCE;
@@ -1564,7 +1566,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	ll2_info.rx_vlan_removal_en = params->rx_vlan_stripping;
 	ll2_info.tx_tc = 0;
 	ll2_info.tx_dest = CORE_TX_DEST_NW;
-	ll2_info.gsi_enable = 1;
+	ll2_info.gsi_enable = gsi_enable;
 
 	rc = qed_ll2_acquire_connection(QED_LEADING_HWFN(cdev), &ll2_info,
 					QED_LL2_RX_SIZE, QED_LL2_TX_SIZE,
