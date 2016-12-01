@@ -856,6 +856,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 {
 	struct bpf_prog *prog;
 	struct cgroup *cgrp;
+	enum bpf_prog_type ptype;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -866,24 +867,25 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	switch (attr->attach_type) {
 	case BPF_CGROUP_INET_INGRESS:
 	case BPF_CGROUP_INET_EGRESS:
-		prog = bpf_prog_get_type(attr->attach_bpf_fd,
-					 BPF_PROG_TYPE_CGROUP_SKB);
-		if (IS_ERR(prog))
-			return PTR_ERR(prog);
-
-		cgrp = cgroup_get_from_fd(attr->target_fd);
-		if (IS_ERR(cgrp)) {
-			bpf_prog_put(prog);
-			return PTR_ERR(cgrp);
-		}
-
-		cgroup_bpf_update(cgrp, prog, attr->attach_type);
-		cgroup_put(cgrp);
+		ptype = BPF_PROG_TYPE_CGROUP_SKB;
 		break;
 
 	default:
 		return -EINVAL;
 	}
+
+	prog = bpf_prog_get_type(attr->attach_bpf_fd, ptype);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	cgrp = cgroup_get_from_fd(attr->target_fd);
+	if (IS_ERR(cgrp)) {
+		bpf_prog_put(prog);
+		return PTR_ERR(cgrp);
+	}
+
+	cgroup_bpf_update(cgrp, prog, attr->attach_type);
+	cgroup_put(cgrp);
 
 	return 0;
 }
