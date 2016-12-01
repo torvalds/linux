@@ -966,7 +966,7 @@ create_bus_instance(struct visor_device *dev)
 	int err;
 	struct spar_vbus_headerinfo *hdr_info;
 
-	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
+	POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, 0, POSTCODE_SEVERITY_INFO);
 
 	hdr_info = kzalloc(sizeof(*hdr_info), GFP_KERNEL);
 	if (!hdr_info)
@@ -1307,7 +1307,7 @@ visorbus_init(void)
 
 	err = create_bus_type();
 	if (err < 0) {
-		POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, DIAG_SEVERITY_ERR);
+		POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, 0, DIAG_SEVERITY_ERR);
 		goto error;
 	}
 

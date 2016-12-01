@@ -254,9 +254,6 @@ do {									\
 } while (0)
 
 /* MOST COMMON */
-#define POSTCODE_LINUX_2(EVENT_PC, severity)				\
-	POSTCODE_LINUX(EVENT_PC, 0, 0, severity)
-
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
 	POSTCODE_LINUX(EVENT_PC, (pc32bit >> 16), (pc32bit & 0xFFFF),	\
 		       severity)
