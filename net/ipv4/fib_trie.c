@@ -719,6 +719,13 @@ static unsigned char update_suffix(struct key_vector *tn)
 {
 	unsigned char slen = tn->pos;
 	unsigned long stride, i;
+	unsigned char slen_max;
+
+	/* only vector 0 can have a suffix length greater than or equal to
+	 * tn->pos + tn->bits, the second highest node will have a suffix
+	 * length at most of tn->pos + tn->bits - 1
+	 */
+	slen_max = min_t(unsigned char, tn->pos + tn->bits - 1, tn->slen);
 
 	/* search though the list of children looking for nodes that might
 	 * have a suffix greater than the one we currently have.  This is
@@ -736,12 +743,8 @@ static unsigned char update_suffix(struct key_vector *tn)
 		slen = n->slen;
 		i &= ~(stride - 1);
 
-		/* if slen covers all but the last bit we can stop here
-		 * there will be nothing longer than that since only node
-		 * 0 and 1 << (bits - 1) could have that as their suffix
-		 * length.
-		 */
-		if ((slen + 1) >= (tn->pos + tn->bits))
+		/* stop searching if we have hit the maximum possible value */
+		if (slen >= slen_max)
 			break;
 	}
 
@@ -913,21 +916,7 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 		return collapse(t, tn);
 
 	/* update parent in case halve failed */
-	tp = node_parent(tn);
-
-	/* Return if at least one deflate was run */
-	if (max_work != MAX_WORK)
-		return tp;
-
-	/* push the suffix length to the parent node */
-	if (tn->slen > tn->pos) {
-		unsigned char slen = update_suffix(tn);
-
-		if (slen > tp->slen)
-			tp->slen = slen;
-	}
-
-	return tp;
+	return node_parent(tn);
 }
 
 static void node_pull_suffix(struct key_vector *tn, unsigned char slen)
@@ -1068,6 +1057,7 @@ static int fib_insert_node(struct trie *t, struct key_vector *tp,
 	}
 
 	/* Case 3: n is NULL, and will just insert a new leaf */
+	node_push_suffix(tp, new->fa_slen);
 	NODE_INIT_PARENT(l, tp);
 	put_child_root(tp, key, l);
 	trie_rebalance(t, tp);
@@ -1501,6 +1491,8 @@ static void fib_remove_alias(struct trie *t, struct key_vector *tp,
 	 * out parent suffix lengths as a part of trie_rebalance
 	 */
 	if (hlist_empty(&l->leaf)) {
+		if (tp->slen == l->slen)
+			node_pull_suffix(tp, tp->pos);
 		put_child_root(tp, l->key, NULL);
 		node_free(l);
 		trie_rebalance(t, tp);
@@ -1785,6 +1777,10 @@ void fib_table_flush_external(struct fib_table *tb)
 			if (IS_TRIE(pn))
 				break;
 
+			/* update the suffix to address pulled leaves */
+			if (pn->slen > pn->pos)
+				update_suffix(pn);
+
 			/* resize completed node */
 			pn = resize(t, pn);
 			cindex = get_index(pkey, pn);
@@ -1850,6 +1846,10 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 			/* cannot resize the trie vector */
 			if (IS_TRIE(pn))
 				break;
+
+			/* update the suffix to address pulled leaves */
+			if (pn->slen > pn->pos)
+				update_suffix(pn);
 
 			/* resize completed node */
 			pn = resize(t, pn);
