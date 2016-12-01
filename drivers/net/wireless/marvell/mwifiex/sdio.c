@@ -2704,34 +2704,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.deaggr_pkt = mwifiex_deaggr_sdio_pkt,
 };
 
-/*
- * This function initializes the SDIO driver.
- *
- * This registers the device with SDIO bus.
- */
-static int
-mwifiex_sdio_init_module(void)
-{
-	return sdio_register_driver(&mwifiex_sdio);
-}
-
-/*
- * This function cleans up the SDIO driver.
- *
- * The following major steps are followed for cleanup -
- *      - Resume the device if its suspended
- *      - Disconnect the device if connected
- *      - Shutdown the firmware
- *      - Unregister the device from SDIO bus.
- */
-static void
-mwifiex_sdio_cleanup_module(void)
-{
-	sdio_unregister_driver(&mwifiex_sdio);
-}
-
-module_init(mwifiex_sdio_init_module);
-module_exit(mwifiex_sdio_cleanup_module);
+module_driver(mwifiex_sdio, sdio_register_driver, sdio_unregister_driver);
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);

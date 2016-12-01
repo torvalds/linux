@@ -2764,7 +2764,7 @@ static void mwifiex_pcie_device_dump(struct mwifiex_adapter *adapter)
  *      - Allocate command response ring buffer
  *      - Allocate sleep cookie buffer
  */
-static int mwifiex_pcie_init(struct mwifiex_adapter *adapter)
+static int mwifiex_init_pcie(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 	int ret;
@@ -2873,7 +2873,7 @@ err_enable_dev:
  *      - Command response ring buffer
  *      - Sleep cookie buffer
  */
-static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
+static void mwifiex_cleanup_pcie(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 	struct pci_dev *pdev = card->dev;
@@ -3073,7 +3073,7 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
  *      - Allocate event BD ring buffers
  *      - Allocate command response ring buffer
  *      - Allocate sleep cookie buffer
- * Part of mwifiex_pcie_init(), not reset the PCIE registers
+ * Part of mwifiex_init_pcie(), not reset the PCIE registers
  */
 static void mwifiex_pcie_up_dev(struct mwifiex_adapter *adapter)
 {
@@ -3156,8 +3156,8 @@ static void mwifiex_pcie_down_dev(struct mwifiex_adapter *adapter)
 }
 
 static struct mwifiex_if_ops pcie_ops = {
-	.init_if =			mwifiex_pcie_init,
-	.cleanup_if =			mwifiex_pcie_cleanup,
+	.init_if =			mwifiex_init_pcie,
+	.cleanup_if =			mwifiex_cleanup_pcie,
 	.check_fw_status =		mwifiex_check_fw_status,
 	.check_winner_status =          mwifiex_check_winner_status,
 	.prog_fw =			mwifiex_prog_fw_w_helper,
@@ -3183,42 +3183,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.up_dev =			mwifiex_pcie_up_dev,
 };
 
-/*
- * This function initializes the PCIE driver module.
- *
- * This registers the device with PCIE bus.
- */
-static int mwifiex_pcie_init_module(void)
-{
-	int ret;
-
-	pr_debug("Marvell PCIe Driver\n");
-
-	ret = pci_register_driver(&mwifiex_pcie);
-	if (ret)
-		pr_err("Driver register failed!\n");
-	else
-		pr_debug("info: Driver registered successfully!\n");
-
-	return ret;
-}
-
-/*
- * This function cleans up the PCIE driver.
- *
- * The following major steps are followed for cleanup -
- *      - Resume the device if its suspended
- *      - Disconnect the device if connected
- *      - Shutdown the firmware
- *      - Unregister the device from PCIE bus.
- */
-static void mwifiex_pcie_cleanup_module(void)
-{
-	pci_unregister_driver(&mwifiex_pcie);
-}
-
-module_init(mwifiex_pcie_init_module);
-module_exit(mwifiex_pcie_cleanup_module);
+module_pci_driver(mwifiex_pcie);
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex PCI-Express Driver version " PCIE_VERSION);

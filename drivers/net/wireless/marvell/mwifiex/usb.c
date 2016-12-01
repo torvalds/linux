@@ -1200,40 +1200,7 @@ static struct mwifiex_if_ops usb_ops = {
 	.is_port_ready =	mwifiex_usb_is_port_ready,
 };
 
-/* This function initializes the USB driver module.
- *
- * This registers the device with USB bus.
- */
-static int mwifiex_usb_init_module(void)
-{
-	int ret;
-
-	pr_debug("Marvell USB8797 Driver\n");
-
-	ret = usb_register(&mwifiex_usb_driver);
-	if (ret)
-		pr_err("Driver register failed!\n");
-	else
-		pr_debug("info: Driver registered successfully!\n");
-
-	return ret;
-}
-
-/* This function cleans up the USB driver.
- *
- * The following major steps are followed in .disconnect for cleanup:
- *      - Resume the device if its suspended
- *      - Disconnect the device if connected
- *      - Shutdown the firmware
- *      - Unregister the device from USB bus.
- */
-static void mwifiex_usb_cleanup_module(void)
-{
-	usb_deregister(&mwifiex_usb_driver);
-}
-
-module_init(mwifiex_usb_init_module);
-module_exit(mwifiex_usb_cleanup_module);
+module_usb_driver(mwifiex_usb_driver);
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex USB Driver version" USB_VERSION);
