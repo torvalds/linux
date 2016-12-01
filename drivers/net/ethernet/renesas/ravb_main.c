@@ -1016,8 +1016,6 @@ static int ravb_phy_init(struct net_device *ndev)
 	 * at this time.
 	 */
 	if (priv->chip_id == RCAR_GEN3) {
-		int err;
-
 		err = phy_set_max_speed(phydev, SPEED_100);
 		if (err) {
 			netdev_err(ndev, "failed to limit PHY to 100Mbit/s\n");
