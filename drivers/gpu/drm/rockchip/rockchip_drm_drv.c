@@ -505,6 +505,9 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	state->acquire_ctx = mode_config->acquire_ctx;
 
 	for_each_child_of_node(root, route) {
+		if (!of_device_is_available(route))
+			continue;
+
 		set = of_parse_display_resource(drm_dev, route);
 		if (!set)
 			continue;
