@@ -1440,11 +1440,8 @@ int radeon_device_init(struct radeon_device *rdev,
 		rdev->rmmio_size = pci_resource_len(rdev->pdev, 2);
 	}
 	rdev->rmmio = ioremap(rdev->rmmio_base, rdev->rmmio_size);
-	if (rdev->rmmio == NULL) {
+	if (rdev->rmmio == NULL)
 		return -ENOMEM;
-	}
-	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)rdev->rmmio_base);
-	DRM_INFO("register mmio size: %u\n", (unsigned)rdev->rmmio_size);
 
 	/* doorbell bar mapping */
 	if (rdev->family >= CHIP_BONAIRE)
