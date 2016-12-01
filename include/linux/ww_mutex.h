@@ -51,10 +51,10 @@ struct ww_mutex {
 };
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-# define __WW_CLASS_MUTEX_INITIALIZER(lockname, ww_class) \
-		, .ww_class = &ww_class
+# define __WW_CLASS_MUTEX_INITIALIZER(lockname, class) \
+		, .ww_class = class
 #else
-# define __WW_CLASS_MUTEX_INITIALIZER(lockname, ww_class)
+# define __WW_CLASS_MUTEX_INITIALIZER(lockname, class)
 #endif
 
 #define __WW_CLASS_INITIALIZER(ww_class) \
@@ -63,7 +63,7 @@ struct ww_mutex {
 		, .mutex_name = #ww_class "_mutex" }
 
 #define __WW_MUTEX_INITIALIZER(lockname, class) \
-		{ .base = { \__MUTEX_INITIALIZER(lockname) } \
+		{ .base =  __MUTEX_INITIALIZER(lockname.base) \
 		__WW_CLASS_MUTEX_INITIALIZER(lockname, class) }
 
 #define DEFINE_WW_CLASS(classname) \
