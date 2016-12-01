@@ -207,7 +207,7 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, unsigned long cookie)
 	struct tc_cls_flower_offload offload = {0};
 	struct tc_to_netdev tc;
 
-	if (!tc_should_offload(dev, tp, 0))
+	if (!tc_can_offload(dev, tp))
 		return;
 
 	offload.command = TC_CLSFLOWER_DESTROY;
@@ -231,7 +231,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	struct tc_to_netdev tc;
 	int err;
 
-	if (!tc_should_offload(dev, tp, flags))
+	if (!tc_can_offload(dev, tp))
 		return tc_skip_sw(flags) ? -EINVAL : 0;
 
 	offload.command = TC_CLSFLOWER_REPLACE;
@@ -259,7 +259,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	struct tc_cls_flower_offload offload = {0};
 	struct tc_to_netdev tc;
 
-	if (!tc_should_offload(dev, tp, 0))
+	if (!tc_can_offload(dev, tp))
 		return;
 
 	offload.command = TC_CLSFLOWER_STATS;
@@ -275,7 +275,8 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
 {
 	list_del_rcu(&f->list);
-	fl_hw_destroy_filter(tp, (unsigned long)f);
+	if (!tc_skip_hw(f->flags))
+		fl_hw_destroy_filter(tp, (unsigned long)f);
 	tcf_unbind_filter(tp, &f->res);
 	call_rcu(&f->rcu, fl_destroy_filter);
 }
@@ -743,20 +744,23 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			goto errout;
 	}
 
-	err = fl_hw_replace_filter(tp,
-				   &head->dissector,
-				   &mask.key,
-				   &fnew->key,
-				   &fnew->exts,
-				   (unsigned long)fnew,
-				   fnew->flags);
-	if (err)
-		goto errout;
+	if (!tc_skip_hw(fnew->flags)) {
+		err = fl_hw_replace_filter(tp,
+					   &head->dissector,
+					   &mask.key,
+					   &fnew->key,
+					   &fnew->exts,
+					   (unsigned long)fnew,
+					   fnew->flags);
+		if (err)
+			goto errout;
+	}
 
 	if (fold) {
 		rhashtable_remove_fast(&head->ht, &fold->ht_node,
 				       head->ht_params);
-		fl_hw_destroy_filter(tp, (unsigned long)fold);
+		if (!tc_skip_hw(fold->flags))
+			fl_hw_destroy_filter(tp, (unsigned long)fold);
 	}
 
 	*arg = (unsigned long) fnew;
@@ -879,7 +883,8 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			goto nla_put_failure;
 	}
 
-	fl_hw_update_stats(tp, f);
+	if (!tc_skip_hw(f->flags))
+		fl_hw_update_stats(tp, f);
 
 	if (fl_dump_key_val(skb, key->eth.dst, TCA_FLOWER_KEY_ETH_DST,
 			    mask->eth.dst, TCA_FLOWER_KEY_ETH_DST_MASK,
