@@ -57,7 +57,11 @@ enum pxa_i2c_types {
 	REGS_PXA3XX,
 	REGS_CE4100,
 	REGS_PXA910,
+	REGS_A3700,
 };
+
+#define ICR_BUSMODE_FM	(1 << 16)	   /* shifted fast mode for armada-3700 */
+#define ICR_BUSMODE_HS	(1 << 17)	   /* shifted high speed mode for armada-3700 */
 
 /*
  * I2C registers definitions
@@ -93,6 +97,15 @@ static struct pxa_reg_layout pxa_reg_layout[] = {
 		.ilcr = 0x28,
 		.iwcr = 0x30,
 	},
+	[REGS_A3700] = {
+		.ibmr =	0x00,
+		.idbr =	0x04,
+		.icr =	0x08,
+		.isr =	0x0c,
+		.isar =	0x10,
+		.fm = ICR_BUSMODE_FM,
+		.hs = ICR_BUSMODE_HS,
+	},
 };
 
 static const struct platform_device_id i2c_pxa_id_table[] = {
@@ -100,6 +113,7 @@ static const struct platform_device_id i2c_pxa_id_table[] = {
 	{ "pxa3xx-pwri2c",	REGS_PXA3XX },
 	{ "ce4100-i2c",		REGS_CE4100 },
 	{ "pxa910-i2c",		REGS_PXA910 },
+	{ "armada-3700-i2c",	REGS_A3700  },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, i2c_pxa_id_table);
@@ -1141,6 +1155,7 @@ static const struct of_device_id i2c_pxa_dt_ids[] = {
 	{ .compatible = "mrvl,pxa-i2c", .data = (void *)REGS_PXA2XX },
 	{ .compatible = "mrvl,pwri2c", .data = (void *)REGS_PXA3XX },
 	{ .compatible = "mrvl,mmp-twsi", .data = (void *)REGS_PXA910 },
+	{ .compatible = "marvell,armada-3700-i2c", .data = (void *)REGS_A3700 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, i2c_pxa_dt_ids);
