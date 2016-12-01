@@ -111,10 +111,8 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 }
 
 void
-intel_i2c_reset(struct drm_device *dev)
+intel_i2c_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	I915_WRITE(GMBUS0, 0);
 	I915_WRITE(GMBUS4, 0);
 }
@@ -211,7 +209,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	intel_i2c_reset(&dev_priv->drm);
+	intel_i2c_reset(dev_priv);
 	intel_i2c_quirk_set(dev_priv, true);
 	set_data(bus, 1);
 	set_clock(bus, 1);
@@ -677,7 +675,7 @@ int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 			goto err;
 	}
 
-	intel_i2c_reset(&dev_priv->drm);
+	intel_i2c_reset(dev_priv);
 
 	return 0;
 
