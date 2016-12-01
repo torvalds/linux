@@ -1627,15 +1627,15 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 		csk->rcv_wup, cdev->rx_credit_thres,
 		csk->rcv_win);
 
+	if (!cdev->rx_credit_thres)
+		return;
+
 	if (csk->state != CTP_ESTABLISHED)
 		return;
 
 	credits = csk->copied_seq - csk->rcv_wup;
 	if (unlikely(!credits))
 		return;
-	if (unlikely(cdev->rx_credit_thres == 0))
-		return;
-
 	must_send = credits + 16384 >= csk->rcv_win;
 	if (must_send || credits >= cdev->rx_credit_thres)
 		csk->rcv_wup += cdev->csk_send_rx_credits(csk, credits);
