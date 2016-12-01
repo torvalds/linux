@@ -395,6 +395,16 @@
 				clock-names = "dma_clk";
 			};
 
+			/* Place dma1 here despite its address */
+			dma1: dma-controller@f0004000 {
+				compatible = "atmel,sama5d4-dma";
+				reg = <0xf0004000 0x1000>;
+				interrupts = <7 IRQ_TYPE_LEVEL_HIGH 0>;
+				#dma-cells = <1>;
+				clocks = <&dma1_clk>;
+				clock-names = "dma_clk";
+			};
+
 			pmc: pmc@f0014000 {
 				compatible = "atmel,sama5d2-pmc", "syscon";
 				reg = <0xf0014000 0x160>;
