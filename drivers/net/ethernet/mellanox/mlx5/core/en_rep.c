@@ -289,6 +289,14 @@ static int mlx5e_rep_ndo_setup_tc(struct net_device *dev, u32 handle,
 	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
 		return -EOPNOTSUPP;
 
+	if (tc->egress_dev) {
+		struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+		struct net_device *uplink_dev = mlx5_eswitch_get_uplink_netdev(esw);
+
+		return uplink_dev->netdev_ops->ndo_setup_tc(uplink_dev, handle,
+							    proto, tc);
+	}
+
 	switch (tc->type) {
 	case TC_SETUP_CLSFLOWER:
 		switch (tc->cls_flower->command) {
