@@ -579,22 +579,21 @@ static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
 };
 
 static struct drm_i915_gem_object *
-_i915_gem_object_create_stolen(struct drm_device *dev,
+_i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 			       struct drm_mm_node *stolen)
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_alloc(dev);
+	obj = i915_gem_object_alloc(dev_priv);
 	if (obj == NULL)
 		return NULL;
 
-	drm_gem_private_object_init(dev, &obj->base, stolen->size);
+	drm_gem_private_object_init(&dev_priv->drm, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
 
 	obj->stolen = stolen;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
-	obj->cache_level = HAS_LLC(to_i915(dev)) ?
-			   I915_CACHE_LLC : I915_CACHE_NONE;
+	obj->cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
 
 	if (i915_gem_object_pin_pages(obj))
 		goto cleanup;
@@ -607,9 +606,8 @@ cleanup:
 }
 
 struct drm_i915_gem_object *
-i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
+i915_gem_object_create_stolen(struct drm_i915_private *dev_priv, u32 size)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	int ret;
@@ -630,7 +628,7 @@ i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 		return NULL;
 	}
 
-	obj = _i915_gem_object_create_stolen(dev, stolen);
+	obj = _i915_gem_object_create_stolen(dev_priv, stolen);
 	if (obj)
 		return obj;
 
@@ -640,12 +638,11 @@ i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 }
 
 struct drm_i915_gem_object *
-i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
+i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv,
 					       u32 stolen_offset,
 					       u32 gtt_offset,
 					       u32 size)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
@@ -655,7 +652,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
 
-	lockdep_assert_held(&dev->struct_mutex);
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	DRM_DEBUG_KMS("creating preallocated stolen object: stolen_offset=%x, gtt_offset=%x, size=%x\n",
 			stolen_offset, gtt_offset, size);
@@ -680,7 +677,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		return NULL;
 	}
 
-	obj = _i915_gem_object_create_stolen(dev, stolen);
+	obj = _i915_gem_object_create_stolen(dev_priv, stolen);
 	if (obj == NULL) {
 		DRM_DEBUG_KMS("failed to allocate stolen object\n");
 		i915_gem_stolen_remove_node(dev_priv, stolen);

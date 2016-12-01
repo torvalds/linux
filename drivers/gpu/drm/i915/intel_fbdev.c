@@ -145,7 +145,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	 * important and we should probably use that space with FBC or other
 	 * features. */
 	if (size * 2 < ggtt->stolen_usable_size)
-		obj = i915_gem_object_create_stolen(dev, size);
+		obj = i915_gem_object_create_stolen(dev_priv, size);
 	if (obj == NULL)
 		obj = i915_gem_object_create(dev, size);
 	if (IS_ERR(obj)) {

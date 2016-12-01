@@ -622,9 +622,8 @@ out:
 	return ret;
 }
 
-void *i915_gem_object_alloc(struct drm_device *dev)
+void *i915_gem_object_alloc(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	return kmem_cache_zalloc(dev_priv->objects, GFP_KERNEL);
 }
 
@@ -3990,7 +3989,7 @@ i915_gem_object_create(struct drm_device *dev, u64 size)
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = i915_gem_object_alloc(dev);
+	obj = i915_gem_object_alloc(dev_priv);
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -155,7 +155,7 @@ i915_gem_object_create_internal(struct drm_i915_private *i915,
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_alloc(&i915->drm);
+	obj = i915_gem_object_alloc(i915);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

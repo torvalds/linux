@@ -2689,7 +2689,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 
 	mutex_lock(&dev->struct_mutex);
 
-	obj = i915_gem_object_create_stolen_for_preallocated(dev,
+	obj = i915_gem_object_create_stolen_for_preallocated(dev_priv,
 							     base_aligned,
 							     base_aligned,
 							     size_aligned);

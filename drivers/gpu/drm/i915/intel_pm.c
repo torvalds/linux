@@ -5805,7 +5805,7 @@ static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 		int pcbr_offset;
 
 		pcbr_offset = (pcbr & (~4095)) - dev_priv->mm.stolen_base;
-		pctx = i915_gem_object_create_stolen_for_preallocated(&dev_priv->drm,
+		pctx = i915_gem_object_create_stolen_for_preallocated(dev_priv,
 								      pcbr_offset,
 								      I915_GTT_OFFSET_NONE,
 								      pctx_size);
@@ -5822,7 +5822,7 @@ static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 	 * overlap with other ranges, such as the frame buffer, protected
 	 * memory, or any other relevant ranges.
 	 */
-	pctx = i915_gem_object_create_stolen(&dev_priv->drm, pctx_size);
+	pctx = i915_gem_object_create_stolen(dev_priv, pctx_size);
 	if (!pctx) {
 		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
 		goto out;
