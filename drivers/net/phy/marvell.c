@@ -268,7 +268,7 @@ static int marvell_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = marvell_set_polarity(phydev, phydev->mdix);
+	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
 
@@ -311,7 +311,7 @@ static int m88e1111_config_aneg(struct phy_device *phydev)
 	 */
 	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
 
-	err = marvell_set_polarity(phydev, phydev->mdix);
+	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
 
