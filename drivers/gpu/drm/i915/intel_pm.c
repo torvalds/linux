@@ -3585,13 +3585,18 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
+	bool y_tiled, x_tiled;
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
 		*enabled = false;
 		return 0;
 	}
 
-	if (apply_memory_bw_wa && fb->modifier == I915_FORMAT_MOD_X_TILED)
+	y_tiled = fb->modifier == I915_FORMAT_MOD_Y_TILED ||
+		  fb->modifier == I915_FORMAT_MOD_Yf_TILED;
+	x_tiled = fb->modifier == I915_FORMAT_MOD_X_TILED;
+
+	if (apply_memory_bw_wa && x_tiled)
 		latency += 15;
 
 	width = drm_rect_width(&intel_pstate->base.src) >> 16;
@@ -3630,16 +3635,15 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		y_min_scanlines *= 2;
 
 	plane_bytes_per_line = width * cpp;
-	if (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED) {
+	if (y_tiled) {
 		plane_blocks_per_line =
 		      DIV_ROUND_UP(plane_bytes_per_line * y_min_scanlines, 512);
 		plane_blocks_per_line /= y_min_scanlines;
-	} else if (fb->modifier == DRM_FORMAT_MOD_NONE) {
+	} else if (x_tiled) {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+	} else {
 		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512)
 					+ 1;
-	} else {
-		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 	}
 
 	method1 = skl_wm_method1(plane_pixel_rate, cpp, latency);
@@ -3650,8 +3654,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	y_tile_minimum = plane_blocks_per_line * y_min_scanlines;
 
-	if (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED) {
+	if (y_tiled) {
 		selected_result = max(method2, y_tile_minimum);
 	} else {
 		if ((cpp * cstate->base.adjusted_mode.crtc_htotal / 512 < 1) &&
@@ -3667,8 +3670,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	res_lines = DIV_ROUND_UP(selected_result, plane_blocks_per_line);
 
 	if (level >= 1 && level <= 7) {
-		if (fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-		    fb->modifier == I915_FORMAT_MOD_Yf_TILED) {
+		if (y_tiled) {
 			res_blocks += y_tile_minimum;
 			res_lines += y_min_scanlines;
 		} else {
