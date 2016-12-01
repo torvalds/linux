@@ -61,6 +61,7 @@ extern struct pci_ecam_ops pci_generic_ecam_ops;
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 extern struct pci_ecam_ops pci_32b_ops;		/* 32-bit accesses only */
+extern struct pci_ecam_ops hisi_pcie_ops;	/* HiSilicon */
 #endif
 
 #ifdef CONFIG_PCI_HOST_GENERIC

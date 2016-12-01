@@ -62,6 +62,18 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	QCOM_ECAM32(5),
 	QCOM_ECAM32(6),
 	QCOM_ECAM32(7),
+
+#define HISI_QUAD_DOM(table_id, seg, ops) \
+	{ "HISI  ", table_id, 0, (seg) + 0, MCFG_BUS_ANY, ops }, \
+	{ "HISI  ", table_id, 0, (seg) + 1, MCFG_BUS_ANY, ops }, \
+	{ "HISI  ", table_id, 0, (seg) + 2, MCFG_BUS_ANY, ops }, \
+	{ "HISI  ", table_id, 0, (seg) + 3, MCFG_BUS_ANY, ops }
+	HISI_QUAD_DOM("HIP05   ",  0, &hisi_pcie_ops),
+	HISI_QUAD_DOM("HIP06   ",  0, &hisi_pcie_ops),
+	HISI_QUAD_DOM("HIP07   ",  0, &hisi_pcie_ops),
+	HISI_QUAD_DOM("HIP07   ",  4, &hisi_pcie_ops),
+	HISI_QUAD_DOM("HIP07   ",  8, &hisi_pcie_ops),
+	HISI_QUAD_DOM("HIP07   ", 12, &hisi_pcie_ops),
 };
 
 static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
