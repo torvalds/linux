@@ -88,11 +88,11 @@ struct s626_private {
 					 * program */
 	struct s626_buffer_dma ana_buf;	/* DMA buffer used to receive ADC data
 					 * and hold DAC data */
-	uint32_t *dac_wbuf;		/* pointer to logical adrs of DMA buffer
+	u32 *dac_wbuf;		        /* pointer to logical adrs of DMA buffer
 					 * used to hold DAC data */
 	u16 dacpol;		        /* image of DAC polarity register */
 	u8 trim_setpoint[12];	        /* images of TrimDAC setpoints */
-	uint32_t i2c_adrs;		/* I2C device address for onboard EEPROM
+	u32 i2c_adrs;		        /* I2C device address for onboard EEPROM
 					 * (board rev dependent) */
 };
 
@@ -241,7 +241,7 @@ static int s626_i2c_handshake_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int s626_i2c_handshake(struct comedi_device *dev, uint32_t val)
+static int s626_i2c_handshake(struct comedi_device *dev, u32 val)
 {
 	unsigned int ctrl;
 	int ret;
@@ -357,7 +357,7 @@ static int s626_send_dac_eoc(struct comedi_device *dev,
  * channel 2.  Assumes: (1) TSL2 slot records initialized, and (2)
  * dacpol contains valid target image.
  */
-static int s626_send_dac(struct comedi_device *dev, uint32_t val)
+static int s626_send_dac(struct comedi_device *dev, u32 val)
 {
 	struct s626_private *devpriv = dev->private;
 	int ret;
@@ -520,8 +520,8 @@ static int s626_set_dac(struct comedi_device *dev,
 {
 	struct s626_private *devpriv = dev->private;
 	u16 signmask;
-	uint32_t ws_image;
-	uint32_t val;
+	u32 ws_image;
+	u32 val;
 
 	/*
 	 * Adjust DAC data polarity and set up Polarity Control Register image.
@@ -575,9 +575,9 @@ static int s626_set_dac(struct comedi_device *dev,
 				 * (write to non-existent trimdac). */
 	val |= 0x00004000;	/* Address the two main dual-DAC devices
 				 * (TSL's chip select enables target device). */
-	val |= ((uint32_t)(chan & 1) << 15);	/* Address the DAC channel
+	val |= ((u32)(chan & 1) << 15);	/* Address the DAC channel
 						 * within the device. */
-	val |= (uint32_t)dacdata;	/* Include DAC setpoint data. */
+	val |= (u32)dacdata;	/* Include DAC setpoint data. */
 	return s626_send_dac(dev, val);
 }
 
@@ -585,7 +585,7 @@ static int s626_write_trim_dac(struct comedi_device *dev,
 			       u8 logical_chan, u8 dac_data)
 {
 	struct s626_private *devpriv = dev->private;
-	uint32_t chan;
+	u32 chan;
 
 	/*
 	 * Save the new setpoint in case the application needs to read it back
@@ -672,7 +672,7 @@ static void s626_set_latch_source(struct comedi_device *dev,
  * Write value into counter preload register.
  */
 static void s626_preload(struct comedi_device *dev,
-			 unsigned int chan, uint32_t value)
+			 unsigned int chan, u32 value)
 {
 	s626_debi_write(dev, S626_LP_CNTR(chan), value);
 	s626_debi_write(dev, S626_LP_CNTR(chan) + 2, value >> 16);
@@ -1196,7 +1196,7 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 	 * first uint16_t in the buffer because it contains junk data
 	 * from the final ADC of the previous poll list scan.
 	 */
-	uint32_t *readaddr = (uint32_t *)devpriv->ana_buf.logical_base + 1;
+	u32 *readaddr = (u32 *)devpriv->ana_buf.logical_base + 1;
 	int i;
 
 	/* get the data and hand it over to comedi */
@@ -1231,7 +1231,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	unsigned long flags;
-	uint32_t irqtype, irqstatus;
+	u32 irqtype, irqstatus;
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -1277,20 +1277,20 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 	struct s626_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	uint32_t *rps;
-	uint32_t jmp_adrs;
+	u32 *rps;
+	u32 jmp_adrs;
 	u16 i;
 	u16 n;
-	uint32_t local_ppl;
+	u32 local_ppl;
 
 	/* Stop RPS program in case it is currently running */
 	s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
 
 	/* Set starting logical address to write RPS commands. */
-	rps = (uint32_t *)devpriv->rps_buf.logical_base;
+	rps = (u32 *)devpriv->rps_buf.logical_base;
 
 	/* Initialize RPS instruction pointer */
-	writel((uint32_t)devpriv->rps_buf.physical_base,
+	writel((u32)devpriv->rps_buf.physical_base,
 	       dev->mmio + S626_P_RPSADDR1);
 
 	/* Construct RPS program in rps_buf DMA buffer */
@@ -1372,8 +1372,8 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 		 * flushes the RPS' instruction prefetch pipeline.
 		 */
 		jmp_adrs =
-			(uint32_t)devpriv->rps_buf.physical_base +
-			(uint32_t)((unsigned long)rps -
+			(u32)devpriv->rps_buf.physical_base +
+			(u32)((unsigned long)rps -
 				   (unsigned long)devpriv->
 						  rps_buf.logical_base);
 		for (i = 0; i < (10 * S626_RPSCLK_PER_US / 2); i++) {
@@ -1408,7 +1408,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 		/* Transfer ADC data from FB BUFFER 1 register to DMA buffer. */
 		*rps++ = S626_RPS_STREG |
 			 (S626_BUGFIX_STREG(S626_P_FB_BUFFER1) >> 2);
-		*rps++ = (uint32_t)devpriv->ana_buf.physical_base +
+		*rps++ = (u32)devpriv->ana_buf.physical_base +
 			 (devpriv->adc_items << 2);
 
 		/*
@@ -1452,7 +1452,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 
 	/* Transfer final ADC data from FB BUFFER 1 register to DMA buffer. */
 	*rps++ = S626_RPS_STREG | (S626_BUGFIX_STREG(S626_P_FB_BUFFER1) >> 2);
-	*rps++ = (uint32_t)devpriv->ana_buf.physical_base +
+	*rps++ = (u32)devpriv->ana_buf.physical_base +
 		 (devpriv->adc_items << 2);
 
 	/* Indicate ADC scan loop is finished. */
@@ -1465,7 +1465,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 
 	/* Restart RPS program at its beginning. */
 	*rps++ = S626_RPS_JUMP;	/* Branch to start of RPS program. */
-	*rps++ = (uint32_t)devpriv->rps_buf.physical_base;
+	*rps++ = (u32)devpriv->rps_buf.physical_base;
 
 	/* End of RPS program build */
 }
@@ -1491,8 +1491,8 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 	u16 chan = CR_CHAN(insn->chanspec);
 	u16 range = CR_RANGE(insn->chanspec);
 	u16 adc_spec = 0;
-	uint32_t gpio_image;
-	uint32_t tmp;
+	u32 gpio_image;
+	u32 tmp;
 	int ret;
 	int n;
 
@@ -2248,7 +2248,7 @@ static int s626_initialize(struct comedi_device *dev)
 	 */
 
 	/* Physical start of RPS program */
-	writel((uint32_t)devpriv->rps_buf.physical_base,
+	writel((u32)devpriv->rps_buf.physical_base,
 	       dev->mmio + S626_P_RPSADDR1);
 	/* RPS program performs no explicit mem writes */
 	writel(0, dev->mmio + S626_P_RPSPAGE1);
@@ -2318,16 +2318,16 @@ static int s626_initialize(struct comedi_device *dev)
 	 * enabled.
 	 */
 	phys_buf = devpriv->ana_buf.physical_base +
-		   (S626_DAC_WDMABUF_OS * sizeof(uint32_t));
-	writel((uint32_t)phys_buf, dev->mmio + S626_P_BASEA2_OUT);
-	writel((uint32_t)(phys_buf + sizeof(uint32_t)),
+		   (S626_DAC_WDMABUF_OS * sizeof(u32));
+	writel((u32)phys_buf, dev->mmio + S626_P_BASEA2_OUT);
+	writel((u32)(phys_buf + sizeof(u32)),
 	       dev->mmio + S626_P_PROTA2_OUT);
 
 	/*
 	 * Cache Audio2's output DMA buffer logical address.  This is
 	 * where DAC data is buffered for A2 output DMA transfers.
 	 */
-	devpriv->dac_wbuf = (uint32_t *)devpriv->ana_buf.logical_base +
+	devpriv->dac_wbuf = (u32 *)devpriv->ana_buf.logical_base +
 			    S626_DAC_WDMABUF_OS;
 
 	/*
