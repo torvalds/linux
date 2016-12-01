@@ -1684,6 +1684,7 @@
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp0_mmu";
 		#iommu-cells = <0>;
+		rk_iommu,disable_reset_quirk;
 		status = "disabled";
 	};
 
@@ -1693,6 +1694,7 @@
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp1_mmu";
 		#iommu-cells = <0>;
+		rk_iommu,disable_reset_quirk;
 		status = "disabled";
 	};
 

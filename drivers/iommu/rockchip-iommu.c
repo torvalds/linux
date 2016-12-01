@@ -90,6 +90,7 @@ struct rk_iommu {
 	void __iomem **bases;
 	int num_mmu;
 	int irq;
+	bool reset_disabled; /* isp iommu reset operation would failed */
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
 };
@@ -413,6 +414,10 @@ static int rk_iommu_force_reset(struct rk_iommu *iommu)
 {
 	int ret, i;
 	u32 dte_addr;
+
+	/* Workaround for isp mmus */
+	if (iommu->reset_disabled)
+		return 0;
 
 	/*
 	 * Check if register DTE_ADDR is working by writing DTE_ADDR_DUMMY
@@ -1156,6 +1161,9 @@ static int rk_iommu_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to get IRQ, %d\n", iommu->irq);
 		return -ENXIO;
 	}
+
+	iommu->reset_disabled = device_property_read_bool(dev,
+				"rk_iommu,disable_reset_quirk");
 
 	return 0;
 }
