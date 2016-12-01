@@ -3719,8 +3719,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
 		dev_drv->cur_screen->xsize = dev_drv->cur_screen->mode.xres;
 		dev_drv->cur_screen->ysize = dev_drv->cur_screen->mode.yres;
-		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
-		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
+		dev_drv->cur_screen->x_mirror =
+					!!(dev_drv->rotate_mode & X_MIRROR);
+		dev_drv->cur_screen->y_mirror =
+					!!(dev_drv->rotate_mode & Y_MIRROR);
 	}
 
 	if (!dev_drv->uboot_logo || load_screen ||

@@ -126,6 +126,7 @@ static ssize_t set_screen_info(struct device *dev,
 	ymirror = !!(rotate & Y_MIRROR);
 	dev_drv->cur_screen->x_mirror = xmirror;
 	dev_drv->cur_screen->y_mirror = ymirror;
+	dev_drv->rotate_mode = rotate;
 	mutex_lock(&dev_drv->output_lock);
 	mutex_lock(&dev_drv->win_config);
 	if (dev_drv->ops->extern_func)
