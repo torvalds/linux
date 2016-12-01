@@ -574,7 +574,7 @@ static struct i915_vma *guc_allocate_vma(struct intel_guc *guc, u32 size)
 	struct i915_vma *vma;
 	int ret;
 
-	obj = i915_gem_object_create(&dev_priv->drm, size);
+	obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 

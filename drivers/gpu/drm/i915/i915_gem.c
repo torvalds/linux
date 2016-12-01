@@ -635,7 +635,7 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj)
 
 static int
 i915_gem_create(struct drm_file *file,
-		struct drm_device *dev,
+		struct drm_i915_private *dev_priv,
 		uint64_t size,
 		uint32_t *handle_p)
 {
@@ -648,7 +648,7 @@ i915_gem_create(struct drm_file *file,
 		return -EINVAL;
 
 	/* Allocate the new object */
-	obj = i915_gem_object_create(dev, size);
+	obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -670,7 +670,7 @@ i915_gem_dumb_create(struct drm_file *file,
 	/* have to work out size/pitch and return them */
 	args->pitch = ALIGN(args->width * DIV_ROUND_UP(args->bpp, 8), 64);
 	args->size = args->pitch * args->height;
-	return i915_gem_create(file, dev,
+	return i915_gem_create(file, to_i915(dev),
 			       args->size, &args->handle);
 }
 
@@ -684,11 +684,12 @@ int
 i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_create *args = data;
 
-	i915_gem_flush_free_objects(to_i915(dev));
+	i915_gem_flush_free_objects(dev_priv);
 
-	return i915_gem_create(file, dev,
+	return i915_gem_create(file, dev_priv,
 			       args->size, &args->handle);
 }
 
@@ -3970,9 +3971,8 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
 	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
 
 struct drm_i915_gem_object *
-i915_gem_object_create(struct drm_device *dev, u64 size)
+i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
 	gfp_t mask;
@@ -3993,7 +3993,7 @@ i915_gem_object_create(struct drm_device *dev, u64 size)
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_gem_object_init(dev, &obj->base, size);
+	ret = drm_gem_object_init(&dev_priv->drm, &obj->base, size);
 	if (ret)
 		goto fail;
 
@@ -4749,7 +4749,7 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 
 /* Allocate a new GEM object and fill it with the supplied data */
 struct drm_i915_gem_object *
-i915_gem_object_create_from_data(struct drm_device *dev,
+i915_gem_object_create_from_data(struct drm_i915_private *dev_priv,
 			         const void *data, size_t size)
 {
 	struct drm_i915_gem_object *obj;
@@ -4757,7 +4757,7 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 	size_t bytes;
 	int ret;
 
-	obj = i915_gem_object_create(dev, round_up(size, PAGE_SIZE));
+	obj = i915_gem_object_create(dev_priv, round_up(size, PAGE_SIZE));
 	if (IS_ERR(obj))
 		return obj;
 

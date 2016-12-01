@@ -1243,7 +1243,7 @@ static int lrc_setup_wa_ctx_obj(struct intel_engine_cs *engine, u32 size)
 	struct i915_vma *vma;
 	int err;
 
-	obj = i915_gem_object_create(&engine->i915->drm, PAGE_ALIGN(size));
+	obj = i915_gem_object_create(engine->i915, PAGE_ALIGN(size));
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -2242,7 +2242,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	/* One extra page as the sharing data between driver and GuC */
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;
 
-	ctx_obj = i915_gem_object_create(&ctx->i915->drm, context_size);
+	ctx_obj = i915_gem_object_create(ctx->i915, context_size);
 	if (IS_ERR(ctx_obj)) {
 		DRM_DEBUG_DRIVER("Alloc LRC backing obj failed.\n");
 		return PTR_ERR(ctx_obj);

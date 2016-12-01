@@ -1393,7 +1393,7 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	if (!OVERLAY_NEEDS_PHYSICAL(dev_priv))
 		reg_bo = i915_gem_object_create_stolen(dev_priv, PAGE_SIZE);
 	if (reg_bo == NULL)
-		reg_bo = i915_gem_object_create(&dev_priv->drm, PAGE_SIZE);
+		reg_bo = i915_gem_object_create(dev_priv, PAGE_SIZE);
 	if (IS_ERR(reg_bo))
 		goto out_free;
 	overlay->reg_bo = reg_bo;

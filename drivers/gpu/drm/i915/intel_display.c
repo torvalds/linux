@@ -10998,7 +10998,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 
-	obj = i915_gem_object_create(dev,
+	obj = i915_gem_object_create(to_i915(dev),
 				    intel_framebuffer_size_for_mode(mode, bpp));
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);

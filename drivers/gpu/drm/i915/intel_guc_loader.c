@@ -590,6 +590,7 @@ fail:
 
 static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev->pdev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
@@ -648,7 +649,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* Header and uCode will be loaded to WOPCM. Size of the two. */
 	size = guc_fw->header_size + guc_fw->ucode_size;
-	if (size > guc_wopcm_size(to_i915(dev))) {
+	if (size > guc_wopcm_size(dev_priv)) {
 		DRM_NOTE("Firmware is too large to fit in WOPCM\n");
 		goto fail;
 	}
@@ -676,7 +677,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 			guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
 
 	mutex_lock(&dev->struct_mutex);
-	obj = i915_gem_object_create_from_data(dev, fw->data, fw->size);
+	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR_OR_NULL(obj)) {
 		err = obj ? PTR_ERR(obj) : -ENOMEM;

@@ -1871,7 +1871,7 @@ intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
 
 	obj = i915_gem_object_create_stolen(dev_priv, size);
 	if (!obj)
-		obj = i915_gem_object_create(&dev_priv->drm, size);
+		obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
@@ -2452,7 +2452,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore) {
 		struct i915_vma *vma;
 
-		obj = i915_gem_object_create(&dev_priv->drm, 4096);
+		obj = i915_gem_object_create(dev_priv, 4096);
 		if (IS_ERR(obj))
 			goto err;
 

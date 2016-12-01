@@ -169,12 +169,13 @@ void i915_gem_context_free(struct kref *ctx_ref)
 static struct drm_i915_gem_object *
 alloc_context_obj(struct drm_device *dev, u64 size)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	int ret;
 
 	lockdep_assert_held(&dev->struct_mutex);
 
-	obj = i915_gem_object_create(dev, size);
+	obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
 		return obj;
 
@@ -193,7 +194,7 @@ alloc_context_obj(struct drm_device *dev, u64 size)
 	 * This is only applicable for Ivy Bridge devices since
 	 * later platforms don't have L3 control bits in the PTE.
 	 */
-	if (IS_IVYBRIDGE(to_i915(dev))) {
+	if (IS_IVYBRIDGE(dev_priv)) {
 		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret)) {
