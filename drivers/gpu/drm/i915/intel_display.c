@@ -17162,7 +17162,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_cleanup_gt_powersave(dev_priv);
 
-	intel_teardown_gmbus(dev);
+	intel_teardown_gmbus(dev_priv);
 }
 
 void intel_connector_attach_encoder(struct intel_connector *connector,

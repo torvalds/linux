@@ -617,11 +617,10 @@ static const struct i2c_algorithm gmbus_algorithm = {
 
 /**
  * intel_gmbus_setup - instantiate all Intel i2c GMBuses
- * @dev: DRM device
+ * @dev_priv: i915 device private
  */
-int intel_setup_gmbus(struct drm_device *dev)
+int intel_setup_gmbus(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct intel_gmbus *bus;
 	unsigned int pin;
@@ -724,9 +723,8 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 	mutex_unlock(&dev_priv->gmbus_mutex);
 }
 
-void intel_teardown_gmbus(struct drm_device *dev)
+void intel_teardown_gmbus(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 
