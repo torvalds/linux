@@ -389,6 +389,7 @@ struct mlx5_ib_qp {
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
+	u32			rate_limit;
 };
 
 struct mlx5_ib_cq_buf {
