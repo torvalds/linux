@@ -119,6 +119,8 @@ struct tc_action_ops {
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int, const struct tc_action_ops *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
+	int	(*get_dev)(const struct tc_action *a, struct net *net,
+			   struct net_device **mirred_dev);
 };
 
 struct tc_action_net {
