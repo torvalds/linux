@@ -161,6 +161,27 @@ static int mrfld_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+static int mrfld_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
+				   unsigned int debounce)
+{
+	struct mrfld_gpio *priv = gpiochip_get_data(chip);
+	void __iomem *gfbr = gpio_reg(chip, offset, GFBR);
+	unsigned long flags;
+	u32 value;
+
+	raw_spin_lock_irqsave(&priv->lock, flags);
+
+	if (debounce)
+		value = readl(gfbr) & ~BIT(offset % 32);
+	else
+		value = readl(gfbr) | BIT(offset % 32);
+	writel(value, gfbr);
+
+	raw_spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static void mrfld_irq_ack(struct irq_data *d)
 {
 	struct mrfld_gpio *priv = irq_data_get_irq_chip_data(d);
@@ -384,6 +405,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	priv->chip.direction_output = mrfld_gpio_direction_output;
 	priv->chip.get = mrfld_gpio_get;
 	priv->chip.set = mrfld_gpio_set;
+	priv->chip.set_debounce = mrfld_gpio_set_debounce;
 	priv->chip.base = gpio_base;
 	priv->chip.ngpio = MRFLD_NGPIO;
 	priv->chip.can_sleep = false;
