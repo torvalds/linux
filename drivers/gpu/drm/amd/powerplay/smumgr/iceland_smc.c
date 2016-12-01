@@ -2006,6 +2006,12 @@ int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
+	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl);
+		return 0;
+	}
+
 	if (0 == smu7_data->fan_table_start) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
