@@ -737,23 +737,47 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 	return dev_priv->cdclk_freq;
 }
 
+/*
+ * get the intel_encoder according to the parameter port and pipe
+ * intel_encoder is saved by the index of pipe
+ * MST & (pipe >= 0): return the av_enc_map[pipe],
+ *   when port is matched
+ * MST & (pipe < 0): this is invalid
+ * Non-MST & (pipe >= 0): only pipe = 0 (the first device entry)
+ *   will get the right intel_encoder with port matched
+ * Non-MST & (pipe < 0): get the right intel_encoder with port matched
+ */
 static struct intel_encoder *get_saved_enc(struct drm_i915_private *dev_priv,
 					       int port, int pipe)
 {
+	struct intel_encoder *encoder;
 
 	if (WARN_ON(pipe >= I915_MAX_PIPES))
 		return NULL;
 
 	/* MST */
-	if (pipe >= 0)
-		return dev_priv->av_enc_map[pipe];
+	if (pipe >= 0) {
+		encoder = dev_priv->av_enc_map[pipe];
+		/*
+		 * when bootup, audio driver may not know it is
+		 * MST or not. So it will poll all the port & pipe
+		 * combinations
+		 */
+		if (encoder != NULL && encoder->port == port &&
+		    encoder->type == INTEL_OUTPUT_DP_MST)
+			return encoder;
+	}
 
 	/* Non-MST */
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_encoder *encoder;
+	if (pipe > 0)
+		return NULL;
 
+	for_each_pipe(dev_priv, pipe) {
 		encoder = dev_priv->av_enc_map[pipe];
 		if (encoder == NULL)
+			continue;
+
+		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
 		if (port == encoder->port)
