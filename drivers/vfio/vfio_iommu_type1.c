@@ -1584,9 +1584,17 @@ static long vfio_iommu_type1_ioctl(void *iommu_data,
 }
 
 static int vfio_iommu_type1_register_notifier(void *iommu_data,
+					      unsigned long *events,
 					      struct notifier_block *nb)
 {
 	struct vfio_iommu *iommu = iommu_data;
+
+	/* clear known events */
+	*events &= ~VFIO_IOMMU_NOTIFY_DMA_UNMAP;
+
+	/* refuse to register if still events remaining */
+	if (*events)
+		return -EINVAL;
 
 	return blocking_notifier_chain_register(&iommu->notifier, nb);
 }

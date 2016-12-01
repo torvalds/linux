@@ -2008,59 +2008,44 @@ err_unpin_pages:
 }
 EXPORT_SYMBOL(vfio_unpin_pages);
 
-int vfio_register_notifier(struct device *dev, struct notifier_block *nb)
+static int vfio_register_iommu_notifier(struct vfio_group *group,
+					unsigned long *events,
+					struct notifier_block *nb)
 {
 	struct vfio_container *container;
-	struct vfio_group *group;
 	struct vfio_iommu_driver *driver;
 	int ret;
 
-	if (!dev || !nb)
-		return -EINVAL;
-
-	group = vfio_group_get_from_dev(dev);
-	if (!group)
-		return -ENODEV;
-
 	ret = vfio_group_add_container_user(group);
 	if (ret)
-		goto err_register_nb;
+		return -EINVAL;
 
 	container = group->container;
 	down_read(&container->group_lock);
 
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->register_notifier))
-		ret = driver->ops->register_notifier(container->iommu_data, nb);
+		ret = driver->ops->register_notifier(container->iommu_data,
+						     events, nb);
 	else
 		ret = -ENOTTY;
 
 	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
-err_register_nb:
-	vfio_group_put(group);
 	return ret;
 }
-EXPORT_SYMBOL(vfio_register_notifier);
 
-int vfio_unregister_notifier(struct device *dev, struct notifier_block *nb)
+static int vfio_unregister_iommu_notifier(struct vfio_group *group,
+					  struct notifier_block *nb)
 {
 	struct vfio_container *container;
-	struct vfio_group *group;
 	struct vfio_iommu_driver *driver;
 	int ret;
 
-	if (!dev || !nb)
-		return -EINVAL;
-
-	group = vfio_group_get_from_dev(dev);
-	if (!group)
-		return -ENODEV;
-
 	ret = vfio_group_add_container_user(group);
 	if (ret)
-		goto err_unregister_nb;
+		return -EINVAL;
 
 	container = group->container;
 	down_read(&container->group_lock);
@@ -2075,7 +2060,56 @@ int vfio_unregister_notifier(struct device *dev, struct notifier_block *nb)
 	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
-err_unregister_nb:
+	return ret;
+}
+
+int vfio_register_notifier(struct device *dev, enum vfio_notify_type type,
+			   unsigned long *events, struct notifier_block *nb)
+{
+	struct vfio_group *group;
+	int ret;
+
+	if (!dev || !nb || !events || (*events == 0))
+		return -EINVAL;
+
+	group = vfio_group_get_from_dev(dev);
+	if (!group)
+		return -ENODEV;
+
+	switch (type) {
+	case VFIO_IOMMU_NOTIFY:
+		ret = vfio_register_iommu_notifier(group, events, nb);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	vfio_group_put(group);
+	return ret;
+}
+EXPORT_SYMBOL(vfio_register_notifier);
+
+int vfio_unregister_notifier(struct device *dev, enum vfio_notify_type type,
+			     struct notifier_block *nb)
+{
+	struct vfio_group *group;
+	int ret;
+
+	if (!dev || !nb)
+		return -EINVAL;
+
+	group = vfio_group_get_from_dev(dev);
+	if (!group)
+		return -ENODEV;
+
+	switch (type) {
+	case VFIO_IOMMU_NOTIFY:
+		ret = vfio_unregister_iommu_notifier(group, nb);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
 	vfio_group_put(group);
 	return ret;
 }
