@@ -302,6 +302,13 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		return -ENODEV;
 	}
 
+	if (!of_device_is_available(entity)) {
+		dev_dbg(rcdu->dev,
+			"connected entity %s is disabled, skipping\n",
+			entity->full_name);
+		return -ENODEV;
+	}
+
 	entity_ep_node = of_parse_phandle(ep->local_node, "remote-endpoint", 0);
 
 	for_each_endpoint_of_node(entity, ep_node) {
