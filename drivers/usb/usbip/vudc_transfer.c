@@ -339,6 +339,8 @@ static void v_timer(unsigned long _vudc)
 		total = timer->frame_limit;
 	}
 
+	/* We have to clear ep0 flags separately as it's not on the list */
+	udc->ep[0].already_seen = 0;
 	list_for_each_entry(_ep, &udc->gadget.ep_list, ep_list) {
 		ep = to_vep(_ep);
 		ep->already_seen = 0;
