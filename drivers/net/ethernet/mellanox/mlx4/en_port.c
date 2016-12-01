@@ -154,7 +154,7 @@ void mlx4_en_fold_software_stats(struct net_device *dev)
 	unsigned long packets, bytes;
 	int i;
 
-	if (mlx4_is_master(mdev->dev))
+	if (!priv->port_up || mlx4_is_master(mdev->dev))
 		return;
 
 	packets = 0;
