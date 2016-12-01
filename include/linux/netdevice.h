@@ -802,6 +802,7 @@ struct tc_to_netdev {
 		struct tc_cls_matchall_offload *cls_mall;
 		struct tc_cls_bpf_offload *cls_bpf;
 	};
+	bool egress_dev;
 };
 
 /* These structures hold the attributes of xdp state that are being passed
