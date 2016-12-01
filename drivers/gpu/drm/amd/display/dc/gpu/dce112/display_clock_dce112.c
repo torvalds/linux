@@ -71,102 +71,6 @@ enum divider_range_step_size {
 
 static struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
-#define dce112_DFS_BYPASS_THRESHOLD_KHZ 400000
-
-static bool dce112_set_min_clocks_state(
-	struct display_clock *dc,
-	enum dm_pp_clocks_state clocks_state)
-{
-	struct dm_pp_power_level_change_request level_change_req = {
-			clocks_state };
-
-	if (clocks_state > dc->max_clks_state) {
-		/*Requested state exceeds max supported state.*/
-		dm_logger_write(dc->ctx->logger, LOG_WARNING,
-				"Requested state exceeds max supported state");
-		return false;
-	} else if (clocks_state == dc->cur_min_clks_state) {
-		/*if we're trying to set the same state, we can just return
-		 * since nothing needs to be done*/
-		return true;
-	}
-
-	/* get max clock state from PPLIB */
-	if (dm_pp_apply_power_level_change_request(dc->ctx, &level_change_req))
-		dc->cur_min_clks_state = clocks_state;
-
-	return true;
-}
-
-static uint32_t get_dp_ref_clk_frequency(struct display_clock *dc)
-{
-	uint32_t dispclk_cntl_value;
-	uint32_t dp_ref_clk_cntl_value;
-	uint32_t dp_ref_clk_cntl_src_sel_value;
-	uint32_t dp_ref_clk_khz = 600000;
-	uint32_t target_div = INVALID_DIVIDER;
-	struct display_clock_dce112 *disp_clk = FROM_DISPLAY_CLOCK(dc);
-
-	/* ASSERT DP Reference Clock source is from DFS*/
-	dp_ref_clk_cntl_value = dm_read_reg(dc->ctx,
-			mmDPREFCLK_CNTL);
-
-	dp_ref_clk_cntl_src_sel_value =
-			get_reg_field_value(
-				dp_ref_clk_cntl_value,
-				DPREFCLK_CNTL, DPREFCLK_SRC_SEL);
-
-	ASSERT(dp_ref_clk_cntl_src_sel_value == 0);
-
-	/* Read the mmDENTIST_DISPCLK_CNTL to get the currently
-	 * programmed DID DENTIST_DPREFCLK_WDIVIDER*/
-	dispclk_cntl_value = dm_read_reg(dc->ctx,
-			mmDENTIST_DISPCLK_CNTL);
-
-	/* Convert DENTIST_DPREFCLK_WDIVIDERto actual divider*/
-	target_div = dal_divider_range_get_divider(
-		divider_ranges,
-		DIVIDER_RANGE_MAX,
-		get_reg_field_value(dispclk_cntl_value,
-			DENTIST_DISPCLK_CNTL,
-			DENTIST_DPREFCLK_WDIVIDER));
-
-	if (target_div != INVALID_DIVIDER) {
-		/* Calculate the current DFS clock, in kHz.*/
-		dp_ref_clk_khz = (DIVIDER_RANGE_SCALE_FACTOR
-			* disp_clk->dentist_vco_freq_khz) / target_div;
-	}
-
-	/* SW will adjust DP REF Clock average value for all purposes
-	 * (DP DTO / DP Audio DTO and DP GTC)
-	 if clock is spread for all cases:
-	 -if SS enabled on DP Ref clock and HW de-spreading enabled with SW
-	 calculations for DS_INCR/DS_MODULO (this is planned to be default case)
-	 -if SS enabled on DP Ref clock and HW de-spreading enabled with HW
-	 calculations (not planned to be used, but average clock should still
-	 be valid)
-	 -if SS enabled on DP Ref clock and HW de-spreading disabled
-	 (should not be case with CIK) then SW should program all rates
-	 generated according to average value (case as with previous ASICs)
-	  */
-	if ((disp_clk->ss_on_gpu_pll) && (disp_clk->gpu_pll_ss_divider != 0)) {
-		struct fixed32_32 ss_percentage = dal_fixed32_32_div_int(
-				dal_fixed32_32_from_fraction(
-					disp_clk->gpu_pll_ss_percentage,
-					disp_clk->gpu_pll_ss_divider), 200);
-		struct fixed32_32 adj_dp_ref_clk_khz;
-
-		ss_percentage = dal_fixed32_32_sub(dal_fixed32_32_one,
-								ss_percentage);
-		adj_dp_ref_clk_khz =
-			dal_fixed32_32_mul_int(
-				ss_percentage,
-				dp_ref_clk_khz);
-		dp_ref_clk_khz = dal_fixed32_32_floor(adj_dp_ref_clk_khz);
-	}
-
-	return dp_ref_clk_khz;
-}
 
 void dispclk_dce112_destroy(struct display_clock **base)
 {
@@ -233,38 +137,6 @@ static bool display_clock_integrated_info_construct(
 	return true;
 }
 
-enum dm_pp_clocks_state dispclk_dce112_get_required_clocks_state(
-	struct display_clock *dc,
-	struct state_dependent_clocks *req_clocks)
-{
-	int32_t i;
-	struct display_clock_dce112 *disp_clk = DCLCK112_FROM_BASE(dc);
-	enum dm_pp_clocks_state low_req_clk = dc->max_clks_state;
-
-	if (!req_clocks) {
-		/* NULL pointer*/
-		dm_logger_write(dc->ctx->logger, LOG_WARNING,
-				"%s: Invalid parameter",
-				__func__);
-		return DM_PP_CLOCKS_STATE_INVALID;
-	}
-
-	/* Iterate from highest supported to lowest valid state, and update
-	 * lowest RequiredState with the lowest state that satisfies
-	 * all required clocks
-	 */
-	for (i = dc->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; --i) {
-		if ((req_clocks->display_clk_khz <=
-				(disp_clk->max_clks_by_state + i)->
-					display_clk_khz) &&
-			(req_clocks->pixel_clk_khz <=
-					(disp_clk->max_clks_by_state + i)->
-					pixel_clk_khz))
-			low_req_clk = i;
-	}
-	return low_req_clk;
-}
-
 void dce112_set_clock(
 	struct display_clock *base,
 	uint32_t requested_clk_khz)
@@ -304,10 +176,7 @@ void dce112_set_clock(
 
 static const struct display_clock_funcs funcs = {
 	.destroy = dispclk_dce112_destroy,
-	.get_dp_ref_clk_frequency = get_dp_ref_clk_frequency,
-	.get_required_clocks_state = dispclk_dce112_get_required_clocks_state,
 	.set_clock = dce112_set_clock,
-	.set_min_clocks_state = dce112_set_min_clocks_state
 };
 
 bool dal_display_clock_dce112_construct(
@@ -406,24 +275,3 @@ bool dal_display_clock_dce112_construct(
 	return true;
 }
 
-/*****************************************************************************
- * public functions
- *****************************************************************************/
-
-struct display_clock *dal_display_clock_dce112_create(
-	struct dc_context *ctx)
-{
-	struct display_clock_dce112 *dc112;
-
-	dc112 = dm_alloc(sizeof(struct display_clock_dce112));
-
-	if (dc112 == NULL)
-		return NULL;
-
-	if (dal_display_clock_dce112_construct(dc112, ctx))
-		return &dc112->disp_clk_base;
-
-	dm_free(dc112);
-
-	return NULL;
-}

@@ -45,6 +45,7 @@
 #include "dce/dce_transform.h"
 #include "dce80/dce80_opp.h"
 #include "dce110/dce110_ipp.h"
+#include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
@@ -214,6 +215,19 @@ static const struct dce110_ipp_reg_offsets ipp_reg_offsets[] = {
 /* set register offset with instance */
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
+
+
+static const struct dce_disp_clk_registers disp_clk_regs = {
+		CLK_COMMON_REG_LIST_DCE_BASE()
+};
+
+static const struct dce_disp_clk_shift disp_clk_shift = {
+		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
+};
+
+static const struct dce_disp_clk_mask disp_clk_mask = {
+		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
+};
 
 #define transform_regs(id)\
 [id] = {\
@@ -656,11 +670,8 @@ static void destruct(struct dce110_resource_pool *pool)
 		}
 	}
 
-	if (pool->base.display_clock != NULL) {
-		pool->base.display_clock->funcs->destroy(
-				&pool->base.display_clock);
-		pool->base.display_clock = NULL;
-	}
+	if (pool->base.display_clock != NULL)
+		dce_disp_clk_destroy(&pool->base.display_clock);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -857,47 +868,6 @@ static const struct resource_funcs dce80_res_pool_funcs = {
 	.validate_bandwidth = dce80_validate_bandwidth
 };
 
-static enum dm_pp_clocks_state dce80_resource_convert_clock_state_pp_to_dc(
-	enum dm_pp_clocks_state pp_clock_state)
-{
-	enum dm_pp_clocks_state dc_clocks_state = DM_PP_CLOCKS_STATE_INVALID;
-
-	switch (pp_clock_state) {
-	case DM_PP_CLOCKS_STATE_INVALID:
-		dc_clocks_state = DM_PP_CLOCKS_STATE_INVALID;
-		break;
-	case DM_PP_CLOCKS_STATE_ULTRA_LOW:
-		dc_clocks_state = DM_PP_CLOCKS_STATE_ULTRA_LOW;
-		break;
-	case DM_PP_CLOCKS_STATE_LOW:
-		dc_clocks_state = DM_PP_CLOCKS_STATE_LOW;
-		break;
-	case DM_PP_CLOCKS_STATE_NOMINAL:
-		dc_clocks_state = DM_PP_CLOCKS_STATE_NOMINAL;
-		break;
-	case DM_PP_CLOCKS_STATE_PERFORMANCE:
-		dc_clocks_state = DM_PP_CLOCKS_STATE_PERFORMANCE;
-		break;
-	case DM_PP_CLOCKS_DPM_STATE_LEVEL_4:
-		dc_clocks_state = DM_PP_CLOCKS_DPM_STATE_LEVEL_4;
-		break;
-	case DM_PP_CLOCKS_DPM_STATE_LEVEL_5:
-		dc_clocks_state = DM_PP_CLOCKS_DPM_STATE_LEVEL_5;
-		break;
-	case DM_PP_CLOCKS_DPM_STATE_LEVEL_6:
-		dc_clocks_state = DM_PP_CLOCKS_DPM_STATE_LEVEL_6;
-		break;
-	case DM_PP_CLOCKS_DPM_STATE_LEVEL_7:
-		dc_clocks_state = DM_PP_CLOCKS_DPM_STATE_LEVEL_7;
-		break;
-	default:
-		dc_clocks_state = DM_PP_CLOCKS_STATE_INVALID;
-		break;
-	}
-
-	return dc_clocks_state;
-}
-
 static bool construct(
 	uint8_t num_virtual_links,
 	struct core_dc *dc,
@@ -967,7 +937,10 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dal_display_clock_dce80_create(ctx);
+	pool->base.display_clock = dce_disp_clk_create(ctx,
+			&disp_clk_regs,
+			&disp_clk_shift,
+			&disp_clk_mask);
 	if (pool->base.display_clock == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
@@ -977,8 +950,7 @@ static bool construct(
 
 	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
 		pool->base.display_clock->max_clks_state =
-				dce80_resource_convert_clock_state_pp_to_dc(
-					static_clk_info.max_clocks_state);
+					static_clk_info.max_clocks_state;
 
 	{
 		struct irq_service_init_data init_data;

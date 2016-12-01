@@ -71,23 +71,9 @@ bool dal_display_clock_dce112_construct(
 
 void dispclk_dce112_destroy(struct display_clock **base);
 
-enum dm_pp_clocks_state dispclk_dce112_get_min_clocks_state(
-	struct display_clock *base);
-
-enum dm_pp_clocks_state dispclk_dce112_get_required_clocks_state(
-	struct display_clock *dc,
-	struct state_dependent_clocks *req_clocks);
-
 void dce112_set_clock(
 	struct display_clock *base,
 	uint32_t requested_clk_khz);
 
-bool dispclk_dce112_set_min_clocks_state(
-	struct display_clock *base,
-	enum dm_pp_clocks_state clocks_state);
-
-void dispclk_dce112_store_max_clocks_state(
-	struct display_clock *base,
-	enum dm_pp_clocks_state max_clocks_state);
 
 #endif /* __DAL_DISPLAY_CLOCK_DCE112_H__ */

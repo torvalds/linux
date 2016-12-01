@@ -45,6 +45,7 @@
 #include "dce110/dce110_transform_v.h"
 #include "dce110/dce110_opp.h"
 #include "dce110/dce110_opp_v.h"
+#include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
@@ -187,6 +188,17 @@ static const struct dce110_ipp_reg_offsets dce110_ipp_reg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
+static const struct dce_disp_clk_registers disp_clk_regs = {
+		CLK_COMMON_REG_LIST_DCE_BASE()
+};
+
+static const struct dce_disp_clk_shift disp_clk_shift = {
+		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
+};
+
+static const struct dce_disp_clk_mask disp_clk_mask = {
+		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
+};
 
 #define transform_regs(id)\
 [id] = {\
@@ -699,11 +711,8 @@ static void destruct(struct dce110_resource_pool *pool)
 		}
 	}
 
-	if (pool->base.display_clock != NULL) {
-		pool->base.display_clock->funcs->destroy(
-				&pool->base.display_clock);
-		pool->base.display_clock = NULL;
-	}
+	if (pool->base.display_clock != NULL)
+		dce_disp_clk_destroy(&pool->base.display_clock);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -1261,7 +1270,10 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dal_display_clock_dce110_create(ctx);
+	pool->base.display_clock = dce110_disp_clk_create(ctx,
+			&disp_clk_regs,
+			&disp_clk_shift,
+			&disp_clk_mask);
 	if (pool->base.display_clock == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
