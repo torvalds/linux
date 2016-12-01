@@ -118,7 +118,6 @@
 #define FPGA_RST_NONE_MASK		0x0
 
 struct zynq_fpga_priv {
-	struct device *dev;
 	int irq;
 	struct clk *clk;
 
@@ -218,7 +217,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 					     INIT_POLL_DELAY,
 					     INIT_POLL_TIMEOUT);
 		if (err) {
-			dev_err(priv->dev, "Timeout waiting for PCFG_INIT");
+			dev_err(&mgr->dev, "Timeout waiting for PCFG_INIT\n");
 			goto out_err;
 		}
 
@@ -232,7 +231,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 					     INIT_POLL_DELAY,
 					     INIT_POLL_TIMEOUT);
 		if (err) {
-			dev_err(priv->dev, "Timeout waiting for !PCFG_INIT");
+			dev_err(&mgr->dev, "Timeout waiting for !PCFG_INIT\n");
 			goto out_err;
 		}
 
@@ -246,7 +245,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 					     INIT_POLL_DELAY,
 					     INIT_POLL_TIMEOUT);
 		if (err) {
-			dev_err(priv->dev, "Timeout waiting for PCFG_INIT");
+			dev_err(&mgr->dev, "Timeout waiting for PCFG_INIT\n");
 			goto out_err;
 		}
 	}
@@ -263,7 +262,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 	/* check that we have room in the command queue */
 	status = zynq_fpga_read(priv, STATUS_OFFSET);
 	if (status & STATUS_DMA_Q_F) {
-		dev_err(priv->dev, "DMA command queue full");
+		dev_err(&mgr->dev, "DMA command queue full\n");
 		err = -EBUSY;
 		goto out_err;
 	}
@@ -296,7 +295,8 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	in_count = count;
 	priv = mgr->priv;
 
-	kbuf = dma_alloc_coherent(priv->dev, count, &dma_addr, GFP_KERNEL);
+	kbuf =
+	    dma_alloc_coherent(mgr->dev.parent, count, &dma_addr, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
 
@@ -332,15 +332,14 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr,
 	zynq_fpga_write(priv, INT_STS_OFFSET, intr_status);
 
 	if (!((intr_status & IXR_D_P_DONE_MASK) == IXR_D_P_DONE_MASK)) {
-		dev_err(priv->dev, "Error configuring FPGA");
+		dev_err(&mgr->dev, "Error configuring FPGA\n");
 		err = -EFAULT;
 	}
 
 	clk_disable(priv->clk);
 
 out_free:
-	dma_free_coherent(priv->dev, in_count, kbuf, dma_addr);
-
+	dma_free_coherent(mgr->dev.parent, count, kbuf, dma_addr);
 	return err;
 }
 
@@ -418,8 +417,6 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->dev = dev;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->io_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(priv->io_base))
@@ -428,7 +425,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	priv->slcr = syscon_regmap_lookup_by_phandle(dev->of_node,
 		"syscon");
 	if (IS_ERR(priv->slcr)) {
-		dev_err(dev, "unable to get zynq-slcr regmap");
+		dev_err(dev, "unable to get zynq-slcr regmap\n");
 		return PTR_ERR(priv->slcr);
 	}
 
@@ -436,38 +433,41 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0) {
-		dev_err(dev, "No IRQ available");
+		dev_err(dev, "No IRQ available\n");
 		return priv->irq;
-	}
-
-	err = devm_request_irq(dev, priv->irq, zynq_fpga_isr, 0,
-			       dev_name(dev), priv);
-	if (err) {
-		dev_err(dev, "unable to request IRQ");
-		return err;
 	}
 
 	priv->clk = devm_clk_get(dev, "ref_clk");
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "input clock not found");
+		dev_err(dev, "input clock not found\n");
 		return PTR_ERR(priv->clk);
 	}
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		dev_err(dev, "unable to enable clock");
+		dev_err(dev, "unable to enable clock\n");
 		return err;
 	}
 
 	/* unlock the device */
 	zynq_fpga_write(priv, UNLOCK_OFFSET, UNLOCK_MASK);
 
+	zynq_fpga_write(priv, INT_MASK_OFFSET, 0xFFFFFFFF);
+	zynq_fpga_write(priv, INT_STS_OFFSET, IXR_ALL_MASK);
+	err = devm_request_irq(dev, priv->irq, zynq_fpga_isr, 0, dev_name(dev),
+			       priv);
+	if (err) {
+		dev_err(dev, "unable to request IRQ\n");
+		clk_disable_unprepare(priv->clk);
+		return err;
+	}
+
 	clk_disable(priv->clk);
 
 	err = fpga_mgr_register(dev, "Xilinx Zynq FPGA Manager",
 				&zynq_fpga_ops, priv);
 	if (err) {
-		dev_err(dev, "unable to register FPGA manager");
+		dev_err(dev, "unable to register FPGA manager\n");
 		clk_unprepare(priv->clk);
 		return err;
 	}

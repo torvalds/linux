@@ -53,10 +53,12 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
 	/*
 	 * Call the low level driver's write_init function.  This will do the
 	 * device-specific things to get the FPGA into the state where it is
-	 * ready to receive an FPGA image.
+	 * ready to receive an FPGA image. The low level driver only gets to
+	 * see the first initial_header_size bytes in the buffer.
 	 */
 	mgr->state = FPGA_MGR_STATE_WRITE_INIT;
-	ret = mgr->mops->write_init(mgr, info, buf, count);
+	ret = mgr->mops->write_init(mgr, info, buf,
+				    min(mgr->mops->initial_header_size, count));
 	if (ret) {
 		dev_err(dev, "Error preparing FPGA for writing\n");
 		mgr->state = FPGA_MGR_STATE_WRITE_INIT_ERR;
