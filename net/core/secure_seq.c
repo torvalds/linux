@@ -12,6 +12,7 @@
 #include <net/secure_seq.h>
 
 #if IS_ENABLED(CONFIG_IPV6) || IS_ENABLED(CONFIG_INET)
+#include <net/tcp.h>
 #define NET_SECRET_SIZE (MD5_MESSAGE_BYTES / 4)
 
 static u32 net_secret[NET_SECRET_SIZE] ____cacheline_aligned;
@@ -58,7 +59,7 @@ u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
 
 	md5_transform(hash, secret);
 
-	*tsoff = hash[1];
+	*tsoff = sysctl_tcp_timestamps == 1 ? hash[1] : 0;
 	return seq_scale(hash[0]);
 }
 EXPORT_SYMBOL(secure_tcpv6_sequence_number);
@@ -100,7 +101,7 @@ u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
 
 	md5_transform(hash, net_secret);
 
-	*tsoff = hash[1];
+	*tsoff = sysctl_tcp_timestamps == 1 ? hash[1] : 0;
 	return seq_scale(hash[0]);
 }
 
