@@ -7401,7 +7401,8 @@ btrfs_lock_cluster(struct btrfs_block_group_cache *block_group,
 
 		spin_unlock(&cluster->refill_lock);
 
-		down_read(&used_bg->data_rwsem);
+		/* We should only have one-level nested. */
+		down_read_nested(&used_bg->data_rwsem, SINGLE_DEPTH_NESTING);
 
 		spin_lock(&cluster->refill_lock);
 		if (used_bg == cluster->block_group)
