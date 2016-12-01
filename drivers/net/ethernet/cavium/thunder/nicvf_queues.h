@@ -88,13 +88,13 @@
 
 /* RED and Backpressure levels of CQ for pkt reception
  * For CQ, level is a measure of emptiness i.e 0x0 means full
- * eg: For CQ of size 4K, and for pass/drop levels of 128/96
- * HW accepts pkt if unused CQE >= 2048
- * RED accepts pkt if unused CQE < 2048 & >= 1536
- * DROPs pkts if unused CQE < 1536
+ * eg: For CQ of size 4K, and for pass/drop levels of 160/144
+ * HW accepts pkt if unused CQE >= 2560
+ * RED accepts pkt if unused CQE < 2304 & >= 2560
+ * DROPs pkts if unused CQE < 2304
  */
-#define RQ_PASS_CQ_LVL		128ULL
-#define RQ_DROP_CQ_LVL		96ULL
+#define RQ_PASS_CQ_LVL		160ULL
+#define RQ_DROP_CQ_LVL		144ULL
 
 /* RED and Backpressure levels of RBDR for pkt reception
  * For RBDR, level is a measure of fullness i.e 0x0 means empty
@@ -306,7 +306,8 @@ void nicvf_sq_disable(struct nicvf *nic, int qidx);
 void nicvf_put_sq_desc(struct snd_queue *sq, int desc_cnt);
 void nicvf_sq_free_used_descs(struct net_device *netdev,
 			      struct snd_queue *sq, int qidx);
-int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb);
+int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
+			struct sk_buff *skb, u8 sq_num);
 
 struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
 void nicvf_rbdr_task(unsigned long data);

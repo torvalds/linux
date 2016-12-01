@@ -644,6 +644,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
+	struct snd_queue *sq;
 	unsigned int tx_pkts = 0, tx_bytes = 0;
 
 	spin_lock_bh(&cq->lock);
@@ -709,16 +710,20 @@ loop:
 
 done:
 	/* Wakeup TXQ if its stopped earlier due to SQ full */
-	if (tx_done) {
+	sq = &nic->qs->sq[cq_idx];
+	if (tx_done ||
+	    (atomic_read(&sq->free_cnt) >= MIN_SQ_DESC_PER_PKT_XMIT)) {
 		netdev = nic->pnicvf->netdev;
 		txq = netdev_get_tx_queue(netdev,
 					  nicvf_netdev_qidx(nic, cq_idx));
 		if (tx_pkts)
 			netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
-		nic = nic->pnicvf;
+		/* To read updated queue and carrier status */
+		smp_mb();
 		if (netif_tx_queue_stopped(txq) && netif_carrier_ok(netdev)) {
-			netif_tx_start_queue(txq);
+			netif_tx_wake_queue(txq);
+			nic = nic->pnicvf;
 			this_cpu_inc(nic->drv_stats->txq_wake);
 			if (netif_msg_tx_err(nic))
 				netdev_warn(netdev,
@@ -1054,6 +1059,9 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct nicvf *nic = netdev_priv(netdev);
 	int qid = skb_get_queue_mapping(skb);
 	struct netdev_queue *txq = netdev_get_tx_queue(netdev, qid);
+	struct nicvf *snic;
+	struct snd_queue *sq;
+	int tmp;
 
 	/* Check for minimum packet length */
 	if (skb->len <= ETH_HLEN) {
@@ -1061,13 +1069,39 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (!netif_tx_queue_stopped(txq) && !nicvf_sq_append_skb(nic, skb)) {
+	snic = nic;
+	/* Get secondary Qset's SQ structure */
+	if (qid >= MAX_SND_QUEUES_PER_QS) {
+		tmp = qid / MAX_SND_QUEUES_PER_QS;
+		snic = (struct nicvf *)nic->snicvf[tmp - 1];
+		if (!snic) {
+			netdev_warn(nic->netdev,
+				    "Secondary Qset#%d's ptr not initialized\n",
+				    tmp - 1);
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
+		qid = qid % MAX_SND_QUEUES_PER_QS;
+	}
+
+	sq = &snic->qs->sq[qid];
+	if (!netif_tx_queue_stopped(txq) &&
+	    !nicvf_sq_append_skb(snic, sq, skb, qid)) {
 		netif_tx_stop_queue(txq);
-		this_cpu_inc(nic->drv_stats->txq_stop);
-		if (netif_msg_tx_err(nic))
-			netdev_warn(netdev,
-				    "%s: Transmit ring full, stopping SQ%d\n",
-				    netdev->name, qid);
+
+		/* Barrier, so that stop_queue visible to other cpus */
+		smp_mb();
+
+		/* Check again, incase another cpu freed descriptors */
+		if (atomic_read(&sq->free_cnt) > MIN_SQ_DESC_PER_PKT_XMIT) {
+			netif_tx_wake_queue(txq);
+		} else {
+			this_cpu_inc(nic->drv_stats->txq_stop);
+			if (netif_msg_tx_err(nic))
+				netdev_warn(netdev,
+					    "%s: Transmit ring full, stopping SQ%d\n",
+					    netdev->name, qid);
+		}
 		return NETDEV_TX_BUSY;
 	}
 

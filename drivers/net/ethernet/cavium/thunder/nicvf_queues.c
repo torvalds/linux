@@ -1190,30 +1190,12 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 }
 
 /* Append an skb to a SQ for packet transfer. */
-int nicvf_sq_append_skb(struct nicvf *nic, struct sk_buff *skb)
+int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
+			struct sk_buff *skb, u8 sq_num)
 {
 	int i, size;
 	int subdesc_cnt, tso_sqe = 0;
-	int sq_num, qentry;
-	struct queue_set *qs;
-	struct snd_queue *sq;
-
-	sq_num = skb_get_queue_mapping(skb);
-	if (sq_num >= MAX_SND_QUEUES_PER_QS) {
-		/* Get secondary Qset's SQ structure */
-		i = sq_num / MAX_SND_QUEUES_PER_QS;
-		if (!nic->snicvf[i - 1]) {
-			netdev_warn(nic->netdev,
-				    "Secondary Qset#%d's ptr not initialized\n",
-				    i - 1);
-			return 1;
-		}
-		nic = (struct nicvf *)nic->snicvf[i - 1];
-		sq_num = sq_num % MAX_SND_QUEUES_PER_QS;
-	}
-
-	qs = nic->qs;
-	sq = &qs->sq[sq_num];
+	int qentry;
 
 	subdesc_cnt = nicvf_sq_subdesc_required(nic, skb);
 	if (subdesc_cnt > atomic_read(&sq->free_cnt))
