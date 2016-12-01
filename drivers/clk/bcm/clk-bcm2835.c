@@ -1861,7 +1861,12 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.ctl_reg = CM_VECCTL,
 		.div_reg = CM_VECDIV,
 		.int_bits = 4,
-		.frac_bits = 0),
+		.frac_bits = 0,
+		/*
+		 * Allow rate change propagation only on PLLH_AUX which is
+		 * assigned index 7 in the parent array.
+		 */
+		.set_rate_parent = BIT(7)),
 
 	/* dsi clocks */
 	[BCM2835_CLOCK_DSI0E]	= REGISTER_PER_CLK(
