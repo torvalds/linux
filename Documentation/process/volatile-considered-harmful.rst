@@ -1,3 +1,6 @@
+
+.. _volatile_considered_harmful:
+
 Why the "volatile" type class should not be used
 ------------------------------------------------
 
