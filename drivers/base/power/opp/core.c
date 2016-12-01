@@ -610,6 +610,69 @@ static int _set_opp_voltage(struct device *dev, struct regulator *reg,
 	return ret;
 }
 
+static inline int
+_generic_set_opp_clk_only(struct device *dev, struct clk *clk,
+			  unsigned long old_freq, unsigned long freq)
+{
+	int ret;
+
+	ret = clk_set_rate(clk, freq);
+	if (ret) {
+		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
+			ret);
+	}
+
+	return ret;
+}
+
+static int _generic_set_opp(struct dev_pm_set_opp_data *data)
+{
+	struct dev_pm_opp_supply *old_supply = data->old_opp.supplies;
+	struct dev_pm_opp_supply *new_supply = data->new_opp.supplies;
+	unsigned long old_freq = data->old_opp.rate, freq = data->new_opp.rate;
+	struct regulator *reg = data->regulators[0];
+	struct device *dev= data->dev;
+	int ret;
+
+	/* This function only supports single regulator per device */
+	if (WARN_ON(data->regulator_count > 1)) {
+		dev_err(dev, "multiple regulators are not supported\n");
+		return -EINVAL;
+	}
+
+	/* Scaling up? Scale voltage before frequency */
+	if (freq > old_freq) {
+		ret = _set_opp_voltage(dev, reg, new_supply);
+		if (ret)
+			goto restore_voltage;
+	}
+
+	/* Change frequency */
+	ret = _generic_set_opp_clk_only(dev, data->clk, old_freq, freq);
+	if (ret)
+		goto restore_voltage;
+
+	/* Scaling down? Scale voltage after frequency */
+	if (freq < old_freq) {
+		ret = _set_opp_voltage(dev, reg, new_supply);
+		if (ret)
+			goto restore_freq;
+	}
+
+	return 0;
+
+restore_freq:
+	if (_generic_set_opp_clk_only(dev, data->clk, freq, old_freq))
+		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
+			__func__, old_freq);
+restore_voltage:
+	/* This shouldn't harm even if the voltages weren't updated earlier */
+	if (old_supply->u_volt)
+		_set_opp_voltage(dev, reg, old_supply);
+
+	return ret;
+}
+
 /**
  * dev_pm_opp_set_rate() - Configure new OPP based on frequency
  * @dev:	 device for which we do this operation
@@ -623,12 +686,12 @@ static int _set_opp_voltage(struct device *dev, struct regulator *reg,
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *old_opp, *opp;
-	struct regulator *reg = ERR_PTR(-ENXIO);
-	struct clk *clk;
 	unsigned long freq, old_freq;
-	struct dev_pm_opp_supply old_supply, new_supply;
-	int ret;
+	struct dev_pm_opp *old_opp, *opp;
+	struct regulator **regulators;
+	struct dev_pm_set_opp_data *data;
+	struct clk *clk;
+	int ret, size;
 
 	if (unlikely(!target_freq)) {
 		dev_err(dev, "%s: Invalid target frequency %lu\n", __func__,
@@ -677,64 +740,36 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		return ret;
 	}
 
-	if (opp_table->regulators) {
-		/* This function only supports single regulator per device */
-		if (WARN_ON(opp_table->regulator_count > 1)) {
-			dev_err(dev, "multiple regulators not supported\n");
-			rcu_read_unlock();
-			return -EINVAL;
-		}
+	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
+		old_freq, freq);
 
-		reg = opp_table->regulators[0];
+	regulators = opp_table->regulators;
+
+	/* Only frequency scaling */
+	if (!regulators) {
+		rcu_read_unlock();
+		return _generic_set_opp_clk_only(dev, clk, old_freq, freq);
 	}
 
-	if (IS_ERR(old_opp))
-		old_supply.u_volt = 0;
-	else
-		memcpy(&old_supply, old_opp->supplies, sizeof(old_supply));
+	data = opp_table->set_opp_data;
+	data->regulators = regulators;
+	data->regulator_count = opp_table->regulator_count;
+	data->clk = clk;
+	data->dev = dev;
 
-	memcpy(&new_supply, opp->supplies, sizeof(new_supply));
+	data->old_opp.rate = old_freq;
+	size = sizeof(*opp->supplies) * opp_table->regulator_count;
+	if (IS_ERR(old_opp))
+		memset(data->old_opp.supplies, 0, size);
+	else
+		memcpy(data->old_opp.supplies, old_opp->supplies, size);
+
+	data->new_opp.rate = freq;
+	memcpy(data->new_opp.supplies, opp->supplies, size);
 
 	rcu_read_unlock();
 
-	/* Scaling up? Scale voltage before frequency */
-	if (freq > old_freq) {
-		ret = _set_opp_voltage(dev, reg, &new_supply);
-		if (ret)
-			goto restore_voltage;
-	}
-
-	/* Change frequency */
-
-	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n",
-		__func__, old_freq, freq);
-
-	ret = clk_set_rate(clk, freq);
-	if (ret) {
-		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
-			ret);
-		goto restore_voltage;
-	}
-
-	/* Scaling down? Scale voltage after frequency */
-	if (freq < old_freq) {
-		ret = _set_opp_voltage(dev, reg, &new_supply);
-		if (ret)
-			goto restore_freq;
-	}
-
-	return 0;
-
-restore_freq:
-	if (clk_set_rate(clk, old_freq))
-		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
-			__func__, old_freq);
-restore_voltage:
-	/* This shouldn't harm even if the voltages weren't updated earlier */
-	if (old_supply.u_volt)
-		_set_opp_voltage(dev, reg, &old_supply);
-
-	return ret;
+	return _generic_set_opp(data);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_rate);
 
@@ -1368,6 +1403,38 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_prop_name);
 
+static int _allocate_set_opp_data(struct opp_table *opp_table)
+{
+	struct dev_pm_set_opp_data *data;
+	int len, count = opp_table->regulator_count;
+
+	if (WARN_ON(!count))
+		return -EINVAL;
+
+	/* space for set_opp_data */
+	len = sizeof(*data);
+
+	/* space for old_opp.supplies and new_opp.supplies */
+	len += 2 * sizeof(struct dev_pm_opp_supply) * count;
+
+	data = kzalloc(len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->old_opp.supplies = (void *)(data + 1);
+	data->new_opp.supplies = data->old_opp.supplies + count;
+
+	opp_table->set_opp_data = data;
+
+	return 0;
+}
+
+static void _free_set_opp_data(struct opp_table *opp_table)
+{
+	kfree(opp_table->set_opp_data);
+	opp_table->set_opp_data = NULL;
+}
+
 /**
  * dev_pm_opp_set_regulators() - Set regulator names for the device
  * @dev: Device for which regulator name is being set.
@@ -1437,6 +1504,11 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 
 	opp_table->regulator_count = count;
 
+	/* Allocate block only once to pass to set_opp() routines */
+	ret = _allocate_set_opp_data(opp_table);
+	if (ret)
+		goto free_regulators;
+
 	mutex_unlock(&opp_table_lock);
 	return opp_table;
 
@@ -1446,6 +1518,7 @@ free_regulators:
 
 	kfree(opp_table->regulators);
 	opp_table->regulators = NULL;
+	opp_table->regulator_count = 0;
 err:
 	_remove_opp_table(opp_table);
 unlock:
@@ -1481,6 +1554,8 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 
 	for (i = opp_table->regulator_count - 1; i >= 0; i--)
 		regulator_put(opp_table->regulators[i]);
+
+	_free_set_opp_data(opp_table);
 
 	kfree(opp_table->regulators);
 	opp_table->regulators = NULL;

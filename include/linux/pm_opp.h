@@ -17,6 +17,8 @@
 #include <linux/err.h>
 #include <linux/notifier.h>
 
+struct clk;
+struct regulator;
 struct dev_pm_opp;
 struct device;
 struct opp_table;
@@ -39,6 +41,39 @@ struct dev_pm_opp_supply {
 	unsigned long u_volt_min;
 	unsigned long u_volt_max;
 	unsigned long u_amp;
+};
+
+/**
+ * struct dev_pm_opp_info - OPP freq/voltage/current values
+ * @rate:	Target clk rate in hz
+ * @supplies:	Array of voltage/current values for all power supplies
+ *
+ * This structure stores the freq/voltage/current values for a single OPP.
+ */
+struct dev_pm_opp_info {
+	unsigned long rate;
+	struct dev_pm_opp_supply *supplies;
+};
+
+/**
+ * struct dev_pm_set_opp_data - Set OPP data
+ * @old_opp:	Old OPP info
+ * @new_opp:	New OPP info
+ * @regulators:	Array of regulator pointers
+ * @regulator_count: Number of regulators
+ * @clk:	Pointer to clk
+ * @dev:	Pointer to the struct device
+ *
+ * This structure contains all information required for setting an OPP.
+ */
+struct dev_pm_set_opp_data {
+	struct dev_pm_opp_info old_opp;
+	struct dev_pm_opp_info new_opp;
+
+	struct regulator **regulators;
+	unsigned int regulator_count;
+	struct clk *clk;
+	struct device *dev;
 };
 
 #if defined(CONFIG_PM_OPP)
