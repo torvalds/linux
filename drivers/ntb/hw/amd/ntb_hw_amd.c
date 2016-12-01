@@ -138,11 +138,11 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 	base_addr = pci_resource_start(ndev->ntb.pdev, bar);
 
 	if (bar != 1) {
-		xlat_reg = AMD_BAR23XLAT_OFFSET + ((bar - 2) << 3);
-		limit_reg = AMD_BAR23LMT_OFFSET + ((bar - 2) << 3);
+		xlat_reg = AMD_BAR23XLAT_OFFSET + ((bar - 2) << 2);
+		limit_reg = AMD_BAR23LMT_OFFSET + ((bar - 2) << 2);
 
 		/* Set the limit if supported */
-		limit = base_addr + size;
+		limit = size;
 
 		/* set and verify setting the translation address */
 		write64(addr, peer_mmio + xlat_reg);
@@ -164,14 +164,8 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 		xlat_reg = AMD_BAR1XLAT_OFFSET;
 		limit_reg = AMD_BAR1LMT_OFFSET;
 
-		/* split bar addr range must all be 32 bit */
-		if (addr & (~0ull << 32))
-			return -EINVAL;
-		if ((addr + size) & (~0ull << 32))
-			return -EINVAL;
-
 		/* Set the limit if supported */
-		limit = base_addr + size;
+		limit = size;
 
 		/* set and verify setting the translation address */
 		write64(addr, peer_mmio + xlat_reg);
