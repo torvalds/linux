@@ -51,12 +51,6 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 				   SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
 				   SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
 
-#define SPAR_VBUS_CHANNEL_OK_SERVER(actual_bytes)    \
-	(spar_check_channel_server(spar_vbus_channel_protocol_uuid,	\
-				   "vbus",				\
-				   sizeof(struct spar_vbus_channel_protocol),\
-				   actual_bytes))
-
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 
 /*
@@ -132,11 +126,6 @@ struct spar_vbus_channel_protocol {
 	struct ultra_vbus_deviceinfo dev_info[0];
 	/* describes client device and driver for each device on the bus */
 };
-
-#define VBUS_CH_SIZE_EXACT(MAXDEVICES) \
-	(sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL) + ((MAXDEVICES) * \
-						sizeof(ULTRA_VBUS_DEVICEINFO)))
-#define VBUS_CH_SIZE(MAXDEVICES) COVER(VBUS_CH_SIZE_EXACT(MAXDEVICES), 4096)
 
 #pragma pack(pop)
 
