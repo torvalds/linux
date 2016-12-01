@@ -84,6 +84,7 @@ bool tsc_store_and_check_tsc_adjust(void)
 {
 	struct tsc_adjust *ref, *cur = this_cpu_ptr(&tsc_adjust);
 	unsigned int refcpu, cpu = smp_processor_id();
+	struct cpumask *mask;
 	s64 bootval;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC_ADJUST))
@@ -98,9 +99,11 @@ bool tsc_store_and_check_tsc_adjust(void)
 	 * Check whether this CPU is the first in a package to come up. In
 	 * this case do not check the boot value against another package
 	 * because the package might have been physically hotplugged, where
-	 * TSC_ADJUST is expected to be different.
+	 * TSC_ADJUST is expected to be different. When called on the boot
+	 * CPU topology_core_cpumask() might not be available yet.
 	 */
-	refcpu = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+	mask = topology_core_cpumask(cpu);
+	refcpu = mask ? cpumask_any_but(mask, cpu) : nr_cpu_ids;
 
 	if (refcpu >= nr_cpu_ids) {
 		/*
