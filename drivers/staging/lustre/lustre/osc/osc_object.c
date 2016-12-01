@@ -71,13 +71,8 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 {
 	struct osc_object *osc = lu2osc(obj);
 	const struct cl_object_conf *cconf = lu2cl_conf(conf);
-	int i;
 
 	osc->oo_oinfo = cconf->u.coc_oinfo;
-	spin_lock_init(&osc->oo_seatbelt);
-	for (i = 0; i < CRT_NR; ++i)
-		INIT_LIST_HEAD(&osc->oo_inflight[i]);
-
 	INIT_LIST_HEAD(&osc->oo_ready_item);
 	INIT_LIST_HEAD(&osc->oo_hp_ready_item);
 	INIT_LIST_HEAD(&osc->oo_write_item);
@@ -103,10 +98,6 @@ static int osc_object_init(const struct lu_env *env, struct lu_object *obj,
 static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 {
 	struct osc_object *osc = lu2osc(obj);
-	int i;
-
-	for (i = 0; i < CRT_NR; ++i)
-		LASSERT(list_empty(&osc->oo_inflight[i]));
 
 	LASSERT(list_empty(&osc->oo_ready_item));
 	LASSERT(list_empty(&osc->oo_hp_ready_item));

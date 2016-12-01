@@ -352,7 +352,7 @@ static int osc_io_rw_iter_init(const struct lu_env *env,
 		npages = max_pages;
 
 	c = atomic_long_read(cli->cl_lru_left);
-	if (c < npages && osc_lru_reclaim(cli) > 0)
+	if (c < npages && osc_lru_reclaim(cli, npages) > 0)
 		c = atomic_long_read(cli->cl_lru_left);
 	while (c >= npages) {
 		if (c == atomic_long_cmpxchg(cli->cl_lru_left, c, c - npages)) {
@@ -360,6 +360,17 @@ static int osc_io_rw_iter_init(const struct lu_env *env,
 			break;
 		}
 		c = atomic_long_read(cli->cl_lru_left);
+	}
+	if (atomic_long_read(cli->cl_lru_left) < max_pages) {
+		/*
+		 * If there aren't enough pages in the per-OSC LRU then
+		 * wake up the LRU thread to try and clear out space, so
+		 * we don't block if pages are being dirtied quickly.
+		 */
+		CDEBUG(D_CACHE, "%s: queue LRU, left: %lu/%ld.\n",
+		       cli_name(cli), atomic_long_read(cli->cl_lru_left),
+		       max_pages);
+		(void)ptlrpcd_queue_work(cli->cl_lru_work);
 	}
 
 	return 0;

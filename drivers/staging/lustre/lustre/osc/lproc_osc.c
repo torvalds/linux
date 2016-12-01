@@ -183,10 +183,12 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "used_mb: %ld\n"
-		   "busy_cnt: %ld\n",
+		   "busy_cnt: %ld\n"
+		   "reclaim: %llu\n",
 		   (atomic_long_read(&cli->cl_lru_in_list) +
 		    atomic_long_read(&cli->cl_lru_busy)) >> shift,
-		   atomic_long_read(&cli->cl_lru_busy));
+		   atomic_long_read(&cli->cl_lru_busy),
+		   cli->cl_lru_reclaim);
 
 	return 0;
 }

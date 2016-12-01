@@ -267,6 +267,14 @@ struct client_obd {
 	 * allowed to have multiple threads shrinking LRU cache.
 	 */
 	atomic_t		 cl_lru_shrinkers;
+	/** The time when this LRU cache was last used. */
+	time64_t		 cl_lru_last_used;
+	/** stats: how many reclaims have happened for this client_obd.
+	 * reclaim and shrink - shrink is async, voluntarily rebalancing;
+	 * reclaim is sync, initiated by IO thread when the LRU slots are
+	 * in shortage.
+	 */
+	u64			 cl_lru_reclaim;
 	/** List of LRU pages for this client_obd */
 	struct list_head	 cl_lru_list;
 	/** Lock for LRU page list */
