@@ -3596,6 +3596,10 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		  fb->modifier == I915_FORMAT_MOD_Yf_TILED;
 	x_tiled = fb->modifier == I915_FORMAT_MOD_X_TILED;
 
+	/* Display WA #1141: kbl. */
+	if (IS_KABYLAKE(dev_priv) && dev_priv->ipc_enabled)
+		latency += 4;
+
 	if (apply_memory_bw_wa && x_tiled)
 		latency += 15;
 
