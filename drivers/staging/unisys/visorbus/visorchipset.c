@@ -1605,7 +1605,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			      local_crash_msg_offset,
 			      &local_crash_bus_msg,
 			      sizeof(struct controlvm_message)) < 0) {
-		POSTCODE_LINUX(CRASH_DEV_RD_BUS_FAIULRE_PC, 0, 0,
+		POSTCODE_LINUX(CRASH_DEV_RD_BUS_FAILURE_PC, 0, 0,
 			       POSTCODE_SEVERITY_ERR);
 		return;
 	}
@@ -1616,7 +1616,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 			      sizeof(struct controlvm_message),
 			      &local_crash_dev_msg,
 			      sizeof(struct controlvm_message)) < 0) {
-		POSTCODE_LINUX(CRASH_DEV_RD_DEV_FAIULRE_PC, 0, 0,
+		POSTCODE_LINUX(CRASH_DEV_RD_DEV_FAILURE_PC, 0, 0,
 			       POSTCODE_SEVERITY_ERR);
 		return;
 	}
