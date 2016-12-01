@@ -930,22 +930,24 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	return tp;
 }
 
-static void leaf_pull_suffix(struct key_vector *tp, struct key_vector *l)
+static void node_pull_suffix(struct key_vector *tn, unsigned char slen)
 {
-	while ((tp->slen > tp->pos) && (tp->slen > l->slen)) {
-		if (update_suffix(tp) > l->slen)
+	unsigned char node_slen = tn->slen;
+
+	while ((node_slen > tn->pos) && (node_slen > slen)) {
+		slen = update_suffix(tn);
+		if (node_slen == slen)
 			break;
-		tp = node_parent(tp);
+
+		tn = node_parent(tn);
+		node_slen = tn->slen;
 	}
 }
 
-static void leaf_push_suffix(struct key_vector *tn, struct key_vector *l)
+static void node_push_suffix(struct key_vector *tn, unsigned char slen)
 {
-	/* if this is a new leaf then tn will be NULL and we can sort
-	 * out parent suffix lengths as a part of trie_rebalance
-	 */
-	while (tn->slen < l->slen) {
-		tn->slen = l->slen;
+	while (tn->slen < slen) {
+		tn->slen = slen;
 		tn = node_parent(tn);
 	}
 }
@@ -1107,7 +1109,7 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 	/* if we added to the tail node then we need to update slen */
 	if (l->slen < new->fa_slen) {
 		l->slen = new->fa_slen;
-		leaf_push_suffix(tp, l);
+		node_push_suffix(tp, new->fa_slen);
 	}
 
 	return 0;
@@ -1511,7 +1513,7 @@ static void fib_remove_alias(struct trie *t, struct key_vector *tp,
 
 	/* update the trie with the latest suffix length */
 	l->slen = fa->fa_slen;
-	leaf_pull_suffix(tp, l);
+	node_pull_suffix(tp, fa->fa_slen);
 }
 
 /* Caller must hold RTNL. */
