@@ -54,7 +54,6 @@
 
 #define dm_min(x, y) min(x, y)
 #define dm_max(x, y) max(x, y)
-
 #endif
 
 
