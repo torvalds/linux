@@ -256,6 +256,7 @@
 &display_subsystem {
 	status = "okay";
 
+	ports = <&vopb_out>, <&vopl_out>;
 	memory-region = <&drm_logo>;
 	route {
 		route_hdmi: route-hdmi {
