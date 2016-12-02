@@ -1424,8 +1424,13 @@ static inline void mwifiex_disable_wake(struct mwifiex_adapter *adapter)
 {
 	if (adapter->irq_wakeup >= 0) {
 		disable_irq_wake(adapter->irq_wakeup);
-		if (!adapter->wake_by_wifi)
-			disable_irq(adapter->irq_wakeup);
+		disable_irq(adapter->irq_wakeup);
+		if (adapter->wake_by_wifi)
+			/* Undo our disable, since interrupt handler already
+			 * did this.
+			 */
+			enable_irq(adapter->irq_wakeup);
+
 	}
 }
 

@@ -186,9 +186,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
-	mmc_pm_flag_t pm_flag = 0;
 
-	pm_flag = sdio_get_host_pm_caps(func);
 	card = sdio_get_drvdata(func);
 	if (!card || !card->adapter) {
 		dev_err(dev, "resume: invalid card or adapter\n");
@@ -298,6 +296,7 @@ static int mwifiex_sdio_suspend(struct device *dev)
 		mwifiex_dbg(adapter, ERROR,
 			    "cmd: failed to suspend\n");
 		adapter->hs_enabling = false;
+		mwifiex_disable_wake(adapter);
 		return -EFAULT;
 	}
 
@@ -1136,7 +1135,6 @@ static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
 {
 	u32 total_pkt_len, pkt_len;
 	struct sk_buff *skb_deaggr;
-	u32 pkt_type;
 	u16 blk_size;
 	u8 blk_num;
 	u8 *data;
@@ -1157,8 +1155,6 @@ static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
 			break;
 		}
 		pkt_len = le16_to_cpu(*(__le16 *)(data + SDIO_HEADER_OFFSET));
-		pkt_type = le16_to_cpu(*(__le16 *)(data + SDIO_HEADER_OFFSET +
-					 2));
 		if ((pkt_len + SDIO_HEADER_OFFSET) > blk_size) {
 			mwifiex_dbg(adapter, ERROR,
 				    "%s: error in pkt_len,\t"

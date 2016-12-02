@@ -518,7 +518,6 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
 	int ret;
 	char fmt[64];
-	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
 	bool init_failed = false;
@@ -575,8 +574,6 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 		if (adapter->hw_status != MWIFIEX_HW_STATUS_READY)
 			goto err_init_fw;
 	}
-
-	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
 
 	if (!adapter->wiphy) {
 		if (mwifiex_register_cfg80211(adapter)) {

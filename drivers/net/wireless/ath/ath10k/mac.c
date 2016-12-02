@@ -1167,7 +1167,9 @@ static bool ath10k_mac_monitor_vdev_is_needed(struct ath10k *ar)
 		return false;
 
 	return ar->monitor ||
-	       ar->filter_flags & FIF_OTHER_BSS ||
+	       (!test_bit(ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST,
+			  ar->running_fw->fw_file.fw_features) &&
+		(ar->filter_flags & FIF_OTHER_BSS)) ||
 	       test_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
 }
 
@@ -4449,7 +4451,6 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ar->state = ATH10K_STATE_ON;
 		break;
 	case ATH10K_STATE_RESTARTING:
-		ath10k_halt(ar);
 		ar->state = ATH10K_STATE_RESTARTED;
 		break;
 	case ATH10K_STATE_ON:
@@ -6976,40 +6977,28 @@ static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 	ieee80211_queue_work(hw, &arsta->update_wk);
 }
 
-static u64 ath10k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	/*
-	 * FIXME: Return 0 for time being. Need to figure out whether FW
-	 * has the API to fetch 64-bit local TSF
-	 */
-
-	return 0;
-}
-
-static void ath10k_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   u64 tsf)
+static void ath10k_offset_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, s64 tsf_offset)
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
-	u32 tsf_offset, vdev_param = ar->wmi.vdev_param->set_tsf;
+	u32 offset, vdev_param;
 	int ret;
 
-	/* Workaround:
-	 *
-	 * Given tsf argument is entire TSF value, but firmware accepts
-	 * only TSF offset to current TSF.
-	 *
-	 * get_tsf function is used to get offset value, however since
-	 * ath10k_get_tsf is not implemented properly, it will return 0 always.
-	 * Luckily all the caller functions to set_tsf, as of now, also rely on
-	 * get_tsf function to get entire tsf value such get_tsf() + tsf_delta,
-	 * final tsf offset value to firmware will be arithmetically correct.
-	 */
-	tsf_offset = tsf - ath10k_get_tsf(hw, vif);
+	if (tsf_offset < 0) {
+		vdev_param = ar->wmi.vdev_param->dec_tsf;
+		offset = -tsf_offset;
+	} else {
+		vdev_param = ar->wmi.vdev_param->inc_tsf;
+		offset = tsf_offset;
+	}
+
 	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
-					vdev_param, tsf_offset);
+					vdev_param, offset);
+
 	if (ret && ret != -EOPNOTSUPP)
-		ath10k_warn(ar, "failed to set tsf offset: %d\n", ret);
+		ath10k_warn(ar, "failed to set tsf offset %d cmd %d: %d\n",
+			    offset, vdev_param, ret);
 }
 
 static int ath10k_ampdu_action(struct ieee80211_hw *hw,
@@ -7474,8 +7463,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.get_survey			= ath10k_get_survey,
 	.set_bitrate_mask		= ath10k_mac_op_set_bitrate_mask,
 	.sta_rc_update			= ath10k_sta_rc_update,
-	.get_tsf			= ath10k_get_tsf,
-	.set_tsf			= ath10k_set_tsf,
+	.offset_tsf			= ath10k_offset_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
 	.get_et_sset_count		= ath10k_debug_get_et_sset_count,
 	.get_et_stats			= ath10k_debug_get_et_stats,
@@ -8006,6 +7994,7 @@ int ath10k_mac_register(struct ath10k *ar)
 	ieee80211_hw_set(ar->hw, CHANCTX_STA_CSA);
 	ieee80211_hw_set(ar->hw, QUEUE_CONTROL);
 	ieee80211_hw_set(ar->hw, SUPPORTS_TX_FRAG);
+	ieee80211_hw_set(ar->hw, REPORTS_LOW_ACK);
 
 	if (!test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags))
 		ieee80211_hw_set(ar->hw, SW_CRYPTO_CONTROL);
