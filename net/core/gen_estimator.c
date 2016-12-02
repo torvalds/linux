@@ -78,8 +78,7 @@
 
 #define EST_MAX_INTERVAL	5
 
-struct gen_estimator
-{
+struct gen_estimator {
 	struct list_head	list;
 	struct gnet_stats_basic_packed	*bstats;
 	struct gnet_stats_rate_est64	*rate_est;
@@ -96,8 +95,8 @@ struct gen_estimator
 	struct rcu_head		head;
 };
 
-struct gen_estimator_head
-{
+struct gen_estimator_head {
+	unsigned long		next_jiffies;
 	struct timer_list	timer;
 	struct list_head	list;
 };
@@ -146,8 +145,15 @@ skip:
 			spin_unlock(e->stats_lock);
 	}
 
-	if (!list_empty(&elist[idx].list))
-		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
+	if (!list_empty(&elist[idx].list)) {
+		elist[idx].next_jiffies += ((HZ/4) << idx);
+
+		if (unlikely(time_after_eq(jiffies, elist[idx].next_jiffies))) {
+			/* Ouch... timer was delayed. */
+			elist[idx].next_jiffies = jiffies + 1;
+		}
+		mod_timer(&elist[idx].timer, elist[idx].next_jiffies);
+	}
 	rcu_read_unlock();
 }
 
@@ -251,9 +257,10 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 		setup_timer(&elist[idx].timer, est_timer, idx);
 	}
 
-	if (list_empty(&elist[idx].list))
-		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
-
+	if (list_empty(&elist[idx].list)) {
+		elist[idx].next_jiffies = jiffies + ((HZ/4) << idx);
+		mod_timer(&elist[idx].timer, elist[idx].next_jiffies);
+	}
 	list_add_rcu(&est->list, &elist[idx].list);
 	gen_add_node(est);
 	spin_unlock_bh(&est_tree_lock);
