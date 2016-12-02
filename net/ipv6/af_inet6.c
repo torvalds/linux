@@ -258,6 +258,14 @@ lookup_protocol:
 			goto out;
 		}
 	}
+
+	if (!kern) {
+		err = BPF_CGROUP_RUN_PROG_INET_SOCK(sk);
+		if (err) {
+			sk_common_release(sk);
+			goto out;
+		}
+	}
 out:
 	return err;
 out_rcu_unlock:
