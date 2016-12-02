@@ -340,11 +340,13 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 	dma_src = dma_map_single(dev, src, IOAT_TEST_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_src)) {
 		dev_err(dev, "mapping src buffer failed\n");
+		err = -ENOMEM;
 		goto free_resources;
 	}
 	dma_dest = dma_map_single(dev, dest, IOAT_TEST_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_dest)) {
 		dev_err(dev, "mapping dest buffer failed\n");
+		err = -ENOMEM;
 		goto unmap_src;
 	}
 	flags = DMA_PREP_INTERRUPT;
