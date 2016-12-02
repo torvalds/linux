@@ -2062,11 +2062,47 @@ static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode,
 	spin_lock_irqsave(&host->lock, flags);
 }
 
+static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode,
+				   unsigned long flags)
+{
+	int i;
+
+	/*
+	 * Issue opcode repeatedly till Execute Tuning is set to 0 or the number
+	 * of loops reaches 40 times.
+	 */
+	for (i = 0; i < MAX_TUNING_LOOP; i++) {
+		u16 ctrl;
+
+		sdhci_send_tuning(host, opcode, flags);
+
+		if (!host->tuning_done) {
+			pr_info("%s: Tuning timeout, falling back to fixed sampling clock\n",
+				mmc_hostname(host->mmc));
+			sdhci_abort_tuning(host, opcode, flags);
+			return;
+		}
+
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+		if (!(ctrl & SDHCI_CTRL_EXEC_TUNING)) {
+			if (ctrl & SDHCI_CTRL_TUNED_CLK)
+				return; /* Success! */
+			break;
+		}
+
+		/* eMMC spec does not require a delay between tuning cycles */
+		if (opcode == MMC_SEND_TUNING_BLOCK)
+			mdelay(1);
+	}
+
+	pr_info("%s: Tuning failed, falling back to fixed sampling clock\n",
+		mmc_hostname(host->mmc));
+	sdhci_reset_tuning(host);
+}
+
 static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
-	u16 ctrl;
-	int tuning_loop_counter = MAX_TUNING_LOOP;
 	int err = 0;
 	unsigned long flags;
 	unsigned int tuning_count = 0;
@@ -2117,50 +2153,19 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	if (host->ops->platform_execute_tuning) {
 		spin_unlock_irqrestore(&host->lock, flags);
-		err = host->ops->platform_execute_tuning(host, opcode);
-		return err;
+		return host->ops->platform_execute_tuning(host, opcode);
 	}
+
+	host->mmc->retune_period = tuning_count;
 
 	sdhci_start_tuning(host);
 
-	/*
-	 * Issue CMD19 repeatedly till Execute Tuning is set to 0 or the number
-	 * of loops reaches 40 times.
-	 */
-	do {
-		if (tuning_loop_counter-- == 0)
-			break;
-
-		sdhci_send_tuning(host, opcode, flags);
-
-		if (!host->tuning_done) {
-			pr_info(DRIVER_NAME ": Timeout waiting for Buffer Read Ready interrupt during tuning procedure, falling back to fixed sampling clock\n");
-			sdhci_abort_tuning(host, opcode, flags);
-			goto out;
-		}
-
-		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
-
-		/* eMMC spec does not require a delay between tuning cycles */
-		if (opcode == MMC_SEND_TUNING_BLOCK)
-			mdelay(1);
-	} while (ctrl & SDHCI_CTRL_EXEC_TUNING);
-
-	/*
-	 * The Host Driver has exhausted the maximum number of loops allowed,
-	 * so use fixed sampling frequency.
-	 */
-	if (tuning_loop_counter < 0)
-		sdhci_reset_tuning(host);
-
-	if (tuning_loop_counter < 0 || !(ctrl & SDHCI_CTRL_TUNED_CLK))
-		pr_info(DRIVER_NAME ": Tuning procedure failed, falling back to fixed sampling clock\n");
-out:
-	host->mmc->retune_period = tuning_count;
+	__sdhci_execute_tuning(host, opcode, flags);
 
 	sdhci_end_tuning(host);
 out_unlock:
 	spin_unlock_irqrestore(&host->lock, flags);
+
 	return err;
 }
 
