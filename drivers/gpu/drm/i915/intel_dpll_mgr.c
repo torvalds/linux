@@ -1373,7 +1373,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 
-	bxt_port_to_phy_channel(port, &phy, &ch);
+	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
 	/* Non-SSC reference */
 	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
@@ -1491,7 +1491,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 
-	bxt_port_to_phy_channel(port, &phy, &ch);
+	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
 	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;

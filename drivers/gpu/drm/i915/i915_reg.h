@@ -62,6 +62,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _PORT3(port, a, b, c) ((port) == PORT_A ? (a) : \
 			       (port) == PORT_B ? (b) : (c))
 #define _MMIO_PORT3(pipe, a, b, c) _MMIO(_PORT3(pipe, a, b, c))
+#define _PHY3(phy, a, b, c) ((phy) == DPIO_PHY0 ? (a) : \
+			     (phy) == DPIO_PHY1 ? (b) : (c))
+#define _MMIO_PHY3(phy, a, b, c) _MMIO(_PHY3(phy, a, b, c))
 
 #define _MASKED_FIELD(mask, value) ({					   \
 	if (__builtin_constant_p(mask))					   \
@@ -1062,6 +1065,7 @@ enum skl_disp_power_wells {
 
 	BXT_DPIO_CMN_A,
 	BXT_DPIO_CMN_BC,
+	GLK_DPIO_CMN_C,
 };
 
 #define SKL_POWER_WELL_STATE(pw) (1 << ((pw) * 2))
@@ -1530,8 +1534,10 @@ enum skl_disp_power_wells {
 /* BXT PHY registers */
 #define _BXT_PHY0_BASE			0x6C000
 #define _BXT_PHY1_BASE			0x162000
-#define BXT_PHY_BASE(phy)		_PIPE((phy), _BXT_PHY0_BASE, \
-						     _BXT_PHY1_BASE)
+#define _BXT_PHY2_BASE			0x163000
+#define BXT_PHY_BASE(phy)		_PHY3((phy), _BXT_PHY0_BASE, \
+						     _BXT_PHY1_BASE, \
+						     _BXT_PHY2_BASE)
 
 #define _BXT_PHY(phy, reg)						\
 	_MMIO(BXT_PHY_BASE(phy) - _BXT_PHY0_BASE + (reg))
@@ -1543,7 +1549,6 @@ enum skl_disp_power_wells {
 	_MMIO(_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1))
 
 #define BXT_P_CR_GT_DISP_PWRON		_MMIO(0x138090)
-#define   GT_DISPLAY_POWER_ON(phy)	(1 << (phy))
 
 #define _BXT_PHY_CTL_DDI_A		0x64C00
 #define _BXT_PHY_CTL_DDI_B		0x64C10
@@ -1556,9 +1561,11 @@ enum skl_disp_power_wells {
 
 #define _PHY_CTL_FAMILY_EDP		0x64C80
 #define _PHY_CTL_FAMILY_DDI		0x64C90
+#define _PHY_CTL_FAMILY_DDI_C		0x64CA0
 #define   COMMON_RESET_DIS		(1 << 31)
-#define BXT_PHY_CTL_FAMILY(phy)		_MMIO_PIPE((phy), _PHY_CTL_FAMILY_DDI, \
-							  _PHY_CTL_FAMILY_EDP)
+#define BXT_PHY_CTL_FAMILY(phy)		_MMIO_PHY3((phy), _PHY_CTL_FAMILY_DDI, \
+							  _PHY_CTL_FAMILY_EDP, \
+							  _PHY_CTL_FAMILY_DDI_C)
 
 /* BXT PHY PLL registers */
 #define _PORT_PLL_A			0x46074

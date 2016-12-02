@@ -477,6 +477,18 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 #define GLK_DISPLAY_DDI_C_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
 	BIT(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_A_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_B_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_B) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DPIO_CMN_C_POWER_DOMAINS (			\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_INIT))
 #define GLK_DISPLAY_AUX_A_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_AUX_A) |		\
 	BIT(POWER_DOMAIN_INIT))
@@ -926,6 +938,12 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_BC);
 	if (power_well->count > 0)
 		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+
+	if (IS_GEMINILAKE(dev_priv)) {
+		power_well = lookup_power_well(dev_priv, GLK_DPIO_CMN_C);
+		if (power_well->count > 0)
+			bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+	}
 }
 
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -2217,6 +2235,27 @@ static struct i915_power_well glk_power_wells[] = {
 		.domains = GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &skl_power_well_ops,
 		.id = SKL_DISP_PW_2,
+	},
+	{
+		.name = "dpio-common-a",
+		.domains = GLK_DPIO_CMN_A_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = BXT_DPIO_CMN_A,
+		.data = DPIO_PHY1,
+	},
+	{
+		.name = "dpio-common-b",
+		.domains = GLK_DPIO_CMN_B_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = BXT_DPIO_CMN_BC,
+		.data = DPIO_PHY0,
+	},
+	{
+		.name = "dpio-common-c",
+		.domains = GLK_DPIO_CMN_C_POWER_DOMAINS,
+		.ops = &bxt_dpio_cmn_power_well_ops,
+		.id = GLK_DPIO_CMN_C,
+		.data = DPIO_PHY2,
 	},
 	{
 		.name = "AUX A",
