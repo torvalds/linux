@@ -142,19 +142,39 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 }
 
+static void mlx5e_detach_encap(struct mlx5e_priv *priv,
+			       struct mlx5e_tc_flow *flow) {
+	struct list_head *next = flow->encap.next;
+
+	list_del(&flow->encap);
+	if (list_empty(next)) {
+		struct mlx5_encap_entry *e;
+
+		e = list_entry(next, struct mlx5_encap_entry, flows);
+		if (e->n) {
+			mlx5_encap_dealloc(priv->mdev, e->encap_id);
+			neigh_release(e->n);
+		}
+		hlist_del_rcu(&e->encap_hlist);
+		kfree(e);
+	}
+}
+
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
-			      struct mlx5_flow_handle *rule,
-			      struct mlx5_esw_flow_attr *attr)
+			      struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_fc *counter = NULL;
 
-	counter = mlx5_flow_rule_counter(rule);
+	counter = mlx5_flow_rule_counter(flow->rule);
 
-	if (esw && esw->mode == SRIOV_OFFLOADS)
-		mlx5_eswitch_del_vlan_action(esw, attr);
+	mlx5_del_flow_rules(flow->rule);
 
-	mlx5_del_flow_rules(rule);
+	if (esw && esw->mode == SRIOV_OFFLOADS) {
+		mlx5_eswitch_del_vlan_action(esw, flow->attr);
+		if (flow->attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
+			mlx5e_detach_encap(priv, flow);
+	}
 
 	mlx5_fc_destroy(priv->mdev, counter);
 
@@ -915,25 +935,17 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	u32 flow_tag, action;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_flow_spec *spec;
-	struct mlx5_flow_handle *old = NULL;
-	struct mlx5_esw_flow_attr *old_attr = NULL;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 
 	if (esw && esw->mode == SRIOV_OFFLOADS)
 		fdb_flow = true;
 
-	flow = rhashtable_lookup_fast(&tc->ht, &f->cookie,
-				      tc->ht_params);
-	if (flow) {
-		old = flow->rule;
-		old_attr = flow->attr;
-	} else {
-		if (fdb_flow)
-			flow = kzalloc(sizeof(*flow) + sizeof(struct mlx5_esw_flow_attr),
-				       GFP_KERNEL);
-		else
-			flow = kzalloc(sizeof(*flow), GFP_KERNEL);
-	}
+	if (fdb_flow)
+		flow = kzalloc(sizeof(*flow) +
+			       sizeof(struct mlx5_esw_flow_attr),
+			       GFP_KERNEL);
+	else
+		flow = kzalloc(sizeof(*flow), GFP_KERNEL);
 
 	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec || !flow) {
@@ -970,38 +982,16 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	if (err)
 		goto err_del_rule;
 
-	if (old)
-		mlx5e_tc_del_flow(priv, old, old_attr);
-
 	goto out;
 
 err_del_rule:
 	mlx5_del_flow_rules(flow->rule);
 
 err_free:
-	if (!old)
-		kfree(flow);
+	kfree(flow);
 out:
 	kvfree(spec);
 	return err;
-}
-
-static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow) {
-	struct list_head *next = flow->encap.next;
-
-	list_del(&flow->encap);
-	if (list_empty(next)) {
-		struct mlx5_encap_entry *e;
-
-		e = list_entry(next, struct mlx5_encap_entry, flows);
-		if (e->n) {
-			mlx5_encap_dealloc(priv->mdev, e->encap_id);
-			neigh_release(e->n);
-		}
-		hlist_del_rcu(&e->encap_hlist);
-		kfree(e);
-	}
 }
 
 int mlx5e_delete_flower(struct mlx5e_priv *priv,
@@ -1017,10 +1007,8 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 
 	rhashtable_remove_fast(&tc->ht, &flow->node, tc->ht_params);
 
-	mlx5e_tc_del_flow(priv, flow->rule, flow->attr);
+	mlx5e_tc_del_flow(priv, flow);
 
-	if (flow->attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
-		mlx5e_detach_encap(priv, flow);
 
 	kfree(flow);
 
@@ -1077,7 +1065,7 @@ static void _mlx5e_tc_del_flow(void *ptr, void *arg)
 	struct mlx5e_tc_flow *flow = ptr;
 	struct mlx5e_priv *priv = arg;
 
-	mlx5e_tc_del_flow(priv, flow->rule, flow->attr);
+	mlx5e_tc_del_flow(priv, flow);
 	kfree(flow);
 }
 

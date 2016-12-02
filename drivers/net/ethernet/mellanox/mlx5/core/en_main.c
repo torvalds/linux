@@ -471,6 +471,52 @@ static void mlx5e_rq_free_mpwqe_info(struct mlx5e_rq *rq)
 	kfree(rq->mpwqe.info);
 }
 
+static int mlx5e_create_umr_mkey(struct mlx5e_priv *priv,
+				 u64 npages, u8 page_shift,
+				 struct mlx5_core_mkey *umr_mkey)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
+	void *mkc;
+	u32 *in;
+	int err;
+
+	if (!MLX5E_VALID_NUM_MTTS(npages))
+		return -EINVAL;
+
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+
+	MLX5_SET(mkc, mkc, free, 1);
+	MLX5_SET(mkc, mkc, umr_en, 1);
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, lr, 1);
+	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_MTT);
+
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.pdn);
+	MLX5_SET64(mkc, mkc, len, npages << page_shift);
+	MLX5_SET(mkc, mkc, translations_octword_size,
+		 MLX5_MTT_OCTW(npages));
+	MLX5_SET(mkc, mkc, log_page_size, page_shift);
+
+	err = mlx5_core_create_mkey(mdev, umr_mkey, in, inlen);
+
+	kvfree(in);
+	return err;
+}
+
+static int mlx5e_create_rq_umr_mkey(struct mlx5e_rq *rq)
+{
+	struct mlx5e_priv *priv = rq->priv;
+	u64 num_mtts = MLX5E_REQUIRED_MTTS(BIT(priv->params.log_rq_size));
+
+	return mlx5e_create_umr_mkey(priv, num_mtts, PAGE_SHIFT, &rq->umr_mkey);
+}
+
 static int mlx5e_create_rq(struct mlx5e_channel *c,
 			   struct mlx5e_rq_param *param,
 			   struct mlx5e_rq *rq)
@@ -527,18 +573,20 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
-		rq->mpwqe.mtt_offset = c->ix *
-			MLX5E_REQUIRED_MTTS(1, BIT(priv->params.log_rq_size));
-
 		rq->mpwqe_stride_sz = BIT(priv->params.mpwqe_log_stride_sz);
 		rq->mpwqe_num_strides = BIT(priv->params.mpwqe_log_num_strides);
 
 		rq->buff.wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
 		byte_count = rq->buff.wqe_sz;
-		rq->mkey_be = cpu_to_be32(c->priv->umr_mkey.key);
-		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
+
+		err = mlx5e_create_rq_umr_mkey(rq);
 		if (err)
 			goto err_rq_wq_destroy;
+		rq->mkey_be = cpu_to_be32(rq->umr_mkey.key);
+
+		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
+		if (err)
+			goto err_destroy_umr_mkey;
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
 		rq->dma_info = kzalloc_node(wq_sz * sizeof(*rq->dma_info),
@@ -589,6 +637,9 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 
 	return 0;
 
+err_destroy_umr_mkey:
+	mlx5_core_destroy_mkey(mdev, &rq->umr_mkey);
+
 err_rq_wq_destroy:
 	if (rq->xdp_prog)
 		bpf_prog_put(rq->xdp_prog);
@@ -607,6 +658,7 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		mlx5e_rq_free_mpwqe_info(rq);
+		mlx5_core_destroy_mkey(rq->priv->mdev, &rq->umr_mkey);
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
 		kfree(rq->dma_info);
@@ -1201,7 +1253,7 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 
 static void mlx5e_destroy_cq(struct mlx5e_cq *cq)
 {
-	mlx5_wq_destroy(&cq->wq_ctrl);
+	mlx5_cqwq_destroy(&cq->wq_ctrl);
 }
 
 static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
@@ -1218,7 +1270,7 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
-		sizeof(u64) * cq->wq_ctrl.buf.npages;
+		sizeof(u64) * cq->wq_ctrl.frag_buf.npages;
 	in = mlx5_vzalloc(inlen);
 	if (!in)
 		return -ENOMEM;
@@ -1227,15 +1279,15 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 
 	memcpy(cqc, param->cqc, sizeof(param->cqc));
 
-	mlx5_fill_page_array(&cq->wq_ctrl.buf,
-			     (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas));
+	mlx5_fill_page_frag_array(&cq->wq_ctrl.frag_buf,
+				  (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas));
 
 	mlx5_vector2eqn(mdev, param->eq_ix, &eqn, &irqn_not_used);
 
 	MLX5_SET(cqc,   cqc, cq_period_mode, param->cq_period_mode);
 	MLX5_SET(cqc,   cqc, c_eqn,         eqn);
 	MLX5_SET(cqc,   cqc, uar_page,      mcq->uar->index);
-	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
+	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.frag_buf.page_shift -
 					    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr,      cq->wq_ctrl.db.dma);
 
@@ -3625,43 +3677,6 @@ static void mlx5e_destroy_q_counter(struct mlx5e_priv *priv)
 	mlx5_core_dealloc_q_counter(priv->mdev, priv->q_counter);
 }
 
-static int mlx5e_create_umr_mkey(struct mlx5e_priv *priv)
-{
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u64 npages = MLX5E_REQUIRED_MTTS(priv->profile->max_nch(mdev),
-					 BIT(MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW));
-	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
-	void *mkc;
-	u32 *in;
-	int err;
-
-	in = mlx5_vzalloc(inlen);
-	if (!in)
-		return -ENOMEM;
-
-	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
-
-	npages = min_t(u32, ALIGN(U16_MAX, 4) * 2, npages);
-
-	MLX5_SET(mkc, mkc, free, 1);
-	MLX5_SET(mkc, mkc, umr_en, 1);
-	MLX5_SET(mkc, mkc, lw, 1);
-	MLX5_SET(mkc, mkc, lr, 1);
-	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_MTT);
-
-	MLX5_SET(mkc, mkc, qpn, 0xffffff);
-	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.pdn);
-	MLX5_SET64(mkc, mkc, len, npages << PAGE_SHIFT);
-	MLX5_SET(mkc, mkc, translations_octword_size,
-		 MLX5_MTT_OCTW(npages));
-	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
-
-	err = mlx5_core_create_mkey(mdev, &priv->umr_mkey, in, inlen);
-
-	kvfree(in);
-	return err;
-}
-
 static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 			   struct net_device *netdev,
 			   const struct mlx5e_profile *profile,
@@ -3868,15 +3883,9 @@ int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 	profile = priv->profile;
 	clear_bit(MLX5E_STATE_DESTROYING, &priv->state);
 
-	err = mlx5e_create_umr_mkey(priv);
-	if (err) {
-		mlx5_core_err(mdev, "create umr mkey failed, %d\n", err);
-		goto out;
-	}
-
 	err = profile->init_tx(priv);
 	if (err)
-		goto err_destroy_umr_mkey;
+		goto out;
 
 	err = mlx5e_open_drop_rq(priv);
 	if (err) {
@@ -3915,9 +3924,6 @@ err_close_drop_rq:
 
 err_cleanup_tx:
 	profile->cleanup_tx(priv);
-
-err_destroy_umr_mkey:
-	mlx5_core_destroy_mkey(mdev, &priv->umr_mkey);
 
 out:
 	return err;
@@ -3967,7 +3973,6 @@ void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 	profile->cleanup_rx(priv);
 	mlx5e_close_drop_rq(priv);
 	profile->cleanup_tx(priv);
-	mlx5_core_destroy_mkey(priv->mdev, &priv->umr_mkey);
 	cancel_delayed_work_sync(&priv->update_stats_work);
 }
 

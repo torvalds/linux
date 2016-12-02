@@ -318,6 +318,13 @@ struct mlx5_buf {
 	u8			page_shift;
 };
 
+struct mlx5_frag_buf {
+	struct mlx5_buf_list	*frags;
+	int			npages;
+	int			size;
+	u8			page_shift;
+};
+
 struct mlx5_eq_tasklet {
 	struct list_head list;
 	struct list_head process_list;
@@ -822,6 +829,9 @@ int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 			struct mlx5_buf *buf, int node);
 int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, struct mlx5_buf *buf);
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf);
+int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
+			     struct mlx5_frag_buf *buf, int node);
+void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
 struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 						      gfp_t flags, int npages);
 void mlx5_free_cmd_mailbox_chain(struct mlx5_core_dev *dev,
@@ -866,6 +876,7 @@ void mlx5_unregister_debugfs(void);
 int mlx5_eq_init(struct mlx5_core_dev *dev);
 void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
+void mlx5_fill_page_frag_array(struct mlx5_frag_buf *frag_buf, __be64 *pas);
 void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING

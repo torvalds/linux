@@ -77,9 +77,9 @@
 						 MLX5_MPWRQ_WQE_PAGE_ORDER)
 
 #define MLX5_MTT_OCTW(npages) (ALIGN(npages, 8) / 2)
-#define MLX5E_REQUIRED_MTTS(rqs, wqes)\
-	(rqs * wqes * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8))
-#define MLX5E_VALID_NUM_MTTS(num_mtts) (MLX5_MTT_OCTW(num_mtts) <= U16_MAX)
+#define MLX5E_REQUIRED_MTTS(wqes)		\
+	(wqes * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8))
+#define MLX5E_VALID_NUM_MTTS(num_mtts) (MLX5_MTT_OCTW(num_mtts) - 1 <= U16_MAX)
 
 #define MLX5_UMR_ALIGN				(2048)
 #define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(128)
@@ -286,7 +286,7 @@ struct mlx5e_cq {
 	u16                        decmprs_wqe_counter;
 
 	/* control */
-	struct mlx5_wq_ctrl        wq_ctrl;
+	struct mlx5_frag_wq_ctrl   wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_rq;
@@ -347,7 +347,6 @@ struct mlx5e_rq {
 		struct {
 			struct mlx5e_mpw_info *info;
 			void                  *mtt_no_align;
-			u32                    mtt_offset;
 		} mpwqe;
 	};
 	struct {
@@ -382,6 +381,7 @@ struct mlx5e_rq {
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
 	struct mlx5e_priv     *priv;
+	struct mlx5_core_mkey  umr_mkey;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_umr_dma_info {
@@ -689,7 +689,6 @@ struct mlx5e_priv {
 
 	unsigned long              state;
 	struct mutex               state_lock; /* Protects Interface state */
-	struct mlx5_core_mkey      umr_mkey;
 	struct mlx5e_rq            drop_rq;
 
 	struct mlx5e_channel     **channel;
@@ -838,8 +837,7 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 
 static inline u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
 {
-	return rq->mpwqe.mtt_offset +
-		wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
+	return wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
 }
 
 static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
