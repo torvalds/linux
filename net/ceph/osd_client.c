@@ -1725,7 +1725,7 @@ static void submit_request(struct ceph_osd_request *req, bool wrlocked)
 	__submit_request(req, wrlocked);
 }
 
-static void __finish_request(struct ceph_osd_request *req)
+static void finish_request(struct ceph_osd_request *req)
 {
 	struct ceph_osd_client *osdc = req->r_osdc;
 	struct ceph_osd *osd = req->r_osd;
@@ -1747,12 +1747,6 @@ static void __finish_request(struct ceph_osd_request *req)
 	ceph_msg_revoke_incoming(req->r_reply);
 }
 
-static void finish_request(struct ceph_osd_request *req)
-{
-	__finish_request(req);
-	ceph_osdc_put_request(req);
-}
-
 static void __complete_request(struct ceph_osd_request *req)
 {
 	if (req->r_callback)
@@ -1770,7 +1764,7 @@ static void complete_request(struct ceph_osd_request *req, int err)
 	dout("%s req %p tid %llu err %d\n", __func__, req, req->r_tid, err);
 
 	req->r_result = err;
-	__finish_request(req);
+	finish_request(req);
 	__complete_request(req);
 	complete_all(&req->r_done_completion);
 	ceph_osdc_put_request(req);
@@ -1797,7 +1791,7 @@ static void cancel_request(struct ceph_osd_request *req)
 	dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
 
 	cancel_map_check(req);
-	__finish_request(req);
+	finish_request(req);
 	complete_all(&req->r_done_completion);
 	ceph_osdc_put_request(req);
 }
@@ -2917,7 +2911,7 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 	}
 
 	if (done_request(req, &m)) {
-		__finish_request(req);
+		finish_request(req);
 		if (req->r_linger) {
 			WARN_ON(req->r_unsafe_callback);
 			dout("req %p tid %llu cb (locked)\n", req, req->r_tid);
