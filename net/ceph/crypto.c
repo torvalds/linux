@@ -80,6 +80,14 @@ int ceph_crypto_key_unarmor(struct ceph_crypto_key *key, const char *inkey)
 	return 0;
 }
 
+void ceph_crypto_key_destroy(struct ceph_crypto_key *key)
+{
+	if (key) {
+		kfree(key->key);
+		key->key = NULL;
+	}
+}
+
 static struct crypto_skcipher *ceph_crypto_alloc_cipher(void)
 {
 	return crypto_alloc_skcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC);

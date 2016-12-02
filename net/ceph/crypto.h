@@ -14,19 +14,12 @@ struct ceph_crypto_key {
 	void *key;
 };
 
-static inline void ceph_crypto_key_destroy(struct ceph_crypto_key *key)
-{
-	if (key) {
-		kfree(key->key);
-		key->key = NULL;
-	}
-}
-
 int ceph_crypto_key_clone(struct ceph_crypto_key *dst,
 			  const struct ceph_crypto_key *src);
 int ceph_crypto_key_encode(struct ceph_crypto_key *key, void **p, void *end);
 int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end);
 int ceph_crypto_key_unarmor(struct ceph_crypto_key *key, const char *in);
+void ceph_crypto_key_destroy(struct ceph_crypto_key *key);
 
 /* crypto.c */
 int ceph_crypt(const struct ceph_crypto_key *key, bool encrypt,
