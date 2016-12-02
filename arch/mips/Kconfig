@@ -2828,8 +2828,8 @@ config KEXEC
 	  made.
 
 config CRASH_DUMP
-	  bool "Kernel crash dumps"
-	  help
+	bool "Kernel crash dumps"
+	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
 	  which are loaded in the main kernel with kexec-tools into
@@ -2839,11 +2839,11 @@ config CRASH_DUMP
 	  PHYSICAL_START.
 
 config PHYSICAL_START
-	  hex "Physical address where the kernel is loaded"
-	  default "0xffffffff84000000" if 64BIT
-	  default "0x84000000" if 32BIT
-	  depends on CRASH_DUMP
-	  help
+	hex "Physical address where the kernel is loaded"
+	default "0xffffffff84000000" if 64BIT
+	default "0x84000000" if 32BIT
+	depends on CRASH_DUMP
+	help
 	  This gives the CKSEG0 or KSEG0 address where the kernel is loaded.
 	  If you plan to use kernel for capturing the crash dump change
 	  this value to start of the reserved region (the "X" value as
