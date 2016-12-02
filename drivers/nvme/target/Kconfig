@@ -34,3 +34,14 @@ config NVME_TARGET_RDMA
 	  devices over RDMA.
 
 	  If unsure, say N.
+
+config NVME_TARGET_FC
+	tristate "NVMe over Fabrics FC target driver"
+	depends on NVME_TARGET
+	depends on HAS_DMA
+	help
+	  This enables the NVMe FC target support, which allows exporting NVMe
+	  devices over FC.
+
+	  If unsure, say N.
+

@@ -8666,6 +8666,7 @@ S:	Supported
 F:	include/linux/nvme-fc.h
 F:	include/linux/nvme-fc-driver.h
 F:	drivers/nvme/host/fc.c
+F:	drivers/nvme/target/fc.c
 
 NVMEM FRAMEWORK
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
