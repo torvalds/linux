@@ -52,6 +52,7 @@ static void xgene_cle_dbptr_to_hw(struct xgene_enet_pdata *pdata,
 {
 	buf[0] = SET_VAL(CLE_DROP, dbptr->drop);
 	buf[4] = SET_VAL(CLE_FPSEL, dbptr->fpsel) |
+		 SET_VAL(CLE_NFPSEL, dbptr->nxtfpsel) |
 		 SET_VAL(CLE_DSTQIDL, dbptr->dstqid);
 
 	buf[5] = SET_VAL(CLE_DSTQIDH, (u32)dbptr->dstqid >> CLE_DSTQIDL_LEN) |
@@ -349,8 +350,12 @@ static int xgene_cle_set_rss_idt(struct xgene_enet_pdata *pdata)
 		fpsel = xgene_enet_get_fpsel(pool_id);
 		dstqid = xgene_enet_dst_ring_num(pdata->rx_ring[idx]);
 		nfpsel = 0;
-		idt_reg = 0;
+		if (pdata->rx_ring[idx]->page_pool) {
+			pool_id = pdata->rx_ring[idx]->page_pool->id;
+			nfpsel = xgene_enet_get_fpsel(pool_id);
+		}
 
+		idt_reg = 0;
 		xgene_cle_idt_to_hw(pdata, dstqid, fpsel, nfpsel, &idt_reg);
 		ret = xgene_cle_dram_wr(&pdata->cle, &idt_reg, 1, i,
 					RSS_IDT, CLE_CMD_WR);
@@ -400,9 +405,9 @@ static int xgene_cle_setup_rss(struct xgene_enet_pdata *pdata)
 static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 {
 	struct xgene_enet_cle *enet_cle = &pdata->cle;
+	u32 def_qid, def_fpsel, def_nxtfpsel, pool_id;
 	struct xgene_cle_dbptr dbptr[DB_MAX_PTRS];
 	struct xgene_cle_ptree_branch *br;
-	u32 def_qid, def_fpsel, pool_id;
 	struct xgene_cle_ptree *ptree;
 	struct xgene_cle_ptree_kn kn;
 	int ret;
@@ -707,13 +712,20 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 	def_qid = xgene_enet_dst_ring_num(pdata->rx_ring[0]);
 	pool_id = pdata->rx_ring[0]->buf_pool->id;
 	def_fpsel = xgene_enet_get_fpsel(pool_id);
+	def_nxtfpsel = 0;
+	if (pdata->rx_ring[0]->page_pool) {
+		pool_id = pdata->rx_ring[0]->page_pool->id;
+		def_nxtfpsel = xgene_enet_get_fpsel(pool_id);
+	}
 
 	memset(dbptr, 0, sizeof(struct xgene_cle_dbptr) * DB_MAX_PTRS);
 	dbptr[DB_RES_ACCEPT].fpsel =  def_fpsel;
+	dbptr[DB_RES_ACCEPT].nxtfpsel = def_nxtfpsel;
 	dbptr[DB_RES_ACCEPT].dstqid = def_qid;
 	dbptr[DB_RES_ACCEPT].cle_priority = 1;
 
 	dbptr[DB_RES_DEF].fpsel = def_fpsel;
+	dbptr[DB_RES_DEF].nxtfpsel = def_nxtfpsel;
 	dbptr[DB_RES_DEF].dstqid = def_qid;
 	dbptr[DB_RES_DEF].cle_priority = 7;
 	xgene_cle_setup_def_dbptr(pdata, enet_cle, &dbptr[DB_RES_DEF],

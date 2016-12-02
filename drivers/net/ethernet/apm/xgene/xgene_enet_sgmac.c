@@ -484,11 +484,12 @@ static int xgene_enet_reset(struct xgene_enet_pdata *p)
 }
 
 static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,
-				  u32 dst_ring_num, u16 bufpool_id)
+				  u32 dst_ring_num, u16 bufpool_id,
+				  u16 nxtbufpool_id)
 {
-	u32 data, fpsel;
 	u32 cle_bypass_reg0, cle_bypass_reg1;
 	u32 offset = p->port_id * MAC_OFFSET;
+	u32 data, fpsel, nxtfpsel;
 
 	if (p->enet_id == XGENE_ENET1) {
 		cle_bypass_reg0 = CLE_BYPASS_REG0_0_ADDR;
@@ -502,7 +503,9 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *p,
 	xgene_enet_wr_csr(p, cle_bypass_reg0 + offset, data);
 
 	fpsel = xgene_enet_get_fpsel(bufpool_id);
-	data = CFG_CLE_DSTQID0(dst_ring_num) | CFG_CLE_FPSEL0(fpsel);
+	nxtfpsel = xgene_enet_get_fpsel(nxtbufpool_id);
+	data = CFG_CLE_DSTQID0(dst_ring_num) | CFG_CLE_FPSEL0(fpsel) |
+	       CFG_CLE_NXTFPSEL0(nxtfpsel);
 	xgene_enet_wr_csr(p, cle_bypass_reg1 + offset, data);
 }
 

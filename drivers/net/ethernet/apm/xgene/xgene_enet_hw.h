@@ -165,10 +165,12 @@ enum xgene_enet_rm {
 #define CFG_CLE_IP_PROTOCOL0_SET(dst, val)	xgene_set_bits(dst, val, 16, 2)
 #define CFG_CLE_DSTQID0_SET(dst, val)		xgene_set_bits(dst, val, 0, 12)
 #define CFG_CLE_FPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 16, 4)
+#define CFG_CLE_NXTFPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 20, 4)
 #define CFG_MACMODE_SET(dst, val)		xgene_set_bits(dst, val, 18, 2)
 #define CFG_WAITASYNCRD_SET(dst, val)		xgene_set_bits(dst, val, 0, 16)
-#define CFG_CLE_DSTQID0(val)		(val & GENMASK(11, 0))
-#define CFG_CLE_FPSEL0(val)		((val << 16) & GENMASK(19, 16))
+#define CFG_CLE_DSTQID0(val)		((val) & GENMASK(11, 0))
+#define CFG_CLE_FPSEL0(val)		(((val) << 16) & GENMASK(19, 16))
+#define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
 #define RX_DV_GATE_REG_0_ADDR		0x05fc

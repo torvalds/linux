@@ -115,6 +115,7 @@ struct xgene_enet_desc_ring {
 	enum xgene_enet_ring_cfgsize cfgsize;
 	struct xgene_enet_desc_ring *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool;
+	struct xgene_enet_desc_ring *page_pool;
 	struct napi_struct napi;
 	union {
 		void *desc_addr;
@@ -152,7 +153,7 @@ struct xgene_port_ops {
 	void (*clear)(struct xgene_enet_pdata *pdata,
 		      struct xgene_enet_desc_ring *ring);
 	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
-			   u32 dst_ring_num, u16 bufpool_id);
+			   u32 dst_ring_num, u16 bufpool_id, u16 nxtbufpool_id);
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
 };
 

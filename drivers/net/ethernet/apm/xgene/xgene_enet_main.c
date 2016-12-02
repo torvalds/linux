@@ -1518,9 +1518,10 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 {
 	struct xgene_enet_cle *enet_cle = &pdata->cle;
+	struct xgene_enet_desc_ring *page_pool;
 	struct net_device *ndev = pdata->ndev;
 	struct xgene_enet_desc_ring *buf_pool;
-	u16 dst_ring_num;
+	u16 dst_ring_num, ring_id;
 	int i, ret;
 
 	ret = pdata->port_ops->reset(pdata);
@@ -1558,8 +1559,14 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 			netdev_err(ndev, "Preclass Tree init error\n");
 			goto err;
 		}
+
 	} else {
-		pdata->port_ops->cle_bypass(pdata, dst_ring_num, buf_pool->id);
+		dst_ring_num = xgene_enet_dst_ring_num(pdata->rx_ring[0]);
+		buf_pool = pdata->rx_ring[0]->buf_pool;
+		page_pool = pdata->rx_ring[0]->page_pool;
+		ring_id = (page_pool) ? page_pool->id : 0;
+		pdata->port_ops->cle_bypass(pdata, dst_ring_num,
+					    buf_pool->id, ring_id);
 	}
 
 	pdata->phy_speed = SPEED_UNKNOWN;

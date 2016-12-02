@@ -550,12 +550,14 @@ static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *pdata)
 }
 
 static void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
-				  u32 dst_ring_num, u16 bufpool_id)
+				  u32 dst_ring_num, u16 bufpool_id,
+				  u16 nxtbufpool_id)
 {
 	u32 cb;
-	u32 fpsel;
+	u32 fpsel, nxtfpsel;
 
 	fpsel = xgene_enet_get_fpsel(bufpool_id);
+	nxtfpsel = xgene_enet_get_fpsel(nxtbufpool_id);
 
 	xgene_enet_rd_csr(pdata, CLE_BYPASS_REG0_0_ADDR, &cb);
 	cb |= CFG_CLE_BYPASS_EN0;
@@ -565,6 +567,7 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
 	xgene_enet_rd_csr(pdata, CLE_BYPASS_REG1_0_ADDR, &cb);
 	CFG_CLE_DSTQID0_SET(&cb, dst_ring_num);
 	CFG_CLE_FPSEL0_SET(&cb, fpsel);
+	CFG_CLE_NXTFPSEL0_SET(&cb, nxtfpsel);
 	xgene_enet_wr_csr(pdata, CLE_BYPASS_REG1_0_ADDR, cb);
 }
 
