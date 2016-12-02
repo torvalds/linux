@@ -549,30 +549,34 @@ static int init_vudc_hw(struct vudc *udc)
 		sprintf(ep->name, "ep%d%s", num,
 			i ? (is_out ? "out" : "in") : "");
 		ep->ep.name = ep->name;
-		if (i == 0) {
-			ep->ep.caps.type_control = true;
-			ep->ep.caps.dir_out = true;
-			ep->ep.caps.dir_in = true;
-		} else {
-			ep->ep.caps.type_iso = true;
-			ep->ep.caps.type_int = true;
-			ep->ep.caps.type_bulk = true;
-		}
-
-		if (is_out)
-			ep->ep.caps.dir_out = true;
-		else
-			ep->ep.caps.dir_in = true;
 
 		ep->ep.ops = &vep_ops;
-		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		ep->halted = ep->wedged = ep->already_seen =
-			ep->setup_stage = 0;
+
 		usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 		ep->ep.max_streams = 16;
 		ep->gadget = &udc->gadget;
-		ep->desc = NULL;
 		INIT_LIST_HEAD(&ep->req_queue);
+
+		if (i == 0) {
+			/* ep0 */
+			ep->ep.caps.type_control = true;
+			ep->ep.caps.dir_out = true;
+			ep->ep.caps.dir_in = true;
+
+			udc->gadget.ep0 = &ep->ep;
+		} else {
+			/* All other eps */
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_int = true;
+			ep->ep.caps.type_bulk = true;
+
+			if (is_out)
+				ep->ep.caps.dir_out = true;
+			else
+				ep->ep.caps.dir_in = true;
+
+			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
+		}
 	}
 
 	spin_lock_init(&udc->lock);
@@ -588,9 +592,6 @@ static int init_vudc_hw(struct vudc *udc)
 	ud->eh_ops.shutdown = vudc_shutdown;
 	ud->eh_ops.reset    = vudc_device_reset;
 	ud->eh_ops.unusable = vudc_device_unusable;
-
-	udc->gadget.ep0 = &udc->ep[0].ep;
-	list_del_init(&udc->ep[0].ep.ep_list);
 
 	v_init_timer(udc);
 	return 0;
