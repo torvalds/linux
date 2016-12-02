@@ -12,6 +12,40 @@
  */
 #include "isa207-common.h"
 
+PMU_FORMAT_ATTR(event,		"config:0-49");
+PMU_FORMAT_ATTR(pmcxsel,	"config:0-7");
+PMU_FORMAT_ATTR(mark,		"config:8");
+PMU_FORMAT_ATTR(combine,	"config:11");
+PMU_FORMAT_ATTR(unit,		"config:12-15");
+PMU_FORMAT_ATTR(pmc,		"config:16-19");
+PMU_FORMAT_ATTR(cache_sel,	"config:20-23");
+PMU_FORMAT_ATTR(sample_mode,	"config:24-28");
+PMU_FORMAT_ATTR(thresh_sel,	"config:29-31");
+PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
+PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
+PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
+
+struct attribute *isa207_pmu_format_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_pmcxsel.attr,
+	&format_attr_mark.attr,
+	&format_attr_combine.attr,
+	&format_attr_unit.attr,
+	&format_attr_pmc.attr,
+	&format_attr_cache_sel.attr,
+	&format_attr_sample_mode.attr,
+	&format_attr_thresh_sel.attr,
+	&format_attr_thresh_stop.attr,
+	&format_attr_thresh_start.attr,
+	&format_attr_thresh_cmp.attr,
+	NULL,
+};
+
+struct attribute_group isa207_pmu_format_group = {
+	.name = "format",
+	.attrs = isa207_pmu_format_attr,
+};
+
 static inline bool event_is_fab_match(u64 event)
 {
 	/* Only check pmc, unit and pmcxsel, ignore the edge bit (0) */
