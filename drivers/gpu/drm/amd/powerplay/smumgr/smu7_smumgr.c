@@ -549,7 +549,6 @@ int smu7_init(struct pp_smumgr *smumgr)
 	smu_data = (struct smu7_smumgr *)(smumgr->backend);
 	smu_data->header_buffer.data_size =
 			((sizeof(struct SMU_DRAMData_TOC) / 4096) + 1) * 4096;
-	smu_data->smu_buffer.data_size = 200*4096;
 
 /* Allocate FW image data structure and header buffer and
  * send the header buffer address to SMU */
@@ -575,6 +574,7 @@ int smu7_init(struct pp_smumgr *smumgr)
 	if (cgs_is_virtualization_enabled(smumgr->device))
 		return 0;
 
+	smu_data->smu_buffer.data_size = 200*4096;
 	smu_allocate_memory(smumgr->device,
 		smu_data->smu_buffer.data_size,
 		CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
