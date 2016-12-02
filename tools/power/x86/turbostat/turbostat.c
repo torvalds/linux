@@ -345,7 +345,7 @@ void print_header(void)
 	if (extra_delta_offset64)
 		outp += sprintf(outp, "\tCOUNT 0x%03X", extra_delta_offset64);
 	if (extra_msr_offset32)
-		outp += sprintf(outp, "\tMSR 0x%03X", extra_msr_offset32);
+		outp += sprintf(outp, "\t         MSR 0x%03X", extra_msr_offset32);
 	if (extra_msr_offset64)
 		outp += sprintf(outp, "\tMSR 0x%03X", extra_msr_offset64);
 
