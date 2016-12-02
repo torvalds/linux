@@ -208,7 +208,8 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 
 int mlx5e_nic_rep_load(struct mlx5_eswitch *esw, struct mlx5_eswitch_rep *rep)
 {
-	struct mlx5e_priv *priv = rep->priv_data;
+	struct net_device *netdev = rep->netdev;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return mlx5e_add_sqs_fwd_rules(priv);
@@ -226,7 +227,8 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 void mlx5e_nic_rep_unload(struct mlx5_eswitch *esw,
 			  struct mlx5_eswitch_rep *rep)
 {
-	struct mlx5e_priv *priv = rep->priv_data;
+	struct net_device *netdev = rep->netdev;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		mlx5e_remove_sqs_fwd_rules(priv);
@@ -286,6 +288,14 @@ static int mlx5e_rep_ndo_setup_tc(struct net_device *dev, u32 handle,
 
 	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
 		return -EOPNOTSUPP;
+
+	if (tc->egress_dev) {
+		struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+		struct net_device *uplink_dev = mlx5_eswitch_get_uplink_netdev(esw);
+
+		return uplink_dev->netdev_ops->ndo_setup_tc(uplink_dev, handle,
+							    proto, tc);
+	}
 
 	switch (tc->type) {
 	case TC_SETUP_CLSFLOWER:
@@ -384,6 +394,8 @@ static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_get_phys_port_name  = mlx5e_rep_get_phys_port_name,
 	.ndo_setup_tc            = mlx5e_rep_ndo_setup_tc,
 	.ndo_get_stats64         = mlx5e_rep_get_stats,
+	.ndo_udp_tunnel_add      = mlx5e_add_vxlan_port,
+	.ndo_udp_tunnel_del      = mlx5e_del_vxlan_port,
 	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
 	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
 };
@@ -553,7 +565,7 @@ int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 		return -EINVAL;
 	}
 
-	rep->priv_data = netdev_priv(netdev);
+	rep->netdev = netdev;
 
 	err = mlx5e_attach_netdev(esw->dev, netdev);
 	if (err) {
@@ -575,7 +587,7 @@ err_detach_netdev:
 	mlx5e_detach_netdev(esw->dev, netdev);
 
 err_destroy_netdev:
-	mlx5e_destroy_netdev(esw->dev, rep->priv_data);
+	mlx5e_destroy_netdev(esw->dev, netdev_priv(netdev));
 
 	return err;
 
@@ -584,10 +596,9 @@ err_destroy_netdev:
 void mlx5e_vport_rep_unload(struct mlx5_eswitch *esw,
 			    struct mlx5_eswitch_rep *rep)
 {
-	struct mlx5e_priv *priv = rep->priv_data;
-	struct net_device *netdev = priv->netdev;
+	struct net_device *netdev = rep->netdev;
 
 	unregister_netdev(netdev);
 	mlx5e_detach_netdev(esw->dev, netdev);
-	mlx5e_destroy_netdev(esw->dev, priv);
+	mlx5e_destroy_netdev(esw->dev, netdev_priv(netdev));
 }

@@ -315,6 +315,17 @@ static struct notifier_block mirred_device_notifier = {
 	.notifier_call = mirred_device_event,
 };
 
+static int tcf_mirred_device(const struct tc_action *a, struct net *net,
+			     struct net_device **mirred_dev)
+{
+	int ifindex = tcf_mirred_ifindex(a);
+
+	*mirred_dev = __dev_get_by_index(net, ifindex);
+	if (!mirred_dev)
+		return -EINVAL;
+	return 0;
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.type		=	TCA_ACT_MIRRED,
@@ -327,6 +338,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.walk		=	tcf_mirred_walker,
 	.lookup		=	tcf_mirred_search,
 	.size		=	sizeof(struct tcf_mirred),
+	.get_dev	=	tcf_mirred_device,
 };
 
 static __net_init int mirred_init_net(struct net *net)
