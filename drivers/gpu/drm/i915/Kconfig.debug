@@ -19,6 +19,8 @@ config DRM_I915_DEBUG
         bool "Enable additional driver debugging"
         depends on DRM_I915
         select PREEMPT_COUNT
+        select I2C_CHARDEV
+        select DRM_DP_AUX_CHARDEV
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
