@@ -202,7 +202,6 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 			struct iwl_tx_cmd *tx_cmd,
 			struct ieee80211_tx_info *info, u8 sta_id)
 {
-	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
 	u32 tx_flags = le32_to_cpu(tx_cmd->tx_flags);
@@ -284,9 +283,8 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		tx_flags |= TX_CMD_FLG_WRITE_TX_POWER;
 
 	tx_cmd->tx_flags = cpu_to_le32(tx_flags);
-	/* Total # bytes to be transmitted */
-	tx_cmd->len = cpu_to_le16((u16)skb->len +
-		(uintptr_t)skb_info->driver_data[0]);
+	/* Total # bytes to be transmitted - PCIe code will adjust for A-MSDU */
+	tx_cmd->len = cpu_to_le16((u16)skb->len);
 	tx_cmd->life_time = cpu_to_le32(TX_CMD_LIFE_TIME_INFINITE);
 	tx_cmd->sta_id = sta_id;
 
@@ -555,9 +553,6 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			  info.hw_queue != info.control.vif->cab_queue)))
 		return -1;
 
-	/* This holds the amsdu headers length */
-	skb_info->driver_data[0] = (void *)(uintptr_t)0;
-
 	queue = info.hw_queue;
 
 	/*
@@ -644,7 +639,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	unsigned int num_subframes, tcp_payload_len, subf_len, max_amsdu_len;
 	bool ipv4 = (skb->protocol == htons(ETH_P_IP));
 	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
-	u16 amsdu_add, snap_ip_tcp, pad, i = 0;
+	u16 snap_ip_tcp, pad, i = 0;
 	unsigned int dbg_max_amsdu_len;
 	netdev_features_t netdev_features = NETIF_F_CSUM_MASK | NETIF_F_SG;
 	u8 *qc, tid, txf;
@@ -746,21 +741,6 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* This skb fits in one single A-MSDU */
 	if (num_subframes * mss >= tcp_payload_len) {
-		struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
-
-		/*
-		 * Compute the length of all the data added for the A-MSDU.
-		 * This will be used to compute the length to write in the TX
-		 * command. We have: SNAP + IP + TCP for n -1 subframes and
-		 * ETH header for n subframes. Note that the original skb
-		 * already had one set of SNAP / IP / TCP headers.
-		 */
-		num_subframes = DIV_ROUND_UP(tcp_payload_len, mss);
-		amsdu_add = num_subframes * sizeof(struct ethhdr) +
-			(num_subframes - 1) * (snap_ip_tcp + pad);
-		/* This holds the amsdu headers length */
-		skb_info->driver_data[0] = (void *)(uintptr_t)amsdu_add;
-
 		__skb_queue_tail(mpdus_skb, skb);
 		return 0;
 	}
@@ -799,14 +779,6 @@ segment:
 			ip_hdr(tmp)->id = htons(ip_base_id + i * num_subframes);
 
 		if (tcp_payload_len > mss) {
-			struct ieee80211_tx_info *skb_info =
-				IEEE80211_SKB_CB(tmp);
-
-			num_subframes = DIV_ROUND_UP(tcp_payload_len, mss);
-			amsdu_add = num_subframes * sizeof(struct ethhdr) +
-				(num_subframes - 1) * (snap_ip_tcp + pad);
-			skb_info->driver_data[0] =
-				(void *)(uintptr_t)amsdu_add;
 			skb_shinfo(tmp)->gso_size = mss;
 		} else {
 			qc = ieee80211_get_qos_ctl((void *)tmp->data);
@@ -1052,7 +1024,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct ieee80211_tx_info *skb_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_info info;
 	struct sk_buff_head mpdus_skbs;
 	unsigned int payload_len;
@@ -1065,9 +1036,6 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));
-
-	/* This holds the amsdu headers length */
-	skb_info->driver_data[0] = (void *)(uintptr_t)0;
 
 	if (!skb_is_gso(skb))
 		return iwl_mvm_tx_mpdu(mvm, skb, &info, sta);
