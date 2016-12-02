@@ -2098,20 +2098,11 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			sdhci_do_reset(host, SDHCI_RESET_CMD);
 			sdhci_do_reset(host, SDHCI_RESET_DATA);
 
-			if (cmd.opcode != MMC_SEND_TUNING_BLOCK_HS200)
-				goto out;
-
 			sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 			sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 
 			spin_unlock_irqrestore(&host->lock, flags);
-
-			memset(&cmd, 0, sizeof(cmd));
-			cmd.opcode = MMC_STOP_TRANSMISSION;
-			cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-			cmd.busy_timeout = 50;
-			mmc_wait_for_cmd(mmc, &cmd, 0);
-
+			mmc_abort_tuning(mmc, opcode);
 			spin_lock_irqsave(&host->lock, flags);
 
 			goto out;
