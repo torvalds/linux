@@ -967,6 +967,7 @@ static int sx150x_regmap_reg_width(struct sx150x_pinctrl *pctl,
 		    reg == data->pri.x123.reg_advanced)
 		   ||
 		   (data->model == SX150X_456 &&
+		    data->pri.x456.reg_advanced &&
 		    reg == data->pri.x456.reg_advanced)) {
 		return 8;
 	} else {
