@@ -864,7 +864,7 @@ void ceph_sync_write_wait(struct inode *inode)
 
 		dout("sync_write_wait on tid %llu (until %llu)\n",
 		     req->r_tid, last_tid);
-		wait_for_completion(&req->r_safe_completion);
+		wait_for_completion(&req->r_done_completion);
 		ceph_osdc_put_request(req);
 
 		spin_lock(&ci->i_unsafe_lock);
