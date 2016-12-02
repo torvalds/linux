@@ -407,8 +407,14 @@ int smu7_request_smu_load_fw(struct pp_smumgr *smumgr)
 					0x0);
 
 	if (smumgr->chip_id > CHIP_TOPAZ) { /* add support for Topaz */
-		smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_HI, smu_data->smu_buffer.mc_addr_high);
-		smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_LO, smu_data->smu_buffer.mc_addr_low);
+		if (!cgs_is_virtualization_enabled(smumgr->device)) {
+			smu7_send_msg_to_smc_with_parameter(smumgr,
+						PPSMC_MSG_SMU_DRAM_ADDR_HI,
+						smu_data->smu_buffer.mc_addr_high);
+			smu7_send_msg_to_smc_with_parameter(smumgr,
+						PPSMC_MSG_SMU_DRAM_ADDR_LO,
+						smu_data->smu_buffer.mc_addr_low);
+		}
 		fw_to_load = UCODE_ID_RLC_G_MASK
 			   + UCODE_ID_SDMA0_MASK
 			   + UCODE_ID_SDMA1_MASK
@@ -565,6 +571,9 @@ int smu7_init(struct pp_smumgr *smumgr)
 		cgs_free_gpu_mem(smumgr->device,
 		(cgs_handle_t)smu_data->header_buffer.handle);
 		return -EINVAL);
+
+	if (cgs_is_virtualization_enabled(smumgr->device))
+		return 0;
 
 	smu_allocate_memory(smumgr->device,
 		smu_data->smu_buffer.data_size,
