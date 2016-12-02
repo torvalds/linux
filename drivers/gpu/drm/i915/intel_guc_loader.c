@@ -773,7 +773,7 @@ void intel_guc_init(struct drm_i915_private *dev_priv)
 
 /**
  * intel_guc_fini() - clean up all allocated resources
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  */
 void intel_guc_fini(struct drm_i915_private *dev_priv)
 {
