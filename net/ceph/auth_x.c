@@ -39,10 +39,14 @@ static int ceph_x_should_authenticate(struct ceph_auth_client *ac)
 	return need != 0;
 }
 
+static int ceph_x_encrypt_offset(void)
+{
+	return sizeof(u32) + sizeof(struct ceph_x_encrypt_header);
+}
+
 static int ceph_x_encrypt_buflen(int ilen)
 {
-	return sizeof(struct ceph_x_encrypt_header) + ilen + 16 +
-		sizeof(u32);
+	return ceph_x_encrypt_offset() + ilen + 16;
 }
 
 static int ceph_x_encrypt(struct ceph_crypto_key *secret,
