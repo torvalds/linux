@@ -724,7 +724,7 @@ static void bnx2x_gro_ipv6_csum(struct bnx2x *bp, struct sk_buff *skb)
 static void bnx2x_gro_csum(struct bnx2x *bp, struct sk_buff *skb,
 			    void (*gro_func)(struct bnx2x*, struct sk_buff*))
 {
-	skb_set_network_header(skb, 0);
+	skb_reset_network_header(skb);
 	gro_func(bp, skb);
 	tcp_gro_complete(skb);
 }
