@@ -431,16 +431,23 @@ static int mmc_switch_status_error(struct mmc_host *host, u32 status)
 }
 
 /* Caller must hold re-tuning */
-int mmc_switch_status(struct mmc_card *card)
+int __mmc_switch_status(struct mmc_card *card, bool crc_err_fatal)
 {
 	u32 status;
 	int err;
 
 	err = mmc_send_status(card, &status);
+	if (!crc_err_fatal && err == -EILSEQ)
+		return 0;
 	if (err)
 		return err;
 
 	return mmc_switch_status_error(card->host, status);
+}
+
+int mmc_switch_status(struct mmc_card *card)
+{
+	return __mmc_switch_status(card, true);
 }
 
 static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
