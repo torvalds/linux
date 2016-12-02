@@ -1312,7 +1312,7 @@ static void qede_gro_receive(struct qede_dev *edev,
 
 #ifdef CONFIG_INET
 	if (skb_shinfo(skb)->gso_size) {
-		skb_set_network_header(skb, 0);
+		skb_reset_network_header(skb);
 
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
