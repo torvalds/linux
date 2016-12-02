@@ -170,6 +170,10 @@ enum xgene_enet_rm {
 #define CFG_WAITASYNCRD_SET(dst, val)		xgene_set_bits(dst, val, 0, 16)
 #define CFG_CLE_DSTQID0(val)		((val) & GENMASK(11, 0))
 #define CFG_CLE_FPSEL0(val)		(((val) << 16) & GENMASK(19, 16))
+#define CSR_ECM_CFG_0_ADDR		0x0220
+#define CSR_ECM_CFG_1_ADDR		0x0224
+#define PAUSE_XON_EN			BIT(30)
+#define MULTI_DPF_AUTOCTRL		BIT(28)
 #define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
@@ -198,6 +202,8 @@ enum xgene_enet_rm {
 #define SOFT_RESET1			BIT(31)
 #define TX_EN				BIT(0)
 #define RX_EN				BIT(2)
+#define TX_FLOW_EN			BIT(4)
+#define RX_FLOW_EN			BIT(5)
 #define ENET_LHD_MODE			BIT(25)
 #define ENET_GHD_MODE			BIT(26)
 #define FULL_DUPLEX2			BIT(0)

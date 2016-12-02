@@ -159,6 +159,9 @@ struct xgene_mac_ops {
 	void (*set_framesize)(struct xgene_enet_pdata *pdata, int framesize);
 	void (*set_mss)(struct xgene_enet_pdata *pdata, u16 mss, u8 index);
 	void (*link_state)(struct work_struct *work);
+	void (*enable_tx_pause)(struct xgene_enet_pdata *pdata, bool enable);
+	void (*flowctl_rx)(struct xgene_enet_pdata *pdata, bool enable);
+	void (*flowctl_tx)(struct xgene_enet_pdata *pdata, bool enable);
 };
 
 struct xgene_port_ops {
@@ -234,6 +237,9 @@ struct xgene_enet_pdata {
 	bool mdio_driver;
 	struct gpio_desc *sfp_rdy;
 	bool sfp_gpio_en;
+	u32 pause_autoneg;
+	bool tx_pause;
+	bool rx_pause;
 };
 
 struct xgene_indirect_ctl {

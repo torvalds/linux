@@ -365,6 +365,32 @@ static void xgene_sgmii_enable_autoneg(struct xgene_enet_pdata *p)
 		netdev_err(p->ndev, "Auto-negotiation failed\n");
 }
 
+static void xgene_sgmac_rxtx(struct xgene_enet_pdata *p, u32 bits, bool set)
+{
+	u32 data;
+
+	data = xgene_enet_rd_mac(p, MAC_CONFIG_1_ADDR);
+
+	if (set)
+		data |= bits;
+	else
+		data &= ~bits;
+
+	xgene_enet_wr_mac(p, MAC_CONFIG_1_ADDR, data);
+}
+
+static void xgene_sgmac_flowctl_tx(struct xgene_enet_pdata *p, bool enable)
+{
+	xgene_sgmac_rxtx(p, TX_FLOW_EN, enable);
+
+	p->mac_ops->enable_tx_pause(p, enable);
+}
+
+static void xgene_sgmac_flowctl_rx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	xgene_sgmac_rxtx(pdata, RX_FLOW_EN, enable);
+}
+
 static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 {
 	u32 enet_spare_cfg_reg, rsif_config_reg;
@@ -409,20 +435,6 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	xgene_enet_wr_csr(p, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x84);
 	xgene_enet_wr_csr(p, cfg_bypass_reg, RESUME_TX);
 	xgene_enet_wr_mcx_csr(p, rx_dv_gate_reg, RESUME_RX0);
-}
-
-static void xgene_sgmac_rxtx(struct xgene_enet_pdata *p, u32 bits, bool set)
-{
-	u32 data;
-
-	data = xgene_enet_rd_mac(p, MAC_CONFIG_1_ADDR);
-
-	if (set)
-		data |= bits;
-	else
-		data &= ~bits;
-
-	xgene_enet_wr_mac(p, MAC_CONFIG_1_ADDR, data);
 }
 
 static void xgene_sgmac_rx_enable(struct xgene_enet_pdata *p)
@@ -591,6 +603,25 @@ static void xgene_enet_link_state(struct work_struct *work)
 	schedule_delayed_work(&p->link_work, poll_interval);
 }
 
+static void xgene_sgmac_enable_tx_pause(struct xgene_enet_pdata *p, bool enable)
+{
+	u32 data, ecm_cfg_addr;
+
+	if (p->enet_id == XGENE_ENET1) {
+		ecm_cfg_addr = (!(p->port_id % 2)) ? CSR_ECM_CFG_0_ADDR :
+				CSR_ECM_CFG_1_ADDR;
+	} else {
+		ecm_cfg_addr = XG_MCX_ECM_CFG_0_ADDR;
+	}
+
+	data = xgene_enet_rd_mcx_csr(p, ecm_cfg_addr);
+	if (enable)
+		data |= MULTI_DPF_AUTOCTRL | PAUSE_XON_EN;
+	else
+		data &= ~(MULTI_DPF_AUTOCTRL | PAUSE_XON_EN);
+	xgene_enet_wr_mcx_csr(p, ecm_cfg_addr, data);
+}
+
 const struct xgene_mac_ops xgene_sgmac_ops = {
 	.init		= xgene_sgmac_init,
 	.reset		= xgene_sgmac_reset,
@@ -601,7 +632,10 @@ const struct xgene_mac_ops xgene_sgmac_ops = {
 	.set_speed	= xgene_sgmac_set_speed,
 	.set_mac_addr	= xgene_sgmac_set_mac_addr,
 	.set_framesize  = xgene_sgmac_set_frame_size,
-	.link_state	= xgene_enet_link_state
+	.link_state	= xgene_enet_link_state,
+	.enable_tx_pause = xgene_sgmac_enable_tx_pause,
+	.flowctl_tx     = xgene_sgmac_flowctl_tx,
+	.flowctl_rx     = xgene_sgmac_flowctl_rx
 };
 
 const struct xgene_port_ops xgene_sgport_ops = {

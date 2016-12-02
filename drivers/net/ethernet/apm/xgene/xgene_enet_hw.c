@@ -509,6 +509,51 @@ static void xgene_enet_set_frame_size(struct xgene_enet_pdata *pdata, int size)
 	xgene_enet_wr_mcx_mac(pdata, MAX_FRAME_LEN_ADDR, size);
 }
 
+static void xgene_gmac_enable_tx_pause(struct xgene_enet_pdata *pdata,
+				       bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mcx_csr(pdata, CSR_ECM_CFG_0_ADDR, &data);
+
+	if (enable)
+		data |= MULTI_DPF_AUTOCTRL | PAUSE_XON_EN;
+	else
+		data &= ~(MULTI_DPF_AUTOCTRL | PAUSE_XON_EN);
+
+	xgene_enet_wr_mcx_csr(pdata, CSR_ECM_CFG_0_ADDR, data);
+}
+
+static void xgene_gmac_flowctl_tx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mcx_mac(pdata, MAC_CONFIG_1_ADDR, &data);
+
+	if (enable)
+		data |= TX_FLOW_EN;
+	else
+		data &= ~TX_FLOW_EN;
+
+	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_1_ADDR, data);
+
+	pdata->mac_ops->enable_tx_pause(pdata, enable);
+}
+
+static void xgene_gmac_flowctl_rx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mcx_mac(pdata, MAC_CONFIG_1_ADDR, &data);
+
+	if (enable)
+		data |= RX_FLOW_EN;
+	else
+		data &= ~RX_FLOW_EN;
+
+	xgene_enet_wr_mcx_mac(pdata, MAC_CONFIG_1_ADDR, data);
+}
+
 static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 {
 	u32 value;
@@ -909,6 +954,9 @@ const struct xgene_mac_ops xgene_gmac_ops = {
 	.set_speed = xgene_gmac_set_speed,
 	.set_mac_addr = xgene_gmac_set_mac_addr,
 	.set_framesize = xgene_enet_set_frame_size,
+	.enable_tx_pause = xgene_gmac_enable_tx_pause,
+	.flowctl_tx     = xgene_gmac_flowctl_tx,
+	.flowctl_rx     = xgene_gmac_flowctl_rx,
 };
 
 const struct xgene_port_ops xgene_gport_ops = {

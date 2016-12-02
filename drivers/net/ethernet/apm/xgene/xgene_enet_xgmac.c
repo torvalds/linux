@@ -101,6 +101,14 @@ static void xgene_enet_wr_pcs(struct xgene_enet_pdata *pdata,
 			   wr_addr);
 }
 
+static void xgene_enet_wr_axg_csr(struct xgene_enet_pdata *pdata,
+				  u32 offset, u32 val)
+{
+	void __iomem *addr = pdata->mcx_mac_csr_addr + offset;
+
+	iowrite32(val, addr);
+}
+
 static void xgene_enet_rd_csr(struct xgene_enet_pdata *pdata,
 			      u32 offset, u32 *val)
 {
@@ -172,6 +180,14 @@ static bool xgene_enet_rd_pcs(struct xgene_enet_pdata *pdata,
 			   rd_addr);
 
 	return success;
+}
+
+static void xgene_enet_rd_axg_csr(struct xgene_enet_pdata *pdata,
+				  u32 offset, u32 *val)
+{
+	void __iomem *addr = pdata->mcx_mac_csr_addr + offset;
+
+	*val = ioread32(addr);
 }
 
 static int xgene_enet_ecc_init(struct xgene_enet_pdata *pdata)
@@ -263,6 +279,51 @@ static u32 xgene_enet_link_status(struct xgene_enet_pdata *pdata)
 	xgene_enet_rd_csr(pdata, XG_LINK_STATUS_ADDR, &data);
 
 	return data;
+}
+
+static void xgene_xgmac_enable_tx_pause(struct xgene_enet_pdata *pdata,
+					bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_axg_csr(pdata, XGENET_CSR_ECM_CFG_0_ADDR, &data);
+
+	if (enable)
+		data |= MULTI_DPF_AUTOCTRL | PAUSE_XON_EN;
+	else
+		data &= ~(MULTI_DPF_AUTOCTRL | PAUSE_XON_EN);
+
+	xgene_enet_wr_axg_csr(pdata, XGENET_CSR_ECM_CFG_0_ADDR, data);
+}
+
+static void xgene_xgmac_flowctl_tx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+
+	if (enable)
+		data |= HSTTCTLEN;
+	else
+		data &= ~HSTTCTLEN;
+
+	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data);
+
+	pdata->mac_ops->enable_tx_pause(pdata, enable);
+}
+
+static void xgene_xgmac_flowctl_rx(struct xgene_enet_pdata *pdata, bool enable)
+{
+	u32 data;
+
+	xgene_enet_rd_mac(pdata, AXGMAC_CONFIG_1, &data);
+
+	if (enable)
+		data |= HSTRCTLEN;
+	else
+		data &= ~HSTRCTLEN;
+
+	xgene_enet_wr_mac(pdata, AXGMAC_CONFIG_1, data);
 }
 
 static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
@@ -482,7 +543,10 @@ const struct xgene_mac_ops xgene_xgmac_ops = {
 	.set_mac_addr = xgene_xgmac_set_mac_addr,
 	.set_framesize = xgene_xgmac_set_frame_size,
 	.set_mss = xgene_xgmac_set_mss,
-	.link_state = xgene_enet_link_state
+	.link_state = xgene_enet_link_state,
+	.enable_tx_pause = xgene_xgmac_enable_tx_pause,
+	.flowctl_rx = xgene_xgmac_flowctl_rx,
+	.flowctl_tx = xgene_xgmac_flowctl_tx
 };
 
 const struct xgene_port_ops xgene_xgport_ops = {
