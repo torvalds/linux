@@ -467,6 +467,22 @@ struct i40e_mac_filter {
 	enum i40e_filter_state state;
 };
 
+/* Wrapper structure to keep track of filters while we are preparing to send
+ * firmware commands. We cannot send firmware commands while holding a
+ * spinlock, since it might sleep. To avoid this, we wrap the added filters in
+ * a separate structure, which will track the state change and update the real
+ * filter while under lock. We can't simply hold the filters in a separate
+ * list, as this opens a window for a race condition when adding new MAC
+ * addresses to all VLANs, or when adding new VLANs to all MAC addresses.
+ */
+struct i40e_new_mac_filter {
+	struct hlist_node hlist;
+	struct i40e_mac_filter *f;
+
+	/* Track future changes to state separately */
+	enum i40e_filter_state state;
+};
+
 struct i40e_veb {
 	struct i40e_pf *pf;
 	u16 idx;
