@@ -132,7 +132,7 @@ again:
 			command  = (data->bits & 0x00FC0) >> 6;
 			system   = (data->bits & 0x1F000) >> 12;
 			toggle   = (data->bits & 0x20000) ? 1 : 0;
-			command += (data->bits & 0x01000) ? 0 : 0x40;
+			command += (data->bits & 0x40000) ? 0 : 0x40;
 			scancode = system << 16 | command << 8 | xdata;
 			protocol = RC_TYPE_RC5X;
 
