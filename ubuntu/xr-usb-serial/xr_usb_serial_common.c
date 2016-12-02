@@ -249,6 +249,46 @@ static ssize_t show_country_rel_date
 }
 
 static DEVICE_ATTR(iCountryCodeRelDate, S_IRUGO, show_country_rel_date, NULL);
+
+static ssize_t set_rs485_422_en(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct xr_usb_serial *xr_usb_serial = usb_get_intfdata(intf);
+	int error, value = 0;
+
+	error = kstrtoint(buf, 0, &value);
+	if (error)
+		return error;
+
+	if (value == 0) {
+		xr_usb_serial->rs485_422_en = false;
+	} else if (value == 1) {
+		// RS485,RS422 HD/FD mode
+		xr_usb_serial->rs485_422_en = true;
+	}
+
+	return count;
+}
+
+static ssize_t show_rs485_422_en(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct xr_usb_serial *xr_usb_serial = usb_get_intfdata(intf);
+
+	if (xr_usb_serial->rs485_422_en == false) {
+		return sprintf(buf, "0");
+	} else if (xr_usb_serial->rs485_422_en == true) {
+		// RS485,RS422 HD/FD mode
+		return sprintf(buf, "1");
+	}
+	return 0;
+}
+
+static DEVICE_ATTR(bRS485_422_en, 0644, show_rs485_422_en, set_rs485_422_en);
+
 /*
  * Interrupt handlers for various XR_USB_SERIAL device responses
  */
@@ -1384,9 +1424,14 @@ made_compressed_probe:
 
 	usb_set_intfdata(intf, xr_usb_serial);
 
-	i = device_create_file(&intf->dev, &dev_attr_bmCapabilities);
+	xr_usb_serial->rs485_422_en = false;	//default enable rs232
+	i = device_create_file(&intf->dev, &dev_attr_bRS485_422_en);
 	if (i < 0)
 		goto alloc_fail7;
+
+	i = device_create_file(&intf->dev, &dev_attr_bmCapabilities);
+	if (i < 0)
+		goto alloc_fail8;
 
 	if (cfd) { /* export the country data */
 		xr_usb_serial->country_codes = kmalloc(cfd->bLength - 4, GFP_KERNEL);
@@ -1446,12 +1491,12 @@ skip_countries:
 			&control_interface->dev);
 	if (IS_ERR(tty_dev)) {
 		rv = PTR_ERR(tty_dev);
-		goto alloc_fail8;
+		goto alloc_fail9;
 	}
 #endif	
 
 	return 0;
-alloc_fail8:
+alloc_fail9:
 	if (xr_usb_serial->country_codes) {
 		device_remove_file(&xr_usb_serial->control->dev,
 				&dev_attr_wCountryCodes);
@@ -1459,6 +1504,8 @@ alloc_fail8:
 				&dev_attr_iCountryCodeRelDate);
 	}
 	device_remove_file(&xr_usb_serial->control->dev, &dev_attr_bmCapabilities);
+alloc_fail8:
+	device_remove_file(&xr_usb_serial->control->dev, &dev_attr_bRS485_422_en);
 alloc_fail7:
 	usb_set_intfdata(intf, NULL);
 	for (i = 0; i < XR_USB_SERIAL_NW; i++)
@@ -1516,6 +1563,7 @@ static void xr_usb_serial_disconnect(struct usb_interface *intf)
 				&dev_attr_iCountryCodeRelDate);
 	}
 	device_remove_file(&xr_usb_serial->control->dev, &dev_attr_bmCapabilities);
+	device_remove_file(&xr_usb_serial->control->dev, &dev_attr_bRS485_422_en);
 	usb_set_intfdata(xr_usb_serial->control, NULL);
 	usb_set_intfdata(xr_usb_serial->data, NULL);
 	mutex_unlock(&xr_usb_serial->mutex);
