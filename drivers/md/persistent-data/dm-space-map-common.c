@@ -547,7 +547,6 @@ static int metadata_ll_init_index(struct ll_disk *ll)
 	if (r < 0)
 		return r;
 
-	memcpy(dm_block_data(b), &ll->mi_le, sizeof(ll->mi_le));
 	ll->bitmap_root = dm_block_location(b);
 
 	dm_tm_unlock(ll->tm, b);
