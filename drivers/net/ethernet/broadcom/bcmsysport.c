@@ -1755,13 +1755,13 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	if (priv->irq0 <= 0 || priv->irq1 <= 0) {
 		dev_err(&pdev->dev, "invalid interrupts\n");
 		ret = -EINVAL;
-		goto err;
+		goto err_free_netdev;
 	}
 
 	priv->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(priv->base)) {
 		ret = PTR_ERR(priv->base);
-		goto err;
+		goto err_free_netdev;
 	}
 
 	priv->netdev = dev;
@@ -1779,7 +1779,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		ret = of_phy_register_fixed_link(dn);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to register fixed PHY\n");
-			goto err;
+			goto err_free_netdev;
 		}
 
 		priv->phy_dn = dn;
@@ -1821,7 +1821,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	ret = register_netdev(dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register net_device\n");
-		goto err;
+		goto err_deregister_fixed_link;
 	}
 
 	priv->rev = topctrl_readl(priv, REV_CNTL) & REV_MASK;
@@ -1832,7 +1832,11 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		 priv->base, priv->irq0, priv->irq1, txq, rxq);
 
 	return 0;
-err:
+
+err_deregister_fixed_link:
+	if (of_phy_is_fixed_link(dn))
+		of_phy_deregister_fixed_link(dn);
+err_free_netdev:
 	free_netdev(dev);
 	return ret;
 }
@@ -1840,11 +1844,14 @@ err:
 static int bcm_sysport_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct device_node *dn = pdev->dev.of_node;
 
 	/* Not much to do, ndo_close has been called
 	 * and we use managed allocations
 	 */
 	unregister_netdev(dev);
+	if (of_phy_is_fixed_link(dn))
+		of_phy_deregister_fixed_link(dn);
 	free_netdev(dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 
