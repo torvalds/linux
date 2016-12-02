@@ -577,6 +577,17 @@ static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 	/* Rtype should be copied from FP */
 	xgene_enet_wr_csr(pdata, RSIF_RAM_DBG_REG0_ADDR, 0);
 
+	/* Configure HW pause frame generation */
+	xgene_enet_rd_mcx_csr(pdata, CSR_MULTI_DPF0_ADDR, &value);
+	value = (DEF_QUANTA << 16) | (value & 0xFFFF);
+	xgene_enet_wr_mcx_csr(pdata, CSR_MULTI_DPF0_ADDR, value);
+
+	xgene_enet_wr_csr(pdata, RXBUF_PAUSE_THRESH, DEF_PAUSE_THRES);
+	xgene_enet_wr_csr(pdata, RXBUF_PAUSE_OFF_THRESH, DEF_PAUSE_OFF_THRES);
+
+	xgene_gmac_flowctl_tx(pdata, pdata->tx_pause);
+	xgene_gmac_flowctl_rx(pdata, pdata->rx_pause);
+
 	/* Rx-Tx traffic resume */
 	xgene_enet_wr_csr(pdata, CFG_LINK_AGGR_RESUME_0_ADDR, TX_PORT0);
 
@@ -749,6 +760,48 @@ static void xgene_gport_shutdown(struct xgene_enet_pdata *pdata)
 	}
 }
 
+static u32 xgene_enet_flowctrl_cfg(struct net_device *ndev)
+{
+	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+	u16 lcladv, rmtadv = 0;
+	u32 rx_pause, tx_pause;
+	u8 flowctl = 0;
+
+	if (!phydev->duplex || !pdata->pause_autoneg)
+		return 0;
+
+	if (pdata->tx_pause)
+		flowctl |= FLOW_CTRL_TX;
+
+	if (pdata->rx_pause)
+		flowctl |= FLOW_CTRL_RX;
+
+	lcladv = mii_advertise_flowctrl(flowctl);
+
+	if (phydev->pause)
+		rmtadv = LPA_PAUSE_CAP;
+
+	if (phydev->asym_pause)
+		rmtadv |= LPA_PAUSE_ASYM;
+
+	flowctl = mii_resolve_flowctrl_fdx(lcladv, rmtadv);
+	tx_pause = !!(flowctl & FLOW_CTRL_TX);
+	rx_pause = !!(flowctl & FLOW_CTRL_RX);
+
+	if (tx_pause != pdata->tx_pause) {
+		pdata->tx_pause = tx_pause;
+		pdata->mac_ops->flowctl_tx(pdata, pdata->tx_pause);
+	}
+
+	if (rx_pause != pdata->rx_pause) {
+		pdata->rx_pause = rx_pause;
+		pdata->mac_ops->flowctl_rx(pdata, pdata->rx_pause);
+	}
+
+	return 0;
+}
+
 static void xgene_enet_adjust_link(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
@@ -763,6 +816,8 @@ static void xgene_enet_adjust_link(struct net_device *ndev)
 			mac_ops->tx_enable(pdata);
 			phy_print_status(phydev);
 		}
+
+		xgene_enet_flowctrl_cfg(ndev);
 	} else {
 		mac_ops->rx_disable(pdata);
 		mac_ops->tx_disable(pdata);
@@ -836,6 +891,8 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	phy_dev->supported &= ~SUPPORTED_10baseT_Half &
 			      ~SUPPORTED_100baseT_Half &
 			      ~SUPPORTED_1000baseT_Half;
+	phy_dev->supported |= SUPPORTED_Pause |
+			      SUPPORTED_Asym_Pause;
 	phy_dev->advertising = phy_dev->supported;
 
 	return 0;

@@ -349,6 +349,23 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_csr(pdata, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x82);
 	xgene_enet_wr_csr(pdata, XGENET_RX_DV_GATE_REG_0_ADDR, 0);
 	xgene_enet_wr_csr(pdata, XG_CFG_BYPASS_ADDR, RESUME_TX);
+
+	/* Configure HW pause frame generation */
+	xgene_enet_rd_axg_csr(pdata, XGENET_CSR_MULTI_DPF0_ADDR, &data);
+	data = (DEF_QUANTA << 16) | (data & 0xFFFF);
+	xgene_enet_wr_axg_csr(pdata, XGENET_CSR_MULTI_DPF0_ADDR, data);
+
+	if (pdata->enet_id != XGENE_ENET1) {
+		xgene_enet_rd_axg_csr(pdata, XGENET_CSR_MULTI_DPF1_ADDR, &data);
+		data = (NORM_PAUSE_OPCODE << 16) | (data & 0xFFFF);
+		xgene_enet_wr_axg_csr(pdata, XGENET_CSR_MULTI_DPF1_ADDR, data);
+	}
+
+	data = (XG_DEF_PAUSE_OFF_THRES << 16) | XG_DEF_PAUSE_THRES;
+	xgene_enet_wr_csr(pdata, XG_RXBUF_PAUSE_THRESH, data);
+
+	xgene_xgmac_flowctl_tx(pdata, pdata->tx_pause);
+	xgene_xgmac_flowctl_rx(pdata, pdata->rx_pause);
 }
 
 static void xgene_xgmac_rx_enable(struct xgene_enet_pdata *pdata)

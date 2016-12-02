@@ -172,6 +172,13 @@ enum xgene_enet_rm {
 #define CFG_CLE_FPSEL0(val)		(((val) << 16) & GENMASK(19, 16))
 #define CSR_ECM_CFG_0_ADDR		0x0220
 #define CSR_ECM_CFG_1_ADDR		0x0224
+#define CSR_MULTI_DPF0_ADDR		0x0230
+#define RXBUF_PAUSE_THRESH		0x0534
+#define RXBUF_PAUSE_OFF_THRESH		0x0540
+#define DEF_PAUSE_THRES			0x7d
+#define DEF_PAUSE_OFF_THRES		0x6d
+#define DEF_QUANTA			0x8000
+#define NORM_PAUSE_OPCODE		0x0001
 #define PAUSE_XON_EN			BIT(30)
 #define MULTI_DPF_AUTOCTRL		BIT(28)
 #define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))

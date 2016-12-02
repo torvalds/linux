@@ -393,9 +393,11 @@ static void xgene_sgmac_flowctl_rx(struct xgene_enet_pdata *pdata, bool enable)
 
 static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 {
+	u32 pause_thres_reg, pause_off_thres_reg;
 	u32 enet_spare_cfg_reg, rsif_config_reg;
 	u32 cfg_bypass_reg, rx_dv_gate_reg;
-	u32 data, offset;
+	u32 data, data1, data2, offset;
+	u32 multi_dpf_reg;
 
 	if (!(p->enet_id == XGENE_ENET2 && p->mdio_driver))
 		xgene_sgmac_reset(p);
@@ -430,6 +432,46 @@ static void xgene_sgmac_init(struct xgene_enet_pdata *p)
 	data = xgene_enet_rd_csr(p, rsif_config_reg);
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
 	xgene_enet_wr_csr(p, rsif_config_reg, data);
+
+	/* Configure HW pause frame generation */
+	multi_dpf_reg = (p->enet_id == XGENE_ENET1) ? CSR_MULTI_DPF0_ADDR :
+			 XG_MCX_MULTI_DPF0_ADDR;
+	data = xgene_enet_rd_mcx_csr(p, multi_dpf_reg);
+	data = (DEF_QUANTA << 16) | (data & 0xffff);
+	xgene_enet_wr_mcx_csr(p, multi_dpf_reg, data);
+
+	if (p->enet_id != XGENE_ENET1) {
+		data = xgene_enet_rd_mcx_csr(p, XG_MCX_MULTI_DPF1_ADDR);
+		data =  (NORM_PAUSE_OPCODE << 16) | (data & 0xFFFF);
+		xgene_enet_wr_mcx_csr(p, XG_MCX_MULTI_DPF1_ADDR, data);
+	}
+
+	pause_thres_reg = (p->enet_id == XGENE_ENET1) ? RXBUF_PAUSE_THRESH :
+			   XG_RXBUF_PAUSE_THRESH;
+	pause_off_thres_reg = (p->enet_id == XGENE_ENET1) ?
+			       RXBUF_PAUSE_OFF_THRESH : 0;
+
+	if (p->enet_id == XGENE_ENET1) {
+		data1 = xgene_enet_rd_csr(p, pause_thres_reg);
+		data2 = xgene_enet_rd_csr(p, pause_off_thres_reg);
+
+		if (!(p->port_id % 2)) {
+			data1 = (data1 & 0xffff0000) | DEF_PAUSE_THRES;
+			data2 = (data2 & 0xffff0000) | DEF_PAUSE_OFF_THRES;
+		} else {
+			data1 = (data1 & 0xffff) | (DEF_PAUSE_THRES << 16);
+			data2 = (data2 & 0xffff) | (DEF_PAUSE_OFF_THRES << 16);
+		}
+
+		xgene_enet_wr_csr(p, pause_thres_reg, data1);
+		xgene_enet_wr_csr(p, pause_off_thres_reg, data2);
+	} else {
+		data = (DEF_PAUSE_OFF_THRES << 16) | DEF_PAUSE_THRES;
+		xgene_enet_wr_csr(p, pause_thres_reg, data);
+	}
+
+	xgene_sgmac_flowctl_tx(p, p->tx_pause);
+	xgene_sgmac_flowctl_rx(p, p->rx_pause);
 
 	/* Bypass traffic gating */
 	xgene_enet_wr_csr(p, XG_ENET_SPARE_CFG_REG_1_ADDR, 0x84);
