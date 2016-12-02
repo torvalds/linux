@@ -1458,6 +1458,12 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			200))
 		DRM_ERROR("PLL %d not locked\n", port);
 
+	if (IS_GEMINILAKE(dev_priv)) {
+		temp = I915_READ(BXT_PORT_TX_DW5_LN0(phy, ch));
+		temp |= DCC_DELAY_RANGE_2;
+		I915_WRITE(BXT_PORT_TX_DW5_GRP(phy, ch), temp);
+	}
+
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers and we pick lanes 0/1 for that.
