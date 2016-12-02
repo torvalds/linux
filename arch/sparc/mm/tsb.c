@@ -27,6 +27,20 @@ static inline int tag_compare(unsigned long tag, unsigned long vaddr)
 	return (tag == (vaddr >> 22));
 }
 
+static void flush_tsb_kernel_range_scan(unsigned long start, unsigned long end)
+{
+	unsigned long idx;
+
+	for (idx = 0; idx < KERNEL_TSB_NENTRIES; idx++) {
+		struct tsb *ent = &swapper_tsb[idx];
+		unsigned long match = idx << 13;
+
+		match |= (ent->tag << 22);
+		if (match >= start && match < end)
+			ent->tag = (1UL << TSB_TAG_INVALID_BIT);
+	}
+}
+
 /* TSB flushes need only occur on the processor initiating the address
  * space modification, not on each cpu the address space has run on.
  * Only the TLB flush needs that treatment.
@@ -35,6 +49,9 @@ static inline int tag_compare(unsigned long tag, unsigned long vaddr)
 void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long v;
+
+	if ((end - start) >> PAGE_SHIFT >= 2 * KERNEL_TSB_NENTRIES)
+		return flush_tsb_kernel_range_scan(start, end);
 
 	for (v = start; v < end; v += PAGE_SIZE) {
 		unsigned long hash = tsb_hash(v, PAGE_SHIFT,
@@ -470,7 +487,7 @@ retry_tsb_alloc:
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	unsigned long huge_pte_count;
+	unsigned long total_huge_pte_count;
 #endif
 	unsigned int i;
 
@@ -479,12 +496,14 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	mm->context.sparc64_ctx_val = 0UL;
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	/* We reset it to zero because the fork() page copying
+	/* We reset them to zero because the fork() page copying
 	 * will re-increment the counters as the parent PTEs are
 	 * copied into the child address space.
 	 */
-	huge_pte_count = mm->context.huge_pte_count;
-	mm->context.huge_pte_count = 0;
+	total_huge_pte_count = mm->context.hugetlb_pte_count +
+			 mm->context.thp_pte_count;
+	mm->context.hugetlb_pte_count = 0;
+	mm->context.thp_pte_count = 0;
 #endif
 
 	/* copy_mm() copies over the parent's mm_struct before calling
@@ -500,8 +519,8 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	tsb_grow(mm, MM_TSB_BASE, get_mm_rss(mm));
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if (unlikely(huge_pte_count))
-		tsb_grow(mm, MM_TSB_HUGE, huge_pte_count);
+	if (unlikely(total_huge_pte_count))
+		tsb_grow(mm, MM_TSB_HUGE, total_huge_pte_count);
 #endif
 
 	if (unlikely(!mm->context.tsb_block[MM_TSB_BASE].tsb))

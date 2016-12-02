@@ -593,7 +593,7 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 		}
 	}
 
-	pp = eth_gro_receive(head, skb);
+	pp = call_gro_receive(eth_gro_receive, head, skb);
 
 out:
 	skb_gro_remcsum_cleanup(skb, &grc);

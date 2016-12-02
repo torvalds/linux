@@ -20,6 +20,7 @@
 
 #include <asm/page.h>
 #include <asm/memory.h>
+#include <asm/cpufeature.h>
 
 /*
  * As we only have the TTBR0_EL2 register, we cannot express
@@ -98,6 +99,7 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 phys_addr_t kvm_mmu_get_httbr(void);
 phys_addr_t kvm_mmu_get_boot_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
+phys_addr_t kvm_get_idmap_start(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
@@ -158,7 +160,6 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 #define PTRS_PER_S2_PGD_SHIFT	(KVM_PHYS_SHIFT - PGDIR_SHIFT)
 #endif
 #define PTRS_PER_S2_PGD		(1 << PTRS_PER_S2_PGD_SHIFT)
-#define S2_PGD_ORDER		get_order(PTRS_PER_S2_PGD * sizeof(pgd_t))
 
 #define kvm_pgd_index(addr)	(((addr) >> PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
 
@@ -300,6 +301,13 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	idmap_idx = hyp_idmap_start >> VA_BITS;
 	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
 	merged_hyp_pgd[idmap_idx] = __pgd(__pa(boot_hyp_pgd) | PMD_TYPE_TABLE);
+}
+
+static inline unsigned int kvm_get_vmid_bits(void)
+{
+	int reg = read_system_reg(SYS_ID_AA64MMFR1_EL1);
+
+	return (cpuid_feature_extract_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }
 
 #endif /* __ASSEMBLY__ */

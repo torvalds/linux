@@ -18,10 +18,28 @@
 #ifndef __ASM__VIRT_H
 #define __ASM__VIRT_H
 
+/*
+ * The arm64 hcall implementation uses x0 to specify the hcall type. A value
+ * less than 0xfff indicates a special hcall, such as get/set vector.
+ * Any other value is used as a pointer to the function to call.
+ */
+
+/* HVC_GET_VECTORS - Return the value of the vbar_el2 register. */
+#define HVC_GET_VECTORS 0
+
+/*
+ * HVC_SET_VECTORS - Set the value of the vbar_el2 register.
+ *
+ * @x1: Physical address of the new vector table.
+ */
+#define HVC_SET_VECTORS 1
+
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
 #ifndef __ASSEMBLY__
+
+#include <asm/ptrace.h>
 
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
@@ -48,6 +66,14 @@ static inline bool is_hyp_mode_available(void)
 static inline bool is_hyp_mode_mismatched(void)
 {
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
+}
+
+static inline bool is_kernel_in_hyp_mode(void)
+{
+	u64 el;
+
+	asm("mrs %0, CurrentEL" : "=r" (el));
+	return el == CurrentEL_EL2;
 }
 
 /* The section containing the hypervisor text */

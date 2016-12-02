@@ -26,8 +26,8 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/arm-smccc.h>
 #include <linux/kprobes.h>
+#include <linux/arm-smccc.h>
 
 #include <asm/checksum.h>
 

@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 
 #include <asm/esr.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
@@ -182,6 +183,13 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		exit_handler = kvm_get_exit_handler(vcpu);
 
 		return exit_handler(vcpu, run);
+	case ARM_EXCEPTION_HYP_GONE:
+		/*
+		 * EL2 has been reset to the hyp-stub. This happens when a guest
+		 * is pre-empted by kvm_reboot()'s shutdown call.
+		 */
+		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		return 0;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);
