@@ -3632,8 +3632,32 @@ out:
 static inline int hpsa_scsi_do_report_phys_luns(struct ctlr_info *h,
 		struct ReportExtendedLUNdata *buf, int bufsize)
 {
-	return hpsa_scsi_do_report_luns(h, 0, buf, bufsize,
-						HPSA_REPORT_PHYS_EXTENDED);
+	int rc;
+	struct ReportLUNdata *lbuf;
+
+	rc = hpsa_scsi_do_report_luns(h, 0, buf, bufsize,
+				      HPSA_REPORT_PHYS_EXTENDED);
+	if (!rc || !hpsa_allow_any)
+		return rc;
+
+	/* REPORT PHYS EXTENDED is not supported */
+	lbuf = kzalloc(sizeof(*lbuf), GFP_KERNEL);
+	if (!lbuf)
+		return -ENOMEM;
+
+	rc = hpsa_scsi_do_report_luns(h, 0, lbuf, sizeof(*lbuf), 0);
+	if (!rc) {
+		int i;
+		u32 nphys;
+
+		/* Copy ReportLUNdata header */
+		memcpy(buf, lbuf, 8);
+		nphys = be32_to_cpu(*((__be32 *)lbuf->LUNListLength)) / 8;
+		for (i = 0; i < nphys; i++)
+			memcpy(buf->LUN[i].lunid, lbuf->LUN[i], 8);
+	}
+	kfree(lbuf);
+	return rc;
 }
 
 static inline int hpsa_scsi_do_report_log_luns(struct ctlr_info *h,
