@@ -5805,8 +5805,10 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 {
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
 
-	if (INTEL_INFO(dev_priv)->gen >= 9 ||
-	    IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_GEMINILAKE(dev_priv))
+		return 2 * max_cdclk_freq;
+	else if (INTEL_INFO(dev_priv)->gen >= 9 ||
+		 IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		return max_cdclk_freq;
 	else if (IS_CHERRYVIEW(dev_priv))
 		return max_cdclk_freq*95/100;
@@ -6563,9 +6565,9 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 
 static int glk_calc_cdclk(int max_pixclk)
 {
-	if (max_pixclk > 158400)
+	if (max_pixclk > 2 * 158400)
 		return 316800;
-	else if (max_pixclk > 79200)
+	else if (max_pixclk > 2 * 79200)
 		return 158400;
 	else
 		return 79200;
