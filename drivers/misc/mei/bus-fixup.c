@@ -141,7 +141,7 @@ static int mei_osver(struct mei_cl_device *cldev)
 	if (ret < 0)
 		return ret;
 
-	ret = __mei_cl_recv(cldev->cl, buf, length);
+	ret = __mei_cl_recv(cldev->cl, buf, length, 0);
 	if (ret < 0)
 		return ret;
 
@@ -272,7 +272,7 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 		return -ENOMEM;
 
 	ret = 0;
-	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length);
+	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length, 0);
 	if (bytes_recv < if_version_length) {
 		dev_err(bus->dev, "Could not read IF version\n");
 		ret = -EIO;

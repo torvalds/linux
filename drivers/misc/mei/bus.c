@@ -98,15 +98,18 @@ out:
  * @cl: host client
  * @buf: buffer to receive
  * @length: buffer length
+ * @mode: io mode
  *
  * Return: read size in bytes of < 0 on error
  */
-ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
+ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
+		      unsigned int mode)
 {
 	struct mei_device *bus;
 	struct mei_cl_cb *cb;
 	size_t r_length;
 	ssize_t rets;
+	bool nonblock = !!(mode & MEI_CL_IO_RX_NONBLOCK);
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -126,6 +129,11 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	rets = mei_cl_read_start(cl, length, NULL);
 	if (rets && rets != -EBUSY)
 		goto out;
+
+	if (nonblock) {
+		rets = -EAGAIN;
+		goto out;
+	}
 
 	/* wait on event only if there is no other waiter */
 	/* synchronized under device mutex */
@@ -192,6 +200,25 @@ ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
 EXPORT_SYMBOL_GPL(mei_cldev_send);
 
 /**
+ * mei_cldev_recv_nonblock - non block client receive (read)
+ *
+ * @cldev: me client device
+ * @buf: buffer to receive
+ * @length: buffer length
+ *
+ * Return: read size in bytes of < 0 on error
+ *         -EAGAIN if function will block.
+ */
+ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
+				size_t length)
+{
+	struct mei_cl *cl = cldev->cl;
+
+	return __mei_cl_recv(cl, buf, length, MEI_CL_IO_RX_NONBLOCK);
+}
+EXPORT_SYMBOL_GPL(mei_cldev_recv_nonblock);
+
+/**
  * mei_cldev_recv - client receive (read)
  *
  * @cldev: me client device
@@ -204,7 +231,7 @@ ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = cldev->cl;
 
-	return __mei_cl_recv(cl, buf, length);
+	return __mei_cl_recv(cl, buf, length, 0);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_recv);
 

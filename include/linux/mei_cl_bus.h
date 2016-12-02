@@ -75,7 +75,7 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 /**
  * module_mei_cl_driver - Helper macro for registering mei cl driver
  *
- * @__mei_cldrv mei_cl_driver structure
+ * @__mei_cldrv: mei_cl_driver structure
  *
  *  Helper macro for mei cl drivers which do not do anything special in module
  *  init/exit, for eliminating a boilerplate code.
@@ -86,7 +86,9 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 		      mei_cldev_driver_unregister)
 
 ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length);
-ssize_t  mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
+ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
+				size_t length);
 
 int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb);
 int mei_cldev_register_notif_cb(struct mei_cl_device *cldev,
