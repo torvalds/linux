@@ -83,9 +83,6 @@
 #define I2C_CLK_RATIO	2
 #define CHUNK_DATA	256
 
-#define LPI2C_RX_FIFOSIZE	4
-#define LPI2C_TX_FIFOSIZE	4
-
 #define LPI2C_DEFAULT_RATE	100000
 #define STARDARD_MAX_BITRATE	400000
 #define FAST_MAX_BITRATE	1000000
@@ -118,6 +115,8 @@ struct lpi2c_imx_struct {
 	unsigned int		delivered;
 	unsigned int		block_data;
 	unsigned int		bitrate;
+	unsigned int		txfifosize;
+	unsigned int		rxfifosize;
 	enum lpi2c_imx_mode	mode;
 };
 
@@ -346,7 +345,7 @@ static int lpi2c_imx_txfifo_empty(struct lpi2c_imx_struct *lpi2c_imx)
 
 static void lpi2c_imx_set_tx_watermark(struct lpi2c_imx_struct *lpi2c_imx)
 {
-	writel(LPI2C_TX_FIFOSIZE >> 1, lpi2c_imx->base + LPI2C_MFCR);
+	writel(lpi2c_imx->txfifosize >> 1, lpi2c_imx->base + LPI2C_MFCR);
 }
 
 static void lpi2c_imx_set_rx_watermark(struct lpi2c_imx_struct *lpi2c_imx)
@@ -355,8 +354,8 @@ static void lpi2c_imx_set_rx_watermark(struct lpi2c_imx_struct *lpi2c_imx)
 
 	remaining = lpi2c_imx->msglen - lpi2c_imx->delivered;
 
-	if (remaining > (LPI2C_RX_FIFOSIZE >> 1))
-		temp = LPI2C_RX_FIFOSIZE >> 1;
+	if (remaining > (lpi2c_imx->rxfifosize >> 1))
+		temp = lpi2c_imx->rxfifosize >> 1;
 	else
 		temp = 0;
 
@@ -369,7 +368,7 @@ static void lpi2c_imx_write_txfifo(struct lpi2c_imx_struct *lpi2c_imx)
 
 	txcnt = readl(lpi2c_imx->base + LPI2C_MFSR) & 0xff;
 
-	while (txcnt < LPI2C_TX_FIFOSIZE) {
+	while (txcnt < lpi2c_imx->txfifosize) {
 		if (lpi2c_imx->delivered == lpi2c_imx->msglen)
 			break;
 
@@ -554,6 +553,7 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 {
 	struct lpi2c_imx_struct *lpi2c_imx;
 	struct resource *res;
+	unsigned int temp;
 	int irq, ret;
 
 	lpi2c_imx = devm_kzalloc(&pdev->dev, sizeof(*lpi2c_imx), GFP_KERNEL);
@@ -599,11 +599,17 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&lpi2c_imx->adapter, lpi2c_imx);
 	platform_set_drvdata(pdev, lpi2c_imx);
 
-	ret = clk_prepare(lpi2c_imx->clk);
+	ret = clk_prepare_enable(lpi2c_imx->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "clk prepare failed %d\n", ret);
+		dev_err(&pdev->dev, "clk enable failed %d\n", ret);
 		return ret;
 	}
+
+	temp = readl(lpi2c_imx->base + LPI2C_PARAM);
+	lpi2c_imx->txfifosize = 1 << (temp & 0x0f);
+	lpi2c_imx->rxfifosize = 1 << ((temp >> 8) & 0x0f);
+
+	clk_disable(lpi2c_imx->clk);
 
 	ret = i2c_add_adapter(&lpi2c_imx->adapter);
 	if (ret)
