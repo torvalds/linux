@@ -64,9 +64,10 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 
 	old_ng = rcu_dereference_protected(net->gen,
 					   lockdep_is_held(&net_mutex));
-	ng = old_ng;
-	if (old_ng->len >= id)
-		goto assign;
+	if (old_ng->len >= id) {
+		old_ng->ptr[id - 1] = data;
+		return 0;
+	}
 
 	ng = net_alloc_generic();
 	if (ng == NULL)
@@ -84,11 +85,10 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	 */
 
 	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
+	ng->ptr[id - 1] = data;
 
 	rcu_assign_pointer(net->gen, ng);
 	kfree_rcu(old_ng, rcu);
-assign:
-	ng->ptr[id - 1] = data;
 	return 0;
 }
 
