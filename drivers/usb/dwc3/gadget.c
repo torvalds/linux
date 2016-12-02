@@ -2179,6 +2179,9 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		return;
 
 	if (epnum == 0 || epnum == 1) {
+		if (!dwc->connected &&
+		    event->endpoint_event == DWC3_DEPEVT_XFERCOMPLETE)
+			dwc->connected = true;
 		dwc3_ep0_interrupt(dwc, event);
 		return;
 	}
@@ -2397,8 +2400,6 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 {
 	u32			reg;
-
-	dwc->connected = true;
 
 	/*
 	 * WORKAROUND: DWC3 revisions <1.88a have an issue which
