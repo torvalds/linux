@@ -543,14 +543,16 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
 	struct disasm_line *dl = browser->selection;
+	u64 offset;
 	s64 idx;
 
 	if (!ins__is_jump(&dl->ins))
 		return false;
 
-	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
+	offset = dl->ops.target.offset;
+	dl = annotate_browser__find_offset(browser, offset, &idx);
 	if (dl == NULL) {
-		ui_helpline__puts("Invalid jump offset");
+		ui_helpline__printf("Invalid jump offset: %" PRIx64, offset);
 		return true;
 	}
 

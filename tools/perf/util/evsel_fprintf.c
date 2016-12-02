@@ -166,6 +166,14 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			if (!print_oneline)
 				printed += fprintf(fp, "\n");
 
+			if (symbol_conf.bt_stop_list &&
+			    node->sym &&
+			    node->sym->name &&
+			    strlist__has_entry(symbol_conf.bt_stop_list,
+					       node->sym->name)) {
+				break;
+			}
+
 			first = false;
 next:
 			callchain_cursor_advance(cursor);

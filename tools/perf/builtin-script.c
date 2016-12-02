@@ -22,6 +22,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include "util/thread-stack.h"
+#include "util/time-utils.h"
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
@@ -833,6 +834,8 @@ struct perf_script {
 	struct cpu_map		*cpus;
 	struct thread_map	*threads;
 	int			name_width;
+	const char              *time_str;
+	struct perf_time_interval ptime;
 };
 
 static int perf_evlist__max_name_len(struct perf_evlist *evlist)
@@ -1013,6 +1016,9 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct addr_location al;
+
+	if (perf_time__skip_sample(&scr->ptime, sample->time))
+		return 0;
 
 	if (debug_mode) {
 		if (sample->time < last_timestamp) {
@@ -2151,6 +2157,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_STRING(0, "stop-bt", &symbol_conf.bt_stop_list_str, "symbol[,symbol...]",
+		   "Stop display of callgraph at these symbols"),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only display events for these comms"),
@@ -2184,7 +2192,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			"Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 			"Enable kernel symbol demangling"),
-
+	OPT_STRING(0, "time", &script.time_str, "str",
+		   "Time span of interest (start,stop)"),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
@@ -2462,6 +2471,12 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	err = perf_session__check_output_opt(session);
 	if (err < 0)
 		goto out_delete;
+
+	/* needs to be parsed after looking up reference time */
+	if (perf_time__parse_str(&script.ptime, script.time_str) != 0) {
+		pr_err("Invalid time string\n");
+		return -EINVAL;
+	}
 
 	err = __cmd_script(&script);
 

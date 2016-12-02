@@ -212,6 +212,9 @@ OPTIONS
 --hide-call-graph::
         When printing symbols do not display call chain.
 
+--stop-bt::
+        Stop display of callgraph at these symbols
+
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
 	be provided as a comma-separated list with no space: 0,1. Ranges of
@@ -288,6 +291,13 @@ include::itrace.txt[]
 -f::
 --force::
 	Don't do ownership validation.
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
 
 SEE ALSO
 --------

@@ -229,6 +229,10 @@ struct bpf_object {
 	 * all objects.
 	 */
 	struct list_head list;
+
+	void *priv;
+	bpf_object_clear_priv_t clear_priv;
+
 	char path[];
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
@@ -1229,6 +1233,9 @@ void bpf_object__close(struct bpf_object *obj)
 	if (!obj)
 		return;
 
+	if (obj->clear_priv)
+		obj->clear_priv(obj, obj->priv);
+
 	bpf_object__elf_finish(obj);
 	bpf_object__unload(obj);
 
@@ -1280,6 +1287,22 @@ const char *bpf_object__name(struct bpf_object *obj)
 unsigned int bpf_object__kversion(struct bpf_object *obj)
 {
 	return obj ? obj->kern_version : 0;
+}
+
+int bpf_object__set_priv(struct bpf_object *obj, void *priv,
+			 bpf_object_clear_priv_t clear_priv)
+{
+	if (obj->priv && obj->clear_priv)
+		obj->clear_priv(obj, obj->priv);
+
+	obj->priv = priv;
+	obj->clear_priv = clear_priv;
+	return 0;
+}
+
+void *bpf_object__priv(struct bpf_object *obj)
+{
+	return obj ? obj->priv : ERR_PTR(-EINVAL);
 }
 
 struct bpf_program *
@@ -1500,4 +1523,16 @@ bpf_object__find_map_by_name(struct bpf_object *obj, const char *name)
 			return pos;
 	}
 	return NULL;
+}
+
+struct bpf_map *
+bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
+{
+	int i;
+
+	for (i = 0; i < obj->nr_maps; i++) {
+		if (obj->maps[i].offset == offset)
+			return &obj->maps[i];
+	}
+	return ERR_PTR(-ENOENT);
 }
