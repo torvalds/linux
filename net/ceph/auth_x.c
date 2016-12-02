@@ -623,7 +623,7 @@ static int ceph_x_update_authorizer(
 }
 
 static int ceph_x_verify_authorizer_reply(struct ceph_auth_client *ac,
-					  struct ceph_authorizer *a, size_t len)
+					  struct ceph_authorizer *a)
 {
 	struct ceph_x_authorizer *au = (void *)a;
 	void *p = au->enc_buf;
