@@ -42,11 +42,11 @@ struct imx_pinctrl {
 	struct pinctrl_dev *pctl;
 	void __iomem *base;
 	void __iomem *input_sel_base;
-	const struct imx_pinctrl_soc_info *info;
+	struct imx_pinctrl_soc_info *info;
 };
 
 static inline const struct imx_pin_group *imx_pinctrl_find_group_by_name(
-				const struct imx_pinctrl_soc_info *info,
+				struct imx_pinctrl_soc_info *info,
 				const char *name)
 {
 	const struct imx_pin_group *grp = NULL;
@@ -65,7 +65,7 @@ static inline const struct imx_pin_group *imx_pinctrl_find_group_by_name(
 static int imx_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	return info->ngroups;
 }
@@ -74,7 +74,7 @@ static const char *imx_get_group_name(struct pinctrl_dev *pctldev,
 				       unsigned selector)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	return info->groups[selector].name;
 }
@@ -84,7 +84,7 @@ static int imx_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 			       unsigned *npins)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	if (selector >= info->ngroups)
 		return -EINVAL;
@@ -106,7 +106,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 			struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_group *grp;
 	struct pinctrl_map *new_map;
 	struct device_node *parent;
@@ -186,7 +186,7 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 		       unsigned group)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg;
 	unsigned int npins, pin_id;
 	int i;
@@ -275,7 +275,7 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 static int imx_pmx_get_funcs_count(struct pinctrl_dev *pctldev)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	return info->nfunctions;
 }
@@ -284,7 +284,7 @@ static const char *imx_pmx_get_func_name(struct pinctrl_dev *pctldev,
 					  unsigned selector)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	return info->functions[selector].name;
 }
@@ -294,7 +294,7 @@ static int imx_pmx_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
 			       unsigned * const num_groups)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 
 	*groups = info->functions[selector].groups;
 	*num_groups = info->functions[selector].num_groups;
@@ -306,7 +306,7 @@ static int imx_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range, unsigned offset)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg;
 	struct imx_pin_group *grp;
 	struct imx_pin *imx_pin;
@@ -346,7 +346,7 @@ static void imx_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range, unsigned offset)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg;
 	u32 reg;
 
@@ -371,7 +371,7 @@ static int imx_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	   struct pinctrl_gpio_range *range, unsigned offset, bool input)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg;
 	u32 reg;
 
@@ -411,7 +411,7 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 			     unsigned pin_id, unsigned long *config)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 
 	if (pin_reg->conf_reg == -1) {
@@ -433,7 +433,7 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 			     unsigned num_configs)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 	int i;
 
@@ -467,7 +467,7 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				   struct seq_file *s, unsigned pin_id)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 	unsigned long config;
 
@@ -484,7 +484,7 @@ static void imx_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 					 struct seq_file *s, unsigned group)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	const struct imx_pinctrl_soc_info *info = ipctl->info;
+	struct imx_pinctrl_soc_info *info = ipctl->info;
 	struct imx_pin_group *grp;
 	unsigned long config;
 	const char *name;
