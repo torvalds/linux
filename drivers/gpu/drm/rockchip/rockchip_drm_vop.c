@@ -1338,14 +1338,19 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vsync_len = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
+	uint32_t version = vop->data->version;
 	uint32_t val;
 
 	vop_enable(crtc);
 	/*
 	 * If dclk rate is zero, mean that scanout is stop,
 	 * we don't need wait any more.
+	 *
+	 * Since vop version(3,4), vop timing is frame effect, not need config
+	 * timing register on vblank.
 	 */
-	if (clk_get_rate(vop->dclk)) {
+	if (clk_get_rate(vop->dclk) &&
+	    !(VOP_MAJOR(version) == 3 && VOP_MINOR(version) >= 4)) {
 		/*
 		 * Rk3288 vop timing register is immediately, when configure
 		 * display timing on display time, may cause tearing.
