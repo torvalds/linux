@@ -361,6 +361,8 @@ static inline void intel_vgpu_write_pci_bar(struct intel_vgpu *vgpu,
 		 * leave the bit 3 - bit 0 unchanged.
 		 */
 		*pval = (val & GENMASK(31, 4)) | (*pval & GENMASK(3, 0));
+	} else {
+		*pval = val;
 	}
 }
 
