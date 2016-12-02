@@ -267,13 +267,15 @@ cleanup:
 }
 
 static int omap_modeset_create_crtc(struct drm_device *dev, int id,
-				    enum omap_channel channel)
+				    enum omap_channel channel,
+				    u32 possible_crtcs)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 
-	plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_PRIMARY);
+	plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_PRIMARY,
+		possible_crtcs);
 	if (IS_ERR(plane))
 		return PTR_ERR(plane);
 
@@ -309,6 +311,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_crtcs;
 	int i, id = 0;
 	int ret;
+	u32 possible_crtcs;
 
 	drm_mode_config_init(dev);
 
@@ -325,6 +328,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	 * We use the num_crtc argument to limit the number of crtcs we create.
 	 */
 	num_crtcs = min3(num_crtc, num_mgrs, num_ovls);
+	possible_crtcs = (1 << num_crtcs) - 1;
 
 	dssdev = NULL;
 
@@ -388,7 +392,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		 * allocated crtc, we create a new crtc for it
 		 */
 		if (!channel_used(dev, channel)) {
-			ret = omap_modeset_create_crtc(dev, id, channel);
+			ret = omap_modeset_create_crtc(dev, id, channel,
+				possible_crtcs);
 			if (ret < 0) {
 				dev_err(dev->dev,
 					"could not create CRTC (channel %u)\n",
@@ -418,7 +423,8 @@ static int omap_modeset_init(struct drm_device *dev)
 			return -ENOMEM;
 		}
 
-		ret = omap_modeset_create_crtc(dev, id, i);
+		ret = omap_modeset_create_crtc(dev, id, i,
+			possible_crtcs);
 		if (ret < 0) {
 			dev_err(dev->dev,
 				"could not create CRTC (channel %u)\n", i);
@@ -432,7 +438,8 @@ static int omap_modeset_init(struct drm_device *dev)
 	for (; id < num_ovls; id++) {
 		struct drm_plane *plane;
 
-		plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_OVERLAY);
+		plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_OVERLAY,
+			possible_crtcs);
 		if (IS_ERR(plane))
 			return PTR_ERR(plane);
 
