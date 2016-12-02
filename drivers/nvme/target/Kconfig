@@ -45,3 +45,16 @@ config NVME_TARGET_FC
 
 	  If unsure, say N.
 
+config NVME_TARGET_FCLOOP
+	tristate "NVMe over Fabrics FC Transport Loopback Test driver"
+	depends on NVME_TARGET
+	select NVME_CORE
+	select NVME_FABRICS
+	select SG_POOL
+	depends on NVME_FC
+	depends on NVME_TARGET_FC
+	help
+	  This enables the NVMe FC loopback test support, which can be useful
+	  to test NVMe-FC transport interfaces.
+
+	  If unsure, say N.
