@@ -607,7 +607,7 @@
 		status = "disabled";
 	};
 
-	thermal-zones {
+	thermal_zones: thermal-zones {
 		cpu_thermal: cpu {
 			polling-delay-passive = <100>;
 			polling-delay = <1000>;
