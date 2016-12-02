@@ -1436,6 +1436,13 @@
 			};
 		};
 
+		edp {
+			edp_hpd: edp-hpd {
+				rockchip,pins =
+					<4 23 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
 		gmac {
 			rgmii_pins: rgmii-pins {
 				rockchip,pins =
