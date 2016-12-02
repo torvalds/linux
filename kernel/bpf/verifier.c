@@ -2454,6 +2454,7 @@ static bool states_equal(struct bpf_verifier_env *env,
 			 struct bpf_verifier_state *old,
 			 struct bpf_verifier_state *cur)
 {
+	bool varlen_map_access = env->varlen_map_value_access;
 	struct bpf_reg_state *rold, *rcur;
 	int i;
 
@@ -2467,12 +2468,17 @@ static bool states_equal(struct bpf_verifier_env *env,
 		/* If the ranges were not the same, but everything else was and
 		 * we didn't do a variable access into a map then we are a-ok.
 		 */
-		if (!env->varlen_map_value_access &&
+		if (!varlen_map_access &&
 		    rold->type == rcur->type && rold->imm == rcur->imm)
 			continue;
 
+		/* If we didn't map access then again we don't care about the
+		 * mismatched range values and it's ok if our old type was
+		 * UNKNOWN and we didn't go to a NOT_INIT'ed reg.
+		 */
 		if (rold->type == NOT_INIT ||
-		    (rold->type == UNKNOWN_VALUE && rcur->type != NOT_INIT))
+		    (!varlen_map_access && rold->type == UNKNOWN_VALUE &&
+		     rcur->type != NOT_INIT))
 			continue;
 
 		if (rold->type == PTR_TO_PACKET && rcur->type == PTR_TO_PACKET &&
