@@ -204,11 +204,17 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 
 	/* legacy support */
 	case LIRC_GET_SEND_MODE:
-		val = LIRC_CAN_SEND_PULSE & LIRC_CAN_SEND_MASK;
+		if (!dev->tx_ir)
+			return -ENOTTY;
+
+		val = LIRC_MODE_PULSE;
 		break;
 
 	case LIRC_SET_SEND_MODE:
-		if (val != (LIRC_MODE_PULSE & LIRC_CAN_SEND_MASK))
+		if (!dev->tx_ir)
+			return -ENOTTY;
+
+		if (val != LIRC_MODE_PULSE)
 			return -EINVAL;
 		return 0;
 
