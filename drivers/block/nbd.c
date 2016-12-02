@@ -54,7 +54,7 @@ struct nbd_device {
 
 	struct mutex tx_lock;
 	struct gendisk *disk;
-	int blksize;
+	loff_t blksize;
 	loff_t bytesize;
 
 	/* protects initialization and shutdown of the socket */
@@ -126,7 +126,7 @@ static void nbd_size_update(struct nbd_device *nbd, struct block_device *bdev)
 }
 
 static int nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
-			int blocksize, int nr_blocks)
+			loff_t blocksize, loff_t nr_blocks)
 {
 	int ret;
 
@@ -135,7 +135,7 @@ static int nbd_size_set(struct nbd_device *nbd, struct block_device *bdev,
 		return ret;
 
 	nbd->blksize = blocksize;
-	nbd->bytesize = (loff_t)blocksize * (loff_t)nr_blocks;
+	nbd->bytesize = blocksize * nr_blocks;
 
 	nbd_size_update(nbd, bdev);
 
@@ -817,7 +817,7 @@ static int nbd_dev_dbg_init(struct nbd_device *nbd)
 	debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
 	debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
 	debugfs_create_u32("timeout", 0444, dir, &nbd->tag_set.timeout);
-	debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
+	debugfs_create_u64("blocksize", 0444, dir, &nbd->blksize);
 	debugfs_create_file("flags", 0444, dir, nbd, &nbd_dbg_flags_ops);
 
 	return 0;
