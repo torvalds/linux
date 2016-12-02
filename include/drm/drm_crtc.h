@@ -579,6 +579,35 @@ struct drm_crtc {
 };
 
 /**
+ * struct drm_tv_connector_state - TV connector related states
+ * @subconnector: selected subconnector
+ * @margins: left/right/top/bottom margins
+ * @mode: TV mode
+ * @brightness: brightness in percent
+ * @contrast: contrast in percent
+ * @flicker_reduction: flicker reduction in percent
+ * @overscan: overscan in percent
+ * @saturation: saturation in percent
+ * @hue: hue in percent
+ */
+struct drm_tv_connector_state {
+	enum drm_mode_subconnector subconnector;
+	struct {
+		unsigned int left;
+		unsigned int right;
+		unsigned int top;
+		unsigned int bottom;
+	} margins;
+	unsigned int mode;
+	unsigned int brightness;
+	unsigned int contrast;
+	unsigned int flicker_reduction;
+	unsigned int overscan;
+	unsigned int saturation;
+	unsigned int hue;
+};
+
+/**
  * struct drm_connector_state - mutable connector state
  * @connector: backpointer to the connector
  * @crtc: CRTC to connect connector to, NULL if disabled
@@ -593,6 +622,8 @@ struct drm_connector_state {
 	struct drm_encoder *best_encoder;
 
 	struct drm_atomic_state *state;
+
+	struct drm_tv_connector_state tv;
 };
 
 /**
