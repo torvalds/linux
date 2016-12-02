@@ -2352,7 +2352,7 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry_ctx *ent
 		frame.next_frame     = 0;
 		frame.return_address = 0;
 
-		if (!access_ok(VERIFY_READ, fp, 8))
+		if (!valid_user_frame(fp, sizeof(frame)))
 			break;
 
 		bytes = __copy_from_user_nmi(&frame.next_frame, fp, 4);
@@ -2360,9 +2360,6 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry_ctx *ent
 			break;
 		bytes = __copy_from_user_nmi(&frame.return_address, fp+4, 4);
 		if (bytes != 0)
-			break;
-
-		if (!valid_user_frame(fp, sizeof(frame)))
 			break;
 
 		perf_callchain_store(entry, cs_base + frame.return_address);
@@ -2413,7 +2410,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
-		if (!access_ok(VERIFY_READ, fp, sizeof(*fp) * 2))
+		if (!valid_user_frame(fp, sizeof(frame)))
 			break;
 
 		bytes = __copy_from_user_nmi(&frame.next_frame, fp, sizeof(*fp));
@@ -2421,9 +2418,6 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 			break;
 		bytes = __copy_from_user_nmi(&frame.return_address, fp + 1, sizeof(*fp));
 		if (bytes != 0)
-			break;
-
-		if (!valid_user_frame(fp, sizeof(frame)))
 			break;
 
 		perf_callchain_store(entry, frame.return_address);
