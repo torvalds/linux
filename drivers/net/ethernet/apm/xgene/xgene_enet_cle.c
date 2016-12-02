@@ -485,11 +485,11 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 				},
 				{
 					.valid = 0,
-					.next_packet_pointer = 260,
+					.next_packet_pointer = 26,
 					.jump_bw = JMP_FW,
 					.jump_rel = JMP_ABS,
 					.operation = EQT,
-					.next_node = LAST_NODE,
+					.next_node = RSS_IPV4_OTHERS_NODE,
 					.next_branch = 0,
 					.data = 0x0,
 					.mask = 0xffff
@@ -666,6 +666,92 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 				}
 			}
 		},
+		{
+			/* RSS_IPV4_OTHERS_NODE */
+			.node_type = EWDN,
+			.last_node = 0,
+			.hdr_len_store = 1,
+			.hdr_extn = NO_BYTE,
+			.byte_store = NO_BYTE,
+			.search_byte_store = BOTH_BYTES,
+			.result_pointer = DB_RES_DROP,
+			.num_branches = 6,
+			.branch = {
+				{
+					/* SRC IPV4 B01 */
+					.valid = 0,
+					.next_packet_pointer = 28,
+					.jump_bw = JMP_FW,
+					.jump_rel = JMP_ABS,
+					.operation = EQT,
+					.next_node = RSS_IPV4_OTHERS_NODE,
+					.next_branch = 1,
+					.data = 0x0,
+					.mask = 0xffff
+				},
+				{
+					/* SRC IPV4 B23 */
+					.valid = 0,
+					.next_packet_pointer = 30,
+					.jump_bw = JMP_FW,
+					.jump_rel = JMP_ABS,
+					.operation = EQT,
+					.next_node = RSS_IPV4_OTHERS_NODE,
+					.next_branch = 2,
+					.data = 0x0,
+					.mask = 0xffff
+				},
+				{
+					/* DST IPV4 B01 */
+					.valid = 0,
+					.next_packet_pointer = 32,
+					.jump_bw = JMP_FW,
+					.jump_rel = JMP_ABS,
+					.operation = EQT,
+					.next_node = RSS_IPV4_OTHERS_NODE,
+					.next_branch = 3,
+					.data = 0x0,
+					.mask = 0xffff
+				},
+				{
+					/* DST IPV4 B23 */
+					.valid = 0,
+					.next_packet_pointer = 34,
+					.jump_bw = JMP_FW,
+					.jump_rel = JMP_ABS,
+					.operation = EQT,
+					.next_node = RSS_IPV4_OTHERS_NODE,
+					.next_branch = 4,
+					.data = 0x0,
+					.mask = 0xffff
+				},
+				{
+					/* TCP SRC Port */
+					.valid = 0,
+					.next_packet_pointer = 36,
+					.jump_bw = JMP_FW,
+					.jump_rel = JMP_ABS,
+					.operation = EQT,
+					.next_node = RSS_IPV4_OTHERS_NODE,
+					.next_branch = 5,
+					.data = 0x0,
+					.mask = 0xffff
+				},
+				{
+					/* TCP DST Port */
+					.valid = 0,
+					.next_packet_pointer = 260,
+					.jump_bw = JMP_FW,
+					.jump_rel = JMP_ABS,
+					.operation = EQT,
+					.next_node = LAST_NODE,
+					.next_branch = 0,
+					.data = 0x0,
+					.mask = 0xffff
+				}
+			}
+		},
+
 		{
 			/* LAST NODE */
 			.node_type = EWDN,
