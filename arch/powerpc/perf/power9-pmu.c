@@ -93,7 +93,7 @@ static struct attribute_group power9_pmu_events_group = {
 	.attrs = power9_events_attr,
 };
 
-static const struct attribute_group *power9_pmu_attr_groups[] = {
+static const struct attribute_group *power9_isa207_pmu_attr_groups[] = {
 	&isa207_pmu_format_group,
 	&power9_pmu_events_group,
 	NULL,
@@ -260,7 +260,7 @@ static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 
 #undef C
 
-static struct power_pmu power9_pmu = {
+static struct power_pmu power9_isa207_pmu = {
 	.name			= "POWER9",
 	.n_counter		= MAX_PMU_COUNTERS,
 	.add_fields		= ISA207_ADD_FIELDS,
@@ -274,20 +274,23 @@ static struct power_pmu power9_pmu = {
 	.n_generic		= ARRAY_SIZE(power9_generic_events),
 	.generic_events		= power9_generic_events,
 	.cache_events		= &power9_cache_events,
-	.attr_groups		= power9_pmu_attr_groups,
+	.attr_groups		= power9_isa207_pmu_attr_groups,
 	.bhrb_nr		= 32,
 };
 
 static int __init init_power9_pmu(void)
 {
-	int rc;
+	int rc = 0;
 
 	/* Comes from cpu_specs[] */
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power9"))
 		return -ENODEV;
 
-	rc = register_power_pmu(&power9_pmu);
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		rc = register_power_pmu(&power9_isa207_pmu);
+	}
+
 	if (rc)
 		return rc;
 
