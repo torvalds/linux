@@ -679,6 +679,9 @@ static void xgene_gport_shutdown(struct xgene_enet_pdata *pdata)
 	for (i = 0; i < pdata->rxq_cnt; i++) {
 		ring = pdata->rx_ring[i]->buf_pool;
 		pb |= BIT(xgene_enet_get_fpsel(ring->id));
+		ring = pdata->rx_ring[i]->page_pool;
+		if (ring)
+			pb |= BIT(xgene_enet_get_fpsel(ring->id));
 
 	}
 	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIFPRESET_ADDR, pb);
