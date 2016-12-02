@@ -634,12 +634,25 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 }
 EXPORT_SYMBOL_GPL(nfs_setattr_update_inode);
 
-static void nfs_request_parent_use_readdirplus(struct dentry *dentry)
+static void nfs_readdirplus_parent_cache_miss(struct dentry *dentry)
 {
 	struct dentry *parent;
 
+	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
+		return;
 	parent = dget_parent(dentry);
 	nfs_force_use_readdirplus(d_inode(parent));
+	dput(parent);
+}
+
+static void nfs_readdirplus_parent_cache_hit(struct dentry *dentry)
+{
+	struct dentry *parent;
+
+	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
+		return;
+	parent = dget_parent(dentry);
+	nfs_advise_use_readdirplus(d_inode(parent));
 	dput(parent);
 }
 
@@ -683,10 +696,10 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	if (need_atime || nfs_need_revalidate_inode(inode)) {
 		struct nfs_server *server = NFS_SERVER(inode);
 
-		if (server->caps & NFS_CAP_READDIRPLUS)
-			nfs_request_parent_use_readdirplus(dentry);
+		nfs_readdirplus_parent_cache_miss(dentry);
 		err = __nfs_revalidate_inode(server, inode);
-	}
+	} else
+		nfs_readdirplus_parent_cache_hit(dentry);
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
