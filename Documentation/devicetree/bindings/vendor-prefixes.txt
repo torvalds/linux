@@ -296,6 +296,7 @@ technologic	Technologic Systems
 terasic	Terasic Inc.
 thine	THine Electronics, Inc.
 ti	Texas Instruments
+tianma	Tianma Micro-electronics Co., Ltd.
 tlm	Trusted Logic Mobility
 topeet  Topeet
 toradex	Toradex AG
