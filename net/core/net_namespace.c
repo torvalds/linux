@@ -50,7 +50,7 @@ static struct net_generic *net_alloc_generic(void)
 
 	ng = kzalloc(generic_size, GFP_KERNEL);
 	if (ng)
-		ng->len = max_gen_ptrs;
+		ng->s.len = max_gen_ptrs;
 
 	return ng;
 }
@@ -64,7 +64,7 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 
 	old_ng = rcu_dereference_protected(net->gen,
 					   lockdep_is_held(&net_mutex));
-	if (old_ng->len >= id) {
+	if (old_ng->s.len >= id) {
 		old_ng->ptr[id - 1] = data;
 		return 0;
 	}
@@ -84,11 +84,11 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	 * the old copy for kfree after a grace period.
 	 */
 
-	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
+	memcpy(&ng->ptr, &old_ng->ptr, old_ng->s.len * sizeof(void*));
 	ng->ptr[id - 1] = data;
 
 	rcu_assign_pointer(net->gen, ng);
-	kfree_rcu(old_ng, rcu);
+	kfree_rcu(old_ng, s.rcu);
 	return 0;
 }
 

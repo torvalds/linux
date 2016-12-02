@@ -25,8 +25,10 @@
  */
 
 struct net_generic {
-	unsigned int len;
-	struct rcu_head rcu;
+	struct {
+		unsigned int len;
+		struct rcu_head rcu;
+	} s;
 
 	void *ptr[0];
 };
