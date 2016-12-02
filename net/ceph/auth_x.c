@@ -308,8 +308,8 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	if (ret)
 		goto out_au;
 
-	maxlen = sizeof(*msg_a) + sizeof(msg_b) +
-		ceph_x_encrypt_buflen(ticket_blob_len);
+	maxlen = sizeof(*msg_a) + ticket_blob_len +
+		ceph_x_encrypt_buflen(sizeof(msg_b));
 	dout("  need len %d\n", maxlen);
 	if (au->buf && au->buf->alloc_len < maxlen) {
 		ceph_buffer_put(au->buf);
@@ -350,11 +350,12 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 			     p, end - p);
 	if (ret < 0)
 		goto out_au;
+
 	p += ret;
+	WARN_ON(p > end);
 	au->buf->vec.iov_len = p - au->buf->vec.iov_base;
 	dout(" built authorizer nonce %llx len %d\n", au->nonce,
 	     (int)au->buf->vec.iov_len);
-	BUG_ON(au->buf->vec.iov_len > maxlen);
 	return 0;
 
 out_au:
