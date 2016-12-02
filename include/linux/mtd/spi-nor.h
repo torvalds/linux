@@ -68,6 +68,15 @@
 #define SPINOR_OP_WRDI		0x04	/* Write disable */
 #define SPINOR_OP_AAI_WP	0xad	/* Auto address increment word program */
 
+/* Used for S3AN flashes only */
+#define SPINOR_OP_XSE		0x50	/* Sector erase */
+#define SPINOR_OP_XPP		0x82	/* Page program */
+#define SPINOR_OP_XRDSR		0xd7	/* Read status register */
+
+#define XSR_PAGESIZE		BIT(0)	/* Page size in Po2 or Linear */
+#define XSR_RDY			BIT(7)	/* Ready */
+
+
 /* Used for Macronix and Winbond flashes. */
 #define SPINOR_OP_EN4B		0xb7	/* Enter 4-byte mode */
 #define SPINOR_OP_EX4B		0xe9	/* Exit 4-byte mode */
@@ -119,6 +128,9 @@ enum spi_nor_ops {
 enum spi_nor_option_flags {
 	SNOR_F_USE_FSR		= BIT(0),
 	SNOR_F_HAS_SR_TB	= BIT(1),
+	SNOR_F_NO_OP_CHIP_ERASE	= BIT(2),
+	SNOR_F_S3AN_ADDR_DEFAULT = BIT(3),
+	SNOR_F_READY_XSR_RDY	= BIT(4),
 };
 
 /**
