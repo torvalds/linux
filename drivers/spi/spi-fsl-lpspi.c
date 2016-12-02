@@ -350,9 +350,12 @@ static int fsl_lpspi_transfer_one(struct spi_master *master,
 	}
 
 	ret = fsl_lpspi_txfifo_empty(fsl_lpspi);
+	if (ret)
+		return ret;
+
 	fsl_lpspi_read_rx_fifo(fsl_lpspi);
 
-	return ret;
+	return 0;
 }
 
 static int fsl_lpspi_transfer_one_msg(struct spi_master *master,
