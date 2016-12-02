@@ -2031,17 +2031,11 @@ static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode,
 	 * block to the Host Controller. So we set the block size
 	 * to 64 here.
 	 */
-	if (cmd.opcode == MMC_SEND_TUNING_BLOCK_HS200) {
-		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8)
-			sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 128),
-				     SDHCI_BLOCK_SIZE);
-		else if (mmc->ios.bus_width == MMC_BUS_WIDTH_4)
-			sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 64),
-				     SDHCI_BLOCK_SIZE);
-	} else {
-		sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 64),
-			     SDHCI_BLOCK_SIZE);
-	}
+	if (cmd.opcode == MMC_SEND_TUNING_BLOCK_HS200 &&
+	    mmc->ios.bus_width == MMC_BUS_WIDTH_8)
+		sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 128), SDHCI_BLOCK_SIZE);
+	else
+		sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 64), SDHCI_BLOCK_SIZE);
 
 	/*
 	 * The tuning block is sent by the card to the host controller.
