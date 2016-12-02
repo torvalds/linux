@@ -438,7 +438,7 @@ struct xdp_buff {
 };
 
 /* compute the linear packet data range [data, data_end) which
- * will be accessed by cls_bpf and act_bpf programs
+ * will be accessed by cls_bpf, act_bpf and lwt programs
  */
 static inline void bpf_compute_data_end(struct sk_buff *skb)
 {

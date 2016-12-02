@@ -101,6 +101,9 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_XDP,
 	BPF_PROG_TYPE_PERF_EVENT,
 	BPF_PROG_TYPE_CGROUP_SKB,
+	BPF_PROG_TYPE_LWT_IN,
+	BPF_PROG_TYPE_LWT_OUT,
+	BPF_PROG_TYPE_LWT_XMIT,
 };
 
 enum bpf_attach_type {
@@ -409,6 +412,16 @@ union bpf_attr {
  *
  * int bpf_get_numa_node_id()
  *     Return: Id of current NUMA node.
+ *
+ * int bpf_skb_change_head()
+ *     Grows headroom of skb and adjusts MAC header offset accordingly.
+ *     Will extends/reallocae as required automatically.
+ *     May change skb data pointer and will thus invalidate any check
+ *     performed for direct packet access.
+ *     @skb: pointer to skb
+ *     @len: length of header to be pushed in front
+ *     @flags: Flags (unused for now)
+ *     Return: 0 on success or negative error
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -453,7 +466,8 @@ union bpf_attr {
 	FN(skb_pull_data),		\
 	FN(csum_update),		\
 	FN(set_hash_invalid),		\
-	FN(get_numa_node_id),
+	FN(get_numa_node_id),		\
+	FN(skb_change_head),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -535,6 +549,22 @@ struct bpf_tunnel_key {
 	__u8 tunnel_ttl;
 	__u16 tunnel_ext;
 	__u32 tunnel_label;
+};
+
+/* Generic BPF return codes which all BPF program types may support.
+ * The values are binary compatible with their TC_ACT_* counter-part to
+ * provide backwards compatibility with existing SCHED_CLS and SCHED_ACT
+ * programs.
+ *
+ * XDP is handled seprately, see XDP_*.
+ */
+enum bpf_ret_code {
+	BPF_OK = 0,
+	/* 1 reserved */
+	BPF_DROP = 2,
+	/* 3-6 reserved */
+	BPF_REDIRECT = 7,
+	/* >127 are reserved for prog type specific return codes */
 };
 
 /* User return codes for XDP prog type.

@@ -41,6 +41,8 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 		return "ILA";
 	case LWTUNNEL_ENCAP_SEG6:
 		return "SEG6";
+	case LWTUNNEL_ENCAP_BPF:
+		return "BPF";
 	case LWTUNNEL_ENCAP_IP6:
 	case LWTUNNEL_ENCAP_IP:
 	case LWTUNNEL_ENCAP_NONE:
