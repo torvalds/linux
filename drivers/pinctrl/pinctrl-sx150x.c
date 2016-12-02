@@ -5,6 +5,7 @@
  * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Driver for Semtech SX150X I2C GPIO Expanders
+ * The handling of the 4-bit chips (SX1501/SX1504/SX1507) is untested.
  *
  * Author: Gregory Bean <gbean@codeaurora.org>
  *
@@ -1088,7 +1089,7 @@ static int sx150x_regmap_reg_write(void *context, unsigned int reg,
 
 	val = sx150x_maybe_swizzle(pctl, reg, val);
 
-	n = width - 8;
+	n = (width - 1) & ~7;
 	do {
 		const u8 byte = (val >> n) & 0xff;
 
