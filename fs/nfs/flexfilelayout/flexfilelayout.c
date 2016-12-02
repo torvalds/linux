@@ -25,6 +25,8 @@
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
 #define FF_LAYOUT_POLL_RETRY_MAX     (15*HZ)
+#define FF_LAYOUTRETURN_MAXERR 20
+
 
 static struct group_info	*ff_zero_group;
 
@@ -1971,24 +1973,18 @@ ff_layout_free_deviceid_node(struct nfs4_deviceid_node *d)
 
 static int ff_layout_encode_ioerr(struct nfs4_flexfile_layout *flo,
 				  struct xdr_stream *xdr,
-				  const struct nfs4_layoutreturn_args *args)
+				  const struct nfs4_layoutreturn_args *args,
+				  const struct nfs4_flexfile_layoutreturn_args *ff_args)
 {
-	struct pnfs_layout_hdr *hdr = &flo->generic_hdr;
 	__be32 *start;
-	int count = 0, ret = 0;
 
 	start = xdr_reserve_space(xdr, 4);
 	if (unlikely(!start))
 		return -E2BIG;
 
+	*start = cpu_to_be32(ff_args->num_errors);
 	/* This assume we always return _ALL_ layouts */
-	spin_lock(&hdr->plh_inode->i_lock);
-	ret = ff_layout_encode_ds_ioerr(flo, xdr, &count, &args->range);
-	spin_unlock(&hdr->plh_inode->i_lock);
-
-	*start = cpu_to_be32(count);
-
-	return ret;
+	return ff_layout_encode_ds_ioerr(xdr, &ff_args->errors);
 }
 
 /* report nothing for now */
@@ -2017,8 +2013,10 @@ ff_layout_alloc_deviceid_node(struct nfs_server *server,
 
 static void
 ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
-			      const struct nfs4_layoutreturn_args *args)
+		const void *voidargs,
+		const struct nfs4_xdr_opaque_data *ff_opaque)
 {
+	const struct nfs4_layoutreturn_args *args = voidargs;
 	struct pnfs_layout_hdr *lo = args->layout;
 	struct nfs4_flexfile_layout *flo = FF_LAYOUT_FROM_HDR(lo);
 	__be32 *start;
@@ -2027,11 +2025,50 @@ ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
 	start = xdr_reserve_space(xdr, 4);
 	BUG_ON(!start);
 
-	ff_layout_encode_ioerr(flo, xdr, args);
+	ff_layout_encode_ioerr(flo, xdr, args, ff_opaque->data);
 	ff_layout_encode_iostats(flo, xdr, args);
 
 	*start = cpu_to_be32((xdr->p - start - 1) * 4);
 	dprintk("%s: Return\n", __func__);
+}
+
+static void
+ff_layout_free_layoutreturn(struct nfs4_xdr_opaque_data *args)
+{
+	struct nfs4_flexfile_layoutreturn_args *ff_args;
+
+	if (!args->data)
+		return;
+	ff_args = args->data;
+	args->data = NULL;
+
+	ff_layout_free_ds_ioerr(&ff_args->errors);
+
+	kfree(ff_args);
+}
+
+const struct nfs4_xdr_opaque_ops layoutreturn_ops = {
+	.encode = ff_layout_encode_layoutreturn,
+	.free = ff_layout_free_layoutreturn,
+};
+
+static int
+ff_layout_prepare_layoutreturn(struct nfs4_layoutreturn_args *args)
+{
+	struct nfs4_flexfile_layoutreturn_args *ff_args;
+
+	ff_args = kmalloc(sizeof(*ff_args), GFP_KERNEL);
+	if (!ff_args)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ff_args->errors);
+	ff_args->num_errors = ff_layout_fetch_ds_ioerr(args->layout,
+			&args->range, &ff_args->errors,
+			FF_LAYOUTRETURN_MAXERR);
+
+	args->ld_private->ops = &layoutreturn_ops;
+	args->ld_private->data = ff_args;
+	return 0;
 }
 
 static int
@@ -2299,7 +2336,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.read_pagelist		= ff_layout_read_pagelist,
 	.write_pagelist		= ff_layout_write_pagelist,
 	.alloc_deviceid_node    = ff_layout_alloc_deviceid_node,
-	.encode_layoutreturn    = ff_layout_encode_layoutreturn,
+	.prepare_layoutreturn   = ff_layout_prepare_layoutreturn,
 	.sync			= pnfs_nfs_generic_sync,
 	.prepare_layoutstats	= ff_layout_prepare_layoutstats,
 	.cleanup_layoutstats	= ff_layout_cleanup_layoutstats,

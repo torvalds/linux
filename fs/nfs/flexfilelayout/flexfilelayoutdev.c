@@ -447,20 +447,26 @@ nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	}
 }
 
-/* called with inode i_lock held */
-int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
-			      struct xdr_stream *xdr, int *count,
-			      const struct pnfs_layout_range *range)
+void ff_layout_free_ds_ioerr(struct list_head *head)
 {
-	struct nfs4_ff_layout_ds_err *err, *n;
+	struct nfs4_ff_layout_ds_err *err;
+
+	while (!list_empty(head)) {
+		err = list_first_entry(head,
+				struct nfs4_ff_layout_ds_err,
+				list);
+		list_del(&err->list);
+		kfree(err);
+	}
+}
+
+/* called with inode i_lock held */
+int ff_layout_encode_ds_ioerr(struct xdr_stream *xdr, const struct list_head *head)
+{
+	struct nfs4_ff_layout_ds_err *err;
 	__be32 *p;
 
-	list_for_each_entry_safe(err, n, &flo->error_list, list) {
-		if (!pnfs_is_range_intersecting(err->offset,
-				pnfs_end_offset(err->offset, err->length),
-				range->offset,
-				pnfs_end_offset(range->offset, range->length)))
-			continue;
+	list_for_each_entry(err, head, list) {
 		/* offset(8) + length(8) + stateid(NFS4_STATEID_SIZE)
 		 * + array length + deviceid(NFS4_DEVICEID4_SIZE)
 		 * + status(4) + opnum(4)
@@ -479,15 +485,57 @@ int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
 					    NFS4_DEVICEID4_SIZE);
 		*p++ = cpu_to_be32(err->status);
 		*p++ = cpu_to_be32(err->opnum);
-		*count += 1;
-		list_del(&err->list);
-		dprintk("%s: offset %llu length %llu status %d op %d count %d\n",
+		dprintk("%s: offset %llu length %llu status %d op %d\n",
 			__func__, err->offset, err->length, err->status,
-			err->opnum, *count);
-		kfree(err);
+			err->opnum);
 	}
 
 	return 0;
+}
+
+static
+unsigned int do_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
+				      const struct pnfs_layout_range *range,
+				      struct list_head *head,
+				      unsigned int maxnum)
+{
+	struct nfs4_flexfile_layout *flo = FF_LAYOUT_FROM_HDR(lo);
+	struct inode *inode = lo->plh_inode;
+	struct nfs4_ff_layout_ds_err *err, *n;
+	unsigned int ret = 0;
+
+	spin_lock(&inode->i_lock);
+	list_for_each_entry_safe(err, n, &flo->error_list, list) {
+		if (!pnfs_is_range_intersecting(err->offset,
+				pnfs_end_offset(err->offset, err->length),
+				range->offset,
+				pnfs_end_offset(range->offset, range->length)))
+			continue;
+		if (!maxnum)
+			break;
+		list_move(&err->list, head);
+		maxnum--;
+		ret++;
+	}
+	spin_unlock(&inode->i_lock);
+	return ret;
+}
+
+unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
+				      const struct pnfs_layout_range *range,
+				      struct list_head *head,
+				      unsigned int maxnum)
+{
+	unsigned int ret;
+
+	ret = do_layout_fetch_ds_ioerr(lo, range, head, maxnum);
+	/* If we're over the max, discard all remaining entries */
+	if (ret == maxnum) {
+		LIST_HEAD(discard);
+		do_layout_fetch_ds_ioerr(lo, range, &discard, -1);
+		ff_layout_free_ds_ioerr(&discard);
+	}
+	return ret;
 }
 
 static bool ff_read_layout_has_available_ds(struct pnfs_layout_segment *lseg)
