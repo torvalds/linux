@@ -138,7 +138,7 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 			return reg_val;
 	}
 
-	DC_ERR("REG_WAIT timeout %dus * %d tries - %s",
+	DC_ERR("REG_WAIT timeout %dus * %d tries - %s\n",
 			delay_between_poll_us, time_out_num_tries, func_name);
 	return reg_val;
 }
