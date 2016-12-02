@@ -8664,6 +8664,7 @@ M:	James Smart <james.smart@broadcom.com>
 L:	linux-nvme@lists.infradead.org
 S:	Supported
 F:	include/linux/nvme-fc.h
+F:	include/linux/nvme-fc-driver.h
 
 NVMEM FRAMEWORK
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
