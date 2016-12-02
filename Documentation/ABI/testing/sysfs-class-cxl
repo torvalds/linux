@@ -220,8 +220,11 @@ What:           /sys/class/cxl/<card>/reset
 Date:           October 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
-                Writing 1 will issue a PERST to card which may cause the card
-                to reload the FPGA depending on load_image_on_perst.
+                Writing 1 will issue a PERST to card provided there are no
+                contexts active on any one of the card AFUs. This may cause
+                the card to reload the FPGA depending on load_image_on_perst.
+                Writing -1 will do a force PERST irrespective of any active
+                contexts on the card AFUs.
 Users:		https://github.com/ibm-capi/libcxl
 
 What:		/sys/class/cxl/<card>/perst_reloads_same_image (not in a guest)

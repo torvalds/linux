@@ -85,6 +85,9 @@
 #define MLX5_MPWRQ_SMALL_PACKET_THRESHOLD	(128)
 
 #define MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ                 (64 * 1024)
+#define MLX5E_DEFAULT_LRO_TIMEOUT                       32
+#define MLX5E_LRO_TIMEOUT_ARR_SIZE                      4
+
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC      0x10
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE 0x3
 #define MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS      0x20
@@ -221,6 +224,7 @@ struct mlx5e_params {
 	struct ieee_ets ets;
 #endif
 	bool rx_am_enabled;
+	u32 lro_timeout;
 };
 
 struct mlx5e_tstamp {
@@ -888,5 +892,6 @@ int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 struct rtnl_link_stats64 *
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
+u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
 
 #endif /* __MLX5_EN_H__ */

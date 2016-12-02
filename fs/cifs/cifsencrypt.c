@@ -808,7 +808,11 @@ calc_seckey(struct cifs_ses *ses)
 	struct crypto_skcipher *tfm_arc4;
 	struct scatterlist sgin, sgout;
 	struct skcipher_request *req;
-	unsigned char sec_key[CIFS_SESS_KEY_SIZE]; /* a nonce */
+	unsigned char *sec_key;
+
+	sec_key = kmalloc(CIFS_SESS_KEY_SIZE, GFP_KERNEL);
+	if (sec_key == NULL)
+		return -ENOMEM;
 
 	get_random_bytes(sec_key, CIFS_SESS_KEY_SIZE);
 
@@ -816,7 +820,7 @@ calc_seckey(struct cifs_ses *ses)
 	if (IS_ERR(tfm_arc4)) {
 		rc = PTR_ERR(tfm_arc4);
 		cifs_dbg(VFS, "could not allocate crypto API arc4\n");
-		return rc;
+		goto out;
 	}
 
 	rc = crypto_skcipher_setkey(tfm_arc4, ses->auth_key.response,
@@ -854,7 +858,8 @@ calc_seckey(struct cifs_ses *ses)
 
 out_free_cipher:
 	crypto_free_skcipher(tfm_arc4);
-
+out:
+	kfree(sec_key);
 	return rc;
 }
 

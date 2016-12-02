@@ -902,6 +902,17 @@ list_update_cgroup_event(struct perf_event *event,
 	 * this will always be called from the right CPU.
 	 */
 	cpuctx = __get_cpu_context(ctx);
+
+	/* Only set/clear cpuctx->cgrp if current task uses event->cgrp. */
+	if (perf_cgroup_from_task(current, ctx) != event->cgrp) {
+		/*
+		 * We are removing the last cpu event in this context.
+		 * If that event is not active in this cpu, cpuctx->cgrp
+		 * should've been cleared by perf_cgroup_switch.
+		 */
+		WARN_ON_ONCE(!add && cpuctx->cgrp);
+		return;
+	}
 	cpuctx->cgrp = add ? event->cgrp : NULL;
 }
 
@@ -1959,6 +1970,12 @@ void perf_event_disable(struct perf_event *event)
 	perf_event_ctx_unlock(event, ctx);
 }
 EXPORT_SYMBOL_GPL(perf_event_disable);
+
+void perf_event_disable_inatomic(struct perf_event *event)
+{
+	event->pending_disable = 1;
+	irq_work_queue(&event->pending);
+}
 
 static void perf_set_shadow_time(struct perf_event *event,
 				 struct perf_event_context *ctx,
@@ -7075,8 +7092,8 @@ static int __perf_event_overflow(struct perf_event *event,
 	if (events && atomic_dec_and_test(&event->event_limit)) {
 		ret = 1;
 		event->pending_kill = POLL_HUP;
-		event->pending_disable = 1;
-		irq_work_queue(&event->pending);
+
+		perf_event_disable_inatomic(event);
 	}
 
 	READ_ONCE(event->overflow_handler)(event, data, regs);
@@ -8012,6 +8029,7 @@ restart:
  * if <size> is not specified, the range is treated as a single address.
  */
 enum {
+	IF_ACT_NONE = -1,
 	IF_ACT_FILTER,
 	IF_ACT_START,
 	IF_ACT_STOP,
@@ -8035,6 +8053,7 @@ static const match_table_t if_tokens = {
 	{ IF_SRC_KERNEL,	"%u/%u" },
 	{ IF_SRC_FILEADDR,	"%u@%s" },
 	{ IF_SRC_KERNELADDR,	"%u" },
+	{ IF_ACT_NONE,		NULL },
 };
 
 /*
@@ -8855,7 +8874,10 @@ EXPORT_SYMBOL_GPL(perf_pmu_register);
 
 void perf_pmu_unregister(struct pmu *pmu)
 {
+	int remove_device;
+
 	mutex_lock(&pmus_lock);
+	remove_device = pmu_bus_running;
 	list_del_rcu(&pmu->entry);
 	mutex_unlock(&pmus_lock);
 
@@ -8869,10 +8891,12 @@ void perf_pmu_unregister(struct pmu *pmu)
 	free_percpu(pmu->pmu_disable_count);
 	if (pmu->type >= PERF_TYPE_MAX)
 		idr_remove(&pmu_idr, pmu->type);
-	if (pmu->nr_addr_filters)
-		device_remove_file(pmu->dev, &dev_attr_nr_addr_filters);
-	device_del(pmu->dev);
-	put_device(pmu->dev);
+	if (remove_device) {
+		if (pmu->nr_addr_filters)
+			device_remove_file(pmu->dev, &dev_attr_nr_addr_filters);
+		device_del(pmu->dev);
+		put_device(pmu->dev);
+	}
 	free_pmu_context(pmu);
 }
 EXPORT_SYMBOL_GPL(perf_pmu_unregister);

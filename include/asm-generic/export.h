@@ -54,6 +54,7 @@ KSYM(__kstrtab_\name):
 KSYM(__kcrctab_\name):
 	__put KSYM(__crc_\name)
 	.weak KSYM(__crc_\name)
+	.set KSYM(__crc_\name), 0
 	.previous
 #endif
 #endif
@@ -70,7 +71,7 @@ KSYM(__kcrctab_\name):
 #include <generated/autoksyms.h>
 
 #define __EXPORT_SYMBOL(sym, val, sec)				\
-	__cond_export_sym(sym, val, sec, config_enabled(__KSYM_##sym))
+	__cond_export_sym(sym, val, sec, __is_defined(__KSYM_##sym))
 #define __cond_export_sym(sym, val, sec, conf)			\
 	___cond_export_sym(sym, val, sec, conf)
 #define ___cond_export_sym(sym, val, sec, enabled)		\

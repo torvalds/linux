@@ -177,18 +177,26 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -EINVAL;
 	}
 
+	/* svc_rdma_sendto releases this page */
 	page = alloc_page(RPCRDMA_DEF_GFP);
 	if (!page)
 		return -ENOMEM;
-
 	rqst->rq_buffer = page_address(page);
+
+	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, RPCRDMA_DEF_GFP);
+	if (!rqst->rq_rbuffer) {
+		put_page(page);
+		return -ENOMEM;
+	}
 	return 0;
 }
 
 static void
 xprt_rdma_bc_free(struct rpc_task *task)
 {
-	/* No-op: ctxt and page have already been freed. */
+	struct rpc_rqst *rqst = task->tk_rqstp;
+
+	kfree(rqst->rq_rbuffer);
 }
 
 static int

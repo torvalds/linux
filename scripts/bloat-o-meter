@@ -8,6 +8,9 @@
 # of the GNU General Public License, incorporated herein by reference.
 
 import sys, os, re
+from signal import signal, SIGPIPE, SIG_DFL
+
+signal(SIGPIPE, SIG_DFL)
 
 if len(sys.argv) != 3:
     sys.stderr.write("usage: %s file1 file2\n" % sys.argv[0])

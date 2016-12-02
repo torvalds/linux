@@ -419,6 +419,7 @@ static struct dmi_system_id pch_uart_dmi_table[] = {
 		},
 		(void *)MINNOW_UARTCLK,
 	},
+	{ }
 };
 
 /* Return UART clock, checking for board specific clocks. */

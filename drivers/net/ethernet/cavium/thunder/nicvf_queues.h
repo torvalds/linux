@@ -158,6 +158,7 @@ enum CQ_TX_ERROP_E {
 	CQ_TX_ERROP_DESC_FAULT = 0x10,
 	CQ_TX_ERROP_HDR_CONS_ERR = 0x11,
 	CQ_TX_ERROP_SUBDC_ERR = 0x12,
+	CQ_TX_ERROP_MAX_SIZE_VIOL = 0x13,
 	CQ_TX_ERROP_IMM_SIZE_OFLOW = 0x80,
 	CQ_TX_ERROP_DATA_SEQUENCE_ERR = 0x81,
 	CQ_TX_ERROP_MEM_SEQUENCE_ERR = 0x82,
@@ -170,25 +171,6 @@ enum CQ_TX_ERROP_E {
 	CQ_TX_ERROP_CK_OFLOW = 0x89,
 	CQ_TX_ERROP_ENUM_LAST = 0x8a,
 };
-
-struct cmp_queue_stats {
-	struct tx_stats {
-		u64 good;
-		u64 desc_fault;
-		u64 hdr_cons_err;
-		u64 subdesc_err;
-		u64 imm_size_oflow;
-		u64 data_seq_err;
-		u64 mem_seq_err;
-		u64 lock_viol;
-		u64 data_fault;
-		u64 tstmp_conflict;
-		u64 tstmp_timeout;
-		u64 mem_fault;
-		u64 csum_overlap;
-		u64 csum_overflow;
-	} tx;
-} ____cacheline_aligned_in_smp;
 
 enum RQ_SQ_STATS {
 	RQ_SQ_STATS_OCTS,
@@ -241,7 +223,6 @@ struct cmp_queue {
 	spinlock_t	lock;  /* lock to serialize processing CQEs */
 	void		*desc;
 	struct q_desc_mem   dmem;
-	struct cmp_queue_stats	stats;
 	int		irq;
 } ____cacheline_aligned_in_smp;
 
@@ -336,6 +317,5 @@ u64  nicvf_queue_reg_read(struct nicvf *nic,
 void nicvf_update_rq_stats(struct nicvf *nic, int rq_idx);
 void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx);
 int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx);
-int nicvf_check_cqe_tx_errs(struct nicvf *nic,
-			    struct cmp_queue *cq, struct cqe_send_t *cqe_tx);
+int nicvf_check_cqe_tx_errs(struct nicvf *nic, struct cqe_send_t *cqe_tx);
 #endif /* NICVF_QUEUES_H */

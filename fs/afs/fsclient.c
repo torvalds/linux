@@ -364,7 +364,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			buffer = kmap(page);
 			ret = afs_extract_data(call, buffer,
 					       call->count, true);
-			kunmap(buffer);
+			kunmap(page);
 			if (ret < 0)
 				return ret;
 		}
@@ -397,7 +397,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		page = call->reply3;
 		buffer = kmap(page);
 		memset(buffer + call->count, 0, PAGE_SIZE - call->count);
-		kunmap(buffer);
+		kunmap(page);
 	}
 
 	_leave(" = 0 [done]");

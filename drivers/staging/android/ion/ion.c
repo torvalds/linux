@@ -1187,8 +1187,10 @@ int ion_query_heaps(struct ion_client *client, struct ion_heap_query *query)
 		hdata.type = heap->type;
 		hdata.heap_id = heap->id;
 
-		ret = copy_to_user(&buffer[cnt],
-				   &hdata, sizeof(hdata));
+		if (copy_to_user(&buffer[cnt], &hdata, sizeof(hdata))) {
+			ret = -EFAULT;
+			goto out;
+		}
 
 		cnt++;
 		if (cnt >= max_cnt)

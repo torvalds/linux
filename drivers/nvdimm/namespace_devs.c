@@ -2176,12 +2176,14 @@ static struct device **scan_labels(struct nd_region *nd_region)
 	return devs;
 
  err:
-	for (i = 0; devs[i]; i++)
-		if (is_nd_blk(&nd_region->dev))
-			namespace_blk_release(devs[i]);
-		else
-			namespace_pmem_release(devs[i]);
-	kfree(devs);
+	if (devs) {
+		for (i = 0; devs[i]; i++)
+			if (is_nd_blk(&nd_region->dev))
+				namespace_blk_release(devs[i]);
+			else
+				namespace_pmem_release(devs[i]);
+		kfree(devs);
+	}
 	return NULL;
 }
 

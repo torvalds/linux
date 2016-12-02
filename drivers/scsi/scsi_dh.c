@@ -36,9 +36,9 @@ struct scsi_dh_blist {
 };
 
 static const struct scsi_dh_blist scsi_dh_blist[] = {
-	{"DGC", "RAID",			"clariion" },
-	{"DGC", "DISK",			"clariion" },
-	{"DGC", "VRAID",		"clariion" },
+	{"DGC", "RAID",			"emc" },
+	{"DGC", "DISK",			"emc" },
+	{"DGC", "VRAID",		"emc" },
 
 	{"COMPAQ", "MSA1000 VOLUME",	"hp_sw" },
 	{"COMPAQ", "HSV110",		"hp_sw" },

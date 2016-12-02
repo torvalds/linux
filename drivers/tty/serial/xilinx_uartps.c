@@ -1200,6 +1200,7 @@ static int __init cdns_early_console_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(cdns, "xlnx,xuartps", cdns_early_console_setup);
 OF_EARLYCON_DECLARE(cdns, "cdns,uart-r1p8", cdns_early_console_setup);
 OF_EARLYCON_DECLARE(cdns, "cdns,uart-r1p12", cdns_early_console_setup);
+OF_EARLYCON_DECLARE(cdns, "xlnx,zynqmp-uart", cdns_early_console_setup);
 
 /**
  * cdns_uart_console_write - perform write operation
@@ -1438,6 +1439,7 @@ static const struct of_device_id cdns_uart_of_match[] = {
 	{ .compatible = "xlnx,xuartps", },
 	{ .compatible = "cdns,uart-r1p8", },
 	{ .compatible = "cdns,uart-r1p12", .data = &zynqmp_uart_def },
+	{ .compatible = "xlnx,zynqmp-uart", .data = &zynqmp_uart_def },
 	{}
 };
 MODULE_DEVICE_TABLE(of, cdns_uart_of_match);

@@ -7277,11 +7277,15 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 
 	/* initialize outer IP header fields */
 	if (ip.v4->version == 4) {
+		unsigned char *csum_start = skb_checksum_start(skb);
+		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
+
 		/* IP header will have to cancel out any data that
 		 * is not a part of the outer IP header
 		 */
-		ip.v4->check = csum_fold(csum_add(lco_csum(skb),
-						  csum_unfold(l4.tcp->check)));
+		ip.v4->check = csum_fold(csum_partial(trans_start,
+						      csum_start - trans_start,
+						      0));
 		type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
 
 		ip.v4->tot_len = 0;
@@ -9135,10 +9139,14 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 		goto fwd_add_err;
 	fwd_adapter->pool = pool;
 	fwd_adapter->real_adapter = adapter;
-	err = ixgbe_fwd_ring_up(vdev, fwd_adapter);
-	if (err)
-		goto fwd_add_err;
-	netif_tx_start_all_queues(vdev);
+
+	if (netif_running(pdev)) {
+		err = ixgbe_fwd_ring_up(vdev, fwd_adapter);
+		if (err)
+			goto fwd_add_err;
+		netif_tx_start_all_queues(vdev);
+	}
+
 	return fwd_adapter;
 fwd_add_err:
 	/* unwind counter and free adapter struct */

@@ -246,6 +246,7 @@ enum {
 	ncsi_dev_state_config_gls,
 	ncsi_dev_state_config_done,
 	ncsi_dev_state_suspend_select	= 0x0401,
+	ncsi_dev_state_suspend_gls,
 	ncsi_dev_state_suspend_dcnt,
 	ncsi_dev_state_suspend_dc,
 	ncsi_dev_state_suspend_deselect,
@@ -264,6 +265,7 @@ struct ncsi_dev_priv {
 #endif
 	unsigned int        package_num;     /* Number of packages         */
 	struct list_head    packages;        /* List of packages           */
+	struct ncsi_channel *hot_channel;    /* Channel was ever active    */
 	struct ncsi_request requests[256];   /* Request table              */
 	unsigned int        request_id;      /* Last used request ID       */
 #define NCSI_REQ_START_IDX	1

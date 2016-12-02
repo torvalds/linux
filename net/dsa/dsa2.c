@@ -28,8 +28,10 @@ static struct dsa_switch_tree *dsa_get_dst(u32 tree)
 	struct dsa_switch_tree *dst;
 
 	list_for_each_entry(dst, &dsa_switch_trees, list)
-		if (dst->tree == tree)
+		if (dst->tree == tree) {
+			kref_get(&dst->refcount);
 			return dst;
+		}
 	return NULL;
 }
 

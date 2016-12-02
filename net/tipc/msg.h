@@ -714,6 +714,23 @@ static inline void msg_set_peer_stopping(struct tipc_msg *m, u32 s)
 	msg_set_bits(m, 5, 13, 0x1, s);
 }
 
+static inline bool msg_bc_ack_invalid(struct tipc_msg *m)
+{
+	switch (msg_user(m)) {
+	case BCAST_PROTOCOL:
+	case NAME_DISTRIBUTOR:
+	case LINK_PROTOCOL:
+		return msg_bits(m, 5, 14, 0x1);
+	default:
+		return false;
+	}
+}
+
+static inline void msg_set_bc_ack_invalid(struct tipc_msg *m, bool invalid)
+{
+	msg_set_bits(m, 5, 14, 0x1, invalid);
+}
+
 static inline char *msg_media_addr(struct tipc_msg *m)
 {
 	return (char *)&m->hdr[TIPC_MEDIA_INFO_OFFSET];

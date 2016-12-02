@@ -397,6 +397,14 @@ static struct macsec_cb *macsec_skb_cb(struct sk_buff *skb)
 #define DEFAULT_ENCRYPT false
 #define DEFAULT_ENCODING_SA 0
 
+static bool send_sci(const struct macsec_secy *secy)
+{
+	const struct macsec_tx_sc *tx_sc = &secy->tx_sc;
+
+	return tx_sc->send_sci ||
+		(secy->n_rx_sc > 1 && !tx_sc->end_station && !tx_sc->scb);
+}
+
 static sci_t make_sci(u8 *addr, __be16 port)
 {
 	sci_t sci;
@@ -437,15 +445,15 @@ static unsigned int macsec_extra_len(bool sci_present)
 
 /* Fill SecTAG according to IEEE 802.1AE-2006 10.5.3 */
 static void macsec_fill_sectag(struct macsec_eth_header *h,
-			       const struct macsec_secy *secy, u32 pn)
+			       const struct macsec_secy *secy, u32 pn,
+			       bool sci_present)
 {
 	const struct macsec_tx_sc *tx_sc = &secy->tx_sc;
 
-	memset(&h->tci_an, 0, macsec_sectag_len(tx_sc->send_sci));
+	memset(&h->tci_an, 0, macsec_sectag_len(sci_present));
 	h->eth.h_proto = htons(ETH_P_MACSEC);
 
-	if (tx_sc->send_sci ||
-	    (secy->n_rx_sc > 1 && !tx_sc->end_station && !tx_sc->scb)) {
+	if (sci_present) {
 		h->tci_an |= MACSEC_TCI_SC;
 		memcpy(&h->secure_channel_id, &secy->sci,
 		       sizeof(h->secure_channel_id));
@@ -650,6 +658,7 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 	struct macsec_tx_sc *tx_sc;
 	struct macsec_tx_sa *tx_sa;
 	struct macsec_dev *macsec = macsec_priv(dev);
+	bool sci_present;
 	u32 pn;
 
 	secy = &macsec->secy;
@@ -687,7 +696,8 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 
 	unprotected_len = skb->len;
 	eth = eth_hdr(skb);
-	hh = (struct macsec_eth_header *)skb_push(skb, macsec_extra_len(tx_sc->send_sci));
+	sci_present = send_sci(secy);
+	hh = (struct macsec_eth_header *)skb_push(skb, macsec_extra_len(sci_present));
 	memmove(hh, eth, 2 * ETH_ALEN);
 
 	pn = tx_sa_update_pn(tx_sa, secy);
@@ -696,7 +706,7 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 		kfree_skb(skb);
 		return ERR_PTR(-ENOLINK);
 	}
-	macsec_fill_sectag(hh, secy, pn);
+	macsec_fill_sectag(hh, secy, pn, sci_present);
 	macsec_set_shortlen(hh, unprotected_len - 2 * ETH_ALEN);
 
 	skb_put(skb, secy->icv_len);
@@ -726,10 +736,10 @@ static struct sk_buff *macsec_encrypt(struct sk_buff *skb,
 	skb_to_sgvec(skb, sg, 0, skb->len);
 
 	if (tx_sc->encrypt) {
-		int len = skb->len - macsec_hdr_len(tx_sc->send_sci) -
+		int len = skb->len - macsec_hdr_len(sci_present) -
 			  secy->icv_len;
 		aead_request_set_crypt(req, sg, sg, len, iv);
-		aead_request_set_ad(req, macsec_hdr_len(tx_sc->send_sci));
+		aead_request_set_ad(req, macsec_hdr_len(sci_present));
 	} else {
 		aead_request_set_crypt(req, sg, sg, 0, iv);
 		aead_request_set_ad(req, skb->len - secy->icv_len);

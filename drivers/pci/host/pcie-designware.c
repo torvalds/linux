@@ -637,8 +637,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
-	pp->iatu_unroll_enabled = dw_pcie_iatu_unroll_enabled(pp);
-
 	if (pp->ops->host_init)
 		pp->ops->host_init(pp);
 
@@ -808,6 +806,11 @@ static struct pci_ops dw_pcie_ops = {
 void dw_pcie_setup_rc(struct pcie_port *pp)
 {
 	u32 val;
+
+	/* get iATU unroll support */
+	pp->iatu_unroll_enabled = dw_pcie_iatu_unroll_enabled(pp);
+	dev_dbg(pp->dev, "iATU unroll: %s\n",
+		pp->iatu_unroll_enabled ? "enabled" : "disabled");
 
 	/* set the number of lanes */
 	val = dw_pcie_readl_rc(pp, PCIE_PORT_LINK_CONTROL);

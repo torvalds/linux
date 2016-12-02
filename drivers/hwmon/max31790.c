@@ -268,10 +268,12 @@ static int max31790_read_pwm(struct device *dev, u32 attr, int channel,
 			     long *val)
 {
 	struct max31790_data *data = max31790_update_device(dev);
-	u8 fan_config = data->fan_config[channel];
+	u8 fan_config;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+
+	fan_config = data->fan_config[channel];
 
 	switch (attr) {
 	case hwmon_pwm_input:

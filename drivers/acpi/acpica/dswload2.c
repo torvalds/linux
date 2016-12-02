@@ -607,11 +607,9 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				}
 			}
 
-			acpi_ex_exit_interpreter();
 			status =
 			    acpi_ev_initialize_region
 			    (acpi_ns_get_attached_object(node), FALSE);
-			acpi_ex_enter_interpreter();
 
 			if (ACPI_FAILURE(status)) {
 				/*

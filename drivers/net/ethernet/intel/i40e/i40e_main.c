@@ -4641,29 +4641,6 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 }
 
 /**
- * i40e_pf_get_default_tc - Get bitmap for first enabled TC
- * @pf: PF being queried
- *
- * Return a bitmap for first enabled traffic class for this PF.
- **/
-static u8 i40e_pf_get_default_tc(struct i40e_pf *pf)
-{
-	u8 enabled_tc = pf->hw.func_caps.enabled_tcmap;
-	u8 i = 0;
-
-	if (!enabled_tc)
-		return 0x1; /* TC0 */
-
-	/* Find the first enabled TC */
-	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-		if (enabled_tc & BIT(i))
-			break;
-	}
-
-	return BIT(i);
-}
-
-/**
  * i40e_pf_get_pf_tc_map - Get bitmap for enabled traffic classes
  * @pf: PF being queried
  *
@@ -4673,7 +4650,7 @@ static u8 i40e_pf_get_tc_map(struct i40e_pf *pf)
 {
 	/* If DCB is not enabled for this PF then just return default TC */
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
-		return i40e_pf_get_default_tc(pf);
+		return I40E_DEFAULT_TRAFFIC_CLASS;
 
 	/* SFP mode we want PF to be enabled for all TCs */
 	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
@@ -4683,7 +4660,7 @@ static u8 i40e_pf_get_tc_map(struct i40e_pf *pf)
 	if (pf->hw.func_caps.iscsi)
 		return i40e_get_iscsi_tc_map(pf);
 	else
-		return i40e_pf_get_default_tc(pf);
+		return I40E_DEFAULT_TRAFFIC_CLASS;
 }
 
 /**
@@ -5029,7 +5006,7 @@ static void i40e_dcb_reconfigure(struct i40e_pf *pf)
 		if (v == pf->lan_vsi)
 			tc_map = i40e_pf_get_tc_map(pf);
 		else
-			tc_map = i40e_pf_get_default_tc(pf);
+			tc_map = I40E_DEFAULT_TRAFFIC_CLASS;
 #ifdef I40E_FCOE
 		if (pf->vsi[v]->type == I40E_VSI_FCOE)
 			tc_map = i40e_get_fcoe_tc_map(pf);
@@ -5717,7 +5694,7 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	u8 type;
 
 	/* Not DCB capable or capability disabled */
-	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
+	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
 		return ret;
 
 	/* Ignore if event is not for Nearest Bridge */
@@ -7707,6 +7684,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		pf->flags &= ~I40E_FLAG_MSIX_ENABLED;
 		kfree(pf->msix_entries);
 		pf->msix_entries = NULL;
+		pci_disable_msix(pf->pdev);
 		return -ENODEV;
 
 	} else if (v_actual == I40E_MIN_MSIX) {
@@ -9056,7 +9034,7 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		return 0;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, veb->bridge_mode,
-				       nlflags, 0, 0, filter_mask, NULL);
+				       0, 0, nlflags, filter_mask, NULL);
 }
 
 /* Hardware supports L4 tunnel length of 128B (=2^7) which includes

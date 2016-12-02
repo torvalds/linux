@@ -225,9 +225,9 @@ struct vxlan_config {
 struct vxlan_dev {
 	struct hlist_node hlist;	/* vni hash table */
 	struct list_head  next;		/* vxlan's per namespace list */
-	struct vxlan_sock *vn4_sock;	/* listening socket for IPv4 */
+	struct vxlan_sock __rcu *vn4_sock;	/* listening socket for IPv4 */
 #if IS_ENABLED(CONFIG_IPV6)
-	struct vxlan_sock *vn6_sock;	/* listening socket for IPv6 */
+	struct vxlan_sock __rcu *vn6_sock;	/* listening socket for IPv6 */
 #endif
 	struct net_device *dev;
 	struct net	  *net;		/* netns for packet i/o */

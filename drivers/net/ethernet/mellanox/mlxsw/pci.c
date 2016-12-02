@@ -1838,11 +1838,17 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 	.cmd_exec		= mlxsw_pci_cmd_exec,
 };
 
-static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci)
+static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
+			      const struct pci_device_id *id)
 {
 	unsigned long end;
 
 	mlxsw_pci_write32(mlxsw_pci, SW_RESET, MLXSW_PCI_SW_RESET_RST_BIT);
+	if (id->device == PCI_DEVICE_ID_MELLANOX_SWITCHX2) {
+		msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+		return 0;
+	}
+
 	wmb(); /* reset needs to be written before we read control register */
 	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
 	do {
@@ -1909,7 +1915,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->pdev = pdev;
 	pci_set_drvdata(pdev, mlxsw_pci);
 
-	err = mlxsw_pci_sw_reset(mlxsw_pci);
+	err = mlxsw_pci_sw_reset(mlxsw_pci, id);
 	if (err) {
 		dev_err(&pdev->dev, "Software reset failed\n");
 		goto err_sw_reset;

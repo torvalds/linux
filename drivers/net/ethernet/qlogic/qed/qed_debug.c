@@ -405,7 +405,7 @@ struct phy_defs {
 /***************************** Constant Arrays *******************************/
 
 /* Debug arrays */
-static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {0} };
+static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {NULL} };
 
 /* Chip constant definitions array */
 static struct chip_defs s_chip_defs[MAX_CHIP_IDS] = {
@@ -4028,10 +4028,10 @@ static enum dbg_status qed_mcp_trace_read_meta(struct qed_hwfn *p_hwfn,
 }
 
 /* Dump MCP Trace */
-enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
-				   struct qed_ptt *p_ptt,
-				   u32 *dump_buf,
-				   bool dump, u32 *num_dumped_dwords)
+static enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
+					  struct qed_ptt *p_ptt,
+					  u32 *dump_buf,
+					  bool dump, u32 *num_dumped_dwords)
 {
 	u32 trace_data_grc_addr, trace_data_size_bytes, trace_data_size_dwords;
 	u32 trace_meta_size_dwords, running_bundle_id, offset = 0;
@@ -4130,10 +4130,10 @@ enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 }
 
 /* Dump GRC FIFO */
-enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
-				  struct qed_ptt *p_ptt,
-				  u32 *dump_buf,
-				  bool dump, u32 *num_dumped_dwords)
+static enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *dump_buf,
+					 bool dump, u32 *num_dumped_dwords)
 {
 	u32 offset = 0, dwords_read, size_param_offset;
 	bool fifo_has_data;
@@ -4192,10 +4192,10 @@ enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
 }
 
 /* Dump IGU FIFO */
-enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
-				  struct qed_ptt *p_ptt,
-				  u32 *dump_buf,
-				  bool dump, u32 *num_dumped_dwords)
+static enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *dump_buf,
+					 bool dump, u32 *num_dumped_dwords)
 {
 	u32 offset = 0, dwords_read, size_param_offset;
 	bool fifo_has_data;
@@ -4255,10 +4255,11 @@ enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
 }
 
 /* Protection Override dump */
-enum dbg_status qed_protection_override_dump(struct qed_hwfn *p_hwfn,
-					     struct qed_ptt *p_ptt,
-					     u32 *dump_buf,
-					     bool dump, u32 *num_dumped_dwords)
+static enum dbg_status qed_protection_override_dump(struct qed_hwfn *p_hwfn,
+						    struct qed_ptt *p_ptt,
+						    u32 *dump_buf,
+						    bool dump,
+						    u32 *num_dumped_dwords)
 {
 	u32 offset = 0, size_param_offset, override_window_dwords;
 
@@ -6339,10 +6340,11 @@ enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
 }
 
 /* Wrapper for unifying the idle_chk and mcp_trace api */
-enum dbg_status qed_print_idle_chk_results_wrapper(struct qed_hwfn *p_hwfn,
-						   u32 *dump_buf,
-						   u32 num_dumped_dwords,
-						   char *results_buf)
+static enum dbg_status
+qed_print_idle_chk_results_wrapper(struct qed_hwfn *p_hwfn,
+				   u32 *dump_buf,
+				   u32 num_dumped_dwords,
+				   char *results_buf)
 {
 	u32 num_errors, num_warnnings;
 
@@ -6413,8 +6415,8 @@ static void qed_dbg_print_feature(u8 *p_text_buf, u32 text_size)
 
 #define QED_RESULTS_BUF_MIN_SIZE 16
 /* Generic function for decoding debug feature info */
-enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
-			       enum qed_dbg_features feature_idx)
+static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
+				      enum qed_dbg_features feature_idx)
 {
 	struct qed_dbg_feature *feature =
 	    &p_hwfn->cdev->dbg_params.features[feature_idx];
@@ -6480,8 +6482,9 @@ enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 }
 
 /* Generic function for performing the dump of a debug feature. */
-enum dbg_status qed_dbg_dump(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			     enum qed_dbg_features feature_idx)
+static enum dbg_status qed_dbg_dump(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    enum qed_dbg_features feature_idx)
 {
 	struct qed_dbg_feature *feature =
 	    &p_hwfn->cdev->dbg_params.features[feature_idx];

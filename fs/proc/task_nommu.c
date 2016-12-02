@@ -124,25 +124,17 @@ unsigned long task_statm(struct mm_struct *mm,
 }
 
 static int is_stack(struct proc_maps_private *priv,
-		    struct vm_area_struct *vma, int is_pid)
+		    struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	int stack = 0;
 
-	if (is_pid) {
-		stack = vma->vm_start <= mm->start_stack &&
-			vma->vm_end >= mm->start_stack;
-	} else {
-		struct inode *inode = priv->inode;
-		struct task_struct *task;
-
-		rcu_read_lock();
-		task = pid_task(proc_pid(inode), PIDTYPE_PID);
-		if (task)
-			stack = vma_is_stack_for_task(vma, task);
-		rcu_read_unlock();
-	}
-	return stack;
+	/*
+	 * We make no effort to guess what a given thread considers to be
+	 * its "stack".  It's not even well-defined for programs written
+	 * languages like Go.
+	 */
+	return vma->vm_start <= mm->start_stack &&
+		vma->vm_end >= mm->start_stack;
 }
 
 /*
@@ -184,7 +176,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
 	if (file) {
 		seq_pad(m, ' ');
 		seq_file_path(m, file, "");
-	} else if (mm && is_stack(priv, vma, is_pid)) {
+	} else if (mm && is_stack(priv, vma)) {
 		seq_pad(m, ' ');
 		seq_printf(m, "[stack]");
 	}

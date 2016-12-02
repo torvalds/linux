@@ -51,7 +51,7 @@ static void qcom_usb_extcon_detect_cable(struct work_struct *work)
 	if (ret)
 		return;
 
-	extcon_set_state(info->edev, EXTCON_USB_HOST, !id);
+	extcon_set_state_sync(info->edev, EXTCON_USB_HOST, !id);
 }
 
 static irqreturn_t qcom_usb_irq_handler(int irq, void *dev_id)

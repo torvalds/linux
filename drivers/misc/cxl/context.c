@@ -238,6 +238,9 @@ int __detach_context(struct cxl_context *ctx)
 	put_pid(ctx->glpid);
 
 	cxl_ctx_put();
+
+	/* Decrease the attached context count on the adapter */
+	cxl_adapter_context_put(ctx->afu->adapter);
 	return 0;
 }
 

@@ -68,6 +68,7 @@ int amdgpu_fence_slab_init(void)
 
 void amdgpu_fence_slab_fini(void)
 {
+	rcu_barrier();
 	kmem_cache_destroy(amdgpu_fence_slab);
 }
 /*

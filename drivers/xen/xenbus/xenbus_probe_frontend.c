@@ -335,7 +335,9 @@ static int backend_state;
 static void xenbus_reset_backend_state_changed(struct xenbus_watch *w,
 					const char **v, unsigned int l)
 {
-	xenbus_scanf(XBT_NIL, v[XS_WATCH_PATH], "", "%i", &backend_state);
+	if (xenbus_scanf(XBT_NIL, v[XS_WATCH_PATH], "", "%i",
+			 &backend_state) != 1)
+		backend_state = XenbusStateUnknown;
 	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
 			v[XS_WATCH_PATH], xenbus_strstate(backend_state));
 	wake_up(&backend_state_wq);

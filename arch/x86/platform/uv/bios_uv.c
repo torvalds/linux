@@ -40,7 +40,15 @@ s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 		 */
 		return BIOS_STATUS_UNIMPLEMENTED;
 
-	ret = efi_call_virt_pointer(tab, function, (u64)which, a1, a2, a3, a4, a5);
+	/*
+	 * If EFI_OLD_MEMMAP is set, we need to fall back to using our old EFI
+	 * callback method, which uses efi_call() directly, with the kernel page tables:
+	 */
+	if (unlikely(test_bit(EFI_OLD_MEMMAP, &efi.flags)))
+		ret = efi_call((void *)__va(tab->function), (u64)which, a1, a2, a3, a4, a5);
+	else
+		ret = efi_call_virt_pointer(tab, function, (u64)which, a1, a2, a3, a4, a5);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(uv_bios_call);

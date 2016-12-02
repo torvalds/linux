@@ -230,6 +230,8 @@ struct fib6_table {
 	rwlock_t		tb6_lock;
 	struct fib6_node	tb6_root;
 	struct inet_peer_base	tb6_peers;
+	unsigned int		flags;
+#define RT6_TABLE_HAS_DFLT_ROUTER	BIT(0)
 };
 
 #define RT6_TABLE_UNSPEC	RT_TABLE_UNSPEC

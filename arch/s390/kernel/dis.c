@@ -2014,12 +2014,12 @@ void show_code(struct pt_regs *regs)
 			*ptr++ = '\t';
 		ptr += print_insn(ptr, code + start, addr);
 		start += opsize;
-		printk("%s", buffer);
+		pr_cont("%s", buffer);
 		ptr = buffer;
 		ptr += sprintf(ptr, "\n          ");
 		hops++;
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 void print_fn_code(unsigned char *code, unsigned long len)

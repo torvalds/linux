@@ -420,18 +420,21 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
 					 ssize_t expected_size,
 					 bool *replaced)
 {
-	struct drm_device *dev = crtc->dev;
 	struct drm_property_blob *new_blob = NULL;
 
 	if (blob_id != 0) {
-		new_blob = drm_property_lookup_blob(dev, blob_id);
+		new_blob = drm_property_lookup_blob(crtc->dev, blob_id);
 		if (new_blob == NULL)
 			return -EINVAL;
-		if (expected_size > 0 && expected_size != new_blob->length)
+
+		if (expected_size > 0 && expected_size != new_blob->length) {
+			drm_property_unreference_blob(new_blob);
 			return -EINVAL;
+		}
 	}
 
 	drm_atomic_replace_property_blob(blob, new_blob, replaced);
+	drm_property_unreference_blob(new_blob);
 
 	return 0;
 }

@@ -384,7 +384,7 @@ void zfcp_dbf_san(char *tag, struct zfcp_dbf *dbf,
 	/* if (len > rec_len):
 	 * dump data up to cap_len ignoring small duplicate in rec->payload
 	 */
-	spin_lock_irqsave(&dbf->pay_lock, flags);
+	spin_lock(&dbf->pay_lock);
 	memset(payload, 0, sizeof(*payload));
 	memcpy(payload->area, paytag, ZFCP_DBF_TAG_LEN);
 	payload->fsf_req_id = req_id;

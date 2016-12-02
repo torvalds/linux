@@ -1138,11 +1138,6 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	dev_dbg(sdmmc_dev(host), "%s\n", __func__);
 	mutex_lock(&ucr->dev_mutex);
 
-	if (rtsx_usb_card_exclusive_check(ucr, RTSX_USB_SD_CARD)) {
-		mutex_unlock(&ucr->dev_mutex);
-		return;
-	}
-
 	sd_set_power_mode(host, ios->power_mode);
 	sd_set_bus_width(host, ios->bus_width);
 	sd_set_timing(host, ios->timing, &host->ddr_mode);
@@ -1314,6 +1309,7 @@ static void rtsx_usb_update_led(struct work_struct *work)
 		container_of(work, struct rtsx_usb_sdmmc, led_work);
 	struct rtsx_ucr *ucr = host->ucr;
 
+	pm_runtime_get_sync(sdmmc_dev(host));
 	mutex_lock(&ucr->dev_mutex);
 
 	if (host->led.brightness == LED_OFF)
@@ -1322,6 +1318,7 @@ static void rtsx_usb_update_led(struct work_struct *work)
 		rtsx_usb_turn_on_led(ucr);
 
 	mutex_unlock(&ucr->dev_mutex);
+	pm_runtime_put(sdmmc_dev(host));
 }
 #endif
 

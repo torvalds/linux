@@ -618,6 +618,14 @@ struct cxl {
 	bool perst_select_user;
 	bool perst_same_image;
 	bool psl_timebase_synced;
+
+	/*
+	 * number of contexts mapped on to this card. Possible values are:
+	 * >0: Number of contexts mapped and new one can be mapped.
+	 *  0: No active contexts and new ones can be mapped.
+	 * -1: No contexts mapped and new ones cannot be mapped.
+	 */
+	atomic_t contexts_num;
 };
 
 int cxl_pci_alloc_one_irq(struct cxl *adapter);
@@ -944,4 +952,20 @@ bool cxl_pci_is_vphb_device(struct pci_dev *dev);
 
 /* decode AFU error bits in the PSL register PSL_SERR_An */
 void cxl_afu_decode_psl_serr(struct cxl_afu *afu, u64 serr);
+
+/*
+ * Increments the number of attached contexts on an adapter.
+ * In case an adapter_context_lock is taken the return -EBUSY.
+ */
+int cxl_adapter_context_get(struct cxl *adapter);
+
+/* Decrements the number of attached contexts on an adapter */
+void cxl_adapter_context_put(struct cxl *adapter);
+
+/* If no active contexts then prevents contexts from being attached */
+int cxl_adapter_context_lock(struct cxl *adapter);
+
+/* Unlock the contexts-lock if taken. Warn and force unlock otherwise */
+void cxl_adapter_context_unlock(struct cxl *adapter);
+
 #endif
