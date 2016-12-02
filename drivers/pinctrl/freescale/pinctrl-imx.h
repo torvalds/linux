@@ -76,13 +76,14 @@ struct imx_pinctrl_soc_info {
 	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	struct imx_pin_reg *pin_regs;
-	struct imx_pin_group *groups;
 	unsigned int ngroups;
 	unsigned int group_index;
-	struct imx_pmx_func *functions;
 	unsigned int nfunctions;
 	unsigned int flags;
 	const char *gpr_compatible;
+	struct radix_tree_root ftree;
+	struct radix_tree_root pgtree;
+	struct mutex mutex;
 };
 
 #define SHARE_MUX_CONF_REG	0x1
