@@ -671,8 +671,10 @@ int orangefs_prepare_debugfs_help_string(int at_boot)
 		 */
 		cdm_element_count =
 			orangefs_prepare_cdm_array(client_debug_array_string);
-		if (cdm_element_count <= 0)
+		if (cdm_element_count <= 0) {
+			kfree(new);
 			goto out;
+		}
 
 		for (i = 0; i < cdm_element_count; i++) {
 			strlcat(new, "\t", string_size);
