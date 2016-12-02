@@ -1500,12 +1500,31 @@ static int xgene_enet_set_mac_address(struct net_device *ndev, void *addr)
 	return ret;
 }
 
+static int xgene_change_mtu(struct net_device *ndev, int new_mtu)
+{
+	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	int frame_size;
+
+	if (!netif_running(ndev))
+		return 0;
+
+	frame_size = (new_mtu > ETH_DATA_LEN) ? (new_mtu + 18) : 0x600;
+
+	xgene_enet_close(ndev);
+	ndev->mtu = new_mtu;
+	pdata->mac_ops->set_framesize(pdata, frame_size);
+	xgene_enet_open(ndev);
+
+	return 0;
+}
+
 static const struct net_device_ops xgene_ndev_ops = {
 	.ndo_open = xgene_enet_open,
 	.ndo_stop = xgene_enet_close,
 	.ndo_start_xmit = xgene_enet_start_xmit,
 	.ndo_tx_timeout = xgene_enet_timeout,
 	.ndo_get_stats64 = xgene_enet_get_stats64,
+	.ndo_change_mtu = xgene_change_mtu,
 	.ndo_set_mac_address = xgene_enet_set_mac_address,
 };
 
@@ -1832,6 +1851,7 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 					    buf_pool->id, ring_id);
 	}
 
+	ndev->max_mtu = XGENE_ENET_MAX_MTU;
 	pdata->phy_speed = SPEED_UNKNOWN;
 	pdata->mac_ops->init(pdata);
 

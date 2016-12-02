@@ -504,6 +504,11 @@ static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 	xgene_enet_wr_mcx_csr(pdata, ICM_CONFIG2_REG_0_ADDR, icm2);
 }
 
+static void xgene_enet_set_frame_size(struct xgene_enet_pdata *pdata, int size)
+{
+	xgene_enet_wr_mcx_mac(pdata, MAX_FRAME_LEN_ADDR, size);
+}
+
 static void xgene_gmac_init(struct xgene_enet_pdata *pdata)
 {
 	u32 value;
@@ -903,6 +908,7 @@ const struct xgene_mac_ops xgene_gmac_ops = {
 	.tx_disable = xgene_gmac_tx_disable,
 	.set_speed = xgene_gmac_set_speed,
 	.set_mac_addr = xgene_gmac_set_mac_addr,
+	.set_framesize = xgene_enet_set_frame_size,
 };
 
 const struct xgene_port_ops xgene_gport_ops = {

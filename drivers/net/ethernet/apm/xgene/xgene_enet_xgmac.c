@@ -250,6 +250,12 @@ static void xgene_xgmac_set_mss(struct xgene_enet_pdata *pdata,
 	xgene_enet_wr_csr(pdata, XG_TSIF_MSS_REG0_ADDR + offset, data);
 }
 
+static void xgene_xgmac_set_frame_size(struct xgene_enet_pdata *pdata, int size)
+{
+	xgene_enet_wr_mac(pdata, HSTMAXFRAME_LENGTH_ADDR,
+			  ((((size + 2) >> 2) << 16) | size));
+}
+
 static u32 xgene_enet_link_status(struct xgene_enet_pdata *pdata)
 {
 	u32 data;
@@ -474,6 +480,7 @@ const struct xgene_mac_ops xgene_xgmac_ops = {
 	.rx_disable = xgene_xgmac_rx_disable,
 	.tx_disable = xgene_xgmac_tx_disable,
 	.set_mac_addr = xgene_xgmac_set_mac_addr,
+	.set_framesize = xgene_xgmac_set_frame_size,
 	.set_mss = xgene_xgmac_set_mss,
 	.link_state = xgene_enet_link_state
 };

@@ -343,6 +343,11 @@ static void xgene_sgmac_set_speed(struct xgene_enet_pdata *p)
 	xgene_enet_wr_mcx_csr(p, icm2_addr, icm2);
 }
 
+static void xgene_sgmac_set_frame_size(struct xgene_enet_pdata *pdata, int size)
+{
+	xgene_enet_wr_mac(pdata, MAX_FRAME_LEN_ADDR, size);
+}
+
 static void xgene_sgmii_enable_autoneg(struct xgene_enet_pdata *p)
 {
 	u32 data, loop = 10;
@@ -595,6 +600,7 @@ const struct xgene_mac_ops xgene_sgmac_ops = {
 	.tx_disable	= xgene_sgmac_tx_disable,
 	.set_speed	= xgene_sgmac_set_speed,
 	.set_mac_addr	= xgene_sgmac_set_mac_addr,
+	.set_framesize  = xgene_sgmac_set_frame_size,
 	.link_state	= xgene_enet_link_state
 };
 
