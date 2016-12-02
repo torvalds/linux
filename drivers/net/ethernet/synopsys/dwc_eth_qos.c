@@ -33,7 +33,6 @@
 #include <linux/stat.h>
 #include <linux/types.h>
 
-#include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -43,7 +42,6 @@
 
 #include <linux/phy.h>
 #include <linux/mii.h>
-#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 

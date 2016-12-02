@@ -193,8 +193,12 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		/*
 		 * Kernel read only mapped with ppp bits 0b110
 		 */
-		if (!(pteflags & _PAGE_WRITE))
-			rflags |= (HPTE_R_PP0 | 0x2);
+		if (!(pteflags & _PAGE_WRITE)) {
+			if (mmu_has_feature(MMU_FTR_KERNEL_RO))
+				rflags |= (HPTE_R_PP0 | 0x2);
+			else
+				rflags |= 0x3;
+		}
 	} else {
 		if (pteflags & _PAGE_RWX)
 			rflags |= 0x2;

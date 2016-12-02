@@ -2737,7 +2737,7 @@ static u16 rtnl_calcit(struct sk_buff *skb, struct nlmsghdr *nlh)
 						           ext_filter_mask));
 	}
 
-	return min_ifinfo_dump_size;
+	return nlmsg_total_size(min_ifinfo_dump_size);
 }
 
 static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)

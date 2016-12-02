@@ -1811,6 +1811,9 @@ static int bnxt_busy_poll(struct napi_struct *napi)
 	if (atomic_read(&bp->intr_sem) != 0)
 		return LL_FLUSH_FAILED;
 
+	if (!bp->link_info.link_up)
+		return LL_FLUSH_FAILED;
+
 	if (!bnxt_lock_poll(bnapi))
 		return LL_FLUSH_BUSY;
 
@@ -3210,11 +3213,17 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 		goto err_out;
 	}
 
-	if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN)
+	switch (tunnel_type) {
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN:
 		bp->vxlan_fw_dst_port_id = resp->tunnel_dst_port_id;
-
-	else if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE)
+		break;
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE:
 		bp->nge_fw_dst_port_id = resp->tunnel_dst_port_id;
+		break;
+	default:
+		break;
+	}
+
 err_out:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;

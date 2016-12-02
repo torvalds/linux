@@ -74,7 +74,6 @@
 #include <asm/iommu.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
-#include <linux/seq_file.h>
 #include <linux/workqueue.h>
 
 #include "ibmvnic.h"
