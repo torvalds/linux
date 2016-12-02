@@ -333,12 +333,12 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 		      "core", 0, "registers", NULL);
 
 	if (efx->phy_op->run_tests != NULL) {
-		EFX_BUG_ON_PARANOID(efx->phy_op->test_name == NULL);
+		EFX_WARN_ON_PARANOID(efx->phy_op->test_name == NULL);
 
 		for (i = 0; true; ++i) {
 			const char *name;
 
-			EFX_BUG_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
+			EFX_WARN_ON_PARANOID(i >= EFX_MAX_PHY_TESTS);
 			name = efx->phy_op->test_name(efx, i);
 			if (name == NULL)
 				break;

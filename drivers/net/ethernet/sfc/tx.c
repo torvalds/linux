@@ -142,7 +142,7 @@ static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 
 	fill_level = max(txq1->insert_count - txq1->old_read_count,
 			 txq2->insert_count - txq2->old_read_count);
-	EFX_BUG_ON_PARANOID(fill_level >= efx->txq_entries);
+	EFX_WARN_ON_ONCE_PARANOID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
 		if (likely(!efx->loopback_selftest))
@@ -158,7 +158,7 @@ static int efx_enqueue_skb_copy(struct efx_tx_queue *tx_queue,
 	u8 *copy_buffer;
 	int rc;
 
-	EFX_BUG_ON_PARANOID(copy_len > EFX_TX_CB_SIZE);
+	EFX_WARN_ON_ONCE_PARANOID(copy_len > EFX_TX_CB_SIZE);
 
 	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
 
@@ -268,7 +268,7 @@ static void efx_skb_copy_bits_to_pio(struct efx_nic *efx, struct sk_buff *skb,
 		kunmap_atomic(vaddr);
 	}
 
-	EFX_BUG_ON_PARANOID(skb_shinfo(skb)->frag_list);
+	EFX_WARN_ON_ONCE_PARANOID(skb_shinfo(skb)->frag_list);
 }
 
 static int efx_enqueue_skb_pio(struct efx_tx_queue *tx_queue,
@@ -503,7 +503,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	 * size limit.
 	 */
 	if (segments) {
-		EFX_BUG_ON_PARANOID(!tx_queue->handle_tso);
+		EFX_WARN_ON_ONCE_PARANOID(!tx_queue->handle_tso);
 		rc = tx_queue->handle_tso(tx_queue, skb, &data_mapped);
 		if (rc == -EINVAL) {
 			rc = efx_tx_tso_fallback(tx_queue, skb);
@@ -724,7 +724,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	struct efx_tx_queue *txq2;
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 
-	EFX_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
+	EFX_WARN_ON_ONCE_PARANOID(index > tx_queue->ptr_mask);
 
 	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
 	tx_queue->pkts_compl += pkts_compl;
@@ -772,7 +772,7 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->txq_entries), EFX_MIN_DMAQ_SIZE);
-	EFX_BUG_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
+	EFX_WARN_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
 	tx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,

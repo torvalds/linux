@@ -2100,7 +2100,7 @@ static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
 	u32 seqnum;
 	u32 mss;
 
-	EFX_BUG_ON_PARANOID(tx_queue->tso_version != 2);
+	EFX_WARN_ON_ONCE_PARANOID(tx_queue->tso_version != 2);
 
 	mss = skb_shinfo(skb)->gso_size;
 

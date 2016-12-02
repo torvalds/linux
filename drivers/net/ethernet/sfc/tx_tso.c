@@ -109,15 +109,15 @@ static void efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 	struct efx_tx_buffer *buffer;
 	unsigned int dma_len;
 
-	EFX_BUG_ON_PARANOID(len <= 0);
+	EFX_WARN_ON_ONCE_PARANOID(len <= 0);
 
 	while (1) {
 		buffer = efx_tx_queue_get_insert_buffer(tx_queue);
 		++tx_queue->insert_count;
 
-		EFX_BUG_ON_PARANOID(tx_queue->insert_count -
-				    tx_queue->read_count >=
-				    tx_queue->efx->txq_entries);
+		EFX_WARN_ON_ONCE_PARANOID(tx_queue->insert_count -
+					  tx_queue->read_count >=
+					  tx_queue->efx->txq_entries);
 
 		buffer->dma_addr = dma_addr;
 
@@ -134,7 +134,7 @@ static void efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 		len -= dma_len;
 	}
 
-	EFX_BUG_ON_PARANOID(!len);
+	EFX_WARN_ON_ONCE_PARANOID(!len);
 	buffer->len = len;
 	*final_buffer = buffer;
 }
@@ -147,8 +147,8 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
 
-	EFX_BUG_ON_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
-			    protocol);
+	EFX_WARN_ON_ONCE_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
+				  protocol);
 	if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 
@@ -156,18 +156,17 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 	}
 
 	if (protocol == htons(ETH_P_IP)) {
-		EFX_BUG_ON_PARANOID(ip_hdr(skb)->protocol != IPPROTO_TCP);
+		EFX_WARN_ON_ONCE_PARANOID(ip_hdr(skb)->protocol != IPPROTO_TCP);
 	} else {
-		EFX_BUG_ON_PARANOID(protocol != htons(ETH_P_IPV6));
-		EFX_BUG_ON_PARANOID(ipv6_hdr(skb)->nexthdr != NEXTHDR_TCP);
+		EFX_WARN_ON_ONCE_PARANOID(protocol != htons(ETH_P_IPV6));
+		EFX_WARN_ON_ONCE_PARANOID(ipv6_hdr(skb)->nexthdr != NEXTHDR_TCP);
 	}
-	EFX_BUG_ON_PARANOID((PTR_DIFF(tcp_hdr(skb), skb->data)
-			     + (tcp_hdr(skb)->doff << 2u)) >
-			    skb_headlen(skb));
+	EFX_WARN_ON_ONCE_PARANOID((PTR_DIFF(tcp_hdr(skb), skb->data) +
+				   (tcp_hdr(skb)->doff << 2u)) >
+				  skb_headlen(skb));
 
 	return protocol;
 }
-
 
 /* Parse the SKB header and initialise state. */
 static int tso_start(struct tso_state *st, struct efx_nic *efx,
@@ -193,9 +192,9 @@ static int tso_start(struct tso_state *st, struct efx_nic *efx,
 	}
 	st->seqnum = ntohl(tcp_hdr(skb)->seq);
 
-	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->urg);
-	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->syn);
-	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->rst);
+	EFX_WARN_ON_ONCE_PARANOID(tcp_hdr(skb)->urg);
+	EFX_WARN_ON_ONCE_PARANOID(tcp_hdr(skb)->syn);
+	EFX_WARN_ON_ONCE_PARANOID(tcp_hdr(skb)->rst);
 
 	st->out_len = skb->len - header_len;
 
@@ -245,8 +244,8 @@ static void tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
 	if (st->packet_space == 0)
 		return;
 
-	EFX_BUG_ON_PARANOID(st->in_len <= 0);
-	EFX_BUG_ON_PARANOID(st->packet_space <= 0);
+	EFX_WARN_ON_ONCE_PARANOID(st->in_len <= 0);
+	EFX_WARN_ON_ONCE_PARANOID(st->packet_space <= 0);
 
 	n = min(st->in_len, st->packet_space);
 
@@ -379,7 +378,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	/* Find the packet protocol and sanity-check it */
 	state.protocol = efx_tso_check_protocol(skb);
 
-	EFX_BUG_ON_PARANOID(tx_queue->write_count != tx_queue->insert_count);
+	EFX_WARN_ON_ONCE_PARANOID(tx_queue->write_count != tx_queue->insert_count);
 
 	rc = tso_start(&state, efx, tx_queue, skb);
 	if (rc)
@@ -387,7 +386,7 @@ int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	if (likely(state.in_len == 0)) {
 		/* Grab the first payload fragment. */
-		EFX_BUG_ON_PARANOID(skb_shinfo(skb)->nr_frags < 1);
+		EFX_WARN_ON_ONCE_PARANOID(skb_shinfo(skb)->nr_frags < 1);
 		frag_i = 0;
 		rc = tso_get_fragment(&state, efx,
 				      skb_shinfo(skb)->frags + frag_i);

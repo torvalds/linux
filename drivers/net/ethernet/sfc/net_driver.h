@@ -44,10 +44,10 @@
 #define EFX_DRIVER_VERSION	"4.1"
 
 #ifdef DEBUG
-#define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
+#define EFX_WARN_ON_ONCE_PARANOID(x) WARN_ON_ONCE(x)
 #define EFX_WARN_ON_PARANOID(x) WARN_ON(x)
 #else
-#define EFX_BUG_ON_PARANOID(x) do {} while (0)
+#define EFX_WARN_ON_ONCE_PARANOID(x) do {} while (0)
 #define EFX_WARN_ON_PARANOID(x) do {} while (0)
 #endif
 
@@ -1409,7 +1409,7 @@ struct efx_nic_type {
 static inline struct efx_channel *
 efx_get_channel(struct efx_nic *efx, unsigned index)
 {
-	EFX_BUG_ON_PARANOID(index >= efx->n_channels);
+	EFX_WARN_ON_ONCE_PARANOID(index >= efx->n_channels);
 	return efx->channel[index];
 }
 
@@ -1430,8 +1430,8 @@ efx_get_channel(struct efx_nic *efx, unsigned index)
 static inline struct efx_tx_queue *
 efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
 {
-	EFX_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
-			    type >= EFX_TXQ_TYPES);
+	EFX_WARN_ON_ONCE_PARANOID(index >= efx->n_tx_channels ||
+				  type >= EFX_TXQ_TYPES);
 	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
 }
 
@@ -1444,8 +1444,8 @@ static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
 static inline struct efx_tx_queue *
 efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
 {
-	EFX_BUG_ON_PARANOID(!efx_channel_has_tx_queues(channel) ||
-			    type >= EFX_TXQ_TYPES);
+	EFX_WARN_ON_ONCE_PARANOID(!efx_channel_has_tx_queues(channel) ||
+				  type >= EFX_TXQ_TYPES);
 	return &channel->tx_queue[type];
 }
 
@@ -1482,7 +1482,7 @@ static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 static inline struct efx_rx_queue *
 efx_channel_get_rx_queue(struct efx_channel *channel)
 {
-	EFX_BUG_ON_PARANOID(!efx_channel_has_rx_queue(channel));
+	EFX_WARN_ON_ONCE_PARANOID(!efx_channel_has_rx_queue(channel));
 	return &channel->rx_queue;
 }
 
@@ -1578,9 +1578,9 @@ efx_tx_queue_get_insert_buffer(const struct efx_tx_queue *tx_queue)
 	struct efx_tx_buffer *buffer =
 		__efx_tx_queue_get_insert_buffer(tx_queue);
 
-	EFX_BUG_ON_PARANOID(buffer->len);
-	EFX_BUG_ON_PARANOID(buffer->flags);
-	EFX_BUG_ON_PARANOID(buffer->unmap_len);
+	EFX_WARN_ON_ONCE_PARANOID(buffer->len);
+	EFX_WARN_ON_ONCE_PARANOID(buffer->flags);
+	EFX_WARN_ON_ONCE_PARANOID(buffer->unmap_len);
 
 	return buffer;
 }

@@ -177,7 +177,7 @@ efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	dma_addr_t dma_addr;
 	int i;
 
-	EFX_BUG_ON_PARANOID(!buffer->buf.addr);
+	EFX_WARN_ON_PARANOID(!buffer->buf.addr);
 
 	/* Write buffer descriptors to NIC */
 	for (i = 0; i < buffer->entries; i++) {
@@ -332,7 +332,7 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 		txd = efx_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
 
-		EFX_BUG_ON_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
+		EFX_WARN_ON_ONCE_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
 
 		/* Create TX descriptor ring entry */
 		BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
@@ -2041,7 +2041,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 		__be32 rhost, host1, host2;
 		__be16 rport, port1, port2;
 
-		EFX_BUG_ON_PARANOID(!(gen_spec->flags & EFX_FILTER_FLAG_RX));
+		EFX_WARN_ON_PARANOID(!(gen_spec->flags & EFX_FILTER_FLAG_RX));
 
 		if (gen_spec->ether_type != htons(ETH_P_IP))
 			return -EPROTONOSUPPORT;
