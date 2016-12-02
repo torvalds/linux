@@ -38,10 +38,12 @@
 #include "../include/obd.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"	/* fid_res_name_eq() */
+#include "../include/lustre_fid.h"
 #include "../include/lustre_mdc.h"
 #include "../include/lustre_net.h"
 #include "../include/lustre_req_layout.h"
+#include "../include/lustre_swab.h"
+
 #include "mdc_internal.h"
 
 struct mdc_getattr_args {

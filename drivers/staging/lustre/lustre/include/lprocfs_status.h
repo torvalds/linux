@@ -43,6 +43,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre_cfg.h"
 #include "lustre/lustre_idl.h"
 
 struct lprocfs_vars {

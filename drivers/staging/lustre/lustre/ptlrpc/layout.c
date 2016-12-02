@@ -59,10 +59,12 @@
 
 /* __REQ_LAYOUT_USER__ */
 #endif
+#include "../include/llog_swab.h"
 /* struct ptlrpc_request, lustre_msg* */
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_acl.h"
 #include "../include/lustre_debug.h"
+#include "../include/lustre_swab.h"
 
 /*
  * RQFs (see below) refer to two struct req_msg_field arrays describing the

@@ -44,6 +44,7 @@
 #include <linux/mount.h>
 #include "../include/lustre/ll_fiemap.h"
 #include "../include/lustre/lustre_ioctl.h"
+#include "../include/lustre_swab.h"
 
 #include "../include/cl_object.h"
 #include "llite_internal.h"

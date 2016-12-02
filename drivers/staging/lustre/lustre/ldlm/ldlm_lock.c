@@ -39,6 +39,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../include/lustre_intent.h"
+#include "../include/lustre_swab.h"
 #include "../include/obd_class.h"
 #include "ldlm_internal.h"
 

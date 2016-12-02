@@ -48,6 +48,7 @@
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_mds.h"
 #include "../include/obd_class.h"
+#include "../include/lustre_swab.h"
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"
 #include "../include/cl_object.h"

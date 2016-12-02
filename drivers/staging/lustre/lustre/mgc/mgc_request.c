@@ -43,6 +43,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_log.h"
 #include "../include/lustre_disk.h"
+#include "../include/lustre_swab.h"
 
 #include "mgc_internal.h"
 

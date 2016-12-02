@@ -39,6 +39,7 @@
 #define DEBUG_SUBSYSTEM S_LOV
 
 #include "../include/lustre_net.h"
+#include "../include/lustre_swab.h"
 #include "../include/obd.h"
 #include "../include/obd_class.h"
 #include "../include/obd_support.h"
