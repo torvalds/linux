@@ -1205,14 +1205,14 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	 * queue is full; always allow at least a packet
 	 */
 	rmem = atomic_read(&sk->sk_rmem_alloc);
-	if (rmem && (rmem + size > sk->sk_rcvbuf))
+	if (rmem > sk->sk_rcvbuf)
 		goto drop;
 
 	/* we drop only if the receive buf is full and the receive
 	 * queue contains some other skb
 	 */
 	rmem = atomic_add_return(size, &sk->sk_rmem_alloc);
-	if ((rmem > sk->sk_rcvbuf) && (rmem > size))
+	if (rmem > (size + sk->sk_rcvbuf))
 		goto uncharge_drop;
 
 	spin_lock(&list->lock);
