@@ -39,6 +39,9 @@ EXPORT_SYMBOL(init_net);
 
 static bool init_net_initialized;
 
+#define MIN_PERNET_OPS_ID	\
+	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))
+
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
@@ -46,7 +49,7 @@ static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
 static struct net_generic *net_alloc_generic(void)
 {
 	struct net_generic *ng;
-	size_t generic_size = offsetof(struct net_generic, ptr[max_gen_ptrs]);
+	unsigned int generic_size = offsetof(struct net_generic, ptr[max_gen_ptrs]);
 
 	ng = kzalloc(generic_size, GFP_KERNEL);
 	if (ng)
@@ -60,12 +63,12 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	struct net_generic *ng, *old_ng;
 
 	BUG_ON(!mutex_is_locked(&net_mutex));
-	BUG_ON(id == 0);
+	BUG_ON(id < MIN_PERNET_OPS_ID);
 
 	old_ng = rcu_dereference_protected(net->gen,
 					   lockdep_is_held(&net_mutex));
-	if (old_ng->s.len >= id) {
-		old_ng->ptr[id - 1] = data;
+	if (old_ng->s.len > id) {
+		old_ng->ptr[id] = data;
 		return 0;
 	}
 
@@ -84,8 +87,9 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	 * the old copy for kfree after a grace period.
 	 */
 
-	memcpy(&ng->ptr, &old_ng->ptr, old_ng->s.len * sizeof(void*));
-	ng->ptr[id - 1] = data;
+	memcpy(&ng->ptr[MIN_PERNET_OPS_ID], &old_ng->ptr[MIN_PERNET_OPS_ID],
+	       (old_ng->s.len - MIN_PERNET_OPS_ID) * sizeof(void *));
+	ng->ptr[id] = data;
 
 	rcu_assign_pointer(net->gen, ng);
 	kfree_rcu(old_ng, s.rcu);
@@ -874,7 +878,7 @@ static int register_pernet_operations(struct list_head *list,
 
 	if (ops->id) {
 again:
-		error = ida_get_new_above(&net_generic_ids, 1, ops->id);
+		error = ida_get_new_above(&net_generic_ids, MIN_PERNET_OPS_ID, ops->id);
 		if (error < 0) {
 			if (error == -EAGAIN) {
 				ida_pre_get(&net_generic_ids, GFP_KERNEL);
@@ -882,7 +886,7 @@ again:
 			}
 			return error;
 		}
-		max_gen_ptrs = max(max_gen_ptrs, *ops->id);
+		max_gen_ptrs = max(max_gen_ptrs, *ops->id + 1);
 	}
 	error = __register_pernet_operations(list, ops);
 	if (error) {
