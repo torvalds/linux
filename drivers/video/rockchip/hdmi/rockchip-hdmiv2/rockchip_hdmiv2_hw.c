@@ -1352,26 +1352,26 @@ static int rockchip_hdmiv2_video_csc(struct hdmi_dev *hdmi_dev,
 		mode = CSC_RGB_0_255_TO_RGB_16_235_8BIT;
 		csc_scale = 0;
 	}
-
-	switch (vpara->color_output_depth && mode != CSC_BYPASS) {
-	case 10:
-		color_depth = COLOR_DEPTH_30BIT;
-		mode += 1;
-		break;
-	case 12:
-		color_depth = COLOR_DEPTH_36BIT;
-		mode += 2;
-		break;
-	case 16:
-		color_depth = COLOR_DEPTH_48BIT;
-		mode += 3;
-		break;
-	case 8:
-	default:
-		color_depth = COLOR_DEPTH_24BIT;
-		break;
+	if (mode != CSC_BYPASS) {
+		switch (vpara->color_output_depth) {
+		case 10:
+			color_depth = COLOR_DEPTH_30BIT;
+			mode += 1;
+			break;
+		case 12:
+			color_depth = COLOR_DEPTH_36BIT;
+			mode += 2;
+			break;
+		case 16:
+			color_depth = COLOR_DEPTH_48BIT;
+			mode += 3;
+			break;
+		case 8:
+		default:
+			color_depth = COLOR_DEPTH_24BIT;
+			break;
+		}
 	}
-
 	coeff = coeff_csc[mode];
 	for (i = 0; i < 24; i++)
 		hdmi_writel(hdmi_dev, CSC_COEF_A1_MSB + i, coeff[i]);
