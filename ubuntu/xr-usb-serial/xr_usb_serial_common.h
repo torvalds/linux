@@ -147,6 +147,7 @@ struct xr_usb_serial {
 	unsigned short DeviceVendor;
 	unsigned short DeviceProduct;
 	struct reg_addr_map reg_map;
+	bool rs485_422_en;
 };
 
 #define CDC_DATA_INTERFACE_TYPE	0x0a
