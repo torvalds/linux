@@ -1108,7 +1108,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		int max_freq;
 
 		rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
-		if (IS_BROXTON(dev_priv)) {
+		if (IS_GEN9_LP(dev_priv)) {
 			rp_state_cap = I915_READ(BXT_RP_STATE_CAP);
 			gt_perf_status = I915_READ(BXT_GT_PERF_STATUS);
 		} else {
@@ -1204,7 +1204,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Down threshold: %d%%\n",
 			   dev_priv->rps.down_threshold);
 
-		max_freq = (IS_BROXTON(dev_priv) ? rp_state_cap >> 0 :
+		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
 		max_freq *= (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv) ?
 			     GEN9_FREQ_SCALER : 1);
@@ -1217,7 +1217,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
-		max_freq = (IS_BROXTON(dev_priv) ? rp_state_cap >> 16 :
+		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
 		max_freq *= (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv) ?
 			     GEN9_FREQ_SCALER : 1);
@@ -5180,7 +5180,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 	u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
 
 	/* BXT has a single slice and at most 3 subslices. */
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 		s_max = 1;
 		ss_max = 3;
 	}
@@ -5214,7 +5214,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 		for (ss = 0; ss < ss_max; ss++) {
 			unsigned int eu_cnt;
 
-			if (IS_BROXTON(dev_priv)) {
+			if (IS_GEN9_LP(dev_priv)) {
 				if (!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
 					/* skip disabled subslice */
 					continue;

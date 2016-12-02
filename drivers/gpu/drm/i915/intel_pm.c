@@ -5208,7 +5208,7 @@ int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6)
 	if (!enable_rc6)
 		return 0;
 
-	if (IS_BROXTON(dev_priv) && !bxt_check_bios_rc6_setup(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv) && !bxt_check_bios_rc6_setup(dev_priv)) {
 		DRM_INFO("RC6 disabled by BIOS\n");
 		return 0;
 	}
@@ -5242,7 +5242,7 @@ static void gen6_init_rps_frequencies(struct drm_i915_private *dev_priv)
 	/* All of these values are in units of 50MHz */
 
 	/* static values from HW: RP0 > RP1 > RPn (min_freq) */
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 		u32 rp_state_cap = I915_READ(BXT_RP_STATE_CAP);
 		dev_priv->rps.rp0_freq = (rp_state_cap >> 16) & 0xff;
 		dev_priv->rps.rp1_freq = (rp_state_cap >>  8) & 0xff;
@@ -7622,7 +7622,7 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = skylake_init_clock_gating;
 	else if (IS_KABYLAKE(dev_priv))
 		dev_priv->display.init_clock_gating = kabylake_init_clock_gating;
-	else if (IS_BROXTON(dev_priv))
+	else if (IS_GEN9_LP(dev_priv))
 		dev_priv->display.init_clock_gating = bxt_init_clock_gating;
 	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.init_clock_gating = broadwell_init_clock_gating;

@@ -614,12 +614,12 @@ static bool intel_PLL_is_valid(struct drm_i915_private *dev_priv,
 		INTELPllInvalid("m1 out of range\n");
 
 	if (!IS_PINEVIEW(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
-	    !IS_CHERRYVIEW(dev_priv) && !IS_BROXTON(dev_priv))
+	    !IS_CHERRYVIEW(dev_priv) && !IS_GEN9_LP(dev_priv))
 		if (clock->m1 <= clock->m2)
 			INTELPllInvalid("m1 <= m2\n");
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
-	    !IS_BROXTON(dev_priv)) {
+	    !IS_GEN9_LP(dev_priv)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
 			INTELPllInvalid("p out of range\n");
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
@@ -10640,7 +10640,7 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		skylake_get_ddi_pll(dev_priv, port, pipe_config);
-	else if (IS_BROXTON(dev_priv))
+	else if (IS_GEN9_LP(dev_priv))
 		bxt_get_ddi_pll(dev_priv, port, pipe_config);
 	else
 		haswell_get_ddi_pll(dev_priv, port, pipe_config);
@@ -10685,7 +10685,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_mask);
 
-	if (IS_BROXTON(dev_priv) &&
+	if (IS_GEN9_LP(dev_priv) &&
 	    bxt_get_dsi_transcoder_state(crtc, pipe_config, &power_domain_mask)) {
 		WARN_ON(active);
 		active = true;
@@ -12783,7 +12783,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("ips: %i, double wide: %i\n",
 		      pipe_config->ips_enabled, pipe_config->double_wide);
 
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 		DRM_DEBUG_KMS("dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
 			      "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
 			      "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pll10: 0x%x, pcsdw12: 0x%x\n",
@@ -15477,7 +15477,7 @@ void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
 
 static void intel_pps_init(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_SPLIT(dev_priv) || IS_BROXTON(dev_priv))
+	if (HAS_PCH_SPLIT(dev_priv) || IS_GEN9_LP(dev_priv))
 		dev_priv->pps_mmio_base = PCH_PPS_BASE;
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->pps_mmio_base = VLV_PPS_BASE;
@@ -15504,7 +15504,7 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 	if (intel_crt_present(dev_priv))
 		intel_crt_init(dev_priv);
 
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 		/*
 		 * FIXME: Broxton doesn't support port detection via the
 		 * DDI_BUF_CTL_A or SFUSE_STRAP registers, find another way to

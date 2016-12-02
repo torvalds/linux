@@ -530,7 +530,7 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
@@ -911,7 +911,7 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		bxt_verify_ddi_phy_power_wells(dev_priv);
 }
 
@@ -2170,7 +2170,7 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		max_dc = 1;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,

@@ -72,7 +72,7 @@ static const struct gmbus_pin gmbus_pins_bxt[] = {
 static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 					     unsigned int pin)
 {
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		return &gmbus_pins_bxt[pin];
 	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		return &gmbus_pins_skl[pin];
@@ -87,7 +87,7 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 {
 	unsigned int size;
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
 	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_skl);

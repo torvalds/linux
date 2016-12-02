@@ -1756,7 +1756,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 	    intel_dsi_dcs_init_backlight_funcs(connector) == 0)
 		return;
 
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv)) {
 		panel->backlight.setup = bxt_setup_backlight;
 		panel->backlight.enable = bxt_enable_backlight;
 		panel->backlight.disable = bxt_disable_backlight;

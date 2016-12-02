@@ -1779,7 +1779,7 @@ intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 {
 	int i;
 
-	if (WARN_ON_ONCE(!IS_BROXTON(dev_priv)))
+	if (WARN_ON_ONCE(!IS_GEN9_LP(dev_priv)))
 		return false;
 
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {

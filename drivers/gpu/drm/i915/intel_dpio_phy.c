@@ -317,7 +317,6 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
 					 "won't reprogram it\n", phy);
-
 			return;
 		}
 
