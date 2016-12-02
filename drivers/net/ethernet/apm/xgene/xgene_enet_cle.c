@@ -346,7 +346,7 @@ static int xgene_cle_set_rss_idt(struct xgene_enet_pdata *pdata)
 	for (i = 0; i < XGENE_CLE_IDT_ENTRIES; i++) {
 		idx = i % pdata->rxq_cnt;
 		pool_id = pdata->rx_ring[idx]->buf_pool->id;
-		fpsel = xgene_enet_ring_bufnum(pool_id) - 0x20;
+		fpsel = xgene_enet_get_fpsel(pool_id);
 		dstqid = xgene_enet_dst_ring_num(pdata->rx_ring[idx]);
 		nfpsel = 0;
 		idt_reg = 0;
@@ -706,7 +706,7 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 
 	def_qid = xgene_enet_dst_ring_num(pdata->rx_ring[0]);
 	pool_id = pdata->rx_ring[0]->buf_pool->id;
-	def_fpsel = xgene_enet_ring_bufnum(pool_id) - 0x20;
+	def_fpsel = xgene_enet_get_fpsel(pool_id);
 
 	memset(dbptr, 0, sizeof(struct xgene_cle_dbptr) * DB_MAX_PTRS);
 	dbptr[DB_RES_ACCEPT].fpsel =  def_fpsel;

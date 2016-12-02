@@ -555,7 +555,7 @@ static void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
 	u32 cb;
 	u32 fpsel;
 
-	fpsel = xgene_enet_ring_bufnum(bufpool_id) - 0x20;
+	fpsel = xgene_enet_get_fpsel(bufpool_id);
 
 	xgene_enet_rd_csr(pdata, CLE_BYPASS_REG0_0_ADDR, &cb);
 	cb |= CFG_CLE_BYPASS_EN0;
@@ -652,16 +652,14 @@ static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 static void xgene_enet_clear(struct xgene_enet_pdata *pdata,
 			     struct xgene_enet_desc_ring *ring)
 {
-	u32 addr, val, data;
-
-	val = xgene_enet_ring_bufnum(ring->id);
+	u32 addr, data;
 
 	if (xgene_enet_is_bufpool(ring->id)) {
 		addr = ENET_CFGSSQMIFPRESET_ADDR;
-		data = BIT(val - 0x20);
+		data = BIT(xgene_enet_get_fpsel(ring->id));
 	} else {
 		addr = ENET_CFGSSQMIWQRESET_ADDR;
-		data = BIT(val);
+		data = BIT(xgene_enet_ring_bufnum(ring->id));
 	}
 
 	xgene_enet_wr_ring_if(pdata, addr, data);
@@ -671,24 +669,21 @@ static void xgene_gport_shutdown(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
 	struct xgene_enet_desc_ring *ring;
-	u32 pb, val;
+	u32 pb;
 	int i;
 
 	pb = 0;
 	for (i = 0; i < pdata->rxq_cnt; i++) {
 		ring = pdata->rx_ring[i]->buf_pool;
+		pb |= BIT(xgene_enet_get_fpsel(ring->id));
 
-		val = xgene_enet_ring_bufnum(ring->id);
-		pb |= BIT(val - 0x20);
 	}
 	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIFPRESET_ADDR, pb);
 
 	pb = 0;
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		ring = pdata->tx_ring[i];
-
-		val = xgene_enet_ring_bufnum(ring->id);
-		pb |= BIT(val);
+		pb |= BIT(xgene_enet_ring_bufnum(ring->id));
 	}
 	xgene_enet_wr_ring_if(pdata, ENET_CFGSSQMIWQRESET_ADDR, pb);
 

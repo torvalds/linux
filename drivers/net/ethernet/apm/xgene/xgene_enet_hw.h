@@ -346,6 +346,14 @@ static inline bool xgene_enet_is_bufpool(u16 id)
 	return ((id & RING_BUFNUM_MASK) >= 0x20) ? true : false;
 }
 
+static inline u8 xgene_enet_get_fpsel(u16 id)
+{
+	if (xgene_enet_is_bufpool(id))
+		return xgene_enet_ring_bufnum(id) - RING_BUFNUM_BUFPOOL;
+
+	return 0;
+}
+
 static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 {
 	bool is_bufpool = xgene_enet_is_bufpool(id);
