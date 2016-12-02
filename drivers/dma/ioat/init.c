@@ -829,16 +829,20 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	op = IOAT_OP_XOR;
 
 	dest_dma = dma_map_page(dev, dest, 0, PAGE_SIZE, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, dest_dma))
+	if (dma_mapping_error(dev, dest_dma)) {
+		err = -ENOMEM;
 		goto free_resources;
+	}
 
 	for (i = 0; i < IOAT_NUM_SRC_TEST; i++)
 		dma_srcs[i] = DMA_ERROR_CODE;
 	for (i = 0; i < IOAT_NUM_SRC_TEST; i++) {
 		dma_srcs[i] = dma_map_page(dev, xor_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, dma_srcs[i]))
+		if (dma_mapping_error(dev, dma_srcs[i])) {
+			err = -ENOMEM;
 			goto dma_unmap;
+		}
 	}
 	tx = dma->device_prep_dma_xor(dma_chan, dest_dma, dma_srcs,
 				      IOAT_NUM_SRC_TEST, PAGE_SIZE,
@@ -906,8 +910,10 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	for (i = 0; i < IOAT_NUM_SRC_TEST + 1; i++) {
 		dma_srcs[i] = dma_map_page(dev, xor_val_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, dma_srcs[i]))
+		if (dma_mapping_error(dev, dma_srcs[i])) {
+			err = -ENOMEM;
 			goto dma_unmap;
+		}
 	}
 	tx = dma->device_prep_dma_xor_val(dma_chan, dma_srcs,
 					  IOAT_NUM_SRC_TEST + 1, PAGE_SIZE,
@@ -959,8 +965,10 @@ static int ioat_xor_val_self_test(struct ioatdma_device *ioat_dma)
 	for (i = 0; i < IOAT_NUM_SRC_TEST + 1; i++) {
 		dma_srcs[i] = dma_map_page(dev, xor_val_srcs[i], 0, PAGE_SIZE,
 					   DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, dma_srcs[i]))
+		if (dma_mapping_error(dev, dma_srcs[i])) {
+			err = -ENOMEM;
 			goto dma_unmap;
+		}
 	}
 	tx = dma->device_prep_dma_xor_val(dma_chan, dma_srcs,
 					  IOAT_NUM_SRC_TEST + 1, PAGE_SIZE,
