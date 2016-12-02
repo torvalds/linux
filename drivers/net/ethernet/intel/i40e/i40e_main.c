@@ -1843,6 +1843,31 @@ static void i40e_undo_filter_entries(struct i40e_vsi *vsi,
 }
 
 /**
+ * i40e_next_entry - Get the next non-broadcast filter from a list
+ * @f: pointer to filter in list
+ *
+ * Returns the next non-broadcast filter in the list. Required so that we
+ * ignore broadcast filters within the list, since these are not handled via
+ * the normal firmware update path.
+ */
+static struct i40e_mac_filter *i40e_next_filter(struct i40e_mac_filter *f)
+{
+	while (f) {
+		f = hlist_entry(f->hlist.next,
+				typeof(struct i40e_mac_filter),
+				hlist);
+
+		/* keep going if we found a broadcast filter */
+		if (f && is_broadcast_ether_addr(f->macaddr))
+			continue;
+
+		break;
+	}
+
+	return f;
+}
+
+/**
  * i40e_update_filter_state - Update filter state based on return data
  * from firmware
  * @count: Number of filters added
@@ -1874,9 +1899,9 @@ i40e_update_filter_state(int count,
 			retval++;
 		}
 
-		add_head = hlist_entry(add_head->hlist.next,
-				       typeof(struct i40e_mac_filter),
-				       hlist);
+		add_head = i40e_next_filter(add_head);
+		if (!add_head)
+			break;
 	}
 
 	return retval;
@@ -2095,7 +2120,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			cmd_flags = 0;
 
 			/* handle broadcast filters by updating the broadcast
-			 * promiscuous flag instead of deleting a MAC filter.
+			 * promiscuous flag and release filter list.
 			 */
 			if (is_broadcast_ether_addr(f->macaddr)) {
 				i40e_aqc_broadcast_filter(vsi, vsi_name, f);
@@ -2164,11 +2189,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			 * promiscuous flag instead of adding a MAC filter.
 			 */
 			if (is_broadcast_ether_addr(f->macaddr)) {
-				u64 key = i40e_addr_to_hkey(f->macaddr);
 				i40e_aqc_broadcast_filter(vsi, vsi_name, f);
-
-				hlist_del(&f->hlist);
-				hash_add(vsi->mac_filter_hash, &f->hlist, key);
 				continue;
 			}
 
