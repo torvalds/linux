@@ -22,18 +22,17 @@ struct cpu_topology_s390 {
 	cpumask_t drawer_mask;
 };
 
-DECLARE_PER_CPU(struct cpu_topology_s390, cpu_topology);
+extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
 
-#define topology_physical_package_id(cpu) (per_cpu(cpu_topology, cpu).socket_id)
-#define topology_thread_id(cpu)		  (per_cpu(cpu_topology, cpu).thread_id)
-#define topology_sibling_cpumask(cpu) \
-		(&per_cpu(cpu_topology, cpu).thread_mask)
-#define topology_core_id(cpu)		  (per_cpu(cpu_topology, cpu).core_id)
-#define topology_core_cpumask(cpu)	  (&per_cpu(cpu_topology, cpu).core_mask)
-#define topology_book_id(cpu)		  (per_cpu(cpu_topology, cpu).book_id)
-#define topology_book_cpumask(cpu)	  (&per_cpu(cpu_topology, cpu).book_mask)
-#define topology_drawer_id(cpu)		  (per_cpu(cpu_topology, cpu).drawer_id)
-#define topology_drawer_cpumask(cpu)	  (&per_cpu(cpu_topology, cpu).drawer_mask)
+#define topology_physical_package_id(cpu) (cpu_topology[cpu].socket_id)
+#define topology_thread_id(cpu)		  (cpu_topology[cpu].thread_id)
+#define topology_sibling_cpumask(cpu)	  (&cpu_topology[cpu].thread_mask)
+#define topology_core_id(cpu)		  (cpu_topology[cpu].core_id)
+#define topology_core_cpumask(cpu)	  (&cpu_topology[cpu].core_mask)
+#define topology_book_id(cpu)		  (cpu_topology[cpu].book_id)
+#define topology_book_cpumask(cpu)	  (&cpu_topology[cpu].book_mask)
+#define topology_drawer_id(cpu)		  (cpu_topology[cpu].drawer_id)
+#define topology_drawer_cpumask(cpu)	  (&cpu_topology[cpu].drawer_mask)
 
 #define mc_capable() 1
 
@@ -65,7 +64,7 @@ static inline void topology_expect_change(void) { }
 #define cpu_to_node cpu_to_node
 static inline int cpu_to_node(int cpu)
 {
-	return per_cpu(cpu_topology, cpu).node_id;
+	return cpu_topology[cpu].node_id;
 }
 
 /* Returns a pointer to the cpumask of CPUs on node 'node'. */

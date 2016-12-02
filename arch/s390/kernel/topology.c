@@ -41,15 +41,15 @@ static bool topology_enabled = true;
 static DECLARE_WORK(topology_work, topology_work_fn);
 
 /*
- * Socket/Book linked lists and per_cpu(cpu_topology) updates are
+ * Socket/Book linked lists and cpu_topology updates are
  * protected by "sched_domains_mutex".
  */
 static struct mask_info socket_info;
 static struct mask_info book_info;
 static struct mask_info drawer_info;
 
-DEFINE_PER_CPU(struct cpu_topology_s390, cpu_topology);
-EXPORT_PER_CPU_SYMBOL_GPL(cpu_topology);
+struct cpu_topology_s390 cpu_topology[NR_CPUS];
+EXPORT_SYMBOL_GPL(cpu_topology);
 
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
@@ -97,7 +97,7 @@ static void add_cpus_to_mask(struct topology_core *tl_core,
 		if (lcpu < 0)
 			continue;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
-			topo = &per_cpu(cpu_topology, lcpu + i);
+			topo = &cpu_topology[lcpu + i];
 			topo->drawer_id = drawer->id;
 			topo->book_id = book->id;
 			topo->socket_id = socket->id;
@@ -220,7 +220,7 @@ static void update_cpu_masks(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		topo = &per_cpu(cpu_topology, cpu);
+		topo = &cpu_topology[cpu];
 		topo->thread_mask = cpu_thread_map(cpu);
 		topo->core_mask = cpu_group_map(&socket_info, cpu);
 		topo->book_mask = cpu_group_map(&book_info, cpu);
@@ -394,23 +394,23 @@ int topology_cpu_init(struct cpu *cpu)
 
 static const struct cpumask *cpu_thread_mask(int cpu)
 {
-	return &per_cpu(cpu_topology, cpu).thread_mask;
+	return &cpu_topology[cpu].thread_mask;
 }
 
 
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	return &per_cpu(cpu_topology, cpu).core_mask;
+	return &cpu_topology[cpu].core_mask;
 }
 
 static const struct cpumask *cpu_book_mask(int cpu)
 {
-	return &per_cpu(cpu_topology, cpu).book_mask;
+	return &cpu_topology[cpu].book_mask;
 }
 
 static const struct cpumask *cpu_drawer_mask(int cpu)
 {
-	return &per_cpu(cpu_topology, cpu).drawer_mask;
+	return &cpu_topology[cpu].drawer_mask;
 }
 
 static int __init early_parse_topology(char *p)

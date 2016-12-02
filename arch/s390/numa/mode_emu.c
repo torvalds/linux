@@ -355,7 +355,7 @@ static struct toptree *toptree_from_topology(void)
 	phys = toptree_new(TOPTREE_ID_PHYS, 1);
 
 	for_each_online_cpu(cpu) {
-		top = &per_cpu(cpu_topology, cpu);
+		top = &cpu_topology[cpu];
 		node = toptree_get_child(phys, 0);
 		drawer = toptree_get_child(node, top->drawer_id);
 		book = toptree_get_child(drawer, top->book_id);
@@ -378,7 +378,7 @@ static void topology_add_core(struct toptree *core)
 	int cpu;
 
 	for_each_cpu(cpu, &core->mask) {
-		top = &per_cpu(cpu_topology, cpu);
+		top = &cpu_topology[cpu];
 		cpumask_copy(&top->thread_mask, &core->mask);
 		cpumask_copy(&top->core_mask, &core_mc(core)->mask);
 		cpumask_copy(&top->book_mask, &core_book(core)->mask);
