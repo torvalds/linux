@@ -1574,6 +1574,8 @@ enum skl_disp_power_wells {
 #define   PORT_PLL_ENABLE		(1 << 31)
 #define   PORT_PLL_LOCK			(1 << 30)
 #define   PORT_PLL_REF_SEL		(1 << 27)
+#define   PORT_PLL_POWER_ENABLE		(1 << 26)
+#define   PORT_PLL_POWER_STATE		(1 << 25)
 #define BXT_PORT_PLL_ENABLE(port)	_MMIO_PORT(port, _PORT_PLL_A, _PORT_PLL_B)
 
 #define _PORT_PLL_EBB_0_A		0x162034
