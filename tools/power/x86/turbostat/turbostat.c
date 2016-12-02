@@ -3315,10 +3315,10 @@ void process_cpuid()
 					crystal_hz = 24000000;	/* 24.0 MHz */
 					break;
 				case INTEL_FAM6_SKYLAKE_X:	/* SKX */
+				case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 					crystal_hz = 25000000;	/* 25.0 MHz */
 					break;
 				case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
-				case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 					crystal_hz = 19200000;	/* 19.2 MHz */
 					break;
 				default:
