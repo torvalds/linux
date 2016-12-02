@@ -35,13 +35,15 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#include "../include/obd_class.h"
+
 #include <linux/string.h>
+
 #include "../include/lustre/lustre_ioctl.h"
 #include "../include/llog_swab.h"
-#include "../include/lustre_log.h"
 #include "../include/lprocfs_status.h"
+#include "../include/lustre_log.h"
 #include "../include/lustre_param.h"
+#include "../include/obd_class.h"
 
 #include "llog_internal.h"
 

@@ -38,15 +38,17 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre/lustre_user.h"
+
 #include "../include/lustre_net.h"
 #include "../include/lustre_swab.h"
 #include "../include/obd.h"
 #include "../include/obd_class.h"
 #include "../include/obd_support.h"
-#include "../include/lustre/lustre_user.h"
 
-#include "lov_internal.h"
 #include "lov_cl_internal.h"
+#include "lov_internal.h"
 
 void lov_dump_lmm_common(int level, void *lmmp)
 {

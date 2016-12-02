@@ -48,23 +48,21 @@
 
 #include <linux/module.h>
 
-/* LUSTRE_VERSION_CODE */
-#include "../include/lustre_ver.h"
-
-#include "../include/obd_support.h"
-/* lustre_swab_mdt_body */
 #include "../include/lustre/lustre_idl.h"
-/* obd2cli_tgt() (required by DEBUG_REQ()) */
+
+#include "../include/llog_swab.h"
+#include "../include/lustre_debug.h"
+#include "../include/lustre_swab.h"
+#include "../include/lustre_ver.h"
 #include "../include/obd.h"
+#include "../include/obd_support.h"
 
 /* __REQ_LAYOUT_USER__ */
 #endif
-#include "../include/llog_swab.h"
 /* struct ptlrpc_request, lustre_msg* */
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_acl.h"
 #include "../include/lustre_debug.h"
-#include "../include/lustre_swab.h"
 
 /*
  * RQFs (see below) refer to two struct req_msg_field arrays describing the

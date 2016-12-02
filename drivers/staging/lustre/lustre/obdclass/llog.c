@@ -44,8 +44,8 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 #include "../include/llog_swab.h"
-#include "../include/obd_class.h"
 #include "../include/lustre_log.h"
+#include "../include/obd_class.h"
 #include "llog_internal.h"
 
 /*
