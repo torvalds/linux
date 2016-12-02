@@ -181,9 +181,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 static unsigned long acpi_rsdp;
 static int __init setup_acpi_rsdp(char *arg)
 {
-	if (kstrtoul(arg, 16, &acpi_rsdp))
-		return -EINVAL;
-	return 0;
+	return kstrtoul(arg, 16, &acpi_rsdp);
 }
 early_param("acpi_rsdp", setup_acpi_rsdp);
 #endif
