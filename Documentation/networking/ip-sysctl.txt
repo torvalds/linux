@@ -1734,6 +1734,15 @@ drop_unsolicited_na - BOOLEAN
 
 	By default this is turned off.
 
+enhanced_dad - BOOLEAN
+	Include a nonce option in the IPv6 neighbor solicitation messages used for
+	duplicate address detection per RFC7527. A received DAD NS will only signal
+	a duplicate address if the nonce is different. This avoids any false
+	detection of duplicates due to loopback of the NS messages that we send.
+	The nonce option will be sent on an interface unless both of
+	conf/{all,interface}/enhanced_dad are set to FALSE.
+	Default: TRUE
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
