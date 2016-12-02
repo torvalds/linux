@@ -1044,9 +1044,15 @@ enum skl_disp_power_wells {
 	/* These numbers are fixed and must match the position of the pw bits */
 	SKL_DISP_PW_MISC_IO,
 	SKL_DISP_PW_DDI_A_E,
+	GLK_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
 	SKL_DISP_PW_DDI_B,
 	SKL_DISP_PW_DDI_C,
 	SKL_DISP_PW_DDI_D,
+
+	GLK_DISP_PW_AUX_A = 8,
+	GLK_DISP_PW_AUX_B,
+	GLK_DISP_PW_AUX_C,
+
 	SKL_DISP_PW_1 = 14,
 	SKL_DISP_PW_2,
 

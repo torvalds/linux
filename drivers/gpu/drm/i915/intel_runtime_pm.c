@@ -453,6 +453,45 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_AUX_C) |			\
 	BIT(POWER_DOMAIN_INIT))
 
+#define GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT(POWER_DOMAIN_PIPE_B) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT(POWER_DOMAIN_PIPE_C) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_B) |                       \
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_AUDIO) |			\
+	BIT(POWER_DOMAIN_VGA) |				\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_A_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_B_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_LANES) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DDI_C_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_LANES) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_A_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_AUX_A) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_B_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_AUX_B) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_AUX_C_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_AUX_C) |		\
+	BIT(POWER_DOMAIN_INIT))
+#define GLK_DISPLAY_DC_OFF_POWER_DOMAINS (		\
+	GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT(POWER_DOMAIN_MODESET) |			\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_INIT))
+
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
@@ -694,7 +733,7 @@ gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
 }
 
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
-			struct i915_power_well *power_well, bool enable)
+			       struct i915_power_well *power_well, bool enable)
 {
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
@@ -720,11 +759,14 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			return;
 		}
 		break;
-	case SKL_DISP_PW_DDI_A_E:
+	case SKL_DISP_PW_MISC_IO:
+	case SKL_DISP_PW_DDI_A_E: /* GLK_DISP_PW_DDI_A */
 	case SKL_DISP_PW_DDI_B:
 	case SKL_DISP_PW_DDI_C:
 	case SKL_DISP_PW_DDI_D:
-	case SKL_DISP_PW_MISC_IO:
+	case GLK_DISP_PW_AUX_A:
+	case GLK_DISP_PW_AUX_B:
+	case GLK_DISP_PW_AUX_C:
 		break;
 	default:
 		WARN(1, "Unknown power well %lu\n", power_well->id);
@@ -2150,6 +2192,70 @@ static struct i915_power_well bxt_power_wells[] = {
 	},
 };
 
+static struct i915_power_well glk_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = POWER_DOMAIN_MASK,
+		.ops = &i9xx_always_on_power_well_ops,
+	},
+	{
+		.name = "power well 1",
+		/* Handled by the DMC firmware */
+		.domains = 0,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_1,
+	},
+	{
+		.name = "DC off",
+		.domains = GLK_DISPLAY_DC_OFF_POWER_DOMAINS,
+		.ops = &gen9_dc_off_power_well_ops,
+		.id = SKL_DISP_PW_DC_OFF,
+	},
+	{
+		.name = "power well 2",
+		.domains = GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_2,
+	},
+	{
+		.name = "AUX A",
+		.domains = GLK_DISPLAY_AUX_A_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_A,
+	},
+	{
+		.name = "AUX B",
+		.domains = GLK_DISPLAY_AUX_B_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_B,
+	},
+	{
+		.name = "AUX C",
+		.domains = GLK_DISPLAY_AUX_C_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_AUX_C,
+	},
+	{
+		.name = "DDI A power well",
+		.domains = GLK_DISPLAY_DDI_A_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = GLK_DISP_PW_DDI_A,
+	},
+	{
+		.name = "DDI B power well",
+		.domains = GLK_DISPLAY_DDI_B_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_DDI_B,
+	},
+	{
+		.name = "DDI C power well",
+		.domains = GLK_DISPLAY_DDI_C_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.id = SKL_DISP_PW_DDI_C,
+	},
+};
+
 static int
 sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
 				   int disable_power_well)
@@ -2246,6 +2352,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_BROXTON(dev_priv)) {
 		set_power_wells(power_domains, bxt_power_wells);
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		set_power_wells(power_domains, glk_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
