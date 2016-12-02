@@ -29,20 +29,6 @@ int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end);
 int ceph_crypto_key_unarmor(struct ceph_crypto_key *key, const char *in);
 
 /* crypto.c */
-int ceph_decrypt(struct ceph_crypto_key *secret,
-		 void *dst, size_t *dst_len,
-		 const void *src, size_t src_len);
-int ceph_encrypt(struct ceph_crypto_key *secret,
-		 void *dst, size_t *dst_len,
-		 const void *src, size_t src_len);
-int ceph_decrypt2(struct ceph_crypto_key *secret,
-		  void *dst1, size_t *dst1_len,
-		  void *dst2, size_t *dst2_len,
-		  const void *src, size_t src_len);
-int ceph_encrypt2(struct ceph_crypto_key *secret,
-		  void *dst, size_t *dst_len,
-		  const void *src1, size_t src1_len,
-		  const void *src2, size_t src2_len);
 int ceph_crypt(const struct ceph_crypto_key *key, bool encrypt,
 	       void *buf, int buf_len, int in_len, int *pout_len);
 int ceph_crypto_init(void);
