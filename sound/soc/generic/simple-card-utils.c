@@ -1,5 +1,5 @@
 /*
- * simple-card-core.c
+ * simple-card-utils.c
  *
  * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
