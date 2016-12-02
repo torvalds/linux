@@ -124,6 +124,7 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 static int ilk_max_pixel_rate(struct drm_atomic_state *state);
+static int glk_calc_cdclk(int max_pixclk);
 static int bxt_calc_cdclk(int max_pixclk);
 
 struct intel_limit {
@@ -5841,6 +5842,8 @@ static void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 			max_cdclk = 308571;
 
 		dev_priv->max_cdclk_freq = skl_calc_cdclk(max_cdclk, vco);
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		dev_priv->max_cdclk_freq = 316800;
 	} else if (IS_BROXTON(dev_priv)) {
 		dev_priv->max_cdclk_freq = 624000;
 	} else if (IS_BROADWELL(dev_priv))  {
@@ -5928,6 +5931,26 @@ static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	return dev_priv->cdclk_pll.ref * ratio;
 }
 
+static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
+{
+	int ratio;
+
+	if (cdclk == dev_priv->cdclk_pll.ref)
+		return 0;
+
+	switch (cdclk) {
+	default:
+		MISSING_CASE(cdclk);
+	case  79200:
+	case 158400:
+	case 316800:
+		ratio = 33;
+		break;
+	}
+
+	return dev_priv->cdclk_pll.ref * ratio;
+}
+
 static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
@@ -5969,7 +5992,10 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 	u32 val, divider;
 	int vco, ret;
 
-	vco = bxt_de_pll_vco(dev_priv, cdclk);
+	if (IS_GEMINILAKE(dev_priv))
+		vco = glk_de_pll_vco(dev_priv, cdclk);
+	else
+		vco = bxt_de_pll_vco(dev_priv, cdclk);
 
 	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d kHz)\n", cdclk, vco);
 
@@ -5982,6 +6008,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
 		break;
 	case 3:
+		WARN(IS_GEMINILAKE(dev_priv), "Unsupported divider\n");
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
 		break;
 	case 2:
@@ -6091,6 +6118,8 @@ sanitize:
 
 void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 {
+	int cdclk;
+
 	bxt_sanitize_cdclk(dev_priv);
 
 	if (dev_priv->cdclk_freq != 0 && dev_priv->cdclk_pll.vco != 0)
@@ -6101,7 +6130,12 @@ void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 	 * - The initial CDCLK needs to be read from VBT.
 	 *   Need to make this change after VBT has changes for BXT.
 	 */
-	bxt_set_cdclk(dev_priv, bxt_calc_cdclk(0));
+	if (IS_GEMINILAKE(dev_priv))
+		cdclk = glk_calc_cdclk(0);
+	else
+		cdclk = bxt_calc_cdclk(0);
+
+	bxt_set_cdclk(dev_priv, cdclk);
 }
 
 void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
@@ -6527,6 +6561,16 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 		return 200000;
 }
 
+static int glk_calc_cdclk(int max_pixclk)
+{
+	if (max_pixclk > 158400)
+		return 316800;
+	else if (max_pixclk > 79200)
+		return 158400;
+	else
+		return 79200;
+}
+
 static int bxt_calc_cdclk(int max_pixclk)
 {
 	if (max_pixclk > 576000)
@@ -6589,15 +6633,27 @@ static int valleyview_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	int max_pixclk = ilk_max_pixel_rate(state);
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(state);
+	int cdclk;
 
-	intel_state->cdclk = intel_state->dev_cdclk =
-		bxt_calc_cdclk(max_pixclk);
+	if (IS_GEMINILAKE(dev_priv))
+		cdclk = glk_calc_cdclk(max_pixclk);
+	else
+		cdclk = bxt_calc_cdclk(max_pixclk);
 
-	if (!intel_state->active_crtcs)
-		intel_state->dev_cdclk = bxt_calc_cdclk(0);
+	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
+
+	if (!intel_state->active_crtcs) {
+		if (IS_GEMINILAKE(dev_priv))
+			cdclk = glk_calc_cdclk(0);
+		else
+			cdclk = bxt_calc_cdclk(0);
+
+		intel_state->dev_cdclk = cdclk;
+	}
 
 	return 0;
 }
@@ -7299,6 +7355,7 @@ static int broxton_get_display_clock_speed(struct drm_i915_private *dev_priv)
 		div = 2;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
+		WARN(IS_GEMINILAKE(dev_priv), "Unsupported divider\n");
 		div = 3;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_2:
@@ -16031,7 +16088,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			skylake_get_display_clock_speed;
-	else if (IS_BROXTON(dev_priv))
+	else if (IS_GEN9_LP(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			broxton_get_display_clock_speed;
 	else if (IS_BROADWELL(dev_priv))
@@ -16104,7 +16161,7 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 			valleyview_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			valleyview_modeset_calc_cdclk;
-	} else if (IS_BROXTON(dev_priv)) {
+	} else if (IS_GEN9_LP(dev_priv)) {
 		dev_priv->display.modeset_commit_cdclk =
 			bxt_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
