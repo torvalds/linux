@@ -278,7 +278,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	 * we don't expose the topmost plane at all to prevent ABI breakage
 	 * down the line.
 	 */
-	if (IS_BROXTON(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			info->num_sprites[pipe] = 3;
+	else if (IS_BROXTON(dev_priv)) {
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
