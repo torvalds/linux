@@ -424,6 +424,27 @@ static void print_node_to_core_map(void)
 	}
 }
 
+static void pin_all_possible_cpus(void)
+{
+	int core_id, node_id, cpu;
+	static int initialized;
+
+	if (initialized)
+		return;
+	print_node_to_core_map();
+	node_id = 0;
+	for_each_possible_cpu(cpu) {
+		core_id = smp_get_base_cpu(cpu);
+		if (emu_cores->to_node_id[core_id] != NODE_ID_FREE)
+			continue;
+		pin_core_to_node(core_id, node_id);
+		cpu_topology[cpu].node_id = node_id;
+		node_id = (node_id + 1) % emu_nodes;
+	}
+	print_node_to_core_map();
+	initialized = 1;
+}
+
 /*
  * Transfer physical topology into a NUMA topology and modify CPU masks
  * according to the NUMA topology.
@@ -441,7 +462,7 @@ static void emu_update_cpu_topology(void)
 	toptree_free(phys);
 	toptree_to_topology(numa);
 	toptree_free(numa);
-	print_node_to_core_map();
+	pin_all_possible_cpus();
 }
 
 /*
