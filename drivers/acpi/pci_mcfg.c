@@ -108,6 +108,31 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	THUNDER_ECAM_QUIRK(2, 11),
 	THUNDER_ECAM_QUIRK(2, 12),
 	THUNDER_ECAM_QUIRK(2, 13),
+
+#define XGENE_V1_ECAM_MCFG(rev, seg) \
+	{"APM   ", "XGENE   ", rev, seg, MCFG_BUS_ANY, \
+		&xgene_v1_pcie_ecam_ops }
+#define XGENE_V2_ECAM_MCFG(rev, seg) \
+	{"APM   ", "XGENE   ", rev, seg, MCFG_BUS_ANY, \
+		&xgene_v2_pcie_ecam_ops }
+	/* X-Gene SoC with v1 PCIe controller */
+	XGENE_V1_ECAM_MCFG(1, 0),
+	XGENE_V1_ECAM_MCFG(1, 1),
+	XGENE_V1_ECAM_MCFG(1, 2),
+	XGENE_V1_ECAM_MCFG(1, 3),
+	XGENE_V1_ECAM_MCFG(1, 4),
+	XGENE_V1_ECAM_MCFG(2, 0),
+	XGENE_V1_ECAM_MCFG(2, 1),
+	XGENE_V1_ECAM_MCFG(2, 2),
+	XGENE_V1_ECAM_MCFG(2, 3),
+	XGENE_V1_ECAM_MCFG(2, 4),
+	/* X-Gene SoC with v2.1 PCIe controller */
+	XGENE_V2_ECAM_MCFG(3, 0),
+	XGENE_V2_ECAM_MCFG(3, 1),
+	/* X-Gene SoC with v2.2 PCIe controller */
+	XGENE_V2_ECAM_MCFG(4, 0),
+	XGENE_V2_ECAM_MCFG(4, 1),
+	XGENE_V2_ECAM_MCFG(4, 2),
 };
 
 static char mcfg_oem_id[ACPI_OEM_ID_SIZE];
