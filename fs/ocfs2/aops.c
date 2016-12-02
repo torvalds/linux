@@ -2392,13 +2392,10 @@ static int ocfs2_dio_end_io(struct kiocb *iocb,
 	int level;
 	int ret = 0;
 
-	if (bytes <= 0)
-		return 0;
-
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
 
-	if (private)
+	if (bytes > 0 && private)
 		ret = ocfs2_dio_end_io_write(inode, private, offset, bytes);
 
 	ocfs2_iocb_clear_rw_locked(iocb);
