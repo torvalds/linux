@@ -603,8 +603,8 @@ static int ceph_x_create_authorizer(
 	auth->authorizer = (struct ceph_authorizer *) au;
 	auth->authorizer_buf = au->buf->vec.iov_base;
 	auth->authorizer_buf_len = au->buf->vec.iov_len;
-	auth->authorizer_reply_buf = au->reply_buf;
-	auth->authorizer_reply_buf_len = sizeof (au->reply_buf);
+	auth->authorizer_reply_buf = au->enc_buf;
+	auth->authorizer_reply_buf_len = CEPHX_AU_ENC_BUF_LEN;
 	auth->sign_message = ac->ops->sign_message;
 	auth->check_message_signature = ac->ops->check_message_signature;
 
@@ -638,10 +638,10 @@ static int ceph_x_verify_authorizer_reply(struct ceph_auth_client *ac,
 	int ret = 0;
 	struct ceph_x_authorize_reply reply;
 	void *preply = &reply;
-	void *p = au->reply_buf;
-	void *end = p + sizeof(au->reply_buf);
+	void *p = au->enc_buf;
 
-	ret = ceph_x_decrypt(&au->session_key, &p, end, &preply, sizeof(reply));
+	ret = ceph_x_decrypt(&au->session_key, &p, p + CEPHX_AU_ENC_BUF_LEN,
+			     &preply, sizeof(reply));
 	if (ret < 0)
 		return ret;
 	if (ret != sizeof(reply))
