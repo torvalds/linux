@@ -714,35 +714,15 @@ static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 	struct mm_struct *mm;
 
-	/* Allocate new kernel and user ASIDs if needed */
-
-	if ((cpu_context(cpu, kern_mm) ^ asid_cache(cpu)) &
-						asid_version_mask(cpu)) {
-		get_new_mmu_context(kern_mm, cpu);
-
-		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
-			  cpu_context(cpu, current->mm));
-		kvm_debug("[%d]: Allocated new ASID for Guest Kernel: %#lx\n",
-			  cpu, cpu_context(cpu, kern_mm));
-	}
-
-	if ((cpu_context(cpu, user_mm) ^ asid_cache(cpu)) &
-						asid_version_mask(cpu)) {
-		get_new_mmu_context(user_mm, cpu);
-
-		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
-			  cpu_context(cpu, current->mm));
-		kvm_debug("[%d]: Allocated new ASID for Guest User: %#lx\n",
-			  cpu, cpu_context(cpu, user_mm));
-	}
-
 	/*
-	 * Were we in guest context? If so then the pre-empted ASID is
-	 * no longer valid, we need to set it to what it should be based
-	 * on the mode of the Guest (Kernel/User)
+	 * Were we in guest context? If so, restore the appropriate ASID based
+	 * on the mode of the Guest (Kernel/User).
 	 */
 	if (current->flags & PF_VCPU) {
 		mm = KVM_GUEST_KERNEL_MODE(vcpu) ? kern_mm : user_mm;
+		if ((cpu_context(cpu, mm) ^ asid_cache(cpu)) &
+		    asid_version_mask(cpu))
+			get_new_mmu_context(mm, cpu);
 		write_c0_entryhi(cpu_asid(cpu, mm));
 		TLBMISS_HANDLER_SETUP_PGD(mm->pgd);
 		kvm_mips_suspend_mm(cpu);
@@ -759,11 +739,8 @@ static int kvm_trap_emul_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	if (current->flags & PF_VCPU) {
 		/* Restore normal Linux process memory map */
 		if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
-		     asid_version_mask(cpu))) {
-			kvm_debug("%s: Dropping MMU Context:  %#lx\n", __func__,
-				  cpu_context(cpu, current->mm));
+		     asid_version_mask(cpu)))
 			get_new_mmu_context(current->mm, cpu);
-		}
 		write_c0_entryhi(cpu_asid(cpu, current->mm));
 		TLBMISS_HANDLER_SETUP_PGD(current->mm->pgd);
 		kvm_mips_resume_mm(cpu);
