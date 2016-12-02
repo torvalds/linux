@@ -124,7 +124,7 @@ again:
 		if (data->is_rc5x && data->count == RC5X_NBITS) {
 			/* RC5X */
 			u8 xdata, command, system;
-			if (!(dev->enabled_protocols & RC_BIT_RC5X)) {
+			if (!(dev->enabled_protocols & RC_BIT_RC5X_20)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -134,7 +134,7 @@ again:
 			toggle   = (data->bits & 0x20000) ? 1 : 0;
 			command += (data->bits & 0x40000) ? 0 : 0x40;
 			scancode = system << 16 | command << 8 | xdata;
-			protocol = RC_TYPE_RC5X;
+			protocol = RC_TYPE_RC5X_20;
 
 		} else if (!data->is_rc5x && data->count == RC5_NBITS) {
 			/* RC5 */
@@ -182,7 +182,7 @@ out:
 }
 
 static struct ir_raw_handler rc5_handler = {
-	.protocols	= RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ,
+	.protocols	= RC_BIT_RC5 | RC_BIT_RC5X_20 | RC_BIT_RC5_SZ,
 	.decode		= ir_rc5_decode,
 };
 

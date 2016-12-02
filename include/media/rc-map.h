@@ -17,7 +17,7 @@
  * @RC_TYPE_UNKNOWN: Protocol not known
  * @RC_TYPE_OTHER: Protocol known but proprietary
  * @RC_TYPE_RC5: Philips RC5 protocol
- * @RC_TYPE_RC5X: Philips RC5x protocol
+ * @RC_TYPE_RC5X_20: Philips RC5x 20 bit protocol
  * @RC_TYPE_RC5_SZ: StreamZap variant of RC5
  * @RC_TYPE_JVC: JVC protocol
  * @RC_TYPE_SONY12: Sony 12 bit protocol
@@ -41,7 +41,7 @@ enum rc_type {
 	RC_TYPE_UNKNOWN		= 0,
 	RC_TYPE_OTHER		= 1,
 	RC_TYPE_RC5		= 2,
-	RC_TYPE_RC5X		= 3,
+	RC_TYPE_RC5X_20		= 3,
 	RC_TYPE_RC5_SZ		= 4,
 	RC_TYPE_JVC		= 5,
 	RC_TYPE_SONY12		= 6,
@@ -66,7 +66,7 @@ enum rc_type {
 #define RC_BIT_UNKNOWN		(1ULL << RC_TYPE_UNKNOWN)
 #define RC_BIT_OTHER		(1ULL << RC_TYPE_OTHER)
 #define RC_BIT_RC5		(1ULL << RC_TYPE_RC5)
-#define RC_BIT_RC5X		(1ULL << RC_TYPE_RC5X)
+#define RC_BIT_RC5X_20		(1ULL << RC_TYPE_RC5X_20)
 #define RC_BIT_RC5_SZ		(1ULL << RC_TYPE_RC5_SZ)
 #define RC_BIT_JVC		(1ULL << RC_TYPE_JVC)
 #define RC_BIT_SONY12		(1ULL << RC_TYPE_SONY12)
@@ -87,7 +87,7 @@ enum rc_type {
 #define RC_BIT_CEC		(1ULL << RC_TYPE_CEC)
 
 #define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | \
-			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
+			 RC_BIT_RC5 | RC_BIT_RC5X_20 | RC_BIT_RC5_SZ | \
 			 RC_BIT_JVC | \
 			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
 			 RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 | \
