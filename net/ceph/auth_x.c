@@ -148,7 +148,6 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	int dlen;
 	char is_enc;
 	struct timespec validity;
-	struct ceph_crypto_key old_key;
 	void *ticket_buf = NULL;
 	void *tp, *tpend;
 	void **ptp;
@@ -187,7 +186,6 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	if (tkt_struct_v != 1)
 		goto bad;
 
-	memcpy(&old_key, &th->session_key, sizeof(old_key));
 	ret = ceph_crypto_key_decode(&new_session_key, &dp, dend);
 	if (ret)
 		goto out;
@@ -204,7 +202,7 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	if (is_enc) {
 		/* encrypted */
 		dout(" encrypted ticket\n");
-		dlen = ceph_x_decrypt(&old_key, p, end, &ticket_buf, 0);
+		dlen = ceph_x_decrypt(&th->session_key, p, end, &ticket_buf, 0);
 		if (dlen < 0) {
 			ret = dlen;
 			goto out;
