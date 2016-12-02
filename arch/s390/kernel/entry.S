@@ -958,7 +958,7 @@ ENTRY(mcck_int_handler)
 
 .Lmcck_panic:
 	lg	%r15,__LC_PANIC_STACK
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
+	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	j	.Lmcck_skip
 
 #
