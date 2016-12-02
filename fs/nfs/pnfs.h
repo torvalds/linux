@@ -172,6 +172,7 @@ struct pnfs_layoutdriver_type {
 			(struct nfs_server *server, struct pnfs_device *pdev,
 			gfp_t gfp_flags);
 
+	int (*prepare_layoutreturn) (struct nfs4_layoutreturn_args *);
 	void (*encode_layoutreturn) (struct xdr_stream *xdr,
 				     const struct nfs4_layoutreturn_args *args);
 

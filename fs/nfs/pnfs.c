@@ -1072,6 +1072,7 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 		       enum pnfs_iomode iomode, bool sync)
 {
 	struct inode *ino = lo->plh_inode;
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(ino)->pnfs_curr_ld;
 	struct nfs4_layoutreturn *lrp;
 	int status = 0;
 
@@ -1089,6 +1090,8 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 	lrp->args.ld_private = &lrp->ld_private;
 	lrp->clp = NFS_SERVER(ino)->nfs_client;
 	lrp->cred = lo->plh_lc_cred;
+	if (ld->prepare_layoutreturn)
+		ld->prepare_layoutreturn(&lrp->args);
 
 	status = nfs4_proc_layoutreturn(lrp, sync);
 out:
@@ -1310,9 +1313,15 @@ retry:
 out_noroc:
 	spin_unlock(&ino->i_lock);
 	pnfs_layoutcommit_inode(ino, true);
+	if (roc) {
+		struct pnfs_layoutdriver_type *ld = NFS_SERVER(ino)->pnfs_curr_ld;
+		if (ld->prepare_layoutreturn)
+			ld->prepare_layoutreturn(args);
+		return true;
+	}
 	if (layoutreturn)
 		pnfs_send_layoutreturn(lo, &stateid, iomode, true);
-	return roc;
+	return false;
 }
 
 void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
@@ -1322,6 +1331,7 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	struct pnfs_layout_hdr *lo = args->layout;
 	const nfs4_stateid *arg_stateid = NULL;
 	const nfs4_stateid *res_stateid = NULL;
+	struct nfs4_xdr_opaque_data *ld_private = args->ld_private;
 
 	if (ret == 0) {
 		arg_stateid = &args->stateid;
@@ -1330,6 +1340,8 @@ void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
 	}
 	pnfs_layoutreturn_free_lsegs(lo, arg_stateid, &args->range,
 			res_stateid);
+	if (ld_private && ld_private->ops && ld_private->ops->free)
+		ld_private->ops->free(ld_private);
 	pnfs_put_layout_hdr(lo);
 	trace_nfs4_layoutreturn_on_close(args->inode, 0);
 }
