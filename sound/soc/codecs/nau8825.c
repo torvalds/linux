@@ -1846,7 +1846,8 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	 * (audible hiss). Set it to something better.
 	 */
 	regmap_update_bits(regmap, NAU8825_REG_ADC_RATE,
-		NAU8825_ADC_SYNC_DOWN_MASK, NAU8825_ADC_SYNC_DOWN_64);
+		NAU8825_ADC_SYNC_DOWN_MASK | NAU8825_ADC_SINC4_EN,
+		NAU8825_ADC_SYNC_DOWN_64);
 	regmap_update_bits(regmap, NAU8825_REG_DAC_CTRL1,
 		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_64);
 	/* Disable DACR/L power */
