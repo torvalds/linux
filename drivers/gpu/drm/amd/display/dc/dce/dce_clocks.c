@@ -30,6 +30,8 @@
 #include "bios_parser_interface.h"
 #include "dc.h"
 
+#define TO_DCE_CLOCKS(clocks)\
+	container_of(clocks, struct dce_disp_clk, base)
 
 #define REG(reg) \
 	(clk_dce->regs->reg)
@@ -41,8 +43,45 @@
 #define CTX \
 	clk_dce->base.ctx
 
+/* Max clock values for each state indexed by "enum clocks_state": */
+static struct state_dependent_clocks dce80_max_clks_by_state[] = {
+/* ClocksStateInvalid - should not be used */
+{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
+/* ClocksStateUltraLow - not expected to be used for DCE 8.0 */
+{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
+/* ClocksStateLow */
+{ .display_clk_khz = 352000, .pixel_clk_khz = 330000},
+/* ClocksStateNominal */
+{ .display_clk_khz = 600000, .pixel_clk_khz = 400000 },
+/* ClocksStatePerformance */
+{ .display_clk_khz = 600000, .pixel_clk_khz = 400000 } };
+
+static struct state_dependent_clocks dce110_max_clks_by_state[] = {
+/*ClocksStateInvalid - should not be used*/
+{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
+/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
+{ .display_clk_khz = 352000, .pixel_clk_khz = 330000 },
+/*ClocksStateLow*/
+{ .display_clk_khz = 352000, .pixel_clk_khz = 330000 },
+/*ClocksStateNominal*/
+{ .display_clk_khz = 467000, .pixel_clk_khz = 400000 },
+/*ClocksStatePerformance*/
+{ .display_clk_khz = 643000, .pixel_clk_khz = 400000 } };
+
+static struct state_dependent_clocks dce112_max_clks_by_state[] = {
+/*ClocksStateInvalid - should not be used*/
+{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
+/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
+{ .display_clk_khz = 389189, .pixel_clk_khz = 346672 },
+/*ClocksStateLow*/
+{ .display_clk_khz = 459000, .pixel_clk_khz = 400000 },
+/*ClocksStateNominal*/
+{ .display_clk_khz = 667000, .pixel_clk_khz = 600000 },
+/*ClocksStatePerformance*/
+{ .display_clk_khz = 1132000, .pixel_clk_khz = 600000 } };
+
 /* Starting point for each divider range.*/
-enum divider_range_start {
+enum dce_divider_range_start {
 	DIVIDER_RANGE_01_START = 200, /* 2.00*/
 	DIVIDER_RANGE_02_START = 1600, /* 16.00*/
 	DIVIDER_RANGE_03_START = 3200, /* 32.00*/
@@ -51,7 +90,7 @@ enum divider_range_start {
 
 /* Ranges for divider identifiers (Divider ID or DID)
  mmDENTIST_DISPCLK_CNTL.DENTIST_DISPCLK_WDIVIDER*/
-enum divider_id_register_setting {
+enum dce_divider_id_register_setting {
 	DIVIDER_RANGE_01_BASE_DIVIDER_ID = 0X08,
 	DIVIDER_RANGE_02_BASE_DIVIDER_ID = 0X40,
 	DIVIDER_RANGE_03_BASE_DIVIDER_ID = 0X60,
@@ -61,14 +100,114 @@ enum divider_id_register_setting {
 /* Step size between each divider within a range.
  Incrementing the DENTIST_DISPCLK_WDIVIDER by one
  will increment the divider by this much.*/
-enum divider_range_step_size {
+enum dce_divider_range_step_size {
 	DIVIDER_RANGE_01_STEP_SIZE = 25, /* 0.25*/
 	DIVIDER_RANGE_02_STEP_SIZE = 50, /* 0.50*/
 	DIVIDER_RANGE_03_STEP_SIZE = 100 /* 1.00 */
 };
 
+static bool dce_divider_range_construct(
+	struct dce_divider_range *div_range,
+	int range_start,
+	int range_step,
+	int did_min,
+	int did_max)
+{
+	div_range->div_range_start = range_start;
+	div_range->div_range_step = range_step;
+	div_range->did_min = did_min;
+	div_range->did_max = did_max;
 
-static uint32_t dce_clocks_get_dp_ref_freq(struct display_clock *clk)
+	if (div_range->div_range_step == 0) {
+		div_range->div_range_step = 1;
+		/*div_range_step cannot be zero*/
+		BREAK_TO_DEBUGGER();
+	}
+	/* Calculate this based on the other inputs.*/
+	/* See DividerRange.h for explanation of */
+	/* the relationship between divider id (DID) and a divider.*/
+	/* Number of Divider IDs = (Maximum Divider ID - Minimum Divider ID)*/
+	/* Maximum divider identified in this range =
+	 * (Number of Divider IDs)*Step size between dividers
+	 *  + The start of this range.*/
+	div_range->div_range_end = (did_max - did_min) * range_step
+		+ range_start;
+	return true;
+}
+
+static int dce_divider_range_calc_divider(
+	struct dce_divider_range *div_range,
+	int did)
+{
+	/* Is this DID within our range?*/
+	if ((did < div_range->did_min) || (did >= div_range->did_max))
+		return INVALID_DIVIDER;
+
+	return ((did - div_range->did_min) * div_range->div_range_step)
+			+ div_range->div_range_start;
+
+}
+
+static int dce_divider_range_calc_did(
+	struct dce_divider_range *div_range,
+	int div)
+{
+	int did;
+	/* Check before dividing.*/
+	if (div_range->div_range_step == 0) {
+		div_range->div_range_step = 1;
+		/*div_range_step cannot be zero*/
+		BREAK_TO_DEBUGGER();
+	}
+	/* Is this divider within our range?*/
+	if ((div < div_range->div_range_start)
+		|| (div >= div_range->div_range_end))
+		return INVALID_DID;
+/* did = (divider - range_start + (range_step-1)) / range_step) + did_min*/
+	did = div - div_range->div_range_start;
+	did += div_range->div_range_step - 1;
+	did /= div_range->div_range_step;
+	did += div_range->did_min;
+	return did;
+}
+
+static int dce_divider_range_get_divider(
+	struct dce_divider_range *div_range,
+	int ranges_num,
+	int did)
+{
+	int div = INVALID_DIVIDER;
+	int i;
+
+	for (i = 0; i < ranges_num; i++) {
+		/* Calculate divider with given divider ID*/
+		div = dce_divider_range_calc_divider(&div_range[i], did);
+		/* Found a valid return divider*/
+		if (div != INVALID_DIVIDER)
+			break;
+	}
+	return div;
+}
+
+static int dce_divider_range_get_did(
+	struct dce_divider_range *div_range,
+	int ranges_num,
+	int divider)
+{
+	int did = INVALID_DID;
+	int i;
+
+	for (i = 0; i < ranges_num; i++) {
+		/*  CalcDid returns InvalidDid if a divider ID isn't found*/
+		did = dce_divider_range_calc_did(&div_range[i], divider);
+		/* Found a valid return did*/
+		if (did != INVALID_DID)
+			break;
+	}
+	return did;
+}
+
+static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
 	int dprefclk_wdivider;
@@ -85,7 +224,7 @@ static uint32_t dce_clocks_get_dp_ref_freq(struct display_clock *clk)
 	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, &dprefclk_wdivider);
 
 	/* Convert DENTIST_DPREFCLK_WDIVIDERto actual divider*/
-	target_div = dal_divider_range_get_divider(
+	target_div = dce_divider_range_get_divider(
 			clk_dce->divider_ranges,
 			DIVIDER_RANGE_MAX,
 			dprefclk_wdivider);
@@ -183,7 +322,7 @@ static bool dce_clock_set_min_clocks_state(
 
 static void dce_set_clock(
 	struct display_clock *clk,
-	uint32_t requested_clk_khz)
+	int requested_clk_khz)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_pixel_clock_parameters pxl_clk_params = { 0 };
@@ -245,7 +384,7 @@ static void dce_psr_wait_loop(
 
 static void dce_psr_set_clock(
 	struct display_clock *clk,
-	uint32_t requested_clk_khz)
+	int requested_clk_khz)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
 
@@ -253,9 +392,9 @@ static void dce_psr_set_clock(
 	dce_psr_wait_loop(clk_dce, requested_clk_khz);
 }
 
-static void polaris_set_clock(
+static void dce112_set_clock(
 	struct display_clock *clk,
-	uint32_t requested_clk_khz)
+	int requested_clk_khz)
 {
 	struct dce_disp_clk *clk_dce = TO_DCE_CLOCKS(clk);
 	struct bp_set_dce_clock_parameters dce_clk_params;
@@ -267,7 +406,7 @@ static void polaris_set_clock(
 	/* Make sure requested clock isn't lower than minimum threshold*/
 	if (requested_clk_khz > 0)
 		requested_clk_khz = dm_max(requested_clk_khz,
-				clk_dce->dentist_vco_freq_khz / 64);
+				clk_dce->dentist_vco_freq_khz / 62);
 
 	dce_clk_params.target_clock_frequency = requested_clk_khz;
 	dce_clk_params.pll_id = CLOCK_SOURCE_ID_DFS;
@@ -284,7 +423,9 @@ static void polaris_set_clock(
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
 	dce_clk_params.target_clock_frequency = 0;
 	dce_clk_params.clock_type = DCECLOCK_TYPE_DPREFCLK;
-	dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK = 0;
+	dce_clk_params.flags.USE_GENLOCK_AS_SOURCE_FOR_DPREFCLK =
+			(dce_clk_params.pll_id ==
+					CLOCK_SOURCE_COMBO_DISPLAY_PLL0);
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 }
@@ -386,7 +527,7 @@ static const struct display_clock_funcs dce112_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,
 	.get_required_clocks_state = dce_get_required_clocks_state,
 	.set_min_clocks_state = dce_clock_set_min_clocks_state,
-	.set_clock = polaris_set_clock
+	.set_clock = dce112_set_clock
 };
 
 static const struct display_clock_funcs dce110_funcs = {
@@ -429,19 +570,19 @@ static void dce_disp_clk_construct(
 	dce_clock_read_integrated_info(clk_dce);
 	dce_clock_read_ss_info(clk_dce);
 
-	dal_divider_range_construct(
+	dce_divider_range_construct(
 		&clk_dce->divider_ranges[DIVIDER_RANGE_01],
 		DIVIDER_RANGE_01_START,
 		DIVIDER_RANGE_01_STEP_SIZE,
 		DIVIDER_RANGE_01_BASE_DIVIDER_ID,
 		DIVIDER_RANGE_02_BASE_DIVIDER_ID);
-	dal_divider_range_construct(
+	dce_divider_range_construct(
 		&clk_dce->divider_ranges[DIVIDER_RANGE_02],
 		DIVIDER_RANGE_02_START,
 		DIVIDER_RANGE_02_STEP_SIZE,
 		DIVIDER_RANGE_02_BASE_DIVIDER_ID,
 		DIVIDER_RANGE_03_BASE_DIVIDER_ID);
-	dal_divider_range_construct(
+	dce_divider_range_construct(
 		&clk_dce->divider_ranges[DIVIDER_RANGE_03],
 		DIVIDER_RANGE_03_START,
 		DIVIDER_RANGE_03_STEP_SIZE,
@@ -462,6 +603,10 @@ struct display_clock *dce_disp_clk_create(
 		return NULL;
 	}
 
+	memcpy(clk_dce->max_clks_by_state,
+		dce80_max_clks_by_state,
+		sizeof(dce80_max_clks_by_state));
+
 	dce_disp_clk_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
 
@@ -480,6 +625,10 @@ struct display_clock *dce110_disp_clk_create(
 		BREAK_TO_DEBUGGER();
 		return NULL;
 	}
+
+	memcpy(clk_dce->max_clks_by_state,
+		dce110_max_clks_by_state,
+		sizeof(dce110_max_clks_by_state));
 
 	dce_disp_clk_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);
@@ -501,6 +650,10 @@ struct display_clock *dce112_disp_clk_create(
 		BREAK_TO_DEBUGGER();
 		return NULL;
 	}
+
+	memcpy(clk_dce->max_clks_by_state,
+		dce112_max_clks_by_state,
+		sizeof(dce112_max_clks_by_state));
 
 	dce_disp_clk_construct(
 		clk_dce, ctx, regs, clk_shift, clk_mask);

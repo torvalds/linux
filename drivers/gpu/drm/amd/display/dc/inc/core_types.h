@@ -188,7 +188,7 @@ void core_link_enable_stream(struct pipe_ctx *pipe_ctx);
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx);
 
 /********** DAL Core*********************/
-#include "display_clock_interface.h"
+#include "display_clock.h"
 #include "transform.h"
 
 struct resource_pool;

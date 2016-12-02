@@ -27,12 +27,7 @@
 #ifndef _DCE_CLOCKS_H_
 #define _DCE_CLOCKS_H_
 
-#include "display_clock_interface.h"
-#include "../gpu/divider_range.h"
-
-
-#define TO_DCE_CLOCKS(clocks)\
-	container_of(clocks, struct dce_disp_clk, base)
+#include "display_clock.h"
 
 #define CLK_COMMON_REG_LIST_DCE_BASE() \
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
@@ -74,11 +69,28 @@ struct dce_disp_clk_registers {
 };
 
 /* Array identifiers and count for the divider ranges.*/
-enum divider_range_count {
+enum dce_divider_range_count {
 	DIVIDER_RANGE_01 = 0,
 	DIVIDER_RANGE_02,
 	DIVIDER_RANGE_03,
 	DIVIDER_RANGE_MAX /* == 3*/
+};
+
+enum dce_divider_error_types {
+	INVALID_DID = 0,
+	INVALID_DIVIDER = 1
+};
+
+struct dce_divider_range {
+	int div_range_start;
+	/* The end of this range of dividers.*/
+	int div_range_end;
+	/* The distance between each divider in this range.*/
+	int div_range_step;
+	/* The divider id for the lowest divider.*/
+	int did_min;
+	/* The divider id for the highest divider.*/
+	int did_max;
 };
 
 struct dce_disp_clk {
@@ -88,23 +100,23 @@ struct dce_disp_clk {
 	const struct dce_disp_clk_mask *clk_mask;
 
 	struct state_dependent_clocks max_clks_by_state[DM_PP_CLOCKS_MAX_STATES];
-	struct divider_range divider_ranges[DIVIDER_RANGE_MAX];
+	struct dce_divider_range divider_ranges[DIVIDER_RANGE_MAX];
 
 	bool use_max_disp_clk;
-	uint32_t dentist_vco_freq_khz;
+	int dentist_vco_freq_khz;
 
 	/* Cache the status of DFS-bypass feature*/
 	bool dfs_bypass_enabled;
 	/* Cache the display clock returned by VBIOS if DFS-bypass is enabled.
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
-	uint32_t dfs_bypass_disp_clk;
+	int dfs_bypass_disp_clk;
 
 	/* Flag for Enabled SS on GPU PLL */
 	bool ss_on_gpu_pll;
 	/* GPU PLL SS percentage (if down-spread enabled) */
-	uint32_t gpu_pll_ss_percentage;
+	int gpu_pll_ss_percentage;
 	/* GPU PLL SS percentage Divider (100 or 1000) */
-	uint32_t gpu_pll_ss_divider;
+	int gpu_pll_ss_divider;
 
 
 };

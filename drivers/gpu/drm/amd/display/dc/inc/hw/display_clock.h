@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-16 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,44 +23,39 @@
  *
  */
 
-#ifndef __DISPLAY_CLOCK_INTERFACE_H__
-#define __DISPLAY_CLOCK_INTERFACE_H__
+#ifndef __DISPLAY_CLOCK_H__
+#define __DISPLAY_CLOCK_H__
 
 #include "dm_services_types.h"
-#include "hw_sequencer_types.h"
-#include "grph_object_defs.h"
-#include "signal_types.h"
 
 /* Structure containing all state-dependent clocks
  * (dependent on "enum clocks_state") */
 struct state_dependent_clocks {
-	uint32_t display_clk_khz;
-	uint32_t pixel_clk_khz;
+	int display_clk_khz;
+	int pixel_clk_khz;
 };
 
 struct display_clock {
 	struct dc_context *ctx;
 	const struct display_clock_funcs *funcs;
 
-	int min_display_clk_threshold_khz;
 	enum dm_pp_clocks_state max_clks_state;
 	enum dm_pp_clocks_state cur_min_clks_state;
 };
 
 struct display_clock_funcs {
-	void (*destroy)(struct display_clock **to_destroy);
 	void (*set_clock)(struct display_clock *disp_clk,
-		uint32_t requested_clock_khz);
+		int requested_clock_khz);
+
 	enum dm_pp_clocks_state (*get_required_clocks_state)(
 		struct display_clock *disp_clk,
 		struct state_dependent_clocks *req_clocks);
+
 	bool (*set_min_clocks_state)(struct display_clock *disp_clk,
 		enum dm_pp_clocks_state dm_pp_clocks_state);
-	uint32_t (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
+
+	int (*get_dp_ref_clk_frequency)(struct display_clock *disp_clk);
 
 };
 
-void dal_display_clock_destroy(struct display_clock **to_destroy);
-
-
-#endif /* __DISPLAY_CLOCK_INTERFACE_H__ */
+#endif /* __DISPLAY_CLOCK_H__ */
