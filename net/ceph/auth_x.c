@@ -707,35 +707,48 @@ static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
 	invalidate_ticket(ac, CEPH_ENTITY_TYPE_AUTH);
 }
 
-static int calcu_signature(struct ceph_x_authorizer *au,
-			   struct ceph_msg *msg, __le64 *sig)
+static int calc_signature(struct ceph_x_authorizer *au, struct ceph_msg *msg,
+			  __le64 *psig)
 {
-	int ret;
 	char tmp_enc[40];
-	__le32 tmp[5] = {
-		cpu_to_le32(16), msg->hdr.crc, msg->footer.front_crc,
-		msg->footer.middle_crc, msg->footer.data_crc,
-	};
-	ret = ceph_x_encrypt(&au->session_key, &tmp, sizeof(tmp),
+	struct {
+		__le32 len;
+		__le32 header_crc;
+		__le32 front_crc;
+		__le32 middle_crc;
+		__le32 data_crc;
+	} __packed sigblock;
+	int ret;
+
+	sigblock.len = cpu_to_le32(4*sizeof(u32));
+	sigblock.header_crc = msg->hdr.crc;
+	sigblock.front_crc = msg->footer.front_crc;
+	sigblock.middle_crc = msg->footer.middle_crc;
+	sigblock.data_crc =  msg->footer.data_crc;
+	ret = ceph_x_encrypt(&au->session_key, &sigblock, sizeof(sigblock),
 			     tmp_enc, sizeof(tmp_enc));
 	if (ret < 0)
 		return ret;
-	*sig = *(__le64*)(tmp_enc + 4);
+
+	*psig = *(__le64 *)(tmp_enc + sizeof(u32));
 	return 0;
 }
 
 static int ceph_x_sign_message(struct ceph_auth_handshake *auth,
 			       struct ceph_msg *msg)
 {
+	__le64 sig;
 	int ret;
 
 	if (ceph_test_opt(from_msgr(msg->con->msgr), NOMSGSIGN))
 		return 0;
 
-	ret = calcu_signature((struct ceph_x_authorizer *)auth->authorizer,
-			      msg, &msg->footer.sig);
-	if (ret < 0)
+	ret = calc_signature((struct ceph_x_authorizer *)auth->authorizer,
+			     msg, &sig);
+	if (ret)
 		return ret;
+
+	msg->footer.sig = sig;
 	msg->footer.flags |= CEPH_MSG_FOOTER_SIGNED;
 	return 0;
 }
@@ -749,9 +762,9 @@ static int ceph_x_check_message_signature(struct ceph_auth_handshake *auth,
 	if (ceph_test_opt(from_msgr(msg->con->msgr), NOMSGSIGN))
 		return 0;
 
-	ret = calcu_signature((struct ceph_x_authorizer *)auth->authorizer,
-			      msg, &sig_check);
-	if (ret < 0)
+	ret = calc_signature((struct ceph_x_authorizer *)auth->authorizer,
+			     msg, &sig_check);
+	if (ret)
 		return ret;
 	if (sig_check == msg->footer.sig)
 		return 0;
