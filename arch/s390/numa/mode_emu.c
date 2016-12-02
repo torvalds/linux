@@ -360,7 +360,7 @@ static struct toptree *toptree_from_topology(void)
 		drawer = toptree_get_child(node, top->drawer_id);
 		book = toptree_get_child(drawer, top->book_id);
 		mc = toptree_get_child(book, top->socket_id);
-		core = toptree_get_child(mc, top->core_id);
+		core = toptree_get_child(mc, smp_get_base_cpu(cpu));
 		if (!drawer || !book || !mc || !core)
 			panic("NUMA emulation could not allocate memory");
 		cpumask_set_cpu(cpu, &core->mask);

@@ -69,6 +69,12 @@ static inline void smp_stop_cpu(void)
 	}
 }
 
+/* Return thread 0 CPU number as base CPU */
+static inline int smp_get_base_cpu(int cpu)
+{
+	return cpu - (cpu % (smp_cpu_mtid + 1));
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern int smp_rescan_cpus(void);
 extern void __noreturn cpu_die(void);
