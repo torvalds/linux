@@ -35,6 +35,7 @@ extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_WFQ_UNIT	100
 
+#define ISCSI_BDQ_ID(_port_id) (_port_id)
 #define QED_WID_SIZE            (1024)
 #define QED_PF_DEMS_SIZE        (4)
 
@@ -382,7 +383,9 @@ struct qed_hwfn {
 	/* Protocol related */
 	bool				using_ll2;
 	struct qed_ll2_info		*p_ll2_info;
+	struct qed_ooo_info		*p_ooo_info;
 	struct qed_rdma_info		*p_rdma_info;
+	struct qed_iscsi_info		*p_iscsi_info;
 	struct qed_pf_params		pf_params;
 
 	bool b_rdma_enabled_in_prs;
@@ -581,6 +584,8 @@ struct qed_dev {
 	/* Linux specific here */
 	struct  qede_dev		*edev;
 	struct  pci_dev			*pdev;
+	u32 flags;
+#define QED_FLAG_STORAGE_STARTED	(BIT(0))
 	int				msg_enable;
 
 	struct pci_params		pci_params;
@@ -594,6 +599,7 @@ struct qed_dev {
 	union {
 		struct qed_common_cb_ops	*common;
 		struct qed_eth_cb_ops		*eth;
+		struct qed_iscsi_cb_ops		*iscsi;
 	} protocol_ops;
 	void				*ops_cookie;
 
@@ -603,7 +609,7 @@ struct qed_dev {
 	struct qed_cb_ll2_info		*ll2;
 	u8				ll2_mac_address[ETH_ALEN];
 #endif
-
+	DECLARE_HASHTABLE(connections, 10);
 	const struct firmware		*firmware;
 
 	u32 rdma_max_sge;

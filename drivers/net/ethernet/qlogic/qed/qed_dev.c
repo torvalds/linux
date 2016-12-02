@@ -29,8 +29,10 @@
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_int.h"
+#include "qed_iscsi.h"
 #include "qed_ll2.h"
 #include "qed_mcp.h"
+#include "qed_ooo.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
@@ -146,6 +148,10 @@ void qed_resc_free(struct qed_dev *cdev)
 #ifdef CONFIG_QED_LL2
 		qed_ll2_free(p_hwfn, p_hwfn->p_ll2_info);
 #endif
+		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+			qed_iscsi_free(p_hwfn, p_hwfn->p_iscsi_info);
+			qed_ooo_free(p_hwfn, p_hwfn->p_ooo_info);
+		}
 		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn, p_hwfn->p_dcbx_info);
@@ -402,6 +408,8 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 int qed_resc_alloc(struct qed_dev *cdev)
 {
+	struct qed_iscsi_info *p_iscsi_info;
+	struct qed_ooo_info *p_ooo_info;
 #ifdef CONFIG_QED_LL2
 	struct qed_ll2_info *p_ll2_info;
 #endif
@@ -507,6 +515,16 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			p_hwfn->p_ll2_info = p_ll2_info;
 		}
 #endif
+		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+			p_iscsi_info = qed_iscsi_alloc(p_hwfn);
+			if (!p_iscsi_info)
+				goto alloc_no_mem;
+			p_hwfn->p_iscsi_info = p_iscsi_info;
+			p_ooo_info = qed_ooo_alloc(p_hwfn);
+			if (!p_ooo_info)
+				goto alloc_no_mem;
+			p_hwfn->p_ooo_info = p_ooo_info;
+		}
 
 		/* DMA info initialization */
 		rc = qed_dmae_info_alloc(p_hwfn);
@@ -560,6 +578,10 @@ void qed_resc_setup(struct qed_dev *cdev)
 		if (p_hwfn->using_ll2)
 			qed_ll2_setup(p_hwfn, p_hwfn->p_ll2_info);
 #endif
+		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+			qed_iscsi_setup(p_hwfn, p_hwfn->p_iscsi_info);
+			qed_ooo_setup(p_hwfn, p_hwfn->p_ooo_info);
+		}
 	}
 }
 

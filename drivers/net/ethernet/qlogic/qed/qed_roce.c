@@ -2771,6 +2771,7 @@ static int qed_roce_ll2_tx(struct qed_dev *cdev,
 	/* Tx header */
 	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev), roce_ll2->handle,
 				       1 + pkt->n_seg, 0, flags, 0,
+				       QED_LL2_TX_DEST_NW,
 				       qed_roce_flavor, pkt->header.baddr,
 				       pkt->header.len, pkt, 1);
 	if (rc) {
