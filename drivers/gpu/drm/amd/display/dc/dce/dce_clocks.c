@@ -342,7 +342,7 @@ static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
 				info.disp_clk_voltage[i].max_supported_clk;
 	}
 
-	if (!debug->disable_dfs_bypass)
+	if (!debug->disable_dfs_bypass && bp->integrated_info)
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_dce->dfs_bypass_enabled = true;
 
