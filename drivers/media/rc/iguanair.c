@@ -500,7 +500,9 @@ static int iguanair_probe(struct usb_interface *intf,
 	rc->tx_ir = iguanair_tx;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_RC6_MCE;
-	rc->timeout = MS_TO_NS(100);
+	rc->min_timeout = 1;
+	rc->timeout = IR_DEFAULT_TIMEOUT;
+	rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	rc->rx_resolution = RX_RESOLUTION;
 
 	iguanair_set_tx_carrier(rc, 38000);

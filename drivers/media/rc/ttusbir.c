@@ -318,7 +318,10 @@ static int ttusbir_probe(struct usb_interface *intf,
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_TT_1500;
-	rc->timeout = MS_TO_NS(100);
+	rc->min_timeout = 1;
+	rc->timeout = IR_DEFAULT_TIMEOUT;
+	rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
+
 	/*
 	 * The precision is NS_PER_BIT, but since every 8th bit can be
 	 * overwritten with garbage the accuracy is at best 2 * NS_PER_BIT.
