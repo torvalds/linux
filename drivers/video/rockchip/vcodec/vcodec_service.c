@@ -568,6 +568,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 		pservice->pd_video = devm_clk_get(dev, "pd_hevc");
 		if (IS_ERR(pservice->pd_video)) {
 			dev_err(dev, "failed on clk_get pd_hevc\n");
+			pservice->pd_video = NULL;
 			return -1;
 		}
 	case VCODEC_DEVICE_ID_COMBO:
@@ -580,18 +581,21 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 		pservice->clk_core = devm_clk_get(dev, "clk_core");
 		if (IS_ERR(pservice->clk_core)) {
 			dev_err(dev, "failed on clk_get clk_core\n");
+			pservice->clk_core = NULL;
 			return -1;
 		}
 	case VCODEC_DEVICE_ID_VPU:
 		pservice->aclk_vcodec = devm_clk_get(dev, "aclk_vcodec");
 		if (IS_ERR(pservice->aclk_vcodec)) {
 			dev_err(dev, "failed on clk_get aclk_vcodec\n");
+			pservice->aclk_vcodec = NULL;
 			return -1;
 		}
 
 		pservice->hclk_vcodec = devm_clk_get(dev, "hclk_vcodec");
 		if (IS_ERR(pservice->hclk_vcodec)) {
 			dev_err(dev, "failed on clk_get hclk_vcodec\n");
+			pservice->hclk_vcodec = NULL;
 			return -1;
 		}
 		if (pservice->pd_video == NULL) {
@@ -609,22 +613,6 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 	return 0;
 #else
 	return 0;
-#endif
-}
-
-static void vpu_put_clk(struct vpu_service_info *pservice)
-{
-#if VCODEC_CLOCK_ENABLE
-	if (pservice->pd_video)
-		devm_clk_put(pservice->dev, pservice->pd_video);
-	if (pservice->aclk_vcodec)
-		devm_clk_put(pservice->dev, pservice->aclk_vcodec);
-	if (pservice->hclk_vcodec)
-		devm_clk_put(pservice->dev, pservice->hclk_vcodec);
-	if (pservice->clk_core)
-		devm_clk_put(pservice->dev, pservice->clk_core);
-	if (pservice->clk_cabac)
-		devm_clk_put(pservice->dev, pservice->clk_cabac);
 #endif
 }
 
@@ -2580,7 +2568,6 @@ static int vcodec_probe(struct platform_device *pdev)
 err:
 	pr_info("init failed\n");
 	vpu_service_power_off(pservice);
-	vpu_put_clk(pservice);
 	wake_lock_destroy(&pservice->wake_lock);
 
 	return ret;
