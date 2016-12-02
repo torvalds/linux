@@ -886,7 +886,7 @@ static int mceusb_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 			cmdbuf[3] = MCE_IRDATA_TRAILER;
 			dev_dbg(ir->dev, "disabling carrier modulation");
 			mce_async_out(ir, cmdbuf, sizeof(cmdbuf));
-			return carrier;
+			return 0;
 		}
 
 		for (prescaler = 0; prescaler < 4; ++prescaler) {
@@ -900,7 +900,7 @@ static int mceusb_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 
 				/* Transmit new carrier to mce device */
 				mce_async_out(ir, cmdbuf, sizeof(cmdbuf));
-				return carrier;
+				return 0;
 			}
 		}
 
