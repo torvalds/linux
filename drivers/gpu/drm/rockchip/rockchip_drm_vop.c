@@ -19,6 +19,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -303,6 +304,16 @@ static bool vop_is_allwin_disabled(struct vop *vop)
 static bool vop_is_cfg_done_complete(struct vop *vop)
 {
 	return VOP_CTRL_GET(vop, cfg_done) ? false : true;
+}
+
+static bool vop_fs_irq_is_active(struct vop *vop)
+{
+	return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
+}
+
+static bool vop_line_flag_is_active(struct vop *vop)
+{
+	return VOP_INTR_GET_TYPE(vop, status, LINE_FLAG_INTR);
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -1612,7 +1623,6 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 
 	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);
 	VOP_CTRL_SET(vop, dsp_layer_sel, s->dsp_layer_sel);
-	vop_cfg_done(vop);
 
 	spin_unlock(&vop->reg_lock);
 }
@@ -1622,32 +1632,50 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct vop *vop = to_vop(crtc);
 
+	vop_cfg_update(crtc, old_crtc_state);
+
 	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
+		bool need_wait_vblank = !vop_is_allwin_disabled(vop);
 		int ret;
-		if (!vop_is_allwin_disabled(vop)) {
-			reinit_completion(&vop->dsp_hold_completion);
-			vop_dsp_hold_valid_irq_enable(vop);
 
-			vop_cfg_update(crtc, old_crtc_state);
-			spin_lock(&vop->reg_lock);
+		if (need_wait_vblank) {
+			bool active;
 
-			VOP_CTRL_SET(vop, standby, 1);
+			disable_irq(vop->irq);
+			drm_crtc_vblank_get(crtc);
+			VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 1);
 
-			spin_unlock(&vop->reg_lock);
+			ret = readx_poll_timeout_atomic(vop_fs_irq_is_active,
+							vop, active, active,
+							0, 50 * 1000);
+			if (ret)
+				dev_err(vop->dev, "wait fs irq timeout\n");
 
-			wait_for_completion(&vop->dsp_hold_completion);
+			VOP_INTR_SET_TYPE(vop, clear, LINE_FLAG_INTR, 1);
+			vop_cfg_done(vop);
 
-			vop_dsp_hold_valid_irq_disable(vop);
+			ret = readx_poll_timeout_atomic(vop_line_flag_is_active,
+							vop, active, active,
+							0, 50 * 1000);
+			if (ret)
+				dev_err(vop->dev, "wait line flag timeout\n");
+
+			enable_irq(vop->irq);
 		}
 		ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
-		if (ret) {
-			dev_err(vop->dev, "failed to attach dma mapping, %d\n", ret);
+		if (ret)
+			dev_err(vop->dev, "failed to attach dma mapping, %d\n",
+				ret);
+
+		if (need_wait_vblank) {
+			VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 0);
+			drm_crtc_vblank_put(crtc);
 		}
-		VOP_CTRL_SET(vop, standby, 0);
+
 		vop->is_iommu_enabled = true;
 	}
 
-	vop_cfg_update(crtc, old_crtc_state);
+	vop_cfg_done(vop);
 }
 
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
