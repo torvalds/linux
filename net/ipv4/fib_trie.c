@@ -101,6 +101,7 @@ EXPORT_SYMBOL(unregister_fib_notifier);
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info)
 {
+	net->ipv4.fib_seq++;
 	info->net = net;
 	return atomic_notifier_call_chain(&fib_chain, event_type, info);
 }
