@@ -1529,8 +1529,13 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		return -ENAMETOOLONG;
 
 	if (open_flags & O_CREAT) {
+		struct nfs_server *server = NFS_SERVER(dir);
+
+		if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
+			mode &= ~current_umask();
+
 		attr.ia_valid |= ATTR_MODE;
-		attr.ia_mode = mode & ~current_umask();
+		attr.ia_mode = mode;
 	}
 	if (open_flags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;

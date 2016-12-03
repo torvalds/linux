@@ -1224,6 +1224,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	atomic_inc(&sp->so_count);
 	p->o_arg.open_flags = flags;
 	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
+	p->o_arg.umask = current_umask();
 	p->o_arg.claim = nfs4_map_atomic_open_claim(server, claim);
 	p->o_arg.share_access = nfs4_map_atomic_open_share(server,
 			fmode, flags);
@@ -3337,7 +3338,7 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 
 #define FATTR4_WORD1_NFS40_MASK (2*FATTR4_WORD1_MOUNTED_ON_FILEID - 1UL)
 #define FATTR4_WORD2_NFS41_MASK (2*FATTR4_WORD2_SUPPATTR_EXCLCREAT - 1UL)
-#define FATTR4_WORD2_NFS42_MASK (2*FATTR4_WORD2_SECURITY_LABEL - 1UL)
+#define FATTR4_WORD2_NFS42_MASK (2*FATTR4_WORD2_MODE_UMASK - 1UL)
 
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
@@ -4010,6 +4011,7 @@ static int
 nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		 int flags)
 {
+	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_label l, *ilabel = NULL;
 	struct nfs_open_context *ctx;
 	struct nfs4_state *state;
@@ -4021,7 +4023,8 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 
 	ilabel = nfs4_label_init_security(dir, dentry, sattr, &l);
 
-	sattr->ia_mode &= ~current_umask();
+	if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
+		sattr->ia_mode &= ~current_umask();
 	state = nfs4_do_open(dir, ctx, flags, sattr, ilabel, NULL);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
@@ -4229,6 +4232,7 @@ static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 		data->arg.attrs = sattr;
 		data->arg.ftype = ftype;
 		data->arg.bitmask = nfs4_bitmask(server, data->label);
+		data->arg.umask = current_umask();
 		data->res.server = server;
 		data->res.fh = &data->fh;
 		data->res.fattr = &data->fattr;
@@ -4326,13 +4330,15 @@ out:
 static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 		struct iattr *sattr)
 {
+	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_exception exception = { };
 	struct nfs4_label l, *label = NULL;
 	int err;
 
 	label = nfs4_label_init_security(dir, dentry, sattr, &l);
 
-	sattr->ia_mode &= ~current_umask();
+	if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
+		sattr->ia_mode &= ~current_umask();
 	do {
 		err = _nfs4_proc_mkdir(dir, dentry, sattr, label);
 		trace_nfs4_mkdir(dir, &dentry->d_name, err);
@@ -4435,13 +4441,15 @@ out:
 static int nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 		struct iattr *sattr, dev_t rdev)
 {
+	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_exception exception = { };
 	struct nfs4_label l, *label = NULL;
 	int err;
 
 	label = nfs4_label_init_security(dir, dentry, sattr, &l);
 
-	sattr->ia_mode &= ~current_umask();
+	if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
+		sattr->ia_mode &= ~current_umask();
 	do {
 		err = _nfs4_proc_mknod(dir, dentry, sattr, label, rdev);
 		trace_nfs4_mknod(dir, &dentry->d_name, err);
