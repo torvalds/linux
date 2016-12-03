@@ -169,8 +169,6 @@ do {								    \
 #define ntohs(x) ___ntohs(x)
 #endif
 
-void libcfs_run_upcall(char **argv);
-void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msg);
 void libcfs_debug_dumplog(void);
 int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);

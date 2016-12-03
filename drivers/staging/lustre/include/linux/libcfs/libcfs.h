@@ -125,7 +125,6 @@ extern struct miscdevice libcfs_dev;
 /**
  * The path of debug log dump upcall script.
  */
-extern char lnet_upcall[1024];
 extern char lnet_debug_log_upcall[1024];
 
 extern struct cfs_wi_sched *cfs_sched_rehash;

@@ -365,14 +365,6 @@ static struct ctl_table lnet_table[] = {
 		.mode     = 0444,
 		.proc_handler = &proc_cpt_table,
 	},
-
-	{
-		.procname = "upcall",
-		.data     = lnet_upcall,
-		.maxlen   = sizeof(lnet_upcall),
-		.mode     = 0644,
-		.proc_handler = &proc_dostring,
-	},
 	{
 		.procname = "debug_log_upcall",
 		.data     = lnet_debug_log_upcall,
