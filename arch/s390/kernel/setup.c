@@ -924,6 +924,7 @@ void __init setup_arch(char **cmdline_p)
         cpu_init();
 	numa_setup();
 	smp_detect_cpus();
+	topology_init_early();
 
 	/*
 	 * Create kernel page tables and switch to virtual addressing.

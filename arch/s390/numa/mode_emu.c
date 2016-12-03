@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
+#include <linux/bootmem.h>
 #include <linux/node.h>
 #include <linux/memory.h>
 #include <linux/slab.h>
@@ -307,13 +308,11 @@ fail:
 /*
  * Allocate and initialize core to node mapping
  */
-static void create_core_to_node_map(void)
+static void __ref create_core_to_node_map(void)
 {
 	int i;
 
-	emu_cores = kzalloc(sizeof(*emu_cores), GFP_KERNEL);
-	if (emu_cores == NULL)
-		panic("Could not allocate cores to node memory");
+	emu_cores = memblock_virt_alloc(sizeof(*emu_cores), 8);
 	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
 		emu_cores->to_node_id[i] = NODE_ID_FREE;
 }
@@ -354,7 +353,7 @@ static struct toptree *toptree_from_topology(void)
 
 	phys = toptree_new(TOPTREE_ID_PHYS, 1);
 
-	for_each_online_cpu(cpu) {
+	for_each_cpu(cpu, &cpus_with_topology) {
 		top = &cpu_topology[cpu];
 		node = toptree_get_child(phys, 0);
 		drawer = toptree_get_child(node, top->drawer_id);

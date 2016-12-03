@@ -23,6 +23,7 @@ struct cpu_topology_s390 {
 };
 
 extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
+extern cpumask_t cpus_with_topology;
 
 #define topology_physical_package_id(cpu) (cpu_topology[cpu].socket_id)
 #define topology_thread_id(cpu)		  (cpu_topology[cpu].thread_id)
@@ -36,6 +37,7 @@ extern struct cpu_topology_s390 cpu_topology[NR_CPUS];
 
 #define mc_capable() 1
 
+void topology_init_early(void);
 int topology_cpu_init(struct cpu *);
 int topology_set_cpu_management(int fc);
 void topology_schedule_update(void);
@@ -45,6 +47,7 @@ const struct cpumask *cpu_coregroup_mask(int cpu);
 
 #else /* CONFIG_SCHED_TOPOLOGY */
 
+static inline void topology_init_early(void) { }
 static inline void topology_schedule_update(void) { }
 static inline int topology_cpu_init(struct cpu *cpu) { return 0; }
 static inline void topology_expect_change(void) { }
