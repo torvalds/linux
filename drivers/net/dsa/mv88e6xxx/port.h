@@ -63,5 +63,7 @@ int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype);
 int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port);
+int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
+int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port);
 
 #endif /* _MV88E6XXX_PORT_H */

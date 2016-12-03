@@ -621,6 +621,18 @@ int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }
 
+/* Offset 0x09: Port Rate Control */
+
+int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0000);
+}
+
+int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0001);
+}
+
 /* Offset 0x0f: Port Ether type */
 
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
