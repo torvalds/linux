@@ -39,6 +39,15 @@ config RMI4_SMB
 	  To compile this driver as a module, choose M here: the module will be
 	  called rmi_smbus.
 
+config RMI4_F03
+        bool "RMI4 Function 03 (PS2 Guest)"
+        depends on RMI4_CORE && SERIO
+        help
+          Say Y here if you want to add support for RMI4 function 03.
+
+          Function 03 provides PS2 guest support for RMI4 devices. This
+          includes support for TrackPoints on TouchPads.
+
 config RMI4_2D_SENSOR
 	bool
 	depends on RMI4_CORE

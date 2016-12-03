@@ -121,6 +121,7 @@ static inline void rmi_f34_remove_sysfs(struct rmi_device *rmi_dev)
 #endif /* CONFIG_RMI_F34 */
 
 extern struct rmi_function_handler rmi_f01_handler;
+extern struct rmi_function_handler rmi_f03_handler;
 extern struct rmi_function_handler rmi_f11_handler;
 extern struct rmi_function_handler rmi_f12_handler;
 extern struct rmi_function_handler rmi_f30_handler;
