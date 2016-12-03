@@ -390,9 +390,9 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 	/* for SLEEP MODE */
 	if (priv->reg.operation_mode == MODE_ADHOC ||
 	    priv->reg.operation_mode == MODE_INFRASTRUCTURE) {
-		memcpy(priv->reg.bssid, (u8 *) & ap_addr->sa_data, ETH_ALEN);
+		memcpy(priv->reg.bssid, &ap_addr->sa_data, ETH_ALEN);
 
-		if (is_valid_ether_addr((u8 *) priv->reg.bssid))
+		if (is_valid_ether_addr((u8 *)priv->reg.bssid))
 			priv->need_commit |= SME_MODE_SET;
 
 	} else {
@@ -2685,7 +2685,7 @@ static int ks_wlan_set_phy_information_timer(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFFFF)	/* 0-65535 */
-		priv->reg.phy_info_timer = (uint16_t) * uwrq;
+		priv->reg.phy_info_timer = (uint16_t)*uwrq;
 	else
 		return -EINVAL;
 
@@ -2823,7 +2823,7 @@ static int ks_wlan_set_tx_gain(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.TxGain = (uint8_t) * uwrq;
+		priv->gain.TxGain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
@@ -2866,7 +2866,7 @@ static int ks_wlan_set_rx_gain(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0 && *uwrq <= 0xFF)	/* 0-255 */
-		priv->gain.RxGain = (uint8_t) * uwrq;
+		priv->gain.RxGain = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
@@ -2909,7 +2909,7 @@ static int ks_wlan_set_region(struct net_device *dev,
 		return -EPERM;
 	/* for SLEEP MODE */
 	if (*uwrq >= 0x9 && *uwrq <= 0xF)	/* 0x9-0xf */
-		priv->region = (uint8_t) * uwrq;
+		priv->region = (uint8_t)*uwrq;
 	else
 		return -EINVAL;
 
