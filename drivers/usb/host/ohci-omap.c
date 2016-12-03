@@ -68,9 +68,6 @@ static inline int tps65010_set_gpio_out_value(unsigned gpio, unsigned value)
 
 #endif
 
-extern int usb_disabled(void);
-extern int ocpi_enable(void);
-
 static struct clk *usb_host_ck;
 static struct clk *usb_dc_ck;
 
