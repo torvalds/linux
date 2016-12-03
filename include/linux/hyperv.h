@@ -1119,6 +1119,12 @@ struct hv_driver {
 
 	struct device_driver driver;
 
+	/* dynamic device GUID's */
+	struct  {
+		spinlock_t lock;
+		struct list_head list;
+	} dynids;
+
 	int (*probe)(struct hv_device *, const struct hv_vmbus_device_id *);
 	int (*remove)(struct hv_device *);
 	void (*shutdown)(struct hv_device *);
