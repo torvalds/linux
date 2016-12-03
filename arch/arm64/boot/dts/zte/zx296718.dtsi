@@ -239,8 +239,6 @@
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
-		#redistributor-regions = <1>;
-		redistributor-stride = <0x20000>;
 		interrupt-controller;
 		reg = <0x02a00000 0x10000>,
 		      <0x02b00000 0xc0000>;
