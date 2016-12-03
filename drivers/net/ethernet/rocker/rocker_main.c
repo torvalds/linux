@@ -28,6 +28,7 @@
 #include <linux/if_bridge.h>
 #include <linux/bitops.h>
 #include <linux/ctype.h>
+#include <linux/workqueue.h>
 #include <net/switchdev.h>
 #include <net/rtnetlink.h>
 #include <net/netevent.h>
@@ -2754,6 +2755,13 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_request_event_irq;
 	}
 
+	rocker->rocker_owq = alloc_ordered_workqueue(rocker_driver_name,
+						     WQ_MEM_RECLAIM);
+	if (!rocker->rocker_owq) {
+		err = -ENOMEM;
+		goto err_alloc_ordered_workqueue;
+	}
+
 	rocker->hw.id = rocker_read64(rocker, SWITCH_ID);
 
 	err = rocker_probe_ports(rocker);
@@ -2771,6 +2779,8 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_probe_ports:
+	destroy_workqueue(rocker->rocker_owq);
+err_alloc_ordered_workqueue:
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_EVENT), rocker);
 err_request_event_irq:
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_CMD), rocker);
@@ -2799,6 +2809,7 @@ static void rocker_remove(struct pci_dev *pdev)
 	unregister_fib_notifier(&rocker->fib_nb);
 	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
 	rocker_remove_ports(rocker);
+	destroy_workqueue(rocker->rocker_owq);
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_EVENT), rocker);
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_CMD), rocker);
 	rocker_dma_rings_fini(rocker);
