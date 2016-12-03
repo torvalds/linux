@@ -729,7 +729,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 
 	case NBD_SET_SIZE:
 		return nbd_size_set(nbd, bdev, nbd->blksize,
-				    arg / nbd->blksize);
+					div_s64(arg, nbd->blksize));
 
 	case NBD_SET_SIZE_BLOCKS:
 		return nbd_size_set(nbd, bdev, nbd->blksize, arg);
