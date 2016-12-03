@@ -823,7 +823,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t __user *gents_p,
 
 	lstcon_group_decref(grp);
 
-	return 0;
+	return rc;
 }
 
 static int
