@@ -315,6 +315,19 @@ int mv88e6097_port_pause_config(struct mv88e6xxx_chip *chip, int port)
 	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, 0x0000);
 }
 
+int mv88e6390_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+{
+	int err;
+
+	err = mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
+				   PORT_FLOW_CTRL_LIMIT_IN | 0);
+	if (err)
+		return err;
+
+	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
+				    PORT_FLOW_CTRL_LIMIT_OUT | 0);
+}
+
 /* Offset 0x04: Port Control Register */
 
 static const char * const mv88e6xxx_port_state_names[] = {
