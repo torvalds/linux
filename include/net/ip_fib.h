@@ -221,7 +221,8 @@ enum fib_event_type {
 	FIB_EVENT_RULE_DEL,
 };
 
-int register_fib_notifier(struct notifier_block *nb);
+int register_fib_notifier(struct notifier_block *nb,
+			  void (*cb)(struct notifier_block *nb));
 int unregister_fib_notifier(struct notifier_block *nb);
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
