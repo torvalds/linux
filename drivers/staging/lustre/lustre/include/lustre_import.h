@@ -299,7 +299,9 @@ struct obd_import {
 				   */
 				  imp_force_reconnect:1,
 				  /* import has tried to connect with server */
-				  imp_connect_tried:1;
+				  imp_connect_tried:1,
+				 /* connected but not FULL yet */
+				 imp_connected:1;
 	__u32		     imp_connect_op;
 	struct obd_connect_data   imp_connect_data;
 	__u64		     imp_connect_flags_orig;

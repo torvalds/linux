@@ -622,7 +622,8 @@ int ptlrpc_connect_import(struct obd_import *imp)
 		spin_unlock(&imp->imp_lock);
 		CERROR("already connected\n");
 		return 0;
-	} else if (imp->imp_state == LUSTRE_IMP_CONNECTING) {
+	} else if (imp->imp_state == LUSTRE_IMP_CONNECTING ||
+		   imp->imp_connected) {
 		spin_unlock(&imp->imp_lock);
 		CERROR("already connecting\n");
 		return -EALREADY;
@@ -971,6 +972,13 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 		ptlrpc_maybe_ping_import_soon(imp);
 		goto out;
 	}
+
+	/*
+	 * LU-7558: indicate that we are interpretting connect reply,
+	 * pltrpc_connect_import() will not try to reconnect until
+	 * interpret will finish.
+	 */
+	imp->imp_connected = 1;
 	spin_unlock(&imp->imp_lock);
 
 	LASSERT(imp->imp_conn_current);
@@ -1194,12 +1202,18 @@ finish:
 		       obd2cli_tgt(imp->imp_obd),
 		       imp->imp_connection->c_remote_uuid.uuid);
 		ptlrpc_connect_import(imp);
+		spin_lock(&imp->imp_lock);
+		imp->imp_connected = 0;
 		imp->imp_connect_tried = 1;
+		spin_unlock(&imp->imp_lock);
 		return 0;
 	}
 
 out:
+	spin_lock(&imp->imp_lock);
+	imp->imp_connected = 0;
 	imp->imp_connect_tried = 1;
+	spin_unlock(&imp->imp_lock);
 
 	if (rc != 0) {
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_DISCON);
