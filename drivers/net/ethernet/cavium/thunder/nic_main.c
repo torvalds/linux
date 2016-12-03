@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 #include <linux/of.h>
+#include <linux/if_vlan.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -260,18 +261,31 @@ static void nic_get_bgx_stats(struct nicpf *nic, struct bgx_stats_msg *bgx)
 /* Update hardware min/max frame size */
 static int nic_update_hw_frs(struct nicpf *nic, int new_frs, int vf)
 {
-	if ((new_frs > NIC_HW_MAX_FRS) || (new_frs < NIC_HW_MIN_FRS)) {
-		dev_err(&nic->pdev->dev,
-			"Invalid MTU setting from VF%d rejected, should be between %d and %d\n",
-			   vf, NIC_HW_MIN_FRS, NIC_HW_MAX_FRS);
-		return 1;
-	}
-	new_frs += ETH_HLEN;
-	if (new_frs <= nic->pkind.maxlen)
-		return 0;
+	int bgx, lmac, lmac_cnt;
+	u64 lmac_credits;
 
-	nic->pkind.maxlen = new_frs;
-	nic_reg_write(nic, NIC_PF_PKIND_0_15_CFG, *(u64 *)&nic->pkind);
+	if ((new_frs > NIC_HW_MAX_FRS) || (new_frs < NIC_HW_MIN_FRS))
+		return 1;
+
+	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac += bgx * MAX_LMAC_PER_BGX;
+
+	new_frs += VLAN_ETH_HLEN + ETH_FCS_LEN + 4;
+
+	/* Update corresponding LMAC credits */
+	lmac_cnt = bgx_get_lmac_count(nic->node, bgx);
+	lmac_credits = nic_reg_read(nic, NIC_PF_LMAC_0_7_CREDIT + (lmac * 8));
+	lmac_credits &= ~(0xFFFFFULL << 12);
+	lmac_credits |= (((((48 * 1024) / lmac_cnt) - new_frs) / 16) << 12);
+	nic_reg_write(nic, NIC_PF_LMAC_0_7_CREDIT + (lmac * 8), lmac_credits);
+
+	/* Enforce MTU in HW
+	 * This config is supported only from 88xx pass 2.0 onwards.
+	 */
+	if (!pass1_silicon(nic->pdev))
+		nic_reg_write(nic,
+			      NIC_PF_LMAC_0_7_CFG2 + (lmac * 8), new_frs);
 	return 0;
 }
 
@@ -464,7 +478,7 @@ static int nic_init_hw(struct nicpf *nic)
 
 	/* PKIND configuration */
 	nic->pkind.minlen = 0;
-	nic->pkind.maxlen = NIC_HW_MAX_FRS + ETH_HLEN;
+	nic->pkind.maxlen = NIC_HW_MAX_FRS + VLAN_ETH_HLEN + ETH_FCS_LEN + 4;
 	nic->pkind.lenerr_en = 1;
 	nic->pkind.rx_hdr = 0;
 	nic->pkind.hdr_sl = 0;
@@ -837,6 +851,7 @@ static int nic_reset_stat_counters(struct nicpf *nic,
 			nic_reg_write(nic, reg_addr, 0);
 		}
 	}
+
 	return 0;
 }
 

@@ -1002,14 +1002,8 @@ static void svc_age_temp_xprts(unsigned long closure)
 void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
 {
 	struct svc_xprt *xprt;
-	struct svc_sock *svsk;
-	struct socket *sock;
 	struct list_head *le, *next;
 	LIST_HEAD(to_be_closed);
-	struct linger no_linger = {
-		.l_onoff = 1,
-		.l_linger = 0,
-	};
 
 	spin_lock_bh(&serv->sv_lock);
 	list_for_each_safe(le, next, &serv->sv_tempsocks) {
@@ -1027,10 +1021,7 @@ void svc_age_temp_xprts_now(struct svc_serv *serv, struct sockaddr *server_addr)
 		list_del_init(le);
 		xprt = list_entry(le, struct svc_xprt, xpt_list);
 		dprintk("svc_age_temp_xprts_now: closing %p\n", xprt);
-		svsk = container_of(xprt, struct svc_sock, sk_xprt);
-		sock = svsk->sk_sock;
-		kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
-				  (char *)&no_linger, sizeof(no_linger));
+		xprt->xpt_ops->xpo_kill_temp_xprt(xprt);
 		svc_close_xprt(xprt);
 	}
 }

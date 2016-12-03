@@ -979,6 +979,35 @@ static void x86_init_cache_qos(struct cpuinfo_x86 *c)
 }
 
 /*
+ * The physical to logical package id mapping is initialized from the
+ * acpi/mptables information. Make sure that CPUID actually agrees with
+ * that.
+ */
+static void sanitize_package_id(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_SMP
+	unsigned int pkg, apicid, cpu = smp_processor_id();
+
+	apicid = apic->cpu_present_to_apicid(cpu);
+	pkg = apicid >> boot_cpu_data.x86_coreid_bits;
+
+	if (apicid != c->initial_apicid) {
+		pr_err(FW_BUG "CPU%u: APIC id mismatch. Firmware: %x CPUID: %x\n",
+		       cpu, apicid, c->initial_apicid);
+		c->initial_apicid = apicid;
+	}
+	if (pkg != c->phys_proc_id) {
+		pr_err(FW_BUG "CPU%u: Using firmware package id %u instead of %u\n",
+		       cpu, pkg, c->phys_proc_id);
+		c->phys_proc_id = pkg;
+	}
+	c->logical_proc_id = topology_phys_to_logical_pkg(pkg);
+#else
+	c->logical_proc_id = 0;
+#endif
+}
+
+/*
  * This does the hard work of actually picking apart the CPU stuff...
  */
 static void identify_cpu(struct cpuinfo_x86 *c)
@@ -1103,8 +1132,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
-	/* The boot/hotplug time assigment got cleared, restore it */
-	c->logical_proc_id = topology_phys_to_logical_pkg(c->phys_proc_id);
+	sanitize_package_id(c);
 }
 
 /*

@@ -104,7 +104,8 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 		nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
 					   order);
 		if (!nic->rb_page) {
-			nic->drv_stats.rcv_buffer_alloc_failures++;
+			this_cpu_inc(nic->pnicvf->drv_stats->
+				     rcv_buffer_alloc_failures);
 			return -ENOMEM;
 		}
 		nic->rb_page_offset = 0;
@@ -270,7 +271,8 @@ refill:
 			      rbdr_idx, new_rb);
 next_rbdr:
 	/* Re-enable RBDR interrupts only if buffer allocation is success */
-	if (!nic->rb_alloc_fail && rbdr->enable)
+	if (!nic->rb_alloc_fail && rbdr->enable &&
+	    netif_running(nic->pnicvf->netdev))
 		nicvf_enable_intr(nic, NICVF_INTR_RBDR, rbdr_idx);
 
 	if (rbdr_idx)
@@ -361,6 +363,8 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 
 static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 {
+	struct sk_buff *skb;
+
 	if (!sq)
 		return;
 	if (!sq->dmem.base)
@@ -371,6 +375,15 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 				  sq->dmem.q_len * TSO_HEADER_SIZE,
 				  sq->tso_hdrs, sq->tso_hdrs_phys);
 
+	/* Free pending skbs in the queue */
+	smp_rmb();
+	while (sq->head != sq->tail) {
+		skb = (struct sk_buff *)sq->skbuff[sq->head];
+		if (skb)
+			dev_kfree_skb_any(skb);
+		sq->head++;
+		sq->head &= (sq->dmem.q_len - 1);
+	}
 	kfree(sq->skbuff);
 	nicvf_free_q_desc_mem(nic, &sq->dmem);
 }
@@ -483,9 +496,12 @@ static void nicvf_reset_rcv_queue_stats(struct nicvf *nic)
 {
 	union nic_mbx mbx = {};
 
-	/* Reset all RXQ's stats */
+	/* Reset all RQ/SQ and VF stats */
 	mbx.reset_stat.msg = NIC_MBOX_MSG_RESET_STAT_COUNTER;
+	mbx.reset_stat.rx_stat_mask = 0x3FFF;
+	mbx.reset_stat.tx_stat_mask = 0x1F;
 	mbx.reset_stat.rq_stat_mask = 0xFFFF;
+	mbx.reset_stat.sq_stat_mask = 0xFFFF;
 	nicvf_send_msg_to_pf(nic, &mbx);
 }
 
@@ -538,9 +554,12 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	mbx.rq.cfg = (1ULL << 62) | (RQ_CQ_DROP << 8);
 	nicvf_send_msg_to_pf(nic, &mbx);
 
-	nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, 0, 0x00);
-	if (!nic->sqs_mode)
+	if (!nic->sqs_mode && (qidx == 0)) {
+		/* Enable checking L3/L4 length and TCP/UDP checksums */
+		nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, 0,
+				      (BIT(24) | BIT(23) | BIT(21)));
 		nicvf_config_vlan_stripping(nic, nic->netdev->features);
+	}
 
 	/* Enable Receive queue */
 	memset(&rq_cfg, 0, sizeof(struct rq_cfg));
@@ -1029,7 +1048,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->tso_max_paysize = skb_shinfo(skb)->gso_size;
 		/* For non-tunneled pkts, point this to L2 ethertype */
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
-		nic->drv_stats.tx_tso++;
+		this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	}
 }
 
@@ -1161,7 +1180,7 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 
 	nicvf_sq_doorbell(nic, skb, sq_num, desc_cnt);
 
-	nic->drv_stats.tx_tso++;
+	this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	return 1;
 }
 
@@ -1422,8 +1441,6 @@ void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx)
 /* Check for errors in the receive cmp.queue entry */
 int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 {
-	struct nicvf_hw_stats *stats = &nic->hw_stats;
-
 	if (!cqe_rx->err_level && !cqe_rx->err_opcode)
 		return 0;
 
@@ -1435,76 +1452,76 @@ int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 
 	switch (cqe_rx->err_opcode) {
 	case CQ_RX_ERROP_RE_PARTIAL:
-		stats->rx_bgx_truncated_pkts++;
+		this_cpu_inc(nic->drv_stats->rx_bgx_truncated_pkts);
 		break;
 	case CQ_RX_ERROP_RE_JABBER:
-		stats->rx_jabber_errs++;
+		this_cpu_inc(nic->drv_stats->rx_jabber_errs);
 		break;
 	case CQ_RX_ERROP_RE_FCS:
-		stats->rx_fcs_errs++;
+		this_cpu_inc(nic->drv_stats->rx_fcs_errs);
 		break;
 	case CQ_RX_ERROP_RE_RX_CTL:
-		stats->rx_bgx_errs++;
+		this_cpu_inc(nic->drv_stats->rx_bgx_errs);
 		break;
 	case CQ_RX_ERROP_PREL2_ERR:
-		stats->rx_prel2_errs++;
+		this_cpu_inc(nic->drv_stats->rx_prel2_errs);
 		break;
 	case CQ_RX_ERROP_L2_MAL:
-		stats->rx_l2_hdr_malformed++;
+		this_cpu_inc(nic->drv_stats->rx_l2_hdr_malformed);
 		break;
 	case CQ_RX_ERROP_L2_OVERSIZE:
-		stats->rx_oversize++;
+		this_cpu_inc(nic->drv_stats->rx_oversize);
 		break;
 	case CQ_RX_ERROP_L2_UNDERSIZE:
-		stats->rx_undersize++;
+		this_cpu_inc(nic->drv_stats->rx_undersize);
 		break;
 	case CQ_RX_ERROP_L2_LENMISM:
-		stats->rx_l2_len_mismatch++;
+		this_cpu_inc(nic->drv_stats->rx_l2_len_mismatch);
 		break;
 	case CQ_RX_ERROP_L2_PCLP:
-		stats->rx_l2_pclp++;
+		this_cpu_inc(nic->drv_stats->rx_l2_pclp);
 		break;
 	case CQ_RX_ERROP_IP_NOT:
-		stats->rx_ip_ver_errs++;
+		this_cpu_inc(nic->drv_stats->rx_ip_ver_errs);
 		break;
 	case CQ_RX_ERROP_IP_CSUM_ERR:
-		stats->rx_ip_csum_errs++;
+		this_cpu_inc(nic->drv_stats->rx_ip_csum_errs);
 		break;
 	case CQ_RX_ERROP_IP_MAL:
-		stats->rx_ip_hdr_malformed++;
+		this_cpu_inc(nic->drv_stats->rx_ip_hdr_malformed);
 		break;
 	case CQ_RX_ERROP_IP_MALD:
-		stats->rx_ip_payload_malformed++;
+		this_cpu_inc(nic->drv_stats->rx_ip_payload_malformed);
 		break;
 	case CQ_RX_ERROP_IP_HOP:
-		stats->rx_ip_ttl_errs++;
+		this_cpu_inc(nic->drv_stats->rx_ip_ttl_errs);
 		break;
 	case CQ_RX_ERROP_L3_PCLP:
-		stats->rx_l3_pclp++;
+		this_cpu_inc(nic->drv_stats->rx_l3_pclp);
 		break;
 	case CQ_RX_ERROP_L4_MAL:
-		stats->rx_l4_malformed++;
+		this_cpu_inc(nic->drv_stats->rx_l4_malformed);
 		break;
 	case CQ_RX_ERROP_L4_CHK:
-		stats->rx_l4_csum_errs++;
+		this_cpu_inc(nic->drv_stats->rx_l4_csum_errs);
 		break;
 	case CQ_RX_ERROP_UDP_LEN:
-		stats->rx_udp_len_errs++;
+		this_cpu_inc(nic->drv_stats->rx_udp_len_errs);
 		break;
 	case CQ_RX_ERROP_L4_PORT:
-		stats->rx_l4_port_errs++;
+		this_cpu_inc(nic->drv_stats->rx_l4_port_errs);
 		break;
 	case CQ_RX_ERROP_TCP_FLAG:
-		stats->rx_tcp_flag_errs++;
+		this_cpu_inc(nic->drv_stats->rx_tcp_flag_errs);
 		break;
 	case CQ_RX_ERROP_TCP_OFFSET:
-		stats->rx_tcp_offset_errs++;
+		this_cpu_inc(nic->drv_stats->rx_tcp_offset_errs);
 		break;
 	case CQ_RX_ERROP_L4_PCLP:
-		stats->rx_l4_pclp++;
+		this_cpu_inc(nic->drv_stats->rx_l4_pclp);
 		break;
 	case CQ_RX_ERROP_RBDR_TRUNC:
-		stats->rx_truncated_pkts++;
+		this_cpu_inc(nic->drv_stats->rx_truncated_pkts);
 		break;
 	}
 
@@ -1512,53 +1529,52 @@ int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 }
 
 /* Check for errors in the send cmp.queue entry */
-int nicvf_check_cqe_tx_errs(struct nicvf *nic,
-			    struct cmp_queue *cq, struct cqe_send_t *cqe_tx)
+int nicvf_check_cqe_tx_errs(struct nicvf *nic, struct cqe_send_t *cqe_tx)
 {
-	struct cmp_queue_stats *stats = &cq->stats;
-
 	switch (cqe_tx->send_status) {
 	case CQ_TX_ERROP_GOOD:
-		stats->tx.good++;
 		return 0;
 	case CQ_TX_ERROP_DESC_FAULT:
-		stats->tx.desc_fault++;
+		this_cpu_inc(nic->drv_stats->tx_desc_fault);
 		break;
 	case CQ_TX_ERROP_HDR_CONS_ERR:
-		stats->tx.hdr_cons_err++;
+		this_cpu_inc(nic->drv_stats->tx_hdr_cons_err);
 		break;
 	case CQ_TX_ERROP_SUBDC_ERR:
-		stats->tx.subdesc_err++;
+		this_cpu_inc(nic->drv_stats->tx_subdesc_err);
+		break;
+	case CQ_TX_ERROP_MAX_SIZE_VIOL:
+		this_cpu_inc(nic->drv_stats->tx_max_size_exceeded);
 		break;
 	case CQ_TX_ERROP_IMM_SIZE_OFLOW:
-		stats->tx.imm_size_oflow++;
+		this_cpu_inc(nic->drv_stats->tx_imm_size_oflow);
 		break;
 	case CQ_TX_ERROP_DATA_SEQUENCE_ERR:
-		stats->tx.data_seq_err++;
+		this_cpu_inc(nic->drv_stats->tx_data_seq_err);
 		break;
 	case CQ_TX_ERROP_MEM_SEQUENCE_ERR:
-		stats->tx.mem_seq_err++;
+		this_cpu_inc(nic->drv_stats->tx_mem_seq_err);
 		break;
 	case CQ_TX_ERROP_LOCK_VIOL:
-		stats->tx.lock_viol++;
+		this_cpu_inc(nic->drv_stats->tx_lock_viol);
 		break;
 	case CQ_TX_ERROP_DATA_FAULT:
-		stats->tx.data_fault++;
+		this_cpu_inc(nic->drv_stats->tx_data_fault);
 		break;
 	case CQ_TX_ERROP_TSTMP_CONFLICT:
-		stats->tx.tstmp_conflict++;
+		this_cpu_inc(nic->drv_stats->tx_tstmp_conflict);
 		break;
 	case CQ_TX_ERROP_TSTMP_TIMEOUT:
-		stats->tx.tstmp_timeout++;
+		this_cpu_inc(nic->drv_stats->tx_tstmp_timeout);
 		break;
 	case CQ_TX_ERROP_MEM_FAULT:
-		stats->tx.mem_fault++;
+		this_cpu_inc(nic->drv_stats->tx_mem_fault);
 		break;
 	case CQ_TX_ERROP_CK_OVERLAP:
-		stats->tx.csum_overlap++;
+		this_cpu_inc(nic->drv_stats->tx_csum_overlap);
 		break;
 	case CQ_TX_ERROP_CK_OFLOW:
-		stats->tx.csum_overflow++;
+		this_cpu_inc(nic->drv_stats->tx_csum_overflow);
 		break;
 	}
 

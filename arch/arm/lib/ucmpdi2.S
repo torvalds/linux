@@ -12,7 +12,6 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 #ifdef __ARMEB__
 #define xh r0
@@ -36,7 +35,6 @@ ENTRY(__ucmpdi2)
 	ret	lr
 
 ENDPROC(__ucmpdi2)
-EXPORT_SYMBOL(__ucmpdi2)
 
 #ifdef CONFIG_AEABI
 
@@ -50,7 +48,6 @@ ENTRY(__aeabi_ulcmp)
 	ret	lr
 
 ENDPROC(__aeabi_ulcmp)
-EXPORT_SYMBOL(__aeabi_ulcmp)
 
 #endif
 

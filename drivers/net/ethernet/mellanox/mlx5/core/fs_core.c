@@ -1690,7 +1690,7 @@ static int init_root_ns(struct mlx5_flow_steering *steering)
 {
 
 	steering->root_ns = create_root_ns(steering, FS_FT_NIC_RX);
-	if (IS_ERR_OR_NULL(steering->root_ns))
+	if (!steering->root_ns)
 		goto cleanup;
 
 	if (init_root_tree(steering, &root_fs, &steering->root_ns->ns.node))

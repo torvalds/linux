@@ -3225,11 +3225,11 @@ static bool ffs_func_req_match(struct usb_function *f,
 
 	switch (creq->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_INTERFACE:
-		return ffs_func_revmap_intf(func,
-					    le16_to_cpu(creq->wIndex) >= 0);
+		return (ffs_func_revmap_intf(func,
+					     le16_to_cpu(creq->wIndex)) >= 0);
 	case USB_RECIP_ENDPOINT:
-		return ffs_func_revmap_ep(func,
-					  le16_to_cpu(creq->wIndex) >= 0);
+		return (ffs_func_revmap_ep(func,
+					   le16_to_cpu(creq->wIndex)) >= 0);
 	default:
 		return (bool) (func->ffs->user_flags &
 			       FUNCTIONFS_ALL_CTRL_RECIP);

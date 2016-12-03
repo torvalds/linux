@@ -146,7 +146,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
 
 	/* request and enable interrupt */
-	ret = request_irq(pdev->irq, ish_irq_handler, IRQF_NO_SUSPEND,
+	ret = request_irq(pdev->irq, ish_irq_handler, IRQF_SHARED,
 			  KBUILD_MODNAME, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "ISH: request IRQ failure (%d)\n",
@@ -202,6 +202,7 @@ static void ish_remove(struct pci_dev *pdev)
 	kfree(ishtp_dev);
 }
 
+#ifdef CONFIG_PM
 static struct device *ish_resume_device;
 
 /**
@@ -293,7 +294,6 @@ static int ish_resume(struct device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops ish_pm_ops = {
 	.suspend = ish_suspend,
 	.resume = ish_resume,
@@ -301,7 +301,7 @@ static const struct dev_pm_ops ish_pm_ops = {
 #define ISHTP_ISH_PM_OPS	(&ish_pm_ops)
 #else
 #define ISHTP_ISH_PM_OPS	NULL
-#endif
+#endif /* CONFIG_PM */
 
 static struct pci_driver ish_driver = {
 	.name = KBUILD_MODNAME,

@@ -683,10 +683,11 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 	struct pipe_inode_info *pipe = i->pipe;
 	struct pipe_buffer *buf;
 	int idx = i->idx;
-	size_t off = i->iov_offset;
+	size_t off = i->iov_offset, orig_sz;
 	
 	if (unlikely(i->count < size))
 		size = i->count;
+	orig_sz = size;
 
 	if (size) {
 		if (off) /* make it relative to the beginning of buffer */
@@ -713,6 +714,7 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 			pipe->nrbufs--;
 		}
 	}
+	i->count -= orig_sz;
 }
 
 void iov_iter_advance(struct iov_iter *i, size_t size)

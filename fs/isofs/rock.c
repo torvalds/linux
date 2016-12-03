@@ -377,9 +377,9 @@ repeat:
 			{
 				int p;
 				for (p = 0; p < rr->u.ER.len_id; p++)
-					printk("%c", rr->u.ER.data[p]);
+					printk(KERN_CONT "%c", rr->u.ER.data[p]);
 			}
-			printk("\n");
+			printk(KERN_CONT "\n");
 			break;
 		case SIG('P', 'X'):
 			inode->i_mode = isonum_733(rr->u.PX.mode);

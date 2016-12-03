@@ -149,7 +149,7 @@ static inline bool inet6_exact_dif_match(struct net *net, struct sk_buff *skb)
 {
 #if defined(CONFIG_NET_L3_MASTER_DEV)
 	if (!net->ipv4.sysctl_tcp_l3mdev_accept &&
-	    ipv6_l3mdev_skb(IP6CB(skb)->flags))
+	    skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
 		return true;
 #endif
 	return false;
