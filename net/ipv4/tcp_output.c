@@ -767,19 +767,19 @@ static void tcp_tasklet_func(unsigned long data)
 	list_for_each_safe(q, n, &list) {
 		tp = list_entry(q, struct tcp_sock, tsq_node);
 		list_del(&tp->tsq_node);
+		clear_bit(TSQ_QUEUED, &tp->tsq_flags);
 
 		sk = (struct sock *)tp;
-		bh_lock_sock(sk);
-
-		if (!sock_owned_by_user(sk)) {
-			tcp_tsq_handler(sk);
-		} else {
-			/* defer the work to tcp_release_cb() */
-			set_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
+		if (!sk->sk_lock.owned &&
+		    test_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags)) {
+			bh_lock_sock(sk);
+			if (!sock_owned_by_user(sk)) {
+				clear_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
+				tcp_tsq_handler(sk);
+			}
+			bh_unlock_sock(sk);
 		}
-		bh_unlock_sock(sk);
 
-		clear_bit(TSQ_QUEUED, &tp->tsq_flags);
 		sk_free(sk);
 	}
 }
@@ -884,7 +884,7 @@ void tcp_wfree(struct sk_buff *skb)
 		if (!(oval & TSQF_THROTTLED) || (oval & TSQF_QUEUED))
 			goto out;
 
-		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED;
+		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED | TCPF_TSQ_DEFERRED;
 		nval = cmpxchg(&tp->tsq_flags, oval, nval);
 		if (nval != oval)
 			continue;
@@ -2229,6 +2229,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
 
+		if (test_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags))
+			clear_bit(TCP_TSQ_DEFERRED, &tp->tsq_flags);
 		if (tcp_small_queue_check(sk, skb, 0))
 			break;
 
