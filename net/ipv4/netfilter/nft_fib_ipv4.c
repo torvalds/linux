@@ -101,12 +101,13 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	}
 
 	iph = ip_hdr(pkt->skb);
-	if (ipv4_is_multicast(iph->daddr) &&
-	    ipv4_is_zeronet(iph->saddr) &&
-	    ipv4_is_local_multicast(iph->daddr)) {
-		nft_fib_store_result(dest, priv->result, pkt,
-				     get_ifindex(pkt->skb->dev));
-		return;
+	if (ipv4_is_zeronet(iph->saddr)) {
+		if (ipv4_is_lbcast(iph->daddr) ||
+		    ipv4_is_local_multicast(iph->daddr)) {
+			nft_fib_store_result(dest, priv->result, pkt,
+					     get_ifindex(pkt->skb->dev));
+			return;
+		}
 	}
 
 	if (priv->flags & NFTA_FIB_F_MARK)
