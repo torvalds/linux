@@ -249,8 +249,10 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 
 			block->label = devm_kstrdup(sram->dev,
 						    label, GFP_KERNEL);
-			if (!block->label)
+			if (!block->label) {
+				ret = -ENOMEM;
 				goto err_chunks;
+			}
 
 			dev_dbg(sram->dev, "found %sblock '%s' 0x%x-0x%x\n",
 				block->export ? "exported " : "", block->label,
