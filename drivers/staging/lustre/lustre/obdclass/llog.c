@@ -115,6 +115,7 @@ static int llog_read_header(const struct lu_env *env,
 	rc = lop->lop_read_header(env, handle);
 	if (rc == LLOG_EEMPTY) {
 		struct llog_log_hdr *llh = handle->lgh_hdr;
+		size_t len;
 
 		/* lrh_len should be initialized in llog_init_handle */
 		handle->lgh_last_idx = 0; /* header is record with index 0 */
@@ -128,6 +129,12 @@ static int llog_read_header(const struct lu_env *env,
 			memcpy(&llh->llh_tgtuuid, uuid,
 			       sizeof(llh->llh_tgtuuid));
 		llh->llh_bitmap_offset = offsetof(typeof(*llh), llh_bitmap);
+		/*
+		 * Since update llog header might also call this function,
+		 * let's reset the bitmap to 0 here
+		 */
+		len = llh->llh_hdr.lrh_len - llh->llh_bitmap_offset;
+		memset(LLOG_HDR_BITMAP(llh), 0, len - sizeof(llh->llh_tail));
 		ext2_set_bit(0, LLOG_HDR_BITMAP(llh));
 		LLOG_HDR_TAIL(llh)->lrt_len = llh->llh_hdr.lrh_len;
 		LLOG_HDR_TAIL(llh)->lrt_index = llh->llh_hdr.lrh_index;
