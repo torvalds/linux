@@ -1813,16 +1813,11 @@ out:
 	return rc;
 }
 
-static int osc_set_lock_data_with_check(struct ldlm_lock *lock,
-					struct ldlm_enqueue_info *einfo)
+static int osc_set_lock_data(struct ldlm_lock *lock, void *data)
 {
-	void *data = einfo->ei_cbdata;
 	int set = 0;
 
-	LASSERT(lock->l_blocking_ast == einfo->ei_cb_bl);
-	LASSERT(lock->l_resource->lr_type == einfo->ei_type);
-	LASSERT(lock->l_completion_ast == einfo->ei_cb_cp);
-	LASSERT(lock->l_glimpse_ast == einfo->ei_cb_gl);
+	LASSERT(lock);
 
 	lock_res_and_lock(lock);
 
@@ -1833,21 +1828,6 @@ static int osc_set_lock_data_with_check(struct ldlm_lock *lock,
 
 	unlock_res_and_lock(lock);
 
-	return set;
-}
-
-static int osc_set_data_with_check(struct lustre_handle *lockh,
-				   struct ldlm_enqueue_info *einfo)
-{
-	struct ldlm_lock *lock = ldlm_handle2lock(lockh);
-	int set = 0;
-
-	if (lock) {
-		set = osc_set_lock_data_with_check(lock, einfo);
-		LDLM_LOCK_PUT(lock);
-	} else
-		CERROR("lockh %p, data %p - client evicted?\n",
-		       lockh, einfo->ei_cbdata);
 	return set;
 }
 
@@ -2016,7 +1996,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 			ldlm_lock_decref(&lockh, mode);
 			LDLM_LOCK_PUT(matched);
 			return -ECANCELED;
-		} else if (osc_set_lock_data_with_check(matched, einfo)) {
+		} else if (osc_set_lock_data(matched, einfo->ei_cbdata)) {
 			*flags |= LDLM_FL_LVB_READY;
 			/* We already have a lock, and it's referenced. */
 			(*upcall)(cookie, &lockh, ELDLM_LOCK_MATCHED);
@@ -2128,19 +2108,18 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		rc |= LCK_PW;
 	rc = ldlm_lock_match(obd->obd_namespace, lflags,
 			     res_id, type, policy, rc, lockh, unref);
-	if (rc) {
-		if (data) {
-			if (!osc_set_data_with_check(lockh, data)) {
-				if (!(lflags & LDLM_FL_TEST_LOCK))
-					ldlm_lock_decref(lockh, rc);
-				return 0;
-			}
-		}
-		if (!(lflags & LDLM_FL_TEST_LOCK) && mode != rc) {
-			ldlm_lock_addref(lockh, LCK_PR);
-			ldlm_lock_decref(lockh, LCK_PW);
-		}
+	if (!rc || lflags & LDLM_FL_TEST_LOCK)
 		return rc;
+
+	if (data) {
+		struct ldlm_lock *lock = ldlm_handle2lock(lockh);
+
+		LASSERT(lock);
+		if (!osc_set_lock_data(lock, data)) {
+			ldlm_lock_decref(lockh, rc);
+			rc = 0;
+		}
+		LDLM_LOCK_PUT(lock);
 	}
 	return rc;
 }
