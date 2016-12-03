@@ -1026,6 +1026,13 @@ struct bnxt {
 	struct bnxt_irq	*irq_tbl;
 	u8			mac_addr[ETH_ALEN];
 
+#ifdef CONFIG_BNXT_DCB
+	struct ieee_pfc		*ieee_pfc;
+	struct ieee_ets		*ieee_ets;
+	u8			dcbx_cap;
+	u8			default_pri;
+#endif /* CONFIG_BNXT_DCB */
+
 	u32			msg_enable;
 
 	u32			hwrm_spec_code;
@@ -1221,6 +1228,8 @@ int hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message_silent(struct bnxt *, void *, u32, int);
 int bnxt_hwrm_set_coal(struct bnxt *);
 int bnxt_hwrm_func_qcaps(struct bnxt *);
+void bnxt_tx_disable(struct bnxt *bp);
+void bnxt_tx_enable(struct bnxt *bp);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
