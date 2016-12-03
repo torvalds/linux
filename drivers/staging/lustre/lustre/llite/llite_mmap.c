@@ -215,11 +215,8 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			result = -EAGAIN;
 		}
 
-		if (result == 0) {
-			spin_lock(&lli->lli_lock);
-			lli->lli_flags |= LLIF_DATA_MODIFIED;
-			spin_unlock(&lli->lli_lock);
-		}
+		if (!result)
+			set_bit(LLIF_DATA_MODIFIED, &lli->lli_flags);
 	}
 
 out_io:

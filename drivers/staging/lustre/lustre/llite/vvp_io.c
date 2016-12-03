@@ -329,8 +329,8 @@ static void vvp_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 			       vio->vui_layout_gen, gen);
 			/* today successful restore is the only possible case */
 			/* restore was done, clear restoring state */
-			ll_i2info(vvp_object_inode(obj))->lli_flags &=
-				~LLIF_FILE_RESTORING;
+			clear_bit(LLIF_FILE_RESTORING,
+				  &ll_i2info(inode)->lli_flags);
 		}
 	}
 }
@@ -982,11 +982,7 @@ static int vvp_io_write_start(const struct lu_env *env,
 		}
 	}
 	if (result > 0) {
-		struct ll_inode_info *lli = ll_i2info(inode);
-
-		spin_lock(&lli->lli_lock);
-		lli->lli_flags |= LLIF_DATA_MODIFIED;
-		spin_unlock(&lli->lli_lock);
+		set_bit(LLIF_DATA_MODIFIED, &(ll_i2info(inode))->lli_flags);
 
 		if (result < cnt)
 			io->ci_continue = 0;

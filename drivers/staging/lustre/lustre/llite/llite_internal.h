@@ -97,20 +97,20 @@ struct ll_grouplock {
 	unsigned long	 lg_gid;
 };
 
-enum lli_flags {
+enum ll_file_flags {
 	/* File data is modified. */
-	LLIF_DATA_MODIFIED	= BIT(0),
+	LLIF_DATA_MODIFIED	= 0,
 	/* File is being restored */
-	LLIF_FILE_RESTORING	= BIT(1),
+	LLIF_FILE_RESTORING	= 1,
 	/* Xattr cache is attached to the file */
-	LLIF_XATTR_CACHE	= BIT(2),
+	LLIF_XATTR_CACHE	= 2,
 };
 
 struct ll_inode_info {
 	__u32				lli_inode_magic;
-	__u32				lli_flags;
 
 	spinlock_t			lli_lock;
+	unsigned long			lli_flags;
 	struct posix_acl		*lli_posix_acl;
 
 	/* identifying fields for both metadata and data stacks. */
@@ -740,8 +740,6 @@ int ll_file_open(struct inode *inode, struct file *file);
 int ll_file_release(struct inode *inode, struct file *file);
 int ll_release_openhandle(struct inode *, struct lookup_intent *);
 int ll_md_real_close(struct inode *inode, fmode_t fmode);
-void ll_pack_inode2opdata(struct inode *inode, struct md_op_data *op_data,
-			  struct lustre_handle *fh);
 int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat);
 struct posix_acl *ll_get_acl(struct inode *inode, int type);
 int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
