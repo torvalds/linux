@@ -310,7 +310,7 @@ static void device_init_registers(struct vnt_private *priv)
 			SROMbyReadEmbedded(priv->PortOffset,
 					   (unsigned char)(ii + EEP_OFS_CCK_PWR_TBL));
 		if (priv->abyCCKPwrTbl[ii + 1] == 0)
-			priv->abyCCKPwrTbl[ii+1] = priv->byCCKPwr;
+			priv->abyCCKPwrTbl[ii + 1] = priv->byCCKPwr;
 
 		priv->abyOFDMPwrTbl[ii + 1] =
 			SROMbyReadEmbedded(priv->PortOffset,
@@ -552,7 +552,7 @@ static void device_init_rd0_ring(struct vnt_private *priv)
 		if (!device_alloc_rx_buf(priv, desc))
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
 
-		desc->next = &(priv->aRD0Ring[(i+1) % priv->opts.rx_descs0]);
+		desc->next = &(priv->aRD0Ring[(i + 1) % priv->opts.rx_descs0]);
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_rx_desc));
 	}
 
