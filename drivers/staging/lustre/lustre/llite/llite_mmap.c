@@ -369,6 +369,7 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	bool retry;
 	int result;
 
+	file_update_time(vma->vm_file);
 	do {
 		retry = false;
 		result = ll_page_mkwrite0(vma, vmf->page, &retry);
