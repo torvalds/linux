@@ -186,7 +186,6 @@ struct tcp_sock {
 	u32	tsoffset;	/* timestamp offset */
 
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
-	unsigned long	tsq_flags;
 
 	/* Data for direct copy to user */
 	struct {
