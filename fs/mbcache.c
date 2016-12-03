@@ -286,7 +286,7 @@ static unsigned long mb_cache_shrink(struct mb_cache *cache,
 					 struct mb_cache_entry, e_list);
 		if (entry->e_referenced) {
 			entry->e_referenced = 0;
-			list_move_tail(&cache->c_list, &entry->e_list);
+			list_move_tail(&entry->e_list, &cache->c_list);
 			continue;
 		}
 		list_del_init(&entry->e_list);
