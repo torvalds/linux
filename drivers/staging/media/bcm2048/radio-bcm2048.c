@@ -1534,7 +1534,11 @@ static int bcm2048_parse_rt_match_c(struct bcm2048_device *bdev, int i,
 	if (crc == BCM2048_RDS_CRC_UNRECOVARABLE)
 		return 0;
 
-	BUG_ON((index+2) >= BCM2048_MAX_RDS_RT);
+	if ((index + 2) >= BCM2048_MAX_RDS_RT) {
+		dev_err(&bdev->client->dev,
+			"Incorrect index = %d\n", index);
+		return 0;
+	}
 
 	if ((bdev->rds_info.radio_text[i] & BCM2048_RDS_BLOCK_MASK) ==
 		BCM2048_RDS_BLOCK_C) {
@@ -1557,7 +1561,11 @@ static void bcm2048_parse_rt_match_d(struct bcm2048_device *bdev, int i,
 	if (crc == BCM2048_RDS_CRC_UNRECOVARABLE)
 		return;
 
-	BUG_ON((index+4) >= BCM2048_MAX_RDS_RT);
+	if ((index + 4) >= BCM2048_MAX_RDS_RT) {
+		dev_err(&bdev->client->dev,
+			"Incorrect index = %d\n", index);
+		return;
+	}
 
 	if ((bdev->rds_info.radio_text[i] & BCM2048_RDS_BLOCK_MASK) ==
 	    BCM2048_RDS_BLOCK_D)
