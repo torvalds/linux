@@ -1298,9 +1298,6 @@ int rproc_add(struct rproc *rproc)
 
 	dev_info(dev, "%s is available\n", rproc->name);
 
-	dev_info(dev, "Note: remoteproc is still under development and considered experimental.\n");
-	dev_info(dev, "THE BINARY FORMAT IS NOT YET FINALIZED, and backward compatibility isn't yet guaranteed.\n");
-
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
 	ret = rproc_add_virtio_devices(rproc);
