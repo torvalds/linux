@@ -155,12 +155,12 @@ out:
 }
 
 /*
- * mb_cache_entry_find_first - find the first entry in cache with given key
+ * mb_cache_entry_find_first - find the first reusable entry with the given key
  * @cache: cache where we should search
  * @key: key to look for
  *
- * Search in @cache for entry with key @key. Grabs reference to the first
- * entry found and returns the entry.
+ * Search in @cache for a reusable entry with key @key. Grabs reference to the
+ * first reusable entry found and returns the entry.
  */
 struct mb_cache_entry *mb_cache_entry_find_first(struct mb_cache *cache,
 						 u32 key)
@@ -170,14 +170,14 @@ struct mb_cache_entry *mb_cache_entry_find_first(struct mb_cache *cache,
 EXPORT_SYMBOL(mb_cache_entry_find_first);
 
 /*
- * mb_cache_entry_find_next - find next entry in cache with the same
+ * mb_cache_entry_find_next - find next reusable entry with the same key
  * @cache: cache where we should search
  * @entry: entry to start search from
  *
- * Finds next entry in the hash chain which has the same key as @entry.
- * If @entry is unhashed (which can happen when deletion of entry races
- * with the search), finds the first entry in the hash chain. The function
- * drops reference to @entry and returns with a reference to the found entry.
+ * Finds next reusable entry in the hash chain which has the same key as @entry.
+ * If @entry is unhashed (which can happen when deletion of entry races with the
+ * search), finds the first reusable entry in the hash chain. The function drops
+ * reference to @entry and returns with a reference to the found entry.
  */
 struct mb_cache_entry *mb_cache_entry_find_next(struct mb_cache *cache,
 						struct mb_cache_entry *entry)
