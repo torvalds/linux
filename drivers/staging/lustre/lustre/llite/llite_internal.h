@@ -391,6 +391,8 @@ enum stats_track_type {
 #define LL_SBI_USER_FID2PATH  0x40000 /* allow fid2path by unprivileged users */
 #define LL_SBI_XATTR_CACHE    0x80000 /* support for xattr cache */
 #define LL_SBI_NOROOTSQUASH	0x100000 /* do not apply root squash */
+#define LL_SBI_ALWAYS_PING	0x200000 /* always ping even if server
+					  * suppress_pings */
 
 #define LL_SBI_FLAGS {	\
 	"nolck",	\
@@ -414,6 +416,7 @@ enum stats_track_type {
 	"user_fid2path",\
 	"xattr_cache",	\
 	"norootsquash",	\
+	"always_ping",	\
 }
 
 /*
