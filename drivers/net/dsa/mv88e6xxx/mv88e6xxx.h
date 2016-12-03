@@ -851,6 +851,9 @@ struct mv88e6xxx_ops {
 				uint64_t *data);
 	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Can be either in g1 or g2, so don't use a prefix */
+	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 };
 
 #define STATS_TYPE_PORT		BIT(0)

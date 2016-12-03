@@ -38,6 +38,31 @@ static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 	return mv88e6xxx_wait(chip, ADDR_GLOBAL2, reg, mask);
 }
 
+/* Offset 0x02: Management Enable 2x */
+/* Offset 0x03: Management Enable 0x */
+
+int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	/* Consider the frames with reserved multicast destination
+	 * addresses matching 01:80:c2:00:00:2x as MGMT.
+	 */
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
+		err = mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_2X, 0xffff);
+		if (err)
+			return err;
+	}
+
+	/* Consider the frames with reserved multicast destination
+	 * addresses matching 01:80:c2:00:00:0x as MGMT.
+	 */
+	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X))
+		return mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_0X, 0xffff);
+
+	return 0;
+}
+
 /* Offset 0x06: Device Mapping Table register */
 
 static int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
@@ -566,24 +591,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	u16 reg;
 	int err;
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
-		/* Consider the frames with reserved multicast destination
-		 * addresses matching 01:80:c2:00:00:2x as MGMT.
-		 */
-		err = mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_2X, 0xffff);
-		if (err)
-			return err;
-	}
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X)) {
-		/* Consider the frames with reserved multicast destination
-		 * addresses matching 01:80:c2:00:00:0x as MGMT.
-		 */
-		err = mv88e6xxx_g2_write(chip, GLOBAL2_MGMT_EN_0X, 0xffff);
-		if (err)
-			return err;
-	}
 
 	/* Ignore removed tag data on doubly tagged packets, disable
 	 * flow control messages, force flow control priority to the
