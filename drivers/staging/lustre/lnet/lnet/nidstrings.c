@@ -247,10 +247,8 @@ parse_nidrange(struct cfs_lstr *src, struct list_head *nidlist)
 {
 	struct cfs_lstr addrrange;
 	struct cfs_lstr net;
-	struct cfs_lstr tmp;
 	struct nidrange *nr;
 
-	tmp = *src;
 	if (!cfs_gettok(src, '@', &addrrange))
 		goto failed;
 

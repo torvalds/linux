@@ -933,7 +933,6 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 	int i = 0;
 	struct cfs_crypto_hash_desc *hdesc;
 	unsigned int bufsize;
-	int err;
 	unsigned char cfs_alg = cksum_obd2cfs(cksum_type);
 
 	LASSERT(pg_count > 0);
@@ -975,7 +974,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 	}
 
 	bufsize = sizeof(cksum);
-	err = cfs_crypto_hash_final(hdesc, (unsigned char *)&cksum, &bufsize);
+	cfs_crypto_hash_final(hdesc, (unsigned char *)&cksum, &bufsize);
 
 	/* For sending we only compute the wrong checksum instead
 	 * of corrupting the data so it is still correct on a redo
