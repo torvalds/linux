@@ -1229,9 +1229,6 @@ lmv_out_free:
 
 		/* Get default LMV EA */
 		if (lum.lum_magic == LMV_USER_MAGIC) {
-			if (rc)
-				goto finish_req;
-
 			if (lmmsize > sizeof(*ulmv)) {
 				rc = -EINVAL;
 				goto finish_req;
