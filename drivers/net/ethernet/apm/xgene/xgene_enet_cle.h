@@ -91,6 +91,8 @@
 #define CLE_DSTQIDH_LEN		5
 #define CLE_FPSEL_POS		21
 #define CLE_FPSEL_LEN		4
+#define CLE_NFPSEL_POS		17
+#define CLE_NFPSEL_LEN		4
 #define CLE_PRIORITY_POS	5
 #define CLE_PRIORITY_LEN	3
 
@@ -104,6 +106,7 @@ enum xgene_cle_ptree_nodes {
 	PKT_PROT_NODE,
 	RSS_IPV4_TCP_NODE,
 	RSS_IPV4_UDP_NODE,
+	RSS_IPV4_OTHERS_NODE,
 	LAST_NODE,
 	MAX_NODES
 };
