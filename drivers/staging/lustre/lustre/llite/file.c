@@ -2532,7 +2532,8 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 }
 
 int ll_get_fid_by_name(struct inode *parent, const char *name,
-		       int namelen, struct lu_fid *fid)
+		       int namelen, struct lu_fid *fid,
+		       struct inode **inode)
 {
 	struct md_op_data *op_data = NULL;
 	struct ptlrpc_request *req;
@@ -2544,7 +2545,7 @@ int ll_get_fid_by_name(struct inode *parent, const char *name,
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	op_data->op_valid = OBD_MD_FLID;
+	op_data->op_valid = OBD_MD_FLID | OBD_MD_FLTYPE;
 	rc = md_getattr_name(ll_i2sbi(parent)->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0)
@@ -2557,6 +2558,9 @@ int ll_get_fid_by_name(struct inode *parent, const char *name,
 	}
 	if (fid)
 		*fid = body->mbo_fid1;
+
+	if (inode)
+		rc = ll_prep_inode(inode, req, parent->i_sb, NULL);
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -2566,9 +2570,12 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	       const char *name, int namelen)
 {
 	struct ptlrpc_request *request = NULL;
+	struct obd_client_handle *och = NULL;
 	struct inode *child_inode = NULL;
 	struct dentry *dchild = NULL;
 	struct md_op_data *op_data;
+	struct mdt_body *body;
+	u64 data_version = 0;
 	struct qstr qstr;
 	int rc;
 
@@ -2587,22 +2594,25 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	dchild = d_lookup(file_dentry(file), &qstr);
 	if (dchild) {
 		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
-		if (dchild->d_inode) {
+		if (dchild->d_inode)
 			child_inode = igrab(dchild->d_inode);
-			if (child_inode) {
-				inode_lock(child_inode);
-				op_data->op_fid3 = *ll_inode2fid(child_inode);
-				ll_invalidate_aliases(child_inode);
-			}
-		}
 		dput(dchild);
-	} else {
+	}
+
+	if (!child_inode) {
 		rc = ll_get_fid_by_name(parent, name, namelen,
-					&op_data->op_fid3);
+					&op_data->op_fid3, &child_inode);
 		if (rc)
 			goto out_free;
 	}
 
+	if (!child_inode) {
+		rc = -EINVAL;
+		goto out_free;
+	}
+
+	inode_lock(child_inode);
+	op_data->op_fid3 = *ll_inode2fid(child_inode);
 	if (!fid_is_sane(&op_data->op_fid3)) {
 		CERROR("%s: migrate %s, but fid "DFID" is insane\n",
 		       ll_get_fsname(parent->i_sb, NULL, 0), name,
@@ -2621,6 +2631,26 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 		rc = 0;
 		goto out_free;
 	}
+again:
+	if (S_ISREG(child_inode->i_mode)) {
+		och = ll_lease_open(child_inode, NULL, FMODE_WRITE, 0);
+		if (IS_ERR(och)) {
+			rc = PTR_ERR(och);
+			och = NULL;
+			goto out_free;
+		}
+
+		rc = ll_data_version(child_inode, &data_version,
+				     LL_DV_WR_FLUSH);
+		if (rc)
+			goto out_free;
+
+		op_data->op_handle = och->och_fh;
+		op_data->op_data = och->och_mod;
+		op_data->op_data_version = data_version;
+		op_data->op_lease_handle = och->och_lease_handle;
+		op_data->op_bias |= MDS_RENAME_MIGRATE;
+	}
 
 	op_data->op_mds = mdtidx;
 	op_data->op_cli_flags = CLI_MIGRATE;
@@ -2629,10 +2659,32 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 	if (!rc)
 		ll_update_times(request, parent);
 
-	ptlrpc_req_finished(request);
+	body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
+	if (!body) {
+		rc = -EPROTO;
+		goto out_free;
+	}
 
+	/*
+	 * If the server does release layout lock, then we cleanup
+	 * the client och here, otherwise release it in out_free:
+	 */
+	if (och && body->mbo_valid & OBD_MD_CLOSE_INTENT_EXECED) {
+		obd_mod_put(och->och_mod);
+		md_clear_open_replay_data(ll_i2sbi(parent)->ll_md_exp, och);
+		och->och_fh.cookie = DEAD_HANDLE_MAGIC;
+		kfree(och);
+		och = NULL;
+	}
+
+	ptlrpc_req_finished(request);
+	/* Try again if the file layout has changed. */
+	if (rc == -EAGAIN && S_ISREG(child_inode->i_mode))
+		goto again;
 out_free:
 	if (child_inode) {
+		if (och) /* close the file */
+			ll_lease_close(och, child_inode, NULL);
 		clear_nlink(child_inode);
 		inode_unlock(child_inode);
 		iput(child_inode);
