@@ -54,6 +54,7 @@ KSYM(__kstrtab_\name):
 KSYM(__kcrctab_\name):
 	__put KSYM(__crc_\name)
 	.weak KSYM(__crc_\name)
+	.set KSYM(__crc_\name), 0
 	.previous
 #endif
 #endif

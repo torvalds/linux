@@ -538,7 +538,7 @@ static int xgbe_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int xgbe_platform_suspend(struct device *dev)
 {
 	struct xgbe_prv_data *pdata = dev_get_drvdata(dev);
@@ -583,7 +583,7 @@ static int xgbe_platform_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct xgbe_version_data xgbe_v1 = {
 	.init_function_ptrs_phy_impl	= xgbe_init_function_ptrs_phy_v1,

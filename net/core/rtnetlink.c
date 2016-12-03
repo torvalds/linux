@@ -931,8 +931,8 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4) /* IFLA_PROMISCUITY */
 	       + nla_total_size(4) /* IFLA_NUM_TX_QUEUES */
 	       + nla_total_size(4) /* IFLA_NUM_RX_QUEUES */
-	       + nla_total_size(4) /* IFLA_MAX_GSO_SEGS */
-	       + nla_total_size(4) /* IFLA_MAX_GSO_SIZE */
+	       + nla_total_size(4) /* IFLA_GSO_MAX_SEGS */
+	       + nla_total_size(4) /* IFLA_GSO_MAX_SIZE */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
 	       + nla_total_size(4) /* IFLA_CARRIER_CHANGES */

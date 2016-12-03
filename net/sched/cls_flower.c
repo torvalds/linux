@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/rhashtable.h>
+#include <linux/workqueue.h>
 
 #include <linux/if_ether.h>
 #include <linux/in6.h>
@@ -65,7 +66,10 @@ struct cls_fl_head {
 	bool mask_assigned;
 	struct list_head filters;
 	struct rhashtable_params ht_params;
-	struct rcu_head rcu;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 };
 
 struct cls_fl_filter {
@@ -286,6 +290,24 @@ static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
 	call_rcu(&f->rcu, fl_destroy_filter);
 }
 
+static void fl_destroy_sleepable(struct work_struct *work)
+{
+	struct cls_fl_head *head = container_of(work, struct cls_fl_head,
+						work);
+	if (head->mask_assigned)
+		rhashtable_destroy(&head->ht);
+	kfree(head);
+	module_put(THIS_MODULE);
+}
+
+static void fl_destroy_rcu(struct rcu_head *rcu)
+{
+	struct cls_fl_head *head = container_of(rcu, struct cls_fl_head, rcu);
+
+	INIT_WORK(&head->work, fl_destroy_sleepable);
+	schedule_work(&head->work);
+}
+
 static bool fl_destroy(struct tcf_proto *tp, bool force)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
@@ -296,10 +318,10 @@ static bool fl_destroy(struct tcf_proto *tp, bool force)
 
 	list_for_each_entry_safe(f, next, &head->filters, list)
 		__fl_delete(tp, f);
-	RCU_INIT_POINTER(tp->root, NULL);
-	if (head->mask_assigned)
-		rhashtable_destroy(&head->ht);
-	kfree_rcu(head, rcu);
+
+	__module_get(THIS_MODULE);
+	call_rcu(&head->rcu, fl_destroy_rcu);
+
 	return true;
 }
 
@@ -759,8 +781,9 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	if (fold) {
-		rhashtable_remove_fast(&head->ht, &fold->ht_node,
-				       head->ht_params);
+		if (!tc_skip_sw(fold->flags))
+			rhashtable_remove_fast(&head->ht, &fold->ht_node,
+					       head->ht_params);
 		if (!tc_skip_hw(fold->flags))
 			fl_hw_destroy_filter(tp, fold);
 	}
@@ -788,8 +811,9 @@ static int fl_delete(struct tcf_proto *tp, unsigned long arg)
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = (struct cls_fl_filter *) arg;
 
-	rhashtable_remove_fast(&head->ht, &f->ht_node,
-			       head->ht_params);
+	if (!tc_skip_sw(f->flags))
+		rhashtable_remove_fast(&head->ht, &f->ht_node,
+				       head->ht_params);
 	__fl_delete(tp, f);
 	return 0;
 }

@@ -59,6 +59,12 @@ static int nft_range_init(const struct nft_ctx *ctx, const struct nft_expr *expr
 	int err;
 	u32 op;
 
+	if (!tb[NFTA_RANGE_SREG]      ||
+	    !tb[NFTA_RANGE_OP]	      ||
+	    !tb[NFTA_RANGE_FROM_DATA] ||
+	    !tb[NFTA_RANGE_TO_DATA])
+		return -EINVAL;
+
 	err = nft_data_init(NULL, &priv->data_from, sizeof(priv->data_from),
 			    &desc_from, tb[NFTA_RANGE_FROM_DATA]);
 	if (err < 0)

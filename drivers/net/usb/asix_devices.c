@@ -603,12 +603,12 @@ static void ax88772_suspend(struct usbnet *dev)
 	u16 medium;
 
 	/* Stop MAC operation */
-	medium = asix_read_medium_status(dev, 0);
+	medium = asix_read_medium_status(dev, 1);
 	medium &= ~AX_MEDIUM_RE;
-	asix_write_medium_mode(dev, medium, 0);
+	asix_write_medium_mode(dev, medium, 1);
 
 	netdev_dbg(dev->net, "ax88772_suspend: medium=0x%04x\n",
-		   asix_read_medium_status(dev, 0));
+		   asix_read_medium_status(dev, 1));
 
 	/* Preserve BMCR for restoring */
 	priv->presvd_phy_bmcr =

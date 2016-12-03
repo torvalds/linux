@@ -318,6 +318,8 @@ static int mtk_phy_connect(struct net_device *dev)
 	return 0;
 
 err_phy:
+	if (of_phy_is_fixed_link(mac->of_node))
+		of_phy_deregister_fixed_link(mac->of_node);
 	of_node_put(np);
 	dev_err(eth->dev, "%s: invalid phy\n", __func__);
 	return -EINVAL;
@@ -1923,6 +1925,8 @@ static void mtk_uninit(struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 
 	phy_disconnect(dev->phydev);
+	if (of_phy_is_fixed_link(mac->of_node))
+		of_phy_deregister_fixed_link(mac->of_node);
 	mtk_irq_disable(eth, MTK_QDMA_INT_MASK, ~0);
 	mtk_irq_disable(eth, MTK_PDMA_INT_MASK, ~0);
 }
