@@ -610,15 +610,15 @@ static int cs35l34_dai_set_sysclk(struct snd_soc_dai *dai,
 
 	switch (freq) {
 	case CS35L34_MCLK_5644:
-		value = ~CS35L34_MCLK_DIV & CS35L34_MCLK_RATE_5P6448;
+		value = CS35L34_MCLK_RATE_5P6448;
 		cs35l34->mclk_int = freq;
 	break;
 	case CS35L34_MCLK_6:
-		value = ~CS35L34_MCLK_DIV & CS35L34_MCLK_RATE_6P0000;
+		value = CS35L34_MCLK_RATE_6P0000;
 		cs35l34->mclk_int = freq;
 	break;
 	case CS35L34_MCLK_6144:
-		value = ~CS35L34_MCLK_DIV & CS35L34_MCLK_RATE_6P1440;
+		value = CS35L34_MCLK_RATE_6P1440;
 		cs35l34->mclk_int = freq;
 	break;
 	case CS35L34_MCLK_11289:
