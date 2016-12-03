@@ -923,6 +923,7 @@ void __init setup_arch(char **cmdline_p)
 	cpu_detect_mhz_feature();
         cpu_init();
 	numa_setup();
+	smp_detect_cpus();
 
 	/*
 	 * Create kernel page tables and switch to virtual addressing.
