@@ -208,19 +208,20 @@ static int rmi_f12_attention(struct rmi_function *fn,
 {
 	int retval;
 	struct rmi_device *rmi_dev = fn->rmi_dev;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	struct f12_data *f12 = dev_get_drvdata(&fn->dev);
 	struct rmi_2d_sensor *sensor = &f12->sensor;
 	int valid_bytes = sensor->pkt_size;
 
-	if (rmi_dev->xport->attn_data) {
-		if (sensor->attn_size > rmi_dev->xport->attn_size)
-			valid_bytes = rmi_dev->xport->attn_size;
+	if (drvdata->attn_data.data) {
+		if (sensor->attn_size > drvdata->attn_data.size)
+			valid_bytes = drvdata->attn_data.size;
 		else
 			valid_bytes = sensor->attn_size;
-		memcpy(sensor->data_pkt, rmi_dev->xport->attn_data,
+		memcpy(sensor->data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		rmi_dev->xport->attn_data += sensor->attn_size;
-		rmi_dev->xport->attn_size -= sensor->attn_size;
+		drvdata->attn_data.data += sensor->attn_size;
+		drvdata->attn_data.size -= sensor->attn_size;
 	} else {
 		retval = rmi_read_block(rmi_dev, f12->data_addr,
 					sensor->data_pkt, sensor->pkt_size);
@@ -323,7 +324,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	const struct rmi_register_desc_item *item;
 	struct rmi_2d_sensor *sensor;
 	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
-	struct rmi_transport_dev *xport = rmi_dev->xport;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	u16 data_offset = 0;
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s\n", __func__);
@@ -422,7 +423,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	 * HID attention reports.
 	 */
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 0);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 1);
@@ -436,15 +437,15 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 2);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 3);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 4);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 5);
@@ -456,22 +457,22 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 6);
-	if (item && !xport->attn_data) {
+	if (item && !drvdata->attn_data.data) {
 		f12->data6 = item;
 		f12->data6_offset = data_offset;
 		data_offset += item->reg_size;
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 7);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 8);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 9);
-	if (item && !xport->attn_data) {
+	if (item && !drvdata->attn_data.data) {
 		f12->data9 = item;
 		f12->data9_offset = data_offset;
 		data_offset += item->reg_size;
@@ -480,27 +481,27 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 10);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 11);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 12);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 13);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 14);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 15);
-	if (item && !xport->attn_data) {
+	if (item && !drvdata->attn_data.data) {
 		f12->data15 = item;
 		f12->data15_offset = data_offset;
 		data_offset += item->reg_size;

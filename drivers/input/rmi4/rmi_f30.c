@@ -99,6 +99,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 {
 	struct f30_data *f30 = dev_get_drvdata(&fn->dev);
 	struct rmi_device *rmi_dev = fn->rmi_dev;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	int retval;
 	int gpiled = 0;
 	int value = 0;
@@ -109,15 +110,15 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		return 0;
 
 	/* Read the gpi led data. */
-	if (rmi_dev->xport->attn_data) {
-		if (rmi_dev->xport->attn_size < f30->register_count) {
+	if (drvdata->attn_data.data) {
+		if (drvdata->attn_data.size < f30->register_count) {
 			dev_warn(&fn->dev, "F30 interrupted, but data is missing\n");
 			return 0;
 		}
-		memcpy(f30->data_regs, rmi_dev->xport->attn_data,
+		memcpy(f30->data_regs, drvdata->attn_data.data,
 			f30->register_count);
-		rmi_dev->xport->attn_data += f30->register_count;
-		rmi_dev->xport->attn_size -= f30->register_count;
+		drvdata->attn_data.data += f30->register_count;
+		drvdata->attn_data.size -= f30->register_count;
 	} else {
 		retval = rmi_read_block(rmi_dev, fn->fd.data_base_addr,
 			f30->data_regs, f30->register_count);

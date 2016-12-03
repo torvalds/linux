@@ -155,7 +155,7 @@ static int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 	if (!data)
 		return 0;
 
-	if (!rmi_dev->xport->attn_data) {
+	if (!data->attn_data.data) {
 		error = rmi_read_block(rmi_dev,
 				data->f01_container->fd.data_base_addr + 1,
 				data->irq_status, data->num_of_irq_regs);
@@ -223,8 +223,7 @@ static irqreturn_t rmi_irq_fn(int irq, void *dev_id)
 	count = kfifo_get(&drvdata->attn_fifo, &attn_data);
 	if (count) {
 		*(drvdata->irq_status) = attn_data.irq_status;
-		rmi_dev->xport->attn_data = attn_data.data;
-		rmi_dev->xport->attn_size = attn_data.size;
+		drvdata->attn_data = attn_data;
 	}
 
 	ret = rmi_process_interrupt_requests(rmi_dev);

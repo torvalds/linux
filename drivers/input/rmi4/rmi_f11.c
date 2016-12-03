@@ -1285,19 +1285,19 @@ static int rmi_f11_attention(struct rmi_function *fn, unsigned long *irq_bits)
 	int error;
 	int valid_bytes = f11->sensor.pkt_size;
 
-	if (rmi_dev->xport->attn_data) {
+	if (drvdata->attn_data.data) {
 		/*
 		 * The valid data in the attention report is less then
 		 * expected. Only process the complete fingers.
 		 */
-		if (f11->sensor.attn_size > rmi_dev->xport->attn_size)
-			valid_bytes = rmi_dev->xport->attn_size;
+		if (f11->sensor.attn_size > drvdata->attn_data.size)
+			valid_bytes = drvdata->attn_data.size;
 		else
 			valid_bytes = f11->sensor.attn_size;
-		memcpy(f11->sensor.data_pkt, rmi_dev->xport->attn_data,
+		memcpy(f11->sensor.data_pkt, drvdata->attn_data.data,
 			valid_bytes);
-		rmi_dev->xport->attn_data += f11->sensor.attn_size;
-		rmi_dev->xport->attn_size -= f11->sensor.attn_size;
+		drvdata->attn_data.data += f11->sensor.attn_size;
+		drvdata->attn_data.size -= f11->sensor.attn_size;
 	} else {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr, f11->sensor.data_pkt,

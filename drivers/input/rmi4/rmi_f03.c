@@ -164,6 +164,7 @@ static int rmi_f03_config(struct rmi_function *fn)
 static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 {
 	struct rmi_device *rmi_dev = fn->rmi_dev;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	struct f03_data *f03 = dev_get_drvdata(&fn->dev);
 	u16 data_addr = fn->fd.data_base_addr;
 	const u8 ob_len = f03->rx_queue_length * RMI_F03_OB_SIZE;
@@ -174,20 +175,20 @@ static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 	int i;
 	int error;
 
-	if (!rmi_dev || !rmi_dev->xport)
+	if (!rmi_dev)
 		return -ENODEV;
 
-	if (rmi_dev->xport->attn_data) {
+	if (drvdata->attn_data.data) {
 		/* First grab the data passed by the transport device */
-		if (rmi_dev->xport->attn_size < ob_len) {
+		if (drvdata->attn_data.size < ob_len) {
 			dev_warn(&fn->dev, "F03 interrupted, but data is missing!\n");
 			return 0;
 		}
 
-		memcpy(obs, rmi_dev->xport->attn_data, ob_len);
+		memcpy(obs, drvdata->attn_data.data, ob_len);
 
-		rmi_dev->xport->attn_data += ob_len;
-		rmi_dev->xport->attn_size -= ob_len;
+		drvdata->attn_data.data += ob_len;
+		drvdata->attn_data.size -= ob_len;
 	} else {
 		/* Grab all of the data registers, and check them for data */
 		error = rmi_read_block(fn->rmi_dev, data_addr + RMI_F03_OB_OFFSET,
