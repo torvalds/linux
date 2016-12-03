@@ -321,7 +321,7 @@ static int tcf_mirred_device(const struct tc_action *a, struct net *net,
 	int ifindex = tcf_mirred_ifindex(a);
 
 	*mirred_dev = __dev_get_by_index(net, ifindex);
-	if (!mirred_dev)
+	if (!*mirred_dev)
 		return -EINVAL;
 	return 0;
 }
