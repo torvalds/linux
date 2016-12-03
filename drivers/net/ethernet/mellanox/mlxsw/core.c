@@ -77,6 +77,7 @@ static const char mlxsw_core_driver_name[] = "mlxsw_core";
 static struct dentry *mlxsw_core_dbg_root;
 
 static struct workqueue_struct *mlxsw_wq;
+static struct workqueue_struct *mlxsw_owq;
 
 struct mlxsw_core_pcpu_stats {
 	u64			trap_rx_packets[MLXSW_TRAP_ID_MAX];
@@ -1900,6 +1901,18 @@ int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay)
 }
 EXPORT_SYMBOL(mlxsw_core_schedule_dw);
 
+int mlxsw_core_schedule_odw(struct delayed_work *dwork, unsigned long delay)
+{
+	return queue_delayed_work(mlxsw_owq, dwork, delay);
+}
+EXPORT_SYMBOL(mlxsw_core_schedule_odw);
+
+void mlxsw_core_flush_owq(void)
+{
+	flush_workqueue(mlxsw_owq);
+}
+EXPORT_SYMBOL(mlxsw_core_flush_owq);
+
 static int __init mlxsw_core_module_init(void)
 {
 	int err;
@@ -1907,6 +1920,12 @@ static int __init mlxsw_core_module_init(void)
 	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, WQ_MEM_RECLAIM, 0);
 	if (!mlxsw_wq)
 		return -ENOMEM;
+	mlxsw_owq = alloc_ordered_workqueue("%s_ordered", WQ_MEM_RECLAIM,
+					    mlxsw_core_driver_name);
+	if (!mlxsw_owq) {
+		err = -ENOMEM;
+		goto err_alloc_ordered_workqueue;
+	}
 	mlxsw_core_dbg_root = debugfs_create_dir(mlxsw_core_driver_name, NULL);
 	if (!mlxsw_core_dbg_root) {
 		err = -ENOMEM;
@@ -1915,6 +1934,8 @@ static int __init mlxsw_core_module_init(void)
 	return 0;
 
 err_debugfs_create_dir:
+	destroy_workqueue(mlxsw_owq);
+err_alloc_ordered_workqueue:
 	destroy_workqueue(mlxsw_wq);
 	return err;
 }
@@ -1922,6 +1943,7 @@ err_debugfs_create_dir:
 static void __exit mlxsw_core_module_exit(void)
 {
 	debugfs_remove_recursive(mlxsw_core_dbg_root);
+	destroy_workqueue(mlxsw_owq);
 	destroy_workqueue(mlxsw_wq);
 }
 
