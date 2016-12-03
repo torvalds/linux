@@ -6337,17 +6337,10 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-			 struct tc_to_netdev *ntc)
+int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	bool sh = false;
-	u8 tc;
-
-	if (ntc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
-
-	tc = ntc->tc;
 
 	if (tc > bp->max_tc) {
 		netdev_err(dev, "too many traffic classes requested: %d Max supported is %d\n",
@@ -6388,6 +6381,15 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		return bnxt_open_nic(bp, true, false);
 
 	return 0;
+}
+
+static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
+			 struct tc_to_netdev *ntc)
+{
+	if (ntc->type != TC_SETUP_MQPRIO)
+		return -EINVAL;
+
+	return bnxt_setup_mq_tc(dev, ntc->tc);
 }
 
 #ifdef CONFIG_RFS_ACCEL
