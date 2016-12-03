@@ -1227,13 +1227,9 @@ S:	Maintained
 N:	efm32
 
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
-M:	Daniel Ribeiro <drwyrm@gmail.com>
-M:	Stefan Schmidt <stefan@openezx.org>
-M:	Harald Welte <laforge@openezx.org>
-L:	openezx-devel@lists.openezx.org (moderated for non-subscribers)
-W:	http://www.openezx.org/
+M:	Robert Jarzmik <robert.jarzmik@free.fr>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	topgit git://git.openezx.org/openezx.git
 F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
