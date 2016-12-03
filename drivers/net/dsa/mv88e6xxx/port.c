@@ -335,6 +335,116 @@ int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state)
 	return 0;
 }
 
+int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
+				   u16 mode)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~PORT_CONTROL_EGRESS_MASK;
+	reg |= mode;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+}
+
+int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
+				  enum mv88e6xxx_frame_mode mode)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~PORT_CONTROL_FRAME_MODE_DSA;
+
+	switch (mode) {
+	case MV88E6XXX_FRAME_MODE_NORMAL:
+		reg |= PORT_CONTROL_FRAME_MODE_NORMAL;
+		break;
+	case MV88E6XXX_FRAME_MODE_DSA:
+		reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+}
+
+int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
+				  enum mv88e6xxx_frame_mode mode)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~PORT_CONTROL_FRAME_MASK;
+
+	switch (mode) {
+	case MV88E6XXX_FRAME_MODE_NORMAL:
+		reg |= PORT_CONTROL_FRAME_MODE_NORMAL;
+		break;
+	case MV88E6XXX_FRAME_MODE_DSA:
+		reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		break;
+	case MV88E6XXX_FRAME_MODE_PROVIDER:
+		reg |= PORT_CONTROL_FRAME_MODE_PROVIDER;
+		break;
+	case MV88E6XXX_FRAME_MODE_ETHERTYPE:
+		reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+}
+
+int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
+				       bool on)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	if (err)
+		return err;
+
+	if (on)
+		reg |= PORT_CONTROL_FORWARD_UNKNOWN;
+	else
+		reg &= ~PORT_CONTROL_FORWARD_UNKNOWN;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+}
+
+int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
+				       bool on)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL, &reg);
+	if (err)
+		return err;
+
+	if (on)
+		reg |= PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA;
+	else
+		reg &= ~PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL, reg);
+}
+
 /* Offset 0x05: Port Control 1 */
 
 /* Offset 0x06: Port Based VLAN Map */
@@ -495,6 +605,14 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 		   mv88e6xxx_port_8021q_mode_names[mode]);
 
 	return 0;
+}
+
+/* Offset 0x0f: Port Ether type */
+
+int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
+				  u16 etype)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_ETH_TYPE, etype);
 }
 
 /* Offset 0x18: Port IEEE Priority Remapping Registers [0-3]

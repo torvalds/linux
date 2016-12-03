@@ -110,6 +110,7 @@
 #define PORT_CONTROL_EGRESS_UNTAGGED	(0x1 << 12)
 #define PORT_CONTROL_EGRESS_TAGGED	(0x2 << 12)
 #define PORT_CONTROL_EGRESS_ADD_TAG	(0x3 << 12)
+#define PORT_CONTROL_EGRESS_MASK	(0x3 << 12)
 #define PORT_CONTROL_HEADER		BIT(11)
 #define PORT_CONTROL_IGMP_MLD_SNOOP	BIT(10)
 #define PORT_CONTROL_DOUBLE_TAG		BIT(9)
@@ -117,6 +118,7 @@
 #define PORT_CONTROL_FRAME_MODE_DSA		(0x1 << 8)
 #define PORT_CONTROL_FRAME_MODE_PROVIDER	(0x2 << 8)
 #define PORT_CONTROL_FRAME_ETHER_TYPE_DSA	(0x3 << 8)
+#define PORT_CONTROL_FRAME_MASK			(0x3 << 8)
 #define PORT_CONTROL_DSA_TAG		BIT(8)
 #define PORT_CONTROL_VLAN_TUNNEL	BIT(7)
 #define PORT_CONTROL_TAG_IF_BOTH	BIT(6)
@@ -124,6 +126,10 @@
 #define PORT_CONTROL_USE_TAG		BIT(4)
 #define PORT_CONTROL_FORWARD_UNKNOWN_MC	BIT(3)
 #define PORT_CONTROL_FORWARD_UNKNOWN	BIT(2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_DA		(0x0 << 2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_MULTICAST_DA	(0x1 << 2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_UNITCAST_DA	(0x2 << 2)
+#define PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA		(0x3 << 2)
 #define PORT_CONTROL_STATE_MASK		0x03
 #define PORT_CONTROL_STATE_DISABLED	0x00
 #define PORT_CONTROL_STATE_BLOCKING	0x01
@@ -395,6 +401,13 @@
 #define GLOBAL2_MISC		0x1d
 
 #define MV88E6XXX_N_FID		4096
+
+enum mv88e6xxx_frame_mode {
+	MV88E6XXX_FRAME_MODE_NORMAL,
+	MV88E6XXX_FRAME_MODE_DSA,
+	MV88E6XXX_FRAME_MODE_PROVIDER,
+	MV88E6XXX_FRAME_MODE_ETHERTYPE,
+};
 
 /* List of supported models */
 enum mv88e6xxx_model {
@@ -813,6 +826,13 @@ struct mv88e6xxx_ops {
 	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
 
 	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
+
+	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
+				   enum mv88e6xxx_frame_mode mode);
+	int (*port_set_egress_unknowns)(struct mv88e6xxx_chip *chip, int port,
+					bool on);
+	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
+				   u16 etype);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
