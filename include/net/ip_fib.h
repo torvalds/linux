@@ -397,6 +397,11 @@ static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 
 void free_fib_info(struct fib_info *fi);
 
+static inline void fib_info_hold(struct fib_info *fi)
+{
+	atomic_inc(&fi->fib_clntref);
+}
+
 static inline void fib_info_put(struct fib_info *fi)
 {
 	if (atomic_dec_and_test(&fi->fib_clntref))
