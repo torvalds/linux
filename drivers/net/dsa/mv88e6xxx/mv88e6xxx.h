@@ -287,10 +287,21 @@
 #define GLOBAL_CORE_TAG_TYPE	0x19
 #define GLOBAL_MONITOR_CONTROL	0x1a
 #define GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT	12
+#define GLOBAL_MONITOR_CONTROL_INGRESS_MASK	(0xf << 12)
 #define GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT	8
+#define GLOBAL_MONITOR_CONTROL_EGRESS_MASK	(0xf << 8)
 #define GLOBAL_MONITOR_CONTROL_ARP_SHIFT	4
+#define GLOBAL_MONITOR_CONTROL_ARP_MASK	        (0xf << 4)
 #define GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT	0
 #define GLOBAL_MONITOR_CONTROL_ARP_DISABLED	(0xf0)
+#define GLOBAL_MONITOR_CONTROL_UPDATE			BIT(15)
+#define GLOBAL_MONITOR_CONTROL_0180C280000000XLO	(0x00 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000000XHI	(0x01 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000002XLO	(0x02 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000002XHI	(0x03 << 8)
+#define GLOBAL_MONITOR_CONTROL_INGRESS			(0x20 << 8)
+#define GLOBAL_MONITOR_CONTROL_EGRESS			(0x21 << 8)
+#define GLOBAL_MONITOR_CONTROL_CPU_DEST			(0x30 << 8)
 #define GLOBAL_CONTROL_2	0x1c
 #define GLOBAL_CONTROL_2_NO_CASCADE		0xe000
 #define GLOBAL_CONTROL_2_MULTIPLE_CASCADE	0xf000
@@ -827,6 +838,8 @@ struct mv88e6xxx_ops {
 	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
 	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 				uint64_t *data);
+	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
 };
 
 #define STATS_TYPE_PORT		BIT(0)

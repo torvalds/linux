@@ -33,6 +33,75 @@ int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 	return mv88e6xxx_wait(chip, chip->info->global1_addr, reg, mask);
 }
 
+/* Offset 0x1a: Monitor Control */
+/* Offset 0x1a: Monitor & MGMT Control on some devices */
+
+int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_MONITOR_CONTROL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~(GLOBAL_MONITOR_CONTROL_INGRESS_MASK |
+		 GLOBAL_MONITOR_CONTROL_EGRESS_MASK);
+
+	reg |= port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
+		port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+}
+
+/* Older generations also call this the ARP destination. It has been
+ * generalized in more modern devices such that more than ARP can
+ * egress it
+ */
+int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_MONITOR_CONTROL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~GLOBAL_MONITOR_CONTROL_ARP_MASK;
+	reg |= port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+}
+
+static int mv88e6390_g1_monitor_write(struct mv88e6xxx_chip *chip,
+				      u16 pointer, u8 data)
+{
+	u16 reg;
+
+	reg = GLOBAL_MONITOR_CONTROL_UPDATE | pointer | data;
+
+	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+}
+
+int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
+{
+	int err;
+
+	err = mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_INGRESS,
+					 port);
+	if (err)
+		return err;
+
+	return mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_EGRESS,
+					  port);
+}
+
+int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_CPU_DEST,
+					  port);
+}
+
 /* Offset 0x1c: Global Control 2 */
 
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)

@@ -25,5 +25,9 @@ int mv88e6320_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val);
+int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port);
+int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 
 #endif /* _MV88E6XXX_GLOBAL1_H */
