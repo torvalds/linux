@@ -84,17 +84,17 @@
 #include <trace/events/fib.h>
 #include "fib_lookup.h"
 
-static BLOCKING_NOTIFIER_HEAD(fib_chain);
+static ATOMIC_NOTIFIER_HEAD(fib_chain);
 
 int register_fib_notifier(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_register(&fib_chain, nb);
+	return atomic_notifier_chain_register(&fib_chain, nb);
 }
 EXPORT_SYMBOL(register_fib_notifier);
 
 int unregister_fib_notifier(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&fib_chain, nb);
+	return atomic_notifier_chain_unregister(&fib_chain, nb);
 }
 EXPORT_SYMBOL(unregister_fib_notifier);
 
@@ -102,7 +102,7 @@ int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info)
 {
 	info->net = net;
-	return blocking_notifier_call_chain(&fib_chain, event_type, info);
+	return atomic_notifier_call_chain(&fib_chain, event_type, info);
 }
 
 static int call_fib_entry_notifiers(struct net *net,
