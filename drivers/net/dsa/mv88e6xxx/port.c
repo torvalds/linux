@@ -496,3 +496,66 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 
 	return 0;
 }
+
+/* Offset 0x18: Port IEEE Priority Remapping Registers [0-3]
+ * Offset 0x19: Port IEEE Priority Remapping Registers [4-7]
+ */
+
+int mv88e6095_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
+{
+	int err;
+
+	/* Use a direct priority mapping for all IEEE tagged frames */
+	err = mv88e6xxx_port_write(chip, port, PORT_TAG_REGMAP_0123, 0x3210);
+	if (err)
+		return err;
+
+	return mv88e6xxx_port_write(chip, port, PORT_TAG_REGMAP_4567, 0x7654);
+}
+
+static int mv88e6xxx_port_ieeepmt_write(struct mv88e6xxx_chip *chip,
+					int port, u16 table,
+					u8 pointer, u16 data)
+{
+	u16 reg;
+
+	reg = PORT_IEEE_PRIO_MAP_TABLE_UPDATE |
+		table |
+		(pointer << PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT) |
+		data;
+
+	return mv88e6xxx_port_write(chip, port, PORT_IEEE_PRIO_MAP_TABLE, reg);
+}
+
+int mv88e6390_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
+{
+	int err, i;
+
+	for (i = 0; i <= 7; i++) {
+		err = mv88e6xxx_port_ieeepmt_write(
+			chip, port, PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP,
+			i, (i | i << 4));
+		if (err)
+			return err;
+
+		err = mv88e6xxx_port_ieeepmt_write(
+			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP,
+			i, i);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_port_ieeepmt_write(
+			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP,
+			i, i);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_port_ieeepmt_write(
+			chip, port, PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP,
+			i, i);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
