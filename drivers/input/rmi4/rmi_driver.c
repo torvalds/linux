@@ -191,15 +191,52 @@ static int rmi_process_interrupt_requests(struct rmi_device *rmi_dev)
 	return 0;
 }
 
+void rmi_set_attn_data(struct rmi_device *rmi_dev, unsigned long irq_status,
+		       void *data, size_t size)
+{
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
+	struct rmi4_attn_data attn_data;
+	void *fifo_data;
+
+	if (!drvdata->enabled)
+		return;
+
+	fifo_data = kmemdup(data, size, GFP_ATOMIC);
+	if (!fifo_data)
+		return;
+
+	attn_data.irq_status = irq_status;
+	attn_data.size = size;
+	attn_data.data = fifo_data;
+
+	kfifo_put(&drvdata->attn_fifo, attn_data);
+}
+EXPORT_SYMBOL_GPL(rmi_set_attn_data);
+
 static irqreturn_t rmi_irq_fn(int irq, void *dev_id)
 {
 	struct rmi_device *rmi_dev = dev_id;
-	int ret;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
+	struct rmi4_attn_data attn_data = {0};
+	int ret, count;
+
+	count = kfifo_get(&drvdata->attn_fifo, &attn_data);
+	if (count) {
+		*(drvdata->irq_status) = attn_data.irq_status;
+		rmi_dev->xport->attn_data = attn_data.data;
+		rmi_dev->xport->attn_size = attn_data.size;
+	}
 
 	ret = rmi_process_interrupt_requests(rmi_dev);
 	if (ret)
 		rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev,
 			"Failed to process interrupt request: %d\n", ret);
+
+	if (count)
+		kfree(attn_data.data);
+
+	if (!kfifo_is_empty(&drvdata->attn_fifo))
+		return rmi_irq_fn(irq, dev_id);
 
 	return IRQ_HANDLED;
 }
@@ -880,8 +917,9 @@ void rmi_disable_irq(struct rmi_device *rmi_dev, bool enable_wake)
 {
 	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
 	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
+	struct rmi4_attn_data attn_data = {0};
 	int irq = pdata->irq;
-	int retval;
+	int retval, count;
 
 	mutex_lock(&data->enabled_mutex);
 
@@ -896,6 +934,13 @@ void rmi_disable_irq(struct rmi_device *rmi_dev, bool enable_wake)
 			dev_warn(&rmi_dev->dev,
 				 "Failed to enable irq for wake: %d\n",
 				 retval);
+	}
+
+	/* make sure the fifo is clean */
+	while (!kfifo_is_empty(&data->attn_fifo)) {
+		count = kfifo_get(&data->attn_fifo, &attn_data);
+		if (count)
+			kfree(attn_data.data);
 	}
 
 out:

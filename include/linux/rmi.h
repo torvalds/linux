@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/kfifo.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -331,6 +332,12 @@ struct rmi_device {
 
 };
 
+struct rmi4_attn_data {
+	unsigned long irq_status;
+	size_t size;
+	void *data;
+};
+
 struct rmi_driver_data {
 	struct list_head function_list;
 
@@ -357,10 +364,14 @@ struct rmi_driver_data {
 
 	bool enabled;
 	struct mutex enabled_mutex;
+	DECLARE_KFIFO(attn_fifo, struct rmi4_attn_data, 16);
 };
 
 int rmi_register_transport_device(struct rmi_transport_dev *xport);
 void rmi_unregister_transport_device(struct rmi_transport_dev *xport);
+
+void rmi_set_attn_data(struct rmi_device *rmi_dev, unsigned long irq_status,
+		       void *data, size_t size);
 
 int rmi_driver_suspend(struct rmi_device *rmi_dev, bool enable_wake);
 int rmi_driver_resume(struct rmi_device *rmi_dev, bool clear_wake);
