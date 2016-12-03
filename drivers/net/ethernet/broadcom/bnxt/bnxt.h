@@ -11,10 +11,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.5.0"
+#define DRV_MODULE_VERSION	"1.6.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	5
+#define DRV_VER_MIN	6
 #define DRV_VER_UPD	0
 
 struct tx_bd {
@@ -1010,6 +1010,7 @@ struct bnxt {
 	u32			rss_hash_cfg;
 
 	u8			max_tc;
+	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
 
 	unsigned int		current_interval;

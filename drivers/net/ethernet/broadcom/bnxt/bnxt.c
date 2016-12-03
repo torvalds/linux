@@ -186,11 +186,11 @@ static const u16 bnxt_vf_req_snif[] = {
 };
 
 static const u16 bnxt_async_events_arr[] = {
-	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
-	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
-	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
-	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
-	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
+	ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
+	ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE,
+	ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
 };
 
 static bool bnxt_vf_pciid(enum board_idx idx)
@@ -1476,8 +1476,8 @@ next_rx_no_prod:
 }
 
 #define BNXT_GET_EVENT_PORT(data)	\
-	((data) &				\
-	 HWRM_ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
+	((data) &			\
+	 ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
 
 static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
@@ -1486,7 +1486,7 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 	/* TODO CHIMP_FW: Define event id's for link change, error etc */
 	switch (event_id) {
-	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
+	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
 		u32 data1 = le32_to_cpu(cmpl->event_data1);
 		struct bnxt_link_info *link_info = &bp->link_info;
 
@@ -1502,13 +1502,13 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_LINK_SPEED_CHNG_SP_EVENT, &bp->sp_event);
 		/* fall thru */
 	}
-	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
+	case ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
-	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD:
+	case ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD:
 		set_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event);
 		break;
-	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED: {
+	case ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED: {
 		u32 data1 = le32_to_cpu(cmpl->event_data1);
 		u16 port_id = BNXT_GET_EVENT_PORT(data1);
 
@@ -1521,7 +1521,7 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event);
 		break;
 	}
-	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE:
+	case ASYNC_EVENT_CMPL_EVENT_ID_VF_CFG_CHANGE:
 		if (BNXT_PF(bp))
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
@@ -4261,11 +4261,15 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 		goto qportcfg_exit;
 	}
 	bp->max_tc = resp->max_configurable_queues;
+	bp->max_lltc = resp->max_configurable_lossless_queues;
 	if (bp->max_tc > BNXT_MAX_QUEUE)
 		bp->max_tc = BNXT_MAX_QUEUE;
 
 	if (resp->queue_cfg_info & QUEUE_QPORTCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG)
 		bp->max_tc = 1;
+
+	if (bp->max_lltc > bp->max_tc)
+		bp->max_lltc = bp->max_tc;
 
 	qptr = &resp->queue_id0;
 	for (i = 0; i < bp->max_tc; i++) {
