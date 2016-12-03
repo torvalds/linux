@@ -1650,8 +1650,12 @@ struct obd_ioobj {
 	__u32		ioo_bufcnt;	/* number of niobufs for this object */
 };
 
+/*
+ * NOTE: IOOBJ_MAX_BRW_BITS defines the _offset_ of the max_brw field in
+ * ioo_max_brw, NOT the maximum number of bits in PTLRPC_BULK_OPS_BITS.
+ * That said, ioo_max_brw is a 32-bit field so the limit is also 16 bits.
+ */
 #define IOOBJ_MAX_BRW_BITS	16
-#define IOOBJ_TYPE_MASK		((1U << IOOBJ_MAX_BRW_BITS) - 1)
 #define ioobj_max_brw_get(ioo)	(((ioo)->ioo_max_brw >> IOOBJ_MAX_BRW_BITS) + 1)
 #define ioobj_max_brw_set(ioo, num)					\
 do { (ioo)->ioo_max_brw = ((num) - 1) << IOOBJ_MAX_BRW_BITS; } while (0)

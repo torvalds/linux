@@ -69,13 +69,17 @@
 #define PTLRPC_MD_OPTIONS  0
 
 /**
- * Max # of bulk operations in one request.
+ * log2 max # of bulk operations in one request: 2=4MB/RPC, 5=32MB/RPC, ...
  * In order for the client and server to properly negotiate the maximum
  * possible transfer size, PTLRPC_BULK_OPS_COUNT must be a power-of-two
  * value.  The client is free to limit the actual RPC size for any bulk
  * transfer via cl_max_pages_per_rpc to some non-power-of-two value.
+ * NOTE: This is limited to 16 (=64GB RPCs) by IOOBJ_MAX_BRW_BITS.
  */
-#define PTLRPC_BULK_OPS_BITS	2
+#define PTLRPC_BULK_OPS_BITS	4
+#if PTLRPC_BULK_OPS_BITS > 16
+#error "More than 65536 BRW RPCs not allowed by IOOBJ_MAX_BRW_BITS."
+#endif
 #define PTLRPC_BULK_OPS_COUNT	(1U << PTLRPC_BULK_OPS_BITS)
 /**
  * PTLRPC_BULK_OPS_MASK is for the convenience of the client only, and

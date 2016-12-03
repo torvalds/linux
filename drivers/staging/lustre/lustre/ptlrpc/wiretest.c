@@ -1576,6 +1576,8 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct obd_ioobj, ioo_bufcnt));
 	LASSERTF((int)sizeof(((struct obd_ioobj *)0)->ioo_bufcnt) == 4, "found %lld\n",
 		 (long long)(int)sizeof(((struct obd_ioobj *)0)->ioo_bufcnt));
+	LASSERTF(IOOBJ_MAX_BRW_BITS == 16, "found %lld\n",
+		 (long long)IOOBJ_MAX_BRW_BITS);
 
 	/* Checks for union lquota_id */
 	LASSERTF((int)sizeof(union lquota_id) == 16, "found %lld\n",
