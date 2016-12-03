@@ -12,7 +12,7 @@
 static void blk_stat_flush_batch(struct blk_rq_stat *stat)
 {
 	const s32 nr_batch = READ_ONCE(stat->nr_batch);
-	const s32 nr_samples = READ_ONCE(stat->nr_batch);
+	const s32 nr_samples = READ_ONCE(stat->nr_samples);
 
 	if (!nr_batch)
 		return;
