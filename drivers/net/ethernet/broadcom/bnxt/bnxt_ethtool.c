@@ -107,15 +107,8 @@ static int bnxt_set_coalesce(struct net_device *dev,
 
 #define BNXT_NUM_STATS	21
 
-#define BNXT_RX_STATS_OFFSET(counter)	\
-	(offsetof(struct rx_port_stats, counter) / 8)
-
 #define BNXT_RX_STATS_ENTRY(counter)	\
 	{ BNXT_RX_STATS_OFFSET(counter), __stringify(counter) }
-
-#define BNXT_TX_STATS_OFFSET(counter)			\
-	((offsetof(struct tx_port_stats, counter) +	\
-	  sizeof(struct rx_port_stats) + 512) / 8)
 
 #define BNXT_TX_STATS_ENTRY(counter)	\
 	{ BNXT_TX_STATS_OFFSET(counter), __stringify(counter) }
@@ -150,6 +143,14 @@ static const struct {
 	BNXT_RX_STATS_ENTRY(rx_tagged_frames),
 	BNXT_RX_STATS_ENTRY(rx_double_tagged_frames),
 	BNXT_RX_STATS_ENTRY(rx_good_frames),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri0),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri1),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri2),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri3),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri4),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri5),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri6),
+	BNXT_RX_STATS_ENTRY(rx_pfc_ena_frames_pri7),
 	BNXT_RX_STATS_ENTRY(rx_undrsz_frames),
 	BNXT_RX_STATS_ENTRY(rx_eee_lpi_events),
 	BNXT_RX_STATS_ENTRY(rx_eee_lpi_duration),
@@ -179,6 +180,14 @@ static const struct {
 	BNXT_TX_STATS_ENTRY(tx_fcs_err_frames),
 	BNXT_TX_STATS_ENTRY(tx_err),
 	BNXT_TX_STATS_ENTRY(tx_fifo_underruns),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri0),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri1),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri2),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri3),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri4),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri5),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri6),
+	BNXT_TX_STATS_ENTRY(tx_pfc_ena_frames_pri7),
 	BNXT_TX_STATS_ENTRY(tx_eee_lpi_events),
 	BNXT_TX_STATS_ENTRY(tx_eee_lpi_duration),
 	BNXT_TX_STATS_ENTRY(tx_total_collisions),

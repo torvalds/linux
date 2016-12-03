@@ -347,8 +347,10 @@ static int bnxt_dcbnl_ieee_setets(struct net_device *dev, struct ieee_ets *ets)
 static int bnxt_dcbnl_ieee_getpfc(struct net_device *dev, struct ieee_pfc *pfc)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	__le64 *stats = (__le64 *)bp->hw_rx_port_stats;
 	struct ieee_pfc *my_pfc = bp->ieee_pfc;
-	int rc;
+	long rx_off, tx_off;
+	int i, rc;
 
 	pfc->pfc_cap = bp->max_lltc;
 
@@ -368,6 +370,16 @@ static int bnxt_dcbnl_ieee_getpfc(struct net_device *dev, struct ieee_pfc *pfc)
 	pfc->pfc_en = my_pfc->pfc_en;
 	pfc->mbc = my_pfc->mbc;
 	pfc->delay = my_pfc->delay;
+
+	if (!stats)
+		return 0;
+
+	rx_off = BNXT_RX_STATS_OFFSET(rx_pfc_ena_frames_pri0);
+	tx_off = BNXT_TX_STATS_OFFSET(tx_pfc_ena_frames_pri0);
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++, rx_off++, tx_off++) {
+		pfc->requests[i] = le64_to_cpu(*(stats + tx_off));
+		pfc->indications[i] = le64_to_cpu(*(stats + rx_off));
+	}
 
 	return 0;
 }
