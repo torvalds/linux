@@ -221,6 +221,9 @@ struct ethoc {
 	struct mii_bus *mdio;
 	struct clk *clk;
 	s8 phy_id;
+
+	int old_link;
+	int old_duplex;
 };
 
 /**
@@ -667,6 +670,32 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 
 static void ethoc_mdio_poll(struct net_device *dev)
 {
+	struct ethoc *priv = netdev_priv(dev);
+	struct phy_device *phydev = dev->phydev;
+	bool changed = false;
+	u32 mode;
+
+	if (priv->old_link != phydev->link) {
+		changed = true;
+		priv->old_link = phydev->link;
+	}
+
+	if (priv->old_duplex != phydev->duplex) {
+		changed = true;
+		priv->old_duplex = phydev->duplex;
+	}
+
+	if (!changed)
+		return;
+
+	mode = ethoc_read(priv, MODER);
+	if (phydev->duplex == DUPLEX_FULL)
+		mode |= MODER_FULLD;
+	else
+		mode &= ~MODER_FULLD;
+	ethoc_write(priv, MODER, mode);
+
+	phy_print_status(phydev);
 }
 
 static int ethoc_mdio_probe(struct net_device *dev)
@@ -684,6 +713,9 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		dev_err(&dev->dev, "no PHY found\n");
 		return -ENXIO;
 	}
+
+	priv->old_duplex = -1;
+	priv->old_link = -1;
 
 	err = phy_connect_direct(dev, phy, ethoc_mdio_poll,
 				 PHY_INTERFACE_MODE_GMII);
@@ -720,6 +752,9 @@ static int ethoc_open(struct net_device *dev)
 		dev_dbg(&dev->dev, " starting queue\n");
 		netif_start_queue(dev);
 	}
+
+	priv->old_link = -1;
+	priv->old_duplex = -1;
 
 	phy_start(dev->phydev);
 	napi_enable(&priv->napi);
