@@ -2748,7 +2748,7 @@ lwt_xmit_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-static bool __is_valid_access(int off, int size, enum bpf_access_type type)
+static bool __is_valid_access(int off, int size)
 {
 	if (off < 0 || off >= sizeof(struct __sk_buff))
 		return false;
@@ -2782,7 +2782,7 @@ static bool sk_filter_is_valid_access(int off, int size,
 		}
 	}
 
-	return __is_valid_access(off, size, type);
+	return __is_valid_access(off, size);
 }
 
 static bool lwt_is_valid_access(int off, int size,
@@ -2815,7 +2815,7 @@ static bool lwt_is_valid_access(int off, int size,
 		break;
 	}
 
-	return __is_valid_access(off, size, type);
+	return __is_valid_access(off, size);
 }
 
 static bool sock_filter_is_valid_access(int off, int size,
@@ -2833,11 +2833,9 @@ static bool sock_filter_is_valid_access(int off, int size,
 
 	if (off < 0 || off + size > sizeof(struct bpf_sock))
 		return false;
-
 	/* The verifier guarantees that size > 0. */
 	if (off % size != 0)
 		return false;
-
 	if (size != sizeof(__u32))
 		return false;
 
@@ -2910,11 +2908,10 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 		break;
 	}
 
-	return __is_valid_access(off, size, type);
+	return __is_valid_access(off, size);
 }
 
-static bool __is_valid_xdp_access(int off, int size,
-				  enum bpf_access_type type)
+static bool __is_valid_xdp_access(int off, int size)
 {
 	if (off < 0 || off >= sizeof(struct xdp_md))
 		return false;
@@ -2942,7 +2939,7 @@ static bool xdp_is_valid_access(int off, int size,
 		break;
 	}
 
-	return __is_valid_xdp_access(off, size, type);
+	return __is_valid_xdp_access(off, size);
 }
 
 void bpf_warn_invalid_xdp_action(u32 act)
