@@ -10901,7 +10901,6 @@ F:	drivers/net/ethernet/emulex/benet/
 EMULEX ONECONNECT ROCE DRIVER
 M:	Selvin Xavier <selvin.xavier@avagotech.com>
 M:	Devesh Sharma <devesh.sharma@avagotech.com>
-M:	Mitesh Ahuja <mitesh.ahuja@avagotech.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
