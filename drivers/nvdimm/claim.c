@@ -242,28 +242,25 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align)))
 			return -EIO;
 		return memcpy_from_pmem(buf, nsio->addr + offset, size);
-	} else {
-
-		if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {
-			if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)) {
-				long cleared;
-
-				cleared = nvdimm_clear_poison(&ndns->dev,
-							      offset, size);
-				if (cleared != size) {
-					size = cleared;
-					rc = -EIO;
-				}
-
-				badblocks_clear(&nsio->bb, sector,
-						cleared >> 9);
-			} else
-				rc = -EIO;
-		}
-
-		memcpy_to_pmem(nsio->addr + offset, buf, size);
-		nvdimm_flush(to_nd_region(ndns->dev.parent));
 	}
+
+	if (unlikely(is_bad_pmem(&nsio->bb, sector, sz_align))) {
+		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)) {
+			long cleared;
+
+			cleared = nvdimm_clear_poison(&ndns->dev, offset, size);
+			if (cleared != size) {
+				size = cleared;
+				rc = -EIO;
+			}
+
+			badblocks_clear(&nsio->bb, sector, cleared >> 9);
+		} else
+			rc = -EIO;
+	}
+
+	memcpy_to_pmem(nsio->addr + offset, buf, size);
+	nvdimm_flush(to_nd_region(ndns->dev.parent));
 
 	return rc;
 }
