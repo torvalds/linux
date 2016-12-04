@@ -356,3 +356,19 @@ struct platform_device ls1x_rtc_pdev = {
 	.name		= "ls1x-rtc",
 	.id		= -1,
 };
+
+/* Watchdog */
+static struct resource ls1x_wdt_resources[] = {
+	{
+		.start	= LS1X_WDT_BASE,
+		.end	= LS1X_WDT_BASE + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device ls1x_wdt_pdev = {
+	.name		= "ls1x-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ls1x_wdt_resources),
+	.resource	= ls1x_wdt_resources,
+};
