@@ -662,8 +662,30 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
+static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
+{
+	const struct bpf_prog *prog = filp->private_data;
+	char prog_digest[sizeof(prog->digest) * 2 + 1] = { };
+
+	bin2hex(prog_digest, prog->digest, sizeof(prog->digest));
+	seq_printf(m,
+		   "prog_type:\t%u\n"
+		   "prog_jited:\t%u\n"
+		   "prog_digest:\t%s\n"
+		   "memlock:\t%llu\n",
+		   prog->type,
+		   prog->jited,
+		   prog_digest,
+		   prog->pages * 1ULL << PAGE_SHIFT);
+}
+#endif
+
 static const struct file_operations bpf_prog_fops = {
-        .release = bpf_prog_release,
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo	= bpf_prog_show_fdinfo,
+#endif
+	.release	= bpf_prog_release,
 };
 
 int bpf_prog_new_fd(struct bpf_prog *prog)
