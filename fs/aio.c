@@ -277,10 +277,10 @@ static void put_aio_ring_file(struct kioctx *ctx)
 	struct address_space *i_mapping;
 
 	if (aio_ring_file) {
-		truncate_setsize(aio_ring_file->f_inode, 0);
+		truncate_setsize(file_inode(aio_ring_file), 0);
 
 		/* Prevent further access to the kioctx from migratepages */
-		i_mapping = aio_ring_file->f_inode->i_mapping;
+		i_mapping = aio_ring_file->f_mapping;
 		spin_lock(&i_mapping->private_lock);
 		i_mapping->private_data = NULL;
 		ctx->aio_ring_file = NULL;
@@ -483,7 +483,7 @@ static int aio_setup_ring(struct kioctx *ctx)
 
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
-		page = find_or_create_page(file->f_inode->i_mapping,
+		page = find_or_create_page(file->f_mapping,
 					   i, GFP_HIGHUSER | __GFP_ZERO);
 		if (!page)
 			break;

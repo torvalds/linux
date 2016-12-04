@@ -1250,7 +1250,7 @@ static int apb_log_poll(void *data)
 static ssize_t apb_log_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 	ssize_t ret;
 	size_t copied;
 	char *tmp_buf;
@@ -1304,7 +1304,7 @@ static void usb_log_disable(struct es2_ap_dev *es2)
 static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 	int enable = !IS_ERR_OR_NULL(es2->apb_log_task);
 	char tmp_buf[3];
 
@@ -1317,7 +1317,7 @@ static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,
 {
 	int enable;
 	ssize_t retval;
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 
 	retval = kstrtoint_from_user(buf, count, 10, &enable);
 	if (retval)

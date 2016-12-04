@@ -225,7 +225,7 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
 {
 	struct task_smack *tsp = cred->security;
 	struct smack_known *sskp = tsp->smk_task;
-	struct inode *inode = file->f_inode;
+	struct inode *inode = file_inode(file);
 	struct inode_smack *isp = inode->i_security;
 	char acc[SMK_NUM_ACCESS_TYPE + 1];
 

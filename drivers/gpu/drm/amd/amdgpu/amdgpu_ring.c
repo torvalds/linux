@@ -283,7 +283,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_ring *ring = (struct amdgpu_ring*)f->f_inode->i_private;
+	struct amdgpu_ring *ring = file_inode(f)->i_private;
 	int r, i;
 	uint32_t value, result, early[3];
 
