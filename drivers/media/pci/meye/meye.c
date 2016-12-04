@@ -1659,6 +1659,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto outenabledev;
 	}
 
+	ret = -EIO;
 	mchip_adr = pci_resource_start(meye.mchip_dev,0);
 	if (!mchip_adr) {
 		v4l2_err(v4l2_dev, "meye: mchip has no device base address\n");
