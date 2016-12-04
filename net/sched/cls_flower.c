@@ -236,8 +236,11 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	int err;
 
 	if (!tc_can_offload(dev, tp)) {
-		if (tcf_exts_get_dev(dev, &f->exts, &f->hw_dev))
+		if (tcf_exts_get_dev(dev, &f->exts, &f->hw_dev) ||
+		    (f->hw_dev && !tc_can_offload(f->hw_dev, tp))) {
+			f->hw_dev = dev;
 			return tc_skip_sw(f->flags) ? -EINVAL : 0;
+		}
 		dev = f->hw_dev;
 		tc->egress_dev = true;
 	} else {
