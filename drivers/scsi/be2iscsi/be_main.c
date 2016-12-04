@@ -3049,8 +3049,10 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 		eq_vaddress = pci_alloc_consistent(phba->pcidev,
 						   num_eq_pages * PAGE_SIZE,
 						   &paddr);
-		if (!eq_vaddress)
+		if (!eq_vaddress) {
+			ret = -ENOMEM;
 			goto create_eq_error;
+		}
 
 		mem->va = eq_vaddress;
 		ret = be_fill_queue(eq, phba->params.num_eq_entries,
