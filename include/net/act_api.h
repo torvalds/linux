@@ -36,7 +36,7 @@ struct tc_action {
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_packed	tcfa_bstats;
 	struct gnet_stats_queue		tcfa_qstats;
-	struct gnet_stats_rate_est64	tcfa_rate_est;
+	struct net_rate_estimator __rcu *tcfa_rate_est;
 	spinlock_t			tcfa_lock;
 	struct rcu_head			tcfa_rcu;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
