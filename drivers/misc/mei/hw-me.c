@@ -285,6 +285,18 @@ static void mei_me_intr_disable(struct mei_device *dev)
 }
 
 /**
+ * mei_me_synchronize_irq - wait for pending IRQ handlers
+ *
+ * @dev: the device structure
+ */
+static void mei_me_synchronize_irq(struct mei_device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	synchronize_irq(pdev->irq);
+}
+
+/**
  * mei_me_hw_reset_release - release device from the reset
  *
  * @dev: the device structure
@@ -1238,6 +1250,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.intr_clear = mei_me_intr_clear,
 	.intr_enable = mei_me_intr_enable,
 	.intr_disable = mei_me_intr_disable,
+	.synchronize_irq = mei_me_synchronize_irq,
 
 	.hbuf_free_slots = mei_me_hbuf_empty_slots,
 	.hbuf_is_ready = mei_me_hbuf_is_empty,

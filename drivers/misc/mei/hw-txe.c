@@ -19,7 +19,7 @@
 #include <linux/ktime.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include <linux/irqreturn.h>
+#include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 
 #include <linux/mei.h>
@@ -438,6 +438,18 @@ static void mei_txe_intr_enable(struct mei_device *dev)
 
 	mei_txe_br_reg_write(hw, HHIER_REG, IPC_HHIER_MSK);
 	mei_txe_br_reg_write(hw, HIER_REG, HIER_INT_EN_MSK);
+}
+
+/**
+ * mei_txe_synchronize_irq - wait for pending IRQ handlers
+ *
+ * @dev: the device structure
+ */
+static void mei_txe_synchronize_irq(struct mei_device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	synchronize_irq(pdev->irq);
 }
 
 /**
@@ -1168,6 +1180,7 @@ static const struct mei_hw_ops mei_txe_hw_ops = {
 	.intr_clear = mei_txe_intr_clear,
 	.intr_enable = mei_txe_intr_enable,
 	.intr_disable = mei_txe_intr_disable,
+	.synchronize_irq = mei_txe_synchronize_irq,
 
 	.hbuf_free_slots = mei_txe_hbuf_empty_slots,
 	.hbuf_is_ready = mei_txe_is_input_ready,

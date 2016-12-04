@@ -267,6 +267,7 @@ struct mei_cl {
  * @intr_clear       : clear pending interrupts
  * @intr_enable      : enable interrupts
  * @intr_disable     : disable interrupts
+ * @synchronize_irq  : synchronize irqs
  *
  * @hbuf_free_slots  : query for write buffer empty slots
  * @hbuf_is_ready    : query if write buffer is empty
@@ -288,7 +289,6 @@ struct mei_hw_ops {
 	int (*hw_start)(struct mei_device *dev);
 	void (*hw_config)(struct mei_device *dev);
 
-
 	int (*fw_status)(struct mei_device *dev, struct mei_fw_status *fw_sts);
 	enum mei_pg_state (*pg_state)(struct mei_device *dev);
 	bool (*pg_in_transition)(struct mei_device *dev);
@@ -297,6 +297,7 @@ struct mei_hw_ops {
 	void (*intr_clear)(struct mei_device *dev);
 	void (*intr_enable)(struct mei_device *dev);
 	void (*intr_disable)(struct mei_device *dev);
+	void (*synchronize_irq)(struct mei_device *dev);
 
 	int (*hbuf_free_slots)(struct mei_device *dev);
 	bool (*hbuf_is_ready)(struct mei_device *dev);
@@ -638,6 +639,11 @@ static inline void mei_enable_interrupts(struct mei_device *dev)
 static inline void mei_disable_interrupts(struct mei_device *dev)
 {
 	dev->ops->intr_disable(dev);
+}
+
+static inline void mei_synchronize_irq(struct mei_device *dev)
+{
+	dev->ops->synchronize_irq(dev);
 }
 
 static inline bool mei_host_is_ready(struct mei_device *dev)
