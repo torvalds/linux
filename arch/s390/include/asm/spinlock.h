@@ -48,7 +48,7 @@ static inline void arch_spin_relax(arch_spinlock_t *lock)
 
 static inline u32 arch_spin_lockval(int cpu)
 {
-	return ~cpu;
+	return cpu + 1;
 }
 
 static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
