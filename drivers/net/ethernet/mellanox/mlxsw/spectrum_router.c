@@ -593,6 +593,14 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp);
 
 static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	/* At this stage we're guaranteed not to have new incoming
+	 * FIB notifications and the work queue is free from FIBs
+	 * sitting on top of mlxsw netdevs. However, we can still
+	 * have other FIBs queued. Flush the queue before flushing
+	 * the device's tables. No need for locks, as we're the only
+	 * writer.
+	 */
+	mlxsw_core_flush_owq();
 	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	kfree(mlxsw_sp->router.vrs);
 }
@@ -1948,31 +1956,87 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->rifs);
 }
 
-static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
-				     unsigned long event, void *ptr)
+struct mlxsw_sp_fib_event_work {
+	struct delayed_work dw;
+	struct fib_entry_notifier_info fen_info;
+	struct mlxsw_sp *mlxsw_sp;
+	unsigned long event;
+};
+
+static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 {
-	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
-	struct fib_entry_notifier_info *fen_info = ptr;
+	struct mlxsw_sp_fib_event_work *fib_work =
+		container_of(work, struct mlxsw_sp_fib_event_work, dw.work);
+	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
 	int err;
 
-	if (!net_eq(fen_info->info.net, &init_net))
-		return NOTIFY_DONE;
-
-	switch (event) {
+	/* Protect internal structures from changes */
+	rtnl_lock();
+	switch (fib_work->event) {
 	case FIB_EVENT_ENTRY_ADD:
-		err = mlxsw_sp_router_fib4_add(mlxsw_sp, fen_info);
+		err = mlxsw_sp_router_fib4_add(mlxsw_sp, &fib_work->fen_info);
 		if (err)
 			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		fib_info_put(fib_work->fen_info.fi);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
-		mlxsw_sp_router_fib4_del(mlxsw_sp, fen_info);
+		mlxsw_sp_router_fib4_del(mlxsw_sp, &fib_work->fen_info);
+		fib_info_put(fib_work->fen_info.fi);
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
 		mlxsw_sp_router_fib4_abort(mlxsw_sp);
 		break;
 	}
+	rtnl_unlock();
+	kfree(fib_work);
+}
+
+/* Called with rcu_read_lock() */
+static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+	struct mlxsw_sp_fib_event_work *fib_work;
+	struct fib_notifier_info *info = ptr;
+
+	if (!net_eq(info->net, &init_net))
+		return NOTIFY_DONE;
+
+	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
+	if (WARN_ON(!fib_work))
+		return NOTIFY_BAD;
+
+	INIT_DELAYED_WORK(&fib_work->dw, mlxsw_sp_router_fib_event_work);
+	fib_work->mlxsw_sp = mlxsw_sp;
+	fib_work->event = event;
+
+	switch (event) {
+	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_DEL:
+		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
+		/* Take referece on fib_info to prevent it from being
+		 * freed while work is queued. Release it afterwards.
+		 */
+		fib_info_hold(fib_work->fen_info.fi);
+		break;
+	}
+
+	mlxsw_core_schedule_odw(&fib_work->dw, 0);
+
 	return NOTIFY_DONE;
+}
+
+static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
+{
+	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+
+	/* Flush pending FIB notifications and then flush the device's
+	 * table before requesting another dump. The FIB notification
+	 * block is unregistered, so no need to take RTNL.
+	 */
+	mlxsw_core_flush_owq();
+	mlxsw_sp_router_fib_flush(mlxsw_sp);
 }
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
@@ -1995,9 +2059,15 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 		goto err_neigh_init;
 
 	mlxsw_sp->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
-	register_fib_notifier(&mlxsw_sp->fib_nb);
+	err = register_fib_notifier(&mlxsw_sp->fib_nb,
+				    mlxsw_sp_router_fib_dump_flush);
+	if (err)
+		goto err_register_fib_notifier;
+
 	return 0;
 
+err_register_fib_notifier:
+	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 err_vrs_init:
