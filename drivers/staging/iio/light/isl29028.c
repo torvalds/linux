@@ -124,6 +124,9 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 {
 	int ret = 0;
 
+	if (chip->als_ir_mode == mode)
+		return 0;
+
 	switch (mode) {
 	case ISL29028_MODE_ALS:
 		ret = regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
@@ -160,6 +163,9 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 
 	/* Need to wait for conversion time if ALS/IR mode enabled */
 	mdelay(ISL29028_CONV_TIME_MS);
+
+	chip->als_ir_mode = mode;
+
 	return 0;
 }
 
@@ -223,14 +229,10 @@ static int isl29028_als_get(struct isl29028_chip *chip, int *als_data)
 	int ret;
 	int als_ir_data;
 
-	if (chip->als_ir_mode != ISL29028_MODE_ALS) {
-		ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_ALS);
-		if (ret < 0) {
-			dev_err(dev,
-				"Error in enabling ALS mode err %d\n", ret);
-			return ret;
-		}
-		chip->als_ir_mode = ISL29028_MODE_ALS;
+	ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_ALS);
+	if (ret < 0) {
+		dev_err(dev, "Error in enabling ALS mode err %d\n", ret);
+		return ret;
 	}
 
 	ret = isl29028_read_als_ir(chip, &als_ir_data);
@@ -256,14 +258,10 @@ static int isl29028_ir_get(struct isl29028_chip *chip, int *ir_data)
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret;
 
-	if (chip->als_ir_mode != ISL29028_MODE_IR) {
-		ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_IR);
-		if (ret < 0) {
-			dev_err(dev,
-				"Error in enabling IR mode err %d\n", ret);
-			return ret;
-		}
-		chip->als_ir_mode = ISL29028_MODE_IR;
+	ret = isl29028_set_als_ir_mode(chip, ISL29028_MODE_IR);
+	if (ret < 0) {
+		dev_err(dev, "Error in enabling IR mode err %d\n", ret);
+		return ret;
 	}
 	return isl29028_read_als_ir(chip, ir_data);
 }
