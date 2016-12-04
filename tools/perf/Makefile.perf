@@ -177,7 +177,7 @@ SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
 # non-config cases
 config := 1
 
-NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc
+NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc install-man install-html install-info install-pdf doc man html info pdf
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
