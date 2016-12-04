@@ -941,6 +941,22 @@
 				status = "disabled";
 			};
 
+			ssc0: ssc@f8004000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xf8004000 0x4000>;
+				interrupts = <43 IRQ_TYPE_LEVEL_HIGH 4>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					AT91_XDMAC_DT_PERID(21))>,
+				       <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					AT91_XDMAC_DT_PERID(22))>;
+				dma-names = "tx", "rx";
+				clocks = <&ssc0_clk>;
+				clock-names = "pclk";
+				status = "disabled";
+			};
+
 			macb0: ethernet@f8008000 {
 				compatible = "atmel,sama5d2-gem";
 				reg = <0xf8008000 0x1000>;
