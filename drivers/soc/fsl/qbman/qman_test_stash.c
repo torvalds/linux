@@ -175,7 +175,7 @@ static DEFINE_PER_CPU(struct hp_cpu, hp_cpus);
 
 /* links together the hp_cpu structs, in first-come first-serve order. */
 static LIST_HEAD(hp_cpu_list);
-static spinlock_t hp_lock = __SPIN_LOCK_UNLOCKED(hp_lock);
+static DEFINE_SPINLOCK(hp_lock);
 
 static unsigned int hp_cpu_list_length;
 
