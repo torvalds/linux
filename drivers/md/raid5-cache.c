@@ -2542,14 +2542,12 @@ create:
 	if (log->max_free_space > RECLAIM_MAX_FREE_SPACE)
 		log->max_free_space = RECLAIM_MAX_FREE_SPACE;
 	log->last_checkpoint = cp;
-	log->next_checkpoint = cp;
-	mutex_lock(&log->io_mutex);
-	r5c_update_log_state(log);
-	mutex_unlock(&log->io_mutex);
 
 	__free_page(page);
 
-	return r5l_recovery_log(log);
+	ret = r5l_recovery_log(log);
+	r5c_update_log_state(log);
+	return ret;
 ioerr:
 	__free_page(page);
 	return ret;
