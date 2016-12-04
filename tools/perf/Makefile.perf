@@ -331,11 +331,6 @@ endif
 ifndef NO_GTK2
   ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
   GTK_IN := $(OUTPUT)gtk-in.o
-
-install-gtk: $(OUTPUT)libperf-gtk.so
-	$(call QUIET_INSTALL, 'GTK UI') \
-		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
-		$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
 endif
 
 ifdef ASCIIDOC8
@@ -712,7 +707,14 @@ check: $(OUTPUT)common-cmds.h
 
 ### Installation rules
 
+ifndef NO_GTK2
+install-gtk: $(OUTPUT)libperf-gtk.so
+	$(call QUIET_INSTALL, 'GTK UI') \
+		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
+		$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
+else
 install-gtk:
+endif
 
 install-tools: all install-gtk
 	$(call QUIET_INSTALL, binaries) \
