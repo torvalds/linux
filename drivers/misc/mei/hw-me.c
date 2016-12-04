@@ -246,6 +246,36 @@ static inline enum mei_pg_state mei_me_pg_state(struct mei_device *dev)
 	return hw->pg_state;
 }
 
+static inline u32 me_intr_src(u32 hcsr)
+{
+	return hcsr & H_CSR_IS_MASK;
+}
+
+/**
+ * me_intr_disable - disables mei device interrupts
+ *      using supplied hcsr register value.
+ *
+ * @dev: the device structure
+ * @hcsr: supplied hcsr register value
+ */
+static inline void me_intr_disable(struct mei_device *dev, u32 hcsr)
+{
+	hcsr &= ~H_CSR_IE_MASK;
+	mei_hcsr_set(dev, hcsr);
+}
+
+/**
+ * mei_me_intr_clear - clear and stop interrupts
+ *
+ * @dev: the device structure
+ * @hcsr: supplied hcsr register value
+ */
+static inline void me_intr_clear(struct mei_device *dev, u32 hcsr)
+{
+	if (me_intr_src(hcsr))
+		mei_hcsr_write(dev, hcsr);
+}
+
 /**
  * mei_me_intr_clear - clear and stop interrupts
  *
@@ -255,8 +285,7 @@ static void mei_me_intr_clear(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 
-	if (hcsr & H_CSR_IS_MASK)
-		mei_hcsr_write(dev, hcsr);
+	me_intr_clear(dev, hcsr);
 }
 /**
  * mei_me_intr_enable - enables mei device interrupts
@@ -280,8 +309,7 @@ static void mei_me_intr_disable(struct mei_device *dev)
 {
 	u32 hcsr = mei_hcsr_read(dev);
 
-	hcsr  &= ~H_CSR_IE_MASK;
-	mei_hcsr_set(dev, hcsr);
+	me_intr_disable(dev, hcsr);
 }
 
 /**
@@ -968,13 +996,14 @@ static void mei_me_pg_legacy_intr(struct mei_device *dev)
  * mei_me_d0i3_intr - perform d0i3 processing in interrupt thread handler
  *
  * @dev: the device structure
+ * @intr_source: interrupt source
  */
-static void mei_me_d0i3_intr(struct mei_device *dev)
+static void mei_me_d0i3_intr(struct mei_device *dev, u32 intr_source)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 
 	if (dev->pg_event == MEI_PG_EVENT_INTR_WAIT &&
-	    (hw->intr_source & H_D0I3C_IS)) {
+	    (intr_source & H_D0I3C_IS)) {
 		dev->pg_event = MEI_PG_EVENT_INTR_RECEIVED;
 		if (hw->pg_state == MEI_PG_ON) {
 			hw->pg_state = MEI_PG_OFF;
@@ -993,7 +1022,7 @@ static void mei_me_d0i3_intr(struct mei_device *dev)
 		wake_up(&dev->wait_pg);
 	}
 
-	if (hw->pg_state == MEI_PG_ON && (hw->intr_source & H_IS)) {
+	if (hw->pg_state == MEI_PG_ON && (intr_source & H_IS)) {
 		/*
 		 * HW sent some data and we are in D0i3, so
 		 * we got here because of HW initiated exit from D0i3.
@@ -1008,13 +1037,14 @@ static void mei_me_d0i3_intr(struct mei_device *dev)
  * mei_me_pg_intr - perform pg processing in interrupt thread handler
  *
  * @dev: the device structure
+ * @intr_source: interrupt source
  */
-static void mei_me_pg_intr(struct mei_device *dev)
+static void mei_me_pg_intr(struct mei_device *dev, u32 intr_source)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 
 	if (hw->d0i3_supported)
-		mei_me_d0i3_intr(dev);
+		mei_me_d0i3_intr(dev, intr_source);
 	else
 		mei_me_pg_legacy_intr(dev);
 }
@@ -1133,19 +1163,16 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id)
 {
 	struct mei_device *dev = (struct mei_device *)dev_id;
-	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr;
 
 	hcsr = mei_hcsr_read(dev);
-	if (!(hcsr & H_CSR_IS_MASK))
+	if (!me_intr_src(hcsr))
 		return IRQ_NONE;
 
-	hw->intr_source = hcsr & H_CSR_IS_MASK;
-	dev_dbg(dev->dev, "interrupt source 0x%08X.\n", hw->intr_source);
+	dev_dbg(dev->dev, "interrupt source 0x%08X\n", me_intr_src(hcsr));
 
-	/* clear H_IS and H_D0I3C_IS bits in H_CSR to clear the interrupts */
-	mei_hcsr_write(dev, hcsr);
-
+	/* disable interrupts on device */
+	me_intr_disable(dev, hcsr);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -1164,11 +1191,16 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	struct mei_device *dev = (struct mei_device *) dev_id;
 	struct mei_cl_cb complete_list;
 	s32 slots;
+	u32 hcsr;
 	int rets = 0;
 
 	dev_dbg(dev->dev, "function called after ISR to handle the interrupt processing.\n");
 	/* initialize our complete list */
 	mutex_lock(&dev->device_lock);
+
+	hcsr = mei_hcsr_read(dev);
+	me_intr_clear(dev, hcsr);
+
 	mei_io_list_init(&complete_list);
 
 	/* check if ME wants a reset */
@@ -1178,7 +1210,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 		goto end;
 	}
 
-	mei_me_pg_intr(dev);
+	mei_me_pg_intr(dev, me_intr_src(hcsr));
 
 	/*  check if we need to start the dev */
 	if (!mei_host_is_ready(dev)) {
@@ -1228,6 +1260,7 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 
 end:
 	dev_dbg(dev->dev, "interrupt thread end ret = %d\n", rets);
+	mei_me_intr_enable(dev);
 	mutex_unlock(&dev->device_lock);
 	return IRQ_HANDLED;
 }
