@@ -102,6 +102,33 @@ int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
 					  port);
 }
 
+int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	/* 01:c2:80:00:00:00:00-01:c2:80:00:00:00:07 are Management */
+	err = mv88e6390_g1_monitor_write(
+		chip, GLOBAL_MONITOR_CONTROL_0180C280000000XLO, 0xff);
+	if (err)
+		return err;
+
+	/* 01:c2:80:00:00:00:08-01:c2:80:00:00:00:0f are Management */
+	err = mv88e6390_g1_monitor_write(
+		chip, GLOBAL_MONITOR_CONTROL_0180C280000000XHI, 0xff);
+	if (err)
+		return err;
+
+	/* 01:c2:80:00:00:00:20-01:c2:80:00:00:00:27 are Management */
+	err = mv88e6390_g1_monitor_write(
+		chip, GLOBAL_MONITOR_CONTROL_0180C280000002XLO, 0xff);
+	if (err)
+		return err;
+
+	/* 01:c2:80:00:00:00:28-01:c2:80:00:00:00:2f are Management */
+	return mv88e6390_g1_monitor_write(
+		chip, GLOBAL_MONITOR_CONTROL_0180C280000002XHI, 0xff);
+}
+
 /* Offset 0x1c: Global Control 2 */
 
 int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)

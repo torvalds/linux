@@ -78,6 +78,8 @@
 #define PORT_PCS_CTRL_SPEED_10000	(0x03) /* 6390X */
 #define PORT_PCS_CTRL_SPEED_UNFORCED	(0x03)
 #define PORT_PAUSE_CTRL		0x02
+#define PORT_FLOW_CTRL_LIMIT_IN		((0x00 << 8) | BIT(15))
+#define PORT_FLOW_CTRL_LIMIT_OUT	((0x01 << 8) | BIT(15))
 #define PORT_SWITCH_ID		0x03
 #define PORT_SWITCH_ID_PROD_NUM_6085	0x04a
 #define PORT_SWITCH_ID_PROD_NUM_6095	0x095
@@ -833,6 +835,10 @@ struct mv88e6xxx_ops {
 					bool on);
 	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
 				   u16 etype);
+	int (*port_jumbo_config)(struct mv88e6xxx_chip *chip, int port);
+
+	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_pause_config)(struct mv88e6xxx_chip *chip, int port);
 
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
@@ -851,6 +857,9 @@ struct mv88e6xxx_ops {
 				uint64_t *data);
 	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Can be either in g1 or g2, so don't use a prefix */
+	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 };
 
 #define STATS_TYPE_PORT		BIT(0)

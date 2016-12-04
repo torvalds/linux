@@ -304,6 +304,30 @@ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
 }
 
+/* Offset 0x02: Pause Control
+ *
+ * Do not limit the period of time that this port can be paused for by
+ * the remote end or the period of time that this port can pause the
+ * remote end.
+ */
+int mv88e6097_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL, 0x0000);
+}
+
+int mv88e6390_port_pause_config(struct mv88e6xxx_chip *chip, int port)
+{
+	int err;
+
+	err = mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
+				   PORT_FLOW_CTRL_LIMIT_IN | 0);
+	if (err)
+		return err;
+
+	return mv88e6xxx_port_write(chip, port, PORT_PAUSE_CTRL,
+				    PORT_FLOW_CTRL_LIMIT_OUT | 0);
+}
+
 /* Offset 0x04: Port Control Register */
 
 static const char * const mv88e6xxx_port_state_names[] = {
@@ -605,6 +629,32 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 		   mv88e6xxx_port_8021q_mode_names[mode]);
 
 	return 0;
+}
+
+int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	reg |= PORT_CONTROL_2_JUMBO_10240;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+}
+
+/* Offset 0x09: Port Rate Control */
+
+int mv88e6095_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0000);
+}
+
+int mv88e6097_port_egress_rate_limiting(struct mv88e6xxx_chip *chip, int port)
+{
+	return mv88e6xxx_port_write(chip, port, PORT_RATE_CONTROL, 0x0001);
 }
 
 /* Offset 0x0f: Port Ether type */
