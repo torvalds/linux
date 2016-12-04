@@ -576,7 +576,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 
 	/* We always handle the dropped packet interrupt */
 	if (pending & INT_MASK_BUSY) {
-		dev_err(&dev->dev, "packet dropped\n");
+		dev_dbg(&dev->dev, "packet dropped\n");
 		dev->stats.rx_dropped++;
 	}
 
