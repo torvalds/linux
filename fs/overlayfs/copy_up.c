@@ -238,10 +238,15 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	struct inode *udir = upperdir->d_inode;
 	struct dentry *newdentry = NULL;
 	struct dentry *upper = NULL;
-	umode_t mode = stat->mode;
 	int err;
 	const struct cred *old_creds = NULL;
 	struct cred *new_creds = NULL;
+	struct cattr cattr = {
+		/* Can't properly set mode on creation because of the umask */
+		.mode = stat->mode & S_IFMT,
+		.rdev = stat->rdev,
+		.link = link
+	};
 
 	newdentry = ovl_lookup_temp(workdir, dentry);
 	err = PTR_ERR(newdentry);
@@ -261,10 +266,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (new_creds)
 		old_creds = override_creds(new_creds);
 
-	/* Can't properly set mode on creation because of the umask */
-	stat->mode &= S_IFMT;
-	err = ovl_create_real(wdir, newdentry, stat, link, NULL, true);
-	stat->mode = mode;
+	err = ovl_create_real(wdir, newdentry, &cattr, NULL, true);
 
 	if (new_creds) {
 		revert_creds(old_creds);
