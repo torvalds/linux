@@ -106,7 +106,7 @@ relevant to your bug, feel free to exclude it.
 
 First run the ver_linux script included as scripts/ver_linux, which
 reports the version of some important subsystems.  Run this script with
-the command ``sh scripts/ver_linux``.
+the command ``awk -f scripts/ver_linux``.
 
 Use that information to fill in all fields of the bug report form, and
 post it to the mailing list with a subject of "PROBLEM: <one line
