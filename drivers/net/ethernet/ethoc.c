@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/module.h>
 #include <net/ethoc.h>
 
@@ -1158,11 +1159,9 @@ static int ethoc_probe(struct platform_device *pdev)
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
 	} else {
-		const uint8_t *mac;
+		const void *mac;
 
-		mac = of_get_property(pdev->dev.of_node,
-				      "local-mac-address",
-				      NULL);
+		mac = of_get_mac_address(pdev->dev.of_node);
 		if (mac)
 			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
 		priv->phy_id = -1;
