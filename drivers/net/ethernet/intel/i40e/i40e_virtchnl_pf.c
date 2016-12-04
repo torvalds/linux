@@ -674,6 +674,7 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 	}
 	if (type == I40E_VSI_SRIOV) {
 		u64 hena = i40e_pf_get_default_rss_hena(pf);
+		u8 broadcast[ETH_ALEN];
 
 		vf->lan_vsi_idx = vsi->idx;
 		vf->lan_vsi_id = vsi->id;
@@ -696,6 +697,12 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 					 "Could not add MAC filter %pM for VF %d\n",
 					vf->default_lan_addr.addr, vf->vf_id);
 		}
+		eth_broadcast_addr(broadcast);
+		f = i40e_add_filter(vsi, broadcast,
+				    vf->port_vlan_id ? vf->port_vlan_id : -1);
+		if (!f)
+			dev_info(&pf->pdev->dev,
+				 "Could not allocate VF broadcast filter\n");
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 		i40e_write_rx_ctl(&pf->hw, I40E_VFQF_HENA1(0, vf->vf_id),
 				  (u32)hena);
@@ -1536,7 +1543,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 				vf->vf_id,
 				i40e_stat_str(&pf->hw, aq_ret),
 				i40e_aq_str(&pf->hw, aq_err));
-			goto error_param_int;
+			goto error_param;
 		}
 	}
 
@@ -1581,15 +1588,16 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 							     allmulti, NULL,
 							     true);
 		aq_err = pf->hw.aq.asq_last_status;
-		if (aq_ret)
+		if (aq_ret) {
 			dev_err(&pf->pdev->dev,
 				"VF %d failed to set unicast promiscuous mode %8.8x err %s aq_err %s\n",
 				vf->vf_id, info->flags,
 				i40e_stat_str(&pf->hw, aq_ret),
 				i40e_aq_str(&pf->hw, aq_err));
+			goto error_param;
+		}
 	}
 
-error_param_int:
 	if (!aq_ret) {
 		dev_info(&pf->pdev->dev,
 			 "VF %d successfully set unicast promiscuous mode\n",

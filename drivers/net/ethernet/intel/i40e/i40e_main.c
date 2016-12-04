@@ -1211,12 +1211,12 @@ bool i40e_is_vsi_in_vlan(struct i40e_vsi *vsi)
 	 *    i40e_add_filter.
 	 *
 	 * 2) the only place where filters are actually removed is in
-	 *    i40e_vsi_sync_filters_subtask.
+	 *    i40e_sync_filters_subtask.
 	 *
 	 * Thus, we can simply use a boolean value, has_vlan_filters which we
 	 * will set to true when we add a VLAN filter in i40e_add_filter. Then
 	 * we have to perform the full search after deleting filters in
-	 * i40e_vsi_sync_filters_subtask, but we already have to search
+	 * i40e_sync_filters_subtask, but we already have to search
 	 * filters here and can perform the check at the same time. This
 	 * results in avoiding embedding a loop for VLAN mode inside another
 	 * loop over all the filters, and should maintain correctness as noted
@@ -1243,13 +1243,6 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 	u64 key;
 
 	if (!vsi || !macaddr)
-		return NULL;
-
-	/* Do not allow broadcast filter to be added since broadcast filter
-	 * is added as part of add VSI for any newly created VSI except
-	 * FDIR VSI
-	 */
-	if (is_broadcast_ether_addr(macaddr))
 		return NULL;
 
 	f = i40e_find_filter(vsi, macaddr, vlan);
@@ -1857,6 +1850,47 @@ void i40e_aqc_add_filters(struct i40e_vsi *vsi, const char *vsi_name,
 }
 
 /**
+ * i40e_aqc_broadcast_filter - Set promiscuous broadcast flags
+ * @vsi: pointer to the VSI
+ * @f: filter data
+ *
+ * This function sets or clears the promiscuous broadcast flags for VLAN
+ * filters in order to properly receive broadcast frames. Assumes that only
+ * broadcast filters are passed.
+ **/
+static
+void i40e_aqc_broadcast_filter(struct i40e_vsi *vsi, const char *vsi_name,
+			       struct i40e_mac_filter *f)
+{
+	bool enable = f->state == I40E_FILTER_NEW;
+	struct i40e_hw *hw = &vsi->back->hw;
+	i40e_status aq_ret;
+
+	if (f->vlan == I40E_VLAN_ANY) {
+		aq_ret = i40e_aq_set_vsi_broadcast(hw,
+						   vsi->seid,
+						   enable,
+						   NULL);
+	} else {
+		aq_ret = i40e_aq_set_vsi_bc_promisc_on_vlan(hw,
+							    vsi->seid,
+							    enable,
+							    f->vlan,
+							    NULL);
+	}
+
+	if (aq_ret) {
+		dev_warn(&vsi->back->pdev->dev,
+			 "Error %s setting broadcast promiscuous mode on %s\n",
+			 i40e_aq_str(hw, hw->aq.asq_last_status),
+			 vsi_name);
+		f->state = I40E_FILTER_FAILED;
+	} else if (enable) {
+		f->state = I40E_FILTER_ACTIVE;
+	}
+}
+
+/**
  * i40e_sync_vsi_filters - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
  *
@@ -2004,6 +2038,17 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		hlist_for_each_entry_safe(f, h, &tmp_del_list, hlist) {
 			cmd_flags = 0;
 
+			/* handle broadcast filters by updating the broadcast
+			 * promiscuous flag instead of deleting a MAC filter.
+			 */
+			if (is_broadcast_ether_addr(f->macaddr)) {
+				i40e_aqc_broadcast_filter(vsi, vsi_name, f);
+
+				hlist_del(&f->hlist);
+				kfree(f);
+				continue;
+			}
+
 			/* add to delete list */
 			ether_addr_copy(del_list[num_del].mac_addr, f->macaddr);
 			if (f->vlan == I40E_VLAN_ANY) {
@@ -2060,12 +2105,25 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			goto err_no_memory;
 
 		num_add = 0;
-		hlist_for_each_entry(f, &tmp_add_list, hlist) {
+		hlist_for_each_entry_safe(f, h, &tmp_add_list, hlist) {
 			if (test_bit(__I40E_FILTER_OVERFLOW_PROMISC,
 				     &vsi->state)) {
 				f->state = I40E_FILTER_FAILED;
 				continue;
 			}
+
+			/* handle broadcast filters by updating the broadcast
+			 * promiscuous flag instead of adding a MAC filter.
+			 */
+			if (is_broadcast_ether_addr(f->macaddr)) {
+				u64 key = i40e_addr_to_hkey(f->macaddr);
+				i40e_aqc_broadcast_filter(vsi, vsi_name, f);
+
+				hlist_del(&f->hlist);
+				hash_add(vsi->mac_filter_hash, &f->hlist, key);
+				continue;
+			}
+
 			/* add to add array */
 			if (num_add == 0)
 				add_head = f;
@@ -2549,7 +2607,7 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 	struct i40e_vsi *vsi = np->vsi;
 	int ret = 0;
 
-	if (vid > 4095)
+	if (vid >= VLAN_N_VID)
 		return -EINVAL;
 
 	/* If the network stack called us with vid = 0 then
@@ -2561,7 +2619,7 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 	if (vid)
 		ret = i40e_vsi_add_vlan(vsi, vid);
 
-	if (!ret && (vid < VLAN_N_VID))
+	if (!ret)
 		set_bit(vid, vsi->active_vlans);
 
 	return ret;
@@ -3521,7 +3579,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	    (ena_mask & I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK)) {
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
 		icr0 &= ~I40E_PFINT_ICR0_ENA_PE_CRITERR_MASK;
-		dev_info(&pf->pdev->dev, "cleared PE_CRITERR\n");
+		dev_dbg(&pf->pdev->dev, "cleared PE_CRITERR\n");
 	}
 
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
@@ -9070,10 +9128,6 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       0, 0, nlflags, filter_mask, NULL);
 }
 
-/* Hardware supports L4 tunnel length of 128B (=2^7) which includes
- * inner mac plus all inner ethertypes.
- */
-#define I40E_MAX_TUNNEL_HDR_LEN 128
 /**
  * i40e_features_check - Validate encapsulated packet conforms to limits
  * @skb: skb buff
@@ -9084,12 +9138,52 @@ static netdev_features_t i40e_features_check(struct sk_buff *skb,
 					     struct net_device *dev,
 					     netdev_features_t features)
 {
-	if (skb->encapsulation &&
-	    ((skb_inner_network_header(skb) - skb_transport_header(skb)) >
-	     I40E_MAX_TUNNEL_HDR_LEN))
-		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+	size_t len;
+
+	/* No point in doing any of this if neither checksum nor GSO are
+	 * being requested for this frame.  We can rule out both by just
+	 * checking for CHECKSUM_PARTIAL
+	 */
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return features;
+
+	/* We cannot support GSO if the MSS is going to be less than
+	 * 64 bytes.  If it is then we need to drop support for GSO.
+	 */
+	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_size < 64))
+		features &= ~NETIF_F_GSO_MASK;
+
+	/* MACLEN can support at most 63 words */
+	len = skb_network_header(skb) - skb->data;
+	if (len & ~(63 * 2))
+		goto out_err;
+
+	/* IPLEN and EIPLEN can support at most 127 dwords */
+	len = skb_transport_header(skb) - skb_network_header(skb);
+	if (len & ~(127 * 4))
+		goto out_err;
+
+	if (skb->encapsulation) {
+		/* L4TUNLEN can support 127 words */
+		len = skb_inner_network_header(skb) - skb_transport_header(skb);
+		if (len & ~(127 * 2))
+			goto out_err;
+
+		/* IPLEN can support at most 127 dwords */
+		len = skb_inner_transport_header(skb) -
+		      skb_inner_network_header(skb);
+		if (len & ~(127 * 4))
+			goto out_err;
+	}
+
+	/* No need to validate L4LEN as TCP is the only protocol with a
+	 * a flexible value and we support all possible values supported
+	 * by TCP, which is at most 15 dwords
+	 */
 
 	return features;
+out_err:
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 }
 
 static const struct net_device_ops i40e_netdev_ops = {
@@ -9142,6 +9236,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_netdev_priv *np;
 	struct net_device *netdev;
+	u8 broadcast[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	int etherdev_size;
 
@@ -9209,6 +9304,24 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY);
 		spin_unlock_bh(&vsi->mac_filter_hash_lock);
 	}
+
+	/* Add the broadcast filter so that we initially will receive
+	 * broadcast packets. Note that when a new VLAN is first added the
+	 * driver will convert all filters marked I40E_VLAN_ANY into VLAN
+	 * specific filters as part of transitioning into "vlan" operation.
+	 * When more VLANs are added, the driver will copy each existing MAC
+	 * filter and add it for the new VLAN.
+	 *
+	 * Broadcast filters are handled specially by
+	 * i40e_sync_filters_subtask, as the driver must to set the broadcast
+	 * promiscuous bit instead of adding this directly as a MAC/VLAN
+	 * filter. The subtask will update the correct broadcast promiscuous
+	 * bits as VLANs become active or inactive.
+	 */
+	eth_broadcast_addr(broadcast);
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	i40e_add_filter(vsi, broadcast, I40E_VLAN_ANY);
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
 	ether_addr_copy(netdev->dev_addr, mac_addr);
 	ether_addr_copy(netdev->perm_addr, mac_addr);
@@ -9292,7 +9405,6 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi)
 static int i40e_add_vsi(struct i40e_vsi *vsi)
 {
 	int ret = -ENODEV;
-	i40e_status aq_ret = 0;
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_vsi_context ctxt;
@@ -9481,18 +9593,6 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		vsi->info.valid_sections = 0;
 		vsi->seid = ctxt.seid;
 		vsi->id = ctxt.vsi_number;
-	}
-	/* Except FDIR VSI, for all othet VSI set the broadcast filter */
-	if (vsi->type != I40E_VSI_FDIR) {
-		aq_ret = i40e_aq_set_vsi_broadcast(hw, vsi->seid, true, NULL);
-		if (aq_ret) {
-			ret = i40e_aq_rc_to_posix(aq_ret,
-						  hw->aq.asq_last_status);
-			dev_info(&pf->pdev->dev,
-				 "set brdcast promisc failed, err %s, aq_err %s\n",
-				 i40e_stat_str(hw, aq_ret),
-				 i40e_aq_str(hw, hw->aq.asq_last_status));
-		}
 	}
 
 	vsi->active_filters = 0;
@@ -11266,7 +11366,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((pf->hw.device_id == I40E_DEV_ID_10G_BASE_T) ||
 	    (pf->hw.device_id == I40E_DEV_ID_10G_BASE_T4))
 		pf->flags |= I40E_FLAG_HAVE_10GBASET_PHY;
-
+	if (pf->hw.device_id == I40E_DEV_ID_SFP_I_X722)
+		pf->flags |= I40E_FLAG_HAVE_CRT_RETIMER;
 	/* print a string summarizing features */
 	i40e_print_features(pf);
 

@@ -237,6 +237,10 @@ struct i40e_hw_capabilities {
 #define I40E_NVM_IMAGE_TYPE_UDP_CLOUD	0x3
 
 	u32  management_mode;
+	u32  mng_protocols_over_mctp;
+#define I40E_MNG_PROTOCOL_PLDM		0x2
+#define I40E_MNG_PROTOCOL_OEM_COMMANDS	0x4
+#define I40E_MNG_PROTOCOL_NCSI		0x8
 	u32  npar_enable;
 	u32  os2bmc;
 	u32  valid_functions;
