@@ -418,28 +418,10 @@ static const struct iio_info isl29028_info = {
 	.write_raw = isl29028_write_raw,
 };
 
-static int isl29028_chip_init(struct isl29028_chip *chip)
+static int isl29028_chip_init_and_power_on(struct isl29028_chip *chip)
 {
 	struct device *dev = regmap_get_device(chip->regmap);
 	int ret;
-
-	chip->enable_prox  = false;
-	chip->prox_sampling = 20;
-	chip->lux_scale = 2000;
-	chip->als_ir_mode = ISL29028_MODE_NONE;
-
-	ret = regmap_write(chip->regmap, ISL29028_REG_TEST1_MODE, 0x0);
-	if (ret < 0) {
-		dev_err(dev, "%s(): write to reg %d failed, err = %d\n",
-			__func__, ISL29028_REG_TEST1_MODE, ret);
-		return ret;
-	}
-	ret = regmap_write(chip->regmap, ISL29028_REG_TEST2_MODE, 0x0);
-	if (ret < 0) {
-		dev_err(dev, "%s(): write to reg %d failed, err = %d\n",
-			__func__, ISL29028_REG_TEST2_MODE, ret);
-		return ret;
-	}
 
 	ret = regmap_write(chip->regmap, ISL29028_REG_CONFIGURE, 0x0);
 	if (ret < 0) {
@@ -508,7 +490,27 @@ static int isl29028_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = isl29028_chip_init(chip);
+	chip->enable_prox  = false;
+	chip->prox_sampling = 20;
+	chip->lux_scale = 2000;
+	chip->als_ir_mode = ISL29028_MODE_NONE;
+
+	ret = regmap_write(chip->regmap, ISL29028_REG_TEST1_MODE, 0x0);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"%s(): write to reg %d failed, err = %d\n", __func__,
+			ISL29028_REG_TEST1_MODE, ret);
+		return ret;
+	}
+	ret = regmap_write(chip->regmap, ISL29028_REG_TEST2_MODE, 0x0);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"%s(): write to reg %d failed, err = %d\n", __func__,
+			ISL29028_REG_TEST2_MODE, ret);
+		return ret;
+	}
+
+	ret = isl29028_chip_init_and_power_on(chip);
 	if (ret < 0) {
 		dev_err(&client->dev, "chip initialization failed: %d\n", ret);
 		return ret;
