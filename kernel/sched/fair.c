@@ -5911,6 +5911,7 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu)
 			.util_delta	= task_util(p),
 			.src_cpu	= prev_cpu,
 			.dst_cpu	= i,
+			.task		= p,
 		};
 
 		spare = capacity_spare_wake(i, p);
