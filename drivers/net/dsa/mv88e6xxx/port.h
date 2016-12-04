@@ -48,5 +48,20 @@ int mv88e6xxx_port_set_pvid(struct mv88e6xxx_chip *chip, int port, u16 pvid);
 
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 				  u16 mode);
+int mv88e6095_port_tag_remap(struct mv88e6xxx_chip *chip, int port);
+int mv88e6390_port_tag_remap(struct mv88e6xxx_chip *chip, int port);
+int mv88e6xxx_port_set_egress_mode(struct mv88e6xxx_chip *chip, int port,
+				   u16 mode);
+int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
+				  enum mv88e6xxx_frame_mode mode);
+int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
+				  enum mv88e6xxx_frame_mode mode);
+int mv88e6085_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
+				       bool on);
+int mv88e6351_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
+				       bool on);
+int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
+				  u16 etype);
+
 
 #endif /* _MV88E6XXX_PORT_H */

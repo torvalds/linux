@@ -110,6 +110,7 @@
 #define PORT_CONTROL_EGRESS_UNTAGGED	(0x1 << 12)
 #define PORT_CONTROL_EGRESS_TAGGED	(0x2 << 12)
 #define PORT_CONTROL_EGRESS_ADD_TAG	(0x3 << 12)
+#define PORT_CONTROL_EGRESS_MASK	(0x3 << 12)
 #define PORT_CONTROL_HEADER		BIT(11)
 #define PORT_CONTROL_IGMP_MLD_SNOOP	BIT(10)
 #define PORT_CONTROL_DOUBLE_TAG		BIT(9)
@@ -117,6 +118,7 @@
 #define PORT_CONTROL_FRAME_MODE_DSA		(0x1 << 8)
 #define PORT_CONTROL_FRAME_MODE_PROVIDER	(0x2 << 8)
 #define PORT_CONTROL_FRAME_ETHER_TYPE_DSA	(0x3 << 8)
+#define PORT_CONTROL_FRAME_MASK			(0x3 << 8)
 #define PORT_CONTROL_DSA_TAG		BIT(8)
 #define PORT_CONTROL_VLAN_TUNNEL	BIT(7)
 #define PORT_CONTROL_TAG_IF_BOTH	BIT(6)
@@ -124,6 +126,10 @@
 #define PORT_CONTROL_USE_TAG		BIT(4)
 #define PORT_CONTROL_FORWARD_UNKNOWN_MC	BIT(3)
 #define PORT_CONTROL_FORWARD_UNKNOWN	BIT(2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_DA		(0x0 << 2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_MULTICAST_DA	(0x1 << 2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_UNITCAST_DA	(0x2 << 2)
+#define PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA		(0x3 << 2)
 #define PORT_CONTROL_STATE_MASK		0x03
 #define PORT_CONTROL_STATE_DISABLED	0x00
 #define PORT_CONTROL_STATE_BLOCKING	0x01
@@ -172,6 +178,16 @@
 #define PORT_OUT_FILTERED	0x13
 #define PORT_TAG_REGMAP_0123	0x18
 #define PORT_TAG_REGMAP_4567	0x19
+#define PORT_IEEE_PRIO_MAP_TABLE	0x18    /* 6390 */
+#define PORT_IEEE_PRIO_MAP_TABLE_UPDATE		BIT(15)
+#define PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP		(0x0 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP	(0x1 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP	(0x2 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP		(0x3 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_DSCP	(0x5 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_DSCP	(0x6 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_DSCP	(0x7 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT		9
 
 #define GLOBAL_STATUS		0x00
 #define GLOBAL_STATUS_PPU_STATE BIT(15) /* 6351 and 6171 */
@@ -277,10 +293,21 @@
 #define GLOBAL_CORE_TAG_TYPE	0x19
 #define GLOBAL_MONITOR_CONTROL	0x1a
 #define GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT	12
+#define GLOBAL_MONITOR_CONTROL_INGRESS_MASK	(0xf << 12)
 #define GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT	8
+#define GLOBAL_MONITOR_CONTROL_EGRESS_MASK	(0xf << 8)
 #define GLOBAL_MONITOR_CONTROL_ARP_SHIFT	4
+#define GLOBAL_MONITOR_CONTROL_ARP_MASK	        (0xf << 4)
 #define GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT	0
 #define GLOBAL_MONITOR_CONTROL_ARP_DISABLED	(0xf0)
+#define GLOBAL_MONITOR_CONTROL_UPDATE			BIT(15)
+#define GLOBAL_MONITOR_CONTROL_0180C280000000XLO	(0x00 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000000XHI	(0x01 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000002XLO	(0x02 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000002XHI	(0x03 << 8)
+#define GLOBAL_MONITOR_CONTROL_INGRESS			(0x20 << 8)
+#define GLOBAL_MONITOR_CONTROL_EGRESS			(0x21 << 8)
+#define GLOBAL_MONITOR_CONTROL_CPU_DEST			(0x30 << 8)
 #define GLOBAL_CONTROL_2	0x1c
 #define GLOBAL_CONTROL_2_NO_CASCADE		0xe000
 #define GLOBAL_CONTROL_2_MULTIPLE_CASCADE	0xf000
@@ -375,6 +402,13 @@
 
 #define MV88E6XXX_N_FID		4096
 
+enum mv88e6xxx_frame_mode {
+	MV88E6XXX_FRAME_MODE_NORMAL,
+	MV88E6XXX_FRAME_MODE_DSA,
+	MV88E6XXX_FRAME_MODE_PROVIDER,
+	MV88E6XXX_FRAME_MODE_ETHERTYPE,
+};
+
 /* List of supported models */
 enum mv88e6xxx_model {
 	MV88E6085,
@@ -417,12 +451,6 @@ enum mv88e6xxx_family {
 };
 
 enum mv88e6xxx_cap {
-	/* Two different tag protocols can be used by the driver. All
-	 * switches support DSA, but only later generations support
-	 * EDSA.
-	 */
-	MV88E6XXX_CAP_EDSA,
-
 	/* Energy Efficient Ethernet.
 	 */
 	MV88E6XXX_CAP_EEE,
@@ -485,7 +513,6 @@ enum mv88e6xxx_cap {
 };
 
 /* Bitmask of capabilities */
-#define MV88E6XXX_FLAG_EDSA		BIT_ULL(MV88E6XXX_CAP_EDSA)
 #define MV88E6XXX_FLAG_EEE		BIT_ULL(MV88E6XXX_CAP_EEE)
 
 #define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
@@ -580,8 +607,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_VTU)
 
 #define MV88E6XXX_FLAGS_FAMILY_6320	\
-	(MV88E6XXX_FLAG_EDSA |		\
-	 MV88E6XXX_FLAG_EEE |		\
+	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
@@ -595,8 +621,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
-	(MV88E6XXX_FLAG_EDSA |		\
-	 MV88E6XXX_FLAG_G1_ATU_FID |	\
+	(MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_INT |	\
@@ -612,8 +637,7 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
-	(MV88E6XXX_FLAG_EDSA |		\
-	 MV88E6XXX_FLAG_EEE |		\
+	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
@@ -655,6 +679,7 @@ struct mv88e6xxx_info {
 	unsigned int global1_addr;
 	unsigned int age_time_coeff;
 	unsigned int g1_irqs;
+	enum dsa_tag_protocol tag_protocol;
 	unsigned long long flags;
 	const struct mv88e6xxx_ops *ops;
 };
@@ -800,6 +825,15 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
 
+	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
+
+	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
+				   enum mv88e6xxx_frame_mode mode);
+	int (*port_set_egress_unknowns)(struct mv88e6xxx_chip *chip, int port,
+					bool on);
+	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
+				   u16 etype);
+
 	/* Snapshot the statistics for a port. The statistics can then
 	 * be read back a leisure but still with a consistent view.
 	 */
@@ -815,6 +849,8 @@ struct mv88e6xxx_ops {
 	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
 	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
 				uint64_t *data);
+	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
 };
 
 #define STATS_TYPE_PORT		BIT(0)
