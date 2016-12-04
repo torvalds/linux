@@ -280,7 +280,7 @@ endif
 
 MAKEFLAGS := --no-print-directory
 
-clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null)
+clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null && $(MAKE) -s $(O_OPT) -C ../build clean >/dev/null)
 
 $(run):
 	$(call clean)
