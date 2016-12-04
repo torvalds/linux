@@ -3113,8 +3113,10 @@ static int beiscsi_create_cqs(struct beiscsi_hba *phba,
 		cq_vaddress = pci_alloc_consistent(phba->pcidev,
 						   num_cq_pages * PAGE_SIZE,
 						   &paddr);
-		if (!cq_vaddress)
+		if (!cq_vaddress) {
+			ret = -ENOMEM;
 			goto create_cq_error;
+		}
 
 		ret = be_fill_queue(cq, phba->params.num_cq_entries,
 				    sizeof(struct sol_cqe), cq_vaddress);
