@@ -1530,15 +1530,14 @@ static const struct net_device_ops xgmac_netdev_ops = {
 	.ndo_set_features = xgmac_set_features,
 };
 
-static int xgmac_ethtool_getsettings(struct net_device *dev,
-					  struct ethtool_cmd *cmd)
+static int xgmac_ethtool_get_link_ksettings(struct net_device *dev,
+					    struct ethtool_link_ksettings *cmd)
 {
-	cmd->autoneg = 0;
-	cmd->duplex = DUPLEX_FULL;
-	ethtool_cmd_speed_set(cmd, 10000);
-	cmd->supported = 0;
-	cmd->advertising = 0;
-	cmd->transceiver = XCVR_INTERNAL;
+	cmd->base.autoneg = 0;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.speed = 10000;
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported, 0);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising, 0);
 	return 0;
 }
 
@@ -1681,7 +1680,6 @@ static int xgmac_set_wol(struct net_device *dev,
 }
 
 static const struct ethtool_ops xgmac_ethtool_ops = {
-	.get_settings = xgmac_ethtool_getsettings,
 	.get_link = ethtool_op_get_link,
 	.get_pauseparam = xgmac_get_pauseparam,
 	.set_pauseparam = xgmac_set_pauseparam,
@@ -1690,6 +1688,7 @@ static const struct ethtool_ops xgmac_ethtool_ops = {
 	.get_wol = xgmac_get_wol,
 	.set_wol = xgmac_set_wol,
 	.get_sset_count = xgmac_get_sset_count,
+	.get_link_ksettings = xgmac_ethtool_get_link_ksettings,
 };
 
 /**
