@@ -16,6 +16,7 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   device_link
    message-based
    sound
    frame-buffer
